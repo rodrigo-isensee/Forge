@@ -81,4 +81,69 @@ Head testado c4b582d (depois de 3625656 só há pareceres). Delta: `git diff 91d
 ## Revalidação df0a0e9 (spec de mutantes)
 Delta `c4b582d..df0a0e9`, só tests/mutantes/: lote-l08-e7.json (M29 e M30 com o `conferir` do fix 3625656) e lote-l08-escopo.json (M60 e M61, sem o M62 duplicado). O `commit:` é o do último commit de teste (E16); depois dele só há pareceres (8df8e17, 12a5d19, 3991a93). Nenhum código de produção mudou.
 - `bin/forge-mutante tests/mutantes/lote-l08-*.json` no head 3991a93, árvore limpa: rc=0, todos os mutantes mortos (M60 em bin/forge-check:1396 e M61 em :657 mortos pelo teste novo do escopo; M29 e M30 mortos), M36 equivalente declarado.
+- Rodada do QA (forge-mutante, head 6455af7 com rev=6455af7c9c11, árvore limpa, rc=0), saída inteira:
+
+```
+forge-mutante: pedido=lote-l08 rev=6455af7c9c11 spec=14899b5332de77dd3da6bddcb45f33aaf20358e3016ff8e93519fc379d7c87b4 spec=814c0263fb9d68b6c2fb5e22280e206023883821f34c8d458757c7137fa7b350 spec=46e4e5e3530fe3dfdc7178a33b488786d44839e4b87b181b539f73bb0ac585d5 spec=a74640e2b035c0be6d8aae928d2025fb6f94502efddbb235c8fcd806a711758b spec=74148699a9764b20516e570080fabb6b262defe8eab30f7489d2db262168d8e2 spec=c288327e9d019aceb8ad602fa2f7dcf660db074c99ea9ae600e7ecc85074d023 spec=ca1925ddc1fc79542a738231d8b6400e8e2b739e20ef22b8e3b08d6e5ca59dda spec=3a2f30750c33e1d589e46c2edf761244120dfc7536524165d238a322aadf34df
+M1 · morreu · bin/forge-check:878
+M2 · morreu · bin/forge-check:876
+M3 · morreu · bin/forge-check:876
+M4 · morreu · bin/forge-check:876
+M5 · morreu · bin/forge-check:880
+M6 · morreu · bin/forge-check:869
+M7 · morreu · bin/forge-check:860
+M8 · morreu · bin/forge-check:6497
+M9 · morreu · bin/forge-check:902
+M10 · morreu · bin/forge-check:1117
+M11 · morreu · bin/forge-check:1117
+M12 · morreu · bin/forge-check:1126
+M13 · morreu · bin/forge-check:1129
+M14 · morreu · bin/forge-check:1850
+M15 · morreu · bin/forge-check:1975
+M16 · morreu · bin/forge-check:5625
+M17 · morreu · bin/forge-check:1118
+M18 · morreu · bin/forge-check:941
+M19 · morreu · bin/forge-check:940
+M20 · morreu · bin/forge-check:892
+M38 · morreu · bin/forge-check:1436
+M39 · morreu · bin/forge-check:1441
+M40 · morreu · bin/forge-check:1455
+M41 · morreu · bin/forge-check:1455
+M42 · morreu · bin/forge-check:1455
+M43 · morreu · bin/forge-check:1456
+M44 · morreu · bin/forge-check:1462
+M45 · morreu · bin/forge-check:1465
+M46 · morreu · bin/forge-check:1484
+M47 · morreu · bin/forge-check:6347
+M48 · morreu · bin/forge-check:1426
+M49 · morreu · bin/forge-check:1481
+M21 · morreu · bin/forge-check:770
+M22 · morreu · bin/forge-check:770
+M23 · morreu · bin/forge-check:733
+M24 · morreu · bin/forge-check:727
+M25 · morreu · bin/forge-check:761
+M26 · morreu · bin/forge-check:766
+M27 · morreu · bin/forge-check:763
+M28 · morreu · bin/forge-check:712
+M29 · morreu · bin/forge-check:668
+M30 · morreu · bin/forge-check:682
+M31 · morreu · bin/forge-check:702
+M32 · morreu · bin/forge-check:704
+M33 · morreu · bin/forge-check:711
+M34 · morreu · bin/forge-check:713
+M35 · morreu · bin/forge-check:715
+M36 · equivalente · bin/forge-check:758
+M37 · morreu · bin/forge-check:745
+M50 · morreu · bin/forge-check:678
+M51 · morreu · bin/forge-check:690
+M52 · morreu · bin/forge-check:691
+M56 · morreu · bin/forge-check:667
+M60 · morreu · bin/forge-check:1396
+M61 · morreu · bin/forge-check:657
+M53 · morreu · bin/forge-check:918
+M54 · morreu · bin/forge-check:903
+M55 · morreu · bin/forge-check:681
+contagem (somada pelo QA a partir da saída; o forge-mutante não imprime linha de contagem): 58 mutantes · 57 morreu · 1 equivalente (M36) · 0 sobreviveu · 0 sem veredito
+```
+
 - Bugs abertos: nenhum. Veredito: aprovado.
