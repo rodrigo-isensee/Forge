@@ -14,7 +14,7 @@ Revalidação por delta da leitura do lote textos-034 (parecer 77a422eebe94e998f
 
 ## Delta
 - `skills/modo-iniciante/SKILL.md:41`: troca "das três" por "das duas com número", o que atende o A3 do 77a422e.
-- `tests/config.json`: um trecho a mais na invariante de `docs/regras/R-DECISAO.md` ("se esse custo fica maior ou menor que o das outras opções"). Só acrescenta, nada sai nem afrouxa, e atende o A2 do 77a422e. O JSON é válido.
+- `tests/config.json`: um trecho a mais na invariante de `docs/regras/R-DECISAO.md` ("o custo de cada opção em relação às demais (R-DECISAO)"). Só acrescenta, nada sai nem afrouxa, e atende o A2 do 77a422e. O JSON é válido.
 - `tests/test_pergunta_maior_menor.py` confere a nova redação; `changelog.d/pergunta-maior-menor.md` traz só a linha deste cartão.
 
 ## Comandos (head 88c82dd)

@@ -31,5 +31,5 @@ Links: não há `docs/ux` neste repositório; o critério vem do cartão (`docs/
 - Leitura do texto: R-DECISAO e passo 4 da skill pedem o dito em palavras ("a mais barata", "a mais cara", "igual"); o exemplo neutro traz as três situações e a conta confere (A, 3 milhões de tokens, é mais barata que B, 7 milhões; C não medido não é comparado). Entrega o cartão.
 - `python3 -I tests/neutralidade.py` no head: rc 0, sem saída.
 - Vermelho antes do verde: arquivos de texto trazidos a b45e40a na worktree qa-pergunta-maior-menor (`git checkout b45e40a -- <arquivos>`), teste rodado, árvore restaurada ao head e limpa. Falha observada na base, abaixo; no head, o teste passa.
-- Base (R-DECISAO.md, modo-iniciante/SKILL.md e tests/config.json em b45e40a): `FAILED (failures=1)`, AssertionError: 'se esse custo fica maior ou menor que o das outras opções' not found in R-DECISAO.
+- Base (R-DECISAO.md, modo-iniciante/SKILL.md e tests/config.json em b45e40a): `FAILED (failures=1)`, AssertionError: 'o custo de cada opção em relação às demais (R-DECISAO)' not found in R-DECISAO.
 - Bugs abertos: nenhum.
