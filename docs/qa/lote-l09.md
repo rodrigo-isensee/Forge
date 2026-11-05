@@ -1,9 +1,9 @@
 ---
 tipo: qa
 contrato: 1
-pedido: versao-033
+pedido: versao-034
 branch: melhoria/lote-l09
-commit: 0e3067bc87e0dd9c96589cb96e146ebdf76dbf85
+commit: 8c889ce5e9d57f4657a86c6608444ac0ae596f74
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -40,3 +40,10 @@ Código testado: 882a7dd7fa933f473d82fcac65c94517b6fb46fa (patch bc6d081), head 
 
 ## Revalidação (pareceres só da própria branch, 083a959 do L08)
 O código novo veio do L08 por merge; o QA trouxe também o teste do L08 (QaPareceresDaBranch) por merge, e o `commit:` é o head 0e3067b, que o contém. Cenário de ponta a ponta (branch com parecer próprio aprovado e alheio desatualizado passa; sem o próprio reprova) passa nesta branch. `-p test_qa_lote_l08.py` e `-p test_qa_lote_l09.py`: 27 testes OK. Nota: a spec tests/mutantes/lote-l08-e7b.json, herdada do L08, está velha (bug L08-3, no L08); não é defeito do L09.
+
+## Revalidação 0.34
+Junção da develop no L09 (E3 do pedido versao-034), código testado em 8c889ce5e9d57f4657a86c6608444ac0ae596f74. A árvore estava em 213851d, que só difere de 8c889ce em docs/reviews e docs/security (sem código nem teste).
+- Suíte inteira (`.githooks/pre-push --suite`, `FORGE_TRAVA_ESPERA=14400`, uma tarefa pesada por vez, R-TETO): `Ran 2616 tests in 1919.772s (2 processos)`, `OK (skipped=30)`, rc=0. Nenhuma falha de ambiente do pid namespace apareceu, então não houve o que provar igual na origin/develop. Log: `$TMPDIR/qa-lote-l09-suite.log` (TMPDIR vazio na sessão; o arquivo ficou no scratchpad da sessão, qa-lote-l09-suite.log).
+- `scripts/validar-plugin.sh`: rc=0, "Validation passed".
+- O delta 0e3067b..8c889ce traz o L08 (bin/forge-check, tests/apoio_conferida.py, specs de mutantes do L08); nada do E15. Os testes do E15 (test_qa_lote_l09.py) passam dentro da suíte.
+- Bugs: nenhum. Parecer: aprovado.
