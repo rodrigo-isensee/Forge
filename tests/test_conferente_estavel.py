@@ -75,6 +75,13 @@ class FerramentasDoDestino(unittest.TestCase):
         self.assertIn("`<nome>` só de `[a-z0-9-]+`", forma)
         self.assertNotIn("stacks/", forma)
 
+    def test_forma_ok_nao_fecha_as_ferramentas_do_destino(self):
+        """C-5 e C-6: o `forma: ok` do comando não lê `tools:`; a checagem segue por leitura (volta 2, item 2)."""
+        self.assertIn("`forma: ok` não lê a linha `tools:` do destino: as ferramentas do destino (item 4) "
+                      "seguem por leitura mesmo com `forma: ok`.", REGRA)
+        self.assertIn("O `forge-check brief` não lê `tools:`: esta checagem segue por leitura mesmo com `forma: ok`.",
+                      paragrafo("4. **Forma**"))
+
 
 class ComandosPermitidos(unittest.TestCase):
     def test_secao_identica(self):
