@@ -34,6 +34,7 @@ class FormasNoBrief(Base):
 
     def test_brief_de_review_nao_traz_a_secao(self):
         rc, saida = self.gerar("revisor-exemplo", "--cobre", "E1.2", "--etapa", "review", "--branch", "melhoria/x")
+        self.assertEqual(rc, 0, saida)
         self.assertNotIn("Formas aceitas pelos hooks", saida)
 
     def test_etapa_de_merge_traz_a_linha_do_merge_uma_vez(self):  # A2: o pq_de_merge já a traz
