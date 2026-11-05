@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l09
-commit: 871d8840c824c1e82bf351fb56410ba6d7aa7563
+commit: 8c889ce5e9d57f4657a86c6608444ac0ae596f74
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-04
+data: 2026-11-05
 ---
 # Review: L09 da 0.33, E15 BRIEF-MENSAGEM-LIMPA
 
@@ -106,3 +106,23 @@ Delta lido: 988505e, só `tests/mutantes/lote-l08-e7b.json` (+13 -2). O `bin/for
 - **Recomendação, sem achado no bloco:** o fallback redundante de :757 pode sair do código numa próxima mudança de `bin/forge-check`, e o M36 junto. Código que nenhum mutante consegue matar é candidato a remoção.
 
 `bin/forge-mutante tests/mutantes/lote-l08-e7b.json`, numa worktree limpa em 988505e: rc=0. M36 equivalente; M37, M50, M51, M52 e M56 mortos.
+
+## Revalidação 0.34
+Revisado: 8c889ce, a junção da develop (360186e, o #445 do L08) no L09, pedido versao-034 (E3). Veredito: **aprovado**, sem achado novo; o A2 e o A4 seguem recomendados.
+
+Delta lido, `871d884..8c889ce` em `bin/` e `tests/`:
+- 3625656, lido inteiro: `bin/forge-check` (+6 -5), `tests/apoio_conferida.py`, `tests/test_conf_escopo.py` e `tests/test_estado_da_branch.py`. O `pr_da_cli` ganha `conferir=True` por padrão; o único `conferir=False` é o do escopo da merge-integracao (bin/forge-check:1396), como no caminho do squash. O `forge-check pr` da linha de comando segue cobrando a conferência do head, e o teste novo de `test_conf_escopo` prova as duas metades. Nenhum portão afrouxa. O `bin/forge-check` do delta é exatamente o patch de 3625656.
+- O resto do delta (`tests/mutantes/lote-l08-e7.json` e `lote-l08-escopo.json`) veio do #445, com os portões dele, e fica como "já lido".
+
+Resolução dos conflitos (`git show --remerge-diff 8c889ce`):
+- `bin/forge-testes` e `tests/test_testes_tocados.py`: ficou o lado do L09, com `test_qa_lote_l09` no `FORGE_CHECK` e a contagem 40. Correto, porque o lado da develop só não tinha o módulo do L09.
+- `tests/mutantes/lote-l08-e7.json`: ficou o lado da develop. O `de` de M29 e M30 casa com o código (bin/forge-check:668 e :682).
+- `docs/{reviews,security,qa}/lote-l08.md`: ficou o lado da develop, que são os pareceres finais do L08 mesclados no #445.
+
+O patch próprio do L09 sobre a develop atual (`360186e...8c889ce`) é só o E15: 120 linhas de código e teste, dentro do teto da M14, e `hooks/` igual à develop.
+
+Testes: `bin/forge-testes bin/forge-check`, em modo dirigido com 40 módulos. Eles cobrem `test_conf_escopo`, `test_estado_da_branch` e os importadores de `apoio_conferida` (`test_forge`, `test_isencoes`). Resultado: rc=1, `Ran 1560 tests`, `FAILED (failures=10, skipped=27)`. As 10 falhas são todas de orçamento de tempo do hook:
+- `test_hooks.Hooks.test_muitos_heredocs_recusam_dentro_do_orcamento`, 9 formas, com 6,0 a 6,5 s contra o limite de 5,0 s;
+- `test_hooks_volta_lancador...test_tempo_do_teto_das_leituras_do_lancador`, com 28,6 ms contra 24,5 ms.
+
+Repetidas sozinhas, as falhas voltam com a máquina em carga 18 sobre 12 núcleos. Nem o `hooks/` nem esses testes estão no delta ou no patch do L09, então as falhas não vêm do que foi revisado. A confirmação fica com a suíte do QA e o CI do PR.
