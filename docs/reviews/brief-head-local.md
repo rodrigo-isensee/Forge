@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-034
 branch: melhoria/brief-head-local
-commit: 10c3703330bdbf0d6d813523cd0fb3bd3d6c1a21
+commit: f7e34819f8402d6e6e1c6b049c21e4d7903d42d3
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-05
@@ -30,3 +30,15 @@ Delta lido: `360186e..10c3703` (8939e23 forge-check e testes; 10c3703 R-BRIEF, c
 
 ## Parecer
 Aprovado. A exceção cumpre a leitura estreita do cartão e os controles C-1 a C-9: o código revisado continua exigido no remoto por `ls-remote`, e só pareceres de A ou M em pastas de parecer ficam locais. Os cinco achados são recomendações e não devolvem.
+
+## Confirmação
+
+Delta lido: `338eacf..f7e3481` (138b6fc, 9717fa3, f7e3481; `bin/forge-check` 2 linhas, `tests/test_etapa_do_brief.py` +32). Já lido e não relido: o restante do review acima.
+
+- A1 fechado: o teste do amend (`..._reprova_pela_ancestralidade`) reprova com `não descende de origin`. Com a checagem de ancestralidade de `so_pareceres_a_frente` trocada por `if False:` numa cópia, o teste falha (1 falha); restaurado, a worktree ficou limpa.
+- A2 fechado (C-7 provado): o teste do parecer só local dá o aviso no brief, não dá "sem parecer" na ref local e dá `docs/reviews: review: sem parecer` com rc 1 em `forge-check pr x --ref origin/melhoria/x`. O `cmd_pr` segue intocado.
+- A1 da segurança fechado: `PASTAS_DE_PARECER` virou `PASTAS_DO_SO_PARECER` e a de `:961` não é mais sombreada; o teste que amarra o pre-push usa o nome novo.
+- `python3 -m unittest tests.test_etapa_do_brief`: 74 testes OK.
+- Sem achado novo no delta. Os recomendados A3 a A5 seguem no cartão BRIEF-HEAD-LOCAL-AJUSTES.
+
+Parecer: aprovado.
