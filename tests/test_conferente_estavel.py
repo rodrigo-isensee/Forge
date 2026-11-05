@@ -14,6 +14,8 @@ def paragrafo(titulo):
 
 
 REGRA = paragrafo("**Decidido pelo comando não se reabre.**")
+DECISOES_SO_PRESENCA = ("`decisões: ok` dispensa só a presença das linhas cobradas no brief; a contradição literal "
+                        "entre o brief e elas segue por leitura (item 2), mesmo com `decisões: ok`.")
 LINHAS_DA_BASE = 106  # agents/conferente.md em d9b26bb, antes do E4
 
 
@@ -27,9 +29,14 @@ class NaoReabre(unittest.TestCase):
         self.assertIn("Comando que falhou, não rodou ou deu `falta` ou `aviso` não decide: o campo segue por leitura", REGRA)
 
     def test_o_que_segue_por_leitura_fica_fora_da_lista(self):
-        """C-1 e T-3: etapa, fidelidade e contradição literal seguem sempre por leitura; a regra não os nomeia."""
+        """C-1 e T-3: etapa, fidelidade e contradição literal seguem sempre por leitura; a regra só os nomeia para isso."""
+        resto = REGRA.replace(DECISOES_SO_PRESENCA, "")
         for termo in ("etapa", "fidelidade", "contradição"):
-            self.assertNotIn(termo, REGRA.lower())
+            self.assertNotIn(termo, resto.lower())
+
+    def test_decisoes_ok_dispensa_so_a_presenca(self):
+        """C-1: `decisões: ok` não fecha a contradição literal, que segue por leitura (volta 2, item 1)."""
+        self.assertIn(DECISOES_SO_PRESENCA, REGRA)
 
     def test_c3_achado_contra_campo_ok_so_com_a_linha_do_comando(self):
         self.assertIn("achado por leitura contra esse campo só existe com a linha do comando que o contradiz, "
