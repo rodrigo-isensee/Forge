@@ -23,6 +23,16 @@
       ]
     },
     {
+      "id": "V1-14",
+      "guarda": "a Branch em origin deixa de ser ponta: o sha so de origin/<Branch> reprova",
+      "arquivo": "bin/forge-check",
+      "de": "branch and f\"refs/remotes/origin/{branch}\"",
+      "para": "None and f\"refs/remotes/origin/{branch}\"",
+      "testes": [
+        "tests.test_citacao_p2.ShaCitado.test_sha_so_na_branch_de_origin_passa"
+      ]
+    },
+    {
       "id": "V1-5",
       "guarda": "ponta que nao resolve entra nas refs (origin/<Branch> ausente)",
       "arquivo": "bin/forge-check",

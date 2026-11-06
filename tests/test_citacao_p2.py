@@ -90,6 +90,12 @@ class ShaCitado(Base):
         self.assertNotIn("citação: sha", saida)
         self.assertEqual(rc, 0, saida)
 
+    def test_sha_so_na_branch_de_origin_passa(self):
+        self.git("update-ref", "refs/remotes/origin/melhoria/x", self.num_lado)
+        rc, saida = self.conferir(f"- Recurso (E1), etapa (E1.1) sobre {self.lado[:7]}.")
+        self.assertNotIn("citação: sha", saida)
+        self.assertEqual(rc, 0, saida)
+
     def test_sha_que_existe_fora_da_base_e_da_branch_reprova(self):  # mutante: só existência, sem ancestralidade
         rc, saida = self.conferir(f"- Recurso (E1), etapa (E1.1) sobre {self.lado[:7]}.")
         self.assertIn(f"citação: sha {self.lado[:7]} não existe ou não está na base nem na branch", saida)
