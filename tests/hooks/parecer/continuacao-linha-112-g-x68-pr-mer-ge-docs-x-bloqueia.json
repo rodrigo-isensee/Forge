@@ -1,0 +1,34 @@
+{
+  "descricao": "HOOK-CONTINUACAO-LINHA (A4 do review, volta 4): $'…' e \\ + quebra de linha na mesma linha; as formas compostas até o ponto fixo recusam.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "docs/x"
+    },
+    {
+      "arquivos": {
+        "notas.md": "oi\n"
+      },
+      "commit": "docs: notas"
+    },
+    {
+      "config": {
+        "branch.docs/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "g$'\\x68' pr mer\\\nge docs/x"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: nenhum parecer em docs/reviews/ com `branch: docs/x`; faça o code revi"
+  }
+}

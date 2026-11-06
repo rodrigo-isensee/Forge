@@ -1,0 +1,26 @@
+{
+  "pedido": "hook-conformidade-034",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M6",
+      "guarda": "S-A2: os << contam como corpos pendentes antes da tirada dos heredocs",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self.h.corpos_pendentes += provisorios",
+      "para": "self.h.corpos_pendentes += 0",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_vencido_na_tirada_dos_heredocs_ja_os_acha_pendentes"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "S-A2: depois da tirada, a conta provisória dá lugar aos corpos reais",
+      "arquivo": "hooks/conformidade.py",
+      "de": "len(corpos) - provisorios",
+      "para": "len(corpos)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_vencido_na_tirada_dos_heredocs_ja_os_acha_pendentes"
+      ]
+    }
+  ]
+}

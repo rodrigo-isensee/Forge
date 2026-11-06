@@ -20,6 +20,7 @@ import tempfile
 import shlex
 import subprocess
 import time
+import unicodedata
 import urllib.parse
 from functools import lru_cache
 from pathlib import Path
@@ -27,8 +28,8 @@ from pathlib import Path
 import parecer
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TETO, CORPO_DE_LACO, INTEGRACAO,
                     LancadorDemais, OPACO, TextoAbertoComLeituras, TextoDivididoAberto,
-                    PLUGIN, PROFUNDIDADE, bloquear, comentarios,
-                    construcao_nao_modelada, contorno_da_reavaliacao, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
+                    LIMITE_MENSAGEM, PLUGIN, PROFUNDIDADE, bloquear, comentarios,
+                    construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, formas_que_o_shell_le, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, fora_da_gramatica_com_heredoc,
                     fora_da_gramatica_de_leitura, motivo_da_reavaliacao,
                     forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, reavaliacao,
@@ -37,6 +38,9 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TET
 # custo de uma conferência cresce com o tamanho do texto, então o número delas não basta (A1 do review): conta também os
 # caracteres somados e o tempo, com folga para o timeout do hooks.json (10 s), que o Claude Code trata como liberado.
 TETO_DE_CONFERENCIAS = 400
+TETO_DO_TRECHO = 50  # HOOK-MSG-SEGMENTO: caracteres do comando citado na recusa (C-A6-3)
+TOKEN_DO_GITHUB = re.compile(r"(gh[pousr]_|github_pat_)[A-Za-z0-9_]+")  # mascarado no trecho citado
+INVISIVEIS = frozenset(("Cc", "Cf", "Zl", "Zp"))  # controle C0/C1 e formato (bidirecionais): fora do trecho (C-A6-1)
 TETO_DE_CARACTERES = 150_000  # a conferência de 290 mil caracteres levava 4,2 s (recomendação do review, volta 3)
 PRAZO_DA_LINHA_S = 3.0
 
@@ -229,8 +233,8 @@ def so_leitura(linha):
             args = args[1:]
         elif prog not in LEITORES_SEM_EXEC:
             return False
-        if not opcoes_sem_exec(args):
-            return False
+        if not opcoes_sem_exec(args) or any(re.match(r"[*?\[]", a) or "{" in a for a in args):
+            return False  # R2 (conformidade-leitura): `*`, `?` e `[` no início e `{` expandem para `--pre=...`
     return True
 
 
@@ -460,6 +464,7 @@ class Guarda:
         self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
         self.lancador_recusado = None  # lançador da linha que o hook não modela (`LANCADORES_RECUSADOS`), recusado no fim
         self.reavaliacao = None  # a primeira reavaliação pelo shell da linha, em qualquer nível (`reavaliacao`, opção B)
+        self.trecho = None  # as palavras do comando simples em conferência (`segmento`), que a recusa cita
         leitura = politica.get("so_leitura")
         self.leitura = leitura if leitura and papel in leitura["papeis"] else None  # papel só de leitura (conferente)
 
@@ -471,7 +476,7 @@ class Guarda:
         """Recusa (saída 2). No perfil iniciante, `simples` (SIMPLES) troca o texto técnico pela consequência."""
         if simples and self.h.iniciante():
             bloquear(rid, SIMPLES[simples])
-        bloquear(rid, f"{o_que}. Corrigir: {corrigir}")
+        bloquear(rid, com_trecho(rid, o_que, corrigir, self.trecho))
 
     def perguntar(self, texto):
         """Só no perfil iniciante: o ato é legítimo mas arriscado; a pessoa confirma na janela de permissão, com a
@@ -731,6 +736,8 @@ class Guarda:
                                               "conferir dentro do prazo",
                         "separe em comandos menores, sem crase nem $( aninhados, e grave texto longo num arquivo")
         self.conferir_linha(comando, pasta, nivel, so_substituicoes, corpo_de_heredoc)
+        for forma in formas_que_o_shell_le(comando, corpo_de_heredoc):  # HOOK-CONTINUACAO-LINHA: a que o bash roda
+            self.conferir_linha(forma, pasta, nivel, so_substituicoes, corpo_de_heredoc)
         self.conferidas[chave] = dict(self.ambiente or {})
 
     def recusar_o_teto(self, comando, original, nivel):
@@ -752,6 +759,8 @@ class Guarda:
                         "grep -F 'trecho' <arquivo>, sem esses sinais)")
         if self.leitura and nivel == 0:
             self.gramatica_de_leitura(comando)
+        provisorios = comando.count("<<")  # S-A2: o prazo que vence antes da tirada dos heredocs já os acha pendentes
+        self.h.corpos_pendentes += provisorios
         # ADR 0011, item 2: linha com marcador crítico e construção não modelada recusa; a recusa vem depois das
         # checagens da linha, para que a regra mais específica (R-MAIN, R-VERIFY...) fale primeiro.
         achado = None if self.leitura or not CRITICO.search(comando) else construcao_nao_modelada(comando)
@@ -772,7 +781,7 @@ class Guarda:
             # A palavra `"$(…)"` não: o texto dela é o do `shlex`, e o nível de fora já leu as substituições como escritas
             if not so_substituicoes:
                 self.reavaliacao = self.reavaliacao or reavaliacao(comando)
-        self.h.corpos_pendentes += len(corpos)  # C-4: descontado depois do corpo conferido, no laço dos corpos
+        self.h.corpos_pendentes += len(corpos) - provisorios  # C-4: descontado depois do corpo conferido, no laço
         if lidas is None or lidas.ilegivel:
             if nivel:
                 self.ilegivel(comando, pasta)
@@ -931,6 +940,14 @@ class Guarda:
                     self.ambiente[nome] = valor
 
     def segmento(self, palavras, pasta, ramos, nivel):
+        """HOOK-MSG-SEGMENTO: a recusa dentro do comando simples o cita (`com_trecho`); fora dele, volta o de antes."""
+        anterior, self.trecho = self.trecho, palavras
+        try:
+            return self.segmento_lido(palavras, pasta, ramos, nivel)
+        finally:
+            self.trecho = anterior
+
+    def segmento_lido(self, palavras, pasta, ramos, nivel):
         """Analisa um comando simples; devolve a pasta depois dele (acompanha `cd`). Atrás de lançador com palavra de `-`
         fora da tabela (`separar_lancadores`), roda as regras sobre cada leitura possível e recusa se qualquer uma recusa
         (RET-LEITURA-HOOK-G, opção A da proposta caminho-rev13). A pasta e as variáveis que seguem na linha são as da
@@ -1527,6 +1544,8 @@ class Guarda:
         outro erro sobe a `principal`, que barra se a linha cita o rótulo."""
         if nivel > PROFUNDIDADE:
             return
+        for forma in formas_que_o_shell_le(comando):  # HOOK-CONTINUACAO-LINHA: a juntada e a do `$'…'` também
+            self.rotulo_na_sessao_do_forge(forma, pasta, nivel)
         try:
             sem_heredoc, corpos = tirar_heredocs(comando)
             for interno in conteudos_de_crase(sem_heredoc):  # a crase é um `$(...)`: o mesmo caminho
@@ -1557,7 +1576,8 @@ class Guarda:
                         self.rotulo_no_argumento(" ".join(palavras[1:]), pasta, nivel + 1)
             for dono, corpo in corpos:
                 if not corpo_so_lido(dono):
-                    self.rotulo_na_sessao_do_forge(corpo, pasta, nivel + 1)
+                    for forma in [corpo, *formas_que_o_shell_le(corpo, True)]:  # A1: o corpo expandido também
+                        self.rotulo_na_sessao_do_forge(forma, pasta, nivel + 1)
         except ValueError:
             if CITA_ROTULO.search(comando):
                 self.exigir_dono()
@@ -1780,6 +1800,30 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", f"{prog} {sub} {self.so_de(acao)} (papel: {self.papel})", dica)
 
 
+def mascarado(palavra):
+    """HOOK-MSG-SEGMENTO, A1 da segurança: a palavra citada sem o valor da atribuição (`GH_TOKEN=***`) e sem o corpo
+    de token do GitHub (`ghp_***`, `github_pat_***`)."""
+    nome, igual, _ = palavra.partition("=")
+    if igual and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", nome):
+        palavra = f"{nome}=***"
+    return TOKEN_DO_GITHUB.sub(r"\1***", palavra)
+
+
+def com_trecho(rid, o_que, corrigir, palavras):
+    """HOOK-MSG-SEGMENTO: o texto da recusa com o comando simples que a disparou, `(em `…`)` antes do `Corrigir:`.
+    O trecho sai sem controle nem formato (C-A6-1), com crase trocada por `'` (C-A6-2) e até `TETO_DO_TRECHO`
+    caracteres; só entra se a linha inteira couber em `LIMITE_MENSAGEM`, para o motivo e o `Corrigir:` nunca se
+    cortarem por ele (C-A6-3). O valor de `NOME=valor` e o que tem cara de token do GitHub saem mascarados."""
+    texto = f"{o_que}. Corrigir: {corrigir}"
+    trecho = "".join("'" if c == "`" else c for c in " ".join(" ".join(map(mascarado, palavras or ())).split())
+                     if unicodedata.category(c) not in INVISIVEIS)
+    if not trecho:
+        return texto
+    trecho = trecho if len(trecho) <= TETO_DO_TRECHO else trecho[:TETO_DO_TRECHO - 1] + "…"
+    citado = f"{o_que} (em `{trecho}`). Corrigir: {corrigir}"
+    return citado if len(" ".join(f"{rid}: {citado}".split())) <= LIMITE_MENSAGEM else texto
+
+
 def entrada_valida(e):
     """Forma de uma entrada de `caminhos`: sem ela o hook cairia em KeyError/TypeError e liberaria (saída 0)."""
     def texto(v):
@@ -1953,7 +1997,8 @@ def principal(hook):
             try:
                 guarda.rotulo_na_sessao_do_forge(entrada["command"], hook.cwd())
             except Exception as erro:  # noqa: BLE001 - linha que cita o rótulo falha fechado (R-CONTRIB)
-                if not CITA_ROTULO.search(entrada["command"]):
+                if not (CITA_ROTULO.search(entrada["command"])  # HOOK-CONTINUACAO-LINHA: também a forma juntada
+                        or CITA_ROTULO.search(juntar_continuacoes(entrada["command"]))):
                     raise
                 hook.registrar_erro(erro)
                 bloquear("R-CONTRIB", "erro interno ao conferir o rótulo afrouxa-regra; o hook não pôde decidir. "
