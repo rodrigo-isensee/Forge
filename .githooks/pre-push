@@ -180,9 +180,10 @@ unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_C
 cd "$(git rev-parse --show-toplevel)" || exit 1
 # PUSH-PARECER-JA-NO-REMOTO (decisão do dono, 2026-11-05): o envio cujo commit o remoto já tem (outro envio do mesmo
 # commit chegou antes, inclusive durante a espera da fila) não leva nada novo e não roda a suíte; o CI do PR repete tudo.
-# Só o remoto que o git passou em $1 (nunca o ambiente), e a ref comparada pelo nome inteiro (o ls-remote casa pela
-# cauda). Falha fechada: pula só se todas as refs do push são branch já no remoto no mesmo sha ou num descendente;
-# tag, remoção, ref nova, erro ou tempo esgotado rodam a suíte. Não anota prova (.verde, .dirigida): só suíte que rodou.
+# Só o destino que o git passou em $2 (a URL do envio, que segue a pushurl; nunca o ambiente), e a ref comparada pelo
+# nome inteiro (o ls-remote casa pela cauda). Falha fechada: pula só se todas as refs do push são branch já no remoto no
+# mesmo sha ou num descendente; tag, remoção, ref nova, erro ou tempo esgotado rodam a suíte. Não anota prova (.verde,
+# .dirigida): só suíte que rodou.
 sha_valido() { [[ "$1" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; }
 ja_no_remoto() {
   local i ref sha achado s r saida achados=""
@@ -203,7 +204,7 @@ ja_no_remoto() {
   done
   echo "pre-push: o remoto já tem o que seria enviado (${achados}); suíte não roda." >&2
 }
-if [ "$modo_suite" -eq 0 ] && ja_no_remoto "${1:-}"; then exit 0; fi
+if [ "$modo_suite" -eq 0 ] && ja_no_remoto "${2:-}"; then exit 0; fi
 espera="${FORGE_TRAVA_ESPERA:-1200}"
 case "$espera" in ''|*[!0-9]*) echo "pre-push: FORGE_TRAVA_ESPERA deve ser um número de segundos inteiro (veio '${espera}')." >&2; exit 1 ;; esac
 trava="$(trava_arquivo criar)" || exit 1
@@ -292,7 +293,7 @@ if [ "$curta" = 0 ]; then
   fi
   fila_sair
   # PUSH-PARECER-JA-NO-REMOTO: o remoto pode ter recebido o mesmo commit durante a espera; a senha já saiu e a trava solta no exit.
-  if ja_no_remoto "${1:-}"; then exit 0; fi
+  if ja_no_remoto "${2:-}"; then exit 0; fi
   : > /proc/self/fd/9
   # C5: o pid sozinho não diz de que namespace vem (o do sandbox tem pids próprios); o inode vem depois dos dois primeiros
   # campos "pid N", que scripts/suite-paralela.py confere. Leitura que falha grava "?": é só informação.
