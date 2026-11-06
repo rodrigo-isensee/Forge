@@ -44,9 +44,11 @@ test_textos_034 (6), test_permissao_agentes_md (1), test_invariante_gatilho (1),
 ## Revalidação (f99351a..9e7d397)
 Delta lido: `git log f99351a..9e7d397` e o diff desse intervalo; já lido: a junção d9b26bb..f99351a, julgada acima.
 - 4b24838 chore(changelog): junta os fragmentos dos itens em `changelog.d/lote-estoque-a.md`; as linhas de PERMISSAO-AGENTES-MD e de ACHADO-TETO-DOC entraram duas vezes (redação antiga e refinada), ver A2.
-- a039ced e 47cd72c: o parecer anterior desta junção; não revistos.
+- a039ced docs(review): o parecer anterior desta junção; não revisto.
+- 47cd72c docs(review): tira do parecer anterior a nota do changelog; não revisto.
 - c32d320 test(mapa): o `bin/forge-testes` liga os dois modelos de segurança (raiz e template) a test_modelos_parecer_avisos_2 e test_textos_034, que leem esses arquivos; correto, só amplia a seleção.
-- c565e9d e 8ea4c84 docs(pareceres): `docs/qa/pergunta-maior-menor.md` e `docs/reviews/pergunta-maior-menor.md` trocam a frase copiada por menção à R-DECISAO; o sentido do parecer não muda; a busca pela frase em `docs/reviews`, `docs/qa` e `docs/security` não acha nada.
+- c565e9d docs(pareceres): `docs/qa/pergunta-maior-menor.md` e `docs/reviews/pergunta-maior-menor.md` trocam a frase copiada por menção à R-DECISAO; o sentido do parecer não muda.
+- 8ea4c84 docs(pareceres): corrige nos mesmos dois pareceres as duas citações restantes da frase; o sentido não muda; a busca pela frase em `docs/reviews`, `docs/qa` e `docs/security` não acha nada.
 - 432d18a docs(modelos): o aviso de neutralidade do modelo de segurança passa a condicional ("onde um teste barra nome de stack"), igual na raiz e no template (`cmp` sem diferença); mantém o que a MODELOS-PARECER-AVISOS-2 trouxe e serve a projeto que não é o Forge.
 - 9e7d397 test(suite): `tests/pesos-d4.json` ganha os 20 módulos sem peso; JSON válido, 99 pesos para 99 módulos `tests/test_*.py`, todos existentes.
 - Testes rodados (módulos dos arquivos tocados, um a um; o `--listar` pede a suíte completa por causa do mapa, que fica com o QA): test_modelos_parecer_avisos_2, test_textos_034, test_pesos_teto, test_testes_tocados, test_pergunta_maior_menor, test_volta_por_delta, test_modelos_projeto, test_modelos_citados: todos OK; `tests/neutralidade.py` rc 0.
