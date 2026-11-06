@@ -25,6 +25,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho ta
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 AQUI = Path(__file__).resolve().parent
+_EM_CI = os.environ.pop("GITHUB_ACTIONS", None)  # a suíte roda como execução local; os testes de CI definem a variável
+
+
+def tearDownModule():
+    if _EM_CI is not None:
+        os.environ["GITHUB_ACTIONS"] = _EM_CI
 spec = importlib.util.spec_from_file_location("catraca", AQUI / "catraca.py")
 catraca = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(catraca)
@@ -1545,6 +1551,89 @@ class ParecerReprovadoBarraSempre(Base):
         self.repo.escreve("docs/x.md", "x\n")
         self.parecer("review", "reprovado", ramo="outra")
         self.assertEqual(self.roda(), [])
+
+    def test_e11_parecer_da_branch_do_pr_vence_o_de_outra_branch_no_desempate(self):
+        """Caso do #437: mesmo pedido e data; o parecer de outra branch (sha sumido no squash) vence por caminho, e o da branch vale."""
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.parecer("review", ramo="outra", arquivo="zz-outra", commit="deadbee", commita=False)
+        self.assertEqual(self.roda(), [])
+
+    def test_e11_reprovado_da_propria_branch_barra_com_aprovado_de_outra_vencendo(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review", "reprovado")
+        self.parecer("review", ramo="outra", arquivo="zz-outra", commita=False)
+        achadas = self.roda()
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn("docs/reviews/ped.md", achadas[0])
+
+    def test_e11_tipo_exigido_so_em_outra_branch_falha_fechado(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.parecer("qa", ramo="outra", commita=False)
+        achadas = self.roda("homolog")
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn('sem parecer da branch "pr" para o pedido `ped`', achadas[0])
+
+    def test_fork_com_o_nome_de_branch_ja_mesclada_nao_herda_o_parecer(self):
+        """A1: parecer aprovado com `branch: pr` cobre o PR do próprio repositório, mas não o de um fork com o mesmo nome de branch."""
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.assertEqual(self.roda(), [])
+        for head in ("fulano/Forge", ""):  # fork e head.repo nulo (fork apagado)
+            with self.subTest(head=head):
+                achadas = catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", "pr", "develop", head, "dono/Forge")
+                self.assertEqual(len(achadas), 1, achadas)
+                self.assertIn("R-REVIEW", achadas[0])
+                self.assertIn("dono/Forge", achadas[0])
+
+    def test_fork_recusa_ate_sem_arquivo_sensivel_e_nas_promocoes(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.repo.commit()
+        for ramo, base_ref in (("pr", "develop"), ("develop", "homolog"), ("homolog", "main")):
+            with self.subTest(ramo=ramo):
+                achadas = catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", ramo, base_ref, "fulano/Forge", "dono/Forge")
+                self.assertEqual(len(achadas), 1, achadas)
+
+    def test_em_ci_sem_base_repo_falha_fechado_e_fora_do_ci_libera(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.repo.commit()
+        with mock.patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}):
+            for head in ("", "dono/Forge"):
+                with self.subTest(head=head):
+                    achadas = catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", "pr", "develop", head, "")
+                    self.assertEqual(len(achadas), 1, achadas)
+            self.assertEqual(catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", "pr", "develop", "dono/Forge", "dono/Forge"), [])
+        self.assertEqual(catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", "pr", "develop", "", ""), [])
+
+    def test_workflow_declara_head_repo_e_base_repo_no_passo_de_pareceres(self):
+        texto = (AQUI.parent / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        (passo,) = [p for p in re.split(r"\n      - name: ", texto) if "--modo pareceres" in p]
+        env = passo.split("        env:\n", 1)[1].split("        run:", 1)[0]
+        self.assertIn("HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}", env)
+        self.assertIn("BASE_REPO: ${{ github.repository }}", env)
+        self.assertNotIn("${{", passo.split("        run:", 1)[1])
+
+    def test_mesmo_repositorio_ou_sem_env_nao_muda_o_resultado(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.repo.commit()
+        for head, base in (("dono/Forge", "dono/Forge"), ("", "")):
+            with self.subTest(head=head):
+                self.assertEqual(catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", "pr", "develop", head, base), [])
+
+    def test_cli_le_o_repositorio_do_head_por_env_e_recusa_o_fork(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.repo.commit()
+        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "GITHUB_ACTIONS", "HEAD_REPO", "BASE_REPO")}
+        argv = ["python3", str(AQUI / "catraca.py"), "--modo", "pareceres", "--raiz", str(self.repo.dir), "--base", "base",
+                "--ramo", "pr", "--base-ref", "develop"]
+        ok = subprocess.run(argv, capture_output=True, text=True, env={**env, "HEAD_REPO": "dono/Forge", "BASE_REPO": "dono/Forge"})
+        self.assertEqual(ok.returncode, 0, ok.stdout + ok.stderr)
+        fork = subprocess.run(argv, capture_output=True, text=True, env={**env, "HEAD_REPO": "fulano/Forge", "BASE_REPO": "dono/Forge"})
+        self.assertEqual(fork.returncode, 1, fork.stdout + fork.stderr)
 
     def test_nao_regressao_promocao_nao_le_parecer(self):
         self.repo.escreve("docs/x.md", "x\n")
