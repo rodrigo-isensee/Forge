@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-034
 branch: melhoria/lote-estoque-b
-commit: 84472bfa6c63406c46a6c86ce6353939a39a53dc
+commit: fb390efc8e6e3b27c4a1f18b5a22bfc997231cb3
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-06
@@ -44,9 +44,20 @@ Nenhum item ficou fora.
 ## Teto (M14)
 O lote soma 536 linhas de código e teste (`git diff --numstat --no-renames d9b26bb 84472bf`) e toca `tests/catraca.py` (PROTEGIDOS), onde a linha de exceção não vale. Quem dá o PR único por lote é a DECISÃO DO DONO de 2026-11-05 14:37, com cada item no próprio teto e com os próprios pareceres. Não é achado da junção; o corpo do PR precisa citar a decisão (A2).
 
+## Revalidação das voltas do CI
+Delta lido: `git diff 237c130 fb390ef` (7ec3a35, 83b3e55, fb390ef), 4 arquivos, +39 -12; as falhas que ele corrige estão em `/tmp/ci-455.log` (actionlint com `label "ubuntu-26.04" is unknown` em `catraca.yml`, `ci.yml` e `release.yml`; `test_divisao_esta_na_classe` vermelho nas grafias `--split`, `--spl=` e `--s` do uutils 0.10.0). Já lido, sem reler: a junção `d9b26bb..84472bf` e os pareceres entre 84472bf e 237c130 (só `docs/`).
+- **Label no actionlint (`.github/actionlint.yaml`, novo).** Só `self-hosted-runner.labels: [ubuntu-26.04]`, o ajuste que a própria mensagem do actionlint indica; nenhuma regra desligada, nenhum `ignore`, nenhum caminho fora da checagem. O comentário diz quando o arquivo sai (versão fixada que já traga o label). Aceito.
+- **Pacote e passo novos do CI (`ci.yml`, jobs `testes` e `bateria`).** O `apt-get install` ganha o `gnu-coreutils` ao lado do `rust-coreutils`, no mesmo passo de `set -euo pipefail`; o passo novo acha o `gnuenv` por `command -v` e confere que `gnuenv --s 'echo a  b'` dá `a b`, saindo com 1 e mensagem em cada falta. É falha fechada: sem o pacote ou com um `gnuenv` que não divide, o job reprova antes dos testes. O mesmo bloco nos dois jobs, como o passo do env do item ci-env-argv0-v2. O parecer de devops (E2.4) revalidado sobre fb390ef cobre o pipeline; não o refaço.
+- **Critério do `env_gnu` (`tests/apoio_volta_unica.py`).** Antes bastava dividir o `-S` separado; agora o `env` precisa dividir toda grafia de `OPCOES_DE_DIVISAO` (as mesmas 9 que o gerador usa), então o uutils 0.10.0 deixa de passar por GNU. `@classmethod` sobre `lru_cache` lê a tabela da classe, sem cópia. Os três chamadores (`test_divisao_esta_na_classe`, `montar_registradores_do_t9b` e a lista de textos da linha 564) seguem com a mesma assinatura.
+- **Falha fechada no env parcial (fb390ef).** O `env` que divide o `-S` e recusa alguma grafia, sem outro que divida tudo, levanta `AssertionError` com a grafia e o caminho, em vez de devolver None e o teste cair no skip; o skip fica só para a máquina sem `env` que divida o `-S`. Provei com um `env` falso no `PATH` que recusa as abreviaturas: `AssertionError: nenhum env divide toda grafia de OPCOES_DE_DIVISAO: <scratchpad>/fakeenv/env recusa --split, --spl=, --s`. Com o GNU 9.4 local, `env_gnu()` devolve `/usr/bin/env`. O `lru_cache` não guarda exceção, então a máquina parcial repete a sondagem a cada chamada; custo só no caso que já reprova.
+- **Changelog.** Duas linhas novas em `### Corrigido` de `changelog.d/lote-estoque-b.md`, com o texto das duas voltas; continua o único fragmento da branch.
+- **Testes.** `python3 -m unittest tests.test_ci_local` em fb390ef: `Ran 55 tests`, `OK`. Suíte inteira (não rodada aqui, D-5): `/tmp/push-lote-b8.log`, `Ran 2632 tests in 1401.341s (2 processos)`, `OK (skipped=30)`, `push_rc=0`. A prova no runner 26.04 é o CI do PR #455.
+- **Teto (M14).** Com as voltas o lote soma 581 linhas (`git diff --numstat --no-renames d9b26bb fb390ef`, fora `.md`, `docs/` e `changelog.d/`); o A2 segue valendo com esse número.
+- Veredito: as voltas corrigem as duas falhas do CI sem afrouxar controle (nenhuma regra do actionlint desligada; o teste do corpus passou de skip silencioso a reprovação); nenhum achado novo. Parecer mantido: aprovado.
+
 ## Achados
 - A1 (recomendado) docs/reviews/lote-estoque-b.md:31 · o Histórico do pedido (14:56) diz que os itens entraram na ordem do brief; foi catraca-ramo antes de catraca-fork, o inverso. Corrigir a linha no pedido.
-- A2 (recomendado) docs/reviews/lote-estoque-b.md:45 · 536 linhas e PROTEGIDOS tocado: o corpo do PR do lote (E2.6) cita a decisão do dono de 2026-11-05 14:37 como base do PR único, para o review da M14 não ler falta de exceção.
+- A2 (recomendado) docs/reviews/lote-estoque-b.md:45 · 536 linhas (581 com as voltas do CI) e PROTEGIDOS tocado: o corpo do PR do lote (E2.6) cita a decisão do dono de 2026-11-05 14:37 como base do PR único, para o review da M14 não ler falta de exceção.
 - A3 (recomendado) changelog.d/lote-estoque-b.md:3 · a entrada da catraca-ramo cita a recusa como `sem parecer ... com branch:`, mas a mensagem é `sem parecer da branch <b> para o pedido` (bin/forge-check:919); ajustar o texto na release.
 
 ## Parecer
