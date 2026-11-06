@@ -1,0 +1,30 @@
+{
+  "descricao": "PARECER-HOOK-DICA-EDIT: M3 com git segue barrado e o contorno nomeia o Write ou Edit.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cat > docs/x.md <<'EOF'\no git merge fica para depois\nEOF\ngit add docs/x.md && git commit -m 'docs: x'"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "heredoc gravado e programa não modelado na mesma chamada (`git`), com gh pr, gh api, merge ou pull. Corrigir: grave pelo Write ou Edit e rode o programa noutra chamada"
+  }
+}

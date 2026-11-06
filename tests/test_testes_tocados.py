@@ -58,7 +58,7 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len(modulos), 41)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09: test_qa_lote_l09; E5 da versao-035: test_decisao_aprovacao_raiz
+        self.assertEqual(len(modulos), 43)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E5 da versao-035: test_decisao_aprovacao_raiz
         for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
                        "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
@@ -972,6 +972,79 @@ class Vermelho(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertNotIn("H=falha", r.stdout)
         self.assertNotIn("H=erro", r.stdout)
+
+
+class CaminhoFiltroEAviso(unittest.TestCase):
+    """CAMINHO de módulo sem mapa (FORGE-TESTES-SEM-MAPA), aviso cedo do MAPA (MAPA-TESTES-AVISO-CEDO) e `-k`
+    (TESTES-DO-ITEM-FILTRO), num repositório de brinquedo."""
+
+    CORPO = ("import unittest\n{leitura}class Rapido(unittest.TestCase):\n    def test_a(self):\n        pass\n"
+             "class Lento(unittest.TestCase):\n    def test_b(self):\n        pass\n")
+
+    def setUp(self):
+        self._t = tempfile.TemporaryDirectory()
+        self.addCleanup(self._t.cleanup)
+        self.dir = Path(self._t.name)
+        git(self.dir, "init", "-q", "-b", "develop")
+        (self.dir / "tests").mkdir()
+        (self.dir / "bin").mkdir()
+        (self.dir / "bin" / "forge-sugerir").write_text("x = 1\n", encoding="utf-8")
+        for modulo in ("test_forge", "test_sugerir", "test_novo", "test_outro"):
+            self.escrever(modulo)
+        git(self.dir, "add", "-A")
+        git(self.dir, "commit", "-qm", "base")
+        git(self.dir, "switch", "-q", "-c", "melhoria/x")
+
+    def escrever(self, modulo, leitura=""):
+        (self.dir / "tests" / f"{modulo}.py").write_text(self.CORPO.format(leitura=leitura), encoding="utf-8")
+
+    def rodar(self, *args):
+        return subprocess.run([sys.executable, str(FERRAMENTA), "--base", "develop", *args], cwd=self.dir,
+                              env=AMBIENTE, capture_output=True, text=True)
+
+    def test_caminho_de_modulo_de_teste_roda_so_esse_modulo_e_avisa(self):  # FORGE-TESTES-SEM-MAPA
+        r = self.rodar("tests/test_novo.py")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("sem mapa para tests/test_novo.py; roda só test_novo", r.stderr)
+        self.assertIn("dirigido (test_novo)", r.stdout)
+        self.assertNotIn("suíte completa", r.stdout)
+        self.assertIn("modulos=test_novo ", (self.dir / ".forge" / "run" / "testes.log").read_text(encoding="utf-8"))
+
+    def test_caminho_de_modulo_inexistente_ou_misturado_com_outro_arquivo_segue_o_mapa(self):
+        self.assertIn("suíte completa", self.rodar("tests/test_nao_existe.py").stdout)
+        self.assertIn("suíte completa", self.rodar("tests/test_novo.py", "docs/sem-regra.txt").stdout)
+
+    def test_teste_que_le_bin_fora_do_mapa_avisa_cedo(self):  # MAPA-TESTES-AVISO-CEDO
+        self.escrever("test_novo", 'RAIZ = None\nx = RAIZ / "bin" / "forge-sugerir"\n')
+        r = self.rodar("--listar", "tests/test_novo.py")
+        self.assertIn("tests/test_novo.py lê bin/forge-sugerir, mas o MAPA não leva a test_novo", r.stderr)
+
+    def test_sem_aviso_quando_o_mapa_ja_leva_o_modulo_ou_so_cita_o_caminho(self):
+        self.escrever("test_sugerir", 'RAIZ = None\nx = RAIZ / "bin" / "forge-sugerir"\n')
+        self.escrever("test_novo", 'CITA = "bin/forge-sugerir"\n')
+        r = self.rodar("--listar", "tests/test_sugerir.py", "tests/test_novo.py")
+        self.assertNotIn("o MAPA não leva", r.stderr)
+
+    def test_sem_aviso_quando_o_teste_passa_bin_x_como_argumento_ou_dado(self):  # bug forge-testes-034-aviso-falso-chamada
+        self.escrever("test_novo", 'def plano(c):\n    return c\nx = plano("bin/forge-sugerir")\ny = ("bin/forge-sugerir", 1)\n')
+        r = self.rodar("--listar", "tests/test_novo.py")
+        self.assertNotIn("o MAPA não leva", r.stderr)
+
+    def test_aviso_vale_tambem_no_diff_sem_caminho(self):
+        self.escrever("test_novo", 'RAIZ = None\nx = RAIZ.joinpath("bin", "forge-sugerir")\n')
+        self.assertIn("o MAPA não leva a test_novo", self.rodar("--listar").stderr)
+
+    def test_k_filtra_os_testes_do_modulo(self):  # TESTES-DO-ITEM-FILTRO
+        r = self.rodar("-k", "Lento", "tests/test_novo.py")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("Ran 1 test", r.stderr)
+        self.assertIn("Ran 2 tests", self.rodar("tests/test_novo.py").stderr)
+
+    def test_k_repetido_soma_os_padroes_e_nao_combina_com_vermelho(self):
+        self.assertIn("Ran 2 tests", self.rodar("-k", "test_a", "-k", "test_b", "tests/test_novo.py").stderr)
+        r = self.rodar("--vermelho", "-k", "x")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("-k não combina com --vermelho", r.stderr)
 
 
 if __name__ == "__main__":

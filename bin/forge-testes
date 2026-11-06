@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Forge: teste dirigido durante a iteração do autor (TA-3). Só biblioteca padrão.
 
-Uso: forge-testes [--base REF] [--listar] [--completa] [CAMINHO ...]
+Uso: forge-testes [--base REF] [--listar] [--completa] [-k PADRAO ...] [CAMINHO ...]
      forge-testes --vermelho [BASE] [--modulos M[,M...]] [--prazo SEGUNDOS]
   (sem opção)   lê o que mudou desde o ancestral comum com REF (padrão origin/develop), mais os arquivos
                 não commitados e os novos, e roda só os módulos de teste que cobrem esses caminhos
   CAMINHO       planeja só para estes caminhos (relativos ao diretório atual ou absolutos, dentro do repositório) e
                 não lê o git: o que mudou fica por conta de quem chama. Não combina com --completa nem com --vermelho
   --base REF    base da comparação (padrão origin/develop); sem efeito quando há CAMINHO
+  -k PADRAO     filtra por classe ou nome de teste (`unittest -k`; repetível); para rodar uma parte de módulo grande
   --listar      mostra o plano (modo e módulos) e não roda nada
   --completa    roda a suíte inteira, sem consultar o mapa
   --vermelho    prova que algum teste do diff derruba o defeito: roda os módulos em duas cópias commitadas em
@@ -68,11 +69,11 @@ NOME_DE_MODULO = re.compile(r"test_[a-z0-9_]+")
 # Os módulos que saíram de `test_hooks` (HOOKS-CORPUS-RAPIDO) rodam onde `test_hooks` roda e executam o `bin/forge-check`
 # pelo apoio `tests/apoio_volta_unica.py` (`test_doutor_relogio` o copia pelo apoio `tests/apoio_versao_defasada.py`).
 VOLTA_UNICA = ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades")
-FORGE_CHECK = ("test_anotar", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio",
+FORGE_CHECK = ("test_anotar", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio", "test_qa_doutor_034",
                "test_conf_escopo", "test_conferencia_registrar", "test_decisao_aprovacao", "test_decisao_aprovacao_raiz", "test_erros_no_brief", "test_hook_ansi_c",
                "test_entrega_git_falha", "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks", "test_hooks_parecer_pasta",
                "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_mensagem_conferente", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
-               "test_testes_tocados", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09",
+               "test_testes_tocados", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
                "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento") + VOLTA_UNICA
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
@@ -108,11 +109,11 @@ MAPA = [
     (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge",)),
     (r"stacks/.*", CONTEUDO + ("test_hooks",) + VOLTA_UNICA),
     (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks",) + VOLTA_UNICA),
-    (r"templates/projeto/docs/(reviews|qa|security)/_modelo\.md", PUBLICADO + ("test_volta_por_delta",)),  # o teste gera parecer do modelo
+    (r"templates/projeto/docs/(reviews|qa|security)/_modelo\.md", PUBLICADO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),  # o teste gera parecer do modelo
     (r"templates/projeto/\.githooks/pre-push", PUBLICADO + ("test_prepush_so_docs",)),
     (r"(migrations|templates)/.*", PUBLICADO),
     (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
-    (r"docs/security/_modelo\.md", CONTEUDO + ("test_volta_por_delta",)),
+    (r"docs/security/_modelo\.md", CONTEUDO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),
     (r"skills/esperar-estado/.*|agents/tech-lead\.md", CONTEUDO + ("test_esperar_estado",)),
     (r"(agents|skills|docs)/.*", CONTEUDO),
     (r"README\.md", ("test_forge",)),
@@ -176,6 +177,67 @@ def planejar(caminhos, raiz=Path(".")):
     if ausentes:
         return "completo", [f"módulo sem arquivo: {', '.join(ausentes)}"]
     return "dirigido", sorted(modulos)
+
+
+def modulos_sem_mapa(pedidos, raiz=Path(".")):
+    """Módulos de teste dados como CAMINHO (tests/test_x.py existente), ou None se algum pedido é outra coisa.
+    Pedir o módulo é dizer qual rodar: não há o que mapear (FORGE-TESTES-SEM-MAPA)."""
+    achados = [MODULO_DE_TESTE.fullmatch(c) for c in pedidos]
+    if not pedidos or not all(achados) or not all((raiz / c).is_file() for c in pedidos):
+        return None
+    return sorted(a.group(1) for a in achados)
+
+
+def bin_lidos(texto):
+    """Arquivos de bin/ que o texto de um módulo de teste lê: só as formas que montam um caminho (`RAIZ / "bin/x"`,
+    `RAIZ / "bin" / "x"`, `joinpath("bin", "x")`, `ler("bin/x")`). Citar o caminho como argumento ou dado não conta."""
+    try:
+        arvore = ast.parse(texto)
+    except SyntaxError:
+        return set()
+    def texto_de(no):
+        return no.value if isinstance(no, ast.Constant) and isinstance(no.value, str) else None
+    achados = set()
+    for no in ast.walk(arvore):
+        partes = []
+        if isinstance(no, ast.BinOp) and isinstance(no.op, ast.Div):
+            raiz = no
+            while isinstance(raiz, ast.BinOp):
+                raiz = raiz.left
+            if ast.unparse(raiz).startswith("self."):
+                continue  # `self.dir / "bin" / "x"` monta o caminho num repositório de brinquedo, não no Forge
+            partes = [texto_de(no.right)]
+            if isinstance(no.left, ast.BinOp) and isinstance(no.left.op, ast.Div):
+                partes = [texto_de(no.left.right)] + partes
+        elif isinstance(no, ast.Call) and isinstance(no.func, ast.Attribute) and no.func.attr == "joinpath":
+            partes = [texto_de(a) for a in no.args]
+        elif isinstance(no, ast.Call) and isinstance(no.func, ast.Name) and no.func.id == "ler" and no.args:
+            partes = [texto_de(no.args[0])]
+        for n, parte in enumerate(partes):
+            if parte and parte.startswith("bin/"):
+                achados.add(parte[4:])
+            elif parte == "bin" and n + 1 < len(partes) and partes[n + 1]:
+                achados.add(partes[n + 1])
+    return {a for a in achados if a and "/" not in a}
+
+
+def avisos_de_mapa(caminhos, raiz=Path(".")):
+    """Um teste que cita um arquivo de bin/ que o MAPA não leva a ele: o pre-push o pularia, e a suíte completa
+    reprova (MapaCobreOQueOsTestesLeem). Avisa cedo (MAPA-TESTES-AVISO-CEDO)."""
+    avisos = []
+    for caminho in caminhos:
+        achado = MODULO_DE_TESTE.fullmatch(caminho)
+        if not achado or not (raiz / caminho).is_file():
+            continue
+        texto = (raiz / caminho).read_text(encoding="utf-8", errors="replace")
+        for alvo in sorted(bin_lidos(texto)):
+            if not (raiz / "bin" / alvo).is_file():
+                continue
+            modo, modulos = planejar([f"bin/{alvo}"], raiz)
+            if modo == "dirigido" and achado.group(1) not in modulos:
+                avisos.append(f"forge-testes: {caminho} lê bin/{alvo}, mas o MAPA não leva a {achado.group(1)}; "
+                              f"acrescente em bin/forge-testes e em tests/test_testes_tocados.py")
+    return avisos
 
 
 def anotar(modo, modulos, segundos, codigo):
@@ -489,6 +551,8 @@ def main(argv=None):
     p.add_argument("--base", default=BASE_PADRAO)
     p.add_argument("--listar", action="store_true")
     p.add_argument("--completa", action="store_true")
+    p.add_argument("-k", dest="filtros", action="append", default=[], metavar="PADRAO",
+                   help="só os testes cujo nome contém PADRAO (como `unittest -k`; repita para somar)")
     p.add_argument("--vermelho", nargs="?", const=True, default=None, metavar="BASE")
     p.add_argument("--modulos", metavar="M[,M...]")
     p.add_argument("--prazo", type=int, metavar="SEGUNDOS", help=f"por módulo, em segundos (padrão {PRAZO_PADRAO})")
@@ -501,6 +565,8 @@ def main(argv=None):
         p.error("--modulos só vale com --vermelho")
     if args.vermelho is not None and (args.completa or args.listar):
         p.error("--vermelho não combina com --completa nem com --listar")
+    if args.vermelho is not None and args.filtros:
+        p.error("-k não combina com --vermelho")
     if args.vermelho is None and args.prazo is not None:
         p.error("--prazo só vale com --vermelho")
     prazo = PRAZO_PADRAO if args.prazo is None else args.prazo
@@ -529,8 +595,16 @@ def main(argv=None):
     if args.vermelho is not None:
         return vermelho(args.base if args.vermelho is True else args.vermelho, modulos_pedidos, prazo)
 
+    try:
+        for aviso in avisos_de_mapa(pedidos or caminhos_alterados(args.base)):
+            print(aviso, file=sys.stderr)
+    except RuntimeError:
+        pass  # o plano abaixo trata o erro do git
     if args.completa:
         modo, detalhe = "completo", ["pedido --completa"]
+    elif pedidos and (so_modulos := modulos_sem_mapa(pedidos)):
+        modo, detalhe = "dirigido", so_modulos
+        print(f"forge-testes: sem mapa para {', '.join(pedidos)}; roda só {', '.join(detalhe)}.", file=sys.stderr)
     elif pedidos:
         modo, detalhe = planejar(pedidos)
     else:
@@ -549,6 +623,8 @@ def main(argv=None):
     else:
         print(f"forge-testes: dirigido ({', '.join(detalhe)}). O CI do PR roda a suíte inteira.")
         comando, modulos = [sys.executable, "-m", "unittest", "-q", *[f"tests.{m}" for m in detalhe]], detalhe
+    for filtro in args.filtros:
+        comando += ["-k", filtro]
     if args.listar:
         return 0
     inicio = time.monotonic()

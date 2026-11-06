@@ -1,0 +1,16 @@
+{
+  "pedido": "hook-conformidade-034",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M5",
+      "guarda": "S-A1: a fronteira só vale se a varredura dos comentários atravessa o prefixo",
+      "arquivo": "hooks/_comum.py",
+      "de": "\n            and len(prefixo) + 6 in comentarios(prefixo + \"\\ntrue #\"))",
+      "para": ")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fronteira_limpa_so_se_os_comentarios_atravessam_o_prefixo"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "descricao": "HOOK-MSG-SEGMENTO: a recusa da linha inteira, depois dos comandos dela, não cita o último comando lido.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git status && git push origin ${B}"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "`${` com ação crítica: o hook não modela. Corrigir:",
+    "stderr_sem": [
+      "(em `"
+    ]
+  }
+}

@@ -32,15 +32,15 @@ Vale nos dois perfis (no `experiente` só o vocabulário pode ser técnico). Ant
 1. Contexto em uma frase, sem jargão.
 2. Exemplo concreto da situação.
 3. Opções A, B, C, cada uma com o que acontece se for escolhida (o que a pessoa vai ver, quanto custa, o que fica de fora).
-4. **Afrouxa o processo?** (sim ou não, por opção) e o **custo de eficiência** de cada opção, em dois números: **tempo** e **tokens** a mais ou a menos por demanda, cada um em faixa e média, marcado `medido` (com a fonte), `estimado` (com a base) ou `não medido`. De onde sai o número: "Números da pergunta", abaixo.
+4. **Afrouxa o processo?** (sim ou não, por opção) e o **custo de eficiência** de cada opção, em dois números: **tempo** e **tokens** a mais ou a menos por demanda, cada um em faixa e média, marcado `medido` (com a fonte), `estimado` (com a base) ou `não medido`. Diga também, em palavras, se o custo da opção fica **maior ou menor** que o das outras ("a mais barata", "a mais cara", "igual"). De onde sai o número: "Números da pergunta", abaixo.
 5. Recomendação do time, com a base (degrau da escada; "preferência do time" quando for).
 6. "Faltam N perguntas." e a saída: "Se preferir, diga 'decidam vocês' e seguimos com a recomendação" (vira item `delegado`, `R-DECISAO`). A saída não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível: essas ficam com o usuário (`R-DECISAO`, "Complemento").
 
 Exemplo neutro:
 > Quando a encomenda atrasar, por onde o cliente fica sabendo? Exemplo: a entrega prometida para terça não saiu até quarta de manhã.
-> A) E-mail: chega a quem tem e-mail cadastrado; sem custo por mensagem. Afrouxa o processo? Não. Tempo: de 0 a 1 h a mais por demanda, média 0,5 h (estimado: uma delegação a mais). Tokens: de 2 a 4 milhões a mais, média 3 milhões (medido: 5 linhas de `entregas.md` do mesmo agente).
-> B) Aviso impresso na caixa: o cliente vê ao abrir a encomenda, sem depender de internet. Afrouxa o processo? Não. Tempo: de 1 a 3 h a mais, média 2 h (estimado: duas delegações e uma volta de review a mais). Tokens: de 5 a 9 milhões a mais, média 7 milhões (estimado: mesma base).
-> C) Só um aviso dentro do site: sem custo, mas o cliente só vê se entrar. Afrouxa o processo? Não. Tempo: sem diferença. Tokens: não medido.
+> A) E-mail: chega a quem tem e-mail cadastrado; sem custo por mensagem. Afrouxa o processo? Não. Tempo: de 0 a 1 h a mais por demanda, média 0,5 h (estimado: uma delegação a mais). Tokens: de 2 a 4 milhões a mais, média 3 milhões (medido: 5 linhas de `entregas.md` do mesmo agente). Em custo, a mais barata das duas com número.
+> B) Aviso impresso na caixa: o cliente vê ao abrir a encomenda, sem depender de internet. Afrouxa o processo? Não. Tempo: de 1 a 3 h a mais, média 2 h (estimado: duas delegações e uma volta de review a mais). Tokens: de 5 a 9 milhões a mais, média 7 milhões (estimado: mesma base). Em custo, a mais cara.
+> C) Só um aviso dentro do site: sem custo, mas o cliente só vê se entrar. Afrouxa o processo? Não. Tempo: sem diferença. Tokens: não medido. Em custo, não dá para dizer se é maior ou menor: não medido.
 > Recomendo A: todo cliente tem e-mail e não há custo (preferência do time). Faltam 2 perguntas. Se preferir, diga "decidam vocês".
 
 Números da pergunta (nunca inventados; tokens = entrada + saída + cache, como em `docs/kanban/entregas.md`):
