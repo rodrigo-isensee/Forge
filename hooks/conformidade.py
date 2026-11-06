@@ -170,6 +170,10 @@ GRAPHQL_APAGAR = re.compile(r"mutation[^}]*deleteRepository", re.I)
 VISIBILIDADE_PUBLICA = re.compile(r"\bprivate[\"']?\s*[=:]\s*[\"']?false\b|\bvisibility[\"']?\s*[=:]\s*[\"']?public\b", re.I)
 CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem em arquivos do projeto
 PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
+# S8: a prova da suíte (`.verde`, `.dirigida`, o `.novo` do `mv`) só o pre-push grava, fora deste hook; todo papel e pasta. Limites
+# aceitos (o hook protege contra engano; o CI é o portão): nome inteiro numa variável, script em arquivo, `curl -o`, `tar -x`.
+MARCA_DA_SUITE = re.compile(r"forge-suite-[^/]*\.(verde|dirigida)(\.novo)?")
+PROVA_DA_SUITE = ("R-VERIFY", "a prova da suíte só é gravada pelo pre-push", "rode o push ou .githooks/pre-push --suite")
 MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
 GLOB_DE_PATHSPEC = re.compile(r"[*?\[\\]")
 CHECKOUT_COM_VALOR = {"-b", "-B", "--orphan"}
@@ -578,6 +582,8 @@ class Guarda:
 
     def caminho_barrado(self, caminho):
         """(rid, o quê, como corrigir) se o `caminho` (já resolvido) é protegido para o papel; senão None."""
+        if MARCA_DA_SUITE.fullmatch(caminho.name):  # S8 (C-1, C-2): antes de política, papel e sessão; nome resolvido
+            return PROVA_DA_SUITE
         if self._raiz_home is None:
             self._raiz_home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
         raiz, home = self._raiz_home
@@ -649,6 +655,8 @@ class Guarda:
     def checar_escrita(self, caminho, pasta):
         """Na dúvida, recusa: o que vem depois de uma substituição (`$(git rev-parse --show-toplevel)/docs/reviews/x`) é
         conferido também a partir da raiz do projeto."""
+        if MARCA_DA_SUITE.fullmatch(Path(caminho).name):  # S8 (C-2): o nome literal, antes da expansão
+            self.barrar(*PROVA_DA_SUITE)
         alvos = [self.resolver(self.expandir(caminho, pasta), pasta)]
         resto = caminho.rsplit(OPACO["$"], 1)[1].lstrip("/") if OPACO["$"] in caminho else ""
         if resto:
@@ -692,6 +700,8 @@ class Guarda:
         """Escrita em caminho protegido com o caminho em literal dentro de `python -c`, `node -e`, script."""
         if not ESCRITA_NO_TEXTO.search(texto):
             return
+        if any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in re.split(r"[\s'\"(),;=]+", texto)):  # S8
+            self.barrar(*PROVA_DA_SUITE)
         raiz = Path(os.path.realpath(self.h.raiz))
         for e in self.pol["caminhos"]:
             c = e["caminho"]
@@ -1067,6 +1077,11 @@ class Guarda:
                     if prog in REMOCAO:
                         self.checar_remocao(a, pasta)
         elif prog in SO_DESTINO:
+            if prog == "ln" or any(re.fullmatch(r"-[^-]*[ls]\w*|--(link|symbolic-link)", a) for a in args):  # S8 (C-3)
+                for a in args:  # o link aponta a prova: a origem também conta, pelo nome literal e pelo resolvido
+                    nomes = Path(a).name, self.resolver(self.expandir(a, pasta), pasta).name
+                    if any(map(MARCA_DA_SUITE.fullmatch, nomes)):
+                        self.barrar(*PROVA_DA_SUITE)
             alvo = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-t", "--target-directory")), None)
             alvo = alvo or next((a for a in reversed(args) if not a.startswith("-")), None)
             if alvo:
