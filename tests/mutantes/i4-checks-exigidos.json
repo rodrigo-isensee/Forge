@@ -1,0 +1,47 @@
+{
+  "pedido": "versao-037",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "C-6: o exigido vale pelo par workflow/nome, não só pelo nome",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| [ \"$wf_ck\" != \"$wf_ex\" ]; then continue; fi",
+      "para": "; then continue; fi",
+      "testes": [
+        "tests.test_fechar_checks_exigidos.FecharChecksExigidos.test_exigido_de_outro_workflow_nao_conta",
+        "tests.test_fechar_checks_exigidos.FecharChecksExigidos.test_exigido_de_outro_workflow_em_pass_nao_cobre_o_do_ci_em_skipping"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "A1: com check pendente os exigidos não decidem antes do fim da espera",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$pendente\" = 0 ]; then",
+      "para": "if :; then",
+      "testes": [
+        "tests.test_fechar.Fechar.test_check_pendente_ate_o_limite_nao_mescla"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "A1: no fim da espera, pendente dá a mensagem de pendentes; só o ausente dá a do exigido",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$pendente\" = 1 ] || die",
+      "para": "[ \"$pendente\" = 7 ] || die",
+      "testes": [
+        "tests.test_fechar.Fechar.test_check_pendente_ate_o_limite_nao_mescla"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "C-6: a leitura por JSON traz o workflow na coluna que o par confere",
+      "arquivo": "bin/forge-fechar",
+      "de": "[.name, .bucket, .workflow, .link]",
+      "para": "[.name, .bucket, .link, .workflow]",
+      "testes": [
+        "tests.test_fechar_checks_exigidos.FecharChecksExigidos.test_ausente_espera_e_para_no_fim_da_espera"
+      ]
+    }
+  ]
+}
