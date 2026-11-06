@@ -846,6 +846,53 @@ class BriefDeVolta(Repositorio):
         self.assertEqual(rc, 1, saida)
         self.assertIn("escopo: --desde sem conferência anterior", saida)
 
+    LINHA_E14 = '- "E1.4b (dev-exemplo): ajuste do recurso B." · etapa de outra delegação; continua no pedido'
+
+    def pedido_e14(self, *historico):  # E14: a etapa E1.4b em ## Etapas e o Histórico que prova (ou não) a abertura dela
+        texto = self.PEDIDO_FIXTURE.read_text(encoding="utf-8").replace("\n\n## Decisões", "\n- E1.4b (dev-exemplo): ajuste do recurso B.\n\n## Decisões", 1)
+        self.pedido.write_text(texto + f"\n## Histórico\n- 2026-10-19 16:00: entrega conferida {self.c1}\n" + "".join(f"{h}\n" for h in historico), encoding="utf-8")
+
+    def test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior(self):  # E14 (VOLTA-ETAPA-NOVA, Q14 = A): C-1 a C-6
+        brief = "- 2026-11-04 09:00: brief pedido-sintetico-dev-exemplo-1 delegado"
+        aberta = "- 2026-11-04 10:00: etapa E1.4b aberta"
+        self.pedido_e14(brief, aberta)
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 0, saida)
+        fora = saida.split("## Fora do escopo")[1].split("\n## ")[0].rstrip("\n").split("\n")
+        self.assertEqual(fora[-1], self.LINHA_E14)  # C-5: o gerador propõe o que a conferência aceita, no fim (C-1)
+        texto = self.preenchido(saida)
+        rc, conferencia = self.conferir(texto)
+        self.assertEqual(rc, 0, conferencia)
+        self.assertNotIn('"Fora do escopo"', conferencia)
+        antiga = '- "E2.1 (dev-exemplo): texto da documentação." · etapa do mesmo papel em outra delegação; continua no pedido.'
+        casos = {  # C-6: cada abuso reprova com o motivo
+            "linha anterior editada com acréscimo no fim": (texto.replace(antiga, antiga + " extra"), 'volta: bloco "Fora do escopo" difere do anterior'),
+            "linha anterior com espaço a mais (T-1)": (texto.replace(antiga, antiga.replace(" · ", "  · ")), 'volta: bloco "Fora do escopo" difere do anterior'),
+            "acréscimo no meio": (texto.replace(antiga + "\n", self.LINHA_E14 + "\n" + antiga + "\n", 1), 'volta: bloco "Fora do escopo" difere do anterior'),
+            "texto diferente do de ## Etapas": (texto.replace("recurso B.", "recurso C."), "volta: linha nova no Fora do escopo não é etapa de ## Etapas"),
+            "a mesma etapa duas vezes": (texto.replace(self.LINHA_E14, self.LINHA_E14 + "\n" + self.LINHA_E14), "volta: etapa repetida no Fora do escopo"),
+            "etapa que já estava no Entregar do anterior (C-4)": (texto.replace(self.LINHA_E14, self.LINHA_E14.replace("E1.4b (dev-exemplo): ajuste do recurso B.",
+                                                                                     "E1.1 (dev-exemplo): implementação do recurso A.")),
+                                                                  "volta: etapa E1.1 já estava no brief anterior ou é a da volta"),
+            "a etapa da própria volta (C-4)": (texto.replace("Volta-de:", "Cobre: E1.4b\nVolta-de:", 1), "volta: etapa E1.4b já estava no brief anterior ou é a da volta"),
+            "Relatório segue byte a byte (T-2)": (texto.replace("Até 8 linhas", "Até 20 linhas"), 'volta: bloco "Relatório" difere do anterior'),
+            "Objetivo segue byte a byte (T-2)": (texto.replace("Entregar o recurso A", "Entregar o recurso A e o B"), 'volta: bloco "Objetivo" difere do anterior'),
+        }
+        for nome, (brief_volta, esperado) in casos.items():
+            with self.subTest(nome):
+                rc, conferencia = self.conferir(brief_volta)
+                self.assertEqual(rc, 1, conferencia)
+                self.assertIn(esperado, conferencia)
+        for nome, historico in {"etapa aberta antes do brief anterior": (aberta, brief), "sem prova no Histórico": (brief,),
+                                "brief anterior não registrado": (aberta,), "prova fora da forma": (brief, "- etapa E1.4b aberta", "- nota: 2026-11-04 10:00: etapa E1.4b aberta",
+                                                        "- 2026-11-04 10:00: etapa E1.4b aberta-nao", "- 2026-11-04 10:00: etapa E1.4b aberta.")}.items():
+            with self.subTest(nome):  # C-3: a prova é só a ordem do Histórico do pedido
+                self.pedido_e14(*historico)
+                self.assertNotIn(self.LINHA_E14, self.gerar()[1].split("## Fora do escopo")[1].split("\n## ")[0])
+                rc, conferencia = self.conferir(texto)
+                self.assertEqual(rc, 1, conferencia)
+                self.assertIn("volta: etapa E1.4b sem prova de abertura depois do brief anterior", conferencia)
+
     def test_conferencia_reprova_anterior_bloco_e_achado(self):
         pedido = self.pedido.read_text(encoding="utf-8")
         self.pedido.write_text(pedido + f"\n## Histórico\n- 2026-10-19 16:00: entrega conferida {self.c1}\n", encoding="utf-8")

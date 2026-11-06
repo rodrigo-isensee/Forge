@@ -64,7 +64,7 @@ do pedido copiadas literalmente, etapas de outro papel, marca de corte, formato 
 o Jarvis decide fica em `PREENCHER`, e o `brief` reprova enquanto restar um. `gerar --etapa merge-integracao|pedido-de-merge-ao-dono`
 acrescenta o PQ de merge por ancestralidade, `git merge-base --is-ancestor <mergeCommit> origin/<base>` com `espera: rc=0` (S-18).
 `brief gerar --volta <brief aprovado> --ref <branch>` (VV-2, M7) monta o brief da volta: Objetivo, Fora do escopo e Relatório copiados byte
-a byte do anterior (`Volta-de: <arquivo> sha256 <64>`), toda linha `DECISÃO DO DONO` do pedido, `## Entregar (volta N)` com um item por
+a byte do anterior (`Volta-de: <arquivo> sha256 <64>`; no Fora do escopo, só acréscimo no fim de etapa de `## Etapas` aberta no `## Histórico`, `- <data> <hora>: etapa <id> aberta`, depois da linha que cita o brief anterior, E14), toda linha `DECISÃO DO DONO` do pedido, `## Entregar (volta N)` com um item por
 achado `bloqueante` do bloco `## Achados` dos pareceres (lidos da --ref; formato `- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>`,
 numa linha, sem caractere de controle e até 300 caracteres), os recomendados à parte com `PREENCHER` e o PQ `forge-check entrega --desde`.
 `--incluir <parecer>:R<n>` copia para o Entregar, literal e com a origem (`(incluído <tipo> <sha7> R<n> de <parecer>)`), a recomendação `R<n>` (ou `A<n>` recomendado) do bloco `## Achados` do parecer lido da --ref; a conferência da volta a relê e reprova o texto diferente (`volta: recomendação R<n> difere do parecer`). O Base-sha gravado é o merge-base da branch com `origin/<base>` (ou a `origin/<base>` de agora, se a branch ainda não existe), e `brief` avisa (`aviso: Base-sha ... não está na branch`) quando o do brief não está nela.
@@ -1680,7 +1680,7 @@ ID_DE_ACHADO = re.compile(r"[AR]\d+")
 INCLUIDO = re.compile(r"\(incluído (\S+) ([0-9a-f]{7,40}) ([AR]\d+) de (\S+)\) (.+?)\s*$")  # marca da recomendação copiada no Entregar
 CABECALHO_ACHADOS = re.compile(r"^##\s+Achados\s*$")
 TETO_DO_ACHADO = 300
-SECOES_COPIADAS = ("Objetivo", "Fora do escopo", "Relatório")  # byte a byte do brief anterior (a volta só muda o Entregar)
+SECOES_COPIADAS = ("Objetivo", "Fora do escopo", "Relatório")  # byte a byte do brief anterior (a volta só muda o Entregar; o Fora do escopo só ganha etapa nova no fim, E14)
 VOLTA_DE = re.compile(r"^Volta-de:\s*(\S+)\s+sha256\s+([0-9a-f]{64})\s*$", re.M)
 RAIZES_DE_BRIEF = (Path.home() / ".forge-contrib",)  # onde o Jarvis do Forge guarda docs/briefs/ (fora do clone)
 
@@ -1841,6 +1841,44 @@ def acrescentar(linhas, novas):
     return corpo + [n + "\n" for n in novas] + ["\n"]
 
 
+ETAPA_ABERTA = re.compile(r"^-\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}: etapa (E\d+\.\d+[a-z]?) aberta\s*$")  # E14: a linha do Jarvis no `## Histórico`, fechada no fim (QA L10-1, T-3)
+
+
+def etapas_novas_da_volta(pedido_txt, anterior, rel_anterior, cobre, etapa):
+    """E14 (VOLTA-ETAPA-NOVA, Q14 = A): {linha do gerador: motivo ou None} para cada etapa de `## Etapas` do pedido. None = a volta pode
+    acrescentá-la ao fim do `Fora do escopo`: aberta no `## Histórico` do pedido (`- <data> <hora>: etapa <id> aberta`) depois da linha que
+    cita o brief anterior pelo nome (C-3: a prova vem só do pedido), e não é a `Cobre:`/`Etapa:` da volta nem está no `Entregar` ou no
+    `Fora do escopo` do anterior (C-4). Fonte única do `gerar --volta` e da conferência (C-5)."""
+    historico = secoes_por(pedido_txt, CABECALHO_PEDIDO).get("Histórico", [])
+    nome = re.compile(rf"(?<![\w-]){re.escape(Path(rel_anterior).stem)}(?![\w-])")
+    inicio = next((i for i, linha in enumerate(historico) if nome.search(linha)), None)
+    abertas = {m.group(1) for linha in historico[inicio + 1:] if (m := ETAPA_ABERTA.match(linha))} if inicio is not None else set()
+    blocos = blocos_literais(anterior)
+    ja = "".join(blocos.get("Entregar", []) + blocos.get("Fora do escopo", []))
+    decisao = {}
+    for id_, (_, texto) in ler_pedido_brief(pedido_txt)["etapas"].items():
+        linha = f"- \"{sem_controle(texto)}\" · etapa de outra delegação; continua no pedido"
+        if id_ in (cobre, etapa) or re.search(rf"(?<![\w-]){re.escape(id_)}(?![\w-]|\.\d)", ja) or sem_controle(texto) in ja:
+            decisao[linha] = f"volta: etapa {id_} já estava no brief anterior ou é a da volta"
+        else:
+            decisao[linha] = None if id_ in abertas else f"volta: etapa {id_} sem prova de abertura depois do brief anterior"
+    return decisao
+
+
+def fora_do_escopo_da_volta(novo, antigo, decisao):
+    """E14: o `Fora do escopo` da volta é o do anterior, byte a byte, mais linhas no fim, cada uma uma só vez e com motivo None em `decisao`
+    (C-1, C-2); qualquer outra mudança reprova como antes. Lista de (linha, reprova)."""
+    velhas, novas = bloco_sem_final(antigo).split("\n"), bloco_sem_final(novo).split("\n")
+    if novas[:len(velhas)] != velhas:
+        return [('volta: bloco "Fora do escopo" difere do anterior', True)]
+    saida, vistas = [], set()
+    for linha in novas[len(velhas):]:
+        motivo = "volta: etapa repetida no Fora do escopo" if linha in vistas else decisao.get(linha, "volta: linha nova no Fora do escopo não é etapa de ## Etapas")
+        vistas.add(linha)
+        saida += [(f"{motivo} \"{sem_controle(linha)[:60]}\"", True)] if motivo else []
+    return saida
+
+
 def recusa_do_desde(raiz, pedido_txt, ref, base_sha, base):
     """P-N6: o motivo de o `gerar --volta` não propor como `--desde` a última base do `## Histórico` (`conferida` ou a do dono),
     pela regra única do `entrega` (`veredito_do_desde`), para a recusa não virar pergunta ao dono; None se ela vale."""
@@ -1949,7 +1987,8 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
                 recomendados += 1
                 entregar.append(f"- {marca_do_achado(p, achado, ref)} {achado['texto']} [{caminho_impresso(achado['arquivo'])}:{achado['linha']}] · {PREENCHER}: entra ou corta\n")
     saida += entregar + ["\n"]
-    saida += copiado("Fora do escopo")
+    novas_etapas = [l for l, motivo in etapas_novas_da_volta(pedido_txt, anterior, rel_volta, cobre_anterior, etapa_anterior).items() if motivo is None]
+    saida += acrescentar(copiado("Fora do escopo"), novas_etapas) if novas_etapas else copiado("Fora do escopo")  # E14: só acréscimo
     linhas_pedido = pedido_txt.splitlines()
     sha_anterior = hashlib.sha256(conteudo).hexdigest()
     depois = next((i for i, l in enumerate(linhas_pedido) if sha_anterior in l), None)
@@ -2000,7 +2039,11 @@ def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=N
     saida = []
     novos, antigos = blocos_literais(texto), blocos_literais(anterior)
     for nome in SECOES_COPIADAS:
-        if bloco_sem_final(novos.get(nome, [])) != bloco_sem_final(antigos.get(nome, [])):
+        if nome == "Fora do escopo":  # E14: só acréscimo de etapa aberta depois do anterior; Objetivo e Relatório seguem byte a byte
+            cabecalho = cabecalho_do_brief(texto)
+            decisao = etapas_novas_da_volta(pedido_txt, anterior, m.group(1), grupo(r"\bCobre:\s*(\S+)", cabecalho), grupo(ETAPA_DO_CABECALHO, cabecalho))
+            saida += fora_do_escopo_da_volta(novos.get(nome, []), antigos.get(nome, []), decisao)
+        elif bloco_sem_final(novos.get(nome, [])) != bloco_sem_final(antigos.get(nome, [])):
             saida.append((f"volta: bloco \"{nome}\" difere do anterior", True))
     decisoes = chave_da_decisao(" ".join(novos.get("Decisões e restrições", [])))
     for linha in antigos.get("Decisões e restrições", [])[1:]:
