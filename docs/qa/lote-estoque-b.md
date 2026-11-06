@@ -18,7 +18,7 @@ Base do parecer: o log da suíte inteira do push do lote (/tmp/push-lote-b2.log,
 
 ## Achados
 - A1 (recomendado) .github/workflows/ci.yml:56 · o passo `env com -a` (CI-ENV-ARGV0, nos jobs de teste e bateria) não tem teste local que confira o conteúdo; só a execução no CI o prova. Cobrir com asserção de texto em test_ci_local.
-- A2 (recomendado) tests/apoio_volta_unica.py:438 · o `env_gnu` reescrito em fb390ef (env parcial reprova, env total passa) não tem teste próprio com `env` falso no `PATH`; só o uso indireto em `test_divisao_esta_na_classe` e no corpus do T9b o exercita, e só no `env` desta máquina. Cobrir com dois testes (falso total e falso parcial), limpando o `lru_cache`.
+- A2 (recomendado) tests/apoio_volta_unica.py:438 · o `env_gnu` de fb390ef (parcial reprova, total passa) não tem teste com `env` falso no `PATH`; só o uso indireto no T9b o exercita. Cobrir com dois testes e `cache_clear`.
 
 ## Critério → teste → resultado
 | Critério (o que mudou na junção) | Teste | Fronteira protegida | Resultado |
