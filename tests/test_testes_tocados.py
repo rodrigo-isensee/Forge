@@ -58,7 +58,7 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len(modulos), 42)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; doutor-034: test_qa_doutor_034; L09 e L10: test_qa_lote_l09 e _l10
+        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 42)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; doutor-034: test_qa_doutor_034; L09 e L10: test_qa_lote_l09 e _l10
         for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
                        "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
@@ -552,7 +552,7 @@ class MapaDoForgeCheck(unittest.TestCase):
         return usam
 
     def test_mapa_lista_todo_modulo_que_usa_o_forge_check(self):
-        usam = self.modulos_que_usam()
+        usam = {m for m in self.modulos_que_usam() if not m.startswith("test_oraculo_")}  # EXT-1: entram por oraculos()
         self.assertGreaterEqual(len(usam), 8)
         listados = set(carregar().FORGE_CHECK)
         self.assertEqual(sorted(usam - listados), [], "faltam no mapa FORGE_CHECK")
@@ -562,6 +562,67 @@ class MapaDoForgeCheck(unittest.TestCase):
         modo, modulos = carregar().planejar(["bin/forge-check"], RAIZ)
         self.assertEqual(modo, "dirigido")
         self.assertIn("test_erros_no_brief", modulos)
+
+
+class Oraculos(unittest.TestCase):
+    """EXT-1: o teste-oráculo do portão (`tests/test_oraculo_<pedido>.py`) entra em todo plano dirigido; nome fora do
+    padrão, link ou pasta faz o `forge-testes` falhar, nunca sumir do plano (C-5); o oráculo não se pula (C-4)."""
+    TRIVIAL = "import unittest\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n"
+    PULA = re.compile(r"\bskip(If|Unless)?\b|SkipTest|expectedFailure")
+
+    def setUp(self):
+        self._t = tempfile.TemporaryDirectory()
+        self.addCleanup(self._t.cleanup)
+        self.dir = Path(self._t.name)
+        (self.dir / "tests").mkdir()
+        self.f = carregar()
+
+    def gravar(self, nome, texto=TRIVIAL):
+        (self.dir / "tests" / nome).write_text(texto, encoding="utf-8")
+
+    def test_oraculo_entra_no_plano_sem_mudar_a_contagem(self):
+        self.gravar("test_oraculo_x.py")
+        for caminho in ("bin/forge-check", "hooks/conformidade.py"):
+            with self.subTest(caminho):
+                _, real = self.f.planejar([caminho], RAIZ)
+                for m in real:
+                    self.gravar(f"{m}.py")
+                modo, modulos = self.f.planejar([caminho], self.dir)
+                self.assertEqual(modo, "dirigido")
+                self.assertIn("test_oraculo_x", modulos)
+                self.assertEqual(sorted(set(modulos) - {"test_oraculo_x"}), sorted(set(real) - {"test_oraculo_x"}))
+        self.assertEqual(self.f.planejar([], self.dir), ("dirigido", []), "nada alterado, nada a rodar")
+
+    def test_nome_fora_do_padrao_link_ou_pasta_falha(self):
+        alvo = self.dir / "fora.py"
+        alvo.write_text(self.TRIVIAL, encoding="utf-8")
+        casos = {"maiuscula": lambda: self.gravar("test_oraculo_X.py"), "ponto": lambda: self.gravar("test_oraculo_a.b.py"),
+                 "link": lambda: (self.dir / "tests" / "test_oraculo_l.py").symlink_to(alvo),
+                 "pasta": lambda: (self.dir / "tests" / "test_oraculo_p.py").mkdir()}
+        for nome, criar in casos.items():
+            with self.subTest(nome):
+                for p in (self.dir / "tests").glob("test_oraculo_*"):
+                    p.rmdir() if p.is_dir() and not p.is_symlink() else p.unlink()
+                criar()
+                with self.assertRaises(ValueError):
+                    self.f.oraculos(self.dir)
+
+    def test_forge_testes_sai_com_erro_e_o_nome_saneado(self):
+        git(self.dir, "init", "-q", "-b", "develop")
+        self.gravar("test_oraculo_a\x1b.py")
+        git(self.dir, "add", "-A")
+        git(self.dir, "commit", "-qm", "base")
+        r = subprocess.run([sys.executable, str(FERRAMENTA), "--base", "develop", "--listar"], cwd=self.dir, env=AMBIENTE,
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("test_oraculo_a\\x1b.py", r.stderr)
+        self.assertNotIn("\x1b", r.stderr)
+
+    def test_oraculo_do_repositorio_nao_se_pula(self):
+        self.assertTrue(self.PULA.search("@unittest.skipIf(True, 'x')") and self.PULA.search("@unittest.expectedFailure"))
+        for p in sorted((RAIZ / "tests").glob("test_oraculo_*.py")):
+            with self.subTest(p.name):
+                self.assertIsNone(self.PULA.search(p.read_text(encoding="utf-8")), "oráculo sem skip nem expectedFailure (C-4)")
 
 
 class ClassificacaoDoVermelho(unittest.TestCase):

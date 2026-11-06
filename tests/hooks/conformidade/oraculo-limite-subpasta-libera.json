@@ -1,0 +1,26 @@
+{
+  "descricao": "EXT-1, subpasta (A5): tests/sub/test_oraculo_x.py não é protegido. Limite registrado (C-8/C-9 do modelo de ameaças da 0.36): rc 0 hoje; a prova da não edição é o histórico (C-2). Quem fechar o furo troca o rc esperado.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "tests/test_oraculo_x.py": "import unittest\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/tests/sub/test_oraculo_x.py",
+      "content": "x\n"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
