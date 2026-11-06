@@ -1,0 +1,33 @@
+{
+  "descricao": "PARECER-HOOK-DICA-EDIT: .md gravado por heredoc com git na mesma chamada; o corpo, que o git pode rodar, não se lê (# de PR seguido de crase): segue barrado, com a causa e o Write ou Edit, sem mandar usar <<'FIM' (já está na linha).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cat > docs/x.md <<'EOF'\nRodado `x`.\nO PR #440 (`git merge`) fica.\nfim\nEOF\ngit add docs/x.md && git commit -m 'docs: x'"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: corpo de heredoc que a chamada pode rodar e que o hook não lê, com gh pr, gh api, merge ou pull. Corrigir: grave pelo Write ou Edit e rode o programa noutra chamada",
+    "stderr_sem": [
+      "<<'FIM'"
+    ]
+  }
+}

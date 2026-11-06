@@ -72,8 +72,9 @@ def superficie_de(raiz):
 
 
 def aviso_de_versao_nova(hook, superficie="projeto"):
-    """Uma vez por dia (cache `.forge/run/versao-nova`): consulta as releases, FORA da trava, e devolve a frase de aviso se saiu
-    versão nova e ainda não foi dita hoje; senão None. Consulta desligada ou em dia: silêncio e o dia fica marcado. Consulta que
+    """Uma consulta por dia (cache `.forge/run/versao-nova`), FORA da trava; devolve a frase de aviso se saiu versão nova que ainda
+    não foi dita (uma vez por versão, não por dia: o mesmo par `atual`/`ultima` já avisado em outro dia fica em silêncio); senão
+    None. Consulta desligada ou em dia: silêncio e o dia fica marcado. Consulta que
     FALHA (sem rede) não marca o dia: tenta de novo daqui a `ESPERA_APOS_FALHA` s. O cache também diz, para o `forge-check`, se o
     plugin está atrás (`defasado`, com `atual` e `ultima`)."""
     agora = time.time()
@@ -101,7 +102,8 @@ def aviso_de_versao_nova(hook, superficie="projeto"):
         else:
             defasada = resultado["estado"] == "defasada"
             texto = forge_versoes.texto_de_versao_nova(resultado["atual"], resultado["ultima"], superficie) if defasada else ""
-            avisado = False
+            avisado = defasada and antigo.get("avisado") is True and (antigo.get("atual"), antigo.get("ultima")) == (
+                resultado["atual"], resultado["ultima"])  # a mesma versão nova já dita num dia anterior não volta amanhã
         avisa = bool(texto) and not avisado
         novo = antigo if antigo.get("data") == hoje() else {
             "data": hoje(), "texto": texto, "defasado": resultado["estado"] == "defasada",
@@ -181,7 +183,10 @@ def principal(hook):
     nova = aviso_de_versao_nova(hook, superficie_de(raiz))
     if nova:
         partes.append(nova)
-    relogio = aviso_de_relogio(hook)
+    try:
+        relogio = aviso_de_relogio(hook)
+    except OSError:  # a falha ao gravar o relógio não pode comer o aviso de versão, que já está marcado como dito
+        relogio = None
     if relogio:
         partes.append(relogio)
     if partes:
