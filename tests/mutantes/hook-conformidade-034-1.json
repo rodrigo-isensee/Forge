@@ -1,0 +1,27 @@
+{
+  "pedido": "hook-conformidade-034",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o corpo da crase sai como o bash o lê (tira a barra de \\\\, \\` e \\$)",
+      "arquivo": "hooks/_comum.py",
+      "de": "fiel, antiga = re.sub(r\"\\\\([\\\\`$])\", r\"\\1\", comando[inicio:i]), ",
+      "para": "fiel, antiga = comando[inicio:i].replace(\"\\\\`\", \"`\"), ",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034",
+        "tests.test_hooks.Hooks.test_corpo_da_crase_como_o_bash_e_como_a_leitura_antiga"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a leitura antiga do corpo também vale quando dá outro texto (não afrouxa)",
+      "arquivo": "hooks/_comum.py",
+      "de": "if fiel == antiga else",
+      "para": "if True else",
+      "testes": [
+        "tests.test_hooks.Hooks.test_corpo_da_crase_como_o_bash_e_como_a_leitura_antiga"
+      ]
+    }
+  ]
+}

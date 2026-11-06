@@ -246,6 +246,27 @@ class Fechar(unittest.TestCase):
         chamadas = self.chamadas()
         self.assertFalse(any("pr merge" in c or "pr edit" in c or "--add-label" in c for c in chamadas))
 
+    def test_mensagem_do_passo_5_diz_que_o_gatilho_foi_o_titulo(self):
+        (self.estado / "texto").write_text("feat: x (afrouxa-regra)\nCorpo.\n")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertIn("pedido pelo título", r.stderr)
+        self.assertNotIn("item marcado do corpo", r.stderr)
+        self.assertIn("--esperar-rotulo", r.stderr)
+
+    def test_mensagem_do_passo_5_diz_que_o_gatilho_foi_o_item_do_corpo(self):
+        (self.estado / "texto").write_text(self.ITEM_MARCADO)
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertIn("pedido por um item marcado do corpo", r.stderr)
+        self.assertNotIn("pedido pelo título", r.stderr)
+
+    def test_prazo_esgotado_com_esperar_rotulo_para_sem_mandar_repetir_a_opcao(self):
+        (self.estado / "texto").write_text(self.ITEM_MARCADO)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", "0")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("pedido por um item marcado do corpo", r.stderr)
+        self.assertNotIn("rode de novo com --esperar-rotulo", r.stderr)
+        self.assertFalse(any("pr merge" in c for c in self.chamadas()))
+
     def test_corpo_que_so_cita_o_nome_do_rotulo_nao_para(self):
         (self.estado / "texto").write_text(
             "feat: x\nO #222 só o dono aplica o rótulo afrouxa-regra.\n"

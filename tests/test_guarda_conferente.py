@@ -149,6 +149,20 @@ class LeituraDeGitDoConferente(ProjetoDoConferente):
                 self.assertEqual(r.returncode, 2, r.stderr)
                 self.assertIn("R-CONFORMIDADE", r.stderr)
 
+    def test_qa_encadeamento_e_escape_seguem_recusados(self):
+        """QA: lock/move/repair, `-c x=y`, `--git-dir`, `;`, `&&`, `|`, `||`, substituição, crase e redirecionamentos não escapam."""
+        for comando in ("git worktree lock w", "git worktree unlock w", "git worktree move w x", "git worktree repair",
+                        "git worktree list -v", "git worktree list --porcelain -z", "git -c x=y branch", "git -c x=y worktree list",
+                        "git --git-dir=/tmp/x branch", "git --git-dir /tmp/x worktree list", "git --work-tree=/tmp branch",
+                        "git branch; git branch -D x", "git branch && git branch -D x", "git branch | tee f", "git branch || true; rm x",
+                        "git branch `pwd`", "git branch --list `pwd`", "git branch >> saida", "git branch 2> saida", "git worktree list > saida",
+                        "git worktree list; git worktree add w", "git worktree list && git worktree prune",
+                        "git branch --set-upstream-to=origin/x", "git branch --set-upstream-to origin/x", "git branch --unset-upstream",
+                        "git branch --contains=$(pwd)", "git branch --contains=-D"):
+            with self.subTest(comando):
+                r = self.bash(comando)
+                self.assertEqual(r.returncode, 2, r.stderr)
+
     def test_outro_papel_e_a_forca_de_leitura_nao_mudam(self):
         _comum, conformidade, _ = modulos_dos_hooks()
         self.assertNotIn("branch", conformidade.GIT_LEITURA)

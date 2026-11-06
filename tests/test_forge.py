@@ -689,7 +689,7 @@ class ForgeInit(unittest.TestCase):
     def test_stack_padrao_define_o_pronto_sugerido(self):
         forge_init("--nome", "Demo", str(self.tmp), cwd=self.tmp)
         claude_md = (self.tmp / "CLAUDE.md").read_text(encoding="utf-8")
-        self.assertIn("`npm run pronto`", claude_md)
+        self.assertIn("`pnpm run pronto`", claude_md)
 
     def test_stack_desconhecida_ou_invalida_e_recusada(self):
         for ruim in ("inexistente", "../templates"):
@@ -5526,18 +5526,25 @@ class TextoDoConferenteNoLote(unittest.TestCase):
         self.assertIn("Não rode a suíte (`python3 -m unittest`) nem `scripts/validar-plugin.sh`", self.agente)
         self.assertIn("`PQ-n do autor | <comando> → conferido pelo QA (R-QA) e pelo lastro`", self.agente)
 
-    def test_dois_blocos_so_depois_do_brief_e_modo_dentro_do_brief_nao_abre_bloco(self):  # E9b, M9.5 e M9.6
-        bloco = next(l for l in self.agente.splitlines() if l.startswith("- A mensagem pode ter dois blocos"))
-        for frase in ("logo depois do `BRIEF>>>`", "cada um com o seu veredito", "a última linha é o veredito do último bloco",
-                      "dentro do brief", "não abre bloco", "`forma: instrução ao conferente`"):
+    def test_um_bloco_por_mensagem_e_o_segundo_modo_e_instrucao_ao_conferente(self):  # E15 (BRIEF-MENSAGEM-LIMPA), antes E9b
+        linhas = [l for l in self.agente.splitlines() if l.startswith("- Cada mensagem traz um bloco só")]
+        self.assertEqual(len(linhas), 1, "a regra do bloco único sumiu ou duplicou")
+        for frase in ("`modo: brief` ou `modo: entrega`", "mensagens separadas", "uma segunda `Arquivo:`", "`forma: instrução ao conferente`",
+                      "responda só ao primeiro bloco"):
             with self.subTest(frase):
-                self.assertIn(frase, bloco)
+                self.assertIn(frase, linhas[0])
+        self.assertNotIn("A mensagem pode ter dois blocos", self.agente)  # a regra antiga não volta
         self.assertIn("use só a seção Modo brief", self.agente)  # as frases protegidas continuam
         self.assertIn("use só a seção Modo entrega", self.agente)
 
+    def test_mensagem_sem_brief_sha256_reprova(self):  # E15, review A3 do L09: a regra nova tem teste
+        self.assertIn("`forma: mensagem sem Brief-sha256` (reprova: sem o hash nada prende a mensagem ao conteúdo que você leu)", self.agente)
+        entrada = self.agente.split("## Modo `brief`", 1)[1].split("**O que conferir**", 1)[0]
+        self.assertRegex(entrada, r"Brief-sha256: <64 hex>   Bytes: <n>")  # segurança A1 do L09: o exemplo da Entrada mostra a linha
+
     def test_pr_da_etapa_de_merge_le_a_origin_e_a_seguranca_e_etapa(self):  # E4, E5
         self.assertIn("forge-check pr <pedido> --ref <ref> --base origin/<Base>`", self.agente)
-        self.assertIn("| `review`, `seguranca` | Commit do autor existe e está no remoto |", self.agente)
+        self.assertIn("| `review`, `seguranca` | Commit do autor no remoto; à frente dele, só pareceres (linha `commit:` ou `aviso: commit:` do `forge-check brief`", self.agente)
         self.assertIn("Etapa: <codigo|review|seguranca|qa|pr|merge-integracao|pedido-de-merge-ao-dono>", self.agente)
         self.assertIn("nas etapas `codigo`, `review`, `seguranca` e `qa`", self.agente)
         self.assertIn("nas etapas `codigo`, `review`, `seguranca` e `qa` (todo `PQ-n` cumpriu", self.agente)
@@ -6037,3 +6044,83 @@ class EntregaAtoGithub(RepoComOrigem):
         fc = carregar_forge_check()
         self.assertEqual(fc.tipo_da_etapa("ato-github"), "ato-github")
         self.assertEqual(fc.tipo_do_brief("Tipo: ato-github\nBranch: —\n\n## Objetivo\nx\n"), "ato-github")
+
+
+class TextosAQ3Arquiteto(unittest.TestCase):
+    """T2 (AQ3-TEXTO): `gatilhos_seguranca` na lista de campos do plano e a classificação de afrouxamento no arquiteto."""
+
+    def setUp(self):
+        self.texto = (RAIZ / "agents" / "software-architect.md").read_text(encoding="utf-8")
+
+    def test_gatilhos_seguranca_na_lista_de_campos_e_vazio_so_com_a_frase(self):
+        self.assertIn("`agentes: [..]`, `gatilhos_seguranca` (percorra a lista de `R-SEGURANCA`", self.texto)
+        self.assertIn("`[]` só com \"sem gatilho de segurança\" escrito no plano", self.texto)
+        self.assertEqual(self.texto.count("`gatilhos_seguranca`"), 1)
+
+    def test_toda_proposta_diz_se_afrouxa(self):
+        self.assertIn("Toda proposta diz se afrouxa: tirar ou trocar texto de `docs/regras/`, de item de `tests/config.json`", self.texto)
+        self.assertIn("e vai ao dono (`R-DECISAO`)", self.texto)
+
+
+class TextosAQ3AgileCoach(unittest.TestCase):
+    """T4 (AQ3-TEXTO): o coach usa as marcas de `R-DECISAO`, separa propor de implementar e lê o git sem escrever."""
+
+    def setUp(self):
+        self.texto = (RAIZ / "agents" / "agile-coach.md").read_text(encoding="utf-8")
+
+    def test_numero_leva_uma_das_tres_marcas_e_nao_proibe_estimado(self):
+        self.assertIn("Todo número leva a marca de `R-DECISAO`: `medido` (comando citado), `estimado` (com a base) ou `não medido`", self.texto)
+        self.assertNotIn("nunca número estimado", self.texto)
+
+    def test_git_so_de_leitura_em_outra_ref(self):
+        self.assertIn("`git show <ref>:<caminho>`, `git archive <ref> | tar -x -C $TMPDIR/...` ou `--ref` do `forge-check`", self.texto)
+        self.assertIn("nada de `worktree`, `checkout` nem `switch` no repositório medido", self.texto)
+
+    def test_propor_e_implementar_numa_regra_so(self):
+        self.assertEqual(self.texto.count("**Melhorias você mesmo implementa**"), 0)
+        self.assertIn("mudança em agente, skill, script ou teste do Forge vira cartão para o `tech-lead`", self.texto)
+        self.assertIn("(na sessão do Forge, com o AQ, `forge-dev:aq`)", self.texto)
+
+
+class TextosAQ3Stack(unittest.TestCase):
+    """T5 (AQ3-TEXTO): contrato com uma fonte só, parada sem especificação e `R-CONFORMIDADE` nos agentes da stack."""
+
+    def setUp(self):
+        base = RAIZ / "stacks" / "node-react"
+        self.agentes = {n: (base / "agents" / f"{n}.md").read_text(encoding="utf-8") for n in ("node-backend", "react-frontend")}
+        self.pronto = (base / "pronto.md").read_text(encoding="utf-8")
+
+    def test_os_dois_agentes_param_sem_especificacao_e_citam_a_regra_de_conformidade(self):
+        for nome, texto in self.agentes.items():
+            with self.subTest(nome):
+                self.assertIn("Sem especificação validada nem plano, pare e devolva a lacuna (`R-DISCOVERY`)", texto)
+                self.assertIn("- `R-CONFORMIDADE`: bloqueio não se contorna; vira decisão ao usuário (`R-DECISAO`).", texto)
+
+    def test_contrato_tem_o_esquema_como_fonte_e_o_markdown_como_descricao(self):
+        texto = self.agentes["node-backend"]
+        self.assertIn("defina o contrato no esquema compartilhado (a fonte única, `pronto.md`, \"contrato back-front\")", texto)
+        self.assertIn("- Contrato back-front: o esquema", self.pronto)
+        self.assertNotIn("esse é o contrato que o agente", texto)
+
+    def test_comando_sugerido_usa_o_gerenciador_do_monorepo(self):
+        self.assertIn("Comando sugerido: `pnpm run pronto`", self.pronto)
+        self.assertNotRegex(self.pronto, r"\bnpm run")
+
+
+class TextosAQ3Ux(unittest.TestCase):
+    """T6 (AQ3-TEXTO): validação do usuário só com a frase literal e acessibilidade marcada `lido` ou `medido`."""
+
+    def setUp(self):
+        self.texto = (RAIZ / "agents" / "ux-designer.md").read_text(encoding="utf-8")
+
+    def test_validacao_so_com_a_frase_literal_e_data(self):
+        self.assertIn("O retorno entra só como a frase literal do usuário, com data, trazida pelo Jarvis", self.texto)
+        self.assertIn("sem ela, o estado é \"aguardando o usuário\", nunca \"aprovado\"", self.texto)
+
+    def test_acessibilidade_lida_ou_medida(self):
+        self.assertIn("marcado `lido` (pelo código) ou `medido` (saída de ferramenta citada)", self.texto)
+        self.assertIn("contraste e leitor de tela sem medição são `lido`", self.texto)
+
+    def test_prototipo_sem_url_externa_e_discovery_so_com_interface(self):
+        self.assertIn("confira com `Grep` que nada no protótipo carrega URL externa", self.texto)
+        self.assertIn("Nenhuma demanda com interface entra em desenvolvimento sem passar por você", self.texto)

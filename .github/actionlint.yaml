@@ -1,0 +1,6 @@
+# Configuração do actionlint (lida de .github/actionlint.yaml). O actionlint 1.7.12 (a última versão, de 2026-03-30)
+# ainda não conhece o runner hospedado ubuntu-26.04 que os workflows usam; o label entra na lista de conhecidos,
+# sem desligar regra alguma. Sai daqui quando a versão fixada no ci.yml já trouxer o label.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04
