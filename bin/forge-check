@@ -4593,7 +4593,8 @@ SECOES_BRIEF = ("Objetivo", "Ler", "Entregar", "Fora do escopo", "Decisões e re
 TIPOS_PROVA = ("sha", "push", "pr", "run", "cmd", "arquivo", "merge")
 CMD_DO_CONFERENTE = "cmd:conferente"  # o PQ `cmd` que o próprio conferente roda (`verificador: conferente`)
 PROVAS_DO_CONFERENTE = ("sha", "push", "arquivo", "pr", "merge", CMD_DO_CONFERENTE)  # o que o conferente confere sozinho (R-PROVA, C6, M4, D1)
-CABECALHO_BRIEF = re.compile(r"^\s*(?:#{1,6}\s*|(?:\d+\.\s*)?\*\*\s*)(" + "|".join(SECOES_BRIEF) + r")\b")
+SECAO_DAS_FORMAS = "Formas aceitas pelos hooks"  # E7: seção própria, que nenhuma checagem lê (não cai no `Pronto quando`)
+CABECALHO_BRIEF = re.compile(r"^\s*(?:#{1,6}\s*|(?:\d+\.\s*)?\*\*\s*)(" + "|".join(SECOES_BRIEF + (SECAO_DAS_FORMAS,)) + r")\b")
 CABECALHO_PEDIDO = re.compile(r"^#{2,6}\s+(.*?)\s*$")
 ITEM = re.compile(r"^\s*(?:[-*]|\d+\.)\s+")
 PQ = re.compile(r"\bPQ-(\d+)\b\s*(?:\(([^)]*)\))?")
@@ -4605,6 +4606,10 @@ CITACAO = re.compile(r"\(\s*(E\d+(?:\.\d+[a-z]?)?(?:\s*(?:,|;|e|\+|/)\s*E\d+(?:\
 ETAPA_DO_PEDIDO = re.compile(r"\bE(\d+)\.(\d+)([a-z]?)\s*\(([^)]*)\)\s*:")
 ASPAS = re.compile(r"[\"“]([^\"”]+)[\"”]")
 MARCA_DE_CORTE = "Retira do escopo original"
+# E7: as formas de commit que o hook `conformidade` aceita (ADR 0011, item 2: `-m` de uma linha; heredoc só como <<'EOF' exato);
+# o teste tests/test_brief_forma_aceita.py roda cada uma pelo hook, e a oferta não envelhece em relação a ele.
+FORMAS_DE_COMMIT = (("commit com mensagem de uma linha", "git commit -m 'tipo(escopo): descrição'"),
+                    ("commit com mensagem em heredoc (só <<'EOF' exato)", "git commit -m \"$(cat <<'EOF'\ntipo(escopo): descrição\nEOF\n)\""))
 CAMPOS_DA_MARCA = ("justificativa", "consequência", "decisão")
 PREENCHER = "PREENCHER"
 COMANDOS_DO_CONFERENTE = {
@@ -6045,6 +6050,9 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
         saida.append("- PQ-N (cmd): `forge-check docs` · espera: rc=0")
     if etapa in ETAPAS_DE_MERGE:
         saida.append(pq_de_merge(base))
+    if tipo == "codigo" or etapa in ETAPAS_DE_MERGE:
+        saida += ["", f"## {SECAO_DAS_FORMAS} (copie, não reescreva)"]  # o merge sai só do `pq_de_merge` (A2)
+        saida += [f"- {rotulo}: `{cmd}`" if "\n" not in cmd else f"- {rotulo}:\n```\n{cmd}\n```" for rotulo, cmd in FORMAS_DE_COMMIT]
     saida += ["", "## Relatório",
               "Até 8 linhas, resultado real; depois o bloco `Provas:`, uma linha por `PQ-n` com a saída copiada da ferramenta, ou \"não cumprido\" e o motivo. Última linha: `Melhoria vista:` com o problema e a evidência, ou `nenhuma` (`R-DECISAO`)."]
     return "\n".join(saida) + "\n", 0, []

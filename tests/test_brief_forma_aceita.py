@@ -1,0 +1,91 @@
+"""E7 BRIEF-FORMA-ACEITA (versao-035): o brief gerado de código traz as formas de commit e merge que os hooks aceitam, e cada
+forma de commit da constante passa pelo hook `conformidade` (a oferta não envelhece em relação ao hook). Sem rede."""
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest import mock
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
+from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+from test_etapa_do_brief import Base, fc  # noqa: E402
+
+HOOKS = Path(__file__).resolve().parent.parent / "hooks"
+LANCADOR = ("import runpy, sys; sys.path.insert(0, sys.argv[1]); import _comum; "
+            "sys.argv = [sys.argv[2]]; runpy.run_path(sys.argv[0], run_name='__main__')")
+
+
+class FormasNoBrief(Base):
+    def gerar(self, destino, *extra):
+        return self.rodar("brief", "gerar", "--pedido", self.pedido, "--destino", f"forge:{destino}", *extra)
+
+    def test_brief_de_codigo_traz_a_secao_com_cada_forma(self):
+        rc, saida = self.gerar("dev-exemplo", "--cobre", "E1.1", "--branch", "melhoria/x")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("## Formas aceitas pelos hooks (copie, não reescreva)", saida)
+        for _, comando in fc.FORMAS_DE_COMMIT:
+            self.assertIn(comando, saida)
+        self.assertNotIn("--is-ancestor", saida)  # brief de código não traz o merge (tests/test_volta_por_delta.py)
+
+    def test_brief_de_review_nao_traz_a_secao(self):
+        rc, saida = self.gerar("revisor-exemplo", "--cobre", "E1.2", "--etapa", "review", "--branch", "melhoria/x")
+        self.assertEqual(rc, 0, saida)
+        self.assertNotIn("Formas aceitas pelos hooks", saida)
+
+    def test_etapa_de_merge_traz_a_linha_do_merge_uma_vez(self):  # A2: o pq_de_merge já a traz
+        with mock.patch.object(fc, "pareceres_da_etapa", return_value=[]), mock.patch.object(fc, "estado_da_branch", return_value=([], [])):
+            saida, rc, _ = fc.montar_brief(self.tmp, str(self.pedido), "forge:revisor-exemplo", "melhoria/x", "develop",
+                                           etapa="merge-integracao", cobre="E1.5")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("## Formas aceitas pelos hooks", saida)
+        self.assertEqual(saida.count("git merge-base --is-ancestor <mergeCommit> origin/develop"), 1, saida)
+
+    def test_brief_gerado_e_preenchido_passa_na_forma_com_a_secao(self):  # A1: a seção não cai no Pronto quando
+        rc, saida = self.gerar("dev-exemplo", "--cobre", "E1.1")
+        self.assertEqual(rc, 0, saida)
+        linhas = [linha for linha in saida.splitlines() if fc.PREENCHER not in linha]
+        linhas[linhas.index("## Ler"):linhas.index("## Ler")] = ["## Objetivo", "Exemplo.", ""]
+        pronto = next(i for i, linha in enumerate(linhas) if linha.startswith("## Pronto quando"))
+        linhas.insert(pronto + 1, "- PQ-1 (cmd): `true` · espera: rc=0")
+        texto = "\n".join(linhas) + "\n"
+        self.assertIn("## Formas aceitas pelos hooks", texto)
+        self.assertIn("git commit", texto)
+        rc, conferido = self.conferir(texto)
+        self.assertIn("forma: ok", conferido)
+        self.assertNotIn("sem PQ que o conferente confira", conferido)
+
+
+class FormasPassamNoHook(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-formas-")).resolve()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.env = sem_manutencao(dict(os.environ, HOME=str(self.tmp), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull))
+        (self.tmp / ".forge").mkdir()
+        (self.tmp / ".forge" / "versao").write_text("0.0.0\n", encoding="utf-8")  # o hook só age dentro de um projeto do Forge
+        subprocess.run(["git", "init", "-q", "-b", "melhoria/x", str(self.tmp)], check=True, env=self.env, timeout=60)
+
+    def pelo_hook(self, comando):
+        entrada = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": comando},
+                   "cwd": str(self.tmp), "agent_type": "forge:tech-lead", "session_id": "s"}
+        limpo = {k: v for k, v in self.env.items() if not k.startswith("FORGE_")}
+        return subprocess.run([sys.executable, "-c", LANCADOR, str(HOOKS), str(HOOKS / "conformidade.py")],
+                              input=json.dumps(entrada), cwd=self.tmp, env=limpo, capture_output=True, text=True, timeout=120)
+
+    def test_cada_forma_de_commit_passa_no_hook_conformidade_como_tech_lead(self):
+        for nome, forma in fc.FORMAS_DE_COMMIT:
+            r = self.pelo_hook(forma)
+            with self.subTest(forma=nome):
+                self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_o_teste_distingue_aceita_de_recusada(self):  # controle: o hook está de pé e recusa `--no-verify` (R-VERIFY)
+        r = self.pelo_hook("git commit --no-verify -m 'x'")
+        self.assertEqual(r.returncode, 2, r.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()
