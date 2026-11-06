@@ -156,6 +156,24 @@ class FecharEsperaCatraca(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stderr)
         self.assertGreater(self.leituras_de_checks(), 10)  # a rede de 10 leituras segue valendo
 
+    # ---- LOTE-FECHAR2 (volta 6): só a execução da catraca com link válido conta como "vista antes do rótulo" ou "nova" ----
+    def test_a2_check_de_outro_nome_com_run_novo_nao_faz_a_catraca_velha_virar_skipping(self):
+        # a bateria com run 3 (pass) não é a catraca: sem o `continue`, ela contaria como execução nova e liberaria a velha (cancel, run 1)
+        self.seq([self.cat("fail", 1)], [f"bateria\tpass\t1m\t{RUN.format(3, 3)}", self.cat("cancel", 1)])
+        r = self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", "2", FORGE_FECHAR_INTERVALO="1")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("run 1", r.stderr.splitlines()[-1])
+        self.assertTrue(self.sem_merge())
+
+    def test_a2_catraca_com_link_fora_do_padrao_antes_do_rotulo_nao_entra_em_run_antes(self):
+        # run `?` não é execução vista: sem o `continue`, o " ? " em run_antes faria a vermelha nova (run 3) parar na hora em vez de manter a rede
+        self.seq(["catraca\tfail\t5s\turl"], [self.cat("fail", 3)])
+        r = self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", "4", FORGE_FECHAR_INTERVALO="1")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertNotIn("reprovou (run 3)", r.stderr)
+        self.assertGreater(self.leituras_de_checks(), 2)
+        self.assertTrue(self.sem_merge())
+
     def test_o_script_nunca_reexecuta_a_catraca(self):
         self.seq([self.cat("fail", 1)], [self.cat("cancel", 1)], [self.cat("pass", 2)])
         self.espera_rotulo()
