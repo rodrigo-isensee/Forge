@@ -441,7 +441,8 @@ class TextosDizemQuandoCadaMedidaRoda(unittest.TestCase):
     def test_agile_coach_roda_a_linha_de_base_na_retrospectiva(self):
         coach = self.texto("agents/agile-coach.md")
         for trecho in ("forge-check esperas", "forge-check escape resumo", "forge-check escape registrar", "forge-check corrigidos",
-                       "forge-check afrouxamentos --rotulados", "Linha de base (M14b)"):
+                       "forge-check afrouxamentos --rotulados", "Linha de base (M14b)",
+                       "forge-check decisoes --sem-cartao"):
             self.assertIn(trecho, coach)
 
     def test_cada_medida_esta_na_tabela_de_metricas_e_no_uso_do_forge_check(self):

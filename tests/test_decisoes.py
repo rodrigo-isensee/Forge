@@ -4,7 +4,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
+from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -78,6 +80,75 @@ class Decisoes(unittest.TestCase):
         self.assertNotIn("‮", saida)
         self.assertIn("decisoes: aviso:", "\n".join(self.rodar("--pedido", "nao-existe")[1]))
         self.assertEqual(self.rodar("--pedido", "../fora")[1], ["decisoes: total=0 avisos=0"])
+
+
+CARTOES = """- 2026-11-06 09:33: DECISÃO DO DONO (2026-11-06 09:33): "A" — Cartão ABC-1, com o prefixo de data
+- DECISÃO DO DONO (2026-11-06): "A" — Cartão DEF-2-X
+- DECISÃO DO DONO (2026-11-06): "A" — Cartão GHI-3
+- DECISÃO DO DONO (2026-11-06): "A" — Cartão EXT-1
+- DECISÃO DO DONO (2026-11-06): "B" — sem id nenhum
+- DECISÃO DO DONO (2026-11-06): "B" — XYZ-9 encerrada como superada
+- DECISÃO DO DONO (2026-10-01): "A" — Cartão OLD-1, antes do --desde
+- DECISÃO DO DONO (2026-11-06): Cartão JKL-4\u2028sem-cartao: forjada
+- 2026-11-06 10:00: nota: DECISÃO DO DONO de ontem, Cartão MEIO-1
+- 2026-11-06 11:1x: DECISÃO DO DONO (2026-11-06 11:10): Cartão TORTO-1
+"""
+fc = SourceFileLoader("forge_check_decisoes", FORGE_CHECK).load_module()
+
+
+class SemCartao(unittest.TestCase):  # DECISAO-SEM-CARTAO: decisão do dono cruzada com o KANBAN.md e o histórico
+    rodar = Decisoes.rodar
+
+    def setUp(self):
+        Decisoes.setUp(self)
+        (self.pedidos / "p3.md").write_text(CARTOES, encoding="utf-8")
+        (self.tmp / "KANBAN.md").write_text("| ID | Título | Pedido |\n|---|---|---|\n| ABC-1 | a | p3 |\n| EXT-10 | b | x |\n", encoding="utf-8")
+        (self.tmp / "docs" / "kanban").mkdir(parents=True)
+        (self.tmp / "docs" / "kanban" / "historico.md").write_text("| hora | cartão | de | para | motivo |\n| 2026-11-06 | DEF-2 | a | b | c |\n", encoding="utf-8")
+
+    def test_lista_so_o_que_nao_tem_cartao(self):
+        rc, linhas = self.rodar("--pedido", "p3", "--sem-cartao", "--desde", "2026-11-01")
+        self.assertEqual(rc, 0, linhas)
+        self.assertEqual([l.split(" | ")[2] for l in linhas if l.startswith("sem-cartao: ")], ["GHI-3", "EXT-1", "JKL-4"], linhas)
+        self.assertEqual([l.split(" | ")[0] for l in linhas if l.startswith("sem-id: ")], ["sem-id: p3:5"])
+        self.assertEqual(linhas[-1], "decisoes: sem-cartao=3 sem-id=1 com-cartao=2 encerradas=1")
+        self.assertFalse([l for l in linhas if "forjada" in l and not l.startswith("sem-cartao: p3:8 |")], linhas)  # C-8
+        self.assertNotIn("OLD-1", "\n".join(linhas))
+        self.assertIn("OLD-1", "\n".join(self.rodar("--pedido", "p3", "--sem-cartao")[1]))
+
+    def test_quadro_por_link_vale_ausente_sem_cair_na_raiz_seguinte(self):  # C-6
+        casa = self.tmp / "home" / ".forge-contrib"
+        casa.mkdir(parents=True)
+        (casa / "KANBAN.md").write_text("| ID |\n| GHI-3 |\n", encoding="utf-8")
+        (self.tmp / "KANBAN.md").unlink()
+        (self.tmp / "KANBAN.md").symlink_to(casa / "KANBAN.md")
+        ids = [l.split(" | ")[2] for l in self.rodar("--pedido", "p3", "--sem-cartao")[1] if l.startswith("sem-cartao: ")]
+        self.assertIn("GHI-3", ids)
+        self.assertIn("ABC-1", ids)
+
+    def test_prefixo_de_data_numa_regra_so(self):  # C-1, C-2, C-4
+        tortas = ["- **2026-11-06 09:33**: DECISÃO DO DONO (2026-11-06): X", "- [2026-11-06] DECISÃO DO DONO (2026-11-06): X",
+                  "- 2026-11-06: 2026-11-06: DECISÃO DO DONO (2026-11-06): X"]
+        for linha in CARTOES.splitlines() + tortas + ["DECISÃO DO DONO (2026-11-06 11:59): X", "* 2026-11-06T09:33: DECISÃO DO DONO (2026-11-06): X"]:
+            self.assertEqual(fc.e_linha_de_decisao(linha), bool(fc.DECISAO_DO_REGISTRO.match(linha)), linha)
+        self.assertFalse([l for l in tortas if fc.e_linha_de_decisao(l)])
+        self.assertEqual(len(fc.linhas_de_decisao(CARTOES)), 8)
+        self.assertEqual([n for n, _ in fc.mencoes_da_frase(CARTOES)], [9, 10])
+
+    def test_linha_enorme_de_marcadores_e_datas_e_linear(self):  # C-5
+        linha, inicio = "- 1. 2026-11-06 " * 60000, time.monotonic()
+        self.assertFalse(fc.e_linha_de_decisao(linha) or fc.DECISAO_DO_REGISTRO.match(linha))
+        self.assertLess(time.monotonic() - inicio, 1)
+
+    def test_brief_cobra_a_decisao_com_prefixo(self):
+        (self.pedidos / "p4.md").write_text("# Pedido p4\n\n## Escopo\n- E1. X · `confirmado`\n\n## Etapas\n- E1.1 (dev-exemplo): X.\n\n"
+                                           "## Decisões do usuário\n- 2026-11-06 09:33: DECISÃO DO DONO (2026-11-06 09:33): \"A\"\n", encoding="utf-8")
+        brief = self.tmp / "docs" / "briefs" / "p4-dev-exemplo-1.md"
+        brief.parent.mkdir(parents=True)
+        brief.write_text("Agente destino: forge:dev-exemplo\n\n## Objetivo\nX.\n\n## Entregar\n- X (E1.1).\n\n## Decisões e restrições\n- nada\n", encoding="utf-8")
+        r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(self.tmp), "brief", str(brief), "--pedido", str(self.pedidos / "p4.md")],
+                           capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp / "home")))
+        self.assertIn('decisões: falta "2026-11-06 09:33: DECISÃO DO DONO', r.stdout)
 
 
 if __name__ == "__main__":
