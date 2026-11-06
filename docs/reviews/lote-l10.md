@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-034
 branch: melhoria/lote-l10
-commit: 8f22ad36940371ce59a4819a3a976b4d3e4bb0d4
+commit: 78149dbb44f211b2bfeb35d53f50dcf1623e0ff0
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-06
@@ -95,3 +95,22 @@ Comandos, na worktree em 8f22ad3:
 - `python3 -I -m unittest discover -s tests -p test_volta_por_delta.py`: 68, OK. `-p test_qa_lote_l10.py`: 1, OK. `-p test_conf_escopo.py`: 11, OK. `-p test_testes_tocados.py`: 86, OK.
 - `bin/forge-mutante tests/mutantes/lote-l10.json`, num clone isolado em 8f22ad3: rev=8f22ad369403, M1 a M13 morreram, rc=0. `bin/forge-mutante tests/mutantes/lote-l08-escopo.json`: M60 e M61 morreram, rc=0.
 - Suíte inteira: não foi rodada aqui (D-5). Cito a do push de 8f22ad3 (/tmp/push-l10.log, 2619 testes, OK, Histórico do pedido às 02:21).
+
+## Revalidação 0.34 (junções 6bfdeac e 6a630a0)
+Delta lido: `8f22ad3..78149db`, pela primeira parente: 1a451c4 e f6b596d (só os pareceres de review e QA sobre 8f22ad3, já lidos), a junção 860147c (develop em 6bfdeac) e a junção 78149db (develop em 6a630a0). O `commit:` passa a 78149db. Veredito: **aprovado**, sem achado novo.
+
+O que cada junção trouxe:
+- 860147c (6bfdeac): o PR #451 (pilha do conformidade da 0.34, `hooks/` e corpus) e o PR #455 (lote B: CI, catraca e release). O `--remerge-diff` sai vazio, sem resolução manual. Esse código tem pareceres próprios na develop.
+- 78149db (6a630a0): o PR #452 (lote C: doutor, forge-testes, hook parecer e guardas do forge-fechar), o PR #454 (lote A: textos) e o PR #453 (BRIEF-HEAD-LOCAL). Em `bin/forge-check` entra só o `so_pareceres_a_frente` e o desvio dele no `estado_do_commit` (perto da :4956); em `bin/forge-testes`, `-k`, `modulos_sem_mapa`, `avisos_de_mapa` e `test_qa_doutor_034` no `FORGE_CHECK`. Tudo com pareceres próprios na develop.
+
+Resolução do conflito (`git show --remerge-diff 78149db`): um só, em `tests/test_testes_tocados.py`, `test_forge_check_roda_os_modulos_dele`. Os dois lados subiam a contagem de 40 para 41, cada um por um módulo diferente (L10: `test_qa_lote_l10`; develop: `test_qa_doutor_034`). A resolução fica em 42 e o comentário cita os dois. Conferi: `planejar(["bin/forge-check"])` do `bin/forge-testes` juntado dá `dirigido` com 42 módulos, entre eles `test_qa_doutor_034` e `test_qa_lote_l10`. O teste segue com `assertEqual` exato e a mesma lista de `assertIn`. Não afrouxa: um módulo a mais ou a menos no mapa continua reprovando.
+
+O E14 segue inteiro: entre 8f22ad3 e 78149db, `tests/test_volta_por_delta.py`, `tests/test_qa_lote_l10.py`, `tests/mutantes/lote-l10.json` e `changelog.d/lote-l10.md` não mudam (`git diff --stat` vazio). O trecho novo de `bin/forge-check` fica longe do E14 (`ETAPA_ABERTA`, `etapas_novas_da_volta`, `fora_do_escopo_da_volta`, `gerar_volta`, `conferir_volta`) e não chama nenhuma dessas funções.
+
+M14: contra `origin/develop` (6a630a0), o delta próprio do L10 dá 134 linhas de código e teste: `bin/forge-check` 51, `tests/test_volta_por_delta.py` 47, `tests/test_qa_lote_l10.py` 32, `bin/forge-testes` 2 e `tests/test_testes_tocados.py` 2. Fica abaixo de 150, com um comportamento só.
+
+Comandos, na worktree em 78149db:
+- `python3 -I -m unittest discover -s tests -p test_testes_tocados.py`: 94, OK. `-p test_volta_por_delta.py`: 68, OK. `-p test_qa_lote_l10.py`: 1, OK.
+- `bin/forge-mutante tests/mutantes/lote-l10.json`: não rodado de novo, porque o código e os testes do E14 não mudaram desde a rodada de 8f22ad3 (M1 a M13 mortos).
+- Suíte inteira: não rodada aqui (D-5). Cito a do push de 78149db (/tmp/push-l10e.log, 2724 testes, OK, Histórico do pedido às 09:37).
+- Os achados A1 a A3 seguem como recomendação.
