@@ -79,7 +79,8 @@ FORGE_CHECK = ("test_anotar", "test_brief_gravar", "test_catraca", "test_citacao
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
 LEITORES_DE_TEXTO = ("test_anotar", "test_citacao", "test_clareza", "test_dependabot_modelo", "test_erros_no_brief",
                      "test_forge_mutante", "test_jarvis_nucleo", "test_modelos_projeto", "test_stack_prereq_sistema",
-                     "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09")
+                     "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09",
+                     "test_jarvis_n_jar_a")
 CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor",
             "test_modelos_citados") + LEITORES_DE_TEXTO
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
