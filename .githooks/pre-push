@@ -186,15 +186,15 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 # .dirigida): só suíte que rodou.
 sha_valido() { [[ "$1" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; }
 ja_no_remoto() {
-  local i ref sha achado s r saida achados=""
+  local i ref sha achado s r saida achados="" destino="${1:-}"
   [ "$modo_suite" -eq 0 ] && [ "$n_envios" -gt 0 ] && [ "$n_envios" -eq "$n_refs" ] || return 1
   [ "${#envio_ref[@]}" -eq "$n_envios" ] || return 1
-  case "${1:-}" in ''|-*) return 1 ;; esac
+  case "$destino" in ''|-*) return 1 ;; esac
   for i in "${!envio_ref[@]}"; do
     ref="${envio_ref[$i]}"; sha="${envio_sha[$i]}"; achado=""
     case "$ref" in refs/heads/main|refs/heads/homolog|refs/heads/develop|*[[:cntrl:]]*) return 1 ;; refs/heads/?*) ;; *) return 1 ;; esac
     sha_valido "$sha" || return 1
-    saida="$(GIT_TERMINAL_PROMPT=0 timeout 20 git ls-remote -- "$1" "$ref" 2>/dev/null)" || return 1
+    saida="$(GIT_TERMINAL_PROMPT=0 timeout 20 git ls-remote -- "$destino" "$ref" 2>/dev/null)" || return 1
     while IFS=$'\t' read -r s r; do [ "$r" = "$ref" ] && achado="$s"; done <<< "$saida"
     sha_valido "$achado" || return 1
     if [ "$achado" != "$sha" ]; then
