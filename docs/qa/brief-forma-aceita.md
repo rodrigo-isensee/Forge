@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: versao-035
 branch: melhoria/brief-forma-aceita
-commit: 4f2ef7ed87f238ba07b694c8d6ef1ce8f8b92219
+commit: 7374443691d336ce869d2d1d0db1003f12dc82b2
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-05
+data: 2026-11-06
 ---
 # QA: versao-035, E7 BRIEF-FORMA-ACEITA
 
@@ -57,3 +57,13 @@ M6 · morreu · bin/forge-check:4569   (<<$'EOF')
 M5 é equivalente: o hook aceita `<<EOF`, então a oferta continua válida (A1, recomendado). Mutante com cobertura de forma recusada (M6) morre.
 
 Prazo e acessibilidade: não se aplicam (sem UI). Nenhum bug aberto.
+
+## Revalidação 2026-11-06
+
+Produto testado em 7374443 (junção da develop em 3011d84; d31da9f só soma o parecer de review revalidado). Escopo: o delta das junções 4b44286 (2026-11-05 20:58) e 7374443 (2026-11-06 11:30) sobre o que o E7 entrega. Vale o parecer anterior (4f2ef7e); os achados acima ficam (A1 segue recomendado, sem mudança).
+
+Delta conferido (`git show --cc` de cada junção e `git diff 3011d84 7374443`): o diff da branch contra a base atual tem 7 arquivos, todos do E7. Os conflitos resolvidos foram só a contagem em `tests/test_testes_tocados.py` (`test_forge_check_roda_os_modulos_dele`: 40 em 4f2ef7e, 41 em 4b44286, 43 em 7374443, que soma `test_qa_lote_l09`, `_l10` e `test_qa_doutor_034` da develop mais `test_brief_forma_aceita` do E7) e a tupla `FORGE_CHECK` de `bin/forge-testes` (inclui `test_brief_forma_aceita` ao lado de `test_qa_doutor_034`). `diff 4f2ef7e 7374443` não toca as linhas do E7 em `bin/forge-check` (`FORMAS_DE_COMMIT`, `SECAO_DAS_FORMAS`, seção no `montar_brief`: 0 ocorrências no delta) nem `tests/test_brief_forma_aceita.py` (sem diferença). A regra do mapa para `hooks/` com `test_brief_forma_aceita` está igual em 4f2ef7e e 7374443 (2 menções nos dois). Nenhuma guarda nova: sem mutante novo; os M1 a M6 seguem valendo.
+
+Suíte: reusa, sem rodar de novo (R-TETO; decisão do dono de 2026-11-05 14:59). Push de 7374443: `Ran 2730 tests in 1654.640s (2 processos)`, `OK (skipped=32)`, `push_rc=0`, log /tmp/push-e7-3.log (12:03:54).
+
+Veredito: aprovado. As junções só resolveram contagens; o E7 entregue é o mesmo testado em 4f2ef7e. Bugs abertos: nenhum.
