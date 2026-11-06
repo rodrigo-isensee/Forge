@@ -64,7 +64,7 @@ class FecharEsperaCatraca(unittest.TestCase):
         sha = self.git("rev-parse", "melhoria/x")
         (self.estado / "head").write_text(sha)
         self.seq(["bateria\tpass\t1m\turl", self.cat("fail", 1)], ["bateria\tpass\t1m\turl", self.cat("cancel", 1)],
-                 ["bateria\tpass\t1m\turl", self.cat("pass", 2)])
+                 ["bateria\tpass\t1m\turl", "bateria (python 3.14)\tpass\t1m\turl", self.cat("pass", 2)])
         r = self.espera_rotulo()
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual(self.leituras_de_checks(), 3)
@@ -87,7 +87,7 @@ class FecharEsperaCatraca(unittest.TestCase):
         sha = self.git("rev-parse", "melhoria/x")
         (self.estado / "head").write_text(sha)
         self.seq([self.cat("fail", 1)], [self.cat("cancel", 1), self.cat("pending", 2)],
-                 [self.cat("cancel", 1), self.cat("pass", 2)])
+                 ["bateria\tpass\t1m\turl", "bateria (python 3.14)\tpass\t1m\turl", self.cat("cancel", 1), self.cat("pass", 2)])
         r = self.espera_rotulo()
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual(self.leituras_de_checks(), 3)
@@ -175,7 +175,8 @@ class FecharEsperaCatraca(unittest.TestCase):
         self.assertTrue(self.sem_merge())
 
     def test_o_script_nunca_reexecuta_a_catraca(self):
-        self.seq([self.cat("fail", 1)], [self.cat("cancel", 1)], [self.cat("pass", 2)])
+        self.seq([self.cat("fail", 1)], [self.cat("cancel", 1)],
+                 ["bateria\tpass\t1m\turl", "bateria (python 3.14)\tpass\t1m\turl", self.cat("pass", 2)])
         self.espera_rotulo()
         self.assertFalse(any(("rerun" in c) or ("workflow run" in c) or ("-X POST" in c) for c in self.chamadas()))
 

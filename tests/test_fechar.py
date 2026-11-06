@@ -153,7 +153,7 @@ class Fechar(unittest.TestCase):
         self.git("commit", "-q", "-m", "feat: b")
         self.git("push", "-q", "origin", "melhoria/x")
         self.git("switch", "-q", "develop")
-        (self.estado / "checks").write_text("bateria\tpass\t1m\turl\n")
+        (self.estado / "checks").write_text("bateria\tpass\t1m\turl\nbateria (python 3.14)\tpass\t1m\turl\ncatraca\tpass\t5s\turl\n")
 
     def tearDown(self):
         shutil.rmtree(self.tmp)
@@ -318,7 +318,7 @@ class Fechar(unittest.TestCase):
         (self.estado / "rotulo_na_leitura").write_text(f"{leitura}\n")
         if catraca_vermelha:
             (self.estado / "checks").write_text("bateria\tpass\t1m\turl\ncatraca\tfail\t5s\turl\n")
-            (self.estado / "checks_apos_rotulo").write_text("bateria\tpass\t1m\turl\ncatraca\tpass\t5s\turl\n")
+            (self.estado / "checks_apos_rotulo").write_text("bateria\tpass\t1m\turl\nbateria (python 3.14)\tpass\t1m\turl\ncatraca\tpass\t5s\turl\n")
 
     def test_esperar_rotulo_mescla_quando_o_rotulo_aparece_na_leitura_n(self):
         self._espera_rotulo(4, catraca_vermelha=True)
@@ -864,6 +864,7 @@ class Fechar(unittest.TestCase):
     def test_c2_log_traz_run_e_job_de_cada_check_o_head_e_o_commit_do_merge(self):
         (self.estado / "checks").write_text(
             "bateria\tpass\t5m\thttps://github.com/o/r/actions/runs/111/job/222\n"
+            "bateria (python 3.14)\tpass\t5m\thttps://github.com/o/r/actions/runs/111/job/223\n"
             "catraca\tpass\t5s\thttps://github.com/o/r/actions/runs/333/job/444\n"
             "extra\tskipping\t0\thttps://exemplo.test/sem-padrao?token=ghp_SEGREDO123\n")
         (self.estado / "merge_commit").write_text("abc123def456")
