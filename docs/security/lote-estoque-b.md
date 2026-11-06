@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-034
 branch: melhoria/lote-estoque-b
-commit: 84472bfa6c63406c46a6c86ce6353939a39a53dc
+commit: fb390efc8e6e3b27c4a1f18b5a22bfc997231cb3
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-06
@@ -30,6 +30,15 @@ Escopo: a junção `d9b26bb..84472bf` (7 merges na primeira linha de pais e o co
 - lote-cilista-v2 (7ee4a7b; tests/test_ci_local.py): a lista fechada de passos antes do lint aceita o ci.yml somado: `test_ci_local.py` 55 testes OK sobre a árvore de 84472bf mais o parecer de devops.
 - A1 (bin/forge-changelog:191 e :235): severidade informativa; caminho de ataque: nenhum novo na soma; é processo, não vulnerabilidade. Correção mínima: nenhuma no código; a E2.6 pede o rótulo `afrouxa-regra` ao dono. Esforço: P. Dono: Jarvis (pergunta ao dono).
 - Testes dos arquivos tocados (D-5), na worktree em ff7c246 (84472bf mais só o parecer de devops): `test_ci_local.py` 55 OK, `test_catraca.py` 280 OK, `test_changelog.py` 53 OK. A suíte inteira rodou no push de 84472bf (/tmp/push-lote-b2.log), sem rodar de novo aqui.
+
+## Revalidação das voltas do CI
+Delta `237c130..fb390ef` (7ec3a35, 83b3e55, fb390ef), que corrige as falhas do CI do PR #455 (/tmp/ci-455.log: o actionlint recusou o label `ubuntu-26.04`, e a bateria teve 288 falhas no processo dos testes do corpus); o resto do intervalo depois de 84472bf é só parecer. Não sou o autor das voltas.
+- Label no actionlint (.github/actionlint.yaml:4-6): só acrescenta `ubuntu-26.04` à lista `self-hosted-runner.labels`; nenhuma regra desligada, nenhum `ignore` nem `paths`, e o actionlint segue rodando em todos os workflows. O label é um runner hospedado do GitHub (ci.yml:27, 46 e 98; catraca.yml:20; release.yml:14), não um runner próprio: sem superfície nova. O zizmor não lê esse arquivo.
+- Pacote e passo novos do CI (ci.yml:64 e 273; ci.yml:76-79 e 285-288): `gnu-coreutils` vem do mesmo apt assinado do Ubuntu que já trazia o `rust-coreutils`, com `--no-install-recommends`, no passo que já tinha `set -euo pipefail`; o passo novo só confere que o `gnuenv` existe e divide `--s` como o GNU, sem escrever no `GITHUB_PATH` (o `env` do PATH continua o do uutils, conferido nas linhas de cima), sem segredo, sem interpolação de contexto no `run:` e com `permissions:` intactas. Falha fechada: a falta ou o comportamento errado reprova o job.
+- Critério do env_gnu (tests/apoio_volta_unica.py:436-460): o `env` só é aceito se dividir `echo a  b` em toda grafia de `OPCOES_DE_DIVISAO` (tests/apoio_volta_unica.py:626), e não mais só no `-S` separado; os modelos são constantes da classe, executados por lista de argumentos (`shlex.split` do modelo, sem shell), com timeout e stdin fechado. O critério ficou mais estrito: o gerador do corpus deixa de usar um `env` que recusa parte das grafias e cobriria menos a dimensão "lançador que divide texto" do filtro.
+- Falha fechada no teste (tests/apoio_volta_unica.py:458-459): `env` que divide o `-S` separado mas recusa alguma grafia, sem outro que divida tudo, levanta `AssertionError` com a grafia e o caminho, em vez de cair no skip; o skip fica só para a máquina sem `env` que divida o `-S` separado. Fecha o caminho em que a bateria do controle passaria verde sem ter rodado a dimensão. O `lru_cache` sobre o `classmethod` não guarda exceção, então a recusa se repete em cada chamada.
+- Testes dos arquivos tocados (D-5), sobre a árvore de fb390ef mais os pareceres: `test_hooks_volta_corpus` (o único que usa o `env_gnu`) 16 OK com o `env` GNU 9.4 local. A suíte inteira rodou no push de fb390ef (/tmp/push-lote-b8.log: 2632 testes, OK, skipped=30), sem rodar de novo aqui.
+- Veredito: nenhum achado novo; o delta endurece o CI e o teste do controle, sem afrouxar regra. A1 segue como estava (recomendado, rótulo `afrouxa-regra` na E2.6). Parecer mantido: aprovado, agora sobre fb390ef.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Ferramentas: `gitleaks`, `zizmor`, `actionlint`, `semgrep` e `osv-scanner` ausentes do PATH (lacuna; actionlint e zizmor rodam no job `bateria` do CI). Revisão por leitura do diff e do remerge-diff.
