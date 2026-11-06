@@ -109,7 +109,7 @@ class SemCartao(unittest.TestCase):  # DECISAO-SEM-CARTAO: decisão do dono cruz
     def test_lista_so_o_que_nao_tem_cartao(self):
         rc, linhas = self.rodar("--pedido", "p3", "--sem-cartao", "--desde", "2026-11-01")
         self.assertEqual(rc, 0, linhas)
-        self.assertEqual([l.split(" | ")[2] for l in linhas if l.startswith("sem-cartao: ")], ["GHI-3", "EXT-1", "JKL-4"], linhas)
+        self.assertEqual([l.split(" | ")[2] for l in linhas if l.startswith("sem-cartao: p3:")], ["GHI-3", "EXT-1", "JKL-4"], linhas)
         self.assertEqual([l.split(" | ")[0] for l in linhas if l.startswith("sem-id: ")], ["sem-id: p3:5"])
         self.assertEqual(linhas[-1], "decisoes: sem-cartao=3 sem-id=1 com-cartao=2 encerradas=1")
         self.assertFalse([l for l in linhas if "forjada" in l and not l.startswith("sem-cartao: p3:8 |")], linhas)  # C-8
@@ -122,7 +122,7 @@ class SemCartao(unittest.TestCase):  # DECISAO-SEM-CARTAO: decisão do dono cruz
         (casa / "KANBAN.md").write_text("| ID |\n| GHI-3 |\n", encoding="utf-8")
         (self.tmp / "KANBAN.md").unlink()
         (self.tmp / "KANBAN.md").symlink_to(casa / "KANBAN.md")
-        ids = [l.split(" | ")[2] for l in self.rodar("--pedido", "p3", "--sem-cartao")[1] if l.startswith("sem-cartao: ")]
+        ids = [l.split(" | ")[2] for l in self.rodar("--pedido", "p3", "--sem-cartao")[1] if l.startswith("sem-cartao: p3:")]
         self.assertIn("GHI-3", ids)
         self.assertIn("ABC-1", ids)
 
