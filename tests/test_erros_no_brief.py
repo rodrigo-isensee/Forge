@@ -430,22 +430,22 @@ class ErrosDoJarvis(Base):
                       linha("etapa", brief="xpto-tech-lead-1"), linha("etapa", brief="xpto-tech-lead-4"),
                       linha("escopo", brief="xpto-tech-lead-3"), linha("escopo", brief="xpto-tech-lead-4"))
 
-    def test_linhas_so_em_stderr_e_o_stdout_do_mensagem_e_do_brief_fica_igual_byte_a_byte(self):
+    def test_mensagem_nao_traz_lembrete_e_a_primeira_linha_e_modo_brief(self):  # E15
         self.brief(1)
         cod0, out0, err0 = self.mensagem()
         cod_c0, conf0, _ = self.conferir()
         self.assertEqual((cod0, cod_c0), (0, 0))
-        self.assertNotIn("jarvis-recorrente", err0)
         self.registrar_jarvis()
         cod, out, err = self.mensagem()
         cod_c, conf, err_c = self.conferir()
         self.assertEqual((cod, cod_c), (0, 0))
-        self.assertEqual(hashlib.sha256(out).hexdigest(), hashlib.sha256(out0).hexdigest())
+        self.assertEqual(out, out0)
+        self.assertEqual(out.decode().splitlines()[0], "modo: brief")
+        self.assertNotIn("jarvis-recorrente", err)  # nem em stderr: quem cola a saída inteira não leva linha antes do modo
         self.assertEqual(conf, conf0)
         self.assertNotIn(b"jarvis-recorrente", out + conf)
-        for e in (err, err_c):
-            self.assertEqual([l for l in e.splitlines() if l.startswith("jarvis-recorrente:")],
-                             [f"jarvis-recorrente: forma em 2 briefs codigo (30 dias) · confira: {fc.CLASSES_DE_FALHA['forma']}"])
+        self.assertEqual([l for l in err_c.splitlines() if l.startswith("jarvis-recorrente:")],  # o `brief` segue lembrando
+                         [f"jarvis-recorrente: forma em 2 briefs codigo (30 dias) · confira: {fc.CLASSES_DE_FALHA['forma']}"])
 
     def test_gerar_mostra_as_do_tipo_da_etapa(self):
         self.registrar_jarvis()
