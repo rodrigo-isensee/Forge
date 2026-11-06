@@ -5517,7 +5517,8 @@ OUTRO_REPOSITORIO, NOVO = "(outro repositório)", "(novo)"
 
 
 def e_copia_de_decisao(linha, copias):
-    """Adendo (2) do E4: a linha é decisão do dono e, sem o sufixo ` (copiada de <arquivo>)`, igual a uma linha cobrada."""
+    """Adendo (2) do E4: a linha é decisão do dono e, sem o sufixo ` (copiada de <arquivo>)`, igual a uma linha cobrada (`copias`
+    já vem sem o sufixo: o registro do pedido também o traz quando a linha veio de outro registro)."""
     return e_linha_de_decisao(linha) and chave_da_decisao(COPIADA_DE.sub("", linha)) in copias
 
 
@@ -5649,7 +5650,7 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     linhas += avisos_da_etapa(raiz, texto, pedido_id)
     linhas += aviso_de_review_proprio(raiz, texto, ler_pedido_brief(pedido_txt))
     linhas += linha_do_comando_pr(texto)
-    copias = {chave_da_decisao(linha) for _, linhas_da_fonte in cobradas["fontes"] for _, linha in linhas_da_fonte}
+    copias = {chave_da_decisao(COPIADA_DE.sub("", linha)) for _, linhas_da_fonte in cobradas["fontes"] for _, linha in linhas_da_fonte}
     linhas += conferir_citacoes(raiz, texto, secoes_por(texto, CABECALHO_BRIEF), ler_pedido_brief(pedido_txt), copias)
     if re.search(r"^Volta-de:", texto, re.M):  # brief de volta (M7): o anterior, os blocos copiados e os achados dos pareceres
         linhas += conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, pareceres, cobradas)

@@ -96,6 +96,13 @@ class ShaCitado(Base):
         self.assertNotIn("citação: sha", saida)
         self.assertEqual(rc, 0, saida)
 
+    def test_sem_ponta_que_resolva_cobra_so_existencia(self):  # Base-sha e Branch que não resolvem: nada a que ser ancestral
+        self.git("checkout", "-q", "--detach")
+        self.git("branch", "-D", "melhoria/x")
+        self.base = "0" * 40
+        rc, saida = self.conferir(f"- Recurso (E1), etapa (E1.1) sobre {self.lado[:7]}.")
+        self.assertNotIn("citação: sha", saida)
+
     def test_sha_que_existe_fora_da_base_e_da_branch_reprova(self):  # mutante: só existência, sem ancestralidade
         rc, saida = self.conferir(f"- Recurso (E1), etapa (E1.1) sobre {self.lado[:7]}.")
         self.assertIn(f"citação: sha {self.lado[:7]} não existe ou não está na base nem na branch", saida)
@@ -154,6 +161,12 @@ class DecisaoCopiada(Base):  # adendo (2) do E4: na cópia literal o sha só pre
             rc, saida = self.conferir(decisoes=decisoes)
             self.assertNotIn("citação: sha", saida)
             self.assertEqual(rc, 0, saida)
+
+    def test_copia_de_linha_que_o_pedido_ja_traz_com_sufixo_passa(self):  # o 276bc10 do versao-037:44
+        self.decisao = self.pedido(f"{self.lado[:7]} (copiada de decisoes.md)")
+        rc, saida = self.conferir()
+        self.assertNotIn("citação: sha", saida)
+        self.assertEqual(rc, 0, saida)
 
     def test_copia_com_sha_que_nao_existe_avisa(self):
         self.decisao = self.pedido("0badc0de1")

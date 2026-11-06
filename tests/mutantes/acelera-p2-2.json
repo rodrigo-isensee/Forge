@@ -39,7 +39,7 @@
       "de": "for p in pontas) if s]",
       "para": "for p in pontas) if True]",
       "testes": [
-        "tests.test_citacao_p2.ShaCitado.test_sha_da_base_e_da_branch_passa"
+        "tests.test_citacao_p2.ShaCitado.test_sem_ponta_que_resolva_cobra_so_existencia"
       ]
     },
     {
