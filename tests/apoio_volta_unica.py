@@ -439,16 +439,24 @@ print(json.dumps(saida))
         """O caminho do `env` que divide `echo a  b` como o GNU em toda grafia de `OPCOES_DE_DIVISAO`, ou None: o
         gerador da dimensão "lançador que divide texto" usa essas grafias. O uutils 0.8.0 divide o `-S` colado
         (`-S'…'`), também depois de `NOME=valor`, de `-` e de `-f`, mas não o valor separado; o 0.10.0 (`env` do
-        ubuntu-26.04) divide o separado e recusa as abreviaturas `--split`, `--spl=` e `--s`. Programa local, sem rede
-        (R-CUSTO)."""
+        ubuntu-26.04) divide o separado e recusa as abreviaturas `--split`, `--spl=` e `--s`. None só sem `env` que
+        divida o `-S` separado; o que o divide e recusa alguma grafia, sem outro que divida tudo, reprova com a grafia
+        recusada e o caminho, em vez de cair no skip. Programa local, sem rede (R-CUSTO)."""
         def divide(caminho, modelo):
             r = subprocess.run([caminho, *shlex.split(modelo.replace("{V}", "echo a  b"))], capture_output=True,
                                text=True, timeout=10, stdin=subprocess.DEVNULL)
             return r.returncode == 0 and r.stdout == "a b\n"
+        parciais = []
         for nome in ("env", "gnuenv", "genv"):
             caminho = shutil.which(nome)
-            if caminho and " " not in caminho and all(divide(caminho, m) for m in cls.OPCOES_DE_DIVISAO.values()):
+            if not caminho or " " in caminho or not divide(caminho, cls.OPCOES_DE_DIVISAO["-S"]):
+                continue
+            recusadas = [g for g, m in cls.OPCOES_DE_DIVISAO.items() if not divide(caminho, m)]
+            if not recusadas:
                 return caminho
+            parciais.append(f"{caminho} recusa {', '.join(recusadas)}")
+        if parciais:
+            raise AssertionError(f"nenhum env divide toda grafia de OPCOES_DE_DIVISAO: {'; '.join(parciais)}")
         return None
 
     @staticmethod

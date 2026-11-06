@@ -5,6 +5,7 @@
 - CI: os jobs de bateria instalam o uutils-coreutils do apt e conferem um env que aceita -a, para a prova viva de 20 formas do lançador voltar ao CI (CI-ENV-ARGV0)
 - `forge-changelog conferir`: o PR só de pareceres (docs/reviews, qa, security, devops, fora modelos `_*`, `ameacas/` e `aceites/`) não exige mais fragmento novo; antes travava no CI e no promover-homolog, como o PR #399 da 0.30.8 (RELEASE-PR-SO-PARECER)
 - CI no ubuntu-26.04 (volta do PR #455): o actionlint 1.7.12 não conhece o label `ubuntu-26.04` e passa a lê-lo de `.github/actionlint.yaml`, sem desligar regra; o `env` do 26.04 é o uutils 0.10.0, que divide o `-S` separado mas recusa as abreviaturas `--split`, `--spl=` e `--s`, e o `env_gnu` dos testes do corpus o tomava por GNU: agora exige toda grafia de `OPCOES_DE_DIVISAO`, e os jobs de bateria instalam o `gnu-coreutils` e conferem o `gnuenv` (falha fechada)
+- testes do corpus: o `env` que divide o `-S` separado e recusa alguma grafia de `OPCOES_DE_DIVISAO` (o uutils 0.10.0), sem `gnuenv` ou `genv` que dividam tudo, reprova com a grafia recusada e o caminho do `env`, em vez de cair no skip; o skip fica só para a máquina sem `env` que divida o `-S` separado (volta da conferência do PR #455)
 
 ### Alterado
 - CI: os jobs de `ci.yml`, `catraca.yml` e `release.yml` passam do runner `ubuntu-24.04` para o `ubuntu-26.04`, antes de 19/11/2026; teste em `tests/test_ci_local.py` exige o runner fixado em todo job (FILA-30 16c)
