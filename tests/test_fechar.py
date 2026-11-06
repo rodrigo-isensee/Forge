@@ -73,11 +73,15 @@ case "$1 $2" in
     exit 0 ;;
   "pr ready") exit 0 ;;
   "pr checks")
+    # como o script pede (C-6): só a leitura por JSON; cada linha do arquivo (nome, estado, tempo, link e o workflow opcional) sai como o `--jq` dele
+    # a monta: nome, estado, workflow e link; sem a 5.ª coluna, o workflow é o do repositório (catraca na Catraca, o resto no CI)
+    [ "${*:4}" = "--json name,bucket,link,workflow --jq .[] | [.name, .bucket, .workflow, .link] | @tsv" ] || exit 64
+    checks_json() { awk -F'\t' -v OFS='\t' 'NF >= 4 {$3 = (NF >= 5) ? $5 : ($1 == "catraca" ? "Catraca" : "CI"); NF = 4} 1'; }
     if [ -f "$ESTADO/sem_checks_ate" ] && [ "$(wc -l < "$REGISTRO")" -lt "$(cat "$ESTADO/sem_checks_ate")" ]; then
       echo "no checks reported on the 'melhoria/x' branch"; exit 1
     fi
     falha_n falha_checks && { echo "HTTP 502"; exit 1; }
-    cat "$ESTADO/checks"; exit 0 ;;
+    checks_json < "$ESTADO/checks"; exit 0 ;;
   "pr merge")
     [ -f "$ESTADO/merge_502" ] && exit 1
     [ -f "$ESTADO/merge_502_mas_mescla" ] && { echo MERGED > "$ESTADO/estado"; exit 1; }

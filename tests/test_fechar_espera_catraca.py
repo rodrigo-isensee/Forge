@@ -12,10 +12,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho ta
 import test_fechar as base  # noqa: E402  (o módulo, não a classe: a classe seria coletada de novo aqui)
 
 RUN = "https://github.com/o/r/actions/runs/{}/job/{}"
-LEITURA = '    cat "$ESTADO/checks"; exit 0 ;;\n'
+LEITURA = '    checks_json < "$ESTADO/checks"; exit 0 ;;\n'
 SEQUENCIA = '''    if [ -f "$ESTADO/checks_seq" ]; then
       n="$(( $(cat "$ESTADO/checks_n" 2>/dev/null || echo 0) + 1 ))"; echo "$n" > "$ESTADO/checks_n"
-      awk -v n="$n" 'BEGIN {b = 1} /^---$/ {b++; next} {t[b] = t[b] $0 "\\n"; if (b > m) m = b} END {printf "%s", t[(n > m) ? m : n]}' "$ESTADO/checks_seq"
+      awk -v n="$n" 'BEGIN {b = 1} /^---$/ {b++; next} {t[b] = t[b] $0 "\\n"; if (b > m) m = b} END {printf "%s", t[(n > m) ? m : n]}' "$ESTADO/checks_seq" | checks_json
       exit 0
     fi
 '''

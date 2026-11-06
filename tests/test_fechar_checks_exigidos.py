@@ -47,6 +47,12 @@ class FecharChecksExigidos(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self.leituras_de_checks(), 2)
 
+    def test_exigido_de_outro_workflow_nao_conta(self):  # C-6: o par workflow/nome; a 5.ª coluna é o workflow no `gh` falso
+        self.para(["bateria\tpass\t1m\turl\tOutro", *OK[1:]], "bateria", "ausente após 0s", "--espera", "0")
+
+    def test_exigido_de_outro_workflow_em_pass_nao_cobre_o_do_ci_em_skipping(self):
+        self.para(["bateria\tpass\t1m\turl\tOutro", "bateria\tskipping\t0\turl", *OK[1:]], "bateria", "skipping")
+
     def test_variavel_do_ambiente_nao_muda_a_lista(self):
         self.para(["bateria\tskipping\t0\turl", *OK[1:]], "bateria", "skipping", CHECKS_EXIGIDOS="", FORGE_FECHAR_CHECKS="")
 
@@ -54,7 +60,7 @@ class FecharChecksExigidos(unittest.TestCase):
         self.leituras([*OK, "checagem rápida (push na develop)\tskipping\t0\turl"])
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn("checks verdes (exigidos em pass: bateria bateria (python 3.14) catraca).", r.stdout)
+        self.assertIn("checks verdes (exigidos em pass: CI/bateria CI/bateria (python 3.14) Catraca/catraca).", r.stdout)
 
     def test_catraca_velha_do_rotulo_nao_conta_e_a_nova_em_pass_mescla(self):
         (self.estado / "rotulo_na_leitura").write_text("3\n")
