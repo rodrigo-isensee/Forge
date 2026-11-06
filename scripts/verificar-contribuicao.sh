@@ -34,8 +34,7 @@ while IFS= read -r arq; do
   esac
 done < <(git -c core.quotepath=false diff --no-ext-diff --no-textconv --name-only --diff-filter=AM "$base"..."$ponta")
 
-# Linhas adicionadas: "arquivo<TAB>linha<TAB>texto". O nome vem só do cabeçalho (antes do primeiro @@), sem a citação
-# do acento (quotepath) e sem o TAB final do nome com espaço; .gitattributes não esconde linhas (--text, sem textconv).
+# Linhas adicionadas: "arquivo<TAB>linha<TAB>texto"; nome só do cabeçalho (antes do @@), sem citar acento nem o TAB final.
 linhas=$(git -c core.quotepath=false diff --no-ext-diff --no-textconv --text -U0 "$base"..."$ponta" | awk '
   /^diff --git / { arq = ""; cab = 1; next }
   cab && /^\+\+\+ b\// { arq = substr($0, 7); sub(/\t$/, "", arq); next }

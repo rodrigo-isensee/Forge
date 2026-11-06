@@ -177,9 +177,8 @@ fi
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
 # Testes estruturais (rápidos, só biblioteca padrão); o CI repete tudo.
 cd "$(git rev-parse --show-toplevel)" || exit 1
-# I3 (0.37 E8): o delta de cada ref enviada (branch ou tag) passa pela varredura de segredo do CI, com o script lido da base
-# (refs/remotes/origin/develop por nome completo): a branch não julga a si mesma. Base, ponta ou script ilegível: aviso e
-# segue (o CI varre). Lido o script, qualquer saída diferente de 0 recusa o envio inteiro; só arquivo e linha saem.
+# I3 (0.37 E8): o delta de cada ref enviada (branch ou tag) passa pelo script de segredo do CI lido da base (a branch não julga a
+# si mesma). Base, ponta ou script ilegível: aviso e segue (o CI varre); saída diferente de 0 recusa o envio; nunca o valor.
 segredo_no_delta() {
   local dev script envio ponta remoto ref base saida
   dev="$(git rev-parse --verify -q 'refs/remotes/origin/develop^{commit}' 2>/dev/null)" &&
