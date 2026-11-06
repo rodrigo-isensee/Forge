@@ -1,5 +1,4 @@
-"""N-JAR-A (0.37 E5): as decisões do dono D2, D3, Q1 e Q2 de 2026-10-21 viram texto nas skills do Jarvis, e o núcleo
-(`agents/jarvis.md`) só cita o lote de 3 tópicos, sem ganhar linha. Leitor de texto."""
+"""N-JAR-A (0.37 E5): D2, D3, Q1 e Q2 do dono nas skills do Jarvis; o núcleo cita o lote de 3 sem ganhar linha."""
 import json
 import unittest
 from pathlib import Path
@@ -34,6 +33,3 @@ class TextoDoNJarA(unittest.TestCase):
         self.assertIn("lote por arquivo e lote de até 3 tópicos sem arquivo em comum", jarvis)
         self.assertLessEqual(len(jarvis.splitlines()), TETO)
 
-
-if __name__ == "__main__":
-    unittest.main()
