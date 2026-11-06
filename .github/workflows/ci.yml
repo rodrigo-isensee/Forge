@@ -61,7 +61,7 @@ jobs:
           # de 20 formas para 2 (CI-ENV-ARGV0). Falha fechado: o passo reprova o job, sem tolerar falha.
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends rust-coreutils
+          sudo apt-get install -y --no-install-recommends rust-coreutils gnu-coreutils
           alvo=/usr/lib/cargo/bin/coreutils/env
           [ -x "$alvo" ] || { echo "faltou $alvo depois da instalação"; exit 1; }
           mkdir -p "$RUNNER_TEMP/env-argv0"
@@ -73,6 +73,10 @@ jobs:
           [ "$achado" = "$RUNNER_TEMP/env-argv0/env" ] || { echo "o env do PATH é $achado, não o do uutils"; exit 1; }
           env -a x true || { echo "o env $achado não aceita -a"; exit 1; }
           env X=1 printf '%s' ok | grep -qx ok || { echo "o env $achado não roda env X=1 printf"; exit 1; }
+          # gnuenv do gnu-coreutils (o GNU com prefixo): o env_gnu de tests/apoio_volta_unica.py exige toda grafia do
+          # --split-string, e o uutils 0.10.0 do 26.04 recusa as abreviaturas (--split, --spl=, --s). Falha fechado.
+          gnu=$(command -v gnuenv) || { echo "faltou gnuenv depois da instalação"; exit 1; }
+          [ "$("$gnu" --s 'echo a  b')" = "a b" ] || { echo "o $gnu não divide --s como o GNU"; exit 1; }
           env --version | head -1
       - name: Testes do Forge (Python 3.14)
         run: |
@@ -266,7 +270,7 @@ jobs:
           # de 20 formas para 2 (CI-ENV-ARGV0). Falha fechado: o passo reprova o job, sem tolerar falha.
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends rust-coreutils
+          sudo apt-get install -y --no-install-recommends rust-coreutils gnu-coreutils
           alvo=/usr/lib/cargo/bin/coreutils/env
           [ -x "$alvo" ] || { echo "faltou $alvo depois da instalação"; exit 1; }
           mkdir -p "$RUNNER_TEMP/env-argv0"
@@ -278,6 +282,10 @@ jobs:
           [ "$achado" = "$RUNNER_TEMP/env-argv0/env" ] || { echo "o env do PATH é $achado, não o do uutils"; exit 1; }
           env -a x true || { echo "o env $achado não aceita -a"; exit 1; }
           env X=1 printf '%s' ok | grep -qx ok || { echo "o env $achado não roda env X=1 printf"; exit 1; }
+          # gnuenv do gnu-coreutils (o GNU com prefixo): o env_gnu de tests/apoio_volta_unica.py exige toda grafia do
+          # --split-string, e o uutils 0.10.0 do 26.04 recusa as abreviaturas (--split, --spl=, --s). Falha fechado.
+          gnu=$(command -v gnuenv) || { echo "faltou gnuenv depois da instalação"; exit 1; }
+          [ "$("$gnu" --s 'echo a  b')" = "a b" ] || { echo "o $gnu não divide --s como o GNU"; exit 1; }
           env --version | head -1
       - name: Testes do Forge
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
