@@ -1,11 +1,17 @@
 """E4 da versao-035 (R-BRIEF): o texto do conferente não reabre por leitura o campo que o `forge-check brief` decidiu `ok`
-e deixa a lista de comandos permitidos intacta (o hook `conformidade` a lê)."""
+e deixa a lista de comandos permitidos intacta (o hook `conformidade` a lê); o `forge-check brief` diz onde está o agente destino."""
 import hashlib
+import os
 import re
+import shutil
+import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
-TEXTO = (Path(__file__).resolve().parent.parent / "agents" / "conferente.md").read_text(encoding="utf-8")
+RAIZ = Path(__file__).resolve().parent.parent
+TEXTO = (RAIZ / "agents" / "conferente.md").read_text(encoding="utf-8")
 COMANDOS_SHA = "9bfc0c302af03ae2ce9f9322cb908b1e086606a01635dffc8ee2eb632596eaf9"
 
 
@@ -33,10 +39,7 @@ class NaoReabre(unittest.TestCase):
         resto = REGRA.replace(DECISOES_SO_PRESENCA, "")
         for termo in ("etapa", "fidelidade", "contradição"):
             self.assertNotIn(termo, resto.lower())
-
-    def test_decisoes_ok_dispensa_so_a_presenca(self):
-        """C-1: `decisões: ok` não fecha a contradição literal, que segue por leitura (volta 2, item 1)."""
-        self.assertIn(DECISOES_SO_PRESENCA, REGRA)
+        self.assertIn(DECISOES_SO_PRESENCA, REGRA)  # C-1: `decisões: ok` não fecha a contradição literal (volta 2, item 1)
 
     def test_c3_achado_contra_campo_ok_so_com_a_linha_do_comando(self):
         self.assertIn("achado por leitura contra esse campo só existe com a linha do comando que o contradiz, "
@@ -56,24 +59,17 @@ class NaoReabre(unittest.TestCase):
 
 
 class FerramentasDoDestino(unittest.TestCase):
-    def test_pq_cmd_para_destino_sem_bash_reprova(self):
-        """C-5 e C-6: o caminho sai só do `--destino`, e a reprovação tem a frase fixa."""
+    def test_g_item_4_le_so_o_caminho_impresso_pelo_forge_check(self):
+        """Adendo (review) do E4, C-5 e T-2: três casos separados, e todo comando lê só o `<caminho>` da linha `destino:`."""
         forma = paragrafo("4. **Forma**")
-        for trecho in ("grep -n '^tools:' agents/<nome>.md", "--destino forge:<nome>", "`forma: destino não encontrado`",
+        for trecho in ("(agente:", "não encontrado no plugin", "`forma: ferramentas do destino não verificáveis`, que aparece e não reprova",
+                       "`forma: destino não encontrado`, que reprova", "`forma: destino sem linha tools:`, que reprova",
                        "`forma: PQ-n cmd para destino sem Bash (rode-o o Jarvis ou mude o verificador)`, que reprova"):
             self.assertIn(trecho, forma)
-
-    def test_caminho_do_destino_sai_so_do_nome(self):
-        """C-5 e T-2: todo comando sobre o destino lê só `agents/<nome>.md`, com `<nome>` limitado ao padrão."""
-        forma = paragrafo("4. **Forma**")
-        comandos = [c for c in re.findall(r"`((?:ls|grep|cat|head|test) [^`]*)`", forma)
-                    if not all(arg.startswith("-") for arg in c.split()[1:])]  # `ls -l` citado sem caminho
-        self.assertGreaterEqual(len(comandos), 2)
+        self.assertNotIn("ls -l agents/<nome>.md", forma)
+        self.assertGreaterEqual(len(comandos := re.findall(r"`((?:ls|grep|cat|head|test) [^`]*)`", forma)), 2)
         for comando in comandos:
-            self.assertTrue(comando.endswith(" agents/<nome>.md"), comando)
-        self.assertEqual(set(re.findall(r"[\w./*<>-]*agents/[^\s`]*\.md", forma)), {"agents/<nome>.md"})
-        self.assertIn("`<nome>` só de `[a-z0-9-]+`", forma)
-        self.assertNotIn("stacks/", forma)
+            self.assertTrue(comando.endswith(" '<caminho>'"), comando)
 
     def test_forma_ok_nao_fecha_as_ferramentas_do_destino(self):
         """C-5 e C-6: o `forma: ok` do comando não lê `tools:`; a checagem segue por leitura (volta 2, item 2)."""
@@ -81,6 +77,35 @@ class FerramentasDoDestino(unittest.TestCase):
                       "seguem por leitura mesmo com `forma: ok`.", REGRA)
         self.assertIn("O `forge-check brief` não lê `tools:`: esta checagem segue por leitura mesmo com `forma: ok`.",
                       paragrafo("4. **Forma**"))
+
+    def test_f_todo_agente_do_repositorio_tem_uma_linha_tools(self):
+        agentes = sorted([*RAIZ.glob("agents/*.md"), *RAIZ.glob("stacks/*/agents/*.md")])
+        self.assertGreaterEqual(len(agentes), 10)
+        for agente in agentes:
+            self.assertEqual(len(re.findall(r"^tools:", agente.read_text(encoding="utf-8"), re.M)), 1, agente)
+
+
+class AgenteNoPlugin(unittest.TestCase):
+    """(e): o caminho sai da pasta do plugin do `forge-check` em uso, nunca da pasta corrente."""
+    def test_e_destino_imprime_o_arquivo_do_agente_no_plugin(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-agente-")).resolve()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        plugin, raiz = tmp / "plugin", tmp / "raiz"
+        for rel in ("plugin/agents/a.md", "plugin/stacks/s/agents/b.md", "plugin/x.md", "plugin/agents/dup.md", "plugin/bin/forge-check",
+                    "plugin/stacks/s/agents/dup.md", "plugin/stacks/t/vazio", "fora/d.md", "raiz/docs/pedidos/p.md"):
+            tmp.joinpath(rel).parent.mkdir(parents=True, exist_ok=True)
+            tmp.joinpath(rel).write_text("---\nid: p\n---\n", encoding="utf-8")
+        (plugin / "agents" / "c.md").symlink_to("a.md")  # link dentro do plugin
+        (plugin / "stacks" / "t" / "agents").symlink_to(tmp / "fora")  # pasta que resolve fora do plugin
+        shutil.copy(RAIZ / "bin" / "forge-check", plugin / "bin" / "forge-check")
+        (raiz / "b.md").write_text("Agente destino: forge:a\n", encoding="utf-8")
+        esperado = {"a": str(plugin / "agents" / "a.md"), "b": str(plugin / "stacks" / "s" / "agents" / "b.md")}
+        for nome in ("a", "b", "c", "d", "dup", "ausente", "../x"):
+            with self.subTest(nome):
+                r = subprocess.run([sys.executable, "-I", str(plugin / "bin" / "forge-check"), "--raiz", str(raiz), "brief", str(raiz / "b.md"),
+                                    "--pedido", "p", "--destino", f"forge:{nome}"], capture_output=True, text=True, timeout=60,
+                                   env={"PATH": os.defpath, "HOME": str(tmp)}, cwd=raiz)
+                self.assertIn(f"destino: forge:{nome} (agente: {esperado.get(nome, 'não encontrado no plugin')})\n", r.stdout)
 
 
 class ComandosPermitidos(unittest.TestCase):
