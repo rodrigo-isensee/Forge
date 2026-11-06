@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-034
 branch: melhoria/lote-estoque-c
-commit: f11234dffd10cdf566a5a22d43210edf595229ad
+commit: 78cfa461c5cb23887a6d498f4ce988554c6ffedf
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-05
@@ -27,6 +27,7 @@ Nenhum arquivo de código ou teste foi tocado por dois itens; a única sobreposi
 - e17d07a: inclui test_qa_doutor_034 no mapa FORGE_CHECK de bin/forge-testes e sobe a contagem de tests/test_testes_tocados.py de 39 para 40. Correto: o módulo executa o bin/forge-check (importlib em test_qa_doutor_034.py:77) e o teste do mapa conta os módulos; o comentário registra a origem. Dois ajustes de uma linha, no mesmo comportamento da junção.
 - f11234d: junta 7 fragmentos num só (changelog.d/lote-estoque-c.md), agrupado por seção; as 8 entradas dos 7 itens estão presentes. Sobra README.md e o fragmento do ancestral, que já vinham da base.
 - Volta 1 (consolidação, f11234d): os 7 fragmentos removidos (doutor-034, doutor-f8-caminho, forge-testes-aviso-mapa, forge-testes-filtro-k, forge-testes-sem-mapa, hook-parecer-034, lote-fechar2-guardas) somam 8 entradas; comparei os pares seção e entrada do pai de f11234d com changelog.d/lote-estoque-c.md: os 8 iguais, texto byte a byte, sob os mesmos títulos (Corrigido 3, Adicionado 4, Alterado 1). Nada perdido nem mudado; o veredito não muda.
+- Volta 2 (junção da develop 30b4453, L09, em 78cfa46): delta lido = `git show --remerge-diff 78cfa46` (um conflito, tests/test_testes_tocados.py:61) e `git diff 8a7612b 78cfa46 -- bin/forge-testes tests/test_testes_tocados.py`; já lido: o resto do lote até f11234d, e o lado da develop tem pareceres próprios (docs/reviews/lote-l09.md). bin/forge-testes juntou sem conflito com os dois lados: test_qa_doutor_034 (lote C, linha 72) e test_qa_lote_l09 (develop, FORGE_CHECK linha 76 e LEITORES_DE_TEXTO linha 82); FORGE_CHECK tem 41 entradas, 41 distintas, logo a contagem 41 do conflito (40 de cada lado com a mesma base 39, mais um de cada) está certa e o comentário cita as duas origens. `python3 -m unittest tests.test_testes_tocados tests.test_qa_lote_l09`: 97 testes, OK (29 s); a suíte inteira do push (2652 testes OK) fica com o QA. O veredito não muda.
 
 ## Testes dos módulos tocados
 `python3 -m unittest` em test_testes_tocados, test_qa_doutor_034, test_doutor, test_doutor_protecao_gh, test_qa_doutor_f8, test_fechar_base_andou, test_fechar_espera_catraca, test_hooks_parecer_pasta: 256 testes, OK (193 s). A suíte inteira fica com o QA do lote (E2.5).
