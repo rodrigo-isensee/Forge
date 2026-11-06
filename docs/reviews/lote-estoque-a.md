@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-034
 branch: melhoria/lote-estoque-a
-commit: f99351a624c15b4956526d2b8de8d3efdef8432a
+commit: 9e7d397ebe03ea3fc5c32cc8759ae32017e6e1fd
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-05
@@ -41,8 +41,19 @@ test_textos_034 (6), test_permissao_agentes_md (1), test_invariante_gatilho (1),
 - Nenhuma contradição de texto restante entre os itens; as redações antigas que a textos-034 trazia saíram.
 - Teto por PR (M14): o lote junta itens já aprovados um a um, e o código está só em `bin/forge-fechar` (+11, -4); fora esse arquivo, o resto é texto, teste e parecer.
 
+## Revalidação (f99351a..9e7d397)
+Delta lido: `git log f99351a..9e7d397` e o diff desse intervalo; já lido: a junção d9b26bb..f99351a, julgada acima.
+- 4b24838 chore(changelog): junta os fragmentos dos itens em `changelog.d/lote-estoque-a.md`; as linhas de PERMISSAO-AGENTES-MD e de ACHADO-TETO-DOC entraram duas vezes (redação antiga e refinada), ver A2.
+- a039ced e 47cd72c: o parecer anterior desta junção; não revistos.
+- c32d320 test(mapa): o `bin/forge-testes` liga os dois modelos de segurança (raiz e template) a test_modelos_parecer_avisos_2 e test_textos_034, que leem esses arquivos; correto, só amplia a seleção.
+- c565e9d e 8ea4c84 docs(pareceres): `docs/qa/pergunta-maior-menor.md` e `docs/reviews/pergunta-maior-menor.md` trocam a frase copiada por menção à R-DECISAO; o sentido do parecer não muda; a busca pela frase em `docs/reviews`, `docs/qa` e `docs/security` não acha nada.
+- 432d18a docs(modelos): o aviso de neutralidade do modelo de segurança passa a condicional ("onde um teste barra nome de stack"), igual na raiz e no template (`cmp` sem diferença); mantém o que a MODELOS-PARECER-AVISOS-2 trouxe e serve a projeto que não é o Forge.
+- 9e7d397 test(suite): `tests/pesos-d4.json` ganha os 20 módulos sem peso; JSON válido, 99 pesos para 99 módulos `tests/test_*.py`, todos existentes.
+- Testes rodados (módulos dos arquivos tocados, um a um; o `--listar` pede a suíte completa por causa do mapa, que fica com o QA): test_modelos_parecer_avisos_2, test_textos_034, test_pesos_teto, test_testes_tocados, test_pergunta_maior_menor, test_volta_por_delta, test_modelos_projeto, test_modelos_citados: todos OK; `tests/neutralidade.py` rc 0.
+
 ## Achados
 - A1 (recomendado) tests/test_textos_034.py:43 · o teto de 300 do achado já é afirmado em tests/test_achado_teto_doc.py; deixar um dos dois testes quando houver outra passada nesses arquivos.
+- A2 (recomendado) changelog.d/lote-estoque-a.md:15 · a linha de PERMISSAO-AGENTES-MD aparece duas vezes (a refinada na :14 e a antiga "pode exigir"), e a de ACHADO-TETO-DOC também (:2 e :11); deixar só a refinada de cada uma antes da release.
 
 ## Parecer
-Aprovado. A resolução dos quatro conflitos de texto e a do conflito de teste preservam a redação refinada de cada item, sem marcador residual e com os testes dos arquivos tocados verdes. A recomendação A1 não devolve.
+Aprovado. A resolução dos quatro conflitos de texto e a do conflito de teste preservam a redação refinada de cada item, sem marcador residual e com os testes dos arquivos tocados verdes. As recomendações A1 e A2 não devolvem. Revalidação em 9e7d397: as correções da E2.1 (mapa, citação por ID, modelo de segurança e pesos) estão certas e não mexem no que a junção resolveu; veredito mantido.
