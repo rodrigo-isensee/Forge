@@ -83,6 +83,16 @@
       "testes": [
         "tests.test_citacao_p2.DecisaoCopiada.test_copia_com_sha_que_nao_existe_avisa"
       ]
+    },
+    {
+      "id": "A3-1",
+      "guarda": "adendo (volta 2): o if copia: antes do teste de algarismos, o numero que nao resolve na copia sai aviso",
+      "arquivo": "bin/forge-check",
+      "de": "            if sha.isdigit() and not completo:\n                continue  # número de run, ruleset ou pid\n            if copia:\n",
+      "para": "            if copia and not completo:\n                saida.append((f\"aviso: citação: sha {sha[:7]} da decisão do dono copiada não existe\", False))\n            if sha.isdigit() and not completo:\n                continue  # número de run, ruleset ou pid\n            if copia:\n",
+      "testes": [
+        "tests.test_citacao_p2.DecisaoCopiada.test_numero_que_nao_resolve_na_copia_fica_calado"
+      ]
     }
   ]
 }

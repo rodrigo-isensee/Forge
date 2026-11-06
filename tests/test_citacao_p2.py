@@ -175,6 +175,16 @@ class DecisaoCopiada(Base):  # adendo (2) do E4: na cópia literal o sha só pre
         self.assertIn("aviso: citação: sha 0badc0d da decisão do dono copiada não existe", saida)
         self.assertEqual(rc, 0, saida)
 
+    def test_numero_que_nao_resolve_na_copia_fica_calado(self):  # adendo (volta 2); mutante: `if copia:` antes dos algarismos
+        r = subprocess.run(["git", "-C", str(self.tmp), "rev-parse", "--verify", "--quiet", "40505555559^{commit}"],
+                           capture_output=True)
+        self.assertNotEqual(r.returncode, 0, "40505555559 resolve como commit; troque o número")
+        for numero in ("40505555559", self.num_lado[:7]):  # o que não resolve e o que resolve fora da base
+            self.decisao = self.pedido(numero)
+            rc, saida = self.conferir()
+            self.assertNotIn("citação: sha", saida)
+            self.assertEqual(rc, 0, saida)
+
     def test_decisao_fora_do_pedido_reprova(self):  # mutante: dispensar toda linha que abre com a frase
         inventada = f"- DECISÃO DO DONO (2026-01-02 10:00): \"B\" — lote em {self.lado[:7]}"
         rc, saida = self.conferir(decisoes=f"- {self.decisao}\n{inventada}")
