@@ -3,14 +3,17 @@ tipo: review
 contrato: 1
 pedido: hook-pilha-034
 branch: melhoria/hook-msg-segmento
-commit: dde743b95b2424cbdafacc18cfd303dd8193f198
+commit: ed9c22a7ef1e43d0142183afcdada364b9df339e
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-05
+data: 2026-11-06
 ---
 # Review: hook-pilha-034 (E1.2, confirmação do E1 e do E2 e delta da reaplicação)
 
 Base: develop d9b26bb. Head: dde743b, o topo da pilha de 7 branches em cadeia, igual a `origin/melhoria/hook-msg-segmento`. Revisor: outra instância do `tech-lead`, que não implementou as voltas (E1.1).
+
+## Revalidação em ed9c22a (2026-11-06)
+Delta lido: `git diff dde743b ed9c22a`. Fora os pareceres de review, segurança e QA (5edf63c, ee0f291 e dae76f8), muda só uma linha da fixture `tests/hooks/conformidade/hook-msg-segmento-atribuicao-mascarada-bloqueia.json:20`. O token falso passa a `ghp_FAKE_FAKE_…`, fora do padrão `ghp_[A-Za-z0-9]{20,}` de `scripts/verificar-contribuicao.sh:16` (grep sem casamento), e o hook ainda o mascara. O `TOKEN_DO_GITHUB` (`hooks/conformidade.py:42`) aceita `_` no corpo. O esperado não mudou: código 2, o trecho `GH_TOKEN=***` e `ghp_` e `FAKE` fora do stderr. Rodada só essa fixture pelo `executar_em_lote` do `tests.test_hooks.Hooks`: 1 caso, OK. O resto ficou como já lido. O veredito não muda.
 
 ## Achados
 - A1 (recomendado) hooks/conformidade.py:1037 · `bash -c "g\$'\\x68' repo delete dono/proj --yes"` (e o mesmo com `eval`) passa com rc 0, e o bash roda `gh repo delete`. Já passava na develop e no 6598bb7: o leitor deixa o `\$` dentro de aspas duplas. Vai como cartão à segurança
