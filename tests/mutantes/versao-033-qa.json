@@ -1,0 +1,130 @@
+{
+  "pedido": "versao-033-qa",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Q1",
+      "guarda": "worktree aceita qualquer args",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return args == [\"list\"]",
+      "para": "return args[:1] == [\"list\"]",
+      "testes": [
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_recusam_as_formas_de_escrita_e_fora_do_limite",
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_qa_encadeamento_e_escape_seguem_recusados"
+      ]
+    },
+    {
+      "id": "Q2",
+      "guarda": "worktree recusa list",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return args == [\"list\"]",
+      "para": "return False",
+      "testes": [
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_passam_as_formas_de_leitura"
+      ]
+    },
+    {
+      "id": "Q3",
+      "guarda": "opção curta desconhecida passa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif a.startswith(\"-\"):\n            return False",
+      "para": "        elif a.startswith(\"-\"):\n            pass",
+      "testes": [
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_recusam_as_formas_de_escrita_e_fora_do_limite"
+      ]
+    },
+    {
+      "id": "Q4",
+      "guarda": "--contains sem valor passa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if i >= len(args) or not VALOR_DE_CONTAINS.match(args[i]):",
+      "para": "if i < len(args) and not VALOR_DE_CONTAINS.match(args[i]):",
+      "testes": [
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_recusam_as_formas_de_escrita_e_fora_do_limite"
+      ]
+    },
+    {
+      "id": "Q5",
+      "guarda": "--contains=valor não validado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not VALOR_DE_CONTAINS.match(a[len(\"--contains=\"):]):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_recusam_as_formas_de_escrita_e_fora_do_limite",
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_qa_encadeamento_e_escape_seguem_recusados"
+      ]
+    },
+    {
+      "id": "Q6",
+      "guarda": "valor de --contains pode começar com -",
+      "arquivo": "hooks/conformidade.py",
+      "de": "r\"^[0-9A-Za-z][0-9A-Za-z._/@^~-]*$\"",
+      "para": "r\"^[0-9A-Za-z._/@^~-]*$\"",
+      "testes": [
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_recusam_as_formas_de_escrita_e_fora_do_limite",
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_qa_encadeamento_e_escape_seguem_recusados"
+      ]
+    },
+    {
+      "id": "Q7",
+      "guarda": "padrão sem --list passa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return lista or not padroes",
+      "para": "return True",
+      "testes": [
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_recusam_as_formas_de_escrita_e_fora_do_limite"
+      ]
+    },
+    {
+      "id": "Q8",
+      "guarda": "padrão nunca passa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return lista or not padroes",
+      "para": "return not padroes",
+      "testes": [
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_passam_as_formas_de_leitura"
+      ]
+    },
+    {
+      "id": "Q9",
+      "guarda": "-r deixa de ser aceito",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if a in (\"--list\", \"-r\"):",
+      "para": "if a == \"--list\":",
+      "testes": [
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_passam_as_formas_de_leitura"
+      ]
+    },
+    {
+      "id": "Q10",
+      "guarda": "guarda do git_so_leitura desligada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not forma_de_leitura_git(chave, args):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_recusam_as_formas_de_escrita_e_fora_do_limite",
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_qa_encadeamento_e_escape_seguem_recusados"
+      ]
+    },
+    {
+      "id": "Q11",
+      "guarda": "branch/worktree fora da gramática",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if chave in (\"git branch\", \"git worktree\"):",
+      "para": "if chave == \"git worktree\":",
+      "testes": [
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_recusam_as_formas_de_escrita_e_fora_do_limite"
+      ]
+    },
+    {
+      "id": "Q12",
+      "guarda": "--list não marca lista",
+      "arquivo": "hooks/conformidade.py",
+      "de": "lista = lista or a == \"--list\"",
+      "para": "lista = lista",
+      "testes": [
+        "tests.test_guarda_conferente.LeituraDeGitDoConferente.test_passam_as_formas_de_leitura"
+      ]
+    }
+  ]
+}
