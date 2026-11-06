@@ -194,8 +194,10 @@ class PrePushJaNoRemoto(unittest.TestCase):
 
     def test_c10_nenhuma_variavel_forge_liga_o_pulo(self):
         self.no_remoto(self.c2, "melhoria/x")
-        self.git("init", "-q", "--bare", str(self.repo.parent / "vazio.git"))
-        self.git("remote", "add", "vazio", str(self.repo.parent / "vazio.git"))
+        vazio = self.repo.parent / "vazio.git"
+        self.git("init", "-q", "--bare", str(vazio))
+        remoto_sem_manutencao(vazio)
+        self.git("remote", "add", "vazio", str(vazio))
         self.env.update({k: "1" for k in ("FORGE_PULAR_SUITE", "FORGE_JA_NO_REMOTO", "FORGE_PULO")},
                         FORGE_REMOTO="origin", FORGE_REMOTE="origin")
         self.suite_rodou(*self.roda(self.linha("melhoria/x", self.c2), "vazio"))
