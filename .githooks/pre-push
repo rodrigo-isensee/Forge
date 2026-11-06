@@ -129,9 +129,9 @@ fi
 # mesma fila do push, sem refs e sem anotar prova. É por onde scripts/suite-paralela.py passa quando chamado à mão.
 modo_suite=0
 if [ "$#" -eq 1 ] && [ "$1" = "--suite" ]; then modo_suite=1; exec </dev/null; fi
-n_refs=0; n_envios=0; unico_local=""; unico_remoto=""; unico_ref=""
+n_refs=0; n_envios=0; unico_local=""; unico_remoto=""; unico_ref=""; envios=()
 while read -r _ local_sha remote_ref remote_sha; do
-  n_refs=$((n_refs + 1)); case "$local_sha" in *[!0]*) n_envios=$((n_envios + 1)) ;; esac; unico_local="$local_sha"; unico_remoto="$remote_sha"; unico_ref="$remote_ref"
+  n_refs=$((n_refs + 1)); case "$local_sha" in *[!0]*) n_envios=$((n_envios + 1)); envios+=("$local_sha $remote_sha $remote_ref") ;; esac; unico_local="$local_sha"; unico_remoto="$remote_sha"; unico_ref="$remote_ref"
   # R-VERIFY: reescrever histórico de ref remota existente (não fast-forward) é decisão do usuário.
   # Recusar quando o objeto remoto não existe localmente é intencional: sem ele não há como provar que
   # é fast-forward; um `git fetch` resolve. Apagar ref (local_sha zerado) não passa por esta checagem.
@@ -177,6 +177,30 @@ fi
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
 # Testes estruturais (rápidos, só biblioteca padrão); o CI repete tudo.
 cd "$(git rev-parse --show-toplevel)" || exit 1
+# I3 (0.37 E8): o delta de cada ref enviada (branch ou tag) passa pela varredura de segredo do CI, com o script lido da base
+# (refs/remotes/origin/develop por nome completo): a branch não julga a si mesma. Base, ponta ou script ilegível: aviso e
+# segue (o CI varre). Lido o script, qualquer saída diferente de 0 recusa o envio inteiro; só arquivo e linha saem.
+segredo_no_delta() {
+  local dev script envio ponta remoto ref base saida
+  dev="$(git rev-parse --verify -q 'refs/remotes/origin/develop^{commit}' 2>/dev/null)" &&
+    script="$(git show "$dev:scripts/verificar-contribuicao.sh" 2>/dev/null)" && [ -n "$script" ] ||
+    { echo "pre-push: aviso: sem refs/remotes/origin/develop ou sem o script de segredo nela; varredura pulada (o CI varre)." >&2; return 0; }
+  for envio in "${envios[@]}"; do
+    read -r ponta remoto ref <<< "$envio"
+    ponta="$(git rev-parse --verify -q "${ponta}^{commit}" 2>/dev/null)" || { echo "pre-push: aviso: ${ref} não é commit; varredura pulada nela." >&2; continue; }
+    case "$remoto" in *[!0]*) base="$remoto" ;; *) base="$(git merge-base "$dev" "$ponta" 2>/dev/null)" ;; esac
+    [ -n "$base" ] || { echo "pre-push: aviso: ${ref} sem base comum com origin/develop; varredura pulada nela (o CI varre)." >&2; continue; }
+    # Transição: o script da base sem a marca forge:ponta varre só o HEAD.
+    if ! grep -qx '# forge:ponta.*' <<< "$script" && [ "$ponta" != "$(git rev-parse HEAD 2>/dev/null)" ]; then
+      echo "pre-push: aviso: o script de segredo da base não aceita a ponta; ${ref} não foi varrida (o CI varre)." >&2; continue
+    fi
+    saida="$(env -u BASH_ENV -u ENV -u SHELLOPTS -u BASHOPTS bash --noprofile --norc -c "$script" segredo "$base" "$ponta" 2>&1)" && continue
+    printf '%s\n' "$saida" | LC_ALL=C tr -d '\000-\011\013-\037\177' >&2
+    echo "pre-push: varredura de segredo falhou ou achou algo em ${ref}; o valor não é impresso. Exemplo de propósito: marque a linha com forge:exemplo; base velha: 'git fetch origin develop' e envie de novo. Nunca --no-verify." >&2
+    return 1
+  done
+}
+if [ "$modo_suite" -eq 0 ]; then segredo_no_delta || exit 1; fi
 espera="${FORGE_TRAVA_ESPERA:-1200}"
 case "$espera" in ''|*[!0-9]*) echo "pre-push: FORGE_TRAVA_ESPERA deve ser um número de segundos inteiro (veio '${espera}')." >&2; exit 1 ;; esac
 trava="$(trava_arquivo criar)" || exit 1
