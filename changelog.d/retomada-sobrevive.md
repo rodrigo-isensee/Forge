@@ -1,0 +1,2 @@
+### Adicionado
+- forge-check conferencia registrar: a entrega conferida salva a área do Jarvis (~/.forge-contrib) com commit da lista branca e push só para origin refs/heads/area-salva, sem força, sem GIT_* herdada, sem gitlink e sem segredo conhecido no preparado; falha só avisa e FORGE_AREA_SALVAR=0 desliga. docs/retomada-de-sessao.md: o diário passa a ~/.claude/forge/retomada/<id>/, que sobrevive ao reinício do container (RETOMADA-SOBREVIVE, FILA-23, decisões do dono de 2026-11-06 11:08 e 12:28)

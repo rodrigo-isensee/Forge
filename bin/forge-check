@@ -2646,6 +2646,8 @@ def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, meri
     if modo == "brief" and _aprovou(resultado):
         protecao = proteger_brief_aprovado(raiz, brief)
         saida += [protecao] if protecao else []
+    if modo == "entrega" and _aprovou(resultado):  # E7: a etapa conferida salva a área do Jarvis; aviso não muda o rc
+        saida += [x for x in [salvar_area(raiz, pedido, brief)] if x]
     if classe not in ("—", "outra"):
         quem = autor if autor != "destino" else f"destino:{agente_do_brief(pedido, brief)}"
         grupos, _ = recorrencias(raiz)
@@ -2665,6 +2667,74 @@ def proteger_brief_aprovado(raiz, brief):
             os.chmod(achado, 0o444)
             return f"brief protegido: {caminho_impresso(rel)} (0444)"
     return None  # brief fora de docs/briefs/ ou ausente: nada a proteger, e o registro segue como sempre
+
+
+AREA_BRANCA = (".gitignore", "docs", "ferramentas", "KANBAN.md", "forge", "corpo-*.md", "qa-msg-*.txt")  # ~/.forge-contrib/.gitignore
+AREA_SEGREDOS = {"GitHub": r"\b(?:gh[pos]_|github_pat_)\w{20,}", "GitLab": r"\bglpat-[\w-]{20,}", "sk-": r"\bsk-[\w-]{20,}",
+                 "Slack": r"\bxox[abpr]-[\w-]{10,}", "AWS": r"\bAKIA[0-9A-Z]{16}\b", "chave privada": r"-----BEGIN [A-Z ]*PRIVATE KEY-----"}
+
+
+def _git_da_area(area, *args, timeout=None):  # (rc, stdout) do git na área, sem `GIT_*` herdada (E7/C-1) e sem pedir credencial (C-7)
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")} | {"GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": ""}
+    r = subprocess.run(["git", "-C", str(area), *args], capture_output=True, text=True, env=env, timeout=timeout)
+    return r.returncode, r.stdout.strip()
+
+
+def _segredos_preparados(area):  # E7/C-6: `arquivo:linha (tipo)` de cada credencial acrescentada no preparado, nunca o valor
+    achados, arq, n = [], "?", 0
+    for l in _git_da_area(area, "diff", "--cached", "-U0", "--no-color", "--no-ext-diff")[1].splitlines():
+        if l.startswith(("+++ ", "--- ")):
+            arq = l[6:] if l.startswith("+++ b/") else arq
+        elif m := re.match(r"@@ -\S+ \+(\d+)", l):
+            n = int(m.group(1))
+        elif l.startswith("+"):
+            achados += [f"{caminho_impresso(arq)}:{n} ({tipo})" for tipo, p in AREA_SEGREDOS.items() if re.search(p, l)]
+            n += 1
+    return achados
+
+
+def salvar_area(raiz, pedido, brief):
+    """E7 (FILA-23): commita a área do Jarvis (`~/.forge-contrib`) e a envia só para `origin refs/heads/area-salva`, sem força
+    (controles C-1 a C-8 da 0.36). Devolve a linha de saída, ou None fora da área ou com FORGE_AREA_SALVAR=0."""
+    area = RAIZES_DE_BRIEF[0]
+    real, aviso = os.path.realpath(area), "área: aviso: {}; nada enviado".format
+    if area.is_symlink() or os.path.realpath(raiz) != real or os.environ.get("FORGE_AREA_SALVAR") == "0":
+        return None
+    if (area / ".claude-plugin" / "plugin.json").exists() or e_o_forge(area):
+        return aviso("a raiz é cópia do Forge")
+    if _git_da_area(area, "rev-parse", "--show-toplevel", "--absolute-git-dir")[1].splitlines() != [real, os.path.join(real, ".git")]:
+        return aviso("a área não é um repositório próprio")
+    urls = {_git_da_area(area, *a, "origin")[1] for a in (("remote", "get-url"), ("remote", "get-url", "--push"), ("ls-remote", "--get-url"))}
+    sys.path.insert(0, str(PLUGIN / "hooks"))
+    try:
+        import parecer  # a mesma regra do hook para reconhecer o Forge (C-3)
+    finally:
+        sys.path.remove(str(PLUGIN / "hooks"))
+    if len(urls) != 1 or not (url := urls.pop()) or re.search(r"://[^/]*@", url) or parecer.aponta_para_o_forge(url):
+        return aviso("o origin falta, diverge, traz credencial ou é o Forge")
+    import fcntl
+    with open(area / ".git" / "forge-area.lock", "w") as trava:
+        try:
+            fcntl.flock(trava, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            return aviso("outro salvamento em curso")
+        nomes = set(os.listdir(area)) | {l.split("/")[0] for l in _git_da_area(area, "ls-files")[1].splitlines()}
+        specs = [f":(literal){n}" for n in sorted(nomes) if any(Path(n).match(p) for p in AREA_BRANCA)]
+        if specs and _git_da_area(area, "add", "-A", "--", *specs)[0]:  # pathspec da lista branca, nunca -f (C-5)
+            return aviso("git add recusado (index.lock presente?)")
+        raw = [l.split("\t", 1) for l in _git_da_area(area, "diff", "--cached", "--raw")[1].splitlines() if "\t" in l]
+        if (segredos := _segredos_preparados(area)) or any(  # sem link, gitlink nem arquivo acima de 5 MiB (C-5)
+                m.split()[1] in ("160000", "120000") or (area / n).is_file() and (area / n).stat().st_size > 5 << 20 for m, n in raw):
+            _git_da_area(area, "reset", "-q")
+            return aviso(f"segredo em {', '.join(segredos[:5])}" if segredos else "link, gitlink ou arquivo grande")
+        if raw and _git_da_area(area, "commit", "-q", "-m", f"area: {pedido} {brief} conferida")[0]:
+            return aviso("commit recusado")
+        try:  # destino fixo: nunca a main (R-MAIN), nunca `+` nem --force (R-VERIFY); sem segunda tentativa (C-7)
+            cod, saida = _git_da_area(area, "push", "--porcelain", "--", "origin", "HEAD:refs/heads/area-salva", timeout=30)
+        except subprocess.TimeoutExpired:
+            return aviso("tempo esgotado")
+    return (aviso("recusado (não fast-forward)" if "[rejected]" in saida else "remoto inacessível") if cod
+            else f"área: salva em origin/area-salva {_git_da_area(area, 'rev-parse', '--short=7', 'HEAD')[1]}")
 
 
 def agentes_conhecidos():
