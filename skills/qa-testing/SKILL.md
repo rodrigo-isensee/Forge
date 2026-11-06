@@ -47,6 +47,12 @@ Para cada critério de aceite da especificação, pelo menos um cenário. A tabe
 - **Teste e parecer separados:** teste novo ou mudado vai num commit próprio e o parecer vem depois, com o `commit:` desse teste; o `forge-check pr` recusa o parecer commitado junto do teste ou que aponta para o commit anterior, e o review revalida o delta do teste. Na revalidação, o `forge-check delta` não lista a UX (`docs/ux/<demanda>/`): a UX mudada se lê no diff (QA-TESTE-E-PARECER-SEPARADOS, PARECER-UX-LIVRE).
 - **Casos de abuso:** com gatilho de segurança (`R-SEGURANCA`), o QA transforma os casos de abuso do modelo de ameaças em testes, em arquivo seu, na mesma janela; o formato dos casos está na skill `cyber-security`.
 
+## Teste-oráculo do portão (EXT-1, no Forge)
+- **Quando:** pedido de guarda ou controle, o que toca hook, `.githooks/`, portão do `forge-check`, catraca ou CI. Na 1ª rodada, antes da construção, o portão escreve o oráculo: a segurança com gatilho de segurança, o QA sem ele.
+- **Onde e como:** `tests/test_oraculo_<pedido>.py` (nome minúsculo, `[a-z0-9_]`), só em `melhoria/*`, num commit próprio que só toca o oráculo. O hook `conformidade` barra a escrita do autor (tech-lead, dev, jarvis) nesse padrão; o `bin/forge-testes` põe todo oráculo em todo plano dirigido. Autocontido: só biblioteca padrão, o código sob teste e utilitários do próprio arquivo, sem `skip`, `skipIf`, `expectedFailure` nem ambiente que decida o que testa. O commit vermelho do oráculo chega ao autor por `git fetch` local, nunca vai sozinho ao remoto.
+- **Prova de não edição (o hook não basta):** o portão grava no parecer `oraculo: <caminho> commit <sha40> blob <sha40>`. O parecer final confere as três, e falhar em uma reprova: `git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado; `git log --format=%H <sha>..HEAD -- <oráculo>` vazio. Depois de um rebase limpo vale o blob igual, e o log do trecho novo só pode mostrar o commit reescrito do próprio oráculo. Registre quantos testes do oráculo rodaram; zero reprova.
+- **Review:** o oráculo é contrato. O parecer do review cita o sha dele e diz se cobre os casos de abuso do modelo de ameaças; o portão não aprova contra o próprio oráculo sem essa leitura.
+
 ## E2E
 - Seletores por papel e texto acessível; `data-testid` só em último caso.
 - Nada de espera fixa; use as esperas automáticas da ferramenta.

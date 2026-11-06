@@ -1,0 +1,2 @@
+### Adicionado
+- teste-oráculo do portão (EXT-1, **muda a fronteira de escrita de um papel**): em pedido de guarda ou controle, a segurança (ou o QA sem gatilho de segurança) escreve tests/test_oraculo_<pedido>.py antes da construção; o hook conformidade barra a escrita do autor (tech-lead, dev, jarvis) nesse padrão, o bin/forge-testes põe todo oráculo em todo plano dirigido e falha com nome fora do padrão, e o parecer final prova a não edição pelo histórico (ancestralidade, blob e log); ADR 0009, emenda item 2, vigente (decisão do dono de 2026-10-19 e de 2026-11-06 12:28)
