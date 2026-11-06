@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: versao-035
 branch: melhoria/brief-forma-aceita
-commit: 4f2ef7ed87f238ba07b694c8d6ef1ce8f8b92219
+commit: 7374443691d336ce869d2d1d0db1003f12dc82b2
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-05
+data: 2026-11-06
 ---
 # Review: versao-035, E7 BRIEF-FORMA-ACEITA
 
@@ -33,10 +33,24 @@ Contado com `git diff --numstat --no-renames d9b26bb...HEAD` (código e teste): 
 ## Testes rodados (só os tocados, D-5)
 `python3 -m unittest test_brief_forma_aceita test_testes_tocados` (de `tests/`): 92 testes, OK, em 31 s. Também rodei, em cópias da árvore (`git archive`), um mutante para A1 e outro para A2. Cada um reprova o teste correspondente.
 
+## Revalidação 2026-11-06
+Revalida o parecer de 4f2ef7e em 7374443, depois das junções da develop 4b44286 (30b4453, L09) e 7374443 (3011d84, L10, BRIEF-HEAD-LOCAL e estoques A, B e C da 0.34). Decisão 27 de `decisoes-estudos`: revalidação por outra instância, com brief e conferente iguais.
+
+Delta conferido:
+- `forge-check delta --parecer docs/reviews/brief-forma-aceita.md` (rc 0) listou o intervalo 4f2ef7e..7374443 com 239 arquivos. Quase tudo é a develop que entrou, já revisada nos PRs #450 a #456. Não reli esse conteúdo e o deixei como "já lido".
+- O patch do E7 foi comparado antes e depois das junções: `git diff d9b26bb 4f2ef7e` contra `git diff 3011d84 7374443`, em `bin hooks tests agents skills changelog.d`. A diferença está só em duas linhas. Uma é o contexto da tupla `FORGE_CHECK` (`bin/forge-testes:72`), que ganhou o `test_qa_doutor_034` da develop, e o E7 continua acrescentando só `test_brief_forma_aceita`. A outra é a contagem de `tests/test_testes_tocados.py:61`, que passou de 40 para 43: E7 + L09 + L10 + doutor-034. `bin/forge-check` (9+1), `tests/test_brief_forma_aceita.py` (91) e `changelog.d/brief-forma-aceita.md` (2) estão iguais byte a byte.
+- `git show --cc --name-only` das duas junções lista `bin/forge-check`, `bin/forge-testes` e `tests/test_testes_tocados.py`. Em `bin/forge-check` a junção foi automática, porque os dois lados mexeram no arquivo, e o `--cc` não mostra nenhum trecho combinado. A comparação dos patches acima confirma que o E7 não mudou ali. O `--cc` mostra as resoluções das contagens em `tests/test_testes_tocados.py:61`, nas duas junções, e da tupla em `bin/forge-testes:72`, só em 7374443. As duas estão corretas.
+- Interação de comportamento: li os trechos da develop em `bin/forge-check` que usam os mesmos símbolos do E7: `etapas_novas_da_volta`, `fora_do_escopo_da_volta`, `conferir_volta` (E14, :1844-1881 e :2042-2046) e `so_pareceres_a_frente` (:4964-4991). O E14 lê `blocos_literais` só no `Fora do escopo`, `Entregar` e `Decisões e restrições`. A seção das formas (`SECAO_DAS_FORMAS`, :4596-4597) vem depois do `Pronto quando` e não entra nesses blocos. Nenhum `SECOES_BRIEF` nem `FORMAS_DE_COMMIT` mudou na develop.
+- Os achados em aberto mudaram de linha: A3 vai para :4611 e A5 para :4597. O A6 fechou na junção 4b44286, porque o comentário da contagem agora cita o E7.
+- Teto (M14): o patch do E7 continua com 107 linhas e um comportamento só.
+- Testes tocados (D-5), na worktree: `python3 -m unittest test_brief_forma_aceita test_testes_tocados` deu 100 testes OK em 29,8 s. A suíte inteira não foi rodada de novo: o push de 7374443 passou com 2730 testes OK (2026-11-06 12:03, `/tmp/push-e7-3.log`), log do QA (R-QA).
+
+Veredito: as junções só mudaram as contagens de módulos, que estão corretas. O parecer continua **aprovado** em 7374443.
+
 ## Achados
-- A3 (recomendado) bin/forge-check:4568 · FORMAS_DE_COMMIT segue sem o merge; com o A2 o merge é só do pq_de_merge, então a fonte única virou duas, por desenho
-- A5 (recomendado) bin/forge-check:4554 · brief à mão com o cabeçalho das formas logo após Entregar tira o trecho da cobrança de PQ do conferente (provado com conferir_brief); só abrir essa seção depois do Pronto quando
-- A6 (recomendado) tests/test_testes_tocados.py:61 · o comentário da contagem 40 ainda cita só o L08; citar o E7
+- A3 (recomendado) bin/forge-check:4611 · FORMAS_DE_COMMIT segue sem o merge; com o A2 o merge é só do pq_de_merge, então a fonte única virou duas, por desenho
+- A5 (recomendado) bin/forge-check:4597 · brief à mão com o cabeçalho das formas logo após Entregar tira o trecho da cobrança de PQ do conferente (provado com conferir_brief); só abrir essa seção depois do Pronto quando
+- A6 (recomendado) tests/test_testes_tocados.py:61 · o comentário da contagem 40 ainda cita só o L08; citar o E7 (fechado na junção 4b44286: o comentário cita o E7)
 
 ## Parecer
 Aprovado. A1, o único bloqueante, fechou com teste que reprova sem a correção (mutante conferido). A2 e A4 também fecharam. A3, A5 e A6 são recomendações e não devolvem. A5 não passa de recomendado: é um desvio estreito do "nenhuma recusa muda" do desenho, só para brief escrito à mão, e a mesma cobrança já se contorna sem a seção, trocando a palavra.
