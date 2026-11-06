@@ -38,3 +38,9 @@ Base do parecer: o log da suíte inteira do push do lote (/tmp/push-lote-b2.log,
 - Vermelho antes do verde e mutação (R-QA): não repetidos aqui; são dos pareceres de cada item (bin/forge-changelog e tests/catraca.py têm os mutantes declarados nos pedidos de origem), conforme o brief, que veta rever o que cada item já teve aprovado.
 - Aviso do log: `catraca: a API do GitHub não respondeu por inteiro (OSError); vale como sem rótulo` é saída da rede do push, não falha de teste.
 - Nenhum bug aberto; nada a devolver ao autor da junção.
+
+## Avisos do log (/tmp/push-lote-b2.log)
+- linha 5: AVISO: job 'j' pulado por falta de suporte: condição sem suporte (token inesperado): __import__('os').system('touch /tmp/forge-suite-syznibix/p1/tmp4al5vw9n/executou')
+- linha 9: AVISO: --confiar: o código do PR de fork de 'dona' vai rodar nesta máquina com o seu ambiente e com a credencial do gh em disco; ela fica exposta a esse código.
+- linha 10: AVISO: j/lint pulado: actionlint ausente no PATH
+- linha 18: AVISO: j/lint pulado: actionlint ausente no PATH
