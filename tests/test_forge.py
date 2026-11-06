@@ -2500,6 +2500,93 @@ class FerramentaDefasadaNoForge(ap.ForgeFalso):
         self.assertNotIn(ap.FRASE, r.stdout + r.stderr)
 
 
+class CopiaDoCacheSemGit(ap.ForgeFalso):
+    """E9 (FC-VERSAO-CACHE-PLUGIN): a cópia do cache (sem .git) só sai conferida com o blob do bin/forge-check igual ao da base ou
+    ao da tag que contém a base (C-1); versão numérica e estrita (C-2); manifesto sem link (C-4); o nível não muda (C-5)."""
+    NAO_CONFERIDA = "forge-check: aviso: versão não conferida"
+
+    def setUp(self):
+        super().setUp()
+        self.codigo = ap.FORGE_CHECK.read_text(encoding="utf-8")
+        self.mudou = self.codigo + "# mudou\n"
+        self.tag = self.commitar(self.v2, "0.20.0", self.codigo)  # a release 0.20.0, com o código do cache
+        self.g("tag", "v0.20.0", self.tag, cwd=self.repo)
+
+    def commitar(self, pai, versao, codigo):
+        self.g("checkout", "-q", "--detach", pai, cwd=self.repo)
+        (self.repo / ".claude-plugin/plugin.json").write_text(json.dumps({"name": "forge", "version": versao}), encoding="utf-8")
+        (self.repo / "bin").mkdir(exist_ok=True)
+        (self.repo / "bin/forge-check").write_text(codigo, encoding="utf-8")
+        self.g("add", "-A", cwd=self.repo)
+        self.g("commit", "-q", "-m", versao, cwd=self.repo)
+        return self.g("rev-parse", "HEAD", cwd=self.repo)
+
+    def base(self, sha):
+        self.g("update-ref", "refs/remotes/origin/develop", sha, cwd=self.repo)
+        self.sha_base = sha
+
+    def cache(self, nome, manifesto, codigo=None):
+        pasta = self.tmp / nome
+        (pasta / "bin").mkdir(parents=True)
+        (pasta / ".claude-plugin").mkdir()
+        (pasta / "bin/forge-check").write_text(codigo or self.codigo, encoding="utf-8")
+        if manifesto is not None:
+            (pasta / ".claude-plugin/plugin.json").write_text(json.dumps(manifesto), encoding="utf-8")
+        return pasta
+
+    def rodar(self, copia):
+        return {nome: self.check(copia, *[self.sha_base if x == self.v2 else x for x in args]) for nome, args in self.comandos().items()}
+
+    def test_blob_da_base_ou_da_tag_que_a_contem_confere(self):  # (a)
+        self.base(self.commitar(self.tag, "0.21.0", self.codigo))
+        for nome, r in self.rodar(self.cache("a", {"version": "0.21.0"})).items():
+            with self.subTest(nome):
+                self.assertNotIn("versão não conferida", r.stderr)
+                self.assertNotIn("atrás do repositório", r.stderr)
+        self.base(self.v2)  # a tag v0.20.0 contém a base e tem o blob do cache
+        r = self.check(self.cache("a-tag", {"version": "0.20.0"}), "pr", "p")
+        self.assertNotIn("versão não conferida", r.stderr)
+        self.assertNotIn("atrás do repositório", r.stderr)
+
+    def test_base_mais_nova_sai_atrasada_com_o_marcador_d(self):  # (b)
+        self.base(self.commitar(self.tag, "0.21.0", self.mudou))
+        igual = self.rodar(self.cache("b-igual", {"version": "0.21.0"}, self.mudou))
+        for nome, r in self.rodar(self.cache("b", {"version": "0.20.0"})).items():
+            with self.subTest(nome):
+                self.assertIn(f"forge-check: aviso: cópia vigente 0.20.0 (tag v0.20.0, cópia sem git) {ap.FRASE_NO_FORGE}", r.stderr)
+                self.assertNotIn(ap.FRASE, r.stdout + r.stderr)
+                self.assertEqual(r.returncode, igual[nome].returncode)
+
+    def test_versao_igual_sem_prova_do_codigo_nao_confere(self):  # (c)
+        lateral = self.commitar(self.v2, "0.21.0", self.codigo)  # a tag num ramo lateral, fora da base
+        self.g("tag", "v0.21.0", lateral, cwd=self.repo)
+        self.base(self.commitar(self.v2, "0.21.0", self.mudou))
+        copia = self.cache("c", {"version": "0.21.0"})
+        for nome, r in self.rodar(copia).items():
+            with self.subTest(nome):
+                self.assertIn(f"{self.NAO_CONFERIDA} (versão 0.21.0 do cache sem prova do código)", r.stderr)
+                self.assertNotIn(ap.MARCADOR_D, r.stdout + r.stderr)
+        self.base(self.commitar(lateral, "0.21.0", self.mudou))  # com a tag ancestral da base, a mesma cópia está atrás
+        self.assertIn(f"cópia vigente 0.21.0 (tag v0.21.0, cópia sem git) {ap.FRASE_NO_FORGE}", self.check(copia, "pr", "p").stderr)
+
+    def test_versao_comparada_como_numero(self):  # (d)
+        self.base(self.commitar(self.v2, "0.36.0", self.mudou))
+        r = self.check(self.cache("d", {"version": "0.4.0"}), "pr", "p")
+        self.assertIn(f"cópia vigente 0.4.0 (tag v0.4.0, cópia sem git) {ap.FRASE_NO_FORGE}", r.stderr)
+
+    def test_manifesto_sem_versao_estrita_ou_por_link_nao_confere(self):  # (e)
+        self.base(self.commitar(self.tag, "0.21.0", self.codigo))  # o blob do cache é o da base: só o manifesto decide
+        alvo = self.tmp / "manifesto.json"
+        alvo.write_text(json.dumps({"version": "0.21.0"}), encoding="utf-8")
+        casos = {"sem-version": {"name": "forge"}, "dev": {"version": "0.21.0-dev"}, "prefixo": {"version": "v0.21.0"}, "link": None}
+        for nome, manifesto in casos.items():
+            with self.subTest(nome):
+                copia = self.cache(f"e-{nome}", manifesto)
+                if manifesto is None:
+                    (copia / ".claude-plugin/plugin.json").symlink_to(alvo)
+                r = self.check(copia, "pr", "p")
+                self.assertIn(f"{self.NAO_CONFERIDA} (a cópia em uso do forge-check não é um clone git)", r.stderr)
+
 class FerramentaDefasadaNoProjeto(ap.Base):
     def setUp(self):
         super().setUp()
