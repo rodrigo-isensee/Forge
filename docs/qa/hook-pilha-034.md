@@ -3,18 +3,18 @@ tipo: qa
 contrato: 1
 pedido: hook-pilha-034
 branch: melhoria/hook-msg-segmento
-commit: dde743b95b2424cbdafacc18cfd303dd8193f198
+commit: ed9c22a7ef1e43d0142183afcdada364b9df339e
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-05
+data: 2026-11-06
 ---
 # QA: hook-pilha-034 (E1.4, pilha de hooks inteira)
 
-Base: develop d9b26bb. Código testado: dde743b, topo das 7 branches; o HEAD 5edf63c só soma os pareceres de review e de segurança (ambos aprovados), sem mudar código. Os critérios são os do pedido (E1, E2 e E3); não há especificação de UX.
+Base: develop d9b26bb. Código testado: ed9c22a, topo das 7 branches (revalidação do parecer aprovado dae76f8 sobre dde743b). Entre os dois, fora os pareceres, mudou só a fixture `tests/hooks/conformidade/hook-msg-segmento-atribuicao-mascarada-bloqueia.json` (volta do CI do PR #451). Os critérios são os do pedido (E1, E2 e E3); não há especificação de UX.
 
 ## Achados
 
@@ -32,9 +32,19 @@ Base: develop d9b26bb. Código testado: dde743b, topo das 7 branches; o HEAD 5ed
 | E3: a reaplicação das branches não muda o comportamento | `test_fixtures` (todas as fixtures dos dois hooks) e a suíte do push | n/a | passou |
 
 ## Cenários e resultado real
-Ambiente: worktree `/root/.forge-contrib/wt/hook-msg-segmento`, HEAD 5edf63c, código dde743b.
+Ambiente: worktree `/root/.forge-contrib/wt/hook-msg-segmento`, código ed9c22a (revisão do review a6953f9 sobre ele).
 
-- **Suíte inteira (D-5), sem rodar de novo (R-TETO):** `/tmp/push-hook-topo.log`, do push do topo com o código de dde743b: `Ran 968 tests`, `Ran 1654 tests`, `Ran 2622 tests in 1989.698s (2 processos)`, `OK (skipped=30)`, `push_rc=0`.
+- **Suíte inteira (D-5), sem rodar de novo (R-TETO):**
+suite: reusa
+  `/tmp/push-pilha2.log`, do push de ed9c22a (00:18, `dae76f8..ed9c22a`): `Ran 968 tests`, `Ran 1654 tests`, `Ran 2622 tests in 1485.502s (2 processos)`, `processo 1: rc 0, 968 testes, 1485.3 s, 50 módulos`, `processo 2: rc 0, 1654 testes, 919.0 s, 42 módulos`, `OK (skipped=30)`, `push_rc=0 00:18:14`. Nenhuma linha de falha (FAIL, ERROR) no log. Pulos e avisos, copiados do log, inclusive os do meio das linhas de pontos:
+  - `AVISO: job 'j' pulado por falta de suporte: condição sem suporte (token inesperado): __import__('os').system('touch /tmp/forge-suite-ybjee8_e/p1/tmpcppv4afu/executou')` (texto de teste, não executado aqui)
+  - `AVISO: --confiar: o código do PR de fork de 'dona' vai rodar nesta máquina com o seu ambiente e com a credencial do gh em disco; ela fica exposta a esse código.`
+  - `AVISO: j/lint pulado: actionlint ausente no PATH` (duas vezes, linhas 10 e 18 do log)
+  - `catraca: a API do GitHub não respondeu por inteiro (KeyError); vale como sem rótulo.` e duas vezes `catraca: a API do GitHub não respondeu por inteiro (OSError); vale como sem rótulo.`
+  - três `s` no meio da linha de pontos 43 do log (testes pulados do processo 2) e `OK (skipped=30)` no total.
+  - `pre-push: outra suíte do Forge está rodando ou na fila antes desta (pid 1178827 ns 4026533819 desde 20:58:18); esperando a vez por até 21600 s (R-TETO).` e `suite-paralela: 2622 testes em 92 módulos, 2 processos (carga alta (load 13.4 de 12 núcleos, 14.5 GB disponíveis)).`
+- **Fixture mudada em ed9c22a:** o comando passa de `GH_TOKEN=ghp_FAKEFAKEFAKEFAKE00000000000000000000 git push origin main` para `GH_TOKEN=ghp_FAKE_FAKE_FAKE_FAKE_FAKE_FAKE_FAKE git push origin main`; `descricao`, `entrada` e o esperado não mudaram. Prova o mesmo: o `TOKEN_DO_GITHUB` (`hooks/conformidade.py:42`) aceita `_` e mascara o valor (`GH_TOKEN=*** git push origin main`, conferido com a mesma expressão), e o padrão `ghp_[A-Za-z0-9]{20,}` de `scripts/verificar-contribuicao.sh:16` não casa mais. O `test_fixtures` do push de ed9c22a cobre a fixture e fechou `OK`; não rodei `tests.test_hooks` de novo.
+Os itens abaixo (ansi_c, fixtures, sonda, mutantes, vermelho) são da rodada em dde743b; o código de hooks não mudou em ed9c22a (só a fixture acima), então valem.
 - **`python3 -m unittest tests.test_hook_ansi_c`:** `OK`, rc 0.
 - **Fixtures dos dois hooks:** `python3 -m unittest tests.test_hooks.Hooks.test_fixtures tests.test_hooks.Hooks.test_fixtures_da_trilha_034`: `Ran 2 tests in 470.101s`, `OK`.
 - **Sonda própria** (montagem das fixtures, comando trocado): as recusas saem com rc 2 e as liberações com rc 0, como na tabela. No `parecer`, `g$'\x68' pr mer\⏎ge docs/x`, `bash -c $'gh pr m\x65rge 1'` e `eval $'…'` recusam; `$'gh\0' pr merge 1` recusa por R-CONTRIB; `gh pr view 1` e `echo $'a\0b' && gh pr view 1` liberam. Sem `$'…'`, `gh pr m\x65rge` é texto literal e libera, como no bash.
@@ -43,10 +53,10 @@ Ambiente: worktree `/root/.forge-contrib/wt/hook-msg-segmento`, HEAD 5edf63c, c�
 - **Vermelho antes do verde:** `bin/forge-testes --vermelho d9b26bb3e6b11e7d45c8b7ed81c7da7a8a325503 --modulos test_hooks --prazo 1500`, rc 0. Abre com `vermelho: base=d9b26bb3e6b1 head=5edf63c32e03 módulos=test_hooks (restrito por --modulos)` e fecha com `contagem: não prova (passa na base)=67; prova (API ausente)=4; prova (asserção)=8; pulado=1`. Nenhum teste cai no HEAD. Provam, entre outros, `test_fixtures`, `test_fixtures_da_trilha_034`, `test_ansi_c_decodifica_como_o_bash`, `test_formas_compostas_ate_o_ponto_fixo_e_teto_fecha` e `test_marcador_critico_tambem_na_forma_juntada`. O pulado (`test_erro_interno_com_lista_de_permissao_falha_fechado`) fica pulado também na base, não vem da pilha. Em `test_hook_ansi_c` (`--modulos test_hook_ansi_c`, rc 1), os 9 testes passam na base: o módulo já existe lá, e o M4 é que prova o reforço dele.
 
 ## Conferência do PA-7
-Li `docs/engineering/achados-recorrentes.md`. A lista de mutantes cobre o diff (AR-1), o ramo de falha de guarda tem fixture que prova pela ação (AR-2), e a mascara do shell não esconde código nas sondas (AR-6). O review e a segurança já registraram os A1 e A2 (review) e o A1 (segurança) como recomendações anteriores à pilha, em cartão; não são regressão e não os reabro.
+Li `docs/engineering/achados-recorrentes.md` (AR-1 a AR-11) de novo em ed9c22a; o delta é uma fixture, sem `bin/`, hook, `.githooks/` nem script novo, então AR-3 a AR-5 e AR-7 a AR-11 não se aplicam. A lista de mutantes cobre o diff (AR-1), o ramo de falha de guarda tem fixture que prova pela ação (AR-2), e a mascara do shell não esconde código nas sondas (AR-6). O review e a segurança já registraram os A1 e A2 (review) e o A1 (segurança) como recomendações anteriores à pilha, em cartão; não são regressão e não os reabro.
 
 ## Bugs
 Nenhum aberto; sem arquivo em `docs/qa/bugs/`.
 
 ## Parecer
-Aprovado. No código dde743b os repros do E1 e do E2 recusam, os casos legítimos passam, a suíte inteira do push passou, os testes novos provam contra a base e os 43 mutantes morreram.
+Aprovado. No código ed9c22a (código de hooks igual ao de dde743b; só a fixture mudou) os repros do E1 e do E2 recusam, os casos legítimos passam, a suíte inteira do push de ed9c22a passou (`suite: reusa`, `/tmp/push-pilha2.log`), os testes novos provam contra a base e os 43 mutantes morreram.
