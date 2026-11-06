@@ -1,0 +1,30 @@
+{
+  "descricao": "HOOK-CONTINUACAO-LINHA: o bash junta \\ + quebra de linha; a forma juntada recusa como a escrita direta.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo `g\\\nh pr merge 1 --admin`"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-MAIN: gh pr merge com --admin desvia a proteção da branch"
+  }
+}

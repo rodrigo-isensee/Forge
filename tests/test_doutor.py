@@ -610,6 +610,58 @@ class DoutorVersao(ap.Base):
         cache = self.cache()
         self.assertEqual((cache["data"], cache["defasado"], cache["atual"], cache["ultima"]), (HOJE, True, self.versao, nova))
 
+    def _virar_o_dia(self):
+        antigo = self.cache()
+        antigo["data"] = "2026-10-19"
+        (self.proj / ".forge/run/versao-nova").write_text(json.dumps(antigo), encoding="utf-8")
+
+    def test_a_mesma_versao_nova_nao_avisa_de_novo_no_dia_seguinte(self):
+        nova = self.mais_nova()
+        self.tag(f"v{nova}")
+        self.assertIn(f"Saiu a versão {nova}", self.stop().stdout)
+        self._virar_o_dia()
+        self.assertNotIn("Saiu a versão", self.stop().stdout)
+        cache = self.cache()
+        self.assertEqual((cache["data"], cache["defasado"], cache["avisado"]), (HOJE, True, True))  # o atraso segue provado
+
+    def test_versao_ainda_mais_nova_avisa_no_dia_seguinte(self):
+        self.tag(f"v{self.mais_nova()}")
+        self.stop()
+        a, b, c = (int(n) for n in self.versao.split("."))
+        outra = f"{a}.{b}.{c + 2}"
+        self.tag(f"v{outra}")
+        self._virar_o_dia()
+        self.assertIn(f"Saiu a versão {outra}", self.stop().stdout)
+
+    def test_versao_em_uso_diferente_com_a_mesma_ultima_avisa_no_dia_seguinte(self):
+        nova = self.mais_nova()
+        self.tag(f"v{nova}")
+        self.stop()
+        antigo = self.cache()
+        antigo.update(data="2026-10-19", atual="0.0.1")  # o plugin em uso era outro quando se avisou
+        (self.proj / ".forge/run/versao-nova").write_text(json.dumps(antigo), encoding="utf-8")
+        self.assertIn(f"Saiu a versão {nova}", self.stop().stdout)
+
+    def test_versao_nova_ainda_nao_avisada_de_dia_anterior_avisa_no_dia_seguinte(self):
+        nova = self.mais_nova()
+        self.tag(f"v{nova}")
+        self.stop()
+        antigo = self.cache()
+        antigo.update(data="2026-10-19", avisado=False)  # o aviso daquele dia nunca saiu
+        (self.proj / ".forge/run/versao-nova").write_text(json.dumps(antigo), encoding="utf-8")
+        self.assertIn(f"Saiu a versão {nova}", self.stop().stdout)
+
+    def test_falha_do_relogio_no_stop_nao_come_o_aviso_de_versao(self):
+        nova = self.mais_nova()
+        self.tag(f"v{nova}")
+        codigo = ("import sys; sys.path.insert(0, sys.argv[1]); import doutor\n"
+                  "def quebra(hook): raise OSError('disco cheio')\n"
+                  "doutor.aviso_de_relogio = quebra; doutor.executar('doutor', doutor.principal)")
+        entrada = json.dumps({"hook_event_name": "Stop", "session_id": "s", "cwd": str(self.proj)})
+        r = subprocess.run([sys.executable, "-c", codigo, str(HOOK.parent)], input=entrada, capture_output=True, text=True,
+                           env=self.env, cwd=self.proj, timeout=30)
+        self.assertIn(f"Saiu a versão {nova}", r.stdout)
+
     def test_em_dia_grava_o_cache_sem_defasado_e_marca_o_dia(self):
         self.tag(f"v{self.versao}")
         self.assertNotIn("Saiu a versão", self.stop().stdout)

@@ -1,6 +1,8 @@
 """Testes da lógica pura do scripts/ci-local (resumo, status, regra do pulado, leitura dos workflows), sem rede e sem git."""
 import importlib.machinery
+import hashlib
 import importlib.util
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -15,6 +17,135 @@ _loader.exec_module(ci)
 
 PR = {"number": 7, "headRefOid": "a" * 40, "headRefName": "melhoria/x", "baseRefName": "develop",
       "body": "texto", "author": {"login": "dona"}}
+
+
+# CI-LINT-LISTA-ABERTA: lista fechada do que pode rodar antes do actionlint e do zizmor na bateria.
+ACOES_ANTES_DO_LINT = {"actions/checkout", "actions/setup-python", "actions/setup-node"}
+NOME_DO_GATE = "Gate (commit só de parecer, com a bateria verde no commit anterior, pula os passos pesados)"
+NOME_DO_DOWNLOAD = "Baixa actionlint e zizmor em versão fixa e confere o checksum"
+# O passo curto do commit só de parecer roda quando o lint não roda (o gate os separa); só com esta condição exata.
+SO_SEM_LINT = "${{ !cancelled() && steps.gate.outputs.pesada != 'true' }}"
+SO_COM_LINT = "${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}"
+# Gate e download passam por conteúdo, não por heurística: o `run` lido é igual ao esperado (sha256 do texto que o ci-local lê).
+# Mudar o gate ou o download de propósito exige atualizar o hash aqui, no mesmo diff (e o review olha o diff do teste).
+SHA256_RUN_DO_GATE = "a9c14869a799a4748d80beae2f63a65758acd94191dfc3463c944a7be996c117"
+SHA256_RUN_DO_DOWNLOAD = "0c686ba163ac275194f5ca9aaee75b8287e581a620a43af86020993cb6b5557b"
+RUN_DO_ACTIONLINT = "actionlint -color\n"
+RUN_DO_ZIZMOR = "zizmor --offline --no-progress --min-severity medium .github/workflows\n"
+# Variável que faz o shell ler um arquivo da branch, `defaults` (shell padrão de todos os passos) e `env` no topo do workflow:
+# proibidos no arquivo inteiro, em bloco, com aspas ou em fluxo (`{BASH_ENV: x}`).
+ENV_QUE_EXECUTA = re.compile(r"""(?:^|[{,\s])["']?(BASH_ENV|ENV|defaults)["']?\s*:|^["']?env["']?\s*:""", re.MULTILINE)
+# Âncora, alias e merge YAML (`&a`, `*a`, `<<:`): o analisador por linha não os segue, então reprovam em falha fechada.
+ANCORA_OU_ALIAS = re.compile(r"""<<\s*:|(?:^|[:\[{,]|-)\s+[&*][\w-]+|^\s*[&*][\w-]+|^ *\t""", re.MULTILINE)
+# Env por lista positiva (chaves exatas): o ambiente em que o `run` roda não entra no hash (PATH, LD_PRELOAD, GIT_EXTERNAL_DIFF...).
+ENV_DO_GATE = {"GH_TOKEN", "EVENTO", "ACAO", "ANTES", "HEAD_SHA", "REPO", "BASE_REF"}
+ENV_DO_JOB = {"ACTIONLINT_VERSAO", "ACTIONLINT_SHA256", "ZIZMOR_VERSAO", "ZIZMOR_SHA256"}
+# Chaves que o passo do actionlint e o do zizmor podem ter: qualquer outra (continue-on-error, working-directory...) reprova.
+CHAVES_DO_LINT = {"name", "if", "run"}
+
+
+def _chave(linha):
+    chave, _, valor = linha.strip().partition(":")
+    return chave.strip("\"'"), valor
+
+
+def passos_da_bateria(texto):
+    """Passos do job bateria na ordem do arquivo: o que o ci-local lê mais `uses`, `id`, as chaves do passo e o `env`."""
+    (bateria,) = [j for j in ci.ler_jobs(texto) if j["id"] == "bateria"]
+    linhas = texto.splitlines()
+    inicio = linhas.index("  bateria:")
+    blocos, dentro, em_env = [], False, False
+    for linha in linhas[inicio + 1:]:
+        if linha.strip() and not linha.lstrip().startswith("#") and len(linha) - len(linha.lstrip()) <= 2:
+            break
+        if linha == "    steps:":
+            dentro = True
+        elif dentro and linha.startswith("      - "):
+            blocos.append({"uses": "", "id": "", "chaves": set(), "env": set()})
+            linha, em_env = "        " + linha[8:], False
+        if not (dentro and blocos and linha.strip()) or linha.lstrip().startswith("#"):
+            continue  # comentário não decide recuo nem fim de bloco
+        recuo = len(linha) - len(linha.lstrip())
+        if recuo == 8:
+            chave, valor = _chave(linha)
+            blocos[-1]["chaves"].add(chave)
+            em_env = chave == "env"
+            if em_env and valor.strip():  # env em fluxo, alias ou na mesma linha: não é lido, reprova
+                blocos[-1]["env"].add("<na mesma linha>")
+            if chave in ("uses", "id"):
+                blocos[-1][chave] = valor.split(" #")[0].strip()
+        elif recuo > 8 and em_env:  # qualquer recuo maior que o do `env:`
+            blocos[-1]["env"].add(_chave(linha)[0])
+        elif recuo < 8:
+            em_env = False
+    assert len(blocos) == len(bateria["passos"]), (len(blocos), len(bateria["passos"]))
+    return [{**p, **b} for p, b in zip(bateria["passos"], blocos)]
+
+
+def env_do_job(texto):
+    """Chaves do `env` do job bateria (`{"<na mesma linha>"}` se não estiver em bloco)."""
+    linhas = texto.splitlines()
+    inicio = linhas.index("  bateria:")
+    chaves, em_env = set(), False
+    for linha in linhas[inicio + 1:]:
+        if linha == "    steps:":
+            break
+        if not linha.strip() or linha.lstrip().startswith("#"):
+            continue  # comentário não decide recuo nem fim de bloco
+        recuo = len(linha) - len(linha.lstrip())
+        if recuo == 4:
+            chave, valor = _chave(linha)
+            em_env = chave == "env"
+            if em_env and valor.strip():
+                chaves.add("<na mesma linha>")
+        elif recuo > 4 and em_env:
+            chaves.add(_chave(linha)[0])
+    return chaves
+
+
+def _run_igual(passo, sha256):
+    return hashlib.sha256(passo["run"].encode()).hexdigest() == sha256
+
+
+def _pode_antes_do_lint(passo, n, n_gate):
+    if passo["env"] != (ENV_DO_GATE if passo["nome"] == NOME_DO_GATE else set()):  # lista positiva do env, por passo
+        return False
+    if passo["uses"]:
+        acao, _, ref = passo["uses"].partition("@")
+        return acao in ACOES_ANTES_DO_LINT and re.fullmatch(r"[0-9a-f]{40}", ref) is not None and not passo["run"] and not passo["shell"]
+    if passo["shell"]:  # shell próprio é código arbitrário no lugar do bash
+        return False
+    if passo["se"] == SO_SEM_LINT:  # só depois do gate: antes dele a saída `pesada` é vazia e a condição vale sempre
+        return n_gate is not None and n > n_gate
+    if passo["nome"] == NOME_DO_GATE:
+        return passo["id"] == "gate" and _run_igual(passo, SHA256_RUN_DO_GATE)
+    if passo["nome"] == NOME_DO_DOWNLOAD:
+        return _run_igual(passo, SHA256_RUN_DO_DOWNLOAD)
+    return False
+
+
+def passos_antes_do_lint_fora_da_lista(texto):
+    """Nomes (ou `uses`) dos passos antes do actionlint e do zizmor que não estão na lista fechada."""
+    if ANCORA_OU_ALIAS.search(texto):  # antes de ler: o leitor por linha não segue âncora nem merge
+        return ["âncora, alias, merge YAML ou tab no recuo do workflow"]
+    passos = passos_da_bateria(texto)
+    nomes = [p["nome"] for p in passos]
+    lint = nomes.index("actionlint")
+    (ziz,) = [n for n, nome in enumerate(nomes) if nome.startswith("zizmor (offline")]
+    n_gate = next((n for n, p in enumerate(passos) if p["id"] == "gate" and p["nome"] == NOME_DO_GATE), None)
+    fora = [p["nome"] or p["uses"] or p["run"].strip() for n, p in enumerate(passos[:max(lint, ziz)])
+            if n not in (lint, ziz) and not _pode_antes_do_lint(p, n, n_gate)]
+    esperados = ((lint, RUN_DO_ACTIONLINT), (ziz, RUN_DO_ZIZMOR))
+    if any(passos[n]["se"] != SO_COM_LINT or passos[n]["run"] != run or passos[n]["shell"] for n, run in esperados):
+        fora.append("condição, run ou shell do actionlint ou do zizmor fora do esperado")
+    for n, nome in ((lint, "actionlint"), (ziz, "zizmor")):
+        if passos[n]["chaves"] - CHAVES_DO_LINT:
+            fora.append(f"{nome} com chave além de name, if e run: {sorted(passos[n]['chaves'] - CHAVES_DO_LINT)}")
+    if env_do_job(texto) != ENV_DO_JOB:
+        fora.append("env do job bateria fora do esperado")
+    if ENV_QUE_EXECUTA.search(texto):
+        fora.append("BASH_ENV, ENV ou defaults no workflow")
+    return fora
 
 
 class StatusTest(unittest.TestCase):
@@ -118,6 +249,23 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         esperados = {"rapida", "bateria", "catraca"}
         self.assertTrue(esperados <= set(ids), esperados - set(ids))
 
+    def test_todo_job_roda_no_ubuntu_26_04(self):
+        """FILA-30 16c: o runner ubuntu-24.04 sai de linha em 19/11/2026; runner fixado (sem -latest), igual nos jobs de todos os workflows."""
+        for arquivo in sorted((RAIZ / ".github" / "workflows").glob("*.yml")):
+            runners = re.findall(r"^\s*runs-on:\s*(\S+)", arquivo.read_text(encoding="utf-8"), re.M)
+            with self.subTest(workflow=arquivo.name):
+                self.assertTrue(runners)
+                self.assertEqual(set(runners), {"ubuntu-26.04"})
+
+    def test_comentario_do_topo_diz_que_a_rapida_roda_a_suite(self):
+        """CI-COMENTARIO-RAPIDA: o comentário não chama a suíte inteira da develop de "checagem rápida"; cita o script do job."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        topo = texto.split("\non:\n", 1)[0]
+        self.assertNotIn("só a checagem rápida", topo)
+        self.assertIn("scripts/suite-paralela.py", topo)
+        (rapida,) = [j for j in ci.ler_jobs(texto) if j["id"] == "rapida"]
+        self.assertTrue(any("scripts/suite-paralela.py" in p["run"] for p in rapida["passos"]))
+
     def test_bateria_consolidada_mantem_os_passos_que_eram_jobs(self):
         (bateria,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
                       if j["id"] == "bateria"]
@@ -167,20 +315,121 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
     def test_bateria_lint_e_ferramentas_antes_de_qualquer_codigo_da_branch(self):
         """CI-ORDEM-LINT: actionlint e zizmor baixados e rodados antes de todo passo que executa código da branch."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-        (bateria,) = [j for j in ci.ler_jobs(texto) if j["id"] == "bateria"]
-        nomes = [p["nome"] for p in bateria["passos"]]
-
-        def pos(trecho):
-            (i,) = [n for n, nome in enumerate(nomes) if trecho in nome]
-            return i
-        baixa, lint, ziz = pos("Baixa actionlint"), nomes.index("actionlint"), pos("zizmor (offline")
-        self.assertLess(baixa, lint)
+        passos = passos_da_bateria(texto)
+        nomes = [p["nome"] for p in passos]
+        baixa = [n for n, nome in enumerate(nomes) if nome.startswith("Baixa actionlint")]
+        self.assertEqual(len(baixa), 1)
+        lint, ziz = nomes.index("actionlint"), [n for n, nome in enumerate(nomes) if nome.startswith("zizmor (offline")][0]
+        self.assertLess(baixa[0], lint)
         self.assertLess(lint, ziz)
-        executam_codigo = ("Claude Code CLI", "claude plugin validate", "changelog.d", "release exige versão",
-                           "Nada pula degrau", "Segredo, .env", "Parecer de review", "Provas cmd",
-                           "Testes do Forge", "shellcheck", "Instala o Forge")
-        for trecho in executam_codigo:
-            self.assertLess(ziz, pos(trecho), trecho)
+        self.assertEqual(passos_antes_do_lint_fora_da_lista(texto), [])
+
+    def test_passo_novo_antes_do_lint_reprova(self):
+        """CI-LINT-LISTA-ABERTA: a lista é do que pode rodar antes do lint; qualquer outro passo antes do zizmor reprova."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        marco = "      - name: actionlint\n"
+        self.assertEqual(texto.count(marco), 1)
+        novos = {
+            "passo de nome novo que roda código da branch": "      - name: Prepara o cache\n        run: python3 scripts/x.py\n",
+            "passo sem nome que roda código da branch": "      - run: bash scripts/prepara.sh\n",
+            "ação de terceiros fora da lista": "      - uses: terceiro/acao@" + "a" * 40 + " # v1\n",
+            "setup permitido sem SHA fixo": "      - uses: actions/setup-python@v7\n",
+            "nome do gate copiado com código da branch": (
+                "      - name: Gate (commit só de parecer, com a bateria verde no commit anterior, pula os passos pesados)\n"
+                "        run: python3 scripts/x.py\n"),
+            "download sem checksum": (
+                "      - name: Baixa actionlint e zizmor em versão fixa e confere o checksum\n"
+                "        run: curl -fsSL -o x https://e.x/y\n"),
+            "passo exclusivo do gate com outra condição": (
+                "      - name: Testes que leem pareceres (commit só de parecer)\n"
+                "        if: ${{ always() || steps.gate.outputs.pesada != 'true' }}\n        run: python3 -m unittest tests.x\n"),
+        }
+        for caso, passo in novos.items():
+            with self.subTest(caso=caso):
+                fora = passos_antes_do_lint_fora_da_lista(texto.replace(marco, passo + marco))
+                self.assertEqual(len(fora), 1, fora)
+        gate = "      - name: " + NOME_DO_GATE + "\n"
+        marco_run_gate = "        run: |\n          pesada=true\n"
+        marco_run_baixa = "        run: |\n          set -euo pipefail\n"
+        so_sem_lint = "        if: " + SO_SEM_LINT + "\n"
+
+        def troca(velho, nova, vezes=1):
+            self.assertEqual(texto.count(velho), vezes, velho)
+            return texto.replace(velho, nova)
+
+        variantes = {  # sondas dos pareceres de revisão e de segurança: cada uma reprova com ao menos um item
+            "SO_SEM_LINT antes do gate roda antes do lint": troca(gate, "      - name: Prepara\n" + so_sem_lint
+                                                                  + "        run: bash scripts/prepara.sh\n" + gate),
+            "gate com run em bloco |- (corpo não lido)": troca(marco_run_gate, "        run: |-\n          python3 scripts/x.py\n          pesada=true\n"),
+            "gate com shell que executa arquivo": troca("        id: gate\n", "        id: gate\n        shell: python {0}\n"),
+            "gate com shell em caminho da branch": troca("        id: gate\n", "        id: gate\n        shell: ./scripts/x {0}\n"),
+            "gate com BASH_ENV": troca("          BASE_REF: ${{ github.base_ref }}\n        run: |\n          pesada=true",
+                                       "          BASE_REF: ${{ github.base_ref }}\n          BASH_ENV: scripts/x.sh\n        run: |\n          pesada=true"),
+            "gate com ENV": troca("          BASE_REF: ${{ github.base_ref }}\n        run: |\n          pesada=true",
+                                  "          BASE_REF: ${{ github.base_ref }}\n          ENV: scripts/x.sh\n        run: |\n          pesada=true"),
+            "gate com perl": troca(marco_run_gate, marco_run_gate + "          perl scripts.pl\n"),
+            "gate com ponto e caminho .github": troca(marco_run_gate, marco_run_gate + "          . .github/x\n"),
+            "gate com caminho em docs": troca(marco_run_gate, marco_run_gate + "          docs/x\n"),
+            "download com perl": troca(marco_run_baixa, marco_run_baixa + "          perl scripts.pl\n"),
+            "download com caminho em docs": troca(marco_run_baixa, marco_run_baixa + "          docs/x\n"),
+            "download com run em bloco >-": troca(marco_run_baixa, "        run: >-\n          set -euo pipefail\n"),
+            "download com shell": troca("        run: |\n          set -euo pipefail\n", "        shell: python {0}\n        run: |\n          set -euo pipefail\n"),
+            "defaults de run no job": troca("    env:\n      ACTIONLINT_VERSAO", "    defaults:\n      run:\n        shell: python {0}\n    env:\n      ACTIONLINT_VERSAO"),
+            "BASH_ENV no env do job": troca("    env:\n      ACTIONLINT_VERSAO", "    env:\n      BASH_ENV: scripts/x.sh\n      ACTIONLINT_VERSAO"),
+            "run do actionlint com comando extra": troca("        run: actionlint -color\n", "        run: bash scripts/x.sh; actionlint -color\n"),
+            "run do zizmor com comando extra": troca("        run: zizmor --offline", "        run: bash scripts/x.sh; zizmor --offline"),
+            "condição do actionlint fora da esperada": troca("      - name: actionlint\n        if: " + SO_COM_LINT + "\n",
+                                                             "      - name: actionlint\n        if: ${{ always() }}\n"),
+            "condição do zizmor fora da esperada": troca("        if: " + SO_COM_LINT + "\n        run: zizmor",
+                                                         "        if: ${{ always() }}\n        run: zizmor"),
+        }
+        bloco_env_gate = ("        env:\n          GH_TOKEN: ${{ github.token }}\n          EVENTO: ${{ github.event_name }}\n"
+                          "          ACAO: ${{ github.event.action }}\n          ANTES: ${{ github.event.before }}\n"
+                          "          HEAD_SHA: ${{ github.event.pull_request.head.sha }}\n          REPO: ${{ github.repository }}\n"
+                          "          BASE_REF: ${{ github.base_ref }}\n")
+        bloco_env_job = ("    env:\n      ACTIONLINT_VERSAO: \"1.7.12\"\n      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8\n"
+                         "      ZIZMOR_VERSAO: \"1.30.1\"\n      ZIZMOR_SHA256: e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a\n")
+        env_gate = "          BASE_REF: ${{ github.base_ref }}\n        run: |\n          pesada=true"
+        variantes.update({  # A4 do review, A1 do QA e A5/A6 da segurança: env e chaves que executam
+            "gate com env inline": troca(bloco_env_gate, "        env: {GH_TOKEN: x, BASH_ENV: scripts/x.sh}\n"),
+            "download com env em recuo 12": troca("        run: |\n          set -euo pipefail\n", "        env:\n            PATH: ./scripts:/usr/bin:/bin\n        run: |\n          set -euo pipefail\n"),
+            "download com env em recuo 14": troca("        run: |\n          set -euo pipefail\n", "        env:\n              LD_PRELOAD: ./x.so\n        run: |\n          set -euo pipefail\n"),
+            "download com env de recuo misto": troca("        run: |\n          set -euo pipefail\n", "        env:\n          A: 1\n            PATH: ./scripts\n        run: |\n          set -euo pipefail\n"),
+            "setup com env em recuo 12": troca("      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        if: steps.gate.outputs.pesada == 'true'\n",
+                                               "      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        env:\n            PATH: ./scripts\n        if: steps.gate.outputs.pesada == 'true'\n"),
+            "gate com chave a mais em recuo 12": troca(env_gate, "            PATH: scripts\n" + env_gate),
+            "env do job com chave em recuo 8": troca("    env:\n      ACTIONLINT_VERSAO", "    env:\n        PATH: scripts\n      ACTIONLINT_VERSAO"),
+            "âncora e merge com shell no gate": troca("      - name: " + NOME_DO_GATE + "\n        id: gate\n", "      - &a\n        shell: python {0}\n      - name: " + NOME_DO_GATE + "\n        <<: *a\n        id: gate\n"),
+            "tab no recuo do env do download": troca("        run: |\n          set -euo pipefail\n", "        env:\n\t\t  PATH: ./scripts\n        run: |\n          set -euo pipefail\n"),
+            "âncora no env do job": troca("    env:\n      ACTIONLINT_VERSAO: \"1.7.12\"", "    env: &e\n      ACTIONLINT_VERSAO: \"1.7.12\""),
+            "alias em valor de chave": troca("        run: actionlint -color\n", "        shell: *a\n        run: actionlint -color\n"),
+            "merge em fluxo": troca("jobs:\n", "x: {<<: *a}\njobs:\n"),
+            "comentário em recuo 8 no env do download": troca("        run: |\n          set -euo pipefail\n", "        env:\n        # c\n          PATH: ./scripts\n        run: |\n          set -euo pipefail\n"),
+            "comentário em recuo 0 no env do download": troca("        run: |\n          set -euo pipefail\n", "        env:\n# c\n          PATH: ./scripts\n        run: |\n          set -euo pipefail\n"),
+            "comentário em recuo 4 no env do job": troca("    env:\n      ACTIONLINT_VERSAO", "    env:\n    # c\n      PATH: scripts\n      ACTIONLINT_VERSAO"),
+            "gate com chave BASH_ENV entre aspas": troca(env_gate, '          "BASH_ENV": scripts/x.sh\n' + env_gate),
+            "gate com PATH": troca(env_gate, "          PATH: scripts\n" + env_gate),
+            "gate com GIT_EXTERNAL_DIFF": troca(env_gate, "          GIT_EXTERNAL_DIFF: scripts/x.sh\n" + env_gate),
+            "gate com LD_PRELOAD": troca(env_gate, "          LD_PRELOAD: scripts/x.so\n" + env_gate),
+            "gate sem uma chave esperada do env": troca(bloco_env_gate, bloco_env_gate.replace("          REPO: ${{ github.repository }}\n", "")),
+            "download com env": troca("        run: |\n          set -euo pipefail\n", "        env: {BASH_ENV: scripts/x.sh}\n        run: |\n          set -euo pipefail\n"),
+            "actionlint com env inline": troca("        run: actionlint -color\n", "        env: {BASH_ENV: scripts/x.sh}\n        run: actionlint -color\n"),
+            "zizmor com env em bloco": troca("        run: zizmor --offline", "        env:\n          PATH: scripts\n        run: zizmor --offline"),
+            "chave BASH_ENV entre aspas no job": troca("    env:\n      ACTIONLINT_VERSAO", '    env:\n      "BASH_ENV": scripts/x.sh\n      ACTIONLINT_VERSAO'),
+            "PATH no env do job": troca("    env:\n      ACTIONLINT_VERSAO", "    env:\n      PATH: scripts\n      ACTIONLINT_VERSAO"),
+            "env inline no job": troca(bloco_env_job, "    env: {BASH_ENV: scripts/x.sh}\n"),
+            "env no topo do workflow": troca("jobs:\n", "env: {BASH_ENV: scripts/x.sh}\njobs:\n"),
+            "defaults entre aspas no job": troca("    env:\n      ACTIONLINT_VERSAO", '    "defaults": {run: {shell: "python {0}"}}\n    env:\n      ACTIONLINT_VERSAO'),
+            "continue-on-error no actionlint": troca("        run: actionlint -color\n", "        continue-on-error: true\n        run: actionlint -color\n"),
+            "working-directory no zizmor": troca("        run: zizmor --offline", "        working-directory: scripts\n        run: zizmor --offline"),
+        })
+        for caso, alterado in variantes.items():
+            with self.subTest(caso=caso):
+                fora = passos_antes_do_lint_fora_da_lista(alterado)
+                self.assertTrue(fora, caso)
+        depois = texto.replace("      - name: Testes do Forge\n", novos["passo de nome novo que roda código da branch"]
+                               + "      - name: Testes do Forge\n")
+        self.assertEqual(passos_antes_do_lint_fora_da_lista(depois), [])  # contraprova: depois do zizmor, vale
 
     def test_passo_com_bloco_env_e_if(self):
         texto = (

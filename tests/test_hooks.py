@@ -60,6 +60,7 @@ HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
 # Erro de caminho igual em toda versão do Python (a 3.14 engole o OSError de Path.exists): ver o módulo da pasta.
 PATHLIB_312 = Path(__file__).resolve().parent / "apoio_pathlib_312"
+CARTOES_DA_TRILHA_034 = ("SEGMENTO-CRASE-HOOK", "HOOK-CONTINUACAO-LINHA", "ROTULO-VARIAVEL", "K2-REC", "HOOK-MSG-SEGMENTO")  # as fixtures de cada cartão abrem a descrição com o ID dele
 PESADOS_DA_STACK = json.loads((RAIZ / "stacks/node-react/pesados.json").read_text(encoding="utf-8"))
 
 
@@ -965,6 +966,7 @@ class Hooks(unittest.TestCase):
         """Revisão (4) e segurança R3: erro do analisador que não é ValueError barra na sessão do Forge quando a linha
         cita o rótulo (mesmo com a conta do dono: o hook não pôde decidir); a linha que não cita segue a regra geral."""
         for comando, codigo in {"gh pr edit 70 --add-label afrouxa-regra": 2, "gh pr edit 70 --add-label bug": 0,
+                                "gh pr edit 70 --add-label afrouxa\\\n-regra": 2,  # HOOK-CONTINUACAO-LINHA
                                 "gh api graphql -f query='mutation { addLabelsToLabelable(input:{}) { x } }'": 2}.items():
             with self.subTest(comando=comando):
                 tmp = self._pasta_temporaria()
@@ -2018,6 +2020,24 @@ class Hooks(unittest.TestCase):
             hook.corpos_pendentes, hook.entrada = 2, {"hook_event_name": "PostToolUse"}
             self.assertIsNone(_comum.prazo_vencido(hook, re.compile("x"), "", False, "R-CONFORMIDADE"))
 
+    def test_fronteira_limpa_so_se_os_comentarios_atravessam_o_prefixo(self):  # HEREDOC-DONOS-AJUSTES, S-A1
+        _comum, _, _ = modulos_dos_hooks()
+        for prefixo in ('python3 "$(cat)"', "a `b` c"):
+            self.assertFalse(_comum.fronteira_limpa(prefixo), prefixo)
+        for prefixo in ("", "python3 _", "X=1 git commit -m _", "bash -c 'x; y'"):
+            self.assertTrue(_comum.fronteira_limpa(prefixo), prefixo)
+
+    def test_prazo_vencido_na_tirada_dos_heredocs_ja_os_acha_pendentes(self):  # HEREDOC-DONOS-AJUSTES, S-A2
+        _comum, conformidade, _ = modulos_dos_hooks()
+        hook = _comum.Hook("conformidade")
+        hook.raiz, hook.marcado, hook.entrada = RAIZ, False, {"hook_event_name": "PreToolUse"}
+        guarda = conformidade.Guarda(hook, conformidade.politica(), "dev")
+        with mock.patch.object(conformidade, "tirar_heredocs", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+            guarda.bash("cat <<'A'\nx\nA\ncat <<'B'\nx\nB", RAIZ, 0)
+        self.assertEqual(hook.corpos_pendentes, 2)
+        guarda.bash("cat <<'A'\nx\nA\ncat <<< y", RAIZ, 0)  # o `<<<` (não é heredoc) sai da conta depois da tirada
+        self.assertEqual(hook.corpos_pendentes, 2)
+
     def test_regras_e_raiz_sao_calculadas_uma_vez_por_decisao(self):  # HEREDOC-RAPIDO, E1.1 (desenho, seção c)
         """Os N destinos de uma decisão (uma `Guarda`) leem o manifesto e resolvem a raiz e o home uma vez; outra
         decisão (outra `Guarda`) calcula de novo, sem cache entre elas."""
@@ -2070,9 +2090,12 @@ class Hooks(unittest.TestCase):
         for linha in self.corpus_de_recusas():
             base = lidos(linha, todas=False) or []
             for prefixo, sufixo in VARIANTES_QUE_O_BASH_IGNORA:
-                if '$(' in prefixo and '"' in prefixo and ('"' in linha or _comum.CASE.search(linha)):
+                if '$(' in prefixo and '"' in prefixo and ('"' in linha or _comum.CASE.search(linha)
+                                                          or ("$'" in linha and "\\\\" in linha)):
                     # O hook relê a palavra que o `shlex` já tirou das aspas: a aspa dupla da linha fecha a de fora, e o
                     # `)` de um padrão de `case` fecha o `$(` (achado do lote, cartão próprio; o T5 cobre as ações)
+                    # O `\\` de um `$'…'` também: entre aspas duplas o `shlex` o lê como `\`, e a relida muda a palavra
+                    # (as fixtures continuacao-linha-40b e 42b provam que o hook recusa a variante; HOOK-CONTINUACAO-LINHA)
                     continue
                 if "`" in linha and (prefixo, sufixo) in CRASE_EM_VOLTA:
                     continue  # crase não se aninha sem `\``: em volta de outra, a variante muda o que o bash roda
@@ -2160,6 +2183,52 @@ class Hooks(unittest.TestCase):
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("FURO-HOOK-A")]
         self.assertGreaterEqual(len(lote), 8, "as fixtures do lote")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_da_trilha_034(self):  # trilha hooks/conformidade da 0.34: a descrição abre com o cartão, para a mutação
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith(CARTOES_DA_TRILHA_034)]
+        self.assertGreaterEqual(len(lote), 4 * len(CARTOES_DA_TRILHA_034), "as fixtures da trilha")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_corpo_da_crase_como_o_bash_e_como_a_leitura_antiga(self):  # SEGMENTO-CRASE-HOOK
+        _comum, _, _ = modulos_dos_hooks()
+        self.assertEqual(_comum.conteudos_de_crase(r"echo `a \\$(b) \`c\``"), [r"a \$(b) `c`", r"a \\$(b) `c`"])
+        self.assertEqual(_comum.conteudos_de_crase(r"echo `a \`c\` \$d`"), ["a `c` $d", r"a `c` \$d"])
+        self.assertEqual(_comum.conteudos_de_crase(r"echo `a \`c\``"), ["a `c`"])
+
+    def test_ansi_c_decodifica_como_o_bash(self):  # HOOK-CONTINUACAO-LINHA, A2 da segurança
+        _comum, _, _ = modulos_dos_hooks()
+        self.assertEqual(_comum.decodificar_ansi_c(r"g\x68 \151 \cA \u00e9 \n \q \xg"), "gh i \x01 \u00e9 \n \\q \\xg")
+
+    def test_ansi_c_decodificado_no_texto(self):  # HOOK-CONTINUACAO-LINHA, A5 da segurança
+        _comum, _, _ = modulos_dos_hooks()
+        for escrito, lido in ((r"g$'\x68' x", "g'h' x"), (r"echo 'x$' $'\x68'", "echo 'x$' 'h'"), (r"$'a\'b' c", "'a'\\''b' c"), ('x $"g"h', 'x "g"h'),
+                              (r"echo 'a\' $'\x68'", r"echo 'a\' 'h'"), (r"""echo "$'\x68'" \$'y'""", r"""echo "$'\x68'" \$'y'""")):
+            self.assertEqual(_comum.ansi_c_decodificado(escrito), lido, escrito)
+
+    def test_formas_compostas_ate_o_ponto_fixo_e_teto_fecha(self):  # HOOK-CONTINUACAO-LINHA, A3 do review
+        _comum, conformidade, _ = modulos_dos_hooks()
+        self.assertIn("g'h' repo delete", _comum.formas_que_o_shell_le("g$'\\x68' repo de\\\nlete"))
+        hook = _comum.Hook("conformidade")
+        hook.entrada = {"tool_input": {"command": "echo $'a' \\\nb"}}
+        with mock.patch.object(_comum, "TETO_DE_FORMAS", 1):
+            self.assertRaises(RuntimeError, _comum.formas_que_o_shell_le, "g$'\\x68' repo de\\\nlete")
+            self.assertIs(_comum.marcado(hook, conformidade.CRITICO, ""), True)  # formas demais: marca e fecha
+
+    def test_marcador_critico_tambem_na_forma_juntada(self):  # HOOK-CONTINUACAO-LINHA
+        _comum, conformidade, _ = modulos_dos_hooks()
+        for comando, marcado in (("g\\\nit push origin main", True), ("echo a \\\nb", False)):
+            hook = _comum.Hook("conformidade")
+            hook.entrada = {"tool_input": {"command": comando}}
+            self.assertIs(_comum.marcado(hook, conformidade.CRITICO, ""), marcado, comando)
+
+    def test_trecho_so_entra_se_a_linha_inteira_cabe(self):  # HOOK-MSG-SEGMENTO, C-A6-3
+        _, conformidade, _ = modulos_dos_hooks()
+        resto = " (em `git push`). Corrigir: c"
+        cabe = "m" * (conformidade.LIMITE_MENSAGEM - len("R-X: ") - len(resto))
+        self.assertEqual(conformidade.com_trecho("R-X", cabe, "c", ["git", "push"]), cabe + resto)
+        self.assertEqual(conformidade.com_trecho("R-X", cabe + "m", "c", ["git", "push"]), cabe + "m. Corrigir: c")
+        self.assertEqual(conformidade.com_trecho("R-X", "m", "c", None), "m. Corrigir: c")
 
     def test_fixtures_do_gh_merge_admin(self):  # GH-MERGE-ADMIN: a matriz, os abusos (a) a (g) e os legítimos do C-5
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("GH-MERGE-ADMIN")]

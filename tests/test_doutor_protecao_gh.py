@@ -49,8 +49,20 @@ class Protecao(td.Base):
         self.assertEqual(r.returncode, 1)
         self.assertIn("A branch main no GitHub está sem proteção", r.stdout)
         self.assertIn("ci-cd", r.stdout)
+        self.assertNotIn("protecao-de-branch.md", r.stdout)  # o projeto de partida não tem o passo a passo: só a skill
         self.assertNotIn("develop no GitHub está sem", r.stdout)
         self.assertTrue(any(c.endswith("repos/dono/proj/branches/main/protection") and "--method GET" in c for c in self.apis()))
+
+    def test_o_aviso_cita_o_passo_a_passo_so_se_o_arquivo_existe_na_raiz(self):
+        for caminho in ("docs/engineering/protecao-de-branch.md", "docs/protecao-de-branch.md"):
+            with self.subTest(caminho=caminho):
+                arq = self.proj / caminho
+                arq.parent.mkdir(parents=True, exist_ok=True)
+                arq.write_text("# passo a passo\n", encoding="utf-8")
+                self.sem_protecao("main")
+                saida = self.doutor().stdout
+                self.assertIn(f"o passo a passo em {caminho} (skill `ci-cd`)", " ".join(saida.split()))
+                arq.unlink()
 
     def test_protecao_classica_vale_quando_os_rulesets_estao_vazios(self):
         self.sem_protecao("main")

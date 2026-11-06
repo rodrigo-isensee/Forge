@@ -89,6 +89,7 @@ No Forge, o que decide por regra de código (`bin/`, `hooks/`, `.githooks/`, `te
 - `forge-mutante --cobertura --base <Base-sha>` é a checagem do autor antes do push: lista a condição Python mudada sem mutante declarado (cobertura é "declarado, não provado"; shell e outros tipos saem como `não coberto: <arquivo>`, uma vez por arquivo; `isentas` na spec, até 8, com `trecho` e `motivo`, saem como `isenta · arq:L · motivo` para o review e o QA lerem). A rodada de mutantes segue sendo a evidência do QA, e nenhum hook, pre-push nem CI chama a checagem.
 - O QA roda `forge-mutante` e cola a saída no parecer. Saída 0 é o inverso do usual: todos os mutantes morreram. Prazo estourado ou erro de carga é "sem veredito", nunca "morreu". `--processos K` (1 a 4; padrão 1, em série) roda os mutantes de k em k, cada um na sua cópia, com o mesmo veredito; k maior só dentro da vez da trava da suíte (`R-TETO`), e o processo de teste que cai é "sem veredito", nunca "morreu".
 - Mutante sobrevivente é achado bloqueante do QA até virar teste ou justificativa de mutante equivalente aceita pelo QA.
+- Classe que já reprovou antes vira linha `AR-<n> · qa` em `docs/engineering/achados-recorrentes.md`.
 
 Bug ou falha de plano cuja classe se repete (já está em `docs/engineering/achados-recorrentes.md` ou volta neste pedido): o `qa-engineer` grava a linha `AR-<n>` nesse arquivo, no formato dele (só classe, ID da regra, contagem e `arquivo:linha`), no mesmo PR do parecer.
 

@@ -1,0 +1,33 @@
+{
+  "descricao": "HOOK-MSG-SEGMENTO: a linha que o hook não lê recusa como antes, sem trecho.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo 'a"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "aspas sem par na leitura do hook",
+    "stderr_sem": [
+      "(em `"
+    ]
+  }
+}

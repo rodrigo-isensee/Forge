@@ -1,0 +1,34 @@
+{
+  "descricao": "A1 do review do hook-parecer-034: o dono roda o corpo (sh <<'EOF') e o heredoc de dentro, sem aspas, tem $(; segue barrado com o contorno de usar <<'FIM', não com o de gravar e rodar noutra chamada.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "sh <<'EOF'\ncat <<Y\n$(date)\nY\ngit merge origin/develop\nEOF"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "Corrigir: use <<'FIM'",
+    "stderr_sem": [
+      "Write ou Edit",
+      "corpo de heredoc que a chamada pode rodar"
+    ]
+  }
+}

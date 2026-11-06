@@ -375,6 +375,8 @@ def conferir_protecao_github(raiz):
         return [nao_consegui]
     codigo, saida = rodar(["git", "for-each-ref", "--format=%(refname)", "refs/remotes/origin"], raiz)
     no_remoto = set(saida.splitlines()) if codigo == 0 else set()
+    guia = next((f"o passo a passo em {c} (skill `ci-cd`)" for c in ("docs/engineering/protecao-de-branch.md", "docs/protecao-de-branch.md")
+                 if (raiz / c).is_file()), "a skill `ci-cd`")  # cita só o arquivo que existe aqui
     problemas, duvida = [], False
     for ramo in RAMOS_PROTEGIDOS:
         if f"refs/remotes/origin/{ramo}" not in no_remoto:
@@ -385,7 +387,7 @@ def conferir_protecao_github(raiz):
         duvida = duvida or resultado == "nao"
         if resultado == "sem":
             problemas.append(Problema(f"A branch {ramo} no GitHub está sem proteção: um merge sem os checks fica possível. "
-                                      "Peça ao dono do repositório para configurá-la, seguindo a skill `ci-cd`."))
+                                      f"Peça ao dono do repositório para configurá-la, seguindo {guia}."))
     return problemas + ([nao_consegui] if duvida else [])
 
 
