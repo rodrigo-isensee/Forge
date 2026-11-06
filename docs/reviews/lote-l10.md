@@ -1,12 +1,12 @@
 ---
 tipo: review
 contrato: 1
-pedido: versao-033
+pedido: versao-034
 branch: melhoria/lote-l10
-commit: edd8b6b8b8e70d7ea5d1db6129b008530565f2a6
+commit: 8f22ad36940371ce59a4819a3a976b4d3e4bb0d4
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-04
+data: 2026-11-06
 ---
 # Review: versao-033, lote L10 (E14 VOLTA-ETAPA-NOVA, Q14 = A)
 
@@ -77,3 +77,21 @@ Delta lido: 988505e, só `tests/mutantes/lote-l08-e7b.json` (+13 -2). O `bin/for
 - **Recomendação, sem achado no bloco:** o fallback redundante de :757 pode sair do código numa próxima mudança de `bin/forge-check`, e o M36 junto. Código que nenhum mutante consegue matar é candidato a remoção.
 
 `bin/forge-mutante tests/mutantes/lote-l08-e7b.json`, numa worktree limpa em 988505e: rc=0. M36 equivalente; M37, M50, M51, M52 e M56 mortos.
+
+## Revalidação 0.34 (head 8f22ad3, pedido versao-034, E4)
+O L10 é o E4 da versao-034, e por isso o `pedido:` passa a `versao-034` e o `commit:` passa a 8f22ad3. Delta lido: `edd8b6b..8f22ad3`, pela primeira parente. O código e os testes de `bin/forge-check`, `tests/` e `agents/` foram lidos (o `agents/` não muda). Veredito: **aprovado**, sem achado novo.
+
+O que cada commit trouxe:
+- 9e2b7be e 944681a: só os pareceres de segurança e de review do L10 (spec 988505e), já lidos.
+- 82d1aca e a45fe18: junções da lote-l09 (TEMPO-B1 e a correção das regressões do L08). O `--remerge-diff` sai vazio, sem resolução manual.
+- 0e47e06: junção da develop (30b4453, L09 integrado pelo PR #450). Ela traz `pr_da_cli(..., conferir=True)` e o escopo da merge-integracao com `conferir=False` (bin/forge-check:657, :668, :682 e :1396), o lançador `tests/sem_claude_ancestral.py` (TESTES-SEM-CLAUDE-ANCESTRAL, só de teste, sem interruptor em produção), `tests/apoio_conferida.py` com `sem_manutencao`, os testes novos em `test_conf_escopo`, `test_atualizar`, `test_sugerir` e `test_estado_da_branch` e a spec `tests/mutantes/lote-l08-escopo.json`. Esse código tem pareceres próprios na develop. O `--remerge-diff` mostra quatro conflitos de código e teste, todos resolvidos sem perder nenhum dos lados: `bin/forge-testes` mantém `test_qa_lote_l10` (L10); `test_testes_tocados` mantém a contagem 41 (L10); `tests/mutantes/lote-l08-e7.json` M29 e M30 usam o `de:` da develop, que é o texto atual do código; e `test_volta_por_delta` mantém os testes do E14 e a linha `entrega conferida` que a develop pôs em `test_conferencia_reprova_anterior_bloco_e_achado`. Nos pareceres em `docs/` os conflitos ficaram com os dois lados.
+- 8f22ad3: move as linhas de `changelog.d/lote-l08.md` para `changelog.d/lote-l10.md`. As cinco linhas são idênticas, só mudam os títulos das seções. O motivo foi o `test_changelog.FragmentoTemONomeDaBranch`.
+
+O E14 continua inteiro. Entre edd8b6b e 8f22ad3, `ETAPA_ABERTA`, `etapas_novas_da_volta`, `fora_do_escopo_da_volta` e as chamadas em `gerar_volta` e `conferir_volta` (bin/forge-check:1844 a :2044) não mudam, e `tests/test_volta_por_delta.py` e `tests/test_qa_lote_l10.py` fora do conflito resolvido também não. O que veio do L09 e da develop mexe em `pr_da_cli` e no escopo da integração, que o E14 não toca. Não há conflito de comportamento entre os dois.
+
+M14: o delta próprio do L10 não muda (138 linhas, A1). O que entrou pelas junções é código já integrado na develop e fica fora da conta do PR do L10 contra `origin/develop`.
+
+Comandos, na worktree em 8f22ad3:
+- `python3 -I -m unittest discover -s tests -p test_volta_por_delta.py`: 68, OK. `-p test_qa_lote_l10.py`: 1, OK. `-p test_conf_escopo.py`: 11, OK. `-p test_testes_tocados.py`: 86, OK.
+- `bin/forge-mutante tests/mutantes/lote-l10.json`, num clone isolado em 8f22ad3: rev=8f22ad369403, M1 a M13 morreram, rc=0. `bin/forge-mutante tests/mutantes/lote-l08-escopo.json`: M60 e M61 morreram, rc=0.
+- Suíte inteira: não foi rodada aqui (D-5). Cito a do push de 8f22ad3 (/tmp/push-l10.log, 2619 testes, OK, Histórico do pedido às 02:21).
