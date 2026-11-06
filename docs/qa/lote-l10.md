@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: versao-034
 branch: melhoria/lote-l10
-commit: 8f22ad36940371ce59a4819a3a976b4d3e4bb0d4
+commit: 78149dbb44f211b2bfeb35d53f50dcf1623e0ff0
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -75,5 +75,31 @@ O que mudou desde 83a28d7 e se tem teste (por leitura do diff):
 - Testes e apoio: tests/apoio_conferida.py, tests/sem_claude_ancestral.py, test_atualizar, test_estado_da_branch, test_sugerir e as specs de mutantes do L08 (e7, e7b); são testes, entram na execução do push.
 - Versões, CHANGELOG e fragmentos de changelog, pareceres e docs de outros itens: sem lógica a testar.
 - Nenhum bug novo; 0 abertos. A spec velha do L08 (bug L08-3) segue sendo do L08.
+
+Parecer: aprovado.
+
+## Revalidação 0.34 (junções 6bfdeac e 6a630a0)
+Head testado 78149dbb44f211b2bfeb35d53f50dcf1623e0ff0; o `commit:` passou a ser esse head, sem teste novo do QA nesta rodada. Motivo: o parecer sobre 8f22ad3 ficou desatualizado porque tests/test_testes_tocados.py mudou depois dele (junção 6a630a0). Review revalidado no mesmo head em docs/reviews/lote-l10.md.
+
+suite: reusa (a execução do push de 78149db, /tmp/push-l10e.log, 57 linhas; não rodei nada de novo, R-QA, R-TETO)
+
+Linhas do resultado copiadas literais do log (número da linha do log):
+- 2: `suite-paralela: 2724 testes em 103 módulos, 2 processos (carga alta (load 13.8 de 12 núcleos, 14.8 GB disponíveis)).`
+- 8: `Ran 1009 tests`
+- 47: `Ran 1715 tests`
+- 49: `processo 1: rc 0, 1009 testes, 1513.7 s, 46 módulos`
+- 50: `processo 2: rc 0, 1715 testes, 892.1 s, 57 módulos`
+- 52: `Ran 2724 tests in 1513.929s (2 processos)`
+- 54: `OK (skipped=33)`
+- 56: `   f6b596d..78149db  78149dbb44f211b2bfeb35d53f50dcf1623e0ff0 -> melhoria/lote-l10`
+- 57: `push_rc=0 09:36:22`
+
+Os dois processos incluem test_volta_por_delta, test_etapa_do_brief e test_qa_lote_l10 (linhas 3 e 19). Sem linha de FAIL ou ERROR no log; pulos: 33 (linha 54), sem lista por teste.
+
+O que as junções mudaram para o QA do E14 (por leitura do diff 8f22ad3..78149db):
+- Junção 6bfdeac (develop 860147c) e 6a630a0 (BRIEF-HEAD-LOCAL, #453): em bin/forge-check entraram 36 linhas acrescidas e 1 trocada; nenhuma toca a volta por delta (`ETAPA_ABERTA`, gerador e conferência da etapa nova). Os mutantes M1 a M13 do L10 e os critérios C-1 a C-5, T-1 a T-3 não mudam; a tabela critério → teste → resultado acima segue valendo.
+- Conflito de 78149db: só em tests/test_testes_tocados.py, contagem de módulos de bin/forge-check de 40 para 42 (test_qa_lote_l10 do L10 e test_qa_doutor_034 da develop); a junção guarda os dois.
+- Resto do diff: testes, specs de mutantes, versões, changelog e documentos de outros itens; entram na suíte do push.
+- Bugs novos: nenhum; abertos: 0.
 
 Parecer: aprovado.
