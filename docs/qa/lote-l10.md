@@ -94,7 +94,7 @@ Linhas do resultado copiadas literais do log (número da linha do log):
 - 56: `   f6b596d..78149db  78149dbb44f211b2bfeb35d53f50dcf1623e0ff0 -> melhoria/lote-l10`
 - 57: `push_rc=0 09:36:22`
 
-Os dois processos incluem test_volta_por_delta, test_etapa_do_brief e test_qa_lote_l10 (linhas 3 e 19). Sem linha de FAIL ou ERROR no log; pulos: 33 (linha 54), sem lista por teste.
+Na linha 3 do log (processo 1) estão test_etapa_do_brief e test_qa_lote_l10; na linha 19 (processo 2), test_volta_por_delta. Sem linha de FAIL ou ERROR no log; pulos: 33 (linha 54), sem lista por teste.
 
 O que as junções mudaram para o QA do E14 (por leitura do diff 8f22ad3..78149db):
 - Junção 6bfdeac (develop 860147c) e 6a630a0 (BRIEF-HEAD-LOCAL, #453): em bin/forge-check entraram 36 linhas acrescidas e 1 trocada; nenhuma toca a volta por delta (`ETAPA_ABERTA`, gerador e conferência da etapa nova). Os mutantes M1 a M13 do L10 e os critérios C-1 a C-5, T-1 a T-3 não mudam; a tabela critério → teste → resultado acima segue valendo.
