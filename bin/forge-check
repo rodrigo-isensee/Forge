@@ -4913,6 +4913,34 @@ def remoto_da_branch(raiz, branch):
     return sha_do_commit(raiz, f"refs/remotes/origin/{branch}"), False
 
 
+# E2 BRIEF-HEAD-LOCAL: as pastas de parecer do `so_parecer` do `.githooks/pre-push` (não a `LIVRES`: sem kanban, ux, modelos nem aceites).
+PASTAS_DO_SO_PARECER = ("docs/reviews/", "docs/security/", "docs/qa/", "docs/devops/")
+PASTAS_RECUSADAS_DE_PARECER = ("docs/security/ameacas/", "docs/security/aceites/")
+ETAPAS_COM_PARECER_A_FRENTE = ("review", "seguranca", "qa")
+MODOS_DE_ARQUIVO = ("100644", "100755")
+
+
+def so_pareceres_a_frente(raiz, remota, head):
+    """(None, n) se `remota` é ancestral de `head` e a árvore `remota..head` só acrescenta ou altera (A, M, arquivo comum) arquivos das
+    pastas de parecer; senão (motivo ou primeiro arquivo fora, 0). Falha do git e nome com controle reprovam."""
+    if not e_ancestral(raiz, remota, head):
+        return "não descende de origin", 0
+    cod, saida = git(raiz, "diff", "--raw", "-z", "--no-renames", "--no-ext-diff", "--no-textconv", remota, head, "--", bruto=True)
+    if cod:
+        return "falha do git", 0
+    campos = [c.decode("utf-8", "surrogateescape") for c in saida.split(b"\0") if c]
+    if len(campos) % 2:
+        return "saída do git ilegível", 0
+    for meta, nome in zip(campos[::2], campos[1::2]):
+        antigo, novo, _, _, status = meta.lstrip(":").split()
+        aceito = (status in ("A", "M") and novo in MODOS_DE_ARQUIVO and (status == "A" or antigo in MODOS_DE_ARQUIVO)
+                  and not com_controle(nome) and "/_" not in nome and nome.startswith(PASTAS_DO_SO_PARECER)
+                  and not nome.startswith(PASTAS_RECUSADAS_DE_PARECER))
+        if not aceito:
+            return nome, 0
+    return None, len(campos) // 2
+
+
 def estado_do_commit(raiz, texto):
     """M1: brief de etapa que não é `codigo`, com `Branch:` cujo head local não está em `origin/<branch>` (ausente ou atrás), lido do
     remoto por `git ls-remote`: a prova `sha` ou `push` do brief aceitaria um commit só da worktree. Sem `Etapa:` ou `Branch:`, com etapa
@@ -4928,8 +4956,15 @@ def estado_do_commit(raiz, texto):
         return []
     if remota and (head == remota or e_ancestral(raiz, head, remota)):
         return []
+    fora = None
+    if conferido and remota and etapa in ETAPAS_COM_PARECER_A_FRENTE:
+        fora, n = so_pareceres_a_frente(raiz, remota, head)
+        if fora is None:
+            return [(f"aviso: commit: o head {head[:7]} de {caminho_impresso(branch)} está à frente de origin/{caminho_impresso(branch)} "
+                     f"{remota[:7]} só com pareceres ({n} arquivos); envie antes do PR (R-BRIEF)", False)]
     return [(f"commit: o head {head[:7]} de {caminho_impresso(branch)} só existe na worktree (origin/{caminho_impresso(branch)} "
-             f"{'atrás' if remota else 'ausente'}); rode git fetch origin, se for ref velho, ou envie a branch antes do brief (git push origin <branch>)", True)]
+             f"{'atrás' if remota else 'ausente'}); rode git fetch origin, se for ref velho, ou envie a branch antes do brief (git push origin <branch>)"
+             + (f"; à frente dele, fora de pareceres: {nome_seguro(fora)}" if fora else ""), True)]
 
 
 def delta_de_brief(texto, anterior):
