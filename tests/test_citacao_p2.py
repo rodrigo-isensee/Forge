@@ -101,6 +101,7 @@ class ShaCitado(Base):
         self.git("branch", "-D", "melhoria/x")
         self.base = "0" * 40
         rc, saida = self.conferir(f"- Recurso (E1), etapa (E1.1) sobre {self.lado[:7]}.")
+        self.assertIn("resultado:", saida)  # a conferência vai até o fim
         self.assertNotIn("citação: sha", saida)
 
     def test_sha_que_existe_fora_da_base_e_da_branch_reprova(self):  # mutante: só existência, sem ancestralidade
