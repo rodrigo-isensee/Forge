@@ -1,2 +1,0 @@
-### Corrigido
-- Os testes de `forge sugerir`, `forge atualizar` e `forge voltar-versao` passam quando a suíte roda de dentro do Claude Code (o pre-push de um agente): rodam o script pelo lançador `tests/sem_claude_ancestral.py`, que só deixa de olhar os processos acima do teste; a guarda `dentro_do_claude` de produção fica igual e um teste prova que um `claude` entre o teste e o script segue recusando.
