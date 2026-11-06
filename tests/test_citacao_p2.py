@@ -210,6 +210,11 @@ class PqCitado(Base):
         rc, saida = self.conferir("- Recurso (E1), etapa (E1.1), provado pelo PQ-1.")
         self.assertEqual(rc, 0, saida)
 
+    def test_pronto_quando_nao_cobra_pq_nem_registro_dele(self):  # (4) e (2) leem só fora do Pronto quando
+        rc, saida = self.conferir(pronto="- PQ-1 (cmd): `true` · espera: rc=0, como o PQ-9 e docs/pedidos/exemplo-9.md")
+        self.assertNotIn("citação: PQ-9", saida)
+        self.assertNotIn("exemplo-9.md", saida)
+
 
 if __name__ == "__main__":
     unittest.main()
