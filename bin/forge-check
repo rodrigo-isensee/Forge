@@ -5509,16 +5509,15 @@ def refs_de_leitura(texto):
                         f"origin/{grupo(CABECALHO_DE_BRIEF_CAMPOS['Base'], cabecalho) or 'develop'}") if r]
 
 
-SHA_CITADO = re.compile(r"(?<![\w/-])(?=[0-9a-f]*[a-f])(?=[0-9a-f]*\d)([0-9a-f]{7,40})(?![\w-])")  # com letra e algarismo
+SHA_CITADO = re.compile(r"(?<![\w/-])(?=[0-9a-f]*[a-f])([0-9a-f]{7,40})(?![\w-])")  # com letra: número puro é run, ruleset, pid
 REGISTRO_CITADO = re.compile(r"(?<![\w-])docs/(?:pedidos|briefs)/[\w.@+-]+?\.md\b")
 CAMINHO_ABSOLUTO = re.compile(r"(?<![\w./~$-])(~?/[\w.@+-]+(?:/[\w.@+-]+)+)")
 OUTRO_REPOSITORIO, NOVO = "(outro repositório)", "(novo)"
 
 
 def shas_fora_da_base(raiz, texto, corpo):
-    """P2 (1): sha citado no `corpo` (fora do cabeçalho e do `Pronto quando`) existe e é ancestral do `Base-sha:` ou da `Branch:`
-    (local ou em origin). Saídas: a marca `(outro repositório)` na linha e a linha de decisão do dono (cópia literal, conferida
-    pelas decisões cobradas)."""
+    """P2 (1): sha citado no `corpo` (fora do cabeçalho) existe e é ancestral do `Base-sha:` ou da `Branch:` (local ou em origin).
+    Saída: a marca `(outro repositório)` logo depois do sha, que dispensa só ele. `<mergeCommit>` (S-18) não é hex."""
     if git(raiz, "rev-parse", "--git-dir")[0]:
         return []  # fora de um repositório nada é verificável
     cabecalho = cabecalho_do_brief(texto)
@@ -5527,24 +5526,23 @@ def shas_fora_da_base(raiz, texto, corpo):
     refs = [s for s in dict.fromkeys(sha_do_commit(raiz, p) for p in pontas) if s]
     saida, vistos = [], set()
     for linha in corpo:
-        if OUTRO_REPOSITORIO in linha or e_linha_de_decisao(linha):
-            continue
-        for sha in SHA_CITADO.findall(linha):
-            if sha in vistos:
+        for m in SHA_CITADO.finditer(linha):
+            sha = m.group(1)
+            if sha in vistos or linha[m.end():].lstrip().startswith(OUTRO_REPOSITORIO):
                 continue
             vistos.add(sha)
             completo = sha_do_commit(raiz, sha)
             if not completo or (refs and not any(e_ancestral(raiz, completo, r) for r in refs)):
                 saida.append((f"citação: sha {sha[:7]} não existe ou não está na base nem na branch; de outro repositório, "
-                              f"marque {OUTRO_REPOSITORIO} na linha", True))
+                              f"marque {OUTRO_REPOSITORIO} depois do sha", True))
     return saida
 
 
 def registros_ausentes(raiz, corpo):
     """P2 (2): `docs/pedidos/<id>.md` e `docs/briefs/<nome>.md` citados existem na cópia principal, na raiz ou numa raiz de
-    brief (a ordem do `ler_registro`); a marca `(novo)` na linha é o que a entrega cria."""
+    brief (a ordem do `ler_registro`); sem exceção `(novo)`, que o desenho só dá ao `Ler`."""
     bases = (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF)
-    citados = dict.fromkeys(rel for linha in corpo if NOVO not in linha for rel in REGISTRO_CITADO.findall(linha))
+    citados = dict.fromkeys(rel for linha in corpo for rel in REGISTRO_CITADO.findall(linha))
     return [(f"citação: {nome_seguro(sem_controle(rel))} não existe na raiz nem nas raízes de brief", True)
             for rel in citados if not any(arquivo_existe(Path(b) / rel) for b in bases)]
 
@@ -5576,10 +5574,10 @@ def pqs_sem_definicao(secoes):
 
 
 def citacoes_da_p2(raiz, texto, secoes):
-    """ACELERA-P2: sha, registro, caminho do `Ler` e `PQ-n` citados no brief existem; offline, só leitura do disco e do git. Sha e
-    registro são lidos nas seções fora do `Pronto quando`: o PQ cita o que a entrega traz (o `<mergeCommit>` do `gerar`, S-18)."""
+    """ACELERA-P2: sha, registro, caminho do `Ler` e `PQ-n` citados no brief existem; offline, só leitura do disco e do git. O sha
+    é lido em todo o corpo, o `Pronto quando` e as linhas de decisão do dono também; o registro, fora do `Pronto quando`."""
     corpo = [l for nome, linhas in secoes.items() if nome != "Pronto quando" for l in linhas]
-    return (shas_fora_da_base(raiz, texto, corpo) + registros_ausentes(raiz, corpo)
+    return (shas_fora_da_base(raiz, texto, [l for linhas in secoes.values() for l in linhas]) + registros_ausentes(raiz, corpo)
             + caminhos_ausentes_do_ler(raiz, texto, secoes.get("Ler", [])) + pqs_sem_definicao(secoes))
 
 

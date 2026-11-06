@@ -1,5 +1,6 @@
-"""ACELERA-P2 (versao-037, E4): no `forge-check brief`, sha do corpo na base ou na branch (ou `(outro repositório)`), pedido e brief
-citados, caminho do `Ler` (ou `(novo)`) e `PQ-n` fora do `Pronto quando` existem; um caso que reprova e um que passa por item."""
+"""ACELERA-P2 (versao-037, E4): no `forge-check brief`, sha do corpo na base ou na branch (ou `(outro repositório)` depois dele),
+pedido e brief citados, caminho do `Ler` (ou `(novo)`) e `PQ-n` fora do `Pronto quando` existem; um caso que reprova e um que
+passa por item."""
 import os
 import shutil
 import subprocess
@@ -86,10 +87,29 @@ class ShaCitado(Base):
         self.assertNotIn("citação: sha", saida)
         self.assertEqual(rc, 0, saida)
 
-    def test_decisao_do_dono_e_pronto_quando_nao_sao_cobrados(self):  # cópia literal; o PQ cita o que a entrega traz (S-18)
+    def test_decisao_do_dono_e_pronto_quando_sao_cobrados(self):  # (a) o corpo inteiro, fora só o cabeçalho
         rc, saida = self.conferir("- Recurso (E1), etapa (E1.1).\n- DECISÃO DO DONO (2026-01-01): \"A\" sobre 0badc0de1.",
-                                  pronto="- PQ-1 (cmd): `git merge-base --is-ancestor 0badc0de1 origin/develop` · espera: rc=0")
+                                  pronto="- PQ-1 (cmd): `git merge-base --is-ancestor 1badc0de origin/develop` · espera: rc=0")
+        self.assertIn("citação: sha 0badc0d não existe", saida)
+        self.assertIn("citação: sha 1badc0d não existe", saida)
+        self.assertEqual(rc, 1)
+
+    def test_merge_commit_do_gerar_nao_e_sha(self):  # (a) o PQ que o `brief gerar` põe na etapa de merge (S-18)
+        rc, saida = self.conferir(pronto="- PQ-1 (cmd): `git merge-base --is-ancestor <mergeCommit> origin/develop` · espera: rc=0")
         self.assertNotIn("citação: sha", saida)
+
+    def test_outro_repositorio_dispensa_so_o_sha_que_acompanha(self):  # (b)
+        rc, saida = self.conferir(f"- Recurso (E1), etapa (E1.1) sobre {self.lado[:7]} (outro repositório) e 0badc0de1.")
+        self.assertNotIn(f"sha {self.lado[:7]}", saida)
+        self.assertIn("citação: sha 0badc0d não existe", saida)
+        self.assertEqual(rc, 1)
+
+    def test_sha_so_de_letras_e_cobrado_e_numero_puro_nao(self):  # (c) número puro: run, ruleset, pidns (relatório da volta 1)
+        rc, saida = self.conferir("- Recurso (E1), etapa (E1.1) sobre deadbee, no run 40505555559 e no ruleset 25432260.")
+        self.assertIn("citação: sha deadbee não existe", saida)
+        self.assertNotIn("sha 4050555", saida)
+        self.assertNotIn("sha 2543226", saida)
+        self.assertEqual(rc, 1)
 
 
 class RegistroCitado(Base):
@@ -101,8 +121,9 @@ class RegistroCitado(Base):
         rc, saida = self.conferir("- Recurso (E1), etapa (E1.1), como docs/pedidos/exemplo-2.md.")
         self.assertIn('citação: "docs/pedidos/exemplo-2.md" não existe na raiz nem nas raízes de brief', saida)
         self.assertEqual(rc, 1)
-        rc, saida = self.conferir("- Recurso (E1), etapa (E1.1) e o brief docs/briefs/outro-2.md (novo).")
-        self.assertEqual(rc, 0, saida)
+        rc, saida = self.conferir("- Recurso (E1), etapa (E1.1) e o brief docs/briefs/outro-2.md (novo).")  # (d) sem exceção
+        self.assertIn('citação: "docs/briefs/outro-2.md" não existe na raiz nem nas raízes de brief', saida)
+        self.assertEqual(rc, 1)
 
 
 class CaminhoDoLer(Base):
