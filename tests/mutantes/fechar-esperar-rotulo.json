@@ -1,0 +1,70 @@
+{
+  "pedido": "fechar-esperar-rotulo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "R1",
+      "guarda": "o título como gatilho é dito na mensagem",
+      "arquivo": "bin/forge-fechar",
+      "de": "gatilho=\"pelo título\"",
+      "para": "gatilho=\"por um item marcado do corpo\"",
+      "testes": ["tests.test_fechar.Fechar.test_mensagem_do_passo_5_diz_que_o_gatilho_foi_o_titulo"]
+    },
+    {
+      "id": "R2",
+      "guarda": "o item do corpo como gatilho é dito na mensagem",
+      "arquivo": "bin/forge-fechar",
+      "de": "gatilho=\"por um item marcado do corpo\"",
+      "para": "gatilho=\"pelo título\"",
+      "testes": ["tests.test_fechar.Fechar.test_mensagem_do_passo_5_diz_que_o_gatilho_foi_o_item_do_corpo"]
+    },
+    {
+      "id": "R3",
+      "guarda": "sem a opção a mensagem manda rodar de novo com --esperar-rotulo",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$esperar\" = 0 ] || dica=\"\"",
+      "para": "dica=\"\"",
+      "testes": ["tests.test_fechar.Fechar.test_mensagem_do_passo_5_diz_que_o_gatilho_foi_o_titulo"]
+    },
+    {
+      "id": "R4",
+      "guarda": "com a opção a mensagem não manda repeti-la",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$esperar\" = 0 ] || dica=\"\"",
+      "para": "true",
+      "testes": ["tests.test_fechar.Fechar.test_prazo_esgotado_com_esperar_rotulo_para_sem_mandar_repetir_a_opcao"]
+    },
+    {
+      "id": "Q1",
+      "guarda": "o gatilho pelo título para o passo 5 (condição da linha 817)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if printf '%s\\n' \"$texto\" | head -n 1 | grep -qi 'afrouxa-regra'; then",
+      "para": "if false; then",
+      "testes": ["tests.test_fechar.Fechar.test_mensagem_do_passo_5_diz_que_o_gatilho_foi_o_titulo"]
+    },
+    {
+      "id": "Q2",
+      "guarda": "o gatilho pelo item do corpo para o passo 5 (condição da linha 819)",
+      "arquivo": "bin/forge-fechar",
+      "de": "elif printf '%s\\n' \"$texto\" | tail -n +2 | grep -qiE",
+      "para": "elif false && printf '%s\\n' \"$texto\" | tail -n +2 | grep -qiE",
+      "testes": ["tests.test_fechar.Fechar.test_mensagem_do_passo_5_diz_que_o_gatilho_foi_o_item_do_corpo"]
+    },
+    {
+      "id": "Q3",
+      "guarda": "sem gatilho o script segue e mescla (condição da linha 822)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -n \"$gatilho\" ]; then",
+      "para": "if true; then",
+      "testes": ["tests.test_fechar.Fechar.test_corpo_que_so_cita_o_nome_do_rotulo_nao_para"]
+    },
+    {
+      "id": "Q4",
+      "guarda": "a dica de --esperar-rotulo sai da mensagem (atribuição da linha 828)",
+      "arquivo": "bin/forge-fechar",
+      "de": "dica=\"; depois que o dono aplicar o rótulo, rode de novo com --esperar-rotulo\"",
+      "para": "dica=\"\"",
+      "testes": ["tests.test_fechar.Fechar.test_mensagem_do_passo_5_diz_que_o_gatilho_foi_o_titulo"]
+    }
+  ]
+}

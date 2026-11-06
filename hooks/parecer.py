@@ -27,7 +27,7 @@ from types import SimpleNamespace
 
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, OPCAO_DE_REAVALIACAO, PLUGIN,
                     PROFUNDIDADE, SHELLS_DA_REAVALIACAO, LancadorDemais, TextoDivididoAberto, bloquear,
-                    contorno_da_reavaliacao, conteudos_de_crase, corpo_so_lido, depois_das_atribuicoes, e_clone_do_forge,
+                    contorno_da_reavaliacao, conteudos_de_crase, formas_que_o_shell_le, corpo_so_lido, depois_das_atribuicoes, e_clone_do_forge,
                     excede_o_teto, executar,
                     fora_da_gramatica_com_heredoc, forge_check, git, nome_da_branch, leituras, motivo_da_reavaliacao,
                     palavras_do_texto, raiz_de_estado, reavaliacao, reavaliacao_das_palavras, reduzida, sem_atribuicoes,
@@ -81,6 +81,9 @@ SENSIVEIS = DESVIOS | {"HOME", "CDPATH"}  # o bash e o git os leem sozinhos: mex
 ATRIBUICAO = re.compile(r"^([A-Za-z_]\w*)\+?=")
 Ambiente = collections.namedtuple("Ambiente", "mexidas desviado")  # mexidas: os SENSIVEIS que a linha mexeu (frozenset)
 SEM_AMBIENTE = Ambiente(frozenset(), bool(DESVIOS & set(os.environ)))
+# PARECER-HOOK-DICA-EDIT: o contorno das recusas de corpo de heredoc que a chamada pode rodar; o texto (`.md` e afins)
+# vai pelas ferramentas de arquivo, e o programa, noutra chamada
+GRAVE_E_RODE_NOUTRA = "grave pelo Write ou Edit e rode o programa noutra chamada"
 BASES = ("develop", "origin/develop", "main", "origin/main", "master", "origin/master")
 
 
@@ -643,7 +646,8 @@ def merge_por_api(hook, pasta, args):
 
 def principal(hook):
     comando = hook.campo("tool_input", "command")
-    if hook.campo("tool_name") != "Bash" or not isinstance(comando, str) or not PREFILTRO.search(comando):
+    if hook.campo("tool_name") != "Bash" or not isinstance(comando, str) or not any(  # HOOK-CONTINUACAO-LINHA: e `g\h`, `g'h'`
+            PREFILTRO.search(g) for f in [comando, *formas_que_o_shell_le(comando, True)] for g in (f, re.sub(r"[\\'\"]", "", f))):
         return
     conferir_linha(hook, SED_LE.sub(r"cat\2", comando), [(hook.cwd(), {}, SEM_AMBIENTE)])
 
@@ -656,6 +660,8 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
     a linha é o corpo de um heredoc que vai a um programa fora da lista dos que só o leem. `reavaliacoes`: as
     reavaliações pelo shell (`reavaliacao`) achadas em qualquer nível, recusadas no fim do nível 0 com o marcador."""
     reavaliacoes = [] if reavaliacoes is None else reavaliacoes
+    for forma in formas_que_o_shell_le(comando, corpo_de_heredoc):  # HOOK-CONTINUACAO-LINHA: a que o bash roda
+        conferir_linha(hook, forma, estados, nivel, so_substituicoes, corpo_de_heredoc, reavaliacoes)
     if nivel > PROFUNDIDADE:
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull aninhada fundo demais para o hook ler. Corrigir: "
                              "rode o comando direto, sem crase nem $( dentro de outro")
@@ -663,6 +669,10 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
     try:  # o corpo de um heredoc não é comando: com apóstrofo, sem par, ele deixaria a linha ilegível (A1 do review)
         comando, corpos, gravado = tirar_heredocs(comando, com_gravado=True)
     except ValueError:  # `<<` em dúvida com linha depois, ou corpo sem aspas no delimitador com `$(` ou crase (o bash roda)
+        if isinstance(corpo_de_heredoc, str):  # outro programa do texto pode rodar o corpo gravado: a causa é essa;
+            # o dono que roda o corpo (`sh <<'EOF'`, valor True) segue com o `<<'FIM'` para o heredoc de dentro
+            bloquear("R-REVIEW", "corpo de heredoc que a chamada pode rodar e que o hook não lê, com gh pr, gh api, merge "
+                                 f"ou pull. Corrigir: {GRAVE_E_RODE_NOUTRA}")
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull com um heredoc que o hook não lê (<< que ele não "
                              "prova ser heredoc, ou corpo sem aspas no delimitador com $( ou crase). Corrigir: use "
                              "<<'FIM' ou separe os comandos")
@@ -679,12 +689,11 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
         reavaliacoes.append(achada)
     if lidas.ilegivel and isinstance(corpo_de_heredoc, str):  # M2: só o programa do texto o roda
         bloquear("R-REVIEW", f"o texto roda `{corpo_de_heredoc}`, fora da lista dos que não rodam o arquivo gravado, e "
-                             "o corpo do heredoc tem aspa sem par. Corrigir: grave numa chamada do Bash e rode o "
-                             "programa noutra")
+                             f"o corpo do heredoc tem aspa sem par. Corrigir: {GRAVE_E_RODE_NOUTRA}")
     if lidas.ilegivel and corpo_de_heredoc:  # A1 do review, volta 3: <<'FIM' já está na linha
         bloquear("R-REVIEW", "gh pr, gh api, merge ou pull e corpo de heredoc com aspa sem par, a programa que pode "
-                             "rodá-lo. Corrigir: grave o texto num arquivo e passe-o ao programa noutra chamada do "
-                             "Bash")
+                             "rodá-lo. Corrigir: grave o texto pelo Write ou Edit e passe-o ao programa "
+                             "noutra chamada do Bash")
     if lidas.ilegivel:  # ADR 0013, tabela 2.4: passou no PREFILTRO (gh pr, gh api, merge, pull) e o hook não a lê
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull que o hook não lê (aspas sem par ou # que ele "
                              "não prova ser comentário). Corrigir: feche as aspas, tire o comentário ou separe os comandos")
@@ -705,8 +714,7 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
         conferir_linha(hook, texto, list(vistos.values()), nivel + 1, so, de_heredoc, reavaliacoes)
     if gravado and CRITICO.search(original):  # M3 (ADR 0011, item 2), depois das regras da linha e do corpo
         bloquear("R-REVIEW", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`), com gh pr, gh "
-                             "api, merge ou pull. Corrigir: grave o arquivo pelo Write ou numa chamada do Bash e rode "
-                             "o programa noutra")
+                             f"api, merge ou pull. Corrigir: {GRAVE_E_RODE_NOUTRA}")
     # ADR 0011, item 2 (opção B da revalidação 8), depois das regras da linha e do corpo: com o marcador no nível 0, a
     # reavaliação pelo shell em qualquer nível recusa (o parecer não segue `eval` nem `bash -c`; o texto deles não chega)
     if nivel == 0 and reavaliacoes and CRITICO.search(original):

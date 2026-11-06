@@ -1,0 +1,26 @@
+{
+  "pedido": "hook-conformidade-034",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M8",
+      "guarda": "R2: a expansão de chaves tira a linha da exceção F6",
+      "arquivo": "hooks/conformidade.py",
+      "de": " or \"{\" in a for a in args)",
+      "para": " for a in args)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "R2: o [ no início da palavra tira a linha da exceção F6",
+      "arquivo": "hooks/conformidade.py",
+      "de": "re.match(r\"[*?\\[]\", a)",
+      "para": "re.match(r\"[*?]\", a)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    }
+  ]
+}

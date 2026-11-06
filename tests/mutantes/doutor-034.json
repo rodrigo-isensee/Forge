@@ -1,0 +1,47 @@
+{
+  "pedido": "doutor-034",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o aviso já dito só silencia o mesmo par atual/ultima: a versão em uso diferente volta a avisar",
+      "arquivo": "hooks/doutor.py",
+      "de": "(antigo.get(\"atual\"), antigo.get(\"ultima\")) == (\n                resultado[\"atual\"], resultado[\"ultima\"])",
+      "para": "antigo.get(\"ultima\") == resultado[\"ultima\"]",
+      "testes": [
+        "tests.test_doutor.DoutorVersao.test_versao_em_uso_diferente_com_a_mesma_ultima_avisa_no_dia_seguinte"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o aviso já dito só silencia a mesma ultima: versão ainda mais nova volta a avisar",
+      "arquivo": "hooks/doutor.py",
+      "de": "(antigo.get(\"atual\"), antigo.get(\"ultima\")) == (\n                resultado[\"atual\"], resultado[\"ultima\"])",
+      "para": "antigo.get(\"atual\") == resultado[\"atual\"]",
+      "testes": [
+        "tests.test_doutor.DoutorVersao.test_versao_ainda_mais_nova_avisa_no_dia_seguinte"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o aviso de versão do dia anterior não herda a marca quando a marca não é True",
+      "arquivo": "hooks/doutor.py",
+      "de": "antigo.get(\"avisado\") is True and",
+      "para": "True and",
+      "testes": [
+        "tests.test_doutor.DoutorVersao.test_versao_nova_ainda_nao_avisada_de_dia_anterior_avisa_no_dia_seguinte",
+        "tests.test_doutor.DoutorVersao.test_a_mesma_versao_nova_nao_avisa_de_novo_no_dia_seguinte"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a falha do relógio não come o aviso de versão",
+      "arquivo": "hooks/doutor.py",
+      "de": "    except OSError:  # a falha ao gravar o relógio",
+      "para": "    except KeyError:  # a falha ao gravar o relógio",
+      "testes": [
+        "tests.test_doutor.DoutorVersao.test_falha_do_relogio_no_stop_nao_come_o_aviso_de_versao"
+      ]
+    }
+  ]
+}

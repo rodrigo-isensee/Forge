@@ -343,11 +343,98 @@ def comentario_ambiguo(linha):
     return False
 
 
+CONTINUACAO = re.compile(r"(?<!\\)((?:\\\\)*)\\\n")  # `\` + quebra de linha, sem contar a barra escapada antes
+
+
+def juntar_continuacoes(texto):
+    """HOOK-CONTINUACAO-LINHA: o texto sem `\\` + quebra de linha, que o bash junta numa linha só. Junta em todo
+    lugar, também entre aspas simples e em comentário, onde o bash não junta: como a forma escrita segue conferida,
+    isso só deixa a conferência mais estrita (A4 da segurança)."""
+    return CONTINUACAO.sub(r"\1", texto)
+
+
+def expandir_heredoc(corpo):
+    """HOOK-CONTINUACAO-LINHA, A1 da segurança: o corpo como o bash o entrega no heredoc sem aspas no delimitador (tira
+    `\\` + quebra de linha; `\\\\`, `\\$` e `` \\` `` viram o caractere). Vale também para o delimitador com aspas, onde
+    só deixa mais estrito."""
+    return re.sub(r"\\([\\`$\n])", lambda m: "" if m[1] == "\n" else m[1], corpo)
+
+
+TETO_DE_FORMAS = 8  # rodadas até o ponto fixo; acima, RuntimeError, e o hook falha fechado (`marcado`)
+
+
+def formas_que_o_shell_le(texto, corpo_de_heredoc=False):
+    """As formas do texto, além da escrita, que o shell pode ler: cada passo sozinho (a expandida, no corpo de
+    heredoc; a juntada; a com o `$'…'` decodificado) e os passos compostos, repetidos até o ponto fixo (A3 do review:
+    `g$'\\x68' repo de\\` + quebra + `lete` só se lê com os dois). Quem confere confere todas (a união, como na I2)."""
+    passos = ([expandir_heredoc] if corpo_de_heredoc else []) + [juntar_continuacoes, ansi_c_decodificado]
+    formas, atual = [], texto
+    for _ in range(TETO_DE_FORMAS):
+        formas += [passo(atual) for passo in passos]
+        seguinte = atual
+        for passo in passos:
+            seguinte = passo(seguinte)
+        if seguinte == atual:
+            return [f for f in dict.fromkeys(formas) if f != texto]
+        formas.append(seguinte)
+        atual = seguinte
+    raise RuntimeError("o texto não para de mudar com as transformações do shell")
+
+
+def ansi_c_decodificado(texto):
+    """HOOK-CONTINUACAO-LINHA, A5 da segurança: o texto com cada `$'…'` fora de aspas trocado pelo conteúdo
+    decodificado entre aspas simples, em qualquer ponto da palavra (`g$'\\x68'`, `gh $'r\\x65po'`)."""
+    saida, i, aspas = [], 0, None
+    while i < len(texto):
+        c = texto[i]
+        if aspas != "'" and c == "\\":
+            saida.append(texto[i:i + 2])
+            i += 2
+            continue
+        if aspas is None and texto.startswith("$'", i):
+            fim = i + 2
+            while fim < len(texto) and texto[fim] != "'":
+                fim += 2 if texto[fim] == "\\" else 1
+            saida.append("'" + decodificar_ansi_c(texto[i + 2:fim]).replace("'", "'\\''") + "'")
+            i = fim + 1
+            continue
+        if aspas is None and texto.startswith('$"', i):  # `$"…"` (tradução do locale) é o texto entre aspas duplas
+            i += 1
+            continue
+        if c in "'\"" and aspas in (None, c):
+            aspas = None if aspas else c
+        saida.append(c)
+        i += 1
+    return "".join(saida)
+
+
+ANSI_C = re.compile(r"\\(x[0-9A-Fa-f]{1,2}|u[0-9A-Fa-f]{1,4}|U[0-9A-Fa-f]{1,8}|[0-7]{1,3}|c.|.)", re.S)
+ANSI_C_SIMPLES = {"a": "\a", "b": "\b", "e": "\x1b", "E": "\x1b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v",
+                  "\\": "\\", "'": "'", '"': '"', "?": "?"}
+
+
+def decodificar_ansi_c(texto):
+    """HOOK-CONTINUACAO-LINHA, A2 da segurança: o conteúdo de `$'…'` como o bash o decodifica (`\\xHH`, `\\nnn`,
+    `\\uHHHH`, `\\cX`, `\\n`...); o escape desconhecido fica como veio."""
+    def um(m):
+        e = m[1]
+        if e[0] in "xuU" and len(e) > 1:
+            return chr(min(int(e[1:], 16), 0x10FFFF))
+        if e[0] in "01234567":
+            return chr(int(e, 8) & 0xFF)
+        if e[0] == "c" and len(e) > 1:
+            return chr(ord(e[1]) & 0x1F)
+        return ANSI_C_SIMPLES.get(e, "\\" + e)
+    return ANSI_C.sub(um, texto).split("\0", 1)[0]  # A10: o bash encerra o $'…' no primeiro NUL
+
+
 def conteudos_de_crase(comando, so_os_fechados=False):
     """Os comandos dentro de crase (`` `…` ``), que o shell executa como `$(...)`: fora de aspas simples, inclusive entre
     aspas duplas; a barra invertida escapa; comentário (o `#` que a gramática G prova, `comentarios`, ADR 0013) não
     conta. Crase sem par levanta ValueError (a linha não se analisa); com `so_os_fechados`, ficam só os corpos que
-    fecham (o que vem depois da crase sem par o bash não roda: é erro de sintaxe)."""
+    fecham (o que vem depois da crase sem par o bash não roda: é erro de sintaxe). O corpo sai como o bash o lê (tira a
+    barra de `\\\\`, `` \\` `` e `\\$`) e, se der outro texto, também como a leitura antiga (só `` \\` ``): a crase
+    aninhada em três níveis chega ao teto de `PROFUNDIDADE` (SEGMENTO-CRASE-HOOK)."""
     saida, inicio, simples, duplas, i = [], None, False, False, 0
     provados = comentarios(comando)
     while i < len(comando):
@@ -361,7 +448,8 @@ def conteudos_de_crase(comando, so_os_fechados=False):
             continue
         if inicio is not None:
             if c == "`":
-                saida.append(comando[inicio:i].replace("\\`", "`"))
+                fiel, antiga = re.sub(r"\\([\\`$])", r"\1", comando[inicio:i]), comando[inicio:i].replace("\\`", "`")
+                saida += [fiel] if fiel == antiga else [fiel, antiga]
                 inicio = None
         elif simples:
             simples = c != "'"
@@ -1479,10 +1567,13 @@ def _leitura_do_dono(texto, tambem):
 
 @functools.lru_cache(maxsize=64)
 def fronteira_limpa(prefixo):
-    """O texto de fora termina num estado novo do leitor: sem dúvida, e um comando depois dele é lido sozinho."""
+    """O texto de fora termina num estado novo do leitor: sem dúvida, um comando depois dele é lido sozinho e a
+    varredura dos comentários (G) o atravessa, provando o `#` da linha seguinte (S-A1: `$(` ou crase no prefixo a
+    param, e o dono lido em partes leria outro comentário que o todo)."""
     so, junto = palavras_do_texto(prefixo), palavras_do_texto(prefixo + "\ntrue")
     return (not so.duvida and not junto.duvida and junto.simples[:-1] == so.simples
-            and junto.simples[-1:] == (ComandoSimples((Palavra("true", "true"),), ()),))
+            and junto.simples[-1:] == (ComandoSimples((Palavra("true", "true"),), ()),)
+            and len(prefixo) + 6 in comentarios(prefixo + "\ntrue #"))
 
 
 def construcao_nao_modelada(linha):
@@ -2420,7 +2511,11 @@ def marcado(hook, critico, bruto):
     """O texto da ação tem o marcador crítico? Calculado uma vez e guardado em `hook.marcado`: é o primeiro passo da
     decisão, sob o vigia de prazo, e o prazo vencido só recusa com o marcador (`prazo_vencido`)."""
     if hook.marcado is None:
-        hook.marcado = critico.search(texto_da_acao(hook, bruto)) is not None
+        texto = texto_da_acao(hook, bruto)  # HOOK-CONTINUACAO-LINHA: também a forma juntada
+        try:
+            hook.marcado = any(critico.search(t) is not None for t in [texto, *formas_que_o_shell_le(texto)])
+        except RuntimeError:  # formas demais: marca, e o erro que volta na decisão falha fechado
+            hook.marcado = True
     return hook.marcado
 
 

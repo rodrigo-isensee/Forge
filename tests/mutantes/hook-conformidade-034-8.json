@@ -1,0 +1,117 @@
+{
+  "pedido": "hook-conformidade-034",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M34",
+      "guarda": "A5: o texto se confere também com o $'…' decodificado em qualquer ponto",
+      "arquivo": "hooks/_comum.py",
+      "de": "[juntar_continuacoes, ansi_c_decodificado]",
+      "para": "[juntar_continuacoes]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "A5: a barra fora de aspas simples escapa o caractere seguinte",
+      "arquivo": "hooks/_comum.py",
+      "de": "if aspas != \"'\" and c == \"\\\\\":",
+      "para": "if c == \"\\\\\":",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ansi_c_decodificado_no_texto"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "A5: entre aspas, $' não é ANSI-C",
+      "arquivo": "hooks/_comum.py",
+      "de": "if aspas is None and texto.startswith(\"$'\", i):",
+      "para": "if texto.startswith(\"$'\", i):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ansi_c_decodificado_no_texto"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "A5: o $'…' acaba no ' que fecha",
+      "arquivo": "hooks/_comum.py",
+      "de": "while fim < len(texto) and texto[fim] != \"'\":",
+      "para": "while fim < len(texto):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ansi_c_decodificado_no_texto"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "A5: dentro de $'…', \\' não fecha",
+      "arquivo": "hooks/_comum.py",
+      "de": "fim += 2 if texto[fim] == \"\\\\\" else 1",
+      "para": "fim += 2 if texto[fim] == \"x\" else 1",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ansi_c_decodificado_no_texto"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "A5: as aspas simples e duplas são acompanhadas",
+      "arquivo": "hooks/_comum.py",
+      "de": "if c in \"'\\\"\" and aspas in (None, c):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ansi_c_decodificado_no_texto"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "A5: o texto é lido até o fim",
+      "arquivo": "hooks/_comum.py",
+      "de": "    while i < len(texto):\n        c = texto[i]\n        if aspas",
+      "para": "    while i < len(texto) - 1:\n        c = texto[i]\n        if aspas",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ansi_c_decodificado_no_texto"
+      ]
+    },
+    {
+      "id": "M41",
+      "guarda": "A5: a aspa que fecha volta ao texto de fora",
+      "arquivo": "hooks/_comum.py",
+      "de": "aspas = None if aspas else c",
+      "para": "aspas = None if not aspas else c",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ansi_c_decodificado_no_texto"
+      ]
+    },
+    {
+      "id": "M42",
+      "guarda": "o marcador crítico só marca o texto em que o padrão casa",
+      "arquivo": "hooks/_comum.py",
+      "de": "any(critico.search(t) is not None for t",
+      "para": "any(critico.search(t) is None for t",
+      "testes": [
+        "tests.test_hooks.Hooks.test_marcador_critico_tambem_na_forma_juntada"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "A10: o $'…' decodificado acaba no primeiro NUL, como no bash",
+      "arquivo": "hooks/_comum.py",
+      "de": "return ANSI_C.sub(um, texto).split(\"\\0\", 1)[0]",
+      "para": "return ANSI_C.sub(um, texto)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "$\"…\" se lê como o texto entre aspas duplas",
+      "arquivo": "hooks/_comum.py",
+      "de": "if aspas is None and texto.startswith('$\"', i):",
+      "para": "if aspas is None and texto.startswith('$#', i):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ansi_c_decodificado_no_texto",
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    }
+  ]
+}

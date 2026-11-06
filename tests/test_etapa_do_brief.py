@@ -416,6 +416,7 @@ class TabelaDePareceres(Repo):
 
     def test_qa_gera_com_aviso_do_review(self):
         self.entrega({"src/app.py": "v2\n"})
+        self.git("add", "docs/pedidos/exemplo.md"); self.git("commit", "-q", "-m", "historico")
         r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), "brief", "gerar", "--pedido", "exemplo",
                             "--destino", "forge:qa-exemplo", "--etapa", "qa", "--branch", "melhoria/x"],
                            capture_output=True, text=True, env=com_gh_falso(dict(os.environ, HOME=str(self.tmp / "home"))), timeout=60)
@@ -472,6 +473,7 @@ class QuatroDefeitosDoScript(Repo):
 
     def test_commit_so_na_worktree_o_head_nao_esta_em_origin(self):
         self.entrega({"src/app.py": "v2\n"})
+        self.git("add", "docs/pedidos/exemplo.md"); self.git("commit", "-q", "-m", "historico")
         head = self.git("rev-parse", "HEAD")
         texto = brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")).replace("\n\n## Objetivo", self.CABECALHO, 1)
         rc, saida = self.conferir(texto)
@@ -489,17 +491,147 @@ class QuatroDefeitosDoScript(Repo):
         """Segurança A8, review A6: o ref de rastreio local diz que a branch foi enviada, mas `origin` ainda está atrás."""
         self.com_remoto()
         self.entrega({"src/app.py": "v2\n"})
+        self.git("add", "docs/pedidos/exemplo.md"); self.git("commit", "-q", "-m", "historico")
         self.git("update-ref", "refs/remotes/origin/melhoria/x", self.git("rev-parse", "HEAD"))
         texto = brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2")).replace("\n\n## Objetivo", self.CABECALHO, 1)
         rc, saida = self.conferir(texto)
         self.assertIn("(origin/melhoria/x atrás); rode git fetch origin", saida)
         self.assertEqual(rc, 1)
 
+    def local(self, arquivos, mensagem):
+        for rel, texto in arquivos.items():
+            self.gravar(rel, texto)
+        self.git("add", "--", *arquivos)
+        self.git("commit", "-q", "-m", mensagem)
+
+    def brief_de(self, etapa="review"):
+        return brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2")).replace("\n\n## Objetivo", self.CABECALHO.replace("review", etapa), 1)
+
+    def a_frente(self, arquivos, etapa="review"):
+        """Entrega enviada (remoto conferido) e um commit local com `arquivos` à frente; devolve (rc, saída) do brief."""
+        self.entrega({"src/app.py": "v2\n"})
+        self.git("add", "docs/pedidos/exemplo.md"); self.git("commit", "-q", "-m", "historico")
+        self.com_remoto()
+        self.local(arquivos, "parecer")
+        return self.conferir(self.brief_de(etapa))
+
+    def test_head_a_frente_so_com_pareceres_passa_com_aviso_nas_etapas_de_parecer(self):  # E2, segurança C-1, C-4, C-6, C-8
+        for pasta in ("docs/reviews", "docs/qa", "docs/security", "docs/devops"):
+            for etapa in ("review", "seguranca", "qa"):
+                with self.subTest(pasta=pasta, etapa=etapa):
+                    self.setUp()
+                    rc, saida = self.a_frente({f"{pasta}/p.md": "x\n", f"{pasta}/q.md": "y\n"}, etapa)
+                    self.assertEqual(rc, 0, saida)
+                    self.assertIn("aviso: commit: o head ", saida)
+                    self.assertIn("só com pareceres (2 arquivos); envie antes do PR (R-BRIEF)", saida)
+                    self.assertNotIn("\ncommit:", saida)
+
+    def test_head_a_frente_com_algo_fora_das_pastas_de_parecer_reprova_e_cita_o_arquivo(self):  # E2, abuso 1 a 4
+        for arquivo in ("bin/forge-check", "tests/t.py", "docs/security/aceites/p.md", "docs/security/ameacas/p.md", "KANBAN.md",
+                        "docs/kanban/x.md", "docs/ux/x.md", "docs/reviews/_modelo.md", "docs/securityx/p.md"):
+            with self.subTest(arquivo=arquivo):
+                self.setUp()
+                rc, saida = self.a_frente({"docs/reviews/p.md": "x\n", arquivo: "y\n"})
+                self.assertEqual(rc, 1, saida)
+                self.assertIn(f'fora de pareceres: "{arquivo}"', saida)
+                self.assertNotIn("aviso: commit:", saida)
+
+    def test_head_a_frente_so_vale_para_arquivo_novo_ou_alterado_comum(self):  # E2, abuso 9 a 11
+        self.entrega({"src/app.py": "v2\n", "docs/reviews/velho.md": "a\n"})
+        self.git("add", "docs/pedidos/exemplo.md"); self.git("commit", "-q", "-m", "historico")
+        self.com_remoto()
+
+        def symlink():
+            (self.tmp / "docs/qa").mkdir(parents=True, exist_ok=True)
+            (self.tmp / "docs/qa/p.md").symlink_to("../../bin/forge-check")
+
+        for nome, mexer in (("apagar", lambda: self.git("rm", "-q", "docs/reviews/velho.md")), ("symlink", symlink),
+                            ("controle", lambda: self.gravar("docs/qa/a\nbin/x", "x\n"))):
+            with self.subTest(nome=nome):
+                self.git("reset", "-q", "--hard", "origin/melhoria/x")
+                mexer()
+                self.git("add", "-A", "--", "docs")
+                self.git("commit", "-q", "-m", "parecer")
+                rc, saida = self.conferir(self.brief_de())
+                self.assertEqual(rc, 1, saida)
+                self.assertNotIn("aviso: commit:", saida)
+
+    def test_head_a_frente_nas_etapas_de_branch_inteira_continua_reprovando(self):  # E2, C-6, abuso 12
+        for etapa in ("pr", "merge-integracao", "pedido-de-merge-ao-dono"):
+            with self.subTest(etapa=etapa):
+                self.setUp()
+                rc, saida = self.a_frente({"docs/reviews/p.md": "x\n"}, etapa)
+                self.assertIn("commit: o head ", saida)
+                self.assertNotIn("aviso: commit:", saida)
+                self.assertEqual(rc, 1, saida)
+
+    def test_head_que_nao_descende_do_remoto_ou_com_remoto_ausente_reprova(self):  # E2, C-2, abuso 5, 6 e 8
+        self.entrega({"src/app.py": "v2\n"})
+        self.git("add", "docs/pedidos/exemplo.md"); self.git("commit", "-q", "-m", "historico")
+        self.com_remoto()
+        self.git("switch", "-q", "--detach", "origin/melhoria/x")
+        self.local({"docs/reviews/outro.md": "o\n"}, "outra worktree")
+        self.git("push", "-q", "origin", "HEAD:melhoria/x")
+        self.git("switch", "-q", "melhoria/x")
+        self.local({"docs/reviews/p.md": "x\n"}, "parecer")  # o remoto andou e o local não o tem
+        rc, saida = self.conferir(self.brief_de())
+        self.assertEqual((rc, "aviso: commit:" in saida), (1, False), saida)
+        self.git("push", "-q", "origin", "--delete", "melhoria/x")  # branch nunca enviada
+        rc, saida = self.conferir(self.brief_de())
+        self.assertEqual((rc, "aviso: commit:" in saida), (1, False), saida)
+
+    def test_head_com_a_arvore_do_remoto_mais_um_parecer_mas_sem_descender_dele_reprova_pela_ancestralidade(self):  # E2, C-2, review A1
+        """Amend: o remoto tem a entrega e um parecer; o head local refaz o commit do parecer e acrescenta outro. A diferença de árvore
+        são só pareceres e nada é apagado, então só a checagem de ancestralidade (o remoto conferido é ancestral do head) o reprova."""
+        self.entrega({"src/app.py": "v2\n"})
+        self.git("add", "docs/pedidos/exemplo.md"); self.git("commit", "-q", "-m", "historico")
+        base = self.git("rev-parse", "HEAD")
+        self.com_remoto()
+        self.local({"docs/reviews/p.md": "x\n"}, "parecer")
+        self.git("push", "-q", "origin", "HEAD:melhoria/x")
+        self.git("reset", "-q", "--hard", base)
+        self.local({"docs/reviews/p.md": "x\n", "docs/reviews/q.md": "y\n"}, "parecer refeito")
+        rc, saida = self.conferir(self.brief_de())
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('fora de pareceres: "não descende de origin"', saida)
+        self.assertNotIn("aviso: commit:", saida)
+
+    def test_parecer_so_local_a_frente_do_remoto_continua_sem_parecer_no_pr_pela_ref_do_remoto(self):  # E2, C-7, review A2, segurança A2
+        self.entrega({"src/app.py": "v2\n"})
+        self.git("add", "docs/pedidos/exemplo.md"); self.git("commit", "-q", "-m", "historico")
+        self.com_remoto()
+        head = self.git("rev-parse", "HEAD")
+        parecer = self.REVIEW.format(tipo="review", c=head, extra=self.EXTRA["review"]).replace("pedido: exemplo", "pedido: x")
+        self.local({"docs/reviews/x.md": parecer}, "parecer")
+        rc, saida = self.conferir(self.brief_de())
+        self.assertIn("aviso: commit:", saida, "o brief aceita o head local só com parecer")
+        self.assertNotIn("review: sem parecer", self.rodar("pr", "x", "--ref", "melhoria/x")[1], "o parecer é válido na ref local")
+        rc, saida = self.rodar("pr", "x", "--ref", "origin/melhoria/x")
+        self.assertIn("docs/reviews: review: sem parecer", saida)
+        self.assertEqual(rc, 1, saida)
+
+    def test_so_o_ref_de_rastreio_sem_remoto_conferido_nao_concede_a_excecao(self):  # E2, C-1, abuso 7
+        self.entrega({"src/app.py": "v2\n"})
+        self.git("add", "docs/pedidos/exemplo.md"); self.git("commit", "-q", "-m", "historico")
+        self.com_remoto()
+        self.local({"docs/reviews/p.md": "x\n"}, "parecer")
+        self.git("remote", "set-url", "origin", str(self.tmp / "nao-existe.git"))  # ls-remote falha; o ref de rastreio segue atrás
+        rc, saida = self.conferir(self.brief_de())
+        self.assertEqual((rc, "aviso: commit:" in saida), (1, False), saida)
+
+    def test_a_lista_de_pareceres_do_forge_check_e_a_do_pre_push(self):  # E2, C-4: uma fonte, dois lugares
+        texto = (FORGE_CHECK.parent.parent / ".githooks" / "pre-push").read_text(encoding="utf-8")
+        self.assertIn("docs/reviews/*|docs/security/*|docs/qa/*|docs/devops/*) ;;", texto)
+        self.assertIn("*/_*|docs/security/ameacas/*|docs/security/aceites/*) return 1 ;;", texto)
+        self.assertEqual(set(fc.PASTAS_DO_SO_PARECER), {"docs/reviews/", "docs/security/", "docs/qa/", "docs/devops/"})
+        self.assertEqual(set(fc.PASTAS_RECUSADAS_DE_PARECER), {"docs/security/ameacas/", "docs/security/aceites/"})
+
     def test_na_etapa_codigo_o_commit_nao_se_confere_e_o_gerar_sem_etapa_escreve_preencher(self):
         """O brief de `codigo` é para quem ainda vai commitar: head só local não reprova. O `gerar` com `--cobre` e sem `--etapa`
         escreve `Etapa: PREENCHER` (segurança A11), que o `brief` reprova até o Jarvis escolher a etapa."""
         self.com_remoto()
         self.entrega({"src/app.py": "v2\n"})
+        self.git("add", "docs/pedidos/exemplo.md"); self.git("commit", "-q", "-m", "historico")
         codigo = brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")).replace("\n\n## Objetivo", self.CABECALHO.replace("review", "codigo"), 1)
         rc, saida = self.conferir(codigo)
         self.assertNotIn("commit:", saida)
@@ -545,6 +677,7 @@ class QuatroDefeitosDoScript(Repo):
     def test_head_local_atras_do_remoto_nao_reprova(self):
         """QA A1 (sonda X2): a branch avançou em `origin` e a worktree ficou para trás: o head local está em `origin/<branch>`."""
         self.entrega({"src/app.py": "v2\n"})
+        self.git("add", "docs/pedidos/exemplo.md"); self.git("commit", "-q", "-m", "historico")
         atras = self.git("rev-parse", "HEAD")
         self.entrega({"src/app.py": "v3\n"})
         self.com_remoto()

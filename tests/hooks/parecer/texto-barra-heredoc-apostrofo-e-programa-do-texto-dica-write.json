@@ -1,0 +1,30 @@
+{
+  "descricao": "PARECER-HOOK-DICA-EDIT: M2, corpo com aspa sem par e um programa do texto que o roda; segue barrado, com o programa nomeado e o Write ou Edit.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cat > notas.md <<'EOF'\ndon't git merge\nEOF\n./publica.sh notas.md"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: o texto roda `./publica.sh`, fora da lista dos que não rodam o arquivo gravado, e o corpo do heredoc tem aspa sem par. Corrigir: grave pelo Write ou Edit e rode o programa noutra chamada"
+  }
+}

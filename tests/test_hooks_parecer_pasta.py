@@ -38,6 +38,15 @@ class PastaDoGit(unittest.TestCase):
         casos = [(f"parecer/{f.caminho.stem}", f) for f in fixtures]
         self.assertEqual(self.executar_em_lote(casos), len(fixtures), "toda fixture é verificada")
 
+    def test_corpus_atualiza_passa_e_barra(self):
+        """PARECER-BARRA-FETCH: na branch de trabalho com parecer reprovado, o autor da volta se atualiza (fetch, merge
+        --ff-only, pull --ff-only); na develop, a mesma branch reprovada segue barrada (`atualiza-*`)."""
+        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / "parecer").glob("atualiza-*.json"))], 5, "atualiza-*")
+        lados = {(f.caminho.stem.split("-")[1], f.dados["esperado"]["codigo"]) for f in fixtures}
+        self.assertEqual(lados, {("passa", 0), ("barra", 2)}, "os dois lados, e o nome diz o esperado")
+        casos = [(f"parecer/{f.caminho.stem}", f) for f in fixtures]
+        self.assertEqual(self.executar_em_lote(casos), len(fixtures), "toda fixture é verificada")
+
 
 if __name__ == "__main__":
     unittest.main()
