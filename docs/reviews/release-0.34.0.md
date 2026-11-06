@@ -13,13 +13,13 @@ data: 2026-11-06
 Review da leva da 0.34.0 contra a main 0.33.0 (`3e148a0..b34410b`): os 8 PRs da develop 3011d84 (#449 a #456) e o commit de release. Cada PR já passou pelos próprios portões; aqui só a coerência da leva (E1, E2, E3), sem refazer o review de cada um.
 
 ## Achados
-- A1 (bloqueante) CHANGELOG.md:16 · a seção 0.34.0 republica, com texto idêntico, 5 entradas já publicadas na 0.33.0 (linhas 16, 35, 36, 53, 54 = 59, 62, 63, 72, 73: ATO-GITHUB-ENTREGA, QA-TESTE-E-PARECER-SEPARADOS, TEMPO-B2, CONF-MERGE-APOS-SQUASH, CONFERIDA-DESDE-POR-BRANCH), vindas do fragmento lote-l10; tirá-las da 0.34.0, fica só o VOLTA-ETAPA-NOVA.
+- A1 (bloqueante) CHANGELOG.md:16 · a seção 0.34.0 repete, com texto idêntico, 5 entradas já publicadas na 0.33.0 (linhas 16, 35, 36, 53 e 54 iguais a 59, 62, 63, 72 e 73), vindas do fragmento lote-l10; tirá-las da 0.34.0.
 - A2 (recomendado) CHANGELOG.md:10 · PERMISSAO-AGENTES-MD aparece duas vezes (linhas 10 e 11, "exige" e "pode exigir") para uma linha só em skills/trabalho-em-paralelo/SKILL.md; deixar uma entrada, a que diz o que o texto da skill diz.
 - A3 (recomendado) CHANGELOG.md:20 · ACHADO-TETO-DOC aparece duas vezes (linha 20, só security-engineer, e linha 29, security-engineer e qa-engineer); a 29 cobre a 20; deixar só ela.
 - A4 (recomendado) CHANGELOG.md:18 · entradas que afrouxam controle ou mudam texto protegido (BRIEF-HEAD-LOCAL, linha 18; BRIEF-MENSAGEM-LIMPA em R-BRIEF, linha 33; VOLTA-ETAPA-NOVA, linha 34): o PR homolog → main (E1.7) deve destacá-las no corpo para o dono ver ao mesclar.
 
 ## Parecer
-Reprovado, por A1: a seção `## [0.34.0]` diz como novas 5 mudanças que a 0.33.0 já entregou (o código delas está em `3e148a0`: `ato-github` e `entrega conferida` já existem em `bin/forge-check` da main). É defeito provado no artefato da release (ADR 0006: a seção da versão é o que ela traz). A correção é de texto, só no `CHANGELOG.md`, sem tocar código: remover as 5 linhas e, no mesmo commit, A2 e A3. A revalidação lê só o delta do `CHANGELOG.md`.
+Reprovado, por A1: a seção `## [0.34.0]` diz como novas 5 mudanças (ATO-GITHUB-ENTREGA, QA-TESTE-E-PARECER-SEPARADOS, TEMPO-B2, CONF-MERGE-APOS-SQUASH, CONFERIDA-DESDE-POR-BRANCH; do fragmento lote-l10 só o VOLTA-ETAPA-NOVA é novo) que a 0.33.0 já entregou (o código delas está em `3e148a0`: `ato-github` e `entrega conferida` já existem em `bin/forge-check` da main). É defeito provado no artefato da release (ADR 0006: a seção da versão é o que ela traz). A correção é de texto, só no `CHANGELOG.md`, sem tocar código: remover as 5 linhas e, no mesmo commit, A2 e A3. A revalidação lê só o delta do `CHANGELOG.md`.
 
 **Escopo da leva.** `git log 3e148a0..b34410b` traz exatamente os 8 PRs do E1 (#449 a #456: TESTES-SEM-CLAUDE-ANCESTRAL, L09, pilha de hooks, estoques A, B e C, BHL, L10) e o commit de release; nada fora do escopo confirmado. O TESTES-NO-SANDBOX ficou para a 0.35, como o dono decidiu em 2026-11-05 14:59.
 
