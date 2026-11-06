@@ -35,7 +35,8 @@ Suíte do push (resumo copiado do log):
 - `processo 1: rc 0, 964 testes, 2028.1 s, 44 módulos`
 - `processo 2: rc 0, 1682 testes, 1215.1 s, 55 módulos`
 - `Ran 2646 tests in 2028.342s (2 processos)` e `OK (skipped=30)`; nenhuma linha FAIL ou ERROR no log (grep).
-- Linhas que não são falha: `catraca: a API do GitHub não respondeu por inteiro (KeyError|OSError); vale como sem rótulo.` (3, saída de teste de erro da catraca), `AVISO: --confiar ...` e `AVISO: j/lint pulado: actionlint ausente no PATH` (2), todas de testes que passaram.
+- Linha 21 do log, literal (texto de log, nada foi executado; o teste de condição com token inesperado a recusa e passou): `AVISO: job 'j' pulado por falta de suporte: condição sem suporte (token inesperado): __import__('os').system('touch /tmp/forge-suite-85pq3gbj/p2/tmpulxlic7s/executou')`
+- Linhas que não são falha: `catraca: a API do GitHub não respondeu por inteiro (KeyError|OSError); vale como sem rótulo.` (3, saída de teste de erro da catraca), `AVISO: --confiar ...` e `AVISO: j/lint pulado: actionlint ausente no PATH` (linhas 29 e 37), todas de testes que passaram.
 
 Cobertura do lote por leitura (módulo do item, todos presentes entre os 99 do log):
 - achado-teto-doc: test_achado_teto_doc. invariante-gatilho: test_invariante_gatilho. modelos-parecer-avisos-2: test_modelos_parecer_avisos_2. pergunta-maior-menor: test_pergunta_maior_menor. permissao-agentes-md: test_permissao_agentes_md.
@@ -44,3 +45,4 @@ Cobertura do lote por leitura (módulo do item, todos presentes entre os 99 do l
 - Correções da volta da E2.1 (mapa, citação da R-DECISAO, modelo de segurança, pesos): cada uma tem o teste que a reprovou no push de 17:20, na tabela acima, e todos passam no push de 22:05.
 - Mudança sem teste que a cubra: nenhuma achada. Mapa e pesos são guardados por testes que reprovam o lote se faltarem.
 - Vermelho antes do verde e mutação: não refeitos aqui; vêm dos pareceres de cada item e das falhas observadas no push de 17:20, que provam os guardas da junção.
+- Conferência do log por grep de FAIL, ERROR, skip, pulad e AVISO: além da linha 21, só as linhas 22 a 24 (catraca), 28 (`--confiar`), 29 e 37 (actionlint) e o resumo da linha 55; as marcas `s` (30 pulos) não têm nome no log (A1). Nada mais ficou de fora.
