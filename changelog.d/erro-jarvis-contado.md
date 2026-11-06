@@ -1,0 +1,2 @@
+### Adicionado
+- forge-check conferencia classes: a linha `ERRO-JARVIS: <classe>: <o que errou>. Prevenção: <o que muda>` do `## Histórico` dos pedidos conta como falha do Jarvis com a marca autorrelato (`(<k> autorrelato)`), entra no `jarvis-recorrente:` do brief sem filtro de tipo e não conta de novo o brief já registrado na mesma classe; classe fora do catálogo vira aviso; catálogo ganha hora, consentimento e estado; a tag entra no modelo de pedido e na retrospectiva do agile-coach (P2 do estudo AQ orkastery, versao-036 E2)
