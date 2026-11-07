@@ -1,13 +1,16 @@
-"""E18 PREPUSH-SO-DOCS: o pre-push do modelo de projeto pula o pre-push.local só quando todo arquivo enviado é docs/** ou .md.
+"""Pre-push do modelo de projeto. E18 PREPUSH-SO-DOCS: pula o pre-push.local só quando todo arquivo enviado é docs/** ou .md;
+F2 (versao-047, E2a): o pre-push.local roda num grupo próprio, e só esse grupo recebe sinal.
 
-Cada teste roda o hook de verdade num repositório descartável; o pre-push.local grava a marca "rodou".
+Cada teste roda o hook de verdade num repositório descartável, num grupo novo criado pelo teste (G-6).
 """
 import os
 import shutil
 import stat
 import subprocess
+import signal
 import tempfile
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -21,7 +24,7 @@ AMBIENTE.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME=
 PULO = "só docs/** e .md; lint e typecheck pulados"
 
 
-class PrePushSoDocs(unittest.TestCase):
+class RepoDescartavel(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.dir, True)
@@ -49,7 +52,7 @@ class PrePushSoDocs(unittest.TestCase):
 
     def envia(self, linhas, ambiente=None):
         r = subprocess.run([str(self.dir / ".githooks" / "pre-push"), "origin", "x"], input="".join(linhas),
-                           cwd=self.dir, env=ambiente or AMBIENTE, capture_output=True, text=True)
+                           cwd=self.dir, env=ambiente or AMBIENTE, capture_output=True, text=True, start_new_session=True)
         return r, (self.dir / "marca").exists()
 
     def ref(self, local, remoto, nome="refs/heads/f"):
@@ -73,6 +76,8 @@ class PrePushSoDocs(unittest.TestCase):
         self.assertTrue(marca)
         self.assertNotIn(PULO, r.stdout)
 
+
+class PrePushSoDocs(RepoDescartavel):
     def test_pula_so_docs(self):
         self.pula(["docs/a.md"])
 
@@ -224,6 +229,108 @@ class PrePushSoDocs(unittest.TestCase):
         (self.dir / ".githooks" / "pre-push.local").write_text("#!/usr/bin/env bash\nexit 1\n")
         r, _ = self.envia([self.ref(novo, self.base)])
         self.assertEqual(r.returncode, 1)
+
+
+def vivos():
+    """PID -> PGID dos processos vivos, sem os zumbis (o PID 1 do contêiner pode não colher os órfãos)."""
+    v = {}
+    for p in Path("/proc").glob("[0-9]*"):
+        try:
+            c = (p / "stat").read_text().rsplit(")", 1)[1].split()
+        except OSError:
+            continue
+        if c[0] != "Z":
+            v[int(p.name)] = int(c[2])
+    return v
+
+
+def ate(cond, prazo=10):
+    fim = time.monotonic() + prazo
+    while not cond() and time.monotonic() < fim:
+        time.sleep(0.1)
+    return cond()
+
+
+class GrupoDaEtapa(RepoDescartavel):
+    """Hook e irmão num grupo novo do teste (G-6); HOME, XDG_RUNTIME_DIR e TMPDIR na pasta do teste."""
+    def setUp(self):
+        super().setUp()
+        self.escreve("src/a.ts")
+        self.novo = self.commit("codigo")
+        self.amb = dict(AMBIENTE, HOME=str(self.dir), XDG_RUNTIME_DIR=str(self.dir), TMPDIR=str(self.dir))
+
+    def etapa(self, corpo):
+        (self.dir / ".githooks" / "pre-push.local").write_text(
+            f'#!/usr/bin/env bash\necho $$ $(ps -o pgid= -p $$) > "$(dirname "$0")/../etapa"\nexec >/dev/null 2>&1\n{corpo}\n')
+
+    def lanca(self):
+        p = subprocess.Popen([shutil.which("bash"), "-c", "sleep 60 >/dev/null 2>&1 & echo $! > irmao; exec .githooks/pre-push origin x"],
+                             cwd=self.dir, env=self.amb, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             text=True, start_new_session=True)
+        self.addCleanup(subprocess.run, ["kill", "-KILL", "--", f"-{p.pid}"], stderr=subprocess.DEVNULL)
+        p.stdin.write(self.ref(self.novo, self.base))
+        p.stdin.close()
+        return p
+
+    def le(self, nome):
+        self.assertTrue(ate((self.dir / nome).exists), nome)
+        time.sleep(0.2)
+        return [int(x) for x in (self.dir / nome).read_text().split()]
+
+    def fim(self, p):
+        try:
+            return p.wait(timeout=30), p.stderr.read()
+        except subprocess.TimeoutExpired:
+            self.fail("o hook não saiu em 30 s")
+
+    def interrompe(self):
+        p = self.lanca()
+        etapa = self.le("etapa")[0]
+        time.sleep(1)
+        p.send_signal(signal.SIGTERM)
+        rc, err = self.fim(p)
+        self.assertEqual(rc, 1)
+        self.assertIn("checagem interrompida; o envio foi barrado", err)
+        self.assertIn(self.le("irmao")[0], vivos())
+        return etapa
+
+    def test_etapa_em_grupo_proprio_e_saida_repassada(self):
+        for saida, esperado in ((0, 0), (3, 1)):
+            with self.subTest(saida):
+                self.etapa(f"exit {saida}")
+                p = self.lanca()
+                self.assertEqual(self.fim(p)[0], esperado)
+                pid, pgid = self.le("etapa")
+                self.assertEqual(pgid, pid)
+                self.assertNotEqual(pgid, p.pid)
+                (self.dir / "etapa").unlink()
+
+    def test_term_no_hook_encerra_o_grupo_e_poupa_o_irmao(self):
+        self.etapa("sleep 60 & exec sleep 60")
+        etapa = self.interrompe()
+        self.assertTrue(ate(lambda: etapa not in vivos().values()))
+
+    def test_filho_deixado_pela_etapa_nao_sobrevive(self):
+        self.etapa('sleep 60 & echo $! > "$(dirname "$0")/../filho"')
+        self.assertEqual(self.fim(self.lanca())[0], 0)
+        filho = self.le("filho")[0]
+        self.assertTrue(ate(lambda: filho not in vivos()))
+
+    def test_grupo_nao_criado_ou_pgid_ilegivel_sinaliza_so_a_etapa(self):
+        falso = self.dir / "falso"
+        falso.mkdir()
+        (falso / "bash").write_text(f"#!/bin/sh\nexec {shutil.which('bash')} -c 'set() {{ [ \"$1\" = -m ] || builtin set \"$@\"; }}; . \"$0\"' \"$@\"\n")
+        self.amb["PATH"] = f"{falso}:{self.amb['PATH']}"
+        for corpo in ("echo $$", ""):
+            with self.subTest(corpo):
+                (falso / "ps").write_text(f"#!/bin/sh\n{corpo}\n")
+                for f in falso.iterdir():
+                    f.chmod(0o755)
+                self.etapa("exec sleep 60")
+                etapa = self.interrompe()
+                self.assertTrue(ate(lambda: etapa not in vivos()))
+                for nome in ("etapa", "irmao"):
+                    (self.dir / nome).unlink()
 
 
 if __name__ == "__main__":

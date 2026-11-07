@@ -58,13 +58,42 @@ so_docs() {
   return 0
 }
 
+# A checagem roda num grupo próprio: Ctrl-C, TERM ou HUP no hook a encerram com os filhos e barram o envio. Sinal só
+# para o $etapa lançado e, quando o PGID dele é o próprio $etapa e não o do hook, para o grupo dele; senão, só o $etapa.
+encerrada=0
+lider_vivo() {
+  case " $(jobs -rp | tr '\n' ' ') " in *" $etapa "*) return 0 ;; esac
+  return 1
+}
+encerrar_etapa() {
+  [ "$encerrada" -eq 0 ] || return 0
+  encerrada=1
+  if [ "$alvo" = "$etapa" ]; then lider_vivo || return 0; else kill -0 -- "$alvo" 2>/dev/null || return 0; fi
+  kill -TERM -- "$alvo" 2>/dev/null; kill -CONT -- "$alvo" 2>/dev/null
+  for _ in 1 2 3 4 5 6 7 8 9 10; do kill -0 -- "$alvo" 2>/dev/null || return 0; sleep 0.5; done
+  kill -KILL -- "$alvo" 2>/dev/null
+  return 0
+}
+rodar_etapa() {
+  local pg rc
+  trap 'encerrar_etapa; echo "pre-push: checagem interrompida; o envio foi barrado." >&2; exit 1' INT TERM HUP
+  trap 'encerrar_etapa' EXIT
+  set -m; "$local_hook" </dev/null & etapa=$! alvo=$!; set +m
+  pg="$(ps -o pgid= -p "$etapa" 2>/dev/null | tr -d ' ')"
+  if [ "$pg" = "$etapa" ] && [ "$pg" != "$(ps -o pgid= -p "$$" 2>/dev/null | tr -d ' ')" ]; then alvo="-$etapa"; fi
+  while lider_vivo; do sleep 1; done
+  wait "$etapa"; rc=$?
+  encerrar_etapa
+  [ "$rc" -eq 0 ] || exit 1
+}
+
 # Checagem própria do projeto (opcional): crie .githooks/pre-push.local executável (ex.: lint + typecheck).
 local_hook="$(dirname "$0")/pre-push.local"
 if [ -x "$local_hook" ]; then
   if so_docs; then
     echo "pre-push: só docs/** e .md; lint e typecheck pulados (o CI roda tudo)"
   else
-    "$local_hook" || exit 1
+    rodar_etapa
   fi
 fi
 exit 0
