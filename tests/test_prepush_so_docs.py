@@ -391,7 +391,7 @@ class TravaDaChecagem(Repo):
         self.fora.chmod(0o777)
         self.assertEqual(self.fim(self.lanca())[0:3:2], (0, True))
         pasta = self.fora / ".local" / "state" / "forge"
-        self.assertEqual((self.trava.exists(), (pasta / self.trava.name).exists(), pasta.stat().st_mode & 0o777), (False, True, 0o700))
+        self.assertEqual((self.trava.exists(), (pasta / self.trava.name).exists(), pasta.exists() and pasta.stat().st_mode & 0o777), (False, True, 0o700))
 
     def test_pasta_do_home_link_ou_775_recusada(self):
         amb = {k: v for k, v in self.amb.items() if k != "XDG_RUNTIME_DIR"}
