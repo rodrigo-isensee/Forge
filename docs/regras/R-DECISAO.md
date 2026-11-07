@@ -22,6 +22,8 @@ Propósito: texto único desta regra; os outros arquivos citam o ID. Público: t
 - **Escada da recomendação**, nesta ordem: o que o usuário disse, depois o fato do projeto, depois regra ou ADR, depois prática da fábrica, depois preferência do time.
 - **Recomendar sempre, com a base declarada:** toda recomendação diz o degrau da escada que a decidiu. Em escopo, prioridade ou custo, leva a marca "preferência do time", separada dos fatos.
 - **Decisão só vale gravada.** Pedido, lista ou decisão do dono é gravado por quem o recebe, no mesmo turno, no arquivo do pedido (`docs/pedidos/`) ou no quadro; o scratchpad da sessão é temporário e nunca guarda o que é do dono. Lista de 3 ou mais itens do turno sem gravação o vigia avisa ao dono (aviso, nunca bloqueio). Resumo de compactação não autoriza: depois dela, decisão que não está no disco é perguntada de novo.
+- **Proposta aprovada sai com versão nomeada.** Toda proposta que o usuário aprova é gravada com a versão nomeada (`versão: X.Y`) na própria linha da decisão, nunca com "próxima" ou balde sem número; quem grava diz a versão ao usuário no mesmo turno.
+- **Versão cheia passa para a seguinte.** Quando a versão atingiu o limite de cartões que o projeto define, a proposta vai para a versão seguinte com vaga, também nomeada.
 
 ## Complemento: "tanto faz" e ordem ampla
 - **"Tanto faz" e "decidam vocês" viram item `delegado`.** O Jarvis grava a frase literal do usuário e a recomendação adotada, com a base, no arquivo do pedido, no mesmo turno. Esses nunca são delegáveis assim: **custo** (`R-CUSTO`), **acesso**, **exceção a regra** (`R-CONFORMIDADE`) e **ato irreversível**; continuam indo ao usuário.
