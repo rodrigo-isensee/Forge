@@ -44,6 +44,7 @@ O papel vem de `hooks/conformidade.json` (dado, não código): `jarvis` (`forge:
 | Instalar dependência nova | `dev`; `qa` só com lockfile congelado | hook por papel [B]; rede limitada aos registros da stack [I]; diff do lockfile no review [M] |
 | Escrever fora do repositório | ninguém (exceções: temporário; `jarvis`/`tech-lead` em `~/.forge-contrib/`) | Bash: sandbox [I]; Write/Edit: hook pelo `file_path` [I] |
 | Editar o `CLAUDE.md` do projeto (`iniciar-projeto`, exceções locais aprovadas pelo usuário) | `jarvis` | [B] no Write/Edit (hook `conformidade`); [D] no Bash (autoria e PR revisado); o `agile-coach` propõe a exceção no relatório |
+| Escrever o desenho (`docs/arquitetura/`, `~/.forge-contrib/docs/arquitetura/`, `~/.forge-contrib/*/docs/arquitetura/`; acréscimo da 0.39, E5-0: o critério de parada e a marca de redesenho, PAR-P2 e Q-B). `docs/architecture/` de projeto fica sem dono até o cartão `DESENHO-PROJETO-DONO` (o `devops-engineer` e o `tech-lead` gravam ali hoje) | `doc` e `aq` | [B] no Write/Edit e nos alvos de escrita do Bash (hook `conformidade`) |
 | Ler `.env` | ninguém pela ferramenta | `deny Read(.env*)` [I]; `cat`/`source` de `.env` no hook [B]; o app lê (risco residual) |
 | Ler credenciais do dono (`~/.config/gh`, `~/.git-credentials`, `~/.ssh`) | ninguém | `denyRead` no sandbox e `deny Read(...)` [I] — mantém a separação de identidade da ADR 0008 |
 

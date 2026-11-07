@@ -1,0 +1,76 @@
+{
+  "pedido": "e5-0-dono-do-desenho",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "tirar a entrada docs/arquitetura/ (desenho-projeto-*-bloqueia, tee e redirecionamento voltam a rc 0)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"caminho\": \"docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
+      "para": "\"caminho\": \"docs/arquitetura-x/\", \"quem\": [\"doc\", \"aq\"]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "tirar a entrada ~/.forge-contrib/docs/arquitetura/ (desenho-contrib-tech-lead-bloqueia volta a rc 0)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"caminho\": \"~/.forge-contrib/docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
+      "para": "\"caminho\": \"~/.forge-contrib/docs/arquitetura-x/\", \"quem\": [\"doc\", \"aq\"]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "tirar a entrada ~/.forge-contrib/*/docs/arquitetura/ (desenho-contrib-aninhado-tech-lead-bloqueia volta a rc 0)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"caminho\": \"~/.forge-contrib/*/docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
+      "para": "\"caminho\": \"~/.forge-contrib/*/docs/arquitetura-x/\", \"quem\": [\"doc\", \"aq\"]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "quem so doc em ~/.forge-contrib/docs/arquitetura/ (desenho-contrib-aq-libera reprova)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"caminho\": \"~/.forge-contrib/docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
+      "para": "\"caminho\": \"~/.forge-contrib/docs/arquitetura/\", \"quem\": [\"doc\"]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "quem so doc em docs/arquitetura/ (aq-edita-arquitetura-libera reprova)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"caminho\": \"docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
+      "para": "\"caminho\": \"docs/arquitetura/\", \"quem\": [\"doc\"]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "tech-lead no quem de docs/arquitetura/ (desenho-projeto-tech-lead-bloqueia volta a rc 0)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"caminho\": \"docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
+      "para": "\"caminho\": \"docs/arquitetura/\", \"quem\": [\"doc\", \"aq\", \"tech-lead\"]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "acrescentar docs/architecture/ sem a decisao do dono (desenho-architecture-*-libera reprovam)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"caminho\": \"docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
+      "para": "\"caminho\": \"docs/architecture/\", \"quem\": [\"doc\", \"aq\"], \"motivo\": \"m\"},\n    {\"caminho\": \"docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    }
+  ]
+}
