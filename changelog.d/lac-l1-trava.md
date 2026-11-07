@@ -1,2 +1,0 @@
-### Adicionado
-- `forge-check transcricao trava` (LAC-L1): mede, pelas transcrições locais, a espera da trava pesada do R-TETO (bloqueios do hook `pesado` por episódio e papel, espera `exata` ou `piso`, mediana, máximo, episódios por dia e `alta: sim|nao`), só com papel e números; entra na linha de base da M14b. A skill `esperar-estado` passa a mandar esperar a trava pelo sumiço de `.forge/run/pesado.json` ou pelo `desde` mais o teto, nunca por `kill -0` no pid gravado.

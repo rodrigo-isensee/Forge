@@ -1,2 +1,0 @@
-### Adicionado
-- `forge-check provas gerar --brief <brief>` imprime o arquivo de provas da branch: as PQ `cmd` do brief que o CI reexecuta, decididas só pela lista do `scripts/reexecutar-provas.py` (importado da cópia em uso), com o comando e a espera copiados byte a byte (a espera sem `rc=0` ganha o prefixo `rc=0 e `); a PQ fora da lista sai `fora: PQ-n (<motivo do script>)` no stderr; o script ausente ou o texto recusado pelo `ler_provas` dá rc 2. Ainda não escreve o arquivo (M15 E5a1, versao-041).

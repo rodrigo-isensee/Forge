@@ -1,2 +1,0 @@
-### Adicionado
-- forge-check decisoes --sem-cartao [--desde AAAA-MM-DD]: cruza cada linha DECISÃO DO DONO dos pedidos com os cartões do KANBAN.md e do docs/kanban/historico.md e lista as decisões sem cartão e sem ID (informativo, rc 0); o agile-coach roda na linha de base da retrospectiva e o tech-lead antes do forge-changelog release. A regra única de decisão passa a aceitar o prefixo `AAAA-MM-DD[ HH:MM]:` antes da frase, e o forge-check brief passa a cobrar essas linhas (aperta; DECISAO-SEM-CARTAO, decisão do dono de 2026-11-06 09:38)

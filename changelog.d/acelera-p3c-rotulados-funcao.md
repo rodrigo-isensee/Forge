@@ -1,2 +1,0 @@
-### Adicionado
-- A catraca ganha `rotulados_da_leva` e `neutralizar` em `tests/catraca.py`: listam os PRs da leva com o rótulo `afrouxa-regra`, o do dono com a decisão declarada no corpo (texto do autor neutralizado, em código inline), a contagem dos commits de primeiro pai sem `#n` e `incompleta (<motivo>)` quando a lista não pode ser completa; ainda não chamadas, a ligação vem na parte seguinte (E2-1 ACELERA-P3C, versao-040).

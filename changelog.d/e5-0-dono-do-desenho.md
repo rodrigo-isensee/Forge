@@ -1,2 +1,0 @@
-### Alterado
-- As pastas de desenho do Forge (`docs/arquitetura/`, `~/.forge-contrib/docs/arquitetura/` e `~/.forge-contrib/*/docs/arquitetura/`) ganham dono no hook `conformidade`: só o `software-architect`, o `ux-designer` e o `aq` gravam ali, e o autor deixa de mudar o critério de parada e a marca de redesenho; `docs/architecture/` de projeto fica sem dono até o cartão DESENHO-PROJETO-DONO (E5-0 de Q-B, versao-039).

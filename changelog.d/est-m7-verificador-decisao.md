@@ -1,2 +1,0 @@
-### Adicionado
-- `scripts/arvore-testada.py` decide, sobre dicionários, se o evento pode pular a suíte (lista branca: PR develop → homolog e homolog → main do próprio repositório, push na homolog e na main no CI e push na main no Release) e se a execução da develop prova a suíte no commit (push, ci.yml, mesmo repositório, concluída, job de prova do Python pedido em success na tentativa mais recente); ainda não é chamado e, rodado, sai 1. Entra em `PROTEGIDOS` da catraca e nos controles do Forge (E3a-1 EST-M7, versao-040).
