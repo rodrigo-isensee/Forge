@@ -1,0 +1,2 @@
+### Adicionado
+- Critério de parada declarado no desenho (PAR-P2, E2a, versao-039): seção `## Critério de parada` no modelo do plano técnico (`bloqueia:`, uma linha por classe com oráculo e a linha `gatilho`); `forge-check` ganha `criterio_de_parada` e o campo opcional `criterio:` do parecer, recusado fora de `docs/arquitetura/` ou `docs/architecture/` sem ler o disco; o `forge-check docs` confere que a 1.ª linha de `## Parecer` repete a frase do desenho do mesmo pedido, ou traz `critério mudou:` com motivo logo abaixo, e avisa desenho ausente, grande ou ilegível.

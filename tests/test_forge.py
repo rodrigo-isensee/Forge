@@ -6216,3 +6216,84 @@ class TextosAQ3Ux(unittest.TestCase):
     def test_prototipo_sem_url_externa_e_discovery_so_com_interface(self):
         self.assertIn("confira com `Grep` que nada no protótipo carrega URL externa", self.texto)
         self.assertIn("Nenhuma demanda com interface entra em desenvolvimento sem passar por você", self.texto)
+
+
+class CriterioDeParada(unittest.TestCase):
+    """PAR-P2 E2a: `## Critério de parada` do desenho e o campo `criterio:` do parecer (C-1 a C-8 das ameaças da 0.39, E2)."""
+    DESENHO = "# D\n\n## Critério de parada\n- bloqueia: defeito provado\n- travessia · lê fora · oráculo: test_x\n- gatilho · oráculo: test_g\n"
+
+    def setUp(self):
+        self.fc, self.raiz = carregar_forge_check(), Path(self.enterContext(tempfile.TemporaryDirectory()))
+        (self.raiz / "docs/reviews").mkdir(parents=True)
+        self.desenho("p1-desenho.md", self.DESENHO)
+        self.enterContext(mock.patch.object(self.fc, "RAIZES_DE_BRIEF", ()))
+
+    def desenho(self, nome, texto, raiz=None):
+        (raiz or self.raiz).joinpath("docs/arquitetura").mkdir(parents=True, exist_ok=True)
+        (raiz or self.raiz).joinpath("docs/arquitetura", nome).write_text(texto, encoding="utf-8")
+
+    def parecer(self, corpo, criterio):
+        return (f"---\n{ForgeCheck.REVIEW.format(c='abc1234', p='aprovado')}criterio: {criterio}\n---\n# R\n\n"
+                f"## Achados\n\n## Parecer\n\n{corpo}\n")
+
+    def docs(self, corpo, criterio="docs/arquitetura/p1-desenho.md"):
+        (self.raiz / "docs/reviews/p1.md").write_text(self.parecer(corpo, criterio), encoding="utf-8")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            return self.fc.cmd_docs(self.raiz), err.getvalue()
+
+    def test_as_tres_formas_passam_e_sem_gatilho_bloqueia_ou_com_nova_e_erro(self):
+        ler = self.fc.criterio_de_parada
+        self.assertEqual(ler(self.DESENHO), ("defeito provado", {"travessia": "test_x", "gatilho": "test_g"}, []))
+        self.assertEqual(ler(self.DESENHO.replace("- gatilho", "- nova"))[2], ["linha 6 fora da forma", "sem gatilho"])
+        self.assertEqual(ler(self.DESENHO + "- bloqueia: outra\n")[2], ["bloqueia: repetido"])
+        self.assertEqual(ler("## Outra\n- bloqueia: x\n- gatilho · oráculo: t\n")[2], ["sem bloqueia:", "sem gatilho"])
+
+    def test_frase_igual_passa_diferente_reprova_e_a_marca_com_motivo_logo_abaixo_avisa(self):
+        self.assertEqual(self.docs('Critério de parada: "defeito provado"\nAprovado.'), ([], ""))
+        v, _ = self.docs('Critério de parada: "outra"\nAprovado.')
+        self.assertIn('não é Critério de parada: "defeito provado"', v[0])
+        v, err = self.docs('Critério de parada: "outra"\ncritério mudou: o arquiteto estreitou na volta 2')
+        self.assertEqual((v, err), ([], "aviso: critério mudou em docs/reviews/p1.md: o arquiteto estreitou na volta 2\n"))
+        for corpo in ('Critério de parada: "outra"\ncritério mudou: curto', 'Critério de parada: "outra"\nTexto.\ncritério mudou: o arquiteto mudou',
+                      'Outra linha\ncritério mudou: o arquiteto estreitou'):
+            self.assertEqual(len(self.docs(corpo)[0]), 1, corpo)
+
+    def test_caminho_fora_da_lista_branca_e_recusado_sem_ler_o_disco(self):
+        (self.raiz / ".env").write_text("SEGREDO123", encoding="utf-8")
+        for valor in ("../x.md", "docs/../.env", "/etc/passwd", "docs/arquitetura//x.md", "-x.md", "docs/arquitetura/./x.md",
+                      "docs/arquitetura/../pedidos/x.md", "docs/pedidos/x.md", "docs/arquitetura/x.MD"):
+            with self.subTest(valor), mock.patch.object(self.fc, "ler_registro", side_effect=AssertionError("leu o disco")):
+                v, err = self.docs("x", valor)
+                self.assertEqual(v, ["docs/reviews/p1.md: criterio: caminho fora de docs/arquitetura/ ou docs/architecture/ (R-REVIEW)"])
+                self.assertNotIn("SEGREDO", err)
+
+    def test_ausente_link_para_fora_grande_e_ilegivel_avisam_sem_cair_na_outra_raiz(self):
+        fora = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        (fora / "s.md").write_text("## Critério de parada\n- bloqueia: SEGREDO123\n", encoding="utf-8")
+        for nome in ("p1-link.md", "p1-contrib.md"):
+            self.desenho(nome, self.DESENHO, fora / "contrib")
+        (self.raiz / "docs/arquitetura/p1-link.md").symlink_to(fora / "s.md")
+        (self.raiz / "docs/arquitetura/p1-grande.md").write_bytes(b"x" * (self.fc.TETO_DE_REGISTRO + 1))
+        (self.raiz / "docs/arquitetura/p1-ruim.md").write_bytes(b"\xff\xfe")
+        with mock.patch.object(self.fc, "RAIZES_DE_BRIEF", (fora / "contrib",)):
+            self.assertEqual(self.docs('Critério de parada: "defeito provado"', "docs/arquitetura/p1-contrib.md"), ([], ""))
+            for nome, motivo in (("p1-falta", "ausente"), ("p1-link", "ausente"), ("p1-grande", "grande"), ("p1-ruim", "ilegível")):
+                v, err = self.docs("x", f"docs/arquitetura/{nome}.md")
+                self.assertEqual((v, err), ([], f"aviso: docs/reviews/p1.md: criterio: docs/arquitetura/{nome}.md: {motivo} (PAR-P2)\n"))
+
+    def test_desenho_de_outro_pedido_e_recusado_e_so_a_frase_sai_sem_controle(self):
+        self.desenho("p2-desenho.md", self.DESENHO)
+        self.desenho("plano.md", "---\npedido: p2\n---\n" + self.DESENHO)
+        for nome in ("p2-desenho.md", "plano.md"):
+            self.assertEqual(self.docs("x", f"docs/arquitetura/{nome}")[0], ["docs/reviews/p1.md: criterio: desenho de outro pedido (PAR-P2)"])
+        self.desenho("p1-sem.md", "## Critério de parada\n- bloqueia: x\n")
+        self.assertEqual(self.docs("x", "docs/arquitetura/p1-sem.md")[0], ["docs/reviews/p1.md: criterio: docs/arquitetura/p1-sem.md: sem gatilho (PAR-P2)"])
+        self.desenho("plano.md", "---\npedido: p1\n---\n" + self.DESENHO.replace("defeito provado", "defeito‮provado"))
+        v, _ = self.docs("x", "docs/arquitetura/plano.md")
+        self.assertIn('Critério de parada: "defeito provado" nem', v[0])
+        self.assertNotIn("travessia", v[0])
+
+    def test_validar_documento_nao_le_o_disco(self):  # C-4: a catraca do CI importa validar_documento
+        with mock.patch.object(self.fc, "ler_registro", side_effect=AssertionError("leu o disco")):
+            self.assertEqual(self.fc.validar_documento("docs/reviews/p1.md", self.parecer("x", "docs/arquitetura/p1-desenho.md"))[1], [])
