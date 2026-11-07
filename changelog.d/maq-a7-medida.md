@@ -1,0 +1,2 @@
+### Alterado
+- A linha do `.forge/run/testes.log` gravada pelo `bin/forge-testes` e pelo `bin/forge-mutante` mantém os campos de hoje e ganha `entrada=` (`FORGE_ENTRADA` validada por `[a-z-]{1,20}`, `push` e `suite` vindos do pre-push, `autor` sem ela, `?` fora da forma), `load1=`, `nproc=` e `outras=` (execuções pesadas vivas fora da própria e dos ancestrais, contadas pelo `/proc` sem gravar a linha de comando delas; `?` com erro de leitura). Leitura da medida: `awk '/modo=/{print $2, $4, $6, $7, $9}' .forge/run/testes.log` (E4-1 MAQ-A7, versao-043).

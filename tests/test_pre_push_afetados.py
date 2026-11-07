@@ -262,6 +262,10 @@ class NaoRecuaDoHook(unittest.TestCase):
         self.assertIn("python3 scripts/suite-paralela.py", texto)  # o recuo continua a suíte inteira em paralelo
         self.assertIn("discover -s tests", texto)
 
+    def test_as_tres_chamadas_pesadas_dizem_a_entrada(self):  # MAQ-A7: a linha do testes.log diz quem lançou
+        for trecho in ("FORGE_ENTRADA=suite FORGE_SUITE_TRAVA", "FORGE_ENTRADA=push python3 -I", "FORGE_ENTRADA=push FORGE_SUITE_TRAVA"):
+            self.assertIn(trecho, HOOK.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

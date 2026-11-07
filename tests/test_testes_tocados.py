@@ -10,6 +10,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import sem_manutencao  # noqa: E402
@@ -1045,6 +1046,54 @@ class CaminhoFiltroEAviso(unittest.TestCase):
         r = self.rodar("--vermelho", "-k", "x")
         self.assertEqual(r.returncode, 2)
         self.assertIn("-k não combina com --vermelho", r.stderr)
+
+
+def proc_falso(pasta):
+    """Um /proc de brinquedo: 10 é a execução (forge-testes), 5 o ancestral pesado, 20 a outra pesada, 40 sumiu."""
+    for pid, pai, linha in ((10, 5, b"python3\0bin/forge-testes"), (5, 1, b"python3\0scripts/suite-paralela.py"),
+                            (20, 1, b"python3\0-m\0unittest\0discover"), (30, 1, b"bash"), (40, 1, None)):
+        (pasta / str(pid)).mkdir(parents=True)
+        (pasta / str(pid) / "stat").write_text(f"{pid} (a b) S {pai} 0", encoding="utf-8")
+        if linha:
+            (pasta / str(pid) / "cmdline").write_bytes(linha)
+    (pasta / "self").mkdir()
+    return pasta
+
+
+class MedidaDaVagaPesada(unittest.TestCase):
+    """MAQ-A7: a linha do testes.log guarda os campos de hoje e ganha entrada, load1, nproc e outras."""
+    setUp, log = Execucao.setUp, Execucao.log
+
+    def rodar_com(self, **env):
+        limpo = {k: v for k, v in AMBIENTE.items() if k not in ("FORGE_ENTRADA", "CI")}
+        return subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--base", "develop", "--completa"], cwd=self.dir,
+                              env={**limpo, **env}, capture_output=True, text=True)
+
+    def test_a_linha_mantem_o_formato_de_hoje_e_so_aceita_entrada_valida(self):
+        for valor, esperado in ((None, "autor"), ("push", "push"), ("push\n", "?"), ("push\nmodo=x", "?")):
+            with self.subTest(valor):
+                self.assertEqual(self.rodar_com(**({} if valor is None else {"FORGE_ENTRADA": valor})).returncode, 0)
+                self.assertRegex(self.log().splitlines()[-1], r"^\S+Z modo=completo modulos=- duracao=[0-9.]+s saida=0 "
+                                 rf"entrada={re.escape(esperado)} load1=[0-9.]+ nproc=\d+ outras=(\d+|\?)$")
+        self.assertEqual(len(self.log().splitlines()), 4)  # a quebra de linha no valor não abre linha nova
+
+    def test_conta_a_pesada_viva_sem_gravar_a_linha_de_comando_dela(self):
+        falso = self.dir / "marca-a7" / "suite-paralela.py"
+        falso.parent.mkdir()
+        falso.write_text("import time\ntime.sleep(120)\n", encoding="utf-8")
+        processo = subprocess.Popen([sys.executable, "-I", str(falso)])
+        self.addCleanup(processo.wait)
+        self.addCleanup(processo.kill)
+        self.rodar_com()
+        self.assertGreaterEqual(int(re.search(r"outras=(\d+)", self.log()).group(1)), 1)
+        self.assertNotIn("marca-a7", self.log())
+
+    def test_outras_e_contexto_toleram_falha_de_leitura(self):
+        f = carregar()
+        self.assertEqual(f.outras(proc_falso(self.dir / "proc"), eu=10), 1)  # nem a própria, nem o ancestral, nem a 40
+        self.assertEqual(f.outras(self.dir / "sem-proc", eu=10), "?")
+        with mock.patch("os.getloadavg", side_effect=OSError), mock.patch.dict(os.environ, {"FORGE_ENTRADA": "push\n"}):
+            self.assertRegex(f.contexto(), r"^ entrada=\? load1=\? nproc=")
 
 
 if __name__ == "__main__":

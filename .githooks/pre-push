@@ -276,7 +276,7 @@ fi
 # No modo --suite a suíte toma o lugar do hook (exec) e herda a trava: morre a suíte, solta a trava.
 if [ "$modo_suite" = 1 ]; then
   if [ -f scripts/suite-paralela.py ]; then
-    FORGE_SUITE_TRAVA="$trava" exec python3 scripts/suite-paralela.py
+    FORGE_ENTRADA=suite FORGE_SUITE_TRAVA="$trava" exec python3 scripts/suite-paralela.py
   fi
   exec python3 -m unittest discover -s tests -q
 fi
@@ -320,10 +320,10 @@ if [ "$curta" = 1 ]; then
 elif dirigido; then
   completa=0
   echo "pre-push: rodando só os testes afetados (bin/forge-testes, base origin/develop); a suíte completa roda no CI do PR." >&2
-  suite=(python3 -I bin/forge-testes --base "$base_dev")
+  suite=(env FORGE_ENTRADA=push python3 -I bin/forge-testes --base "$base_dev")
 elif [ -f scripts/suite-paralela.py ]; then
   # D4: a suíte inteira dividida em processos, com a guarda de completude contra o discover (R-TETO: uma por vez).
-  suite=(env FORGE_SUITE_TRAVA="$trava" python3 scripts/suite-paralela.py)
+  suite=(env FORGE_ENTRADA=push FORGE_SUITE_TRAVA="$trava" python3 scripts/suite-paralela.py)
 else
   # Árvore sem o script (repositório mínimo): a mesma suíte em série, mais lenta e nunca mais frouxa.
   suite=(python3 -m unittest discover -s tests -q)

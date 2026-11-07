@@ -16,6 +16,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
+from test_testes_tocados import proc_falso  # noqa: E402  (o /proc de brinquedo da MAQ-A7)
 
 RAIZ = Path(__file__).resolve().parent.parent
 FERRAMENTA = RAIZ / "bin" / "forge-mutante"
@@ -869,6 +870,25 @@ class Cobertura(unittest.TestCase):
                 r = self.rodar(*args)
                 self.assertEqual(r.returncode, 2)
                 self.assertIn("vêm juntos", r.stderr)
+
+
+class MedidaDaVagaPesada(unittest.TestCase):
+    """MAQ-A7: a cópia do contexto no forge-mutante faz o mesmo que a do forge-testes."""
+    setUp, gravar, salvar, spec, rodar = Execucao.setUp, Execucao.gravar, Execucao.salvar, Execucao.spec, Execucao.rodar
+
+    def test_a_linha_modo_mutante_traz_entrada_validada_e_load1(self):
+        self.assertEqual(self.rodar(self.spec(mutante()), FORGE_ENTRADA="push\n").returncode, 0)
+        linha = (self.dir / ".forge" / "run" / "testes.log").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(linha), 1)
+        self.assertRegex(linha[0], r"^\S+Z modo=mutante modulos=- duracao=[0-9.]+s saida=0 entrada=\? load1=[0-9.]+ "
+                                   r"nproc=\d+ outras=(\d+|\?)$")
+
+    def test_outras_e_contexto_toleram_falha_de_leitura(self):
+        f = carregar()
+        self.assertEqual(f.outras(proc_falso(self.dir / "proc"), eu=10), 1)
+        self.assertEqual(f.outras(self.dir / "sem-proc", eu=10), "?")
+        with mock.patch("os.getloadavg", side_effect=OSError):
+            self.assertIn(" load1=? ", f.contexto())
 
 
 if __name__ == "__main__":
