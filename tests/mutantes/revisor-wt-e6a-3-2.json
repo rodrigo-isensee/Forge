@@ -1,0 +1,16 @@
+{
+  "pedido": "revisor-wt-e6a-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a linha `conferida` conta como `parecer conferido` no entrega (M5: as regex não se cruzam)",
+      "arquivo": "bin/forge-check",
+      "de": "if (m := PARECER_CONFERIDO.match(linha))}\n    cod, saida = git(raiz, \"rev-list\", \"--merges\"",
+      "para": "if (m := CONFERIDA.match(linha))}\n    cod, saida = git(raiz, \"rev-list\", \"--merges\"",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_ultimo_conferido_passa_e_o_superado_reprova"
+      ]
+    }
+  ]
+}

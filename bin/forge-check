@@ -1224,6 +1224,33 @@ def so_parecer_do_papel(raiz, branch, desde, head, pais):
         and not com_controle(nome) for meta, nome in pares)
 
 
+def merges_nao_conferidos(raiz, texto, de, head, base_ref):
+    """VOLTAS-REVISOR-WT (E6a-3; M4, C-11, M9 no merge): (recusas dos merges de `de..head` que não são da base, shas das linhas `parecer
+    conferido` do `## Histórico`). Com linha, todo outro pai é um P dela e o merge só traz arquivos desses P, com os blobs deles; sem
+    nenhuma, merge de `parecer/*` reprova (C-11); merge que traz aceite reprova. Só recusa; falha do git reprova."""
+    shas = {m.group(1) for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", []) if (m := PARECER_CONFERIDO.match(linha))}
+    cod, saida = git(raiz, "rev-list", "--merges", "--parents", f"{de}..{head}")  # o merge da base sai no filtro de `outros`
+    recusas = [("escopo: o git falhou (rev-list dos merges); o escopo não foi lido", True)] if cod else []
+    for merge, _, *outros in map(str.split, saida.splitlines()):
+        outros = [q for q in outros if not (base_ref and e_ancestral(raiz, q, base_ref))]
+        trazidos = nomes_do_intervalo(raiz, f"{merge}^1", merge, estrito=True) if outros else []
+        if trazidos is None:
+            recusas.append((f"escopo: o git falhou (diff do merge {merge[:7]}); o escopo não foi lido", True))
+            continue
+        if any(n.startswith(ACEITES_DO_USUARIO) for n in trazidos):  # M9
+            recusas.append((f"escopo: fora (aceite trazido pelo merge {merge[:7]})", True))
+        if not shas:  # T10: sem linha, como hoje, salvo o merge de `parecer/*` (C-11)
+            if any(git(raiz, "for-each-ref", "--points-at", q, "refs/heads/parecer/") != (0, "") for q in outros):
+                recusas.append(("escopo: fora (parecer trazido sem registro no Histórico)", True))
+            continue
+        recusas += [(f"escopo: fora (merge de {q[:7]} não conferido)", True) for q in outros if q not in shas]
+        dos_p = [q for q in outros if q in shas]
+        recusas += [(f"escopo: fora (o merge {merge[:7]} traz {nome_seguro(n)} fora dos pareceres conferidos)", True) for n in trazidos
+                    if not any(n in (nomes_do_intervalo(raiz, f"{q}^1", q, estrito=True) or ()) and blob_de(raiz, q, n) == blob_de(raiz, merge, n)
+                               for q in dos_p)]
+    return recusas, shas
+
+
 def bases_do_pedido(texto):
     """[(sha40, origem)] do `## Histórico`, na ordem do arquivo: as linhas `conferida <sha40>` (origem `conferida`) e as de base do
     delta fixada pelo dono (`- <data>[ <hora>]: base do delta fixada pelo dono <sha40>`, origem `dono`; só vale com uma linha
@@ -1704,6 +1731,9 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     if falhas:  # o filtro que já rodou não esconde arquivo de quem confere, nem anuncia o que a lista não passou a ter
         arquivos, informativas = todos, [i for i in informativas if not i[0].startswith("escopo: integração da base")]
     linhas += informativas + [(f"escopo: o git falhou ({passo}); o escopo não foi lido", True) for passo in falhas]
+    recusas, shas = merges_nao_conferidos(raiz, texto, de, head, base_ref) if etapa in ("qa", "codigo") else ([], set())
+    linhas += recusas
+    ultimos = pareceres_conferidos(raiz, pedido, branch)[0] if shas else {}
     if not arquivos and not falhas:
         vazio = ("pendente: a entrega é só a integração da base (o merge não traz trabalho próprio); todo item do \"Entregar\" está sem commit"
                  if dos_dois_pais else "pendente: intervalo vazio na etapa codigo (nenhum commit novo); todo item do \"Entregar\" está sem commit")
@@ -1714,7 +1744,9 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         if nome.startswith(ACEITES_DO_USUARIO):  # M5.1: o aceite é do usuário e nunca é parecer, ainda que o registro de autoria exista
             tipo = None
         mostrado = nome_seguro(nome)
-        if tipo and not com_controle(nome) and autoria_do_parecer(raiz, registros, head, nome, tipo):
+        if shas and tipo not in (None, "qa") and (nome not in ultimos or blob_de(raiz, head, nome) != blob_de(raiz, ultimos[nome], nome)):  # M2
+            linhas.append((f"escopo: fora (parecer não conferido ou superado) {mostrado}", True))
+        elif tipo and not com_controle(nome) and autoria_do_parecer(raiz, registros, head, nome, tipo):
             if removidas != "0" and not reescrito_por_portao(raiz, pedido_id, branch, head, nome, tipo):  # A6; G6: o portão do -REV reescreve
                 papel = PAPEL_DO_PARECER[tipo]
                 linhas.append((f"escopo: confira {mostrado} +{acrescidas} -{removidas} (anexo com remoção do parecer de {papel}: "

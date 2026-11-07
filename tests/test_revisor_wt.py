@@ -1,6 +1,7 @@
 """VOLTAS-REVISOR-WT (E6a-1): o `forge-check pr` confere as linhas `parecer conferido <sha40>` do `## Histórico` (M1 no `pr`, M5 na
 leitura, M8, T-1, T-2; testes t1, t10, t11, t14 e t19 das ameaças). Só acrescenta recusa. E6a-2: `entrega --branch parecer/*` (M3, M5,
-M9; t4 a t8, t15 e o caso 11). Repositório temporário."""
+M9; t4 a t8, t15 e o caso 11). E6a-3: o `entrega` confere os merges do intervalo (M4, M2, C-11, M9 no merge; t1, t2, t9, t12,
+t20 e o caso 12). Repositório temporário."""
 import os
 import sys
 import unittest
@@ -16,7 +17,7 @@ PARECER = ("---\ntipo: review\ncontrato: 1\npedido: x\nbranch: {branch}\ncommit:
 MARCAS = ("parecer conferido", "último parecer conferido", "vigente não é")
 
 
-class PrLeParecerConferido(Repositorio):
+class ComParecer(Repositorio):
     def setUp(self):
         super().setUp()
         self.c1 = self.commitar({"src/app.txt": "v2\n"}, "código")
@@ -34,6 +35,8 @@ class PrLeParecerConferido(Repositorio):
     def historico(self, *shas, forma="parecer conferido"):
         self.gravar_pedido(extra="".join(f"- 2026-11-06 18:0{i}: {forma} {s} (review)\n" for i, s in enumerate(shas)))
 
+
+class PrLeParecerConferido(ComParecer):
     def novas(self, ref="melhoria/x", pedido="x"):
         rc, saida = self.check("pr", pedido, "--ref", ref)
         self.assertTrue(saida.strip(), "o forge-check caiu sem saída (a exceção vai ao stderr)")
@@ -194,6 +197,88 @@ class EntregaDaBranchDeParecer(Repositorio):
         self.assert_fora("p1-sem-brief-1")
         self.revisor({"docs/reviews/x.md": "parecer\n"}, brief="a/b")  # o brief é arquivo de docs/briefs/, nunca de subpasta
         self.assert_fora("a/b")
+
+
+class EntregaConfereOMerge(ComParecer):
+    def merge(self, *shas, sem_commit=False):
+        git("merge", "-q", "--no-ff", "--no-edit", *(["--no-commit"] if sem_commit else []), *shas, cwd=self.repo)
+
+    def lado(self, nome, arquivos):
+        """Um sha que não é parecer: um commit numa branch `nome` nascida do head de código."""
+        git("switch", "-q", "-c", nome, self.c1, cwd=self.repo)
+        sha = self.commitar(arquivos, nome)
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        return sha
+
+    def foras(self, etapa="qa"):
+        rc, saida = self.entrega(etapa=etapa)
+        return rc, [linha for linha in saida.splitlines() if linha.startswith("escopo: fora")]
+
+    def test_ultimo_conferido_passa_e_o_superado_reprova(self):  # t1 (lado entrega), M2
+        p1, p2 = self.parecer("r1"), self.parecer("r2", parecer="reprovado")
+        self.historico(p1, p2)
+        self.merge(p2)
+        self.commitar({"docs/qa/x.md": "parecer do QA\n"}, "qa")  # o do próprio QA não é parecer alheio
+        self.assertEqual(self.foras(), (0, []))
+        self.assertEqual(self.foras("codigo"), (0, []))
+        self.historico(p2, p1)  # o head fica com os bytes de P2, agora superado por P1
+        self.assertEqual(self.foras(), (1, ['escopo: fora (parecer não conferido ou superado) "docs/reviews/x.md"']))
+
+    def test_merge_de_sha_nao_conferido_reprova(self):  # t2, t9 (A5), M4
+        p1, p2 = self.parecer("r1"), self.parecer("r2", arquivo="docs/reviews/y.md")
+        outro = self.lado("lado", {"KANBAN.md": "x\n"})
+        self.historico(p1)
+        self.merge(p1, p2, outro)
+        m = self.head()[:7]
+        self.assertEqual(self.foras("codigo"), (1, [f"escopo: fora (merge de {p2[:7]} não conferido)",
+                                                   f"escopo: fora (merge de {outro[:7]} não conferido)",
+                                                   f'escopo: fora (o merge {m} traz "KANBAN.md" fora dos pareceres conferidos)',
+                                                   f'escopo: fora (o merge {m} traz "docs/reviews/y.md" fora dos pareceres conferidos)',
+                                                   'escopo: fora (parecer não conferido ou superado) "docs/reviews/y.md"']))
+        self.assertEqual(self.foras("review"), (0, []))  # fora de `qa` e `codigo`, como hoje
+
+    def test_merge_que_traz_bytes_fora_do_parecer_reprova(self):  # t12 (--no-commit com o blob alterado)
+        p1 = self.parecer("r1")
+        self.historico(p1)
+        self.commitar({"src/novo.txt": "n\n"}, "depois do P")
+        self.merge(p1, sem_commit=True)
+        (self.repo / "src" / "novo.txt").unlink()  # a remoção também é trazida, e o P também não tem o arquivo (blob vazio dos dois lados)
+        self.commitar({"docs/reviews/x.md": "outro\n", "src/b.txt": "b\n"}, "merge")
+        m = self.head()[:7]
+        self.assertEqual(self.foras(), (1, [f'escopo: fora (o merge {m} traz "docs/reviews/x.md" fora dos pareceres conferidos)',
+                                            f'escopo: fora (o merge {m} traz "src/b.txt" fora dos pareceres conferidos)',
+                                            f'escopo: fora (o merge {m} traz "src/novo.txt" fora dos pareceres conferidos)',
+                                            'escopo: fora (parecer não conferido ou superado) "docs/reviews/x.md"']))
+
+    def test_sem_linha_no_pedido_so_o_parecer_e_o_aceite_reprovam(self):  # caso 12 (C-11), t20 e caso 14 (M9)
+        self.historico()
+        self.merge(self.lado("lado", {"KANBAN.md": "x\n"}))
+        self.assertEqual(self.foras(), (0, []))  # merge que não é de `parecer/*` fica como hoje
+        self.merge(self.parecer("r1"))
+        self.assertEqual(self.foras(), (1, ["escopo: fora (parecer trazido sem registro no Histórico)"]))
+        self.merge(self.lado("aceite", {"docs/security/aceites/p.md": "aceite\n"}))
+        self.assertIn(f"escopo: fora (aceite trazido pelo merge {self.head()[:7]})", self.foras()[1])
+
+    def test_git_que_falha_reprova(self):  # falha fechada: sem a árvore do merge, depois sem o commit do outro pai
+        outro = self.lado("lado", {"KANBAN.md": "x\n"})
+        self.historico()
+        self.merge(outro)
+        merge, arvore = self.head(), self.head("HEAD^{tree}")
+        self.commitar({"src/c.txt": "c\n"}, "depois")
+        for sha, passo in ((arvore, f"diff do merge {merge[:7]}"), (outro, "rev-list dos merges")):
+            (self.repo / ".git" / "objects" / sha[:2] / sha[2:]).unlink()
+            rc, saida = self.entrega(etapa="qa")
+            self.assertIn(f"escopo: o git falhou ({passo}); o escopo não foi lido", saida.splitlines())
+
+    def test_merge_da_base_nao_reprova(self):
+        p1 = self.parecer("r1")
+        self.historico(p1)
+        self.merge(p1)
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"docs/security/aceites/z.md": "aceite de outro pedido\n"}, "base")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        self.merge("develop")
+        self.assertEqual(self.foras(), (0, []))
 
 
 if __name__ == "__main__":
