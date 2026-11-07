@@ -27,6 +27,7 @@ Uma linha por ocorrência, em `## Registro de clareza` no fim do pedido, no mesm
 - `NAO-ENTENDI: <data> · <resumo>`: o usuário disse que não entendeu ou devolveu uma pergunta.
 - `ESCOPO+: <data> · <item>` e `ESCOPO-: <data> · <item>`: item acrescentado ou retirado depois do primeiro brief.
 - `DEVOLVIDA: <data> · <entrega> · <motivo>`: entrega devolvida por "não era isso".
+- `ERRO-JARVIS: <classe do catálogo>: <o que errou, com a evidência>. Prevenção: <o que muda>`: erro do Jarvis que o conferente não vê; vai no `## Histórico`, não aqui, numa linha `- AAAA-MM-DD HH:MM: ERRO-JARVIS: ...` com a hora real. Classes: `hora`, `consentimento`, `estado` e as do catálogo do `forge-check conferencia classes`, que a conta com autor `jarvis` (autorrelato); classe fora do catálogo sai como aviso.
 - `PERGUNTA: nenhuma` (ou a tag equivalente): registra zero ocorrência. Seção presente sem a tag também conta zero; sem a seção, é "não medido".
 - Tag e resumo nunca levam segredo nem dado de pessoa (token, senha, CPF, e-mail): se o usuário colou um por engano, o resumo diz só "colou um segredo" e o segredo não é copiado.
 
@@ -49,6 +50,7 @@ Quando o dono troca uma suposição, grave no `## Histórico` a linha `suposiç�
 
 ## Decisões do usuário (registro literal)
 DECISÃO DO DONO (AAAA-MM-DD): <decisão, nas palavras do usuário>
+DECISÃO DO DONO (AAAA-MM-DD HH:MM): recibo confirmado: "<resposta literal do usuário ao recibo>" (o recibo só vale com a resposta a ele; o `forge-check brief` avisa o pedido sem esta linha, `R-DECISAO`)
 
 ## Registro de clareza
 <uma tag por linha, na forma acima; sem ocorrência, `PERGUNTA: nenhuma`>

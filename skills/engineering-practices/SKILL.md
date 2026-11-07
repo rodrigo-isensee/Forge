@@ -28,6 +28,7 @@ Mantidas pelo `tech-lead` e pelo `software-architect`. Ajustes específicos do p
 
 ## Definição de pronto
 - O autor só entrega com o comando de pronto do projeto (`CLAUDE.md`) verde, rodado da raiz do repositório, e com a documentação afetada pela mudança atualizada na mesma entrega (README, guias, ADR, comentários de contrato). Entrega sem isso volta ao autor antes do review; essa devolução não abre rodada de review (`docs/economia-de-tokens.md`, regra 1) nem conta como volta de `R-QA`, e quem a confere é o Jarvis pela prova `PQ-n` do brief (`R-PROVA`).
+- No Forge, com teste-oráculo do portão (`tests/test_oraculo_<pedido>.py`), o autor roda o oráculo e não o edita: o hook `conformidade` barra a escrita, e oráculo que pareça errado volta ao portão que o escreveu.
 
 ## Testes
 - Toda regra de cálculo com teste unitário e casos de borda documentados.

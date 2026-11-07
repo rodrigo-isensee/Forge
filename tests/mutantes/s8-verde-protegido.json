@@ -1,0 +1,56 @@
+{
+  "pedido": "versao-037",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "conformidade.py:585 (C-1, C-2): caminho_barrado reconhece a prova pelo nome resolvido, antes de política, papel e sessão",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if MARCA_DA_SUITE.fullmatch(caminho.name):",
+      "para": "if False and MARCA_DA_SUITE.fullmatch(caminho.name):",
+      "testes": [
+        "tests.test_conformidade_verde.ProvaDaSuite.test_escrita_na_prova_recusa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "conformidade.py:658 (C-2): checar_escrita barra o nome literal antes da expansão",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if MARCA_DA_SUITE.fullmatch(Path(caminho).name):",
+      "para": "if False and MARCA_DA_SUITE.fullmatch(Path(caminho).name):",
+      "testes": [
+        "tests.test_conformidade_verde.ProvaDaSuite.test_escrita_na_prova_recusa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "conformidade.py:703: checar_texto barra a prova citada no programa inline ou no heredoc",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in",
+      "para": "if False and any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in",
+      "testes": [
+        "tests.test_conformidade_verde.ProvaDaSuite.test_escrita_na_prova_recusa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "conformidade.py:1080 (C-3): ln, cp -l e cp -s conferem também a origem",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if prog == \"ln\" or any(re.fullmatch(",
+      "para": "if prog == \"--\" and any(re.fullmatch(",
+      "testes": [
+        "tests.test_conformidade_verde.ProvaDaSuite.test_escrita_na_prova_recusa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "conformidade.py:1083 (C-3): a origem do link com nome de prova (literal ou resolvido) é barrada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if any(map(MARCA_DA_SUITE.fullmatch, nomes)):",
+      "para": "if False and any(map(MARCA_DA_SUITE.fullmatch, nomes)):",
+      "testes": [
+        "tests.test_conformidade_verde.ProvaDaSuite.test_escrita_na_prova_recusa"
+      ]
+    }
+  ]
+}

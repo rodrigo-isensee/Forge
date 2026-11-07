@@ -1,0 +1,86 @@
+{
+  "pedido": "par-p1-sonda-no-corpus",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "C-6: so a linha com a marca exata da sonda e lida do Entregar",
+      "arquivo": "bin/forge-check",
+      "de": "if not m:\n                continue\n            tipo, sha7, ident, entrada = m.groups()",
+      "para": "if not m and False:\n                continue\n            tipo, sha7, ident, entrada = m.groups()",
+      "testes": [
+        "tests.test_volta_por_delta.SondaNoCorpus.test_entrega_acha_a_entrada_literal_ou_escapada_em_json"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "C-3: entrada com menos de 8 caracteres nao da ok, so confira",
+      "arquivo": "bin/forge-check",
+      "de": "if len(re.sub(r\"\\s\", \"\", entrada)) < MINIMO_DA_SONDA:",
+      "para": "if len(re.sub(r\"\\s\", \"\", entrada)) < 1:",
+      "testes": [
+        "tests.test_volta_por_delta.SondaNoCorpus.test_entrada_curta_so_confira_e_git_que_falha_reprova"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "C-2: a forma escapada em JSON e tentada quando a literal nao acha",
+      "arquivo": "bin/forge-check",
+      "de": "if cod != 1:",
+      "para": "if cod != 1 or True:",
+      "testes": [
+        "tests.test_volta_por_delta.SondaNoCorpus.test_entrega_acha_a_entrada_literal_ou_escapada_em_json"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "C-2/T-3: so o rc 0 do git grep e ok",
+      "arquivo": "bin/forge-check",
+      "de": "if cod == 0:\n                linhas.append((f\"escopo: ok (sonda",
+      "para": "if cod != 1:\n                linhas.append((f\"escopo: ok (sonda",
+      "testes": [
+        "tests.test_volta_por_delta.SondaNoCorpus.test_entrada_curta_so_confira_e_git_que_falha_reprova"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "C-2/T-3: so o rc 1 e fora do corpus; outro rc e falha do git",
+      "arquivo": "bin/forge-check",
+      "de": "elif cod == 1:",
+      "para": "elif cod != 0:",
+      "testes": [
+        "tests.test_volta_por_delta.SondaNoCorpus.test_entrada_curta_so_confira_e_git_que_falha_reprova"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "C-5: a conferencia da volta cobra toda sonda do parecer no Entregar",
+      "arquivo": "bin/forge-check",
+      "de": "if not re.search(rf\"\\(sonda",
+      "para": "if False and not re.search(rf\"\\(sonda",
+      "testes": [
+        "tests.test_volta_por_delta.SondaNoCorpus.test_gerar_volta_copia_a_sonda_e_a_conferencia_a_cobra"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "gerar --volta copia cada sonda do parecer para o Entregar",
+      "arquivo": "bin/forge-check",
+      "de": "for s in p[\"sondas\"]]",
+      "para": "for s in p[\"sondas\"] if False]",
+      "testes": [
+        "tests.test_volta_por_delta.SondaNoCorpus.test_gerar_volta_copia_a_sonda_e_a_conferencia_a_cobra"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "T-2: a busca fica em tests/, nunca no repositorio inteiro",
+      "arquivo": "bin/forge-check",
+      "de": "\"-e\", forma, head, \"--\", \"tests/\")",
+      "para": "\"-e\", forma, head, \"--\", \".\")",
+      "testes": [
+        "tests.test_volta_por_delta.SondaNoCorpus.test_entrega_reprova_a_sonda_ausente_de_tests_mesmo_citada_no_parecer"
+      ]
+    }
+  ]
+}

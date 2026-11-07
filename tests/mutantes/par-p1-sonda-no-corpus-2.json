@@ -1,0 +1,36 @@
+{
+  "pedido": "par-p1-sonda-no-corpus",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "T-1: a entrada vai por -e (nunca vira opcao do git)",
+      "arquivo": "bin/forge-check",
+      "de": "\"-l\", \"-e\", forma,",
+      "para": "\"-l\", forma,",
+      "testes": [
+        "tests.test_volta_por_delta.SondaNoCorpus.test_entrega_acha_a_entrada_literal_ou_escapada_em_json"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "C3: linha de ## Sondas fora do formato recusa a volta",
+      "arquivo": "bin/forge-check",
+      "de": "+ erros_das_sondas})",
+      "para": "})",
+      "testes": [
+        "tests.test_volta_por_delta.SondaNoCorpus.test_sonda_fora_do_formato_recusa_a_volta"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o entrega --brief confere as sondas do Entregar",
+      "arquivo": "bin/forge-check",
+      "de": "+ sondas_no_corpus(raiz, head, briefs) + linhas",
+      "para": "+ linhas",
+      "testes": [
+        "tests.test_volta_por_delta.SondaNoCorpus.test_entrega_reprova_a_sonda_ausente_de_tests_mesmo_citada_no_parecer"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "pedido": "pesado-trava-fundo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "cmdline fora de utf-8 e lido com troca, sem quebrar (C-5)",
+      "arquivo": "hooks/pesado.py",
+      "de": "decode(\"utf-8\", errors=\"replace\")",
+      "para": "decode(\"utf-8\", errors=\"ignore\")",
+      "testes": [
+        "tests.test_hooks.TravaPesadaEmSegundoPlano.test_c5_cmdline_fora_de_utf8_nao_quebra"
+      ]
+    }
+  ]
+}

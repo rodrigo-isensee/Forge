@@ -1,0 +1,46 @@
+{
+  "pedido": "checagem-do-brief",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a skill manda conferir a lista local do projeto quando ela existe",
+      "arquivo": "skills/checagem-do-brief/SKILL.md",
+      "de": "Se existir `docs/engineering/brief-checklist.md` no projeto, confira cada item dele",
+      "para": "Se existir uma lista do projeto, leia",
+      "testes": ["tests.test_modelos_projeto.ChecagemDoBrief"]
+    },
+    {
+      "id": "M2",
+      "guarda": "a lista do Forge traz cada item da SK-1 (aqui, o STATUS-HOOK-DEVELOP)",
+      "arquivo": "docs/engineering/brief-checklist.md",
+      "de": " · STATUS-HOOK-DEVELOP\n",
+      "para": "\n",
+      "testes": ["tests.test_modelos_projeto.ChecagemDoBrief"]
+    },
+    {
+      "id": "M3",
+      "guarda": "a skill neutra não traz item que só o Forge exige",
+      "arquivo": "skills/checagem-do-brief/SKILL.md",
+      "de": "## Lista local do projeto\n",
+      "para": "## Lista local do projeto\n- WORKFLOW-SCOPE: confira o escopo da credencial.\n",
+      "testes": ["tests.test_modelos_projeto.ChecagemDoBrief"]
+    },
+    {
+      "id": "M4",
+      "guarda": "a lista local só acrescenta: nenhum item dispensa conferente, review, QA, segurança nem rótulo do dono",
+      "arquivo": "skills/checagem-do-brief/SKILL.md",
+      "de": "Um item dela nunca dispensa conferente, review, QA, segurança nem rótulo do dono",
+      "para": "Um item dela pode dispensar o conferente",
+      "testes": ["tests.test_modelos_projeto.ChecagemDoBrief"]
+    },
+    {
+      "id": "M5",
+      "guarda": "a skill do brief manda ler a checagem-do-brief antes de mandar o brief",
+      "arquivo": "skills/briefs-e-conferencia/SKILL.md",
+      "de": "Antes de mandar o brief, leia a skill `checagem-do-brief` (`skills/checagem-do-brief/SKILL.md`) e confira a lista dela e a lista local do projeto. ",
+      "para": "",
+      "testes": ["tests.test_modelos_projeto.ChecagemDoBrief"]
+    }
+  ]
+}

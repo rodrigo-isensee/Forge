@@ -1,0 +1,76 @@
+{
+  "pedido": "historico-recibo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "H1",
+      "guarda": "linha do Histórico sem hora fica fora da conferência",
+      "arquivo": "bin/forge-check",
+      "de": "if hora is None:\n            continue\n        marca = f\"{data} {hora}\"",
+      "para": "if False:\n            continue\n        marca = f\"{data} {hora}\"",
+      "testes": [
+        "tests.test_historico_hora.HistoricoERecibo.test_marcas_fora_da_forma_e_registro_tardio_nao_avisam"
+      ]
+    },
+    {
+      "id": "H2",
+      "guarda": "hora que a regex aceita e o relógio recusa vira só aviso, sem traceback",
+      "arquivo": "bin/forge-check",
+      "de": "except ValueError:  # a regex aceita",
+      "para": "except OverflowError:  # a regex aceita",
+      "testes": [
+        "tests.test_historico_hora.HistoricoERecibo.test_hora_fora_do_relogio_so_avisa"
+      ]
+    },
+    {
+      "id": "H3",
+      "guarda": "hora depois de agora mais 2 min avisa no futuro",
+      "arquivo": "bin/forge-check",
+      "de": "if quando > limite:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_historico_hora.HistoricoERecibo.test_hora_no_futuro_avisa_sem_mudar_o_rc"
+      ]
+    },
+    {
+      "id": "H4",
+      "guarda": "registro tardio fica fora da ordem",
+      "arquivo": "bin/forge-check",
+      "de": "if \"registro tardio\" in linha:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_historico_hora.HistoricoERecibo.test_marcas_fora_da_forma_e_registro_tardio_nao_avisam"
+      ]
+    },
+    {
+      "id": "H5",
+      "guarda": "mesmo minuto não é ordem decrescente",
+      "arquivo": "bin/forge-check",
+      "de": "if anterior and marca < anterior:",
+      "para": "if anterior and marca <= anterior:",
+      "testes": [
+        "tests.test_historico_hora.HistoricoERecibo.test_historico_em_ordem_com_mesmo_minuto_nao_avisa"
+      ]
+    },
+    {
+      "id": "H6",
+      "guarda": "pedido aberto antes de DATA_DO_RECIBO não é cobrado",
+      "arquivo": "bin/forge-check",
+      "de": "if not marcas or marcas[0][0] < DATA_DO_RECIBO:",
+      "para": "if not marcas:",
+      "testes": [
+        "tests.test_historico_hora.HistoricoERecibo.test_recibo"
+      ]
+    },
+    {
+      "id": "H7",
+      "guarda": "recibo só vale com resposta não vazia e fora do marcador do modelo",
+      "arquivo": "bin/forge-check",
+      "de": "if m and m.group(1).strip() and not m.group(1).startswith(\"<\"):",
+      "para": "if m:",
+      "testes": [
+        "tests.test_historico_hora.HistoricoERecibo.test_recibo"
+      ]
+    }
+  ]
+}

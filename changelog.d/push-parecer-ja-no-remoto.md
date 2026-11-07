@@ -1,2 +1,0 @@
-### Alterado
-- O pre-push não roda a suíte quando o remoto já tem cada branch enviada no mesmo commit ou num descendente (PUSH-PARECER-JA-NO-REMOTO): consulta o destino do push que o git passou ao hook (a URL de envio) antes da fila e de novo depois de ter a vez, compara a ref pelo nome inteiro e, na dúvida (tag, remoção, ref nova, erro ou tempo esgotado), roda a suíte; o pulo não anota prova de árvore verde. Afrouxamento estreito autorizado pelo dono (afrouxa-regra).

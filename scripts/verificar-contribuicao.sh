@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Varre o diff da branch atual contra origin/develop (ou a base dada em $1) atrás de segredos
+# Varre o diff da ponta ($2, padrão HEAD) contra origin/develop (ou a base dada em $1) atrás de segredos
 # e caminhos pessoais. Falha (código 1) se achar algo; imprime arquivo e linha, nunca o valor.
 # Linhas com a marca "forge:exemplo" são exemplos e ficam de fora.
-# Uso: scripts/verificar-contribuicao.sh [base]
+# Uso: scripts/verificar-contribuicao.sh [base] [ponta]
+# forge:ponta (marca lida pelo .githooks/pre-push: este script aceita a ponta)
 set -euo pipefail
 
 base="${1:-origin/develop}"
+ponta="${2:-HEAD}"
 if ! git rev-parse --verify --quiet "$base" >/dev/null; then
   echo "Base '$base' não encontrada. Rode 'git fetch origin' antes." >&2
   exit 2
@@ -30,13 +32,16 @@ while IFS= read -r arq; do
     .env.example | .env.sample | .env.template) ;;
     .env | .env.*) relatar "$arq" "arquivo .env não pode ser versionado" ;;
   esac
-done < <(git diff --name-only --diff-filter=AM "$base"...HEAD)
+done < <(git -c core.quotepath=false diff --no-color --no-ext-diff --no-textconv --name-only --diff-filter=AM "$base"..."$ponta")
 
-# Linhas adicionadas: "arquivo<TAB>linha<TAB>texto".
-linhas=$(git diff -U0 "$base"...HEAD | awk '
-  /^\+\+\+ b\// { arq = substr($0, 7); next }
-  /^@@/ { match($0, /\+[0-9]+/); n = substr($0, RSTART + 1, RLENGTH - 1) - 1; next }
-  /^\+/ { n++; print arq "\t" n "\t" substr($0, 2) }
+# Linhas adicionadas: "arquivo<TAB>linha<TAB>texto"; nome só do cabeçalho (antes do @@), sem citar acento nem o TAB final.
+linhas=$(git -c core.quotepath=false diff --no-color --no-ext-diff --no-textconv --text -U0 "$base"..."$ponta" | awk '
+  /^diff --git / { arq = ""; cab = 1; next }
+  cab && /^\+\+\+ b\// { arq = substr($0, 7); sub(/\t$/, "", arq); next }
+  cab && /^\+\+\+ "b\// { arq = substr($0, 8, length($0) - 8); next }
+  /^@@/ { cab = 0; match($0, /\+[0-9]+/); n = substr($0, RSTART + 1, RLENGTH - 1) - 1; next }
+  cab { next }
+  /^\+/ { n++; print (arq == "" ? "<linha não atribuída>" : arq) "\t" n "\t" substr($0, 2) }
 ')
 
 while IFS=$'\t' read -r arq n texto; do

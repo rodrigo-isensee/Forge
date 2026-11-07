@@ -1,0 +1,20 @@
+{
+  "descricao": "E5-0 (Q-B, PAR-P2): o dev não grava o desenho em docs/arquitetura/.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/docs/arquitetura/x.md",
+      "content": "x\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:backend-developer"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o desenho e o critério de parada são do arquiteto"
+  }
+}

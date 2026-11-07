@@ -871,5 +871,77 @@ class Cobertura(unittest.TestCase):
                 self.assertIn("vêm juntos", r.stderr)
 
 
+PLACAR = RAIZ / "scripts" / "placar-mutacao.py"
+# `forge-mutante` falso: anota a chamada, recusa sem `--` e pedido misto (como o de verdade) e imprime uma linha por classe.
+FALSO = ("import json, sys\na = sys.argv[1:]\nopen('.git/chamadas', 'a').write(json.dumps(a) + '\\n')\n"
+         "specs = [json.load(open(s)) for s in a[1:]] if a[:1] == ['--'] else []\n"
+         "if len({s['pedido'] for s in specs}) != 1:\n    sys.exit(2)\n"
+         "for n, c in enumerate([c for s in specs for c in s['classes']]):\n"
+         "    print(f'equivalente: M{n} · razão' if c == 'equivalente' else f'M{n} · {c} · x.py:1')\n"
+         "print('M99 · morreu')\n")
+
+
+class PlacarDaRelease(unittest.TestCase):
+    """M-5: o placar roda o `forge-mutante` uma vez por spec da amostra (fixa mais as novas desde a tag); não é portão."""
+
+    def commit(self, arquivos):
+        for nome, classes in arquivos.items():
+            dados = FALSO if nome == "bin/forge-mutante" else json.dumps({"pedido": nome, "classes": classes})
+            (self.dir / nome).parent.mkdir(parents=True, exist_ok=True)
+            (self.dir / nome).write_text(dados, encoding="utf-8")
+        git(self.dir, "add", "-A")
+        git(self.dir, "commit", "-qm", "c")
+
+    def setUp(self):
+        pasta = tempfile.TemporaryDirectory()
+        self.addCleanup(pasta.cleanup)
+        self.dir, self.m = Path(pasta.name), "tests/mutantes/"
+        git(self.dir, "init", "-q")
+        (self.dir / ".git" / "chamadas").touch()
+        self.commit({"bin/forge-mutante": None, self.m + "antiga.json": ["morreu"]})
+        git(self.dir, "tag", "v1")
+        self.commit({self.m + "placar.json": ["morreu", "morreu"], self.m + "antiga.json": ["sobreviveu"],
+                     self.m + "nova-a.json": ["morreu", "sobreviveu"],
+                     self.m + "nova-b.json": ["equivalente", "inválido", "sem veredito"]})
+
+    def placar(self, *args):
+        r = subprocess.run([sys.executable, "-I", str(PLACAR), *args], cwd=self.dir, capture_output=True, text=True,
+                           env={k: v for k, v in AMBIENTE.items() if k != "CI"})
+        chamadas = (self.dir / ".git" / "chamadas").read_text(encoding="utf-8").splitlines()
+        return r, [json.loads(c) for c in chamadas]
+
+    def test_uma_rodada_por_spec_soma_as_classes_e_sai_0_com_sobrevivente(self):
+        r, chamadas = self.placar("--desde", "v1", "--versao", "0.41.0")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        amostra = ["placar.json", "nova-a.json", "nova-b.json"]  # a antiga, só editada desde a tag, fica fora
+        self.assertEqual(chamadas, [["--", self.m + s] for s in amostra])
+        self.assertIn(f"spec: {self.m}nova-a.json rc=0 mortos=1 sobreviveu=1 ", r.stdout)
+        self.assertEqual(r.stdout.splitlines()[-1],
+                         "placar: 0.41.0 mortos=3 sobreviveu=1 equivalente=1 invalido=1 sem-veredito=1 specs=3")
+
+    def test_nome_que_parece_opcao_e_link_simbolico_ficam_fora(self):
+        os.symlink("nova-a.json", self.dir / self.m / "link.json")
+        self.commit({self.m + "--executar.json": ["morreu"]})
+        r, chamadas = self.placar("--desde", "v1")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(f"recusada: '{self.m}--executar.json'\nrecusada: '{self.m}link.json'\n", r.stdout)
+        self.assertEqual(len(chamadas), 3)
+        self.assertTrue(r.stdout.endswith(" specs=3\n"))
+
+    def test_a_nona_spec_nova_sai_fora_da_amostra(self):
+        self.commit({f"{self.m}z{n}.json": ["morreu"] for n in range(1, 8)})
+        r, chamadas = self.placar("--desde", "v1")
+        self.assertEqual(r.stdout.splitlines()[0], f"fora da amostra: {self.m}z7.json")
+        self.assertEqual(chamadas[-1], ["--", self.m + "z6.json"])
+        self.assertEqual(len(chamadas), 9)
+
+    def test_desde_que_nao_e_commit_sai_2_sem_rodar_nada(self):
+        for desde in ("nao-existe", "--all", "-HEAD"):
+            with self.subTest(desde):
+                r, chamadas = self.placar(f"--desde={desde}")
+                self.assertEqual((r.returncode, chamadas), (2, []))
+                self.assertIn("não é commit", r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

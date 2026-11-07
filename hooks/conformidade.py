@@ -170,6 +170,10 @@ GRAPHQL_APAGAR = re.compile(r"mutation[^}]*deleteRepository", re.I)
 VISIBILIDADE_PUBLICA = re.compile(r"\bprivate[\"']?\s*[=:]\s*[\"']?false\b|\bvisibility[\"']?\s*[=:]\s*[\"']?public\b", re.I)
 CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem em arquivos do projeto
 PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
+# S8: a prova da suíte (`.verde`, `.dirigida`, o `.novo` do `mv`) só o pre-push grava, fora deste hook; todo papel e pasta. Limites
+# aceitos (o hook protege contra engano; o CI é o portão): nome inteiro numa variável, script em arquivo, `curl -o`, `tar -x`.
+MARCA_DA_SUITE = re.compile(r"forge-suite-[^/]*\.(verde|dirigida)(\.novo)?")
+PROVA_DA_SUITE = ("R-VERIFY", "a prova da suíte só é gravada pelo pre-push", "rode o push ou .githooks/pre-push --suite")
 MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
 GLOB_DE_PATHSPEC = re.compile(r"[*?\[\\]")
 CHECKOUT_COM_VALOR = {"-b", "-B", "--orphan"}
@@ -287,7 +291,7 @@ FORGE_CHECK_GRAVA = ("--gerar-entrada", "--gravar", "--escrever", "--salvar")
 FORGE_CHECK_GRAVA_EXATA = ("--destino-arquivo",)
 # FURO-HOOK-A, A4: o subcomando do `forge-check` que grava fora do papel só de leitura -> a pasta de destino (a política de caminhos
 # decide quem grava lá); o `transcricao anonimizar` grava no 2.º argumento. Os que gravam em caminho livre ficam na 2.ª lista.
-FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs"}
+FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs", "medida": "docs/kanban"}
 FORGE_CHECK_EM_CAMINHO_LIVRE = {"movimento", "registrar"}
 # `test` no papel só de leitura: só estas, com um caminho (`agents/conferente.md`); o `-v` reavalia o índice como código.
 TESTE_LEITURA = {"-e", "-f", "-d", "-s"}
@@ -578,6 +582,8 @@ class Guarda:
 
     def caminho_barrado(self, caminho):
         """(rid, o quê, como corrigir) se o `caminho` (já resolvido) é protegido para o papel; senão None."""
+        if MARCA_DA_SUITE.fullmatch(caminho.name):  # S8 (C-1, C-2): antes de política, papel e sessão; nome resolvido
+            return PROVA_DA_SUITE
         if self._raiz_home is None:
             self._raiz_home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
         raiz, home = self._raiz_home
@@ -649,6 +655,8 @@ class Guarda:
     def checar_escrita(self, caminho, pasta):
         """Na dúvida, recusa: o que vem depois de uma substituição (`$(git rev-parse --show-toplevel)/docs/reviews/x`) é
         conferido também a partir da raiz do projeto."""
+        if MARCA_DA_SUITE.fullmatch(Path(caminho).name):  # S8 (C-2): o nome literal, antes da expansão
+            self.barrar(*PROVA_DA_SUITE)
         alvos = [self.resolver(self.expandir(caminho, pasta), pasta)]
         resto = caminho.rsplit(OPACO["$"], 1)[1].lstrip("/") if OPACO["$"] in caminho else ""
         if resto:
@@ -692,6 +700,8 @@ class Guarda:
         """Escrita em caminho protegido com o caminho em literal dentro de `python -c`, `node -e`, script."""
         if not ESCRITA_NO_TEXTO.search(texto):
             return
+        if any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in re.split(r"[\s'\"(),;=]+", texto)):  # S8
+            self.barrar(*PROVA_DA_SUITE)
         raiz = Path(os.path.realpath(self.h.raiz))
         for e in self.pol["caminhos"]:
             c = e["caminho"]
@@ -1067,6 +1077,11 @@ class Guarda:
                     if prog in REMOCAO:
                         self.checar_remocao(a, pasta)
         elif prog in SO_DESTINO:
+            if prog == "ln" or any(re.fullmatch(r"-[^-]*[ls]\w*|--(link|symbolic-link)", a) for a in args):  # S8 (C-3)
+                for a in args:  # o link aponta a prova: a origem também conta, pelo nome literal e pelo resolvido
+                    nomes = Path(a).name, self.resolver(self.expandir(a, pasta), pasta).name
+                    if any(map(MARCA_DA_SUITE.fullmatch, nomes)):
+                        self.barrar(*PROVA_DA_SUITE)
             alvo = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-t", "--target-directory")), None)
             alvo = alvo or next((a for a in reversed(args) if not a.startswith("-")), None)
             if alvo:
@@ -1978,6 +1993,38 @@ def pedir_confirmacao(perguntas):
                                              "permissionDecisionReason": motivo}}, ensure_ascii=False))
 
 
+class ForaDaProva(Exception):
+    """A `GuardaDaProva` achou outra recusa, que fora de projeto não vale (ADR 0009, seção 6)."""
+
+
+class GuardaDaProva(Guarda):
+    """S8 (C-1) com a pasta corrente fora de projeto: a Guarda lê a escrita, mas só a recusa da prova da suíte vale."""
+    def barrar(self, rid, o_que, corrigir, simples=None):
+        if (rid, o_que, corrigir) != PROVA_DA_SUITE:
+            raise ForaDaProva(rid)
+        super().barrar(rid, o_que, corrigir)
+
+    def perguntar(self, texto):
+        """Fora de projeto não há confirmação a pedir."""
+
+
+def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
+    """S8 (C-1, A2 da segurança g3): a prova da suíte é por uid, então vale também fora de projeto, em toda sessão e
+    para todo papel. Outra recusa ou erro interno: falha fechado só se o alvo cita o nome da prova."""
+    if hook.campo("hook_event_name") == "PostToolUse":
+        return
+    hook.raiz = raiz or Path(hook.cwd())
+    guarda = GuardaDaProva(hook, pol, papel)
+    try:
+        decidir(hook, guarda, ferramenta, entrada)
+    except Exception as erro:  # noqa: BLE001 - ForaDaProva ou erro interno; a decisão vem do texto do alvo
+        alvo = entrada.get("command") or entrada.get("file_path") or entrada.get("notebook_path")
+        if isinstance(alvo, str) and any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in re.split(r"[\s'\"(),;=<>|&]+", alvo)):
+            Guarda.barrar(guarda, *PROVA_DA_SUITE)
+        if not isinstance(erro, ForaDaProva):
+            hook.registrar_erro(erro)
+
+
 def principal(hook):
     ferramenta = hook.campo("tool_name")
     entrada = hook.campo("tool_input")
@@ -2004,6 +2051,7 @@ def principal(hook):
                 bloquear("R-CONTRIB", "erro interno ao conferir o rótulo afrouxa-regra; o hook não pôde decidir. "
                                       "Corrigir: veja .forge/run/erros.log e leve ao dono do Forge (R-DECISAO)")
         if not (com_lista and na_sessao_do_forge):
+            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz)
             return
         externo, hook.raiz = None, raiz
     try:

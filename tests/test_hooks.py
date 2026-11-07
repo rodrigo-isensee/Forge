@@ -2235,6 +2235,11 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 40, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_desenho(self):  # E5-0 (Q-B, PAR-P2): as pastas de arquitetura têm dono doc/aq no hook
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("E5-0")]
+        self.assertGreaterEqual(len(lote), 16, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_t4_nenhum_hook_le_a_linha_fora_de_leituras(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
         """T4, estrutural: os hooks leem a linha só por `leituras` (`_comum.py`); `comandos` só é chamada por ela e
         `fichas`, só por `comandos`. `segmentos`, que lia por fora, não existe mais."""
@@ -2407,6 +2412,71 @@ class PoolDosFixtures(unittest.TestCase):
                 if re.search(r"cpu_count\(\) or 2\) // 2", linha):
                     copias.append(f"{arquivo.name}:{n}")
         self.assertEqual([c.split(":")[0] for c in copias], ["apoio_volta_unica.py"], copias)  # só o limite de CPU (C-3)
+
+
+class TravaPesadaEmSegundoPlano(unittest.TestCase):
+    """MAQ-C1, E5a-1: `comando_vivo` acha o processo real pelo `/proc` e só devolve bool (E5/C-1, C-4 a C-6)."""
+
+    def setUp(self):
+        sys.path.insert(0, str(HOOKS))
+        import pesado
+        self.pesado = pesado
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-pesado-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+
+    def lancar(self, argv, marca, **kw):
+        """Processo real, de ambiente limpo, esperado até o `cmdline` começar por `marca` (o exec já aconteceu)."""
+        processo = subprocess.Popen(argv, env=ambiente_limpo(), stdout=subprocess.DEVNULL, **kw)
+        self.addCleanup(processo.wait)
+        self.addCleanup(processo.kill)
+        for _ in range(500):
+            if Path(f"/proc/{processo.pid}/cmdline").read_bytes().startswith(marca):
+                return processo
+            time.sleep(0.01)
+        self.fail(f"o processo não chegou a {marca!r}")
+
+    def test_c1_sentinela_do_cmdline_nao_sai_e_volta_so_bool(self):
+        self.lancar(["bash", "-c", 'exec -a "sleep 37 SEGREDO123" sleep 30'], b"sleep 37 SEGREDO123\0")
+        saida, erro = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(saida), contextlib.redirect_stderr(erro):
+            vivo = self.pesado.comando_vivo(["sleep 37 segredo123"])
+        self.assertIs(vivo, True)
+        self.assertEqual((saida.getvalue(), erro.getvalue()), ("", ""))
+
+    def test_c4_script_do_shebang_casa_pelo_argv1_e_morto_nao_casa(self):
+        nome = f"./scripts/suite-c4-{os.getpid()}.py"  # único por rodada: outra rodada viva não casa
+        (self.tmp / "scripts").mkdir()
+        script = self.tmp / nome
+        script.write_text("#!/usr/bin/env python3\nimport time\ntime.sleep(30)\n", encoding="utf-8")
+        script.chmod(0o755)
+        processo = self.lancar([nome], b"python3\0" + nome.encode(), cwd=self.tmp)
+        self.assertIs(self.pesado.comando_vivo([nome]), True)
+        processo.kill()
+        processo.wait()
+        self.assertIs(self.pesado.comando_vivo([nome]), False)
+
+    def test_c4_argv0_absoluto_casa_pelo_nome_sem_pasta(self):
+        sleep = shutil.which("sleep")
+        self.lancar([sleep, "37.4142"], sleep.encode() + b"\x0037.4142")
+        self.assertIs(self.pesado.comando_vivo(["SLEEP  37.4142"]), True)
+        self.assertIs(self.pesado.comando_vivo(["sleep 37.41"]), False)  # o padrão casa por palavra inteira
+
+    def test_c5_erros_do_proc_abrem_na_duvida(self):
+        with mock.patch.object(self.pesado.os, "listdir", side_effect=FileNotFoundError("/proc")):
+            self.assertIs(self.pesado.comando_vivo(["sleep 37"]), False)  # sem /proc
+        with mock.patch.object(self.pesado.os, "listdir", return_value=["999999999"]):
+            self.assertIs(self.pesado.comando_vivo(["sleep 37"]), False)  # processo que sumiu é pulado
+        proprio = Path("/proc/self/cmdline").read_bytes()[:4096].replace(b"\0", b" ").decode("utf-8", "replace")
+        with mock.patch.object(self.pesado.os, "listdir", return_value=["self"]):
+            self.assertIs(self.pesado.comando_vivo([proprio]), False)  # só pastas numéricas
+
+    def test_c5_cmdline_fora_de_utf8_nao_quebra(self):
+        self.lancar([b"bash", b"-c", b'exec -a "$0" sleep 30', b"\xff\xfe-maq-c1"], b"\xff\xfe-maq-c1\0")
+        self.assertIs(self.pesado.comando_vivo(["��-maq-c1"]), True)
+
+    def test_c6_padrao_vazio_e_ignorado_sem_ler_o_proc(self):
+        with mock.patch.object(self.pesado.os, "listdir", side_effect=AssertionError("leu o /proc")):
+            self.assertIs(self.pesado.comando_vivo(["", "   "]), False)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,156 @@
+{
+  "pedido": "m15-provas-gera",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "C-1: o que entra é decidido só pelo comando_permitido do script (sem ele, test -s e git -C entrariam)",
+      "arquivo": "bin/forge-check",
+      "de": "motivo = script.comando_permitido(argv)",
+      "para": "motivo = None",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "C-4: a espera sem rc=0 ganha o prefixo rc=0 e (sem ele a PQ sai fora e o arquivo perde a prova)",
+      "arquivo": "bin/forge-check",
+      "de": "for candidata in (espera, f\"rc=0 e {espera}\"):",
+      "para": "for candidata in (espera,):",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "C-4: a espera que o script já aceita fica byte a byte, sem prefixo",
+      "arquivo": "bin/forge-check",
+      "de": "for candidata in (espera, f\"rc=0 e {espera}\"):",
+      "para": "for candidata in (f\"rc=0 e {espera}\", espera):",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "só PQ do tipo cmd entra (PQ arquivo com crases não vira prova nem fora)",
+      "arquivo": "bin/forge-check",
+      "de": ".strip().lower() != \"cmd\":",
+      "para": ".strip().lower() not in (\"cmd\", \"arquivo\"):",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "linha do Pronto quando sem PQ é pulada",
+      "arquivo": "bin/forge-check",
+      "de": "if not m or (m.group(2) or \"\").split(\",\")[0].strip().lower()",
+      "para": "if (m.group(2) or \"\").split(\",\")[0].strip().lower()",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "PQ sem tipo entre parênteses é pulada",
+      "arquivo": "bin/forge-check",
+      "de": "if not m or (m.group(2) or \"\").split(\",\")[0].strip().lower()",
+      "para": "if not m or (m.group(2)).split(\",\")[0].strip().lower()",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "PQ cmd sem comando entre crases sai fora, não quebra",
+      "arquivo": "bin/forge-check",
+      "de": "        comando = re.search(r\"`([^`]+)`\", resto)\n        try:\n            argv = shlex.split(comando.group(1)) if comando else []",
+      "para": "        comando = re.search(r\"`([^`]+)`\", resto)\n        try:\n            argv = shlex.split(comando.group(1)) if True else []",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "comando recusado não lê a espera (comando ausente não quebra)",
+      "arquivo": "bin/forge-check",
+      "de": "espera = None if motivo else espera_do_script",
+      "para": "espera = None if False else espera_do_script",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "espera recusada pelo ler_espera sai fora",
+      "arquivo": "bin/forge-check",
+      "de": "if motivo or espera is None:",
+      "para": "if motivo:",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "C-9: o fora traz o motivo fixo do script",
+      "arquivo": "bin/forge-check",
+      "de": "({motivo or 'espera recusada",
+      "para": "({'espera recusada",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "C-6: o script do CI que não carrega dá rc 2 não verificável",
+      "arquivo": "bin/forge-check",
+      "de": "(C-1).\"\"\"\n    script = carregar_reexecutar_provas()\n    if script is None:\n",
+      "para": "(C-1).\"\"\"\n    script = carregar_reexecutar_provas()\n    if script is not None:\n",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "sem PQ elegível: nada sai e rc 0 (não manda texto vazio ao ler_provas)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not provas:\n",
+      "para": "    if provas == [0]:\n",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_sem_pq_elegivel_nada_sai_e_rc0"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "o subcomando provas chega ao gerador",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"provas\" and a.acao == \"gerar\":\n",
+      "para": "    if a.cmd == \"provas\" and a.acao == \"gerarx\":\n",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "C-1: o texto inteiro passa pelo ler_provas do script antes de sair; recusa dá rc 2",
+      "arquivo": "bin/forge-check",
+      "de": "script.ler_provas(\"docs/provas/gerado.md\", gerado, Path(raiz))",
+      "para": "pass",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_texto_que_o_ler_provas_recusa_da_rc2"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "C-6: o script é carregado com nome próprio, nunca __main__ (que rodaria o main dele)",
+      "arquivo": "bin/forge-check",
+      "de": "spec_from_file_location(\"forge_reexecutar_provas\", arquivo)",
+      "para": "spec_from_file_location(\"__main__\", arquivo)",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    }
+  ]
+}
