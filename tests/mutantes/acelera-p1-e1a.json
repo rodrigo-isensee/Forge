@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "C-8: a raiz do pedido só vale se for clone do Forge",
       "arquivo": "bin/forge-check",
-      "de": "([raiz_pedido] if e_o_forge(raiz_pedido) else [])",
-      "para": "[raiz_pedido]",
+      "de": "[raiz_pedido] if e_o_forge(raiz_pedido) else []",
+      "para": "[raiz_pedido] if raiz_pedido else []",
       "testes": [
         "tests.test_guarda_conferente.ConferenteDoBrief.test_fora_do_forge_ou_por_link_pede_o_conferente"
       ]
@@ -107,7 +107,7 @@
       "guarda": "C-8: fora do Forge pede o conferente",
       "arquivo": "bin/forge-check",
       "de": "return None if brief_no_forge(raiz, caminho_pedido, brief) else \"fora do Forge\"",
-      "para": "return None",
+      "para": "return None if True else \"fora do Forge\"",
       "testes": [
         "tests.test_guarda_conferente.ConferenteDoBrief.test_fora_do_forge_ou_por_link_pede_o_conferente"
       ]
@@ -121,6 +121,13 @@
       "testes": [
         "tests.test_guarda_conferente.ConferenteDoBrief.test_tipo_fora_da_lista_ou_ausente_pede_o_conferente"
       ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "nome_seguro(tipo or 'ausente')",
+      "motivo": "só o texto do motivo: o ramo já decidiu necessário; o teste afirma o prefixo `Tipo: ` com e sem a linha"
     }
   ]
 }
