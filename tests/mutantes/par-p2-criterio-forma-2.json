@@ -1,0 +1,86 @@
+{
+  "pedido": "par-p2-criterio-forma",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "criterio_de_parada: `bloqueia:` repetido é erro",
+      "arquivo": "bin/forge-check",
+      "de": "erros += [\"bloqueia: repetido\"] if frase else []",
+      "para": "erros += [\"bloqueia: repetido\"] if None else []",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_as_tres_formas_passam_e_sem_gatilho_bloqueia_ou_com_nova_e_erro"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "criterio_de_parada: a classe `nova` é reservada",
+      "arquivo": "bin/forge-check",
+      "de": "elif c and c.group(1) != \"nova\":",
+      "para": "elif c:",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_as_tres_formas_passam_e_sem_gatilho_bloqueia_ou_com_nova_e_erro"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "criterio_de_parada: sem `bloqueia:` é erro",
+      "arquivo": "bin/forge-check",
+      "de": "[\"sem bloqueia:\"] * (frase is None)",
+      "para": "[\"sem bloqueia:\"] * False",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_as_tres_formas_passam_e_sem_gatilho_bloqueia_ou_com_nova_e_erro"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "criterio_de_parada: sem a linha `gatilho` é erro",
+      "arquivo": "bin/forge-check",
+      "de": "[\"sem gatilho\"] * (\"gatilho\" not in classes)",
+      "para": "[\"sem gatilho\"] * False",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_as_tres_formas_passam_e_sem_gatilho_bloqueia_ou_com_nova_e_erro"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "conferir_criterio: caminho fora da lista branca não chega ao disco (T-1)",
+      "arquivo": "bin/forge-check",
+      "de": "if not valor or not criterio_valido(valor):",
+      "para": "if not valor:",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_caminho_fora_da_lista_branca_e_recusado_sem_ler_o_disco"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "conferir_criterio: desenho ausente, grande ou ilegível é aviso e para (C-8)",
+      "arquivo": "bin/forge-check",
+      "de": "if motivo:\n        return [], [f\"aviso: {onde}",
+      "para": "if not motivo:\n        return [], [f\"aviso: {onde}",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_frase_igual_passa_diferente_reprova_e_a_marca_com_motivo_logo_abaixo_avisa"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "conferir_criterio: desenho fora da forma é violação",
+      "arquivo": "bin/forge-check",
+      "de": "if erros:\n        return [f\"{onde}",
+      "para": "if False:\n        return [f\"{onde}",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_desenho_de_outro_pedido_e_recusado_e_so_a_frase_sai_sem_controle"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "conferir_criterio: desenho de outro pedido é recusado (C-6)",
+      "arquivo": "bin/forge-check",
+      "de": "if not (meta.get(\"pedido\") == pedido if",
+      "para": "if False and (meta.get(\"pedido\") == pedido if",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_desenho_de_outro_pedido_e_recusado_e_so_a_frase_sai_sem_controle"
+      ]
+    }
+  ]
+}

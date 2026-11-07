@@ -6142,7 +6142,7 @@ class CriterioDeParada(unittest.TestCase):
 
     def parecer(self, corpo, criterio):
         return (f"---\n{ForgeCheck.REVIEW.format(c='abc1234', p='aprovado')}criterio: {criterio}\n---\n# R\n\n"
-                f"## Achados\n\n## Parecer\n{corpo}\n")
+                f"## Achados\n\n## Parecer\n\n{corpo}\n")
 
     def docs(self, corpo, criterio="docs/arquitetura/p1-desenho.md"):
         (self.raiz / "docs/reviews/p1.md").write_text(self.parecer(corpo, criterio), encoding="utf-8")

@@ -1,0 +1,86 @@
+{
+  "pedido": "par-p2-criterio-forma",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "validar_documento recusa o `criterio:` fora da lista branca (C-1)",
+      "arquivo": "bin/forge-check",
+      "de": "if campos.get(\"criterio\") and not criterio_valido(campos[\"criterio\"]):",
+      "para": "if campos.get(\"criterio\") and False:",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_caminho_fora_da_lista_branca_e_recusado_sem_ler_o_disco"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "C-1: o caminho casa a lista branca docs/arquitetura|architecture/*.md",
+      "arquivo": "bin/forge-check",
+      "de": "return bool(CRITERIO.match(valor)) and",
+      "para": "return True and",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_caminho_fora_da_lista_branca_e_recusado_sem_ler_o_disco"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "C-1: sem `//` no caminho",
+      "arquivo": "bin/forge-check",
+      "de": "and \"//\" not in valor and",
+      "para": "and True and",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_caminho_fora_da_lista_branca_e_recusado_sem_ler_o_disco"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "C-1: nenhum segmento `.` ou `..`",
+      "arquivo": "bin/forge-check",
+      "de": "and not {\".\", \"..\"} & set(valor.split(\"/\"))",
+      "para": "and True",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_caminho_fora_da_lista_branca_e_recusado_sem_ler_o_disco"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "criterio_de_parada: um cabeçalho `## ` abre ou fecha a seção",
+      "arquivo": "bin/forge-check",
+      "de": "if linha.startswith(\"## \"):\n            dentro = linha.strip() == \"## Critério",
+      "para": "if False:\n            dentro = linha.strip() == \"## Critério",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_as_tres_formas_passam_e_sem_gatilho_bloqueia_ou_com_nova_e_erro"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "criterio_de_parada: só a seção `## Critério de parada` conta",
+      "arquivo": "bin/forge-check",
+      "de": "dentro = linha.strip() == \"## Critério de parada\"",
+      "para": "dentro = True",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_as_tres_formas_passam_e_sem_gatilho_bloqueia_ou_com_nova_e_erro"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "criterio_de_parada: só linhas de lista dentro da seção",
+      "arquivo": "bin/forge-check",
+      "de": "elif dentro and linha.startswith(\"- \"):",
+      "para": "elif dentro:",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_as_tres_formas_passam_e_sem_gatilho_bloqueia_ou_com_nova_e_erro"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "criterio_de_parada: a linha `bloqueia:` é a frase",
+      "arquivo": "bin/forge-check",
+      "de": "            if m:\n                erros +=",
+      "para": "            if False:\n                erros +=",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_as_tres_formas_passam_e_sem_gatilho_bloqueia_ou_com_nova_e_erro"
+      ]
+    }
+  ]
+}
