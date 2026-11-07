@@ -1252,20 +1252,68 @@ def resumo(titulo, linhas):
             f.write(texto)
 
 
-def main(argv=None):
+def lista_de_rotulados(a, fonte):
+    """As linhas `rotulados:` do PR de promoção (ACELERA-P3 (c)), nenhuma fora dela; PRAZO esgotado, sem reiniciar: `incompleta (prazo)` (C-2)."""
+    raiz = Path(a.raiz).resolve()
+    if not eh_promocao(fonte.pr_atual() if fonte else None, getattr(fonte, "repo", None)):
+        return ["rotulados: incompleta (prazo)"] if PRAZO.avisou else []
+    cfg = json_de(raiz, base_efetiva(raiz, a.base, a.head), "tests/config.json")  # o dono da base: o head é do autor
+    linhas = rotulados_da_leva(raiz, a.base, a.head, fonte, cfg.get("dono") if isinstance(cfg, dict) else None)
+    return linhas + (["rotulados: incompleta (prazo)"] if PRAZO.avisou else [])
+
+
+def mostrar_rotulados(a, fonte_de):
+    """Só informa (C-1): roda depois do rc e qualquer falha vira `incompleta (<tipo>)`, sem o texto da exceção (C-7)."""
     try:
-        return _main(argv)
+        linhas = lista_de_rotulados(a, fonte_de())
+    except Exception as e:  # qualquer uma: a lista nunca muda o rc nem a liberação
+        linhas = [f"rotulados: incompleta ({type(e).__name__})"]
+    for linha in linhas:
+        print(linha)
+    if linhas:
+        resumo("rotulados", linhas)
+    return linhas
+
+
+REPOSITORIO = re.compile(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+")
+
+
+def modo_rotulados(a):
+    """`--modo rotulados` (C-7), para o corpo do PR de release: só leitura (sem fetch nem ref), só GET, token de GITHUB_TOKEN nunca impresso."""
+    PRAZO.reiniciar()
+    token, repo = os.environ.get("GITHUB_TOKEN", ""), os.environ.get("GITHUB_REPOSITORY", "")
+    if not a.mesclados and not (token and REPOSITORIO.fullmatch(repo) and re.fullmatch(r"[0-9]+", a.pr)):
+        print("rotulados: o modo local pede GITHUB_TOKEN, GITHUB_REPOSITORY=<dono>/<repositório> e --pr <número>")
+        return 2
+    if not mostrar_rotulados(a, lambda: fonte_json(a) if a.mesclados else FonteGithub(token, repo, a.pr)):
+        print("rotulados: o PR não é promoção (develop -> homolog ou homolog -> main) no próprio repositório")
+    return 0
+
+
+def fonte_json(a):
+    return FonteJson(json.loads(Path(a.mesclados).read_text(encoding="utf-8")))
+
+
+def main(argv=None):
+    a = argumentos(argv)
+    if a.modo == "rotulados":
+        return modo_rotulados(a)
+    try:
+        rc = _main(a)
     except ErroDeGit as e:  # um diff que falha fora das regras (ex.: conferir o rótulo) também deixa a catraca vermelha
         print(e)
         resumo("catraca", [str(e)])
-        return 1
+        rc = 1
+    if a.modo == "regras":  # depois do rc, em todos os caminhos (C-1)
+        mostrar_rotulados(a, lambda: fonte_json(a) if a.mesclados else (None if a.eventos else fonte_do_github()))
+    return rc
 
 
 # HEAD_REPO e BASE_REPO vêm por env e não por opção: a catraca roda da base, que ainda não conhece opção nova (opção desconhecida daria rc=2).
 
-def _main(argv=None):
+def argumentos(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--modo", choices=("regras", "pr-texto", "pareceres"), default="regras")
+    ap.add_argument("--modo", choices=("regras", "pr-texto", "pareceres", "rotulados"), default="regras")
     ap.add_argument("--base", default=os.environ.get("BASE", "origin/develop"))
     ap.add_argument("--head", default="HEAD")
     ap.add_argument("--raiz", default=".")
@@ -1277,7 +1325,10 @@ def _main(argv=None):
     ap.add_argument("--execucoes", help="JSON com as execuções do Actions do PR (testes, com --eventos); ignora a API")
     ap.add_argument("--pr", default=os.environ.get("PR_NUMBER", ""), help="número do PR")
     ap.add_argument("--mesclados", help="JSON com o PR atual e os PRs mesclados (testes; formato em FonteJson); ignora a API")
-    a = ap.parse_args(argv)
+    return ap.parse_args(argv)
+
+
+def _main(a):
     PRAZO.reiniciar()  # o prazo da API vale por execução
     raiz = Path(a.raiz).resolve()
     if a.modo in ("regras", "pareceres") and a.autor == DEPENDABOT and so_troca_sha_de_acoes(raiz, base_efetiva(raiz, a.base, a.head), a.head):

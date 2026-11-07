@@ -3054,3 +3054,88 @@ class RotuladosDaLeva(Base):
         self.assertEqual(self.lista(base="nao-existe")[1:], ["rotulados: incompleta (git)"])
         for sem_pr_ou_dono in (self.lista(dono=""), catraca.rotulados_da_leva(self.repo.dir, "base", "develop", None, "dona")):
             self.assertEqual(sem_pr_ou_dono[1:], ["rotulados: incompleta (sem o PR atual ou o dono)"])
+
+    # --- E2-2: a ligação em `main` (só informa, C-1, C-2) e o modo local `rotulados` (C-7) ------------------
+    def roda(self, *extra, pr=None, env=None):
+        """`catraca.main` no PR `pr` (padrão: develop -> homolog) com a fonte em `self.arq`; devolve (rc, stdout, resumo)."""
+        self.arq, resumo = (self.repo.dir.parent / f"{self.repo.dir.name}-{nome}" for nome in ("mesclados.json", "resumo.md"))
+        self.arq.write_text(json.dumps({"repo": REPO_GH, "pr": pr or {"head": lado("develop"), "base": lado("homolog")},
+                                        "pulls": self.pulls, "eventos": self.eventos}), encoding="utf-8")
+        resumo.write_text("", encoding="utf-8")
+        self.addCleanup(lambda: [f.unlink(missing_ok=True) for f in (self.arq, resumo)])
+        limpo = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_REPOSITORY", "PR_NUMBER", "HEAD_REF")}
+        argv = ["--raiz", str(self.repo.dir), "--base", "base", "--head", "develop", *(extra or ("--mesclados", str(self.arq)))]
+        with mock.patch.dict(os.environ, {**limpo, "GITHUB_STEP_SUMMARY": str(resumo), **(env or {})}, clear=True), \
+                contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(argv)
+        return rc, saida.getvalue(), resumo.read_text(encoding="utf-8")
+
+    def test_a_lista_so_informa_rc_e_saida_iguais_com_e_sem_ela(self):
+        """C-1 e caso de abuso 3: com a lista, sem ela e com KeyError no 2.º PR, o rc e a saída são os mesmos, menos `rotulados:`."""
+        self.mescla(80, 'Rótulo: DECISÃO DO DONO (2026-11-06): "A"')
+        self.mescla(81)
+        for rc_esperado in (0, 1):
+            if rc_esperado:  # invariante removido, sem rótulo: rc 1
+                self.repo.config(invariantes={"docs/regra.md": []})
+                self.repo.commit()
+            com = self.roda()
+            with mock.patch.object(catraca, "lista_de_rotulados", return_value=[]):
+                sem = self.roda()
+            with mock.patch.object(catraca.FonteJson, "eventos", side_effect=[self.eventos["81"], KeyError("80")]):
+                falha = self.roda()
+            self.assertIn('rotulados: #80 · rótulo do dono · decisão declarada no corpo: `Rótulo: DECISÃO DO DONO (2026-11-06): "A"`', com[1])
+            self.assertIn("\n- rotulados: #81 · rótulo do dono · sem linha de decisão no corpo\n", com[2])
+            self.assertIn("rotulados: incompleta (KeyError)", falha[1].splitlines())
+            self.assertNotIn("rotulados", sem[1] + sem[2])
+            for rc, saida, resumo in (com, sem, falha):
+                self.assertEqual(rc, rc_esperado, saida)
+                self.assertEqual([l for l in saida.splitlines() if not l.startswith("rotulados:")], sem[1].splitlines())
+                self.assertEqual(resumo.split("### rotulados")[0], sem[2])
+
+    def test_fora_de_promocao_nada_e_listado(self):
+        self.mescla(85)
+        for pr in ({"head": lado("x"), "base": lado("develop")}, {"head": lado("develop", "f/r"), "base": lado("homolog")}):
+            rc, saida, resumo = self.roda(pr=pr)
+            self.assertEqual((rc, "rotulados" in saida + resumo), (0, False), saida)
+            self.assertIn("rotulados: o PR não é promoção", self.roda("--modo", "rotulados", "--mesclados", str(self.arq), pr=pr)[1])
+        self.assertEqual(self.roda("--pr", "7")[1], "")  # sem a fonte da API (sem token): nada
+
+    def test_prazo_esgotado_na_liberacao_diz_incompleta_sem_nova_chamada(self):
+        """Caso de abuso 8 (C-2): com a fonte da API e o prazo esgotado na liberação, a lista não chama a API de novo."""
+        self.repo.config(invariantes={"docs/regra.md": []})
+        self.repo.commit()
+        for fonte in ((), ("--mesclados", str(self.repo.dir.parent / f"{self.repo.dir.name}-mesclados.json"))):  # da API e em JSON
+            with mock.patch.object(catraca, "relogio", side_effect=itertools.chain([0], itertools.repeat(10 ** 6))), \
+                    mock.patch("urllib.request.urlopen") as rede:
+                rc, saida, _ = self.roda("--pr", "7", *fonte, env={"GITHUB_TOKEN": "t", "GITHUB_REPOSITORY": REPO_GH, "PR_NUMBER": "7", "HEAD_SHA": "a" * 40})
+            self.assertEqual((rc, rede.call_count, saida.count("prazo da API esgotado")), (1, 0, 1), saida)
+            self.assertIn("rotulados: incompleta (prazo)", saida.splitlines())
+
+    def test_modo_local_so_le_sem_fetch_nem_ref(self):
+        """Caso de abuso 7 (C-7): o modo `rotulados`, num clone com `git` registrador, só lê."""
+        self.mescla(95, 'Rótulo: DECISÃO DO DONO (2026-11-06): "A"')
+        self.roda()  # grava a fonte em `self.arq`
+        pasta = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, pasta)
+        (pasta / "git").write_text(f'#!/bin/sh\necho "$*" >> {pasta}/registro\nexec {shutil.which("git")} "$@"\n', encoding="utf-8")
+        (pasta / "git").chmod(0o755)
+        r = subprocess.run([sys.executable, "-I", str(AQUI / "catraca.py"), "--modo", "rotulados", "--raiz", str(self.repo.dir), "--base", "base",
+                            "--head", "develop", "--mesclados", str(self.arq)], capture_output=True, text=True, env={"PATH": f"{pasta}:/usr/bin:/bin"})
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("rotulados: #95 · rótulo do dono · decisão declarada no corpo", r.stdout)
+        registro = (pasta / "registro").read_text(encoding="utf-8")
+        self.assertIn("log --first-parent", registro)
+        self.assertNotRegex(registro, r"\b(fetch|update-ref|tag|branch)\b")
+
+    def test_modo_local_pede_token_repositorio_e_pr_e_nunca_imprime_o_token(self):
+        for env, pr in (({"GITHUB_REPOSITORY": REPO_GH}, "7"), ({"GITHUB_TOKEN": "t", "GITHUB_REPOSITORY": "o/r;x"}, "7"),
+                        ({"GITHUB_TOKEN": "t", "GITHUB_REPOSITORY": REPO_GH}, "7²")):
+            self.assertEqual(self.roda("--modo", "rotulados", "--pr", pr, env=env)[0], 2)
+        with mock.patch("urllib.request.urlopen", side_effect=RuntimeError("tok-s3")) as rede:
+            rc, saida, resumo = self.roda("--modo", "rotulados", "--pr", "7", env={"GITHUB_TOKEN": "tok-s3", "GITHUB_REPOSITORY": REPO_GH})
+            regras = self.roda("--pr", "7", env={"GITHUB_TOKEN": "tok-s3", "GITHUB_REPOSITORY": REPO_GH, "PR_NUMBER": "7"})  # fonte da API
+        self.assertEqual(regras[:2], (0, "rotulados: incompleta (RuntimeError)\n"))
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("rotulados: incompleta (RuntimeError)", saida)
+        self.assertNotIn("tok-s3", saida + resumo)
+        self.assertEqual((rede.call_args.args[0].get_method(), rede.call_args.args[0].full_url), ("GET", "https://api.github.com/repos/o/r/pulls/7"))

@@ -1,0 +1,157 @@
+{
+ "pedido": "acelera-p3c-rotulados-ligacao",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M1",
+   "guarda": "fora de promoção nada é listado",
+   "arquivo": "tests/catraca.py",
+   "de": "    if not eh_promocao(fonte.pr_atual() if fonte else None,",
+   "para": "    if False and not eh_promocao(fonte.pr_atual() if fonte else None,",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_fora_de_promocao_nada_e_listado"
+   ]
+  },
+  {
+   "id": "M2",
+   "guarda": "C-2: sem fonte da API (sem token) nada é chamado nem listado",
+   "arquivo": "tests/catraca.py",
+   "de": "fonte.pr_atual() if fonte else None",
+   "para": "fonte.pr_atual()",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_fora_de_promocao_nada_e_listado"
+   ]
+  },
+  {
+   "id": "M3",
+   "guarda": "C-2: prazo esgotado antes de saber se é promoção diz incompleta (prazo)",
+   "arquivo": "tests/catraca.py",
+   "de": "return [\"rotulados: incompleta (prazo)\"] if PRAZO.avisou",
+   "para": "return [\"rotulados: incompleta (prazo)\"] if False",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_prazo_esgotado_na_liberacao_diz_incompleta_sem_nova_chamada"
+   ]
+  },
+  {
+   "id": "M4",
+   "guarda": "C-2: prazo esgotado na promoção diz incompleta (prazo)",
+   "arquivo": "tests/catraca.py",
+   "de": "linhas + ([\"rotulados: incompleta (prazo)\"] if PRAZO.avisou",
+   "para": "linhas + ([\"rotulados: incompleta (prazo)\"] if False",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_prazo_esgotado_na_liberacao_diz_incompleta_sem_nova_chamada"
+   ]
+  },
+  {
+   "id": "M5",
+   "guarda": "C-1/C-7: a falha da lista diz o nome do tipo da exceção (nunca o texto)",
+   "arquivo": "tests/catraca.py",
+   "de": "linhas = [f\"rotulados: incompleta ({type(e).__name__})\"]",
+   "para": "linhas = [f\"rotulados: incompleta ({e!r})\"]",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_a_lista_so_informa_rc_e_saida_iguais_com_e_sem_ela"
+   ]
+  },
+  {
+   "id": "M6",
+   "guarda": "C-1: lista vazia não escreve seção no resumo",
+   "arquivo": "tests/catraca.py",
+   "de": "    if linhas:\n        resumo(\"rotulados\", linhas)",
+   "para": "    if True:\n        resumo(\"rotulados\", linhas)",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_a_lista_so_informa_rc_e_saida_iguais_com_e_sem_ela"
+   ]
+  },
+  {
+   "id": "M7",
+   "guarda": "C-7: o modo local recusa sem GITHUB_TOKEN",
+   "arquivo": "tests/catraca.py",
+   "de": "not (token and REPOSITORIO.fullmatch(repo)",
+   "para": "not (REPOSITORIO.fullmatch(repo)",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_modo_local_pede_token_repositorio_e_pr_e_nunca_imprime_o_token"
+   ]
+  },
+  {
+   "id": "M8",
+   "guarda": "C-7: o repositório casa a regex",
+   "arquivo": "tests/catraca.py",
+   "de": "REPOSITORIO.fullmatch(repo) and re.fullmatch",
+   "para": "True and re.fullmatch",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_modo_local_pede_token_repositorio_e_pr_e_nunca_imprime_o_token"
+   ]
+  },
+  {
+   "id": "M9",
+   "guarda": "C-7: o número do PR é só de dígitos ASCII",
+   "arquivo": "tests/catraca.py",
+   "de": "re.fullmatch(r\"[0-9]+\", a.pr)",
+   "para": "a.pr.isdigit()",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_modo_local_pede_token_repositorio_e_pr_e_nunca_imprime_o_token"
+   ]
+  },
+  {
+   "id": "M10",
+   "guarda": "o modo local avisa quando o PR não é promoção",
+   "arquivo": "tests/catraca.py",
+   "de": "    if not mostrar_rotulados(a, lambda:",
+   "para": "    if False and not mostrar_rotulados(a, lambda:",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_fora_de_promocao_nada_e_listado"
+   ]
+  },
+  {
+   "id": "M11",
+   "guarda": "C-7: o modo rotulados não passa pelo _main (sem fetch)",
+   "arquivo": "tests/catraca.py",
+   "de": "    if a.modo == \"rotulados\":\n        return modo_rotulados(a)",
+   "para": "    if a.modo == \"rotulado\":\n        return modo_rotulados(a)",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_modo_local_pede_token_repositorio_e_pr_e_nunca_imprime_o_token"
+   ]
+  },
+  {
+   "id": "M12",
+   "guarda": "a lista é ligada no modo regras",
+   "arquivo": "tests/catraca.py",
+   "de": "    if a.modo == \"regras\":  # depois do rc",
+   "para": "    if False and a.modo == \"regras\":  # depois do rc",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_a_lista_so_informa_rc_e_saida_iguais_com_e_sem_ela"
+   ]
+  },
+  {
+   "id": "M13",
+   "guarda": "S-16: o dono vem do tests/config.json da base",
+   "arquivo": "tests/catraca.py",
+   "de": "cfg.get(\"dono\") if isinstance(cfg, dict) else None",
+   "para": "cfg.get(\"dono\") if isinstance(cfg, list) else None",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_a_lista_so_informa_rc_e_saida_iguais_com_e_sem_ela"
+   ]
+  },
+  {
+   "id": "M14",
+   "guarda": "a lista do modo regras lê a fonte do --mesclados",
+   "arquivo": "tests/catraca.py",
+   "de": "lambda: fonte_json(a) if a.mesclados else (None",
+   "para": "lambda: fonte_json(a) if False else (None",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_a_lista_so_informa_rc_e_saida_iguais_com_e_sem_ela"
+   ]
+  },
+  {
+   "id": "M15",
+   "guarda": "a lista do modo regras usa a fonte da API quando não há --eventos",
+   "arquivo": "tests/catraca.py",
+   "de": "(None if a.eventos else fonte_do_github()))",
+   "para": "(None if not a.eventos else fonte_do_github()))",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_modo_local_pede_token_repositorio_e_pr_e_nunca_imprime_o_token"
+   ]
+  }
+ ],
+ "isentas": []
+}
