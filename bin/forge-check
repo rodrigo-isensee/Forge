@@ -6405,7 +6405,7 @@ def linhas_da_fonte(raiz, fonte):
     return None, "fora da raiz, ausente ou grande demais"
 
 
-def conferir_citacoes(raiz, texto, secoes, pedido, copias=frozenset()):
+def conferir_citacoes(raiz, texto, secoes, pedido, copias=frozenset(), proprio=None):
     """P3: (a) todo `(E<n>[.<m>])` do Entregar e do Fora do escopo existe no pedido; (b) trecho entre aspas com fonte explícita,
     `"<trecho>" (<arquivo>:<n>[-<m>])` ou `"<trecho>" (R-<ID>)`, existe literalmente nela (espaços normalizados, reticências cortam);
     (c) `tipo:` e `--etapa` do vocabulário fechado. Offline, só leitura. Lista de (linha, reprova)."""
@@ -6436,7 +6436,7 @@ def conferir_citacoes(raiz, texto, secoes, pedido, copias=frozenset()):
                 parecido = difflib.get_close_matches(valor, sorted(valores), n=1, cutoff=0.5)
                 dica = f" (use {parecido[0]})" if parecido else ""
                 saida.append((f"vocabulário: {nome} \"{sem_controle(valor)[:40]}\" não existe{dica}", True))
-    return saida + citacoes_da_p2(raiz, texto, secoes, copias)
+    return saida + citacoes_da_p2(raiz, texto, secoes, copias, proprio)
 
 
 CAMINHO_NO_PQ = re.compile(r"(?<![\w./~$-])([\w.-]+(?:/[\w.@+-]+)+)(?![\w.@+/-]*[*?\[{])")  # com curinga não é cobrado
@@ -6513,16 +6513,22 @@ def shas_fora_da_base(raiz, texto, corpo, copias=frozenset()):
     return saida
 
 
-def registros_ausentes(raiz, corpo):
+def do_proprio_pedido(rel, proprio):
+    """`rel` é o `docs/pedidos/<id>.md` do pedido passado por `--pedido` (`proprio`: o id dele), cujo arquivo pode ter outro nome
+    (o `id:` manda). A pasta do pedido já é procurada: o `caminho_do_pedido` só aceita `docs/pedidos/` de uma das mesmas raízes."""
+    return bool(proprio) and rel == f"docs/pedidos/{proprio}.md"
+
+
+def registros_ausentes(raiz, corpo, proprio=None):
     """P2 (2): `docs/pedidos/<id>.md` e `docs/briefs/<nome>.md` citados existem na cópia principal, na raiz ou numa raiz de
-    brief (a ordem do `ler_registro`); sem exceção `(novo)`, que o desenho só dá ao `Ler`."""
+    brief (a ordem do `ler_registro`), ou são o próprio pedido; sem exceção `(novo)`, que o desenho só dá ao `Ler`."""
     bases = (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF)
     citados = dict.fromkeys(rel for linha in corpo for rel in REGISTRO_CITADO.findall(linha))
     return [(f"citação: {nome_seguro(sem_controle(rel))} não existe na raiz nem nas raízes de brief", True)
-            for rel in citados if not any(arquivo_existe(Path(b) / rel) for b in bases)]
+            for rel in citados if not any(arquivo_existe(Path(b) / rel) for b in bases) and not do_proprio_pedido(rel, proprio)]
 
 
-def caminhos_ausentes_do_ler(raiz, texto, ler):
+def caminhos_ausentes_do_ler(raiz, texto, ler, proprio=None):
     """P2 (3): caminho da seção `Ler` existe (absoluto ou `~/` no disco; relativo na raiz, na cópia principal, numa raiz de brief,
     no `Base-sha` ou em `origin/<Base>`, como o G1) ou a linha traz `(novo)`. Relativo só com a primeira pasta na raiz (G1)."""
     refs, saida = refs_de_leitura(texto), []
@@ -6532,7 +6538,7 @@ def caminhos_ausentes_do_ler(raiz, texto, ler):
                 saida.append(caminho)
         for rel in (c.rstrip(".") for c in CAMINHO_NO_PQ.findall(linha)):
             topo = rel.split("/")[0]
-            if topo in (".", "..") or not (Path(raiz) / topo).is_dir() \
+            if topo in (".", "..") or not (Path(raiz) / topo).is_dir() or do_proprio_pedido(rel, proprio) \
                     or any(os.path.exists(Path(b) / rel) for b in (raiz, raiz_principal(raiz), *RAIZES_DE_BRIEF)) \
                     or any(not git(raiz, "cat-file", "-e", f"{ref}:{rel}")[0] for ref in refs):
                 continue
@@ -6548,12 +6554,12 @@ def pqs_sem_definicao(secoes):
     return [(f"citação: PQ-{n} citado fora do Pronto quando não existe nele", True) for n in sorted(citados - definidos, key=int)]
 
 
-def citacoes_da_p2(raiz, texto, secoes, copias=frozenset()):
+def citacoes_da_p2(raiz, texto, secoes, copias=frozenset(), proprio=None):
     """ACELERA-P2: sha, registro, caminho do `Ler` e `PQ-n` citados no brief existem; offline, só leitura do disco e do git. O sha
     é lido em todo o corpo, o `Pronto quando` e as linhas de decisão do dono também; o registro, fora do `Pronto quando`."""
     corpo = [l for nome, linhas in secoes.items() if nome != "Pronto quando" for l in linhas]
-    return (shas_fora_da_base(raiz, texto, [l for linhas in secoes.values() for l in linhas], copias) + registros_ausentes(raiz, corpo)
-            + caminhos_ausentes_do_ler(raiz, texto, secoes.get("Ler", [])) + pqs_sem_definicao(secoes))
+    return (shas_fora_da_base(raiz, texto, [l for linhas in secoes.values() for l in linhas], copias)
+            + registros_ausentes(raiz, corpo, proprio) + caminhos_ausentes_do_ler(raiz, texto, secoes.get("Ler", []), proprio) + pqs_sem_definicao(secoes))
 
 
 def avisos_da_etapa(raiz, texto, pedido_id):
@@ -6612,7 +6618,7 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     linhas += aviso_de_review_proprio(raiz, texto, ler_pedido_brief(pedido_txt))
     linhas += linha_do_comando_pr(texto)
     copias = {chave_da_decisao(COPIADA_DE.sub("", linha)) for _, linhas_da_fonte in cobradas["fontes"] for _, linha in linhas_da_fonte}
-    linhas += conferir_citacoes(raiz, texto, secoes_por(texto, CABECALHO_BRIEF), ler_pedido_brief(pedido_txt), copias)
+    linhas += conferir_citacoes(raiz, texto, secoes_por(texto, CABECALHO_BRIEF), ler_pedido_brief(pedido_txt), copias, pedido_id)
     linhas += [(a, False) for a in avisos_do_historico(pedido_txt) + aviso_de_recibo(pedido_txt)]
     if re.search(r"^Volta-de:", texto, re.M):  # brief de volta (M7): o anterior, os blocos copiados e os achados dos pareceres
         linhas += conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, pareceres, cobradas)

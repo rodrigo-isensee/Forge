@@ -75,14 +75,14 @@ class Base(unittest.TestCase):
         return arq
 
     def conferir(self, entregar="- Recurso (E1), etapa (E1.1).", ler="- docs/a.md", pronto="- PQ-1 (cmd): `true` · espera: rc=0",
-                 decisoes=None):
+                 decisoes=None, pedido="exemplo"):
         decisoes = decisoes if decisoes is not None else f"- {self.decisao}"
         texto = (f"Agente destino: forge:dev-exemplo\nPedido: exemplo\nBranch: melhoria/x   Base: develop   Base-sha: {self.base}\n\n"
                  f"## Objetivo\nExemplo.\n\n## Ler\n{ler}\n\n## Entregar\n{entregar}\n\n## Fora do escopo\n- nada.\n\n"
                  f"## Decisões e restrições\n- DECISÃO DO DONO (2026-01-01): \"A\".\n{decisoes}\n\n"
                  f"## Pronto quando\n{pronto}\n\n## Relatório\nAté 8 linhas.\n")
         r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), "brief", str(self.gravar("b.md", texto)),
-                            "--pedido", "exemplo"], capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp / "home")),
+                            "--pedido", str(pedido)], capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp / "home")),
                            timeout=60)
         return r.returncode, r.stdout
 
@@ -211,6 +211,21 @@ class RegistroCitado(Base):
         self.assertEqual(rc, 1)
         rc, saida = self.conferir("- Recurso (E1), etapa (E1.1) e o brief docs/briefs/outro-2.md (novo).")  # (d) sem exceção
         self.assertIn('citação: "docs/briefs/outro-2.md" não existe na raiz nem nas raízes de brief', saida)
+        self.assertEqual(rc, 1)
+
+    def test_o_proprio_pedido_fora_da_raiz_passa_e_outro_reprova(self):  # mutantes: do_proprio_pedido sempre falso ou sempre verdadeiro
+        fora = self.tmp / "home/.forge-contrib/docs/pedidos/pedido.md"  # o id (exemplo) não é o nome do arquivo, como nos testes
+        fora.parent.mkdir(parents=True)
+        (self.tmp / "docs/pedidos/exemplo.md").rename(fora)
+        rc, saida = self.conferir("- Recurso (E1), etapa (E1.1), como docs/pedidos/exemplo.md.", ler="- docs/pedidos/exemplo.md",
+                                  pedido=fora)
+        self.assertNotIn('citação: "docs/pedidos/', saida)
+        self.assertNotIn("citação: Ler", saida)
+        self.assertEqual(rc, 0, saida)
+        rc, saida = self.conferir("- Recurso (E1), etapa (E1.1), como docs/pedidos/exemplo-2.md.", ler="- docs/pedidos/exemplo-3.md",
+                                  pedido=fora)
+        self.assertIn('citação: "docs/pedidos/exemplo-2.md" não existe na raiz nem nas raízes de brief', saida)
+        self.assertIn('citação: Ler cita "docs/pedidos/exemplo-3.md", que não existe', saida)
         self.assertEqual(rc, 1)
 
 
