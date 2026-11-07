@@ -1,0 +1,46 @@
+{
+  "pedido": "m45-meta-mutacao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a meta de mutação do modelo só sobe (desenho E3a: tirar a frase 'só sobe')",
+      "arquivo": "templates/projeto/docs/engineering/praticas.md",
+      "de": "- A meta só sobe:",
+      "para": "- A meta muda:",
+      "testes": ["tests.test_modelos_projeto.MetaDeMutacao"]
+    },
+    {
+      "id": "M2",
+      "guarda": "descer a meta de mutação pede decisão do dono",
+      "arquivo": "templates/projeto/docs/engineering/praticas.md",
+      "de": "pede decisão do dono (`R-DECISAO`)",
+      "para": "pede acordo do time",
+      "testes": ["tests.test_modelos_projeto.MetaDeMutacao"]
+    },
+    {
+      "id": "M3",
+      "guarda": "a regra de mutação tem linha na tabela, decidida pelo comando de mutação do pronto.md",
+      "arquivo": "templates/projeto/docs/engineering/praticas.md",
+      "de": "| Pontuação de mutação no código alterado ≥ meta | `<comando de mutação do pronto.md>` |",
+      "para": "| Pontuação de mutação no código alterado ≥ meta | leitura |",
+      "testes": ["tests.test_modelos_projeto.MetaDeMutacao"]
+    },
+    {
+      "id": "M4",
+      "guarda": "o Stryker do pronto.md roda em modo incremental",
+      "arquivo": "stacks/node-react/pronto.md",
+      "de": "pnpm stryker run --incremental --mutate",
+      "para": "pnpm stryker run --mutate",
+      "testes": ["tests.test_stack_prereq_sistema.MutacaoIncremental"]
+    },
+    {
+      "id": "M5",
+      "guarda": "o pronto.md diz que a meta começa pela primeira rodada e só sobe",
+      "arquivo": "stacks/node-react/pronto.md",
+      "de": ", começa pela pontuação da primeira rodada e só sobe.",
+      "para": ".",
+      "testes": ["tests.test_stack_prereq_sistema.MutacaoIncremental"]
+    }
+  ]
+}
