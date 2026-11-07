@@ -1,0 +1,26 @@
+{
+  "pedido": "r-teto-suite-morta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "suíte reprovada (processo morto por sinal) para o pre-push antes de anotar a prova .verde",
+      "arquivo": ".githooks/pre-push",
+      "de": "[ \"$rc\" -eq 0 ] || { echo \"pre-push: testes do Forge falharam.\" >&2; exit 1; }",
+      "para": "[ \"$rc\" -eq 0 ] || { echo \"pre-push: testes do Forge falharam.\" >&2; }",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_pre_push_com_processo_morto_nao_anota_prova_nem_carimbo"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "processo da suíte morto sem relatório entra no veredito como reprovação, sem carimbo K6",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "if erros or falhas or erros_t:",
+      "para": "if falhas or erros_t:",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_pre_push_com_processo_morto_nao_anota_prova_nem_carimbo"
+      ]
+    }
+  ]
+}
