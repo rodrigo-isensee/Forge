@@ -34,7 +34,7 @@ class PrLeParecerConferido(Repositorio):
 
     def novas(self, ref="melhoria/x", pedido="x"):
         rc, saida = self.check("pr", pedido, "--ref", ref)
-        self.assertNotIn("Traceback", saida)
+        self.assertTrue(saida.strip(), "o forge-check caiu sem saída (a exceção vai ao stderr)")
         return [linha for linha in saida.splitlines() if any(m in linha for m in MARCAS)]
 
     def test_ultimo_conferido_fora_da_branch_e_violacao_e_o_superado_nao(self):  # t1 (lado pr), t19, M8
