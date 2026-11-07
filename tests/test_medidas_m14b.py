@@ -490,15 +490,16 @@ class AvisosDosHooks(Raiz):
     def test_aviso_de_outro_hook_ou_de_outro_registro_nao_conta(self):
         cod, linhas = self.avisos(aviso("Forge: versão nova SEGREDO123"), aviso("Forge: x (.forge/run/violacoes.jsonl) SEGREDO123"),
                                   aviso(DOUTOR, tipo="hook_additional_context"), dict(aviso(DOUTOR), type="user"),
-                                  dict(aviso(DOUTOR), timestamp="ontem SEGREDO123"))
+                                  dict(aviso(DOUTOR), timestamp="ontem SEGREDO123"), {"type": "attachment", "attachment": DOUTOR})
         self.assertEqual(linhas, ["avisos: hook doutor avisos=1 unicos=1 reincidencia=0", "avisos: hook vigia avisos=0 unicos=0 reincidencia=0",
                                   "avisos: evento Stop doutor=1 vigia=0", "avisos: dia sem_data doutor=1 vigia=0",
                                   "avisos: total: avisos=1 unicos=1 reincidencia=0"])
 
     def test_pasta_sem_jsonl_e_caminho_inexistente_dao_rc_1(self):
         (self.tmp / "vazia").mkdir()
-        for alvo, inicio in (("vazia", "avisos: nenhum arquivo .jsonl em "), ("nao-existe", "avisos: caminho inexistente: ")):
-            cod, linhas, _ = self.rodar("transcricao", "avisos", str(self.tmp / alvo))
+        for alvo, inicio in (("vazia", "avisos: nenhum arquivo .jsonl em "), ("nao-existe", "avisos: caminho inexistente: "),
+                             (None, f"avisos: caminho inexistente: {self.tmp / 'home' / '.claude' / 'projects'}/")):  # sem alvo: a pasta padrão
+            cod, linhas, _ = self.rodar("transcricao", "avisos", *([str(self.tmp / alvo)] if alvo else []))
             self.assertEqual(cod, 1, linhas)
             self.assertTrue(linhas[0].startswith(inicio), linhas)
 
