@@ -1,6 +1,7 @@
 """MEDIR-M14B: as medidas que dão a linha de base do processo antes de qualquer afrouxamento (esperas, PR `fix` que corrige PR
 mesclado, defeito escapado, rótulo `afrouxa-regra` que era afrouxamento real) e o casamento do `--pedido` do custo com os cartões."""
 import datetime
+import hashlib
 import importlib.machinery
 import importlib.util
 import json
@@ -14,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import sem_manutencao  # noqa: E402
 from apoio_jarvis import texto_do_jarvis  # noqa: E402
-from test_voltas import Raiz  # noqa: E402
+from test_voltas import FORGE_CHECK, RAIZ, Raiz  # noqa: E402
 
 
 def carregar_forge_check_m14b():
@@ -443,14 +444,14 @@ class TextosDizemQuandoCadaMedidaRoda(unittest.TestCase):
         coach = self.texto("agents/agile-coach.md")
         for trecho in ("forge-check esperas", "forge-check escape resumo", "forge-check escape registrar", "forge-check corrigidos",
                        "forge-check afrouxamentos --rotulados", "Linha de base (M14b)",
-                       "forge-check decisoes --sem-cartao"):
+                       "forge-check decisoes --sem-cartao", "forge-check transcricao trava"):
             self.assertIn(trecho, coach)
 
     def test_cada_medida_esta_na_tabela_de_metricas_e_no_uso_do_forge_check(self):
         tabela, uso = self.texto("docs/melhoria-continua.md"), self.texto("bin/forge-check")
-        for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape resumo"):
+        for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape resumo", "forge-check transcricao trava"):
             self.assertIn(comando, tabela)
-        for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape registrar", "forge-check escape resumo"):
+        for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape registrar", "forge-check escape resumo", "forge-check transcricao trava"):
             self.assertIn(comando, uso.split('"""')[1])
 
 
@@ -515,6 +516,53 @@ class MedidaM2b(Raiz):
         coach = (Path(FORGE_CHECK_M2B).parent.parent / "agents" / "agile-coach.md").read_text(encoding="utf-8")
         self.assertIn("forge-check provas medida --desde <abertura da 0.41>", coach)
         self.assertIn("EST-M2B-REAVALIAR", coach)
+
+
+class EsperaDaTrava(Raiz):
+    """LAC-L1: `forge-check transcricao trava` mede a espera da trava pesada (R-TETO) nas transcrições, só com papel e números (T-14)."""
+    CMD, BLOQUEIO = "bin/x SEGREDO123", "R-TETO: tarefa pesada de outra sessão ou agente há 3 min (`bin/x SEGREDO123`)"
+
+    def chamada(self, uso, s, comando=CMD, texto=BLOQUEIO):
+        base = {"isSidechain": True, "agentId": "a1", "agentType": "forge:qa-engineer", "sessionId": "s",
+                "timestamp": (datetime.datetime(2026, 11, 6, 10, tzinfo=datetime.timezone.utc) + datetime.timedelta(seconds=s)).isoformat()}
+        return [{**base, "type": "assistant", "message": {"content": [{"type": "tool_use", "id": uso, "name": "Bash", "input": {"command": comando}}]}},
+                {**base, "type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": uso, "is_error": bool(texto), "content": texto or "ok"}]}}]
+
+    def trava(self, *chamadas, alvo="t", rc=0):
+        sujeira = [{"type": "system"}, {"type": "assistant", "message": {"content": ["x", {"type": "tool_use", "id": "z", "name": "Bash", "input": {"command": "y"}},
+                                                                                {"type": "tool_result", "tool_use_id": "w"}, {"type": "tool_result", "tool_use_id": "z", "is_error": True, "content": self.BLOQUEIO}]}}]
+        if chamadas:
+            self.gravar(f"{alvo}/s.jsonl", "".join(json.dumps(o) + "\n" for o in sujeira + [o for c in chamadas for o in c]))
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "transcricao", "trava", str(self.tmp / alvo)], capture_output=True, text=True,
+                           env={"HOME": str(self.tmp), "PATH": "/usr/bin:/bin"})
+        self.assertEqual(r.returncode, rc, r.stdout + r.stderr)
+        return r.stdout + r.stderr
+
+    def test_o_mesmo_comando_que_passou_fecha_a_espera_exata_sem_imprimir_o_comando(self):
+        saida = self.trava(self.chamada("t1", 0), self.chamada("t2", 30), self.chamada("t3", 60, comando="ls", texto=""),
+                           self.chamada("t4", 120, comando=" bin/x  SEGREDO123", texto=""))
+        self.assertIn("trava: papel forge:qa-engineer bloqueios 2 espera_s 120 exata\n", saida)
+        self.assertIn("trava: total: bloqueios 2 episodios 1 mediana_s 120 maximo_s 120 por_dia 1.0\ntrava: alta: sim\n", saida)
+        for segredo in ("SEGREDO123", hashlib.sha256(self.CMD.encode()).hexdigest()[:12]):
+            self.assertNotIn(segredo, saida)
+
+    def test_bloqueio_sem_passagem_e_piso_e_baixa(self):
+        saida = self.trava(self.chamada("t1", 0), self.chamada("t2", 50))
+        self.assertIn("bloqueios 2 espera_s 50 piso\ntrava: total: bloqueios 2 episodios 1 mediana_s 50 maximo_s 50 por_dia 1.0\ntrava: alta: nao\n", saida)
+
+    def test_onze_minutos_separam_episodios_e_cinco_nao(self):
+        saida = self.trava(self.chamada("t1", 0), self.chamada("t2", 660), self.chamada("t3", 960), self.chamada("t4", 1000, texto=""))
+        self.assertIn("bloqueios 1 espera_s 0 piso\ntrava: papel forge:qa-engineer bloqueios 2 espera_s 340 exata\n", saida)
+
+    def test_o_mesmo_tool_use_id_conta_um_e_outra_recusa_do_r_teto_nao_conta(self):
+        saida = self.trava(self.chamada("t1", 0), self.chamada("t1", 0), self.chamada("t2", 5, texto="R-TETO: 9 agentes em segundo plano"))
+        self.assertIn("trava: total: bloqueios 1 episodios 1 ", saida)
+
+    def test_sem_bloqueio_sem_jsonl_e_sem_caminho(self):
+        self.assertIn("trava: total: bloqueios 0 episodios 0 mediana_s 0 maximo_s 0 por_dia 0.0\ntrava: alta: nao", self.trava(self.chamada("t1", 0, texto="")))
+        (self.tmp / "vazia").mkdir()
+        self.assertIn("trava: nenhum arquivo .jsonl", self.trava(alvo="vazia", rc=1))
+        self.assertIn("trava: caminho inexistente", self.trava(alvo="nada", rc=1))
 
 
 if __name__ == "__main__":

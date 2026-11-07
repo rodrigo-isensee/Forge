@@ -1,0 +1,73 @@
+{
+  "pedido": "lac-l1-trava",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M7",
+      "guarda": "caminho inexistente sai com rc 1 (return de erro)",
+      "arquivo": "bin/forge-check",
+      "de": "print(f\"trava: caminho inexistente: {caminho_impresso(alvo or erro.filename)}\")\n        return 1",
+      "para": "print(f\"trava: caminho inexistente: {caminho_impresso(alvo or erro.filename)}\")\n        return 0",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_sem_bloqueio_sem_jsonl_e_sem_caminho"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "pasta sem .jsonl sai com rc 1",
+      "arquivo": "bin/forge-check",
+      "de": "if not arquivos:\n        print(f\"trava: nenhum",
+      "para": "if arquivos is None:\n        print(f\"trava: nenhum",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_sem_bloqueio_sem_jsonl_e_sem_caminho"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o episódio com passagem sai exata e o sem passagem, piso",
+      "arquivo": "bin/forge-check",
+      "de": "{'exata' if exata else 'piso'}",
+      "para": "{'exata' if not exata else 'piso'}",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_o_mesmo_comando_que_passou_fecha_a_espera_exata_sem_imprimir_o_comando"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "sem episódio, os dias valem 1 (sem divisão por zero)",
+      "arquivo": "bin/forge-check",
+      "de": "for e in episodios}) or 1",
+      "para": "for e in episodios}) and 1",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_sem_bloqueio_sem_jsonl_e_sem_caminho"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "sem episódio, a mediana é 0",
+      "arquivo": "bin/forge-check",
+      "de": "statistics.median(esperas) if esperas else 0",
+      "para": "statistics.median(esperas) if not esperas else 0",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_sem_bloqueio_sem_jsonl_e_sem_caminho"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "alta com mediana de 120 s ou mais (inclusive)",
+      "arquivo": "bin/forge-check",
+      "de": "alta = mediana >= 120 or",
+      "para": "alta = mediana > 120 or",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_o_mesmo_comando_que_passou_fecha_a_espera_exata_sem_imprimir_o_comando"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "alvo or erro.filename",
+      "motivo": "com alvo dado, o erro de caminho traz o próprio alvo no filename: os dois lados imprimem o mesmo nome; sem alvo, só o filename existe (equivalente na prática)"
+    }
+  ]
+}
