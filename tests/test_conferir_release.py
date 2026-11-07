@@ -1,5 +1,6 @@
 """DV-4: a checagem de release roda no PR para a main e no PR develop -> homolog (só se a versão subiu). Sem rede."""
 import json
+import os
 import re
 import subprocess
 import sys
@@ -116,7 +117,7 @@ class ConferirPromocao(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.dir = Path(self._tmp.name) / "repo"
-        self.env = {k: v for k, v in sem_manutencao().items() if k != "CI" and not k.startswith("GIT_DIR")}
+        self.env = sem_manutencao({k: v for k, v in os.environ.items() if k != "CI" and not k.startswith("GIT_DIR")})
         self.git("init", "-q", "-b", "main", f"--object-format={formato}", str(self.dir), cwd=self._tmp.name)
         self.commit("a.txt")
         self.git("checkout", "-qb", "homolog")
