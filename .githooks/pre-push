@@ -182,9 +182,11 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 # si mesma). Base, ponta ou script ilegível: aviso e segue (o CI varre); saída diferente de 0 recusa o envio; nunca o valor.
 segredo_no_delta() {
   local dev script envio ponta remoto ref base saida
-  dev="$(git rev-parse --verify -q 'refs/remotes/origin/develop^{commit}' 2>/dev/null)" &&
-    script="$(git show "$dev:scripts/verificar-contribuicao.sh" 2>/dev/null)" && [ -n "$script" ] ||
-    { echo "pre-push: aviso: sem refs/remotes/origin/develop ou sem o script de segredo nela; varredura pulada (o CI varre)." >&2; return 0; }
+  if ! { dev="$(git rev-parse --verify -q 'refs/remotes/origin/develop^{commit}' 2>/dev/null)" &&
+    script="$(git show "$dev:scripts/verificar-contribuicao.sh" 2>/dev/null)" && [ -n "$script" ]; }; then
+    echo "pre-push: aviso: sem refs/remotes/origin/develop ou sem o script de segredo nela; varredura pulada (o CI varre)." >&2
+    return 0
+  fi
   for envio in "${envios[@]}"; do
     read -r ponta remoto ref <<< "$envio"
     ponta="$(git rev-parse --verify -q "${ponta}^{commit}" 2>/dev/null)" || { echo "pre-push: aviso: ${ref} não é commit; varredura pulada nela." >&2; continue; }
