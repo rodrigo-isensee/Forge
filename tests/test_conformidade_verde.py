@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -22,7 +23,7 @@ class ProvaDaSuite(unittest.TestCase):
         (self.proj / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
         self.d.mkdir()
         (self.tmp / "s").symlink_to(self.verde)  # link simbólico para a prova (C-2, nome resolvido)
-        subprocess.run(["git", "init", "-q", str(self.proj)], check=True, env=self.env())
+        subprocess.run(["git", "init", "-q", str(self.proj)], check=True, env=sem_manutencao(self.env()))
 
     def env(self, **extra):
         env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
