@@ -2586,6 +2586,9 @@ CLASSES_DE_FALHA = {
     "citacao": "cite regra, número e trecho copiando o texto da fonte (R-BRIEF, autoconferência)",
     "implementacao": "rode a suíte inteira e cada prova antes do relatório (R-PROVA)",
     "ambiente": "rode o `forge-check` da versão vigente; limitação de ferramenta vira melhoria (R-DECISAO)",
+    "hora": "toda hora de Histórico e de decisão sai de `date +%H:%M` na mesma chamada",
+    "consentimento": "recibo e decisão só com a frase literal do dono gravada (R-DECISAO)",
+    "estado": "antes de afirmar o estado, confira a develop, o disco ou o remoto (git grep, git log, ls-remote)",
     "outra": "—",
 }
 AUTORES_DE_FALHA = ("jarvis", "destino", "conferente", "ferramenta")
@@ -2724,6 +2727,53 @@ def falhas_do_registro(raiz, dias=JANELA_DE_RECORRENCIA, agora=None):
     return falhas, aviso
 
 
+LINHA_DE_ERRO_JARVIS = re.compile(r"- (\d{4}-\d{2}-\d{2})(?: (\d{2}:\d{2}))?: ERRO-JARVIS: ([a-z]+): .+\. Prevenção: .+")
+DATA_DA_LINHA = re.compile(r"- (\d{4}-\d{2}-\d{2})(?: (\d{2}:\d{2}))?: ")
+
+
+def _quando_da_linha(m):
+    try:
+        return datetime.datetime.strptime(f"{m.group(1)} {m.group(2) or '00:00'}", "%Y-%m-%d %H:%M")
+    except ValueError:
+        return None
+
+
+def falhas_de_autorrelato(raiz, dias=JANELA_DE_RECORRENCIA, agora=None):
+    """([falha], [aviso]) das linhas `ERRO-JARVIS:` do `## Histórico` dos pedidos com mtime na janela (P2). Falha = dict(data, pedido,
+    brief=`<pedido>:L<n>`, classe, quem=jarvis, fonte=autorrelato, cita); `cita` são os nomes da linha, só para deduplicar. Classe fora do
+    catálogo (ou `outra`) e forma fora do modelo viram aviso, nunca somem; do texto só saem a classe e a data. Só leitura."""
+    agora = agora or datetime.datetime.now()
+    agora = agora.astimezone().replace(tzinfo=None) if agora.tzinfo else agora
+    desde = agora - datetime.timedelta(days=dias)
+    bases = (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF)
+    falhas, avisos = [], []
+    for pedido in pedidos_do_registro(raiz, None):
+        arq = next((a for b in bases if os.path.lexists(a := Path(b) / "docs" / "pedidos" / f"{pedido}.md")), None)
+        try:
+            if arq is None or datetime.datetime.fromtimestamp(arq.stat().st_mtime) < desde:
+                continue
+        except OSError:
+            continue
+        texto, _ = ler_registro(raiz, f"docs/pedidos/{pedido}.md")
+        secao = None
+        for n, linha_ in enumerate((texto or "").split("\n"), 1):
+            if linha_.startswith("## "):
+                secao = linha_.strip()
+            if secao != "## Histórico" or "ERRO-JARVIS" not in linha_:
+                continue
+            data = DATA_DA_LINHA.match(linha_)
+            quando = _quando_da_linha(data) if data else None
+            if quando is not None and not desde <= quando <= agora:
+                continue
+            m = LINHA_DE_ERRO_JARVIS.fullmatch(linha_.rstrip())
+            if not m or quando is None or m.group(3) not in CLASSES_DE_FALHA or m.group(3) == "outra":
+                avisos.append(f"{pedido}:{n}: ERRO-JARVIS fora do catálogo")
+                continue
+            falhas.append({"data": quando, "pedido": pedido, "brief": f"{pedido}:L{n}", "classe": m.group(3), "quem": "jarvis",
+                           "fonte": "autorrelato", "cita": {w.rstrip(".") for w in re.findall(r"[A-Za-z0-9][A-Za-z0-9._-]*", linha_)}})
+    return falhas, avisos
+
+
 def tipo_do_brief_em_disco(raiz, brief):
     """O tipo do brief `docs/briefs/<brief>.md` (da raiz ou de ~/.forge-contrib); `desconhecido` se sumiu ou é ilegível."""
     arquivo, _ = caminho_de_brief(raiz, f"docs/briefs/{brief}.md")
@@ -2734,22 +2784,31 @@ def tipo_do_brief_em_disco(raiz, brief):
         return "desconhecido"
 
 
-def recorrencias(raiz, dias=JANELA_DE_RECORRENCIA, agora=None, quem=None, tipo=None):
+def recorrencias(raiz, dias=JANELA_DE_RECORRENCIA, agora=None, quem=None, tipo=None, avisos=None):
     """([grupo], aviso): por (classe, quem), os briefs DISTINTOS (pedido e brief; rodadas do mesmo brief contam 1) com falha classificada
-    na janela. Grupo = dict(classe, quem, briefs, n, ultima), do mais frequente ao menos e, no empate, do mais recente. `quem` filtra
-    (`jarvis`, `destino:<agente>`...); `tipo` (diferente de `desconhecido`) filtra pelo tipo do brief em disco. Só leitura."""
+    na janela, mais o autorrelato `ERRO-JARVIS` (P2) quando `quem` é None ou `jarvis`, sem filtro de tipo e sem contar de novo a linha que
+    cita um brief do registro com a mesma classe do Jarvis; os avisos do autorrelato vão para a lista `avisos`. Grupo = dict(classe, quem,
+    briefs, n, autorrelato, ultima), do mais frequente ao menos e, no empate, do mais recente. `quem` filtra (`jarvis`,
+    `destino:<agente>`...); `tipo` (diferente de `desconhecido`) filtra pelo tipo do brief em disco. Só leitura."""
     falhas, aviso = falhas_do_registro(raiz, dias, agora)
     if quem is not None:
         falhas = [f for f in falhas if f["quem"] == quem]
+    vistos = {(f["classe"], f["brief"]) for f in falhas if f["quem"] == "jarvis"}
     if tipo not in (None, "desconhecido"):
         tipos = {}
         falhas = [f for f in falhas if tipos.setdefault(f["brief"], tipo_do_brief_em_disco(raiz, f["brief"])) == tipo]
+    if quem in (None, "jarvis"):
+        proprias, avisos_ = falhas_de_autorrelato(raiz, dias, agora)
+        falhas += [f for f in proprias if not any((f["classe"], nome) in vistos for nome in f["cita"])]
+        if avisos is not None:
+            avisos.extend(avisos_)
     grupos = {}
     for f in falhas:
         g = grupos.setdefault((f["classe"], f["quem"]), {"classe": f["classe"], "quem": f["quem"], "briefs": set(), "ultima": f["data"]})
-        g["briefs"].add((f["pedido"], f["brief"]))
+        g["briefs"].add((f["pedido"], f["brief"], f.get("fonte")))
         g["ultima"] = max(g["ultima"], f["data"])
-    saida = [dict(g, briefs=sorted(b for _, b in g["briefs"]), n=len(g["briefs"])) for g in grupos.values()]
+    saida = [dict(g, briefs=sorted(b for _, b, _ in g["briefs"]), n=len(g["briefs"]),
+                  autorrelato=sum(1 for *_, fonte in g["briefs"] if fonte == "autorrelato")) for g in grupos.values()]
     return sorted(saida, key=lambda g: (-g["n"], -g["ultima"].timestamp(), g["classe"])), aviso
 
 
@@ -2761,11 +2820,15 @@ def proposta_de(grupo_):
 
 
 def cmd_conferencia_classes(raiz, dias=JANELA_DE_RECORRENCIA):
-    """`conferencia classes`: classe · autor · briefs por par e, com 3 ou mais, a proposta. Só leitura, rc 0."""
-    grupos, aviso = recorrencias(raiz, dias)
+    """`conferencia classes`: classe · autor · briefs por par (com `(<k> autorrelato)` quando há `ERRO-JARVIS` no grupo; os avisos do
+    autorrelato saem antes) e, com 3 ou mais, a proposta. Só leitura, rc 0."""
+    avisos = []
+    grupos, aviso = recorrencias(raiz, dias, avisos=avisos)
     saida = [f"classes: aviso: docs/kanban/conferencias.md {aviso}; sem contagem"] if aviso else []
+    saida += [f"classes: aviso: {a}" for a in avisos]
     saida.append(f"classes: janela de {dias} dias")
-    saida += [f"classes: {g['classe']} · {g['quem']} · {g['n']} briefs" for g in grupos] or ["classes: nenhuma falha classificada na janela"]
+    saida += [f"classes: {g['classe']} · {g['quem']} · {g['n']} briefs" + (f" ({g['autorrelato']} autorrelato)" if g["autorrelato"] else "")
+              for g in grupos] or ["classes: nenhuma falha classificada na janela"]
     return saida + [proposta_de(g) for g in grupos if g["n"] >= LIMIAR_DA_PROPOSTA]
 
 

@@ -54,6 +54,8 @@ def linha(classe, autor="jarvis", brief="xpto-tech-lead-1", pedido="xpto", dias=
 class Base(Raiz):
     def setUp(self):
         super().setUp()
+        self.addCleanup(setattr, fc, "RAIZES_DE_BRIEF", fc.RAIZES_DE_BRIEF)
+        fc.RAIZES_DE_BRIEF = ()  # chamadas no processo não leem os pedidos reais de ~/.forge-contrib (autorrelato, P2)
         self.gravar("KANBAN.md", "# Quadro\n")
         self.gravar("docs/pedidos/xpto.md", PEDIDO)
 
@@ -67,7 +69,7 @@ class Base(Raiz):
 # ---- passo 1: catálogo ----
 class Catalogo(unittest.TestCase):
     def test_ate_10_classes_com_outra_e_texto_fixo_limpo(self):
-        self.assertLessEqual(len(fc.CLASSES_DE_FALHA), 10)
+        self.assertLessEqual(len(fc.CLASSES_DE_FALHA), 13)  # as 10 do OK-7 mais hora, consentimento e estado (P2)
         self.assertIn("outra", fc.CLASSES_DE_FALHA)
         for classe, evita in fc.CLASSES_DE_FALHA.items():
             with self.subTest(classe=classe):
@@ -540,6 +542,57 @@ class AchadosRecorrentes(Base):
         linhas = [l for l in (RAIZ / ACHADOS).read_text(encoding="utf-8").splitlines() if l.startswith("- AR-")]
         self.assertEqual([l.split(" · ")[1] for l in linhas[:6]], ["qa", "qa", "seguranca", "review", "seguranca", "review"])
         self.assertEqual(fc.problemas_dos_achados("\n".join(linhas)), [])
+
+
+# ---- P2 (versao-036 E2): ERRO-JARVIS no Histórico conta como autorrelato ----
+def erro_jarvis(classe="hora", dias=0, cita=""):
+    return f"- {hora(dias)}: ERRO-JARVIS: {classe}: gravei 17:35 sem a ferramenta{cita}. Prevenção: date +%H:%M na mesma chamada.\n"
+
+
+class ErroJarvisContado(Base):
+    def pedido(self, nome, *historico, antes=""):
+        self.gravar(f"docs/pedidos/{nome}.md", f"# {nome}\n\n## Escopo\n{antes}\n## Histórico\n" + "".join(historico))
+
+    def classes(self):
+        cod, saida, _ = self.rodar("conferencia", "classes")
+        self.assertEqual(cod, 0)
+        return saida
+
+    def test_a_duas_linhas_em_pedidos_diferentes_contam_como_autorrelato(self):
+        self.pedido("p", erro_jarvis())
+        self.pedido("q", erro_jarvis())
+        self.assertIn("classes: hora · jarvis · 2 briefs (2 autorrelato)", self.classes())
+
+    def test_b_brief_gerar_de_codigo_lembra_o_autorrelato(self):
+        self.pedido("p", erro_jarvis())
+        self.pedido("q", erro_jarvis())
+        cod, _, erro = self.rodar("brief", "gerar", "--pedido", "xpto", "--destino", "forge:tech-lead", "--etapa", "codigo")
+        self.assertEqual(cod, 0)
+        self.assertIn("jarvis-recorrente: hora em 2 briefs", erro)
+
+    def test_c_linha_que_cita_brief_ja_registrado_na_mesma_classe_conta_1(self):
+        self.registro(linha("hora", pedido="p", brief="p-tech-lead-1"))
+        self.pedido("p", erro_jarvis(cita=" no brief p-tech-lead-1"))
+        grupos, _ = fc.recorrencias(self.tmp)
+        self.assertEqual([(g["classe"], g["quem"], g["n"]) for g in grupos], [("hora", "jarvis", 1)])
+
+    def test_d_classe_fora_do_catalogo_ou_forma_antiga_vira_aviso_e_nao_conta(self):
+        self.pedido("p", erro_jarvis("classe hora"), erro_jarvis("inventada"), erro_jarvis("outra"))
+        saida = self.classes()
+        self.assertEqual([l for l in saida if l.startswith("classes: aviso:")],
+                         [f"classes: aviso: p:{n}: ERRO-JARVIS fora do catálogo" for n in (6, 7, 8)])
+        self.assertIn("classes: nenhuma falha classificada na janela", saida)
+
+    def test_e_fora_da_janela_ou_fora_do_historico_nao_conta(self):
+        self.pedido("p", erro_jarvis(dias=31), antes=erro_jarvis())
+        self.pedido("q", erro_jarvis(dias=-2))
+        self.assertEqual(fc.recorrencias(self.tmp)[0], [])
+        self.assertIn("classes: nenhuma falha classificada na janela", self.classes())
+
+    def test_f_modelo_tem_a_tag_e_o_coach_a_le(self):
+        modelo = (RAIZ / "templates" / "projeto" / "docs" / "pedidos" / "_modelo.md").read_text(encoding="utf-8")
+        self.assertIn("`ERRO-JARVIS: <classe do catálogo>: <o que errou, com a evidência>. Prevenção: <o que muda>`", modelo)
+        self.assertIn("`ERRO-JARVIS:`", (RAIZ / "agents" / "agile-coach.md").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
