@@ -7,7 +7,7 @@
       "guarda": "padrao vazio depois de normalizar e ignorado (C-6)",
       "arquivo": "hooks/pesado.py",
       "de": "map(normalizar, padroes) if p]",
-      "para": "map(normalizar, padroes)]",
+      "para": "map(normalizar, padroes) if True]",
       "testes": [
         "tests.test_hooks.TravaPesadaEmSegundoPlano.test_c6_padrao_vazio_e_ignorado_sem_ler_o_proc"
       ]
@@ -47,7 +47,7 @@
       "guarda": "so pastas numericas do /proc (C-5)",
       "arquivo": "hooks/pesado.py",
       "de": "os.listdir(\"/proc\") if d.isdigit()]",
-      "para": "os.listdir(\"/proc\")]",
+      "para": "os.listdir(\"/proc\") if True]",
       "testes": [
         "tests.test_hooks.TravaPesadaEmSegundoPlano.test_c5_erros_do_proc_abrem_na_duvida"
       ]
