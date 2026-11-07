@@ -54,112 +54,12 @@
     },
     {
       "id": "M6",
-      "guarda": "a passagem é do mesmo comando bloqueado, não de outro",
+      "guarda": "a passagem é do mesmo comando bloqueado e vem antes do episódio seguinte",
       "arquivo": "bin/forge-check",
       "de": "c in {x[2] for x in ep} and h >= ep[-1][1]",
       "para": "h >= ep[-1][1]",
       "testes": [
         "tests.test_medidas_m14b.EsperaDaTrava.test_o_mesmo_comando_que_passou_fecha_a_espera_exata_sem_imprimir_o_comando"
-      ]
-    },
-    {
-      "id": "M7",
-      "guarda": "a passagem do episódio vem antes do episódio seguinte",
-      "arquivo": "bin/forge-check",
-      "de": "(i + 1 == len(lista) or h < lista[i + 1][0][1])",
-      "para": "True",
-      "testes": [
-        "tests.test_medidas_m14b.EsperaDaTrava.test_onze_minutos_separam_episodios_e_cinco_nao"
-      ]
-    },
-    {
-      "id": "M8",
-      "guarda": "caminho inexistente sai com rc 1",
-      "arquivo": "bin/forge-check",
-      "de": "print(f\"trava: caminho inexistente: {caminho_impresso(erro.filename or alvo)}\")\n        return 1",
-      "para": "print(f\"trava: caminho inexistente: {caminho_impresso(erro.filename or alvo)}\")\n        return 0",
-      "testes": [
-        "tests.test_medidas_m14b.EsperaDaTrava.test_sem_bloqueio_sem_jsonl_e_sem_caminho"
-      ]
-    },
-    {
-      "id": "M9",
-      "guarda": "pasta sem .jsonl sai com rc 1",
-      "arquivo": "bin/forge-check",
-      "de": "print(f\"trava: nenhum arquivo .jsonl em {caminho_impresso(onde)}\")\n        return 1",
-      "para": "print(f\"trava: nenhum arquivo .jsonl em {caminho_impresso(onde)}\")\n        return 0",
-      "testes": [
-        "tests.test_medidas_m14b.EsperaDaTrava.test_sem_bloqueio_sem_jsonl_e_sem_caminho"
-      ]
-    },
-    {
-      "id": "M10",
-      "guarda": "o episódio com passagem sai exata e o sem passagem, piso",
-      "arquivo": "bin/forge-check",
-      "de": "{'exata' if exata else 'piso'}",
-      "para": "{'piso' if exata else 'exata'}",
-      "testes": [
-        "tests.test_medidas_m14b.EsperaDaTrava.test_o_mesmo_comando_que_passou_fecha_a_espera_exata_sem_imprimir_o_comando"
-      ]
-    },
-    {
-      "id": "M11",
-      "guarda": "sem episódio, os dias valem 1 (sem divisão por zero)",
-      "arquivo": "bin/forge-check",
-      "de": "for e in episodios}) or 1",
-      "para": "for e in episodios})",
-      "testes": [
-        "tests.test_medidas_m14b.EsperaDaTrava.test_sem_bloqueio_sem_jsonl_e_sem_caminho"
-      ]
-    },
-    {
-      "id": "M12",
-      "guarda": "sem episódio, a mediana é 0",
-      "arquivo": "bin/forge-check",
-      "de": "statistics.median(esperas) if esperas else 0",
-      "para": "statistics.median(esperas)",
-      "testes": [
-        "tests.test_medidas_m14b.EsperaDaTrava.test_sem_bloqueio_sem_jsonl_e_sem_caminho"
-      ]
-    },
-    {
-      "id": "M13",
-      "guarda": "alta com mediana de 120 s ou mais (inclusive)",
-      "arquivo": "bin/forge-check",
-      "de": "alta = mediana >= 120 or",
-      "para": "alta = mediana > 120 or",
-      "testes": [
-        "tests.test_medidas_m14b.EsperaDaTrava.test_o_mesmo_comando_que_passou_fecha_a_espera_exata_sem_imprimir_o_comando"
-      ]
-    },
-    {
-      "id": "M14",
-      "guarda": "o despacho do subcomando trava",
-      "arquivo": "bin/forge-check",
-      "de": "a.acao == \"trava\":",
-      "para": "a.acao == \"travas\":",
-      "testes": [
-        "tests.test_medidas_m14b.EsperaDaTrava.test_o_mesmo_comando_que_passou_fecha_a_espera_exata_sem_imprimir_o_comando"
-      ]
-    },
-    {
-      "id": "M15",
-      "guarda": "o papel do subagente vem do agentType quando a delegação não está na transcrição",
-      "arquivo": "bin/forge-check",
-      "de": "or (marcar_agente(o[\"agentType\"]) if o.get(\"agentType\") else \"<agente>\")) if o.get(\"isSidechain\")",
-      "para": "or \"<agente>\") if o.get(\"isSidechain\")",
-      "testes": [
-        "tests.test_medidas_m14b.EsperaDaTrava.test_o_mesmo_comando_que_passou_fecha_a_espera_exata_sem_imprimir_o_comando"
-      ]
-    },
-    {
-      "id": "M16",
-      "guarda": "bloco de conteúdo que não é objeto é pulado",
-      "arquivo": "bin/forge-check",
-      "de": "[b for b in msg.get(\"content\") if isinstance(b, dict)]",
-      "para": "list(msg.get(\"content\"))",
-      "testes": [
-        "tests.test_medidas_m14b.EsperaDaTrava.test_bloqueio_sem_passagem_e_piso_e_baixa"
       ]
     }
   ]

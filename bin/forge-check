@@ -4495,11 +4495,11 @@ def bloqueios_da_trava(arquivos):
     tipo_do_agente, usos, bloqueios, passagens, por_agente, episodios = papeis_dos_agentes(objetos), {}, {}, [], {}, []
     for o in objetos:
         msg = o.get("message") if isinstance(o.get("message"), dict) else {}
-        hora = _hora(str(o.get("timestamp") or ""))
+        hora = _hora(str(o.get("timestamp", "")))
         for b in [b for b in msg.get("content") if isinstance(b, dict)] if isinstance(msg.get("content"), list) else []:
             if b.get("type") == "tool_use" and b.get("name") == "Bash" and isinstance(b.get("input"), dict) and hora:
                 comando = hashlib.sha256(" ".join(str(b["input"].get("command")).split()).encode()).hexdigest()
-                usos[b.get("id")] = ((o.get("sessionId"), o.get("agentId") if o.get("isSidechain") else None), papel_do_objeto(o, tipo_do_agente), hora, comando)
+                usos[b.get("id")] = ((o.get("sessionId"), o.get("agentId")), papel_do_objeto(o, tipo_do_agente), hora, comando)
             elif b.get("type") == "tool_result" and b.get("tool_use_id") in usos:
                 texto = texto_de(b.get("content"))
                 if b.get("is_error") and "R-TETO" in texto and TRAVA_PESADA in texto:
@@ -4524,7 +4524,7 @@ def cmd_transcricao_trava(alvo, raiz=None):
     try:
         arquivos, onde = transcricoes_do_alvo(alvo, raiz)
     except OSError as erro:
-        print(f"trava: caminho inexistente: {caminho_impresso(erro.filename or alvo)}")
+        print(f"trava: caminho inexistente: {caminho_impresso(alvo or erro.filename)}")
         return 1
     if not arquivos:
         print(f"trava: nenhum arquivo .jsonl em {caminho_impresso(onde)}")
