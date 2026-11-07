@@ -16,7 +16,7 @@
   "isentas": [
     {
       "arquivo": "scripts/arvore-testada.py",
-      "trecho": "if __name__ == \"__main__\":",
+      "trecho": "__name__ == \"__main__\"",
       "motivo": "padrão de script: o mutante faz a importação do módulo de teste sair (inválido no forge-mutante); o rc 1 do arquivo rodado é provado em LinhaDeComando"
     }
   ]
