@@ -1,0 +1,47 @@
+{
+  "pedido": "revisor-wt-e6a-4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o trazido aceita um blob diferente do do último P conferido (S1, T-3: os bytes de um P antigo)",
+      "arquivo": "bin/forge-check",
+      "de": "return p if p and blob_de(raiz, head, nome) == blob_de(raiz, p, nome) and e_ancestral(raiz, p, head) else None",
+      "para": "return p if p and e_ancestral(raiz, p, head) else None",
+      "testes": [
+        "tests.test_revisor_wt.ParecerTrazido.test_bytes_do_p_antigo_com_o_ultimo_ancestral_nao_sao_trazidos"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o trazido aceita os bytes do P sem o P ancestral do head (M1)",
+      "arquivo": "bin/forge-check",
+      "de": "return p if p and blob_de(raiz, head, nome) == blob_de(raiz, p, nome) and e_ancestral(raiz, p, head) else None",
+      "para": "return p if p and blob_de(raiz, head, nome) == blob_de(raiz, p, nome) else None",
+      "testes": [
+        "tests.test_revisor_wt.ParecerTrazido.test_os_bytes_do_p_sem_o_p_ancestral_nao_sao_trazidos"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o trazido só vale nas etapas do M2 (qa e codigo)",
+      "arquivo": "bin/forge-check",
+      "de": "ultimos = pareceres_conferidos(raiz, pedido, branch)[0]  #",
+      "para": "ultimos = pareceres_conferidos(raiz, pedido, branch)[0] if shas else {}  #",
+      "testes": [
+        "tests.test_revisor_wt.ParecerTrazido.test_o_ultimo_p_trazido_com_remocao_e_ok_em_qualquer_etapa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o parecer trazido com remoção cai na A6 (sem o ramo do trazido)",
+      "arquivo": "bin/forge-check",
+      "de": "if p := parecer_trazido(raiz, ultimos, head, nome):",
+      "para": "if p := None:",
+      "testes": [
+        "tests.test_revisor_wt.ParecerTrazido.test_o_ultimo_p_trazido_com_remocao_e_ok_em_qualquer_etapa",
+        "tests.test_revisor_wt.ParecerTrazido.test_trazido_nao_escapa_do_merge_nao_conferido_nem_do_aceite"
+      ]
+    }
+  ]
+}
