@@ -7,8 +7,10 @@
       "guarda": "merge-base com falha nao verifica (falha fechada)",
       "arquivo": "bin/forge-check",
       "de": "None if cod_mb else",
-      "para": "[] if cod_mb else",
-      "testes": ["tests.test_estado_da_branch.DiffVazio.test_git_sem_write_tree_ou_com_falha_nao_verifica"]
+      "para": "None if cod_mb == 999 else",
+      "testes": [
+        "tests.test_estado_da_branch.DiffVazio.test_git_sem_write_tree_ou_com_falha_nao_verifica"
+      ]
     },
     {
       "id": "M10",
@@ -16,7 +18,9 @@
       "arquivo": "bin/forge-check",
       "de": "if arvore == alvo and mudados:",
       "para": "if arvore == alvo and False:",
-      "testes": ["tests.test_estado_da_branch.DiffVazio.test_arquivo_a_mais_conflito_e_squash_seguido_de_mudanca_dao_nao"]
+      "testes": [
+        "tests.test_estado_da_branch.DiffVazio.test_arquivo_a_mais_conflito_e_squash_seguido_de_mudanca_dao_nao"
+      ]
     },
     {
       "id": "M11",
@@ -24,7 +28,9 @@
       "arquivo": "bin/forge-check",
       "de": "if cod or mudados is None:",
       "para": "if mudados is None:",
-      "testes": ["tests.test_estado_da_branch.DiffVazio.test_git_sem_write_tree_ou_com_falha_nao_verifica"]
+      "testes": [
+        "tests.test_estado_da_branch.DiffVazio.test_git_sem_write_tree_ou_com_falha_nao_verifica"
+      ]
     },
     {
       "id": "M12",
@@ -32,7 +38,9 @@
       "arquivo": "bin/forge-check",
       "de": "if nomes_z(saida):",
       "para": "if False:",
-      "testes": ["tests.test_estado_da_branch.DiffVazio.test_arquivo_a_mais_conflito_e_squash_seguido_de_mudanca_dao_nao"]
+      "testes": [
+        "tests.test_estado_da_branch.DiffVazio.test_arquivo_a_mais_conflito_e_squash_seguido_de_mudanca_dao_nao"
+      ]
     },
     {
       "id": "M13",
@@ -40,7 +48,9 @@
       "arquivo": "bin/forge-check",
       "de": "\"origin/{base}\", branch)[0] == 0",
       "para": "\"origin/{base}\", branch)[0] == 1",
-      "testes": ["tests.test_estado_da_branch.DiffVazio.test_squash_na_develop_da_sim_com_os_tres_sha40_sem_mexer_no_repositorio"]
+      "testes": [
+        "tests.test_estado_da_branch.DiffVazio.test_squash_na_develop_da_sim_com_os_tres_sha40_sem_mexer_no_repositorio"
+      ]
     },
     {
       "id": "M14",
@@ -48,7 +58,9 @@
       "arquivo": "bin/forge-check",
       "de": "if a.cmd == \"vazio\":",
       "para": "if a.cmd == \"vazio-x\":",
-      "testes": ["tests.test_estado_da_branch.DiffVazio.test_squash_na_develop_da_sim_com_os_tres_sha40_sem_mexer_no_repositorio"]
+      "testes": [
+        "tests.test_estado_da_branch.DiffVazio.test_squash_na_develop_da_sim_com_os_tres_sha40_sem_mexer_no_repositorio"
+      ]
     }
   ]
 }
