@@ -647,7 +647,7 @@ class QuatroDefeitosDoScript(Repo):
         rc, saida = self.conferir(texto)
         self.assertEqual(rc, 0, saida)
         self.assertNotIn("dispensado", saida)
-        self.assertNotIn("conferente:", saida)
+        self.assertIn("conferente: necessário", saida)
         self.assertTrue(saida.endswith("resultado: aprovado\n"), saida)
 
     def fora_do_pedido(self, item):

@@ -575,7 +575,7 @@ class BriefAnterior(unittest.TestCase):
         com = self.brief(self.texto, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
         self.assertEqual(com[0], sem[0])
         linhas_sem = sem[1].splitlines()
-        self.assertEqual([l for l in com[1].splitlines() if not l.startswith(("anterior:", "delta:", "volta: bloco"))], linhas_sem)
+        self.assertEqual([l for l in com[1].splitlines() if not l.startswith(("anterior:", "delta:", "volta: bloco", "conferente:"))], [l for l in linhas_sem if not l.startswith("conferente:")])
         self.assertFalse(any(l.startswith(("anterior:", "delta:")) for l in linhas_sem))
 
     def test_brief_sem_volta_de_nao_marca_bloco_identico(self):  # C3, review A4: o bloco só é exigido no brief de volta

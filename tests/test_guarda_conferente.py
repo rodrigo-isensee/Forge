@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from test_forge import ARQ, Cenario  # noqa: E402
+from test_forge import ARQ, Cenario, carregar_forge_check  # noqa: E402
 from test_hooks import modulos_dos_hooks, montar_proc, rodar as rodar_hook  # noqa: E402  (só funções)
 from ambiente_git import sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
@@ -167,6 +167,70 @@ class LeituraDeGitDoConferente(ProjetoDoConferente):
         _comum, conformidade, _ = modulos_dos_hooks()
         self.assertNotIn("branch", conformidade.GIT_LEITURA)
         self.assertNotIn("worktree", conformidade.GIT_LEITURA)
+
+
+class ConferenteDoBrief(Cenario):
+    """ACELERA-P1 E1a (C-2, C-4, C-8, C-9): a linha `conferente:` do `forge-check brief`; até a E1f sai sempre `necessário`."""
+    MECANICO = "conferente: necessário (dispensa fora de vigor; mecânico)"
+
+    def setUp(self):
+        super().setUp()
+        self.gravar(".claude-plugin/plugin.json", '{"name": "forge"}\n')  # a raiz do pedido é um clone do Forge (C-8)
+        self.gravar(ARQ, "Tipo: codigo\n" + self.completo)
+
+    def conferente(self, *extra, rc=0, arquivo=ARQ):
+        cod, saida = self.brief(*extra, arquivo=arquivo)
+        linhas = [l for l in saida if l.startswith("conferente:")]
+        self.assertEqual((cod, len(linhas)), (rc, 1), saida)  # C-9: o rc não muda e nunca sai `dispensado`
+        self.assertNotIn("dispensado", linhas[0])
+        return linhas[0]
+
+    def test_tipos_da_lista_branca_saem_mecanicos(self):
+        for tipo in ("codigo", "review", "qa"):
+            with self.subTest(tipo):
+                self.gravar(ARQ, f"Tipo: {tipo}\n" + self.completo)
+                self.assertEqual(self.conferente(), self.MECANICO)
+
+    def test_tipo_fora_da_lista_ou_ausente_pede_o_conferente(self):
+        for cabeca in ("Tipo: merge\n", "Tipo: ato-github\n", "Tipo: volta\n", "Tipo: desconhecido\n", "Tipo: Codigo\n", ""):
+            with self.subTest(cabeca):
+                self.gravar(ARQ, cabeca + self.completo)
+                self.assertIn("conferente: necessário (Tipo: ", self.conferente())
+
+    def test_anterior_e_reprovado_pedem_o_conferente(self):
+        self.gravar("docs/briefs/pedido-sintetico-dev-exemplo-0.md", "Tipo: codigo\n" + self.completo)
+        self.assertEqual(self.conferente("--anterior", "docs/briefs/pedido-sintetico-dev-exemplo-0.md"),
+                         "conferente: necessário (volta ou --anterior)")
+        self.gravar(ARQ, "Tipo: codigo\n" + self.completo.replace("## Pronto quando", "## Pronto"))
+        self.assertEqual(self.conferente(rc=1), "conferente: necessário (brief reprovado)")
+
+    def test_caractere_disfarcado_pede_o_conferente(self):
+        for c in ("\u200b", "\u202e", "\ue000", "\x07", "\r"):
+            with self.subTest(hex(ord(c))):
+                self.gravar(ARQ, "Tipo: codigo\n" + self.completo.replace("Recurso A", f"Recurso{c}A"))
+                self.assertEqual(self.conferente(), f"conferente: necessário (caractere U+{ord(c):04X})")
+
+    def test_fora_do_forge_ou_por_link_pede_o_conferente(self):
+        link = self.tmp / "docs/briefs/pedido-sintetico-dev-exemplo-2.md"
+        link.symlink_to(self.tmp / ARQ)
+        self.assertEqual(self.conferente(arquivo=str(link)), "conferente: necessário (fora do Forge)")
+        (self.tmp / ".claude-plugin" / "plugin.json").unlink()
+        self.assertEqual(self.conferente(), "conferente: necessário (fora do Forge)")
+
+    def test_area_do_forge_contrib_vale_sem_clone(self):
+        (self.tmp / ".claude-plugin" / "plugin.json").unlink()
+        (self.tmp / "home/.forge-contrib").mkdir(parents=True)
+        (self.tmp / "docs").rename(self.tmp / "home/.forge-contrib/docs")
+        self.assertEqual(self.conferente(), self.MECANICO)
+
+    def test_nao_verificavel_e_aviso_fora_da_tupla_pedem_o_conferente(self):
+        fc, texto = carregar_forge_check(), "Tipo: codigo\n" + self.completo
+        pedido, brief = self.tmp / "docs/pedidos/pedido-sintetico.md", self.tmp / ARQ
+        motivo = lambda linha: fc.motivo_do_conferente(self.tmp, texto, pedido, brief, [("forma: ok", False), (linha, False)], None)
+        self.assertIsNone(motivo("aviso: suposição sem \"muda com\": x (R-DECISAO)"))
+        self.assertEqual(motivo("citação: fonte não verificável x (y)"), "saída com não verificável")
+        self.assertEqual(motivo("aviso: etapa: x"), "saída com aviso: etapa: x")
+        self.assertEqual(motivo("decisões: x aviso: y"), "saída com decisões: x aviso: y")
 
 
 if __name__ == "__main__":

@@ -6161,6 +6161,48 @@ def aviso_de_recibo(pedido_txt):
     return ['aviso: recibo: o pedido não tem a linha DECISÃO DO DONO (<data hora>): recibo confirmado: "<resposta literal>" (R-DECISAO)']
 
 
+TIPOS_DISPENSAVEIS = ("codigo", "review", "qa")  # ACELERA-P1 C-2: lista branca do `Tipo:` gravado; o resto pede o conferente
+AVISOS_INFORMATIVOS = ("aviso: suposição sem ",)  # C-2: tupla fechada de avisos que não pedem julgamento (a suposição é do pedido)
+
+
+def caractere_disfarcado(texto):
+    """C-4: o primeiro caractere de controle (fora de `\\n` e `\\t`), de formato, de uso privado ou substituto do texto; None se não há."""
+    return next((c for c in texto if c not in "\n\t" and unicodedata.category(c) in ("Cc", "Cf", "Co", "Cs")), None)
+
+
+def brief_no_forge(raiz, caminho_pedido, brief):
+    """C-8: pedido e brief sem link no caminho, dentro de `~/.forge-contrib/docs/` ou da raiz do pedido quando ela é um clone do Forge
+    (a raiz vem do pedido resolvido, não do cwd)."""
+    raiz_pedido = raiz_do_pedido(raiz, caminho_pedido)
+    bases = [Path(os.path.realpath(r / "docs")) for r in RAIZES_DE_BRIEF] + ([raiz_pedido] if e_o_forge(raiz_pedido) else [])
+    for arq in (caminho_pedido, brief):
+        absoluto = Path(os.path.abspath(arq))
+        if Path(os.path.realpath(arq)) != absoluto or not any(absoluto.is_relative_to(base) for base in bases):
+            return False
+    return True
+
+
+def motivo_do_conferente(raiz, texto, caminho_pedido, brief, linhas, anterior):
+    """ACELERA-P1 (E1a): o primeiro motivo que pede o conferente, ou None (mecânico). Falha fechada: tipo fora da lista branca, volta,
+    saída do script que reprova, não verifica ou avisa fora de `AVISOS_INFORMATIVOS`, caractere disfarçado e raiz fora do Forge."""
+    tipo = grupo(r"^\s*Tipo:\s*(\S+)\s*$", cabecalho_do_brief(texto))
+    aviso = next((l for l, _ in linhas if "aviso:" in l and not l.startswith(AVISOS_INFORMATIVOS)), None)
+    caractere = caractere_disfarcado(texto)
+    if any(r for _, r in linhas):
+        return "brief reprovado"
+    if anterior or re.search(r"^Volta-de:", texto, re.M):
+        return "volta ou --anterior"
+    if tipo not in TIPOS_DISPENSAVEIS:
+        return f"Tipo: {nome_seguro(tipo or 'ausente')} fora de {', '.join(TIPOS_DISPENSAVEIS)}"
+    if any(NAO_VERIFICAVEL in l for l, _ in linhas):
+        return f"saída com {NAO_VERIFICAVEL}"
+    if aviso:
+        return f"saída com {sem_controle(aviso[:60])}"
+    if caractere:
+        return f"caractere U+{ord(caractere):04X}"
+    return None if brief_no_forge(raiz, caminho_pedido, brief) else "fora do Forge"
+
+
 def cmd_brief_conferir(raiz, arquivo, pedido, destino, anterior=None, ref=None, pareceres=None):
     caminho_pedido = caminho_do_pedido(raiz, pedido)
     brief = Path(arquivo)
@@ -6191,6 +6233,8 @@ def cmd_brief_conferir(raiz, arquivo, pedido, destino, anterior=None, ref=None, 
     print(f"conferencia-brief-regra: {caminho_impresso(pedido_id)} → {caminho_impresso(brief.name)}")
     for linha, _ in linhas:
         print(linha)
+    motivo = motivo_do_conferente(raiz, texto, caminho_pedido, brief, linhas, anterior)  # E1a: a dispensa só vale na E1f (C-9)
+    print(f"conferente: necessário ({motivo or 'dispensa fora de vigor; mecânico'})")
     print(f"resultado: {'reprovado' if reprovado else 'aprovado'}")
     return 1 if reprovado else 0
 
