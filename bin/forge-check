@@ -178,7 +178,7 @@ TRAVAS_DE_DEPENDENCIA = re.compile(r"(^|/)([^/]*[-.]lock\.(json|ya?ml|toml)|[^/]
                                    r"pyproject\.toml|package\.json|Gemfile|go\.mod|Cargo\.toml)$")
 SEGREDOS_E_CONFIG = re.compile(r"(^|/)\.env(\.[\w.-]+)?$")
 MIGRACOES = re.compile(r"(^|/)(migrations?|migrate)/")
-CONTROLES_DO_FORGE = ("hooks/conformidade.json", "docs/regras/", "tests/catraca.py", "tests/config.json")
+CONTROLES_DO_FORGE = ("hooks/conformidade.json", "docs/regras/", "tests/catraca.py", "tests/config.json", "scripts/arvore-testada.py")
 BASES = ("origin/develop", "develop", "origin/main", "main")
 
 
