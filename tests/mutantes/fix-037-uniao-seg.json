@@ -1,0 +1,84 @@
+{
+  "pedido": "versao-037",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "verificar-contribuicao.sh:38 (C-4, A1 da segurança g3): o diff das linhas adicionadas sai sem cor",
+      "arquivo": "scripts/verificar-contribuicao.sh",
+      "de": "diff --no-color --no-ext-diff --no-textconv --text -U0",
+      "para": "diff --no-ext-diff --no-textconv --text -U0",
+      "testes": [
+        "tests.test_pre_push_segredo.PrePushSegredo.test_cor_forcada_pela_config_nao_esconde_o_token"
+      ]
+    },
+    {
+      "id": "E1",
+      "guarda": "verificar-contribuicao.sh:35 (C-4): a lista de nomes do .env sai sem cor",
+      "arquivo": "scripts/verificar-contribuicao.sh",
+      "de": "diff --no-color --no-ext-diff --no-textconv --name-only",
+      "para": "diff --no-ext-diff --no-textconv --name-only",
+      "equivalente": "git diff --name-only não colore os nomes nem com color.ui=always nem com color.diff=always (conferido num repositório de brinquedo); o --no-color ali é defesa para versões futuras do git"
+    },
+    {
+      "id": "M2",
+      "guarda": "conformidade.py:2003 (A2): fora de projeto, recusa que não é a da prova não vale",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if (rid, o_que, corrigir) != PROVA_DA_SUITE:",
+      "para": "if False and (rid, o_que, corrigir) != PROVA_DA_SUITE:",
+      "testes": [
+        "tests.test_conformidade_verde.ProvaDaSuite.test_pasta_fora_de_projeto_tambem_recusa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "conformidade.py:2012 (A2): Write e Edit fora de projeto conferem o caminho",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if isinstance(caminho, str) and caminho:\n            self.checar_escrita(caminho, self.h.cwd())\n\n\ndef prova_fora_de_projeto",
+      "para": "        if False and isinstance(caminho, str) and caminho:\n            self.checar_escrita(caminho, self.h.cwd())\n\n\ndef prova_fora_de_projeto",
+      "testes": [
+        "tests.test_conformidade_verde.ProvaDaSuite.test_pasta_fora_de_projeto_tambem_recusa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "conformidade.py:2019 (A2): só o PreToolUse confere a prova fora de projeto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if hook.campo(\"hook_event_name\") == \"PostToolUse\":\n        return\n    hook.raiz = raiz or",
+      "para": "    if hook.campo(\"hook_event_name\") != \"PostToolUse\":\n        return\n    hook.raiz = raiz or",
+      "testes": [
+        "tests.test_conformidade_verde.ProvaDaSuite.test_pasta_fora_de_projeto_tambem_recusa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "conformidade.py:2027 (A2): outra recusa antes ou erro interno falha fechado se o alvo cita a prova",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if isinstance(alvo, str) and any(MARCA_DA_SUITE",
+      "para": "if False and isinstance(alvo, str) and any(MARCA_DA_SUITE",
+      "testes": [
+        "tests.test_conformidade_verde.ProvaDaSuite.test_pasta_fora_de_projeto_tambem_recusa"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "conformidade.py:2029 (A2): a outra recusa não vai ao erros.log, só o erro interno",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not isinstance(erro, ForaDaProva):",
+      "para": "if isinstance(erro, ForaDaProva):",
+      "testes": [
+        "tests.test_conformidade_verde.ProvaDaSuite.test_pasta_fora_de_projeto_tambem_recusa"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "conformidade.py:2059 (A2): o ramo externo is False confere a prova antes de sair",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz)\n",
+      "para": "            pass\n",
+      "testes": [
+        "tests.test_conformidade_verde.ProvaDaSuite.test_pasta_fora_de_projeto_tambem_recusa"
+      ]
+    }
+  ]
+}
