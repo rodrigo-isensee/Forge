@@ -12,6 +12,9 @@ import unittest
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = RAIZ.joinpath("bin", "forge-check")
 fc = SourceFileLoader("forge_check_brief_gravar", str(FORGE_CHECK)).load_module()
@@ -147,7 +150,7 @@ class ProvasGerar(Base):
 
     def provas(self, pronto, git=True):
         if git:
-            subprocess.run(["git", "init", "-q", str(self.tmp)], check=True, timeout=60)
+            subprocess.run(["git", "init", "-q", str(self.tmp)], check=True, timeout=60, env=sem_manutencao())
         self.gravar("docs/briefs/b.md", f"# Brief\n\n## Pronto quando\n{pronto}\n## Relatório\n- PQ-12 (cmd): `git ls-files` · espera: rc=0\n")
         r = subprocess.run([sys.executable, "-I", str(FORGE_CHECK), "--raiz", str(self.tmp), "provas", "gerar", "--brief", "docs/briefs/b.md"],
                            capture_output=True, text=True, timeout=60, env={"PATH": "/usr/bin:/bin", "HOME": str(self.tmp / "home")})
