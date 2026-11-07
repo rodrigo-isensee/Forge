@@ -5293,7 +5293,8 @@ def linhas_sem_cartao(raiz, onde, data, texto, cartoes, conta):
     faltam = [i for i in ids if not tem_cartao(i, cartoes)]
     chave = "sem-id" if not ids else "sem-cartao" if faltam else "com-cartao"
     conta[chave] += len(faltam) or 1
-    return [f"sem-id: {onde} | {data} | {resumo}"] if not ids else [f"sem-cartao: {onde} | {data} | {i} | {resumo}" for i in faltam]
+    lugar = caminho_impresso(onde)
+    return [f"sem-id: {lugar} | {data} | {resumo}"] if not ids else [f"sem-cartao: {lugar} | {data} | {i} | {resumo}" for i in faltam]
 
 
 HORA_DA_DECISAO = re.compile(rf"{re.escape(FRASE_DO_DONO)}\s*\(?(\d{{4}}-\d{{2}}-\d{{2}})[ T](\d{{2}}:\d{{2}})\b")
