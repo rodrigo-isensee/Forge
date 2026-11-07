@@ -2325,6 +2325,56 @@ class Hooks(unittest.TestCase):
         self.assertEqual((r.returncode, "invalid choice" in r.stderr), (2, True), r.stderr)
 
 
+class PesadoClassePelosArgumentos(unittest.TestCase):
+    """MAQ-A1b (E2a-1, C-5): `forge-testes --completa|--vermelho` e `forge-mutante` são pesados no clone do Forge;
+    leves só nas formas exatas (`forge-testes` sem as duas opções em posição nenhuma, `forge-mutante --listar` sozinho)."""
+
+    def setUp(self):
+        sys.path.insert(0, str(HOOKS))
+        import _comum
+        import pesado
+        self.pesado = pesado
+        tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        self.clone, self.projeto = tmp / "Forge", tmp / "proj"
+        for pasta in (self.clone, self.projeto):
+            (pasta / ".claude-plugin").mkdir(parents=True)
+            (pasta / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}\n', encoding="utf-8")
+            git("init", "-q", "-b", "develop", cwd=pasta)
+        (self.projeto / ".forge").mkdir()
+        (self.projeto / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        self.hook = _comum.Hook("pesado")
+
+    def classe(self, comando, pasta=None):
+        raiz = self.hook.projeto(pasta or self.clone, clone_do_forge=True)
+        return self.pesado.pesado(comando, self.pesado.pesados_da_raiz(self.hook, raiz))
+
+    def test_forge_testes_com_completa_ou_vermelho_em_qualquer_posicao_e_pesado(self):
+        for comando in ("bin/forge-testes --completa", "./bin/forge-testes --vermelho",
+                        "bin/forge-testes --dirigida --completa", "./bin/forge-testes --base x --vermelho 2>&1 | tail -3",
+                        "cd w && FORGE_X=1 bin/forge-testes tests/a.py --completa"):
+            with self.subTest(comando=comando):
+                self.assertTrue(self.classe(comando))
+
+    def test_forge_mutante_e_pesado_salvo_listar_sozinho(self):
+        for comando in ("bin/forge-mutante x.json", "bin/forge-mutante x.json --listar",
+                        "bin/forge-mutante --listar x.json", "./bin/forge-mutante x.json --cobertura --base abc",
+                        "bin/forge-mutante"):
+            with self.subTest(comando=comando):
+                self.assertTrue(self.classe(comando))
+
+    def test_formas_leves_e_citacoes_nao_sao_pesadas(self):
+        for comando in ("bin/forge-testes --listar", "./bin/forge-testes --dirigida", "bin/forge-testes",
+                        "bin/forge-mutante --listar", "./bin/forge-mutante --listar", "cat bin/forge-mutante",
+                        "echo bin/forge-testes --completa", "grep -n x bin/forge-testes", "'' ; bin/forge-testes --listar"):
+            with self.subTest(comando=comando):
+                self.assertFalse(self.classe(comando))
+
+    def test_fora_do_clone_do_forge_nada_muda(self):
+        self.assertFalse(self.classe("bin/forge-mutante x.json", self.projeto))
+        self.assertFalse(self.classe("bin/forge-testes --completa", self.projeto))
+
+
 class CodigoDeSaida(unittest.TestCase):  # PN7-DOLAR-INTERROG (ADR 0011, emenda H1-1)
     """O `$?` é construção modelada só entre aspas duplas: `$?` × posição na palavra × aspas × lugar × `IFS` posto de
     qualquer jeito. Entre aspas duplas passa sempre; fora de aspas, o `$?` é recusado, como todo outro `$`, nos lugares

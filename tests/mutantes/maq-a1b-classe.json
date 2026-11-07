@@ -1,0 +1,55 @@
+{
+  "pedido": "maq-a1b-classe",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "forge-testes e forge-mutante entram na lista de pesados do clone do Forge",
+      "arquivo": "hooks/pesado.py",
+      "de": "\".githooks/pre-push --suite\",\n                    *PELOS_ARGUMENTOS]",
+      "para": "\".githooks/pre-push --suite\"]",
+      "testes": ["tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_completa_ou_vermelho_em_qualquer_posicao_e_pesado",
+                 "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_mutante_e_pesado_salvo_listar_sozinho"]
+    },
+    {
+      "id": "M2",
+      "guarda": "a classe de forge-testes e forge-mutante sai dos argumentos, nao do prefixo",
+      "arquivo": "hooks/pesado.py",
+      "de": "    if padrao in PELOS_ARGUMENTOS:",
+      "para": "    if False:",
+      "testes": ["tests.test_hooks.PesadoClassePelosArgumentos.test_formas_leves_e_citacoes_nao_sao_pesadas"]
+    },
+    {
+      "id": "M3",
+      "guarda": "so o comando simples que comeca pela ferramenta conta (citar nao conta)",
+      "arquivo": "hooks/pesado.py",
+      "de": "return inicio.split()[:1] == [padrao] and not",
+      "para": "return True and not",
+      "testes": ["tests.test_hooks.PesadoClassePelosArgumentos.test_formas_leves_e_citacoes_nao_sao_pesadas"]
+    },
+    {
+      "id": "M4",
+      "guarda": "forge-testes e forge-mutante tem regras leves proprias",
+      "arquivo": "hooks/pesado.py",
+      "de": "    if nome.endswith(\"forge-testes\"):",
+      "para": "    if not nome.endswith(\"forge-testes\"):",
+      "testes": ["tests.test_hooks.PesadoClassePelosArgumentos.test_formas_leves_e_citacoes_nao_sao_pesadas"]
+    },
+    {
+      "id": "M5",
+      "guarda": "--completa e --vermelho em qualquer posicao: classificar pelo primeiro argumento (A3)",
+      "arquivo": "hooks/pesado.py",
+      "de": "return \"--completa\" not in argumentos and \"--vermelho\" not in argumentos",
+      "para": "return \"--completa\" not in argumentos[:1] and \"--vermelho\" not in argumentos[:1]",
+      "testes": ["tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_completa_ou_vermelho_em_qualquer_posicao_e_pesado"]
+    },
+    {
+      "id": "M6",
+      "guarda": "forge-mutante leve so com --listar como unico argumento (A3)",
+      "arquivo": "hooks/pesado.py",
+      "de": "    return argumentos == [\"--listar\"]",
+      "para": "    return \"--listar\" in argumentos",
+      "testes": ["tests.test_hooks.PesadoClassePelosArgumentos.test_forge_mutante_e_pesado_salvo_listar_sozinho"]
+    }
+  ]
+}
