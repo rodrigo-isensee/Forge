@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_forge_mutante.MedidaDaVagaPesada.test_a_linha_modo_mutante_traz_entrada_validada_e_load1"
       ]
+    },
+    {
+      "id": "M16",
+      "guarda": "o pid de quem anota vem do parâmetro (o teste) ou do próprio processo",
+      "arquivo": "bin/forge-mutante",
+      "de": "pid = set(), eu or os.getpid()",
+      "para": "pid = set(), os.getpid()",
+      "testes": [
+        "tests.test_forge_mutante.MedidaDaVagaPesada.test_outras_e_contexto_toleram_falha_de_leitura"
+      ]
     }
   ]
 }

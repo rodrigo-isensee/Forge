@@ -72,6 +72,16 @@
       "testes": [
         "tests.test_testes_tocados.MedidaDaVagaPesada.test_a_linha_mantem_o_formato_de_hoje_e_so_aceita_entrada_valida"
       ]
+    },
+    {
+      "id": "M15",
+      "guarda": "o pid de quem anota vem do parâmetro (o teste) ou do próprio processo",
+      "arquivo": "bin/forge-testes",
+      "de": "pid = set(), eu or os.getpid()",
+      "para": "pid = set(), os.getpid()",
+      "testes": [
+        "tests.test_testes_tocados.MedidaDaVagaPesada.test_outras_e_contexto_toleram_falha_de_leitura"
+      ]
     }
   ]
 }
