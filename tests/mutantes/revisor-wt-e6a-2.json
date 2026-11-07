@@ -117,7 +117,7 @@
       "id": "M12",
       "guarda": "linha final impressa com rc 1 (T-4, t15)",
       "arquivo": "bin/forge-check",
-      "de": "    if not reprovou and branch.startswith(PREFIXO_DE_PARECER):",
+      "de": "    if not any(r for _, r in linhas) and branch.startswith(PREFIXO_DE_PARECER):",
       "para": "    if branch.startswith(PREFIXO_DE_PARECER):",
       "testes": [
         "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_codigo_na_branch_de_parecer_reprova"
@@ -127,8 +127,8 @@
       "id": "M13",
       "guarda": "linha final impressa fora da branch de parecer",
       "arquivo": "bin/forge-check",
-      "de": "    if not reprovou and branch.startswith(PREFIXO_DE_PARECER):",
-      "para": "    if not reprovou:",
+      "de": "    if not any(r for _, r in linhas) and branch.startswith(PREFIXO_DE_PARECER):",
+      "para": "    if not any(r for _, r in linhas):",
       "testes": [
         "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_branch_de_trabalho_nao_imprime_a_linha_final"
       ]

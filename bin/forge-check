@@ -1667,10 +1667,9 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     print(f"intervalo: {de}..{head}")
     for linha, _ in linhas:
         print(linha)
-    reprovou = any(r for _, r in linhas)
-    if not reprovou and branch.startswith(PREFIXO_DE_PARECER):  # M5, T-4: só com rc 0 e o sha do `rev-parse` (o head), nunca do texto
+    if not any(r for _, r in linhas) and branch.startswith(PREFIXO_DE_PARECER):  # M5, T-4: só com rc 0 e o sha do `rev-parse` (o head)
         print(f"linha-final: parecer-conferido {head}")
-    return 1 if reprovou else 0
+    return 1 if any(r for _, r in linhas) else 0
 
 
 def dentro_da_raiz(raiz, caminho, pastas):
