@@ -1,0 +1,9 @@
+{
+  "pedido": "versao-041",
+  "executor": "unittest",
+  "mutantes": [
+    {"id": "M9", "guarda": "o script chamado como programa roda a conferência e devolve o rc dela", "arquivo": "scripts/conferir-promocao.py",
+     "de": "if __name__ == \"__main__\":", "para": "if False:",
+     "testes": ["tests.test_conferir_release.ConferirPromocao.test_squash_tem_um_pai"]}
+  ]
+}
