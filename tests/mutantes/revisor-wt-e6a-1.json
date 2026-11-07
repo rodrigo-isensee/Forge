@@ -1,0 +1,87 @@
+{
+  "pedido": "revisor-wt-e6a-1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "conferidos lidos fora da branch de trabalho",
+      "arquivo": "bin/forge-check",
+      "de": "if de_trabalho else ({}, [])",
+      "para": "if True else ({}, [])",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_que_o_git_nao_le_e_violacao_so_na_branch_de_trabalho"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "parecer conferido de outra branch do pedido conta",
+      "arquivo": "bin/forge-check",
+      "de": "branch_do_parecer(raiz, p, n) == branch}",
+      "para": "branch_do_parecer(raiz, p, n) is not None}",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_parecer_conferido_de_outra_branch_do_pedido_nao_conta"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "parecer conferido fora da branch passa (M8)",
+      "arquivo": "bin/forge-check",
+      "de": "            if not e_ancestral(raiz, p, ref or \"HEAD\"):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_merge_squash_deixa_o_parecer_fora_da_branch",
+        "tests.test_revisor_wt.PrLeParecerConferido.test_ultimo_conferido_fora_da_branch_e_violacao_e_o_superado_nao"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "blob diferente do último P passa (M1)",
+      "arquivo": "bin/forge-check",
+      "de": "elif blob_de(raiz, p, nome) != blob_de(raiz, ref or \"HEAD\", nome):",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_merge_s_ours_deixa_o_blob_diferente"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "vigente pela data com parecer conferido (T-1)",
+      "arquivo": "bin/forge-check",
+      "de": "if dos_conferidos and rel not in dos_conferidos:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_parecer_mais_novo_nao_conferido_nao_vira_o_vigente"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "pedido ausente não volta vazio",
+      "arquivo": "bin/forge-check",
+      "de": "    if texto is None:\n        return {}, []",
+      "para": "    if False:\n        return {}, []",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sem_pedido_e_fora_do_historico_nada_muda"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "regex de parecer conferido cruza com conferida (M5)",
+      "arquivo": "bin/forge-check",
+      "de": "\\bparecer conferido ([0-9a-f]{40})",
+      "para": "\\bconferid[ao] ([0-9a-f]{40})",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_regex_nao_se_cruzam"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "sha que o git não lê passa calado",
+      "arquivo": "bin/forge-check",
+      "de": "            if cod:\n                ilegiveis.append(p)",
+      "para": "            if False:\n                ilegiveis.append(p)",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_que_o_git_nao_le_e_violacao_so_na_branch_de_trabalho"
+      ]
+    }
+  ]
+}
