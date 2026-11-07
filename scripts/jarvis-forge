@@ -70,6 +70,38 @@ refspec_develop=+refs/heads/develop:refs/remotes/origin/develop
 buscar_develop() {
   git -C "$vigente" fetch --quiet --no-tags origin "$refspec_develop"
 }
+# VIGENTE-REINICIO-OCIOSO: diz se é seguro reiniciar a sessão aberta, sem mudar nada. Lê a suíte e o push pelo
+# `--status` da cópia vigente (nunca da de trabalho: ADR 0009, seção 4) e conta os agentes ativos com as funções do hook
+# `agentes` dela; do estado só sai um inteiro. Qualquer dúvida vira "não conferido" e o fecho manda esperar.
+ocupacao() {
+  local saida rc=0 fila suite agentes n
+  saida="$(timeout 10 "$vigente/.githooks/pre-push" --status 2>/dev/null)" || rc=$?
+  fila="$(printf '%s\n' "$saida" | tail -n 1 | grep -oE '[0-9]+ na fila$' | grep -oE '^[0-9]+' || true)"
+  case "$rc" in
+    0) suite="rodando, ${fila:-?} na fila" ;;
+    1) suite=livre ;;
+    *) suite="não conferida" ;;
+  esac
+  n="$(timeout 10 python3 -I -c 'import json, sys, time
+from pathlib import Path
+sys.path.insert(0, sys.argv[1] + "/hooks")
+import agentes
+raiz = Path(sys.argv[2])
+hook = agentes.Hook("agentes")
+hook.raiz = raiz
+estado = json.loads(Path(agentes.arquivo_de_estado(raiz)).read_text(encoding="utf-8"))
+print(len(agentes.vigentes(estado["agentes"], time.time(), hook.expira_s())))' "$vigente" "$HOME/Forge" 2>/dev/null || true)"
+  if ! [[ "$n" =~ ^[0-9]+$ ]]; then agentes="não conferido"
+  elif [ "$n" = 0 ]; then agentes=nenhum
+  else agentes="$n ativos"; fi
+  printf 'agora: suíte do Forge %s; agentes %s; ' "$suite" "$agentes"
+  # testes de módulo fora da trava (até a 0.44 I9): o "seguro" vale só para a suíte, o push e os agentes
+  if [ "$suite" = livre ] && [ "$agentes" = nenhum ]; then
+    echo "seguro reiniciar agora (testes de módulo: não conferidos): saia do Jarvis e rode jarvis-forge"
+  else
+    echo "espere: reinicie quando a suíte terminar e nenhum agente estiver ativo (confira com .githooks/pre-push --status)"
+  fi
+}
 conferir_vigente
 if [ "$atualizar" = 1 ]; then
   if [ ! -e "$vigente" ]; then criar_vigente; exit 0; fi
@@ -90,7 +122,7 @@ if [ "$atualizar" = 1 ]; then
   depois="$(git -C "$vigente" rev-parse HEAD)"
   echo "jarvis-forge: cópia vigente atualizada para origin/develop ($(git -C "$vigente" rev-parse --short HEAD))." >&2
   if [ "$antes" != "$depois" ] && command -v tmux >/dev/null 2>&1 && tmux has-session -t jarvis-Forge 2>/dev/null; then
-    echo "jarvis-forge: AVISO: a sessão do tmux 'jarvis-Forge' já está aberta e segue com a cópia anterior; reinicie-a (saia do Jarvis e rode jarvis-forge de novo) para valer a atualização." >&2
+    echo "jarvis-forge: AVISO: a sessão do tmux 'jarvis-Forge' já está aberta e segue com a cópia anterior; reinicie-a (saia do Jarvis e rode jarvis-forge de novo) para valer a atualização; $(ocupacao)" >&2
   fi
   exit 0
 fi

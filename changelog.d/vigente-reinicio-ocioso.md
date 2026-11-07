@@ -1,0 +1,2 @@
+### Alterado
+- O aviso de sessão aberta do `jarvis-forge --atualizar-vigente` diz se é seguro reiniciar (VIGENTE-REINICIO-OCIOSO): lê a suíte e o push pelo `.githooks/pre-push --status` da cópia vigente e conta os agentes ativos pelo hook `agentes` dela (só um inteiro chega ao terminal); com a suíte livre e nenhum agente, "seguro reiniciar agora"; senão, ou na dúvida ("não conferido"), "espere". Só imprime: quem reinicia é o dono.

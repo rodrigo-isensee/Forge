@@ -1372,6 +1372,52 @@ class JarvisForgeVigente(unittest.TestCase):
         r = self.rodar("--atualizar-vigente", STUB_GIT_HEAD_FIXO="1")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertNotIn("reinicie", r.stderr)
+        self.assertNotIn("agora:", r.stderr)
+
+    def ocupacao(self, status=1, agentes="return []"):
+        """VIGENTE-REINICIO-OCIOSO: falsos do `--status` e do hook `agentes` na cópia vigente; a de trabalho diz livre."""
+        for raiz, rc in ((self.vigente, status), (self.home / "Forge", 1)):
+            (raiz / ".githooks").mkdir(parents=True, exist_ok=True)
+            falso = raiz / ".githooks/pre-push"
+            falso.write_text(f'#!/usr/bin/env bash\necho "linha"\necho "suíte do Forge rodando (x); 2 na fila"\nexit {rc}\n')
+            falso.chmod(0o755)
+        (self.vigente / ".git").mkdir(parents=True, exist_ok=True)
+        (self.vigente / "hooks").mkdir(exist_ok=True)
+        estado = Path(self._tmp.name) / "agentes.json"
+        estado.write_text('{"agentes": []}', encoding="utf-8")
+        (self.vigente / "hooks/agentes.py").write_text(
+            "class Hook:\n    def __init__(self, nome):\n        self.raiz = None\n"
+            "    def expira_s(self):\n        return 60\n"
+            f"def arquivo_de_estado(raiz):\n    return {str(estado)!r}\n"
+            f"def vigentes(agentes, agora, expira_s):\n    {agentes}\n", encoding="utf-8")
+        r = self.rodar("--atualizar-vigente")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stderr
+
+    def test_ocupacao_livre_diz_seguro(self):
+        saida = self.ocupacao()
+        self.assertIn("agora: suíte do Forge livre; agentes nenhum; seguro reiniciar agora", saida)
+
+    def test_ocupacao_suite_rodando_manda_esperar(self):
+        saida = self.ocupacao(status=0)
+        self.assertIn("suíte do Forge rodando, 2 na fila;", saida)
+        self.assertIn("; espere:", saida)
+
+    def test_ocupacao_com_agente_ativo_manda_esperar(self):
+        saida = self.ocupacao(agentes="return [1]")
+        self.assertIn("agentes 1 ativos; espere:", saida)
+
+    def test_ocupacao_status_nao_conferido_manda_esperar(self):
+        saida = self.ocupacao(status=2)
+        self.assertIn("suíte do Forge não conferida;", saida)
+        self.assertIn("; espere:", saida)
+
+    def test_ocupacao_agentes_com_erro_ou_texto_nao_conferido(self):
+        for corpo in ("raise RuntimeError('x')", "print('3 texto'); return []"):
+            with self.subTest(corpo=corpo):
+                saida = self.ocupacao(agentes=corpo)
+                self.assertIn("agentes não conferido; espere:", saida)
+                self.assertNotIn("texto", saida)
 
     def test_dev_com_atualizar_vigente_sai_com_2(self):
         r = self.rodar("--dev", "--atualizar-vigente")
