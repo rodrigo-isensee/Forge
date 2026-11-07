@@ -2091,6 +2091,8 @@ def sondas_no_corpus(raiz, head, briefs):
             continue  # a união de briefs já reprova o brief ilegível
         for linha in blocos_literais(texto).get("Entregar", []):
             m = SONDA_NO_ENTREGAR.match(linha)
+            if not m and re.match(r"^- \(sonda\b", linha):  # C-6: a marca fora do formato reprova, nunca some
+                linhas.append((f"escopo: linha de sonda fora do formato (PAR-P1): {nome_seguro(linha.rstrip()[:80])}", True))
             if not m:
                 continue
             tipo, sha7, ident, entrada = m.groups()
@@ -2478,9 +2480,13 @@ def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=N
             marca = re.compile(rf"\({re.escape(p['tipo'])} [0-9a-f]{{7,40}} {achado['id']}\)")
             if achado["gravidade"] == "bloqueante" and not (marca.search(entregar) or marca.search(cortes)):
                 saida.append((f"volta: falta achado \"{achado['id']}\" de {caminho_impresso(p['rel'])}", True))
-        for sonda in p["sondas"]:  # PAR-P1 (C-5): o brief à mão não omite a sonda do parecer lido da ref
-            if not re.search(rf"\(sonda {re.escape(p['tipo'])} [0-9a-f]{{7}} {sonda['id']}\)", entregar):
+        copias = [m.groups() for m in map(SONDA_NO_ENTREGAR.match, novos.get("Entregar", [])) if m]
+        for sonda in p["sondas"]:  # PAR-P1 (C-5): o brief à mão não omite a sonda do parecer lido da ref nem troca a entrada
+            entradas = [c[3] for c in copias if c[0] == p["tipo"] and c[2] == sonda["id"]]
+            if not entradas:
                 saida.append((f"volta: falta sonda \"{sonda['id']}\" de {caminho_impresso(p['rel'])}", True))
+            elif sonda["entrada"] not in entradas:
+                saida.append((f"volta: sonda {sonda['id']} difere do parecer {caminho_impresso(p['rel'])}", True))
     for linha in novos.get("Entregar", []):  # a recomendação incluída é relida da ref (ou do P): o texto ao lado da marca é o do parecer
         marca = INCLUIDO.search(linha)
         if not marca:
