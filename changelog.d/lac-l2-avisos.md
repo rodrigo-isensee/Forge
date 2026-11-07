@@ -1,0 +1,2 @@
+### Adicionado
+- `forge-check transcricao avisos [alvo]` conta, só com números, os avisos do hook `doutor` (prefixo `Forge doutor:`) e do `vigia` (`Forge: ` com fim `(.forge/run/violacoes.jsonl)`) gravados como `hook_system_message` nas transcrições locais: por hook, por evento (`Stop`, `SubagentStop` ou `outro`) e por dia, os únicos e a reincidência do mesmo texto no mesmo dia; o texto do aviso nunca sai (hash interno, T-14). Só lê o disco local (LAC-L2 E4a, versao-042).
