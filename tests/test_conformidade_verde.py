@@ -72,6 +72,8 @@ class ProvaDaSuite(unittest.TestCase):
                 for c in (f"cat {v}", f"echo x > {self.tmp}/outro.txt", *([] if raiz else [outra])):  # ADR 0009, 6
                     r = self.rodar("Bash", {"command": c}, papel, cwd=pasta, **extra)
                     self.assertEqual(r.returncode, 0, f"{c}, {caso}: {r.stderr}")
+        nb = self.rodar("NotebookEdit", {"notebook_path": v, "new_source": "x"}, "forge:conferente", cwd=fora)
+        self.recusa(nb, "papel só de leitura: a recusa dele vem antes e não vale fora de projeto")
         self.assertFalse((fora / ".forge").exists(), "a outra recusa não é erro interno: nada no erros.log")
 
     def test_leitura_trava_e_fila_passam(self):

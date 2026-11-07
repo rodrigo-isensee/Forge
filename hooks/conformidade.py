@@ -2007,11 +2007,6 @@ class GuardaDaProva(Guarda):
     def perguntar(self, texto):
         """Fora de projeto não há confirmação a pedir."""
 
-    def arquivo(self, entrada):  # sem a recusa do papel só de leitura, que fora de projeto não vale
-        caminho = entrada.get("file_path") or entrada.get("notebook_path")
-        if isinstance(caminho, str) and caminho:
-            self.checar_escrita(caminho, self.h.cwd())
-
 
 def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
     """S8 (C-1, A2 da segurança g3): a prova da suíte é por uid, então vale também fora de projeto, em toda sessão e
@@ -2023,7 +2018,7 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
     try:
         decidir(hook, guarda, ferramenta, entrada)
     except Exception as erro:  # noqa: BLE001 - ForaDaProva ou erro interno; a decisão vem do texto do alvo
-        alvo = entrada.get("command") if ferramenta == "Bash" else entrada.get("file_path") or entrada.get("notebook_path")
+        alvo = entrada.get("command") or entrada.get("file_path") or entrada.get("notebook_path")
         if isinstance(alvo, str) and any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in re.split(r"[\s'\"(),;=<>|&]+", alvo)):
             Guarda.barrar(guarda, *PROVA_DA_SUITE)
         if not isinstance(erro, ForaDaProva):

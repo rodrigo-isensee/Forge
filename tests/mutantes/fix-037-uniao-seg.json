@@ -31,18 +31,8 @@
       ]
     },
     {
-      "id": "M3",
-      "guarda": "conformidade.py:2012 (A2): Write e Edit fora de projeto conferem o caminho",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        if isinstance(caminho, str) and caminho:\n            self.checar_escrita(caminho, self.h.cwd())\n\n\ndef prova_fora_de_projeto",
-      "para": "        if False and isinstance(caminho, str) and caminho:\n            self.checar_escrita(caminho, self.h.cwd())\n\n\ndef prova_fora_de_projeto",
-      "testes": [
-        "tests.test_conformidade_verde.ProvaDaSuite.test_pasta_fora_de_projeto_tambem_recusa"
-      ]
-    },
-    {
       "id": "M4",
-      "guarda": "conformidade.py:2019 (A2): só o PreToolUse confere a prova fora de projeto",
+      "guarda": "conformidade.py:2014 (A2): só o PreToolUse confere a prova fora de projeto",
       "arquivo": "hooks/conformidade.py",
       "de": "    if hook.campo(\"hook_event_name\") == \"PostToolUse\":\n        return\n    hook.raiz = raiz or",
       "para": "    if hook.campo(\"hook_event_name\") != \"PostToolUse\":\n        return\n    hook.raiz = raiz or",
@@ -52,7 +42,7 @@
     },
     {
       "id": "M5",
-      "guarda": "conformidade.py:2027 (A2): outra recusa antes ou erro interno falha fechado se o alvo cita a prova",
+      "guarda": "conformidade.py:2022 (A2): outra recusa antes ou erro interno falha fechado se o alvo cita a prova",
       "arquivo": "hooks/conformidade.py",
       "de": "if isinstance(alvo, str) and any(MARCA_DA_SUITE",
       "para": "if False and isinstance(alvo, str) and any(MARCA_DA_SUITE",
@@ -62,7 +52,7 @@
     },
     {
       "id": "M6",
-      "guarda": "conformidade.py:2029 (A2): a outra recusa não vai ao erros.log, só o erro interno",
+      "guarda": "conformidade.py:2024 (A2): a outra recusa não vai ao erros.log, só o erro interno",
       "arquivo": "hooks/conformidade.py",
       "de": "if not isinstance(erro, ForaDaProva):",
       "para": "if isinstance(erro, ForaDaProva):",
@@ -72,13 +62,30 @@
     },
     {
       "id": "M7",
-      "guarda": "conformidade.py:2059 (A2): o ramo externo is False confere a prova antes de sair",
+      "guarda": "conformidade.py:2054 (A2): o ramo externo is False confere a prova antes de sair",
       "arquivo": "hooks/conformidade.py",
       "de": "            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz)\n",
       "para": "            pass\n",
       "testes": [
         "tests.test_conformidade_verde.ProvaDaSuite.test_pasta_fora_de_projeto_tambem_recusa"
       ]
+    },
+    {
+      "id": "M8",
+      "guarda": "conformidade.py:2021 (A2): o falha-fechado lê também o notebook_path (NotebookEdit)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "alvo = entrada.get(\"command\") or entrada.get(\"file_path\") or entrada.get(\"notebook_path\")",
+      "para": "alvo = entrada.get(\"command\") or entrada.get(\"file_path\")",
+      "testes": [
+        "tests.test_conformidade_verde.ProvaDaSuite.test_pasta_fora_de_projeto_tambem_recusa"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "hook.raiz = raiz or Path(hook.cwd())",
+      "motivo": "a raiz só serve à Guarda reduzida, cuja única recusa válida (a da prova) vem do nome antes de usar a raiz; o `or` só escolhe onde o erros.log de erro interno fica (o clone, não a pasta corrente qualquer)"
     }
   ]
 }
