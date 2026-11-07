@@ -2432,7 +2432,7 @@ def custo_do_movimento(raiz, cartao, para, arq, agora):
     destino = _sem_acento(para)
     if destino not in PARADAS_DO_QUADRO and destino != FIM_DO_QUADRO:
         return ""
-    movimentos = [c for c in _ler_tabela(arq) if len(c) >= 5 and c[1].casefold() == cartao.casefold() and ISO8601.match(c[0])]
+    movimentos = [c for c in _ler_tabela(arq) if len(c) >= 5 and chave_do_cartao(c[1]) == chave_do_cartao(cartao) and ISO8601.match(c[0])]
     ultimo = _hora(movimentos[-1][0]) if movimentos else None
     trecho = custo_do_trecho(raiz, ultimo, agora) if ultimo else None
     if destino != FIM_DO_QUADRO:
@@ -2451,8 +2451,89 @@ ESTADOS_FORA_DO_QUADRO = ("Sem credencial", "Conferência", "Review")  # estados
 def colunas_do_quadro(raiz):
     """Títulos `## ` do KANBAN.md cortados no primeiro ` (` (o limite de WIP), mais os estados fora do quadro; só leitura."""
     texto = (raiz / "KANBAN.md").read_text(encoding="utf-8", errors="replace")
-    titulos = [re.split(r"\s+\(", l[3:].strip(), maxsplit=1)[0].strip() for l in texto.split("\n") if l.startswith("## ")]
+    titulos = [nome_da_secao(l[3:]) for l in texto.split("\n") if l.startswith("## ")]
     return titulos + list(ESTADOS_FORA_DO_QUADRO)
+
+
+def nome_da_secao(titulo):
+    """A coluna de um título `## `: cortado no primeiro ` (` (limite de WIP ou nota); o `movimento` e o quadro gerado (C-6)."""
+    return re.split(r"\s+\(", titulo.strip(), maxsplit=1)[0].strip()
+
+
+def chave_do_cartao(nome):
+    """A única normalização do nome do cartão (EST-M12, C-3): o quadro gerado, o R-WIP e o custo casam o cartão por ela."""
+    return nome.casefold()
+
+
+JANELA_DO_PRONTO_DIAS = 30  # EST-M12: o "Pronto" do quadro gerado mostra só os últimos 30 dias; o histórico guarda tudo
+MARCA_DE_ATRIBUTOS = " · atributos: "  # EST-M12 (C-4, C-7): a mesma constante para a recusa do `--motivo` e para o leitor
+LEITOR_DA_MARCA = re.compile(re.escape(MARCA_DE_ATRIBUTOS) + r"((?:(?! · ).)*)\Z")  # só o último segmento do motivo
+PEDIDO_DO_ATRIBUTO = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
+COLUNA_DO_ESTADO = {"review": "Code review", "conferencia": "Code review", "integracao": "Code review",
+                    "sem credencial": "Bloqueado", "feito": "Pronto", "concluido": "Pronto"}  # C-5; o resto vai a "Bloqueado"
+SEPARADOR = re.compile(r":?-+:?")
+
+
+def ler_marca(motivo):
+    """(motivo sem a marca, {chave: valor} ou None, aviso): só a marca do fim vale (C-4); fora da forma, ignorada inteira, com aviso."""
+    m = LEITOR_DA_MARCA.search(motivo)
+    if not m:
+        return motivo, None, None
+    pares = [p.partition("=") for p in m.group(1).split("; ")]
+    marca = {k: v for k, _, v in pares}
+    valida = (len(marca) == len(pares) and set(marca) <= {"titulo", "pedido", "responsavel"}
+              and all(v and not re.search(r"[;=|·\x00-\x1f\x7f]", v) and all(unicodedata.category(c) != "Cf" for c in v) for v in marca.values())
+              and ID_RESP.fullmatch(marca.get("responsavel", "usuário")) and PEDIDO_DO_ATRIBUTO.fullmatch(marca.get("pedido", "x")))
+    return motivo[:m.start()], (marca if valida else None), (None if valida else "marca de atributos fora da forma, ignorada")
+
+
+def montar_quadro(texto_kanban, linhas_do_historico, agora):
+    """EST-M12, sem IO: (KANBAN.md refeito do histórico ou None, {seção: [células]}, avisos). Coluna = `Para` da última linha válida na
+    ordem do arquivo (C-3); atributos da marca mais recente, senão da linha do quadro (ponte, C-4); estado sem seção (C-5)."""
+    secoes, ponte, movimentos, avisos, secao = {}, {}, {}, [], None
+    for linha in texto_kanban.split("\n"):
+        secao, c = nome_da_secao(linha[3:]) if linha.startswith("## ") else secao, [x.strip() for x in linha.strip().strip("|").split("|")]
+        if secao and linha.startswith("|") and c == COLUNAS:
+            secoes.setdefault(secao, [])
+        elif secao in secoes and linha.startswith("|") and len(c) == len(COLUNAS) and not all(SEPARADOR.fullmatch(x) for x in c):
+            avisos += [] if ID_RESP.fullmatch(c[3]) else [f"cartão {c[0]}: responsável da linha do quadro fora da forma; vira —"]
+            ponte[chave_do_cartao(c[0])] = (secao, c if ID_RESP.fullmatch(c[3]) else [*c[:3], "—", *c[4:]])
+    for c in linhas_do_historico:
+        if len(c) >= 5 and ISO8601.match(c[0]):
+            movimentos.setdefault(chave_do_cartao(c[1]), []).append(c)
+        elif c[0] != "Data/hora" and not SEPARADOR.fullmatch(c[0]):
+            avisos.append(f"linha do histórico fora da forma, ignorada: {c[0][:40]}")
+    for s, c in [v for k, v in ponte.items() if k not in movimentos]:
+        avisos.append(f"cartão {c[0]} sem movimento no histórico; fica onde está")
+        secoes[s].append(c)
+    canonicas = {_sem_acento(s): s for s in secoes}
+    for chave, ms in movimentos.items():
+        ultimo, base = ms[-1], ponte.get(chave, (None, [ms[-1][1], "—", "—", "—"]))[1]
+        atributos = {"titulo": base[1], "pedido": base[2], "responsavel": base[3]}
+        for m in ms:
+            obs, marca, aviso = ler_marca("|".join(m[4:]))
+            avisos += [f"cartão {base[0]}: {aviso}"] if aviso else []
+            atributos.update(marca or {})
+        avisos += [f"cartão {base[0]} sem responsável válido"] if atributos["responsavel"] == "—" else []
+        para, destino = ultimo[3], canonicas.get(_sem_acento(ultimo[3]))
+        if destino is None:
+            destino = canonicas.get(_sem_acento(COLUNA_DO_ESTADO.get(_sem_acento(para), "Bloqueado")), canonicas.get("bloqueado"))
+            if destino is None:
+                return None, {}, avisos + [f"cartão {base[0]}: estado \"{para}\" sem seção e o quadro sem \"Bloqueado\""]
+            avisos.append(f"cartão {base[0]}: estado \"{para}\" sem seção no quadro; posto em {destino}")
+            obs = " · ".join(t for t in (f"estado: {para}", obs) if t)
+        if _sem_acento(para) == "pronto" and agora - (_hora(ultimo[0]) or agora) > datetime.timedelta(days=JANELA_DO_PRONTO_DIAS):
+            continue
+        secoes[destino].append([base[0], *atributos.values(), ms[0][0][:10], ultimo[0], obs or "—"])
+    saida, pendentes, secao = [], dict(secoes), None
+    for linha in texto_kanban.split("\n"):
+        secao, c = nome_da_secao(linha[3:]) if linha.startswith("## ") else secao, [x.strip() for x in linha.strip().strip("|").split("|")]
+        if secao in secoes and linha.startswith("|") and len(c) == len(COLUNAS):
+            if c == COLUNAS:
+                saida += [linha, "|" + "---|" * len(COLUNAS)] + ["| " + " | ".join(r) + " |" for r in pendentes.pop(secao, [])]
+            continue
+        saida.append(linha)
+    return "\n".join(saida), secoes, avisos
 
 
 def cmd_movimento(raiz, cartao, de, para, motivo):
