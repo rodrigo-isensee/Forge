@@ -2157,7 +2157,7 @@ def pareceres_da_volta(raiz, pedido_id, ref, arquivos, fora=None):
                 return None, f"--parecer {nome_seguro(arquivo)}: use um arquivo de {', '.join(PASTAS_DE_PARECER)} dentro da raiz"
             rel = real.relative_to(Path(os.path.realpath(raiz))).as_posix()
             origem = fora.get(rel, ref)
-            cod, bruto = git(raiz, "cat-file", "blob", f"{origem}:{rel}", bruto=True)
+            cod, bruto = git(raiz, "cat-file", "blob", ":".join((origem, rel)), bruto=True)
             if cod:
                 return None, f"o parecer {caminho_impresso(rel)} não está em {ref[:7]} (a ref da entrega)"
             lidos.append((rel, bruto.decode("utf-8", "replace"), origem))
@@ -2166,7 +2166,7 @@ def pareceres_da_volta(raiz, pedido_id, ref, arquivos, fora=None):
             textos = {rel: (texto, ref) for rel, texto in documentos(raiz, tipo, ref)}
             for rel, p in fora.items():  # o P fora da ref vence a cópia da ref (a volta anterior); só na pasta do tipo
                 if rel.rpartition("/")[0] == pasta:
-                    textos[rel] = (git(raiz, "cat-file", "blob", f"{p}:{rel}", bruto=True)[1].decode("utf-8", "replace"), p)
+                    textos[rel] = (git(raiz, "cat-file", "blob", ":".join((p, rel)), bruto=True)[1].decode("utf-8", "replace"), p)
             achados = []
             for rel, (texto, origem) in textos.items():
                 campos, _ = validar_documento(rel, texto)
