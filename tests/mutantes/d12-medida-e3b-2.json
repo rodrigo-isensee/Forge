@@ -1,0 +1,46 @@
+{
+  "pedido": "d12-medida-e3b",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "medida/piora: com menos de 3 tópicos com número na atual, só tabela",
+      "arquivo": "bin/forge-check",
+      "de": "if len(agora) < 3 or not antes:",
+      "para": "if len(agora) < 2 or not antes:",
+      "testes": [
+        "tests.test_voltas.MedidaDaRelease.test_c_menos_de_3_pequenos_na_atual_ou_sem_release_anterior_so_tabela"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "medida/piora: sem release anterior medida, só tabela",
+      "arquivo": "bin/forge-check",
+      "de": "if len(agora) < 3 or not antes:",
+      "para": "if len(agora) < 3 or False:",
+      "testes": [
+        "tests.test_voltas.MedidaDaRelease.test_c_menos_de_3_pequenos_na_atual_ou_sem_release_anterior_so_tabela"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "medida/piora: a mediana tem de subir mais de 20% (condição a)",
+      "arquivo": "bin/forge-check",
+      "de": "m1 > 1.2 * m0 and acima >= 2",
+      "para": "m1 > 1.0 * m0 and acima >= 2",
+      "testes": [
+        "tests.test_voltas.MedidaDaRelease.test_b_ruido_da_028_um_so_acima_do_maior_ou_mediana_ate_20_por_cento_nao_avisam"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "medida/piora: pelo menos 2 tópicos acima do maior da anterior (condição b)",
+      "arquivo": "bin/forge-check",
+      "de": "m1 > 1.2 * m0 and acima >= 2",
+      "para": "m1 > 1.2 * m0 and acima >= 1",
+      "testes": [
+        "tests.test_voltas.MedidaDaRelease.test_b_ruido_da_028_um_so_acima_do_maior_ou_mediana_ate_20_por_cento_nao_avisam"
+      ]
+    }
+  ]
+}
