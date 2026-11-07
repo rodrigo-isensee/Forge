@@ -456,7 +456,7 @@ class TextosDizemQuandoCadaMedidaRoda(unittest.TestCase):
 class MedidaM2b(Raiz):
     """M15 E5c (decisão 9): `provas medida` conta as conferências de entrega com mérito que o CI com a M15 pegaria e as só do conferente."""
     BRIEF = ("# b\n\n## Pronto quando\n- PQ-2 (cmd): `python3 -m unittest tests.test_x` · espera: igual 'ok'\n"
-             "- PQ-1 (cmd): `grep -c x arquivo` · espera: igual '1'\n- PQ-3 (arquivo): `git rev-parse HEAD`\n")
+             "- PQ-1 (cmd): `grep -c x arquivo` · espera: igual '1'\n- PQ-3 (arquivo): `git rev-parse HEAD`\n- PQ-4 (cmd): sem crase · espera: rc=0\n")
     CABECALHO = "| data-hora | pedido | brief | modo | rodada | resultado | mérito (s/n/parcial) | nota | classe | autor |\n|---|---|---|---|---|---|---|---|---|---|\n"
 
     def medir(self, *linhas, desde=()):
@@ -478,7 +478,7 @@ class MedidaM2b(Raiz):
 
     def test_pq_fora_da_lista_nao_cmd_ou_sem_pq_e_so_do_conferente(self):
         for resultado, detalhe in (("não cumpriu (PQ-1)", "PQ-1=so-conferente"), ("não cumpriu (PQ-3)", "PQ-3=so-conferente"),
-                                   ("não cumpriu (PQ-9)", "PQ-9=so-conferente"), ("escopo: fora", "sem PQ=so-conferente"),
+                                   ("não cumpriu (PQ-9)", "PQ-9=so-conferente"), ("não cumpriu (PQ-4)", "PQ-4=so-conferente"), ("escopo: fora", "sem PQ=so-conferente"),
                                    ("não cumpriu (PQ-2, PQ-1)", "PQ-2=ci, PQ-1=so-conferente")):
             with self.subTest(resultado=resultado):
                 saida = self.medir(self.linha(resultado))
