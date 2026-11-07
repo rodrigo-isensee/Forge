@@ -11,6 +11,8 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = str(RAIZ / "bin" / "forge-check")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
 
 HISTORICO = """| Data/hora | Cartão | De | Para | Motivo |
 |---|---|---|---|---|
@@ -289,7 +291,7 @@ class MedidaDoTopico(Raiz):  # D12 (E3a): `forge-check medida` mede um tópico m
                     "| 2026-10-17 | Q | jarvis | 999 | - | - | |\n")
 
     def git(self, *args, data=None):
-        env = dict(self.env, **({"GIT_AUTHOR_DATE": data, "GIT_COMMITTER_DATE": data} if data else {}))
+        env = sem_manutencao(dict(self.env, **({"GIT_AUTHOR_DATE": data, "GIT_COMMITTER_DATE": data} if data else {})))
         return subprocess.run(["git", "-C", str(self.tmp), *args], capture_output=True, text=True, env=env, check=True).stdout.strip()
 
     def rodar(self, *args):
