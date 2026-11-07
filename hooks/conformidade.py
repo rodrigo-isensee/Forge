@@ -1993,6 +1993,43 @@ def pedir_confirmacao(perguntas):
                                              "permissionDecisionReason": motivo}}, ensure_ascii=False))
 
 
+class ForaDaProva(Exception):
+    """A `GuardaDaProva` achou outra recusa, que fora de projeto não vale (ADR 0009, seção 6)."""
+
+
+class GuardaDaProva(Guarda):
+    """S8 (C-1) com a pasta corrente fora de projeto: a Guarda lê a escrita, mas só a recusa da prova da suíte vale."""
+    def barrar(self, rid, o_que, corrigir, simples=None):
+        if (rid, o_que, corrigir) != PROVA_DA_SUITE:
+            raise ForaDaProva(rid)
+        super().barrar(rid, o_que, corrigir)
+
+    def perguntar(self, texto):
+        """Fora de projeto não há confirmação a pedir."""
+
+    def arquivo(self, entrada):  # sem a recusa do papel só de leitura, que fora de projeto não vale
+        caminho = entrada.get("file_path") or entrada.get("notebook_path")
+        if isinstance(caminho, str) and caminho:
+            self.checar_escrita(caminho, self.h.cwd())
+
+
+def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
+    """S8 (C-1, A2 da segurança g3): a prova da suíte é por uid, então vale também fora de projeto, em toda sessão e
+    para todo papel. Outra recusa ou erro interno: falha fechado só se o alvo cita o nome da prova."""
+    if hook.campo("hook_event_name") == "PostToolUse":
+        return
+    hook.raiz = raiz or Path(hook.cwd())
+    guarda = GuardaDaProva(hook, pol, papel)
+    try:
+        decidir(hook, guarda, ferramenta, entrada)
+    except Exception as erro:  # noqa: BLE001 - ForaDaProva ou erro interno; a decisão vem do texto do alvo
+        alvo = entrada.get("command") if ferramenta == "Bash" else entrada.get("file_path") or entrada.get("notebook_path")
+        if isinstance(alvo, str) and any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in re.split(r"[\s'\"(),;=<>|&]+", alvo)):
+            Guarda.barrar(guarda, *PROVA_DA_SUITE)
+        if not isinstance(erro, ForaDaProva):
+            hook.registrar_erro(erro)
+
+
 def principal(hook):
     ferramenta = hook.campo("tool_name")
     entrada = hook.campo("tool_input")
@@ -2019,6 +2056,7 @@ def principal(hook):
                 bloquear("R-CONTRIB", "erro interno ao conferir o rótulo afrouxa-regra; o hook não pôde decidir. "
                                       "Corrigir: veja .forge/run/erros.log e leve ao dono do Forge (R-DECISAO)")
         if not (com_lista and na_sessao_do_forge):
+            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz)
             return
         externo, hook.raiz = None, raiz
     try:
