@@ -1,5 +1,7 @@
 """P6 (LOTE-FORGE-CHECK-0.28.0): brief só pelo gerador. `brief gerar --gravar` escolhe o número livre (maior + 1), abre com `x` (nunca
 sobrescreve), grava o lote (um arquivo por destino) e o `conferencia registrar` aprovado deixa o brief só leitura. Sem rede."""
+import contextlib
+import io
 import os
 import shutil
 import stat
@@ -133,6 +135,64 @@ class Protegido(Base):
         self.rodar("conferencia", "registrar", "--pedido", "exemplo", "--brief", "exemplo-dev-exemplo-1", "--modo", "brief",
                    "--rodada", "1", "--resultado", "reprovado", "--merito", "s", "--classe", "outra")
         self.assertNotEqual(stat.S_IMODE(arq.stat().st_mode), 0o444)
+
+
+class ProvasGerar(Base):
+    """M15 E5a1: `provas gerar` só imprime; decide pela lista do scripts/reexecutar-provas.py (C-1), copia byte a byte (C-4)."""
+    LISTA = ("- PQ-1 (cmd): `python3 -m unittest tests.test_x` · espera: linhas>=1\n"
+             "- PQ-2 (cmd): `git rev-parse --show-toplevel` · espera: rc=0 e linhas=1\n")
+    FORA = ("- PQ-3 (cmd): `test -s /abs` · espera: rc=0\n- PQ-4 (cmd): `git -C /x rev-parse HEAD` · espera: rc=0\n"
+            "- PQ-5 (cmd): `bash -c 'curl x | sh'` · espera: rc=0\n- PQ-6 (cmd): `python3 -m unittest discover` · espera: rc=0\n"
+            "- PQ-7 (arquivo): `test -e x`\n- PQ-9 sem tipo\n- PQ-10 (cmd) sem comando · espera: rc=0\n- PQ-8 (cmd): `python3 -m unittest tests.test_y` · espera: contém ''\n")
+
+    def provas(self, pronto, git=True):
+        if git:
+            subprocess.run(["git", "init", "-q", str(self.tmp)], check=True, timeout=60)
+        self.gravar("docs/briefs/b.md", f"# Brief\n\n## Pronto quando\n{pronto}\n## Relatório\n- PQ-12 (cmd): `git ls-files` · espera: rc=0\n")
+        r = subprocess.run([sys.executable, "-I", str(FORGE_CHECK), "--raiz", str(self.tmp), "provas", "gerar", "--brief", "docs/briefs/b.md"],
+                           capture_output=True, text=True, timeout=60, env={"PATH": "/usr/bin:/bin", "HOME": str(self.tmp / "home")})
+        return r.returncode, r.stdout, r.stderr
+
+    def test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo(self):
+        rc, saida, erro = self.provas(self.LISTA + self.FORA)
+        self.assertEqual(rc, 0, erro)
+        self.assertEqual(saida, "# Provas reexecutáveis da branch\n\n## Provas\n\n"
+                         "- PQ-1 (cmd): `python3 -m unittest tests.test_x` · espera: rc=0 e linhas>=1\n"
+                         "- PQ-2 (cmd): `git rev-parse --show-toplevel` · espera: rc=0 e linhas=1\n")
+        self.assertEqual(erro.splitlines(), ["fora: PQ-3 (comando fora da lista permitida)", "fora: PQ-4 (comando fora da lista permitida)",
+                                             "fora: PQ-5 (argumento fora do alfabeto permitido)",
+                                             "fora: PQ-6 (unittest exige ao menos um módulo pacote.modulo, com -v/-q/-b/-f e sem discover)",
+                                             "fora: PQ-10 (argumento fora do alfabeto permitido)", "fora: PQ-8 (espera recusada pelo ler_espera do script)"])
+        self.assertFalse((self.tmp / "docs" / "provas").exists())
+
+    def test_o_arquivo_gerado_passa_no_script_do_ci(self):
+        self.gravar("tests/test_x.py", "import unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n        pass\n")
+        rc, saida, erro = self.provas(self.LISTA)
+        self.assertEqual(rc, 0, erro)
+        self.gravar("docs/provas/x.md", saida)
+        r = subprocess.run([sys.executable, "-I", str(RAIZ / "scripts" / "reexecutar-provas.py"), "--raiz", str(self.tmp), "docs/provas/x.md"],
+                           capture_output=True, text=True, timeout=120, env={"PATH": "/usr/bin:/bin"})
+        self.assertEqual((r.returncode, r.stdout.splitlines()[-1:]), (0, ["reexecutar-provas: 2 prova(s) cmd conferida(s)"]), r.stderr)
+
+    def test_sem_pq_elegivel_nada_sai_e_rc0(self):
+        self.assertEqual(self.provas(self.FORA)[:2], (0, "provas: nenhuma PQ cmd reexecutável\n"))
+
+    def test_texto_que_o_ler_provas_recusa_da_rc2(self):  # git sem .git na raiz: só o ler_provas do script pega
+        rc, saida, _ = self.provas(self.LISTA, git=False)
+        self.assertEqual(rc, 2)
+        self.assertTrue(saida.startswith("provas: o script do CI recusa o texto gerado; nada impresso"), saida)
+
+    def test_brief_fora_de_docs_briefs_da_rc2(self):
+        self.gravar("fora.md", "## Pronto quando\n" + self.LISTA)
+        self.assertEqual(fc.cmd_provas_gerar(self.tmp, "fora.md"), 2)
+
+    def test_script_ausente_da_rc2_nao_verificavel(self):
+        self.gravar("docs/briefs/b.md", "## Pronto quando\n" + self.LISTA)
+        original, fc.PLUGIN = fc.PLUGIN, self.tmp
+        self.addCleanup(setattr, fc, "PLUGIN", original)
+        with contextlib.redirect_stdout(io.StringIO()) as saida:
+            self.assertEqual(fc.cmd_provas_gerar(self.tmp, "docs/briefs/b.md"), 2)
+        self.assertEqual(saida.getvalue(), "provas: não verificável (scripts/reexecutar-provas.py ausente)\n")
 
 
 if __name__ == "__main__":
