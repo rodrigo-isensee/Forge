@@ -24,10 +24,10 @@
     },
     {
       "id": "M3",
-      "guarda": "linha curta do histórico não é lida",
+      "guarda": "só linha de 5 colunas ou mais do histórico é lida",
       "arquivo": "bin/forge-check",
       "de": "        if len(c) >= 5 and ISO8601.match(c[0]) and (hora := _hora(c[0])):\n            por_cartao.setdefault(c[1].casefold(), []).append((hora, c[2], c[3], \"|\".join(c[4:])))\n    inicio, leads",
-      "para": "        if len(c) >= 2 and ISO8601.match(c[0]) and (hora := _hora(c[0])):\n            por_cartao.setdefault(c[1].casefold(), []).append((hora, c[2], c[3], \"|\".join(c[4:])))\n    inicio, leads",
+      "para": "        if len(c) >= 6 and ISO8601.match(c[0]) and (hora := _hora(c[0])):\n            por_cartao.setdefault(c[1].casefold(), []).append((hora, c[2], c[3], \"|\".join(c[4:])))\n    inicio, leads",
       "testes": [
         "tests.test_voltas.RetroPorGatilho.test_lead_acima_do_p85_com_vinte_pedidos"
       ]
