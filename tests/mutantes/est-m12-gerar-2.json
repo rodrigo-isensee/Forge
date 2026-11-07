@@ -1,0 +1,66 @@
+{
+  "pedido": "est-m12-gerar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M7",
+      "guarda": "temporario exclusivo de mkstemp, nunca nome fixo (C-2, caso 4)",
+      "arquivo": "bin/forge-check",
+      "de": "tmp_fd, tmp = tempfile.mkstemp(dir=raiz, prefix=\".KANBAN.\")",
+      "para": "tmp_fd, tmp = os.open(raiz / \".KANBAN.tmp\", os.O_WRONLY | os.O_CREAT | os.O_TRUNC), str(raiz / \".KANBAN.tmp\")",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_temporario_exclusivo_e_apagado_em_erro"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "temporario apagado em erro (C-2)",
+      "arquivo": "bin/forge-check",
+      "de": "            except BaseException:\n                os.unlink(tmp)\n                raise",
+      "para": "            except BaseException:\n                pass\n                raise",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_temporario_exclusivo_e_apagado_em_erro"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "erro na escrita propaga e o comando falha (C-2)",
+      "arquivo": "bin/forge-check",
+      "de": "            except BaseException:\n                os.unlink(tmp)\n                raise",
+      "para": "            except BaseException:\n                os.unlink(tmp)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_temporario_exclusivo_e_apagado_em_erro"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "a trava exclusiva e tomada (C-10)",
+      "arquivo": "bin/forge-check",
+      "de": "            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n            return fd",
+      "para": "            pass\n            return fd",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_trava_ocupada_recusa"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "trava ocupada alem da espera recusa (C-10)",
+      "arquivo": "bin/forge-check",
+      "de": "    raise TimeoutError(errno.ETIMEDOUT,",
+      "para": "    return fd\n    raise TimeoutError(errno.ETIMEDOUT,",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_trava_ocupada_recusa"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a trava abre sem seguir link (C-10)",
+      "arquivo": "bin/forge-check",
+      "de": "\"quadro.trava\", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)",
+      "para": "\"quadro.trava\", os.O_RDWR | os.O_CREAT, 0o600)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_link_grande_fifo_ou_ausente_recusa_com_o_quadro_e_o_alvo_intactos"
+      ]
+    }
+  ]
+}

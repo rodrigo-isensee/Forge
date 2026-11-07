@@ -1,0 +1,56 @@
+{
+  "pedido": "est-m12-gerar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M13",
+      "guarda": "aviso de edicao a mao compara a linha inteira e a secao (C-15)",
+      "arquivo": "bin/forge-check",
+      "de": "if antes.get(i) != depois[i])",
+      "para": "if i not in antes)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_gera_do_historico_duas_vezes_igual_e_avisa_a_edicao_a_mao"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "estado antigo A fazer vai a Pronto para fazer (adendo dos estados antigos)",
+      "arquivo": "bin/forge-check",
+      "de": "\"a fazer\": \"Pronto para fazer\", ",
+      "para": "",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_estados_antigos_vao_a_coluna_que_o_quadro_ja_lhes_da"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "estado antigo Backlog vai a Entrada",
+      "arquivo": "bin/forge-check",
+      "de": "\"backlog\": \"Entrada\", ",
+      "para": "",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_estados_antigos_vao_a_coluna_que_o_quadro_ja_lhes_da"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "estado antigo Pronto (develop) vai a Pronto",
+      "arquivo": "bin/forge-check",
+      "de": ", \"pronto (develop)\": \"Pronto\"}",
+      "para": "}",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_estados_antigos_vao_a_coluna_que_o_quadro_ja_lhes_da"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "a janela de 30 dias vale so para o Pronto canonico, nao para Pronto (develop)",
+      "arquivo": "bin/forge-check",
+      "de": "if _sem_acento(para) == \"pronto\" and agora",
+      "para": "if _sem_acento(para).startswith(\"pronto\") and agora",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_estados_antigos_vao_a_coluna_que_o_quadro_ja_lhes_da"
+      ]
+    }
+  ]
+}

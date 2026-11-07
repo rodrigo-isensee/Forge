@@ -1,0 +1,66 @@
+{
+  "pedido": "est-m12-gerar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "leitura sem seguir link (C-1, casos 1 e 2)",
+      "arquivo": "bin/forge-check",
+      "de": "fd = os.open(arq, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)",
+      "para": "fd = os.open(arq, os.O_RDONLY | os.O_NONBLOCK)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_link_grande_fifo_ou_ausente_recusa_com_o_quadro_e_o_alvo_intactos"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "arquivo que nao abre falha fechado, nunca vazio calado (C-1, A3)",
+      "arquivo": "bin/forge-check",
+      "de": "        return None, {errno.ELOOP:",
+      "para": "        return \"\", None and {errno.ELOOP:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_link_grande_fifo_ou_ausente_recusa_com_o_quadro_e_o_alvo_intactos"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "so arquivo regular, conferido antes de ler (C-1)",
+      "arquivo": "bin/forge-check",
+      "de": "        if not stat.S_ISREG(os.fstat(fd).st_mode):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_link_grande_fifo_ou_ausente_recusa_com_o_quadro_e_o_alvo_intactos"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "teto de bytes do historico (C-1, caso 3)",
+      "arquivo": "bin/forge-check",
+      "de": "    if len(dados) > TETO_DA_TABELA:\n        return None, f\"passa de {TETO_DA_TABELA} bytes\"\n    return dados.decode",
+      "para": "    if False:\n        return None, f\"passa de {TETO_DA_TABELA} bytes\"\n    return dados.decode",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_link_grande_fifo_ou_ausente_recusa_com_o_quadro_e_o_alvo_intactos"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "erro de leitura do historico recusa, nao so o do KANBAN.md (C-1)",
+      "arquivo": "bin/forge-check",
+      "de": "            if erro or erro_h:",
+      "para": "            if erro:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_link_grande_fifo_ou_ausente_recusa_com_o_quadro_e_o_alvo_intactos"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "quadro sem Bloqueado para estado sem secao recusa com o quadro intacto (C-5)",
+      "arquivo": "bin/forge-check",
+      "de": "            if texto is None:\n                return saida +",
+      "para": "            if False:\n                return saida +",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_link_grande_fifo_ou_ausente_recusa_com_o_quadro_e_o_alvo_intactos"
+      ]
+    }
+  ]
+}
