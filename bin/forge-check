@@ -234,6 +234,8 @@ def validar_documento(rel, texto):
             erro("parecer", "use " + " ou ".join(sorted(VALORES_DO_PARECER[tipo])))
         for problema in problemas_do_bloco(*achados_do_parecer(texto), campos, False):  # C3 (VV-2)
             erro("achados", problema)
+        for problema in sondas_do_parecer(texto)[1]:  # PAR-P1 (C-1); transição: sem o bloco, nada a cobrar
+            erro("sondas", problema)
         if campos.get("commit") and not COMMIT.match(campos["commit"]):
             erro("commit", "hash hexadecimal de 7 a 40 caracteres")
         if campos.get("data") and not DATA.match(campos["data"]):
@@ -1679,6 +1681,8 @@ ACHADO = re.compile(r"^- ([AR]\d+) \((bloqueante|recomendado)\) (\S+?):(\d+(?:-\
 ID_DE_ACHADO = re.compile(r"[AR]\d+")
 INCLUIDO = re.compile(r"\(incluído (\S+) ([0-9a-f]{7,40}) ([AR]\d+) de (\S+)\) (.+?)\s*$")  # marca da recomendação copiada no Entregar
 CABECALHO_ACHADOS = re.compile(r"^##\s+Achados\s*$")
+SONDA = re.compile(r"^- (S\d+) · (.+?) · espera: (.+?) · obtido: (.+?)\s*$")  # PAR-P1: a sonda que provou o bloqueante
+CABECALHO_SONDAS = re.compile(r"^##\s+Sondas\s*$")
 TETO_DO_ACHADO = 300
 SECOES_COPIADAS = ("Objetivo", "Fora do escopo", "Relatório")  # byte a byte do brief anterior (a volta só muda o Entregar; o Fora do escopo só ganha etapa nova no fim, E14)
 VOLTA_DE = re.compile(r"^Volta-de:\s*(\S+)\s+sha256\s+([0-9a-f]{64})\s*$", re.M)
@@ -1716,6 +1720,30 @@ def achados_do_parecer(texto):
         else:
             achados.append({"id": m.group(1), "gravidade": m.group(2), "arquivo": m.group(3), "linha": m.group(4), "texto": m.group(5)})
     return achados, erros, tem
+
+
+def sondas_do_parecer(texto):
+    """Lê o bloco `## Sondas` de um parecer (PAR-P1): (sondas, erros, tem_bloco). Cada sonda é
+    `- S<n> · <entrada> · espera: <esperado> · obtido: <obtido>` numa linha só, sem caractere de controle, com ` · espera: ` e
+    ` · obtido: ` uma vez cada e o teto de tamanho depois do id (C-1); linha fora do formato ou id repetido é erro (C3)."""
+    sondas, erros, dentro, tem = [], [], False, False
+    for linha in texto.splitlines():
+        if CABECALHO_SONDAS.match(linha):
+            dentro = tem = True
+            continue
+        dentro = dentro and not re.match(r"^#{1,6}\s", linha)  # outro cabeçalho fecha o bloco
+        if not (dentro and linha.strip()):
+            continue
+        m = SONDA.match(linha)
+        if com_controle(linha) or not m or linha.count(" · espera: ") != 1 or linha.count(" · obtido: ") != 1:
+            erros.append(f"linha do bloco ## Sondas fora do formato (uma linha, sem caractere de controle, um ` · espera: ` e um ` · obtido: `): {nome_seguro(linha[:80])}")
+        elif len(linha[m.start(2):].rstrip()) > TETO_DO_ACHADO:
+            erros.append(f"sonda {m.group(1)} com mais de {TETO_DO_ACHADO} caracteres")
+        elif any(s["id"] == m.group(1) for s in sondas):
+            erros.append(f"sonda {m.group(1)} repetida")
+        else:
+            sondas.append({"id": m.group(1), "entrada": m.group(2), "espera": m.group(3), "obtido": m.group(4)})
+    return sondas, erros, tem
 
 
 def problemas_do_bloco(achados, erros, tem_bloco, campos, estrito):

@@ -972,3 +972,50 @@ class TextoDosAgentes(unittest.TestCase):
                 self.assertIn(f"forge-check delta --parecer docs/{pasta}/<pedido>.md", t)
         self.assertIn("sempre sobre o head", self.texto("qa-engineer"))
         self.assertIn("sem dispensar a releitura", self.texto("security-engineer"))
+
+
+class Sondas(Repositorio):
+    """PAR-P1 (E1a): o bloco `## Sondas` do parecer, conferido pelo `forge-check docs` (C-1 do modelo de ameaças da 0.39)."""
+    REVIEW = BriefDeVolta.REVIEW
+    BOA = "- S1 · printf 'a\\tb' | bin/x · espera: rc 1 e `bloqueado` · obtido: rc 0\n"
+
+    def docs(self, sondas, achados=BriefDeVolta.ACHADOS):
+        (self.repo / "docs" / "reviews").mkdir(parents=True, exist_ok=True)
+        corpo = achados + ("" if sondas is None else "\n## Sondas\n" + sondas + "\n## Parecer\nprosa · espera: livre\n")
+        (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=corpo), encoding="utf-8")
+        return self.check("docs")
+
+    def test_linha_boa_passa_e_parecer_sem_bloco_nao_muda(self):
+        for sondas in (self.BOA + "- S2 · {\"a\": 1} · espera: x · obtido: y\n", "", None):
+            with self.subTest(sondas):
+                self.assertEqual(self.docs(sondas), (0, ""))
+        sondas, erros, tem = carregar_forge_check().sondas_do_parecer("# P\n## Sondas\n" + self.BOA)
+        self.assertEqual((sondas[0]["entrada"], sondas[0]["espera"], sondas[0]["obtido"], erros, tem),
+                         ("printf 'a\\tb' | bin/x", "rc 1 e `bloqueado`", "rc 0", [], True))
+
+    def test_linha_fora_do_formato_e_erro_e_nunca_some(self):  # C-1, C3
+        casos = {"sem obtido": ("- S1 · entrada longa · espera: rc 1\n", "fora do formato"),
+                 "espera repetido": ("- S1 · a · espera: b · espera: c · obtido: d\n", "fora do formato"),
+                 "obtido repetido": ("- S1 · a · espera: b · obtido: c · obtido: d\n", "fora do formato"),
+                 "controle": ("- S1 · ab\x0bcd · espera: b · obtido: c\n", "fora do formato"),
+                 "bidi": ("- S1 · ab‮cd · espera: b · obtido: c\n", "fora do formato"),
+                 "prosa": ("a sonda foi rodada à mão\n", "fora do formato"),
+                 "id repetido": (self.BOA + self.BOA, "sonda S1 repetida"),
+                 "teto": (f"- S1 · {'x' * 280} · espera: b · obtido: c\n", "sonda S1 com mais de 300 caracteres")}
+        for nome, (sondas, esperado) in casos.items():
+            with self.subTest(nome):
+                rc, saida = self.docs(sondas)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn("docs/reviews/p1.md: sondas: ", saida)
+                self.assertIn(esperado, saida)
+        self.assertEqual(self.docs(f"- S1 · {'x' * 270} · espera: b · obtido: c\n")[0], 0)  # 294 depois do id: dentro do teto
+
+    def test_modelos_e_agentes_trazem_o_bloco(self):
+        modulo = carregar_forge_check()
+        for modelo in ("templates/projeto/docs/reviews/_modelo.md", "docs/security/_modelo.md"):
+            with self.subTest(modelo):
+                self.assertEqual(modulo.sondas_do_parecer((RAIZ / modelo).read_text(encoding="utf-8")), ([], [], True))
+        for agente in ("tech-lead", "security-engineer"):
+            with self.subTest(agente):
+                self.assertIn("toda sonda executada que prova um bloqueante vai em `## Sondas`",
+                              (RAIZ / "agents" / f"{agente}.md").read_text(encoding="utf-8"))

@@ -1,0 +1,70 @@
+{
+  "pedido": "par-p1-sondas-formato",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o cabecalho ## Sondas abre o bloco",
+      "arquivo": "bin/forge-check",
+      "de": "if CABECALHO_SONDAS.match(linha):",
+      "para": "if False:",
+      "testes": ["tests.test_volta_por_delta.Sondas.test_linha_fora_do_formato_e_erro_e_nunca_some"]
+    },
+    {
+      "id": "M2",
+      "guarda": "outro cabecalho fecha o bloco ## Sondas (a prosa depois dele nao vira sonda)",
+      "arquivo": "bin/forge-check",
+      "de": "dentro = dentro and not re.match(r\"^#{1,6}\\s\", linha)",
+      "para": "dentro = dentro and not re.match(r\"^#{7}\\s\", linha)",
+      "testes": ["tests.test_volta_por_delta.Sondas.test_linha_boa_passa_e_parecer_sem_bloco_nao_muda"]
+    },
+    {
+      "id": "M3",
+      "guarda": "linha em branco do bloco nao e sonda",
+      "arquivo": "bin/forge-check",
+      "de": "if not (dentro and linha.strip()):",
+      "para": "if not dentro:",
+      "testes": ["tests.test_volta_por_delta.Sondas.test_linha_boa_passa_e_parecer_sem_bloco_nao_muda"]
+    },
+    {
+      "id": "M4",
+      "guarda": "C-1: sonda com caractere de controle ou bidi e erro de formato",
+      "arquivo": "bin/forge-check",
+      "de": "if com_controle(linha) or not m or linha.count(",
+      "para": "if not m or linha.count(",
+      "testes": ["tests.test_volta_por_delta.Sondas.test_linha_fora_do_formato_e_erro_e_nunca_some"]
+    },
+    {
+      "id": "M5",
+      "guarda": "C-1: o separador espera aparece uma vez so",
+      "arquivo": "bin/forge-check",
+      "de": "linha.count(\" · espera: \") != 1",
+      "para": "linha.count(\" · espera: \") < 1",
+      "testes": ["tests.test_volta_por_delta.Sondas.test_linha_fora_do_formato_e_erro_e_nunca_some"]
+    },
+    {
+      "id": "M6",
+      "guarda": "C-1: o separador obtido aparece uma vez so",
+      "arquivo": "bin/forge-check",
+      "de": "linha.count(\" · obtido: \") != 1",
+      "para": "linha.count(\" · obtido: \") < 1",
+      "testes": ["tests.test_volta_por_delta.Sondas.test_linha_fora_do_formato_e_erro_e_nunca_some"]
+    },
+    {
+      "id": "M7",
+      "guarda": "C-1: teto de 300 caracteres contado depois do id",
+      "arquivo": "bin/forge-check",
+      "de": "elif len(linha[m.start(2):].rstrip()) > TETO_DO_ACHADO:",
+      "para": "elif len(linha.rstrip()) > TETO_DO_ACHADO:",
+      "testes": ["tests.test_volta_por_delta.Sondas.test_linha_fora_do_formato_e_erro_e_nunca_some"]
+    },
+    {
+      "id": "M8",
+      "guarda": "id de sonda repetido e erro",
+      "arquivo": "bin/forge-check",
+      "de": "elif any(s[\"id\"] == m.group(1) for s in sondas):",
+      "para": "elif False:",
+      "testes": ["tests.test_volta_por_delta.Sondas.test_linha_fora_do_formato_e_erro_e_nunca_some"]
+    }
+  ]
+}
