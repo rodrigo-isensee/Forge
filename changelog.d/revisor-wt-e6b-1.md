@@ -1,0 +1,2 @@
+### Adicionado
+- O `forge-check brief gerar --volta` e a conferência do brief de volta leem, além da `--ref`, o último `parecer conferido` do Histórico de cada arquivo que ainda não está nela e é da branch da volta, por `git cat-file blob <P>:<arquivo>` (o arquivo sai do git, nunca do texto da linha); esse P vence a cópia antiga do parecer na ref, a marca do achado e a linha do Ler levam o sha dele, e um P que o git não lê reprova (E6b-1 VOLTAS-REVISOR-WT, versao-037).
