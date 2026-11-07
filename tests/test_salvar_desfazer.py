@@ -365,6 +365,48 @@ class Desfazer(Base):
         self.assertIn("desfeito", self.git("stash", "list"))
 
 
+class AjudaEOpcao(Base):  # SALVAR-AJUDA-E-OPCAO: `forge salvar --help` virou mensagem e gravou um commit
+    def setUp(self):
+        super().setUp()
+        self.git("checkout", "-q", "-b", "feature/x")
+        self.escrever("a.txt", "x\n")
+
+    def estado(self):
+        remotos = self.git("for-each-ref", "--format=%(refname) %(objectname)", cwd=self.remoto)
+        return self.git("rev-parse", "HEAD"), self.ramo(), self.git("status", "--porcelain"), remotos
+
+    def test_ajuda_mostra_o_uso_sem_salvar_nem_enviar(self):
+        for opcao in ("-h", "--help"):
+            with self.subTest(opcao=opcao):
+                antes = self.estado()
+                r = self.forge("salvar", opcao)
+                self.assertEqual(r.returncode, 0, self.saida(r))
+                self.assertIn("Uso: forge salvar", r.stdout)
+                self.assertEqual(self.estado(), antes)
+                self.assertIn("a.txt", antes[2])
+
+    def test_ajuda_funciona_fora_de_repositorio(self):
+        r = self.forge("salvar", "--help", cwd=self.home)
+        self.assertEqual(r.returncode, 0, self.saida(r))
+        self.assertIn("Uso: forge salvar", r.stdout)
+
+    def test_mensagem_que_comeca_com_traco_e_recusada_sem_commit(self):
+        for args in (("-m", "x"), ("--amend",), ("--",)):
+            with self.subTest(args=args):
+                antes = self.estado()
+                r = self.forge("salvar", *args)
+                self.assertEqual(r.returncode, 2, self.saida(r))
+                self.assertIn("não pode começar com '-'", r.stderr)
+                self.assertIn(f"recebi: {args[0]})", r.stderr)
+                self.assertEqual(self.estado(), antes)
+
+    def test_traco_no_meio_da_mensagem_vale(self):
+        r = self.forge("salvar", "corrige -m no texto")
+        self.assertEqual(r.returncode, 0, self.saida(r))
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "corrige -m no texto")
+        self.assertEqual(self.topo_remoto("feature/x"), self.git("rev-parse", "HEAD"))
+
+
 class Garantias(unittest.TestCase):
     def test_scripts_nunca_usam_force_nem_reset_hard(self):
         for nome in ("forge-salvar", "forge-desfazer"):
