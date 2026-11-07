@@ -129,6 +129,7 @@ MAPA = [
 # de tests/ ou carregá-los pelo nome; o mapa não tenta saber como, e por isso não há grafo de importação para divergir.
 ALTERA_O_MAPA = {"bin/forge-testes", "tests/config.json"}
 MODULO_DE_TESTE = re.compile(r"tests/(test_[a-z0-9_]+)\.py")
+ORACULO = re.compile(r"test_oraculo_[a-z0-9_]+")
 
 
 def git(*args):
@@ -176,7 +177,21 @@ def planejar(caminhos, raiz=Path(".")):
     ausentes = sorted(m for m in modulos if not (raiz / "tests" / f"{m}.py").is_file())
     if ausentes:
         return "completo", [f"módulo sem arquivo: {', '.join(ausentes)}"]
+    if modulos:
+        modulos.update(oraculos(raiz))
     return "dirigido", sorted(modulos)
+
+
+def oraculos(raiz=Path(".")):
+    """Os testes-oráculo do portão (`tests/test_oraculo_<pedido>.py`, EXT-1): entram em todo plano dirigido, porque o
+    oráculo pode ler qualquer arquivo de controle. Nome fora do padrão, link ou pasta levanta ValueError: nunca some
+    do plano em silêncio."""
+    achados = []
+    for p in sorted((raiz / "tests").glob("test_oraculo_*.py")):
+        if p.is_symlink() or not p.is_file() or not ORACULO.fullmatch(p.stem):
+            raise ValueError(f"oráculo fora do padrão (tests/test_oraculo_[a-z0-9_]+.py, arquivo comum): {ascii(p.name)}")
+        achados.append(p.stem)
+    return achados
 
 
 def modulos_sem_mapa(pedidos, raiz=Path(".")):
@@ -587,6 +602,7 @@ def main(argv=None):
     except RuntimeError as erro:
         sys.exit(f"forge-testes: fora de um repositório git ({erro})")
     try:
+        oraculos()
         pedidos = caminhos_pedidos(args.caminhos, origem, raiz) if args.caminhos else []
     except ValueError as erro:
         print(f"forge-testes: {erro}", file=sys.stderr)

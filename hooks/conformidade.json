@@ -63,6 +63,7 @@
     {"caminho": "tests/neutralidade.py", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "teste de proteção só em branch melhoria/*"},
     {"caminho": "tests/catraca.py", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "teste de proteção só em branch melhoria/*"},
     {"caminho": "tests/hooks/", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "teste de proteção só em branch melhoria/*"},
+    {"caminho": "tests/test_oraculo_*.py", "quem": ["qa", "seguranca"], "so_forge": true, "branch": "melhoria/", "motivo": "teste-oráculo do portão: só qa e seguranca o escrevem; o autor o roda e não o edita (EXT-1)"},
     {"caminho": "hooks/conformidade.json", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "política de conformidade só em branch melhoria/*"}
   ],
   "pacotes": {

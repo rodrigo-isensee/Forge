@@ -1,0 +1,26 @@
+{
+  "descricao": "EXT-1 (C-7): `rm tests/test_oraculo_x.py` do tech-lead no oráculo bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "tests/test_oraculo_x.py": "import unittest\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "rm tests/test_oraculo_x.py"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "peça a qa/seguranca"
+  }
+}

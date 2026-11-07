@@ -374,7 +374,8 @@
       "`R-CONFORMIDADE`",
       "`R-NEUTRO`",
       "`R-CONTRIB`",
-      "varrer a família inteira"
+      "varrer a família inteira",
+      "a 1ª rodada entrega, antes da construção, o oráculo em `tests/test_oraculo_<pedido>\\.py`"
     ],
     "skills/ci-cd/SKILL.md": [
       "## GitHub Actions \\(padrão\\)",
@@ -485,7 +486,8 @@
       "`R-QA`",
       "sem ler o código",
       "testes dos casos de abuso do modelo de ameaças",
-      "forge-mutante"
+      "forge-mutante",
+      "quem escreve o teste-oráculo `tests/test_oraculo_<pedido>\\.py` na 1ª rodada, antes da construção, é você"
     ],
     "skills/qa-testing/SKILL.md": [
       "forge-testes --vermelho",
@@ -497,7 +499,8 @@
       "## Plano antecipado",
       "conferir o diff contra a lista de `CA-n`",
       "só sobre o commit final e depois do review",
-      "## Mutantes declarados nos pedidos de controle"
+      "## Mutantes declarados nos pedidos de controle",
+      "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado"
     ],
     "skills/cyber-security/SKILL.md": [
       "só o `qa-engineer` roda a suíte inteira",
@@ -512,7 +515,8 @@
       "nem conta como volta de `R-QA`",
       "## Definição de pronto",
       "documentação afetada pela mudança atualizada na mesma entrega",
-      "Teste de ausência .* cujo alvo mudou é relido"
+      "Teste de ausência .* cujo alvo mudou é relido",
+      "o autor roda o oráculo e não o edita"
     ],
     "tests/test_forge.py": [
       "def minimo\\("
@@ -692,7 +696,11 @@
   },
   "invariantes_motivo_trecho": {
     "skills/engineering-practices/SKILL.md": {
-      "só o `qa-engineer` roda a suíte inteira": {"regra": "R-QA", "porque": "sem o texto, review e segurança voltam a rodar a suíte inteira e o custo da rodada multiplica sem ganho"}
+      "só o `qa-engineer` roda a suíte inteira": {"regra": "R-QA", "porque": "sem o texto, review e segurança voltam a rodar a suíte inteira e o custo da rodada multiplica sem ganho"},
+      "o autor roda o oráculo e não o edita": {"regra": "R-CONFORMIDADE", "porque": "sem o texto, o autor trata o oráculo do portão como teste seu e o ajusta para passar (EXT-1)"}
+    },
+    "skills/qa-testing/SKILL.md": {
+      "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado": {"regra": "R-QA", "porque": "sem o texto, o parecer lê só o git log e aceita o oráculo apagado da história por reset ou rebase (EXT-1, C-2)"}
     },
     "agents/jarvis.md": {
       "skills/briefs-e-conferencia/SKILL\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o texto de briefs e conferência"},
@@ -703,10 +711,12 @@
       "só o `qa-engineer` roda a suíte inteira": {"regra": "R-QA", "porque": "sem o texto, review e segurança voltam a rodar a suíte inteira e o custo da rodada multiplica sem ganho"}
     },
     "agents/security-engineer.md": {
-      "só o `qa-engineer` roda a suíte inteira": {"regra": "R-QA", "porque": "sem o texto, review e segurança voltam a rodar a suíte inteira e o custo da rodada multiplica sem ganho"}
+      "só o `qa-engineer` roda a suíte inteira": {"regra": "R-QA", "porque": "sem o texto, review e segurança voltam a rodar a suíte inteira e o custo da rodada multiplica sem ganho"},
+      "a 1ª rodada entrega, antes da construção, o oráculo em `tests/test_oraculo_<pedido>\\.py`": {"regra": "R-SEGURANCA", "porque": "sem o texto, em pedido de guarda quem constrói volta a escrever a prova que o julga (EXT-1)"}
     },
     "agents/qa-engineer.md": {
-      "só o `qa-engineer` roda a suíte inteira": {"regra": "R-QA", "porque": "sem o texto, review e segurança voltam a rodar a suíte inteira e o custo da rodada multiplica sem ganho"}
+      "só o `qa-engineer` roda a suíte inteira": {"regra": "R-QA", "porque": "sem o texto, review e segurança voltam a rodar a suíte inteira e o custo da rodada multiplica sem ganho"},
+      "quem escreve o teste-oráculo `tests/test_oraculo_<pedido>\\.py` na 1ª rodada, antes da construção, é você": {"regra": "R-QA", "porque": "sem o texto, o pedido de guarda sem gatilho de segurança fica sem quem escreva o oráculo antes da construção (EXT-1)"}
     },
     "skills/cyber-security/SKILL.md": {
       "só o `qa-engineer` roda a suíte inteira": {"regra": "R-QA", "porque": "sem o texto, review e segurança voltam a rodar a suíte inteira e o custo da rodada multiplica sem ganho"}
