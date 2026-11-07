@@ -1359,7 +1359,8 @@ def _main(a):
                     if execucoes is not None and rotulo_vale_pelo_conteudo(raiz, a.base, a.head, eventos, execucoes, a.pr, dono, ramo, viol):
                         liberado = "diff efetivo igual ao do instante do rótulo"
             if not custo and not liberado:
-                fonte = fonte_json(a) if a.mesclados else (None if a.eventos else fonte_do_github())
+                fonte = FonteJson(json.loads(Path(a.mesclados).read_text(encoding="utf-8"))) if a.mesclados else (
+                    None if a.eventos else fonte_do_github())
                 prs = liberado_por_pr_mesclado_ou_none(raiz, a.base, a.head, viol, fonte, dono)
                 if prs:
                     liberado = f"mesmo conteúdo já rotulado no PR mesclado {', '.join('#' + n for n in prs)}"

@@ -3133,6 +3133,8 @@ class RotuladosDaLeva(Base):
             self.assertEqual(self.roda("--modo", "rotulados", "--pr", pr, env=env)[0], 2)
         with mock.patch("urllib.request.urlopen", side_effect=RuntimeError("tok-s3")) as rede:
             rc, saida, resumo = self.roda("--modo", "rotulados", "--pr", "7", env={"GITHUB_TOKEN": "tok-s3", "GITHUB_REPOSITORY": REPO_GH})
+            regras = self.roda("--pr", "7", env={"GITHUB_TOKEN": "tok-s3", "GITHUB_REPOSITORY": REPO_GH, "PR_NUMBER": "7"})  # fonte da API
+        self.assertEqual(regras[:2], (0, "rotulados: incompleta (RuntimeError)\n"))
         self.assertEqual(rc, 0, saida)
         self.assertIn("rotulados: incompleta (RuntimeError)", saida)
         self.assertNotIn("tok-s3", saida + resumo)

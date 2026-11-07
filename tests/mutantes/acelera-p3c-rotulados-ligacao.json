@@ -26,8 +26,8 @@
    "id": "M3",
    "guarda": "C-2: prazo esgotado antes de saber se é promoção diz incompleta (prazo)",
    "arquivo": "tests/catraca.py",
-   "de": "        return [\"rotulados: incompleta (prazo)\"] if PRAZO.avisou else []",
-   "para": "        return []",
+   "de": "return [\"rotulados: incompleta (prazo)\"] if PRAZO.avisou",
+   "para": "return [\"rotulados: incompleta (prazo)\"] if False",
    "testes": [
     "tests.test_catraca.RotuladosDaLeva.test_prazo_esgotado_na_liberacao_diz_incompleta_sem_nova_chamada"
    ]
@@ -36,8 +36,8 @@
    "id": "M4",
    "guarda": "C-2: prazo esgotado na promoção diz incompleta (prazo)",
    "arquivo": "tests/catraca.py",
-   "de": "    return linhas + ([\"rotulados: incompleta (prazo)\"] if PRAZO.avisou else [])",
-   "para": "    return linhas",
+   "de": "linhas + ([\"rotulados: incompleta (prazo)\"] if PRAZO.avisou",
+   "para": "linhas + ([\"rotulados: incompleta (prazo)\"] if False",
    "testes": [
     "tests.test_catraca.RotuladosDaLeva.test_prazo_esgotado_na_liberacao_diz_incompleta_sem_nova_chamada"
    ]
@@ -121,23 +121,37 @@
    "testes": [
     "tests.test_catraca.RotuladosDaLeva.test_a_lista_so_informa_rc_e_saida_iguais_com_e_sem_ela"
    ]
+  },
+  {
+   "id": "M13",
+   "guarda": "S-16: o dono vem do tests/config.json da base",
+   "arquivo": "tests/catraca.py",
+   "de": "cfg.get(\"dono\") if isinstance(cfg, dict) else None",
+   "para": "cfg.get(\"dono\") if isinstance(cfg, list) else None",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_a_lista_so_informa_rc_e_saida_iguais_com_e_sem_ela"
+   ]
+  },
+  {
+   "id": "M14",
+   "guarda": "a lista do modo regras lê a fonte do --mesclados",
+   "arquivo": "tests/catraca.py",
+   "de": "lambda: fonte_json(a) if a.mesclados else (None",
+   "para": "lambda: fonte_json(a) if False else (None",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_a_lista_so_informa_rc_e_saida_iguais_com_e_sem_ela"
+   ]
+  },
+  {
+   "id": "M15",
+   "guarda": "a lista do modo regras usa a fonte da API quando não há --eventos",
+   "arquivo": "tests/catraca.py",
+   "de": "(None if a.eventos else fonte_do_github()))",
+   "para": "(None if not a.eventos else fonte_do_github()))",
+   "testes": [
+    "tests.test_catraca.RotuladosDaLeva.test_modo_local_pede_token_repositorio_e_pr_e_nunca_imprime_o_token"
+   ]
   }
  ],
- "isentas": [
-  {
-   "arquivo": "tests/catraca.py",
-   "trecho": "except Exception as e:  # qualquer uma",
-   "motivo": "estreitar a captura faz a exceção subir do main e o teste dá erro, não asserção (forge-mutante: inválido, rodada b7b4cd8); o ramo é provado por test_a_lista_so_informa_rc_e_saida_iguais_com_e_sem_ela (KeyError no 2.º PR) e o texto por M5"
-  },
-  {
-   "arquivo": "tests/catraca.py",
-   "trecho": "cfg.get(\"dono\") if isinstance(cfg, dict) else None",
-   "motivo": "o tests/config.json da base sempre existe no Forge; sem a guarda, config ausente vira AttributeError, capturado em mostrar_rotulados como incompleta (falha fechada, só informa)"
-  },
-  {
-   "arquivo": "tests/catraca.py",
-   "trecho": "if not a.mesclados and not (",
-   "motivo": "`a.mesclados` só serve aos testes (fonte em JSON, sem rede); as condições de recusa do modo real são M7, M8 e M9"
-  }
- ]
+ "isentas": []
 }
