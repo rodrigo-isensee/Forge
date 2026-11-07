@@ -1,0 +1,70 @@
+{
+  "pedido": "d12-medida-e3a",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "medida: o --pedido só passa casando ID_DE_PEDIDO (../p recusado com rc 2)",
+      "arquivo": "bin/forge-check",
+      "de": "\"--pedido fora de [A-Za-z0-9._-]\" if not ID_DE_PEDIDO.fullmatch(pedido) or",
+      "para": "\"--pedido fora de [A-Za-z0-9._-]\" if False or",
+      "testes": ["tests.test_voltas.MedidaDoTopico.test_entrada_recusada_sai_com_2_e_nada_grava"]
+    },
+    {
+      "id": "M2",
+      "guarda": "medida: o --pedido feito só de pontos (..) é recusado",
+      "arquivo": "bin/forge-check",
+      "de": "ID_DE_PEDIDO.fullmatch(pedido) or not pedido.strip(\".\")",
+      "para": "ID_DE_PEDIDO.fullmatch(pedido) or False",
+      "testes": ["tests.test_voltas.MedidaDoTopico.test_entrada_recusada_sai_com_2_e_nada_grava"]
+    },
+    {
+      "id": "M3",
+      "guarda": "medida: o --merge só chega ao git como sha40 minúsculo (sha curto recusado)",
+      "arquivo": "bin/forge-check",
+      "de": "re.fullmatch(r\"[0-9a-f]{40}\", merge)",
+      "para": "re.fullmatch(r\"[0-9a-f]{12,40}\", merge)",
+      "testes": ["tests.test_voltas.MedidaDoTopico.test_entrada_recusada_sai_com_2_e_nada_grava"]
+    },
+    {
+      "id": "M4",
+      "guarda": "medida: sem KANBAN.md na raiz não cria docs/kanban/ (guarda do cmd_movimento)",
+      "arquivo": "bin/forge-check",
+      "de": "raiz=caminho_impresso(raiz)) if not (raiz / \"KANBAN.md\").is_file()",
+      "para": "raiz=caminho_impresso(raiz)) if False",
+      "testes": ["tests.test_voltas.MedidaDoTopico.test_entrada_recusada_sai_com_2_e_nada_grava"]
+    },
+    {
+      "id": "M5",
+      "guarda": "medida: medidas.md link simbólico é recusado; nada escreve através dele",
+      "arquivo": "bin/forge-check",
+      "de": "não escrevo através dele\" if arq.is_symlink() else None",
+      "para": "não escrevo através dele\" if False else None",
+      "testes": ["tests.test_voltas.MedidaDoTopico.test_entrada_recusada_sai_com_2_e_nada_grava"]
+    },
+    {
+      "id": "M6",
+      "guarda": "medida: sha40 que não é commit do repositório dá rc 2 sem gravar",
+      "arquivo": "bin/forge-check",
+      "de": "if recusa or fim is None:",
+      "para": "if recusa:",
+      "testes": ["tests.test_voltas.MedidaDoTopico.test_entrada_recusada_sai_com_2_e_nada_grava"]
+    },
+    {
+      "id": "M7",
+      "guarda": "medida: o trecho na espera do dono sai do tempo ativo",
+      "arquivo": "bin/forge-check",
+      "de": "if tipo_da_espera(m[2], m[3]) == \"dono\" or _sem_acento",
+      "para": "if _sem_acento",
+      "testes": ["tests.test_voltas.MedidaDoTopico.test_tempo_ativo_desconta_o_dono_e_a_espera_deliberada_e_soma_os_tokens_do_pedido"]
+    },
+    {
+      "id": "M8",
+      "guarda": "medida: o trecho com motivo `espera deliberada:` sai do tempo ativo",
+      "arquivo": "bin/forge-check",
+      "de": "== \"dono\" or _sem_acento(m[3]).startswith(\"espera deliberada:\"))",
+      "para": "== \"dono\")",
+      "testes": ["tests.test_voltas.MedidaDoTopico.test_tempo_ativo_desconta_o_dono_e_a_espera_deliberada_e_soma_os_tokens_do_pedido"]
+    }
+  ]
+}
