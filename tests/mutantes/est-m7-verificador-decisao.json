@@ -19,7 +19,8 @@
       "de": "return obj if type(obj) is tipo else None",
       "para": "return obj if isinstance(obj, tipo) else None",
       "testes": [
-        "tests.test_arvore_testada.ProvaValida.test_execucao_que_nao_prova_sai_falso"
+        "tests.test_arvore_testada.ProvaValida.test_execucao_que_nao_prova_sai_falso",
+        "tests.test_arvore_testada.ProvaValida.test_job_que_nao_prova_sai_falso"
       ]
     },
     {

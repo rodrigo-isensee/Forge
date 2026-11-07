@@ -85,6 +85,7 @@ class ProvaValida(unittest.TestCase):
                      {7: [{k: v for k, v in job().items() if k != "conclusion"}]}, {7: None}, {7: [job(run_id=7.0)]}):
             with self.subTest(jobs):
                 self.assertFalse(self.prova(jobs=copy.deepcopy(jobs))[0])
+        self.assertFalse(self.prova([execucao(run_attempt=1)], {7: [job(run_attempt=True)]})[0])  # True == 1, mas bool não é int
 
     def test_entrada_fora_do_formato_sai_falso(self):
         for args in ({"python": "3.13"}, {"python": "3.14"}, {"d": "A" * 40}, {"d": D[:7]}, {"d": None},
