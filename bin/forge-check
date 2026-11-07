@@ -238,6 +238,8 @@ def validar_documento(rel, texto):
             erro("commit", "hash hexadecimal de 7 a 40 caracteres")
         if campos.get("data") and not DATA.match(campos["data"]):
             erro("data", "use AAAA-MM-DD")
+        if campos.get("criterio") and not criterio_valido(campos["criterio"]):
+            erro("criterio", "caminho fora de docs/arquitetura/ ou docs/architecture/")
     if tipo == "qa":
         if campos.get("escopo") and campos["escopo"] not in ("completo", "incremental"):
             erro("escopo", "use completo ou incremental")
@@ -283,7 +285,11 @@ def documentos(raiz, tipo=None, ref=None):
 def cmd_docs(raiz):
     saida = []
     for rel, texto in documentos(raiz):
-        saida += validar_documento(rel, texto)[1]
+        campos, violacoes = validar_documento(rel, texto)
+        extra, avisos = conferir_criterio(raiz, rel, texto, campos)
+        saida += violacoes + extra
+        for aviso in avisos:
+            print(aviso, file=sys.stderr)
     return saida
 
 
@@ -1683,6 +1689,59 @@ TETO_DO_ACHADO = 300
 SECOES_COPIADAS = ("Objetivo", "Fora do escopo", "Relatório")  # byte a byte do brief anterior (a volta só muda o Entregar; o Fora do escopo só ganha etapa nova no fim, E14)
 VOLTA_DE = re.compile(r"^Volta-de:\s*(\S+)\s+sha256\s+([0-9a-f]{64})\s*$", re.M)
 RAIZES_DE_BRIEF = (Path.home() / ".forge-contrib",)  # onde o Jarvis do Forge guarda docs/briefs/ (fora do clone)
+CRITERIO = re.compile(r"^docs/(arquitetura|architecture)/[A-Za-z0-9._/-]+\.md$")  # PAR-P2 C-1: lista branca do `criterio:`
+PASTAS_DE_DESENHO = ("docs/arquitetura", "docs/architecture")
+LINHA_DE_CLASSE = re.compile(r"^- ([a-z][a-z0-9-]{1,30}) · (?:\S.*? · )?oráculo: (\S.*)$")
+
+
+def criterio_valido(valor):
+    """O caminho de `criterio:` como texto, antes de qualquer disco (PAR-P2 C-1): sem `.`, `..` nem `//`."""
+    return bool(CRITERIO.match(valor)) and "//" not in valor and not {".", ".."} & set(valor.split("/"))
+
+
+def criterio_de_parada(texto):
+    """(frase, {classe: oráculo}, erros) da seção `## Critério de parada` do desenho (PAR-P2); a linha `gatilho` é a classe `gatilho`."""
+    frase, classes, erros, dentro = None, {}, [], False
+    for n, linha in enumerate(texto.split("\n"), 1):
+        if linha.startswith("## "):
+            dentro = linha.strip() == "## Critério de parada"
+        elif dentro and linha.startswith("- "):
+            m, c = re.match(r"^- bloqueia: (\S.*)$", linha.rstrip()), LINHA_DE_CLASSE.match(linha.rstrip())
+            if m:
+                erros += ["bloqueia: repetido"] if frase else []
+                frase = m.group(1)
+            elif c and c.group(1) != "nova":
+                classes[c.group(1)] = c.group(2)
+            else:
+                erros.append(f"linha {n} fora da forma")
+    return frase, classes, erros + ["sem bloqueia:"] * (frase is None) + ["sem gatilho"] * ("gatilho" not in classes)
+
+
+def conferir_criterio(raiz, rel, texto, campos):
+    """([violação], [aviso]) do `criterio:` de um parecer (PAR-P2 E2a), fora de `validar_documento`, que fica sem disco (C-4): o
+    desenho resolvido como `ler_registro` (C-2), do mesmo pedido (C-6), e a 1.ª linha de `## Parecer` com a frase ou, logo abaixo,
+    `critério mudou:` com motivo (C-7). Do desenho, só a frase sai na tela (C-5); desenho ausente é aviso (C-8)."""
+    valor, onde = (campos or {}).get("criterio"), f"{caminho_impresso(rel)}: criterio"
+    if not valor or not criterio_valido(valor):
+        return [], []  # forma recusada em validar_documento
+    desenho, motivo = ler_registro(raiz, valor, PASTAS_DE_DESENHO, "strict")
+    if motivo:
+        return [], [f"aviso: {onde}: {caminho_impresso(valor)}: {motivo} (PAR-P2)"]
+    frase, _, erros = criterio_de_parada(desenho)
+    if erros:
+        return [f"{onde}: {caminho_impresso(valor)}: {'; '.join(erros)} (PAR-P2)"], []
+    pedido, meta, nome = campos.get("pedido", ""), ler_frontmatter(desenho)[0], Path(valor).name
+    if not (meta.get("pedido") == pedido if meta is not None else nome == f"{pedido}.md" or nome.startswith(f"{pedido}-")):
+        return [f"{onde}: desenho de outro pedido (PAR-P2)"], []
+    corpo = texto.split("\n## Parecer\n", 1)[1].split("\n## ", 1)[0] if "\n## Parecer\n" in texto else ""
+    linhas = [l.strip() for l in corpo.split("\n") if l.strip()] + ["", ""]
+    if linhas[0] == f'Critério de parada: "{frase}"':
+        return [], []
+    mudou = re.match(r"^critério mudou:\s*(.{10,})$", linhas[1]) if linhas[0].startswith("Critério de parada:") else None
+    if mudou:
+        return [], [f"aviso: critério mudou em {caminho_impresso(rel)}: {sem_controle(mudou.group(1))[:300]}"]
+    return [f'{onde}: a 1.ª linha de ## Parecer não é Critério de parada: "{sem_controle(frase)[:300]}" nem traz critério mudou: '
+            "com motivo logo abaixo (PAR-P2)"], []
 
 
 def grupo(expressao, texto):
@@ -5067,21 +5126,23 @@ def mencoes_da_frase(texto):
     return [(n, l.strip()) for n, l in enumerate(texto.split("\n"), 1) if FRASE_DO_DONO in l and not e_linha_de_decisao(l)]
 
 
-def ler_registro(raiz, rel):
+def ler_registro(raiz, rel, pastas=("docs/pedidos",), erros="replace"):
     """(texto, None) do registro `rel` (`docs/pedidos/<x>.md`), ou (None, 'ausente'|'grande'). A cópia principal vem na frente; a
     primeira raiz que tem o nome decide: link para fora ou fora de `docs/pedidos/` é 'ausente', sem cair na raiz seguinte (M2.1)."""
     for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
         if not os.path.lexists(Path(base) / rel):
             continue
-        real = dentro_da_raiz(base, rel, ("docs/pedidos",))
+        real = dentro_da_raiz(base, rel, pastas)
         if real is None or not real.is_file():
             return None, "ausente"
         try:
             with open(real, "rb") as f:
                 bruto = f.read(TETO_DE_REGISTRO + 1)
+            return (None, "grande") if len(bruto) > TETO_DE_REGISTRO else (bruto.decode("utf-8", erros), None)
         except OSError:
             return None, "ausente"
-        return (None, "grande") if len(bruto) > TETO_DE_REGISTRO else (bruto.decode("utf-8", "replace"), None)
+        except UnicodeDecodeError:
+            return None, "ilegível"  # PAR-P2 C-2: só com `erros="strict"`
     return None, "ausente"
 
 
