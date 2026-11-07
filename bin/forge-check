@@ -3,7 +3,7 @@
 
 `pr` aprovado sai com rc 0 e uma linha `pr: veredito: aprovado · <pedido> · exigidos <pareceres> · head <sha7> · base <origin/x|diff literal|estrita>`; com violação, só as violações e rc 1.
 
-Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [--ref REF] [--base REF]   (as duas opções também depois do subcomando)
+Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban [--gerar] | pr <pedido> [--ref REF] [--base REF]   (as duas opções também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
      forge-check transcricao verificar <arquivo.jsonl> [--teto N]
      forge-check transcricao custo [<pasta ou .jsonl>] [--entregas [--entrega NOME]] [--desde HORA --ate HORA | --pedido ID]
@@ -132,11 +132,13 @@ import argparse
 import datetime
 import difflib
 import errno
+import fcntl
 import hashlib
 import json
 import os
 import re
 import shlex
+import stat
 import subprocess
 import sys
 import tempfile
@@ -2465,12 +2467,14 @@ def chave_do_cartao(nome):
     return nome.casefold()
 
 
+ESPERA_DA_TRAVA_S = 10  # EST-M12 (C-10): espera pela trava do quadro; constante, sem opção nem variável (T-4)
 JANELA_DO_PRONTO_DIAS = 30  # EST-M12: o "Pronto" do quadro gerado mostra só os últimos 30 dias; o histórico guarda tudo
 MARCA_DE_ATRIBUTOS = " · atributos: "  # EST-M12 (C-4, C-7): a mesma constante para a recusa do `--motivo` e para o leitor
 LEITOR_DA_MARCA = re.compile(re.escape(MARCA_DE_ATRIBUTOS) + r"((?:(?! · ).)*)\Z")  # só o último segmento do motivo
 PEDIDO_DO_ATRIBUTO = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
 COLUNA_DO_ESTADO = {"review": "Code review", "conferencia": "Code review", "integracao": "Code review",
-                    "sem credencial": "Bloqueado", "feito": "Pronto", "concluido": "Pronto"}  # C-5; o resto vai a "Bloqueado"
+                    "sem credencial": "Bloqueado", "feito": "Pronto", "concluido": "Pronto",
+                    "a fazer": "Pronto para fazer", "backlog": "Entrada", "pronto (develop)": "Pronto"}  # C-5; o resto vai a "Bloqueado"
 SEPARADOR = re.compile(r":?-+:?")
 
 
@@ -2534,6 +2538,78 @@ def montar_quadro(texto_kanban, linhas_do_historico, agora):
             continue
         saida.append(linha)
     return "\n".join(saida), secoes, avisos
+
+
+def _ler_regular(arq):
+    """(texto, erro): sem seguir link (O_NOFOLLOW), só arquivo regular conferido antes de ler (fifo não trava), até TETO_DA_TABELA (C-1)."""
+    try:
+        fd = os.open(arq, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError as e:
+        return None, {errno.ELOOP: "é link simbólico", errno.ENOENT: "não existe"}.get(e.errno, "não abre")
+    with os.fdopen(fd, "rb") as f:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return None, "não é arquivo regular"
+        dados = f.read(TETO_DA_TABELA + 1)
+    if len(dados) > TETO_DA_TABELA:
+        return None, f"passa de {TETO_DA_TABELA} bytes"
+    return dados.decode("utf-8", errors="replace"), None
+
+
+def travar_o_quadro(raiz):
+    """fd com a trava exclusiva de `.forge/run/quadro.trava` (C-10); TimeoutError se não sai em ESPERA_DA_TRAVA_S; fechar o fd solta."""
+    (raiz / ".forge" / "run").mkdir(parents=True, exist_ok=True)
+    fd = os.open(raiz / ".forge" / "run" / "quadro.trava", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    for _ in range(int(ESPERA_DA_TRAVA_S * 10)):
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return fd
+        except BlockingIOError:
+            time.sleep(0.1)
+    os.close(fd)
+    raise TimeoutError(errno.ETIMEDOUT, f"trava do quadro ocupada há {ESPERA_DA_TRAVA_S} s", ".forge/run/quadro.trava")
+
+
+def linhas_de_cartao(texto):
+    """{ID: (seção, células)} das linhas de cartão do quadro: o aviso de edição à mão compara as do quadro atual com as geradas (C-15)."""
+    cartoes, secao = {}, None
+    for linha in texto.split("\n"):
+        secao, c = nome_da_secao(linha[3:]) if linha.startswith("## ") else secao, [x.strip() for x in linha.strip().strip("|").split("|")]
+        if secao and linha.startswith("|") and len(c) == len(COLUNAS) and c != COLUNAS and not all(SEPARADOR.fullmatch(x) for x in c):
+            cartoes[c[0]] = (secao, c)
+    return cartoes
+
+
+def cmd_kanban_gerar(raiz):
+    """EST-M12, E3-1b: (linhas, rc) de refazer o KANBAN.md do docs/kanban/historico.md sob a trava (C-10), lendo sem seguir link (C-1),
+    escrevendo por temporário exclusivo e `os.replace` (C-2) e avisando a edição à mão (C-15); em qualquer erro, o quadro fica intacto."""
+    try:
+        fd = travar_o_quadro(raiz)
+        try:
+            (atual, erro), (historico, erro_h) = _ler_regular(raiz / "KANBAN.md"), _ler_regular(raiz / "docs" / "kanban" / "historico.md")
+            if erro or erro_h:
+                return [f"kanban --gerar: {'KANBAN.md' if erro else 'docs/kanban/historico.md'}: {erro or erro_h}; quadro intacto"], 1
+            linhas = [[c.strip() for c in l.strip().strip("|").split("|")] for l in historico.splitlines() if l.startswith("|")]
+            texto, _, avisos = montar_quadro(atual, linhas, datetime.datetime.now().astimezone())
+            saida = [f"kanban --gerar: aviso: {a}" for a in avisos]
+            if texto is None:
+                return saida + ["kanban --gerar: quadro sem a seção \"Bloqueado\" para estado sem seção; quadro intacto"], 1
+            antes, depois = linhas_de_cartao(atual), linhas_de_cartao(texto)
+            editados = sorted(i for i in depois if antes.get(i) != depois[i])
+            saida += [f"kanban --gerar: aviso: quadro editado fora do movimento: {', '.join(editados)}"] if editados else []
+            tmp_fd, tmp = tempfile.mkstemp(dir=raiz, prefix=".KANBAN.")
+            try:
+                with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+                    f.write(texto)
+                os.chmod(tmp, 0o644)
+                os.replace(tmp, raiz / "KANBAN.md")
+            except BaseException:
+                os.unlink(tmp)
+                raise
+        finally:
+            os.close(fd)
+    except OSError as e:
+        return [f"kanban --gerar: {caminho_impresso(e.filename or 'KANBAN.md')}: {sem_controle(e.strerror or str(e))}; quadro intacto"], 1
+    return saida + [f"kanban --gerar: aviso: {v}" for v in cmd_kanban(raiz)] + ["kanban --gerar: KANBAN.md gerado de docs/kanban/historico.md"], 0
 
 
 def cmd_movimento(raiz, cartao, de, para, motivo):
@@ -6420,7 +6496,7 @@ def main():
     comum.add_argument("--raiz", default=argparse.SUPPRESS, help="raiz do projeto (padrão: diretório atual)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("docs", parents=[comum])
-    sub.add_parser("kanban", parents=[comum])
+    sub.add_parser("kanban", parents=[comum]).add_argument("--gerar", action="store_true", help="refaz o KANBAN.md de docs/kanban/historico.md (EST-M12)")
     sub.add_parser("fontes", help="confere se as fontes de boas práticas do registro local têm versão nova")
     br = sub.add_parser("brief", parents=[comum], help="forma, corte e decisões de um brief (C2, C4); `brief gerar` monta os blocos fixos; `brief mensagem` imprime a mensagem ao conferente")
     br.add_argument("alvo", help="arquivo do brief, `gerar` ou `mensagem` (a mensagem integral ao conferente, só se o brief passa)")
@@ -6605,6 +6681,10 @@ def executar(a, raiz):
         return cmd_esperas(raiz, a.pedido, a.kanban)
     if a.cmd == "corrigidos":
         return cmd_corrigidos(raiz, a.ref, a.dias)
+    if a.cmd == "kanban" and a.gerar:
+        linhas, rc = cmd_kanban_gerar(raiz)
+        print("\n".join(linhas))
+        return rc
     if a.cmd == "fila":
         for linha in cmd_fila(raiz):
             print(linha)

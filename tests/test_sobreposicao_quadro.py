@@ -617,57 +617,44 @@ class KanbanGerar(unittest.TestCase):
         self.hist.write_text("| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n" + "".join(f"| {' | '.join(m)} |\n" for m in (
             mov(2, "K-1", "Code review"), mov(1, "N-1", "Em andamento", "ok · atributos: titulo=T; pedido=p; responsavel=forge:qa"))), encoding="utf-8")
 
-    def recusa(self, causa, antes):
+    def recusa(self, causa):
+        antes = self.kanban.read_bytes()
         linhas, rc = fc.cmd_kanban_gerar(self.raiz)
         self.assertEqual((rc, self.kanban.read_bytes(), self.fora.read_text(encoding="utf-8")), (1, antes, SEGREDO), causa)
         self.assertIn(causa, linhas[-1])
 
     def test_gera_do_historico_duas_vezes_igual_e_avisa_a_edicao_a_mao(self):  # C-15 e C-6 como aviso; legítimo 6
-        rc, saida = checar(self.raiz, "kanban", "--gerar")
-        self.assertEqual(rc, 0, saida)
-        self.assertIn("aviso: quadro editado fora do movimento: K-1, N-1", saida)
-        self.assertIn("forge:qa com 2 cartões", saida)  # o `kanban` sobre o quadro novo: K-9 e N-1 do mesmo agente sem worktree
+        rc, saida = checar(self.raiz, "kanban", "--gerar")  # o `kanban` sobre o quadro novo avisa K-9 e N-1 do mesmo agente sem worktree
+        self.assertEqual((rc, "aviso: quadro editado fora do movimento: K-1, N-1" in saida, "forge:qa com 2 cartões" in saida), (0, True, True), saida)
         gerado = self.kanban.read_bytes()
         self.assertIn(b"| K-1 | Da ponte | p-1 | forge:dev |", gerado.split(b"## Code review")[1])
-        self.assertEqual((fc.cmd_kanban_gerar(self.raiz)[1], self.kanban.read_bytes()), (0, gerado))
-        self.assertNotIn("editado", "\n".join(fc.cmd_kanban_gerar(self.raiz)[0]))
-        self.kanban.write_bytes(gerado.replace(b"| K-1 | Da ponte", b"| K-1 | A mao"))
-        self.assertIn("aviso: quadro editado fora do movimento: K-1", fc.cmd_kanban_gerar(self.raiz)[0])
+        linhas, rc = fc.cmd_kanban_gerar(self.raiz)
+        self.assertEqual((rc, self.kanban.read_bytes(), "editado" in "\n".join(linhas)), (0, gerado, False))
+        self.kanban.write_bytes(gerado.replace(b"forge:dev | " + mov(2, "", "")[0][:10].encode(), b"forge:dev | 2000-01-01"))  # o título é da ponte
+        self.assertIn("kanban --gerar: aviso: quadro editado fora do movimento: K-1", fc.cmd_kanban_gerar(self.raiz)[0])
 
-    def test_historico_link_grande_fifo_ou_ausente_recusa_com_o_quadro_intacto(self):  # C-1; casos 2 e 3
-        antes = self.kanban.read_bytes()
-        for causa, preparar in (("é link simbólico", lambda h: h.symlink_to(self.fora)), ("não existe", lambda h: None),
-                                ("passa de", lambda h: h.write_bytes(b"|" * (fc.TETO_DA_TABELA + 1))), ("não é arquivo regular", os.mkfifo)):
-            self.hist.unlink(missing_ok=True)
-            preparar(self.hist)
-            self.recusa(causa, antes)
-
-    def test_kanban_link_recusa_sem_ler_nem_escrever_no_alvo(self):  # C-1; caso 1
-        self.kanban.unlink()
-        self.kanban.symlink_to(self.fora)
-        self.recusa("KANBAN.md: é link simbólico", SEGREDO.encode())
-        self.assertTrue(self.kanban.is_symlink())
+    def test_link_grande_fifo_ou_ausente_recusa_com_o_quadro_e_o_alvo_intactos(self):  # C-1 e a trava sem seguir link; casos 1, 2 e 3
+        for arq, causa, preparar in ((self.hist, "é link simbólico", lambda h: h.symlink_to(self.fora)), (self.hist, "não existe", lambda h: None),
+                                     (self.hist, "passa de", lambda h: h.write_bytes(b"|" * (fc.TETO_DA_TABELA + 1))),
+                                     (self.hist, "não é arquivo regular", os.mkfifo), (self.kanban, "KANBAN.md: é link simbólico", lambda k: k.symlink_to(self.fora)),
+                                     (self.raiz / ".forge" / "run" / "quadro.trava", "quadro.trava", lambda t: t.symlink_to(self.fora))):  # a pasta e a trava já existem
+            arq.unlink(missing_ok=True)
+            preparar(arq)
+            self.recusa(causa)
 
     def test_temporario_exclusivo_e_apagado_em_erro(self):  # C-2; caso 4
         (self.raiz / ".KANBAN.tmp").symlink_to(self.fora)
         self.assertEqual(fc.cmd_kanban_gerar(self.raiz)[1], 0)
-        antes = self.kanban.read_bytes()
         with mock.patch.object(fc.os, "replace", side_effect=OSError(5, "falhou")):
-            self.recusa("falhou", antes)
+            self.recusa("falhou")
         self.assertEqual([p.name for p in self.raiz.glob(".KANBAN.*")], [".KANBAN.tmp"])
 
-    def test_trava_ocupada_ou_link_recusa_e_solta_gera(self):  # C-10 no `--gerar`
-        antes, trava = self.kanban.read_bytes(), self.raiz / ".forge" / "run" / "quadro.trava"
+    def test_trava_ocupada_recusa(self):  # C-10 no `--gerar`
+        trava = self.raiz / ".forge" / "run" / "quadro.trava"
         trava.parent.mkdir(parents=True)
         with open(trava, "w") as f, mock.patch.object(fc, "ESPERA_DA_TRAVA_S", 0.3):
             fcntl.flock(f, fcntl.LOCK_EX)
-            self.recusa("trava do quadro ocupada", antes)
-        trava.unlink()
-        trava.symlink_to(self.fora)
-        self.recusa("quadro.trava", antes)
-        trava.unlink()
-        self.assertEqual(fc.cmd_kanban_gerar(self.raiz)[1], 0)
-
+            self.recusa("trava do quadro ocupada")
 
 if __name__ == "__main__":
     unittest.main()
