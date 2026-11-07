@@ -498,6 +498,7 @@
       "`R-COPIA`"
     ],
     "templates/projeto/.githooks/pre-push": [
+      "checagem interrompida; o envio foi barrado\\.\" >&2; exit 1' INT TERM HUP",
       "refs/heads/main",
       "exit 1"
     ],
@@ -668,6 +669,9 @@
     "scripts/jarvis-forge": 2
   },
   "invariantes_motivo_trecho": {
+    "templates/projeto/.githooks/pre-push": {
+      "checagem interrompida; o envio foi barrado\\.\" >&2; exit 1' INT TERM HUP": {"regra": "R-VERIFY", "porque": "sem o texto, um Ctrl-C, TERM ou HUP na checagem do projeto deixa o envio seguir sem ela ou filhos órfãos rodando"}
+    },
     "skills/engineering-practices/SKILL.md": {
       "suíte inteira roda só no CI": {"regra": "R-QA", "porque": "sem o texto, review, segurança e QA voltam a rodar a suíte inteira na máquina e a fila local cresce sem ganho; ela roda uma vez no CI do PR"},
       "o autor roda o oráculo e não o edita": {"regra": "R-CONFORMIDADE", "porque": "sem o texto, o autor trata o oráculo do portão como teste seu e o ajusta para passar (EXT-1)"}
