@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "sem o script do CI na copia em uso, rc 2 e nada medido (C-6)",
       "arquivo": "bin/forge-check",
-      "de": "    script = carregar_reexecutar_provas()\n    if script is None:",
-      "para": "    script = carregar_reexecutar_provas()\n    if script is None and False:",
+      "de": "(C-6).\"\"\"\n    script = carregar_reexecutar_provas()\n    if script is None:",
+      "para": "(C-6).\"\"\"\n    script = carregar_reexecutar_provas()\n    if script is None and False:",
       "testes": [
         "tests.test_medidas_m14b.MedidaM2b.test_registro_em_link_ou_sem_o_script_do_ci_nao_verifica"
       ]
@@ -158,8 +158,8 @@
       "id": "M16",
       "guarda": "PQ cmd sem crase nao vira ci nem quebra a medida",
       "arquivo": "bin/forge-check",
-      "de": "argv = shlex.split(comando.group(1)) if comando else []",
-      "para": "argv = shlex.split(comando.group(1)) if True else []",
+      "de": "            comando = re.search(r\"`([^`]+)`\", linha[m.end():])\n            try:\n                argv = shlex.split(comando.group(1)) if comando else []",
+      "para": "            comando = re.search(r\"`([^`]+)`\", linha[m.end():])\n            try:\n                argv = shlex.split(comando.group(1)) if True else []",
       "testes": [
         "tests.test_medidas_m14b.MedidaM2b.test_pq_fora_da_lista_nao_cmd_ou_sem_pq_e_so_do_conferente"
       ]

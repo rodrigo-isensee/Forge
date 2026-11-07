@@ -66,8 +66,8 @@
       "id": "M7",
       "guarda": "PQ cmd sem comando entre crases sai fora, não quebra",
       "arquivo": "bin/forge-check",
-      "de": "argv = shlex.split(comando.group(1)) if comando else []",
-      "para": "argv = shlex.split(comando.group(1)) if True else []",
+      "de": "        comando = re.search(r\"`([^`]+)`\", resto)\n        try:\n            argv = shlex.split(comando.group(1)) if comando else []",
+      "para": "        comando = re.search(r\"`([^`]+)`\", resto)\n        try:\n            argv = shlex.split(comando.group(1)) if True else []",
       "testes": [
         "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
       ]
@@ -106,8 +106,8 @@
       "id": "M11",
       "guarda": "C-6: o script do CI que não carrega dá rc 2 não verificável",
       "arquivo": "bin/forge-check",
-      "de": "    if script is None:\n",
-      "para": "    if script is not None:\n",
+      "de": "(C-1).\"\"\"\n    script = carregar_reexecutar_provas()\n    if script is None:\n",
+      "para": "(C-1).\"\"\"\n    script = carregar_reexecutar_provas()\n    if script is not None:\n",
       "testes": [
         "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
       ]
@@ -126,8 +126,8 @@
       "id": "M13",
       "guarda": "o subcomando provas chega ao gerador",
       "arquivo": "bin/forge-check",
-      "de": "if a.cmd == \"provas\":",
-      "para": "if a.cmd == \"provaz\":",
+      "de": "    if a.cmd == \"provas\" and a.acao == \"gerar\":\n",
+      "para": "    if a.cmd == \"provas\" and a.acao == \"gerarx\":\n",
       "testes": [
         "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
       ]

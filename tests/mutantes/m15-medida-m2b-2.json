@@ -6,8 +6,8 @@
       "id": "M17",
       "guarda": "o subcomando provas despacha para a medida",
       "arquivo": "bin/forge-check",
-      "de": "    if a.cmd == \"provas\":\n        return cmd_provas_medida",
-      "para": "    if a.cmd == \"provasx\":\n        return cmd_provas_medida",
+      "de": "    if a.cmd == \"provas\" and a.acao == \"medida\":\n",
+      "para": "    if a.cmd == \"provas\" and a.acao == \"medidax\":\n",
       "testes": [
         "tests.test_medidas_m14b.MedidaM2b.test_pq_unittest_da_lista_do_script_e_ci"
       ]
