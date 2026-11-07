@@ -1,0 +1,117 @@
+{
+  "pedido": "par-p2-criterio-ref",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "desenho_da_ref: só o nome presente na ref é lido dela; fora dela, None (cai no forge-contrib)",
+      "arquivo": "bin/forge-check",
+      "de": "    if nome != valor.encode():\n        return None",
+      "para": "    if nome == valor.encode():\n        return None",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_com_ref_o_desenho_vem_da_ref_e_nao_da_arvore_de_trabalho"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "desenho_da_ref: link simbólico (modo diferente de 100644) é ausente, sem ler o alvo",
+      "arquivo": "bin/forge-check",
+      "de": "    if modo != \"100644\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_com_ref_fora_dela_so_o_forge_contrib_e_link_grande_ou_ilegivel_na_ref_avisam"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "desenho_da_ref: objeto que o git não lê é ausente",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod:\n        return None, \"ausente\"\n    if int(tamanho)",
+      "para": "    if not cod:\n        return None, \"ausente\"\n    if int(tamanho)",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_com_ref_o_desenho_vem_da_ref_e_nao_da_arvore_de_trabalho",
+        "tests.test_forge.CriterioDeParada.test_com_ref_fora_dela_so_o_forge_contrib_e_link_grande_ou_ilegivel_na_ref_avisam"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "desenho_da_ref: blob acima do teto é grande, sem ler",
+      "arquivo": "bin/forge-check",
+      "de": "    if int(tamanho) > TETO_DE_REGISTRO:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_com_ref_fora_dela_so_o_forge_contrib_e_link_grande_ou_ilegivel_na_ref_avisam"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "desenho_da_ref: UTF-8 inválido é ilegível",
+      "arquivo": "bin/forge-check",
+      "de": "        return None, \"ilegível\"\n\n\ndef conferir_criterio",
+      "para": "        return None, \"ausente\"\n\n\ndef conferir_criterio",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_com_ref_fora_dela_so_o_forge_contrib_e_link_grande_ou_ilegivel_na_ref_avisam"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "conferir_criterio: com ref, o desenho vem da ref e não do disco (C-3)",
+      "arquivo": "bin/forge-check",
+      "de": "    lido = desenho_da_ref(raiz, ref, valor) if ref else None",
+      "para": "    lido = desenho_da_ref(raiz, ref, valor) if None else None",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_com_ref_o_desenho_vem_da_ref_e_nao_da_arvore_de_trabalho"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "conferir_criterio: com ref, fora dela só RAIZES_DE_BRIEF, sem a árvore de trabalho",
+      "arquivo": "bin/forge-check",
+      "de": "RAIZES_DE_BRIEF if ref else None)",
+      "para": "None)",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_com_ref_fora_dela_so_o_forge_contrib_e_link_grande_ou_ilegivel_na_ref_avisam"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "ler_registro: bases dadas substituem as raízes padrão",
+      "arquivo": "bin/forge-check",
+      "de": "*RAIZES_DE_BRIEF) if bases is None else bases:",
+      "para": "*RAIZES_DE_BRIEF) if True else bases:",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_com_ref_fora_dela_so_o_forge_contrib_e_link_grande_ou_ilegivel_na_ref_avisam"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "cmd_pr: chama conferir_criterio no parecer escolhido",
+      "arquivo": "bin/forge-check",
+      "de": "        extra, avisos = conferir_criterio(raiz, rel, texto, campos, ref)  # PAR-P2 E2a2",
+      "para": "        extra, avisos = [], []  # PAR-P2 E2a2",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_cmd_pr_confere_a_frase_e_o_ausente_so_avisa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "cmd_pr: a violação do critério vai à saída",
+      "arquivo": "bin/forge-check",
+      "de": "        saida += viol + extra\n",
+      "para": "        saida += viol\n",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_cmd_pr_confere_a_frase_e_o_ausente_so_avisa"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "cmd_pr: o aviso do critério vai ao stderr",
+      "arquivo": "bin/forge-check",
+      "de": "        for aviso in avisos:\n            print(aviso, file=sys.stderr)\n        if ref is None",
+      "para": "        for aviso in []:\n            print(aviso, file=sys.stderr)\n        if ref is None",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_cmd_pr_confere_a_frase_e_o_ausente_so_avisa"
+      ]
+    }
+  ]
+}
