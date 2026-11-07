@@ -1,0 +1,46 @@
+{
+  "pedido": "changelog-fragmento-base",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a branch de baixo precisa ser ancestral do HEAD",
+      "arquivo": "tests/test_changelog.py",
+      "de": "if ok(\"merge-base\", \"--is-ancestor\", ref, \"HEAD\") and ok(",
+      "para": "if ok(\"rev-parse\", \"--verify\", ref) and ok(",
+      "testes": [
+        "tests.test_changelog.FragmentoDaBranchDeBaixo.test_branch_de_baixo_que_andou_depois_falha"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a branch de baixo precisa ter o fragmento",
+      "arquivo": "tests/test_changelog.py",
+      "de": "and ok(\"cat-file\", \"-e\", f\"{ref}:{caminho}\"):",
+      "para": "and True:",
+      "testes": [
+        "tests.test_changelog.FragmentoDaBranchDeBaixo.test_branch_de_baixo_ancestral_sem_o_arquivo_falha"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o filtro aceita a branch de baixo que existe",
+      "arquivo": "tests/test_changelog.py",
+      "de": "            return True\n    return False",
+      "para": "            return False\n    return False",
+      "testes": [
+        "tests.test_changelog.FragmentoDaBranchDeBaixo.test_fragmento_da_branch_de_baixo_ancestral_passa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a branch de baixo vale tambem como ref de origin",
+      "arquivo": "tests/test_changelog.py",
+      "de": ", f\"refs/remotes/origin/melhoria/{Path(nome).stem}\"):",
+      "para": ",):",
+      "testes": [
+        "tests.test_changelog.FragmentoDaBranchDeBaixo.test_branch_de_origin_ancestral_passa"
+      ]
+    }
+  ]
+}

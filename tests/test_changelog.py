@@ -499,6 +499,61 @@ def fragmentos_com_outro_nome(branch, novos):
     return [n for n in novos if Path(n).name != esperado]
 
 
+def de_branch_abaixo(nome, raiz=RAIZ):
+    """Fragmento `changelog.d/<s>.md` trazido por `melhoria/<s>` (local ou de origin) ancestral do HEAD e que o tem."""
+    def ok(*args):
+        return subprocess.run(["git", "-C", str(raiz), *args], capture_output=True).returncode == 0
+    caminho = f"changelog.d/{Path(nome).name}"
+    for ref in (f"refs/heads/melhoria/{Path(nome).stem}", f"refs/remotes/origin/melhoria/{Path(nome).stem}"):
+        if ok("merge-base", "--is-ancestor", ref, "HEAD") and ok("cat-file", "-e", f"{ref}:{caminho}"):
+            return True
+    return False
+
+
+class FragmentoDaBranchDeBaixo(unittest.TestCase):
+    """CHANGELOG-FRAGMENTO-BASE: na branch empilhada, o fragmento da branch de baixo não conta como novo."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.d = self.tmp.name
+        git(self.d, "init", "-q", "-b", "develop")
+        git(self.d, "commit", "-q", "--allow-empty", "-m", "base")
+        git(self.d, "checkout", "-q", "-b", "melhoria/a")
+        self.fragmento("a.md")
+        git(self.d, "checkout", "-q", "-b", "melhoria/a-2")
+        self.fragmento("a-2.md")
+
+    def fragmento(self, nome):
+        (Path(self.d) / "changelog.d").mkdir(exist_ok=True)
+        (Path(self.d) / "changelog.d" / nome).write_text("### Alterado\n- x\n", encoding="utf-8")
+        git(self.d, "add", f"changelog.d/{nome}")
+        git(self.d, "commit", "-q", "-m", nome)
+
+    def test_fragmento_da_branch_de_baixo_ancestral_passa(self):
+        self.assertTrue(de_branch_abaixo("changelog.d/a.md", self.d))
+
+    def test_fragmento_sem_branch_falha(self):
+        self.assertFalse(de_branch_abaixo("changelog.d/b.md", self.d))
+
+    def test_branch_de_baixo_que_andou_depois_falha(self):
+        git(self.d, "checkout", "-q", "melhoria/a")
+        git(self.d, "commit", "-q", "--allow-empty", "-m", "andou")
+        git(self.d, "checkout", "-q", "melhoria/a-2")
+        self.assertFalse(de_branch_abaixo("changelog.d/a.md", self.d))
+
+    def test_branch_de_baixo_ancestral_sem_o_arquivo_falha(self):
+        git(self.d, "branch", "-q", "melhoria/c", "develop")
+        self.assertFalse(de_branch_abaixo("changelog.d/c.md", self.d))
+
+    def test_branch_de_origin_ancestral_passa(self):
+        git(self.d, "checkout", "-q", "melhoria/a")
+        self.fragmento("b.md")
+        git(self.d, "update-ref", "refs/remotes/origin/melhoria/b", "HEAD")
+        git(self.d, "checkout", "-q", "-b", "melhoria/b-2")
+        self.assertTrue(de_branch_abaixo("changelog.d/b.md", self.d))
+
+
 class FragmentoTemONomeDaBranch(unittest.TestCase):
     """S-6: o fragmento de uma branch chama-se `<branch-sem-prefixo>.md`; outro nome falha."""
 
@@ -527,7 +582,8 @@ class FragmentoTemONomeDaBranch(unittest.TestCase):
         if r.returncode != 0:
             self.skipTest("sem origin/develop para comparar")
         novos = [n for n in r.stdout.split() if n.endswith(".md") and Path(n).name.lower() != "readme.md"]
-        self.assertEqual(fragmentos_com_outro_nome(branch, novos), [],
+        outros = [n for n in fragmentos_com_outro_nome(branch, novos) if not de_branch_abaixo(n)]
+        self.assertEqual(outros, [],
                          f"fragmento de changelog.d/ sem o nome da branch '{branch}' (esperado <branch-sem-prefixo>.md)")
 
 
