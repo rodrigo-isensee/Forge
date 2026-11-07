@@ -41,6 +41,26 @@
       "testes": [
         "tests.test_voltas.MedidaDaRelease.test_b_ruido_da_028_um_so_acima_do_maior_ou_mediana_ate_20_por_cento_nao_avisam"
       ]
+    },
+    {
+      "id": "M13",
+      "guarda": "medida/piora: sem aviso, a saída é só tabela; com aviso, só o aviso",
+      "arquivo": "bin/forge-check",
+      "de": "\"\\n\".join(piora_da_release(atual, anterior, tags)) or ",
+      "para": "\"\" or ",
+      "testes": [
+        "tests.test_voltas.MedidaDaRelease.test_a_piora_da_026_para_a_028_avisa_com_os_numeros_e_a_fonte_e_sai_0"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "medida/piora: passar do maior é estritamente acima (o empate não conta)",
+      "arquivo": "bin/forge-check",
+      "de": "sum(1 for v in agora if v > teto)",
+      "para": "sum(1 for v in agora if v >= teto)",
+      "testes": [
+        "tests.test_voltas.MedidaDaRelease.test_b_ruido_da_028_um_so_acima_do_maior_ou_mediana_ate_20_por_cento_nao_avisam"
+      ]
     }
   ]
 }

@@ -378,7 +378,7 @@ class MedidaDaRelease(Raiz):  # D12 (E3b): a release separada pelas tags v* e o 
 
     def test_b_ruido_da_028_um_so_acima_do_maior_ou_mediana_ate_20_por_cento_nao_avisam(self):  # (b)
         for anterior, atual in (([(84, 1), (127, 1), (153, 1)], [(100, 1), (150, 1), (152, 1)]),  # o ruído interno da 0.28.0
-                                ([(50, 1), (96, 1), (200, 1)], [(80, 1), (120, 1), (250, 1)]),  # mediana +25%, mas só 1 acima de 200
+                                ([(50, 1), (96, 1), (200, 1)], [(120, 1), (200, 1), (250, 1)]),  # mediana +108%, só 1 acima de 200 (empate não passa)
                                 ([(100, 1), (100, 1), (105, 1)], [(90, 1), (110, 1), (115, 1)])):  # 2 acima de 105, mas mediana +10%
             cod, linhas, erro = self.medir(anterior, atual)
             self.assertEqual((cod, linhas[1:]), (0, ["medida: só tabela (n=3)"]), (anterior, erro))
