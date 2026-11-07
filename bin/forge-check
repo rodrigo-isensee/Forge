@@ -908,7 +908,8 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None):
               for p in ilegiveis]
     for tipo in exigidos:
         pasta, rid = PASTA_E_REGRA[tipo]
-        dos_conferidos = {n: p for n, p in conferidos.items() if n.startswith(f"{pasta}/") and branch_do_parecer(raiz, p, n) == branch}
+        dos_conferidos = {n: p for n, p in conferidos.items()
+                          if n.startswith(f"{pasta}/") and (frontmatter_do_parecer(raiz, p, n) or {}).get("branch") == branch}
         for nome, p in dos_conferidos.items():  # M1 e M8: só o último P de cada arquivo da branch
             if not e_ancestral(raiz, p, ref or "HEAD"):
                 saida.append(f"{caminho_impresso(nome)}: parecer conferido {p[:7]} fora da branch; quem retoma a branch o traz ({rid})")
@@ -1120,10 +1121,9 @@ def blob_de(raiz, commit, nome):
     return git(raiz, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{commit}:{nome}")[1]
 
 
-def branch_do_parecer(raiz, commit, nome):
-    """O `branch:` do frontmatter de `nome` em `commit` (o parecer conferido), ou None (sem o arquivo, a saída vazia não tem frontmatter)."""
-    bruto = git(raiz, "cat-file", "blob", f"{commit}:{nome}", bruto=True)[1]
-    return (ler_frontmatter(bruto.decode("utf-8", "replace"))[0] or {}).get("branch")
+def frontmatter_do_parecer(raiz, commit, nome):
+    """Os campos do frontmatter de `nome` em `commit` (o parecer conferido), ou None (sem o arquivo, a saída vazia não tem frontmatter)."""
+    return ler_frontmatter(git(raiz, "cat-file", "blob", f"{commit}:{nome}", bruto=True)[1].decode("utf-8", "replace"))[0]
 
 
 def bases_do_pedido(texto):

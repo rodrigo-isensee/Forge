@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "parecer conferido de outra branch do pedido conta",
       "arquivo": "bin/forge-check",
-      "de": "branch_do_parecer(raiz, p, n) == branch}",
-      "para": "branch_do_parecer(raiz, p, n) is not None}",
+      "de": "(frontmatter_do_parecer(raiz, p, n) or {}).get(\"branch\") == branch}",
+      "para": "(frontmatter_do_parecer(raiz, p, n) or {}).get(\"branch\") is not None}",
       "testes": [
         "tests.test_revisor_wt.PrLeParecerConferido.test_parecer_conferido_de_outra_branch_do_pedido_nao_conta"
       ]
@@ -67,8 +67,8 @@
       "id": "M7",
       "guarda": "regex de parecer conferido cruza com conferida (M5)",
       "arquivo": "bin/forge-check",
-      "de": "\\bparecer conferido ([0-9a-f]{40})",
-      "para": "\\bconferid[ao] ([0-9a-f]{40})",
+      "de": "if m := PARECER_CONFERIDO.match(linha):",
+      "para": "if m := CONFERIDA.match(linha):",
       "testes": [
         "tests.test_revisor_wt.PrLeParecerConferido.test_regex_nao_se_cruzam"
       ]
