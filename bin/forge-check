@@ -3304,11 +3304,12 @@ def cmd_escape_resumo(raiz, dias=JANELA_DE_ESCAPES, agora=None):
 TETO_DOS_ROTULADOS = 1024 * 1024
 
 
-def carregar_do_plugin(rel, nome):
-    """O módulo `rel` da cópia em uso do Forge, carregado com nome próprio (nunca `__main__`, M15 C-6); None se não carrega."""
+def carregar_catraca():
+    """O módulo `tests/catraca.py` da cópia em uso do Forge (a mesma decisão do CI sobre o que o rótulo libera); None se não carrega."""
     import importlib.util
+    arquivo = PLUGIN / "tests" / "catraca.py"
     try:
-        spec = importlib.util.spec_from_file_location(nome, PLUGIN / rel)
+        spec = importlib.util.spec_from_file_location("forge_catraca", arquivo)
         modulo = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(modulo)
         return modulo
@@ -3316,13 +3317,22 @@ def carregar_do_plugin(rel, nome):
         return None
 
 
-def carregar_catraca():
-    """O módulo `tests/catraca.py` da cópia em uso do Forge (a mesma decisão do CI sobre o que o rótulo libera); None se não carrega."""
-    return carregar_do_plugin("tests/catraca.py", "forge_catraca")
-
-
 # ---- M15 (E5a1): o arquivo de provas da branch, gerado do brief pela lista do script que o CI roda (uma lista só, C-1) ----
 TITULO_DAS_PROVAS = "# Provas reexecutáveis da branch"  # fixo e sem o slug: o MARCA_DE_PROVA do script reprova título com cara de prova
+
+
+def carregar_reexecutar_provas():
+    """O módulo `scripts/reexecutar-provas.py` da cópia em uso do Forge, com nome próprio (nunca `__main__`, C-6), como `carregar_catraca`;
+    None se não carrega."""
+    import importlib.util
+    arquivo = PLUGIN / "scripts" / "reexecutar-provas.py"
+    try:
+        spec = importlib.util.spec_from_file_location("forge_reexecutar_provas", arquivo)
+        modulo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modulo)
+        return modulo
+    except (OSError, ImportError, SyntaxError, AttributeError):
+        return None
 
 
 def espera_do_script(script, espera):
@@ -3362,7 +3372,7 @@ def provas_reexecutaveis(texto, script):
 def cmd_provas_gerar(raiz, brief):
     """Imprime o arquivo de provas da branch (M15 E5a1; não escreve): as PQ do brief no stdout, as `fora:` no stderr. rc 0 com ou sem
     PQ elegível; rc 2 com o brief fora de docs/briefs/, o script do CI que não carrega (C-6) ou o texto gerado que o `ler_provas` recusa (C-1)."""
-    script = carregar_do_plugin("scripts/reexecutar-provas.py", "forge_reexecutar_provas")
+    script = carregar_reexecutar_provas()
     if script is None:
         print("provas: não verificável (scripts/reexecutar-provas.py ausente)")
         return 2

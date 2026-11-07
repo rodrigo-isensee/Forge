@@ -146,8 +146,8 @@
       "id": "M15",
       "guarda": "C-6: o script é carregado com nome próprio, nunca __main__ (que rodaria o main dele)",
       "arquivo": "bin/forge-check",
-      "de": "spec_from_file_location(nome, PLUGIN / rel)",
-      "para": "spec_from_file_location(\"__main__\", PLUGIN / rel)",
+      "de": "spec_from_file_location(\"forge_reexecutar_provas\", arquivo)",
+      "para": "spec_from_file_location(\"__main__\", arquivo)",
       "testes": [
         "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
       ]
