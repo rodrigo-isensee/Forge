@@ -1,2 +1,0 @@
-### Corrigido
-- forge-check brief: marca do ## Histórico que a regex aceita e o relógio recusa (24:10, 11:60, 2026-11-31) sai como aviso "não é data e hora válidas" e fica fora da ordem, sem traceback nem mudança de rc (P4, versao-037 E1); a spec tests/mutantes/historico-recibo.json cobre as guardas do aviso de histórico e de recibo (E1 e E2), e saem as specs acelera-p2.json e acelera-p2-2.json, que as três -parteN.json substituem (E4)
