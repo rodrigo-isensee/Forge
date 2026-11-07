@@ -72,5 +72,89 @@ class Classes(Repositorio):
         self.assertEqual(self.classe(mudanca)["README.md"], "codigo")
 
 
+# C-2 com o adendo da volta 1 (modelo de ameaças da 0.37): cada citação de um caminho de TEXTO por código, agente ou
+# skill, conferida uma a uma pelo security-engineer como não normativa. Chave (arquivo, caminho), valor (linhas, motivo).
+# Mudar esta lista é diff em tests/ (codigo), com review e com o parecer de segurança.
+_NOME = {"bin/forge-check": 1, "scripts/suite-paralela.py": 1, "bin/forge-novo-projeto": 2, "tests/test_catraca.py": 1,
+         "tests/test_changelog.py": 1, "tests/test_ci_local.py": 7, "tests/test_estado_da_branch.py": 1, "tests/test_etapa_do_brief.py": 1,
+         "tests/test_hooks.py": 2, "tests/test_isencoes.py": 5, "tests/test_pre_push_parecer.py": 1, "tests/test_prepush_so_docs.py": 2,
+         "tests/test_salvar_desfazer.py": 3, "tests/test_suite_reuso.py": 1, "tests/e2e-instalacao.sh": 1}
+CITACOES_CONHECIDAS = {**{(a, "README.md"): (n, "nome") for a, n in _NOME.items()},
+                       ("hooks/conformidade.json", "docs/propostas/"): (1, "destino"),
+                       ("agents/agile-coach.md", "docs/retrospectivas/"): (2, "destino"),
+                       ("skills/kanban-scrum/SKILL.md", "docs/retrospectivas/"): (1, "destino"),
+                       ("tests/test_hooks.py", "docs/propostas/"): (9, "destino"),
+                       ("hooks/conformidade.py", "README.md"): (1, "prosa"), ("agents/jarvis.md", "README.md"): (1, "prosa"),
+                       ("skills/novo-projeto/SKILL.md", "docs/propostas/"): (1, "prosa"),
+                       ("tests/apoio_volta_unica.py", "docs/propostas/"): (1, "prosa"),
+                       ("tests/test_forge.py", "README.md"): (11, "teste-le"), ("tests/test_forge.py", "docs/propostas/"): (2, "teste-le")}
+MOTIVOS = ("nome", "destino", "prosa", "teste-le")
+LE_CONTEUDO = ("read_text(", "open(", '"show"', "cat ")  # (d): leitura de conteúdo não se esconde atrás de `nome`
+
+
+def conferir_citacoes(citacoes, conhecidas):
+    """Problemas da guarda: `citacoes` é {(arquivo, caminho): [linhas que citam]} achado na varredura."""
+    problemas = []
+    for (arquivo, caminho), (linhas, motivo) in sorted(conhecidas.items()):
+        if motivo not in MOTIVOS or motivo == "teste-le" and not arquivo.startswith("tests/"):
+            problemas.append(f"(c) {arquivo} · {caminho}: motivo {motivo!r}")
+        if not isinstance(linhas, int) or linhas < 1:
+            problemas.append(f"(b) {arquivo} · {caminho}: contagem {linhas!r} na lista")
+    for chave in sorted(set(citacoes) | set(conhecidas)):
+        achadas, conhecida = len(citacoes.get(chave, [])), conhecidas.get(chave, (0, ""))[0]
+        if achadas != conhecida:
+            problemas.append(f"({'a' if achadas > conhecida else 'b'}) {chave[0]} · {chave[1]}: {achadas} linhas, a lista diz {conhecida}")
+        problemas += [f"(d) {chave[0]} lê {chave[1]}: {linha.strip()}" for linha in citacoes.get(chave, [])
+                      if not chave[0].startswith("tests/") and any(x in linha for x in LE_CONTEUDO)]
+    return problemas
+
+
+class Guarda(unittest.TestCase):
+    maxDiff = None
+    # C-2: só CHANGELOG.md e changelog.d/ ficam fora (lidos pela release; o CI do PR prova). Fora da varredura ficam a
+    # definição de TEXTO e este arquivo, que são a lista.
+    TOLERADOS = ("CHANGELOG.md", "changelog.d/")
+    PASTAS = ("bin", "hooks", "scripts", "tests", ".github", ".githooks", "agents", "skills")
+    CORPUS = re.compile(r"^tests/(hooks|fixtures|transcricoes|migracoes|mutantes)/")
+
+    def varrer(self):
+        caminhos = [x for x in fc.TEXTO if x not in self.TOLERADOS]
+        self.assertGreaterEqual(len(caminhos), 3)
+        arquivos = [p for d in self.PASTAS for p in (RAIZ / d).rglob("*") if p.is_file() and "__pycache__" not in p.parts]
+        self.assertGreater(len(arquivos), 100)
+        citacoes = {}
+        for p in arquivos:
+            rel = p.relative_to(RAIZ).as_posix()
+            if self.CORPUS.match(rel) or p == Path(__file__).resolve():
+                continue
+            for linha in p.read_text(encoding="utf-8", errors="replace").splitlines():
+                for caminho in caminhos:
+                    if caminho in linha and not linha.startswith("TEXTO = ("):
+                        citacoes.setdefault((rel, caminho), []).append(linha)
+        return citacoes
+
+    def test_caminho_de_texto_so_e_citado_como_a_lista_conhece(self):
+        self.assertEqual(conferir_citacoes(self.varrer(), CITACOES_CONHECIDAS), [],
+                         "citação nova de caminho de TEXTO: tire-o de TEXTO em bin/forge-check ou leve ao parecer de segurança")
+
+    def test_reprova_citacao_nova_folga_motivo_e_leitura(self):  # (a) a (d) do adendo, em lista e varredura sintéticas
+        lista = {("bin/x", "README.md"): (1, "nome"), ("tests/test_x.py", "README.md"): (2, "teste-le")}
+        vale = {("bin/x", "README.md"): ['if nome == "README.md":'], ("tests/test_x.py", "README.md"): ["a README.md", "b README.md"]}
+        self.assertEqual(conferir_citacoes(vale, lista), [])
+        casos = {"(a)": ({**vale, ("agents/x.md", "docs/propostas/"): ["siga docs/propostas/x.md"]}, lista),
+                 "(a) ": ({**vale, ("bin/x", "README.md"): ['if nome == "README.md":', "x"]}, lista),
+                 "(b)": ({**vale, ("tests/test_x.py", "README.md"): ["a README.md"]}, lista),
+                 "(b) ": ({k: v for k, v in vale.items() if k[0] == "bin/x"}, lista),
+                 "(b)  ": (vale, {**lista, ("bin/y", "README.md"): (0, "nome")}),
+                 "(c)": (vale, {**lista, ("bin/x", "README.md"): (1, "leitura")}),
+                 "(c) ": ({**vale, ("bin/y", "README.md"): ["y"]}, {**lista, ("bin/y", "README.md"): (1, "teste-le")}),
+                 "(d)": ({**vale, ("bin/x", "README.md"): ['Path("README.md").read_text()']}, lista),
+                 "(d) ": ({**vale, ("bin/x", "README.md"): ["cat README.md"]}, lista)}
+        for rotulo, (citacoes, conhecidas) in casos.items():
+            with self.subTest(rotulo):
+                problemas = conferir_citacoes(citacoes, conhecidas)
+                self.assertTrue(problemas and all(x.startswith(rotulo.strip()) for x in problemas), problemas)
+
+
 if __name__ == "__main__":
     unittest.main()
