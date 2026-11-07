@@ -1048,14 +1048,12 @@ class CaminhoFiltroEAviso(unittest.TestCase):
         self.assertIn("-k não combina com --vermelho", r.stderr)
 
 
-def proc_falso(pasta):
-    """Um /proc de brinquedo: 10 é a execução (forge-testes), 5 o ancestral pesado, 20 a outra pesada, 40 sumiu."""
-    for pid, pai, linha in ((10, 5, b"python3\0bin/forge-testes"), (5, 1, b"python3\0scripts/suite-paralela.py"),
-                            (20, 1, b"python3\0-m\0unittest\0discover"), (30, 1, b"bash"), (40, 1, None)):
+def proc_falso(pasta, quem=b"bin/forge-testes"):
+    """/proc de brinquedo: 10 é quem anota, 5 o ancestral pesado, 20 a outra pesada, 40 sumiu no meio da leitura."""
+    for pid, pai, linha in ((10, 5, quem), (5, 1, b"suite-paralela.py"), (20, 1, b"-m\0unittest\0discover"), (40, 1, b"")):
         (pasta / str(pid)).mkdir(parents=True)
         (pasta / str(pid) / "stat").write_text(f"{pid} (a b) S {pai} 0", encoding="utf-8")
-        if linha:
-            (pasta / str(pid) / "cmdline").write_bytes(linha)
+        (pasta / str(pid) / ("cmdline" if linha else "outro")).write_bytes(linha)
     (pasta / "self").mkdir()
     return pasta
 

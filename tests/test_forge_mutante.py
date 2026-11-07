@@ -16,7 +16,6 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
-from test_testes_tocados import proc_falso  # noqa: E402  (o /proc de brinquedo da MAQ-A7)
 
 RAIZ = Path(__file__).resolve().parent.parent
 FERRAMENTA = RAIZ / "bin" / "forge-mutante"
@@ -884,8 +883,13 @@ class MedidaDaVagaPesada(unittest.TestCase):
                                    r"nproc=\d+ outras=(\d+|\?)$")
 
     def test_outras_e_contexto_toleram_falha_de_leitura(self):
-        f = carregar()
-        self.assertEqual(f.outras(proc_falso(self.dir / "proc"), eu=10), 1)
+        f, proc = carregar(), self.dir / "proc"
+        for pid, pai, linha in ((10, 5, b"bin/forge-mutante"), (5, 1, b"suite-paralela.py"), (40, 1, b"")):  # 40 sumiu
+            (proc / str(pid)).mkdir(parents=True)
+            (proc / str(pid) / "stat").write_text(f"{pid} (a b) S {pai} 0", encoding="utf-8")
+            (proc / str(pid) / ("cmdline" if linha else "outro")).write_bytes(linha)
+        (proc / "self").mkdir()
+        self.assertEqual(f.outras(proc, eu=10), 0)  # nem a própria, nem o ancestral pesado
         self.assertEqual(f.outras(self.dir / "sem-proc", eu=10), "?")
         with mock.patch("os.getloadavg", side_effect=OSError):
             self.assertIn(" load1=? ", f.contexto())
