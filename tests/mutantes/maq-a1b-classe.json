@@ -24,7 +24,7 @@
       "guarda": "so o comando simples que comeca pela ferramenta conta (citar nao conta)",
       "arquivo": "hooks/pesado.py",
       "de": "return inicio.split()[:1] == [padrao] and not",
-      "para": "return True and not",
+      "para": "return padrao in inicio and not",
       "testes": ["tests.test_hooks.PesadoClassePelosArgumentos.test_formas_leves_e_citacoes_nao_sao_pesadas"]
     },
     {
