@@ -2220,7 +2220,7 @@ DEPENDE_DE = re.compile(r"^\W*(?:\*\*)?Depende de:?(?:\*\*)?:?\s*(.*)$", re.IGNO
 
 
 def quadro_por_coluna(raiz):
-    """{coluna sem o `(WIP ...)`: [células de cada cartão]}, na ordem do quadro (KANBAN.md); só leitura."""
+    """{coluna cortada no primeiro ` (` por `nome_da_secao` (C-6): [células de cada cartão]}, na ordem do quadro (KANBAN.md); só leitura."""
     colunas, secao = {}, None
     for linha in (raiz / "KANBAN.md").read_text(encoding="utf-8").split("\n"):
         if linha.startswith("## "):

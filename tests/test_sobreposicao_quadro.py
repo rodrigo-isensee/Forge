@@ -587,5 +587,11 @@ class QuadroGerado(unittest.TestCase):
             Path(tmp, "KANBAN.md").write_text(secao("Pronto (develop)") + secao("Em andamento (WIP 3)"), encoding="utf-8")
             self.assertEqual([*fc.quadro_por_coluna(Path(tmp))], fc.colunas_do_quadro(Path(tmp))[:2])
 
+    def test_proximo_ve_o_pedido_parado_em_secao_com_nota(self):  # C-6 no leitor: sem o corte, a coluna não casa ESPERAS_DO_PROXIMO
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "KANBAN.md").write_text(secao("Aguardando o dono (PA-6: resposta)", "K-1 | C | p-1 | forge:dev | 2026-09-01 | x | y"), encoding="utf-8")
+            self.assertTrue(fc.pedido_em_coluna(Path(tmp), "p-1", fc.ESPERAS_DO_PROXIMO))
+
+
 if __name__ == "__main__":
     unittest.main()
