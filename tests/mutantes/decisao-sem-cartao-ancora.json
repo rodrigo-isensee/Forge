@@ -1,0 +1,38 @@
+{
+  "pedido": "decisao-sem-cartao-ancora",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a linha com prefixo de data antes da frase e cobrada",
+      "arquivo": "bin/forge-check",
+      "de": "(?:\\d{4}-\\d{2}-\\d{2}(?:[ T]\\d{2}:\\d{2})?:\\s*)?\"  # recuo",
+      "para": "\"  # recuo",
+      "testes": [
+        "tests.test_forge.DecisaoAncora.test_data_antes_da_frase_e_cobrada_e_a_torta_aparece",
+        "tests.test_decisoes.SemCartao.test_brief_cobra_a_decisao_com_prefixo"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o prefixo e so a data, nao qualquer texto antes da frase",
+      "arquivo": "bin/forge-check",
+      "de": "(?:\\d{4}-\\d{2}-\\d{2}(?:[ T]\\d{2}:\\d{2})?:\\s*)?\"  # recuo",
+      "para": ".*\"  # recuo",
+      "testes": [
+        "tests.test_forge.DecisaoAncora.test_uma_funcao_so_decide_a_frase",
+        "tests.test_forge.DecisaoAncora.test_mencao_no_meio_da_linha_nao_e_cobrada_mas_aparece"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o prefixo de data vale uma vez so",
+      "arquivo": "bin/forge-check",
+      "de": "(?:\\d{4}-\\d{2}-\\d{2}(?:[ T]\\d{2}:\\d{2})?:\\s*)?\"  # recuo",
+      "para": "(?:\\d{4}-\\d{2}-\\d{2}(?:[ T]\\d{2}:\\d{2})?:\\s*)*\"  # recuo",
+      "testes": [
+        "tests.test_forge.DecisaoAncora.test_uma_funcao_so_decide_a_frase"
+      ]
+    }
+  ]
+}
