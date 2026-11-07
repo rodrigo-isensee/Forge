@@ -29,10 +29,10 @@ class ProvaDaSuite(unittest.TestCase):
         env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
         return {**env, "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull, "XDG_RUNTIME_DIR": str(self.d), **extra}
 
-    def rodar(self, ferramenta, entrada, papel="forge:node-backend", **extra):
+    def rodar(self, ferramenta, entrada, papel="forge:node-backend", cwd=None, **extra):
         dados = {"tool_name": ferramenta, "tool_input": entrada, "hook_event_name": "PreToolUse", "agent_type": papel}
         return subprocess.run([sys.executable, str(RAIZ / "hooks" / "conformidade.py")], input=json.dumps(dados),
-                              cwd=self.proj, env=self.env(**extra), capture_output=True, text=True, timeout=120)
+                              cwd=cwd or self.proj, env=self.env(**extra), capture_output=True, text=True, timeout=120)
 
     def recusa(self, r, caso):
         self.assertEqual(r.returncode, 2, f"{caso}: {r.stderr}")
@@ -57,6 +57,24 @@ class ProvaDaSuite(unittest.TestCase):
             self.recusa(self.rodar("Bash", {"command": c}), c)
         (self.proj / ".forge" / "perfil").write_text("iniciante\n", encoding="utf-8")
         self.recusa(self.rodar("Write", {"file_path": str(self.verde), "content": "x"}), "iniciante")
+
+    def test_pasta_fora_de_projeto_tambem_recusa(self):  # A2 da segurança g3: o ramo `externo is False` de principal
+        v, fora = str(self.verde), self.tmp / "fora"
+        fora.mkdir()
+        outra = "echo x > ~/.claude/settings.json"  # recusa de dentro de projeto, que fora dele não vale
+        for raiz, pasta in ((RAIZ, fora), (RAIZ, RAIZ), (None, fora)):
+            extra = {"CLAUDE_PROJECT_DIR": str(raiz)} if raiz else {}
+            for papel in ("forge:tech-lead", None):
+                caso = f"raiz {raiz}, pasta {pasta}, papel {papel}"
+                self.recusa(self.rodar("Write", {"file_path": v, "content": "x"}, papel, cwd=pasta, **extra), f"Write, {caso}")
+                for c in (f"echo x > {v}", f"{outra}; echo x > {v}"):  # 2.º: a outra recusa vem antes
+                    self.recusa(self.rodar("Bash", {"command": c}, papel, cwd=pasta, **extra), f"{c}, {caso}")
+                for c in (f"cat {v}", f"echo x > {self.tmp}/outro.txt", *([] if raiz else [outra])):  # ADR 0009, 6
+                    r = self.rodar("Bash", {"command": c}, papel, cwd=pasta, **extra)
+                    self.assertEqual(r.returncode, 0, f"{c}, {caso}: {r.stderr}")
+        nb = self.rodar("NotebookEdit", {"notebook_path": v, "new_source": "x"}, "forge:conferente", cwd=fora)
+        self.recusa(nb, "papel só de leitura: a recusa dele vem antes e não vale fora de projeto")
+        self.assertFalse((fora / ".forge").exists(), "a outra recusa não é erro interno: nada no erros.log")
 
     def test_leitura_trava_e_fila_passam(self):
         v, d = str(self.verde), str(self.d)

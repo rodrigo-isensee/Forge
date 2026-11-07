@@ -1,0 +1,57 @@
+{
+  "pedido": "versao-037",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "pre-push:185: sem origin/develop ou sem o script nela, aviso e segue; com eles, varre",
+      "arquivo": ".githooks/pre-push",
+      "de": "if ! { dev=\"$(git rev-parse",
+      "para": "if false && ! { dev=\"$(git rev-parse",
+      "testes": [
+        "tests.test_pre_push_segredo.PrePushSegredo.test_token_no_delta_recusa_antes_da_suite_sem_imprimir_o_valor"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "pre-push:192 (C-8): ref que não descasca a commit avisa e segue sem varrer",
+      "arquivo": ".githooks/pre-push",
+      "de": "|| { echo \"pre-push: aviso: ${ref} não é commit; varredura pulada nela.\" >&2; continue; }",
+      "para": "|| true",
+      "testes": [
+        "tests.test_pre_push_segredo.PrePushSegredo.test_ref_que_nao_descasca_a_commit_avisa_e_segue"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "pre-push:194: ref sem base comum com origin/develop avisa e segue sem varrer",
+      "arquivo": ".githooks/pre-push",
+      "de": "[ -n \"$base\" ] || {",
+      "para": "true || {",
+      "testes": [
+        "tests.test_pre_push_segredo.PrePushSegredo.test_ref_sem_base_comum_avisa_e_segue"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "pre-push:196 (C-10): script da base sem a marca forge:ponta e ponta diferente do HEAD avisa e segue",
+      "arquivo": ".githooks/pre-push",
+      "de": "if ! grep -qx '# forge:ponta.*'",
+      "para": "if false && ! grep -qx '# forge:ponta.*'",
+      "testes": [
+        "tests.test_pre_push_segredo.PrePushSegredo.test_script_da_base_sem_a_marca_varre_so_o_head"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "pre-push:205: a varredura que falha ou acha segredo recusa o envio antes da suíte",
+      "arquivo": ".githooks/pre-push",
+      "de": "segredo_no_delta || exit 1",
+      "para": "segredo_no_delta || true",
+      "testes": [
+        "tests.test_pre_push_segredo.PrePushSegredo.test_token_no_delta_recusa_antes_da_suite_sem_imprimir_o_valor",
+        "tests.test_pre_push_segredo.PrePushSegredo.test_script_da_base_sem_a_marca_varre_so_o_head"
+      ]
+    }
+  ]
+}
