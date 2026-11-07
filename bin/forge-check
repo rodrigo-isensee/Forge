@@ -2224,7 +2224,7 @@ def quadro_por_coluna(raiz):
     colunas, secao = {}, None
     for linha in (raiz / "KANBAN.md").read_text(encoding="utf-8").split("\n"):
         if linha.startswith("## "):
-            secao = nome_da_secao(linha[3:])
+            secao = re.sub(r"\s*\(WIP[^)]*\)", "", linha[3:]).strip()
             colunas.setdefault(secao, [])
             continue
         if secao is None or not linha.startswith("|"):
