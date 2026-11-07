@@ -282,8 +282,8 @@ class RetroPorGatilho(Raiz):
     def leads(self, outros, alvo):
         """historico.md: `outros` cartões de lead 10 min e o `alvo` com `alvo` min, todos chegados à develop há um dia."""
         inicio = datetime.datetime.now().astimezone() - datetime.timedelta(days=1)
-        linhas = []
-        for nome, minutos in [(f"c{i}", 10) for i in range(outros)] + [("alvo", alvo)]:
+        linhas = [f"| {inicio.isoformat(timespec='seconds')} | curta |"]  # linha curta não conta nem quebra
+        for nome, minutos in [("alvo", alvo)] + [(f"c{i}", 10) for i in range(outros)]:
             fim = (inicio + datetime.timedelta(minutes=minutos)).isoformat(timespec="seconds")
             linhas += [f"| {inicio.isoformat(timespec='seconds')} | {nome} | — | Em andamento | x |",
                        f"| {fim} | {nome} | Review | Pronto | custo total: 7 tokens · atributos: custo total: 9 tokens |"]
