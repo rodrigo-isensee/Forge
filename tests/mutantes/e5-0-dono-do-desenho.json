@@ -9,7 +9,7 @@
       "de": "\"caminho\": \"docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
       "para": "\"caminho\": \"docs/arquitetura-x/\", \"quem\": [\"doc\", \"aq\"]",
       "testes": [
-        "tests.test_hooks.Hooks.test_fixtures"
+        "tests.test_hooks.Hooks.test_fixtures_do_desenho"
       ]
     },
     {
@@ -19,7 +19,7 @@
       "de": "\"caminho\": \"~/.forge-contrib/docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
       "para": "\"caminho\": \"~/.forge-contrib/docs/arquitetura-x/\", \"quem\": [\"doc\", \"aq\"]",
       "testes": [
-        "tests.test_hooks.Hooks.test_fixtures"
+        "tests.test_hooks.Hooks.test_fixtures_do_desenho"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "de": "\"caminho\": \"~/.forge-contrib/*/docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
       "para": "\"caminho\": \"~/.forge-contrib/*/docs/arquitetura-x/\", \"quem\": [\"doc\", \"aq\"]",
       "testes": [
-        "tests.test_hooks.Hooks.test_fixtures"
+        "tests.test_hooks.Hooks.test_fixtures_do_desenho"
       ]
     },
     {
@@ -39,17 +39,17 @@
       "de": "\"caminho\": \"~/.forge-contrib/docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
       "para": "\"caminho\": \"~/.forge-contrib/docs/arquitetura/\", \"quem\": [\"doc\"]",
       "testes": [
-        "tests.test_hooks.Hooks.test_fixtures"
+        "tests.test_hooks.Hooks.test_fixtures_do_desenho"
       ]
     },
     {
       "id": "M5",
-      "guarda": "quem so doc em docs/arquitetura/ (aq-edita-arquitetura-libera reprova)",
+      "guarda": "quem so doc em docs/arquitetura/ (desenho-projeto-aq-libera reprova)",
       "arquivo": "hooks/conformidade.json",
       "de": "\"caminho\": \"docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
       "para": "\"caminho\": \"docs/arquitetura/\", \"quem\": [\"doc\"]",
       "testes": [
-        "tests.test_hooks.Hooks.test_fixtures"
+        "tests.test_hooks.Hooks.test_fixtures_do_desenho"
       ]
     },
     {
@@ -59,7 +59,7 @@
       "de": "\"caminho\": \"docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
       "para": "\"caminho\": \"docs/arquitetura/\", \"quem\": [\"doc\", \"aq\", \"tech-lead\"]",
       "testes": [
-        "tests.test_hooks.Hooks.test_fixtures"
+        "tests.test_hooks.Hooks.test_fixtures_do_desenho"
       ]
     },
     {
@@ -69,7 +69,7 @@
       "de": "\"caminho\": \"docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
       "para": "\"caminho\": \"docs/architecture/\", \"quem\": [\"doc\", \"aq\"], \"motivo\": \"m\"},\n    {\"caminho\": \"docs/arquitetura/\", \"quem\": [\"doc\", \"aq\"]",
       "testes": [
-        "tests.test_hooks.Hooks.test_fixtures"
+        "tests.test_hooks.Hooks.test_fixtures_do_desenho"
       ]
     }
   ]
