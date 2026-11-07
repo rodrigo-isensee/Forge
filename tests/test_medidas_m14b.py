@@ -441,12 +441,13 @@ class TextosDizemQuandoCadaMedidaRoda(unittest.TestCase):
     def test_agile_coach_roda_a_linha_de_base_na_retrospectiva(self):
         coach = self.texto("agents/agile-coach.md")
         for trecho in ("forge-check esperas", "forge-check escape resumo", "forge-check escape registrar", "forge-check corrigidos",
-                       "forge-check afrouxamentos --rotulados", "Linha de base (M14b)"):
+                       "forge-check afrouxamentos --rotulados", "Linha de base (M14b)", "forge-check transcricao avisos --amostra"):
             self.assertIn(trecho, coach)
 
     def test_cada_medida_esta_na_tabela_de_metricas_e_no_uso_do_forge_check(self):
         tabela, uso = self.texto("docs/melhoria-continua.md"), self.texto("bin/forge-check")
-        for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape resumo"):
+        for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape resumo",
+                        "forge-check transcricao avisos"):
             self.assertIn(comando, tabela)
         for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape registrar", "forge-check escape resumo",
                         "forge-check transcricao avisos"):
@@ -479,7 +480,8 @@ class AvisosDosHooks(Raiz):
         self.assertEqual(linhas, ["avisos: hook doutor avisos=1 unicos=1 reincidencia=0", "avisos: hook vigia avisos=2 unicos=2 reincidencia=0",
                                   "avisos: evento Stop doutor=0 vigia=1", "avisos: evento SubagentStop doutor=0 vigia=1",
                                   "avisos: evento outro doutor=1 vigia=0", "avisos: dia 2026-10-22 doutor=1 vigia=1",
-                                  "avisos: dia 2026-10-23 doutor=0 vigia=1", "avisos: total: avisos=3 unicos=3 reincidencia=0"])
+                                  "avisos: dia 2026-10-23 doutor=0 vigia=1", "avisos: total: avisos=3 unicos=3 reincidencia=0",
+                                  "avisos: com_acao=0"])
 
     def test_mesmo_texto_no_mesmo_dia_reincide_e_em_dias_diferentes_nao(self):
         cod, linhas = self.avisos(aviso(VIGIA), aviso(VIGIA, evento="SubagentStop"), aviso(DOUTOR), aviso(DOUTOR, "2026-10-23"))
@@ -493,7 +495,7 @@ class AvisosDosHooks(Raiz):
                                   dict(aviso(DOUTOR), timestamp="ontem SEGREDO123"), {"type": "attachment", "attachment": DOUTOR})
         self.assertEqual(linhas, ["avisos: hook doutor avisos=1 unicos=1 reincidencia=0", "avisos: hook vigia avisos=0 unicos=0 reincidencia=0",
                                   "avisos: evento Stop doutor=1 vigia=0", "avisos: dia sem_data doutor=1 vigia=0",
-                                  "avisos: total: avisos=1 unicos=1 reincidencia=0"])
+                                  "avisos: total: avisos=1 unicos=1 reincidencia=0", "avisos: com_acao=0"])
 
     def test_pasta_sem_jsonl_e_caminho_inexistente_dao_rc_1(self):
         (self.tmp / "vazia").mkdir()
@@ -502,6 +504,40 @@ class AvisosDosHooks(Raiz):
             cod, linhas, _ = self.rodar("transcricao", "avisos", *([str(self.tmp / alvo)] if alvo else []))
             self.assertEqual(cod, 1, linhas)
             self.assertTrue(linhas[0].startswith(inicio), linhas)
+
+
+def chamada(comando, texto=None, tipo="assistant"):
+    """Uma mensagem com uma chamada de ferramenta (e, se dado, um texto antes dela)."""
+    return {"type": tipo, "message": {"content": ([{"type": "text", "text": texto}] if texto else []) +
+                                      [{"type": "tool_use", "name": "Bash", "input": {"command": comando}}]}}
+
+
+class AvisosComAcao(Raiz):
+    """LAC-L2 (E4b): o aviso tem ação quando uma das 3 chamadas seguintes da sessão age sobre ele; a `--amostra` só traz id e tipo (T-14)."""
+
+    def medir(self, arquivos, *opcoes):
+        for nome, objetos in arquivos.items():
+            self.gravar(f"t/{nome}.jsonl", "".join(json.dumps(o, ensure_ascii=False) + "\n" for o in objetos))
+        cod, linhas, erro = self.rodar("transcricao", "avisos", str(self.tmp / "t"), *opcoes)
+        self.assertNotIn("SEGREDO123", "\n".join(linhas) + erro)
+        self.assertEqual(cod, 0, linhas)
+        return linhas
+
+    def test_acao_na_segunda_chamada_conta_e_na_quarta_nao(self):
+        estranhos = [{"type": "assistant", "message": "x"}, {"type": "assistant", "message": {"content": 5}},
+                     {"type": "assistant", "message": {"content": ["solto"]}}, chamada("ls", "o doutor", tipo="user")]
+        for agir in ("cat .forge/run/violacoes.jsonl", "forge doutor --rapido", "bin/forge-doutor"):
+            self.assertIn("avisos: com_acao=1", self.medir({"a": [aviso(VIGIA), chamada("ls"), chamada(agir), chamada("ls")],
+                                                             "b": [aviso(VIGIA), *estranhos, chamada("ls"), chamada("ls"), chamada("ls"), chamada(agir)]}))
+        self.assertIn("avisos: com_acao=2", self.medir({"a": [aviso(DOUTOR), chamada("ls", "nada"), chamada("ls"), chamada("ls", "O Vigia avisou")],
+                                                         "b": [aviso(VIGIA), chamada("ls", "vou ver o doutor")]}))
+
+    def test_amostra_da_ids_deterministicos_sem_o_texto_do_aviso(self):
+        arquivos = {"a": [aviso(VIGIA), aviso(DOUTOR)], "b": [], "c": [aviso(VIGIA, "2026-10-23")]}
+        amostra = [l for l in self.medir(arquivos, "--amostra", "9") if "amostra" in l]
+        self.assertEqual(amostra, ["avisos: amostra s1#1 vigia", "avisos: amostra s1#2 doutor", "avisos: amostra s3#1 vigia"])
+        self.assertEqual([l for l in self.medir(arquivos, "--amostra", "2") if "amostra" in l], amostra[:2])
+        self.assertFalse([l for l in self.medir(arquivos, "--amostra", "-1") + self.medir(arquivos) if "amostra" in l])
 
 
 if __name__ == "__main__":
