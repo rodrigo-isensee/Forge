@@ -35,6 +35,14 @@ class HistoricoERecibo(Raiz):
         _, avisos = self.conferir("- 2026-01-01 10:00: aberto\n- 2026-01-01 09:59: antes\n")
         self.assertEqual(avisos, ["aviso: histórico: 2026-01-01 09:59 antes da linha anterior (2026-01-01 10:00)"])
 
+    def test_hora_fora_do_relogio_so_avisa(self):  # a regex aceita, o strptime recusa: nunca traceback nem rc diferente
+        rc_sem, _ = self.conferir("- 2026-01-01 10:00: aberto\n")
+        for marca in ("2026-11-07 24:10", "2026-11-07 11:60", "2026-11-31 10:00"):
+            with self.subTest(marca):
+                rc, avisos = self.conferir(f"- 2026-01-01 10:00: aberto\n- {marca}: hora inválida\n- 2026-01-01 10:01: segue\n")
+                self.assertEqual(avisos, [f"aviso: histórico: {marca} não é data e hora válidas"])
+                self.assertEqual(rc, rc_sem)
+
     def test_marcas_fora_da_forma_e_registro_tardio_nao_avisam(self):
         _, avisos = self.conferir("- 2026-01-01 10:00: aberto\n- 2026-01-01 11:2x: minuto incerto\n- 2026-01-01: sem hora\n"
                                   "- 2026-01-01 10:05: cita 09:00 e 2099-01-01 00:00 no texto\n"
