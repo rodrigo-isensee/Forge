@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
-"""Forge DV-3(b): a ponta da homolog e da main é merge commit sem conteúdo próprio (R-FLUXO, ADR 0012). Só biblioteca padrão.
-
-Uso: conferir-promocao.py --ref REF
-  Confere o repositório do diretório corrente, nunca o do próprio arquivo (o CI roda a cópia do primeiro pai).
-  0 = exatamente 2 pais e árvore igual à do segundo pai; 1 = 1 pai, 3 ou mais pais ou árvore diferente;
-  2 = não verificável (ref com `-` inicial ou controle, recusada antes do git; clone raso, saída fora do formato
-  ou git com erro). A saída só traz sha7 e contagens, nunca nome de arquivo ou de ref.
-"""
+"""Forge DV-3(b), uso `conferir-promocao.py --ref REF`: a ponta da homolog e da main é merge commit sem conteúdo próprio
+(R-FLUXO, ADR 0012). Confere o repositório do diretório corrente, nunca o do próprio arquivo (o CI roda a cópia do 1.º pai).
+0 = exatamente 2 pais e árvore igual à do 2.º; 1 = 1 pai, 3 ou mais ou árvore diferente; 2 = não verificável (ref com `-`
+inicial ou controle, recusada antes do git; clone raso; rev-list fora do formato; git com erro). Saída: só sha7 e contagens."""
 import argparse
 import re
 import subprocess
 import sys
 
 PAIS = re.compile(r"[0-9a-f]{40}( [0-9a-f]{40})*")
-ARVORE = re.compile(r"[0-9a-f]{40}")
 PRAZO = 60  # segundos por chamada ao git
 
 
@@ -32,10 +27,7 @@ def git(*args):
 
 
 def arvore(sha):
-    saida = git("log", "-1", "--format=%T", "--end-of-options", sha)
-    if not ARVORE.fullmatch(saida):
-        raise NaoVerificavel("git log fora do formato")
-    return saida
+    return git("log", "-1", "--format=%T", "--end-of-options", sha)
 
 
 def conferir(ref):
