@@ -88,7 +88,7 @@ reprova (`escopo: --desde sem conferência anterior`, `--desde gravado na própr
 vale como a branch inteira (`base: Base-sha do brief`, P-N1; `brief mensagem --entrega` emite esse `Desde:`). Intervalo vazio:
 `pendente:` na etapa `codigo`, `escopo: sem commit (nada a conferir)` nas outras. Parecer do papel certo e com autoria:
 `escopo: ok (parecer de <papel>)`; o resto: `escopo: confira "<arquivo>" +a -r`, para a leitura contra o Entregar.
-`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`).
+`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Com o blob do último `parecer conferido` do Histórico que o altera, ancestral do head, sai `escopo: ok (parecer trazido <sha7> de <papel>)`, mesmo com remoção. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`).
 `delta` (VV-2, M12; só leitura, nunca reprova) imprime `delta: <arquivo> +a -r` e `delta: <arquivo>:<ini>-<fim>` (lado novo
 de cada trecho de `git diff -U0`) do que mudou entre o commit (ou o `commit:` do parecer de `--parecer`) e o fim (padrão HEAD),
 fora de docs/reviews, qa, devops, security e do quadro; `delta: nenhum` sem mudança. rc 2 se o commit não existe ou não é
@@ -1121,6 +1121,13 @@ def blob_de(raiz, commit, nome):
     return git(raiz, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{commit}:{nome}")[1]
 
 
+def parecer_trazido(raiz, ultimos, head, nome):
+    """VOLTAS-REVISOR-WT (E6a-4; M1, T-3, S4): o sha do P se o blob de `nome` no head é o do **último** `parecer conferido` que o
+    altera e esse P é ancestral do head; senão None. O aceite nunca chega aqui (o `tipo` dele é None, M9)."""
+    p = ultimos.get(nome)
+    return p if p and blob_de(raiz, head, nome) == blob_de(raiz, p, nome) and e_ancestral(raiz, p, head) else None
+
+
 def frontmatter_do_parecer(raiz, commit, nome):
     """Os campos do frontmatter de `nome` em `commit` (o parecer conferido), ou None (sem o arquivo, a saída vazia não tem frontmatter)."""
     return ler_frontmatter(git(raiz, "cat-file", "blob", f"{commit}:{nome}", bruto=True)[1].decode("utf-8", "replace"))[0]
@@ -1668,7 +1675,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     linhas += informativas + [(f"escopo: o git falhou ({passo}); o escopo não foi lido", True) for passo in falhas]
     recusas, shas = merges_nao_conferidos(raiz, texto, de, head, base_ref) if etapa in ("qa", "codigo") else ([], set())
     linhas += recusas
-    ultimos = pareceres_conferidos(raiz, pedido, branch)[0] if shas else {}
+    ultimos = pareceres_conferidos(raiz, pedido, branch)[0]  # E6a-4: o "trazido" vale em qualquer etapa; o M2, só em qa/codigo
     if not arquivos and not falhas:
         vazio = ("pendente: a entrega é só a integração da base (o merge não traz trabalho próprio); todo item do \"Entregar\" está sem commit"
                  if dos_dois_pais else "pendente: intervalo vazio na etapa codigo (nenhum commit novo); todo item do \"Entregar\" está sem commit")
@@ -1682,7 +1689,9 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         if shas and tipo not in (None, "qa") and (nome not in ultimos or blob_de(raiz, head, nome) != blob_de(raiz, ultimos[nome], nome)):  # M2
             linhas.append((f"escopo: fora (parecer não conferido ou superado) {mostrado}", True))
         elif tipo and not com_controle(nome) and autoria_do_parecer(raiz, registros, head, nome, tipo):
-            if removidas != "0" and not reescrito_por_portao(raiz, pedido_id, branch, head, nome, tipo):  # A6; G6: o portão do -REV reescreve
+            if p := parecer_trazido(raiz, ultimos, head, nome):  # S4: a remoção já foi lida na conferência do P
+                linhas.append((f"escopo: ok (parecer trazido {p[:7]} de {PAPEL_DO_PARECER[tipo]}) {mostrado}", False))
+            elif removidas != "0" and not reescrito_por_portao(raiz, pedido_id, branch, head, nome, tipo):  # A6; G6: o portão do -REV reescreve
                 papel = PAPEL_DO_PARECER[tipo]
                 linhas.append((f"escopo: confira {mostrado} +{acrescidas} -{removidas} (anexo com remoção do parecer de {papel}: "
                                f"reprova se fora do \"Entregar\" da entrega do {papel})", False))

@@ -1,7 +1,10 @@
 """VOLTAS-REVISOR-WT (E6a-1): o `forge-check pr` confere as linhas `parecer conferido <sha40>` do `## Histórico` (M1 no `pr`, M5 na
 leitura, M8, T-1, T-2; testes t1, t10, t11, t14 e t19 das ameaças). Só acrescenta recusa. E6a-2: `entrega --branch parecer/*` (M3, M5,
 M9; t4 a t8, t15 e o caso 11). E6a-3: o `entrega` confere os merges do intervalo (M4, M2, C-11, M9 no merge; t1, t2, t9, t12,
-t20 e o caso 12). Repositório temporário."""
+t20 e o caso 12). E6a-4: o "parecer trazido" (M1 no trazido, T-3, S4; t3, t13, A10 e os compostos A1, A5 e t20 com o arquivo
+também trazido). Repositório temporário."""
+import hashlib
+import json
 import os
 import sys
 import unittest
@@ -279,6 +282,67 @@ class EntregaConfereOMerge(ComParecer):
         git("switch", "-q", "melhoria/x", cwd=self.repo)
         self.merge("develop")
         self.assertEqual(self.foras(), (0, []))
+
+
+class ParecerTrazido(ComParecer):
+    """O QA traz por merge o último P conferido; o parecer antigo da branch tem linhas que o P remove (a A6 daria `confira`)."""
+    merge, lado = EntregaConfereOMerge.merge, EntregaConfereOMerge.lado  # só os ajudantes; os testes de lá não rodam de novo
+
+    def setUp(self):
+        super().setUp()
+        self.c1 = self.commitar({"docs/reviews/x.md": "antigo 1\nantigo 2\n"}, "parecer da volta anterior")
+
+    def autoria(self, sha, nome="docs/reviews/x.md", papel="tech-lead"):
+        texto = git("show", f"{sha}:{nome}", cwd=self.repo).stdout
+        (self.repo / ".forge" / "run").mkdir(parents=True, exist_ok=True)
+        with (self.repo / ".forge" / "run" / "autoria.jsonl").open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"caminho": nome, "sha256": hashlib.sha256(texto.strip().encode()).hexdigest(), "papel": papel}) + "\n")
+
+    def conferir(self, *shas, etapa="qa"):
+        self.gravar_pedido([self.c1], extra="".join(f"- 2026-11-06 18:0{i}: parecer conferido {s} (review)\n" for i, s in enumerate(shas)))
+        rc, saida = self.entrega(desde=self.c1, etapa=etapa)
+        return rc, [linha for linha in saida.splitlines() if linha.startswith("escopo:")]
+
+    def test_o_ultimo_p_trazido_com_remocao_e_ok_em_qualquer_etapa(self):  # t3, S4
+        p1, p2 = self.parecer("r1"), self.parecer("r2", parecer="reprovado")
+        self.merge(p2)
+        self.autoria(p2)
+        for etapa in ("qa", "codigo", "review"):
+            self.assertEqual(self.conferir(p1, p2, etapa=etapa), (0, [f'escopo: ok (parecer trazido {p2[:7]} de tech-lead) "docs/reviews/x.md"']))
+        (self.repo / ".forge" / "run" / "autoria.jsonl").unlink()  # sem autoria, a regra de hoje
+        self.assertEqual(self.conferir(p1, p2)[1], ['escopo: confira "docs/reviews/x.md" +12 -2'])
+
+    def test_bytes_do_p_antigo_com_o_ultimo_ancestral_nao_sao_trazidos(self):  # t13, A10, T-3, A1
+        p1, p2 = self.parecer("r1"), self.parecer("r2", parecer="reprovado")
+        self.merge(p2)
+        self.commitar({"docs/reviews/x.md": git("show", f"{p1}:docs/reviews/x.md", cwd=self.repo).stdout}, "volta aos bytes de P1")
+        self.autoria(p1)
+        self.assertEqual(self.conferir(p1, p2, etapa="review"), (0, [
+            'escopo: confira "docs/reviews/x.md" +12 -2 (anexo com remoção do parecer de tech-lead: reprova se fora do "Entregar" '
+            'da entrega do tech-lead)']))
+        self.assertEqual(self.conferir(p1, p2), (1, ['escopo: fora (parecer não conferido ou superado) "docs/reviews/x.md"']))
+
+    def test_os_bytes_do_p_sem_o_p_ancestral_nao_sao_trazidos(self):  # M1: P ancestral do head
+        p1 = self.parecer("r1")
+        self.commitar({"docs/reviews/x.md": git("show", f"{p1}:docs/reviews/x.md", cwd=self.repo).stdout}, "cópia sem o merge")
+        self.autoria(p1)
+        linhas = "".join(self.conferir(p1)[1])
+        self.assertNotIn("parecer trazido", linhas)
+        self.assertIn("anexo com remoção", linhas)
+
+    def test_trazido_nao_escapa_do_merge_nao_conferido_nem_do_aceite(self):  # A5 e t20 com o arquivo trazido, M4, M9
+        p1, ps = self.parecer("r1"), self.parecer("s1", arquivo="docs/security/aceites/p.md")
+        outro = self.lado("lado", {"KANBAN.md": "x\n"})
+        self.merge(p1, ps, outro)
+        self.autoria(p1)
+        self.autoria(ps, "docs/security/aceites/p.md", "seguranca")
+        m = self.head()[:7]
+        rc, linhas = self.conferir(p1, ps)
+        self.assertEqual(rc, 1)
+        for linha in (f'escopo: ok (parecer trazido {p1[:7]} de tech-lead) "docs/reviews/x.md"',
+                      f"escopo: fora (aceite trazido pelo merge {m})", f"escopo: fora (merge de {outro[:7]} não conferido)"):
+            self.assertIn(linha, linhas)
+        self.assertNotIn("p.md", "".join(linha for linha in linhas if linha.startswith("escopo: ok")))
 
 
 if __name__ == "__main__":
