@@ -1,0 +1,86 @@
+{
+  "pedido": "m5-placar-mutacao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "uma rodada do forge-mutante por spec: todas numa chamada misturam pedidos e o forge-mutante recusa",
+      "arquivo": "scripts/placar-mutacao.py",
+      "de": "\"--\", spec]",
+      "para": "\"--\", *amostra]",
+      "testes": [
+        "tests.test_forge_mutante.PlacarDaRelease"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "só a spec adicionada desde a tag entra na amostra; a só editada fica fora",
+      "arquivo": "scripts/placar-mutacao.py",
+      "de": "\"--diff-filter=A\"",
+      "para": "\"--diff-filter=AM\"",
+      "testes": [
+        "tests.test_forge_mutante.PlacarDaRelease"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "R-1: o caminho da spec vai depois de `--` e nunca é lido como opção",
+      "arquivo": "scripts/placar-mutacao.py",
+      "de": "\"--\", spec]",
+      "para": "spec]",
+      "testes": [
+        "tests.test_forge_mutante.PlacarDaRelease"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "R-2: a spec com nome fora de tests/mutantes/<nome>.json (como --executar.json) é recusada",
+      "arquivo": "scripts/placar-mutacao.py",
+      "de": "r\"tests/mutantes/[A-Za-z0-9][A-Za-z0-9._-]*\\.json\"",
+      "para": "r\".*\"",
+      "testes": [
+        "tests.test_forge_mutante.PlacarDaRelease"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o placar é medida, não portão: rc 0 mesmo com sobrevivente",
+      "arquivo": "scripts/placar-mutacao.py",
+      "de": "return 0  # placar, não portão",
+      "para": "return int(total[\"sobreviveu\"] > 0)  # placar, não portão",
+      "testes": [
+        "tests.test_forge_mutante.PlacarDaRelease"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "teto de 8 specs novas por placar: a 9.ª sai fora da amostra",
+      "arquivo": "scripts/placar-mutacao.py",
+      "de": "TETO_DE_SPECS = 8",
+      "para": "TETO_DE_SPECS = 9",
+      "testes": [
+        "tests.test_forge_mutante.PlacarDaRelease"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "R-2: a spec que é link simbólico é recusada",
+      "arquivo": "scripts/placar-mutacao.py",
+      "de": "and not os.path.islink(raiz / nome)",
+      "para": "and True",
+      "testes": [
+        "tests.test_forge_mutante.PlacarDaRelease"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "R-3: --desde que não resolve a commit é recusado antes de rodar qualquer spec",
+      "arquivo": "scripts/placar-mutacao.py",
+      "de": "or base.returncode:",
+      "para": "or False:",
+      "testes": [
+        "tests.test_forge_mutante.PlacarDaRelease"
+      ]
+    }
+  ]
+}
