@@ -1101,6 +1101,29 @@ class SondaNoCorpus(BriefDeVolta):
         self.assertEqual(rc, 1, saida)
         self.assertIn('volta: falta sonda "S1" de docs/reviews/p1.md', saida)
 
+    def test_volta_com_a_marca_e_a_entrada_diferente_reprova(self):  # C-5 (A1 da segurança g5): a marca sozinha não basta
+        linha = f"- (sonda review {self.sha[:7]} S1) grave no corpus da branch: {self.ENTRADA} · espera: rc 2\n"
+        texto = self.volta()
+        casos = {"só a marca": (f"- (sonda review {self.sha[:7]} S1) já coberto\n", 'volta: falta sonda "S1" de docs/reviews/p1.md'),
+                 "entrada trocada": (linha.replace(self.ENTRADA, "import unittest"), "volta: sonda S1 difere do parecer docs/reviews/p1.md")}
+        for nome, (troca, esperado) in casos.items():
+            with self.subTest(nome):
+                rc, saida = self.conferir(texto.replace(linha, troca))
+                self.assertEqual(rc, 1, saida)
+                self.assertIn(esperado, saida)
+        saida = self.conferir(texto)[1]
+        self.assertNotIn("difere do parecer", saida)
+        self.assertNotIn("falta sonda", saida)
+
+    def test_entrega_reprova_a_marca_fora_do_formato(self):  # C-6 (A1 da segurança g5): a linha nunca some em silêncio
+        self.commitar({"tests/test_x.py": f"ENTRADA = '{self.ENTRADA}'\n"}, "corpus")
+        brief = self.volta()
+        self.assertEqual(self.entrega_com_brief(brief)[0], 0)  # o caso certo segue passando
+        marca = next(l for l in brief.splitlines() if l.startswith("- (sonda ")).split(" grave no corpus")[0]  # sha7 do head com o corpus
+        rc, saida = self.entrega_com_brief(brief.replace(f"{marca} grave no corpus", f"{marca} já coberto\n{marca} grave no corpus"))
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f"escopo: linha de sonda fora do formato (PAR-P1): \"{marca} já coberto\"", saida)
+
     def test_sonda_fora_do_formato_recusa_a_volta(self):  # C3: a linha ruim nunca some
         self.parecer("reprovado", self.ACHADOS + "\n## Sondas\n- S1 · a · espera: b · espera: c · obtido: d\n")
         rc, saida = self.gerar()
