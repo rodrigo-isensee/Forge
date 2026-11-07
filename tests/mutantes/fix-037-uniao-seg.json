@@ -84,7 +84,7 @@
   "isentas": [
     {
       "arquivo": "hooks/conformidade.py",
-      "trecho": "hook.raiz = raiz or Path(hook.cwd())",
+      "trecho": "raiz or Path(hook.cwd())",
       "motivo": "a raiz só serve à Guarda reduzida, cuja única recusa válida (a da prova) vem do nome antes de usar a raiz; o `or` só escolhe onde o erros.log de erro interno fica (o clone, não a pasta corrente qualquer)"
     }
   ]
