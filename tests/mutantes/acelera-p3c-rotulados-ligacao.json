@@ -44,10 +44,10 @@
   },
   {
    "id": "M5",
-   "guarda": "C-1/A3: qualquer exceção da lista vira incompleta, sem mudar o rc",
+   "guarda": "C-1/C-7: a falha da lista diz o nome do tipo da exceção (nunca o texto)",
    "arquivo": "tests/catraca.py",
-   "de": "    except Exception as e:  # qualquer uma",
-   "para": "    except ErroDeGit as e:  # qualquer uma",
+   "de": "linhas = [f\"rotulados: incompleta ({type(e).__name__})\"]",
+   "para": "linhas = [f\"rotulados: incompleta ({e!r})\"]",
    "testes": [
     "tests.test_catraca.RotuladosDaLeva.test_a_lista_so_informa_rc_e_saida_iguais_com_e_sem_ela"
    ]
@@ -124,6 +124,11 @@
   }
  ],
  "isentas": [
+  {
+   "arquivo": "tests/catraca.py",
+   "trecho": "except Exception as e:  # qualquer uma",
+   "motivo": "estreitar a captura faz a exceção subir do main e o teste dá erro, não asserção (forge-mutante: inválido, rodada b7b4cd8); o ramo é provado por test_a_lista_so_informa_rc_e_saida_iguais_com_e_sem_ela (KeyError no 2.º PR) e o texto por M5"
+  },
   {
    "arquivo": "tests/catraca.py",
    "trecho": "cfg.get(\"dono\") if isinstance(cfg, dict) else None",
