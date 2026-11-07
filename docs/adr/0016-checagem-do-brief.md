@@ -1,4 +1,4 @@
-# NNNN - Checagem do brief: skill neutra e lista local do projeto
+# 0016 - Checagem do brief: skill neutra e lista local do projeto
 
 Estado: proposta (vale quando o PR da `melhoria/checagem-do-brief` entrar na `develop`; o número é tomado na integração, em ordem, depois do E6c da 0.37). Data: 2026-11-06.
 Propósito: registrar a skill `checagem-do-brief` e a lista local `docs/engineering/brief-checklist.md` (CHECAGEM-DO-BRIEF, B3). Público: quem mantém o Forge e quem escreve brief. Revisão: 2026-11-06.
