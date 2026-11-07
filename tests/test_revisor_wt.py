@@ -240,13 +240,14 @@ class EntregaConfereOMerge(ComParecer):
     def test_merge_que_traz_bytes_fora_do_parecer_reprova(self):  # t12 (--no-commit com o blob alterado)
         p1 = self.parecer("r1")
         self.historico(p1)
+        self.commitar({"src/novo.txt": "n\n"}, "depois do P")
         self.merge(p1, sem_commit=True)
-        (self.repo / "src" / "app.txt").unlink()  # a remoção também é arquivo trazido pelo merge
+        (self.repo / "src" / "novo.txt").unlink()  # a remoção também é trazida, e o P também não tem o arquivo (blob vazio dos dois lados)
         self.commitar({"docs/reviews/x.md": "outro\n", "src/b.txt": "b\n"}, "merge")
         m = self.head()[:7]
         self.assertEqual(self.foras(), (1, [f'escopo: fora (o merge {m} traz "docs/reviews/x.md" fora dos pareceres conferidos)',
-                                            f'escopo: fora (o merge {m} traz "src/app.txt" fora dos pareceres conferidos)',
                                             f'escopo: fora (o merge {m} traz "src/b.txt" fora dos pareceres conferidos)',
+                                            f'escopo: fora (o merge {m} traz "src/novo.txt" fora dos pareceres conferidos)',
                                             'escopo: fora (parecer não conferido ou superado) "docs/reviews/x.md"']))
 
     def test_sem_linha_no_pedido_so_o_parecer_e_o_aceite_reprovam(self):  # caso 12 (C-11), t20 e caso 14 (M9)
