@@ -54,13 +54,12 @@
     },
     {
       "id": "M6",
-      "guarda": "seguro so com suite livre e nenhum agente",
+      "guarda": "seguro nunca sai antes da I9: com as duas fontes livres o aviso segue esperando",
       "arquivo": "scripts/jarvis-forge",
-      "de": "if [ \"$suite\" = livre ] && [ \"$agentes\" = nenhum ]; then",
-      "para": "if [ \"$suite\" = livre ] || [ \"$agentes\" = nenhum ]; then",
+      "de": "  echo \"espere: testes de módulo: não conferidos; reinicie",
+      "para": "  if [ \"$suite\" = livre ] && [ \"$agentes\" = nenhum ]; then echo \"seguro reiniciar agora\"; exit 0; fi; echo \"espere: testes de módulo: não conferidos; reinicie",
       "testes": [
-        "tests.test_forge.JarvisForgeVigente.test_ocupacao_suite_rodando_manda_esperar",
-        "tests.test_forge.JarvisForgeVigente.test_ocupacao_com_agente_ativo_manda_esperar"
+        "tests.test_forge.JarvisForgeVigente.test_ocupacao_livre_nao_diz_seguro"
       ]
     }
   ]

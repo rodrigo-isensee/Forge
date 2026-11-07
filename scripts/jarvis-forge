@@ -95,12 +95,8 @@ print(len(agentes.vigentes(estado["agentes"], time.time(), hook.expira_s())))' "
   elif [ "$n" = 0 ]; then agentes=nenhum
   else agentes="$n ativos"; fi
   printf 'agora: suíte do Forge %s; agentes %s; ' "$suite" "$agentes"
-  # testes de módulo fora da trava (até a 0.44 I9): o "seguro" vale só para a suíte, o push e os agentes
-  if [ "$suite" = livre ] && [ "$agentes" = nenhum ]; then
-    echo "seguro reiniciar agora (testes de módulo: não conferidos): saia do Jarvis e rode jarvis-forge"
-  else
-    echo "espere: reinicie quando a suíte terminar e nenhum agente estiver ativo (confira com .githooks/pre-push --status)"
-  fi
+  # testes de módulo fora da trava (até a 0.44 I9): sem essa fonte o aviso nunca diz "seguro"; só pede para esperar
+  echo "espere: testes de módulo: não conferidos; reinicie quando a suíte terminar, nenhum agente estiver ativo e nenhum teste de módulo ou mutante rodar (confira com .githooks/pre-push --status)"
 }
 conferir_vigente
 if [ "$atualizar" = 1 ]; then

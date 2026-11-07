@@ -1394,29 +1394,36 @@ class JarvisForgeVigente(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         return r.stderr
 
-    def test_ocupacao_livre_diz_seguro(self):
+    def test_ocupacao_livre_nao_diz_seguro(self):
+        """Antes da I9 os testes de módulo não são conferidos: nem com suíte livre e 0 agentes o aviso diz "seguro"."""
         saida = self.ocupacao()
-        self.assertIn("agora: suíte do Forge livre; agentes nenhum; seguro reiniciar agora", saida)
+        self.assertIn("agora: suíte do Forge livre; agentes nenhum; espere:", saida)
+        self.assertIn("testes de módulo: não conferidos", saida)
+        self.assertNotIn("seguro reiniciar agora", saida)
 
     def test_ocupacao_suite_rodando_manda_esperar(self):
         saida = self.ocupacao(status=0)
         self.assertIn("suíte do Forge rodando, 2 na fila;", saida)
         self.assertIn("; espere:", saida)
+        self.assertIn("testes de módulo: não conferidos", saida)
 
     def test_ocupacao_com_agente_ativo_manda_esperar(self):
         saida = self.ocupacao(agentes="return [1]")
         self.assertIn("agentes 1 ativos; espere:", saida)
+        self.assertIn("testes de módulo: não conferidos", saida)
 
     def test_ocupacao_status_nao_conferido_manda_esperar(self):
         saida = self.ocupacao(status=2)
         self.assertIn("suíte do Forge não conferida;", saida)
         self.assertIn("; espere:", saida)
+        self.assertIn("testes de módulo: não conferidos", saida)
 
     def test_ocupacao_agentes_com_erro_ou_texto_nao_conferido(self):
         for corpo in ("raise RuntimeError('x')", "print('3 texto'); return []"):
             with self.subTest(corpo=corpo):
                 saida = self.ocupacao(agentes=corpo)
                 self.assertIn("agentes não conferido; espere:", saida)
+                self.assertIn("testes de módulo: não conferidos", saida)
                 self.assertNotIn("texto", saida)
 
     def test_dev_com_atualizar_vigente_sai_com_2(self):
