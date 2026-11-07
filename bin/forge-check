@@ -5257,13 +5257,21 @@ def cmd_decisoes(raiz, pedido=None):
 HORA_DA_DECISAO = re.compile(rf"{re.escape(FRASE_DO_DONO)}\s*\(?(\d{{4}}-\d{{2}}-\d{{2}})[ T](\d{{2}}:\d{{2}})\b")
 
 
-def hora_da_aprovacao(raiz, brief):
-    """P-N4: a hora `AAAA-MM-DD HH:MM` da última linha `aprovado` do brief (modo `brief`) em docs/kanban/conferencias.md, ou None.
-    Hora fora do formato ou anterior ao mtime do brief (no minuto, fuso local; A1 da segurança) não vale: segue cobrado contra tudo."""
+def hora_da_aprovacao(raiz, brief, pedido_id):
+    """P-N4: a hora `AAAA-MM-DD HH:MM` da última linha `aprovado` do brief (modo `brief`, pedido `pedido_id` na coluna 2, A3 da
+    segurança) em docs/kanban/conferencias.md, ou None. Hora fora do formato ou anterior ao mtime do brief (no minuto, fuso local; A1 da
+    segurança) não vale: segue cobrado contra tudo. O quadro é o primeiro que existe na ordem fixa: a raiz do próprio brief (pai
+    `docs/briefs`), `raiz`, `RAIZES_DE_BRIEF`; link ou fora de `docs/kanban/` não vale e não cai no seguinte (C-4, C-5 da E5)."""
+    real, rel = Path(brief).resolve(), "docs/kanban/conferencias.md"
+    do_brief = [real.parents[2]] if real.parent.name == "briefs" and real.parent.parent.name == "docs" else []
+    base = next((b for b in (*do_brief, Path(raiz), *RAIZES_DE_BRIEF) if os.path.lexists(Path(b) / rel)), None)
+    if base is None or dentro_da_raiz(base, rel, ("docs/kanban",)) is None:
+        return None
     nome = Path(brief).name.removesuffix(".md").casefold()
     escrita = datetime.datetime.fromtimestamp(Path(brief).stat().st_mtime).astimezone().strftime("%Y-%m-%d %H:%M")
-    horas = [c[0] for c in _ler_tabela(Path(raiz) / "docs" / "kanban" / "conferencias.md")
-             if len(c) >= 6 and c[2].removesuffix(".md").casefold() == nome and c[3].casefold() == "brief" and _aprovou(c[5])
+    horas = [c[0] for c in _ler_tabela(Path(base) / rel)  # O_NOFOLLOW: o próprio arquivo que é link não vale
+             if len(c) >= 6 and c[1].casefold() == pedido_id.casefold() and c[2].removesuffix(".md").casefold() == nome
+             and c[3].casefold() == "brief" and _aprovou(c[5])
              and HORA_DO_REGISTRO.fullmatch(c[0]) and c[0] >= escrita]
     return horas[-1] if horas else None
 
@@ -5274,12 +5282,12 @@ def decisao_posterior(linha, aprovacao):
     return bool(m and aprovacao and f"{m[1]} {m[2]}" > aprovacao)
 
 
-def decisoes_cobradas(raiz, caminho_pedido, pedido_txt, brief=None):
+def decisoes_cobradas(raiz, caminho_pedido, pedido_txt, brief=None, pedido_id=None):
     """O que o conferente cobra do brief, sem julgamento: todas as linhas `DECISÃO DO DONO` do pedido e de cada registro em
     `docs/pedidos/` que uma delas cita ou que o `Depende de:` do pedido nomeia (um nível), mais toda `ADR NNNN` citada no pedido. Devolve
     `{"fontes": [(rel, [(n, linha)])] (a primeira é o pedido), "adrs": [NNNN], "avisos": [(linha de saída, reprova)]}`. Ordem fixa:
     mesma entrada, mesma saída. Referência a outro `.md` numa linha de decisão sai `não verificável`, nunca some (M2.2). Com `brief`, a
-    chave `aprovacao` traz a hora da última aprovação dele (`hora_da_aprovacao`, P-N4)."""
+    chave `aprovacao` traz a hora da última aprovação dele no pedido `pedido_id` (`hora_da_aprovacao`, P-N4)."""
     proprio = f"docs/pedidos/{caminho_impresso(caminho_pedido.name)}"
     do_pedido = linhas_de_decisao(pedido_txt)
     fontes, avisos, vistos = [(proprio, do_pedido)], [], set()
@@ -5340,7 +5348,7 @@ def decisoes_cobradas(raiz, caminho_pedido, pedido_txt, brief=None):
         elif erro:
             avisos.append((f"decisões: pedido de origem {nome_seguro(rel)} {erro} (não verificável)", False))
     adrs = list(dict.fromkeys(a or b for a, b in ADR_CITADA.findall(pedido_txt)))
-    return {"fontes": fontes, "adrs": adrs, "avisos": avisos, "aprovacao": hora_da_aprovacao(raiz, brief) if brief else None}
+    return {"fontes": fontes, "adrs": adrs, "avisos": avisos, "aprovacao": hora_da_aprovacao(raiz, brief, pedido_id) if brief and pedido_id else None}
 
 
 def conferir_decisoes(cobradas, secoes):
@@ -5567,7 +5575,7 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     """(id do pedido, linhas) do `forge-check brief`: forma, corte, decisões cobradas, origem e, com `Volta-de:`, as linhas `volta:`."""
     m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
     pedido_id = m.group(1) if m else caminho_pedido.stem
-    cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt, brief)
+    cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt, brief, pedido_id)
     linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, caminho if destino else None, bytes_anterior, cobradas)
     linhas += [(o, False) for o in (linha_de_origem(caminho_pedido), linha_de_origem(brief)) if o]
     linhas += aviso_de_base_sha(raiz, texto)

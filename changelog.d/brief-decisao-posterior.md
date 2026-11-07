@@ -1,0 +1,2 @@
+### Corrigido
+- O `forge-check brief` lê a aprovação do brief (P-N4) também no quadro de `~/.forge-contrib`: procura `docs/kanban/conferencias.md` na raiz do próprio brief, depois na `--raiz` e nas raízes de brief, vale o primeiro que existe, e quadro que é link ou fora de `docs/kanban/` não vale nem cai no seguinte; uma decisão do dono gravada depois da aprovação deixa de reprovar o brief em voo quando o `forge-check` roda do clone. A linha `aprovado` passa a valer só com o id do pedido na coluna 2 (A3 da P-N4).
