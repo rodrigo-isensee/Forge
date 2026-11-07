@@ -341,5 +341,57 @@ class MedidaDoTopico(Raiz):  # D12 (E3a): `forge-check medida` mede um tópico m
         self.assertEqual(self.medidas()[0][3:5], ["lacuna:git-diff", "-"])
 
 
+class MedidaDaRelease(Raiz):  # D12 (E3b): a release separada pelas tags v* e o aviso de piora; casos (a), (b), (c) e (f) do desenho
+    git, rodar = MedidaDoTopico.git, MedidaDoTopico.rodar
+    ANTERIOR = [(70, 100), (90, 100), (103, 100), (114, 100)]  # a 0.26.0 de estudo-tempo-topico.md:192: mediana 96,5, maior 114
+
+    def setUp(self):
+        super().setUp()
+        self.env = {"PATH": "/usr/bin:/bin", "HOME": str(self.tmp / "home"), "LC_ALL": "C", "GIT_CONFIG_NOSYSTEM": "1",
+                    "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
+        self.gravar("KANBAN.md", "## Em andamento\n")
+        self.git("init", "-q", "-b", "develop")
+        self.shas = []
+        for i in range(11):  # 0 e 1: v0.1.0 (penúltima); 2 a 5: v0.2.0 (anterior); 6 a 9: atual, pequenos; 10: atual, grande
+            self.git("commit", "-q", "--allow-empty", "-m", f"merge {i}")
+            self.shas.append(self.git("rev-parse", "HEAD"))
+            if i in (1, 5):  # a v0.1.0 nasce depois da v0.2.0: ler a release pela data, e não pela versão, troca as duas
+                self.git("tag", "-a", "-m", "r", f"v0.{i // 5 + 1}.0", data="2026-10-20T00:00:00Z" if i == 1 else "2026-10-10T00:00:00Z")
+
+    def medir(self, anterior, atual, extras=()):
+        """medidas.md com um tópico de 999 na penúltima, um grande na atual, os `extras` e os (ativo, tokens) das duas releases; a
+        medida roda sobre o primeiro merge da penúltima, fora das duas releases comparadas."""
+        linhas = [(self.shas[1], "sim", 999, 999), (self.shas[10], "nao", 999, 999), *extras]
+        linhas += [(s, "sim", *v) for s, v in [*zip(self.shas[2:6], anterior), *zip(self.shas[6:10], atual)]]
+        self.gravar("docs/kanban/medidas.md", "| h | p | m | a | l | s | t |\n|---|---|---|---|---|---|---|\n"
+                    + "".join(f"| 2026-10-17T12:00:00-03:00 | x | {s} | {a} | 1 | {p} | {t} |\n" for s, p, a, t in linhas))
+        return self.rodar("medida", "--pedido", "z", "--merge", self.shas[0])
+
+    def test_a_piora_da_026_para_a_028_avisa_com_os_numeros_e_a_fonte_e_sai_0(self):  # (a) e (f)
+        cod, linhas, erro = self.medir(self.ANTERIOR, [(84, 100), (153, 100), (127, 100), ("lacuna:x", "lacuna:y")])
+        self.assertEqual((cod, linhas[1:]), (0, [
+            "medida: aviso: piora no tempo ativo (min, historico.md): mediana 96.5 → 127 (limite +20%: 115.8), 2 tópicos acima do maior da"
+            " anterior (114); n=3 contra 4; fonte: docs/kanban/medidas.md, release atual (sem tag v*) contra v0.2.0"]), erro)
+        cod, linhas, erro = self.medir([(t, a) for a, t in self.ANTERIOR], [(100, 84), (100, 153), (100, 127)])
+        self.assertEqual((cod, len(linhas)), (0, 2), erro)
+        self.assertTrue(linhas[-1].startswith("medida: aviso: piora no tokens novos (entregas.md): mediana 96.5 → 127 "), linhas)
+
+    def test_b_ruido_da_028_um_so_acima_do_maior_ou_mediana_ate_20_por_cento_nao_avisam(self):  # (b)
+        for anterior, atual in (([(84, 1), (127, 1), (153, 1)], [(100, 1), (150, 1), (152, 1)]),  # o ruído interno da 0.28.0
+                                ([(50, 1), (96, 1), (200, 1)], [(80, 1), (120, 1), (250, 1)]),  # mediana +25%, mas só 1 acima de 200
+                                ([(100, 1), (100, 1), (105, 1)], [(90, 1), (110, 1), (115, 1)])):  # 2 acima de 105, mas mediana +10%
+            cod, linhas, erro = self.medir(anterior, atual)
+            self.assertEqual((cod, linhas[1:]), (0, ["medida: só tabela (n=3)"]), (anterior, erro))
+
+    def test_c_menos_de_3_pequenos_na_atual_ou_sem_release_anterior_so_tabela(self):  # (c)
+        estranhos = [("HEAD", "sim", 999, 999), ("f" * 40, "sim", 999, 999), (self.shas[6], "sim", 1, 1)]  # ref, sha ausente, medida velha
+        cod, linhas, erro = self.medir(self.ANTERIOR, [(127, 127), (153, 153)], estranhos)
+        self.assertEqual((cod, linhas[1:]), (0, ["medida: só tabela (n=2)"]), erro)
+        self.git("tag", "-d", "v0.1.0")  # só uma tag: a anterior é tudo o que ela contém, com o 999 da v0.1.0
+        self.assertEqual(self.medir(self.ANTERIOR, [(84, 1), (153, 1), (127, 1)])[1][1:], ["medida: só tabela (n=3)"])
+        self.git("tag", "-d", "v0.2.0")  # sem tag: tudo é a release atual e não há anterior medida
+        self.assertEqual(self.medir(self.ANTERIOR, [(84, 1), (153, 1), (127, 1)])[1][1:], ["medida: só tabela (n=8)"])
+
+
 if __name__ == "__main__":
     unittest.main()
