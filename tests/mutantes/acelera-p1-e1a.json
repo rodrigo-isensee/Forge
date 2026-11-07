@@ -1,0 +1,126 @@
+{
+  "pedido": "acelera-p1-e1a",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "C-4: Cf (largura zero, bidi) conta como disfarce",
+      "arquivo": "bin/forge-check",
+      "de": "(\"Cc\", \"Cf\", \"Co\", \"Cs\")",
+      "para": "(\"Cc\", \"Co\", \"Cs\")",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_caractere_disfarcado_pede_o_conferente"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "C-8: a raiz do pedido só vale se for clone do Forge",
+      "arquivo": "bin/forge-check",
+      "de": "([raiz_pedido] if e_o_forge(raiz_pedido) else [])",
+      "para": "[raiz_pedido]",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_fora_do_forge_ou_por_link_pede_o_conferente"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "C-8: link no caminho do pedido ou do brief pede o conferente",
+      "arquivo": "bin/forge-check",
+      "de": "if Path(os.path.realpath(arq)) != absoluto or not any(",
+      "para": "if not any(",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_fora_do_forge_ou_por_link_pede_o_conferente"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "C-2: aviso em qualquer lugar da linha, fora da tupla informativa",
+      "arquivo": "bin/forge-check",
+      "de": "if \"aviso:\" in l and not l.startswith(AVISOS_INFORMATIVOS)",
+      "para": "if l.startswith(\"aviso:\") and not l.startswith(AVISOS_INFORMATIVOS)",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_nao_verificavel_e_aviso_fora_da_tupla_pedem_o_conferente"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "C-2: brief reprovado pede o conferente",
+      "arquivo": "bin/forge-check",
+      "de": "if any(r for _, r in linhas):\n        return \"brief reprovado\"",
+      "para": "if False:\n        return \"brief reprovado\"",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_anterior_e_reprovado_pedem_o_conferente"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "C-2: --anterior (rodada 2 em diante) pede o conferente",
+      "arquivo": "bin/forge-check",
+      "de": "if anterior or re.search(r\"^Volta-de:\", texto, re.M):",
+      "para": "if re.search(r\"^Volta-de:\", texto, re.M):",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_anterior_e_reprovado_pedem_o_conferente"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "C-2: lista branca do Tipo: gravado",
+      "arquivo": "bin/forge-check",
+      "de": "if tipo not in TIPOS_DISPENSAVEIS:",
+      "para": "if tipo is None:",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_tipo_fora_da_lista_ou_ausente_pede_o_conferente"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "C-2: linha nao verificavel pede o conferente",
+      "arquivo": "bin/forge-check",
+      "de": "if any(NAO_VERIFICAVEL in l for l, _ in linhas):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_nao_verificavel_e_aviso_fora_da_tupla_pedem_o_conferente"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "C-2: aviso fora da tupla pede o conferente",
+      "arquivo": "bin/forge-check",
+      "de": "if aviso:\n        return f\"saída com",
+      "para": "if False:\n        return f\"saída com",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_nao_verificavel_e_aviso_fora_da_tupla_pedem_o_conferente"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "C-4: caractere disfarçado pede o conferente",
+      "arquivo": "bin/forge-check",
+      "de": "if caractere:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_caractere_disfarcado_pede_o_conferente"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "C-8: fora do Forge pede o conferente",
+      "arquivo": "bin/forge-check",
+      "de": "return None if brief_no_forge(raiz, caminho_pedido, brief) else \"fora do Forge\"",
+      "para": "return None",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_fora_do_forge_ou_por_link_pede_o_conferente"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "C-9: a linha impressa traz o motivo",
+      "arquivo": "bin/forge-check",
+      "de": "{motivo or 'dispensa fora de vigor; mecânico'}",
+      "para": "{'dispensa fora de vigor; mecânico'}",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_tipo_fora_da_lista_ou_ausente_pede_o_conferente"
+      ]
+    }
+  ]
+}
