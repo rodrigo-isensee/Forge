@@ -2,10 +2,9 @@
 """Forge: coletor de cobertura por linha (piso de cobertura, versao-048 E3). Só biblioteca padrão.
 
 Parte E3a-1a: só o gerador do texto do `sitecustomize.py` que coleta (controles C-3, C-4 e C-6 do modelo de ameaças).
-`instalar` e `remover`, com as sondas do interpretador, entram na E3a-1b; até lá, rodar o arquivo sai 1.
+`instalar` e `remover`, com as sondas do interpretador e a linha de comando, entram na E3a-1b.
 """
 import os
-import sys
 
 # C-4: no topo só sys, os e atexit; nada vai a stdout nem a stderr; toda falha vira contagem no arquivo de acertos.
 CORPO = '''_acertos = {}
@@ -74,8 +73,3 @@ def texto_do_coletor(saida, raiz):
     saida, raiz = resolvidos
     return ("# forge-cobertura\nimport atexit\nimport os\nimport sys\n\n"
             f"_SAIDA = {saida!r}\n_RAIZ = {raiz!r}\n_DISABLE = None\n" + CORPO)
-
-
-if __name__ == "__main__":
-    print("cobertura: sem linha de comando até a E3a-1b", file=sys.stderr)
-    sys.exit(1)
