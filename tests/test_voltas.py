@@ -281,12 +281,12 @@ class RetroPorGatilho(Raiz):
 
     def leads(self, outros, alvo):
         """historico.md: `outros` cartões de lead 10 min e o `alvo` com `alvo` min, todos chegados à develop há um dia."""
-        inicio = datetime.datetime.now().astimezone() - datetime.timedelta(days=1)
-        linhas = [f"| {inicio.isoformat(timespec='seconds')} | curta |"]  # linha curta não conta nem quebra
+        fim = datetime.datetime.now().astimezone() - datetime.timedelta(days=1)
+        linhas = [f"| {fim.isoformat(timespec='seconds')} | curta |"]  # linha curta não conta nem quebra
         for nome, minutos in [("alvo", alvo)] + [(f"c{i}", 10) for i in range(outros)]:
-            fim = (inicio + datetime.timedelta(minutes=minutos)).isoformat(timespec="seconds")
-            linhas += [f"| {inicio.isoformat(timespec='seconds')} | {nome} | — | Em andamento | x |",
-                       f"| {fim} | {nome} | Review | Pronto | custo total: 7 tokens · atributos: custo total: 9 tokens |"]
+            inicio = (fim - datetime.timedelta(minutes=minutos)).isoformat(timespec="seconds")
+            linhas += [f"| {inicio} | {nome} | — | Em andamento | x |",
+                       f"| {fim.isoformat(timespec='seconds')} | {nome} | Review | Pronto | custo total: 7 tokens · atributos: custo total: 9 tokens |"]
         self.gravar("docs/kanban/historico.md", "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n" + "\n".join(linhas) + "\n")
 
     def test_pedido_sem_nada_nao_tem_gatilho(self):
@@ -317,6 +317,10 @@ class RetroPorGatilho(Raiz):
         self.assertTrue(linhas[0].startswith("retro: alvo lead=100 p85=10 "), linhas)
         self.assertTrue(linhas[0].endswith(" custo=7"), linhas)  # o custo depois de `· atributos:` não vale
         self.assertIn(" p85=nao-medido(n=0) ", self.rodar("--pedido", "alvo", "--dias", "0")[1][0])
+
+    def test_janela_conta_pela_chegada_a_develop(self):
+        self.leads(19, 4320)  # o alvo abriu há 4 dias e chegou à develop há 1
+        self.assertEqual(self.rodar("--pedido", "alvo", "--dias", "2")[1][1], "retro: gatilho: lead")
 
     def test_lead_igual_ao_p85_nao_dispara(self):
         self.leads(19, 10)
