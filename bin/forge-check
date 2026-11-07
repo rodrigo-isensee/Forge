@@ -968,8 +968,18 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None):
     de_trabalho = bool(branch) and branch not in BASES_DO_FLUXO
     registros = autorias(raiz)
     exigidos, gatilhos_de_seguranca = exigidos_do_pr(raiz, pedido, ref, base)
+    conferidos, ilegiveis = pareceres_conferidos(raiz, pedido, branch) if de_trabalho else ({}, [])
+    saida += [f"docs/pedidos: parecer conferido {p[:7]}: o git não lê o commit nem o pai dele; rode git fetch (VOLTAS-REVISOR-WT)"
+              for p in ilegiveis]
     for tipo in exigidos:
         pasta, rid = PASTA_E_REGRA[tipo]
+        dos_conferidos = {n: p for n, p in conferidos.items()
+                          if n.startswith(f"{pasta}/") and (frontmatter_do_parecer(raiz, p, n) or {}).get("branch") == branch}
+        for nome, p in dos_conferidos.items():  # M1 e M8: só o último P de cada arquivo da branch
+            if not e_ancestral(raiz, p, ref or "HEAD"):
+                saida.append(f"{caminho_impresso(nome)}: parecer conferido {p[:7]} fora da branch; quem retoma a branch o traz ({rid})")
+            elif blob_de(raiz, p, nome) != blob_de(raiz, ref or "HEAD", nome):
+                saida.append(f"{caminho_impresso(nome)}: blob diferente do último parecer conferido {p[:7]} ({rid})")
         achados = []
         for rel, texto in documentos(raiz, tipo, ref):
             campos, viol = validar_documento(rel, texto)
@@ -985,6 +995,8 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None):
             continue
         _, rel, campos, viol, texto = sorted(da_branch or achados, key=lambda a: a[:2])[-1]  # o mais recente (da branch da ref, se houver)
         saida += viol
+        if dos_conferidos and rel not in dos_conferidos:  # T-1: com `parecer conferido` no pedido, a `data` não escolhe o vigente
+            saida.append(f"{caminho_impresso(rel)}: o parecer vigente não é o de um `parecer conferido` do Histórico ({rid})")
         if ref is None and not parecer_commitado(raiz, rel):
             saida.append(f"{caminho_impresso(rel)}: parecer presente na árvore de trabalho e ausente no commit (HEAD); quem o emitiu "
                          f"o commita na branch revisada, só esse arquivo, no mesmo push da entrega ({rid})")
@@ -1022,6 +1034,7 @@ PROVAS_DE_COMMIT = ("sha", "push")
 BASES_DO_FLUXO = ("develop", "homolog", "main")
 ACEITES_DO_USUARIO = ("docs/security/aceites/",)
 CONFERIDA = re.compile(r"^\s*-\s.*\bconferida ([0-9a-f]{40})\b")  # registro do Jarvis, só dentro de `## Histórico` (A4)
+PARECER_CONFERIDO = re.compile(r"^\s*-\s.*\bparecer conferido ([0-9a-f]{40})\b")  # VOLTAS-REVISOR-WT (M5): não casa `conferida`
 BASE_DO_DONO = re.compile(r"^-\s+\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?: base do delta fixada pelo dono ([0-9a-f]{40})\b")  # forma exata, abre a linha do `## Histórico` (CONF-BASE-DONO)
 PASTAS_DE_PARECER = tuple(pasta for pasta, _ in PASTA_E_REGRA.values())
 
@@ -1147,6 +1160,35 @@ def linha_de_origem(arquivo):
         if rel.startswith(("docs/pedidos/", "docs/briefs/")):  # só o que a busca achou ali; o resto da árvore não conta
             return f"origem: {caminho_impresso(real)}"
     return None
+
+
+def pareceres_conferidos(raiz, pedido, branch):
+    """VOLTAS-REVISOR-WT (M1, T-2): ({arquivo: sha40 do último `parecer conferido` do `## Histórico` que o altera}, [sha que o git não
+    lê]); o pedido é o da conferência do head (`pedido_da_conferencia`, A1) e o arquivo sai de `git diff --name-only P^1 P`, nunca do
+    texto da linha. Sem o pedido, nada (como hoje: a conferência do head já recusa)."""
+    texto = pedido_da_conferencia(raiz, pedido, branch)[1]
+    if texto is None:
+        return {}, []
+    ultimos, ilegiveis = {}, []
+    for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", []):
+        if m := PARECER_CONFERIDO.match(linha):
+            p = m.group(1)
+            cod, saida = git(raiz, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "--no-textconv", f"{p}^1", p, "--", bruto=True)
+            if cod:
+                ilegiveis.append(p)
+                continue
+            ultimos.update(dict.fromkeys(nomes_z(saida), p))
+    return ultimos, ilegiveis
+
+
+def blob_de(raiz, commit, nome):
+    """O sha do blob de `nome` em `commit`, ou "" se ele não existe ali (`--quiet` não imprime nada)."""
+    return git(raiz, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{commit}:{nome}")[1]
+
+
+def frontmatter_do_parecer(raiz, commit, nome):
+    """Os campos do frontmatter de `nome` em `commit` (o parecer conferido), ou None (sem o arquivo, a saída vazia não tem frontmatter)."""
+    return ler_frontmatter(git(raiz, "cat-file", "blob", f"{commit}:{nome}", bruto=True)[1].decode("utf-8", "replace"))[0]
 
 
 def bases_do_pedido(texto):
