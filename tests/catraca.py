@@ -43,7 +43,7 @@ CURINGA = re.compile(r"[*?\[\]\\]")  # pathspec do git casa curinga: caminho com
 REESCRITA = ("head_ref_force_pushed", "head_ref_deleted", "head_ref_restored")
 PROTEGIDOS = (".github/workflows/", ".github/rulesets/", ".github/CODEOWNERS", ".github/dependabot.yml", ".githooks/", "tests/catraca.py",
               "tests/neutralidade.py", "hooks/conformidade.py", "hooks/parecer.py", "hooks/_comum.py", "bin/forge-check",
-              "scripts/conferir-release.py")
+              "scripts/arvore-testada.py", "scripts/conferir-release.py")
 SENSIVEIS = ("hooks/", "bin/", "scripts/", "migrations/", ".github/workflows/", "tests/catraca.py")
 PASTAS_CUSTO = ("hooks/", "bin/", "scripts/", ".github/")
 CUSTO = {
