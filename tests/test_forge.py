@@ -4312,7 +4312,7 @@ class SaidaSanitizadaNoGit(unittest.TestCase):
 
 
 class DecisaoAncora(Raiz):
-    """E6 (DECISAO-ANCORA): a frase do dono só conta quando abre a linha; uma função só; nada some em silêncio."""
+    """E6 (DECISAO-ANCORA): a frase do dono só conta quando abre a linha, ou depois de um prefixo `AAAA-MM-DD[ HH:MM]:`; uma função só; nada some em silêncio."""
     MENCAO = "- 2026-10-20: ajuste conforme DECISÃO DO DONO acima"
 
     def pedido_com(self, extra):
@@ -4342,8 +4342,13 @@ class DecisaoAncora(Raiz):
                 self.assertEqual(rc, 1, saida)
                 self.assertTrue(any(l.startswith("decisões: falta") for l in saida), saida)
 
-    def test_data_antes_da_frase_e_mencao_e_aparece(self):  # abuso 16
+    def test_data_antes_da_frase_e_cobrada_e_a_torta_aparece(self):  # abuso 16, DECISAO-SEM-CARTAO (adendo)
         self.pedido_com('\n## Histórico\n- 2026-10-20: DECISÃO DO DONO (2026-10-20): "M1".\n')
+        rc, saida = self.brief()
+        self.assertEqual(rc, 1, saida)
+        self.assertTrue(any(l.startswith("decisões: falta") for l in saida), saida)
+        self.assertFalse(any(l.startswith("decisões: menção fora do início") for l in saida), saida)
+        self.pedido_com('\n## Histórico\n- 2026-10-20 11:1x: DECISÃO DO DONO (2026-10-20): "M2".\n')
         rc, saida = self.brief()
         self.assertTrue(any(l.startswith("decisões: menção fora do início") for l in saida), saida)
 
@@ -4356,8 +4361,8 @@ class DecisaoAncora(Raiz):
 
     def test_uma_funcao_so_decide_a_frase(self):
         mod = carregar_forge_check()
-        self.assertTrue(all(mod.e_linha_de_decisao(l) for l in ('- DECISÃO DO DONO (x)', '  * DECISÃO DO DONO', '> **DECISÃO DO DONO**', '2. DECISÃO DO DONO')))
-        self.assertFalse(any(mod.e_linha_de_decisao(l) for l in ("conforme DECISÃO DO DONO", "- 2026-10-20: DECISÃO DO DONO", "DECISÃO DO DONOS")))
+        self.assertTrue(all(mod.e_linha_de_decisao(l) for l in ('- DECISÃO DO DONO (x)', '  * DECISÃO DO DONO', '> **DECISÃO DO DONO**', '2. DECISÃO DO DONO', "- 2026-10-20: DECISÃO DO DONO")))
+        self.assertFalse(any(mod.e_linha_de_decisao(l) for l in ("conforme DECISÃO DO DONO", "- 2026-10-20: nota DECISÃO DO DONO", "- 2026-10-20: 2026-10-20: DECISÃO DO DONO", "DECISÃO DO DONOS")))
         self.assertTrue(mod.e_linha_de_decisao("- DECISÃO TÉCNICA (x)", "DECISÃO TÉCNICA"))
         fonte = (RAIZ / "bin" / "forge-check").read_text(encoding="utf-8")
         self.assertEqual(re.findall(r'"DECISÃO (?:DO DONO|TÉCNICA)" (?:not )?in ', fonte), [])  # nenhum casamento por substring sobrou
@@ -5551,7 +5556,7 @@ class TextoDoConferenteNoLote(unittest.TestCase):
 
     def test_mencao_fora_do_inicio_nao_muda_o_veredito_e_o_grep_de_reserva_usa_a_mesma_ancora(self):  # E6, M6.3
         self.assertIn("`decisões: menção fora do início ...` é informativa e não muda o veredito", self.agente)
-        self.assertIn("grep -n -E '^[[:space:]]*([-*+>]|[0-9]+[.)])*[[:space:]]*[*_]*DECISÃO DO DONO'", self.agente)
+        self.assertIn("grep -n -E '^[[:space:]]*([-*+>]|[0-9]+[.)])*[[:space:]]*[*_]*([0-9]{4}-[0-9]{2}-[0-9]{2}([ T][0-9]{2}:[0-9]{2})?:[[:space:]]*)?DECISÃO DO DONO'", self.agente)
 
     def test_entregas_paralelas_so_por_brief_aprovado_e_conferida_so_com_todas(self):  # E9a, M9.1 a M9.3
         trecho = next(l for l in self.agente.splitlines() if l.strip().startswith("**Entregas paralelas**"))

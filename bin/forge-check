@@ -21,7 +21,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [
      forge-check sobreposicao [--base REF] [--ref BRANCH]
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
      forge-check voltas [--pedido ID]
-     forge-check decisoes [--pedido ID]
+     forge-check decisoes [--pedido ID] [--sem-cartao [--desde AAAA-MM-DD]]
      forge-check proximo <pedido>
      forge-check esperas [--pedido ID [--kanban ARQUIVO]]
      forge-check afrouxamentos (--prs N,N... | --rotulados ARQUIVO.json) [--ref REF]
@@ -99,6 +99,8 @@ repositório) com o último revisado, por `git ls-remote` (grátis, R-CUSTO). Um
 registro, silêncio; fonte inalcançável: sai com 3 (quem chama não grava o cache do dia).
 `decisoes` (EXT-2; só leitura, sem rede, nada se grava) imprime o registro das linhas `DECISÃO DO DONO` de `docs/pedidos/`: `decisao: <pedido>:<linha> | data | decisão | motivo | reabre se`
 (`—` onde a linha não diz); a linha da frase fora de `(<data>): <texto>` sai `aviso:` e fica fora. Derivado e informativo: nenhum portão o lê, e o aceite continua a linha literal do pedido.
+Com `--sem-cartao` (DECISAO-SEM-CARTAO), cruza cada decisão (desde `--desde`) com os cartões do KANBAN.md e do histórico: `sem-cartao: <pedido>:<linha> | data | ID | decisão`,
+`sem-id:` para a decisão sem ID e, no fim, `decisoes: sem-cartao=N sem-id=M com-cartao=K encerradas=E`; rc sempre 0. Roda na retrospectiva e antes de cada release.
 `transcricao` confere o comportamento de uma sessão gravada, sem IA e sem rede (ADR 0007); `custo` soma os tokens
 das transcrições locais do Claude Code (sem custo, R-CUSTO), com saída anonimizada.
 `lastro` (M1) conta, no relatório final de cada subagente, as afirmações verificáveis (sha, PR, push, mescla, testes OK e a afirmação absoluta "todos os testes passam", que só tem lastro numa saída de teste que terminou OK)
@@ -5061,10 +5063,14 @@ FRASE_TECNICA = "DECISÃO TÉCNICA"
 TETO_DE_MENCOES = 20  # linhas `menção fora do início` por conferência; o resto vira uma linha de contagem
 
 
+ABRE_A_DECISAO = r"^\s*(?:(?:[-*+>_]|\d+[.)])\s*)*(?:\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2})?:\s*)?"  # recuo, marcadores e um prefixo de data opcional (C-1, C-2)
+
+
 def e_linha_de_decisao(linha, frase=FRASE_DO_DONO):
     """Única regra da fábrica para "esta linha é uma decisão" (DECISAO-ANCORA, E6): a frase abre a linha, depois só de recuo,
-    marcador de lista (`-`, `*`, `+`, `N.`, `N)`), `>` e ênfase (`**`, `__`, `*`, `_`). Citar a frase no meio de um texto não conta."""
-    return re.match(rf"^\s*(?:(?:[-*+>_]|\d+[.)])\s*)*{re.escape(frase)}(?![^\W_])", linha) is not None
+    marcador de lista (`-`, `*`, `+`, `N.`, `N)`), `>`, ênfase (`**`, `__`, `*`, `_`) e um prefixo `AAAA-MM-DD[ HH:MM]:` logo antes
+    da frase (DECISAO-SEM-CARTAO). Citar a frase no meio de um texto não conta."""
+    return re.match(rf"{ABRE_A_DECISAO}{re.escape(frase)}(?![^\W_])", linha) is not None
 
 
 def linhas_de_decisao(texto):
@@ -5095,7 +5101,7 @@ def ler_registro(raiz, rel):
     return None, "ausente"
 
 
-DECISAO_DO_REGISTRO = re.compile(rf"^\s*(?:(?:[-*+>_]|\d+[.)])\s*)*{re.escape(FRASE_DO_DONO)}\s*\((\d{{4}}-\d{{2}}-\d{{2}})(?:[ T]\d{{2}}:\d{{2}})?[^)]*\)\s*:\s*(.+)$")
+DECISAO_DO_REGISTRO = re.compile(rf"{ABRE_A_DECISAO}{re.escape(FRASE_DO_DONO)}\s*\((\d{{4}}-\d{{2}}-\d{{2}})(?:[ T]\d{{2}}:\d{{2}})?[^)]*\)\s*:\s*(.+)$")
 MOTIVO_DA_DECISAO = re.compile(r"\bmotivo\s*:\s*([^;·]+)", re.I)
 REABRE_SE = re.compile(r"\breabre se\s*:?\s*([^;·.]+)", re.I)
 
@@ -5110,6 +5116,40 @@ def pedidos_do_registro(raiz, pedido):
         if pasta.is_dir():
             nomes |= {p.stem for p in pasta.glob("*.md") if not p.is_symlink() and re.fullmatch(r"[A-Za-z0-9._-]+", p.stem)}
     return sorted(nomes)
+
+
+ID_DE_CARTAO = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+"
+CARTAO_CITADO = re.compile(rf"(?i:cart(?:ão|ões))\s+({ID_DE_CARTAO}(?:(?:\s*[,/+]\s*|\s+e\s+){ID_DE_CARTAO})*)")
+DECISAO_ENCERRADA = re.compile(r"encerrad|descartad|superad", re.I)
+
+
+def ids_da_decisao(raiz, texto):
+    """Os IDs de cartão da decisão: os que seguem "cartão"/"cartões"; sem eles, os tokens com hífen em maiúscula, menos `R-*`, ADR e pedido."""
+    citados = [i for m in CARTAO_CITADO.finditer(texto) for i in re.findall(ID_DE_CARTAO, m.group(1))]
+    soltos = [t for t in re.findall(rf"(?<![\w-]){ID_DE_CARTAO}(?![\w-])", texto)
+              if not t.startswith(("R-", "ADR-")) and not pedido_existente(raiz, t)]
+    return list(dict.fromkeys(citados or soltos))
+
+
+def cartoes_conhecidos(raiz):
+    """IDs (em minúscula) da coluna 1 do KANBAN.md e da coluna 2 de docs/kanban/historico.md. Para cada arquivo vale a primeira raiz
+    que tem o nome (cópia principal, raiz, raiz de brief); link em algum componente ou acima do teto vale vazio, sem cair na seguinte (C-6)."""
+    ids = set()
+    for rel, coluna in (("KANBAN.md", 0), ("docs/kanban/historico.md", 1)):
+        for base in dict.fromkeys((raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF)):
+            if not os.path.lexists(Path(base) / rel):
+                continue
+            partes = Path(rel).parts
+            if not any(Path(base).joinpath(*partes[:i]).is_symlink() for i in range(1, len(partes) + 1)):
+                ids |= {c[coluna].casefold() for c in _ler_tabela(Path(base) / rel) if len(c) > coluna and c[coluna]}
+            break
+    return ids
+
+
+def tem_cartao(id_, cartoes):
+    """Casamento por família em fronteira de `-` (C-7): igual, o cartão é `<id>-…`, ou o id é `<cartão>-…`; `EXT-1` não casa `EXT-10`."""
+    i = id_.casefold()
+    return any(i == c or c.startswith(i + "-") or i.startswith(c + "-") for c in cartoes)
 
 
 TETO_DO_PROXIMO = 40  # linhas da saída do `proximo`
@@ -5228,11 +5268,12 @@ def pedido_em_coluna(raiz, pedido, colunas):
     return any(_sem_acento(c) in colunas for c in colunas_do_pedido(raiz, {pedido}))
 
 
-def cmd_decisoes(raiz, pedido=None):
+def cmd_decisoes(raiz, pedido=None, sem_cartao=False, desde=None):
     """L15 (EXT-2): o registro das linhas `DECISÃO DO DONO` dos pedidos, gerado no stdout (nada se grava): `decisao: <pedido>:<linha> | data |
     decisão | motivo | reabre se`. A linha que abre com a frase e não segue `(<data>): <texto>` sai `aviso:` e fica fora. Só as linhas
     de `docs/pedidos/` valem (brief, parecer e transcrição não entram), e nenhum portão lê esta saída (C-15a). O texto vai por `sem_controle`."""
     saida, avisos, total = [], 0, 0
+    cartoes, conta = (cartoes_conhecidos(raiz), dict.fromkeys(("sem-cartao", "sem-id", "com-cartao", "encerradas"), 0)) if sem_cartao else (None, None)
     for nome in pedidos_do_registro(raiz, pedido):
         texto, motivo_de_falha = ler_registro(raiz, f"docs/pedidos/{nome}.md")
         if texto is None:
@@ -5245,13 +5286,30 @@ def cmd_decisoes(raiz, pedido=None):
                 saida.append(f"decisoes: aviso: {nome}:{n}: linha de decisão sem `(<data>): <texto>`; fora do registro")
                 avisos += 1
                 continue
+            if sem_cartao:
+                if not desde or m.group(1) >= desde.isoformat():
+                    saida += linhas_sem_cartao(raiz, f"{nome}:{n}", m.group(1), m.group(2), cartoes, conta)
+                continue
             motivo, reabre = MOTIVO_DA_DECISAO.search(m.group(2)), REABRE_SE.search(m.group(2))
             campos = [m.group(1), sem_controle(m.group(2)).strip()[:160], sem_controle(motivo.group(1)).strip() if motivo else "—",
                       sem_controle(reabre.group(1)).strip() if reabre else "—"]
             saida.append(f"decisao: {nome}:{n} | " + " | ".join(campos))
             total += 1
-    saida.append(f"decisoes: total={total} avisos={avisos}")
+    saida.append("decisoes: " + " ".join(f"{k}={v}" for k, v in conta.items()) if sem_cartao else f"decisoes: total={total} avisos={avisos}")
     return saida
+
+
+def linhas_sem_cartao(raiz, onde, data, texto, cartoes, conta):
+    """As linhas `sem-cartao:`/`sem-id:` de uma decisão, somando em `conta`; a encerrada só conta. Texto por `sem_controle` antes do corte (C-8)."""
+    if DECISAO_ENCERRADA.search(texto):
+        conta["encerradas"] += 1
+        return []
+    resumo, ids = sem_controle(texto)[:120], ids_da_decisao(raiz, texto)
+    faltam = [i for i in ids if not tem_cartao(i, cartoes)]
+    chave = "sem-id" if not ids else "sem-cartao" if faltam else "com-cartao"
+    conta[chave] += len(faltam) or 1
+    lugar = caminho_impresso(onde)
+    return [f"sem-id: {lugar} | {data} | {resumo}"] if not ids else [f"sem-cartao: {lugar} | {data} | {i} | {resumo}" for i in faltam]
 
 
 HORA_DA_DECISAO = re.compile(rf"{re.escape(FRASE_DO_DONO)}\s*\(?(\d{{4}}-\d{{2}}-\d{{2}})[ T](\d{{2}}:\d{{2}})\b")
@@ -6389,6 +6447,8 @@ def main():
     px.add_argument("pedido", help="id de docs/pedidos/<id>.md")
     de = sub.add_parser("decisoes", parents=[comum], help="registro das linhas DECISÃO DO DONO dos pedidos (data, decisão, motivo, reabre se); só leitura, no stdout (EXT-2)")
     de.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md); padrão: todos")
+    de.add_argument("--sem-cartao", action="store_true", help="cruza cada decisão com os cartões do KANBAN.md e do histórico e lista as sem cartão (rc 0)")
+    de.add_argument("--desde", type=datetime.date.fromisoformat, help="com --sem-cartao: só decisões desta data (AAAA-MM-DD) em diante")
     es = sub.add_parser("esperas", parents=[comum], help="quanto tempo cada cartão esperou o dono ou uma credencial, lido de docs/kanban/historico.md; só leitura (M14b)")
     es.add_argument("--pedido", help="só os cartões deste pedido (cartão igual, da mesma família de nome, com o pedido na coluna Pedido do KANBAN.md ou no motivo do movimento)")
     es.add_argument("--kanban", help="com --pedido: o KANBAN.md a ler (padrão: o da raiz)")
@@ -6560,7 +6620,7 @@ def executar(a, raiz):
             print(linha)
         return codigo
     if a.cmd == "decisoes":
-        for linha in cmd_decisoes(raiz, a.pedido):
+        for linha in cmd_decisoes(raiz, a.pedido, a.sem_cartao, a.desde):
             print(linha)
         return 0
     if a.cmd in ("sobreposicao", "movimento"):
