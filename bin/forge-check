@@ -3708,7 +3708,7 @@ def tokens_do_pedido(raiz, pedido):
 
 def cmd_medida(raiz, pedido, merge):
     """Grava em docs/kanban/medidas.md a linha do tópico (tempo ativo até a data de commit do merge, linhas de `<merge>^1..<merge>`,
-    tokens) e imprime `medida: só tabela (n=<tópicos pequenos medidos>)`; o aviso de piora por release é da E3b. rc 0; entrada recusada,
+    tokens) e imprime o aviso de piora da release (E3b) ou `medida: só tabela (n=<tópicos pequenos da release atual>)`. rc 0; entrada recusada,
     rc 2, sem gravar. O `--merge` só chega ao git como sha40 minúsculo e depois de `--end-of-options`."""
     arq = raiz / "docs" / "kanban" / "medidas.md"
     recusa = ("--pedido fora de [A-Za-z0-9._-]" if not ID_DE_PEDIDO.fullmatch(pedido) or not pedido.strip(".")
@@ -3730,8 +3730,41 @@ def cmd_medida(raiz, pedido, merge):
                "-" if linhas is None else "sim" if linhas < TOPICO_PEQUENO else "nao", tokens_do_pedido(raiz, pedido))
     acrescentar_ao_arquivo(arq, "| " + " | ".join(celulas) + " |\n", CABECALHO_DE_MEDIDAS)
     print("| " + " | ".join(celulas) + " |")
-    print(f"medida: só tabela (n={sum(1 for c in _ler_tabela(arq) if len(c) >= 7 and c[5] == 'sim')})")
+    atual, anterior, tags = releases_da_medida(raiz, _ler_tabela(arq))
+    print("\n".join(piora_da_release(atual, anterior, tags)) or f"medida: só tabela (n={len(atual)})")
     return 0
+
+
+def releases_da_medida(raiz, linhas):
+    """D12 (E3b): os tópicos pequenos de medidas.md, um por merge (vale a última medida), separados pelas tags v* (git local):
+    a release atual é o merge que nenhuma tag contém; a anterior, o que a última tag (por versão) contém e a penúltima não."""
+    tags = git(raiz, "tag", "--list", "v*", "--sort=-v:refname")[1].split()
+    atual, anterior = [], []
+    for sha, c in {c[2]: c for c in linhas if len(c) >= 7 and re.fullmatch(r"[0-9a-f]{40}", c[2])}.items():
+        cod, saida = git(raiz, "tag", "--list", "v*", f"--contains={sha}")
+        dentro = set(saida.split())
+        if cod or c[5] != "sim":
+            continue
+        if not dentro:
+            atual.append(c)
+        elif tags[0] in dentro and (len(tags) < 2 or tags[1] not in dentro):
+            anterior.append(c)
+    return atual, anterior, tags
+
+
+def piora_da_release(atual, anterior, tags):
+    """D12 (E3b, item 2): um aviso por métrica cuja mediana na release atual (3 ou mais tópicos com número) sobe mais de 20% sobre
+    a da anterior e em que pelo menos 2 tópicos passam do maior valor dela; célula `lacuna:` fica fora. Nunca trava."""
+    for col, nome in ((3, "tempo ativo (min, historico.md)"), (6, "tokens novos (entregas.md)")):
+        agora, antes = ([float(c[col]) for c in grupo if re.fullmatch(r"[0-9]+(\.[0-9]+)?", c[col])] for grupo in (atual, anterior))
+        if len(agora) < 3 or not antes:
+            continue
+        m0, m1, teto = statistics.median(antes), statistics.median(agora), max(antes)
+        acima = sum(1 for v in agora if v > teto)
+        if m1 > 1.2 * m0 and acima >= 2:
+            yield (f"medida: aviso: piora no {nome}: mediana {_numero(m0)} → {_numero(m1)} (limite +20%: {_numero(1.2 * m0)}), "
+                   f"{acima} tópicos acima do maior da anterior ({_numero(teto)}); n={len(agora)} contra {len(antes)}; "
+                   f"fonte: docs/kanban/medidas.md, release atual (sem tag v*) contra {tags[0]}")
 
 
 # ---- M14b: esperas (quanto tempo um cartão ficou parado esperando o dono ou uma credencial), lidas de historico.md ----
