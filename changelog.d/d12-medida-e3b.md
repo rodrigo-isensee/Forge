@@ -1,2 +1,0 @@
-### Adicionado
-- O `forge-check medida` separa a release pelas tags `v*` (a atual: merges que nenhuma tag contém; a anterior: os da última tag e não da penúltima) e, com 3 ou mais tópicos pequenos, avisa `medida: aviso: piora` quando a mediana do tempo ativo ou dos tokens sobe mais de 20% e pelo menos 2 tópicos passam do maior da anterior; senão `só tabela (n=<k>)`; nunca trava, rc 0 (E3b D12, versao-038).
