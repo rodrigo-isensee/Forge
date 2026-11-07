@@ -448,8 +448,59 @@ class TextosDizemQuandoCadaMedidaRoda(unittest.TestCase):
         tabela, uso = self.texto("docs/melhoria-continua.md"), self.texto("bin/forge-check")
         for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape resumo"):
             self.assertIn(comando, tabela)
-        for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape registrar", "forge-check escape resumo"):
+        for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape registrar", "forge-check escape resumo",
+                        "forge-check transcricao avisos"):
             self.assertIn(comando, uso.split('"""')[1])
+
+
+VIGIA = "Forge: 1 contorno — contorno: SEGREDO123 (.forge/run/violacoes.jsonl)"
+DOUTOR = "Forge doutor: 1 coisa para ver — versão atrasada SEGREDO123 (rode: forge doutor)"
+
+
+def aviso(texto, dia="2026-10-22", evento="Stop", tipo="hook_system_message"):
+    """A linha que o Claude Code grava para o `systemMessage` de um hook (sonda: `type: attachment`, `attachment.type: hook_system_message`)."""
+    return {"type": "attachment", "timestamp": f"{dia}T10:00:00.000Z", "sessionId": "s",
+            "attachment": {"type": tipo, "content": texto, "hookName": evento, "hookEvent": evento}}
+
+
+class AvisosDosHooks(Raiz):
+    """LAC-L2 (E4a): `transcricao avisos` conta os avisos do doutor e do vigia por hook, evento e dia; a saída nunca traz o texto (T-14)."""
+
+    def avisos(self, *objetos):
+        self.gravar("t/s.jsonl", "".join(json.dumps(o, ensure_ascii=False) + "\n" for o in objetos))
+        cod, linhas, erro = self.rodar("transcricao", "avisos", str(self.tmp / "t"))
+        self.assertNotIn("SEGREDO123", "\n".join(linhas) + erro)
+        return cod, linhas
+
+    def test_dois_do_vigia_e_um_do_doutor_por_hook_evento_e_dia(self):
+        cod, linhas = self.avisos(aviso(VIGIA), aviso(VIGIA.replace("1 contorno", "2 contornos"), "2026-10-23", "SubagentStop"),
+                                  aviso(DOUTOR, evento="PostToolUse"))
+        self.assertEqual(cod, 0, linhas)
+        self.assertEqual(linhas, ["avisos: hook doutor avisos=1 unicos=1 reincidencia=0", "avisos: hook vigia avisos=2 unicos=2 reincidencia=0",
+                                  "avisos: evento Stop doutor=0 vigia=1", "avisos: evento SubagentStop doutor=0 vigia=1",
+                                  "avisos: evento outro doutor=1 vigia=0", "avisos: dia 2026-10-22 doutor=1 vigia=1",
+                                  "avisos: dia 2026-10-23 doutor=0 vigia=1", "avisos: total: avisos=3 unicos=3 reincidencia=0"])
+
+    def test_mesmo_texto_no_mesmo_dia_reincide_e_em_dias_diferentes_nao(self):
+        cod, linhas = self.avisos(aviso(VIGIA), aviso(VIGIA, evento="SubagentStop"), aviso(DOUTOR), aviso(DOUTOR, "2026-10-23"))
+        self.assertIn("avisos: hook vigia avisos=2 unicos=1 reincidencia=1", linhas)
+        self.assertIn("avisos: hook doutor avisos=2 unicos=1 reincidencia=0", linhas)
+        self.assertIn("avisos: total: avisos=4 unicos=2 reincidencia=1", linhas)
+
+    def test_aviso_de_outro_hook_ou_de_outro_registro_nao_conta(self):
+        cod, linhas = self.avisos(aviso("Forge: versão nova SEGREDO123"), aviso("Forge: x (.forge/run/violacoes.jsonl) SEGREDO123"),
+                                  aviso(DOUTOR, tipo="hook_additional_context"), dict(aviso(DOUTOR), type="user"),
+                                  dict(aviso(DOUTOR), timestamp="ontem SEGREDO123"))
+        self.assertEqual(linhas, ["avisos: hook doutor avisos=1 unicos=1 reincidencia=0", "avisos: hook vigia avisos=0 unicos=0 reincidencia=0",
+                                  "avisos: evento Stop doutor=1 vigia=0", "avisos: dia sem_data doutor=1 vigia=0",
+                                  "avisos: total: avisos=1 unicos=1 reincidencia=0"])
+
+    def test_pasta_sem_jsonl_e_caminho_inexistente_dao_rc_1(self):
+        (self.tmp / "vazia").mkdir()
+        for alvo, inicio in (("vazia", "avisos: nenhum arquivo .jsonl em "), ("nao-existe", "avisos: caminho inexistente: ")):
+            cod, linhas, _ = self.rodar("transcricao", "avisos", str(self.tmp / alvo))
+            self.assertEqual(cod, 1, linhas)
+            self.assertTrue(linhas[0].startswith(inicio), linhas)
 
 
 if __name__ == "__main__":
