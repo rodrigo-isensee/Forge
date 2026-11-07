@@ -11,6 +11,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [
      forge-check transcricao decisoes [<pasta ou .jsonl>]
      forge-check transcricao vereditos [<pasta ou .jsonl>]
      forge-check transcricao recusas [<pasta ou .jsonl>]
+     forge-check transcricao trava [<pasta ou .jsonl>]
      forge-check brief <arquivo> --pedido <arquivo ou id> [--destino forge:<nome>]
      forge-check brief gerar --pedido <arquivo ou id> [--destino forge:<nome>] [--branch B] [--base develop] [--etapa E]
      forge-check brief mensagem --arquivo <brief em docs/briefs/> --pedido <arquivo ou id> [--destino forge:<nome>] [--etapa TEXTO] [--anterior <brief> --ref <branch>] | --entrega --worktree DIR
@@ -137,6 +138,7 @@ import json
 import os
 import re
 import shlex
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -4424,12 +4426,9 @@ def medir_vereditos(relatorios):
 RECUSAS_DE_LINHA = (("nao_modela", re.compile(r"não modela", re.I)), ("fora_da_gramatica", re.compile(r"fora da gramática", re.I)))
 
 
-def recusas_por_papel(arquivos):
-    """L14 (P9): {papel: [não modela, fora da gramática]} dos resultados de ferramenta com erro que dizem uma das duas recusas de linha dos
-    hooks. O papel é o `forge:<nome>` do subagente (por `agentId` ou `agentType`; `<agente>` se desconhecido) ou `jarvis`; o texto da
-    recusa e o comando recusado nunca saem daqui (T-14): só a contagem."""
-    tipo_do_uso, tipo_do_agente, contagem = {}, {}, {}
-    objetos = list(objetos_jsonl(arquivos, "recusas"))
+def papeis_dos_agentes(objetos):
+    """{agentId: forge:<nome>} pelas delegações (`Agent`/`Task`) e pelo `toolUseResult.agentId` que volta delas."""
+    tipo_do_uso, tipo_do_agente = {}, {}
     for o in objetos:
         msg = o.get("message") if isinstance(o.get("message"), dict) else {}
         for b in msg.get("content") if isinstance(msg.get("content"), list) else []:
@@ -4440,9 +4439,22 @@ def recusas_por_papel(arquivos):
             elif b.get("type") == "tool_result" and isinstance(o.get("toolUseResult"), dict) and b.get("tool_use_id") in tipo_do_uso \
                     and isinstance(o["toolUseResult"].get("agentId"), str):
                 tipo_do_agente[o["toolUseResult"]["agentId"]] = tipo_do_uso[b["tool_use_id"]]
+    return tipo_do_agente
+
+
+def papel_do_objeto(o, tipo_do_agente):
+    return (tipo_do_agente.get(o.get("agentId")) or (marcar_agente(o["agentType"]) if o.get("agentType") else "<agente>")) if o.get("isSidechain") else "jarvis"
+
+
+def recusas_por_papel(arquivos):
+    """L14 (P9): {papel: [não modela, fora da gramática]} dos resultados de ferramenta com erro que dizem uma das duas recusas de linha dos
+    hooks. O papel é o `forge:<nome>` do subagente (por `agentId` ou `agentType`; `<agente>` se desconhecido) ou `jarvis`; o texto da
+    recusa e o comando recusado nunca saem daqui (T-14): só a contagem."""
+    contagem, objetos = {}, list(objetos_jsonl(arquivos, "recusas"))
+    tipo_do_agente = papeis_dos_agentes(objetos)
     for o in objetos:
         msg = o.get("message") if isinstance(o.get("message"), dict) else {}
-        papel = (tipo_do_agente.get(o.get("agentId")) or (marcar_agente(o["agentType"]) if o.get("agentType") else "<agente>")) if o.get("isSidechain") else "jarvis"
+        papel = papel_do_objeto(o, tipo_do_agente)
         for b in msg.get("content") if isinstance(msg.get("content"), list) else []:
             if isinstance(b, dict) and b.get("type") == "tool_result" and b.get("is_error"):
                 texto = texto_de(b.get("content"))
@@ -4469,6 +4481,65 @@ def cmd_transcricao_recusas(alvo, raiz=None):
         print(f"recusas: papel {sem_controle(papel)} " + " ".join(f"{nome}={n}" for (nome, _), n in zip(RECUSAS_DE_LINHA, valores)))
         soma = [a + b for a, b in zip(soma, valores)]
     print(f"recusas: total: papeis={len(contagem)} " + " ".join(f"{nome}={n}" for (nome, _), n in zip(RECUSAS_DE_LINHA, soma)))
+    return 0
+
+
+TRAVA_PESADA = "tarefa pesada de outra sessão ou agente"  # o começo da recusa do hook `pesado` (R-TETO)
+EPISODIO_DA_TRAVA_S = 600  # bloqueios do mesmo agente com até 10 min entre si são um episódio (estudo-lacunas, E1)
+
+
+def bloqueios_da_trava(arquivos):
+    """LAC-L1: [(papel, bloqueios, espera_s, exata, início)] por episódio. Bloqueio: erro de `Bash` com R-TETO e TRAVA_PESADA, um por `tool_use_id`; a espera vai
+    do 1.º bloqueio à chamada seguinte do agente com o mesmo comando (hash do texto normalizado) que passou (`exata`), ou ao último (`piso`). Nada do comando sai (T-14)."""
+    objetos = list(objetos_jsonl(arquivos, "trava"))
+    tipo_do_agente, usos, bloqueios, passagens, por_agente, episodios = papeis_dos_agentes(objetos), {}, {}, [], {}, []
+    for o in objetos:
+        msg = o.get("message") if isinstance(o.get("message"), dict) else {}
+        hora = _hora(str(o.get("timestamp") or ""))
+        for b in [b for b in msg.get("content") if isinstance(b, dict)] if isinstance(msg.get("content"), list) else []:
+            if b.get("type") == "tool_use" and b.get("name") == "Bash" and isinstance(b.get("input"), dict) and hora:
+                comando = hashlib.sha256(" ".join(str(b["input"].get("command")).split()).encode()).hexdigest()
+                usos[b.get("id")] = ((o.get("sessionId"), o.get("agentId") if o.get("isSidechain") else None), papel_do_objeto(o, tipo_do_agente), hora, comando)
+            elif b.get("type") == "tool_result" and b.get("tool_use_id") in usos:
+                texto = texto_de(b.get("content"))
+                if b.get("is_error") and "R-TETO" in texto and TRAVA_PESADA in texto:
+                    bloqueios[b["tool_use_id"]] = usos[b["tool_use_id"]]
+                else:
+                    passagens.append(usos[b["tool_use_id"]])
+    for agente, papel, hora, comando in sorted(bloqueios.values(), key=lambda u: u[2]):
+        lista = por_agente.setdefault(agente, [])
+        if not lista or (hora - lista[-1][-1][1]).total_seconds() > EPISODIO_DA_TRAVA_S:
+            lista.append([])
+        lista[-1].append((papel, hora, comando))
+    for agente, lista in por_agente.items():
+        for i, ep in enumerate(lista):
+            passou = [h for a, _, h, c in passagens if a == agente and c in {x[2] for x in ep} and h >= ep[-1][1] and (i + 1 == len(lista) or h < lista[i + 1][0][1])]
+            episodios.append((ep[0][0], len(ep), round((min(passou, default=ep[-1][1]) - ep[0][1]).total_seconds()), bool(passou), ep[0][1]))
+    return sorted(episodios, key=lambda e: e[4])
+
+
+def cmd_transcricao_trava(alvo, raiz=None):
+    """`transcricao trava` (LAC-L1): um episódio de espera da trava pesada por linha, o total e `alta: sim|nao` pela régua do
+    estudo-lacunas (mediana de episódio de 120 s ou mais, ou mais de 1 episódio de 600 s ou mais por dia). Só números e papel."""
+    try:
+        arquivos, onde = transcricoes_do_alvo(alvo, raiz)
+    except OSError as erro:
+        print(f"trava: caminho inexistente: {caminho_impresso(erro.filename or alvo)}")
+        return 1
+    if not arquivos:
+        print(f"trava: nenhum arquivo .jsonl em {caminho_impresso(onde)}")
+        return 1
+    print(f"trava: vai ler {len(arquivos)} arquivo(s) .jsonl em {caminho_impresso(onde)}; só disco local, sem rede; "
+          "a saída traz só papel e números, nunca o comando", file=sys.stderr)
+    episodios = bloqueios_da_trava(arquivos)
+    for papel, n, espera, exata, _ in episodios:
+        print(f"trava: papel {sem_controle(papel)} bloqueios {n} espera_s {espera} {'exata' if exata else 'piso'}")
+    esperas, dias = sorted(e[2] for e in episodios), len({e[4].astimezone(datetime.timezone.utc).date() for e in episodios}) or 1
+    mediana = statistics.median(esperas) if esperas else 0
+    alta = mediana >= 120 or sum(1 for s in esperas if s >= 600) / dias > 1
+    print(f"trava: total: bloqueios {sum(e[1] for e in episodios)} episodios {len(episodios)} mediana_s {mediana:g} "
+          f"maximo_s {max(esperas, default=0)} por_dia {len(episodios) / dias:.1f}")
+    print(f"trava: alta: {'sim' if alta else 'nao'}")
     return 0
 
 
@@ -6451,7 +6522,8 @@ def main():
     for nome, ajuda in (("lastro", "afirmações dos relatórios de subagente sem lastro nas saídas de ferramenta (M1)"),
                         ("decisoes", "respostas do Jarvis com mais de uma decisão ou sem recomendação (M3)"),
                         ("vereditos", "vereditos do conferente que contradizem as próprias linhas (P7)"),
-                        ("recusas", "recusas de linha dos hooks (não modela, fora da gramática) por papel (P9)")):
+                        ("recusas", "recusas de linha dos hooks (não modela, fora da gramática) por papel (P9)"),
+                        ("trava", "episódios de espera da trava pesada (R-TETO) por papel, só números (LAC-L1)")):
         medida = tsub.add_parser(nome, help=ajuda)
         medida.add_argument("alvo", nargs="?", help="pasta ou arquivo .jsonl (padrão: as sessões do diretório atual, de ~/.forge-contrib e das worktrees de ~/.forge-contrib/wt em ~/.claude/projects)")
     ve.add_argument("--teto", type=int, default=TETO_PADRAO, help=f"agentes simultâneos em segundo plano (padrão {TETO_PADRAO}, R-TETO)")
@@ -6497,6 +6569,8 @@ def executar(a, raiz):
         return cmd_transcricao_medida("lastro", a.alvo, ler_relatorios, medir_lastro, ("relatorios", "afirmacoes", "sem_lastro"), 1, raiz)
     if a.cmd == "transcricao" and a.acao == "recusas":
         return cmd_transcricao_recusas(a.alvo, raiz)
+    if a.cmd == "transcricao" and a.acao == "trava":
+        return cmd_transcricao_trava(a.alvo, raiz)
     if a.cmd == "transcricao" and a.acao == "vereditos":
         return cmd_transcricao_medida("vereditos", a.alvo, ler_relatorios, medir_vereditos, ("vereditos", "contraditorios"), 0, raiz)
     if a.cmd == "transcricao" and a.acao == "decisoes":
