@@ -8,9 +8,7 @@
       "arquivo": "templates/projeto/.githooks/pre-push",
       "de": "[ -d \"$1\" ] && [ ! -L \"$1\" ] &&",
       "para": "[ -d \"$1\" ] &&",
-      "testes": [
-        "tests.test_prepush_so_docs.TravaDaChecagem.test_pasta_do_home_link_ou_775_recusada"
-      ]
+      "equivalente": "o find sem -H nao segue o link e o link no Linux tem modo 777, entao o ! -perm /022 da mesma linha recusa a pasta link; o -L fica por clareza e pelo desenho"
     },
     {
       "id": "M8",
