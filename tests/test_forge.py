@@ -6205,3 +6205,52 @@ class CriterioDeParada(unittest.TestCase):
     def test_validar_documento_nao_le_o_disco(self):  # C-4: a catraca do CI importa validar_documento
         with mock.patch.object(self.fc, "ler_registro", side_effect=AssertionError("leu o disco")):
             self.assertEqual(self.fc.validar_documento("docs/reviews/p1.md", self.parecer("x", "docs/arquitetura/p1-desenho.md"))[1], [])
+
+    def commitar_tudo(self):  # E2a2: o desenho e o parecer na ref de um repositório git temporário
+        git("init", "-q", "-b", "melhoria/x", cwd=self.raiz)
+        git("add", "-A", cwd=self.raiz)
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "x", cwd=self.raiz)
+
+    def pr(self, corpo, criterio="docs/arquitetura/p1-desenho.md", ref="HEAD"):
+        texto = self.parecer(corpo, criterio)
+        campos = self.fc.validar_documento("docs/reviews/p1.md", texto)[0]
+        return self.fc.conferir_criterio(self.raiz, "docs/reviews/p1.md", texto, campos, ref)
+
+    def test_com_ref_o_desenho_vem_da_ref_e_nao_da_arvore_de_trabalho(self):  # C-3
+        self.commitar_tudo()
+        self.desenho("p1-desenho.md", self.DESENHO.replace("defeito provado", "outra frase"))
+        self.assertEqual(self.pr('Critério de parada: "defeito provado"'), ([], []))
+        self.assertIn('não é Critério de parada: "defeito provado"', self.pr('Critério de parada: "outra frase"')[0][0])
+        self.assertEqual(self.pr('Critério de parada: "outra frase"', ref=None), ([], []))  # sem ref, o disco, como no `docs`
+
+    def test_com_ref_fora_dela_so_o_forge_contrib_e_link_grande_ou_ilegivel_na_ref_avisam(self):
+        fora = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        (fora / "s.md").write_text("## Critério de parada\n- bloqueia: SEGREDO123\n- gatilho · oráculo: t\n", encoding="utf-8")
+        (self.raiz / "docs/arquitetura/p1-link.md").symlink_to(fora / "s.md")
+        (self.raiz / "docs/arquitetura/p1-grande.md").write_bytes(b"x" * (self.fc.TETO_DE_REGISTRO + 1))
+        (self.raiz / "docs/arquitetura/p1-ruim.md").write_bytes(b"\xff\xfe")
+        self.desenho("p1-perdido.md", "objeto apagado do repositório")
+        self.commitar_tudo()
+        obj = git("rev-parse", "HEAD:docs/arquitetura/p1-perdido.md", cwd=self.raiz).stdout.strip()
+        (self.raiz / ".git/objects" / obj[:2] / obj[2:]).unlink()
+        self.desenho("p1-contrib.md", self.DESENHO, fora / "contrib")
+        self.desenho("p1-solto.md", self.DESENHO)  # só na árvore de trabalho: com ref, não conta
+        with mock.patch.object(self.fc, "RAIZES_DE_BRIEF", (fora / "contrib",)):
+            self.assertEqual(self.pr('Critério de parada: "defeito provado"', "docs/arquitetura/p1-contrib.md"), ([], []))
+            for nome, motivo in (("p1-solto", "ausente"), ("p1-link", "ausente"), ("p1-grande", "grande"), ("p1-ruim", "ilegível"),
+                                 ("p1-perdido", "ausente")):
+                self.assertEqual(self.pr("x", f"docs/arquitetura/{nome}.md"),
+                                 ([], [f"aviso: docs/reviews/p1.md: criterio: docs/arquitetura/{nome}.md: {motivo} (PAR-P2)"]))
+
+    def test_cmd_pr_confere_a_frase_e_o_ausente_so_avisa(self):
+        for corpo, criterio, viola, avisa in (('Critério de parada: "outra"', "docs/arquitetura/p1-desenho.md", True, ""),
+                                              ("x", "docs/arquitetura/p1-falta.md", False, "p1-falta.md: ausente (PAR-P2)\n")):
+            with self.subTest(criterio):
+                (self.raiz / "docs/reviews/p1.md").write_text(self.parecer(corpo, criterio), encoding="utf-8")
+                shutil.rmtree(self.raiz / ".git", ignore_errors=True)
+                self.commitar_tudo()
+                err = io.StringIO()
+                with contextlib.redirect_stderr(err):
+                    saida = self.fc.cmd_pr(self.raiz, "p1", "HEAD")
+                self.assertEqual(any('não é Critério de parada: "defeito provado"' in l for l in saida), viola, saida)
+                self.assertTrue(err.getvalue().endswith(avisa), err.getvalue())

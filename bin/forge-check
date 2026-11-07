@@ -925,7 +925,10 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None):
             saida.append(f"{pasta}: {tipo}: sem parecer da branch {nome_seguro(branch)} para o pedido `{pedido}` ({rid})")
             continue
         _, rel, campos, viol, texto = sorted(da_branch or achados, key=lambda a: a[:2])[-1]  # o mais recente (da branch da ref, se houver)
-        saida += viol
+        extra, avisos = conferir_criterio(raiz, rel, texto, campos, ref)  # PAR-P2 E2a2: o desenho da mesma ref do parecer
+        saida += viol + extra
+        for aviso in avisos:
+            print(aviso, file=sys.stderr)
         if ref is None and not parecer_commitado(raiz, rel):
             saida.append(f"{caminho_impresso(rel)}: parecer presente na árvore de trabalho e ausente no commit (HEAD); quem o emitiu "
                          f"o commita na branch revisada, só esse arquivo, no mesmo push da entrega ({rid})")
@@ -1717,14 +1720,37 @@ def criterio_de_parada(texto):
     return frase, classes, erros + ["sem bloqueia:"] * (frase is None) + ["sem gatilho"] * ("gatilho" not in classes)
 
 
-def conferir_criterio(raiz, rel, texto, campos):
+def desenho_da_ref(raiz, ref, valor):
+    """(texto, motivo) do desenho `valor` lido da `ref`, a mesma origem do parecer (PAR-P2 C-3), ou None se a ref não tem o nome. Só
+    blob comum (100644): link (120000) e pasta são 'ausente', sem ler o alvo; o teto e a decodificação são os de `ler_registro`."""
+    _, saida = git(raiz, "ls-tree", "-z", "--full-tree", "--end-of-options", ref, "--", valor, bruto=True)
+    meta, _, nome = saida.rstrip(b"\0").partition(b"\t")
+    if nome != valor.encode():
+        return None
+    modo, _, obj = meta.decode("ascii", "replace").split(" ")
+    if modo != "100644":
+        return None, "ausente"
+    cod, tamanho = git(raiz, "cat-file", "-s", obj)
+    if cod:
+        return None, "ausente"
+    if int(tamanho) > TETO_DE_REGISTRO:
+        return None, "grande"
+    try:
+        return git(raiz, "cat-file", "blob", obj, bruto=True)[1].decode("utf-8"), None
+    except UnicodeDecodeError:
+        return None, "ilegível"
+
+
+def conferir_criterio(raiz, rel, texto, campos, ref=None):
     """([violação], [aviso]) do `criterio:` de um parecer (PAR-P2 E2a), fora de `validar_documento`, que fica sem disco (C-4): o
     desenho resolvido como `ler_registro` (C-2), do mesmo pedido (C-6), e a 1.ª linha de `## Parecer` com a frase ou, logo abaixo,
-    `critério mudou:` com motivo (C-7). Do desenho, só a frase sai na tela (C-5); desenho ausente é aviso (C-8)."""
+    `critério mudou:` com motivo (C-7). Do desenho, só a frase sai na tela (C-5); desenho ausente é aviso (C-8). Com `ref` (o `pr`),
+    o desenho do repositório vem da ref, como o parecer (C-3); fora dela, só `RAIZES_DE_BRIEF` no disco."""
     valor, prefixo = (campos or {}).get("criterio"), f"{caminho_impresso(rel)}: criterio"
     if not valor or not criterio_valido(valor):
         return [], []  # forma recusada em validar_documento
-    desenho, motivo = ler_registro(raiz, valor, PASTAS_DE_DESENHO, "strict")
+    lido = desenho_da_ref(raiz, ref, valor) if ref else None
+    desenho, motivo = lido or ler_registro(raiz, valor, PASTAS_DE_DESENHO, "strict", RAIZES_DE_BRIEF if ref else None)
     if motivo:
         return [], [f"aviso: {prefixo}: {caminho_impresso(valor)}: {motivo} (PAR-P2)"]
     frase, _, erros = criterio_de_parada(desenho)
@@ -5126,10 +5152,10 @@ def mencoes_da_frase(texto):
     return [(n, l.strip()) for n, l in enumerate(texto.split("\n"), 1) if FRASE_DO_DONO in l and not e_linha_de_decisao(l)]
 
 
-def ler_registro(raiz, rel, pastas=("docs/pedidos",), erros="replace"):
+def ler_registro(raiz, rel, pastas=("docs/pedidos",), erros="replace", bases=None):
     """(texto, None) do registro `rel` (`docs/pedidos/<x>.md`), ou (None, 'ausente'|'grande'). A cópia principal vem na frente; a
     primeira raiz que tem o nome decide: link para fora ou fora de `docs/pedidos/` é 'ausente', sem cair na raiz seguinte (M2.1)."""
-    for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+    for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF) if bases is None else bases:
         if not os.path.lexists(Path(base) / rel):
             continue
         real = dentro_da_raiz(base, rel, pastas)

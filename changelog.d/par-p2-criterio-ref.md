@@ -1,0 +1,2 @@
+### Adicionado
+- Critério de parada conferido no `forge-check pr` com o desenho lido da mesma ref do parecer (PAR-P2, E2a2, versao-039): com `--ref`, o desenho do repositório sai da ref pelo git (só blob comum 100644; link simbólico, objeto ausente, acima do teto ou UTF-8 inválido avisam sem ler o alvo) e, fora dela, só do forge-contrib no disco; a frase divergente sem `critério mudou:` reprova no `pr`, e o desenho não encontrado continua aviso até a E2b.
