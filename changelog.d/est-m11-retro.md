@@ -1,0 +1,2 @@
+### Adicionado
+- `forge-check retro --pedido <id> [--dias N]`: a linha de métricas de um pedido (lead, P85 da janela, escapes, decisões do dono sobre reprovação, custo) e os gatilhos de retrospectiva `lead` (acima do P85, só com 20 pedidos ou mais na janela), `escape` e `decisao-reprovacao`; só leitura, rc 0 com ou sem gatilho e 2 com pedido fora de `docs/pedidos/`. Ninguém o chama ainda; `voltas-classe` e `divergentes` saem `nao-medido` até a parte seguinte (EST-M11, E2-1, versao-043).

@@ -1,4 +1,5 @@
 """T-1: `forge-check voltas`, rodadas de brief em `transcricao custo --entregas` e as pastas padrão de transcrições."""
+import datetime
 import json
 import os
 import re
@@ -262,6 +263,79 @@ class PastasPadrao(Raiz):
         self.assertEqual(cod, 1)
         self.assertTrue(linhas[0].startswith("custo: caminho inexistente: "), linhas)
         self.assertNotIn("Traceback", erro)
+
+
+class RetroPorGatilho(Raiz):
+    """EST-M11 (E2-1): `forge-check retro` imprime a linha de métricas e os gatilhos `lead`, `escape` e `decisao-reprovacao`."""
+    SEM = "retro: alvo lead=nao-medido p85=nao-medido(n=0) voltas-classe=nao-medido divergentes=nao-medido escapes=0 decisao-reprovacao=0 custo=lacuna"
+
+    def setUp(self):
+        super().setUp()
+        self.gravar("docs/pedidos/alvo.md", "# alvo\n")
+
+    def rodar(self, *args, home=None):
+        env = {"HOME": str(self.tmp / "home"), "PATH": "/usr/bin:/bin"}  # ambiente limpo: nada de CI nem PATH herdado
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.tmp), "retro", *args],
+                           capture_output=True, text=True, env=env)
+        return r.returncode, r.stdout.splitlines(), r.stderr
+
+    def leads(self, outros, alvo):
+        """historico.md: `outros` cartões de lead 10 min e o `alvo` com `alvo` min, todos chegados à develop há um dia."""
+        inicio = datetime.datetime.now().astimezone() - datetime.timedelta(days=1)
+        linhas = []
+        for nome, minutos in [(f"c{i}", 10) for i in range(outros)] + [("alvo", alvo)]:
+            fim = (inicio + datetime.timedelta(minutes=minutos)).isoformat(timespec="seconds")
+            linhas += [f"| {inicio.isoformat(timespec='seconds')} | {nome} | — | Em andamento | x |",
+                       f"| {fim} | {nome} | Review | Pronto | custo total: 7 tokens · atributos: custo total: 9 tokens |"]
+        self.gravar("docs/kanban/historico.md", "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n" + "\n".join(linhas) + "\n")
+
+    def test_pedido_sem_nada_nao_tem_gatilho(self):
+        self.assertEqual(self.rodar("--pedido", "alvo"), (0, [self.SEM, "retro: sem gatilho"], ""))
+
+    def test_escape_do_pedido_e_gatilho_e_link_e_nao_medido(self):
+        tabela = "| data-hora | pedido |\n|---|---|\n| 2026-11-07 10:00 | alvo | p | uso | baixo | qa | n | codigo |\n"
+        self.gravar("docs/kanban/fora.md", tabela)
+        self.gravar("docs/kanban/escapes.md", tabela + "| 2026-11-07 10:00 | outro | p | uso | baixo | qa | n | codigo |\n")
+        cod, linhas, _ = self.rodar("--pedido", "alvo")
+        self.assertEqual((cod, linhas[1]), (0, "retro: gatilho: escape"))
+        self.assertIn(" escapes=1 ", linhas[0])
+        (self.tmp / "docs/kanban/escapes.md").unlink()
+        (self.tmp / "docs/kanban/escapes.md").symlink_to(self.tmp / "docs/kanban/fora.md")
+        linhas = self.rodar("--pedido", "alvo")[1]
+        self.assertEqual(linhas, [self.SEM.replace("escapes=0", "escapes=nao-medido"), "retro: sem gatilho"])
+
+    def test_decisao_do_dono_sobre_reprovacao(self):
+        self.gravar("docs/pedidos/alvo.md", '- DECISÃO DO DONO (2026-11-07 10:00): "A" — Reprovação aceita\n')
+        self.assertEqual(self.rodar("--pedido", "alvo")[1][1], "retro: gatilho: decisao-reprovacao")
+        self.gravar("docs/pedidos/alvo.md", '- DECISÃO DO DONO (2026-11-07 10:00): "A" — entrega aceita\nCitada: reprovação\n')
+        self.assertEqual(self.rodar("--pedido", "alvo")[1][1], "retro: sem gatilho")
+
+    def test_lead_acima_do_p85_com_vinte_pedidos(self):
+        self.leads(19, 100)
+        cod, linhas, _ = self.rodar("--pedido", "alvo")
+        self.assertEqual((cod, linhas[1]), (0, "retro: gatilho: lead"))
+        self.assertTrue(linhas[0].startswith("retro: alvo lead=100 p85=10 "), linhas)
+        self.assertTrue(linhas[0].endswith(" custo=7"), linhas)  # o custo depois de `· atributos:` não vale
+        self.assertIn(" p85=nao-medido(n=0) ", self.rodar("--pedido", "alvo", "--dias", "0")[1][0])
+
+    def test_lead_igual_ao_p85_nao_dispara(self):
+        self.leads(19, 10)
+        self.assertEqual(self.rodar("--pedido", "alvo")[1][1], "retro: sem gatilho")
+
+    def test_dezenove_pedidos_sem_percentil(self):
+        self.leads(18, 100)
+        linhas = self.rodar("--pedido", "alvo")[1]
+        self.assertIn(" lead=100 p85=nao-medido(n=19) ", linhas[0])
+        self.assertEqual(linhas[1], "retro: sem gatilho")
+
+    def test_pedido_fora_de_docs_pedidos_e_inexistente_dao_2(self):
+        self.gravar("docs/x.md", "# fora\n")
+        self.gravar("fora.md", "# fora\n")
+        (self.tmp / "docs/pedidos/link.md").symlink_to(self.tmp / "fora.md")
+        for pedido in ("../x", "link", "nenhum"):
+            cod, linhas, erro = self.rodar("--pedido", pedido)
+            self.assertEqual((cod, linhas), (2, []), pedido)
+            self.assertIn("nao existe em docs/pedidos/", erro)
 
 
 if __name__ == "__main__":
