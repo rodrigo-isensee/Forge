@@ -27,7 +27,7 @@
       "guarda": "criterio_de_parada: sem `bloqueia:` é erro",
       "arquivo": "bin/forge-check",
       "de": "[\"sem bloqueia:\"] * (frase is None)",
-      "para": "[\"sem bloqueia:\"] * False",
+      "para": "[\"sem bloqueia:\"] * (frase is not None)",
       "testes": [
         "tests.test_forge.CriterioDeParada.test_as_tres_formas_passam_e_sem_gatilho_bloqueia_ou_com_nova_e_erro"
       ]
@@ -37,7 +37,7 @@
       "guarda": "criterio_de_parada: sem a linha `gatilho` é erro",
       "arquivo": "bin/forge-check",
       "de": "[\"sem gatilho\"] * (\"gatilho\" not in classes)",
-      "para": "[\"sem gatilho\"] * False",
+      "para": "[\"sem gatilho\"] * (\"gatilho\" in classes)",
       "testes": [
         "tests.test_forge.CriterioDeParada.test_as_tres_formas_passam_e_sem_gatilho_bloqueia_ou_com_nova_e_erro"
       ]

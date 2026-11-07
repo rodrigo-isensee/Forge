@@ -37,7 +37,7 @@
       "guarda": "conferir_criterio: linhas em branco não contam como a 1.ª linha",
       "arquivo": "bin/forge-check",
       "de": "for l in corpo.split(\"\\n\") if l.strip()]",
-      "para": "for l in corpo.split(\"\\n\")]",
+      "para": "for l in corpo.split(\"\\n\") if not l.strip()]",
       "testes": [
         "tests.test_forge.CriterioDeParada.test_frase_igual_passa_diferente_reprova_e_a_marca_com_motivo_logo_abaixo_avisa"
       ]

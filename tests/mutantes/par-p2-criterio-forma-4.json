@@ -22,5 +22,12 @@
         "tests.test_forge.CriterioDeParada.test_ausente_link_para_fora_grande_e_ilegivel_avisam_sem_cair_na_outra_raiz"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "(campos or {}).get(\"criterio\")",
+      "motivo": "campos é None só no documento sem frontmatter ou de contrato 0, que validar_documento já devolve sem campos; o `or {}` evita AttributeError e não tem ramo de veredito a observar (sem ele o teste quebra por erro, não por asserção)"
+    }
   ]
 }
