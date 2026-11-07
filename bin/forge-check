@@ -16,7 +16,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [
      forge-check brief mensagem --arquivo <brief em docs/briefs/> --pedido <arquivo ou id> [--destino forge:<nome>] [--etapa TEXTO] [--anterior <brief> --ref <branch>] | --entrega --worktree DIR
      forge-check brief gerar --pedido <arquivo ou id> --volta <brief aprovado> --ref <branch da entrega> [--parecer <arquivo>...] [--incluir <parecer>:R<n>...] [--base develop] [--etapa E]
      forge-check entrega <pedido> --branch B --base develop|homolog|main --base-sha SHA --etapa E [--desde SHA] [--brief <brief>]...
-     forge-check delta <commit> [<fim>] | --parecer <arquivo> [<fim>]
+     forge-check delta <commit> [<fim>] | --parecer <arquivo> [<fim>] [--classe]
      forge-check fontes
      forge-check sobreposicao [--base REF] [--ref BRANCH]
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
@@ -91,8 +91,9 @@ vale como a branch inteira (`base: Base-sha do brief`, P-N1; `brief mensagem --e
 `entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`).
 `delta` (VV-2, M12; só leitura, nunca reprova) imprime `delta: <arquivo> +a -r` e `delta: <arquivo>:<ini>-<fim>` (lado novo
 de cada trecho de `git diff -U0`) do que mudou entre o commit (ou o `commit:` do parecer de `--parecer`) e o fim (padrão HEAD),
-fora de docs/reviews, qa, devops, security e do quadro; `delta: nenhum` sem mudança. rc 2 se o commit não existe ou não é
-ancestral do fim. `brief --anterior <brief da rodada anterior>` acrescenta `anterior: <bytes> sha256 <64>` e uma linha
+fora de docs/reviews, qa, devops, security e do quadro; `delta: nenhum` sem mudança. Com `--classe` (EST-M4), também
+`delta: <arquivo> classe texto|forma|codigo` e, no fim, `delta: classe <a mais pesada>`: só `codigo` desatualiza o parecer.
+rc 2 se o commit não existe ou não é ancestral do fim. `brief --anterior <brief da rodada anterior>` acrescenta `anterior: <bytes> sha256 <64>` e uma linha
 `delta: +|- <seção>: <linha>` por linha que entrou ou saiu em cada seção (`delta: nenhum` sem mudança); o resto da saída e o rc não mudam.
 `fontes` compara o commit mais recente de cada fonte do registro local (~/.forge-contrib/fontes/fontes.json, fora do
 repositório) com o último revisado, por `git ls-remote` (grátis, R-CUSTO). Uma linha se houver versão nova; sem
@@ -479,14 +480,15 @@ def classes_do_intervalo(raiz, de, ate, nomes):
     return classes
 
 
-def arquivos_divergentes(raiz, base, a, b, ignorar):
+def arquivos_divergentes(raiz, base, a, b, ignorar, leves=()):
     """Arquivos (fora de `ignorar`) em que `b` não é o parecer de `a` aplicado sobre a base. Simula o merge do patch
     de `a` (sobre o seu merge-base com a base) em cima do merge-base de `b` com a base (`git merge-tree`) e compara a
     árvore resultante com a de `b`: igual = a branch só trouxe a base; qualquer linha a mais, a menos ou em outro
     lugar, inclusive a vinda da resolução de um merge, diverge. Arquivo em conflito no merge simulado não tem
     árvore para comparar, porque a resolução é manual: diverge (falha fechada), salvo o `CHANGELOG.md` da raiz, que
     é texto e onde vale a comparação `trechos_do_arquivo` (mesmas linhas adicionadas e removidas pela branch, na
-    mesma ordem, sem a posição; qualquer dúvida diverge). Quebra de linha só é o `\\n` do git e os nomes vêm de saída `-z`. None se o git falhar."""
+    mesma ordem, sem a posição; qualquer dúvida diverge). Quebra de linha só é o `\\n` do git e os nomes vêm de saída `-z`. None se o git falhar.
+    `leves` (EST-M4): nomes de classe `texto` ou `forma` que divergem sem desatualizar; em conflito, divergem (o E3b decide o papel)."""
     try:
         cod_a, mb_a = git(raiz, "merge-base", base, a)
         cod_b, mb_b = git(raiz, "merge-base", base, b)
@@ -507,7 +509,7 @@ def arquivos_divergentes(raiz, base, a, b, ignorar):
                          arvore, b, "--", bruto=True)
         if cod:
             return None
-        divergem = {n for n in nomes_z(saida) if not livre(n, ignorar)}
+        divergem = {n for n in nomes_z(saida) if not livre(n, ignorar) and n not in leves}
         for nome in conflitos:
             if livre(nome, ignorar):
                 continue
@@ -543,9 +545,12 @@ def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES):
     if cod:
         return f"não foi possível comparar com {ate}"
     fora = [f for f in nomes_z(saida) if not livre(f, livres)]
+    classes = classes_do_intervalo(raiz, commit, ate, fora) if fora else {}
+    leves = {f for f, c in classes.items() if c != "codigo"}  # EST-M4: só `codigo` desatualiza
+    fora = [f for f in fora if f not in leves]
     if not fora:
         return None
-    div = arquivos_divergentes(raiz, base, commit, ate, livres) if base else None
+    div = arquivos_divergentes(raiz, base, commit, ate, livres, leves) if base else None
     if div == []:
         return None
     alvo = div[0] if div else fora[0]
@@ -1694,7 +1699,7 @@ def trechos_novos(raiz, de, ate, nome):
     return trechos
 
 
-def cmd_delta(raiz, refs, parecer):
+def cmd_delta(raiz, refs, parecer, classe=False):
     """O que mudou desde um commit (ou desde o `commit:` de um parecer) fora de LIVRES (VV-2, M12). Só leitura; não reprova.
     rc 2 se o commit não existe, não é ancestral do fim ou o parecer não abre."""
     if parecer:
@@ -1726,11 +1731,16 @@ def cmd_delta(raiz, refs, parecer):
         print("delta: nenhum")
         return 0
     contagens = contagens_do_intervalo(raiz, inicio, fim)
+    classes = classes_do_intervalo(raiz, inicio, fim, nomes) if classe else {}
     for nome in nomes:
         acrescidas, removidas = contagens.get(nome, ("?", "?"))
         print(f"delta: {nome_seguro(nome)} +{acrescidas} -{removidas}")
+        if classe:
+            print(f"delta: {nome_seguro(nome)} classe {classes[nome]}")
         for de, ate in trechos_novos(raiz, inicio, fim, nome):
             print(f"delta: {nome_seguro(nome)}:{de}-{ate}")
+    if classe:
+        print(f"delta: classe {max(classes.values(), key=CLASSES.index)}")
     return 0
 
 
@@ -6791,6 +6801,7 @@ def main():
     de = sub.add_parser("delta", parents=[comum], help="o que mudou desde um commit ou desde o `commit:` de um parecer, fora de docs/reviews, qa, devops, security e quadro; só leitura, nunca reprova")
     de.add_argument("refs", nargs="*", help="<commit> [<fim>] (com --parecer, só o <fim>); fim padrão HEAD")
     de.add_argument("--parecer", help="parecer (docs/reviews, qa, devops ou security) cujo `commit:` é o começo do intervalo")
+    de.add_argument("--classe", action="store_true", help="classe de cada arquivo (texto, forma ou codigo) e a mais pesada; só `codigo` desatualiza o parecer (EST-M4)")
     vo = sub.add_parser("voltas", parents=[comum], help="o vai e volta de cada pedido (voltas e minutos), lido de docs/kanban e docs/briefs; só leitura")
     vo.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md ou cartão do quadro); padrão: os que têm volta")
     px = sub.add_parser("proximo", parents=[comum], help="onde o pedido está: etapas, branch, último veredito, próximo passo e bloqueios; só leitura (AQ-2)")
@@ -6932,7 +6943,7 @@ def executar(a, raiz):
     if a.cmd == "transcricao" and a.acao == "decisoes":
         return cmd_transcricao_medida("decisoes", a.alvo, ler_respostas_do_jarvis, medir_decisoes, ("respostas", "com_grupo", "violacoes"), 0, raiz)
     if a.cmd == "delta":
-        return cmd_delta(raiz, a.refs, a.parecer)
+        return cmd_delta(raiz, a.refs, a.parecer, a.classe)
     if a.cmd == "entrega":
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
     if a.cmd == "voltas":

@@ -72,6 +72,45 @@ class Classes(Repositorio):
         self.assertEqual(self.classe(mudanca)["README.md"], "codigo")
 
 
+class Validade(Repositorio):
+    def test_texto_ou_forma_nao_desatualiza_e_codigo_sim(self):
+        parecer = self.commitar(BASE, "parecer")
+        self.commitar({"README.md": "ortografia\n", "docs/x.md": "a \nb\n", "changelog.d/x.md": "- y\n"})
+        self.assertIsNone(fc.commit_vale(self.repo, parecer))
+        self.commitar({"docs/propostas/_modelo.md": "b\n"})
+        self.assertIn("desatualizado: docs/propostas/_modelo.md", fc.commit_vale(self.repo, parecer))
+
+    def base_nova(self, arquivos):
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar(arquivos, "base nova")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("merge", "-q", "--no-edit", "develop", cwd=self.repo)
+
+    def test_com_base_texto_depois_do_merge_vale_e_conflito_de_texto_nao(self):
+        parecer = self.commitar({"README.md": "branch\n", "src/app.txt": "v2\n"}, "parecer")
+        self.base_nova({"docs/y.md": "y\n"})
+        self.commitar({"docs/propostas/p.md": "depois\n"})
+        self.assertIsNone(fc.commit_vale(self.repo, parecer, base="develop"))
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"README.md": "develop\n"}, "conflito")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        with self.assertRaises(subprocess.CalledProcessError):
+            git("merge", "-q", "--no-edit", "develop", cwd=self.repo)
+        self.commitar({"README.md": "resolvido\n"}, "resolução")
+        self.assertIn("README.md", fc.commit_vale(self.repo, parecer, base="develop") or "")
+
+    def test_delta_classe_so_com_a_flag(self):
+        inicio = self.commitar(BASE, "parecer")
+        self.commitar({"README.md": "x\n", "bin/x": "b\n"})
+        rc, sem = self.check("delta", inicio)
+        rc2, com = self.check("delta", inicio, "--classe")
+        self.assertEqual((rc, rc2), (0, 0))
+        self.assertNotIn("classe", sem)
+        self.assertIn('delta: "README.md" classe texto\n', com)
+        self.assertIn('delta: "bin/x" classe codigo\n', com)
+        self.assertTrue(com.endswith("delta: classe codigo\n"), com)
+
+
 # C-2 com o adendo da volta 1 (modelo de ameaças da 0.37): cada citação de um caminho de TEXTO por código, agente ou
 # skill, conferida uma a uma pelo security-engineer como não normativa. Chave (arquivo, caminho), valor (linhas, motivo).
 # Mudar esta lista é diff em tests/ (codigo), com review e com o parecer de segurança.
