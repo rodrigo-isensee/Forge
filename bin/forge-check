@@ -12,7 +12,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [
      forge-check transcricao vereditos [<pasta ou .jsonl>]
      forge-check transcricao recusas [<pasta ou .jsonl>]
      forge-check transcricao trava [<pasta ou .jsonl>]
-     forge-check transcricao avisos [<pasta ou .jsonl>]
+     forge-check transcricao avisos [<pasta ou .jsonl>] [--amostra N]
      forge-check brief <arquivo> --pedido <arquivo ou id> [--destino forge:<nome>]
      forge-check brief gerar --pedido <arquivo ou id> [--destino forge:<nome>] [--branch B] [--base develop] [--etapa E]
      forge-check brief mensagem --arquivo <brief em docs/briefs/> --pedido <arquivo ou id> [--destino forge:<nome>] [--etapa TEXTO] [--anterior <brief> --ref <branch>] | --entrega --worktree DIR
@@ -109,7 +109,8 @@ Com `--sem-cartao` (DECISAO-SEM-CARTAO), cruza cada decisão (desde `--desde`) c
 das transcrições locais do Claude Code (sem custo, R-CUSTO), com saída anonimizada.
 `lastro` (M1) conta, no relatório final de cada subagente, as afirmações verificáveis (sha, PR, push, mescla, testes OK e a afirmação absoluta "todos os testes passam", que só tem lastro numa saída de teste que terminou OK)
 e quantas não aparecem literalmente nas saídas de ferramenta dele; `decisoes` (M3) conta as respostas da sessão
-principal com mais de um grupo de opções A/B/C ou com grupo sem "Recomendo"; `avisos` (L2) conta os avisos do `doutor` e do `vigia` por hook, evento e dia, os únicos e a reincidência no mesmo dia; `vereditos` (P7) conta os relatórios do conferente cujo `veredito:`
+principal com mais de um grupo de opções A/B/C ou com grupo sem "Recomendo"; `avisos` (L2) conta os avisos do `doutor` e do `vigia` por hook, evento e dia, os únicos, a reincidência no mesmo dia e os `com_acao` (ação
+nas 3 chamadas de ferramenta seguintes da sessão), e a `--amostra N` dá N avisos só com id `s<n>#<i>` (arquivo e ordem) e tipo; `vereditos` (P7) conta os relatórios do conferente cujo `veredito:`
 contradiz as próprias linhas (`cumpriu` com `PQ-n não cumpriu`, `pendente:`, `forma:` ou `escopo:` que reprova, ou `não cumpriu` sem nenhuma; `escopo:` de integração da base, sem commit ou união de N briefs não conta). Só medem; não bloqueiam nada.
 `pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
 `pr` (linha de comando; E7, TEMPO-B2) também exige, com o pedido achado (`docs/pedidos/<pedido>.md` ou o `Pedido:` dos briefs da branch) e com
@@ -5331,11 +5332,33 @@ def hook_do_aviso(texto):
     return None
 
 
+JANELA_DE_ACAO = 3
+
+
+def acao_do_bloco(b):
+    """L2 (E4b): o bloco do assistente age sobre o aviso: lê `.forge/run/violacoes.jsonl`, roda `forge doutor` ou `bin/forge-doutor`, ou cita o vigia ou o doutor."""
+    if b.get("type") == "text":
+        return any(nome in str(b.get("text")).lower() for nome in ("vigia", "doutor"))
+    entrada = json.dumps(b.get("input"), ensure_ascii=False)  # só o tool_use tem `input`
+    return any(alvo in entrada for alvo in (".forge/run/violacoes.jsonl", "forge doutor", "bin/forge-doutor"))
+
+
 def avisos_dos_hooks(arquivos):
-    """L2 (LAC-L2): {(hook, evento, dia, hash): vezes} dos `hook_system_message` do `doutor` e do `vigia`. Evento fora de Stop e
-    SubagentStop vira `outro`; dia ilegível, `sem_data`. O texto só se casa e vira hash interno, que nunca sai daqui (T-14)."""
-    vezes = {}
-    for o in objetos_jsonl(arquivos, "avisos"):
+    """L2 (LAC-L2): ({(hook, evento, dia, hash): vezes}, [[id, hook, com ação]]) dos `hook_system_message` do `doutor` e do `vigia`. Evento fora de Stop e
+    SubagentStop vira `outro`; dia ilegível, `sem_data`. O texto só se casa e vira hash interno, que nunca sai daqui (T-14). O id `s<n>#<i>` é
+    determinístico (n: posição do arquivo na lista ordenada; i: ordem do aviso nele); a ação conta nas JANELA_DE_ACAO chamadas seguintes do arquivo (E4b)."""
+    vezes, lista, abertos, atual = {}, [], [], 0  # abertos: [aviso, chamadas que faltam na janela]
+    for n, o in ((n, o) for n, arq in enumerate(arquivos, 1) for o in objetos_jsonl([arq], "avisos")):
+        if n != atual:
+            abertos, i, atual = [], 0, n
+        msg = o.get("message") if isinstance(o.get("message"), dict) else {}
+        for b in msg.get("content") if o.get("type") == "assistant" and isinstance(msg.get("content"), list) else []:
+            b = b if isinstance(b, dict) else {}
+            acao = acao_do_bloco(b)
+            for aberto in abertos:
+                aberto[0][2] = aberto[0][2] or acao
+                aberto[1] -= b.get("type") == "tool_use"
+            abertos = [a for a in abertos if a[1] > 0]
         anexo = o.get("attachment") if isinstance(o.get("attachment"), dict) else {}
         texto = anexo.get("content")
         if o.get("type") != "attachment" or anexo.get("type") != "hook_system_message" or not isinstance(texto, str):
@@ -5348,10 +5371,13 @@ def avisos_dos_hooks(arquivos):
         dia = dia if re.fullmatch(r"\d{4}-\d{2}-\d{2}", dia) else "sem_data"
         chave = (hook, evento, dia, hashlib.sha256(texto.encode("utf-8", "replace")).digest())
         vezes[chave] = vezes.get(chave, 0) + 1
-    return vezes
+        i += 1
+        lista.append([f"s{n}#{i}", hook, False])
+        abertos.append([lista[-1], JANELA_DE_ACAO])
+    return vezes, lista
 
 
-def cmd_transcricao_avisos(alvo, raiz=None):
+def cmd_transcricao_avisos(alvo, raiz=None, amostra=0):
     """`transcricao avisos`: avisos do `doutor` e do `vigia` por hook, evento e dia, únicos e reincidência no mesmo dia. Só números."""
     try:
         arquivos, onde = transcricoes_do_alvo(alvo, raiz)
@@ -5363,7 +5389,7 @@ def cmd_transcricao_avisos(alvo, raiz=None):
         return 1
     print(f"avisos: vai ler {len(arquivos)} arquivo(s) .jsonl em {caminho_impresso(onde)}; só disco local, sem rede; "
           "a saída traz só números, nunca o texto do aviso", file=sys.stderr)
-    vezes, no_dia = avisos_dos_hooks(arquivos), {}
+    (vezes, lista), no_dia = avisos_dos_hooks(arquivos), {}
     for (hook, _, dia, h), n in vezes.items():
         no_dia[(hook, dia, h)] = no_dia.get((hook, dia, h), 0) + n
     soma = [0, 0, 0]
@@ -5377,6 +5403,9 @@ def cmd_transcricao_avisos(alvo, raiz=None):
             print(f"avisos: {rotulo} {valor} " + " ".join(
                 f"{hook}={sum(n for k, n in vezes.items() if k[0] == hook and k[i] == valor)}" for hook in HOOKS_DE_AVISO))
     print(f"avisos: total: avisos={soma[0]} unicos={soma[1]} reincidencia={soma[2]}")
+    print(f"avisos: com_acao={sum(1 for aviso in lista if aviso[2])}")
+    for id_, hook, _ in lista[:max(amostra, 0)]:
+        print(f"avisos: amostra {id_} {hook}")  # só id e o tipo do conjunto fechado, nunca o texto (T-14)
     return 0
 
 
@@ -7749,6 +7778,8 @@ def main():
                         ("trava", "episódios de espera da trava pesada (R-TETO) por papel, só números (LAC-L1)"),
                         ("avisos", "avisos do doutor e do vigia por hook, evento e dia, únicos e reincidência (L2)")):
         medida = tsub.add_parser(nome, help=ajuda)
+        if nome == "avisos":
+            medida.add_argument("--amostra", type=int, default=0, metavar="N", help="N avisos só com id s<n>#<i> e tipo doutor|vigia, sem texto (L2)")
         medida.add_argument("alvo", nargs="?", help="pasta ou arquivo .jsonl (padrão: as sessões do diretório atual, de ~/.forge-contrib e das worktrees de ~/.forge-contrib/wt em ~/.claude/projects)")
     ve.add_argument("--teto", type=int, default=TETO_PADRAO, help=f"agentes simultâneos em segundo plano (padrão {TETO_PADRAO}, R-TETO)")
     a = ap.parse_args()
@@ -7796,7 +7827,7 @@ def executar(a, raiz):
     if a.cmd == "transcricao" and a.acao == "trava":
         return cmd_transcricao_trava(a.alvo, raiz)
     if a.cmd == "transcricao" and a.acao == "avisos":
-        return cmd_transcricao_avisos(a.alvo, raiz)
+        return cmd_transcricao_avisos(a.alvo, raiz, a.amostra)
     if a.cmd == "transcricao" and a.acao == "vereditos":
         return cmd_transcricao_medida("vereditos", a.alvo, ler_relatorios, medir_vereditos, ("vereditos", "contraditorios"), 0, raiz)
     if a.cmd == "transcricao" and a.acao == "decisoes":

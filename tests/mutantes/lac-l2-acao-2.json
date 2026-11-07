@@ -1,0 +1,26 @@
+{
+  "pedido": "lac-l2-acao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "a chamada que não cita nenhum alvo passa a contar como ação",
+      "arquivo": "bin/forge-check",
+      "de": "any(alvo in entrada for alvo",
+      "para": "any(alvo not in entrada for alvo",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosComAcao.test_acao_na_segunda_chamada_conta_e_na_quarta_nao"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "o com_acao passa a contar os avisos sem ação",
+      "arquivo": "bin/forge-check",
+      "de": "for aviso in lista if aviso[2])",
+      "para": "for aviso in lista if not aviso[2])",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosComAcao.test_acao_na_segunda_chamada_conta_e_na_quarta_nao"
+      ]
+    }
+  ]
+}
