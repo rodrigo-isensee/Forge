@@ -1,0 +1,2 @@
+### Adicionado
+- O `forge-check entrega`, em qualquer etapa, mostra `escopo: ok (parecer trazido <sha7> de <papel>)` para o parecer com autoria cujo blob no head é o do último `parecer conferido` do Histórico que altera aquele arquivo, com esse P ancestral do head, mesmo com linhas removidas (a remoção já foi lida na conferência do P); os bytes de um P antigo, ou de um P que não é ancestral do head, seguem a regra de hoje, e o aceite do usuário nunca é trazido (E6a-4 VOLTAS-REVISOR-WT, versao-037).
