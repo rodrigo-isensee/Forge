@@ -419,6 +419,63 @@ def livre(nome, livres):
     return any(nome == x or (x.endswith("/") and nome.startswith(x)) for x in livres)
 
 
+# EST-M4 (E3a): o parecer não envelhece por delta só de `texto` ou de `forma`; o resto é `codigo` (na dúvida também).
+# `texto` é lista branca (C-1, T-3) do que nenhum código, agente ou skill lê como regra (`test_reval_delta` guarda, C-2).
+# Reversão (C-9): escape com causa "delta de texto" (`forge-check escape registrar`) esvazia TEXTO e SO_TEXTO_E_FORMA.
+TEXTO = ("README.md", "CHANGELOG.md", "changelog.d/", "docs/propostas/", "docs/retrospectivas/")
+SO_TEXTO_E_FORMA = (".md", ".txt")
+SEM_FORMA = ("agents/", "skills/", "templates/", "stacks/", "hooks/", "bin/", "scripts/", ".githooks/", ".github/", "tests/")  # cobre os PROTEGIDOS (C-3)
+SEMPRE_CODIGO = ("docs/regras/", "docs/adr/")  # normativos: nunca `texto` nem `forma` (C-1)
+CLASSES = ("texto", "forma", "codigo")  # da mais leve à mais pesada
+
+
+def invariantes_em(raiz, ref):
+    """Caminhos dos `invariantes` de `tests/config.json` na `ref` (vazio sem o arquivo); None se ilegível (falha fechada)."""
+    cod, saida = git(raiz, "ls-tree", "--name-only", ref, "--", "tests/config.json")
+    if cod or not saida:
+        return None if cod else set()
+    cod, saida = git(raiz, "show", f"{ref}:tests/config.json")
+    try:
+        return None if cod else set(json.loads(saida)["invariantes"])
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
+def com_frontmatter(raiz, nome, refs):
+    """True se `nome` abre com `---` em alguma das `refs` (o `forge-check docs` o lê: nunca é `texto`, C-1)."""
+    for ref in refs:
+        cod, conteudo = git(raiz, "show", f"{ref}:{nome}", bruto=True)
+        if not cod and conteudo.startswith(b"---"):
+            return True
+    return False
+
+
+def classes_do_intervalo(raiz, de, ate, nomes):
+    """{arquivo: texto|forma|codigo} dos `nomes` que mudam em `de`..`ate` (EST-M4). `codigo`: invariante, `_*.md`,
+    SEMPRE_CODIGO, frontmatter (nos dois ramos, C-1), modo, link ou submódulo (C-5), e o que o git não leu. `forma`: `.md`/`.txt` fora de SEM_FORMA cujo diff
+    some só com `--ignore-space-at-eol` (C-4; nunca `-w`, `-b` nem linha em branco). Sem renome: vale cada nome (C-5)."""
+    cod, saida = git(raiz, "diff", "--raw", "-z", "--no-renames", "--no-ext-diff", de, ate, "--", bruto=True)
+    campos, modos = ([] if cod else saida.split(b"\0")), {}
+    for cabeca, nome in zip(campos[0::2], campos[1::2]):
+        modos[nome.decode("utf-8", "surrogateescape")] = tuple(cabeca.decode().lstrip(":").split()[:2])
+    inv_de, inv_ate = invariantes_em(raiz, de), invariantes_em(raiz, ate)
+    classes = {}
+    for nome in nomes:
+        modo = modos.get(nome, ())
+        leve = (len(modo) == 2 and not set(modo) - {"000000", "100644"} and inv_de is not None and inv_ate is not None
+                and nome not in inv_de | inv_ate and nome.endswith(SO_TEXTO_E_FORMA) and not nome.rpartition("/")[2].startswith("_")
+                and not livre(nome, SEMPRE_CODIGO) and not com_frontmatter(raiz, nome, (de, ate)))
+        if leve and livre(nome, TEXTO) and nome.endswith(".md"):
+            classes[nome] = "texto"
+        elif leve and modo == ("100644", "100644") and not livre(nome, SEM_FORMA) and git(
+                raiz, "--literal-pathspecs", "diff", "--quiet", "--ignore-space-at-eol", "--no-ext-diff", "--no-textconv",
+                de, ate, "--", nome)[0] == 0:
+            classes[nome] = "forma"
+        else:
+            classes[nome] = "codigo"
+    return classes
+
+
 def arquivos_divergentes(raiz, base, a, b, ignorar):
     """Arquivos (fora de `ignorar`) em que `b` não é o parecer de `a` aplicado sobre a base. Simula o merge do patch
     de `a` (sobre o seu merge-base com a base) em cima do merge-base de `b` com a base (`git merge-tree`) e compara a
