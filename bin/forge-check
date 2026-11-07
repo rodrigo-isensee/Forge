@@ -1877,6 +1877,42 @@ def cmd_delta(raiz, refs, parecer, classe=False):
     return 0
 
 
+BASES_DO_VAZIO = ("origin/develop", "develop")  # lista branca da base (ACELERA-E2b, C-2)
+
+
+def diff_vazio(raiz, base, branch):
+    """(rc, linha) do `forge-check vazio` (ACELERA-E2b, C-1 a C-8 do modelo de ameaças da 0.39). `sim` (rc 0) só com as duas provas:
+    (a) a mescla simulada sai sem conflito com a árvore da base e (b) cada caminho que a branch mudou desde o merge-base está igual na
+    base. `não` (rc 1); `não verificável` (rc 2) com ref ilegível, base fora da lista, ref igual à base, local e origin divergentes ou
+    falha do git, e nunca encerra. Toda ref vira sha40 antes do git (C-1); só lê, salvo os objetos soltos do merge-tree (C-8)."""
+    ref, b40 = sha_do_commit(raiz, branch), sha_do_commit(raiz, base)
+    nome = branch.removeprefix("origin/")
+    local, remota = sha_do_commit(raiz, f"refs/heads/{nome}"), sha_do_commit(raiz, f"refs/remotes/origin/{nome}")
+    for falha, motivo in ((base not in BASES_DO_VAZIO, "base fora do fluxo"), (not ref or not b40, "ref ilegível"),
+                          (branch in BASES_DO_VAZIO or ref == b40, "a ref é a base"),
+                          (bool(local and remota and local != remota), "local e origin divergem")):
+        if falha:
+            return 2, f"vazio: não verificável ({motivo})"
+    if e_ancestral(raiz, ref, b40):  # o merge-base é a própria ref e (b) não teria o que comparar (mesclada e revertida, A3)
+        return 1, "vazio: não (a ref já está na história da base; o conteúdo não se prova pela árvore)"
+    cod, saida = git(raiz, "merge-tree", "--write-tree", b40, ref)
+    if cod == 1:
+        return 1, "vazio: não (conflito)"
+    arvore, (cod_b, alvo) = saida.split("\n")[0], git(raiz, "rev-parse", "--verify", "--quiet", f"{b40}^{{tree}}")
+    if cod or cod_b or not SHA40.match(arvore):
+        return 2, "vazio: não verificável (git sem merge-tree --write-tree ou com falha)"
+    cod_mb, mb = git(raiz, "merge-base", b40, ref)
+    mudados = None if cod_mb else nomes_do_intervalo(raiz, mb, ref, estrito=True)
+    cod, saida = git(raiz, "diff", "--name-only", "-z", "--no-renames", alvo, arvore, "--", bruto=True)
+    if arvore == alvo and mudados:  # (b): caminho a caminho, modo e blob iguais na base e na branch (C-3)
+        cod, saida = git(raiz, "--literal-pathspecs", "diff", "--name-only", "-z", "--no-renames", b40, ref, "--", *mudados, bruto=True)
+    if cod or mudados is None:
+        return 2, "vazio: não verificável (git com falha)"
+    if nomes_z(saida):
+        return 1, f"vazio: não ({len(nomes_z(saida))} arquivos)"
+    return 0, f"vazio: sim ref {ref} base {b40} árvore {arvore} (a develop já tem o conteúdo de {caminho_impresso(branch)})"
+
+
 # --- Brief de volta gerado dos pareceres (VV-2, M7) --------------------------------------------
 ACHADO = re.compile(r"^- ([AR]\d+) \((bloqueante|recomendado)\) (\S+?):(\d+(?:-\d+)?) · (.+?)\s*$")  # `R<n>`: a recomendação do parecer, mesma gramática e teto
 ID_DE_ACHADO = re.compile(r"[AR]\d+")
@@ -6625,6 +6661,8 @@ def estado_da_branch(raiz, pedido_id, branch, base, etapa):
     caminho = worktree_da_branch(raiz, branch)
     if caminho:
         linhas.append(f"estado: worktree {caminho_impresso(caminho)} já existe para {caminho_impresso(branch)}")
+    if diff_vazio(raiz, f"origin/{base}", branch)[0] == 0:
+        linhas.append(f"estado: diff vazio contra origin/{caminho_impresso(base)}")
     pastas = {pasta: tipo for tipo, (pasta, _) in PASTA_E_REGRA.items()}
     for linha in pr_da_cli(raiz, pedido_id, ref=branch, base=f"origin/{base}") if sha_do_commit(raiz, branch) or sha_do_commit(raiz, f"origin/{branch}") else []:
         m = re.match(r"^(docs/[a-z]+)/[^:]*: commit: (.*) \(R-[A-Z]+\)$", linha)
@@ -7140,6 +7178,9 @@ def main():
     de.add_argument("refs", nargs="*", help="<commit> [<fim>] (com --parecer, só o <fim>); fim padrão HEAD")
     de.add_argument("--parecer", help="parecer (docs/reviews, qa, devops ou security) cujo `commit:` é o começo do intervalo")
     de.add_argument("--classe", action="store_true", help="classe de cada arquivo (texto, forma ou codigo) e a mais pesada; só `codigo` desatualiza o parecer (EST-M4)")
+    va = sub.add_parser("vazio", parents=[comum], help="a base já tem o conteúdo da branch? (ACELERA-E2b) sim rc 0, não rc 1, não verificável rc 2; só leitura")
+    va.add_argument("--ref", required=True, help="branch ou commit da entrega")
+    va.add_argument("--base", default="origin/develop", help="origin/develop (padrão) ou develop")
     vo = sub.add_parser("voltas", parents=[comum], help="o vai e volta de cada pedido (voltas e minutos), lido de docs/kanban e docs/briefs; só leitura")
     vo.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md ou cartão do quadro); padrão: os que têm volta")
     me = sub.add_parser("medida", parents=[comum], help="mede um tópico mesclado (tempo ativo, linhas, tokens) e grava a linha em docs/kanban/medidas.md; nunca trava (D12)")
@@ -7285,6 +7326,10 @@ def executar(a, raiz):
         return cmd_transcricao_medida("decisoes", a.alvo, ler_respostas_do_jarvis, medir_decisoes, ("respostas", "com_grupo", "violacoes"), 0, raiz)
     if a.cmd == "delta":
         return cmd_delta(raiz, a.refs, a.parecer, a.classe)
+    if a.cmd == "vazio":
+        rc, linha = diff_vazio(raiz, a.base, a.ref)
+        print(linha)
+        return rc
     if a.cmd == "entrega":
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
     if a.cmd == "voltas":

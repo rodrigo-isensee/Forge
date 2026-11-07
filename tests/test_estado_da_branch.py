@@ -184,5 +184,82 @@ class Volta(Repo):
         self.assertNotIn("## Entregar", saida)
 
 
+class DiffVazio(Repo):
+    """ACELERA-E2b (C-1 a C-8 do modelo de ameaças da 0.39): `vazio` só diz `sim` com as duas provas; o resto nunca encerra."""
+    def vazio(self, *args, **extra):
+        env = {k: v for k, v in ambiente_do_git().items() if k != "CI"}
+        env.update(HOME=str(self.tmp / "home"), **extra)
+        r = subprocess.run([sys.executable, "-I", str(FORGE_CHECK), "--raiz", str(self.repo), "vazio", *args],
+                           capture_output=True, text=True, env=env, timeout=60)
+        return r.returncode, r.stdout.strip()
+
+    def develop_com(self, arquivos):
+        self.commitar(self.semente, arquivos, "squash")
+        git("push", "-q", "origin", "develop", cwd=self.semente)
+        git("fetch", "-q", "origin", cwd=self.repo)
+
+    def test_squash_na_develop_da_sim_com_os_tres_sha40_sem_mexer_no_repositorio(self):
+        self.develop_com({"src/app.py": "v2\n"})
+        estado = lambda: (git("status", "--porcelain", cwd=self.repo), git("for-each-ref", cwd=self.repo))  # noqa: E731
+        antes = estado()
+        rc, saida = self.vazio("--ref", "melhoria/x")
+        self.assertEqual(rc, 0, saida)
+        self.assertRegex(saida, r"^vazio: sim ref [0-9a-f]{40} base [0-9a-f]{40} árvore [0-9a-f]{40} ")
+        self.assertEqual(estado(), antes)
+        _, _, erro = self.gerar("--etapa", "codigo")
+        self.assertIn("estado: diff vazio contra origin/develop", erro)
+
+    def test_arquivo_a_mais_conflito_e_squash_seguido_de_mudanca_dao_nao(self):
+        self.develop_com({"src/app.py": "v2\n"})
+        self.commitar(self.repo, {"src/b.py": "b\n"}, "a mais")
+        self.assertEqual(self.vazio("--ref", "melhoria/x"), (1, "vazio: não (1 arquivos)"))
+        self.develop_com({"src/m.py": "a\nb\nc\nd\ne\n"})
+        git("switch", "-q", "-c", "z", "origin/develop", cwd=self.repo)  # (b): mescla limpa com a árvore da base, arquivo diferente
+        self.commitar(self.repo, {"src/m.py": "A\nb\nc\nd\ne\n"}, "z")
+        self.develop_com({"src/m.py": "A\nb\nc\nd\nE\n"})
+        self.assertEqual(self.vazio("--ref", "z"), (1, "vazio: não (1 arquivos)"))
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("reset", "-q", "--hard", "HEAD~1", cwd=self.repo)
+        self.develop_com({"src/app.py": "outra\n"})
+        self.assertEqual(self.vazio("--ref", "melhoria/x"), (1, "vazio: não (conflito)"))
+
+    def test_mesclada_e_revertida_da_nao(self):
+        git("push", "-q", "origin", "melhoria/x", cwd=self.repo)
+        git("fetch", "-q", "origin", cwd=self.semente)
+        git("merge", "-q", "--no-ff", "-m", "merge", "origin/melhoria/x", cwd=self.semente)
+        git("revert", "--no-edit", "-m", "1", "HEAD", cwd=self.semente)
+        git("push", "-q", "origin", "develop", cwd=self.semente)
+        git("fetch", "-q", "origin", cwd=self.repo)
+        rc, saida = self.vazio("--ref", "melhoria/x")
+        self.assertEqual(rc, 1, saida)
+
+    def test_ref_ilegivel_base_fora_ref_igual_a_base_e_local_atras_nao_verificam(self):
+        git("branch", "y", "origin/develop", cwd=self.repo)
+        sonda = self.tmp / "p"
+        for args, motivo in ((["--ref=-x"], "ref ilegível"), ([f"--ref=--output={sonda}"], "ref ilegível"),
+                             (["--ref", "melhoria/x", "--base", "melhoria/x"], "base fora do fluxo"),
+                             (["--ref", "origin/develop"], "a ref é a base"), (["--ref", "y"], "a ref é a base")):
+            with self.subTest(args=args):
+                self.assertEqual(self.vazio(*args), (2, f"vazio: não verificável ({motivo})"))
+        self.assertFalse(sonda.exists())
+        self.develop_com({"src/app.py": "v2\n"})
+        self.commitar(self.repo, {"src/c.py": "c\n"}, "enviado de outra worktree")
+        git("push", "-q", "origin", "melhoria/x", cwd=self.repo)
+        git("reset", "-q", "--hard", "HEAD~1", cwd=self.repo)
+        self.assertEqual(self.vazio("--ref", "melhoria/x"), (2, "vazio: não verificável (local e origin divergem)"))
+
+    def test_git_sem_write_tree_ou_com_falha_nao_verifica(self):
+        falso = self.tmp / "bin"
+        falso.mkdir()
+        (falso / "git").write_text(f'#!/bin/sh\nfor a; do [ "$a" = "$FALHA" ] && exit 129; done\nexec {shutil.which("git")} "$@"\n')
+        (falso / "git").chmod(0o755)
+        self.develop_com({"src/app.py": "v2\n"})
+        for falha, motivo in (("merge-tree", "git sem merge-tree --write-tree ou com falha"), ("merge-base", "git com falha"),
+                              ("--literal-pathspecs", "git com falha")):
+            with self.subTest(falha=falha):
+                self.assertEqual(self.vazio("--ref", "melhoria/x", FALHA=falha, PATH=f"{falso}{os.pathsep}{os.environ['PATH']}"),
+                                 (2, f"vazio: não verificável ({motivo})"))
+
+
 if __name__ == "__main__":
     unittest.main()
