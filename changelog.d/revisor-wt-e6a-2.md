@@ -1,0 +1,2 @@
+### Adicionado
+- O `forge-check entrega` com `--branch parecer/<brief>` exige um commit só, sem merge, sobre o `Desde` conferido, só com `.md` regular (100644) na pasta do papel do brief (`docs/reviews`, `docs/security` sem `aceites/`, `docs/devops`); senão `escopo: fora (branch de parecer só leva parecer)`. Com rc 0 imprime `linha-final: parecer-conferido <sha40>` do `rev-parse` (E6a-2 VOLTAS-REVISOR-WT, versao-037).
