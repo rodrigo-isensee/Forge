@@ -1164,7 +1164,7 @@ def merges_nao_conferidos(raiz, texto, de, head, base_ref):
     conferido` do `## Histórico`). Com linha, todo outro pai é um P dela e o merge só traz arquivos desses P, com os blobs deles; sem
     nenhuma, merge de `parecer/*` reprova (C-11); merge que traz aceite reprova. Só recusa; falha do git reprova."""
     shas = {m.group(1) for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", []) if (m := PARECER_CONFERIDO.match(linha))}
-    cod, saida = git(raiz, "rev-list", "--merges", "--parents", f"{de}..{head}", *(("--not", base_ref) if base_ref else ()))
+    cod, saida = git(raiz, "rev-list", "--merges", "--parents", f"{de}..{head}")  # o merge da base sai no filtro de `outros`
     recusas = [("escopo: o git falhou (rev-list dos merges); o escopo não foi lido", True)] if cod else []
     for merge, _, *outros in map(str.split, saida.splitlines()):
         outros = [q for q in outros if not (base_ref and e_ancestral(raiz, q, base_ref))]
