@@ -1,0 +1,151 @@
+{
+  "pedido": "versao-037",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M3",
+      "guarda": "invariante de tests/config.json nunca e texto nem forma",
+      "arquivo": "bin/forge-check",
+      "de": "and nome not in inv_de | inv_ate and",
+      "para": "and",
+      "testes": [
+        "tests.test_reval_delta.Classes.test_texto_e_lista_branca_e_o_normativo_e_codigo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "py nunca e forma",
+      "arquivo": "bin/forge-check",
+      "de": "SO_TEXTO_E_FORMA = (\".md\", \".txt\")",
+      "para": "SO_TEXTO_E_FORMA = (\".md\", \".txt\", \".py\")",
+      "testes": [
+        "tests.test_reval_delta.Classes.test_forma_so_com_espaco_no_fim_em_md_fora_das_pastas_de_codigo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "modelo _*.md nunca e texto",
+      "arquivo": "bin/forge-check",
+      "de": "and not nome.rpartition(\"/\")[2].startswith(\"_\")",
+      "para": "",
+      "testes": [
+        "tests.test_reval_delta.Classes.test_texto_e_lista_branca_e_o_normativo_e_codigo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "mudanca de modo ou tipo e codigo",
+      "arquivo": "bin/forge-check",
+      "de": "not set(modo) - {\"000000\", \"100644\"}",
+      "para": "True",
+      "testes": [
+        "tests.test_reval_delta.Classes.test_modo_link_e_renome_sao_codigo"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "forma so com espaco no fim da linha, nunca todo espaco",
+      "arquivo": "bin/forge-check",
+      "de": "\"--quiet\", \"--ignore-space-at-eol\",",
+      "para": "\"--quiet\", \"--ignore-all-space\", \"--ignore-blank-lines\",",
+      "testes": [
+        "tests.test_reval_delta.Classes.test_forma_so_com_espaco_no_fim_em_md_fora_das_pastas_de_codigo"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "forma nao vale nas pastas de codigo",
+      "arquivo": "bin/forge-check",
+      "de": "SEM_FORMA = (\"agents/\",",
+      "para": "SEM_FORMA = (",
+      "testes": [
+        "tests.test_reval_delta.Classes.test_forma_so_com_espaco_no_fim_em_md_fora_das_pastas_de_codigo"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "config ilegivel fecha tudo em codigo",
+      "arquivo": "bin/forge-check",
+      "de": "    except (ValueError, KeyError, TypeError):\n        return None\n\n\ndef com_frontmatter",
+      "para": "    except (ValueError, KeyError, TypeError):\n        return set()\n\n\ndef com_frontmatter",
+      "testes": [
+        "tests.test_reval_delta.Classes.test_config_ilegivel_fecha_tudo_em_codigo"
+      ]
+    },
+    {
+      "id": "E1",
+      "guarda": "ls-tree que falha devolve None",
+      "arquivo": "bin/forge-check",
+      "de": "        return None if cod else set()\n    cod, saida = git(raiz, \"show\"",
+      "para": "        return set()\n    cod, saida = git(raiz, \"show\"",
+      "equivalente": "o ls-tree roda sobre commit ja conferido por commit_vale (rev-parse) e por cmd_delta (sha_do_commit); nao falha nos testes"
+    },
+    {
+      "id": "E2",
+      "guarda": "show que falha depois do ls-tree devolve None",
+      "arquivo": "bin/forge-check",
+      "de": "return None if cod else set(json.loads(saida)[\"invariantes\"])",
+      "para": "return set(json.loads(saida)[\"invariantes\"])",
+      "equivalente": "o show so roda quando o ls-tree acabou de achar o arquivo no mesmo commit; com cod, json.loads de vazio cai no except e ja da None"
+    },
+    {
+      "id": "E3",
+      "guarda": "diff --raw que falha vira tudo codigo",
+      "arquivo": "bin/forge-check",
+      "de": "campos, modos = ([] if cod else saida.split(",
+      "para": "campos, modos = (saida.split(",
+      "equivalente": "o diff --raw roda sobre os mesmos commits do diff --name-only que acabou de dar certo; com cod a saida e vazia e o resultado e o mesmo"
+    },
+    {
+      "id": "M13",
+      "guarda": "frontmatter e o --- na primeira linha",
+      "arquivo": "bin/forge-check",
+      "de": "if not cod and conteudo.startswith(b\"---\"):",
+      "para": "if not cod and conteudo.startswith(b\"+++\"):",
+      "testes": [
+        "tests.test_reval_delta.Classes.test_texto_e_lista_branca_e_o_normativo_e_codigo"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "arquivo com frontmatter nunca e texto nem forma (C-1)",
+      "arquivo": "bin/forge-check",
+      "de": "and not com_frontmatter(raiz, nome, (de, ate)))",
+      "para": ")",
+      "testes": [
+        "tests.test_reval_delta.Classes.test_texto_e_lista_branca_e_o_normativo_e_codigo",
+        "tests.test_reval_delta.Classes.test_forma_nunca_em_frontmatter_regras_nem_adr"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "docs/regras/ nunca e forma (C-1)",
+      "arquivo": "bin/forge-check",
+      "de": "SEMPRE_CODIGO = (\"docs/regras/\", \"docs/adr/\")",
+      "para": "SEMPRE_CODIGO = (\"docs/adr/\",)",
+      "testes": [
+        "tests.test_reval_delta.Classes.test_forma_nunca_em_frontmatter_regras_nem_adr"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "docs/adr/ nunca e forma (C-1)",
+      "arquivo": "bin/forge-check",
+      "de": "SEMPRE_CODIGO = (\"docs/regras/\", \"docs/adr/\")",
+      "para": "SEMPRE_CODIGO = (\"docs/regras/\",)",
+      "testes": [
+        "tests.test_reval_delta.Classes.test_forma_nunca_em_frontmatter_regras_nem_adr"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "texto so dentro da lista branca TEXTO (C-1, T-3)",
+      "arquivo": "bin/forge-check",
+      "de": "if leve and livre(nome, TEXTO) and nome.endswith(\".md\"):",
+      "para": "if leve and nome.endswith(\".md\"):",
+      "testes": [
+        "tests.test_reval_delta.Classes.test_texto_e_lista_branca_e_o_normativo_e_codigo"
+      ]
+    }
+  ]
+}
