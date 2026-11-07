@@ -105,7 +105,7 @@
       "de": "if c != \"codigo\" and not livre(f, estritos)}",
       "para": "if c != \"codigo\"}",
       "testes": [
-        "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_so_o_fragmento_do_changelog_da_branch_nao_desatualiza_o_parecer"
+        "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_so_o_caminho_exato_do_fragmento_sai_do_hash"
       ]
     },
     {
@@ -115,7 +115,7 @@
       "de": "base, livres, estritos=FRAGMENTOS)",
       "para": "base, livres)",
       "testes": [
-        "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_so_o_fragmento_do_changelog_da_branch_nao_desatualiza_o_parecer"
+        "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_so_o_caminho_exato_do_fragmento_sai_do_hash"
       ]
     }
   ]
