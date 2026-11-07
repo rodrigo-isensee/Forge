@@ -2,7 +2,7 @@
 leitura, M8, T-1, T-2; testes t1, t10, t11, t14 e t19 das ameaças). Só acrescenta recusa. E6a-2: `entrega --branch parecer/*` (M3, M5,
 M9; t4 a t8, t15 e o caso 11). E6a-3: o `entrega` confere os merges do intervalo (M4, M2, C-11, M9 no merge; t1, t2, t9, t12,
 t20 e o caso 12). E6a-4: o "parecer trazido" (M1 no trazido, T-3, S4; t3, t13, A10 e os compostos A1, A5 e t20 com o arquivo
-também trazido). Repositório temporário."""
+também trazido). E6b-1: a volta lê o último P de cada arquivo fora da `--ref` (T-2). Repositório temporário."""
 import hashlib
 import json
 import os
@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import git  # noqa: E402
 from test_volta_por_delta import Repositorio, SHA_FALSO  # noqa: E402
+import test_volta_por_delta as volta  # noqa: E402 (o módulo: os testes de lá não rodam de novo)
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 PARECER = ("---\ntipo: review\ncontrato: 1\npedido: x\nbranch: {branch}\ncommit: {commit}\nparecer: {parecer}\n"
@@ -343,6 +344,68 @@ class ParecerTrazido(ComParecer):
                       f"escopo: fora (aceite trazido pelo merge {m})", f"escopo: fora (merge de {outro[:7]} não conferido)"):
             self.assertIn(linha, linhas)
         self.assertNotIn("p.md", "".join(linha for linha in linhas if linha.startswith("escopo: ok")))
+
+
+class VoltaLeParecerConferido(Repositorio):
+    """E6b-1 (T-2): `brief gerar --volta` e a conferência da volta leem o último P de cada arquivo fora da `--ref` (`cat-file blob`)."""
+    B = volta.BriefDeVolta
+    gerar, conferir, preenchido = B.gerar, B.conferir, B.preenchido  # só os ajudantes
+
+    def setUp(self):
+        super().setUp()
+        self.pedido = self.pedido.with_name("pedido-sintetico.md")
+        self.c1 = self.commitar({"src/app.txt": "v2\n"}, "entrega")
+        (self.repo / ".git" / "info" / "exclude").write_text("docs/briefs/\n", encoding="utf-8")
+        git("update-ref", "refs/remotes/origin/develop", self.base, cwd=self.repo)
+        self.rel_anterior = "docs/briefs/pedido-sintetico-dev-exemplo-1.md"
+        (self.repo / "docs" / "briefs").mkdir(parents=True)
+        (self.repo / self.rel_anterior).write_bytes(self.B.ANTERIOR.read_bytes())
+
+    def p(self, nome, achados=B.ACHADOS, branch="melhoria/x", arquivo="docs/reviews/p1.md", tipo="review"):
+        """P: o parecer reprovado numa `parecer/<nome>` nascida do head da branch, fora dela."""
+        git("switch", "-q", "-c", f"parecer/{nome}", cwd=self.repo)
+        texto = self.B.REVIEW.format(c=self.c1[:7], p="reprovado", corpo=achados)
+        sha = self.commitar({arquivo: texto.replace("melhoria/x", branch).replace("review", tipo, 1)}, f"parecer {nome}")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        return sha
+
+    def historico(self, *shas):
+        self.pedido.write_text(self.B.PEDIDO_FIXTURE.read_text(encoding="utf-8") + "\n## Histórico\n" + "".join(
+            f"- 2026-11-07 10:0{i}: parecer conferido {s} (review)\n" for i, s in enumerate(shas)), encoding="utf-8")
+
+    def test_gerar_e_conferir_leem_o_p_fora_da_ref(self):  # o caso da seção 6 do desenho; marca e Ler com o sha do P
+        p = self.p("r1")
+        self.historico(p)
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"- (review {p[:7]} A1) a função perde o erro de domínio [src/app.txt:3]\n", saida)
+        self.assertIn(f"- docs/reviews/p1.md (parecer, lido de {p[:7]})", saida)
+        self.assertEqual(self.gerar("--parecer", "docs/reviews/p1.md")[0], 0)  # com --parecer, do P que o contém
+        self.assertNotIn("falta achado", self.conferir(self.preenchido(saida))[1])
+        sem_a1 = self.preenchido(saida).replace(f"(review {p[:7]} A1)", "(sem A1)")
+        self.assertIn('volta: falta achado "A1" de docs/reviews/p1.md', self.conferir(sem_a1)[1])
+        self.historico(SHA_FALSO)  # falha fechada nos dois lados
+        self.assertIn(f"parecer conferido {SHA_FALSO[:7]}: o git não lê o commit nem o pai dele", self.gerar()[1])
+        self.assertIn(f"volta: parecer conferido {SHA_FALSO[:7]}: o git não lê", self.conferir(self.preenchido(saida))[1])
+
+    def test_o_ultimo_p_fora_da_ref_vence_a_ref_e_o_de_dentro_nao(self):  # rodada 2: a ref tem o parecer da volta anterior
+        git("merge", "-q", "--no-edit", self.p("r1"), cwd=self.repo)
+        p2 = self.p("r2", "## Achados\n- A1 (bloqueante) src/app.txt:5 · erro da rodada 2\n")
+        self.historico(p2)
+        self.assertIn(f"(review {p2[:7]} A1) erro da rodada 2", self.gerar()[1])
+        git("merge", "-q", "--no-edit", p2, cwd=self.repo)  # P2 já na ref: vale a ref, como hoje
+        corpo = "## Achados\n- A1 (bloqueante) a.py:9 · da ref\n"
+        self.commitar({"docs/reviews/p1.md": self.B.REVIEW.format(c=self.c1[:7], p="reprovado", corpo=corpo)})
+        self.assertIn(f"(review {self.head()[:7]} A1) da ref", self.gerar()[1])
+
+    def test_p_de_outra_branch_nao_e_lido_e_o_de_outra_pasta_so_no_tipo_dele(self):  # como o `pr` (E11)
+        self.historico(self.p("r1", branch="melhoria/outra"))
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("nenhum parecer lido", saida)
+        ps = self.p("s1", arquivo="docs/security/s1.md", tipo="revisao-seguranca")
+        self.historico(ps)
+        self.assertEqual(self.gerar()[1].count(f"(revisao-seguranca {ps[:7]} A1)"), 1)
 
 
 if __name__ == "__main__":
