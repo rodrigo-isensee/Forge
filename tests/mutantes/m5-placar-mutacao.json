@@ -82,5 +82,12 @@
         "tests.test_forge_mutante.PlacarDaRelease"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "scripts/placar-mutacao.py",
+      "trecho": "__name__ == \"__main__\"",
+      "motivo": "ponto de entrada do script: os testes o executam por subprocesso e nunca o importam, então a troca não tem ramo observável"
+    }
   ]
 }
