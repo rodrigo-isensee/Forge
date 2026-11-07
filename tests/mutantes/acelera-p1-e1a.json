@@ -126,7 +126,7 @@
   "isentas": [
     {
       "arquivo": "bin/forge-check",
-      "trecho": "nome_seguro(tipo or 'ausente')",
+      "trecho": "tipo or 'ausente'",
       "motivo": "só o texto do motivo: o ramo já decidiu necessário; o teste afirma o prefixo `Tipo: ` com e sem a linha"
     }
   ]
