@@ -162,5 +162,12 @@
         "tests.test_sobreposicao_quadro.QuadroGerado.test_ponte_fora_de_id_resp_vira_travessao_e_cartao_sem_movimento_fica"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "chave_do_cartao(c[1]) == chave_do_cartao(cartao)",
+      "motivo": "mesma regra de antes (casefold dos dois lados), agora pela funcao unica do C-3; o mutante M12 da chave_do_cartao a prova"
+    }
   ]
 }
