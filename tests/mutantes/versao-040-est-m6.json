@@ -1,0 +1,36 @@
+{
+  "pedido": "versao-040-est-m6",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "volta unica: a leitura da volta inclui o parecer de QA reprovado (C-3)",
+      "arquivo": "bin/forge-check",
+      "de": "for tipo in PASTA_E_REGRA:\n            achados = []",
+      "para": "for tipo in [t for t in PASTA_E_REGRA if t != \"qa\"]:\n            achados = []",
+      "testes": [
+        "tests.test_volta_por_delta.VoltaUnicaComQa.test_review_qa_e_seguranca_reprovados_voltam_num_brief_so"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "volta unica: a leitura da volta inclui o parecer de seguranca reprovado (C-3)",
+      "arquivo": "bin/forge-check",
+      "de": "for tipo in PASTA_E_REGRA:\n            achados = []",
+      "para": "for tipo in [t for t in PASTA_E_REGRA if t != \"revisao-seguranca\"]:\n            achados = []",
+      "testes": [
+        "tests.test_volta_por_delta.VoltaUnicaComQa.test_review_qa_e_seguranca_reprovados_voltam_num_brief_so"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "forge-check pr: o QA aprovado em H fica desatualizado com codigo novo em H2 (C-2)",
+      "arquivo": "bin/forge-check",
+      "de": "motivo = commit_vale(raiz, campos[\"commit\"], ref or \"HEAD\", base, livres)",
+      "para": "motivo = None",
+      "testes": [
+        "tests.test_volta_por_delta.VoltaUnicaComQa.test_qa_aprovado_antes_do_codigo_novo_fica_desatualizado"
+      ]
+    }
+  ]
+}

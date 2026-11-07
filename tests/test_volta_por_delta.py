@@ -944,6 +944,56 @@ class BriefDeVolta(Repositorio):
         self.assertIn("fora do formato", self.check("docs")[1])
 
 
+class VoltaUnicaComQa(Repositorio):
+    """EST-M6 (versao-040 E4): com o QA em paralelo ao review e à segurança, as reprovações da mesma rodada voltam num brief só,
+    com todo bloqueante de cada parecer (C-3), e o QA aprovado num head anterior ao código novo fica desatualizado (C-2).
+    Usa o cenário do BriefDeVolta (review reprovado em `melhoria/x`) sem herdar, para não repetir os testes dele."""
+    REVIEW, ACHADOS, rel_anterior = BriefDeVolta.REVIEW, BriefDeVolta.ACHADOS, "docs/briefs/pedido-sintetico-dev-exemplo-1.md"
+    parecer, gerar = BriefDeVolta.parecer, BriefDeVolta.gerar
+    QA = ("---\ntipo: qa\ncontrato: 1\npedido: pedido-sintetico\nbranch: melhoria/x\ncommit: {c}\nparecer: {p}\nescopo: completo\n"
+          "bugs_criticos: 0\nbugs_altos: {b}\nbugs_medios: 0\nbugs_baixos: 0\ndata: 2026-10-19\n---\n# QA\n{corpo}")
+    SEGURANCA = ("---\ntipo: revisao-seguranca\ncontrato: 1\npedido: pedido-sintetico\nbranch: melhoria/x\ncommit: {c}\nparecer: reprovado\n"
+                 "revisor: forge:security-engineer\ndata: 2026-10-19\n---\n# Segurança\n## Achados\n"
+                 "- A1 (bloqueante) src/app.txt:5 · entrada sem validação chega ao shell\n")
+
+    def setUp(self):
+        super().setUp()
+        self.pedido = self.pedido.with_name("pedido-sintetico.md")
+        self.pedido.write_bytes(BriefDeVolta.PEDIDO_FIXTURE.read_bytes())
+        self.c1 = self.commitar({"src/app.txt": "v2\n"}, "entrega")
+        (self.repo / ".git" / "info" / "exclude").write_text("docs/briefs/\n", encoding="utf-8")
+        (self.repo / self.rel_anterior).parent.mkdir(parents=True)
+        (self.repo / self.rel_anterior).write_bytes(BriefDeVolta.ANTERIOR.read_bytes())
+        self.parecer("reprovado", self.ACHADOS)
+
+    def test_review_qa_e_seguranca_reprovados_voltam_num_brief_so(self):  # C-3, caso de abuso 2
+        self.commitar({"docs/qa/p1.md": self.QA.format(c=self.c1[:7], p="reprovado", b=1, corpo=(
+            "## Achados\n- A1 (bloqueante) src/app.txt:9 · o caso vazio quebra a saída\n- A2 (recomendado) src/app.txt:2 · mensagem vaga\n")),
+            "docs/security/p1.md": self.SEGURANCA.format(c=self.c1[:7])}, "pareceres de QA e de segurança na mesma rodada")
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(saida.count("## Entregar (volta 1)\n"), 1)
+        h = self.head()[:7]
+        bloqueantes = (f"(review {h} A1) a função perde o erro de domínio [src/app.txt:3]",
+                       f"(review {h} A3) falta teste do caso de borda [tests/x.py:10]",
+                       f"(qa {h} A1) o caso vazio quebra a saída [src/app.txt:9]",
+                       f"(revisao-seguranca {h} A1) entrada sem validação chega ao shell [src/app.txt:5]")
+        for linha in bloqueantes:  # cada bloqueante entra uma vez, inteiro e sem a marca de recomendado (sem rebaixar)
+            self.assertIn(f"- {linha}\n", saida)
+            self.assertEqual(saida.count(linha), 1, linha)
+        self.assertRegex(saida, rf"\(qa {h} A2\) mensagem vaga \[src/app.txt:2\] · PREENCHER: entra ou corta")
+
+    def test_qa_aprovado_antes_do_codigo_novo_fica_desatualizado(self):  # C-2, caso de abuso 1
+        h = self.head()
+        self.commitar({"docs/qa/pedido-sintetico.md": self.QA.format(c=h, p="aprovado", b=0, corpo="ok\n")}, "parecer de QA em H")
+        modulo = carregar_forge_check()
+        self.assertEqual([l for l in modulo.cmd_pr(self.repo, "pedido-sintetico") if l.startswith("docs/qa/")], [])  # em H vale
+        self.commitar({"bin/x": "corrige o review\n"}, "H2: o autor corrige o review")
+        qa = [l for l in modulo.cmd_pr(self.repo, "pedido-sintetico") if l.startswith("docs/qa/")]
+        self.assertEqual(len(qa), 1, qa)
+        self.assertIn("commit: desatualizado: bin/x mudou depois do parecer", qa[0])
+
+
 class TextoDosAgentes(unittest.TestCase):
     """E4: os agentes usam o que a VV-2 entrega, e a política do hook só ganha o que o plano pede."""
 
