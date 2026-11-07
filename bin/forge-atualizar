@@ -208,11 +208,11 @@ def main():
     if desconhecidas:
         print(f"forge atualizar: opção desconhecida: {desconhecidas[0]}", file=sys.stderr)
         return 2
+    SIM = "--sim" in args  # só vale depois da recusa dentro do Claude, que vem logo abaixo e recusa com ou sem --sim
     recusa = fv.recusar_dentro_do_claude("forge atualizar")
     if recusa:
         print(recusa, file=sys.stderr)
         return 2
-    SIM = "--sim" in args
     if not SIM and not fv.tem_terminal():
         print("forge atualizar: rode num terminal (a atualização pede a sua confirmação) e responda s para seguir, ou rode com --sim (fora do Claude).",
               file=sys.stderr)
