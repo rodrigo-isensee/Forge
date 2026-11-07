@@ -10,6 +10,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 from test_voltas import FORGE_CHECK, Raiz  # noqa: E402
 
 ARQ = "docs/kanban/conferencias.md"
@@ -121,13 +122,14 @@ class SalvarArea(Raiz):  # E7 (FILA-23): a entrega conferida salva a área só e
         self.gravar("home/.gitconfig", "[user]\nname = t\nemail = t@t\n[init]\ndefaultBranch = main\n")
         self.tmp = self.area = self.home / ".forge-contrib"
         self.git(self.home, "init", "-q", "--bare", str(self.bare))
+        remoto_sem_manutencao(self.bare)
         self.git(self.home, "init", "-q", str(self.area))
         self.gravar(".gitignore", "/*\n!/.gitignore\n!/docs/\n!/KANBAN.md\n!/wt/\n*.tmp\n")  # `!/wt/` alargado: só a lista branca entra
         self.gravar("KANBAN.md", "# Quadro\n")
         self.git(self.area, "remote", "add", "origin", str(self.bare))
 
     def git(self, pasta, *args):
-        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")} | {"HOME": str(self.home)}
+        env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")} | {"HOME": str(self.home)})
         return subprocess.run(["git", "-C", str(pasta), *args], capture_output=True, text=True, env=env).stdout.strip()
 
     def registrar(self, *args, raiz=None, **env):
