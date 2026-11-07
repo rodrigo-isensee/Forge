@@ -291,7 +291,7 @@ FORGE_CHECK_GRAVA = ("--gerar-entrada", "--gravar", "--escrever", "--salvar")
 FORGE_CHECK_GRAVA_EXATA = ("--destino-arquivo",)
 # FURO-HOOK-A, A4: o subcomando do `forge-check` que grava fora do papel só de leitura -> a pasta de destino (a política de caminhos
 # decide quem grava lá); o `transcricao anonimizar` grava no 2.º argumento. Os que gravam em caminho livre ficam na 2.ª lista.
-FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs"}
+FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs", "medida": "docs/kanban"}
 FORGE_CHECK_EM_CAMINHO_LIVRE = {"movimento", "registrar"}
 # `test` no papel só de leitura: só estas, com um caminho (`agents/conferente.md`); o `-v` reavalia o índice como código.
 TESTE_LEITURA = {"-e", "-f", "-d", "-s"}
