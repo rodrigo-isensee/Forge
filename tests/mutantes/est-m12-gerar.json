@@ -44,20 +44,20 @@
     },
     {
       "id": "M5",
-      "guarda": "erro de leitura do historico recusa, nao so o do KANBAN.md (C-1)",
+      "guarda": "historico ilegivel recusa, nunca vira historico vazio (C-1, A3)",
       "arquivo": "bin/forge-check",
       "de": "            if erro or erro_h:",
-      "para": "            if erro:",
+      "para": "            historico = historico or \"\"\n            if erro:",
       "testes": [
         "tests.test_sobreposicao_quadro.KanbanGerar.test_link_grande_fifo_ou_ausente_recusa_com_o_quadro_e_o_alvo_intactos"
       ]
     },
     {
       "id": "M6",
-      "guarda": "quadro sem Bloqueado para estado sem secao recusa com o quadro intacto (C-5)",
+      "guarda": "quadro sem Bloqueado para estado sem secao recusa com rc 1, nunca segue com o quadro antigo (C-5)",
       "arquivo": "bin/forge-check",
       "de": "            if texto is None:\n                return saida +",
-      "para": "            if False:\n                return saida +",
+      "para": "            texto = atual if texto is None else texto\n            if False:\n                return saida +",
       "testes": [
         "tests.test_sobreposicao_quadro.KanbanGerar.test_link_grande_fifo_ou_ausente_recusa_com_o_quadro_e_o_alvo_intactos"
       ]
