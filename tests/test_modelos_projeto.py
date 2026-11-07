@@ -112,3 +112,31 @@ class ChecagemDoBrief(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+PRATICAS = "templates/projeto/docs/engineering/praticas.md"
+# Os 4 trechos de `invariantes` (tests/config.json) do modelo praticas.md seguem depois da meta (E3a, M-4).
+INVARIANTES_PRATICAS = ("## Regras e quem as decide", "**ferramenta**", "**leitura**",
+                        "pendência a registrar, não revisão manual")
+
+
+class MetaDeMutacao(unittest.TestCase):
+    """M-4 (versao-041 E3a): o modelo de práticas traz a meta de mutação que o pronto.md da stack cita."""
+
+    def setUp(self):
+        self.texto = ler(PRATICAS)
+        achado = re.search(r"^## Meta de mutação\n(.*?)(?=^## |\Z)", self.texto, re.S | re.M)
+        self.secao = achado.group(1) if achado else ""
+
+    def test_linha_da_tabela_decidida_pelo_comando_de_mutacao(self):
+        self.assertIn("| Pontuação de mutação no código alterado ≥ meta | `<comando de mutação do pronto.md>` |",
+                      self.texto)
+
+    def test_secao_da_meta_com_valor_e_regras(self):
+        self.assertTrue(self.secao.strip(), "falta a seção '## Meta de mutação'")
+        for trecho in ("<pontuação da primeira rodada>", "só sobe", "decisão do dono", "Entrega sem código"):
+            self.assertIn(trecho, self.secao, trecho)
+
+    def test_invariantes_do_modelo_seguem(self):
+        for trecho in INVARIANTES_PRATICAS:
+            self.assertIn(trecho, self.texto, trecho)

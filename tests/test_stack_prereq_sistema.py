@@ -36,3 +36,17 @@ class PreRequisitosDoSistema(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MutacaoIncremental(unittest.TestCase):
+    """M-4 (versao-041 E3a): o Stryker roda em modo incremental e a meta começa na primeira rodada."""
+
+    def setUp(self):
+        texto = secao(PRONTO.read_text(encoding="utf-8"), "Vermelho antes do verde, mutação e contrato")
+        self.linha = next((l for l in texto.splitlines() if l.startswith("- Mutação")), "")
+
+    def test_comando_do_stryker_e_incremental(self):
+        self.assertIn("pnpm stryker run --incremental --mutate", self.linha)
+
+    def test_meta_comeca_na_primeira_rodada_e_so_sobe(self):
+        self.assertIn("começa pela pontuação da primeira rodada e só sobe", self.linha)
