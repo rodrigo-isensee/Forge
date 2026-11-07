@@ -1,0 +1,120 @@
+{
+  "pedido": "versao-037",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "C-6: o exigido vale pelo par workflow/nome, não só pelo nome",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| [ \"$wf_ck\" != \"$wf_ex\" ]; then continue; fi",
+      "para": "; then continue; fi",
+      "testes": [
+        "tests.test_fechar_checks_exigidos.FecharChecksExigidos.test_exigido_de_outro_workflow_nao_conta",
+        "tests.test_fechar_checks_exigidos.FecharChecksExigidos.test_exigido_de_outro_workflow_em_pass_nao_cobre_o_do_ci_em_skipping"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "A1: com check pendente os exigidos não decidem antes do fim da espera",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$pendente\" = 0 ]; then",
+      "para": "if :; then",
+      "testes": [
+        "tests.test_fechar.Fechar.test_check_pendente_ate_o_limite_nao_mescla"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "A1: no fim da espera, pendente dá a mensagem de pendentes; só o ausente dá a do exigido",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$pendente\" = 1 ] || die",
+      "para": "[ \"$pendente\" = 7 ] || die",
+      "testes": [
+        "tests.test_fechar.Fechar.test_check_pendente_ate_o_limite_nao_mescla"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "C-6: a leitura por JSON traz o workflow na coluna que o par confere",
+      "arquivo": "bin/forge-fechar",
+      "de": "[.name, .bucket, .workflow, .link]",
+      "para": "[.name, .bucket, .link, .workflow]",
+      "testes": [
+        "tests.test_fechar_checks_exigidos.FecharChecksExigidos.test_ausente_espera_e_para_no_fim_da_espera"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "I4: a lista de exigidos vazia por edição para",
+      "arquivo": "bin/forge-fechar",
+      "de": "-gt 0 ] || die \"CHECKS_EXIGIDOS vazia",
+      "para": "-ge 0 ] || die \"CHECKS_EXIGIDOS vazia",
+      "testes": [
+        "tests.test_fechar_checks_exigidos.FecharChecksExigidos.test_lista_vazia_por_edicao_para"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "I4: com --esperar-rotulo a catraca velha (run de antes) não conta",
+      "arquivo": "bin/forge-fechar",
+      "de": "[[ \"$run_antes\" == *\" ${BASH_REMATCH[1]} \"* ]]; then continue; fi",
+      "para": "[[ \"$run_antes\" == *\" ${BASH_REMATCH[1]} \"* ]] && false; then continue; fi",
+      "testes": [
+        "tests.test_fechar_checks_exigidos.FecharChecksExigidos.test_catraca_velha_do_rotulo_nao_conta_e_a_nova_em_pass_mescla"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "I4: o exigido só passa em pass (skipping para)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$estado_ck\" != pass ]; then exigido_nome",
+      "para": "if [ \"$estado_ck\" = fail ]; then exigido_nome",
+      "testes": [
+        "tests.test_fechar_checks_exigidos.FecharChecksExigidos.test_exigido_em_skipping_para_mesmo_com_o_nome_mais_longo_em_pass",
+        "tests.test_fechar_checks_exigidos.FecharChecksExigidos.test_catraca_em_skipping_para"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "I4: o exigido ausente não passa",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$achou\" = 0 ]; then exigido_nome",
+      "para": "if [ \"$achou\" = 9 ]; then exigido_nome",
+      "testes": [
+        "tests.test_fechar_checks_exigidos.FecharChecksExigidos.test_ausente_espera_e_para_no_fim_da_espera"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "A1: check pendente marca a espera",
+      "arquivo": "bin/forge-fechar",
+      "de": "grep -qE '^(pending|queued|in_progress)$' && pendente=1",
+      "para": "grep -qE '^(pending|queued|in_progress)$' && pendente=0",
+      "testes": [
+        "tests.test_fechar.Fechar.test_check_pendente_ate_o_limite_nao_mescla"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "I4: só sai do laço com os exigidos em pass",
+      "arquivo": "bin/forge-fechar",
+      "de": "exigidos_ok && break",
+      "para": "true && break",
+      "testes": [
+        "tests.test_fechar_checks_exigidos.FecharChecksExigidos.test_exigido_em_skipping_para_mesmo_com_o_nome_mais_longo_em_pass",
+        "tests.test_fechar_checks_exigidos.FecharChecksExigidos.test_ausente_espera_e_para_no_fim_da_espera"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "A1: só o exigido ausente espera; o lido fora de pass para já",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$exigido_estado\" = ausente ] || die \"$(msg_exigido)\"",
+      "para": "[ \"$exigido_estado\" != ausente ] || die \"$(msg_exigido)\"",
+      "testes": [
+        "tests.test_fechar_checks_exigidos.FecharChecksExigidos.test_ausente_espera_e_mescla_quando_aparece_em_pass",
+        "tests.test_fechar_checks_exigidos.FecharChecksExigidos.test_ausente_espera_e_para_no_fim_da_espera"
+      ]
+    }
+  ]
+}
