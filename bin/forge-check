@@ -3978,6 +3978,10 @@ def carregar_catraca():
         return None
 
 
+# ---- M15 (E5a1): o arquivo de provas da branch, gerado do brief pela lista do script que o CI roda (uma lista só, C-1) ----
+TITULO_DAS_PROVAS = "# Provas reexecutáveis da branch"  # fixo e sem o slug: o MARCA_DE_PROVA do script reprova título com cara de prova
+
+
 def carregar_reexecutar_provas():
     """O módulo `scripts/reexecutar-provas.py` da cópia em uso do Forge, com nome próprio (nunca `__main__`, C-6), como `carregar_catraca`;
     None se não carrega."""
@@ -3990,6 +3994,70 @@ def carregar_reexecutar_provas():
         return modulo
     except (OSError, ImportError, SyntaxError, AttributeError):
         return None
+
+
+def espera_do_script(script, espera):
+    """A espera como o `ler_espera` do script a aceita: igual, ou com `rc=0 e ` na frente quando só faltava o rc=0 (C-4); None se recusa."""
+    for candidata in (espera, f"rc=0 e {espera}"):
+        try:
+            script.ler_espera(candidata)
+            return candidata
+        except script.Falha:
+            continue
+    return None
+
+
+def provas_reexecutaveis(texto, script):
+    """(linhas de prova, linhas `fora:`) das PQ `cmd` do `Pronto quando`. Quem decide é só o script (`comando_permitido` e `ler_espera`,
+    C-1); o comando vai byte a byte e a espera também, salvo o prefixo `rc=0 e ` (C-4); o motivo do `fora:` é o texto fixo do script (C-9)."""
+    provas, fora = [], []
+    for linha in secoes_por(texto, CABECALHO_BRIEF).get("Pronto quando", []):
+        m = PQ.search(linha)
+        if not m or (m.group(2) or "").split(",")[0].strip().lower() != "cmd":
+            continue
+        resto = linha[m.end():]
+        comando = re.search(r"`([^`]+)`", resto)
+        try:
+            argv = shlex.split(comando.group(1)) if comando else []
+        except ValueError:
+            argv = []
+        motivo = script.comando_permitido(argv)
+        espera = None if motivo else espera_do_script(script, resto[comando.end():].partition("espera:")[2].strip())
+        if motivo or espera is None:
+            fora.append(f"fora: PQ-{m.group(1)} ({motivo or 'espera recusada pelo ler_espera do script'})")
+        else:
+            provas.append(f"- PQ-{m.group(1)} (cmd): `{comando.group(1)}` · espera: {espera}")
+    return provas, fora
+
+
+def cmd_provas_gerar(raiz, brief):
+    """Imprime o arquivo de provas da branch (M15 E5a1; não escreve): as PQ do brief no stdout, as `fora:` no stderr. rc 0 com ou sem
+    PQ elegível; rc 2 com o brief fora de docs/briefs/, o script do CI que não carrega (C-6) ou o texto gerado que o `ler_provas` recusa (C-1)."""
+    script = carregar_reexecutar_provas()
+    if script is None:
+        print("provas: não verificável (scripts/reexecutar-provas.py ausente)")
+        return 2
+    arquivo, _ = caminho_de_brief(raiz, brief)
+    try:
+        texto = arquivo.read_text(encoding="utf-8")
+    except (AttributeError, OSError, UnicodeDecodeError):  # AttributeError: `arquivo` None, fora de docs/briefs/
+        print(f"provas: --brief {nome_seguro(sem_controle(brief))}: fora de docs/briefs/, inexistente ou ilegível")
+        return 2
+    provas, fora = provas_reexecutaveis(texto, script)
+    for linha in fora:
+        print(linha, file=sys.stderr)
+    if not provas:
+        print("provas: nenhuma PQ cmd reexecutável")
+        return 0
+    gerado = "\n".join((TITULO_DAS_PROVAS, "", "## Provas", "", *provas)) + "\n"
+    try:
+        script.ler_provas("docs/provas/gerado.md", gerado, Path(raiz))
+    except script.Falha as erro:
+        print(f"provas: o script do CI recusa o texto gerado; nada impresso ({sem_controle(erro)})")
+        return 2
+    print(gerado, end="")
+    return 0
+
 
 def numeros_dos_rotulados(prs, arquivo):
     """Números de PR de `--prs 1,2,3` e/ou de um JSON de `gh pr list --label afrouxa-regra --state all --json number` (lista de objetos com
@@ -7467,8 +7535,11 @@ def main():
     rg.add_argument("--autor", help=f"quem errou: {', '.join(AUTORES_DE_FALHA)} (padrão: jarvis no modo brief, destino no modo entrega)")
     cl = csub.add_parser("classes", parents=[comum], help="conta as falhas classificadas por classe e autor nos últimos dias e propõe regra com 3 ou mais briefs (só imprime)")
     cl.add_argument("--dias", type=int, default=JANELA_DE_RECORRENCIA, help=f"janela em dias (padrão {JANELA_DE_RECORRENCIA})")
-    pv = sub.add_parser("provas", help="provas `cmd` dos briefs e o CI (M15, R-PROVA)")
-    pm = pv.add_subparsers(dest="acao", required=True).add_parser("medida", parents=[comum], help="conferências de entrega que o CI com a M15 pegaria e as só do conferente (EST-M2B-REAVALIAR; só leitura)")
+    pv = sub.add_parser("provas", help="provas `cmd` dos briefs e o CI: o arquivo de provas da branch e a medida (M15, R-PROVA)")
+    pvsub = pv.add_subparsers(dest="acao", required=True)
+    pg = pvsub.add_parser("gerar", parents=[comum], help="imprime o arquivo (não escreve); a PQ fora da lista do scripts/reexecutar-provas.py sai `fora:` no stderr")
+    pg.add_argument("--brief", required=True, help="o brief, só em docs/briefs/ (da raiz ou de ~/.forge-contrib)")
+    pm = pvsub.add_parser("medida", parents=[comum], help="conferências de entrega que o CI com a M15 pegaria e as só do conferente (EST-M2B-REAVALIAR; só leitura)")
     pm.add_argument("--desde", type=lambda d: datetime.date.fromisoformat(d).isoformat(), help="AAAA-MM-DD: só as conferências desse dia em diante")
     pr = sub.add_parser("pr", parents=[comum], help="pareceres de review e QA de um pedido; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD")
     pr.add_argument("pedido")
@@ -7552,6 +7623,8 @@ def executar(a, raiz):
         return cmd_transcricao_medida("vereditos", a.alvo, ler_relatorios, medir_vereditos, ("vereditos", "contraditorios"), 0, raiz)
     if a.cmd == "transcricao" and a.acao == "decisoes":
         return cmd_transcricao_medida("decisoes", a.alvo, ler_respostas_do_jarvis, medir_decisoes, ("respostas", "com_grupo", "violacoes"), 0, raiz)
+    if a.cmd == "provas" and a.acao == "gerar":
+        return cmd_provas_gerar(raiz, a.brief)
     if a.cmd == "delta":
         return cmd_delta(raiz, a.refs, a.parecer, a.classe)
     if a.cmd == "vazio":
@@ -7607,7 +7680,7 @@ def executar(a, raiz):
         for linha in linhas + extra:
             print(linha)
         return rc or (1 if a.cmd == "movimento" and linhas[0].startswith("movimento:") else 0)
-    if a.cmd == "provas":
+    if a.cmd == "provas" and a.acao == "medida":
         return cmd_provas_medida(raiz, a.desde)
     if a.cmd == "conferencia" and a.acao == "classes":
         for linha in cmd_conferencia_classes(raiz, a.dias):
