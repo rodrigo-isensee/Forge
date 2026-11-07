@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_conferente_estavel.AgenteNoPlugin.test_e_destino_imprime_o_arquivo_do_agente_no_plugin"
       ]
+    },
+    {
+      "id": "K8",
+      "guarda": "sem destino o nome nao e procurado (a linha diz nao verificavel)",
+      "arquivo": "bin/forge-check",
+      "de": "re.fullmatch(r\"forge:([a-z0-9-]+)\", destino or \"\")",
+      "para": "re.fullmatch(r\"forge:([a-z0-9-]+)\", destino)",
+      "testes": [
+        "tests.test_conferente_estavel.AgenteNoPlugin.test_e_destino_imprime_o_arquivo_do_agente_no_plugin"
+      ]
     }
   ]
 }

@@ -92,20 +92,20 @@ class AgenteNoPlugin(unittest.TestCase):
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         plugin, raiz = tmp / "plugin", tmp / "raiz"
         for rel in ("plugin/agents/a.md", "plugin/stacks/s/agents/b.md", "plugin/x.md", "plugin/agents/dup.md", "plugin/bin/forge-check",
-                    "plugin/stacks/s/agents/dup.md", "plugin/stacks/t/vazio", "fora/d.md", "raiz/docs/pedidos/p.md"):
+                    "plugin/stacks/s/agents/dup.md", "plugin/stacks/t/vazio", "fora/d.md", "raiz/docs/pedidos/p.md", "raiz/b.md"):
             tmp.joinpath(rel).parent.mkdir(parents=True, exist_ok=True)
             tmp.joinpath(rel).write_text("---\nid: p\n---\n", encoding="utf-8")
         (plugin / "agents" / "c.md").symlink_to("a.md")  # link dentro do plugin
         (plugin / "stacks" / "t" / "agents").symlink_to(tmp / "fora")  # pasta que resolve fora do plugin
         shutil.copy(RAIZ / "bin" / "forge-check", plugin / "bin" / "forge-check")
-        (raiz / "b.md").write_text("Agente destino: forge:a\n", encoding="utf-8")
         esperado = {"a": str(plugin / "agents" / "a.md"), "b": str(plugin / "stacks" / "s" / "agents" / "b.md")}
-        for nome in ("a", "b", "c", "d", "dup", "ausente", "../x"):
+        for nome in ("a", "b", "c", "d", "dup", "ausente", "../x", ""):  # "": sem --destino nem `Agente destino:`
             with self.subTest(nome):
                 r = subprocess.run([sys.executable, "-I", str(plugin / "bin" / "forge-check"), "--raiz", str(raiz), "brief", str(raiz / "b.md"),
-                                    "--pedido", "p", "--destino", f"forge:{nome}"], capture_output=True, text=True, timeout=60,
+                                    "--pedido", "p", *(["--destino", f"forge:{nome}"] if nome else [])], capture_output=True, text=True, timeout=60,
                                    env={"PATH": os.defpath, "HOME": str(tmp)}, cwd=raiz)
-                self.assertIn(f"destino: forge:{nome} (agente: {esperado.get(nome, 'não encontrado no plugin')})\n", r.stdout)
+                linha = f"destino: forge:{nome} (agente: {esperado.get(nome, 'não encontrado no plugin')})" if nome else "destino: não verificável"
+                self.assertIn(linha, r.stdout)
 
 
 class ComandosPermitidos(unittest.TestCase):
