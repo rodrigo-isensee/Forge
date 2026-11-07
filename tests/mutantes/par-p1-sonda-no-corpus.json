@@ -36,8 +36,8 @@
       "id": "M4",
       "guarda": "C-2/T-3: so o rc 0 do git grep e ok",
       "arquivo": "bin/forge-check",
-      "de": "if cod == 0:",
-      "para": "if cod != 1:",
+      "de": "if cod == 0:\n                linhas.append((f\"escopo: ok (sonda",
+      "para": "if cod != 1:\n                linhas.append((f\"escopo: ok (sonda",
       "testes": [
         "tests.test_volta_por_delta.SondaNoCorpus.test_entrada_curta_so_confira_e_git_que_falha_reprova"
       ]
