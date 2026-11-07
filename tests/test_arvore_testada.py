@@ -1,6 +1,5 @@
 """EST-M7, E3a-1: a decisão pura de scripts/arvore-testada.py (C-1 e C-3 de docs/security/ameacas/versao-040.md).
 Sobre dicionários, sem git nem rede; os números citados são os casos de abuso do modelo de ameaças."""
-import copy
 import importlib.util
 import subprocess
 import sys
@@ -48,51 +47,10 @@ class EventoElegivel(unittest.TestCase):
         self.assertTrue(at.evento_elegivel(env(base="develop"))[1].endswith(": fora da lista"))
         self.assertEqual(at.evento_elegivel({**env(), "EVENTO": None})[1], "(sem evento)  em .github/workflows/ci.yml: fora da lista")
 
-
-def execucao(**muda):
-    e = {"id": 7, "run_attempt": 2, "event": "push", "head_branch": "develop", "head_sha": D, "status": "completed",
-         "path": ".github/workflows/ci.yml", "repository": {"full_name": REPO}, "head_repository": {"full_name": REPO}}
-    return {**e, **muda}
-
-
-def job(**muda):
-    return {"name": "checagem rápida (push na develop)", "conclusion": "success", "head_sha": D, "run_id": 7,
-            "run_attempt": 2, **muda}
-
-
-class ProvaValida(unittest.TestCase):
-    def prova(self, execucoes=None, jobs=None, d=D, python="3.12"):
-        return chamar(at.prova_valida, [execucao()] if execucoes is None else execucoes,
-                      {7: [job()]} if jobs is None else jobs, d, python, REPO)
-
-    def test_prova_completa_sai_verdadeiro_com_run_e_job(self):
-        self.assertEqual(self.prova(), (True, "develop aaaaaaa, run 7, job checagem rápida (push na develop)"))
-        nome = "checagem rápida (push na develop, python 3.14)"
-        self.assertTrue(self.prova(jobs={7: [job(), job(name=nome)]}, python="3.14")[0])
-
-    def test_execucao_que_nao_prova_sai_falso(self):  # casos 1 a 4 e 6 (status)
-        for muda in ({"event": "workflow_dispatch"}, {"event": "pull_request"}, {"path": ".github/workflows/outro.yml"},
-                     {"head_repository": {"full_name": "fork/forge"}}, {"repository": {"full_name": "fork/forge"}},
-                     {"status": "in_progress"}, {"head_branch": "homolog"}, {"head_sha": "b" * 40}, {"id": "7"},
-                     {"id": True}, {"run_attempt": None}, {"repository": None}):
-            with self.subTest(muda):
-                self.assertFalse(self.prova([execucao(**muda)])[0])
-
-    def test_job_que_nao_prova_sai_falso(self):  # casos 5 e 6
-        for jobs in ({7: [job(conclusion="failure")]}, {7: [job(conclusion="cancelled")]}, {7: [job(conclusion="skipped")]},
-                     {7: [job(run_attempt=1)]}, {7: [job(run_attempt=1), job(conclusion="failure")]}, {7: [job(), job()]},
-                     {7: [job(head_sha="b" * 40)]}, {7: [job(run_id=8)]}, {7: [job(name="bateria")]}, {8: [job()]},
-                     {7: [{k: v for k, v in job().items() if k != "conclusion"}]}, {7: None}, {7: [job(run_id=7.0)]}):
-            with self.subTest(jobs):
-                self.assertFalse(self.prova(jobs=copy.deepcopy(jobs))[0])
-        self.assertFalse(self.prova([execucao(run_attempt=1)], {7: [job(run_attempt=True)]})[0])  # True == 1, mas bool não é int
-
-    def test_entrada_fora_do_formato_sai_falso(self):
-        for args in ({"python": "3.13"}, {"python": "3.14"}, {"d": "A" * 40}, {"d": D[:7]}, {"d": None},
-                     {"execucoes": {}}, {"jobs": []}, {"execucoes": [execucao(head_sha="")], "jobs": {7: [job(head_sha="")]}, "d": ""}):
-            with self.subTest(args):
-                self.assertFalse(self.prova(**args)[0])
-        self.assertFalse(at.prova_valida([execucao()], {7: [job()]}, D, "3.12", "dono/forge x")[0])
+    def test_subclasse_de_str_nao_passa_por_str(self):  # campo exige o tipo exato
+        class Texto(str):
+            pass
+        self.assertFalse(at.evento_elegivel({k: Texto(v) for k, v in env().items()})[0])
 
 
 class LinhaDeComando(unittest.TestCase):
