@@ -4,6 +4,7 @@ import importlib.machinery
 import importlib.util
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -304,24 +305,24 @@ class Execucao(unittest.TestCase):
         r = self.rodar("--listar")
         self.assertIn("suíte completa (tests/test_novo.py sem mapa)", r.stdout)  # o teste novo leva à completa
 
-    def test_sem_mapa_roda_a_completa_e_anota(self):
+    def test_sem_mapa_cai_na_completa_e_o_script_de_outra_copia_nao_a_roda(self):  # MAQ-I9 (I9a-1, C-1)
         (self.dir / "novo.txt").write_text("x\n", encoding="utf-8")
         r = self.rodar()
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
         self.assertIn("suíte completa (novo.txt sem mapa)", r.stdout)
-        self.assertIn("modo=completo", self.log())
+        self.assertFalse((self.dir / ".forge").exists())
 
     def test_completa_pedida_e_listar_nao_roda_nada(self):
         self.assertEqual(self.rodar("--listar", "--completa").returncode, 0)
         self.assertFalse((self.dir / ".forge").exists())
-        self.assertEqual(self.rodar("--completa").returncode, 0)
-        self.assertIn("modo=completo", self.log())
+        self.assertEqual(self.rodar("--completa").returncode, 2)  # MAQ-I9: só pela trava do pre-push da própria cópia
+        self.assertFalse((self.dir / ".forge").exists())
 
     def test_falha_de_teste_devolve_codigo_e_anota(self):
         (self.dir / "tests" / "test_sugerir.py").write_text(
             "import unittest\nclass T(unittest.TestCase):\n    def test_ruim(self):\n        self.fail('x')\n",
             encoding="utf-8")
-        r = self.rodar()
+        r = self.rodar("tests/test_sugerir.py")  # dirigido: o módulo no diff cairia na completa (MAQ-I9)
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("saida=1", self.log())
 
@@ -1045,6 +1046,100 @@ class CaminhoFiltroEAviso(unittest.TestCase):
         r = self.rodar("--vermelho", "-k", "x")
         self.assertEqual(r.returncode, 2)
         self.assertIn("-k não combina com --vermelho", r.stderr)
+
+
+# MAQ-I9 (I9a-1): a suíte completa sem `-k` roda só pelo `.githooks/pre-push --suite` da própria cópia (trava e fila,
+# R-TETO). O pre-push falso registra cada chamada; o `--suite` sai 7 para provar o `execv` (o código chega inteiro).
+LIMPO = {k: v for k, v in AMBIENTE.items()
+         if k not in ("CI", "GITHUB_ACTIONS", "PYTHONPATH") and not k.startswith(("FORGE_", "GIT_DIR", "GIT_INDEX"))}
+PRE_PUSH_FALSO = ('#!/bin/sh\nprintf \'%s|%s\\n\' "$#" "$*" >> "$FALSO_REGISTRO"\n'
+                  '[ "$1" = --status ] || exit 7\n[ "$FALSO_STATUS" = sinal ] && kill -KILL $$\nexit "$FALSO_STATUS"\n')
+
+
+class TravaDoForgeTestes(unittest.TestCase):
+    """C-1 (raiz do script = raiz do git, `+x`), C-4 (só o `--status` 1 é livre), C-5 e T-2 (sem recuo ao `discover`)."""
+
+    def setUp(self):
+        self._t = tempfile.TemporaryDirectory()
+        self.addCleanup(self._t.cleanup)
+        self.dir = Path(self._t.name) / "repo"
+        self.registro = Path(self._t.name) / "chamadas"
+        for pasta in ("tests", "bin", ".githooks"):
+            (self.dir / pasta).mkdir(parents=True)
+        git(self.dir, "init", "-q", "-b", "develop")
+        (self.dir / "tests" / "test_x.py").write_text(
+            "import pathlib, unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n"
+            "        pathlib.Path('rodou').write_text('x')\n", encoding="utf-8")
+        shutil.copy(FERRAMENTA, self.dir / "bin" / "forge-testes")
+        self.hook = self.dir / ".githooks" / "pre-push"
+        self.hook.write_text(PRE_PUSH_FALSO, encoding="utf-8")
+        self.hook.chmod(0o755)
+        git(self.dir, "add", "-A")
+        git(self.dir, "commit", "-qm", "base")
+        git(self.dir, "switch", "-q", "-c", "melhoria/x")
+
+    def rodar(self, *args, status="1", ferramenta=None):
+        env = {**LIMPO, "PATH": "/usr/bin:/bin", "FALSO_REGISTRO": str(self.registro), "FALSO_STATUS": status}
+        return subprocess.run([sys.executable, "-I", str(ferramenta or self.dir / "bin" / "forge-testes"), *args],
+                              cwd=self.dir, env=env, capture_output=True, text=True, timeout=60)
+
+    def chamadas(self):
+        return self.registro.read_text(encoding="utf-8").splitlines() if self.registro.exists() else []
+
+    def nao_rodou(self, r):
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertFalse((self.dir / "rodou").exists(), "a suíte rodou fora da trava")
+
+    def test_completa_pedida_vira_o_pre_push_da_copia_com_suite(self):  # caso 1 do desenho
+        r = self.rodar("--completa")
+        self.assertEqual(r.returncode, 7, r.stdout + r.stderr)
+        self.assertEqual(self.chamadas(), ["1|--suite"])  # argv fixo, sem consultar o --status
+        self.assertFalse((self.dir / "rodou").exists())
+
+    def test_completa_com_k_segue_como_antes(self):  # caso 2 do desenho; a espera é da I9a-2
+        r = self.rodar("--completa", "-k", "test_a")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.chamadas(), [])
+        self.assertTrue((self.dir / "rodou").exists())
+
+    def test_pre_push_sem_x_ou_ausente_sai_2_sem_recuo_para_o_discover(self):  # abuso 1; T-2
+        self.hook.chmod(0o644)
+        r = self.rodar("--completa")
+        self.nao_rodou(r)
+        self.assertIn("executável", r.stderr)
+        self.hook.unlink()
+        self.nao_rodou(self.rodar("--completa"))
+        self.assertEqual(self.chamadas(), [])
+
+    def test_script_de_outra_copia_sai_2_no_completo(self):  # abuso 2; C-1, T-1
+        outra = Path(self._t.name) / "outra"
+        shutil.copytree(self.dir / "bin", outra / "bin")
+        shutil.copytree(self.dir / ".githooks", outra / ".githooks")  # pre-push falso também: o mutante sairia 7
+        r = self.rodar("--completa", ferramenta=outra / "bin" / "forge-testes")
+        self.nao_rodou(r)
+        self.assertIn("não é a raiz do repositório", r.stderr)
+        self.assertEqual(self.chamadas(), [])
+
+    def test_completo_por_plano_so_roda_com_o_status_livre(self):  # C-4: 0, 2, outro código e sinal = ocupado
+        (self.dir / "novo.txt").write_text("x\n", encoding="utf-8")
+        for status in ("0", "2", "3", "sinal"):
+            with self.subTest(status=status):
+                self.registro.unlink(missing_ok=True)
+                r = self.rodar("--base", "develop", status=status)
+                self.nao_rodou(r)
+                self.assertIn("com a suíte rodando", r.stderr)
+                self.assertEqual(self.chamadas(), ["1|--status"])
+        self.registro.unlink()
+        self.assertEqual(self.rodar("--base", "develop").returncode, 7)
+        self.assertEqual(self.chamadas(), ["1|--status", "1|--suite"])
+
+    def test_git_quebrado_dentro_do_pre_push_sai_2_sem_esperar_o_pai(self):  # A.1: o pai já segura a trava
+        inicio = time.monotonic()
+        r = self.rodar("--base", "nao-existe", status="0")
+        self.nao_rodou(r)
+        self.assertLess(time.monotonic() - inicio, 5)
+        self.assertIn("não consegui ler o git", r.stdout)
+        self.assertEqual(self.chamadas(), ["1|--status"])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,97 @@
+{
+  "pedido": "MAQ-I9",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a suíte completa sem -k passa pela trava do pre-push (C-5)",
+      "arquivo": "bin/forge-testes",
+      "de": "    if modo == \"completo\" and not args.filtros:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_testes_tocados.TravaDoForgeTestes.test_completa_pedida_vira_o_pre_push_da_copia_com_suite"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o script de outra cópia não faz execv do pre-push dela (C-1, T-1)",
+      "arquivo": "bin/forge-testes",
+      "de": "    if PRE_PUSH.parent.parent != Path(raiz).resolve():",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_testes_tocados.TravaDoForgeTestes.test_script_de_outra_copia_sai_2_no_completo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a raiz diferente sai 2, não 0",
+      "arquivo": "bin/forge-testes",
+      "de": "use o bin/forge-testes dele.\",\n              file=sys.stderr)\n        return 2",
+      "para": "use o bin/forge-testes dele.\",\n              file=sys.stderr)\n        return 0",
+      "testes": [
+        "tests.test_testes_tocados.TravaDoForgeTestes.test_script_de_outra_copia_sai_2_no_completo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "pre-push sem +x ou ausente sai 2, sem recuo (C-1, T-2)",
+      "arquivo": "bin/forge-testes",
+      "de": "    if not os.access(PRE_PUSH, os.X_OK):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_testes_tocados.TravaDoForgeTestes.test_pre_push_sem_x_ou_ausente_sai_2_sem_recuo_para_o_discover"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "pre-push sem +x sai 2, não 0",
+      "arquivo": "bin/forge-testes",
+      "de": "(R-TETO).\", file=sys.stderr)\n        return 2",
+      "para": "(R-TETO).\", file=sys.stderr)\n        return 0",
+      "testes": [
+        "tests.test_testes_tocados.TravaDoForgeTestes.test_pre_push_sem_x_ou_ausente_sai_2_sem_recuo_para_o_discover"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "a completa por plano confere o --status antes do execv (A.1)",
+      "arquivo": "bin/forge-testes",
+      "de": "    if not pedida and subprocess.run(",
+      "para": "    if False and subprocess.run(",
+      "testes": [
+        "tests.test_testes_tocados.TravaDoForgeTestes.test_completo_por_plano_so_roda_com_o_status_livre",
+        "tests.test_testes_tocados.TravaDoForgeTestes.test_git_quebrado_dentro_do_pre_push_sai_2_sem_esperar_o_pai"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "--completa explícito vai direto à fila, sem ler o --status",
+      "arquivo": "bin/forge-testes",
+      "de": "    if not pedida and subprocess.run(",
+      "para": "    if subprocess.run(",
+      "testes": [
+        "tests.test_testes_tocados.TravaDoForgeTestes.test_completa_pedida_vira_o_pre_push_da_copia_com_suite"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "só a saída 1 do --status é livre; 2 é ocupado (C-4)",
+      "arquivo": "bin/forge-testes",
+      "de": "capture_output=True).returncode != 1:",
+      "para": "capture_output=True).returncode not in (1, 2):",
+      "testes": [
+        "tests.test_testes_tocados.TravaDoForgeTestes.test_completo_por_plano_so_roda_com_o_status_livre"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "a completa por plano com a suíte rodando sai 2, não 0",
+      "arquivo": "bin/forge-testes",
+      "de": "`.githooks/pre-push --suite`.\", file=sys.stderr)\n        return 2",
+      "para": "`.githooks/pre-push --suite`.\", file=sys.stderr)\n        return 0",
+      "testes": [
+        "tests.test_testes_tocados.TravaDoForgeTestes.test_completo_por_plano_so_roda_com_o_status_livre"
+      ]
+    }
+  ]
+}
