@@ -1,0 +1,2 @@
+### Adicionado
+- A catraca liga `rotulados_da_leva`: na promoção, depois do rc e sem mudá-lo, a lista dos PRs rotulados da leva vai ao resumo do job e ao stdout (falha vira `incompleta (<tipo>)`, prazo esgotado vira `incompleta (prazo)`); modo local `--modo rotulados`, só leitura, para o corpo do PR de release; linha `Rótulo:` no modelo de PR, nota na ADR 0008 e frase na skill `ci-cd` (E2-2 ACELERA-P3C, versao-040).
