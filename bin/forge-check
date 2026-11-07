@@ -5490,9 +5490,7 @@ def caminhos_ausentes_do_pq(raiz, texto, secoes):
     """G1: caminho entre crases num PQ `arquivo` ou `cmd` que não existe (na raiz, na cópia principal, no `Base-sha` nem em
     `origin/<Base>`) nem é citado fora do `Pronto quando` (o que a entrega cria: o caminho ou, com duas pastas ou mais, a pasta dele)
     reprova. Só caminho cuja primeira pasta existe na raiz: `refs/heads/x` e `origin/develop` não são arquivo."""
-    cabecalho = cabecalho_do_brief(texto)
-    refs = [r for r in (grupo(CABECALHO_DE_BRIEF_CAMPOS["Base-sha"], cabecalho),
-                        f"origin/{grupo(CABECALHO_DE_BRIEF_CAMPOS['Base'], cabecalho) or 'develop'}") if r]
+    refs = refs_de_leitura(texto)
     resto, saida = " ".join(l for nome, linhas in secoes.items() if nome != "Pronto quando" for l in linhas), []
     for linha in secoes.get("Pronto quando", []):
         m = PQ.search(linha)
@@ -5509,8 +5507,17 @@ def caminhos_ausentes_do_pq(raiz, texto, secoes):
     return saida
 
 
+def refs_de_leitura(texto):
+    """O `Base-sha:` e o `origin/<Base>` do cabeçalho do brief, onde um caminho citado também pode existir (G1, ACELERA-P2)."""
+    cabecalho = cabecalho_do_brief(texto)
+    return [r for r in (grupo(CABECALHO_DE_BRIEF_CAMPOS["Base-sha"], cabecalho),
+                        f"origin/{grupo(CABECALHO_DE_BRIEF_CAMPOS['Base'], cabecalho) or 'develop'}") if r]
+
+
 SHA_CITADO = re.compile(r"(?<![\w/-])([0-9a-f]{7,40})(?![\w-])")  # só de algarismos (run, ruleset, pid) só conta se resolve como commit
 COPIADA_DE = re.compile(r"\s*\(copiada de [^()]*\)\s*$")  # o sufixo que o brief acrescenta à linha de decisão copiada de um registro
+REGISTRO_CITADO = re.compile(r"(?<![\w-])docs/(?:pedidos|briefs)/[\w.@+-]+?\.md\b")
+CAMINHO_ABSOLUTO = re.compile(r"(?<![\w./~$-])(~?/[\w.@+-]+(?:/[\w.@+-]+)+)")
 OUTRO_REPOSITORIO, NOVO = "(outro repositório)", "(novo)"
 
 
@@ -5550,6 +5557,34 @@ def shas_fora_da_base(raiz, texto, corpo, copias=frozenset()):
     return saida
 
 
+def registros_ausentes(raiz, corpo):
+    """P2 (2): `docs/pedidos/<id>.md` e `docs/briefs/<nome>.md` citados existem na cópia principal, na raiz ou numa raiz de
+    brief (a ordem do `ler_registro`); sem exceção `(novo)`, que o desenho só dá ao `Ler`."""
+    bases = (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF)
+    citados = dict.fromkeys(rel for linha in corpo for rel in REGISTRO_CITADO.findall(linha))
+    return [(f"citação: {nome_seguro(sem_controle(rel))} não existe na raiz nem nas raízes de brief", True)
+            for rel in citados if not any(arquivo_existe(Path(b) / rel) for b in bases)]
+
+
+def caminhos_ausentes_do_ler(raiz, texto, ler):
+    """P2 (3): caminho da seção `Ler` existe (absoluto ou `~/` no disco; relativo na raiz, na cópia principal, numa raiz de brief,
+    no `Base-sha` ou em `origin/<Base>`, como o G1) ou a linha traz `(novo)`. Relativo só com a primeira pasta na raiz (G1)."""
+    refs, saida = refs_de_leitura(texto), []
+    for linha in (l for l in ler if NOVO not in l):
+        for caminho in (c.rstrip(".") for c in CAMINHO_ABSOLUTO.findall(linha)):
+            if not os.path.exists(os.path.expanduser(caminho)):
+                saida.append(caminho)
+        for rel in (c.rstrip(".") for c in CAMINHO_NO_PQ.findall(linha)):
+            topo = rel.split("/")[0]
+            if topo in (".", "..") or not (Path(raiz) / topo).is_dir() \
+                    or any(os.path.exists(Path(b) / rel) for b in (raiz, raiz_principal(raiz), *RAIZES_DE_BRIEF)) \
+                    or any(not git(raiz, "cat-file", "-e", f"{ref}:{rel}")[0] for ref in refs):
+                continue
+            saida.append(rel)
+    return [(f"citação: Ler cita {nome_seguro(sem_controle(c))}, que não existe; marque (novo) se a entrega o cria", True)
+            for c in dict.fromkeys(saida)]
+
+
 def pqs_sem_definicao(secoes):
     """P2 (4): todo `PQ-n` citado fora do `Pronto quando` abre um item do `Pronto quando`."""
     definidos = {m.group(1) for l in secoes.get("Pronto quando", []) for m in [PQ.match(ITEM.sub("", l, count=1))] if m}
@@ -5560,7 +5595,9 @@ def pqs_sem_definicao(secoes):
 def citacoes_da_p2(raiz, texto, secoes, copias=frozenset()):
     """ACELERA-P2: sha, registro, caminho do `Ler` e `PQ-n` citados no brief existem; offline, só leitura do disco e do git. O sha
     é lido em todo o corpo, o `Pronto quando` e as linhas de decisão do dono também; o registro, fora do `Pronto quando`."""
-    return shas_fora_da_base(raiz, texto, [l for linhas in secoes.values() for l in linhas], copias) + pqs_sem_definicao(secoes)
+    corpo = [l for nome, linhas in secoes.items() if nome != "Pronto quando" for l in linhas]
+    return (shas_fora_da_base(raiz, texto, [l for linhas in secoes.values() for l in linhas], copias) + registros_ausentes(raiz, corpo)
+            + caminhos_ausentes_do_ler(raiz, texto, secoes.get("Ler", [])) + pqs_sem_definicao(secoes))
 
 
 def avisos_da_etapa(raiz, texto, pedido_id):

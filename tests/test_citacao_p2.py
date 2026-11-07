@@ -156,6 +156,81 @@ class ShaSoDeAlgarismos(Base):  # adendo (1) do E4
         self.assertEqual(rc, 1)
 
 
+class DecisaoCopiada(Base):  # adendo (2) do E4: na cópia literal o sha só precisa existir
+    def test_copia_com_e_sem_sufixo_passa(self):  # mutante: ancestralidade também na cópia
+        for decisoes in (f"- {self.decisao}", f"- {self.decisao} (copiada de decisoes.md)"):
+            rc, saida = self.conferir(decisoes=decisoes)
+            self.assertNotIn("citação: sha", saida)
+            self.assertEqual(rc, 0, saida)
+
+    def test_copia_de_linha_que_o_pedido_ja_traz_com_sufixo_passa(self):  # o 276bc10 do versao-037:44
+        self.decisao = self.pedido(f"{self.lado[:7]} (copiada de decisoes.md)")
+        rc, saida = self.conferir()
+        self.assertNotIn("citação: sha", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_copia_com_sha_que_nao_existe_avisa(self):
+        self.decisao = self.pedido("0badc0de1")
+        rc, saida = self.conferir()
+        self.assertIn("aviso: citação: sha 0badc0d da decisão do dono copiada não existe", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_numero_que_nao_resolve_na_copia_fica_calado(self):  # adendo (volta 2); mutante: `if copia:` antes dos algarismos
+        r = subprocess.run(["git", "-C", str(self.tmp), "rev-parse", "--verify", "--quiet", "40505555559^{commit}"],
+                           capture_output=True)
+        self.assertNotEqual(r.returncode, 0, "40505555559 resolve como commit; troque o número")
+        for numero in ("40505555559", self.num_lado[:7]):  # o que não resolve e o que resolve fora da base
+            self.decisao = self.pedido(numero)
+            rc, saida = self.conferir()
+            self.assertNotIn("citação: sha", saida)
+            self.assertEqual(rc, 0, saida)
+
+    def test_decisao_fora_do_pedido_reprova(self):  # mutante: dispensar toda linha que abre com a frase
+        inventada = f"- DECISÃO DO DONO (2026-01-02 10:00): \"B\" — lote em {self.lado[:7]}"
+        rc, saida = self.conferir(decisoes=f"- {self.decisao}\n{inventada}")
+        self.assertIn(f"citação: sha {self.lado[:7]} não existe ou não está na base nem na branch", saida)
+        self.assertEqual(rc, 1)
+
+    def test_mesmo_sha_no_entregar_reprova(self):
+        rc, saida = self.conferir(f"- Recurso (E1), etapa (E1.1) sobre {self.lado[:7]}.")
+        self.assertIn(f"citação: sha {self.lado[:7]} não existe ou não está na base nem na branch", saida)
+        self.assertEqual(rc, 1)
+
+
+class RegistroCitado(Base):
+    def test_pedido_e_brief_que_existem_passam_e_o_ausente_reprova(self):
+        self.gravar("home/.forge-contrib/docs/briefs/outro-1.md", "x\n")
+        rc, saida = self.conferir("- Recurso (E1), etapa (E1.1), como docs/pedidos/exemplo.md e docs/briefs/outro-1.md.")
+        self.assertNotIn("não existe na raiz", saida)
+        self.assertEqual(rc, 0, saida)
+        rc, saida = self.conferir("- Recurso (E1), etapa (E1.1), como docs/pedidos/exemplo-2.md.")
+        self.assertIn('citação: "docs/pedidos/exemplo-2.md" não existe na raiz nem nas raízes de brief', saida)
+        self.assertEqual(rc, 1)
+        rc, saida = self.conferir("- Recurso (E1), etapa (E1.1) e o brief docs/briefs/outro-2.md (novo).")  # (d) sem exceção
+        self.assertIn('citação: "docs/briefs/outro-2.md" não existe na raiz nem nas raízes de brief', saida)
+        self.assertEqual(rc, 1)
+
+
+class CaminhoDoLer(Base):
+    def test_caminho_ausente_reprova_e_novo_passa(self):
+        rc, saida = self.conferir(ler="- docs/b.md e docs/a.md")
+        self.assertIn('citação: Ler cita "docs/b.md", que não existe', saida)
+        self.assertNotIn('"docs/a.md"', saida)
+        self.assertEqual(rc, 1)
+        rc, saida = self.conferir(ler="- docs/b.md (novo)")
+        self.assertEqual(rc, 0, saida)
+        rc, saida = self.conferir(ler=f"- {self.tmp}/docs/a.md e {self.tmp}/docs/c.md.")
+        self.assertIn(f'citação: Ler cita "{self.tmp}/docs/c.md", que não existe', saida)
+        self.assertNotIn("docs/a.md", saida.split("citação: Ler")[1])
+        self.assertEqual(rc, 1)
+
+    def test_caminho_so_no_base_sha_passa(self):
+        (self.tmp / "docs" / "base.md").unlink()  # fora do disco, segue no commit do Base-sha
+        rc, saida = self.conferir(ler="- docs/base.md")
+        self.assertNotIn("citação: Ler", saida)
+        self.assertEqual(rc, 0, saida)
+
+
 class PqCitado(Base):
     def test_pq_citado_fora_do_pronto_quando_existe_nele(self):  # mutante: PQ-n sem conferência
         rc, saida = self.conferir("- Recurso (E1), etapa (E1.1), provado pelo PQ-1 e pelo PQ-2.")
