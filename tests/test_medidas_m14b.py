@@ -466,7 +466,7 @@ class EsperaDaTrava(Raiz):
 
     def trava(self, *chamadas, alvo="t", rc=0):
         sujeira = [{"type": "system"}, {"type": "assistant", "message": {"content": ["x", {"type": "tool_use", "id": "z", "name": "Bash", "input": {"command": "y"}},
-                                                                                {"type": "tool_result", "tool_use_id": "w", "is_error": True, "content": "R-TETO"}]}}]
+                                                                                {"type": "tool_result", "tool_use_id": "w"}, {"type": "tool_result", "tool_use_id": "z", "is_error": True, "content": self.BLOQUEIO}]}}]
         if chamadas:
             self.gravar(f"{alvo}/s.jsonl", "".join(json.dumps(o) + "\n" for o in sujeira + [o for c in chamadas for o in c]))
         r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "transcricao", "trava", str(self.tmp / alvo)], capture_output=True, text=True,
