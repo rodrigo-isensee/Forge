@@ -1,12 +1,17 @@
 """S-18: `forge-check conferencia registrar` grava a conferência em formato fixo e o leitor da T-1 a lê."""
+import json
+import os
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
-from test_voltas import Raiz  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+from test_voltas import FORGE_CHECK, Raiz  # noqa: E402
 
 ARQ = "docs/kanban/conferencias.md"
 BASE = ["conferencia", "registrar", "--pedido", "xpto", "--brief", "xpto-tech-lead-1", "--modo", "brief",
@@ -106,6 +111,81 @@ class Registrar(Raiz):
         self.assertEqual(cod, 0)
         self.assertIn("| 2 |", linhas[0])
         self.assertIn("fonte=conferencias", linhas[0])
+
+
+class SalvarArea(Raiz):  # E7 (FILA-23): a entrega conferida salva a área só em origin area-salva (HOME e remoto bare temporários)
+    ENTREGA = com(BASE, modo="entrega", resultado="cumpriu")
+
+    def setUp(self):
+        super().setUp()
+        self.home, self.bare = self.tmp / "home", self.tmp / "remoto.git"
+        self.gravar("home/.gitconfig", "[user]\nname = t\nemail = t@t\n[init]\ndefaultBranch = main\n")
+        self.tmp = self.area = self.home / ".forge-contrib"
+        self.git(self.home, "init", "-q", "--bare", str(self.bare))
+        remoto_sem_manutencao(self.bare)
+        self.git(self.home, "init", "-q", str(self.area))
+        self.gravar(".gitignore", "/*\n!/.gitignore\n!/docs/\n!/KANBAN.md\n!/wt/\n*.tmp\n")  # `!/wt/` alargado: só a lista branca entra
+        self.gravar("KANBAN.md", "# Quadro\n")
+        self.git(self.area, "remote", "add", "origin", str(self.bare))
+
+    def git(self, pasta, *args):
+        env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")} | {"HOME": str(self.home)})
+        return subprocess.run(["git", "-C", str(pasta), *args], capture_output=True, text=True, env=env).stdout.strip()
+
+    def registrar(self, *args, raiz=None, **env):
+        env = {k: v for k, v in os.environ.items() if k != "FORGE_AREA_SALVAR"} | {"HOME": str(self.home)} | env
+        r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(raiz or self.area), *(args or self.ENTREGA)],
+                           capture_output=True, text=True, env=env)
+        return r.returncode, r.stdout
+
+    def salvos(self):
+        return self.git(self.bare, "for-each-ref", "--format=%(refname)")
+
+    def test_entrega_conferida_salva_so_a_lista_branca_em_area_salva(self):
+        self.gravar("docs/pedidos/xpto.md", "# p\n")
+        self.gravar("wt/x/arq.txt", "worktree\n")
+        self.gravar("docs/ignorado.tmp", "x\n")
+        cod, saida = self.registrar(GIT_DIR=str(self.tmp / "nao-existe"))  # C-1: GIT_* herdada não desvia o git da área
+        self.assertEqual((cod, self.salvos()), (0, "refs/heads/area-salva"))
+        self.assertIn(f"área: salva em origin/area-salva {self.git(self.area, 'rev-parse', '--short=7', 'HEAD')}", saida)
+        self.assertEqual(self.git(self.bare, "log", "-1", "--format=%s", "area-salva"), "area: xpto xpto-tech-lead-1 conferida")
+        arquivos = self.git(self.bare, "ls-tree", "-r", "--name-only", "area-salva").splitlines()
+        self.assertLessEqual({"docs/pedidos/xpto.md", ARQ}, set(arquivos))
+        self.assertFalse([a for a in arquivos if a.startswith("wt/") or a.endswith(".tmp")])  # nem -f nem add sem pathspec
+
+    def test_nao_salva_fora_da_entrega_aprovada_desligado_ou_fora_da_area(self):
+        self.gravar("../projeto/KANBAN.md", "# Quadro\n")
+        projeto = self.home / "projeto"
+        for args, extra in ((BASE, {}), (com(self.ENTREGA, resultado="reprovado") + ["--classe", "forma"], {}),
+                            (self.ENTREGA, {"FORGE_AREA_SALVAR": "0"}), (self.ENTREGA, {"raiz": projeto})):
+            with self.subTest(args=args, extra=extra):
+                cod, saida = self.registrar(*args, **extra)
+                self.assertEqual((cod, "área:" in saida, self.salvos()), (0, False, ""))
+
+    def test_avisa_sem_commit_e_sem_mudar_o_rc(self):
+        token = "ghp_" + "a1" * 18
+        casos = {"cópia do Forge": (".claude-plugin/plugin.json", '{"name": "forge"}'),
+                 "segredo em docs/pedidos/xpto.md:2 (GitHub)": ("docs/pedidos/xpto.md", f"# p\nt {token}\n")}
+        for motivo, (rel, texto) in casos.items():
+            with self.subTest(motivo=motivo):
+                self.gravar(rel, texto)
+                cod, saida = self.registrar()
+                self.assertEqual((cod, self.salvos()), (0, ""))
+                self.assertTrue(motivo in saida and token not in saida, saida)
+                (self.area / rel).unlink()
+
+    def test_origin_do_forge_ou_com_credencial_nao_recebe(self):  # C-3, pela mesma regra do hook
+        forge = json.loads((Path(FORGE_CHECK).parents[1] / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["repository"]
+        for url in (forge + ".git", "https://u:segredo@exemplo.invalid/x.git"):
+            self.git(self.area, "remote", "set-url", "origin", url)
+            self.assertIn("o origin falta, diverge, traz credencial ou é o Forge; nada enviado", self.registrar()[1])
+
+    def test_remoto_que_recusa_avisa_e_o_registro_fica(self):
+        shutil.rmtree(self.bare)
+        cod, saida = self.registrar()
+        self.assertEqual((cod, self.git(self.area, "rev-list", "--count", "HEAD")), (0, "1"))
+        self.assertIn("área: aviso: remoto inacessível; nada enviado", saida)
+        self.assertIn("| entrega |", (self.area / ARQ).read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
