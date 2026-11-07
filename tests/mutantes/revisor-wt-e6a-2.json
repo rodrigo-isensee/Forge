@@ -1,0 +1,137 @@
+{
+  "pedido": "revisor-wt-e6a-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "branch de parecer sem a conferência de M3 (escopo fora)",
+      "arquivo": "bin/forge-check",
+      "de": "if branch.startswith(PREFIXO_DE_PARECER) and not so_parecer_do_papel(",
+      "para": "if False and not so_parecer_do_papel(",
+      "testes": [
+        "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_codigo_na_branch_de_parecer_reprova"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "nome de brief com barra lê brief de subpasta",
+      "arquivo": "bin/forge-check",
+      "de": "    if not re.fullmatch(r\"[A-Za-z0-9][A-Za-z0-9._-]*\", nome):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_papel_sem_pasta_ou_brief_ilegivel_reprova"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "brief ausente na primeira raiz encerra a busca",
+      "arquivo": "bin/forge-check",
+      "de": "        except (OSError, UnicodeDecodeError):\n            continue\n        return nome_do_papel(",
+      "para": "        except (OSError, UnicodeDecodeError):\n            return None\n        return nome_do_papel(",
+      "testes": [
+        "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_parecer_na_pasta_do_papel_imprime_a_linha_final"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "papel sem pasta de parecer (qa, sem brief) passa",
+      "arquivo": "bin/forge-check",
+      "de": "    if not (pasta and pais == [desde]):",
+      "para": "    if not (pais == [desde]):",
+      "testes": [
+        "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_papel_sem_pasta_ou_brief_ilegivel_reprova"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "dois commits, merge ou sem Desde passam (um commit sobre o Desde)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not (pasta and pais == [desde]):",
+      "para": "    if not (pasta):",
+      "testes": [
+        "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_dois_commits_ou_merge_reprova",
+        "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_fora_do_md_sem_desde_vazio_e_nome_com_controle_reprovam"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "commit vazio na branch de parecer passa",
+      "arquivo": "bin/forge-check",
+      "de": "return not cod and bool(pares) and all(",
+      "para": "return not cod and True and all(",
+      "testes": [
+        "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_fora_do_md_sem_desde_vazio_e_nome_com_controle_reprovam"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "link ou modo executável passam (só 100644)",
+      "arquivo": "bin/forge-check",
+      "de": "meta.split()[1] == \"100644\" and",
+      "para": "meta.split()[1] != \"x\" and",
+      "testes": [
+        "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_link_e_modo_executavel_reprovam"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "parecer na pasta de outro papel passa",
+      "arquivo": "bin/forge-check",
+      "de": "and nome.startswith(f\"{pasta}/\") and nome.endswith(\".md\")",
+      "para": "and nome.startswith(\"docs/\") and nome.endswith(\".md\")",
+      "testes": [
+        "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_pasta_de_outro_papel_reprova"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "arquivo fora do .md na pasta do papel passa",
+      "arquivo": "bin/forge-check",
+      "de": "and nome.endswith(\".md\") and not nome.startswith(ACEITES_DO_USUARIO)",
+      "para": "and True and not nome.startswith(ACEITES_DO_USUARIO)",
+      "testes": [
+        "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_fora_do_md_sem_desde_vazio_e_nome_com_controle_reprovam"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "aceite do usuário na branch de parecer passa (M9 das ameaças)",
+      "arquivo": "bin/forge-check",
+      "de": "and not nome.startswith(ACEITES_DO_USUARIO)\n",
+      "para": "and not nome.startswith(\"x/\")\n",
+      "testes": [
+        "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_aceite_na_branch_de_parecer_reprova"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "nome com caractere de controle passa",
+      "arquivo": "bin/forge-check",
+      "de": "        and not com_controle(nome) for meta, nome in pares)",
+      "para": "        and True for meta, nome in pares)",
+      "testes": [
+        "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_fora_do_md_sem_desde_vazio_e_nome_com_controle_reprovam"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "linha final impressa com rc 1 (T-4, t15)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not reprovou and branch.startswith(PREFIXO_DE_PARECER):",
+      "para": "    if branch.startswith(PREFIXO_DE_PARECER):",
+      "testes": [
+        "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_codigo_na_branch_de_parecer_reprova"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "linha final impressa fora da branch de parecer",
+      "arquivo": "bin/forge-check",
+      "de": "    if not reprovou and branch.startswith(PREFIXO_DE_PARECER):",
+      "para": "    if not reprovou:",
+      "testes": [
+        "tests.test_revisor_wt.EntregaDaBranchDeParecer.test_branch_de_trabalho_nao_imprime_a_linha_final"
+      ]
+    }
+  ]
+}
