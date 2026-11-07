@@ -1,0 +1,2 @@
+### Alterado
+- Delta só de texto (lista branca: `README.md`, `CHANGELOG.md`, `changelog.d/`, `docs/propostas/`, `docs/retrospectivas/`, sem modelo, frontmatter nem invariante) ou só de espaço no fim da linha em `.md`/`.txt` fora das pastas de código, de `docs/regras/` e `docs/adr/` e sem modelo, frontmatter nem invariante: a classificação entra no `bin/forge-check`, ainda sem uso (EST-M4, E3a da 0.37).
