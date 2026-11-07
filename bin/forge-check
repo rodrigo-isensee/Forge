@@ -3070,6 +3070,66 @@ def cmd_voltas(raiz, pedido=None):
     return 0
 
 
+# ---- D12 (E3a): a medida de um tópico mesclado, gravada em docs/kanban/medidas.md; aviso, nunca trava ----
+TOPICO_PEQUENO = 300  # linhas alteradas (adições mais remoções) abaixo das quais o tópico é pequeno
+CABECALHO_DE_MEDIDAS = ("| data-hora | pedido | merge | ativo_min (historico.md) | linhas (git diff) | pequeno | tokens (entregas.md) |\n"
+                        "|---|---|---|---|---|---|---|\n")
+
+
+def tempo_ativo(movimentos, fim):
+    """Minutos do primeiro movimento [(hora, de, para, motivo)] até `fim`, menos cada trecho aberto por um movimento que põe o cartão
+    na espera do dono ou traz `espera deliberada:` no motivo (o trecho vai até o movimento seguinte); None sem movimento até `fim`."""
+    antes = [m for m in movimentos if m[0] <= fim]
+    if not antes:
+        return None
+    fins = [m[0] for m in antes[1:]] + [fim]
+    parados = sum(_minutos(m[0], ate) for m, ate in zip(antes, fins)
+                  if tipo_da_espera(m[2], m[3]) == "dono" or _sem_acento(m[3]).startswith("espera deliberada:"))
+    return round(_minutos(antes[0][0], fim) - parados, 1)
+
+
+def tokens_do_pedido(raiz, pedido):
+    """A soma da coluna tokens das linhas do pedido em docs/kanban/entregas.md, ou `lacuna:<motivo>` (nunca um zero sem fonte)."""
+    arq = raiz / "docs" / "kanban" / "entregas.md"
+    linhas, aviso = _tabela_segura(arq)
+    if aviso or not arq.is_file():
+        return "lacuna:entregas.md-ilegivel" if aviso else "lacuna:sem-entregas.md"
+    valores = [c[3] for c in linhas if len(c) >= 4 and c[1].casefold() == pedido.casefold()]
+    if not valores:
+        return "lacuna:sem-linha-do-pedido"
+    if not all(re.fullmatch(r"[0-9]+", v) for v in valores):
+        return "lacuna:tokens-nao-numericos"
+    return str(sum(int(v) for v in valores))
+
+
+def cmd_medida(raiz, pedido, merge):
+    """Grava em docs/kanban/medidas.md a linha do tópico (tempo ativo até a data de commit do merge, linhas de `<merge>^1..<merge>`,
+    tokens) e imprime `medida: só tabela (n=<tópicos pequenos medidos>)`; o aviso de piora por release é da E3b. rc 0; entrada recusada,
+    rc 2, sem gravar. O `--merge` só chega ao git como sha40 minúsculo e depois de `--end-of-options`."""
+    arq = raiz / "docs" / "kanban" / "medidas.md"
+    recusa = ("--pedido fora de [A-Za-z0-9._-]" if not ID_DE_PEDIDO.fullmatch(pedido) or not pedido.strip(".")
+              else "--merge não é um sha40 minúsculo" if not re.fullmatch(r"[0-9a-f]{40}", merge)
+              else SEM_QUADRO.format(cmd="medida", raiz=caminho_impresso(raiz)) if not (raiz / "KANBAN.md").is_file()
+              else "docs/kanban/medidas.md é link simbólico; não escrevo através dele" if arq.is_symlink() else None)
+    cod, data = git(raiz, "log", "-1", "--format=%cI", "--end-of-options", merge) if recusa is None else (1, "")
+    fim = _hora(data) if not cod and ISO8601.match(data) else None
+    if recusa or fim is None:
+        print(f"medida: {recusa or 'commit do --merge ausente no repositório'}; nada gravado", file=sys.stderr)
+        return 2
+    movimentos = sorted((h, c[2], c[3], "|".join(c[4:])) for c in _ler_tabela(raiz / "docs" / "kanban" / "historico.md")
+                        if len(c) >= 5 and c[1].casefold() == pedido.casefold() and ISO8601.match(c[0]) and (h := _hora(c[0])))
+    ativo = tempo_ativo(movimentos, fim)
+    cod, stat = git(raiz, "diff", "--shortstat", "--end-of-options", f"{merge}^1", merge)
+    linhas = None if cod else sum(int(n) for n in re.findall(r"(\d+) (?:insertion|deletion)", stat))
+    celulas = (datetime.datetime.now().astimezone().isoformat(timespec="seconds"), pedido, merge,
+               "lacuna:sem-movimento" if ativo is None else _numero(ativo), "lacuna:git-diff" if linhas is None else str(linhas),
+               "-" if linhas is None else "sim" if linhas < TOPICO_PEQUENO else "nao", tokens_do_pedido(raiz, pedido))
+    acrescentar_ao_arquivo(arq, "| " + " | ".join(celulas) + " |\n", CABECALHO_DE_MEDIDAS)
+    print("| " + " | ".join(celulas) + " |")
+    print(f"medida: só tabela (n={sum(1 for c in _ler_tabela(arq) if len(c) >= 7 and c[5] == 'sim')})")
+    return 0
+
+
 # ---- M14b: esperas (quanto tempo um cartão ficou parado esperando o dono ou uma credencial), lidas de historico.md ----
 TIPOS_DE_ESPERA = ("dono", "credencial", "outra")
 FRASES_DE_ESPERA = (("aguardando o dono", "dono"), ("sem credencial", "credencial"))
@@ -6365,6 +6425,9 @@ def main():
     de.add_argument("--parecer", help="parecer (docs/reviews, qa, devops ou security) cujo `commit:` é o começo do intervalo")
     vo = sub.add_parser("voltas", parents=[comum], help="o vai e volta de cada pedido (voltas e minutos), lido de docs/kanban e docs/briefs; só leitura")
     vo.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md ou cartão do quadro); padrão: os que têm volta")
+    me = sub.add_parser("medida", parents=[comum], help="mede um tópico mesclado (tempo ativo, linhas, tokens) e grava a linha em docs/kanban/medidas.md; nunca trava (D12)")
+    me.add_argument("--pedido", required=True, help="id do pedido, que é o cartão no histórico e a entrega em entregas.md")
+    me.add_argument("--merge", required=True, help="sha40 do commit de merge do tópico (minúsculo; nada mais é aceito)")
     px = sub.add_parser("proximo", parents=[comum], help="onde o pedido está: etapas, branch, último veredito, próximo passo e bloqueios; só leitura (AQ-2)")
     px.add_argument("pedido", help="id de docs/pedidos/<id>.md")
     de = sub.add_parser("decisoes", parents=[comum], help="registro das linhas DECISÃO DO DONO dos pedidos (data, decisão, motivo, reabre se); só leitura, no stdout (EXT-2)")
@@ -6507,6 +6570,8 @@ def executar(a, raiz):
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
     if a.cmd == "voltas":
         return cmd_voltas(raiz, a.pedido)
+    if a.cmd == "medida":
+        return cmd_medida(raiz, a.pedido, a.merge)
     if a.cmd == "anotar":
         linhas, rc = cmd_anotar(raiz, a.pedido, a.tipo, a.literal, a.contexto)
         print("\n".join(linhas))

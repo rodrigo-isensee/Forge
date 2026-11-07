@@ -264,5 +264,82 @@ class PastasPadrao(Raiz):
         self.assertNotIn("Traceback", erro)
 
 
+class MedidaDoTopico(Raiz):  # D12 (E3a): `forge-check medida` mede um tópico mesclado e grava a linha; casos (d) e (e) do desenho
+    def setUp(self):
+        super().setUp()
+        self.env = {"PATH": "/usr/bin:/bin", "HOME": str(self.tmp / "home"), "LC_ALL": "C", "GIT_CONFIG_NOSYSTEM": "1",
+                    "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
+        self.gravar("KANBAN.md", "## Em andamento\n")
+        self.gravar("a.txt", "1\n2\n3\n4\n5\n")
+        for passo in (("init", "-q", "-b", "develop"), ("add", "KANBAN.md"), ("commit", "-qm", "base"), ("checkout", "-qb", "topico"),
+                      ("add", "a.txt"), ("commit", "-qm", "topico"), ("checkout", "-q", "develop")):
+            self.git(*passo)
+        self.git("merge", "-q", "--no-ff", "-m", "Merge topico", "topico", data="2026-10-17T12:20:00-03:00")
+        self.merge = self.git("rev-parse", "HEAD")
+        self.gravar("docs/kanban/historico.md", "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n"
+                    "| 2026-10-17T10:00:00-03:00 | P | Pronto para fazer | Em andamento | brief |\n"
+                    "| 2026-10-17T10:30:00-03:00 | P | Em andamento | Aguardando o dono | pergunta |\n"
+                    "| 2026-10-17T11:30:00-03:00 | P | Aguardando o dono | Em andamento | respondeu |\n"
+                    "| 2026-10-17T11:40:00-03:00 | P | Em andamento | Review | espera deliberada: fila da suíte |\n"
+                    "| 2026-10-17T12:10:00-03:00 | P | Review | Em andamento | review |\n"
+                    "| 2026-10-17T13:00:00-03:00 | P | Em andamento | Aguardando o dono | depois do merge não conta |\n"
+                    "| 2026-10-17T09:00:00-03:00 | Q | Pronto para fazer | Em andamento | outro cartão |\n")
+        self.gravar("docs/kanban/entregas.md", "| data | entrega | agente | tokens | r | v | nota |\n|---|---|---|---|---|---|---|\n"
+                    "| 2026-10-17 | P | jarvis | 100 | - | - | |\n| 2026-10-17 | p | forge:tech-lead | 23 | - | - | |\n"
+                    "| 2026-10-17 | Q | jarvis | 999 | - | - | |\n")
+
+    def git(self, *args, data=None):
+        env = dict(self.env, **({"GIT_AUTHOR_DATE": data, "GIT_COMMITTER_DATE": data} if data else {}))
+        return subprocess.run(["git", "-C", str(self.tmp), *args], capture_output=True, text=True, env=env, check=True).stdout.strip()
+
+    def rodar(self, *args):
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.tmp), *args], capture_output=True, text=True, env=self.env)
+        return r.returncode, r.stdout.splitlines(), r.stderr
+
+    def medidas(self):
+        return [l.split(" | ")[1:] for l in (self.tmp / "docs/kanban/medidas.md").read_text(encoding="utf-8").splitlines()[2:]]
+
+    def test_tempo_ativo_desconta_o_dono_e_a_espera_deliberada_e_soma_os_tokens_do_pedido(self):  # (d)
+        cod, linhas, erro = self.rodar("medida", "--pedido", "p", "--merge", self.merge)
+        self.assertEqual(cod, 0, erro)
+        self.assertEqual(self.medidas(), [["p", self.merge, "50", "5", "sim", "123 |"]])  # 140 min - 60 do dono - 30 deliberados
+        self.assertEqual(linhas[-1], "medida: só tabela (n=1)")
+        self.rodar("medida", "--pedido", "q", "--merge", self.merge)
+        self.assertEqual(self.medidas()[1], ["q", self.merge, "200", "5", "sim", "999 |"])
+
+    def test_sem_fonte_a_celula_diz_lacuna_e_o_cabecalho_nomeia_a_fonte_de_cada_numero(self):  # (e)
+        (self.tmp / "docs/kanban/entregas.md").unlink()
+        for pedido in ("p", "sem-cartao"):
+            self.assertEqual(self.rodar("medida", "--pedido", pedido, "--merge", self.merge)[0], 0)
+        self.gravar("docs/kanban/entregas.md", "| d | e | a | t |\n|---|---|---|---|\n| 1 | p | x | 12 |\n| 1 | p | y | ? |\n")
+        for pedido in ("p", "q"):
+            self.rodar("medida", "--pedido", pedido, "--merge", self.merge)
+        self.assertEqual([m[2::3] for m in self.medidas()], [["50", "lacuna:sem-entregas.md |"], ["lacuna:sem-movimento", "lacuna:sem-entregas.md |"],
+                                                            ["50", "lacuna:tokens-nao-numericos |"], ["200", "lacuna:sem-linha-do-pedido |"]])
+        cabecalho = (self.tmp / "docs/kanban/medidas.md").read_text(encoding="utf-8").splitlines()[0]
+        for fonte in ("ativo_min (historico.md)", "linhas (git diff)", "tokens (entregas.md)"):
+            self.assertIn(fonte, cabecalho)
+
+    def test_entrada_recusada_sai_com_2_e_nada_grava(self):
+        ruins = [("p", "HEAD"), ("p", self.merge[:12]), ("p", "--output=" + "0" * 31), ("p", self.merge + "\n"),
+                 ("p", self.merge.upper()), ("p", "f" * 40), ("../p", self.merge), ("..", self.merge)]
+        for pedido, merge in ruins:
+            cod, linhas, erro = self.rodar("medida", "--pedido", pedido, "--merge", merge)
+            self.assertEqual((cod, linhas), (2, []), (pedido, merge, erro))
+            self.assertIn("medida:", erro)
+        (self.tmp / "KANBAN.md").unlink()
+        self.assertEqual(self.rodar("medida", "--pedido", "p", "--merge", self.merge)[0], 2)
+        self.gravar("KANBAN.md", "## Em andamento\n")
+        (self.tmp / "docs/kanban/medidas.md").symlink_to(self.tmp / "fora.md")
+        self.assertEqual(self.rodar("medida", "--pedido", "p", "--merge", self.merge)[0], 2)
+        self.assertFalse((self.tmp / "fora.md").exists())
+        (self.tmp / "docs/kanban/medidas.md").unlink()
+        self.git("checkout", "-q", "--orphan", "raiz")
+        self.git("commit", "-qm", "sem pai")
+        cod, _, erro = self.rodar("medida", "--pedido", "p", "--merge", self.git("rev-parse", "HEAD"))
+        self.assertEqual(cod, 0, erro)
+        self.assertEqual(self.medidas()[0][3:5], ["lacuna:git-diff", "-"])
+
+
 if __name__ == "__main__":
     unittest.main()
