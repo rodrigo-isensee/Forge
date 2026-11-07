@@ -500,9 +500,6 @@ class EsperaDaTrava(Raiz):
         self.assertIn("trava: nenhum arquivo .jsonl", self.trava(alvo="vazia", rc=1))
         self.assertIn("trava: caminho inexistente", self.trava(alvo="nada", rc=1))
 
-    def test_a_espera_do_agente_e_pelo_arquivo_e_nunca_por_kill(self):  # E3b
-        self.assertIn("nunca por `kill -0` no pid gravado", (RAIZ / "skills" / "esperar-estado" / "SKILL.md").read_text(encoding="utf-8"))
-
 
 if __name__ == "__main__":
     unittest.main()

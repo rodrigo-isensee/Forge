@@ -618,6 +618,7 @@
       "\\*\\*Nenhum agente desliga, enfraquece ou dribla um controle\\*\\*",
       "\\*\\*Arquivos em vigor\\*\\*"
     ],
+    "skills/esperar-estado/SKILL.md": ["nunca por `kill -0` no pid gravado"],
     "docs/regras/R-CONTRIB.md": [
       "projeto abre PR para a `develop` do Forge e nunca o mescla",
       "Nenhum portão tem exceção, nem para o dono",
@@ -652,6 +653,7 @@
     "docs/regras/R-CONTRIB.md": {"regra": "R-CONTRIB", "porque": "sem o texto, o projeto mescla no Forge por conta própria em vez de abrir PR para o tech-lead"},
     "skills/briefs-e-conferencia/SKILL.md": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis delega sem brief gravado e aceita a entrega sem a conferência do conferente"},
     "skills/trabalho-em-paralelo/SKILL.md": {"regra": "R-TETO", "porque": "sem o texto, o Jarvis dispara tarefas pesadas em paralelo sem a série por arquivo e sem o quadro com hora real"},
+    "skills/esperar-estado/SKILL.md": {"regra": "R-TETO", "porque": "sem o texto, o agente espera a trava pesada por kill -0 num pid de outro namespace e solta a espera antes da hora"},
     "skills/falar-com-o-dono/SKILL.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis pergunta ao dono fora do formato e trata ordem ampla como confirmação"}
   },
   "invariantes_sem_motivo": {
