@@ -84,6 +84,78 @@ class Base(unittest.TestCase):
         return r.returncode, r.stdout
 
 
+class ShaCitado(Base):
+    def test_sha_da_base_e_da_branch_passa(self):
+        rc, saida = self.conferir(f"- Recurso (E1), etapa (E1.1) sobre {self.base[:7]} e {self.ponta[:10]}.")
+        self.assertNotIn("citação: sha", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_sha_so_na_branch_de_origin_passa(self):
+        self.git("update-ref", "refs/remotes/origin/melhoria/x", self.num_lado)
+        rc, saida = self.conferir(f"- Recurso (E1), etapa (E1.1) sobre {self.lado[:7]}.")
+        self.assertNotIn("citação: sha", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_sem_ponta_que_resolva_cobra_so_existencia(self):  # Base-sha e Branch que não resolvem: nada a que ser ancestral
+        self.git("checkout", "-q", "--detach")
+        self.git("branch", "-D", "melhoria/x")
+        self.base = "0" * 40
+        rc, saida = self.conferir(f"- Recurso (E1), etapa (E1.1) sobre {self.lado[:7]}.")
+        self.assertIn("resultado:", saida)  # a conferência vai até o fim
+        self.assertNotIn("citação: sha", saida)
+
+    def test_sha_que_existe_fora_da_base_e_da_branch_reprova(self):  # mutante: só existência, sem ancestralidade
+        rc, saida = self.conferir(f"- Recurso (E1), etapa (E1.1) sobre {self.lado[:7]}.")
+        self.assertIn(f"citação: sha {self.lado[:7]} não existe ou não está na base nem na branch", saida)
+        self.assertEqual(rc, 1)
+
+    def test_sha_que_nao_existe_reprova(self):
+        rc, saida = self.conferir("- Recurso (E1), etapa (E1.1) sobre 0badc0de1.")
+        self.assertIn("citação: sha 0badc0d não existe", saida)
+        self.assertEqual(rc, 1)
+
+    def test_outro_repositorio_marcado_passa(self):
+        rc, saida = self.conferir(f"- Recurso (E1), etapa (E1.1) sobre {self.lado[:7]} (outro repositório).")
+        self.assertNotIn("citação: sha", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_decisao_do_dono_e_pronto_quando_sao_cobrados(self):  # (a) o corpo inteiro, fora só o cabeçalho
+        rc, saida = self.conferir("- Recurso (E1), etapa (E1.1).\n- DECISÃO DO DONO (2026-01-01): \"A\" sobre 0badc0de1.",
+                                  pronto="- PQ-1 (cmd): `git merge-base --is-ancestor 1badc0de origin/develop` · espera: rc=0")
+        self.assertIn("citação: sha 0badc0d não existe", saida)
+        self.assertIn("citação: sha 1badc0d não existe", saida)
+        self.assertEqual(rc, 1)
+
+    def test_merge_commit_do_gerar_nao_e_sha(self):  # (a) o PQ que o `brief gerar` põe na etapa de merge (S-18)
+        rc, saida = self.conferir(pronto="- PQ-1 (cmd): `git merge-base --is-ancestor <mergeCommit> origin/develop` · espera: rc=0")
+        self.assertNotIn("citação: sha", saida)
+
+    def test_outro_repositorio_dispensa_so_o_sha_que_acompanha(self):  # (b)
+        rc, saida = self.conferir(f"- Recurso (E1), etapa (E1.1) sobre {self.lado[:7]} (outro repositório) e 0badc0de1.")
+        self.assertNotIn(f"sha {self.lado[:7]}", saida)
+        self.assertIn("citação: sha 0badc0d não existe", saida)
+        self.assertEqual(rc, 1)
+
+    def test_sha_so_de_letras_e_cobrado_e_numero_que_nao_resolve_nao(self):  # (c) run, ruleset, pidns; o que resolve: ShaSoDeAlgarismos
+        rc, saida = self.conferir("- Recurso (E1), etapa (E1.1) sobre deadbee, no run 40505555559 e no ruleset 25432260.")
+        self.assertIn("citação: sha deadbee não existe", saida)
+        self.assertNotIn("sha 4050555", saida)
+        self.assertNotIn("sha 2543226", saida)
+        self.assertEqual(rc, 1)
+
+
+class ShaSoDeAlgarismos(Base):  # adendo (1) do E4
+    def test_numero_que_resolve_na_base_passa_e_o_que_nao_resolve_fica_calado(self):  # mutante: cobrar todo número
+        rc, saida = self.conferir(f"- Recurso (E1), etapa (E1.1) sobre {self.num_base[:7]}, no run 40505555559.")
+        self.assertNotIn("citação: sha", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_numero_que_resolve_fora_da_base_reprova(self):  # mutante: ignorar todo número
+        rc, saida = self.conferir(f"- Recurso (E1), etapa (E1.1) sobre {self.num_lado[:7]}.")
+        self.assertIn(f"citação: sha {self.num_lado[:7]} não existe ou não está na base nem na branch", saida)
+        self.assertEqual(rc, 1)
+
+
 class PqCitado(Base):
     def test_pq_citado_fora_do_pronto_quando_existe_nele(self):  # mutante: PQ-n sem conferência
         rc, saida = self.conferir("- Recurso (E1), etapa (E1.1), provado pelo PQ-1 e pelo PQ-2.")

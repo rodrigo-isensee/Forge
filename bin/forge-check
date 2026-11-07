@@ -5449,7 +5449,7 @@ def linhas_da_fonte(raiz, fonte):
     return None, "fora da raiz, ausente ou grande demais"
 
 
-def conferir_citacoes(raiz, texto, secoes, pedido):
+def conferir_citacoes(raiz, texto, secoes, pedido, copias=frozenset()):
     """P3: (a) todo `(E<n>[.<m>])` do Entregar e do Fora do escopo existe no pedido; (b) trecho entre aspas com fonte explícita,
     `"<trecho>" (<arquivo>:<n>[-<m>])` ou `"<trecho>" (R-<ID>)`, existe literalmente nela (espaços normalizados, reticências cortam);
     (c) `tipo:` e `--etapa` do vocabulário fechado. Offline, só leitura. Lista de (linha, reprova)."""
@@ -5480,7 +5480,7 @@ def conferir_citacoes(raiz, texto, secoes, pedido):
                 parecido = difflib.get_close_matches(valor, sorted(valores), n=1, cutoff=0.5)
                 dica = f" (use {parecido[0]})" if parecido else ""
                 saida.append((f"vocabulário: {nome} \"{sem_controle(valor)[:40]}\" não existe{dica}", True))
-    return saida + citacoes_da_p2(raiz, texto, secoes)
+    return saida + citacoes_da_p2(raiz, texto, secoes, copias)
 
 
 CAMINHO_NO_PQ = re.compile(r"(?<![\w./~$-])([\w.-]+(?:/[\w.@+-]+)+)(?![\w.@+/-]*[*?\[{])")  # com curinga não é cobrado
@@ -5509,6 +5509,47 @@ def caminhos_ausentes_do_pq(raiz, texto, secoes):
     return saida
 
 
+SHA_CITADO = re.compile(r"(?<![\w/-])([0-9a-f]{7,40})(?![\w-])")  # só de algarismos (run, ruleset, pid) só conta se resolve como commit
+COPIADA_DE = re.compile(r"\s*\(copiada de [^()]*\)\s*$")  # o sufixo que o brief acrescenta à linha de decisão copiada de um registro
+OUTRO_REPOSITORIO, NOVO = "(outro repositório)", "(novo)"
+
+
+def e_copia_de_decisao(linha, copias):
+    """Adendo (2) do E4: a linha é decisão do dono e, sem o sufixo ` (copiada de <arquivo>)`, igual a uma linha cobrada (`copias`
+    já vem sem o sufixo: o registro do pedido também o traz quando a linha veio de outro registro)."""
+    return e_linha_de_decisao(linha) and chave_da_decisao(COPIADA_DE.sub("", linha)) in copias
+
+
+def shas_fora_da_base(raiz, texto, corpo, copias=frozenset()):
+    """P2 (1): sha citado no `corpo` (fora do cabeçalho) existe e é ancestral do `Base-sha:` ou da `Branch:` (local ou em origin).
+    Saída: a marca `(outro repositório)` logo depois do sha, que dispensa só ele. `<mergeCommit>` (S-18) não é hex. Adendo do
+    E4: o só de algarismos que não resolve como commit fica calado; na cópia literal de decisão do dono (`copias`, as chaves das
+    linhas cobradas) o sha só precisa existir, e o que não existe sai `aviso:` (o autor do brief não corrige a linha)."""
+    if git(raiz, "rev-parse", "--git-dir")[0]:
+        return []  # fora de um repositório nada é verificável
+    cabecalho = cabecalho_do_brief(texto)
+    base_sha, branch = (grupo(CABECALHO_DE_BRIEF_CAMPOS[campo], cabecalho) for campo in ("Base-sha", "Branch"))
+    pontas = (base_sha, branch and f"refs/heads/{branch}", branch and f"refs/remotes/origin/{branch}")
+    refs = [s for s in dict.fromkeys(sha_do_commit(raiz, p) for p in pontas) if s]
+    saida, vistos = [], set()
+    for linha in corpo:
+        for m in SHA_CITADO.finditer(linha):
+            sha, copia = m.group(1), e_copia_de_decisao(linha, copias)
+            if (sha, copia) in vistos or linha[m.end():].lstrip().startswith(OUTRO_REPOSITORIO):
+                continue
+            vistos.add((sha, copia))
+            completo = sha_do_commit(raiz, sha)
+            if sha.isdigit() and not completo:
+                continue  # número de run, ruleset ou pid
+            if copia:
+                if not completo:
+                    saida.append((f"aviso: citação: sha {sha[:7]} da decisão do dono copiada não existe", False))
+            elif not completo or (refs and not any(e_ancestral(raiz, completo, r) for r in refs)):
+                saida.append((f"citação: sha {sha[:7]} não existe ou não está na base nem na branch; de outro repositório, "
+                              f"marque {OUTRO_REPOSITORIO} depois do sha", True))
+    return saida
+
+
 def pqs_sem_definicao(secoes):
     """P2 (4): todo `PQ-n` citado fora do `Pronto quando` abre um item do `Pronto quando`."""
     definidos = {m.group(1) for l in secoes.get("Pronto quando", []) for m in [PQ.match(ITEM.sub("", l, count=1))] if m}
@@ -5516,10 +5557,10 @@ def pqs_sem_definicao(secoes):
     return [(f"citação: PQ-{n} citado fora do Pronto quando não existe nele", True) for n in sorted(citados - definidos, key=int)]
 
 
-def citacoes_da_p2(raiz, texto, secoes):
+def citacoes_da_p2(raiz, texto, secoes, copias=frozenset()):
     """ACELERA-P2: sha, registro, caminho do `Ler` e `PQ-n` citados no brief existem; offline, só leitura do disco e do git. O sha
     é lido em todo o corpo, o `Pronto quando` e as linhas de decisão do dono também; o registro, fora do `Pronto quando`."""
-    return pqs_sem_definicao(secoes)
+    return shas_fora_da_base(raiz, texto, [l for linhas in secoes.values() for l in linhas], copias) + pqs_sem_definicao(secoes)
 
 
 def avisos_da_etapa(raiz, texto, pedido_id):
@@ -5577,7 +5618,8 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     linhas += avisos_da_etapa(raiz, texto, pedido_id)
     linhas += aviso_de_review_proprio(raiz, texto, ler_pedido_brief(pedido_txt))
     linhas += linha_do_comando_pr(texto)
-    linhas += conferir_citacoes(raiz, texto, secoes_por(texto, CABECALHO_BRIEF), ler_pedido_brief(pedido_txt))
+    copias = {chave_da_decisao(COPIADA_DE.sub("", linha)) for _, linhas_da_fonte in cobradas["fontes"] for _, linha in linhas_da_fonte}
+    linhas += conferir_citacoes(raiz, texto, secoes_por(texto, CABECALHO_BRIEF), ler_pedido_brief(pedido_txt), copias)
     if re.search(r"^Volta-de:", texto, re.M):  # brief de volta (M7): o anterior, os blocos copiados e os achados dos pareceres
         linhas += conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, pareceres, cobradas)
     return pedido_id, linhas
