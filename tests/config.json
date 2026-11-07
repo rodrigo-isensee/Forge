@@ -416,7 +416,7 @@
     ],
     "docs/regras/R-REVIEW.md": [
       "a instância autora não revisa o próprio cartão",
-      "\\*\\*Code review\\*\\* do `tech-lead` em toda entrega, antes do QA"
+      "\\*\\*Code review\\*\\* do `tech-lead` em toda entrega, em paralelo ao QA e à segurança, no mesmo head"
     ],
     "docs/regras/R-FLUXO.md": [
       "Fila de integração na `develop`",
@@ -496,7 +496,7 @@
       "afirma um mínimo de itens",
       "## Plano antecipado",
       "conferir o diff contra a lista de `CA-n`",
-      "só sobre o commit final e depois do review",
+      "no mesmo head do review",
       "## Mutantes declarados nos pedidos de controle"
     ],
     "skills/cyber-security/SKILL.md": [
