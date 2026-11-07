@@ -633,8 +633,9 @@ class KanbanGerar(unittest.TestCase):
         self.kanban.write_bytes(gerado.replace(b"forge:dev | " + mov(2, "", "")[0][:10].encode(), b"forge:dev | 2000-01-01"))  # o título é da ponte
         self.assertIn("kanban --gerar: aviso: quadro editado fora do movimento: K-1", fc.cmd_kanban_gerar(self.raiz)[0])
 
-    def test_link_grande_fifo_ou_ausente_recusa_com_o_quadro_e_o_alvo_intactos(self):  # C-1 e a trava sem seguir link; casos 1, 2 e 3
-        for arq, causa, preparar in ((self.hist, "é link simbólico", lambda h: h.symlink_to(self.fora)), (self.hist, "não existe", lambda h: None),
+    def test_link_grande_fifo_ou_ausente_recusa_com_o_quadro_e_o_alvo_intactos(self):  # C-1, C-5 sem "Bloqueado" e a trava sem seguir link; casos 1, 2 e 3
+        for arq, causa, preparar in ((self.kanban, "sem a seção \"Bloqueado\"", lambda k: k.write_text(NOTA + secao("Pronto"), encoding="utf-8")),
+                                     (self.hist, "é link simbólico", lambda h: h.symlink_to(self.fora)), (self.hist, "não existe", lambda h: None),
                                      (self.hist, "passa de", lambda h: h.write_bytes(b"|" * (fc.TETO_DA_TABELA + 1))),
                                      (self.hist, "não é arquivo regular", os.mkfifo), (self.kanban, "KANBAN.md: é link simbólico", lambda k: k.symlink_to(self.fora)),
                                      (self.raiz / ".forge" / "run" / "quadro.trava", "quadro.trava", lambda t: t.symlink_to(self.fora))):  # a pasta e a trava já existem
