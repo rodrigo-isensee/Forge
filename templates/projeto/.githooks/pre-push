@@ -78,7 +78,7 @@ rodar_etapa() {
   local pg rc
   trap 'encerrar_etapa; echo "pre-push: checagem interrompida; o envio foi barrado." >&2; exit 1' INT TERM HUP
   trap 'encerrar_etapa' EXIT
-  set -m; "$local_hook" </dev/null & etapa=$! alvo=$!; set +m
+  set -m; "$local_hook" </dev/null 9>&- & etapa=$! alvo=$!; set +m  # sem o descritor da trava: um servidor que a etapa deixe vivo não prende os envios
   pg="$(ps -o pgid= -p "$etapa" 2>/dev/null | tr -d ' ')"
   if [ "$pg" = "$etapa" ] && [ "$pg" != "$(ps -o pgid= -p "$$" 2>/dev/null | tr -d ' ')" ]; then alvo="-$etapa"; fi
   while lider_vivo; do sleep 1; done
@@ -87,12 +87,41 @@ rodar_etapa() {
   [ "$rc" -eq 0 ] || exit 1
 }
 
+# R-TETO: uma checagem do projeto por vez por usuário e máquina (flock; o kernel solta a trava quando o processo morre).
+# Pasta conferida (do usuário, não é link, sem escrita alheia): XDG_RUNTIME_DIR ou $HOME/.local/state/forge; nunca /tmp.
+pasta_confere() {
+  [ -d "$1" ] && [ ! -L "$1" ] && [ -O "$1" ] && [ "$(find "$1" -maxdepth 0 ! -perm /022 -print 2>/dev/null)" = "$1" ]
+}
+trava_do_projeto() {
+  local d="${XDG_RUNTIME_DIR%/}"
+  if ! pasta_confere "$d"; then
+    d="${HOME:-}/.local/state/forge"
+    mkdir -p -m 700 "$d" 2>/dev/null
+    pasta_confere "$d" || { echo "pre-push: ${d} não é pasta do próprio usuário (ou é link, ou tem escrita de grupo ou de outros); recusada. Apague-a ou corrija com chmod 700 e tente de novo." >&2; return 1; }
+  fi
+  printf '%s/forge-prepush-%s.lock\n' "$d" "$(id -u)"
+}
+
 # Checagem própria do projeto (opcional): crie .githooks/pre-push.local executável (ex.: lint + typecheck).
 local_hook="$(dirname "$0")/pre-push.local"
 if [ -x "$local_hook" ]; then
   if so_docs; then
     echo "pre-push: só docs/** e .md; lint e typecheck pulados (o CI roda tudo)"
   else
+    espera="${FORGE_PREPUSH_ESPERA-1200}"  # inteiro de 1 a 999999 s, conferido só por case (nunca em aritmética)
+    case "$espera" in ''|*[!0-9]*|0*|???????*) echo "pre-push: FORGE_PREPUSH_ESPERA precisa ser um inteiro de 1 a 999999 (segundos); envio barrado." >&2; exit 1 ;; esac
+    if ! command -v flock >/dev/null 2>&1; then
+      echo "pre-push: sem flock; a checagem do projeto roda sem esperar a vez" >&2
+    else
+      trava="$(trava_do_projeto)" || exit 1
+      exec 9>>"$trava" || { echo "pre-push: a trava ${trava} não abriu; envio barrado." >&2; exit 1; }
+      fd=/proc/self/fd/9; [ -e "$fd" ] || fd="$trava"  # confere o arquivo aberto, não só o caminho
+      if [ -L "$trava" ] || [ ! -O "$fd" ]; then echo "pre-push: ${trava} é link simbólico ou não é do próprio usuário; recusada. Apague-a e tente de novo." >&2; exit 1; fi
+      if ! flock -n 9; then
+        echo "pre-push: outra checagem do projeto está rodando nesta máquina; aguardando a vez por até ${espera} s (R-TETO)" >&2
+        flock -w "$espera" 9 || { echo "pre-push: a vez não chegou em ${espera} s; a checagem não rodou e o envio foi barrado; tente de novo" >&2; exit 1; }
+      fi
+    fi
     rodar_etapa
   fi
 fi

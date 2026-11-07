@@ -1,0 +1,64 @@
+{
+  "pedido": "prepush-projeto-trava",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M7",
+      "guarda": "pasta da trava que e link e recusada",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "[ -d \"$1\" ] && [ ! -L \"$1\" ] &&",
+      "para": "[ -d \"$1\" ] &&",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_pasta_do_home_link_ou_775_recusada"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "espera 0 ou com zero a esquerda e recusada",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "''|*[!0-9]*|0*|???????*)",
+      "para": "''|*[!0-9]*|???????*)",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_espera_invalida_recusa"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "espera com texto ou aritmetica e recusada so por case (G-2)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "''|*[!0-9]*|0*|",
+      "para": "''|0*|",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_espera_invalida_recusa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "sem o binario flock a checagem roda com aviso (unico caminho sem trava, C-4)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if ! command -v flock >/dev/null 2>&1; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_sem_flock_roda_com_aviso_e_flock_que_falha_barra"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "pasta recusada pela trava_do_projeto barra o envio",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "trava=\"$(trava_do_projeto)\" || exit 1",
+      "para": "trava=\"$(trava_do_projeto)\"",
+      "equivalente": "sem o exit 1 a trava fica vazia, o exec 9>> do caminho vazio falha e a guarda seguinte barra com rc 1; o envio segue barrado"
+    },
+    {
+      "id": "M12",
+      "guarda": "trava que nao abre barra o envio com mensagem",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "exec 9>>\"$trava\" || {",
+      "para": "exec 9>>\"$trava\"; true || {",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_trava_link_pasta_ou_alheia_recusada"
+      ]
+    }
+  ]
+}

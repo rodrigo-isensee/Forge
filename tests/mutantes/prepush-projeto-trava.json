@@ -1,0 +1,67 @@
+{
+  "pedido": "prepush-projeto-trava",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a espera pela vez existe: sem flock -w duas checagens se sobrepoem",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "flock -w \"$espera\" 9 ||",
+      "para": "true ||",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_quatro_envios_nunca_se_sobrepoem_e_avisam_uma_vez",
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_espera_estourada_barra_sem_rodar"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a espera pela vez tem limite (FORGE_PREPUSH_ESPERA)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "flock -w \"$espera\" 9",
+      "para": "flock 9",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_espera_estourada_barra_sem_rodar"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "pasta da trava com escrita de grupo e recusada",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "! -perm /022",
+      "para": "! -perm /002",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_pasta_do_home_link_ou_775_recusada"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a etapa roda sem o descritor da trava (C-1)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "\"$local_hook\" 9>&- ||",
+      "para": "\"$local_hook\" ||",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_trava_nao_passa_para_a_etapa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "XDG_RUNTIME_DIR passa pela conferencia e recua para o HOME (C-2)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if ! pasta_confere \"$d\"; then",
+      "para": "if [ -z \"$d\" ]; then",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_xdg_com_escrita_alheia_recua_para_o_home"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "pasta do HOME recusada barra o envio",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "pasta_confere \"$d\" || {",
+      "para": "true || {",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_pasta_do_home_link_ou_775_recusada"
+      ]
+    }
+  ]
+}
