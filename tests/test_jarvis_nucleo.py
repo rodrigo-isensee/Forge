@@ -65,6 +65,15 @@ class NucleoCurtoDoJarvis(unittest.TestCase):
             self.assertNotIn(proibido, passo)
         self.assertLessEqual(len(nucleo.splitlines()), 110)
 
+    def test_o_qa_corre_em_paralelo_e_a_volta_e_um_brief_so(self):  # EST-M6 (versao-040 E4), decisão 7b
+        nucleo = ler(JARVIS)
+        passo6 = re.search(r"^6\. \*\*QA\*\*.*$", nucleo, re.M)
+        self.assertIsNotNone(passo6, "o passo 6 (QA) sumiu do núcleo")
+        for trecho in ("obrigatório em toda entrega", "em paralelo ao passo 5, no mesmo head", "brief único"):
+            with self.subTest(trecho=trecho):
+                self.assertIn(trecho, passo6.group(0))
+        self.assertLessEqual(len(nucleo.splitlines()), 110)
+
 
 class RevalidaMesmaInstancia(unittest.TestCase):
     """E6 da 0.36 (decisão 27): a revalidação de um parecer retoma a instância que o deu, no passo 5, sem linha nova."""

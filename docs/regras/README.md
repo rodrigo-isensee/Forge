@@ -11,7 +11,7 @@ Decisão: `docs/adr/0002-uma-fonte-por-regra.md`. Agentes, skills e modelos cita
 | [`R-WIP`](R-WIP.md) | Um cartão por agente e limites de coluna | revisão, hook |
 | [`R-TETO`](R-TETO.md) | Teto de recursos da máquina | revisão, hook |
 | [`R-QA`](R-QA.md) | Portão de QA | revisão, hook |
-| [`R-REVIEW`](R-REVIEW.md) | Code review antes do QA | revisão, hook |
+| [`R-REVIEW`](R-REVIEW.md) | Code review em toda entrega | revisão, hook |
 | [`R-DISCOVERY`](R-DISCOVERY.md) | Todo pedido começa com discovery | revisão |
 | [`R-CUSTO`](R-CUSTO.md) | Nada que custe dinheiro sem autorização | revisão |
 | [`R-NEUTRO`](R-NEUTRO.md) | Neutralidade da fábrica | teste |
