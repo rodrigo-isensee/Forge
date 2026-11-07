@@ -9,6 +9,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = RAIZ.joinpath("bin", "forge-check")
 
@@ -47,7 +50,7 @@ class Base(unittest.TestCase):
 
     def git(self, *args):
         return subprocess.run(["git", "-C", str(self.tmp), "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false",
-                               *args], capture_output=True, text=True, check=True, env=dict(os.environ, **DATAS)).stdout.strip()
+                               *args], capture_output=True, text=True, check=True, env=sem_manutencao(dict(os.environ, **DATAS))).stdout.strip()
 
     def numerado(self, nome):
         for i in range(400):
@@ -177,7 +180,7 @@ class DecisaoCopiada(Base):  # adendo (2) do E4: na cópia literal o sha só pre
 
     def test_numero_que_nao_resolve_na_copia_fica_calado(self):  # adendo (volta 2); mutante: `if copia:` antes dos algarismos
         r = subprocess.run(["git", "-C", str(self.tmp), "rev-parse", "--verify", "--quiet", "40505555559^{commit}"],
-                           capture_output=True)
+                           capture_output=True, env=sem_manutencao())
         self.assertNotEqual(r.returncode, 0, "40505555559 resolve como commit; troque o número")
         for numero in ("40505555559", self.num_lado[:7]):  # o que não resolve e o que resolve fora da base
             self.decisao = self.pedido(numero)
