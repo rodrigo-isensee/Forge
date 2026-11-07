@@ -64,6 +64,10 @@ class PrePushSegredo(unittest.TestCase):
         self.recusa(onde="a.md:1")
         self.recusa(onde="a.md:1", SHELLOPTS="xtrace")  # C-5: o script roda sem o xtrace herdado
 
+    def test_cor_forcada_pela_config_nao_esconde_o_token(self):  # C-4: --no-color nos dois git diff do script
+        self.commit("token", **{"a.md": f"t = {TOKEN}\n"})
+        self.recusa(onde="a.md:1", GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="color.ui", GIT_CONFIG_VALUE_0="always")
+
     def passa(self, nome, texto):
         self.commit(nome, **{nome: texto})
         codigo, saida = self.hook()
