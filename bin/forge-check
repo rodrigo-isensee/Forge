@@ -139,6 +139,7 @@ import json
 import os
 import re
 import shlex
+import stat
 import subprocess
 import sys
 import tempfile
@@ -6358,6 +6359,63 @@ def versao_da_propria_copia():
         return ""
 
 
+TETO_DO_MANIFESTO = 64 * 1024  # bytes do plugin.json lidos na comparação da cópia sem git (C-4 do E9)
+
+
+def versao_estrita(texto):
+    """Tupla só de `X.Y.Z` (sem `v`, sem sufixo como `-dev`); None no resto (C-2 do E9)."""
+    return versao_em_tupla(texto) if isinstance(texto, str) and re.fullmatch(r"\d+\.\d+\.\d+", texto) else None
+
+
+def versao_do_cache():
+    """Versão do `plugin.json` desta cópia, lido sem seguir link e com teto (C-4); None se faltar ou fugir de `X.Y.Z`."""
+    try:
+        fd = os.open(PLUGIN / ".claude-plugin" / "plugin.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, "rb") as arquivo:
+            info = os.fstat(arquivo.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_size > TETO_DO_MANIFESTO:
+                return None
+            return versao_estrita(json.loads(arquivo.read(TETO_DO_MANIFESTO).decode("utf-8")).get("version"))
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+def versao_da_base(raiz, base):
+    """Versão do `plugin.json` da base, por `git show` com o mesmo teto (C-4); None se faltar ou fugir de `X.Y.Z`."""
+    objeto = f"{base}:.claude-plugin/plugin.json"
+    cod, tamanho = git(raiz, "cat-file", "-s", objeto)
+    if cod or not tamanho.isdigit() or int(tamanho) > TETO_DO_MANIFESTO:
+        return None
+    cod, corpo = git(raiz, "show", objeto, bruto=True)
+    try:
+        return None if cod else versao_estrita(json.loads(corpo.decode("utf-8")).get("version"))
+    except (ValueError, AttributeError):
+        return None
+
+
+def comparar_copia_sem_git(raiz, base):
+    """("ok" | "atrasada" | "erro", texto) da cópia que não é clone git (o cache do plugin): `ok` só com prova do código, o blob
+    do `bin/forge-check` igual ao da base ou ao da tag `v<versão>` que contém a base (C-1); versão menor que a da base, ou tag
+    ancestral da base com o mesmo blob, é `atrasada`; o resto é `erro`."""
+    versao = versao_do_cache()
+    if versao is None:
+        return "erro", "a cópia em uso do forge-check não é um clone git"
+    texto = ".".join(map(str, versao))
+    tag = f"refs/tags/v{texto}"
+    cod, blob = git(raiz, "hash-object", "--no-filters", "--", str(PLUGIN / "bin" / "forge-check"))
+    if cod or not blob:
+        return "erro", f"versão {texto} do cache sem prova do código"
+    if git(raiz, "rev-parse", "--verify", "--quiet", f"{base}:bin/forge-check") == (0, blob):
+        return "ok", ""
+    da_tag = git(raiz, "rev-parse", "--verify", "--quiet", f"{tag}:bin/forge-check") == (0, blob)
+    if da_tag and git(raiz, "merge-base", "--is-ancestor", base, tag)[0] == 0:
+        return "ok", ""
+    da_base = versao_da_base(raiz, base)
+    if (da_base is not None and da_base > versao) or (da_tag and git(raiz, "merge-base", "--is-ancestor", tag, base)[0] == 0):
+        return "atrasada", f"{texto} (tag v{texto}, cópia sem git)"
+    return "erro", f"versão {texto} do cache sem prova do código"
+
+
 def e_o_forge(raiz):
     """A raiz é um clone do Forge: tem o manifesto dele e não é projeto (sem `.forge/versao`, como em `e_clone_do_forge` dos hooks);
     escrever o manifesto num projeto não o faz virar o Forge, onde a guarda só avisa."""
@@ -6388,7 +6446,7 @@ def comparar_com_o_forge(raiz, a):
         return "erro", "o repositório não tem a base (origin/develop ou --base-sha) para comparar"
     topo_da_copia = git(PLUGIN, "rev-parse", "--show-toplevel")
     if topo_da_copia[0] != 0 or Path(topo_da_copia[1]).resolve() != PLUGIN:
-        return "erro", "a cópia em uso do forge-check não é um clone git"
+        return comparar_copia_sem_git(raiz, base)
     cabeca = sha_do_commit(PLUGIN, "HEAD")
     if cabeca is None:
         return "erro", "a cópia em uso do forge-check não tem commit"

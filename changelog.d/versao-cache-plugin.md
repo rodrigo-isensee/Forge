@@ -1,0 +1,2 @@
+### Alterado
+- forge-check: a cópia em uso que não é clone git (o cache do plugin) passa a ser conferida pelo .claude-plugin/plugin.json e pelo blob do bin/forge-check: sai conferida só com o blob igual ao da base ou ao da tag v<versão> que contém a base, atrasada (marcador da decisão D) com a versão menor que a da base ou a tag ancestral da base, e "versão não conferida (versão <v> do cache sem prova do código)" no resto; manifesto lido sem seguir link e com teto de 64 KiB, versão só X.Y.Z (FC-VERSAO-CACHE-PLUGIN, E9 da 0.36).
