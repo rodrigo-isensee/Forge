@@ -2479,7 +2479,7 @@ def erro_dos_atributos(motivo, atributos):
     return None
 
 
-def cmd_movimento(raiz, cartao, de, para, motivo, atributos=None):
+def cmd_movimento(raiz, cartao, de, para, motivo, atributos):
     """Anota um movimento do quadro em docs/kanban/historico.md (PA-9): hora real ISO 8601 com fuso, cartão,
     coluna de origem e de destino. Só acrescenta; cria o arquivo com o cabeçalho se não existir. Ao parar o cartão (EXT-3), o motivo leva
     `custo do trecho: N tokens` (ou `lacuna`); no Pronto, `custo total`. Os atributos (EST-M12) vão por último, na marca `· atributos:`."""
@@ -2488,7 +2488,7 @@ def cmd_movimento(raiz, cartao, de, para, motivo, atributos=None):
     campos = [limpo(x) for x in (cartao, de, para)]
     if not all(campos):
         return ["movimento: cartão, --de e --para não podem ser vazios"]
-    atributos = {k: v for k, v in (atributos or {}).items() if v is not None}
+    atributos = {k: v for k, v in atributos.items() if v is not None}
     if erro := erro_dos_atributos(limpo(motivo), atributos):
         return [f"movimento: {erro}; nada gravado"]
     if not (raiz / "KANBAN.md").is_file():

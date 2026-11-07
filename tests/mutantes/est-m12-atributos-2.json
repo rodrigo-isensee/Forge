@@ -86,8 +86,8 @@
       "id": "M20",
       "guarda": "opcao ausente nao entra nos atributos",
       "arquivo": "bin/forge-check",
-      "de": "for k, v in (atributos or {}).items() if v is not None}",
-      "para": "for k, v in (atributos or {}).items()}",
+      "de": "atributos.items() if v is not None}",
+      "para": "atributos.items() if v is not False}",
       "testes": [
         "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_atributos_vao_na_marca_sempre_por_ultimo"
       ]
@@ -101,6 +101,13 @@
       "testes": [
         "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_valor_fora_da_forma_ou_acima_do_teto_recusa"
       ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "{motivo or '—'}",
+      "motivo": "a condição saiu inteira: o travessão do motivo vazio passou para a linha de cima, coberta pelo M18"
     }
   ]
 }
