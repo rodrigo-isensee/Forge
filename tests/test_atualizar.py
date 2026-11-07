@@ -1211,3 +1211,72 @@ class CtrlCNaTroca(Base):
         self.assertIn("claude plugin marketplace add", r.stdout)
         self.assertIn("--scope user", r.stdout)
         self.assertIn("claude plugin install forge@forge --scope user", r.stdout)
+
+
+class AtualizarSemPergunta(Base):
+    """ATUALIZAR-SEM-PERGUNTA (Q3 = A): `--sim` só fora do Claude; responde sim só à atualização, as outras perguntas ficam em não."""
+    outro_clone = AtualizarComDevelopQueAvancou.outro_clone
+    avancar_remoto = AtualizarComDevelopQueAvancou.avancar_remoto
+    avancar_no_meio = AtualizarComDevelopQueAvancou.avancar_no_meio
+
+    def adds(self):
+        return [c for c in self.chamadas_do_claude() if " marketplace add " in c]
+
+    def test_sem_terminal_com_sim_atualiza(self):
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, "--sim")
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn(f"Atualizar o Forge da versão {VERSAO} para a 9.9.0? sim (--sim)", saida)
+        self.assertIn("forge/upgrade-9.9.0", self.ramos())
+
+    def test_claude_ancestral_com_sim_recusa(self):
+        self.publicar("9.9.0")
+        claude = self.tmp / "ancestral" / "claude"
+        claude.parent.mkdir()
+        claude.write_text("#!/bin/sh\n" + " ".join(f"'{p}'" for p in comando(ATUALIZAR, "--sim", ate=os.getpid())) + "\n", encoding="utf-8")
+        claude.chmod(0o755)
+        r = subprocess.run([str(claude)], env=self.env, cwd=self.proj, capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("fora do Claude", r.stderr)
+        self.assertEqual((self.chamadas_do_claude(), self.ramos()), ([], {"main", "develop", "homolog"}))
+
+    def test_arvore_suja_com_sim_recusa(self):
+        self.publicar("9.9.0")
+        self.escrever("novo.txt", "trabalho meu\n")
+        codigo, saida = self.rodar(ATUALIZAR, "--sim")
+        self.assertEqual(codigo, 1, saida)
+        self.assertIn("forge salvar", saida)
+        self.assertEqual((self.chamadas_do_claude(), self.ramos()), ([], {"main", "develop", "homolog"}))
+
+    def test_conflito_em_forge_versao_com_sim_responde_nao_e_desfaz(self):
+        self.publicar("9.9.0")
+        self.avancar_no_meio(".forge/versao", "0.1.0\n")
+        codigo, saida = self.rodar(ATUALIZAR, "--sim")
+        self.assertEqual(codigo, 1, saida)
+        self.assertIn("(a versão da develop é descartada)? não (--sim responde só a atualização)", saida)
+        self.assertEqual(self.git("status", "--porcelain"), "", "a mesclagem foi desfeita")
+        self.assertEqual(self.git("show", "forge/upgrade-9.9.0:.forge/versao"), "9.9.0")
+        self.assertNotEqual(self.git("rev-parse", "origin/develop"), self.git("merge-base", "origin/develop", "forge/upgrade-9.9.0"))
+
+    def test_problema_novo_do_doutor_com_sim_sai_1_sem_voltar(self):
+        self.publicar("9.9.2", falha="doutor")
+        codigo, saida = self.rodar(ATUALIZAR, "--sim")
+        self.assertEqual(codigo, 1, saida)
+        self.assertIn(f"Voltar para a versão {VERSAO}? não (--sim responde só a atualização)", saida)
+        self.assertIn("forge voltar-versao", saida)
+        self.assertEqual(len(self.adds()), 1, "não voltou o plugin sozinho")
+        self.assertEqual(self.git("branch", "--show-current"), "forge/upgrade-9.9.2")
+
+    def test_sem_terminal_e_sem_sim_recusa_com_a_dica(self):
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR)
+        self.assertEqual(codigo, 2, saida)
+        self.assertIn("ou rode com --sim (fora do Claude)", saida)
+        self.assertEqual(self.chamadas_do_claude(), [])
+
+    def test_sim_com_fixar_fixa_como_hoje(self):
+        codigo, saida = self.rodar(ATUALIZAR, "--sim", "--fixar")
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(len(self.adds()), 1, self.adds())
+        self.assertTrue(self.adds()[0].endswith("#v" + VERSAO + " --scope user"))
+        self.assertEqual(self.ramos(), {"main", "develop", "homolog"})
