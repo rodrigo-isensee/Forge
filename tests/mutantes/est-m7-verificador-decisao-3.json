@@ -1,0 +1,23 @@
+{
+  "pedido": "versao-040",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "exatamente um job com o nome, todos os campos iguais",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "if len(com_nome) == 1 and all(",
+      "para": "if len(com_nome) >= 1 and all(",
+      "testes": [
+        "tests.test_arvore_testada.ProvaValida.test_job_que_nao_prova_sai_falso"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "scripts/arvore-testada.py",
+      "trecho": "if __name__ == \"__main__\":",
+      "motivo": "padrão de script: o mutante faz a importação do módulo de teste sair (inválido no forge-mutante); o rc 1 do arquivo rodado é provado em LinhaDeComando"
+    }
+  ]
+}

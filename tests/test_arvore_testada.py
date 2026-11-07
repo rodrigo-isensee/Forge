@@ -16,6 +16,13 @@ REPO, D = "dono/forge", "a" * 40
 CI, REL = f"{REPO}/.github/workflows/ci.yml@refs/heads/x", f"{REPO}/.github/workflows/release.yml@refs/heads/main"
 
 
+def chamar(f, *args):
+    try:
+        return f(*args)
+    except Exception as erro:  # o contrato é não lançar: entrada estranha não prova (C-7)
+        return "lançou", type(erro).__name__
+
+
 def env(evento="pull_request", base="homolog", head="develop", head_repo=REPO, ref="", wf=CI):
     return {"REPO": REPO, "EVENTO": evento, "BASE_REF": base, "HEAD_REF": head, "HEAD_REPO": head_repo, "REF": ref,
             "GITHUB_WORKFLOW_REF": wf}
@@ -26,16 +33,20 @@ class EventoElegivel(unittest.TestCase):
         for e in (env(), env(base="main", head="homolog"), env("push", ref="refs/heads/homolog"),
                   env("push", ref="refs/heads/main"), env("push", ref="refs/heads/main", wf=REL)):
             with self.subTest(e):
-                self.assertTrue(at.evento_elegivel(e)[0])
+                self.assertEqual(at.evento_elegivel(e)[0], True)
+                self.assertTrue(at.evento_elegivel(e)[1].endswith(": elegível"))
 
     def test_fora_da_lista_sai_falso(self):  # casos 9 e 4 (fork), PR para a develop, push da develop, dispatch, tag
         for e in (env(base="develop", head="homolog"), env(head="melhoria/x"), env(head_repo="fork/forge"),
                   env(base="main", head="develop"), env("push", ref="refs/heads/develop"), env("push", ref="refs/tags/develop"),
                   env("workflow_dispatch", ref="refs/heads/main"), env("push", ref="refs/heads/homolog", wf=REL),
-                  env(wf=REL), env(wf=f"outro/forge/.github/workflows/ci.yml@x"), env(wf=CI.replace("ci.yml", "outro.yml")),
-                  {**env(), "REPO": None}, {**env(), "GITHUB_WORKFLOW_REF": 3}, {}, None):
+                  env(wf=REL), env(wf="outro/forge/.github/workflows/ci.yml@x"), env(wf=CI.replace("ci.yml", "outro.yml")),
+                  {**env(), "REPO": None}, {**env(), "GITHUB_WORKFLOW_REF": 3}, {}, None, {**env(), "EVENTO": None},
+                  env(wf=".github/workflows/ci.yml@x"), {**env(head_repo=""), "REPO": "", "GITHUB_WORKFLOW_REF": "/.github/workflows/ci.yml@x"}):
             with self.subTest(e):
-                self.assertFalse(at.evento_elegivel(e)[0])
+                self.assertFalse(chamar(at.evento_elegivel, e)[0])
+        self.assertTrue(at.evento_elegivel(env(base="develop"))[1].endswith(": fora da lista"))
+        self.assertEqual(at.evento_elegivel({**env(), "EVENTO": None})[1], "(sem evento)  em .github/workflows/ci.yml: fora da lista")
 
 
 def execucao(**muda):
@@ -51,8 +62,8 @@ def job(**muda):
 
 class ProvaValida(unittest.TestCase):
     def prova(self, execucoes=None, jobs=None, d=D, python="3.12"):
-        return at.prova_valida([execucao()] if execucoes is None else execucoes, {7: [job()]} if jobs is None else jobs,
-                               d, python, REPO)
+        return chamar(at.prova_valida, [execucao()] if execucoes is None else execucoes,
+                      {7: [job()]} if jobs is None else jobs, d, python, REPO)
 
     def test_prova_completa_sai_verdadeiro_com_run_e_job(self):
         self.assertEqual(self.prova(), (True, "develop aaaaaaa, run 7, job checagem rápida (push na develop)"))
@@ -77,7 +88,7 @@ class ProvaValida(unittest.TestCase):
 
     def test_entrada_fora_do_formato_sai_falso(self):
         for args in ({"python": "3.13"}, {"python": "3.14"}, {"d": "A" * 40}, {"d": D[:7]}, {"d": None},
-                     {"execucoes": {}}, {"jobs": []}):
+                     {"execucoes": {}}, {"jobs": []}, {"execucoes": [execucao(head_sha="")], "jobs": {7: [job(head_sha="")]}, "d": ""}):
             with self.subTest(args):
                 self.assertFalse(self.prova(**args)[0])
         self.assertFalse(at.prova_valida([execucao()], {7: [job()]}, D, "3.12", "dono/forge x")[0])

@@ -1,0 +1,86 @@
+{
+  "pedido": "versao-040",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "push só nas refs do próprio workflow",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "ref in PUSHES.get(workflow, ())",
+      "para": "ref in PUSHES[WORKFLOW_DE_PROVA]",
+      "testes": [
+        "tests.test_arvore_testada.EventoElegivel.test_fora_da_lista_sai_falso"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "motivo sem evento diz (sem evento)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "evento or '(sem evento)'",
+      "para": "evento and '(sem evento)'",
+      "testes": [
+        "tests.test_arvore_testada.EventoElegivel.test_fora_da_lista_sai_falso"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "motivo do push diz se é elegível",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "{ref} em {workflow}: {'elegível' if ok else",
+      "para": "{ref} em {workflow}: {'elegível' if not ok else",
+      "testes": [
+        "tests.test_arvore_testada.EventoElegivel.test_lista_branca_sai_verdadeiro"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "d tem de ser sha de 40 hex",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "SHA.fullmatch(d)",
+      "para": "d is not None",
+      "testes": [
+        "tests.test_arvore_testada.ProvaValida.test_entrada_fora_do_formato_sai_falso"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "toda chave da execução tem de casar",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "or any(campo(execucao, k, str) != v",
+      "para": "or all(campo(execucao, k, str) != v",
+      "testes": [
+        "tests.test_arvore_testada.ProvaValida.test_execucao_que_nao_prova_sai_falso"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "a execução confere event e path, não só o nome do job (desenho)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "\"event\": \"push\", \"head_branch\": \"develop\", \"head_sha\": d, \"path\": WORKFLOW_DE_PROVA,",
+      "para": "\"head_branch\": \"develop\", \"head_sha\": d,",
+      "testes": [
+        "tests.test_arvore_testada.ProvaValida.test_execucao_que_nao_prova_sai_falso"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "o job de prova é o do nome do Python pedido",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "if campo(j, \"name\", str) == nome]",
+      "para": "if campo(j, \"name\", str) != nome]",
+      "testes": [
+        "tests.test_arvore_testada.ProvaValida.test_prova_completa_sai_verdadeiro_com_run_e_job"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "lista de jobs só se for list",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "if type(lista) is list else []",
+      "para": "if True else []",
+      "testes": [
+        "tests.test_arvore_testada.ProvaValida.test_job_que_nao_prova_sai_falso"
+      ]
+    }
+  ]
+}
