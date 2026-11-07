@@ -3415,9 +3415,10 @@ class ConferirBrief(unittest.TestCase):
         rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
         self.assertIn("aviso: PQ-2 `grep -c` sem arquivo", saida)
         self.assertEqual(rc, 0, saida)
-        arq = self.variante("etapa-outro-papel.md", ("`git log -1 --format=%h` da branch", "`git rev-parse HEAD` igual a 3f85c29"))
+        curto = git("rev-parse", "--short=7", "HEAD", cwd=RAIZ).stdout.strip()
+        arq = self.variante("etapa-outro-papel.md", ("`git log -1 --format=%h` da branch", "`git rev-parse HEAD` igual a " + curto))
         rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
-        self.assertIn("aviso: PQ-1 sha abreviado (3f85c29)", saida)
+        self.assertIn(f"aviso: PQ-1 sha abreviado ({curto[:12]})", saida)
         self.assertEqual(rc, 0, saida)
         arq = self.variante("etapa-outro-papel.md", ("`git log -1 --format=%h` da branch", "`git rev-parse HEAD` igual a " + "3f85c29" + "0" * 33))
         self.assertNotIn("sha abreviado", self.rodar(arq, "--pedido", self.PEDIDO)[1])  # 40 hex não avisa
@@ -3432,7 +3433,8 @@ class ConferirBrief(unittest.TestCase):
                 self.assertTrue(fc.grep_c_sem_arquivo(comando))
 
     def test_pedido_sem_ids_nao_reprova_o_corte(self):
-        rc, saida = self.conferir("corte-sem-marca.md", pedido=self.PASTA / "pedido-sem-ids.md")
+        arq = self.variante("corte-sem-marca.md", ("docs/pedidos/pedido-sintetico.md: Escopo.", "docs/pedidos/pedido-sem-ids.md: Escopo."))
+        rc, saida = self.rodar(arq, "--pedido", self.PASTA / "pedido-sem-ids.md")
         self.assertIn("corte: não verificável (pedido sem IDs)", saida)
         self.assertNotIn("corte: sem marca", saida)
         self.assertEqual(rc, 0, saida)

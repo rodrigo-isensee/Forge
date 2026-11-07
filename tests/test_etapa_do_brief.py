@@ -223,7 +223,7 @@ class LoteDoBriefG1(Base):
 SHA = "0123456789abcdef0123456789abcdef01234567"
 
 
-def preencher(gerado, pq_proprio=True, base_sha=SHA):
+def preencher(gerado, pq_proprio=True, base_sha=SHA, merge_sha=SHA):
     """O que o Jarvis faz com a saída do `gerar`: apaga o que tem PREENCHER e o bloco da marca não usado, põe Objetivo, Ler e um PQ
     (ou, com `pq_proprio=False`, fica só com o PQ de merge do gerar, com o sha no lugar de <mergeCommit>)."""
     linhas, pula = [], False
@@ -231,7 +231,7 @@ def preencher(gerado, pq_proprio=True, base_sha=SHA):
         if linha.startswith("## "):
             pula = linha.startswith("## Marca de corte")
         if not pq_proprio and "<mergeCommit>" in linha:
-            linhas.append(linha.split(" · PREENCHER", 1)[0].replace("<mergeCommit>", SHA).replace("PQ-N", "PQ-1"))
+            linhas.append(linha.split(" · PREENCHER", 1)[0].replace("<mergeCommit>", merge_sha).replace("PQ-N", "PQ-1"))
             continue
         if linha.startswith("Branch:"):
             linha = linha.replace("Base-sha: PREENCHER", f"Base-sha: {base_sha}")
@@ -391,8 +391,9 @@ class TabelaDePareceres(Repo):
         self.entrega({"src/app.py": "v2\n"}, "review", "qa")
         rc, saida = self.gerar("merge-integracao")
         self.assertEqual(rc, 0, saida)
-        preenchido = preencher(saida, pq_proprio=False, base_sha=self.git("rev-parse", "develop"))
-        self.assertIn(f"git merge-base --is-ancestor {SHA} origin/develop", preenchido)
+        develop = self.git("rev-parse", "develop")
+        preenchido = preencher(saida, pq_proprio=False, base_sha=develop, merge_sha=develop)
+        self.assertIn(f"git merge-base --is-ancestor {develop} origin/develop", preenchido)
         rc, conferido = self.conferir(preenchido)
         self.assertNotIn("forma: sem PQ que o conferente confira", conferido)
         self.assertNotIn("aviso: etapa:", conferido)
@@ -401,7 +402,8 @@ class TabelaDePareceres(Repo):
     def test_brief_avisa_a_etapa_sem_parecer_e_nao_reprova(self):
         self.entrega({"src/app.py": "v2\n"}, "review", "qa")
         rc, saida = self.gerar("merge-integracao")
-        preenchido = preencher(saida, pq_proprio=False, base_sha=self.git("rev-parse", "develop"))
+        develop = self.git("rev-parse", "develop")
+        preenchido = preencher(saida, pq_proprio=False, base_sha=develop, merge_sha=develop)
         self.git("reset", "-q", "--hard", "HEAD~1")  # os pareceres somem da branch depois do gerar
         rc, conferido = self.conferir(preenchido)
         self.assertIn("aviso: etapa: docs/reviews: review: sem parecer para o pedido `exemplo` (R-REVIEW)", conferido)
