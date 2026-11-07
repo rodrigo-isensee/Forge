@@ -98,3 +98,31 @@ class PrePushSegredo(unittest.TestCase):
     def test_sem_a_base_local_avisa_e_segue(self):  # o CI varre
         self.git("update-ref", "-d", "refs/remotes/origin/develop")
         self.assertIn("varredura pulada", self.passa("a.md", f"{TOKEN}\n"))
+
+    def segue_com_aviso(self, aviso, *refs):  # C-8 e C-10: o ramo avisa, não varre a ref e a suíte roda (o CI varre)
+        codigo, saida = self.hook(*refs)
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn(aviso, saida)
+        self.assertTrue((self.repo / "rodou").exists(), saida)
+
+    def test_ref_que_nao_descasca_a_commit_avisa_e_segue(self):  # pre-push:192
+        self.commit("limpo", **{"l.md": "ok\n"})
+        self.segue_com_aviso("refs/tags/arvore não é commit", ("tags/arvore", self.git("rev-parse", "HEAD^{tree}")))
+
+    def test_ref_sem_base_comum_avisa_e_segue(self):  # pre-push:194
+        self.git("checkout", "-q", "--orphan", "melhoria/orfa")
+        self.commit("orfa", **{"o.md": f"{TOKEN}\n"})
+        self.segue_com_aviso("refs/heads/melhoria/orfa sem base comum", ("melhoria/orfa", self.git("rev-parse", "HEAD")))
+
+    def test_script_da_base_sem_a_marca_varre_so_o_head(self):  # pre-push:196, a transição C-10
+        script = self.repo / "scripts/verificar-contribuicao.sh"
+        script.write_text("".join(l for l in script.read_text().splitlines(True) if not l.startswith("# forge:ponta")))
+        self.commit("base sem a marca")
+        self.git("update-ref", "refs/remotes/origin/develop", "HEAD")
+        limpo = self.commit("limpo", **{"l.md": "ok\n"})
+        sujo = self.commit("sujo", **{"s.md": f"{TOKEN}\n"})
+        self.git("checkout", "-q", limpo)
+        self.segue_com_aviso("não aceita a ponta; refs/heads/melhoria/y não foi varrida", ("melhoria/y", sujo))
+        (self.repo / "rodou").unlink()
+        self.git("checkout", "-q", sujo)
+        self.recusa(("melhoria/y", sujo), onde="s.md:1")

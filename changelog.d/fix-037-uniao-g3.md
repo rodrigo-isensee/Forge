@@ -1,0 +1,2 @@
+### Alterado
+- Testes do pre-push: os três ramos que avisam e seguem sem varrer segredo (ref que não é commit, ref sem base comum com origin/develop e script da base sem a marca forge:ponta, a transição C-10) ganham teste de comportamento; mutantes declarados das guardas da varredura (tests/mutantes/i3-segredo-pre-push.json) e da prova da suíte no conformidade (tests/mutantes/s8-verde-protegido.json) (versao-037, E7 e E8, volta da branch única)
