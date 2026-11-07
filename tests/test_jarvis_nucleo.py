@@ -55,6 +55,16 @@ class NucleoCurtoDoJarvis(unittest.TestCase):
             with self.subTest(regra=regra):
                 self.assertIn(f"`{regra}`", nucleo)
 
+    def test_o_passo_8_encerra_pelo_vazio_sem_apagar_nada(self):  # ACELERA-E2b, C-7
+        nucleo = ler(JARVIS)
+        passo = next(linha for linha in nucleo.splitlines() if linha.startswith("8. "))
+        for trecho in ("`forge-check vazio --ref <branch>`", "só `vazio: sim` encerra", "`não verificável` não encerra",
+                       "linha inteira", "a branch e a worktree ficam até a limpeza normal (`R-VERIFY`)"):
+            self.assertIn(trecho, passo)
+        for proibido in ("branch -D", "worktree remove", "push --delete"):
+            self.assertNotIn(proibido, passo)
+        self.assertLessEqual(len(nucleo.splitlines()), 110)
+
 
 if __name__ == "__main__":
     unittest.main()

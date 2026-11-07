@@ -1,0 +1,2 @@
+### Adicionado
+- O `forge-check vazio --ref <branch> [--base origin/develop]` prova que a develop já tem o conteúdo da branch (mescla simulada sem conflito com a árvore da base e cada caminho da branch igual na base; base em lista branca, ref igual à base, local e origin divergentes ou falha do git dão `não verificável`); o `brief gerar --branch` mostra `estado: diff vazio contra origin/<base>` e o passo 8 do Jarvis encerra o lote sem PR só com `vazio: sim`, sem apagar branch nem worktree (E4 ACELERA-E2B, versao-039; afrouxa por decisão do dono de 2026-10-27).
