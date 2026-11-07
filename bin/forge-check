@@ -5790,6 +5790,7 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     linhas += aviso_de_review_proprio(raiz, texto, ler_pedido_brief(pedido_txt))
     linhas += linha_do_comando_pr(texto)
     linhas += conferir_citacoes(raiz, texto, secoes_por(texto, CABECALHO_BRIEF), ler_pedido_brief(pedido_txt))
+    linhas += [(a, False) for a in avisos_do_historico(pedido_txt) + aviso_de_recibo(pedido_txt)]
     if re.search(r"^Volta-de:", texto, re.M):  # brief de volta (M7): o anterior, os blocos copiados e os achados dos pareceres
         linhas += conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, pareceres, cobradas)
     return pedido_id, linhas
@@ -5817,6 +5818,46 @@ def avisos_de_suposicao(pedido_txt):
         if faltam:
             avisos.append(f"aviso: suposição sem {' e sem '.join(chr(34) + c + chr(34) for c in faltam)}: {sem_controle(linha[2:62])} (R-DECISAO)")
     return avisos
+
+
+MARCA_DO_HISTORICO = re.compile(r"^- (\d{4}-\d{2}-\d{2})(?: (\d{2}:\d{2}))?(?=[:\s])")  # `11:2x` e data sem hora: só a data
+RECIBO_CONFIRMADO = re.compile(r'recibo confirmado:\s*["“]([^"”]*)["”]')
+DATA_DO_RECIBO = "2026-11-07"  # P5: pedido aberto antes da forma do recibo chegar à develop não é cobrado
+
+
+def marcas_do_historico(pedido_txt):
+    """[(data, hora ou None, linha)] das linhas `- AAAA-MM-DD[ HH:MM]:` do `## Histórico`; só a marca do começo da linha."""
+    return [(m.group(1), m.group(2), l) for l in linhas_da_secao(pedido_txt, "Histórico") if (m := MARCA_DO_HISTORICO.match(l))]
+
+
+def avisos_do_historico(pedido_txt, agora=None):
+    """P4: hora do Histórico no futuro (folga de 2 min) ou fora de ordem crescente; `registro tardio` fica fora da ordem. Só aviso."""
+    limite = (agora or datetime.datetime.now()) + datetime.timedelta(minutes=2)
+    avisos, anterior = [], None
+    for data, hora, linha in marcas_do_historico(pedido_txt):
+        if hora is None:
+            continue
+        marca = f"{data} {hora}"
+        if datetime.datetime.strptime(marca, "%Y-%m-%d %H:%M") > limite:
+            avisos.append(f"aviso: histórico: {marca} no futuro")
+        if "registro tardio" in linha:
+            continue
+        if anterior and marca < anterior:
+            avisos.append(f"aviso: histórico: {marca} antes da linha anterior ({anterior})")
+        anterior = marca
+    return avisos
+
+
+def aviso_de_recibo(pedido_txt):
+    """P5: pedido aberto desde `DATA_DO_RECIBO` sem `DECISÃO DO DONO (...): recibo confirmado: "<resposta>"` sai como aviso."""
+    marcas = marcas_do_historico(pedido_txt)
+    if not marcas or marcas[0][0] < DATA_DO_RECIBO:
+        return []
+    for _, linha in linhas_de_decisao(pedido_txt):
+        m = RECIBO_CONFIRMADO.search(linha)
+        if m and m.group(1).strip() and not m.group(1).startswith("<"):
+            return []
+    return ['aviso: recibo: o pedido não tem a linha DECISÃO DO DONO (<data hora>): recibo confirmado: "<resposta literal>" (R-DECISAO)']
 
 
 def cmd_brief_conferir(raiz, arquivo, pedido, destino, anterior=None, ref=None, pareceres=None):

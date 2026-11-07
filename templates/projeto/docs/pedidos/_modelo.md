@@ -50,6 +50,7 @@ Quando o dono troca uma suposição, grave no `## Histórico` a linha `suposiç�
 
 ## Decisões do usuário (registro literal)
 DECISÃO DO DONO (AAAA-MM-DD): <decisão, nas palavras do usuário>
+DECISÃO DO DONO (AAAA-MM-DD HH:MM): recibo confirmado: "<resposta literal do usuário ao recibo>" (o recibo só vale com a resposta a ele; o `forge-check brief` avisa o pedido sem esta linha, `R-DECISAO`)
 
 ## Registro de clareza
 <uma tag por linha, na forma acima; sem ocorrência, `PERGUNTA: nenhuma`>
