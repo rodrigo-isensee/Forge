@@ -6,7 +6,7 @@
       "id": "M1",
       "guarda": "commit_vale tira texto e forma do que desatualiza",
       "arquivo": "bin/forge-check",
-      "de": "leves = {f for f, c in classes.items() if c != \"codigo\"}",
+      "de": "leves = {f for f, c in classes.items() if c != \"codigo\" and not livre(f, estritos)}",
       "para": "leves = set()",
       "testes": [
         "tests.test_reval_delta.Validade.test_texto_ou_forma_nao_desatualiza_e_codigo_sim"
@@ -62,8 +62,8 @@
       "id": "M14",
       "guarda": "forma tambem nao desatualiza",
       "arquivo": "bin/forge-check",
-      "de": "if c != \"codigo\"}",
-      "para": "if c == \"texto\"}",
+      "de": "if c != \"codigo\" and not livre(f, estritos)}",
+      "para": "if c == \"texto\" and not livre(f, estritos)}",
       "testes": [
         "tests.test_reval_delta.Validade.test_texto_ou_forma_nao_desatualiza_e_codigo_sim"
       ]
@@ -96,6 +96,26 @@
       "para": "    if True:\n        print(f\"delta: classe",
       "testes": [
         "tests.test_reval_delta.Validade.test_delta_classe_so_com_a_flag"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "no pr, fragmento alheio nunca e leve (D4 contra EST-M4)",
+      "arquivo": "bin/forge-check",
+      "de": "if c != \"codigo\" and not livre(f, estritos)}",
+      "para": "if c != \"codigo\"}",
+      "testes": [
+        "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_so_o_fragmento_do_changelog_da_branch_nao_desatualiza_o_parecer"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "cmd_pr passa FRAGMENTOS como estritos",
+      "arquivo": "bin/forge-check",
+      "de": "base, livres, estritos=FRAGMENTOS)",
+      "para": "base, livres)",
+      "testes": [
+        "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_so_o_fragmento_do_changelog_da_branch_nao_desatualiza_o_parecer"
       ]
     }
   ]
