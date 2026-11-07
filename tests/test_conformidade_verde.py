@@ -61,14 +61,15 @@ class ProvaDaSuite(unittest.TestCase):
     def test_pasta_fora_de_projeto_tambem_recusa(self):  # A2 da segurança g3: o ramo `externo is False` de principal
         v, fora = str(self.verde), self.tmp / "fora"
         fora.mkdir()
+        outra = "echo x > ~/.claude/settings.json"  # recusa de dentro de projeto, que fora dele não vale
         for raiz, pasta in ((RAIZ, fora), (RAIZ, RAIZ), (None, fora)):
             extra = {"CLAUDE_PROJECT_DIR": str(raiz)} if raiz else {}
             for papel in ("forge:tech-lead", None):
                 caso = f"raiz {raiz}, pasta {pasta}, papel {papel}"
                 self.recusa(self.rodar("Write", {"file_path": v, "content": "x"}, papel, cwd=pasta, **extra), f"Write, {caso}")
-                for c in (f"echo x > {v}", f"echo x > {self.tmp}/outro.txt; echo x > {v}"):  # 2.º: outra recusa antes
+                for c in (f"echo x > {v}", f"{outra}; echo x > {v}"):  # 2.º: a outra recusa vem antes
                     self.recusa(self.rodar("Bash", {"command": c}, papel, cwd=pasta, **extra), f"{c}, {caso}")
-                for c in (f"cat {v}", f"echo x > {self.tmp}/outro.txt"):  # o resto do ramo segue (ADR 0009, 6)
+                for c in (f"cat {v}", f"echo x > {self.tmp}/outro.txt", *([] if raiz else [outra])):  # ADR 0009, 6
                     r = self.rodar("Bash", {"command": c}, papel, cwd=pasta, **extra)
                     self.assertEqual(r.returncode, 0, f"{c}, {caso}: {r.stderr}")
         self.assertFalse((fora / ".forge").exists(), "a outra recusa não é erro interno: nada no erros.log")
