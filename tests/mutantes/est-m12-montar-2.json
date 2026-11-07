@@ -1,0 +1,166 @@
+{
+  "pedido": "est-m12-montar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "so linha com hora ISO e 5 celulas e movimento (C-3)",
+      "arquivo": "bin/forge-check",
+      "de": "if len(c) >= 5 and ISO8601.match(c[0]):",
+      "para": "if len(c) >= 5:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_coluna_e_a_do_ultimo_movimento_na_ordem_do_arquivo_nunca_por_hora"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "cabecalho e separador do historico nao contam como fora da forma",
+      "arquivo": "bin/forge-check",
+      "de": "elif c[0] != \"Data/hora\" and not SEPARADOR.fullmatch(c[0]):",
+      "para": "elif c[0] != \"Data/hora\":",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_ponte_fora_de_id_resp_vira_travessao_e_cartao_sem_movimento_fica"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "cartao do quadro sem movimento fica",
+      "arquivo": "bin/forge-check",
+      "de": "if k not in movimentos]",
+      "para": "if k in movimentos]",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_ponte_fora_de_id_resp_vira_travessao_e_cartao_sem_movimento_fica"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "aviso da marca fora da forma chega ao quadro",
+      "arquivo": "bin/forge-check",
+      "de": "avisos += [f\"cartão {base[0]}: {aviso}\"] if aviso else []",
+      "para": "avisos += [f\"cartão {base[0]}: {aviso}\"] if False else []",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_marca_do_fim_vence_a_ponte_e_marca_fora_da_forma_e_ignorada_inteira"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "a marca valida sobrescreve a ponte",
+      "arquivo": "bin/forge-check",
+      "de": "atributos.update(marca or {})",
+      "para": "atributos.update(marca and {} or {})",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_marca_do_fim_vence_a_ponte_e_marca_fora_da_forma_e_ignorada_inteira"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "cartao sem responsavel da aviso",
+      "arquivo": "bin/forge-check",
+      "de": "if atributos[\"responsavel\"] == \"—\" else []",
+      "para": "if atributos[\"responsavel\"] != \"—\" else []",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_ponte_fora_de_id_resp_vira_travessao_e_cartao_sem_movimento_fica"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "coluna do proprio Para quando ha secao",
+      "arquivo": "bin/forge-check",
+      "de": "        if destino is None:\n            destino = canonicas",
+      "para": "        if destino is None or para == \"Pronto\":\n            destino = canonicas",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_coluna_e_a_do_ultimo_movimento_na_ordem_do_arquivo_nunca_por_hora"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "sem secao e sem Bloqueado recusa",
+      "arquivo": "bin/forge-check",
+      "de": "            if destino is None:\n                return None",
+      "para": "            if destino is None or destino == \"Code review\":\n                return None",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_estado_sem_secao_aparece_com_estado_e_aviso"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "janela so no Pronto canonico (C-5)",
+      "arquivo": "bin/forge-check",
+      "de": "_sem_acento(para) == \"pronto\" and",
+      "para": "_sem_acento(para) in (\"pronto\", \"feito\") and",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_estado_sem_secao_aparece_com_estado_e_aviso"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "janela de 30 dias",
+      "arquivo": "bin/forge-check",
+      "de": "> datetime.timedelta(days=JANELA_DO_PRONTO_DIAS)",
+      "para": "> datetime.timedelta(days=JANELA_DO_PRONTO_DIAS + 2)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_coluna_e_a_do_ultimo_movimento_na_ordem_do_arquivo_nunca_por_hora"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "hora ilegivel nao tira do Pronto",
+      "arquivo": "bin/forge-check",
+      "de": "(_hora(ultimo[0]) or agora)",
+      "para": "(_hora(ultimo[0]) and agora or agora)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_coluna_e_a_do_ultimo_movimento_na_ordem_do_arquivo_nunca_por_hora"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "o ultimo movimento e a coluna, nao o primeiro",
+      "arquivo": "bin/forge-check",
+      "de": "ultimo, base = ms[-1], ",
+      "para": "ultimo, base = ms[0], ",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_coluna_e_a_do_ultimo_movimento_na_ordem_do_arquivo_nunca_por_hora"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "titulo de secao e linha que comeca com ## e espaco",
+      "arquivo": "bin/forge-check",
+      "de": "    secoes, ponte, movimentos, avisos, secao = {}, {}, {}, [], None\n    for linha in texto_kanban.split(\"\\n\"):\n        secao, c = nome_da_secao(linha[3:]) if linha.startswith(\"## \") else",
+      "para": "    secoes, ponte, movimentos, avisos, secao = {}, {}, {}, [], None\n    for linha in texto_kanban.split(\"\\n\"):\n        secao, c = nome_da_secao(linha[3:]) if linha.startswith(\"## E\") else",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_coluna_e_a_do_ultimo_movimento_na_ordem_do_arquivo_nunca_por_hora"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "na reescrita, titulo de secao e linha com ## e espaco",
+      "arquivo": "bin/forge-check",
+      "de": "    saida, pendentes, secao = [], dict(secoes), None\n    for linha in texto_kanban.split(\"\\n\"):\n        secao, c = nome_da_secao(linha[3:]) if linha.startswith(\"## \") else",
+      "para": "    saida, pendentes, secao = [], dict(secoes), None\n    for linha in texto_kanban.split(\"\\n\"):\n        secao, c = nome_da_secao(linha[3:]) if linha.startswith(\"## E\") else",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_texto_fora_das_tabelas_igual_quadro_passa_no_kanban_e_regerar_da_o_mesmo"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "so linha de 7 celulas da secao e reescrita",
+      "arquivo": "bin/forge-check",
+      "de": "if secao in secoes and linha.startswith(\"|\") and len(c) == len(COLUNAS):",
+      "para": "if secao in secoes and linha.startswith(\"|\") and len(c) == len(COLUNAS) + 1:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_texto_fora_das_tabelas_igual_quadro_passa_no_kanban_e_regerar_da_o_mesmo"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "os cartoes saem logo depois do cabecalho",
+      "arquivo": "bin/forge-check",
+      "de": "            if c == COLUNAS:\n                saida +=",
+      "para": "            if c != COLUNAS:\n                saida +=",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_texto_fora_das_tabelas_igual_quadro_passa_no_kanban_e_regerar_da_o_mesmo"
+      ]
+    }
+  ]
+}

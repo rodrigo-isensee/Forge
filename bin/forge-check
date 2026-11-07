@@ -2521,10 +2521,10 @@ def montar_quadro(texto_kanban, linhas_do_historico, agora):
             if destino is None:
                 return None, {}, avisos + [f"cartão {base[0]}: estado \"{para}\" sem seção e o quadro sem \"Bloqueado\""]
             avisos.append(f"cartão {base[0]}: estado \"{para}\" sem seção no quadro; posto em {destino}")
-            obs = " · ".join(t for t in (f"estado: {para}", obs) if t)
+            obs = f"estado: {para} · {obs}"
         if _sem_acento(para) == "pronto" and agora - (_hora(ultimo[0]) or agora) > datetime.timedelta(days=JANELA_DO_PRONTO_DIAS):
             continue
-        secoes[destino].append([base[0], *atributos.values(), ms[0][0][:10], ultimo[0], obs or "—"])
+        secoes[destino].append([base[0], *atributos.values(), ms[0][0][:10], ultimo[0], obs])
     saida, pendentes, secao = [], dict(secoes), None
     for linha in texto_kanban.split("\n"):
         secao, c = nome_da_secao(linha[3:]) if linha.startswith("## ") else secao, [x.strip() for x in linha.strip().strip("|").split("|")]

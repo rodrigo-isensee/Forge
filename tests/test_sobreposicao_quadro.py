@@ -550,10 +550,10 @@ class QuadroGerado(unittest.TestCase):
 
     def test_marca_do_fim_vence_a_ponte_e_marca_fora_da_forma_e_ignorada_inteira(self):
         _, q, avisos = self.montar(mov(3, "K-1", "Em andamento", "a · atributos: titulo=Novo; pedido=p-2; responsavel=forge:qa"),
-                                   mov(2, "K-1", "Em andamento", "b · atributos: responsavel=forge:x · custo do trecho: 5 tokens"),
+                                   mov(2, "K-1", "Em andamento", "b · atributos: responsavel=forge:X"),
                                    mov(1, "K-1", "Em andamento", "c · atributos: responsavel=forge:y · atributos: pedido=p-3"))
         self.assertEqual(q.get("K-1")[1:4] + q.get("K-1")[6:], ("Novo", "p-3", "forge:qa", "c · atributos: responsavel=forge:y"))
-        self.assertNotIn("marca de atributos fora da forma, ignorada", " ".join(avisos))
+        self.assertIn("cartão K-1: marca de atributos fora da forma, ignorada", avisos)
         for ruim in ("responsavel=forge:a; responsavel=forge:b", "dono=forge:a", "pedido=../x", "responsavel=forge:X", "titulo=a\u200bb", "titulo=", "titulo=a=b"):
             self.assertEqual(fc.ler_marca("m · atributos: " + ruim), ("m", None, "marca de atributos fora da forma, ignorada"), ruim)
 
