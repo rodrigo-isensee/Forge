@@ -34,10 +34,10 @@
     },
     {
       "id": "M15",
-      "guarda": "responsavel casa ID_RESP",
+      "guarda": "responsavel casa ID_RESP (o valor dado, nao um fixo)",
       "arquivo": "bin/forge-check",
-      "de": "if \"responsavel\" in atributos and not ID_RESP.fullmatch",
-      "para": "if \"responsavel\" in atributos and not ID_RESP.match",
+      "de": "and not ID_RESP.fullmatch(atributos[\"responsavel\"])",
+      "para": "and not ID_RESP.fullmatch(\"usuário\")",
       "testes": [
         "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_valor_fora_da_forma_ou_acima_do_teto_recusa"
       ]

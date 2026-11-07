@@ -332,7 +332,7 @@ class MovimentoGeraQuadro(unittest.TestCase):  # EST-M12, E3-2a: o `movimento` g
         self.assertFalse(self.arq.exists())
 
     def test_valor_fora_da_forma_ou_acima_do_teto_recusa(self):  # caso de abuso 7 e os tetos do C-8
-        for args in (("--responsavel", "forge:x; pedido=y"), ("--responsavel", "fulano"), ("--pedido", "../../segredo"), ("--titulo", "a; b"), ("--titulo", "a=b"),
+        for args in (("--responsavel", "forge:x; pedido=y"), ("--responsavel", "fulano"), ("--pedido", "../../segredo"), ("--pedido", "p/../segredo"), ("--titulo", "a; b"), ("--titulo", "a=b"),
                      ("--titulo", "a\u200bb"), ("--titulo", "a\x07b"), ("--titulo", "a · b"), ("--titulo", "a|b"), ("--titulo", " "), ("--titulo", "t" * 121), ("--motivo", "m" * 501)):
             rc, saida, _ = self.mover("--de", "—", "--para", "Entrada", *args)
             self.assertEqual((rc, "nada gravado" in saida), (1, True), args)
