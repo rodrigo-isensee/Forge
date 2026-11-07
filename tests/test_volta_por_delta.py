@@ -1012,7 +1012,7 @@ class Sondas(Repositorio):
 
     def test_modelos_e_agentes_trazem_o_bloco(self):
         modulo = carregar_forge_check()
-        for modelo in ("templates/projeto/docs/reviews/_modelo.md", "docs/security/_modelo.md"):
+        for modelo in ("templates/projeto/docs/reviews/_modelo.md", "docs/security/_modelo.md", "templates/projeto/docs/security/_modelo.md"):
             with self.subTest(modelo):
                 self.assertEqual(modulo.sondas_do_parecer((RAIZ / modelo).read_text(encoding="utf-8")), ([], [], True))
         for agente in ("tech-lead", "security-engineer"):
