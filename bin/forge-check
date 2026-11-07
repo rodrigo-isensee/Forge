@@ -5480,7 +5480,7 @@ def conferir_citacoes(raiz, texto, secoes, pedido):
                 parecido = difflib.get_close_matches(valor, sorted(valores), n=1, cutoff=0.5)
                 dica = f" (use {parecido[0]})" if parecido else ""
                 saida.append((f"vocabulário: {nome} \"{sem_controle(valor)[:40]}\" não existe{dica}", True))
-    return saida
+    return saida + citacoes_da_p2(raiz, texto, secoes)
 
 
 CAMINHO_NO_PQ = re.compile(r"(?<![\w./~$-])([\w.-]+(?:/[\w.@+-]+)+)(?![\w.@+/-]*[*?\[{])")  # com curinga não é cobrado
@@ -5507,6 +5507,19 @@ def caminhos_ausentes_do_pq(raiz, texto, secoes):
                 continue
             saida.append((f"pq: PQ-{m.group(1)} cita {nome_seguro(sem_controle(rel))}, que não existe nem é criado pelo Entregar (R-PROVA)", True))
     return saida
+
+
+def pqs_sem_definicao(secoes):
+    """P2 (4): todo `PQ-n` citado fora do `Pronto quando` abre um item do `Pronto quando`."""
+    definidos = {m.group(1) for l in secoes.get("Pronto quando", []) for m in [PQ.match(ITEM.sub("", l, count=1))] if m}
+    citados = {n for nome, linhas in secoes.items() if nome != "Pronto quando" for l in linhas for n, _ in PQ.findall(l)}
+    return [(f"citação: PQ-{n} citado fora do Pronto quando não existe nele", True) for n in sorted(citados - definidos, key=int)]
+
+
+def citacoes_da_p2(raiz, texto, secoes):
+    """ACELERA-P2: sha, registro, caminho do `Ler` e `PQ-n` citados no brief existem; offline, só leitura do disco e do git. O sha
+    é lido em todo o corpo, o `Pronto quando` e as linhas de decisão do dono também; o registro, fora do `Pronto quando`."""
+    return pqs_sem_definicao(secoes)
 
 
 def avisos_da_etapa(raiz, texto, pedido_id):
