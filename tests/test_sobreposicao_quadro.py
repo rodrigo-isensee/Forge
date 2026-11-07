@@ -600,6 +600,17 @@ class QuadroGerado(unittest.TestCase):
         self.assertEqual({i: q[i][0] for i in q if i[0] == "E"}, {"E-1": "Pronto para fazer", "E-2": "Entrada", "E-3": "Pronto", "E-4": "Bloqueado"})
         self.assertIn('cartão E-3: estado "Pronto (develop)" sem seção no quadro; posto em Pronto', avisos)
 
+    def test_quadro_gerado_dos_tres_estados_antigos_passa_no_kanban(self):  # C-6: o `--gerar` e o portão leem o mesmo quadro; Pronto para fazer dentro do limite
+        with tempfile.TemporaryDirectory() as tmp:
+            ATR = "x · atributos: titulo=T; pedido=p; responsavel=forge:dev"
+            (Path(tmp) / "docs" / "kanban").mkdir(parents=True)
+            Path(tmp, "KANBAN.md").write_text(NOTA + secao("Entrada") + secao("Pronto para fazer (WIP 5)") + secao("Pronto") + secao("Bloqueado"), encoding="utf-8")
+            Path(tmp, "docs", "kanban", "historico.md").write_text("| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n" + "".join(
+                f"| {' | '.join(m)} |\n" for m in (mov(1, "E-1", "a fazer", ATR), mov(1, "E-2", "Backlog", ATR), mov(1, "E-3", "Pronto (develop)", ATR))), encoding="utf-8")
+            self.assertEqual(fc.cmd_kanban_gerar(Path(tmp))[1], 0)
+            self.assertEqual(fc.cmd_kanban(Path(tmp)), [])
+            self.assertIn("| E-1 |", Path(tmp, "KANBAN.md").read_text(encoding="utf-8").split("## Pronto para fazer")[1].split("## ")[0])
+
 
 SEGREDO = "TOKEN=x\n" + QUADRO
 
