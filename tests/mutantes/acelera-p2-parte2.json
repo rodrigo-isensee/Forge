@@ -40,7 +40,6 @@
       "de": "return e_linha_de_decisao(linha) and chave_da_decisao(COPIADA_DE.sub(\"\", linha)) in copias",
       "para": "return e_linha_de_decisao(linha)",
       "testes": [
-        "tests.test_citacao_p2.DecisaoCopiada.test_decisao_fora_do_pedido_reprova",
         "tests.test_citacao_p2.ShaCitado.test_decisao_do_dono_e_pronto_quando_sao_cobrados"
       ]
     },
@@ -51,7 +50,7 @@
       "de": "            if copia:\n",
       "para": "            if False:\n",
       "testes": [
-        "tests.test_citacao_p2.DecisaoCopiada.test_copia_com_e_sem_sufixo_passa"
+        "tests.test_citacao_p2.ShaCitado.test_sha_da_base_e_da_branch_passa"
       ]
     },
     {
