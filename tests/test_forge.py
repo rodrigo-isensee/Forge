@@ -6240,13 +6240,41 @@ class TextosAQ3AgileCoach(unittest.TestCase):
         self.assertNotIn("nunca número estimado", self.texto)
 
     def test_git_so_de_leitura_em_outra_ref(self):
-        self.assertIn("`git show <ref>:<caminho>`, `git archive <ref> | tar -x -C $TMPDIR/...` ou `--ref` do `forge-check`", self.texto)
+        self.assertIn("`git show <ref>:<caminho>`, `git archive <ref> | tar -x -C \"${TMPDIR:-/tmp}\"/...` ou `--ref` do `forge-check`", self.texto)
         self.assertIn("nada de `worktree`, `checkout` nem `switch` no repositório medido", self.texto)
 
     def test_propor_e_implementar_numa_regra_so(self):
         self.assertEqual(self.texto.count("**Melhorias você mesmo implementa**"), 0)
         self.assertIn("mudança em agente, skill, script ou teste do Forge vira cartão para o `tech-lead`", self.texto)
         self.assertIn("(na sessão do Forge, com o AQ, `forge-dev:aq`)", self.texto)
+
+
+class TmpdirComRecuo(unittest.TestCase):
+    """TMPDIR-DO-AGENTE (0.67 E3, refeito na 0.43.4): o texto que manda criar ou usar pasta temporária recua para `/tmp` quando o
+    ambiente do agente não define `TMPDIR`; com `$TMPDIR` vazio, `$TMPDIR/<papel>-<pedido>/` cairia na raiz."""
+
+    # Só descreve, não manda caminho: a `esperar-estado` proíbe a expansão ao lado do envio.
+    DESCRICOES = {
+        "skills/esperar-estado/SKILL.md": ("(sem `$TMPDIR` nem `$?`,",),
+        "skills/checagem-do-brief/SKILL.md": (),
+        "agents/agile-coach.md": (),
+    }
+
+    def test_nenhum_tmpdir_sem_recuo(self):
+        for arquivo, descricoes in self.DESCRICOES.items():
+            with self.subTest(arquivo=arquivo):
+                texto = (RAIZ / arquivo).read_text(encoding="utf-8")
+                for d in descricoes:
+                    self.assertEqual(texto.count(d), 1, d)
+                    texto = texto.replace(d, "")
+                self.assertEqual(re.findall(r".{0,40}\$TMPDIR\b.{0,20}", texto), [])
+                self.assertIn("${TMPDIR:-/tmp}", texto)
+
+    def test_formas_do_recuo(self):
+        checagem = (RAIZ / "skills" / "checagem-do-brief" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("(`${TMPDIR:-/tmp}/<papel>-<pedido>/`; o `:-/tmp` vale quando o ambiente do agente não define `TMPDIR`)", checagem)
+        esperar = (RAIZ / "skills" / "esperar-estado" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("pasta gravável (por exemplo, `${TMPDIR:-/tmp}`)", esperar)
 
 
 class TextosAQ3Stack(unittest.TestCase):
