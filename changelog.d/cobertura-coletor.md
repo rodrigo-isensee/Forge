@@ -1,0 +1,2 @@
+### Adicionado
+- `scripts/cobertura.py` gera o texto do coletor de cobertura por linha (`sys.monitoring`, uma vez por linha, só arquivos sob a raiz): caminhos por `repr()` e recusa de quebra de linha ou nulo, nada em stdout nem stderr e falha contada no arquivo de acertos, um arquivo `<pid>-<aleatório>.json` por processo com `O_EXCL | O_NOFOLLOW` e modo 600; `instalar` e `remover` vêm na E3a-1b (Piso de cobertura, versao-048 E3a-1a).

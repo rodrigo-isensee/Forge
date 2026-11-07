@@ -1,0 +1,86 @@
+{
+  "pedido": "versao-048",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1",
+      "guarda": "o callback devolve DISABLE e cada linha conta uma vez",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    return _DISABLE\n",
+      "para": "    return None\n",
+      "testes": [
+        "tests.test_suite_paralela.ColetorDeCobertura.test_anota_cada_linha_da_raiz_uma_vez_em_arquivo_600"
+      ]
+    },
+    {
+      "id": "C2",
+      "guarda": "so entra arquivo sob a raiz",
+      "arquivo": "scripts/cobertura.py",
+      "de": "            if real.startswith(raiz):",
+      "para": "            if True:",
+      "testes": [
+        "tests.test_suite_paralela.ColetorDeCobertura.test_anota_cada_linha_da_raiz_uma_vez_em_arquivo_600"
+      ]
+    },
+    {
+      "id": "C3",
+      "guarda": "excecao no callback vira falha contada, nunca sobe",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    except BaseException:\n        _estado[\"falhas\"] += 1\n    return _DISABLE",
+      "para": "    except ValueError:\n        _estado[\"falhas\"] += 1\n    return _DISABLE",
+      "testes": [
+        "tests.test_suite_paralela.ColetorDeCobertura.test_falha_no_coletor_nao_muda_o_processo_e_e_contada"
+      ]
+    },
+    {
+      "id": "C4",
+      "guarda": "sem sys.monitoring o coletor nao liga",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    if m is None:",
+      "para": "    if m is not None:",
+      "testes": [
+        "tests.test_suite_paralela.ColetorDeCobertura.test_anota_cada_linha_da_raiz_uma_vez_em_arquivo_600"
+      ]
+    },
+    {
+      "id": "C5",
+      "guarda": "id ocupado nao escreve na tela (C-4)",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    except ValueError:\n        _estado[\"motivo\"]",
+      "para": "    except ValueError:\n        print(\"id de ferramenta ocupado\")\n        _estado[\"motivo\"]",
+      "testes": [
+        "tests.test_suite_paralela.ColetorDeCobertura.test_id_ocupado_nao_liga_e_nao_escreve_na_tela"
+      ]
+    },
+    {
+      "id": "C6",
+      "guarda": "falha ao gravar os acertos fica calada",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    except BaseException:\n        pass",
+      "para": "    except ValueError:\n        pass",
+      "testes": [
+        "tests.test_suite_paralela.ColetorDeCobertura.test_falha_no_coletor_nao_muda_o_processo_e_e_contada"
+      ]
+    },
+    {
+      "id": "C7",
+      "guarda": "falha na instalacao do callback vira falha contada",
+      "arquivo": "scripts/cobertura.py",
+      "de": "\nexcept BaseException:\n    _estado[\"falhas\"] += 1\n",
+      "para": "\nexcept ValueError:\n    _estado[\"falhas\"] += 1\n",
+      "testes": [
+        "tests.test_suite_paralela.ColetorDeCobertura.test_falha_no_coletor_nao_muda_o_processo_e_e_contada"
+      ]
+    },
+    {
+      "id": "C8",
+      "guarda": "caminho com quebra de linha ou nulo e recusado (C-3)",
+      "arquivo": "scripts/cobertura.py",
+      "de": "        if any(c in caminho for c",
+      "para": "        if False and any(c in caminho for c",
+      "testes": [
+        "tests.test_suite_paralela.ColetorDeCobertura.test_caminho_com_quebra_de_linha_ou_nulo_e_recusado"
+      ]
+    }
+  ]
+}

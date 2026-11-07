@@ -1,0 +1,26 @@
+{
+  "pedido": "versao-048",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C9",
+      "guarda": "o nome do arquivo de acertos e unico por processo, lido no atexit (C-6)",
+      "arquivo": "scripts/cobertura.py",
+      "de": "f\"{os.getpid()}-{secrets.token_hex(8)}.json\"",
+      "para": "\"acertos.json\"",
+      "testes": [
+        "tests.test_suite_paralela.ColetorDeCobertura.test_fork_grava_um_arquivo_por_processo"
+      ]
+    },
+    {
+      "id": "C10",
+      "guarda": "o arquivo de acertos nasce com modo 600",
+      "arquivo": "scripts/cobertura.py",
+      "de": "os.O_NOFOLLOW, 0o600)",
+      "para": "os.O_NOFOLLOW, 0o644)",
+      "testes": [
+        "tests.test_suite_paralela.ColetorDeCobertura.test_anota_cada_linha_da_raiz_uma_vez_em_arquivo_600"
+      ]
+    }
+  ]
+}

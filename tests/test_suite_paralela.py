@@ -628,5 +628,73 @@ class T(unittest.TestCase):
         self.assertEqual(list(self.tmpdir.iterdir()), [])
 
 
+# E3a-1a: o coletor gerado roda por `exec` num `python -I`. argv: coletor (ou vazio), código antes, depois, raiz.
+RODAR = """import sys
+ns = {}
+exec(sys.argv[2], ns)
+if sys.argv[1]:
+    exec(compile(open(sys.argv[1]).read(), "sitecustomize.py", "exec"), ns)
+exec(sys.argv[3], ns)
+sys.path.insert(0, sys.argv[4])
+import alvo
+print(alvo.f(10000))
+"""
+ALVO = "def f(n):\n    t = 0\n    for i in range(n):\n        t += i\n    return t\n\n\ndef nunca():\n    return 1\n"
+CALLBACK_LEVANTA = "class R(dict):\n    def setdefault(self, *a):\n        raise RuntimeError('x')\n_acertos = R()"
+
+
+class ColetorDeCobertura(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.raiz, self.saida = self.tmp / "raiz", self.tmp / "sa'ida"  # C-3: aspa no caminho compila
+        self.raiz.mkdir()
+        self.saida.mkdir(mode=0o700)
+        (self.raiz / "alvo.py").write_text(ALVO)
+        (self.tmp / "rodar.py").write_text(RODAR)  # fora da raiz: não pode aparecer nos acertos
+        self.cobertura = carregar(RAIZ / "scripts" / "cobertura.py", "cobertura")
+        (self.tmp / "coletor.py").write_text(self.cobertura.texto_do_coletor(self.saida, self.raiz))
+
+    def rodar(self, coletor=True, antes="", depois=""):
+        r = subprocess.run([sys.executable, "-I", str(self.tmp / "rodar.py"), str(self.tmp / "coletor.py") if coletor else "",
+                            antes, depois, str(self.raiz)], capture_output=True, text=True, timeout=60,
+                           env={"PATH": "/usr/bin:/bin"})
+        return r.returncode, r.stdout, r.stderr
+
+    def acertos(self):
+        return [json.loads(a.read_text()) for a in sorted(self.saida.iterdir())]
+
+    def test_anota_cada_linha_da_raiz_uma_vez_em_arquivo_600(self):
+        self.assertEqual(self.rodar(), self.rodar(coletor=False))
+        (dados,) = self.acertos()
+        self.assertEqual(dados["acertos"], {"alvo.py": [1, 2, 3, 4, 5, 8]})  # nunca() fica de fora; rodar.py também
+        self.assertLess(dados["chamadas"], 10000)  # DISABLE: o laço de 10000 voltas conta uma vez por linha
+        self.assertEqual((dados["ligado"], dados["falhas"]), (True, 0))
+        self.assertEqual([a.stat().st_mode & 0o777 for a in self.saida.iterdir()], [0o600])
+
+    def test_falha_no_coletor_nao_muda_o_processo_e_e_contada(self):
+        quebra = "import sys\nsys.monitoring.set_events = None"  # a instalação do callback levanta
+        for antes, depois in (("", CALLBACK_LEVANTA), (quebra, ""), ("", "_SAIDA = '/nao/existe'")):
+            self.assertEqual(self.rodar(antes=antes, depois=depois), self.rodar(coletor=False), (antes, depois))
+        self.assertEqual([a["falhas"] > 0 for a in self.acertos()], [True, True])  # sem a pasta, nada se grava
+
+    def test_id_ocupado_nao_liga_e_nao_escreve_na_tela(self):
+        ocupa = "import sys\nsys.monitoring.use_tool_id(sys.monitoring.COVERAGE_ID, 'outro')"
+        self.assertEqual(self.rodar(antes=ocupa), self.rodar(coletor=False))
+        (dados,) = self.acertos()
+        self.assertEqual((dados["ligado"], dados["motivo"], dados["acertos"]), (False, "id de ferramenta ocupado", {}))
+
+    def test_fork_grava_um_arquivo_por_processo(self):
+        forca = "import os\nif os.fork():\n    os.wait()"
+        self.assertEqual(self.rodar(depois=forca), (0, "49995000\n" * 2, ""))
+        self.assertEqual(len(self.acertos()), 2)
+
+    def test_caminho_com_quebra_de_linha_ou_nulo_e_recusado(self):
+        for ruim in ("\n", "\r", "\0"):
+            for saida, raiz in ((f"/tmp/a{ruim}b", self.raiz), (self.saida, f"/tmp/a{ruim}b")):
+                with self.subTest(ruim=ruim, saida=saida), self.assertRaises(ValueError):
+                    self.cobertura.texto_do_coletor(saida, raiz)
+
+
 if __name__ == "__main__":
     unittest.main()
