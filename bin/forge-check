@@ -29,6 +29,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [
      forge-check escape resumo [--dias N]
      forge-check corrigidos [--ref REF] [--dias N]
      forge-check fila
+     forge-check provas medida [--desde AAAA-MM-DD]
 `fila` (P9; só leitura, sem rede, rc 0) lista, em até 15 linhas, o que pode começar agora: cartões de "Pronto para fazer" do
 KANBAN.md sem `Depende de:` pendente (cabeçalho do pedido; satisfeita com o cartão em "Pronto") nem ciclo, até as vagas de R-TETO
 (`pode-comecar:`); o resto sai `espera:` (dependência, ciclo ou teto) e a sobreposição de arquivos com outra branch `melhoria/*`
@@ -2712,6 +2713,63 @@ def falhas_do_registro(raiz, dias=JANELA_DE_RECORRENCIA, agora=None):
     return falhas, aviso
 
 
+# ---- M15 (E5c): a medida da EST-M2B-REAVALIAR (decisão 9): o que o conferente de entrega pegou que o CI com a M15 não pegaria ----
+MERITOS_DA_MEDIDA = ("s", "parcial")
+
+
+def classe_da_pq(texto, n, script):
+    """`ci` se a PQ-n do `Pronto quando` é `cmd` e o comando passa no `comando_permitido` do script do CI (a lista do E5b); senão `so-conferente`."""
+    for linha in secoes_por(texto, CABECALHO_BRIEF).get("Pronto quando", []):
+        m = PQ.search(linha)
+        if m and m.group(1) == n and (m.group(2) or "").split(",")[0].strip().lower() == "cmd":
+            comando = re.search(r"`([^`]+)`", linha[m.end():])
+            try:
+                argv = shlex.split(comando.group(1)) if comando else []
+            except ValueError:
+                argv = []
+            return "ci" if script.comando_permitido(argv) is None else "so-conferente"
+    return "so-conferente"
+
+
+def classes_da_conferencia(raiz, brief, resultado, script):
+    """[(PQ, classe)] de uma conferência: o brief só com nome seguro e só de docs/briefs/ (R-1); ausente ou ilegível, `ilegível`; sem PQ
+    citada (`escopo:`, `forma:`, `pendente:`), `so-conferente`. Do resultado sai só o número das PQ, nunca o texto (R-2)."""
+    nome = brief.removesuffix(".md")
+    arquivo = caminho_de_brief(raiz, f"docs/briefs/{nome}.md")[0] if NOME_DE_REGISTRO.fullmatch(nome) else None
+    try:
+        texto = arquivo.read_text(encoding="utf-8")
+    except (AttributeError, OSError, UnicodeDecodeError):  # AttributeError: `arquivo` None (nome inseguro ou fora de docs/briefs/)
+        return [("brief", "ilegível")]
+    pqs = dict.fromkeys(re.findall(r"\bPQ-(\d+)\b", resultado))
+    return [(f"PQ-{n}", classe_da_pq(texto, n, script)) for n in pqs] or [("sem PQ", "so-conferente")]
+
+
+def cmd_provas_medida(raiz, desde=None):
+    """`provas medida` (M15 E5c; só leitura): das conferências de entrega que não aprovaram, com mérito `s` ou `parcial`, quantas o CI com
+    a M15 pegaria (toda PQ citada é `cmd` da lista do script) e quantas só o conferente pegou. Linhas de 10 células pelo leitor de
+    `falhas_do_registro` (R-2); rc 2 com o registro em link ou grande demais, ou sem o script do CI na cópia em uso (C-6)."""
+    script = carregar_reexecutar_provas()
+    if script is None:
+        print("provas: não verificável (scripts/reexecutar-provas.py ausente)")
+        return 2
+    linhas, aviso = _tabela_segura(raiz / "docs" / "kanban" / "conferencias.md")
+    if aviso:
+        print(f"m2b: não verificável: docs/kanban/conferencias.md {aviso}")
+        return 2
+    conta = {"so-conferente": 0, "ci": 0, "ilegível": 0}
+    for c in linhas:
+        if (len(c) != 10 or not HORA_DO_REGISTRO.fullmatch(c[0]) or c[3] != "entrega" or _aprovou(c[5])
+                or c[6] not in MERITOS_DA_MEDIDA or (desde and c[0][:10] < desde)):
+            continue
+        classes = classes_da_conferencia(raiz, c[2], c[5], script)
+        geral = next(k for k in ("ilegível", "so-conferente", "ci") if k in {classe for _, classe in classes})
+        conta[geral] += 1
+        nome = c[2] if NOME_DE_REGISTRO.fullmatch(c[2]) else "?"
+        print(f"m2b: {c[0]} · {nome} · {geral} · " + ", ".join(f"{pq}={classe}" for pq, classe in classes))
+    print(f"m2b: conferências de entrega com mérito={sum(conta.values())}; pegas só pelo conferente={conta['so-conferente']}; "
+          f"que o CI (M15) pegaria={conta['ci']}; ilegíveis={conta['ilegível']}")
+    return 0
+
 def tipo_do_brief_em_disco(raiz, brief):
     """O tipo do brief `docs/briefs/<brief>.md` (da raiz ou de ~/.forge-contrib); `desconhecido` se sumiu ou é ilegível."""
     arquivo, _ = caminho_de_brief(raiz, f"docs/briefs/{brief}.md")
@@ -3316,6 +3374,19 @@ def carregar_catraca():
     except (OSError, ImportError, SyntaxError, AttributeError):
         return None
 
+
+def carregar_reexecutar_provas():
+    """O módulo `scripts/reexecutar-provas.py` da cópia em uso do Forge, com nome próprio (nunca `__main__`, C-6), como `carregar_catraca`;
+    None se não carrega."""
+    import importlib.util
+    arquivo = PLUGIN / "scripts" / "reexecutar-provas.py"
+    try:
+        spec = importlib.util.spec_from_file_location("forge_reexecutar_provas", arquivo)
+        modulo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modulo)
+        return modulo
+    except (OSError, ImportError, SyntaxError, AttributeError):
+        return None
 
 def numeros_dos_rotulados(prs, arquivo):
     """Números de PR de `--prs 1,2,3` e/ou de um JSON de `gh pr list --label afrouxa-regra --state all --json number` (lista de objetos com
@@ -6419,6 +6490,9 @@ def main():
     rg.add_argument("--autor", help=f"quem errou: {', '.join(AUTORES_DE_FALHA)} (padrão: jarvis no modo brief, destino no modo entrega)")
     cl = csub.add_parser("classes", parents=[comum], help="conta as falhas classificadas por classe e autor nos últimos dias e propõe regra com 3 ou mais briefs (só imprime)")
     cl.add_argument("--dias", type=int, default=JANELA_DE_RECORRENCIA, help=f"janela em dias (padrão {JANELA_DE_RECORRENCIA})")
+    pv = sub.add_parser("provas", help="provas `cmd` dos briefs e o CI (M15, R-PROVA)")
+    pm = pv.add_subparsers(dest="acao", required=True).add_parser("medida", parents=[comum], help="conferências de entrega que o CI com a M15 pegaria e as só do conferente (EST-M2B-REAVALIAR; só leitura)")
+    pm.add_argument("--desde", type=lambda d: datetime.date.fromisoformat(d).isoformat(), help="AAAA-MM-DD: só as conferências desse dia em diante")
     pr = sub.add_parser("pr", parents=[comum], help="pareceres de review e QA de um pedido; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD")
     pr.add_argument("pedido")
     pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD)")
@@ -6550,6 +6624,8 @@ def executar(a, raiz):
         for linha in linhas + extra:
             print(linha)
         return rc or (1 if a.cmd == "movimento" and linhas[0].startswith("movimento:") else 0)
+    if a.cmd == "provas":
+        return cmd_provas_medida(raiz, a.desde)
     if a.cmd == "conferencia" and a.acao == "classes":
         for linha in cmd_conferencia_classes(raiz, a.dias):
             print(linha)

@@ -24,6 +24,7 @@ def carregar_forge_check_m14b():
     return modulo
 
 
+FORGE_CHECK_M2B = str(Path(__file__).resolve().parent.parent / "bin" / "forge-check")
 CABECALHO_HISTORICO = "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n"
 
 
@@ -450,6 +451,69 @@ class TextosDizemQuandoCadaMedidaRoda(unittest.TestCase):
             self.assertIn(comando, tabela)
         for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape registrar", "forge-check escape resumo"):
             self.assertIn(comando, uso.split('"""')[1])
+
+
+class MedidaM2b(Raiz):
+    """M15 E5c (decisão 9): `provas medida` conta as conferências de entrega com mérito que o CI com a M15 pegaria e as só do conferente."""
+    BRIEF = ("# b\n\n## Pronto quando\n- PQ-2 (cmd): `python3 -m unittest tests.test_x` · espera: igual 'ok'\n"
+             "- PQ-1 (cmd): `grep -c x arquivo` · espera: igual '1'\n- PQ-3 (arquivo): `git rev-parse HEAD`\n")
+    CABECALHO = "| data-hora | pedido | brief | modo | rodada | resultado | mérito (s/n/parcial) | nota | classe | autor |\n|---|---|---|---|---|---|---|---|---|---|\n"
+
+    def medir(self, *linhas, desde=()):
+        self.gravar("docs/briefs/p-tech-lead-1.md", self.BRIEF)
+        self.gravar("docs/kanban/conferencias.md", self.CABECALHO + "".join(f"| {l} |\n" for l in linhas))
+        cod, saida, _ = self.rodar("provas", "medida", *desde)
+        self.assertEqual(cod, 0, saida)
+        return saida
+
+    def linha(self, resultado, merito="s", brief="p-tech-lead-1", modo="entrega", hora="2026-11-06 10:00"):
+        return f"{hora} | p | {brief} | {modo} | 1 | {resultado} | {merito} | nota | implementacao | destino"
+
+    def total(self, n, k, j, i):
+        return f"m2b: conferências de entrega com mérito={n}; pegas só pelo conferente={k}; que o CI (M15) pegaria={j}; ilegíveis={i}"
+
+    def test_pq_unittest_da_lista_do_script_e_ci(self):
+        saida = self.medir(self.linha("não cumpriu (PQ-2)", merito="parcial"))
+        self.assertEqual(saida, ["m2b: 2026-11-06 10:00 · p-tech-lead-1 · ci · PQ-2=ci", self.total(1, 0, 1, 0)])
+
+    def test_pq_fora_da_lista_nao_cmd_ou_sem_pq_e_so_do_conferente(self):
+        for resultado, detalhe in (("não cumpriu (PQ-1)", "PQ-1=so-conferente"), ("não cumpriu (PQ-3)", "PQ-3=so-conferente"),
+                                   ("não cumpriu (PQ-9)", "PQ-9=so-conferente"), ("escopo: fora", "sem PQ=so-conferente"),
+                                   ("não cumpriu (PQ-2, PQ-1)", "PQ-2=ci, PQ-1=so-conferente")):
+            with self.subTest(resultado=resultado):
+                saida = self.medir(self.linha(resultado))
+                self.assertEqual(saida, [f"m2b: 2026-11-06 10:00 · p-tech-lead-1 · so-conferente · {detalhe}", self.total(1, 1, 0, 0)])
+
+    def test_so_conta_entrega_que_nao_aprovou_com_merito_em_linha_de_10_celulas(self):
+        saida = self.medir(self.linha("não cumpriu (PQ-2)", merito="n"), self.linha("cumpriu"), self.linha("não cumpriu (PQ-2)", modo="brief"),
+                           self.linha("não cumpriu (PQ-2)").rsplit(" | ", 1)[0], self.linha("não cumpriu (PQ-2)", hora="ontem"))
+        self.assertEqual(saida, [self.total(0, 0, 0, 0)])
+
+    def test_desde_corta_as_conferencias_antigas(self):
+        saida = self.medir(self.linha("não cumpriu (PQ-2)", hora="2026-11-01 09:00"), self.linha("não cumpriu (PQ-1)"), desde=("--desde", "2026-11-06"))
+        self.assertEqual(saida[-1], self.total(1, 1, 0, 0))
+
+    def test_brief_ausente_ou_de_nome_inseguro_e_ilegivel_sem_ecoar_o_resultado(self):
+        saida = self.medir(self.linha("não cumpriu (PQ-2) SEGREDO", brief="p-tech-lead-9"), self.linha("não cumpriu (PQ-2)", brief="../briefs/p-tech-lead-1"))
+        self.assertEqual(saida, ["m2b: 2026-11-06 10:00 · p-tech-lead-9 · ilegível · brief=ilegível",
+                                 "m2b: 2026-11-06 10:00 · ? · ilegível · brief=ilegível", self.total(2, 0, 0, 2)])
+
+    def test_registro_em_link_ou_sem_o_script_do_ci_nao_verifica(self):
+        self.gravar("docs/kanban/outro.md", self.CABECALHO)
+        (self.tmp / "docs/kanban/conferencias.md").symlink_to("outro.md")
+        cod, saida, _ = self.rodar("provas", "medida")
+        self.assertEqual((cod, saida), (2, ["m2b: não verificável: docs/kanban/conferencias.md é link simbólico"]))
+        copia = self.tmp / "plugin" / "bin" / "forge-check"
+        copia.parent.mkdir(parents=True)
+        copia.write_bytes(Path(FORGE_CHECK_M2B).read_bytes())
+        r = subprocess.run([sys.executable, "-I", str(copia), "--raiz", str(self.tmp), "provas", "medida"], capture_output=True, text=True,
+                           env={"PATH": "/usr/bin:/bin", "HOME": str(self.tmp / "home")})
+        self.assertEqual((r.returncode, r.stdout), (2, "provas: não verificável (scripts/reexecutar-provas.py ausente)\n"))
+
+    def test_agile_coach_leva_a_medida_ao_cartao_na_retrospectiva_da_042(self):
+        coach = (Path(FORGE_CHECK_M2B).parent.parent / "agents" / "agile-coach.md").read_text(encoding="utf-8")
+        self.assertIn("forge-check provas medida --desde <abertura da 0.41>", coach)
+        self.assertIn("EST-M2B-REAVALIAR", coach)
 
 
 if __name__ == "__main__":
