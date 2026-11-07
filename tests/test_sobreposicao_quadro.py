@@ -582,5 +582,10 @@ class QuadroGerado(unittest.TestCase):
             Path(tmp, "KANBAN.md").write_text(texto, encoding="utf-8")
             self.assertEqual(fc.cmd_kanban(Path(tmp)), [])
 
+    def test_quadro_por_coluna_corta_a_secao_como_colunas_do_quadro(self):  # C-6: a mesma função para os dois
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "KANBAN.md").write_text(secao("Pronto (develop)") + secao("Em andamento (WIP 3)"), encoding="utf-8")
+            self.assertEqual([*fc.quadro_por_coluna(Path(tmp))], fc.colunas_do_quadro(Path(tmp))[:2])
+
 if __name__ == "__main__":
     unittest.main()
