@@ -1019,3 +1019,74 @@ class Sondas(Repositorio):
             with self.subTest(agente):
                 self.assertIn("toda sonda executada que prova um bloqueante vai em `## Sondas`",
                               (RAIZ / "agents" / f"{agente}.md").read_text(encoding="utf-8"))
+
+
+class SondaNoCorpus(BriefDeVolta):
+    """PAR-P1 (E1b): a sonda do parecer vai ao Entregar da volta (`brief gerar --volta`), a conferência da volta a cobra (C-5) e o
+    `forge-check entrega --brief` procura a entrada em `tests/` do head (C-2 a C-4, C-6)."""
+    ENTRADA = '--sonda-x "rc 2" no hook'  # começa com `-` (vai por `-e`, C-2) e tem aspas (a forma JSON difere)
+
+    def setUp(self):
+        super().setUp()
+        self.parecer("reprovado", self.ACHADOS + f"\n## Sondas\n- S1 · {self.ENTRADA} · espera: rc 2 · obtido: rc 0\n")
+        self.sha = self.head()
+
+    def volta(self):
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 0, saida)
+        return self.preenchido(saida)
+
+    def entrega_com_brief(self, brief=None):
+        arq = self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md"
+        arq.write_text(brief or self.volta(), encoding="utf-8")
+        return self.check("entrega", self.pedido, "--branch", "melhoria/x", "--base", "develop", "--base-sha", self.base,
+                          "--etapa", "codigo", "--brief", "docs/briefs/" + arq.name)
+
+    def test_gerar_volta_copia_a_sonda_e_a_conferencia_a_cobra(self):  # C-5
+        linha = f"- (sonda review {self.sha[:7]} S1) grave no corpus da branch: {self.ENTRADA} · espera: rc 2\n"
+        texto = self.volta()
+        self.assertIn(linha, texto.split("## Entregar (volta 1)")[1].split("## Fora do escopo")[0])
+        self.assertNotIn("falta sonda", self.conferir(texto)[1])
+        rc, saida = self.conferir(texto.replace(linha, ""))
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('volta: falta sonda "S1" de docs/reviews/p1.md', saida)
+
+    def test_sonda_fora_do_formato_recusa_a_volta(self):  # C3: a linha ruim nunca some
+        self.parecer("reprovado", self.ACHADOS + "\n## Sondas\n- S1 · a · espera: b · espera: c · obtido: d\n")
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("linha do bloco ## Sondas fora do formato", saida)
+
+    def test_entrega_reprova_a_sonda_ausente_de_tests_mesmo_citada_no_parecer(self):  # T-2: o parecer tem a entrada, fora de tests/
+        rc, saida = self.entrega_com_brief()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f"escopo: sonda S1 de review {self.sha[:7]} fora do corpus da branch (PAR-P1)", saida)
+
+    def test_entrega_acha_a_entrada_literal_ou_escapada_em_json(self):  # C-2, C-4
+        brief = self.volta()
+        for rel, texto in (("tests/test_x.py", f"ENTRADA = '{self.ENTRADA}'\n"),
+                           ("tests/hooks/x/caso.json", json.dumps({"cmd": self.ENTRADA}) + "\n")):
+            with self.subTest(rel):
+                git("rm", "-q", "-r", "--ignore-unmatch", "tests", cwd=self.repo)
+                self.commitar({rel: texto}, "corpus")
+                rc, saida = self.entrega_com_brief(brief)
+                self.assertEqual(rc, 0, saida)
+                self.assertIn(f"escopo: ok (sonda S1 em {rel})", saida)
+
+    def test_entrada_curta_so_confira_e_git_que_falha_reprova(self):  # C-3, T-3
+        self.commitar({"tests/test_x.py": f"ENTRADA = '{self.ENTRADA}'\n"}, "corpus")
+        brief = self.volta()
+        rc, saida = self.entrega_com_brief(brief.replace(f"{self.ENTRADA} · espera", "-e x · espera"))
+        self.assertIn("escopo: confira sonda S1 (entrada curta; confira à mão)", saida)
+        self.assertNotIn("escopo: ok (sonda", saida)
+        arvore = self.head("HEAD:tests")
+        (self.repo / ".git" / "objects" / arvore[:2] / arvore[2:]).unlink()  # o grep não lê a árvore de tests/: rc 128
+        rc, saida = self.entrega_com_brief(brief)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: sonda S1: o git falhou", saida)
+        self.assertNotIn("fora do corpus", saida)
+
+
+for _nome in dir(BriefDeVolta):  # só os testes desta classe; os herdados já rodam em BriefDeVolta
+    if _nome.startswith("test_") and _nome not in SondaNoCorpus.__dict__:
+        setattr(SondaNoCorpus, _nome, None)
