@@ -2673,6 +2673,16 @@ def agentes_conhecidos():
     return {arq.stem for pasta in pastas if pasta.is_dir() for arq in pasta.glob("*.md")}
 
 
+def agente_no_plugin(destino):
+    """Arquivo de `forge:<nome>` no plugin em uso (`agents/` e `stacks/<stack>/agents/`), para o conferente ler `tools:` (E4 da
+    versao-035): nome em `[a-z0-9-]+`, arquivo regular, não link, dentro do plugin e um achado só; None em qualquer outro caso."""
+    nome = re.fullmatch(r"forge:([a-z0-9-]+)", destino or "")
+    pastas = [PLUGIN / "agents", *sorted((PLUGIN / "stacks").glob("*/agents"))] if nome else []
+    achados = [arq for arq in (pasta / f"{nome.group(1)}.md" for pasta in pastas)
+               if arq.is_file() and not arq.is_symlink() and arq.resolve().is_relative_to(PLUGIN)]
+    return achados[0] if len(achados) == 1 else None
+
+
 def agente_do_brief(pedido, brief):
     """O agente de destino de `<pedido>-<agente>-<n>`, com o pedido da própria linha como prefixo exato e conferido contra os agentes
     conhecidos (um pedido com hífen não desloca o nome); None se não casa."""
@@ -5366,7 +5376,9 @@ def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_i
     secoes = secoes_por(texto, CABECALHO_BRIEF)
     pedido = ler_pedido_brief(pedido_txt)
     destino = destino_do_brief(texto, nome_do_arquivo, pedido_id, destino)
-    saida = [(f"destino: {destino}" if destino else "destino: não verificável (sem --destino nem `Agente destino:`)", False)]
+    agente = caminho_impresso(agente_no_plugin(destino) or "não encontrado no plugin")  # o conferente lê `tools:` só neste caminho
+    saida = [(f"destino: {destino} (agente: {agente})" if destino else "destino: não verificável (sem --destino nem `Agente destino:`)",
+              False)]
     faltam = [s for s in SECOES_BRIEF if s not in secoes]
     forma = [(f"forma: falta seção \"{s}\"", True) for s in faltam]
     if re.search(rf"\b{PREENCHER}\b", texto):

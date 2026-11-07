@@ -1,0 +1,86 @@
+{
+  "pedido": "conferente-inconsistente",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "K1",
+      "guarda": "o nome do destino so de [a-z0-9-]+ (sem travessia)",
+      "arquivo": "bin/forge-check",
+      "de": "re.fullmatch(r\"forge:([a-z0-9-]+)\", destino or \"\")",
+      "para": "re.fullmatch(r\"forge:(.+)\", destino or \"\")",
+      "testes": [
+        "tests.test_conferente_estavel.AgenteNoPlugin.test_e_destino_imprime_o_arquivo_do_agente_no_plugin"
+      ]
+    },
+    {
+      "id": "K2",
+      "guarda": "nome fora do padrao nao procura pasta nenhuma",
+      "arquivo": "bin/forge-check",
+      "de": "glob(\"*/agents\"))] if nome else []",
+      "para": "glob(\"*/agents\"))] if True else []",
+      "testes": [
+        "tests.test_conferente_estavel.AgenteNoPlugin.test_e_destino_imprime_o_arquivo_do_agente_no_plugin"
+      ]
+    },
+    {
+      "id": "K3",
+      "guarda": "o agente e arquivo regular",
+      "arquivo": "bin/forge-check",
+      "de": "if arq.is_file() and not arq.is_symlink()",
+      "para": "if not arq.is_symlink()",
+      "testes": [
+        "tests.test_conferente_estavel.AgenteNoPlugin.test_e_destino_imprime_o_arquivo_do_agente_no_plugin"
+      ]
+    },
+    {
+      "id": "K4",
+      "guarda": "o agente nao e link",
+      "arquivo": "bin/forge-check",
+      "de": "if arq.is_file() and not arq.is_symlink() and",
+      "para": "if arq.is_file() and",
+      "testes": [
+        "tests.test_conferente_estavel.AgenteNoPlugin.test_e_destino_imprime_o_arquivo_do_agente_no_plugin"
+      ]
+    },
+    {
+      "id": "K5",
+      "guarda": "o agente resolve dentro do plugin",
+      "arquivo": "bin/forge-check",
+      "de": " and arq.resolve().is_relative_to(PLUGIN)]",
+      "para": "]",
+      "testes": [
+        "tests.test_conferente_estavel.AgenteNoPlugin.test_e_destino_imprime_o_arquivo_do_agente_no_plugin"
+      ]
+    },
+    {
+      "id": "K6",
+      "guarda": "um achado so; dois achados nao valem",
+      "arquivo": "bin/forge-check",
+      "de": "return achados[0] if len(achados) == 1 else None",
+      "para": "return achados[0] if achados else None",
+      "testes": [
+        "tests.test_conferente_estavel.AgenteNoPlugin.test_e_destino_imprime_o_arquivo_do_agente_no_plugin"
+      ]
+    },
+    {
+      "id": "K7",
+      "guarda": "sem achado a linha diz nao encontrado no plugin",
+      "arquivo": "bin/forge-check",
+      "de": "agente_no_plugin(destino) or \"não encontrado no plugin\"",
+      "para": "agente_no_plugin(destino) or \"-\"",
+      "testes": [
+        "tests.test_conferente_estavel.AgenteNoPlugin.test_e_destino_imprime_o_arquivo_do_agente_no_plugin"
+      ]
+    },
+    {
+      "id": "K8",
+      "guarda": "sem destino o nome nao e procurado (a linha diz nao verificavel)",
+      "arquivo": "bin/forge-check",
+      "de": "re.fullmatch(r\"forge:([a-z0-9-]+)\", destino or \"\")",
+      "para": "re.fullmatch(r\"forge:([a-z0-9-]+)\", destino)",
+      "testes": [
+        "tests.test_conferente_estavel.AgenteNoPlugin.test_e_destino_imprime_o_arquivo_do_agente_no_plugin"
+      ]
+    }
+  ]
+}
