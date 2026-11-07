@@ -106,7 +106,7 @@
   "isentas": [
     {
       "arquivo": "bin/forge-check",
-      "trecho": "{motivo or '—'}",
+      "trecho": "motivo or '—'",
       "motivo": "a condição saiu inteira: o travessão do motivo vazio passou para a linha de cima, coberta pelo M18"
     }
   ]
