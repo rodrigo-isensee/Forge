@@ -63,7 +63,8 @@ NOME_DE_MODULO = re.compile(r"test_[a-z0-9_]+")
 # refaz essa conferência para os caminhos citados com `RAIZ / "..."`.
 # `test_forge` varre bin/, scripts/, hooks/, agents/, skills/, stacks/, docs/ e templates/ (neutralidade,
 # anti-duplicação), então entra em quase toda regra de conteúdo e de script.
-# `test_testes_tocados` vigia que nenhum portão (hooks/, scripts/ci-local, bin/forge-check) chame este script.
+# `test_testes_tocados` vigia que nenhum portão (hooks/, scripts/ci-local, bin/forge-check) chame este script e
+# varre scripts/ (REVERSAO-MAPA, A6: só script de aviso o cita).
 # FORGE_CHECK lista todo módulo que importa ou executa o script (inclui quem importa de um deles); o teste
 # `MapaDoForgeCheck` compara esta lista com os arquivos.
 # Os módulos que saíram de `test_hooks` (HOOKS-CORPUS-RAPIDO) rodam onde `test_hooks` roda e executam o `bin/forge-check`
@@ -105,8 +106,8 @@ MAPA = [
                    "test_hooks_parecer_pasta", "test_esperar_estado", "test_brief_forma_aceita") + VOLTA_UNICA),
     (r"scripts/ci-local", ("test_ci_local", "test_forge", "test_testes_tocados")),
     (r"scripts/conferir-reversao\.py", ("test_conferir_reversao", "test_forge", "test_testes_tocados")),  # aviso: NaoEPortao
-    (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge")),
-    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo")),
+    (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", "test_doutor", "test_forge", "test_testes_tocados")),
+    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", "test_forge", "test_pre_push_segredo")),
     (r"stacks/.*", CONTEUDO + ("test_hooks",) + VOLTA_UNICA),
     (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks",) + VOLTA_UNICA),
     (r"templates/projeto/docs/(reviews|qa|security)/_modelo\.md", PUBLICADO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),  # o teste gera parecer do modelo

@@ -419,6 +419,19 @@ class NaoEPortao(unittest.TestCase):
             with self.subTest(str(arquivo.relative_to(RAIZ))):
                 self.assertNotIn("forge-testes", arquivo.read_text(encoding="utf-8", errors="replace"))
 
+    # REVERSAO-MAPA (A6): script de aviso chama o forge-testes e não é portão; a lista é fechada. Script novo que o
+    # cite sem entrar aqui reprova, e a entrada na lista é a decisão consciente de que ele só avisa.
+    AVISOS = {"scripts/conferir-reversao.py"}
+
+    def test_so_script_de_aviso_cita_o_script_em_scripts(self):
+        citam = set()
+        arquivos = [p for p in (RAIZ / "scripts").rglob("*") if p.is_file() and "__pycache__" not in p.parts]
+        self.assertGreaterEqual(len(arquivos), 5)
+        for arquivo in arquivos:
+            if "forge-testes" in arquivo.read_text(encoding="utf-8", errors="replace"):
+                citam.add(arquivo.relative_to(RAIZ).as_posix())
+        self.assertEqual(citam, self.AVISOS)
+
     def test_so_o_pre_push_cita_o_script_em_githooks(self):
         citam = {p.relative_to(RAIZ).as_posix() for p in (RAIZ / ".githooks").rglob("*")
                  if p.is_file() and "forge-testes" in p.read_text(encoding="utf-8", errors="replace")}
