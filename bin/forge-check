@@ -6731,7 +6731,12 @@ def avisos_do_historico(pedido_txt, agora=None):
         if hora is None:
             continue
         marca = f"{data} {hora}"
-        if datetime.datetime.strptime(marca, "%Y-%m-%d %H:%M") > limite:
+        try:
+            quando = datetime.datetime.strptime(marca, "%Y-%m-%d %H:%M")
+        except ValueError:  # a regex aceita 24:10, 11:60 e 2026-11-31; vira linha sem hora válida, só aviso
+            avisos.append(f"aviso: histórico: {marca} não é data e hora válidas")
+            continue
+        if quando > limite:
             avisos.append(f"aviso: histórico: {marca} no futuro")
         if "registro tardio" in linha:
             continue
