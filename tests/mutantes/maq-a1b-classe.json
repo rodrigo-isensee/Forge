@@ -1,6 +1,13 @@
 {
   "pedido": "maq-a1b-classe",
   "executor": "unittest",
+  "isentas": [
+    {
+      "arquivo": "hooks/pesado.py",
+      "trecho": "t == p or t.startswith(p + \" \")",
+      "motivo": "a condicao mudou para a funcao casa (inicio == padrao or ...), coberta pelo M7"
+    }
+  ],
   "mutantes": [
     {
       "id": "M1",
