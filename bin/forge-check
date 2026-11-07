@@ -1126,6 +1126,39 @@ def frontmatter_do_parecer(raiz, commit, nome):
     return ler_frontmatter(git(raiz, "cat-file", "blob", f"{commit}:{nome}", bruto=True)[1].decode("utf-8", "replace"))[0]
 
 
+PREFIXO_DE_PARECER = "parecer/"  # VOLTAS-REVISOR-WT: a branch do revisor, `parecer/<brief>`
+PASTA_DO_REVISOR = {"tech-lead": "docs/reviews", "security-engineer": "docs/security", "devops-engineer": "docs/devops"}  # sem docs/qa (M3)
+
+
+def papel_da_branch_de_parecer(raiz, branch):
+    """O papel do `Agente destino:` do brief `<brief>` de `parecer/<brief>` (docs/briefs/ da cópia principal, da raiz ou das raízes de
+    brief, o primeiro legível); None sem brief legível ou com nome que não é de arquivo."""
+    nome = branch.removeprefix(PREFIXO_DE_PARECER)
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", nome):
+        return None
+    for raiz_de_brief in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+        try:
+            texto = (Path(raiz_de_brief) / "docs" / "briefs" / f"{nome}.md").read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        return nome_do_papel(grupo(r"^\s*Agente destino:\s*(\S+)", cabecalho_do_brief(texto)))
+    return None
+
+
+def so_parecer_do_papel(raiz, branch, desde, head, pais):
+    """M3 e M9: `parecer/<brief>` é um commit só, sem merge, sobre o `Desde` conferido, e cada arquivo dele é `.md` regular (100644) na
+    pasta do papel do brief, fora de `aceites/` (o que exclui link, modo executável e `.gitattributes`). Falha do git: False (fechada)."""
+    pasta = PASTA_DO_REVISOR.get(papel_da_branch_de_parecer(raiz, branch))
+    if not (pasta and pais == [desde]):  # sem `--desde` válido, `[None]` nunca é a lista de pais
+        return False
+    cod, saida = git(raiz, "diff-tree", "-r", "-z", "--no-renames", desde, head, bruto=True)
+    campos = nomes_z(saida)  # `:<modo> <modo novo> <sha> <sha> <status>` e o caminho, alternados
+    pares = list(zip(campos[0::2], campos[1::2]))
+    return not cod and bool(pares) and all(
+        meta.split()[1] == "100644" and nome.startswith(f"{pasta}/") and nome.endswith(".md") and not nome.startswith(ACEITES_DO_USUARIO)
+        and not com_controle(nome) for meta, nome in pares)
+
+
 def bases_do_pedido(texto):
     """[(sha40, origem)] do `## Histórico`, na ordem do arquivo: as linhas `conferida <sha40>` (origem `conferida`) e as de base do
     delta fixada pelo dono (`- <data>[ <hora>]: base do delta fixada pelo dono <sha40>`, origem `dono`; só vale com uma linha
@@ -1582,6 +1615,8 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         falhas.append("rev-list dos pais do head")
     else:
         pais = saida_pais.split()[1:]
+    if branch.startswith(PREFIXO_DE_PARECER) and not so_parecer_do_papel(raiz, branch, valido, head, pais):  # M3, M9 (VOLTAS-REVISOR-WT)
+        linhas.append(("escopo: fora (branch de parecer só leva parecer)", True))
     integrado = etapa == "merge-integracao" and bool(base_ref) and e_ancestral(raiz, head, base_ref) and len(pais) == 1
     if integrado:  # E1: a ref já foi apagada (squash): o head é o mergeCommit e o escopo é só o que ele traz
         de, do_merge = pais[0], nomes_do_intervalo(raiz, pais[0], head, estrito=True)
@@ -1632,7 +1667,10 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     print(f"intervalo: {de}..{head}")
     for linha, _ in linhas:
         print(linha)
-    return 1 if any(r for _, r in linhas) else 0
+    reprovou = any(r for _, r in linhas)
+    if not reprovou and branch.startswith(PREFIXO_DE_PARECER):  # M5, T-4: só com rc 0 e o sha do `rev-parse` (o head), nunca do texto
+        print(f"linha-final: parecer-conferido {head}")
+    return 1 if reprovou else 0
 
 
 def dentro_da_raiz(raiz, caminho, pastas):

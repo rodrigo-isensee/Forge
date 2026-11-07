@@ -1,5 +1,7 @@
 """VOLTAS-REVISOR-WT (E6a-1): o `forge-check pr` confere as linhas `parecer conferido <sha40>` do `## Histórico` (M1 no `pr`, M5 na
-leitura, M8, T-1, T-2; testes t1, t10, t11, t14 e t19 das ameaças). Só acrescenta recusa. Repositório temporário."""
+leitura, M8, T-1, T-2; testes t1, t10, t11, t14 e t19 das ameaças). Só acrescenta recusa. E6a-2: `entrega --branch parecer/*` (M3, M5,
+M9; t4 a t8, t15 e o caso 11). Repositório temporário."""
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -94,6 +96,104 @@ class PrLeParecerConferido(Repositorio):
         self.assertEqual(self.novas(), [])
         self.historico(p1)
         self.assertEqual(len(self.novas()), 1)
+
+
+class EntregaDaBranchDeParecer(Repositorio):
+    FORA = "escopo: fora (branch de parecer só leva parecer)"
+
+    def setUp(self):
+        super().setUp()
+        self.s = self.commitar({"src/app.txt": "v2\n"}, "código")
+        self.gravar_pedido([self.s])
+
+    def revisor(self, arquivos, papel="tech-lead", brief="p1-tech-lead-1"):
+        """P: o commit do revisor na `parecer/<brief>` nascida de S; o brief traz o papel (`Agente destino:`), ou não existe."""
+        if papel:
+            caminho = self.home / ".forge-contrib" / "docs" / "briefs" / f"{brief}.md"
+            caminho.parent.mkdir(parents=True, exist_ok=True)
+            caminho.write_text(f"Agente destino: forge:{papel}\nPedido: p1\n\n## Objetivo\nx\n", encoding="utf-8")
+        git("switch", "-q", "-c", f"parecer/{brief}", self.s, cwd=self.repo)
+        if arquivos is None:
+            return git("commit", "-q", "--allow-empty", "-m", "vazio", cwd=self.repo)
+        if callable(arquivos):  # link ou modo, que o `commitar` não grava
+            arquivos, _ = {}, arquivos()
+        return self.commitar(arquivos, "parecer")
+
+    def conferir(self, brief="p1-tech-lead-1", desde=True):
+        return self.entrega(desde=self.s if desde else None, etapa="review", branch=f"parecer/{brief}")
+
+    def assert_fora(self, brief="p1-tech-lead-1", desde=True):
+        rc, saida = self.conferir(brief, desde)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(self.FORA, saida)
+        self.assertNotIn("linha-final", saida)  # t15: rc 1 não imprime a linha final
+
+    def test_parecer_na_pasta_do_papel_imprime_a_linha_final(self):  # M5: só com rc 0, o sha do rev-parse
+        for papel, pasta in (("tech-lead", "docs/reviews"), ("security-engineer", "docs/security")):
+            p = self.revisor({f"{pasta}/x.md": "parecer\n"}, papel, f"p1-{papel}-1")
+            rc, saida = self.conferir(f"p1-{papel}-1")
+            self.assertEqual(rc, 0, saida)
+            self.assertEqual(saida.splitlines()[-1], f"linha-final: parecer-conferido {p}")
+
+    def test_branch_de_trabalho_nao_imprime_a_linha_final(self):
+        rc, saida = self.entrega(desde=self.s, etapa="review")
+        self.assertEqual(rc, 0, saida)
+        self.assertNotIn("linha-final", saida)
+
+    def test_codigo_na_branch_de_parecer_reprova(self):  # t4, caso 11
+        self.revisor({"docs/reviews/x.md": "parecer\n", "src/a.js": "x\n"})
+        self.assert_fora()
+
+    def test_aceite_na_branch_de_parecer_reprova(self):  # t5, M9
+        self.revisor({"docs/security/aceites/p.md": "aceite\n"}, "security-engineer", "p1-security-engineer-1")
+        self.assert_fora("p1-security-engineer-1")
+
+    def test_pasta_de_outro_papel_reprova(self):  # t6
+        self.revisor({"docs/security/x.md": "parecer\n"})
+        self.assert_fora()
+
+    def test_dois_commits_ou_merge_reprova(self):  # t7
+        self.revisor({"docs/reviews/x.md": "parecer\n"})
+        self.commitar({"docs/reviews/x.md": "parecer 2\n"})
+        self.assert_fora()
+        git("switch", "-q", "-c", "lado", self.s, cwd=self.repo)
+        self.commitar({"docs/reviews/y.md": "outro\n"})
+        self.revisor({"docs/reviews/x.md": "parecer\n"}, brief="p1-tech-lead-2")
+        git("merge", "-q", "--no-ff", "--no-edit", "lado", cwd=self.repo)
+        self.assert_fora("p1-tech-lead-2")
+
+    def test_link_e_modo_executavel_reprovam(self):  # t8: um commit só sobre S, então só o modo reprova
+        x = self.repo / "docs" / "reviews" / "x.md"
+
+        def link():
+            x.parent.mkdir(parents=True)
+            os.symlink("../../src/app.txt", x)
+
+        def executavel():
+            x.parent.mkdir(parents=True)
+            x.write_text("parecer\n", encoding="utf-8")
+            x.chmod(0o755)
+        for brief, gravar in (("p1-tech-lead-1", link), ("p1-tech-lead-2", executavel)):
+            self.revisor(gravar, brief=brief)
+            self.assert_fora(brief)
+
+    def test_fora_do_md_sem_desde_vazio_e_nome_com_controle_reprovam(self):
+        self.revisor({"docs/reviews/x.txt": "parecer\n"})
+        self.assert_fora()
+        self.revisor({"docs/reviews/x.md": "parecer\n"}, brief="p1-tech-lead-2")
+        self.assert_fora("p1-tech-lead-2", desde=False)
+        self.revisor({"docs/reviews/a\x01.md": "parecer\n"}, brief="p1-tech-lead-3")
+        self.assert_fora("p1-tech-lead-3")
+        self.revisor(None, brief="p1-tech-lead-4")
+        self.assert_fora("p1-tech-lead-4")
+
+    def test_papel_sem_pasta_ou_brief_ilegivel_reprova(self):  # docs/qa fica fora; o papel ausente não vira a pasta "None"
+        self.revisor({"docs/qa/x.md": "parecer\n"}, "qa-engineer", "p1-qa-engineer-1")
+        self.assert_fora("p1-qa-engineer-1")
+        self.revisor({"None/x.md": "parecer\n"}, None, "p1-sem-brief-1")
+        self.assert_fora("p1-sem-brief-1")
+        self.revisor({"docs/reviews/x.md": "parecer\n"}, brief="a/b")  # o brief é arquivo de docs/briefs/, nunca de subpasta
+        self.assert_fora("a/b")
 
 
 if __name__ == "__main__":
