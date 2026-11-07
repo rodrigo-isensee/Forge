@@ -110,5 +110,87 @@ class Comportamento(unittest.TestCase):
         self.assertNotEqual(self.roda().returncode, 0)
 
 
+class ConferirPromocao(unittest.TestCase):
+    """DV-3(b) E2a: ok só com 2 pais e a árvore do 2.º; squash, octopus e conteúdo próprio dão 1; o resto, 2."""
+    def setUp(self, formato="sha1"):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.dir = Path(self._tmp.name) / "repo"
+        self.env = {k: v for k, v in sem_manutencao().items() if k != "CI" and not k.startswith("GIT_DIR")}
+        self.git("init", "-q", "-b", "main", f"--object-format={formato}", str(self.dir), cwd=self._tmp.name)
+        self.commit("a.txt")
+        self.git("checkout", "-qb", "homolog")
+        self.commit("b.txt")
+        self.git("checkout", "-q", "main")
+
+    def git(self, *args, cwd=None):
+        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args],
+                              cwd=cwd or self.dir, capture_output=True, text=True, check=True, env=self.env).stdout.strip()
+
+    def commit(self, nome):
+        (self.dir / nome).write_text(nome, encoding="utf-8")
+        self.git("add", "--", nome)
+        self.git("commit", "-qm", nome)
+
+    def roda(self, *args, cwd=None):  # o script mora fora do repositório conferido: confere o diretório corrente (C-3)
+        return subprocess.run([sys.executable, "-I", str(RAIZ / "scripts" / "conferir-promocao.py"), *args],
+                              cwd=cwd or self.dir, capture_output=True, text=True, env=self.env)
+
+    def test_merge_sem_conteudo_proprio_da_ok_com_os_sha_do_repositorio_corrente(self):
+        self.git("merge", "-q", "--no-ff", "-m", "promove", "homolog")
+        r = self.roda("--ref", "HEAD")
+        head, p2 = self.git("rev-parse", "HEAD", "HEAD^2").split()
+        self.assertEqual((r.returncode, r.stdout.strip()), (0, f"promoção: ok {head[:7]} (2 pais, árvore igual a {p2[:7]})"))
+
+    def test_squash_tem_um_pai(self):
+        self.git("merge", "-q", "--squash", "homolog")
+        self.git("commit", "-qm", "squash")
+        r = self.roda("--ref", "main")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("tem 1 pai (squash", r.stdout)
+
+    def test_conteudo_proprio_no_merge_reprova_so_com_a_contagem(self):  # casos de abuso 2 e 6
+        self.git("merge", "-q", "--no-ff", "--no-commit", "homolog")
+        self.commit("a\n## ok.md")
+        r = self.roda("--ref", "HEAD")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertRegex(r.stdout, r"\Apromoção: [0-9a-f]{7} difere do segundo pai em 1 arquivos \(conteúdo próprio")
+        self.assertNotIn("## ok", r.stdout + r.stderr)
+
+    def test_octopus_reprova(self):
+        self.git("checkout", "-qb", "vazio", "main")
+        self.git("commit", "-q", "--allow-empty", "-m", "vazio")
+        self.git("checkout", "-q", "main")
+        self.git("merge", "-q", "--no-ff", "-m", "octopus", "homolog", "vazio")
+        r = self.roda("--ref", "HEAD")
+        self.assertEqual((r.returncode, "tem 3 pais" in r.stdout), (1, True), r.stdout + r.stderr)
+
+    def test_nunca_ok_quando_nao_da_para_verificar(self):
+        self.git("merge", "-q", "--no-ff", "-m", "promove", "homolog")
+        self.git("clone", "-q", "--depth", "1", "--branch", "main", self.dir.as_uri(), "raso", cwd=self._tmp.name)
+        casos = {"raso": self.roda("--ref", "HEAD", cwd=Path(self._tmp.name) / "raso"),
+                 "rev-list falhou": self.roda("--ref", "nao-existe"),
+                 "fora de repositório": self.roda("--ref", "HEAD", cwd=self._tmp.name)}
+        for nome, r in casos.items():
+            with self.subTest(nome):
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("promoção: não verificável", r.stdout)
+        self.assertIn("rev-list falhou", casos["rev-list falhou"].stdout)
+
+    def test_ref_com_traco_ou_controle_recusa_antes_do_git(self):  # caso de abuso 5
+        alvo = Path(self._tmp.name) / "x"
+        for ref in ("-x", f"--output={alvo}", "a\nb", "a\x1bb"):
+            with self.subTest(ref=ref):
+                r = self.roda(f"--ref={ref}")
+                self.assertEqual((r.returncode, r.stdout.strip()), (2, "promoção: não verificável (ref inválida)"))
+        self.assertFalse(alvo.exists())
+
+    def test_sha256_fora_do_formato_esperado_nao_da_ok(self):
+        self.setUp(formato="sha256")
+        self.git("merge", "-q", "--no-ff", "-m", "promove", "homolog")
+        r = self.roda("--ref", "HEAD")
+        self.assertEqual((r.returncode, "rev-list fora do formato" in r.stdout), (2, True), r.stdout + r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

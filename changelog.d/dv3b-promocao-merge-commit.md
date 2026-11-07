@@ -1,0 +1,2 @@
+### Adicionado
+- O `scripts/conferir-promocao.py --ref <ref>` confere, no repositório do diretório corrente, que a ponta da `homolog` ou da `main` é merge commit de 2 pais com a árvore igual à do segundo pai: squash (1 pai), octopus (3 ou mais) e conteúdo próprio saem 1; clone raso, ref com traço ou controle, saída fora do formato e erro do git saem 2 (`não verificável`), nunca `ok`; a saída só traz sha7 e contagens. O job do CI que o chama vem no E2b (DV-3B, versao-041 E2a).
