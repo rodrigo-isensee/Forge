@@ -9,6 +9,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = RAIZ.joinpath("bin", "forge-check")
 
@@ -47,7 +50,7 @@ class Base(unittest.TestCase):
 
     def git(self, *args):
         return subprocess.run(["git", "-C", str(self.tmp), "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false",
-                               *args], capture_output=True, text=True, check=True, env=dict(os.environ, **DATAS)).stdout.strip()
+                               *args], capture_output=True, text=True, check=True, env=sem_manutencao(dict(os.environ, **DATAS))).stdout.strip()
 
     def numerado(self, nome):
         for i in range(400):
@@ -72,14 +75,14 @@ class Base(unittest.TestCase):
         return arq
 
     def conferir(self, entregar="- Recurso (E1), etapa (E1.1).", ler="- docs/a.md", pronto="- PQ-1 (cmd): `true` · espera: rc=0",
-                 decisoes=None):
+                 decisoes=None, pedido="exemplo"):
         decisoes = decisoes if decisoes is not None else f"- {self.decisao}"
         texto = (f"Agente destino: forge:dev-exemplo\nPedido: exemplo\nBranch: melhoria/x   Base: develop   Base-sha: {self.base}\n\n"
                  f"## Objetivo\nExemplo.\n\n## Ler\n{ler}\n\n## Entregar\n{entregar}\n\n## Fora do escopo\n- nada.\n\n"
                  f"## Decisões e restrições\n- DECISÃO DO DONO (2026-01-01): \"A\".\n{decisoes}\n\n"
                  f"## Pronto quando\n{pronto}\n\n## Relatório\nAté 8 linhas.\n")
         r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), "brief", str(self.gravar("b.md", texto)),
-                            "--pedido", "exemplo"], capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp / "home")),
+                            "--pedido", str(pedido)], capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp / "home")),
                            timeout=60)
         return r.returncode, r.stdout
 
@@ -177,7 +180,7 @@ class DecisaoCopiada(Base):  # adendo (2) do E4: na cópia literal o sha só pre
 
     def test_numero_que_nao_resolve_na_copia_fica_calado(self):  # adendo (volta 2); mutante: `if copia:` antes dos algarismos
         r = subprocess.run(["git", "-C", str(self.tmp), "rev-parse", "--verify", "--quiet", "40505555559^{commit}"],
-                           capture_output=True)
+                           capture_output=True, env=sem_manutencao())
         self.assertNotEqual(r.returncode, 0, "40505555559 resolve como commit; troque o número")
         for numero in ("40505555559", self.num_lado[:7]):  # o que não resolve e o que resolve fora da base
             self.decisao = self.pedido(numero)
@@ -208,6 +211,21 @@ class RegistroCitado(Base):
         self.assertEqual(rc, 1)
         rc, saida = self.conferir("- Recurso (E1), etapa (E1.1) e o brief docs/briefs/outro-2.md (novo).")  # (d) sem exceção
         self.assertIn('citação: "docs/briefs/outro-2.md" não existe na raiz nem nas raízes de brief', saida)
+        self.assertEqual(rc, 1)
+
+    def test_o_proprio_pedido_fora_da_raiz_passa_e_outro_reprova(self):  # mutantes: do_proprio_pedido sempre falso ou sempre verdadeiro
+        fora = self.tmp / "home/.forge-contrib/docs/pedidos/pedido.md"  # o id (exemplo) não é o nome do arquivo, como nos testes
+        fora.parent.mkdir(parents=True)
+        (self.tmp / "docs/pedidos/exemplo.md").rename(fora)
+        rc, saida = self.conferir("- Recurso (E1), etapa (E1.1), como docs/pedidos/exemplo.md.", ler="- docs/pedidos/exemplo.md",
+                                  pedido=fora)
+        self.assertNotIn('citação: "docs/pedidos/', saida)
+        self.assertNotIn("citação: Ler", saida)
+        self.assertEqual(rc, 0, saida)
+        rc, saida = self.conferir("- Recurso (E1), etapa (E1.1), como docs/pedidos/exemplo-2.md.", ler="- docs/pedidos/exemplo-3.md",
+                                  pedido=fora)
+        self.assertIn('citação: "docs/pedidos/exemplo-2.md" não existe na raiz nem nas raízes de brief', saida)
+        self.assertIn('citação: Ler cita "docs/pedidos/exemplo-3.md", que não existe', saida)
         self.assertEqual(rc, 1)
 
 
