@@ -50,6 +50,14 @@
       "de": "    return argumentos == [\"--listar\"]",
       "para": "    return \"--listar\" in argumentos",
       "testes": ["tests.test_hooks.PesadoClassePelosArgumentos.test_forge_mutante_e_pesado_salvo_listar_sozinho"]
+    },
+    {
+      "id": "M7",
+      "guarda": "os demais pesados seguem casando pelo prefixo do comando simples",
+      "arquivo": "hooks/pesado.py",
+      "de": "return inicio == padrao or inicio.startswith(padrao + \" \")",
+      "para": "return inicio == padrao and inicio.startswith(padrao + \" \")",
+      "testes": ["tests.test_hooks.Hooks.test_suite_do_forge_e_pesada"]
     }
   ]
 }
