@@ -1721,18 +1721,18 @@ def conferir_criterio(raiz, rel, texto, campos):
     """([violação], [aviso]) do `criterio:` de um parecer (PAR-P2 E2a), fora de `validar_documento`, que fica sem disco (C-4): o
     desenho resolvido como `ler_registro` (C-2), do mesmo pedido (C-6), e a 1.ª linha de `## Parecer` com a frase ou, logo abaixo,
     `critério mudou:` com motivo (C-7). Do desenho, só a frase sai na tela (C-5); desenho ausente é aviso (C-8)."""
-    valor, onde = (campos or {}).get("criterio"), f"{caminho_impresso(rel)}: criterio"
+    valor, prefixo = (campos or {}).get("criterio"), f"{caminho_impresso(rel)}: criterio"
     if not valor or not criterio_valido(valor):
         return [], []  # forma recusada em validar_documento
     desenho, motivo = ler_registro(raiz, valor, PASTAS_DE_DESENHO, "strict")
     if motivo:
-        return [], [f"aviso: {onde}: {caminho_impresso(valor)}: {motivo} (PAR-P2)"]
+        return [], [f"aviso: {prefixo}: {caminho_impresso(valor)}: {motivo} (PAR-P2)"]
     frase, _, erros = criterio_de_parada(desenho)
     if erros:
-        return [f"{onde}: {caminho_impresso(valor)}: {'; '.join(erros)} (PAR-P2)"], []
+        return [f"{prefixo}: {caminho_impresso(valor)}: {'; '.join(erros)} (PAR-P2)"], []
     pedido, meta, nome = campos.get("pedido", ""), ler_frontmatter(desenho)[0], Path(valor).name
     if not (meta.get("pedido") == pedido if meta is not None else nome == f"{pedido}.md" or nome.startswith(f"{pedido}-")):
-        return [f"{onde}: desenho de outro pedido (PAR-P2)"], []
+        return [f"{prefixo}: desenho de outro pedido (PAR-P2)"], []
     corpo = texto.split("\n## Parecer\n", 1)[1].split("\n## ", 1)[0] if "\n## Parecer\n" in texto else ""
     linhas = [l.strip() for l in corpo.split("\n") if l.strip()] + ["", ""]
     if linhas[0] == f'Critério de parada: "{frase}"':
@@ -1740,7 +1740,7 @@ def conferir_criterio(raiz, rel, texto, campos):
     mudou = re.match(r"^critério mudou:\s*(.{10,})$", linhas[1]) if linhas[0].startswith("Critério de parada:") else None
     if mudou:
         return [], [f"aviso: critério mudou em {caminho_impresso(rel)}: {sem_controle(mudou.group(1))[:300]}"]
-    return [f'{onde}: a 1.ª linha de ## Parecer não é Critério de parada: "{sem_controle(frase)[:300]}" nem traz critério mudou: '
+    return [f'{prefixo}: a 1.ª linha de ## Parecer não é Critério de parada: "{sem_controle(frase)[:300]}" nem traz critério mudou: '
             "com motivo logo abaixo (PAR-P2)"], []
 
 

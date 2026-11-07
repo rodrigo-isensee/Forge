@@ -56,8 +56,8 @@
       "id": "M14",
       "guarda": "conferir_criterio: desenho ausente, grande ou ilegível é aviso e para (C-8)",
       "arquivo": "bin/forge-check",
-      "de": "if motivo:\n        return [], [f\"aviso: {onde}",
-      "para": "if not motivo:\n        return [], [f\"aviso: {onde}",
+      "de": "if motivo:\n        return [], [f\"aviso: {prefixo}",
+      "para": "if not motivo:\n        return [], [f\"aviso: {prefixo}",
       "testes": [
         "tests.test_forge.CriterioDeParada.test_frase_igual_passa_diferente_reprova_e_a_marca_com_motivo_logo_abaixo_avisa"
       ]
@@ -66,8 +66,8 @@
       "id": "M15",
       "guarda": "conferir_criterio: desenho fora da forma é violação",
       "arquivo": "bin/forge-check",
-      "de": "if erros:\n        return [f\"{onde}",
-      "para": "if False:\n        return [f\"{onde}",
+      "de": "if erros:\n        return [f\"{prefixo}",
+      "para": "if False:\n        return [f\"{prefixo}",
       "testes": [
         "tests.test_forge.CriterioDeParada.test_desenho_de_outro_pedido_e_recusado_e_so_a_frase_sai_sem_controle"
       ]
