@@ -22,6 +22,7 @@ Formato (modelo em `_modelo.md`): contexto, decisão, alternativas, consequênci
 | [0013](0013-leitura-do-comentario-nos-hooks.md) | Leitura do comentário nos hooks: só onde se prova, com a leitura antiga como piso (emenda o item 2 da 0011) (proposta) |
 | [0014](0014-fluxo-de-tres-degraus-nos-projetos.md) | Fluxo de três degraus nos projetos: `develop` → `homolog` → `main` (proposta; vale a partir do PR da fase E do lote-unico-032) |
 | [0015](0015-porta-de-entrada-do-onboarding.md) | Porta de entrada do onboarding: terminal e Jarvis, sem hook fora de projeto (proposta; vale a partir do PR da fase E do lote-unico-032) |
+| [0016](0016-checagem-do-brief.md) | Checagem do brief: skill neutra e lista local do projeto (proposta; vale quando o PR da `melhoria/checagem-do-brief` entrar na `develop`) |
 
 ## Substituídas
 Nenhuma.
