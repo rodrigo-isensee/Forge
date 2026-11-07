@@ -1,0 +1,26 @@
+{
+  "pedido": "m15-medida-m2b",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "o subcomando provas despacha para a medida",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"provas\":\n        return cmd_provas_medida",
+      "para": "    if a.cmd == \"provasx\":\n        return cmd_provas_medida",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_pq_unittest_da_lista_do_script_e_ci"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "a classe geral da conferencia e a mais forte que aparece nas PQ citadas",
+      "arquivo": "bin/forge-check",
+      "de": "if k in {classe for _, classe in classes}",
+      "para": "if k not in {classe for _, classe in classes}",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_pq_unittest_da_lista_do_script_e_ci"
+      ]
+    }
+  ]
+}

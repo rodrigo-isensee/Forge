@@ -1,0 +1,168 @@
+{
+  "pedido": "m15-medida-m2b",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "sem o script do CI na copia em uso, rc 2 e nada medido (C-6)",
+      "arquivo": "bin/forge-check",
+      "de": "    script = carregar_reexecutar_provas()\n    if script is None:",
+      "para": "    script = carregar_reexecutar_provas()\n    if script is None and False:",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_registro_em_link_ou_sem_o_script_do_ci_nao_verifica"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "registro em link simbolico ou grande demais nao e contado",
+      "arquivo": "bin/forge-check",
+      "de": "    if aviso:\n        print(f\"m2b:",
+      "para": "    if aviso and False:\n        print(f\"m2b:",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_registro_em_link_ou_sem_o_script_do_ci_nao_verifica"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "so a linha de exatamente 10 celulas conta (linha forjada de 9 e ignorada)",
+      "arquivo": "bin/forge-check",
+      "de": "if (len(c) != 10 or not HORA_DO_REGISTRO.fullmatch(c[0]) or c[3] != \"entrega\"",
+      "para": "if (len(c) < 9 or not HORA_DO_REGISTRO.fullmatch(c[0]) or c[3] != \"entrega\"",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_so_conta_entrega_que_nao_aprovou_com_merito_em_linha_de_10_celulas"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a hora do registro tem o formato AAAA-MM-DD HH:MM",
+      "arquivo": "bin/forge-check",
+      "de": "or not HORA_DO_REGISTRO.fullmatch(c[0]) or c[3] != \"entrega\"",
+      "para": "or c[3] != \"entrega\"",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_so_conta_entrega_que_nao_aprovou_com_merito_em_linha_de_10_celulas"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "so conta conferencia de entrega, nunca a de brief",
+      "arquivo": "bin/forge-check",
+      "de": "or c[3] != \"entrega\" or _aprovou(c[5])",
+      "para": "or c[3] not in MODOS_DE_CONFERENCIA or _aprovou(c[5])",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_so_conta_entrega_que_nao_aprovou_com_merito_em_linha_de_10_celulas"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "conferencia que aprovou nao conta",
+      "arquivo": "bin/forge-check",
+      "de": "or c[3] != \"entrega\" or _aprovou(c[5])",
+      "para": "or c[3] != \"entrega\"",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_so_conta_entrega_que_nao_aprovou_com_merito_em_linha_de_10_celulas"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "merito n nao conta, so s e parcial",
+      "arquivo": "bin/forge-check",
+      "de": "or c[6] not in MERITOS_DA_MEDIDA or",
+      "para": "or c[6] not in MERITOS_DE_CONFERENCIA or",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_so_conta_entrega_que_nao_aprovou_com_merito_em_linha_de_10_celulas",
+        "tests.test_medidas_m14b.MedidaM2b.test_pq_unittest_da_lista_do_script_e_ci"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "--desde corta as conferencias antes do dia",
+      "arquivo": "bin/forge-check",
+      "de": "(desde and c[0][:10] < desde)",
+      "para": "(desde and c[0][:10] < \"0\")",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_desde_corta_as_conferencias_antigas"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o brief so e lido com nome seguro (R-1)",
+      "arquivo": "bin/forge-check",
+      "de": "if NOME_DE_REGISTRO.fullmatch(nome) else None",
+      "para": "if nome else None",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_brief_ausente_ou_de_nome_inseguro_e_ilegivel_sem_ecoar_o_resultado"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o nome impresso so sai se for seguro",
+      "arquivo": "bin/forge-check",
+      "de": "nome = c[2] if NOME_DE_REGISTRO.fullmatch(c[2]) else \"?\"",
+      "para": "nome = c[2] if c[2] else \"?\"",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_brief_ausente_ou_de_nome_inseguro_e_ilegivel_sem_ecoar_o_resultado"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "so a PQ de numero igual ao citado e classificada",
+      "arquivo": "bin/forge-check",
+      "de": "if m and m.group(1) == n and (m.group(2)",
+      "para": "if m and (m.group(2)",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_pq_fora_da_lista_nao_cmd_ou_sem_pq_e_so_do_conferente"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "so a PQ do tipo cmd pode ser ci",
+      "arquivo": "bin/forge-check",
+      "de": ".strip().lower() == \"cmd\":\n            comando",
+      "para": ".strip().lower() != \"x\":\n            comando",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_pq_fora_da_lista_nao_cmd_ou_sem_pq_e_so_do_conferente"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "ci so se o comando passa no comando_permitido do script do CI",
+      "arquivo": "bin/forge-check",
+      "de": "return \"ci\" if script.comando_permitido(argv) is None else",
+      "para": "return \"ci\" if argv else",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_pq_fora_da_lista_nao_cmd_ou_sem_pq_e_so_do_conferente",
+        "tests.test_medidas_m14b.MedidaM2b.test_pq_unittest_da_lista_do_script_e_ci"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "resultado sem PQ citada e so do conferente",
+      "arquivo": "bin/forge-check",
+      "de": "or [(\"sem PQ\", \"so-conferente\")]",
+      "para": "or [(\"sem PQ\", \"ci\")]",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_pq_fora_da_lista_nao_cmd_ou_sem_pq_e_so_do_conferente"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "uma PQ so do conferente torna a conferencia so do conferente",
+      "arquivo": "bin/forge-check",
+      "de": "(\"ilegível\", \"so-conferente\", \"ci\") if k in",
+      "para": "(\"ilegível\", \"ci\", \"so-conferente\") if k in",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_pq_fora_da_lista_nao_cmd_ou_sem_pq_e_so_do_conferente"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "PQ cmd sem crase nao vira ci nem quebra a medida",
+      "arquivo": "bin/forge-check",
+      "de": "argv = shlex.split(comando.group(1)) if comando else []",
+      "para": "argv = shlex.split(comando.group(1)) if True else []",
+      "testes": [
+        "tests.test_medidas_m14b.MedidaM2b.test_pq_fora_da_lista_nao_cmd_ou_sem_pq_e_so_do_conferente"
+      ]
+    }
+  ]
+}
