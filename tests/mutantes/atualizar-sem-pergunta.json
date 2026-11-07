@@ -2,31 +2,88 @@
   "pedido": "atualizar-sem-pergunta",
   "executor": "unittest",
   "mutantes": [
-    {"id": "M1", "guarda": "a recusa dentro do Claude vale também com --sim (o --sim entra depois dela)", "arquivo": "bin/forge-atualizar",
-     "de": "    if recusa:\n", "para": "    if recusa and \"--sim\" not in args:\n",
-     "testes": ["tests.test_atualizar.AtualizarSemPergunta.test_claude_ancestral_com_sim_recusa"]},
-    {"id": "M2", "guarda": "com --sim o conflito de .forge/versao não é pergunta principal: responde não e desfaz", "arquivo": "bin/forge-atualizar",
-     "de": "(a versão da develop é descartada)?\"):", "para": "(a versão da develop é descartada)?\", principal=True):",
-     "testes": ["tests.test_atualizar.AtualizarSemPergunta.test_conflito_em_forge_versao_com_sim_responde_nao_e_desfaz"]},
-    {"id": "M3", "guarda": "com --sim só a principal responde sim; voltar de versão fica em não", "arquivo": "bin/forge-atualizar",
-     "de": "    return principal\n", "para": "    return True\n",
-     "testes": ["tests.test_atualizar.AtualizarSemPergunta.test_problema_novo_do_doutor_com_sim_sai_1_sem_voltar"]},
-    {"id": "M4", "guarda": "a árvore suja recusa também com --sim", "arquivo": "bin/forge-atualizar",
-     "de": "if git(projeto, \"status\", \"--porcelain\")[1]:", "para": "if git(projeto, \"status\", \"--porcelain\")[1] and not SIM:",
-     "testes": ["tests.test_atualizar.AtualizarSemPergunta.test_arvore_suja_com_sim_recusa"]},
-    {"id": "M5", "guarda": "com --sim o terminal não é exigido", "arquivo": "bin/forge-atualizar",
-     "de": "if not SIM and not fv.tem_terminal():", "para": "if not fv.tem_terminal():",
-     "testes": ["tests.test_atualizar.AtualizarSemPergunta.test_sem_terminal_com_sim_atualiza"]},
-    {"id": "M6", "guarda": "sem --sim e sem terminal continua recusando (rc 2, com a dica)", "arquivo": "bin/forge-atualizar",
-     "de": "if not SIM and not fv.tem_terminal():", "para": "if SIM and not fv.tem_terminal():",
-     "testes": ["tests.test_atualizar.AtualizarSemPergunta.test_sem_terminal_e_sem_sim_recusa_com_a_dica"]},
-    {"id": "M7", "guarda": "--sim é opção conhecida", "arquivo": "bin/forge-atualizar",
-     "de": "a not in (\"--fixar\", \"--sim\")", "para": "a not in (\"--fixar\",)",
-     "testes": ["tests.test_atualizar.AtualizarSemPergunta.test_sem_terminal_com_sim_atualiza",
-                "tests.test_atualizar.AtualizarSemPergunta.test_sim_com_fixar_fixa_como_hoje"]},
-    {"id": "M8", "guarda": "sem --sim a confirmação pergunta no terminal", "arquivo": "bin/forge-atualizar",
-     "de": "    if not SIM:\n        return fv.confirmar(pergunta)", "para": "    if SIM:\n        return fv.confirmar(pergunta)",
-     "testes": ["tests.test_atualizar.AtualizarSemPergunta.test_sem_terminal_com_sim_atualiza",
-                "tests.test_atualizar.Atualizar.test_recusa_nao_muda_nada"]}
+    {
+      "id": "M1",
+      "guarda": "a recusa dentro do Claude vale também com --sim (o --sim entra depois dela)",
+      "arquivo": "bin/forge-atualizar",
+      "de": "    if recusa:\n",
+      "para": "    if recusa and \"--sim\" not in args:\n",
+      "testes": [
+        "tests.test_atualizar.AtualizarSemPergunta.test_claude_ancestral_com_sim_recusa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "com --sim o conflito de .forge/versao não é pergunta principal: responde não e desfaz",
+      "arquivo": "bin/forge-atualizar",
+      "de": "(a versão da develop é descartada)?\"):",
+      "para": "(a versão da develop é descartada)?\", principal=True):",
+      "testes": [
+        "tests.test_atualizar.AtualizarSemPergunta.test_conflito_em_forge_versao_com_sim_responde_nao_e_desfaz"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "com --sim só a principal responde sim; voltar de versão fica em não",
+      "arquivo": "bin/forge-atualizar",
+      "de": "    return principal\n",
+      "para": "    return True\n",
+      "testes": [
+        "tests.test_atualizar.AtualizarSemPergunta.test_problema_novo_do_doutor_com_sim_sai_1_sem_voltar",
+        "tests.test_atualizar.AtualizarSemPergunta.test_conflito_em_forge_versao_com_sim_responde_nao_e_desfaz"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a árvore suja recusa também com --sim",
+      "arquivo": "bin/forge-atualizar",
+      "de": "if git(projeto, \"status\", \"--porcelain\")[1]:",
+      "para": "if git(projeto, \"status\", \"--porcelain\")[1] and not SIM:",
+      "testes": [
+        "tests.test_atualizar.AtualizarSemPergunta.test_arvore_suja_com_sim_recusa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "com --sim o terminal não é exigido",
+      "arquivo": "bin/forge-atualizar",
+      "de": "if not SIM and not fv.tem_terminal():",
+      "para": "if not fv.tem_terminal():",
+      "testes": [
+        "tests.test_atualizar.AtualizarSemPergunta.test_sem_terminal_com_sim_atualiza"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "sem --sim e sem terminal continua recusando (rc 2, com a dica)",
+      "arquivo": "bin/forge-atualizar",
+      "de": "if not SIM and not fv.tem_terminal():",
+      "para": "if SIM and not fv.tem_terminal():",
+      "testes": [
+        "tests.test_atualizar.AtualizarSemPergunta.test_sem_terminal_e_sem_sim_recusa_com_a_dica"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "--sim é opção conhecida",
+      "arquivo": "bin/forge-atualizar",
+      "de": "a not in (\"--fixar\", \"--sim\")",
+      "para": "a not in (\"--fixar\",)",
+      "testes": [
+        "tests.test_atualizar.AtualizarSemPergunta.test_sem_terminal_com_sim_atualiza",
+        "tests.test_atualizar.AtualizarSemPergunta.test_sim_com_fixar_fixa_como_hoje"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "sem --sim a confirmação pergunta no terminal",
+      "arquivo": "bin/forge-atualizar",
+      "de": "    if not SIM:\n        return fv.confirmar(pergunta)",
+      "para": "    if SIM:\n        return fv.confirmar(pergunta)",
+      "testes": [
+        "tests.test_atualizar.AtualizarSemPergunta.test_sem_terminal_com_sim_atualiza",
+        "tests.test_atualizar.Atualizar.test_recusa_nao_muda_nada"
+      ]
+    }
   ]
 }

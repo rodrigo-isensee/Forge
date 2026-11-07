@@ -1263,7 +1263,7 @@ class AtualizarSemPergunta(Base):
         codigo, saida = self.rodar(ATUALIZAR, "--sim")
         self.assertEqual(codigo, 1, saida)
         self.assertIn(f"Voltar para a versão {VERSAO}? não (--sim responde só a atualização)", saida)
-        self.assertIn("forge voltar-versao", saida)
+        self.assertIn("Tudo bem, ficou como está. Para voltar quando quiser: forge voltar-versao", saida)
         self.assertEqual(len(self.adds()), 1, "não voltou o plugin sozinho")
         self.assertEqual(self.git("branch", "--show-current"), "forge/upgrade-9.9.2")
 
