@@ -238,6 +238,8 @@ def validar_documento(rel, texto):
             erro("parecer", "use " + " ou ".join(sorted(VALORES_DO_PARECER[tipo])))
         for problema in problemas_do_bloco(*achados_do_parecer(texto), campos, False):  # C3 (VV-2)
             erro("achados", problema)
+        for problema in sondas_do_parecer(texto)[1]:  # PAR-P1 (C-1); transição: sem o bloco, nada a cobrar
+            erro("sondas", problema)
         if campos.get("commit") and not COMMIT.match(campos["commit"]):
             erro("commit", "hash hexadecimal de 7 a 40 caracteres")
         if campos.get("data") and not DATA.match(campos["data"]):
@@ -1782,7 +1784,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         else:
             linhas.append((f"escopo: confira {mostrado} +{acrescidas} -{removidas}", False))
     if briefs:
-        linhas = uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs, caminho) + linhas
+        linhas = uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs, caminho) + sondas_no_corpus(raiz, head, briefs) + linhas
     print(f"intervalo: {de}..{head}")
     for linha, _ in linhas:
         print(linha)
@@ -1918,6 +1920,10 @@ ACHADO = re.compile(r"^- ([AR]\d+) \((bloqueante|recomendado)\) (\S+?):(\d+(?:-\
 ID_DE_ACHADO = re.compile(r"[AR]\d+")
 INCLUIDO = re.compile(r"\(incluído (\S+) ([0-9a-f]{7,40}) ([AR]\d+) de (\S+)\) (.+?)\s*$")  # marca da recomendação copiada no Entregar
 CABECALHO_ACHADOS = re.compile(r"^##\s+Achados\s*$")
+SONDA = re.compile(r"^- (S\d+) · (.+?) · espera: (.+?) · obtido: (.+?)\s*$")  # PAR-P1: a sonda que provou o bloqueante
+CABECALHO_SONDAS = re.compile(r"^##\s+Sondas\s*$")
+SONDA_NO_ENTREGAR = re.compile(r"^- \(sonda (review|qa|revisao-seguranca|revisao-devops) ([0-9a-f]{7}) (S\d+)\) grave no corpus da branch: (.+?) · espera: ")  # C-6
+MINIMO_DA_SONDA = 8  # C-3: entrada mais curta casa em qualquer lugar; nunca dá ok sozinha
 TETO_DO_ACHADO = 300
 SECOES_COPIADAS = ("Objetivo", "Fora do escopo", "Relatório")  # byte a byte do brief anterior (a volta só muda o Entregar; o Fora do escopo só ganha etapa nova no fim, E14)
 VOLTA_DE = re.compile(r"^Volta-de:\s*(\S+)\s+sha256\s+([0-9a-f]{64})\s*$", re.M)
@@ -1955,6 +1961,61 @@ def achados_do_parecer(texto):
         else:
             achados.append({"id": m.group(1), "gravidade": m.group(2), "arquivo": m.group(3), "linha": m.group(4), "texto": m.group(5)})
     return achados, erros, tem
+
+
+def sondas_do_parecer(texto):
+    """Lê o bloco `## Sondas` de um parecer (PAR-P1): (sondas, erros, tem_bloco). Cada sonda é
+    `- S<n> · <entrada> · espera: <esperado> · obtido: <obtido>` numa linha só, sem caractere de controle, com ` · espera: ` e
+    ` · obtido: ` uma vez cada e o teto de tamanho depois do id (C-1); linha fora do formato ou id repetido é erro (C3)."""
+    sondas, erros, dentro, tem = [], [], False, False
+    for linha in texto.splitlines():
+        if CABECALHO_SONDAS.match(linha):
+            dentro = tem = True
+            continue
+        dentro = dentro and not re.match(r"^#{1,6}\s", linha)  # outro cabeçalho fecha o bloco
+        if not (dentro and linha.strip()):
+            continue
+        m = SONDA.match(linha)
+        if com_controle(linha) or not m or linha.count(" · espera: ") != 1 or linha.count(" · obtido: ") != 1:
+            erros.append(f"linha do bloco ## Sondas fora do formato (uma linha, sem caractere de controle, um ` · espera: ` e um ` · obtido: `): {nome_seguro(linha[:80])}")
+        elif len(linha[m.start(2):].rstrip()) > TETO_DO_ACHADO:
+            erros.append(f"sonda {m.group(1)} com mais de {TETO_DO_ACHADO} caracteres")
+        elif any(s["id"] == m.group(1) for s in sondas):
+            erros.append(f"sonda {m.group(1)} repetida")
+        else:
+            sondas.append({"id": m.group(1), "entrada": m.group(2), "espera": m.group(3), "obtido": m.group(4)})
+    return sondas, erros, tem
+
+
+def sondas_no_corpus(raiz, head, briefs):
+    """Linhas (texto, reprova) de cada `(sonda ...)` do `## Entregar` dos briefs da entrega (PAR-P1, C-2 a C-4, C-6): a entrada,
+    literal ou escapada em JSON (as fixtures de hook), precisa estar em `tests/` do head; o git que falha reprova, nunca vira "não achou"."""
+    linhas = []
+    for brief in briefs:
+        arquivo, _ = caminho_de_brief(raiz, brief)
+        try:
+            texto = arquivo.read_text(encoding="utf-8")
+        except (AttributeError, OSError, UnicodeDecodeError):
+            continue  # a união de briefs já reprova o brief ilegível
+        for linha in blocos_literais(texto).get("Entregar", []):
+            m = SONDA_NO_ENTREGAR.match(linha)
+            if not m:
+                continue
+            tipo, sha7, ident, entrada = m.groups()
+            if len(re.sub(r"\s", "", entrada)) < MINIMO_DA_SONDA:
+                linhas.append((f"escopo: confira sonda {ident} (entrada curta; confira à mão)", False))
+                continue
+            for forma in dict.fromkeys((entrada, json.dumps(entrada)[1:-1])):
+                cod, saida = git(raiz, "grep", "-F", "-I", "-l", "-e", forma, head, "--", "tests/")
+                if cod != 1:
+                    break
+            if cod == 0:
+                linhas.append((f"escopo: ok (sonda {ident} em {caminho_impresso(saida.splitlines()[0].split(':', 1)[1])})", False))
+            elif cod == 1:
+                linhas.append((f"escopo: sonda {ident} de {tipo} {sha7} fora do corpus da branch (PAR-P1)", True))
+            else:
+                linhas.append((f"escopo: sonda {ident}: o git falhou", True))
+    return linhas
 
 
 def problemas_do_bloco(achados, erros, tem_bloco, campos, estrito):
@@ -2028,8 +2089,9 @@ def pareceres_da_volta(raiz, pedido_id, ref, arquivos, fora=None):
     for rel, texto, origem in lidos:
         campos = ler_frontmatter(texto)[0] or {}
         achados, erros, tem = achados_do_parecer(texto)
+        sondas, erros_das_sondas, _ = sondas_do_parecer(texto)  # PAR-P1: a linha fora do formato recusa a volta, nunca some (C3)
         pareceres.append({"rel": rel, "tipo": campos.get("tipo", "parecer"), "commit": origem, "campos": campos, "achados": achados, "tem_bloco": tem,
-                          "problemas": problemas_do_bloco(achados, erros, tem, campos, True)})
+                          "sondas": sondas, "problemas": problemas_do_bloco(achados, erros, tem, campos, True) + erros_das_sondas})
     return pareceres, None
 
 
@@ -2221,6 +2283,8 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
             if achado["gravidade"] == "bloqueante":
                 bloqueantes += 1
                 entregar.append(f"- {marca_do_achado(p, achado)} {achado['texto']} [{caminho_impresso(achado['arquivo'])}:{achado['linha']}]\n")
+    for p in pareceres:  # PAR-P1: a sonda que provou o bloqueante vai ao corpus da branch (o `entrega --brief` confere)
+        entregar += [f"- (sonda {p['tipo']} {ref[:7]} {s['id']}) grave no corpus da branch: {s['entrada']} · espera: {s['espera']}\n" for s in p["sondas"]]
     for parecer, achado in incluidas:  # a recomendação escolhida (O3 = B): literal, com a origem verificável na conferência
         entregar.append(f"- {marca_da_inclusao(parecer, achado)} {texto_do_achado(achado)}\n")
     if not bloqueantes and not incluidas and not any(not p["tem_bloco"] for p in pareceres):
@@ -2322,6 +2386,9 @@ def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=N
             marca = re.compile(rf"\({re.escape(p['tipo'])} [0-9a-f]{{7,40}} {achado['id']}\)")
             if achado["gravidade"] == "bloqueante" and not (marca.search(entregar) or marca.search(cortes)):
                 saida.append((f"volta: falta achado \"{achado['id']}\" de {caminho_impresso(p['rel'])}", True))
+        for sonda in p["sondas"]:  # PAR-P1 (C-5): o brief à mão não omite a sonda do parecer lido da ref
+            if not re.search(rf"\(sonda {re.escape(p['tipo'])} [0-9a-f]{{7}} {sonda['id']}\)", entregar):
+                saida.append((f"volta: falta sonda \"{sonda['id']}\" de {caminho_impresso(p['rel'])}", True))
     for linha in novos.get("Entregar", []):  # a recomendação incluída é relida da ref (ou do P): o texto ao lado da marca é o do parecer
         marca = INCLUIDO.search(linha)
         if not marca:
