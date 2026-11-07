@@ -67,7 +67,8 @@ class FerramentasDoDestino(unittest.TestCase):
                        "`forma: PQ-n cmd para destino sem Bash (rode-o o Jarvis ou mude o verificador)`, que reprova"):
             self.assertIn(trecho, forma)
         self.assertNotIn("ls -l agents/<nome>.md", forma)
-        self.assertGreaterEqual(len(comandos := re.findall(r"`((?:ls|grep|cat|head|test) [^`]*)`", forma)), 2)
+        comandos = [c for c in re.findall(r"`((?:ls|grep|cat|head|test) [^`]*)`", forma) if c != "ls -l"]  # `ls -l` citado sem caminho
+        self.assertGreaterEqual(len(comandos), 2)
         for comando in comandos:
             self.assertTrue(comando.endswith(" '<caminho>'"), comando)
 
@@ -79,8 +80,7 @@ class FerramentasDoDestino(unittest.TestCase):
                       paragrafo("4. **Forma**"))
 
     def test_f_todo_agente_do_repositorio_tem_uma_linha_tools(self):
-        agentes = sorted([*RAIZ.glob("agents/*.md"), *RAIZ.glob("stacks/*/agents/*.md")])
-        self.assertGreaterEqual(len(agentes), 10)
+        self.assertGreaterEqual(len(agentes := sorted([*RAIZ.glob("agents/*.md"), *RAIZ.glob("stacks/*/agents/*.md")])), 10)
         for agente in agentes:
             self.assertEqual(len(re.findall(r"^tools:", agente.read_text(encoding="utf-8"), re.M)), 1, agente)
 
