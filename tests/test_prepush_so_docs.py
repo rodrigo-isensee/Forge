@@ -368,7 +368,9 @@ class TravaDaChecagem(Repo):
         fins = [self.fim(p) for p in [self.lanca() for _ in range(4)]]
         self.assertEqual((self.dir / "log").read_text().split(), ["i", "o"] * 4)
         self.assertEqual([f[0] for f in fins], [0] * 4, fins)
-        self.assertEqual(sorted(f[1].count("aguardando a vez por até 1200 s") for f in fins), [0, 1, 1, 1])
+        avisos = [[linha for linha in f[1].splitlines() if "aguardando a vez" in linha] for f in fins]
+        self.assertEqual(sorted(bool(a) for a in avisos), [False] + [True] * 3)
+        self.assertFalse([a for a in avisos if any(x == y for x, y in zip(a, a[1:]))], "aviso repetido sem N mudar")
 
     def test_espera_estourada_barra_sem_rodar(self):
         with open(self.trava, "w") as t:
@@ -386,6 +388,7 @@ class TravaDaChecagem(Repo):
         self.assertEqual(self.fim(self.lanca())[0], 0)
         self.addCleanup(os.kill, int((self.fora / "pid").read_text()), 9)
         self.assertEqual(self.fim(self.lanca(dict(self.amb, FORGE_PREPUSH_ESPERA="1")))[0], 0)
+        self.assertEqual(list(self.trava.with_suffix(".fila").iterdir()), [])
 
     def test_xdg_com_escrita_alheia_recua_para_o_home(self):
         self.fora.chmod(0o777)
@@ -436,6 +439,82 @@ class TravaDaChecagem(Repo):
         self.base = self.git("rev-parse", "HEAD")
         self.pula(["docs/a.md"])
         self.assertFalse(self.trava.exists())
+
+
+class FilaDaChecagem(Repo):
+    lanca, fim, barra = TravaDaChecagem.lanca, TravaDaChecagem.fim, TravaDaChecagem.barra
+
+    def setUp(self):
+        super().setUp()
+        self.escreve("src/a.ts")
+        self.linhas = [self.ref(self.commit("codigo"), self.base)]
+        self.trava, self.fila = (self.fora / f"forge-prepush-{os.getuid()}.{x}" for x in ("lock", "fila"))
+        (self.dir / ".githooks" / "pre-push.local").write_text('#!/usr/bin/env bash\necho "${ORDEM-0}" >> "$(dirname "$0")/../marca"; sleep "${DORME-0}"\n')
+
+    def viva(self, nome):
+        self.fila.mkdir(mode=0o700, exist_ok=True)
+        f = open(self.fila / nome, "w")
+        self.addCleanup(f.close)
+        fcntl.flock(f, fcntl.LOCK_EX)
+
+    def roda_sozinho(self, amb=None):
+        rc, err, marca = self.fim(self.lanca(dict(amb or self.amb, FORGE_PREPUSH_ESPERA="3")))
+        self.assertEqual((rc, marca), (0, True), err)
+        return err
+
+    def test_tres_esperam_em_ordem_de_chegada_contando_quem_esta_na_frente(self):
+        ps = []
+        with open(self.trava, "w") as t:
+            fcntl.flock(t, fcntl.LOCK_EX)
+            for k in range(3):
+                ps.append(self.lanca(dict(self.amb, ORDEM=str(k), DORME="2")))
+                for _ in range(100):
+                    if len(list(self.fila.glob("[0-9]*-[0-9]*"))) > k:
+                        break
+                    time.sleep(0.1)
+        fins = [self.fim(p) for p in ps]
+        self.assertEqual([f[0] for f in fins], [0] * 3, fins)
+        self.assertEqual((self.dir / "marca").read_text().split(), ["0", "1", "2"])
+        avisos = [[linha.split("(")[1].split(")")[0] for linha in f[1].splitlines() if "aguardando a vez" in linha] for f in fins]
+        self.assertEqual(avisos, [["0 na frente"], ["1 na frente", "0 na frente"], ["2 na frente", "1 na frente", "0 na frente"]])
+        self.assertEqual(list(self.fila.iterdir()), [])
+
+    def test_senha_morta_sai_e_a_propria_nao_conta(self):
+        self.fila.mkdir(mode=0o700)
+        (self.fila / "1-1").touch()
+        self.roda_sozinho()
+        self.assertEqual(list(self.fila.iterdir()), [])
+
+    def test_senha_viva_na_frente_espera_ate_o_prazo(self):
+        self.viva("1-1")
+        self.barra(dict(self.amb, FORGE_PREPUSH_ESPERA="2"), "(1 na frente)")
+        self.assertTrue((self.fila / "1-1").exists())
+
+    def test_nome_fora_do_formato_ou_link_nao_conta_nem_vai_ao_terminal(self):
+        self.viva("0\x1b]0;x\x07-1")
+        self.viva("alvo")
+        (self.fila / "1-2").symlink_to(self.fila / "alvo")
+        err = self.roda_sozinho()
+        self.assertFalse(set(err) & {"\x1b", "\x07"}, err)
+
+    def test_pasta_da_fila_link_ou_775_espera_so_pela_trava(self):
+        alvo = Path(tempfile.mkdtemp(dir=self.fora))
+        self.fila.symlink_to(alvo)
+        self.assertIn("só pela trava", self.roda_sozinho())
+        self.assertEqual(list(alvo.iterdir()), [])
+        (self.dir / "marca").unlink()
+        self.fila.unlink()
+        self.fila.mkdir(mode=0o700)
+        self.fila.chmod(0o775)
+        self.assertIn("só pela trava", self.roda_sozinho())
+
+    def test_senha_que_nao_nasce_espera_so_pela_trava_sem_sobra(self):
+        falso = self.fora / "bin"
+        falso.mkdir()
+        (falso / "flock").write_text(f'#!/bin/sh\n[ "$*" = "-n 8" ] && exit 1\nexec {shutil.which("flock")} "$@"\n')
+        (falso / "flock").chmod(0o755)
+        self.assertIn("não foi criada", self.roda_sozinho(dict(self.amb, PATH=f"{falso}:{AMBIENTE['PATH']}")))
+        self.assertEqual(list(self.fila.iterdir()), [])
 
 
 if __name__ == "__main__":

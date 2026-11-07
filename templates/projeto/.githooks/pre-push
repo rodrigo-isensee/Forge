@@ -101,6 +101,35 @@ trava_do_projeto() {
   fi
   printf '%s/forge-prepush-%s.lock\n' "$d" "$(id -u)"
 }
+# Fila justa (como a do Forge): cada espera põe a senha <ns>-<pid> em <trava>.fila (pasta conferida), presa por flock no
+# descritor 8 antes de ganhar o nome; senha cujo flock se pega é de processo morto e sai. Só ordena: quem exclui é a trava.
+fila_entrar() {
+  local nova="$fila/.nova-$$" alvo
+  alvo="$fila/$(date +%s%N)-$$"
+  [ -e "$fila" ] || [ -L "$fila" ] || mkdir -m 700 "$fila" 2>/dev/null
+  if ! pasta_confere "$fila"; then echo "pre-push: aviso: ${fila} não é pasta do próprio usuário (ou é link, ou tem escrita alheia); a espera segue só pela trava, sem a ordem de chegada." >&2; return 1; fi
+  if { exec 8>"$nova" && flock -n 8 && mv -f -- "$nova" "$alvo"; } 2>/dev/null; then senha="$alvo"; return 0; fi
+  rm -f -- "$nova"; exec 8>&-; echo "pre-push: aviso: a senha da fila não foi criada; a espera segue só pela trava, sem a ordem de chegada." >&2; return 1
+}
+# Quantas senhas vivas chegaram antes da nossa; só nomes <dígitos>-<dígitos> de arquivo regular contam (o nome nunca é impresso).
+fila_na_frente() {
+  local f n=0 LC_COLLATE=C
+  for f in "$fila"/[0-9]*-[0-9]*; do
+    case "${f##*/}" in *[!0-9-]*|*-*-*) continue ;; esac
+    if [ ! -f "$f" ] || [ -L "$f" ]; then continue; fi
+    if (exec 7<"$f" && flock -n 7) 2>/dev/null; then rm -f -- "$f"; continue; fi
+    if [[ "${f##*/}" < "${senha##*/}" ]]; then n=$((n + 1)); fi
+  done
+  echo "$n"
+}
+fila_sair() {
+  if [ -n "$senha" ]; then rm -f -- "$senha"; exec 8>&-; senha=""; fi
+}
+avisar() {  # uma vez, e de novo só quando N muda
+  if [ "$1" = "$avisou" ]; then return 0; fi
+  avisou="$1"
+  echo "pre-push: outra checagem do projeto está rodando nesta máquina; aguardando a vez${senha:+ ($1 na frente)} por até ${prazo} s (R-TETO)" >&2
+}
 
 # Checagem própria do projeto (opcional): crie .githooks/pre-push.local executável (ex.: lint + typecheck).
 local_hook="$(dirname "$0")/pre-push.local"
@@ -117,10 +146,19 @@ if [ -x "$local_hook" ]; then
       exec 9>>"$trava" || { echo "pre-push: a trava ${trava} não abriu; envio barrado." >&2; exit 1; }
       fd=/proc/self/fd/9; [ -e "$fd" ] || fd="$trava"  # confere o arquivo aberto, não só o caminho
       if [ -L "$trava" ] || [ ! -O "$fd" ]; then echo "pre-push: ${trava} é link simbólico ou não é do próprio usuário; recusada. Apague-a e tente de novo." >&2; exit 1; fi
+      fila="${trava%.lock}.fila"; senha=""; avisou=""; prazo="$espera"; SECONDS=0
+      fila_entrar
+      while [ -n "$senha" ] && n="$(fila_na_frente)" && [ "$n" -gt 0 ]; do
+        avisar "$n"
+        if [ "$SECONDS" -ge "$prazo" ]; then fila_sair; echo "pre-push: a vez não chegou em ${prazo} s (fila); a checagem não rodou e o envio foi barrado; tente de novo" >&2; exit 1; fi
+        sleep 1
+      done
+      espera=$(( SECONDS < prazo ? prazo - SECONDS : 1 ))  # o que resta do prazo, para a trava
       if ! flock -n 9; then
-        echo "pre-push: outra checagem do projeto está rodando nesta máquina; aguardando a vez por até ${espera} s (R-TETO)" >&2
-        flock -w "$espera" 9 || { echo "pre-push: a vez não chegou em ${espera} s; a checagem não rodou e o envio foi barrado; tente de novo" >&2; exit 1; }
+        avisar 0
+        flock -w "$espera" 9 || { echo "pre-push: a vez não chegou em ${prazo} s; a checagem não rodou e o envio foi barrado; tente de novo" >&2; exit 1; }
       fi
+      fila_sair  # a senha sai e o descritor 8 fecha antes da etapa: nada da fila passa para ela
     fi
     rodar_etapa
   fi
