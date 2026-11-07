@@ -101,18 +101,21 @@ class CarimboK6(ComProjeto):
         self.recusa(self.rodar("Write", {"file_path": k6, "content": "x"}), "Write")
         self.recusa(self.rodar("Write", {"file_path": f"{d}/forge-suite-verde.123", "content": "x"}), "temporário")
         self.recusa(self.rodar("Write", {"file_path": f"{d}/forge-suite-verde", "content": "x"}, cwd=self.tmp), "fora de projeto")
-        for c in ("printf x > .git/forge-suite-verde.123", 'd=$(git rev-parse --git-common-dir); echo x > "$d/forge-suite-verde"',
-                  'cd "$(git rev-parse --git-common-dir)" && echo x > forge-suite-verde', f"echo x > {d}/forge-suite-verde.4294967295",
-                  f"python3 -c \"{comum}open(d+'/forge-suite-verde','w')\"", "python3 -c \"open('.git/forge-suite-verde','w')\"",
-                  f"ln {k6} /tmp/h", f"cp -l {k6} /tmp/h"):
+        for c in ("printf x > .git/forge-suite-verde.123", "python3 -c \"open('.git/forge-suite-verde','w')\""):
+            self.assertEqual(self.rodar("Bash", {"command": c}).returncode, 2, c)  # o literal `.git/forge` já recusa antes
+        for c in ('d=$(git rev-parse --git-common-dir); echo x > "$d/forge-suite-verde"', f"echo x > {d}/forge-suite-verde.4294967295",
+                  'cd "$(git rev-parse --git-common-dir)" && echo x > forge-suite-verde', f"ln {d}/forge-suite-verde /tmp/h",
+                  f"cp -l {d}/forge-suite-verde /tmp/h",
+                  f"python3 -c \"{comum}open(d+'/forge-suite-verde','w')\"", f"printf x > {d}/forge-suite-verde.123"):
             r = self.rodar("Bash", {"command": c})
             self.recusa(r, c)
             self.assertIn("scripts/suite-paralela.py", r.stderr, f"{c}: C-4, quem grava o carimbo")
             self.assertNotRegex(r.stderr, r"\brm\b|apague", f"{c}: C-4, nunca sugere apagar")
 
     def test_leitura_gravador_e_vizinhos_passam(self):
-        d, k6 = str(self.d), str(self.proj / ".git" / "forge-suite-verde")
-        for c in (f"cat {k6}", "cat .git/forge-suite-verde", "python3 -m unittest tests.test_suite_reuso",
+        d = str(self.d)
+        for c in (f"cat {d}/forge-suite-verde", 'cat "$(git rev-parse --git-common-dir)/forge-suite-verde"',
+                  "python3 -m unittest tests.test_suite_reuso",
                   "python3 -I scripts/suite-paralela.py", ".githooks/pre-push --suite", f"echo x > {d}/forge-suite-verdeX",
                   f"echo x > {d}/forge-suite-verde.", f"echo x > {d}/forge-suite-verde.bak", f"echo x > {d}/forge-suite-verde.lock",
                   f"echo x > {d}/forge-suite-verde.12345678901", f"touch {d}/forge-suite-verde.fila/1-5"):
