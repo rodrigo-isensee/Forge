@@ -26,6 +26,7 @@ import re
 import subprocess
 import sys
 import time
+import unicodedata
 import urllib.parse
 import urllib.request
 from datetime import datetime
@@ -895,6 +896,71 @@ def candidatos_mesclados(raiz, base, head, arquivos):
         if set(nomes.splitlines()) & arquivos:
             numeros += [n for n in NUMERO_DE_PR.findall(assunto) if n not in numeros]
     return intervalo, numeros[:LIMITE_CANDIDATOS]
+
+
+# --- PRs rotulados da leva (ACELERA-P3 (c)): só informa; nunca muda o rc nem a liberação ---------------------
+LINHA_DE_DECISAO = "Rótulo: DECISÃO DO DONO"
+CORTE_DA_DECISAO = 200  # caracteres mostrados da linha de decisão
+MOSTRADOS_SEM_NUMERO = 10  # sha7 listados dos commits de primeiro pai sem `#n`
+CATEGORIAS_FORA = ("Cc", "Cf", "Co", "Cs")  # controle (\n, \r), formato (U+200B, U+202A a U+202E), uso privado, substituto
+
+
+def neutralizar(texto):
+    """Texto do autor para o resumo (em código inline) e o stdout (C-3): NFKC, sem CATEGORIAS_FORA, `|`, crase nem `::`, cortado."""
+    texto = "".join(c for c in unicodedata.normalize("NFKC", texto) if unicodedata.category(c) not in CATEGORIAS_FORA)
+    return re.sub(r":{2,}", ":", re.sub(r"[|`]", "", texto))[:CORTE_DA_DECISAO]
+
+
+def decisao_declarada(corpo):
+    """A primeira linha do corpo do PR, sem os comentários HTML, que começa por LINHA_DE_DECISAO, neutralizada; None sem ela."""
+    linhas = re.sub(r"<!--.*?-->", "", corpo if isinstance(corpo, str) else "", flags=re.S).splitlines()
+    return next((neutralizar(l.strip()) for l in linhas if l.strip().startswith(LINHA_DE_DECISAO)), None)
+
+
+def da_leva(pull, intervalo, ramo, repo):
+    """C-6, como `sha_rotulado_do_mesclado`: mesclado em base..head, para o ramo promovido, base e head no próprio repositório."""
+    return (bool(pull.get("merged_at")) and pull.get("merge_commit_sha") in intervalo and (pull.get("base") or {}).get("ref") == ramo
+            and _repo_de(pull.get("base")) == repo and _repo_de(pull.get("head")) == repo)
+
+
+def linha_do_rotulado(n, do_pr, eventos_do_pr, dono):
+    """A linha do PR `n` da leva, nenhuma sem o rótulo; de outro ator, de app ou retirado: `rótulo não é do dono` (C-4, C-6)."""
+    if not isinstance(eventos_do_pr, list):
+        return [f"rotulados: incompleta (a API não devolveu os eventos do #{n})"]
+    if not any((e.get("label") or {}).get("name") == ROTULO for e in eventos_do_pr):
+        return []
+    do_dono = rotulo_do_dono(eventos_do_pr, dono)
+    if not do_dono or do_dono.get("performed_via_github_app"):
+        return [f"rotulados: #{n} · rótulo não é do dono"]
+    decisao = decisao_declarada(do_pr.get("body"))
+    return [f"rotulados: #{n} · rótulo do dono · " + (f"decisão declarada no corpo: `{decisao}`" if decisao else "sem linha de decisão no corpo")]
+
+
+def rotulados_da_leva(raiz, base, head, fonte, dono):
+    """Linhas `rotulados: ...` dos PRs da leva com o rótulo `afrouxa-regra` (C-4 a C-6). Candidatos: os `#n` dos assuntos de todos
+    os commits de primeiro pai de base..ponta (`ponta_promovida`), sem filtro por arquivo (T-3), do mais novo ao mais antigo, até
+    LIMITE_CANDIDATOS. A lista que não pôde ser completa diz `incompleta (<motivo>)`: nunca some calada (C-5)."""
+    linhas = ["rotulados: a catraca confere só o rótulo do dono; a decisão é a que o autor declarou no corpo do PR"]
+    cod, saida = git(raiz, "log", "--first-parent", "--format=%H%x1f%s", f"{base}..{ponta_promovida(raiz, base, head)}")
+    pr = getattr(fonte, "pr_atual", lambda: None)()  # sem fonte (None), sem PR atual
+    if cod:
+        return linhas + ["rotulados: incompleta (git)"]
+    if not isinstance(pr, dict) or not dono:
+        return linhas + ["rotulados: incompleta (sem o PR atual ou o dono)"]
+    commits = [linha.partition("\x1f")[::2] for linha in saida.splitlines()]
+    numeros = list(dict.fromkeys(n for _, assunto in commits for n in NUMERO_DE_PR.findall(assunto)))
+    sem_numero = [sha[:7] for sha, assunto in commits if not NUMERO_DE_PR.search(assunto)]
+    linhas.append(f"rotulados: commits de primeiro pai sem #n em base..head: {len(sem_numero)} {' '.join(sem_numero[:MOSTRADOS_SEM_NUMERO])}".rstrip())
+    if len(numeros) > LIMITE_CANDIDATOS:
+        linhas.append(f"rotulados: incompleta (limite): {len(numeros)} PRs citados, consultados os {LIMITE_CANDIDATOS} mais novos")
+    intervalo, ramo = {sha for sha, _ in commits}, (pr.get("head") or {}).get("ref")
+    for n in numeros[:LIMITE_CANDIDATOS]:
+        do_pr = fonte.pull(n)
+        if not isinstance(do_pr, dict):
+            linhas.append(f"rotulados: incompleta (a API não devolveu o #{n})")
+        elif da_leva(do_pr, intervalo, ramo, fonte.repo):
+            linhas += linha_do_rotulado(n, do_pr, fonte.eventos(n), dono)
+    return linhas
 
 
 REF_BUSCADA = "refs/catraca/pull/{}"  # namespace só da catraca: o fetch nunca escreve em branch, remoto ou tag (M1)
