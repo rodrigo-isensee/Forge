@@ -1,0 +1,2 @@
+### Adicionado
+- `forge-check movimento` ganha `--titulo`, `--pedido` e `--responsavel`, gravados na marca `· atributos: titulo=…; pedido=…; responsavel=…`, sempre por último no motivo, depois do custo; o `--motivo` com `atributos:` (em qualquer caixa, com espaço, caractere invisível ou dois-pontos de largura total) é recusado, os valores fora da forma também, e o `--motivo` passa de 500 ou o `--titulo` de 120 caracteres recusam, sem gravar nada; o custo total ignora a marca, para um `--titulo` não fabricar custo (E3-2a EST-M12, versao-043).
