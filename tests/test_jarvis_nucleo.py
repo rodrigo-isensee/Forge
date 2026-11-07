@@ -56,5 +56,20 @@ class NucleoCurtoDoJarvis(unittest.TestCase):
                 self.assertIn(f"`{regra}`", nucleo)
 
 
+class RevalidaMesmaInstancia(unittest.TestCase):
+    """E6 da 0.36 (decisão 27): a revalidação de um parecer retoma a instância que o deu, no passo 5, sem linha nova."""
+
+    def test_o_passo_5_manda_retomar_a_instancia_e_abrir_nova_sem_ela(self):
+        nucleo = ler(JARVIS)
+        passo5 = next(l for l in nucleo.splitlines() if l.startswith("5. **Conferência da entrega e code review:**"))
+        self.assertRegex(passo5, r"revalidação de um parecer.*retoma a instância que o deu \(`SendMessage`")
+        self.assertIn("sem a instância (sessão reiniciada), abra uma nova com o mesmo brief", passo5)
+
+    def test_o_nucleo_segue_no_teto(self):
+        nucleo = ler(JARVIS)
+        self.assertLess(len(nucleo), 24000)
+        self.assertLessEqual(len(nucleo.splitlines()), 110)
+
+
 if __name__ == "__main__":
     unittest.main()
