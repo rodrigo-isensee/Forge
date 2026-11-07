@@ -4,11 +4,12 @@
   "mutantes": [
     {
       "id": "M1",
-      "guarda": "desenho_da_ref: nome fora da ref não é lido dela (cai no forge-contrib)",
+      "guarda": "desenho_da_ref: só o nome presente na ref é lido dela; fora dela, None (cai no forge-contrib)",
       "arquivo": "bin/forge-check",
       "de": "    if nome != valor.encode():\n        return None",
-      "para": "    if False:\n        return None",
+      "para": "    if nome == valor.encode():\n        return None",
       "testes": [
+        "tests.test_forge.CriterioDeParada.test_com_ref_o_desenho_vem_da_ref_e_nao_da_arvore_de_trabalho",
         "tests.test_forge.CriterioDeParada.test_com_ref_fora_dela_so_o_forge_contrib_e_link_grande_ou_ilegivel_na_ref_avisam"
       ]
     },
@@ -27,8 +28,9 @@
       "guarda": "desenho_da_ref: objeto que o git não lê é ausente",
       "arquivo": "bin/forge-check",
       "de": "    if cod:\n        return None, \"ausente\"\n    if int(tamanho)",
-      "para": "    if False:\n        return None, \"ausente\"\n    if int(tamanho)",
+      "para": "    if not cod:\n        return None, \"ausente\"\n    if int(tamanho)",
       "testes": [
+        "tests.test_forge.CriterioDeParada.test_com_ref_o_desenho_vem_da_ref_e_nao_da_arvore_de_trabalho",
         "tests.test_forge.CriterioDeParada.test_com_ref_fora_dela_so_o_forge_contrib_e_link_grande_ou_ilegivel_na_ref_avisam"
       ]
     },
@@ -57,7 +59,7 @@
       "guarda": "conferir_criterio: com ref, o desenho vem da ref e não do disco (C-3)",
       "arquivo": "bin/forge-check",
       "de": "    lido = desenho_da_ref(raiz, ref, valor) if ref else None",
-      "para": "    lido = None",
+      "para": "    lido = desenho_da_ref(raiz, ref, valor) if None else None",
       "testes": [
         "tests.test_forge.CriterioDeParada.test_com_ref_o_desenho_vem_da_ref_e_nao_da_arvore_de_trabalho"
       ]
