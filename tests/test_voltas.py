@@ -322,6 +322,19 @@ class RetroPorGatilho(Raiz):
         self.leads(19, 4320)  # o alvo abriu há 4 dias e chegou à develop há 1
         self.assertEqual(self.rodar("--pedido", "alvo", "--dias", "2")[1][1], "retro: gatilho: lead")
 
+    def test_historico_link_ou_grande_e_nao_medido_com_aviso(self):
+        self.leads(19, 100)
+        hist = self.tmp / "docs/kanban/historico.md"
+        hist.rename(self.tmp / "docs/kanban/real.md")
+        hist.symlink_to(self.tmp / "docs/kanban/real.md")
+        for motivo in ("é link simbólico", "passa de 1048576 bytes"):
+            cod, linhas, erro = self.rodar("--pedido", "alvo")
+            self.assertEqual((cod, linhas[1]), (0, "retro: sem gatilho"), motivo)
+            self.assertIn(" lead=nao-medido p85=nao-medido(n=0) ", linhas[0])
+            self.assertIn(f"retro: aviso: docs/kanban/historico.md {motivo}; lead e p85 nao-medido", erro)
+            hist.unlink()
+            hist.write_text((self.tmp / "docs/kanban/real.md").read_text(encoding="utf-8") + "x" * (1024 * 1024), encoding="utf-8")
+
     def test_lead_igual_ao_p85_nao_dispara(self):
         self.leads(19, 10)
         self.assertEqual(self.rodar("--pedido", "alvo")[1][1], "retro: sem gatilho")

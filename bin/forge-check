@@ -3085,8 +3085,11 @@ def cmd_retro(raiz, pedido, dias=30):
         print(f"retro: pedido {nome_seguro(pedido)} nao existe em docs/pedidos/", file=sys.stderr)
         return 2
     nome, kanban = Path(arquivo).stem, raiz / "docs" / "kanban"
+    historico, aviso = _tabela_segura(kanban / "historico.md")  # link ou grande: sem linhas, logo `nao-medido`, com aviso
+    if aviso:
+        print(f"retro: aviso: docs/kanban/historico.md {aviso}; lead e p85 nao-medido", file=sys.stderr)
     por_cartao = {}
-    for c in _ler_tabela(kanban / "historico.md"):  # link ou grande: sem linhas, logo `nao-medido`
+    for c in historico:
         if len(c) >= 5 and ISO8601.match(c[0]) and (hora := _hora(c[0])):
             por_cartao.setdefault(c[1].casefold(), []).append((hora, c[2], c[3], "|".join(c[4:])))
     inicio, leads, lead = datetime.datetime.now().astimezone() - datetime.timedelta(days=dias), [], None
