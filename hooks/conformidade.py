@@ -172,8 +172,10 @@ CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem e
 PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
 # S8: a prova da suíte (`.verde`, `.dirigida`, o `.novo` do `mv`) só o pre-push grava, fora deste hook; todo papel e pasta. Limites
 # aceitos (o hook protege contra engano; o CI é o portão): nome inteiro numa variável, script em arquivo, `curl -o`, `tar -x`.
-MARCA_DA_SUITE = re.compile(r"forge-suite-[^/]*\.(verde|dirigida)(\.novo)?")
-PROVA_DA_SUITE = ("R-VERIFY", "a prova da suíte só é gravada pelo pre-push", "rode o push ou .githooks/pre-push --suite")
+# N4/P3 (versao-045 E5a): também o carimbo K6 de scripts/suite-paralela.py e o temporário do `os.replace` (`.<pid>`).
+MARCA_DA_SUITE = re.compile(r"forge-suite-[^/]*\.(verde|dirigida)(\.novo)?|forge-suite-verde(\.\d{1,10})?")
+PROVA_DA_SUITE = ("R-VERIFY", "a prova da suíte só é gravada pelo pre-push e pela suíte (scripts/suite-paralela.py)",
+                  "rode o push ou .githooks/pre-push --suite")
 MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
 GLOB_DE_PATHSPEC = re.compile(r"[*?\[\\]")
 CHECKOUT_COM_VALOR = {"-b", "-B", "--orphan"}
