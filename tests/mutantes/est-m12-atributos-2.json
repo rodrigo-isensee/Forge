@@ -1,0 +1,113 @@
+{
+  "pedido": "est-m12-atributos",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M12",
+      "guarda": "valor recusa caractere Cf",
+      "arquivo": "bin/forge-check",
+      "de": "or any(unicodedata.category(c) == \"Cf\" for c in valor)",
+      "para": "or any(unicodedata.category(c) == \"Zz\" for c in valor)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_valor_fora_da_forma_ou_acima_do_teto_recusa"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "valor vazio recusa",
+      "arquivo": "bin/forge-check",
+      "de": "if (not valor.strip() or ",
+      "para": "if (not valor or ",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_valor_fora_da_forma_ou_acima_do_teto_recusa"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "teto de 120 caracteres do titulo",
+      "arquivo": "bin/forge-check",
+      "de": ".split())) > TETOS_DO_MOVIMENTO[\"titulo\"]:",
+      "para": ".split())) > 2 * TETOS_DO_MOVIMENTO[\"titulo\"]:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_valor_fora_da_forma_ou_acima_do_teto_recusa"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "responsavel casa ID_RESP (o valor dado, nao um fixo)",
+      "arquivo": "bin/forge-check",
+      "de": "and not ID_RESP.fullmatch(atributos[\"responsavel\"])",
+      "para": "and not ID_RESP.fullmatch(\"usuário\")",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_valor_fora_da_forma_ou_acima_do_teto_recusa"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "pedido casa a forma sem barra",
+      "arquivo": "bin/forge-check",
+      "de": "and not PEDIDO_DO_ATRIBUTO.fullmatch(atributos[\"pedido\"])",
+      "para": "and not PEDIDO_DO_ATRIBUTO.match(atributos[\"pedido\"])",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_valor_fora_da_forma_ou_acima_do_teto_recusa"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "o custo total le so o motivo antes da marca",
+      "arquivo": "bin/forge-check",
+      "de": "\"|\".join(c[4:]).partition(MARCA_DE_ATRIBUTOS)[0])]",
+      "para": "\"|\".join(c[4:]))]",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_titulo_com_texto_de_custo_nao_fabrica_custo"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "motivo vazio com marca leva o travessao",
+      "arquivo": "bin/forge-check",
+      "de": "if t) or \"—\") + (",
+      "para": "if t) or \"\") + (",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_atributos_vao_na_marca_sempre_por_ultimo"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "sem atributos nao grava a marca",
+      "arquivo": "bin/forge-check",
+      "de": "for k, v in atributos.items()) if atributos else \"\")",
+      "para": "for k, v in atributos.items()) if True else \"\")",
+      "testes": [
+        "tests.test_sobreposicao_quadro.Movimento.test_cria_o_arquivo_e_acrescenta_com_hora_iso_e_fuso"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "opcao ausente nao entra nos atributos",
+      "arquivo": "bin/forge-check",
+      "de": "atributos.items() if v is not None}",
+      "para": "atributos.items() if v is not False}",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_atributos_vao_na_marca_sempre_por_ultimo"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "a recusa dos atributos interrompe o movimento",
+      "arquivo": "bin/forge-check",
+      "de": "    if erro := erro_dos_atributos(limpo(motivo), atributos):",
+      "para": "    if (erro := erro_dos_atributos(limpo(motivo), atributos)) and False:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_valor_fora_da_forma_ou_acima_do_teto_recusa"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "motivo or '—'",
+      "motivo": "a condição saiu inteira: o travessão do motivo vazio passou para a linha de cima, coberta pelo M18"
+    }
+  ]
+}

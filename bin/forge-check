@@ -2822,6 +2822,10 @@ def cmd_fila(raiz):
 
 PARADAS_DO_QUADRO = ("aguardando o dono", "sem credencial", "bloqueado", "aguardando sua validacao")  # sem acento: o cartão parou
 FIM_DO_QUADRO = "pronto"
+MARCA_DE_ATRIBUTOS = " · atributos: "  # EST-M12 (C-4, C-7): a mesma constante para a recusa do `--motivo` e para o leitor
+PEDIDO_DO_ATRIBUTO = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
+RECUSA_DA_MARCA = re.compile(re.escape(MARCA_DE_ATRIBUTOS.strip(" ·:")) + r"\s*:")  # C-7: sobre o texto em NFKC, sem `Cf`, em casefold
+TETOS_DO_MOVIMENTO = {"motivo": 500, "titulo": 120}  # C-8: caracteres depois do `limpo()`
 
 
 def custo_do_trecho(raiz, desde, ate):
@@ -2851,7 +2855,8 @@ def custo_do_movimento(raiz, cartao, para, arq, agora):
     trecho = custo_do_trecho(raiz, ultimo, agora) if ultimo else None
     if destino != FIM_DO_QUADRO:
         return f"custo do trecho: {trecho} tokens" if trecho is not None else "custo do trecho: lacuna"
-    anteriores = [m for c in movimentos for m in re.findall(r"custo do trecho: (\d+) tokens|(custo do trecho: lacuna)", "|".join(c[4:]))]
+    anteriores = [m for c in movimentos for m in re.findall(r"custo do trecho: (\d+) tokens|(custo do trecho: lacuna)",
+                                                            "|".join(c[4:]).partition(MARCA_DE_ATRIBUTOS)[0])]  # um --titulo não fabrica custo
     valores = [int(n) for n, _ in anteriores if n] + ([trecho] if trecho is not None else [])
     lacunas = sum(1 for n, _ in anteriores if not n) + (1 if trecho is None else 0)
     if not valores:
@@ -3024,15 +3029,37 @@ def cmd_kanban_gerar(raiz):
     return saida + [f"kanban --gerar: aviso: {v}" for v in cmd_kanban(raiz)] + ["kanban --gerar: KANBAN.md gerado de docs/kanban/historico.md"], 0
 
 
-def cmd_movimento(raiz, cartao, de, para, motivo):
+def erro_dos_atributos(motivo, atributos):
+    """EST-M12 (C-7, C-8): o motivo de recusa do `--motivo` (já limpo) ou dos atributos dados (crus), ou None. O atributo só nasce de opção."""
+    normal = "".join(c for c in unicodedata.normalize("NFKC", motivo) if unicodedata.category(c) != "Cf").casefold()
+    if RECUSA_DA_MARCA.search(normal):
+        return "o --motivo não leva `atributos:`; use --titulo, --pedido e --responsavel"
+    if len(motivo) > TETOS_DO_MOVIMENTO["motivo"]:
+        return f"--motivo acima de {TETOS_DO_MOVIMENTO['motivo']} caracteres"
+    for chave, valor in atributos.items():
+        if (not valor.strip() or re.search(r"[;=·|\x00-\x1f\x7f]", valor) or any(unicodedata.category(c) == "Cf" for c in valor)):
+            return f"--{chave} vazio ou com `;`, `=`, `·`, `|`, controle ou caractere invisível"
+    if len(" ".join((atributos.get("titulo") or "").split())) > TETOS_DO_MOVIMENTO["titulo"]:
+        return f"--titulo acima de {TETOS_DO_MOVIMENTO['titulo']} caracteres"
+    if "responsavel" in atributos and not ID_RESP.fullmatch(atributos["responsavel"]):
+        return "--responsavel fora da forma (forge:<agente> ou usuário)"
+    if "pedido" in atributos and not PEDIDO_DO_ATRIBUTO.fullmatch(atributos["pedido"]):
+        return "--pedido fora da forma (letras, números, `.`, `_` e `-`, sem `/`)"
+    return None
+
+
+def cmd_movimento(raiz, cartao, de, para, motivo, atributos):
     """Anota um movimento do quadro em docs/kanban/historico.md (PA-9): hora real ISO 8601 com fuso, cartão,
     coluna de origem e de destino. Só acrescenta; cria o arquivo com o cabeçalho se não existir. Ao parar o cartão (EXT-3), o motivo leva
-    `custo do trecho: N tokens` (ou `lacuna`); no Pronto, `custo total`."""
+    `custo do trecho: N tokens` (ou `lacuna`); no Pronto, `custo total`. Os atributos (EST-M12) vão por último, na marca `· atributos:`."""
     def limpo(t):
         return re.sub(r"[\x00-\x1f\x7f]", "", re.sub(r"\s+", " ", t.replace("|", "/"))).strip()
     campos = [limpo(x) for x in (cartao, de, para)]
     if not all(campos):
         return ["movimento: cartão, --de e --para não podem ser vazios"]
+    atributos = {k: v for k, v in atributos.items() if v is not None}
+    if erro := erro_dos_atributos(limpo(motivo), atributos):
+        return [f"movimento: {erro}; nada gravado"]
     if not (raiz / "KANBAN.md").is_file():
         return [SEM_QUADRO.format(cmd="movimento", raiz=caminho_impresso(raiz))]
     validas = {_sem_acento(c) for c in colunas_do_quadro(raiz)}
@@ -3045,8 +3072,9 @@ def cmd_movimento(raiz, cartao, de, para, motivo):
     agora = datetime.datetime.now().astimezone()
     hora = agora.isoformat(timespec="seconds")
     custo = custo_do_movimento(raiz, campos[0], campos[2], arq, agora)  # L16: só no `movimento`, só acrescentando (C-16a)
-    motivo = " · ".join(t for t in (limpo(motivo), custo) if t)
-    linha = f"| {hora} | {campos[0]} | {campos[1]} | {campos[2]} | {motivo or '—'} |\n"
+    motivo = (" · ".join(t for t in (limpo(motivo), custo) if t) or "—") + (
+        MARCA_DE_ATRIBUTOS + "; ".join(f"{k}={limpo(v)}" for k, v in atributos.items()) if atributos else "")  # a marca sempre por último
+    linha = f"| {hora} | {campos[0]} | {campos[1]} | {campos[2]} | {motivo} |\n"
     acrescentar_ao_arquivo(arq, linha, "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n")
     return [linha.rstrip("\n")]
 
@@ -7933,7 +7961,10 @@ def main():
     mv.add_argument("cartao")
     mv.add_argument("--de", required=True, help="coluna de origem")
     mv.add_argument("--para", required=True, help="coluna de destino")
-    mv.add_argument("--motivo", default="", help="motivo do movimento (padrão: —)")
+    mv.add_argument("--motivo", default="", help="motivo do movimento (padrão: —; até 500 caracteres, sem `atributos:`)")
+    for nome, ajuda in (("--titulo", "título do cartão (até 120 caracteres)"), ("--pedido", "id do pedido do cartão"),
+                        ("--responsavel", "forge:<agente> ou usuário")):
+        mv.add_argument(nome, help=f"{ajuda}; vai à marca `· atributos:` do motivo (EST-M12)")
     na = sub.add_parser("anotar", parents=[comum], help="grava no pedido a decisão, pergunta ou ordem do dono, ou a linha do Histórico, com a hora do relógio (P4)")
     na.add_argument("--pedido", required=True, help="arquivo do pedido ou id em docs/pedidos/<id>.md")
     na.add_argument("--tipo", required=True, choices=TIPOS_DO_ANOTAR)
@@ -8107,7 +8138,8 @@ def executar(a, raiz):
         return 0
     if a.cmd in ("sobreposicao", "movimento"):
         linhas = (cmd_sobreposicao(raiz, a.base) if a.cmd == "sobreposicao"
-                  else cmd_movimento(raiz, a.cartao, a.de, a.para, a.motivo))
+                  else cmd_movimento(raiz, a.cartao, a.de, a.para, a.motivo,
+                                     {"titulo": a.titulo, "pedido": a.pedido, "responsavel": a.responsavel}))
         extra, rc = release_em_curso(raiz, a.ref) if a.cmd == "sobreposicao" and a.ref else ([], 0)
         for linha in linhas + extra:
             print(linha)

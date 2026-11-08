@@ -304,6 +304,56 @@ class Movimento(unittest.TestCase):
         self.assertFalse(self.arq.exists())
 
 
+class MovimentoGeraQuadro(unittest.TestCase):  # EST-M12, E3-2a: o `movimento` grava a marca de atributos (C-7, C-8)
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.raiz = Path(self._tmp.name)
+        (self.raiz / "KANBAN.md").write_text("# Q\n\n## Entrada\n\n## Em andamento (WIP 1 por agente)\n\n## Aguardando o dono\n\n## Pronto\n", encoding="utf-8")
+        self.arq = self.raiz / "docs" / "kanban" / "historico.md"
+
+    def mover(self, *args):
+        rc, saida = checar(self.raiz, "movimento", "K-1", *args)
+        return rc, saida, self.arq.read_text(encoding="utf-8").splitlines()[-1] if self.arq.exists() else ""
+
+    def test_atributos_vao_na_marca_sempre_por_ultimo(self):  # legítimos 1 e 5; a marca depois do custo
+        rc, _, linha = self.mover("--de", "—", "--para", "Entrada", "--titulo", "Fazer  X", "--pedido", "versao-043", "--responsavel", "forge:dev")
+        self.assertEqual(rc, 0)
+        self.assertTrue(linha.endswith("| — · atributos: titulo=Fazer X; pedido=versao-043; responsavel=forge:dev |"), linha)
+        rc, _, linha = self.mover("--de", "Entrada", "--para", "Aguardando o dono", "--motivo", "ajustei o atributo do teste", "--responsavel", "usuário")
+        self.assertEqual(rc, 0)
+        self.assertTrue(linha.endswith("| ajustei o atributo do teste · custo do trecho: lacuna · atributos: responsavel=usuário |"), linha)
+
+    def test_titulo_com_texto_de_custo_nao_fabrica_custo(self):
+        self.assertEqual(self.mover("--de", "Entrada", "--para", "Aguardando o dono", "--titulo", "custo do trecho: 99 tokens")[0], 0)
+        self.assertTrue(self.mover("--de", "Aguardando o dono", "--para", "Pronto")[2].endswith("| custo total: lacuna |"))
+
+    def test_marca_no_motivo_recusa_em_qualquer_forma(self):  # caso de abuso 5
+        for motivo in ("Atributos: responsavel=forge:x", "x atributos : y", "atributos\u200b: y", "atributos\uff1a y"):
+            rc, saida, _ = self.mover("--de", "—", "--para", "Entrada", "--motivo", motivo)
+            self.assertEqual((rc, "nada gravado" in saida), (1, True), motivo)
+        self.assertFalse(self.arq.exists())
+
+    def test_valor_fora_da_forma_ou_acima_do_teto_recusa(self):  # caso de abuso 7 e os tetos do C-8
+        for args in (("--responsavel", "forge:x; pedido=y"), ("--responsavel", "fulano"), ("--pedido", "../../segredo"), ("--pedido", "p/../segredo"), ("--titulo", "a; b"), ("--titulo", "a=b"),
+                     ("--titulo", "a\u200bb"), ("--titulo", "a\x07b"), ("--titulo", "a · b"), ("--titulo", "a|b"), ("--titulo", " "), ("--titulo", "t" * 121), ("--motivo", "m" * 501)):
+            rc, saida, _ = self.mover("--de", "—", "--para", "Entrada", *args)
+            self.assertEqual((rc, "nada gravado" in saida), (1, True), args)
+        self.assertFalse(self.arq.exists())
+        self.assertEqual(self.mover("--de", "—", "--para", "Entrada", "--titulo", "t" * 120, "--motivo", "m" * 500)[0], 0)
+
+    def test_voltas_e_esperas_iguais_com_e_sem_a_marca(self):  # legítimo 2
+        movimentos = (("Entrada", "Em andamento"), ("Em andamento", "Aguardando o dono"), ("Aguardando o dono", "Em andamento"), ("Em andamento", "Pronto"))
+        saidas = []
+        for marca in ("", " · atributos: titulo=T; pedido=p-1; responsavel=forge:dev"):
+            self.arq.parent.mkdir(parents=True, exist_ok=True)
+            self.arq.write_text("| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n" + "".join(
+                f"| 2026-11-0{i + 1}T10:00:00+00:00 | K-1 | {de} | {para} | m{marca} |\n" for i, (de, para) in enumerate(movimentos)), encoding="utf-8")
+            saidas.append([checar(self.raiz, cmd) for cmd in ("voltas", "esperas")])
+        self.assertIn("esperas: K-1 dono", saidas[0][1][1])
+        self.assertEqual(saidas[0], saidas[1])
+
+
 class RegrasEmTexto(unittest.TestCase):
     def texto(self, rel):
         return (RAIZ / rel).read_text(encoding="utf-8")
