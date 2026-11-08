@@ -10,7 +10,7 @@ Visão geral com diagramas do fluxo, das integrações e das guardas: [`docs/vis
 - **Modelo de projeto:** `CLAUDE.md`, `KANBAN.md`, pastas de pedidos, Kanban, retrospectivas e alinhamentos, práticas, configuração do Claude Code e hook que protege a `main`.
 
 ## Começar um projeto novo
-Pré-requisitos: Claude Code, `git` e a conta do GitHub entrada no terminal (`gh auth login`; o login é feito no navegador, o Forge nunca vê sua senha nem o token).
+Pré-requisitos: Claude Code, Python 3.12 ou mais novo, `git` e a conta do GitHub entrada no terminal (`gh auth login`; o login é feito no navegador, o Forge nunca vê sua senha nem o token).
 ```bash
 claude plugin marketplace add rodrigo-isensee/Forge
 claude plugin install forge@forge

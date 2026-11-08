@@ -5,6 +5,7 @@ O projeto de partida está em ordem; cada teste estraga uma coisa e confere o av
 import json
 import os
 import pty
+import re
 import shutil
 import subprocess
 import sys
@@ -269,6 +270,46 @@ class Diagnostico(Base):
         self.git("config", "--unset", "core.hooksPath")
         self.doutor("--rapido")
         self.assertFalse(self.gh_log.exists() and self.gh_log.read_text())
+
+
+class PythonMinimo(Base):
+    """E21 da 0.75: o doutor avisa Python abaixo do mínimo, e o mínimo é o que o CI prova e o README declara."""
+
+    def doutor_em(self, versao):
+        """Roda o doutor com `sys.version_info` simulado em `versao` (o resto do Python é o de verdade)."""
+        codigo = (f"import runpy, sys; sys.version_info = {versao!r}; sys.argv = [{str(DOUTOR)!r}, '--rapido']; "
+                  f"runpy.run_path({str(DOUTOR)!r}, run_name='__main__')")
+        return subprocess.run([sys.executable, "-I", "-c", codigo], env=self.env, cwd=self.proj,
+                              capture_output=True, text=True, timeout=60)
+
+    def minimo(self):
+        from importlib.machinery import SourceFileLoader
+        from importlib.util import module_from_spec, spec_from_loader
+        spec = spec_from_loader("forge_doutor", SourceFileLoader("forge_doutor", str(DOUTOR)))
+        modulo = module_from_spec(spec)
+        spec.loader.exec_module(modulo)
+        return modulo.PYTHON_MINIMO
+
+    def test_python_abaixo_do_minimo_avisa(self):
+        r = self.doutor_em((3, 11, 9, "final", 0))
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("Python 3.11 abaixo do mínimo 3.12 do Forge", r.stdout)
+
+    def test_python_no_minimo_fica_em_silencio(self):
+        r = self.doutor_em((3, 12, 0, "final", 0))
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+
+    def test_minimo_e_o_menor_python_do_ci(self):
+        versoes = set()
+        for arquivo in (RAIZ / ".github/workflows/ci.yml", RAIZ / ".github/workflows/release.yml"):
+            texto = arquivo.read_text(encoding="utf-8")
+            versoes.update(tuple(int(n) for n in v.split(".")) for v in re.findall(r'python-version:\s*"(\d+\.\d+)"', texto))
+        self.assertGreaterEqual(len(versoes), 2)  # 3.12 e 3.14: a leitura achou as baterias
+        self.assertEqual(self.minimo(), min(versoes))
+
+    def test_readme_declara_o_minimo(self):
+        x, y = self.minimo()
+        self.assertIn(f"Python {x}.{y} ou mais novo", (RAIZ / "README.md").read_text(encoding="utf-8"))
 
 
 class Conserto(Base):
