@@ -96,7 +96,12 @@ vale como a branch inteira (`base: Base-sha do brief`, P-N1; `brief mensagem --e
 de cada trecho de `git diff -U0`) do que mudou entre o commit (ou o `commit:` do parecer de `--parecer`) e o fim (padrão HEAD),
 fora de docs/reviews, qa, devops, security e do quadro; `delta: nenhum` sem mudança. Com `--classe` (EST-M4), também
 `delta: <arquivo> classe texto|forma|codigo` e, no fim, `delta: classe <a mais pesada>`: só `codigo` desatualiza o parecer.
-rc 2 se o commit não existe ou não é ancestral do fim. `brief --anterior <brief da rodada anterior>` acrescenta `anterior: <bytes> sha256 <64>` e uma linha
+rc 2 se o commit não existe ou não é ancestral do fim. `parecer delta <parecer> [--ate <fim>]` (PARECER-CONTEUDO; só leitura) imprime o
+diff desde o `commit:` do parecer só nos arquivos do domínio do tipo dele (`no dominio:`), e lista `fora do dominio:` e, no review,
+`dispensado:` (teste do QA aprovado). `pr` só dá o parecer por desatualizado se o delta tocar arquivo do domínio do tipo: review e QA,
+tudo; segurança, tudo menos documentação e testes; devops, pipeline, contêiner, IaC, hooks do git, bin/, scripts/ e dependências;
+`dominio_mais: [caminho, pasta/]` no parecer alarga. O teste do QA aprovado (commits só de teste, blob igual ao do `commit:` do QA)
+não desatualiza o review. `brief --anterior <brief da rodada anterior>` acrescenta `anterior: <bytes> sha256 <64>` e uma linha
 `delta: +|- <seção>: <linha>` por linha que entrou ou saiu em cada seção (`delta: nenhum` sem mudança); o resto da saída e o rc não mudam.
 `fontes` compara o commit mais recente de cada fonte do registro local (~/.forge-contrib/fontes/fontes.json, fora do
 repositório) com o último revisado, por `git ls-remote` (grátis, R-CUSTO). Uma linha se houver versão nova; sem
@@ -191,6 +196,27 @@ MIGRACOES = re.compile(r"(^|/)(migrations?|migrate)/")
 CONTROLES_DO_FORGE = ("hooks/conformidade.json", "docs/regras/", "tests/catraca.py", "tests/config.json", "scripts/arvore-testada.py")
 BASES = ("origin/develop", "develop", "origin/main", "main")
 
+# PARECER-CONTEUDO (0.43.1, P3, decisão do dono de 08/11): o parecer fica preso ao conteúdo do seu domínio, não ao commit. Um commit
+# depois do `commit:` só o desatualiza se mudar arquivo do domínio do tipo. Na dúvida o arquivo está no domínio (conservador).
+# Testes, por caminho: pasta de teste ou nome de arquivo de teste (qualquer stack).
+TESTES = re.compile(r"(^|/)(tests?|__tests__|specs?|e2e)/|(^|/)(test_[^/]+\.py|conftest\.py|[^/]+_test\.[A-Za-z0-9]+|[^/]+\.(test|spec)\.[A-Za-z0-9]+)$")
+TESTES_DE_CONTROLE = ("tests/catraca.py", "tests/neutralidade.py", "tests/config.json")  # testes que são controle: nunca saem do domínio
+# Documentação lida por gente: `.md`, `.txt` e imagem em docs/ (menos as normativas), README, CHANGELOG, CONTRIBUTING e changelog.d/.
+DOCUMENTACAO = re.compile(r"^(docs/.+|README[^/]*|CHANGELOG[^/]*|CONTRIBUTING[^/]*|changelog\.d/.+)\.(md|txt|png|jpe?g|gif|svg|webp)$")
+NORMATIVOS = ("docs/regras/", "docs/adr/", "docs/architecture/", "docs/arquitetura/")  # regra, decisão e plano técnico: nunca documentação
+SEGURANCA_SEMPRE = ("hooks/", "bin/", "scripts/", ".githooks/", ".github/", "migrations/") + CONTROLES_DO_FORGE + TESTES_DE_CONTROLE
+DEVOPS_EXTRA = re.compile(r"(^|/)(\.githooks|\.devcontainer|\.circleci|ci|\.ci)/|^(bin|scripts)/|^tests/config\.json$|"
+                          r"(^|/)(Makefile|justfile|Taskfile[^/]*|\.gitlab-ci[^/]*|\.tool-versions|\.nvmrc|\.python-version)$")
+DOMINIO_DO_PARECER = {  # tipo -> o que o parecer cobre (texto da mensagem e do `parecer delta`)
+    "review": "código e testes (tudo fora dos pareceres e do quadro; o teste do QA aprovado fica com o QA)",
+    "qa": "código e testes (tudo fora dos pareceres e do quadro)",
+    "revisao-seguranca": "hooks/, bin/, scripts/, .githooks/, .github/, migrations/, controles do Forge, segredo, dependência e código; "
+                         "fora: documentação (docs/ menos as normativas, README, CHANGELOG, changelog.d/) e testes (menos os de controle)",
+    "revisao-devops": ".github/, Dockerfile*, compose*, IaC, .githooks/, bin/, scripts/, tests/config.json, scripts de CI e dependências",
+}
+DOMINIO_MAIS = re.compile(r"^[A-Za-z0-9._][A-Za-z0-9._/-]*$")  # item do `dominio_mais:` do parecer (caminho ou pasta com `/`)
+TETO_DOMINIO_MAIS = 30
+
 
 def ler_frontmatter(texto):
     """Devolve (campos, erros). Formato restrito: `chave: valor` por linha; listas `[a, b]`; sem aninhamento."""
@@ -252,6 +278,8 @@ def validar_documento(rel, texto, estrito=False):
             erro("data", "use AAAA-MM-DD")
         if campos.get("criterio") and not criterio_valido(campos["criterio"]):
             erro("criterio", "caminho fora de docs/arquitetura/ ou docs/architecture/")
+        for problema in problemas_do_dominio_mais(campos):  # PARECER-CONTEUDO: alarga o domínio do parecer
+            erro("dominio_mais", problema)
     if tipo == "qa":
         if campos.get("escopo") and campos["escopo"] not in ("completo", "incremental"):
             erro("escopo", "use completo ou incremental")
@@ -557,14 +585,100 @@ def mesmo_diff(raiz, base, a, b, ignorar):
     return arquivos_divergentes(raiz, base, a, b, ignorar) == []
 
 
-def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES, estritos=()):
+def dominio_mais(campos):
+    """Os itens válidos do `dominio_mais: [a, b/]` do parecer (alarga o domínio; nunca estreita). O inválido não entra (e o
+    `validar_documento` o aponta)."""
+    valor = (campos or {}).get("dominio_mais", "").strip()
+    itens = [i.strip() for i in valor.strip("[]").split(",") if i.strip()] if valor else []
+    return tuple(i for i in itens if DOMINIO_MAIS.match(i) and ".." not in i.split("/"))[:TETO_DOMINIO_MAIS]
+
+
+def problemas_do_dominio_mais(campos):
+    """Por que o `dominio_mais:` do parecer não vale; [] sem o campo ou com ele válido."""
+    valor = (campos or {}).get("dominio_mais", "").strip()
+    if not valor:
+        return []
+    if not (valor.startswith("[") and valor.endswith("]")):
+        return ["use uma lista `[caminho, pasta/]`"]
+    itens = [i.strip() for i in valor[1:-1].split(",") if i.strip()]
+    ruins = [i for i in itens if not DOMINIO_MAIS.match(i) or ".." in i.split("/")]
+    saida = [f"caminho relativo sem `..`, curinga nem espaço: {nome_seguro(i)}" for i in ruins[:3]]
+    if len(itens) > TETO_DOMINIO_MAIS:
+        saida.append(f"no máximo {TETO_DOMINIO_MAIS} itens")
+    return saida
+
+
+def no_dominio(tipo, nome, invariantes=frozenset(), mais=()):
+    """True se `nome` está no domínio do parecer `tipo` (PARECER-CONTEUDO, DOMINIO_DO_PARECER). Tipo desconhecido: tudo."""
+    if livre(nome, mais) or tipo not in ("revisao-seguranca", "revisao-devops"):
+        return True
+    if tipo == "revisao-devops":
+        return bool(PIPELINE_E_INFRA.match(nome) or DEVOPS_EXTRA.search(nome) or TRAVAS_DE_DEPENDENCIA.search(nome))
+    if livre(nome, SEGURANCA_SEMPRE) or any(r.search(nome) for r in (PIPELINE_E_INFRA, TRAVAS_DE_DEPENDENCIA, SEGREDOS_E_CONFIG, MIGRACOES)):
+        return True
+    if TESTES.search(nome):  # teste (mesmo com invariante): a catraca guarda contagem e asserções; o QA e o review o cobrem
+        return False
+    return nome in invariantes or not DOCUMENTACAO.match(nome) or livre(nome, NORMATIVOS)
+
+
+def predicado_do_dominio(raiz, tipo, de, ate, mais=()):
+    """`nome -> bool` do domínio de `tipo` no intervalo: os `invariantes` dos dois lados entram (ilegível: tudo no domínio)."""
+    if tipo not in DOMINIO_DO_PARECER:
+        return lambda nome: True
+    inv_de, inv_ate = (invariantes_em(raiz, de), invariantes_em(raiz, ate)) if tipo == "revisao-seguranca" else (set(), set())
+    if inv_de is None or inv_ate is None:
+        return lambda nome: True  # falha fechada
+    invariantes = frozenset(inv_de | inv_ate)
+    return lambda nome: no_dominio(tipo, nome, invariantes, mais)
+
+
+def arquivos_do_commit(raiz, sha):
+    """Arquivos que o commit `sha` muda sobre o primeiro pai; None se o git falha."""
+    cod, saida = git(raiz, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", f"{sha}^1", sha, "--", bruto=True)
+    return None if cod else nomes_z(saida)
+
+
+def testes_do_qa(raiz, pedido, branch, ate, desde):
+    """(sha do QA, {testes}) que o parecer de QA aprovado vigente cobre e que, por isso, não desatualizam o review citado em `desde`
+    (PARECER-CONTEUDO: o teste do QA não derruba o review). Teste = TESTES fora de TESTES_DE_CONTROLE, mudado em `desde..Q` só por
+    commits que só mudam teste (e pareceres ou quadro), com o mesmo blob em `ate` e em Q (o `commit:` do QA). (None, set()) sem isso."""
+    candidatos = []
+    for rel, texto in documentos(raiz, "qa", ate):
+        campos, viol = validar_documento(rel, texto)
+        if campos is not None and not viol and campos.get("pedido") == pedido and (not branch or campos.get("branch") == branch):
+            candidatos.append((campos.get("data", ""), rel, campos))
+    if not candidatos:
+        return None, set()
+    campos = sorted(candidatos, key=lambda c: c[:2])[-1][2]
+    q = sha_do_commit(raiz, campos["commit"]) if campos.get("parecer") == "aprovado" and COMMIT.match(campos.get("commit", "")) else None
+    inicio = sha_do_commit(raiz, desde)
+    if not q or not inicio or q == inicio or not e_ancestral(raiz, inicio, q) or not e_ancestral(raiz, q, ate):
+        return None, set()
+    cod, saida = git(raiz, "rev-list", f"{inicio}..{q}")
+    if cod:
+        return None, set()
+    puros, mistos = set(), set()
+    for sha in saida.split():
+        nomes = arquivos_do_commit(raiz, sha)
+        if nomes is None:
+            return None, set()
+        nomes = [n for n in nomes if not livre(n, LIVRES)]
+        so_teste = nomes and all(TESTES.search(n) and not livre(n, TESTES_DE_CONTROLE) for n in nomes)
+        (puros if so_teste else mistos).update(nomes)
+    return q, {n for n in puros - mistos if blob_de(raiz, ate, n) == blob_de(raiz, q, n)}
+
+
+def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES, estritos=(), dominio=None, mais=(), dispensados=()):
     """None se o parecer vale para `ate` (padrão: o HEAD); senão o motivo.
 
     Com `base`, também vale se `ate`, fora de LIVRES, for o patch do `commit` aplicado sobre a base nova (merge
     simulado, ver `arquivos_divergentes`): merge da base depois do parecer não o invalida, mudar de lugar uma linha
     da branch sim (ADR 0004, item 3). Com `base`, o motivo cita o arquivo que diverge. `livres` (padrão LIVRES) é o que muda sem
     desatualizar o parecer; o `cmd_pr` soma o fragmento `changelog.d/<slug>.md` (D4, como o FORA_DO_HASH da suíte). `estritos` (o `cmd_pr` passa
-    FRAGMENTOS) é o que, fora de `livres`, desatualiza mesmo sendo `texto` ou `forma`."""
+    FRAGMENTOS) é o que, fora de `livres`, desatualiza mesmo sendo `texto` ou `forma`.
+    `dominio` (o tipo do parecer, PARECER-CONTEUDO): só desatualiza o arquivo do domínio do tipo (`no_dominio`, mais os `mais` do
+    `dominio_mais:`), e o motivo termina dizendo que o arquivo é do domínio; `dispensados` (os testes do QA aprovado, `testes_do_qa`) também não.
+    Sem `dominio` (a conferência de entrega), tudo fora de `livres` conta, como antes."""
     cod, _ = git(raiz, "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}")
     if cod:
         return "commit não existe no repositório"
@@ -572,18 +686,24 @@ def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES, estritos=())
     if cod:
         return f"não foi possível comparar com {ate}"
     fora = [f for f in nomes_z(saida) if not livre(f, livres)]
+    no = predicado_do_dominio(raiz, dominio, commit, ate, mais) if dominio else (lambda nome: True)
+    alheios = {f for f in fora if not no(f) or f in dispensados}  # fora do domínio do parecer: não o desatualizam
+    fora = [f for f in fora if f not in alheios]
     classes = classes_do_intervalo(raiz, commit, ate, fora) if fora else {}
     leves = {f for f, c in classes.items() if c != "codigo" and not livre(f, estritos)}  # EST-M4: só `codigo` desatualiza
     fora = [f for f in fora if f not in leves]
     if not fora:
         return None
-    div = arquivos_divergentes(raiz, base, commit, ate, livres, leves) if base else None
+    div = arquivos_divergentes(raiz, base, commit, ate, livres, leves | alheios) if base else None
+    if div is not None:
+        div = [n for n in div if no(n) and n not in dispensados]
     if div == []:
         return None
     alvo = div[0] if div else fora[0]
     sha_da_base = sha_do_commit(raiz, base) if base else None
     qual = f" (base {caminho_impresso(base).removeprefix('refs/remotes/').removeprefix('refs/heads/')} {sha_da_base[:7]})" if sha_da_base else ""
-    return f"desatualizado: {caminho_impresso(alvo)} mudou depois do parecer; peça novo parecer{qual}"
+    doms = f"; {caminho_impresso(alvo)} é do domínio do parecer de {dominio}" if dominio in DOMINIO_DO_PARECER else ""
+    return f"desatualizado: {caminho_impresso(alvo)} mudou depois do parecer; peça novo parecer{qual}{doms}"
 
 
 def pedidos_da_branch(raiz, branch, ref=None):
@@ -1051,11 +1171,16 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
             saida.append(f"{caminho_impresso(rel)}: parecer: o último parecer não é aprovado ({rid})")
         elif campos.get("commit") and COMMIT.match(campos["commit"]):
             livres = LIVRES + (f"changelog.d/{pedido}.md",)  # D4
-            motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base, livres, estritos=FRAGMENTOS)
+            dispensados = testes_do_qa(raiz, pedido, branch if de_trabalho else None, ref or "HEAD", campos["commit"])[1] if tipo == "review" else ()
+            motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base, livres, estritos=FRAGMENTOS, dominio=tipo,
+                                 mais=dominio_mais(campos), dispensados=dispensados)  # PARECER-CONTEUDO
             junto = commit_junto_do_parecer(raiz, rel, ref or "HEAD", livres) if motivo and motivo.startswith("desatualizado") else None
             if junto and not e_ancestral(raiz, junto[0], campos["commit"]):  # E16: o parecer veio no mesmo commit do teste, depois do que cita
-                motivo += (f"; o parecer foi commitado junto com {caminho_impresso(junto[1])} ({junto[0][:7]}), depois do commit que ele cita: "
-                           "teste e parecer vão em commits separados e o `commit:` do parecer é o do teste (QA-TESTE-E-PARECER-SEPARADOS)")
+                cabeca, sep, dom = motivo.partition(f"; {caminho_impresso(junto[1])} é do domínio")  # E16 logo depois do "peça novo parecer"
+                motivo = cabeca + (f"; o parecer foi commitado junto com {caminho_impresso(junto[1])} ({junto[0][:7]}), depois do commit que ele cita: "
+                                   "teste e parecer vão em commits separados e o `commit:` do parecer é o do teste (QA-TESTE-E-PARECER-SEPARADOS)") + sep + dom
+            if motivo and motivo.startswith("desatualizado"):
+                motivo += f"; o que mudou no domínio: forge-check parecer delta {caminho_impresso(rel)}"
             if motivo:
                 saida.append(f"{caminho_impresso(rel)}: commit: {motivo} ({rid})")
     return saida
@@ -1912,6 +2037,66 @@ def cmd_delta(raiz, refs, parecer, classe=False):
             print(f"delta: {nome_seguro(nome)}:{de}-{ate}")
     if classe:
         print(f"delta: classe {max(classes.values(), key=CLASSES.index)}")
+    return 0
+
+
+def linha_legivel(linha):
+    """A linha do diff sem caractere de controle (menos o tab): nada nela imita outra linha da saída."""
+    return "".join("?" if e_controle(c) and c != "\t" else c for c in linha)
+
+
+def cmd_parecer_delta(raiz, arquivo, ate=None):
+    """PARECER-CONTEUDO: o diff desde o `commit:` do parecer até `ate` (padrão HEAD), só nos arquivos do domínio do tipo dele, para a
+    revalidação ler só o que mudou. Lista também o que mudou fora do domínio e os testes do QA aprovado (review). Só leitura; rc 0, e
+    rc 2 se o parecer não abre, não é de review, QA, devops ou segurança, ou o commit não existe ou não é ancestral do fim."""
+    caminho = dentro_da_raiz(raiz, arquivo, PASTAS_DE_PARECER)
+    if caminho is None:
+        print(f"parecer delta: {nome_seguro(arquivo)}: use um parecer de {', '.join(PASTAS_DE_PARECER)} dentro da raiz")
+        return 2
+    rel = caminho.relative_to(Path(os.path.realpath(raiz))).as_posix()
+    try:
+        campos = validar_documento(rel, caminho.read_text(encoding="utf-8"))[0] or {}
+    except (OSError, UnicodeDecodeError) as e:
+        print(f"parecer delta: não consegui ler {nome_seguro(arquivo)}: {getattr(e, 'strerror', None) or e}")
+        return 2
+    tipo = campos.get("tipo")
+    if tipo not in DOMINIO_DO_PARECER:
+        print(f"parecer delta: {caminho_impresso(rel)}: tipo {nome_seguro(tipo or '')} não é review, qa, revisao-devops nem revisao-seguranca")
+        return 2
+    inicio, fim = sha_do_commit(raiz, campos.get("commit", "")), sha_do_commit(raiz, ate or "HEAD")
+    if not inicio or not fim:
+        print(f"parecer delta: commit {nome_seguro(campos.get('commit', '') if not inicio else ate or 'HEAD')} não existe")
+        return 2
+    if not e_ancestral(raiz, inicio, fim):
+        print(f"parecer delta: {inicio[:7]} não é ancestral de {fim[:7]}")
+        return 2
+    print(f"parecer: {caminho_impresso(rel)} ({tipo})")
+    print(f"dominio: {DOMINIO_DO_PARECER[tipo]}" + (f"; mais {', '.join(map(caminho_impresso, dominio_mais(campos)))}" if dominio_mais(campos) else ""))
+    print(f"intervalo: {inicio}..{fim}")
+    no = predicado_do_dominio(raiz, tipo, inicio, fim, dominio_mais(campos))
+    q, dispensados = testes_do_qa(raiz, campos.get("pedido"), campos.get("branch"), fim, inicio) if tipo == "review" else (None, set())
+    nomes = nomes_do_intervalo(raiz, inicio, fim, estrito=True)
+    if nomes is None:
+        print("parecer delta: o git diff falhou")
+        return 2
+    nomes = [n for n in nomes if not livre(n, LIVRES)]
+    dentro = [n for n in nomes if no(n) and n not in dispensados]
+    for n in nomes:
+        if n in dispensados:
+            print(f"dispensado: {nome_seguro(n)} (teste do QA aprovado em {q[:7]})")
+        elif n not in dentro:
+            print(f"fora do dominio: {nome_seguro(n)}")
+    if not dentro:
+        print("delta: nenhum arquivo do domínio mudou")
+        return 0
+    for n in dentro:
+        print(f"no dominio: {nome_seguro(n)}")
+    cod, saida = git(raiz, "--literal-pathspecs", "diff", "--no-ext-diff", "--no-textconv", "--no-renames", inicio, fim, "--", *dentro, bruto=True)
+    if cod:
+        print("parecer delta: o git diff falhou")
+        return 2
+    for linha in saida.decode("utf-8", "replace").splitlines():
+        print(linha_legivel(linha))
     return 0
 
 
@@ -8039,6 +8224,11 @@ def main():
     co = sub.add_parser("corrigidos", parents=[comum], help="PRs `fix` que corrigem PR já mesclado, lidos do histórico do git; só leitura (M14b)")
     co.add_argument("--ref", help="branch ou commit onde ler a linha de PRs (padrão: origin/develop, develop ou HEAD)")
     co.add_argument("--dias", type=int, default=DIAS_DO_CORRIGIDO, help=f"janela, em dias, do indício por arquivo em comum (padrão {DIAS_DO_CORRIGIDO})")
+    pa = sub.add_parser("parecer", help="o parecer preso ao conteúdo do seu domínio (PARECER-CONTEUDO)")
+    psub = pa.add_subparsers(dest="acao", required=True)
+    pd = psub.add_parser("delta", parents=[comum], help="o diff desde o `commit:` do parecer, só nos arquivos do domínio do tipo dele; só leitura, nunca reprova")
+    pd.add_argument("arquivo", help="o parecer (docs/reviews, qa, devops ou security)")
+    pd.add_argument("--ate", help="o fim do intervalo (padrão HEAD)")
     ec = sub.add_parser("escape", help="defeito escapado: bug achado depois do parecer final (M14b)")
     esub = ec.add_subparsers(dest="acao", required=True)
     er = esub.add_parser("registrar", parents=[comum], help="acrescenta o defeito escapado em docs/kanban/escapes.md, em formato fixo, com a hora real")
@@ -8188,6 +8378,8 @@ def executar(a, raiz):
         return cmd_transcricao_medida("decisoes", a.alvo, ler_respostas_do_jarvis, medir_decisoes, ("respostas", "com_grupo", "violacoes"), 0, raiz)
     if a.cmd == "provas" and a.acao == "gerar":
         return cmd_provas_gerar(raiz, a.brief)
+    if a.cmd == "parecer" and a.acao == "delta":
+        return cmd_parecer_delta(raiz, a.arquivo, a.ate)
     if a.cmd == "delta":
         return cmd_delta(raiz, a.refs, a.parecer, a.classe)
     if a.cmd == "juncao":

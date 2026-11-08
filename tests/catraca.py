@@ -5,7 +5,8 @@ Só biblioteca padrão. Lê a base com `git show <base>:<arquivo>` (a base efeti
 Exceção estreita: PR de `dependabot[bot]` que só troca SHA de `uses:` em workflows passa sem rótulo e sem parecer.
 Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY) e `pareceres`.
 Exceção única das regras (menos `R-CUSTO`, que só tem `custo_permitido`): rótulo `afrouxa-regra` aplicado pelo `dono` (de tests/config.json da base) depois do
-último push, ou cujo diff efetivo (merge-base, fora dos pareceres dos pedidos desta branch) não mudou desde o rótulo e
+último push, ou cujos arquivos protegidos (VIGIADOS_DO_ROTULO e forma compilada: mesmo blob e modo) e a piora dos testes não
+mudaram desde o rótulo (P9), ou cujo diff efetivo (merge-base, fora dos pareceres dos pedidos desta branch) não mudou desde ele, e
 cujas violações já existiam no head rotulado. Na promoção (PROMOCOES), também vale o rótulo do dono já posto num PR mesclado
 em base..head, só para as violações "mudança em <arquivo>" cujo arquivo tem o mesmo blob e modo do head rotulado (S-16). Com squash
 (develop → homolog) o head rotulado vem de `refs/pull/<n>/head`, buscado num namespace próprio (`refs/catraca/pull/<n>`), e vale
@@ -651,11 +652,56 @@ def violacoes_novas(atuais, rotuladas):
     return [v for v in atuais if sobra.get(chave_da_violacao(v))]
 
 
+# PARECER-CONTEUDO (0.43.1, P9, decisão do dono de 08/11): o rótulo fica preso aos arquivos que o fazem ser exigido. Além dos
+# PROTEGIDOS e da forma compilada, os arquivos de configuração que as regras leem (a contagem e a força dos testes vão por número).
+VIGIADOS_DO_ROTULO = PROTEGIDOS + ("tests/config.json", POLITICA, "hooks/hooks.json")
+
+
+def blob_e_modo(raiz, ref, caminho):
+    """(modo, blob) de `caminho` em `ref`; None se ele não existe lá. Falha do git levanta `ErroDeGit` (falha fechada)."""
+    cod, saida = git(raiz, "--literal-pathspecs", "ls-tree", "-z", ref, "--", caminho)
+    if cod:
+        raise ErroDeGit(msg_falha_git(f"`git ls-tree {ref} -- {caminho}` falhou"))
+    for registro in saida.split("\0"):
+        cabeca, _, nome = registro.partition("\t")
+        if nome == caminho:
+            modo, _, blob = cabeca.split(" ")
+            return modo, blob
+    return None
+
+
+def deficits_dos_testes(raiz, base, head):
+    """Quanto o head piora os testes sobre o merge-base (o que `regra_testes` e `regra_testes_enfraquecidos` medem), 0 se não piora:
+    testes e fixtures a menos, asserções a menos, pulos e testes vazios a mais."""
+    b = base_efetiva(raiz, base, head)
+    (tb, fb), (th, fh) = contar_testes(raiz, b), contar_testes(raiz, head)
+    (ab, pb, vb), (ah, ph, vh) = forca_dos_testes(raiz, b), forca_dos_testes(raiz, head)
+    return tuple(max(d, 0) for d in (tb - th, fb - fh, ab - ah, ph - pb, vh - vb))
+
+
+def protegidos_como_no_rotulo(raiz, base, rotulado, head):
+    """True se cada arquivo vigiado (VIGIADOS_DO_ROTULO ou forma compilada) que o PR muda, no head ou no head rotulado, tem no head o
+    mesmo modo e blob do head rotulado (ou já não difere da base), e os testes não pioram mais do que pioravam no head rotulado.
+    Push que não muda arquivo vigiado não derruba o rótulo (P9). Falha do git levanta (falha fechada)."""
+    bh, br = base_efetiva(raiz, base, head), base_efetiva(raiz, base, rotulado)
+    nomes = {a for a in alterados(raiz, bh, head) + alterados(raiz, br, rotulado)
+             if a.startswith(VIGIADOS_DO_ROTULO) or FORMA_COMPILADA.search(a)}
+    for a in sorted(nomes):
+        atual = blob_e_modo(raiz, head, a)
+        if atual != blob_e_modo(raiz, rotulado, a) and atual != blob_e_modo(raiz, bh, a):
+            return False
+    return all(h <= r for h, r in zip(deficits_dos_testes(raiz, base, head), deficits_dos_testes(raiz, base, rotulado)))
+
+
 def rotulo_vale_pelo_conteudo(raiz, base, head, eventos, execucoes, numero, dono, ramo="", atuais=None):
-    """True se o diff efetivo do head (merge-base com a base, fora dos pareceres do pedido) é o do head no instante do
-    rótulo e nenhuma violação atual é nova em relação às do head rotulado sobre o merge-base dele (ex.: vinda da base)."""
+    """True se os arquivos vigiados são os do head no instante do rótulo (`protegidos_como_no_rotulo`, P9) ou o diff efetivo do head
+    (merge-base com a base, fora dos pareceres do pedido) é o do head rotulado, e, nos dois casos, nenhuma violação atual é nova em
+    relação às do head rotulado sobre o merge-base dele (ex.: vinda da base)."""
     sha = commit_do_rotulo(eventos, execucoes, numero, dono)
-    if not sha or not forge_check().mesmo_diff(raiz, base, sha, head, pareceres_do_pedido(raiz, base, sha, head, ramo)):
+    if not sha:
+        return False
+    if not protegidos_como_no_rotulo(raiz, base, sha, head) and not forge_check().mesmo_diff(
+            raiz, base, sha, head, pareceres_do_pedido(raiz, base, sha, head, ramo)):
         return False
     atuais = violacoes_das_regras(raiz, base, head) if atuais is None else atuais
     return not violacoes_novas(atuais, violacoes_das_regras(raiz, base, sha))
@@ -1357,7 +1403,7 @@ def _main(a):
                     execucoes = json.loads(Path(a.execucoes).read_text(encoding="utf-8")) if a.execucoes else ([] if a.eventos else execucoes_do_pr())
                     ramo = a.ramo or ("" if a.eventos else ramo_do_pr())
                     if execucoes is not None and rotulo_vale_pelo_conteudo(raiz, a.base, a.head, eventos, execucoes, a.pr, dono, ramo, viol):
-                        liberado = "diff efetivo igual ao do instante do rótulo"
+                        liberado = "arquivos protegidos ou diff efetivo iguais aos do instante do rótulo"
             if not custo and not liberado:
                 fonte = FonteJson(json.loads(Path(a.mesclados).read_text(encoding="utf-8"))) if a.mesclados else (
                     None if a.eventos else fonte_do_github())
