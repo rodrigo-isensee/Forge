@@ -1,15 +1,28 @@
-# Melhoria contínua por entrega
+# Melhoria contínua com prova
 
-Objetivo: a cada entrega o time (arquitetura, UX, back, front, QA, tech lead, Jarvis) gasta menos tokens, entrega mais e erra menos. Métricas são do processo, nunca de agente ou pessoa. Experimentos vão para `docs/kanban/melhorias.md` (próximo ID: M-014).
+Objetivo: a cada entrega o time erra menos e entrega mais rápido, **medido**, não declarado. Métricas são do processo, nunca de agente ou pessoa. Experimentos vão para `docs/kanban/melhorias.md` (próximo ID: M-014).
 
-## a) Mecanismo (fim de cada entrega, 15 min no máximo)
-1. **Registro por papel:** a linha `Melhoria vista:` de cada relatório, gravada no pedido como `MELHORIA:` (`R-DECISAO`); custo e retrabalho vêm das métricas de (b), sem pergunta à parte.
-2. **Consolidação** (agile-coach): junta as linhas `MELHORIA:` do pedido em `docs/retrospectivas/AAAA-MM-DD-<pedido>.md`, agrupa por causa e escolhe **no máximo 3 experimentos**, cada um com dono, métrica, linha de base, critério de sucesso (ex.: "tokens do QA -20% sem subir escapes") e **critério de reversão** (um fato observável que o desfaria, ex.: "escapes sobem 2 entregas seguidas"). Mecanismo novo (hook, regra, ferramenta) traz também "por que o existente não basta", com evidência de execução.
-3. **Reavaliação** na entrega seguinte: cada experimento termina em manter, ajustar ou reverter, anotado em `melhorias.md` como leitura (data, medida, veredito) contra o critério de reversão. Uma mudança por vez por parte do processo. Mudança no `CLAUDE.md` do projeto só entra após aprovação do usuário; mudança em agente ou skill nunca é copiada para o projeto: vira PR no Forge.
-4. Retrospectiva sem dados não vale: se a métrica não foi coletada, o primeiro experimento é coletá-la.
-5. **Erros recorrentes** (ERROS-NO-BRIEF): a retrospectiva parte de `forge-check conferencia classes` (falhas por classe e autor nos últimos 30 dias, com proposta de regra a partir de 3 briefs) e audita uma amostra das classificações. Critério de reversão do mecanismo: mais de 10% das falhas classificadas em `outra` na janela mostra que o catálogo não cobre os erros reais e pede revisão das classes.
+Por que este texto mudou (0.43.1): até a 0.43 cada erro virava uma regra escrita a mais (linha `Melhoria vista:`, prevenção do ERRO-JARVIS). Com 102 prevenções escritas, a reprovação de brief ficou em 37% antes e depois; 8 cadeias de erro repetiram de 3 a 10 vezes depois da regra, e 6 travas novas criaram erro novo. Texto que cresce baixa o seguimento de todas as regras. Por isso uma mudança só fica se o placar provar que ajudou.
 
-## b) Métricas (planilha única `docs/kanban/entregas.md`, uma linha por entrega)
+## a) O ciclo (fim de cada entrega ou versão, 15 min no máximo)
+1. **Medir.** `bin/forge-placar --raiz <área dos pedidos> [--erros <registro>] [--git <clone> --ref origin/develop] [--ci <json>]`: taxa de erro de forma por delegação, taxa de reprovação, erros do Jarvis, defeitos escapados (escapes, reversões, CI vermelha na develop), voltas por item e tempo da entrega conferida até a develop, na janela atual contra a anterior. Fonte ausente sai `-`, nunca 0.
+2. **Escolher 1 causa.** A de maior contagem no placar e em `forge-check conferencia classes`. Uma por vez, para o efeito ser atribuível (`forge-placar propostas` recusa duas abertas).
+3. **Mudar em código quando possível.** Forma, campos, hora, base, formato de mensagem e registro duplicado se resolvem com hook, script ou `forge-check`. Texto em agente ou skill só para o que pede julgamento, e de preferência **trocando** uma linha, não acrescentando.
+4. **Eval de regressão.** Todo erro de forma vira um caso em `tests/evals/test_regressao_forma.py` com a entrada real que passou errada. Sem trava ainda: o caso entra com `@unittest.expectedFailure` e o nome do erro (backlog visível). A trava nova nasce tirando o decorador; trava sem caso não entra.
+5. **Comparar.** Na data de revisão: `bin/forge-placar comparar --antes <início> --depois <início> --metrica <a declarada>`. Reverte (rc 1) se a taxa de forma ou a de escape piorou além da tolerância (`--tolerancia`, `--folga`) ou se a métrica declarada não melhorou; rc 3 é amostra pequena (`--minimo`), e a revisão anda uma janela.
+6. **Manter ou reverter.** Grave na coluna Resultado `manter (...)` ou `reverter (...)` com as linhas do `comparar`. Reverter é tirar a mudança inteira, inclusive o texto. A retirada de um portão ou de uma regra é medida do mesmo jeito: tira-se um por vez e o placar decide.
+
+Cada proposta em `melhorias.md` declara a métrica do placar que vai mover, o tipo (`código:` ou `texto:` no começo da Mudança), o **critério de reversão** e nasce com prazo (Revisão de 1 a 30 dias depois do Início). `bin/forge-placar propostas` é o checklist executável: reprova a linha sem isso e a revisão vencida sem Resultado. A linha `Melhoria vista:` dos relatórios continua como entrada do passo 2, nunca como regra pronta.
+
+## Como o agile-coach roda o ciclo
+- Na retrospectiva: roda o placar e o `propostas`, lê as linhas `MELHORIA:` e os ERRO-JARVIS do pedido como candidatos e escolhe no máximo **uma** causa, com a métrica, a linha de base (o placar de hoje) e a data de revisão.
+- Na revisão: roda o `comparar` e grava o veredito; o que o placar manda reverter sai, mesmo que pareça bom.
+- O que ele **não** faz: acrescentar regra, lembrete, ênfase ou checklist em texto sem métrica e sem prazo; propor trava sem o eval que a prova; abrir a segunda proposta antes de fechar a primeira; dar a taxa como melhor sem o `comparar` (contagem de dia, amostra pequena ou janela escolhida a dedo não valem).
+
+## Erros recorrentes (ERROS-NO-BRIEF)
+A retrospectiva parte de `forge-check conferencia classes` (falhas por classe e autor nos últimos 30 dias) e audita uma amostra das classificações. Critério de reversão do mecanismo: mais de 10% das falhas classificadas em `outra` na janela mostra que o catálogo não cobre os erros reais e pede revisão das classes.
+
+## b) Medidas de apoio (planilha única `docs/kanban/entregas.md`, uma linha por entrega)
 | Métrica | Como coletar | Quem |
 |---|---|---|
 | Tokens por agente por entrega | `forge-check transcricao custo --entregas --entrega <pedido> --pedido <pedido>` (o `--pedido` casa os cartões do histórico com o pedido: cartão igual, da mesma família de nome ou com o pedido na coluna Pedido do `KANBAN.md`), lido das transcrições locais: inclui a sessão principal do Jarvis e as compactações; sem transcrição, `subagent_tokens` do relatório, anotado à mão | Jarvis roda no fim do pedido |
