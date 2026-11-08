@@ -49,6 +49,16 @@
       "testes": [
         "tests.test_prepush_so_docs.TravaDaChecagem.test_espera_estourada_barra_sem_rodar"
       ]
+    },
+    {
+      "id": "M18",
+      "guarda": "pasta da trava de outro dono recua para o HOME ou e recusada (C-2)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "[ ! -L \"$1\" ] && [ -O \"$1\" ] &&",
+      "para": "[ ! -L \"$1\" ] &&",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_pasta_de_outro_dono_recua_ou_e_recusada"
+      ]
     }
   ]
 }

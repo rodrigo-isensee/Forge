@@ -131,6 +131,16 @@
       "de": "rm -f -- \"$senha\"; exec 8>&-;",
       "para": "rm -f -- \"$senha\";",
       "equivalente": "a senha ja foi apagada da pasta antes da etapa: um filho que herde o descritor 8 segura so um inode sem nome, que nenhuma espera le"
+    },
+    {
+      "id": "M19",
+      "guarda": "sem senha (pasta da fila recusada) nao le nem apaga nada na fila (C-3, C-4)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "while [ -n \"$senha\" ] && n=",
+      "para": "while true && n=",
+      "testes": [
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_senha_morta_no_destino_da_fila_link_fica"
+      ]
     }
   ]
 }

@@ -388,13 +388,31 @@ class TravaDaChecagem(Repo):
         self.assertEqual(self.fim(self.lanca())[0], 0)
         self.addCleanup(os.kill, int((self.fora / "pid").read_text()), 9)
         self.assertEqual(self.fim(self.lanca(dict(self.amb, FORGE_PREPUSH_ESPERA="1")))[0], 0)
-        self.assertEqual(list(self.trava.with_suffix(".fila").iterdir()), [])
+        fila = self.trava.with_suffix(".fila")
+        self.assertTrue(fila.is_dir(), "a fila não nasceu")
+        self.assertEqual(list(fila.iterdir()), [])
 
     def test_xdg_com_escrita_alheia_recua_para_o_home(self):
         self.fora.chmod(0o777)
         self.assertEqual(self.fim(self.lanca())[0:3:2], (0, True))
         pasta = self.fora / ".local" / "state" / "forge"
         self.assertEqual((self.trava.exists(), (pasta / self.trava.name).exists(), pasta.exists() and pasta.stat().st_mode & 0o777), (False, True, 0o700))
+
+    def test_pasta_de_outro_dono_recua_ou_e_recusada(self):
+        xdg = Path(tempfile.mkdtemp(dir=self.fora))
+        xdg.chmod(0o700)
+        if os.geteuid() == 0:
+            os.chown(xdg, 65534, 65534)
+        else:
+            xdg = Path("/")  # do root e sem escrita alheia: só o dono a recusa
+        self.assertEqual(self.fim(self.lanca(dict(self.amb, XDG_RUNTIME_DIR=str(xdg))))[0:3:2], (0, True))
+        pasta = self.fora / ".local" / "state" / "forge"
+        self.assertEqual(((xdg / self.trava.name).exists(), (pasta / self.trava.name).exists()), (False, True))
+        if os.geteuid() == 0:
+            (pasta / self.trava.name).unlink()
+            os.chown(pasta, 65534, 65534)
+            self.barra({k: v for k, v in self.amb.items() if k != "XDG_RUNTIME_DIR"}, "recusada")
+            self.assertFalse((pasta / self.trava.name).exists())
 
     def test_pasta_do_home_link_ou_775_recusada(self):
         amb = {k: v for k, v in self.amb.items() if k != "XDG_RUNTIME_DIR"}
@@ -507,6 +525,14 @@ class FilaDaChecagem(Repo):
         self.fila.mkdir(mode=0o700)
         self.fila.chmod(0o775)
         self.assertIn("só pela trava", self.roda_sozinho())
+
+    def test_senha_morta_no_destino_da_fila_link_fica(self):
+        alvo = Path(tempfile.mkdtemp(dir=self.fora))
+        alvo.chmod(0o700)
+        (alvo / "1-1").touch()
+        self.fila.symlink_to(alvo)
+        self.assertIn("só pela trava", self.roda_sozinho())
+        self.assertEqual([f.name for f in alvo.iterdir()], ["1-1"])
 
     def test_senha_que_nao_nasce_espera_so_pela_trava_sem_sobra(self):
         falso = self.fora / "bin"
