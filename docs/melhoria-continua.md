@@ -4,6 +4,8 @@ Objetivo: a cada entrega o time erra menos e entrega mais rápido, **medido**, n
 
 Por que este texto mudou (0.43.1): até a 0.43 cada erro virava uma regra escrita a mais (linha `Melhoria vista:`, prevenção do ERRO-JARVIS). Com 102 prevenções escritas, a reprovação de brief ficou em 37% antes e depois; 8 cadeias de erro repetiram de 3 a 10 vezes depois da regra, e 6 travas novas criaram erro novo. Texto que cresce baixa o seguimento de todas as regras. Por isso uma mudança só fica se o placar provar que ajudou.
 
+**Quem aprende é o time.** O dono do ciclo é o `agile-coach`, com o `tech-lead` (que faz as travas e os evals); nem o Jarvis nem a pessoa precisam saber como funciona. O placar, os evals e o portão rodam sozinhos, sem alguém técnico, e o resultado chega à pessoa numa linha simples: a última linha `resumo:` do `forge-placar` (ex.: "os erros de forma do time caíram 20%; os defeitos que escaparam ficaram iguais; a mudança fica"), que o Jarvis repassa como está.
+
 ## a) O ciclo (fim de cada entrega ou versão, 15 min no máximo)
 1. **Medir.** `bin/forge-placar --raiz <área dos pedidos> [--erros <registro>] [--git <clone> --ref origin/develop] [--ci <json>]`: taxa de erro de forma por delegação, taxa de reprovação, erros do Jarvis, defeitos escapados (escapes, reversões, CI vermelha na develop), voltas por item e tempo da entrega conferida até a develop, na janela atual contra a anterior. Fonte ausente sai `-`, nunca 0.
 2. **Escolher 1 causa.** A de maior contagem no placar e em `forge-check conferencia classes`. Uma por vez, para o efeito ser atribuível (`forge-placar propostas` recusa duas abertas).
@@ -15,6 +17,7 @@ Por que este texto mudou (0.43.1): até a 0.43 cada erro virava uma regra escrit
 Cada proposta em `melhorias.md` declara a métrica do placar que vai mover, o tipo (`código:` ou `texto:` no começo da Mudança), o **critério de reversão** e nasce com prazo (Revisão de 1 a 30 dias depois do Início). `bin/forge-placar propostas` é o checklist executável: reprova a linha sem isso e a revisão vencida sem Resultado. A linha `Melhoria vista:` dos relatórios continua como entrada do passo 2, nunca como regra pronta.
 
 ## Como o agile-coach roda o ciclo
+- Sozinho, sem perguntar à pessoa: as decisões do ciclo são técnicas e ficam com o time (o `tech-lead` faz a trava e o eval). À pessoa só chega o `resumo:`.
 - Na retrospectiva: roda o placar e o `propostas`, lê as linhas `MELHORIA:` e os ERRO-JARVIS do pedido como candidatos e escolhe no máximo **uma** causa, com a métrica, a linha de base (o placar de hoje) e a data de revisão.
 - Na revisão: roda o `comparar` e grava o veredito; o que o placar manda reverter sai, mesmo que pareça bom.
 - O que ele **não** faz: acrescentar regra, lembrete, ênfase ou checklist em texto sem métrica e sem prazo; propor trava sem o eval que a prova; abrir a segunda proposta antes de fechar a primeira; dar a taxa como melhor sem o `comparar` (contagem de dia, amostra pequena ou janela escolhida a dedo não valem).

@@ -70,6 +70,7 @@ class Medir(Placar):
         self.assertEqual((atual["erros_jarvis"], atual["taxa_escape"], atual["pronto_ate_develop"]), (0.2, 0.2, 120))
         self.assertEqual((anterior["delegacoes"], anterior["negativos_forma"], anterior["taxa_forma"]), (4, 3, 0.75))
         self.assertEqual((anterior["escapes_n"], anterior["pedidos_mesclados"], anterior["pronto_ate_develop"]), (0, 0, None))
+        self.assertEqual(dados["resumo"], "resumo: os erros de forma do time caíram 73%; os defeitos que escaparam subiram (antes não havia nenhum)")
 
     def test_fonte_ausente_sai_tracinho_e_nunca_zero(self):
         rc, saida, _ = self.rodar("--ate", "2026-11-14")
@@ -115,14 +116,18 @@ class Comparar(Placar):
         self.conf((10, 5), (10, 2))
         rc, saida, _ = self.comparar("--metrica", "taxa_forma")
         self.assertEqual(rc, 0, saida)
-        self.assertTrue(saida.endswith("veredito: manter\n"), saida)
+        self.assertIn("veredito: manter\n", saida)
+        self.assertTrue(saida.endswith("resumo: os erros de forma do time caíram 60%; os defeitos que escaparam: sem dado para comparar; "
+                                       "a mudança fica\n"), saida)
 
     def test_taxa_de_forma_que_piora_alem_da_tolerancia_reverte(self):
         self.conf((10, 2), (10, 4))
         rc, saida, _ = self.comparar()
         self.assertEqual(rc, 1, saida)
         self.assertIn("motivo: taxa_forma piorou: 20.00% -> 40.00%", saida)
-        self.assertTrue(saida.endswith("veredito: reverter\n"))
+        self.assertIn("veredito: reverter\n", saida)
+        self.assertIn("resumo: os erros de forma do time subiram 100%", saida)
+        self.assertTrue(saida.endswith("a mudança sai\n"), saida)
 
     def test_piora_dentro_da_tolerancia_mantem(self):
         self.conf((10, 10), (10, 11))  # 100% -> 110%: no limite de 10% + 0,01
@@ -135,6 +140,7 @@ class Comparar(Placar):
         rc, saida, _ = self.comparar()
         self.assertEqual(rc, 1, saida)
         self.assertIn("motivo: taxa_escape piorou: 0.00% -> 10.00%", saida)
+        self.assertIn("os erros de forma do time ficaram iguais; os defeitos que escaparam subiram (antes não havia nenhum)", saida)
 
     def test_metrica_declarada_sem_ganho_reverte(self):
         self.conf((10, 2), (10, 2))

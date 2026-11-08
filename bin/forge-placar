@@ -31,6 +31,9 @@ Métrica | Critério de reversão | Início | Revisão | Resultado |`): cada lin
 `manter (...)` ou `reverter (...)` com a leitura do `comparar`, e há no máximo `--max-abertas` (padrão 1) abertas: uma causa
 por vez, para o placar atribuir o efeito. rc 1 com uma linha `falta:` por problema.
 
+A última linha do placar e do `comparar` é o `resumo:` em linguagem simples, para a pessoa que não programa (ex.: "os erros
+de forma do time caíram 20%; os defeitos que escaparam ficaram iguais; a mudança fica"); no `--json`, a chave `resumo`.
+
 Saída: 0 ok; 1 reprovado (comparar ou propostas); 2 uso errado ou fonte ilegível; 3 inconclusivo."""
 import argparse
 import datetime
@@ -215,10 +218,33 @@ def cmd_placar(args):
     fontes = carregar(args)
     atual, anterior = medir(fontes, (ate - passo, ate)), medir(fontes, (ate - 2 * passo, ate - passo))
     if args.json:
-        print(json.dumps({"atual": atual, "anterior": anterior}, ensure_ascii=False, sort_keys=True))
+        print(json.dumps({"atual": atual, "anterior": anterior, "resumo": resumo(anterior, atual)}, ensure_ascii=False, sort_keys=True))
     else:
         imprimir(("atual", "anterior"), (atual, anterior))
+        print(resumo(anterior, atual))
     return 0
+
+
+def variacao(nome, a, d):
+    """Uma frase sem jargão sobre o quanto a métrica mudou (`a` antes, `d` depois), para a pessoa que não programa."""
+    rotulo = {"taxa_forma": "os erros de forma do time", "taxa_escape": "os defeitos que escaparam",
+              "taxa_reprovacao": "as reprovações", "erros_jarvis": "os erros do Jarvis", "voltas_por_item": "as voltas por entrega",
+              "pronto_ate_develop": "o tempo até a entrega entrar"}[nome]
+    if a is None or d is None:
+        return f"{rotulo}: sem dado para comparar"
+    if a == d:
+        return f"{rotulo} ficaram iguais"
+    if a == 0:
+        return f"{rotulo} subiram (antes não havia nenhum)"
+    pct = round(abs(d - a) / a * 100)
+    return f"{rotulo} {'caíram' if d < a else 'subiram'} {pct}%"
+
+
+def resumo(antes, depois, veredito=None):
+    """A linha simples que chega à pessoa: erros de forma e defeitos escapados, e o veredito do portão se houver."""
+    partes = [variacao(n, antes[n], depois[n]) for n in GUARDADAS]
+    fim = {"manter": "; a mudança fica", "reverter": "; a mudança sai", "inconclusivo": "; ainda é cedo para decidir"}.get(veredito, "")
+    return "resumo: " + "; ".join(partes) + fim
 
 
 def piorou(antes, depois, tolerancia, folga):
@@ -245,7 +271,8 @@ def cmd_comparar(args):
     pequena = [r for r, m in (("antes", antes), ("depois", depois)) if m["delegacoes"] < args.minimo]
     veredito, rc = ("inconclusivo", 3) if pequena else (("reverter", 1) if motivos else ("manter", 0))
     if args.json:
-        print(json.dumps({"antes": antes, "depois": depois, "veredito": veredito, "motivos": motivos, "amostra_pequena": pequena},
+        print(json.dumps({"antes": antes, "depois": depois, "veredito": veredito, "motivos": motivos, "amostra_pequena": pequena,
+                          "resumo": resumo(antes, depois, veredito)},
                          ensure_ascii=False, sort_keys=True))
         return rc
     imprimir(("antes", "depois"), (antes, depois))
@@ -254,6 +281,7 @@ def cmd_comparar(args):
     for m in motivos:
         print(f"motivo: {m}")
     print(f"veredito: {veredito}")
+    print(resumo(antes, depois, veredito))
     return rc
 
 
