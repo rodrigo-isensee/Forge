@@ -55,6 +55,9 @@ class T(unittest.TestCase):
 '''
 
 
+EXTRA_DO_A = '\n    def test_a2(self):\n        marca("a2")\n\n\nclass U(unittest.TestCase):\n    def test_a3(self):\n        marca("a3")\n'
+
+
 class Logica(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -99,6 +102,27 @@ class Logica(unittest.TestCase):
         # classe importada em dois módulos roda duas vezes, como no discover: uma só não basta
         erros = self.s.conferir_completude(esperado, collections.Counter({"a.T.t1": 1, "b.T.t1": 1, "v.Raiz.t": 1}))
         self.assertTrue(any("ausente" in e for e in erros), erros)
+
+    def test_chave_separada_tira_os_testes_do_modulo_para_unidade_propria(self):  # S-SUITE-RAPIDA
+        ids = {"test_a": ["test_a.T.test_1", "test_a.T.test_2", "test_a.U.test_3", "test_b.Importada.test_x"],
+               "test_c": ["test_c.T.test_1"]}
+        pesos = {"test_a": 5, "test_a.T.test_2": 100, "test_a.U": 50, "test_a.Sumiu.test_9": 7, "test_c": 1}
+        plano = self.s.planejar(["test_a", "test_c"], pesos, ids.__getitem__)
+        self.assertEqual(plano, {"test_a": ("test_a", [0, 3]), "test_a.T.test_2": ("test_a", [1]),
+                                 "test_a.U": ("test_a", [2]), "test_c": ("test_c", None)})
+        # cada posição numa unidade só, e todas as posições do módulo cobertas
+        posicoes = sorted(i for modulo, ps in plano.values() if modulo == "test_a" for i in ps)
+        self.assertEqual(posicoes, [0, 1, 2, 3])
+        self.assertEqual(self.s.unidade_do_teste("test_a.T.test_20", ["test_a.T.test_2"], "test_a"), "test_a")
+        self.assertEqual(self.s.unidade_do_teste("test_a.T.test_2", ["test_a.T", "test_a.T.test_2"], "test_a"),
+                         "test_a.T.test_2")
+        # sem chave separada, o módulo não é aberto
+        self.assertEqual(self.s.planejar(["test_c"], pesos, lambda nome: self.fail("abriu")), {"test_c": ("test_c", None)})
+
+    def test_entrada_do_processo_leva_as_posicoes_so_da_unidade_aberta(self):  # S-SUITE-RAPIDA
+        plano = {"test_a": ("test_a", [0]), "test_a.T.test_2": ("test_a", [1]), "test_c": ("test_c", None)}
+        self.assertEqual(self.s.entrada_do_processo(["test_a.T.test_2", "test_c"], plano),
+                         [{"unidade": "test_a.T.test_2", "modulo": "test_a", "posicoes": [1]}, "test_c"])
 
     def test_numero_de_processos(self):
         n = self.s.numero_de_processos
@@ -586,6 +610,25 @@ class T(unittest.TestCase):
             os.kill(pid, 0)
         self.assertEqual(list(self.tmpdir.iterdir()), [])
         self.assertFalse((self.run_dir / f"forge-suite-{os.getuid()}.verde").exists())
+
+    def test_modulo_com_chave_separada_divide_os_testes_entre_os_processos(self):  # S-SUITE-RAPIDA
+        self.modulo("a", modulo_de_teste("a") + EXTRA_DO_A)
+        (self.repo / "tests" / "pesos-d4.json").write_text(json.dumps(
+            {"test_a": 1.0, "test_a.T.test_a2": 9.0, "test_a.U": 8.0, "test_b": 1.0, "test_c": 1.0}))
+        codigo, saida, erro = self.roda(FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertIn("Ran 5 tests", saida)
+        self.assertEqual(self.rodaram(), ["a", "a2", "a3", "b", "c"])  # cada teste uma vez só
+        pids = {n.name.rsplit("-", 1)[0]: n.name.rsplit("-", 1)[1] for n in self.marcas.iterdir()}
+        self.assertEqual(len({pids["a"], pids["a2"], pids["a3"]}), 3, "o módulo pesado se divide entre os processos")
+        self.assertIn("test_a.T.test_a2", saida)
+        # MEDIR grava o peso de cada unidade, inclusive as separadas
+        self.git("add", "-A")
+        self.git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "y")
+        codigo, saida, erro = self.roda(FORGE_SUITE_MEDIR="1", FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual(codigo, 0, saida + erro)
+        pesos = json.loads((self.repo / "tests" / "pesos-d4.json").read_text())
+        self.assertEqual(sorted(pesos), ["test_a", "test_a.T.test_a2", "test_a.U", "test_b", "test_c"])
 
     def test_procs_acima_do_teto_e_recusado(self):
         codigo, saida, erro = self.roda(FORGE_SUITE_PROCS="5")

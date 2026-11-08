@@ -4,8 +4,10 @@
 Uso: python3 scripts/suite-paralela.py
 Chamado pelo `.githooks/pre-push` e pelo CI. Só biblioteca padrão; nada de rede nem de custo (R-CUSTO).
 
-- Divisão por módulo (`tests/test*.py`), por LPT sobre os pesos de `tests/pesos-d4.json` (módulo -> segundos);
-  peso ausente vale a mediana. O peso só equilibra: nunca decide o que roda. A mesma árvore dá a mesma divisão.
+- Divisão por unidade, por LPT sobre os pesos de `tests/pesos-d4.json` (unidade -> segundos); peso ausente vale a
+  mediana. A unidade é o módulo (`tests/test*.py`); uma chave `módulo.Classe` ou `módulo.Classe.teste` nos pesos tira
+  esses testes do módulo para uma unidade própria (o módulo pesado se divide entre os processos), e o resto do módulo
+  segue como a unidade `módulo`. O peso só equilibra: nunca decide o que roda. A mesma árvore dá a mesma divisão.
 - Processos: N = min(4, nproc); com carga alta (load de 1 min >= 0,8 x nproc ou memória disponível no piso), 2.
   FORGE_SUITE_PROCS fixa N de 1 a 4; fora disso o script recusa (falha fechada).
 - Cada processo roda com `nice`, num grupo de processos próprio e com um TMPDIR próprio (modo 700), apagado ao fim.
@@ -26,7 +28,7 @@ Chamado pelo `.githooks/pre-push` e pelo CI. Só biblioteca padrão; nada de red
   ou ilegível roda a suíte (falha fechada). FORGE_SUITE_SEM_REUSO=1 força a execução; com CI definido sempre roda.
 - No CI (`GITHUB_STEP_SUMMARY`), o resumo do passo traz as unidades mais lentas, a soma, a maior unidade, o desequilíbrio
   e os módulos sem peso (só informa: nunca reprova, nem muda a divisão). O título de cada `::group::` traz os módulos.
-- FORGE_SUITE_MEDIR=1 regrava `tests/pesos-d4.json` com as durações da execução, se tudo passou.
+- FORGE_SUITE_MEDIR=1 regrava `tests/pesos-d4.json` com as durações de cada unidade da execução, se tudo passou.
 A última linha é `OK` (ou `OK (skipped=N)`) ou `FAILED (...)`, como no `unittest`.
 """
 import collections
@@ -111,6 +113,36 @@ def repartir(nomes, pesos, n):
         partes[i].append(nome)
         cargas[i] += pesos.get(nome, mediana)
     return [sorted(p) for p in partes if p]
+
+
+def separadas(nome, pesos):
+    """As chaves de `pesos` que tiram testes do módulo `nome` para uma unidade própria: `nome.Classe` ou
+    `nome.Classe.teste` (o prefixo do ID do teste no `discover`)."""
+    return sorted(k for k in pesos if k.startswith(nome + "."))
+
+
+def unidade_do_teste(ident, chaves, nome):
+    """A chave mais longa de `chaves` que é o ID ou um prefixo dele (até um ponto); sem nenhuma, o próprio módulo."""
+    casadas = [k for k in chaves if ident == k or ident.startswith(k + ".")]
+    return max(casadas, key=len) if casadas else nome
+
+
+def planejar(nomes, pesos, ids_do_modulo):
+    """As unidades da divisão: {unidade: (módulo, posições)}, com posições None para o módulo inteiro. Só o módulo com
+    chave separada nos pesos é aberto (`ids_do_modulo(nome)` dá os IDs na ordem do `discover`); cada teste vai para a
+    unidade da chave mais longa que casa com o ID, e o que sobra fica na unidade do módulo. Unidade sem teste não entra."""
+    plano = {}
+    for nome in nomes:
+        chaves = separadas(nome, pesos)
+        if not chaves:
+            plano[nome] = (nome, None)
+            continue
+        por_unidade = {}
+        for posicao, ident in enumerate(ids_do_modulo(nome)):
+            por_unidade.setdefault(unidade_do_teste(ident, chaves, nome), []).append(posicao)
+        for unidade, posicoes in sorted(por_unidade.items()):
+            plano[unidade] = (nome, posicoes)
+    return plano
 
 
 def conferir_particao(nomes, partes):
@@ -205,18 +237,28 @@ def vigiar_pai(pai):
             os.killpg(0, signal.SIGKILL)
 
 
+def suite_da_unidade(unidade):
+    """O módulo inteiro (texto: o nome) ou só os testes das posições dele ({"unidade", "modulo", "posicoes"}), na ordem
+    do `discover`; numa suíte só, para o `unittest` rodar uma vez o setUpModule e o setUpClass da unidade."""
+    if isinstance(unidade, str):
+        return descobrir(f"{unidade}.py")
+    testes = list(achatar(descobrir(f"{unidade['modulo']}.py")))
+    return unittest.TestSuite(testes[i] for i in unidade["posicoes"] if i < len(testes))
+
+
 def processo(entrada, saida):
     os.nice(10)
     threading.Thread(target=vigiar_pai, args=(os.getppid(),), daemon=True).start()
-    nomes = json.loads(Path(entrada).read_text(encoding="utf-8"))
+    unidades = json.loads(Path(entrada).read_text(encoding="utf-8"))
     verbosidade = 2 if os.environ.get("GITHUB_ACTIONS") == "true" else 1
     resultado = Resultado(unittest.runner._WritelnDecorator(sys.stderr), True, verbosidade)
     duracoes = {}
     resultado.startTestRun()
     try:
-        for nome in nomes:
+        for unidade in unidades:
             inicio = time.monotonic()
-            descobrir(f"{nome}.py").run(resultado)
+            suite_da_unidade(unidade).run(resultado)
+            nome = unidade if isinstance(unidade, str) else unidade["unidade"]
             duracoes[nome] = round(time.monotonic() - inicio, 1)
     finally:
         resultado.stopTestRun()
@@ -350,13 +392,22 @@ def encerrar(filhos):
         p.wait()
 
 
-def lancar(partes, pasta, filhos):
+def entrada_do_processo(parte, plano):
+    """O que o processo recebe: o nome, para o módulo inteiro, ou a unidade com o módulo e as posições dos testes."""
+    entrada = []
+    for unidade in parte:
+        modulo, posicoes = plano.get(unidade, (unidade, None))
+        entrada.append(unidade if posicoes is None else {"unidade": unidade, "modulo": modulo, "posicoes": posicoes})
+    return entrada
+
+
+def lancar(partes, pasta, filhos, plano=None):
     """Lança um processo por parte; cada um entra em `filhos` assim que nasce (o sinal pode chegar no meio)."""
     env_base = dict(os.environ)
     for i, parte in enumerate(partes, 1):
         tmp = pasta / f"p{i}"
         tmp.mkdir(mode=0o700)
-        (pasta / f"p{i}.entrada.json").write_text(json.dumps(parte), encoding="utf-8")
+        (pasta / f"p{i}.entrada.json").write_text(json.dumps(entrada_do_processo(parte, plano or {})), encoding="utf-8")
         log = (pasta / f"p{i}.log").open("w", encoding="utf-8")
         env = dict(env_base, TMPDIR=str(tmp))
         try:
@@ -405,7 +456,7 @@ def resumir(partes, filhos, relatorios, duracoes, pasta):
     for i, (parte, p, rel) in enumerate(zip(partes, filhos, relatorios), 1):
         rodados = rel["rodados"] if rel else 0
         linhas.append(f"processo {i}: rc {p.returncode}, {rodados} testes, {duracoes[i - 1]:.1f} s, "
-                      f"{len(parte)} módulos")
+                      f"{len(parte)} unidades")
         if p.returncode != 0:
             causa = f"morto pelo sinal {-p.returncode}" if p.returncode < 0 else f"saiu com {p.returncode}"
             erros.append(f"processo {i} {causa}")
@@ -517,7 +568,7 @@ def gravar_pesos(relatorios):
     for rel in relatorios:
         pesos.update(rel["duracoes"])
     vivos = set(modulos())
-    pesos = {k: round(v, 1) for k, v in sorted(pesos.items()) if k in vivos}
+    pesos = {k: round(v, 1) for k, v in sorted(pesos.items()) if k.split(".", 1)[0] in vivos}
     PESOS.write_text(json.dumps(pesos, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
@@ -533,15 +584,17 @@ def orquestrar():
         return 1
     esperado = ids(descobrir())
     total = sum(esperado.values())
-    nomes = modulos()
     pesos = ler_pesos()
+    plano = planejar(modulos(), pesos, lambda nome: [t.id() for t in achatar(descobrir(f"{nome}.py"))])
+    nomes = sorted(plano)
     partes = repartir(nomes, pesos, min(n, max(1, len(nomes))))
     erros = conferir_particao(nomes, partes)
     if erros or not nomes:
         print("suite-paralela: " + ("; ".join(erros) or "nenhum módulo de teste em tests/") + ".", file=sys.stderr)
         print("FAILED (divisão)")
         return 1
-    print(f"suite-paralela: {total} testes em {len(nomes)} módulos, {len(partes)} processos ({origem}).",
+    print(f"suite-paralela: {total} testes em {len(modulos())} módulos ({len(nomes)} unidades), {len(partes)} processos "
+          f"({origem}).",
           file=sys.stderr, flush=True)
     antes = estado_da_arvore()
     hash_arvore = hash_da_arvore(RAIZ)
@@ -549,7 +602,7 @@ def orquestrar():
     filhos = []
     anteriores = {s: signal.signal(s, ao_sinal) for s in SINAIS}
     try:
-        lancar(partes, pasta, filhos)
+        lancar(partes, pasta, filhos, plano)
         duracoes = esperar(filhos, inicio)
         for s, h in anteriores.items():
             signal.signal(s, h)
