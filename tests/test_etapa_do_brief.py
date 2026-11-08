@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gh_falso import com_gh_falso  # noqa: E402  (o gerar --branch consulta o PR; teste sem rede)
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+import test_estado_da_branch as eb  # noqa: E402  (B1: o repositório com origin e a volta)
 
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = RAIZ.joinpath("bin", "forge-check")
@@ -906,6 +907,75 @@ class VerificadorOk(unittest.TestCase):
             linhas, _ = fc.conferir_pq([pq])
             self.assertTrue(linhas[-1][0].endswith("· rótulo do verificador: ok"), linhas)
             self.assertFalse(linhas[-1][1])
+
+
+class PqDoExecutor(eb.Repo):
+    """B1 (E2, E14; versao-075): o brief de código e a volta trazem o PQ que o conferente roda, para o executor rodá-lo antes."""
+    ANTERIOR = eb.Volta.ANTERIOR
+
+    def setUp(self):
+        super().setUp()
+        self.base = eb.git("merge-base", "origin/develop", "melhoria/x", cwd=self.repo)
+
+    def entrega_do(self, base, pedido="exemplo", fora=""):
+        return (f"- PQ-N (cmd, do autor): `forge-check entrega {pedido}{fora} --branch melhoria/x --base develop --base-sha {base} "
+                "--etapa codigo` · espera: rc=0\n")
+
+    def com_forge_testes(self):
+        self.commitar(self.repo, {"bin/forge-testes": "#!/bin/sh\n"}, "forge-testes")
+
+    def test_codigo_traz_o_pq_com_o_sha40_da_base(self):
+        rc, saida, erro = self.gerar("--etapa", "codigo")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn(self.entrega_do(self.base), saida)
+        self.assertNotIn(self.c1, saida)
+        self.assertNotIn("bin/forge-testes", saida)  # R-NEUTRO: sem o script no repositório, sem o PQ dele
+
+    def test_review_e_qa_nao_trazem(self):
+        for etapa in ("review", "qa"):
+            with self.subTest(etapa=etapa):
+                rc, saida, erro = self.gerar("--etapa", etapa)
+                self.assertEqual(rc, 0, saida + erro)
+                self.assertNotIn("forge-check entrega", saida)
+
+    def test_com_forge_testes_traz_o_pq_dos_modulos_afetados(self):
+        self.com_forge_testes()
+        rc, saida, erro = self.gerar("--etapa", "codigo")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn(f"- PQ-N (cmd, do autor): `bin/forge-testes --listar --base {self.base} && bin/forge-testes --base {self.base}` · espera: rc=0\n", saida)
+
+    def test_sem_branch_avisa_e_nao_traz(self):
+        rc, saida, erro = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo", "--etapa", "codigo")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn("brief gerar: aviso: sem --branch, o brief sai sem o PQ do executor", erro)
+        self.assertNotIn("forge-check entrega", saida)
+
+    def test_pedido_fora_do_clone_leva_raiz_pedidos(self):
+        contrib = self.tmp / "home" / ".forge-contrib"
+        (contrib / "docs" / "pedidos").mkdir(parents=True)
+        (contrib / "docs" / "pedidos" / "fora.md").write_text(eb.PEDIDO.replace("id: exemplo", "id: fora"), encoding="utf-8")
+        rc, saida, erro = self.rodar("brief", "gerar", "--pedido", "fora", "--destino", "forge:dev-exemplo", "--etapa", "codigo",
+                                     "--branch", "melhoria/x", "--base", "develop")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn(self.entrega_do(self.base, "fora", f" --raiz-pedidos {contrib.resolve()}"), saida)
+
+    def test_sem_base_remota_o_sha_fica_preencher(self):
+        rc, saida, erro = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo", "--etapa", "codigo",
+                                     "--branch", "melhoria/x", "--base", "inexistente")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn("Base-sha: PREENCHER\n", saida)
+        self.assertIn("--base inexistente --base-sha PREENCHER --etapa codigo`", saida)
+
+    def test_volta_traz_o_pq_da_entrega_e_o_dos_modulos(self):
+        self.com_forge_testes()
+        eb.Volta.anterior(self)
+        self.pareceres(self.c1, p="reprovado", corpo="## Achados\n- A1 (bloqueante) src/app.py:1 · o valor está errado\n")
+        rc, saida, erro = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo",
+                                     "--volta", "docs/briefs/exemplo-dev-exemplo-1.md", "--ref", "melhoria/x")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn("- PQ-2 (cmd, do autor): `forge-check entrega exemplo --branch melhoria/x --base develop", saida)
+        self.assertIn(f"- PQ-3 (cmd, do autor): `bin/forge-testes --listar --base {self.base} && bin/forge-testes --base {self.base}`", saida)
+        self.assertIn(f"- PQ-4 (cmd, do autor): `bin/forge-mutante --cobertura --base {self.base}`", saida)
 
 
 if __name__ == "__main__":

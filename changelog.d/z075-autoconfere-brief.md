@@ -1,0 +1,2 @@
+### Adicionado
+- B1 da 0.75 (E2, E14, AUTOCONFERE): `forge-check brief gerar --etapa codigo --branch <b>` e a `--volta` trazem o PQ do executor, a mesma linha `forge-check entrega <pedido> --branch <b> --base <base> --base-sha <sha40> --etapa codigo` que o conferente roda (com `--raiz-pedidos` quando o pedido está fora do clone), e, onde o repositório tem `bin/forge-testes`, o PQ dos módulos afetados; sem `--branch`, sai um aviso e nenhum PQ.
