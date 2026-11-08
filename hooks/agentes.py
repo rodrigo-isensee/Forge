@@ -281,15 +281,29 @@ def hash_do_brief_diverge(hook, prompt):
     return None
 
 
-CAMINHO_DE_BRIEF = re.compile(r"[^\s`'\"]*docs/briefs/[^\s`'\"]+?\.md\b")
+CAMINHO_DE_BRIEF = re.compile(r"docs/briefs/[^\s`'\"]+?\.md\b")
+SEPARADOR_DE_TOKEN = re.compile(r"[\s`'\"]+")
+MAIOR_TOKEN = 4096  # A1 da segurança g2: token maior fica fora da busca, que é quadrática nele (base64, JSON compacto)
 MAXIMO_DE_BRIEFS = 4  # AG-1/C-2: acima disso, aviso e a regra fica sem efeito no lançamento
 SEM_BRANCH = ("nenhuma", "\u2014")
+
+
+def caminhos_de_brief(prompt):
+    """Os caminhos de docs/briefs/*.md do prompt, token a token, com o prefixo do token (`~/`, absoluto); sem o prefixo
+    na expressão, a busca é linear no token, e o token de mais de MAIOR_TOKEN caracteres é pulado."""
+    for token in SEPARADOR_DE_TOKEN.split(prompt):
+        if len(token) > MAIOR_TOKEN:
+            continue
+        inicio = 0
+        while achado := CAMINHO_DE_BRIEF.search(token, inicio):
+            yield token[inicio:achado.end()]
+            inicio = achado.end()
 
 
 def branches_dos_briefs(hook, prompt):
     """AG-1a (E10): as `Branch:` do cabeçalho de cada brief em docs/briefs/ citado no prompt, sem `nenhuma` e `—`, em ordem.
     Brief ausente ou recusado pela `ler_brief` fica fora; outro erro sobe (quem chama registra e grava a lista vazia)."""
-    caminhos = list(dict.fromkeys(CAMINHO_DE_BRIEF.findall(str(prompt or ""))))
+    caminhos = list(dict.fromkeys(caminhos_de_brief(str(prompt or ""))))
     if len(caminhos) > MAXIMO_DE_BRIEFS:
         print(f"aviso: {len(caminhos)} briefs citados (máximo {MAXIMO_DE_BRIEFS}); a reserva não grava branch.", file=sys.stderr)
         hook.registrar_erro(Aviso(f"agentes: {len(caminhos)} briefs citados no prompt; a reserva saiu sem branch"))

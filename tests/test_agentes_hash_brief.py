@@ -3,6 +3,7 @@ Módulo à parte do AGT-1 (cada commit se reverte sozinho): os apoios de execuç
 import hashlib
 import json
 import os
+import resource
 import shutil
 import subprocess
 import sys
@@ -234,6 +235,22 @@ class BranchesDaReserva(Apoio):
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("R-TETO", r.stderr)
         self.assertEqual(self.reserva(prompt, agentes=outros[:9])[1], [])
+
+    LONGO = ("docs/briefs/" * 5000)[:60000]  # A1 da segurança g2: um token de 60 mil sem branco; sem o corte, passa de 10 s
+
+    def reserva_cronometrada(self, prompt):
+        cpu = resource.getrusage(resource.RUSAGE_CHILDREN)
+        r, branches = self.reserva(prompt)
+        depois = resource.getrusage(resource.RUSAGE_CHILDREN)
+        self.assertLess(depois.ru_utime + depois.ru_stime - cpu.ru_utime - cpu.ru_stime, 2, "a busca de brief passou de 2 s de CPU")
+        return branches
+
+    def test_token_de_60_mil_sem_branco_grava_a_reserva_em_menos_de_2_s(self):
+        self.assertEqual(self.reserva_cronometrada(self.LONGO), [])
+
+    def test_brief_ao_lado_do_token_longo_continua_contado(self):
+        self.brief("a", "melhoria/a")
+        self.assertEqual(self.reserva_cronometrada(f"{self.LONGO} docs/briefs/a.md\n{self.LONGO}"), ["melhoria/a"])
 
     def test_todos_os_briefs_contam_e_nenhuma_fica_fora(self):
         self.brief("n", "nenhuma")

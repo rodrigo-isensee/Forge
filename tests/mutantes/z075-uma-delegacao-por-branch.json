@@ -111,6 +111,16 @@
       "testes": [
         "tests.test_agentes_hash_brief.BranchesDaReserva.test_conferente_e_prompt_sem_brief_gravam_vazio"
       ]
+    },
+    {
+      "id": "M12",
+      "guarda": "AG-1a A1 da segurança g2: token de mais de 4096 caracteres fica fora da busca de brief",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if len(token) > MAIOR_TOKEN:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_agentes_hash_brief.BranchesDaReserva.test_token_de_60_mil_sem_branco_grava_a_reserva_em_menos_de_2_s"
+      ]
     }
   ]
 }
