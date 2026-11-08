@@ -1177,6 +1177,8 @@ class ModelosNoFormato(unittest.TestCase):
             self.assertTrue(tem, f"{rel}: sem o bloco ## Achados")
             self.assertEqual(erros, [], rel)
             self.assertEqual(modulo.problemas_do_bloco(achados, erros, tem, {"parecer": "aprovado"}, True), [], rel)
+            self.assertEqual(achados, [], rel)  # adendo 2, ponto 1: bloco vazio, sem achado de exemplo
+            self.assertIn("- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>", texto, rel)
 
     def test_prosa_dentro_do_bloco_reprova(self):
         modulo = carregar_forge_check()
