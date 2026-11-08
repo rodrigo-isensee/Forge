@@ -870,6 +870,76 @@ class Cobertura(unittest.TestCase):
                 self.assertEqual(r.returncode, 2)
                 self.assertIn("vêm juntos", r.stderr)
 
+    # E4-IL: isenta por linha (`linha_base`), só para a condição apagada; casa a linha que a saída imprime em `(base)`.
+    REPETIDA = "x = 1\nif x > 100 and y:\n    x = 2\nif x > 100 and y:\n    x = 3\n"
+    SEM_A_PRIMEIRA = "x = 1\nx = 2\nif x > 100 and y:\n    x = 3\n"
+    POR_LINHA = {**ISENTA, "linha_base": 2}
+
+    def por_linha(self, lista, base=REPETIDA, ponta=SEM_A_PRIMEIRA):
+        """Cobertura da `ponta` sobre a `base` com as `isentas` da spec `i`, a partir do commit inicial."""
+        git(self.dir, "reset", "-q", "--hard", git(self.dir, "rev-list", "--max-parents=0", "HEAD").strip())
+        self.salvar({"lib.py": base}, base=True)
+        self.salvar({"lib.py": ponta, **self.isentas(lista)})
+        return self.cobertura()
+
+    def test_isenta_por_linha_libera_a_apagada_de_texto_repetido(self):
+        for antes in ("", 's = "ção"\n'):  # o texto não ASCII antes da condição desloca bytes e caracteres
+            with self.subTest(antes):
+                linha, base, ponta = 2 + bool(antes), antes + self.REPETIDA, antes + self.SEM_A_PRIMEIRA
+                r = self.por_linha([{**self.POR_LINHA, "linha_base": linha}], base, ponta)
+                self.assertEqual((r.returncode, r.stdout.splitlines()[1:]),
+                                 (0, [f"isenta · lib.py:{linha}(base) · {self.MOTIVO}"]), r.stderr)
+        self.assertEqual(self.por_linha([self.ISENTA]).returncode, 2, "a forma antiga não casa o texto repetido")
+        nova = self.SEM_A_PRIMEIRA + "if w > 500 and v:\n    x = 4\n"
+        r = self.por_linha([self.POR_LINHA, {**self.ISENTA, "trecho": "w > 500 and v"}], ponta=nova)
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (0, [f"isenta · lib.py:5 · {self.MOTIVO}",
+                         f"isenta · lib.py:2(base) · {self.MOTIVO}"]), r.stderr)
+
+    def test_isenta_por_linha_que_nao_casa_a_linha_impressa_fica_solta(self):
+        duas = "x = 1\nif x > 100 and y:\n    x = 2\nif z > 300 and w:\n    x = 3\n"
+        casos = {"segunda ocorrência": ([{**self.POR_LINHA, "linha_base": 4}], {}),
+                 "linha sem condição": ([{**self.POR_LINHA, "linha_base": 1}], {}),
+                 "além do fim da base": ([{**self.POR_LINHA, "linha_base": 99}], {}),
+                 "outro arquivo": ([{**self.POR_LINHA, "arquivo": "outro.py"}], {}),
+                 "trecho fora do nó": ([{**self.POR_LINHA, "trecho": "x = 1\nif x > 100"}], {}),
+                 "condição nova": ([{**self.POR_LINHA, "trecho": "z > 300 and w", "linha_base": 6}],
+                                   {"ponta": self.REPETIDA + "if z > 300 and w:\n    x = 4\n"}),
+                 "linha da outra apagada": ([{**self.POR_LINHA, "linha_base": 4}], {"base": duas, "ponta": "x = 1\nx = 2\nx = 3\n"}),
+                 "ocorrência não impressa": ([{**self.POR_LINHA, "linha_base": 4}],
+                                             {"ponta": "x = 1\nif x > 100 and y:\n    x = 2\nx = 3\n"}),
+                 "isenta repetida": ([self.POR_LINHA, self.POR_LINHA], {}),
+                 "base deslocada": ([self.POR_LINHA], {"base": "# novo\n" + self.REPETIDA, "ponta": "# novo\n" + self.SEM_A_PRIMEIRA})}
+        for nome, (lista, arquivos) in casos.items():
+            with self.subTest(nome):
+                r = self.por_linha(lista, **arquivos)
+                self.assertEqual(r.returncode, 2, r.stdout)
+                self.assertIn("isenta que não cruza condição listada", r.stderr)
+
+    def test_isenta_por_linha_cobre_uma_condicao_so(self):  # C-4: duas condições externas na mesma linha da base
+        base = "obj = 1\nif obj.ready > 100 and ok: y = 1 if obj.ready > 100 or z else 2\n"
+        uma = {**self.POR_LINHA, "trecho": "obj.ready > 100"}
+        r = self.por_linha([uma], base, "obj = 1\n")
+        self.assertEqual((r.returncode, sorted(x.split(" · ")[0] for x in r.stdout.splitlines()[1:])), (1, ["apagada", "isenta"]))
+        duas = [{**uma, "trecho": "obj.ready > 100 and ok"}, {**uma, "trecho": "obj.ready > 100 or z"}]
+        self.assertEqual(self.por_linha(duas, base, "obj = 1\n").returncode, 0)
+
+    def test_isenta_por_linha_invalida_e_o_teto_conta_as_duas_formas(self):
+        maximo = self.f.MAXIMO_DO_ARQUIVO
+        ruins = [{**self.POR_LINHA, "linha_base": v} for v in ("2", True, False, 0, -1, maximo + 1, 2.0, None)]
+        ruins += [{**self.POR_LINHA, "motivo": "m" * 19}, {**self.POR_LINHA, "trecho": "x > 100 an"},
+                  {**self.POR_LINHA, "extra": "x"}, {k: v for k, v in self.POR_LINHA.items() if k != "trecho"}]
+        for ruim in ruins:
+            with self.subTest(ruim):
+                self.assertRegex(" ".join(self.f.validar_isentas([ruim])), r"^isenta 1: .*linha_base")
+        self.assertEqual(self.f.validar_isentas([{**self.POR_LINHA, "linha_base": maximo}, self.POR_LINHA, self.ISENTA]), [])
+        r = self.por_linha([{**self.POR_LINHA, "linha_base": True}])
+        self.assertEqual(r.returncode, 2)
+        self.assertRegex(r.stderr, r"isenta 1: .*linha_base")
+        self.salvar({**self.isentas([self.POR_LINHA] * 5), **self.isentas([self.ISENTA] * 4, "j")})
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("mais de 8 isentas somadas", r.stderr)
+
 
 PLACAR = RAIZ / "scripts" / "placar-mutacao.py"
 # `forge-mutante` falso: anota a chamada, recusa sem `--` e pedido misto (como o de verdade) e imprime uma linha por classe.
