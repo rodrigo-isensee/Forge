@@ -1,0 +1,86 @@
+{
+  "pedido": "pesado-trava-fundo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "padrao vazio depois de normalizar e ignorado (C-6)",
+      "arquivo": "hooks/pesado.py",
+      "de": "map(normalizar, padroes) if p]",
+      "para": "map(normalizar, padroes) if True]",
+      "testes": [
+        "tests.test_hooks.TravaPesadaEmSegundoPlano.test_c6_padrao_vazio_e_ignorado_sem_ler_o_proc"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "sem padrao valido nao le o /proc (C-5, C-6)",
+      "arquivo": "hooks/pesado.py",
+      "de": "    if not padroes:\n        return False",
+      "para": "    if False:\n        return False",
+      "testes": [
+        "tests.test_hooks.TravaPesadaEmSegundoPlano.test_c6_padrao_vazio_e_ignorado_sem_ler_o_proc"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "/proc ausente ou ilegivel abre na duvida (C-5)",
+      "arquivo": "hooks/pesado.py",
+      "de": "    except OSError:\n        return False",
+      "para": "    except OSError:\n        return True",
+      "testes": [
+        "tests.test_hooks.TravaPesadaEmSegundoPlano.test_c5_erros_do_proc_abrem_na_duvida"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "erro de leitura por processo e pulado, nao vira vivo (C-5, T-3)",
+      "arquivo": "hooks/pesado.py",
+      "de": "        except OSError:\n            continue",
+      "para": "        except OSError:\n            return True",
+      "testes": [
+        "tests.test_hooks.TravaPesadaEmSegundoPlano.test_c5_erros_do_proc_abrem_na_duvida"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "so pastas numericas do /proc (C-5)",
+      "arquivo": "hooks/pesado.py",
+      "de": "os.listdir(\"/proc\") if d.isdigit()]",
+      "para": "os.listdir(\"/proc\") if True]",
+      "testes": [
+        "tests.test_hooks.TravaPesadaEmSegundoPlano.test_c5_erros_do_proc_abrem_na_duvida"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "compara tambem a partir do argv[1], o script do shebang (C-4)",
+      "arquivo": "hooks/pesado.py",
+      "de": "for inicio in (argv, [os.path.basename(argv[0])] + argv[1:], argv[1:]):",
+      "para": "for inicio in (argv, [os.path.basename(argv[0])] + argv[1:]):",
+      "testes": [
+        "tests.test_hooks.TravaPesadaEmSegundoPlano.test_c4_script_do_shebang_casa_pelo_argv1_e_morto_nao_casa"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "compara tambem pelo argv[0] sem pasta (C-4)",
+      "arquivo": "hooks/pesado.py",
+      "de": "for inicio in (argv, [os.path.basename(argv[0])] + argv[1:], argv[1:]):",
+      "para": "for inicio in (argv, argv[1:]):",
+      "testes": [
+        "tests.test_hooks.TravaPesadaEmSegundoPlano.test_c4_argv0_absoluto_casa_pelo_nome_sem_pasta"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o padrao casa por palavra inteira",
+      "arquivo": "hooks/pesado.py",
+      "de": "if any(texto.startswith(p + \" \") for p in padroes):",
+      "para": "if any(texto.startswith(p) for p in padroes):",
+      "testes": [
+        "tests.test_hooks.TravaPesadaEmSegundoPlano.test_c4_argv0_absoluto_casa_pelo_nome_sem_pasta"
+      ]
+    }
+  ]
+}

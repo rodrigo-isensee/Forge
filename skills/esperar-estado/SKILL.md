@@ -12,6 +12,7 @@ Quem espera um PR espera o PR, não os checks. Um check antigo da branch pode se
 2. **Uma chamada do Bash, em primeiro plano, de no máximo 540 s**, contados por voltas: 17 voltas de 30 s. Não use `timeout` com `sh -c`, nem `--watch`, nem `run_in_background` para esperar. Se o teto chega antes do estado terminal, a chamada imprime `fim=teto` e sai com código diferente de 0; repita a mesma chamada, que relê o estado do zero.
 3. **PR:** a cada volta, leia primeiro o estado (`gh pr view <n> --json state --jq .state`); fora de `OPEN`, saia. Em `OPEN`, leia `gh pr checks <n>`: o código 8 quer dizer checks pendentes (conferido em `gh pr checks --help`, "Additional exit codes"); qualquer outro código encerra a espera com ele.
 4. **Envio longo (ou qualquer comando de mais de 540 s) num subagente:** o segundo plano morre quando o turno do subagente acaba. Lance o comando com o `run_in_background` da ferramenta, gravando num log de caminho literal que termina com a linha `rc=`; no mesmo turno, espere com o laço da regra 2 sobre `grep -q '^rc=' <log>`. **Nunca encerre o turno nem devolva o relatório com um processo em segundo plano pendente.**
+5. **Trava `pesado` (R-TETO):** espere pelo sumiço de `.forge/run/pesado.json` ou pelo `desde` gravado nele mais o teto da trava, lendo o arquivo (só leitura); nunca por `kill -0` no pid gravado (o pid de outro namespace não aparece e a espera acaba antes da hora).
 
 ## O laço do PR
 Troque `123` pelo número do PR e rode da pasta do repositório dele:

@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho ta
 import test_fechar as base  # noqa: E402  (o módulo, não a classe: a classe seria coletada de novo aqui)
 
 RUN = "https://github.com/o/r/actions/runs/{}/job/{}"
+EXIGIDOS = ("bateria", "bateria (python 3.14)", "catraca")  # I4: o falso traz em pass os exigidos que o caso não nomeia
 
 
 class FecharAvisoRotulo(unittest.TestCase):
@@ -20,6 +21,7 @@ class FecharAvisoRotulo(unittest.TestCase):
     chamadas = base.Fechar.chamadas
 
     def checks(self, *linhas):
+        linhas += tuple(f"{n}\tpass\t1m\turl" for n in EXIGIDOS if n not in {l.split("\t")[0] for l in linhas})
         (self.estado / "checks").write_text("".join(f"{l}\n" for l in linhas), encoding="utf-8")
 
     def avisos(self, r, trecho):

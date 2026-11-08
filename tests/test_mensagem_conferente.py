@@ -1,12 +1,15 @@
 """T6 (T6T3-MENSAGEM): a mensagem ao conferente sai inteira do `forge-check brief mensagem`: a etapa vem do brief (E1) e a do modo
 entrega também (E2). Raiz sintética do `Cenario`; biblioteca padrão, sem rede."""
 import hashlib
+import os
+import subprocess
 import sys
+import time
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from test_forge import ARQ, ID, Cenario, git  # noqa: E402
+from test_forge import ARQ, FORGE_CHECK_CC, ID, Cenario, carregar_forge_check, git  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 SHA_A, SHA_B, BASE_SHA = "a" * 40, "b" * 40, "c" * 40
@@ -147,6 +150,81 @@ class DesdeNaBranchNova(Cenario):
         for nome, (historico, esperado) in casos.items():
             with self.subTest(nome):
                 self.assertEqual(self.desde(historico), [f"Desde: {esperado}"])
+
+
+class UniaoDeEntregas(Cenario):  # E3 (P3); o um brief só de hoje (f) segue em MensagemPelaEtapaDoBrief
+    def setUp(self):
+        super().setUp()
+        self.gravar("docs/pedidos/pedido-sintetico.md", self.PEDIDO_CITANDO + "\n## Histórico\n")
+        self.pasta = self.tmp / "wt"
+        self.pasta.mkdir()
+        self.briefs = {p: self.brief_de(p, t) for p, t in (("tech-lead", "review"), ("qa-engineer", "qa"), ("dev-exemplo", "codigo"))}
+
+    def brief_de(self, papel, tipo, sha=BASE_SHA, n=1):
+        nome = f"docs/briefs/{ID}-{papel}-{n}.md"
+        cabecalho = f"Agente destino: forge:{papel}\n" + (f"Tipo: {tipo}\n" if tipo else "") + CABECALHO.replace(BASE_SHA, sha)
+        self.gravar(nome, self.completo.replace("Agente destino: forge:dev-exemplo\n", cabecalho, 1))
+        return nome
+
+    def uniao(self, *arquivos, extra=("--entrega", "--worktree")):
+        args = ["brief", "mensagem", "--pedido", ID, *extra, *([str(self.pasta)] if "--worktree" in extra else []), "--arquivo", *arquivos]
+        r = subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(self.tmp), *args], capture_output=True, env=dict(os.environ, HOME=str(self.tmp / "home")))
+        return r.returncode, r.stdout.decode()
+
+    def recusada(self, trecho, *arquivos, **kw):
+        rc, saida = self.uniao(*arquivos, **kw)
+        self.assertEqual(rc, 2, saida)
+        self.assertIn(trecho, saida)
+        self.assertNotIn("modo: entrega", saida)  # C-1: nada sai antes de todas as recusas
+
+    def test_codigo_com_parecer_e_recusado_sem_bloco(self):  # (a)
+        self.recusada("união de código e parecer", self.briefs["tech-lead"], self.briefs["dev-exemplo"])
+        self.recusada("união de código e parecer", self.briefs["dev-exemplo"], self.briefs["qa-engineer"])
+
+    def test_review_e_qa_do_mesmo_head_saem_dois_blocos_na_ordem(self):  # (b)
+        rc, saida = self.uniao(self.briefs["qa-engineer"], self.briefs["tech-lead"])
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(saida.count("modo: entrega"), 2)
+        self.assertEqual([lin for lin in saida.splitlines() if lin.startswith("Agente conferido:")], ["Agente conferido: forge:qa-engineer", "Agente conferido: forge:tech-lead"])  # C-4
+
+    def test_head_diferente_e_recusado(self):  # (c)
+        outro = self.brief_de("qa-engineer", "qa", sha="d" * 40, n=2)
+        self.recusada("Base-sha difere entre", self.briefs["tech-lead"], outro)
+        self.gravar(outro, (self.tmp / self.briefs["qa-engineer"]).read_text().replace("Base: develop", "Base: origin/develop"))
+        self.recusada("Base difere entre", self.briefs["tech-lead"], outro)
+
+    def test_tipo_fora_da_lista_branca_e_recusado(self):  # (d)
+        for tipo in (None, "merge"):
+            with self.subTest(tipo=tipo):
+                fora = self.brief_de("dev-exemplo", tipo, n=3)
+                self.recusada(f"união recusada: {tipo or 'desconhecido'} não é parecer", self.briefs["tech-lead"], fora)
+
+    def test_sem_entrega_repetido_outro_pedido_destino_e_teto_recusam(self):  # (e) e C-4 a C-7
+        tl, qa = self.briefs["tech-lead"], self.briefs["qa-engineer"]
+        self.recusada("vários --arquivo só com --entrega", tl, qa, extra=())
+        self.recusada("brief repetido", tl, f"docs/briefs/./{ID}-tech-lead-1.md")
+        alheio = "docs/briefs/outro-tech-lead-1.md"
+        self.gravar(alheio, (self.tmp / tl).read_text())
+        self.recusada("não é do pedido", qa, alheio)
+        self.recusada("sem --destino nem --etapa", qa, tl, extra=("--destino", "forge:qa-engineer", "--entrega", "--worktree"))
+        self.recusada("até 6 briefs", *[self.brief_de("qa-engineer", "qa", n=i) for i in range(1, 8)])
+
+    def test_pq_de_parecer_em_head_avisa_sem_mudar_o_rc(self):  # (g), C-9 e C-10
+        pq, rcs = "`grep -c recurso docs/pedidos/pedido-sintetico.md`", set()
+        casos = {("review", "`git log -1 --format=%H`"): True, ("qa", "`git rev-parse HEAD~1`"): True,
+                 ("review", f"`git log -1 --format=%H {SHA_A}`"): False, ("codigo", "`git rev-parse HEAD`"): False}
+        for (tipo, comando), avisa in casos.items():
+            with self.subTest(tipo=tipo, comando=comando):
+                tipado = self.completo.replace("forge:dev-exemplo\n", f"forge:dev-exemplo\nTipo: {tipo}\n", 1)
+                self.gravar(ARQ, tipado.replace(pq, comando))
+                rc, saida = self.brief()
+                rcs.add(rc)
+                self.assertEqual("aviso: PQ-2 de parecer lê HEAD; fixe o sha40 do commit do parecer" in "\n".join(saida), avisa, saida)
+        self.assertEqual(len(rcs), 1)
+        le_head_sem_sha, longo = carregar_forge_check().le_head_sem_sha, "H@-/a" * 52429  # C-10: 256 KiB numa linha só
+        inicio = time.monotonic()
+        self.assertFalse(le_head_sem_sha(longo, longo))
+        self.assertLess(time.monotonic() - inicio, 1)
 
 
 if __name__ == "__main__":

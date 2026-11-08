@@ -1,0 +1,30 @@
+{
+  "pedido": "versao-041",
+  "executor": "unittest",
+  "mutantes": [
+    {"id": "M1", "guarda": "ref com traço inicial recusada antes do git (C-5)", "arquivo": "scripts/conferir-promocao.py",
+     "de": "if ref.startswith(\"-\") or not ref.isprintable():", "para": "if not ref.isprintable():",
+     "testes": ["tests.test_conferir_release.ConferirPromocao.test_ref_com_traco_ou_controle_recusa_antes_do_git"]},
+    {"id": "M2", "guarda": "ref com caractere de controle recusada antes do git (C-5)", "arquivo": "scripts/conferir-promocao.py",
+     "de": "if ref.startswith(\"-\") or not ref.isprintable():", "para": "if ref.startswith(\"-\"):",
+     "testes": ["tests.test_conferir_release.ConferirPromocao.test_ref_com_traco_ou_controle_recusa_antes_do_git"]},
+    {"id": "M3", "guarda": "rev-list fora do formato SHA-1 dá não verificável (C-4)", "arquivo": "scripts/conferir-promocao.py",
+     "de": "if not PAIS.fullmatch(linha):", "para": "if False:",
+     "testes": ["tests.test_conferir_release.ConferirPromocao.test_sha256_fora_do_formato_esperado_nao_da_ok"]},
+    {"id": "M4", "guarda": "sem pai legível (clone raso) dá não verificável, nunca ok nem 1 (C-4)", "arquivo": "scripts/conferir-promocao.py",
+     "de": "if not pais:", "para": "if False:",
+     "testes": ["tests.test_conferir_release.ConferirPromocao.test_nunca_ok_quando_nao_da_para_verificar"]},
+    {"id": "M5", "guarda": "a contagem de pais pega o squash (desenho: tirar a contagem de pais)", "arquivo": "scripts/conferir-promocao.py",
+     "de": "if len(pais) == 1:", "para": "if False:",
+     "testes": ["tests.test_conferir_release.ConferirPromocao.test_squash_tem_um_pai"]},
+    {"id": "M6", "guarda": "3 ou mais pais (octopus) reprova (C-4)", "arquivo": "scripts/conferir-promocao.py",
+     "de": "if len(pais) > 2:", "para": "if len(pais) > 3:",
+     "testes": ["tests.test_conferir_release.ConferirPromocao.test_octopus_reprova"]},
+    {"id": "M7", "guarda": "a árvore se compara com a do segundo pai, não a do primeiro (desenho: ^1 em vez de ^2)", "arquivo": "scripts/conferir-promocao.py",
+     "de": "if arvore(head) == arvore(pais[1]):", "para": "if arvore(head) == arvore(pais[0]):",
+     "testes": ["tests.test_conferir_release.ConferirPromocao.test_merge_sem_conteudo_proprio_da_ok_com_os_sha_do_repositorio_corrente"]},
+    {"id": "M8", "guarda": "git com rc diferente de 0 dá não verificável com o motivo (C-4)", "arquivo": "scripts/conferir-promocao.py",
+     "de": "if r.returncode != 0:", "para": "if False:",
+     "testes": ["tests.test_conferir_release.ConferirPromocao.test_nunca_ok_quando_nao_da_para_verificar"]}
+  ]
+}

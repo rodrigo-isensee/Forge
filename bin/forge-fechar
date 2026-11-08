@@ -37,6 +37,11 @@ set -euo pipefail
 
 die() { echo "forge-fechar: $*" >&2; exit 1; }
 passo() { echo "[$1] $2"; }
+# I4: checks que o merge exige em `pass` (`skipping`, ausente ou outro estado param), cada um pelo par `workflow/nome`: o `name:` do workflow e o
+# dos jobs do CI e da Catraca, como na proteção da develop (decisão 36 do dono); o mesmo nome vindo de outro workflow não conta (C-6).
+# Constante: nada no ambiente, argumento ou arquivo a muda; vazia por erro de edição, para.
+readonly CHECKS_EXIGIDOS=("CI/bateria" "CI/bateria (python 3.14)" "Catraca/catraca")
+[ "${#CHECKS_EXIGIDOS[@]}" -gt 0 ] || die "CHECKS_EXIGIDOS vazia: o merge sem check exigido é recusado (I4)"
 
 pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 trazida=0 tmp2b="" dorme_pid=""  # nascem vazios: o fim (rm -rf, kill) nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
 args_originais=("$@")  # o recomeço da cadeia depois do merge da base (passo 2b) roda o mesmo comando com `--trazida`
@@ -380,6 +385,23 @@ estados_da_espera() {
   done
 }
 
+# exigidos_ok: cada exigido tem linha de workflow e nome iguais (inteiros) em `saida` e TODAS em `pass`, pelo estado original do `gh` (não o `estados` mapeado);
+# só com --esperar-rotulo, a `catraca` velha (execução em `run_antes`) não conta. Falha com `exigido_nome` e `exigido_estado` (o lido ou "ausente").
+exigidos_ok() {
+  local par wf_ex nome_ex nome_ck estado_ck wf_ck link_ck achou
+  for par in "${CHECKS_EXIGIDOS[@]}"; do
+    wf_ex="${par%%/*}" nome_ex="${par#*/}" achou=0
+    while IFS=$'\037' read -r nome_ck estado_ck wf_ck link_ck; do
+      if [ "$nome_ck" != "$nome_ex" ] || [ "$wf_ck" != "$wf_ex" ]; then continue; fi
+      if [ "$esperar" = 1 ] && [ "$nome_ex" = catraca ] && [[ "$link_ck" =~ /runs/([0-9]{1,20})/job/ ]] && [[ "$run_antes" == *" ${BASH_REMATCH[1]} "* ]]; then continue; fi
+      achou=1
+      if [ "$estado_ck" != pass ]; then exigido_nome="$nome_ex"; exigido_estado="$estado_ck"; return 1; fi
+    done < <(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {print $1 "\037" $2 "\037" $3 "\037" $4}')
+    if [ "$achou" = 0 ]; then exigido_nome="$nome_ex"; exigido_estado=ausente; return 1; fi
+  done
+}
+msg_exigido() { echo "parou no passo 4: o check exigido $exigido_nome não passou (estado: $exigido_estado${1-}); os exigidos (${CHECKS_EXIGIDOS[*]}) só passam em pass"; }
+
 # leitura_sem_merge <rev>: as linhas que a pendência por commit sem merge imprime no lugar de `worktree remove`, `branch -D` e `push --delete`: um
 # comentário e uma leitura (`git log`), cada argumento escapado com `printf '%q'`. Só lê; a ref entra por nome completo (uma tag de mesmo nome não responde
 # no lugar da branch) e a remota, pelo sha lido do servidor (a referência de rastreio pode estar velha).
@@ -625,7 +647,7 @@ if [ "$seco" = 1 ]; then
   passo 2 "git ls-remote origin refs/heads/$ref (igual ao head local de $ref)"
   passo "2b" "git ls-remote origin refs/heads/$alvo (igual a $base; senão, git fetch origin $alvo); se a base andou, git diff --no-renames -z dos dois lados: arquivo em comum: em melhoria/*, com git merge-tree --write-tree limpo, faz o merge da base, envia a branch e recomeça a cadeia, com conflito para; sem arquivo em comum avisa (só leitura até aqui; não roda quando o head já está em $base ou o PR já está MERGED)"
   passo 3 "$gh pr create --base $alvo --head $ref --title '$titulo' (se não houver PR aberto; não abre se o head já está em $base ou já tem PR MERGED)"
-  passo 4 "$gh pr checks <número do PR, lido no passo 3> (espera até ${espera}s; só pass/skipping passam)"
+  passo 4 "$gh pr checks <número do PR, lido no passo 3> (espera até ${espera}s; por JSON; os exigidos, pelo par workflow/nome (${CHECKS_EXIGIDOS[*]}), só passam em pass, os demais em pass ou skipping)"
   passo 5 "$gh pr view <número do PR, lido no passo 3> --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
   passo 6 "$gh pr merge $ref $metodo --match-head-commit <head conferido> (base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge)"
   [ "$sem_limpar" = 0 ] || echo "--sem-limpar: o passo 7 é pulado; imprime os comandos da limpeza e sai com código 3 depois do merge."
@@ -751,7 +773,8 @@ if [ "$ja_mesclado" = 0 ]; then
     fi
   fi
   while :; do
-    saida="$("$gh" pr checks "$pr_n" 2>&1 || true)"
+    # Por JSON (C-6): nome, estado (bucket), workflow e link por tab; o `@tsv` escapa o tab de um nome, que não desalinha as colunas.
+    saida="$("$gh" pr checks "$pr_n" --json name,bucket,link,workflow --jq '.[] | [.name, .bucket, .workflow, .link] | @tsv' 2>&1 || true)"
     estados="$(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {print $2}')"
     # Só com --esperar-rotulo: a catraca vermelha é o pedido do rótulo, ou a execução velha logo depois dele (ver estados_da_espera).
     [ "$esperar" = 0 ] || estados_da_espera
@@ -789,17 +812,22 @@ if [ "$ja_mesclado" = 0 ]; then
     # Uma linha no log por mudança de contagem (não enche o log na espera longa).
     resumo="checks: pass=$(printf '%s\n' "$estados" | grep -cE '^(pass|skipping)$' || true) pendentes=$(printf '%s\n' "$estados" | grep -cE '^(pending|queued|in_progress)$' || true)"
     [ "$resumo" = "$ultimo_resumo" ] || { echo "$resumo"; ultimo_resumo="$resumo"; }
-    printf '%s\n' "$estados" | grep -qE '^(pending|queued|in_progress)$' || break
+    pendente=0; printf '%s\n' "$estados" | grep -qE '^(pending|queued|in_progress)$' && pendente=1
+    if [ "$pendente" = 0 ]; then  # com pendente, os exigidos ainda não decidem
+      exigidos_ok && break
+      [ "$exigido_estado" = ausente ] || die "$(msg_exigido)"  # ausente espera até --espera, como o pendente
+    fi
     if [ $((SECONDS - inicio)) -ge "$espera" ]; then
       [ "$esperar" = 0 ] || [ "$rotulo_ok" = 1 ] || die "$msg_rotulo"
       [ -z "$velha_pendente" ] || die "parou no passo 4: o rótulo foi aplicado, mas só a execução velha da Catraca (run $velha_pendente) aparece após ${espera}s; confira se o evento do rótulo gerou a execução nova; o script nunca reexecuta a catraca"
+      [ "$pendente" = 1 ] || die "$(msg_exigido " após ${espera}s")"  # o exigido ausente, já lido acima
       die "parou no passo 4: checks ainda pendentes após ${espera}s"
     fi
     dormir "$intervalo"
     # com a espera do rótulo, o laço de fora relê o rótulo e o head a cada volta
     [ "$esperar" = 0 ] || continue 2
   done
-  echo "checks verdes."
+  echo "checks verdes (exigidos em pass: ${CHECKS_EXIGIDOS[*]})."
   # Só apresentação (não muda nenhuma decisão do passo 4): run e job de cada check, lidos do link da última leitura, sem chamada nova.
   while IFS=$'\037' read -r nome_ck estado_ck link_ck; do
     run_do_link "$link_ck"

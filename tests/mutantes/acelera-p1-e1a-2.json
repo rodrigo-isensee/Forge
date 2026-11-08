@@ -1,0 +1,66 @@
+{
+  "pedido": "acelera-p1-e1a",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M7",
+      "guarda": "C-2: lista branca do Tipo: gravado",
+      "arquivo": "bin/forge-check",
+      "de": "if tipo not in TIPOS_DISPENSAVEIS:",
+      "para": "if tipo is None:",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_tipo_fora_da_lista_ou_ausente_pede_o_conferente"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "C-2: linha nao verificavel pede o conferente",
+      "arquivo": "bin/forge-check",
+      "de": "if any(NAO_VERIFICAVEL in l for l, _ in linhas):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_nao_verificavel_e_aviso_fora_da_tupla_pedem_o_conferente"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "C-2: aviso fora da tupla pede o conferente",
+      "arquivo": "bin/forge-check",
+      "de": "if aviso:\n        return f\"saída com",
+      "para": "if False:\n        return f\"saída com",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_nao_verificavel_e_aviso_fora_da_tupla_pedem_o_conferente"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "C-4: caractere disfarçado pede o conferente",
+      "arquivo": "bin/forge-check",
+      "de": "if caractere:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_caractere_disfarcado_pede_o_conferente"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "C-8: fora do Forge pede o conferente",
+      "arquivo": "bin/forge-check",
+      "de": "return None if brief_no_forge(raiz, caminho_pedido, brief) else \"fora do Forge\"",
+      "para": "return None if True else \"fora do Forge\"",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_fora_do_forge_ou_por_link_pede_o_conferente"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "C-9: a linha impressa traz o motivo",
+      "arquivo": "bin/forge-check",
+      "de": "{motivo or 'dispensa fora de vigor; mecânico'}",
+      "para": "{'dispensa fora de vigor; mecânico'}",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_tipo_fora_da_lista_ou_ausente_pede_o_conferente"
+      ]
+    }
+  ]
+}

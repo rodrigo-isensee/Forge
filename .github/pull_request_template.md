@@ -17,3 +17,6 @@
 - [ ] Fragmento novo em `changelog.d/` (`bin/forge-changelog novo`; versão não alterada, `CHANGELOG.md` intocado)
 - [ ] Neutralidade: nada do projeto de origem; sem afrouxar `tests/config.json` (ou destacado no título)
 - [ ] Rótulo `afrouxa-regra` pedido ao dono (marque só se a mudança afrouxa regra protegida; o dono aplica o rótulo)
+
+Rótulo: <linha DECISÃO DO DONO que cobre o afrouxamento | sem afrouxamento real (catraca)>
+<!-- Na promoção, a catraca lista os PRs rotulados da leva com esta linha como "decisão declarada no corpo": ela confere só o rótulo do dono, não a decisão (ADR 0008). -->

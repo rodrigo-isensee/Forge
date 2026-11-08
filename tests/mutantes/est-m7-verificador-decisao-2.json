@@ -1,0 +1,43 @@
+{
+  "pedido": "versao-040",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "push só nas refs do próprio workflow",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "ref in PUSHES.get(workflow, ())",
+      "para": "ref in PUSHES[WORKFLOW_DE_PROVA]",
+      "testes": [
+        "tests.test_arvore_testada.EventoElegivel.test_fora_da_lista_sai_falso"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "motivo sem evento diz (sem evento)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "evento or '(sem evento)'",
+      "para": "evento and '(sem evento)'",
+      "testes": [
+        "tests.test_arvore_testada.EventoElegivel.test_fora_da_lista_sai_falso"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "motivo do push diz se é elegível",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "{ref} em {workflow}: {'elegível' if ok else",
+      "para": "{ref} em {workflow}: {'elegível' if not ok else",
+      "testes": [
+        "tests.test_arvore_testada.EventoElegivel.test_lista_branca_sai_verdadeiro"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "scripts/arvore-testada.py",
+      "trecho": "__name__ == \"__main__\"",
+      "motivo": "padrão de script: o mutante faz a importação do módulo de teste sair (inválido no forge-mutante); o rc 1 do arquivo rodado é provado em LinhaDeComando"
+    }
+  ]
+}

@@ -11,6 +11,7 @@ Propósito: texto único desta regra; os outros arquivos citam o ID. Público: t
 - O QA pode registrar como a sua a execução verde da suíte completa sobre a mesma árvore (linha `suite: reusa <hash>`, de `scripts/suite-paralela.py`), e o CI do PR roda tudo de novo (decisão do dono de 2026-10-27, K6).
 - Cartão de correção (bug ou ajuste) também passa pelo QA, sem pular coluna: revalidação incremental dos bugs corrigidos e do que o conserto toca, não a suíte completa de novo (`docs/economia-de-tokens.md`, regra 1).
 - Documentação não passa por testes nem QA, só o código que a verifica.
+- **Revalidação por delta:** o parecer de QA segue válido quando o que mudou depois dele é só `texto` ou `forma` (`forge-check delta --classe`; `texto` é a lista branca `TEXTO` do `bin/forge-check`: `README.md`, `CHANGELOG.md`, `changelog.d/`, `docs/propostas/` e `docs/retrospectivas/`, sem `_*.md`, frontmatter nem `invariantes`; `forma` é só espaço no fim da linha em `.md` ou `.txt` fora das pastas de código). O resto é `codigo` e pede revalidação completa (EST-M4).
 - O PR exige o parecer de code review (`R-REVIEW`) e o de QA em `docs/qa/<pedido>.md`: cenários, resultado real, bugs abertos.
 - Bug bloqueante, crítico ou alto bloqueia a entrega e nunca segue aberto. Médio e baixo só acompanham a entrega com aprovação explícita do usuário, listados no PR como pendências.
 - No máximo 3 voltas por bug (rodadas de review ou de QA que o reabrem); na 3ª reprovação, o Jarvis leva a decisão ao usuário.

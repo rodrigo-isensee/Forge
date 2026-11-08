@@ -1,0 +1,66 @@
+{
+  "pedido": "lac-l1-trava",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M13",
+      "guarda": "o despacho do subcomando trava",
+      "arquivo": "bin/forge-check",
+      "de": "a.acao == \"trava\":",
+      "para": "a.acao == \"travas\":",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_o_mesmo_comando_que_passou_fecha_a_espera_exata_sem_imprimir_o_comando"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "o papel do subagente não é jarvis (papel_do_objeto, extraída do recusas)",
+      "arquivo": "bin/forge-check",
+      "de": "else \"<agente>\")) if o.get(\"isSidechain\") else \"jarvis\"",
+      "para": "else \"<agente>\")) if not o.get(\"isSidechain\") else \"jarvis\"",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_o_mesmo_comando_que_passou_fecha_a_espera_exata_sem_imprimir_o_comando"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "bloco de conteúdo que não é objeto é pulado",
+      "arquivo": "bin/forge-check",
+      "de": "msg.get(\"content\") if isinstance(b, dict)]",
+      "para": "msg.get(\"content\") if isinstance(b, object)]",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_bloqueio_sem_passagem_e_piso_e_baixa"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "conteúdo que não é lista não se percorre",
+      "arquivo": "bin/forge-check",
+      "de": "if isinstance(b, dict)] if isinstance(msg.get(\"content\"), list) else []:",
+      "para": "if isinstance(b, dict)] if isinstance(msg.get(\"content\"), (list, type(None))) else []:",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_bloqueio_sem_passagem_e_piso_e_baixa"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "linha sem message vira mensagem vazia",
+      "arquivo": "bin/forge-check",
+      "de": "msg = o.get(\"message\") if isinstance(o.get(\"message\"), dict) else {}\n        hora",
+      "para": "msg = o.get(\"message\") if isinstance(o.get(\"message\"), (dict, type(None))) else {}\n        hora",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_bloqueio_sem_passagem_e_piso_e_baixa"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "a linha alta: diz sim só com alta",
+      "arquivo": "bin/forge-check",
+      "de": "{'sim' if alta else 'nao'}",
+      "para": "{'sim' if not alta else 'nao'}",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_o_mesmo_comando_que_passou_fecha_a_espera_exata_sem_imprimir_o_comando"
+      ]
+    }
+  ]
+}

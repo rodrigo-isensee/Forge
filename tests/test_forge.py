@@ -2500,6 +2500,93 @@ class FerramentaDefasadaNoForge(ap.ForgeFalso):
         self.assertNotIn(ap.FRASE, r.stdout + r.stderr)
 
 
+class CopiaDoCacheSemGit(ap.ForgeFalso):
+    """E9 (FC-VERSAO-CACHE-PLUGIN): a cópia do cache (sem .git) só sai conferida com o blob do bin/forge-check igual ao da base ou
+    ao da tag que contém a base (C-1); versão numérica e estrita (C-2); manifesto sem link (C-4); o nível não muda (C-5)."""
+    NAO_CONFERIDA = "forge-check: aviso: versão não conferida"
+
+    def setUp(self):
+        super().setUp()
+        self.codigo = ap.FORGE_CHECK.read_text(encoding="utf-8")
+        self.mudou = self.codigo + "# mudou\n"
+        self.tag = self.commitar(self.v2, "0.20.0", self.codigo)  # a release 0.20.0, com o código do cache
+        self.g("tag", "v0.20.0", self.tag, cwd=self.repo)
+
+    def commitar(self, pai, versao, codigo):
+        self.g("checkout", "-q", "--detach", pai, cwd=self.repo)
+        (self.repo / ".claude-plugin/plugin.json").write_text(json.dumps({"name": "forge", "version": versao}), encoding="utf-8")
+        (self.repo / "bin").mkdir(exist_ok=True)
+        (self.repo / "bin/forge-check").write_text(codigo, encoding="utf-8")
+        self.g("add", "-A", cwd=self.repo)
+        self.g("commit", "-q", "-m", versao, cwd=self.repo)
+        return self.g("rev-parse", "HEAD", cwd=self.repo)
+
+    def base(self, sha):
+        self.g("update-ref", "refs/remotes/origin/develop", sha, cwd=self.repo)
+        self.sha_base = sha
+
+    def cache(self, nome, manifesto, codigo=None):
+        pasta = self.tmp / nome
+        (pasta / "bin").mkdir(parents=True)
+        (pasta / ".claude-plugin").mkdir()
+        (pasta / "bin/forge-check").write_text(codigo or self.codigo, encoding="utf-8")
+        if manifesto is not None:
+            (pasta / ".claude-plugin/plugin.json").write_text(json.dumps(manifesto), encoding="utf-8")
+        return pasta
+
+    def rodar(self, copia):
+        return {nome: self.check(copia, *[self.sha_base if x == self.v2 else x for x in args]) for nome, args in self.comandos().items()}
+
+    def test_blob_da_base_ou_da_tag_que_a_contem_confere(self):  # (a)
+        self.base(self.commitar(self.tag, "0.21.0", self.codigo))
+        for nome, r in self.rodar(self.cache("a", {"version": "0.21.0"})).items():
+            with self.subTest(nome):
+                self.assertNotIn("versão não conferida", r.stderr)
+                self.assertNotIn("atrás do repositório", r.stderr)
+        self.base(self.v2)  # a tag v0.20.0 contém a base e tem o blob do cache
+        r = self.check(self.cache("a-tag", {"version": "0.20.0"}), "pr", "p")
+        self.assertNotIn("versão não conferida", r.stderr)
+        self.assertNotIn("atrás do repositório", r.stderr)
+
+    def test_base_mais_nova_sai_atrasada_com_o_marcador_d(self):  # (b)
+        self.base(self.commitar(self.tag, "0.21.0", self.mudou))
+        igual = self.rodar(self.cache("b-igual", {"version": "0.21.0"}, self.mudou))
+        for nome, r in self.rodar(self.cache("b", {"version": "0.20.0"})).items():
+            with self.subTest(nome):
+                self.assertIn(f"forge-check: aviso: cópia vigente 0.20.0 (tag v0.20.0, cópia sem git) {ap.FRASE_NO_FORGE}", r.stderr)
+                self.assertNotIn(ap.FRASE, r.stdout + r.stderr)
+                self.assertEqual(r.returncode, igual[nome].returncode)
+
+    def test_versao_igual_sem_prova_do_codigo_nao_confere(self):  # (c)
+        lateral = self.commitar(self.v2, "0.21.0", self.codigo)  # a tag num ramo lateral, fora da base
+        self.g("tag", "v0.21.0", lateral, cwd=self.repo)
+        self.base(self.commitar(self.v2, "0.21.0", self.mudou))
+        copia = self.cache("c", {"version": "0.21.0"})
+        for nome, r in self.rodar(copia).items():
+            with self.subTest(nome):
+                self.assertIn(f"{self.NAO_CONFERIDA} (versão 0.21.0 do cache sem prova do código)", r.stderr)
+                self.assertNotIn(ap.MARCADOR_D, r.stdout + r.stderr)
+        self.base(self.commitar(lateral, "0.21.0", self.mudou))  # com a tag ancestral da base, a mesma cópia está atrás
+        self.assertIn(f"cópia vigente 0.21.0 (tag v0.21.0, cópia sem git) {ap.FRASE_NO_FORGE}", self.check(copia, "pr", "p").stderr)
+
+    def test_versao_comparada_como_numero(self):  # (d)
+        self.base(self.commitar(self.v2, "0.36.0", self.mudou))
+        r = self.check(self.cache("d", {"version": "0.4.0"}), "pr", "p")
+        self.assertIn(f"cópia vigente 0.4.0 (tag v0.4.0, cópia sem git) {ap.FRASE_NO_FORGE}", r.stderr)
+
+    def test_manifesto_sem_versao_estrita_ou_por_link_nao_confere(self):  # (e)
+        self.base(self.commitar(self.tag, "0.21.0", self.codigo))  # o blob do cache é o da base: só o manifesto decide
+        alvo = self.tmp / "manifesto.json"
+        alvo.write_text(json.dumps({"version": "0.21.0"}), encoding="utf-8")
+        casos = {"sem-version": {"name": "forge"}, "dev": {"version": "0.21.0-dev"}, "prefixo": {"version": "v0.21.0"}, "link": None}
+        for nome, manifesto in casos.items():
+            with self.subTest(nome):
+                copia = self.cache(f"e-{nome}", manifesto)
+                if manifesto is None:
+                    (copia / ".claude-plugin/plugin.json").symlink_to(alvo)
+                r = self.check(copia, "pr", "p")
+                self.assertIn(f"{self.NAO_CONFERIDA} (a cópia em uso do forge-check não é um clone git)", r.stderr)
+
 class FerramentaDefasadaNoProjeto(ap.Base):
     def setUp(self):
         super().setUp()
@@ -3328,9 +3415,10 @@ class ConferirBrief(unittest.TestCase):
         rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
         self.assertIn("aviso: PQ-2 `grep -c` sem arquivo", saida)
         self.assertEqual(rc, 0, saida)
-        arq = self.variante("etapa-outro-papel.md", ("`git log -1 --format=%h` da branch", "`git rev-parse HEAD` igual a 3f85c29"))
+        curto = git("rev-parse", "--short=7", "HEAD", cwd=RAIZ).stdout.strip()
+        arq = self.variante("etapa-outro-papel.md", ("`git log -1 --format=%h` da branch", "`git rev-parse HEAD` igual a " + curto))
         rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
-        self.assertIn("aviso: PQ-1 sha abreviado (3f85c29)", saida)
+        self.assertIn(f"aviso: PQ-1 sha abreviado ({curto[:12]})", saida)
         self.assertEqual(rc, 0, saida)
         arq = self.variante("etapa-outro-papel.md", ("`git log -1 --format=%h` da branch", "`git rev-parse HEAD` igual a " + "3f85c29" + "0" * 33))
         self.assertNotIn("sha abreviado", self.rodar(arq, "--pedido", self.PEDIDO)[1])  # 40 hex não avisa
@@ -3345,7 +3433,8 @@ class ConferirBrief(unittest.TestCase):
                 self.assertTrue(fc.grep_c_sem_arquivo(comando))
 
     def test_pedido_sem_ids_nao_reprova_o_corte(self):
-        rc, saida = self.conferir("corte-sem-marca.md", pedido=self.PASTA / "pedido-sem-ids.md")
+        arq = self.variante("corte-sem-marca.md", ("docs/pedidos/pedido-sintetico.md: Escopo.", "docs/pedidos/pedido-sem-ids.md: Escopo."))
+        rc, saida = self.rodar(arq, "--pedido", self.PASTA / "pedido-sem-ids.md")
         self.assertIn("corte: não verificável (pedido sem IDs)", saida)
         self.assertNotIn("corte: sem marca", saida)
         self.assertEqual(rc, 0, saida)
@@ -4312,7 +4401,7 @@ class SaidaSanitizadaNoGit(unittest.TestCase):
 
 
 class DecisaoAncora(Raiz):
-    """E6 (DECISAO-ANCORA): a frase do dono só conta quando abre a linha; uma função só; nada some em silêncio."""
+    """E6 (DECISAO-ANCORA): a frase do dono só conta quando abre a linha, ou depois de um prefixo `AAAA-MM-DD[ HH:MM]:`; uma função só; nada some em silêncio."""
     MENCAO = "- 2026-10-20: ajuste conforme DECISÃO DO DONO acima"
 
     def pedido_com(self, extra):
@@ -4342,8 +4431,13 @@ class DecisaoAncora(Raiz):
                 self.assertEqual(rc, 1, saida)
                 self.assertTrue(any(l.startswith("decisões: falta") for l in saida), saida)
 
-    def test_data_antes_da_frase_e_mencao_e_aparece(self):  # abuso 16
+    def test_data_antes_da_frase_e_cobrada_e_a_torta_aparece(self):  # abuso 16, DECISAO-SEM-CARTAO (adendo)
         self.pedido_com('\n## Histórico\n- 2026-10-20: DECISÃO DO DONO (2026-10-20): "M1".\n')
+        rc, saida = self.brief()
+        self.assertEqual(rc, 1, saida)
+        self.assertTrue(any(l.startswith("decisões: falta") for l in saida), saida)
+        self.assertFalse(any(l.startswith("decisões: menção fora do início") for l in saida), saida)
+        self.pedido_com('\n## Histórico\n- 2026-10-20 11:1x: DECISÃO DO DONO (2026-10-20): "M2".\n')
         rc, saida = self.brief()
         self.assertTrue(any(l.startswith("decisões: menção fora do início") for l in saida), saida)
 
@@ -4356,8 +4450,8 @@ class DecisaoAncora(Raiz):
 
     def test_uma_funcao_so_decide_a_frase(self):
         mod = carregar_forge_check()
-        self.assertTrue(all(mod.e_linha_de_decisao(l) for l in ('- DECISÃO DO DONO (x)', '  * DECISÃO DO DONO', '> **DECISÃO DO DONO**', '2. DECISÃO DO DONO')))
-        self.assertFalse(any(mod.e_linha_de_decisao(l) for l in ("conforme DECISÃO DO DONO", "- 2026-10-20: DECISÃO DO DONO", "DECISÃO DO DONOS")))
+        self.assertTrue(all(mod.e_linha_de_decisao(l) for l in ('- DECISÃO DO DONO (x)', '  * DECISÃO DO DONO', '> **DECISÃO DO DONO**', '2. DECISÃO DO DONO', "- 2026-10-20: DECISÃO DO DONO")))
+        self.assertFalse(any(mod.e_linha_de_decisao(l) for l in ("conforme DECISÃO DO DONO", "- 2026-10-20: nota DECISÃO DO DONO", "- 2026-10-20: 2026-10-20: DECISÃO DO DONO", "DECISÃO DO DONOS")))
         self.assertTrue(mod.e_linha_de_decisao("- DECISÃO TÉCNICA (x)", "DECISÃO TÉCNICA"))
         fonte = (RAIZ / "bin" / "forge-check").read_text(encoding="utf-8")
         self.assertEqual(re.findall(r'"DECISÃO (?:DO DONO|TÉCNICA)" (?:not )?in ', fonte), [])  # nenhum casamento por substring sobrou
@@ -5551,7 +5645,7 @@ class TextoDoConferenteNoLote(unittest.TestCase):
 
     def test_mencao_fora_do_inicio_nao_muda_o_veredito_e_o_grep_de_reserva_usa_a_mesma_ancora(self):  # E6, M6.3
         self.assertIn("`decisões: menção fora do início ...` é informativa e não muda o veredito", self.agente)
-        self.assertIn("grep -n -E '^[[:space:]]*([-*+>]|[0-9]+[.)])*[[:space:]]*[*_]*DECISÃO DO DONO'", self.agente)
+        self.assertIn("grep -n -E '^[[:space:]]*([-*+>]|[0-9]+[.)])*[[:space:]]*[*_]*([0-9]{4}-[0-9]{2}-[0-9]{2}([ T][0-9]{2}:[0-9]{2})?:[[:space:]]*)?DECISÃO DO DONO'", self.agente)
 
     def test_entregas_paralelas_so_por_brief_aprovado_e_conferida_so_com_todas(self):  # E9a, M9.1 a M9.3
         trecho = next(l for l in self.agente.splitlines() if l.strip().startswith("**Entregas paralelas**"))
@@ -6124,3 +6218,133 @@ class TextosAQ3Ux(unittest.TestCase):
     def test_prototipo_sem_url_externa_e_discovery_so_com_interface(self):
         self.assertIn("confira com `Grep` que nada no protótipo carrega URL externa", self.texto)
         self.assertIn("Nenhuma demanda com interface entra em desenvolvimento sem passar por você", self.texto)
+
+
+class CriterioDeParada(unittest.TestCase):
+    """PAR-P2 E2a: `## Critério de parada` do desenho e o campo `criterio:` do parecer (C-1 a C-8 das ameaças da 0.39, E2)."""
+    DESENHO = "# D\n\n## Critério de parada\n- bloqueia: defeito provado\n- travessia · lê fora · oráculo: test_x\n- gatilho · oráculo: test_g\n"
+
+    def setUp(self):
+        self.fc, self.raiz = carregar_forge_check(), Path(self.enterContext(tempfile.TemporaryDirectory()))
+        (self.raiz / "docs/reviews").mkdir(parents=True)
+        self.desenho("p1-desenho.md", self.DESENHO)
+        self.enterContext(mock.patch.object(self.fc, "RAIZES_DE_BRIEF", ()))
+
+    def desenho(self, nome, texto, raiz=None):
+        (raiz or self.raiz).joinpath("docs/arquitetura").mkdir(parents=True, exist_ok=True)
+        (raiz or self.raiz).joinpath("docs/arquitetura", nome).write_text(texto, encoding="utf-8")
+
+    def parecer(self, corpo, criterio):
+        return (f"---\n{ForgeCheck.REVIEW.format(c='abc1234', p='aprovado')}criterio: {criterio}\n---\n# R\n\n"
+                f"## Achados\n\n## Parecer\n\n{corpo}\n")
+
+    def docs(self, corpo, criterio="docs/arquitetura/p1-desenho.md"):
+        (self.raiz / "docs/reviews/p1.md").write_text(self.parecer(corpo, criterio), encoding="utf-8")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            return self.fc.cmd_docs(self.raiz), err.getvalue()
+
+    def test_as_tres_formas_passam_e_sem_gatilho_bloqueia_ou_com_nova_e_erro(self):
+        ler = self.fc.criterio_de_parada
+        self.assertEqual(ler(self.DESENHO), ("defeito provado", {"travessia": "test_x", "gatilho": "test_g"}, []))
+        self.assertEqual(ler(self.DESENHO.replace("- gatilho", "- nova"))[2], ["linha 6 fora da forma", "sem gatilho"])
+        self.assertEqual(ler(self.DESENHO + "- bloqueia: outra\n")[2], ["bloqueia: repetido"])
+        self.assertEqual(ler("## Outra\n- bloqueia: x\n- gatilho · oráculo: t\n")[2], ["sem bloqueia:", "sem gatilho"])
+
+    def test_frase_igual_passa_diferente_reprova_e_a_marca_com_motivo_logo_abaixo_avisa(self):
+        self.assertEqual(self.docs('Critério de parada: "defeito provado"\nAprovado.'), ([], ""))
+        v, _ = self.docs('Critério de parada: "outra"\nAprovado.')
+        self.assertIn('não é Critério de parada: "defeito provado"', v[0])
+        v, err = self.docs('Critério de parada: "outra"\ncritério mudou: o arquiteto estreitou na volta 2')
+        self.assertEqual((v, err), ([], "aviso: critério mudou em docs/reviews/p1.md: o arquiteto estreitou na volta 2\n"))
+        for corpo in ('Critério de parada: "outra"\ncritério mudou: curto', 'Critério de parada: "outra"\nTexto.\ncritério mudou: o arquiteto mudou',
+                      'Outra linha\ncritério mudou: o arquiteto estreitou'):
+            self.assertEqual(len(self.docs(corpo)[0]), 1, corpo)
+
+    def test_caminho_fora_da_lista_branca_e_recusado_sem_ler_o_disco(self):
+        (self.raiz / ".env").write_text("SEGREDO123", encoding="utf-8")
+        for valor in ("../x.md", "docs/../.env", "/etc/passwd", "docs/arquitetura//x.md", "-x.md", "docs/arquitetura/./x.md",
+                      "docs/arquitetura/../pedidos/x.md", "docs/pedidos/x.md", "docs/arquitetura/x.MD"):
+            with self.subTest(valor), mock.patch.object(self.fc, "ler_registro", side_effect=AssertionError("leu o disco")):
+                v, err = self.docs("x", valor)
+                self.assertEqual(v, ["docs/reviews/p1.md: criterio: caminho fora de docs/arquitetura/ ou docs/architecture/ (R-REVIEW)"])
+                self.assertNotIn("SEGREDO", err)
+
+    def test_ausente_link_para_fora_grande_e_ilegivel_avisam_sem_cair_na_outra_raiz(self):
+        fora = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        (fora / "s.md").write_text("## Critério de parada\n- bloqueia: SEGREDO123\n", encoding="utf-8")
+        for nome in ("p1-link.md", "p1-contrib.md"):
+            self.desenho(nome, self.DESENHO, fora / "contrib")
+        (self.raiz / "docs/arquitetura/p1-link.md").symlink_to(fora / "s.md")
+        (self.raiz / "docs/arquitetura/p1-grande.md").write_bytes(b"x" * (self.fc.TETO_DE_REGISTRO + 1))
+        (self.raiz / "docs/arquitetura/p1-ruim.md").write_bytes(b"\xff\xfe")
+        with mock.patch.object(self.fc, "RAIZES_DE_BRIEF", (fora / "contrib",)):
+            self.assertEqual(self.docs('Critério de parada: "defeito provado"', "docs/arquitetura/p1-contrib.md"), ([], ""))
+            for nome, motivo in (("p1-falta", "ausente"), ("p1-link", "ausente"), ("p1-grande", "grande"), ("p1-ruim", "ilegível")):
+                v, err = self.docs("x", f"docs/arquitetura/{nome}.md")
+                self.assertEqual((v, err), ([], f"aviso: docs/reviews/p1.md: criterio: docs/arquitetura/{nome}.md: {motivo} (PAR-P2)\n"))
+
+    def test_desenho_de_outro_pedido_e_recusado_e_so_a_frase_sai_sem_controle(self):
+        self.desenho("p2-desenho.md", self.DESENHO)
+        self.desenho("plano.md", "---\npedido: p2\n---\n" + self.DESENHO)
+        for nome in ("p2-desenho.md", "plano.md"):
+            self.assertEqual(self.docs("x", f"docs/arquitetura/{nome}")[0], ["docs/reviews/p1.md: criterio: desenho de outro pedido (PAR-P2)"])
+        self.desenho("p1-sem.md", "## Critério de parada\n- bloqueia: x\n")
+        self.assertEqual(self.docs("x", "docs/arquitetura/p1-sem.md")[0], ["docs/reviews/p1.md: criterio: docs/arquitetura/p1-sem.md: sem gatilho (PAR-P2)"])
+        self.desenho("plano.md", "---\npedido: p1\n---\n" + self.DESENHO.replace("defeito provado", "defeito‮provado"))
+        v, _ = self.docs("x", "docs/arquitetura/plano.md")
+        self.assertIn('Critério de parada: "defeito provado" nem', v[0])
+        self.assertNotIn("travessia", v[0])
+
+    def test_validar_documento_nao_le_o_disco(self):  # C-4: a catraca do CI importa validar_documento
+        with mock.patch.object(self.fc, "ler_registro", side_effect=AssertionError("leu o disco")):
+            self.assertEqual(self.fc.validar_documento("docs/reviews/p1.md", self.parecer("x", "docs/arquitetura/p1-desenho.md"))[1], [])
+
+    def commitar_tudo(self):  # E2a2: o desenho e o parecer na ref de um repositório git temporário
+        git("init", "-q", "-b", "melhoria/x", cwd=self.raiz)
+        git("add", "-A", cwd=self.raiz)
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "x", cwd=self.raiz)
+
+    def pr(self, corpo, criterio="docs/arquitetura/p1-desenho.md", ref="HEAD"):
+        texto = self.parecer(corpo, criterio)
+        campos = self.fc.validar_documento("docs/reviews/p1.md", texto)[0]
+        return self.fc.conferir_criterio(self.raiz, "docs/reviews/p1.md", texto, campos, ref)
+
+    def test_com_ref_o_desenho_vem_da_ref_e_nao_da_arvore_de_trabalho(self):  # C-3
+        self.commitar_tudo()
+        self.desenho("p1-desenho.md", self.DESENHO.replace("defeito provado", "outra frase"))
+        self.assertEqual(self.pr('Critério de parada: "defeito provado"'), ([], []))
+        self.assertIn('não é Critério de parada: "defeito provado"', self.pr('Critério de parada: "outra frase"')[0][0])
+        self.assertEqual(self.pr('Critério de parada: "outra frase"', ref=None), ([], []))  # sem ref, o disco, como no `docs`
+
+    def test_com_ref_fora_dela_so_o_forge_contrib_e_link_grande_ou_ilegivel_na_ref_avisam(self):
+        fora = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        (fora / "s.md").write_text("## Critério de parada\n- bloqueia: SEGREDO123\n- gatilho · oráculo: t\n", encoding="utf-8")
+        (self.raiz / "docs/arquitetura/p1-link.md").symlink_to(fora / "s.md")
+        (self.raiz / "docs/arquitetura/p1-grande.md").write_bytes(b"x" * (self.fc.TETO_DE_REGISTRO + 1))
+        (self.raiz / "docs/arquitetura/p1-ruim.md").write_bytes(b"\xff\xfe")
+        self.desenho("p1-perdido.md", "objeto apagado do repositório")
+        self.commitar_tudo()
+        obj = git("rev-parse", "HEAD:docs/arquitetura/p1-perdido.md", cwd=self.raiz).stdout.strip()
+        (self.raiz / ".git/objects" / obj[:2] / obj[2:]).unlink()
+        self.desenho("p1-contrib.md", self.DESENHO, fora / "contrib")
+        self.desenho("p1-solto.md", self.DESENHO)  # só na árvore de trabalho: com ref, não conta
+        with mock.patch.object(self.fc, "RAIZES_DE_BRIEF", (fora / "contrib",)):
+            self.assertEqual(self.pr('Critério de parada: "defeito provado"', "docs/arquitetura/p1-contrib.md"), ([], []))
+            for nome, motivo in (("p1-solto", "ausente"), ("p1-link", "ausente"), ("p1-grande", "grande"), ("p1-ruim", "ilegível"),
+                                 ("p1-perdido", "ausente")):
+                self.assertEqual(self.pr("x", f"docs/arquitetura/{nome}.md"),
+                                 ([], [f"aviso: docs/reviews/p1.md: criterio: docs/arquitetura/{nome}.md: {motivo} (PAR-P2)"]))
+
+    def test_cmd_pr_confere_a_frase_e_o_ausente_so_avisa(self):
+        for corpo, criterio, viola, avisa in (('Critério de parada: "outra"', "docs/arquitetura/p1-desenho.md", True, ""),
+                                              ("x", "docs/arquitetura/p1-falta.md", False, "p1-falta.md: ausente (PAR-P2)\n")):
+            with self.subTest(criterio):
+                (self.raiz / "docs/reviews/p1.md").write_text(self.parecer(corpo, criterio), encoding="utf-8")
+                shutil.rmtree(self.raiz / ".git", ignore_errors=True)
+                self.commitar_tudo()
+                err = io.StringIO()
+                with contextlib.redirect_stderr(err):
+                    saida = self.fc.cmd_pr(self.raiz, "p1", "HEAD")
+                self.assertEqual(any('não é Critério de parada: "defeito provado"' in l for l in saida), viola, saida)
+                self.assertTrue(err.getvalue().endswith(avisa), err.getvalue())

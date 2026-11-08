@@ -66,5 +66,77 @@ class TestPassoAPassoDaProtecao(unittest.TestCase):
             self.assertIn("token", texto, caminho)
 
 
+
+SKILL_CHECAGEM = "skills/checagem-do-brief/SKILL.md"
+LISTA_LOCAL = "docs/engineering/brief-checklist.md"
+# Itens da SK-1 (brief-do-forge), fechada pela B3: ficam na lista do Forge e nunca na skill neutra.
+ITENS_DO_FORGE = ("STATUS-HOOK-DEVELOP", "BRIEF-DIFF-COMMIT", "ROTEIRO-SIMULACAO-MERGE", "RETOMADA-MERGE-BRANCH",
+                  "WORKFLOW-SCOPE", "INVARIANTE-GATILHO", "HOOK-STDERR-ADR", "GH-LOG-CACHE", "ROTEIRO-DA-RELEASE")
+SO_DO_FORGE = ITENS_DO_FORGE + ("catraca", "PROTEGIDOS", "~/Forge", "afrouxa-regra")
+
+
+class ChecagemDoBrief(unittest.TestCase):
+    """B3 (CHECAGEM-DO-BRIEF, versao-038 E2): skill neutra com a lista local opcional do projeto."""
+
+    def test_skill_existe_com_o_nome(self):
+        self.assertRegex(ler(SKILL_CHECAGEM), r"\A---\nname: checagem-do-brief\n")
+
+    def test_skill_cita_a_lista_local(self):
+        self.assertIn(f"Se existir `{LISTA_LOCAL}` no projeto, confira cada item dele", ler(SKILL_CHECAGEM))
+
+    def test_lista_local_so_acrescenta(self):
+        for caminho in (SKILL_CHECAGEM, "templates/projeto/" + LISTA_LOCAL, LISTA_LOCAL):
+            self.assertIn("nunca dispensa conferente, review, QA, segurança nem rótulo do dono", ler(caminho), caminho)
+        self.assertIn("vira pergunta ao dono (`R-DECISAO`)", ler(SKILL_CHECAGEM))
+
+    def test_modelo_do_projeto_existe_e_e_neutro(self):
+        texto = ler("templates/projeto/" + LISTA_LOCAL)
+        self.assertIn("(quando: <tipo de brief>)", texto)
+        for termo in SO_DO_FORGE:
+            self.assertNotIn(termo, texto, termo)
+
+    def test_skill_neutra_sem_item_do_forge(self):
+        texto = ler(SKILL_CHECAGEM)
+        for termo in SO_DO_FORGE:
+            self.assertNotIn(termo, texto, termo)
+
+    def test_lista_do_forge_traz_os_itens_da_sk1(self):
+        linhas = [l for l in ler(LISTA_LOCAL).splitlines() if l.startswith("- [ ] ")]
+        for item in ITENS_DO_FORGE:
+            self.assertEqual(sum(l.endswith(f" · {item}") for l in linhas), 1, item)
+
+    def test_briefs_e_conferencia_manda_ler_a_skill(self):
+        self.assertIn("leia a skill `checagem-do-brief` (`skills/checagem-do-brief/SKILL.md`)",
+                      ler("skills/briefs-e-conferencia/SKILL.md"))
+
+
 if __name__ == "__main__":
     unittest.main()
+
+
+PRATICAS = "templates/projeto/docs/engineering/praticas.md"
+# Os 4 trechos de `invariantes` (tests/config.json) do modelo praticas.md seguem depois da meta (E3a, M-4).
+INVARIANTES_PRATICAS = ("## Regras e quem as decide", "**ferramenta**", "**leitura**",
+                        "pendência a registrar, não revisão manual")
+
+
+class MetaDeMutacao(unittest.TestCase):
+    """M-4 (versao-041 E3a): o modelo de práticas traz a meta de mutação que o pronto.md da stack cita."""
+
+    def setUp(self):
+        self.texto = ler(PRATICAS)
+        achado = re.search(r"^## Meta de mutação\n(.*?)(?=^## |\Z)", self.texto, re.S | re.M)
+        self.secao = achado.group(1) if achado else ""
+
+    def test_linha_da_tabela_decidida_pelo_comando_de_mutacao(self):
+        self.assertIn("| Pontuação de mutação no código alterado ≥ meta | `<comando de mutação do pronto.md>` |",
+                      self.texto)
+
+    def test_secao_da_meta_com_valor_e_regras(self):
+        self.assertTrue(self.secao.strip(), "falta a seção '## Meta de mutação'")
+        for trecho in ("<pontuação da primeira rodada>", "só sobe", "decisão do dono", "Entrega sem código"):
+            self.assertIn(trecho, self.secao, trecho)
+
+    def test_invariantes_do_modelo_seguem(self):
+        for trecho in INVARIANTES_PRATICAS:
+            self.assertIn(trecho, self.texto, trecho)

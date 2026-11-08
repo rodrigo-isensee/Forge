@@ -33,7 +33,7 @@ Visível no GitHub e no editor. Duas partes, separadas pelo **ponto de compromis
 
 Políticas:
 - Puxar, não empurrar; terminar antes de começar (`R-WIP`).
-- Nenhuma coluna é pulada no downstream (`R-REVIEW` code review antes do QA; `R-QA` portão de QA).
+- Nenhuma coluna é pulada no downstream (`R-REVIEW` code review em toda entrega; `R-QA` portão de QA).
 - "Pronto" só com o merge do usuário (`R-MAIN` a main é do usuário).
 - **"Pronto: não reproduz"** (bug sem código, nada a mesclar): o cartão só entra em "Pronto" com a prova no lugar do merge, anotada no cartão ou no parecer: passos tentados, ambiente e versão (sistema, runtime, commit ou release) e a saída copiada da ferramenta. O usuário valida a prova; sem ela o cartão fica em "Aguardando sua validação". Medida: cartões em "Pronto" fora da política = 0.
 - Bloqueio e espera do dono: o cartão vai para "Bloqueado" ou para "Aguardando o dono" com a coluna de origem anotada e volta para ela.
