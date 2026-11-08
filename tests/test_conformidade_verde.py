@@ -152,6 +152,15 @@ class CarimboK6(ComProjeto):
         c = f"{outra}; echo x > {d}/forge-suite-verdX?"  # curinga que não casa a prova: a outra recusa não vale fora
         self.assertEqual(self.rodar("Bash", {"command": c}, cwd=fora, CLAUDE_PROJECT_DIR=str(RAIZ)).returncode, 0, c)
 
+    def test_curinga_com_substituicao_no_fallback(self):  # A1 da segurança g1, sonda S3 no fallback fora de projeto
+        fora, outra, comum = self.tmp / "fora", "echo x > ~/.claude/settings.json", '"$(git rev-parse --git-common-dir)"'
+        subprocess.run(["git", "init", "-q", str(fora)], check=True, env=sem_manutencao(self.env()))
+        (fora / ".git" / "forge-suite-verde").write_text("x", encoding="utf-8")
+        for c in (f"{outra}; echo x > {comum}/forge-suite-verd?", f"{outra}; cp /tmp/x {comum}/forge-suite-ver*"):
+            self.recusa(self.rodar("Bash", {"command": c}, cwd=fora, CLAUDE_PROJECT_DIR=str(RAIZ)), c)
+        c = f"{outra}; echo x > {comum}/forge-suite-verdX?"  # curinga que não casa a prova passa
+        self.assertEqual(self.rodar("Bash", {"command": c}, cwd=fora, CLAUDE_PROJECT_DIR=str(RAIZ)).returncode, 0, c)
+
     def test_leitura_gravador_e_vizinhos_passam(self):
         d = str(self.d)
         for c in (f"cat {d}/forge-suite-verde", 'cat "$(git rev-parse --git-common-dir)/forge-suite-verde"',

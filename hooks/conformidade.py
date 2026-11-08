@@ -2037,8 +2037,10 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
         if any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in palavras):
             Guarda.barrar(guarda, *PROVA_DA_SUITE)
         pasta = Path(hook.cwd())
+        topo = guarda.raiz_git(pasta) if palavras and VARIAVEL.search(alvo) else None  # S3: `$(…)` no alvo
         for t in filter(CURINGA.search, palavras):  # A1 da segurança g1: o curinga que o bash expande no alvo
-            guarda.curinga_na_prova(Path(t).name, [guarda.resolver(guarda.expandir(t, pasta), pasta).parent])
+            pastas = [guarda.resolver(guarda.expandir(t, pasta), pasta).parent, topo and diretorio_comum(topo)]
+            guarda.curinga_na_prova(Path(t).name, pastas)
         if not isinstance(erro, ForaDaProva):
             hook.registrar_erro(erro)
 

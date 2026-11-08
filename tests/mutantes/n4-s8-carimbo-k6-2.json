@@ -41,6 +41,16 @@
       "testes": [
         "tests.test_conformidade_verde.CarimboK6.test_curinga_no_fallback_fora_de_projeto"
       ]
+    },
+    {
+      "id": "M10",
+      "guarda": "conformidade.py:2040 (E5a/C-2, A1 da segurança g1, sonda S3 no fallback): com `$(…)` ou variável no alvo, o fallback S8 de prova_fora_de_projeto expande o curinga também no diretório comum do git (sem ele, `<outra recusa>; echo x > \"$(git rev-parse --git-common-dir)\"/forge-suite-verd?` fora de projeto grava o carimbo)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if palavras and VARIAVEL.search(alvo) else None",
+      "para": "if False else None",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_curinga_com_substituicao_no_fallback"
+      ]
     }
   ]
 }
