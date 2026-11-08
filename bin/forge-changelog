@@ -9,6 +9,7 @@ Uso: forge-changelog novo <Adicionado|Alterado|Corrigido> "<texto>"   grava em c
                                                                       Em melhoria/*, fragmento novo tem o nome da branch
                                                                       (B, senão GITHUB_HEAD_REF, senão o HEAD; CHANGELOG-BRANCH)
 Fragmento: `### <tipo>` seguido de linhas `- texto`. Roda na raiz do repositório (cwd).
+Saída: 0 ok; 1 reprovação (fragmento errado ou ausente); 2 erro (git ilegível, exceção).
 """
 import argparse
 import json
@@ -27,8 +28,9 @@ SECAO_NAO_PUBLICADO = re.compile(r"^## \[Não publicado\][^\n]*\n(.*?)(?=^## |\Z
 
 def git(*args):
     r = subprocess.run(["git", *args], capture_output=True, text=True)
-    if r.returncode:
-        sys.exit(f"git {' '.join(args)}: {r.stderr.strip()}")
+    if r.returncode:  # rc 2 é erro (git ilegível); rc 1 fica só para a reprovação do conferir (CL-1, adendo E1.3)
+        print(f"git {' '.join(args)}: {r.stderr.strip()}", file=sys.stderr)
+        sys.exit(2)
     return r.stdout
 
 
@@ -294,7 +296,11 @@ def main():
     p = sub.add_parser("conferir-release")
     p.set_defaults(f=conferir_release)
     args = ap.parse_args()
-    args.f(args)
+    try:
+        args.f(args)
+    except Exception as erro:  # erro inesperado sai com 2, não com o 1 da reprovação; SystemExit passa
+        print(f"forge-changelog: erro: {type(erro).__name__}: {erro}", file=sys.stderr)
+        sys.exit(2)
 
 
 if __name__ == "__main__":

@@ -532,6 +532,32 @@ class ConferirNomeDaBranch(Base):
         self.assertEqual(self.conferir("--branch=fix/a").returncode, 0)
 
 
+class ConferirSaidaDeErro(Base):
+    """CL-1 (adendo E1.3): rc 1 é só reprovação; erro de git ou exceção sai com 2 (o pré-voo do pre-push não barra)."""
+
+    def test_fora_de_repositorio_git_sai_com_2(self):
+        with tempfile.TemporaryDirectory() as fora:
+            r = forge_changelog(fora, "conferir", "--base", "develop")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("git diff", r.stderr)
+
+    def test_plugin_json_sem_version_sai_com_2(self):
+        (self.dir / ".claude-plugin" / "plugin.json").write_text('{"nome": "x"}\n', encoding="utf-8")
+        self.mudar_fabrica()
+        self.commitar()
+        r = forge_changelog(self.dir, "conferir", "--base", "develop")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("AttributeError", r.stderr)
+
+    def test_fragmento_com_outro_nome_continua_1(self):
+        self.mudar_fabrica()
+        (self.dir / "changelog.d").mkdir()
+        (self.dir / "changelog.d" / "b.md").write_text("### Alterado\n- v\n", encoding="utf-8")
+        self.commitar()
+        r = forge_changelog(self.dir, "conferir", "--base", "develop", "--branch=melhoria/a")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+
+
 class ConferirRelease(Base):
     def test_recusa_fragmento_pendente_e_aceita_pasta_limpa(self):
         self.assertEqual(forge_changelog(self.dir, "conferir-release").returncode, 0)
