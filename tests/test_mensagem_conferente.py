@@ -183,11 +183,6 @@ class UniaoDeEntregas(Cenario):  # UM-BRIEF: a união saiu; o um brief só de ho
             with self.subTest(extra=extra):
                 self.recusada("um brief por mensagem", tl, qa, extra=extra)
 
-    def test_skill_manda_uma_mensagem_por_brief(self):  # UM-BRIEF
-        texto = (Path(__file__).resolve().parent.parent / "skills/briefs-e-conferencia/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("vão uma mensagem por brief", texto)
-        self.assertNotIn("`--arquivo a b`", texto)
-
     def test_pq_de_parecer_em_head_avisa_sem_mudar_o_rc(self):  # (g), C-9 e C-10
         pq, rcs = "`grep -c recurso docs/pedidos/pedido-sintetico.md`", set()
         casos = {("review", "`git log -1 --format=%H`"): True, ("qa", "`git rev-parse HEAD~1`"): True,

@@ -74,5 +74,12 @@ class MensagemAteOHook(Base):
         self.assertIn("`forma: mensagem sem Brief-sha256`", regra)
 
 
+class TextoDaSkill(unittest.TestCase):  # UM-BRIEF (versao-075 UN-1, adendo 7): o mapa leva skills/ a este módulo
+    def test_skill_manda_uma_mensagem_por_brief(self):
+        texto = (Path(__file__).resolve().parent.parent / "skills/briefs-e-conferencia/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("vão uma mensagem por brief", texto)
+        self.assertNotIn("`--arquivo a b`", texto)
+
+
 if __name__ == "__main__":
     unittest.main()
