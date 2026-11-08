@@ -938,7 +938,8 @@ class BriefDeVolta(Repositorio):
         (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=self.ACHADOS), encoding="utf-8")
         self.assertEqual(self.check("docs"), (0, ""))
         for corpo in ("## Achados\n1. achado em texto livre, formato antigo\n", "sem bloco\n"):  # transição: pareceres antigos seguem válidos
-            (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=corpo), encoding="utf-8")
+            self.commitar({"docs/reviews/p1.md": self.REVIEW.format(c="abc1234", p="reprovado", corpo=corpo)}, "parecer antigo")
+            git("update-ref", "refs/remotes/origin/develop", self.head(), cwd=self.repo)  # antigo: fora do delta (B12)
             self.assertEqual(self.check("docs"), (0, ""), corpo)
         (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=self.ACHADOS + "achado em prosa\n"), encoding="utf-8")
         self.assertIn("fora do formato", self.check("docs")[1])
@@ -1193,3 +1194,52 @@ class ModelosNoFormato(unittest.TestCase):
 for _nome in dir(BriefDeVolta):  # só os testes desta classe; os herdados já rodam em BriefDeVolta
     if _nome.startswith("test_") and _nome not in SondaNoCorpus.__dict__:
         setattr(SondaNoCorpus, _nome, None)
+
+
+class DocsEstritoNoDelta(Repositorio):
+    """B12 (versao-075, E7): o `forge-check docs` cobra o bloco `## Achados` estrito no parecer novo ou alterado desde o
+    merge-base(origin/develop, HEAD), commitado ou não; fora do delta, ou com o git que falha, segue o modo de hoje."""
+    LONGO = ("---\ntipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: abc1234\nparecer: aprovado\n"
+             "revisor: forge:tech-lead\ndata: 2026-10-19\n---\n# Parecer\n\n## Achados\n- A1 (recomendado) bin/x:1 · " + "x" * 302 + "\n")
+    AVISO = "aviso: docs: base ilegível; estrito só no forge-check pr"
+
+    def docs(self):
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.repo), "docs"],
+                           env=dict(ambiente_limpo(), HOME=str(self.home)), capture_output=True, text=True)
+        return r.returncode, r.stdout, r.stderr
+
+    def com_origem(self, sha):
+        git("update-ref", "refs/remotes/origin/develop", sha, cwd=self.repo)
+
+    def test_parecer_novo_commitado_ou_nao_reprova_com_achado_acima_do_teto(self):
+        self.com_origem(self.base)
+        self.commitar({"docs/reviews/p1.md": self.LONGO}, "parecer")
+        self.commitar({"src/app.txt": "v2\n"}, "outro commit: o delta é desde o merge-base, não do HEAD~1")
+        (self.repo / "docs" / "reviews" / "p2.md").write_text(self.LONGO, encoding="utf-8")  # novo, fora do índice
+        rc, saida, erro = self.docs()
+        self.assertEqual(rc, 1, saida)
+        for rel in ("docs/reviews/p1.md", "docs/reviews/p2.md"):
+            self.assertIn(f"{rel}: achados: achado A1 com mais de 300 caracteres", saida)
+        self.assertNotIn(self.AVISO, erro)
+
+    def test_parecer_antigo_fora_do_delta_no_formato_antigo_passa(self):
+        self.commitar({"docs/reviews/p1.md": self.LONGO}, "parecer antigo")
+        self.com_origem(self.head())
+        self.commitar({"src/app.txt": "v2\n"}, "mudança da branch")
+        self.assertEqual(self.docs(), (0, "", ""))
+
+    def test_sem_origin_develop_avisa_e_segue_o_modo_de_hoje(self):
+        (self.repo / "docs" / "reviews").mkdir(parents=True)
+        (self.repo / "docs" / "reviews" / "p1.md").write_text(self.LONGO, encoding="utf-8")
+        rc, saida, erro = self.docs()
+        self.assertEqual((rc, saida), (0, ""))
+        self.assertIn(self.AVISO, erro)
+
+    def test_ls_files_que_falha_devolve_none(self):
+        self.com_origem(self.base)
+        modulo = carregar_forge_check()
+        real = modulo.git
+        modulo.git = lambda raiz, *args, **kw: (128, b"") if args[0] == "ls-files" else real(raiz, *args, **kw)
+        self.assertIsNone(modulo.documentos_do_delta(self.repo))
+        modulo.git = real
+        self.assertEqual(modulo.documentos_do_delta(self.repo), set())

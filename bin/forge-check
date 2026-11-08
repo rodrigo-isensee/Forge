@@ -216,8 +216,8 @@ def ler_frontmatter(texto):
     return campos, erros + ["frontmatter sem fechamento `---`"]
 
 
-def validar_documento(rel, texto):
-    """Devolve (campos ou None se ignorado, violações)."""
+def validar_documento(rel, texto, estrito=False):
+    """Devolve (campos ou None se ignorado, violações). Com `estrito`, o bloco `## Achados` é cobrado como no `forge-check pr` (B12)."""
     campos, erros = ler_frontmatter(texto)
     if campos is None:
         return None, [f"{caminho_impresso(rel)}: frontmatter: {erros[0]} (ADR-0004)"]
@@ -242,7 +242,7 @@ def validar_documento(rel, texto):
     if tipo in VALORES_DO_PARECER:
         if campos.get("parecer") and campos["parecer"] not in VALORES_DO_PARECER[tipo]:
             erro("parecer", "use " + " ou ".join(sorted(VALORES_DO_PARECER[tipo])))
-        for problema in problemas_do_bloco(*achados_do_parecer(texto), campos, False):  # C3 (VV-2)
+        for problema in problemas_do_bloco(*achados_do_parecer(texto), campos, estrito):  # C3 (VV-2)
             erro("achados", problema)
         for problema in sondas_do_parecer(texto)[1]:  # PAR-P1 (C-1); transição: sem o bloco, nada a cobrar
             erro("sondas", problema)
@@ -294,10 +294,21 @@ def documentos(raiz, tipo=None, ref=None):
             yield rel, texto
 
 
+def documentos_do_delta(raiz):
+    """Arquivos mudados desde o merge-base(origin/develop, HEAD), commitados ou não, mais os novos fora do índice (B12).
+    None se o git falhar: o `docs` segue no modo de hoje e o estrito fica com o `forge-check pr`."""
+    cod, mudados = git(raiz, "diff", "--name-only", "-z", "--relative", "--no-renames", "--no-ext-diff", "--no-textconv",
+                       "--merge-base", "origin/develop", "--", bruto=True)
+    cod_novos, novos = git(raiz, "ls-files", "-z", "--others", "--exclude-standard", bruto=True)
+    return None if cod or cod_novos else set(nomes_z(mudados) + nomes_z(novos))
+
+
 def cmd_docs(raiz):
-    saida = []
+    saida, delta = [], documentos_do_delta(raiz)
+    if delta is None:
+        print("aviso: docs: base ilegível; estrito só no forge-check pr", file=sys.stderr)
     for rel, texto in documentos(raiz):
-        campos, violacoes = validar_documento(rel, texto)
+        campos, violacoes = validar_documento(rel, texto, estrito=rel in (delta or ()))
         extra, avisos = conferir_criterio(raiz, rel, texto, campos)
         saida += violacoes + extra
         for aviso in avisos:
