@@ -735,18 +735,19 @@ def base_do_delta(raiz, base, ref=None):
     return resolvida, None
 
 
-def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True):
+def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, previo=False):
     """`forge-check pr` como o Jarvis e o conferente o chamam (E4, M4.2 e M4.3): `--base` só aceita as bases do fluxo (`develop`, `homolog`,
     `main`, ou `origin/<essas>`) e a base vale lida de `refs/remotes/origin/<base>` (a local só sem remoto, nunca adiante dele). Uma
     base que já contém o head não rescinde nada: o parecer vale só pelo diff literal. A biblioteca (`cmd_pr`) segue aceitando
     qualquer ref para a catraca do CI, que recebe a base do próprio evento do PR. `conferir=False` (só o escopo da `entrega` na
-    merge-integracao, como o caminho do squash pelo `cmd_pr`) lê só os pareceres: a conferência do head é portão do `pr` e do `forge-fechar`."""
+    merge-integracao, como o caminho do squash pelo `cmd_pr`) lê só os pareceres: a conferência do head é portão do `pr` e do `forge-fechar`.
+    `previo` (FC-6, só do `--previo` do argparse do `pr`, o pré-voo do pre-push): o parecer ausente vira aviso; o resto segue violação."""
     if base is None:
         if isencoes_da_entrega(raiz, ref, None):
             print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
                   file=sys.stderr)
         branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
-        return cmd_pr(raiz, pedido, ref, None, branch) + (conferencia_do_head(raiz, pedido, ref, None, branch) if conferir else [])
+        return cmd_pr(raiz, pedido, ref, None, branch, previo) + (conferencia_do_head(raiz, pedido, ref, None, branch) if conferir else [])
     nome = base.removeprefix("origin/")
     if nome not in BASES_DO_FLUXO:
         return [f"pr: --base {nome_seguro(sem_controle(base))}: use {', '.join(BASES_DO_FLUXO)} (ou origin/<uma delas>); a base é lida de origin/<base>"]
@@ -758,9 +759,9 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True):
               file=sys.stderr)
     if promocao(raiz, ref, nome):  # A9: a conferência do head é portão da branch de trabalho; a leva já passou por ele em cada PR
         print(f"pr: promoção: o head é o da integração e a base é {nome}; a conferência do head ficou nos PRs da leva (TEMPO-B2)", file=sys.stderr)
-        return cmd_pr(raiz, pedido, ref, resolvida, branch)  # na leva da promoção valem os pareceres de todos os itens
+        return cmd_pr(raiz, pedido, ref, resolvida, branch, previo)  # na leva da promoção valem os pareceres de todos os itens
     branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
-    return cmd_pr(raiz, pedido, ref, resolvida, branch) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch) if conferir else [])
+    return cmd_pr(raiz, pedido, ref, resolvida, branch, previo) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch) if conferir else [])
 
 
 def promocao(raiz, ref, base):
@@ -974,12 +975,19 @@ def commit_junto_do_parecer(raiz, rel, ate, livres):
     return (sha, fora[0]) if fora else None
 
 
-def cmd_pr(raiz, pedido, ref=None, base=None, branch=None):
+def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
     """`branch`: a branch do parecer quando a ref é um sha (o `headRefName` do PR mesclado, `--pr`, E10); sem ela, `branch_da_ref`.
     Numa branch de trabalho (fora de BASES_DO_FLUXO), só contam os pareceres com `branch:` igual a ela: o de outro item do mesmo pedido,
     trazido pelo merge da base, não vale nem reprova; sem nenhum da branch, reprova (falha fechada). Sem branch (o sha da catraca do CI)
-    ou numa branch de integração (a promoção), vale o mais recente do pedido, como antes."""
+    ou numa branch de integração (a promoção), vale o mais recente do pedido, como antes. `previo` (FC-6, PP-5/C-2): só as duas linhas
+    de parecer ausente saem como `aviso:` no stderr; desatualizado, reprovado, autoria, aceite, forma e blob seguem violação."""
     saida = []
+
+    def ausente(linha):
+        if previo:  # FC-6: o pré-voo do pre-push; o merge, o CI e o hook `parecer` nunca passam `previo`
+            print(f"aviso: {linha}; o pré-voo segue (--previo)", file=sys.stderr)
+        else:
+            saida.append(linha)
     branch = branch or branch_da_ref(raiz, ref)
     de_trabalho = bool(branch) and branch not in BASES_DO_FLUXO
     registros = autorias(raiz)
@@ -1003,11 +1011,11 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None):
                 achados.append((campos.get("data", ""), rel, campos, viol, texto))
         if not achados:
             motivo = f" ({gatilhos_de_seguranca[0]})" if tipo == "revisao-seguranca" else ""
-            saida.append(f"{pasta}: {tipo}: sem parecer para o pedido `{pedido}`{motivo} ({rid})")
+            ausente(f"{pasta}: {tipo}: sem parecer para o pedido `{pedido}`{motivo} ({rid})")
             continue
         da_branch = [a for a in achados if branch and a[2].get("branch") == branch]  # E11
         if de_trabalho and not da_branch:  # só os pareceres desta branch (como a catraca, CATRACA-RAMO-CMD-PR)
-            saida.append(f"{pasta}: {tipo}: sem parecer da branch {nome_seguro(branch)} para o pedido `{pedido}` ({rid})")
+            ausente(f"{pasta}: {tipo}: sem parecer da branch {nome_seguro(branch)} para o pedido `{pedido}` ({rid})")
             continue
         _, rel, campos, viol, texto = sorted(da_branch or achados, key=lambda a: a[:2])[-1]  # o mais recente (da branch da ref, se houver)
         extra, avisos = conferir_criterio(raiz, rel, texto, campos, ref)  # PAR-P2 E2a2: o desenho da mesma ref do parecer
@@ -7992,6 +8000,8 @@ def main():
     pr.add_argument("pedido")
     pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD)")
     pr.add_argument("--base", help="branch de destino: merge dela depois do parecer não o invalida (diff efetivo)")
+    pr.add_argument("--previo", action="store_true", help="só o pré-voo do pre-push (FC-6): parecer ausente vira aviso e não conta para o rc; "
+                    "desatualizado, reprovado e o resto seguem violação")
     pr.add_argument("--pr", dest="numero_pr", help="PR já mesclado (squash, branch apagada): os pareceres são conferidos no head dele (headRefOid, "
                     "lido do gh e presente no clone), nunca no commit do merge; não se combina com --ref (E10, CONF-MERGE-APOS-SQUASH)")
     en = sub.add_parser("entrega", parents=[comum], help="escopo da entrega: arquivos do intervalo da delegação (`--desde` só depois de uma conferência); só leitura")
@@ -8190,10 +8200,11 @@ def executar(a, raiz):
         print(uso)
         return 2
     violacoes = {"docs": lambda: cmd_docs(raiz), "kanban": lambda: cmd_kanban(raiz),
-                 "pr": lambda: pr_da_cli(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None), branch_do_pr)}[a.cmd]()
+                 "pr": lambda: pr_da_cli(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None), branch_do_pr,
+                                          previo=getattr(a, "previo", False))}[a.cmd]()
     for v in violacoes:
         print(v)
-    if a.cmd == "pr" and not violacoes:  # LOTE E1: só com rc 0, para o `promover-homolog` seguir contando as linhas do stdout com rc != 0
+    if a.cmd == "pr" and not violacoes and not getattr(a, "previo", False):  # LOTE E1; FC-6: o prévio com parecer ausente não é veredito aprovado
         print(veredito_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None)))
     return 1 if violacoes else 0
 
