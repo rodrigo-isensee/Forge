@@ -1068,6 +1068,116 @@ class PrepararEstacao(unittest.TestCase):
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 2)
 
+    def _container(self, tmp, *args, logado=False):
+        """Roda `preparar-estacao.sh --container` sem rede: gh, tmux, shellcheck, claude, sudo, curl e apt-get são
+        falsos e registram a chamada; o jarvis-forge da origem falsa cria a cópia vigente com `dev/`."""
+        tmp = Path(tmp)
+        home, persist, bin_falso = tmp / "home", tmp / "persist", tmp / "bin"
+        origem = persist / "Forge"
+        for d in (home / ".claude", origem / "scripts", bin_falso):
+            d.mkdir(parents=True, exist_ok=True)
+        registro = tmp / "chamadas"
+        (origem / "scripts" / "jarvis-forge").write_text(
+            '#!/bin/sh\nd="$HOME/.local/share/forge/vigente/dev/agents"\nmkdir -p "$d" && echo aq > "$d/aq.md"\n')
+        falsos = {
+            "gh": f'echo "gh $*" >> "{registro}"\n'
+                  'case "$1 $2" in\n'
+                  f'  "auth status") exit {0 if logado else 1} ;;\n'
+                  '  "repo clone") mkdir -p "$4" && echo clonado > "$4/marca" ;;\n'
+                  'esac\nexit 0\n',
+            "claude": f'echo "claude $*" >> "{registro}"\nexit 0\n',
+            "tmux": "exit 0\n", "shellcheck": "exit 0\n",
+        }
+        falsos.update({n: f'echo "{n} $*" >> "{registro}"\nexit 1\n' for n in ("sudo", "curl", "apt-get")})
+        for nome, corpo in falsos.items():
+            falso = bin_falso / nome
+            falso.write_text("#!/bin/sh\n" + corpo)
+            falso.chmod(0o755)
+        env = ambiente_limpo()
+        for chave in ("XDG_DATA_HOME", "GH_CONFIG_DIR"):
+            env.pop(chave, None)
+        env.update(HOME=str(home), PATH=f"{bin_falso}:{env['PATH']}", FORGE_PERSISTENTE=str(persist))
+        r = subprocess.run(["bash", str(RAIZ / "scripts/preparar-estacao.sh"), "--container", *args],
+                           env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        chamadas = registro.read_text() if registro.exists() else ""
+        return r, home, persist, chamadas
+
+    def test_container_migra_area_para_link_e_e_idempotente(self):
+        """P9: a área real no home vai para o disco persistente e vira link; a segunda rodada não muda nada."""
+        with tempfile.TemporaryDirectory() as tmp:
+            area = Path(tmp) / "home" / ".forge-contrib"
+            (area / "wt").mkdir(parents=True)
+            (area / "wt" / "dado.txt").write_text("não perder")
+            for rodada in (1, 2):
+                with self.subTest(rodada=rodada):
+                    r, home, persist, chamadas = self._container(tmp)
+                    self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                    real = persist / ".forge-contrib"
+                    self.assertTrue(area.is_symlink())
+                    self.assertEqual(area.resolve(), real.resolve())
+                    self.assertEqual((real / "wt" / "dado.txt").read_text(), "não perder")
+                    self.assertEqual((home / "Forge").resolve(), (persist / "Forge").resolve())
+                    gh = home / ".config" / "gh"
+                    self.assertTrue(gh.is_symlink())
+                    self.assertEqual(gh.resolve(), (home / ".claude" / "gh").resolve())
+                    self.assertEqual((home / ".claude" / "gh").stat().st_mode & 0o777, 0o700)
+                    mk = home / ".local/share/forge/dev-marketplace"
+                    cfg = json.loads((mk / ".claude-plugin/marketplace.json").read_text())
+                    self.assertEqual(cfg["name"], "forge-dev-local")
+                    self.assertEqual(cfg["plugins"][0]["source"], "./forge-dev")
+                    self.assertFalse((mk / "forge-dev").is_symlink(), "forge-dev tem de ser cópia, não link")
+                    self.assertEqual((mk / "forge-dev/agents/aq.md").read_text(), "aq\n")
+                    self.assertIn("claude plugin marketplace update forge-dev-local", chamadas)
+                    self.assertNotIn("repo clone", chamadas)
+                    self.assertNotRegex(chamadas, r"(?m)^(sudo|curl|apt-get) ")
+                    self.assertIn("falta: login do gh: rode gh auth login -s repo,workflow --web", r.stdout)
+            self.assertIn("já aponta para", r.stdout)
+
+    def test_container_recusa_quando_area_existe_nos_dois_lugares(self):
+        """Nunca apaga dados: com diretório real no home e no disco persistente, não mexe em nenhum e sai com 1."""
+        with tempfile.TemporaryDirectory() as tmp:
+            no_home = Path(tmp) / "home" / ".forge-contrib"
+            persistente = Path(tmp) / "persist" / ".forge-contrib"
+            for d, texto in ((no_home, "home"), (persistente, "persist")):
+                d.mkdir(parents=True)
+                (d / "dado.txt").write_text(texto)
+            r, _, _, chamadas = self._container(tmp, logado=True)
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("conflito: área de trabalho: existem", r.stderr)
+            self.assertFalse(no_home.is_symlink())
+            self.assertEqual((no_home / "dado.txt").read_text(), "home")
+            self.assertEqual((persistente / "dado.txt").read_text(), "persist")
+            self.assertNotIn("repo clone", chamadas)
+
+    def test_container_clona_area_com_login_e_troca_link_antigo_do_forge_dev(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            mk = Path(tmp) / "home/.local/share/forge/dev-marketplace"
+            mk.mkdir(parents=True)
+            (mk / "forge-dev").symlink_to("../vigente/dev")  # o formato antigo, que o Claude recusa
+            r, home, persist, chamadas = self._container(tmp, logado=True)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn(f"gh repo clone rodrigo-isensee/forge-contrib {persist / '.forge-contrib'}", chamadas)
+            self.assertIn("gh auth setup-git", chamadas)
+            self.assertEqual((home / ".forge-contrib" / "marca").read_text(), "clonado\n")
+            self.assertTrue((home / ".forge-contrib").is_symlink())
+            self.assertFalse((mk / "forge-dev").is_symlink())
+            self.assertNotIn("falta:", r.stdout)
+
+    def test_container_simular_nao_altera_nada(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r, home, persist, chamadas = self._container(tmp, "--simular")
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn("[simular]", r.stdout)
+            for criado in ("Forge", ".config", ".local", ".forge-contrib"):
+                self.assertFalse((home / criado).exists() or (home / criado).is_symlink(), f"criou {criado}")
+            self.assertNotIn("claude plugin", chamadas)
+
+    def test_devcontainer_roda_o_preparo_do_container(self):
+        texto = (RAIZ / ".devcontainer/devcontainer.json").read_text(encoding="utf-8")
+        cfg = json.loads(re.sub(r"(?m)^\s*//.*$", "", texto))
+        self.assertIn("scripts/preparar-estacao.sh --container", cfg["postStartCommand"])
+        self.assertNotIn("build", cfg)  # sem imagem própria: só a base
+
     def test_atalhos_do_jarvis_com_ajuda(self):
         """--help mostra o uso e sai com 0; opção desconhecida sai com 2, sem abrir nada."""
         for script in ("jarvis", "jarvis-forge"):
