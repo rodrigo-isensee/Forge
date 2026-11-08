@@ -1,0 +1,96 @@
+{
+  "pedido": "versao-044",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I9a0-1",
+      "guarda": "a ponta sem --listar: o plano que cai na suite inteira nao roda nada (adendo: rodar sem --listar)",
+      "arquivo": "scripts/conferir-reversao.py",
+      "de": "if not ponta_dirigida(copia, base):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_conferir_reversao.ConferirReversao.test_ponta_que_pede_a_suite_inteira_nao_roda_nada"
+      ]
+    },
+    {
+      "id": "I9a0-2",
+      "guarda": "so o dirigido e o nada alterado rodam (adendo: aceitar qualquer primeira linha)",
+      "arquivo": "scripts/conferir-reversao.py",
+      "de": "(primeira.startswith(PLANO_DIRIGIDO) or primeira == NADA_ALTERADO)",
+      "para": "True",
+      "testes": [
+        "tests.test_conferir_reversao.ConferirReversao.test_ponta_que_pede_a_suite_inteira_nao_roda_nada"
+      ]
+    },
+    {
+      "id": "I9a0-3",
+      "guarda": "o --listar que sai diferente de 0 conta como suite inteira",
+      "arquivo": "scripts/conferir-reversao.py",
+      "de": "r.returncode == 0 and",
+      "para": "r.returncode != 0 and",
+      "testes": [
+        "tests.test_conferir_reversao.ConferirReversao.test_commit_que_se_reverte"
+      ]
+    },
+    {
+      "id": "I9a0-4",
+      "guarda": "a primeira linha dirigida e a unica que libera o plano com diff",
+      "arquivo": "scripts/conferir-reversao.py",
+      "de": "primeira.startswith(PLANO_DIRIGIDO)",
+      "para": "not primeira.startswith(PLANO_DIRIGIDO)",
+      "testes": [
+        "tests.test_conferir_reversao.ConferirReversao.test_commit_que_se_reverte"
+      ]
+    },
+    {
+      "id": "I9a0-5",
+      "guarda": "o nada alterado libera so a linha exata",
+      "arquivo": "scripts/conferir-reversao.py",
+      "de": "primeira == NADA_ALTERADO",
+      "para": "primeira != NADA_ALTERADO",
+      "testes": [
+        "tests.test_conferir_reversao.ConferirReversao.test_ponta_que_pede_a_suite_inteira_nao_roda_nada"
+      ]
+    },
+    {
+      "id": "I9a0-6",
+      "guarda": "a saida vazia do --listar nao vira plano",
+      "arquivo": "scripts/conferir-reversao.py",
+      "de": "r.stdout.splitlines() or [\"\"]",
+      "para": "r.stdout.splitlines() and [\"\"]",
+      "testes": [
+        "tests.test_conferir_reversao.ConferirReversao.test_commit_que_se_reverte"
+      ]
+    },
+    {
+      "id": "I9a0-7",
+      "guarda": "rc 2 por commit e sem-veredito (adendo: ler sem-veredito como nao-reverte)",
+      "arquivo": "scripts/conferir-reversao.py",
+      "de": "if codigo == 2:",
+      "para": "if codigo == 3:",
+      "testes": [
+        "tests.test_conferir_reversao.ConferirReversao.test_forge_testes_que_sai_2_vira_sem_veredito"
+      ]
+    },
+    {
+      "id": "I9a0-8",
+      "guarda": "a suite afetada que falha sem o commit da nao-reverte",
+      "arquivo": "scripts/conferir-reversao.py",
+      "de": "if codigo:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_conferir_reversao.ConferirReversao.test_suite_afetada_falha_sem_o_commit"
+      ]
+    },
+    {
+      "id": "I9a0-9",
+      "guarda": "a ponta ja vermelha nao classifica",
+      "arquivo": "scripts/conferir-reversao.py",
+      "de": "if suite_afetada(copia, base):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_conferir_reversao.ConferirReversao.test_ponta_ja_vermelha_avisa_e_nao_classifica"
+      ]
+    }
+  ]
+}
