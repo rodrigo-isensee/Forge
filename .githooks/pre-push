@@ -303,6 +303,8 @@ if [ "$curta" = 0 ]; then
     exit 1
   }
   fila="${trava%.lock}.fila"
+  # PREPUSH-RELOGIO: entrou, vez e fim vão ao stderr, só com a hora e campos fixos (a medida da espera e da suíte).
+  echo "pre-push: entrou $(date +%H:%M:%S)" >&2
   if fila_entrar; then
     while [ "$(fila_vivas limpar | head -n 1)" != "$senha" ]; do
       avisar
@@ -316,6 +318,7 @@ if [ "$curta" = 0 ]; then
     [ "$resta_ns" -gt 0 ] || resta_ns=0
     flock -w "$((resta_ns / 1000000000)).$(printf '%03d' $(( resta_ns / 1000000 % 1000 )))" 9 || barrar
   fi
+  echo "pre-push: vez $(date +%H:%M:%S)" >&2
   fila_sair
   # PUSH-PARECER-JA-NO-REMOTO: o remoto pode ter recebido o mesmo commit durante a espera; a senha já saiu e a trava solta no exit.
   if ja_no_remoto "${2:-}"; then exit 0; fi
@@ -396,11 +399,25 @@ parar() {
 }
 trap parar TERM INT HUP
 echo "pre-push: suíte do Forge no pid ${$}; para parar só esta execução: kill ${$} (nunca pkill -f, que derruba a suíte de outro agente)." >&2
+# PREPUSH-RELOGIO: a suíte que rodou até o fim (verde ou vermelha, completa ou dirigida) grava "<segundos> <modo>" em
+# <trava>.duracoes; como o anotar: não segue link, só arquivo do próprio usuário, as últimas 50 linhas, umask 077.
+gravar_duracao() {
+  local arq="${trava%.lock}.duracoes" novo
+  [ ! -L "$arq" ] && { [ ! -e "$arq" ] || [ -O "$arq" ]; } || return 0
+  novo="$(mktemp "${arq}.XXXXXX" 2>/dev/null)"
+  { (umask 077; tail -n 49 -- "$arq" 2>/dev/null || true; printf '%s %s\n' "$1" "$2") > "$novo" \
+    && mv -fT -- "$novo" "$arq"; } 2>/dev/null || rm -f -- "$novo"
+}
+inicio_s="$(date +%s)"
 "${suite[@]}" 9>&- >&2 &
 suite_pid=$!
 rc=0
 wait "$suite_pid" || rc=$?
 trap - TERM INT HUP
+duracao=$(( $(date +%s) - inicio_s ))
+if [ "$curta" = 1 ]; then modo=curta; elif [ "$completa" = 1 ]; then modo=completa; else modo=dirigida; fi
+echo "pre-push: fim $(date +%H:%M:%S) rc ${rc} ${modo} ${duracao}s" >&2
+[ "$curta" = 1 ] || gravar_duracao "$duracao" "$modo"
 [ "$rc" -eq 0 ] || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
 # Anota a árvore testada (a árvore de trabalho estava limpa no início e no fim e o HEAD^{tree} não mudou durante a suíte,
 # para valer a do commit) como prova do próximo push: a suíte inteira, em `.verde`; as classes curtas do `so_parecer`,
