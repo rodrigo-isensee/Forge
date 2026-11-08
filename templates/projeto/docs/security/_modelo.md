@@ -18,6 +18,8 @@ Formato do bloco `## Sondas` (PAR-P1, conferido por `forge-check docs`): em entr
 
 Bloqueio (`R-REVIEW`): `bloqueante` é só defeito provado, requisito ou segurança com gatilho; o resto é `recomendado` e não devolve. Promover recomendação a bloqueante exige `critério mudou:` com o motivo no achado.
 
+Evidência: a evidência não muda para caber (`reproduzido` não vira `visto`); se o achado não cabe nos 300 caracteres, encurte o texto, nunca a prova.
+
 ## Gatilhos
 Quais gatilhos da `R-SEGURANCA` a entrega toca.
 
