@@ -79,7 +79,7 @@
       "de": " && [ \"$arvore_fim\" = \"$arvore_inicio\" ]",
       "para": "",
       "testes": [
-        "tests.test_pre_push_parecer.PrePushSoParecer.test_commit_no_meio_da_suite_nao_grava_prova"
+        "tests.test_pre_push_parecer.PrePushSoParecer.test_head_que_chega_ao_enviado_no_meio_da_suite_nao_grava_prova"
       ]
     }
   ]

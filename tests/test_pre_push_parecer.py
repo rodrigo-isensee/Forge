@@ -247,6 +247,24 @@ class PrePushSoParecer(unittest.TestCase):
         self.assertNotIn(inicio, prova)
         self.assertNotIn(fim, prova)
 
+    def test_head_que_chega_ao_enviado_no_meio_da_suite_nao_grava_prova(self):
+        # PP-4a (M13): uma ref, HEAD ≠ enviado no início da suíte e = enviado no fim; a árvore mudou no meio
+        (self.repo / "tests" / "test_forge.py").write_text(SUITE.replace(
+            'marca("rodou-outra")',
+            'import subprocess; subprocess.run(["git", "reset", "-q", "--hard", "HEAD~1"]); marca("rodou-outra")'))
+        enviado = self.commit("suite que volta um commit")
+        self.commit("depois", docs__x__y="z\n")
+        inicio = self.git("rev-parse", "HEAD^{tree}")
+        codigo, _, erro = self.roda(enviado, ZERO)
+        self.assertEqual(codigo, 0, erro)
+        self.assertEqual(self.git("rev-parse", "HEAD"), enviado)
+        provas = []
+        for nome in ("verde", "dirigida"):
+            arquivo = self.run_dir / f"forge-suite-{os.getuid()}.{nome}"
+            provas += arquivo.read_text().split() if arquivo.exists() else []
+        self.assertNotIn(inicio, provas)
+        self.assertNotIn(self.git("rev-parse", f"{enviado}^{{tree}}"), provas)
+
     def test_modelo_e_pastas_de_controle_rodam_a_suite_inteira(self):
         self.verde()
         for caminho in ("docs__reviews___modelo.md", "docs__security___x.md", "docs__qa___modelo.md",
