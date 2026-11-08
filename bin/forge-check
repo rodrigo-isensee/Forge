@@ -1915,6 +1915,49 @@ def cmd_delta(raiz, refs, parecer, classe=False):
     return 0
 
 
+def partes_da_juncao(raiz, head, base):
+    """B19a (E20): (rc, partes, mensagem) da junção `head`. Parte é o segundo pai de cada merge da primeira linha de pais
+    de merge-base(origin/<base>, head)..head, do mais antigo ao mais novo, como (merge, segundo pai, assunto). Merge cujo
+    segundo pai já está em origin/<base> é merge da base, e não parte (C-5). rc 1: merge de mais de 2 pais (C-4);
+    rc 2: git que falha, e nada se filtra (C-9)."""
+    origem = sha_do_commit(raiz, f"refs/remotes/origin/{base}")
+    cod, inicio = git(raiz, "merge-base", origem, head) if origem else (1, "")
+    if cod or not SHA40.match(inicio):
+        return 2, [], f"sem merge-base entre origin/{base} e {head[:7]}"
+    cod, saida = git(raiz, "log", "--first-parent", "--merges", "--reverse", "-z", "--format=%H %P%x09%s",
+                     f"{inicio}..{head}", bruto=True)
+    if cod:
+        return 2, [], "git log falhou"
+    partes = []
+    for registro in saida.decode("utf-8", "replace").split("\0"):
+        if not registro:
+            continue
+        shas, _, assunto = registro.partition("\t")
+        merge, *pais = shas.split()
+        if len(pais) > 2:
+            return 1, [], f"octopus não aceito: {merge[:7]}"
+        cod = git(raiz, "merge-base", "--is-ancestor", pais[1], origem)[0]
+        if cod not in (0, 1):
+            return 2, [], f"git merge-base falhou em {merge[:7]}"
+        if cod == 1:
+            partes.append((merge, pais[1], assunto))
+    return 0, partes, ""
+
+
+def cmd_juncao(raiz, pedido, ref, base):
+    """`forge-check juncao`: as partes da junção (B19a); só leitura, nunca reprova parecer."""
+    head = sha_do_commit(raiz, ref)
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", pedido) or not head:
+        print(f"juncao: pedido {nome_seguro(pedido)} ou ref {nome_seguro(ref)} ilegível")
+        return 2
+    rc, partes, mensagem = partes_da_juncao(raiz, head, base)
+    for merge, pai, assunto in partes:
+        print(f"parte: {pai[:7]} merge {merge[:7]} {sem_controle(assunto)[:120]}")
+    if rc:
+        print(f"juncao: {mensagem}")
+    return rc
+
+
 BASES_DO_VAZIO = ("origin/develop", "develop")  # lista branca da base (ACELERA-E2b, C-2)
 
 
@@ -7934,6 +7977,10 @@ def main():
     de.add_argument("refs", nargs="*", help="<commit> [<fim>] (com --parecer, só o <fim>); fim padrão HEAD")
     de.add_argument("--parecer", help="parecer (docs/reviews, qa, devops ou security) cujo `commit:` é o começo do intervalo")
     de.add_argument("--classe", action="store_true", help="classe de cada arquivo (texto, forma ou codigo) e a mais pesada; só `codigo` desatualiza o parecer (EST-M4)")
+    ju = sub.add_parser("juncao", parents=[comum], help="as partes da junção da versão (segundos pais dos merges da primeira linha); octopus rc 1, git que falha rc 2; só leitura (E20)")
+    ju.add_argument("pedido", help="slug do pedido")
+    ju.add_argument("--ref", required=True, help="branch ou commit da versão")
+    ju.add_argument("--base", default="develop", choices=BASES_DO_FLUXO, help="a base em origin/ (padrão: develop)")
     va = sub.add_parser("vazio", parents=[comum], help="a base já tem o conteúdo da branch? (ACELERA-E2b) sim rc 0, não rc 1, não verificável rc 2; só leitura")
     va.add_argument("--ref", required=True, help="branch ou commit da entrega")
     va.add_argument("--base", default="origin/develop", help="origin/develop (padrão) ou develop")
@@ -8108,6 +8155,8 @@ def executar(a, raiz):
         return cmd_provas_gerar(raiz, a.brief)
     if a.cmd == "delta":
         return cmd_delta(raiz, a.refs, a.parecer, a.classe)
+    if a.cmd == "juncao":
+        return cmd_juncao(raiz, a.pedido, a.ref, a.base)
     if a.cmd == "vazio":
         rc, linha = diff_vazio(raiz, a.base, a.ref)
         print(linha)
