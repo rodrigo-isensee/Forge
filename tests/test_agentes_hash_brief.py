@@ -243,7 +243,7 @@ class BranchesDaReserva(Apoio):
         self.assertEqual(self.reserva("Arquivo: ~/.forge-contrib/docs/briefs/t.md")[1], ["melhoria/t"])
 
     def test_branch_so_no_corpo_nao_conta(self):
-        self.brief("c", "nenhuma", corpo="Branch: melhoria/corpo")
+        self.gravar("docs/briefs/c.md", b"Agente destino: forge:x\n\n## Objetivo\nBranch: melhoria/corpo\n")
         self.assertEqual(self.reserva("docs/briefs/c.md")[1], [])
 
     def test_cinco_briefs_avisam_e_gravam_vazio(self):
