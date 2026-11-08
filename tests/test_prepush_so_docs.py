@@ -410,6 +410,7 @@ class TravaDaChecagem(Repo):
         self.assertEqual(((xdg / self.trava.name).exists(), (pasta / self.trava.name).exists()), (False, True))
         if os.geteuid() == 0:
             (pasta / self.trava.name).unlink()
+            (self.dir / "marca").unlink()
             os.chown(pasta, 65534, 65534)
             self.barra({k: v for k, v in self.amb.items() if k != "XDG_RUNTIME_DIR"}, "recusada")
             self.assertFalse((pasta / self.trava.name).exists())
