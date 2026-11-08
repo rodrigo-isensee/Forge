@@ -1,0 +1,80 @@
+{
+ "_leia": "Orçamento de instrução por agente (P11 da avaliação de 08/11, frente H da 0.43.1). O teste tests/test_orcamento_instrucao.py mede o que cada agente carrega (agents/<x>.md, as skills obrigatórias e os R-*.md citados por eles) e reprova acima do teto. Teto inicial = medida de 2026-11-08 na base 85531b1; o alvo é a meta, não trava. Subir um teto é afrouxar: diga no PR e peça a decisão do dono. Uso em docs/governanca.md.",
+ "revisar_em": "2026-12-08",
+ "medida": "jarvis carrega 96.774 caracteres e 221 marcadores normativos; 161 linhas ERRO-JARVIS em 4 dias, quase todas de protocolo (estudo de 08/11)",
+ "agentes": {
+  "agile-coach": {
+   "teto": {
+    "agente_caracteres": 6757,
+    "total_caracteres": 39162,
+    "marcadores": 65
+   }
+  },
+  "conferente": {
+   "teto": {
+    "agente_caracteres": 29901,
+    "total_caracteres": 53441,
+    "marcadores": 171
+   },
+   "alvo": {
+    "agente_caracteres": 5000,
+    "total_caracteres": 15000,
+    "marcadores": 30
+   }
+  },
+  "devops-engineer": {
+   "teto": {
+    "agente_caracteres": 5171,
+    "total_caracteres": 42429,
+    "marcadores": 107
+   }
+  },
+  "jarvis": {
+   "teto": {
+    "agente_caracteres": 22422,
+    "total_caracteres": 96774,
+    "marcadores": 221
+   },
+   "alvo": {
+    "agente_caracteres": 12000,
+    "total_caracteres": 45000,
+    "marcadores": 90
+   }
+  },
+  "qa-engineer": {
+   "teto": {
+    "agente_caracteres": 6548,
+    "total_caracteres": 38055,
+    "marcadores": 85
+   }
+  },
+  "security-engineer": {
+   "teto": {
+    "agente_caracteres": 7231,
+    "total_caracteres": 39862,
+    "marcadores": 99
+   }
+  },
+  "software-architect": {
+   "teto": {
+    "agente_caracteres": 4206,
+    "total_caracteres": 21889,
+    "marcadores": 34
+   }
+  },
+  "tech-lead": {
+   "teto": {
+    "agente_caracteres": 12800,
+    "total_caracteres": 63981,
+    "marcadores": 159
+   }
+  },
+  "ux-designer": {
+   "teto": {
+    "agente_caracteres": 3091,
+    "total_caracteres": 19118,
+    "marcadores": 31
+   }
+  }
+ }
+}
