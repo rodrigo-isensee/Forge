@@ -31,6 +31,16 @@
       "testes": [
         "tests.test_conformidade_verde.CarimboK6.test_curinga_que_casa_a_prova_recusa"
       ]
+    },
+    {
+      "id": "M9",
+      "guarda": "conformidade.py:2040 (E5a/C-2, A1 da segurança g1, 4.ª posição): no fallback S8 de prova_fora_de_projeto, o curinga do alvo é expandido como nas outras posições (sem ele, `<outra recusa>; echo x > <d>/forge-suite-verd?` fora de projeto grava o carimbo)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for t in filter(CURINGA.search, palavras):",
+      "para": "for t in filter(CURINGA.search, []):",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_curinga_no_fallback_fora_de_projeto"
+      ]
     }
   ]
 }

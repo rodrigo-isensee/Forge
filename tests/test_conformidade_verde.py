@@ -143,6 +143,15 @@ class CarimboK6(ComProjeto):
         for c in (f"echo x > {d}/forge-suite-verdX?", f"cat {d}/forge-suite-verd?"):  # curinga que não casa, e leitura
             self.assertEqual(self.rodar("Bash", {"command": c}).returncode, 0, c)
 
+    def test_curinga_no_fallback_fora_de_projeto(self):  # A1 da segurança g1, 4.ª posição: a outra recusa vem antes
+        d, fora, outra = str(self.d), self.tmp / "fora", "echo x > ~/.claude/settings.json"
+        fora.mkdir()
+        (self.d / "forge-suite-verde").write_text("x", encoding="utf-8")
+        for c in (f"{outra}; echo x > {d}/forge-suite-verd?", f"{outra}; cp /tmp/x {d}/forge-suite-ver*"):
+            self.recusa(self.rodar("Bash", {"command": c}, cwd=fora, CLAUDE_PROJECT_DIR=str(RAIZ)), c)
+        c = f"{outra}; echo x > {d}/forge-suite-verdX?"  # curinga que não casa a prova: a outra recusa não vale fora
+        self.assertEqual(self.rodar("Bash", {"command": c}, cwd=fora, CLAUDE_PROJECT_DIR=str(RAIZ)).returncode, 0, c)
+
     def test_leitura_gravador_e_vizinhos_passam(self):
         d = str(self.d)
         for c in (f"cat {d}/forge-suite-verde", 'cat "$(git rev-parse --git-common-dir)/forge-suite-verde"',

@@ -2033,8 +2033,12 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
         decidir(hook, guarda, ferramenta, entrada)
     except Exception as erro:  # noqa: BLE001 - ForaDaProva ou erro interno; a decisão vem do texto do alvo
         alvo = entrada.get("command") or entrada.get("file_path") or entrada.get("notebook_path")
-        if isinstance(alvo, str) and any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in re.split(r"[\s'\"(),;=<>|&]+", alvo)):
+        palavras = re.split(r"[\s'\"(),;=<>|&]+", alvo) if isinstance(alvo, str) else []
+        if any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in palavras):
             Guarda.barrar(guarda, *PROVA_DA_SUITE)
+        pasta = Path(hook.cwd())
+        for t in filter(CURINGA.search, palavras):  # A1 da segurança g1: o curinga que o bash expande no alvo
+            guarda.curinga_na_prova(Path(t).name, [guarda.resolver(guarda.expandir(t, pasta), pasta).parent])
         if not isinstance(erro, ForaDaProva):
             hook.registrar_erro(erro)
 
