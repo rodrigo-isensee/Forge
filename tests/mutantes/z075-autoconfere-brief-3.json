@@ -1,0 +1,59 @@
+{
+  "pedido": "versao-075",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "G-5: o pedido tem a forma do nome de brief (mutante: só o que não é pedido usa a forma do nome)",
+      "arquivo": "bin/forge-check",
+      "de": "if tipo == \"pedido\" else",
+      "para": "if tipo != \"pedido\" else",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_valor_de_shell_seguro_por_tipo"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "G-5: a base tem a forma de branch (mutante: só o que não é base usa a forma de branch)",
+      "arquivo": "bin/forge-check",
+      "de": "\"branch\" if tipo == \"base\" else tipo",
+      "para": "\"branch\" if tipo != \"base\" else tipo",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_valor_de_shell_seguro_por_tipo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "G-5: o primeiro valor fora da forma é o ruim (mutante: o primeiro valor seguro)",
+      "arquivo": "bin/forge-check",
+      "de": "valor_de_shell_seguro(tipo, valor) is None",
+      "para": "valor_de_shell_seguro(tipo, valor) is not None",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_codigo_traz_o_pq_com_o_sha40_da_base",
+        "tests.test_etapa_do_brief.PqDoExecutor.test_branch_fora_da_forma_avisa_e_nao_gera"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "G-5: valor fora da forma sai com aviso (mutante: aviso só sem valor ruim)",
+      "arquivo": "bin/forge-check",
+      "de": "    if ruim:\n        print(f\"brief gerar: aviso: PQ do executor",
+      "para": "    if not ruim:\n        print(f\"brief gerar: aviso: PQ do executor",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_branch_fora_da_forma_avisa_e_nao_gera",
+        "tests.test_etapa_do_brief.PqDoExecutor.test_pedido_fora_da_forma_avisa_e_nao_gera"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "B1: o --raiz-pedidos só com o pedido fora do clone (mutante: --raiz-pedidos vazio com o pedido no clone)",
+      "arquivo": "bin/forge-check",
+      "de": "' if pasta else ''} \"",
+      "para": "' if not pasta else ''} \"",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_codigo_traz_o_pq_com_o_sha40_da_base",
+        "tests.test_etapa_do_brief.PqDoExecutor.test_pedido_fora_do_clone_leva_raiz_pedidos"
+      ]
+    }
+  ]
+}
