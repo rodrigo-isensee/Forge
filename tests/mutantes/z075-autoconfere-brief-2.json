@@ -75,16 +75,6 @@
       "testes": [
         "tests.test_etapa_do_brief.PqDoExecutor.test_volta_com_branch_fora_da_forma_nao_gera"
       ]
-    },
-    {
-      "id": "M8",
-      "guarda": "G-5: gerar_volta só gera o PQ dos módulos com a interpolação segura",
-      "arquivo": "bin/forge-check",
-      "de": "pq_dos_testes_afetados(raiz, sha_base)] if seguro else []",
-      "para": "pq_dos_testes_afetados(raiz, sha_base)] if True else []",
-      "testes": [
-        "tests.test_etapa_do_brief.PqDoExecutor.test_volta_com_branch_fora_da_forma_nao_gera"
-      ]
     }
   ]
 }

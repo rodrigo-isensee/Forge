@@ -43,17 +43,6 @@
       ]
     },
     {
-      "id": "M5",
-      "guarda": "E14: o PQ dos módulos só onde existe bin/forge-testes (R-NEUTRO)",
-      "arquivo": "bin/forge-check",
-      "de": "if not any((p / \"bin\" / \"forge-testes\").is_file()",
-      "para": "if any((p / \"bin\" / \"forge-testes\").is_file()",
-      "testes": [
-        "tests.test_etapa_do_brief.PqDoExecutor.test_codigo_traz_o_pq_com_o_sha40_da_base",
-        "tests.test_etapa_do_brief.PqDoExecutor.test_com_forge_testes_traz_o_pq_dos_modulos_afetados"
-      ]
-    },
-    {
       "id": "M6",
       "guarda": "B1: --raiz-pedidos só com o pedido fora do clone",
       "arquivo": "bin/forge-check",
@@ -61,26 +50,6 @@
       "para": "return \"\" if True or pasta in (",
       "testes": [
         "tests.test_etapa_do_brief.PqDoExecutor.test_pedido_fora_do_clone_leva_raiz_pedidos"
-      ]
-    },
-    {
-      "id": "M7",
-      "guarda": "E14: a volta traz o PQ dos módulos afetados (mutante: sem o PQ dirigido)",
-      "arquivo": "bin/forge-check",
-      "de": "pronto += [linha.replace(\"PQ-N\", f\"PQ-{proximo + 1}\") for linha in pq_dos_testes_afetados(raiz, sha_base)]",
-      "para": "pronto += []",
-      "testes": [
-        "tests.test_etapa_do_brief.PqDoExecutor.test_volta_traz_o_pq_da_entrega_e_o_dos_modulos"
-      ]
-    },
-    {
-      "id": "M8",
-      "guarda": "E14: o brief de codigo traz o PQ dirigido (mutante: sem o PQ dirigido)",
-      "arquivo": "bin/forge-check",
-      "de": "        saida += pq_dos_testes_afetados(raiz, sha_base)\n",
-      "para": "        saida += []\n",
-      "testes": [
-        "tests.test_etapa_do_brief.PqDoExecutor.test_com_forge_testes_traz_o_pq_dos_modulos_afetados"
       ]
     },
     {

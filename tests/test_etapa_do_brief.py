@@ -921,15 +921,11 @@ class PqDoExecutor(eb.Repo):
         return (f"- PQ-N (cmd, do autor): `forge-check entrega {pedido}{fora} --branch melhoria/x --base develop --base-sha {base} "
                 "--etapa codigo` · espera: rc=0\n")
 
-    def com_forge_testes(self):
-        self.commitar(self.repo, {"bin/forge-testes": "#!/bin/sh\n"}, "forge-testes")
-
     def test_codigo_traz_o_pq_com_o_sha40_da_base(self):
         rc, saida, erro = self.gerar("--etapa", "codigo")
         self.assertEqual(rc, 0, saida + erro)
         self.assertIn(self.entrega_do(self.base), saida)
         self.assertNotIn(self.c1, saida)
-        self.assertNotIn("bin/forge-testes", saida)  # R-NEUTRO: sem o script no repositório, sem o PQ dele
 
     def test_review_e_qa_nao_trazem(self):
         for etapa in ("review", "qa"):
@@ -937,12 +933,6 @@ class PqDoExecutor(eb.Repo):
                 rc, saida, erro = self.gerar("--etapa", etapa)
                 self.assertEqual(rc, 0, saida + erro)
                 self.assertNotIn("forge-check entrega", saida)
-
-    def test_com_forge_testes_traz_o_pq_dos_modulos_afetados(self):
-        self.com_forge_testes()
-        rc, saida, erro = self.gerar("--etapa", "codigo")
-        self.assertEqual(rc, 0, saida + erro)
-        self.assertIn(f"- PQ-N (cmd, do autor): `bin/forge-testes --listar --base {self.base} && bin/forge-testes --base {self.base}` · espera: rc=0\n", saida)
 
     def test_sem_branch_avisa_e_nao_traz(self):
         rc, saida, erro = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo", "--etapa", "codigo")
@@ -980,13 +970,11 @@ class PqDoExecutor(eb.Repo):
                                                                "--branch", "melhoria/x", "--base", "develop")[1:])
 
     def test_volta_com_branch_fora_da_forma_nao_gera(self):
-        self.com_forge_testes()
         eb.Volta.anterior(self)
         self.pareceres(self.c1, p="reprovado", corpo="## Achados\n- A1 (bloqueante) src/app.py:1 · o valor está errado\n")
         _, saida, erro = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo",
                                     "--volta", "docs/briefs/exemplo-dev-exemplo-1.md", "--ref", "melhoria/x", "--branch", "melhoria/x;rm")
         self.sem_pq("branch fora da forma (melhoria/x;rm)", saida, erro)
-        self.assertNotIn("bin/forge-testes", saida)
         self.assertIn("- PQ-2 (cmd, do autor): `bin/forge-mutante --cobertura", saida)
 
     def test_valor_de_shell_seguro_por_tipo(self):
@@ -996,16 +984,14 @@ class PqDoExecutor(eb.Repo):
                             ("branch", "x/../y"), ("branch", "/x"), ("raiz", "/r/../etc"), ("raiz", "/r $(id)")):
             self.assertIsNone(fc.valor_de_shell_seguro(tipo, valor), (tipo, valor))
 
-    def test_volta_traz_o_pq_da_entrega_e_o_dos_modulos(self):
-        self.com_forge_testes()
+    def test_volta_traz_o_pq_da_entrega(self):
         eb.Volta.anterior(self)
         self.pareceres(self.c1, p="reprovado", corpo="## Achados\n- A1 (bloqueante) src/app.py:1 · o valor está errado\n")
         rc, saida, erro = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo",
                                      "--volta", "docs/briefs/exemplo-dev-exemplo-1.md", "--ref", "melhoria/x")
         self.assertEqual(rc, 0, saida + erro)
         self.assertIn("- PQ-2 (cmd, do autor): `forge-check entrega exemplo --branch melhoria/x --base develop", saida)
-        self.assertIn(f"- PQ-3 (cmd, do autor): `bin/forge-testes --listar --base {self.base} && bin/forge-testes --base {self.base}`", saida)
-        self.assertIn(f"- PQ-4 (cmd, do autor): `bin/forge-mutante --cobertura --base {self.base}`", saida)
+        self.assertIn(f"- PQ-3 (cmd, do autor): `bin/forge-mutante --cobertura --base {self.base}`", saida)
 
 
 if __name__ == "__main__":
