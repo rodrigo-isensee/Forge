@@ -261,6 +261,8 @@ class NaoRecuaDoHook(unittest.TestCase):
         self.assertIn("bin/forge-testes", texto)
         self.assertIn("python3 scripts/suite-paralela.py", texto)  # o recuo continua a suíte inteira em paralelo
         self.assertIn("discover -s tests", texto)
+        for trecho in ("FORGE_ENTRADA=suite FORGE_SUITE_TRAVA", "FORGE_ENTRADA=push python3 -I", "FORGE_ENTRADA=push FORGE_SUITE_TRAVA"):
+            self.assertIn(trecho, texto)  # MAQ-A7: a linha do testes.log diz quem lançou
 
 
 if __name__ == "__main__":

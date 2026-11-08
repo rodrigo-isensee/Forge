@@ -943,5 +943,29 @@ class PlacarDaRelease(unittest.TestCase):
                 self.assertIn("não é commit", r.stderr)
 
 
+class MedidaDaVagaPesada(unittest.TestCase):
+    """MAQ-A7: a cópia do contexto no forge-mutante faz o mesmo que a do forge-testes."""
+    setUp, gravar, salvar, spec, rodar = Execucao.setUp, Execucao.gravar, Execucao.salvar, Execucao.spec, Execucao.rodar
+
+    def test_a_linha_modo_mutante_traz_entrada_validada_e_load1(self):
+        self.assertEqual(self.rodar(self.spec(mutante()), FORGE_ENTRADA="push\n").returncode, 0)
+        linha = (self.dir / ".forge" / "run" / "testes.log").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(linha), 1)
+        self.assertRegex(linha[0], r"^\S+Z modo=mutante modulos=- duracao=[0-9.]+s saida=0 entrada=\? load1=[0-9.]+ "
+                                   r"nproc=\d+ outras=(\d+|\?)$")
+
+    def test_outras_e_contexto_toleram_falha_de_leitura(self):
+        f, proc = carregar(), self.dir / "proc"
+        for pid, pai, linha in ((10, 5, b"bin/forge-mutante"), (5, 1, b"suite-paralela.py"), (40, 1, b"")):  # 40 sumiu
+            (proc / str(pid)).mkdir(parents=True)
+            (proc / str(pid) / "stat").write_text(f"{pid} (a b) S {pai} 0", encoding="utf-8")
+            (proc / str(pid) / ("cmdline" if linha else "outro")).write_bytes(linha)
+        (proc / "self").mkdir()
+        self.assertEqual(f.outras(proc, eu=10), 0)  # nem a própria, nem o ancestral pesado
+        self.assertEqual(f.outras(self.dir / "sem-proc", eu=10), "?")
+        with mock.patch("os.getloadavg", side_effect=OSError):
+            self.assertIn(" load1=? ", f.contexto())
+
+
 if __name__ == "__main__":
     unittest.main()

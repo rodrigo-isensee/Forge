@@ -1,0 +1,87 @@
+{
+  "pedido": "maq-a7-medida",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "ancestrais: a própria execução e os ancestrais saem da contagem (sem o laço, conta o próprio pid)",
+      "arquivo": "bin/forge-testes",
+      "de": "pid > 1 and pid not in fora",
+      "para": "pid < 1 and pid not in fora",
+      "testes": [
+        "tests.test_testes_tocados.MedidaDaVagaPesada.test_outras_e_contexto_toleram_falha_de_leitura"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "só pastas numéricas do /proc são processos (self, cpuinfo ficam fora)",
+      "arquivo": "bin/forge-testes",
+      "de": "p.isdigit() and int(p) not in fora",
+      "para": "int(p) not in fora",
+      "testes": [
+        "tests.test_testes_tocados.MedidaDaVagaPesada.test_outras_e_contexto_toleram_falha_de_leitura"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "erro de leitura do /proc (fora do Linux) dá outras=?, nunca zero",
+      "arquivo": "bin/forge-testes",
+      "de": "return \"?\"",
+      "para": "return 0",
+      "testes": [
+        "tests.test_testes_tocados.MedidaDaVagaPesada.test_outras_e_contexto_toleram_falha_de_leitura"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "processo que some no meio da leitura não derruba a contagem",
+      "arquivo": "bin/forge-testes",
+      "de": "except OSError:\n            continue",
+      "para": "except OSError:\n            return \"?\"",
+      "testes": [
+        "tests.test_testes_tocados.MedidaDaVagaPesada.test_outras_e_contexto_toleram_falha_de_leitura"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "FORGE_ENTRADA só com fullmatch: re.match com $ aceita push\\n e abre linha nova no log",
+      "arquivo": "bin/forge-testes",
+      "de": "entrada if ENTRADA.fullmatch(entrada) else '?'",
+      "para": "entrada if re.match(ENTRADA.pattern + '$', entrada) else '?'",
+      "testes": [
+        "tests.test_testes_tocados.MedidaDaVagaPesada.test_a_linha_mantem_o_formato_de_hoje_e_so_aceita_entrada_valida",
+        "tests.test_testes_tocados.MedidaDaVagaPesada.test_outras_e_contexto_toleram_falha_de_leitura"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "load1 ilegível dá ?, sem derrubar a anotação",
+      "arquivo": "bin/forge-testes",
+      "de": "load1 = \"?\"",
+      "para": "load1 = \"0.00\"",
+      "testes": [
+        "tests.test_testes_tocados.MedidaDaVagaPesada.test_outras_e_contexto_toleram_falha_de_leitura"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "os campos antigos ficam na ordem de hoje, os novos depois",
+      "arquivo": "bin/forge-testes",
+      "de": "duracao={segundos:.1f}s saida={codigo}{contexto()}",
+      "para": "saida={codigo} duracao={segundos:.1f}s{contexto()}",
+      "testes": [
+        "tests.test_testes_tocados.MedidaDaVagaPesada.test_a_linha_mantem_o_formato_de_hoje_e_so_aceita_entrada_valida"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "o pid de quem anota vem do parâmetro (o teste) ou do próprio processo",
+      "arquivo": "bin/forge-testes",
+      "de": "pid = set(), eu or os.getpid()",
+      "para": "pid = set(), os.getpid()",
+      "testes": [
+        "tests.test_testes_tocados.MedidaDaVagaPesada.test_outras_e_contexto_toleram_falha_de_leitura"
+      ]
+    }
+  ]
+}
