@@ -2511,7 +2511,7 @@ def montar_quadro(texto_kanban, linhas_do_historico, agora):
         ultimo, base = ms[-1], ponte.get(chave, (None, [ms[-1][1], "—", "—", "—"]))[1]
         atributos = {"titulo": base[1], "pedido": base[2], "responsavel": base[3]}
         for m in ms:
-            obs, marca, aviso = ler_marca("|".join(m[4:]))
+            obs, marca, aviso = ler_marca("/".join(m[4:]))
             avisos += [f"cartão {base[0]}: {aviso}"] if aviso else []
             atributos.update(marca or {})
         avisos += [f"cartão {base[0]} sem responsável válido"] if atributos["responsavel"] == "—" else []
