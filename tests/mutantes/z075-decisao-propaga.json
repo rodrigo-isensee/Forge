@@ -46,10 +46,10 @@
     },
     {
       "id": "M5",
-      "guarda": "so nome <pedido>-<papel>-<n>.md",
+      "guarda": "so nome <pedido>-<papel>-<n>.md (sem o numero nao conta)",
       "arquivo": "bin/forge-check",
-      "de": "if not achou or arq.is_symlink()",
-      "para": "if arq.is_symlink()",
+      "de": "-([a-z][a-z-]*)-\\d+\\.md\")",
+      "para": "-([a-z][a-z-]*)(?:-\\d+)?\\.md\")",
       "testes": [
         "tests.test_anotar.Propagar.test_sem_propagar_lista_os_briefs_em_voo",
         "tests.test_anotar.Propagar.test_com_propagar_grava_o_seguinte_e_o_anterior_fica"
