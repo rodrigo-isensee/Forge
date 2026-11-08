@@ -218,7 +218,9 @@ class BranchesDaReserva(Apoio):
         estado.write_text(json.dumps({"agentes": list(agentes)}), encoding="utf-8")
         r = self.lancar(prompt, tipo=tipo)
         self.assertEqual(r.returncode, 0, r.stderr)
-        return r, json.loads(estado.read_text(encoding="utf-8"))["agentes"][-1]["branches"]
+        gravados = json.loads(estado.read_text(encoding="utf-8"))["agentes"]
+        self.assertEqual(len(gravados), len(agentes) + 1, "a reserva não foi gravada")
+        return r, gravados[-1].get("branches")
 
     def test_g3_erro_na_leitura_nao_pula_o_teto_e_grava_a_reserva_vazia(self):
         (self.projeto / ".forge" / "config.json").write_text('{"teto_agentes": 10}', encoding="utf-8")
