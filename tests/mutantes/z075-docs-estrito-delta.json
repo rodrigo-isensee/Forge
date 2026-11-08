@@ -1,0 +1,86 @@
+{
+  "pedido": "z075-docs-estrito-delta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "estrito em todos os documentos (fora do delta também)",
+      "arquivo": "bin/forge-check",
+      "de": "estrito=rel in (delta or ())",
+      "para": "estrito=True",
+      "testes": [
+        "tests.test_volta_por_delta.DocsEstritoNoDelta.test_parecer_antigo_fora_do_delta_no_formato_antigo_passa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "estrito em nenhum documento (o delta não chega ao validar_documento)",
+      "arquivo": "bin/forge-check",
+      "de": "estrito=rel in (delta or ())",
+      "para": "estrito=False",
+      "testes": [
+        "tests.test_volta_por_delta.DocsEstritoNoDelta.test_parecer_novo_commitado_ou_nao_reprova_com_achado_acima_do_teto"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "delta pelo HEAD~1 no lugar do merge-base com a origin/develop",
+      "arquivo": "bin/forge-check",
+      "de": "\"--merge-base\", \"origin/develop\", \"--\", bruto=True)",
+      "para": "\"HEAD~1\", \"--\", bruto=True)",
+      "testes": [
+        "tests.test_volta_por_delta.DocsEstritoNoDelta.test_parecer_novo_commitado_ou_nao_reprova_com_achado_acima_do_teto"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "validar_documento repassa o estrito ao problemas_do_bloco",
+      "arquivo": "bin/forge-check",
+      "de": "campos, estrito):  # C3 (VV-2)",
+      "para": "campos, False):  # C3 (VV-2)",
+      "testes": [
+        "tests.test_volta_por_delta.DocsEstritoNoDelta.test_parecer_novo_commitado_ou_nao_reprova_com_achado_acima_do_teto"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o git diff que falha devolve None (sem a base, modo de hoje)",
+      "arquivo": "bin/forge-check",
+      "de": "return None if cod or cod_novos else",
+      "para": "return None if cod_novos else",
+      "testes": [
+        "tests.test_volta_por_delta.DocsEstritoNoDelta.test_sem_origin_develop_avisa_e_segue_o_modo_de_hoje"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o git ls-files que falha devolve None",
+      "arquivo": "bin/forge-check",
+      "de": "return None if cod or cod_novos else",
+      "para": "return None if cod else",
+      "testes": [
+        "tests.test_volta_por_delta.DocsEstritoNoDelta.test_ls_files_que_falha_devolve_none"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "os novos fora do índice entram no delta",
+      "arquivo": "bin/forge-check",
+      "de": "set(nomes_z(mudados) + nomes_z(novos))",
+      "para": "set(nomes_z(mudados))",
+      "testes": [
+        "tests.test_volta_por_delta.DocsEstritoNoDelta.test_parecer_novo_commitado_ou_nao_reprova_com_achado_acima_do_teto"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "sem a base sai o aviso no stderr",
+      "arquivo": "bin/forge-check",
+      "de": "    if delta is None:\n        print(\"aviso: docs: base ilegível",
+      "para": "    if False:\n        print(\"aviso: docs: base ilegível",
+      "testes": [
+        "tests.test_volta_por_delta.DocsEstritoNoDelta.test_sem_origin_develop_avisa_e_segue_o_modo_de_hoje"
+      ]
+    }
+  ]
+}
