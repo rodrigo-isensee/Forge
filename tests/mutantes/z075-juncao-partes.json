@@ -54,8 +54,8 @@
       "id": "M7",
       "guarda": "--is-ancestor que falha da rc 2, nao vira merge da base (C-9)",
       "arquivo": "bin/forge-check",
-      "de": "if cod not in (0, 1):",
-      "para": "if False:",
+      "de": "if cod not in (0, 1):\n            return 2, [], f\"git merge-base falhou",
+      "para": "if False:\n            return 2, [], f\"git merge-base falhou",
       "testes": ["tests.test_volta_por_delta.DeltaDaJuncao.test_entrada_ilegivel_e_git_que_falha_dao_rc_2"]
     },
     {
