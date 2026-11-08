@@ -1,0 +1,116 @@
+{
+  "pedido": "z075-uma-delegacao-por-branch",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "AG-1a G-3 (AG-1/C-1): a leitura roda depois do teto e dentro do try",
+      "arquivo": "hooks/agentes.py",
+      "de": "    teto, motivo = calcular_teto(hook.config())",
+      "para": "    branches_dos_briefs(hook, entrada.get(\"prompt\"))\n    teto, motivo = calcular_teto(hook.config())",
+      "testes": [
+        "tests.test_agentes_hash_brief.BranchesDaReserva.test_g3_erro_na_leitura_nao_pula_o_teto_e_grava_a_reserva_vazia"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "AG-1a G-3 (AG-1/C-1): qualquer exceção do cálculo registra e grava a reserva vazia",
+      "arquivo": "hooks/agentes.py",
+      "de": "    except Exception as erro:  # noqa: BLE001 - a exceção",
+      "para": "    except ValueError as erro:  # noqa: BLE001 - a exceção",
+      "testes": [
+        "tests.test_agentes_hash_brief.BranchesDaReserva.test_g3_erro_na_leitura_nao_pula_o_teto_e_grava_a_reserva_vazia"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "AG-1a AG-1/C-2: todos os briefs citados são lidos, não só o primeiro",
+      "arquivo": "hooks/agentes.py",
+      "de": "    for caminho in caminhos:",
+      "para": "    for caminho in caminhos[:1]:",
+      "testes": [
+        "tests.test_agentes_hash_brief.BranchesDaReserva.test_todos_os_briefs_contam_e_nenhuma_fica_fora"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "AG-1a AG-1/C-4: a Branch: sai só do cabeçalho do brief",
+      "arquivo": "hooks/agentes.py",
+      "de": "fc.cabecalho_do_brief(dados.decode(\"utf-8\", \"replace\"))",
+      "para": "dados.decode(\"utf-8\", \"replace\")",
+      "testes": [
+        "tests.test_agentes_hash_brief.BranchesDaReserva.test_branch_so_no_corpo_nao_conta"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "AG-1a AG-1/C-6: ~/ expandido por Path.home()",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if caminho.startswith(\"~/\"):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_agentes_hash_brief.BranchesDaReserva.test_caminho_com_til_e_lido"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "AG-1a AG-1/C-2: mais de 4 briefs avisam e gravam vazio",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if len(caminhos) > MAXIMO_DE_BRIEFS:",
+      "para": "    if len(caminhos) > MAXIMO_DE_BRIEFS + 1:",
+      "testes": [
+        "tests.test_agentes_hash_brief.BranchesDaReserva.test_cinco_briefs_avisam_e_gravam_vazio"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "AG-1a AG-1/C-2: com 4 briefs a regra vale (limite)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if len(caminhos) > MAXIMO_DE_BRIEFS:",
+      "para": "    if len(caminhos) >= MAXIMO_DE_BRIEFS:",
+      "testes": [
+        "tests.test_agentes_hash_brief.BranchesDaReserva.test_cinco_briefs_avisam_e_gravam_vazio"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "AG-1a brief ausente é pulado sem perder os outros",
+      "arquivo": "hooks/agentes.py",
+      "de": "        except FileNotFoundError:",
+      "para": "        except IsADirectoryError:",
+      "testes": [
+        "tests.test_agentes_hash_brief.BranchesDaReserva.test_brief_ausente_ou_fora_de_docs_briefs_e_pulado_sem_perder_os_outros"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "AG-1a brief recusado pela ler_brief (fora de docs/briefs/) é pulado",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if dados is None:\n            continue",
+      "para": "        if dados is None:\n            pass",
+      "testes": [
+        "tests.test_agentes_hash_brief.BranchesDaReserva.test_brief_ausente_ou_fora_de_docs_briefs_e_pulado_sem_perder_os_outros"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "AG-1a AG-1/C-2: Branch: nenhuma e — ficam fora",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if achada and achada.group(1) not in SEM_BRANCH:",
+      "para": "        if achada:",
+      "testes": [
+        "tests.test_agentes_hash_brief.BranchesDaReserva.test_todos_os_briefs_contam_e_nenhuma_fica_fora"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "AG-1a E10: o conferente fica fora do registro",
+      "arquivo": "hooks/agentes.py",
+      "de": "if tipo != CONFERENTE else []",
+      "para": "if True else []",
+      "testes": [
+        "tests.test_agentes_hash_brief.BranchesDaReserva.test_conferente_e_prompt_sem_brief_gravam_vazio"
+      ]
+    }
+  ]
+}
