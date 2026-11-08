@@ -116,6 +116,8 @@ O `.githooks/pre-push` do Forge, além de bloquear envio direto e histórico ree
 
 Saber se há suíte rodando: `.githooks/pre-push --status`, chamado à mão com esse único argumento (o git passa nome e URL do remoto, então um remoto de nome `--status` segue o caminho normal); só testa a trava e a solta na hora (saída 0 e uma linha com o pid, se há; saída 1 e "nenhuma suíte do Forge rodando", se não). Use-o no lugar do `pgrep -af 'python3 -m unittest discover'`, que casa com o próprio shell. Limite conhecido: sandbox e terminal sem a mesma pasta de trava não se enxergam; a trava cobre o `pre-push`, não uma suíte lançada à mão.
 
+Push de dentro do Claude Code: a suíte passa igual dentro e fora dele, então o agente envia direto, sem sessão do tmux nem `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT`. A guarda `dentro_do_claude` (`bin/forge_versoes.py`) segue igual em produção; nos testes, o lançador `tests/sem_claude_ancestral.py` ignora os processos acima do teste, e a classe `DeteccaoDoClaude` de `tests/test_atualizar.py` fixa ambiente e árvore de processos para provar a decisão nos dois sentidos.
+
 ## Ler as recusas de linha em lote
 `forge-check transcricao recusas [<pasta ou .jsonl>]` (só leitura, sem rede) conta, por papel, as vezes em que um hook recusou a linha por "não modela" ou "fora da gramática" (`nao_modela=`, `fora_da_gramatica=`), a partir das transcrições locais do Claude Code. A saída traz só o papel e a contagem, nunca o comando recusado nem o caminho. É a medida para decidir qual construção vale modelar no hook: o papel com mais recusas mostra onde o fluxo esbarra.
 

@@ -15,6 +15,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
@@ -709,6 +710,22 @@ class Dentro(Base):
                 self.assertIn("fora do Claude", r.stdout + r.stderr)
                 self.assertEqual(self.chamadas_do_claude(), [])
 
+    def test_o_lancador_ignora_um_claude_acima_do_teste(self):
+        """P2 da 0.43.1: a suíte rodada de dentro do Claude Code (o pre-push de um agente) tem um `claude` acima do processo do
+        teste. Prova, também no CI (onde não há `claude` de verdade), que o lançador o ignora e o script passa da guarda."""
+        pasta = self.tmp / "claude-acima"
+        pasta.mkdir()
+        teste = f"import os,subprocess,sys; sys.path.insert(0,{str(Path(__file__).resolve().parent)!r}); " \
+                f"from sem_claude_ancestral import comando; " \
+                f"sys.exit(subprocess.run(comando({str(VOLTAR)!r}, ate=os.getpid()), stdin=subprocess.DEVNULL).returncode)"
+        claude = pasta / "claude"  # o `claude` acima; o python que ele roda faz o papel do processo do teste
+        claude.write_text(f"#!/bin/sh\n{sys.executable} -c \"{teste}\"\n", encoding="utf-8")
+        claude.chmod(0o755)
+        r = subprocess.run([str(claude)], env=self.env, cwd=self.proj, capture_output=True, text=True, timeout=60,
+                           stdin=subprocess.DEVNULL)
+        self.assertNotIn("fora do Claude", r.stdout + r.stderr)
+        self.assertIn("rode num terminal", r.stderr)  # passou da guarda e parou no passo seguinte (sem terminal)
+
     def test_fixar_tambem_recusa(self):
         self.recusa(ATUALIZAR, {**self.env, "CLAUDECODE": "1"}, "--fixar")
 
@@ -717,6 +734,45 @@ class Dentro(Base):
         codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
         self.assertEqual(codigo, 0, saida)
         self.assertNotIn("fora do Claude", saida)
+
+
+class DeteccaoDoClaude(unittest.TestCase):
+    """P2 da 0.43.1: `dentro_do_claude` decidida no próprio processo, com ambiente e árvore de processos fixados pelo teste,
+    nos dois sentidos. O resultado não depende de a suíte rodar dentro ou fora do Claude Code."""
+
+    def setUp(self):
+        sys.path.insert(0, str(RAIZ / "bin"))
+        self.addCleanup(sys.path.remove, str(RAIZ / "bin"))
+        import forge_versoes
+        self.fv = forge_versoes
+
+    def decidir(self, arvore, env=None, eu=100):
+        """`arvore`: {pid: (pai, nome)}; pid fora dela não se lê, como /proc ilegível."""
+        limpo = {k: v for k, v in os.environ.items() if k not in self.fv.VARIAVEIS_DO_CLAUDE_CODE}
+        with mock.patch.dict(os.environ, {**limpo, **(env or {})}, clear=True), \
+                mock.patch.object(self.fv.os, "getppid", return_value=eu), \
+                mock.patch.object(self.fv, "_pai_e_nome", side_effect=lambda pid: arvore.get(pid, (0, ""))):
+            return self.fv.dentro_do_claude()
+
+    def test_fora(self):
+        casos = {"terminal comum": {100: (50, "bash"), 50: (1, "sshd")},
+                 "ancestral ilegível": {},
+                 "nome parecido": {100: (50, "claude-x"), 50: (1, "xclaude")},
+                 "ciclo na árvore": {100: (50, "bash"), 50: (100, "sh")}}
+        for nome, arvore in casos.items():
+            with self.subTest(nome):
+                self.assertFalse(self.decidir(arvore))
+
+    def test_dentro(self):
+        casos = {"pai direto": {100: (1, "claude")}, "ancestral distante": {100: (50, "bash"), 50: (20, "sh"), 20: (1, "claude")},
+                 "nome com caixa e .exe": {100: (1, "Claude.exe")}}
+        for nome, arvore in casos.items():
+            with self.subTest(nome):
+                self.assertTrue(self.decidir(arvore))
+        for variavel in self.fv.VARIAVEIS_DO_CLAUDE_CODE:
+            with self.subTest(variavel=variavel):
+                self.assertTrue(self.decidir({100: (1, "bash")}, env={variavel: "1"}))
+                self.assertFalse(self.decidir({100: (1, "bash")}, env={variavel: ""}))
 
 
 class Voltar(Base):
