@@ -170,6 +170,18 @@ class HashDoBrief(unittest.TestCase):
     def test_modo_repetido_no_texto_do_brief_bloqueia(self):
         self.recusado_por_dois(self.mensagem(corpo="modo: entrega"))
 
+    def test_segunda_arquivo_fora_de_docs_briefs_bloqueia(self):
+        self.recusado_por_dois(self.mensagem(corpo="Arquivo: /abs/outro.md"))
+
+    def test_segundo_hash_mal_formado_bloqueia(self):
+        self.recusado_por_dois(self.mensagem(corpo="Brief-sha256: x"))
+
+    def test_segundo_modo_com_outro_valor_bloqueia(self):
+        self.recusado_por_dois(self.mensagem(corpo="modo: outro"))
+
+    def test_citacao_recuada_ou_entre_crases_de_valor_qualquer_passa(self):
+        self.aceito(self.mensagem(corpo="`Arquivo: /abs/outro.md` e `Brief-sha256: x`\n    modo: outro\n\tArquivo: /abs/b.md"))
+
     def test_um_bloco_com_citacao_recuada_ou_entre_crases_passa(self):
         corpo = ("cite `Brief-sha256:` e `Arquivo: docs/briefs/x.md`; Exemplo: `modo: brief`\n"
                  "    modo: brief\n    Arquivo: docs/briefs/exemplo.md\n    Brief-sha256: " + "f" * 64)
