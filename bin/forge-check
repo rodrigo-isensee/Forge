@@ -2822,10 +2822,6 @@ def cmd_fila(raiz):
 
 PARADAS_DO_QUADRO = ("aguardando o dono", "sem credencial", "bloqueado", "aguardando sua validacao")  # sem acento: o cartão parou
 FIM_DO_QUADRO = "pronto"
-MARCA_DE_ATRIBUTOS = " · atributos: "  # EST-M12 (C-4, C-7): a mesma constante para a recusa do `--motivo` e para o leitor
-PEDIDO_DO_ATRIBUTO = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
-RECUSA_DA_MARCA = re.compile(re.escape(MARCA_DE_ATRIBUTOS.strip(" ·:")) + r"\s*:")  # C-7: sobre o texto em NFKC, sem `Cf`, em casefold
-TETOS_DO_MOVIMENTO = {"motivo": 500, "titulo": 120}  # C-8: caracteres depois do `limpo()`
 
 
 def custo_do_trecho(raiz, desde, ate):
@@ -2889,6 +2885,8 @@ JANELA_DO_PRONTO_DIAS = 30  # EST-M12: o "Pronto" do quadro gerado mostra só os
 MARCA_DE_ATRIBUTOS = " · atributos: "  # EST-M12 (C-4, C-7): a mesma constante para a recusa do `--motivo` e para o leitor
 LEITOR_DA_MARCA = re.compile(re.escape(MARCA_DE_ATRIBUTOS) + r"((?:(?! · ).)*)\Z")  # só o último segmento do motivo
 PEDIDO_DO_ATRIBUTO = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
+RECUSA_DA_MARCA = re.compile(re.escape(MARCA_DE_ATRIBUTOS.strip(" ·:")) + r"\s*:")  # C-7: sobre o texto em NFKC, sem `Cf`, em casefold
+TETOS_DO_MOVIMENTO = {"motivo": 500, "titulo": 120}  # C-8: caracteres depois do `limpo()`
 COLUNA_DO_ESTADO = {"review": "Code review", "conferencia": "Code review", "integracao": "Code review",
                     "sem credencial": "Bloqueado", "feito": "Pronto", "concluido": "Pronto",
                     "a fazer": "Pronto para fazer", "backlog": "Entrada", "pronto (develop)": "Pronto"}  # C-5; o resto vai a "Bloqueado"
