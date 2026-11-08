@@ -6229,6 +6229,8 @@ class CriterioDeParada(unittest.TestCase):
         (self.raiz / "docs/reviews").mkdir(parents=True)
         self.desenho("p1-desenho.md", self.DESENHO)
         self.enterContext(mock.patch.object(self.fc, "RAIZES_DE_BRIEF", ()))
+        # B12: fora de um repositório git o delta é ilegível e o `docs` avisa no stderr; aqui só o aviso do critério conta.
+        self.enterContext(mock.patch.object(self.fc, "documentos_do_delta", return_value=set()))
 
     def desenho(self, nome, texto, raiz=None):
         (raiz or self.raiz).joinpath("docs/arquitetura").mkdir(parents=True, exist_ok=True)
