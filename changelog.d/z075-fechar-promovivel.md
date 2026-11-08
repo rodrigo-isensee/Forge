@@ -1,2 +1,0 @@
-### Adicionado
-- FECHAR-PROMOVIVEL (versao-075, FF-1, E16): `bin/forge-fechar` ganha o passo 1c, logo depois do passo 1: `python3 -I scripts/promover-homolog.py --conferir-ref <sha conferido>`, lido da pasta do próprio `forge-fechar` (nunca do `scripts/` da branch), com prazo de 300 s; rc diferente de 0, prazo e script ausente param sem PR nem merge, e a mensagem manda promover a release pendente antes de mesclar outra branch (janela de release). `FORGE_PROMOVER` troca o script só com `FORGE_FECHAR_TESTE=1`; o `--dry-run` lista o passo.

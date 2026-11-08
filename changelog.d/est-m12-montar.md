@@ -1,2 +1,0 @@
-### Adicionado
-- `forge-check` ganha `montar_quadro`, função pura que refaz o `KANBAN.md` a partir de `docs/kanban/historico.md`: coluna pelo último movimento na ordem do arquivo, atributos (título, pedido, responsável) só da marca ` · atributos: ` no fim do motivo ou da linha atual do quadro validada, estado sem seção posto em coluna com `estado:` e aviso, Pronto com janela de 30 dias e texto fora das tabelas igual; ainda sem comando que a chame (EST-M12, E3-1a, versao-043).

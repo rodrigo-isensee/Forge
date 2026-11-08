@@ -1,2 +1,0 @@
-### Adicionado
-- PREPUSH-RELOGIO (versao-075, PP-1): o `.githooks/pre-push` imprime no stderr `pre-push: entrou`, `vez` e `fim HH:MM:SS rc <n> <completa|dirigida|curta> <s>s`, e a suíte completa ou dirigida que roda até o fim (verde ou vermelha) grava `<segundos> <modo>` em `<trava>.duracoes` (últimas 50 linhas, umask 077, sem seguir link nem tocar arquivo de outro dono); é a base da medida da espera e da subida (A13, SP6).

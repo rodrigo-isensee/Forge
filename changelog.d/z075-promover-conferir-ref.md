@@ -1,2 +1,0 @@
-### Adicionado
-- PROMOVER-CONFERIR (versao-075, PH-1, E6 e E16): `scripts/promover-homolog.py --conferir-ref <sha40>` confere, só lendo (sem fetch e sem gh), os pareceres, a versão, o CHANGELOG e o `forge-check pr` contra a main de um commit qualquer contra a origin/homolog local; rc 0 promovível, 1 não (erro de opção e exceção também saem 1); base única para o pré-voo da subida (Z6) e a develop sempre promovível (SP4).

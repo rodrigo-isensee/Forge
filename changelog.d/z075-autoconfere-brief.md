@@ -1,2 +1,0 @@
-### Adicionado
-- B1 da 0.75 (E2, AUTOCONFERE): `forge-check brief gerar --etapa codigo --branch <b>` e a `--volta` trazem o PQ do executor, a mesma linha `forge-check entrega <pedido> --branch <b> --base <base> --base-sha <sha40> --etapa codigo` que o conferente roda (com `--raiz-pedidos` quando o pedido está fora do clone); sem `--branch`, sai um aviso e nenhum PQ. Só valores de forma fechada chegam ao PQ (G-5): pedido, branch, base, sha de 40 hex e raiz fora da forma saem com `aviso: PQ do executor não gerado` e o brief segue sem o PQ.
