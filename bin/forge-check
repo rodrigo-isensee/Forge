@@ -2925,7 +2925,48 @@ def pedido_para_anotar(raiz, pedido):
     return None
 
 
-def cmd_anotar(raiz, pedido, tipo, literal, contexto=None):
+def briefs_em_voo(raiz_pedido, pedido):
+    """B15: (arquivo, papel, texto) dos briefs `docs/briefs/<pedido>-<papel>-<n>.md` com `Pedido: <pedido>`, aprovados (`0444` ou linha
+    `brief` aprovada em conferencias.md) e sem `entrega` aprovada com o mesmo nome. Link simbólico não conta. Só leitura."""
+    tabela = _ler_tabela(Path(raiz_pedido) / "docs" / "kanban" / "conferencias.md")
+    aprovados = {(c[3], Path(c[2]).name.removesuffix(".md")) for c in tabela if len(c) >= 6 and _aprovou(c[5])}
+    nome = re.compile(rf"{re.escape(pedido)}-([a-z][a-z-]*)-\d+\.md")
+    saida = []
+    for arq in sorted((Path(raiz_pedido) / "docs" / "briefs").glob(f"{pedido}-*.md")):
+        achou = nome.fullmatch(arq.name)
+        if not achou or arq.is_symlink() or ("entrega", arq.stem) in aprovados:
+            continue
+        texto = arq.read_text(encoding="utf-8")
+        if re.search(rf"^Pedido:\s*{re.escape(pedido)}\s*$", texto, re.M) and (not arq.stat().st_mode & 0o222 or ("brief", arq.stem) in aprovados):
+            saida.append((arq, achou.group(1), texto))
+    return saida
+
+
+def propagar_decisao(raiz_pedido, pedido, nova, propagar):
+    """B15: sem `propagar`, `decisao: em voo <brief>` por brief em voo; com ele, grava o brief seguinte do mesmo papel (`gravar_brief`,
+    aberto com `x`) igual ao anterior mais `- <nova>` no fim das linhas de `## Decisões e restrições` (antes de `### `). O anterior fica."""
+    saida, rc = [], 0
+    for arq, papel, texto in briefs_em_voo(raiz_pedido, pedido):
+        if not propagar:
+            saida.append(f"decisao: em voo {caminho_impresso(arq.name)}")
+            continue
+        linhas = texto.split("\n")
+        fim = fim_da_secao(linhas, "Decisões e restrições")
+        if fim is None:
+            saida.append(f"decisao: {caminho_impresso(arq.name)} sem \"## Decisões e restrições\"; nada gravado para ele")
+            rc = 1
+            continue
+        inicio = next(i for i, l in enumerate(linhas) if re.match(r"^##\s+Decisões e restrições\b", l))
+        fim = next((i for i in range(inicio + 1, fim) if linhas[i].startswith("### ")), fim)
+        while fim - 1 > inicio and not linhas[fim - 1].strip():
+            fim -= 1
+        linha, rc_gravar = gravar_brief(raiz_pedido, pedido, f"forge:{papel}", "\n".join(linhas[:fim] + [f"- {nova}"] + linhas[fim:]))
+        saida.append(linha)
+        rc = rc or rc_gravar
+    return saida, rc
+
+
+def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False):
     """P4: grava no pedido a decisão, a pergunta ou a ordem do dono (no fim de `## Decisões do usuário`, criada antes de `## Histórico`
     se faltar) ou a linha do Histórico, com a hora do relógio (nunca do argumento). O `literal` é a fala do dono, entre aspas; o
     `contexto`, a paráfrase, fica fora delas. Nenhuma linha existente muda. (linhas, rc)."""
@@ -2936,6 +2977,8 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None):
     literal, contexto = literal.strip(), (contexto or "").strip()
     if not literal:
         return ["anotar: --literal não pode ser vazio"], 2
+    if propagar and tipo != "decisao":
+        return ["anotar: --propagar só vale com --tipo decisao; nada gravado"], 2
     arq = pedido_para_anotar(raiz, pedido)
     if arq is None or arq.is_symlink() or not arq.is_file():
         return [f"anotar: pedido {nome_seguro(sem_controle(pedido))} ausente, fora de docs/pedidos/ ou link simbólico (use o id do "
@@ -2963,7 +3006,8 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None):
             else:
                 linhas[historico:historico] = bloco
     arq.write_text("\n".join(linhas), encoding="utf-8")
-    return [f"anotado: {caminho_impresso(arq.name)}: {nova}"], 0
+    saida, rc = propagar_decisao(raiz_do_pedido(raiz, arq), pedido, nova, propagar) if tipo == "decisao" else ([], 0)
+    return [f"anotado: {caminho_impresso(arq.name)}: {nova}", *saida], rc
 
 
 def avisos_da_retomada(raiz, retomada, pedido_id, pedido_txt):
@@ -7735,6 +7779,7 @@ def main():
     na.add_argument("--tipo", required=True, choices=TIPOS_DO_ANOTAR)
     na.add_argument("--literal", required=True, help="a fala do dono, literal (vai entre aspas); no historico, o texto da linha")
     na.add_argument("--contexto", help="a paráfrase do Jarvis, fora das aspas (decisao, pergunta, ordem)")
+    na.add_argument("--propagar", action="store_true", help="só com --tipo decisao: grava o brief seguinte de cada brief em voo do pedido com a linha nova (B15)")
     cf = sub.add_parser("conferencia", help="registro das conferências do conferente (S-18)")
     csub = cf.add_subparsers(dest="acao", required=True)
     rg = csub.add_parser("registrar", parents=[comum], help="acrescenta uma conferência em docs/kanban/conferencias.md, em formato fixo, com a hora real")
@@ -7860,7 +7905,7 @@ def executar(a, raiz):
     if a.cmd == "medida":
         return cmd_medida(raiz, a.pedido, a.merge)
     if a.cmd == "anotar":
-        linhas, rc = cmd_anotar(raiz, a.pedido, a.tipo, a.literal, a.contexto)
+        linhas, rc = cmd_anotar(raiz, a.pedido, a.tipo, a.literal, a.contexto, a.propagar)
         print("\n".join(linhas))
         return rc
     if a.cmd == "escape":

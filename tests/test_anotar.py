@@ -174,6 +174,120 @@ class Anotar(Base):
         self.assertIn(f"- {linha}\n", saida)
 
 
+BRIEF = """Agente destino: forge:{papel}
+Pedido: {pedido}
+Tipo: codigo
+
+## Objetivo
+Fazer X.
+
+## Decisões e restrições
+- DECISÃO DO DONO (2026-01-01 10:00): "A".
+
+### Restrições do time
+- sem push.
+
+## Pronto quando
+- PQ-1 (arquivo): `test -e x`
+"""
+
+
+class Propagar(Base):
+    """B15: `anotar --tipo decisao` lista os briefs em voo do pedido; com `--propagar`, grava o brief seguinte com a linha nova."""
+    def brief(self, nome, pedido="exemplo", aprovado=True, texto=None):
+        arq = self.tmp / "docs" / "briefs" / f"{nome}.md"
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        if texto is None:
+            texto = BRIEF.format(papel=nome.rsplit("-", 1)[0].split("-", 1)[1], pedido=pedido)
+        arq.write_text(texto, encoding="utf-8")
+        if aprovado:
+            arq.chmod(0o444)
+        return arq
+
+    def conferencias(self, *linhas):
+        arq = self.tmp / "docs" / "kanban" / "conferencias.md"
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        arq.write_text("| data-hora | pedido | brief | modo | rodada | resultado |\n|---|---|---|---|---|---|\n"
+                       + "".join(f"| 2026-01-01 10:00 | exemplo | {b} | {m} | 1 | {r} |\n" for b, m, r in linhas), encoding="utf-8")
+
+    def anotar_p(self, tipo="decisao", propagar=False):
+        original = fc.datetime
+        fc.datetime = RelogioFixo
+        try:
+            return fc.cmd_anotar(self.tmp, "exemplo", tipo, "B", None, propagar)
+        finally:
+            fc.datetime = original
+
+    def cenario(self):
+        self.com(COM_SECAO)
+        self.brief("exemplo-dev-1")
+        self.brief("exemplo-tech-lead-2", aprovado=False)  # aprovado só pela linha da conferência
+        self.brief("exemplo-dev-3")  # entrega aprovada: fora
+        self.brief("exemplo-qa-4")  # entrega reprovada: segue em voo
+        self.brief("exemplo-dev-5", aprovado=False)  # não aprovado
+        self.brief("exemplo-b-dev-1", pedido="exemplo-b")  # outro pedido com o mesmo prefixo
+        self.brief("exemplo-notas", texto=BRIEF.format(papel="dev", pedido="exemplo"))
+        (self.tmp / "docs" / "briefs" / "exemplo-dev-6.md").symlink_to(self.tmp / "docs" / "briefs" / "exemplo-dev-1.md")
+        self.conferencias(("docs/briefs/exemplo-tech-lead-2.md", "brief", "aprovado"), ("exemplo-dev-3", "entrega", "cumpriu"),
+                          ("docs/briefs/exemplo-qa-4.md", "entrega", "reprovado"), ("exemplo-dev-5", "brief", "reprovado"))
+
+    def test_sem_propagar_lista_os_briefs_em_voo(self):
+        self.cenario()
+        linhas, rc = self.anotar_p()
+        self.assertEqual(rc, 0, linhas)
+        self.assertEqual(linhas[1:], ["decisao: em voo exemplo-dev-1.md", "decisao: em voo exemplo-qa-4.md",
+                                      "decisao: em voo exemplo-tech-lead-2.md"])
+        self.assertEqual(sorted(p.name for p in (self.tmp / "docs" / "briefs").iterdir())[-1], "exemplo-tech-lead-2.md")
+
+    def test_com_propagar_grava_o_seguinte_e_o_anterior_fica(self):
+        self.cenario()
+        pasta = self.tmp / "docs" / "briefs"
+        antes = {p.name: p.read_bytes() for p in pasta.iterdir()}
+        linhas, rc = self.anotar_p(propagar=True)
+        self.assertEqual(rc, 0, linhas)
+        self.assertEqual([l.split()[2] for l in linhas[1:]], ["docs/briefs/exemplo-dev-7.md", "docs/briefs/exemplo-qa-5.md",
+                                                             "docs/briefs/exemplo-tech-lead-3.md"])
+        self.assertTrue(all(l.startswith("brief gravado: ") for l in linhas[1:]))
+        for nome, novo in (("exemplo-dev-1", "exemplo-dev-7"), ("exemplo-qa-4", "exemplo-qa-5"), ("exemplo-tech-lead-2", "exemplo-tech-lead-3")):
+            esperado = antes[f"{nome}.md"].decode().replace('"A".\n', '"A".\n- DECISÃO DO DONO (2030-05-06 07:08): "B"\n', 1)
+            self.assertEqual((pasta / f"{novo}.md").read_text(encoding="utf-8"), esperado)
+        for nome, conteudo in antes.items():
+            self.assertEqual((pasta / nome).read_bytes(), conteudo)
+        self.assertEqual((pasta / "exemplo-dev-1.md").stat().st_mode & 0o777, 0o444)
+
+    def test_linha_vai_antes_da_linha_em_branco_e_do_subtitulo(self):
+        self.com(COM_SECAO)
+        texto = BRIEF.format(papel="dev", pedido="exemplo").replace('"A".\n', '"A".\n\n\n')
+        self.brief("exemplo-dev-1", texto=texto)
+        _, rc = self.anotar_p(propagar=True)
+        self.assertEqual(rc, 0)
+        novo = (self.tmp / "docs" / "briefs" / "exemplo-dev-2.md").read_text(encoding="utf-8")
+        self.assertEqual(novo, texto.replace('"A".\n', '"A".\n- DECISÃO DO DONO (2030-05-06 07:08): "B"\n', 1))
+
+    def test_brief_sem_a_secao_de_decisoes_nao_grava(self):
+        self.com(COM_SECAO)
+        self.brief("exemplo-dev-1", texto="Pedido: exemplo\n\n## Objetivo\nX.\n")
+        linhas, rc = self.anotar_p(propagar=True)
+        self.assertEqual(rc, 1, linhas)
+        self.assertIn("sem \"## Decisões e restrições\"", linhas[1])
+        self.assertEqual(sorted(p.name for p in (self.tmp / "docs" / "briefs").iterdir()), ["exemplo-dev-1.md"])
+
+    def test_propagar_fora_da_decisao_e_recusado_e_pergunta_nao_lista(self):
+        self.cenario()
+        for tipo in ("historico", "pergunta"):
+            with self.subTest(tipo=tipo):
+                linhas, rc = self.anotar_p(tipo, propagar=True)
+                self.assertEqual(rc, 2, linhas)
+                self.assertEqual(self.pedido.read_text(encoding="utf-8"), COM_SECAO)
+        linhas, rc = self.anotar_p("pergunta")
+        self.assertEqual((rc, len(linhas)), (0, 1), linhas)
+        rc, saida, _ = self.rodar("anotar", "--pedido", "exemplo", "--tipo", "historico", "--literal", "x", "--propagar")
+        self.assertEqual(rc, 2, saida)
+        rc, saida, _ = self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--literal", "C", "--propagar")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("brief gravado: docs/briefs/exemplo-dev-7.md ", saida)
+
+
 class TextoDoJarvis(unittest.TestCase):
     def test_jarvis_manda_anotar_o_historico(self):  # LOTE E3: sem a frase, o Jarvis escrevia o Histórico à mão, com hora estimada
         texto = texto_do_jarvis(RAIZ)
