@@ -1,0 +1,146 @@
+{
+  "pedido": "z075-fechar-promovivel",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "aviso quando FORGE_PROMOVER vem sem o modo de teste",
+      "arquivo": "bin/forge-fechar",
+      "de": "${FORGE_GH:-}${FORGE_PROMOVER:-}\" ]",
+      "para": "${FORGE_GH:-}\" ]",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_forge_promover_sem_o_modo_de_teste_e_ignorado_com_aviso"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "FORGE_PROMOVER vale no modo de teste",
+      "arquivo": "bin/forge-fechar",
+      "de": "promover_teste=\"${FORGE_PROMOVER:-}\"",
+      "para": "promover_teste=\"\"",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_promovivel_segue_com_o_sha_conferido"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "FF-1/C-2: o promover vem do diretorio do forge-fechar, nao do cwd da branch",
+      "arquivo": "bin/forge-fechar",
+      "de": "/..\" && pwd -P)/scripts/promover-homolog.py}\"",
+      "para": "/..\" && pwd -P >/dev/null; echo scripts)/promover-homolog.py}\"",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_usa_o_script_do_diretorio_do_fechar_e_nao_o_do_cwd"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "FORGE_PROMOVER sem FORGE_FECHAR_TESTE=1 e ignorado",
+      "arquivo": "bin/forge-fechar",
+      "de": "promover=\"${promover_teste:-",
+      "para": "promover=\"${FORGE_PROMOVER:-",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_forge_promover_sem_o_modo_de_teste_e_ignorado_com_aviso"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "FF-1/C-1: script ausente para",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -f \"$promover\" ] || die",
+      "para": "[ -n \"$promover\" ] || die",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_script_ausente_para"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o rc do promover e guardado",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| rc_1c=$?",
+      "para": "|| true",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_rc_diferente_de_0_ou_prazo_para_sem_pr_nem_merge"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "FF-1/C-1: rc diferente de 0 para (rc ignorado)",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$rc_1c\" = 0 ] || die",
+      "para": "[ \"$rc_1c\" = 0 ] || [ \"$rc_1c\" != 0 ] || die",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_rc_diferente_de_0_ou_prazo_para_sem_pr_nem_merge"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "FF-1/C-1: rc 2 do promover para",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$rc_1c\" = 0 ] || die",
+      "para": "[ \"$rc_1c\" = 0 ] || [ \"$rc_1c\" = 2 ] || die",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_rc_diferente_de_0_ou_prazo_para_sem_pr_nem_merge"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "FF-1/C-1: o 124 do prazo para",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$rc_1c\" = 0 ] || die",
+      "para": "[ \"$rc_1c\" = 0 ] || [ \"$rc_1c\" = 124 ] || die",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_rc_diferente_de_0_ou_prazo_para_sem_pr_nem_merge"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "adendo 2: rc ignorado quando a saida cita release-",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$rc_1c\" = 0 ] || die",
+      "para": "[ \"$rc_1c\" = 0 ] || [[ \"$saida_1c\" == *release-* ]] || die",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_release_nao_promovida_para_e_manda_promover"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "adendo 2: a mensagem manda promover a release pendente",
+      "arquivo": "bin/forge-fechar",
+      "de": "com release na develop ainda não promovida, promova-a",
+      "para": "com release pendente, promova-a",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_release_nao_promovida_para_e_manda_promover"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "o 1c roda antes do PR e do merge (pulado equivale a rodar depois do passo 6)",
+      "arquivo": "bin/forge-fechar",
+      "de": "promovivel \"$sha_conferido\"",
+      "para": ": \"$sha_conferido\"",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_rc_diferente_de_0_ou_prazo_para_sem_pr_nem_merge"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "FF-1/C-3: o 1c confere o sha conferido do passo 1",
+      "arquivo": "bin/forge-fechar",
+      "de": "--conferir-ref \"$1\"",
+      "para": "--conferir-ref HEAD",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_promovivel_segue_com_o_sha_conferido"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "o --dry-run lista o 1c",
+      "arquivo": "bin/forge-fechar",
+      "de": "passo \"1c\" \"python3 -I",
+      "para": ": \"1c\" \"python3 -I",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_no_dry_run_e_fora_da_base_develop_nao_roda"
+      ]
+    }
+  ]
+}

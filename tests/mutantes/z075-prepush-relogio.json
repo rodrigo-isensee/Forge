@@ -1,0 +1,66 @@
+{
+  "pedido": "z075-prepush-relogio",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "PP-1/C-1: .duracoes que é link não é seguido nem trocado",
+      "arquivo": ".githooks/pre-push",
+      "de": "[ ! -L \"$arq\" ] && { [ ! -e \"$arq\" ]",
+      "para": "{ [ ! -e \"$arq\" ]",
+      "testes": [
+        "tests.test_pre_push_trava.PrePushTrava.test_duracoes_que_e_link_nao_e_seguido"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "PP-1/C-1: .duracoes de outro dono não é tocado",
+      "arquivo": ".githooks/pre-push",
+      "de": "{ [ ! -e \"$arq\" ] || [ -O \"$arq\" ]; } || return 0",
+      "para": "{ [ ! -e \"$arq\" ] || true; } || return 0",
+      "testes": [
+        "tests.test_pre_push_trava.PrePushTrava.test_duracoes_de_outro_dono_nao_e_tocado"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a troca que falha apaga o temporário",
+      "arquivo": ".githooks/pre-push",
+      "de": "&& mv -fT -- \"$novo\" \"$arq\"; } 2>/dev/null || rm -f -- \"$novo\"",
+      "para": "&& mv -fT -- \"$novo\" \"$arq\"; } 2>/dev/null || true",
+      "testes": [
+        "tests.test_pre_push_trava.PrePushTrava.test_duracoes_que_nao_da_para_trocar_nao_deixa_temporario"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o envio curto sai como curta na linha fim",
+      "arquivo": ".githooks/pre-push",
+      "de": "if [ \"$curta\" = 1 ]; then modo=curta;",
+      "para": "if false; then modo=curta;",
+      "testes": [
+        "tests.test_pre_push_trava.PrePushTrava.test_envio_curto_imprime_fim_e_nao_grava_duracao"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o envio curto não grava duração",
+      "arquivo": ".githooks/pre-push",
+      "de": "[ \"$curta\" = 1 ] || gravar_duracao",
+      "para": "gravar_duracao",
+      "testes": [
+        "tests.test_pre_push_trava.PrePushTrava.test_envio_curto_imprime_fim_e_nao_grava_duracao"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "a duração é gravada depois da suíte, nunca antes (mutante do desenho)",
+      "arquivo": ".githooks/pre-push",
+      "de": "inicio_s=\"$(date +%s)\"\n",
+      "para": "inicio_s=\"$(date +%s)\"\ngravar_duracao 0 completa\n",
+      "testes": [
+        "tests.test_pre_push_trava.PrePushTrava.test_relogio_imprime_entrou_vez_e_fim_e_grava_a_duracao_depois_da_suite"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "pedido": "z075-um-brief-por-mensagem",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "UM-BRIEF: mais de um --arquivo recusa (a uniao nao volta ate o teto antigo)",
+      "arquivo": "bin/forge-check",
+      "de": "if len(a.arquivo) > 1:  # UM-BRIEF",
+      "para": "if len(a.arquivo) > 6:  # UM-BRIEF",
+      "testes": [
+        "tests.test_mensagem_conferente.UniaoDeEntregas.test_varios_arquivos_sao_recusados_sem_bloco"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "UM-BRIEF: a recusa nao segue em silencio so com o primeiro brief",
+      "arquivo": "bin/forge-check",
+      "de": "        return recusar(\"um brief por mensagem:",
+      "para": "        a.arquivo = a.arquivo[:1]  # (\"um brief por mensagem:",
+      "testes": [
+        "tests.test_mensagem_conferente.UniaoDeEntregas.test_varios_arquivos_sao_recusados_sem_bloco"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "UM-BRIEF: a recusa sai com rc 2, nao vira aviso com rc 0",
+      "arquivo": "bin/forge-check",
+      "de": "        return recusar(\"um brief por mensagem:",
+      "para": "        return not recusar(\"um brief por mensagem:",
+      "testes": [
+        "tests.test_mensagem_conferente.UniaoDeEntregas.test_varios_arquivos_sao_recusados_sem_bloco"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "aviso de PQ de parecer que le HEAD vale para review e qa (lista que era PARECERES_DA_UNIAO, agora literal)",
+      "arquivo": "bin/forge-check",
+      "de": "if tipo_brief in (\"review\", \"qa\") and",
+      "para": "if tipo_brief in (\"review\",) and",
+      "testes": [
+        "tests.test_mensagem_conferente.UniaoDeEntregas.test_pq_de_parecer_em_head_avisa_sem_mudar_o_rc"
+      ]
+    }
+  ]
+}

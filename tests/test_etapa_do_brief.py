@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gh_falso import com_gh_falso  # noqa: E402  (o gerar --branch consulta o PR; teste sem rede)
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+import test_estado_da_branch as eb  # noqa: E402  (B1: o repositório com origin e a volta)
 
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = RAIZ.joinpath("bin", "forge-check")
@@ -906,6 +907,91 @@ class VerificadorOk(unittest.TestCase):
             linhas, _ = fc.conferir_pq([pq])
             self.assertTrue(linhas[-1][0].endswith("· rótulo do verificador: ok"), linhas)
             self.assertFalse(linhas[-1][1])
+
+
+class PqDoExecutor(eb.Repo):
+    """B1 (E2, E14; versao-075): o brief de código e a volta trazem o PQ que o conferente roda, para o executor rodá-lo antes."""
+    ANTERIOR = eb.Volta.ANTERIOR
+
+    def setUp(self):
+        super().setUp()
+        self.base = eb.git("merge-base", "origin/develop", "melhoria/x", cwd=self.repo)
+
+    def entrega_do(self, base, pedido="exemplo", fora=""):
+        return (f"- PQ-N (cmd, do autor): `forge-check entrega {pedido}{fora} --branch melhoria/x --base develop --base-sha {base} "
+                "--etapa codigo` · espera: rc=0\n")
+
+    def test_codigo_traz_o_pq_com_o_sha40_da_base(self):
+        rc, saida, erro = self.gerar("--etapa", "codigo")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn(self.entrega_do(self.base), saida)
+        self.assertNotIn(self.c1, saida)
+
+    def test_review_e_qa_nao_trazem(self):
+        for etapa in ("review", "qa"):
+            with self.subTest(etapa=etapa):
+                rc, saida, erro = self.gerar("--etapa", etapa)
+                self.assertEqual(rc, 0, saida + erro)
+                self.assertNotIn("forge-check entrega", saida)
+
+    def test_sem_branch_avisa_e_nao_traz(self):
+        rc, saida, erro = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo", "--etapa", "codigo")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn("brief gerar: aviso: sem --branch, o brief sai sem o PQ do executor", erro)
+        self.assertNotIn("forge-check entrega", saida)
+
+    def test_pedido_fora_do_clone_leva_raiz_pedidos(self):
+        contrib = self.tmp / "home" / ".forge-contrib"
+        (contrib / "docs" / "pedidos").mkdir(parents=True)
+        (contrib / "docs" / "pedidos" / "fora.md").write_text(eb.PEDIDO.replace("id: exemplo", "id: fora"), encoding="utf-8")
+        rc, saida, erro = self.rodar("brief", "gerar", "--pedido", "fora", "--destino", "forge:dev-exemplo", "--etapa", "codigo",
+                                     "--branch", "melhoria/x", "--base", "develop")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn(self.entrega_do(self.base, "fora", f" --raiz-pedidos {contrib.resolve()}"), saida)
+
+    def test_sem_base_remota_o_sha_fica_preencher(self):
+        rc, saida, erro = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo", "--etapa", "codigo",
+                                     "--branch", "melhoria/x", "--base", "inexistente")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn("Base-sha: PREENCHER\n", saida)
+        self.sem_pq("sha fora da forma (PREENCHER)", saida, erro)
+
+    def sem_pq(self, campo, saida, erro):  # G-5: nada chega literal ao shell do executor
+        self.assertIn(f"aviso: PQ do executor não gerado: {campo}", erro, saida)
+        self.assertNotIn("forge-check entrega", saida)
+
+    def test_branch_fora_da_forma_avisa_e_nao_gera(self):
+        for ruim in ("melhoria/x;curl$IFS/a", "melhoria/x y", "melhoria/x$(id)", "melhoria/x..y"):
+            self.sem_pq(f"branch fora da forma ({ruim})", *self.gerar("--etapa", "codigo", "--branch", ruim)[1:])
+
+    def test_pedido_fora_da_forma_avisa_e_nao_gera(self):
+        (self.repo / "docs" / "pedidos" / "ruim.md").write_text(eb.PEDIDO.replace("id: exemplo", "id: a;rm"), encoding="utf-8")
+        self.sem_pq("pedido fora da forma (a;rm)", *self.rodar("brief", "gerar", "--pedido", "ruim", "--destino", "forge:dev-exemplo", "--etapa", "codigo",
+                                                               "--branch", "melhoria/x", "--base", "develop")[1:])
+
+    def test_volta_com_branch_fora_da_forma_nao_gera(self):
+        eb.Volta.anterior(self)
+        self.pareceres(self.c1, p="reprovado", corpo="## Achados\n- A1 (bloqueante) src/app.py:1 · o valor está errado\n")
+        _, saida, erro = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo",
+                                    "--volta", "docs/briefs/exemplo-dev-exemplo-1.md", "--ref", "melhoria/x", "--branch", "melhoria/x;rm")
+        self.sem_pq("branch fora da forma (melhoria/x;rm)", saida, erro)
+        self.assertIn("- PQ-2 (cmd, do autor): `bin/forge-mutante --cobertura", saida)
+
+    def test_valor_de_shell_seguro_por_tipo(self):
+        for tipo, valor in (("sha", "a" * 40), ("pedido", "versao-075"), ("base", "develop"), ("branch", "melhoria/x"), ("raiz", "/r/.contrib")):
+            self.assertEqual(fc.valor_de_shell_seguro(tipo, valor), valor)
+        for tipo, valor in (("sha", "a" * 39), ("sha", "A" * 40), ("pedido", "../p"), ("pedido", "p;rm"), ("base", "dev elop"),
+                            ("branch", "x/../y"), ("branch", "/x"), ("raiz", "/r/../etc"), ("raiz", "/r $(id)")):
+            self.assertIsNone(fc.valor_de_shell_seguro(tipo, valor), (tipo, valor))
+
+    def test_volta_traz_o_pq_da_entrega(self):
+        eb.Volta.anterior(self)
+        self.pareceres(self.c1, p="reprovado", corpo="## Achados\n- A1 (bloqueante) src/app.py:1 · o valor está errado\n")
+        rc, saida, erro = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo",
+                                     "--volta", "docs/briefs/exemplo-dev-exemplo-1.md", "--ref", "melhoria/x")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn("- PQ-2 (cmd, do autor): `forge-check entrega exemplo --branch melhoria/x --base develop", saida)
+        self.assertIn(f"- PQ-3 (cmd, do autor): `bin/forge-mutante --cobertura --base {self.base}`", saida)
 
 
 if __name__ == "__main__":

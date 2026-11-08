@@ -1,0 +1,116 @@
+{
+  "pedido": "est-m12-atributos",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a recusa aceita espaco antes dos dois-pontos",
+      "arquivo": "bin/forge-check",
+      "de": "+ r\"\\s*:\")  # C-7",
+      "para": "+ r\":\")  # C-7",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_marca_no_motivo_recusa_em_qualquer_forma"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a recusa normaliza em NFKC (dois-pontos de largura total)",
+      "arquivo": "bin/forge-check",
+      "de": "normalize(\"NFKC\", motivo)",
+      "para": "normalize(\"NFC\", motivo)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_marca_no_motivo_recusa_em_qualquer_forma"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a recusa tira os caracteres Cf do motivo",
+      "arquivo": "bin/forge-check",
+      "de": "if unicodedata.category(c) != \"Cf\").casefold()",
+      "para": "if unicodedata.category(c) != \"Zz\").casefold()",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_marca_no_motivo_recusa_em_qualquer_forma"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a recusa compara em casefold",
+      "arquivo": "bin/forge-check",
+      "de": "!= \"Cf\").casefold()\n",
+      "para": "!= \"Cf\")\n",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_marca_no_motivo_recusa_em_qualquer_forma"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a recusa da marca devolve erro",
+      "arquivo": "bin/forge-check",
+      "de": "    if RECUSA_DA_MARCA.search(normal):",
+      "para": "    if RECUSA_DA_MARCA.search(normal) and False:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_marca_no_motivo_recusa_em_qualquer_forma"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "teto de 500 caracteres do motivo",
+      "arquivo": "bin/forge-check",
+      "de": "if len(motivo) > TETOS_DO_MOVIMENTO[\"motivo\"]:",
+      "para": "if len(motivo) > 2 * TETOS_DO_MOVIMENTO[\"motivo\"]:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_valor_fora_da_forma_ou_acima_do_teto_recusa"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "valor recusa ponto e virgula",
+      "arquivo": "bin/forge-check",
+      "de": "re.search(r\"[;=·|\\x00-\\x1f\\x7f]\", valor)",
+      "para": "re.search(r\"[=·|\\x00-\\x1f\\x7f]\", valor)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_valor_fora_da_forma_ou_acima_do_teto_recusa"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "valor recusa igual",
+      "arquivo": "bin/forge-check",
+      "de": "re.search(r\"[;=·|\\x00-\\x1f\\x7f]\", valor)",
+      "para": "re.search(r\"[;·|\\x00-\\x1f\\x7f]\", valor)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_valor_fora_da_forma_ou_acima_do_teto_recusa"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "valor recusa ponto medio",
+      "arquivo": "bin/forge-check",
+      "de": "re.search(r\"[;=·|\\x00-\\x1f\\x7f]\", valor)",
+      "para": "re.search(r\"[;=|\\x00-\\x1f\\x7f]\", valor)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_valor_fora_da_forma_ou_acima_do_teto_recusa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "valor recusa barra vertical",
+      "arquivo": "bin/forge-check",
+      "de": "re.search(r\"[;=·|\\x00-\\x1f\\x7f]\", valor)",
+      "para": "re.search(r\"[;=·\\x00-\\x1f\\x7f]\", valor)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_valor_fora_da_forma_ou_acima_do_teto_recusa"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "valor recusa caractere de controle",
+      "arquivo": "bin/forge-check",
+      "de": "re.search(r\"[;=·|\\x00-\\x1f\\x7f]\", valor)",
+      "para": "re.search(r\"[;=·|]\", valor)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoGeraQuadro.test_valor_fora_da_forma_ou_acima_do_teto_recusa"
+      ]
+    }
+  ]
+}

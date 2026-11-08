@@ -303,6 +303,8 @@ if [ "$curta" = 0 ]; then
     exit 1
   }
   fila="${trava%.lock}.fila"
+  # PREPUSH-RELOGIO: entrou, vez e fim vão ao stderr, só com a hora e campos fixos (a medida da espera e da suíte).
+  echo "pre-push: entrou $(date +%H:%M:%S)" >&2
   if fila_entrar; then
     while [ "$(fila_vivas limpar | head -n 1)" != "$senha" ]; do
       avisar
@@ -316,6 +318,7 @@ if [ "$curta" = 0 ]; then
     [ "$resta_ns" -gt 0 ] || resta_ns=0
     flock -w "$((resta_ns / 1000000000)).$(printf '%03d' $(( resta_ns / 1000000 % 1000 )))" 9 || barrar
   fi
+  echo "pre-push: vez $(date +%H:%M:%S)" >&2
   fila_sair
   # PUSH-PARECER-JA-NO-REMOTO: o remoto pode ter recebido o mesmo commit durante a espera; a senha já saiu e a trava solta no exit.
   if ja_no_remoto "${2:-}"; then exit 0; fi
@@ -331,7 +334,7 @@ fi
 # No modo --suite a suíte toma o lugar do hook (exec) e herda a trava: morre a suíte, solta a trava.
 if [ "$modo_suite" = 1 ]; then
   if [ -f scripts/suite-paralela.py ]; then
-    FORGE_SUITE_TRAVA="$trava" exec python3 scripts/suite-paralela.py
+    FORGE_ENTRADA=suite FORGE_SUITE_TRAVA="$trava" exec python3 scripts/suite-paralela.py
   fi
   exec python3 -m unittest discover -s tests -q
 fi
@@ -375,10 +378,10 @@ if [ "$curta" = 1 ]; then
 elif dirigido; then
   completa=0
   echo "pre-push: rodando só os testes afetados (bin/forge-testes, base origin/develop); a suíte completa roda no CI do PR." >&2
-  suite=(python3 -I bin/forge-testes --base "$base_dev")
+  suite=(env FORGE_ENTRADA=push python3 -I bin/forge-testes --base "$base_dev")
 elif [ -f scripts/suite-paralela.py ]; then
   # D4: a suíte inteira dividida em processos, com a guarda de completude contra o discover (R-TETO: uma por vez).
-  suite=(env FORGE_SUITE_TRAVA="$trava" python3 scripts/suite-paralela.py)
+  suite=(env FORGE_ENTRADA=push FORGE_SUITE_TRAVA="$trava" python3 scripts/suite-paralela.py)
 else
   # Árvore sem o script (repositório mínimo): a mesma suíte em série, mais lenta e nunca mais frouxa.
   suite=(python3 -m unittest discover -s tests -q)
@@ -396,11 +399,25 @@ parar() {
 }
 trap parar TERM INT HUP
 echo "pre-push: suíte do Forge no pid ${$}; para parar só esta execução: kill ${$} (nunca pkill -f, que derruba a suíte de outro agente)." >&2
+# PREPUSH-RELOGIO: a suíte que rodou até o fim (verde ou vermelha, completa ou dirigida) grava "<segundos> <modo>" em
+# <trava>.duracoes; como o anotar: não segue link, só arquivo do próprio usuário, as últimas 50 linhas, umask 077.
+gravar_duracao() {
+  local arq="${trava%.lock}.duracoes" novo
+  [ ! -L "$arq" ] && { [ ! -e "$arq" ] || [ -O "$arq" ]; } || return 0
+  novo="$(mktemp "${arq}.XXXXXX" 2>/dev/null)"
+  { (umask 077; tail -n 49 -- "$arq" 2>/dev/null || true; printf '%s %s\n' "$1" "$2") > "$novo" \
+    && mv -fT -- "$novo" "$arq"; } 2>/dev/null || rm -f -- "$novo"
+}
+inicio_s="$(date +%s)"
 "${suite[@]}" 9>&- >&2 &
 suite_pid=$!
 rc=0
 wait "$suite_pid" || rc=$?
 trap - TERM INT HUP
+duracao=$(( $(date +%s) - inicio_s ))
+if [ "$curta" = 1 ]; then modo=curta; elif [ "$completa" = 1 ]; then modo=completa; else modo=dirigida; fi
+echo "pre-push: fim $(date +%H:%M:%S) rc ${rc} ${modo} ${duracao}s" >&2
+[ "$curta" = 1 ] || gravar_duracao "$duracao" "$modo"
 [ "$rc" -eq 0 ] || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
 # Anota a árvore testada (a árvore de trabalho estava limpa no início e no fim e o HEAD^{tree} não mudou durante a suíte,
 # para valer a do commit) como prova do próximo push: a suíte inteira, em `.verde`; as classes curtas do `so_parecer`,
@@ -415,7 +432,10 @@ anotar() {
   fi
 }
 arvore_fim="$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)"
-if [ "$inicio_limpo" = 1 ] && [ "$arvore_fim" = "$arvore_inicio" ] && [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ]; then
+# PREPUSH-PROVA-ARVORE (PP-4/C-1): com uma ref, só anota a árvore do commit enviado; HEAD trocado na fila não grava prova.
+arvore_enviada="$arvore_inicio"
+if [ "$n_refs" -eq 1 ]; then arvore_enviada="$(git rev-parse --verify -q "${unico_local}^{tree}" 2>/dev/null || true)"; fi
+if [ "$inicio_limpo" = 1 ] && [ "$arvore_fim" = "$arvore_inicio" ] && [ "$arvore_fim" = "$arvore_enviada" ] && [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ]; then
   if [ "$curta" = 1 ]; then anotar "$verde" acrescentar
   elif [ "$completa" = 1 ]; then anotar "$verde" aparar
   else anotar "$dirigida" aparar; fi

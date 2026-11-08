@@ -1,4 +1,5 @@
 """T-1: `forge-check voltas`, rodadas de brief em `transcricao custo --entregas` e as pastas padrão de transcrições."""
+import datetime
 import json
 import os
 import re
@@ -393,6 +394,96 @@ class MedidaDaRelease(Raiz):  # D12 (E3b): a release separada pelas tags v* e o 
         self.assertEqual(self.medir(self.ANTERIOR, [(84, 1), (153, 1), (127, 1)])[1][1:], ["medida: só tabela (n=3)"])
         self.git("tag", "-d", "v0.2.0")  # sem tag: tudo é a release atual e não há anterior medida
         self.assertEqual(self.medir(self.ANTERIOR, [(84, 1), (153, 1), (127, 1)])[1][1:], ["medida: só tabela (n=8)"])
+
+
+class RetroPorGatilho(Raiz):
+    """EST-M11 (E2-1): `forge-check retro` imprime a linha de métricas e os gatilhos `lead`, `escape` e `decisao-reprovacao`."""
+    SEM = "retro: alvo lead=nao-medido p85=nao-medido(n=0) voltas-classe=nao-medido divergentes=nao-medido escapes=0 decisao-reprovacao=0 custo=lacuna"
+
+    def setUp(self):
+        super().setUp()
+        self.gravar("docs/pedidos/alvo.md", "# alvo\n")
+
+    def rodar(self, *args, home=None):
+        env = {"HOME": str(self.tmp / "home"), "PATH": "/usr/bin:/bin"}  # ambiente limpo: nada de CI nem PATH herdado
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.tmp), "retro", *args],
+                           capture_output=True, text=True, env=env)
+        return r.returncode, r.stdout.splitlines(), r.stderr
+
+    def leads(self, outros, alvo):
+        """historico.md: `outros` cartões de lead 10 min e o `alvo` com `alvo` min, todos chegados à develop há um dia."""
+        fim = datetime.datetime.now().astimezone() - datetime.timedelta(days=1)
+        linhas = [f"| {fim.isoformat(timespec='seconds')} | curta |"]  # linha curta não conta nem quebra
+        for nome, minutos in [("alvo", alvo)] + [(f"c{i}", 10) for i in range(outros)]:
+            inicio = (fim - datetime.timedelta(minutes=minutos)).isoformat(timespec="seconds")
+            linhas += [f"| {inicio} | {nome} | — | Em andamento | x |",
+                       f"| {fim.isoformat(timespec='seconds')} | {nome} | Review | Pronto | custo total: 7 tokens · atributos: custo total: 9 tokens |"]
+        self.gravar("docs/kanban/historico.md", "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n" + "\n".join(linhas) + "\n")
+
+    def test_pedido_sem_nada_nao_tem_gatilho(self):
+        self.assertEqual(self.rodar("--pedido", "alvo"), (0, [self.SEM, "retro: sem gatilho"], ""))
+
+    def test_escape_do_pedido_e_gatilho_e_link_e_nao_medido(self):
+        tabela = "| data-hora | pedido |\n|---|---|\n| 2026-11-07 10:00 | alvo | p | uso | baixo | qa | n | codigo |\n"
+        self.gravar("docs/kanban/fora.md", tabela)
+        self.gravar("docs/kanban/escapes.md", tabela + "| 2026-11-07 10:00 | outro | p | uso | baixo | qa | n | codigo |\n")
+        cod, linhas, _ = self.rodar("--pedido", "alvo")
+        self.assertEqual((cod, linhas[1]), (0, "retro: gatilho: escape"))
+        self.assertIn(" escapes=1 ", linhas[0])
+        (self.tmp / "docs/kanban/escapes.md").unlink()
+        (self.tmp / "docs/kanban/escapes.md").symlink_to(self.tmp / "docs/kanban/fora.md")
+        linhas = self.rodar("--pedido", "alvo")[1]
+        self.assertEqual(linhas, [self.SEM.replace("escapes=0", "escapes=nao-medido"), "retro: sem gatilho"])
+
+    def test_decisao_do_dono_sobre_reprovacao(self):
+        self.gravar("docs/pedidos/alvo.md", '- DECISÃO DO DONO (2026-11-07 10:00): "A" — Reprovação aceita\n')
+        self.assertEqual(self.rodar("--pedido", "alvo")[1][1], "retro: gatilho: decisao-reprovacao")
+        self.gravar("docs/pedidos/alvo.md", '- DECISÃO DO DONO (2026-11-07 10:00): "A" — entrega aceita\nCitada: reprovação\n')
+        self.assertEqual(self.rodar("--pedido", "alvo")[1][1], "retro: sem gatilho")
+
+    def test_lead_acima_do_p85_com_vinte_pedidos(self):
+        self.leads(19, 100)
+        cod, linhas, _ = self.rodar("--pedido", "alvo")
+        self.assertEqual((cod, linhas[1]), (0, "retro: gatilho: lead"))
+        self.assertTrue(linhas[0].startswith("retro: alvo lead=100 p85=10 "), linhas)
+        self.assertTrue(linhas[0].endswith(" custo=7"), linhas)  # o custo depois de `· atributos:` não vale
+        self.assertIn(" p85=nao-medido(n=0) ", self.rodar("--pedido", "alvo", "--dias", "0")[1][0])
+
+    def test_janela_conta_pela_chegada_a_develop(self):
+        self.leads(19, 4320)  # o alvo abriu há 4 dias e chegou à develop há 1
+        self.assertEqual(self.rodar("--pedido", "alvo", "--dias", "2")[1][1], "retro: gatilho: lead")
+
+    def test_historico_link_ou_grande_e_nao_medido_com_aviso(self):
+        self.leads(19, 100)
+        hist = self.tmp / "docs/kanban/historico.md"
+        hist.rename(self.tmp / "docs/kanban/real.md")
+        hist.symlink_to(self.tmp / "docs/kanban/real.md")
+        for motivo in ("é link simbólico", "passa de 1048576 bytes"):
+            cod, linhas, erro = self.rodar("--pedido", "alvo")
+            self.assertEqual((cod, linhas[1]), (0, "retro: sem gatilho"), motivo)
+            self.assertIn(" lead=nao-medido p85=nao-medido(n=0) ", linhas[0])
+            self.assertIn(f"retro: aviso: docs/kanban/historico.md {motivo}; lead e p85 nao-medido", erro)
+            hist.unlink()
+            hist.write_text((self.tmp / "docs/kanban/real.md").read_text(encoding="utf-8") + "x" * (1024 * 1024), encoding="utf-8")
+
+    def test_lead_igual_ao_p85_nao_dispara(self):
+        self.leads(19, 10)
+        self.assertEqual(self.rodar("--pedido", "alvo")[1][1], "retro: sem gatilho")
+
+    def test_dezenove_pedidos_sem_percentil(self):
+        self.leads(18, 100)
+        linhas = self.rodar("--pedido", "alvo")[1]
+        self.assertIn(" lead=100 p85=nao-medido(n=19) ", linhas[0])
+        self.assertEqual(linhas[1], "retro: sem gatilho")
+
+    def test_pedido_fora_de_docs_pedidos_e_inexistente_dao_2(self):
+        self.gravar("docs/x.md", "# fora\n")
+        self.gravar("fora.md", "# fora\n")
+        (self.tmp / "docs/pedidos/link.md").symlink_to(self.tmp / "fora.md")
+        for pedido in ("../x", "link", "nenhum"):
+            cod, linhas, erro = self.rodar("--pedido", pedido)
+            self.assertEqual((cod, linhas), (2, []), pedido)
+            self.assertIn("nao existe em docs/pedidos/", erro)
 
 
 if __name__ == "__main__":

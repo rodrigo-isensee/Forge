@@ -10,6 +10,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import sem_manutencao  # noqa: E402
@@ -124,6 +125,20 @@ class Mapa(unittest.TestCase):
         with tempfile.TemporaryDirectory() as t:
             (Path(t) / "tests").mkdir()
             self.assertEqual(self.f.planejar(["bin/forge-sugerir"], Path(t))[0], "completo")
+
+    def test_modelos_de_parecer_rodam_os_testes_que_os_leem(self):  # MP-1: devops com o mesmo destino de security
+        guardas = {"test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034"}
+        for caminho in ("docs/devops/_modelo.md", "templates/projeto/docs/devops/_modelo.md",
+                        "docs/security/_modelo.md", "templates/projeto/docs/security/_modelo.md"):
+            with self.subTest(caminho):
+                modo, modulos = self.plano(caminho)
+                self.assertEqual(modo, "dirigido")
+                self.assertLessEqual(guardas, set(modulos))
+
+    def test_promover_e_apoio_seguem_na_completa(self):  # MP-1: adendo 2, ponto 3 (decisão 7 do dono)
+        for caminho in ("scripts/promover-homolog.py", "tests/apoio_volta_unica.py"):
+            with self.subTest(caminho):
+                self.assertEqual(self.plano(caminho), ("completo", [f"{caminho} sem mapa"]))
 
     def test_todo_modulo_do_mapa_existe(self):
         modulos = {m for _, destino in self.f.MAPA if destino for m in destino}
@@ -1119,6 +1134,52 @@ class CaminhoFiltroEAviso(unittest.TestCase):
         r = self.rodar("--vermelho", "-k", "x")
         self.assertEqual(r.returncode, 2)
         self.assertIn("-k não combina com --vermelho", r.stderr)
+
+
+def proc_falso(pasta, quem=b"bin/forge-testes"):
+    """/proc de brinquedo: 10 é quem anota, 5 o ancestral pesado, 20 a outra pesada, 40 sumiu no meio da leitura."""
+    for pid, pai, linha in ((10, 5, quem), (5, 1, b"suite-paralela.py"), (20, 1, b"-m\0unittest\0discover"), (40, 1, b"")):
+        (pasta / str(pid)).mkdir(parents=True)
+        (pasta / str(pid) / "stat").write_text(f"{pid} (a b) S {pai} 0", encoding="utf-8")
+        (pasta / str(pid) / ("cmdline" if linha else "outro")).write_bytes(linha)
+    (pasta / "self").mkdir()
+    return pasta
+
+
+class MedidaDaVagaPesada(unittest.TestCase):
+    """MAQ-A7: a linha do testes.log guarda os campos de hoje e ganha entrada, load1, nproc e outras."""
+    setUp, log = Execucao.setUp, Execucao.log
+
+    def rodar_com(self, **env):
+        limpo = {k: v for k, v in AMBIENTE.items() if k not in ("FORGE_ENTRADA", "CI")}
+        return subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--base", "develop", "--completa"], cwd=self.dir,
+                              env={**limpo, **env}, capture_output=True, text=True)
+
+    def test_a_linha_mantem_o_formato_de_hoje_e_so_aceita_entrada_valida(self):
+        for valor, esperado in ((None, "autor"), ("push", "push"), ("push\n", "?"), ("push\nmodo=x", "?")):
+            with self.subTest(valor):
+                self.assertEqual(self.rodar_com(**({} if valor is None else {"FORGE_ENTRADA": valor})).returncode, 0)
+                self.assertRegex(self.log().splitlines()[-1], r"^\S+Z modo=completo modulos=- duracao=[0-9.]+s saida=0 "
+                                 rf"entrada={re.escape(esperado)} load1=[0-9.]+ nproc=\d+ outras=(\d+|\?)$")
+        self.assertEqual(len(self.log().splitlines()), 4)  # a quebra de linha no valor não abre linha nova
+
+    def test_conta_a_pesada_viva_sem_gravar_a_linha_de_comando_dela(self):
+        falso = self.dir / "marca-a7" / "suite-paralela.py"
+        falso.parent.mkdir()
+        falso.write_text("import time\ntime.sleep(120)\n", encoding="utf-8")
+        processo = subprocess.Popen([sys.executable, "-I", str(falso)])
+        self.addCleanup(processo.wait)
+        self.addCleanup(processo.kill)
+        self.rodar_com()
+        self.assertGreaterEqual(int(re.search(r"outras=(\d+)", self.log()).group(1)), 1)
+        self.assertNotIn("marca-a7", self.log())
+
+    def test_outras_e_contexto_toleram_falha_de_leitura(self):
+        f = carregar()
+        self.assertEqual(f.outras(proc_falso(self.dir / "proc"), eu=10), 1)  # nem a própria, nem o ancestral, nem a 40
+        self.assertEqual(f.outras(self.dir / "sem-proc", eu=10), "?")
+        with mock.patch("os.getloadavg", side_effect=OSError), mock.patch.dict(os.environ, {"FORGE_ENTRADA": "push\n"}):
+            self.assertRegex(f.contexto(), r"^ entrada=\? load1=\? nproc=")
 
 
 if __name__ == "__main__":

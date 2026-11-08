@@ -1,0 +1,66 @@
+{
+  "pedido": "versao-075",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "B1: o PQ do executor só na etapa codigo (mutante: PQ em toda etapa)",
+      "arquivo": "bin/forge-check",
+      "de": "elif etapa == \"codigo\":  # B1 e E14",
+      "para": "elif True:  # B1 e E14",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_review_e_qa_nao_trazem"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "B1: sem --branch, aviso e sem PQ",
+      "arquivo": "bin/forge-check",
+      "de": "if etapa == \"codigo\" and not branch:  # B1",
+      "para": "if False:  # B1",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_sem_branch_avisa_e_nao_traz"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "B1: o sha do PQ é o da base, não o da branch",
+      "arquivo": "bin/forge-check",
+      "de": "--base-sha {sha_base} --etapa codigo` · espera: rc=0\")",
+      "para": "--base-sha {sha_do_commit(raiz, branch)} --etapa codigo` · espera: rc=0\")",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_codigo_traz_o_pq_com_o_sha40_da_base"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "B1: o PQ confere a etapa codigo, não a review",
+      "arquivo": "bin/forge-check",
+      "de": "--base-sha {sha_base} --etapa codigo` · espera: rc=0\")",
+      "para": "--base-sha {sha_base} --etapa review` · espera: rc=0\")",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_codigo_traz_o_pq_com_o_sha40_da_base"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "B1: --raiz-pedidos só com o pedido fora do clone",
+      "arquivo": "bin/forge-check",
+      "de": "return \"\" if pasta in (",
+      "para": "return \"\" if True or pasta in (",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_pedido_fora_do_clone_leva_raiz_pedidos"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "B1: o Base-sha ausente sai PREENCHER, não None",
+      "arquivo": "bin/forge-check",
+      "de": "    sha_base = base_sha_real(raiz, base, branch) or PREENCHER\n",
+      "para": "    sha_base = base_sha_real(raiz, base, branch)\n",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_sem_base_remota_o_sha_fica_preencher"
+      ]
+    }
+  ]
+}

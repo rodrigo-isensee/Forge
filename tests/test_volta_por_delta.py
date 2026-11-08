@@ -535,6 +535,66 @@ class Delta(Repositorio):
         self.assertEqual(self.arvore(), antes)
 
 
+class DeltaDaJuncao(Repositorio):
+    """B19a (E20): as partes da junção são os segundos pais dos merges da primeira linha; octopus rc 1 (C-4), merge da
+    base não é parte (C-5), git que falha rc 2 (C-9)."""
+
+    def setUp(self):
+        super().setUp()
+        git("update-ref", "refs/remotes/origin/develop", "develop", cwd=self.repo)
+        self.a = self.parte("parte-a", {"a.txt": "a\n"})
+        git("switch", "-q", "-c", "interna", cwd=self.repo)
+        self.commitar({"i.txt": "i\n"}, "interna")
+        git("switch", "-q", "parte-a", cwd=self.repo)
+        self.juntar("interna")  # merge dentro da parte: fora da primeira linha da junção
+        self.a = self.head()
+        self.b = self.parte("parte-b", {"b.txt": "b\n"})
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+
+    def parte(self, nome, arquivos):
+        git("switch", "-q", "-c", nome, "develop", cwd=self.repo)
+        return self.commitar(arquivos, nome)
+
+    def juntar(self, *refs, mensagem="Merge"):
+        git("merge", "-q", "--no-ff", "-m", mensagem, *refs, cwd=self.repo)
+        return self.head()
+
+    def juncao(self, *args):
+        return self.check("juncao", "p1", "--ref", "melhoria/x", *args)
+
+    def test_duas_partes_e_o_merge_da_base_no_meio_nao_vira_parte(self):
+        m1 = self.juntar("parte-a", mensagem="Merge parte-a")
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"d.txt": "d\n"}, "develop anda")
+        git("update-ref", "refs/remotes/origin/develop", "develop", cwd=self.repo)
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        self.juntar("origin/develop", mensagem="Merge origin/develop")
+        m3 = self.juntar("parte-b", mensagem="Merge parte-b\x1bjuncao: ok")
+        rc, saida = self.juncao()
+        self.assertEqual((rc, saida.splitlines()), (0, [f"parte: {self.a[:7]} merge {m1[:7]} Merge parte-a",
+                                                        f"parte: {self.b[:7]} merge {m3[:7]} Merge parte-b juncao: ok"]))
+
+    def test_octopus_da_rc_1_e_sem_merge_nenhuma_parte(self):
+        self.assertEqual(self.juncao(), (0, ""))
+        m = self.juntar("parte-a", "parte-b")
+        self.assertEqual(self.juncao(), (1, f"juncao: octopus não aceito: {m[:7]}\n"))
+
+    def test_entrada_ilegivel_e_git_que_falha_dao_rc_2(self):
+        self.juntar("parte-a")
+        self.assertEqual(self.check("juncao", "../p1", "--ref", "melhoria/x")[0], 2)
+        self.assertEqual(self.check("juncao", "p1", "--ref", "nao-existe")[0], 2)
+        git("update-ref", "-d", "refs/remotes/origin/develop", cwd=self.repo)
+        self.assertEqual(self.juncao()[0], 2)
+        git("update-ref", "refs/remotes/origin/develop", "develop", cwd=self.repo)
+        fc, head = carregar_forge_check(), self.head()
+        for falha in ("log", "--is-ancestor"):
+            with self.subTest(falha):
+                real = fc.git
+                fc.git = lambda raiz, *args, bruto=False, real=real, falha=falha: (128, b"" if bruto else "") if falha in args else real(raiz, *args, bruto=bruto)
+                self.assertEqual(fc.partes_da_juncao(self.repo, head, "develop")[0], 2)
+                fc.git = real
+
+
 class BriefAnterior(unittest.TestCase):
     PASTA = RAIZ / "tests" / "fixtures" / "brief"
 
@@ -938,7 +998,8 @@ class BriefDeVolta(Repositorio):
         (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=self.ACHADOS), encoding="utf-8")
         self.assertEqual(self.check("docs"), (0, ""))
         for corpo in ("## Achados\n1. achado em texto livre, formato antigo\n", "sem bloco\n"):  # transição: pareceres antigos seguem válidos
-            (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=corpo), encoding="utf-8")
+            self.commitar({"docs/reviews/p1.md": self.REVIEW.format(c="abc1234", p="reprovado", corpo=corpo)}, "parecer antigo")
+            git("update-ref", "refs/remotes/origin/develop", self.head(), cwd=self.repo)  # antigo: fora do delta (B12)
             self.assertEqual(self.check("docs"), (0, ""), corpo)
         (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=self.ACHADOS + "achado em prosa\n"), encoding="utf-8")
         self.assertIn("fora do formato", self.check("docs")[1])
@@ -1160,6 +1221,85 @@ class SondaNoCorpus(BriefDeVolta):
         self.assertNotIn("fora do corpus", saida)
 
 
+
+class ModelosNoFormato(unittest.TestCase):
+    """MODELO-PARECER (Z7, B11): todo modelo de parecer nasce com o bloco `## Achados` que o `forge-check pr` lê no estrito, e
+    com a frase da evidência; um modelo com prosa (as ferramentas, por exemplo) dentro do bloco reprova aqui."""
+    MODELOS = tuple(f"templates/projeto/docs/{p}/_modelo.md" for p in ("reviews", "security", "qa", "devops")) + (
+        "docs/security/_modelo.md", "docs/devops/_modelo.md")
+    EVIDENCIA = "a evidência não muda para caber (`reproduzido` não vira `visto`)"
+
+    def test_cada_modelo_passa_no_bloco_estrito(self):
+        modulo = carregar_forge_check()
+        self.assertEqual(len(self.MODELOS), 6)
+        for rel in self.MODELOS:
+            texto = (RAIZ / rel).read_text(encoding="utf-8")
+            achados, erros, tem = modulo.achados_do_parecer(texto)
+            self.assertTrue(tem, f"{rel}: sem o bloco ## Achados")
+            self.assertEqual(erros, [], rel)
+            self.assertEqual(modulo.problemas_do_bloco(achados, erros, tem, {"parecer": "aprovado"}, True), [], rel)
+            self.assertEqual(achados, [], rel)  # adendo 2, ponto 1: bloco vazio, sem achado de exemplo
+            self.assertIn("- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>", texto, rel)
+
+    def test_prosa_dentro_do_bloco_reprova(self):
+        modulo = carregar_forge_check()
+        achados, erros, tem = modulo.achados_do_parecer("# P\n## Achados\nFerramentas: as do ambiente.\n")
+        self.assertTrue(erros)
+        self.assertTrue(modulo.problemas_do_bloco(achados, erros, tem, {"parecer": "aprovado"}, True))
+
+    def test_os_quatro_modelos_do_projeto_trazem_a_frase_da_evidencia(self):
+        for rel in self.MODELOS[:4]:
+            self.assertIn(self.EVIDENCIA, (RAIZ / rel).read_text(encoding="utf-8"), rel)
+
 for _nome in dir(BriefDeVolta):  # só os testes desta classe; os herdados já rodam em BriefDeVolta
     if _nome.startswith("test_") and _nome not in SondaNoCorpus.__dict__:
         setattr(SondaNoCorpus, _nome, None)
+
+
+class DocsEstritoNoDelta(Repositorio):
+    """B12 (versao-075, E7): o `forge-check docs` cobra o bloco `## Achados` estrito no parecer novo ou alterado desde o
+    merge-base(origin/develop, HEAD), commitado ou não; fora do delta, ou com o git que falha, segue o modo de hoje."""
+    LONGO = ("---\ntipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: abc1234\nparecer: aprovado\n"
+             "revisor: forge:tech-lead\ndata: 2026-10-19\n---\n# Parecer\n\n## Achados\n- A1 (recomendado) bin/x:1 · " + "x" * 302 + "\n")
+    AVISO = "aviso: docs: base ilegível; estrito só no forge-check pr"
+
+    def docs(self):
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.repo), "docs"],
+                           env=dict(ambiente_limpo(), HOME=str(self.home)), capture_output=True, text=True)
+        return r.returncode, r.stdout, r.stderr
+
+    def com_origem(self, sha):
+        git("update-ref", "refs/remotes/origin/develop", sha, cwd=self.repo)
+
+    def test_parecer_novo_commitado_ou_nao_reprova_com_achado_acima_do_teto(self):
+        self.com_origem(self.base)
+        self.commitar({"docs/reviews/p1.md": self.LONGO}, "parecer")
+        self.commitar({"src/app.txt": "v2\n"}, "outro commit: o delta é desde o merge-base, não do HEAD~1")
+        (self.repo / "docs" / "reviews" / "p2.md").write_text(self.LONGO, encoding="utf-8")  # novo, fora do índice
+        rc, saida, erro = self.docs()
+        self.assertEqual(rc, 1, saida)
+        for rel in ("docs/reviews/p1.md", "docs/reviews/p2.md"):
+            self.assertIn(f"{rel}: achados: achado A1 com mais de 300 caracteres", saida)
+        self.assertNotIn(self.AVISO, erro)
+
+    def test_parecer_antigo_fora_do_delta_no_formato_antigo_passa(self):
+        self.commitar({"docs/reviews/p1.md": self.LONGO}, "parecer antigo")
+        self.com_origem(self.head())
+        self.commitar({"src/app.txt": "v2\n"}, "mudança da branch")
+        self.assertEqual(self.docs(), (0, "", ""))
+
+    def test_sem_origin_develop_avisa_e_segue_o_modo_de_hoje(self):
+        (self.repo / "docs" / "reviews").mkdir(parents=True)
+        (self.repo / "docs" / "reviews" / "p1.md").write_text(self.LONGO, encoding="utf-8")
+        rc, saida, erro = self.docs()
+        self.assertEqual((rc, saida), (0, ""))
+        self.assertIn(self.AVISO, erro)
+
+    def test_ls_files_que_falha_devolve_none(self):
+        self.com_origem(self.base)
+        modulo = carregar_forge_check()
+        real = modulo.git
+        modulo.git = lambda raiz, *args, **kw: (128, b"") if args[0] == "ls-files" else real(raiz, *args, **kw)
+        self.assertIsNone(modulo.documentos_do_delta(self.repo))
+        modulo.git = real
+        self.assertEqual(modulo.documentos_do_delta(self.repo), set())

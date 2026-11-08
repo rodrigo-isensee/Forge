@@ -218,8 +218,7 @@ class PrePushParecerCurto(unittest.TestCase):
         self.assertEqual(alvo.read_text(), "", "o acréscimo não pode escrever no destino do link")
         self.assertTrue(self.verde.is_symlink())
 
-    # A2 do QA (:243): quem esperou a vez anota a árvore do início da suíte, não a de antes da espera.
-    def test_quem_esperou_a_vez_anota_a_arvore_do_inicio_da_suite(self):
+    def espera_a_vez_e(self, enviado, durante):
         self.trava.touch()
         segurador = subprocess.Popen(["flock", str(self.trava), "sleep", "60"], start_new_session=True)
         self.addCleanup(segurador.wait)
@@ -228,26 +227,39 @@ class PrePushParecerCurto(unittest.TestCase):
             if subprocess.run(["flock", "-n", str(self.trava), "true"]).returncode != 0:
                 break
             time.sleep(0.05)
-        primeiro = self.commit("codigo", bin__forge_sugerir="x = 3\n")
         log = Path(self._tmp.name) / "espera.log"
         with open(log, "w") as saida:
             hook = subprocess.Popen([str(HOOK), "origin", "u"], cwd=self.repo, env=self.env, stdin=subprocess.PIPE,
                                     stdout=subprocess.DEVNULL, stderr=saida, text=True)
             self.addCleanup(hook.wait)
-            hook.stdin.write(f"refs/heads/x {primeiro} refs/heads/melhoria/x {ZERO}\n")
+            hook.stdin.write(f"refs/heads/x {enviado} refs/heads/melhoria/x {ZERO}\n")
             hook.stdin.close()
             for _ in range(200):
                 if "esperando a vez" in log.read_text():
                     break
                 time.sleep(0.05)
             self.assertIn("esperando a vez", log.read_text())
-            segundo = self.commit("codigo 2", bin__forge_sugerir="x = 4\n")
+            durante()
             os.killpg(segurador.pid, 15)
             self.assertEqual(hook.wait(timeout=100), 0, log.read_text())
-        arvore = self.git("rev-parse", f"{segundo}^{{tree}}")
-        provas = [p.read_text().split() for p in (self.verde, self.dirigida) if p.exists()]
-        self.assertTrue(any(arvore in p for p in provas), "a árvore que a suíte testou deve ser a anotada")
 
+    def provas(self):
+        return [linha for p in (self.verde, self.dirigida) if p.exists() for linha in p.read_text().split()]
+
+    # PP-4a (PP-4/C-1) sobre o A2 do QA (:243): o HEAD trocado na espera não anota a árvore enviada nem a trocada.
+    def test_head_trocado_na_espera_nao_anota_nem_a_arvore_enviada_nem_a_trocada(self):
+        primeiro = self.commit("codigo", bin__forge_sugerir="x = 3\n")
+        trocado = []
+        self.espera_a_vez_e(primeiro, lambda: trocado.append(self.commit("codigo 2", bin__forge_sugerir="x = 4\n")))
+        for sha in (primeiro, trocado[0]):
+            self.assertNotIn(self.git("rev-parse", f"{sha}^{{tree}}"), self.provas())
+
+    # PP-4a: quem esperou a vez recaptura o início; o HEAD que volta ao enviado na espera anota a árvore enviada (M12).
+    def test_quem_esperou_a_vez_e_voltou_ao_enviado_anota_a_arvore_enviada(self):
+        primeiro = self.commit("codigo", bin__forge_sugerir="x = 3\n")
+        self.commit("codigo 2", bin__forge_sugerir="x = 4\n")
+        self.espera_a_vez_e(primeiro, lambda: self.git("reset", "-q", "--hard", primeiro))
+        self.assertIn(self.git("rev-parse", f"{primeiro}^{{tree}}"), self.provas())
 
 if __name__ == "__main__":
     unittest.main()

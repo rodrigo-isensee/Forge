@@ -1,0 +1,46 @@
+{
+  "pedido": "est-m12-gerar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M18",
+      "guarda": "o aviso de edicao a mao le as linhas de cartao das secoes do quadro (C-15)",
+      "arquivo": "bin/forge-check",
+      "de": "        if secao and linha.startswith(\"|\") and len(c) == len(COLUNAS) and c != COLUNAS",
+      "para": "        if secao and linha.startswith(\"## \") and len(c) == len(COLUNAS) and c != COLUNAS",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_gera_do_historico_duas_vezes_igual_e_avisa_a_edicao_a_mao"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "cartao editado fora do movimento vira aviso (C-15)",
+      "arquivo": "bin/forge-check",
+      "de": "{', '.join(editados)}\"] if editados else []",
+      "para": "{', '.join(editados)}\"] if editados and False else []",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_gera_do_historico_duas_vezes_igual_e_avisa_a_edicao_a_mao"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "kanban --gerar gera e nao cai na conferencia do kanban",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"kanban\" and a.gerar:",
+      "para": "    if a.cmd == \"kanban\" and not a.gerar:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_gera_do_historico_duas_vezes_igual_e_avisa_a_edicao_a_mao"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "a recusa diz qual arquivo falhou (C-1)",
+      "arquivo": "bin/forge-check",
+      "de": "{'KANBAN.md' if erro else 'docs/kanban/historico.md'}",
+      "para": "{'docs/kanban/historico.md' if erro else 'KANBAN.md'}",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar.test_link_grande_fifo_ou_ausente_recusa_com_o_quadro_e_o_alvo_intactos"
+      ]
+    }
+  ]
+}

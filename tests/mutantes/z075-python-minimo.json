@@ -1,0 +1,37 @@
+{
+  "pedido": "z075-python-minimo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o mínimo declarado é 3.12: com 3.11 na constante, o Python 3.11 passa sem aviso",
+      "arquivo": "bin/forge-doutor",
+      "de": "PYTHON_MINIMO = (3, 12)",
+      "para": "PYTHON_MINIMO = (3, 11)",
+      "testes": [
+        "tests.test_doutor.PythonMinimo.test_python_abaixo_do_minimo_avisa",
+        "tests.test_doutor.PythonMinimo.test_minimo_e_o_menor_python_do_ci"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o diagnóstico chama conferir_python: sem a chamada, o Python abaixo do mínimo não aparece",
+      "arquivo": "bin/forge-doutor",
+      "de": "problemas = conferir_python() + conferir_plugin(raiz)",
+      "para": "problemas = conferir_plugin(raiz)",
+      "testes": [
+        "tests.test_doutor.PythonMinimo.test_python_abaixo_do_minimo_avisa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "só abaixo do mínimo avisa: o Python igual ao mínimo fica em silêncio",
+      "arquivo": "bin/forge-doutor",
+      "de": "if sys.version_info < PYTHON_MINIMO:",
+      "para": "if sys.version_info <= (3, 12, 0, \"final\", 0):",
+      "testes": [
+        "tests.test_doutor.PythonMinimo.test_python_no_minimo_fica_em_silencio"
+      ]
+    }
+  ]
+}
