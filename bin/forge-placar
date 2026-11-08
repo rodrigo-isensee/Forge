@@ -1,0 +1,370 @@
+#!/usr/bin/env python3
+"""Forge: placar de qualidade do processo e portão de evolução (0.43.1, frente I). Só leitura, sem rede, biblioteca padrão.
+
+Uso: forge-placar [--raiz DIR] [--erros ARQ] [--git DIR --ref REF] [--ci ARQ.json] [--dias N] [--ate AAAA-MM-DD] [--json]
+     forge-placar comparar --antes AAAA-MM-DD --depois AAAA-MM-DD [--metrica NOME] [--tolerancia F] [--folga F] [--minimo N] [...]
+     forge-placar propostas [ARQUIVO] [--hoje AAAA-MM-DD] [--max-abertas N] [--json]
+
+Fontes (na `--raiz`, padrão a pasta atual; no Forge, a área do Jarvis): `docs/kanban/conferencias.md` (vereditos do
+conferente), `docs/kanban/escapes.md` (defeitos achados depois do parecer final), `docs/pedidos/*.md` (linhas do
+`## Histórico`: `ERRO-JARVIS`, `entrega conferida`, PR mesclado ou integrado na develop). Opcionais: `--erros` (registro
+de erros com títulos `## N. ... (AAAA-MM-DD HH:MM)`), `--git`/`--ref` (reversões na linha principal da ref) e `--ci`
+(JSON de `gh run list --branch develop --json conclusion,createdAt`, gerado fora). Fonte ausente sai `-`, nunca 0.
+
+Métricas (todas: menor é melhor), por janela de `--dias` (padrão 7) que termina em `--ate` (padrão hoje, exclusivo),
+contra a janela anterior do mesmo tamanho:
+  taxa_forma          vereditos negativos que não são de implementação nem de prova, por delegação (brief aprovado)
+  taxa_reprovacao     vereditos negativos sobre todos os vereditos
+  erros_jarvis        linhas ERRO-JARVIS dos pedidos (mais os itens do --erros), por delegação
+  taxa_escape         defeitos escapados (escapes + reversões + CI vermelha na develop), por delegação
+  voltas_por_item     vereditos negativos (brief e entrega), por delegação
+  pronto_ate_develop  mediana em minutos da primeira `entrega conferida` do pedido até a linha de PR mesclado na develop
+
+`comparar` é o portão de evolução: janela antes = [antes - dias, antes), depois = [depois, depois + dias). Reprova (rc 1,
+`veredito: reverter`) se `taxa_forma` ou `taxa_escape` piorou além de antes * (1 + tolerancia) + folga, ou se a `--metrica`
+declarada pela proposta não melhorou; rc 3 (`veredito: inconclusivo`) se uma janela tem menos de `--minimo` delegações;
+rc 0 `veredito: manter`.
+
+`propostas` é o checklist executável da retrospectiva sobre `docs/kanban/melhorias.md` (tabela `| ID | Hipótese | Mudança |
+Métrica | Critério de reversão | Início | Revisão | Resultado |`): cada linha declara uma métrica do placar, a Mudança diz
+`código:` ou `texto:`, Início e Revisão são datas com a Revisão de 1 a 30 dias depois, a revisão vencida tem Resultado
+`manter (...)` ou `reverter (...)` com a leitura do `comparar`, e há no máximo `--max-abertas` (padrão 1) abertas: uma causa
+por vez, para o placar atribuir o efeito. rc 1 com uma linha `falta:` por problema.
+
+Saída: 0 ok; 1 reprovado (comparar ou propostas); 2 uso errado ou fonte ilegível; 3 inconclusivo."""
+import argparse
+import datetime
+import json
+import re
+import statistics
+import subprocess
+import sys
+from pathlib import Path
+
+METRICAS = ("taxa_forma", "taxa_reprovacao", "erros_jarvis", "taxa_escape", "voltas_por_item", "pronto_ate_develop")
+GUARDADAS = ("taxa_forma", "taxa_escape")  # nunca podem piorar, qualquer que seja a métrica declarada
+CLASSES_DE_MERITO = ("implementacao", "prova")  # o resto dos negativos é forma ou processo (estudo 2-erros, seção 2)
+DATA = re.compile(r"\d{4}-\d{2}-\d{2}")
+LINHA_DO_HISTORICO = re.compile(r"^- (\d{4}-\d{2}-\d{2})(?: (\d{2}):(\d{2}))?: (.*)$")
+CONFERIDA = re.compile(r"^entrega conferida [0-9a-f]{40}\b")
+MESCLADO = re.compile(r"\b(?:mesclad[oa]|integrad[oa])\b.*\bdevelop\b", re.I)
+ERRO_REGISTRO = re.compile(r"^## \d+\. .*\((\d{4}-\d{2}-\d{2})[ T]\d{2}:\d", re.M)
+TIPOS_DE_MUDANCA = ("código:", "codigo:", "texto:")
+RESULTADO = re.compile(r"^(manter|reverter)\b.*\S", re.I)
+PRAZO_MAXIMO = 30  # dias entre o início e a revisão
+
+
+def data(texto, nome):
+    try:
+        return datetime.date.fromisoformat(texto)
+    except (TypeError, ValueError):
+        raise SystemExit(f"forge-placar: {nome} deve ser AAAA-MM-DD")
+
+
+def celulas(linha):
+    """As células de uma linha de tabela Markdown, ou None se não é linha de dados."""
+    if not linha.startswith("|") or set(linha.replace("|", "").strip()) <= set("-: "):
+        return None
+    return [c.strip() for c in linha.strip().strip("|").split("|")]
+
+
+def ler(arq):
+    try:
+        return Path(arq).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+    except (OSError, UnicodeDecodeError) as erro:
+        raise SystemExit(f"forge-placar: não li {arq}: {type(erro).__name__}")
+
+
+def conferencias(raiz):
+    """Vereditos (dia, modo, negativo, classe) de docs/kanban/conferencias.md; linhas de 8 colunas (antigas) têm classe ''."""
+    texto = ler(Path(raiz) / "docs" / "kanban" / "conferencias.md")
+    if texto is None:
+        return None
+    saida = []
+    for linha in texto.splitlines():
+        c = celulas(linha)
+        if not c or len(c) < 8 or not DATA.match(c[0]):
+            continue
+        resultado = c[5].lower()
+        negativo = not resultado.startswith(("aprovado", "cumpriu"))
+        saida.append((datetime.date.fromisoformat(c[0][:10]), c[3], negativo, c[8] if len(c) > 8 else ""))
+    return saida
+
+
+def escapes(raiz):
+    texto = ler(Path(raiz) / "docs" / "kanban" / "escapes.md")
+    if texto is None:
+        return None
+    return [datetime.date.fromisoformat(c[0][:10]) for c in map(celulas, texto.splitlines()) if c and DATA.match(c[0])]
+
+
+def historicos(raiz):
+    """Por pedido, as linhas datadas do `## Histórico`: (datetime, texto)."""
+    pasta = Path(raiz) / "docs" / "pedidos"
+    if not pasta.is_dir():
+        return None
+    pedidos = {}
+    for arq in sorted(pasta.glob("*.md")):
+        texto = ler(arq) or ""
+        partes = re.split(r"^## Histórico[ \t]*$", texto, maxsplit=1, flags=re.M)
+        linhas = []
+        for linha in (partes[1].split("\n## ", 1)[0] if len(partes) > 1 else "").splitlines():
+            m = LINHA_DO_HISTORICO.match(linha)
+            if m:
+                quando = datetime.datetime.fromisoformat(m.group(1)).replace(hour=int(m.group(2) or 0), minute=int(m.group(3) or 0))
+                linhas.append((quando, m.group(4)))
+        pedidos[arq.stem] = linhas
+    return pedidos
+
+
+def erros_do_registro(arq):
+    if not arq:
+        return []
+    texto = ler(arq)
+    if texto is None:
+        raise SystemExit(f"forge-placar: --erros {arq} não existe")
+    return [datetime.date.fromisoformat(d) for d in ERRO_REGISTRO.findall(texto)]
+
+
+def reversoes(pasta, ref):
+    if not pasta:
+        return None
+    r = subprocess.run(["git", "-C", str(pasta), "log", "--first-parent", "--format=%cs%x09%s", ref], capture_output=True, text=True)
+    if r.returncode:
+        raise SystemExit(f"forge-placar: git log da ref falhou em {pasta}")
+    return [datetime.date.fromisoformat(d) for d, s in (l.split("\t", 1) for l in r.stdout.splitlines() if "\t" in l)
+            if s.lower().startswith("revert")]
+
+
+def ci_vermelha(arq):
+    if not arq:
+        return None
+    try:
+        execucoes = json.loads(ler(arq) or "[]")
+    except json.JSONDecodeError:
+        raise SystemExit(f"forge-placar: --ci {arq} não é JSON")
+    return [datetime.date.fromisoformat(e["createdAt"][:10]) for e in execucoes
+            if isinstance(e, dict) and e.get("conclusion") == "failure" and DATA.match(str(e.get("createdAt", "")))]
+
+
+def dentro(dia, janela):
+    return janela[0] <= dia < janela[1]
+
+
+def razao(n, d):
+    return round(n / d, 4) if d else None
+
+
+def medir(fontes, janela):
+    """As métricas de uma janela [início, fim): dict com os números brutos e as razões (None quando não há fonte ou base)."""
+    conf = [v for v in fontes["conferencias"] or [] if dentro(v[0], janela)]
+    delegacoes = sum(1 for _, modo, negativo, _ in conf if modo == "brief" and not negativo)
+    negativos = [classe for _, _, negativo, classe in conf if negativo]
+    forma = sum(1 for classe in negativos if classe not in CLASSES_DE_MERITO)
+    hist = fontes["historicos"] or {}
+    erros = sum(1 for linhas in hist.values() for quando, texto in linhas if "ERRO-JARVIS" in texto and dentro(quando.date(), janela))
+    erros += sum(1 for d in fontes["erros"] if dentro(d, janela))
+    escapados = {nome: (None if fontes[nome] is None else sum(1 for d in fontes[nome] if dentro(d, janela)))
+                 for nome in ("escapes", "reversoes", "ci_vermelha")}
+    defeitos = sum(v for v in escapados.values() if v is not None)
+    tempos = []
+    for linhas in hist.values():
+        pronto = next((q for q, t in linhas if CONFERIDA.match(t)), None)
+        fim = next((q for q, t in linhas if pronto and q >= pronto and MESCLADO.search(t)), None)
+        if pronto and fim and dentro(fim.date(), janela):
+            tempos.append((fim - pronto).total_seconds() / 60)
+    sem_conf = fontes["conferencias"] is None
+    return {
+        "janela": [janela[0].isoformat(), janela[1].isoformat()],
+        "vereditos": len(conf), "delegacoes": delegacoes, "negativos": len(negativos), "negativos_forma": forma,
+        "erros_jarvis_n": erros, **{f"{k}_n": v for k, v in escapados.items()}, "pedidos_mesclados": len(tempos),
+        "taxa_forma": None if sem_conf else razao(forma, delegacoes),
+        "taxa_reprovacao": None if sem_conf else razao(len(negativos), len(conf)),
+        "erros_jarvis": razao(erros, delegacoes) if fontes["historicos"] is not None or fontes["erros"] else None,
+        "taxa_escape": None if all(v is None for v in escapados.values()) else razao(defeitos, delegacoes),
+        "voltas_por_item": None if sem_conf else razao(len(negativos), delegacoes),
+        "pronto_ate_develop": round(statistics.median(tempos)) if tempos else None,
+    }
+
+
+def carregar(args):
+    return {"conferencias": conferencias(args.raiz), "escapes": escapes(args.raiz), "historicos": historicos(args.raiz),
+            "erros": erros_do_registro(args.erros), "reversoes": reversoes(args.git, args.ref), "ci_vermelha": ci_vermelha(args.ci)}
+
+
+def fmt(v):
+    """Razão em porcentagem (pode passar de 100%: são voltas por delegação), minutos como `N min`, ausência como `-`."""
+    return "-" if v is None else (f"{v:.2%}" if isinstance(v, float) else f"{v} min")
+
+
+def imprimir(rotulos, medidas):
+    for nome in METRICAS:
+        print(f"{nome}: " + " · ".join(f"{r} {fmt(m[nome])}" for r, m in zip(rotulos, medidas)))
+    for r, m in zip(rotulos, medidas):
+        brutos = ", ".join(f"{k}={'-' if m[k] is None else m[k]}" for k in ("vereditos", "delegacoes", "negativos", "negativos_forma",
+                                                                             "erros_jarvis_n", "escapes_n", "reversoes_n", "ci_vermelha_n",
+                                                                             "pedidos_mesclados"))
+        print(f"base {r} [{m['janela'][0]}, {m['janela'][1]}): {brutos}")
+
+
+def cmd_placar(args):
+    ate = data(args.ate, "--ate") if args.ate else datetime.date.today()
+    passo = datetime.timedelta(days=args.dias)
+    fontes = carregar(args)
+    atual, anterior = medir(fontes, (ate - passo, ate)), medir(fontes, (ate - 2 * passo, ate - passo))
+    if args.json:
+        print(json.dumps({"atual": atual, "anterior": anterior}, ensure_ascii=False, sort_keys=True))
+    else:
+        imprimir(("atual", "anterior"), (atual, anterior))
+    return 0
+
+
+def piorou(antes, depois, tolerancia, folga):
+    return antes is not None and depois is not None and depois > antes * (1 + tolerancia) + folga
+
+
+def cmd_comparar(args):
+    if args.metrica and args.metrica not in METRICAS:
+        raise SystemExit(f"forge-placar: --metrica deve ser uma de {', '.join(METRICAS)}")
+    antes_d, depois_d = data(args.antes, "--antes"), data(args.depois, "--depois")
+    if depois_d < antes_d:
+        raise SystemExit("forge-placar: --depois não pode ser antes de --antes")
+    passo = datetime.timedelta(days=args.dias)
+    fontes = carregar(args)
+    antes, depois = medir(fontes, (antes_d - passo, antes_d)), medir(fontes, (depois_d, depois_d + passo))
+    motivos = [f"{nome} piorou: {fmt(antes[nome])} -> {fmt(depois[nome])}" for nome in GUARDADAS
+               if piorou(antes[nome], depois[nome], args.tolerancia, args.folga)]
+    if args.metrica:
+        a, d = antes[args.metrica], depois[args.metrica]
+        if a is None or d is None:
+            motivos.append(f"{args.metrica} sem medida numa das janelas ({fmt(a)} -> {fmt(d)})")
+        elif not d < a:
+            motivos.append(f"{args.metrica} não melhorou: {fmt(a)} -> {fmt(d)} (mudança sem ganho sai)")
+    pequena = [r for r, m in (("antes", antes), ("depois", depois)) if m["delegacoes"] < args.minimo]
+    veredito, rc = ("inconclusivo", 3) if pequena else (("reverter", 1) if motivos else ("manter", 0))
+    if args.json:
+        print(json.dumps({"antes": antes, "depois": depois, "veredito": veredito, "motivos": motivos, "amostra_pequena": pequena},
+                         ensure_ascii=False, sort_keys=True))
+        return rc
+    imprimir(("antes", "depois"), (antes, depois))
+    for r in pequena:
+        print(f"amostra: janela {r} com menos de {args.minimo} delegações; o placar não decide")
+    for m in motivos:
+        print(f"motivo: {m}")
+    print(f"veredito: {veredito}")
+    return rc
+
+
+def propostas(texto):
+    """Linhas da tabela de experimentos: dicts pelas colunas do cabeçalho."""
+    cabecalho, linhas = None, []
+    for linha in texto.splitlines():
+        c = celulas(linha)
+        if not c:
+            continue
+        if cabecalho is None:
+            cabecalho = [x.lower() for x in c]
+            continue
+        linhas.append(dict(zip(cabecalho, c + [""] * (len(cabecalho) - len(c)))))
+    return cabecalho or [], linhas
+
+
+def conferir_proposta(p, hoje):
+    """As faltas de uma proposta (lista vazia se está em ordem) e se ela está aberta."""
+    faltas, ident = [], p.get("id") or "?"
+    metrica = p.get("métrica", "").strip("` ")
+    if not any(m == metrica or metrica.startswith(m + " ") for m in METRICAS):
+        faltas.append(f"{ident}: Métrica tem de começar por uma métrica do placar ({', '.join(METRICAS)})")
+    if not p.get("mudança", "").lower().startswith(TIPOS_DE_MUDANCA):
+        faltas.append(f"{ident}: Mudança tem de começar por `código:` ou `texto:` (texto só para julgamento)")
+    if not p.get("critério de reversão", "").strip(" —-"):
+        faltas.append(f"{ident}: sem critério de reversão")
+    inicio, revisao = p.get("início", ""), p.get("revisão", "")
+    if not (DATA.fullmatch(inicio) and DATA.fullmatch(revisao)):
+        faltas.append(f"{ident}: Início e Revisão têm de ser AAAA-MM-DD (a proposta nasce com prazo)")
+        return faltas, True
+    dias = (datetime.date.fromisoformat(revisao) - datetime.date.fromisoformat(inicio)).days
+    if not 1 <= dias <= PRAZO_MAXIMO:
+        faltas.append(f"{ident}: Revisão de 1 a {PRAZO_MAXIMO} dias depois do Início (tem {dias})")
+    resultado = p.get("resultado", "").strip()
+    fechada = bool(RESULTADO.match(resultado))
+    if resultado.strip(" —-") and not fechada:
+        faltas.append(f"{ident}: Resultado tem de começar por `manter` ou `reverter` e citar a leitura do placar")
+    if not fechada and datetime.date.fromisoformat(revisao) <= hoje:
+        faltas.append(f"{ident}: revisão vencida em {revisao}: rode `forge-placar comparar --antes {inicio} --depois {inicio}"
+                      f" --metrica {metrica.split(' ')[0] or '<métrica>'}` e grave `manter (...)` ou `reverter (...)`")
+    return faltas, not fechada
+
+
+def cmd_propostas(args):
+    arq = Path(args.arquivo or Path(args.raiz) / "docs" / "kanban" / "melhorias.md")
+    texto = ler(arq)
+    if texto is None:
+        raise SystemExit(f"forge-placar: {arq} não existe")
+    hoje = data(args.hoje, "--hoje") if args.hoje else datetime.date.today()
+    cabecalho, linhas = propostas(texto)
+    faltam = [c for c in ("id", "mudança", "métrica", "critério de reversão", "início", "revisão", "resultado") if c not in cabecalho]
+    if faltam:
+        raise SystemExit(f"forge-placar: a tabela de {arq.name} não tem as colunas: {', '.join(faltam)}")
+    faltas, abertas = [], []
+    for p in linhas:
+        f, aberta = conferir_proposta(p, hoje)
+        faltas += f
+        abertas += [p.get("id") or "?"] if aberta else []
+    if len(abertas) > args.max_abertas:
+        faltas.append(f"abertas: {len(abertas)} ({', '.join(abertas)}), máximo {args.max_abertas}: uma causa por vez")
+    if args.json:
+        print(json.dumps({"propostas": len(linhas), "abertas": abertas, "faltas": faltas}, ensure_ascii=False))
+    else:
+        for f in faltas:
+            print(f"falta: {f}")
+        print(f"propostas: {len(linhas)} · abertas: {len(abertas)} · resultado: {'reprovado' if faltas else 'ok'}")
+    return 1 if faltas else 0
+
+
+def analisar(argv):
+    comum = argparse.ArgumentParser(add_help=False)
+    comum.add_argument("--raiz", default=".")
+    comum.add_argument("--erros")
+    comum.add_argument("--git")
+    comum.add_argument("--ref", default="origin/develop")
+    comum.add_argument("--ci")
+    comum.add_argument("--dias", type=int, default=7)
+    comum.add_argument("--json", action="store_true")
+    if argv[:1] == ["comparar"]:
+        p = argparse.ArgumentParser(prog="forge-placar comparar", parents=[comum])
+        p.add_argument("--antes", required=True)
+        p.add_argument("--depois", required=True)
+        p.add_argument("--metrica")
+        p.add_argument("--tolerancia", type=float, default=0.10)
+        p.add_argument("--folga", type=float, default=0.01)
+        p.add_argument("--minimo", type=int, default=10)
+        return cmd_comparar, p.parse_args(argv[1:])
+    if argv[:1] == ["propostas"]:
+        p = argparse.ArgumentParser(prog="forge-placar propostas", parents=[comum])
+        p.add_argument("arquivo", nargs="?")
+        p.add_argument("--hoje")
+        p.add_argument("--max-abertas", type=int, default=1)
+        return cmd_propostas, p.parse_args(argv[1:])
+    p = argparse.ArgumentParser(prog="forge-placar", parents=[comum])
+    p.add_argument("--ate")
+    return cmd_placar, p.parse_args(argv)
+
+
+def main(argv):
+    funcao, args = analisar(argv)
+    if args.dias < 1:
+        raise SystemExit("forge-placar: --dias deve ser 1 ou mais")
+    return funcao(args)
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except SystemExit as saida:
+        if isinstance(saida.code, str):
+            print(saida.code, file=sys.stderr)
+            sys.exit(2)
+        raise
