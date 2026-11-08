@@ -66,8 +66,8 @@
       "id": "I9a0-7",
       "guarda": "rc 2 por commit e sem-veredito (adendo: ler sem-veredito como nao-reverte)",
       "arquivo": "scripts/conferir-reversao.py",
-      "de": "if codigo == 2:",
-      "para": "if codigo == 3:",
+      "de": "(codigo := suite_afetada(copia, base)) == 2",
+      "para": "(codigo := suite_afetada(copia, base)) == 3",
       "testes": [
         "tests.test_conferir_reversao.ConferirReversao.test_forge_testes_que_sai_2_vira_sem_veredito"
       ]
@@ -91,6 +91,13 @@
       "testes": [
         "tests.test_conferir_reversao.ConferirReversao.test_ponta_ja_vermelha_avisa_e_nao_classifica"
       ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "scripts/conferir-reversao.py",
+      "trecho": "env=ambiente()).returncode == 0",
+      "motivo": "a comparacao com 0 da suite_afetada virou o codigo devolvido; quem decide agora sao o if codigo por commit (I9a0-8) e o if suite_afetada da ponta (I9a0-9)"
     }
   ]
 }

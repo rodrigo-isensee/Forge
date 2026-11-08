@@ -75,8 +75,7 @@ def conferir_commit(copia, base, commit):
     r = git(copia, "revert", "--no-commit", commit)
     if r.returncode:
         return "nao-reverte: conflito ao reverter"
-    codigo = suite_afetada(copia, base)
-    if codigo == 2:
+    if (codigo := suite_afetada(copia, base)) == 2:
         return "sem-veredito: o forge-testes saiu 2 sem o commit"
     if codigo:
         return "nao-reverte: a suíte afetada falha sem o commit"
