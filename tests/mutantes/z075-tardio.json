@@ -1,0 +1,76 @@
+{
+  "pedido": "z075-tardio",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "B14: --tardio exigido na rodada 1 (o desenho: exigir na rodada 1)",
+      "arquivo": "bin/forge-check",
+      "de": "if classe == \"—\" or int(rodada) < 2:",
+      "para": "if classe == \"—\" or int(rodada) < 1:",
+      "testes": [
+        "tests.test_conferencia_registrar.Tardio.test_rodada_1_que_reprova_e_rodada_2_que_aprova_dispensam_tardio"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "B14: o aprovado de rodada 2 dispensa --tardio",
+      "arquivo": "bin/forge-check",
+      "de": "if classe == \"—\" or int(rodada) < 2:",
+      "para": "if int(rodada) < 2:",
+      "testes": [
+        "tests.test_conferencia_registrar.Tardio.test_rodada_1_que_reprova_e_rodada_2_que_aprova_dispensam_tardio"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "B14: --tardio fora da reprovacao de rodada 2 ou mais e recusado",
+      "arquivo": "bin/forge-check",
+      "de": "        if tardio is not None:\n            return [\"conferencia: --tardio só vale",
+      "para": "        if False:\n            return [\"conferencia: --tardio só vale",
+      "testes": [
+        "tests.test_conferencia_registrar.Tardio.test_tardio_fora_da_reprovacao_de_rodada_2_ou_com_outro_valor_recusa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "B14: --tardio so aceita sim ou nao (o desenho: aceitar outro valor)",
+      "arquivo": "bin/forge-check",
+      "de": "elif tardio not in (\"sim\", \"nao\"):",
+      "para": "elif tardio is None:",
+      "testes": [
+        "tests.test_conferencia_registrar.Tardio.test_tardio_fora_da_reprovacao_de_rodada_2_ou_com_outro_valor_recusa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "B14: sem --tardio na reprovacao de rodada 2 ou mais, recusa sem gravar",
+      "arquivo": "bin/forge-check",
+      "de": "elif tardio not in (\"sim\", \"nao\"):",
+      "para": "elif tardio not in (\"sim\", \"nao\", None):",
+      "testes": [
+        "tests.test_conferencia_registrar.Tardio.test_rodada_2_que_reprova_sem_tardio_recusa_sem_gravar"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "B14: nota vazia leva so o prefixo, sem separador solto",
+      "arquivo": "bin/forge-check",
+      "de": "nota = f\"tardio: {tardio} · {nota}\" if nota else f\"tardio: {tardio}\"",
+      "para": "nota = f\"tardio: {tardio} · {nota}\"",
+      "testes": [
+        "tests.test_conferencia_registrar.Tardio.test_com_tardio_grava_o_prefixo_na_nota_sem_coluna_nova"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "B14: o valor de --tardio vai gravado como prefixo da nota",
+      "arquivo": "bin/forge-check",
+      "de": "nota = f\"tardio: {tardio} · {nota}\" if nota else f\"tardio: {tardio}\"",
+      "para": "nota = nota if nota else f\"tardio: {tardio}\"",
+      "testes": [
+        "tests.test_conferencia_registrar.Tardio.test_com_tardio_grava_o_prefixo_na_nota_sem_coluna_nova"
+      ]
+    }
+  ]
+}

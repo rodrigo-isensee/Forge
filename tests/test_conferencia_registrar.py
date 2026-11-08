@@ -113,6 +113,47 @@ class Registrar(Raiz):
         self.assertIn("fonte=conferencias", linhas[0])
 
 
+class Tardio(Raiz):  # B14 (E8): `--tardio sim|nao` mede o achado tardio, como prefixo da nota e sem coluna nova
+    REPROVA2 = com(BASE, rodada="2", resultado="reprovado", merito="s") + ["--classe", "forma", "--nota", "faltou PQ"]
+
+    def setUp(self):
+        super().setUp()
+        self.gravar("KANBAN.md", "# Quadro\n")
+
+    def test_rodada_2_que_reprova_sem_tardio_recusa_sem_gravar(self):
+        for resultado in ("reprovado", "não cumpriu"):
+            with self.subTest(resultado=resultado):
+                cod, saida, _ = self.rodar(*com(self.REPROVA2, resultado=resultado))
+                self.assertEqual((cod, saida), (1, ["conferencia: --tardio sim|nao é obrigatório quando a rodada 2 ou mais não aprova"]))
+                self.assertFalse((self.tmp / ARQ).exists())
+
+    def test_com_tardio_grava_o_prefixo_na_nota_sem_coluna_nova(self):
+        for valor, rodada in (("sim", "2"), ("nao", "3")):
+            self.assertEqual(self.rodar(*com(self.REPROVA2, rodada=rodada), "--tardio", valor)[0], 0)
+        linhas = (self.tmp / ARQ).read_text(encoding="utf-8").splitlines()
+        self.assertTrue(linhas[2].endswith("| 2 | reprovado | s | tardio: sim · faltou PQ | forma | jarvis |"), linhas[2])
+        self.assertTrue(linhas[3].endswith("| 3 | reprovado | s | tardio: nao · faltou PQ | forma | jarvis |"), linhas[3])
+        self.assertEqual(len(linhas[2].split("|")), 12)
+        self.assertEqual(self.rodar(*self.REPROVA2[:-2], "--tardio", "sim")[0], 0)  # sem nota, só o prefixo
+        self.assertIn("| s | tardio: sim | forma |", (self.tmp / ARQ).read_text(encoding="utf-8").splitlines()[4])
+
+    def test_tardio_fora_da_reprovacao_de_rodada_2_ou_com_outro_valor_recusa(self):
+        casos = {"rodada 1": com(self.REPROVA2, rodada="1") + ["--tardio", "sim"],
+                 "aprovado": com(BASE, rodada="2") + ["--tardio", "nao"],
+                 "outro valor": self.REPROVA2 + ["--tardio", "talvez"]}
+        for nome, args in casos.items():
+            with self.subTest(caso=nome):
+                cod, saida, _ = self.rodar(*args)
+                self.assertNotEqual(cod, 0)
+                self.assertTrue(saida and saida[0].startswith("conferencia:"), saida)
+                self.assertFalse((self.tmp / ARQ).exists())
+
+    def test_rodada_1_que_reprova_e_rodada_2_que_aprova_dispensam_tardio(self):
+        self.assertEqual(self.rodar(*com(self.REPROVA2, rodada="1"))[0], 0)
+        self.assertEqual(self.rodar(*com(BASE, rodada="2"))[0], 0)
+        self.assertNotIn("tardio:", (self.tmp / ARQ).read_text(encoding="utf-8"))
+
+
 class SalvarArea(Raiz):  # E7 (FILA-23): a entrega conferida salva a área só em origin area-salva (HOME e remoto bare temporários)
     ENTREGA = com(BASE, modo="entrega", resultado="cumpriu")
 
