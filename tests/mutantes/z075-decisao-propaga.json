@@ -149,6 +149,16 @@
       "testes": [
         "tests.test_anotar.Propagar.test_com_propagar_grava_o_seguinte_e_o_anterior_fica"
       ]
+    },
+    {
+      "id": "M15",
+      "guarda": "falha do gravar_brief no --propagar sai com erro, mesmo com o brief seguinte gravado",
+      "arquivo": "bin/forge-check",
+      "de": "rc = rc or rc_gravar",
+      "para": "rc = rc",
+      "testes": [
+        "tests.test_anotar.Propagar.test_falha_do_gravar_sai_com_erro_mesmo_com_o_seguinte_gravado"
+      ]
     }
   ]
 }

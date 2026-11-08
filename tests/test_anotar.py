@@ -251,6 +251,20 @@ class Propagar(Base):
         self.assertIn("sem \"## Decisões e restrições\"", linhas[1])
         self.assertEqual(sorted(p.name for p in (self.tmp / "docs" / "briefs").iterdir()), ["exemplo-dev-1.md"])
 
+    def test_falha_do_gravar_sai_com_erro_mesmo_com_o_seguinte_gravado(self):  # A1 do QA g4: rc do gravar não se perde
+        self.com(COM_SECAO)
+        self.brief("exemplo-dev-1")
+        self.brief("exemplo-qa-1")
+        real = fc.proximo_numero
+        fc.proximo_numero = lambda pasta, prefixo: 1 if prefixo == "exemplo-dev" else real(pasta, prefixo)  # corrida: o seguinte já existe
+        try:
+            linhas, rc = self.anotar_p(propagar=True)
+        finally:
+            fc.proximo_numero = real
+        self.assertEqual(rc, 2, linhas)
+        self.assertIn("exemplo-dev-1.md já existe", linhas[1])
+        self.assertTrue(linhas[2].startswith("brief gravado: docs/briefs/exemplo-qa-2.md "), linhas)
+
     def test_propagar_fora_da_decisao_e_recusado_e_pergunta_nao_lista(self):
         self.cenario()
         for tipo in ("historico", "pergunta"):
