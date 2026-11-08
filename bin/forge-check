@@ -3222,7 +3222,7 @@ def _autor_padrao(modo):
     return "jarvis" if modo == "brief" else "destino"
 
 
-def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, merito, nota, classe=None, autor=None):
+def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, merito, nota, classe=None, autor=None, tardio=None):
     """Registra uma conferência em docs/kanban/conferencias.md (S-18): linha de 10 colunas no formato do cabeçalho (as 8 de antes mais
     `classe` e `autor`, OK-7), hora real `AAAA-MM-DD HH:MM`. Só acrescenta; cria o arquivo com o cabeçalho se faltar; linhas antigas
     ficam como estão. Recusa sem gravar; a recusa cita o campo, nunca o valor. Depois de gravar, imprime a proposta se o par chegou a 3."""
@@ -3250,6 +3250,13 @@ def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, meri
         classe = "—"
     elif classe is None or classe not in CLASSES_DE_FALHA:
         return [f"conferencia: --classe é obrigatória quando reprova ou não cumpre e deve ser uma de {', '.join(CLASSES_DE_FALHA)}"]
+    if classe == "—" or int(rodada) < 2:  # B14 (E8): o achado tardio só se mede na reprovação de rodada 2 ou mais
+        if tardio is not None:
+            return ["conferencia: --tardio só vale quando a rodada 2 ou mais não aprova"]
+    elif tardio not in ("sim", "nao"):
+        return ["conferencia: --tardio sim|nao é obrigatório quando a rodada 2 ou mais não aprova"]
+    else:
+        nota = f"tardio: {tardio} · {nota}" if nota else f"tardio: {tardio}"  # prefixo, sem coluna nova (o formato não muda)
     autor = autor or _autor_padrao(modo)
     if not (raiz / "KANBAN.md").is_file():
         return [SEM_QUADRO.format(cmd="conferencia", raiz=caminho_impresso(raiz))]
@@ -7999,6 +8006,7 @@ def main():
     rg.add_argument("--nota", default="")
     rg.add_argument("--classe", help=f"classe da falha (obrigatória quando reprova ou não cumpre): {', '.join(CLASSES_DE_FALHA)}")
     rg.add_argument("--autor", help=f"quem errou: {', '.join(AUTORES_DE_FALHA)} (padrão: jarvis no modo brief, destino no modo entrega)")
+    rg.add_argument("--tardio", help="sim ou nao: o achado podia sair na rodada 1? (obrigatório quando a rodada 2 ou mais não aprova)")
     cl = csub.add_parser("classes", parents=[comum], help="conta as falhas classificadas por classe e autor nos últimos dias e propõe regra com 3 ou mais briefs (só imprime)")
     cl.add_argument("--dias", type=int, default=JANELA_DE_RECORRENCIA, help=f"janela em dias (padrão {JANELA_DE_RECORRENCIA})")
     pv = sub.add_parser("provas", help="provas `cmd` dos briefs e o CI: o arquivo de provas da branch e a medida (M15, R-PROVA)")
@@ -8170,7 +8178,7 @@ def executar(a, raiz):
             print(linha)
         return 0
     if a.cmd == "conferencia":
-        linhas = cmd_conferencia_registrar(raiz, a.pedido, a.brief, a.modo, a.rodada, a.resultado, a.merito, a.nota, a.classe, a.autor)
+        linhas = cmd_conferencia_registrar(raiz, a.pedido, a.brief, a.modo, a.rodada, a.resultado, a.merito, a.nota, a.classe, a.autor, a.tardio)
         for linha in linhas:
             print(linha)
         return 1 if linhas[0].startswith("conferencia:") else 0
