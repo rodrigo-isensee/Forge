@@ -125,6 +125,20 @@ class Mapa(unittest.TestCase):
             (Path(t) / "tests").mkdir()
             self.assertEqual(self.f.planejar(["bin/forge-sugerir"], Path(t))[0], "completo")
 
+    def test_modelos_de_parecer_rodam_os_testes_que_os_leem(self):  # MP-1: devops com o mesmo destino de security
+        guardas = {"test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034"}
+        for caminho in ("docs/devops/_modelo.md", "templates/projeto/docs/devops/_modelo.md",
+                        "docs/security/_modelo.md", "templates/projeto/docs/security/_modelo.md"):
+            with self.subTest(caminho):
+                modo, modulos = self.plano(caminho)
+                self.assertEqual(modo, "dirigido")
+                self.assertLessEqual(guardas, set(modulos))
+
+    def test_promover_e_apoio_seguem_na_completa(self):  # MP-1: adendo 2, ponto 3 (decisão 7 do dono)
+        for caminho in ("scripts/promover-homolog.py", "tests/apoio_volta_unica.py"):
+            with self.subTest(caminho):
+                self.assertEqual(self.plano(caminho), ("completo", [f"{caminho} sem mapa"]))
+
     def test_todo_modulo_do_mapa_existe(self):
         modulos = {m for _, destino in self.f.MAPA if destino for m in destino}
         self.assertGreaterEqual(len(modulos), 10)
