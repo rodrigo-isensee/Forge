@@ -5771,7 +5771,7 @@ def conferir_pq(linhas_pq, tipo_brief=None):
             fonte = comando.group(1) if comando else ""
             if grep_c_sem_arquivo(fonte):  # L10
                 saida.append((f"aviso: PQ-{n} `grep -c` sem arquivo (lê o terminal, não o que se quer contar); passe o arquivo", False))
-            if tipo_brief in PARECERES_DA_UNIAO and le_head_sem_sha(fonte, linha):  # E3: só informa
+            if tipo_brief in ("review", "qa") and le_head_sem_sha(fonte, linha):  # E3: só informa
                 saida.append((f"aviso: PQ-{n} de parecer lê HEAD; fixe o sha40 do commit do parecer", False))
             e = ESPERA.search(resto)
             if e:
@@ -6925,52 +6925,8 @@ def mensagem_de_entrega(raiz, a, conteudo, texto, destino, etapa, arquivo, recus
     linhas += [f"Desde: {base_sha if squash else bases[-1][0]}"] if bases else []
     linhas += [f"Brief-sha256: {hashlib.sha256(conteudo).hexdigest()}", f"Etapa: {etapa}"]
     bloco = "\n".join(linhas).encode("utf-8") + b"\n"  # TEMPO-B1: sem o texto; o conferente lê o `Arquivo:` do disco
-    if getattr(a, "uniao", None) is not None:  # E3 (C-1): na união, o bloco fica em memória até todas as recusas
-        a.uniao.append((bloco, texto, arquivo, destino))
-        return 0
     sys.stdout.flush()
     sys.stdout.buffer.write(bloco)
-    sys.stdout.buffer.flush()
-    return 0
-
-
-TETO_DA_UNIAO = 6  # E3 (C-7): briefs numa união; acima disso recusa antes de ler
-PARECERES_DA_UNIAO = ("review", "qa")  # E3 (C-2): lista branca; todo outro tipo, de hoje ou futuro, recusa a união
-
-
-def uniao_de_entregas(raiz, a, recusar):
-    """E3 (P3): `--entrega` com N briefs, cada um com as recusas de um brief só (destino e etapa do próprio cabeçalho, C-4); só `review` e `qa` (C-2)
-    do mesmo pedido (C-5), sem repetido (C-6), com Branch, Base e Base-sha iguais (C-3); um write só ou nada (C-1); a recusa cita nome e tipo (C-8)."""
-    if not a.entrega:
-        return recusar("vários --arquivo só com --entrega")
-    if len(a.arquivo) > TETO_DA_UNIAO:
-        return recusar(f"a união aceita até {TETO_DA_UNIAO} briefs")
-    if a.destino is not None or a.etapa is not None:
-        return recusar("com vários --arquivo, o destino e a etapa saem do cabeçalho de cada brief (sem --destino nem --etapa)")
-    blocos = []
-    for valor in a.arquivo:
-        rc = cmd_brief_mensagem(raiz, argparse.Namespace(**{**vars(a), "arquivo": [valor], "uniao": blocos}))
-        if rc:
-            return rc
-    caminho_pedido = caminho_do_pedido(raiz, a.pedido)
-    nomes = [caminho_impresso(arquivo.name) for _, _, arquivo, _ in blocos]
-    if len({arquivo for _, _, arquivo, _ in blocos}) < len(blocos):
-        return recusar("brief repetido na união")
-    for nome, (_, texto, arquivo, destino) in zip(nomes, blocos):
-        do_cabecalho = grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho_do_brief(texto))
-        pelo_nome = re.fullmatch(rf"{re.escape(caminho_pedido.stem)}-{re.escape(nome_do_papel(destino))}-\d+\.md", arquivo.name)
-        if not (mesmo_pedido(do_cabecalho, caminho_pedido.stem, caminho_pedido) if do_cabecalho else pelo_nome):
-            return recusar(f"{nome} não é do pedido {caminho_impresso(caminho_pedido.stem)}")
-    tipos = [tipo_do_brief(texto) for _, texto, _, _ in blocos]
-    if fora := [t for t in tipos if t not in PARECERES_DA_UNIAO]:
-        lista = ", ".join(f"{nome} ({tipo})" for nome, tipo in zip(nomes, tipos))
-        return recusar(f"união de código e parecer: {lista}" if {"codigo", "volta"} & set(tipos) else f"união recusada: {fora[0]} não é parecer: {lista}")
-    for campo in ("Branch", "Base", "Base-sha"):
-        valores = [grupo(CABECALHO_DE_BRIEF_CAMPOS[campo], cabecalho_do_brief(texto)) for _, texto, _, _ in blocos]
-        if diferente := next((i for i, v in enumerate(valores) if v != valores[0]), None):
-            return recusar(f"{campo} difere entre {nomes[0]} e {nomes[diferente]}")
-    sys.stdout.flush()
-    sys.stdout.buffer.write(b"\n".join(bloco for bloco, _, _, _ in blocos))
     sys.stdout.buffer.flush()
     return 0
 
@@ -6985,8 +6941,8 @@ def cmd_brief_mensagem(raiz, a):
 
     if not a.arquivo:
         return recusar("--arquivo <brief em docs/briefs/> é obrigatório")
-    if len(a.arquivo) > 1:
-        return uniao_de_entregas(raiz, a, recusar)
+    if len(a.arquivo) > 1:  # UM-BRIEF (versao-075 UN-1): o hook recusa mais de um bloco na mensagem; nada é lido nem impresso
+        return recusar("um brief por mensagem: rode o comando uma vez por --arquivo e mande cada saída numa chamada própria ao conferente (R-BRIEF)")
     a.arquivo = a.arquivo[0]
     campos = [("--pedido", a.pedido), ("--destino", a.destino), ("--ref", a.ref), ("--etapa", a.etapa), ("--arquivo", a.arquivo),
               ("--anterior", a.anterior), ("--worktree", a.worktree)] + [(f"--parecer {i}", valor) for i, valor in enumerate(a.parecer or (), 1)]
@@ -7664,7 +7620,7 @@ def main():
     sub.add_parser("fontes", help="confere se as fontes de boas práticas do registro local têm versão nova")
     br = sub.add_parser("brief", parents=[comum], help="forma, corte e decisões de um brief (C2, C4); `brief gerar` monta os blocos fixos; `brief mensagem` imprime a mensagem ao conferente")
     br.add_argument("alvo", help="arquivo do brief, `gerar` ou `mensagem` (a mensagem integral ao conferente, só se o brief passa)")
-    br.add_argument("--arquivo", nargs="+", help="só em `mensagem`: o brief, resolvido só em docs/briefs/ (da raiz ou de ~/.forge-contrib); vários só com --entrega (E3)")
+    br.add_argument("--arquivo", nargs="+", help="só em `mensagem`: o brief, resolvido só em docs/briefs/ (da raiz ou de ~/.forge-contrib); um só; vários são recusados (um brief por mensagem)")
     br.add_argument("--pedido", required=True, help="id do pedido: grava só em docs/pedidos/<id>.md (caminho de arquivo é recusado)")
     br.add_argument("--destino", nargs="+", help="agente destino, forge:<nome> (vários só em `gerar --gravar`, o lote: um arquivo por destino). Em `mensagem` só é preciso se o brief não tem `Agente destino:` no cabeçalho (antes da primeira seção); se tem, o --destino precisa ser igual ao do brief. Na conferência (`brief <arquivo>`), o padrão é o `Agente destino:` do brief ou o nome do arquivo")
     br.add_argument("--anterior", help="brief da rodada anterior (em docs/briefs/): imprime `anterior:` e uma linha `delta:` por linha que mudou em cada seção (só informa)")
