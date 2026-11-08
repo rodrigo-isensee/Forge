@@ -23,8 +23,12 @@ def git(cwd, *args):
     return subprocess.run(["git", *args], cwd=cwd, env=ambiente, capture_output=True, text=True, check=True).stdout
 
 
-def forge_changelog(cwd, *args):
-    return subprocess.run([sys.executable, str(FERRAMENTA), *args], cwd=cwd, capture_output=True, text=True)
+def forge_changelog(cwd, *args, head_ref=None):
+    ambiente = {k: v for k, v in os.environ.items() if k not in ("GITHUB_HEAD_REF", "CI")}  # o PR do CI não vaza
+    if head_ref is not None:
+        ambiente["GITHUB_HEAD_REF"] = head_ref
+    return subprocess.run([sys.executable, "-I", str(FERRAMENTA), *args], cwd=cwd, env=ambiente,
+                          capture_output=True, text=True)
 
 
 class Base(unittest.TestCase):
@@ -313,7 +317,7 @@ class ConferirNoCI(Base):
     def test_recusa_fragmento_malformado(self):
         self.mudar_fabrica()
         (self.dir / "changelog.d").mkdir()
-        (self.dir / "changelog.d" / "x.md").write_text("texto solto\n", encoding="utf-8")
+        (self.dir / "changelog.d" / "minha-mudanca.md").write_text("texto solto\n", encoding="utf-8")
         self.commitar()
         self.assertNotEqual(self.conferir().returncode, 0)
 
@@ -330,7 +334,7 @@ class ConferirNoCI(Base):
                 git(self.dir, "switch", "-q", "-C", "melhoria/minha-mudanca", "develop")
                 self.mudar_fabrica()
                 (self.dir / "changelog.d").mkdir(exist_ok=True)
-                (self.dir / "changelog.d" / "x.md").write_text(conteudo, encoding="utf-8")
+                (self.dir / "changelog.d" / "minha-mudanca.md").write_text(conteudo, encoding="utf-8")
                 self.commitar()
                 self.assertNotEqual(self.conferir().returncode, 0)
 
@@ -449,7 +453,7 @@ class ConferirNoCI(Base):
     def test_parecer_mais_fragmento_malformado_reprova(self):
         """Regressão do QA: o atalho de "só parecer" não pode pular a validação de um fragmento presente no PR."""
         (self.dir / "changelog.d").mkdir()
-        (self.dir / "changelog.d" / "x.md").write_text("isto não é um fragmento\n", encoding="utf-8")
+        (self.dir / "changelog.d" / "minha-mudanca.md").write_text("isto não é um fragmento\n", encoding="utf-8")
         r = self._so_arquivo("docs/qa/a.md")
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("formato inválido", r.stdout + r.stderr)
@@ -475,6 +479,59 @@ class ConferirNoCI(Base):
         self.assertEqual(self.conferir().returncode, 0)
 
 
+class ConferirNomeDaBranch(Base):
+    """CHANGELOG-BRANCH: em melhoria/*, o `conferir` recusa fragmento novo com outro nome (antes de todo atalho)."""
+
+    def fragmento(self, nome, versao=None):
+        self.mudar_fabrica()
+        (self.dir / "changelog.d").mkdir(exist_ok=True)
+        (self.dir / "changelog.d" / nome).write_text("### Alterado\n- v\n", encoding="utf-8")
+        if versao:
+            (self.dir / ".claude-plugin" / "plugin.json").write_text(f'{{"version": "{versao}"}}\n', encoding="utf-8")
+        self.commitar()
+
+    def conferir(self, *extra, head_ref=None):
+        return forge_changelog(self.dir, "conferir", "--base", "develop", *extra, head_ref=head_ref)
+
+    def test_branch_explicita_nome_errado_reprova_e_nome_certo_passa(self):
+        self.fragmento("b.md")
+        r = self.conferir("--branch=melhoria/a")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("changelog.d/b.md", r.stderr)
+        self.assertIn("CHANGELOG-BRANCH", r.stderr)
+        self.assertEqual(self.conferir("--branch=melhoria/b").returncode, 0)
+
+    def test_nome_com_o_slug_como_prefixo_reprova(self):
+        self.fragmento("a-velho.md")
+        self.assertEqual(self.conferir("--branch=melhoria/a").returncode, 1)
+
+    def test_versao_mudada_nao_pula_a_regra(self):
+        self.fragmento("b.md", versao="0.2.0")
+        r = self.conferir("--branch=melhoria/a")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertEqual(self.conferir("--branch=melhoria/b").returncode, 0)
+
+    def test_github_head_ref_vale_sem_branch_explicita(self):
+        self.fragmento("a.md")
+        self.assertEqual(self.conferir(head_ref="melhoria/a").returncode, 0)
+        self.assertEqual(self.conferir(head_ref="melhoria/b").returncode, 1)
+
+    def test_branch_explicita_vence_o_github_head_ref(self):
+        self.fragmento("a.md")
+        r = self.conferir("--branch=melhoria/a", head_ref="melhoria/b")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_sem_branch_nem_ambiente_vale_o_head(self):
+        self.fragmento("b.md")
+        r = self.conferir()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("melhoria/minha-mudanca", r.stderr)
+
+    def test_branch_fora_de_melhoria_nao_aplica_a_regra(self):
+        self.fragmento("b.md")
+        self.assertEqual(self.conferir("--branch=fix/a").returncode, 0)
+
+
 class ConferirRelease(Base):
     def test_recusa_fragmento_pendente_e_aceita_pasta_limpa(self):
         self.assertEqual(forge_changelog(self.dir, "conferir-release").returncode, 0)
@@ -494,9 +551,7 @@ def carregar_ferramenta():
 
 
 def fragmentos_com_outro_nome(branch, novos):
-    """Fragmentos novos de changelog.d/ cujo nome não é o da branch (`<branch-sem-prefixo>.md`)."""
-    esperado = f"{carregar_ferramenta().slug_da_branch(branch)}.md"
-    return [n for n in novos if Path(n).name != esperado]
+    return carregar_ferramenta().fragmentos_com_outro_nome(branch, novos)
 
 
 class FragmentoTemONomeDaBranch(unittest.TestCase):
@@ -516,19 +571,6 @@ class FragmentoTemONomeDaBranch(unittest.TestCase):
             r = forge_changelog(d, "novo", "Adicionado", "x")
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertEqual(sorted(p.name for p in (Path(d) / "changelog.d").glob("*.md")), ["minha-mudanca.md"])
-
-    def test_fragmentos_novos_desta_branch_tem_o_nome_dela(self):
-        branch = os.environ.get("GITHUB_HEAD_REF") or subprocess.run(
-            ["git", "-C", str(RAIZ), "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True).stdout.strip()
-        if not branch.startswith("melhoria/"):
-            self.skipTest(f"branch '{branch}' não é de melhoria; a regra vale para melhoria/*")
-        r = subprocess.run(["git", "-C", str(RAIZ), "diff", "--name-only", "--no-renames", "--diff-filter=A",
-                            "origin/develop...HEAD", "--", "changelog.d"], capture_output=True, text=True)
-        if r.returncode != 0:
-            self.skipTest("sem origin/develop para comparar")
-        novos = [n for n in r.stdout.split() if n.endswith(".md") and Path(n).name.lower() != "readme.md"]
-        self.assertEqual(fragmentos_com_outro_nome(branch, novos), [],
-                         f"fragmento de changelog.d/ sem o nome da branch '{branch}' (esperado <branch-sem-prefixo>.md)")
 
 
 class CIUsaOsFragmentos(unittest.TestCase):

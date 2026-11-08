@@ -5,11 +5,14 @@ Uso: forge-changelog novo <Adicionado|Alterado|Corrigido> "<texto>"   grava em c
      forge-changelog release <versão> <data>                          junta os fragmentos em CHANGELOG.md, os apaga e grava a versão
                                                                       nos plugin.json (raiz e dev/, se existirem)
      forge-changelog conferir-release                                 gate da main: sobrou fragmento em changelog.d/?
-     forge-changelog conferir --base REF                              checagem do CI: o PR deixou entrada de changelog?
+     forge-changelog conferir --base REF [--branch=B]                 checagem do CI: o PR deixou entrada de changelog?
+                                                                      Em melhoria/*, fragmento novo tem o nome da branch
+                                                                      (B, senão GITHUB_HEAD_REF, senão o HEAD; CHANGELOG-BRANCH)
 Fragmento: `### <tipo>` seguido de linhas `- texto`. Roda na raiz do repositório (cwd).
 """
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -62,6 +65,17 @@ def fragmentos(pasta=PASTA):
 def slug_da_branch(branch):
     """Nome do fragmento de uma branch: o que vem depois do primeiro `/`, só com letras, dígitos, `.`, `_` e `-`."""
     return re.sub(r"[^A-Za-z0-9._-]+", "-", branch.split("/", 1)[-1]).strip("-.")
+
+
+def fragmentos_com_outro_nome(branch, novos):
+    """Fragmentos novos de changelog.d/ cujo nome não é o da branch (`<branch-sem-prefixo>.md`)."""
+    esperado = f"{slug_da_branch(branch)}.md"
+    return [n for n in novos if Path(n).name != esperado]
+
+
+def branch_do_pr(explicita):
+    """A branch da regra do nome: `--branch`, senão `GITHUB_HEAD_REF` (o PR no Actions), senão o HEAD local."""
+    return explicita or os.environ.get("GITHUB_HEAD_REF") or git("rev-parse", "--abbrev-ref", "HEAD").strip()
 
 
 def novo(args):
@@ -218,10 +232,14 @@ def conferir(args):
     versao = lambda ref: re.search(r'"version"\s*:\s*"([^"]+)"', git("show", f"{ref}:.claude-plugin/plugin.json")).group(1)
     atual, anterior = versao("HEAD"), versao(base)
     print(f"arquivos da fábrica alterados: {len(mudou)} | versão base: {anterior} | versão do PR: {atual}")
+    novos = fragmentos_alterados("A", base)
+    branch = branch_do_pr(args.branch) if novos else ""
+    if branch.startswith("melhoria/") and (errados := fragmentos_com_outro_nome(branch, novos)):
+        sys.exit(f"fragmento(s) sem o nome da branch '{branch}' (esperado {PASTA}/{slug_da_branch(branch)}.md): "
+                 f"{', '.join(errados)} (CHANGELOG-BRANCH)")
     if atual != anterior:
         print("PR de release (versão mudou): o changelog fechado é conferido na promoção para a main.")
         return
-    novos = fragmentos_alterados("A", base)
     apagados = fragmentos_alterados("D", base)
     # Pareceres do próprio pedido (review, QA, segurança, devops) não são outra mudança da fábrica no fechamento.
     outras = [m for m in mudou if not m.startswith(PASTAS_DE_PARECER)]
@@ -271,6 +289,7 @@ def main():
     p.set_defaults(f=release)
     p = sub.add_parser("conferir")
     p.add_argument("--base", required=True)
+    p.add_argument("--branch", default="")
     p.set_defaults(f=conferir)
     p = sub.add_parser("conferir-release")
     p.set_defaults(f=conferir_release)
