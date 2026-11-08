@@ -224,9 +224,9 @@ def mensagem_sem_forma(prompt):
         faltas.append("um brief por mensagem (mais de uma linha `modo:`, `Arquivo:` ou `Brief-sha256:`)")
     if not (linhas and MODO_DA_MENSAGEM.fullmatch(linhas[0])):
         faltas.append("`modo: brief` ou `modo: entrega` na primeira linha")
-    if not ARQUIVO_DA_MENSAGEM.search(texto):
+    if not ARQUIVO_DA_MENSAGEM.search("\n".join(linhas)):
         faltas.append("uma linha `Arquivo:` com o caminho em docs/briefs/")
-    if not HASH_DA_MENSAGEM.search(texto):
+    if not HASH_DA_MENSAGEM.search("\n".join(linhas)):
         faltas.append("uma linha `Brief-sha256:` com 64 hex")
     return "; ".join(faltas) or None
 
