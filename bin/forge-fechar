@@ -37,14 +37,26 @@
 set -euo pipefail
 
 die() { echo "forge-fechar: $*" >&2; exit 1; }
-passo() { echo "[$1] $2"; }
+# passo <n> <texto>: imprime o passo, fecha o relógio do anterior e, fora do --dry-run, abre o seu (FF-2, SP6): a linha `subida: <n> <início> <fim>` vai
+# só ao log, pela gravar_linha (mascarada); a do 6 leva `MERGED <merge7> <head7>`; o `fim` fecha o último com `rc <código>`.
+passo() {
+  subida_fecha
+  echo "[$1] $2"
+  [ "$seco" = 1 ] || { subida_n="$1"; subida_ini="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; }
+}
+# subida_fecha [sufixo]: grava a linha do passo aberto (nenhum aberto, nada) com o sufixo do merge e o recebido, e o fecha.
+subida_fecha() {
+  [ -n "$subida_n" ] || return 0
+  gravar_linha "" "subida: $subida_n $subida_ini $(date -u +%Y-%m-%dT%H:%M:%SZ)${subida_extra:+ $subida_extra}${1:+ $1}"
+  subida_n="" subida_extra=""
+}
 # I4: checks que o merge exige em `pass` (`skipping`, ausente ou outro estado param), cada um pelo par `workflow/nome`: o `name:` do workflow e o
 # dos jobs do CI e da Catraca, como na proteção da develop (decisão 36 do dono); o mesmo nome vindo de outro workflow não conta (C-6).
 # Constante: nada no ambiente, argumento ou arquivo a muda; vazia por erro de edição, para.
 readonly CHECKS_EXIGIDOS=("CI/bateria" "CI/bateria (python 3.14)" "Catraca/catraca")
 [ "${#CHECKS_EXIGIDOS[@]}" -gt 0 ] || die "CHECKS_EXIGIDOS vazia: o merge sem check exigido é recusado (I4)"
 
-pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 trazida=0 tmp2b="" dorme_pid="" promover_teste=""  # nascem vazios: o fim (rm -rf, kill) nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
+pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 trazida=0 tmp2b="" dorme_pid="" promover_teste="" subida_n="" subida_ini="" subida_extra=""  # nascem vazios: o fim (rm -rf, kill) nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
 args_originais=("$@")  # o recomeço da cadeia depois do merge da base (passo 2b) roda o mesmo comando com `--trazida`
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -251,6 +263,7 @@ fim() {
   exec 2>&-
   wait "$pid_err" 2>/dev/null || true
   [ -z "${tmp2b:-}" ] || rm -rf -- "$tmp2b"
+  subida_fecha "rc $rc"
   echo "fim: código $rc"
   exec >&-
   wait "$pid_out" 2>/dev/null || true
@@ -910,6 +923,7 @@ if [ "$ja_mesclado" = 0 ]; then
   [ "$pr_base" = "$alvo" ] || die "parou no passo 6: o PR #$pr_n consta MERGED na base ${pr_base:-desconhecida}, não em $alvo"
   if ! { [ -n "$pr_merge" ] && [ "$pr_merge" != "-" ]; }; then die "parou no passo 6: o PR #$pr_n consta MERGED sem commit de merge; confira no GitHub"; fi
   echo "merge: $pr_merge"
+  subida_extra="MERGED ${pr_merge:0:7} ${remoto_sha:0:7}"
 fi
 
 passo 7 "limpeza (R-FLUXO, Depois do merge)"

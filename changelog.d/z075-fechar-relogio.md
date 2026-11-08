@@ -1,0 +1,2 @@
+### Adicionado
+- FECHAR-RELOGIO (versao-075, FF-2, E18, SP6): `bin/forge-fechar` grava no log da execução, só no arquivo e mascarada, uma linha `subida: <passo> <início ISO> <fim ISO>` por passo; a do passo 6 leva `MERGED <merge7> <head7>` e o fim da execução fecha o último passo com `rc <código>`. O `--dry-run` não grava a linha. É o relógio que o `zero-erros --logs` (FC-5b) lê para medir subir contra fazer.
