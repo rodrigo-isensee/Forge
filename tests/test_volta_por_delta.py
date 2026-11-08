@@ -938,7 +938,8 @@ class BriefDeVolta(Repositorio):
         (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=self.ACHADOS), encoding="utf-8")
         self.assertEqual(self.check("docs"), (0, ""))
         for corpo in ("## Achados\n1. achado em texto livre, formato antigo\n", "sem bloco\n"):  # transição: pareceres antigos seguem válidos
-            (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=corpo), encoding="utf-8")
+            self.commitar({"docs/reviews/p1.md": self.REVIEW.format(c="abc1234", p="reprovado", corpo=corpo)}, "parecer antigo")
+            git("update-ref", "refs/remotes/origin/develop", self.head(), cwd=self.repo)  # antigo: fora do delta (B12)
             self.assertEqual(self.check("docs"), (0, ""), corpo)
         (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=self.ACHADOS + "achado em prosa\n"), encoding="utf-8")
         self.assertIn("fora do formato", self.check("docs")[1])
