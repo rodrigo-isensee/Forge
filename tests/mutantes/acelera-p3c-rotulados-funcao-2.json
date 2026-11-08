@@ -1,0 +1,33 @@
+{
+  "pedido": "acelera-p3c-rotulados-funcao",
+  "executor": "unittest",
+  "mutantes": [
+    {"id": "M17", "guarda": "C-6/A5: PR citado que não é da leva não é listado", "arquivo": "tests/catraca.py",
+     "de": "elif da_leva(do_pr, intervalo, ramo, fonte.repo):", "para": "elif True or da_leva(do_pr, intervalo, ramo, fonte.repo):",
+     "testes": ["tests.test_catraca.RotuladosDaLeva.test_fora_da_leva_nao_sai"]},
+    {"id": "M18", "guarda": "C-3: a barra vertical sai do texto do autor", "arquivo": "tests/catraca.py",
+     "de": "re.sub(r\"[|`]\", \"\", texto)", "para": "re.sub(r\"[`]\", \"\", texto)",
+     "testes": ["tests.test_catraca.RotuladosDaLeva.test_corpo_com_link_imagem_html_e_barra_sai_em_codigo_inline"]},
+    {"id": "M19", "guarda": "C-3: nenhum `::` (comando de workflow) sobra no texto do autor", "arquivo": "tests/catraca.py",
+     "de": "re.sub(r\":{2,}\", \":\",", "para": "re.sub(r\":{3,}\", \":\",",
+     "testes": ["tests.test_catraca.RotuladosDaLeva.test_corpo_com_comando_de_workflow_e_controle_sai_numa_linha_limpa"]},
+    {"id": "M20", "guarda": "C-3: a linha de decisão dentro de comentário HTML não vale", "arquivo": "tests/catraca.py",
+     "de": "re.sub(r\"<!--.*?-->\", \"\", corpo if", "para": "re.sub(r\"<!---.*?-->\", \"\", corpo if",
+     "testes": ["tests.test_catraca.RotuladosDaLeva.test_com_e_sem_linha_de_decisao_e_sem_rotulo"]},
+    {"id": "M21", "guarda": "T-3 (mutante do desenho): os candidatos não se filtram pelos arquivos de violação", "arquivo": "tests/catraca.py",
+     "de": "f\"{base}..{ponta_promovida(raiz, base, head)}\")", "para": "f\"{base}..{ponta_promovida(raiz, base, head)}\", \"--\", *PROTEGIDOS)",
+     "testes": ["tests.test_catraca.RotuladosDaLeva.test_com_e_sem_linha_de_decisao_e_sem_rotulo"]},
+    {"id": "M22", "guarda": "C-3: a linha de decisão é cortada em CORTE_DA_DECISAO", "arquivo": "tests/catraca.py",
+     "de": "[:CORTE_DA_DECISAO]", "para": "[:CORTE_DA_DECISAO + 1]",
+     "testes": ["tests.test_catraca.RotuladosDaLeva.test_corpo_com_comando_de_workflow_e_controle_sai_numa_linha_limpa"]},
+    {"id": "M23", "guarda": "C-5 (mutante do desenho): acima do limite a lista não cai calada", "arquivo": "tests/catraca.py",
+     "de": "linhas.append(f\"rotulados: incompleta (limite)", "para": "None and linhas.append(f\"rotulados: incompleta (limite)",
+     "testes": ["tests.test_catraca.RotuladosDaLeva.test_limite_de_candidatos_diz_incompleta"]}
+  ],
+  "isentas": [
+    {"arquivo": "tests/catraca.py", "trecho": "isinstance(corpo, str)",
+     "motivo": "sem a guarda o corpo nulo da API levanta TypeError no re.sub (erro, não asserção); o ramo nulo é provado por test_com_e_sem_linha_de_decisao_e_sem_rotulo (#11 com body None)"},
+    {"arquivo": "tests/catraca.py", "trecho": "not isinstance(do_pr, dict)",
+     "motivo": "sem a guarda o PR nulo da API levanta AttributeError em da_leva (erro, não asserção); o ramo de falha é provado por test_falha_da_api_do_git_ou_sem_dono_diz_incompleta (#70)"}
+  ]
+}

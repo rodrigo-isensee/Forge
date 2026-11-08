@@ -1,0 +1,86 @@
+{
+  "pedido": "ACELERA-P2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A2-3",
+      "guarda": "adendo (2): o sufixo (copiada de ...) nao sai, a copia com sufixo reprova",
+      "arquivo": "bin/forge-check",
+      "de": "chave_da_decisao(COPIADA_DE.sub(\"\", linha)) in copias",
+      "para": "chave_da_decisao(linha) in copias",
+      "testes": [
+        "tests.test_citacao_p2.DecisaoCopiada.test_copia_com_e_sem_sufixo_passa"
+      ]
+    },
+    {
+      "id": "A2-4",
+      "guarda": "adendo (2): o sha da copia que nao existe deixa de sair como aviso",
+      "arquivo": "bin/forge-check",
+      "de": "                if not completo:\n                    saida.append((f\"aviso:",
+      "para": "                if completo:\n                    saida.append((f\"aviso:",
+      "testes": [
+        "tests.test_citacao_p2.DecisaoCopiada.test_copia_com_sha_que_nao_existe_avisa"
+      ]
+    },
+    {
+      "id": "A3-1",
+      "guarda": "adendo (volta 2): o if copia: antes do teste de algarismos, o numero que nao resolve na copia sai aviso",
+      "arquivo": "bin/forge-check",
+      "de": "            if sha.isdigit() and not completo:\n                continue  # número de run, ruleset ou pid\n            if copia:\n",
+      "para": "            if copia and not completo:\n                saida.append((f\"aviso: citação: sha {sha[:7]} da decisão do dono copiada não existe\", False))\n            if sha.isdigit() and not completo:\n                continue  # número de run, ruleset ou pid\n            if copia:\n",
+      "testes": [
+        "tests.test_citacao_p2.DecisaoCopiada.test_numero_que_nao_resolve_na_copia_fica_calado"
+      ]
+    },
+    {
+      "id": "V1-7",
+      "guarda": "registro citado: a condicao invertida reprova o que existe",
+      "arquivo": "bin/forge-check",
+      "de": "for rel in citados if not any(arquivo_existe",
+      "para": "for rel in citados if any(arquivo_existe",
+      "testes": [
+        "tests.test_citacao_p2.RegistroCitado.test_pedido_e_brief_que_existem_passam_e_o_ausente_reprova"
+      ]
+    },
+    {
+      "id": "V1-8",
+      "guarda": "a marca (novo) do Ler deixa de dispensar a linha",
+      "arquivo": "bin/forge-check",
+      "de": "for l in ler if NOVO not in l",
+      "para": "for l in ler if True",
+      "testes": [
+        "tests.test_citacao_p2.CaminhoDoLer.test_caminho_ausente_reprova_e_novo_passa"
+      ]
+    },
+    {
+      "id": "V1-9",
+      "guarda": "caminho absoluto do Ler: a condicao invertida",
+      "arquivo": "bin/forge-check",
+      "de": "if not os.path.exists(os.path.expanduser(caminho)):",
+      "para": "if os.path.exists(os.path.expanduser(caminho)):",
+      "testes": [
+        "tests.test_citacao_p2.CaminhoDoLer.test_caminho_ausente_reprova_e_novo_passa"
+      ]
+    },
+    {
+      "id": "V1-10",
+      "guarda": "caminho relativo do Ler que existe no disco deixa de valer",
+      "arquivo": "bin/forge-check",
+      "de": "or any(os.path.exists(Path(b) / rel) for b in (raiz, raiz_principal(raiz), *RAIZES_DE_BRIEF))",
+      "para": "or False",
+      "testes": [
+        "tests.test_citacao_p2.CaminhoDoLer.test_caminho_ausente_reprova_e_novo_passa"
+      ]
+    },
+    {
+      "id": "V1-13",
+      "guarda": "o registro citado dentro do Pronto quando passa a ser cobrado",
+      "arquivo": "bin/forge-check",
+      "de": "corpo = [l for nome, linhas in secoes.items() if nome != \"Pronto quando\"",
+      "para": "corpo = [l for nome, linhas in secoes.items() if nome != \"(nenhuma)\"",
+      "testes": [
+        "tests.test_citacao_p2.PqCitado.test_pronto_quando_nao_cobra_pq_nem_registro_dele"
+      ]
+    }
+  ]
+}

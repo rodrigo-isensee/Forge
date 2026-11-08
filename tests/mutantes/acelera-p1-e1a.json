@@ -1,0 +1,73 @@
+{
+  "pedido": "acelera-p1-e1a",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "C-4: Cf (largura zero, bidi) conta como disfarce",
+      "arquivo": "bin/forge-check",
+      "de": "(\"Cc\", \"Cf\", \"Co\", \"Cs\")",
+      "para": "(\"Cc\", \"Co\", \"Cs\")",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_caractere_disfarcado_pede_o_conferente"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "C-8: a raiz do pedido só vale se for clone do Forge",
+      "arquivo": "bin/forge-check",
+      "de": "[raiz_pedido] if e_o_forge(raiz_pedido) else []",
+      "para": "[raiz_pedido] if raiz_pedido else []",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_fora_do_forge_ou_por_link_pede_o_conferente"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "C-8: link no caminho do pedido ou do brief pede o conferente",
+      "arquivo": "bin/forge-check",
+      "de": "if Path(os.path.realpath(arq)) != absoluto or not any(",
+      "para": "if not any(",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_fora_do_forge_ou_por_link_pede_o_conferente"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "C-2: aviso em qualquer lugar da linha, fora da tupla informativa",
+      "arquivo": "bin/forge-check",
+      "de": "if \"aviso:\" in l and not l.startswith(AVISOS_INFORMATIVOS)",
+      "para": "if l.startswith(\"aviso:\") and not l.startswith(AVISOS_INFORMATIVOS)",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_nao_verificavel_e_aviso_fora_da_tupla_pedem_o_conferente"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "C-2: brief reprovado pede o conferente",
+      "arquivo": "bin/forge-check",
+      "de": "if any(r for _, r in linhas):\n        return \"brief reprovado\"",
+      "para": "if False:\n        return \"brief reprovado\"",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_anterior_e_reprovado_pedem_o_conferente"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "C-2: --anterior (rodada 2 em diante) pede o conferente",
+      "arquivo": "bin/forge-check",
+      "de": "if anterior or re.search(r\"^Volta-de:\", texto, re.M):",
+      "para": "if re.search(r\"^Volta-de:\", texto, re.M):",
+      "testes": [
+        "tests.test_guarda_conferente.ConferenteDoBrief.test_anterior_e_reprovado_pedem_o_conferente"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "tipo or 'ausente'",
+      "motivo": "só o texto do motivo: o ramo já decidiu necessário; o teste afirma o prefixo `Tipo: ` com e sem a linha"
+    }
+  ]
+}

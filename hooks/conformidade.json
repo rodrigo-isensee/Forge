@@ -51,6 +51,9 @@
     {"caminho": "docs/briefs/", "quem": ["jarvis"], "motivo": "o brief aprovado (que o `brief gerar --volta` lê e confere pelo sha256) é do jarvis (R-BRIEF, VV-2)"},
     {"caminho": "~/.forge-contrib/docs/briefs/", "quem": ["jarvis"], "motivo": "o brief aprovado (que o `brief gerar --volta` lê e confere pelo sha256) é do jarvis (R-BRIEF, VV-2)"},
     {"caminho": "~/.forge-contrib/*/docs/briefs/", "quem": ["jarvis"], "motivo": "o brief aprovado (que o `brief gerar --volta` lê e confere pelo sha256) é do jarvis (R-BRIEF, VV-2)"},
+    {"caminho": "docs/arquitetura/", "quem": ["doc", "aq"], "motivo": "o desenho e o critério de parada são do arquiteto (PAR-P2, Q-B): o autor não muda a frase nem a marca de redesenho"},
+    {"caminho": "~/.forge-contrib/docs/arquitetura/", "quem": ["doc", "aq"], "motivo": "o desenho e o critério de parada são do arquiteto (PAR-P2, Q-B): o autor não muda a frase nem a marca de redesenho"},
+    {"caminho": "~/.forge-contrib/*/docs/arquitetura/", "quem": ["doc", "aq"], "motivo": "o desenho e o critério de parada são do arquiteto (PAR-P2, Q-B): o autor não muda a frase nem a marca de redesenho"},
     {"caminho": "docs/reviews/", "quem": ["tech-lead"], "motivo": "parecer de review é do tech-lead"},
     {"caminho": "docs/qa/", "quem": ["qa"], "motivo": "parecer de QA é do qa"},
     {"caminho": "docs/devops/", "quem": ["devops"], "motivo": "parecer de devops é do devops"},
@@ -63,6 +66,7 @@
     {"caminho": "tests/neutralidade.py", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "teste de proteção só em branch melhoria/*"},
     {"caminho": "tests/catraca.py", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "teste de proteção só em branch melhoria/*"},
     {"caminho": "tests/hooks/", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "teste de proteção só em branch melhoria/*"},
+    {"caminho": "tests/test_oraculo_*.py", "quem": ["qa", "seguranca"], "so_forge": true, "branch": "melhoria/", "motivo": "teste-oráculo do portão: só qa e seguranca o escrevem; o autor o roda e não o edita (EXT-1)"},
     {"caminho": "hooks/conformidade.json", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "política de conformidade só em branch melhoria/*"}
   ],
   "pacotes": {

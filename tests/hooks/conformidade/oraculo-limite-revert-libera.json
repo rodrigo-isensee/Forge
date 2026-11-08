@@ -1,0 +1,25 @@
+{
+  "descricao": "EXT-1 (C-8 c): `git revert HEAD` muda o oráculo sem passar pela escrita. Limite registrado (C-8/C-9 do modelo de ameaças da 0.36): rc 0 hoje; a prova da não edição é o histórico (C-2). Quem fechar o furo troca o rc esperado.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "tests/test_oraculo_x.py": "import unittest\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git revert HEAD"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

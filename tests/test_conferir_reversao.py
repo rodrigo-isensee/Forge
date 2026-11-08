@@ -17,9 +17,20 @@ AMBIENTE = sem_manutencao({**os.environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_
                            "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
                            "GIT_COMMITTER_EMAIL": "t@t"})
 TESTE_BASE = "import unittest\nclass T(unittest.TestCase):\n    def test_x(self):\n        self.assertTrue(True)\n"
-# O teste lê `dado.txt`: reverter o commit que o criou faz a suíte falhar.
-TESTE_LE = ("import unittest\nfrom pathlib import Path\nclass T(unittest.TestCase):\n"
-            "    def test_dado(self):\n        self.assertTrue(Path('dado.txt').is_file())\n")
+# Plano dirigido no repositório falso: o diff da branch só toca `README.md` (-> test_forge) e `CONTRIBUTING.md`
+# (-> test_forge, test_changelog), regras do MAPA de `bin/forge-testes` cujos módulos a base traz. Acoplamento
+# de propósito: se o MAPA mudar essas regras, o plano cai na suíte inteira e estes casos quebram alto (sem falso verde).
+# O `test_forge` da base grava a marca (CONFERIR_MARCA) quando é carregado: a marca prova que alguma suíte rodou.
+EXIGE = "exige CONTRIBUTING\n"  # README.md com este texto exige CONTRIBUTING.md: a suíte falha sem ele
+SAI_2 = "sai 2\n"  # CONTRIBUTING.md com este texto e sem README.md: a suíte sai 2 (sem veredito do forge-testes)
+TESTE_FORGE = ("import os\nimport unittest\nfrom pathlib import Path\n"
+               "if os.environ.get('CONFERIR_MARCA'):\n    Path(os.environ['CONFERIR_MARCA']).touch()\n"
+               "def ler(n):\n    return Path(n).read_text() if Path(n).is_file() else None\n"
+               "class T(unittest.TestCase):\n    def test_contrato(self):\n"
+               f"        if ler('CONTRIBUTING.md') == {SAI_2!r} and ler('README.md') is None:\n"
+               "            os._exit(2)\n"
+               f"        if ler('README.md') == {EXIGE!r}:\n"
+               "            self.assertIsNotNone(ler('CONTRIBUTING.md'))\n")
 
 
 def git(cwd, *args):
@@ -43,7 +54,9 @@ class ConferirReversao(unittest.TestCase):
         self.repo = Path(self._tmp.name) / "repo"
         (self.repo / "tests").mkdir(parents=True)
         git(self.repo, "init", "-q", "-b", "main")
-        (self.repo / "tests" / "test_a.py").write_text(TESTE_BASE)
+        (self.repo / "tests" / "test_forge.py").write_text(TESTE_FORGE)
+        (self.repo / "tests" / "test_changelog.py").write_text(TESTE_BASE)
+        self.marca = Path(self._tmp.name) / "marca"
         self.commitar("base")
         self.base = git(self.repo, "rev-parse", "HEAD")
         git(self.repo, "switch", "-q", "-c", "feat")
@@ -55,21 +68,23 @@ class ConferirReversao(unittest.TestCase):
 
     def rodar(self, *args, cwd=None):
         return subprocess.run([sys.executable, str(SCRIPT), *args], cwd=cwd or self.repo, capture_output=True,
-                              text=True, env=AMBIENTE)
+                              text=True, env={**AMBIENTE, "CONFERIR_MARCA": str(self.marca)})
+
+    def escrever(self, nome, texto):
+        (self.repo / nome).write_text(texto)
 
     def test_commit_que_se_reverte(self):
-        (self.repo / "extra.txt").write_text("x\n")
-        sha = self.commitar("add extra")
+        self.escrever("CONTRIBUTING.md", "x\n")
+        sha = self.commitar("add contributing")
         r = self.rodar(self.base, "feat")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(r.stdout.strip(), f"{sha} reverte")
 
     def test_commit_que_nao_se_reverte(self):
-        (self.repo / "dado.txt").write_text("d\n")
-        (self.repo / "tests" / "test_a.py").write_text(TESTE_LE)
-        ruim = self.commitar("dado e teste que o le")
-        (self.repo / "tests" / "test_a.py").write_text(TESTE_LE + "# depois\n")
-        conflita = self.commitar("mexe no teste")
+        self.escrever("CONTRIBUTING.md", "c\n")
+        ruim = self.commitar("contributing")
+        self.escrever("README.md", EXIGE)
+        conflita = self.commitar("readme que exige o contributing")
         r = self.rodar(self.base, "feat")
         self.assertEqual(r.returncode, 0, r.stderr)  # aviso, não portão
         linhas = r.stdout.strip().splitlines()
@@ -78,20 +93,19 @@ class ConferirReversao(unittest.TestCase):
         self.assertTrue(linhas[1].startswith(f"{conflita} "), linhas[1])
 
     def test_conflito_ao_reverter_avisa(self):
-        (self.repo / "tests" / "test_a.py").write_text(TESTE_BASE + "# um\n")
+        self.escrever("CONTRIBUTING.md", "um\n")
         primeiro = self.commitar("um")
-        (self.repo / "tests" / "test_a.py").write_text(TESTE_BASE + "# um\n# dois\n")
+        self.escrever("CONTRIBUTING.md", "um\ndois\n")
         self.commitar("dois")
         r = self.rodar(self.base, "feat")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn(f"{primeiro} nao-reverte: conflito", r.stdout)
 
     def test_nao_escreve_no_original(self):
-        (self.repo / "extra.txt").write_text("x\n")
-        self.commitar("add extra")
-        (self.repo / "dado.txt").write_text("d\n")
-        (self.repo / "tests" / "test_a.py").write_text(TESTE_LE)
-        self.commitar("dado")
+        self.escrever("CONTRIBUTING.md", "c\n")
+        self.commitar("contributing")
+        self.escrever("README.md", EXIGE)
+        self.commitar("readme")
         antes = impressao(self.repo)
         r = self.rodar(self.base, "feat")
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -99,19 +113,19 @@ class ConferirReversao(unittest.TestCase):
         self.assertEqual(git(self.repo, "status", "--porcelain"), "")
 
     def test_suite_afetada_falha_sem_o_commit(self):
-        (self.repo / "dado.txt").write_text("d\n")
-        ruim = self.commitar("dado")
-        (self.repo / "tests" / "test_a.py").write_text(TESTE_LE)
-        self.commitar("teste que le o dado")
+        self.escrever("CONTRIBUTING.md", "c\n")
+        ruim = self.commitar("contributing")
+        self.escrever("README.md", EXIGE)
+        self.commitar("readme que exige o contributing")
         r = self.rodar(self.base, "feat")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(r.stdout.splitlines()[0], f"{ruim} nao-reverte: a suíte afetada falha sem o commit")
 
     def test_ambiente_com_git_index_file_nao_toca_o_original(self):
-        (self.repo / "extra.txt").write_text("x\n")
-        extra = self.commitar("add extra")
-        (self.repo / "outro.txt").write_text("o\n")
-        outro = self.commitar("add outro")
+        self.escrever("CONTRIBUTING.md", "x\n")
+        extra = self.commitar("add contributing")
+        self.escrever("README.md", "o\n")
+        outro = self.commitar("add readme")
         antes = impressao(self.repo / ".git")
         env = {**AMBIENTE, "GIT_INDEX_FILE": str(self.repo / ".git" / "index")}
         r = subprocess.run([sys.executable, str(SCRIPT), self.base, "feat"], cwd=self.repo, capture_output=True,
@@ -122,8 +136,8 @@ class ConferirReversao(unittest.TestCase):
         self.assertEqual(git(self.repo, "status", "--porcelain"), "")
 
     def test_ponta_ja_vermelha_avisa_e_nao_classifica(self):
-        (self.repo / "tests" / "test_a.py").write_text(TESTE_LE)  # sem dado.txt: a suíte já falha na ponta
-        self.commitar("teste que le um dado ausente")
+        self.escrever("README.md", EXIGE)  # sem CONTRIBUTING.md: a suíte afetada (dirigida) já falha na ponta
+        self.commitar("readme que exige um contributing ausente")
         r = self.rodar(self.base, "feat")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("já falha na ponta", r.stdout)
@@ -132,15 +146,40 @@ class ConferirReversao(unittest.TestCase):
 
     def test_commit_de_mescla_fica_fora(self):
         git(self.repo, "switch", "-q", "-c", "lado")
-        (self.repo / "lado.txt").write_text("l\n")
+        self.escrever("README.md", "l\n")
         lado = self.commitar("add lado")
         git(self.repo, "switch", "-q", "feat")
-        (self.repo / "extra.txt").write_text("x\n")
+        self.escrever("CONTRIBUTING.md", "x\n")
         extra = self.commitar("add extra")
         git(self.repo, "merge", "-q", "--no-ff", "-m", "mescla lado", "lado")
         r = self.rodar(self.base, "feat")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(sorted(l.split()[0] for l in r.stdout.splitlines()), sorted([lado, extra]))
+
+    def test_ponta_que_pede_a_suite_inteira_nao_roda_nada(self):
+        self.escrever("CONTRIBUTING.md", "x\n")
+        self.commitar("dirigido")
+        self.assertEqual(self.rodar(self.base, "feat").returncode, 0)
+        self.assertTrue(self.marca.exists())  # controle: com o plano dirigido a suíte roda e grava a marca
+        self.marca.unlink()
+        self.escrever("extra.txt", "x\n")  # sem regra no MAPA: o plano da ponta é a suíte inteira
+        self.commitar("add extra")
+        r = self.rodar(self.base, "feat")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("a ponta pede a suíte inteira, que só roda na trava (R-TETO) e no CI do PR; nada classificado.",
+                      r.stdout)
+        self.assertNotIn(" reverte", r.stdout)
+        self.assertNotIn("nao-reverte", r.stdout)
+        self.assertFalse(self.marca.exists())  # nenhuma suíte rodou, nem na ponta nem por commit
+
+    def test_forge_testes_que_sai_2_vira_sem_veredito(self):
+        self.escrever("README.md", "r\n")
+        sem = self.commitar("readme")
+        self.escrever("CONTRIBUTING.md", SAI_2)
+        self.commitar("contributing")
+        r = self.rodar(self.base, "feat")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.splitlines()[0], f"{sem} sem-veredito: o forge-testes saiu 2 sem o commit")
 
     def test_erro_de_uso_e_repositorio_invalido_saem_com_2(self):
         self.assertEqual(self.rodar().returncode, 2)

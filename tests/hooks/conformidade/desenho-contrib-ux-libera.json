@@ -1,0 +1,22 @@
+{
+  "descricao": "E5-0 (Q-B, PAR-P2): o ux-designer (papel doc) grava o desenho em ~/.forge-contrib/docs/arquitetura/.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/.forge-contrib/docs/arquitetura/x.md",
+      "content": "x\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:ux-designer"
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "pedido": "fix-039-uniao-sonda",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "C-5: a volta sem a linha completa da sonda (só a marca) reprova",
+      "arquivo": "bin/forge-check",
+      "de": "            if not entradas:\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_volta_por_delta.SondaNoCorpus.test_volta_com_a_marca_e_a_entrada_diferente_reprova"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "C-5: a volta com a entrada diferente da do parecer reprova",
+      "arquivo": "bin/forge-check",
+      "de": "elif sonda[\"entrada\"] not in entradas:",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_volta_por_delta.SondaNoCorpus.test_volta_com_a_marca_e_a_entrada_diferente_reprova"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "C-6: a linha com a marca fora do formato reprova a entrega",
+      "arquivo": "bin/forge-check",
+      "de": "if not m and re.match(r\"^- \\(sonda\\b\", linha):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_volta_por_delta.SondaNoCorpus.test_entrega_reprova_a_marca_fora_do_formato"
+      ]
+    }
+  ]
+}

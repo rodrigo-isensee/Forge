@@ -1,0 +1,156 @@
+{
+  "pedido": "lac-l2-avisos",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o doutor passa a ser reconhecido só por `Forge` e o aviso de outro hook com o prefixo conta como doutor",
+      "arquivo": "bin/forge-check",
+      "de": "    if texto.startswith(\"Forge doutor:\"):",
+      "para": "    if texto.startswith(\"Forge\"):",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks.test_aviso_de_outro_hook_ou_de_outro_registro_nao_conta"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o vigia passa a ser reconhecido só por `Forge: ` (mutante do desenho) e o aviso de outro hook com o prefixo conta",
+      "arquivo": "bin/forge-check",
+      "de": "if texto.startswith(\"Forge: \") and texto.endswith(\"(.forge/run/violacoes.jsonl)\"):",
+      "para": "if texto.startswith(\"Forge: \"):",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks.test_aviso_de_outro_hook_ou_de_outro_registro_nao_conta"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o anexo que não é objeto deixa de ser pulado e a leitura quebra em vez de não contar",
+      "arquivo": "bin/forge-check",
+      "de": "anexo = o.get(\"attachment\") if isinstance(o.get(\"attachment\"), dict) else {}",
+      "para": "anexo = o.get(\"attachment\") if True else {}",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks.test_aviso_de_outro_hook_ou_de_outro_registro_nao_conta"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o registro de outro tipo de anexo (additionalContext) passa a contar como aviso",
+      "arquivo": "bin/forge-check",
+      "de": " or anexo.get(\"type\") != \"hook_system_message\" or ",
+      "para": " or ",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks.test_aviso_de_outro_hook_ou_de_outro_registro_nao_conta"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a mensagem de outro hook deixa de ser pulada e entra nas linhas de evento e dia",
+      "arquivo": "bin/forge-check",
+      "de": "        if hook is None:\n            continue",
+      "para": "        if False:\n            continue",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks.test_aviso_de_outro_hook_ou_de_outro_registro_nao_conta"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o evento deixa de ser do conjunto fechado e o nome lido da transcrição sai na saída",
+      "arquivo": "bin/forge-check",
+      "de": "evento = anexo.get(\"hookEvent\") if anexo.get(\"hookEvent\") in EVENTOS_DE_AVISO else \"outro\"",
+      "para": "evento = anexo.get(\"hookEvent\") if True else \"outro\"",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks.test_dois_do_vigia_e_um_do_doutor_por_hook_evento_e_dia"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "o dia deixa de ser validado e o texto do timestamp sai na saída",
+      "arquivo": "bin/forge-check",
+      "de": "dia = dia if re.fullmatch(r\"\\d{4}-\\d{2}-\\d{2}\", dia) else \"sem_data\"",
+      "para": "dia = dia if True else \"sem_data\"",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks.test_aviso_de_outro_hook_ou_de_outro_registro_nao_conta"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o caminho inexistente passa a sair com rc 0",
+      "arquivo": "bin/forge-check",
+      "de": "        print(f\"avisos: caminho inexistente: {caminho_impresso(erro.filename or alvo)}\")\n        return 1",
+      "para": "        print(f\"avisos: caminho inexistente: {caminho_impresso(erro.filename or alvo)}\")\n        return 0",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks.test_pasta_sem_jsonl_e_caminho_inexistente_dao_rc_1"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "a pasta sem .jsonl deixa de ser recusada e sai com rc 0",
+      "arquivo": "bin/forge-check",
+      "de": "    if not arquivos:\n        print(f\"avisos: nenhum",
+      "para": "    if False:\n        print(f\"avisos: nenhum",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks.test_pasta_sem_jsonl_e_caminho_inexistente_dao_rc_1"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "a contagem de avisos por hook passa a somar os dois hooks",
+      "arquivo": "bin/forge-check",
+      "de": "valores = [sum(n for k, n in vezes.items() if k[0] == hook), len(",
+      "para": "valores = [sum(n for k, n in vezes.items() if True), len(",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks.test_dois_do_vigia_e_um_do_doutor_por_hook_evento_e_dia"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "os únicos por hook passam a contar os hashes dos dois hooks",
+      "arquivo": "bin/forge-check",
+      "de": "len({k[3] for k in vezes if k[0] == hook})",
+      "para": "len({k[3] for k in vezes if True})",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks.test_dois_do_vigia_e_um_do_doutor_por_hook_evento_e_dia"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a reincidência por hook passa a somar a dos dois hooks",
+      "arquivo": "bin/forge-check",
+      "de": "sum(n - 1 for k, n in no_dia.items() if k[0] == hook)]",
+      "para": "sum(n - 1 for k, n in no_dia.items() if True)]",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks.test_mesmo_texto_no_mesmo_dia_reincide_e_em_dias_diferentes_nao"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "as linhas de evento e dia passam a contar o outro hook junto",
+      "arquivo": "bin/forge-check",
+      "de": "if k[0] == hook and k[i] == valor)",
+      "para": "if k[i] == valor)",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks.test_dois_do_vigia_e_um_do_doutor_por_hook_evento_e_dia"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "o subcomando avisos deixa de ser despachado",
+      "arquivo": "bin/forge-check",
+      "de": "if a.cmd == \"transcricao\" and a.acao == \"avisos\":",
+      "para": "if a.cmd == \"transcricao\" and a.acao == \"avisoz\":",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks.test_dois_do_vigia_e_um_do_doutor_por_hook_evento_e_dia"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "sem alvo, a recusa do caminho inexistente deixa de dizer a pasta padrão que faltou",
+      "arquivo": "bin/forge-check",
+      "de": "print(f\"avisos: caminho inexistente: {caminho_impresso(erro.filename or alvo)}\")",
+      "para": "print(f\"avisos: caminho inexistente: {caminho_impresso(alvo)}\")",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks.test_pasta_sem_jsonl_e_caminho_inexistente_dao_rc_1"
+      ]
+    }
+  ]
+}

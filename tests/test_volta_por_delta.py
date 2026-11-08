@@ -575,7 +575,7 @@ class BriefAnterior(unittest.TestCase):
         com = self.brief(self.texto, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
         self.assertEqual(com[0], sem[0])
         linhas_sem = sem[1].splitlines()
-        self.assertEqual([l for l in com[1].splitlines() if not l.startswith(("anterior:", "delta:", "volta: bloco"))], linhas_sem)
+        self.assertEqual([l for l in com[1].splitlines() if not l.startswith(("anterior:", "delta:", "volta: bloco", "conferente:"))], [l for l in linhas_sem if not l.startswith("conferente:")])
         self.assertFalse(any(l.startswith(("anterior:", "delta:")) for l in linhas_sem))
 
     def test_brief_sem_volta_de_nao_marca_bloco_identico(self):  # C3, review A4: o bloco só é exigido no brief de volta
@@ -944,6 +944,56 @@ class BriefDeVolta(Repositorio):
         self.assertIn("fora do formato", self.check("docs")[1])
 
 
+class VoltaUnicaComQa(Repositorio):
+    """EST-M6 (versao-040 E4): com o QA em paralelo ao review e à segurança, as reprovações da mesma rodada voltam num brief só,
+    com todo bloqueante de cada parecer (C-3), e o QA aprovado num head anterior ao código novo fica desatualizado (C-2).
+    Usa o cenário do BriefDeVolta (review reprovado em `melhoria/x`) sem herdar, para não repetir os testes dele."""
+    REVIEW, ACHADOS, rel_anterior = BriefDeVolta.REVIEW, BriefDeVolta.ACHADOS, "docs/briefs/pedido-sintetico-dev-exemplo-1.md"
+    parecer, gerar = BriefDeVolta.parecer, BriefDeVolta.gerar
+    QA = ("---\ntipo: qa\ncontrato: 1\npedido: pedido-sintetico\nbranch: melhoria/x\ncommit: {c}\nparecer: {p}\nescopo: completo\n"
+          "bugs_criticos: 0\nbugs_altos: {b}\nbugs_medios: 0\nbugs_baixos: 0\ndata: 2026-10-19\n---\n# QA\n{corpo}")
+    SEGURANCA = ("---\ntipo: revisao-seguranca\ncontrato: 1\npedido: pedido-sintetico\nbranch: melhoria/x\ncommit: {c}\nparecer: reprovado\n"
+                 "revisor: forge:security-engineer\ndata: 2026-10-19\n---\n# Segurança\n## Achados\n"
+                 "- A1 (bloqueante) src/app.txt:5 · entrada sem validação chega ao shell\n")
+
+    def setUp(self):
+        super().setUp()
+        self.pedido = self.pedido.with_name("pedido-sintetico.md")
+        self.pedido.write_bytes(BriefDeVolta.PEDIDO_FIXTURE.read_bytes())
+        self.c1 = self.commitar({"src/app.txt": "v2\n"}, "entrega")
+        (self.repo / ".git" / "info" / "exclude").write_text("docs/briefs/\n", encoding="utf-8")
+        (self.repo / self.rel_anterior).parent.mkdir(parents=True)
+        (self.repo / self.rel_anterior).write_bytes(BriefDeVolta.ANTERIOR.read_bytes())
+        self.parecer("reprovado", self.ACHADOS)
+
+    def test_review_qa_e_seguranca_reprovados_voltam_num_brief_so(self):  # C-3, caso de abuso 2
+        self.commitar({"docs/qa/p1.md": self.QA.format(c=self.c1[:7], p="reprovado", b=1, corpo=(
+            "## Achados\n- A1 (bloqueante) src/app.txt:9 · o caso vazio quebra a saída\n- A2 (recomendado) src/app.txt:2 · mensagem vaga\n")),
+            "docs/security/p1.md": self.SEGURANCA.format(c=self.c1[:7])}, "pareceres de QA e de segurança na mesma rodada")
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(saida.count("## Entregar (volta 1)\n"), 1)
+        h = self.head()[:7]
+        bloqueantes = (f"(review {h} A1) a função perde o erro de domínio [src/app.txt:3]",
+                       f"(review {h} A3) falta teste do caso de borda [tests/x.py:10]",
+                       f"(qa {h} A1) o caso vazio quebra a saída [src/app.txt:9]",
+                       f"(revisao-seguranca {h} A1) entrada sem validação chega ao shell [src/app.txt:5]")
+        for linha in bloqueantes:  # cada bloqueante entra uma vez, inteiro e sem a marca de recomendado (sem rebaixar)
+            self.assertIn(f"- {linha}\n", saida)
+            self.assertEqual(saida.count(linha), 1, linha)
+        self.assertRegex(saida, rf"\(qa {h} A2\) mensagem vaga \[src/app.txt:2\] · PREENCHER: entra ou corta")
+
+    def test_qa_aprovado_antes_do_codigo_novo_fica_desatualizado(self):  # C-2, caso de abuso 1
+        h = self.head()
+        self.commitar({"docs/qa/pedido-sintetico.md": self.QA.format(c=h, p="aprovado", b=0, corpo="ok\n")}, "parecer de QA em H")
+        modulo = carregar_forge_check()
+        self.assertEqual([l for l in modulo.cmd_pr(self.repo, "pedido-sintetico") if l.startswith("docs/qa/")], [])  # em H vale
+        self.commitar({"bin/x": "corrige o review\n"}, "H2: o autor corrige o review")
+        qa = [l for l in modulo.cmd_pr(self.repo, "pedido-sintetico") if l.startswith("docs/qa/")]
+        self.assertEqual(len(qa), 1, qa)
+        self.assertIn("commit: desatualizado: bin/x mudou depois do parecer", qa[0])
+
+
 class TextoDosAgentes(unittest.TestCase):
     """E4: os agentes usam o que a VV-2 entrega, e a política do hook só ganha o que o plano pede."""
 
@@ -972,3 +1022,144 @@ class TextoDosAgentes(unittest.TestCase):
                 self.assertIn(f"forge-check delta --parecer docs/{pasta}/<pedido>.md", t)
         self.assertIn("sempre sobre o head", self.texto("qa-engineer"))
         self.assertIn("sem dispensar a releitura", self.texto("security-engineer"))
+
+
+class Sondas(Repositorio):
+    """PAR-P1 (E1a): o bloco `## Sondas` do parecer, conferido pelo `forge-check docs` (C-1 do modelo de ameaças da 0.39)."""
+    REVIEW = BriefDeVolta.REVIEW
+    BOA = "- S1 · printf 'a\\tb' | bin/x · espera: rc 1 e `bloqueado` · obtido: rc 0\n"
+
+    def docs(self, sondas, achados=BriefDeVolta.ACHADOS):
+        (self.repo / "docs" / "reviews").mkdir(parents=True, exist_ok=True)
+        corpo = achados + ("" if sondas is None else "\n## Sondas\n" + sondas + "\n## Parecer\nprosa · espera: livre\n")
+        (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=corpo), encoding="utf-8")
+        return self.check("docs")
+
+    def test_linha_boa_passa_e_parecer_sem_bloco_nao_muda(self):
+        for sondas in (self.BOA + "- S2 · {\"a\": 1} · espera: x · obtido: y\n", "", None):
+            with self.subTest(sondas):
+                self.assertEqual(self.docs(sondas), (0, ""))
+        sondas, erros, tem = carregar_forge_check().sondas_do_parecer("# P\n## Sondas\n" + self.BOA)
+        self.assertEqual((sondas[0]["entrada"], sondas[0]["espera"], sondas[0]["obtido"], erros, tem),
+                         ("printf 'a\\tb' | bin/x", "rc 1 e `bloqueado`", "rc 0", [], True))
+
+    def test_linha_fora_do_formato_e_erro_e_nunca_some(self):  # C-1, C3
+        casos = {"sem obtido": ("- S1 · entrada longa · espera: rc 1\n", "fora do formato"),
+                 "espera repetido": ("- S1 · a · espera: b · espera: c · obtido: d\n", "fora do formato"),
+                 "obtido repetido": ("- S1 · a · espera: b · obtido: c · obtido: d\n", "fora do formato"),
+                 "controle": ("- S1 · ab\x0bcd · espera: b · obtido: c\n", "fora do formato"),
+                 "bidi": ("- S1 · ab‮cd · espera: b · obtido: c\n", "fora do formato"),
+                 "prosa": ("a sonda foi rodada à mão\n", "fora do formato"),
+                 "id repetido": (self.BOA + self.BOA, "sonda S1 repetida"),
+                 "teto": (f"- S1 · {'x' * 280} · espera: b · obtido: c\n", "sonda S1 com mais de 300 caracteres")}
+        for nome, (sondas, esperado) in casos.items():
+            with self.subTest(nome):
+                rc, saida = self.docs(sondas)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn("docs/reviews/p1.md: sondas: ", saida)
+                self.assertIn(esperado, saida)
+        self.assertEqual(self.docs(f"- S1 · {'x' * 270} · espera: b · obtido: c\n")[0], 0)  # 294 depois do id: dentro do teto
+
+    def test_modelos_e_agentes_trazem_o_bloco(self):
+        modulo = carregar_forge_check()
+        for modelo in ("templates/projeto/docs/reviews/_modelo.md", "docs/security/_modelo.md", "templates/projeto/docs/security/_modelo.md"):
+            with self.subTest(modelo):
+                self.assertEqual(modulo.sondas_do_parecer((RAIZ / modelo).read_text(encoding="utf-8")), ([], [], True))
+        for agente in ("tech-lead", "security-engineer"):
+            with self.subTest(agente):
+                self.assertIn("toda sonda executada que prova um bloqueante vai em `## Sondas`",
+                              (RAIZ / "agents" / f"{agente}.md").read_text(encoding="utf-8"))
+
+
+class SondaNoCorpus(BriefDeVolta):
+    """PAR-P1 (E1b): a sonda do parecer vai ao Entregar da volta (`brief gerar --volta`), a conferência da volta a cobra (C-5) e o
+    `forge-check entrega --brief` procura a entrada em `tests/` do head (C-2 a C-4, C-6)."""
+    ENTRADA = '--sonda-x "rc 2" no hook'  # começa com `-` (vai por `-e`, C-2) e tem aspas (a forma JSON difere)
+
+    def setUp(self):
+        super().setUp()
+        self.parecer("reprovado", self.ACHADOS + f"\n## Sondas\n- S1 · {self.ENTRADA} · espera: rc 2 · obtido: rc 0\n")
+        self.sha = self.head()
+
+    def volta(self):
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 0, saida)
+        return self.preenchido(saida)
+
+    def entrega_com_brief(self, brief=None):
+        arq = self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md"
+        arq.write_text(brief or self.volta(), encoding="utf-8")
+        return self.check("entrega", self.pedido, "--branch", "melhoria/x", "--base", "develop", "--base-sha", self.base,
+                          "--etapa", "codigo", "--brief", "docs/briefs/" + arq.name)
+
+    def test_gerar_volta_copia_a_sonda_e_a_conferencia_a_cobra(self):  # C-5
+        linha = f"- (sonda review {self.sha[:7]} S1) grave no corpus da branch: {self.ENTRADA} · espera: rc 2\n"
+        texto = self.volta()
+        self.assertIn(linha, texto.split("## Entregar (volta 1)")[1].split("## Fora do escopo")[0])
+        self.assertNotIn("falta sonda", self.conferir(texto)[1])
+        rc, saida = self.conferir(texto.replace(linha, ""))
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('volta: falta sonda "S1" de docs/reviews/p1.md', saida)
+
+    def test_volta_com_a_marca_e_a_entrada_diferente_reprova(self):  # C-5 (A1 da segurança g5): a marca sozinha não basta
+        linha = f"- (sonda review {self.sha[:7]} S1) grave no corpus da branch: {self.ENTRADA} · espera: rc 2\n"
+        texto = self.volta()
+        casos = {"só a marca": (f"- (sonda review {self.sha[:7]} S1) já coberto\n", 'volta: falta sonda "S1" de docs/reviews/p1.md'),
+                 "entrada trocada": (linha.replace(self.ENTRADA, "import unittest"), "volta: sonda S1 difere do parecer docs/reviews/p1.md")}
+        for nome, (troca, esperado) in casos.items():
+            with self.subTest(nome):
+                rc, saida = self.conferir(texto.replace(linha, troca))
+                self.assertEqual(rc, 1, saida)
+                self.assertIn(esperado, saida)
+        saida = self.conferir(texto)[1]
+        self.assertNotIn("difere do parecer", saida)
+        self.assertNotIn("falta sonda", saida)
+
+    def test_entrega_reprova_a_marca_fora_do_formato(self):  # C-6 (A1 da segurança g5): a linha nunca some em silêncio
+        self.commitar({"tests/test_x.py": f"ENTRADA = '{self.ENTRADA}'\n"}, "corpus")
+        brief = self.volta()
+        self.assertEqual(self.entrega_com_brief(brief)[0], 0)  # o caso certo segue passando
+        marca = next(l for l in brief.splitlines() if l.startswith("- (sonda ")).split(" grave no corpus")[0]  # sha7 do head com o corpus
+        rc, saida = self.entrega_com_brief(brief.replace(f"{marca} grave no corpus", f"{marca} já coberto\n{marca} grave no corpus"))
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f"escopo: linha de sonda fora do formato (PAR-P1): \"{marca} já coberto\"", saida)
+
+    def test_sonda_fora_do_formato_recusa_a_volta(self):  # C3: a linha ruim nunca some
+        self.parecer("reprovado", self.ACHADOS + "\n## Sondas\n- S1 · a · espera: b · espera: c · obtido: d\n")
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("linha do bloco ## Sondas fora do formato", saida)
+
+    def test_entrega_reprova_a_sonda_ausente_de_tests_mesmo_citada_no_parecer(self):  # T-2: o parecer tem a entrada, fora de tests/
+        rc, saida = self.entrega_com_brief()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f"escopo: sonda S1 de review {self.sha[:7]} fora do corpus da branch (PAR-P1)", saida)
+
+    def test_entrega_acha_a_entrada_literal_ou_escapada_em_json(self):  # C-2, C-4
+        brief = self.volta()
+        for rel, texto in (("tests/test_x.py", f"ENTRADA = '{self.ENTRADA}'\n"),
+                           ("tests/hooks/x/caso.json", json.dumps({"cmd": self.ENTRADA}) + "\n")):
+            with self.subTest(rel):
+                git("rm", "-q", "-r", "--ignore-unmatch", "tests", cwd=self.repo)
+                self.commitar({rel: texto}, "corpus")
+                rc, saida = self.entrega_com_brief(brief)
+                self.assertEqual(rc, 0, saida)
+                self.assertIn(f"escopo: ok (sonda S1 em {rel})", saida)
+
+    def test_entrada_curta_so_confira_e_git_que_falha_reprova(self):  # C-3, T-3
+        self.commitar({"tests/test_x.py": f"ENTRADA = '{self.ENTRADA}'\n"}, "corpus")
+        brief = self.volta()
+        rc, saida = self.entrega_com_brief(brief.replace(f"{self.ENTRADA} · espera", "-e x · espera"))
+        self.assertIn("escopo: confira sonda S1 (entrada curta; confira à mão)", saida)
+        self.assertNotIn("escopo: ok (sonda", saida)
+        arvore = self.head("HEAD:tests")
+        (self.repo / ".git" / "objects" / arvore[:2] / arvore[2:]).unlink()  # o grep não lê a árvore de tests/: rc 128
+        rc, saida = self.entrega_com_brief(brief)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: sonda S1: o git falhou", saida)
+        self.assertNotIn("fora do corpus", saida)
+
+
+for _nome in dir(BriefDeVolta):  # só os testes desta classe; os herdados já rodam em BriefDeVolta
+    if _nome.startswith("test_") and _nome not in SondaNoCorpus.__dict__:
+        setattr(SondaNoCorpus, _nome, None)

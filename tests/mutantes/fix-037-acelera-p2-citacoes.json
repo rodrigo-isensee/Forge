@@ -1,0 +1,46 @@
+{
+  "pedido": "fix-037-acelera-p2-citacoes",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "F1",
+      "guarda": "o proprio pedido deixa de ser aceito: a citacao do pedido de --pedido fora da raiz reprova",
+      "arquivo": "bin/forge-check",
+      "de": "return bool(proprio) and rel == f\"docs/pedidos/{proprio}.md\"",
+      "para": "return False and rel == f\"docs/pedidos/{proprio}.md\"",
+      "testes": [
+        "tests.test_citacao_p2.RegistroCitado.test_o_proprio_pedido_fora_da_raiz_passa_e_outro_reprova"
+      ]
+    },
+    {
+      "id": "F2",
+      "guarda": "todo docs/pedidos/ vale como o proprio pedido: outro pedido ausente passa",
+      "arquivo": "bin/forge-check",
+      "de": "return bool(proprio) and rel == f\"docs/pedidos/{proprio}.md\"",
+      "para": "return bool(proprio) and rel.startswith(\"docs/pedidos/\")",
+      "testes": [
+        "tests.test_citacao_p2.RegistroCitado.test_o_proprio_pedido_fora_da_raiz_passa_e_outro_reprova"
+      ]
+    },
+    {
+      "id": "F3",
+      "guarda": "o registro citado deixa de consultar o proprio pedido",
+      "arquivo": "bin/forge-check",
+      "de": "for b in bases) and not do_proprio_pedido(rel, proprio)]",
+      "para": "for b in bases) and not do_proprio_pedido(rel, None)]",
+      "testes": [
+        "tests.test_citacao_p2.RegistroCitado.test_o_proprio_pedido_fora_da_raiz_passa_e_outro_reprova"
+      ]
+    },
+    {
+      "id": "F4",
+      "guarda": "o Ler deixa de consultar o proprio pedido",
+      "arquivo": "bin/forge-check",
+      "de": "is_dir() or do_proprio_pedido(rel, proprio) \\",
+      "para": "is_dir() or do_proprio_pedido(rel, None) \\",
+      "testes": [
+        "tests.test_citacao_p2.RegistroCitado.test_o_proprio_pedido_fora_da_raiz_passa_e_outro_reprova"
+      ]
+    }
+  ]
+}

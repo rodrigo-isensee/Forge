@@ -74,3 +74,15 @@ class TestNomeDoPedidoNeutro(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VersaoNomeada(unittest.TestCase):
+    def test_regra_exige_versao_nomeada_e_versao_cheia_passa_adiante(self):
+        t = ler("docs/regras/R-DECISAO.md")
+        for trecho in ["versão nomeada", "`versão: X.Y`", "Versão cheia passa para a seguinte"]:
+            self.assertIn(trecho, t)
+
+    def test_agile_coach_confere_a_versao_na_retrospectiva(self):
+        t = ler("agents/agile-coach.md")
+        self.assertIn("Na retrospectiva, confere que cada linha `DECISÃO DO DONO`", t)
+        self.assertIn("`versão:` nomeada", t)

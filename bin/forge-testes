@@ -65,23 +65,24 @@ NOME_DE_MODULO = re.compile(r"test_[a-z0-9_]+")
 # refaz essa conferência para os caminhos citados com `RAIZ / "..."`.
 # `test_forge` varre bin/, scripts/, hooks/, agents/, skills/, stacks/, docs/ e templates/ (neutralidade,
 # anti-duplicação), então entra em quase toda regra de conteúdo e de script.
-# `test_testes_tocados` vigia que nenhum portão (hooks/, scripts/ci-local, bin/forge-check) chame este script.
+# `test_testes_tocados` vigia que nenhum portão (hooks/, scripts/ci-local, bin/forge-check) chame este script e
+# varre scripts/ (REVERSAO-MAPA, A6: só script de aviso o cita).
 # FORGE_CHECK lista todo módulo que importa ou executa o script (inclui quem importa de um deles); o teste
 # `MapaDoForgeCheck` compara esta lista com os arquivos.
 # Os módulos que saíram de `test_hooks` (HOOKS-CORPUS-RAPIDO) rodam onde `test_hooks` roda e executam o `bin/forge-check`
 # pelo apoio `tests/apoio_volta_unica.py` (`test_doutor_relogio` o copia pelo apoio `tests/apoio_versao_defasada.py`).
 VOLTA_UNICA = ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades")
 FORGE_CHECK = ("test_anotar", "test_brief_forma_aceita", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio", "test_qa_doutor_034",
-               "test_conf_escopo", "test_conferencia_registrar", "test_decisao_aprovacao", "test_erros_no_brief", "test_hook_ansi_c",
+               "test_conf_escopo", "test_conferencia_registrar", "test_decisao_aprovacao", "test_decisao_aprovacao_raiz", "test_erros_no_brief", "test_hook_ansi_c", "test_citacao_p2",
                "test_entrega_git_falha", "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks", "test_hooks_parecer_pasta",
                "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_mensagem_conferente", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
                "test_testes_tocados", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
-               "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento") + VOLTA_UNICA
+               "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt") + VOLTA_UNICA
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
 LEITORES_DE_TEXTO = ("test_anotar", "test_citacao", "test_clareza", "test_dependabot_modelo", "test_erros_no_brief",
                      "test_forge_mutante", "test_jarvis_nucleo", "test_modelos_projeto", "test_stack_prereq_sistema",
-                     "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09")
+                     "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09", "test_conferente_estavel", "test_jarvis_n_jar_a", "test_reval_delta")  # EST-M4: a guarda C-2 lê agents/ e skills/
 CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor",
             "test_modelos_citados") + LEITORES_DE_TEXTO
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
@@ -91,7 +92,7 @@ MAPA = [
     (r"bin/forge-changelog", ("test_changelog", "test_conferir_release", "test_forge")),
     (r"bin/forge-check", FORGE_CHECK),
     (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge")),
-    (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge")),
+    (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge", "test_reval_delta")),  # EST-M4: guarda C-2
     (r"bin/(forge-atualizar|forge_versoes\.py|forge-voltar-versao)", ("test_atualizar", "test_forge", "test_doutor")),
     (r"bin/forge-upgrade", ("test_atualizar", "test_forge", "test_doutor")),
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
@@ -104,11 +105,12 @@ MAPA = [
     # hooks/vigia.py: test_textos_dono_f10 lê o texto. O resto de hooks/ é coberto pela regra larga seguinte.
     (r"hooks/.*", ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados",
                    "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10", "test_hook_ansi_c",
-                   "test_hooks_parecer_pasta", "test_esperar_estado", "test_brief_forma_aceita") + VOLTA_UNICA),
+                   "test_hooks_parecer_pasta", "test_esperar_estado", "test_brief_forma_aceita", "test_conformidade_verde", "test_reval_delta") + VOLTA_UNICA),  # EST-M4: guarda C-2
+    (r"scripts/arvore-testada\.py", ("test_arvore_testada", "test_forge", "test_testes_tocados")),  # EST-M7
     (r"scripts/ci-local", ("test_ci_local", "test_forge", "test_testes_tocados")),
     (r"scripts/conferir-reversao\.py", ("test_conferir_reversao", "test_forge", "test_testes_tocados")),  # aviso: NaoEPortao
-    (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge")),
-    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge",)),
+    (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados")),
+    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_testes_tocados")),
     (r"stacks/.*", CONTEUDO + ("test_hooks",) + VOLTA_UNICA),
     (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks",) + VOLTA_UNICA),
     (r"templates/projeto/docs/(reviews|qa|security)/_modelo\.md", PUBLICADO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),  # o teste gera parecer do modelo
@@ -131,6 +133,7 @@ MAPA = [
 # de tests/ ou carregá-los pelo nome; o mapa não tenta saber como, e por isso não há grafo de importação para divergir.
 ALTERA_O_MAPA = {"bin/forge-testes", "tests/config.json"}
 MODULO_DE_TESTE = re.compile(r"tests/(test_[a-z0-9_]+)\.py")
+ORACULO = re.compile(r"test_oraculo_[a-z0-9_]+")
 
 
 def git(*args):
@@ -178,7 +181,21 @@ def planejar(caminhos, raiz=Path(".")):
     ausentes = sorted(m for m in modulos if not (raiz / "tests" / f"{m}.py").is_file())
     if ausentes:
         return "completo", [f"módulo sem arquivo: {', '.join(ausentes)}"]
+    if modulos:
+        modulos.update(oraculos(raiz))
     return "dirigido", sorted(modulos)
+
+
+def oraculos(raiz=Path(".")):
+    """Os testes-oráculo do portão (`tests/test_oraculo_<pedido>.py`, EXT-1): entram em todo plano dirigido, porque o
+    oráculo pode ler qualquer arquivo de controle. Nome fora do padrão, link ou pasta levanta ValueError: nunca some
+    do plano em silêncio."""
+    achados = []
+    for p in sorted((raiz / "tests").glob("test_oraculo_*.py")):
+        if p.is_symlink() or not p.is_file() or not ORACULO.fullmatch(p.stem):
+            raise ValueError(f"oráculo fora do padrão (tests/test_oraculo_[a-z0-9_]+.py, arquivo comum): {ascii(p.name)}")
+        achados.append(p.stem)
+    return achados
 
 
 def modulos_sem_mapa(pedidos, raiz=Path(".")):
@@ -609,6 +626,7 @@ def main(argv=None):
     except RuntimeError as erro:
         sys.exit(f"forge-testes: fora de um repositório git ({erro})")
     try:
+        oraculos()
         pedidos = caminhos_pedidos(args.caminhos, origem, raiz) if args.caminhos else []
     except ValueError as erro:
         print(f"forge-testes: {erro}", file=sys.stderr)

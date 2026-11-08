@@ -23,7 +23,14 @@ Cada regra diz quem a decide: uma **ferramenta** (comando que roda na suíte do 
 | Tipagem no modo estrito | `<comando de tipos do pronto.md>` |
 | Testes passam; teste novo para todo bug corrigido | `<comando de testes do pronto.md>` (a existência do teste novo: leitura) |
 | Cobertura mínima exigida | `<comando de cobertura do pronto.md>` |
+| Pontuação de mutação no código alterado ≥ meta | `<comando de mutação do pronto.md>` |
 | Nomes, tamanho das funções, duplicação | leitura |
 | Segue a arquitetura e os ADRs | leitura |
 | Segurança: segredos, injeção, autorização, dados pessoais | leitura |
 | Modelagem do banco (chaves, índices, histórico, migração com volta) | leitura |
+
+## Meta de mutação
+Meta: `<pontuação da primeira rodada>` (a pontuação do comando de mutação do `pronto.md` na primeira entrega com código; o modo incremental reaproveita o resultado anterior e roda só no código alterado).
+- A meta só sobe: a rodada que passa da meta vira a meta nova.
+- Descer a meta pede decisão do dono (`R-DECISAO`), registrada aqui com a data.
+- Entrega sem código (só texto, documentação ou configuração) não roda mutação.

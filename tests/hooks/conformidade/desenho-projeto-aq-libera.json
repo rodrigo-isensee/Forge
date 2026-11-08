@@ -1,0 +1,19 @@
+{
+  "descricao": "E5-0 (Q-B, PAR-P2): o aq grava o desenho em docs/arquitetura/ (a escrita_permitida dele).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/docs/arquitetura/x.md",
+      "content": "x\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge-dev:aq"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

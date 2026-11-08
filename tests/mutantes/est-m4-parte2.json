@@ -1,0 +1,46 @@
+{
+  "pedido": "versao-037",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M21",
+      "guarda": "C-2 (a): bin/ que le README.md em linha nova reprova",
+      "arquivo": "bin/forge-check",
+      "de": "CLASSES = (\"texto\", \"forma\", \"codigo\")  # da mais leve à mais pesada",
+      "para": "CLASSES = (\"texto\", \"forma\", \"codigo\")  # da mais leve à mais pesada\nLEIA = lambda: Path(\"README.md\").read_text()",
+      "testes": [
+        "tests.test_reval_delta.Guarda.test_caminho_de_texto_so_e_citado_como_a_lista_conhece"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "C-2 (a): agente que cita docs/propostas/ reprova",
+      "arquivo": "agents/qa-engineer.md",
+      "de": "name: qa-engineer\n",
+      "para": "name: qa-engineer\n# leia e siga docs/propostas/x.md\n",
+      "testes": [
+        "tests.test_reval_delta.Guarda.test_caminho_de_texto_so_e_citado_como_a_lista_conhece"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "C-2 (b): citacao apagada deixa folga na lista e reprova",
+      "arquivo": "bin/forge-novo-projeto",
+      "de": "git -C \"$pasta\" add README.md .gitignore",
+      "para": "git -C \"$pasta\" add -- .gitignore",
+      "testes": [
+        "tests.test_reval_delta.Guarda.test_caminho_de_texto_so_e_citado_como_a_lista_conhece"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "C-2 (d): linha citante fora de tests/ que le o conteudo reprova",
+      "arquivo": "bin/forge-novo-projeto",
+      "de": "printf '# %s\\n' \"$nome\" > \"$pasta/README.md\"",
+      "para": "cat \"$pasta/README.md\"",
+      "testes": [
+        "tests.test_reval_delta.Guarda.test_caminho_de_texto_so_e_citado_como_a_lista_conhece"
+      ]
+    }
+  ]
+}

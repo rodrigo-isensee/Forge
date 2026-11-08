@@ -1,0 +1,2 @@
+### Corrigido
+- MAQ-I9 (I9a-0): o `scripts/conferir-reversao.py` pede o plano da ponta com `bin/forge-testes --listar` e só roda teste com plano dirigido (ou "nada alterado"); a ponta que pede a suíte inteira sai `nada classificado` (rc 0), porque a suíte inteira só roda na trava (R-TETO) e no CI do PR; por commit, o `forge-testes` que sai 2 vira `<sha7> sem-veredito: <motivo>`. Nenhum caminho do script roda mais a suíte inteira. O aviso M10 perde alcance quando a branch muda módulo de teste (cartão REVERSAO-MAPA).

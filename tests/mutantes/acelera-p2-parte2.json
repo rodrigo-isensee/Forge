@@ -1,0 +1,108 @@
+{
+  "pedido": "ACELERA-P2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "V1-1",
+      "guarda": "so existencia, sem ancestralidade: sha que existe fora da base passa",
+      "arquivo": "bin/forge-check",
+      "de": "elif not completo or (refs and not any(e_ancestral(raiz, completo, r) for r in refs)):",
+      "para": "elif not completo:",
+      "testes": [
+        "tests.test_citacao_p2.ShaCitado.test_sha_que_existe_fora_da_base_e_da_branch_reprova"
+      ]
+    },
+    {
+      "id": "A1-1",
+      "guarda": "adendo (1): ignorar todo numero, o que resolve fora da base passa",
+      "arquivo": "bin/forge-check",
+      "de": "if sha.isdigit() and not completo:",
+      "para": "if sha.isdigit():",
+      "testes": [
+        "tests.test_citacao_p2.ShaSoDeAlgarismos.test_numero_que_resolve_fora_da_base_reprova"
+      ]
+    },
+    {
+      "id": "A1-2",
+      "guarda": "adendo (1): cobrar todo numero como sha, o run reprova",
+      "arquivo": "bin/forge-check",
+      "de": "if sha.isdigit() and not completo:",
+      "para": "if sha.isdigit() and False:",
+      "testes": [
+        "tests.test_citacao_p2.ShaSoDeAlgarismos.test_numero_que_resolve_na_base_passa_e_o_que_nao_resolve_fica_calado",
+        "tests.test_citacao_p2.ShaCitado.test_sha_so_de_letras_e_cobrado_e_numero_que_nao_resolve_nao"
+      ]
+    },
+    {
+      "id": "A2-1",
+      "guarda": "adendo (2): dispensar toda linha que abre com DECISAO DO DONO, a inventada passa",
+      "arquivo": "bin/forge-check",
+      "de": "return e_linha_de_decisao(linha) and chave_da_decisao(COPIADA_DE.sub(\"\", linha)) in copias",
+      "para": "return e_linha_de_decisao(linha)",
+      "testes": [
+        "tests.test_citacao_p2.DecisaoCopiada.test_decisao_fora_do_pedido_reprova",
+        "tests.test_citacao_p2.ShaCitado.test_decisao_do_dono_e_pronto_quando_sao_cobrados"
+      ]
+    },
+    {
+      "id": "A2-2",
+      "guarda": "adendo (2): cobrar ancestralidade tambem na copia, a copia reprova",
+      "arquivo": "bin/forge-check",
+      "de": "            if copia:\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_citacao_p2.DecisaoCopiada.test_copia_com_e_sem_sufixo_passa"
+      ]
+    },
+    {
+      "id": "V1-3",
+      "guarda": "fora de um repositorio: a condicao invertida cala todo sha",
+      "arquivo": "bin/forge-check",
+      "de": "if git(raiz, \"rev-parse\", \"--git-dir\")[0]:",
+      "para": "if not git(raiz, \"rev-parse\", \"--git-dir\")[0]:",
+      "testes": [
+        "tests.test_citacao_p2.ShaCitado.test_sha_que_nao_existe_reprova"
+      ]
+    },
+    {
+      "id": "V1-4",
+      "guarda": "a Branch local deixa de ser ponta: o sha so da branch reprova",
+      "arquivo": "bin/forge-check",
+      "de": "branch and f\"refs/heads/{branch}\"",
+      "para": "None and f\"refs/heads/{branch}\"",
+      "testes": [
+        "tests.test_citacao_p2.ShaCitado.test_sha_da_base_e_da_branch_passa"
+      ]
+    },
+    {
+      "id": "V1-14",
+      "guarda": "a Branch em origin deixa de ser ponta: o sha so de origin/<Branch> reprova",
+      "arquivo": "bin/forge-check",
+      "de": "branch and f\"refs/remotes/origin/{branch}\"",
+      "para": "None and f\"refs/remotes/origin/{branch}\"",
+      "testes": [
+        "tests.test_citacao_p2.ShaCitado.test_sha_so_na_branch_de_origin_passa"
+      ]
+    },
+    {
+      "id": "V1-5",
+      "guarda": "ponta que nao resolve entra nas refs (origin/<Branch> ausente)",
+      "arquivo": "bin/forge-check",
+      "de": "for p in pontas) if s]",
+      "para": "for p in pontas) if True]",
+      "testes": [
+        "tests.test_citacao_p2.ShaCitado.test_sem_ponta_que_resolva_cobra_so_existencia"
+      ]
+    },
+    {
+      "id": "V1-6",
+      "guarda": "a marca (outro repositorio) deixa de dispensar o sha",
+      "arquivo": "bin/forge-check",
+      "de": ".lstrip().startswith(OUTRO_REPOSITORIO)",
+      "para": ".lstrip().startswith(\"(nada)\")",
+      "testes": [
+        "tests.test_citacao_p2.ShaCitado.test_outro_repositorio_marcado_passa"
+      ]
+    }
+  ]
+}
