@@ -12,15 +12,18 @@ em <diretório comum do git>/forge/run/agentes.json: protegido pela conformidade
 de escrita; `hooks_desligados` não vale no clone. Registros expiram (reserva sem início: 5 min; agente: expiracao_horas).
 O registro leva o PID da sessão do Claude Code, o namespace de PID e o session_id: com a sessão morta (PID inexistente, no mesmo
 namespace) a vaga sai na hora, sem esperar o prazo. Qualquer dúvida (tipo, faixa, namespace, erro) mantém o registro.
+AG-1a (E10): a reserva grava em `branches` as `Branch:` do cabeçalho dos briefs citados no prompt (só registro, sem recusa).
 """
 import hashlib
 import os
 import re
 import stat
+import sys
 import time
 from pathlib import Path
 
-from _comum import (RESERVA, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, gravar_json, ler_json)
+from _comum import (RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check, gravar_json,
+                    ler_json)
 from pesado import CASCAS, pid_da_sessao, pid_vivo
 
 FERRAMENTAS = {"Agent", "Task"}
@@ -278,6 +281,50 @@ def hash_do_brief_diverge(hook, prompt):
     return None
 
 
+CAMINHO_DE_BRIEF = re.compile(r"docs/briefs/[^\s`'\"]+?\.md\b")
+SEPARADOR_DE_TOKEN = re.compile(r"[\s`'\"]+")
+MAIOR_TOKEN = 4096  # A1 da segurança g2: token maior fica fora da busca, que é quadrática nele (base64, JSON compacto)
+MAXIMO_DE_BRIEFS = 4  # AG-1/C-2: acima disso, aviso e a regra fica sem efeito no lançamento
+SEM_BRANCH = ("nenhuma", "\u2014")
+
+
+def caminhos_de_brief(prompt):
+    """Os caminhos de docs/briefs/*.md do prompt, token a token, com o prefixo do token (`~/`, absoluto); sem o prefixo
+    na expressão, a busca é linear no token, e o token de mais de MAIOR_TOKEN caracteres é pulado."""
+    for token in SEPARADOR_DE_TOKEN.split(prompt):
+        if len(token) > MAIOR_TOKEN:
+            continue
+        inicio = 0
+        while achado := CAMINHO_DE_BRIEF.search(token, inicio):
+            yield token[inicio:achado.end()]
+            inicio = achado.end()
+
+
+def branches_dos_briefs(hook, prompt):
+    """AG-1a (E10): as `Branch:` do cabeçalho de cada brief em docs/briefs/ citado no prompt, sem `nenhuma` e `—`, em ordem.
+    Brief ausente ou recusado pela `ler_brief` fica fora; outro erro sobe (quem chama registra e grava a lista vazia)."""
+    caminhos = list(dict.fromkeys(caminhos_de_brief(str(prompt or ""))))
+    if len(caminhos) > MAXIMO_DE_BRIEFS:
+        print(f"aviso: {len(caminhos)} briefs citados (máximo {MAXIMO_DE_BRIEFS}); a reserva não grava branch.", file=sys.stderr)
+        hook.registrar_erro(Aviso(f"agentes: {len(caminhos)} briefs citados no prompt; a reserva saiu sem branch"))
+        return []
+    branches, fc = set(), None
+    for caminho in caminhos:
+        if caminho.startswith("~/"):
+            caminho = str(Path.home() / caminho[2:])
+        try:
+            dados = ler_brief(hook, caminho)
+        except FileNotFoundError:
+            continue
+        if dados is None:
+            continue
+        fc = fc or forge_check()  # carregado uma vez, só com brief lido
+        achada = re.search(fc.CABECALHO_DE_BRIEF_CAMPOS["Branch"], fc.cabecalho_do_brief(dados.decode("utf-8", "replace")))
+        if achada and achada.group(1) not in SEM_BRANCH:
+            branches.add(achada.group(1))
+    return sorted(branches)
+
+
 def lancar(hook, agentes, agora):
     entrada = hook.campo("tool_input") or {}
     tipo = str(entrada.get("subagent_type") or "general-purpose")
@@ -310,7 +357,12 @@ def lancar(hook, agentes, agora):
     if len(agentes) >= teto:
         bloquear("R-TETO", f"{len(agentes)} agentes ativos, teto {teto} ({motivo}); "
                            "espere um terminar antes de lançar outro.")
-    agentes.append({"id": None, "tipo": tipo, "descricao": descricao, "desde": agora, **da_sessao(hook)})
+    try:  # AG-1a (G-3): depois do teto e só calcula; o erro registra e a reserva sai com a lista vazia
+        branches = branches_dos_briefs(hook, entrada.get("prompt")) if tipo != CONFERENTE else []
+    except Exception as erro:  # noqa: BLE001 - a exceção não pode levar a reserva (o executar liberaria sem ela)
+        hook.registrar_erro(erro)
+        branches = []
+    agentes.append({"id": None, "tipo": tipo, "descricao": descricao, "desde": agora, "branches": branches, **da_sessao(hook)})
 
 
 def iniciar(hook, agentes, agora):
