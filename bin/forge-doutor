@@ -23,6 +23,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 MODELO = RAIZ / "templates" / "projeto"
 RAMOS = ("develop", "homolog")
 JARVIS = "forge:jarvis"
+PYTHON_MINIMO = (3, 12)  # o menor Python que o CI prova (`ci.yml`, `release.yml`) e o README declara
 
 
 class Problema:
@@ -157,6 +158,14 @@ def conferir_sessao():
     if a is None or b is None or b <= a:
         return []
     return [Problema(f"O Forge {instalada} está instalado, mas esta sessão roda a {carregada}: feche e abra a sessão.")]
+
+
+def conferir_python():
+    """O Python que roda o Forge abaixo do mínimo declarado (E21): nada prova que o Forge funcione nele."""
+    if sys.version_info < PYTHON_MINIMO:
+        atual, minimo = ".".join(map(str, sys.version_info[:2])), ".".join(map(str, PYTHON_MINIMO))
+        return [Problema(f"Python {atual} abaixo do mínimo {minimo} do Forge: instale o Python {minimo} ou mais novo.")]
+    return []
 
 
 def nao_consegui_git():
@@ -398,7 +407,7 @@ def diagnosticar(raiz, rapido=True):
     for linha in saida.splitlines() if codigo == 0 else []:
         chave, _, valor = linha.partition("=")
         config_git[chave.lower()] = valor
-    problemas = conferir_plugin(raiz) + conferir_versao(raiz) + conferir_sessao()
+    problemas = conferir_python() + conferir_plugin(raiz) + conferir_versao(raiz) + conferir_sessao()
     if codigo is not None:  # sem a configuração do git, proteção e identidade não se conferem
         problemas += conferir_protecao_do_git(raiz, config_git)
     if not rapido:
