@@ -1,0 +1,166 @@
+{
+  "pedido": "revisor-wt-e6a-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "falha do rev-list dos merges não reprova",
+      "arquivo": "bin/forge-check",
+      "de": "o escopo não foi lido\", True)] if cod else []",
+      "para": "o escopo não foi lido\", True)] if False else []",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_git_que_falha_reprova"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "merge da base conta como merge a conferir",
+      "arquivo": "bin/forge-check",
+      "de": "outros = [q for q in outros if not (base_ref and e_ancestral(raiz, q, base_ref))]",
+      "para": "outros = [q for q in outros if not (False)]",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_merge_da_base_nao_reprova"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "merge só da base tem os arquivos conferidos (aceite de outro pedido na base)",
+      "arquivo": "bin/forge-check",
+      "de": "trazidos = nomes_do_intervalo(raiz, f\"{merge}^1\", merge, estrito=True) if outros else []",
+      "para": "trazidos = nomes_do_intervalo(raiz, f\"{merge}^1\", merge, estrito=True) if True else []",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_merge_da_base_nao_reprova"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "falha do diff do merge não reprova",
+      "arquivo": "bin/forge-check",
+      "de": "        if trazidos is None:\n            recusas.append((f\"escopo: o git falhou (diff do merge",
+      "para": "        if False:\n            recusas.append((f\"escopo: o git falhou (diff do merge",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_git_que_falha_reprova"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "aceite trazido por merge passa (M9)",
+      "arquivo": "bin/forge-check",
+      "de": "if any(n.startswith(ACEITES_DO_USUARIO) for n in trazidos):  # M9",
+      "para": "if False:  # M9",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_sem_linha_no_pedido_so_o_parecer_e_o_aceite_reprovam"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "sem linha no pedido, M4 vale para todo merge (T10: como hoje)",
+      "arquivo": "bin/forge-check",
+      "de": "        if not shas:  # T10",
+      "para": "        if False:  # T10",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_sem_linha_no_pedido_so_o_parecer_e_o_aceite_reprovam"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "merge de parecer/* sem linha no pedido passa (C-11)",
+      "arquivo": "bin/forge-check",
+      "de": "\"refs/heads/parecer/\") != (0, \"\") for q in outros):",
+      "para": "\"refs/heads/parecer/\") == (0, \"\") for q in outros):",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_sem_linha_no_pedido_so_o_parecer_e_o_aceite_reprovam"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "pai de merge que não é parecer conferido passa (M4)",
+      "arquivo": "bin/forge-check",
+      "de": "não conferido)\", True) for q in outros if q not in shas]",
+      "para": "não conferido)\", True) for q in outros if False]",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_merge_de_sha_nao_conferido_reprova"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "arquivo de P não conferido conta como trazido de parecer conferido",
+      "arquivo": "bin/forge-check",
+      "de": "dos_p = [q for q in outros if q in shas]",
+      "para": "dos_p = [q for q in outros if True]",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_merge_de_sha_nao_conferido_reprova"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "remoção trazida pelo merge passa (arquivo fora do P, blob vazio dos dois lados)",
+      "arquivo": "bin/forge-check",
+      "de": "if not any(n in (nomes_do_intervalo(raiz, f\"{q}^1\", q, estrito=True) or ()) and",
+      "para": "if not any(True and",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_merge_que_traz_bytes_fora_do_parecer_reprova"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "blob alterado no merge passa (t12)",
+      "arquivo": "bin/forge-check",
+      "de": "and blob_de(raiz, q, n) == blob_de(raiz, merge, n)\n",
+      "para": "and True\n",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_merge_que_traz_bytes_fora_do_parecer_reprova"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "merge conferido também na etapa review (fora de qa e codigo)",
+      "arquivo": "bin/forge-check",
+      "de": "merges_nao_conferidos(raiz, texto, de, head, base_ref) if etapa in (\"qa\", \"codigo\") else",
+      "para": "merges_nao_conferidos(raiz, texto, de, head, base_ref) if True else",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_merge_de_sha_nao_conferido_reprova"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "com linha no pedido, o último P de cada arquivo não é lido",
+      "arquivo": "bin/forge-check",
+      "de": "ultimos = pareceres_conferidos(raiz, pedido, branch)[0] if shas else {}",
+      "para": "ultimos = pareceres_conferidos(raiz, pedido, branch)[0] if not shas else {}",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_ultimo_conferido_passa_e_o_superado_reprova"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "M2 sem linha no pedido (T10: como hoje)",
+      "arquivo": "bin/forge-check",
+      "de": "        if shas and tipo not in (None, \"qa\") and (nome not in ultimos",
+      "para": "        if tipo not in (None, \"qa\") and (nome not in ultimos",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_sem_linha_no_pedido_so_o_parecer_e_o_aceite_reprovam"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "o parecer do próprio QA vira parecer alheio",
+      "arquivo": "bin/forge-check",
+      "de": "        if shas and tipo not in (None, \"qa\") and (nome not in ultimos",
+      "para": "        if shas and tipo not in (None,) and (nome not in ultimos",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_ultimo_conferido_passa_e_o_superado_reprova"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "parecer superado no head passa (M2)",
+      "arquivo": "bin/forge-check",
+      "de": "or blob_de(raiz, head, nome) != blob_de(raiz, ultimos[nome], nome)):  # M2",
+      "para": "or False):  # M2",
+      "testes": [
+        "tests.test_revisor_wt.EntregaConfereOMerge.test_ultimo_conferido_passa_e_o_superado_reprova"
+      ]
+    }
+  ]
+}

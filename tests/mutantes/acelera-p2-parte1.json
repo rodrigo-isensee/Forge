@@ -1,0 +1,36 @@
+{
+  "pedido": "ACELERA-P2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "V1-2",
+      "guarda": "PQ-n citado fora do Pronto quando sem conferencia",
+      "arquivo": "bin/forge-check",
+      "de": "for n in sorted(citados - definidos, key=int)]",
+      "para": "for n in sorted(citados - citados, key=int)]",
+      "testes": [
+        "tests.test_citacao_p2.PqCitado.test_pq_citado_fora_do_pronto_quando_existe_nele"
+      ]
+    },
+    {
+      "id": "V1-11",
+      "guarda": "linha do Pronto quando que nao abre com PQ-n entra nos definidos",
+      "arquivo": "bin/forge-check",
+      "de": "for m in [PQ.match(ITEM.sub(\"\", l, count=1))] if m}",
+      "para": "for m in [PQ.match(ITEM.sub(\"\", l, count=1))] if True}",
+      "testes": [
+        "tests.test_citacao_p2.PqCitado.test_pq_citado_fora_do_pronto_quando_existe_nele"
+      ]
+    },
+    {
+      "id": "V1-12",
+      "guarda": "o PQ-n citado dentro do Pronto quando passa a ser cobrado",
+      "arquivo": "bin/forge-check",
+      "de": "if nome != \"Pronto quando\" for l in linhas for n, _",
+      "para": "if nome != \"(nenhuma)\" for l in linhas for n, _",
+      "testes": [
+        "tests.test_citacao_p2.PqCitado.test_pronto_quando_nao_cobra_pq_nem_registro_dele"
+      ]
+    }
+  ]
+}

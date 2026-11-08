@@ -64,7 +64,7 @@ class FecharLogCheck(unittest.TestCase):
         self.assertEqual(self.dicas(r), ["para ler: gh run view 12 --log-failed"])
 
     def test_checks_verdes_continuam_com_run_e_job_pela_funcao_nova(self):
-        self.checks(f"bateria\tpass\t5m\t{RUN.format(111, 222)}", "extra\tskipping\t0\thttps://exemplo.test/sem-padrao")
+        self.checks(f"bateria\tpass\t5m\t{RUN.format(111, 222)}", "bateria (python 3.14)\tpass\t5m\turl", "catraca\tpass\t5s\turl", "extra\tskipping\t0\thttps://exemplo.test/sem-padrao")
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertIn("check bateria pass run=111 job=222", r.stdout)

@@ -1,6 +1,7 @@
 """MEDIR-M14B: as medidas que dão a linha de base do processo antes de qualquer afrouxamento (esperas, PR `fix` que corrige PR
 mesclado, defeito escapado, rótulo `afrouxa-regra` que era afrouxamento real) e o casamento do `--pedido` do custo com os cartões."""
 import datetime
+import hashlib
 import importlib.machinery
 import importlib.util
 import json
@@ -14,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import sem_manutencao  # noqa: E402
 from apoio_jarvis import texto_do_jarvis  # noqa: E402
-from test_voltas import Raiz  # noqa: E402
+from test_voltas import FORGE_CHECK, RAIZ, Raiz  # noqa: E402
 
 
 def carregar_forge_check_m14b():
@@ -24,6 +25,7 @@ def carregar_forge_check_m14b():
     return modulo
 
 
+FORGE_CHECK_M2B = str(Path(__file__).resolve().parent.parent / "bin" / "forge-check")
 CABECALHO_HISTORICO = "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n"
 
 
@@ -441,15 +443,215 @@ class TextosDizemQuandoCadaMedidaRoda(unittest.TestCase):
     def test_agile_coach_roda_a_linha_de_base_na_retrospectiva(self):
         coach = self.texto("agents/agile-coach.md")
         for trecho in ("forge-check esperas", "forge-check escape resumo", "forge-check escape registrar", "forge-check corrigidos",
-                       "forge-check afrouxamentos --rotulados", "Linha de base (M14b)"):
+                       "forge-check afrouxamentos --rotulados", "Linha de base (M14b)",
+                       "forge-check decisoes --sem-cartao", "forge-check transcricao trava", "forge-check transcricao avisos --amostra"):
             self.assertIn(trecho, coach)
 
     def test_cada_medida_esta_na_tabela_de_metricas_e_no_uso_do_forge_check(self):
         tabela, uso = self.texto("docs/melhoria-continua.md"), self.texto("bin/forge-check")
-        for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape resumo"):
+        for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape resumo",
+                        "forge-check transcricao trava", "forge-check transcricao avisos"):
             self.assertIn(comando, tabela)
-        for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape registrar", "forge-check escape resumo"):
+        for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape registrar", "forge-check escape resumo",
+                        "forge-check transcricao trava", "forge-check transcricao avisos"):
             self.assertIn(comando, uso.split('"""')[1])
+
+
+class MedidaM2b(Raiz):
+    """M15 E5c (decisão 9): `provas medida` conta as conferências de entrega com mérito que o CI com a M15 pegaria e as só do conferente."""
+    BRIEF = ("# b\n\n## Pronto quando\n- PQ-2 (cmd): `python3 -m unittest tests.test_x` · espera: igual 'ok'\n"
+             "- PQ-1 (cmd): `grep -c x arquivo` · espera: igual '1'\n- PQ-3 (arquivo): `git rev-parse HEAD`\n- PQ-4 (cmd): sem crase · espera: rc=0\n")
+    CABECALHO = "| data-hora | pedido | brief | modo | rodada | resultado | mérito (s/n/parcial) | nota | classe | autor |\n|---|---|---|---|---|---|---|---|---|---|\n"
+
+    def medir(self, *linhas, desde=()):
+        self.gravar("docs/briefs/p-tech-lead-1.md", self.BRIEF)
+        self.gravar("docs/kanban/conferencias.md", self.CABECALHO + "".join(f"| {l} |\n" for l in linhas))
+        cod, saida, _ = self.rodar("provas", "medida", *desde)
+        self.assertEqual(cod, 0, saida)
+        return saida
+
+    def linha(self, resultado, merito="s", brief="p-tech-lead-1", modo="entrega", hora="2026-11-06 10:00"):
+        return f"{hora} | p | {brief} | {modo} | 1 | {resultado} | {merito} | nota | implementacao | destino"
+
+    def total(self, n, k, j, i):
+        return f"m2b: conferências de entrega com mérito={n}; pegas só pelo conferente={k}; que o CI (M15) pegaria={j}; ilegíveis={i}"
+
+    def test_pq_unittest_da_lista_do_script_e_ci(self):
+        saida = self.medir(self.linha("não cumpriu (PQ-2)", merito="parcial"))
+        self.assertEqual(saida, ["m2b: 2026-11-06 10:00 · p-tech-lead-1 · ci · PQ-2=ci", self.total(1, 0, 1, 0)])
+
+    def test_pq_fora_da_lista_nao_cmd_ou_sem_pq_e_so_do_conferente(self):
+        for resultado, detalhe in (("não cumpriu (PQ-1)", "PQ-1=so-conferente"), ("não cumpriu (PQ-3)", "PQ-3=so-conferente"),
+                                   ("não cumpriu (PQ-9)", "PQ-9=so-conferente"), ("não cumpriu (PQ-4)", "PQ-4=so-conferente"), ("escopo: fora", "sem PQ=so-conferente"),
+                                   ("não cumpriu (PQ-2, PQ-1)", "PQ-2=ci, PQ-1=so-conferente")):
+            with self.subTest(resultado=resultado):
+                saida = self.medir(self.linha(resultado))
+                self.assertEqual(saida, [f"m2b: 2026-11-06 10:00 · p-tech-lead-1 · so-conferente · {detalhe}", self.total(1, 1, 0, 0)])
+
+    def test_so_conta_entrega_que_nao_aprovou_com_merito_em_linha_de_10_celulas(self):
+        saida = self.medir(self.linha("não cumpriu (PQ-2)", merito="n"), self.linha("cumpriu"), self.linha("não cumpriu (PQ-2)", modo="brief"),
+                           self.linha("não cumpriu (PQ-2)").rsplit(" | ", 1)[0], self.linha("não cumpriu (PQ-2)", hora="ontem"))
+        self.assertEqual(saida, [self.total(0, 0, 0, 0)])
+
+    def test_desde_corta_as_conferencias_antigas(self):
+        saida = self.medir(self.linha("não cumpriu (PQ-2)", hora="2026-11-01 09:00"), self.linha("não cumpriu (PQ-1)"), desde=("--desde", "2026-11-06"))
+        self.assertEqual(saida[-1], self.total(1, 1, 0, 0))
+
+    def test_brief_ausente_ou_de_nome_inseguro_e_ilegivel_sem_ecoar_o_resultado(self):
+        saida = self.medir(self.linha("não cumpriu (PQ-2) SEGREDO", brief="p-tech-lead-9"), self.linha("não cumpriu (PQ-2)", brief="../briefs/p-tech-lead-1"))
+        self.assertEqual(saida, ["m2b: 2026-11-06 10:00 · p-tech-lead-9 · ilegível · brief=ilegível",
+                                 "m2b: 2026-11-06 10:00 · ? · ilegível · brief=ilegível", self.total(2, 0, 0, 2)])
+
+    def test_registro_em_link_ou_sem_o_script_do_ci_nao_verifica(self):
+        self.gravar("docs/kanban/outro.md", self.CABECALHO)
+        (self.tmp / "docs/kanban/conferencias.md").symlink_to("outro.md")
+        cod, saida, _ = self.rodar("provas", "medida")
+        self.assertEqual((cod, saida), (2, ["m2b: não verificável: docs/kanban/conferencias.md é link simbólico"]))
+        copia = self.tmp / "plugin" / "bin" / "forge-check"
+        copia.parent.mkdir(parents=True)
+        copia.write_bytes(Path(FORGE_CHECK_M2B).read_bytes())
+        r = subprocess.run([sys.executable, "-I", str(copia), "--raiz", str(self.tmp), "provas", "medida"], capture_output=True, text=True,
+                           env={"PATH": "/usr/bin:/bin", "HOME": str(self.tmp / "home")})
+        self.assertEqual((r.returncode, r.stdout), (2, "provas: não verificável (scripts/reexecutar-provas.py ausente)\n"))
+
+    def test_agile_coach_leva_a_medida_ao_cartao_na_retrospectiva_da_042(self):
+        coach = (Path(FORGE_CHECK_M2B).parent.parent / "agents" / "agile-coach.md").read_text(encoding="utf-8")
+        self.assertIn("forge-check provas medida --desde <abertura da 0.41>", coach)
+        self.assertIn("EST-M2B-REAVALIAR", coach)
+
+
+class EsperaDaTrava(Raiz):
+    """LAC-L1: `forge-check transcricao trava` mede a espera da trava pesada (R-TETO) nas transcrições, só com papel e números (T-14)."""
+    CMD, BLOQUEIO = "bin/x SEGREDO123", "R-TETO: tarefa pesada de outra sessão ou agente há 3 min (`bin/x SEGREDO123`)"
+
+    def chamada(self, uso, s, comando=CMD, texto=BLOQUEIO):
+        base = {"isSidechain": True, "agentId": "a1", "agentType": "forge:qa-engineer", "sessionId": "s",
+                "timestamp": (datetime.datetime(2026, 11, 6, 10, tzinfo=datetime.timezone.utc) + datetime.timedelta(seconds=s)).isoformat()}
+        return [{**base, "type": "assistant", "message": {"content": [{"type": "tool_use", "id": uso, "name": "Bash", "input": {"command": comando}}]}},
+                {**base, "type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": uso, "is_error": bool(texto), "content": texto or "ok"}]}}]
+
+    def trava(self, *chamadas, alvo="t", rc=0):
+        sujeira = [{"type": "system"}, {"type": "assistant", "message": {"content": ["x", {"type": "tool_use", "id": "z", "name": "Bash", "input": {"command": "y"}},
+                                                                                {"type": "tool_result", "tool_use_id": "w"}, {"type": "tool_result", "tool_use_id": "z", "is_error": True, "content": self.BLOQUEIO}]}}]
+        if chamadas:
+            self.gravar(f"{alvo}/s.jsonl", "".join(json.dumps(o) + "\n" for o in sujeira + [o for c in chamadas for o in c]))
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "transcricao", "trava", str(self.tmp / alvo)], capture_output=True, text=True,
+                           env={"HOME": str(self.tmp), "PATH": "/usr/bin:/bin"})
+        self.assertEqual(r.returncode, rc, r.stdout + r.stderr)
+        return r.stdout + r.stderr
+
+    def test_o_mesmo_comando_que_passou_fecha_a_espera_exata_sem_imprimir_o_comando(self):
+        saida = self.trava(self.chamada("t1", 0), self.chamada("t2", 30), self.chamada("t3", 60, comando="ls", texto=""),
+                           self.chamada("t4", 120, comando=" bin/x  SEGREDO123", texto=""))
+        self.assertIn("trava: papel forge:qa-engineer bloqueios 2 espera_s 120 exata\n", saida)
+        self.assertIn("trava: total: bloqueios 2 episodios 1 mediana_s 120 maximo_s 120 por_dia 1.0\ntrava: alta: sim\n", saida)
+        for segredo in ("SEGREDO123", hashlib.sha256(self.CMD.encode()).hexdigest()[:12]):
+            self.assertNotIn(segredo, saida)
+
+    def test_bloqueio_sem_passagem_e_piso_e_baixa(self):
+        saida = self.trava(self.chamada("t1", 0), self.chamada("t2", 50))
+        self.assertIn("bloqueios 2 espera_s 50 piso\ntrava: total: bloqueios 2 episodios 1 mediana_s 50 maximo_s 50 por_dia 1.0\ntrava: alta: nao\n", saida)
+
+    def test_onze_minutos_separam_episodios_e_cinco_nao(self):
+        saida = self.trava(self.chamada("t1", 0), self.chamada("t2", 660), self.chamada("t3", 960), self.chamada("t4", 1000, texto=""))
+        self.assertIn("bloqueios 1 espera_s 0 piso\ntrava: papel forge:qa-engineer bloqueios 2 espera_s 340 exata\n", saida)
+
+    def test_o_mesmo_tool_use_id_conta_um_e_outra_recusa_do_r_teto_nao_conta(self):
+        saida = self.trava(self.chamada("t1", 0), self.chamada("t1", 0), self.chamada("t2", 5, texto="R-TETO: 9 agentes em segundo plano"))
+        self.assertIn("trava: total: bloqueios 1 episodios 1 ", saida)
+
+    def test_sem_bloqueio_sem_jsonl_e_sem_caminho(self):
+        self.assertIn("trava: total: bloqueios 0 episodios 0 mediana_s 0 maximo_s 0 por_dia 0.0\ntrava: alta: nao", self.trava(self.chamada("t1", 0, texto="")))
+        (self.tmp / "vazia").mkdir()
+        self.assertIn("trava: nenhum arquivo .jsonl", self.trava(alvo="vazia", rc=1))
+        self.assertIn("trava: caminho inexistente", self.trava(alvo="nada", rc=1))
+
+
+
+VIGIA = "Forge: 1 contorno — contorno: SEGREDO123 (.forge/run/violacoes.jsonl)"
+DOUTOR = "Forge doutor: 1 coisa para ver — versão atrasada SEGREDO123 (rode: forge doutor)"
+
+
+def aviso(texto, dia="2026-10-22", evento="Stop", tipo="hook_system_message"):
+    """A linha que o Claude Code grava para o `systemMessage` de um hook (sonda: `type: attachment`, `attachment.type: hook_system_message`)."""
+    return {"type": "attachment", "timestamp": f"{dia}T10:00:00.000Z", "sessionId": "s",
+            "attachment": {"type": tipo, "content": texto, "hookName": evento, "hookEvent": evento}}
+
+
+class AvisosDosHooks(Raiz):
+    """LAC-L2 (E4a): `transcricao avisos` conta os avisos do doutor e do vigia por hook, evento e dia; a saída nunca traz o texto (T-14)."""
+
+    def avisos(self, *objetos):
+        self.gravar("t/s.jsonl", "".join(json.dumps(o, ensure_ascii=False) + "\n" for o in objetos))
+        cod, linhas, erro = self.rodar("transcricao", "avisos", str(self.tmp / "t"))
+        self.assertNotIn("SEGREDO123", "\n".join(linhas) + erro)
+        return cod, linhas
+
+    def test_dois_do_vigia_e_um_do_doutor_por_hook_evento_e_dia(self):
+        cod, linhas = self.avisos(aviso(VIGIA), aviso(VIGIA.replace("1 contorno", "2 contornos"), "2026-10-23", "SubagentStop"),
+                                  aviso(DOUTOR, evento="PostToolUse"))
+        self.assertEqual(cod, 0, linhas)
+        self.assertEqual(linhas, ["avisos: hook doutor avisos=1 unicos=1 reincidencia=0", "avisos: hook vigia avisos=2 unicos=2 reincidencia=0",
+                                  "avisos: evento Stop doutor=0 vigia=1", "avisos: evento SubagentStop doutor=0 vigia=1",
+                                  "avisos: evento outro doutor=1 vigia=0", "avisos: dia 2026-10-22 doutor=1 vigia=1",
+                                  "avisos: dia 2026-10-23 doutor=0 vigia=1", "avisos: total: avisos=3 unicos=3 reincidencia=0",
+                                  "avisos: com_acao=0"])
+
+    def test_mesmo_texto_no_mesmo_dia_reincide_e_em_dias_diferentes_nao(self):
+        cod, linhas = self.avisos(aviso(VIGIA), aviso(VIGIA, evento="SubagentStop"), aviso(DOUTOR), aviso(DOUTOR, "2026-10-23"))
+        self.assertIn("avisos: hook vigia avisos=2 unicos=1 reincidencia=1", linhas)
+        self.assertIn("avisos: hook doutor avisos=2 unicos=1 reincidencia=0", linhas)
+        self.assertIn("avisos: total: avisos=4 unicos=2 reincidencia=1", linhas)
+
+    def test_aviso_de_outro_hook_ou_de_outro_registro_nao_conta(self):
+        cod, linhas = self.avisos(aviso("Forge: versão nova SEGREDO123"), aviso("Forge: x (.forge/run/violacoes.jsonl) SEGREDO123"),
+                                  aviso(DOUTOR, tipo="hook_additional_context"), dict(aviso(DOUTOR), type="user"),
+                                  dict(aviso(DOUTOR), timestamp="ontem SEGREDO123"), {"type": "attachment", "attachment": DOUTOR})
+        self.assertEqual(linhas, ["avisos: hook doutor avisos=1 unicos=1 reincidencia=0", "avisos: hook vigia avisos=0 unicos=0 reincidencia=0",
+                                  "avisos: evento Stop doutor=1 vigia=0", "avisos: dia sem_data doutor=1 vigia=0",
+                                  "avisos: total: avisos=1 unicos=1 reincidencia=0", "avisos: com_acao=0"])
+
+    def test_pasta_sem_jsonl_e_caminho_inexistente_dao_rc_1(self):
+        (self.tmp / "vazia").mkdir()
+        for alvo, inicio in (("vazia", "avisos: nenhum arquivo .jsonl em "), ("nao-existe", "avisos: caminho inexistente: "),
+                             (None, f"avisos: caminho inexistente: {self.tmp / 'home' / '.claude' / 'projects'}/")):  # sem alvo: a pasta padrão
+            cod, linhas, _ = self.rodar("transcricao", "avisos", *([str(self.tmp / alvo)] if alvo else []))
+            self.assertEqual(cod, 1, linhas)
+            self.assertTrue(linhas[0].startswith(inicio), linhas)
+
+
+def chamada(comando, texto=None, tipo="assistant"):
+    """Uma mensagem com uma chamada de ferramenta (e, se dado, um texto antes dela)."""
+    return {"type": tipo, "message": {"content": ([{"type": "text", "text": texto}] if texto else []) +
+                                      [{"type": "tool_use", "name": "Bash", "input": {"command": comando}}]}}
+
+
+class AvisosComAcao(Raiz):
+    """LAC-L2 (E4b): o aviso tem ação quando uma das 3 chamadas seguintes da sessão age sobre ele; a `--amostra` só traz id e tipo (T-14)."""
+
+    def medir(self, arquivos, *opcoes):
+        for nome, objetos in arquivos.items():
+            self.gravar(f"t/{nome}.jsonl", "".join(json.dumps(o, ensure_ascii=False) + "\n" for o in objetos))
+        cod, linhas, erro = self.rodar("transcricao", "avisos", str(self.tmp / "t"), *opcoes)
+        self.assertNotIn("SEGREDO123", "\n".join(linhas) + erro)
+        self.assertEqual(cod, 0, linhas)
+        return linhas
+
+    def test_acao_na_segunda_chamada_conta_e_na_quarta_nao(self):
+        estranhos = [{"type": "assistant", "message": "x"}, {"type": "assistant", "message": {"content": 5}},
+                     {"type": "assistant", "message": {"content": ["solto"]}}, chamada("ls", "o doutor", tipo="user")]
+        for agir in ("cat .forge/run/violacoes.jsonl", "forge doutor --rapido", "bin/forge-doutor"):
+            self.assertIn("avisos: com_acao=1", self.medir({"a": [aviso(VIGIA), chamada("ls"), chamada(agir), chamada("ls")],
+                                                             "b": [aviso(VIGIA), *estranhos, chamada("ls"), chamada("ls"), chamada("ls"), chamada(agir)]}))
+        self.assertIn("avisos: com_acao=2", self.medir({"a": [aviso(DOUTOR), chamada("ls", "nada"), chamada("ls"), chamada("ls", "O Vigia avisou")],
+                                                         "b": [aviso(VIGIA), chamada("ls", "vou ver o doutor")]}))
+
+    def test_amostra_da_ids_deterministicos_sem_o_texto_do_aviso(self):
+        arquivos = {"a": [aviso(VIGIA), aviso(DOUTOR)], "b": [], "c": [aviso(VIGIA, "2026-10-23")]}
+        amostra = [l for l in self.medir(arquivos, "--amostra", "9") if "amostra" in l]
+        self.assertEqual(amostra, ["avisos: amostra s1#1 vigia", "avisos: amostra s1#2 doutor", "avisos: amostra s3#1 vigia"])
+        self.assertEqual([l for l in self.medir(arquivos, "--amostra", "2") if "amostra" in l], amostra[:2])
+        self.assertFalse([l for l in self.medir(arquivos, "--amostra", "-1") + self.medir(arquivos) if "amostra" in l])
 
 
 if __name__ == "__main__":

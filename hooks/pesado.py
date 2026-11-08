@@ -91,6 +91,32 @@ def pesado(comando, padroes):
     return any(t == p or t.startswith(p + " ") for inicio in partes for t in inicio for p in padroes)
 
 
+def comando_vivo(padroes):
+    """Algum processo da máquina roda um dos `padroes` (MAQ-C1). Só compara e devolve bool: o `cmdline` lido nunca é
+    gravado, impresso nem posto em mensagem. Compara a partir do argv[0], do argv[0] sem pasta (`/usr/bin/python3`) e do
+    argv[1] (o script do shebang: `python3 ./scripts/suite-paralela.py`). Limites aceitos, que abrem na dúvida como
+    hoje: processo de outro namespace de pid, `/proc` ausente ou ilegível e script chamado por caminho absoluto no
+    argv[1]. Padrão vazio é ignorado; lê até 4096 bytes por processo e para no primeiro casamento."""
+    padroes = [p for p in map(normalizar, padroes) if p]
+    if not padroes:
+        return False
+    try:
+        pids = [d for d in os.listdir("/proc") if d.isdigit()]
+    except OSError:
+        return False
+    for pid in pids:
+        try:
+            with open(f"/proc/{pid}/cmdline", "rb") as arquivo:
+                argv = arquivo.read(4096).decode("utf-8", errors="replace").split("\0")
+        except OSError:
+            continue
+        for inicio in (argv, [os.path.basename(argv[0])] + argv[1:], argv[1:]):
+            texto = normalizar(" ".join(inicio)) + " "
+            if any(texto.startswith(p + " ") for p in padroes):
+                return True
+    return False
+
+
 def mesma_sessao(hook, trava):
     """A trava é desta sessão e deste agente: a guarda serve entre sessões, worktrees e agentes."""
     return trava.get("pid") == pid_da_sessao() and trava.get("agente") == hook.campo("agent_id")

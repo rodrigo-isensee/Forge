@@ -1,0 +1,86 @@
+{
+  "pedido": "par-p2-criterio-forma",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "C-6: plano técnico com o `pedido:` do parecer",
+      "arquivo": "bin/forge-check",
+      "de": "meta.get(\"pedido\") == pedido if meta is not None",
+      "para": "True if meta is not None",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_desenho_de_outro_pedido_e_recusado_e_so_a_frase_sai_sem_controle"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "C-6: desenho sem frontmatter com o nome do pedido",
+      "arquivo": "bin/forge-check",
+      "de": "nome == f\"{pedido}.md\" or nome.startswith(f\"{pedido}-\")",
+      "para": "True",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_desenho_de_outro_pedido_e_recusado_e_so_a_frase_sai_sem_controle"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "conferir_criterio: o corpo é o da seção `## Parecer`",
+      "arquivo": "bin/forge-check",
+      "de": "if \"\\n## Parecer\\n\" in texto else \"\"",
+      "para": "if False else \"\"",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_frase_igual_passa_diferente_reprova_e_a_marca_com_motivo_logo_abaixo_avisa"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "conferir_criterio: linhas em branco não contam como a 1.ª linha",
+      "arquivo": "bin/forge-check",
+      "de": "for l in corpo.split(\"\\n\") if l.strip()]",
+      "para": "for l in corpo.split(\"\\n\") if not l.strip()]",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_frase_igual_passa_diferente_reprova_e_a_marca_com_motivo_logo_abaixo_avisa"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "conferir_criterio: a 1.ª linha repete a frase do desenho",
+      "arquivo": "bin/forge-check",
+      "de": "if linhas[0] == f'Critério de parada: \"{frase}\"':",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_frase_igual_passa_diferente_reprova_e_a_marca_com_motivo_logo_abaixo_avisa"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "C-7: `critério mudou:` só logo abaixo da linha `Critério de parada:`",
+      "arquivo": "bin/forge-check",
+      "de": "if linhas[0].startswith(\"Critério de parada:\") else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_frase_igual_passa_diferente_reprova_e_a_marca_com_motivo_logo_abaixo_avisa"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "C-7: `critério mudou:` com motivo de 10 caracteres ou mais",
+      "arquivo": "bin/forge-check",
+      "de": "critério mudou:\\s*(.{10,})$",
+      "para": "critério mudou:\\s*(.{1,})$",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_frase_igual_passa_diferente_reprova_e_a_marca_com_motivo_logo_abaixo_avisa"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "C-7: a marca válida vira aviso, não violação",
+      "arquivo": "bin/forge-check",
+      "de": "    if mudou:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_frase_igual_passa_diferente_reprova_e_a_marca_com_motivo_logo_abaixo_avisa"
+      ]
+    }
+  ]
+}

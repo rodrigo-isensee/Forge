@@ -1,0 +1,66 @@
+{
+  "pedido": "lac-l1-trava",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o comando se compara normalizado (a passagem com outros espaços é achada e a espera é exata)",
+      "arquivo": "bin/forge-check",
+      "de": "\" \".join(str(b[\"input\"].get(\"command\")).split())",
+      "para": "str(b[\"input\"].get(\"command\"))",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_o_mesmo_comando_que_passou_fecha_a_espera_exata_sem_imprimir_o_comando"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o episódio junta bloqueios com até 10 min entre si (não 60 s)",
+      "arquivo": "bin/forge-check",
+      "de": ".total_seconds() > EPISODIO_DA_TRAVA_S:",
+      "para": ".total_seconds() > 60:",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_onze_minutos_separam_episodios_e_cinco_nao"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a chamada Bash sem hora legível é pulada (sem ela a conta quebra)",
+      "arquivo": "bin/forge-check",
+      "de": "isinstance(b.get(\"input\"), dict) and hora:",
+      "para": "isinstance(b.get(\"input\"), dict):",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_bloqueio_sem_passagem_e_piso_e_baixa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "só conta resultado de chamada Bash conhecida",
+      "arquivo": "bin/forge-check",
+      "de": "elif b.get(\"type\") == \"tool_result\" and b.get(\"tool_use_id\") in usos:",
+      "para": "elif b.get(\"type\") == \"tool_result\":",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_bloqueio_sem_passagem_e_piso_e_baixa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "bloqueio é só a recusa da trava pesada, não outra recusa do R-TETO",
+      "arquivo": "bin/forge-check",
+      "de": "\"R-TETO\" in texto and TRAVA_PESADA in texto",
+      "para": "\"R-TETO\" in texto",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_o_mesmo_tool_use_id_conta_um_e_outra_recusa_do_r_teto_nao_conta"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "a passagem é do mesmo comando bloqueado e vem antes do episódio seguinte",
+      "arquivo": "bin/forge-check",
+      "de": "c in {x[2] for x in ep} and h >= ep[-1][1]",
+      "para": "h >= ep[-1][1]",
+      "testes": [
+        "tests.test_medidas_m14b.EsperaDaTrava.test_o_mesmo_comando_que_passou_fecha_a_espera_exata_sem_imprimir_o_comando"
+      ]
+    }
+  ]
+}

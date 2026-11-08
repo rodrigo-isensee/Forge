@@ -1,0 +1,86 @@
+{
+  "pedido": "revisor-wt-e6b-1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "P do Histórico que o git não lê fica calado na volta (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if ilegiveis:\n        return None, f\"parecer conferido {ilegiveis[0][:7]}",
+      "para": "    if False:\n        return None, f\"parecer conferido {ilegiveis[0][:7]}",
+      "testes": [
+        "tests.test_revisor_wt.VoltaLeParecerConferido.test_gerar_e_conferir_leem_o_p_fora_da_ref"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o P já ancestral da ref também vence a ref (só o de fora conta)",
+      "arquivo": "bin/forge-check",
+      "de": "if not e_ancestral(raiz, p, ref) and (frontmatter_do_parecer(raiz, p, n) or {}).get(\"branch\") == branch}, None",
+      "para": "if (frontmatter_do_parecer(raiz, p, n) or {}).get(\"branch\") == branch}, None",
+      "testes": [
+        "tests.test_revisor_wt.VoltaLeParecerConferido.test_o_ultimo_p_fora_da_ref_vence_a_ref_e_o_de_dentro_nao"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o P de outra branch do pedido entra na volta (E11)",
+      "arquivo": "bin/forge-check",
+      "de": "if not e_ancestral(raiz, p, ref) and (frontmatter_do_parecer(raiz, p, n) or {}).get(\"branch\") == branch}, None",
+      "para": "if not e_ancestral(raiz, p, ref)}, None",
+      "testes": [
+        "tests.test_revisor_wt.VoltaLeParecerConferido.test_p_de_outra_branch_nao_e_lido_e_o_de_outra_pasta_so_no_tipo_dele"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "com --parecer, o arquivo vem só da ref, nunca do P que o contém",
+      "arquivo": "bin/forge-check",
+      "de": "origem = fora.get(rel, ref)",
+      "para": "origem = ref",
+      "testes": [
+        "tests.test_revisor_wt.VoltaLeParecerConferido.test_gerar_e_conferir_leem_o_p_fora_da_ref"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o P entra em todo tipo, fora da pasta dele",
+      "arquivo": "bin/forge-check",
+      "de": "if rel.rpartition(\"/\")[0] == pasta:",
+      "para": "if True:",
+      "testes": [
+        "tests.test_revisor_wt.VoltaLeParecerConferido.test_p_de_outra_branch_nao_e_lido_e_o_de_outra_pasta_so_no_tipo_dele"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "a cópia antiga da ref vence o último P fora dela",
+      "arquivo": "bin/forge-check",
+      "de": "textos[rel] = (git(raiz, \"cat-file\", \"blob\", f\"{p}:{rel}\", bruto=True)[1].decode(\"utf-8\", \"replace\"), p)",
+      "para": "textos.setdefault(rel, (git(raiz, \"cat-file\", \"blob\", f\"{p}:{rel}\", bruto=True)[1].decode(\"utf-8\", \"replace\"), p))",
+      "testes": [
+        "tests.test_revisor_wt.VoltaLeParecerConferido.test_o_ultimo_p_fora_da_ref_vence_a_ref_e_o_de_dentro_nao"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "o gerar da volta ignora o erro do P ilegível",
+      "arquivo": "bin/forge-check",
+      "de": "pareceres, erro = (None, erro) if erro else pareceres_da_volta(raiz, pedido_id, ref, a.parecer, fora)",
+      "para": "pareceres, erro = pareceres_da_volta(raiz, pedido_id, ref, a.parecer, fora)",
+      "testes": [
+        "tests.test_revisor_wt.VoltaLeParecerConferido.test_gerar_e_conferir_leem_o_p_fora_da_ref"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "a conferência da volta ignora o erro do P ilegível",
+      "arquivo": "bin/forge-check",
+      "de": "pareceres, erro = (None, erro) if erro else pareceres_da_volta(raiz, pedido_id, sha_ref, arquivos, fora)",
+      "para": "pareceres, erro = pareceres_da_volta(raiz, pedido_id, sha_ref, arquivos, fora)",
+      "testes": [
+        "tests.test_revisor_wt.VoltaLeParecerConferido.test_gerar_e_conferir_leem_o_p_fora_da_ref"
+      ]
+    }
+  ]
+}

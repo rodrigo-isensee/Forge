@@ -1,0 +1,33 @@
+{
+  "pedido": "par-p2-criterio-forma",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "C-2: desenho acima do teto é `grande`",
+      "arquivo": "bin/forge-check",
+      "de": "if len(bruto) > TETO_DE_REGISTRO else",
+      "para": "if False else",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_ausente_link_para_fora_grande_e_ilegivel_avisam_sem_cair_na_outra_raiz"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "C-2: o desenho se lê em UTF-8 estrito (`ilegível`)",
+      "arquivo": "bin/forge-check",
+      "de": "ler_registro(raiz, valor, PASTAS_DE_DESENHO, \"strict\")",
+      "para": "ler_registro(raiz, valor, PASTAS_DE_DESENHO, \"replace\")",
+      "testes": [
+        "tests.test_forge.CriterioDeParada.test_ausente_link_para_fora_grande_e_ilegivel_avisam_sem_cair_na_outra_raiz"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "campos or {}",
+      "motivo": "campos é None só no documento sem frontmatter ou de contrato 0, que validar_documento já devolve sem campos; o `or {}` evita AttributeError e não tem ramo de veredito a observar (sem ele o teste quebra por erro, não por asserção)"
+    }
+  ]
+}

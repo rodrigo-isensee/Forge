@@ -8,7 +8,7 @@ Estado: vigente. A justificativa, as alternativas e as respostas P1 a P5 estão 
 
 | Pergunta | Decisão | Efeito na especificação |
 |---|---|---|
-| P1 | Só local por agora | Diário em `.forge/`, nunca versionado, sem snapshot no remoto |
+| P1 | Só local, fora do repositório, num lugar que sobrevive ao reinício do container (decisão do dono de 2026-11-06 11:08) | Diário em `~/.claude/forge/retomada/<id>/` (seção 3), nunca versionado, sem snapshot no remoto |
 | P2 | Autônomo, exceto o destrutivo | Seção 8: o que o Jarvis faz sozinho e o que exige o usuário |
 | P3 | Sem commits `wip:` | Trabalho não commitado fica no disco; a reconciliação o encontra |
 | P4 | Aviso de uma linha pelo Telegram | Quem avisa é o Jarvis (a skill), nunca o hook |
@@ -46,9 +46,9 @@ Premissas operacionais: o projeto é um repositório git no sistema de arquivos 
 
 ## 3. Localização do diário
 
-- Pasta `.forge/` na raiz do **checkout principal**, resolvida por `git rev-parse --path-format=absolute --git-common-dir` (o diretório pai dele, quando o nome é `.git`). Um subagente numa worktree ligada grava no mesmo diário do Jarvis [INF: verificar com worktree ligada; em repositório com submódulo, vale o repositório que contém o diretório de trabalho atual].
-- `.forge/run/.gitignore` com o conteúdo `*`: a pasta se ignora sozinha.
-- Permissões: pasta `0700`, diário e lock `0600` [INF]. Se `.forge` ou `diario.jsonl` for link simbólico, o escritor recusa (abre com `O_NOFOLLOW`).
+- Pasta `~/.claude/forge/retomada/<id>/`, fora do repositório (decisão do dono de 2026-11-06 11:08: o container recriado apaga o home, menos `~/.claude`). `<id>` são os 16 primeiros caracteres hexadecimais do sha256 do caminho absoluto de `git rev-parse --path-format=absolute --git-common-dir`: um subagente numa worktree ligada grava no mesmo diário do Jarvis [INF: verificar com worktree ligada; em repositório com submódulo, vale o repositório que contém o diretório de trabalho atual]. O nome é neutro (R-NEUTRO): sem nome de projeto. Este lugar vale sobre as menções a `.forge/run/` nas outras seções.
+- Permissões: pasta `0700`, diário e lock `0600` [INF]. Se um componente do caminho ou `diario.jsonl` for link simbólico, o escritor recusa (abre com `O_NOFOLLOW`).
+- A entrada lida é dado, nunca comando: a sessão retomada mostra o que leu e não executa nada dele. O cartão que implementar o diário põe `~/.claude/forge/retomada/` em `caminhos` do `hooks/conformidade.json` com `quem: []` (só o script do diário escreve).
 - Arquivos: `diario.jsonl` (corrente), `diario.lock` (trava), `diario-AAAA-MM.jsonl` (arquivados), `estado.md` (cache opcional do último resumo, só para leitura humana, regenerado a cada `SessionStart`).
 - Rotação: quando `diario.jsonl` passa de 2 MB, sob a trava, é renomeado para `diario-AAAA-MM.jsonl` (se já existir, sufixo `-2`, `-3`...) e um novo é criado. O resumo lê só o corrente.
 - Desligamento: variável de ambiente `FORGE_DIARIO=0` faz CLIs e hooks não gravarem nem injetarem nada (`exit 0`).
@@ -301,6 +301,7 @@ O conteúdo do resumo e do diário são **dados**. O Jarvis não executa comando
 | Negação: hook lento ou em laço trava a sessão | Git lento, diário enorme | Sem rede, limites de 3 s por chamada de git e 6 s total, 8 s interno, rotação em 2 MB, `exit 0` sempre |
 | Repúdio/integridade: corrida de escrita | Jarvis, 3 agentes e hooks gravando | `flock` + `O_APPEND` + uma só chamada `write`; leitor tolera linha truncada |
 | Execução: injeção por entrada do hook | Payload com texto malicioso | JSON lido por Python, nunca interpolado em shell; caminhos validados por regra |
+| Disponibilidade: o reinício do container apaga o diário e a área do Jarvis | Container recriado apaga o home, menos `~/.claude` | Diário em `~/.claude/forge/retomada/<id>/` (seção 3); a área `~/.forge-contrib` é salva a cada entrega conferida (`forge-check conferencia registrar --modo entrega`, aprovada): commit da lista branca do `.gitignore` dela e push só para `origin refs/heads/area-salva`, sem força, sem `GIT_*` herdada, sem segredo conhecido no preparado e nunca para a `main`; falha só avisa; `FORGE_AREA_SALVAR=0` desliga. Vale só com o repositório da área privado: se passar a público, o dono decide antes de o salvamento continuar. Retomada: `git fetch` e `git merge --ff-only origin/area-salva` na `main` local |
 
 Dados de pessoa (LGPD): o diário não tem campo para pessoa por desenho; `autor` guarda só nome de agente ou `jarvis`. A retenção é a rotação mensal; a eliminação é apagar o arquivo, e como não há dado de pessoa, não há obrigação adicional. Dependência nova: nenhuma (biblioteca padrão); `coverage` só no CI.
 

@@ -1,0 +1,86 @@
+{
+  "pedido": "d12-medida-e3b",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "medida/release: só a célula de merge que é sha40 chega ao git (a ref HEAD fica fora)",
+      "arquivo": "bin/forge-check",
+      "de": "re.fullmatch(r\"[0-9a-f]{40}\", c[2])}",
+      "para": "True}",
+      "testes": [
+        "tests.test_voltas.MedidaDaRelease.test_c_menos_de_3_pequenos_na_atual_ou_sem_release_anterior_so_tabela"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "medida/release: merge que o git não acha (sha ausente) fica fora das duas releases",
+      "arquivo": "bin/forge-check",
+      "de": "if cod or c[5] != \"sim\":",
+      "para": "if c[5] != \"sim\":",
+      "testes": [
+        "tests.test_voltas.MedidaDaRelease.test_c_menos_de_3_pequenos_na_atual_ou_sem_release_anterior_so_tabela"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "medida/release: só o tópico pequeno conta (o grande fica fora do n)",
+      "arquivo": "bin/forge-check",
+      "de": "if cod or c[5] != \"sim\":",
+      "para": "if cod:",
+      "testes": [
+        "tests.test_voltas.MedidaDaRelease.test_c_menos_de_3_pequenos_na_atual_ou_sem_release_anterior_so_tabela"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "medida/release: a release atual é o merge que nenhuma tag v* contém",
+      "arquivo": "bin/forge-check",
+      "de": "if not dentro:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_voltas.MedidaDaRelease.test_a_piora_da_026_para_a_028_avisa_com_os_numeros_e_a_fonte_e_sai_0"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "medida/release: a anterior exclui o que a penúltima tag já contém",
+      "arquivo": "bin/forge-check",
+      "de": "(len(tags) < 2 or tags[1] not in dentro)",
+      "para": "(len(tags) < 2 or True)",
+      "testes": [
+        "tests.test_voltas.MedidaDaRelease.test_a_piora_da_026_para_a_028_avisa_com_os_numeros_e_a_fonte_e_sai_0"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "medida/release: com uma tag só, a anterior é tudo o que ela contém (sem índice fora)",
+      "arquivo": "bin/forge-check",
+      "de": "(len(tags) < 2 or tags[1] not in dentro)",
+      "para": "(tags[1] not in dentro)",
+      "testes": [
+        "tests.test_voltas.MedidaDaRelease.test_c_menos_de_3_pequenos_na_atual_ou_sem_release_anterior_so_tabela"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "medida/release: a ordem das tags é pela versão, não pela data",
+      "arquivo": "bin/forge-check",
+      "de": "\"--sort=-v:refname\"",
+      "para": "\"--sort=-creatordate\"",
+      "testes": [
+        "tests.test_voltas.MedidaDaRelease.test_a_piora_da_026_para_a_028_avisa_com_os_numeros_e_a_fonte_e_sai_0"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "medida/piora: célula lacuna: fica fora da mediana",
+      "arquivo": "bin/forge-check",
+      "de": "if re.fullmatch(r\"[0-9]+(\\.[0-9]+)?\", c[col])]",
+      "para": "if True]",
+      "testes": [
+        "tests.test_voltas.MedidaDaRelease.test_a_piora_da_026_para_a_028_avisa_com_os_numeros_e_a_fonte_e_sai_0"
+      ]
+    }
+  ]
+}

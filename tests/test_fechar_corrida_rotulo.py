@@ -13,6 +13,7 @@ import test_fechar as base  # noqa: E402  (o módulo, não a classe: a classe se
 import test_fechar_espera_catraca as espera  # noqa: E402
 
 BATERIA = "bateria\tpass\t1m\turl"
+BATERIA_314 = "bateria (python 3.14)\tpass\t1m\turl"
 
 
 class CorridaDoRotulo(unittest.TestCase):
@@ -60,7 +61,7 @@ class CorridaDoRotulo(unittest.TestCase):
         sha = self.git("rev-parse", "melhoria/x")
         (self.estado / "head").write_text(sha)
         self.seq(4, [self.cat("fail", 1)], [self.cat("fail", 1), self.cat("pending", 2)],
-                 [BATERIA, self.cat("cancel", 1), self.cat("pass", 2)])
+                 [BATERIA, BATERIA_314, self.cat("cancel", 1), self.cat("pass", 2)])
         r = self.espera_rotulo()
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertTrue(any(f"--match-head-commit {sha}" in c for c in self.chamadas() if "pr merge" in c))

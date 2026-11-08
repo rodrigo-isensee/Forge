@@ -1,0 +1,70 @@
+{
+  "pedido": "versao-039",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a base fora da lista branca nao verifica (C-2)",
+      "arquivo": "bin/forge-check",
+      "de": "base not in BASES_DO_VAZIO",
+      "para": "False",
+      "testes": ["tests.test_estado_da_branch.DiffVazio.test_ref_ilegivel_base_fora_ref_igual_a_base_e_local_atras_nao_verificam"]
+    },
+    {
+      "id": "M2",
+      "guarda": "ref ilegivel ou com traco nao verifica (C-1)",
+      "arquivo": "bin/forge-check",
+      "de": "not ref or not b40",
+      "para": "not b40",
+      "testes": ["tests.test_estado_da_branch.DiffVazio.test_ref_ilegivel_base_fora_ref_igual_a_base_e_local_atras_nao_verificam"]
+    },
+    {
+      "id": "M3",
+      "guarda": "ref com o mesmo sha da base nao verifica (C-2)",
+      "arquivo": "bin/forge-check",
+      "de": "branch in BASES_DO_VAZIO or ref == b40",
+      "para": "branch in BASES_DO_VAZIO",
+      "testes": ["tests.test_estado_da_branch.DiffVazio.test_ref_ilegivel_base_fora_ref_igual_a_base_e_local_atras_nao_verificam"]
+    },
+    {
+      "id": "M4",
+      "guarda": "local e origin divergentes nao verificam (C-5)",
+      "arquivo": "bin/forge-check",
+      "de": "local and remota and local != remota",
+      "para": "local and remota and False",
+      "testes": ["tests.test_estado_da_branch.DiffVazio.test_ref_ilegivel_base_fora_ref_igual_a_base_e_local_atras_nao_verificam"]
+    },
+    {
+      "id": "M5",
+      "guarda": "qualquer falha da lista sai como nao verificavel",
+      "arquivo": "bin/forge-check",
+      "de": "        if falha:",
+      "para": "        if False:",
+      "testes": ["tests.test_estado_da_branch.DiffVazio.test_ref_ilegivel_base_fora_ref_igual_a_base_e_local_atras_nao_verificam"]
+    },
+    {
+      "id": "M6",
+      "guarda": "ref ja na historia da base (mesclada e revertida) da nao (A3)",
+      "arquivo": "bin/forge-check",
+      "de": "if e_ancestral(raiz, ref, b40):",
+      "para": "if False:",
+      "testes": ["tests.test_estado_da_branch.DiffVazio.test_mesclada_e_revertida_da_nao"]
+    },
+    {
+      "id": "M7",
+      "guarda": "conflito do merge-tree da nao, nunca sim (C-4)",
+      "arquivo": "bin/forge-check",
+      "de": "if cod == 1:",
+      "para": "if cod == 99:",
+      "testes": ["tests.test_estado_da_branch.DiffVazio.test_arquivo_a_mais_conflito_e_squash_seguido_de_mudanca_dao_nao"]
+    },
+    {
+      "id": "M8",
+      "guarda": "merge-tree com rc fora de 0 ou saida sem arvore nao verifica (C-4, T-3)",
+      "arquivo": "bin/forge-check",
+      "de": "if cod or cod_b or not SHA40.match(arvore):",
+      "para": "if cod_b:",
+      "testes": ["tests.test_estado_da_branch.DiffVazio.test_git_sem_write_tree_ou_com_falha_nao_verifica"]
+    }
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "pedido": "versao-037",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "commit_vale tira texto e forma do que desatualiza",
+      "arquivo": "bin/forge-check",
+      "de": "leves = {f for f, c in classes.items() if c != \"codigo\" and not livre(f, estritos)}",
+      "para": "leves = set()",
+      "testes": [
+        "tests.test_reval_delta.Validade.test_texto_ou_forma_nao_desatualiza_e_codigo_sim"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "com base, texto que diverge sem conflito nao desatualiza",
+      "arquivo": "bin/forge-check",
+      "de": "if not livre(n, ignorar) and n not in leves}",
+      "para": "if not livre(n, ignorar)}",
+      "testes": [
+        "tests.test_reval_delta.Validade.test_com_base_texto_depois_do_merge_vale_e_conflito_de_texto_nao"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "delta --classe imprime a classe mais pesada",
+      "arquivo": "bin/forge-check",
+      "de": "max(classes.values(), key=CLASSES.index)",
+      "para": "min(classes.values(), key=CLASSES.index)",
+      "testes": [
+        "tests.test_reval_delta.Validade.test_delta_classe_so_com_a_flag"
+      ]
+    },
+    {
+      "id": "E4",
+      "guarda": "sem nome fora nao classifica",
+      "arquivo": "bin/forge-check",
+      "de": "classes = classes_do_intervalo(raiz, commit, ate, fora) if fora else {}",
+      "para": "classes = classes_do_intervalo(raiz, commit, ate, fora)",
+      "equivalente": "com fora vazio classes_do_intervalo devolve dicionario vazio; o if so poupa as chamadas ao git"
+    },
+    {
+      "id": "E5",
+      "guarda": "sem --classe nao classifica",
+      "arquivo": "bin/forge-check",
+      "de": "classes = classes_do_intervalo(raiz, inicio, fim, nomes) if classe else {}",
+      "para": "classes = classes_do_intervalo(raiz, inicio, fim, nomes)",
+      "equivalente": "sem --classe o dicionario nao e lido (as duas impressoes estao sob if classe); o if so poupa as chamadas ao git"
+    },
+    {
+      "id": "M12",
+      "guarda": "config ausente e lista vazia, nao falha fechada",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod or not saida:\n        return None if cod else set()",
+      "para": "    if cod:\n        return None if cod else set()",
+      "testes": [
+        "tests.test_reval_delta.Validade.test_com_base_texto_depois_do_merge_vale_e_conflito_de_texto_nao"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "forma tambem nao desatualiza",
+      "arquivo": "bin/forge-check",
+      "de": "if c != \"codigo\" and not livre(f, estritos)}",
+      "para": "if c == \"texto\" and not livre(f, estritos)}",
+      "testes": [
+        "tests.test_reval_delta.Validade.test_texto_ou_forma_nao_desatualiza_e_codigo_sim"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "o que e leve sai de fora",
+      "arquivo": "bin/forge-check",
+      "de": "fora = [f for f in fora if f not in leves]",
+      "para": "fora = [f for f in fora if True]",
+      "testes": [
+        "tests.test_reval_delta.Validade.test_texto_ou_forma_nao_desatualiza_e_codigo_sim"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "sem --classe nao imprime a classe de cada arquivo",
+      "arquivo": "bin/forge-check",
+      "de": "        if classe:\n            print(f\"delta: {nome_seguro(nome)} classe",
+      "para": "        if True:\n            print(f\"delta: {nome_seguro(nome)} classe",
+      "testes": [
+        "tests.test_reval_delta.Validade.test_delta_classe_so_com_a_flag"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "sem --classe nao imprime a classe do delta",
+      "arquivo": "bin/forge-check",
+      "de": "    if classe:\n        print(f\"delta: classe",
+      "para": "    if True:\n        print(f\"delta: classe",
+      "testes": [
+        "tests.test_reval_delta.Validade.test_delta_classe_so_com_a_flag"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "no pr, fragmento alheio nunca e leve (D4 contra EST-M4)",
+      "arquivo": "bin/forge-check",
+      "de": "if c != \"codigo\" and not livre(f, estritos)}",
+      "para": "if c != \"codigo\"}",
+      "testes": [
+        "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_so_o_caminho_exato_do_fragmento_sai_do_hash"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "cmd_pr passa FRAGMENTOS como estritos",
+      "arquivo": "bin/forge-check",
+      "de": "base, livres, estritos=FRAGMENTOS)",
+      "para": "base, livres)",
+      "testes": [
+        "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_so_o_caminho_exato_do_fragmento_sai_do_hash"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "pedido": "versao-040",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "campo só desce em dict (não lança com entrada estranha)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "obj.get(chave) if isinstance(obj, dict) else None",
+      "para": "obj.get(chave) if True else None",
+      "testes": [
+        "tests.test_arvore_testada.EventoElegivel.test_fora_da_lista_sai_falso"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "campo exige o tipo exato (bool não é int)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "return obj if type(obj) is tipo else None",
+      "para": "return obj if isinstance(obj, tipo) else None",
+      "testes": [
+        "tests.test_arvore_testada.EventoElegivel.test_subclasse_de_str_nao_passa_por_str"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "REPO, EVENTO e REF ausentes viram vazio",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "campo(env, k, str) or \"\"",
+      "para": "campo(env, k, str) or \"pull_request\"",
+      "testes": [
+        "tests.test_arvore_testada.EventoElegivel.test_fora_da_lista_sai_falso"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "GITHUB_WORKFLOW_REF ausente vira vazio",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "(campo(env, \"GITHUB_WORKFLOW_REF\", str) or \"\")",
+      "para": "(campo(env, \"GITHUB_WORKFLOW_REF\", str) or \"dono/forge/.github/workflows/ci.yml@x\")",
+      "testes": [
+        "tests.test_arvore_testada.EventoElegivel.test_fora_da_lista_sai_falso"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "workflow tem de vir do próprio repositório",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "or workflow == origem:",
+      "para": "or False:",
+      "testes": [
+        "tests.test_arvore_testada.EventoElegivel.test_fora_da_lista_sai_falso"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o ramo do pull_request é só do pull_request",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "if evento == \"pull_request\":",
+      "para": "if evento != \"pull_request\":",
+      "testes": [
+        "tests.test_arvore_testada.EventoElegivel.test_lista_branca_sai_verdadeiro"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "PR com base develop fica fora (lista branca de pares)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "and par in PRS and",
+      "para": "and par[1] in (\"develop\", \"homolog\") and",
+      "testes": [
+        "tests.test_arvore_testada.EventoElegivel.test_fora_da_lista_sai_falso"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "motivo do PR diz se é elegível",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "em {workflow}: {'elegível' if ok else 'fora da lista'}\"\n    ok =",
+      "para": "em {workflow}: {'elegível' if not ok else 'fora da lista'}\"\n    ok =",
+      "testes": [
+        "tests.test_arvore_testada.EventoElegivel.test_lista_branca_sai_verdadeiro",
+        "tests.test_arvore_testada.EventoElegivel.test_fora_da_lista_sai_falso"
+      ]
+    }
+  ]
+}
