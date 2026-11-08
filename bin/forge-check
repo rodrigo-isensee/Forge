@@ -3776,6 +3776,51 @@ def piora_da_release(atual, anterior, tags):
                    f"fonte: docs/kanban/medidas.md, release atual (sem tag v*) contra {tags[0]}")
 
 
+MINIMO_DO_P85 = 20  # pedidos na janela; abaixo disso, sem percentil (agile-coach.md:14)
+
+
+def cmd_retro(raiz, pedido, dias=30):
+    """EST-M11: a linha de métricas de um pedido e os gatilhos de retrospectiva (`lead` acima do P85 dos pedidos que chegaram à develop
+    nos últimos `dias`, `escape`, `decisao-reprovacao`, este por substring `reprov`: aviso, nunca portão). Só leitura; rc 0 com ou sem
+    gatilho, 2 com pedido fora de docs/pedidos/ ou inexistente. Tabela que `_tabela_segura` recusa dá `nao-medido`, nunca zero."""
+    try:
+        arquivo = caminho_do_pedido(raiz, pedido)
+    except PedidoFora:
+        arquivo = None
+    if arquivo is None or not arquivo_existe(arquivo):
+        print(f"retro: pedido {nome_seguro(pedido)} nao existe em docs/pedidos/", file=sys.stderr)
+        return 2
+    nome, kanban = Path(arquivo).stem, raiz / "docs" / "kanban"
+    historico, aviso = _tabela_segura(kanban / "historico.md")  # link ou grande: sem linhas, logo `nao-medido`, com aviso
+    if aviso:
+        print(f"retro: aviso: docs/kanban/historico.md {aviso}; lead e p85 nao-medido", file=sys.stderr)
+    por_cartao = {}
+    for c in historico:
+        if len(c) >= 5 and ISO8601.match(c[0]) and (hora := _hora(c[0])):
+            por_cartao.setdefault(c[1].casefold(), []).append((hora, c[2], c[3], "|".join(c[4:])))
+    inicio, leads, lead = datetime.datetime.now().astimezone() - datetime.timedelta(days=dias), [], None
+    for chave, movimentos in por_cartao.items():
+        movimentos.sort(key=lambda m: m[0])
+        fim = next((h for h, _, p, _ in movimentos if _sem_acento(p) in COLUNAS_NA_DEVELOP), None)
+        if relogios := relogios_do_cartao(movimentos):
+            leads += [relogios[0]] if fim >= inicio else []
+            lead = relogios[0] if chave == nome.casefold() else lead
+    p85 = sorted(leads)[(17 * len(leads) + 19) // 20 - 1] if len(leads) >= MINIMO_DO_P85 else None
+    custos = [n for m in por_cartao.get(nome.casefold(), []) for n in re.findall(r"custo total: (\d+) tokens", m[3].split(" · atributos:")[0])]
+    escapes, aviso = _tabela_segura(kanban / "escapes.md")
+    escapes = "nao-medido" if aviso else sum(1 for c in escapes if len(c) >= 7 and HORA_DO_REGISTRO.fullmatch(c[0])
+                                             and c[1].casefold() == nome.casefold())
+    texto = Path(arquivo).read_text(encoding="utf-8", errors="replace")
+    reprovacao = sum(1 for _, linha in linhas_de_decisao(texto) if "reprov" in linha.casefold())
+    print(f"retro: {nome} lead={_numero(lead) if lead is not None else 'nao-medido'} "
+          f"p85={_numero(p85) if p85 is not None else f'nao-medido(n={len(leads)})'} voltas-classe=nao-medido divergentes=nao-medido "
+          f"escapes={escapes} decisao-reprovacao={reprovacao} custo={custos[-1] if custos else 'lacuna'}")
+    gatilhos = [g for g, sim in (("lead", p85 is not None and lead is not None and lead > p85),
+                                 ("escape", escapes != "nao-medido" and escapes > 0), ("decisao-reprovacao", reprovacao > 0)) if sim]
+    print("retro: gatilho: " + ",".join(gatilhos) if gatilhos else "retro: sem gatilho")
+    return 0
+
+
 # ---- M14b: esperas (quanto tempo um cartão ficou parado esperando o dono ou uma credencial), lidas de historico.md ----
 TIPOS_DE_ESPERA = ("dono", "credencial", "outra")
 FRASES_DE_ESPERA = (("aguardando o dono", "dono"), ("sem credencial", "credencial"))
@@ -7693,6 +7738,9 @@ def main():
     me = sub.add_parser("medida", parents=[comum], help="mede um tópico mesclado (tempo ativo, linhas, tokens) e grava a linha em docs/kanban/medidas.md; nunca trava (D12)")
     me.add_argument("--pedido", required=True, help="id do pedido, que é o cartão no histórico e a entrega em entregas.md")
     me.add_argument("--merge", required=True, help="sha40 do commit de merge do tópico (minúsculo; nada mais é aceito)")
+    rt = sub.add_parser("retro", parents=[comum], help="linha de métricas de um pedido e os gatilhos de retrospectiva (EST-M11); só leitura, rc 0 com ou sem gatilho")
+    rt.add_argument("--pedido", required=True, help="id de docs/pedidos/<id>.md")
+    rt.add_argument("--dias", type=int, default=30, help="janela do P85 do lead time, em dias (padrão 30)")
     px = sub.add_parser("proximo", parents=[comum], help="onde o pedido está: etapas, branch, último veredito, próximo passo e bloqueios; só leitura (AQ-2)")
     px.add_argument("pedido", help="id de docs/pedidos/<id>.md")
     de = sub.add_parser("decisoes", parents=[comum], help="registro das linhas DECISÃO DO DONO dos pedidos (data, decisão, motivo, reabre se); só leitura, no stdout (EXT-2)")
@@ -7859,6 +7907,8 @@ def executar(a, raiz):
         return cmd_voltas(raiz, a.pedido)
     if a.cmd == "medida":
         return cmd_medida(raiz, a.pedido, a.merge)
+    if a.cmd == "retro":
+        return cmd_retro(raiz, a.pedido, a.dias)
     if a.cmd == "anotar":
         linhas, rc = cmd_anotar(raiz, a.pedido, a.tipo, a.literal, a.contexto)
         print("\n".join(linhas))

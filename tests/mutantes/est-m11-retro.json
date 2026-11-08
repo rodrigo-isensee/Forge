@@ -1,0 +1,88 @@
+{
+  "pedido": "est-m11-retro",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "pedido resolve por caminho_do_pedido (adendo E2.5)",
+      "arquivo": "bin/forge-check",
+      "de": "        arquivo = caminho_do_pedido(raiz, pedido)\n    except PedidoFora:",
+      "para": "        arquivo = raiz / \"docs\" / \"pedidos\" / f\"{pedido}.md\"\n    except PedidoFora:",
+      "testes": [
+        "tests.test_voltas.RetroPorGatilho.test_pedido_fora_de_docs_pedidos_e_inexistente_dao_2"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "pedido inexistente dá rc 2",
+      "arquivo": "bin/forge-check",
+      "de": "    if arquivo is None or not arquivo_existe(arquivo):\n        print(f\"retro:",
+      "para": "    if arquivo is None:\n        print(f\"retro:",
+      "testes": [
+        "tests.test_voltas.RetroPorGatilho.test_pedido_fora_de_docs_pedidos_e_inexistente_dao_2"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "só linha de 5 colunas ou mais do histórico é lida",
+      "arquivo": "bin/forge-check",
+      "de": "        if len(c) >= 5 and ISO8601.match(c[0]) and (hora := _hora(c[0])):\n            por_cartao.setdefault(c[1].casefold(), []).append((hora, c[2], c[3], \"|\".join(c[4:])))\n    inicio, leads",
+      "para": "        if len(c) >= 6 and ISO8601.match(c[0]) and (hora := _hora(c[0])):\n            por_cartao.setdefault(c[1].casefold(), []).append((hora, c[2], c[3], \"|\".join(c[4:])))\n    inicio, leads",
+      "testes": [
+        "tests.test_voltas.RetroPorGatilho.test_lead_acima_do_p85_com_vinte_pedidos"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "janela de --dias no P85",
+      "arquivo": "bin/forge-check",
+      "de": "if fim >= inicio else []",
+      "para": "if fim <= inicio else []",
+      "testes": [
+        "tests.test_voltas.RetroPorGatilho.test_lead_acima_do_p85_com_vinte_pedidos",
+        "tests.test_voltas.RetroPorGatilho.test_janela_conta_pela_chegada_a_develop"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "lead é o do cartão do pedido",
+      "arquivo": "bin/forge-check",
+      "de": "if chave == nome.casefold() else lead",
+      "para": "if chave != nome.casefold() else lead",
+      "testes": [
+        "tests.test_voltas.RetroPorGatilho.test_lead_acima_do_p85_com_vinte_pedidos",
+        "tests.test_voltas.RetroPorGatilho.test_dezenove_pedidos_sem_percentil"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "mínimo de 20 pedidos para o P85",
+      "arquivo": "bin/forge-check",
+      "de": "if len(leads) >= MINIMO_DO_P85 else None",
+      "para": "if leads else None",
+      "testes": [
+        "tests.test_voltas.RetroPorGatilho.test_dezenove_pedidos_sem_percentil"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "custo só antes de · atributos: (adendo E2.3)",
+      "arquivo": "bin/forge-check",
+      "de": "m[3].split(\" · atributos:\")[0])]",
+      "para": "m[3])]",
+      "testes": [
+        "tests.test_voltas.RetroPorGatilho.test_lead_acima_do_p85_com_vinte_pedidos"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "escapes.md recusado vira nao-medido",
+      "arquivo": "bin/forge-check",
+      "de": "    escapes = \"nao-medido\" if aviso else sum(",
+      "para": "    escapes = \"nao-medido\" if False else sum(",
+      "testes": [
+        "tests.test_voltas.RetroPorGatilho.test_escape_do_pedido_e_gatilho_e_link_e_nao_medido"
+      ]
+    }
+  ]
+}
