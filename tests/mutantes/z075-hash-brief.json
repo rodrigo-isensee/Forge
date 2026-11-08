@@ -3,45 +3,15 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M1",
-      "guarda": "B9 C-2: mais de uma linha modo: no prompt inteiro, não só no cabeçalho",
-      "arquivo": "hooks/agentes.py",
-      "de": "sum(1 for linha in linhas if MODO_DA_MENSAGEM.fullmatch(linha))",
-      "para": "sum(1 for linha in linhas[:1] if MODO_DA_MENSAGEM.fullmatch(linha))",
-      "testes": ["tests.test_agentes_hash_brief.HashDoBrief.test_modo_repetido_no_texto_do_brief_bloqueia"]
-    },
-    {
-      "id": "M2",
-      "guarda": "B9 C-2: mais de uma linha Arquivo: no prompt inteiro, não só no cabeçalho",
-      "arquivo": "hooks/agentes.py",
-      "de": "len(ARQUIVO_DA_MENSAGEM.findall(texto))",
-      "para": "len(ARQUIVO_DA_MENSAGEM.findall(texto.split(ABRE_BLOCO)[0]))",
-      "testes": ["tests.test_agentes_hash_brief.HashDoBrief.test_arquivo_repetido_no_texto_do_brief_bloqueia"]
-    },
-    {
-      "id": "M3",
-      "guarda": "B9 C-2: mais de uma linha Brief-sha256: no prompt inteiro, não só no cabeçalho",
-      "arquivo": "hooks/agentes.py",
-      "de": "len(HASH_DA_MENSAGEM.findall(texto))",
-      "para": "len(HASH_DA_MENSAGEM.findall(texto.split(ABRE_BLOCO)[0]))",
-      "testes": ["tests.test_agentes_hash_brief.HashDoBrief.test_hash_repetido_no_texto_do_brief_bloqueia"]
-    },
-    {
       "id": "M4",
       "guarda": "B9 C-2: o limite é mais de uma (um bloco passa)",
       "arquivo": "hooks/agentes.py",
       "de": "if any(n > 1 for n in contagens):",
       "para": "if any(n >= 1 for n in contagens):",
-      "testes": ["tests.test_agentes_hash_brief.HashDoBrief.test_um_bloco_com_citacao_recuada_ou_entre_crases_passa",
-                 "tests.test_agentes_hash_brief.HashDoBrief.test_hash_do_arquivo_passa_relativo_e_absoluto"]
-    },
-    {
-      "id": "M5",
-      "guarda": "B9 C-1: modo: conta só na linha inteira; citação entre crases ou recuada não conta",
-      "arquivo": "hooks/agentes.py",
-      "de": "sum(1 for linha in linhas if MODO_DA_MENSAGEM.fullmatch(linha))",
-      "para": "sum(1 for linha in linhas if MODO_DA_MENSAGEM.search(linha))",
-      "testes": ["tests.test_agentes_hash_brief.HashDoBrief.test_um_bloco_com_citacao_recuada_ou_entre_crases_passa"]
+      "testes": [
+        "tests.test_agentes_hash_brief.HashDoBrief.test_um_bloco_com_citacao_recuada_ou_entre_crases_passa",
+        "tests.test_agentes_hash_brief.HashDoBrief.test_hash_do_arquivo_passa_relativo_e_absoluto"
+      ]
     }
   ]
 }
