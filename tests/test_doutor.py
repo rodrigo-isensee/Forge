@@ -301,8 +301,8 @@ class PythonMinimo(Base):
 
     def test_minimo_e_o_menor_python_do_ci(self):
         versoes = set()
-        for nome in ("ci.yml", "release.yml"):
-            texto = (RAIZ / ".github" / "workflows" / nome).read_text(encoding="utf-8")
+        for arquivo in (RAIZ / ".github/workflows/ci.yml", RAIZ / ".github/workflows/release.yml"):
+            texto = arquivo.read_text(encoding="utf-8")
             versoes.update(tuple(int(n) for n in v.split(".")) for v in re.findall(r'python-version:\s*"(\d+\.\d+)"', texto))
         self.assertGreaterEqual(len(versoes), 2)  # 3.12 e 3.14: a leitura achou as baterias
         self.assertEqual(self.minimo(), min(versoes))
