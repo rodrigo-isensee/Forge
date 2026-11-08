@@ -1,0 +1,17 @@
+{
+  "pedido": "est-m12-secao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "quadro_por_coluna corta a secao pela mesma funcao de colunas_do_quadro (C-6)",
+      "arquivo": "bin/forge-check",
+      "de": "            secao = nome_da_secao(linha[3:])\n            colunas.setdefault(secao, [])",
+      "para": "            secao = re.sub(r\"\\s*\\(WIP[^)]*\\)\", \"\", linha[3:]).strip()\n            colunas.setdefault(secao, [])",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_quadro_por_coluna_corta_a_secao_como_colunas_do_quadro",
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_proximo_ve_o_pedido_parado_em_secao_com_nota"
+      ]
+    }
+  ]
+}

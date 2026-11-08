@@ -1,0 +1,173 @@
+{
+  "pedido": "est-m12-montar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a marca vale so ancorada no fim do motivo (C-4, T-3)",
+      "arquivo": "bin/forge-check",
+      "de": "r\"((?:(?! · ).)*)\\Z\")",
+      "para": "r\"((?:(?! · ).)*)\")",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_marca_do_fim_vence_a_ponte_e_marca_fora_da_forma_e_ignorada_inteira"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "motivo sem marca sai inteiro; marca com texto antes vale",
+      "arquivo": "bin/forge-check",
+      "de": "    if not m:\n        return motivo, None, None",
+      "para": "    if not m or m.start() > 0:\n        return motivo, None, None",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_marca_do_fim_vence_a_ponte_e_marca_fora_da_forma_e_ignorada_inteira"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "chave repetida ignora a marca inteira",
+      "arquivo": "bin/forge-check",
+      "de": "len(marca) == len(pares) and",
+      "para": "len(marca) <= len(pares) and",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_marca_do_fim_vence_a_ponte_e_marca_fora_da_forma_e_ignorada_inteira"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "so as chaves titulo, pedido e responsavel",
+      "arquivo": "bin/forge-check",
+      "de": "set(marca) <= {\"titulo\", \"pedido\", \"responsavel\"}",
+      "para": "set(marca) <= {\"titulo\", \"pedido\", \"responsavel\", \"dono\"}",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_marca_do_fim_vence_a_ponte_e_marca_fora_da_forma_e_ignorada_inteira"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "valor vazio ignora a marca",
+      "arquivo": "bin/forge-check",
+      "de": "all(v and not re.search(",
+      "para": "all(not re.search(",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_marca_do_fim_vence_a_ponte_e_marca_fora_da_forma_e_ignorada_inteira"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "valor com = ignora a marca",
+      "arquivo": "bin/forge-check",
+      "de": "r\"[;=|·\\x00-\\x1f\\x7f]\"",
+      "para": "r\"[;|·\\x00-\\x1f\\x7f]\"",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_marca_do_fim_vence_a_ponte_e_marca_fora_da_forma_e_ignorada_inteira"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "valor com caractere Cf ignora a marca",
+      "arquivo": "bin/forge-check",
+      "de": "unicodedata.category(c) != \"Cf\" for c in v)",
+      "para": "unicodedata.category(c) != \"Zs\" for c in v)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_marca_do_fim_vence_a_ponte_e_marca_fora_da_forma_e_ignorada_inteira"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "responsavel da marca casa ID_RESP sem trocar caixa",
+      "arquivo": "bin/forge-check",
+      "de": "ID_RESP.fullmatch(marca.get(\"responsavel\", \"usuário\"))",
+      "para": "ID_RESP.fullmatch(marca.get(\"responsavel\", \"usuário\").lower())",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_marca_do_fim_vence_a_ponte_e_marca_fora_da_forma_e_ignorada_inteira"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "pedido da marca sem ../",
+      "arquivo": "bin/forge-check",
+      "de": "PEDIDO_DO_ATRIBUTO.fullmatch(marca.get(\"pedido\", \"x\"))",
+      "para": "PEDIDO_DO_ATRIBUTO.fullmatch(marca.get(\"pedido\", \"x\").strip(\"./\"))",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_marca_do_fim_vence_a_ponte_e_marca_fora_da_forma_e_ignorada_inteira"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "marca fora da forma nao e aproveitada",
+      "arquivo": "bin/forge-check",
+      "de": "(marca if valida else None)",
+      "para": "(marca if valida or True else None)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_marca_do_fim_vence_a_ponte_e_marca_fora_da_forma_e_ignorada_inteira"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "marca fora da forma da aviso",
+      "arquivo": "bin/forge-check",
+      "de": "(None if valida else \"marca",
+      "para": "(None if True else \"marca",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_marca_do_fim_vence_a_ponte_e_marca_fora_da_forma_e_ignorada_inteira"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a mesma normalizacao do cartao (C-3)",
+      "arquivo": "bin/forge-check",
+      "de": "    return nome.casefold()\n",
+      "para": "    return nome\n",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_coluna_e_a_do_ultimo_movimento_na_ordem_do_arquivo_nunca_por_hora"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "secao de coluna so com o cabecalho do modelo",
+      "arquivo": "bin/forge-check",
+      "de": "c == COLUNAS:\n            secoes.setdefault",
+      "para": "c != COLUNAS:\n            secoes.setdefault",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_coluna_e_a_do_ultimo_movimento_na_ordem_do_arquivo_nunca_por_hora"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "linha separadora nao vira ponte",
+      "arquivo": "bin/forge-check",
+      "de": "len(c) == len(COLUNAS) and not all(SEPARADOR.fullmatch(x) for x in c):",
+      "para": "len(c) == len(COLUNAS) and all(SEPARADOR.fullmatch(x) for x in c):",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_coluna_e_a_do_ultimo_movimento_na_ordem_do_arquivo_nunca_por_hora"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "ponte fora de ID_RESP vira travessao (C-4)",
+      "arquivo": "bin/forge-check",
+      "de": "(secao, c if ID_RESP.fullmatch(c[3]) else",
+      "para": "(secao, c if True else",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_ponte_fora_de_id_resp_vira_travessao_e_cartao_sem_movimento_fica"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "ponte fora de ID_RESP da aviso",
+      "arquivo": "bin/forge-check",
+      "de": "avisos += [] if ID_RESP.fullmatch(c[3]) else",
+      "para": "avisos += [] if True else",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_ponte_fora_de_id_resp_vira_travessao_e_cartao_sem_movimento_fica"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "chave_do_cartao(c[1]) == chave_do_cartao(cartao)",
+      "motivo": "mesma regra de antes (casefold dos dois lados), agora pela funcao unica do C-3; o mutante M12 da chave_do_cartao a prova"
+    }
+  ]
+}
