@@ -788,6 +788,23 @@ class PrePushTrava(unittest.TestCase):
         self.assertRegex(erro, rf"(?m)^pre-push: fim {self.HORA} rc \d+ curta \d+s$")
         self.assertFalse(self.duracoes().exists(), "o envio curto gravou duração")
 
+    def test_envio_dirigido_imprime_fim_e_grava_dirigida(self):  # PP-1, A1 do QA g1
+        ferramenta = self.repo / "bin" / "forge-testes"
+        ferramenta.parent.mkdir()
+        ferramenta.write_text("import sys\nif '--listar' in sys.argv:\n    print('forge-testes: dirigido (1)')\n")
+        (self.repo / ".gitignore").write_text("__pycache__/\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("update-ref", "refs/remotes/origin/develop", self.git("rev-parse", "HEAD"))
+        (self.repo / "a.txt").write_text("a\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "item")
+        codigo, _, erro = self.roda(entrada=self.refs("melhoria/x", local=self.git("rev-parse", "HEAD")))
+        self.assertEqual(codigo, 0, erro)
+        self.assertIn("rodando só os testes afetados", erro)
+        self.assertRegex(erro, rf"(?m)^pre-push: fim {self.HORA} rc 0 dirigida \d+s$")
+        self.assertRegex(self.duracoes().read_text(), r"\A\d+ dirigida\n\Z")
+
 
 class TodoTesteDoHookUsaHomeTemporario(unittest.TestCase):
     def test_todo_modulo_que_executa_o_hook_define_home(self):  # C-13, T-C4f
