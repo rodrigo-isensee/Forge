@@ -13,10 +13,12 @@
       "denyRead": [
         "~/.ssh",
         "~/.config/gh",
+        "~/.claude/gh",
         "~/.git-credentials"
       ],
       "allowWrite": [
-        "~/.forge-contrib"
+        "~/.forge-contrib",
+        "/workspaces/.forge-contrib"
       ],
       "denyWrite": [
         ".forge/"

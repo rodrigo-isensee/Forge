@@ -1216,7 +1216,7 @@ class SandboxDoBash(unittest.TestCase):
 
     def test_credenciais_do_dono_ilegiveis(self):
         deny = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["filesystem"]["denyRead"]
-        for caminho in ("~/.ssh", "~/.config/gh", "~/.git-credentials"):
+        for caminho in ("~/.ssh", "~/.config/gh", "~/.claude/gh", "~/.git-credentials"):
             self.assertIn(caminho, deny)
 
     def test_settings_versionado_nao_tem_env(self):
