@@ -96,7 +96,7 @@ trava_do_projeto() {
   local d="${XDG_RUNTIME_DIR%/}"
   if ! pasta_confere "$d"; then
     d="${HOME:-}/.local/state/forge"
-    mkdir -p -m 700 "$d" 2>/dev/null
+    { mkdir -p "${d%/*}" && mkdir -m 700 "$d"; } 2>/dev/null
     pasta_confere "$d" || { echo "pre-push: ${d} não é pasta do próprio usuário (ou é link, ou tem escrita de grupo ou de outros); recusada. Apague-a ou corrija com chmod 700 e tente de novo." >&2; return 1; }
   fi
   printf '%s/forge-prepush-%s.lock\n' "$d" "$(id -u)"
