@@ -535,6 +535,66 @@ class Delta(Repositorio):
         self.assertEqual(self.arvore(), antes)
 
 
+class DeltaDaJuncao(Repositorio):
+    """B19a (E20): as partes da junção são os segundos pais dos merges da primeira linha; octopus rc 1 (C-4), merge da
+    base não é parte (C-5), git que falha rc 2 (C-9)."""
+
+    def setUp(self):
+        super().setUp()
+        git("update-ref", "refs/remotes/origin/develop", "develop", cwd=self.repo)
+        self.a = self.parte("parte-a", {"a.txt": "a\n"})
+        git("switch", "-q", "-c", "interna", cwd=self.repo)
+        self.commitar({"i.txt": "i\n"}, "interna")
+        git("switch", "-q", "parte-a", cwd=self.repo)
+        self.juntar("interna")  # merge dentro da parte: fora da primeira linha da junção
+        self.a = self.head()
+        self.b = self.parte("parte-b", {"b.txt": "b\n"})
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+
+    def parte(self, nome, arquivos):
+        git("switch", "-q", "-c", nome, "develop", cwd=self.repo)
+        return self.commitar(arquivos, nome)
+
+    def juntar(self, *refs, mensagem="Merge"):
+        git("merge", "-q", "--no-ff", "-m", mensagem, *refs, cwd=self.repo)
+        return self.head()
+
+    def juncao(self, *args):
+        return self.check("juncao", "p1", "--ref", "melhoria/x", *args)
+
+    def test_duas_partes_e_o_merge_da_base_no_meio_nao_vira_parte(self):
+        m1 = self.juntar("parte-a", mensagem="Merge parte-a")
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"d.txt": "d\n"}, "develop anda")
+        git("update-ref", "refs/remotes/origin/develop", "develop", cwd=self.repo)
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        self.juntar("origin/develop", mensagem="Merge origin/develop")
+        m3 = self.juntar("parte-b", mensagem="Merge parte-b\x1bjuncao: ok")
+        rc, saida = self.juncao()
+        self.assertEqual((rc, saida.splitlines()), (0, [f"parte: {self.a[:7]} merge {m1[:7]} Merge parte-a",
+                                                        f"parte: {self.b[:7]} merge {m3[:7]} Merge parte-b juncao: ok"]))
+
+    def test_octopus_da_rc_1_e_sem_merge_nenhuma_parte(self):
+        self.assertEqual(self.juncao(), (0, ""))
+        m = self.juntar("parte-a", "parte-b")
+        self.assertEqual(self.juncao(), (1, f"juncao: octopus não aceito: {m[:7]}\n"))
+
+    def test_entrada_ilegivel_e_git_que_falha_dao_rc_2(self):
+        self.juntar("parte-a")
+        self.assertEqual(self.check("juncao", "../p1", "--ref", "melhoria/x")[0], 2)
+        self.assertEqual(self.check("juncao", "p1", "--ref", "nao-existe")[0], 2)
+        git("update-ref", "-d", "refs/remotes/origin/develop", cwd=self.repo)
+        self.assertEqual(self.juncao()[0], 2)
+        git("update-ref", "refs/remotes/origin/develop", "develop", cwd=self.repo)
+        fc, head = carregar_forge_check(), self.head()
+        for falha in ("log", "--is-ancestor"):
+            with self.subTest(falha):
+                real = fc.git
+                fc.git = lambda raiz, *args, bruto=False, real=real, falha=falha: (128, b"" if bruto else "") if falha in args else real(raiz, *args, bruto=bruto)
+                self.assertEqual(fc.partes_da_juncao(self.repo, head, "develop")[0], 2)
+                fc.git = real
+
+
 class BriefAnterior(unittest.TestCase):
     PASTA = RAIZ / "tests" / "fixtures" / "brief"
 

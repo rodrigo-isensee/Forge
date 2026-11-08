@@ -1,0 +1,102 @@
+{
+  "pedido": "versao-075",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "sem origin/<base> nao chama o git com ref vazia (C-9)",
+      "arquivo": "bin/forge-check",
+      "de": "git(raiz, \"merge-base\", origem, head) if origem else (1, \"\")",
+      "para": "git(raiz, \"merge-base\", origem, head) if True else (1, \"\")",
+      "testes": ["tests.test_volta_por_delta.DeltaDaJuncao.test_entrada_ilegivel_e_git_que_falha_dao_rc_2"]
+    },
+    {
+      "id": "M2",
+      "guarda": "merge-base que falha da rc 2 (C-9)",
+      "arquivo": "bin/forge-check",
+      "de": "if cod or not SHA40.match(inicio):",
+      "para": "if False:",
+      "testes": ["tests.test_volta_por_delta.DeltaDaJuncao.test_entrada_ilegivel_e_git_que_falha_dao_rc_2"]
+    },
+    {
+      "id": "M3",
+      "guarda": "so a primeira linha de pais: merge dentro da parte nao vira parte",
+      "arquivo": "bin/forge-check",
+      "de": "\"log\", \"--first-parent\", \"--merges\", \"--reverse\"",
+      "para": "\"log\", \"--merges\", \"--reverse\"",
+      "testes": ["tests.test_volta_por_delta.DeltaDaJuncao.test_duas_partes_e_o_merge_da_base_no_meio_nao_vira_parte"]
+    },
+    {
+      "id": "M4",
+      "guarda": "git log que falha da rc 2, e nada se filtra (C-9)",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod:\n        return 2, [], \"git log falhou\"",
+      "para": "    if False:\n        return 2, [], \"git log falhou\"",
+      "testes": ["tests.test_volta_por_delta.DeltaDaJuncao.test_entrada_ilegivel_e_git_que_falha_dao_rc_2"]
+    },
+    {
+      "id": "M5",
+      "guarda": "registro vazio da saida -z nao vira merge",
+      "arquivo": "bin/forge-check",
+      "de": "        if not registro:\n            continue",
+      "para": "        if False:\n            continue",
+      "testes": ["tests.test_volta_por_delta.DeltaDaJuncao.test_octopus_da_rc_1_e_sem_merge_nenhuma_parte"]
+    },
+    {
+      "id": "M6",
+      "guarda": "merge de mais de 2 pais da rc 1: so o segundo pai sem olhar o terceiro (C-4)",
+      "arquivo": "bin/forge-check",
+      "de": "if len(pais) > 2:",
+      "para": "if False:",
+      "testes": ["tests.test_volta_por_delta.DeltaDaJuncao.test_octopus_da_rc_1_e_sem_merge_nenhuma_parte"]
+    },
+    {
+      "id": "M7",
+      "guarda": "--is-ancestor que falha da rc 2, nao vira merge da base (C-9)",
+      "arquivo": "bin/forge-check",
+      "de": "if cod not in (0, 1):",
+      "para": "if False:",
+      "testes": ["tests.test_volta_por_delta.DeltaDaJuncao.test_entrada_ilegivel_e_git_que_falha_dao_rc_2"]
+    },
+    {
+      "id": "M8",
+      "guarda": "merge da base tratado como parte (C-5)",
+      "arquivo": "bin/forge-check",
+      "de": "        if cod == 1:\n            partes.append",
+      "para": "        if True:\n            partes.append",
+      "testes": ["tests.test_volta_por_delta.DeltaDaJuncao.test_duas_partes_e_o_merge_da_base_no_meio_nao_vira_parte"]
+    },
+    {
+      "id": "M9",
+      "guarda": "pedido fora da forma da rc 2",
+      "arquivo": "bin/forge-check",
+      "de": "if not re.fullmatch(r\"[A-Za-z0-9._-]+\", pedido) or not head:",
+      "para": "if not head:",
+      "testes": ["tests.test_volta_por_delta.DeltaDaJuncao.test_entrada_ilegivel_e_git_que_falha_dao_rc_2"]
+    },
+    {
+      "id": "M10",
+      "guarda": "ref inexistente da rc 2",
+      "arquivo": "bin/forge-check",
+      "de": "if not re.fullmatch(r\"[A-Za-z0-9._-]+\", pedido) or not head:",
+      "para": "if not re.fullmatch(r\"[A-Za-z0-9._-]+\", pedido):",
+      "testes": ["tests.test_volta_por_delta.DeltaDaJuncao.test_entrada_ilegivel_e_git_que_falha_dao_rc_2"]
+    },
+    {
+      "id": "M11",
+      "guarda": "rc diferente de 0 imprime o motivo",
+      "arquivo": "bin/forge-check",
+      "de": "    if rc:\n        print(f\"juncao: {mensagem}\")",
+      "para": "    if False:\n        print(f\"juncao: {mensagem}\")",
+      "testes": ["tests.test_volta_por_delta.DeltaDaJuncao.test_octopus_da_rc_1_e_sem_merge_nenhuma_parte"]
+    },
+    {
+      "id": "M12",
+      "guarda": "assunto do merge passa por sem_controle (G-4)",
+      "arquivo": "bin/forge-check",
+      "de": "{sem_controle(assunto)[:120]}",
+      "para": "{assunto[:120]}",
+      "testes": ["tests.test_volta_por_delta.DeltaDaJuncao.test_duas_partes_e_o_merge_da_base_no_meio_nao_vira_parte"]
+    }
+  ]
+}
