@@ -821,7 +821,9 @@ class PrePushTrava(unittest.TestCase):
         entrada = self.refs("melhoria/a", local=atual) + self.refs("melhoria/b", local=antigo)
         codigo, _, erro = self.roda("origin", "u", entrada=entrada)
         self.assertEqual(codigo, 0, erro)
-        self.assertEqual(self.trava.with_suffix(".verde").read_text().split(), [self.git("rev-parse", "HEAD^{tree}")])
+        verde = self.trava.with_suffix(".verde")
+        self.assertTrue(verde.exists(), "com mais de uma ref, a prova da árvore do HEAD deixou de ser anotada")
+        self.assertEqual(verde.read_text().split(), [self.git("rev-parse", "HEAD^{tree}")])
 
 
 class TodoTesteDoHookUsaHomeTemporario(unittest.TestCase):
