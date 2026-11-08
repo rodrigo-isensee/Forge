@@ -1,4 +1,5 @@
-"""N-FECHAR-b, B4: a parada do passo 4 imprime o comando para ler o log do check (só impresso, nunca executado).
+"""N-FECHAR-b, B4: a parada do passo 4 imprime o comando para ler o log do check (só impresso, nunca executado);
+FF-2 (E18): a linha `subida:` de cada passo no log.
 
 Reaproveita o ambiente de `test_fechar.Fechar` (repositório temporário, `gh` e `forge-check` falsos) sem herdar os testes dele.
 """
@@ -134,6 +135,47 @@ class FecharLogCheck(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_LOG_DIR=str(arquivo))
         self.assertNotEqual(r.returncode, 0)
         self.assertEqual(oct(arquivo.stat().st_mode & 0o777), "0o644")
+
+
+    # FF-2 (E18, SP6): o relógio da subida, uma linha `subida: <n> <início> <fim>` por passo, só no log.
+    def subidas(self):
+        logs = list((self.tmp / "logs").glob("forge-fechar-*.log"))
+        self.assertEqual(len(logs), 1, logs)
+        return [l.split(" ", 1)[1].split()[1:] for l in logs[0].read_text().splitlines() if l.split(" ", 1)[1].startswith("subida:")]
+
+    def check_lento(self):
+        lento = self.tmp / "check-lento"
+        lento.write_text(f'#!/usr/bin/env bash\nsleep 1.2\nexec {self.tmp / "check"} "$@"\n')
+        lento.chmod(0o755)
+        return str(lento)
+
+    def test_fechamento_grava_uma_linha_subida_por_passo_e_a_do_6_com_merged(self):
+        head7 = self.git("rev-parse", "melhoria/x")[:7]
+        r = self.fechar("p1", "--ref", "melhoria/x", FORGE_CHECK=self.check_lento())
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        linhas = self.subidas()
+        self.assertEqual([l[0] for l in linhas], ["1", "1c", "2", "3", "2b", "4", "5", "6", "7"])
+        for l in linhas:
+            self.assertRegex(l[1], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
+            self.assertLessEqual(l[1], l[2], l)
+        self.assertLess(linhas[0][1], linhas[0][2])  # o passo 1 (check de 1,2 s) fecha com a hora do fim, não a do início
+        self.assertEqual(linhas[7][3:], ["MERGED", "0123456", head7])
+        self.assertEqual(linhas[8][3:], ["rc", "0"])
+        self.assertEqual([l[3:] for l in linhas[:7]], [[]] * 7)
+        self.assertNotIn("subida:", r.stdout + r.stderr)  # só no log
+
+    def test_parada_no_passo_4_fecha_a_linha_do_4_com_rc_1(self):
+        self.checks("bateria\tfail\t1m\turl")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr)
+        linhas = self.subidas()
+        self.assertEqual([l[0] for l in linhas], ["1", "1c", "2", "3", "2b", "4"])
+        self.assertEqual(linhas[-1][3:], ["rc", "1"])
+
+    def test_dry_run_nao_grava_linha_subida(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.subidas(), [])
 
 
 if __name__ == "__main__":
