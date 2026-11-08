@@ -53,7 +53,7 @@ Nenhum risco aceito novo. Os recomendados dos pareceres por branch continuam com
 - A1 e A2 do g2-r2;
 - A1 do g3 (v075), que fica para a B20b.
 
-Ferramentas: `shellcheck` usado. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor`, `actionlint` e `bandit` não estão no PATH (lacuna; nada instalado, R-CUSTO). O delta não traz dependência nova nem workflow.
+Ferramentas: `shellcheck` usado. As ferramentas de varredura estática, de segredos, de dependências e de workflows não estão no PATH (lacuna; nada instalado, R-CUSTO). O delta não traz dependência nova nem workflow.
 
 ## uniao-043
 
