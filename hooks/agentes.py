@@ -212,14 +212,21 @@ LIMITE_DO_BRIEF = 256 * 1024  # limite técnico: o mesmo do `forge-check brief m
 
 def mensagem_sem_forma(prompt):
     """R-BRIEF, só a forma: o que falta no cabeçalho da mensagem ao conferente (primeira linha `modo: brief|entrega`, uma linha
-    `Arquivo:` em docs/briefs/ e uma `Brief-sha256:` de 64 hex), ou None. Não lê o arquivo nem recalcula o hash; vários blocos passam."""
+    `Arquivo:` em docs/briefs/ e uma `Brief-sha256:` de 64 hex), ou None. Não lê o arquivo nem recalcula o hash. HASH-BRIEF (B9): no
+    prompt inteiro, mais de uma linha na forma inteira de `modo:`, `Arquivo:` ou `Brief-sha256:` é falta (um brief por mensagem);
+    citação recuada ou entre crases não conta."""
     linhas = str(prompt or "").splitlines()
     faltas = []
+    texto = "\n".join(linhas)
+    contagens = (sum(1 for linha in linhas if MODO_DA_MENSAGEM.fullmatch(linha)), len(ARQUIVO_DA_MENSAGEM.findall(texto)),
+                 len(HASH_DA_MENSAGEM.findall(texto)))
+    if any(n > 1 for n in contagens):
+        faltas.append("um brief por mensagem (mais de uma linha `modo:`, `Arquivo:` ou `Brief-sha256:`)")
     if not (linhas and MODO_DA_MENSAGEM.fullmatch(linhas[0])):
         faltas.append("`modo: brief` ou `modo: entrega` na primeira linha")
-    if not ARQUIVO_DA_MENSAGEM.search("\n".join(linhas)):
+    if not ARQUIVO_DA_MENSAGEM.search(texto):
         faltas.append("uma linha `Arquivo:` com o caminho em docs/briefs/")
-    if not HASH_DA_MENSAGEM.search("\n".join(linhas)):
+    if not HASH_DA_MENSAGEM.search(texto):
         faltas.append("uma linha `Brief-sha256:` com 64 hex")
     return "; ".join(faltas) or None
 
