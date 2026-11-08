@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "B14: nota vazia leva so o prefixo, sem separador solto",
       "arquivo": "bin/forge-check",
-      "de": "nota = f\"tardio: {tardio} · {nota}\" if nota else f\"tardio: {tardio}\"",
-      "para": "nota = f\"tardio: {tardio} · {nota}\"",
+      "de": "} · {nota}\" if nota else f\"tardio",
+      "para": "} · {nota}\" if True else f\"tardio",
       "testes": [
         "tests.test_conferencia_registrar.Tardio.test_com_tardio_grava_o_prefixo_na_nota_sem_coluna_nova"
       ]
