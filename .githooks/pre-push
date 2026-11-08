@@ -432,7 +432,10 @@ anotar() {
   fi
 }
 arvore_fim="$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)"
-if [ "$inicio_limpo" = 1 ] && [ "$arvore_fim" = "$arvore_inicio" ] && [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ]; then
+# PREPUSH-PROVA-ARVORE (PP-4/C-1): com uma ref, só anota a árvore do commit enviado; HEAD trocado na fila não grava prova.
+arvore_enviada="$arvore_inicio"
+if [ "$n_refs" -eq 1 ]; then arvore_enviada="$(git rev-parse --verify -q "${unico_local}^{tree}" 2>/dev/null || true)"; fi
+if [ "$inicio_limpo" = 1 ] && [ "$arvore_fim" = "$arvore_inicio" ] && [ "$arvore_fim" = "$arvore_enviada" ] && [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ]; then
   if [ "$curta" = 1 ]; then anotar "$verde" acrescentar
   elif [ "$completa" = 1 ]; then anotar "$verde" aparar
   else anotar "$dirigida" aparar; fi
