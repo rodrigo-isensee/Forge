@@ -13,8 +13,14 @@ data: 2026-11-07
 Revalidação do parecer anterior (reprovado em 4c13fe4, 2026-11-06, bloqueante A1), feita sobre a develop em 8225a91 (release-0.42.0, E1.6c). O código do E4 entrou na develop pela branch única 0.35-0.42 (PR #462): commits dd996f2 (volta 2, A1 e A2), 3e815ee e 6caf595 (teste e mutante K8). Revisor: outra instância do tech-lead, que não é autora do E4. Lidos: `agents/conferente.md` (item 4, linha 50), `bin/forge-check` (`agente_no_plugin` em :3162-3169, linha `destino:` em :6393-6394, `PLUGIN` em :156), `tests/test_conferente_estavel.py` (120 linhas) e o adendo de review do desenho (`docs/arquitetura/versao-035-desenho.md:54`, na área do Jarvis).
 
 ## Achados
+### Nenhum aberto: A1 a A3 do review de 4c13fe4 fechados (detalhe em ## Revalidação)
 
-## Revalidação dos achados anteriores
+## Revalidação
+- A1 (era bloqueante) agents/conferente.md:50 · fechado: o item 4 lê `tools:` só no caminho absoluto da linha `destino: ... (agente: <caminho>)`, resolvido pelo plugin (bin/forge-check:156, :3162); sem `agents/<nome>.md` relativo à pasta corrente.
+- A2 (era recomendado) bin/forge-check:3162 · fechado: `agente_no_plugin` procura também em `stacks/<stack>/agents/`; de /workspaces, forge:node-backend resolve em stacks/node-react/agents/node-backend.md.
+- A3 (era recomendado) tests/test_conferente_estavel.py:1 · fechado: o adendo do desenho (versao-035-desenho.md:54) muda o teto do teste de 40 para 120 linhas; o arquivo tem 120.
+
+## Detalhes
 - A1 (era bloqueante): **fechado**. Em agents/conferente.md:50, o item 4 lê `tools:` só no `<caminho>` da linha `destino: forge:<nome> (agente: <caminho>)` do `forge-check brief` (`ls -l '<caminho>'` e `grep -n '^tools:' '<caminho>'`), e não cita mais `agents/<nome>.md` (`grep -n 'agents/<nome>.md' agents/conferente.md` não acha nada). Esse caminho é absoluto e resolvido a partir do plugin do próprio `forge-check` (`PLUGIN = Path(__file__).resolve().parent.parent`, bin/forge-check:156), não da pasta corrente. Rodado de `/workspaces`, saiu `destino: forge:tech-lead (agente: /root/.forge-contrib/wt/conferente-inconsistente-reval/agents/tech-lead.md)`. Com o `forge-check` antigo (sem `(agente:`), o caso (c) dá `não verificável`, que não reprova. Ele não cai mais em `destino não encontrado`.
 - A2 (era recomendado): **fechado**. `agente_no_plugin` (bin/forge-check:3162) procura também em `stacks/<stack>/agents/`. Rodado de `/workspaces`, saiu `destino: forge:node-backend (agente: .../stacks/node-react/agents/node-backend.md)`. Arquivo ausente, link ou nome fora de `[a-z0-9-]+` dão `não encontrado no plugin`, e isso mantém a falha fechada do C-5.
 - A3 (era recomendado): **fechado**. O adendo de review do desenho (`versao-035-desenho.md:54`, "Teto do teste") registrou a mudança de teto de 40 para 120 linhas no arquivo inteiro. O `tests/test_conferente_estavel.py` tem 120 linhas, no limite.
