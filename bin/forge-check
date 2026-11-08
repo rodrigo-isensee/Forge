@@ -7968,10 +7968,13 @@ def avaliar_versao(a, raiz):
 
 
 def governanca():
-    """O módulo bin/forge_governanca.py (subcomandos `metricas` e `regras`, 0.43.1 H), importado da pasta deste script."""
+    """O módulo bin/forge_governanca.py (subcomandos `metricas` e `regras`, 0.43.1 H), importado da pasta deste script só quando um
+    deles roda; None se o módulo não está ao lado do script (cópia avulsa do forge-check)."""
     sys.path.insert(0, str(PLUGIN / "bin"))
     try:
         import forge_governanca
+    except ImportError:
+        return None
     finally:
         sys.path.remove(str(PLUGIN / "bin"))
     return forge_governanca
@@ -8071,7 +8074,24 @@ def main():
     so.add_argument("--base", help="branch de integração da comparação (padrão: origin/develop, develop, origin/main, main)")
     so.add_argument("--ref", help="branch prestes a ser mesclada na develop: com release em curso (versão da origin/develop maior que a da origin/homolog), só melhoria/release-<versão> passa; as outras saem com rc 1")
     sub.add_parser("fila", parents=[comum], help="o que pode começar agora: dependências, teto e sobreposição (só leitura, rc 0)")
-    governanca().registrar_subcomandos(sub, comum)  # metricas e regras (0.43.1 H)
+    # metricas e regras (0.43.1 H): a lógica fica em bin/forge_governanca.py, importado só quando um dos dois roda
+    me = sub.add_parser("metricas", parents=[comum], help="tempo do código pronto à develop e à main, voltas, revalidações, suítes, "
+                        "espera do dono e reprovações por classe (mérito: declarada), por item e por período; só leitura (0.43.1 H)")
+    me.add_argument("--pedido", action="append", help="id em docs/pedidos/ (repita para vários; padrão: todos)")
+    me.add_argument("--desde", help="AAAA-MM-DD (inclusive)")
+    me.add_argument("--ate", help="AAAA-MM-DD (inclusive)")
+    me.add_argument("--por", choices=("dia", "semana"), default="dia", help="período do agrupamento (padrão: dia)")
+    me.add_argument("--fuso", help="fuso das horas do Histórico, ±HHMM ou ±HH:MM (padrão: o da máquina)")
+    me.add_argument("--agora", help="AAAA-MM-DDTHH:MM para o aberto_h (padrão: agora; serve para reproduzir)")
+    me.add_argument("--develop", default="origin/develop", help="ref da develop (padrão: origin/develop)")
+    me.add_argument("--main", default="origin/main", help="ref da main (padrão: origin/main)")
+    me.add_argument("--gh", action="store_true", help="conta as execuções e falhas do CI das branches citadas (gh run list; usa rede)")
+    me.add_argument("--json", action="store_true", help="saída em JSON")
+    rg = sub.add_parser("regras", parents=[comum], help="validade das regras: 'Revisar em:' e 'Medida:' de cada docs/regras/R-*.md; "
+                        "aviso rc 0, --estrito rc 1 (0.43.1 H)")
+    rg.add_argument("--estrito", action="store_true", help="reprova (rc 1) se alguma regra tem aviso")
+    rg.add_argument("--hoje", help="AAAA-MM-DD (padrão: hoje; serve para reproduzir)")
+    rg.add_argument("--json", action="store_true", help="saída em JSON")
     mv = sub.add_parser("movimento", parents=[comum], help="anota um movimento do quadro em docs/kanban/historico.md, com a hora real")
     mv.add_argument("cartao")
     mv.add_argument("--de", required=True, help="coluna de origem")
@@ -8186,7 +8206,11 @@ def executar(a, raiz):
     if bloqueio is not None:
         return bloqueio
     if a.cmd in ("metricas", "regras"):
-        return governanca().executar(a, raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz)
+        modulo = governanca()
+        if modulo is None:
+            print(f"{a.cmd}: bin/forge_governanca.py ausente ao lado do forge-check; nada medido")
+            return 2
+        return modulo.executar(a, raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz)
     if a.cmd == "transcricao" and a.acao == "custo":
         return cmd_transcricao_custo(a.alvo, a.entregas, a.entrega, raiz, a.desde, a.ate, a.pedido)
     if a.cmd == "transcricao" and a.acao == "lastro":

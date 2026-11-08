@@ -467,27 +467,6 @@ def cmd_regras(raiz, hoje=None, estrito=False, como_json=False):
     return 1 if estrito and com_aviso else 0
 
 
-def registrar_subcomandos(sub, comum):
-    """Os subparsers `metricas` e `regras` do forge-check (as opções ficam aqui, junto da lógica)."""
-    me = sub.add_parser("metricas", parents=[comum], help="tempo do código pronto à develop e à main, voltas, revalidações, suítes, "
-                        "espera do dono e reprovações por classe (mérito: declarada), por item e por período; só leitura (0.43.1 H)")
-    me.add_argument("--pedido", action="append", help="id em docs/pedidos/ (repita para vários; padrão: todos)")
-    me.add_argument("--desde", help="AAAA-MM-DD (inclusive)")
-    me.add_argument("--ate", help="AAAA-MM-DD (inclusive)")
-    me.add_argument("--por", choices=("dia", "semana"), default="dia", help="período do agrupamento (padrão: dia)")
-    me.add_argument("--fuso", help="fuso das horas do Histórico, ±HHMM ou ±HH:MM (padrão: o da máquina)")
-    me.add_argument("--agora", help="AAAA-MM-DDTHH:MM para o aberto_h (padrão: agora; serve para reproduzir)")
-    me.add_argument("--develop", default="origin/develop", help="ref da develop (padrão: origin/develop)")
-    me.add_argument("--main", default="origin/main", help="ref da main (padrão: origin/main)")
-    me.add_argument("--gh", action="store_true", help="conta as execuções e falhas do CI das branches citadas (gh run list; usa rede)")
-    me.add_argument("--json", action="store_true", help="saída em JSON")
-    rg = sub.add_parser("regras", parents=[comum], help="validade das regras: 'Revisar em:' e 'Medida:' de cada docs/regras/R-*.md; "
-                        "aviso rc 0, --estrito rc 1 (0.43.1 H)")
-    rg.add_argument("--estrito", action="store_true", help="reprova (rc 1) se alguma regra tem aviso")
-    rg.add_argument("--hoje", help="AAAA-MM-DD (padrão: hoje; serve para reproduzir)")
-    rg.add_argument("--json", action="store_true", help="saída em JSON")
-
-
 def executar(a, raiz, raiz_pedidos):
     """Despacho dos dois subcomandos; None se `a.cmd` não é deles."""
     if a.cmd == "metricas":

@@ -306,6 +306,17 @@ class Regras(unittest.TestCase):
         self.escrever(R_A=REGRA_OK)
         self.assertEqual(rodar("--raiz", str(self.tmp), "regras", "--hoje", "amanha")[0], 2)
 
+    def test_copia_avulsa_do_forge_check_segue_e_so_os_dois_saem_com_2(self):
+        (self.tmp / "bin").mkdir()
+        shutil.copy(FORGE_CHECK, self.tmp / "bin" / "forge-check")  # sem o módulo ao lado, como nos testes que copiam só o script
+        self.escrever(R_A=REGRA_OK)
+        r = subprocess.run([sys.executable, str(self.tmp / "bin" / "forge-check"), "--raiz", str(self.tmp), "regras"],
+                           capture_output=True, text=True, env=sem_manutencao())
+        self.assertEqual((r.returncode, r.stdout.strip()), (2, "regras: bin/forge_governanca.py ausente ao lado do forge-check; nada medido"))
+        r = subprocess.run([sys.executable, str(self.tmp / "bin" / "forge-check"), "--raiz", str(self.tmp), "regras", "--help"],
+                           capture_output=True, text=True, env=sem_manutencao())
+        self.assertEqual(r.returncode, 0)
+
     def test_regras_do_forge_sao_lidas_sem_erro(self):
         rc, saida, _ = rodar("--raiz", str(RAIZ), "regras")
         self.assertEqual(rc, 0)
