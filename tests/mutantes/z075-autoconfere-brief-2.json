@@ -1,0 +1,90 @@
+{
+  "pedido": "versao-075",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "G-5: fullmatch, não search",
+      "arquivo": "bin/forge-check",
+      "de": "(not forma.fullmatch(str(valor))",
+      "para": "(not forma.search(str(valor))",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_valor_de_shell_seguro_por_tipo",
+        "tests.test_etapa_do_brief.PqDoExecutor.test_pedido_fora_da_forma_avisa_e_nao_gera"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "G-5: raiz sem ..",
+      "arquivo": "bin/forge-check",
+      "de": "(tipo == \"raiz\" and \"..\" in valor)",
+      "para": "(tipo == \"raiz\" and False)",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_valor_de_shell_seguro_por_tipo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "G-5: branch e base passam no git check-ref-format",
+      "arquivo": "bin/forge-check",
+      "de": "capture_output=True).returncode):",
+      "para": "capture_output=True).returncode and False):",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_valor_de_shell_seguro_por_tipo",
+        "tests.test_etapa_do_brief.PqDoExecutor.test_branch_fora_da_forma_avisa_e_nao_gera"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "G-5: sha de 40 hex minúsculos",
+      "arquivo": "bin/forge-check",
+      "de": "\"sha\": re.compile(r\"[0-9a-f]{40}\")",
+      "para": "\"sha\": re.compile(r\"[0-9a-fA-F]{7,40}\")",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_valor_de_shell_seguro_por_tipo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "G-5: valor fora da forma não gera o PQ (gerar com aviso)",
+      "arquivo": "bin/forge-check",
+      "de": "    return ruim is None",
+      "para": "    return True",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_branch_fora_da_forma_avisa_e_nao_gera",
+        "tests.test_etapa_do_brief.PqDoExecutor.test_volta_com_branch_fora_da_forma_nao_gera"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "G-5: montar_brief só gera com a interpolação segura",
+      "arquivo": "bin/forge-check",
+      "de": "        if interpolacao_segura(pedido=pedido_id, branch=branch, base=base, sha=sha_base",
+      "para": "        if True or interpolacao_segura(pedido=pedido_id, branch=branch, base=base, sha=sha_base",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_branch_fora_da_forma_avisa_e_nao_gera",
+        "tests.test_etapa_do_brief.PqDoExecutor.test_sem_base_remota_o_sha_fica_preencher"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "G-5: gerar_volta só gera o PQ da entrega com a interpolação segura",
+      "arquivo": "bin/forge-check",
+      "de": "espera: rc=0\"] if seguro else []",
+      "para": "espera: rc=0\"] if True else []",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_volta_com_branch_fora_da_forma_nao_gera"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "G-5: gerar_volta só gera o PQ dos módulos com a interpolação segura",
+      "arquivo": "bin/forge-check",
+      "de": "pq_dos_testes_afetados(raiz, sha_base)] if seguro else []",
+      "para": "pq_dos_testes_afetados(raiz, sha_base)] if True else []",
+      "testes": [
+        "tests.test_etapa_do_brief.PqDoExecutor.test_volta_com_branch_fora_da_forma_nao_gera"
+      ]
+    }
+  ]
+}

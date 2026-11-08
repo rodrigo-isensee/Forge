@@ -964,7 +964,37 @@ class PqDoExecutor(eb.Repo):
                                      "--branch", "melhoria/x", "--base", "inexistente")
         self.assertEqual(rc, 0, saida + erro)
         self.assertIn("Base-sha: PREENCHER\n", saida)
-        self.assertIn("--base inexistente --base-sha PREENCHER --etapa codigo`", saida)
+        self.sem_pq("sha fora da forma (PREENCHER)", saida, erro)
+
+    def sem_pq(self, campo, saida, erro):  # G-5: nada chega literal ao shell do executor
+        self.assertIn(f"aviso: PQ do executor não gerado: {campo}", erro, saida)
+        self.assertNotIn("forge-check entrega", saida)
+
+    def test_branch_fora_da_forma_avisa_e_nao_gera(self):
+        for ruim in ("melhoria/x;curl$IFS/a", "melhoria/x y", "melhoria/x$(id)", "melhoria/x..y"):
+            self.sem_pq(f"branch fora da forma ({ruim})", *self.gerar("--etapa", "codigo", "--branch", ruim)[1:])
+
+    def test_pedido_fora_da_forma_avisa_e_nao_gera(self):
+        (self.repo / "docs" / "pedidos" / "ruim.md").write_text(eb.PEDIDO.replace("id: exemplo", "id: a;rm"), encoding="utf-8")
+        self.sem_pq("pedido fora da forma (a;rm)", *self.rodar("brief", "gerar", "--pedido", "ruim", "--destino", "forge:dev-exemplo", "--etapa", "codigo",
+                                                               "--branch", "melhoria/x", "--base", "develop")[1:])
+
+    def test_volta_com_branch_fora_da_forma_nao_gera(self):
+        self.com_forge_testes()
+        eb.Volta.anterior(self)
+        self.pareceres(self.c1, p="reprovado", corpo="## Achados\n- A1 (bloqueante) src/app.py:1 · o valor está errado\n")
+        _, saida, erro = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo",
+                                    "--volta", "docs/briefs/exemplo-dev-exemplo-1.md", "--ref", "melhoria/x", "--branch", "melhoria/x;rm")
+        self.sem_pq("branch fora da forma (melhoria/x;rm)", saida, erro)
+        self.assertNotIn("bin/forge-testes", saida)
+        self.assertIn("- PQ-2 (cmd, do autor): `bin/forge-mutante --cobertura", saida)
+
+    def test_valor_de_shell_seguro_por_tipo(self):
+        for tipo, valor in (("sha", "a" * 40), ("pedido", "versao-075"), ("base", "develop"), ("branch", "melhoria/x"), ("raiz", "/r/.contrib")):
+            self.assertEqual(fc.valor_de_shell_seguro(tipo, valor), valor)
+        for tipo, valor in (("sha", "a" * 39), ("sha", "A" * 40), ("pedido", "../p"), ("pedido", "p;rm"), ("base", "dev elop"),
+                            ("branch", "x/../y"), ("branch", "/x"), ("raiz", "/r/../etc"), ("raiz", "/r $(id)")):
+            self.assertIsNone(fc.valor_de_shell_seguro(tipo, valor), (tipo, valor))
 
     def test_volta_traz_o_pq_da_entrega_e_o_dos_modulos(self):
         self.com_forge_testes()
