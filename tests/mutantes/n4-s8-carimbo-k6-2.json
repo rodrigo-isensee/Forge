@@ -4,12 +4,32 @@
   "mutantes": [
     {
       "id": "M6",
-      "guarda": "conformidade.py:780 (E5a/C-3 refeito, adendo de 2026-11-07): a regra da marca só fala na raiz de projeto (sem self.raiz_e_projeto(), a leitura do carimbo no clone do Forge é recusada)",
+      "guarda": "conformidade.py:791 (E5a/C-3 refeito, adendo de 2026-11-07): a regra da marca só fala na raiz de projeto (sem self.raiz_e_projeto(), a leitura do carimbo no clone do Forge é recusada)",
       "arquivo": "hooks/conformidade.py",
       "de": "self.h.raiz and self.raiz_e_projeto() and CITA_A_MARCA",
       "para": "self.h.raiz and CITA_A_MARCA",
       "testes": [
         "tests.test_conformidade_verde.CarimboK6.test_clone_do_forge_le_e_recusa_escrita"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "conformidade.py:678 (E5a/C-2, A1 e A2 da segurança g1): o nome com curinga é expandido por glob nas pastas do alvo (sem a expansão, `echo x > <d>/forge-suite-verd?` grava o carimbo)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if CURINGA.search(nome) and any(",
+      "para": "if False and any(",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_curinga_que_casa_a_prova_recusa"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "conformidade.py:668 (E5a/C-2, sonda S3 da segurança g1): com `$(…)` no alvo, o curinga também se expande no diretório comum do git (sem ele, `echo x > \"$(git rev-parse --git-common-dir)\"/forge-suite-verd?` passa)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if resto or VARIAVEL.search(caminho) else None",
+      "para": "if resto else None",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_curinga_que_casa_a_prova_recusa"
       ]
     }
   ]

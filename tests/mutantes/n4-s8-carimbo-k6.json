@@ -4,7 +4,7 @@
   "mutantes": [
     {
       "id": "M1",
-      "guarda": "conformidade.py:176 (E5a/C-1): a alternativa do carimbo K6 na MARCA_DA_SUITE (sem ela, o Write passa)",
+      "guarda": "conformidade.py:177 (E5a/C-1): a alternativa do carimbo K6 na MARCA_DA_SUITE (sem ela, o Write passa)",
       "arquivo": "hooks/conformidade.py",
       "de": "|forge-suite-verde(\\.\\d{1,10})?\")",
       "para": "\")",
@@ -14,7 +14,7 @@
     },
     {
       "id": "M2",
-      "guarda": "conformidade.py:176 (E5a/C-1): o temporário `.<pid>` do os.replace também é carimbo",
+      "guarda": "conformidade.py:177 (E5a/C-1): o temporário `.<pid>` do os.replace também é carimbo",
       "arquivo": "hooks/conformidade.py",
       "de": "|forge-suite-verde(\\.\\d{1,10})?",
       "para": "|forge-suite-verde",
@@ -24,7 +24,7 @@
     },
     {
       "id": "M3",
-      "guarda": "conformidade.py:176 (E5a/C-1, A4): o sufixo só de dígitos (`.bak`, `.lock` passam)",
+      "guarda": "conformidade.py:177 (E5a/C-1, A4): o sufixo só de dígitos (`.bak`, `.lock` passam)",
       "arquivo": "hooks/conformidade.py",
       "de": "|forge-suite-verde(\\.\\d{1,10})?",
       "para": "|forge-suite-verde(\\.\\w+)?",
@@ -34,7 +34,7 @@
     },
     {
       "id": "M4",
-      "guarda": "conformidade.py:176 (E5a/C-1, A4): o sufixo com teto de 10 dígitos",
+      "guarda": "conformidade.py:177 (E5a/C-1, A4): o sufixo com teto de 10 dígitos",
       "arquivo": "hooks/conformidade.py",
       "de": "|forge-suite-verde(\\.\\d{1,10})?",
       "para": "|forge-suite-verde(\\.\\d+)?",
@@ -44,7 +44,7 @@
     },
     {
       "id": "M5",
-      "guarda": "conformidade.py:177 (E5a/C-4): a mensagem diz quem grava o carimbo",
+      "guarda": "conformidade.py:178 (E5a/C-4): a mensagem diz quem grava o carimbo",
       "arquivo": "hooks/conformidade.py",
       "de": " e pela suíte (scripts/suite-paralela.py)",
       "para": "",

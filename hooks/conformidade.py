@@ -11,6 +11,7 @@ Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT
 """
 import contextlib
 import functools
+import glob
 import hashlib
 import json
 import os
@@ -176,6 +177,7 @@ PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
 MARCA_DA_SUITE = re.compile(r"forge-suite-[^/]*\.(verde|dirigida)(\.novo)?|forge-suite-verde(\.\d{1,10})?")
 PROVA_DA_SUITE = ("R-VERIFY", "a prova da suíte só é gravada pelo pre-push e pela suíte (scripts/suite-paralela.py)",
                   "rode o push ou .githooks/pre-push --suite")
+CURINGA = re.compile(r"[*?\[]")  # o bash expande no alvo antes de gravar (A1 e A2 da segurança g1 da 0.45)
 MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
 GLOB_DE_PATHSPEC = re.compile(r"[*?\[\\]")
 CHECKOUT_COM_VALOR = {"-b", "-B", "--orphan"}
@@ -663,10 +665,19 @@ class Guarda:
         resto = caminho.rsplit(OPACO["$"], 1)[1].lstrip("/") if OPACO["$"] in caminho else ""
         if resto:
             alvos.append(self.resolver(resto, Path(self.h.raiz)))
+        topo = self.raiz_git(pasta) if resto or VARIAVEL.search(caminho) else None  # `$(…)`: pode ser o diretório comum
+        self.curinga_na_prova(Path(caminho).name, [a.parent for a in alvos] + [topo and diretorio_comum(topo)])
         for alvo in alvos:
             achado = self.caminho_barrado(alvo)
             if achado:
                 self.barrar(*achado)
+
+    def curinga_na_prova(self, nome, pastas):
+        """S8 (E5a/C-2, A1 e A2 da segurança g1): com `*`, `?` ou `[` no nome, o hook expande o nome nas pastas onde o
+        alvo cai, como o bash fará, e barra se algum nome expandido casar a prova da suíte."""
+        if CURINGA.search(nome) and any(MARCA_DA_SUITE.fullmatch(Path(n).name)
+                                        for p in filter(None, pastas) for n in glob.glob(f"{glob.escape(str(p))}/{nome}")):
+            self.barrar(*PROVA_DA_SUITE)
 
     def expandir(self, caminho, pasta):
         """`$PWD`, `$CLAUDE_PROJECT_DIR` e `$HOME` (com ou sem chaves; as aspas o shlex já tirou) viram o caminho real."""
@@ -1082,6 +1093,7 @@ class Guarda:
             if prog == "ln" or any(re.fullmatch(r"-[^-]*[ls]\w*|--(link|symbolic-link)", a) for a in args):  # S8 (C-3)
                 for a in args:  # o link aponta a prova: a origem também conta, pelo nome literal e pelo resolvido
                     nomes = Path(a).name, self.resolver(self.expandir(a, pasta), pasta).name
+                    self.curinga_na_prova(nomes[0], [self.resolver(self.expandir(a, pasta), pasta).parent])
                     if any(map(MARCA_DA_SUITE.fullmatch, nomes)):
                         self.barrar(*PROVA_DA_SUITE)
             alvo = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-t", "--target-directory")), None)

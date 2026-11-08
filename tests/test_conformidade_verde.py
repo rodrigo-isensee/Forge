@@ -132,6 +132,17 @@ class CarimboK6(ComProjeto):
             self.assertIn("scripts/suite-paralela.py", r.stderr, f"{c}: C-4, quem grava o carimbo")
             self.assertNotRegex(r.stderr, r"\brm\b|apague", f"{c}: C-4, nunca sugere apagar")
 
+    def test_curinga_que_casa_a_prova_recusa(self):  # A1 e A2 da segurança g1 da 0.45 (sondas S1 a S4)
+        d = str(self.d)
+        for k in (self.d / "forge-suite-verde", self.d / "forge-suite-verde.1", self.verde, self.proj / ".git/forge-suite-verde"):
+            k.write_text("x", encoding="utf-8")
+        for c in (f"echo x > {d}/forge-suite-verd?", f"echo x > {d}/forge-suite-ver*", f"echo x > {d}/forge-suite-verd[e]",
+                  f"cp /tmp/x {d}/forge-suite-verd?", f"echo x > {d}/forge-suite-verde.[0-9]", f"ln {d}/forge-suite-verd? /tmp/h",
+                  'echo x > "$(git rev-parse --git-common-dir)"/forge-suite-verd?', f"echo x > {d}/forge-suite-1000.ver?e"):
+            self.recusa(self.rodar("Bash", {"command": c}), c)
+        for c in (f"echo x > {d}/forge-suite-verdX?", f"cat {d}/forge-suite-verd?"):  # curinga que não casa, e leitura
+            self.assertEqual(self.rodar("Bash", {"command": c}).returncode, 0, c)
+
     def test_leitura_gravador_e_vizinhos_passam(self):
         d = str(self.d)
         for c in (f"cat {d}/forge-suite-verde", 'cat "$(git rev-parse --git-common-dir)/forge-suite-verde"',
