@@ -2477,10 +2477,11 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     saida += acrescentar(antigas, [f"- {d}" for d in novas if normalizar_espacos(d) not in texto_decisoes] + do_registro + erros)
     bases = bases_do_pedido(pedido_txt)  # a `conferida` e a base do dono, como o `entrega`
     proximo = max([int(x) for x in re.findall(r"\bPQ-(\d+)", "".join(blocos.get("Pronto quando", [])))] or [0]) + 1
+    seguro = interpolacao_segura(pedido=pedido_id, branch=branch, base=a.base, sha=sha_base)  # G-5: a Branch do anterior é `\S+`
     pronto = [f"- PQ-{proximo} (cmd, do autor): `forge-check entrega {caminho_impresso(pedido_id)} --branch {caminho_impresso(branch)} --base {caminho_impresso(a.base)} --base-sha {sha_base} "
-              f"--etapa codigo --desde {desde_da_branch(raiz, pedido_txt, ref, sha_base)[0] if bases else PREENCHER}` · espera: rc=0"]
+              f"--etapa codigo --desde {desde_da_branch(raiz, pedido_txt, ref, sha_base)[0] if bases else PREENCHER}` · espera: rc=0"] if seguro else []
     if a.etapa in ETAPAS_DE_MERGE:
-        pronto.append(pq_de_merge(a.base).replace("PQ-N", f"PQ-{proximo + 1}"))
+        pronto.append(pq_de_merge(a.base).replace("PQ-N", f"PQ-{proximo + len(pronto)}"))
     pronto.append(f"- PQ-{proximo + len(pronto)} (cmd, do autor): `bin/forge-mutante --cobertura --base {sha_base}` · espera: rc=0")
     saida += acrescentar(copiado("Pronto quando"), pronto)
     saida += copiado("Relatório")
@@ -7388,6 +7389,32 @@ def base_sha_real(raiz, base, branch):
     return remota
 
 
+def pasta_fora_do_clone(raiz, caminho_pedido):
+    """A pasta do `--raiz-pedidos` quando o pedido está fora do clone (B1, versao-075), senão vazio: o PQ do executor acha o mesmo pedido."""
+    pasta = raiz_do_pedido(raiz, caminho_pedido).resolve()
+    return "" if pasta in (Path(raiz).resolve(), raiz_principal(raiz).resolve()) else str(pasta)
+
+
+FORMA_DE_SHELL = {"branch": re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]*"), "sha": re.compile(r"[0-9a-f]{40}"), "raiz": re.compile(r"[A-Za-z0-9._/~-]+")}
+
+
+def valor_de_shell_seguro(tipo, valor):
+    """G-5 (versao-075): o valor, se tem a forma fechada do `tipo` (branch, base, pedido, sha, raiz), senão None: só ele vai ao shell do executor."""
+    forma = NOME_SEGURO_DE_BRIEF if tipo == "pedido" else FORMA_DE_SHELL["branch" if tipo == "base" else tipo]
+    if (not forma.fullmatch(str(valor)) or (tipo == "raiz" and ".." in valor)
+            or tipo in ("branch", "base") and subprocess.run(["git", "check-ref-format", "--branch", valor], capture_output=True).returncode):
+        return None
+    return valor
+
+
+def interpolacao_segura(**valores):
+    """G-5: True com todo valor do PQ do executor na forma fechada; senão `aviso:` e False (o brief segue sem o PQ)."""
+    ruim = next((tipo for tipo, valor in valores.items() if valor_de_shell_seguro(tipo, valor) is None), None)
+    if ruim:
+        print(f"brief gerar: aviso: PQ do executor não gerado: {ruim} fora da forma ({caminho_impresso(valores[ruim])})", file=sys.stderr)
+    return ruim is None
+
+
 def aviso_de_base_sha(raiz, texto):
     """`base:` (reprova, P5) quando o `Base-sha:` do cabeçalho do brief não está na branch dele (E11): brief gerado antes de a base andar.
     Offline, só com git de leitura."""
@@ -7547,8 +7574,9 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     tipo = tipo_da_etapa(etapa)
     saida.append(f"Tipo: {tipo}")
     lembrar_do_jarvis(raiz, tipo)
+    sha_base = base_sha_real(raiz, base, branch) or PREENCHER
     if branch:
-        saida.append(f"Branch: {branch}   Base: {base}   Base-sha: {base_sha_real(raiz, base, branch) or PREENCHER}")
+        saida.append(f"Branch: {branch}   Base: {base}   Base-sha: {sha_base}")
     if etapa or coberta:
         saida.append(f"Etapa: {etapa or PREENCHER}" + (f"   Cobre: {coberta}" if coberta else ""))  # sem --etapa, o brief não passa
     if coberta:
@@ -7594,6 +7622,13 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
               f"- PQ-N (arquivo): `test -e <caminho>` · {PREENCHER}"]
     if branch:
         saida.append(f"- PQ-N (push): `git ls-remote origin refs/heads/{branch}` igual ao head local · {PREENCHER}")
+    if etapa == "codigo" and not branch:  # B1 (E2, versao-075): sem a branch não há o que o executor confira
+        print("brief gerar: aviso: sem --branch, o brief sai sem o PQ do executor (forge-check entrega); passe --branch (B1)", file=sys.stderr)
+    elif etapa == "codigo":  # B1 e E14: a mesma linha que o conferente roda, rodada antes pelo executor, só com valores seguros (G-5)
+        pasta = pasta_fora_do_clone(raiz, caminho_pedido)
+        if interpolacao_segura(pedido=pedido_id, branch=branch, base=base, sha=sha_base, **({"raiz": pasta} if pasta else {})):
+            saida.append(f"- PQ-N (cmd, do autor): `forge-check entrega {caminho_impresso(pedido_id)}{f' --raiz-pedidos {caminho_impresso(pasta)}' if pasta else ''} "
+                         f"--branch {branch} --base {base} --base-sha {sha_base} --etapa codigo` · espera: rc=0")
     if etapa in ("review", "seguranca", "qa"):  # o bloco ## Achados e o teto em caracteres saem do `forge-check docs` (P3)
         saida.append("- PQ-N (cmd): `forge-check docs` · espera: rc=0")
     if etapa in ETAPAS_DE_MERGE:
