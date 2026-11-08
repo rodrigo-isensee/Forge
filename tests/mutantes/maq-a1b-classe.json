@@ -46,8 +46,8 @@
       "id": "M5",
       "guarda": "--completa e --vermelho em qualquer posicao: classificar pelo primeiro argumento (A3)",
       "arquivo": "hooks/pesado.py",
-      "de": "return \"--completa\" not in argumentos and \"--vermelho\" not in argumentos",
-      "para": "return \"--completa\" not in argumentos[:1] and \"--vermelho\" not in argumentos[:1]",
+      "de": "for a in argumentos for o in",
+      "para": "for a in argumentos[:1] for o in",
       "testes": ["tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_completa_ou_vermelho_em_qualquer_posicao_e_pesado"]
     },
     {
@@ -65,6 +65,30 @@
       "de": "return inicio == padrao or inicio.startswith(padrao + \" \")",
       "para": "return inicio == padrao and inicio.startswith(padrao + \" \")",
       "testes": ["tests.test_hooks.Hooks.test_suite_do_forge_e_pesada"]
+    },
+    {
+      "id": "A1-prefixo",
+      "guarda": "opcao abreviada pelo argparse (--comp, --verm) conta como a opcao inteira (A1 do review g1)",
+      "arquivo": "hooks/pesado.py",
+      "de": "return len(nome) > 2 and opcao.startswith(nome)",
+      "para": "return len(nome) > 2 and opcao == nome",
+      "testes": ["tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado"]
+    },
+    {
+      "id": "A1-igual",
+      "guarda": "a forma --opcao=valor conta como a opcao (A1 do review g1)",
+      "arquivo": "hooks/pesado.py",
+      "de": "nome = argumento.split(\"=\", 1)[0]",
+      "para": "nome = argumento",
+      "testes": ["tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado"]
+    },
+    {
+      "id": "A1-separador",
+      "guarda": "o separador -- sozinho nao e prefixo de opcao (forge-testes -- caminho segue leve)",
+      "arquivo": "hooks/pesado.py",
+      "de": "return len(nome) > 2 and opcao",
+      "para": "return opcao",
+      "testes": ["tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado"]
     }
   ]
 }

@@ -2356,6 +2356,14 @@ class PesadoClassePelosArgumentos(unittest.TestCase):
             with self.subTest(comando=comando):
                 self.assertTrue(self.classe(comando))
 
+    def test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado(self):
+        # A1 do review g1 (sonda S1): o argparse de bin/forge-testes aceita `--opção=valor` e prefixos únicos.
+        for comando in ("bin/forge-testes --vermelho=origin/develop", "bin/forge-testes --comp", "bin/forge-testes --verm",
+                        "./bin/forge-testes --c", "bin/forge-testes tests/a.py --verm=x"):
+            with self.subTest(comando=comando):
+                self.assertTrue(self.classe(comando))
+        self.assertFalse(self.classe("bin/forge-testes -- tests/a.py"))  # o separador `--` não abrevia opção
+
     def test_forge_mutante_e_pesado_salvo_listar_sozinho(self):
         for comando in ("bin/forge-mutante x.json", "bin/forge-mutante x.json --listar",
                         "bin/forge-mutante --listar x.json", "./bin/forge-mutante x.json --cobertura --base abc",

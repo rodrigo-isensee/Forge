@@ -83,11 +83,17 @@ def inicios(palavras):
     return saida
 
 
+def pede_opcao(argumento, opcao):
+    """O argparse lê `argumento` como `opcao`: inteira, um prefixo dela (`--comp`) ou na forma `=` (`--verm=x`)."""
+    nome = argumento.split("=", 1)[0]
+    return len(nome) > 2 and opcao.startswith(nome)
+
+
 def leve_pelos_argumentos(inicio):
     """`forge-testes` sem `--completa` nem `--vermelho` em posição nenhuma; `forge-mutante` só com `--listar` sozinho."""
     nome, *argumentos = inicio.split()
     if nome.endswith("forge-testes"):
-        return "--completa" not in argumentos and "--vermelho" not in argumentos
+        return not any(pede_opcao(a, o) for a in argumentos for o in ("--completa", "--vermelho"))
     return argumentos == ["--listar"]
 
 
