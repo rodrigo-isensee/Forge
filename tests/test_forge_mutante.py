@@ -923,6 +923,14 @@ class Cobertura(unittest.TestCase):
         duas = [{**uma, "trecho": "obj.ready > 100 and ok"}, {**uma, "trecho": "obj.ready > 100 or z"}]
         self.assertEqual(self.por_linha(duas, base, "obj = 1\n").returncode, 0)
 
+    def test_isenta_por_linha_nao_casa_texto_apagado_duas_vezes(self):  # C-4: A1 e sonda S1 da segurança g6
+        ponta, usadas = "x = 1\nx = 2\nx = 3\n", set()
+        saida = self.f.analisar("lib.py", [([2, 3, 4, 5], [2, 3])], self.REPETIDA, ponta, [], [self.POR_LINHA], usadas)
+        self.assertEqual((saida, usadas), (["apagada · lib.py:2(base) · x > 100 and y"], set()))
+        for lista in ([self.POR_LINHA], [self.POR_LINHA, {**self.POR_LINHA, "linha_base": 4}]):
+            with self.subTest(len(lista)):
+                self.assertNotEqual(self.por_linha(lista, ponta=ponta).returncode, 0)
+
     def test_isenta_por_linha_invalida_e_o_teto_conta_as_duas_formas(self):
         maximo = self.f.MAXIMO_DO_ARQUIVO
         ruins = [{**self.POR_LINHA, "linha_base": v} for v in ("2", True, False, 0, -1, maximo + 1, 2.0, None)]

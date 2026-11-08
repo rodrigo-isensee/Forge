@@ -531,7 +531,8 @@ def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
         else:
             saida.append(f"sem mutante · {arquivo}:{ini} · {' '.join(texto.split())[:60]}")
     for texto, ini, fim, de, ate in {c[0]: c for c in reversed(velhas) if falta[c[0]]}.values():
-        motivo = isenta(isentas, usadas, arquivo, antes, de, ate, ini)
+        motivo = (isenta(isentas, usadas, arquivo, antes, de, ate, ini) if falta[texto] == 1
+                  else isenta(isentas, usadas, arquivo, antes, de, ate, None))  # 2+ apagadas: a por linha não casa
         saida.append(f"isenta · {arquivo}:{ini}(base) · {motivo}" if motivo else
                      f"apagada · {arquivo}:{ini}(base) · {' '.join(texto.split())[:60]}")
     return saida
