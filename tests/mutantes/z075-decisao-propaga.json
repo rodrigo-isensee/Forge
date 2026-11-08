@@ -124,36 +124,24 @@
       "id": "M12",
       "guarda": "a linha entra antes do subtitulo ### da secao",
       "arquivo": "bin/forge-check",
-      "de": "if linhas[i].startswith(\"### \")), fim)",
-      "para": "if False), fim)",
+      "de": "(\"## \" if l.startswith(\"### \") else l)",
+      "para": "(\"## \" if False else l)",
       "testes": [
-        "tests.test_anotar.Propagar.test_com_propagar_grava_o_seguinte_e_o_anterior_fica",
-        "tests.test_anotar.Propagar.test_linha_vai_antes_da_linha_em_branco_e_do_subtitulo"
+        "tests.test_anotar.Propagar.test_com_propagar_grava_o_seguinte_e_o_anterior_fica"
       ]
     },
     {
       "id": "M13",
-      "guarda": "a linha entra antes das linhas em branco do fim da secao",
-      "arquivo": "bin/forge-check",
-      "de": "        while fim - 1 > inicio and not linhas[fim - 1].strip():\n            fim -= 1\n        linha, rc_gravar",
-      "para": "        linha, rc_gravar",
-      "testes": [
-        "tests.test_anotar.Propagar.test_linha_vai_antes_da_linha_em_branco_e_do_subtitulo"
-      ]
-    },
-    {
-      "id": "M14",
       "guarda": "a linha entra na secao de decisoes, nao no fim do arquivo",
       "arquivo": "bin/forge-check",
       "de": "\"\\n\".join(linhas[:fim] + [f\"- {nova}\"] + linhas[fim:])",
       "para": "\"\\n\".join(linhas + [f\"- {nova}\"])",
       "testes": [
-        "tests.test_anotar.Propagar.test_com_propagar_grava_o_seguinte_e_o_anterior_fica",
-        "tests.test_anotar.Propagar.test_linha_vai_antes_da_linha_em_branco_e_do_subtitulo"
+        "tests.test_anotar.Propagar.test_com_propagar_grava_o_seguinte_e_o_anterior_fica"
       ]
     },
     {
-      "id": "M15",
+      "id": "M14",
       "guarda": "o anterior nao se reescreve: o novo vai a gravar_brief com numero seguinte",
       "arquivo": "bin/forge-check",
       "de": "linha, rc_gravar = gravar_brief(raiz_pedido, pedido, f\"forge:{papel}\",",

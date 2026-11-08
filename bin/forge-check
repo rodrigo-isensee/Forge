@@ -2951,15 +2951,11 @@ def propagar_decisao(raiz_pedido, pedido, nova, propagar):
             saida.append(f"decisao: em voo {caminho_impresso(arq.name)}")
             continue
         linhas = texto.split("\n")
-        fim = fim_da_secao(linhas, "Decisões e restrições")
+        fim = fim_da_secao([("## " if l.startswith("### ") else l) for l in linhas], "Decisões e restrições")  # o `### ` fecha a parte do dono
         if fim is None:
             saida.append(f"decisao: {caminho_impresso(arq.name)} sem \"## Decisões e restrições\"; nada gravado para ele")
             rc = 1
             continue
-        inicio = next(i for i, l in enumerate(linhas) if re.match(r"^##\s+Decisões e restrições\b", l))
-        fim = next((i for i in range(inicio + 1, fim) if linhas[i].startswith("### ")), fim)
-        while fim - 1 > inicio and not linhas[fim - 1].strip():
-            fim -= 1
         linha, rc_gravar = gravar_brief(raiz_pedido, pedido, f"forge:{papel}", "\n".join(linhas[:fim] + [f"- {nova}"] + linhas[fim:]))
         saida.append(linha)
         rc = rc or rc_gravar
