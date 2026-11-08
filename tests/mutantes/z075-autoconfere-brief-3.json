@@ -4,20 +4,20 @@
   "mutantes": [
     {
       "id": "M1",
-      "guarda": "G-5: o pedido tem a forma do nome de brief (mutante: só o que não é pedido usa a forma do nome)",
+      "guarda": "G-5: só o pedido tem a forma do nome de brief (mutante: o sha também, e o sha fora de 40 hex passa)",
       "arquivo": "bin/forge-check",
       "de": "if tipo == \"pedido\" else",
-      "para": "if tipo != \"pedido\" else",
+      "para": "if tipo in (\"pedido\", \"sha\") else",
       "testes": [
         "tests.test_etapa_do_brief.PqDoExecutor.test_valor_de_shell_seguro_por_tipo"
       ]
     },
     {
       "id": "M2",
-      "guarda": "G-5: a base tem a forma de branch (mutante: só o que não é base usa a forma de branch)",
+      "guarda": "G-5: só a base usa a forma de branch (mutante: o sha também, e o sha fora de 40 hex passa)",
       "arquivo": "bin/forge-check",
       "de": "\"branch\" if tipo == \"base\" else tipo",
-      "para": "\"branch\" if tipo != \"base\" else tipo",
+      "para": "\"branch\" if tipo in (\"base\", \"sha\") else tipo",
       "testes": [
         "tests.test_etapa_do_brief.PqDoExecutor.test_valor_de_shell_seguro_por_tipo"
       ]
