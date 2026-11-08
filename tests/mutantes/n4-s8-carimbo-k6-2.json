@@ -1,0 +1,16 @@
+{
+  "pedido": "versao-045",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M6",
+      "guarda": "conformidade.py:780 (E5a/C-3 refeito, adendo de 2026-11-07): a regra da marca só fala na raiz de projeto (sem self.raiz_e_projeto(), a leitura do carimbo no clone do Forge é recusada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self.h.raiz and self.raiz_e_projeto() and CITA_A_MARCA",
+      "para": "self.h.raiz and CITA_A_MARCA",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_clone_do_forge_le_e_recusa_escrita"
+      ]
+    }
+  ]
+}

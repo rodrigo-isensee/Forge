@@ -93,7 +93,27 @@ class ProvaDaSuite(ComProjeto):
 
 class CarimboK6(ComProjeto):
     """N4/P3 (versao-045 E5a): o carimbo K6 (`forge-suite-verde`) e o temporário do `os.replace` de scripts/suite-paralela.py
-    entram na prova da suíte (C-1 a C-4 de docs/security/ameacas/versao-045.md, E5a)."""
+    entram na prova da suíte (C-1 a C-4 de docs/security/ameacas/versao-045.md, E5a). C-3 refeito no adendo do desenho de
+    2026-11-07: a leitura literal de `.git/forge-suite-verde` passa no clone do Forge, onde o carimbo existe; no projeto, a
+    regra da marca da sessão fala antes e recusa (só o caminho montado passa)."""
+
+    def test_clone_do_forge_le_e_recusa_escrita(self):  # caso 1 do adendo: raiz sem .forge/versao
+        k6 = f"{RAIZ}/.git/forge-suite-verde"
+        for c in ("cat .git/forge-suite-verde", f"cat {k6}", 'cat "$(git rev-parse --git-common-dir)/forge-suite-verde"'):
+            r = self.rodar("Bash", {"command": c}, cwd=RAIZ, CLAUDE_PROJECT_DIR=str(RAIZ))
+            self.assertEqual(r.returncode, 0, f"{c}: {r.stderr}")
+        for f, e in (("Bash", {"command": "printf x > .git/forge-suite-verde.123"}), ("Write", {"file_path": k6, "content": "x"}),
+                     ("Bash", {"command": "python3 -c \"open('.git/forge-suite-verde','w')\""})):
+            r = self.rodar(f, e, cwd=RAIZ, CLAUDE_PROJECT_DIR=str(RAIZ))
+            self.assertEqual(r.returncode, 2, f"{e}: {r.stderr}")
+            self.assertNotRegex(r.stderr, r"\brm\b|apague", f"{e}: C-4, nunca sugere apagar")
+
+    def test_projeto_recusa_o_literal_pela_marca(self):  # caso 2 do adendo: a precedência da regra da marca
+        r = self.rodar("Bash", {"command": "cat .git/forge-suite-verde"})
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("marca da sessão", r.stderr)
+        r = self.rodar("Bash", {"command": 'cat "$(git rev-parse --git-common-dir)/forge-suite-verde"'})
+        self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_escrita_no_carimbo_recusa(self):
         d, k6 = str(self.d), str(self.proj / ".git" / "forge-suite-verde")
