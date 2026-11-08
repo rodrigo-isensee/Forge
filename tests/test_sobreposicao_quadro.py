@@ -584,6 +584,15 @@ class QuadroGerado(unittest.TestCase):
             Path(tmp, "KANBAN.md").write_text(texto, encoding="utf-8")
             self.assertEqual(fc.cmd_kanban(Path(tmp)), [])
 
+    def test_motivo_em_duas_celulas_nao_duplica_o_cartao_ao_regerar(self):  # A1 do review g2: as células a mais se juntam com /
+        historico = [[*mov(1, "A-1", "Code review", "a"), "b · atributos: titulo=T; pedido=p; responsavel=forge:dev"]]
+        texto = self.montar(*historico, quadro=QUADRO.replace("| K-3 | Ponte ruim | p-1 | forge:X Y | 2026-09-01 | x | y |\n", ""))[0]
+        self.assertEqual([l.count("|") for l in texto.split("\n") if l.startswith("| A-1 | T | p | forge:dev |")], [8])  # uma vez, 7 colunas
+        self.assertEqual(self.montar(*historico, quadro=texto)[0], texto)
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "KANBAN.md").write_text(texto, encoding="utf-8")
+            self.assertEqual(fc.cmd_kanban(Path(tmp)), [])
+
     def test_quadro_por_coluna_corta_a_secao_como_colunas_do_quadro(self):  # C-6: a mesma função para os dois
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "KANBAN.md").write_text(secao("Pronto (develop)") + secao("Em andamento (WIP 3)"), encoding="utf-8")
