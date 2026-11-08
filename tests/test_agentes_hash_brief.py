@@ -154,12 +154,38 @@ class HashDoBrief(unittest.TestCase):
         mensagem = f"modo: brief\nBrief-sha256: {hashlib.sha256(self.conteudo).hexdigest()}\n<<<BRIEF\nArquivo: docs/briefs/p-x-1.md\nBRIEF>>>\n"
         self.recusado(mensagem)
 
-    def test_linha_arquivo_extra_no_corpo_nao_atrapalha(self):
-        self.aceito(self.mensagem(corpo="Arquivo: docs/briefs/outro.md\nBrief-sha256: " + "e" * 64))
+    # Um brief por mensagem (HASH-BRIEF, B9): o prompt inteiro, não só o cabeçalho ----------------
+    def recusado_por_dois(self, prompt):
+        self.assertIn("um brief por mensagem", self.recusado(prompt).stderr)
 
-    def test_so_o_primeiro_bloco_e_conferido(self):
-        """Mensagem de dois blocos (brief e entrega): vale o cabeçalho do primeiro; o Jarvis manda o brief sozinho."""
-        self.aceito(self.mensagem() + "\n" + self.mensagem(arquivo="/abs/docs/briefs/q-y-2.md", sha="b" * 64))
+    def test_dois_blocos_completos_bloqueiam(self):
+        self.recusado_por_dois(self.mensagem() + "\n" + self.mensagem(arquivo="/abs/docs/briefs/q-y-2.md", sha="b" * 64))
+
+    def test_arquivo_repetido_no_texto_do_brief_bloqueia(self):
+        self.recusado_por_dois(self.mensagem(corpo="Arquivo: docs/briefs/outro.md"))
+
+    def test_hash_repetido_no_texto_do_brief_bloqueia(self):
+        self.recusado_por_dois(self.mensagem(corpo="Brief-sha256: " + "e" * 64))
+
+    def test_modo_repetido_no_texto_do_brief_bloqueia(self):
+        self.recusado_por_dois(self.mensagem(corpo="modo: entrega"))
+
+    def test_segunda_arquivo_fora_de_docs_briefs_bloqueia(self):
+        self.recusado_por_dois(self.mensagem(corpo="Arquivo: /abs/outro.md"))
+
+    def test_segundo_hash_mal_formado_bloqueia(self):
+        self.recusado_por_dois(self.mensagem(corpo="Brief-sha256: x"))
+
+    def test_segundo_modo_com_outro_valor_bloqueia(self):
+        self.recusado_por_dois(self.mensagem(corpo="modo: outro"))
+
+    def test_citacao_recuada_ou_entre_crases_de_valor_qualquer_passa(self):
+        self.aceito(self.mensagem(corpo="`Arquivo: /abs/outro.md` e `Brief-sha256: x`\n    modo: outro\n\tArquivo: /abs/b.md"))
+
+    def test_um_bloco_com_citacao_recuada_ou_entre_crases_passa(self):
+        corpo = ("cite `Brief-sha256:` e `Arquivo: docs/briefs/x.md`; Exemplo: `modo: brief`\n"
+                 "    modo: brief\n    Arquivo: docs/briefs/exemplo.md\n    Brief-sha256: " + "f" * 64)
+        self.aceito(self.mensagem(corpo=corpo))
 
     # Leitura limitada ----------------------------------------------------------------------
     def test_fifo_bloqueia_sem_travar(self):

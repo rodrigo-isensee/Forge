@@ -205,6 +205,7 @@ CONFERENTE = "forge:conferente"
 MODO_DA_MENSAGEM = re.compile(r"modo: (brief|entrega)[ \t]*")
 ARQUIVO_DA_MENSAGEM = re.compile(r"^Arquivo:[ \t]*.*docs/briefs/\S.*$", re.M)
 HASH_DA_MENSAGEM = re.compile(r"^Brief-sha256:[ \t]*[0-9a-f]{64}(?![0-9A-Za-z])", re.M)
+LINHA_DE_CABECALHO = re.compile(r"^(modo|Arquivo|Brief-sha256):", re.M)  # B9: qualquer valor conta para "um brief"
 VALOR_DO_HASH = re.compile(r"Brief-sha256:[ \t]*([0-9a-f]{64})(?![0-9A-Za-z])")
 ABRE_BLOCO = "<<<BRIEF"
 LIMITE_DO_BRIEF = 256 * 1024  # limite técnico: o mesmo do `forge-check brief mensagem`
@@ -212,9 +213,16 @@ LIMITE_DO_BRIEF = 256 * 1024  # limite técnico: o mesmo do `forge-check brief m
 
 def mensagem_sem_forma(prompt):
     """R-BRIEF, só a forma: o que falta no cabeçalho da mensagem ao conferente (primeira linha `modo: brief|entrega`, uma linha
-    `Arquivo:` em docs/briefs/ e uma `Brief-sha256:` de 64 hex), ou None. Não lê o arquivo nem recalcula o hash; vários blocos passam."""
+    `Arquivo:` em docs/briefs/ e uma `Brief-sha256:` de 64 hex), ou None. Não lê o arquivo nem recalcula o hash. HASH-BRIEF (B9): no
+    prompt inteiro, mais de uma linha que comece por `modo:`, `Arquivo:` ou `Brief-sha256:`, qualquer que seja o valor, é falta (um
+    brief por mensagem); citação recuada ou entre crases não conta."""
     linhas = str(prompt or "").splitlines()
     faltas = []
+    texto = "\n".join(linhas)
+    achadas = LINHA_DE_CABECALHO.findall(texto)
+    contagens = tuple(achadas.count(chave) for chave in ("modo", "Arquivo", "Brief-sha256"))
+    if any(n > 1 for n in contagens):
+        faltas.append("um brief por mensagem (mais de uma linha `modo:`, `Arquivo:` ou `Brief-sha256:`)")
     if not (linhas and MODO_DA_MENSAGEM.fullmatch(linhas[0])):
         faltas.append("`modo: brief` ou `modo: entrega` na primeira linha")
     if not ARQUIVO_DA_MENSAGEM.search("\n".join(linhas)):

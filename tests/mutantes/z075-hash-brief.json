@@ -1,0 +1,17 @@
+{
+  "pedido": "z075-hash-brief",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M4",
+      "guarda": "B9 C-2: o limite é mais de uma (um bloco passa)",
+      "arquivo": "hooks/agentes.py",
+      "de": "if any(n > 1 for n in contagens):",
+      "para": "if any(n >= 1 for n in contagens):",
+      "testes": [
+        "tests.test_agentes_hash_brief.HashDoBrief.test_um_bloco_com_citacao_recuada_ou_entre_crases_passa",
+        "tests.test_agentes_hash_brief.HashDoBrief.test_hash_do_arquivo_passa_relativo_e_absoluto"
+      ]
+    }
+  ]
+}
