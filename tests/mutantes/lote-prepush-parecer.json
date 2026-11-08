@@ -69,7 +69,7 @@
       "de": "prova é a do início da suíte.\n  arvore_inicio=\"$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)\"\n",
       "para": "prova é a do início da suíte.\n",
       "testes": [
-        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_quem_esperou_a_vez_anota_a_arvore_do_inicio_da_suite"
+        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_quem_esperou_a_vez_e_voltou_ao_enviado_anota_a_arvore_enviada"
       ]
     },
     {

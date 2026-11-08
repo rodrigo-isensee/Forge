@@ -9,7 +9,8 @@
       "de": "[ \"$arvore_fim\" = \"$arvore_inicio\" ] && [ \"$arvore_fim\" = \"$arvore_enviada\" ]",
       "para": "[ \"$arvore_fim\" = \"$arvore_inicio\" ]",
       "testes": [
-        "tests.test_pre_push_trava.PrePushTrava.test_head_trocado_na_espera_nao_anota_a_prova"
+        "tests.test_pre_push_trava.PrePushTrava.test_head_trocado_na_espera_nao_anota_a_prova",
+        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_head_trocado_na_espera_nao_anota_nem_a_arvore_enviada_nem_a_trocada"
       ]
     },
     {
