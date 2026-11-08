@@ -23,7 +23,7 @@ LANCADOR = ("import runpy, sys; sys.path.insert(0, sys.argv[1]); import _comum; 
 TETO = 256 * 1024
 
 
-class HashDoBrief(unittest.TestCase):
+class Apoio(unittest.TestCase):
     def setUp(self):
         self.projeto = Path(tempfile.mkdtemp(prefix="forge-agt2-")).resolve()
         self.addCleanup(shutil.rmtree, self.projeto, True)
@@ -75,6 +75,8 @@ class HashDoBrief(unittest.TestCase):
         r = self.lancar(prompt, **kw)
         self.assertEqual(r.returncode, 0, r.stderr)
 
+
+class HashDoBrief(Apoio):
     # O caminho feliz e o hash ---------------------------------------------------------------
     def test_hash_do_arquivo_passa_relativo_e_absoluto(self):
         self.aceito(self.mensagem())
@@ -201,6 +203,68 @@ class HashDoBrief(unittest.TestCase):
         limite = b"y" * TETO
         self.gravar("docs/briefs/limite.md", limite)
         self.aceito(self.mensagem(arquivo="docs/briefs/limite.md", sha=hashlib.sha256(limite).hexdigest()))
+
+
+class BranchesDaReserva(Apoio):
+    """AG-1a (E10, adendo E1.3): a reserva grava as `Branch:` do cabeçalho dos briefs citados; só registro, sem recusa."""
+
+    def brief(self, nome, branch, corpo="", base=None):
+        return self.gravar(f"docs/briefs/{nome}.md", f"Agente destino: forge:x\nBranch: {branch}   Base: develop\n\n## Objetivo\n{corpo}\n"
+                           .encode(), base=base)
+
+    def reserva(self, prompt, tipo="forge:tech-lead", agentes=()):
+        estado = self.projeto / ".forge" / "run" / "agentes.json"
+        estado.parent.mkdir(parents=True, exist_ok=True)
+        estado.write_text(json.dumps({"agentes": list(agentes)}), encoding="utf-8")
+        r = self.lancar(prompt, tipo=tipo)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r, json.loads(estado.read_text(encoding="utf-8"))["agentes"][-1]["branches"]
+
+    def test_g3_erro_na_leitura_nao_pula_o_teto_e_grava_a_reserva_vazia(self):
+        (self.projeto / ".forge" / "config.json").write_text('{"teto_agentes": 10}', encoding="utf-8")
+        self.brief("b", "melhoria/a")
+        prompt = f"leia docs/briefs/{'n' * 300}.md e docs/briefs/b.md"  # ENAMETOOLONG: o OSError real do os.lstat
+        outros = [{"id": f"a{i}", "tipo": "t", "descricao": f"o{i}", "desde": time.time()} for i in range(10)]
+        estado = self.projeto / ".forge" / "run" / "agentes.json"
+        estado.parent.mkdir(parents=True, exist_ok=True)
+        estado.write_text(json.dumps({"agentes": outros}), encoding="utf-8")
+        r = self.lancar(prompt, tipo="forge:tech-lead")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("R-TETO", r.stderr)
+        self.assertEqual(self.reserva(prompt, agentes=outros[:9])[1], [])
+
+    def test_todos_os_briefs_contam_e_nenhuma_fica_fora(self):
+        self.brief("n", "nenhuma")
+        self.brief("a", "melhoria/a")
+        self.assertEqual(self.reserva("docs/briefs/n.md e depois docs/briefs/a.md")[1], ["melhoria/a"])
+
+    def test_caminho_com_til_e_lido(self):
+        self.brief("t", "melhoria/t", base=self.home / ".forge-contrib")
+        self.assertEqual(self.reserva("Arquivo: ~/.forge-contrib/docs/briefs/t.md")[1], ["melhoria/t"])
+
+    def test_branch_so_no_corpo_nao_conta(self):
+        self.brief("c", "nenhuma", corpo="Branch: melhoria/corpo")
+        self.assertEqual(self.reserva("docs/briefs/c.md")[1], [])
+
+    def test_cinco_briefs_avisam_e_gravam_vazio(self):
+        for i in range(5):
+            self.brief(f"b{i}", f"melhoria/b{i}")
+        r, branches = self.reserva(" ".join(f"docs/briefs/b{i}.md" for i in range(5)))
+        self.assertEqual(branches, [])
+        self.assertIn("aviso", r.stderr)
+        self.assertEqual(self.reserva(" ".join(f"docs/briefs/b{i}.md" for i in range(4)))[1], [f"melhoria/b{i}" for i in range(4)])
+
+    def test_brief_ausente_ou_fora_de_docs_briefs_e_pulado_sem_perder_os_outros(self):
+        self.brief("a", "melhoria/a")
+        self.gravar("docs/fora/docs-briefs.md", b"Branch: melhoria/fora\n")
+        prompt = "docs/briefs/sumiu.md docs/briefs/../fora/docs-briefs.md docs/briefs/a.md"
+        self.assertEqual(self.reserva(prompt)[1], ["melhoria/a"])
+
+    def test_conferente_e_prompt_sem_brief_gravam_vazio(self):
+        self.brief("p-x-1", "melhoria/a")
+        self.conteudo = self.arquivo.read_bytes()
+        self.assertEqual(self.reserva(self.mensagem(), tipo="forge:conferente")[1], [])
+        self.assertEqual(self.reserva("sem brief nenhum")[1], [])
 
 
 if __name__ == "__main__":
