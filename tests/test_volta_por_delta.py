@@ -1160,6 +1160,34 @@ class SondaNoCorpus(BriefDeVolta):
         self.assertNotIn("fora do corpus", saida)
 
 
+
+class ModelosNoFormato(unittest.TestCase):
+    """MODELO-PARECER (Z7, B11): todo modelo de parecer nasce com o bloco `## Achados` que o `forge-check pr` lê no estrito, e
+    com a frase da evidência; um modelo com prosa (as ferramentas, por exemplo) dentro do bloco reprova aqui."""
+    MODELOS = tuple(f"templates/projeto/docs/{p}/_modelo.md" for p in ("reviews", "security", "qa", "devops")) + (
+        "docs/security/_modelo.md", "docs/devops/_modelo.md")
+    EVIDENCIA = "a evidência não muda para caber (`reproduzido` não vira `visto`)"
+
+    def test_cada_modelo_passa_no_bloco_estrito(self):
+        modulo = carregar_forge_check()
+        self.assertEqual(len(self.MODELOS), 6)
+        for rel in self.MODELOS:
+            texto = (RAIZ / rel).read_text(encoding="utf-8")
+            achados, erros, tem = modulo.achados_do_parecer(texto)
+            self.assertTrue(tem, f"{rel}: sem o bloco ## Achados")
+            self.assertEqual(erros, [], rel)
+            self.assertEqual(modulo.problemas_do_bloco(achados, erros, tem, {"parecer": "aprovado"}, True), [], rel)
+
+    def test_prosa_dentro_do_bloco_reprova(self):
+        modulo = carregar_forge_check()
+        achados, erros, tem = modulo.achados_do_parecer("# P\n## Achados\nFerramentas: as do ambiente.\n")
+        self.assertTrue(erros)
+        self.assertTrue(modulo.problemas_do_bloco(achados, erros, tem, {"parecer": "aprovado"}, True))
+
+    def test_os_quatro_modelos_do_projeto_trazem_a_frase_da_evidencia(self):
+        for rel in self.MODELOS[:4]:
+            self.assertIn(self.EVIDENCIA, (RAIZ / rel).read_text(encoding="utf-8"), rel)
+
 for _nome in dir(BriefDeVolta):  # só os testes desta classe; os herdados já rodam em BriefDeVolta
     if _nome.startswith("test_") and _nome not in SondaNoCorpus.__dict__:
         setattr(SondaNoCorpus, _nome, None)
