@@ -497,7 +497,7 @@ class ConferirRefSaida(unittest.TestCase):
         for argv in (["--conferir-ref", sha], [f"--conferir-ref={sha}"]):
             for efeito in (RuntimeError("x"), SystemExit(2)):
                 e = self.saida(argv, efeito)
-                self.assertEqual((type(e), e.code), (SystemExit, 1), (argv, efeito))
+                self.assertEqual((type(e), getattr(e, "code", None)), (SystemExit, 1), (argv, efeito))
         self.assertIsInstance(self.saida(["--dry-run"], RuntimeError("x")), RuntimeError)
         self.assertEqual(self.saida(["--dry-run"], SystemExit(3)).code, 3)
 
