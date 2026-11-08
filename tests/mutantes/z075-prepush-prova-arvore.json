@@ -1,0 +1,26 @@
+{
+  "pedido": "z075-prepush-prova-arvore",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "PP-4/C-1: com uma ref, a prova só anota a árvore do commit enviado (mutante do desenho: comparar só arvore_inicio = arvore_fim, como antes)",
+      "arquivo": ".githooks/pre-push",
+      "de": "[ \"$arvore_fim\" = \"$arvore_inicio\" ] && [ \"$arvore_fim\" = \"$arvore_enviada\" ]",
+      "para": "[ \"$arvore_fim\" = \"$arvore_inicio\" ]",
+      "testes": [
+        "tests.test_pre_push_trava.PrePushTrava.test_head_trocado_na_espera_nao_anota_a_prova"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "PP-4/C-1: com mais de uma ref, a regra de antes continua",
+      "arquivo": ".githooks/pre-push",
+      "de": "if [ \"$n_refs\" -eq 1 ]; then arvore_enviada=",
+      "para": "if true; then arvore_enviada=",
+      "testes": [
+        "tests.test_pre_push_trava.PrePushTrava.test_mais_de_uma_ref_segue_a_regra_de_antes"
+      ]
+    }
+  ]
+}

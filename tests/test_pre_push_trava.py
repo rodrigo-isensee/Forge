@@ -788,6 +788,41 @@ class PrePushTrava(unittest.TestCase):
         self.assertRegex(erro, rf"(?m)^pre-push: fim {self.HORA} rc \d+ curta \d+s$")
         self.assertFalse(self.duracoes().exists(), "o envio curto gravou duração")
 
+    # PREPUSH-PROVA-ARVORE (versao-075, PP-4a, PP-4/C-1): com uma ref, a prova só anota a árvore do commit enviado.
+    def commit_limpo(self, nome):
+        (self.repo / ".gitignore").write_text("rodou\n__pycache__/\n")
+        (self.repo / nome).write_text(nome + "\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", nome)
+        return self.git("rev-parse", "HEAD")
+
+    def test_head_trocado_na_espera_nao_anota_a_prova(self):
+        self.suite(SUITE_RAPIDA)
+        enviado = self.commit_limpo("codigo")
+        dono = self.segura_trava()
+        p = self.hook("origin", "u", entrada=self.refs("melhoria/x", local=enviado))
+        self.filhos.append(p)
+        self.assertTrue(self.espera_ate(lambda: len(self.vezes()) == 1), "o hook não entrou na fila")
+        self.commit_limpo("senha-a-frente")  # quem estava à frente fez commit nesta worktree durante a espera
+        dono.kill()
+        dono.wait()
+        self.assertEqual(p.wait(timeout=60), 0)
+        self.assertTrue((self.repo / "rodou").exists(), "a suíte não rodou")
+        verde = self.trava.with_suffix(".verde")
+        self.assertFalse(verde.exists() and verde.read_text().strip(), "anotou a árvore de um commit que não foi enviado")
+        codigo, _, erro = self.roda("origin", "u", entrada=self.refs("melhoria/x", local=self.git("rev-parse", "HEAD")))
+        self.assertEqual(codigo, 0, erro)
+        self.assertEqual(verde.read_text().split(), [self.git("rev-parse", "HEAD^{tree}")], "o envio do checkout não anotou")
+
+    def test_mais_de_uma_ref_segue_a_regra_de_antes(self):
+        self.suite(SUITE_RAPIDA)
+        antigo = self.commit_limpo("antigo")
+        atual = self.commit_limpo("atual")
+        entrada = self.refs("melhoria/a", local=atual) + self.refs("melhoria/b", local=antigo)
+        codigo, _, erro = self.roda("origin", "u", entrada=entrada)
+        self.assertEqual(codigo, 0, erro)
+        self.assertEqual(self.trava.with_suffix(".verde").read_text().split(), [self.git("rev-parse", "HEAD^{tree}")])
+
 
 class TodoTesteDoHookUsaHomeTemporario(unittest.TestCase):
     def test_todo_modulo_que_executa_o_hook_define_home(self):  # C-13, T-C4f
