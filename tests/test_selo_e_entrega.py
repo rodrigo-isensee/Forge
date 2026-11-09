@@ -385,6 +385,16 @@ class Hook(Repositorio):
         r = self.lancar("faça X", tipo="conferente")  # o conferente sem o prefixo não vira especialista
         self.assertNotIn("não cita o brief", r.stderr)
 
+    def test_brief_de_um_papel_nao_dispara_outro(self):  # M3 do review de segurança da 0.43.1
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        prompt = "Leia docs/briefs/exemplo-node-backend-1.md e execute."
+        self.assertEqual(self.lancar(prompt, tipo="node-backend").returncode, 0)
+        for tipo in ("forge:devops-engineer", "tech-lead"):
+            r = self.lancar(prompt, tipo=tipo)
+            self.assertEqual(r.returncode, 2, f"{tipo}: {r.stderr}")
+            self.assertIn("o brief é para `node-backend`", r.stderr)
+
     def test_selo_forjado_com_outro_hash_nao_vale(self):
         self.brief()
         self.gravar("docs/pedidos/exemplo.md", self.pedido() + f"- 2026-01-02 10:00: brief selado docs/briefs/exemplo-node-backend-1.md {'d' * 64}\n")

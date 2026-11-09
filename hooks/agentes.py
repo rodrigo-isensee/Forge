@@ -424,7 +424,19 @@ def exige_selo(tipo, prompt=""):
     return tipo in EXECUTORES_GENERICOS and next(caminhos_de_brief(str(prompt or "")), None) is not None
 
 
-def selo_ausente(hook, prompt):
+def destino_diferente(fc, tipo, dados):
+    """M3 (review de segurança da 0.43.1, 0.43.2): o motivo, se o `Agente destino:` do brief não é o papel disparado; None se é. O
+    executor genérico (`EXECUTORES_GENERICOS`) faz o trabalho de qualquer papel e não tem o que comparar."""
+    if tipo is None or tipo in EXECUTORES_GENERICOS:
+        return None
+    texto = dados.decode("utf-8", errors="replace")
+    destino = fc.nome_do_papel(fc.grupo(r"^\s*Agente destino:\s*(\S+)", fc.cabecalho_do_brief(texto)))
+    if destino != tipo.removeprefix("forge:").lower():
+        return f"o brief é para `{sem_controle(str(destino))[:CORTE_DO_NOME]}`, não para `{sem_controle(tipo)[:CORTE_DO_NOME]}`"
+    return None
+
+
+def selo_ausente(hook, prompt, tipo=None):
     """P1 (0.43.1, R-BRIEF): por que o disparo de especialista não pode sair, ou None. O prompt cita ao menos um brief em docs/briefs/
     (até MAXIMO_DE_BRIEFS); cada um citado precisa de selo com o sha256 de agora no `## Histórico` do pedido dele (`selo_do_brief`
     do forge-check, a mesma função que o `brief selar` usa para gravar). Linha `Brief-sha256:` no prompt, se houver, precisa ser o hash
@@ -444,7 +456,7 @@ def selo_ausente(hook, prompt):
             dados = None
         if dados is None:
             return f"{caminho}: o brief não abriu, não está em docs/briefs/ ou passa de 256 KiB"
-        motivo = fc.selo_do_brief(os.path.realpath(hook.cwd() / real), dados)
+        motivo = fc.selo_do_brief(os.path.realpath(hook.cwd() / real), dados) or destino_diferente(fc, tipo, dados)
         if motivo:
             return motivo
         hashes.add(hashlib.sha256(dados).hexdigest())
@@ -466,7 +478,7 @@ def lancar(hook, agentes, agora):
         bloquear("R-BRIEF", f"{divergencia}; gere de novo com `forge-check brief mensagem` e envie-a.")
     if exige_selo(tipo, entrada.get("prompt")):
         try:
-            sem_selo = selo_ausente(hook, entrada.get("prompt"))
+            sem_selo = selo_ausente(hook, entrada.get("prompt"), tipo)
         except Exception as erro:  # noqa: BLE001 - falha fechada: sem prova do selo, o especialista não sai
             hook.registrar_erro(erro)
             sem_selo = "erro ao conferir o selo (registrado no erros.log)"

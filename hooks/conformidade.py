@@ -45,6 +45,9 @@ TETO_DE_CARACTERES = 150_000  # a conferência de 290 mil caracteres levava 4,2 
 PRAZO_DA_LINHA_S = 3.0
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+# M1 (review de segurança da 0.43.1): as linhas que o `forge-check` grava no `## Histórico` do pedido e que os portões leem como
+# prova (`brief selar`, `entrega --pedido`). Write/Edit/MultiEdit que acrescente uma delas no pedido é recusado, de qualquer papel.
+LINHA_DE_PORTAO = re.compile(r"(?m)^-\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}: (?:brief selado docs/briefs/\S+ [0-9a-f]{64}|entrega conferida [0-9a-f]{40})")
 CRITICO = re.compile(
     r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
     r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|docs/devops|docs/security|CLAUDE\.md|\.git/|commondir|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
@@ -480,6 +483,28 @@ def opcao_de_merge_que_muda_o_resultado(args):
     return None
 
 
+def contar_linhas_de_portao(texto):
+    return len(LINHA_DE_PORTAO.findall(texto)) if isinstance(texto, str) else 0
+
+
+def acrescenta_linha_de_portao(caminho, entrada, pasta):
+    """M1: True se o Write/Edit/MultiEdit em `docs/pedidos/*.md` deixa mais linhas de `LINHA_DE_PORTAO` do que havia (no Write,
+    contra o arquivo de hoje; no Edit e no MultiEdit, `new_string` contra `old_string`). Arquivo ilegível conta zero (falha fechada)."""
+    alvo = os.path.normpath(os.path.join(str(pasta), os.path.expanduser(caminho)))
+    if not re.search(r"(^|/)docs/pedidos/[^/]+\.md$", alvo):
+        return False
+    if "content" in entrada:
+        try:
+            antes = Path(alvo).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            antes = ""
+        return contar_linhas_de_portao(entrada.get("content")) > contar_linhas_de_portao(antes)
+    edicoes = entrada.get("edits") if isinstance(entrada.get("edits"), list) else [entrada]
+    edicoes = [edicao for edicao in edicoes if isinstance(edicao, dict)]
+    return sum(contar_linhas_de_portao(e.get("new_string")) for e in edicoes) > \
+        sum(contar_linhas_de_portao(e.get("old_string")) for e in edicoes)
+
+
 class Guarda:
     def __init__(self, hook, politica, papel):
         self.h, self.pol, self.papel = hook, politica, papel
@@ -764,6 +789,9 @@ class Guarda:
         caminho = entrada.get("file_path") or entrada.get("notebook_path")
         if isinstance(caminho, str) and caminho:
             self.checar_escrita(caminho, self.h.cwd())
+            if acrescenta_linha_de_portao(caminho, entrada, self.h.cwd()):
+                self.barrar("R-CONFORMIDADE", "linha `brief selado` ou `entrega conferida` escrita à mão no pedido",
+                            "quem grava é a ferramenta: `forge-check brief selar` e `forge-check entrega --pedido`")
 
     # Bash ----------------------------------------------------------------------------------------
     def bash(self, comando, pasta, nivel=0, so_substituicoes=False, corpo_de_heredoc=False):

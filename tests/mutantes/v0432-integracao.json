@@ -1,0 +1,103 @@
+{
+  "pedido": "v0432",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o Write que acrescenta linha de portao no pedido e recusado (com >= o Write que so mantem passaria a recusar)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return contar_linhas_de_portao(entrada.get(\"content\")) > contar_linhas_de_portao(antes)",
+      "para": "        return contar_linhas_de_portao(entrada.get(\"content\")) >= contar_linhas_de_portao(antes)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "so o pedido em docs/pedidos/ passa pela conferencia (sem o filtro, nada sai do caminho)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not re.search(r\"(^|/)docs/pedidos/[^/]+\\.md$\", alvo):\n        return False",
+      "para": "    if True:\n        return False",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o Edit e o MultiEdit contam new_string contra old_string",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return sum(contar_linhas_de_portao(e.get(\"new_string\")) for e in edicoes) > \\",
+      "para": "    return sum(contar_linhas_de_portao(e.get(\"new_string\")) for e in edicoes) < \\",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o Write distingue-se do Edit pelo content",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if \"content\" in entrada:",
+      "para": "    if \"content\" not in entrada:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a recusa do hook quando acrescenta linha de portao",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if acrescenta_linha_de_portao(caminho, entrada, self.h.cwd()):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o brief de um papel nao dispara outro papel",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if destino != tipo.removeprefix(\"forge:\").lower():",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_selo_e_entrega.Hook.test_brief_de_um_papel_nao_dispara_outro"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "o executor generico nao compara destino (com a comparacao, o general-purpose com brief selado seria recusado)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if tipo is None or tipo in EXECUTORES_GENERICOS:",
+      "para": "    if tipo is None:",
+      "testes": [
+        "tests.test_selo_e_entrega.Hook.test_executor_generico_com_brief_pede_selo"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o motivo do destino entra junto do selo",
+      "arquivo": "hooks/agentes.py",
+      "de": "        motivo = fc.selo_do_brief(os.path.realpath(hook.cwd() / real), dados) or destino_diferente(fc, tipo, dados)",
+      "para": "        motivo = fc.selo_do_brief(os.path.realpath(hook.cwd() / real), dados)",
+      "testes": [
+        "tests.test_selo_e_entrega.Hook.test_brief_de_um_papel_nao_dispara_outro"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "isinstance(texto, str)",
+      "motivo": "defensivo: o Claude Code manda texto; outro tipo conta zero"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "isinstance(entrada.get(\"edits\"), list)",
+      "motivo": "o Edit simples vira lista de uma edição; o MultiEdit traz a lista"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "isinstance(edicao, dict)",
+      "motivo": "defensivo: a entrada do MultiEdit fora do formato conta zero"
+    }
+  ]
+}
