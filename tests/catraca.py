@@ -701,7 +701,7 @@ def guardas_do_diff(raiz, b, h, mudados):
         fc = forge_check()
     except (OSError, SyntaxError, ImportError) as e:
         return [], [msg_guarda(f"não consegui carregar bin/forge-check para achar o código de controle do diff ({type(e).__name__})")]
-    listas = argparse.Namespace(PROTEGIDOS=PROTEGIDOS, SENSIVEIS=SENSIVEIS)
+    listas = argparse.Namespace(PROTEGIDOS=PROTEGIDOS, SENSIVEIS=SENSIVEIS, FORMA_COMPILADA=FORMA_COMPILADA)
     return [a for a in mudados if fc.motivo_de_controle(a, listas) and not fc.TESTE.search(a)
             and e_python(raiz, b, h, a)], []
 

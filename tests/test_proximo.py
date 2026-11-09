@@ -85,6 +85,23 @@ class Proximo(unittest.TestCase):
         self.assertIn(f"proximo: último veredito review=aprovado · docs/reviews/p1.md · commit {head[:7]}", linhas)
         self.assertIn("proximo: passo: E1.2 (forge:tech-lead) · review", linhas)
 
+    def test_entrega_conferida_do_brief_selado_entrega_a_etapa_do_cobre(self):  # A4 do review de correção da 0.43.1
+        brief = "Agente destino: forge:dev-exemplo\nPedido: p1\nBranch: melhoria/p1   Base: develop\nEtapa: codigo   Cobre: E1.1\n\n## Objetivo\nx\n"
+        self.gravar("docs/briefs/p1-dev-exemplo-1.md", brief)
+        self.git("switch", "-q", "-c", "melhoria/p1")
+        head = self.commitar("entrega")
+        selo = f" 2026-10-19 11:00: brief selado docs/briefs/p1-dev-exemplo-1.md {'a' * 64}"
+        self.pedido(" 2026-10-19 10:00: aberto", selo)
+        self.assertIn("proximo: etapa E1.1 (forge:dev-exemplo) · não verificável · implementar o recurso", self.proximo()[1])
+        self.pedido(" 2026-10-19 10:00: aberto", selo, f" 2026-10-19 12:00: entrega conferida {head}")
+        linhas = self.proximo()[1]
+        self.assertIn("proximo: etapa E1.1 (forge:dev-exemplo) · entregue · implementar o recurso", linhas)
+        self.assertIn("proximo: passo: E1.2 (forge:tech-lead) · review", linhas)
+        self.pedido(" 2026-10-19 10:00: aberto", f" 2026-10-19 12:00: entrega conferida {head}", selo)  # a conferência antes do selo
+        self.assertIn("proximo: etapa E1.1 (forge:dev-exemplo) · não verificável · implementar o recurso", self.proximo()[1])
+        self.pedido(" 2026-10-19 10:00: aberto", selo, f" 2026-10-19 12:00: entrega conferida {'b' * 40}")  # sha que não existe
+        self.assertIn("proximo: etapa E1.1 (forge:dev-exemplo) · não verificável · implementar o recurso", self.proximo()[1])
+
     def test_parecer_reprovado_manda_voltar_ao_autor_e_fora_do_commit_nao_vale(self):
         self.git("switch", "-q", "-c", "melhoria/p1")
         head = self.commitar("entrega")

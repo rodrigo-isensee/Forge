@@ -638,6 +638,11 @@ def problemas_do_dominio_mais(campos):
     return saida
 
 
+def e_teste_de_controle(nome):
+    """M4 (0.43.2): uma lista só para o domínio, o QA e a classe: TESTES_DE_CONTROLE mais o TESTE_DE_CONTROLE da classe C."""
+    return livre(nome, TESTES_DE_CONTROLE) or bool(TESTE_DE_CONTROLE.match(nome))
+
+
 def no_dominio(tipo, nome, invariantes=frozenset(), mais=()):
     """True se `nome` está no domínio do parecer `tipo` (PARECER-CONTEUDO, DOMINIO_DO_PARECER). Tipo desconhecido: tudo."""
     if livre(nome, mais) or tipo not in ("revisao-seguranca", "revisao-devops"):
@@ -645,6 +650,8 @@ def no_dominio(tipo, nome, invariantes=frozenset(), mais=()):
     if tipo == "revisao-devops":
         return bool(PIPELINE_E_INFRA.match(nome) or DEVOPS_EXTRA.search(nome) or TRAVAS_DE_DEPENDENCIA.search(nome))
     if livre(nome, SEGURANCA_SEMPRE) or any(r.search(nome) for r in (PIPELINE_E_INFRA, TRAVAS_DE_DEPENDENCIA, SEGREDOS_E_CONFIG, MIGRACOES)):
+        return True
+    if e_teste_de_controle(nome):  # M4 (0.43.2): o teste de controle da classe C nunca sai do domínio da segurança
         return True
     if TESTES.search(nome):  # teste (mesmo com invariante): a catraca guarda contagem e asserções; o QA e o review o cobrem
         return False
@@ -693,7 +700,7 @@ def testes_do_qa(raiz, pedido, branch, ate, desde):
         if nomes is None:
             return None, set()
         nomes = [n for n in nomes if not livre(n, LIVRES)]
-        so_teste = nomes and all(TESTES.search(n) and not livre(n, TESTES_DE_CONTROLE) for n in nomes)
+        so_teste = nomes and all(TESTES.search(n) and not e_teste_de_controle(n) for n in nomes)
         (puros if so_teste else mistos).update(nomes)
     return q, {n for n in puros - mistos if blob_de(raiz, ate, n) == blob_de(raiz, q, n)}
 
@@ -847,6 +854,9 @@ def isencoes_da_entrega(raiz, ref=None, base=None):
 LINHAS_DO_TRIVIAL = 20
 # EXT-B1: configuração do Claude Code do projeto (settings, hooks, agentes), o .mcp.json e os testes que testam controles (nome conservador).
 CONFIG_DO_CLAUDE = re.compile(r"(^|/)(\.claude/|\.mcp\.json$)")
+# M5 e L1 (0.43.2): o manifesto e os agentes dos plugins, os pesados das stacks, os apoios dos testes (o que os testes de controle
+# importam ou o CI roda) e a forma compilada (o que o interpretador carrega no lugar do fonte) também são controle.
+PLUGIN_E_APOIOS = re.compile(r"^(\.claude-plugin/|dev/|stacks/[^/]+/pesados\.json$|tests/(apoio_|modelo_)[^/]*\.py$|tests/[^/]+\.sh$)")
 TESTE_DE_CONTROLE = re.compile(r"^tests/(hooks/|catraca|neutralidade|test_(hooks|catraca|oraculo_|forge_check|conformidade|pre_?push|fechar|guarda|"
                                r"agentes|parecer|isencoes|classe_risco|invariante))")
 TESTE = re.compile(r"(^|/)(tests?|__tests__|spec)/|(^|/)(test_[^/]+|[^/]+_test\.[^/.]+|[^/]+\.(test|spec)\.[^/]+)$")
@@ -873,6 +883,8 @@ def motivo_de_controle(nome, catraca):
                          ("regra, agente, skill ou configuração do projeto", MD_DE_CONTROLE.match),
                          ("pipeline, contêiner ou infraestrutura", PIPELINE_E_INFRA.match),
                          ("configuração do Claude Code ou MCP", CONFIG_DO_CLAUDE.search),
+                         ("plugin, pesados da stack ou apoio dos testes", PLUGIN_E_APOIOS.match),
+                         ("forma compilada", lambda n: catraca.FORMA_COMPILADA.search(n)),
                          ("teste de controle", TESTE_DE_CONTROLE.match)):
         if casa(nome):
             return motivo
@@ -6946,12 +6958,34 @@ def texto_da_etapa(texto):
 VERBO_DE_INICIO = re.compile(r"\b(?:delegad[ao]s?|iniciad[ao]s?|despachad[ao]s?|come[çc]ou|em curso|em andamento)\b", re.I)  # menção solta não inicia a etapa (L17, A7)
 
 
-def etapas_do_proximo(pedido_txt, historico):
-    """[(id, papel, texto, estado)] das etapas do pedido; o estado vem só do `## Histórico` (`entregue`; `em curso` só com verbo de início na linha; senão `não verificável`)."""
+def etapas_conferidas(raiz, caminho, historico):
+    """A4 (0.43.2): as etapas do `Cobre:` de cada brief selado que uma linha `entrega conferida <sha40>` posterior do `## Histórico`
+    cobre: o commit existe e está na `Branch:` do brief (o head local ou do origin). Brief ilegível ou sem `Cobre:` não conta."""
+    pendentes, conferidas, raiz_pedido = [], set(), raiz_do_pedido(raiz, caminho)
+    for linha in historico:
+        if (m := BRIEF_SELADO.match(linha)):
+            try:
+                cabecalho = cabecalho_do_brief((raiz_pedido / m.group(1)).read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError):
+                continue
+            cobre, branch = grupo(r"\bCobre:\s*(\S+)", cabecalho), grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho)
+            if cobre and branch:
+                pendentes.append((cobre, branch))
+        elif (m := ENTREGA_CONFERIDA.match(linha)) and sha_do_commit(raiz, m.group(1)) == m.group(1):
+            for cobre, branch in pendentes:
+                head = sha_do_commit(raiz, f"refs/heads/{branch}") or sha_do_commit(raiz, f"refs/remotes/origin/{branch}")
+                if head and e_ancestral(raiz, m.group(1), head):
+                    conferidas.add(cobre)
+    return conferidas
+
+
+def etapas_do_proximo(pedido_txt, historico, conferidas=frozenset()):
+    """[(id, papel, texto, estado)] das etapas do pedido; o estado vem só do `## Histórico` (`entregue`, pela linha que cita a etapa ou
+    pela `entrega conferida` do brief selado que a cobre, A4; `em curso` só com verbo de início na linha; senão `não verificável`)."""
     saida = []
     for etapa, (papel, texto) in ler_pedido_brief(pedido_txt)["etapas"].items():
         citam = [l for l in historico if re.search(rf"(?<![\w.]){re.escape(etapa)}(?![\w.])", l)]
-        estado = "entregue" if any("entregue" in l.casefold() for l in citam) \
+        estado = "entregue" if etapa in conferidas or any("entregue" in l.casefold() for l in citam) \
             else "em curso" if any(VERBO_DE_INICIO.search(l) for l in citam) else NAO_VERIFICAVEL
         saida.append((etapa, papel, texto, estado))
     return saida
@@ -7003,7 +7037,7 @@ def cmd_proximo(raiz, pedido):
     pedido_id = (re.search(r"^id:\s*(\S+)", pedido_txt, re.M) or [None, caminho.stem])[1]
     historico = [l for l in secoes_por(pedido_txt, CABECALHO_PEDIDO).get("Histórico", []) if l.strip()]
     linhas = [f"proximo: pedido {caminho_impresso(pedido_id)}"]
-    etapas = etapas_do_proximo(pedido_txt, historico)
+    etapas = etapas_do_proximo(pedido_txt, historico, etapas_conferidas(raiz, caminho, historico))
     linhas += [f"proximo: etapa {e} ({papel}) · {estado} · {texto_da_etapa(texto)}" for e, papel, texto, estado in etapas] \
         or [f"proximo: etapas: {NAO_VERIFICAVEL} (o pedido não tem `## Etapas`)"]
     branch, head = branch_do_proximo(raiz, pedido_id)

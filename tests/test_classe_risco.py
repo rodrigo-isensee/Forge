@@ -42,6 +42,22 @@ class ClasseDasMudancas(unittest.TestCase):
         self.assertEqual(classe([M("tests/test_app.py")]), "T")  # teste comum segue T
         self.assertEqual(classe([M("docs/mcp.json.md")]), "T")
 
+    def test_plugin_pesados_apoios_e_forma_compilada_sao_c(self):  # M5 e L1 do review de segurança da 0.43.1
+        for nome in (".claude-plugin/plugin.json", "dev/agents/aq.md", "dev/.claude-plugin/plugin.json", "stacks/node-react/pesados.json",
+                     "tests/apoio_forge_check_rapido.py", "tests/modelo_git.py", "tests/e2e-instalacao.sh",
+                     "tests/__pycache__/test_a.cpython-312.pyc", "src/x.pyc"):
+            with self.subTest(nome=nome):
+                self.assertEqual(classe([M(nome)]), "C")
+        self.assertEqual(classe([M("tests/fixtures/apoio_x.json")]), "T")
+
+    def test_teste_de_controle_fica_no_dominio_da_seguranca_e_nao_e_do_qa(self):  # M4: uma lista só para as duas regras
+        for nome in ("tests/test_conformidade.py", "tests/test_hooks.py", "tests/catraca.py"):
+            with self.subTest(nome=nome):
+                self.assertTrue(fc.no_dominio("revisao-seguranca", nome))
+                self.assertTrue(fc.e_teste_de_controle(nome))
+        self.assertFalse(fc.no_dominio("revisao-seguranca", "tests/test_app.py"))
+        self.assertFalse(fc.e_teste_de_controle("tests/test_app.py"))
+
     def test_protegido_vem_da_lista_da_catraca(self):  # reaproveita PROTEGIDOS, sem cópia
         for nome in CATRACA.PROTEGIDOS:
             with self.subTest(nome=nome):

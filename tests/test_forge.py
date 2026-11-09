@@ -1273,6 +1273,19 @@ class PrepararEstacao(unittest.TestCase):
             self.assertFalse((mk / "forge-dev").is_symlink())
             self.assertNotIn("falta:", r.stdout)
 
+    def test_container_nao_copia_link_que_sai_de_dev(self):  # L3 do review de segurança da 0.43.1: era `cp -rL`
+        with tempfile.TemporaryDirectory() as tmp:
+            segredo = Path(tmp) / "segredo.txt"
+            segredo.write_text("token")
+            dev = Path(tmp) / "home/.local/share/forge/vigente/dev"
+            dev.mkdir(parents=True)
+            (dev / "vaza").symlink_to(segredo)
+            r, home, _, _ = self._container(tmp, logado=True)
+            mk = home / ".local/share/forge/dev-marketplace"
+            self.assertIn("dev-marketplace: link que sai de vigente/dev (vaza); nada copiado", r.stdout + r.stderr)
+            self.assertFalse((mk / "forge-dev").exists())
+            self.assertNotIn("token", "".join(p.read_text() for p in mk.rglob("*") if p.is_file() and not p.is_symlink()))
+
     def test_container_simular_nao_altera_nada(self):
         with tempfile.TemporaryDirectory() as tmp:
             r, home, persist, chamadas = self._container(tmp, "--simular")
@@ -3675,7 +3688,9 @@ class ConferirBrief(unittest.TestCase):
         rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
         self.assertIn("aviso: PQ-2 `grep -c` sem arquivo", saida)
         self.assertEqual(rc, 0, saida)
-        curto = git("rev-parse", "--short=7", "HEAD", cwd=RAIZ).stdout.strip()
+        # o primeiro commit da história com letra e dígito nos 7 hex: o sha curto do HEAD só com dígitos não casa o SHA_ABREVIADO
+        curto = next(c[:7] for c in git("rev-list", "-n", "200", "HEAD", cwd=RAIZ).stdout.split()
+                     if re.search(r"\d", c[:7]) and re.search(r"[a-f]", c[:7]))
         arq = self.variante("etapa-outro-papel.md", ("`git log -1 --format=%h` da branch", "`git rev-parse HEAD` igual a " + curto))
         rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
         self.assertIn(f"aviso: PQ-1 sha abreviado ({curto[:12]})", saida)
