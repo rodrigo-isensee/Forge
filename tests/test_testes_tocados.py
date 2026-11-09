@@ -995,6 +995,25 @@ class Vermelho(unittest.TestCase):
         self.assertIn("(restrito por --modulos)", linha)
         self.assertNotIn("o mapa não sabe", r.stdout)
 
+    def test_vermelho_aceita_o_modulo_pelo_nome_com_o_pacote(self):  # FORGE-TESTES-MODULOS-NOME
+        """`tests.test_outro` (a forma do `unittest`) dá o mesmo plano que `test_outro`; outra grafia segue rc 2, sem cópia."""
+        self.com_modulos_do_mapa()
+        self.gravar("lib.py", "def dobro(x):\n    return x\n# mudou\n")
+        self.salvar("muda")
+        curto = self.modulos_do_vermelho(self.rodar("--vermelho", "HEAD~1", "--modulos", "test_outro"))
+        r = self.rodar("--vermelho", "HEAD~1", "--modulos", "tests.test_outro,test_lib")
+        self.assertIn("vermelho: base=", r.stdout, r.stderr)
+        self.assertEqual(self.modulos_do_vermelho(r)[0], ["test_outro", "test_lib"], r.stdout + r.stderr)
+        r = self.rodar("--vermelho", "HEAD~1", "--modulos", "tests.test_outro")
+        self.assertEqual(self.modulos_do_vermelho(r), curto, r.stdout + r.stderr)
+        for grafia in ("tests.tests.test_outro", "tests/test_outro.py", "tests.", "test_a,,test_b", "tests.test_a;b",
+                       "Tests.test_outro", "tests.test_outro.py", "xtests.test_outro"):
+            with self.subTest(grafia):
+                r = self.rodar("--vermelho", "HEAD~1", "--modulos", grafia)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("test_<nome> ou tests.test_<nome>", r.stderr)
+                self.assertEqual(list(self.tmp.iterdir()), [])
+
     def test_vermelho_com_modulo_de_teste_apagado_no_diff_nao_o_roda(self):
         self.com_modulos_do_mapa()
         (self.dir / "tests" / "test_outro.py").unlink()

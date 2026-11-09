@@ -2,7 +2,7 @@
 """Forge: teste dirigido durante a iteração do autor (TA-3). Só biblioteca padrão.
 
 Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO ...] [CAMINHO ...]
-     forge-testes --vermelho [BASE] [--modulos M[,M...]] [--prazo SEGUNDOS]
+     forge-testes --vermelho [BASE] [--modulos M[,M...]] [--prazo SEGUNDOS]   (M: test_<nome> ou tests.test_<nome>)
   (sem opção)   lê o que mudou desde o ancestral comum com REF (padrão origin/develop), mais os arquivos
                 não commitados e os novos, e roda só os módulos de teste que cobrem esses caminhos
   CAMINHO       planeja só para estes caminhos (relativos ao diretório atual ou absolutos, dentro do repositório) e
@@ -748,9 +748,11 @@ def main(argv=None):
         p.error(f"--prazo vai de 1 a {PRAZO_MAXIMO} segundos")
     modulos_pedidos = None
     if args.modulos is not None:
-        modulos_pedidos = args.modulos.split(",")
+        # FORGE-TESTES-MODULOS-NOME: o nome com o pacote (`tests.test_x`, a forma do `unittest`) vale como `test_x`; um
+        # corte só, no começo, e a validação depois dele (`tests.tests.test_x` e `tests/test_x.py` seguem recusados).
+        modulos_pedidos = [m.removeprefix("tests.") for m in args.modulos.split(",")]
         if not all(NOME_DE_MODULO.fullmatch(m) for m in modulos_pedidos):
-            p.error("--modulos: nomes de módulo de teste (test_<nome>) separados por vírgula")
+            p.error("--modulos: nomes de módulo de teste (test_<nome> ou tests.test_<nome>) separados por vírgula")
 
     if args.caminhos and (args.completa or args.vermelho is not None):
         p.error("caminhos não combinam com --completa nem com --vermelho")

@@ -30,6 +30,7 @@ from test_voltas import Raiz  # noqa: E402  (raiz sintética do CONF-CORRECAO; s
 from apoio_conferida import gravar_conferida  # noqa: E402  (E7: a conferida do head nos testes que não tratam dela)
 from modelo_git import copiar_modelo  # noqa: E402  (S-SUITE-RAPIDA: repositório de partida montado uma vez)
 from apoio_forge_check_rapido import comando_do_forge_check  # noqa: E402  (S-SUITE-RAPIDA: o forge-check sem recompilar)
+from catraca import FORMA_COMPILADA  # noqa: E402  (NEUTRO-PYCACHE: a lista única do K10-CAT, sem cópia no teste)
 
 RAIZ = Path(__file__).resolve().parent.parent
 AGENTES = RAIZ / "agents"
@@ -73,10 +74,16 @@ def skills_do_plugin():
     return minimo(sorted(SKILLS.glob("*/SKILL.md")) + sorted(STACKS.glob("*/skills/*/SKILL.md")), 11, "skills do plugin")
 
 
+def arquivos_de(pasta, raiz=RAIZ):
+    """Arquivos de `pasta`, em ordem, menos a forma compilada (NEUTRO-PYCACHE): o `.pyc` que o próprio teste gera não se
+    versiona (a catraca o barra) e traz o texto de outra branch, que a árvore já não tem."""
+    return [p for p in sorted((raiz / pasta).rglob("*")) if p.is_file() and not FORMA_COMPILADA.search(p.relative_to(raiz).as_posix())]
+
+
 def arquivos_texto():
     achados = []
     for pasta in ("agents", "skills", "stacks", "docs", "templates", "bin", "scripts", "hooks", "dev", "tests/transcricoes"):
-        achados += [p for p in (RAIZ / pasta).rglob("*") if p.is_file()]
+        achados += arquivos_de(pasta)
     return minimo(achados, 150, "arquivos de texto varridos")
 
 
@@ -412,6 +419,16 @@ class Neutralidade(unittest.TestCase):
             with self.subTest(arquivo=str(p.relative_to(RAIZ))):
                 self.assertEqual(termos_achados(texto, entradas), set(), "termo de projeto (compare por hash em tests/config.json)")
 
+    def test_varredura_pula_a_forma_compilada_e_nao_nome_parecido(self):  # NEUTRO-PYCACHE
+        with tempfile.TemporaryDirectory() as tmp:
+            raiz = Path(tmp)
+            for rel in ("hooks/x.py", "hooks/__pycache__/x.cpython-312.pyc", "bin/__pycache__/y.pyc", "bin/z.so",
+                        "docs/x.pyc.md", "src/pycache/x.txt", "src/__pycache__x/y.txt"):
+                (raiz / rel).parent.mkdir(parents=True, exist_ok=True)
+                (raiz / rel).write_text("Use React com TypeScript\n", encoding="utf-8")
+            achados = [p.relative_to(raiz).as_posix() for pasta in ("hooks", "bin", "docs", "src") for p in arquivos_de(pasta, raiz)]
+            self.assertEqual(achados, ["hooks/x.py", "docs/x.pyc.md", "src/__pycache__x/y.txt", "src/pycache/x.txt"])
+
     def test_detector_por_hash(self):
         """Sem o nome em claro: monta a entrada a partir de uma palavra neutra e confere cada tipo de casamento."""
         sha = lambda s: hashlib.sha256(s.encode()).hexdigest()
@@ -444,9 +461,9 @@ class NeutralidadeDoNucleo(unittest.TestCase):
         termos = minimo((re.compile(t) for t in self.cfg["termos"]), 14, "termos de stack do núcleo")
         varridos = 0
         for pasta in self.cfg["pastas"]:
-            for p in sorted((RAIZ / pasta).rglob("*")):
+            for p in arquivos_de(pasta):
                 rel = p.relative_to(RAIZ).as_posix()
-                if not p.is_file() or any(rel.startswith(i) for i in self.cfg["ignorar"]):
+                if any(rel.startswith(i) for i in self.cfg["ignorar"]):
                     continue
                 varridos += 1
                 texto = p.read_text(encoding="utf-8", errors="ignore")
@@ -581,8 +598,7 @@ class AntiDuplicacao(unittest.TestCase):
         fontes = sorted(REGRAS.glob("R-*.md"))
         self.assertTrue(fontes, "docs/regras sem regras")
         minimo(fontes, 13, "regras em docs/regras")
-        alvos = [p for pasta in self.pastas if (RAIZ / pasta).is_dir()
-                 for p in sorted((RAIZ / pasta).rglob("*")) if p.is_file()]
+        alvos = [p for pasta in self.pastas if (RAIZ / pasta).is_dir() for p in arquivos_de(pasta)]
         minimo(alvos, 110, "arquivos comparados pelo anti-duplicação")
         textos = {p: sequencias(p.read_text(encoding="utf-8", errors="ignore"), self.n) for p in alvos}
         for fonte in fontes:
@@ -620,7 +636,7 @@ class RegrasComId(unittest.TestCase):
     def test_ids_citados_existem(self):
         origens = [RAIZ / ".claude" / "CLAUDE.md", *sorted(REGRAS.glob("*.md"))]
         for pasta in ("agents", "skills", "templates"):
-            origens += [p for p in sorted((RAIZ / pasta).rglob("*")) if p.is_file()]
+            origens += arquivos_de(pasta)
         minimo(origens, 45, "arquivos que citam IDs de regra")
         for p in origens:
             for rid in set(re.findall(r"\bR-[A-Z][A-Z0-9-]*\b", p.read_text(encoding="utf-8", errors="ignore"))):

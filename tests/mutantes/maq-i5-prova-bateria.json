@@ -1,0 +1,76 @@
+{
+  "pedido": "maq-i5-prova-bateria",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I5-M1",
+      "guarda": "o parecer de QA que cita o carimbo local da suite na evidencia e recusado (I5)",
+      "arquivo": "bin/forge-check",
+      "de": "        if prova_local_da_suite(texto):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_volta_por_delta.ProvaDaSuite.test_verde_ou_dirigida_na_evidencia_e_recusado"
+      ]
+    },
+    {
+      "id": "I5-M2",
+      "guarda": "so a secao de evidencia e o Achados contam: a secao de metodo que explica que nao usou o carimbo passa",
+      "arquivo": "bin/forge-check",
+      "de": "        elif dentro and PROVA_LOCAL_DA_SUITE.search(linha):",
+      "para": "        elif PROVA_LOCAL_DA_SUITE.search(linha):",
+      "testes": [
+        "tests.test_volta_por_delta.ProvaDaSuite.test_bateria_metodo_e_outro_tipo_passam"
+      ]
+    },
+    {
+      "id": "I5-M3",
+      "guarda": "so o cabecalho de nivel 2 troca a secao; a subsecao ### fica dentro da evidencia",
+      "arquivo": "bin/forge-check",
+      "de": "        if re.match(r\"^##\\s\", linha):  # outro",
+      "para": "        if re.match(r\"^#{2,6}\\s\", linha):  # outro",
+      "testes": [
+        "tests.test_volta_por_delta.ProvaDaSuite.test_verde_ou_dirigida_na_evidencia_e_recusado"
+      ]
+    },
+    {
+      "id": "I5-M4",
+      "guarda": "a secao so conta quando o titulo e de evidencia",
+      "arquivo": "bin/forge-check",
+      "de": "dentro = bool(SECAO_DE_EVIDENCIA.match(linha))",
+      "para": "dentro = True",
+      "testes": [
+        "tests.test_volta_por_delta.ProvaDaSuite.test_bateria_metodo_e_outro_tipo_passam"
+      ]
+    },
+    {
+      "id": "I5-M5",
+      "guarda": "o .dirigida tambem e carimbo local (mutante do desenho: so olhar o .verde)",
+      "arquivo": "bin/forge-check",
+      "de": "\\.(verde|dirigida)\\b)\")  # I5",
+      "para": "\\.(verde)\\b)\")  # I5",
+      "testes": [
+        "tests.test_volta_por_delta.ProvaDaSuite.test_verde_ou_dirigida_na_evidencia_e_recusado"
+      ]
+    },
+    {
+      "id": "I5-M6",
+      "guarda": "o bloco Achados e secao de evidencia",
+      "arquivo": "bin/forge-check",
+      "de": "re.compile(r\"^##\\s+(Achados|Crit",
+      "para": "re.compile(r\"^##\\s+(Crit",
+      "testes": [
+        "tests.test_volta_por_delta.ProvaDaSuite.test_verde_ou_dirigida_na_evidencia_e_recusado"
+      ]
+    },
+    {
+      "id": "I5-M7",
+      "guarda": "o carimbo K6 da suite paralela (forge-suite-verde, sem ponto) tambem e prova local",
+      "arquivo": "bin/forge-check",
+      "de": "re.compile(r\"forge-suite-(verde\\b|",
+      "para": "re.compile(r\"forge-suite-(sem-k6\\b|",
+      "testes": [
+        "tests.test_volta_por_delta.ProvaDaSuite.test_verde_ou_dirigida_na_evidencia_e_recusado"
+      ]
+    }
+  ]
+}

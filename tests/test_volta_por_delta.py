@@ -1238,6 +1238,45 @@ class ModelosNoFormato(unittest.TestCase):
         for rel in self.MODELOS[:4]:
             self.assertIn(self.EVIDENCIA, (RAIZ / rel).read_text(encoding="utf-8"), rel)
 
+
+class ProvaDaSuite(Repositorio):
+    """MAQ-I5: parecer de QA que cita o `forge-suite-*.verde` ou `.dirigida` local como evidência é recusado; a prova da
+    suíte é o check-run `bateria` do sha. A seção de método que só explica que o arquivo não vale passa (corpus de legítimos)."""
+    QA = ("---\ntipo: qa\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: abc1234\nparecer: aprovado\nescopo: completo\n"
+          "bugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0\ndata: 2026-11-08\n---\n# QA: p1\n\n## Achados\n\n{corpo}")
+    VERDE = "suíte inteira verde: `/run/user/1000/forge-suite-1000.verde`\n"
+    VIOLACAO = "docs/qa/p1.md: achados: prova de suíte por arquivo local não vale; cite o check-run bateria do sha (I5) (R-QA)"
+
+    def docs(self, corpo, pasta="qa", modelo=None):
+        (self.repo / "docs" / pasta).mkdir(parents=True, exist_ok=True)
+        texto = (modelo or self.QA).format(c="abc1234", p="aprovado", corpo=corpo)
+        (self.repo / "docs" / pasta / "p1.md").write_text(texto, encoding="utf-8")
+        return self.check("docs")
+
+    def test_verde_ou_dirigida_na_evidencia_e_recusado(self):
+        casos = {"verde no critério": "## Critério → teste → resultado\n" + self.VERDE,
+                 "dirigida na suíte": "## Suíte\nverde em /tmp/forge-suite-0.dirigida (sha abc1234)\n",
+                 "subseção da evidência": "## Cenários e resultado real\n### Suíte\n" + self.VERDE,
+                 "no bloco de achados": "- R1 (recomendado) bin/x:1 · prova em forge-suite-1000.verde\n",
+                 "carimbo K6 da suíte paralela": "## Resultado\nárvore em .git/forge-suite-verde (K6)\n"}
+        for nome, corpo in casos.items():
+            with self.subTest(nome):
+                rc, saida = self.docs(corpo)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn(self.VIOLACAO, saida)
+
+    def test_bateria_metodo_e_outro_tipo_passam(self):
+        casos = {"check-run bateria": "## Critério → teste → resultado\nbateria pass 0123456789abcdef (gh pr checks)\n",
+                 "método explica que não usou": "## Critério → teste → resultado\nbateria pass abc1234\n\n## Método\n"
+                                                "Não usei o `/run/user/1000/forge-suite-1000.verde`: ele não vale (I5).\n",
+                 "nome parecido": "## Suíte\nforge-suite-1000.verdes, forge-suite-verdes e forge-suite/x.verde não são o carimbo\n"}
+        for nome, corpo in casos.items():
+            with self.subTest(nome):
+                self.assertEqual(self.docs(corpo), (0, ""))
+        with self.subTest("parecer de review não é de QA"):
+            self.assertEqual(self.docs("## Suíte\n" + self.VERDE, "reviews", BriefDeVolta.REVIEW), (0, ""))
+
+
 for _nome in dir(BriefDeVolta):  # só os testes desta classe; os herdados já rodam em BriefDeVolta
     if _nome.startswith("test_") and _nome not in SondaNoCorpus.__dict__:
         setattr(SondaNoCorpus, _nome, None)

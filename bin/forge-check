@@ -253,6 +253,24 @@ def ler_frontmatter(texto):
     return campos, erros + ["frontmatter sem fechamento `---`"]
 
 
+PROVA_LOCAL_DA_SUITE = re.compile(r"forge-suite-(verde\b|[^\s/]*\.(verde|dirigida)\b)")  # I5: os carimbos locais (pre-push e K6)
+SECAO_DE_EVIDENCIA = re.compile(r"^##\s+(Achados|Crit[ée]rio|Cen[áa]rio|Obriga[çc][ãa]o|Su[íi]te|Resultado|Execu[çc][ãa]o|"
+                                r"Evid[êe]ncia|Vermelho|PQ-)", re.I)
+
+
+def prova_local_da_suite(texto):
+    """I5: o parecer cita o `forge-suite-*.verde` ou `.dirigida` do pre-push, ou o `forge-suite-verde` da suíte paralela (K6),
+    numa seção de evidência ou no `## Achados`; a seção de
+    método, que só explica que o arquivo não vale, não conta (falso positivo do modelo de ameaças da 0.44)."""
+    dentro = False
+    for linha in texto.splitlines():
+        if re.match(r"^##\s", linha):  # outro `## ` troca a seção; `###` fica dentro da seção dele
+            dentro = bool(SECAO_DE_EVIDENCIA.match(linha))
+        elif dentro and PROVA_LOCAL_DA_SUITE.search(linha):
+            return True
+    return False
+
+
 def validar_documento(rel, texto, estrito=False):
     """Devolve (campos ou None se ignorado, violações). Com `estrito`, o bloco `## Achados` é cobrado como no `forge-check pr` (B12)."""
     campos, erros = ler_frontmatter(texto)
@@ -294,6 +312,8 @@ def validar_documento(rel, texto, estrito=False):
     if tipo == "qa":
         if campos.get("escopo") and campos["escopo"] not in ("completo", "incremental"):
             erro("escopo", "use completo ou incremental")
+        if prova_local_da_suite(texto):
+            erro("achados", "prova de suíte por arquivo local não vale; cite o check-run bateria do sha (I5)")
         n = {}
         for c in ("bugs_criticos", "bugs_altos", "bugs_medios", "bugs_baixos"):
             if campos.get(c):
