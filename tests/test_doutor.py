@@ -40,6 +40,9 @@ responder() {  # nome, stdout padrão, código padrão, stderr padrão
   [ -n "$4" ] && echo "$4" >&2
   printf '%s' "$2"; exit "$3"
 }
+if [ "$1 $2" = "auth status" ]; then
+  responder auth '' 0
+fi
 if [ "$1 $2" = "repo view" ]; then
   responder repo '{"nameWithOwner":"dono/proj","url":"https://github.com/dono/proj"}' 0
 fi
@@ -200,6 +203,30 @@ class Diagnostico(Base):
         r = self.doutor()
         self.assertEqual(r.returncode, 1)
         self.assertIn("gh auth login", r.stdout)
+
+    def escopos(self, linha):
+        (self.home / "gh-auth").write_text("github.com\n  ✓ Logged in to github.com account pessoa (keyring)\n" + linha + "\n",
+                                           encoding="utf-8")
+
+    def test_gh_sem_escopo_workflow_diz_como_corrigir(self):
+        self.escopos("  - Token scopes: 'gist', 'read:org', 'repo'")
+        self.assertEqual(self.doutor("--rapido").stdout, "", "o modo rápido não chama o gh")
+        r = self.doutor()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("não tem a permissão `workflow`", r.stdout)
+        self.assertIn("gh auth refresh -h github.com -s repo,workflow", r.stdout)
+
+    def test_gh_sem_repo_nem_workflow(self):
+        self.escopos("  - Token scopes: 'gist', 'read:org'")
+        r = self.doutor()
+        self.assertIn("não tem a permissão `repo` nem a `workflow`", r.stdout)
+
+    def test_gh_com_os_escopos_ou_sem_a_linha_fica_em_silencio(self):
+        for linha in ("  - Token scopes: 'gist', 'read:org', 'repo', 'workflow'", "  - Token: gho_****"):
+            with self.subTest(linha=linha):
+                self.escopos(linha)
+                r = self.doutor()
+                self.assertNotIn("permissão", r.stdout)
 
     def test_gh_ausente(self):
         sem_gh = self.tmp / "sem-gh"

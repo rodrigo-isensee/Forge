@@ -4,7 +4,7 @@ Uso: forge doutor [--rapido] [-v] [DIRETORIO]
   --rapido  só o que é local e instantâneo (sem `gh`, sem rede); nunca conserta nem pergunta (é o que o hook e o atalho usam)
   -v        diz também que está tudo em ordem (sem ele, tudo bem = silêncio)
 No modo completo também confere o relógio deste computador contra o `Date` do GitHub (só avisa; nunca acerta o relógio).
-Confere: Python mínimo (3.12), plugin instalado e versão, `.forge/versao`, proteção do git, `gh` logado (modo completo), identidade do git,
+Confere: Python mínimo (3.12), plugin instalado e versão, `.forge/versao`, proteção do git, `gh` logado com os escopos repo e workflow (modo completo), identidade do git,
 `.claude/settings.json` com o Jarvis, sandbox, sinais de login por token (R-CUSTO; só o nome, nunca o valor) e as branches develop e homolog. Fora de um projeto do Forge, não diz nada.
 Conserta sozinho só o que é seguro (idempotente, restaurável a partir do modelo do Forge, com cópia de segurança), num
 terminal e depois de um "s". O resto vira uma frase dizendo o que fazer. Nunca envia nada ao GitHub (só lê: o modo completo confere a proteção das branches), nem mescla, nem apaga.
@@ -213,12 +213,32 @@ def conferir_gh(raiz):
         return [Problema("O `gh` (a ferramenta que fala com o GitHub) não está instalado: instale em https://cli.github.com "
                          "e rode `gh auth login`.")]
     codigo, saida = rodar(["gh", "auth", "status"], raiz)
-    if codigo == 0 or codigo is None:  # None: o `gh` não respondeu a tempo; não é falta de login
+    if codigo is None:  # o `gh` não respondeu a tempo; não é falta de login
         return []
+    if codigo == 0:
+        return conferir_escopos(saida)
     if re.search(r"error connecting|internet|network|timeout|timed out|dial tcp|no such host|resolve|connection", saida, re.I):
         return []  # sem conexão não é falta de login; o doutor não adivinha
     return [Problema("Você ainda não entrou no GitHub por aqui: rode `gh auth login` neste terminal "
                      "(o login acontece no navegador).")]
+
+
+ESCOPOS_DO_GH = ("repo", "workflow")  # S-17/WORKFLOW-SCOPE: sem `workflow`, o push que muda `.github/` é recusado no fim
+
+
+def conferir_escopos(saida):
+    """Escopos que faltam no token do `gh` (linha `Token scopes:` do `gh auth status`). Sem a linha (token de escopo fino,
+    ou `gh` que não a imprime), não adivinha: silêncio."""
+    linha = re.search(r"Token scopes:\s*(.*)", saida)
+    if not linha:
+        return []
+    tem = set(re.findall(r"[\w:-]+", linha.group(1)))
+    faltam = [e for e in ESCOPOS_DO_GH if e not in tem]
+    if not faltam:
+        return []
+    return [Problema(f"O login do GitHub por aqui não tem a permissão {' nem a '.join(f'`{e}`' for e in faltam)}, e sem ela o envio "
+                     "de algumas mudanças é recusado no fim. Rode `gh auth refresh -h github.com -s repo,workflow` neste terminal "
+                     "(confirma no navegador) e depois `forge doutor` de novo.")]
 
 
 def conferir_relogio():

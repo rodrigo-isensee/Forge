@@ -1062,7 +1062,7 @@ class PrepararEstacao(unittest.TestCase):
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 2)
 
-    def _container(self, tmp, *args, logado=False):
+    def _container(self, tmp, *args, logado=False, escopos="'gist', 'repo', 'workflow'"):
         """Roda `preparar-estacao.sh --container` sem rede: gh, tmux, shellcheck, claude, sudo, curl e apt-get são
         falsos e registram a chamada; o jarvis-forge da origem falsa cria a cópia vigente com `dev/`."""
         tmp = Path(tmp)
@@ -1073,10 +1073,11 @@ class PrepararEstacao(unittest.TestCase):
         registro = tmp / "chamadas"
         (origem / "scripts" / "jarvis-forge").write_text(
             '#!/bin/sh\nd="$HOME/.local/share/forge/vigente/dev/agents"\nmkdir -p "$d" && echo aq > "$d/aq.md"\n')
+        mostrar_escopos = f"echo \"  - Token scopes: {escopos}\"; " if escopos else ""
         falsos = {
             "gh": f'echo "gh $*" >> "{registro}"\n'
                   'case "$1 $2" in\n'
-                  f'  "auth status") exit {0 if logado else 1} ;;\n'
+                  f'  "auth status") {mostrar_escopos}exit {0 if logado else 1} ;;\n'
                   '  "repo clone") mkdir -p "$4" && echo clonado > "$4/marca" ;;\n'
                   'esac\nexit 0\n',
             "claude": f'echo "claude $*" >> "{registro}"\nexit 0\n',
@@ -1156,6 +1157,17 @@ class PrepararEstacao(unittest.TestCase):
             self.assertTrue((home / ".forge-contrib").is_symlink())
             self.assertFalse((mk / "forge-dev").is_symlink())
             self.assertNotIn("falta:", r.stdout)
+
+    def test_container_confere_os_escopos_repo_e_workflow(self):
+        """S-17/WORKFLOW-SCOPE: com login mas sem `workflow`, diz como corrigir; sem a linha de escopos, não adivinha."""
+        for escopos, esperado in (("'gist', 'repo'", "sem workflow"), ("'gist'", "sem repo workflow"), (None, None)):
+            with self.subTest(escopos=escopos), tempfile.TemporaryDirectory() as tmp:
+                r, _, _, _ = self._container(tmp, logado=True, escopos=escopos)
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                if esperado:
+                    self.assertIn(f"falta: escopo do gh {esperado}: rode gh auth refresh -h github.com -s repo,workflow", r.stdout)
+                else:
+                    self.assertNotIn("escopo do gh", r.stdout)
 
     def test_container_simular_nao_altera_nada(self):
         with tempfile.TemporaryDirectory() as tmp:
