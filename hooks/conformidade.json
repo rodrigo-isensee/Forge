@@ -8,8 +8,8 @@
     "coach": ["forge:agile-coach"],
     "devops": ["forge:devops-engineer"],
     "seguranca": ["forge:security-engineer"],
-    "conferente": ["forge:conferente", "conferente"],
-    "leitura": ["Explore", "Plan", "claude-code-guide", "web-fetch"],
+    "conferente": ["forge:conferente"],
+    "leitura": ["Explore", "Plan", "claude-code-guide", "web-fetch", "conferente"],
     "aq": ["forge-dev:aq"]
   },
   "escrita_permitida": {

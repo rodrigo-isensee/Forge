@@ -6,7 +6,7 @@
       "id": "M1",
       "guarda": "B1: os tipos só de leitura no papel leitura",
       "arquivo": "hooks/conformidade.json",
-      "de": "\"leitura\": [\"Explore\", \"Plan\", \"claude-code-guide\", \"web-fetch\"],",
+      "de": "\"leitura\": [\"Explore\", \"Plan\", \"claude-code-guide\", \"web-fetch\", \"conferente\"],",
       "para": "\"leitura\": [\"outro\"],",
       "testes": [
         "tests.test_v0441_review.TiposSoDeLeitura.test_nao_escrevem_por_bash_nem_por_ferramenta"
@@ -14,10 +14,10 @@
     },
     {
       "id": "M2",
-      "guarda": "B1: o conferente sem prefixo no papel conferente",
+      "guarda": "B1: o conferente sem prefixo no papel leitura",
       "arquivo": "hooks/conformidade.json",
-      "de": "\"conferente\": [\"forge:conferente\", \"conferente\"],",
-      "para": "\"conferente\": [\"forge:conferente\"],",
+      "de": "\"web-fetch\", \"conferente\"],",
+      "para": "\"web-fetch\"],",
       "testes": [
         "tests.test_v0441_review.TiposSoDeLeitura.test_nao_escrevem_por_bash_nem_por_ferramenta"
       ]
