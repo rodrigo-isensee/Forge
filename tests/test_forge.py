@@ -892,7 +892,8 @@ class ForgeUpgrade(unittest.TestCase):
         (self.tmp / ".claude").mkdir()
         (self.tmp / ".claude/settings.json").write_text(json.dumps({"sandbox": {
             "enabled": False, "failIfUnavailable": False, "allowUnsandboxedCommands": True, "excludedCommands": ["x"], "autoAllowBashIfSandboxed": False,
-            "filesystem": {"denyRead": ["~/meu"]}, "network": {"allowedDomains": ["meu.exemplo"]}}}), encoding="utf-8")
+            "filesystem": {"denyRead": ["~/meu", "~/.ssh"]}, "network": {"allowedDomains": ["meu.exemplo"], "deniedDomains": "texto"}}}),
+            encoding="utf-8")
         r = subprocess.run([str(RAIZ / "bin/forge-upgrade"), "--ligar-sandbox", str(self.tmp)], env=ambiente_limpo(), capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
         caixa = json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8"))["sandbox"]
@@ -902,7 +903,13 @@ class ForgeUpgrade(unittest.TestCase):
         self.assertEqual(caixa["filesystem"]["denyRead"][0], "~/meu")
         self.assertIn("~/.ssh", caixa["filesystem"]["denyRead"])
         self.assertIn("meu.exemplo", caixa["network"]["allowedDomains"])
-        self.assertIn("api.anthropic.com", caixa["network"]["deniedDomains"])
+        self.assertIn("api.anthropic.com", caixa["network"]["deniedDomains"], "lista com outro tipo volta à do modelo")
+        self.assertEqual(caixa["filesystem"]["denyRead"].count("~/.ssh"), 1, "sem repetir")
+        (self.tmp / ".claude/settings.json").write_text(json.dumps({"sandbox": {"filesystem": "texto"}}), encoding="utf-8")
+        r = subprocess.run([str(RAIZ / "bin/forge-upgrade"), "--ligar-sandbox", str(self.tmp)], env=ambiente_limpo(), capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("~/.ssh", json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8"))["sandbox"]["filesystem"]["denyRead"],
+                      "subchave com outro tipo volta à do modelo")
         outra = Path(tempfile.mkdtemp(prefix="forge-up-link-"))
         self.addCleanup(shutil.rmtree, outra, True)
         shutil.rmtree(self.tmp / ".claude")

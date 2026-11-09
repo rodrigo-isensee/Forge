@@ -169,6 +169,11 @@ class Selar(Repositorio):
         self.assertIn("sem selo", saida)
         self.assertIn(f"Base-sha: {self.base}", arq.read_text(encoding="utf-8"))
         self.assertEqual(fc.selos_do_pedido(self.pedido()), [])
+        arq.write_text(arq.read_text(encoding="utf-8").replace(f"Base-sha: {self.base}\n", ""), encoding="utf-8")
+        rc, saida = self.rodar("brief", "selar", "--sem-selar", "--arquivo", "docs/briefs/exemplo-node-backend-1.md", "--pedido", "exemplo")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("com reprovação (sem selo)", saida)
+        self.assertEqual(fc.selos_do_pedido(self.pedido()), [])
 
     def test_sela_uma_vez_e_grava_no_historico(self):
         arq = self.brief()

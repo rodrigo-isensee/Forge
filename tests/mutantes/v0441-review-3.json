@@ -81,6 +81,66 @@
       "testes": [
         "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
       ]
+    },
+    {
+      "id": "M25",
+      "guarda": "B2: --sem-selar diz a reprovação",
+      "arquivo": "bin/forge-check",
+      "de": "(\"com reprovação (sem selo)\" if reprovas else \"em dia (sem selo)\")",
+      "para": "(\"com reprovação (sem selo)\" if not reprovas else \"em dia (sem selo)\")",
+      "testes": [
+        "tests.test_selo_e_entrega.Selar.test_sem_selar_corrige_os_derivados_e_nao_grava_selo"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "B2: --sem-selar com reprovação é rc 1",
+      "arquivo": "bin/forge-check",
+      "de": "        return 1 if reprovas else 0\n    lembrar_do_jarvis",
+      "para": "        return 0\n    lembrar_do_jarvis",
+      "testes": [
+        "tests.test_selo_e_entrega.Selar.test_sem_selar_corrige_os_derivados_e_nao_grava_selo"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "upgrade: subchave do projeto com outro tipo volta ao modelo",
+      "arquivo": "bin/forge-upgrade",
+      "de": "mesclar_sandbox(valor, tinha if isinstance(tinha, dict) else {})",
+      "para": "mesclar_sandbox(valor, tinha if True else {})",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "upgrade: lista do modelo une",
+      "arquivo": "bin/forge-upgrade",
+      "de": "        elif isinstance(valor, list):",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "upgrade: lista do projeto com outro tipo volta ao modelo",
+      "arquivo": "bin/forge-upgrade",
+      "de": "base = tinha if isinstance(tinha, list) else []",
+      "para": "base = tinha if True else []",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "upgrade: sem repetir item da lista",
+      "arquivo": "bin/forge-upgrade",
+      "de": "[v for v in valor if v not in base]",
+      "para": "[v for v in valor if True]",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
     }
   ]
 }
