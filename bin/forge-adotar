@@ -7,7 +7,8 @@ diagnóstico com a recomendação. Só com o "s" digitado no terminal cria a bra
 forge-init, que não sobrescreve arquivo, mescla o .claude/settings.json e não troca o core.hooksPath de outra
 ferramenta. Depois, cada passo com o seu "s": encadear o pre-push do Forge no hook que o projeto já tem e criar a
 develop a partir da main. Registra o pedido adotar-forge com a stack e o pronto supostos (D5, 0.45.0).
-Stack sem pacote no Forge: guarda a pendência (forge sugerir --guardar) e para.
+Stack sem pacote no Forge: guarda a pendência (forge sugerir --guardar) e para. O sandbox do Bash nunca liga sozinho:
+no fim, a oferta do forge-upgrade --ligar-sandbox, que só roda com o "s".
   --so-ler          só o diagnóstico, sem perguntar
   --stack NOME      pacote de stack (padrão: o que os pacotes detectam no projeto)
   --sem-versionar   arquivos do Forge fora do git do projeto (FILA-24; forge-init --sem-versionar)
@@ -275,6 +276,30 @@ def registrar_pedido(d, stack, nota, sem_versionar):
     print(f"  criado   {rel} (stack e pronto supostos no Histórico)")
 
 
+def sandbox_ligado(topo):
+    """O .claude/settings.json ou o settings.local.json do projeto já liga o sandbox (`sandbox.enabled` true)."""
+    for nome in ("settings.json", "settings.local.json"):
+        try:
+            caixa = json.loads((topo / ".claude" / nome).read_text(encoding="utf-8")).get("sandbox")
+        except (OSError, ValueError, AttributeError):
+            continue
+        if isinstance(caixa, dict) and caixa.get("enabled") is True:
+            return True
+    return False
+
+
+def oferecer_sandbox(topo):
+    """Projeto existente: o sandbox é escolha do dono (D1); só a oferta, e o forge-upgrade --ligar-sandbox roda com o "s"."""
+    if sandbox_ligado(topo):
+        return
+    print("Oferta: o sandbox do Bash está desligado (sem ler ~/.ssh nem as credenciais do gh, rede só na lista). Ele pede o "
+          "bubblewrap e a credencial do bot (ADR 0009); sem eles, a sessão quebra.")
+    if not confirmou("Ligar o sandbox agora (forge-upgrade --ligar-sandbox, sem commit)? [s/N] "):
+        print(f"Sandbox desligado; para ligar depois: forge-upgrade --ligar-sandbox {topo}")
+        return
+    subprocess.run([sys.executable, str(RAIZ_FORGE / "bin" / "forge-upgrade"), "--ligar-sandbox", str(topo)])
+
+
 def aplicar(d, stack, nota, sem_versionar):
     topo = d["topo"]
     if git(topo, "status", "--porcelain")[1].strip():
@@ -284,7 +309,7 @@ def aplicar(d, stack, nota, sem_versionar):
     if codigo != 0:
         print(f"forge adotar: não consegui criar a branch {BRANCH}; nada foi alterado.", file=sys.stderr)
         return 1
-    cmd = ["bash", str(RAIZ_FORGE / "bin" / "forge-init"), "--stack", stack, *(["--pronto", d["pronto"]] if d["pronto"] else []),
+    cmd = ["bash", str(RAIZ_FORGE / "bin" / "forge-init"), "--sem-sandbox", "--stack", stack, *(["--pronto", d["pronto"]] if d["pronto"] else []),
            *(["--sem-versionar"] if sem_versionar else []), str(topo)]
     if subprocess.run(cmd).returncode != 0:
         print(f"forge adotar: o forge-init falhou na branch {BRANCH}. Para voltar: git checkout {d['branch']} "
@@ -293,6 +318,7 @@ def aplicar(d, stack, nota, sem_versionar):
     encadear(d)
     criar_develop(d)
     registrar_pedido(d, stack, nota, sem_versionar)
+    oferecer_sandbox(topo)
     print(f"\nPronto: os arquivos do Forge estão na branch {BRANCH}, ainda sem commit e sem envio.")
     pedido = (f"Adoção: o forge adotar criou a branch {BRANCH} com os arquivos do Forge. Conduza o resto pela skill "
               "forge:iniciar-projeto (objetivo, regras, comando de pronto), registre nessa branch e abra o PR \"adota o Forge\".")

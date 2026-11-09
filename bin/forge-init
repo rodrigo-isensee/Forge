@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
 # Forge: prepara um projeto para ser desenvolvido pela fábrica.
-# Uso: forge-init [--nome NOME] [--descricao TEXTO] [--stack NOME] [--pronto COMANDO] [--forcar] [--sem-versionar] [DIRETORIO]
+# Uso: forge-init [--nome NOME] [--descricao TEXTO] [--stack NOME] [--pronto COMANDO] [--forcar] [--sem-versionar] [--sem-sandbox] [DIRETORIO]
 # Copia templates/projeto para o diretório sem sobrescrever o que já existe (salvo --forcar),
 # substitui os marcadores {{PROJETO}}, {{DESCRICAO}}, {{STACK}} e {{COMANDO_PRONTO}} e ativa o hook de git
 # (nunca troca um core.hooksPath de outra ferramenta nem desliga hooks ativos em .git/hooks).
 # --sem-versionar (FILA-24, D1 = B): no git ficam só .forge/versao, .forge/config.json e as chaves enabledPlugins e
 # extraKnownMarketplaces do .claude/settings.json; o resto vai para .claude/settings.local.json e .git/info/exclude.
+# --sem-sandbox (0.45.0): o sandbox não liga nem é oferecido aqui; quem chama (o forge adotar) oferece.
 set -euo pipefail
 
 raiz_forge="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 modelo="$raiz_forge/templates/projeto"
 
-nome=""; descricao="Descreva aqui o objetivo do sistema."; pronto=""; stack="node-react"; forcar=0; sem_versionar=0; destino="."
+nome=""; descricao="Descreva aqui o objetivo do sistema."; pronto=""; stack="node-react"; forcar=0; sem_versionar=0; sem_sandbox=0; destino="."
 while [ $# -gt 0 ]; do
   case "$1" in
     --nome) nome="$2"; shift 2 ;;
@@ -20,7 +21,8 @@ while [ $# -gt 0 ]; do
     --pronto) pronto="$2"; shift 2 ;;
     --forcar) forcar=1; shift ;;
     --sem-versionar) sem_versionar=1; shift ;;
-    -h|--help) sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --sem-sandbox) sem_sandbox=1; shift ;;
+    -h|--help) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) echo "forge-init: opção desconhecida: $1" >&2; exit 2 ;;
     *) destino="$1"; shift ;;
   esac
@@ -124,7 +126,7 @@ sys.exit(0 if tem("GH_TOKEN") and tem("GIT_CONFIG_COUNT") else 1)
 PY
 }
 sandbox_ok=0; sandbox_novo=0; sandbox_oferta=0
-if sandbox_pronto; then sandbox_ok=1; fi
+if [ "$sem_sandbox" -eq 0 ] && sandbox_pronto; then sandbox_ok=1; fi
 if [ "$novo_no_forge" -eq 1 ]; then
   if [ "$sandbox_ok" -eq 1 ]; then sandbox_novo=1; else sandbox_oferta=1; fi
 fi
@@ -241,7 +243,7 @@ if [ "$em_git" -eq 1 ]; then
 else
   echo "  aviso    $destino não é um repositório git; rode 'git init' e 'git config core.hooksPath .githooks'"
 fi
-if [ "$sandbox_oferta" -eq 1 ]; then
+if [ "$sandbox_oferta" -eq 1 ] && [ "$sem_sandbox" -eq 0 ]; then
   echo "  oferta   sandbox do Bash NÃO ligado: falta o bubblewrap (bwrap) ou a credencial do bot (ADR 0009, etapa 2). Para ligá-lo:"
   echo "           1) instale bubblewrap e socat (scripts/preparar-estacao.sh); 2) ponha o GH_TOKEN do bot no env do ~/.claude/settings.json;"
   echo "           3) rode scripts/configurar-ambiente-local.sh (GIT_CONFIG_* no .claude/settings.local.json); 4) forge-upgrade --ligar-sandbox $destino"

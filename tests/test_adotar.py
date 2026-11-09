@@ -5,6 +5,7 @@ Controles: a leitura não muda a árvore nem o `.git/` (C-46-1), nada do reposit
 de armadilha) e o `core.hooksPath` de outra ferramenta fica (C-46-3).
 """
 import hashlib
+import json
 import os
 import pty
 import shutil
@@ -192,7 +193,7 @@ class Leitura(Base):
 class Aplicar(Base):
     def test_com_s_cria_a_branch_e_adota_sem_sobrescrever_nem_trocar_o_hooks_path(self):  # C-46-3
         self.git("config", "core.hooksPath", "outra-ferramenta/hooks")
-        codigo, saida = self.adotar_no_terminal("s\nn\nn\n")
+        codigo, saida = self.adotar_no_terminal("s\nn\nn\nn\n")
         self.assertEqual(codigo, 0, saida)
         self.assertEqual(self.git("branch", "--show-current"), "chore/adotar-forge")
         self.assertFalse((self.proj / "outra-ferramenta").exists(), "sem o sim, nada é encadeado")
@@ -211,7 +212,7 @@ class Aplicar(Base):
         self.assertEqual(impressao(self.proj), antes)
 
     def test_sem_versionar_deixa_no_git_so_a_declaracao(self):  # FILA-24, D1 = B
-        codigo, saida = self.adotar_no_terminal("s\nn\n", "--sem-versionar")
+        codigo, saida = self.adotar_no_terminal("s\nn\nn\n", "--sem-versionar")
         self.assertEqual(codigo, 0, saida)
         visiveis = sorted(l[3:] for l in self.git("status", "--porcelain", "-uall").splitlines())
         self.assertEqual(visiveis, [".claude/settings.json", ".forge/config.json", ".forge/versao"])
@@ -226,7 +227,7 @@ class Aplicar(Base):
         self.git("add", ".")
         self.git("commit", "-qm", "hook")
         self.git("config", "core.hooksPath", "outra-ferramenta/hooks")
-        codigo, saida = self.adotar_no_terminal("s\ns\nn\n")
+        codigo, saida = self.adotar_no_terminal("s\ns\nn\nn\n")
         self.assertEqual(codigo, 0, saida)
         self.assertEqual(self.git("config", "core.hooksPath"), "outra-ferramenta/hooks")
         texto = (pasta / "pre-push").read_text(encoding="utf-8")
@@ -249,7 +250,7 @@ class Aplicar(Base):
         gancho = self.proj / ".git" / "hooks" / "pre-commit"
         gancho.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         gancho.chmod(0o755)
-        codigo, saida = self.adotar_no_terminal("s\ns\nn\n")
+        codigo, saida = self.adotar_no_terminal("s\ns\nn\nn\n")
         self.assertEqual(codigo, 0, saida)
         self.assertEqual(subprocess.run(["git", "-C", str(self.proj), "config", "core.hooksPath"], env=self.env,
                                         capture_output=True).returncode, 1, "core.hooksPath não muda")
@@ -278,7 +279,7 @@ class Aplicar(Base):
         self.assertEqual((pasta / "pre-push").read_text(encoding="utf-8"), "#!/usr/bin/env python3\nprint(1)\n")
 
     def test_develop_nasce_da_main_so_com_o_sim(self):  # D5
-        codigo, saida = self.adotar_no_terminal("s\ns\n")
+        codigo, saida = self.adotar_no_terminal("s\ns\nn\n")
         self.assertEqual(codigo, 0, saida)
         self.assertEqual(self.git("rev-parse", "develop"), self.git("rev-parse", "main"))
         self.assertIn("develop criada a partir da main", saida)
@@ -286,7 +287,7 @@ class Aplicar(Base):
     def test_registra_o_pedido_com_stack_e_pronto_supostos_e_passa_o_pronto_do_projeto(self):  # D5
         self.git("rm", "-q", "CLAUDE.md")
         self.git("commit", "-qm", "sem CLAUDE.md")
-        codigo, saida = self.adotar_no_terminal("s\nn\n")
+        codigo, saida = self.adotar_no_terminal("s\nn\nn\n")
         self.assertEqual(codigo, 0, saida)
         pedido = (self.proj / "docs" / "pedidos" / "adotar-forge.md").read_text(encoding="utf-8")
         historico = pedido.split("## Histórico", 1)[1]
@@ -300,9 +301,34 @@ class Aplicar(Base):
         (pedidos / "adotar-forge.md").write_text("meu\n", encoding="utf-8")
         self.git("add", ".")
         self.git("commit", "-qm", "pedido")
-        codigo, saida = self.adotar_no_terminal("s\nn\n")
+        codigo, saida = self.adotar_no_terminal("s\nn\nn\n")
         self.assertEqual(codigo, 0, saida)
         self.assertEqual((pedidos / "adotar-forge.md").read_text(encoding="utf-8"), "meu\n")
+
+
+    def prontos_para_o_sandbox(self):
+        """bwrap falso no PATH e a credencial do bot no ambiente: o forge-init ligaria o sandbox de um projeto novo."""
+        bin_falso = self.tmp / "bin"
+        bin_falso.mkdir()
+        (bin_falso / "bwrap").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        (bin_falso / "bwrap").chmod(0o755)
+        self.env.update(PATH=f"{bin_falso}:{self.env['PATH']}", GH_TOKEN="x", GIT_CONFIG_COUNT="0")
+
+    def sandbox(self):
+        caixa = json.loads((self.proj / ".claude" / "settings.json").read_text(encoding="utf-8")).get("sandbox")
+        return caixa.get("enabled") if isinstance(caixa, dict) else None
+
+    def test_sandbox_nunca_liga_sozinho_so_oferece(self):  # 0.45.0, item 3
+        self.prontos_para_o_sandbox()
+        codigo, saida = self.adotar_no_terminal("s\nn\nn\n")
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("Oferta: o sandbox do Bash está desligado", saida)
+        self.assertIsNone(self.sandbox())
+
+    def test_sandbox_liga_com_o_s(self):
+        codigo, saida = self.adotar_no_terminal("s\nn\ns\n")
+        self.assertEqual(codigo, 0, saida)
+        self.assertIs(self.sandbox(), True)
 
 
 class Deteccao(Base):
