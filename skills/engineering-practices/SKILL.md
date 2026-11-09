@@ -51,7 +51,7 @@ Cada regra do `docs/engineering/praticas.md` do projeto diz quem a decide: "deci
 11. Teste de ausência ("não achei X") cujo alvo mudou é relido: o texto que ele procura ainda existe? Teste que percorre pasta ou lista afirma um mínimo de itens?
 12. Falso de `git` ou `gh` num teste (a função que imita `head_do_pr`, `ls-remote` e afins) confere a mesma regra que o script corrige (nome exato, não prefixo nem substring)? Falso mais frouxo que o script deixa o teste verde com o defeito presente.
 
-**Suíte inteira (D-5, decisão do dono de 2026-11-01):** só o `qa-engineer` roda a suíte inteira; o review lê o diff e roda só os testes dos arquivos tocados (`bin/forge-testes`), e roda mais quando houver dúvida.
+**Suíte:** a suíte inteira roda só no CI do PR, obrigatório para o merge; o review lê o diff e roda os testes dos arquivos tocados (`bin/forge-testes`), e mais quando houver dúvida.
 
 Achado cuja classe se repete (já está em `docs/engineering/achados-recorrentes.md` ou volta neste pedido): grave a linha `AR-<n>` nesse arquivo, no formato dele (só classe, ID da regra, contagem e `arquivo:linha`), no mesmo PR do parecer; o `tech-lead` é quem a escreve no review.
 
@@ -63,7 +63,7 @@ Parecer: **aprovado** ou **ajustes necessários** (arquivo:linha · problema · 
 - Um commit por mudança coerente; o projeto compila e os testes passam em cada commit.
 - Guarda nova ou mudada: mutante declarado e teste do ramo de falha (ver `qa-testing`, 'Mutantes declarados').
 - Antes de commitar: `git status` e `git diff --staged`. Nunca versionar `.env`, segredos, dependências instaladas, builds, relatórios de teste.
-- **Teto por PR (decisão M14):** até 150 linhas alteradas de código e teste (`git diff --numstat --no-renames origin/develop...HEAD`, adições mais remoções); ficam fora pareceres, fragmentos de changelog, corpus e fixtures de teste e o texto `.md`. Passou, divide; um PR carrega um comportamento só (dois comportamentos, dois PRs); a exceção só vale com `teto: excedido, <n> linhas, <motivo>` no corpo do PR, aceita no review. No Forge: contam `bin/`, `hooks/`, `scripts/`, `.github/`, `.githooks/`, `tests/*.py` e `tests/config.json`; a exceção não vale em PR que mexe em qualquer arquivo de `hooks/` nem em caminho de `PROTEGIDOS` (`tests/catraca.py`), e vale uma classe de comportamento por PR em `hooks/`, com corpus próprio.
+- **Tamanho por risco (decisão M14, revista em 2026-11-08):** a orientação é até 150 linhas alteradas de código e teste (`git diff --numstat --no-renames origin/develop...HEAD`, adições mais remoções; fora pareceres, fragmentos de changelog, corpus, fixtures e `.md`) e um comportamento só; passou, o corpo do PR diz por que com `teto: excedido, <n> linhas, <motivo>`. Não é trava por volume: o que pesa é o risco. No Forge contam `bin/`, `hooks/`, `scripts/`, `.github/`, `.githooks/`, `tests/*.py` e `tests/config.json`, e vale uma classe de comportamento por PR em `hooks/`, com corpus próprio.
 - Para trazer a `main`: `git fetch` + `git merge origin/main` na sua branch (`R-MAIN`). `R-VERIFY` nunca `--no-verify` nem `--force`.
 
 ## Pull request e a main

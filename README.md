@@ -61,7 +61,7 @@ O `.claude/settings.json` do Forge liga o sandbox do Bash (ADR 0009, seção 5) 
 - **Emergência (só o dono):** edite `.claude/settings.json` no terminal, fora do Claude, e reinicie a sessão.
 
 ## Branches
-Os projetos usam **só a `main`**. Melhorias entram por `develop` (bateria no PR; no push, só a checagem rápida), passam pela `homolog` (mesma bateria sobre o conjunto da release; nada que custe uso de API) e chegam à `main` por PR mesclado pelo dono do Forge.
+Os projetos usam **só a `main`**. Cada melhoria entra na `develop` quando fica pronta (pareceres da classe aprovados e bateria verde no CI do PR, obrigatória para o merge); a versão é uma tag e release sobre um commit da `develop`, passa pela `homolog` (nada que custe uso de API) e chega à `main` por PR mesclado pelo dono do Forge.
 
 **Hooks `pre-push` (assimetria proposital):** o do Forge bloqueia `develop`, `homolog` e `main`, pois a fábrica tem as três como degraus protegidos; o do modelo de projeto bloqueia só a `main`, porque o projeto usa apenas ela como branch protegida (o resto é livre).
 
