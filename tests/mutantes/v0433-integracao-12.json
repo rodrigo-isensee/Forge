@@ -1,0 +1,147 @@
+{
+  "pedido": "v0433-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I177",
+      "guarda": "hooks/conformidade.py:2044 caminho.startswith('~/') (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        caminho = raiz / (str(Path.home()) + caminho[1:] if caminho.startswith(\"~/\") else caminho)",
+      "para": "        caminho = raiz / (str(Path.home()) + caminho[1:] if not (caminho.startswith(\"~/\")) else caminho)",
+      "testes": [
+        "tests.test_brief_forma_aceita",
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "I178",
+      "guarda": "scripts/arvore-testada.py:85 not (type(arvore) is str and SHA.fullmatch(arvore) and (type(log) is str)) (negada)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "    if not (type(arvore) is str and SHA.fullmatch(arvore) and type(log) is str):",
+      "para": "    if not (not (type(arvore) is str and SHA.fullmatch(arvore) and type(log) is str)):",
+      "testes": [
+        "tests.test_arvore_testada"
+      ]
+    },
+    {
+      "id": "I179",
+      "guarda": "scripts/arvore-testada.py:90 len(partes) == 2 and SHA.fullmatch(partes[0]) and (partes[1] == arvore) and (partes[0] not in achados) (negada)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "        if len(partes) == 2 and SHA.fullmatch(partes[0]) and partes[1] == arvore and partes[0] not in achados:",
+      "para": "        if not (len(partes) == 2 and SHA.fullmatch(partes[0]) and partes[1] == arvore and partes[0] not in achados):",
+      "testes": [
+        "tests.test_arvore_testada"
+      ]
+    },
+    {
+      "id": "I180",
+      "guarda": "scripts/arvore-testada.py:99 not ok (negada)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "    if not ok:",
+      "para": "    if not (not ok):",
+      "testes": [
+        "tests.test_arvore_testada"
+      ]
+    },
+    {
+      "id": "I181",
+      "guarda": "scripts/arvore-testada.py:103 not lista (negada)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "    if not lista:",
+      "para": "    if not (not lista):",
+      "testes": [
+        "tests.test_arvore_testada"
+      ]
+    },
+    {
+      "id": "I182",
+      "guarda": "scripts/arvore-testada.py:107 campo(ler(f'repos/{repo}/actions/runs?{consulta}'), 'workflow_runs', list) or [] (negada)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "        execucoes = campo(ler(f\"repos/{repo}/actions/runs?{consulta}\"), \"workflow_runs\", list) or []",
+      "para": "        execucoes = not (campo(ler(f\"repos/{repo}/actions/runs?{consulta}\"), \"workflow_runs\", list) or [])",
+      "testes": [
+        "tests.test_arvore_testada"
+      ]
+    },
+    {
+      "id": "I183",
+      "guarda": "scripts/arvore-testada.py:109 campo(e, 'path', str) == WORKFLOW_DE_PROVA (negada)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "        for execucao in [e for e in execucoes if campo(e, \"path\", str) == WORKFLOW_DE_PROVA][:LIMITE_DE_EXECUCOES]:",
+      "para": "        for execucao in [e for e in execucoes if not (campo(e, \"path\", str) == WORKFLOW_DE_PROVA)][:LIMITE_DE_EXECUCOES]:",
+      "testes": [
+        "tests.test_arvore_testada"
+      ]
+    },
+    {
+      "id": "I184",
+      "guarda": "scripts/arvore-testada.py:111 run_id is not None (negada)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "            if run_id is not None:",
+      "para": "            if not (run_id is not None):",
+      "testes": [
+        "tests.test_arvore_testada"
+      ]
+    },
+    {
+      "id": "I185",
+      "guarda": "scripts/arvore-testada.py:114 ok (negada)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "        ok, motivo = prova_valida(execucoes, jobs, commit, python, repo)\n        if ok:",
+      "para": "        ok, motivo = prova_valida(execucoes, jobs, commit, python, repo)\n        if not (ok):",
+      "testes": [
+        "tests.test_arvore_testada"
+      ]
+    },
+    {
+      "id": "I186",
+      "guarda": "scripts/arvore-testada.py:121 env.get('GITHUB_API_URL') or 'https://api.github.com' (negada)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "    base = (env.get(\"GITHUB_API_URL\") or \"https://api.github.com\").rstrip(\"/\")",
+      "para": "    base = (not (env.get(\"GITHUB_API_URL\") or \"https://api.github.com\")).rstrip(\"/\")",
+      "testes": [
+        "tests.test_arvore_testada"
+      ]
+    },
+    {
+      "id": "I187",
+      "guarda": "scripts/arvore-testada.py:123 env.get('GH_TOKEN') (negada)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "    if env.get(\"GH_TOKEN\"):",
+      "para": "    if not (env.get(\"GH_TOKEN\")):",
+      "testes": [
+        "tests.test_arvore_testada"
+      ]
+    },
+    {
+      "id": "I188",
+      "guarda": "scripts/arvore-testada.py:137 env is None (negada)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "    env = dict(os.environ if env is None else env)",
+      "para": "    env = dict(os.environ if not (env is None) else env)",
+      "testes": [
+        "tests.test_arvore_testada"
+      ]
+    },
+    {
+      "id": "I189",
+      "guarda": "scripts/arvore-testada.py:142 not PYTHON.fullmatch(a.python) (negada)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "    if not PYTHON.fullmatch(a.python):",
+      "para": "    if not (not PYTHON.fullmatch(a.python)):",
+      "testes": [
+        "tests.test_arvore_testada"
+      ]
+    },
+    {
+      "id": "I190",
+      "guarda": "scripts/arvore-testada.py:151 ok (negada)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "        ok, motivo = False, f\"erro ao ler a prova ({type(erro).__name__})\"\n    if ok:",
+      "para": "        ok, motivo = False, f\"erro ao ler a prova ({type(erro).__name__})\"\n    if not (ok):",
+      "testes": [
+        "tests.test_arvore_testada"
+      ]
+    }
+  ]
+}

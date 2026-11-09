@@ -1,0 +1,295 @@
+{
+  "pedido": "v0433-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I1",
+      "guarda": "bin/forge-check:749 not sha_do_commit(raiz, commit) or not so_de_parecer(raiz, commit, pedido) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not sha_do_commit(raiz, commit) or not so_de_parecer(raiz, commit, pedido):",
+      "para": "    if not (not sha_do_commit(raiz, commit) or not so_de_parecer(raiz, commit, pedido)):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I2",
+      "guarda": "bin/forge-check:753 certo or 'o Revisar-sha do brief selado' (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "            f\"`commit: {certo or 'o Revisar-sha do brief selado'}` (o `Revisar-sha:` do brief selado; `forge-check parecer novo` já o \"",
+      "para": "            f\"`commit: {not (certo or 'o Revisar-sha do brief selado')}` (o `Revisar-sha:` do brief selado; `forge-check parecer novo` já o \"",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I3",
+      "guarda": "bin/forge-check:1057 bool(CAMINHO_DE_TESTE.search(nome)) and (not nome.startswith(CODIGO_EM_TESTS + NAO_TESTE_EM_TESTS)) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    return bool(CAMINHO_DE_TESTE.search(nome)) and not nome.startswith(CODIGO_EM_TESTS + NAO_TESTE_EM_TESTS)",
+      "para": "    return not (bool(CAMINHO_DE_TESTE.search(nome)) and not nome.startswith(CODIGO_EM_TESTS + NAO_TESTE_EM_TESTS))",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I4",
+      "guarda": "bin/forge-check:1063 nome.startswith(CODIGO_EM_TESTS) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if nome.startswith(CODIGO_EM_TESTS):",
+      "para": "    if not (nome.startswith(CODIGO_EM_TESTS)):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I5",
+      "guarda": "bin/forge-check:1065 e_teste(nome) or nome.startswith(NAO_TESTE_EM_TESTS) or livre(nome, LIVRES) or nome.startswith(('docs/', 'changelog.d/') (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if e_teste(nome) or nome.startswith(NAO_TESTE_EM_TESTS) or livre(nome, LIVRES) or nome.startswith((\"docs/\", \"changelog.d/\")):",
+      "para": "    if not (e_teste(nome) or nome.startswith(NAO_TESTE_EM_TESTS) or livre(nome, LIVRES) or nome.startswith((\"docs/\", \"changelog.d/\"))):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I6",
+      "guarda": "bin/forge-check:1068 base.endswith(EXTENSOES_DE_CODIGO) or (nome.startswith(PASTAS_DE_EXECUTAVEIS) and '.' not in base) or bool(re.match('^\\\\ (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    return (base.endswith(EXTENSOES_DE_CODIGO) or (nome.startswith(PASTAS_DE_EXECUTAVEIS) and \".\" not in base)\n            or bool(re.match(r\"^\\.github/workflows/[^/]+\\.ya?ml$\", nome)))",
+      "para": "    return (not (base.endswith(EXTENSOES_DE_CODIGO) or (nome.startswith(PASTAS_DE_EXECUTAVEIS) and \".\" not in base)\n            or bool(re.match(r\"^\\.github/workflows/[^/]+\\.ya?ml$\", nome))))",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I7",
+      "guarda": "bin/forge-check:1075 not testes (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not testes:",
+      "para": "    if not (not testes):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I8",
+      "guarda": "bin/forge-check:1078 cod (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    cod, saida = git(raiz, \"diff\", \"-U0\", \"--no-color\", \"--no-ext-diff\", \"--no-textconv\", \"--no-renames\", rev, \"--\", *testes, bruto=True)\n    if cod:",
+      "para": "    cod, saida = git(raiz, \"diff\", \"-U0\", \"--no-color\", \"--no-ext-diff\", \"--no-textconv\", \"--no-renames\", rev, \"--\", *testes, bruto=True)\n    if not (cod):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I9",
+      "guarda": "bin/forge-check:1081 linha[:1] in (b'+', b'-') and (not linha.startswith((b'+++ ', b'--- '))) and (not COMENTARIO_OU_VAZIO.match(linha[1:])) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        if linha[:1] in (b\"+\", b\"-\") and not linha.startswith((b\"+++ \", b\"--- \")) and not COMENTARIO_OU_VAZIO.match(linha[1:]):",
+      "para": "        if not (linha[:1] in (b\"+\", b\"-\") and not linha.startswith((b\"+++ \", b\"--- \")) and not COMENTARIO_OU_VAZIO.match(linha[1:])):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I10",
+      "guarda": "bin/forge-check:1089 e_codigo(n) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    codigo = [n for n in nomes if e_codigo(n)]",
+      "para": "    codigo = [n for n in nomes if not (e_codigo(n))]",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I11",
+      "guarda": "bin/forge-check:1090 not codigo (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not codigo:",
+      "para": "    if not (not codigo):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I12",
+      "guarda": "bin/forge-check:1092 e_teste(n) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    mudou = teste_mudou_de_verdade(raiz, rev, [n for n in nomes if e_teste(n)])",
+      "para": "    mudou = teste_mudou_de_verdade(raiz, rev, [n for n in nomes if not (e_teste(n))])",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I13",
+      "guarda": "bin/forge-check:1093 mudou is None (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    return None if mudou is None else [] if mudou else codigo",
+      "para": "    return None if not (mudou is None) else [] if mudou else codigo",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I14",
+      "guarda": "bin/forge-check:1093 mudou (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    return None if mudou is None else [] if mudou else codigo",
+      "para": "    return None if mudou is None else [] if not (mudou) else codigo",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I15",
+      "guarda": "bin/forge-check:1107 classe == 'T' (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if classe == \"T\":",
+      "para": "    if not (classe == \"T\"):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I16",
+      "guarda": "bin/forge-check:1110 achados == [] (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if achados == []:",
+      "para": "    if not (achados == []):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    }
+  ],
+  "isentas": []
+}

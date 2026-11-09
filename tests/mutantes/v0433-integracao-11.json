@@ -1,0 +1,178 @@
+{
+  "pedido": "v0433-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I161",
+      "guarda": "bin/forge_governanca.py:539 not achado (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            if not achado:",
+      "para": "            if not (not achado):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I162",
+      "guarda": "bin/forge_governanca.py:542 fim < inicio or (desde and inicio.date() < desde) or (ate and inicio.date() > ate) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            if fim < inicio or (desde and inicio.date() < desde) or (ate and inicio.date() > ate):",
+      "para": "            if not (fim < inicio or (desde and inicio.date() < desde) or (ate and inicio.date() > ate)):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I163",
+      "guarda": "bin/forge_governanca.py:548 rc != 0 (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        saida[plano] = {\"envios\": len(envios), \"falhas\": sum(1 for _, rc in envios if rc != 0),",
+      "para": "        saida[plano] = {\"envios\": len(envios), \"falhas\": sum(1 for _, rc in envios if not (rc != 0)),",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I164",
+      "guarda": "bin/forge_governanca.py:567 getattr(a, 'log_prepush', None) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if getattr(a, \"log_prepush\", None):",
+      "para": "    if not (getattr(a, \"log_prepush\", None)):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I165",
+      "guarda": "hooks/agentes.py:260 NOTA_COM_ORDEM.search(texto.split('<<<BRIEF', 1)[0]) (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if NOTA_COM_ORDEM.search(texto.split(\"<<<BRIEF\", 1)[0]):  # EJ 64: só o cabeçalho; o corpo do brief citado não conta",
+      "para": "    if not (NOTA_COM_ORDEM.search(texto.split(\"<<<BRIEF\", 1)[0])):  # EJ 64: só o cabeçalho; o corpo do brief citado não conta",
+      "testes": [
+        "tests.test_agentes_clone",
+        "tests.evals.test_regressao_forma"
+      ]
+    },
+    {
+      "id": "I166",
+      "guarda": "hooks/agentes.py:483 isinstance(valor, bool) or not isinstance(valor, (int, float)) or (not math.isfinite(valor)) (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if isinstance(valor, bool) or not isinstance(valor, (int, float)) or not math.isfinite(valor):",
+      "para": "    if not (isinstance(valor, bool) or not isinstance(valor, (int, float)) or not math.isfinite(valor)):",
+      "testes": [
+        "tests.test_agentes_clone",
+        "tests.evals.test_regressao_forma"
+      ]
+    },
+    {
+      "id": "I167",
+      "guarda": "hooks/agentes.py:494 motivo not in MOTIVOS_DA_RECUSA (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if motivo not in MOTIVOS_DA_RECUSA:",
+      "para": "        if not (motivo not in MOTIVOS_DA_RECUSA):",
+      "testes": [
+        "tests.test_agentes_clone",
+        "tests.evals.test_regressao_forma"
+      ]
+    },
+    {
+      "id": "I168",
+      "guarda": "hooks/agentes.py:496 campos or {} (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "        campos = campos or {}",
+      "para": "        campos = not (campos or {})",
+      "testes": [
+        "tests.test_agentes_clone",
+        "tests.evals.test_regressao_forma"
+      ]
+    },
+    {
+      "id": "I169",
+      "guarda": "hooks/agentes.py:497 hook._run or hook.run() (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "        pasta = hook._run or hook.run()",
+      "para": "        pasta = not (hook._run or hook.run())",
+      "testes": [
+        "tests.test_agentes_clone",
+        "tests.evals.test_regressao_forma"
+      ]
+    },
+    {
+      "id": "I170",
+      "guarda": "hooks/agentes.py:499 os.path.lexists(log) (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "        estado = os.lstat(log) if os.path.lexists(log) else None",
+      "para": "        estado = os.lstat(log) if not (os.path.lexists(log)) else None",
+      "testes": [
+        "tests.test_agentes_clone",
+        "tests.evals.test_regressao_forma"
+      ]
+    },
+    {
+      "id": "I171",
+      "guarda": "hooks/agentes.py:500 estado and stat.S_ISREG(estado.st_mode) and (estado.st_size > LIMITE_LOG) (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if estado and stat.S_ISREG(estado.st_mode) and estado.st_size > LIMITE_LOG:",
+      "para": "        if not (estado and stat.S_ISREG(estado.st_mode) and estado.st_size > LIMITE_LOG):",
+      "testes": [
+        "tests.test_agentes_clone",
+        "tests.evals.test_regressao_forma"
+      ]
+    },
+    {
+      "id": "I172",
+      "guarda": "hooks/agentes.py:507 stat.S_ISREG(os.fstat(fd).st_mode) (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "            if stat.S_ISREG(os.fstat(fd).st_mode):",
+      "para": "            if not (stat.S_ISREG(os.fstat(fd).st_mode)):",
+      "testes": [
+        "tests.test_agentes_clone",
+        "tests.evals.test_regressao_forma"
+      ]
+    },
+    {
+      "id": "I173",
+      "guarda": "hooks/conformidade.py:2029 not raiz (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not raiz:",
+      "para": "    if not (not raiz):",
+      "testes": [
+        "tests.test_brief_forma_aceita",
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "I174",
+      "guarda": "hooks/conformidade.py:2035 not politica_valida(pol) (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return (\"R-CONFORMIDADE\", \"raiz vazia: a raiz do pedido é obrigatória\", \"leve ao usuário (R-DECISAO)\")\n    try:\n        pol = json.loads((PLUGIN / \"hooks\" / \"conformidade.json\").read_text(encoding=\"utf-8\"))\n    except (OSError, ValueError):\n        pol = None\n    if not politica_valida(pol):",
+      "para": "        return (\"R-CONFORMIDADE\", \"raiz vazia: a raiz do pedido é obrigatória\", \"leve ao usuário (R-DECISAO)\")\n    try:\n        pol = json.loads((PLUGIN / \"hooks\" / \"conformidade.json\").read_text(encoding=\"utf-8\"))\n    except (OSError, ValueError):\n        pol = None\n    if not (not politica_valida(pol)):",
+      "testes": [
+        "tests.test_brief_forma_aceita",
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "I175",
+      "guarda": "hooks/conformidade.py:2039 any((unicodedata.category(c) in INVISIVEIS for c in caminho)) (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if any(unicodedata.category(c) in INVISIVEIS for c in caminho):",
+      "para": "        if not (any(unicodedata.category(c) in INVISIVEIS for c in caminho)):",
+      "testes": [
+        "tests.test_brief_forma_aceita",
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "I176",
+      "guarda": "hooks/conformidade.py:2041 len(caminho.encode('utf-8', 'surrogatepass')) > TETO_DO_CAMINHO (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if len(caminho.encode(\"utf-8\", \"surrogatepass\")) > TETO_DO_CAMINHO:",
+      "para": "        if not (len(caminho.encode(\"utf-8\", \"surrogatepass\")) > TETO_DO_CAMINHO):",
+      "testes": [
+        "tests.test_brief_forma_aceita",
+        "tests.test_hooks"
+      ]
+    }
+  ]
+}

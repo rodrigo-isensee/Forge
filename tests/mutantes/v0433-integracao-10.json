@@ -1,0 +1,166 @@
+{
+  "pedido": "v0433-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I145",
+      "guarda": "bin/forge_governanca.py:443 t (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    variavel = [t for t in os.environ.get(\"FORGE_TRANSCRITOS\", \"\").split(os.pathsep) if t]",
+      "para": "    variavel = [t for t in os.environ.get(\"FORGE_TRANSCRITOS\", \"\").split(os.pathsep) if not (t)]",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I146",
+      "guarda": "bin/forge_governanca.py:444 [Path(t) for t in transcritos or variavel] or transcritos_da_raiz(raiz) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    pastas = [Path(t) for t in (transcritos or variavel)] or transcritos_da_raiz(raiz)",
+      "para": "    pastas = not ([Path(t) for t in (transcritos or variavel)] or transcritos_da_raiz(raiz))",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I147",
+      "guarda": "bin/forge_governanca.py:445 pastas (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    custos = tokens_por_item(pastas, raiz_pedidos) if pastas else None",
+      "para": "    custos = tokens_por_item(pastas, raiz_pedidos) if not (pastas) else None",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I148",
+      "guarda": "bin/forge_governanca.py:454 custos is not None (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            custo = custos.get((nome, i[\"item\"])) if custos is not None else None",
+      "para": "            custo = custos.get((nome, i[\"item\"])) if not (custos is not None) else None",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I149",
+      "guarda": "bin/forge_governanca.py:455 custo (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            i[\"tokens\"] = custo[\"tokens\"] if custo else None",
+      "para": "            i[\"tokens\"] = custo[\"tokens\"] if not (custo) else None",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I150",
+      "guarda": "bin/forge_governanca.py:460 custos is not None (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            if custos is not None:  # o pedido soma todos os agentes dele, também os de item sem linha no Histórico",
+      "para": "            if not (custos is not None):  # o pedido soma todos os agentes dele, também os de item sem linha no Histórico",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I151",
+      "guarda": "bin/forge_governanca.py:461 sum((d['tokens'] for (p, _), d in custos.items() if p == nome)) or None (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "                por_pedido[-1][\"tokens\"] = sum(d[\"tokens\"] for (p, _), d in custos.items() if p == nome) or None",
+      "para": "                por_pedido[-1][\"tokens\"] = not (sum(d[\"tokens\"] for (p, _), d in custos.items() if p == nome) or None)",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I152",
+      "guarda": "bin/forge_governanca.py:475 recusas (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    arquivos = [Path(r) for r in recusas] if recusas else arquivos_de_recusas(raiz)",
+      "para": "    arquivos = [Path(r) for r in recusas] if not (recusas) else arquivos_de_recusas(raiz)",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I153",
+      "guarda": "bin/forge_governanca.py:478 arquivos (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            \"espera_por_portao\": portoes if arquivos else None}, avisos",
+      "para": "            \"espera_por_portao\": portoes if not (arquivos) else None}, avisos",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I154",
+      "guarda": "bin/forge_governanca.py:497 i.get('tokens') is None (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "                 f\"tokens={'-' if i.get('tokens') is None else i['tokens']}\")",
+      "para": "                 f\"tokens={'-' if not (i.get('tokens') is None) else i['tokens']}\")",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I155",
+      "guarda": "bin/forge_governanca.py:507 r.get('tokens') is None (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "                         f\"merito(declarada)={_contagem(r['merito_declarado'])} tokens={'-' if r.get('tokens') is None else r['tokens']}\")",
+      "para": "                         f\"merito(declarada)={_contagem(r['merito_declarado'])} tokens={'-' if not (r.get('tokens') is None) else r['tokens']}\")",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I156",
+      "guarda": "bin/forge_governanca.py:509 portoes is None (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if portoes is None:",
+      "para": "    if not (portoes is None):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I157",
+      "guarda": "bin/forge_governanca.py:511 portoes or {} (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    for portao, d in (portoes or {}).items():",
+      "para": "    for portao, d in (not (portoes or {})).items():",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I158",
+      "guarda": "bin/forge_governanca.py:516 'prepush' in dados and (not dados['prepush']) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if \"prepush\" in dados and not dados[\"prepush\"]:",
+      "para": "    if not (\"prepush\" in dados and not dados[\"prepush\"]):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I159",
+      "guarda": "bin/forge_governanca.py:518 'prepush' in dados (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    fontes = {**FONTES, \"prepush\": \"medida (linhas `pre-push: duracao` do log do envio)\"} if \"prepush\" in dados else FONTES",
+      "para": "    fontes = {**FONTES, \"prepush\": \"medida (linhas `pre-push: duracao` do log do envio)\"} if not (\"prepush\" in dados) else FONTES",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I160",
+      "guarda": "bin/forge_governanca.py:534 texto is None (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        texto = ler_texto(Path(caminho))\n        if texto is None:",
+      "para": "        texto = ler_texto(Path(caminho))\n        if not (texto is None):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    }
+  ]
+}
