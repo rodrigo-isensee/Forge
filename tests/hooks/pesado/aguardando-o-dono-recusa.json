@@ -1,0 +1,31 @@
+{
+  "descricao": "Orkastery 5: cartão da branch em \"Aguardando o dono\" recusa na hora, sem esperar na fila.",
+  "arquivos": {
+    "KANBAN.md": "# Quadro\n\n## Aguardando o dono\n| C1 | melhoria/v0442 | decisão |\n\n## Fazendo\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/v0442"
+    }
+  ],
+  "estado": {
+    "pesado.json": {
+      "pid": "{pid_outro}",
+      "comando": "npx playwright test",
+      "desde": "{agora-120}",
+      "tool_use_id": "toolu_1"
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "npx playwright test"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "Aguardando o dono"
+  }
+}

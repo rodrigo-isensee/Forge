@@ -45,7 +45,7 @@
             "args": [
               "${CLAUDE_PLUGIN_ROOT}/hooks/pesado.py"
             ],
-            "timeout": 10
+            "timeout": 300
           }
         ]
       }

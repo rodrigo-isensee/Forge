@@ -1,0 +1,14 @@
+{
+ "pedido": "v0442-orkastery5-pesado",
+ "executor": "unittest",
+ "mutantes": [
+  {"id": "M1", "guarda": "espera a vez em vez de recusar", "arquivo": "hooks/pesado.py", "de": "            if time.monotonic() >= limite:", "para": "            if True:", "testes": ["tests.test_pesado_fila.Fila.test_espera_a_vez_e_pega_quando_solta"]},
+  {"id": "M2", "guarda": "pega a vez so sendo o primeiro da fila e livre", "arquivo": "hooks/pesado.py", "de": "                if not ocupada(hook, trava, uso, agora) and vivas[:1] == [senha]:", "para": "                if not ocupada(hook, trava, uso, agora) and vivas[:1] == []:", "testes": ["tests.test_pesado_fila.Fila.test_espera_a_vez_e_pega_quando_solta"]},
+  {"id": "M3", "guarda": "versao em curso na frente", "arquivo": "hooks/pesado.py", "de": "    return int(m.group(1)) * 10000 + int(m.group(2)) * 100 + int(m.group(3) or 0) if m else SEM_VERSAO", "para": "    return SEM_VERSAO", "testes": ["tests.test_pesado_fila.Fila.test_prioridade_pela_versao_da_branch"]},
+  {"id": "M4", "guarda": "senha morta sai da fila", "arquivo": "hooks/pesado.py", "de": "        except BlockingIOError:\n            vivas.append(c)", "para": "        except BlockingIOError:\n            pass\n            vivas.append(c)", "testes": ["tests.test_pesado_fila.Fila.test_fila_anda_pela_prioridade_e_descarta_a_morta"]},
+  {"id": "M5", "guarda": "aguardando o dono recusa", "arquivo": "hooks/pesado.py", "de": "    if aguardando_o_dono(raiz, branch):", "para": "    if False:", "testes": ["tests.test_hooks.Hooks.test_fixtures"]},
+  {"id": "M6", "guarda": "so a secao aguardando o dono", "arquivo": "hooks/pesado.py", "de": "    return bool(branch) and secao is not None and re.search(", "para": "    return bool(branch) and re.search(", "testes": ["tests.test_pesado_fila.Fila.test_aguardando_o_dono_so_na_secao"]},
+  {"id": "M7", "guarda": "fila nao vazia nao pula", "arquivo": "hooks/pesado.py", "de": " and not fila_viva(hook.run() / \"pesado.fila\"):", "para": " and True:", "testes": ["tests.test_pesado_fila.Fila.test_espera_a_vez_e_pega_quando_solta"]},
+  {"id": "M8", "guarda": "teto do ambiente limitado", "arquivo": "hooks/pesado.py", "de": "        return max(0, min(ESPERA_S, int(os.environ.get(\"FORGE_PESADO_ESPERA_S\", ESPERA_S))))", "para": "        return 0", "testes": ["tests.test_pesado_fila.Fila.test_espera_a_vez_e_pega_quando_solta"]}
+ ]
+}
