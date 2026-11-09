@@ -1,0 +1,15 @@
+{
+  "descricao": "meta.json corrompido: libera e registra em erros.log.",
+  "estado": {
+    "meta.json": "nao-e-json"
+  },
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "stop_hook_active": false
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "meta JSONDecodeError"
+  }
+}
