@@ -112,10 +112,17 @@ def git(*args, cwd=None):
     return r.stdout
 
 
-def ambiente_da_copia():
-    """Sem `GIT_*` (um hook exporta `GIT_DIR`, que venceria o repositório da cópia), `FORGE_*` nem a sessão real."""
-    env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
-    env["PYTHONDONTWRITEBYTECODE"] = "1"
+def ambiente_da_copia(cache=None):
+    """Sem `GIT_*` (um hook exporta `GIT_DIR`, que venceria o repositório da cópia), `FORGE_*` nem a sessão real. Com
+    `cache`, o bytecode vai para essa pasta fora da cópia (`PYTHONPYCACHEPREFIX`), uma por rodada: o teste que mede a
+    CPU de um script grande (o `test_doutor` com o `forge-check`) não paga a compilação a cada subprocesso, e o mutante
+    nunca lê o `.pyc` do controle (mesmo tamanho e mesmo segundo). Sem `cache`, nada de bytecode."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "PYTHONPYCACHEPREFIX"))
+           and k not in ("CLAUDE_PROJECT_DIR", "PYTHONDONTWRITEBYTECODE")}
+    if cache is None:
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
+    else:
+        env["PYTHONPYCACHEPREFIX"] = str(cache)
     return env
 
 
@@ -212,13 +219,13 @@ def encerrar_todos():
                 pass
 
 
-def rodar(copia, ids, registro, prazo):
+def rodar(copia, ids, registro, prazo, cache=None):
     """Roda os testes na cópia e devolve o registro por teste, ou None (prazo, sinal ou executor sem registro)."""
     with TRAVA_DOS_ATIVOS:
         if ABORTAR.is_set():
             return None
         processo = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--executar", *ids,
-                                     "--registro", str(registro)], cwd=copia, env=ambiente_da_copia(),
+                                     "--registro", str(registro)], cwd=copia, env=ambiente_da_copia(cache),
                                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                     start_new_session=True)
         ATIVOS.add(processo)
@@ -677,7 +684,8 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
     montar_copia(raiz, copia, sha)
 
     def controle():  # mesmo commit e mesmos testes: o controle dá o mesmo resultado
-        registro = rodar(copia, m["testes"], trabalho / f"controle-{m['id']}.jsonl", prazo)
+        registro = rodar(copia, m["testes"], trabalho / f"controle-{m['id']}.jsonl", prazo,
+                         trabalho / f"pyc-controle-{m['id']}")
         resultado = None if registro is None else veredito(m["testes"], registro)
         return "sem veredito" if resultado is None else ("ok" if resultado[0] == "sobreviveu" else "vermelho")
 
@@ -687,7 +695,7 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
     linha, motivo = mutar(copia, m)
     if motivo:
         return f"{m['id']} · inválido · {m['arquivo']} · {motivo}", 2, False
-    registro = rodar(copia, m["testes"], trabalho / f"mutante-{m['id']}.jsonl", prazo)
+    registro = rodar(copia, m["testes"], trabalho / f"mutante-{m['id']}.jsonl", prazo, trabalho / f"pyc-{m['id']}")
     if registro is None:
         return f"{m['id']} · sem veredito · {m['arquivo']}:{linha}", 2, False
     classe, motivo = veredito(m["testes"], registro)

@@ -456,6 +456,23 @@ class Execucao(unittest.TestCase):
                        GIT_DIR=str(self.dir / ".git"), GIT_WORK_TREE=str(self.dir), FORGE_X="1")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
+    def test_bytecode_fora_da_copia_e_o_mutante_nao_le_o_do_controle(self):
+        """O teste que mede CPU de um script grande não paga a compilação a cada subprocesso (controle vermelho do
+        `test_doutor`): o bytecode vai para uma pasta fora da cópia, e a do mutante não é a do controle (a troca do
+        mesmo tamanho no mesmo segundo leria o `.pyc` velho e o mutante sobreviveria)."""
+        corpo = ("assert 'PYTHONDONTWRITEBYTECODE' not in os.environ\n"
+                 "        prefixo = os.environ.get('PYTHONPYCACHEPREFIX', os.getcwd())\n"
+                 "        self.assertFalse(os.path.realpath(prefixo).startswith(os.path.realpath(os.getcwd())))\n"
+                 "        r = subprocess.run([sys.executable, '-c', 'import lib; assert lib.limite(11) == 2'])\n"
+                 "        self.assertEqual(r.returncode, 0)")
+        self.gravar("tests/test_lib.py", "import os, subprocess, sys\n" + TESTE
+                    + f"\n    def test_filho(self):\n        {corpo}\n")
+        self.salvar()
+        r = self.rodar(self.spec(mutante(de="x > 10", para="x > 99", testes=["tests.test_lib.T.test_filho"])),
+                       PYTHONDONTWRITEBYTECODE="1")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("M1 · morreu", r.stdout)
+
     def test_spec_ilegivel_ou_grande_demais_sai_2(self):
         caminho = Path(self._t.name) / "ruim.json"
         for conteudo in ("{", "[]", "x" * 70000):
