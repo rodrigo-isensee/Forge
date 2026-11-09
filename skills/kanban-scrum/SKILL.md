@@ -126,7 +126,7 @@ Um cartão por (origem, área, faixa de severidade), revisável de uma vez: bloq
 5. Revisão das propostas vencidas: `forge-placar comparar --antes <data> --depois <data> --metrica <m>` (rc 0 manter, rc 1 reverter a mudança inteira, rc 3 inconclusivo), com o resultado gravado. `ERRO-JARVIS:` entra como dado, com `Prevenção: eval/trava: <caso>` ou `sem trava possível`. Proibido: regra, lembrete ou checklist em texto sem métrica e prazo; trava sem eval; segunda proposta aberta. À pessoa, só a linha `resumo:` do `forge-placar`.
 
 ## Experimentos de melhoria (`docs/kanban/melhorias.md`)
-| ID | Hipótese | Mudança | Métrica | Início | Revisão | Resultado |
+| ID | Hipótese | Mudança | Métrica | Critério de reversão | Início | Revisão | Resultado |
 Uma mudança por vez em cada parte do processo, para saber o que causou o efeito.
 
 ## Elementos de Scrum usados

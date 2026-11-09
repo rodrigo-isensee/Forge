@@ -20,7 +20,10 @@ RETIRADOS_0431 = frozenset({
     "nunca a própria branch", "ele não vê o relatório", "uma pergunta por vez", "`<<<BRIEF`", "`Base-sha:`",
     "`Arquivo:` \\(o caminho do brief", "linhas>=N",
 })
-ORCAMENTO_0431 = 37_511  # metade de jarvis.md + docs/regras/*.md na base da 0.43 (75.022 caracteres), decisão 11 do dono
+# Um número só por trava (docs/regras/orcamento.json): o núcleo (jarvis.md + docs/regras/*.md, decisão 11 do dono) e o teto do
+# arquivo do Jarvis (o mesmo que tests/test_orcamento_instrucao.py aplica).
+ORCAMENTO = json.loads((RAIZ / "docs" / "regras" / "orcamento.json").read_text(encoding="utf-8"))
+ORCAMENTO_0431 = ORCAMENTO["nucleo"]["teto_caracteres"]
 
 
 def ler(rel):
@@ -90,6 +93,7 @@ class OrcamentoDeInstrucao(unittest.TestCase):
     """0.43.1, decisão 11: o Jarvis e as regras que ele carrega com no máximo metade do tamanho da base; o procedimento mora na ferramenta."""
 
     def test_jarvis_e_regras_cabem_na_metade_da_base(self):
+        self.assertEqual(ORCAMENTO_0431, 75_022 // 2)  # metade da base da 0.43: subir é afrouxar
         arquivos = [RAIZ / JARVIS, *sorted((RAIZ / "docs" / "regras").glob("*.md"))]
         self.assertGreaterEqual(len(arquivos), 18)
         total = sum(len(a.read_text(encoding="utf-8")) for a in arquivos)
@@ -123,7 +127,7 @@ class RevalidaMesmaInstancia(unittest.TestCase):
 
     def test_o_nucleo_segue_no_teto(self):
         nucleo = ler(JARVIS)
-        self.assertLess(len(nucleo), 24000)
+        self.assertLessEqual(len(nucleo), ORCAMENTO["agentes"]["jarvis"]["teto"]["agente_caracteres"])
         self.assertLessEqual(len(nucleo.splitlines()), 110)
 
 

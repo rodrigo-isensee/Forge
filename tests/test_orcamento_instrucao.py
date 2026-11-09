@@ -1,7 +1,7 @@
 """Orçamento de instrução (P11, 0.43.1 H): o que cada agente carrega não passa do teto de docs/regras/orcamento.json.
 
-O que o agente carrega: agents/<x>.md, as skills obrigatórias (as do `skills:` do cabeçalho e as que o texto manda ler com
-"leia `${CLAUDE_PLUGIN_ROOT}/skills/<nome>/SKILL.md`") e os docs/regras/R-*.md citados pelo agente ou por essas skills. Mede-se em
+O que o agente carrega: agents/<x>.md, as skills obrigatórias (as do `skills:` do cabeçalho e as que o texto cita pelo caminho
+`${CLAUDE_PLUGIN_ROOT}/skills/<nome>/SKILL.md`) e os docs/regras/R-*.md citados pelo agente ou por essas skills. Mede-se em
 caracteres (o arquivo do agente e o total) e em marcadores normativos (nunca, sempre, só, proibido, obrigatório, reprova). O alvo é a
 meta documentada; só o teto reprova."""
 import json
@@ -14,13 +14,16 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 ORCAMENTO = RAIZ / "docs" / "regras" / "orcamento.json"
 MARCADOR = re.compile(r"(?<!\w)(nunca|sempre|só|proibid[oa]s?|obrigatóri[oa]s?|reprovam?)(?!\w)", re.I)
-SKILL_LIDA = re.compile(r"[Ll]eia `\$\{CLAUDE_PLUGIN_ROOT\}/skills/([a-z0-9-]+)/SKILL\.md")
+# Toda skill que o texto cita pelo caminho do plugin ("leia `...`", "a skill `...`", "leia `A` e `B`"): o agente a carrega.
+SKILL_LIDA = re.compile(r"`\$\{CLAUDE_PLUGIN_ROOT\}/skills/([a-z0-9-]+)/SKILL\.md")
 ID_DE_REGRA = re.compile(r"\bR-[A-Z]+\b")
 DIMENSOES = ("agente_caracteres", "total_caracteres", "marcadores")
+# Total carregado na base 85531b1 (teto inicial da frente H), referência fixa dos alvos.
+BASE_85531B1 = {"jarvis": 96774, "conferente": 53441}
 
 
 def skills_obrigatorias(texto):
-    """As do `skills:` do cabeçalho mais as que o texto manda ler."""
+    """As do `skills:` do cabeçalho mais as que o texto cita pelo caminho do plugin."""
     cabecalho = texto.split("\n---", 1)[0] if texto.startswith("---") else ""
     achou = re.search(r"^skills:\s*(.+)$", cabecalho, re.M)
     nomes = {s.strip() for s in achou.group(1).split(",") if s.strip()} if achou else set()
@@ -73,10 +76,10 @@ class Orcamento(unittest.TestCase):
                         self.assertLessEqual(valores["alvo"][d], valores["teto"][d])
 
     def test_jarvis_e_conferente_tem_alvo_bem_menor(self):
-        for agente in ("jarvis", "conferente"):
+        """O alvo é no máximo metade do que eles carregavam na base 85531b1 (o teto já baixou para a medida da 0.43.1)."""
+        for agente, base in BASE_85531B1.items():
             with self.subTest(agente=agente):
-                alvo, teto = self.orcamento["agentes"][agente]["alvo"], self.orcamento["agentes"][agente]["teto"]
-                self.assertLessEqual(alvo["total_caracteres"], teto["total_caracteres"] // 2)
+                self.assertLessEqual(self.orcamento["agentes"][agente]["alvo"]["total_caracteres"], base // 2)
 
     def test_orcamento_tem_revisao_e_medida(self):
         self.assertRegex(self.orcamento["revisar_em"], r"^\d{4}-\d{2}-\d{2}$")

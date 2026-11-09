@@ -29,10 +29,11 @@ O item é o primeiro `E<n>` do parêntese que abre a linha, ou do que segue `ent
 
 ## Orçamento de instrução: `tests/test_orcamento_instrucao.py`
 
-Mede o que cada agente carrega: `agents/<x>.md`, as skills obrigatórias (as do `skills:` do cabeçalho e as que o texto manda ler por `leia ${CLAUDE_PLUGIN_ROOT}/skills/<nome>/SKILL.md`) e os `docs/regras/R-*.md` citados pelo agente ou por essas skills. Três números: caracteres do arquivo do agente, caracteres do total e marcadores normativos (nunca, sempre, só, proibido, obrigatório, reprova). O teto e o alvo de cada agente ficam em `docs/regras/orcamento.json`; o teste reprova acima do teto, e agente sem orçamento também.
+Mede o que cada agente carrega: `agents/<x>.md`, as skills obrigatórias (as do `skills:` do cabeçalho e as que o texto cita pelo caminho `${CLAUDE_PLUGIN_ROOT}/skills/<nome>/SKILL.md`) e os `docs/regras/R-*.md` citados pelo agente ou por essas skills. Três números: caracteres do arquivo do agente, caracteres do total e marcadores normativos (nunca, sempre, só, proibido, obrigatório, reprova). O teto e o alvo de cada agente ficam em `docs/regras/orcamento.json`; o teste reprova acima do teto, e agente sem orçamento também.
 
-- Teto inicial: a medida de 2026-11-08 (nada piora a partir daqui). Subir um teto é afrouxar: diga no PR, com o motivo, e leve ao dono.
+- Teto: a medida de 2026-11-08 depois dos textos da 0.43.1 (nada piora a partir daqui; onde a medida já passou do alvo, o teto fica no alvo). Subir um teto é afrouxar: diga no PR, com o motivo, e leve ao dono.
 - Alvo (meta, não trava): jarvis com 12 mil caracteres no arquivo, 45 mil no total e 90 marcadores; conferente com 5 mil, 15 mil e 30. Quando um texto encolher, baixe o teto para a medida nova no mesmo PR.
+- Núcleo: `agents/jarvis.md` mais todos os `docs/regras/*.md` em até metade da base da 0.43 (decisão 11 do dono), `nucleo` do mesmo arquivo, lido por `tests/test_jarvis_nucleo.py`; cada trava tem um número só.
 
 ## Validade das regras: `forge-check regras`
 
