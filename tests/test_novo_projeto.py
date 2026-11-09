@@ -494,6 +494,19 @@ class PerfilEJarvis(unittest.TestCase):
         self.assertIn("forge desfazer", texto)
         self.assertIn("quem mescla na `main` é a pessoa", texto)
 
+    def test_primeira_abertura_pergunta_so_produto_cobre_adotado_e_diz_quando_chama(self):  # ONBOARDING-1 mínimo (0.44.0)
+        texto = (RAIZ / "skills/novo-projeto/SKILL.md").read_text(encoding="utf-8")
+        perguntas = texto.split("## 3.")[1].split("\n## ")[0]
+        self.assertEqual(re.findall(r"(?m)^\d+\. \*\*([^:*]+)", perguntas), ["Objetivo", "Quem usa", "O que não pode quebrar"])
+        for tecnico in ("Qual stack", "Como saber que está pronto", "Você já programa?"):
+            self.assertNotIn(tecnico, texto)
+        self.assertIn("o time decide e registra", perguntas)
+        self.assertIn("**adotado**", texto)
+        self.assertIn("não sobrescreva nada", texto)
+        chamada = texto.split("## 4.")[1].split("\n2. ")[0]
+        for momento in ("validar o protótipo", "custo", "acesso", "exceção", "`main`"):
+            self.assertIn(momento, chamada, momento)
+        self.assertIn("forge:modo-iniciante", texto)
 
 if __name__ == "__main__":
     unittest.main()
