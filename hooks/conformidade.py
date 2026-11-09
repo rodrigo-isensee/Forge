@@ -162,6 +162,12 @@ CONFIG_ESCRITA = {"--unset", "--unset-all", "--add", "--replace-all", "--rename-
                   "--edit"}
 CONFIG_ESCOPO = {"--local", "--global", "--system", "--worktree"}  # escolhem o arquivo, não são valor
 CONFIG_COM_VALOR = {"-f", "--file", "--blob", "--type", "--default", "--comment", "--value"}
+# IMPL-FURO-HOOK-N, N2 (L20b): objeto de troca (`refs/replace/*`) e enxerto fazem o `git show <ref>:<parecer>` do
+# forge-check ler outro conteúdo, sem diff nem cópia suja. As variáveis mudam onde o git os procura.
+AMBIENTE_DE_TROCA = re.compile(r"^(GIT_REPLACE_REF_BASE|GIT_GRAFT_FILE|GIT_ALTERNATE_OBJECT_DIRECTORIES"
+                               r"|GIT_OBJECT_DIRECTORY)$")
+CITA_TROCA = re.compile(r"refs/replace|replace-?refs|grafts", re.I)
+REFS_DE_TROCA = {"fetch", "pull", "push", "send-pack", "update-ref", "symbolic-ref"}  # gravam refs pelo argumento
 
 # Travas para atos perigosos (arquitetura do primeiro uso, 2.2 e 2.5). Valem para todo papel e todo perfil; no perfil
 # `iniciante` a recusa e a confirmação trazem a consequência em linguagem simples. Mensagem de uma linha (200 caracteres).
@@ -1000,9 +1006,12 @@ class Guarda:
                 self.barrar("R-CONFORMIDADE", f"lançador `{Path(originais[0]).name}` repassa argumentos que o hook não vê "
                                               f"(papel só de leitura: {self.papel})", DICA_LEITURA)
             self.checar_so_leitura(palavras, atribuicoes)
-        for a in atribuicoes:
+        for a in atribuicoes + (palavras[1:] if exporta(palavras) else []):
             if "core.hookspath" in a.lower():
                 self.barrar("R-VERIFY", "core.hooksPath por variável de ambiente", "não troque o caminho dos hooks")
+            if AMBIENTE_DE_TROCA.match(a.partition("=")[0]):  # N2: atribuição, `env` ou `export`
+                self.barrar("R-REVIEW", f"{a.partition('=')[0]} muda os objetos que o git lê",
+                            "não troque objetos do repositório; o parecer vale pelo que está commitado")
         definidas = [p for p in palavras[1:] if not p.startswith("-")] if exporta(palavras) else \
             [] if palavras else atribuicoes
         for a in definidas:
@@ -1230,6 +1239,7 @@ class Guarda:
             self.barrar("R-VERIFY", f"git {sub} --no-verify", "corrija a causa do hook que falhou")
         if sub == "config" and not ativacao:
             self.git_config(args)
+        self.git_troca(sub, args, palavras[1:i])
         self.git_trava(sub, args, pasta_git, ramos)
         if sub in CAMINHOS_NO_GIT:
             self.git_caminhos(sub, args, [pasta, pasta_git], opcoes)
@@ -1326,6 +1336,21 @@ class Guarda:
             return []
         return [str(Path(pasta) / n) for n in forge_check().nomes_z(saida)]
 
+    def git_troca(self, sub, args, globais):
+        """N2 (L20b, C-20b-1): `git replace` (toda forma), `update-ref` de `refs/replace/*` ou pela entrada padrão (o hook
+        não a lê), `fast-import` (grava refs pela entrada padrão), refspec de `fetch`/`push` e `-c` com `refs/replace` ou
+        `core.useReplaceRefs`: o objeto trocado vale para todas as worktrees e o forge-check o leria no lugar do parecer."""
+        motivo = None
+        if sub == "replace":
+            motivo = "git replace"
+        elif sub == "fast-import" or sub == "update-ref" and "--stdin" in args:
+            motivo = f"git {sub} pela entrada padrão (o hook não a lê)"
+        elif any(map(CITA_TROCA.search, globais)) or sub in REFS_DE_TROCA and any(map(CITA_TROCA.search, args)):
+            motivo = f"git {sub} com refs/replace, grafts ou core.useReplaceRefs"
+        if motivo:
+            self.barrar("R-REVIEW", f"{motivo}: objeto de troca faz o forge-check ler outro parecer",
+                        "não troque objetos do repositório; o parecer vale pelo que está commitado")
+
     def reescreve_historico(self, o_que):
         self.barrar("R-VERIFY", f"reescrever histórico ({o_que}) da main, develop ou homolog",
                     "faça um commit novo (git revert) em vez de reescrever", "historico")
@@ -1400,6 +1425,9 @@ class Guarda:
             elif not a.startswith("-") or (chaves and a not in CONFIG_ESCOPO):  # depois da chave, toda palavra é valor
                 chaves.append(a)
         grava = subcomando or len(chaves) > 1 or any(a in CONFIG_ESCRITA for a in args)  # só a chave é leitura
+        if grava and any(CITA_TROCA.search(c) for c in chaves):  # N2: refspec de troca ou core.useReplaceRefs, todo escopo
+            self.barrar("R-REVIEW", "git config com refs/replace ou core.useReplaceRefs: objeto de troca faz o forge-check "
+                                    "ler outro parecer", "não troque objetos do repositório")
         if not (grava and chaves[:1] and CONFIG_PROTEGIDA.match(chaves[0])):
             return
         do_merge = bool(CONFIG_DO_MERGE.match(chaves[0]))
