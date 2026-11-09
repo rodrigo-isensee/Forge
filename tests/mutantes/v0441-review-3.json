@@ -151,6 +151,16 @@
       "testes": [
         "tests.test_v0441_review.GravacaoDoForgeCheckSoNaSessaoPrincipal.test_agente_nao_grava"
       ]
+    },
+    {
+      "id": "M32",
+      "guarda": "X1: o subcomando pausa é conferido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif sub == \"pausa\":  # X1",
+      "para": "        elif sub == \"pausa-x\":  # X1",
+      "testes": [
+        "tests.test_v0441_review.GravacaoDoForgeCheckSoNaSessaoPrincipal.test_agente_nao_grava"
+      ]
     }
   ]
 }

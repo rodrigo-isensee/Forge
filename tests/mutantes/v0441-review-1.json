@@ -66,8 +66,8 @@
       "id": "M7",
       "guarda": "S2: pedido grava em docs/pedidos",
       "arquivo": "hooks/conformidade.py",
-      "de": ", \"pedido\": \"docs/pedidos\"}",
-      "para": "}",
+      "de": ", \"pedido\": \"docs/pedidos\",\n",
+      "para": ",\n",
       "testes": [
         "tests.test_v0441_review.GravacaoDoForgeCheckSoNaSessaoPrincipal.test_agente_nao_grava"
       ]
