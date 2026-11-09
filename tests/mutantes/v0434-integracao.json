@@ -81,10 +81,10 @@
     },
     {
       "id": "Q8",
-      "guarda": "bin/forge-check:1165 campos.get('commit') or '' (negada)",
+      "guarda": "bin/forge-check:1165 campos.get('commit') or '' (sem exceção no código: commit vazio)",
       "arquivo": "bin/forge-check",
       "de": "    commit = (campos.get(\"commit\") or \"\").lower()",
-      "para": "    commit = (not (campos.get(\"commit\") or \"\")).lower()",
+      "para": "    commit = (campos.get(\"commit\") and \"\" or \"\").lower()",
       "testes": [
         "tests.test_qa_lote_l08",
         "tests.test_sobreposicao_quadro"
@@ -92,10 +92,10 @@
     },
     {
       "id": "Q9",
-      "guarda": "bin/forge-check:1167 texto is None (negada)",
+      "guarda": "bin/forge-check:1167 texto is None (sem exceção no código: texto lido vai ao ramo do ilegível)",
       "arquivo": "bin/forge-check",
       "de": "    caminho, texto, problema = pedido_da_conferencia(raiz, pedido, branch)\n    if texto is None:",
-      "para": "    caminho, texto, problema = pedido_da_conferencia(raiz, pedido, branch)\n    if not (texto is None):",
+      "para": "    caminho, texto, problema = pedido_da_conferencia(raiz, pedido, branch)\n    if texto is None or texto:",
       "testes": [
         "tests.test_qa_lote_l08",
         "tests.test_sobreposicao_quadro"
