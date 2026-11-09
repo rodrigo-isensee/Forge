@@ -50,6 +50,7 @@
     {"caminho": "docs/pedidos/", "quem": ["jarvis"], "motivo": "o pedido e o Histórico dele (a linha `conferida`, que abre o `--desde` do `forge-check entrega`) são do jarvis (VV-2, R-DECISAO)"},
     {"caminho": "~/.forge-contrib/docs/pedidos/", "quem": ["jarvis"], "motivo": "o pedido e o Histórico dele (a linha `conferida`, que abre o `--desde` do `forge-check entrega`) são do jarvis (VV-2, R-DECISAO)"},
     {"caminho": "~/.forge-contrib/*/docs/pedidos/", "quem": ["jarvis"], "motivo": "o pedido e o Histórico dele (a linha `conferida`, que abre o `--desde` do `forge-check entrega`) são do jarvis (VV-2, R-DECISAO)"},
+    {"caminho": ".forge/pausa.json", "quem": ["jarvis"], "motivo": "a pausa por limite de uso é da sessão principal (X1, review da 0.44.1)"},
     {"caminho": ".forge/recados/", "quem": ["jarvis"], "motivo": "a caixa de recados entre sessões é da sessão principal (S8, review da 0.44.1)"},
     {"caminho": "~/.forge-contrib/.forge/recados/", "quem": ["jarvis"], "motivo": "a caixa de recados entre sessões é da sessão principal (S8, review da 0.44.1)"},
     {"caminho": "docs/briefs/", "quem": ["jarvis"], "motivo": "o brief aprovado (que o `brief gerar --volta` lê e confere pelo sha256) é do jarvis (R-BRIEF, VV-2)"},

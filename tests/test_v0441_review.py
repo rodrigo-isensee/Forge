@@ -60,7 +60,7 @@ class GravacaoDoForgeCheckSoNaSessaoPrincipal(Projeto):
     """S2 e S8: `pedido fala --gravar` e `recado --para` gravam no pedido e na caixa de recados: só a sessão principal (jarvis)."""
 
     LINHAS = ("forge-check pedido fala --gravar --pedido p --texto x", "forge-check recado --para . --texto x", "forge-check recado --p /tmp/outra --texto x",
-              "forge-check pedido fala --g --pedido p --texto x")
+              "forge-check pedido fala --g --pedido p --texto x", "forge-check pausa --gravar --retoma-em 10:00 --onde x")
 
     def test_agente_nao_grava(self):
         for tipo in ("forge:node-backend", "forge:tech-lead", "forge:conferente"):
@@ -70,7 +70,8 @@ class GravacaoDoForgeCheckSoNaSessaoPrincipal(Projeto):
 
     def test_agente_le(self):
         for linha in ("forge-check pedido fala --ler --pedido p", "forge-check recado --confirmar", "forge-check pedido fala --le --pedido p",
-                      "forge-check recado --conf x.md"):
+                      "forge-check recado --conf x.md",
+                      "forge-check pausa --retomar"):
             with self.subTest(linha=linha):
                 self.assertEqual(self.hook("forge:node-backend", "Bash", {"command": linha}).returncode, 0)
 

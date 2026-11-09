@@ -326,7 +326,8 @@ FORGE_CHECK_GRAVA = ("--gerar-entrada", "--gravar", "--escrever", "--salvar")
 FORGE_CHECK_GRAVA_EXATA = ("--destino-arquivo",)
 # FURO-HOOK-A, A4: o subcomando do `forge-check` que grava fora do papel só de leitura -> a pasta de destino (a política de caminhos
 # decide quem grava lá); o `transcricao anonimizar` grava no 2.º argumento. Os que gravam em caminho livre ficam na 2.ª lista.
-FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs", "medida": "docs/kanban", "pedido": "docs/pedidos"}  # S2: `pedido fala --gravar`
+FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs", "medida": "docs/kanban", "pedido": "docs/pedidos",
+                        "pausa": ".forge"}  # X1: `pausa` sem `--retomar` grava .forge/pausa.json  # S2: `pedido fala --gravar`
 FORGE_CHECK_EM_CAMINHO_LIVRE = {"movimento", "registrar"}
 # 0.43.1 (P1, P2): a forma nova grava no `## Histórico` do pedido: `brief selar` (o selo) e `entrega --pedido` (a `entrega conferida`),
 # esta salvo com `--sem-gravar`. A forma antiga do `entrega` (pedido posicional) só lê.
@@ -1288,6 +1289,8 @@ class Guarda:
         sub = next(iter(livres), "")
         if grava_no_pedido(livres, args):  # o selo e a `entrega conferida` são do jarvis (docs/pedidos/)
             destinos = [f"{r}/docs/pedidos/pedido.md" for r in (".", "~/.forge-contrib")]
+        elif sub == "pausa":  # X1 (review da 0.44.1): a pausa é da sessão principal; `--retomar` só lê (e apaga a pausa vencida)
+            destinos = [] if so_le(args, "--retomar") else ["./.forge/pausa.json"]
         elif sub in FORGE_CHECK_ESCRITAS and (sub != "brief" or any(abreviacao_de(a, ("--gravar",)) for a in args)) \
                 and not (sub == "pedido" and so_le(args, "--ler")):
             destinos = [f"{r}/{FORGE_CHECK_ESCRITAS[sub]}/pedido.md" for r in (".", "~/.forge-contrib")]

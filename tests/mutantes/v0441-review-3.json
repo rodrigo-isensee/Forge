@@ -141,6 +141,16 @@
       "testes": [
         "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
       ]
+    },
+    {
+      "id": "M31",
+      "guarda": "X1: pausa sem --retomar grava (só a sessão principal)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "destinos = [] if so_le(args, \"--retomar\") else [\"./.forge/pausa.json\"]",
+      "para": "destinos = [] if not so_le(args, \"--retomar\") else [\"./.forge/pausa.json\"]",
+      "testes": [
+        "tests.test_v0441_review.GravacaoDoForgeCheckSoNaSessaoPrincipal.test_agente_nao_grava"
+      ]
     }
   ]
 }
