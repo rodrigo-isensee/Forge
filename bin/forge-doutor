@@ -164,7 +164,9 @@ def conferir_python():
     """O Python que roda o Forge abaixo do mínimo declarado (E21): nada prova que o Forge funcione nele."""
     if sys.version_info < PYTHON_MINIMO:
         atual, minimo = ".".join(map(str, sys.version_info[:2])), ".".join(map(str, PYTHON_MINIMO))
-        return [Problema(f"Python {atual} abaixo do mínimo {minimo} do Forge: instale o Python {minimo} ou mais novo.")]
+        return [Problema(f"Python {atual} abaixo do mínimo {minimo} do Forge: este computador precisa do Python {minimo} ou mais novo "
+                         "para o Forge funcionar. Instale um Python mais novo (no Ubuntu 24.04 ele já vem) ou peça ajuda a quem "
+                         "cuida do computador.")]
     return []
 
 
