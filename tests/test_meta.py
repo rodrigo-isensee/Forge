@@ -93,7 +93,10 @@ class Jargao(unittest.TestCase):
         meta.medir_mensagem = lambda hook: (_ for _ in ()).throw(RuntimeError("medida"))
         meta.avaliar_meta = lambda hook, raiz: chamado.append("meta")
         try:
-            meta.principal(type("H", (Falso,), {"campo": lambda self, *c: "Stop"})())
+            try:
+                meta.principal(type("H", (Falso,), {"campo": lambda self, *c: "Stop"})())
+            except RuntimeError:
+                chamado.append("escapou")
         finally:
             meta.medir_mensagem, meta.avaliar_meta = original_medir, original_meta
         self.assertIsInstance(chamado[0], RuntimeError)
