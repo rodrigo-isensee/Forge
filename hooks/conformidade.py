@@ -1352,8 +1352,8 @@ class Guarda:
         if sub == "config" and not ativacao:
             self.git_config(args)
         self.git_troca(sub, args, palavras[1:i])
+        self.git_trava(sub, args, pasta_git, ramos)  # antes da N5: apagar ou reescrever a integração tem recusa própria
         self.git_integracao(sub, args, pasta_git, ramos)
-        self.git_trava(sub, args, pasta_git, ramos)
         if sub in CAMINHOS_NO_GIT:
             self.git_caminhos(sub, args, [pasta, pasta_git], opcoes)
         if sub == "push":
