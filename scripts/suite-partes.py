@@ -107,9 +107,21 @@ def arquivo_do_modulo(sp, nome):
     return sp.RAIZ / sp.TESTES / (nome.replace(".", "/") + ".py")
 
 
+def pesos_por_modulo(pesos, nomes):
+    """A3 (0.43.2): o peso de cada módulo é o dele mais o das unidades separadas (`módulo.Classe`, `módulo.Classe.teste`);
+    o módulo sem peso nenhum fica de fora (a LPT dá a mediana)."""
+    saida = {}
+    for nome in nomes:
+        partes = [v for k, v in pesos.items() if k == nome or k.startswith(nome + ".")]
+        if partes:
+            saida[nome] = sum(partes)
+    return saida
+
+
 def dividir(sp, nomes, n):
-    """(partes, erros): os módulos em `n` partes pela LPT do suite-paralela, conferidas como partição."""
-    partes = sp.repartir(nomes, sp.ler_pesos(), n)
+    """(partes, erros): os módulos em `n` partes pela LPT do suite-paralela, pesados com as unidades separadas,
+    conferidas como partição."""
+    partes = sp.repartir(nomes, pesos_por_modulo(sp.ler_pesos(), nomes), n)
     erros = sp.conferir_particao(nomes, partes)
     if len(partes) != n:
         erros.append(f"{len(nomes)} módulos não dão {n} partes não vazias")
@@ -147,12 +159,16 @@ def rodar(sp, nomes, esperado, rotulo, todos=None, publicar=None):
     except ValueError as e:
         return falhar(str(e), rotulo="configuração")
     pesos = sp.ler_pesos()
-    partes = sp.repartir(nomes, pesos, min(n, len(nomes)))
-    erros = sp.conferir_particao(nomes, partes)
+    # A3 (0.43.2): as unidades separadas nos pesos (`módulo.Classe`) vão a processos próprios, como no suite-paralela
+    plano = sp.planejar(nomes, pesos, lambda nome: [t.id() for t in sp.achatar(sp.suite_do_modulo(nome))])
+    unidades = sorted(plano)
+    partes = sp.repartir(unidades, pesos, min(n, len(unidades)))
+    erros = sp.conferir_particao(unidades, partes)
     filhos_nomes = []
     for parte in partes:
-        convertida, repetidos = para_o_filho(parte, todos or nomes)
-        filhos_nomes.append(convertida)
+        inteiros = [u for u in parte if plano[u][1] is None]
+        convertida, repetidos = para_o_filho(inteiros, todos or nomes)
+        filhos_nomes.append(sorted(convertida + [u for u in parte if plano[u][1] is not None]))
         erros += repetidos
     if erros:
         return falhar("; ".join(erros))
@@ -163,7 +179,7 @@ def rodar(sp, nomes, esperado, rotulo, todos=None, publicar=None):
     filhos = []
     anteriores = {s: signal.signal(s, sp.ao_sinal) for s in sp.SINAIS}
     try:
-        sp.lancar(filhos_nomes, pasta, filhos)
+        sp.lancar(filhos_nomes, pasta, filhos, plano)
         duracoes = sp.esperar(filhos, inicio)
         for s, h in anteriores.items():
             signal.signal(s, h)

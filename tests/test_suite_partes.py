@@ -184,6 +184,30 @@ class Brinquedo(unittest.TestCase):
                 self.assertEqual(self.roda(*args)[0].returncode, 2)
 
 
+class UnidadesSeparadas(unittest.TestCase):
+    """A3 (review de correção da 0.43.1): a parte e os afetados abrem as unidades separadas nos pesos (`módulo.Classe`) em
+    processos próprios, como o suite-paralela, e a divisão do CI pesa o módulo com as unidades dele."""
+
+    setUp, git, modulo, roda = Brinquedo.setUp, Brinquedo.git, Brinquedo.modulo, Brinquedo.roda
+
+    def test_pesos_por_modulo_somam_as_unidades(self):
+        partes = carregar()
+        pesos = {"test_a": 1.0, "test_a.T": 5.0, "test_a.T.test_x": 2.0, "test_ab": 3.0, "evals.test_c.K": 4.0}
+        self.assertEqual(partes.pesos_por_modulo(pesos, ["test_a", "test_ab", "evals.test_c", "test_z"]),
+                         {"test_a": 8.0, "test_ab": 3.0, "evals.test_c": 4.0})
+
+    def test_unidade_separada_vai_a_outro_processo_sem_perder_teste(self):
+        (self.dir / "tests" / "test_z.py").write_text(
+            MODULO.format(nome="z", corpo="pass") + "\n\nclass U(unittest.TestCase):\n    def test_u(self):\n"
+            "        (pathlib.Path(os.environ['MARCAS']) / 'u').write_text('x')\n")
+        (self.dir / "tests" / "pesos-d4.json").write_text(json.dumps({"test_z": 1.0, "test_z.U": 5.0}))
+        with unittest.mock.patch.dict(AMBIENTE, {"FORGE_SUITE_PROCS": "4"}):
+            r, rodaram = self.roda("--modulos", "test_z")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(rodaram, {"z", "u"})
+        self.assertIn("afetados: 2 testes em 1 módulos, 2 processos", r.stderr)
+
+
 class PuladosDasPartes(unittest.TestCase):
     """T3: a parte verde grava os pulados em FORGE_SUITE_PULADOS; `--somar-pulados` soma as N contra `teto_pulados`."""
 
