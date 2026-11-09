@@ -40,7 +40,7 @@ class NaEntrega(Repositorio):
     def test_codigo_sem_teste_sinaliza_sem_reprovar(self):
         self.entregar()
         rc, saida = self.conferir()
-        self.assertIn('sem teste: código mudado sem teste mudado ou novo (classe não calculada nesta cópia): bin/app;', saida)
+        self.assertIn('sem teste: código mudado sem teste mudado ou novo (classe C): bin/app;', saida)
         self.assertIn("resultado: cumpriu", saida)
         self.assertEqual(rc, 0, saida)
 

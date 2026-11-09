@@ -355,6 +355,16 @@ class EsperaPorPortaoETokens(unittest.TestCase):
         self.assertTrue(any(" E1 " in l and l.endswith("tokens=40") for l in texto), texto)
         self.assertTrue(any(" E3 " in l and l.endswith("tokens=-") for l in texto), texto)
 
+    def test_opcao_transcritos_da_linha_de_comando_chega_ao_calculo(self):  # 0.43.3: --transcritos no forge-check metricas
+        self.gravar("docs/pedidos/p9.md", "# p9\n\n## Histórico\n- 2026-11-02 10:00: (E1) aberto\n")
+        self.gravar("docs/briefs/p9-tech-lead-1.md", "Pedido: p9\nCobre: E1\n")
+        self.transcrito("agent-a", "docs/briefs/p9-tech-lead-1.md", [(20, 19)])
+        cod, saida, erro = rodar("--raiz", str(self.tmp), "metricas", "--pedido", "p9", "--json", "--transcritos", str(self.tmp / "transcritos"))
+        self.assertEqual(cod, 0, saida + erro)
+        self.assertEqual(json.loads(saida)["pedidos"][0]["tokens"], 40)
+        _, saida, _ = rodar("--raiz", str(self.tmp), "metricas", "--pedido", "p9", "--json", "--transcritos", str(self.tmp / "vazia"))
+        self.assertEqual(json.loads(saida)["pedidos"][0]["tokens"], None)
+
 
 REGRA_OK = "# R-A\n\nTexto.\n\n- **Revisar em:** 2027-01-10\n- **Medida:** 36 % das reprovações (609 de 1742)\n"
 

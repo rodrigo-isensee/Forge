@@ -122,6 +122,16 @@ def mesma_sessao(hook, trava):
     return trava.get("pid") == pid_da_sessao() and trava.get("agente") == hook.campo("agent_id")
 
 
+def registrar_a_recusa(hook):
+    """RN-6: a recusa do R-TETO daqui também vai ao `recusas.log` (motivo `pesado`), pelo `registrar_recusa` do hook `agentes`.
+    O import fica aqui dentro (o `agentes` importa este módulo) e nenhuma falha dele troca a recusa por liberação."""
+    try:
+        from agentes import registrar_recusa
+        registrar_recusa(hook, "pesado")
+    except Exception:  # noqa: BLE001 - registrar nunca troca a recusa por liberação
+        pass
+
+
 def principal(hook):
     if hook.campo("tool_name") != "Bash":
         return
@@ -145,6 +155,7 @@ def principal(hook):
                 and pid_vivo(trava.get("pid")) and isinstance(trava.get("desde"), (int, float)) \
                 and agora - trava["desde"] < min(hook.expira_s(), TRAVA_S):
             minutos = int((agora - trava["desde"]) // 60)
+            registrar_a_recusa(hook)
             bloquear("R-TETO", f"tarefa pesada de outra sessão ou agente há {minutos} min (`{str(trava.get('comando'))[:40]}`); "
                                "espere ela terminar ou, se travou, apague .forge/run/pesado.json.")
         gravar_json(arquivo, {"pid": pid_da_sessao(), "agente": hook.campo("agent_id"),

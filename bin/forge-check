@@ -33,7 +33,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban [--gerar] | pr 
      forge-check corrigidos [--ref REF] [--dias N]
      forge-check fila
      forge-check provas medida [--desde AAAA-MM-DD]
-     forge-check metricas [--pedido ID]... [--desde D --ate D] [--por dia|semana] [--json] [--gh] [--log-prepush LOG]...   (0.43.1 H; bin/forge_governanca.py)
+     forge-check metricas [--pedido ID]... [--desde D --ate D] [--por dia|semana] [--json] [--gh] [--log-prepush LOG]... [--transcritos PASTA]...   (0.43.1 H; bin/forge_governanca.py)
      forge-check regras [--estrito] [--hoje D] [--json]   (validade das regras: Revisar em e Medida; 0.43.1 H)
 `classe` (P5, rigor proporcional ao risco; só leitura, sem rede, rc 0) classifica o diff `base...head`: `C` se toca caminho de controle (PROTEGIDOS e
 SENSIVEIS de tests/catraca.py, CONTROLES_DO_FORGE, MD_DE_CONTROLE, pipeline e infraestrutura, .claude/, .mcp.json ou teste de controle), `T` se é só documentação comum, só testes ou até 20
@@ -1041,8 +1041,10 @@ def cmd_classe(raiz, base=None, head=None, como_json=False):
     print(f"portoes: autor + {' ∥ '.join(portoes[1])} (mesmo head) + CI")
     print(f"pareceres: {', '.join(pareceres)}" + (f" (gatilho: {gatilhos_de_seguranca[0]})" if gatilhos_de_seguranca else ""))
     return 0
+
+
 # ---- T1 (decisão 20; 0.43.3): código mudado sem teste mudado nem acrescentado, sinalizado nas classes N e C; a T fica isenta ----------
-CAMINHO_DE_TESTE = re.compile(r"(^|/)(tests?|__tests__|spec)/|(^|/)(test_[^/]+|[^/]+_test\.[^/.]+|[^/]+\.(test|spec)\.[^/]+)$")
+CAMINHO_DE_TESTE = TESTE  # a mesma regra de teste da classe (P5): um só lugar
 CODIGO_EM_TESTS = ("tests/catraca.py", "tests/neutralidade.py", "tests/guarda_git.py")  # código do portão que mora em tests/ (Forge)
 NAO_TESTE_EM_TESTS = ("tests/config.json", "tests/pesos-d4.json")  # configuração em tests/: nem código nem teste
 EXTENSOES_DE_CODIGO = (".py", ".sh", ".bash", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".go", ".rs", ".java", ".kt", ".rb", ".php",
@@ -1092,14 +1094,9 @@ def codigo_sem_teste(raiz, rev, nomes):
 
 
 def classe_para_o_t1(raiz, ref, base):
-    """A classe de risco (T, N, C) pela regra única `classe_da_entrega` (frente G da 0.43.1, `forge-check classe`) quando ela existe
-    nesta cópia; sem ela, None, e o T1 sinaliza sem isentar (gancho: ao chegar a `classe_da_entrega`, a T passa a ficar isenta sem
-    mudar nada aqui)."""
-    calcular = globals().get("classe_da_entrega")
-    if calcular is None:
-        return None
+    """A classe de risco (T, N, C) pela regra única `classe_da_entrega` (P5, `forge-check classe`): a T fica isenta do T1."""
     try:
-        return calcular(raiz, ref, base)[0]
+        return classe_da_entrega(raiz, ref, base)[0]
     except Exception:  # noqa: BLE001 - classe ilegível não isenta: vale como N
         return "N"
 
@@ -9527,6 +9524,8 @@ def main():
     me.add_argument("--gh", action="store_true", help="conta as execuções e falhas do CI das branches citadas (gh run list; usa rede)")
     me.add_argument("--log-prepush", action="append", metavar="LOG", help="log de envio com as linhas `pre-push: duracao ...` do "
                     ".githooks/pre-push (F8; repita para vários): duração por plano, falhas e p50")
+    me.add_argument("--transcritos", action="append", metavar="PASTA", help="pasta de transcritos `*.jsonl` dos subagentes (CUSTO; repita "
+                    "para várias; padrão: FORGE_TRANSCRITOS ou a pasta do Claude Code da raiz): tokens por item")
     me.add_argument("--json", action="store_true", help="saída em JSON")
     rg = sub.add_parser("regras", parents=[comum], help="validade das regras: 'Revisar em:' e 'Medida:' de cada docs/regras/R-*.md; "
                         "aviso rc 0, --estrito rc 1 (0.43.1 H)")

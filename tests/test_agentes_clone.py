@@ -201,6 +201,9 @@ class EstadoDoCloneInerte(ClonePronto):
         r = self.pesado(self.wt, "a2", "u2")
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("R-TETO", r.stderr)
+        recusas = (self.comum / "recusas.log").read_text(encoding="utf-8").splitlines()  # RN-6 (0.43.3): a recusa do pesado também
+        self.assertEqual(len(recusas), 1, recusas)
+        self.assertRegex(recusas[0], r" pesado R-TETO mem_gb=- nproc=- ativos=- motivo=pesado$")
         self.assertEqual(self.pesado(self.clone, "a1", "u1", "PostToolUse").returncode, 0)
         self.assertEqual(self.pesado(self.wt, "a2", "u3").returncode, 0)
         self.assertTrue((self.clone / ".forge").is_file(), "`.forge` do clone continua sendo o arquivo")
