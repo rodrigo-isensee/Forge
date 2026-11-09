@@ -430,8 +430,8 @@ def recusar_branch_ocupada(hook, agentes, branches):
                     hora = "?"
                 tipo = sem_controle(a.get("tipo"))[:CORTE_DO_NOME]
                 bloquear("R-TETO", f"{sem_controle(branch)[:CORTE_DO_NOME]} ocupada por {tipo} (uma delegação de escrita por branch): "
-                                   f"espere o `SubagentStop` ou a expiração às {hora}; registro em "
-                                   f"{sem_controle(hook.run() / 'agentes.json')}")
+                                   f"espere o `SubagentStop` ou a expiração às {hora}",
+                         cauda=f"; registro em {sem_controle(hook.run() / 'agentes.json')}")
 
 
 # BRIEF-EXECUTOR-SEM-PORTAO (0.43.2): os tipos de fora do plugin que escrevem como um especialista (todas as ferramentas). O

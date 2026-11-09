@@ -2400,6 +2400,15 @@ class Hooks(unittest.TestCase):
             hook.entrada = {"tool_input": {"command": comando}}
             self.assertIs(_comum.marcado(hook, conformidade.CRITICO, ""), marcado, comando)
 
+    def test_cauda_da_mensagem_sai_inteira_e_o_corte_cai_no_texto(self):  # R-TETO: o caminho do registro não se corta
+        _comum, _, _ = modulos_dos_hooks()
+        cauda = "; registro em /" + "p" * 120 + "/.forge/run/agentes.json"
+        saida = _comum.mensagem("R-X", "t" * 300, cauda)
+        self.assertTrue(saida.endswith("…" + cauda), saida)
+        self.assertEqual(len(saida), _comum.LIMITE_MENSAGEM + len(cauda))
+        self.assertEqual(_comum.mensagem("R-X", "curto", cauda), "R-X: curto" + cauda)
+        self.assertEqual(_comum.mensagem("R-X", "t" * 300), "R-X: " + "t" * (_comum.LIMITE_MENSAGEM - 6) + "…")
+
     def test_trecho_so_entra_se_a_linha_inteira_cabe(self):  # HOOK-MSG-SEGMENTO, C-A6-3
         _, conformidade, _ = modulos_dos_hooks()
         resto = " (em `git push`). Corrigir: c"

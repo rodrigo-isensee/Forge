@@ -4,6 +4,14 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.44.0] - 2026-11-09
+### Adicionado
+- **V1 reduzido:** `forge-check proximo <pedido> --item E<n>` (só leitura, ferramenta do coordenador) diz o passo, o dono e o comando do item, lidos da marca do brief de implementação e do registro: gerar o brief, implementar na branch, conferir a entrega do head, portões da classe, volta ao autor ou integrar na develop. O comando só leva o pedido e a branch validados (`melhoria/...` e `git check-ref-format`); item fora de `E<n>` sai com rc 2. Só conta parecer do head (ou que o `commit_vale` aceite), e "integrar" só sai com todos os pareceres que a classe exige.
+### Alterado
+- **ONBOARDING-1 mínimo:** a skill `novo-projeto` vale para a primeira abertura num projeto novo ou adotado: boas-vindas em linguagem simples, só três perguntas de produto (objetivo, quem usa, o que não pode quebrar), stack e comando de pronto decididos pelo time e uma mensagem com o que o time faz e quando a pessoa é chamada. A skill ficou menor, e a `modo-iniciante` vale desde a primeira abertura. Desenho em `docs/propostas/onboarding-minimo.md`.
+### Corrigido
+- `tests/test_proximo.py`: as etapas saem com o papel sem o prefixo do plugin (`(dev-exemplo)`, `(tech-lead)`), como o `forge-check` faz desde a BRIEF-GERAR-TIMEOUT; quatro testes ainda esperavam `forge:` e falhavam na main.
+
 ## [0.43.5] - 2026-11-09
 ### Adicionado
 - hooks (conformidade): a integração só muda pelo git merge revisado (IMPL-FURO-HOOK-N, N5, L22). Na main, develop ou homolog, commit (também --amend e -c), cherry-pick, revert, am, commit-tree, fast-import, reset com revisão, merge --continue, pull --rebase e notes que grava recusam para todo papel (R-REVIEW); em qualquer branch, update-ref e refspec de fetch ou pull que escrevem na integração também. Ficam livres --abort, --quit e --skip, merge --no-ff, merge e pull --ff-only, reset que só tira do índice e notes de leitura. Corpus em tests/hooks/conformidade/n5-*.json.

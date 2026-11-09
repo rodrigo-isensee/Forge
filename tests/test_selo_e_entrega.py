@@ -16,7 +16,7 @@ from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
-from ambiente_git import sem_manutencao  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = RAIZ / "bin" / "forge-check"
@@ -58,6 +58,7 @@ class Repositorio(unittest.TestCase):
         self.env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_"))}
                                   | {"HOME": str(self.home), "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull})
         self.git_em(self.tmp, "init", "-q", "--bare", "origem.git")
+        remoto_sem_manutencao(self.tmp / "origem.git")
         self.git_em(self.tmp, "init", "-q", "-b", "develop", "proj")
         self.gravar("docs/pedidos/exemplo.md", PEDIDO)
         self.gravar("bin/app", "x\n")

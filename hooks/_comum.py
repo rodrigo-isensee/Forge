@@ -2344,18 +2344,19 @@ def gravar_json(caminho, dados):
     os.replace(tmp, caminho)
 
 
-def mensagem(rid, texto):
-    """Uma linha com o ID da regra, até LIMITE_MENSAGEM caracteres."""
+def mensagem(rid, texto, cauda=""):
+    """Uma linha com o ID da regra, até LIMITE_MENSAGEM caracteres. A `cauda` (um caminho que o usuário precisa abrir,
+    já sem controle) vem depois do corte e sai inteira: um caminho cortado não serve a ninguém."""
     linha = " ".join(f"{rid}: {texto}".split())
-    return linha if len(linha) <= LIMITE_MENSAGEM else linha[: LIMITE_MENSAGEM - 1] + "…"
+    return (linha if len(linha) <= LIMITE_MENSAGEM else linha[: LIMITE_MENSAGEM - 1] + "…") + cauda
 
 
-def bloquear(rid, texto):
+def bloquear(rid, texto, cauda=""):
     """Saída 2: o Claude Code bloqueia a ferramenta (PreToolUse) ou mostra o motivo (PostToolUse). A decisão já está
     tomada: o vigia de prazo se desarma, para o alarme não trocar a recusa por um prazo vencido."""
     if hasattr(signal, "setitimer"):
         signal.setitimer(signal.ITIMER_REAL, 0)
-    print(mensagem(rid, texto), file=sys.stderr)
+    print(mensagem(rid, texto, cauda), file=sys.stderr)
     sys.exit(2)
 
 

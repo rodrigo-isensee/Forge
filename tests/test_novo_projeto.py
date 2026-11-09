@@ -494,6 +494,32 @@ class PerfilEJarvis(unittest.TestCase):
         self.assertIn("forge desfazer", texto)
         self.assertIn("quem mescla na `main` é a pessoa", texto)
 
+    def test_primeira_abertura_pergunta_so_produto_cobre_adotado_e_diz_quando_chama(self):  # ONBOARDING-1 mínimo (0.44.0)
+        texto = (RAIZ / "skills/novo-projeto/SKILL.md").read_text(encoding="utf-8")
+        perguntas = texto.split("## 3.")[1].split("\n## ")[0]
+        self.assertEqual(re.findall(r"(?m)^\d+\. \*\*([^:*]+)", perguntas), ["Objetivo", "Quem usa", "O que não pode quebrar"])
+        for tecnico in ("Qual stack", "Como saber que está pronto", "Você já programa?"):
+            self.assertNotIn(tecnico, texto)
+        self.assertIn("o time decide e registra", perguntas)
+        self.assertIn("**adotado**", texto)
+        self.assertIn("não sobrescreva nada", texto)
+        chamada = texto.split("## 4.")[1].split("\n2. ")[0]
+        for momento in ("validar o protótipo", "custo", "acesso", "exceção", "`main`"):
+            self.assertIn(momento, chamada, momento)
+        self.assertIn("forge:modo-iniciante", texto)
+    def test_primeira_abertura_sem_repergunta_sem_develop_stack_sem_pacote_e_perfil_padrao(self):  # review da 0.44.0 (M2-M4, B1, B2)
+        novo = (RAIZ / "skills/novo-projeto/SKILL.md").read_text(encoding="utf-8")
+        iniciar = (RAIZ / "skills/iniciar-projeto/SKILL.md").read_text(encoding="utf-8")
+        iniciante = (RAIZ / "skills/modo-iniciante/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("ou pasta sem código, é **novo**", novo)
+        self.assertIn("Sem `develop`, o brief do `tech-lead` inclui criá-la a partir da `main`, com o \"sim\" da pessoa", novo)
+        self.assertIn("nunca `node-react`", novo)
+        self.assertIn("o padrão inicial `iniciante`", novo)
+        self.assertIn("começa `iniciante` na primeira abertura", iniciante)
+        self.assertIn("Vindo da skill `forge:novo-projeto`, use as respostas e as escolhas do time, sem perguntar de novo", iniciar)
+        self.assertIn("`## Histórico` do pedido `adotar-forge`", iniciar)
+        self.assertIn("com o que não pode quebrar", iniciar)
+
 
 if __name__ == "__main__":
     unittest.main()

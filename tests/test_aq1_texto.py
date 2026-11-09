@@ -12,7 +12,7 @@ def ler(*partes):
 class GuardasDoDiff(unittest.TestCase):
     def test_tech_lead_manda_um_mutante_por_linha_de_guarda(self):
         texto = ler("agents", "tech-lead.md")
-        self.assertIn("**Guardas do diff (no Forge, `bin/`, `hooks/`, `.githooks/`, `tests/catraca.py`):**", texto)
+        self.assertIn("**Guardas do diff (no Forge, o código de controle da classe C; a catraca confere):**", texto)
         self.assertIn("**um mutante por linha** em `tests/mutantes/<pedido>.json`", texto)
         self.assertIn("teste que lê o texto da fonte não conta", texto)
         self.assertIn("chama Python com `-I`", texto)

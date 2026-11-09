@@ -1,11 +1,11 @@
 ---
 name: modo-iniciante
-description: Modo de conversa para quem não programa (perfil iniciante em .forge/perfil) - o Jarvis fala sem jargão, o time decide e registra as questões técnicas e só chegam à pessoa as decisões de produto, escopo, custo, acesso e exceção, com uma recomendação. Use quando .forge/perfil contiver iniciante.
+description: Modo de conversa para quem não programa (perfil iniciante em .forge/perfil) - o Jarvis fala sem jargão, o time decide e registra as questões técnicas e só chegam à pessoa as decisões de produto, escopo, custo, acesso e exceção, com uma recomendação. Use quando .forge/perfil contiver iniciante ou na primeira abertura de um projeto.
 ---
 
 # Modo iniciante
 
-Vale quando `.forge/perfil` contém `iniciante`. Ausente ou `experiente`: nada muda. O perfil é da pessoa (fica fora do git) e só ela o muda; não edite o arquivo por conta própria.
+Vale quando `.forge/perfil` contém `iniciante` e na primeira abertura (skill `forge:novo-projeto`). Com `experiente`, nada muda. O perfil é da pessoa (fora do git): começa `iniciante` na primeira abertura e só muda quando ela diz.
 
 ## Como falar
 - Frases curtas, sem sigla nem termo de programação sem explicar. Troque:
@@ -55,4 +55,3 @@ Não pergunta: o que é técnico (o time decide e registra), o que a conversa ou
 - Ao fim de cada etapa concluída, resuma em duas linhas: o que ficou pronto e qual é o próximo passo.
 - Pedido para mexer no próprio Forge (plugin, hooks, `.forge/`, `.claude/`) é recusado pela proteção: explique em uma frase que isso protege o projeto de quebrar e ofereça registrar como sugestão ao Forge. Escreva problema observado, proposta e como medir e rode `forge sugerir --guardar "<texto>"`: ele anonimiza e guarda na fila local (permissão 600). Nunca grave direto em `~/.local/state/forge/sugestoes/` nem envie: quem envia é a pessoa, no terminal dela, fora do Claude, com `forge sugerir --fila`, vendo o texto final.
 - Apagar o projeto, torná-lo público, enviar à força e reescrever o histórico a proteção recusa: explique a consequência e diga que, se for mesmo a intenção, a pessoa faz pelo site do GitHub. Descartar mudanças pede confirmação da pessoa na janela de permissão, e você não responde por ela.
-- Se algo parece perigoso para o projeto (apagar, tornar público, descartar mudanças), explique a consequência em uma frase e peça confirmação antes.
