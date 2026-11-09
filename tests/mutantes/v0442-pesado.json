@@ -37,7 +37,7 @@
    "guarda": "senha morta sai da fila",
    "arquivo": "hooks/pesado.py",
    "de": "        except BlockingIOError:\n            vivas.append(c)",
-   "para": "        except BlockingIOError:\n            pass\n            vivas.append(c)",
+   "para": "        except BlockingIOError:\n            continue",
    "testes": [
     "tests.test_pesado_fila.Fila.test_fila_anda_pela_prioridade_e_descarta_a_morta"
    ]
@@ -56,8 +56,8 @@
    "id": "M6",
    "guarda": "so a secao aguardando o dono",
    "arquivo": "hooks/pesado.py",
-   "de": "    return bool(branch) and secao is not None and re.search(",
-   "para": "    return bool(branch) and re.search(",
+   "de": "    secao = achada.group(1) if achada else \"\"",
+   "para": "    secao = achada.group(1) if achada and False else \"\"",
    "testes": [
     "tests.test_pesado_fila.Fila.test_aguardando_o_dono_so_na_secao"
    ]
@@ -69,7 +69,7 @@
    "de": " and not fila_viva(hook.run() / \"pesado.fila\"):",
    "para": " and True:",
    "testes": [
-    "tests.test_pesado_fila.Fila.test_espera_a_vez_e_pega_quando_solta"
+    "tests.test_pesado_fila.Fila.test_quem_esta_na_fila_tem_a_vez_mesmo_livre"
    ]
   },
   {

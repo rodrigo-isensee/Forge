@@ -44,6 +44,20 @@ class Fila(unittest.TestCase):
         self.assertFalse(pesado.aguardando_o_dono(raiz, "melhoria/v0450"))
         self.assertFalse(pesado.aguardando_o_dono(raiz, "melhoria/v044"), "nome inteiro, não prefixo")
 
+    def test_quem_esta_na_fila_tem_a_vez_mesmo_livre(self):
+        import tempfile
+        tmp = Path(tempfile.mkdtemp(prefix="forge-pesado-fila-"))
+        dados = json.loads((RAIZ / "tests/hooks/pesado/teto-diz-a-posicao.json").read_text(encoding="utf-8"))
+        raiz, entrada = Fixture(RAIZ / "tests/hooks/pesado/teto-diz-a-posicao.json", dados).montar(tmp, os.getpid())
+        trava = next(p for p in (raiz / ".forge" / "run", raiz / ".git" / "forge" / "run") if (p / "pesado.json").exists())
+        (trava / "pesado.json").unlink()
+        _, preso = pesado.entrar_na_fila(trava / "pesado.fila", 0)
+        self.addCleanup(preso.close)
+        env = dict(ambiente_limpo(), FORGE_PESADO_ESPERA_S="1")
+        r = subprocess.run(lancador("pesado"), input=json.dumps(entrada), cwd=raiz, env=env, capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 2, "livre, mas outro está na fila na frente")
+        self.assertIn("posição 2 de 2", r.stderr)
+
     def test_espera_a_vez_e_pega_quando_solta(self):
         import tempfile
         tmp = Path(tempfile.mkdtemp(prefix="forge-pesado-espera-"))

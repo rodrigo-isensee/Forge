@@ -68,8 +68,9 @@ def aguardando_o_dono(raiz, branch):
         texto = (Path(raiz) / "KANBAN.md").read_text(encoding="utf-8")
     except (OSError, ValueError):
         return False
-    secao = re.search(r"^## Aguardando o dono\s*$(.*?)(?=^## |\Z)", texto, re.M | re.S)
-    return bool(branch) and secao is not None and re.search(r"(?<![\w/.-])" + re.escape(branch) + r"(?![\w/.-])", secao.group(1)) is not None
+    achada = re.search(r"^## Aguardando o dono\s*$(.*?)(?=^## |\Z)", texto, re.M | re.S)
+    secao = achada.group(1) if achada else ""
+    return bool(branch) and re.search(r"(?<![\w/.-])" + re.escape(branch) + r"(?![\w/.-])", secao) is not None
 
 
 def entrar_na_fila(pasta, prio):
