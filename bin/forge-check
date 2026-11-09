@@ -32,6 +32,8 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban [--gerar] | pr 
      forge-check corrigidos [--ref REF] [--dias N]
      forge-check fila
      forge-check provas medida [--desde AAAA-MM-DD]
+     forge-check metricas [--pedido ID]... [--desde D --ate D] [--por dia|semana] [--json] [--gh]   (0.43.1 H; bin/forge_governanca.py)
+     forge-check regras [--estrito] [--hoje D] [--json]   (validade das regras: Revisar em e Medida; 0.43.1 H)
 `fila` (P9; só leitura, sem rede, rc 0) lista, em até 15 linhas, o que pode começar agora: cartões de "Pronto para fazer" do
 KANBAN.md sem `Depende de:` pendente (cabeçalho do pedido; satisfeita com o cartão em "Pronto") nem ciclo, até as vagas de R-TETO
 (`pode-comecar:`); o resto sai `espera:` (dependência, ciclo ou teto) e a sobreposição de arquivos com outra branch `melhoria/*`
@@ -7965,6 +7967,19 @@ def avaliar_versao(a, raiz):
     return "aviso", f"forge-check: aviso: {mensagem}"
 
 
+def governanca():
+    """O módulo bin/forge_governanca.py (subcomandos `metricas` e `regras`, 0.43.1 H), importado da pasta deste script só quando um
+    deles roda; None se o módulo não está ao lado do script (cópia avulsa do forge-check)."""
+    sys.path.insert(0, str(PLUGIN / "bin"))
+    try:
+        import forge_governanca
+    except ImportError:
+        return None
+    finally:
+        sys.path.remove(str(PLUGIN / "bin"))
+    return forge_governanca
+
+
 def guarda_de_versao(a, raiz):
     """None para seguir; um código de saída se a ferramenta está atrás do repositório e o subcomando bloqueia (`avaliar_versao`)."""
     nivel, texto = avaliar_versao(a, raiz)
@@ -8059,6 +8074,24 @@ def main():
     so.add_argument("--base", help="branch de integração da comparação (padrão: origin/develop, develop, origin/main, main)")
     so.add_argument("--ref", help="branch prestes a ser mesclada na develop: com release em curso (versão da origin/develop maior que a da origin/homolog), só melhoria/release-<versão> passa; as outras saem com rc 1")
     sub.add_parser("fila", parents=[comum], help="o que pode começar agora: dependências, teto e sobreposição (só leitura, rc 0)")
+    # metricas e regras (0.43.1 H): a lógica fica em bin/forge_governanca.py, importado só quando um dos dois roda
+    me = sub.add_parser("metricas", parents=[comum], help="tempo do código pronto à develop e à main, voltas, revalidações, suítes, "
+                        "espera do dono e reprovações por classe (mérito: declarada), por item e por período; só leitura (0.43.1 H)")
+    me.add_argument("--pedido", action="append", help="id em docs/pedidos/ (repita para vários; padrão: todos)")
+    me.add_argument("--desde", help="AAAA-MM-DD (inclusive)")
+    me.add_argument("--ate", help="AAAA-MM-DD (inclusive)")
+    me.add_argument("--por", choices=("dia", "semana"), default="dia", help="período do agrupamento (padrão: dia)")
+    me.add_argument("--fuso", help="fuso das horas do Histórico, ±HHMM ou ±HH:MM (padrão: o da máquina)")
+    me.add_argument("--agora", help="AAAA-MM-DDTHH:MM para o aberto_h (padrão: agora; serve para reproduzir)")
+    me.add_argument("--develop", default="origin/develop", help="ref da develop (padrão: origin/develop)")
+    me.add_argument("--main", default="origin/main", help="ref da main (padrão: origin/main)")
+    me.add_argument("--gh", action="store_true", help="conta as execuções e falhas do CI das branches citadas (gh run list; usa rede)")
+    me.add_argument("--json", action="store_true", help="saída em JSON")
+    rg = sub.add_parser("regras", parents=[comum], help="validade das regras: 'Revisar em:' e 'Medida:' de cada docs/regras/R-*.md; "
+                        "aviso rc 0, --estrito rc 1 (0.43.1 H)")
+    rg.add_argument("--estrito", action="store_true", help="reprova (rc 1) se alguma regra tem aviso")
+    rg.add_argument("--hoje", help="AAAA-MM-DD (padrão: hoje; serve para reproduzir)")
+    rg.add_argument("--json", action="store_true", help="saída em JSON")
     mv = sub.add_parser("movimento", parents=[comum], help="anota um movimento do quadro em docs/kanban/historico.md, com a hora real")
     mv.add_argument("cartao")
     mv.add_argument("--de", required=True, help="coluna de origem")
@@ -8172,6 +8205,12 @@ def executar(a, raiz):
     bloqueio = guarda_de_versao(a, raiz)
     if bloqueio is not None:
         return bloqueio
+    if a.cmd in ("metricas", "regras"):
+        modulo = governanca()
+        if modulo is None:
+            print(f"{a.cmd}: bin/forge_governanca.py ausente ao lado do forge-check; nada medido")
+            return 2
+        return modulo.executar(a, raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz)
     if a.cmd == "transcricao" and a.acao == "custo":
         return cmd_transcricao_custo(a.alvo, a.entregas, a.entrega, raiz, a.desde, a.ate, a.pedido)
     if a.cmd == "transcricao" and a.acao == "lastro":
