@@ -1047,26 +1047,28 @@ class TextoDosAgentes(unittest.TestCase):
         return (RAIZ / "agents" / f"{nome}.md").read_text(encoding="utf-8")
 
     def test_conferente_usa_entrega_desde_e_imprime_a_conferida(self):
+        """0.43.1 (processo novo): a `entrega conferida` é do `forge-check entrega --pedido`, que calcula Base, Base-sha e Desde; o
+        conferente opcional roda só a forma antiga (com `--desde`) ou a nova com `--sem-gravar`, e confirma a rodada com `--anterior`."""
         t = self.texto("conferente")
-        for trecho in ("forge-check entrega <Pedido> --branch <b> --base <Base> --base-sha <Base-sha> --etapa <etapa> --desde",
-                       "use também o `Desde:` da mensagem", "`conferida: <sha40 do head da branch>`", "--anterior", "só o Jarvis"):
+        for trecho in ("forge-check entrega <pedido> --branch <b> --base <Base> --base-sha <Base-sha> --etapa <etapa> [--desde <conferida>]",
+                       "forge-check entrega --pedido <p> --branch <b> --etapa <etapa> --sem-gravar", "--anterior",
+                       "grava a linha `entrega conferida`, que não é sua"):
             self.assertIn(trecho, t)
 
-    def test_desde_vem_da_mensagem_do_jarvis_e_o_texto_do_hook_e_exato(self):  # S-A2, S-A5, R-A4
+    def test_desde_vem_da_mensagem_do_jarvis_e_o_texto_do_hook_e_exato(self):  # S-A2, S-A5, R-A4; 0.43.1: o Desde é calculado
         conferente, jarvis = self.texto("conferente"), texto_do_jarvis(RAIZ)
-        for trecho in ("Desde: <sha40", "o valor de `Desde:` da mensagem", "diverge do Histórico", "a forma `--opção=-valor`",
-                       "peça a ref da branch da entrega ao Jarvis"):
-            self.assertIn(trecho, conferente)
-        self.assertIn("`Desde:` (o sha40 da linha mais recente da própria branch no `## Histórico`", jarvis)  # E12 (CONFERIDA-DESDE-POR-BRANCH)
+        self.assertIn("a forma `--opção=-valor`", conferente)
+        self.assertIn("forge-check entrega --pedido <p> --branch <b> --etapa <etapa>", jarvis)
+        self.assertIn("Base, Base-sha e Desde são calculados", (RAIZ / "bin" / "forge-check").read_text(encoding="utf-8"))
 
-    def test_pareceres_trazem_achados_e_leem_o_delta(self):
+    def test_pareceres_trazem_achados_e_leem_o_delta(self):  # 0.43.1 F: a revalidação lê `forge-check parecer delta`
         for agente, pasta in (("tech-lead", "reviews"), ("security-engineer", "security"), ("qa-engineer", "qa")):
             with self.subTest(agente):
                 t = self.texto(agente)
                 self.assertIn("`## Achados`", t)
                 self.assertIn("- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>", t)
-                self.assertIn(f"forge-check delta --parecer docs/{pasta}/<pedido>.md", t)
-        self.assertIn("sempre sobre o head", self.texto("qa-engineer"))
+                self.assertIn(f"forge-check parecer delta docs/{pasta}/<pedido>.md", t)
+        self.assertIn("no mesmo head", self.texto("qa-engineer"))
         self.assertIn("sem dispensar a releitura", self.texto("security-engineer"))
 
 

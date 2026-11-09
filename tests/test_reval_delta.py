@@ -117,13 +117,14 @@ class Validade(Repositorio):
 _NOME = {"bin/forge-check": 1, "scripts/suite-paralela.py": 1, "bin/forge-novo-projeto": 2, "tests/test_catraca.py": 1,
          "tests/test_changelog.py": 1, "tests/test_ci_local.py": 7, "tests/test_estado_da_branch.py": 1, "tests/test_etapa_do_brief.py": 1,
          "tests/test_hooks.py": 2, "tests/test_isencoes.py": 5, "tests/test_pre_push_parecer.py": 1, "tests/test_prepush_so_docs.py": 2,
-         "tests/test_salvar_desfazer.py": 3, "tests/test_suite_reuso.py": 1, "tests/e2e-instalacao.sh": 1}
+         "tests/test_salvar_desfazer.py": 3, "tests/test_suite_reuso.py": 1, "tests/e2e-instalacao.sh": 1,
+         "tests/test_classe_risco.py": 1, "tests/test_parecer_conteudo.py": 2}  # 0.43.1 G e F: nome de arquivo sintético
 CITACOES_CONHECIDAS = {**{(a, "README.md"): (n, "nome") for a, n in _NOME.items()},
                        ("hooks/conformidade.json", "docs/propostas/"): (1, "destino"),
                        ("agents/agile-coach.md", "docs/retrospectivas/"): (2, "destino"),
                        ("skills/kanban-scrum/SKILL.md", "docs/retrospectivas/"): (1, "destino"),
                        ("tests/test_hooks.py", "docs/propostas/"): (9, "destino"),
-                       ("hooks/conformidade.py", "README.md"): (1, "prosa"), ("agents/jarvis.md", "README.md"): (1, "prosa"),
+                       ("hooks/conformidade.py", "README.md"): (1, "prosa"),  # 0.43.1 T: o jarvis.md não cita mais o README.md
                        ("skills/novo-projeto/SKILL.md", "docs/propostas/"): (1, "prosa"),
                        ("tests/apoio_volta_unica.py", "docs/propostas/"): (1, "prosa"),
                        ("tests/test_forge.py", "README.md"): (11, "teste-le"), ("tests/test_doutor.py", "README.md"): (1, "teste-le"),
