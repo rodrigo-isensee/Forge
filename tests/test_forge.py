@@ -3098,7 +3098,7 @@ class Transcricoes(unittest.TestCase):
         self.assertEqual(self.caso("papel-ok.jsonl"), (0, ""))
         saida = self.esperado(
             "papel-viola.jsonl",
-            "R-CONFORMIDADE.papel: `gh pr create` pelo papel `qa` (forge:qa-engineer); permitido: jarvis, tech-lead (evento 3)",
+            "R-CONFORMIDADE.papel: `gh pr create` pelo papel `qa` (forge:qa-engineer); permitido: tech-lead (evento 3)",
             "escrita em `docs/reviews/` pelo papel `qa`", "escrita em `.claude/` pelo papel `jarvis` (sessão principal); permitido: só o usuário",
             "`git merge <branch>` pelo papel `dev` (<agente>)", "`pacote instalar` pelo papel `qa`")
         self.assertEqual(saida.count("R-CONFORMIDADE.papel"), 5)
