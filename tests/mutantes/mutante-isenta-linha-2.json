@@ -1,0 +1,9 @@
+{
+  "pedido": "versao-044",
+  "executor": "unittest",
+  "mutantes": [
+    {"id": "IL15", "guarda": "a isenta por linha só casa a apagada cujo texto falta uma vez (C-4, A1 da segurança g6)", "arquivo": "bin/forge-mutante",
+     "de": "ini) if falta[texto] == 1", "para": "ini) if True",
+     "testes": ["tests.test_forge_mutante.Cobertura.test_isenta_por_linha_nao_casa_texto_apagado_duas_vezes"]}
+  ]
+}

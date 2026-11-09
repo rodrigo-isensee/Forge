@@ -5,6 +5,11 @@
     "src/app.js": "v1\n",
     "docs/nota.md": "n\n"
   },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
   "env": {
     "CLAUDE_PROJECT_DIR": "{tmp}/proj"
   },

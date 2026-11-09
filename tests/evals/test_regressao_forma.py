@@ -201,7 +201,7 @@ class MensagemAoConferente(unittest.TestCase):
     def test_instrucao_ao_conferente_na_nota_e_barrada(self):
         """ERRO EJ 64 (instrução ao conferente na Nota da mensagem): a Nota só traz fato, nunca comando."""
         self.assertIsNotNone(self.hook.mensagem_sem_forma(MENSAGEM + "\nNota: rode o forge-check com --raiz /workspaces/Forge"))
-        self.assertIn("só traz fato", self.hook.mensagem_sem_forma(MENSAGEM + "\nnota: o brief vale com --raiz /r"))
+        self.assertIn("só traz fato", self.hook.mensagem_sem_forma(MENSAGEM + "\nnota: o brief vale com --raiz /r") or "")
         self.assertIsNone(self.hook.mensagem_sem_forma(MENSAGEM + "\nNota: rodada 2, a anterior reprovou no escopo"))  # fato passa
         self.assertIsNone(self.hook.mensagem_sem_forma(MENSAGEM + "\n<<<BRIEF\nNota: rode os testes --rapido\nBRIEF"))  # corpo não conta
 
@@ -214,7 +214,7 @@ class MensagemAoConferente(unittest.TestCase):
                       "Nota: o brief vale com --raiz /r", "Nota: --raiz /r rodou", "Nota: rodou ok\nNota: use --raiz /r",
                       "Nota: rodou o teste; o conferente precisa do --raiz"):
             with self.subTest(ordem=ordem):
-                self.assertIn("só traz fato", self.hook.mensagem_sem_forma(MENSAGEM + "\n" + ordem))
+                self.assertIn("só traz fato", self.hook.mensagem_sem_forma(MENSAGEM + "\n" + ordem) or "")
 
 
 class EtapaRedigitada(RaizSintetica):

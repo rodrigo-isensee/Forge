@@ -6389,7 +6389,7 @@ class TextosAQ3AgileCoach(unittest.TestCase):
 
     def test_git_so_de_leitura_em_outra_ref(self):
         self.assertIn("`git show <ref>:<caminho>`, `git archive <ref> | tar -x -C \"${TMPDIR:-/tmp}\"/...` ou `--ref` do `forge-check`", self.texto)
-        self.assertIn("nada de `worktree`, `checkout` nem `switch` no repositório medido", self.texto)
+        self.assertIn("sem `worktree`, `checkout` nem `switch` no repositório medido", self.texto)
 
     def test_propor_e_implementar_numa_regra_so(self):
         self.assertEqual(self.texto.count("**Melhorias você mesmo implementa**"), 0)

@@ -16,3 +16,4 @@ Sem `dangerouslySetInnerHTML` com conteúdo não sanitizado; CSP; nada de segred
 
 ## SAST da stack
 Análise estática para TypeScript e JavaScript: `eslint-plugin-security` e as regras do Semgrep para TypeScript e React (quando a licença das regras permitir); `pnpm audit` e `osv-scanner` sobre o `pnpm-lock.yaml`. Busca dirigida por: `exec`/`spawn` com entrada externa, `eval` e `new Function`, `innerHTML` e `dangerouslySetInnerHTML`, `fs` com caminho vindo do usuário, `RegExp` construída com entrada (ReDoS) e `VITE_*` com segredo. Só ferramentas já instaladas; o CI do projeto as roda.
+Superfície de rede, sem rede e sem dependência: `python3 -I <raiz do Forge>/stacks/node-react/skills/node-backend/superficie-de-rede.py <raiz do projeto>` lista rota sem autenticação reconhecida, CORS aberto com credenciais, rota pública sem limite de taxa e corpo sem validação na borda; anexe a saída ao parecer; cada linha pede confirmação, e a leitura continua sendo o parecer.

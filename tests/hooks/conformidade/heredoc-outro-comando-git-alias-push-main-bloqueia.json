@@ -1,5 +1,5 @@
 {
-  "descricao": "A1 de segurança (volta 4): o git -c alias !sh roda o arquivo que o heredoc grava; o corpo é conferido.",
+  "descricao": "A1 de segurança (volta 4): o git -c alias !sh roda o arquivo que o heredoc grava; o corpo é conferido. Desde o review da 0.43.5 o -c alias.* recusa antes de ler o corpo.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -25,6 +25,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "R-MAIN: push direto para main"
+    "stderr": "R-REVIEW: git -c alias.x"
   }
 }

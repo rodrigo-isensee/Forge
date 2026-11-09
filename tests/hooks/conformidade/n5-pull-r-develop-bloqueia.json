@@ -1,0 +1,19 @@
+{
+  "descricao": "N5 (L22, IMPL-FURO-HOOK-N): pull -r na develop",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git pull -r"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: git pull --rebase na develop"
+  }
+}
