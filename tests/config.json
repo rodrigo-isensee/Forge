@@ -508,7 +508,8 @@
     "bin/forge-check": [
       "Melhoria vista:",
       "atrás do repositório; a conferência não vale; peça à pessoa:",
-      "versão não conferida"
+      "versão não conferida",
+      "o delta não foi lido"
     ],
     "hooks/parecer.py": [
       "avaliar_versao",
@@ -668,6 +669,9 @@
     "scripts/jarvis-forge": 2
   },
   "invariantes_motivo_trecho": {
+    "bin/forge-check": {
+      "o delta não foi lido": {"regra": "R-REVIEW", "porque": "sem o texto, a falha do git no delta vira `delta: nenhum` e o parecer se revalida sem ler a mudança (FC-DELTA-GIT-FALHA)"}
+    },
     "skills/engineering-practices/SKILL.md": {
       "suíte inteira roda só no CI": {"regra": "R-QA", "porque": "sem o texto, review, segurança e QA voltam a rodar a suíte inteira na máquina e a fila local cresce sem ganho; ela roda uma vez no CI do PR"},
       "o autor roda o oráculo e não o edita": {"regra": "R-CONFORMIDADE", "porque": "sem o texto, o autor trata o oráculo do portão como teste seu e o ajusta para passar (EXT-1)"}
