@@ -109,6 +109,12 @@ class PqCitaORun(unittest.TestCase):
             self.assertTrue(reprova, pq)
             self.assertIn(motivo, linha)
 
+    def test_slug_invalido_e_outro_programa_nao_leem_run(self):
+        (linha, reprova), = self.conferir("forge-check rodar ../x -- python3 -m unittest tests.x")
+        self.assertTrue(reprova, linha)
+        self.assertIn("slug inválido", linha)
+        self.assertIsNone(self.fc.modulo_do_bin("forge_run").citado(["git", "rodar", "t1", "--", "x"]))
+
     def test_pq_com_pipe_segue_no_modo_de_antes(self):
         (linha, reprova), = self.conferir("git log | head -1")
         self.assertFalse(reprova, linha)

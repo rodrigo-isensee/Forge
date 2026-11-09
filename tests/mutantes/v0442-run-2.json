@@ -1,0 +1,78 @@
+{
+ "pedido": "v0442-s5-run-2",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M1",
+   "guarda": "rc do passo",
+   "arquivo": "bin/forge_run.py",
+   "de": "        if rc_passo != 0:",
+   "para": "        if rc_passo == 0:",
+   "testes": [
+    "tests.test_forge_run.Rodar.test_grava_rc_tempo_por_passo_e_log_completo"
+   ]
+  },
+  {
+   "id": "M2",
+   "guarda": "tira o -- do citado",
+   "arquivo": "bin/forge_run.py",
+   "de": "        return argv[2], (resto[1:] if resto[:1] == [\"--\"] else resto)",
+   "para": "        return argv[2], (resto[1:] if resto[:1] == [\"x\"] else resto)",
+   "testes": [
+    "tests.test_forge_run.PqCitaORun.test_le_o_json_e_confere_a_espera_sem_rodar"
+   ]
+  },
+  {
+   "id": "M3",
+   "guarda": "slug do PQ validado",
+   "arquivo": "bin/forge_run.py",
+   "de": "    if not SLUG.fullmatch(slug or \"\"):\n        return None, \"\", \"slug inválido\"",
+   "para": "    if not SLUG.fullmatch(\"ok\"):\n        return None, \"\", \"slug inválido\"",
+   "testes": [
+    "tests.test_forge_run.PqCitaORun.test_slug_invalido_e_outro_programa_nao_leem_run"
+   ]
+  }
+ ],
+ "isentas": [
+  {
+   "arquivo": "bin/forge-check",
+   "trecho": "shlex.split(comando.group(1)) if comando else []",
+   "motivo": "PQ cmd sem crases já sai fora da lista no caminho de antes; mesmo padrão do bloco seguinte"
+  },
+  {
+   "arquivo": "bin/forge-check",
+   "trecho": "script or carregar_reexecutar_provas()",
+   "motivo": "recarrega só se o script faltou na entrada da função; sem cenário na árvore do plugin"
+  },
+  {
+   "arquivo": "bin/forge-check",
+   "trecho": "strip()) if script else None",
+   "motivo": "scripts/reexecutar-provas.py ausente só em cópia avulsa; a espera None reprova com motivo"
+  },
+  {
+   "arquivo": "bin/forge-check",
+   "trecho": "ler(pasta or raiz, run[0]",
+   "motivo": "sem worktree (so-leitura) lê o run da raiz; os testes passam a pasta"
+  },
+  {
+   "arquivo": "bin/forge_run.py",
+   "trecho": "r.stdout.strip() if r.returncode == 0 else None",
+   "motivo": "git rev-parse só falha fora de repositório; aí o head fica nulo e a conferência reprova por outro commit"
+  },
+  {
+   "arquivo": "bin/forge_run.py",
+   "trecho": "base.is_symlink() or base.parent.is_symlink()",
+   "motivo": "defesa contra link na pasta da prova; sem cenário de teste"
+  },
+  {
+   "arquivo": "bin/forge_run.py",
+   "trecho": "{e.strerror or e}",
+   "motivo": "só a mensagem do erro do sistema; o rc 127 é o que conta"
+  },
+  {
+   "arquivo": "bin/forge_run.py",
+   "trecho": "log.parent != arq.parent or not log.is_file() or log.is_symlink()",
+   "motivo": "defesa contra run.json editado à mão apontando log fora da pasta"
+  }
+ ]
+}
