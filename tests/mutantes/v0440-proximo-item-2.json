@@ -1,0 +1,106 @@
+{
+  "pedido": "v0440",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "V12",
+      "guarda": "bin/forge-check:7339 conferencia_do_head(raiz, pedido, ref=ref, branch=branch) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if conferencia_do_head(raiz, pedido, ref=ref, branch=branch):",
+      "para": "    if not (conferencia_do_head(raiz, pedido, ref=ref, branch=branch)):",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V13",
+      "guarda": "bin/forge-check:7342 commitado (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "                 if commitado]",
+      "para": "                 if not (commitado)]",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V14",
+      "guarda": "bin/forge-check:7343 any((p not in ('aprovado', 'riscos-aceitos') for _, p in ver (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if any(p not in (\"aprovado\", \"riscos-aceitos\") for _, p in vereditos):",
+      "para": "    if not (any(p not in (\"aprovado\", \"riscos-aceitos\") for _, p in vereditos)):",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V15",
+      "guarda": "bin/forge-check:7345 not vereditos (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        return \"volta ao autor (parecer não aprovado)\", autor, f\"forge-check brief gerar --volta <brief aprovado> --ref {branch} --pedido {pedido}\"\n    if not vereditos:",
+      "para": "        return \"volta ao autor (parecer não aprovado)\", autor, f\"forge-check brief gerar --volta <brief aprovado> --ref {branch} --pedido {pedido}\"\n    if not (not vereditos):",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V16",
+      "guarda": "bin/forge-check:7354 not re.fullmatch(PEDIDO_DO_ITEM, pedido) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not re.fullmatch(PEDIDO_DO_ITEM, pedido):",
+      "para": "    if not (not re.fullmatch(PEDIDO_DO_ITEM, pedido)):",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V17",
+      "guarda": "bin/forge-check:7357 not briefs (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not briefs:",
+      "para": "    if not (not briefs):",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V18",
+      "guarda": "bin/forge-check:7360 branch is None (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if branch is None:",
+      "para": "    if not (branch is None):",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V19",
+      "guarda": "bin/forge-check:7364 comando (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        + ([f\"proximo: comando-item: {comando}\"] if comando else [])",
+      "para": "        + ([f\"proximo: comando-item: {comando}\"] if not (comando) else [])",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V20",
+      "guarda": "bin/forge-check:7387 item is not None and (not re.fullmatch(ITEM_DO_PROXIMO, item (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if item is not None and not re.fullmatch(ITEM_DO_PROXIMO, item):",
+      "para": "    if not (item is not None and not re.fullmatch(ITEM_DO_PROXIMO, item)):",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V21",
+      "guarda": "bin/forge-check:7396 item is not None (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    linhas = [f\"proximo: pedido {caminho_impresso(pedido_id)}\"] + (linhas_do_item(raiz, caminho, item) if item is not None else [])",
+      "para": "    linhas = [f\"proximo: pedido {caminho_impresso(pedido_id)}\"] + (linhas_do_item(raiz, caminho, item) if not (item is not None) else [])",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    }
+  ]
+}

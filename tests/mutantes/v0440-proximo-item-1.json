@@ -1,0 +1,116 @@
+{
+  "pedido": "v0440",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "V1",
+      "guarda": "bin/forge-check:7297 not re.fullmatch(ETAPA_DO_BRIEF, cobre or '') (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not re.fullmatch(ETAPA_DO_BRIEF, cobre or \"\"):",
+      "para": "    if not (not re.fullmatch(ETAPA_DO_BRIEF, cobre or \"\")):",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V2",
+      "guarda": "bin/forge-check:7302 cobre in ids (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "            if cobre in ids:",
+      "para": "            if not (cobre in ids):",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V3",
+      "guarda": "bin/forge-check:7303 item in ids (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "                return item in ids",
+      "para": "                return not (item in ids)",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V4",
+      "guarda": "bin/forge-check:7319 grupo(CABECALHO_DE_BRIEF_CAMPOS['Pedido'], cabecalho) != ped (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "            if grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Pedido\"], cabecalho) != pedido or grupo(ETAPA_DO_CABECALHO, cabecalho) != \"codigo\" \\\n                    or tipo_do_brief(texto) not in (\"codigo\", \"volta\") or not item_na_marca(texto, item):",
+      "para": "            if not (grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Pedido\"], cabecalho) != pedido or grupo(ETAPA_DO_CABECALHO, cabecalho) != \"codigo\" \\\n                    or tipo_do_brief(texto) not in (\"codigo\", \"volta\") or not item_na_marca(texto, item)):",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V5",
+      "guarda": "bin/forge-check:7325 len(branches) == 1 (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    branch = branches.pop() if len(branches) == 1 else None",
+      "para": "    branch = branches.pop() if not (len(branches) == 1) else None",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V6",
+      "guarda": "bin/forge-check:7326 not (re.fullmatch(BRANCH_DO_ITEM, branch or '') and git(raiz (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not (re.fullmatch(BRANCH_DO_ITEM, branch or \"\") and git(raiz, \"check-ref-format\", \"--branch\", branch)[0] == 0):",
+      "para": "    if not (not (re.fullmatch(BRANCH_DO_ITEM, branch or \"\") and git(raiz, \"check-ref-format\", \"--branch\", branch)[0] == 0)):",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V7",
+      "guarda": "bin/forge-check:7328 len(destinos) == 1 (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    destino = destinos.pop() if len(destinos) == 1 else None",
+      "para": "    destino = destinos.pop() if not (len(destinos) == 1) else None",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V8",
+      "guarda": "bin/forge-check:7329 re.fullmatch(DESTINO_DO_ITEM, destino or '') (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    return briefs, branch, (destino if re.fullmatch(DESTINO_DO_ITEM, destino or \"\") else None)",
+      "para": "    return briefs, branch, (destino if not (re.fullmatch(DESTINO_DO_ITEM, destino or \"\")) else None)",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V9",
+      "guarda": "bin/forge-check:7335 destino or 'autor do brief' (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    autor = destino or \"autor do brief\"",
+      "para": "    autor = not (destino or \"autor do brief\")",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V10",
+      "guarda": "bin/forge-check:7336 sha_do_commit(raiz, f'refs/heads/{branch}') (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    ref = branch if sha_do_commit(raiz, f\"refs/heads/{branch}\") else f\"origin/{branch}\"",
+      "para": "    ref = branch if not (sha_do_commit(raiz, f\"refs/heads/{branch}\")) else f\"origin/{branch}\"",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V11",
+      "guarda": "bin/forge-check:7337 not sha_do_commit(raiz, ref) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    ref = branch if sha_do_commit(raiz, f\"refs/heads/{branch}\") else f\"origin/{branch}\"\n    if not sha_do_commit(raiz, ref):",
+      "para": "    ref = branch if sha_do_commit(raiz, f\"refs/heads/{branch}\") else f\"origin/{branch}\"\n    if not (not sha_do_commit(raiz, ref)):",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    }
+  ]
+}
