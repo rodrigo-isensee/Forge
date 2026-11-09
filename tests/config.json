@@ -500,6 +500,8 @@
       "`R-COPIA`"
     ],
     "templates/projeto/.githooks/pre-push": [
+      "checagem interrompida; o envio foi barrado\\.\" >&2; exit 1' INT TERM HUP",
+      "flock -w \"\\$espera\" 9",
       "refs/heads/main",
       "exit 1"
     ],
@@ -673,6 +675,10 @@
   "invariantes_motivo_trecho": {
     "bin/forge-check": {
       "o delta não foi lido": {"regra": "R-REVIEW", "porque": "sem o texto, a falha do git no delta vira `delta: nenhum` e o parecer se revalida sem ler a mudança (FC-DELTA-GIT-FALHA)"}
+    },
+    "templates/projeto/.githooks/pre-push": {
+      "checagem interrompida; o envio foi barrado\\.\" >&2; exit 1' INT TERM HUP": {"regra": "R-VERIFY", "porque": "sem o texto, um Ctrl-C, TERM ou HUP na checagem do projeto deixa o envio seguir sem ela ou filhos órfãos rodando"},
+      "flock -w \"\\$espera\" 9": {"regra": "R-TETO", "porque": "sem a espera limitada na trava, duas checagens pesadas do projeto rodam juntas ou um envio espera para sempre"}
     },
     "skills/engineering-practices/SKILL.md": {
       "suíte inteira roda só no CI": {"regra": "R-QA", "porque": "sem o texto, review, segurança e QA voltam a rodar a suíte inteira na máquina e a fila local cresce sem ganho; ela roda uma vez no CI do PR"},

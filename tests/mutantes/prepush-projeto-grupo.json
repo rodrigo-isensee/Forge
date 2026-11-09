@@ -1,0 +1,109 @@
+{
+  "pedido": "prepush-projeto-grupo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o lider ainda na tabela de jobs conta como vivo",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "*\" $etapa \"*) return 0 ;;",
+      "para": "*\" $etapa \"*) return 1 ;;",
+      "testes": [
+        "tests.test_prepush_so_docs.GrupoDaEtapa.test_grupo_nao_criado_ou_pgid_ilegivel_sinaliza_so_a_etapa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o lider fora da tabela de jobs conta como terminado",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "  return 1\n}\nencerrar_etapa",
+      "para": "  return 0\n}\nencerrar_etapa",
+      "testes": [
+        "tests.test_prepush_so_docs.GrupoDaEtapa.test_filho_deixado_pela_etapa_nao_sobrevive"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o encerramento roda uma vez so",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "[ \"$encerrada\" -eq 0 ] || return 0",
+      "para": "[ \"$encerrada\" -eq 0 ] || :",
+      "equivalente": "a segunda chamada (trap EXIT depois do trap INT ou do fim normal) so sinaliza se o lider segue na tabela de jobs ou se o grupo ainda existe; com o grupo vazio o kill -0 falha e nada e sinalizado; a diferenca so aparece com reuso do PGID, que o teste nao provoca"
+    },
+    {
+      "id": "M4",
+      "guarda": "no modo so PID, sinal so com o lider ainda vivo na tabela de jobs",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "then lider_vivo || return 0; else",
+      "para": "then return 0; else",
+      "testes": [
+        "tests.test_prepush_so_docs.GrupoDaEtapa.test_grupo_nao_criado_ou_pgid_ilegivel_sinaliza_so_a_etapa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "no modo grupo, sinal so com o grupo existente",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "else kill -0 -- \"$alvo\" 2>/dev/null || return 0; fi",
+      "para": "else :; fi",
+      "equivalente": "sem a conferencia, TERM, CONT e KILL vao a um grupo que nao existe e falham com ESRCH; o laco seguinte ja sai no primeiro kill -0; a diferenca so aparece com reuso do PGID, que o teste nao provoca"
+    },
+    {
+      "id": "M6",
+      "guarda": "a espera pelo grupo termina quando ele esvazia",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "kill -0 -- \"$alvo\" 2>/dev/null || return 0; sleep 0.5",
+      "para": "kill -0 -- \"$alvo\" 2>/dev/null || :; sleep 0.5",
+      "equivalente": "sem a saida antecipada o hook espera os 5 s inteiros e manda KILL a um grupo ja vazio (ESRCH); o resultado (grupo vazio, codigo de saida) e o mesmo, so mais lento"
+    },
+    {
+      "id": "M7",
+      "guarda": "sinal no hook barra o envio",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "exit 1' INT TERM HUP",
+      "para": "exit' INT TERM HUP",
+      "testes": [
+        "tests.test_prepush_so_docs.GrupoDaEtapa.test_term_no_hook_encerra_o_grupo_e_poupa_o_irmao"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "grupo so quando o PGID lido e o proprio $etapa",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if [ \"$pg\" = \"$etapa\" ] && [",
+      "para": "if true && [",
+      "testes": [
+        "tests.test_prepush_so_docs.GrupoDaEtapa.test_grupo_nao_criado_ou_pgid_ilegivel_sinaliza_so_a_etapa"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o sinal vai ao grupo da etapa (kill com -- e -PGID), nao so ao lider",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "then alvo=\"-$etapa\"; fi",
+      "para": "then alvo=\"$etapa\"; fi",
+      "testes": [
+        "tests.test_prepush_so_docs.GrupoDaEtapa.test_term_no_hook_encerra_o_grupo_e_poupa_o_irmao",
+        "tests.test_prepush_so_docs.GrupoDaEtapa.test_filho_deixado_pela_etapa_nao_sobrevive"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o grupo da etapa nunca e o do hook",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "[ \"$pg\" != \"$(ps -o pgid= -p \"$$\"",
+      "para": "[ \"$pg\" != \"x$(ps -o pgid= -p \"$$\"",
+      "equivalente": "com a primeira conferencia (PGID lido igual a $etapa) a segunda nunca decide: o kernel nao da a um processo novo um PID que ainda e PGID de um grupo existente, entao o PGID do hook nunca e igual a $etapa; fica como defesa em profundidade pedida por E2a/C-1"
+    },
+    {
+      "id": "M11",
+      "guarda": "saida diferente de 0 da checagem barra o envio",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "[ \"$rc\" -eq 0 ] || exit 1",
+      "para": "[ \"$rc\" -eq 0 ] || exit 0",
+      "testes": [
+        "tests.test_prepush_so_docs.GrupoDaEtapa.test_etapa_em_grupo_proprio_e_saida_repassada"
+      ]
+    }
+  ]
+}
