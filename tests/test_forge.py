@@ -1015,6 +1015,21 @@ class CI(unittest.TestCase):
         texto = (RAIZ / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
         self.assertIn("persist-credentials: false", texto)
 
+    def test_release_com_permissao_por_job(self):
+        """FILA-30, 16a: o workflow não dá permissão; os testes só leem e só o job que publica escreve, depois dos testes."""
+        texto = (RAIZ / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+        cabeca, _, jobs = texto.partition("\njobs:\n")
+        self.assertIn("\npermissions: {}\n", cabeca)
+        blocos = dict(re.findall(r"(?ms)^  ([a-z-]+):\n(.*?)(?=^  [a-z-]+:\n|\Z)", jobs))
+        self.assertEqual(sorted(blocos), ["release", "testes"])
+        self.assertIn("      contents: read\n", blocos["testes"])
+        self.assertNotIn("write", blocos["testes"])
+        self.assertIn("suite-paralela.py", blocos["testes"])
+        self.assertIn("    needs: testes\n", blocos["release"])
+        self.assertIn("      contents: write", blocos["release"])
+        self.assertEqual(texto.count("write"), 1)
+        self.assertNotIn("suite-paralela", blocos["release"])
+
     def test_job_versao_cobre_develop_e_main(self):
         """ADR 0006: develop exige linha em [Não publicado]; main exige versão nova e changelog fechado."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
