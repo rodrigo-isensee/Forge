@@ -5910,14 +5910,13 @@ class TesteEParecerSeparados(RepoComOrigem):
         self.assertIn("docs/qa/p1.md: commit: commit não existe no repositório (R-QA)", saida)
         self.assertNotIn("commitado junto", saida)
 
-    def test_commits_separados_valem_e_o_review_revalida_o_delta_do_teste(self):
+    def test_commits_separados_valem_e_o_teste_do_qa_nao_derruba_o_review(self):
+        """PARECER-CONTEUDO (0.43.1): o teste do QA aprovado fica com o QA; o review de antes dele continua valendo."""
         teste = self.commitar(self.repo, {"tests/test_x.py": "# teste do QA\n"}, "teste do QA")
         self.commitar(self.repo, {"docs/qa/p1.md": self.QA.format(c=teste)}, "parecer do QA")
         rc, saida, _ = self.pr()
-        self.assertEqual(rc, 1, saida)
-        self.assertNotIn("docs/qa/p1.md", saida)
-        self.assertIn("docs/reviews/p1.md: commit: desatualizado: tests/test_x.py mudou depois do parecer", saida)
-        self.assertNotIn("commitado junto", saida)  # o review velho não veio com o teste: o motivo é o de sempre
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)
+        self.assertNotIn("docs/reviews/p1.md", saida)
         self.commitar(self.repo, {"docs/reviews/p1.md": self.REVIEW.format(c=teste)}, "review revalida o delta do teste")
         rc, saida, _ = self.pr()
         self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)

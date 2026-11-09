@@ -18,6 +18,7 @@ import tempfile
 import textwrap
 import time
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 from pathlib import Path
 
@@ -1690,7 +1691,9 @@ class CommitDoRotulo(unittest.TestCase):
 
 
 class RotuloSobreviveAoConteudo(Base):
-    """O rótulo vale para o diff efetivo do PR no instante em que foi aplicado (sem pareceres e sem o que veio da base)."""
+    """O rótulo vale para o diff efetivo do PR no instante em que foi aplicado (sem pareceres e sem o que veio da base). Desde a
+    0.43.1 (P9) vale também com os arquivos protegidos iguais aos do rótulo: os testes do diff efetivo rodam com `so_diff=True`, que
+    desliga esse caminho e deixa só o do diff efetivo (o que sobra quando a base também mexeu no arquivo protegido)."""
 
     def setUp(self):
         super().setUp()
@@ -1698,8 +1701,10 @@ class RotuloSobreviveAoConteudo(Base):
         self.repo.commit()
         self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
 
-    def roda(self, execs=None, ramo=""):
+    def roda(self, execs=None, ramo="", so_diff=False):
         self.repo.commit()
+        if so_diff:
+            return self.roda_aqui(execs, ramo)
         entrada = tempfile.TemporaryDirectory()
         self.addCleanup(entrada.cleanup)
         pasta = Path(entrada.name)
@@ -1711,6 +1716,21 @@ class RotuloSobreviveAoConteudo(Base):
                 "--execucoes", str(pasta / "execucoes.json"), "--pr", "7", f"--ramo={ramo}"]
         env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "HEAD_REF")}
         return subprocess.run(args, capture_output=True, text=True, env=env)
+
+    def roda_aqui(self, execs=None, ramo=""):
+        """A catraca no mesmo processo, só com o caminho do diff efetivo (`protegidos_como_no_rotulo` falso)."""
+        pasta = Path(tempfile.mkdtemp(dir=self.repo.dir.parent))
+        self.addCleanup(shutil.rmtree, pasta, True)
+        (pasta / "eventos.json").write_text(json.dumps([rotulo()]), encoding="utf-8")
+        execs = execs if execs is not None else [execucao(self.rotulado, "2026-01-02T09:00:00Z"), execucao(self.rotulado, "2026-01-02T10:00:03Z")]
+        (pasta / "execucoes.json").write_text(json.dumps(execs), encoding="utf-8")
+        argv = ["--raiz", str(self.repo.dir), "--base", "develop", "--eventos", str(pasta / "eventos.json"), "--ultimo-push", "2026-01-02T11:00:00Z",
+                "--execucoes", str(pasta / "execucoes.json"), "--pr", "7", f"--ramo={ramo}"]
+        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "HEAD_REF")}
+        with mock.patch.dict(os.environ, env, clear=True), mock.patch.object(catraca, "protegidos_como_no_rotulo", return_value=False), \
+                contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(argv)
+        return SimpleNamespace(returncode=rc, stdout=saida.getvalue())
 
     def mescla_base(self):
         self.repo.git("checkout", "-q", "develop")
@@ -1737,7 +1757,7 @@ class RotuloSobreviveAoConteudo(Base):
             with self.subTest(rel=rel):
                 self.repo.git("reset", "-q", "--hard", self.rotulado)
                 self.repo.escreve(rel, "reescrito depois do rótulo\n")
-                r = self.roda(ramo="melhoria/ped")
+                r = self.roda(ramo="melhoria/ped", so_diff=True)
                 self.assertEqual(r.returncode, 1, r.stdout)
 
     def test_parecer_de_outro_pedido_que_ja_existia_na_base_invalida(self):
@@ -1748,7 +1768,7 @@ class RotuloSobreviveAoConteudo(Base):
         self.repo.git("merge", "-q", "--no-ff", "--no-edit", "develop")
         self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
         self.repo.escreve("docs/reviews/antigo.md", "histórico reescrito\n")
-        self.assertEqual(self.roda(ramo="melhoria/ped").returncode, 1)
+        self.assertEqual(self.roda(ramo="melhoria/ped", so_diff=True).returncode, 1)
 
     def test_parecer_que_o_pr_ja_tocava_antes_do_rotulo_pode_mudar(self):
         self.repo.escreve("docs/reviews/tocado.md", "parecer de autor\n")
@@ -1773,12 +1793,12 @@ class RotuloSobreviveAoConteudo(Base):
                 self.addCleanup(lambda: (os.environ.clear(), os.environ.update(antigo)))
                 for k in ("HEAD_REF", "GITHUB_STEP_SUMMARY"):
                     os.environ.pop(k, None)
-                with contextlib.redirect_stdout(io.StringIO()):
+                with contextlib.redirect_stdout(io.StringIO()), mock.patch.object(catraca, "protegidos_como_no_rotulo", return_value=False):
                     self.assertEqual(catraca.main(["--raiz", str(self.repo.dir), "--base", "develop", "--pr", "7"]), esperado)
 
     def test_sem_ramo_parecer_novo_depois_do_rotulo_invalida(self):
         self.repo.escreve("docs/reviews/ped.md", "parecer\n")
-        self.assertEqual(self.roda().returncode, 1)
+        self.assertEqual(self.roda(so_diff=True).returncode, 1)
 
     def test_nome_com_curinga_nao_vira_padrao_que_esconde_outros_pareceres(self):
         """O caminho ignorado vai literal ao git: `docs/reviews/*` tocado antes do rótulo não cobre `outro.md`."""
@@ -1786,7 +1806,7 @@ class RotuloSobreviveAoConteudo(Base):
         self.repo.commit()
         self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
         self.repo.escreve("docs/reviews/outro.md", "reescrito\n")
-        self.assertEqual(self.roda().returncode, 1)
+        self.assertEqual(self.roda(so_diff=True).returncode, 1)
 
     def test_violacao_nova_vinda_da_base_invalida(self):
         """Review #65, desvio 2: a base passa a proteger um arquivo que o patch do PR já apagava."""
@@ -1825,14 +1845,14 @@ class RotuloSobreviveAoConteudo(Base):
             with self.subTest(rel=rel):
                 self.repo.git("reset", "-q", "--hard", self.rotulado)
                 self.repo.escreve(rel, texto)
-                r = self.roda()
+                r = self.roda(so_diff=True)
                 self.assertEqual(r.returncode, 1, r.stdout)
                 self.assertIn("R-CONFORMIDADE:", r.stdout)
 
     def test_mudanca_de_codigo_junto_com_merge_da_base_invalida(self):
         self.mescla_base()
         self.repo.escreve("scripts/novo.sh", "echo\n")
-        self.assertEqual(self.roda().returncode, 1)
+        self.assertEqual(self.roda(so_diff=True).returncode, 1)
 
     def test_sem_execucoes_ou_commit_desconhecido_falha_fechado(self):
         self.repo.escreve("docs/reviews/ped.md", "parecer\n")
@@ -1872,6 +1892,68 @@ class RotuloSobreviveAoConteudo(Base):
         r = self.roda()
         self.assertEqual(r.returncode, 1)
         self.assertIn("R-CUSTO:", r.stdout)
+
+
+    # --- P9 (0.43.1, PARECER-CONTEUDO): o rótulo fica preso aos arquivos protegidos ---
+    def test_p9_push_sem_arquivo_protegido_mantem_o_rotulo(self):
+        for rel, texto in (("scripts/novo.sh", "echo\n"), ("KANBAN.md", "x\n"), ("docs/reviews/outro.md", "reescrito\n"),
+                           ("src/app.py", "x = 1\n"), ("tests/test_novo.py", "import unittest\nclass T(unittest.TestCase):\n"
+                                                                         "    def test_n(self):\n        self.assertTrue(1)\n")):
+            with self.subTest(rel=rel):
+                self.repo.git("reset", "-q", "--hard", self.rotulado)
+                self.repo.escreve(rel, texto)
+                r = self.roda()
+                self.assertEqual(r.returncode, 0, r.stdout)
+                self.assertIn("arquivos protegidos ou diff efetivo iguais", r.stdout)
+
+    def test_p9_push_que_muda_arquivo_protegido_derruba_o_rotulo(self):
+        for rel, texto in (("tests/catraca.py", "x = 'mudou de novo'\n"), (".github/workflows/ci.yml", "name: outro\n"),
+                           ("bin/forge-check", "#!/bin/sh\n"), ("hooks/x.cpython-312.pyc", "\0")):
+            with self.subTest(rel=rel):
+                self.repo.git("reset", "-q", "--hard", self.rotulado)
+                self.repo.escreve(rel, texto)
+                r = self.roda()
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn("R-CONFORMIDADE:", r.stdout)
+
+    def test_p9_protegido_que_volta_ao_da_base_nao_derruba(self):
+        """O arquivo que o PR deixa de mudar não pede mais o rótulo: a violação restante é a do rotulado (ou nenhuma)."""
+        self.repo.escreve(".github/workflows/ci.yml", "name: mudou no PR\n")
+        self.repo.commit()
+        self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
+        self.repo.escreve(".github/workflows/ci.yml", "name: CI\n")
+        r = self.roda()
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_p9_merge_da_base_que_muda_outro_protegido_mantem(self):
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.escreve(".github/workflows/ci.yml", "name: CI da base\n")
+        self.repo.commit()
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("merge", "-q", "--no-ff", "--no-edit", "develop")
+        r = self.roda()
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_p9_testes_que_pioram_mais_depois_do_rotulo_derrubam(self):
+        """A mesma violação (testes caíram) com número maior: a chave é a mesma, a piora não."""
+        self.repo.escreve("tests/test_x.py", TESTE.replace("    def test_b(self): pass\n", ""))
+        self.repo.commit()
+        self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
+        self.repo.escreve("tests/test_y.py", "import unittest\nclass T(unittest.TestCase):\n    def test_y(self):\n        self.assertTrue(1)\n")
+        self.assertEqual(self.roda().returncode, 0)  # teste novo: não piora
+        self.repo.git("reset", "-q", "--hard", self.rotulado)
+        self.repo.escreve("tests/test_x.py", "import unittest\n")
+        r = self.roda()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("caíram", r.stdout)
+
+    def test_p9_git_que_falha_no_blob_nao_libera(self):
+        self.repo.escreve("src/app.py", "x = 1\n")
+        self.repo.commit()
+        with mock.patch.object(catraca, "blob_e_modo", side_effect=catraca.ErroDeGit("falha do git simulada")), \
+                mock.patch.object(catraca, "forge_check", side_effect=AssertionError("não chega ao diff efetivo")):
+            with self.assertRaises(catraca.ErroDeGit):
+                catraca.protegidos_como_no_rotulo(self.repo.dir, "develop", self.rotulado, "HEAD")
 
 
 class RespostaCortadaEPaginacaoSemTeto(Base):
