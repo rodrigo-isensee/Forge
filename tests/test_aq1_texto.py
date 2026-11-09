@@ -42,9 +42,14 @@ class AchadosDoQa(unittest.TestCase):
 
 
 class BriefSeguinte(unittest.TestCase):
-    def test_jarvis_fixa_o_brief_seguinte_depois_de_gravar_a_etapa_em_curso(self):
-        texto = ler("agents", "jarvis.md")
-        self.assertIn("prepare o brief da etapa seguinte em paralelo à etapa em curso; o `Desde:`, o head, o `Base-sha:` e as decisões dele só se fixam depois de gravar no pedido a `conferida` e a decisão da etapa em curso: rode o `brief gerar` de novo na hora de enviar", texto)
+    """0.43.1 (decisões 1 e 2 do dono): o brief seguinte sai do gerador a partir do pedido e do desenho, com base e `Desde:`
+    calculados pela ferramenta; o Jarvis não fixa mais esses campos à mão (a frase antiga descrevia o processo manual)."""
+
+    def test_o_brief_sai_do_gerador_e_e_selado(self):
+        texto = ler("skills", "briefs-e-conferencia", "SKILL.md")
+        self.assertIn("monta o brief a partir do pedido e do desenho, com base, `Desde:` e etapa calculados", texto)
+        self.assertIn("Nunca parta de outro brief", texto)
+        self.assertIn("forge-check brief selar --arquivo <brief> --pedido <p>", texto)
 
 
 if __name__ == "__main__":

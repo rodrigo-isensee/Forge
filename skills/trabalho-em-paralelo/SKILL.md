@@ -15,4 +15,5 @@ Texto do Jarvis lido no passo (L51, núcleo curto).
 - **Lote por arquivo:** itens decididos que mexem no mesmo arquivo podem ir numa branch, um commit por item com os testes dele, os portões uma vez e um PR que cita os itens; item com defeito sai por revert do seu commit; item à espera de decisão do dono não entra. Nenhum portão cai.
 - **Lote de até 3 tópicos (D3):** até 3 tópicos pequenos sem arquivo em comum podem ir num lote, com as mesmas regras do "Lote por arquivo".
 - **Tamanho por risco:** cerca de 150 linhas alteradas de código e teste por PR é a orientação, não uma trava; o que pesa é o risco (controle do Forge, classe C). Vale uma classe de comportamento por PR em `hooks/`, com corpus próprio.
+- **Medidas do pedido (entram no placar):** no fim, cole `forge-check transcricao custo --entregas --entrega <pedido> --pedido <pedido>` e `forge-check esperas --pedido <pedido>` em `docs/kanban/entregas.md`; defeito achado depois do parecer final vai por `forge-check escape registrar` na hora.
 - **Pausa por limite de uso (Q1):** na pausa por limite de uso só seguem conferências e integradores; nada novo é disparado.
