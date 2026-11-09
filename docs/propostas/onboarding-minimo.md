@@ -2,7 +2,7 @@
 
 Propósito: desenho curto do ONBOARDING-1 na 0.44.0, fundido com a fase E do produto, na versão mínima. Substitui, para esta versão, o desenho de 17/10 (`docs/onboarding-1/arquitetura.md` do forge-contrib), que dependia da BP-1 e da BP-2 antigas. Público: Jarvis, `tech-lead`, `ux-designer`, `qa-engineer`. Revisão: 2026-12-08.
 
-Estado: proposta, implementada na branch `melhoria/v10-onboarding`.
+Estado: proposta, implementada na 0.44.0 (branch `melhoria/v0440`).
 
 ## 1. Princípio
 O Jarvis facilita para quem não sabe como funciona o desenvolvimento de software; o time faz o resto e aprende com os erros. Na primeira abertura, a pessoa só responde o que é produto. O técnico (stack, comando de pronto, ambiente, dependências) o time decide e registra como suposição (`R-DECISAO`).
