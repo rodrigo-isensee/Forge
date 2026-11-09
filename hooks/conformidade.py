@@ -1296,7 +1296,7 @@ class Guarda:
             # dela e a da sessão (a política de `.forge/recados/` decide); sem `--confirmar`, grava (na dúvida, recusa)
             raizes = [a.split("=", 1)[1] for a in args if "=" in a and prefixo_de(a.split("=", 1)[0], "--para")]
             raizes += [args[i + 1] for i, a in enumerate(args[:-1]) if prefixo_de(a, "--para")]
-            destinos = [f"{r}/.forge/recados/recado.md" for r in (*raizes, ".", "~/.forge-contrib")]
+            destinos = [f"{r}/.forge/recados/recado.md" for r in (*raizes, ".")]
         else:
             destinos = livres[3:4] if sub == "transcricao" and livres[1:2] == ["anonimizar"] else []
         for destino in destinos:
