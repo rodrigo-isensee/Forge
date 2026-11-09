@@ -328,11 +328,42 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertIn('python3 scripts/suite-partes.py --somar-pulados 3 "$RUNNER_TEMP/pulados"', soma)
                 self.assertIn("persist-credentials: false", soma)
 
-    def test_a_suite_inteira_so_roda_nas_partes_e_na_rapida(self):
+    def test_a_suite_inteira_so_roda_nas_partes_e_na_rapida(self):  # SP4: a rápida do 3.14 é a prova do 3.14
         for job, bloco in self.jobs.items():
             with self.subTest(job):
                 tem = "run: python3 scripts/suite-paralela.py" in bloco
-                self.assertEqual(tem, job == "rapida")
+                self.assertEqual(tem, job in ("rapida", "rapida-quatorze"))
+
+    def test_rapidas_sao_a_prova_que_a_arvore_testada_le_com_o_preparo_das_partes(self):
+        """SP4: o nome de cada rápida é o JOBS_DE_PROVA de scripts/arvore-testada.py (test_arvore_testada confere o lado de lá);
+        a prova roda o mesmo preparo (env -a, histórico) das partes."""
+        nomes = {"3.12": "checagem rápida (push na develop)", "3.14": "checagem rápida (push na develop, python 3.14)"}
+        for job, versao in (("rapida", "3.12"), ("rapida-quatorze", "3.14")):
+            with self.subTest(job):
+                bloco = self.jobs[job]
+                self.assertEqual(self.nome(job), nomes[versao])
+                self.assertIn(f'python-version: "{versao}"', bloco)
+                self.assertIn("fetch-depth: 0", bloco)
+                self.assertIn("env -a x true", bloco)
+                self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/develop'", bloco)
+
+    def test_partes_pulam_a_suite_so_com_a_arvore_provada(self):
+        """SP4: o passo da árvore vem antes do preparo e da suíte, e os dois só rodam sem a prova (falha fechada)."""
+        for job in ("partes-doze", "partes-quatorze"):
+            with self.subTest(job):
+                bloco = self.jobs[job]
+                arvore = bloco.index("        id: arvore\n")
+                self.assertIn("if python3 scripts/arvore-testada.py; then provada=true; else provada=false; fi", bloco)
+                self.assertIn("      actions: read", bloco)
+                for passo in ("      - name: env com -a", "      - name: Testes do Forge (parte)\n"):
+                    i = bloco.index(passo)
+                    self.assertLess(arvore, i)
+                    self.assertEqual(bloco[i:].split("\n")[1], "        if: steps.arvore.outputs.provada != 'true'")
+                self.assertEqual(bloco.count("GH_TOKEN"), 1, "o token só no passo da árvore")
+        release = (RAIZ / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+        i = release.index("      - name: Testes antes de publicar\n")
+        self.assertLess(release.index("        id: arvore\n"), i)
+        self.assertEqual(release[i:].split("\n")[1], "        if: steps.arvore.outputs.provada != 'true'")
 
 
 if __name__ == "__main__":

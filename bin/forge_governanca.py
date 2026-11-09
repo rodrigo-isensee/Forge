@@ -11,6 +11,9 @@ por portão (as recusas do R-TETO em `recusas.log`, RN-6) e os tokens por item (
 `regras` lista cada docs/regras/R-*.md com os campos `Revisar em: AAAA-MM-DD` e `Medida:` (o número que justifica a regra); falta,
 data vencida ou medida sem número dão aviso (rc 0); com `--estrito`, rc 1.
 
+Com `--log-prepush <log>` (F8, 0.43.3), lê as linhas `pre-push: duracao inicio=... fim=... plano=... rc=...` que o
+.githooks/pre-push grava no log do envio e dá, por plano, envios, falhas, p50 e máximo da duração em segundos.
+
 Só leitura, sem rede (o `gh` só com `--gh`), só biblioteca padrão. Uso em docs/governanca.md."""
 import datetime
 import json
@@ -507,8 +510,44 @@ def linhas_de_texto(dados):
         saida.append("metricas: portao - (sem recusas.log: o hook agentes ainda não recusou nada ou a fonte falta)")
     for portao, d in (portoes or {}).items():
         saida.append(f"metricas: portao {portao} recusas={d['recusas']} espera_min={_n(d['espera_min'])}")
-    saida.append("metricas: fontes: " + "; ".join(f"{k}={v}" for k, v in FONTES.items()))
+    for plano, r in dados.get("prepush", {}).items():
+        saida.append(f"metricas: prepush plano={plano} envios={r['envios']} falhas={r['falhas']} p50_s={_n(r['p50_s'])} "
+                     f"max_s={_n(r['max_s'])}")
+    if "prepush" in dados and not dados["prepush"]:
+        saida.append("metricas: prepush nenhuma linha de duração nos logs")
+    fontes = {**FONTES, "prepush": "medida (linhas `pre-push: duracao` do log do envio)"} if "prepush" in dados else FONTES
+    saida.append("metricas: fontes: " + "; ".join(f"{k}={v}" for k, v in fontes.items()))
     return saida
+
+
+LINHA_DE_DURACAO = re.compile(r"pre-push: duracao inicio=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) "
+                              r"fim=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) plano=([a-z]{1,20}) rc=(\d{1,3})$")
+
+
+def duracoes_do_prepush(logs, desde=None, ate=None):
+    """F8: ({plano: {envios, falhas, p50_s, max_s}}, avisos) das linhas de duração do pre-push nos `logs` (caminhos).
+    A linha vale no fim de uma linha do log (prefixo de hora ou de marca do registrador é aceito); fim antes do início ou
+    fora do formato não conta. `desde` e `ate` filtram pela data do início (UTC)."""
+    por_plano, avisos = {}, []
+    for caminho in logs:
+        texto = ler_texto(Path(caminho))
+        if texto is None:
+            avisos.append(f"log do pre-push {caminho!r} ausente, link simbólico, ilegível ou grande demais")
+            continue
+        for linha in texto.splitlines():
+            achado = LINHA_DE_DURACAO.search(linha.rstrip())
+            if not achado:
+                continue
+            inicio, fim = (datetime.datetime.strptime(x, "%Y-%m-%dT%H:%M:%SZ") for x in achado.group(1, 2))
+            if fim < inicio or (desde and inicio.date() < desde) or (ate and inicio.date() > ate):
+                continue
+            por_plano.setdefault(achado.group(3), []).append(((fim - inicio).total_seconds(), int(achado.group(4))))
+    saida = {}
+    for plano, envios in sorted(por_plano.items()):
+        segundos = [s for s, _ in envios]
+        saida[plano] = {"envios": len(envios), "falhas": sum(1 for _, rc in envios if rc != 0),
+                        "p50_s": round(statistics.median(segundos), 1), "max_s": round(max(segundos), 1)}
+    return saida, avisos
 
 
 def cmd_metricas(raiz, raiz_pedidos, a):
@@ -525,6 +564,9 @@ def cmd_metricas(raiz, raiz_pedidos, a):
         agora = agora.replace(tzinfo=fuso or datetime.datetime.now().astimezone().tzinfo)
     dados, avisos = calcular(raiz, raiz_pedidos, a.pedido, desde, ate, a.por, fuso, agora, a.develop, a.main, a.gh,
                              getattr(a, "transcritos", None), getattr(a, "recusas", None))
+    if getattr(a, "log_prepush", None):
+        dados["prepush"], mais = duracoes_do_prepush(a.log_prepush, desde, ate)
+        avisos += mais
     for aviso in avisos:
         print(f"metricas: aviso: {aviso}", file=sys.stderr)
     print(json.dumps(dados, ensure_ascii=False, indent=1) if a.json else "\n".join(linhas_de_texto(dados)))

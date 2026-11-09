@@ -57,7 +57,7 @@ class FecharShaConferido(unittest.TestCase):
         (self.estado / "head").write_text(sha)
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {sha}", self.chamadas())
+        self.assertIn(f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha}", self.chamadas())
         self.assertIn(f"head: {sha}", r.stdout)
 
 
