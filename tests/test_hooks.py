@@ -577,6 +577,23 @@ runpy.run_path(sys.argv[0], run_name="__main__")
 """
 
 
+# P3 da 0.43.1: o `LANCADOR` com o prazo de relógio da linha do `conformidade` (`PRAZO_DA_LINHA_S`, 3 s) largo, para o
+# teste que mede o custo em CPU (`test_muitos_heredocs_recusam_dentro_do_orcamento`) não ser recusado pelo relógio da
+# máquina carregada. O hook roda num módulo `__main__` de verdade, como o `runpy`; se a constante sumir, o lançador sai
+# com erro em vez de medir o hook sem a troca.
+LANCADOR_SEM_PRAZO_DA_LINHA = LANCADOR.replace('runpy.run_path(sys.argv[0], run_name="__main__")', """\
+import re, types
+fonte, trocas = re.subn(r"(?m)^PRAZO_DA_LINHA_S = .*$", "PRAZO_DA_LINHA_S = 120.0", open(sys.argv[0], encoding="utf-8").read())
+if trocas != 1:
+    sys.exit(f"LANCADOR_SEM_PRAZO_DA_LINHA: PRAZO_DA_LINHA_S aparece {trocas} vez(es) em {sys.argv[0]}")
+modulo = types.ModuleType("__main__")
+modulo.__file__ = sys.argv[0]
+sys.modules["__main__"] = modulo
+exec(compile(fonte, sys.argv[0], "exec"), modulo.__dict__)
+""")
+assert LANCADOR_SEM_PRAZO_DA_LINHA != LANCADOR
+
+
 def lancador(hook, producao=False, lento=False):
     """Comando que roda hooks/<hook>.py como o Claude Code o roda, com o prazo do git largo para os testes."""
     return [sys.executable, "-c", LANCADOR, str(HOOKS), str(HOOKS / f"{hook}.py"), str(PRAZO_GIT_NOS_TESTES),
@@ -1801,14 +1818,16 @@ class Hooks(unittest.TestCase):
     def test_comando_logico_le_os_limites_uma_vez_por_texto(self):  # LOTE-LEITURA-HOOK, A1 do review, volta 5
         """O `comando_logico` de cada um dos 2000 heredocs de um texto sai em tempo linear: os limites dos comandos
         lógicos são lidos uma vez por texto, e não do começo a cada operador (26,9 s com 3000 heredocs no conformidade,
-        acima do timeout de 10 s em que o Claude Code libera a linha)."""
+        acima do timeout de 10 s em que o Claude Code libera a linha). O limite é de CPU deste processo
+        (`time.process_time`), e não do relógio, que a máquina carregada alonga sem o código mudar (P3 da 0.43.1): a
+        conta leva ~0,1 s de CPU, e a quadrática passava de 10 s."""
         _comum, _, _ = modulos_dos_hooks()
         linhas = [f"cat > f{i} <<'EOF'" for i in range(2000)]
         texto = "\n".join(linhas)
         posicoes = [texto.index(linha) for linha in linhas]
-        inicio = time.perf_counter()
+        inicio = time.process_time()
         logicos = [_comum.comando_logico(texto, p) for p in posicoes]
-        self.assertLess(time.perf_counter() - inicio, 1.0, "2000 comandos lógicos do mesmo texto")
+        self.assertLess(time.process_time() - inicio, 1.0, "2000 comandos lógicos do mesmo texto (s de CPU)")
         self.assertEqual(logicos, linhas)
         self.assertEqual(_comum.comando_logico("a &&\nb\nc", 5), "a &&\nb")
 
@@ -1816,7 +1835,9 @@ class Hooks(unittest.TestCase):
         """Com 2000 heredocs, um por linha, num pipeline, ligados por `&&` ou na mesma linha, `tirar_heredocs` e a
         conferência de cada dono (`corpo_so_lido`) saem dentro do orçamento de 3 s do `conformidade`: o dono de cada
         heredoc sai de índices das leituras (`pipeline_do_operador`) e de limites dos comandos lógicos lidos uma vez por
-        texto, e heredocs do mesmo dono o dividem (antes, 12,4 s um por linha e 30 s no pipeline e com `&&`)."""
+        texto, e heredocs do mesmo dono o dividem (antes, 12,4 s um por linha e 30 s no pipeline e com `&&`). O limite
+        é de CPU deste processo (`time.process_time`), e não do relógio, que a máquina carregada alonga sem o código
+        mudar (P3 da 0.43.1)."""
         _comum, _, _ = modulos_dos_hooks()
         n = 2000
         formas = {"um por linha": "".join(f"cat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n)),
@@ -1825,10 +1846,10 @@ class Hooks(unittest.TestCase):
                   "mesma linha": "cat " + " ".join(f"<<'E{i}'" for i in range(n)) + "\n" + "".join(f"x\nE{i}\n" for i in range(n))}
         for forma, texto in formas.items():
             with self.subTest(forma=forma):
-                inicio = time.perf_counter()
+                inicio = time.process_time()
                 resto, corpos = _comum.tirar_heredocs(texto + "git push origin main")
                 lidos = [_comum.corpo_so_lido(dono) for dono, _ in corpos]
-                self.assertLess(time.perf_counter() - inicio, 3.0, f"{n} heredocs")
+                self.assertLess(time.process_time() - inicio, 3.0, f"{n} heredocs (s de CPU)")
                 self.assertEqual(len(corpos), n)
                 self.assertTrue(resto.endswith("git push origin main"))
                 # M2 da volta única: com o texto gravando (`cat > f`), o `git` do texto faz de todo corpo comando
@@ -1836,7 +1857,15 @@ class Hooks(unittest.TestCase):
 
     def test_muitos_heredocs_recusam_dentro_do_orcamento(self):  # LOTE-LEITURA-HOOK, A1 do review, volta 5
         """Pelo hook real: 3000 heredocs com `git push origin main` no fim recusam (R-MAIN) bem antes do timeout do
-        `hooks.json` (26,9 s antes, e o Claude Code libera o comando que o hook não decidiu a tempo)."""
+        `hooks.json` (26,9 s antes, e o Claude Code libera o comando que o hook não decidiu a tempo).
+
+        P3 da 0.43.1: a medida é a CPU do hook (filhos esperados, `RUSAGE_CHILDREN`), e não o relógio, que a máquina
+        carregada alongava até o hook ser morto pelo próprio prazo de relógio da linha (`PRAZO_DA_LINHA_S`, 3 s) e
+        recusar por ele, e não pela regra, sem o código mudar. O hook roda com esse prazo largo
+        (`LANCADOR_SEM_PRAZO_DA_LINHA`, como o vigia de decisão nos testes) e cada forma tem de caber, em CPU, dentro
+        dele: na máquina livre, a regra decide antes do prazo da linha. O relógio, medido, só vai à mensagem; quem
+        garante a parede em produção é o vigia de 3 s, testado à parte (`test_t_vigia_*`)."""
+        _, conformidade, _ = modulos_dos_hooks()
         limite = min(h["timeout"] for g in json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
                      for h in g["hooks"] if h["args"][0].endswith("/conformidade.py"))
         dados = json.loads((FIXTURES / "conformidade" / "heredoc-outro-comando-make-push-main-bloqueia.json")
@@ -1874,14 +1903,18 @@ class Hooks(unittest.TestCase):
                 montado = fixture.montar(tmp, os.getpid())  # a montagem (git init, commit...) fica fora da janela medida
                 cpu_antes = _cpu_dos_filhos()
                 inicio = time.monotonic()
-                self.executar_fixture(fixture, tmp, os.getpid(), montado=montado)
+                with mock.patch(f"{__name__}.LANCADOR", LANCADOR_SEM_PRAZO_DA_LINHA):
+                    self.executar_fixture(fixture, tmp, os.getpid(), montado=montado)
                 parede = time.monotonic() - inicio
                 cpu = None if cpu_antes is None else _cpu_dos_filhos() - cpu_antes
+                medida = f"{parede:.2f} s de parede, {cpu or 0:.2f} s de CPU"
                 if outra:
-                    print(f"HEREDOC-DONOS {forma}: {parede:.2f} s de parede, {cpu or 0:.2f} s de CPU (limite {limite / 2:.1f} s)")
-                self.assertLess(parede, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
-                if cpu is not None:  # sem `resource` (Windows) só vale a parede
-                    self.assertLess(cpu, limite / 2, "o custo de CPU do hook (filhos) fica no mesmo teto, sem depender da carga")
+                    print(f"HEREDOC-DONOS {forma}: {medida} (limite {conformidade.PRAZO_DA_LINHA_S:g} s de CPU)")
+                if cpu is None:  # sem `resource` (Windows) só vale a parede
+                    self.assertLess(parede, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
+                else:
+                    self.assertLess(cpu, conformidade.PRAZO_DA_LINHA_S,
+                                    f"o custo do hook cabe no prazo da linha, sem depender da carga ({medida})")
 
     @staticmethod
     def _donos_da_base(_comum, texto):
