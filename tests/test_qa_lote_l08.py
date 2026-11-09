@@ -1,13 +1,16 @@
 """QA do lote L08 (versao-033; E7, E10, E12, E16, E19): cenários de ponta a ponta com o `forge-check` real (subprocesso) sobre repositórios
 temporários. Cada teste responde a um item do backlog da 0.33; a fronteira que guarda vem no docstring."""
+import contextlib
+import io
 import json
 import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from test_forge import RepoComOrigem, git, rodar_fc, com_gh_falso  # noqa: E402
+from test_forge import RepoComOrigem, carregar_forge_check, git, rodar_fc, com_gh_falso  # noqa: E402
 from test_volta_por_delta import BriefDeVolta, Repositorio  # noqa: E402
 from test_fechar_forge_check_real import FecharComOForgeCheckReal  # noqa: E402
 from test_promover_homolog import Promover, SCRIPT  # noqa: E402
@@ -314,10 +317,86 @@ class QaA9Promocao(Promover):
                 self.assertNotIn("promoção", r.stderr)
 
 
+class AceiteDoQaComDecisao(RepoComOrigem):
+    """QA-ACEITE-FALSO (0.72 E1): `aceite_usuario: sim` do QA aprovado com bug médio só vale com a DECISÃO DO DONO no pedido que traz
+    `aceite QA <commit do parecer>`; fronteira: a linha com outro commit, o token colado em outra palavra e a citação fora da decisão."""
+    QA = ("---\ntipo: qa\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\nescopo: completo\n"
+          "bugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 1\nbugs_baixos: 0\naceite_usuario: {a}\ndata: 2026-11-09\n---\n# q\n")
+
+    def setUp(self):
+        super().setUp()
+        self.n = self.commitar(self.repo, {"src/z.txt": "".join(f"z{i}\n" for i in range(25))}, "entrega maior")  # classe N: pede QA
+        self.pareceres(self.n)
+
+    def qa(self, aceite="sim", linha=None):
+        (self.repo / "docs" / "qa" / "p1.md").write_text(self.QA.format(c=self.n, a=aceite), encoding="utf-8")
+        git("commit", "-q", "--allow-empty", "-am", "parecer do QA com bug médio", cwd=self.repo)  # os subTests regravam o mesmo parecer
+        arq = self.home / ".forge-contrib" / "docs" / "pedidos" / "p1.md"
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        arq.write_text("# p1\n\n## Decisões\n" + (f"{linha}\n" if linha else ""), encoding="utf-8")
+        return self.pr("--base", "develop")
+
+    def test_sim_sem_a_linha_do_dono_reprova(self):
+        rc, saida, _ = self.qa()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f'docs/qa/p1.md: aceite_usuario: sim sem DECISÃO DO DONO no pedido com "aceite QA {self.n[:7]}"', saida)
+
+    def test_sim_com_a_linha_do_dono_do_mesmo_commit_aprova(self):
+        for c in (self.n[:7], self.n):
+            with self.subTest(c=c):
+                rc, saida, _ = self.qa(linha=f"- DECISÃO DO DONO (2026-11-09 10:00): pode seguir com o bug médio; aceite QA {c}")
+                self.assertEqual(rc, 0, saida)
+
+    def test_linha_com_outro_commit_colada_ou_fora_da_decisao_reprova(self):
+        for linha in (f"- DECISÃO DO DONO (2026-11-09 10:00): aceite QA {self.c1[:7]}",
+                      f"- DECISÃO DO DONO (2026-11-09 10:00): xaceite QA {self.n[:7]}y",
+                      f"- o QA disse que a DECISÃO DO DONO foi aceite QA {self.n[:7]}"):
+            with self.subTest(linha=linha):
+                rc, saida, _ = self.qa(linha=linha)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn("aceite_usuario: sim sem DECISÃO DO DONO", saida)
+
+    def test_sem_aceite_declarado_segue_a_bur_b4(self):
+        rc, saida, _ = self.qa(aceite="nao")
+        self.assertEqual(rc, 0, saida)
+
+    def test_pedido_ausente_reprova_no_projeto_e_so_avisa_no_forge(self):
+        fc = carregar_forge_check()
+        campos = {"parecer": "aprovado", "aceite_usuario": "sim", "bugs_medios": "1", "commit": self.n}
+        with mock.patch.object(fc, "RAIZES_DE_BRIEF", (self.home / ".forge-contrib",)), contextlib.redirect_stderr(io.StringIO()) as erro:
+            self.assertIn("sem o pedido", fc.aceite_do_qa_sem_dono(self.repo, "p9", "docs/qa/p9.md", campos)[0])
+            self.assertEqual(erro.getvalue(), "")
+            (self.repo / ".claude-plugin").mkdir()
+            (self.repo / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
+            self.assertEqual(fc.aceite_do_qa_sem_dono(self.repo, "p9", "docs/qa/p9.md", campos), [])
+            self.assertIn("aceite_usuario não verificável sem o pedido", erro.getvalue())
+
+
+class AceiteDeOutroPedidoDesatualiza(RepoComOrigem):
+    """ACEITE-AUTORIA, E1g da 0.55 (LIVRES estreito): o aceite deste pedido entra depois do parecer sem desatualizá-lo; o de outro pedido,
+    mudado depois, desatualiza; fronteira: `p10` não é o aceite de `p1`."""
+    ACEITE = "---\npedido: {p}\ncommit: {c}\naceite: sim\n---\nAceito.\n"
+
+    def test_aceite_do_proprio_pedido_nao_desatualiza(self):
+        self.commitar(self.repo, {"docs/security/aceites/p1.md": self.ACEITE.format(p="p1", c=self.c1)}, "aceite do dono")
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 0, saida)
+
+    def test_aceite_de_outro_pedido_desatualiza_os_pareceres(self):
+        for outro in ("p2", "p10"):
+            with self.subTest(outro=outro):
+                self.commitar(self.repo, {f"docs/security/aceites/{outro}.md": self.ACEITE.format(p=outro, c=self.c1)}, "aceite alheio")
+                rc, saida, _ = self.pr("--base", "develop")
+                self.assertEqual(rc, 1, saida)
+                self.assertIn(f"commit: desatualizado: docs/security/aceites/{outro}.md mudou depois do parecer", saida)
+                git("reset", "-q", "--hard", "HEAD~1", cwd=self.repo)
+
+
 def load_tests(loader, tests, pattern):
     """As classes herdam as bases dos módulos de teste do autor; só os testes próprios daqui entram (os herdados já rodam nos módulos deles)."""
     suite = unittest.TestSuite()
-    for cls in (QaE7ConferenciaNoHead, QaE10PrMesclado, QaE12DesdePorBranch, QaE16TesteEParecer, QaE19AtoGithub, QaE7FecharReal, QaA9Promocao, QaPareceresDaBranch):
+    for cls in (QaE7ConferenciaNoHead, QaE10PrMesclado, QaE12DesdePorBranch, QaE16TesteEParecer, QaE19AtoGithub, QaE7FecharReal, QaA9Promocao, QaPareceresDaBranch,
+                AceiteDoQaComDecisao, AceiteDeOutroPedidoDesatualiza):
         suite.addTests(cls(nome) for nome in vars(cls) if nome.startswith("test"))
     return suite
 
