@@ -123,6 +123,12 @@ def ler_falso(execucoes, jobs, chamadas=None):
     return ler
 
 
+class NomesDaProva(unittest.TestCase):
+    def test_jobs_de_prova_sao_os_nomes_das_rapidas_do_ci(self):  # test_suite_partes confere o lado do ci.yml
+        self.assertEqual(at.JOBS_DE_PROVA, {"3.12": "checagem rápida (push na develop)",
+                                            "3.14": "checagem rápida (push na develop, python 3.14)"})
+
+
 class Candidatos(unittest.TestCase):
     def test_so_commits_com_a_mesma_arvore_na_ordem_e_sem_repetir(self):
         log = f"{'1' * 40} {ARVORE}\n{'2' * 40} {OUTRA}\n{D} {ARVORE}\n{D} {ARVORE}\nlixo\n{'3' * 39} {ARVORE}\n"

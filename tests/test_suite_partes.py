@@ -232,15 +232,13 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertEqual(tem, job in ("rapida", "rapida-quatorze"))
 
     def test_rapidas_sao_a_prova_que_a_arvore_testada_le_com_o_preparo_das_partes(self):
-        """SP4: o nome de cada rápida é o JOBS_DE_PROVA do script; a prova roda o mesmo preparo (env -a, histórico) das partes."""
-        import importlib.util
-        spec = importlib.util.spec_from_file_location("arvore_testada", RAIZ / "scripts" / "arvore-testada.py")
-        at = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(at)
+        """SP4: o nome de cada rápida é o JOBS_DE_PROVA de scripts/arvore-testada.py (test_arvore_testada confere o lado de lá);
+        a prova roda o mesmo preparo (env -a, histórico) das partes."""
+        nomes = {"3.12": "checagem rápida (push na develop)", "3.14": "checagem rápida (push na develop, python 3.14)"}
         for job, versao in (("rapida", "3.12"), ("rapida-quatorze", "3.14")):
             with self.subTest(job):
                 bloco = self.jobs[job]
-                self.assertEqual(self.nome(job), at.JOBS_DE_PROVA[versao])
+                self.assertEqual(self.nome(job), nomes[versao])
                 self.assertIn(f'python-version: "{versao}"', bloco)
                 self.assertIn("fetch-depth: 0", bloco)
                 self.assertIn("env -a x true", bloco)
