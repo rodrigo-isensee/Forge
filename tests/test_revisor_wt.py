@@ -443,7 +443,7 @@ class PrPrevio(ComParecer):
     def test_ausente_com_base_como_o_pre_voo_chama(self):  # PP-5: `pr --ref <sha> --base origin/develop --previo -- <slug>`
         rc, saida, erro = self.pr("--base", "origin/develop", "--previo")
         self.assertEqual(rc, 0, saida + erro)
-        self.assertIn("aviso: docs/qa: qa: sem parecer para o pedido `x`", erro)
+        self.assertIn("aviso: docs/reviews: review: sem parecer para o pedido `x`", erro)  # P5: a entrega pequena é T (só review)
         self.assertEqual(self.pr("--base", "origin/develop")[0], 1)
 
     def test_parecer_so_de_outra_branch_tambem_e_ausente(self):

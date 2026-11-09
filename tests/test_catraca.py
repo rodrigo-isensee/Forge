@@ -1333,8 +1333,8 @@ class Pareceres(Base):
     def parecer(self, tipo, ramo="pr", parecer="aprovado", pedido="ped"):
         self.repo.commit()
         commit = self.repo.git("rev-parse", "--short", "HEAD").strip()
-        pasta = "reviews" if tipo == "review" else "qa"
-        extra = "revisor: forge:tech-lead" if tipo == "review" else "qa: forge:qa-engineer"
+        pasta = {"review": "reviews", "revisao-seguranca": "security"}.get(tipo, "qa")
+        extra = "qa: forge:qa-engineer" if tipo == "qa" else "revisor: forge:tech-lead"
         self.repo.escreve(f"docs/{pasta}/{pedido}.md",
                           f"---\ntipo: {tipo}\ncontrato: 1\npedido: {pedido}\nbranch: {ramo}\ncommit: {commit}\n"
                           f"parecer: {parecer}\n{extra}\ndata: 2026-01-01\n---\n# parecer\n")
@@ -1356,6 +1356,7 @@ class Pareceres(Base):
     def test_toca_hooks_com_review_aprovado_passa_na_develop_e_exige_qa_na_homolog(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca")  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.assertEqual(self.roda("develop"), [])
         self.assertEqual(len(self.roda("homolog")), 1)
 
@@ -1400,6 +1401,8 @@ class Pareceres(Base):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review", pedido="a")
         self.parecer("review", pedido="b")
+        self.parecer("revisao-seguranca", pedido="a")  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
+        self.parecer("revisao-seguranca", pedido="b")
         self.assertEqual(self.roda(), [])
 
     # --- O parecer sobrevive a merge da base e a commit de parecer (diff efetivo, ADR 0004 item 3) ---
@@ -1419,6 +1422,7 @@ class Pareceres(Base):
     def test_merge_da_base_depois_do_parecer_mantem_o_parecer(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca")  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.mescla_base()
         self.assertEqual(self.roda_sobre_develop(), [])
 
@@ -1488,7 +1492,7 @@ class ParecerReprovadoBarraSempre(Base):
                 self.assertEqual(len(self.roda()), 1)
 
     def test_seguranca_reprovada_barra_mesmo_sem_gatilho_no_diff(self):
-        self.repo.escreve("scripts/x.sh", "echo\n")
+        self.repo.escreve("docs/x.md", "x\n")  # P5 (0.43.1): scripts/ virou classe C (pede segurança); o diff sem gatilho é o de documentação
         self.parecer("review")
         self.parecer("qa", commita=False)
         self.parecer("revisao-seguranca", "reprovado", commita=False)
@@ -1497,7 +1501,7 @@ class ParecerReprovadoBarraSempre(Base):
         self.assertRegex(achadas[0], r"^R-SEGURANCA: .+docs/security/ped\.md")
 
     def test_devops_reprovado_barra_mesmo_sem_infra_no_diff(self):
-        self.repo.escreve("scripts/x.sh", "echo\n")
+        self.repo.escreve("docs/x.md", "x\n")  # P5 (0.43.1): scripts/ virou classe C (pede segurança); o diff sem infra é o de documentação
         self.parecer("review")
         self.parecer("revisao-devops", "reprovado", commita=False)
         achadas = self.roda()
@@ -1507,6 +1511,7 @@ class ParecerReprovadoBarraSempre(Base):
     def test_qa_reprovado_barra_na_entrada_da_develop(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca", commita=False)  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.parecer("qa", "reprovado", commita=False)
         achadas = self.roda("develop")
         self.assertEqual(len(achadas), 1, achadas)
@@ -1556,6 +1561,7 @@ class ParecerReprovadoBarraSempre(Base):
         """Caso do #437: mesmo pedido e data; o parecer de outra branch (sha sumido no squash) vence por caminho, e o da branch vale."""
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca", commita=False)  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.parecer("review", ramo="outra", arquivo="zz-outra", commit="deadbee", commita=False)
         self.assertEqual(self.roda(), [])
 
@@ -1579,6 +1585,7 @@ class ParecerReprovadoBarraSempre(Base):
         """A1: parecer aprovado com `branch: pr` cobre o PR do próprio repositório, mas não o de um fork com o mesmo nome de branch."""
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca", commita=False)  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.assertEqual(self.roda(), [])
         for head in ("fulano/Forge", ""):  # fork e head.repo nulo (fork apagado)
             with self.subTest(head=head):
@@ -1598,6 +1605,7 @@ class ParecerReprovadoBarraSempre(Base):
     def test_em_ci_sem_base_repo_falha_fechado_e_fora_do_ci_libera(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca", commita=False)  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.repo.commit()
         with mock.patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}):
             for head in ("", "dono/Forge"):
@@ -1618,6 +1626,7 @@ class ParecerReprovadoBarraSempre(Base):
     def test_mesmo_repositorio_ou_sem_env_nao_muda_o_resultado(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca", commita=False)  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.repo.commit()
         for head, base in (("dono/Forge", "dono/Forge"), ("", "")):
             with self.subTest(head=head):
@@ -1626,6 +1635,7 @@ class ParecerReprovadoBarraSempre(Base):
     def test_cli_le_o_repositorio_do_head_por_env_e_recusa_o_fork(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca", commita=False)  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.repo.commit()
         env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "GITHUB_ACTIONS", "HEAD_REPO", "BASE_REPO")}
         argv = ["python3", str(AQUI / "catraca.py"), "--modo", "pareceres", "--raiz", str(self.repo.dir), "--base", "base",
