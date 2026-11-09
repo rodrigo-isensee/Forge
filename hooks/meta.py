@@ -84,7 +84,7 @@ def principal(hook):
     if hook.campo("hook_event_name") != "Stop":
         return
     raiz = hook.projeto(hook.cwd(), clone_do_forge=True)
-    if not raiz:
+    if raiz is None:
         return
     avaliar_meta(hook, raiz)
 

@@ -121,6 +121,48 @@
    "testes": [
     "tests.test_meta.Meta.test_armar_grava_no_run_do_hook_e_desarmar_tira"
    ]
+  },
+  {
+   "id": "M13",
+   "guarda": "secao do painel",
+   "arquivo": "hooks/meta.py",
+   "de": "    return m.group(1) if m else \"\"",
+   "para": "    return m.group(1) if m and False else \"\"",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M14",
+   "guarda": "linhas do dono no pedido",
+   "arquivo": "hooks/meta.py",
+   "de": "if re.match(r\"\\s*(?:- )?(PERGUNTA AO|DECISÃO DO) DONO\", l)]",
+   "para": "if re.match(r\"xyz\", l)]",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M15",
+   "guarda": "checagens validas",
+   "arquivo": "hooks/meta.py",
+   "de": "if isinstance(c, list) and c]",
+   "para": "if isinstance(c, str)]",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  }
+ ],
+ "isentas": [
+  {
+   "arquivo": "hooks/meta.py",
+   "trecho": "__name__ == \"__main__\"",
+   "motivo": "ponto de entrada do script do hook, igual aos outros hooks; os fixtures o rodam como __main__"
+  },
+  {
+   "arquivo": "hooks/meta.py",
+   "trecho": "raiz is None",
+   "motivo": "fora de projeto o hook não tem onde ler nem gravar; mesmo padrão de pesado e doutor"
   }
  ]
 }

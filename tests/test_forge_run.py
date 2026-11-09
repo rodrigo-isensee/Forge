@@ -59,6 +59,14 @@ class Rodar(unittest.TestCase):
         self.assertEqual(len(self.run_json("a2")["passos"]), 1)
         self.assertFalse((self.tmp / "nao-devia").exists())
 
+    def test_pasta_run_link_recusa(self):
+        fora = self.tmp / "fora"
+        fora.mkdir()
+        (self.tmp / ".forge").mkdir()
+        (self.tmp / ".forge" / "run").symlink_to(fora)
+        self.assertEqual(self.rodar("a6", "--", "true")[0], 2)
+        self.assertEqual(list(fora.iterdir()), [])
+
     def test_sem_shell(self):
         rc, _ = self.rodar("a3", "--", "echo", "$HOME", "|", "cat")
         self.assertEqual(rc, 0)

@@ -123,15 +123,15 @@ def prova_do_pq(resto, pasta, head, script, espera_do_script):
     """(linha, reprova) do PQ `cmd` cujo comando é `forge-check rodar <slug> -- ...`; None se o PQ não cita um run."""
     achado = CRASES.search(resto)
     try:
-        run = citado(shlex.split(achado.group(1))) if achado is not None else None
+        runs = [citado(shlex.split(achado.group(1)))] if achado is not None else []
     except ValueError:
-        run = None
-    if run is None:
-        return None
-    espera = espera_do_script(script, resto[achado.end():].partition("espera:")[2].strip())
-    rc, saida, motivo = ler(pasta, run[0], run[1], head)
-    divergiu = motivo or (espera is None and "espera fora do vocabulário") or script.avaliar(espera, saida, rc)
-    return (f"run {run[0]}: diverge ({divergiu})", True) if divergiu else (f"run {run[0]}: ok", False)
+        runs = []
+    for slug, argv in filter(None, runs):
+        espera = espera_do_script(script, resto[achado.end():].partition("espera:")[2].strip())
+        rc, saida, motivo = ler(pasta, slug, argv, head)
+        divergiu = motivo or (espera is None and "espera fora do vocabulário") or script.avaliar(espera, saida, rc)
+        return (f"run {slug}: diverge ({divergiu})", True) if divergiu else (f"run {slug}: ok", False)
+    return None
 
 
 def executar(a, raiz):

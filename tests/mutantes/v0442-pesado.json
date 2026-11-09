@@ -91,6 +91,16 @@
    "testes": [
     "tests.test_pesado_fila.Fila.test_prioridade_pela_versao_da_branch"
    ]
+  },
+  {
+   "id": "M10",
+   "guarda": "busca a branch na secao",
+   "arquivo": "hooks/pesado.py",
+   "de": "    return bool(branch) and re.search(",
+   "para": "    return bool(branch) or re.search(",
+   "testes": [
+    "tests.test_pesado_fila.Fila.test_aguardando_o_dono_so_na_secao"
+   ]
   }
  ],
  "isentas": [
