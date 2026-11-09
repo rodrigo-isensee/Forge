@@ -350,6 +350,34 @@ class Hook(Repositorio):
         self.assertEqual(r.returncode, 2)
         self.assertIn("forge-check brief mensagem", r.stderr)
 
+    def test_executor_generico_com_brief_pede_selo(self):
+        """BRIEF-EXECUTOR-SEM-PORTAO (0.43.2): o general-purpose, o fork e o claude que recebem um brief fazem o trabalho do especialista."""
+        self.brief()
+        prompt = "Leia docs/briefs/exemplo-node-backend-1.md e execute."
+        for tipo in ("general-purpose", "fork", "claude", ""):
+            r = self.lancar(prompt, tipo=tipo)
+            self.assertEqual(r.returncode, 2, f"{tipo}: {r.stderr}")
+            self.assertIn("R-BRIEF", r.stderr)
+            self.assertIn("sem selo", r.stderr)
+        self.assertEqual(self.selar()[0], 0)
+        for tipo in ("general-purpose", "fork", "claude"):
+            self.assertEqual(self.lancar(prompt, tipo=tipo).returncode, 0, tipo)
+
+    def test_pesquisa_sem_brief_e_tipo_so_de_leitura_seguem_livres(self):
+        self.brief()
+        for tipo in ("general-purpose", "fork", "claude"):
+            self.assertEqual(self.lancar("procure onde o hook lê o selo e resuma", tipo=tipo).returncode, 0, tipo)
+        for tipo in ("Explore", "Plan", "time:tech-lead"):
+            self.assertEqual(self.lancar("Leia docs/briefs/exemplo-node-backend-1.md e resuma.", tipo=tipo).returncode, 0, tipo)
+
+    def test_papel_do_forge_sem_o_prefixo_pede_selo(self):
+        for tipo in ("node-backend", "tech-lead", "jarvis"):
+            r = self.lancar("faça o recurso X", tipo=tipo)
+            self.assertEqual(r.returncode, 2, f"{tipo}: {r.stderr}")
+            self.assertIn("não cita o brief", r.stderr)
+        r = self.lancar("faça X", tipo="conferente")  # o conferente sem o prefixo não vira especialista
+        self.assertNotIn("não cita o brief", r.stderr)
+
     def test_selo_forjado_com_outro_hash_nao_vale(self):
         self.brief()
         self.gravar("docs/pedidos/exemplo.md", self.pedido() + f"- 2026-01-02 10:00: brief selado docs/briefs/exemplo-node-backend-1.md {'d' * 64}\n")

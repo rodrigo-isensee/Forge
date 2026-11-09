@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Forge: teto de agentes, relançamento duplicado (ADR 0003, R-TETO), brief selado do especialista e forma da mensagem ao conferente (R-BRIEF).
 
-P1 (0.43.1): todo disparo de `forge:<papel>` (fora o conferente) exige no prompt o caminho de um brief em docs/briefs/ com selo no
+P1 (0.43.1): todo disparo de `forge:<papel>` (fora o conferente; também o nome do papel sem o prefixo e, desde a 0.43.2, o
+`general-purpose`, o `fork` e o `claude` cujo prompt cita um brief em docs/briefs/) exige no prompt o caminho de um brief em docs/briefs/ com selo no
 `## Histórico` do pedido (`- <data> <hora>: brief selado docs/briefs/<nome>.md <sha256>`, gravado só pelo `forge-check brief selar`)
 e com o sha256 de agora; sem isso, bloqueia (falha fechada). O conferente é opcional e segue com a forma e o hash da mensagem.
 
@@ -32,7 +33,7 @@ import time
 import unicodedata
 from pathlib import Path
 
-from _comum import (RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check, gravar_json,
+from _comum import (PLUGIN, RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check, gravar_json,
                     ler_json)
 from pesado import CASCAS, pid_da_sessao, pid_vivo
 
@@ -401,10 +402,26 @@ def recusar_branch_ocupada(hook, agentes, branches):
                                    f"{sem_controle(hook.run() / 'agentes.json')}")
 
 
-def exige_selo(tipo):
-    """P1 (0.43.1): o especialista do Forge (`forge:<papel>`) só sai com brief selado; o conferente (opcional, conferência de conteúdo
-    pedida pelo Jarvis) segue com a forma e o hash da mensagem. Os tipos fora do plugin não passam por aqui."""
-    return tipo.startswith("forge:") and tipo != CONFERENTE
+# BRIEF-EXECUTOR-SEM-PORTAO (0.43.2): os tipos de fora do plugin que escrevem como um especialista (todas as ferramentas). O
+# `Explore`, o `Plan` e os outros só de leitura ficam fora: a pesquisa não passa pelo selo.
+EXECUTORES_GENERICOS = {"general-purpose", "fork", "claude"}
+
+
+def papeis_do_forge():
+    """Os nomes dos agentes do plugin (`agents/` e `stacks/*/agents/`), sem o conferente: o tipo pode chegar sem o prefixo `forge:`."""
+    return {p.stem for p in (*PLUGIN.glob("agents/*.md"), *PLUGIN.glob("stacks/*/agents/*.md"))} - {"conferente"}
+
+
+def exige_selo(tipo, prompt=""):
+    """P1 (0.43.1): o especialista do Forge (`forge:<papel>`, ou o nome do papel sem o prefixo) só sai com brief selado; o conferente
+    (opcional, conferência de conteúdo pedida pelo Jarvis) segue com a forma e o hash da mensagem. BRIEF-EXECUTOR-SEM-PORTAO (0.43.2):
+    o executor genérico (`EXECUTORES_GENERICOS`) cujo prompt cita um brief em docs/briefs/ faz o trabalho do especialista e também
+    precisa do selo; sem brief citado (leitura, pesquisa), segue livre. Os outros tipos de fora do plugin não passam por aqui."""
+    if tipo == CONFERENTE:
+        return False
+    if tipo.startswith("forge:") or tipo in papeis_do_forge():
+        return True
+    return tipo in EXECUTORES_GENERICOS and next(caminhos_de_brief(str(prompt or "")), None) is not None
 
 
 def selo_ausente(hook, prompt):
@@ -447,7 +464,7 @@ def lancar(hook, agentes, agora):
     divergencia = hash_do_brief_diverge(hook, entrada.get("prompt")) if tipo == CONFERENTE else None
     if divergencia:
         bloquear("R-BRIEF", f"{divergencia}; gere de novo com `forge-check brief mensagem` e envie-a.")
-    if exige_selo(tipo):
+    if exige_selo(tipo, entrada.get("prompt")):
         try:
             sem_selo = selo_ausente(hook, entrada.get("prompt"))
         except Exception as erro:  # noqa: BLE001 - falha fechada: sem prova do selo, o especialista não sai
