@@ -621,10 +621,10 @@ def regra_teto_pulados(cb, ch):
                 f"desfaça o pulo novo em vez de subir o teto, ou peça o rótulo `{ROTULO}` ao dono", "docs/regras/R-CONFORMIDADE.md")]
 
 
-# MUTANTES-SPEC-HOOKS: diff de classe C em hooks/ (código que decide o bloqueio) que muda linha de guarda pede mutante declarado
+# MUTANTES-SPEC-HOOKS: diff que muda linha de guarda em código Python de controle (a classe C do `forge-check classe`, pela
+# mesma lista: `motivo_de_controle`; hooks/, bin/, scripts/, templates/projeto/...; fora os testes) pede mutante declarado
 # numa spec de tests/mutantes/ do próprio diff. A análise é a do `bin/forge-mutante --cobertura` (uma fonte só), carregado ao lado
-# deste script (no CI, o da base), sobre o diff merge-base..head; só Python (o hooks/ é todo Python).
-PASTA_DE_GUARDAS = "hooks/"
+# deste script (no CI, o da base), sobre o diff merge-base..head; Python é `*.py` ou o script com shebang de python.
 SPEC_DE_MUTANTES = re.compile(r"tests/mutantes/[^/]+\.json")
 FALTAS_DE_MUTANTE = ("sem mutante", "só equivalente", "apagada")
 MOSTRADAS_POR_ARQUIVO = 5
@@ -683,12 +683,39 @@ def _hunks(raiz, b, h, arq, fm):
     return [(range(int(a), int(a) + int(n or 1)), range(int(c), int(c) + int(m or 1))) for a, n, c, m in fm.HUNK.findall(corpo)]
 
 
+def e_python(raiz, b, h, arq):
+    """True se `arq` é `*.py` ou, sem extensão, começa por shebang de python no head (ou na base, se saiu)."""
+    if arq.endswith(".py"):
+        return True
+    if "." in arq.rsplit("/", 1)[-1]:
+        return False
+    texto = ler(raiz, h, arq) if existe(raiz, h, arq) else ler(raiz, b, arq)
+    primeira = (texto or "").split("\n", 1)[0]
+    return primeira.startswith("#!") and "python" in primeira
+
+
+def guardas_do_diff(raiz, b, h, mudados):
+    """(arquivos Python de controle do diff, violação): a classe C do `forge-check classe` (`motivo_de_controle`, com os
+    PROTEGIDOS e SENSIVEIS daqui), fora os testes (`TESTE`). Sem o forge-check, falha fechada."""
+    try:
+        fc = forge_check()
+    except (OSError, SyntaxError, ImportError) as e:
+        return [], [msg_guarda(f"não consegui carregar bin/forge-check para achar o código de controle do diff ({type(e).__name__})")]
+    listas = argparse.Namespace(PROTEGIDOS=PROTEGIDOS, SENSIVEIS=SENSIVEIS)
+    return [a for a in mudados if fc.motivo_de_controle(a, listas) and not fc.TESTE.search(a)
+            and e_python(raiz, b, h, a)], []
+
+
 def regra_guardas_dos_hooks(raiz, b, h):
-    """MUTANTES-SPEC-HOOKS: condição mudada ou apagada em hooks/*.py sem mutante (ou isenta) numa spec do diff barra."""
+    """MUTANTES-SPEC-HOOKS: condição mudada ou apagada em código Python de controle (classe C) sem mutante (ou isenta) numa
+    spec do diff barra."""
     mudados = alterados(raiz, b, h)
-    hooks = [a for a in mudados if a.startswith(PASTA_DE_GUARDAS) and a.endswith(".py")]
-    if not hooks:
+    candidatos = [a for a in mudados if not a.endswith((".md", ".json", ".yml", ".yaml", ".txt", ".sh", ".toml", ".cfg"))]
+    if not candidatos:
         return []
+    hooks, v = guardas_do_diff(raiz, b, h, candidatos)
+    if v or not hooks:
+        return v
     try:
         fm = forge_mutante()
     except (OSError, SyntaxError, ImportError) as e:

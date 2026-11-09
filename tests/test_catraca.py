@@ -781,9 +781,24 @@ class GuardasDosHooks(Base):
         self.repo.escreve("hooks/dados.json", "{\"if\": 1}\n")
         self.passa()
 
-    def test_guarda_fora_de_hooks_nao_entra_na_regra(self):
-        self.repo.escreve("scripts/x.py", self.HOOK.replace("valor > 10", "valor > 11"))
+    def test_guarda_fora_do_controle_nao_entra_na_regra(self):
+        self.repo.escreve("exemplos/x.py", self.HOOK.replace("valor > 10", "valor > 11"))
+        self.repo.escreve("tests/test_hooks_x.py", self.HOOK.replace("valor > 10", "valor > 11"))  # teste não pede mutante
         self.passa()
+
+    def test_guarda_em_codigo_de_controle_fora_de_hooks_entra_na_regra(self):  # a classe C do forge-check classe
+        self.repo.escreve("scripts/x.py", self.HOOK)
+        self.repo.escreve("bin/forge-y", "#!/usr/bin/env python3\n" + self.HOOK)
+        self.repo.escreve("bin/forge-z", "#!/usr/bin/env bash\nif [ 1 -gt 10 ]; then :; fi\n")
+        self.repo.commit()
+        self.repo.git("tag", "-f", "base")
+        self.repo.escreve("scripts/x.py", self.HOOK.replace("valor > 10", "valor > 11"))
+        self.repo.escreve("bin/forge-y", "#!/usr/bin/env python3\n" + self.HOOK.replace("valor > 10", "valor > 12"))
+        self.repo.escreve("bin/forge-z", "#!/usr/bin/env bash\nif [ 1 -gt 11 ]; then :; fi\n")
+        self.barra("guarda de scripts/x.py mudada sem mutante declarado", "R-QA")
+        self.barra("guarda de bin/forge-y mudada sem mutante declarado", "R-QA")
+        self.repo.commit()
+        self.assertFalse(any("bin/forge-z" in v for v in self.repo.violacoes()), self.repo.violacoes())
 
     def test_spec_invalida_barra(self):
         self.repo.escreve("hooks/x.py", self.HOOK.replace("valor > 10", "valor > 11"))
