@@ -114,7 +114,8 @@ class Registrar(Base):
         self.assertEqual(self.rodar(*REPROVADO, "--classe", "etapa", "--nota", "x")[0], 0)
         entrega = REPROVADO[:REPROVADO.index("--modo") + 1] + ["entrega"] + REPROVADO[REPROVADO.index("--modo") + 2:]
         self.assertEqual(self.rodar(*entrega, "--classe", "implementacao")[0], 0)
-        self.assertEqual(self.rodar(*entrega, "--classe", "escopo", "--autor", "jarvis")[0], 0)
+        outro = [x.replace("xpto-tech-lead-1", "xpto-tech-lead-2") for x in entrega]  # 0.43.3: a mesma chave duas vezes é recusada
+        self.assertEqual(self.rodar(*outro, "--classe", "escopo", "--autor", "jarvis")[0], 0)
         linhas = self.lido().splitlines()
         self.assertTrue(linhas[0].endswith("| classe | autor |"))
         self.assertEqual(linhas[1], "|---|---|---|---|---|---|---|---|---|---|")
@@ -128,7 +129,7 @@ class Registrar(Base):
         self.assertTrue(saida[0].startswith("conferencia: --autor"), saida)
 
     def test_arquivo_antigo_de_8_colunas_recebe_a_linha_nova_e_os_bytes_anteriores_ficam(self):
-        antigo = CAB8 + "| 2026-10-15 21:00 | xpto | xpto-tech-lead-1 | brief | 1 | reprovado | s | nota antiga |\n"
+        antigo = CAB8 + "| 2026-10-15 21:00 | xpto | xpto-tech-lead-0 | brief | 1 | reprovado | s | nota antiga |\n"  # outra chave (0.43.3)
         self.gravar(ARQ, antigo)
         self.assertEqual(self.rodar(*REPROVADO, "--classe", "forma")[0], 0)
         texto = self.lido()

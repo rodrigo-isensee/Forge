@@ -24,12 +24,12 @@
     },
     {
       "id": "H3",
-      "guarda": "hora depois de agora mais 2 min avisa no futuro",
+      "guarda": "hora depois de agora mais 2 min reprova no futuro",
       "arquivo": "bin/forge-check",
       "de": "if quando > limite:",
       "para": "if False:",
       "testes": [
-        "tests.test_historico_hora.HistoricoERecibo.test_hora_no_futuro_avisa_sem_mudar_o_rc"
+        "tests.test_historico_hora.HistoricoERecibo.test_hora_no_futuro_reprova"
       ]
     },
     {
