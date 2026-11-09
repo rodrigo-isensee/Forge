@@ -174,8 +174,8 @@ class RaizDoRegistroNoForge(unittest.TestCase):
         self.git = lambda *a: subprocess.run(["git", "-C", str(self.principal), *a], check=True, capture_output=True, env=env)
         self.principal.mkdir()
         self.git("init", "-q", "-b", "develop")
-        self.gravar(self.principal / "README.md", "x\n")
-        self.git("add", "README.md")
+        self.gravar(self.principal / "base.txt", "x\n")
+        self.git("add", "base.txt")
         self.git("-c", "user.email=a@b", "-c", "user.name=a", "commit", "-q", "-m", "base")
         self.git("worktree", "add", "-q", "-b", "melhoria/x", str(self.wt))
 
