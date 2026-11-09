@@ -74,6 +74,10 @@ INTERVALO_DA_ESPERA = datetime.timedelta(minutes=10)  # recusas do mesmo portão
 BRIEF_NO_PROMPT = re.compile(r"docs/briefs/([\w.@+-]+)\.md")
 COBRE = re.compile(r"^\s*(?:Etapa:.*?)?\bCobre:\s*(.+?)\s*$", re.M)
 CHAVES_DE_USO = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
+# X2 (0.44.1): o orçamento de tokens declarado no pedido (`Tokens previstos: 2.000.000`, `500k`, `3M`) e a versão dele (`Versão: X.Y.Z`)
+PREVISTO = re.compile(r"^\s*(?:[-*]\s*)?(?:\*\*)?tokens previstos:(?:\*\*)?\s*(\d[\d._]*)\s*(k|m)?\b", re.I | re.M)
+VERSAO_DO_PEDIDO = re.compile(r"^\s*(?:[-*]\s*)?(?:\*\*)?vers[aã]o:(?:\*\*)?\s*v?(\d+\.\d+\.\d+)", re.I | re.M)
+MULTIPLO = {"": 1, "k": 1000, "m": 1_000_000}
 
 
 def sem_acento(texto):
@@ -443,6 +447,37 @@ def tokens_por_item(pastas, raiz_pedidos, avisos=None):
     return saida
 
 
+def previsto_do_pedido(texto):
+    """X2: os tokens previstos do pedido (inteiro), ou None sem a linha."""
+    achado = PREVISTO.search(texto)
+    if not achado:
+        return None
+    return int(re.sub(r"[._]", "", achado.group(1))) * MULTIPLO[(achado.group(2) or "").lower()]
+
+
+def orcamento_de_tokens(por_pedido, textos):
+    """X2: {"versoes": {versão: {previsto, gasto}}, "alertas": [...]} dos pedidos com `Tokens previstos:`; o gasto é o `tokens` medido
+    (sem medida conta 0). Alerta quando o gasto passa do previsto, por pedido e por versão. Grava `tokens_previstos` em cada pedido."""
+    versoes, alertas = {}, []
+    for r in por_pedido:
+        texto = textos[r["pedido"]]
+        previsto, gasto = previsto_do_pedido(texto), r.get("tokens") or 0
+        r["tokens_previstos"] = previsto
+        if previsto is None:
+            continue
+        versao = VERSAO_DO_PEDIDO.search(texto)
+        soma = versoes.setdefault(versao.group(1) if versao else "-", {"previsto": 0, "gasto": 0})
+        soma["previsto"] += previsto
+        soma["gasto"] += gasto
+        alertas += [_alerta(f"pedido {r['pedido']}", gasto, previsto)] * (gasto > previsto)
+    alertas += [_alerta(f"versão {v}", s["gasto"], s["previsto"]) for v, s in versoes.items() if s["gasto"] > s["previsto"]]
+    return {"versoes": versoes, "alertas": alertas}
+
+
+def _alerta(quem, gasto, previsto):
+    return f"{quem}: gasto {gasto} tokens passa do previsto {previsto} (+{round((gasto - previsto) * 100 / max(previsto, 1))}%)"
+
+
 def resumo(itens, conferencias):
     tempos = [i["pronto_ate_develop_h"] for i in itens if i["pronto_ate_develop_h"] is not None]
     tempos_main = [i["pronto_ate_main_h"] for i in itens if i["pronto_ate_main_h"] is not None]
@@ -479,13 +514,14 @@ def calcular(raiz, raiz_pedidos, pedidos=None, desde=None, ate=None, por="dia", 
     variavel = [t for t in os.environ.get("FORGE_TRANSCRITOS", "").split(os.pathsep) if t]
     pastas = [Path(t) for t in (transcritos or variavel)] or transcritos_da_raiz(raiz)
     custos = tokens_por_item(pastas, raiz_pedidos, avisos) if pastas else None
-    itens, por_pedido = [], []
+    itens, por_pedido, textos = [], [], {}
     for nome in nomes:
         texto = ler_texto(pasta / f"{nome}.md") if ID_DE_PEDIDO.fullmatch(nome) and nome.strip(".") else None
         if texto is None:
             avisos.append(f"pedido {nome!r} ausente, fora de docs/pedidos/, link simbólico ou ilegível")
             continue
         doc = itens_do_pedido(nome, texto, fuso, chegadas, agora, usar_gh, janela)
+        textos[nome] = texto
         for i in doc:
             custo = custos.get((nome, i["item"])) if custos is not None else None
             i["tokens"] = custo["tokens"] if custo else None
@@ -511,7 +547,7 @@ def calcular(raiz, raiz_pedidos, pedidos=None, desde=None, ate=None, por="dia", 
     arquivos = [Path(r) for r in recusas] if recusas else arquivos_de_recusas(raiz)
     portoes = esperas_por_portao(arquivos, lambda q: janela(q))
     return {"fontes": FONTES, "por": por, "itens": itens, "pedidos": por_pedido, "periodos": lista_periodos,
-            "espera_por_portao": portoes if arquivos else None}, avisos
+            "espera_por_portao": portoes if arquivos else None, "orcamento": orcamento_de_tokens(por_pedido, textos)}, avisos
 
 
 def _n(valor):
@@ -541,6 +577,9 @@ def linhas_de_texto(dados):
                          f"voltas={r['voltas']} revalidacoes={r['revalidacoes']} suites={r['suites']} falhas={r['suites_falhas']} "
                          f"espera_dono_min={_n(r['espera_dono_min'])} reprovacoes={_contagem(r['reprovacoes_por_classe'])} "
                          f"merito(declarada)={_contagem(r['merito_declarado'])} tokens={'-' if r.get('tokens') is None else r['tokens']}")
+    for versao, soma in dados.get("orcamento", {}).get("versoes", {}).items():
+        saida.append(f"metricas: orcamento versao {versao} previsto={soma['previsto']} gasto={soma['gasto']}")
+    saida += [f"metricas: alerta: {a}" for a in dados.get("orcamento", {}).get("alertas", [])]
     portoes = dados.get("espera_por_portao")
     if portoes is None:
         saida.append("metricas: portao - (sem recusas.log: o hook agentes ainda não recusou nada ou a fonte falta)")
