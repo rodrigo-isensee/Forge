@@ -528,6 +528,12 @@ def montar_proc(tmp, proc):
 PRAZO_DO_CLAUDE_CODE_S = 10  # `timeout` de hooks/hooks.json: o Claude Code o trata como liberado
 
 
+class PrazoEstourado(AssertionError):
+    """VERMELHO-TIMEOUT-FALHA (E5-alt, decisão do dono de 2026-11-07 13:49): o hook passou do prazo do `rodar`. É falha
+    por asserção, e o `forge-testes --vermelho` a lê como a regra de hoje lê toda asserção, sem mudar o que conta como
+    prova. Subclasse própria: o teste que espera uma `AssertionError` do fixture não aceita o travamento no lugar dela."""
+
+
 def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_code=False, producao=False, lento=False):
     """`como_o_claude_code`: o hook que passa de `PRAZO_DO_CLAUDE_CODE_S` é morto e a ação é liberada (código 0), como
     o Claude Code faz, e o vigia de prazo é o de produção; sem isso, o teste espera `prazo` s (largo, para a máquina
@@ -542,9 +548,9 @@ def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_co
     try:
         return subprocess.run(comando, input=json.dumps(entrada), cwd=cwd, env=env, capture_output=True,
                               text=True, timeout=PRAZO_DO_CLAUDE_CODE_S if como_o_claude_code else prazo)
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as erro:
         if not como_o_claude_code:
-            raise
+            raise PrazoEstourado(f"prazo de {prazo} s estourado") from erro  # sem a entrada: ela pode ter caminho e comando
         return subprocess.CompletedProcess(comando, 0, "", "")
 
 
@@ -765,8 +771,37 @@ class Hooks(unittest.TestCase):
                 if passa:
                     self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
                 else:
-                    with self.assertRaises(AssertionError):
-                        self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+                    self.falha_que_nao_e_prazo(Fixture(arquivo), tmp, os.getpid())
+
+    def falha_que_nao_e_prazo(self, *fixture):
+        """O fixture falha por asserção, e não porque o hook travou até o prazo do `rodar` (E5-alt, C-2)."""
+        with self.assertRaises(AssertionError) as falha:
+            self.executar_fixture(*fixture)
+        self.assertNotIsInstance(falha.exception, PrazoEstourado, "o hook travou até o prazo: não é a falha esperada")
+
+    def test_prazo_do_rodar_e_assercao_so_para_o_timeout(self):  # VERMELHO-TIMEOUT-FALHA, E5-alt (C-1 a C-3)
+        """O prazo estourado vira `PrazoEstourado` (uma asserção, que o `--vermelho` lê como prova), com mensagem fixa e a
+        causa encadeada; outra exceção segue a original; no ramo do Claude Code o hook morto libera a ação (código 0)."""
+        dorme = [sys.executable, "-c", "import time; time.sleep(30)"]
+        with mock.patch(f"{__name__}.lancador", return_value=dorme):
+            with self.assertRaises(PrazoEstourado) as prazo:
+                rodar("vigia", {"segredo": "/caminho/do/usuario"}, RAIZ, prazo=1)
+            self.assertEqual(str(prazo.exception), "prazo de 1 s estourado")
+            self.assertIsInstance(prazo.exception.__cause__, subprocess.TimeoutExpired)
+            with mock.patch(f"{__name__}.PRAZO_DO_CLAUDE_CODE_S", 1):
+                self.assertEqual(rodar("vigia", {}, RAIZ, prazo=1, como_o_claude_code=True).returncode, 0)
+        with mock.patch(f"{__name__}.lancador", return_value=[str(RAIZ / "nao-existe" / "lancador")]):
+            with self.assertRaises(OSError) as outra:
+                rodar("vigia", {}, RAIZ, prazo=1)
+            self.assertNotIsInstance(outra.exception, AssertionError)
+
+    def test_falha_esperada_nao_aceita_o_hook_que_trava(self):  # VERMELHO-TIMEOUT-FALHA, E5-alt (C-2)
+        def trava(*_, **__):
+            raise PrazoEstourado("prazo de 120 s estourado")
+        fixture = Fixture(FIXTURES / "vigia/settings-local-nao-conta.json")
+        with mock.patch(f"{__name__}.rodar", trava), self.assertRaises(AssertionError) as falha:
+            self.falha_que_nao_e_prazo(fixture, self._pasta_temporaria(), os.getpid())
+        self.assertIn("o hook travou até o prazo", str(falha.exception))
 
     def test_git_rm_com_pathspec_magico_bloqueia(self):
         """As formas do pathspec do git (`:(literal)`, `:(glob)`, `:(icase)`, `:/`, curinga e `-r :/`) valem pelo que o git
