@@ -19,6 +19,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban [--gerar] | pr 
      forge-check brief gerar --pedido <arquivo ou id> --volta <brief aprovado> --ref <branch da entrega> [--parecer <arquivo>...] [--incluir <parecer>:R<n>...] [--base develop] [--etapa E]
      forge-check entrega <pedido> --branch B --base develop|homolog|main --base-sha SHA --etapa E [--desde SHA] [--brief <brief>]...
      forge-check delta <commit> [<fim>] | --parecer <arquivo> [<fim>] [--classe]
+     forge-check classe [--base REF] [--head REF] [--json]
      forge-check fontes
      forge-check sobreposicao [--base REF] [--ref BRANCH]
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
@@ -34,6 +35,12 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban [--gerar] | pr 
      forge-check provas medida [--desde AAAA-MM-DD]
      forge-check metricas [--pedido ID]... [--desde D --ate D] [--por dia|semana] [--json] [--gh]   (0.43.1 H; bin/forge_governanca.py)
      forge-check regras [--estrito] [--hoje D] [--json]   (validade das regras: Revisar em e Medida; 0.43.1 H)
+`classe` (P5, rigor proporcional ao risco; só leitura, sem rede, rc 0) classifica o diff `base...head`: `C` se toca caminho de controle (PROTEGIDOS e
+SENSIVEIS de tests/catraca.py, CONTROLES_DO_FORGE, MD_DE_CONTROLE, pipeline e infraestrutura, .claude/, .mcp.json ou teste de controle), `T` se é só documentação comum, só testes ou até 20
+linhas (sem binário, link, remoção, gatilho de segurança nem arquivo novo em pasta que a base não tem), `N` no resto; git que falha dá `C`.
+Os pareceres, a pasta do quadro e a de UX (LIVRES) não contam. Saída: `classe:`, `motivo:` e as linhas `portoes:` (T: autor + review + CI; N: autor +
+review ∥ qa + CI; C: autor + review ∥ seguranca ∥ qa + CI; devops entra com pipeline ou infraestrutura) e `pareceres:`; o `pr` exige os pareceres da
+classe somados aos gatilhos de hoje (R-SEGURANCA e devops), nunca menos.
 `fila` (P9; só leitura, sem rede, rc 0) lista, em até 15 linhas, o que pode começar agora: cartões de "Pronto para fazer" do
 KANBAN.md sem `Depende de:` pendente (cabeçalho do pedido; satisfeita com o cartão em "Pronto") nem ciclo, até as vagas de R-TETO
 (`pode-comecar:`); o resto sai `espera:` (dependência, ciclo ou teto) e a sobreposição de arquivos com outra branch `melhoria/*`
@@ -143,6 +150,7 @@ toca um gatilho que o diff mostra (R-SEGURANCA) ou o plano técnico do pedido ma
 Avisa no stderr, sem mudar o código de saída, se o projeto tem migração do Forge pendente (ADR 0005).
 """
 import argparse
+import collections
 import datetime
 import difflib
 import errno
@@ -764,10 +772,9 @@ def desfeitos_da_entrega(raiz, base, desde):
     return None if nomes is None else set(nomes)
 
 
-def gatilhos(raiz, pedido, ref=None, base=None):
-    """(exige devops, [gatilhos de segurança]) da entrega: pelo diff nos casos óbvios e, no resto, pelo que o
-    plano técnico do pedido marca em `gatilhos_seguranca` (R-SEGURANCA)."""
-    arquivos = arquivos_da_entrega(raiz, ref, base)
+def gatilhos_do_diff(arquivos):
+    """(exige devops, [gatilhos de segurança]) que a lista de arquivos do diff mostra (R-SEGURANCA), sem o plano técnico; `None`
+    (o git falhou) liga os dois portões (C-4). Usada pelo `gatilhos` e pela `classe` (P5)."""
     if arquivos is None:  # C-4: o git falhou, o diff não foi lido; sem isenção nem gatilho a menos, os dois portões valem
         return True, ["o git falhou: o diff da entrega não foi lido"]
     infra = any(PIPELINE_E_INFRA.match(a) for a in arquivos)
@@ -780,6 +787,13 @@ def gatilhos(raiz, pedido, ref=None, base=None):
         quais = [a for a in arquivos if casa and casa(a)]
         if quais:
             achados.append(f"{nome}: {caminho_impresso(quais[0])}")
+    return infra, achados
+
+
+def gatilhos(raiz, pedido, ref=None, base=None):
+    """(exige devops, [gatilhos de segurança]) da entrega: pelo diff nos casos óbvios e, no resto, pelo que o
+    plano técnico do pedido marca em `gatilhos_seguranca` (R-SEGURANCA)."""
+    infra, achados = gatilhos_do_diff(arquivos_da_entrega(raiz, ref, base))
     for rel, texto in documentos(raiz, "plano-tecnico", ref):
         campos = ler_frontmatter(texto)[0] or {}
         marcados = campos.get("gatilhos_seguranca", "").strip("[] ")
@@ -805,6 +819,185 @@ def isencoes_da_entrega(raiz, ref=None, base=None):
     """A regra única de isenção (M13): o que o diff da entrega sobre a base dispensa. Usada pelo `cmd_pr`, pelo hook `parecer` e pelo
     `brief gerar` (P2); ninguém tem regra própria."""
     return isencoes_do_diff(arquivos_da_entrega(raiz, ref, base))
+
+
+# ---- P5 (0.43.1; dono, 2026-11-08): rigor proporcional ao risco, a classe da entrega decidida pela ferramenta, nunca pelo Jarvis ----
+# T (trivial), N (normal), C (controle). Os caminhos de controle não têm lista própria: são os PROTEGIDOS e os SENSIVEIS da catraca
+# (tests/catraca.py), os CONTROLES_DO_FORGE e o MD_DE_CONTROLE daqui e o PIPELINE_E_INFRA (devops). Na dúvida, a classe sobe.
+LINHAS_DO_TRIVIAL = 20
+# EXT-B1: configuração do Claude Code do projeto (settings, hooks, agentes), o .mcp.json e os testes que testam controles (nome conservador).
+CONFIG_DO_CLAUDE = re.compile(r"(^|/)(\.claude/|\.mcp\.json$)")
+TESTE_DE_CONTROLE = re.compile(r"^tests/(hooks/|catraca|neutralidade|test_(hooks|catraca|oraculo_|forge_check|conformidade|pre_?push|fechar|guarda|"
+                               r"agentes|parecer|isencoes|classe_risco|invariante))")
+TESTE = re.compile(r"(^|/)(tests?|__tests__|spec)/|(^|/)(test_[^/]+|[^/]+_test\.[^/.]+|[^/]+\.(test|spec)\.[^/]+)$")
+ORDEM_DOS_PARECERES = ("review", "qa", "revisao-devops", "revisao-seguranca")
+PARECERES_DA_CLASSE = {"T": ("review",), "N": ("review", "qa"), "C": ("review", "qa", "revisao-seguranca")}
+PARALELOS_DA_CLASSE = {"T": ("review",), "N": ("review", "qa"), "C": ("review", "seguranca", "qa")}
+MODOS_COMUNS = {"000000", "100644", "100755"}  # link (120000) e submódulo (160000) nunca são triviais
+Mudanca = collections.namedtuple("Mudanca", "nome removido novo_em_pasta_nova modo_incomum", defaults=(False, False, False))
+_CATRACA = []
+
+
+def catraca_da_classe():
+    """O módulo da catraca, carregado uma vez (`carregar_catraca`); None se não carrega (a classe vira C, falha fechada)."""
+    if not _CATRACA:
+        _CATRACA.append(carregar_catraca())
+    return _CATRACA[0]
+
+
+def motivo_de_controle(nome, catraca):
+    """O motivo de `nome` ser caminho de controle (classe C), ou None."""
+    for motivo, casa in (("protegido da catraca", lambda n: n.startswith(tuple(catraca.PROTEGIDOS))),
+                         ("sensível da catraca", lambda n: n.startswith(tuple(catraca.SENSIVEIS))),
+                         ("controle do Forge", lambda n: n.startswith(CONTROLES_DO_FORGE)),
+                         ("regra, agente, skill ou configuração do projeto", MD_DE_CONTROLE.match),
+                         ("pipeline, contêiner ou infraestrutura", PIPELINE_E_INFRA.match),
+                         ("configuração do Claude Code ou MCP", CONFIG_DO_CLAUDE.search),
+                         ("teste de controle", TESTE_DE_CONTROLE.match)):
+        if casa(nome):
+            return motivo
+    return None
+
+
+def e_documentacao(nome):
+    return nome.endswith(".md") and not MD_DE_CONTROLE.match(nome)
+
+
+def impedimento_do_trivial(m):
+    """Por que a mudança `m` (fora do controle) não deixa a entrega ser T, ou None. Documentação comum nunca impede (R-QA, M13)."""
+    if e_documentacao(m.nome):
+        return None
+    if TRAVAS_DE_DEPENDENCIA.search(m.nome) or SEGREDOS_E_CONFIG.search(m.nome) or MIGRACOES.search(m.nome):
+        return "gatilho de segurança"
+    if m.modo_incomum:
+        return "link ou submódulo"
+    if m.removido:
+        return "arquivo removido"
+    if m.novo_em_pasta_nova:
+        return "arquivo novo em pasta que não existe na base"
+    return None
+
+
+def classe_das_mudancas(mudancas, catraca, contar):
+    """(classe, motivos, arquivos que decidiram) de uma lista de `Mudanca` (P5). `None` (o git falhou) ou catraca ausente dão C;
+    os LIVRES (pareceres, quadro, UX) não contam, para a classe não mudar quando o parecer entra na branch. T: só documentação
+    comum, só testes (com documentação ou não) ou até LINHAS_DO_TRIVIAL linhas sem binário, sem nenhum impedimento; diff vazio é N.
+    `contar(nomes)` devolve (linhas mudadas, tem binário) ou None (git falhou: N); só roda quando decide, com até LINHAS_DO_TRIVIAL arquivos."""
+    if mudancas is None:
+        return "C", ["o git falhou: o diff da entrega não foi lido"], []
+    if catraca is None:
+        return "C", ["não carreguei tests/catraca.py (lista de protegidos)"], []
+    contam = [m for m in mudancas if not livre(m.nome, LIVRES)]
+    controle = [(m.nome, motivo) for m in contam if (motivo := motivo_de_controle(m.nome, catraca))]
+    if controle:
+        return "C", [f"{motivo}: {caminho_impresso(nome)}" for nome, motivo in controle], [nome for nome, _ in controle]
+    if not contam:
+        return "N", ["diff vazio fora dos pareceres e do quadro: sem como saber, vale N"], []
+    impedidos = [(m.nome, motivo) for m in contam if (motivo := impedimento_do_trivial(m))]
+    if impedidos:
+        return "N", [f"{motivo}: {caminho_impresso(nome)}" for nome, motivo in impedidos], [nome for nome, _ in impedidos]
+    nomes = [m.nome for m in contam]
+    if all(e_documentacao(n) for n in nomes):
+        return "T", ["só documentação fora dos caminhos de controle"], nomes
+    if all(e_documentacao(n) or TESTE.search(n) for n in nomes):
+        return "T", ["só testes" + ("" if all(TESTE.search(n) for n in nomes) else " e documentação")], nomes
+    codigo = [n for n in nomes if not e_documentacao(n) and not TESTE.search(n)]
+    contagem = contar(nomes) if len(nomes) <= LINHAS_DO_TRIVIAL else None  # cada arquivo muda ao menos uma linha
+    if contagem is None:
+        return "N", [f"mais de {LINHAS_DO_TRIVIAL} linhas (ou contagem ilegível) com código fora de testes: {caminho_impresso(codigo[0])}"], codigo
+    total, binario = contagem
+    if binario:
+        return "N", [f"binário no diff, entre: {caminho_impresso(nomes[0])}"], nomes
+    if total <= LINHAS_DO_TRIVIAL:
+        return "T", [f"{total} linhas mudadas (até {LINHAS_DO_TRIVIAL}) fora dos caminhos de controle"], nomes
+    return "N", [f"{total} linhas mudadas (mais de {LINHAS_DO_TRIVIAL}) com código fora de testes: {caminho_impresso(codigo[0])}"], codigo
+
+
+def linhas_do_diff(raiz, de, ate, nomes):
+    """(linhas acrescentadas e removidas, tem binário) do diff `-U0` de `nomes` em `de`..`ate`; None se o git falha. Pelo patch, não
+    pelo `--numstat`: as linhas de cabeçalho ficam antes do primeiro `@@` de cada arquivo, e o conteúdo sempre tem prefixo."""
+    cod, saida = git(raiz, "--literal-pathspecs", "diff", "-U0", "--no-color", "--no-renames", "--no-ext-diff", "--no-textconv",
+                     de, ate, "--", *nomes, bruto=True)
+    if cod:
+        return None
+    total, binario, no_cabecalho = 0, False, True
+    for linha in saida.split(b"\n"):
+        if linha.startswith(b"diff --git "):
+            no_cabecalho = True
+        elif no_cabecalho:
+            no_cabecalho = not linha.startswith(b"@@")
+            binario = binario or linha.startswith((b"Binary files ", b"GIT binary patch"))
+        elif linha[:1] in (b"+", b"-"):
+            total += 1
+    return total, binario
+
+
+def mudancas_da_entrega(raiz, ref=None, base=None):
+    """(`Mudanca` da entrega, merge-base) sobre a base: os nomes são os de `arquivos_da_entrega` (o mesmo conjunto dos gatilhos), e o
+    `--raw` do merge-base dá o status e o modo; (None, None) se o git falha; ([], None) sem base nenhuma."""
+    nomes = arquivos_da_entrega(raiz, ref, base)
+    if not nomes:
+        return nomes, None
+    b = base_da_entrega(raiz, base, so_a_pedida=True)
+    cod, mb = git(raiz, "merge-base", b or "", ref or "HEAD")
+    mb = mb.split()[0] if not cod and mb else ""
+    if not b or not SHA40.match(mb):
+        return None, None
+    cod, saida = git(raiz, "diff", "--raw", "-z", "--no-renames", "--no-ext-diff", mb, ref or "HEAD", "--", bruto=True)
+    cod_p, pastas = git(raiz, "ls-tree", "-r", "-d", "-z", "--name-only", mb, bruto=True)
+    if cod or cod_p:
+        return None, None
+    pastas, campos, meta = set(nomes_z(pastas)) | {""}, saida.split(b"\0"), {}
+    for cabeca, nome in zip(campos[0::2], campos[1::2]):
+        modo_de, modo_para, _, _, status = (cabeca.decode().lstrip(":").split() + [""] * 5)[:5]
+        meta[nome.decode("utf-8", "surrogateescape")] = (status, {modo_de, modo_para})
+    mudancas = []
+    for nome in nomes:
+        status, modos = meta.get(nome, ("?", {"?"}))  # fora do `--raw`: modo desconhecido, nunca T
+        mudancas.append(Mudanca(nome, status == "D", status == "A" and nome.rpartition("/")[0] not in pastas, bool(modos - MODOS_COMUNS)))
+    return mudancas, mb
+
+
+def classe_da_entrega(raiz, ref=None, base=None):
+    """(classe, motivos, arquivos que decidiram) da entrega (P5): a regra única da classe, usada pelo `forge-check classe` e pelo `pr`."""
+    mudancas, mb = mudancas_da_entrega(raiz, ref, base)
+    return classe_das_mudancas(mudancas, catraca_da_classe(), lambda nomes: linhas_do_diff(raiz, mb, ref or "HEAD", nomes))
+
+
+def pareceres_exigidos(classe, infra, gatilhos_de_seguranca):
+    """Os pareceres de uma classe somados aos gatilhos de hoje (R-SEGURANCA, devops em R-REVIEW): a classe nunca exige menos que eles."""
+    tipos = set(PARECERES_DA_CLASSE[classe]) | ({"revisao-devops"} if infra else set()) | ({"revisao-seguranca"} if gatilhos_de_seguranca else set())
+    return [t for t in ORDEM_DOS_PARECERES if t in tipos]
+
+
+def portoes_da_classe(classe, infra):
+    """A linha dos portões: autor, os paralelos (mesmo head) e o CI; devops entra entre os paralelos com pipeline ou infraestrutura."""
+    paralelos = PARALELOS_DA_CLASSE[classe] + (("devops",) if infra else ())
+    return ["autor", list(paralelos), "CI"]
+
+
+def cmd_classe(raiz, base=None, head=None, como_json=False):
+    """`forge-check classe` (P5; só leitura, sem rede): a classe do diff `base...head`, os motivos e os portões e pareceres exigidos
+    pelo diff (o `pr` soma o que o plano técnico do pedido marca). rc 0 com classe; rc 2 se a `--head` não existe."""
+    ref = head or "HEAD"
+    if not sha_do_commit(raiz, ref):
+        print(f"classe: --head {nome_seguro(sem_controle(ref))} não existe")
+        return 2
+    classe, motivos, decisivos = classe_da_entrega(raiz, ref, base)
+    infra, gatilhos_de_seguranca = gatilhos_do_diff(arquivos_da_entrega(raiz, ref, base))
+    portoes, pareceres = portoes_da_classe(classe, infra), pareceres_exigidos(classe, infra, gatilhos_de_seguranca)
+    if como_json:
+        print(json.dumps({"classe": classe, "motivos": motivos, "arquivos": decisivos, "portoes": portoes, "pareceres": pareceres,
+                          "gatilhos_de_seguranca": gatilhos_de_seguranca}, ensure_ascii=False))
+        return 0
+    print(f"classe: {classe}")
+    for motivo in motivos[:10]:
+        print(f"motivo: {motivo}")
+    if len(motivos) > 10:
+        print(f"motivo: e mais {len(motivos) - 10}")
+    print(f"portoes: autor + {' ∥ '.join(portoes[1])} (mesmo head) + CI")
+    print(f"pareceres: {', '.join(pareceres)}" + (f" (gatilho: {gatilhos_de_seguranca[0]})" if gatilhos_de_seguranca else ""))
+    return 0
 
 
 def aceite_do_usuario(raiz, pedido, commit, ref=None):
@@ -868,6 +1061,15 @@ def base_do_delta(raiz, base, ref=None):
     return resolvida, None
 
 
+def avisar_classe(raiz, ref, base):
+    """P5: a classe da entrega e o motivo, no stderr do `pr` (o veredito do stdout não muda de forma), só em T e C, que mudam o que
+    se exige; N (review e QA) é o de sempre e não fala."""
+    classe, motivos, _ = classe_da_entrega(raiz, ref, base)
+    if classe != "N":
+        print(f"pr: classe {classe} ({motivos[0]}); review e QA pela classe, devops e segurança também pelos gatilhos (P5; forge-check classe)",
+              file=sys.stderr)
+
+
 def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, previo=False):
     """`forge-check pr` como o Jarvis e o conferente o chamam (E4, M4.2 e M4.3): `--base` só aceita as bases do fluxo (`develop`, `homolog`,
     `main`, ou `origin/<essas>`) e a base vale lida de `refs/remotes/origin/<base>` (a local só sem remoto, nunca adiante dele). Uma
@@ -879,6 +1081,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
         if isencoes_da_entrega(raiz, ref, None):
             print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
                   file=sys.stderr)
+        avisar_classe(raiz, ref, None)
         branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
         return cmd_pr(raiz, pedido, ref, None, branch, previo) + (conferencia_do_head(raiz, pedido, ref, None, branch) if conferir else [])
     nome = base.removeprefix("origin/")
@@ -890,6 +1093,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
     if isencoes_da_entrega(raiz, ref, resolvida):
         print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
               file=sys.stderr)
+    avisar_classe(raiz, ref, resolvida)
     if promocao(raiz, ref, nome):  # A9: a conferência do head é portão da branch de trabalho; a leva já passou por ele em cada PR
         print(f"pr: promoção: o head é o da integração e a base é {nome}; a conferência do head ficou nos PRs da leva (TEMPO-B2)", file=sys.stderr)
         return cmd_pr(raiz, pedido, ref, resolvida, branch, previo)  # na leva da promoção valem os pareceres de todos os itens
@@ -1037,11 +1241,14 @@ def pedido_do_pr(raiz, pedido, ref=None):
 
 
 def exigidos_do_pr(raiz, pedido, ref=None, base=None):
-    """Os pareceres que o `forge-check pr` exige e os gatilhos de segurança que pedem o de segurança: `(tipos, gatilhos)`."""
+    """Os pareceres que o `forge-check pr` exige e os gatilhos de segurança que pedem o de segurança: `(tipos, gatilhos)`. A classe da
+    entrega (P5, `classe_da_entrega`) decide review e QA (T: só review; N: review e QA; C: também segurança); devops e segurança dos gatilhos
+    (R-SEGURANCA, R-REVIEW) somam por cima, e a isenção do M13 (`.md` comum) é a classe T."""
     infra, gatilhos_de_seguranca = gatilhos(raiz, pedido, ref, base)
-    isentos = isencoes_da_entrega(raiz, ref, base)
-    return ([t for t in ("review", "qa") if t not in isentos] + (["revisao-devops"] if infra else []) + (["revisao-seguranca"] if gatilhos_de_seguranca else []),
-            gatilhos_de_seguranca)
+    classe, motivos, _ = classe_da_entrega(raiz, ref, base)  # P5: a classe decide review e QA; os gatilhos de hoje somam por cima
+    if classe == "C" and not gatilhos_de_seguranca:  # o motivo do parecer de segurança que só a classe pede
+        gatilhos_de_seguranca = [f"classe C, {motivos[0]}"]
+    return pareceres_exigidos(classe, infra, gatilhos_de_seguranca), gatilhos_de_seguranca
 
 
 def veredito_do_pr(raiz, pedido, ref, base):
@@ -1185,6 +1392,29 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
                 motivo += f"; o que mudou no domínio: forge-check parecer delta {caminho_impresso(rel)}"
             if motivo:
                 saida.append(f"{caminho_impresso(rel)}: commit: {motivo} ({rid})")
+    return saida + nao_exigidos_que_nao_aprovam(raiz, pedido, ref, branch if de_trabalho else None, exigidos)
+
+
+def nao_exigidos_que_nao_aprovam(raiz, pedido, ref, branch, exigidos):
+    """P5: o parecer de um tipo que a classe não exige (o QA numa entrega T, o devops sem infraestrutura) não conta como ausente, mas o
+    último dele, se existe e não aprova, reprova como na catraca (`pareceres_que_nao_aprovam`): dispensar não é ignorar um reprovado.
+    Numa branch de trabalho, só os pareceres dela."""
+    saida = []
+    for tipo in (t for t in ORDEM_DOS_PARECERES if t not in exigidos):
+        pasta, rid = PASTA_E_REGRA[tipo]
+        achados = []
+        for rel, texto in documentos(raiz, tipo, ref):
+            campos, _ = validar_documento(rel, texto)
+            if campos is not None and campos.get("pedido") == pedido and (branch is None or campos.get("branch") == branch):
+                achados.append((campos.get("data", ""), rel, campos))
+        if not achados:
+            continue
+        _, rel, campos = sorted(achados, key=lambda a: a[:2])[-1]
+        valor = campos.get("parecer")
+        if valor == "aprovado" or (valor == "riscos-aceitos" and aceite_do_usuario(raiz, pedido, campos.get("commit"), ref)):
+            continue
+        saida.append(f"{caminho_impresso(rel)}: parecer: o último parecer não é aprovado; o tipo não é exigido pela classe, mas o "
+                     f"reprovado não se ignora (P5) ({rid})")
     return saida
 
 
@@ -8811,6 +9041,10 @@ def main():
     pg.add_argument("--brief", required=True, help="o brief, só em docs/briefs/ (da raiz ou de ~/.forge-contrib)")
     pm = pvsub.add_parser("medida", parents=[comum], help="conferências de entrega que o CI com a M15 pegaria e as só do conferente (EST-M2B-REAVALIAR; só leitura)")
     pm.add_argument("--desde", type=lambda d: datetime.date.fromisoformat(d).isoformat(), help="AAAA-MM-DD: só as conferências desse dia em diante")
+    cs = sub.add_parser("classe", parents=[comum], help="classe de risco do diff da branch (T, N ou C), o motivo e os portões e pareceres exigidos; só leitura (P5)")
+    cs.add_argument("--base", help="base do diff (padrão: origin/develop, develop, origin/main ou main, a primeira que existe)")
+    cs.add_argument("--head", help="ref da entrega (padrão: HEAD)")
+    cs.add_argument("--json", action="store_true", dest="como_json", help="uma linha JSON: classe, motivos, arquivos, portoes, pareceres, gatilhos_de_seguranca")
     pr = sub.add_parser("pr", parents=[comum], help="pareceres de review e QA de um pedido; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD")
     pr.add_argument("pedido")
     pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD)")
@@ -8927,6 +9161,8 @@ def executar(a, raiz):
         return cmd_provas_gerar(raiz, a.brief)
     if a.cmd == "parecer" and a.acao == "delta":
         return cmd_parecer_delta(raiz, a.arquivo, a.ate)
+    if a.cmd == "classe":
+        return cmd_classe(raiz, a.base, a.head, a.como_json)
     if a.cmd == "delta":
         return cmd_delta(raiz, a.refs, a.parecer, a.classe)
     if a.cmd == "juncao":

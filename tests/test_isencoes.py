@@ -102,8 +102,8 @@ class PrComIsencao(Repo):
                 self.assertIn("qa: sem parecer para o pedido `p1` (R-QA)", saida)
                 self.assertNotIn("isento de QA", erro)
 
-    def test_md_e_codigo_exigem_tudo(self):
-        self.entrega({"docs/x.md": "# x\n", "src/app.py": "v2\n"})
+    def test_md_e_codigo_exigem_tudo(self):  # P5: com mais de 20 linhas de código (classe N); até 20, a entrega é T (tests/test_classe_risco.py)
+        self.entrega({"docs/x.md": "# x\n", "src/app.py": "".join(f"v{i}\n" for i in range(21))})
         rc, saida, _ = self.pr()
         self.assertEqual(rc, 1)
         self.assertIn("qa: sem parecer", saida)
