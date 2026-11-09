@@ -1,0 +1,133 @@
+{
+ "pedido": "v0442-orkastery3-decisor-2",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M10",
+   "guarda": "fato sim/nao invalido nao grava",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "    faltam += [n for n, v in fatos.items() if v is None]",
+   "para": "    faltam += []",
+   "testes": [
+    "tests.test_decisor.Decisor.test_fato_ausente_nao_grava"
+   ]
+  },
+  {
+   "id": "M11",
+   "guarda": "faltando recusa rc 2",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "    if faltam:\n",
+   "para": "    if False:\n",
+   "testes": [
+    "tests.test_decisor.Decisor.test_fato_ausente_nao_grava"
+   ]
+  },
+  {
+   "id": "M12",
+   "guarda": "decidida rc 0 e imprime linha",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "    if resultado == \"decidida\":",
+   "para": "    if resultado == \"x\":",
+   "testes": [
+    "tests.test_decisor.Decisor.test_as_quatro_condicoes_de_pe_decide_e_imprime_a_linha_do_commit"
+   ]
+  },
+  {
+   "id": "M13",
+   "guarda": "campo de texto obrigatorio",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "if not _campo(getattr(a, n))]",
+   "para": "if False]",
+   "testes": [
+    "tests.test_decisor.Decisor.test_o_decisor_nao_recebe_objetivo_nem_conversa"
+   ]
+  },
+  {
+   "id": "M14",
+   "guarda": "acao conferir despacha",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "    if a.acao == \"conferir\":",
+   "para": "    if a.acao == \"x\":",
+   "testes": [
+    "tests.test_decisor.Decisor.test_conferir_recusa_linha_decidido_fora_da_forma"
+   ]
+  },
+  {
+   "id": "M15",
+   "guarda": "acao reverter despacha",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "    if a.acao == \"reverter\":",
+   "para": "    if a.acao == \"x\":",
+   "testes": [
+    "tests.test_decisor.Decisor.test_reverter_e_placar_no_metricas"
+   ]
+  },
+  {
+   "id": "M16",
+   "guarda": "forge-check despacha decisoes com acao",
+   "arquivo": "bin/forge-check",
+   "de": "    if a.cmd == \"decisoes\" and a.acao:",
+   "para": "    if a.cmd == \"x\" and a.acao:",
+   "testes": [
+    "tests.test_decisor.Decisor.test_as_quatro_condicoes_de_pe_decide_e_imprime_a_linha_do_commit"
+   ]
+  },
+  {
+   "id": "M17",
+   "guarda": "metricas imprime o placar",
+   "arquivo": "bin/forge_governanca.py",
+   "de": "    if dados.get(\"placar\") is not None:",
+   "para": "    if dados.get(\"placar\") is None:",
+   "testes": [
+    "tests.test_decisor.Decisor.test_reverter_e_placar_no_metricas"
+   ]
+  },
+  {
+   "id": "M18",
+   "guarda": "placar conta pela chave",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "        if chave:\n            conta[chave] += 1",
+   "para": "        if chave == \"x\":\n            conta[chave] += 1",
+   "testes": [
+    "tests.test_decisor.Decisor.test_reverter_e_placar_no_metricas"
+   ]
+  }
+ ],
+ "isentas": [
+  {
+   "arquivo": "bin/forge-check",
+   "trecho": "modulo is None",
+   "motivo": "cópia avulsa do forge-check sem o módulo ao lado; mesmo padrão de governanca() e modulo_do_dono(), sem cenário na árvore do plugin"
+  },
+  {
+   "arquivo": "bin/forge_decisor.py",
+   "trecho": "not arq.is_file() or arq.is_symlink()",
+   "motivo": "registro ausente é o caso inicial (provado por test_fato_ausente_nao_grava, que não cria o arquivo); link é defesa"
+  },
+  {
+   "arquivo": "bin/forge_decisor.py",
+   "trecho": "isinstance(obj, dict)",
+   "motivo": "linha JSON que não é objeto só seria escrita à mão; defesa de leitura"
+  },
+  {
+   "arquivo": "bin/forge_decisor.py",
+   "trecho": "arq.is_symlink() or arq.parent.is_symlink()",
+   "motivo": "defesa contra link; o O_NOFOLLOW cobre o arquivo"
+  },
+  {
+   "arquivo": "bin/forge_decisor.py",
+   "trecho": "(valor or \"\").strip().lower()",
+   "motivo": "argumento ausente vira texto vazio e cai em None; provado por test_fato_ausente_nao_grava"
+  },
+  {
+   "arquivo": "bin/forge_decisor.py",
+   "trecho": "\" \".join((valor or \"\").split())",
+   "motivo": "argumento ausente vira texto vazio; o vazio é provado por test_o_decisor_nao_recebe_objetivo_nem_conversa"
+  },
+  {
+   "arquivo": "bin/forge_decisor.py",
+   "trecho": "1 if ruins else 0",
+   "motivo": "o rc desta linha é o mutante M4 (return 0), morto por test_conferir_recusa_linha_decidido_fora_da_forma"
+  }
+ ]
+}
