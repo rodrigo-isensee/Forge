@@ -295,28 +295,26 @@ class PrePushSoOsAfetados(unittest.TestCase):
         self.assertNotIn("a suíte completa roda uma vez, no push", lider)
         self.assertIn("a suíte completa fica no CI do PR", lider)
 
-    def test_readme_cita_os_casos_da_suite_inteira_e_o_caminho_so_de_parecer(self):  # COMENTARIOS-PREPUSH
+    def test_readme_cita_os_casos_da_suite_inteira_e_o_caminho_so_de_parecer(self):  # COMENTARIOS-PREPUSH, SUITE-NO-CI
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         trecho = readme.split("**Suíte do Forge:**", 1)[1].split("\n", 1)[0]
-        for esperado in ("sem tocar `bin/forge-testes`, `tests/config.json` ou `.githooks/`", "só acrescenta pareceres", "docs/reviews/"):
+        for esperado in ("`FORGE_PREPUSH_SUITE=1`", "falta `bin/forge-testes` ou `origin/develop`", "só acrescenta pareceres", "docs/reviews/"):
             with self.subTest(esperado=esperado):
                 self.assertIn(esperado, trecho)
 
-    def test_readme_so_diz_afetados_para_o_envio_simples_e_o_resto_e_suite_inteira(self):  # COMENTARIOS-PREPUSH, review A1/A5
+    def test_readme_diz_baratas_antes_da_fila_afetados_e_suite_inteira_no_ci(self):  # SUITE-NO-CI (2026-11-08)
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         trecho = readme.split("**Suíte do Forge:**", 1)[1].split("\n", 1)[0]
-        frases = re.split(r"\.\s+(?=[A-ZÀ-Ú])", trecho)
-        com_afetados = [f for f in frases if "só os testes afetados" in f]
-        self.assertTrue(com_afetados)
-        for f in com_afetados:
-            for cond in ("uma só ref", "árvore limpa", "HEAD igual ao commit enviado", "`origin/develop`"):
-                with self.subTest(cond=cond):
-                    self.assertIn(cond, f)
-        self.assertIn("Qualquer outro envio roda a suíte inteira", trecho)
-        for proibido in ("árvore suja", "mais de uma ref", "HEAD diferente", "segue a regra acima"):
+        for esperado in ("a suíte inteira roda uma vez, no CI de todo PR", "3 partes paralelas por versão de Python",
+                         "`bateria` e `bateria (python 3.14)` são agregadores", "checagens baratas, em segundos e antes da fila",
+                         "`bin/forge-testes --afetados`", "para qualquer branch e para várias refs",
+                         "`hooks/_comum.py`, `bin/forge-check` e `.githooks/`", "fica para o CI, com aviso",
+                         "`.githooks/pre-push` (`checagens_baratas`, `so_parecer` e `afetados`)"):
+            with self.subTest(esperado=esperado):
+                self.assertIn(esperado, trecho)
+        for proibido in ("apenas num envio simples de uma `melhoria/*`", "Qualquer outro envio roda a suíte inteira", "dirigido`)"):
             with self.subTest(proibido=proibido):
                 self.assertNotIn(proibido, trecho)
-        self.assertIn("`.githooks/pre-push` (`so_parecer` e `dirigido`)", trecho)
 
 
 class Skills(unittest.TestCase):
