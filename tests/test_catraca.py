@@ -1770,9 +1770,9 @@ class TextoDoPr(unittest.TestCase):
 
 
 class Pareceres(Base):
-    def parecer(self, tipo, ramo="pr", parecer="aprovado", pedido="ped"):
+    def parecer(self, tipo, ramo="pr", parecer="aprovado", pedido="ped", commit=None):
         self.repo.commit()
-        commit = self.repo.git("rev-parse", "--short", "HEAD").strip()
+        commit = commit or self.repo.git("rev-parse", "--short", "HEAD").strip()
         pasta = {"review": "reviews", "revisao-seguranca": "security"}.get(tipo, "qa")
         extra = "qa: forge:qa-engineer" if tipo == "qa" else "revisor: forge:tech-lead"
         self.repo.escreve(f"docs/{pasta}/{pedido}.md",
@@ -1796,7 +1796,7 @@ class Pareceres(Base):
     def test_toca_hooks_com_review_aprovado_passa_na_develop_e_exige_qa_na_homolog(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
-        self.parecer("revisao-seguranca")  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
+        self.parecer("revisao-seguranca", commit=self.repo.git("rev-parse", "--short", "HEAD").strip())  # P5: classe C; AQ-5: o sha do código
         self.assertEqual(self.roda("develop"), [])
         self.assertEqual(len(self.roda("homolog")), 1)
 
@@ -1862,7 +1862,7 @@ class Pareceres(Base):
     def test_merge_da_base_depois_do_parecer_mantem_o_parecer(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
-        self.parecer("revisao-seguranca")  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
+        self.parecer("revisao-seguranca", commit=self.repo.git("rev-parse", "--short", "HEAD").strip())  # P5: classe C; AQ-5: o sha do código
         self.mescla_base()
         self.assertEqual(self.roda_sobre_develop(), [])
 
@@ -3315,9 +3315,9 @@ class Workflows(unittest.TestCase):
         self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/develop'", ci)
         self.assertRegex(ci, r"(?m)^  bateria:")
         self.assertIn("docs/(reviews|qa|security|devops|ux)/", ci)
-        # Teto de tempo (ci-suite-no-teto; SUITE-NO-CI): checagem rápida 20 min; cada parte da suíte (3.12 e 3.14) 20 min;
+        # Teto de tempo (ci-suite-no-teto; SUITE-NO-CI): as duas checagens rápidas (3.12 e 3.14, SP4) 20 min; cada parte da suíte (3.12 e 3.14) 20 min;
         # instalação no 3.14 15 min; o teto de pulados de cada versão (T3, 0.43.2) 5 min; passos da bateria 20 min; os dois agregadores 5 min.
-        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["20", "20", "20", "15", "5", "5", "5", "20", "5"])
+        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["20", "20", "20", "20", "15", "5", "5", "5", "20", "5"])
 
     def test_gate_do_ci_nao_deixa_codigo_escapar_nem_forjar_o_verde(self):
         """Review independente: renomeação, testes de pareceres, check forjado, cancelamento e promoção."""

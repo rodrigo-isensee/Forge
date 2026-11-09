@@ -15,6 +15,8 @@ completa anota).
 import os
 import shutil
 import subprocess
+import hashlib
+import json
 import sys
 import tempfile
 import time
@@ -369,6 +371,75 @@ class ShellcheckPeloShebang(unittest.TestCase):
         regra = "'#!'*bash*|'#!'*/sh|'#!'*' sh'"
         self.assertIn(regra, texto)
         self.assertIn(regra, (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+
+
+def isca_de_caminho(nome):
+    """SENTINELA-CAMINHO-LOCAL: caminho pessoal montado aqui, para o literal nunca estar no fonte (o CI o barraria)."""
+    return "/" + "home" + "/" + nome + "/"
+
+
+class NeutralidadeECaminhoCedo(Base):
+    """PARECER-NEUTRALIDADE-CEDO e SENTINELA-CAMINHO-LOCAL (0.43.3): as checagens baratas rodam a neutralidade e o
+    scripts/verificar-contribuicao.sh nos arquivos tocados, em segundos e antes da fila e da trava."""
+    segura_a_trava = ChecagensBaratasAntesDaTrava.segura_a_trava
+    reprova_sem_esperar = ChecagensBaratasAntesDaTrava.reprova_sem_esperar
+
+    def setUp(self):
+        super().setUp()
+        self.trava = self.run_dir / f"forge-suite-{os.getuid()}.lock"
+
+    def com_neutralidade(self, **muda):
+        """tests/config.json com um termo de stack (Zebrinha) e um termo de projeto por hash (zebra), e o detector real."""
+        cfg = {"termos_proibidos_hash": [{"tipo": "palavra", "n": 5, "sha256": hashlib.sha256(b"zebra").hexdigest()}],
+               "neutralidade_nucleo": {"pastas": ["docs", "bin"], "ignorar": ["docs/qa/"], "termos": [r"\bZebrinha\b"],
+                                       "excecoes": {"docs/ok.md": [r"\bZebrinha\b"]}}}
+        cfg["neutralidade_nucleo"].update(muda)
+        (self.repo / "tests" / "config.json").write_text(json.dumps(cfg))
+        shutil.copy(RAIZ / "tests" / "neutralidade.py", self.repo / "tests" / "neutralidade.py")
+
+    def test_stack_no_nucleo_reprova_antes_da_trava(self):
+        self.com_neutralidade()
+        self.commit("stack", **{"docs/x.md": "use Zebrinha aqui\n"})
+        self.reprova_sem_esperar("docs/x.md: stack no núcleo (\\bZebrinha\\b)")
+
+    def test_termo_de_projeto_reprova_sem_imprimir_o_termo(self):
+        self.com_neutralidade()
+        self.commit("projeto", **{"docs/y.md": "a Zebra do cliente\n"})
+        self.reprova_sem_esperar("docs/y.md: termo de projeto")
+        _, _, erro = self.roda()
+        self.assertNotIn("zebra", erro.lower())
+
+    def test_excecao_pasta_ignorada_e_arquivo_fora_do_nucleo_passam(self):
+        self.com_neutralidade()
+        self.commit("ok", **{"docs/ok.md": "Zebrinha\n", "docs/qa/r.md": "Zebrinha\n", "outro/z.md": "Zebrinha zebra\n"})
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+        self.assertNotIn("neutralidade reprovada", erro)
+
+    def test_so_os_arquivos_tocados_sao_lidos(self):  # o arquivo velho com o termo fica para o CI, que roda as classes inteiras
+        self.com_neutralidade()
+        self.commit("velho", **{"docs/velho.md": "Zebrinha\n"})
+        self.git("update-ref", "refs/remotes/origin/develop", self.git("rev-parse", "HEAD"))
+        self.commit("novo", **{"docs/novo.md": "nada\n"})
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+
+    def test_caminho_pessoal_no_delta_reprova_pelo_script_da_arvore_sem_imprimir_o_caminho(self):
+        isca = isca_de_caminho("fulano")
+        (self.repo / "scripts").mkdir()
+        shutil.copy(RAIZ / "scripts" / "verificar-contribuicao.sh", self.repo / "scripts" / "verificar-contribuicao.sh")
+        self.commit("pessoal", **{"docs/p.md": f"veja {isca}notas\n"})  # a base não tem o script: só a checagem barata o roda
+        self.reprova_sem_esperar("docs/p.md:1: caminho pessoal")
+        _, _, erro = self.roda()
+        self.assertIn("scripts/verificar-contribuicao.sh reprovou o delta", erro)
+        self.assertNotIn(isca, erro)
+
+    def test_caminho_pessoal_marcado_como_exemplo_passa(self):
+        (self.repo / "scripts").mkdir()
+        shutil.copy(RAIZ / "scripts" / "verificar-contribuicao.sh", self.repo / "scripts" / "verificar-contribuicao.sh")
+        self.commit("exemplo", **{"docs/e.md": f"veja {isca_de_caminho('fulano')}notas forge:exemplo\n"})
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
 
 
 class NaoRecuaDoHook(unittest.TestCase):

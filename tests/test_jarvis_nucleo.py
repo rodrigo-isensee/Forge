@@ -131,5 +131,24 @@ class RevalidaMesmaInstancia(unittest.TestCase):
         self.assertLessEqual(len(nucleo.splitlines()), 110)
 
 
+class VoltaRetomadaEAceiteEmParalelo(unittest.TestCase):
+    """0.43.3: a volta vai ao autor retomado por `SendMessage` (V3: 26 a 38 min por volta numa instância nova) e, nas classes N e C,
+    o QA escreve o aceite do pedido em paralelo, sem ver o código (V4)."""
+
+    def test_o_passo_6_manda_a_volta_ao_autor_retomado(self):
+        passo6 = next(l for l in ler(JARVIS).splitlines() if l.startswith("6. **QA**"))
+        self.assertIn("brief único ao autor, retomado por `SendMessage`; sem o id, instância nova", passo6)
+
+    def test_o_tech_lead_e_retomado_e_recebe_o_aceite_sem_altera_lo(self):
+        texto = ler("agents/tech-lead.md")
+        self.assertIn("**Na volta** você é retomado por `SendMessage`", texto)
+        self.assertIn("Classes N e C: o aceite do QA (do pedido, sem ver o código) vem em paralelo; não o altere.", texto)
+
+    def test_o_qa_escreve_o_aceite_do_pedido_nas_classes_n_e_c(self):
+        passo2 = next(l for l in ler("agents/qa-engineer.md").splitlines() if l.startswith("2. Escreva o plano"))
+        self.assertIn("sem ler o código", passo2)
+        self.assertIn("nas classes N e C, também os testes de aceite, do pedido, num commit seu", passo2)
+
+
 if __name__ == "__main__":
     unittest.main()

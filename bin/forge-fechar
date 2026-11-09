@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 # Forge: fecha uma entrega na branch de integração com os passos mecânicos do integrador (TA-5, R-FLUXO, R-CONTRIB).
 # Uso: forge-fechar <pedido> --ref <branch> [--base origin/develop] [--titulo T] [--origem T] [--muda T]
-#                  [--medir T] [--espera SEGUNDOS] [--esperar-rotulo] [--limpar] [--sem-limpar] [--dry-run]
+#                  [--medir T] [--espera SEGUNDOS] [--esperar-rotulo] [--armar] [--limpar] [--sem-limpar] [--dry-run]
 # Roda em ordem e para no primeiro erro: (1) forge-check pr; (1c) a árvore do sha conferido é promovível (scripts/promover-homolog.py
 # --conferir-ref, do diretório deste script; rc diferente de 0, prazo de 300 s ou script ausente param); (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto, também o rascunho do autor, um só e com o head conferido);
 # (2b) se a base andou desde o ponto de partida e tocou arquivo que a branch também tocou: em `melhoria/*`, com `git merge-tree --write-tree` limpo, faz o merge
 # da base (árvore do merge-tree, `git push origin <branch>` de sempre) e recomeça a cadeia no head novo; com conflito, em outra branch ou com falha de leitura, para;
 # (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido; (7) limpeza.
-# Código de saída: 0 fechado e limpo; 1 parou; 3 fechado (o merge ocorreu) com limpeza pendente (o resumo "limpeza: ..." lista o comando de cada parte).
+# R7 / MERGE-LIBERADO (0.43.3): o passo 6 usa o auto-merge do GitHub (`gh pr merge --auto`, preso ao head): quem mescla é o GitHub, só com os
+# checks obrigatórios do ruleset verdes; com eles já verdes, o gh mescla na hora. Depois o script espera o MERGED até o fim de --espera.
+# --armar: pula a espera do passo 4, arma o auto-merge logo depois do passo 5 e sai com código 4 se o PR ainda não mesclou (o tech-lead
+# não fica esperando o CI; a limpeza vem depois com --limpar, que só age com prova de MERGED).
+# Código de saída: 0 fechado e limpo; 1 parou; 3 fechado (o merge ocorreu) com limpeza pendente (o resumo "limpeza: ..." lista o comando de cada parte);
+# 4 (só com --armar) auto-merge armado, o PR mescla quando os checks obrigatórios passarem.
 # --limpar: roda só o passo 7, sem forge-check nem merge, e só com prova de PR MERGED na develop para a branch; cada parte é "se existe" (repete sem
 # efeito colateral). Rodado de dentro da worktree da própria branch, sai dela para a principal antes de remover. Só apaga a branch (local e remota) se o sha é o do PR mesclado ou já está na base; nunca usa a opção que força.
 # --sem-limpar: faz o merge e pula o passo 7: imprime os comandos da limpeza pendente (o `--limpar` primeiro, que confere o sha; worktree, branch local se existe e branch remota) e sai com
@@ -60,6 +65,7 @@ readonly CHECKS_EXIGIDOS=("CI/bateria" "CI/bateria (python 3.14)" "Catraca/catra
 [ "${#CHECKS_EXIGIDOS[@]}" -gt 0 ] || die "CHECKS_EXIGIDOS vazia: o merge sem check exigido é recusado (I4)"
 
 pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 trazida=0 so_remota=0 base_2b="" tmp2b="" dorme_pid="" promover_teste="" subida_n="" subida_ini="" subida_extra=""  # nascem vazios: o fim (rm -rf, kill) nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
+armar=0 estado_lido=0  # --armar (R7): arma o auto-merge sem esperar os checks
 args_originais=("$@")  # o recomeço da cadeia depois do merge da base (passo 2b) roda o mesmo comando com `--trazida`
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -71,6 +77,7 @@ while [ $# -gt 0 ]; do
     --medir) medir="${2-}"; shift 2 || die "--medir pede o texto" ;;
     --espera) espera="${2-}"; shift 2 || die "--espera pede os segundos" ;;
     --esperar-rotulo) esperar=1; shift ;;
+    --armar) armar=1; shift ;;
     --limpar) limpar=1; shift ;;
     --sem-limpar) sem_limpar=1; shift ;;
     --trazida) trazida=1; shift ;;  # interno: esta cadeia já trouxe a base uma vez (passo 2b)
@@ -83,6 +90,8 @@ done
 [ -n "$pedido" ] || die "informe o pedido (forge-fechar <pedido> --ref <branch>)"
 [ -n "$ref" ] || die "informe --ref <branch>"
 [ "$limpar" = 0 ] || [ "$sem_limpar" = 0 ] || die "--limpar e --sem-limpar não combinam: um só roda a limpeza, o outro a pula"
+[ "$armar" = 0 ] || [ "$limpar" = 0 ] || die "--armar e --limpar não combinam: o --armar arma o merge, o --limpar só limpa depois dele"
+[ "$armar" = 0 ] || [ "$esperar" = 0 ] || die "--armar e --esperar-rotulo não combinam: com o auto-merge armado, o GitHub espera o rótulo e a catraca"
 case "$ref" in main|master|develop|homolog) die "a branch da entrega não pode ser $ref (R-FLUXO, R-VERIFY)" ;; esac
 # Branch de integração do projeto: a primeira palavra entre crases na linha do CLAUDE.md da raiz que cita "integração"; sem a linha, só a lista fixa.
 raiz_proj=$(git rev-parse --show-toplevel 2>/dev/null || true)
@@ -591,6 +600,25 @@ estado_do_pr() {
   read -r pr_estado pr_head pr_base pr_merge <<<"$linha"
 }
 
+# esperar_o_merged (passo 6, R7): depois do `gh pr merge --auto`, relê o estado até MERGED; o GitHub mescla quando os checks obrigatórios
+# passam. Com --armar, o PR ainda aberto sai com código 4 (auto-merge armado); sem ele, espera até o fim de --espera e para. A leitura
+# que falha deixa o estado vazio e sai da espera: a conferência do MERGED, logo depois, usa esta leitura (não relê) e para.
+esperar_o_merged() {
+  estado_lido=1
+  estado_do_pr || return 0
+  while [ "$pr_estado" = OPEN ]; do
+    if [ "$armar" = 1 ]; then
+      subida_extra="ARMADO ${remoto_sha:0:7}"
+      echo "auto-merge armado no PR #$pr_n (head ${remoto_sha:0:7}): o GitHub mescla em $alvo quando os checks obrigatórios passarem."
+      printf 'depois do merge, rode: forge-fechar %q --ref %q --limpar\n' "$pedido" "$ref"
+      exit 4
+    fi
+    [ $((SECONDS - inicio)) -lt "$espera" ] || die "parou no passo 6: o auto-merge está armado, mas o PR #$pr_n não mesclou após ${espera}s; confira os checks obrigatórios e rode de novo (ou --limpar depois do merge)"
+    dormir "$intervalo"
+    estado_do_pr || return 0
+  done
+}
+
 # trazer_a_base <sha da base> (passo 2b, D-3): a base andou e tocou arquivo da branch ou mudou código (E4). Só em `melhoria/*` e só com `git merge-tree --write-tree`
 # limpo (C-37a, C-37c): o commit de merge é o resultado dele (árvore igual à do merge-tree, pais = o head conferido e a base lida do servidor),
 # sem nada editado à mão; a branch local avança por fast-forward, o envio é o `git push origin <branch>` de sempre (pre-push; nunca --no-verify
@@ -730,7 +758,7 @@ if [ "$seco" = 1 ]; then
   passo 4 "$gh pr checks <número do PR, lido no passo 3> (espera até ${espera}s; por JSON; os exigidos, pelo par workflow/nome (${CHECKS_EXIGIDOS[*]}), só passam em pass, os demais em pass ou skipping)"
   passo 5 "$gh pr view <número do PR, lido no passo 3> --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
   passo "6a" "git ls-remote origin refs/heads/$alvo (a base que o passo 2b leu? se andou durante os checks e mudou código, fora de *.md e de docs/: em melhoria/* traz a base como no 2b e recomeça a cadeia; com --trazida ou fora de melhoria/* para sem mesclar; base local velha pede git fetch)"
-  passo 6 "$gh pr merge $ref $metodo --match-head-commit <head conferido> (base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge)"
+  passo 6 "$gh pr merge $ref --auto $metodo --match-head-commit <head conferido> (auto-merge do GitHub com os checks obrigatórios; base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge; espera o MERGED até --espera; com --armar sai com código 4 se ainda não mesclou)"
   [ "$sem_limpar" = 0 ] || echo "--sem-limpar: o passo 7 é pulado; imprime os comandos da limpeza e sai com código 3 depois do merge."
   passo 7 "git worktree remove <worktree de $ref> (prune se o diretório já sumiu); git branch -D $ref (só com o sha mesclado); git push origin --delete $ref (até 3 tentativas, por último); sai com código 3 se algo ficar pendente"
   [ "$limpar" = 0 ] || echo "--limpar: só o passo 7, com prova de PR MERGED em $alvo ($gh pr list --head $ref); sem prova, recusa."
@@ -868,6 +896,8 @@ if [ "$ja_mesclado" = 0 ]; then
     fi
   fi
   while :; do
+    # --armar (R7): quem espera os checks obrigatórios é o auto-merge do GitHub; o script não lê nem espera os checks aqui.
+    [ "$armar" = 0 ] || { echo "--armar: os checks não são esperados aqui; o auto-merge do GitHub mescla só com os obrigatórios verdes."; break; }
     # Por JSON (C-6): nome, estado (bucket), workflow e link por tab; o `@tsv` escapa o tab de um nome, que não desalinha as colunas.
     saida="$("$gh" pr checks "$pr_n" --json name,bucket,link,workflow --jq '.[] | [.name, .bucket, .workflow, .link] | @tsv' 2>&1 || true)"
     estados="$(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {print $2}')"
@@ -922,9 +952,9 @@ if [ "$ja_mesclado" = 0 ]; then
     # com a espera do rótulo, o laço de fora relê o rótulo e o head a cada volta
     [ "$esperar" = 0 ] || continue 2
   done
-  echo "checks verdes (exigidos em pass: ${CHECKS_EXIGIDOS[*]})."
+  [ "$armar" = 1 ] || echo "checks verdes (exigidos em pass: ${CHECKS_EXIGIDOS[*]})."
   # Só apresentação (não muda nenhuma decisão do passo 4): run e job de cada check, lidos do link da última leitura, sem chamada nova.
-  while IFS=$'\037' read -r nome_ck estado_ck link_ck; do
+  [ "$armar" = 1 ] || while IFS=$'\037' read -r nome_ck estado_ck link_ck; do
     run_do_link "$link_ck"
     echo "check $nome_ck $estado_ck run=$run_n job=$job_n"
   done < <(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {print $1 "\037" $2 "\037" $4}')
@@ -977,14 +1007,16 @@ if [ "$ja_mesclado" = 0 ]; then
       "$gh" pr ready "$ref" || die "parou no passo 6: não consegui marcar o PR como pronto"
     fi
     # O merge muda o PR: não se repete sozinho. Se falhou, só se lê o estado: um 502 após o merge feito já deixou o PR MERGED.
-    if ! "$gh" pr merge "$ref" "$metodo" --match-head-commit "$remoto_sha"; then
+    # R7: `--auto` entrega o merge ao GitHub, que só mescla com os checks obrigatórios verdes (nunca --admin; o hook o recusa).
+    if ! "$gh" pr merge "$ref" --auto "$metodo" --match-head-commit "$remoto_sha"; then
       estado_do_pr || true
       [ "$pr_estado" = MERGED ] || die "parou no passo 6: o merge falhou (ou o head do PR mudou desde o passo 2)"
       echo "o merge devolveu erro, mas o PR consta como MERGED; confiro o head, a base e o commit de merge abaixo."
     fi
+    esperar_o_merged
   fi
   # MERGED só vale para este PR, com o head conferido no passo 2, na base alvo e com commit de merge (um MERGED de outro head não é sucesso).
-  estado_do_pr || true
+  [ "$estado_lido" = 1 ] || estado_do_pr || true
   [ "$pr_estado" = MERGED ] || die "parou no passo 6: o PR não consta como MERGED (estado: ${pr_estado:-desconhecido})"
   [ "$pr_head" = "$remoto_sha" ] || die "parou no passo 6: o PR #$pr_n consta MERGED com o head ${pr_head:-desconhecido}, não o conferido ($remoto_sha); não conto como sucesso"
   [ "$pr_base" = "$alvo" ] || die "parou no passo 6: o PR #$pr_n consta MERGED na base ${pr_base:-desconhecida}, não em $alvo"

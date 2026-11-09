@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: <id-do-pedido>
 branch: <branch>
-commit: <hash do HEAD revisado>
+commit: <o Revisar-sha do brief (o código revisado, sem os commits de parecer)>
 parecer: aprovado
 revisor: forge:security-engineer
 data: AAAA-MM-DD

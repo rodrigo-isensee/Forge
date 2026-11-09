@@ -41,7 +41,7 @@ class PrPorNumero(unittest.TestCase):
     def test_o_merge_continua_por_nome_de_branch_com_o_head_preso(self):
         sha = self.git("rev-parse", "melhoria/x")
         self.assertEqual(self.fechar("p1", "--ref", "melhoria/x").returncode, 0)
-        self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {sha}", self.chamadas())
+        self.assertIn(f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha}", self.chamadas())
         codigo = [l for l in base.SCRIPT.read_text().splitlines() if '"$gh" pr merge' in l and not l.lstrip().startswith("#")]
         self.assertTrue(codigo)
         for l in codigo:

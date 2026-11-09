@@ -35,7 +35,7 @@ class RascunhoDaEntrega(unittest.TestCase):
         self.assertEqual(self.prontos(), ["gh pr ready melhoria/x"])
         iprd = chamadas.index("gh pr ready melhoria/x")
         self.assertLess(max(i for i, c in enumerate(chamadas) if c.startswith("gh pr checks 9")), iprd)
-        self.assertEqual(chamadas[iprd + 1], f"gh pr merge melhoria/x --squash --match-head-commit {sha}")
+        self.assertEqual(chamadas[iprd + 1], f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha}")
 
     def test_rascunho_com_head_diferente_do_conferido_para_no_passo_3(self):
         (self.estado / "aberto").write_text("9 develop\n")

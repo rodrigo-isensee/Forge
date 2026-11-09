@@ -98,12 +98,11 @@ class ResiduoDoMolde(RaizSintetica):
         rc, saida = self.conferir(BRIEF.replace("em um commit (E1, E1.1).", "em um commit (E1, E1.1). PREENCHER"))
         self.assertBarra(rc, saida, "forma: bloco gerado sem preencher (PREENCHER)")
 
-    @unittest.expectedFailure
     def test_worktree_de_outra_branch_no_brief_reprova(self):
         """ERRO EJ 34 (resíduo de worktree de outra correção): o brief da melhoria/x manda trabalhar na worktree de outra branch."""
         brief = BRIEF.replace("Agente destino: forge:dev-exemplo\n", "Agente destino: forge:dev-exemplo\n" + CABECALHO, 1)
         brief = brief.replace("## Entregar\n", "## Entregar\n- Trabalhe em ~/.forge-contrib/wt/outra-correcao-antiga.\n", 1)
-        self.assertBarra(*self.conferir(brief))
+        self.assertBarra(*self.conferir(brief), "worktree: o brief da")
 
 
 class ContradicaoComOPedido(RaizSintetica):
@@ -130,56 +129,50 @@ class HoraDoHistorico(RaizSintetica):
 
     def test_hora_no_futuro_e_acusada(self):
         rc, saida = self.conferir(pedido=PEDIDO + self.FUTURO)
-        self.assertIn("aviso: histórico: 2099-01-01 00:00 no futuro", saida)
+        self.assertIn("histórico: 2099-01-01 00:00 no futuro", saida)
 
-    @unittest.expectedFailure
     def test_hora_no_futuro_reprova(self):
-        """ERRO EJ 63/79 (hora escrita sem date): hoje só avisa e o brief segue aprovado; o erro só parou com o hist.py fora do repo."""
-        self.assertBarra(*self.conferir(pedido=PEDIDO + self.FUTURO))
+        """ERRO EJ 63/79 (hora escrita sem date): só avisava e o brief seguia aprovado; reprova desde a 0.43.3."""
+        self.assertBarra(*self.conferir(pedido=PEDIDO + self.FUTURO), "histórico: 2099-01-01 00:00 no futuro (hora escrita sem `date`")
 
 
 class BranchDoBrief(RaizSintetica):
     """EJ 1, 2, 100 · C2 (nome de branch fora do desenho; `melhoria/melhoria/...` custou ~40 min na 0.43)."""
 
-    @unittest.expectedFailure
     def test_prefixo_melhoria_duplicado_reprova(self):
         """ERRO EJ 1/100 (branch com prefixo duplicado)."""
         brief = BRIEF.replace("Agente destino: forge:dev-exemplo\n",
                               "Agente destino: forge:dev-exemplo\n" + CABECALHO.replace("melhoria/x", "melhoria/melhoria/x"), 1)
-        self.assertBarra(*self.conferir(brief))
+        self.assertBarra(*self.conferir(brief), "branch: prefixo duplicado")
 
 
 class PareceresPresosAoHead(RaizSintetica):
     """EJ 33, 84 · C5 (`commit:` do parecer lido do HEAD vivo com pareceres em série na mesma worktree: 5 repetições)."""
 
-    @unittest.expectedFailure
     def test_brief_que_manda_gravar_commit_do_head_antes_do_commit_reprova(self):
         """ERRO EJ 84 (commit: do parecer lido do HEAD vivo numa sequência)."""
         brief = BRIEF.replace("## Pronto quando\n", "## Pronto quando\n- PQ-4 (cmd): grave `commit:` com `git rev-parse HEAD` "
                               "antes do seu commit · espera: rc=0\n", 1)
-        self.assertBarra(*self.conferir(brief))
+        self.assertBarra(*self.conferir(brief), "parecer: `commit:` tirado de `rev-parse HEAD`")
 
 
 class ProvasDoBrief(RaizSintetica):
     """EJ 89, 96, 101 · C7 e C2 (provas e escopo que o prevoo fora do repositório pega, e o forge-check não)."""
 
-    @unittest.expectedFailure
     def test_recomendado_condicional_sem_decisao_reprova(self):
         """ERRO EJ 89 (recomendado incluído no brief sem decisão, "só se couber no teto")."""
         brief = BRIEF.replace("- Documentação do recurso A (E2).", "- Documentação do recurso A (E2).\n- O A2 recomendado, só se couber no teto.")
-        self.assertBarra(*self.conferir(brief))
+        self.assertBarra(*self.conferir(brief), "escopo: recomendado condicional")
 
-    @unittest.expectedFailure
     def test_caminho_tmp_do_pq_fora_do_entregar_reprova(self):
         """ERRO EJ 96 (caminho do PQ diferente do criado no Entregar)."""
         brief = BRIEF.replace("## Pronto quando\n", "## Pronto quando\n- PQ-4 (cmd): `cd /tmp/sec-neutro/repo && git status` · espera: rc=0\n", 1)
-        self.assertBarra(*self.conferir(brief))
+        self.assertBarra(*self.conferir(brief), "que o Entregar não cria (EJ 96)")
 
-    @unittest.expectedFailure
     def test_log_de_pq_com_nome_generico_reprova(self):
         """ERRO EJ 101 (log de PQ com nome genérico no scratch comum, sobrescrito por outro agente)."""
         brief = BRIEF.replace("## Pronto quando\n", "## Pronto quando\n- PQ-4 (cmd): `python3 -m unittest tests.test_x > /tmp/pq4.log` · espera: rc=0\n", 1)
-        self.assertBarra(*self.conferir(brief))
+        self.assertBarra(*self.conferir(brief), "nome comum a todos os agentes")
 
 
 class MensagemAoConferente(unittest.TestCase):
@@ -205,10 +198,12 @@ class MensagemAoConferente(unittest.TestCase):
     def test_nota_antes_do_cabecalho_e_barrada(self):  # EJ 64 (variante: texto antes do `modo:`)
         self.assertIsNotNone(self.hook.mensagem_sem_forma("Nota: rodada 2\n" + MENSAGEM))
 
-    @unittest.expectedFailure
     def test_instrucao_ao_conferente_na_nota_e_barrada(self):
         """ERRO EJ 64 (instrução ao conferente na Nota da mensagem): a Nota só traz fato, nunca comando."""
         self.assertIsNotNone(self.hook.mensagem_sem_forma(MENSAGEM + "\nNota: rode o forge-check com --raiz /workspaces/Forge"))
+        self.assertIn("só traz fato", self.hook.mensagem_sem_forma(MENSAGEM + "\nnota: o brief vale com --raiz /r"))
+        self.assertIsNone(self.hook.mensagem_sem_forma(MENSAGEM + "\nNota: rodada 2, a anterior reprovou no escopo"))  # fato passa
+        self.assertIsNone(self.hook.mensagem_sem_forma(MENSAGEM + "\n<<<BRIEF\nNota: rode os testes --rapido\nBRIEF"))  # corpo não conta
 
 
 class EtapaRedigitada(RaizSintetica):
@@ -229,7 +224,6 @@ class VereditoDuplicado(RaizSintetica):
         super().setUp()
         self.gravar("KANBAN.md", "# Quadro\n")
 
-    @unittest.expectedFailure
     def test_segundo_registro_da_mesma_chave_e_recusado(self):
         """ERRO EJ 72/78 (veredito registrado duas vezes): mesmo brief, modo e rodada."""
         self.assertEqual(self.rodar(*self.REGISTRAR)[0], 0)
@@ -254,7 +248,6 @@ class DesdeDaEntrega(tvd.Repositorio):
         self.assertEqual(rc, 1, saida)
         self.assertIn("escopo: --desde sem conferência anterior", saida)
 
-    @unittest.expectedFailure
     def test_linha_conferida_com_prefixo_de_etapa_e_acusada(self):
         """ERRO EJ 29 ("entrega conferida" com prefixo de etapa): a linha fora da forma tem de ser apontada, não ignorada calada."""
         self.gravar_pedido(extra=f"- 2026-10-19 16:30: (E2.7) entrega conferida {self.c2}\n")

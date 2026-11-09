@@ -1,0 +1,254 @@
+{
+  "pedido": "v0433-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I81",
+      "guarda": "bin/forge-check:8561 sha_a_revisar(raiz, branch) or PREENCHER (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        saida.append(f\"Revisar-sha: {sha_a_revisar(raiz, branch) or PREENCHER}\")",
+      "para": "        saida.append(f\"Revisar-sha: {not (sha_a_revisar(raiz, branch) or PREENCHER)}\")",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I82",
+      "guarda": "bin/forge-check:8853 grupo(ETAPA_DO_CABECALHO, cabecalho) not in ETAPAS_DE_PARECER or not branch or branch in SEM_BRANCH (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if grupo(ETAPA_DO_CABECALHO, cabecalho) not in ETAPAS_DE_PARECER or not branch or branch in SEM_BRANCH:",
+      "para": "    if not (grupo(ETAPA_DO_CABECALHO, cabecalho) not in ETAPAS_DE_PARECER or not branch or branch in SEM_BRANCH):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I83",
+      "guarda": "bin/forge-check:8856 not esperado (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not esperado:",
+      "para": "    if not (not esperado):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I84",
+      "guarda": "bin/forge-check:8860 digitado == esperado (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if digitado == esperado:",
+      "para": "    if not (digitado == esperado):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I85",
+      "guarda": "bin/forge-check:8863 digitado is None (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    fim = len(cabecalho)\n    if digitado is None:",
+      "para": "    fim = len(cabecalho)\n    if not (digitado is None):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I86",
+      "guarda": "bin/forge-check:8867 not n (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        novo, n = re.subn(r\"^(\\s*Revisar-sha:[ \\t]*)\\S+\", lambda m: m.group(1) + esperado, texto[:fim], count=1, flags=re.M)\n    if not n:",
+      "para": "        novo, n = re.subn(r\"^(\\s*Revisar-sha:[ \\t]*)\\S+\", lambda m: m.group(1) + esperado, texto[:fim], count=1, flags=re.M)\n    if not (not n):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I87",
+      "guarda": "bin/forge-check:8870 digitado or 'ausente' (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    correcoes.append(f\"corrigido: Revisar-sha {sem_controle(digitado or 'ausente')[:40]} -> {esperado} (o código da branch, sem os \"",
+      "para": "    correcoes.append(f\"corrigido: Revisar-sha {sem_controle(not (digitado or 'ausente'))[:40]} -> {esperado} (o código da branch, sem os \"",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I88",
+      "guarda": "bin/forge-check:8939 (revisar := grupo(REVISAR_SHA, cabecalho_do_brief(texto))) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if revisar := grupo(REVISAR_SHA, cabecalho_do_brief(texto)):  # AQ-5: o `commit:` que o parecer grava",
+      "para": "    if not (revisar := grupo(REVISAR_SHA, cabecalho_do_brief(texto))):  # AQ-5: o `commit:` que o parecer grava",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I89",
+      "guarda": "bin/forge-check:9131 etapa == 'codigo' and (not cod) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if etapa == \"codigo\" and not cod:  # T1: código sem teste no intervalo da delegação, sinalizado sem reprovar (a classe T isenta)",
+      "para": "    if not (etapa == \"codigo\" and not cod):  # T1: código sem teste no intervalo da delegação, sinalizado sem reprovar (a classe T isenta)",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I90",
+      "guarda": "bin/forge-check:9134 aviso (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        linhas += [(aviso, False)] if aviso else []",
+      "para": "        linhas += [(aviso, False)] if not (aviso) else []",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I91",
+      "guarda": "bin/forge-check:9697 a.cmd == 'parecer' and a.acao == 'novo' (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"parecer\" and a.acao == \"novo\":",
+      "para": "    if not (a.cmd == \"parecer\" and a.acao == \"novo\"):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I92",
+      "guarda": "bin/forge-placar:176 re.search(f'-{re.escape(p)}-\\\\d+$', nome) (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "    return next((p for p in papeis if re.search(rf\"-{re.escape(p)}-\\d+$\", nome)), \"destino\")",
+      "para": "    return next((p for p in papeis if not (re.search(rf\"-{re.escape(p)}-\\d+$\", nome))), \"destino\")",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I93",
+      "guarda": "bin/forge-placar:182 texto is None (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "    \"\"\"[(dia, modo, negativo, papel do autor, papel do brief)] das linhas de 10 colunas do registro; None sem registro.\"\"\"\n    texto = ler(Path(raiz) / \"docs\" / \"kanban\" / \"conferencias.md\")\n    if texto is None:",
+      "para": "    \"\"\"[(dia, modo, negativo, papel do autor, papel do brief)] das linhas de 10 colunas do registro; None sem registro.\"\"\"\n    texto = ler(Path(raiz) / \"docs\" / \"kanban\" / \"conferencias.md\")\n    if not (texto is None):",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I94",
+      "guarda": "bin/forge-placar:187 not c or len(c) < 10 or (not DATA.match(c[0])) (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "        if not c or len(c) < 10 or not DATA.match(c[0]):",
+      "para": "        if not (not c or len(c) < 10 or not DATA.match(c[0])):",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I95",
+      "guarda": "bin/forge-placar:191 not c[5].lower().startswith(('aprovado', 'cumpriu')) (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "        saida.append((datetime.date.fromisoformat(c[0][:10]), c[3], not c[5].lower().startswith((\"aprovado\", \"cumpriu\")),",
+      "para": "        saida.append((datetime.date.fromisoformat(c[0][:10]), c[3], not (not c[5].lower().startswith((\"aprovado\", \"cumpriu\"))),",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I96",
+      "guarda": "bin/forge-placar:192 autor == 'destino' (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "                      do_brief if autor == \"destino\" else autor, do_brief))",
+      "para": "                      do_brief if not (autor == \"destino\") else autor, do_brief))",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    }
+  ]
+}

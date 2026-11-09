@@ -49,8 +49,8 @@ class PermissaoAgentesMd(unittest.TestCase):
     def test_skill_manda_avisar_antes_de_delegar_edicao_de_agents(self):
         texto = ler("skills", "trabalho-em-paralelo", "SKILL.md")
         self.assertIn("**Delegação que edita `agents/*.md`:**", texto)
-        self.assertIn("escreva no brief que a tarefa precisa dela", texto)  # texto refinado por PERMISSAO-AGENTES-MD (junção do lote)
-        self.assertIn("não contorna por script (`R-CONFORMIDADE`)", texto)
+        self.assertIn("avise o dono antes e diga no brief", texto)  # texto refinado por PERMISSAO-AGENTES-MD (junção do lote)
+        self.assertIn("sem contornar por script (`R-CONFORMIDADE`)", texto)
 
 
 if __name__ == "__main__":

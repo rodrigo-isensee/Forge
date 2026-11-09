@@ -127,6 +127,13 @@ if [ "$#" -eq 1 ] && [ "$1" = "--status" ]; then
 fi
 # Modo --suite (só à mão, com exatamente esse argumento, como o --status): a suíte inteira com a mesma trava e a
 # mesma fila do push, sem refs e sem anotar prova. É por onde scripts/suite-paralela.py passa quando chamado à mão.
+# F8 (0.43.3): o início do envio, para a linha de duração (linha_de_duracao, abaixo).
+inicio_prepush="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+# F8: uma linha de duração no log do envio (o stderr do pre-push), lida pelo `forge-check metricas --log-prepush <log>`: início
+# e fim em UTC, o plano (baratas, curta, completa, dirigida, nada) e o rc. Sem arquivo novo e sem aviso novo.
+linha_de_duracao() {
+  echo "pre-push: duracao inicio=${inicio_prepush} fim=$(date -u +%Y-%m-%dT%H:%M:%SZ) plano=$1 rc=$2" >&2
+}
 modo_suite=0
 if [ "$#" -eq 1 ] && [ "$1" = "--suite" ]; then modo_suite=1; exec </dev/null; fi
 n_refs=0; n_envios=0; unico_local=""; unico_remoto=""; unico_ref=""; envio_sha=(); envio_ref=(); envios=()
@@ -261,10 +268,42 @@ caminhos_do_envio() {
 }
 if [ "$modo_suite" -eq 0 ]; then caminhos_do_envio; fi
 # PREPUSH-BARATAS (P4 do estudo de 2026-11-08): o vermelho de forma sai em segundos, antes da fila e da trava. Sintaxe
-# (bash -n e ast do Python) de todo script alterado, shellcheck dos scripts shell que o envio alterou e
-# `bin/forge-changelog conferir` do HEAD (o fragmento com o nome da branch, CHANGELOG-BRANCH). Ferramenta ausente: aviso
-# e segue (o CI repete tudo). Nunca afrouxa: o CI roda as mesmas checagens.
+# (bash -n e ast do Python) de todo script alterado, shellcheck dos scripts shell que o envio alterou, a neutralidade e o
+# scripts/verificar-contribuicao.sh nos arquivos tocados (0.43.3) e `bin/forge-changelog conferir` do HEAD (o fragmento com o
+# nome da branch, CHANGELOG-BRANCH). Ferramenta ausente: aviso e segue (o CI repete tudo). Nunca afrouxa: o CI roda as mesmas checagens.
 # COBERTURA-P6: o shellcheck escolhe pelo shebang (tipo_de_script), a mesma regra do passo shellcheck do ci.yml, sem lista fixa.
+# PARECER-NEUTRALIDADE-CEDO (0.43.3): a regra das classes Neutralidade e NeutralidadeDoNucleo de tests/test_forge.py, só nos
+# arquivos tocados (argumentos), com a lista de tests/config.json e o detector de tests/neutralidade.py da árvore. Sem os dois
+# (repositório mínimo), nada a conferir: o CI roda as classes inteiras. Termo de projeto sai só com o arquivo, nunca o termo.
+NEUTRALIDADE_PY='import json, re, sys
+from pathlib import Path
+try:
+    cfg = json.loads(Path("tests/config.json").read_text(encoding="utf-8"))
+    sys.path.insert(0, "tests")
+    from neutralidade import termos_achados
+except Exception:
+    sys.exit(0)
+TEXTO = ("agents/", "skills/", "stacks/", "docs/", "templates/", "bin/", "scripts/", "hooks/", "dev/", "tests/transcricoes/")
+nucleo = cfg.get("neutralidade_nucleo") or {}
+termos = [re.compile(t) for t in nucleo.get("termos", [])]
+pastas = tuple(d.rstrip("/") + "/" for d in nucleo.get("pastas", []))
+ignorar = tuple(nucleo.get("ignorar", []))
+falhas = 0
+for rel in sys.argv[1:]:
+    arq = Path(rel)
+    if arq.is_symlink() or not arq.is_file():
+        continue
+    texto = arq.read_text(encoding="utf-8", errors="ignore")
+    if rel.startswith(TEXTO) and termos_achados(texto, cfg.get("termos_proibidos_hash", [])):
+        print(f"pre-push: {rel}: termo de projeto (R-NEUTRO; compare por hash em tests/config.json).", file=sys.stderr)
+        falhas = 1
+    if rel.startswith(pastas) and not rel.startswith(ignorar):
+        for termo in termos:
+            if termo.pattern not in nucleo.get("excecoes", {}).get(rel, []) and termo.search(texto):
+                print(f"pre-push: {rel}: stack no núcleo ({termo.pattern}); mova para stacks/ ou registre exceção em tests/config.json.", file=sys.stderr)
+                falhas = 1
+sys.exit(falhas)
+'
 tipo_de_script() {
   local primeira
   case "$1" in *.py) echo python; return ;; *.sh) echo shell; return ;; esac
@@ -287,6 +326,23 @@ checagens_baratas() {
       shellcheck -- "${shell[@]}" >&2 || { echo "pre-push: shellcheck reprovou (${shell[*]})." >&2; falhas=1; }
     else
       echo "pre-push: aviso: shellcheck fora do PATH; ${shell[*]} não foi conferido (o CI confere)." >&2
+    fi
+  fi
+  # PARECER-NEUTRALIDADE-CEDO: termo de projeto e stack no núcleo nos arquivos tocados, em segundos (o CI roda as classes inteiras).
+  if [ "${#alterados[@]}" -gt 0 ] && [ -f tests/config.json ] && [ -f tests/neutralidade.py ] && [ ! -L tests/neutralidade.py ]; then
+    python3 -I -c "$NEUTRALIDADE_PY" "${alterados[@]}" || { echo "pre-push: neutralidade reprovada nos arquivos tocados (o CI reprova igual)." >&2; falhas=1; }
+  fi
+  # SENTINELA-CAMINHO-LOCAL: o scripts/verificar-contribuicao.sh da própria árvore no delta do HEAD desde a develop (caminho pessoal,
+  # segredo, .env), além do da base, que a varredura de segredo já rodou: a branch só soma recusas. Arquivo e linha, nunca o valor.
+  if [ -n "$base_dev" ] && [ -f scripts/verificar-contribuicao.sh ] && [ ! -L scripts/verificar-contribuicao.sh ] \
+    && ancora="$(git merge-base "$base_dev" HEAD 2>/dev/null)"; then
+    rc=0; saida="$(env -u BASH_ENV -u ENV bash --noprofile --norc scripts/verificar-contribuicao.sh "$ancora" HEAD 2>&1)" || rc=$?
+    if [ "$rc" -eq 1 ]; then
+      printf '%s\n' "$saida" | LC_ALL=C tr -d '\000-\011\013-\037\177' >&2
+      echo "pre-push: scripts/verificar-contribuicao.sh reprovou o delta (o CI reprova igual); marque exemplo de propósito com forge:exemplo." >&2
+      falhas=1
+    elif [ "$rc" -ne 0 ]; then
+      echo "pre-push: aviso: scripts/verificar-contribuicao.sh não conferiu o delta (saída ${rc}); o CI confere." >&2
     fi
   fi
   # O changelog é o do HEAD: confere quando o HEAD é a ponta de uma branch enviada (o nome da branch decide o fragmento).
@@ -313,7 +369,7 @@ checagens_baratas() {
 n_baratas=0
 if [ "$modo_suite" -eq 0 ]; then
   inicio_baratas="$(date +%s)"
-  checagens_baratas || { echo "pre-push: checagens baratas reprovadas em $(( $(date +%s) - inicio_baratas ))s; a suíte nem entrou na fila. Nunca --no-verify." >&2; exit 1; }
+  checagens_baratas || { echo "pre-push: checagens baratas reprovadas em $(( $(date +%s) - inicio_baratas ))s; a suíte nem entrou na fila. Nunca --no-verify." >&2; linha_de_duracao baratas 1; exit 1; }
   [ "$n_baratas" -eq 0 ] || echo "pre-push: checagens baratas ok em $(( $(date +%s) - inicio_baratas ))s (${n_baratas} arquivos)" >&2
 fi
 espera="${FORGE_TRAVA_ESPERA:-1200}"
@@ -499,6 +555,7 @@ trap - TERM INT HUP
 duracao=$(( $(date +%s) - inicio_s ))
 if [ "$curta" = 1 ]; then modo=curta; elif [ "$completa" = 1 ]; then modo=completa; else modo=dirigida; fi
 echo "pre-push: fim $(date +%H:%M:%S) rc ${rc} ${modo} ${duracao}s" >&2
+if [ "$nada" = 1 ]; then linha_de_duracao nada "$rc"; else linha_de_duracao "$modo" "$rc"; fi
 [ "$curta" = 1 ] || gravar_duracao "$duracao" "$modo"
 [ "$rc" -eq 0 ] || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
 # Anota a árvore testada (a árvore de trabalho estava limpa no início e no fim e o HEAD^{tree} não mudou durante a suíte,

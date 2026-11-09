@@ -722,6 +722,8 @@ class PrePushTrava(unittest.TestCase):
         self.assertRegex(erro, rf"(?m)^pre-push: entrou {self.HORA}$")
         self.assertRegex(erro, rf"(?m)^pre-push: vez {self.HORA}$")
         self.assertRegex(erro, rf"(?m)^pre-push: fim {self.HORA} rc 0 completa \d+s$")
+        # F8 (0.43.3): a linha de duração no log do envio, que o `forge-check metricas --log-prepush` lê
+        self.assertRegex(erro, r"(?m)^pre-push: duracao inicio=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ fim=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ plano=completa rc=0$")
         self.assertEqual((self.repo / "duracoes-durante").read_text(), "False", "a duração foi gravada antes da suíte")
         self.assertRegex(self.duracoes().read_text(), r"\A\d+ completa\n\Z")
         self.assertEqual(self.duracoes().stat().st_mode & 0o077, 0)
@@ -729,6 +731,7 @@ class PrePushTrava(unittest.TestCase):
         codigo, _, erro = self.roda()
         self.assertEqual(codigo, 1)
         self.assertRegex(erro, rf"(?m)^pre-push: fim {self.HORA} rc 1 completa \d+s$")
+        self.assertRegex(erro, r"(?m)^pre-push: duracao inicio=\S+ fim=\S+ plano=completa rc=1$")
         self.assertEqual(len(self.duracoes().read_text().splitlines()), 2, "a suíte vermelha que rodou até o fim também conta")
 
     def test_duracoes_guarda_as_ultimas_50_linhas(self):

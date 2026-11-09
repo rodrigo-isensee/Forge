@@ -85,9 +85,17 @@ class Registrar(Raiz):
 
     def test_vocabulario_aceito(self):
         for modo in ("brief", "entrega"):
-            for merito in ("s", "n", "parcial", "—"):
-                self.assertEqual(self.rodar(*com(BASE, modo=modo, merito=merito))[0], 0)
+            for rodada, merito in enumerate(("s", "n", "parcial", "—"), 1):  # 0.43.3: a mesma chave duas vezes é recusada
+                self.assertEqual(self.rodar(*com(BASE, modo=modo, merito=merito, rodada=str(rodada)))[0], 0)
         self.assertEqual(len(self.lido().splitlines()), 2 + 8)
+
+    def test_mesma_chave_duas_vezes_e_recusada_sem_gravar(self):  # 0.43.3: EJ 72/78
+        self.assertEqual(self.rodar(*BASE)[0], 0)
+        cod, saida, _ = self.rodar(*com(BASE, resultado="reprovado", merito="n") + ["--classe", "forma"])
+        self.assertEqual((cod, saida[0].startswith("conferencia: já há veredito")), (1, True))
+        self.assertEqual(len(self.lido().splitlines()), 3)
+        self.assertEqual(self.rodar(*com(BASE, rodada="2"))[0], 0)  # a rodada seguinte grava
+        self.assertEqual(self.rodar(*com(BASE, modo="entrega"))[0], 0)  # o outro modo também
 
     def test_recusa_link_simbolico(self):
         alvo = self.tmp / "fora.md"
@@ -138,7 +146,7 @@ class Tardio(Raiz):  # B14 (E8): `--tardio sim|nao` mede o achado tardio, como p
         self.assertTrue(linhas[2].endswith("| 2 | reprovado | s | tardio: sim · faltou PQ | forma | jarvis |"), linhas[2])
         self.assertTrue(linhas[3].endswith("| 3 | reprovado | s | tardio: nao · faltou PQ | forma | jarvis |"), linhas[3])
         self.assertEqual(len(linhas[2].split("|")), 12)
-        self.assertEqual(self.rodar(*self.REPROVA2[:-2], "--tardio", "sim")[0], 0)  # sem nota, só o prefixo
+        self.assertEqual(self.rodar(*com(self.REPROVA2[:-2], rodada="4"), "--tardio", "sim")[0], 0)  # sem nota, só o prefixo
         self.assertIn("| s | tardio: sim | forma |", (self.tmp / ARQ).read_text(encoding="utf-8").splitlines()[4])
 
     def test_tardio_fora_da_reprovacao_de_rodada_2_ou_com_outro_valor_recusa(self):
@@ -202,7 +210,7 @@ class SalvarArea(Raiz):  # E7 (FILA-23): a entrega conferida salva a área só e
         self.gravar("../projeto/KANBAN.md", "# Quadro\n")
         projeto = self.home / "projeto"
         for args, extra in ((BASE, {}), (com(self.ENTREGA, resultado="reprovado") + ["--classe", "forma"], {}),
-                            (self.ENTREGA, {"FORGE_AREA_SALVAR": "0"}), (self.ENTREGA, {"raiz": projeto})):
+                            (com(self.ENTREGA, rodada="2"), {"FORGE_AREA_SALVAR": "0"}), (self.ENTREGA, {"raiz": projeto})):
             with self.subTest(args=args, extra=extra):
                 cod, saida = self.registrar(*args, **extra)
                 self.assertEqual((cod, "área:" in saida, self.salvos()), (0, False, ""))
@@ -211,19 +219,20 @@ class SalvarArea(Raiz):  # E7 (FILA-23): a entrega conferida salva a área só e
         token = "ghp_" + "a1" * 18
         casos = {"cópia do Forge": (".claude-plugin/plugin.json", '{"name": "forge"}'),
                  "segredo em docs/pedidos/xpto.md:2 (GitHub)": ("docs/pedidos/xpto.md", f"# p\nt {token}\n")}
-        for motivo, (rel, texto) in casos.items():
+        for rodada, (motivo, (rel, texto)) in enumerate(casos.items(), 1):
             with self.subTest(motivo=motivo):
                 self.gravar(rel, texto)
-                cod, saida = self.registrar()
+                cod, saida = self.registrar(*com(self.ENTREGA, rodada=str(rodada)))
                 self.assertEqual((cod, self.salvos()), (0, ""))
                 self.assertTrue(motivo in saida and token not in saida, saida)
                 (self.area / rel).unlink()
 
     def test_origin_do_forge_ou_com_credencial_nao_recebe(self):  # C-3, pela mesma regra do hook
         forge = json.loads((Path(FORGE_CHECK).parents[1] / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["repository"]
-        for url in (forge + ".git", "https://u:segredo@exemplo.invalid/x.git"):
+        for rodada, url in enumerate((forge + ".git", "https://u:segredo@exemplo.invalid/x.git"), 1):
             self.git(self.area, "remote", "set-url", "origin", url)
-            self.assertIn("o origin falta, diverge, traz credencial ou é o Forge; nada enviado", self.registrar()[1])
+            self.assertIn("o origin falta, diverge, traz credencial ou é o Forge; nada enviado",
+                          self.registrar(*com(self.ENTREGA, rodada=str(rodada)))[1])
 
     def test_remoto_que_recusa_avisa_e_o_registro_fica(self):
         shutil.rmtree(self.bare)

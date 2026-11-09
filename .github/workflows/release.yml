@@ -1,7 +1,8 @@
 name: Release
 
 # Depois que o usuário mescla um PR na main: se a versão do plugin.json ainda não tem tag,
-# cria a tag vX.Y.Z e a release com as notas daquela versão no CHANGELOG.md.
+# cria a tag vX.Y.Z e a release com as notas daquela versão no CHANGELOG.md. A suíte não roda de novo quando a árvore
+# da main é a mesma que já passou na develop (SP4: scripts/arvore-testada.py; sem prova, roda inteira).
 on:
   push:
     branches: [main]
@@ -16,14 +17,32 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: read
+      actions: read  # o passo da árvore lê as execuções e os jobs da develop (SP4)
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+          fetch-depth: 0  # SP4: o arvore-testada procura na história o commit da develop com a mesma árvore
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
+      - name: Árvore já provada na develop (SP4; sem prova, a suíte roda inteira)
+        # rc 0 só com a prova completa (mesma tree-sha e o job de prova verde); o token só neste passo, nunca no da suíte.
+        id: arvore
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENTO: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REF: ${{ github.ref }}
+        run: |
+          if python3 scripts/arvore-testada.py; then provada=true; else provada=false; fi
+          echo "provada=$provada" >> "$GITHUB_OUTPUT"
+          echo "árvore provada na develop: $provada" >> "$GITHUB_STEP_SUMMARY"
       - name: Testes antes de publicar
+        if: steps.arvore.outputs.provada != 'true'
         run: python3 scripts/suite-paralela.py
 
   release:

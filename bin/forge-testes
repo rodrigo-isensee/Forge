@@ -82,7 +82,8 @@ FORGE_CHECK = ("test_anotar", "test_brief_forma_aceita", "test_brief_gravar", "t
                "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_mensagem_conferente", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
                "test_testes_tocados", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
                "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt", "test_governanca", "test_selo_e_entrega",
-               "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
+               "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados", "test_aq5_parecer_novo", "test_brief_gerar_custo",
+               "test_t1_codigo_sem_teste") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
 LEITORES_DE_TEXTO = ("test_anotar", "test_citacao", "test_clareza", "test_dependabot_modelo", "test_erros_no_brief",
@@ -94,7 +95,7 @@ CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_no
 # .claude-plugin/ para montar versões publicadas e roda o doutor e o `forge` contra elas.
 PUBLICADO = CONTEUDO + ("test_atualizar",)
 # Módulo em subpasta de tests/ (pacote com __init__.py) entra pelo nome com ponto: `evals.test_x` é tests/evals/test_x.py.
-EVALS_DE_FORMA = ("evals.test_regressao_forma",)  # 0.43.1, frente I: os erros de forma já cometidos contra a ferramenta
+EVALS_DE_FORMA = ("evals.test_regressao_forma", "evals.test_erros_por_papel")  # 0.43.1, frente I, e E23 (0.43.3): os erros já cometidos contra a ferramenta
 MAPA = [
     (r"bin/forge-changelog", ("test_changelog", "test_conferir_release", "test_forge", "test_pre_push_afetados") + EVALS_DE_FORMA),  # PREPUSH-BARATAS
     (r"bin/forge-check", FORGE_CHECK + EVALS_DE_FORMA),
@@ -121,7 +122,7 @@ MAPA = [
     (r"scripts/ci-local", ("test_ci_local", "test_forge", "test_testes_tocados")),
     (r"scripts/conferir-reversao\.py", ("test_conferir_reversao", "test_forge", "test_testes_tocados")),  # aviso: NaoEPortao
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados")),
-    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_testes_tocados")),
+    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados")),
     (r"stacks/.*", CONTEUDO + ("test_hooks",) + VOLTA_UNICA),
     (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks",) + VOLTA_UNICA),
     (r"templates/projeto/docs/(reviews|qa|security|devops)/_modelo\.md", PUBLICADO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),  # o teste gera parecer do modelo

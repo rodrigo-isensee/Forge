@@ -3,10 +3,16 @@
 `metricas` lê o `## Histórico` dos pedidos, o registro de conferências (docs/kanban/conferencias.md) e o git, e dá, por item e por
 período: tempo do código pronto (primeira `entrega conferida <sha>`) até a develop e até a main (o merge da linha de primeiro pai que
 trouxe o sha), voltas, revalidações, suítes e falhas, minutos de espera do dono e as reprovações por classe. O mérito das
-reprovações é anotado pelo próprio Jarvis no registro: sai marcado `declarada`, nunca como medida.
+reprovações é anotado pelo próprio Jarvis no registro: sai marcado `declarada`, nunca como medida. Desde a 0.43.3 também a espera
+por portão (as recusas do R-TETO em `recusas.log`, RN-6) e os tokens por item (CUSTO): os transcritos dos subagentes da raiz
+(`~/.claude/projects/<raiz>/<sessão>/subagents/*.jsonl`, ou as pastas de `FORGE_TRANSCRITOS`) ligados ao item pelo brief citado no primeiro pedido do agente e pelo
+`Cobre:` do brief; sem fonte, `-`.
 
 `regras` lista cada docs/regras/R-*.md com os campos `Revisar em: AAAA-MM-DD` e `Medida:` (o número que justifica a regra); falta,
 data vencida ou medida sem número dão aviso (rc 0); com `--estrito`, rc 1.
+
+Com `--log-prepush <log>` (F8, 0.43.3), lê as linhas `pre-push: duracao inicio=... fim=... plano=... rc=...` que o
+.githooks/pre-push grava no log do envio e dá, por plano, envios, falhas, p50 e máximo da duração em segundos.
 
 Só leitura, sem rede (o `gh` só com `--gh`), só biblioteca padrão. Uso em docs/governanca.md."""
 import datetime
@@ -56,7 +62,15 @@ FONTES = {
     "reprovacoes_por_classe": "registro de conferências (classe anotada no registro)",
     "merito": "declarada (anotada pelo próprio Jarvis no registro; não é medida independente)",
     "ci": "gh run list da branch citada no item (só com --gh)",
+    "espera_portao_min": "estimada (recusas.log do R-TETO: da primeira à última recusa de cada sequência do mesmo portão, "
+                         "com até 10 min entre elas)",
+    "tokens": "medida (usage dos transcritos dos subagentes com --transcritos: entrada, saída e cache; '-' sem fonte)",
 }
+RECUSA = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}) (\w+) R-TETO .*\bmotivo=(\w+)\s*$")
+INTERVALO_DA_ESPERA = datetime.timedelta(minutes=10)  # recusas do mesmo portão mais próximas que isso são a mesma espera
+BRIEF_NO_PROMPT = re.compile(r"docs/briefs/([\w.@+-]+)\.md")
+COBRE = re.compile(r"^\s*(?:Etapa:.*?)?\bCobre:\s*(.+?)\s*$", re.M)
+CHAVES_DE_USO = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
 
 
 def sem_acento(texto):
@@ -300,6 +314,99 @@ def itens_do_pedido(pedido, texto, fuso, chegadas, agora, usar_gh, janela):
     return sorted(saida, key=lambda r: (r["item"] == "-", r["periodo_base"]))
 
 
+def arquivos_de_recusas(raiz):
+    """Os `recusas.log` que o hook `agentes` grava (RN-6): o do diretório comum do git (clone do Forge) e o da cópia principal."""
+    candidatos = []
+    codigo, comum = git(raiz, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    if not codigo and comum:
+        candidatos += [Path(comum) / "forge" / "run" / "recusas.log", Path(comum).parent / ".forge" / "run" / "recusas.log"]
+    candidatos.append(Path(raiz) / ".forge" / "run" / "recusas.log")
+    return list(dict.fromkeys(c for c in candidatos if c.is_file() and not c.is_symlink()))
+
+
+def esperas_por_portao(arquivos, janela):
+    """{portão: {"recusas": n, "espera_min": minutos}} das linhas do `recusas.log`: recusas do mesmo portão (motivo) com até
+    `INTERVALO_DA_ESPERA` entre elas formam uma espera, que vai da primeira à última; recusa solta conta 0 min. Linha fora da forma
+    é ignorada."""
+    por_motivo = {}
+    for arq in arquivos:
+        for linha in (ler_texto(arq) or "").splitlines():
+            achou = RECUSA.match(linha)
+            if achou:
+                quando = datetime.datetime.fromisoformat(achou.group(1)).astimezone()
+                if janela(quando):
+                    por_motivo.setdefault(achou.group(3), []).append(quando)
+    saida = {}
+    for motivo, horas in sorted(por_motivo.items()):
+        horas.sort()
+        total, inicio = 0.0, horas[0]
+        for anterior, atual in zip(horas, horas[1:] + [None]):
+            if atual is None or atual - anterior > INTERVALO_DA_ESPERA:
+                total += (anterior - inicio).total_seconds() / 60
+                inicio = atual
+        saida[motivo] = {"recusas": len(horas), "espera_min": round(total, 1)}
+    return saida
+
+
+def primeiro_pedido(arq):
+    """O texto do primeiro registro `user` do transcrito (o prompt do agente) e a soma do uso de tokens das respostas, com cada
+    mensagem contada uma vez (o mesmo `id` se repete nos pedaços de uma resposta). (None, 0) se o arquivo não é lido."""
+    prompt, usos = None, {}
+    try:
+        if arq.is_symlink():
+            return None, 0
+        linhas = arq.read_text(encoding="utf-8", errors="replace").splitlines()  # sem o teto: o transcrito longo é o que mais custa
+    except OSError:
+        return None, 0
+    for linha in linhas:
+        try:
+            registro = json.loads(linha)
+        except ValueError:
+            continue
+        mensagem = registro.get("message") if isinstance(registro, dict) else None
+        if not isinstance(mensagem, dict):
+            continue
+        if prompt is None and registro.get("type") == "user":
+            conteudo = mensagem.get("content")
+            prompt = conteudo if isinstance(conteudo, str) else " ".join(
+                str(c.get("text", "")) for c in conteudo if isinstance(c, dict)) if isinstance(conteudo, list) else ""
+        uso = mensagem.get("usage")
+        if registro.get("type") == "assistant" and isinstance(uso, dict):
+            usos[mensagem.get("id") or len(usos)] = sum(v for k in CHAVES_DE_USO if isinstance(v := uso.get(k), int))
+    return prompt, sum(usos.values())
+
+
+def transcritos_da_raiz(raiz):
+    """A pasta de transcritos do Claude Code da `raiz` (`~/.claude/projects/<caminho com / trocado por ->`), se existe; a dos
+    subagentes fica dentro dela, em `<sessão>/subagents/`."""
+    pasta = Path.home() / ".claude" / "projects" / re.sub(r"[^A-Za-z0-9-]", "-", str(Path(raiz).resolve()))
+    return [pasta] if pasta.is_dir() else []
+
+
+def tokens_por_item(pastas, raiz_pedidos):
+    """{(pedido, item): {"tokens": n, "agentes": k}} dos transcritos `*.jsonl` das `pastas` (busca recursiva): o brief citado no
+    primeiro pedido do agente dá o pedido (`Pedido:` ou o nome `<pedido>-<papel>-<n>`) e os itens (`Cobre:`); sem `Cobre:`, o item é
+    `-`. Os itens vêm do `Cobre:` e das citações do Entregar; agente que cobre vários itens divide os tokens entre eles (rateio).
+    Transcrito sem brief citado fica de fora (não é de item)."""
+    saida = {}
+    for pasta in pastas:
+        for arq in sorted(Path(pasta).glob("*/subagents/*.jsonl")) + sorted(Path(pasta).glob("subagents/*.jsonl")):
+            prompt, tokens = primeiro_pedido(arq)
+            nome = BRIEF_NO_PROMPT.search(prompt or "")
+            if not nome or not tokens:
+                continue
+            brief = ler_texto(raiz_pedidos / "docs" / "briefs" / f"{nome.group(1)}.md") or ""
+            pedido = re.search(r"^Pedido:\s*(\S+)", brief, re.M)
+            pedido = pedido.group(1).removesuffix(".md").rsplit("/", 1)[-1] if pedido else re.sub(r"-[a-z-]+-\d+$", "", nome.group(1))
+            cobre = COBRE.search(brief)
+            itens = list(dict.fromkeys(ITEM.findall(" ".join([cobre.group(1) if cobre else ""] + secao(brief, "Entregar")))))
+            for item in itens or ["-"]:
+                d = saida.setdefault((pedido, item), {"tokens": 0, "agentes": 0})
+                d["tokens"] += tokens // len(itens or ["-"])
+                d["agentes"] += 1
+    return saida
+
+
 def resumo(itens, conferencias):
     tempos = [i["pronto_ate_develop_h"] for i in itens if i["pronto_ate_develop_h"] is not None]
     tempos_main = [i["pronto_ate_main_h"] for i in itens if i["pronto_ate_main_h"] is not None]
@@ -311,11 +418,12 @@ def resumo(itens, conferencias):
             "voltas": sum(i["voltas"] for i in itens), "revalidacoes": sum(i["revalidacoes"] for i in itens),
             "suites": sum(i["suites"] for i in itens), "suites_falhas": sum(i["suites_falhas"] for i in itens),
             "espera_dono_min": round(sum(i["espera_dono_min"] for i in itens), 1),
-            "reprovacoes_por_classe": classes, "merito_declarado": meritos}
+            "reprovacoes_por_classe": classes, "merito_declarado": meritos,
+            "tokens": sum(i["tokens"] for i in itens if i.get("tokens") is not None) if any(i.get("tokens") is not None for i in itens) else None}
 
 
 def calcular(raiz, raiz_pedidos, pedidos=None, desde=None, ate=None, por="dia", fuso=None, agora=None,
-             develop="origin/develop", main="origin/main", usar_gh=False):
+             develop="origin/develop", main="origin/main", usar_gh=False, transcritos=None, recusas=None):
     """O dicionário completo das métricas (o que o `--json` imprime) e a lista de avisos."""
     fuso = fuso or datetime.datetime.now().astimezone().tzinfo
     agora = agora or datetime.datetime.now(fuso)
@@ -332,6 +440,9 @@ def calcular(raiz, raiz_pedidos, pedidos=None, desde=None, ate=None, por="dia", 
     conferencias, aviso = linhas_do_registro(raiz_pedidos)
     avisos += [aviso] if aviso else []
     conferencias = [c for c in conferencias if janela(datetime.datetime.fromisoformat(c["data"].replace(" ", "T")))]
+    variavel = [t for t in os.environ.get("FORGE_TRANSCRITOS", "").split(os.pathsep) if t]
+    pastas = [Path(t) for t in (transcritos or variavel)] or transcritos_da_raiz(raiz)
+    custos = tokens_por_item(pastas, raiz_pedidos) if pastas else None
     itens, por_pedido = [], []
     for nome in nomes:
         texto = ler_texto(pasta / f"{nome}.md") if ID_DE_PEDIDO.fullmatch(nome) and nome.strip(".") else None
@@ -339,10 +450,15 @@ def calcular(raiz, raiz_pedidos, pedidos=None, desde=None, ate=None, por="dia", 
             avisos.append(f"pedido {nome!r} ausente, fora de docs/pedidos/, link simbólico ou ilegível")
             continue
         doc = itens_do_pedido(nome, texto, fuso, chegadas, agora, usar_gh, janela)
+        for i in doc:
+            custo = custos.get((nome, i["item"])) if custos is not None else None
+            i["tokens"] = custo["tokens"] if custo else None
         itens += doc
         registro = [c for c in conferencias if c["pedido"].casefold() == nome.casefold()]
         if doc or registro:
             por_pedido.append({"pedido": nome, **resumo(doc, registro)})
+            if custos is not None:  # o pedido soma todos os agentes dele, também os de item sem linha no Histórico
+                por_pedido[-1]["tokens"] = sum(d["tokens"] for (p, _), d in custos.items() if p == nome) or None
     periodos = {}
     for i in itens:
         periodos.setdefault(periodo_de(i["periodo_base"], por), []).append(i)
@@ -356,7 +472,10 @@ def calcular(raiz, raiz_pedidos, pedidos=None, desde=None, ate=None, por="dia", 
                       for p in sorted(set(periodos) | set(conf_por_periodo))]
     for i in itens:
         i.pop("periodo_base")
-    return {"fontes": FONTES, "por": por, "itens": itens, "pedidos": por_pedido, "periodos": lista_periodos}, avisos
+    arquivos = [Path(r) for r in recusas] if recusas else arquivos_de_recusas(raiz)
+    portoes = esperas_por_portao(arquivos, lambda q: janela(q))
+    return {"fontes": FONTES, "por": por, "itens": itens, "pedidos": por_pedido, "periodos": lista_periodos,
+            "espera_por_portao": portoes if arquivos else None}, avisos
 
 
 def _n(valor):
@@ -374,7 +493,8 @@ def linhas_de_texto(dados):
         linha = (f"metricas: item {i['pedido']} {i['item']} pronto={i['pronto'] or '-'} develop_h={destino} "
                  f"main_h={_n(i['pronto_ate_main_h']) if i['main'] else ('aberto' if i['pronto'] else '-')} "
                  f"aberto_h={_n(i['aberto_h']) if i['aberto_h'] is not None else '-'} voltas={i['voltas']} "
-                 f"revalidacoes={i['revalidacoes']} suites={i['suites']} falhas={i['suites_falhas']} espera_dono_min={_n(i['espera_dono_min'])}")
+                 f"revalidacoes={i['revalidacoes']} suites={i['suites']} falhas={i['suites_falhas']} espera_dono_min={_n(i['espera_dono_min'])} "
+                 f"tokens={'-' if i.get('tokens') is None else i['tokens']}")
         if "ci" in i:
             linha += " ci=" + (f"{i['ci']['execucoes']}/{i['ci']['falhas']}" if isinstance(i["ci"], dict) else i["ci"])
         saida.append(linha)
@@ -384,9 +504,50 @@ def linhas_de_texto(dados):
                          f"(n={r['n_develop']}) main_h_p50={_n(r['pronto_ate_main_h_p50'])}(n={r['n_main']}) abertos={r['abertos']} "
                          f"voltas={r['voltas']} revalidacoes={r['revalidacoes']} suites={r['suites']} falhas={r['suites_falhas']} "
                          f"espera_dono_min={_n(r['espera_dono_min'])} reprovacoes={_contagem(r['reprovacoes_por_classe'])} "
-                         f"merito(declarada)={_contagem(r['merito_declarado'])}")
-    saida.append("metricas: fontes: " + "; ".join(f"{k}={v}" for k, v in FONTES.items()))
+                         f"merito(declarada)={_contagem(r['merito_declarado'])} tokens={'-' if r.get('tokens') is None else r['tokens']}")
+    portoes = dados.get("espera_por_portao")
+    if portoes is None:
+        saida.append("metricas: portao - (sem recusas.log: o hook agentes ainda não recusou nada ou a fonte falta)")
+    for portao, d in (portoes or {}).items():
+        saida.append(f"metricas: portao {portao} recusas={d['recusas']} espera_min={_n(d['espera_min'])}")
+    for plano, r in dados.get("prepush", {}).items():
+        saida.append(f"metricas: prepush plano={plano} envios={r['envios']} falhas={r['falhas']} p50_s={_n(r['p50_s'])} "
+                     f"max_s={_n(r['max_s'])}")
+    if "prepush" in dados and not dados["prepush"]:
+        saida.append("metricas: prepush nenhuma linha de duração nos logs")
+    fontes = {**FONTES, "prepush": "medida (linhas `pre-push: duracao` do log do envio)"} if "prepush" in dados else FONTES
+    saida.append("metricas: fontes: " + "; ".join(f"{k}={v}" for k, v in fontes.items()))
     return saida
+
+
+LINHA_DE_DURACAO = re.compile(r"pre-push: duracao inicio=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) "
+                              r"fim=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) plano=([a-z]{1,20}) rc=(\d{1,3})$")
+
+
+def duracoes_do_prepush(logs, desde=None, ate=None):
+    """F8: ({plano: {envios, falhas, p50_s, max_s}}, avisos) das linhas de duração do pre-push nos `logs` (caminhos).
+    A linha vale no fim de uma linha do log (prefixo de hora ou de marca do registrador é aceito); fim antes do início ou
+    fora do formato não conta. `desde` e `ate` filtram pela data do início (UTC)."""
+    por_plano, avisos = {}, []
+    for caminho in logs:
+        texto = ler_texto(Path(caminho))
+        if texto is None:
+            avisos.append(f"log do pre-push {caminho!r} ausente, link simbólico, ilegível ou grande demais")
+            continue
+        for linha in texto.splitlines():
+            achado = LINHA_DE_DURACAO.search(linha.rstrip())
+            if not achado:
+                continue
+            inicio, fim = (datetime.datetime.strptime(x, "%Y-%m-%dT%H:%M:%SZ") for x in achado.group(1, 2))
+            if fim < inicio or (desde and inicio.date() < desde) or (ate and inicio.date() > ate):
+                continue
+            por_plano.setdefault(achado.group(3), []).append(((fim - inicio).total_seconds(), int(achado.group(4))))
+    saida = {}
+    for plano, envios in sorted(por_plano.items()):
+        segundos = [s for s, _ in envios]
+        saida[plano] = {"envios": len(envios), "falhas": sum(1 for _, rc in envios if rc != 0),
+                        "p50_s": round(statistics.median(segundos), 1), "max_s": round(max(segundos), 1)}
+    return saida, avisos
 
 
 def cmd_metricas(raiz, raiz_pedidos, a):
@@ -401,7 +562,11 @@ def cmd_metricas(raiz, raiz_pedidos, a):
         return 2
     if agora is not None and agora.tzinfo is None:
         agora = agora.replace(tzinfo=fuso or datetime.datetime.now().astimezone().tzinfo)
-    dados, avisos = calcular(raiz, raiz_pedidos, a.pedido, desde, ate, a.por, fuso, agora, a.develop, a.main, a.gh)
+    dados, avisos = calcular(raiz, raiz_pedidos, a.pedido, desde, ate, a.por, fuso, agora, a.develop, a.main, a.gh,
+                             getattr(a, "transcritos", None), getattr(a, "recusas", None))
+    if getattr(a, "log_prepush", None):
+        dados["prepush"], mais = duracoes_do_prepush(a.log_prepush, desde, ate)
+        avisos += mais
     for aviso in avisos:
         print(f"metricas: aviso: {aviso}", file=sys.stderr)
     print(json.dumps(dados, ensure_ascii=False, indent=1) if a.json else "\n".join(linhas_de_texto(dados)))
