@@ -1,0 +1,126 @@
+{
+  "pedido": "v0440-decisoes",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "P1",
+      "guarda": "custo: a varredura de G pula o comum de uma vez",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if (m := _COMUNS_DE_G.match(linha, i)) is not None:",
+      "para": "        if (m := _COMUNS_DE_G.match(linha, i)) is None:",
+      "testes": [
+        "tests.test_hook_ansi_c.AtalhosDoLote"
+      ]
+    },
+    {
+      "id": "P2",
+      "guarda": "custo: o ansi_c copia o comum de uma vez",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if (m := _COMUNS_DO_ANSI_C.match(texto, i)) is not None:",
+      "para": "        if (m := _COMUNS_DO_ANSI_C.match(texto, i)) is None:",
+      "testes": [
+        "tests.test_hook_ansi_c.AtalhosDoLote"
+      ]
+    },
+    {
+      "id": "P3",
+      "guarda": "custo: o sinal da ficha pela pontuação constante",
+      "arquivo": "hooks/_comum.py",
+      "de": "set(tok) <= _PONTUACAO_DO_SHLEX",
+      "para": "set(tok) > _PONTUACAO_DO_SHLEX",
+      "testes": [
+        "tests.test_hook_ansi_c.AtalhosDoLote"
+      ]
+    },
+    {
+      "id": "P4",
+      "guarda": "custo: os heredocs pulam o comum de uma vez",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if (m := _COMUNS_DO_HEREDOC.match(comando, i)) is not None:",
+      "para": "        if (m := _COMUNS_DO_HEREDOC.match(comando, i)) is None:",
+      "testes": [
+        "tests.test_hook_ansi_c.AtalhosDoLote"
+      ]
+    },
+    {
+      "id": "P5",
+      "guarda": "custo: na crase, as aspas simples param no acento",
+      "arquivo": "hooks/_comum.py",
+      "de": "if nivel.tipo == \"crase\" else _DENTRO_DAS_SIMPLES",
+      "para": "if nivel.tipo != \"crase\" else _DENTRO_DAS_SIMPLES",
+      "testes": [
+        "tests.test_hook_ansi_c.AtalhosDoLote"
+      ]
+    },
+    {
+      "id": "P6",
+      "guarda": "custo: o leitor pula o comum de uma vez",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if (m := _COMUNS_DO_LEITOR.match(texto, i)) is not None:",
+      "para": "        if (m := _COMUNS_DO_LEITOR.match(texto, i)) is None:",
+      "testes": [
+        "tests.test_hook_ansi_c.AtalhosDoLote"
+      ]
+    },
+    {
+      "id": "P7",
+      "guarda": "custo: o lançador pelo nome guardado",
+      "arquivo": "hooks/_comum.py",
+      "de": "nome_do_caminho(base[inicio]) in LANCADORES",
+      "para": "nome_do_caminho(base[inicio]) not in LANCADORES",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    },
+    {
+      "id": "Q1",
+      "guarda": "custo: o forge-check pelo nome guardado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if nome_do_caminho(a) == \"forge-check\"]",
+      "para": "if nome_do_caminho(a) != \"forge-check\"]",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    },
+    {
+      "id": "Q2",
+      "guarda": "custo: o último nome que é link vai ao realpath inteiro",
+      "arquivo": "hooks/conformidade.py",
+      "de": "nome in (\"\", \".\", \"..\") or os.path.islink(caminho):",
+      "para": "nome in (\"\", \".\", \"..\"):",
+      "testes": [
+        "tests.test_hook_ansi_c.AtalhosDoLote"
+      ]
+    },
+    {
+      "id": "Q3",
+      "guarda": "custo: o próprio caminho é `.`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if posix == b:\n        return \".\"",
+      "para": "    if posix != b:\n        return \".\"",
+      "testes": [
+        "tests.test_hook_ansi_c.AtalhosDoLote"
+      ]
+    },
+    {
+      "id": "Q4",
+      "guarda": "custo: a raiz `/` já termina em barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "prefixo = b if b.endswith(\"/\") else b + \"/\"",
+      "para": "prefixo = b if not b.endswith(\"/\") else b + \"/\"",
+      "testes": [
+        "tests.test_hook_ansi_c.AtalhosDoLote"
+      ]
+    },
+    {
+      "id": "Q5",
+      "guarda": "custo: só o que está dentro da base",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return posix[len(prefixo):] if posix.startswith(prefixo) else None",
+      "para": "return posix[len(prefixo):] if not posix.startswith(prefixo) else None",
+      "testes": [
+        "tests.test_hook_ansi_c.AtalhosDoLote"
+      ]
+    }
+  ]
+}
