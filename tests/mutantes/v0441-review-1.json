@@ -1,0 +1,86 @@
+{
+  "pedido": "v0441-review",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "B1: os tipos só de leitura no papel leitura",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"leitura\": [\"Explore\", \"Plan\", \"claude-code-guide\", \"web-fetch\"],",
+      "para": "\"leitura\": [\"outro\"],",
+      "testes": [
+        "tests.test_v0441_review.TiposSoDeLeitura.test_nao_escrevem_por_bash_nem_por_ferramenta"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "B1: o conferente sem prefixo no papel conferente",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"conferente\": [\"forge:conferente\", \"conferente\"],",
+      "para": "\"conferente\": [\"forge:conferente\"],",
+      "testes": [
+        "tests.test_v0441_review.TiposSoDeLeitura.test_nao_escrevem_por_bash_nem_por_ferramenta"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "B1: statusline-setup exige selo",
+      "arquivo": "hooks/agentes.py",
+      "de": "TIPOS_SO_DE_LEITURA = frozenset({\"Explore\", \"Plan\", \"claude-code-guide\", \"web-fetch\"})",
+      "para": "TIPOS_SO_DE_LEITURA = frozenset({\"Explore\", \"Plan\", \"claude-code-guide\", \"web-fetch\", \"statusline-setup\"})",
+      "testes": [
+        "tests.test_selo_e_entrega.Hook.test_todo_tipo_que_escreve_pede_selo_e_so_leitura_segue_livre"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "S2: pedido fala sem --ler grava",
+      "arquivo": "hooks/conformidade.py",
+      "de": "and not (sub == \"pedido\" and so_le(args, \"--ler\")):",
+      "para": "and not (sub == \"pedido\"):",
+      "testes": [
+        "tests.test_v0441_review.GravacaoDoForgeCheckSoNaSessaoPrincipal.test_agente_nao_grava"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "S8: recado sem --confirmar grava",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif sub == \"recado\" and not so_le(args, \"--confirmar\"):",
+      "para": "elif sub == \"recado\" and so_le(args, \"--confirmar\"):",
+      "testes": [
+        "tests.test_v0441_review.GravacaoDoForgeCheckSoNaSessaoPrincipal.test_agente_nao_grava"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "S2/S8: abreviação do argparse",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return len(opcao) >= 3 and longa.startswith(opcao)",
+      "para": "return opcao == longa",
+      "testes": [
+        "tests.test_v0441_review.GravacaoDoForgeCheckSoNaSessaoPrincipal.test_agente_le"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "S2: pedido grava em docs/pedidos",
+      "arquivo": "hooks/conformidade.py",
+      "de": ", \"pedido\": \"docs/pedidos\"}",
+      "para": "}",
+      "testes": [
+        "tests.test_v0441_review.GravacaoDoForgeCheckSoNaSessaoPrincipal.test_agente_nao_grava"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "S8: .forge/recados é do jarvis",
+      "arquivo": "hooks/conformidade.json",
+      "de": "{\"caminho\": \".forge/recados/\", \"quem\": [\"jarvis\"]",
+      "para": "{\"caminho\": \".forge/recados/\", \"quem\": [\"jarvis\", \"dev\"]",
+      "testes": [
+        "tests.test_v0441_review.GravacaoDoForgeCheckSoNaSessaoPrincipal.test_agente_nao_grava"
+      ]
+    }
+  ]
+}

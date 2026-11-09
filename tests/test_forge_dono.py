@@ -58,6 +58,7 @@ class Resposta(Raiz):  # O4
                     escolhas, ambiguas = ler_resposta(opcoes_da_pergunta(literal), palavra)
                     self.assertEqual(escolhas, {})
                     self.assertTrue(ambiguas)
+                    self.assertEqual("é irreversível" in ambiguas[0], "[recomendada] 1b)" not in literal, ambiguas)
             self.assertEqual(ler_resposta(opcoes_da_pergunta(literal), "1a"), ({1: "a"}, []))
         self.assertEqual(ler_resposta(opcoes_da_pergunta("1a) fila [recomendada] [Reversivel] 1b) banco"), "ok"), ({1: "a"}, []))
 

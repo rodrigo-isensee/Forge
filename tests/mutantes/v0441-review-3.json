@@ -1,0 +1,56 @@
+{
+  "pedido": "v0441-review",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "upgrade: listas unidas",
+      "arquivo": "bin/forge-upgrade",
+      "de": "saida[chave] = base + [v for v in valor if v not in base]",
+      "para": "saida[chave] = base",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "O4: sem marca reversível a palavra solta não escolhe",
+      "arquivo": "bin/forge_dono.py",
+      "de": "elif \"reversivel\" not in marcas(",
+      "para": "elif \"reversivel\" in marcas(",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_palavra_solta_so_escolhe_a_marcada_reversivel"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "O4: marca sem acento",
+      "arquivo": "bin/forge_dono.py",
+      "de": "elif \"irreversivel\" in marcas(",
+      "para": "elif \"irreversível\" in marcas(",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_palavra_solta_so_escolhe_a_marcada_reversivel"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "X1: link recusado",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if arq.parent.is_symlink() or arq.parent.parent.is_symlink() or arq.is_symlink():",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_dono.Pausa.test_nao_grava_atraves_de_link"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "status: C1 filtrado",
+      "arquivo": "bin/forge-status",
+      "de": "[\\x00-\\x1f\\x7f-\\x9f]",
+      "para": "[\\x00-\\x1f\\x7f]",
+      "testes": [
+        "tests.test_forge_status.Status.test_controle_c1_vira_espaco"
+      ]
+    }
+  ]
+}

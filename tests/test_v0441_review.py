@@ -69,7 +69,8 @@ class GravacaoDoForgeCheckSoNaSessaoPrincipal(Projeto):
                     self.assertEqual(self.hook(tipo, "Bash", {"command": linha}).returncode, 2)
 
     def test_agente_le(self):
-        for linha in ("forge-check pedido fala --ler --pedido p", "forge-check recado --confirmar"):
+        for linha in ("forge-check pedido fala --ler --pedido p", "forge-check recado --confirmar", "forge-check pedido fala --le --pedido p",
+                      "forge-check recado --conf x.md"):
             with self.subTest(linha=linha):
                 self.assertEqual(self.hook("forge:node-backend", "Bash", {"command": linha}).returncode, 0)
 
