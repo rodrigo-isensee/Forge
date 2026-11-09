@@ -92,5 +92,22 @@
     "tests.test_decisor.Decisor.test_reverter_e_placar_no_metricas"
    ]
   }
+ ],
+ "isentas": [
+  {
+   "arquivo": "bin/forge_decisor.py",
+   "trecho": "not arq.is_file() or arq.is_symlink()",
+   "motivo": "registro ausente é o caso inicial (lido vazio); link é defesa de leitura sem cenário de teste"
+  },
+  {
+   "arquivo": "bin/forge_decisor.py",
+   "trecho": "isinstance(obj, dict)",
+   "motivo": "linha JSON que não é objeto só aparece escrita à mão; defesa de leitura"
+  },
+  {
+   "arquivo": "bin/forge_decisor.py",
+   "trecho": "arq.is_symlink() or arq.parent.is_symlink()",
+   "motivo": "defesa contra link na escrita; o O_NOFOLLOW já cobre o arquivo"
+  }
  ]
 }
