@@ -179,23 +179,36 @@ jobs:
       - name: Instala o Forge num projeto vazio e inicializa (Python 3.14)
         run: bash tests/e2e-instalacao.sh
 
-  bateria-python-tres-quatorze:
-    name: bateria (python 3.14)
-    # Agregador do check exigido: só passa com as 3 partes e a instalação no 3.14 em success e com a soma dos pulados das
-    # partes no teto_pulados de tests/config.json (T3). always(): falha, cancelamento
-    # ou pulo de um job necessário reprova este (um job pulado contaria como verde para a regra de proteção).
-    needs: [partes-quatorze, instalacao-quatorze]
-    if: always() && (github.event_name != 'push' || github.ref != 'refs/heads/develop')
+  pulados-doze:
+    name: teto de pulados (python 3.12)
+    # T3: a soma dos pulados das 3 partes (cada parte verde publica os dela) contra teto_pulados de tests/config.json,
+    # fora do agregador, que não roda código da branch.
+    needs: [partes-doze]
+    if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
-      - name: Partes e instalação verdes
-        env:
-          PARTES: ${{ needs.partes-quatorze.result }}
-          INSTALACAO: ${{ needs.instalacao-quatorze.result }}
-        run: |
-          echo "partes: $PARTES; instalação: $INSTALACAO"
-          [ "$PARTES" = success ] && [ "$INSTALACAO" = success ]
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Pulados das 3 partes (T3)
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: pulados-doze-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/pulados
+      - name: Teto de pulados na soma das partes (T3)
+        run: python3 scripts/suite-partes.py --somar-pulados 3 "$RUNNER_TEMP/pulados"
+
+  pulados-quatorze:
+    name: teto de pulados (python 3.14)
+    # T3: a soma dos pulados das 3 partes (cada parte verde publica os dela) contra teto_pulados de tests/config.json,
+    # fora do agregador, que não roda código da branch.
+    needs: [partes-quatorze]
+    if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
@@ -207,6 +220,25 @@ jobs:
           path: ${{ runner.temp }}/pulados
       - name: Teto de pulados na soma das partes (T3)
         run: python3 scripts/suite-partes.py --somar-pulados 3 "$RUNNER_TEMP/pulados"
+
+  bateria-python-tres-quatorze:
+    name: bateria (python 3.14)
+    # Agregador do check exigido: só passa com as 3 partes, o teto de pulados e a instalação no 3.14 em success.
+    # always(): falha, cancelamento
+    # ou pulo de um job necessário reprova este (um job pulado contaria como verde para a regra de proteção).
+    needs: [partes-quatorze, pulados-quatorze, instalacao-quatorze]
+    if: always() && (github.event_name != 'push' || github.ref != 'refs/heads/develop')
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Partes e instalação verdes
+        env:
+          PARTES: ${{ needs.partes-quatorze.result }}
+          PULADOS: ${{ needs.pulados-quatorze.result }}
+          INSTALACAO: ${{ needs.instalacao-quatorze.result }}
+        run: |
+          echo "partes: $PARTES; pulados: $PULADOS; instalação: $INSTALACAO"
+          [ "$PARTES" = success ] && [ "$PULADOS" = success ] && [ "$INSTALACAO" = success ]
 
   bateria:
     name: bateria (passos)
@@ -395,10 +427,10 @@ jobs:
 
   agregador:
     name: bateria
-    # Agregador do check exigido: só passa com os passos e as 3 partes da suíte no 3.12 em success e com a soma dos
-    # pulados das partes no teto_pulados de tests/config.json (T3). always(): falha,
+    # Agregador do check exigido: só passa com os passos, as 3 partes da suíte no 3.12 e o teto de pulados em success.
+    # always(): falha,
     # cancelamento ou pulo de um job necessário reprova este (um job pulado contaria como verde para a regra de proteção).
-    needs: [bateria, partes-doze]
+    needs: [bateria, partes-doze, pulados-doze]
     if: always() && (github.event_name != 'push' || github.ref != 'refs/heads/develop')
     runs-on: ubuntu-26.04
     timeout-minutes: 5
@@ -407,17 +439,7 @@ jobs:
         env:
           PASSOS: ${{ needs.bateria.result }}
           PARTES: ${{ needs.partes-doze.result }}
+          PULADOS: ${{ needs.pulados-doze.result }}
         run: |
-          echo "passos: $PASSOS; partes: $PARTES"
-          [ "$PASSOS" = success ] && [ "$PARTES" = success ]
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-      - name: Pulados das 3 partes (T3)
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: pulados-doze-*
-          merge-multiple: true
-          path: ${{ runner.temp }}/pulados
-      - name: Teto de pulados na soma das partes (T3)
-        run: python3 scripts/suite-partes.py --somar-pulados 3 "$RUNNER_TEMP/pulados"
+          echo "passos: $PASSOS; partes: $PARTES; pulados: $PULADOS"
+          [ "$PASSOS" = success ] && [ "$PARTES" = success ] && [ "$PULADOS" = success ]

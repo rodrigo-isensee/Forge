@@ -9,12 +9,14 @@ e a fiação do ci.yml (partes por versão e agregadores com o nome do check exi
 """
 import collections
 import importlib.util
+import json
 import os
 import re
 import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
@@ -182,6 +184,69 @@ class Brinquedo(unittest.TestCase):
                 self.assertEqual(self.roda(*args)[0].returncode, 2)
 
 
+class PuladosDasPartes(unittest.TestCase):
+    """T3: a parte verde grava os pulados em FORGE_SUITE_PULADOS; `--somar-pulados` soma as N contra `teto_pulados`."""
+
+    setUp, git, modulo, roda = Brinquedo.setUp, Brinquedo.git, Brinquedo.modulo, Brinquedo.roda
+
+    def partes(self, teto):
+        (self.dir / "tests" / "config.json").write_text(json.dumps({"teto_pulados": teto}))
+        self.modulo("b", 'self.skipTest("de propósito")')
+        self.pasta = Path(self._t.name) / "pulados"
+        for k in (1, 2, 3):
+            env_extra = {"FORGE_SUITE_PULADOS": str(self.pasta / f"parte-{k}.json")}
+            with unittest.mock.patch.dict(AMBIENTE, env_extra):
+                r, _ = self.roda("--parte", f"{k}/3", ci=True)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_parte_grava_e_a_soma_no_teto_passa(self):
+        self.partes(1)
+        dados = [json.loads(p.read_text()) for p in sorted(self.pasta.glob("*.json"))]
+        self.assertEqual(sorted(d["parte"] for d in dados), ["1/3", "2/3", "3/3"])
+        self.assertEqual(sum(d["pulados"] for d in dados), 1)
+        r, _ = self.roda("--somar-pulados", "3", str(self.pasta))
+        self.assertEqual((r.returncode, r.stdout.strip().splitlines()[-1]), (0, "OK (skipped=1)"), r.stderr)
+
+    def test_soma_acima_do_teto_ou_teto_ilegivel_reprova(self):
+        self.partes(0)
+        r, _ = self.roda("--somar-pulados", "3", str(self.pasta))
+        self.assertEqual((r.returncode, r.stdout.strip().splitlines()[-1]), (1, "FAILED (skipped=1 acima do teto 0)"))
+        self.assertIn("test_b.T.test_b", r.stderr)
+        (self.dir / "tests" / "config.json").write_text('{"teto_pulados": "1"}')
+        r, _ = self.roda("--somar-pulados", "3", str(self.pasta))
+        self.assertEqual((r.returncode, r.stdout.strip().splitlines()[-1]), (1, "FAILED (teto de pulados ilegível)"))
+
+    def test_parte_faltando_repetida_ou_adulterada_reprova(self):
+        self.partes(5)
+        um = self.pasta / "parte-1.json"
+        texto = um.read_text()
+        casos = {"faltando": lambda: um.unlink(),
+                 "repetida": lambda: (self.pasta / "outra.json").write_text(texto),
+                 "outro N": lambda: um.write_text(texto.replace("1/3", "1/4")),
+                 "contagem errada": lambda: um.write_text(json.dumps(dict(json.loads(texto), pulados=7))),
+                 "ilegível": lambda: um.write_text("{quebrado")}
+        for nome, estraga in casos.items():
+            with self.subTest(nome):
+                estraga()
+                r, _ = self.roda("--somar-pulados", "3", str(self.pasta))
+                self.assertEqual((r.returncode, r.stdout.strip().splitlines()[-1]), (1, "FAILED (pulados das partes)"),
+                                 r.stderr)
+                (self.pasta / "outra.json").unlink(missing_ok=True)
+                um.write_text(texto)
+        for args in (("--somar-pulados", "0", str(self.pasta)), ("--somar-pulados", "x", str(self.pasta))):
+            self.assertEqual(self.roda(*args)[0].returncode, 2)
+
+    def test_parte_vermelha_nao_grava(self):
+        self.modulo("a", "self.fail('de propósito')")
+        pasta, codigos = Path(self._t.name) / "vermelha", {}
+        for k in (1, 2, 3):
+            with unittest.mock.patch.dict(AMBIENTE, {"FORGE_SUITE_PULADOS": str(pasta / f"parte-{k}.json")}):
+                codigos[k] = self.roda("--parte", f"{k}/3", ci=True)[0].returncode
+        self.assertEqual(sorted(codigos.values()), [0, 0, 1])
+        for k, codigo in codigos.items():
+            self.assertEqual((pasta / f"parte-{k}.json").exists(), codigo == 0, k)
+
+
 class FiacaoDoCI(unittest.TestCase):
     """As partes por versão e os agregadores com o nome exato dos checks exigidos ("bateria", "bateria (python 3.14)")."""
 
@@ -207,8 +272,9 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertIn("fail-fast: false", bloco)
 
     def test_agregadores_tem_o_nome_exigido_e_exigem_todas_as_partes(self):
-        casos = {"agregador": ("bateria", {"bateria", "partes-doze"}),
-                 "bateria-python-tres-quatorze": ("bateria (python 3.14)", {"partes-quatorze", "instalacao-quatorze"})}
+        casos = {"agregador": ("bateria", {"bateria", "partes-doze", "pulados-doze"}),
+                 "bateria-python-tres-quatorze": ("bateria (python 3.14)",
+                                                  {"partes-quatorze", "pulados-quatorze", "instalacao-quatorze"})}
         for job, (nome, necessarios) in casos.items():
             with self.subTest(job):
                 bloco = self.jobs[job]
@@ -224,6 +290,19 @@ class FiacaoDoCI(unittest.TestCase):
         nomes = [self.nome(j) for j in self.jobs]
         self.assertEqual(nomes.count("bateria"), 1)
         self.assertEqual(nomes.count("bateria (python 3.14)"), 1)
+
+    def test_cada_parte_publica_os_pulados_e_um_job_soma_contra_o_teto(self):  # T3
+        for versao in ("doze", "quatorze"):
+            with self.subTest(versao):
+                parte = self.jobs[f"partes-{versao}"]
+                self.assertIn('FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json"', parte)
+                self.assertIn(f"name: pulados-{versao}-${{{{ matrix.parte }}}}", parte)
+                self.assertIn("if-no-files-found: error", parte)
+                soma = self.jobs[f"pulados-{versao}"]
+                self.assertRegex(soma, rf"(?m)^    needs: \[partes-{versao}\]$")
+                self.assertIn(f"pattern: pulados-{versao}-*", soma)
+                self.assertIn('python3 scripts/suite-partes.py --somar-pulados 3 "$RUNNER_TEMP/pulados"', soma)
+                self.assertIn("persist-credentials: false", soma)
 
     def test_a_suite_inteira_so_roda_nas_partes_e_na_rapida(self):
         for job, bloco in self.jobs.items():
