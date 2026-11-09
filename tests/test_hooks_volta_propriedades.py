@@ -131,9 +131,10 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         10 s do Claude Code liberá-la. O texto é `: <palavras>; <linha crítica direta>`.
 
         P3 da 0.43.1: os 3 s são de CPU do hook (`MedidaDeCpu`, filhos esperados), e não do relógio da chamada inteira,
-        que media 3,07 a 3,36 s no CI carregado sem o código mudar. A parede do próprio hook (de dentro do lançador,
-        sem a subida do interpretador) fica abaixo dos 10 s do Claude Code: com carga, quem a garante é o vigia de 3 s
-        de produção, que recusa com a regra."""
+        que media 3,07 a 3,36 s no CI carregado sem o código mudar. O hook roda com o vigia de decisão largo (o dos
+        testes, `producao=False`): com o de produção, a máquina carregada fazia o vigia de 3 s de relógio recusar antes
+        do teto, com outra mensagem. Caber em 3 s de CPU é a máquina livre decidir pelo teto antes do vigia; que o vigia
+        recusa antes dos 10 s do Claude Code, com carga, provam os `test_t_vigia_*`. A parede só vai à mensagem."""
         _comum, conformidade, parecer = modulos_dos_hooks()
         montados = self.modelos_montados()
         corpos = corpus_da_volta_unica()["corpos"]
@@ -149,13 +150,12 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
                 for hook in ("conformidade", "parecer"):
                     texto = f"{palavras}; {corpos[hook]}"
                     with self.subTest(tipo=tipo, tamanho=nome, hook=hook):
-                        codigo, erro, parede, cpu = self.decidir_medido(montados, hook, texto)
+                        codigo, erro, parede, cpu = self.decidir_medido(montados, hook, texto, producao=False)
                         pior = max(pior, cpu)
                         self.assertEqual(codigo, 2, f"{codigo}: {erro.strip()}")
                         self.assertRegex(erro, r"^R-[A-Z]+: ")
                         medida = f"{len(texto)} caracteres: CPU {cpu:.2f} s, parede do hook {parede:.2f} s"
                         self.assertLess(cpu, 3.0, medida)
-                        self.assertLess(parede, PRAZO_DO_CLAUDE_CODE_S, medida)
                         if n != 1000:  # `:`, o corpo e as palavras passam de 5 mil: quem recusa é o teto, não a regra do corpo
                             self.assertRegex(erro, "o teto é|linha longa demais")  # o 2.o: o teto antigo do conformidade
         print(f"\n[T] pior CPU de decisão: {pior:.2f} s", file=sys.stderr)
@@ -174,10 +174,11 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
                     _comum.separar_lancadores([p or "" for p in palavras])
                 self.assertLess(medida.cpu, 2.0, f"{nome}: {medida.texto()}")
 
-    def decidir_medido(self, montados, hook, texto, subida=0, **como):
+    def decidir_medido(self, montados, hook, texto, subida=0, producao=True, **como):
         """(código, stderr, parede do hook, CPU do processo) do hook real sobre `texto`: a parede vem de dentro do lançador
         (sem a subida do interpretador), a CPU, de `MedidaDeCpu`; sem o prazo de 10 s do Claude Code a matar o hook.
-        `subida`: segundos de espera antes de o lançador começar, a fila da máquina carregada na subida do interpretador."""
+        `subida`: segundos de espera antes de o lançador começar, a fila da máquina carregada na subida do interpretador.
+        `producao`: o vigia de decisão de produção (3 s); False, o largo dos testes."""
         self.assertNotEqual(LANCADOR_MEDIDO, test_hooks.LANCADOR, "o lançador medido tem a medida")
         lancador = LANCADOR_MEDIDO.replace("import os, runpy, sys, time", f"import os, runpy, sys, time\ntime.sleep({float(subida)!r})")
         raiz, entrada, proc = montados[hook]
@@ -187,7 +188,7 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         self.addCleanup(shutil.rmtree, medida.parent, ignore_errors=True)
         extra = {"FORGE_NPROC": "8", "FORGE_MEDIDA_DO_HOOK": str(medida)}
         with mock.patch.object(test_hooks, "LANCADOR", lancador), MedidaDeCpu() as gasto:
-            r = test_hooks.rodar(hook, entrada, raiz, proc, extra, producao=True, **como)
+            r = test_hooks.rodar(hook, entrada, raiz, proc, extra, producao=producao, **como)
         return r.returncode, r.stderr, float(medida.read_text(encoding="utf-8")), gasto.cpu
 
     def test_a_subida_lenta_do_interpretador_nao_conta_na_parede_do_hook(self):  # L31: load alto, o teste passa
