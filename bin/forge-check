@@ -8120,6 +8120,10 @@ def bloco_de_citacoes(raiz, citar):
     return saida
 
 
+ETAPAS_DE_PARECER = ("review", "seguranca", "qa")  # as do hook `agentes` (Z10): o parecer não escreve a branch
+LINHA_DE_PARALELO = "- paralelo na mesma branch: parecer, lê a branch sem escrever nela (Z10)"
+
+
 def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, cobre=None, citar=None):
     """Blocos fixos do brief a partir do pedido e da branch; o que o Jarvis ainda decide fica em `PREENCHER`. Com `volta`
     (o namespace dos argumentos, com `--volta`), o brief da volta: `gerar_volta`. `cobre` (P2) é a etapa do pedido que o brief
@@ -8190,6 +8194,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     saida += [f"- {PREENCHER}: {linha}" for linha, reprova in cobradas["avisos"] if reprova]
     erros, _ = erros_do_destino(raiz, destino)  # o aviso do registro já saiu em `lembrar_do_jarvis`
     saida += erros
+    if etapa in ETAPAS_DE_PARECER:  # Z10: o parecer lê a branch e roda junto da escrita (hook `agentes`, AG-1b)
+        saida.append(LINHA_DE_PARALELO)
     if citar:
         saida += bloco_de_citacoes(raiz, citar)
     saida += ["", "## Fora do escopo (outras etapas do pedido, sem a marca; R-BRIEF)"]
