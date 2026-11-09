@@ -52,7 +52,7 @@ def linhas(raiz, maximo):
         ultimo = historico[-1] if historico else ("", "--:--", "sem histórico")
         if coluna not in FECHADAS:
             pr = f" · PR #{prs[-1]}" if prs else ""
-            texto_ = re.sub(r"[\x00-\x1f\x7f]", " ", ultimo[2])[:CORTE]
+            texto_ = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", ultimo[2])[:CORTE]  # C0, DEL e C1 (review da 0.44.1)
             pedidos.append((ultimo[0] + ultimo[1], f"{arq.stem} · {coluna}{pr} · {ultimo[1]} {texto_}"))
     pedidos.sort(reverse=True)
     saida = [linha for _, linha in pedidos[:maximo]] or ["forge: nenhum pedido em curso"]

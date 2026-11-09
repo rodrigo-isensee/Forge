@@ -2,9 +2,9 @@
 
 Importado pelo `bin/forge-check` só quando um destes roda:
 - `decisoes --pedido P --resposta "1a 2c"` (O4): a resposta curta do dono lida contra a última `PERGUNTA AO DONO` do pedido.
-  Opções `1a)`, `1b)`...; `[recomendada]` e `[irreversível]` no texto da opção. Vocabulário fechado: os códigos da pergunta e as
-  palavras de PALAVRAS (aprova a recomendada de cada questão sem código). O ambíguo volta como pergunta (rc 1), e a palavra
-  solta nunca vale para opção irreversível. Só lê: o Jarvis grava a decisão com `forge-check anotar`.
+  Opções `1a)`, `1b)`...; `[recomendada]` e `[reversível]` ou `[irreversível]` no texto da opção (com ou sem acento, qualquer
+  caixa). Vocabulário fechado: os códigos da pergunta e as palavras de PALAVRAS (aprova a recomendada marcada `[reversível]` de
+  cada questão sem código). O ambíguo volta como pergunta (rc 1); a palavra solta nunca vale para opção irreversível nem sem marca. Só lê: o Jarvis grava a decisão com `forge-check anotar`.
 - `pedido fala --gravar|--ler --pedido P` (S2): as palavras do dono, literais, com sha256, em docs/pedidos/<P>/fala-<stamp>.md;
   gravar não amplia autorização (o registro diz isso) e ler confere o hash de cada fala.
 - `recado --para RAIZ --texto T` e `recado --confirmar [ARQ]` (S8): texto entre sessões em <RAIZ>/.forge/recados/, com
@@ -18,6 +18,7 @@ import json
 import os
 import re
 import time
+import unicodedata
 from pathlib import Path
 
 PALAVRAS = frozenset({"aprovo", "aprovado", "aprovada", "sim", "ok"})  # O4: a palavra solta aprova a recomendada
@@ -63,6 +64,23 @@ def _gravar_novo(pasta, prefixo, conteudo):
     raise OSError("cem arquivos no mesmo segundo")
 
 
+def _gravar_seguro(arq, conteudo):
+    """X1 (review da 0.44.1): grava `arq` sem seguir link (nem na pasta nem no arquivo): escreve num temporário novo da mesma pasta
+    (O_CREAT|O_EXCL|O_NOFOLLOW, 0600) e o troca de lugar com os.replace, que substitui o próprio link, nunca o alvo dele."""
+    if arq.parent.is_symlink() or arq.parent.parent.is_symlink() or arq.is_symlink():
+        raise OSError(f"{arq.name} ou a pasta dele é link simbólico")
+    arq.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    temp = arq.with_name(f".{arq.name}.{os.getpid()}.tmp")
+    fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(conteudo)
+        os.replace(temp, arq)
+    except BaseException:
+        temp.unlink(missing_ok=True)
+        raise
+
+
 def _ler_registro(arq):
     """({campo: valor} do cabeçalho, corpo) de uma fala ou recado: cabeçalho até a primeira linha vazia."""
     cabecalho, _, corpo = arq.read_text(encoding="utf-8").partition("\n\n")
@@ -80,9 +98,16 @@ def opcoes_da_pergunta(literal):
     return questoes
 
 
+def marcas(texto):
+    """O4 (review da 0.44.1): as marcas `[...]` da opção, sem acento e em minúsculas (`[Irreversivel]` é `irreversivel`)."""
+    sem_acento = "".join(c for c in unicodedata.normalize("NFKD", texto) if not unicodedata.combining(c))
+    return {m.strip().lower() for m in re.findall(r"\[([^\[\]]{1,40})\]", sem_acento)}
+
+
 def ler_resposta(questoes, resposta):
     """(escolhas {questão: letra}, ambiguidades [texto]). Fora do vocabulário, código que não existe, duas opções para a mesma
-    questão, palavra solta sem recomendação única ou sobre opção irreversível: ambiguidade."""
+    questão, palavra solta sem recomendação única, sobre opção irreversível ou sem a marca `[reversível]` (com ou sem acento, em
+    qualquer caixa): ambiguidade. A palavra solta só escolhe a recomendada marcada reversível; o resto, só o código."""
     escolhas, ambiguas, solta = {}, [], False
     for token in filter(None, re.split(r"[\s,;.]+", resposta.lower())):
         codigo = CODIGO.fullmatch(token)
@@ -98,8 +123,10 @@ def ler_resposta(questoes, resposta):
         recomendadas = [l for l, texto in questoes[n].items() if "[recomendada]" in texto]
         if len(recomendadas) != 1:
             ambiguas.append(f"a questão {n} não tem uma recomendada só: responda com o código")
-        elif "[irreversível]" in questoes[n][recomendadas[0]]:
+        elif "irreversivel" in marcas(questoes[n][recomendadas[0]]):
             ambiguas.append(f"a questão {n} é irreversível: a palavra solta não vale, responda com o código")
+        elif "reversivel" not in marcas(questoes[n][recomendadas[0]]):
+            ambiguas.append(f"a questão {n} não marca a recomendada como [reversível]: a palavra solta não vale, responda com o código")
         else:
             escolhas[n] = recomendadas[0]
     return escolhas, ambiguas
@@ -226,10 +253,13 @@ def cmd_pausa(raiz, a, ctx):
         if not a.onde.strip() or alvo - agora > ESPERA_MAXIMA:
             print("pausa: --onde (onde parou) é obrigatório e a retomada fica em até 24 h; nada gravado")
             return 2
-        arq.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         dados = {"motivo": "limite de uso (Q1)", "gravada": agora.isoformat(timespec="minutes"),
                  "retoma_em": alvo.isoformat(timespec="minutes"), "onde": a.onde.strip()[:500], "pedido": a.pedido}
-        arq.write_text(json.dumps(dados, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        try:
+            _gravar_seguro(arq, json.dumps(dados, ensure_ascii=False, indent=1) + "\n")
+        except OSError as e:
+            print(f"pausa: não gravei .forge/pausa.json ({ctx['seguro'](str(e))[:160]}); nada gravado")
+            return 2
         print(f"pausa: gravada; retoma em {dados['retoma_em']}; `forge-check pausa --retomar --esperar` em segundo plano retoma sozinho")
         return 0
     try:

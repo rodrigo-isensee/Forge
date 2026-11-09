@@ -40,6 +40,13 @@ class Status(unittest.TestCase):
         self.assertEqual(linhas, ["p2 · Em andamento · PR #15 · 12:30 PR #15 aberto [31m vermelho",
                                   "p1 · Aguardando o dono · 11:00 pergunta ao dono sobre a fila"])
 
+    def test_controle_c1_vira_espaco(self):
+        """Review da 0.44.1: o C1 (\\x80-\\x9f; o \\x9b é o CSI de 8 bits, o \\x85 quebra linha) sai como espaço, como o C0."""
+        self.pedido("p2", "- 2026-11-09 12:30: PR #15\x9b31m vermelho\x85falso\n")
+        cod, linhas = self.rodar("--raiz", str(self.tmp), "--max", "1")
+        self.assertEqual(cod, 0)
+        self.assertEqual(linhas, ["p2 · Em andamento · PR #15 · 12:30 PR #15 31m vermelho falso", "+1"])
+
     def test_raiz_pela_opcao_ou_pelo_cwd_do_json_e_o_maximo(self):
         self.pedido("p4", "sem histórico datado\n")
         cod, linhas = self.rodar("--raiz", str(self.tmp), "--max", "1")

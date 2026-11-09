@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho ta
 from test_voltas import FORGE_CHECK, Raiz  # noqa: E402
 
 PERGUNTA = ('# p\n\n## Decisões do usuário (registro literal)\nPERGUNTA AO DONO (2026-11-09 10:00): duas questões → '
-            '"1a) usar a fila [recomendada] 1b) usar o banco 2a) apagar a branch velha [recomendada] [irreversível] 2b) manter"\n')
+            '"1a) usar a fila [recomendada] [reversível] 1b) usar o banco 2a) apagar a branch velha [recomendada] [irreversível] 2b) manter"\n')
 VERSAO = json.loads((Path(FORGE_CHECK).parent.parent / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
 
 
@@ -42,8 +42,24 @@ class Resposta(Raiz):  # O4
         self.assertTrue(any(l.startswith("pergunta: 2) 2a) apagar") for l in linhas), linhas)
         cod, linhas, _ = self.resposta("2a, aprovo")
         self.assertEqual(cod, 0, linhas)
-        self.assertEqual(linhas[:2], ["resposta: 1 -> 1a: usar a fila [recomendada]",
+        self.assertEqual(linhas[:2], ["resposta: 1 -> 1a: usar a fila [recomendada] [reversível]",
                                       "resposta: 2 -> 2a: apagar a branch velha [recomendada] [irreversível]"])
+
+    def test_palavra_solta_so_escolhe_a_marcada_reversivel(self):
+        """O4 (review da 0.44.1): a marca vale com ou sem acento e em qualquer caixa; sem marca, a palavra solta não escolhe; o código
+        explícito escolhe sempre."""
+        sys.path.insert(0, str(Path(FORGE_CHECK).parent))
+        from forge_dono import ler_resposta, opcoes_da_pergunta  # noqa: PLC0415
+        for literal in ("1a) force push na main [recomendada] [irreversivel] 1b) manter",
+                        "1a) force push na main [recomendada] [IRREVERSÍVEL] 1b) manter",
+                        "1a) apagar a branch main [recomendada] 1b) manter"):
+            for palavra in ("aprovo", "ok"):
+                with self.subTest(literal=literal, palavra=palavra):
+                    escolhas, ambiguas = ler_resposta(opcoes_da_pergunta(literal), palavra)
+                    self.assertEqual(escolhas, {})
+                    self.assertTrue(ambiguas)
+            self.assertEqual(ler_resposta(opcoes_da_pergunta(literal), "1a"), ({1: "a"}, []))
+        self.assertEqual(ler_resposta(opcoes_da_pergunta("1a) fila [recomendada] [Reversivel] 1b) banco"), "ok"), ({1: "a"}, []))
 
     def test_ambigua_volta_como_pergunta(self):
         for texto, motivo in (("pode", "`pode` fora do vocabulário"), ("1c", "o código 1c não existe"), ("3a", "o código 3a não existe"),
@@ -55,7 +71,7 @@ class Resposta(Raiz):  # O4
                 self.assertIn("volta ao dono como pergunta", linhas[0])
 
     def test_sem_recomendada_unica_a_palavra_solta_nao_vale(self):
-        self.gravar("docs/pedidos/xpto.md", PERGUNTA.replace(" [recomendada] 1b)", " 1b)"))
+        self.gravar("docs/pedidos/xpto.md", PERGUNTA.replace(" [recomendada] [reversível] 1b)", " 1b)"))
         cod, linhas, _ = self.resposta("sim 2b")
         self.assertEqual(cod, 1)
         self.assertIn("a questão 1 não tem uma recomendada só", linhas[0])
@@ -194,6 +210,20 @@ class Pausa(Raiz):  # X1
         self.assertEqual(linhas, ["pausa: cota renovada; retome: selar o brief do E2", "pausa: próximo passo: `forge-check proximo xpto`"])
         self.assertFalse((self.tmp / ".forge" / "pausa.json").exists(), "a pausa retomada não vale de novo")
         self.assertEqual(self.rodar("pausa", "--retomar")[1], ["pausa: nenhuma pausa gravada em .forge/pausa.json"])
+
+    def test_nao_grava_atraves_de_link(self):
+        """X1 (review da 0.44.1): `.forge/pausa.json` (ou `.forge`) como link não leva a gravação para o alvo."""
+        alvo = self.tmp / "alvo.txt"
+        alvo.write_text("intacto\n", encoding="utf-8")
+        (self.tmp / ".forge").mkdir(exist_ok=True)
+        (self.tmp / ".forge" / "pausa.json").symlink_to(alvo)
+        self.assertEqual(self.rodar("pausa", "--gravar", "--retoma-em", self.hora(30), "--onde", "x")[0], 2)
+        self.assertEqual(alvo.read_text(encoding="utf-8"), "intacto\n")
+        (self.tmp / ".forge" / "pausa.json").unlink()
+        (self.tmp / ".forge").rename(self.tmp / "forge-real")
+        (self.tmp / ".forge").symlink_to(self.tmp / "forge-real")
+        self.assertEqual(self.rodar("pausa", "--gravar", "--retoma-em", self.hora(30), "--onde", "x")[0], 2)
+        self.assertFalse((self.tmp / "forge-real" / "pausa.json").exists())
 
     def test_esperar_retoma_sozinho_na_hora(self):
         alvo = (datetime.datetime.now() + datetime.timedelta(seconds=2)).isoformat(timespec="seconds")

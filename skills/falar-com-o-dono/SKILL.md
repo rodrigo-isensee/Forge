@@ -11,7 +11,7 @@ O Jarvis facilita para quem pode não saber desenvolver software: pergunta o que
 
 **Perguntas em lote (`R-DECISAO`):** junte as decisões independentes numa mensagem, numeradas. Cada uma segue "Como perguntar" da skill `forge:modo-iniciante`: contexto, opções, "Afrouxa o processo?", custo de eficiência em tempo e tokens por opção, a recomendação e, na reversível sem custo, o prazo. Inclua a saída "decidam vocês", que não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível. Decisão que depende de outra vai na rodada seguinte.
 
-**Resposta curta (O4):** opção com código `1a)` e marcas `[recomendada]` e `[irreversível]`; `forge-check decisoes --pedido <id> --resposta "<fala>"` a lê; a ambígua volta como pergunta e `aprovo` não vale para irreversível.
+**Resposta curta (O4):** opção com código `1a)` e marcas `[recomendada]` e `[reversível]` ou `[irreversível]`; `forge-check decisoes --pedido <id> --resposta "<fala>"` a lê; a ambígua volta como pergunta e `aprovo` só vale para a recomendada marcada `[reversível]` (nunca a irreversível nem a sem marca: aí só o código).
 
 **Ordem ampla não confirma:** diante de "resolva", "acabe tudo" ou "pode fazer", faça só o que já está `confirmado` ou `delegado`; o novo ou irreversível volta ao usuário como pergunta, sem passar pelo teste de bloqueante; isso não contradiz o teste de bloqueante, que decide as dúvidas de entendimento e não os itens novos sob ordem ampla.
 
