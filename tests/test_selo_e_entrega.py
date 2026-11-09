@@ -142,6 +142,15 @@ class Gerar(Repositorio):
         self.assertNotIn("regra geral A", saida)  # vale pela referência, sem cópia
         self.assertIn("- arquivos: PREENCHER", saida)
 
+    def test_etapa_com_prefixo_do_plugin_e_do_mesmo_papel(self):
+        """Pedido que escreve `(forge:tech-lead)` na etapa: o `--cobre` aceita o destino `forge:tech-lead` (antes: `é de forge:tech-lead,
+        não de tech-lead`)."""
+        self.gravar("docs/pedidos/exemplo.md", PEDIDO.replace("E1.2 (tech-lead)", "E1.2 (forge:tech-lead, outra instância)"))
+        rc, saida = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:tech-lead", "--cobre", "E1.2",
+                               "--etapa", "review")
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(fc.ler_pedido_brief(self.pedido())["etapas"]["E1.2"][0], "tech-lead")
+
     def test_hash_muda_com_decisao_nova_e_nao_com_historico(self):
         cobradas = lambda t: fc.decisoes_cobradas(self.proj, self.proj / "docs/pedidos/exemplo.md", t)  # noqa: E731
         antes = fc.hash_das_decisoes(cobradas(PEDIDO))

@@ -3910,7 +3910,7 @@ def falhas_de_autorrelato(raiz, dias=JANELA_DE_RECORRENCIA, agora=None):
                 continue
         except OSError:
             continue
-        texto, _ = ler_registro(raiz, f"docs/pedidos/{pedido}.md")
+        texto, _ = ler_registro(raiz, f"docs/pedidos/{pedido}.md", bases=bases)  # as raízes de cima: sem um `git` por pedido
         secao = None
         for n, linha_ in enumerate((texto or "").split("\n"), 1):
             if linha_.startswith("## "):
@@ -6332,7 +6332,7 @@ def ler_pedido_brief(texto):
     marcas = list(ETAPA_DO_PEDIDO.finditer(corpo))
     for i, m in enumerate(marcas):
         fim = marcas[i + 1].start() if i + 1 < len(marcas) else len(corpo)
-        papel = m.group(4).split(",")[0].strip().lower()
+        papel = nome_do_papel(m.group(4).split(",")[0])  # `(forge:tech-lead)` é o mesmo papel de `(tech-lead)`
         etapas[f"E{m.group(1)}.{m.group(2)}{m.group(3)}"] = (papel, corpo[m.start():fim].strip(" -"))
     etapas = dict(sorted(etapas.items(), key=lambda par: ordem_do_id(par[0])))
     decisoes = [l.strip() for l in texto.splitlines() if e_linha_de_decisao(l)]
