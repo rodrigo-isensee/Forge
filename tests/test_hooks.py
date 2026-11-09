@@ -2238,6 +2238,16 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 4 * len(CARTOES_DA_TRILHA_034), "as fixtures da trilha")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_n2(self):  # IMPL-FURO-HOOK-N, N2: a descrição abre com o item, para a mutação
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N2 (")]
+        self.assertGreaterEqual(len(lote), 28, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_do_n5(self):  # IMPL-FURO-HOOK-N, N5: a descrição abre com o item, para a mutação
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N5 (")]
+        self.assertGreaterEqual(len(lote), 34, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_corpo_da_crase_como_o_bash_e_como_a_leitura_antiga(self):  # SEGMENTO-CRASE-HOOK
         _comum, _, _ = modulos_dos_hooks()
         self.assertEqual(_comum.conteudos_de_crase(r"echo `a \\$(b) \`c\``"), [r"a \$(b) `c`", r"a \\$(b) `c`"])
