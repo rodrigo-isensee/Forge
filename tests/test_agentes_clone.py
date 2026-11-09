@@ -129,6 +129,41 @@ class RegistroNoClone(ClonePronto):
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("já há um agente", r.stderr)
 
+    def recusas(self):
+        arq = self.comum / "recusas.log"
+        return arq.read_text(encoding="utf-8").splitlines() if arq.exists() else []
+
+    def test_recusa_do_teto_e_do_duplicado_deixa_linha_em_recusas_log(self):  # RN-6 (0.43.3)
+        self.assertEqual(self.lancar(self.clone, descricao="segredo-da-descricao").returncode, 0)
+        self.assertEqual(self.lancar(self.clone, descricao="segredo-da-descricao").returncode, 2)
+        self.semear(2)
+        self.assertEqual(self.lancar(self.clone, nproc=2).returncode, 2)
+        linhas = self.recusas()
+        self.assertEqual(len(linhas), 2, linhas)
+        self.assertRegex(linhas[0], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2} agentes R-TETO mem_gb=- nproc=- ativos=1 motivo=duplicado$")
+        self.assertRegex(linhas[1], r" agentes R-TETO mem_gb=8\.00 nproc=2 ativos=2 motivo=teto$")
+        self.assertNotIn("segredo", "".join(linhas))  # nunca a descrição do disparo
+
+    def test_recusa_por_memoria_e_registrada_e_liberacao_nao(self):  # RN-6 (0.43.3)
+        self.assertEqual(self.lancar(self.clone).returncode, 0)
+        self.assertEqual(self.recusas(), [])
+        pasta = self.tmp / "pouca"
+        pasta.mkdir()
+        entrada = {"hook_event_name": "PreToolUse", "session_id": "s", "cwd": str(self.clone), "tool_name": "Agent",
+                   "tool_input": {"subagent_type": "time:x", "description": "outra", "prompt": "p"}}
+        r = rodar_hook("agentes", entrada, self.clone, montar_proc(pasta, mem_gb=0.5), {"FORGE_NPROC": "4"})
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertRegex(self.recusas()[-1], r" mem_gb=0\.50 nproc=4 ativos=1 motivo=memoria$")
+
+    def test_recusas_log_que_e_link_nao_e_seguido_e_a_recusa_segue(self):  # RN-6: O_NOFOLLOW, falha calada
+        self.semear(2)
+        alvo = self.tmp / "alvo.txt"
+        alvo.write_text("", encoding="utf-8")
+        (self.comum / "recusas.log").symlink_to(alvo)
+        r = self.lancar(self.clone, nproc=2)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertEqual(alvo.read_text(encoding="utf-8"), "")
+
     def test_erro_interno_no_clone_deixa_linha_no_erros_log(self):
         self.comum.mkdir(parents=True)
         self.estado.write_text("{truncado", encoding="utf-8")

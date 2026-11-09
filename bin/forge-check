@@ -4026,6 +4026,20 @@ def _autor_padrao(modo):
     return "jarvis" if modo == "brief" else "destino"
 
 
+def veredito_ja_registrado(arq, pedido, brief, modo, rodada):
+    """True se docs/kanban/conferencias.md já tem a linha de `pedido`, `brief`, `modo` e `rodada` (EJ 72/78: o mesmo veredito
+    gravado duas vezes conta dobrado no placar e na recorrência). Arquivo ausente ou ilegível: False (o registro cria ou recusa)."""
+    try:
+        texto = arq.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    for linha in texto.splitlines():
+        c = [x.strip() for x in linha.strip().strip("|").split("|")]
+        if len(c) >= 5 and c[1] == pedido and c[2] == brief and c[3] == modo and c[4] == str(rodada):
+            return True
+    return False
+
+
 def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, merito, nota, classe=None, autor=None, tardio=None):
     """Registra uma conferência em docs/kanban/conferencias.md (S-18): linha de 10 colunas no formato do cabeçalho (as 8 de antes mais
     `classe` e `autor`, OK-7), hora real `AAAA-MM-DD HH:MM`. Só acrescenta; cria o arquivo com o cabeçalho se faltar; linhas antigas
@@ -4067,6 +4081,8 @@ def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, meri
     arq = raiz / "docs" / "kanban" / "conferencias.md"
     if arq.is_symlink():
         return ["conferencia: docs/kanban/conferencias.md é link simbólico; não escrevo através dele"]
+    if veredito_ja_registrado(arq, pedido, brief, modo, int(rodada)):  # 0.43.3: EJ 72/78, a guarda em texto não foi usada
+        return ["conferencia: já há veredito deste --pedido, --brief, --modo e --rodada no registro; a rodada nova usa --rodada seguinte"]
     hora = datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
     linha = f"| {hora} | {pedido} | {brief} | {modo} | {int(rodada)} | {resultado} | {merito} | {nota} | {classe} | {autor} |\n"
     acrescentar_ao_arquivo(arq, linha, CABECALHO_CONFERENCIAS)
@@ -7918,10 +7934,69 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     linhas += linha_do_comando_pr(texto)
     copias = {chave_da_decisao(COPIADA_DE.sub("", linha)) for _, linhas_da_fonte in cobradas["fontes"] for _, linha in linhas_da_fonte}
     linhas += conferir_citacoes(raiz, texto, secoes_por(texto, CABECALHO_BRIEF), ler_pedido_brief(pedido_txt), copias, pedido_id)
-    linhas += [(a, False) for a in avisos_do_historico(pedido_txt) + aviso_de_recibo(pedido_txt)]
+    linhas += [(a, not a.startswith("aviso:")) for a in avisos_do_historico(pedido_txt) + aviso_de_recibo(pedido_txt)]
+    linhas += travas_dos_evals(texto, secoes_por(texto, CABECALHO_BRIEF), pedido_id)
     if re.search(r"^Volta-de:", texto, re.M):  # brief de volta (M7): o anterior, os blocos copiados e os achados dos pareceres
         linhas += conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, pareceres, cobradas)
     return pedido_id, linhas
+
+
+NAO_TOCAR = re.compile(r"\bn[ãa]o (?:toque|tocar|mexa)\b", re.I)
+BRANCH_CITADA_NO_BRIEF = re.compile(r"\bmelhoria/([\w.-]+)")
+WORKTREE_CITADA = re.compile(r"\.forge-contrib/wt/([\w.-]+)")
+CONDICIONAL = re.compile(r"\bse (?:couber|der|sobrar)\b|\bcaso caiba\b", re.I)
+COMMIT_DO_HEAD = re.compile(r"\bcommit:.*\brev-parse\s+HEAD\b|\brev-parse\s+HEAD\b.*\bcommit:", re.I)
+TMP_PROPRIO = ("claude-",)  # a pasta de rascunho da sessão (/tmp/claude-<uid>/...): o PQ que a cita cai na regra do EJ 96
+TMP_CITADO = re.compile(r"(?<![\w.~$-])/tmp/([\w.@+-]+)(/[\w.@+/-]*)?")
+
+
+def nome_de_worktree_da_branch(nome, curto):
+    """O nome da worktree divide uma palavra com a branch (sem o prefixo), inteira ou abreviada de 3 letras ou mais: os nomes
+    são livres (`wt-rev-suite-local` para `suite-local-verde`, `wt-rel-0300` para `release-0.30.0`)."""
+    da_branch = [p for p in re.split(r"[-_./]", curto) if p]
+    return any(p == b or (len(p) >= 3 and b.startswith(p)) for p in re.split(r"[-_.]", nome) if p for b in da_branch)
+
+
+def travas_dos_evals(texto, secoes, pedido_id):
+    """0.43.3 (time-aprende): erros de forma do catálogo que voltaram depois da prevenção em texto, cada um com o caso em
+    tests/evals/test_regressao_forma.py. Reprovam: `Branch:` com o prefixo duplicado (EJ 1/100); worktree em
+    `~/.forge-contrib/wt/` de outra branch (EJ 34); `commit:` do parecer tirado de `rev-parse HEAD` (EJ 84); recomendado
+    condicional no Entregar ("só se couber"), sem decisão (EJ 89); pasta em /tmp no Entregar sem o id do pedido no nome, comum
+    aos agentes em paralelo (EJ 88); e, no `Pronto quando`, pasta em /tmp que o resto do brief não cria (EJ 96) ou arquivo solto
+    em /tmp sem o id do pedido no nome, que outro agente sobrescreve (EJ 101). Modelo do `mktemp` (`XXXXXX`) é sempre único."""
+    saida = []
+    branch = grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(texto))
+    if branch and len(partes := branch.split("/")) > 2 and partes[0] == partes[1]:
+        saida.append((f"branch: prefixo duplicado em {nome_seguro(sem_controle(branch))} (EJ 1/100)", True))
+    curto = branch.split("/", 1)[1] if branch and "/" in branch else None
+    corpo = [l for nome, linhas in secoes.items() for l in linhas if not NAO_TOCAR.search(l)]
+    citadas = [curto] + BRANCH_CITADA_NO_BRIEF.findall(texto) if curto else []  # revisão de várias branches cita cada worktree
+    for nome in dict.fromkeys(m.group(1).strip(".") for l in corpo for m in WORKTREE_CITADA.finditer(l)):
+        if citadas and nome and not any(nome_de_worktree_da_branch(nome, b) for b in citadas):
+            saida.append((f"worktree: o brief da {nome_seguro(sem_controle(branch))} cita a worktree {nome_seguro(sem_controle(nome))}, "
+                          "de outra branch (EJ 34)", True))
+    if any(COMMIT_DO_HEAD.search(l) for nome in ("Entregar", "Pronto quando") for l in secoes.get(nome, [])):
+        saida.append(("parecer: `commit:` tirado de `rev-parse HEAD`; grave o sha revisado, que o brief cita (EJ 84)", True))
+    for l in secoes.get("Entregar", []):
+        if re.search(r"\brecomendad", l, re.I) and CONDICIONAL.search(l):
+            saida.append((f"escopo: recomendado condicional no Entregar ({sem_controle(l.strip()[:60])}); entra ou corta com "
+                           "decisão (EJ 89)", True))
+    for l in secoes.get("Entregar", []):
+        for m in TMP_CITADO.finditer(l):
+            if pedido_id not in m.group(1) and not m.group(1).startswith(TMP_PROPRIO) and "XXXXXX" not in m.group(1):
+                saida.append((f"escopo: o Entregar usa {nome_seguro(sem_controle(m.group(0)))}, pasta comum aos agentes em paralelo; ponha o "
+                              "id do pedido no nome (EJ 88)", True))
+    resto = " ".join(l for nome, linhas in secoes.items() if nome != "Pronto quando" for l in linhas)
+    for l in secoes.get("Pronto quando", []):
+        pq = PQ.search(l)
+        for m in TMP_CITADO.finditer(l):
+            rotulo = f"PQ-{pq.group(1)}" if pq else "o Pronto quando"
+            if m.group(2) and f"/tmp/{m.group(1)}" not in resto:
+                saida.append((f"pq: {rotulo} usa {nome_seguro(sem_controle(m.group(0)))}, que o Entregar não cria (EJ 96)", True))
+            elif not m.group(2) and pedido_id not in m.group(1) and "XXXXXX" not in m.group(1):
+                saida.append((f"pq: {rotulo} grava em {nome_seguro(sem_controle(m.group(0)))}, nome comum a todos os agentes; ponha o id "
+                              "do pedido no nome (EJ 101)", True))
+    return saida
 
 
 def linhas_da_secao(pedido_txt, titulo, sem_resolvidas=False):
@@ -7959,7 +8034,8 @@ def marcas_do_historico(pedido_txt):
 
 
 def avisos_do_historico(pedido_txt, agora=None):
-    """P4: hora do Histórico no futuro (folga de 2 min) ou fora de ordem crescente; `registro tardio` fica fora da ordem. Só aviso."""
+    """P4: hora do Histórico no futuro (folga de 2 min) ou fora de ordem crescente; `registro tardio` fica fora da ordem. A hora no
+    futuro reprova (0.43.3, EJ 63/79: hora escrita sem `date`, 5 repetições com a prevenção em texto); o resto só avisa."""
     limite = (agora or datetime.datetime.now()) + datetime.timedelta(minutes=2)
     avisos, anterior = [], None
     for data, hora, linha in marcas_do_historico(pedido_txt):
@@ -7972,7 +8048,7 @@ def avisos_do_historico(pedido_txt, agora=None):
             avisos.append(f"aviso: histórico: {marca} não é data e hora válidas")
             continue
         if quando > limite:
-            avisos.append(f"aviso: histórico: {marca} no futuro")
+            avisos.append(f"histórico: {marca} no futuro (hora escrita sem `date`; EJ 63/79)")
         if "registro tardio" in linha:
             continue
         if anterior and marca < anterior:

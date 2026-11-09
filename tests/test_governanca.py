@@ -241,6 +241,69 @@ class Funcoes(unittest.TestCase):
         self.assertEqual(G.esperas_do_dono(eventos, texto, FUSO), {})
 
 
+class EsperaPorPortaoETokens(unittest.TestCase):
+    """0.43.3: a espera por portão sai do recusas.log do R-TETO (RN-6) e os tokens por item, dos transcritos dos subagentes (CUSTO)."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-metricas-custo-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+
+    def gravar(self, rel, texto):
+        arq = self.tmp / rel
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        arq.write_text(texto, encoding="utf-8")
+        return arq
+
+    def test_recusas_do_mesmo_portao_proximas_sao_uma_espera(self):
+        log = self.gravar("recusas.log", "2026-11-02T10:00:00 agentes R-TETO mem_gb=1.00 nproc=4 ativos=3 motivo=memoria\n"
+                                         "2026-11-02T10:08:00 agentes R-TETO mem_gb=1.00 nproc=4 ativos=3 motivo=memoria\n"
+                                         "2026-11-02T10:30:00 agentes R-TETO mem_gb=1.00 nproc=4 ativos=3 motivo=memoria\n"
+                                         "2026-11-02T11:00:00 agentes R-TETO mem_gb=- nproc=- ativos=2 motivo=duplicado\n"
+                                         "linha fora da forma motivo=teto\n"
+                                         "2026-11-05T09:00:00 agentes R-TETO mem_gb=8.00 nproc=4 ativos=4 motivo=teto\n")
+        janela = lambda q: q.date() <= datetime.date(2026, 11, 3)  # noqa: E731
+        self.assertEqual(G.esperas_por_portao([log], janela),
+                         {"duplicado": {"recusas": 1, "espera_min": 0.0}, "memoria": {"recusas": 3, "espera_min": 8.0}})
+
+    def test_saida_em_texto_tem_o_portao_e_o_tracinho_sem_fonte(self):
+        (self.tmp / "docs" / "pedidos").mkdir(parents=True)
+        dados, _ = G.calcular(self.tmp, self.tmp, recusas=[self.gravar(
+            "r.log", "2026-11-02T10:00:00 agentes R-TETO mem_gb=8.00 nproc=4 ativos=4 motivo=teto\n")])
+        self.assertIn("metricas: portao teto recusas=1 espera_min=0", G.linhas_de_texto(dados))
+        dados, _ = G.calcular(self.tmp, self.tmp, recusas=[], transcritos=[self.tmp / "nada"])
+        self.assertEqual(dados["espera_por_portao"], None)
+        self.assertTrue(any(l.startswith("metricas: portao - ") for l in G.linhas_de_texto(dados)))
+
+    def transcrito(self, nome, prompt, usos):
+        linhas = [json.dumps({"type": "user", "message": {"role": "user", "content": prompt}})]
+        for i, (entrada, saida) in enumerate(usos):
+            uso = {"input_tokens": entrada, "output_tokens": saida, "cache_read_input_tokens": 1, "cache_creation_input_tokens": 0}
+            for _ in range(2):  # o mesmo id em dois pedaços de uma resposta conta uma vez
+                linhas.append(json.dumps({"type": "assistant", "message": {"id": f"m{i}", "usage": uso}}))
+        self.gravar(f"transcritos/sessao/subagents/{nome}.jsonl", "\n".join(linhas + ["{quebrado"]) + "\n")
+
+    def test_tokens_por_item_pelo_brief_citado_e_rateio(self):
+        self.gravar("docs/briefs/p9-tech-lead-1.md", "Pedido: p9\nEtapa: codigo   Cobre: E1\n\n## Entregar\n- x (E2).\n")
+        self.gravar("docs/briefs/p9-qa-engineer-1.md", "Agente destino: forge:qa-engineer\n\n## Entregar\n- y.\n")
+        self.transcrito("agent-a", "Brief: docs/briefs/p9-tech-lead-1.md sha", [(10, 89), (0, 0)])
+        self.transcrito("agent-b", [{"type": "text", "text": "leia docs/briefs/p9-qa-engineer-1.md"}], [(4, 5)])
+        self.transcrito("agent-c", "sem brief", [(1000, 1000)])
+        custos = G.tokens_por_item([self.tmp / "transcritos"], self.tmp)
+        self.assertEqual(custos, {("p9", "E1"): {"tokens": 50, "agentes": 1}, ("p9", "E2"): {"tokens": 50, "agentes": 1},
+                                  ("p9", "-"): {"tokens": 10, "agentes": 1}})
+
+    def test_item_do_historico_ganha_a_coluna_e_sem_fonte_sai_tracinho(self):
+        self.gravar("docs/pedidos/p9.md", "# p9\n\n## Histórico\n- 2026-11-02 10:00: (E1) aberto\n- 2026-11-02 10:05: (E3) aberto\n")
+        self.gravar("docs/briefs/p9-tech-lead-1.md", "Pedido: p9\nCobre: E1\n")
+        self.transcrito("agent-a", "docs/briefs/p9-tech-lead-1.md", [(20, 19)])
+        dados, _ = G.calcular(self.tmp, self.tmp, ["p9"], fuso=FUSO, transcritos=[self.tmp / "transcritos"], recusas=[])
+        self.assertEqual({i["item"]: i["tokens"] for i in dados["itens"]}, {"E1": 40, "E3": None})
+        self.assertEqual(dados["pedidos"][0]["tokens"], 40)
+        texto = G.linhas_de_texto(dados)
+        self.assertTrue(any(" E1 " in l and l.endswith("tokens=40") for l in texto), texto)
+        self.assertTrue(any(" E3 " in l and l.endswith("tokens=-") for l in texto), texto)
+
+
 REGRA_OK = "# R-A\n\nTexto.\n\n- **Revisar em:** 2027-01-10\n- **Medida:** 36 % das reprovações (609 de 1742)\n"
 
 
