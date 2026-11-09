@@ -12,10 +12,10 @@ Medida: 61 branches e 8 grupos de pareceres da união na versao-043 (estudo 0.43
 
 ## No Forge
 - `melhoria/*` → `develop` → `homolog` → `main`. Nada pula degrau, e ninguém envia direto a essas três (CI e hook).
-- **Fluxo contínuo:** cada item com os pareceres da sua classe aprovados e o CI verde entra na `develop` quando fica pronto, sem esperar lote nem versão; a versão é uma tag e release sobre um commit da `develop`.
+- **Fluxo contínuo:** cada item com os pareceres da sua classe aprovados e o CI verde entra na `develop` quando fica pronto, sem esperar lote nem versão.
 - `develop`: a bateria completa roda no CI do PR, obrigatória para o merge; o `tech-lead` mescla com tudo verde.
 - `homolog`: o `tech-lead` promove o commit da versão por PR com merge automático. Só a `homolog`: a `main` segue só com o merge do usuário.
-- `main`: **a promoção `homolog` → `main` é um PR que só o usuário mescla** (`R-MAIN`); depois do merge a release `vX.Y.Z` é publicada. O `tech-lead` abre esse PR (um só, base `main`, sem fork) e para.
+- `main`: **a promoção `homolog` → `main` é um PR que só o usuário mescla** (`R-MAIN`); a tag `vX.Y.Z` e a release saem sozinhas (`release.yml`). O `tech-lead` abre esse PR e para.
 - Métodos de merge (ADR 0012): `develop` por **squash**; `homolog` e `main` por merge commit (`main` por **merge commit**, mesclado pelo usuário). Por isso não há PR de sincronização `main` → `develop`.
 - **Fila de integração na `develop`:** PRs com arquivo em comum (`forge-check sobreposicao`) entram em ordem de chegada; os outros não esperam. A fila não dispensa check nem parecer.
 - **Depois do merge, limpe tudo**: com o head remoto e o local iguais ao `headRefOid` do PR mesclado, quem mesclou apaga a branch remota, a worktree e a branch local sem nova confirmação (só branch de trabalho: `melhoria/*`; no projeto `feature/`, `fix/`, `docs/`, `chore/`, `refactor/`). Fora disso, confirme. **Nunca** apague `develop`, `homolog` nem `main`, nem a integração do `CLAUDE.md`. Sandbox impediu: o dono roda `git worktree prune`.
