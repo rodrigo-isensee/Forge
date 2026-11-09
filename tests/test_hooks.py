@@ -55,6 +55,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RAIZ, ambiente_limpo, git, minimo  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+from modelo_git import copiar_modelo  # noqa: E402
 
 HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
@@ -243,8 +244,11 @@ def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True):
             lidos += ler_dentro_do_comando(palavras, nivel)
     for corpo in _comum.conteudos_de_crase(linha, so_os_fechados=True):  # CRASE-SESSAO-PROJETO
         lidos += ler_como_o_conformidade(corpo, nivel + 1)
+    shell_no_dono = {}  # S-SUITE-RAPIDA: o mesmo dono (até 150 mil caracteres) volta em cada heredoc dele; a busca, uma vez por texto
     for dono, corpo in corpos:
-        if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
+        if dono not in shell_no_dono:
+            shell_no_dono[dono] = re.search(r"\b(bash|sh|zsh|dash)\b", dono) is not None
+        if shell_no_dono[dono]:
             lidos += ler_como_o_conformidade(corpo, nivel + 1)
     return lidos
 
@@ -375,6 +379,16 @@ def bash_aceita(linha):
     return subprocess.run(["bash", "-n", "-c", linha], capture_output=True).returncode == 0
 
 
+def repositorio_vazio(pasta, branch):
+    """`git init -b <branch>` com o autor de teste (`user.email`, `user.name`) em `pasta`, pela cópia do modelo montado uma
+    vez por processo (S-SUITE-RAPIDA): três processos do git a menos em cada uma das ~1900 fixtures."""
+    def montar(modelo):
+        git("init", "-q", "-b", branch, cwd=modelo)
+        git("config", "user.email", "t@example.com", cwd=modelo)
+        git("config", "user.name", "Teste", cwd=modelo)
+    copiar_modelo(f"hooks-vazio-{branch}", pasta, montar)
+
+
 class Fixture:
     def __init__(self, caminho, dados=None):
         self.caminho = caminho
@@ -389,9 +403,7 @@ class Fixture:
                 "{pid_morto}": pid_morto(), "{pid_ns}": namespace_de_pid()}
         for chave, pasta in (("{marca}", raiz), ("{marca_wt}", tmp / "wt")):  # a marca da sessão: uma por raiz
             mapa[chave] = f".git/forge/projeto-{hashlib.sha256(os.path.realpath(pasta).encode()).hexdigest()[:16]}"
-        git("init", "-q", "-b", "develop", cwd=raiz)
-        git("config", "user.email", "t@example.com", cwd=raiz)
-        git("config", "user.name", "Teste", cwd=raiz)
+        repositorio_vazio(raiz, "develop")
         arquivos = dict(d.get("arquivos", {}))
         arquivos.setdefault("README.md", "projeto\n")
         if d.get("forge", True):
@@ -468,9 +480,7 @@ class Fixture:
     def repositorio(self, pasta, conf, mapa):
         """Outro repositório git do fixture (`repos`): arquivos, um commit e os remotos."""
         pasta.mkdir(parents=True)
-        git("init", "-q", "-b", conf.get("branch", "develop"), cwd=pasta)
-        git("config", "user.email", "t@example.com", cwd=pasta)
-        git("config", "user.name", "Teste", cwd=pasta)
+        repositorio_vazio(pasta, conf.get("branch", "develop"))
         self.gravar(pasta, {"README.md": "repo\n", **conf.get("arquivos", {})}, mapa)
         git("add", "-A", cwd=pasta)
         git("commit", "-q", "-m", "base", cwd=pasta)
