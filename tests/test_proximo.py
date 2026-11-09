@@ -185,7 +185,7 @@ class ProximoDoItem(unittest.TestCase):
                                                    "proximo: comando-item: forge-check entrega --pedido p1 --branch melhoria/um --etapa codigo"])
         self.pedido(" 2026-10-19 10:00: aberto", f" 2026-10-19 12:00: entrega conferida {head}")  # o Histórico fica no disco, fora da branch
         self.git("update-index", "--assume-unchanged", "docs/pedidos/p1.md")
-        self.assertEqual(self.item()[1], cabeca + ["proximo: passo-item portões da classe (review, QA e os que a classe pedir) · dono coordenador",
+        self.assertEqual(self.item()[1], cabeca + ["proximo: passo-item portões da classe (faltam: review, qa) · dono coordenador",
                                                    "proximo: comando-item: forge-check classe --head melhoria/um"])
         self.gravar("docs/reviews/p1.md", PARECER.format(c=head[:7], p="reprovado", corpo=ACHADOS))
         self.commitar("parecer")
@@ -194,8 +194,18 @@ class ProximoDoItem(unittest.TestCase):
             "proximo: comando-item: forge-check brief gerar --volta <brief aprovado> --ref melhoria/um --pedido p1"])
         self.gravar("docs/reviews/p1.md", PARECER.format(c=head[:7], p="aprovado", corpo=""))
         self.commitar("parecer aprovado")
+        self.assertEqual(self.item()[1], cabeca + ["proximo: passo-item portões da classe (faltam: qa) · dono coordenador",
+                                                   "proximo: comando-item: forge-check classe --head melhoria/um"])  # só o review não integra
+        self.gravar("docs/qa/p1.md", PARECER.format(c=head[:7], p="aprovado", corpo="").replace("tipo: review", "tipo: qa")
+                    .replace("revisor: forge:tech-lead", "revisor: forge:qa-engineer"))
+        self.commitar("parecer de QA")
         self.assertEqual(self.item()[1], cabeca + ["proximo: passo-item integrar na develop · dono forge:tech-lead",
                                                    "proximo: comando-item: forge-check pr p1 --ref melhoria/um"])
+        self.gravar("src/app.txt", "código novo depois dos pareceres\n")  # review e QA velhos, código novo: não contam
+        novo = self.commitar("código novo")
+        self.pedido(" 2026-10-19 10:00: aberto", f" 2026-10-19 13:00: entrega conferida {novo}")
+        self.git("update-index", "--assume-unchanged", "docs/pedidos/p1.md")
+        self.assertEqual(self.item()[1][1], "proximo: passo-item portões da classe (faltam: review, qa) · dono coordenador")
         self.git("switch", "-q", "develop")
         self.git("branch", "-q", "-D", "melhoria/um")
         self.assertEqual(self.item()[1][1], "proximo: passo-item implementar (a branch ainda não existe) · dono forge:tech-lead")

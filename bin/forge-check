@@ -7338,13 +7338,23 @@ def passo_do_item(raiz, pedido, branch, destino):
         return "implementar (a branch ainda não existe)", autor, None
     if conferencia_do_head(raiz, pedido, ref=ref, branch=branch):
         return "conferir a entrega do head", "coordenador", f"forge-check entrega --pedido {pedido} --branch {branch} --etapa codigo"
-    vereditos = [(tipo, parecer) for tipo, _, parecer, _, commitado in vereditos_do_proximo(raiz, {pedido, branch.removeprefix("melhoria/")})
-                 if commitado]
+    vereditos = [(tipo, parecer) for tipo, _, parecer, commit, commitado in vereditos_do_proximo(raiz, {pedido, branch.removeprefix("melhoria/")})
+                 if commitado and parecer_do_head(raiz, commit, ref)]
     if any(p not in ("aprovado", "riscos-aceitos") for _, p in vereditos):
         return "volta ao autor (parecer não aprovado)", autor, f"forge-check brief gerar --volta <brief aprovado> --ref {branch} --pedido {pedido}"
-    if not vereditos:
-        return "portões da classe (review, QA e os que a classe pedir)", "coordenador", f"forge-check classe --head {ref}"
+    faltam = [t for t in exigidos_do_pr(raiz, pedido, ref)[0] if t not in {tipo for tipo, _ in vereditos}]
+    if faltam:
+        return f"portões da classe (faltam: {', '.join(faltam)})", "coordenador", f"forge-check classe --head {ref}"
     return "integrar na develop", "forge:tech-lead", f"forge-check pr {pedido} --ref {ref}"
+
+
+def parecer_do_head(raiz, commit, ref):
+    """V1 (review da 0.44.0, M1): o parecer só conta para o passo do item se for do head da `ref` ou se o `commit_vale` o aceitar
+    (depois dele, só o que não desatualiza parecer); parecer de outro head não leva a integrar."""
+    if not re.fullmatch(r"[0-9a-f]{7,40}", commit or ""):
+        return False
+    head = sha_do_commit(raiz, ref) or ""
+    return head.startswith(commit) or commit_vale(raiz, commit, ate=ref) is None
 
 
 def linhas_do_item(raiz, caminho, item):

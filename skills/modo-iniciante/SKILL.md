@@ -5,7 +5,7 @@ description: Modo de conversa para quem não programa (perfil iniciante em .forg
 
 # Modo iniciante
 
-Vale quando `.forge/perfil` contém `iniciante` e na primeira abertura (skill `forge:novo-projeto`). Com `experiente`, nada muda. O perfil é da pessoa (fora do git) e só muda quando ela diz.
+Vale quando `.forge/perfil` contém `iniciante` e na primeira abertura (skill `forge:novo-projeto`). Com `experiente`, nada muda. O perfil é da pessoa (fora do git): começa `iniciante` na primeira abertura e só muda quando ela diz.
 
 ## Como falar
 - Frases curtas, sem sigla nem termo de programação sem explicar. Troque:
