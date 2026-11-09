@@ -207,3 +207,60 @@ class FalhaDoGit(Repositorio):
         fc.arquivos_da_entrega = lambda *a, **k: None
         self.assertEqual(fc.gatilhos(self.repo, "p1"), (True, ["o git falhou: o diff da entrega não foi lido"]))
         self.assertEqual(fc.exigidos_do_pr(self.repo, "p1")[0], ["review", "qa", "revisao-devops", "revisao-seguranca"])
+
+
+class DeltaGitFalha(Repositorio):
+    """FC-DELTA-GIT-FALHA (0.43.2): no `delta` e no `parecer delta`, a falha do git sai com rc 2 e a linha `o delta não foi lido`;
+    nunca `delta: nenhum` nem `nenhum arquivo do domínio mudou`, que aprovariam por engano. O mesmo `git` falso da `FalhaDoGit`."""
+    FALHA = "o delta não foi lido"
+    SEG = ("---\ntipo: revisao-seguranca\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\n"
+           "revisor: forge:security-engineer\ndata: 2026-11-08\n---\n# s\n")
+    rodar = FalhaDoGit.rodar
+
+    def setUp(self):
+        super().setUp()
+        self.pasta = self.tmp / "falso"
+        self.pasta.mkdir()
+        (self.pasta / "git").write_text(GIT_FALSO, encoding="utf-8")
+        (self.pasta / "git").chmod(0o755)
+        self.c1 = self.commitar({"a.txt": "1\n"}, "trabalho")
+        self.commitar({"docs/security/p1.md": self.SEG.format(c=self.c1)}, "parecer")
+        self.commitar({"a.txt": "2\n"}, "correção")
+
+    def assert_falha(self, rc, saida):
+        self.assertEqual(rc, 2, saida)
+        self.assertIn(self.FALHA, saida)
+        self.assertNotIn("nenhum", saida)
+
+    def test_cada_passo_do_git_que_falha_da_rc_2(self):
+        for padrao in (DOIS, "*--numstat*", "*-U0*", "*--first-parent*"):
+            with self.subTest(padrao):
+                self.assert_falha(*self.rodar(padrao, 1, "delta", self.c1))
+        for padrao in (DOIS, "*--first-parent*", "*diff --no-ext-diff*"):
+            with self.subTest(parecer=padrao):
+                self.assert_falha(*self.rodar(padrao, 1, "parecer", "delta", "docs/security/p1.md"))
+
+    def test_git_inexistente_da_rc_2(self):
+        vazio = self.tmp / "sem-git"
+        vazio.mkdir()
+        for args in (("delta", self.c1), ("parecer", "delta", "docs/security/p1.md")):
+            with self.subTest(args[0]):
+                r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(self.repo), *args], capture_output=True, text=True,
+                                   env=dict(ambiente_limpo(), HOME=str(self.home), PATH=str(vazio)))
+                self.assert_falha(r.returncode, r.stdout)
+                self.assertIn("FileNotFoundError", r.stdout)
+
+    def test_ref_ruim_e_base_fora_da_lista_dao_rc_2(self):
+        for args in (("delta", self.c1, "nao-existe"), ("delta", "nao-existe"), ("delta", self.c1, "--base", "melhoria/x"),
+                     ("parecer", "delta", "docs/security/p1.md", "--ate", "nao-existe"),
+                     ("parecer", "delta", "docs/security/p1.md", "--base", "melhoria/x")):
+            with self.subTest(args):
+                rc, saida = self.rodar("*nunca-casa*", 1, *args)
+                self.assertEqual(rc, 2, saida)
+                self.assertNotIn("nenhum", saida)
+
+    def test_git_saudavel_nao_muda_o_delta(self):
+        rc, saida = self.rodar("*nunca-casa*", 1, "delta", self.c1)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn('delta: "a.txt" +1 -1', saida)
+        self.assertNotIn(self.FALHA, saida)

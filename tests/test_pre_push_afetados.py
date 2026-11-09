@@ -332,6 +332,47 @@ class ChecagensBaratasAntesDaTrava(Base):
         self.commit("script do ci com aviso", **{"scripts/validar-plugin.sh": "#!/bin/bash\necho $1\n"})
         self.reprova_sem_esperar("shellcheck reprovou (scripts/validar-plugin.sh)")
 
+    def test_shellcheck_pelo_shebang_pega_script_fora_da_antiga_lista(self):  # COBERTURA-P6
+        if shutil.which("shellcheck") is None:
+            self.skipTest("AVISO: shellcheck fora do PATH; o CI roda este passo")
+        self.commit("script novo sem extensão", **{"bin/forge-novo": "#!/usr/bin/env bash\necho $1\n"})
+        self.reprova_sem_esperar("shellcheck reprovou (bin/forge-novo)")
+
+
+class ShellcheckPeloShebang(unittest.TestCase):
+    """COBERTURA-P6: o passo shellcheck do CI escolhe os arquivos pelo shebang, com a mesma regra do pre-push."""
+
+    def lista_do_ci(self):
+        """Roda o `run:` do passo shellcheck do ci.yml na raiz, com um shellcheck falso que só imprime os arquivos."""
+        sys.path.insert(0, str(RAIZ / "tests"))
+        from test_ci_local import ci  # noqa: E402  (o leitor de jobs do scripts/ci-local)
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        (passo,) = [p for j in ci.ler_jobs(texto) for p in j["passos"] if p["nome"].startswith("shellcheck")]
+        falso = Path(tempfile.mkdtemp(prefix="shellcheck-falso-"))
+        self.addCleanup(shutil.rmtree, falso)
+        (falso / "shellcheck").write_text('#!/bin/sh\n[ "$1" = -- ] && shift\nprintf "%s\\n" "$@" > "$SAIDA"\n')
+        (falso / "shellcheck").chmod(0o755)
+        saida = falso / "saida"
+        r = subprocess.run(["bash", "-e", "-o", "pipefail", "-c", passo["run"]], cwd=RAIZ, capture_output=True, text=True,
+                           env=dict(os.environ, PATH=f"{falso}:{os.environ['PATH']}", SAIDA=str(saida)))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        return saida.read_text().splitlines()
+
+    def test_pega_o_forge_fechar_e_os_pre_push_sem_python(self):
+        lista = self.lista_do_ci()
+        for nome in ("bin/forge-fechar", ".githooks/pre-push", "templates/projeto/.githooks/pre-push", "bin/forge-init",
+                     "tests/e2e-instalacao.sh", "scripts/validar-plugin.sh"):
+            self.assertIn(nome, lista)
+        self.assertNotIn("bin/forge-check", lista)  # python pelo shebang
+        self.assertFalse([n for n in lista if n.endswith(".py")])
+
+    def test_a_mesma_regra_do_pre_push(self):
+        texto = HOOK.read_text(encoding="utf-8")
+        self.assertNotIn("SHELLCHECK_DO_CI", texto)
+        regra = "'#!'*bash*|'#!'*/sh|'#!'*' sh'"
+        self.assertIn(regra, texto)
+        self.assertIn(regra, (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+
 
 class NaoRecuaDoHook(unittest.TestCase):
     """O texto do hook guarda a falha fechada que os testes acima exercitam."""

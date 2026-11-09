@@ -535,6 +535,76 @@ class Delta(Repositorio):
         self.assertEqual(self.arvore(), antes)
 
 
+class DeltaAposMergeBase(Repositorio):
+    """FC-DELTA-APOS-MERGE-BASE (0.43.2): depois do merge da develop na branch, o `delta` e o `parecer delta` mostram só o que é do
+    autor (por conteúdo contra o segundo pai, com a resolução de conflito e o desfeito), não o que veio da base."""
+    SEG = ("---\ntipo: revisao-seguranca\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\n"
+           "revisor: forge:security-engineer\ndata: 2026-11-08\n---\n# s\n")
+
+    def setUp(self):
+        super().setUp()
+        self.c1 = self.commitar({"src/app.txt": "da branch\n", "proprio.txt": "1\n"}, "entrega")
+        self.commitar({"docs/security/p1.md": self.SEG.format(c=self.c1)}, "parecer")
+
+    def base_anda(self, arquivos):
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar(arquivos, "a base anda")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+
+    def integrar(self, *opcoes):
+        git("merge", "-q", "--no-ff", *opcoes, "-m", "integra a base", "develop", cwd=self.repo)
+
+    def nomes(self, saida):
+        return [l.split('"')[1] for l in saida.splitlines() if l.startswith('delta: "') and "+" in l]
+
+    def test_so_o_arquivo_proprio_com_a_linha_de_escopo(self):
+        self.base_anda({"d1.txt": "1\n", "d2.txt": "2\n", "src/d3.txt": "3\n"})
+        self.integrar()
+        self.commitar({"proprio.txt": "2\n"}, "trabalho depois do merge")
+        rc, saida = self.check("delta", self.c1)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("delta: escopo: sem o que veio da base (develop)", saida)
+        self.assertEqual(self.nomes(saida), ["proprio.txt"])
+        rc, saida = self.check("parecer", "delta", "docs/security/p1.md")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("escopo: sem o que veio da base (develop)", saida)
+        self.assertIn('no dominio: "proprio.txt"', saida)
+        self.assertNotIn("d1.txt", saida)
+
+    def test_conflito_resolvido_aparece(self):
+        self.base_anda({"src/app.txt": "da base\n", "d1.txt": "1\n"})
+        with self.assertRaises(subprocess.CalledProcessError):  # conflito no src/app.txt
+            git("merge", "-q", "develop", cwd=self.repo)
+        (self.repo / "src" / "app.txt").write_text("resolvido\n", encoding="utf-8")
+        git("add", "-A", cwd=self.repo)
+        git("commit", "-q", "--no-edit", cwd=self.repo)
+        rc, saida = self.check("delta", self.c1)
+        self.assertEqual((rc, self.nomes(saida)), (0, ["src/app.txt"]), saida)
+
+    def test_arquivo_proprio_que_o_merge_devolveu_a_base_aparece(self):  # desfeito: a mudança do autor sumiu no merge
+        self.base_anda({"src/app.txt": "da base\n"})
+        self.integrar("-X", "theirs")
+        rc, saida = self.check("delta", self.c1)
+        self.assertEqual((rc, self.nomes(saida)), (0, ["src/app.txt"]), saida)
+
+    def test_sem_merge_da_base_e_como_antes(self):
+        self.commitar({"proprio.txt": "2\n"}, "trabalho")
+        rc, saida = self.check("delta", self.c1)
+        self.assertEqual((rc, self.nomes(saida)), (0, ["proprio.txt"]), saida)
+        self.assertNotIn("escopo", saida)
+
+    def test_base_inexistente_vale_o_intervalo_inteiro_e_base_fora_da_lista_da_rc_2(self):
+        self.base_anda({"d1.txt": "1\n"})
+        self.integrar()
+        rc, saida = self.check("delta", self.c1, "--base", "homolog")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("delta: base homolog não encontrada; o intervalo vale inteiro", saida)
+        self.assertEqual(self.nomes(saida), ["d1.txt"])
+        for args in (("delta", self.c1, "--base", "melhoria/x"), ("parecer", "delta", "docs/security/p1.md", "--base", "main")):
+            with self.subTest(args):
+                self.assertEqual(self.check(*args)[0], 2)
+
+
 class DeltaDaJuncao(Repositorio):
     """B19a (E20): as partes da junção são os segundos pais dos merges da primeira linha; octopus rc 1 (C-4), merge da
     base não é parte (C-5), git que falha rc 2 (C-9)."""

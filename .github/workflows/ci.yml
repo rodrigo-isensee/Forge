@@ -350,7 +350,19 @@ jobs:
           python3 "$script" --raiz "$RUNNER_TEMP/pr" "${provas[@]}"
       - name: shellcheck (scripts e hooks)
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
-        run: shellcheck bin/forge-init bin/forge-fechar scripts/jarvis scripts/jarvis-forge scripts/preparar-estacao.sh scripts/instalar-atalho.sh scripts/verificar-contribuicao.sh scripts/validar-plugin.sh scripts/configurar-ambiente-local.sh tests/e2e-instalacao.sh .githooks/pre-push templates/projeto/.githooks/pre-push
+        # COBERTURA-P6: os arquivos vêm do shebang (a mesma regra do tipo_de_script do .githooks/pre-push), não de uma lista
+        # fixa: script novo em shell entra sozinho. `*.sh`, ou primeira linha `#!` com bash ou sh; link e `*.py` ficam fora.
+        run: |
+          lista=()
+          while IFS= read -r -d '' f; do
+            if [ ! -f "$f" ] || [ -L "$f" ]; then continue; fi
+            case "$f" in *.py) continue ;; *.sh) lista+=("$f"); continue ;; esac
+            IFS= read -r primeira < "$f" || continue
+            case "$primeira" in '#!'*python*) ;; '#!'*bash*|'#!'*/sh|'#!'*' sh') lista+=("$f") ;; esac
+          done < <(git ls-files -z)
+          [ "${#lista[@]}" -ge 10 ] || { echo "shellcheck: só ${#lista[@]} scripts pelo shebang; a busca falhou"; exit 1; }
+          echo "shellcheck: ${lista[*]}"
+          shellcheck -- "${lista[@]}"
       - name: Instala o Forge num projeto vazio e inicializa
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: bash tests/e2e-instalacao.sh

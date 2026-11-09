@@ -731,10 +731,11 @@ class Fechar(unittest.TestCase):
 
     # ---- SHELLCHECK-FECHAR: o forge-fechar passa no shellcheck e está na lista do shellcheck do CI ----
     def test_shellcheck_fechar_esta_na_lista_do_ci(self):
+        # COBERTURA-P6: a lista do CI vem do shebang (tests.test_pre_push_afetados.ShellcheckPeloShebang roda o passo); o
+        # forge-fechar entra porque a primeira linha dele é de bash.
         ci = (RAIZ / ".github/workflows/ci.yml").read_text()
-        linhas = [l.split("run:", 1)[1].split() for l in ci.splitlines() if l.strip().startswith("run: shellcheck ")]
-        self.assertEqual(len(linhas), 1, linhas)
-        self.assertIn("bin/forge-fechar", linhas[0])
+        self.assertIn("'#!'*bash*|'#!'*/sh|'#!'*' sh') lista+=(\"$f\")", ci)
+        self.assertRegex(SCRIPT.read_text().splitlines()[0], r"^#!.*bash")
 
     def test_shellcheck_fechar_passa_limpo(self):
         if shutil.which("shellcheck") is None:

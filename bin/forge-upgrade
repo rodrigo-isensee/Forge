@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Forge: traz um projeto para a versão atual do plugin (ADR 0005). Rode NO projeto, quando quiser.
-Uso: forge-upgrade [--simular] [--ate VERSAO] [DIRETORIO]
+Uso: forge-upgrade [--simular] [--ate VERSAO] [--apagar-mesclada] [DIRETORIO]
 Cria a branch forge/upgrade-<versão>, aplica as migrações pendentes (um commit cada) e sugere o PR.
 Nunca faz push nem merge."""
 import argparse
@@ -29,11 +29,34 @@ def sair(msg, codigo=1):
     sys.exit(codigo)
 
 
+def branch_ja_existe(projeto, nova, base, alvo, a):
+    """A branch do upgrade já existe: mesclada na base só se apaga com --apagar-mesclada; squash e o resto recusam."""
+    sha = git(projeto, "rev-parse", f"refs/heads/{nova}")
+    mesclada = subprocess.run(["git", "-C", str(projeto), "merge-base", "--is-ancestor", sha, f"refs/heads/{base}"],
+                              capture_output=True).returncode == 0
+    if mesclada and not a.apagar_mesclada:
+        sair(f"a branch {nova} já foi mesclada na '{base}'; apague-a com `git branch -d {nova}` (estando na '{base}') "
+             "ou rode de novo com --apagar-mesclada, e repita", 2)
+    if mesclada and a.simular:
+        print(f"apagaria a branch {nova} (mesclada na '{base}')")
+    elif mesclada:
+        git(projeto, "update-ref", "-d", f"refs/heads/{nova}", sha)  # só apaga se o head ainda é o conferido
+        print(f"apagada a branch {nova} (mesclada na '{base}')")
+    elif git(projeto, "show", f"refs/heads/{base}:.forge/versao", check=False) == alvo:
+        sair(f"a branch {nova} parece mesclada por squash (a '{base}' já está na {alvo}); confira com "
+             f"`git log {base}..{nova}` e apague com `git branch -D {nova}`; nesta branch, traga a '{base}' "
+             "em vez de rodar o upgrade", 2)
+    else:
+        sair(f"a branch {nova} já existe", 2)
+
+
 def main():
     ap = argparse.ArgumentParser(description="Traz um projeto para a versão atual do Forge.")
     ap.add_argument("diretorio", nargs="?", default=".")
     ap.add_argument("--simular", action="store_true", help="mostra o que mudaria, sem gravar")
     ap.add_argument("--ate", help="versão-alvo (padrão: a do plugin)")
+    ap.add_argument("--apagar-mesclada", action="store_true",
+                    help="apaga a branch forge/upgrade-<versão> que já foi mesclada na base e segue")
     a = ap.parse_args()
 
     projeto = Path(a.diretorio).resolve()
@@ -63,7 +86,7 @@ def main():
         sair(f"branch de integração seria '{base or 'HEAD solto'}'; entre numa branch de trabalho ou crie a develop", 2)
     nova = f"forge/upgrade-{alvo}"
     if git(projeto, "rev-parse", "--verify", "-q", f"refs/heads/{nova}", check=False):
-        sair(f"a branch {nova} já existe", 2)
+        branch_ja_existe(projeto, nova, base, alvo, a)
 
     print(f"Projeto {projeto}\n  versão atual {atual} -> {alvo}; branch {nova} a partir de {base}")
     for p in pendentes:
