@@ -216,6 +216,58 @@ class Metricas(unittest.TestCase):
         self.assertNotIn("ci", self.itens["E1"])
 
 
+class DuracaoDoPrePush(unittest.TestCase):
+    """F8 (0.43.3): o `metricas --log-prepush` lê as linhas `pre-push: duracao ...` que o .githooks/pre-push grava no log do envio."""
+    LOG = ("12:00:01 pre-push: entrou 12:00:01\n"
+           "pre-push: duracao inicio=2026-11-08T12:00:00Z fim=2026-11-08T12:05:00Z plano=dirigida rc=0\n"
+           "[err] 2026-11-08 12:10 pre-push: duracao inicio=2026-11-08T12:10:00Z fim=2026-11-08T12:11:40Z plano=dirigida rc=1\n"
+           "pre-push: duracao inicio=2026-11-08T13:00:00Z fim=2026-11-08T13:00:20Z plano=baratas rc=1\n"
+           "pre-push: duracao inicio=2026-11-09T09:00:00Z fim=2026-11-09T09:30:00Z plano=completa rc=0\n"
+           "pre-push: duracao inicio=2026-11-08T14:00:00Z fim=2026-11-08T13:00:00Z plano=dirigida rc=0\n"  # fim antes do início
+           "pre-push: duracao inicio=2026-11-08T15:00:00Z fim=2026-11-08T15:01:00Z plano=dirigida rc=0 lixo\n"
+           "eco: pre-push: duracao inicio=x fim=y plano=dirigida rc=0\n")
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-f8-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        (self.tmp / "envio.log").write_text(self.LOG, encoding="utf-8")
+
+    def test_por_plano_conta_envios_falhas_p50_e_maximo(self):
+        dados, avisos = G.duracoes_do_prepush([self.tmp / "envio.log"])
+        self.assertEqual(avisos, [])
+        self.assertEqual(dados, {"baratas": {"envios": 1, "falhas": 1, "p50_s": 20.0, "max_s": 20.0},
+                                 "completa": {"envios": 1, "falhas": 0, "p50_s": 1800.0, "max_s": 1800.0},
+                                 "dirigida": {"envios": 2, "falhas": 1, "p50_s": 200.0, "max_s": 300.0}})
+
+    def test_janela_de_datas_e_log_ausente(self):
+        dados, avisos = G.duracoes_do_prepush([self.tmp / "envio.log", self.tmp / "nao-existe.log"],
+                                              desde=datetime.date(2026, 11, 9))
+        self.assertEqual(list(dados), ["completa"])
+        self.assertEqual(len(avisos), 1)
+        self.assertIn("nao-existe.log", avisos[0])
+
+    def test_linha_de_comando_em_texto_e_em_json(self):
+        args = ("--raiz", str(self.tmp), "metricas", "--pedido", "x", "--log-prepush", str(self.tmp / "envio.log"))
+        rc, saida, _ = rodar(*args)
+        self.assertEqual(rc, 0)
+        self.assertIn("metricas: prepush plano=dirigida envios=2 falhas=1 p50_s=200 max_s=300", saida.splitlines())
+        self.assertIn("prepush=medida", saida.splitlines()[-1])
+        rc, saida, _ = rodar(*args, "--json")
+        self.assertEqual(json.loads(saida)["prepush"]["baratas"]["falhas"], 1)
+
+    def test_sem_a_opcao_a_saida_nao_muda(self):
+        rc, saida, _ = rodar("--raiz", str(self.tmp), "metricas", "--pedido", "x", "--json")
+        self.assertEqual(rc, 0)
+        self.assertNotIn("prepush", json.loads(saida))
+
+    def test_a_linha_que_o_pre_push_grava_e_a_que_o_metricas_le(self):
+        hook = (RAIZ / ".githooks" / "pre-push").read_text(encoding="utf-8")
+        modelo = 'echo "pre-push: duracao inicio=${inicio_prepush} fim=$(date -u +%Y-%m-%dT%H:%M:%SZ) plano=$1 rc=$2" >&2'
+        self.assertIn(modelo, hook)
+        exemplo = "pre-push: duracao inicio=2026-11-08T12:00:00Z fim=2026-11-08T12:00:09Z plano=nada rc=0"
+        self.assertTrue(G.LINHA_DE_DURACAO.search(exemplo))
+
+
 class Funcoes(unittest.TestCase):
     def test_item_da_linha(self):
         casos = {"(E3-1a, E3-1d) volta 2": "E3-1a", "(E2.2 g1) brief": "E2.2", "entrega conferida abc1234 (E4-1 MAQ, x)": "E4-1",

@@ -127,6 +127,13 @@ if [ "$#" -eq 1 ] && [ "$1" = "--status" ]; then
 fi
 # Modo --suite (só à mão, com exatamente esse argumento, como o --status): a suíte inteira com a mesma trava e a
 # mesma fila do push, sem refs e sem anotar prova. É por onde scripts/suite-paralela.py passa quando chamado à mão.
+# F8 (0.43.3): o início do envio, para a linha de duração (linha_de_duracao, abaixo).
+inicio_prepush="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+# F8: uma linha de duração no log do envio (o stderr do pre-push), lida pelo `forge-check metricas --log-prepush <log>`: início
+# e fim em UTC, o plano (baratas, curta, completa, dirigida, nada) e o rc. Sem arquivo novo e sem aviso novo.
+linha_de_duracao() {
+  echo "pre-push: duracao inicio=${inicio_prepush} fim=$(date -u +%Y-%m-%dT%H:%M:%SZ) plano=$1 rc=$2" >&2
+}
 modo_suite=0
 if [ "$#" -eq 1 ] && [ "$1" = "--suite" ]; then modo_suite=1; exec </dev/null; fi
 n_refs=0; n_envios=0; unico_local=""; unico_remoto=""; unico_ref=""; envio_sha=(); envio_ref=(); envios=()
@@ -313,7 +320,7 @@ checagens_baratas() {
 n_baratas=0
 if [ "$modo_suite" -eq 0 ]; then
   inicio_baratas="$(date +%s)"
-  checagens_baratas || { echo "pre-push: checagens baratas reprovadas em $(( $(date +%s) - inicio_baratas ))s; a suíte nem entrou na fila. Nunca --no-verify." >&2; exit 1; }
+  checagens_baratas || { echo "pre-push: checagens baratas reprovadas em $(( $(date +%s) - inicio_baratas ))s; a suíte nem entrou na fila. Nunca --no-verify." >&2; linha_de_duracao baratas 1; exit 1; }
   [ "$n_baratas" -eq 0 ] || echo "pre-push: checagens baratas ok em $(( $(date +%s) - inicio_baratas ))s (${n_baratas} arquivos)" >&2
 fi
 espera="${FORGE_TRAVA_ESPERA:-1200}"
@@ -499,6 +506,7 @@ trap - TERM INT HUP
 duracao=$(( $(date +%s) - inicio_s ))
 if [ "$curta" = 1 ]; then modo=curta; elif [ "$completa" = 1 ]; then modo=completa; else modo=dirigida; fi
 echo "pre-push: fim $(date +%H:%M:%S) rc ${rc} ${modo} ${duracao}s" >&2
+if [ "$nada" = 1 ]; then linha_de_duracao nada "$rc"; else linha_de_duracao "$modo" "$rc"; fi
 [ "$curta" = 1 ] || gravar_duracao "$duracao" "$modo"
 [ "$rc" -eq 0 ] || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
 # Anota a árvore testada (a árvore de trabalho estava limpa no início e no fim e o HEAD^{tree} não mudou durante a suíte,

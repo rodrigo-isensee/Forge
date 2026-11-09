@@ -32,7 +32,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban [--gerar] | pr 
      forge-check corrigidos [--ref REF] [--dias N]
      forge-check fila
      forge-check provas medida [--desde AAAA-MM-DD]
-     forge-check metricas [--pedido ID]... [--desde D --ate D] [--por dia|semana] [--json] [--gh]   (0.43.1 H; bin/forge_governanca.py)
+     forge-check metricas [--pedido ID]... [--desde D --ate D] [--por dia|semana] [--json] [--gh] [--log-prepush LOG]...   (0.43.1 H; bin/forge_governanca.py)
      forge-check regras [--estrito] [--hoje D] [--json]   (validade das regras: Revisar em e Medida; 0.43.1 H)
 `fila` (P9; só leitura, sem rede, rc 0) lista, em até 15 linhas, o que pode começar agora: cartões de "Pronto para fazer" do
 KANBAN.md sem `Depende de:` pendente (cabeçalho do pedido; satisfeita com o cartão em "Pronto") nem ciclo, até as vagas de R-TETO
@@ -8770,6 +8770,8 @@ def main():
     me.add_argument("--develop", default="origin/develop", help="ref da develop (padrão: origin/develop)")
     me.add_argument("--main", default="origin/main", help="ref da main (padrão: origin/main)")
     me.add_argument("--gh", action="store_true", help="conta as execuções e falhas do CI das branches citadas (gh run list; usa rede)")
+    me.add_argument("--log-prepush", action="append", metavar="LOG", help="log de envio com as linhas `pre-push: duracao ...` do "
+                    ".githooks/pre-push (F8; repita para vários): duração por plano, falhas e p50")
     me.add_argument("--json", action="store_true", help="saída em JSON")
     rg = sub.add_parser("regras", parents=[comum], help="validade das regras: 'Revisar em:' e 'Medida:' de cada docs/regras/R-*.md; "
                         "aviso rc 0, --estrito rc 1 (0.43.1 H)")
