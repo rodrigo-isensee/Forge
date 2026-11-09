@@ -535,6 +535,76 @@ class Delta(Repositorio):
         self.assertEqual(self.arvore(), antes)
 
 
+class DeltaAposMergeBase(Repositorio):
+    """FC-DELTA-APOS-MERGE-BASE (0.43.2): depois do merge da develop na branch, o `delta` e o `parecer delta` mostram só o que é do
+    autor (por conteúdo contra o segundo pai, com a resolução de conflito e o desfeito), não o que veio da base."""
+    SEG = ("---\ntipo: revisao-seguranca\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\n"
+           "revisor: forge:security-engineer\ndata: 2026-11-08\n---\n# s\n")
+
+    def setUp(self):
+        super().setUp()
+        self.c1 = self.commitar({"src/app.txt": "da branch\n", "proprio.txt": "1\n"}, "entrega")
+        self.commitar({"docs/security/p1.md": self.SEG.format(c=self.c1)}, "parecer")
+
+    def base_anda(self, arquivos):
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar(arquivos, "a base anda")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+
+    def integrar(self, *opcoes):
+        git("merge", "-q", "--no-ff", *opcoes, "-m", "integra a base", "develop", cwd=self.repo)
+
+    def nomes(self, saida):
+        return [l.split('"')[1] for l in saida.splitlines() if l.startswith('delta: "') and "+" in l]
+
+    def test_so_o_arquivo_proprio_com_a_linha_de_escopo(self):
+        self.base_anda({"d1.txt": "1\n", "d2.txt": "2\n", "src/d3.txt": "3\n"})
+        self.integrar()
+        self.commitar({"proprio.txt": "2\n"}, "trabalho depois do merge")
+        rc, saida = self.check("delta", self.c1)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("delta: escopo: sem o que veio da base (develop)", saida)
+        self.assertEqual(self.nomes(saida), ["proprio.txt"])
+        rc, saida = self.check("parecer", "delta", "docs/security/p1.md")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("escopo: sem o que veio da base (develop)", saida)
+        self.assertIn('no dominio: "proprio.txt"', saida)
+        self.assertNotIn("d1.txt", saida)
+
+    def test_conflito_resolvido_aparece(self):
+        self.base_anda({"src/app.txt": "da base\n", "d1.txt": "1\n"})
+        with self.assertRaises(subprocess.CalledProcessError):  # conflito no src/app.txt
+            git("merge", "-q", "develop", cwd=self.repo)
+        (self.repo / "src" / "app.txt").write_text("resolvido\n", encoding="utf-8")
+        git("add", "-A", cwd=self.repo)
+        git("commit", "-q", "--no-edit", cwd=self.repo)
+        rc, saida = self.check("delta", self.c1)
+        self.assertEqual((rc, self.nomes(saida)), (0, ["src/app.txt"]), saida)
+
+    def test_arquivo_proprio_que_o_merge_devolveu_a_base_aparece(self):  # desfeito: a mudança do autor sumiu no merge
+        self.base_anda({"src/app.txt": "da base\n"})
+        self.integrar("-X", "theirs")
+        rc, saida = self.check("delta", self.c1)
+        self.assertEqual((rc, self.nomes(saida)), (0, ["src/app.txt"]), saida)
+
+    def test_sem_merge_da_base_e_como_antes(self):
+        self.commitar({"proprio.txt": "2\n"}, "trabalho")
+        rc, saida = self.check("delta", self.c1)
+        self.assertEqual((rc, self.nomes(saida)), (0, ["proprio.txt"]), saida)
+        self.assertNotIn("escopo", saida)
+
+    def test_base_inexistente_vale_o_intervalo_inteiro_e_base_fora_da_lista_da_rc_2(self):
+        self.base_anda({"d1.txt": "1\n"})
+        self.integrar()
+        rc, saida = self.check("delta", self.c1, "--base", "homolog")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("delta: base homolog não encontrada; o intervalo vale inteiro", saida)
+        self.assertEqual(self.nomes(saida), ["d1.txt"])
+        for args in (("delta", self.c1, "--base", "melhoria/x"), ("parecer", "delta", "docs/security/p1.md", "--base", "main")):
+            with self.subTest(args):
+                self.assertEqual(self.check(*args)[0], 2)
+
+
 class DeltaDaJuncao(Repositorio):
     """B19a (E20): as partes da junção são os segundos pais dos merges da primeira linha; octopus rc 1 (C-4), merge da
     base não é parte (C-5), git que falha rc 2 (C-9)."""
@@ -1237,6 +1307,45 @@ class ModelosNoFormato(unittest.TestCase):
     def test_os_quatro_modelos_do_projeto_trazem_a_frase_da_evidencia(self):
         for rel in self.MODELOS[:4]:
             self.assertIn(self.EVIDENCIA, (RAIZ / rel).read_text(encoding="utf-8"), rel)
+
+
+class ProvaDaSuite(Repositorio):
+    """MAQ-I5: parecer de QA que cita o `forge-suite-*.verde` ou `.dirigida` local como evidência é recusado; a prova da
+    suíte é o check-run `bateria` do sha. A seção de método que só explica que o arquivo não vale passa (corpus de legítimos)."""
+    QA = ("---\ntipo: qa\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: abc1234\nparecer: aprovado\nescopo: completo\n"
+          "bugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0\ndata: 2026-11-08\n---\n# QA: p1\n\n## Achados\n\n{corpo}")
+    VERDE = "suíte inteira verde: `/run/user/1000/forge-suite-1000.verde`\n"
+    VIOLACAO = "docs/qa/p1.md: achados: prova de suíte por arquivo local não vale; cite o check-run bateria do sha (I5) (R-QA)"
+
+    def docs(self, corpo, pasta="qa", modelo=None):
+        (self.repo / "docs" / pasta).mkdir(parents=True, exist_ok=True)
+        texto = (modelo or self.QA).format(c="abc1234", p="aprovado", corpo=corpo)
+        (self.repo / "docs" / pasta / "p1.md").write_text(texto, encoding="utf-8")
+        return self.check("docs")
+
+    def test_verde_ou_dirigida_na_evidencia_e_recusado(self):
+        casos = {"verde no critério": "## Critério → teste → resultado\n" + self.VERDE,
+                 "dirigida na suíte": "## Suíte\nverde em /tmp/forge-suite-0.dirigida (sha abc1234)\n",
+                 "subseção da evidência": "## Cenários e resultado real\n### Suíte\n" + self.VERDE,
+                 "no bloco de achados": "- R1 (recomendado) bin/x:1 · prova em forge-suite-1000.verde\n",
+                 "carimbo K6 da suíte paralela": "## Resultado\nárvore em .git/forge-suite-verde (K6)\n"}
+        for nome, corpo in casos.items():
+            with self.subTest(nome):
+                rc, saida = self.docs(corpo)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn(self.VIOLACAO, saida)
+
+    def test_bateria_metodo_e_outro_tipo_passam(self):
+        casos = {"check-run bateria": "## Critério → teste → resultado\nbateria pass 0123456789abcdef (gh pr checks)\n",
+                 "método explica que não usou": "## Critério → teste → resultado\nbateria pass abc1234\n\n## Método\n"
+                                                "Não usei o `/run/user/1000/forge-suite-1000.verde`: ele não vale (I5).\n",
+                 "nome parecido": "## Suíte\nforge-suite-1000.verdes, forge-suite-verdes e forge-suite/x.verde não são o carimbo\n"}
+        for nome, corpo in casos.items():
+            with self.subTest(nome):
+                self.assertEqual(self.docs(corpo), (0, ""))
+        with self.subTest("parecer de review não é de QA"):
+            self.assertEqual(self.docs("## Suíte\n" + self.VERDE, "reviews", BriefDeVolta.REVIEW), (0, ""))
+
 
 for _nome in dir(BriefDeVolta):  # só os testes desta classe; os herdados já rodam em BriefDeVolta
     if _nome.startswith("test_") and _nome not in SondaNoCorpus.__dict__:

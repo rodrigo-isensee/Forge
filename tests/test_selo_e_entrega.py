@@ -319,6 +319,8 @@ class Hook(Repositorio):
 
     def lancar(self, prompt, tipo="forge:node-backend"):
         self.n = getattr(self, "n", 0) + 1
+        # cada lançamento sai sem reserva anterior: aqui só o selo é conferido; a delegação por branch (Z10) é de test_agentes_hash_brief
+        (self.proj / ".forge" / "run" / "agentes.json").unlink(missing_ok=True)
         entrada = {"hook_event_name": "PreToolUse", "tool_name": "Agent", "session_id": "s", "cwd": str(self.proj),
                    "tool_input": {"subagent_type": tipo, "description": f"d{self.n}", "prompt": prompt}}
         env = dict(self.env, FORGE_PROC=str(self.proc), FORGE_NPROC="8")
@@ -354,6 +356,44 @@ class Hook(Repositorio):
         r = self.lancar("faça X", tipo="forge:conferente")  # o conferente segue com a forma da mensagem, sem selo
         self.assertEqual(r.returncode, 2)
         self.assertIn("forge-check brief mensagem", r.stderr)
+
+    def test_executor_generico_com_brief_pede_selo(self):
+        """BRIEF-EXECUTOR-SEM-PORTAO (0.43.2): o general-purpose, o fork e o claude que recebem um brief fazem o trabalho do especialista."""
+        self.brief()
+        prompt = "Leia docs/briefs/exemplo-node-backend-1.md e execute."
+        for tipo in ("general-purpose", "fork", "claude", ""):
+            r = self.lancar(prompt, tipo=tipo)
+            self.assertEqual(r.returncode, 2, f"{tipo}: {r.stderr}")
+            self.assertIn("R-BRIEF", r.stderr)
+            self.assertIn("sem selo", r.stderr)
+        self.assertEqual(self.selar()[0], 0)
+        for tipo in ("general-purpose", "fork", "claude"):
+            self.assertEqual(self.lancar(prompt, tipo=tipo).returncode, 0, tipo)
+
+    def test_pesquisa_sem_brief_e_tipo_so_de_leitura_seguem_livres(self):
+        self.brief()
+        for tipo in ("general-purpose", "fork", "claude"):
+            self.assertEqual(self.lancar("procure onde o hook lê o selo e resuma", tipo=tipo).returncode, 0, tipo)
+        for tipo in ("Explore", "Plan", "time:tech-lead"):
+            self.assertEqual(self.lancar("Leia docs/briefs/exemplo-node-backend-1.md e resuma.", tipo=tipo).returncode, 0, tipo)
+
+    def test_papel_do_forge_sem_o_prefixo_pede_selo(self):
+        for tipo in ("node-backend", "tech-lead", "jarvis"):
+            r = self.lancar("faça o recurso X", tipo=tipo)
+            self.assertEqual(r.returncode, 2, f"{tipo}: {r.stderr}")
+            self.assertIn("não cita o brief", r.stderr)
+        r = self.lancar("faça X", tipo="conferente")  # o conferente sem o prefixo não vira especialista
+        self.assertNotIn("não cita o brief", r.stderr)
+
+    def test_brief_de_um_papel_nao_dispara_outro(self):  # M3 do review de segurança da 0.43.1
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        prompt = "Leia docs/briefs/exemplo-node-backend-1.md e execute."
+        self.assertEqual(self.lancar(prompt, tipo="node-backend").returncode, 0)
+        for tipo in ("forge:devops-engineer", "tech-lead"):
+            r = self.lancar(prompt, tipo=tipo)
+            self.assertEqual(r.returncode, 2, f"{tipo}: {r.stderr}")
+            self.assertIn("o brief é para `node-backend`", r.stderr)
 
     def test_selo_forjado_com_outro_hash_nao_vale(self):
         self.brief()

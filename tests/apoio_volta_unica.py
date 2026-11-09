@@ -299,6 +299,9 @@ exit 0
         eventos, corpos, atual = [], iter(lida.corpos), Path(pasta)
         for palavras in lida.comandos:
             argumentos, entrada = [], ""
+            if palavras == [_comum.PALAVRA_K1]:  # a K1 numa lista (0.43.2): o `cat` com o corpo na entrada
+                eventos.append(("cat", [], next(corpos)))
+                continue
             for palavra in palavras:
                 if palavra == _comum.OPERADOR_K:
                     entrada = next(corpos)

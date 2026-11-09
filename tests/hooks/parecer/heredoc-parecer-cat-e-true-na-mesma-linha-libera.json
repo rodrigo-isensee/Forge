@@ -1,8 +1,10 @@
 {
-  "descricao": "Jarvis com gh pr merge na develop: o papel libera (o parecer é do hook parecer).",
+  "descricao": "HOOK-PARECER-HEREDOC-FALSO-POSITIVO (0.43.2): `&& true` na linha do operador.",
   "arquivos": {
-    "src/app.js": "v1\n"
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
   },
+  "forge": false,
   "git": [
     {
       "branch": "feature/x"
@@ -21,10 +23,10 @@
   ],
   "entrada": {
     "hook_event_name": "PreToolUse",
-    "tool_use_id": "toolu_9",
     "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
     "tool_input": {
-      "command": "gh pr merge feature/x --squash"
+      "command": "cat > docs/qa/p.md <<'FIM' && true\n# QA\nRodei git pull e o merge passou; don't quebra.\nFIM"
     }
   },
   "esperado": {

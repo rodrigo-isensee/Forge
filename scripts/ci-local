@@ -25,12 +25,16 @@ Os `needs:` decidem a ordem; o agregador (`if: always()` com `needs:`) roda os p
 locais (success, failure ou skipped), e o resultado é o resumo deles. `steps.<id>.outputs.<k>` vem do `$GITHUB_OUTPUT`
 de cada passo, e o `if:` do passo é avaliado na hora de rodá-lo; `always()`, `success()`, `cancelled()`, `failure()` e `!`
 valem (aqui nada é cancelado e o job para no primeiro passo que falha).
+Artefatos (T3): `actions/upload-artifact` (`name`, `path`) copia o arquivo para uma pasta da execução e
+`actions/download-artifact` (`pattern`, `path`) traz de volta os que casam o padrão, como o `merge-multiple` do CI; a
+perna que reaproveita outra publica os artefatos dela a partir do RUNNER_TEMP da perna que rodou.
 
 Jobs obrigatórios: todos; só os passos do actionlint e do zizmor são opcionais (eles são baixados pelo CI; localmente só rodam se já
 estiverem instalados). Um job é "pulado" por duas razões: não se aplica ao PR (condição `if` do workflow: não afeta
 o status) ou falta algo para rodá-lo (ferramenta ausente: se o job é obrigatório, o status vira `failure`).
 """
 import argparse
+import fnmatch
 import itertools
 import json
 import os
@@ -131,7 +135,8 @@ def _lista(valor):
 
 
 def ler_jobs(texto):
-    """Lista de jobs: {id, nome, se, needs, matriz, passos: [{nome, id, se, env, run, shell}]} na ordem do arquivo.
+    """Lista de jobs: {id, nome, se, needs, matriz, passos: [{nome, id, se, env, run, shell, uses, com}]} na ordem do
+    arquivo (`com` é o `with:` do passo).
     `needs` vem em fluxo (`[a, b]`), numa palavra ou em lista de `- `; `matriz` é {chave: [valores]} de `strategy.matrix`."""
     linhas = texto.splitlines()
     jobs, job, passo, secao, i = [], None, None, "", 0
@@ -167,13 +172,18 @@ def ler_jobs(texto):
             chave, _, valor = linha.strip().partition(":")
             job["matriz"][chave] = _lista(valor)
         elif secao == "steps" and ind >= 6 and linha.startswith("      - "):
-            passo = {"nome": "", "id": "", "se": "", "env": {}, "run": "", "shell": ""}
+            passo = {"nome": "", "id": "", "se": "", "env": {}, "run": "", "shell": "", "uses": "", "com": {}}
             job["passos"].append(passo)
             linha, ind = "        " + linha[8:], 8
         if passo is not None and secao == "steps" and ind == 8:
             chave, _, valor = linha.strip().partition(":")
-            if chave in ("name", "id", "if", "shell"):
-                passo[{"name": "nome", "if": "se"}.get(chave, chave)] = _valor(valor)
+            if chave in ("name", "id", "if", "shell", "uses"):
+                passo[{"name": "nome", "if": "se"}.get(chave, chave)] = _valor(valor.split(" #", 1)[0])
+            elif chave == "with":
+                while i < len(linhas) and linhas[i].startswith("          ") and linhas[i].strip():
+                    k, _, v = linhas[i].strip().partition(":")
+                    passo["com"][k] = _valor(v)
+                    i += 1
             elif chave == "run":
                 if valor.strip() in ("|", ">"):
                     passo["run"], i = _bloco(linhas, i, 8)
@@ -402,20 +412,59 @@ def sem_passos_opcionais_ausentes(passos, nome_do_job):
     return restantes
 
 
+ARTEFATO = re.compile(r"actions/(upload|download)-artifact@")
+
+
+def pasta_do_job(tmp, job):
+    return tmp / re.sub(r"\W+", "_", job["id"])
+
+
+def artefato(passo, ctx, tmp_raiz, tmp_job):
+    """Emula o passo de artefato (T3): o upload copia `path` para `tmp_raiz/artefatos/<name>/`; o download copia para
+    `path` os arquivos dos artefatos que casam `pattern`. Devolve "" ou o motivo da falha."""
+    ctx = {**ctx, "runner.temp": str(tmp_job)}
+    loja = tmp_raiz / "artefatos"
+    tipo = ARTEFATO.match(passo.get("uses", "")).group(1)
+    if tipo == "upload":
+        origem, nome = Path(expandir(passo["com"].get("path", ""), ctx)), expandir(passo["com"].get("name", ""), ctx)
+        if not nome or not origem.is_file():
+            return f"artefato '{nome}' sem arquivo em {origem}"
+        (loja / nome).mkdir(parents=True, exist_ok=True)
+        shutil.copy(origem, loja / nome / origem.name)
+        return ""
+    destino, padrao = Path(expandir(passo["com"].get("path", ""), ctx)), passo["com"].get("pattern", "")
+    destino.mkdir(parents=True, exist_ok=True)
+    for pasta in sorted(loja.iterdir()) if loja.is_dir() else []:
+        if fnmatch.fnmatchcase(pasta.name, padrao):
+            for arquivo in pasta.iterdir():
+                shutil.copy(arquivo, destino / arquivo.name)
+    return ""
+
+
+def publicar_artefatos(job, ctx, tmp, tmp_job):
+    """Os uploads da perna que reaproveitou outra, a partir do RUNNER_TEMP de quem rodou; "" ou o motivo da falha."""
+    for passo in job["passos"]:
+        if ARTEFATO.match(passo.get("uses", "")) and passo["uses"].startswith("actions/upload"):
+            motivo = artefato(passo, ctx, tmp, tmp_job)
+            if motivo:
+                return motivo
+    return ""
+
+
 def rodar_job(job, ctx, raiz, base_sha, tmp):
     nome = job["nome"]
     obrigatorio = job["id"] not in NAO_OBRIGATORIOS
     try:
         if not avaliar_se(job["se"], ctx):
             return resultado(nome, PULADO, f"não se aplica a este PR (if: {job['se']})", obrigatorio)
-        passos = [p for p in job["passos"] if p["run"] and not PASSO_DE_PREPARO.search(p["run"])]
+        passos = [p for p in job["passos"] if (p["run"] and not PASSO_DE_PREPARO.search(p["run"])) or ARTEFATO.match(p.get("uses", ""))]
         passos = [p for p in passos if talvez_rode(p["se"], ctx)]
     except ValueError as erro:
         print(f"AVISO: job '{nome}' pulado por falta de suporte: {erro}", file=sys.stderr, flush=True)
         return resultado(nome, PULADO, f"sem suporte do ci-local: {erro}", obrigatorio, ausente=True)
     if not passos:
         return resultado(nome, PULADO, "nenhum passo a rodar neste PR", obrigatorio)
-    tmp = tmp / re.sub(r"\W+", "_", job["id"])  # cada job tem seu RUNNER_TEMP, como num runner próprio
+    tmp_raiz, tmp = tmp, pasta_do_job(tmp, job)  # cada job tem seu RUNNER_TEMP, como num runner próprio
     tmp.mkdir(parents=True, exist_ok=True)
     passos = sem_passos_opcionais_ausentes(passos, nome)
     faltam = sorted({f for p in passos for f in ferramentas_ausentes(p["run"])})
@@ -425,6 +474,11 @@ def rodar_job(job, ctx, raiz, base_sha, tmp):
     for n, passo in enumerate(passos):
         if not avaliar_se(passo["se"], ctx, saidas_lidas=True):
             print(f"--- {nome}: {passo['nome'] or 'passo'} (pulado: if: {passo['se']})", flush=True)
+            continue
+        if ARTEFATO.match(passo.get("uses", "")):
+            motivo = artefato(passo, ctx, tmp_raiz, tmp)
+            if motivo:
+                return resultado(nome, FALHOU, f"passo '{passo['nome']}': {motivo}", obrigatorio)
             continue
         saida = tmp / f"saida-{n}"
         script = passo["run"].replace("git rev-parse HEAD^1", f"echo {base_sha}").replace("/tmp/", "$RUNNER_TEMP/")
@@ -512,11 +566,14 @@ def rodar_jobs(jobs, ctx, raiz, base_sha, tmp, rodar=None):
             if needs and "always()" not in job["se"] and any(ctx_job[f"needs.{n}.result"] != "success" for n in needs):
                 r = resultado(perna["nome"], PULADO, "need sem sucesso (pulado, como no GitHub)")
             elif assinatura(perna, ctx_perna) in feitos:
-                primeiro = feitos[assinatura(perna, ctx_perna)]
+                primeiro, quem = feitos[assinatura(perna, ctx_perna)]
                 r = {**primeiro, "nome": perna["nome"], "motivo": f"mesmos passos de '{primeiro['nome']}': resultado reaproveitado"}
+                motivo = publicar_artefatos(perna, ctx_perna, tmp, pasta_do_job(tmp, quem)) if r["estado"] == OK else ""
+                if motivo:
+                    r = resultado(perna["nome"], FALHOU, motivo)
             else:
                 r = rodar(perna, ctx_perna, raiz, base_sha, tmp)
-                feitos[assinatura(perna, ctx_perna)] = r
+                feitos[assinatura(perna, ctx_perna)] = (r, perna)
                 if needs and r["estado"] == OK:
                     r = {**r, "motivo": "resumo de " + ", ".join(f"{n}: {ctx_job[f'needs.{n}.result']}" for n in needs)}
             por_id[job["id"]].append(r)

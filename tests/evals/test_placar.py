@@ -72,6 +72,14 @@ class Medir(Placar):
         self.assertEqual((anterior["escapes_n"], anterior["pedidos_mesclados"], anterior["pronto_ate_develop"]), (0, 0, None))
         self.assertEqual(dados["resumo"], "resumo: os erros de forma do time caíram 73%; os defeitos que escaparam subiram (antes não havia nenhum)")
 
+    def test_brief_selado_conta_a_delegacao_sem_o_conferente(self):  # A2 do review de correção da 0.43.1
+        selos = "".join(f"- 2026-11-1{d} 09:00: brief selado docs/briefs/p-dev-{d}.md {'c' * 64}\n" for d in (0, 1, 2))
+        self.gravar("docs/pedidos/p.md", "# p\n\n## Histórico\n" + selos + "- 2026-11-03 09:00: brief selado docs/briefs/p-dev-9.md "
+                    + "c" * 64 + "\n- 2026-11-11 10:00: ERRO-JARVIS: x\n- 2026-11-11 11:00: brief selado sem hash\n")
+        rc, dados = self.json("--ate", "2026-11-14")
+        self.assertEqual((dados["atual"]["delegacoes"], dados["anterior"]["delegacoes"]), (3, 1))
+        self.assertEqual((dados["atual"]["erros_jarvis"], dados["atual"]["taxa_forma"]), (round(1 / 3, 4), 0.0))
+
     def test_fonte_ausente_sai_tracinho_e_nunca_zero(self):
         rc, saida, _ = self.rodar("--ate", "2026-11-14")
         self.assertEqual(rc, 0)

@@ -1,0 +1,146 @@
+{
+  "pedido": "v0432-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I97",
+      "guarda": "scripts/suite-partes.py:116 partes (negada)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "        if partes:",
+      "para": "        if not (partes):",
+      "testes": [
+        "tests.test_suite_partes"
+      ]
+    },
+    {
+      "id": "I98",
+      "guarda": "scripts/suite-partes.py:169 plano[u][1] is None (negada)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "        inteiros = [u for u in parte if plano[u][1] is None]",
+      "para": "        inteiros = [u for u in parte if not (plano[u][1] is None)]",
+      "testes": [
+        "tests.test_suite_partes"
+      ]
+    },
+    {
+      "id": "I99",
+      "guarda": "scripts/suite-partes.py:171 plano[u][1] is not None (negada)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "        filhos_nomes.append(sorted(convertida + [u for u in parte if plano[u][1] is not None]))",
+      "para": "        filhos_nomes.append(sorted(convertida + [u for u in parte if not (plano[u][1] is not None)]))",
+      "testes": [
+        "tests.test_suite_partes"
+      ]
+    },
+    {
+      "id": "I100",
+      "guarda": "scripts/suite-partes.py:204 not codigo and publicar (negada)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if not codigo and publicar:",
+      "para": "    if not (not codigo and publicar):",
+      "testes": [
+        "tests.test_suite_partes"
+      ]
+    },
+    {
+      "id": "I101",
+      "guarda": "scripts/suite-partes.py:245 destino (negada)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    publicar = (lambda relatorios: gravar_pulados(sp, destino, k, n, relatorios)) if destino else None",
+      "para": "    publicar = (lambda relatorios: gravar_pulados(sp, destino, k, n, relatorios)) if not (destino) else None",
+      "testes": [
+        "tests.test_suite_partes"
+      ]
+    },
+    {
+      "id": "I102",
+      "guarda": "scripts/suite-partes.py:266 n_lido != n or type(quantos) is not int or (not isinstance(lista, list)) or (quantos != len(lista)) or (not all((isinsta (negada)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if n_lido != n or type(quantos) is not int or not isinstance(lista, list) or quantos != len(lista) \\\n            or not all(isinstance(i, str) for i in lista):",
+      "para": "    if not (n_lido != n or type(quantos) is not int or not isinstance(lista, list) or quantos != len(lista) \\\n            or not all(isinstance(i, str) for i in lista)):",
+      "testes": [
+        "tests.test_suite_partes"
+      ]
+    },
+    {
+      "id": "I103",
+      "guarda": "scripts/suite-partes.py:275 Path(pasta).is_dir() (negada)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    for arquivo in sorted(Path(pasta).glob(\"*.json\")) if Path(pasta).is_dir() else []:",
+      "para": "    for arquivo in sorted(Path(pasta).glob(\"*.json\")) if not (Path(pasta).is_dir()) else []:",
+      "testes": [
+        "tests.test_suite_partes"
+      ]
+    },
+    {
+      "id": "I104",
+      "guarda": "scripts/suite-partes.py:281 k in vistos (negada)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "        if k in vistos:",
+      "para": "        if not (k in vistos):",
+      "testes": [
+        "tests.test_suite_partes"
+      ]
+    },
+    {
+      "id": "I105",
+      "guarda": "scripts/suite-partes.py:288 faltam (negada)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if faltam:",
+      "para": "    if not (faltam):",
+      "testes": [
+        "tests.test_suite_partes"
+      ]
+    },
+    {
+      "id": "I106",
+      "guarda": "scripts/suite-partes.py:295 not re.fullmatch('[1-9][0-9]?', texto_n or '') (negada)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if not re.fullmatch(r\"[1-9][0-9]?\", texto_n or \"\"):",
+      "para": "    if not (not re.fullmatch(r\"[1-9][0-9]?\", texto_n or \"\")):",
+      "testes": [
+        "tests.test_suite_partes"
+      ]
+    },
+    {
+      "id": "I107",
+      "guarda": "scripts/suite-partes.py:298 erros (negada)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    soma, ids, erros = ler_pulados(pasta, int(texto_n))\n    if erros:",
+      "para": "    soma, ids, erros = ler_pulados(pasta, int(texto_n))\n    if not (erros):",
+      "testes": [
+        "tests.test_suite_partes"
+      ]
+    },
+    {
+      "id": "I108",
+      "guarda": "scripts/suite-partes.py:301 linha or (f'OK (skipped={soma})' if soma else 'OK') (negada)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    print(linha or (f\"OK (skipped={soma})\" if soma else \"OK\"))",
+      "para": "    print(not (linha or (f\"OK (skipped={soma})\" if soma else \"OK\")))",
+      "testes": [
+        "tests.test_suite_partes"
+      ]
+    },
+    {
+      "id": "I109",
+      "guarda": "scripts/suite-partes.py:302 linha (negada)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    return 1 if linha else 0",
+      "para": "    return 1 if not (linha) else 0",
+      "testes": [
+        "tests.test_suite_partes"
+      ]
+    },
+    {
+      "id": "I110",
+      "guarda": "scripts/suite-partes.py:308 argv[:1] == ['--somar-pulados'] and len(argv) == 3 (negada)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if argv[:1] == [\"--somar-pulados\"] and len(argv) == 3:",
+      "para": "    if not (argv[:1] == [\"--somar-pulados\"] and len(argv) == 3):",
+      "testes": [
+        "tests.test_suite_partes"
+      ]
+    }
+  ]
+}

@@ -161,6 +161,7 @@ class Brinquedo(unittest.TestCase):
         for apoio in ("guarda_git.py", "ambiente_git.py"):
             shutil.copy(RAIZ / "tests" / apoio, self.repo / "tests" / apoio)
         (self.repo / ".gitignore").write_text("__pycache__/\n")
+        (self.repo / "tests" / "config.json").write_text('{"teto_pulados": 0}')  # T3: no CI o teto é obrigatório
         for nome in ("a", "b", "c"):
             self.modulo(nome, modulo_de_teste(nome))
         self.git("init", "-q")
@@ -710,6 +711,64 @@ class T(unittest.TestCase):
         with self.assertRaises(ProcessLookupError):
             os.kill(pid, 0)
         self.assertEqual(list(self.tmpdir.iterdir()), [])
+
+
+class TetoDePulados(unittest.TestCase):
+    """T3 (0.43.2): no CI, mais pulados que `teto_pulados` reprova; teto ilegível reprova; fora do CI só avisa."""
+
+    setUp, roda, modulo, resumo_do_ci, git = (Brinquedo.setUp, Brinquedo.roda, Brinquedo.modulo, Brinquedo.resumo_do_ci,
+                                              Brinquedo.git)
+
+    def com_pulado(self, teto):
+        corpo = 'with self.subTest("a|b`c::d\\x07"): self.skipTest("motivo-secreto")'
+        self.modulo("b", modulo_de_teste("b", corpo))
+        (self.repo / "tests" / "config.json").write_text(teto if isinstance(teto, str) else json.dumps(teto))
+
+    def no_ci(self, teto, **extra):
+        self.com_pulado(teto)
+        return self.roda(GITHUB_ACTIONS="true", FORGE_SUITE_SEM_REUSO="1", **extra)
+
+    def test_acima_do_teto_reprova_com_os_ids_neutros_no_resumo(self):
+        self.com_pulado({"teto_pulados": 0})
+        codigo, saida, erro, resumo = self.resumo_do_ci(GITHUB_ACTIONS="true", FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual(codigo, 1, saida + erro)
+        self.assertEqual(saida.strip().splitlines()[-1], "FAILED (skipped=1 acima do teto 0)")
+        (linha,) = [x for x in resumo.splitlines() if "pulados acima do teto" in x]
+        self.assertIn("test_b.T.test_b", linha)
+        for proibido in ("|", "`", "::", "\x07", "motivo-secreto"):
+            self.assertNotIn(proibido, linha)
+
+    def test_no_teto_passa_e_abaixo_avisa_que_pode_cair(self):
+        codigo, saida, erro = self.no_ci({"teto_pulados": 1})
+        self.assertEqual((codigo, saida.strip().splitlines()[-1]), (0, "OK (skipped=1)"), saida + erro)
+        self.assertNotIn("pode cair", erro)
+        codigo, saida, erro = self.no_ci({"teto_pulados": 3})
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertIn("o teto de pulados pode cair para 1", erro)
+
+    def test_teto_ilegivel_reprova_no_ci(self):
+        for teto in ({}, {"teto_pulados": "x"}, {"teto_pulados": True}, {"teto_pulados": None},
+                     {"teto_pulados": 1.0}, {"teto_pulados": -1}, [1], "{quebrado"):
+            with self.subTest(teto=teto):
+                codigo, saida, erro = self.no_ci(teto)
+                self.assertEqual(codigo, 1, saida + erro)
+                self.assertEqual(saida.strip().splitlines()[-1], "FAILED (teto de pulados ilegível)")
+        (self.repo / "tests" / "config.json").unlink()
+        codigo, saida, _ = self.roda(GITHUB_ACTIONS="true", FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual((codigo, saida.strip().splitlines()[-1]), (1, "FAILED (teto de pulados ilegível)"))
+
+    def test_fora_do_ci_so_avisa(self):
+        self.com_pulado({"teto_pulados": 0})
+        codigo, saida, erro = self.roda(FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual((codigo, saida.strip().splitlines()[-1]), (0, "OK (skipped=1)"), saida + erro)
+        self.assertIn("pulados 1 (teto 0; só reprova no CI)", erro)
+
+    def test_estourado_nao_regrava_os_pesos(self):
+        pesos = self.repo / "tests" / "pesos-d4.json"
+        pesos.write_text("{}\n")
+        codigo, saida, erro = self.no_ci({"teto_pulados": 0}, FORGE_SUITE_MEDIR="1")
+        self.assertEqual(codigo, 1, saida + erro)
+        self.assertEqual(pesos.read_text(), "{}\n")
 
 
 if __name__ == "__main__":

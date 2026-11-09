@@ -828,9 +828,14 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         chamados = []
 
         def rodar(job, ctx, raiz, base, tmp):
-            if job.get("needs") or not ci.avaliar_se(job["se"], ctx):
+            # o teto de pulados (T3) soma o que as partes publicam; aqui as partes não rodam, então ele também é pronto
+            if (job.get("needs") and not job["id"].startswith("pulados-")) or not ci.avaliar_se(job["se"], ctx):
                 return ci.rodar_job(job, ctx, self.tmp, base, self.tmp)
             chamados.append((job["nome"], ctx.get("matrix.parte")))
+            if ctx.get("matrix.parte"):  # a parte verde deixa os pulados no RUNNER_TEMP dela, para o upload (T3)
+                pasta = ci.pasta_do_job(self.tmp, job) / "pulados"
+                pasta.mkdir(parents=True, exist_ok=True)
+                (pasta / f"parte-{ctx['matrix.parte']}.json").write_text("{}")
             return ci.resultado(job["nome"], ci.FALHOU if job["nome"] == falha else ci.OK)
 
         return ci.rodar_jobs(jobs, self.ctx, self.tmp, "b" * 40, self.tmp, rodar=rodar), chamados
@@ -839,9 +844,32 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         jobs = {j["id"]: j for j in self.jobs_reais()}
         self.assertEqual(jobs["partes-doze"]["matriz"], {"parte": ["1", "2", "3"]})
         self.assertEqual(jobs["partes-quatorze"]["matriz"], {"parte": ["1", "2", "3"]})
-        self.assertEqual(jobs["agregador"]["needs"], ["bateria", "partes-doze"])
-        self.assertEqual(jobs["bateria-python-tres-quatorze"]["needs"], ["partes-quatorze", "instalacao-quatorze"])
+        self.assertEqual(jobs["agregador"]["needs"], ["bateria", "partes-doze", "pulados-doze"])
+        self.assertEqual(jobs["bateria-python-tres-quatorze"]["needs"],
+                         ["partes-quatorze", "pulados-quatorze", "instalacao-quatorze"])
+        (upload,) = [p for p in jobs["partes-doze"]["passos"] if p["uses"].startswith("actions/upload-artifact@")]
+        self.assertEqual(upload["com"]["name"], "pulados-doze-${{ matrix.parte }}")
+        (download,) = [p for p in jobs["pulados-doze"]["passos"] if p["uses"].startswith("actions/download-artifact@")]
+        self.assertEqual(download["com"]["pattern"], "pulados-doze-*")
         self.assertEqual((jobs["agregador"]["nome"], jobs["bateria-python-tres-quatorze"]["nome"]), ("bateria", "bateria (python 3.14)"))
+
+    def test_artefato_da_perna_vai_ao_job_que_baixa_mesmo_reaproveitada(self):  # T3
+        passos_parte = ("    strategy:\n      matrix:\n        parte: [1, 2]\n    steps:\n"
+                        "      - env:\n          PARTE: ${{{{ matrix.parte }}}}\n"
+                        "        run: mkdir -p \"$RUNNER_TEMP/p\" && echo $PARTE > \"$RUNNER_TEMP/p/x-$PARTE.txt\"\n"
+                        "      - uses: actions/upload-artifact@" + "a" * 40 + " # v7\n        with:\n"
+                        "          name: art-{v}-${{{{ matrix.parte }}}}\n"
+                        "          path: ${{{{ runner.temp }}}}/p/x-${{{{ matrix.parte }}}}.txt\n")
+        soma = ("    steps:\n      - uses: actions/download-artifact@" + "b" * 40 + " # v8\n        with:\n"
+                "          pattern: art-{v}-*\n          path: ${{{{ runner.temp }}}}/baixados\n"
+                "      - run: test \"$(cat \"$RUNNER_TEMP\"/baixados/*.txt | sort | tr -d '\\n')\" = 12\n")
+        texto = "jobs:\n"
+        for v in ("um", "dois"):
+            texto += f"  partes-{v}:\n" + passos_parte.format(v=v) + f"  soma-{v}:\n    needs: [partes-{v}]\n" + soma.format(v=v)
+        resultados = ci.rodar_jobs(ci.ler_jobs(texto), self.ctx, self.tmp, "b" * 40, self.tmp)
+        por_nome = {r["nome"]: r for r in resultados}
+        self.assertIn("reaproveitado", por_nome["partes-dois"]["motivo"])
+        self.assertEqual((por_nome["soma-um"]["estado"], por_nome["soma-dois"]["estado"]), (ci.OK, ci.OK), resultados)
 
     def test_needs_em_lista_de_tracos_e_numa_palavra(self):
         texto = ("jobs:\n  a:\n    steps:\n      - run: true\n  b:\n    needs: a\n    steps:\n      - run: true\n"

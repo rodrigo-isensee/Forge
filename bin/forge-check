@@ -253,6 +253,24 @@ def ler_frontmatter(texto):
     return campos, erros + ["frontmatter sem fechamento `---`"]
 
 
+PROVA_LOCAL_DA_SUITE = re.compile(r"forge-suite-(verde\b|[^\s/]*\.(verde|dirigida)\b)")  # I5: os carimbos locais (pre-push e K6)
+SECAO_DE_EVIDENCIA = re.compile(r"^##\s+(Achados|Crit[ée]rio|Cen[áa]rio|Obriga[çc][ãa]o|Su[íi]te|Resultado|Execu[çc][ãa]o|"
+                                r"Evid[êe]ncia|Vermelho|PQ-)", re.I)
+
+
+def prova_local_da_suite(texto):
+    """I5: o parecer cita o `forge-suite-*.verde` ou `.dirigida` do pre-push, ou o `forge-suite-verde` da suíte paralela (K6),
+    numa seção de evidência ou no `## Achados`; a seção de
+    método, que só explica que o arquivo não vale, não conta (falso positivo do modelo de ameaças da 0.44)."""
+    dentro = False
+    for linha in texto.splitlines():
+        if re.match(r"^##\s", linha):  # outro `## ` troca a seção; `###` fica dentro da seção dele
+            dentro = bool(SECAO_DE_EVIDENCIA.match(linha))
+        elif dentro and PROVA_LOCAL_DA_SUITE.search(linha):
+            return True
+    return False
+
+
 def validar_documento(rel, texto, estrito=False):
     """Devolve (campos ou None se ignorado, violações). Com `estrito`, o bloco `## Achados` é cobrado como no `forge-check pr` (B12)."""
     campos, erros = ler_frontmatter(texto)
@@ -294,6 +312,8 @@ def validar_documento(rel, texto, estrito=False):
     if tipo == "qa":
         if campos.get("escopo") and campos["escopo"] not in ("completo", "incremental"):
             erro("escopo", "use completo ou incremental")
+        if prova_local_da_suite(texto):
+            erro("achados", "prova de suíte por arquivo local não vale; cite o check-run bateria do sha (I5)")
         n = {}
         for c in ("bugs_criticos", "bugs_altos", "bugs_medios", "bugs_baixos"):
             if campos.get(c):
@@ -618,6 +638,11 @@ def problemas_do_dominio_mais(campos):
     return saida
 
 
+def e_teste_de_controle(nome):
+    """M4 (0.43.2): uma lista só para o domínio, o QA e a classe: TESTES_DE_CONTROLE mais o TESTE_DE_CONTROLE da classe C."""
+    return livre(nome, TESTES_DE_CONTROLE) or bool(TESTE_DE_CONTROLE.match(nome))
+
+
 def no_dominio(tipo, nome, invariantes=frozenset(), mais=()):
     """True se `nome` está no domínio do parecer `tipo` (PARECER-CONTEUDO, DOMINIO_DO_PARECER). Tipo desconhecido: tudo."""
     if livre(nome, mais) or tipo not in ("revisao-seguranca", "revisao-devops"):
@@ -625,6 +650,8 @@ def no_dominio(tipo, nome, invariantes=frozenset(), mais=()):
     if tipo == "revisao-devops":
         return bool(PIPELINE_E_INFRA.match(nome) or DEVOPS_EXTRA.search(nome) or TRAVAS_DE_DEPENDENCIA.search(nome))
     if livre(nome, SEGURANCA_SEMPRE) or any(r.search(nome) for r in (PIPELINE_E_INFRA, TRAVAS_DE_DEPENDENCIA, SEGREDOS_E_CONFIG, MIGRACOES)):
+        return True
+    if e_teste_de_controle(nome):  # M4 (0.43.2): o teste de controle da classe C nunca sai do domínio da segurança
         return True
     if TESTES.search(nome):  # teste (mesmo com invariante): a catraca guarda contagem e asserções; o QA e o review o cobrem
         return False
@@ -673,7 +700,7 @@ def testes_do_qa(raiz, pedido, branch, ate, desde):
         if nomes is None:
             return None, set()
         nomes = [n for n in nomes if not livre(n, LIVRES)]
-        so_teste = nomes and all(TESTES.search(n) and not livre(n, TESTES_DE_CONTROLE) for n in nomes)
+        so_teste = nomes and all(TESTES.search(n) and not e_teste_de_controle(n) for n in nomes)
         (puros if so_teste else mistos).update(nomes)
     return q, {n for n in puros - mistos if blob_de(raiz, ate, n) == blob_de(raiz, q, n)}
 
@@ -827,6 +854,9 @@ def isencoes_da_entrega(raiz, ref=None, base=None):
 LINHAS_DO_TRIVIAL = 20
 # EXT-B1: configuração do Claude Code do projeto (settings, hooks, agentes), o .mcp.json e os testes que testam controles (nome conservador).
 CONFIG_DO_CLAUDE = re.compile(r"(^|/)(\.claude/|\.mcp\.json$)")
+# M5 e L1 (0.43.2): o manifesto e os agentes dos plugins, os pesados das stacks, os apoios dos testes (o que os testes de controle
+# importam ou o CI roda) e a forma compilada (o que o interpretador carrega no lugar do fonte) também são controle.
+PLUGIN_E_APOIOS = re.compile(r"^(\.claude-plugin/|dev/|stacks/[^/]+/pesados\.json$|tests/(apoio_|modelo_)[^/]*\.py$|tests/[^/]+\.sh$)")
 TESTE_DE_CONTROLE = re.compile(r"^tests/(hooks/|catraca|neutralidade|test_(hooks|catraca|oraculo_|forge_check|conformidade|pre_?push|fechar|guarda|"
                                r"agentes|parecer|isencoes|classe_risco|invariante))")
 TESTE = re.compile(r"(^|/)(tests?|__tests__|spec)/|(^|/)(test_[^/]+|[^/]+_test\.[^/.]+|[^/]+\.(test|spec)\.[^/]+)$")
@@ -853,6 +883,8 @@ def motivo_de_controle(nome, catraca):
                          ("regra, agente, skill ou configuração do projeto", MD_DE_CONTROLE.match),
                          ("pipeline, contêiner ou infraestrutura", PIPELINE_E_INFRA.match),
                          ("configuração do Claude Code ou MCP", CONFIG_DO_CLAUDE.search),
+                         ("plugin, pesados da stack ou apoio dos testes", PLUGIN_E_APOIOS.match),
+                         ("forma compilada", lambda n: catraca.FORMA_COMPILADA.search(n)),
                          ("teste de controle", TESTE_DE_CONTROLE.match)):
         if casa(nome):
             return motivo
@@ -2227,10 +2259,12 @@ def caminho_impresso(caminho):
 HUNK = re.compile(rb"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", re.M)
 
 
-def trechos_novos(raiz, de, ate, nome):
-    """(início, fim) das linhas do lado novo de cada trecho do `git diff -U0` de `nome`."""
+def trechos_novos(raiz, de, ate, nome, estrito=False):
+    """(início, fim) das linhas do lado novo de cada trecho do `git diff -U0` de `nome`. Com `estrito`, a falha do git devolve None."""
     cod, saida = git(raiz, "--literal-pathspecs", "diff", "-U0", "--no-renames", "--no-ext-diff", "--no-textconv",
                      f"{de}..{ate}", "--", nome, bruto=True)
+    if cod and estrito:
+        return None
     trechos = []
     for m in ([] if cod else HUNK.finditer(saida)):
         inicio, tamanho = int(m.group(1)), int(m.group(2) if m.group(2) is not None else 1)
@@ -2238,9 +2272,53 @@ def trechos_novos(raiz, de, ate, nome):
     return trechos
 
 
-def cmd_delta(raiz, refs, parecer, classe=False):
-    """O que mudou desde um commit (ou desde o `commit:` de um parecer) fora de LIVRES (VV-2, M12). Só leitura; não reprova.
-    rc 2 se o commit não existe, não é ancestral do fim ou o parecer não abre."""
+BASES_DO_DELTA = ("develop", "homolog")  # lista branca do `--base` do delta: a própria branch como base esconderia tudo (FC-DELTA-APOS-MERGE-BASE)
+FALHA_DO_DELTA = "o git falhou ({}); o delta não foi lido"  # FC-DELTA-GIT-FALHA: nunca "nenhum" depois de uma falha do git
+
+
+def escopo_sem_a_base(raiz, inicio, fim, base, nomes):
+    """FC-DELTA-APOS-MERGE-BASE: `(nomes, linha)` do intervalo sem o que veio da `base` por merge na branch. Fica o arquivo do autor
+    pelo `escopo_pelo_primeiro_pai` (por conteúdo contra o segundo pai: resolução de conflito e `-s ours` ficam) e o desfeito (o que a
+    branch tinha mudado até `inicio`). Sem base legível, com `fim` já na base ou sem merge da base, os `nomes` voltam inteiros, com a
+    linha do motivo ou None. `FalhaDoGit` se o git falha: o delta para com rc 2 e nunca encolhe."""
+    base_ref = ref_da_base(raiz, base)
+    if not base_ref:
+        return nomes, f"base {base} não encontrada; o intervalo vale inteiro"
+    if e_ancestral(raiz, fim, base_ref):
+        return nomes, None
+    proprios = escopo_pelo_primeiro_pai(raiz, inicio, fim, base_ref)
+    if proprios is None or isinstance(proprios, FalhaDoGit):
+        return (nomes, None) if proprios is None else proprios
+    desfeitos = desfeitos_da_entrega(raiz, base_ref, inicio)
+    if desfeitos is None:
+        return FalhaDoGit("diff dos desfeitos")
+    return [n for n in nomes if n in proprios or n in desfeitos], f"escopo: sem o que veio da base ({base})"
+
+
+def intervalo_do_delta(raiz, inicio, fim, base):
+    """`(nomes, linha de escopo ou None)` de `inicio..fim` sem o que veio da base, ou `FalhaDoGit` (FC-DELTA-GIT-FALHA)."""
+    nomes = nomes_do_intervalo(raiz, inicio, fim, estrito=True)
+    if nomes is None:
+        return FalhaDoGit("diff --name-only")
+    return escopo_sem_a_base(raiz, inicio, fim, base, nomes)
+
+
+def sem_git_que_falha(prefixo, corpo):
+    """Roda `corpo()`; git ausente ou que passa do prazo vira a linha da falha e rc 2, nunca um delta vazio (FC-DELTA-GIT-FALHA)."""
+    try:
+        return corpo()
+    except (OSError, subprocess.TimeoutExpired) as e:
+        print(f"{prefixo}: " + FALHA_DO_DELTA.format(nome_seguro(type(e).__name__)))
+        return 2
+
+
+def cmd_delta(raiz, refs, parecer, classe=False, base="develop"):
+    """O que mudou desde um commit (ou desde o `commit:` de um parecer) fora de LIVRES (VV-2, M12), sem o que veio da `base` por
+    merge na branch. Só leitura; não reprova. rc 2 se o commit não existe, não é ancestral do fim, o parecer não abre, a base está
+    fora da lista ou o git falha (nunca `delta: nenhum` depois de uma falha, FC-DELTA-GIT-FALHA)."""
+    if base not in BASES_DO_DELTA:
+        print(f"delta: --base {nome_seguro(base)}: use {' ou '.join(BASES_DO_DELTA)}")
+        return 2
     if parecer:
         arquivo = dentro_da_raiz(raiz, parecer, PASTAS_DE_PARECER)
         if arquivo is None or len(refs) > 1:
@@ -2257,6 +2335,11 @@ def cmd_delta(raiz, refs, parecer, classe=False):
     else:
         print("delta: use `delta <commit> [<fim>]` ou `delta --parecer <arquivo> [<fim>]`")
         return 2
+    return sem_git_que_falha("delta", lambda: delta_do_intervalo(raiz, inicio_txt, fim_txt, classe, base))
+
+
+def delta_do_intervalo(raiz, inicio_txt, fim_txt, classe, base):
+    """O corpo do `cmd_delta` depois dos argumentos: toda falha do git sai com rc 2 e a linha `o delta não foi lido`."""
     inicio, fim = sha_do_commit(raiz, inicio_txt), sha_do_commit(raiz, fim_txt)
     if not inicio or not fim:
         print(f"delta: commit {nome_seguro(inicio_txt if not inicio else fim_txt)} não existe")
@@ -2265,18 +2348,29 @@ def cmd_delta(raiz, refs, parecer, classe=False):
         print(f"delta: {inicio[:7]} não é ancestral de {fim[:7]}")
         return 2
     print(f"intervalo: {inicio}..{fim}")
-    nomes = [n for n in nomes_do_intervalo(raiz, inicio, fim) if not livre(n, LIVRES)]
+    lido = intervalo_do_delta(raiz, inicio, fim, base)
+    if isinstance(lido, FalhaDoGit):
+        print("delta: " + FALHA_DO_DELTA.format(lido.passo))
+        return 2
+    nomes, escopo = lido
+    if escopo:
+        print(f"delta: {escopo}")
+    nomes = [n for n in nomes if not livre(n, LIVRES)]
     if not nomes:
         print("delta: nenhum")
         return 0
-    contagens = contagens_do_intervalo(raiz, inicio, fim)
+    contagens = contagens_do_intervalo(raiz, inicio, fim, estrito=True)
+    trechos = {nome: trechos_novos(raiz, inicio, fim, nome, estrito=True) for nome in nomes}
+    if contagens is None or None in trechos.values():
+        print("delta: " + FALHA_DO_DELTA.format("diff --numstat" if contagens is None else "diff -U0"))
+        return 2
     classes = classes_do_intervalo(raiz, inicio, fim, nomes) if classe else {}
     for nome in nomes:
         acrescidas, removidas = contagens.get(nome, ("?", "?"))
         print(f"delta: {nome_seguro(nome)} +{acrescidas} -{removidas}")
         if classe:
             print(f"delta: {nome_seguro(nome)} classe {classes[nome]}")
-        for de, ate in trechos_novos(raiz, inicio, fim, nome):
+        for de, ate in trechos[nome]:
             print(f"delta: {nome_seguro(nome)}:{de}-{ate}")
     if classe:
         print(f"delta: classe {max(classes.values(), key=CLASSES.index)}")
@@ -2288,10 +2382,19 @@ def linha_legivel(linha):
     return "".join("?" if e_controle(c) and c != "\t" else c for c in linha)
 
 
-def cmd_parecer_delta(raiz, arquivo, ate=None):
+def cmd_parecer_delta(raiz, arquivo, ate=None, base="develop"):
     """PARECER-CONTEUDO: o diff desde o `commit:` do parecer até `ate` (padrão HEAD), só nos arquivos do domínio do tipo dele, para a
-    revalidação ler só o que mudou. Lista também o que mudou fora do domínio e os testes do QA aprovado (review). Só leitura; rc 0, e
-    rc 2 se o parecer não abre, não é de review, QA, devops ou segurança, ou o commit não existe ou não é ancestral do fim."""
+    revalidação ler só o que mudou, sem o que veio da `base` por merge na branch (FC-DELTA-APOS-MERGE-BASE). Lista também o que mudou
+    fora do domínio e os testes do QA aprovado (review). Só leitura; rc 0, e rc 2 se o parecer não abre, não é de review, QA, devops ou
+    segurança, o commit não existe ou não é ancestral do fim, a base está fora da lista ou o git falha (FC-DELTA-GIT-FALHA)."""
+    if base not in BASES_DO_DELTA:
+        print(f"parecer delta: --base {nome_seguro(base)}: use {' ou '.join(BASES_DO_DELTA)}")
+        return 2
+    return sem_git_que_falha("parecer delta", lambda: parecer_delta(raiz, arquivo, ate, base))
+
+
+def parecer_delta(raiz, arquivo, ate, base):
+    """O corpo do `cmd_parecer_delta`: toda falha do git sai com rc 2, nunca com `nenhum arquivo do domínio mudou`."""
     caminho = dentro_da_raiz(raiz, arquivo, PASTAS_DE_PARECER)
     if caminho is None:
         print(f"parecer delta: {nome_seguro(arquivo)}: use um parecer de {', '.join(PASTAS_DE_PARECER)} dentro da raiz")
@@ -2318,10 +2421,13 @@ def cmd_parecer_delta(raiz, arquivo, ate=None):
     print(f"intervalo: {inicio}..{fim}")
     no = predicado_do_dominio(raiz, tipo, inicio, fim, dominio_mais(campos))
     q, dispensados = testes_do_qa(raiz, campos.get("pedido"), campos.get("branch"), fim, inicio) if tipo == "review" else (None, set())
-    nomes = nomes_do_intervalo(raiz, inicio, fim, estrito=True)
-    if nomes is None:
-        print("parecer delta: o git diff falhou")
+    lido = intervalo_do_delta(raiz, inicio, fim, base)
+    if isinstance(lido, FalhaDoGit):
+        print("parecer delta: " + FALHA_DO_DELTA.format(lido.passo))
         return 2
+    nomes, escopo = lido
+    if escopo:
+        print(escopo)
     nomes = [n for n in nomes if not livre(n, LIVRES)]
     dentro = [n for n in nomes if no(n) and n not in dispensados]
     for n in nomes:
@@ -2336,7 +2442,7 @@ def cmd_parecer_delta(raiz, arquivo, ate=None):
         print(f"no dominio: {nome_seguro(n)}")
     cod, saida = git(raiz, "--literal-pathspecs", "diff", "--no-ext-diff", "--no-textconv", "--no-renames", inicio, fim, "--", *dentro, bruto=True)
     if cod:
-        print("parecer delta: o git diff falhou")
+        print("parecer delta: " + FALHA_DO_DELTA.format("diff do domínio"))
         return 2
     for linha in saida.decode("utf-8", "replace").splitlines():
         print(linha_legivel(linha))
@@ -6852,12 +6958,34 @@ def texto_da_etapa(texto):
 VERBO_DE_INICIO = re.compile(r"\b(?:delegad[ao]s?|iniciad[ao]s?|despachad[ao]s?|come[çc]ou|em curso|em andamento)\b", re.I)  # menção solta não inicia a etapa (L17, A7)
 
 
-def etapas_do_proximo(pedido_txt, historico):
-    """[(id, papel, texto, estado)] das etapas do pedido; o estado vem só do `## Histórico` (`entregue`; `em curso` só com verbo de início na linha; senão `não verificável`)."""
+def etapas_conferidas(raiz, caminho, historico):
+    """A4 (0.43.2): as etapas do `Cobre:` de cada brief selado que uma linha `entrega conferida <sha40>` posterior do `## Histórico`
+    cobre: o commit existe e está na `Branch:` do brief (o head local ou do origin). Brief ilegível ou sem `Cobre:` não conta."""
+    pendentes, conferidas, raiz_pedido = [], set(), raiz_do_pedido(raiz, caminho)
+    for linha in historico:
+        if (m := BRIEF_SELADO.match(linha)):
+            try:
+                cabecalho = cabecalho_do_brief((raiz_pedido / m.group(1)).read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError):
+                continue
+            cobre, branch = grupo(r"\bCobre:\s*(\S+)", cabecalho), grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho)
+            if cobre and branch:
+                pendentes.append((cobre, branch))
+        elif (m := ENTREGA_CONFERIDA.match(linha)) and sha_do_commit(raiz, m.group(1)) == m.group(1):
+            for cobre, branch in pendentes:
+                head = sha_do_commit(raiz, f"refs/heads/{branch}") or sha_do_commit(raiz, f"refs/remotes/origin/{branch}")
+                if head and e_ancestral(raiz, m.group(1), head):
+                    conferidas.add(cobre)
+    return conferidas
+
+
+def etapas_do_proximo(pedido_txt, historico, conferidas=frozenset()):
+    """[(id, papel, texto, estado)] das etapas do pedido; o estado vem só do `## Histórico` (`entregue`, pela linha que cita a etapa ou
+    pela `entrega conferida` do brief selado que a cobre, A4; `em curso` só com verbo de início na linha; senão `não verificável`)."""
     saida = []
     for etapa, (papel, texto) in ler_pedido_brief(pedido_txt)["etapas"].items():
         citam = [l for l in historico if re.search(rf"(?<![\w.]){re.escape(etapa)}(?![\w.])", l)]
-        estado = "entregue" if any("entregue" in l.casefold() for l in citam) \
+        estado = "entregue" if etapa in conferidas or any("entregue" in l.casefold() for l in citam) \
             else "em curso" if any(VERBO_DE_INICIO.search(l) for l in citam) else NAO_VERIFICAVEL
         saida.append((etapa, papel, texto, estado))
     return saida
@@ -6909,7 +7037,7 @@ def cmd_proximo(raiz, pedido):
     pedido_id = (re.search(r"^id:\s*(\S+)", pedido_txt, re.M) or [None, caminho.stem])[1]
     historico = [l for l in secoes_por(pedido_txt, CABECALHO_PEDIDO).get("Histórico", []) if l.strip()]
     linhas = [f"proximo: pedido {caminho_impresso(pedido_id)}"]
-    etapas = etapas_do_proximo(pedido_txt, historico)
+    etapas = etapas_do_proximo(pedido_txt, historico, etapas_conferidas(raiz, caminho, historico))
     linhas += [f"proximo: etapa {e} ({papel}) · {estado} · {texto_da_etapa(texto)}" for e, papel, texto, estado in etapas] \
         or [f"proximo: etapas: {NAO_VERIFICAVEL} (o pedido não tem `## Etapas`)"]
     branch, head = branch_do_proximo(raiz, pedido_id)
@@ -8026,6 +8154,10 @@ def bloco_de_citacoes(raiz, citar):
     return saida
 
 
+ETAPAS_DE_PARECER = ("review", "seguranca", "qa")  # as do hook `agentes` (Z10): o parecer não escreve a branch
+LINHA_DE_PARALELO = "- paralelo na mesma branch: parecer, lê a branch sem escrever nela (Z10)"
+
+
 def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, cobre=None, citar=None):
     """Blocos fixos do brief a partir do pedido e da branch; o que o Jarvis ainda decide fica em `PREENCHER`. Com `volta`
     (o namespace dos argumentos, com `--volta`), o brief da volta: `gerar_volta`. `cobre` (P2) é a etapa do pedido que o brief
@@ -8096,6 +8228,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     saida += [f"- {PREENCHER}: {linha}" for linha, reprova in cobradas["avisos"] if reprova]
     erros, _ = erros_do_destino(raiz, destino)  # o aviso do registro já saiu em `lembrar_do_jarvis`
     saida += erros
+    if etapa in ETAPAS_DE_PARECER:  # Z10: o parecer lê a branch e roda junto da escrita (hook `agentes`, AG-1b)
+        saida.append(LINHA_DE_PARALELO)
     if citar:
         saida += bloco_de_citacoes(raiz, citar)
     saida += ["", "## Fora do escopo (outras etapas do pedido, sem a marca; R-BRIEF)"]
@@ -8936,6 +9070,7 @@ def main():
     de.add_argument("refs", nargs="*", help="<commit> [<fim>] (com --parecer, só o <fim>); fim padrão HEAD")
     de.add_argument("--parecer", help="parecer (docs/reviews, qa, devops ou security) cujo `commit:` é o começo do intervalo")
     de.add_argument("--classe", action="store_true", help="classe de cada arquivo (texto, forma ou codigo) e a mais pesada; só `codigo` desatualiza o parecer (EST-M4)")
+    de.add_argument("--base", default="develop", help="develop (padrão) ou homolog: o que veio dela por merge na branch sai do delta (FC-DELTA-APOS-MERGE-BASE)")
     ju = sub.add_parser("juncao", parents=[comum], help="as partes da junção da versão (segundos pais dos merges da primeira linha); octopus rc 1, git que falha rc 2; só leitura (E20)")
     ju.add_argument("pedido", help="slug do pedido")
     ju.add_argument("--ref", required=True, help="branch ou commit da versão")
@@ -8968,6 +9103,7 @@ def main():
     pd = psub.add_parser("delta", parents=[comum], help="o diff desde o `commit:` do parecer, só nos arquivos do domínio do tipo dele; só leitura, nunca reprova")
     pd.add_argument("arquivo", help="o parecer (docs/reviews, qa, devops ou security)")
     pd.add_argument("--ate", help="o fim do intervalo (padrão HEAD)")
+    pd.add_argument("--base", default="develop", help="develop (padrão) ou homolog: o que veio dela por merge na branch sai do delta (FC-DELTA-APOS-MERGE-BASE)")
     ec = sub.add_parser("escape", help="defeito escapado: bug achado depois do parecer final (M14b)")
     esub = ec.add_subparsers(dest="acao", required=True)
     er = esub.add_parser("registrar", parents=[comum], help="acrescenta o defeito escapado em docs/kanban/escapes.md, em formato fixo, com a hora real")
@@ -9160,11 +9296,11 @@ def executar(a, raiz):
     if a.cmd == "provas" and a.acao == "gerar":
         return cmd_provas_gerar(raiz, a.brief)
     if a.cmd == "parecer" and a.acao == "delta":
-        return cmd_parecer_delta(raiz, a.arquivo, a.ate)
+        return cmd_parecer_delta(raiz, a.arquivo, a.ate, a.base)
     if a.cmd == "classe":
         return cmd_classe(raiz, a.base, a.head, a.como_json)
     if a.cmd == "delta":
-        return cmd_delta(raiz, a.refs, a.parecer, a.classe)
+        return cmd_delta(raiz, a.refs, a.parecer, a.classe, a.base)
     if a.cmd == "juncao":
         return cmd_juncao(raiz, a.pedido, a.ref, a.base)
     if a.cmd == "vazio":

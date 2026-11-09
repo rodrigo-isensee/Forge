@@ -62,7 +62,7 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 54)  # 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
+        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 55)  # 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
         for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
                        "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
@@ -994,6 +994,25 @@ class Vermelho(unittest.TestCase):
         self.assertEqual(modulos, ["test_outro"], r.stdout + r.stderr)
         self.assertIn("(restrito por --modulos)", linha)
         self.assertNotIn("o mapa não sabe", r.stdout)
+
+    def test_vermelho_aceita_o_modulo_pelo_nome_com_o_pacote(self):  # FORGE-TESTES-MODULOS-NOME
+        """`tests.test_outro` (a forma do `unittest`) dá o mesmo plano que `test_outro`; outra grafia segue rc 2, sem cópia."""
+        self.com_modulos_do_mapa()
+        self.gravar("lib.py", "def dobro(x):\n    return x\n# mudou\n")
+        self.salvar("muda")
+        curto = self.modulos_do_vermelho(self.rodar("--vermelho", "HEAD~1", "--modulos", "test_outro"))
+        r = self.rodar("--vermelho", "HEAD~1", "--modulos", "tests.test_outro,test_lib")
+        self.assertIn("vermelho: base=", r.stdout, r.stderr)
+        self.assertEqual(self.modulos_do_vermelho(r)[0], ["test_outro", "test_lib"], r.stdout + r.stderr)
+        r = self.rodar("--vermelho", "HEAD~1", "--modulos", "tests.test_outro")
+        self.assertEqual(self.modulos_do_vermelho(r), curto, r.stdout + r.stderr)
+        for grafia in ("tests.tests.test_outro", "tests/test_outro.py", "tests.", "test_a,,test_b", "tests.test_a;b",
+                       "Tests.test_outro", "tests.test_outro.py", "xtests.test_outro"):
+            with self.subTest(grafia):
+                r = self.rodar("--vermelho", "HEAD~1", "--modulos", grafia)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("test_<nome> ou tests.test_<nome>", r.stderr)
+                self.assertEqual(list(self.tmp.iterdir()), [])
 
     def test_vermelho_com_modulo_de_teste_apagado_no_diff_nao_o_roda(self):
         self.com_modulos_do_mapa()

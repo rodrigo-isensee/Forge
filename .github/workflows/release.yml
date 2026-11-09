@@ -6,24 +6,37 @@ on:
   push:
     branches: [main]
 
-permissions:
-  contents: write
+# Menor privilégio por job (FILA-30, 16a): o workflow não dá nada; os testes leem o código e só a publicação escreve.
+permissions: {}
 
 jobs:
-  release:
+  testes:
     runs-on: ubuntu-26.04
     # 25 min: a suíte em série estourou 20 min na v0.32.0 (run 41748756935); agora roda em paralelo, como o CI
     timeout-minutes: 25
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
-          persist-credentials: false  # o token só serve ao `gh release`, não aos testes
+          persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
       - name: Testes antes de publicar
         run: python3 scripts/suite-paralela.py
+
+  release:
+    runs-on: ubuntu-26.04
+    needs: testes
+    timeout-minutes: 5
+    permissions:
+      contents: write  # só a tag e a release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false  # o token só serve ao `gh release`, nunca fica no .git
       - name: Tag e release
         env:
           GH_TOKEN: ${{ github.token }}

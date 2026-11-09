@@ -290,6 +290,17 @@ class GerarComCobre(Base):
         self.assertNotIn("corte: sem marca", conferido)
         self.assertIn('corte: etapa (ok) "E1.5"', conferido)
 
+    def test_brief_de_parecer_roda_em_paralelo_na_branch_e_o_de_codigo_nao(self):  # Z10 (0.43.2): o hook `agentes` lê a linha
+        sys.path.insert(0, str(RAIZ / "hooks"))
+        import agentes  # noqa: E402
+        rc, parecer = self.gerar("revisor-exemplo", "--etapa", "review", "--cobre", "E1.2")
+        self.assertEqual(rc, 0, parecer)
+        self.assertIn("\n- paralelo na mesma branch: parecer, lê a branch sem escrever nela (Z10)\n", parecer)
+        self.assertTrue(agentes.tem_excecao(parecer))
+        rc, codigo = self.gerar("dev-exemplo", "--etapa", "codigo")
+        self.assertEqual(rc, 0, codigo)
+        self.assertNotIn("paralelo na mesma branch", codigo)
+
 
 class ProvaDoConferente(Base):
     """M4: o PQ `cmd` que o conferente roda e o PQ `merge` contam como prova do conferente num brief com commit."""

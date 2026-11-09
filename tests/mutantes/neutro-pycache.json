@@ -1,0 +1,36 @@
+{
+  "pedido": "neutro-pycache",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a varredura tira a forma compilada (sem filtro, o pyc aparece)",
+      "arquivo": "tests/catraca.py",
+      "de": "FORMA_COMPILADA = re.compile(r\"(^|/)__pycache__/|\\.(pyc|pyo|pyd|so)$\")",
+      "para": "FORMA_COMPILADA = re.compile(r\"$^\")",
+      "testes": [
+        "tests.test_forge.Neutralidade.test_varredura_pula_a_forma_compilada_e_nao_nome_parecido"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o filtro e a expressao ancorada, nao a substring pycache",
+      "arquivo": "tests/catraca.py",
+      "de": "FORMA_COMPILADA = re.compile(r\"(^|/)__pycache__/|\\.(pyc|pyo|pyd|so)$\")",
+      "para": "FORMA_COMPILADA = re.compile(r\"pycache|\\.(pyc|pyo|pyd|so)$\")",
+      "testes": [
+        "tests.test_forge.Neutralidade.test_varredura_pula_a_forma_compilada_e_nao_nome_parecido"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o filtro e a lista unica da catraca, com .so",
+      "arquivo": "tests/catraca.py",
+      "de": "FORMA_COMPILADA = re.compile(r\"(^|/)__pycache__/|\\.(pyc|pyo|pyd|so)$\")",
+      "para": "FORMA_COMPILADA = re.compile(r\"(^|/)__pycache__/|\\.(pyc|pyo|pyd)$\")",
+      "testes": [
+        "tests.test_forge.Neutralidade.test_varredura_pula_a_forma_compilada_e_nao_nome_parecido"
+      ]
+    }
+  ]
+}

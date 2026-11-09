@@ -1,0 +1,284 @@
+{
+  "pedido": "v0432-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I1",
+      "guarda": "bin/forge-check:267 re.match('^##\\\\s', linha) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        if re.match(r\"^##\\s\", linha):  # outro `## ` troca a seção; `###` fica dentro da seção dele",
+      "para": "        if not (re.match(r\"^##\\s\", linha)):  # outro `## ` troca a seção; `###` fica dentro da seção dele",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I2",
+      "guarda": "bin/forge-check:269 dentro and PROVA_LOCAL_DA_SUITE.search(linha) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        elif dentro and PROVA_LOCAL_DA_SUITE.search(linha):",
+      "para": "        elif not (dentro and PROVA_LOCAL_DA_SUITE.search(linha)):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I3",
+      "guarda": "bin/forge-check:315 prova_local_da_suite(texto) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        if prova_local_da_suite(texto):",
+      "para": "        if not (prova_local_da_suite(texto)):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I4",
+      "guarda": "bin/forge-check:643 livre(nome, TESTES_DE_CONTROLE) or bool(TESTE_DE_CONTROLE.match(nome)) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    return livre(nome, TESTES_DE_CONTROLE) or bool(TESTE_DE_CONTROLE.match(nome))",
+      "para": "    return not (livre(nome, TESTES_DE_CONTROLE) or bool(TESTE_DE_CONTROLE.match(nome)))",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I5",
+      "guarda": "bin/forge-check:654 e_teste_de_controle(nome) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if e_teste_de_controle(nome):  # M4 (0.43.2): o teste de controle da classe C nunca sai do domínio da segurança",
+      "para": "    if not (e_teste_de_controle(nome)):  # M4 (0.43.2): o teste de controle da classe C nunca sai do domínio da segurança",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I6",
+      "guarda": "bin/forge-check:703 nomes and all((TESTES.search(n) and (not e_teste_de_controle(n)) for n in nomes)) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        so_teste = nomes and all(TESTES.search(n) and not e_teste_de_controle(n) for n in nomes)",
+      "para": "        so_teste = not (nomes and all(TESTES.search(n) and not e_teste_de_controle(n) for n in nomes))",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I7",
+      "guarda": "bin/forge-check:2266 cod and estrito (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "                     f\"{de}..{ate}\", \"--\", nome, bruto=True)\n    if cod and estrito:",
+      "para": "                     f\"{de}..{ate}\", \"--\", nome, bruto=True)\n    if not (cod and estrito):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I8",
+      "guarda": "bin/forge-check:2285 not base_ref (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    base_ref = ref_da_base(raiz, base)\n    if not base_ref:",
+      "para": "    base_ref = ref_da_base(raiz, base)\n    if not (not base_ref):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I9",
+      "guarda": "bin/forge-check:2287 e_ancestral(raiz, fim, base_ref) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if e_ancestral(raiz, fim, base_ref):",
+      "para": "    if not (e_ancestral(raiz, fim, base_ref)):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I10",
+      "guarda": "bin/forge-check:2290 proprios is None or isinstance(proprios, FalhaDoGit) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if proprios is None or isinstance(proprios, FalhaDoGit):",
+      "para": "    if not (proprios is None or isinstance(proprios, FalhaDoGit)):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I11",
+      "guarda": "bin/forge-check:2291 proprios is None (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        return (nomes, None) if proprios is None else proprios",
+      "para": "        return (nomes, None) if not (proprios is None) else proprios",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I12",
+      "guarda": "bin/forge-check:2293 desfeitos is None (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    desfeitos = desfeitos_da_entrega(raiz, base_ref, inicio)\n    if desfeitos is None:",
+      "para": "    desfeitos = desfeitos_da_entrega(raiz, base_ref, inicio)\n    if not (desfeitos is None):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I13",
+      "guarda": "bin/forge-check:2295 n in proprios or n in desfeitos (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    return [n for n in nomes if n in proprios or n in desfeitos], f\"escopo: sem o que veio da base ({base})\"",
+      "para": "    return [n for n in nomes if not (n in proprios or n in desfeitos)], f\"escopo: sem o que veio da base ({base})\"",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I14",
+      "guarda": "bin/forge-check:2319 base not in BASES_DO_DELTA (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    fora da lista ou o git falha (nunca `delta: nenhum` depois de uma falha, FC-DELTA-GIT-FALHA).\"\"\"\n    if base not in BASES_DO_DELTA:",
+      "para": "    fora da lista ou o git falha (nunca `delta: nenhum` depois de uma falha, FC-DELTA-GIT-FALHA).\"\"\"\n    if not (base not in BASES_DO_DELTA):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I15",
+      "guarda": "bin/forge-check:2352 isinstance(lido, FalhaDoGit) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    print(f\"intervalo: {inicio}..{fim}\")\n    lido = intervalo_do_delta(raiz, inicio, fim, base)\n    if isinstance(lido, FalhaDoGit):",
+      "para": "    print(f\"intervalo: {inicio}..{fim}\")\n    lido = intervalo_do_delta(raiz, inicio, fim, base)\n    if not (isinstance(lido, FalhaDoGit)):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I16",
+      "guarda": "bin/forge-check:2356 escopo (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        print(\"delta: \" + FALHA_DO_DELTA.format(lido.passo))\n        return 2\n    nomes, escopo = lido\n    if escopo:",
+      "para": "        print(\"delta: \" + FALHA_DO_DELTA.format(lido.passo))\n        return 2\n    nomes, escopo = lido\n    if not (escopo):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/agentes.py",
+      "trecho": "tipo.startswith(\"forge:\") and tipo != CONFERENTE",
+      "motivo": "a condição virou exige_selo (BRIEF-EXECUTOR-SEM-PORTAO), com o papel sem prefixo e o executor genérico; test_selo_e_entrega cobre"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "isinstance(texto, str)",
+      "motivo": "defensivo: o Claude Code manda texto; outro tipo vale vazio"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "isinstance(entrada.get(\"edits\"), list)",
+      "motivo": "o Edit simples vira lista de uma edição; o MultiEdit traz a lista"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "isinstance(edicao, dict)",
+      "motivo": "defensivo: a entrada do MultiEdit fora do formato conta zero"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "descricao": "FILA-22 (0.43.2, Jarvis só interface), sessão do Forge: `gh pr create --draft --base develop --title t --body-file x.md` pelo papel jarvis (sessão principal).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh pr create --draft --base develop --title t --body-file x.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/proj"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: gh pr create é de tech-lead (papel: jarvis)"
+  }
+}

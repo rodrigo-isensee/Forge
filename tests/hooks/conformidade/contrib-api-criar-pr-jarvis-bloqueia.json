@@ -1,5 +1,5 @@
 {
-  "descricao": "POST em pulls (sem número) cria o próprio PR: libera.",
+  "descricao": "FILA-22 (review da 0.43.2): POST em pulls (sem número) abre PR; o jarvis não abre, nem pela API.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -15,6 +15,7 @@
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "api que abre PR é de tech-lead (papel: jarvis)"
   }
 }

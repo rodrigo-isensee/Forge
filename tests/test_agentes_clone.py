@@ -147,6 +147,44 @@ class RegistroNoClone(ClonePronto):
         self.assertIn("R-TETO", r.stderr)
 
 
+class EstadoDoCloneInerte(ClonePronto):
+    """FORGE-RUN-INERTE (0.43.2, E2a do desenho da 0.60): com `.forge` arquivo na cópia principal do clone, o `Hook.run()` comum
+    recua para `<diretório comum>/forge/run/`; antes o `mkdir` falhava e o `pesado` e o erros.log ficavam inertes."""
+
+    SUITE = "python3 -m unittest discover"
+
+    def pesado(self, onde, agente, uso, evento="PreToolUse"):
+        entrada = {"hook_event_name": evento, "session_id": "s", "cwd": str(onde), "tool_name": "Bash", "agent_id": agente,
+                   "tool_use_id": uso, "tool_input": {"command": self.SUITE}}
+        return rodar_hook("pesado", entrada, onde, self.proc(4))
+
+    def test_suite_de_outro_agente_no_clone_e_na_worktree_bloqueia(self):
+        self.assertEqual(self.pesado(self.clone, "a1", "u1").returncode, 0)
+        self.assertTrue((self.comum / "pesado.json").is_file(), "o estado do pesado vai para o diretório comum")
+        self.assertEqual(stat.S_IMODE(self.comum.stat().st_mode), 0o700)
+        self.assertEqual((self.comum / ".gitignore").read_text(encoding="utf-8"), "*\n")
+        r = self.pesado(self.wt, "a2", "u2")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("R-TETO", r.stderr)
+        self.assertEqual(self.pesado(self.clone, "a1", "u1", "PostToolUse").returncode, 0)
+        self.assertEqual(self.pesado(self.wt, "a2", "u3").returncode, 0)
+        self.assertTrue((self.clone / ".forge").is_file(), "`.forge` do clone continua sendo o arquivo")
+
+    def test_erro_interno_vai_para_o_erros_log_comum(self):
+        self.comum.mkdir(parents=True, exist_ok=True)
+        (self.comum / "pesado.json").write_text("{truncado", encoding="utf-8")
+        self.assertEqual(self.pesado(self.wt, "a1", "u1").returncode, 0)  # erro interno libera (ADR 0003)
+        self.assertIn("pesado JSONDecodeError", (self.comum / "erros.log").read_text(encoding="utf-8"))
+
+    def test_forge_pasta_continua_com_o_estado_em_forge_run(self):
+        (self.clone / ".forge").chmod(0o644)
+        (self.clone / ".forge").unlink()
+        (self.clone / ".forge").mkdir()
+        self.assertEqual(self.pesado(self.wt, "a1", "u1").returncode, 0)
+        self.assertTrue((self.clone / ".forge" / "run" / "pesado.json").is_file())
+        self.assertFalse((self.comum / "pesado.json").exists())
+
+
 class ArquivoDeEstado(ClonePronto):
     """`agentes.arquivo_de_estado(raiz)`: o caminho que o hook usa, para projeto e para clone; o `forge-check fila` o lê."""
 

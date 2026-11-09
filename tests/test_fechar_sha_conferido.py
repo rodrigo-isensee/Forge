@@ -61,5 +61,68 @@ class FecharShaConferido(unittest.TestCase):
         self.assertIn(f"head: {sha}", r.stdout)
 
 
+class SoBranchRemota(unittest.TestCase):
+    """FECHAR-BRANCH-LOCAL (0.43.2): `--ref` vale com a branch só no origin; o sha conferido vem do servidor (ls-remote), não da
+    refs/remotes/origin, e a cadeia única (parecer, servidor e --match-head-commit no mesmo sha) continua."""
+
+    tearDown, git, fechar = FecharShaConferido.tearDown, FecharShaConferido.git, FecharShaConferido.fechar
+    chamadas, criacoes = FecharShaConferido.chamadas, FecharShaConferido.criacoes
+
+    def setUp(self):
+        FecharShaConferido.setUp(self)
+        self.sha = self.git("rev-parse", "melhoria/x")
+        self.git("branch", "-q", "-D", "melhoria/x")
+
+    def envia_outro_commit(self, de=None):
+        """Comando que põe outro commit no melhoria/x do servidor a partir de uma cópia `de` (padrão: o próprio projeto)."""
+        pasta = str(de or self.proj)
+        return (f"git -C '{pasta}' switch -q -c outro-agente {self.sha} && git -C '{pasta}' commit -q --allow-empty -m 'feat: outro'"
+                f" && git -C '{pasta}' push -q origin outro-agente:melhoria/x && git -C '{pasta}' switch -q develop")
+
+    def test_branch_so_no_servidor_fecha_no_sha_do_servidor(self):
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertIn(r.returncode, (0, 3), r.stderr + r.stdout)
+        self.assertIn(f"sem a branch local melhoria/x; confiro o head do servidor ({self.sha})", r.stderr)
+        self.assertEqual(self.chamadas()[0], f"forge-check pr p1 --ref {self.sha} --base origin/develop")
+        self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {self.sha}", self.chamadas())
+
+    def test_servidor_que_anda_no_passo_1_para(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", CHECK_ANTES=self.envia_outro_commit())
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("parou no passo 1: o head de melhoria/x mudou", r.stderr)
+        self.assertEqual(self.criacoes(), [])
+
+    def test_ref_de_rastreio_velha_nao_vale(self):
+        self.git("update-ref", "refs/remotes/origin/melhoria/x", self.git("rev-parse", "develop"))
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertIn(r.returncode, (0, 3), r.stderr + r.stdout)
+        self.assertEqual(self.chamadas()[0], f"forge-check pr p1 --ref {self.sha} --base origin/develop")
+
+    def test_commit_que_falta_aqui_pede_o_fetch(self):
+        outra = self.tmp / "outra"
+        self.git("clone", "-q", str(self.remoto), str(outra), cwd=self.tmp)
+        self.git("-C", str(outra), "fetch", "-q", "origin", "melhoria/x")
+        r0 = self.git("-C", str(outra), "rev-parse", "FETCH_HEAD")
+        self.assertEqual(r0, self.sha)
+        base.subprocess.run(["bash", "-c", self.envia_outro_commit(outra)], env=self.env, check=True, capture_output=True)
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("rode git fetch origin melhoria/x", r.stderr)
+        self.assertEqual(self.chamadas(), [])
+
+    def test_base_que_andou_com_arquivo_em_comum_para_sem_envio(self):
+        self.git("switch", "-q", "develop")
+        (self.proj / "b").write_text("da base\n")
+        self.git("add", "b")
+        self.git("commit", "-q", "-m", "feat: base anda")
+        self.git("push", "-q", "origin", "develop")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn(f"git branch --no-track melhoria/x {self.sha}", r.stderr)
+        self.assertEqual(self.criacoes(), [])
+        self.assertEqual(self.git("ls-remote", "origin", "refs/heads/melhoria/x").split()[0], self.sha)
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
+
+
 if __name__ == "__main__":
     unittest.main()

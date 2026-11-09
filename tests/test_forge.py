@@ -30,6 +30,7 @@ from test_voltas import Raiz  # noqa: E402  (raiz sintética do CONF-CORRECAO; s
 from apoio_conferida import gravar_conferida  # noqa: E402  (E7: a conferida do head nos testes que não tratam dela)
 from modelo_git import copiar_modelo  # noqa: E402  (S-SUITE-RAPIDA: repositório de partida montado uma vez)
 from apoio_forge_check_rapido import comando_do_forge_check  # noqa: E402  (S-SUITE-RAPIDA: o forge-check sem recompilar)
+from catraca import FORMA_COMPILADA  # noqa: E402  (NEUTRO-PYCACHE: a lista única do K10-CAT, sem cópia no teste)
 
 RAIZ = Path(__file__).resolve().parent.parent
 AGENTES = RAIZ / "agents"
@@ -73,10 +74,16 @@ def skills_do_plugin():
     return minimo(sorted(SKILLS.glob("*/SKILL.md")) + sorted(STACKS.glob("*/skills/*/SKILL.md")), 11, "skills do plugin")
 
 
+def arquivos_de(pasta, raiz=RAIZ):
+    """Arquivos de `pasta`, em ordem, menos a forma compilada (NEUTRO-PYCACHE): o `.pyc` que o próprio teste gera não se
+    versiona (a catraca o barra) e traz o texto de outra branch, que a árvore já não tem."""
+    return [p for p in sorted((raiz / pasta).rglob("*")) if p.is_file() and not FORMA_COMPILADA.search(p.relative_to(raiz).as_posix())]
+
+
 def arquivos_texto():
     achados = []
     for pasta in ("agents", "skills", "stacks", "docs", "templates", "bin", "scripts", "hooks", "dev", "tests/transcricoes"):
-        achados += [p for p in (RAIZ / pasta).rglob("*") if p.is_file()]
+        achados += arquivos_de(pasta)
     return minimo(achados, 150, "arquivos de texto varridos")
 
 
@@ -412,6 +419,16 @@ class Neutralidade(unittest.TestCase):
             with self.subTest(arquivo=str(p.relative_to(RAIZ))):
                 self.assertEqual(termos_achados(texto, entradas), set(), "termo de projeto (compare por hash em tests/config.json)")
 
+    def test_varredura_pula_a_forma_compilada_e_nao_nome_parecido(self):  # NEUTRO-PYCACHE
+        with tempfile.TemporaryDirectory() as tmp:
+            raiz = Path(tmp)
+            for rel in ("hooks/x.py", "hooks/__pycache__/x.cpython-312.pyc", "bin/__pycache__/y.pyc", "bin/z.so",
+                        "docs/x.pyc.md", "src/pycache/x.txt", "src/__pycache__x/y.txt"):
+                (raiz / rel).parent.mkdir(parents=True, exist_ok=True)
+                (raiz / rel).write_text("Use React com TypeScript\n", encoding="utf-8")
+            achados = [p.relative_to(raiz).as_posix() for pasta in ("hooks", "bin", "docs", "src") for p in arquivos_de(pasta, raiz)]
+            self.assertEqual(achados, ["hooks/x.py", "docs/x.pyc.md", "src/__pycache__x/y.txt", "src/pycache/x.txt"])
+
     def test_detector_por_hash(self):
         """Sem o nome em claro: monta a entrada a partir de uma palavra neutra e confere cada tipo de casamento."""
         sha = lambda s: hashlib.sha256(s.encode()).hexdigest()
@@ -444,9 +461,9 @@ class NeutralidadeDoNucleo(unittest.TestCase):
         termos = minimo((re.compile(t) for t in self.cfg["termos"]), 14, "termos de stack do núcleo")
         varridos = 0
         for pasta in self.cfg["pastas"]:
-            for p in sorted((RAIZ / pasta).rglob("*")):
+            for p in arquivos_de(pasta):
                 rel = p.relative_to(RAIZ).as_posix()
-                if not p.is_file() or any(rel.startswith(i) for i in self.cfg["ignorar"]):
+                if any(rel.startswith(i) for i in self.cfg["ignorar"]):
                     continue
                 varridos += 1
                 texto = p.read_text(encoding="utf-8", errors="ignore")
@@ -581,8 +598,7 @@ class AntiDuplicacao(unittest.TestCase):
         fontes = sorted(REGRAS.glob("R-*.md"))
         self.assertTrue(fontes, "docs/regras sem regras")
         minimo(fontes, 13, "regras em docs/regras")
-        alvos = [p for pasta in self.pastas if (RAIZ / pasta).is_dir()
-                 for p in sorted((RAIZ / pasta).rglob("*")) if p.is_file()]
+        alvos = [p for pasta in self.pastas if (RAIZ / pasta).is_dir() for p in arquivos_de(pasta)]
         minimo(alvos, 110, "arquivos comparados pelo anti-duplicação")
         textos = {p: sequencias(p.read_text(encoding="utf-8", errors="ignore"), self.n) for p in alvos}
         for fonte in fontes:
@@ -620,7 +636,7 @@ class RegrasComId(unittest.TestCase):
     def test_ids_citados_existem(self):
         origens = [RAIZ / ".claude" / "CLAUDE.md", *sorted(REGRAS.glob("*.md"))]
         for pasta in ("agents", "skills", "templates"):
-            origens += [p for p in sorted((RAIZ / pasta).rglob("*")) if p.is_file()]
+            origens += arquivos_de(pasta)
         minimo(origens, 45, "arquivos que citam IDs de regra")
         for p in origens:
             for rid in set(re.findall(r"\bR-[A-Z][A-Z0-9-]*\b", p.read_text(encoding="utf-8", errors="ignore"))):
@@ -845,6 +861,91 @@ class ForgeUpgrade(unittest.TestCase):
         self.assertEqual(git("branch", "--show-current", cwd=self.tmp).stdout.strip(), "main")
 
 
+class UpgradeBranchMesclada(unittest.TestCase):
+    """A branch do upgrade ficou depois do merge e o projeto lê a versão de uma branch atrás da develop."""
+    setUp, tearDown, upgrade = ForgeUpgrade.setUp, ForgeUpgrade.tearDown, ForgeUpgrade.upgrade
+    NOVA = "forge/upgrade-0.5.0"
+
+    def montar(self, como):
+        git("branch", "antiga", cwd=self.tmp)
+        self.assertEqual(self.upgrade().returncode, 0)
+        git("switch", "-q", "develop", cwd=self.tmp)
+        if como == "merge":
+            git("merge", "-q", "--no-ff", "-m", "merge", self.NOVA, cwd=self.tmp)
+        elif como == "squash":
+            git("merge", "-q", "--squash", self.NOVA, cwd=self.tmp)
+            git("commit", "-q", "-m", "squash", cwd=self.tmp)
+        git("switch", "-q", "antiga", cwd=self.tmp)
+        return git("rev-parse", self.NOVA, cwd=self.tmp).stdout
+
+    def existe(self):
+        return git("branch", "--list", self.NOVA, cwd=self.tmp).stdout.strip() != ""
+
+    def test_mesclada_sem_opcao_recusa_e_sugere_o_comando(self):
+        self.montar("merge")
+        r = self.upgrade()
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("já foi mesclada na 'develop'", r.stderr)
+        self.assertIn(f"git branch -d {self.NOVA}", r.stderr)
+        self.assertIn("--apagar-mesclada", r.stderr)
+        self.assertTrue(self.existe())
+
+    def test_mesclada_com_opcao_apaga_e_segue(self):
+        antes = self.montar("merge")
+        r = self.upgrade("--apagar-mesclada")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(f"apagada a branch {self.NOVA}", r.stdout)
+        self.assertEqual(git("branch", "--show-current", cwd=self.tmp).stdout.strip(), self.NOVA)
+        self.assertNotEqual(git("rev-parse", "HEAD", cwd=self.tmp).stdout, antes)
+
+    def test_simular_com_opcao_nao_apaga(self):
+        antes = self.montar("merge")
+        r = self.upgrade("--simular", "--apagar-mesclada")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(f"apagaria a branch {self.NOVA} (mesclada na 'develop')", r.stdout)
+        self.assertEqual(git("rev-parse", self.NOVA, cwd=self.tmp).stdout, antes)
+        self.assertEqual(git("branch", "--show-current", cwd=self.tmp).stdout.strip(), "antiga")
+
+    def test_branch_movida_depois_da_checagem_nao_e_apagada(self):
+        self.montar("merge")
+        movido = git("rev-parse", "antiga", cwd=self.tmp).stdout.strip()
+        real = shutil.which("git", path=ambiente_limpo().get("PATH"))
+        bin_falso = Path(tempfile.mkdtemp(prefix="forge-git-falso-"))
+        self.addCleanup(shutil.rmtree, bin_falso)
+        falso = bin_falso / "git"
+        # o git falso mexe na branch logo depois da checagem de mesclada (a corrida que o sha conferido fecha)
+        falso.write_text(
+            f'#!/bin/sh\n{real} "$@"; rc=$?\ncase "$*" in *merge-base*) {real} -C {self.tmp} update-ref '
+            f'refs/heads/{self.NOVA} {movido};; esac\nexit $rc\n', encoding="utf-8")
+        falso.chmod(0o755)
+        env = ambiente_limpo()
+        env["PATH"] = f"{bin_falso}{os.pathsep}{env['PATH']}"
+        r = subprocess.run([str(RAIZ / "bin/forge-upgrade"), "--ate", "0.5.0", "--apagar-mesclada", str(self.tmp)],
+                           env=env, capture_output=True, text=True)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("update-ref", r.stderr)
+        self.assertNotIn("apagada a branch", r.stdout)
+        self.assertEqual(git("rev-parse", self.NOVA, cwd=self.tmp).stdout.strip(), movido)
+
+    def test_squash_recusa_sugere_o_D_e_nao_apaga(self):
+        self.montar("squash")
+        for args in ((), ("--apagar-mesclada",)):
+            with self.subTest(args=args):
+                r = self.upgrade(*args)
+                self.assertEqual(r.returncode, 2)
+                self.assertIn("parece mesclada por squash", r.stderr)
+                self.assertIn(f"git branch -D {self.NOVA}", r.stderr)
+                self.assertTrue(self.existe())
+
+    def test_nao_mesclada_e_base_em_outra_versao_recusa_como_antes(self):
+        self.montar("nenhum")
+        r = self.upgrade("--apagar-mesclada")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn(f"a branch {self.NOVA} já existe", r.stderr)
+        self.assertNotIn("mesclada", r.stderr)
+        self.assertTrue(self.existe())
+
+
 class Migracao070(unittest.TestCase):
     """Migração 0.7.0: só `teto_agentes` igual a 3 sai do config; fixtures antes/depois em tests/migracoes/0.7.0/."""
 
@@ -1015,6 +1116,21 @@ class CI(unittest.TestCase):
         texto = (RAIZ / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
         self.assertIn("persist-credentials: false", texto)
 
+    def test_release_com_permissao_por_job(self):
+        """FILA-30, 16a: o workflow não dá permissão; os testes só leem e só o job que publica escreve, depois dos testes."""
+        texto = (RAIZ / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+        cabeca, _, jobs = texto.partition("\njobs:\n")
+        self.assertIn("\npermissions: {}\n", cabeca)
+        blocos = dict(re.findall(r"(?ms)^  ([a-z-]+):\n(.*?)(?=^  [a-z-]+:\n|\Z)", jobs))
+        self.assertEqual(sorted(blocos), ["release", "testes"])
+        self.assertIn("      contents: read\n", blocos["testes"])
+        self.assertNotIn("write", blocos["testes"])
+        self.assertIn("suite-paralela.py", blocos["testes"])
+        self.assertIn("    needs: testes\n", blocos["release"])
+        self.assertIn("      contents: write", blocos["release"])
+        self.assertEqual(texto.count("write"), 1)
+        self.assertNotIn("suite-paralela", blocos["release"])
+
     def test_job_versao_cobre_develop_e_main(self):
         """ADR 0006: develop exige linha em [Não publicado]; main exige versão nova e changelog fechado."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
@@ -1156,6 +1272,19 @@ class PrepararEstacao(unittest.TestCase):
             self.assertTrue((home / ".forge-contrib").is_symlink())
             self.assertFalse((mk / "forge-dev").is_symlink())
             self.assertNotIn("falta:", r.stdout)
+
+    def test_container_nao_copia_link_que_sai_de_dev(self):  # L3 do review de segurança da 0.43.1: era `cp -rL`
+        with tempfile.TemporaryDirectory() as tmp:
+            segredo = Path(tmp) / "segredo.txt"
+            segredo.write_text("token")
+            dev = Path(tmp) / "home/.local/share/forge/vigente/dev"
+            dev.mkdir(parents=True)
+            (dev / "vaza").symlink_to(segredo)
+            r, home, _, _ = self._container(tmp, logado=True)
+            mk = home / ".local/share/forge/dev-marketplace"
+            self.assertIn("dev-marketplace: link que sai de vigente/dev (vaza); nada copiado", r.stdout + r.stderr)
+            self.assertFalse((mk / "forge-dev").exists())
+            self.assertNotIn("token", "".join(p.read_text() for p in mk.rglob("*") if p.is_file() and not p.is_symlink()))
 
     def test_container_simular_nao_altera_nada(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -2969,7 +3098,7 @@ class Transcricoes(unittest.TestCase):
         self.assertEqual(self.caso("papel-ok.jsonl"), (0, ""))
         saida = self.esperado(
             "papel-viola.jsonl",
-            "R-CONFORMIDADE.papel: `gh pr create` pelo papel `qa` (forge:qa-engineer); permitido: jarvis, tech-lead (evento 3)",
+            "R-CONFORMIDADE.papel: `gh pr create` pelo papel `qa` (forge:qa-engineer); permitido: tech-lead (evento 3)",
             "escrita em `docs/reviews/` pelo papel `qa`", "escrita em `.claude/` pelo papel `jarvis` (sessão principal); permitido: só o usuário",
             "`git merge <branch>` pelo papel `dev` (<agente>)", "`pacote instalar` pelo papel `qa`")
         self.assertEqual(saida.count("R-CONFORMIDADE.papel"), 5)
@@ -3559,7 +3688,9 @@ class ConferirBrief(unittest.TestCase):
         rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
         self.assertIn("aviso: PQ-2 `grep -c` sem arquivo", saida)
         self.assertEqual(rc, 0, saida)
-        curto = git("rev-parse", "--short=7", "HEAD", cwd=RAIZ).stdout.strip()
+        # o primeiro commit da história com letra e dígito nos 7 hex: o sha curto do HEAD só com dígitos não casa o SHA_ABREVIADO
+        curto = next(c[:7] for c in git("rev-list", "-n", "200", "HEAD", cwd=RAIZ).stdout.split()
+                     if re.search(r"\d", c[:7]) and re.search(r"[a-f]", c[:7]))
         arq = self.variante("etapa-outro-papel.md", ("`git log -1 --format=%h` da branch", "`git rev-parse HEAD` igual a " + curto))
         rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
         self.assertIn(f"aviso: PQ-1 sha abreviado ({curto[:12]})", saida)

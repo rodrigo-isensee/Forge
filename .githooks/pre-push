@@ -261,10 +261,10 @@ caminhos_do_envio() {
 }
 if [ "$modo_suite" -eq 0 ]; then caminhos_do_envio; fi
 # PREPUSH-BARATAS (P4 do estudo de 2026-11-08): o vermelho de forma sai em segundos, antes da fila e da trava. Sintaxe
-# (bash -n e ast do Python) de todo script alterado, shellcheck dos scripts da lista do CI que o envio alterou e
+# (bash -n e ast do Python) de todo script alterado, shellcheck dos scripts shell que o envio alterou e
 # `bin/forge-changelog conferir` do HEAD (o fragmento com o nome da branch, CHANGELOG-BRANCH). Ferramenta ausente: aviso
 # e segue (o CI repete tudo). Nunca afrouxa: o CI roda as mesmas checagens.
-SHELLCHECK_DO_CI=" bin/forge-init bin/forge-fechar scripts/jarvis scripts/jarvis-forge scripts/preparar-estacao.sh scripts/instalar-atalho.sh scripts/verificar-contribuicao.sh scripts/validar-plugin.sh scripts/configurar-ambiente-local.sh tests/e2e-instalacao.sh .githooks/pre-push templates/projeto/.githooks/pre-push "
+# COBERTURA-P6: o shellcheck escolhe pelo shebang (tipo_de_script), a mesma regra do passo shellcheck do ci.yml, sem lista fixa.
 tipo_de_script() {
   local primeira
   case "$1" in *.py) echo python; return ;; *.sh) echo shell; return ;; esac
@@ -278,9 +278,9 @@ checagens_baratas() {
     n_baratas=$((n_baratas + 1))
     case "$(tipo_de_script "$arquivo")" in
       python) python3 -I -c 'import ast, sys; ast.parse(open(sys.argv[1], "rb").read(), sys.argv[1])' "$arquivo" || { echo "pre-push: erro de sintaxe Python em ${arquivo}." >&2; falhas=1; } ;;
-      shell) bash -n "$arquivo" || { echo "pre-push: erro de sintaxe shell em ${arquivo}." >&2; falhas=1; } ;;
+      shell) bash -n "$arquivo" || { echo "pre-push: erro de sintaxe shell em ${arquivo}." >&2; falhas=1; }
+             shell+=("$arquivo") ;;
     esac
-    case "$SHELLCHECK_DO_CI" in *" $arquivo "*) shell+=("$arquivo") ;; esac
   done
   if [ "${#shell[@]}" -gt 0 ]; then
     if command -v shellcheck >/dev/null 2>&1; then

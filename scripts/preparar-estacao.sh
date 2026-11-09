@@ -157,6 +157,17 @@ container_vigente() {
   fi
 }
 
+# Os links de $1 cujo alvo resolvido sai de $1, separados por espaço (vazio: nenhum).
+links_fora() {
+  local raiz alvo l saida=""
+  raiz="$(realpath "$1")"
+  while IFS= read -r -d '' l; do
+    alvo="$(realpath -m "$l")"
+    case "$alvo" in "$raiz"/*) ;; *) saida="$saida${saida:+ }${l#"$1"/}" ;; esac
+  done < <(find "$1" -type l -print0)
+  printf '%s' "$saida"
+}
+
 # O forge-dev no marketplace é CÓPIA de vigente/dev: link é recusado pelo Claude ("Path escapes plugin directory").
 container_marketplace() {
   local mk="$dados/forge/dev-marketplace" dev="$dados/forge/vigente/dev" json
@@ -174,8 +185,12 @@ container_marketplace() {
     mkdir -p "$mk/.claude-plugin"
     printf '%s\n' "$json" > "$mk/.claude-plugin/marketplace.json"
     # forge-dev é derivado da cópia vigente (refeito a cada vez): trocar não perde dado.
+    # L3 (review de segurança da 0.43.1): nada de seguir link; link em dev/ que sai da pasta recusa a cópia inteira.
+    local fora
+    fora="$(links_fora "$dev")"
+    if [ -n "$fora" ]; then falta "dev-marketplace: link que sai de vigente/dev ($fora); nada copiado"; return 0; fi
     rm -rf "$mk/forge-dev.novo"
-    cp -rL "$dev" "$mk/forge-dev.novo"
+    cp -rP "$dev" "$mk/forge-dev.novo"
     if [ -L "$mk/forge-dev" ]; then rm -f "$mk/forge-dev"; else rm -rf "$mk/forge-dev"; fi
     mv "$mk/forge-dev.novo" "$mk/forge-dev"
   fi

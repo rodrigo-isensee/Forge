@@ -3,6 +3,7 @@
 
 Uso: python3 scripts/suite-partes.py --modulos M[,M...]
      python3 scripts/suite-partes.py --parte K/N
+     python3 scripts/suite-partes.py --somar-pulados N PASTA
   --modulos M   roda só esses módulos de tests/ (os testes afetados de um envio; `evals.test_x` é o de um pacote,
                 tests/evals/test_x.py) em até 4 processos: a mesma regra de
                 N, a mesma LPT sobre tests/pesos-d4.json, os mesmos filhos (`suite-paralela.py --processo`) e a mesma
@@ -13,12 +14,18 @@ Uso: python3 scripts/suite-partes.py --modulos M[,M...]
                 módulos dos pacotes de tests/, que o discover acha e o suite-paralela ainda não divide. Falha fechada: a
                 divisão cobre todo módulo uma vez só, todo teste do discover da suíte inteira cai num módulo da
                 divisão e a parte roda exatamente os IDs do discover que são dela. Com as N partes verdes, a suíte
-                inteira passou; o job agregador do CI (`bateria`, `bateria (python 3.14)`) exige as N.
+                inteira passou; o job agregador do CI (`bateria`, `bateria (python 3.14)`) exige as N. Com
+                FORGE_SUITE_PULADOS=<arquivo>, a parte verde grava nele os pulados dela (T3: `{"parte": "K/N",
+                "pulados": n, "pulados_ids": [...]}`).
+  --somar-pulados N PASTA  (o agregador do CI) soma os pulados das N partes gravados em PASTA (`*.json`, um por parte,
+                K de 1 a N uma vez só) e compara com `teto_pulados` de tests/config.json, com a conta do suite-paralela
+                (T3). Falha fechada: parte faltando, repetida, de outro N, arquivo ilegível ou teto ilegível reprova.
 Só biblioteca padrão. A última linha é `OK` (ou `OK (skipped=N)`) ou `FAILED (...)`, como no `unittest`.
 """
 import collections
 import importlib.machinery
 import importlib.util
+import json
 import os
 import re
 import shutil
@@ -100,9 +107,21 @@ def arquivo_do_modulo(sp, nome):
     return sp.RAIZ / sp.TESTES / (nome.replace(".", "/") + ".py")
 
 
+def pesos_por_modulo(pesos, nomes):
+    """A3 (0.43.2): o peso de cada módulo é o dele mais o das unidades separadas (`módulo.Classe`, `módulo.Classe.teste`);
+    o módulo sem peso nenhum fica de fora (a LPT dá a mediana)."""
+    saida = {}
+    for nome in nomes:
+        partes = [v for k, v in pesos.items() if k == nome or k.startswith(nome + ".")]
+        if partes:
+            saida[nome] = sum(partes)
+    return saida
+
+
 def dividir(sp, nomes, n):
-    """(partes, erros): os módulos em `n` partes pela LPT do suite-paralela, conferidas como partição."""
-    partes = sp.repartir(nomes, sp.ler_pesos(), n)
+    """(partes, erros): os módulos em `n` partes pela LPT do suite-paralela, pesados com as unidades separadas,
+    conferidas como partição."""
+    partes = sp.repartir(nomes, pesos_por_modulo(sp.ler_pesos(), nomes), n)
     erros = sp.conferir_particao(nomes, partes)
     if len(partes) != n:
         erros.append(f"{len(nomes)} módulos não dão {n} partes não vazias")
@@ -129,8 +148,9 @@ def veredito(relatorios, erros):
     return (f"OK (skipped={pulados})" if pulados else "OK"), 0
 
 
-def rodar(sp, nomes, esperado, rotulo, todos=None):
-    """Roda `nomes` em processos (a regra de N do suite-paralela) e confere a completude contra `esperado`."""
+def rodar(sp, nomes, esperado, rotulo, todos=None, publicar=None):
+    """Roda `nomes` em processos (a regra de N do suite-paralela) e confere a completude contra `esperado`; verde, chama
+    `publicar(relatorios)` (os pulados da parte, T3)."""
     os.chdir(sp.RAIZ)
     inicio = time.monotonic()
     carga, memoria, total_gb = sp.medir_carga()
@@ -139,12 +159,16 @@ def rodar(sp, nomes, esperado, rotulo, todos=None):
     except ValueError as e:
         return falhar(str(e), rotulo="configuração")
     pesos = sp.ler_pesos()
-    partes = sp.repartir(nomes, pesos, min(n, len(nomes)))
-    erros = sp.conferir_particao(nomes, partes)
+    # A3 (0.43.2): as unidades separadas nos pesos (`módulo.Classe`) vão a processos próprios, como no suite-paralela
+    plano = sp.planejar(nomes, pesos, lambda nome: [t.id() for t in sp.achatar(sp.suite_do_modulo(nome))])
+    unidades = sorted(plano)
+    partes = sp.repartir(unidades, pesos, min(n, len(unidades)))
+    erros = sp.conferir_particao(unidades, partes)
     filhos_nomes = []
     for parte in partes:
-        convertida, repetidos = para_o_filho(parte, todos or nomes)
-        filhos_nomes.append(convertida)
+        inteiros = [u for u in parte if plano[u][1] is None]
+        convertida, repetidos = para_o_filho(inteiros, todos or nomes)
+        filhos_nomes.append(sorted(convertida + [u for u in parte if plano[u][1] is not None]))
         erros += repetidos
     if erros:
         return falhar("; ".join(erros))
@@ -155,7 +179,7 @@ def rodar(sp, nomes, esperado, rotulo, todos=None):
     filhos = []
     anteriores = {s: signal.signal(s, sp.ao_sinal) for s in sp.SINAIS}
     try:
-        sp.lancar(filhos_nomes, pasta, filhos)
+        sp.lancar(filhos_nomes, pasta, filhos, plano)
         duracoes = sp.esperar(filhos, inicio)
         for s, h in anteriores.items():
             signal.signal(s, h)
@@ -177,6 +201,8 @@ def rodar(sp, nomes, esperado, rotulo, todos=None):
     rodados = sum(rel["rodados"] for rel in relatorios if rel)
     print(f"\nRan {rodados} tests in {segundos:.3f}s ({len(partes)} processos, {rotulo})\n")
     linha, codigo = veredito(relatorios, erros)
+    if not codigo and publicar:
+        publicar(relatorios)
     print(linha)
     sp.publicar_no_ci(linha, linhas, partes, relatorios, duracoes, pesos, rodados, segundos)
     return codigo
@@ -215,12 +241,72 @@ def por_parte(sp, texto, environ):
         return falhar("; ".join(erros))
     parte = partes[k - 1]
     print(f"suite-partes: parte {k}/{n}: {', '.join(parte)}", file=sys.stderr, flush=True)
-    return rodar(sp, parte, esperado_da_parte(total, parte), f"parte {k}/{n}", nomes)
+    destino = environ.get("FORGE_SUITE_PULADOS")
+    publicar = (lambda relatorios: gravar_pulados(sp, destino, k, n, relatorios)) if destino else None
+    return rodar(sp, parte, esperado_da_parte(total, parte), f"parte {k}/{n}", nomes, publicar)
+
+
+def gravar_pulados(sp, destino, k, n, relatorios):
+    """T3: os pulados da parte K/N em `destino`, para o agregador do CI somar (`--somar-pulados`)."""
+    ids = sp.pulados_ids(relatorios)
+    Path(destino).parent.mkdir(parents=True, exist_ok=True)
+    Path(destino).write_text(json.dumps({"parte": f"{k}/{n}", "pulados": len(ids), "pulados_ids": ids}),
+                             encoding="utf-8")
+    print(f"suite-partes: parte {k}/{n}: {len(ids)} pulado(s) gravado(s) para o agregador.", file=sys.stderr)
+
+
+def ler_um_pulado(arquivo, n):
+    """(K, pulados, ids) de um arquivo de parte; ValueError se ilegível, de outro N ou com a contagem errada."""
+    try:
+        dado = json.loads(arquivo.read_text(encoding="utf-8"))
+        k, n_lido = ler_parte(dado["parte"])
+        quantos, lista = dado["pulados"], dado["pulados_ids"]
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        raise ValueError(f"{arquivo.name} ilegível") from e
+    if n_lido != n or type(quantos) is not int or not isinstance(lista, list) or quantos != len(lista) \
+            or not all(isinstance(i, str) for i in lista):
+        raise ValueError(f"{arquivo.name}: parte de outro N ou com a contagem inválida")
+    return k, quantos, lista
+
+
+def ler_pulados(pasta, n):
+    """(soma, ids, erros) dos `*.json` de `pasta`: um por parte K/N, K de 1 a N uma vez só (falha fechada)."""
+    vistos, soma, ids, erros = set(), 0, [], []
+    for arquivo in sorted(Path(pasta).glob("*.json")) if Path(pasta).is_dir() else []:
+        try:
+            k, quantos, lista = ler_um_pulado(arquivo, n)
+        except ValueError as e:
+            erros.append(str(e))
+            continue
+        if k in vistos:
+            erros.append(f"{arquivo.name}: parte {k}/{n} repetida")
+            continue
+        vistos.add(k)
+        soma += quantos
+        ids += lista
+    faltam = sorted(set(range(1, n + 1)) - vistos)
+    if faltam:
+        erros.append(f"faltam os pulados da(s) parte(s) {', '.join(map(str, faltam))} de {n}")
+    return soma, sorted(ids), erros
+
+
+def somar_pulados(sp, texto_n, pasta):
+    """T3 no agregador: a soma dos pulados das N partes contra `teto_pulados`; a última linha é OK ou FAILED."""
+    if not re.fullmatch(r"[1-9][0-9]?", texto_n or ""):
+        return falhar(f"--somar-pulados espera N de 1 a 99 (veio '{texto_n}')", 2, "uso")
+    soma, ids, erros = ler_pulados(pasta, int(texto_n))
+    if erros:
+        return falhar("; ".join(erros), rotulo="pulados das partes")
+    linha = sp.comparar_teto(soma, [sp.neutro(i) for i in ids], sp.ler_teto(), [], "suite-partes")
+    print(linha or (f"OK (skipped={soma})" if soma else "OK"))
+    return 1 if linha else 0
 
 
 def main(argv=None, environ=None):
     argv = sys.argv[1:] if argv is None else argv
     environ = os.environ if environ is None else environ
+    if argv[:1] == ["--somar-pulados"] and len(argv) == 3:
+        return somar_pulados(carregar_paralela(), argv[1], argv[2])
     if len(argv) != 2 or argv[0] not in ("--modulos", "--parte"):
         print(__doc__.strip().splitlines()[2], file=sys.stderr)
         return 2
