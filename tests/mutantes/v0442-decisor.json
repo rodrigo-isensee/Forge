@@ -37,7 +37,7 @@
    "guarda": "linha decidido fora da forma recusa",
    "arquivo": "bin/forge_decisor.py",
    "de": "        return 1 if ruins else 0",
-   "para": "        return 0",
+   "para": "        return 1 if [] else 0",
    "testes": [
     "tests.test_decisor.Decisor.test_conferir_recusa_linha_decidido_fora_da_forma"
    ]
@@ -69,7 +69,7 @@
    "de": "        if not a.id or not _campo(a.porque):",
    "para": "        if False:",
    "testes": [
-    "tests.test_decisor.Decisor.test_reverter_e_placar_no_metricas"
+    "tests.test_decisor.Decisor.test_reverter_pede_id_e_porque"
    ]
   },
   {
@@ -77,7 +77,7 @@
    "guarda": "so decidida se reverte",
    "arquivo": "bin/forge_decisor.py",
    "de": "if r.get(\"resultado\") == \"decidida\"}",
-   "para": "}",
+   "para": "if r.get(\"resultado\") != \"decidida\"}",
    "testes": [
     "tests.test_decisor.Decisor.test_reverter_e_placar_no_metricas"
    ]

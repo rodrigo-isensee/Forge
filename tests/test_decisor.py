@@ -60,6 +60,7 @@ class Decisor(unittest.TestCase):
     def test_fato_ausente_nao_grava(self):
         rc, _ = self.registrar(reversivel="talvez")
         self.assertEqual(rc, 2)
+        self.assertEqual(self.registrar(porque="")[0], 2, "sem o porquê não grava")
         self.assertFalse((self.tmp / "docs" / "kanban" / "decisoes-obvias.jsonl").exists())
 
     def test_o_decisor_nao_recebe_objetivo_nem_conversa(self):
@@ -76,6 +77,11 @@ class Decisor(unittest.TestCase):
                 forge_decisor.decidir(**fatos, **{extra: "x"})
         rc, _ = self.rodar("decisoes", "registrar", "--objetivo", "x")
         self.assertEqual(rc, 2, "o CLI não tem --objetivo")
+
+    def test_reverter_pede_id_e_porque(self):
+        self.registrar()
+        self.assertEqual(self.rodar("decisoes", "reverter", "--id", "D0001")[0], 2)
+        self.assertEqual(self.rodar("decisoes", "reverter", "--porque", "x")[0], 2)
 
     def test_reverter_e_placar_no_metricas(self):
         self.registrar()

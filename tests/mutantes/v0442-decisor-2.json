@@ -7,9 +7,9 @@
    "guarda": "fato sim/nao invalido nao grava",
    "arquivo": "bin/forge_decisor.py",
    "de": "    faltam += [n for n, v in fatos.items() if v is None]",
-   "para": "    faltam += []",
+   "para": "    faltam += [n for n, v in fatos.items() if v is False]",
    "testes": [
-    "tests.test_decisor.Decisor.test_fato_ausente_nao_grava"
+    "tests.test_decisor.Decisor.test_as_quatro_condicoes_de_pe_decide_e_imprime_a_linha_do_commit"
    ]
   },
   {
@@ -39,7 +39,7 @@
    "de": "if not _campo(getattr(a, n))]",
    "para": "if False]",
    "testes": [
-    "tests.test_decisor.Decisor.test_o_decisor_nao_recebe_objetivo_nem_conversa"
+    "tests.test_decisor.Decisor.test_fato_ausente_nao_grava"
    ]
   },
   {
@@ -91,43 +91,6 @@
    "testes": [
     "tests.test_decisor.Decisor.test_reverter_e_placar_no_metricas"
    ]
-  }
- ],
- "isentas": [
-  {
-   "arquivo": "bin/forge-check",
-   "trecho": "modulo is None",
-   "motivo": "cópia avulsa do forge-check sem o módulo ao lado; mesmo padrão de governanca() e modulo_do_dono(), sem cenário na árvore do plugin"
-  },
-  {
-   "arquivo": "bin/forge_decisor.py",
-   "trecho": "not arq.is_file() or arq.is_symlink()",
-   "motivo": "registro ausente é o caso inicial (provado por test_fato_ausente_nao_grava, que não cria o arquivo); link é defesa"
-  },
-  {
-   "arquivo": "bin/forge_decisor.py",
-   "trecho": "isinstance(obj, dict)",
-   "motivo": "linha JSON que não é objeto só seria escrita à mão; defesa de leitura"
-  },
-  {
-   "arquivo": "bin/forge_decisor.py",
-   "trecho": "arq.is_symlink() or arq.parent.is_symlink()",
-   "motivo": "defesa contra link; o O_NOFOLLOW cobre o arquivo"
-  },
-  {
-   "arquivo": "bin/forge_decisor.py",
-   "trecho": "(valor or \"\").strip().lower()",
-   "motivo": "argumento ausente vira texto vazio e cai em None; provado por test_fato_ausente_nao_grava"
-  },
-  {
-   "arquivo": "bin/forge_decisor.py",
-   "trecho": "\" \".join((valor or \"\").split())",
-   "motivo": "argumento ausente vira texto vazio; o vazio é provado por test_o_decisor_nao_recebe_objetivo_nem_conversa"
-  },
-  {
-   "arquivo": "bin/forge_decisor.py",
-   "trecho": "1 if ruins else 0",
-   "motivo": "o rc desta linha é o mutante M4 (return 0), morto por test_conferir_recusa_linha_decidido_fora_da_forma"
   }
  ]
 }

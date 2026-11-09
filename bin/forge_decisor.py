@@ -88,11 +88,11 @@ def _acrescentar(raiz, obj):
 
 
 def _sim_nao(valor):
-    return {"sim": True, "nao": False, "não": False}.get((valor or "").strip().lower())
+    return {"sim": True, "nao": False, "não": False}.get(str(valor).strip().lower())
 
 
 def _campo(valor):
-    return " ".join((valor or "").split())[:TETO_DO_CAMPO]
+    return " ".join(str(valor).split())[:TETO_DO_CAMPO]
 
 
 def executar(a, raiz):
