@@ -6691,7 +6691,7 @@ def hash_das_decisoes(cobradas):
     """P4 (0.43.1): sha256 do bloco de decisões que o brief cita por referência: toda linha `DECISÃO DO DONO` de cada fonte de
     `decisoes_cobradas` (o pedido, os registros citados, as dependências e o pedido de origem), na ordem, com a fonte e os espaços
     normalizados. Linha nova em qualquer fonte muda o hash; linha nova no `## Histórico` (selo, conferida) não."""
-    corpo = "\n".join(f"{rel}\t{chave_da_decisao(linha)}" for rel, linhas in cobradas["fontes"] for _, linha in linhas)
+    corpo = "\n".join(f"{caminho_impresso(rel)}\t{chave_da_decisao(linha)}" for rel, linhas in cobradas["fontes"] for _, linha in linhas)
     return hashlib.sha256(corpo.encode("utf-8")).hexdigest()
 
 
@@ -7870,12 +7870,12 @@ def selo_do_brief(arquivo, dados=None):
         selos = selos_do_pedido(ler_pedido_do_selo(caminho))
     except (OSError, ValueError):
         return f"o pedido {pid} não abriu"
-    rel, sha = f"docs/briefs/{arquivo.name}", hashlib.sha256(dados).hexdigest()
+    rel, sha = f"docs/briefs/{caminho_impresso(arquivo.name)}", hashlib.sha256(dados).hexdigest()
     if (rel, sha) in selos:
         return None
     if any(r == rel for r, _ in selos):
-        return f"{rel} mudou depois do selo (sha256 {sha[:12]} sem selo)"
-    return f"{rel} sem selo no ## Histórico do pedido {pid}"
+        return f"{caminho_impresso(rel)} mudou depois do selo (sha256 {sha[:12]} sem selo)"
+    return f"{caminho_impresso(rel)} sem selo no ## Histórico do pedido {caminho_impresso(pid)}"
 
 
 def base_sha_esperado(raiz, texto, base, branch):
@@ -7999,7 +7999,7 @@ def cmd_brief_selar(raiz, a):
     if any(r for _, r in linhas):
         print("resultado: reprovado (sem selo)")
         return 1
-    sha, nome = hashlib.sha256(conteudo).hexdigest(), f"docs/briefs/{arquivo.name}"
+    sha, nome = hashlib.sha256(conteudo).hexdigest(), f"docs/briefs/{caminho_impresso(arquivo.name)}"
     if (nome, sha) in selos_do_pedido(ler_pedido_do_selo(caminho_pedido)):
         print(f"selo: já gravado para {nome} {sha}")
     else:
