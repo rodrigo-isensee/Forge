@@ -778,6 +778,9 @@ print(json.dumps(saida))
     # processo): a pasta e as variáveis que seguem são as da leitura sem valor (ADR 0013, item 5), e não valem o oráculo.
     MUDA_O_ESTADO_DO_SHELL = frozenset({"cd", "export", "pushd", "popd", "read", "declare", "typeset", "unset", "set"})
     NO_FIXTURE_DE_OUTRO_DIA = ("{tmp}", "{raiz}", "{marca", "{HEAD}", "{pid")  # o texto só vale depois do `Fixture.montar`
+    # N5: a decisão depende da branch que um comando anterior da mesma linha troca; atrás de um lançador que o bash não
+    # roda (`builtin -iu X ...`), a troca não acontece e o 0 é a leitura certa, não um furo.
+    TROCA_A_BRANCH_NA_LINHA = ("git switch ",)
     SO_PALAVRAS = re.compile(r"[\w./=:@%+,-]+(?: [\w./=:@%+,-]+)*")  # corpo que o `env -S` divide como o shell o leria
 
     def decidir_na_guarda(self, textos, hooks=HOOKS, motivo=False):
@@ -805,6 +808,7 @@ print(json.dumps(saida))
             comando = dados.get("entrada", {}).get("tool_input", {}).get("command")
             if (dados.get("passos") or not isinstance(comando, str) or "\n" in comando
                     or any(marca in comando for marca in self.NO_FIXTURE_DE_OUTRO_DIA)
+                    or any(marca in comando for marca in self.TROCA_A_BRANCH_NA_LINHA)
                     or conformidade.CRITICO.search(comando)
                     or any(Path(w).name in _comum.LANCADORES for w in re.split(r"[\s;&|()`'\"]+", comando))):
                 continue
