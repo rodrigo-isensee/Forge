@@ -13,6 +13,7 @@ import sys
 import tempfile
 import time
 import unittest
+import unittest.mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
@@ -643,6 +644,59 @@ class Frequencia(Base):
     def test_o_tech_lead_roda_o_doutor_antes_de_abrir_pr(self):
         texto = (RAIZ / "agents/tech-lead.md").read_text(encoding="utf-8")
         self.assertIn("forge doutor --rapido", texto)
+
+
+class CacheDoPlugin(unittest.TestCase):
+    """M11: só saem do cache as versões antigas do Forge fora de todo installPath, nunca as duas maiores nem atalho."""
+    def setUp(self):
+        sys.path.insert(0, str(RAIZ / "bin"))
+        import forge_versoes
+        self.fv = forge_versoes
+        self.casa = Path(tempfile.mkdtemp(prefix="cache-"))
+        self.addCleanup(shutil.rmtree, self.casa, ignore_errors=True)
+        self.forge = self.casa / ".claude" / "plugins" / "cache" / "mkt" / "forge"
+        for v in ("0.40.0", "0.41.0", "0.42.0", "0.43.0"):
+            self.versao(v)
+        self.instalados(["0.41.0"])
+
+    def versao(self, v, nome="forge"):
+        pasta = self.forge / v / ".claude-plugin"
+        pasta.mkdir(parents=True)
+        (pasta / "plugin.json").write_text(json.dumps({"name": nome, "version": v}), encoding="utf-8")
+
+    def instalados(self, versoes):
+        dados = {"version": 2, "plugins": {"forge@mkt": [{"installPath": str(self.forge / v)} for v in versoes]}}
+        (self.casa / ".claude" / "plugins" / "installed_plugins.json").write_text(json.dumps(dados), encoding="utf-8")
+
+    def antigas(self):
+        return sorted(p.name for p in self.fv.versoes_antigas_do_cache(self.casa)[0])
+
+    def test_fica_a_em_uso_e_as_duas_maiores(self):
+        self.assertEqual(self.antigas(), ["0.40.0"])
+
+    def test_sem_conferir_o_em_uso_nada_sai(self):
+        (self.casa / ".claude" / "plugins" / "installed_plugins.json").write_text("{", encoding="utf-8")
+        self.assertEqual(self.antigas(), [])
+        self.instalados(["9.9.9"])  # installPath que não resolve
+        self.assertEqual(self.antigas(), [])
+
+    def test_pasta_fora_da_forma_ou_atalho_nao_sai(self):
+        self.versao("0.39.0", nome="outro")
+        (self.forge / "0.38.0").symlink_to(self.forge / "0.40.0")
+        (self.forge / "lixo").mkdir()
+        self.assertEqual(self.antigas(), ["0.40.0"])
+
+    def test_remover_apaga_registra_e_pula_a_que_passou_a_ser_usada(self):
+        self.versao("0.39.0")
+        lista = self.fv.versoes_antigas_do_cache(self.casa)[0]
+        self.instalados(["0.41.0", "0.39.0"])
+        estado = self.casa / "estado"
+        with unittest.mock.patch.dict(os.environ, {"XDG_STATE_HOME": str(estado)}):
+            apagadas, puladas = self.fv.remover_do_cache(lista, self.casa)
+        self.assertEqual(([p.name for p in apagadas], [p.name for p in puladas]), (["0.40.0"], ["0.39.0"]))
+        self.assertFalse((self.forge / "0.40.0").exists())
+        self.assertTrue((self.forge / "0.39.0").exists())
+        self.assertIn("0.40.0", (estado / "forge" / "cache-removido.log").read_text(encoding="utf-8"))
 
 
 class DoutorVersao(ap.Base):
