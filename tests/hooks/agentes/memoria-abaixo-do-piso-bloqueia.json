@@ -1,5 +1,5 @@
 {
-  "descricao": "16 GB no total (piso 2,4 GB), 1,5 GB livres: bloqueia.",
+  "descricao": "16 GB no total (piso padrão 2 GB), 1,5 GB livres: bloqueia.",
   "proc": {
     "loadavg": "0.5 1.0 1.0 1/100 1",
     "mem_gb": 1.5,
@@ -11,13 +11,13 @@
       "agentes": [
         {
           "id": "a0",
-          "tipo": "forge:tech-lead",
+          "tipo": "time:tech-lead",
           "descricao": "Tarefa 0",
           "desde": "{agora-60}"
         },
         {
           "id": "a1",
-          "tipo": "forge:tech-lead",
+          "tipo": "time:tech-lead",
           "descricao": "Tarefa 1",
           "desde": "{agora-60}"
         }
@@ -29,13 +29,13 @@
     "tool_name": "Agent",
     "tool_use_id": "toolu_1",
     "tool_input": {
-      "subagent_type": "forge:qa-engineer",
+      "subagent_type": "time:qa-engineer",
       "description": "Validar a entrega",
       "prompt": "..."
     }
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "R-TETO: carga alta (load 0.5 de 8 núcleos, 1.5 GB disponíveis; limite: load 6.4 e 2.4 GB)"
+    "stderr": "R-TETO: memória baixa (1.5 GB disponíveis; piso 2.0 GB, `piso_memoria_gb` em .forge/config.json)"
   }
 }

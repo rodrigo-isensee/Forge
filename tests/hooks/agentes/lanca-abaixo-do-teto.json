@@ -5,13 +5,13 @@
       "agentes": [
         {
           "id": "a1",
-          "tipo": "forge:node-backend",
+          "tipo": "time:node-backend",
           "descricao": "Implementar a API",
           "desde": "{agora-60}"
         },
         {
           "id": "a2",
-          "tipo": "forge:tech-lead",
+          "tipo": "time:tech-lead",
           "descricao": "Review",
           "desde": "{agora-60}"
         }
@@ -23,7 +23,7 @@
     "tool_name": "Agent",
     "tool_use_id": "toolu_1",
     "tool_input": {
-      "subagent_type": "forge:qa-engineer",
+      "subagent_type": "time:qa-engineer",
       "description": "Validar a entrega",
       "prompt": "..."
     }
@@ -33,7 +33,7 @@
     "estado": {
       "agentes.json": {
         "contem": [
-          "forge:qa-engineer",
+          "time:qa-engineer",
           "Validar a entrega"
         ]
       }

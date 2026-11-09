@@ -14,6 +14,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = str(RAIZ / "bin" / "forge-check")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ambiente_git import sem_manutencao  # noqa: E402
+from apoio_forge_check_rapido import comando_do_forge_check  # noqa: E402
 
 HISTORICO = """| Data/hora | Cartão | De | Para | Motivo |
 |---|---|---|---|---|
@@ -42,6 +43,10 @@ CONFERENCIAS = """| data-hora | pedido | brief | modo | rodada | resultado | mé
 
 
 class Raiz(unittest.TestCase):
+    # S-SUITE-RAPIDA: as classes daqui rodam o script direto, de ponta a ponta; as de test_forge que herdam esta raiz
+    # (False) rodam o mesmo forge-check pelo bytecode em cache (`apoio_forge_check_rapido`).
+    SCRIPT_DIRETO = True
+
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="forge-voltas-"))
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
@@ -53,7 +58,8 @@ class Raiz(unittest.TestCase):
 
     def rodar(self, *args, home=None):
         env = dict(os.environ, HOME=str(home or self.tmp / "home"))
-        r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(self.tmp), *args],
+        inicio = [sys.executable, FORGE_CHECK] if self.SCRIPT_DIRETO else comando_do_forge_check()
+        r = subprocess.run([*inicio, "--raiz", str(self.tmp), *args],
                            capture_output=True, text=True, env=env)
         return r.returncode, r.stdout.splitlines(), r.stderr
 

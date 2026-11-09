@@ -12,72 +12,34 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 TEXTO = (RAIZ / "agents" / "conferente.md").read_text(encoding="utf-8")
-COMANDOS_SHA = "9bfc0c302af03ae2ce9f9322cb908b1e086606a01635dffc8ee2eb632596eaf9"
+COMANDOS_SHA = "d4073204714c6cc0852d2f8ae1c08baffe999e82f8ab508fed56884d9824151b"  # 0.43.1: + `entrega --pedido ... --sem-gravar`
 
 
 def paragrafo(titulo):
     return next((linha for linha in TEXTO.splitlines() if linha.startswith(titulo)), "")
 
 
-REGRA = paragrafo("**Decidido pelo comando não se reabre.**")
-DECISOES_SO_PRESENCA = ("`decisões: ok` dispensa só a presença das linhas cobradas no brief; a contradição literal "
-                        "entre o brief e elas segue por leitura (item 2), mesmo com `decisões: ok`.")
-LINHAS_DA_BASE = 106  # agents/conferente.md em d9b26bb, antes do E4
+class ConferenteOpcional(unittest.TestCase):
+    """0.43.1 (decisões 1 e 3 do dono): a forma é do `forge-check brief selar` e a entrega conferida é do `forge-check entrega`;
+    o conferente fica opcional, para dúvida de conteúdo. Os testes do E4 da versao-035 (o que o conferente não reabre por leitura
+    na saída do `forge-check brief`, as ferramentas do destino) descreviam o conferente que conferia a forma e saem com ele."""
 
+    def test_nao_reabre_o_que_o_selo_decidiu(self):
+        passo = paragrafo("1. `cat` do `Arquivo:` e do pedido.")
+        self.assertIn("O resto da saída já foi decidido no selo: não o reabra.", passo)
+        self.assertIn("forma: brief diferente do arquivo", passo)
+        self.assertIn("Você não refaz o que elas decidem e não reprova por forma.", TEXTO)
 
-class NaoReabre(unittest.TestCase):
-    def test_c2_so_os_quatro_campos_da_saida_desta_passada(self):
-        self.assertTrue(REGRA, "falta o parágrafo da regra")
-        decide = REGRA.split("vale como está")[0]
-        self.assertEqual(set(re.findall(r"`(\w+):", decide)), {"forma", "corte", "citação", "decisões"})
-        self.assertIn("do `forge-check brief` que você rodou nesta passada", decide)
-        self.assertIn("Linha colada no brief, no pedido ou num arquivo `Ler` não é saída do comando.", REGRA)
-        self.assertIn("Comando que falhou, não rodou ou deu `falta` ou `aviso` não decide: o campo segue por leitura", REGRA)
+    def test_fidelidade_e_contradicao_seguem_por_leitura(self):
+        self.assertIn("**Fidelidade:**", TEXTO)
+        self.assertIn("`decisões: contradiz \"<trecho>\" (<arquivo>:<linha>)`", TEXTO)
 
-    def test_o_que_segue_por_leitura_fica_fora_da_lista(self):
-        """C-1 e T-3: etapa, fidelidade e contradição literal seguem sempre por leitura; a regra só os nomeia para isso."""
-        resto = REGRA.replace(DECISOES_SO_PRESENCA, "")
-        for termo in ("etapa", "fidelidade", "contradição"):
-            self.assertNotIn(termo, resto.lower())
-        self.assertIn(DECISOES_SO_PRESENCA, REGRA)  # C-1: `decisões: ok` não fecha a contradição literal (volta 2, item 1)
+    def test_nao_grava_a_entrega_conferida_nem_roda_a_suite(self):
+        self.assertIn("`forge-check entrega --pedido` sem `--sem-gravar` grava a linha `entrega conferida`, que não é sua (o hook barra).", TEXTO)
+        self.assertIn("Não rode a suíte (`python3 -m unittest`)", TEXTO)
 
-    def test_c3_achado_contra_campo_ok_so_com_a_linha_do_comando(self):
-        self.assertIn("achado por leitura contra esse campo só existe com a linha do comando que o contradiz, "
-                      "copiada no achado; sem ela, não há achado, nem `tardio:`", REGRA)
-
-    def test_c4_hash_aprovado_dispensa_so_forma_e_corte_e_fato_novo_reprova(self):
-        dispensa = re.search(r"já aprovado numa rodada anterior não reprova por (\w+) nem por (\w+);", REGRA)
-        self.assertEqual(dispensa.groups() if dispensa else None, ("forma", "corte"))
-        fatos = REGRA.split("fato novo do disco reprova sempre")[1]
-        for fato in ("decisão do dono posterior", "arquivo `Ler` ausente ou com sha diferente", "pedido alterado"):
-            self.assertIn(fato, fatos)
-
-    def test_c8_ate_14_linhas_e_sem_ordem_de_ignorar_o_comando(self):
-        self.assertLessEqual(len(TEXTO.splitlines()), LINHAS_DA_BASE + 14)
-        for imperativo in ("ignor", "pule", "dispense", "não rode", "deixe de"):
-            self.assertNotIn(imperativo, REGRA.lower())
-
-
-class FerramentasDoDestino(unittest.TestCase):
-    def test_g_item_4_le_so_o_caminho_impresso_pelo_forge_check(self):
-        """Adendo (review) do E4, C-5 e T-2: três casos separados, e todo comando lê só o `<caminho>` da linha `destino:`."""
-        forma = paragrafo("4. **Forma**")
-        for trecho in ("(agente:", "não encontrado no plugin", "`forma: ferramentas do destino não verificáveis`, que aparece e não reprova",
-                       "`forma: destino não encontrado`, que reprova", "`forma: destino sem linha tools:`, que reprova",
-                       "`forma: PQ-n cmd para destino sem Bash (rode-o o Jarvis ou mude o verificador)`, que reprova"):
-            self.assertIn(trecho, forma)
-        self.assertNotIn("ls -l agents/<nome>.md", forma)
-        comandos = [c for c in re.findall(r"`((?:ls|grep|cat|head|test) [^`]*)`", forma) if c != "ls -l"]  # `ls -l` citado sem caminho
-        self.assertGreaterEqual(len(comandos), 2)
-        for comando in comandos:
-            self.assertTrue(comando.endswith(" '<caminho>'"), comando)
-
-    def test_forma_ok_nao_fecha_as_ferramentas_do_destino(self):
-        """C-5 e C-6: o `forma: ok` do comando não lê `tools:`; a checagem segue por leitura (volta 2, item 2)."""
-        self.assertIn("`forma: ok` não lê a linha `tools:` do destino: as ferramentas do destino (item 4) "
-                      "seguem por leitura mesmo com `forma: ok`.", REGRA)
-        self.assertIn("O `forge-check brief` não lê `tools:`: esta checagem segue por leitura mesmo com `forma: ok`.",
-                      paragrafo("4. **Forma**"))
+    def test_texto_curto(self):  # decisão 11: de 29,9 mil caracteres para menos de um terço
+        self.assertLess(len(TEXTO), 9000)
 
     def test_f_todo_agente_do_repositorio_tem_uma_linha_tools(self):
         self.assertGreaterEqual(len(agentes := sorted([*RAIZ.glob("agents/*.md"), *RAIZ.glob("stacks/*/agents/*.md")])), 10)

@@ -55,6 +55,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RAIZ, ambiente_limpo, git, minimo  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+from modelo_git import copiar_modelo  # noqa: E402
 
 HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
@@ -243,8 +244,11 @@ def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True):
             lidos += ler_dentro_do_comando(palavras, nivel)
     for corpo in _comum.conteudos_de_crase(linha, so_os_fechados=True):  # CRASE-SESSAO-PROJETO
         lidos += ler_como_o_conformidade(corpo, nivel + 1)
+    shell_no_dono = {}  # S-SUITE-RAPIDA: o mesmo dono (até 150 mil caracteres) volta em cada heredoc dele; a busca, uma vez por texto
     for dono, corpo in corpos:
-        if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
+        if dono not in shell_no_dono:
+            shell_no_dono[dono] = re.search(r"\b(bash|sh|zsh|dash)\b", dono) is not None
+        if shell_no_dono[dono]:
             lidos += ler_como_o_conformidade(corpo, nivel + 1)
     return lidos
 
@@ -375,6 +379,16 @@ def bash_aceita(linha):
     return subprocess.run(["bash", "-n", "-c", linha], capture_output=True).returncode == 0
 
 
+def repositorio_vazio(pasta, branch):
+    """`git init -b <branch>` com o autor de teste (`user.email`, `user.name`) em `pasta`, pela cópia do modelo montado uma
+    vez por processo (S-SUITE-RAPIDA): três processos do git a menos em cada uma das ~1900 fixtures."""
+    def montar(modelo):
+        git("init", "-q", "-b", branch, cwd=modelo)
+        git("config", "user.email", "t@example.com", cwd=modelo)
+        git("config", "user.name", "Teste", cwd=modelo)
+    copiar_modelo(f"hooks-vazio-{branch}", pasta, montar)
+
+
 class Fixture:
     def __init__(self, caminho, dados=None):
         self.caminho = caminho
@@ -389,9 +403,7 @@ class Fixture:
                 "{pid_morto}": pid_morto(), "{pid_ns}": namespace_de_pid()}
         for chave, pasta in (("{marca}", raiz), ("{marca_wt}", tmp / "wt")):  # a marca da sessão: uma por raiz
             mapa[chave] = f".git/forge/projeto-{hashlib.sha256(os.path.realpath(pasta).encode()).hexdigest()[:16]}"
-        git("init", "-q", "-b", "develop", cwd=raiz)
-        git("config", "user.email", "t@example.com", cwd=raiz)
-        git("config", "user.name", "Teste", cwd=raiz)
+        repositorio_vazio(raiz, "develop")
         arquivos = dict(d.get("arquivos", {}))
         arquivos.setdefault("README.md", "projeto\n")
         if d.get("forge", True):
@@ -468,9 +480,7 @@ class Fixture:
     def repositorio(self, pasta, conf, mapa):
         """Outro repositório git do fixture (`repos`): arquivos, um commit e os remotos."""
         pasta.mkdir(parents=True)
-        git("init", "-q", "-b", conf.get("branch", "develop"), cwd=pasta)
-        git("config", "user.email", "t@example.com", cwd=pasta)
-        git("config", "user.name", "Teste", cwd=pasta)
+        repositorio_vazio(pasta, conf.get("branch", "develop"))
         self.gravar(pasta, {"README.md": "repo\n", **conf.get("arquivos", {})}, mapa)
         git("add", "-A", cwd=pasta)
         git("commit", "-q", "-m", "base", cwd=pasta)
@@ -565,6 +575,23 @@ if sys.argv[5] == "lento":
 sys.argv = [sys.argv[2]]
 runpy.run_path(sys.argv[0], run_name="__main__")
 """
+
+
+# P3 da 0.43.1: o `LANCADOR` com o prazo de relógio da linha do `conformidade` (`PRAZO_DA_LINHA_S`, 3 s) largo, para o
+# teste que mede o custo em CPU (`test_muitos_heredocs_recusam_dentro_do_orcamento`) não ser recusado pelo relógio da
+# máquina carregada. O hook roda num módulo `__main__` de verdade, como o `runpy`; se a constante sumir, o lançador sai
+# com erro em vez de medir o hook sem a troca.
+LANCADOR_SEM_PRAZO_DA_LINHA = LANCADOR.replace('runpy.run_path(sys.argv[0], run_name="__main__")', """\
+import re, types
+fonte, trocas = re.subn(r"(?m)^PRAZO_DA_LINHA_S = .*$", "PRAZO_DA_LINHA_S = 120.0", open(sys.argv[0], encoding="utf-8").read())
+if trocas != 1:
+    sys.exit(f"LANCADOR_SEM_PRAZO_DA_LINHA: PRAZO_DA_LINHA_S aparece {trocas} vez(es) em {sys.argv[0]}")
+modulo = types.ModuleType("__main__")
+modulo.__file__ = sys.argv[0]
+sys.modules["__main__"] = modulo
+exec(compile(fonte, sys.argv[0], "exec"), modulo.__dict__)
+""")
+assert LANCADOR_SEM_PRAZO_DA_LINHA != LANCADOR
 
 
 def lancador(hook, producao=False, lento=False):
@@ -1075,21 +1102,26 @@ class Hooks(unittest.TestCase):
         self.assertTrue((agentes.nucleos() or 1) >= 1)
 
     def test_faixas_do_teto_segue_o_hardware(self):
-        """R-TETO: bloqueia com load >= 0,8 x nproc ou MemAvailable <= max(1 GB, 15% do total); o teto é nproc."""
+        """R-TETO (R-TETO-DISPONIBILIDADE, 2026-11-06): bloqueia só com MemAvailable <= piso (padrão 2 GB, `piso_memoria_gb`); o load
+        não trava; o teto é nproc."""
         sys.path.insert(0, str(HOOKS))
         import agentes
         casos = [  # (load, disponível, total, nproc, carga alta)
-            (3, 6, 8, 16, False), (12.7, 6, 8, 16, False), (12.8, 6, 8, 16, True),
-            (6.39, 8, 16, 8, False), (6.4, 8, 16, 8, True), (0.1, 2.5, 16, 8, False), (0.1, 2.4, 16, 8, True),
-            (0.1, 1.1, 4, 8, False), (0.1, 1.0, 4, 8, True), (0.8, 8, 16, 1, True), (0.7, 8, 16, 1, False)]
+            (3, 6, 8, 16, False), (12.8, 6, 8, 16, False), (6.4, 8, 16, 8, False), (0.8, 8, 16, 1, False), (50, 2.1, 4, 1, False),
+            (0.1, 2.0, 16, 8, True), (0.1, 1.0, 4, 8, True), (0.1, 2.01, 16, 8, False)]
         for carga, memoria, total, nproc, alta in casos:
             with self.subTest(carga=carga, memoria=memoria, total=total, nproc=nproc):
                 self.assertEqual(agentes.carga_alta(carga, memoria, total, nproc), alta)
                 self.assertEqual(agentes.teto_adaptativo(carga, memoria, total, nproc), nproc)
-        for faltando in range(4):  # sem uma das medidas: nunca é carga alta e o teto cai no padrão 3
+        self.assertFalse(agentes.carga_alta(0.1, 1.5, 16, 8, agentes.piso_de_memoria({"piso_memoria_gb": 1})))
+        self.assertTrue(agentes.carga_alta(0.1, 2.5, 16, 8, agentes.piso_de_memoria({"piso_memoria_gb": 3})))
+        for invalido in (True, "2", 0, -1, None, [1]):
+            with self.subTest(piso=invalido):
+                self.assertEqual(agentes.piso_de_memoria({"piso_memoria_gb": invalido}), 2.0)
+        self.assertFalse(agentes.carga_alta(1.0, None, 16.0, 8))  # sem a medida de memória: nunca é carga alta
+        for faltando in range(4):  # sem uma das medidas: o teto cai no padrão 3
             medidas = [1.0, 6.0, 16.0, 8]
             medidas[faltando] = None
-            self.assertFalse(agentes.carga_alta(*medidas))
             self.assertEqual(agentes.teto_adaptativo(*medidas), 3)
 
     def test_teto_sem_leitura_nunca_passa_de_nproc(self):  # A3
@@ -1332,6 +1364,21 @@ class Hooks(unittest.TestCase):
                                   "entrada": {"tool_name": "Write", "tool_input": {"file_path": caminho.replace("~", "{tmp}/home")},
                                               "agent_type": "forge-dev:aq", "hook_event_name": "PreToolUse",
                                               "tool_use_id": "toolu_9"}, "esperado": esperado})
+
+    def test_clone_como_link_para_fora_do_home_nao_desliga_as_regras_do_home(self):
+        """B1 do review de segurança da 0.43.1: com `~/.forge-contrib` como link para /workspaces/.forge-contrib
+        (preparar-estacao --container), as regras `~/.forge-contrib/...` continuam barrando pelo alvo do link."""
+        link = {"links": {"../home/.forge-contrib": "{tmp}/fora"}}
+        casos = {"pedido pelo home": ("{tmp}/home/.forge-contrib/docs/pedidos/p1.md", link),
+                 "pedido pelo alvo": ("{tmp}/fora/docs/pedidos/p1.md", link),
+                 "brief pelo alvo": ("{tmp}/fora/docs/briefs/p1-dev-1.md", link),
+                 "pasta real": ("{tmp}/home/.forge-contrib/docs/pedidos/p1.md", {})}
+        for nome, (caminho, extra) in casos.items():
+            with self.subTest(nome):
+                self.rodar_dados({"arquivos": {"src/app.js": "v1\n"}, "env": {"HOME": "{tmp}/home"}, **extra,
+                                  "entrada": {"tool_name": "Write", "tool_input": {"file_path": caminho},
+                                              "agent_type": "forge:tech-lead", "hook_event_name": "PreToolUse",
+                                              "tool_use_id": "toolu_9"}, "esperado": {"codigo": 2, "stderr": "R-"}})
 
     def test_escrita_permitida_malformada_bloqueia(self):
         """ADR 0009, seção 6.6: `escrita_permitida` com forma errada (ou lista vazia) falha fechado, não libera."""
@@ -1786,14 +1833,16 @@ class Hooks(unittest.TestCase):
     def test_comando_logico_le_os_limites_uma_vez_por_texto(self):  # LOTE-LEITURA-HOOK, A1 do review, volta 5
         """O `comando_logico` de cada um dos 2000 heredocs de um texto sai em tempo linear: os limites dos comandos
         lógicos são lidos uma vez por texto, e não do começo a cada operador (26,9 s com 3000 heredocs no conformidade,
-        acima do timeout de 10 s em que o Claude Code libera a linha)."""
+        acima do timeout de 10 s em que o Claude Code libera a linha). O limite é de CPU deste processo
+        (`time.process_time`), e não do relógio, que a máquina carregada alonga sem o código mudar (P3 da 0.43.1): a
+        conta leva ~0,1 s de CPU, e a quadrática passava de 10 s."""
         _comum, _, _ = modulos_dos_hooks()
         linhas = [f"cat > f{i} <<'EOF'" for i in range(2000)]
         texto = "\n".join(linhas)
         posicoes = [texto.index(linha) for linha in linhas]
-        inicio = time.perf_counter()
+        inicio = time.process_time()
         logicos = [_comum.comando_logico(texto, p) for p in posicoes]
-        self.assertLess(time.perf_counter() - inicio, 1.0, "2000 comandos lógicos do mesmo texto")
+        self.assertLess(time.process_time() - inicio, 1.0, "2000 comandos lógicos do mesmo texto (s de CPU)")
         self.assertEqual(logicos, linhas)
         self.assertEqual(_comum.comando_logico("a &&\nb\nc", 5), "a &&\nb")
 
@@ -1801,7 +1850,9 @@ class Hooks(unittest.TestCase):
         """Com 2000 heredocs, um por linha, num pipeline, ligados por `&&` ou na mesma linha, `tirar_heredocs` e a
         conferência de cada dono (`corpo_so_lido`) saem dentro do orçamento de 3 s do `conformidade`: o dono de cada
         heredoc sai de índices das leituras (`pipeline_do_operador`) e de limites dos comandos lógicos lidos uma vez por
-        texto, e heredocs do mesmo dono o dividem (antes, 12,4 s um por linha e 30 s no pipeline e com `&&`)."""
+        texto, e heredocs do mesmo dono o dividem (antes, 12,4 s um por linha e 30 s no pipeline e com `&&`). O limite
+        é de CPU deste processo (`time.process_time`), e não do relógio, que a máquina carregada alonga sem o código
+        mudar (P3 da 0.43.1)."""
         _comum, _, _ = modulos_dos_hooks()
         n = 2000
         formas = {"um por linha": "".join(f"cat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n)),
@@ -1810,10 +1861,10 @@ class Hooks(unittest.TestCase):
                   "mesma linha": "cat " + " ".join(f"<<'E{i}'" for i in range(n)) + "\n" + "".join(f"x\nE{i}\n" for i in range(n))}
         for forma, texto in formas.items():
             with self.subTest(forma=forma):
-                inicio = time.perf_counter()
+                inicio = time.process_time()
                 resto, corpos = _comum.tirar_heredocs(texto + "git push origin main")
                 lidos = [_comum.corpo_so_lido(dono) for dono, _ in corpos]
-                self.assertLess(time.perf_counter() - inicio, 3.0, f"{n} heredocs")
+                self.assertLess(time.process_time() - inicio, 3.0, f"{n} heredocs (s de CPU)")
                 self.assertEqual(len(corpos), n)
                 self.assertTrue(resto.endswith("git push origin main"))
                 # M2 da volta única: com o texto gravando (`cat > f`), o `git` do texto faz de todo corpo comando
@@ -1821,7 +1872,15 @@ class Hooks(unittest.TestCase):
 
     def test_muitos_heredocs_recusam_dentro_do_orcamento(self):  # LOTE-LEITURA-HOOK, A1 do review, volta 5
         """Pelo hook real: 3000 heredocs com `git push origin main` no fim recusam (R-MAIN) bem antes do timeout do
-        `hooks.json` (26,9 s antes, e o Claude Code libera o comando que o hook não decidiu a tempo)."""
+        `hooks.json` (26,9 s antes, e o Claude Code libera o comando que o hook não decidiu a tempo).
+
+        P3 da 0.43.1: a medida é a CPU do hook (filhos esperados, `RUSAGE_CHILDREN`), e não o relógio, que a máquina
+        carregada alongava até o hook ser morto pelo próprio prazo de relógio da linha (`PRAZO_DA_LINHA_S`, 3 s) e
+        recusar por ele, e não pela regra, sem o código mudar. O hook roda com esse prazo largo
+        (`LANCADOR_SEM_PRAZO_DA_LINHA`, como o vigia de decisão nos testes) e cada forma tem de caber, em CPU, dentro
+        dele: na máquina livre, a regra decide antes do prazo da linha. O relógio, medido, só vai à mensagem; quem
+        garante a parede em produção é o vigia de 3 s, testado à parte (`test_t_vigia_*`)."""
+        _, conformidade, _ = modulos_dos_hooks()
         limite = min(h["timeout"] for g in json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
                      for h in g["hooks"] if h["args"][0].endswith("/conformidade.py"))
         dados = json.loads((FIXTURES / "conformidade" / "heredoc-outro-comando-make-push-main-bloqueia.json")
@@ -1859,14 +1918,18 @@ class Hooks(unittest.TestCase):
                 montado = fixture.montar(tmp, os.getpid())  # a montagem (git init, commit...) fica fora da janela medida
                 cpu_antes = _cpu_dos_filhos()
                 inicio = time.monotonic()
-                self.executar_fixture(fixture, tmp, os.getpid(), montado=montado)
+                with mock.patch(f"{__name__}.LANCADOR", LANCADOR_SEM_PRAZO_DA_LINHA):
+                    self.executar_fixture(fixture, tmp, os.getpid(), montado=montado)
                 parede = time.monotonic() - inicio
                 cpu = None if cpu_antes is None else _cpu_dos_filhos() - cpu_antes
+                medida = f"{parede:.2f} s de parede, {cpu or 0:.2f} s de CPU"
                 if outra:
-                    print(f"HEREDOC-DONOS {forma}: {parede:.2f} s de parede, {cpu or 0:.2f} s de CPU (limite {limite / 2:.1f} s)")
-                self.assertLess(parede, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
-                if cpu is not None:  # sem `resource` (Windows) só vale a parede
-                    self.assertLess(cpu, limite / 2, "o custo de CPU do hook (filhos) fica no mesmo teto, sem depender da carga")
+                    print(f"HEREDOC-DONOS {forma}: {medida} (limite {conformidade.PRAZO_DA_LINHA_S:g} s de CPU)")
+                if cpu is None:  # sem `resource` (Windows) só vale a parede
+                    self.assertLess(parede, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
+                else:
+                    self.assertLess(cpu, conformidade.PRAZO_DA_LINHA_S,
+                                    f"o custo do hook cabe no prazo da linha, sem depender da carga ({medida})")
 
     @staticmethod
     def _donos_da_base(_comum, texto):

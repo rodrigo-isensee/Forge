@@ -28,6 +28,8 @@ import apoio_versao_defasada as ap  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 from test_voltas import Raiz  # noqa: E402  (raiz sintética do CONF-CORRECAO; sem teste próprio)
 from apoio_conferida import gravar_conferida  # noqa: E402  (E7: a conferida do head nos testes que não tratam dela)
+from modelo_git import copiar_modelo  # noqa: E402  (S-SUITE-RAPIDA: repositório de partida montado uma vez)
+from apoio_forge_check_rapido import comando_do_forge_check  # noqa: E402  (S-SUITE-RAPIDA: o forge-check sem recompilar)
 
 RAIZ = Path(__file__).resolve().parent.parent
 AGENTES = RAIZ / "agents"
@@ -237,20 +239,14 @@ class Agentes(unittest.TestCase):
                 self.assertTrue(fm.get("tools"), "tools vazio")
                 self.assertIn(fm.get("model"), MODELOS_VALIDOS)
 
-    def test_conferente_lista_de_anexos_implicitos(self):
-        """Escopo da entrega (agents/conferente.md): os pareceres de outro papel na mesma branch (segurança, devops)
-        são anexo implícito, junto dos demais; `tests/config.json` continua fora da lista."""
+    def test_conferente_escopo_da_entrega_e_so_de_conteudo(self):
+        """0.43.1 (decisão 3 do dono): a entrega conferida é do `forge-check entrega`; o conferente opcional olha só o conteúdo
+        (item sem commit, arquivo fora do Entregar) e não grava a linha. A lista de anexos implícitos era do conferente que
+        conferia a forma e saiu com ele (o `forge-check entrega` a aplica)."""
         texto = (AGENTES / "conferente.md").read_text(encoding="utf-8")
-        m = re.search(r"salvo os anexos implícitos \((.*?)\): `escopo: ok \(anexo\)` \*\*só por acréscimo\*\*", texto)
-        self.assertIsNotNone(m, "trecho da lista de anexos implícitos não encontrado")
-        itens = [i.strip().strip("`") for i in m.group(1).split(", ")]
-        self.assertEqual(itens, ["CHANGELOG.md", ".claude-plugin/plugin.json", "teste do que mudou", "docs/reviews/",
-                                 "docs/qa/", "docs/kanban/", "docs/security/", "docs/devops/"])
-        self.assertIn("`tests/config.json` nunca é anexo", texto)
-        # a lista vale a partir da raiz e o aceite de risco (só o dono grava) fica fora dela
-        self.assertIn("a lista vale a partir da raiz do repositório", texto)
-        self.assertIn("`docs/security/aceites/` fica fora dela (aceite na entrega é `escopo: fora`)", texto)
-        self.assertNotIn("docs/security/aceites/", m.group(1))
+        self.assertIn("é `pendente: \"<item>\"`", texto)
+        self.assertIn("(fora pareceres, quadro, `CHANGELOG.md` e o fragmento `changelog.d/`) é `escopo: fora | <arquivo>`", texto)
+        self.assertIn("`forge-check entrega --pedido` sem `--sem-gravar` grava a linha `entrega conferida`, que não é sua (o hook barra).", texto)
 
     def test_conferente_so_leitura(self):
         """R-PROVA e R-BRIEF: o conferente confere sem escrever. Sem ferramenta de escrita no frontmatter, em haiku, e
@@ -295,28 +291,26 @@ class PrePushSoOsAfetados(unittest.TestCase):
         self.assertNotIn("a suíte completa roda uma vez, no push", lider)
         self.assertIn("a suíte completa fica no CI do PR", lider)
 
-    def test_readme_cita_os_casos_da_suite_inteira_e_o_caminho_so_de_parecer(self):  # COMENTARIOS-PREPUSH
+    def test_readme_cita_os_casos_da_suite_inteira_e_o_caminho_so_de_parecer(self):  # COMENTARIOS-PREPUSH, SUITE-NO-CI
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         trecho = readme.split("**Suíte do Forge:**", 1)[1].split("\n", 1)[0]
-        for esperado in ("sem tocar `bin/forge-testes`, `tests/config.json` ou `.githooks/`", "só acrescenta pareceres", "docs/reviews/"):
+        for esperado in ("`FORGE_PREPUSH_SUITE=1`", "falta `bin/forge-testes` ou `origin/develop`", "só acrescenta pareceres", "docs/reviews/"):
             with self.subTest(esperado=esperado):
                 self.assertIn(esperado, trecho)
 
-    def test_readme_so_diz_afetados_para_o_envio_simples_e_o_resto_e_suite_inteira(self):  # COMENTARIOS-PREPUSH, review A1/A5
+    def test_readme_diz_baratas_antes_da_fila_afetados_e_suite_inteira_no_ci(self):  # SUITE-NO-CI (2026-11-08)
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         trecho = readme.split("**Suíte do Forge:**", 1)[1].split("\n", 1)[0]
-        frases = re.split(r"\.\s+(?=[A-ZÀ-Ú])", trecho)
-        com_afetados = [f for f in frases if "só os testes afetados" in f]
-        self.assertTrue(com_afetados)
-        for f in com_afetados:
-            for cond in ("uma só ref", "árvore limpa", "HEAD igual ao commit enviado", "`origin/develop`"):
-                with self.subTest(cond=cond):
-                    self.assertIn(cond, f)
-        self.assertIn("Qualquer outro envio roda a suíte inteira", trecho)
-        for proibido in ("árvore suja", "mais de uma ref", "HEAD diferente", "segue a regra acima"):
+        for esperado in ("a suíte inteira roda uma vez, no CI de todo PR", "3 partes paralelas por versão de Python",
+                         "`bateria` e `bateria (python 3.14)` são agregadores", "checagens baratas, em segundos e antes da fila",
+                         "`bin/forge-testes --afetados`", "para qualquer branch e para várias refs",
+                         "`hooks/_comum.py`, `bin/forge-check` e `.githooks/`", "fica para o CI, com aviso",
+                         "`.githooks/pre-push` (`checagens_baratas`, `so_parecer` e `afetados`)"):
+            with self.subTest(esperado=esperado):
+                self.assertIn(esperado, trecho)
+        for proibido in ("apenas num envio simples de uma `melhoria/*`", "Qualquer outro envio roda a suíte inteira", "dirigido`)"):
             with self.subTest(proibido=proibido):
                 self.assertNotIn(proibido, trecho)
-        self.assertIn("`.githooks/pre-push` (`so_parecer` e `dirigido`)", trecho)
 
 
 class Skills(unittest.TestCase):
@@ -1068,6 +1062,121 @@ class PrepararEstacao(unittest.TestCase):
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 2)
 
+    def _container(self, tmp, *args, logado=False):
+        """Roda `preparar-estacao.sh --container` sem rede: gh, tmux, shellcheck, claude, sudo, curl e apt-get são
+        falsos e registram a chamada; o jarvis-forge da origem falsa cria a cópia vigente com `dev/`."""
+        tmp = Path(tmp)
+        home, persist, bin_falso = tmp / "home", tmp / "persist", tmp / "bin"
+        origem = persist / "Forge"
+        for d in (home / ".claude", origem / "scripts", bin_falso):
+            d.mkdir(parents=True, exist_ok=True)
+        registro = tmp / "chamadas"
+        (origem / "scripts" / "jarvis-forge").write_text(
+            '#!/bin/sh\nd="$HOME/.local/share/forge/vigente/dev/agents"\nmkdir -p "$d" && echo aq > "$d/aq.md"\n')
+        falsos = {
+            "gh": f'echo "gh $*" >> "{registro}"\n'
+                  'case "$1 $2" in\n'
+                  f'  "auth status") exit {0 if logado else 1} ;;\n'
+                  '  "repo clone") mkdir -p "$4" && echo clonado > "$4/marca" ;;\n'
+                  'esac\nexit 0\n',
+            "claude": f'echo "claude $*" >> "{registro}"\nexit 0\n',
+            "tmux": "exit 0\n", "shellcheck": "exit 0\n",
+        }
+        falsos.update({n: f'echo "{n} $*" >> "{registro}"\nexit 1\n' for n in ("sudo", "curl", "apt-get")})
+        for nome, corpo in falsos.items():
+            falso = bin_falso / nome
+            falso.write_text("#!/bin/sh\n" + corpo)
+            falso.chmod(0o755)
+        env = ambiente_limpo()
+        for chave in ("XDG_DATA_HOME", "GH_CONFIG_DIR"):
+            env.pop(chave, None)
+        env.update(HOME=str(home), PATH=f"{bin_falso}:{env['PATH']}", FORGE_PERSISTENTE=str(persist))
+        r = subprocess.run(["bash", str(RAIZ / "scripts/preparar-estacao.sh"), "--container", *args],
+                           env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        chamadas = registro.read_text() if registro.exists() else ""
+        return r, home, persist, chamadas
+
+    def test_container_migra_area_para_link_e_e_idempotente(self):
+        """P9: a área real no home vai para o disco persistente e vira link; a segunda rodada não muda nada."""
+        with tempfile.TemporaryDirectory() as tmp:
+            area = Path(tmp) / "home" / ".forge-contrib"
+            (area / "wt").mkdir(parents=True)
+            (area / "wt" / "dado.txt").write_text("não perder")
+            for rodada in (1, 2):
+                with self.subTest(rodada=rodada):
+                    r, home, persist, chamadas = self._container(tmp)
+                    self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                    real = persist / ".forge-contrib"
+                    self.assertTrue(area.is_symlink())
+                    self.assertEqual(area.resolve(), real.resolve())
+                    self.assertEqual((real / "wt" / "dado.txt").read_text(), "não perder")
+                    self.assertEqual((home / "Forge").resolve(), (persist / "Forge").resolve())
+                    gh = home / ".config" / "gh"
+                    self.assertTrue(gh.is_symlink())
+                    self.assertEqual(gh.resolve(), (home / ".claude" / "gh").resolve())
+                    self.assertEqual((home / ".claude" / "gh").stat().st_mode & 0o777, 0o700)
+                    mk = home / ".local/share/forge/dev-marketplace"
+                    cfg = json.loads((mk / ".claude-plugin/marketplace.json").read_text())
+                    self.assertEqual(cfg["name"], "forge-dev-local")
+                    self.assertEqual(cfg["plugins"][0]["source"], "./forge-dev")
+                    self.assertFalse((mk / "forge-dev").is_symlink(), "forge-dev tem de ser cópia, não link")
+                    self.assertEqual((mk / "forge-dev/agents/aq.md").read_text(), "aq\n")
+                    self.assertIn("claude plugin marketplace update forge-dev-local", chamadas)
+                    self.assertNotIn("repo clone", chamadas)
+                    self.assertNotRegex(chamadas, r"(?m)^(sudo|curl|apt-get) ")
+                    self.assertIn("falta: login do gh: rode gh auth login -s repo,workflow --web", r.stdout)
+            self.assertIn("já aponta para", r.stdout)
+
+    def test_container_recusa_quando_area_existe_nos_dois_lugares(self):
+        """Nunca apaga dados: com diretório real no home e no disco persistente, não mexe em nenhum e sai com 1."""
+        with tempfile.TemporaryDirectory() as tmp:
+            no_home = Path(tmp) / "home" / ".forge-contrib"
+            persistente = Path(tmp) / "persist" / ".forge-contrib"
+            for d, texto in ((no_home, "home"), (persistente, "persist")):
+                d.mkdir(parents=True)
+                (d / "dado.txt").write_text(texto)
+            r, _, _, chamadas = self._container(tmp, logado=True)
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("conflito: área de trabalho: existem", r.stderr)
+            self.assertFalse(no_home.is_symlink())
+            self.assertEqual((no_home / "dado.txt").read_text(), "home")
+            self.assertEqual((persistente / "dado.txt").read_text(), "persist")
+            self.assertNotIn("repo clone", chamadas)
+
+    def test_container_clona_area_com_login_e_troca_link_antigo_do_forge_dev(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            mk = Path(tmp) / "home/.local/share/forge/dev-marketplace"
+            mk.mkdir(parents=True)
+            (mk / "forge-dev").symlink_to("../vigente/dev")  # o formato antigo, que o Claude recusa
+            r, home, persist, chamadas = self._container(tmp, logado=True)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn(f"gh repo clone rodrigo-isensee/forge-contrib {persist / '.forge-contrib'}", chamadas)
+            self.assertIn("gh auth setup-git", chamadas)
+            self.assertEqual((home / ".forge-contrib" / "marca").read_text(), "clonado\n")
+            self.assertTrue((home / ".forge-contrib").is_symlink())
+            self.assertFalse((mk / "forge-dev").is_symlink())
+            self.assertNotIn("falta:", r.stdout)
+
+    def test_container_simular_nao_altera_nada(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r, home, persist, chamadas = self._container(tmp, "--simular")
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn("[simular]", r.stdout)
+            for criado in ("Forge", ".config", ".local", ".forge-contrib"):
+                self.assertFalse((home / criado).exists() or (home / criado).is_symlink(), f"criou {criado}")
+            self.assertNotIn("claude plugin", chamadas)
+
+    def test_devcontainer_nao_roda_script_do_work_tree(self):
+        """B2 do review de segurança da 0.43.1: nenhum comando de ciclo de vida roda, como root e fora do sandbox, um
+        script que o agente pode editar; o dono roda o preparo à mão, e o comentário diz como."""
+        texto = (RAIZ / ".devcontainer/devcontainer.json").read_text(encoding="utf-8")
+        cfg = json.loads(re.sub(r"(?m)^\s*//.*$", "", texto))
+        for chave in ("initializeCommand", "onCreateCommand", "updateContentCommand", "postCreateCommand",
+                      "postStartCommand", "postAttachCommand"):
+            self.assertNotIn(chave, cfg)
+        self.assertIn("scripts/preparar-estacao.sh --container", texto)
+        self.assertNotIn("build", cfg)  # sem imagem própria: só a base
+
     def test_atalhos_do_jarvis_com_ajuda(self):
         """--help mostra o uso e sai com 0; opção desconhecida sai com 2, sem abrir nada."""
         for script in ("jarvis", "jarvis-forge"):
@@ -1106,7 +1215,7 @@ class SandboxDoBash(unittest.TestCase):
 
     def test_credenciais_do_dono_ilegiveis(self):
         deny = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["filesystem"]["denyRead"]
-        for caminho in ("~/.ssh", "~/.config/gh", "~/.git-credentials"):
+        for caminho in ("~/.ssh", "~/.config/gh", "~/.claude/gh", "~/.git-credentials"):
             self.assertIn(caminho, deny)
 
     def test_settings_versionado_nao_tem_env(self):
@@ -1794,12 +1903,18 @@ class ForgeCheck(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="forge-check-"))
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
-        git("init", "-q", "-b", "melhoria/x", cwd=self.tmp)
-        git("config", "user.email", "t@example.com", cwd=self.tmp)
-        git("config", "user.name", "Teste", cwd=self.tmp)
-        self.escrever("src/app.txt", "v1\n")
-        git("add", "-A", cwd=self.tmp)
-        git("commit", "-q", "-m", "base", cwd=self.tmp)
+        copiar_modelo("forge-check", self.tmp, ForgeCheck._montar)  # S-SUITE-RAPIDA: o mesmo repositório, montado uma vez
+
+    @staticmethod
+    def _montar(pasta):
+        """O repositório de partida: branch melhoria/x com o commit base de `src/app.txt`."""
+        git("init", "-q", "-b", "melhoria/x", cwd=pasta)
+        git("config", "user.email", "t@example.com", cwd=pasta)
+        git("config", "user.name", "Teste", cwd=pasta)
+        (pasta / "src").mkdir()
+        (pasta / "src" / "app.txt").write_text("v1\n", encoding="utf-8")
+        git("add", "-A", cwd=pasta)
+        git("commit", "-q", "-m", "base", cwd=pasta)
 
     def escrever(self, rel, texto):
         p = self.tmp / rel
@@ -1832,7 +1947,7 @@ class ForgeCheck(unittest.TestCase):
             self.addCleanup(shutil.rmtree, casa, ignore_errors=True)
             gravar_conferida(casa, self.tmp, args[1], args[args.index("--ref") + 1] if "--ref" in args else "HEAD")
             env["HOME"] = str(casa)
-        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "--raiz", str(self.tmp), *args],
+        r = subprocess.run([*comando_do_forge_check(), "--raiz", str(self.tmp), *args],
                            env=env, capture_output=True, text=True)
         return r.returncode, r.stdout
 
@@ -1853,8 +1968,6 @@ class ForgeCheck(unittest.TestCase):
                                  "parecer: use aprovado"),
             "qa com bug alto": ("docs/qa/a.md", "---\n" + self.QA.format(c="abc1234", p="aprovado", a=1, m=0, extra="") + "---\n",
                                 "bugs_altos: parecer aprovado exige 0"),
-            "qa médio sem aceite": ("docs/qa/a.md", "---\n" + self.QA.format(c="abc1234", p="aprovado", a=0, m=2, extra="") + "---\n",
-                                    "aceite_usuario"),
             "plano com estado ruim": ("docs/architecture/features/a.md",
                                       "---\ntipo: plano-tecnico\ncontrato: 1\npedido: p\nestado: x\nux: u\nadrs: []\nagentes: [a]\n---\n",
                                       "estado: use proposta"),
@@ -1870,6 +1983,11 @@ class ForgeCheck(unittest.TestCase):
 
     def test_qa_medio_com_aceite_vale(self):
         self.pareceres(self.head(), m=2, extra="aceite_usuario: sim\n")
+        self.assertEqual(self.check("docs"), (0, ""))
+
+    def test_qa_medio_sem_aceite_vale(self):
+        """BUR-B4 (R-QA): médio ou baixo aberto vira cartão; o parecer aprovado vale sem `aceite_usuario`."""
+        self.pareceres(self.head(), m=2)
         self.assertEqual(self.check("docs"), (0, ""))
 
     def kanban(self, corpo):
@@ -2373,11 +2491,37 @@ class ForgeCheck(unittest.TestCase):
         self.assertIn("bugs_altos", saida)
 
 
+class ForgeCheckRapido(unittest.TestCase):
+    """S-SUITE-RAPIDA: o lançador com bytecode em cache (`apoio_forge_check_rapido`) roda o mesmo forge-check que o script: a
+    mesma saída, o mesmo erro e o mesmo código, em sucesso, em uso errado e com a raiz de um repositório."""
+
+    def test_lancador_da_a_mesma_saida_e_codigo_que_o_script(self):
+        with tempfile.TemporaryDirectory() as d:
+            git("init", "-q", "-b", "melhoria/x", cwd=Path(d))
+            for args in (["--help"], ["brief", "--help"], ["nao-existe"], ["pr"], ["--raiz", d, "docs"], ["--raiz", d, "pr", "p1"]):
+                with self.subTest(args=args):
+                    script = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), *args], capture_output=True,
+                                            text=True, cwd=d, env=ambiente_limpo())
+                    rapido = subprocess.run([*comando_do_forge_check(), *args], capture_output=True, text=True, cwd=d,
+                                            env=ambiente_limpo())
+                    self.assertEqual((rapido.returncode, rapido.stdout, rapido.stderr),
+                                     (script.returncode, script.stdout, script.stderr))
+
+    def test_so_o_script_do_repositorio_e_os_mesmos_argv_e_nome(self):
+        inicio = comando_do_forge_check()
+        self.assertEqual(inicio[:2], [sys.executable, "-c"])
+        self.assertEqual(inicio[3], str(RAIZ / "bin" / "forge-check"))
+        r = subprocess.run([sys.executable, "-c", inicio[2].replace("carregador.exec_module(modulo)\n", "")
+                            + "print(sys.argv, sys.path[0], modulo.__name__)", inicio[3], "a", "b"],
+                           capture_output=True, text=True)
+        self.assertEqual(r.stdout.strip(), f"[{inicio[3]!r}, 'a', 'b'] {RAIZ / 'bin'} __main__")
+
+
 class Orcamento(unittest.TestCase):
     def test_conferente_usa_o_pedido_da_mensagem(self):  # LOTE E4: a mensagem traz `Pedido: <id>`; o caminho montado à mão duplicava docs/pedidos/
         texto = RAIZ.joinpath("agents", "conferente.md").read_text(encoding="utf-8")
         self.assertNotIn("docs/pedidos/<Pedido>.md", texto)
-        self.assertIn("--pedido <Pedido> --destino <Agente conferido>", texto)
+        self.assertIn("forge-check brief <arquivo> --pedido <pedido> --destino forge:<nome>", texto)  # 0.43.1: só lê a linha `arquivo:`
 
     def test_tamanho_dos_prompts(self):
         lim = CONFIG["limite_linhas"]
@@ -2744,7 +2888,7 @@ class Transcricoes(unittest.TestCase):
     """ADR 0007: verificador offline de sessões gravadas, sem IA e sem rede."""
 
     def rodar(self, *args):
-        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "transcricao", *args],
+        r = subprocess.run([*comando_do_forge_check(), "transcricao", *args],
                            capture_output=True, text=True)
         return r.returncode, r.stdout
 
@@ -3013,7 +3157,7 @@ class CustoDeTokens(unittest.TestCase):
     USO = RAIZ / "tests/transcricoes/uso"
 
     def rodar(self, *args):
-        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "transcricao", "custo", *args],
+        r = subprocess.run([*comando_do_forge_check(), "transcricao", "custo", *args],
                            capture_output=True, text=True)
         return r.returncode, r.stdout, r.stderr
 
@@ -3132,7 +3276,7 @@ class MedirAlucinacao(unittest.TestCase):
         tmp = Path(tempfile.mkdtemp(prefix="forge-medida-"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         (tmp / "s.jsonl").write_text("".join(json.dumps(o) + "\n" for o in linhas), encoding="utf-8")
-        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "transcricao", acao, str(tmp)],
+        r = subprocess.run([*comando_do_forge_check(), "transcricao", acao, str(tmp)],
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         return r.stdout, r.stderr
@@ -3312,7 +3456,7 @@ class ConferirBrief(unittest.TestCase):
             guardado.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(args[args.index("--pedido") + 1], guardado)
             args[args.index("--pedido") + 1] = str(guardado)
-        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "brief", *args], capture_output=True, text=True, cwd=cwd or RAIZ,
+        r = subprocess.run([*comando_do_forge_check(), "brief", *args], capture_output=True, text=True, cwd=cwd or RAIZ,
                            env=dict(com_gh_falso(), HOME=str(casa)))  # o gerar --branch não vai à rede (P5)
         return r.returncode, r.stdout
 
@@ -3544,13 +3688,19 @@ class ConferirBrief(unittest.TestCase):
         self.assertEqual(rc, 0, saida)
 
     # PA-2: brief gerar
-    def test_gerar_copia_as_decisoes_literalmente_e_traz_a_marca_e_as_provas(self):
+    def test_gerar_cita_as_decisoes_por_referencia_e_traz_a_marca_e_as_provas(self):
+        """P4 (0.43.1): a referência conta todas as linhas do pedido; só as que citam E1.1 (ou E1) vêm copiadas."""
         args = ("gerar", "--pedido", self.PEDIDO, "--destino", "forge:dev-exemplo", "--branch", "melhoria/a", "--cobre", "E1.1")
         rc, saida = self.rodar(*args)
         self.assertEqual(rc, 0, saida)
-        for linha in self.PEDIDO.read_text(encoding="utf-8").splitlines():
-            if "DECISÃO DO DONO" in linha:
-                self.assertIn(f"- {linha}\n", saida)
+        mod = carregar_forge_check()
+        texto = self.PEDIDO.read_text(encoding="utf-8")
+        referencia = re.search(r"^- decisões: pedido \S+ até ([0-9a-f]{64}) \((\d+) linhas DECISÃO DO DONO em \d+ fontes: ([^;]*);", saida, re.M)
+        self.assertIsNotNone(referencia, saida)
+        self.assertEqual(int(referencia.group(2)), len(mod.linhas_de_decisao(texto)))
+        for _, linha in mod.linhas_de_decisao(texto):
+            if {"E1.1", "E1"} & mod.ids_da_linha(linha):
+                self.assertIn(f"- {linha.strip()}\n", saida)
         self.assertIn("Retira do escopo original", saida)
         self.assertIn("E3.1 (revisor): revisão de código da branch.", saida)
         self.assertIn('- "E1.1 (dev-exemplo): implementação do recurso A." (E1.1)', saida)  # a etapa coberta abre o Entregar (P2)
@@ -3576,10 +3726,8 @@ class ConferirBrief(unittest.TestCase):
     def test_conferente_lista_o_comando_e_a_passada_unica(self):
         conferente = (RAIZ / "agents" / "conferente.md").read_text(encoding="utf-8")
         self.assertIn("forge-check brief <arquivo> --pedido <pedido>", conferente)
-        for rel in ("agents/conferente.md", "docs/regras/R-BRIEF.md", "agents/jarvis.md"):
-            with self.subTest(arquivo=rel):
-                texto = texto_do_jarvis(RAIZ) if rel == "agents/jarvis.md" else (RAIZ / rel).read_text(encoding="utf-8")
-                self.assertIn("todos os achados", texto)
+        self.assertIn("todos os achados", conferente)  # 0.43.1: R-BRIEF e o Jarvis não têm mais rodada de conferente agente
+        self.assertIn("forge-check brief selar", (RAIZ / "docs" / "regras" / "R-BRIEF.md").read_text(encoding="utf-8"))
 
 
 class PraticasDeEspecificacao(unittest.TestCase):
@@ -3640,6 +3788,7 @@ def com_decisoes(*linhas, brief=BRIEF):
 
 class Cenario(Raiz):
     """Raiz sintética: pedido que cita o registro `r`, o registro, o terceiro e o brief que cobre tudo."""
+    SCRIPT_DIRETO = False  # S-SUITE-RAPIDA: o forge-check pelo bytecode em cache (apoio_forge_check_rapido)
 
     PEDIDO_CITANDO = PEDIDO + CITA_R + "\n"
 
@@ -3658,7 +3807,7 @@ class Cenario(Raiz):
         args = ["brief", "mensagem", "--arquivo", arquivo, "--pedido", ID, "--destino", "forge:dev-exemplo"]
         if etapa is not None:
             args += ["--etapa", etapa]
-        r = subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(self.tmp), *args, *extra], capture_output=True,
+        r = subprocess.run([*comando_do_forge_check(), "--raiz", str(self.tmp), *args, *extra], capture_output=True,
                            env=dict(os.environ, HOME=str(self.tmp / "home")))
         return r.returncode, r.stdout
 
@@ -4035,14 +4184,14 @@ class DecisoesCobradas(Cenario):
         self.assertFalse([l for l in saida if l.startswith("decisões: fontes demais")], saida)
         self.assertEqual(len([l for l in saida if "dependência sem registro legível" in l]), 1, saida)
 
-    def test_gerar_copia_a_decisao_do_origem_com_o_subtitulo_do_registro(self):
+    def test_gerar_cita_o_registro_do_origem_na_referencia(self):
+        """P4 (0.43.1): a dependência entra nas fontes da referência (e no hash), sem cópia literal."""
         self.gravar("docs/pedidos/origem.md", f"# origem\n{self.ORIGEM_DONO}\n")
         self.com_depende_de("origem")
         rc, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--branch", "melhoria/a", "--cobre", "E1.1")
         self.assertEqual(rc, 0, saida)
         texto = "\n".join(saida)
-        self.assertIn(SUBTITULO_CC.format("docs/pedidos/origem.md"), texto)
-        self.assertIn(f"- {self.ORIGEM_DONO}", texto)
+        self.assertIn("docs/pedidos/origem.md", re.search(r"^- decisões: pedido \S+ até ([0-9a-f]{64}) \((\d+) linhas DECISÃO DO DONO em \d+ fontes: ([^;]*);", texto, re.M).group(3))
 
     def test_fontes_demais_reprova(self):
         citas = []
@@ -4096,18 +4245,18 @@ class DecisoesCobradas(Cenario):
         self.assertEqual(rc, 1, saida)
         self.assertTrue([l for l in saida if l.startswith("decisões: falta") and "do registro de fora" in l and "s.md:1" in l], saida)
 
-    def test_gerar_copia_o_registro_sob_o_subtitulo(self):  # 13
+    def test_gerar_cita_o_registro_na_referencia(self):  # 13; P4 (0.43.1): o registro citado entra nas fontes, sem cópia nem subtítulo
         rc, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1")
         texto = "\n".join(saida)
         self.assertEqual(rc, 0, texto)
-        sub = [l for l in saida if l.startswith("### Do registro citado docs/pedidos/r.md")]
-        self.assertEqual(len(sub), 1, texto)
-        self.assertIn("contexto, não ampliam o Entregar", sub[0])
-        corpo = texto.split(sub[0], 1)[1]
-        self.assertIn(DECISAO_R1, corpo)
-        self.assertIn(DECISAO_R2, corpo)
+        referencia = re.search(r"^- decisões: pedido \S+ até ([0-9a-f]{64}) \((\d+) linhas DECISÃO DO DONO em \d+ fontes: ([^;]*);", texto, re.M)
+        self.assertIn("docs/pedidos/r.md", referencia.group(3))
+        mod = carregar_forge_check()
+        cobradas = mod.decisoes_cobradas(self.tmp, self.tmp / "docs/pedidos/pedido-sintetico.md",
+                                         (self.tmp / "docs/pedidos/pedido-sintetico.md").read_text(encoding="utf-8"))
+        self.assertEqual(referencia.group(1), mod.hash_das_decisoes(cobradas))  # o mesmo conjunto que o brief cobra
+        self.assertNotIn("### Do registro citado", texto)
         self.assertNotIn("Texto solto", texto)
-        self.assertLess(texto.index(CITA_R), texto.index(sub[0]))
 
     def test_brief_gerado_e_completado_passa_sem_falta(self):  # 13
         _, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1")
@@ -4168,53 +4317,36 @@ class DecisoesNaVolta(Cenario):
 class GuardaDeVersao(unittest.TestCase):
     def test_mensagem_bloqueia_como_gerar(self):  # 16
         fonte = Path(FORGE_CHECK_CC).read_text(encoding="utf-8")
-        self.assertRegex(fonte, r'a\.alvo in \("gerar", "mensagem"\)')
+        self.assertRegex(fonte, r'a\.alvo in \("gerar", "selar", "mensagem"\)')  # 0.43.1: o `selar` bloqueia como o `gerar`
 
 
 class TextosDoAgenteEDaRegra(unittest.TestCase):
+    """0.43.1 (decisões 1 e 2 do dono): a primeira passada, o `tardio:`, a rodada de confirmação e a cópia das decisões eram do
+    conferente que conferia a forma de todo brief; agora o brief é selado pela ferramenta, com as decisões por referência, e o
+    conferente é opcional. Ficam a passada única do conferente, a contradição literal por leitura e o hash do arquivo lido."""
+
     @classmethod
     def setUpClass(cls):
         cls.agente = (RAIZ / "agents" / "conferente.md").read_text(encoding="utf-8")
         cls.regra = (RAIZ / "docs" / "regras" / "R-BRIEF.md").read_text(encoding="utf-8")
         cls.jarvis = texto_do_jarvis(RAIZ)
 
-    def test_ordem_da_primeira_passada_e_tardio_no_agente(self):  # 15 e 17
-        for trecho in ("Primeira passada", "`tardio:`", "reprova como os outros", "não muda o veredito", "por leitura, sempre",
-                       "fidelidade", "contradição", "etapa"):
-            with self.subTest(trecho):
-                self.assertIn(trecho, self.agente)
-        self.assertNotIn("só acrescenta achado que a correção tenha introduzido", self.agente)
+    def test_passada_unica_e_contradicao_por_leitura(self):
         self.assertIn("liste **todos os achados** de uma vez", self.agente)
+        self.assertIn("`decisões: contradiz", self.agente)
+        self.assertIn("forma: brief diferente do arquivo", self.agente)
 
-    def test_ordem_de_leitura_fixa_e_so_as_fontes_do_comando(self):  # M3.3
-        passada = self.agente.split("Primeira passada", 1)[1].split("\n", 1)[0]
-        passos = [passada.find(f"({n})") for n in range(1, 6)]
-        self.assertTrue(all(p >= 0 for p in passos), passada)
-        self.assertEqual(passos, sorted(passos))
-        self.assertIn("só os caminhos das linhas `fonte:`", self.agente)
+    def test_decisoes_por_referencia_e_brief_curto(self):
+        self.assertIn("**por referência**", self.regra)
+        self.assertIn("nunca copiadas", self.regra)
+        self.assertIn("até 10.000 caracteres (o selo reprova acima)", self.regra)  # TETO_DE_CARACTERES_DO_BRIEF
+        self.assertIn("o agente lê o pedido e, se o brief divergir, para e relata", self.regra)
 
-    def test_tardio_na_regra_e_no_campo_do_veredito(self):  # M3.1
-        self.assertIn("`tardio:`", self.regra)
-        self.assertIn("reprova", self.regra.split("`tardio:`", 1)[1][:200])
-        self.assertRegex(self.agente, r"`tardio:` antes de qualquer campo conta como o campo")
-
-    def test_rodada_de_confirmacao_nao_proibe_registrar_tardio(self):  # M3.2
-        confirmacao = self.agente.split("**Rodada de confirmação**", 1)[1].split("\n", 1)[0]
-        self.assertNotIn("sem reler o que não mudou", confirmacao)
-        self.assertIn("`tardio:`", confirmacao)
-
-    def test_decisoes_do_comando_e_contradicao_do_conferente(self):  # M2.3
-        self.assertIn("`decisões:`", self.agente)
-        self.assertIn("a contradição literal é sua, mesmo com `decisões: ok`", self.agente)
-        self.assertIn("todas as linhas `DECISÃO DO DONO`", self.regra)
-        self.assertIn("docs/pedidos", self.regra)
-
-    def test_mensagem_vai_ao_conferente_e_nao_o_substitui(self):  # M1.6
-        self.assertIn("forge-check brief mensagem", self.jarvis)
-        self.assertIn("forge-check brief mensagem", self.regra)
-        self.assertIn("não substitui", self.regra)
+    def test_selo_e_hook_no_jarvis_e_na_regra(self):
+        self.assertIn("forge-check brief selar", self.jarvis)
+        self.assertIn("forge-check brief selar --arquivo <brief> --pedido <pedido>", self.regra)
+        self.assertIn("hook `agentes` recusa a delegação sem selo", self.regra)
         self.assertIn("Brief-sha256:", self.agente)
-        self.assertIn("Vale o hash do arquivo que você leu", self.agente)  # TEMPO-B1: o texto vem só do arquivo
 
 
 # --- FORGE-CHECK-LOTE (E1 a E11): saída sanitizada, âncora da decisão, recomendação incluída, mensagem, versão, merge, custo ----------
@@ -4234,12 +4366,13 @@ def rodar_fc(*args, raiz, home, cwd=None, env_extra=None, conferir=True):
     if conferir and args[:1] == ("pr",) and "--pr" not in args and len(args) > 1:
         gravar_conferida(home, raiz, args[1], args[args.index("--ref") + 1] if "--ref" in args else "HEAD")
     env = dict(ambiente_limpo(), HOME=str(home), **(env_extra or {}))
-    return subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(raiz), *args], capture_output=True, text=True, env=env,
+    return subprocess.run([*comando_do_forge_check(), "--raiz", str(raiz), *args], capture_output=True, text=True, env=env,
                           cwd=cwd, timeout=60)
 
 
 class SaidaSanitizada(Raiz):
     """E7 (FC-SAIDA-SANITIZADA): todo caminho impresso passa por `sem_controle` ou `nome_seguro`; C1, Cf, Zl e Zp também."""
+    SCRIPT_DIRETO = False  # S-SUITE-RAPIDA: o forge-check pelo bytecode em cache (apoio_forge_check_rapido)
     CONTROLES = ("\x00", "\n", "\r", "\x7f", "\x85", "\u2028", "\u2029", "\u202e", "\u200b", "\u2066")
     LISTA = {"caminho", "arquivo", "real", "raiz", "rel", "rel_volta", "alvo", "onde", "filename", "token", "pedido_id", "name", "quais"}
     # f-strings com um nome da lista que NÃO vão à saída (argumento do git, índice de evento); cada uma com o motivo
@@ -4402,6 +4535,7 @@ class SaidaSanitizadaNoGit(unittest.TestCase):
 
 class DecisaoAncora(Raiz):
     """E6 (DECISAO-ANCORA): a frase do dono só conta quando abre a linha, ou depois de um prefixo `AAAA-MM-DD[ HH:MM]:`; uma função só; nada some em silêncio."""
+    SCRIPT_DIRETO = False  # S-SUITE-RAPIDA: o forge-check pelo bytecode em cache (apoio_forge_check_rapido)
     MENCAO = "- 2026-10-20: ajuste conforme DECISÃO DO DONO acima"
 
     def pedido_com(self, extra):
@@ -4445,7 +4579,11 @@ class DecisaoAncora(Raiz):
         self.pedido_com(f'\n{self.MENCAO}\n- DECISÃO DO DONO (2026-10-20): "G1".\n')
         r = subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(self.tmp), "brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1"],
                            capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp / "home")))
-        self.assertIn('- DECISÃO DO DONO (2026-10-20): "G1".', r.stdout)
+        mod = carregar_forge_check()  # P4 (0.43.1): a referência é o hash do mesmo conjunto que o brief cobra, com G1 e sem a menção
+        caminho = self.tmp / "docs" / "pedidos" / f"{ID}.md"
+        cobradas = mod.decisoes_cobradas(self.tmp, caminho, caminho.read_text(encoding="utf-8"))
+        self.assertTrue(any("G1" in l for _, linhas in cobradas["fontes"] for _, l in linhas))
+        self.assertEqual(re.search(r"^- decisões: pedido \S+ até ([0-9a-f]{64}) \((\d+) linhas DECISÃO DO DONO em \d+ fontes: ([^;]*);", r.stdout, re.M).group(1), mod.hash_das_decisoes(cobradas))
         self.assertNotIn("ajuste conforme", r.stdout)
 
     def test_uma_funcao_so_decide_a_frase(self):
@@ -4650,14 +4788,15 @@ class VoltaComRecomendacao(unittest.TestCase):
     def test_a_volta_cobra_o_mesmo_conjunto_de_decisoes_do_gerar_e_do_brief(self):  # abuso 16 (conferir_volta)
         self.pedido.write_text(self.pedido.read_text(encoding="utf-8") + '- DECISÃO DO DONO (2026-10-20): "V1" na volta.\n- 2026-10-20: ajuste, conforme DECISÃO DO DONO acima\n', encoding="utf-8")
         saida = self.gerar().stdout
-        self.assertIn('- DECISÃO DO DONO (2026-10-20): "V1" na volta.', saida)
+        mod = carregar_forge_check()  # P4 (0.43.1): a volta cita o bloco por referência, o mesmo conjunto (com V1, sem a menção)
+        cobradas = mod.decisoes_cobradas(self.repo, self.pedido, self.pedido.read_text(encoding="utf-8"))
+        self.assertEqual(re.search(r"^- decisões: pedido \S+ até ([0-9a-f]{64}) \((\d+) linhas DECISÃO DO DONO em \d+ fontes: ([^;]*);", saida, re.M).group(1), mod.hash_das_decisoes(cobradas))
         self.assertNotIn("conforme DECISÃO DO DONO acima", saida)  # a menção não é decisão: o gerar não a copia
         texto = self.preenchido(saida)
         rc, conferencia = self.conferir(texto)
         self.assertNotIn("falta decisão do dono", conferencia)  # e a conferência da volta não a cobra
         self.assertIn("decisões: menção fora do início", conferencia)
-        sem_a_linha = self.conferir(texto.replace('- DECISÃO DO DONO (2026-10-20): "V1" na volta.\n', ""))[1]
-        self.assertIn('volta: falta decisão do dono "- DECISÃO DO DONO (2026-10-20): "V1" na volta."', sem_a_linha)
+        self.assertIn("decisões: ok por referência", conferencia)
 
     def test_objetivo_alterado_continua_reprovando(self):  # M2.4
         texto = self.preenchido(self.gerar("--incluir", "docs/reviews/p1.md:R1").stdout)
@@ -4680,7 +4819,7 @@ class MensagemRecusaPorCampo(Cenario):
         args = {"--arquivo": ARQ, "--pedido": ID, "--destino": "forge:dev-exemplo", "--etapa": "E1.1"}
         args.update(troca)
         linha = ["brief", "mensagem"] + [x for par in args.items() for x in par if x is not None and par != ()]
-        r = subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(self.tmp), *[a for a in linha if a is not None]],
+        r = subprocess.run([*comando_do_forge_check(), "--raiz", str(self.tmp), *[a for a in linha if a is not None]],
                            capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp / "home")))
         return r.returncode, r.stdout
 
@@ -5475,6 +5614,7 @@ class CaminhoDoPedido(unittest.TestCase):
 
 
 class CustoPorPedido(Raiz):
+    SCRIPT_DIRETO = False  # S-SUITE-RAPIDA: o forge-check pelo bytecode em cache (apoio_forge_check_rapido)
     """E8 (CUSTO-POR-PEDIDO): `transcricao custo` lê as pastas da raiz e das worktrees (não a do cwd), separa por janela e por pedido
     existente, e nunca sai texto de prompt nem caminho (M8.1 a M8.3, abuso 19)."""
 
@@ -5601,70 +5741,26 @@ class CustoPorPedido(Raiz):
 
 
 class TextoDoConferenteNoLote(unittest.TestCase):
-    """O texto de `agents/conferente.md` que o FORGE-CHECK-LOTE acrescentou: o que o haiku lê e as frases que não podem sumir (E1, E3, E4, E5, E6, E9)."""
+    """O que sobra do texto do FORGE-CHECK-LOTE no conferente da 0.43.1: um bloco por mensagem, sem suíte e a política de leitura
+    do hook. As frases das etapas (tabela de pré-condições), do aviso de versão, das entregas paralelas e da recomendação incluída
+    eram do conferente que conferia forma e etapa; a ferramenta (`forge-check entrega`, `forge-check pr`) as aplica."""
 
     @classmethod
     def setUpClass(cls):
         cls.agente = (RAIZ / "agents" / "conferente.md").read_text(encoding="utf-8")
 
-    def test_o_marcador_da_decisao_d_so_vale_no_forge_e_so_para_o_aviso_da_copia_atras(self):  # M1.4
-        self.assertIn("`forge-check: aviso: cópia vigente ... atrás do repositório (decisão D: não muda o veredito)`", self.agente)
-        trecho = self.agente.split("**Aviso de versão**", 1)[1].split("\n", 1)[0]
-        for frase in ("só no Forge", "sozinha nunca dá `não verificável` nem reprova", "`versão não conferida (...)`",
-                      "o bloqueio `a conferência não vale`", "o comando recusado pelo hook", "seguem como estavam",
-                      "os checks verdes do CI em `merge-integracao` e `pedido-de-merge-ao-dono` continuam exigidos"):
-            with self.subTest(frase):
-                self.assertIn(frase, trecho)
-
-    def test_o_conferente_nao_roda_a_suite_e_a_linha_do_autor_continua(self):  # E3, T3
+    def test_o_conferente_nao_roda_a_suite(self):  # E3, T3
         self.assertIn("Não rode a suíte (`python3 -m unittest`) nem `scripts/validar-plugin.sh`", self.agente)
-        self.assertIn("`PQ-n do autor | <comando> → conferido pelo QA (R-QA) e pelo lastro`", self.agente)
 
-    def test_um_bloco_por_mensagem_e_o_segundo_modo_e_instrucao_ao_conferente(self):  # E15 (BRIEF-MENSAGEM-LIMPA), antes E9b
-        linhas = [l for l in self.agente.splitlines() if l.startswith("- Cada mensagem traz um bloco só")]
-        self.assertEqual(len(linhas), 1, "a regra do bloco único sumiu ou duplicou")
-        for frase in ("`modo: brief` ou `modo: entrega`", "mensagens separadas", "uma segunda `Arquivo:`", "`forma: instrução ao conferente`",
-                      "responda só ao primeiro bloco"):
-            with self.subTest(frase):
-                self.assertIn(frase, linhas[0])
-        self.assertNotIn("A mensagem pode ter dois blocos", self.agente)  # a regra antiga não volta
-        self.assertIn("use só a seção Modo brief", self.agente)  # as frases protegidas continuam
+    def test_um_bloco_por_mensagem(self):  # E15 (BRIEF-MENSAGEM-LIMPA)
+        self.assertIn("brief e entrega vão em mensagens separadas", self.agente)
+        self.assertNotIn("A mensagem pode ter dois blocos", self.agente)
+        self.assertIn("use só a seção Modo brief", self.agente)
         self.assertIn("use só a seção Modo entrega", self.agente)
 
-    def test_mensagem_sem_brief_sha256_reprova(self):  # E15, review A3 do L09: a regra nova tem teste
-        self.assertIn("`forma: mensagem sem Brief-sha256` (reprova: sem o hash nada prende a mensagem ao conteúdo que você leu)", self.agente)
-        entrada = self.agente.split("## Modo `brief`", 1)[1].split("**O que conferir**", 1)[0]
-        self.assertRegex(entrada, r"Brief-sha256: <64 hex>   Bytes: <n>")  # segurança A1 do L09: o exemplo da Entrada mostra a linha
-
-    def test_pr_da_etapa_de_merge_le_a_origin_e_a_seguranca_e_etapa(self):  # E4, E5
-        self.assertIn("forge-check pr <pedido> --ref <ref> --base origin/<Base>`", self.agente)
-        self.assertIn("| `review`, `seguranca` | Commit do autor no remoto; à frente dele, só pareceres (linha `commit:` ou `aviso: commit:` do `forge-check brief`", self.agente)
-        self.assertIn("Etapa: <codigo|review|seguranca|qa|pr|merge-integracao|pedido-de-merge-ao-dono>", self.agente)
-        self.assertIn("nas etapas `codigo`, `review`, `seguranca` e `qa`", self.agente)
-        self.assertIn("nas etapas `codigo`, `review`, `seguranca` e `qa` (todo `PQ-n` cumpriu", self.agente)
-
-    def test_mencao_fora_do_inicio_nao_muda_o_veredito_e_o_grep_de_reserva_usa_a_mesma_ancora(self):  # E6, M6.3
-        self.assertIn("`decisões: menção fora do início ...` é informativa e não muda o veredito", self.agente)
-        self.assertIn("grep -n -E '^[[:space:]]*([-*+>]|[0-9]+[.)])*[[:space:]]*[*_]*([0-9]{4}-[0-9]{2}-[0-9]{2}([ T][0-9]{2}:[0-9]{2})?:[[:space:]]*)?DECISÃO DO DONO'", self.agente)
-
-    def test_entregas_paralelas_so_por_brief_aprovado_e_conferida_so_com_todas(self):  # E9a, M9.1 a M9.3
-        trecho = next(l for l in self.agente.splitlines() if l.strip().startswith("**Entregas paralelas**"))
-        for frase in ("--brief <Arquivo>", "só brief aprovado entra", "`escopo: união de briefs de entregas diferentes` reprova",
-                      "`anexo com remoção do parecer de <papel>` só no do papel dele", "`conferida:` só sai se todas cumpriram"):
-            with self.subTest(frase):
-                self.assertIn(frase, trecho)
-
-    def test_recomendacao_incluida_precisa_da_decisao_tecnica_do_historico(self):  # M2.5, AQ1 P5
-        self.assertIn("A recomendação incluída (`(incluído <tipo> <sha> R<n> de <parecer>)`) também precisa da DECISÃO TÉCNICA no Histórico do pedido: "
-                      "o comando confere (`volta: recomendação <id> sem DECISÃO TÉCNICA no Histórico` reprova) e você copia a linha dele", self.agente)
-        self.assertIn("`recomendação ... difere do parecer`", self.agente)
-
     def test_o_comando_do_hook_aceita_o_que_o_texto_manda_rodar(self):
-        """`hooks/conformidade.json` libera `forge-check pr|entrega|brief|delta|docs` ao conferente: as opções novas (`--brief`, `--base`) não gravam arquivo."""
         politica = json.loads((RAIZ / "hooks" / "conformidade.json").read_text(encoding="utf-8"))["so_leitura"]["comandos"]
-        for comando in ("forge-check pr", "forge-check entrega", "forge-check brief"):
-            self.assertIn(comando, politica)
-
+        self.assertIn("forge-check brief", politica)
 
 
 class GuiaDaPromocao(unittest.TestCase):
@@ -5678,45 +5774,28 @@ class GuiaDaPromocao(unittest.TestCase):
 
 
 class TetoPorPr(unittest.TestCase):
-    """EST-030-L5, M14: o teto de tamanho por PR e a classe única em `hooks/` estão escritos onde o time lê."""
+    """EST-030-L5, M14, revista na 0.43.1 (decisão 7 do dono): o teto de 150 linhas por PR é orientação por risco, não trava por
+    volume; acima dele o PR diz por que. Saem as asserções do achado `bloqueante` por volume e da exceção que não valia em `hooks/`."""
 
-    def test_teto_e_classe_unica_no_jarvis_no_tech_lead_e_na_skill(self):
+    def test_orientacao_e_classe_unica_no_jarvis_no_tech_lead_e_na_skill(self):
         for caminho in ("agents/jarvis.md", "agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
             texto = texto_do_jarvis(RAIZ) if caminho == "agents/jarvis.md" else (RAIZ / caminho).read_text(encoding="utf-8")
-            for frase in ("linhas alteradas de código e teste",
-                          "uma classe de comportamento por PR em `hooks/`, com corpus próprio"):
+            for frase in ("150 linhas alteradas de código e teste", "uma classe de comportamento por PR em `hooks/`, com corpus próprio"):
                 with self.subTest(arquivo=caminho, frase=frase):
                     self.assertIn(frase, texto)
+            self.assertNotIn("400 linhas", texto)
 
-    def test_teto_de_150_linhas_tambem_no_jarvis(self):
-        texto = texto_do_jarvis(RAIZ)
-        self.assertIn("150 linhas alteradas de código e teste", texto)
-        self.assertNotIn("400 linhas", texto)
-
-    def test_teto_de_150_linhas_e_um_comportamento_por_pr_no_tech_lead_e_na_skill(self):
+    def test_nao_e_trava_por_volume(self):
         for caminho in ("agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
             texto = (RAIZ / caminho).read_text(encoding="utf-8")
             with self.subTest(arquivo=caminho):
                 self.assertIn("até 150 linhas alteradas de código e teste", texto)
-                self.assertNotIn("400 linhas", texto)
                 self.assertIn("um comportamento só", texto)
-
-    def test_conta_e_excecao_no_tech_lead_e_na_skill(self):
-        for caminho in ("agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
-            texto = (RAIZ / caminho).read_text(encoding="utf-8")
-            for frase in ("git diff --numstat --no-renames origin/develop...HEAD", "`tests/*.py` e `tests/config.json`",
-                          "`teto: excedido, <n> linhas, <motivo>`", "decisão M14",
-                          "a exceção não vale em PR que mexe em qualquer arquivo de `hooks/` nem em caminho de `PROTEGIDOS`"):
-                with self.subTest(arquivo=caminho, frase=frase):
-                    self.assertIn(frase, texto)
-
-    def test_tech_lead_marca_o_no_forge_e_nao_cita_a_r_review_como_fonte_do_teto(self):
-        texto = (RAIZ / "agents/tech-lead.md").read_text(encoding="utf-8")
-        for frase in ("**No Forge:**", "`tests/mutantes/` e o texto `.md`", "A M14 não vale para o `lote-leitura-hook`",
-                      "requisito da decisão M14", "duas classes em `hooks/` é achado `bloqueante`"):
-            with self.subTest(frase=frase):
-                self.assertIn(frase, texto)
-        self.assertNotIn("requisito da regra, `R-REVIEW`", texto)
+                self.assertIn("Não é trava por volume", texto)
+                self.assertIn("`teto: excedido, <n> linhas, <motivo>`", texto)
+                self.assertIn("git diff --numstat --no-renames origin/develop...HEAD", texto)
+                self.assertIn("`tests/*.py` e `tests/config.json`", texto)
+                self.assertNotIn("é achado `bloqueante`", texto.split("Tamanho por risco", 1)[1].split("\n", 1)[0])
 
     def test_a_skill_de_qa_divide_a_spec_no_mesmo_limite_que_a_ferramenta(self):
         texto = (RAIZ / "skills/qa-testing/SKILL.md").read_text(encoding="utf-8")
@@ -5888,14 +5967,13 @@ class TesteEParecerSeparados(RepoComOrigem):
         self.assertIn("docs/qa/p1.md: commit: commit não existe no repositório (R-QA)", saida)
         self.assertNotIn("commitado junto", saida)
 
-    def test_commits_separados_valem_e_o_review_revalida_o_delta_do_teste(self):
+    def test_commits_separados_valem_e_o_teste_do_qa_nao_derruba_o_review(self):
+        """PARECER-CONTEUDO (0.43.1): o teste do QA aprovado fica com o QA; o review de antes dele continua valendo."""
         teste = self.commitar(self.repo, {"tests/test_x.py": "# teste do QA\n"}, "teste do QA")
         self.commitar(self.repo, {"docs/qa/p1.md": self.QA.format(c=teste)}, "parecer do QA")
         rc, saida, _ = self.pr()
-        self.assertEqual(rc, 1, saida)
-        self.assertNotIn("docs/qa/p1.md", saida)
-        self.assertIn("docs/reviews/p1.md: commit: desatualizado: tests/test_x.py mudou depois do parecer", saida)
-        self.assertNotIn("commitado junto", saida)  # o review velho não veio com o teste: o motivo é o de sempre
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)
+        self.assertNotIn("docs/reviews/p1.md", saida)
         self.commitar(self.repo, {"docs/reviews/p1.md": self.REVIEW.format(c=teste)}, "review revalida o delta do teste")
         rc, saida, _ = self.pr()
         self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)

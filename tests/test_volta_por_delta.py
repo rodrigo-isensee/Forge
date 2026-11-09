@@ -754,8 +754,11 @@ class BriefDeVolta(Repositorio):
         self.assertIn(f"Volta-de: {self.rel_anterior} sha256 {sha}\n", saida)
         modulo = carregar_forge_check()
         anterior = modulo.blocos_literais(self.ANTERIOR.read_text(encoding="utf-8"))
-        for nome in ("Objetivo", "Fora do escopo", "Relatório"):
+        for nome in ("Objetivo", "Relatório"):
             self.assertIn("".join(anterior[nome]).rstrip("\n"), saida, nome)  # byte a byte
+        # 0.43.1 (C2): o Fora do escopo sai do pedido (as etapas fora do Entregar), não do brief anterior
+        self.assertNotIn("".join(anterior["Fora do escopo"]).rstrip("\n"), saida)
+        self.assertIn('- "E2.1 (dev-exemplo): texto da documentação." · etapa de outra delegação; continua no pedido\n', saida)
         self.assertIn("## Entregar (volta 1)\n", saida)
         self.assertIn(f"- (review {self.head()[:7]} A1) a função perde o erro de domínio [src/app.txt:3]\n", saida)
         self.assertIn(f"- (review {self.head()[:7]} A3) falta teste do caso de borda [tests/x.py:10]\n", saida)
@@ -764,8 +767,7 @@ class BriefDeVolta(Repositorio):
         self.assertIn("Recomendados", entregar)
         self.assertRegex(entregar, r"\(review \w{7} A2\) nome pouco claro \[src/app.txt:7\] · PREENCHER: entra ou corta")
         self.assertIn("esta volta só corrige os achados abaixo (E1, E1.1, E2)", saida)  # o escopo original e a etapa seguem cobertos no corte por IDs
-        for decisao in ('DECISÃO DO DONO (2026-01-01): "A".', 'DECISÃO DO DONO (2026-01-02): "sem custo".'):
-            self.assertIn(decisao, saida.split("## Decisões e restrições")[1])
+        self.assertRegex(saida.split("## Decisões e restrições")[1], r"\n- decisões: pedido pedido-sintetico até [0-9a-f]{64} \(2 linhas")  # P4
         self.assertIn(f"- PQ-4 (cmd, do autor): `forge-check entrega pedido-sintetico --branch melhoria/x --base develop --base-sha {self.base} --etapa codigo --desde PREENCHER` · espera: rc=0", saida)
         self.assertIn("- PQ-1 (sha): `git log -1 --format=%h` da branch", saida)  # os PQs do anterior continuam
         self.assertIn(f"- PQ-5 (cmd, do autor): `bin/forge-mutante --cobertura --base {self.base}` · espera: rc=0", saida)
@@ -780,17 +782,22 @@ class BriefDeVolta(Repositorio):
     def test_brief_de_volta_marca_os_blocos_identicos_ao_anterior(self):  # C3, qa A2: a fiação no `forge-check brief --anterior`
         rc, saida = self.gerar()
         rc, conferencia = self.conferir(self.preenchido(saida), "--anterior", self.rel_anterior)
-        for nome in ("Objetivo", "Fora do escopo", "Relatório"):
+        for nome in ("Objetivo", "Relatório"):  # 0.43.1: o Fora do escopo sai do pedido
             self.assertIn(f'volta: bloco "{nome}" idêntico ao anterior (exigido)\n', conferencia)
 
-    def test_decisao_do_dono_nova_do_pedido_entra_na_volta(self):  # C2
+    def test_decisao_do_dono_nova_do_pedido_entra_na_volta(self):  # C2; P4 (0.43.1): pela referência ao bloco
+        referencia = re.compile(r"^- decisões: pedido pedido-sintetico até ([0-9a-f]{64}) \((\d+) linhas", re.M)
+        antes = referencia.search(self.gerar()[1]).groups()
         self.pedido.write_text(self.pedido.read_text(encoding="utf-8") + "- DECISÃO DO DONO (2026-02-01): \"B\" para a volta.\n", encoding="utf-8")
         rc, saida = self.gerar()
-        self.assertIn('- DECISÃO DO DONO (2026-02-01): "B" para a volta.', saida)
+        depois = referencia.search(saida).groups()
+        self.assertNotEqual(antes[0], depois[0])
+        self.assertEqual(int(depois[1]), int(antes[1]) + 1)
         rc, conferencia = self.conferir(saida, ref=None)
         self.assertNotIn("falta decisão do dono", conferencia)
-        faltando = saida.replace('- DECISÃO DO DONO (2026-02-01): "B" para a volta.', "")
-        self.assertIn('volta: falta decisão do dono "- DECISÃO DO DONO (2026-02-01)', self.conferir(faltando, ref=None)[1])
+        self.assertIn("decisões: ok por referência", conferencia)
+        antigo = saida.replace(referencia.search(saida).group(0), "- sem referência (")  # brief antigo, sem a referência: a cópia é cobrada
+        self.assertIn('volta: falta decisão do dono "- DECISÃO DO DONO (2026-02-01)', self.conferir(antigo, ref=None)[1])
 
     def test_pareceres_vem_da_ref_nao_do_disco_do_jarvis(self):  # C1
         git("switch", "-q", "develop", cwd=self.repo)
@@ -912,46 +919,24 @@ class BriefDeVolta(Repositorio):
         texto = self.PEDIDO_FIXTURE.read_text(encoding="utf-8").replace("\n\n## Decisões", "\n- E1.4b (dev-exemplo): ajuste do recurso B.\n\n## Decisões", 1)
         self.pedido.write_text(texto + f"\n## Histórico\n- 2026-10-19 16:00: entrega conferida {self.c1}\n" + "".join(f"{h}\n" for h in historico), encoding="utf-8")
 
-    def test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior(self):  # E14 (VOLTA-ETAPA-NOVA, Q14 = A): C-1 a C-6
-        brief = "- 2026-11-04 09:00: brief pedido-sintetico-dev-exemplo-1 delegado"
-        aberta = "- 2026-11-04 10:00: etapa E1.4b aberta"
-        self.pedido_e14(brief, aberta)
+    def test_volta_tira_o_fora_do_escopo_do_pedido(self):  # 0.43.1 (C2): substitui o E14 (só acréscimo ao Fora do anterior)
+        self.pedido_e14()
         rc, saida = self.gerar()
         self.assertEqual(rc, 0, saida)
-        fora = saida.split("## Fora do escopo")[1].split("\n## ")[0].rstrip("\n").split("\n")
-        self.assertEqual(fora[-1], self.LINHA_E14)  # C-5: o gerador propõe o que a conferência aceita, no fim (C-1)
+        fora = saida.split("## Fora do escopo")[1].split("\n## ")[0]
+        self.assertIn(self.LINHA_E14, fora)  # a etapa do pedido entra sem prova de abertura nem cópia do anterior
+        self.assertNotIn("etapa do mesmo papel em outra delegação", fora)  # o texto do anterior não passa
         texto = self.preenchido(saida)
         rc, conferencia = self.conferir(texto)
         self.assertEqual(rc, 0, conferencia)
-        self.assertNotIn('"Fora do escopo"', conferencia)
-        antiga = '- "E2.1 (dev-exemplo): texto da documentação." · etapa do mesmo papel em outra delegação; continua no pedido.'
-        casos = {  # C-6: cada abuso reprova com o motivo
-            "linha anterior editada com acréscimo no fim": (texto.replace(antiga, antiga + " extra"), 'volta: bloco "Fora do escopo" difere do anterior'),
-            "linha anterior com espaço a mais (T-1)": (texto.replace(antiga, antiga.replace(" · ", "  · ")), 'volta: bloco "Fora do escopo" difere do anterior'),
-            "acréscimo no meio": (texto.replace(antiga + "\n", self.LINHA_E14 + "\n" + antiga + "\n", 1), 'volta: bloco "Fora do escopo" difere do anterior'),
-            "texto diferente do de ## Etapas": (texto.replace("recurso B.", "recurso C."), "volta: linha nova no Fora do escopo não é etapa de ## Etapas"),
-            "a mesma etapa duas vezes": (texto.replace(self.LINHA_E14, self.LINHA_E14 + "\n" + self.LINHA_E14), "volta: etapa repetida no Fora do escopo"),
-            "etapa que já estava no Entregar do anterior (C-4)": (texto.replace(self.LINHA_E14, self.LINHA_E14.replace("E1.4b (dev-exemplo): ajuste do recurso B.",
-                                                                                     "E1.1 (dev-exemplo): implementação do recurso A.")),
-                                                                  "volta: etapa E1.1 já estava no brief anterior ou é a da volta"),
-            "a etapa da própria volta (C-4)": (texto.replace("Volta-de:", "Cobre: E1.4b\nVolta-de:", 1), "volta: etapa E1.4b já estava no brief anterior ou é a da volta"),
-            "Relatório segue byte a byte (T-2)": (texto.replace("Até 8 linhas", "Até 20 linhas"), 'volta: bloco "Relatório" difere do anterior'),
-            "Objetivo segue byte a byte (T-2)": (texto.replace("Entregar o recurso A", "Entregar o recurso A e o B"), 'volta: bloco "Objetivo" difere do anterior'),
-        }
-        for nome, (brief_volta, esperado) in casos.items():
-            with self.subTest(nome):
-                rc, conferencia = self.conferir(brief_volta)
-                self.assertEqual(rc, 1, conferencia)
-                self.assertIn(esperado, conferencia)
-        for nome, historico in {"etapa aberta antes do brief anterior": (aberta, brief), "sem prova no Histórico": (brief,),
-                                "brief anterior não registrado": (aberta,), "prova fora da forma": (brief, "- etapa E1.4b aberta", "- nota: 2026-11-04 10:00: etapa E1.4b aberta",
-                                                        "- 2026-11-04 10:00: etapa E1.4b aberta-nao", "- 2026-11-04 10:00: etapa E1.4b aberta.")}.items():
-            with self.subTest(nome):  # C-3: a prova é só a ordem do Histórico do pedido
-                self.pedido_e14(*historico)
-                self.assertNotIn(self.LINHA_E14, self.gerar()[1].split("## Fora do escopo")[1].split("\n## ")[0])
-                rc, conferencia = self.conferir(texto)
-                self.assertEqual(rc, 1, conferencia)
-                self.assertIn("volta: etapa E1.4b sem prova de abertura depois do brief anterior", conferencia)
+        sem = texto.replace(self.LINHA_E14 + "\n", "")
+        rc, conferencia = self.conferir(sem)
+        self.assertEqual(rc, 1, conferencia)
+        self.assertIn('"E1.4b"', conferencia)
+        corte = '- Retira do escopo original: "x" · justificativa: a · consequência: b · decisão: c\n'
+        anterior = self.ANTERIOR.read_text(encoding="utf-8").replace("## Fora do escopo\n", "## Fora do escopo\n" + corte, 1)
+        self.brief_anterior.write_text(anterior, encoding="utf-8")
+        self.assertIn(corte, self.gerar()[1])  # o corte do dono passa para a volta
 
     def test_conferencia_reprova_anterior_bloco_e_achado(self):
         pedido = self.pedido.read_text(encoding="utf-8")
@@ -961,7 +946,7 @@ class BriefDeVolta(Repositorio):
             "volta: anterior diferente (sha256)": texto.replace("sha256 " + hashlib.sha256(self.ANTERIOR.read_bytes()).hexdigest(), "sha256 " + "0" * 64),
             'volta: bloco "Objetivo" difere do anterior': texto.replace("Entregar o recurso A (exemplo sintético).", "Entregar outra coisa."),
             'volta: bloco "Relatório" difere do anterior': texto.replace("Até 8 linhas", "Até 20 linhas"),
-            'volta: bloco "Fora do escopo" difere do anterior': texto.replace("continua no pedido.", "continua."),
+            'corte: sem marca "E2.1"': "\n".join(l for l in texto.splitlines() if not l.startswith('- "E2.1')) + "\n",  # 0.43.1: o corte cobra o Fora
             'volta: falta achado "A3" de docs/reviews/p1.md': "\n".join(l for l in texto.splitlines() if " A3)" not in l) + "\n",
             'volta: falta achado "A1" de docs/reviews/p1.md': texto.replace(" A1)", " A9)"),
         }
@@ -1062,26 +1047,28 @@ class TextoDosAgentes(unittest.TestCase):
         return (RAIZ / "agents" / f"{nome}.md").read_text(encoding="utf-8")
 
     def test_conferente_usa_entrega_desde_e_imprime_a_conferida(self):
+        """0.43.1 (processo novo): a `entrega conferida` é do `forge-check entrega --pedido`, que calcula Base, Base-sha e Desde; o
+        conferente opcional roda só a forma antiga (com `--desde`) ou a nova com `--sem-gravar`, e confirma a rodada com `--anterior`."""
         t = self.texto("conferente")
-        for trecho in ("forge-check entrega <Pedido> --branch <b> --base <Base> --base-sha <Base-sha> --etapa <etapa> --desde",
-                       "use também o `Desde:` da mensagem", "`conferida: <sha40 do head da branch>`", "--anterior", "só o Jarvis"):
+        for trecho in ("forge-check entrega <pedido> --branch <b> --base <Base> --base-sha <Base-sha> --etapa <etapa> [--desde <conferida>]",
+                       "forge-check entrega --pedido <p> --branch <b> --etapa <etapa> --sem-gravar", "--anterior",
+                       "grava a linha `entrega conferida`, que não é sua"):
             self.assertIn(trecho, t)
 
-    def test_desde_vem_da_mensagem_do_jarvis_e_o_texto_do_hook_e_exato(self):  # S-A2, S-A5, R-A4
+    def test_desde_vem_da_mensagem_do_jarvis_e_o_texto_do_hook_e_exato(self):  # S-A2, S-A5, R-A4; 0.43.1: o Desde é calculado
         conferente, jarvis = self.texto("conferente"), texto_do_jarvis(RAIZ)
-        for trecho in ("Desde: <sha40", "o valor de `Desde:` da mensagem", "diverge do Histórico", "a forma `--opção=-valor`",
-                       "peça a ref da branch da entrega ao Jarvis"):
-            self.assertIn(trecho, conferente)
-        self.assertIn("`Desde:` (o sha40 da linha mais recente da própria branch no `## Histórico`", jarvis)  # E12 (CONFERIDA-DESDE-POR-BRANCH)
+        self.assertIn("a forma `--opção=-valor`", conferente)
+        self.assertIn("forge-check entrega --pedido <p> --branch <b> --etapa <etapa>", jarvis)
+        self.assertIn("Base, Base-sha e Desde são calculados", (RAIZ / "bin" / "forge-check").read_text(encoding="utf-8"))
 
-    def test_pareceres_trazem_achados_e_leem_o_delta(self):
+    def test_pareceres_trazem_achados_e_leem_o_delta(self):  # 0.43.1 F: a revalidação lê `forge-check parecer delta`
         for agente, pasta in (("tech-lead", "reviews"), ("security-engineer", "security"), ("qa-engineer", "qa")):
             with self.subTest(agente):
                 t = self.texto(agente)
                 self.assertIn("`## Achados`", t)
                 self.assertIn("- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>", t)
-                self.assertIn(f"forge-check delta --parecer docs/{pasta}/<pedido>.md", t)
-        self.assertIn("sempre sobre o head", self.texto("qa-engineer"))
+                self.assertIn(f"forge-check parecer delta docs/{pasta}/<pedido>.md", t)
+        self.assertIn("no mesmo head", self.texto("qa-engineer"))
         self.assertIn("sem dispensar a releitura", self.texto("security-engineer"))
 
 

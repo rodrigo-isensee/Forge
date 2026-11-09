@@ -6,6 +6,7 @@ import json
 import os
 import pty
 import re
+import resource
 import shutil
 import subprocess
 import sys
@@ -513,11 +514,28 @@ class HookDoutor(Base):
         self.assertIn("doutor JSONDecodeError", (self.proj / ".forge/run/erros.log").read_text(encoding="utf-8"))
 
     def test_abrir_em_menos_de_cem_ms_em_media(self):
+        """O `Stop` com o cache de hoje só lê o arquivo: o custo próprio do hook (CPU dele e dos filhos, menos a subida
+        do interpretador medida na mesma execução) fica abaixo de 0,25 s em média. Era 0,3 s de relógio, que a máquina
+        carregada passava sem o hook mudar (P3 da 0.43.1): o relógio de um `python3` vazio vai de 0,09 a 0,39 s com
+        carga, a CPU fica em 0,03 s; a do hook, em 0,10 s. O hook que espera a rede não gasta CPU: quem o pega é
+        `test_o_hook_nao_chama_gh_nem_a_rede`."""
         self.hook("SessionStart", {"source": "startup"})
-        t0 = time.perf_counter()
-        for _ in range(5):
-            self.hook("Stop")  # com o cache de hoje: só lê o arquivo
-        self.assertLess((time.perf_counter() - t0) / 5, 0.3)
+        vazio = self.cpu_media_dos_filhos(lambda: subprocess.run(
+            [sys.executable, "-c", "import json, sys; json.load(sys.stdin)"], input="{}", env=self.env, cwd=self.proj,
+            capture_output=True, text=True, timeout=30))
+        hook = self.cpu_media_dos_filhos(lambda: self.hook("Stop"))  # com o cache de hoje: só lê o arquivo
+        self.assertLess(hook - vazio, 0.25, f"CPU média: hook {hook:.3f} s, interpretador vazio {vazio:.3f} s")
+
+    @staticmethod
+    def cpu_media_dos_filhos(rodar, vezes=5):
+        """Segundos de CPU (usuário + sistema) de `rodar()` em média, pelos filhos já esperados (`RUSAGE_CHILDREN`)."""
+        def filhos():
+            uso = resource.getrusage(resource.RUSAGE_CHILDREN)
+            return uso.ru_utime + uso.ru_stime
+        antes = filhos()
+        for _ in range(vezes):
+            rodar()
+        return (filhos() - antes) / vezes
 
     def git_falso(self, quando, segundos):
         """Um `git` que demora `segundos` quando a linha de comando contém `quando`; o resto vai ao git de verdade."""

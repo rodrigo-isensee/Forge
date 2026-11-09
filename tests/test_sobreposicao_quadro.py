@@ -112,8 +112,8 @@ class Sobreposicao(unittest.TestCase):
         self.assertIn("base não encontrada", saida)
 
 
-class TravaDeRelease(unittest.TestCase):
-    """DV-5: com release em curso, `sobreposicao --ref` barra a branch que não é a da release."""
+class SemCongelamentoNaRelease(unittest.TestCase):
+    """R-FLUXO (0.43.1): sem congelamento da develop; com release em curso, `sobreposicao --ref` só avisa (rc 0)."""
 
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -137,21 +137,18 @@ class TravaDeRelease(unittest.TestCase):
         self.versao("homolog", '{"version": "%s"}' % hom)
         self.versao("develop", '{"version": "%s"}' % dev)
 
-    def test_release_em_curso_e_branch_de_fora_barra(self):
+    def test_release_em_curso_so_avisa_e_nao_barra(self):
         self.par("0.24.0", "0.23.0")
         rc, saida = checar(self.repo, "sobreposicao", "--ref", "melhoria/outra")
-        self.assertEqual(rc, 1)
+        self.assertEqual(rc, 0)
         self.assertIn("release 0.24.0 em curso", saida)
-        self.assertIn("espere a promoção", saida)
+        self.assertIn("melhoria/outra entra na develop assim mesmo: sem congelamento (R-FLUXO)", saida)
+        self.assertNotIn("espere a promoção", saida)
 
-    def test_branch_da_release_passa(self):
+    def test_branch_da_release_e_de_outra_versao_passam(self):
         self.par("0.24.0", "0.23.0")
-        for ref in ("melhoria/release-0.24.0", "origin/melhoria/release-0.24.0"):
+        for ref in ("melhoria/release-0.24.0", "origin/melhoria/release-0.24.0", "melhoria/release-0.23.0"):
             self.assertEqual(checar(self.repo, "sobreposicao", "--ref", ref)[0], 0)
-
-    def test_release_de_outra_versao_nao_passa(self):
-        self.par("0.24.0", "0.23.0")
-        self.assertEqual(checar(self.repo, "sobreposicao", "--ref", "melhoria/release-0.23.0")[0], 1)
 
     def test_sem_release_em_curso_nada_muda(self):
         for dev, hom in (("0.23.0", "0.23.0"), ("0.22.0", "0.23.0")):
@@ -359,7 +356,7 @@ class RegrasEmTexto(unittest.TestCase):
         return (RAIZ / rel).read_text(encoding="utf-8")
 
     def test_fila_de_integracao_na_regra_e_no_tech_lead(self):
-        for rel, trechos in (("docs/regras/R-FLUXO.md", ("um por vez", "ordem de chegada", "forge-check sobreposicao")),
+        for rel, trechos in (("docs/regras/R-FLUXO.md", ("os outros não esperam", "ordem de chegada", "forge-check sobreposicao")),
                              ("agents/tech-lead.md", ("Fila de integração", "ordem de chegada", "forge-check sobreposicao"))):
             for trecho in trechos:
                 self.assertIn(trecho, self.texto(rel), rel)
@@ -387,10 +384,10 @@ class Fila(unittest.TestCase):
         self.proc = self.tmp / "proc-falso"  # a carga da máquina real não pode mudar o resultado
         self.carga(0.1)
 
-    def carga(self, load, nucleos=8):
+    def carga(self, load, nucleos=8, disponivel_kb=12582912):
         self.proc.mkdir(exist_ok=True)
         (self.proc / "loadavg").write_text(f"{load} 0.1 0.1 1/100 1\n", encoding="utf-8")
-        (self.proc / "meminfo").write_text("MemTotal: 16777216 kB\nMemAvailable: 12582912 kB\n", encoding="utf-8")
+        (self.proc / "meminfo").write_text(f"MemTotal: 16777216 kB\nMemAvailable: {disponivel_kb} kB\n", encoding="utf-8")
         self.nucleos = nucleos
 
     def gravar(self, rel, texto):
@@ -459,15 +456,25 @@ class Fila(unittest.TestCase):
         self.assertEqual(linhas[:3], ["pode-comecar: C1 (p1)", "pode-comecar: C2 (p2)", "espera: C3 (p3) | teto"])
         self.assertEqual(linhas[-1], "fila: 2 podem começar, 2 vagas de 3 (1 ativos), 1 esperam")
 
-    def test_t5_carga_alta_zera_as_vagas(self):
+    def test_t5_memoria_abaixo_do_piso_zera_as_vagas(self):
+        """R-TETO-DISPONIBILIDADE: só a memória disponível (piso de 2 GB) zera as vagas; o load alto não."""
+        self.quadro(pronto_para_fazer=[("C1", "p1")])
+        self.pedido("p1", "nenhum")
+        self.teto(3)
+        self.carga(0.1, nucleos=4, disponivel_kb=1024 * 1024)
+        rc, linhas = self.rodar()
+        self.assertEqual(rc, 0)
+        self.assertEqual(linhas[0], "espera: C1 (p1) | teto")
+        self.assertEqual(linhas[-1], "fila: 0 podem começar, 0 vagas de 3 (0 ativos), 1 esperam")
+
+    def test_t5b_load_alto_nao_zera_as_vagas(self):
         self.quadro(pronto_para_fazer=[("C1", "p1")])
         self.pedido("p1", "nenhum")
         self.teto(3)
         self.carga(50.0, nucleos=4)
         rc, linhas = self.rodar()
         self.assertEqual(rc, 0)
-        self.assertEqual(linhas[0], "espera: C1 (p1) | teto")
-        self.assertEqual(linhas[-1], "fila: 0 podem começar, 0 vagas de 3 (0 ativos), 1 esperam")
+        self.assertEqual(linhas[0], "pode-comecar: C1 (p1)")
 
     def test_t6_sobreposicao_avisa_sem_bloquear(self):
         git(self.tmp, "init", "-q", "-b", "develop")

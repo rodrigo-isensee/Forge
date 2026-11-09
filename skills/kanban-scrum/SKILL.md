@@ -122,11 +122,11 @@ Um cartão por (origem, área, faixa de severidade), revisável de uma vez: bloq
 1. Dados do pedido: lead time, cycle time, vazão, retrabalho, bloqueios e as quatro métricas DORA, lendo velocidade e estabilidade juntas.
 2. O que funcionou.
 3. O que atrapalhou (fatos, não pessoas).
-4. Até 3 ações — cada uma com responsável, mudança exata e como medir — e a tabela das linhas `MELHORIA:` (`R-DECISAO`).
-5. Revisão das ações da retrospectiva anterior: funcionou, não funcionou, abandonar.
+4. **No máximo 1 causa nova**, escolhida por `forge-placar` e `forge-placar propostas` (o checklist: métrica, `Mudança: código:` ou `Mudança: texto:`, critério de reversão, Início e Revisão de 1 a 30 dias; uma proposta aberta por vez), mais a tabela das linhas `MELHORIA:` (`R-DECISAO`), que são só candidatas. O ciclo é do `agile-coach` com o `tech-lead`, sem a pessoa.
+5. Revisão das propostas vencidas: `forge-placar comparar --antes <data> --depois <data> --metrica <m>` (rc 0 manter, rc 1 reverter a mudança inteira, rc 3 inconclusivo), com o resultado gravado. `ERRO-JARVIS:` entra como dado, com `Prevenção: eval/trava: <caso>` ou `sem trava possível`. Proibido: regra, lembrete ou checklist em texto sem métrica e prazo; trava sem eval; segunda proposta aberta. À pessoa, só a linha `resumo:` do `forge-placar`.
 
 ## Experimentos de melhoria (`docs/kanban/melhorias.md`)
-| ID | Hipótese | Mudança | Métrica | Início | Revisão | Resultado |
+| ID | Hipótese | Mudança | Métrica | Critério de reversão | Início | Revisão | Resultado |
 Uma mudança por vez em cada parte do processo, para saber o que causou o efeito.
 
 ## Elementos de Scrum usados

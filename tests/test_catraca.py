@@ -18,6 +18,7 @@ import tempfile
 import textwrap
 import time
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 from pathlib import Path
 
@@ -1333,8 +1334,8 @@ class Pareceres(Base):
     def parecer(self, tipo, ramo="pr", parecer="aprovado", pedido="ped"):
         self.repo.commit()
         commit = self.repo.git("rev-parse", "--short", "HEAD").strip()
-        pasta = "reviews" if tipo == "review" else "qa"
-        extra = "revisor: forge:tech-lead" if tipo == "review" else "qa: forge:qa-engineer"
+        pasta = {"review": "reviews", "revisao-seguranca": "security"}.get(tipo, "qa")
+        extra = "qa: forge:qa-engineer" if tipo == "qa" else "revisor: forge:tech-lead"
         self.repo.escreve(f"docs/{pasta}/{pedido}.md",
                           f"---\ntipo: {tipo}\ncontrato: 1\npedido: {pedido}\nbranch: {ramo}\ncommit: {commit}\n"
                           f"parecer: {parecer}\n{extra}\ndata: 2026-01-01\n---\n# parecer\n")
@@ -1356,6 +1357,7 @@ class Pareceres(Base):
     def test_toca_hooks_com_review_aprovado_passa_na_develop_e_exige_qa_na_homolog(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca")  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.assertEqual(self.roda("develop"), [])
         self.assertEqual(len(self.roda("homolog")), 1)
 
@@ -1400,6 +1402,8 @@ class Pareceres(Base):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review", pedido="a")
         self.parecer("review", pedido="b")
+        self.parecer("revisao-seguranca", pedido="a")  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
+        self.parecer("revisao-seguranca", pedido="b")
         self.assertEqual(self.roda(), [])
 
     # --- O parecer sobrevive a merge da base e a commit de parecer (diff efetivo, ADR 0004 item 3) ---
@@ -1419,6 +1423,7 @@ class Pareceres(Base):
     def test_merge_da_base_depois_do_parecer_mantem_o_parecer(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca")  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.mescla_base()
         self.assertEqual(self.roda_sobre_develop(), [])
 
@@ -1488,7 +1493,7 @@ class ParecerReprovadoBarraSempre(Base):
                 self.assertEqual(len(self.roda()), 1)
 
     def test_seguranca_reprovada_barra_mesmo_sem_gatilho_no_diff(self):
-        self.repo.escreve("scripts/x.sh", "echo\n")
+        self.repo.escreve("docs/x.md", "x\n")  # P5 (0.43.1): scripts/ virou classe C (pede segurança); o diff sem gatilho é o de documentação
         self.parecer("review")
         self.parecer("qa", commita=False)
         self.parecer("revisao-seguranca", "reprovado", commita=False)
@@ -1497,7 +1502,7 @@ class ParecerReprovadoBarraSempre(Base):
         self.assertRegex(achadas[0], r"^R-SEGURANCA: .+docs/security/ped\.md")
 
     def test_devops_reprovado_barra_mesmo_sem_infra_no_diff(self):
-        self.repo.escreve("scripts/x.sh", "echo\n")
+        self.repo.escreve("docs/x.md", "x\n")  # P5 (0.43.1): scripts/ virou classe C (pede segurança); o diff sem infra é o de documentação
         self.parecer("review")
         self.parecer("revisao-devops", "reprovado", commita=False)
         achadas = self.roda()
@@ -1507,6 +1512,7 @@ class ParecerReprovadoBarraSempre(Base):
     def test_qa_reprovado_barra_na_entrada_da_develop(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca", commita=False)  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.parecer("qa", "reprovado", commita=False)
         achadas = self.roda("develop")
         self.assertEqual(len(achadas), 1, achadas)
@@ -1556,6 +1562,7 @@ class ParecerReprovadoBarraSempre(Base):
         """Caso do #437: mesmo pedido e data; o parecer de outra branch (sha sumido no squash) vence por caminho, e o da branch vale."""
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca", commita=False)  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.parecer("review", ramo="outra", arquivo="zz-outra", commit="deadbee", commita=False)
         self.assertEqual(self.roda(), [])
 
@@ -1579,6 +1586,7 @@ class ParecerReprovadoBarraSempre(Base):
         """A1: parecer aprovado com `branch: pr` cobre o PR do próprio repositório, mas não o de um fork com o mesmo nome de branch."""
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca", commita=False)  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.assertEqual(self.roda(), [])
         for head in ("fulano/Forge", ""):  # fork e head.repo nulo (fork apagado)
             with self.subTest(head=head):
@@ -1598,6 +1606,7 @@ class ParecerReprovadoBarraSempre(Base):
     def test_em_ci_sem_base_repo_falha_fechado_e_fora_do_ci_libera(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca", commita=False)  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.repo.commit()
         with mock.patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}):
             for head in ("", "dono/Forge"):
@@ -1618,6 +1627,7 @@ class ParecerReprovadoBarraSempre(Base):
     def test_mesmo_repositorio_ou_sem_env_nao_muda_o_resultado(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca", commita=False)  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.repo.commit()
         for head, base in (("dono/Forge", "dono/Forge"), ("", "")):
             with self.subTest(head=head):
@@ -1626,6 +1636,7 @@ class ParecerReprovadoBarraSempre(Base):
     def test_cli_le_o_repositorio_do_head_por_env_e_recusa_o_fork(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
+        self.parecer("revisao-seguranca", commita=False)  # P5 (0.43.1): hooks/ é classe C, que pede também o de segurança
         self.repo.commit()
         env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "GITHUB_ACTIONS", "HEAD_REPO", "BASE_REPO")}
         argv = ["python3", str(AQUI / "catraca.py"), "--modo", "pareceres", "--raiz", str(self.repo.dir), "--base", "base",
@@ -1690,7 +1701,9 @@ class CommitDoRotulo(unittest.TestCase):
 
 
 class RotuloSobreviveAoConteudo(Base):
-    """O rótulo vale para o diff efetivo do PR no instante em que foi aplicado (sem pareceres e sem o que veio da base)."""
+    """O rótulo vale para o diff efetivo do PR no instante em que foi aplicado (sem pareceres e sem o que veio da base). Desde a
+    0.43.1 (P9) vale também com os arquivos protegidos iguais aos do rótulo: os testes do diff efetivo rodam com `so_diff=True`, que
+    desliga esse caminho e deixa só o do diff efetivo (o que sobra quando a base também mexeu no arquivo protegido)."""
 
     def setUp(self):
         super().setUp()
@@ -1698,8 +1711,10 @@ class RotuloSobreviveAoConteudo(Base):
         self.repo.commit()
         self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
 
-    def roda(self, execs=None, ramo=""):
+    def roda(self, execs=None, ramo="", so_diff=False):
         self.repo.commit()
+        if so_diff:
+            return self.roda_aqui(execs, ramo)
         entrada = tempfile.TemporaryDirectory()
         self.addCleanup(entrada.cleanup)
         pasta = Path(entrada.name)
@@ -1711,6 +1726,21 @@ class RotuloSobreviveAoConteudo(Base):
                 "--execucoes", str(pasta / "execucoes.json"), "--pr", "7", f"--ramo={ramo}"]
         env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "HEAD_REF")}
         return subprocess.run(args, capture_output=True, text=True, env=env)
+
+    def roda_aqui(self, execs=None, ramo=""):
+        """A catraca no mesmo processo, só com o caminho do diff efetivo (`protegidos_como_no_rotulo` falso)."""
+        pasta = Path(tempfile.mkdtemp(dir=self.repo.dir.parent))
+        self.addCleanup(shutil.rmtree, pasta, True)
+        (pasta / "eventos.json").write_text(json.dumps([rotulo()]), encoding="utf-8")
+        execs = execs if execs is not None else [execucao(self.rotulado, "2026-01-02T09:00:00Z"), execucao(self.rotulado, "2026-01-02T10:00:03Z")]
+        (pasta / "execucoes.json").write_text(json.dumps(execs), encoding="utf-8")
+        argv = ["--raiz", str(self.repo.dir), "--base", "develop", "--eventos", str(pasta / "eventos.json"), "--ultimo-push", "2026-01-02T11:00:00Z",
+                "--execucoes", str(pasta / "execucoes.json"), "--pr", "7", f"--ramo={ramo}"]
+        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "HEAD_REF")}
+        with mock.patch.dict(os.environ, env, clear=True), mock.patch.object(catraca, "protegidos_como_no_rotulo", return_value=False), \
+                contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(argv)
+        return SimpleNamespace(returncode=rc, stdout=saida.getvalue())
 
     def mescla_base(self):
         self.repo.git("checkout", "-q", "develop")
@@ -1737,7 +1767,7 @@ class RotuloSobreviveAoConteudo(Base):
             with self.subTest(rel=rel):
                 self.repo.git("reset", "-q", "--hard", self.rotulado)
                 self.repo.escreve(rel, "reescrito depois do rótulo\n")
-                r = self.roda(ramo="melhoria/ped")
+                r = self.roda(ramo="melhoria/ped", so_diff=True)
                 self.assertEqual(r.returncode, 1, r.stdout)
 
     def test_parecer_de_outro_pedido_que_ja_existia_na_base_invalida(self):
@@ -1748,7 +1778,7 @@ class RotuloSobreviveAoConteudo(Base):
         self.repo.git("merge", "-q", "--no-ff", "--no-edit", "develop")
         self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
         self.repo.escreve("docs/reviews/antigo.md", "histórico reescrito\n")
-        self.assertEqual(self.roda(ramo="melhoria/ped").returncode, 1)
+        self.assertEqual(self.roda(ramo="melhoria/ped", so_diff=True).returncode, 1)
 
     def test_parecer_que_o_pr_ja_tocava_antes_do_rotulo_pode_mudar(self):
         self.repo.escreve("docs/reviews/tocado.md", "parecer de autor\n")
@@ -1773,12 +1803,12 @@ class RotuloSobreviveAoConteudo(Base):
                 self.addCleanup(lambda: (os.environ.clear(), os.environ.update(antigo)))
                 for k in ("HEAD_REF", "GITHUB_STEP_SUMMARY"):
                     os.environ.pop(k, None)
-                with contextlib.redirect_stdout(io.StringIO()):
+                with contextlib.redirect_stdout(io.StringIO()), mock.patch.object(catraca, "protegidos_como_no_rotulo", return_value=False):
                     self.assertEqual(catraca.main(["--raiz", str(self.repo.dir), "--base", "develop", "--pr", "7"]), esperado)
 
     def test_sem_ramo_parecer_novo_depois_do_rotulo_invalida(self):
         self.repo.escreve("docs/reviews/ped.md", "parecer\n")
-        self.assertEqual(self.roda().returncode, 1)
+        self.assertEqual(self.roda(so_diff=True).returncode, 1)
 
     def test_nome_com_curinga_nao_vira_padrao_que_esconde_outros_pareceres(self):
         """O caminho ignorado vai literal ao git: `docs/reviews/*` tocado antes do rótulo não cobre `outro.md`."""
@@ -1786,7 +1816,7 @@ class RotuloSobreviveAoConteudo(Base):
         self.repo.commit()
         self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
         self.repo.escreve("docs/reviews/outro.md", "reescrito\n")
-        self.assertEqual(self.roda().returncode, 1)
+        self.assertEqual(self.roda(so_diff=True).returncode, 1)
 
     def test_violacao_nova_vinda_da_base_invalida(self):
         """Review #65, desvio 2: a base passa a proteger um arquivo que o patch do PR já apagava."""
@@ -1825,14 +1855,14 @@ class RotuloSobreviveAoConteudo(Base):
             with self.subTest(rel=rel):
                 self.repo.git("reset", "-q", "--hard", self.rotulado)
                 self.repo.escreve(rel, texto)
-                r = self.roda()
+                r = self.roda(so_diff=True)
                 self.assertEqual(r.returncode, 1, r.stdout)
                 self.assertIn("R-CONFORMIDADE:", r.stdout)
 
     def test_mudanca_de_codigo_junto_com_merge_da_base_invalida(self):
         self.mescla_base()
         self.repo.escreve("scripts/novo.sh", "echo\n")
-        self.assertEqual(self.roda().returncode, 1)
+        self.assertEqual(self.roda(so_diff=True).returncode, 1)
 
     def test_sem_execucoes_ou_commit_desconhecido_falha_fechado(self):
         self.repo.escreve("docs/reviews/ped.md", "parecer\n")
@@ -1872,6 +1902,68 @@ class RotuloSobreviveAoConteudo(Base):
         r = self.roda()
         self.assertEqual(r.returncode, 1)
         self.assertIn("R-CUSTO:", r.stdout)
+
+
+    # --- P9 (0.43.1, PARECER-CONTEUDO): o rótulo fica preso aos arquivos protegidos ---
+    def test_p9_push_sem_arquivo_protegido_mantem_o_rotulo(self):
+        for rel, texto in (("scripts/novo.sh", "echo\n"), ("KANBAN.md", "x\n"), ("docs/reviews/outro.md", "reescrito\n"),
+                           ("src/app.py", "x = 1\n"), ("tests/test_novo.py", "import unittest\nclass T(unittest.TestCase):\n"
+                                                                         "    def test_n(self):\n        self.assertTrue(1)\n")):
+            with self.subTest(rel=rel):
+                self.repo.git("reset", "-q", "--hard", self.rotulado)
+                self.repo.escreve(rel, texto)
+                r = self.roda()
+                self.assertEqual(r.returncode, 0, r.stdout)
+                self.assertIn("arquivos protegidos ou diff efetivo iguais", r.stdout)
+
+    def test_p9_push_que_muda_arquivo_protegido_derruba_o_rotulo(self):
+        for rel, texto in (("tests/catraca.py", "x = 'mudou de novo'\n"), (".github/workflows/ci.yml", "name: outro\n"),
+                           ("bin/forge-check", "#!/bin/sh\n"), ("hooks/x.cpython-312.pyc", "\0")):
+            with self.subTest(rel=rel):
+                self.repo.git("reset", "-q", "--hard", self.rotulado)
+                self.repo.escreve(rel, texto)
+                r = self.roda()
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn("R-CONFORMIDADE:", r.stdout)
+
+    def test_p9_protegido_que_volta_ao_da_base_nao_derruba(self):
+        """O arquivo que o PR deixa de mudar não pede mais o rótulo: a violação restante é a do rotulado (ou nenhuma)."""
+        self.repo.escreve(".github/workflows/ci.yml", "name: mudou no PR\n")
+        self.repo.commit()
+        self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
+        self.repo.escreve(".github/workflows/ci.yml", "name: CI\n")
+        r = self.roda()
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_p9_merge_da_base_que_muda_outro_protegido_mantem(self):
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.escreve(".github/workflows/ci.yml", "name: CI da base\n")
+        self.repo.commit()
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("merge", "-q", "--no-ff", "--no-edit", "develop")
+        r = self.roda()
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_p9_testes_que_pioram_mais_depois_do_rotulo_derrubam(self):
+        """A mesma violação (testes caíram) com número maior: a chave é a mesma, a piora não."""
+        self.repo.escreve("tests/test_x.py", TESTE.replace("    def test_b(self): pass\n", ""))
+        self.repo.commit()
+        self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
+        self.repo.escreve("tests/test_y.py", "import unittest\nclass T(unittest.TestCase):\n    def test_y(self):\n        self.assertTrue(1)\n")
+        self.assertEqual(self.roda().returncode, 0)  # teste novo: não piora
+        self.repo.git("reset", "-q", "--hard", self.rotulado)
+        self.repo.escreve("tests/test_x.py", "import unittest\n")
+        r = self.roda()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("caíram", r.stdout)
+
+    def test_p9_git_que_falha_no_blob_nao_libera(self):
+        self.repo.escreve("src/app.py", "x = 1\n")
+        self.repo.commit()
+        with mock.patch.object(catraca, "blob_e_modo", side_effect=catraca.ErroDeGit("falha do git simulada")), \
+                mock.patch.object(catraca, "forge_check", side_effect=AssertionError("não chega ao diff efetivo")):
+            with self.assertRaises(catraca.ErroDeGit):
+                catraca.protegidos_como_no_rotulo(self.repo.dir, "develop", self.rotulado, "HEAD")
 
 
 class RespostaCortadaEPaginacaoSemTeto(Base):
@@ -2773,7 +2865,7 @@ class Workflows(unittest.TestCase):
         self.assertNotRegex(ci, r"(?m)^  (catraca|pr-texto):")
 
     def test_ci_em_poucos_jobs_com_timeout_e_gate_sem_paths_ignore(self):
-        """Economia de minutos: bateria num job, push na develop só com a checagem rápida, timeout em todo job."""
+        """Economia de minutos: passos da bateria num job, push na develop só com a checagem rápida, timeout em todo job."""
         for nome in ("ci.yml", "catraca.yml", "release.yml"):
             texto = self.texto(nome)
             jobs = len(re.findall(r"(?m)^  [a-z-]+:\n    (?:name|if|runs-on):", texto))
@@ -2784,14 +2876,19 @@ class Workflows(unittest.TestCase):
         self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/develop'", ci)
         self.assertRegex(ci, r"(?m)^  bateria:")
         self.assertIn("docs/(reviews|qa|security|devops|ux)/", ci)
-        # Teto de tempo (ci-suite-no-teto): checagem rápida 20 min; bateria e bateria python 3.14, 25 min.
-        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["20", "25", "25"])
+        # Teto de tempo (ci-suite-no-teto; SUITE-NO-CI): checagem rápida 20 min; cada parte da suíte (3.12 e 3.14) 20 min;
+        # instalação no 3.14 15 min; passos da bateria 20 min; os dois agregadores 5 min.
+        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["20", "20", "20", "15", "5", "20", "5"])
 
     def test_gate_do_ci_nao_deixa_codigo_escapar_nem_forjar_o_verde(self):
         """Review independente: renomeação, testes de pareceres, check forjado, cancelamento e promoção."""
         ci = self.texto("ci.yml")
         self.assertIn("git diff --name-only --no-renames", ci)  # renomear código para docs/reviews não pode esconder a origem
-        self.assertNotIn("always()", ci)  # execução cancelada não gasta os minutos que o gate poupa
+        # Execução cancelada não gasta os minutos que o gate poupa: always() só no if dos dois agregadores (SUITE-NO-CI),
+        # que não fazem checkout e só conferem o resultado dos jobs necessários (cancelado ou pulado reprova).
+        agregadores = "    if: always() && (github.event_name != 'push' || github.ref != 'refs/heads/develop')\n"
+        self.assertEqual(ci.count("always()"), ci.count(agregadores) + ci.count("always():"), "always() fora do if de agregador")
+        self.assertEqual(ci.count(agregadores), 2)
         self.assertNotIn("always()", self.texto("catraca.yml"))
         self.assertIn("!cancelled()", ci)
         self.assertIn('[ "$BASE_REF" = develop ]', ci)  # promoção para a homolog roda a bateria completa (R-FLUXO)

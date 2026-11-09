@@ -15,11 +15,13 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import SINAIS_DE_CUSTO, remoto_sem_manutencao, sem_manutencao  # noqa: E402
 from sem_claude_ancestral import comando  # noqa: E402
+from modelo_git import copiar_modelo  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 ATUALIZAR = RAIZ / "bin" / "forge-atualizar"
@@ -54,26 +56,20 @@ exit 0
 
 class Base(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp(prefix="atualizar-"))
-        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
-        self.home, self.bin, self.fake = self.tmp / "home", self.tmp / "bin", self.tmp / "fake"
-        for p in (self.home, self.bin, self.fake):
-            p.mkdir()
-        (self.bin / "claude").write_text(CLAUDE_FALSO, encoding="utf-8")
-        (self.bin / "claude").chmod(0o755)
-        self.gitconfig = self.home / "gitconfig"
-        self.gitconfig.write_text("[user]\n\tname = Pessoa Teste\n\temail = pessoa@exemplo.test\n", encoding="utf-8")
-        self.publicado = self.tmp / "forge-publicado.git"
-        # A suíte roda dentro do Claude Code (CLAUDECODE e CLAUDE_CODE_ENTRYPOINT definidas, `claude` ancestral), e os scripts
-        # se recusam a rodar aí (F5-01). Os testes do caminho feliz simulam "a pessoa no terminal": tiram essas variáveis do
-        # ambiente e rodam o script pelo lançador `sem_claude_ancestral`, que não olha acima do processo do teste.
-        self.env = {k: v for k, v in os.environ.items()
-                    if not k.startswith("GIT_") and k not in ("CLAUDE_PROJECT_DIR", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", *SINAIS_DE_CUSTO)}
-        self.env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.gitconfig),
-                        PATH=f"{self.bin}:{os.environ['PATH']}", FAKE_DIR=str(self.fake), FORGE_HOJE=HOJE,
-                        FORGE_REPO_URL=str(self.publicado), FORGE_PERMITE_LOCAL="1")
-        self.env.pop("XDG_STATE_HOME", None)
-        self.env = sem_manutencao(self.env)
+        tmp = Path(tempfile.mkdtemp(prefix="atualizar-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        # S-SUITE-RAPIDA: o Forge publicado com a tag da versão, o remoto e o projeto clonado são os mesmos em todo teste;
+        # montados uma vez por processo e copiados. O clone grava o caminho absoluto do remoto: a cópia aponta o dela.
+        modelo = copiar_modelo("atualizar-base", tmp, self._montar_modelo)
+        self._preparar(tmp)
+        self.env = sem_manutencao(self._ambiente())
+        config = self.proj / ".git" / "config"
+        config.write_text(config.read_text(encoding="utf-8").replace(str(modelo), str(tmp)), encoding="utf-8")
+
+    def _montar_modelo(self, pasta):
+        self._preparar(pasta)
+        self.env = sem_manutencao(self._ambiente())
+        self._escrever_arquivos_do_preparo()
         self.git("init", "-q", "--bare", "-b", "main", str(self.publicado), cwd=self.tmp)
         remoto_sem_manutencao(self.publicado)
         self.montar_projeto()
@@ -84,9 +80,36 @@ class Base(unittest.TestCase):
             "extraKnownMarketplaces": {"forge": {"source": {"source": "github", "repo": "dono/Forge"}}}}))
         self.publicar(VERSAO)
 
+    def _escrever_arquivos_do_preparo(self):
+        for p in (self.home, self.bin, self.fake):
+            p.mkdir()
+        (self.bin / "claude").write_text(CLAUDE_FALSO, encoding="utf-8")
+        (self.bin / "claude").chmod(0o755)
+        self.gitconfig.write_text("[user]\n\tname = Pessoa Teste\n\temail = pessoa@exemplo.test\n", encoding="utf-8")
+
+    def _preparar(self, tmp):
+        """Os caminhos do teste sobre `tmp` (sem escrever nada)."""
+        self.tmp = tmp
+        self.proj = self.tmp / "proj"
+        self.home, self.bin, self.fake = self.tmp / "home", self.tmp / "bin", self.tmp / "fake"
+        self.gitconfig = self.home / "gitconfig"
+        self.publicado = self.tmp / "forge-publicado.git"
+
+    def _ambiente(self):
+        """O ambiente do teste, antes do ponto único (`sem_manutencao`, aplicado por quem chama)."""
+        # A suíte roda dentro do Claude Code (CLAUDECODE e CLAUDE_CODE_ENTRYPOINT definidas, `claude` ancestral), e os scripts
+        # se recusam a rodar aí (F5-01). Os testes do caminho feliz simulam "a pessoa no terminal": tiram essas variáveis do
+        # ambiente e rodam o script pelo lançador `sem_claude_ancestral`, que não olha acima do processo do teste.
+        env = {k: v for k, v in os.environ.items()
+               if not k.startswith("GIT_") and k not in ("CLAUDE_PROJECT_DIR", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", *SINAIS_DE_CUSTO)}
+        env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.gitconfig),
+                   PATH=f"{self.bin}:{os.environ['PATH']}", FAKE_DIR=str(self.fake), FORGE_HOJE=HOJE,
+                   FORGE_REPO_URL=str(self.publicado), FORGE_PERMITE_LOCAL="1")
+        env.pop("XDG_STATE_HOME", None)
+        return env
+
     def montar_projeto(self):
         remoto = self.tmp / "remoto.git"
-        self.proj = self.tmp / "proj"
         self.git("init", "-q", "--bare", "-b", "main", str(remoto), cwd=self.tmp)
         remoto_sem_manutencao(remoto)
         self.git("clone", "-q", str(remoto), str(self.proj), cwd=self.tmp)
@@ -709,6 +732,22 @@ class Dentro(Base):
                 self.assertIn("fora do Claude", r.stdout + r.stderr)
                 self.assertEqual(self.chamadas_do_claude(), [])
 
+    def test_o_lancador_ignora_um_claude_acima_do_teste(self):
+        """P2 da 0.43.1: a suíte rodada de dentro do Claude Code (o pre-push de um agente) tem um `claude` acima do processo do
+        teste. Prova, também no CI (onde não há `claude` de verdade), que o lançador o ignora e o script passa da guarda."""
+        pasta = self.tmp / "claude-acima"
+        pasta.mkdir()
+        teste = f"import os,subprocess,sys; sys.path.insert(0,{str(Path(__file__).resolve().parent)!r}); " \
+                f"from sem_claude_ancestral import comando; " \
+                f"sys.exit(subprocess.run(comando({str(VOLTAR)!r}, ate=os.getpid()), stdin=subprocess.DEVNULL).returncode)"
+        claude = pasta / "claude"  # o `claude` acima; o python que ele roda faz o papel do processo do teste
+        claude.write_text(f"#!/bin/sh\n{sys.executable} -c \"{teste}\"\n", encoding="utf-8")
+        claude.chmod(0o755)
+        r = subprocess.run([str(claude)], env=self.env, cwd=self.proj, capture_output=True, text=True, timeout=60,
+                           stdin=subprocess.DEVNULL)
+        self.assertNotIn("fora do Claude", r.stdout + r.stderr)
+        self.assertIn("rode num terminal", r.stderr)  # passou da guarda e parou no passo seguinte (sem terminal)
+
     def test_fixar_tambem_recusa(self):
         self.recusa(ATUALIZAR, {**self.env, "CLAUDECODE": "1"}, "--fixar")
 
@@ -717,6 +756,45 @@ class Dentro(Base):
         codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
         self.assertEqual(codigo, 0, saida)
         self.assertNotIn("fora do Claude", saida)
+
+
+class DeteccaoDoClaude(unittest.TestCase):
+    """P2 da 0.43.1: `dentro_do_claude` decidida no próprio processo, com ambiente e árvore de processos fixados pelo teste,
+    nos dois sentidos. O resultado não depende de a suíte rodar dentro ou fora do Claude Code."""
+
+    def setUp(self):
+        sys.path.insert(0, str(RAIZ / "bin"))
+        self.addCleanup(sys.path.remove, str(RAIZ / "bin"))
+        import forge_versoes
+        self.fv = forge_versoes
+
+    def decidir(self, arvore, env=None, eu=100):
+        """`arvore`: {pid: (pai, nome)}; pid fora dela não se lê, como /proc ilegível."""
+        limpo = {k: v for k, v in os.environ.items() if k not in self.fv.VARIAVEIS_DO_CLAUDE_CODE}
+        with mock.patch.dict(os.environ, {**limpo, **(env or {})}, clear=True), \
+                mock.patch.object(self.fv.os, "getppid", return_value=eu), \
+                mock.patch.object(self.fv, "_pai_e_nome", side_effect=lambda pid: arvore.get(pid, (0, ""))):
+            return self.fv.dentro_do_claude()
+
+    def test_fora(self):
+        casos = {"terminal comum": {100: (50, "bash"), 50: (1, "sshd")},
+                 "ancestral ilegível": {},
+                 "nome parecido": {100: (50, "claude-x"), 50: (1, "xclaude")},
+                 "ciclo na árvore": {100: (50, "bash"), 50: (100, "sh")}}
+        for nome, arvore in casos.items():
+            with self.subTest(nome):
+                self.assertFalse(self.decidir(arvore))
+
+    def test_dentro(self):
+        casos = {"pai direto": {100: (1, "claude")}, "ancestral distante": {100: (50, "bash"), 50: (20, "sh"), 20: (1, "claude")},
+                 "nome com caixa e .exe": {100: (1, "Claude.exe")}}
+        for nome, arvore in casos.items():
+            with self.subTest(nome):
+                self.assertTrue(self.decidir(arvore))
+        for variavel in self.fv.VARIAVEIS_DO_CLAUDE_CODE:
+            with self.subTest(variavel=variavel):
+                self.assertTrue(self.decidir({100: (1, "bash")}, env={variavel: "1"}))
+                self.assertFalse(self.decidir({100: (1, "bash")}, env={variavel: ""}))
 
 
 class Voltar(Base):

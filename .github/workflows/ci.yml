@@ -1,11 +1,14 @@
 name: CI
 
-# Pull request: bateria completa (job "bateria"), em um job só porque o GitHub cobra cada job por minuto cheio (~10 jobs
-# de 10 s custavam 10 min). Push na develop: só o job "rapida", que roda a suíte inteira (scripts/suite-paralela.py, Python
-# 3.12) e não os demais passos da bateria (o PR já validou o mesmo conteúdo, R-FLUXO). Push na homolog e na main: a bateria
-# completa de novo. Commit de PR que só muda docs/reviews/, docs/qa/, docs/security/, docs/devops/ ou docs/ux/ (fora
-# modelos _* e docs/security/{ameacas,aceites}/), com a bateria verde no commit anterior, pula os passos pesados (gate
-# por passo, nunca paths-ignore: ele deixaria o check exigido pendente).
+# Pull request: a suíte inteira em 3 partes paralelas por versão de Python (jobs "suíte (python X, parte K/3)", pelo
+# scripts/suite-partes.py, o mecanismo do scripts/suite-paralela.py), os demais passos da bateria num job (bateria (passos))
+# e um job agregador por versão com o nome do check exigido ("bateria" e "bateria (python 3.14)"), que só passa com todas
+# as partes e passos verdes (SUITE-NO-CI, decisão do dono de 2026-11-08: a suíte inteira roda uma vez, no CI). Push na
+# develop: só o job "rapida", que roda a suíte inteira (scripts/suite-paralela.py, Python 3.12) e é a prova da develop
+# que a EST-M7 (scripts/arvore-testada.py) vai ler. Push na homolog e na main: tudo de novo. Commit de PR que só muda
+# docs/reviews/, docs/qa/, docs/security/, docs/devops/ ou docs/ux/ (fora modelos _* e docs/security/{ameacas,aceites}/),
+# com a bateria verde no commit anterior, pula os passos pesados do job de passos (gate por passo, nunca paths-ignore: ele
+# deixaria o check exigido pendente); as partes da suíte rodam sempre.
 on:
   pull_request:
     types: [opened, synchronize, reopened]  # rótulo e edição do PR reagem só em catraca.yml (sem a bateria pesada)
@@ -36,15 +39,68 @@ jobs:
       - name: Testes do Forge
         run: python3 scripts/suite-paralela.py
 
-  bateria-python-tres-quatorze:
-    name: bateria (python 3.14)
-    # Testes do Forge no Python 3.14, ao lado do 3.12 do job "bateria" (diferença de versão aparece no PR, CI-PY314).
-    # Só o que depende da versão do Python: a suíte e o e2e de instalação (python3 -c e bin/forge-init). Os gates de PR em
-    # Python (changelog, release, catraca) ficam na "bateria" (testes travam um passo só de cada) e a suíte os cobre no 3.14.
-    # shellcheck, actionlint, zizmor, claude plugin validate e a varredura de segredos não executam Python.
+  partes-doze:
+    name: suíte (python 3.12, parte ${{ matrix.parte }}/3)
+    # Um terço da suíte inteira por job (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nos três). O
+    # agregador "bateria" exige os três verdes; cada parte confere que a divisão cobre todo o discover.
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
     runs-on: ubuntu-26.04
-    timeout-minutes: 25
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        parte: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: env com -a (uutils-coreutils do apt; prova viva de 20 formas do lançador)
+        run: |
+          # uutils-coreutils do apt do runner (universe, sem custo): o env do runner pode recusar `-a`/`--argv0` (era o GNU env 9.4
+          # do ubuntu-24.04; o README da imagem 26.04 lista coreutils 9.5-1ubuntu2+0.0.0~ubuntu25, o pacote de transição para o
+          # uutils, e o passo abaixo confere o `env --version` e o `-a` de qualquer jeito). Sem `-a` a prova viva do lançador cairia
+          # de 20 formas para 2 (CI-ENV-ARGV0). Falha fechado: o passo reprova o job, sem tolerar falha.
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends rust-coreutils gnu-coreutils
+          alvo=/usr/lib/cargo/bin/coreutils/env
+          [ -x "$alvo" ] || { echo "faltou $alvo depois da instalação"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/env-argv0"
+          ln -sf "$alvo" "$RUNNER_TEMP/env-argv0/env"
+          echo "$RUNNER_TEMP/env-argv0" >> "$GITHUB_PATH"
+          # conferência no caminho que tests/apoio_volta_unica.py (envs_da_maquina, shutil.which) acha
+          export PATH="$RUNNER_TEMP/env-argv0:$PATH"
+          achado=$(python3 -c 'import shutil; print(shutil.which("env"))')
+          [ "$achado" = "$RUNNER_TEMP/env-argv0/env" ] || { echo "o env do PATH é $achado, não o do uutils"; exit 1; }
+          env -a x true || { echo "o env $achado não aceita -a"; exit 1; }
+          env X=1 printf '%s' ok | grep -qx ok || { echo "o env $achado não roda env X=1 printf"; exit 1; }
+          # gnuenv do gnu-coreutils (o GNU com prefixo): o env_gnu de tests/apoio_volta_unica.py exige toda grafia do
+          # --split-string, e o uutils 0.10.0 do 26.04 recusa as abreviaturas (--split, --spl=, --s). Falha fechado.
+          gnu=$(command -v gnuenv) || { echo "faltou gnuenv depois da instalação"; exit 1; }
+          [ "$("$gnu" --s 'echo a  b')" = "a b" ] || { echo "o $gnu não divide --s como o GNU"; exit 1; }
+          env --version | head -1
+      - name: Testes do Forge (parte)
+        env:
+          PARTE: ${{ matrix.parte }}
+        run: |
+          python3 --version
+          python3 scripts/suite-partes.py --parte "$PARTE/3"
+
+  partes-quatorze:
+    name: suíte (python 3.14, parte ${{ matrix.parte }}/3)
+    # Um terço da suíte inteira por job (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nos três). O
+    # agregador "bateria (python 3.14)" exige os três verdes; cada parte confere que a divisão cobre todo o discover.
+    if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        parte: [1, 2, 3]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -78,29 +134,60 @@ jobs:
           gnu=$(command -v gnuenv) || { echo "faltou gnuenv depois da instalação"; exit 1; }
           [ "$("$gnu" --s 'echo a  b')" = "a b" ] || { echo "o $gnu não divide --s como o GNU"; exit 1; }
           env --version | head -1
-      - name: Testes do Forge (Python 3.14)
+      - name: Testes do Forge (parte)
+        env:
+          PARTE: ${{ matrix.parte }}
         run: |
           python3 --version
-          python3 scripts/suite-paralela.py
+          python3 scripts/suite-partes.py --parte "$PARTE/3"
+
+  instalacao-quatorze:
+    name: instalação (python 3.14)
+    # O e2e de instalação no Python 3.14 (python3 -c e bin/forge-init), ao lado das partes da suíte (CI-PY314).
+    if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        if: ${{ !cancelled() }}
         with:
           node-version: "24"
       - name: Claude Code CLI (nova tentativa só na instalação, por falha de rede; confere a versão)
-        if: ${{ !cancelled() }}
         run: |
           instalar() { npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296; }
           instalar || { echo "instalação falhou (rede); uma segunda tentativa"; sleep 5; instalar; }
           claude --version
       - name: Instala o Forge num projeto vazio e inicializa (Python 3.14)
-        if: ${{ !cancelled() }}
         run: bash tests/e2e-instalacao.sh
 
+  bateria-python-tres-quatorze:
+    name: bateria (python 3.14)
+    # Agregador do check exigido: só passa com as 3 partes e a instalação no 3.14 em success. always(): falha, cancelamento
+    # ou pulo de um job necessário reprova este (um job pulado contaria como verde para a regra de proteção).
+    needs: [partes-quatorze, instalacao-quatorze]
+    if: always() && (github.event_name != 'push' || github.ref != 'refs/heads/develop')
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Partes e instalação verdes
+        env:
+          PARTES: ${{ needs.partes-quatorze.result }}
+          INSTALACAO: ${{ needs.instalacao-quatorze.result }}
+        run: |
+          echo "partes: $PARTES; instalação: $INSTALACAO"
+          [ "$PARTES" = success ] && [ "$INSTALACAO" = success ]
+
   bateria:
-    name: bateria
+    name: bateria (passos)
+    # Tudo da bateria menos a suíte, que roda em partes-doze; o agregador "bateria" exige este job e as partes.
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
     runs-on: ubuntu-26.04
-    timeout-minutes: 25
+    timeout-minutes: 20
     permissions:
       contents: read
       checks: read  # o gate lê o resultado da bateria no commit anterior do PR
@@ -261,38 +348,26 @@ jobs:
             exit 0
           fi
           python3 "$script" --raiz "$RUNNER_TEMP/pr" "${provas[@]}"
-      - name: env com -a (uutils-coreutils do apt; prova viva de 20 formas do lançador)
-        if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
-        run: |
-          # uutils-coreutils do apt do runner (universe, sem custo): o env do runner pode recusar `-a`/`--argv0` (era o GNU env 9.4
-          # do ubuntu-24.04; o README da imagem 26.04 lista coreutils 9.5-1ubuntu2+0.0.0~ubuntu25, o pacote de transição para o
-          # uutils, e o passo abaixo confere o `env --version` e o `-a` de qualquer jeito). Sem `-a` a prova viva do lançador cairia
-          # de 20 formas para 2 (CI-ENV-ARGV0). Falha fechado: o passo reprova o job, sem tolerar falha.
-          set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends rust-coreutils gnu-coreutils
-          alvo=/usr/lib/cargo/bin/coreutils/env
-          [ -x "$alvo" ] || { echo "faltou $alvo depois da instalação"; exit 1; }
-          mkdir -p "$RUNNER_TEMP/env-argv0"
-          ln -sf "$alvo" "$RUNNER_TEMP/env-argv0/env"
-          echo "$RUNNER_TEMP/env-argv0" >> "$GITHUB_PATH"
-          # conferência no caminho que tests/apoio_volta_unica.py (envs_da_maquina, shutil.which) acha
-          export PATH="$RUNNER_TEMP/env-argv0:$PATH"
-          achado=$(python3 -c 'import shutil; print(shutil.which("env"))')
-          [ "$achado" = "$RUNNER_TEMP/env-argv0/env" ] || { echo "o env do PATH é $achado, não o do uutils"; exit 1; }
-          env -a x true || { echo "o env $achado não aceita -a"; exit 1; }
-          env X=1 printf '%s' ok | grep -qx ok || { echo "o env $achado não roda env X=1 printf"; exit 1; }
-          # gnuenv do gnu-coreutils (o GNU com prefixo): o env_gnu de tests/apoio_volta_unica.py exige toda grafia do
-          # --split-string, e o uutils 0.10.0 do 26.04 recusa as abreviaturas (--split, --spl=, --s). Falha fechado.
-          gnu=$(command -v gnuenv) || { echo "faltou gnuenv depois da instalação"; exit 1; }
-          [ "$("$gnu" --s 'echo a  b')" = "a b" ] || { echo "o $gnu não divide --s como o GNU"; exit 1; }
-          env --version | head -1
-      - name: Testes do Forge
-        if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
-        run: python3 scripts/suite-paralela.py
       - name: shellcheck (scripts e hooks)
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: shellcheck bin/forge-init bin/forge-fechar scripts/jarvis scripts/jarvis-forge scripts/preparar-estacao.sh scripts/instalar-atalho.sh scripts/verificar-contribuicao.sh scripts/validar-plugin.sh scripts/configurar-ambiente-local.sh tests/e2e-instalacao.sh .githooks/pre-push templates/projeto/.githooks/pre-push
       - name: Instala o Forge num projeto vazio e inicializa
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: bash tests/e2e-instalacao.sh
+
+  agregador:
+    name: bateria
+    # Agregador do check exigido: só passa com os passos e as 3 partes da suíte no 3.12 em success. always(): falha,
+    # cancelamento ou pulo de um job necessário reprova este (um job pulado contaria como verde para a regra de proteção).
+    needs: [bateria, partes-doze]
+    if: always() && (github.event_name != 'push' || github.ref != 'refs/heads/develop')
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Passos e partes verdes
+        env:
+          PASSOS: ${{ needs.bateria.result }}
+          PARTES: ${{ needs.partes-doze.result }}
+        run: |
+          echo "passos: $PASSOS; partes: $PARTES"
+          [ "$PASSOS" = success ] && [ "$PARTES" = success ]

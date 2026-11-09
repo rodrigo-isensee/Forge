@@ -11,6 +11,19 @@ CONFIG = json.loads((RAIZ / "tests" / "config.json").read_text(encoding="utf-8")
 ANTES = json.loads((RAIZ / "tests" / "fixtures" / "jarvis-invariantes-b2580c6.json").read_text(encoding="utf-8"))
 JARVIS = "agents/jarvis.md"
 SKILLS_NOVAS = ("briefs-e-conferencia", "trabalho-em-paralelo", "falar-com-o-dono")
+# 0.43.1 (decisões do dono de 2026-11-08, "Faça tudo"): o brief é selado pela ferramenta, a entrega é conferida por ela e as
+# perguntas ao dono vão em lote. Estes trechos descreviam a conferência manual pelo agente conferente (mensagem, hash, Base-sha,
+# passada única, autoconferência) e a pergunta uma por vez: saem por mudança de processo, não por afrouxamento. O que eles
+# protegiam passou para a ferramenta (`forge-check brief selar`, `forge-check entrega`) e para R-BRIEF, R-PROVA e R-DECISAO.
+RETIRADOS_0431 = frozenset({
+    "lista \\*\\*todos os achados\\*\\* de uma vez; corrija todos", "Autoconferência fixa do brief", "Brief-sha256",
+    "nunca a própria branch", "ele não vê o relatório", "uma pergunta por vez", "`<<<BRIEF`", "`Base-sha:`",
+    "`Arquivo:` \\(o caminho do brief", "linhas>=N",
+})
+# Um número só por trava (docs/regras/orcamento.json): o núcleo (jarvis.md + docs/regras/*.md, decisão 11 do dono) e o teto do
+# arquivo do Jarvis (o mesmo que tests/test_orcamento_instrucao.py aplica).
+ORCAMENTO = json.loads((RAIZ / "docs" / "regras" / "orcamento.json").read_text(encoding="utf-8"))
+ORCAMENTO_0431 = ORCAMENTO["nucleo"]["teto_caracteres"]
 
 
 def ler(rel):
@@ -24,7 +37,8 @@ def arquivos_do_nucleo():
 class NucleoCurtoDoJarvis(unittest.TestCase):
     def test_todo_invariante_do_jarvis_existe_no_jarvis_ou_na_skill_nova(self):
         self.assertGreaterEqual(len(ANTES), 73)
-        exigidos = {t: [] for t in ANTES}
+        self.assertEqual(len(RETIRADOS_0431 & set(ANTES)), len(RETIRADOS_0431), "retirado que não era invariante")
+        exigidos = {t: [] for t in ANTES if t not in RETIRADOS_0431}
         for rel in arquivos_do_nucleo():
             for t in CONFIG["invariantes"].get(rel, []):
                 if t in exigidos:
@@ -69,10 +83,37 @@ class NucleoCurtoDoJarvis(unittest.TestCase):
         nucleo = ler(JARVIS)
         passo6 = re.search(r"^6\. \*\*QA\*\*.*$", nucleo, re.M)
         self.assertIsNotNone(passo6, "o passo 6 (QA) sumiu do núcleo")
-        for trecho in ("obrigatório em toda entrega", "em paralelo ao passo 5, no mesmo head", "brief único"):
+        for trecho in ("obrigatório nas classes N e C", "em paralelo ao passo 5, no mesmo head", "brief único"):
             with self.subTest(trecho=trecho):
                 self.assertIn(trecho, passo6.group(0))
         self.assertLessEqual(len(nucleo.splitlines()), 110)
+
+
+class OrcamentoDeInstrucao(unittest.TestCase):
+    """0.43.1, decisão 11: o Jarvis e as regras que ele carrega com no máximo metade do tamanho da base; o procedimento mora na ferramenta."""
+
+    def test_jarvis_e_regras_cabem_na_metade_da_base(self):
+        self.assertEqual(ORCAMENTO_0431, 75_022 // 2)  # metade da base da 0.43: subir é afrouxar
+        arquivos = [RAIZ / JARVIS, *sorted((RAIZ / "docs" / "regras").glob("*.md"))]
+        self.assertGreaterEqual(len(arquivos), 18)
+        total = sum(len(a.read_text(encoding="utf-8")) for a in arquivos)
+        self.assertLessEqual(total, ORCAMENTO_0431)
+
+    def test_toda_regra_tem_revisao_e_medida(self):  # decisão 10: `Revisar em:` e `Medida:` no começo da linha
+        regras = sorted((RAIZ / "docs" / "regras").glob("R-*.md"))
+        self.assertGreaterEqual(len(regras), 17)
+        for regra in regras:
+            with self.subTest(regra=regra.name):
+                texto = regra.read_text(encoding="utf-8")
+                self.assertRegex(texto, r"(?m)^Revisar em: \d{4}-\d{2}-\d{2}$")
+                self.assertRegex(texto, r"(?m)^Medida: \S")
+
+    def test_o_conferente_e_opcional_e_a_forma_e_da_ferramenta(self):
+        nucleo = ler(JARVIS)
+        for trecho in ("forge-check brief selar", "forge-check entrega --pedido <p> --branch <b> --etapa <etapa>", "forge-check classe",
+                       "forge-check parecer delta <parecer>", "Opcional, só leitura"):
+            with self.subTest(trecho=trecho):
+                self.assertIn(trecho, nucleo)
 
 
 class RevalidaMesmaInstancia(unittest.TestCase):
@@ -86,7 +127,7 @@ class RevalidaMesmaInstancia(unittest.TestCase):
 
     def test_o_nucleo_segue_no_teto(self):
         nucleo = ler(JARVIS)
-        self.assertLess(len(nucleo), 24000)
+        self.assertLessEqual(len(nucleo), ORCAMENTO["agentes"]["jarvis"]["teto"]["agente_caracteres"])
         self.assertLessEqual(len(nucleo.splitlines()), 110)
 
 

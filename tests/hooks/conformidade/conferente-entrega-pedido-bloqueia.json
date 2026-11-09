@@ -1,0 +1,19 @@
+{
+  "descricao": "0.43.1: a forma nova `entrega --pedido` grava a `entrega conferida` no pedido; o conferente (só leitura) não a roda.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "forge-check entrega --pedido p1 --branch melhoria/x --etapa codigo"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:conferente"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "grava no Histórico do pedido"
+  }
+}

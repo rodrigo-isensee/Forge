@@ -186,6 +186,8 @@ class QaPareceresDaBranch(RepoComOrigem):
         self.assertIn("sem parecer da branch \"melhoria/x\" para o pedido `p1`", saida)
 
     def test_so_o_parecer_de_qa_faltando_reprova(self):
+        n = self.commitar(self.repo, {"src/z.txt": "".join(f"z{i}\n" for i in range(25))}, "entrega maior")  # P5: classe N, que pede QA
+        self.pareceres(n)
         self.alheios("aprovado")
         git("rm", "-q", "docs/qa/p1.md", cwd=self.repo)
         git("commit", "-q", "-m", "tira o QA da branch", cwd=self.repo)

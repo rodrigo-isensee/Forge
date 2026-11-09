@@ -1,29 +1,28 @@
 ---
 id: R-FLUXO
-titulo: Branches e promoção
-verificada_por: passo "Nada pula degrau" do job `bateria` do CI (.github/workflows/ci.yml); hook .githooks/pre-push do Forge; revisão
+titulo: Branches, integração contínua e promoção
+verificada_por: passo "Nada pula degrau" do job `bateria` do CI (.github/workflows/ci.yml); CI obrigatório para o merge; hook .githooks/pre-push do Forge; revisão
 ---
-# R-FLUXO: Branches e promoção
+# R-FLUXO: Branches, integração contínua e promoção
 
-Propósito: texto único desta regra; os outros arquivos citam o ID. Público: todo o time. Revisão: 2026-10-12.
+Propósito: texto único desta regra; os outros arquivos citam o ID. Público: todo o time.
+
+Revisar em: 2027-01-07
+Medida: 61 branches e 8 grupos de pareceres da união na versao-043 (estudo 0.43.1)
 
 ## No Forge
-- Fluxo: `melhoria/*` → `develop` → `homolog` → `main`. Nada pula degrau (o CI confere) e ninguém envia direto para essas três branches (o hook do Forge bloqueia).
-- `develop`: a bateria completa (testes estruturais, shellcheck, validação do plugin, instalação de ponta a ponta) roda **no pull request**; o `tech-lead` mescla com todos os checks verdes. O push na `develop` depois do merge roda só a checagem rápida (testes estruturais), porque o PR já validou o mesmo conteúdo (decisão do dono em 2026-10-13, para poupar minutos do CI).
-- `homolog`: a mesma bateria completa, de novo, sobre o conjunto que vai para a `main` (no PR de promoção e no push). O `tech-lead` promove `develop` → `homolog` por PR aberto com o merge automático ligado (`gh pr merge <branch> --auto --merge --match-head-commit <sha>`), que mescla sozinho quando todos os checks passam; com o merge automático desligado no repositório, o `tech-lead` mescla com tudo verde. Só a `homolog`: a `main` segue só com o merge do usuário.
-- `main`: **a promoção `homolog` → `main` é um PR que só o usuário mescla** (`R-MAIN`). Depois do merge, a release `vX.Y.Z` é publicada.
-  - **PR de release, um só por candidato:** o `tech-lead` abre o PR só depois do portão da `homolog` verde. Antes de criar, lista com `gh pr list --base main --head homolog --state open --json number,author,baseRefName,isCrossRepository,title`. Erro do `gh` não é "sem PR": só cria quando a listagem terminou com sucesso e veio vazia. Existe um: confere `isCrossRepository` falso, `baseRefName` igual a `main` e o autor esperado; mais de um PR, PR de fork ou autor inesperado, **pare e leve ao Jarvis** (`R-DECISAO`), sem editar. Conferido, edita só título e corpo (`gh pr edit <número> --title ... --body-file <arquivo>`): nunca `--base`, `--head`, `--add-reviewer` nem estado ou rascunho; base errada, feche e leve ao Jarvis. O corpo vai por arquivo (nunca `--body` com texto interpolado), só com resumo e links dos pareceres, sem segredo, dado pessoal nem log bruto; se o usuário já viu o PR, uma linha no corpo diz que foi editado e por quê. O `tech-lead` cria ou edita o PR e para aí: mesclar, `gh pr merge`, `--auto` e push na `main` são do usuário (`R-MAIN`). Check do PR em andamento: espere e, se falhar por causa externa, reexecute o mesmo sha, sem afrouxar o check; entre os checks do PR para a `main` estão "Nada pula degrau" (só da `homolog`) e o de versão nova e `CHANGELOG` fechado (skill `ci-cd`, "Ambientes e releases").
-- Métodos de merge (decisão do dono em 2026-10-16, ADR 0012, que substitui a parte da ADR 0008 sobre a `main`): `develop` por **squash** (um PR vira um commit); `homolog` por **merge commit**; `main` por **merge commit**, mesclado pelo usuário. A `main` acumula só os commits de merge do PR `homolog` → `main`, sem conteúdo próprio; por isso **não há PR de sincronização** `main` → `develop`.
-- **Fila de integração na `develop`:** PRs prontos (com os pareceres aprovados) entram **um por vez, em ordem de chegada**; o próximo só atualiza a base (merge da `develop`) depois que o anterior entrou, para não revalidar por conflito à toa. PR que não tem arquivo em comum com os da fila, segundo `forge-check sobreposicao`, não espera. Durante a release (versão da `origin/develop` maior que a da `origin/homolog`; a trava lê a `develop` do remoto, depois de `git fetch`, e não a cópia local), o integrador roda `forge-check sobreposicao --ref <branch>` antes de mesclar na `develop` e espera a promoção se ele barrar (só a `melhoria/release-<versão>` passa). A fila só ordena a entrada; nenhum check nem parecer é dispensado.
-- Melhoria de fábrica vinda de qualquer projeto entra por PR na `develop` (skill `contribuir-com-o-forge`).
-- **Depois do merge, limpe tudo** (decisão do dono em 2026-10-13: ele não consegue saber quais branches ainda têm trabalho). Quem mesclou, ou o autor se o dono mesclou: (1) confere que o head remoto da branch é o `headRefOid` do PR mesclado e, só então, apaga a branch remota, sem pedir nova confirmação (exceção da `R-VERIFY`, só para branch de trabalho: `melhoria/*` no Forge; `feature/`, `fix/`, `docs/`, `chore/`, `refactor/` no projeto; nunca `main`, `master`, `develop`, `homolog` nem a branch de integração do `CLAUDE.md`, mesmo que tenham sido head de PR mesclado; head diferente, ou PR não mesclado, volta a pedir confirmação ao dono) (`git push origin --delete <branch>`, ou `--delete-branch` no `gh pr merge`, com a mesma restrição); (2) remove a worktree (`git worktree remove <caminho>`) e depois a branch local (`git branch -D <branch>`, sem confirmação só se o head local também é o `headRefOid`; com commit local a mais, peça confirmação). **Nunca** apague `develop`, `homolog` nem `main`. Se o sandbox impedir a remoção (erro "Device or resource busy"), avise o dono e passe a ele o comando `git worktree prune` para rodar no terminal.
+- `melhoria/*` → `develop` → `homolog` → `main`. Nada pula degrau, e ninguém envia direto a essas três (CI e hook).
+- **Fluxo contínuo:** cada item com os pareceres da sua classe aprovados e o CI verde entra na `develop` quando fica pronto, sem esperar lote nem versão; a versão é uma tag e release sobre um commit da `develop`.
+- `develop`: a bateria completa roda no CI do PR, obrigatória para o merge; o `tech-lead` mescla com tudo verde.
+- `homolog`: o `tech-lead` promove o commit da versão por PR com merge automático. Só a `homolog`: a `main` segue só com o merge do usuário.
+- `main`: **a promoção `homolog` → `main` é um PR que só o usuário mescla** (`R-MAIN`); depois do merge a release `vX.Y.Z` é publicada. O `tech-lead` abre esse PR (um só, base `main`, sem fork) e para.
+- Métodos de merge (ADR 0012): `develop` por **squash**; `homolog` e `main` por merge commit (`main` por **merge commit**, mesclado pelo usuário). Por isso não há PR de sincronização `main` → `develop`.
+- **Fila de integração na `develop`:** PRs com arquivo em comum (`forge-check sobreposicao`) entram em ordem de chegada; os outros não esperam. A fila não dispensa check nem parecer.
+- **Depois do merge, limpe tudo**: com o head remoto e o local iguais ao `headRefOid` do PR mesclado, quem mesclou apaga a branch remota, a worktree e a branch local sem nova confirmação (só branch de trabalho: `melhoria/*`; no projeto `feature/`, `fix/`, `docs/`, `chore/`, `refactor/`). Fora disso, confirme. **Nunca** apague `develop`, `homolog` nem `main`, nem a integração do `CLAUDE.md`. Sandbox impediu: o dono roda `git worktree prune`.
 
 ## No projeto
-- Trabalho em branch própria (`feature/`, `fix/`, `docs/`, `chore/`, `refactor/` + slug) criada a partir da branch de integração atualizada; o padrão é a `develop`, e o `CLAUDE.md` do projeto pode definir outra.
-- A integração chega à `main` por PR validado e mesclado pelo usuário (`R-MAIN`).
-- Só se commita o que está pronto.
-- Depois do merge, vale a mesma limpeza do Forge ("Depois do merge", em "No Forge"): a branch de trabalho com PR mesclado e head igual ao do PR é apagada sem nova confirmação; `main`, `master`, `develop`, `homolog` e a branch de integração nunca entram, nem como `--delete-branch`.
+- Branch de trabalho a partir da integração (padrão `develop`, ou a do `CLAUDE.md`); a integração chega à `main` por PR do usuário (`R-MAIN`). Mesma limpeza do Forge.
 
 ## No Forge e no projeto
-- **Atualize a branch com a integração só na hora do merge** (`git fetch` + merge da `develop`; no projeto, da branch de integração do `CLAUDE.md`). Antes disso a branch fica na base em que nasceu: os pareceres de review e de QA valem pelo diff da entrega, e o `forge-check pr` confere o merge simulado com a integração atual (conflito que muda o patch continua invalidando os pareceres dos arquivos tocados).
-- Merge da base sem conflito não muda o patch da entrega e não invalida parecer. Resolução de conflito que faz o patch divergir invalida os pareceres dos arquivos que ela tocou (`forge-check pr <pedido>`, `commit_vale`). Quem resolveu o conflito não decide o alcance: a ferramenta aponta os pareceres desatualizados, e quem deu o parecer revalida em proporção ao que mudou (revalidação incremental, `R-QA`) e grava o novo.
+- **Atualize a branch com a integração só na hora do merge**: antes, o `forge-check pr` confere o merge simulado com a integração atual.
+- Merge da base sem conflito não invalida parecer; o conflito resolvido que muda o patch invalida os pareceres dos arquivos que ela tocou, cada um no seu domínio. Quem resolveu o conflito não decide o alcance: a ferramenta aponta e quem deu o parecer revalida pelo delta (`R-REVIEW`).

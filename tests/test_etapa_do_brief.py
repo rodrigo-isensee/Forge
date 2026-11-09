@@ -886,12 +886,13 @@ class VoltaIdentica(unittest.TestCase):
 
     def test_bloco_igual_byte_a_byte_e_marcado_idêntico(self):
         linhas = [l for l, _ in fc.blocos_identicos(self.ANTES, self.ANTES)]
-        self.assertEqual(linhas, [f'volta: bloco "{n}" idêntico ao anterior (exigido)' for n in ("Objetivo", "Fora do escopo", "Relatório")])
+        # 0.43.1 (C2): o Fora do escopo sai do pedido na volta, não é mais cópia do anterior
+        self.assertEqual(linhas, [f'volta: bloco "{n}" idêntico ao anterior (exigido)' for n in ("Objetivo", "Relatório")])
 
     def test_bloco_alterado_nao_e_marcado(self):
-        linhas = [l for l, _ in fc.blocos_identicos(self.ANTES.replace("- b", "- c"), self.ANTES)]
-        self.assertNotIn('volta: bloco "Fora do escopo" idêntico ao anterior (exigido)', linhas)
-        self.assertEqual(len(linhas), 2)
+        linhas = [l for l, _ in fc.blocos_identicos(self.ANTES.replace("Objetivo\nA.", "Objetivo\nZ."), self.ANTES)]
+        self.assertNotIn('volta: bloco "Objetivo" idêntico ao anterior (exigido)', linhas)
+        self.assertEqual(len(linhas), 1)
 
 
     def test_bloco_ausente_no_anterior_nao_e_marcado(self):

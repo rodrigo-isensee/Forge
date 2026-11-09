@@ -75,7 +75,7 @@ class ClonePronto(unittest.TestCase):
         entrada = {"hook_event_name": nome, "session_id": "s", "cwd": str(onde), **campos}
         return rodar_hook("agentes", entrada, onde, self.proc(nproc), {"FORGE_NPROC": str(nproc)})
 
-    def lancar(self, onde, descricao="d", tipo="forge:x", nproc=4):
+    def lancar(self, onde, descricao="d", tipo="time:x", nproc=4):  # fora do plugin: o selo (0.43.1) é de test_selo_e_entrega
         return self.evento("PreToolUse", onde, nproc, tool_name="Agent",
                            tool_input={"subagent_type": tipo, "description": descricao, "prompt": "p"})
 
@@ -141,7 +141,7 @@ class RegistroNoClone(ClonePronto):
         """A15: o `agentes` segue sem `critico`; `FORGE_GUARDA_ABERTA=1` não libera o teto cheio."""
         self.semear(2)
         entrada = {"hook_event_name": "PreToolUse", "session_id": "s", "cwd": str(self.clone), "tool_name": "Agent",
-                   "tool_input": {"subagent_type": "forge:x", "description": "d", "prompt": "p"}}
+                   "tool_input": {"subagent_type": "time:x", "description": "d", "prompt": "p"}}
         r = rodar_hook("agentes", entrada, self.clone, self.proc(2), {"FORGE_NPROC": "2", "FORGE_GUARDA_ABERTA": "1"})
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("R-TETO", r.stderr)

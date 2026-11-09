@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
-"""Forge: teto de agentes, relançamento duplicado (ADR 0003, R-TETO) e forma da mensagem ao conferente (R-BRIEF).
+"""Forge: teto de agentes, relançamento duplicado (ADR 0003, R-TETO), brief selado do especialista e forma da mensagem ao conferente (R-BRIEF).
+
+P1 (0.43.1): todo disparo de `forge:<papel>` (fora o conferente) exige no prompt o caminho de um brief em docs/briefs/ com selo no
+`## Histórico` do pedido (`- <data> <hora>: brief selado docs/briefs/<nome>.md <sha256>`, gravado só pelo `forge-check brief selar`)
+e com o sha256 de agora; sem isso, bloqueia (falha fechada). O conferente é opcional e segue com a forma e o hash da mensagem.
 
 O teto é adaptativo (nproc, load de 1 min e memória lidos de /proc; fallback 3) e `teto_agentes` em
 .forge/config.json o fixa; `teto_maximo` limita o adaptativo.
-PreToolUse (Agent/Task): bloqueia qualquer disparo com load >= 0,8 x nproc ou MemAvailable <= max(1 GB, 15% do total) (R-TETO);
+PreToolUse (Agent/Task): bloqueia qualquer disparo com MemAvailable <= o piso de memória (padrão 2 GB; `piso_memoria_gb` em
+.forge/config.json o muda), sem trava por load (R-TETO, decisão do dono R-TETO-DISPONIBILIDADE de 2026-11-06 14:26);
 bloqueia também se já há o teto de agentes ativos ou um ativo com o mesmo tipo e descrição;
-senão reserva a vaga. `FORGE_CARGA_LIVRE=1` no ambiente do processo (só o dono) pula só a trava de carga
+senão reserva a vaga. `FORGE_CARGA_LIVRE=1` no ambiente do processo (só o dono) pula só a trava de memória
 (teto e duplicado seguem; o uso fica no erros.log). SubagentStart confirma a reserva com o agent_id; SubagentStop libera a vaga.
 Estado em .forge/run/agentes.json; no clone do Forge e nas worktrees dele (onde `.forge` é um arquivo, não uma pasta),
 em <diretório comum do git>/forge/run/agentes.json: protegido pela conformidade só nas sessões de projeto, no Forge sem guarda
@@ -32,9 +37,7 @@ RESERVA_S = 300  # a reserva sem SubagentStart (lançamento negado ou falho) nã
 
 
 GB_KB = 1024 * 1024
-CARGA_MAX = 0.8  # fração de nproc: o load de 1 min abaixo disso (R-TETO)
-PISO_GB = 1.0  # piso de memória disponível; vale o maior entre ele e PISO_FRACAO do total
-PISO_FRACAO = 0.15
+PISO_GB_PADRAO = 2.0  # R-TETO-DISPONIBILIDADE (dono, 2026-11-06 14:26): só o piso de memória disponível; o load não trava
 
 
 def nucleos():
@@ -68,12 +71,21 @@ def medir(proc=None):
     return carga, memoria, total
 
 
-def carga_alta(carga, memoria, total, nproc):
-    """R-TETO: load de 1 min >= 0,8 x nproc ou MemAvailable <= max(1 GB, 15% do total).
-    Sem medida (None), nunca é carga alta."""
-    if None in (carga, memoria, total, nproc):
+def piso_de_memoria(config=None):
+    """GB de MemAvailable abaixo (ou igual) dos quais nenhum agente sai: `piso_memoria_gb` de .forge/config.json, número positivo;
+    ausente ou inválido (booleano, texto, zero ou negativo), o padrão de 2 GB (R-TETO-DISPONIBILIDADE)."""
+    valor = (config or {}).get("piso_memoria_gb")
+    if isinstance(valor, bool) or not isinstance(valor, (int, float)) or not valor > 0:
+        return PISO_GB_PADRAO
+    return float(valor)
+
+
+def carga_alta(carga, memoria, total, nproc, piso=PISO_GB_PADRAO):
+    """R-TETO (R-TETO-DISPONIBILIDADE, 2026-11-06): MemAvailable <= `piso` GB. O load de 1 min e o nproc não travam mais (ficam na
+    assinatura para quem já chama). Sem a medida de memória (None), nunca é carga alta."""
+    if memoria is None:
         return False
-    return carga >= CARGA_MAX * nproc or memoria <= max(PISO_GB, PISO_FRACAO * total)
+    return memoria <= piso
 
 
 def teto_adaptativo(carga, memoria, total, nproc):
@@ -325,6 +337,42 @@ def branches_dos_briefs(hook, prompt):
     return sorted(branches)
 
 
+def exige_selo(tipo):
+    """P1 (0.43.1): o especialista do Forge (`forge:<papel>`) só sai com brief selado; o conferente (opcional, conferência de conteúdo
+    pedida pelo Jarvis) segue com a forma e o hash da mensagem. Os tipos fora do plugin não passam por aqui."""
+    return tipo.startswith("forge:") and tipo != CONFERENTE
+
+
+def selo_ausente(hook, prompt):
+    """P1 (0.43.1, R-BRIEF): por que o disparo de especialista não pode sair, ou None. O prompt cita ao menos um brief em docs/briefs/
+    (até MAXIMO_DE_BRIEFS); cada um citado precisa de selo com o sha256 de agora no `## Histórico` do pedido dele (`selo_do_brief`
+    do forge-check, a mesma função que o `brief selar` usa para gravar). Linha `Brief-sha256:` no prompt, se houver, precisa ser o hash
+    de um brief citado. Erro na leitura é falta (falha fechada, só nesta mensagem)."""
+    texto = str(prompt or "")
+    caminhos = list(dict.fromkeys(caminhos_de_brief(texto)))
+    if not caminhos:
+        return "o prompt não cita o brief (docs/briefs/<pedido>-<papel>-<n>.md)"
+    if len(caminhos) > MAXIMO_DE_BRIEFS:
+        return f"{len(caminhos)} briefs citados (máximo {MAXIMO_DE_BRIEFS})"
+    fc, hashes = forge_check(), set()
+    for caminho in caminhos:
+        real = str(Path.home() / caminho[2:]) if caminho.startswith("~/") else caminho
+        try:
+            dados = ler_brief(hook, real)
+        except (OSError, ValueError, RuntimeError):
+            dados = None
+        if dados is None:
+            return f"{caminho}: o brief não abriu, não está em docs/briefs/ ou passa de 256 KiB"
+        motivo = fc.selo_do_brief(os.path.realpath(hook.cwd() / real), dados)
+        if motivo:
+            return motivo
+        hashes.add(hashlib.sha256(dados).hexdigest())
+    citados = set(VALOR_DO_HASH.findall(texto))
+    if citados - hashes:
+        return "a linha `Brief-sha256:` do prompt não é o hash de um brief citado"
+    return None
+
+
 def lancar(hook, agentes, agora):
     entrada = hook.campo("tool_input") or {}
     tipo = str(entrada.get("subagent_type") or "general-purpose")
@@ -335,6 +383,15 @@ def lancar(hook, agentes, agora):
     divergencia = hash_do_brief_diverge(hook, entrada.get("prompt")) if tipo == CONFERENTE else None
     if divergencia:
         bloquear("R-BRIEF", f"{divergencia}; gere de novo com `forge-check brief mensagem` e envie-a.")
+    if exige_selo(tipo):
+        try:
+            sem_selo = selo_ausente(hook, entrada.get("prompt"))
+        except Exception as erro:  # noqa: BLE001 - falha fechada: sem prova do selo, o especialista não sai
+            hook.registrar_erro(erro)
+            sem_selo = "erro ao conferir o selo (registrado no erros.log)"
+        if sem_selo:
+            bloquear("R-BRIEF", f"{sem_selo}; sele o brief com `forge-check brief selar --arquivo <brief> --pedido <id>` e cite o "
+                                "caminho dele no prompt (o selo vale para o sha256 de agora).")
     descricao = " ".join(str(entrada.get("description") or "").split())
     for a in agentes:
         if descricao and a.get("tipo") == tipo and a.get("descricao") == descricao:
@@ -345,14 +402,13 @@ def lancar(hook, agentes, agora):
     for variavel in ("FORGE_NPROC", "FORGE_PROC"):  # substituem a medida real: ficam registrados
         if os.environ.get(variavel):
             hook.registrar_escape(f"{variavel}={os.environ[variavel]} substitui a medida real do teto de agentes")
-    if carga_alta(carga, memoria, total, nproc):  # vale para qualquer teto: teto_agentes e teto_maximo não desligam
-        if os.environ.get("FORGE_CARGA_LIVRE") == "1":  # escape só do dono: pula só a trava de carga
-            hook.registrar_escape(f"FORGE_CARGA_LIVRE=1 liberou o disparo com carga alta (load {carga:.1f} de {nproc} núcleos, "
-                                  f"{memoria:.1f} GB disponíveis)")
+    piso = piso_de_memoria(hook.config())
+    if carga_alta(carga, memoria, total, nproc, piso):  # vale para qualquer teto: teto_agentes e teto_maximo não desligam
+        if os.environ.get("FORGE_CARGA_LIVRE") == "1":  # escape só do dono: pula só a trava de memória
+            hook.registrar_escape(f"FORGE_CARGA_LIVRE=1 liberou o disparo com memória baixa ({memoria:.1f} GB disponíveis, piso {piso:.1f} GB)")
         else:
-            bloquear("R-TETO", f"carga alta (load {carga:.1f} de {nproc} núcleos, {memoria:.1f} GB disponíveis; limite: load "
-                               f"{CARGA_MAX * nproc:.1f} e {max(PISO_GB, PISO_FRACAO * total):.1f} GB): "
-                               "nenhum agente novo; espere a carga baixar; só o dono: FORGE_CARGA_LIVRE=1.")
+            bloquear("R-TETO", f"memória baixa ({memoria:.1f} GB disponíveis; piso {piso:.1f} GB, `piso_memoria_gb` em .forge/config.json): "
+                               "nenhum agente novo; espere memória liberar; só o dono: FORGE_CARGA_LIVRE=1.")
     teto, motivo = calcular_teto(hook.config())
     if len(agentes) >= teto:
         bloquear("R-TETO", f"{len(agentes)} agentes ativos, teto {teto} ({motivo}); "
