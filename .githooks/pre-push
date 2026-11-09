@@ -557,7 +557,14 @@ if [ "$curta" = 1 ]; then modo=curta; elif [ "$completa" = 1 ]; then modo=comple
 echo "pre-push: fim $(date +%H:%M:%S) rc ${rc} ${modo} ${duracao}s" >&2
 if [ "$nada" = 1 ]; then linha_de_duracao nada "$rc"; else linha_de_duracao "$modo" "$rc"; fi
 [ "$curta" = 1 ] || gravar_duracao "$duracao" "$modo"
-[ "$rc" -eq 0 ] || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
+# O7 (0.44.1): a causa tipada da falha; a de cada teste (tipo, esperado, obtido, local) vem nas linhas `suite-paralela: causa`.
+if [ "$rc" -ne 0 ]; then
+  if [ "$rc" -gt 128 ]; then causa="sinal $((rc - 128))"; elif [ "$rc" -eq 124 ]; then causa=timeout
+  else causa="testes (veja as linhas suite-paralela: causa acima)"; fi
+  echo "pre-push: causa=${causa}" >&2
+  echo "pre-push: testes do Forge falharam." >&2
+  exit 1
+fi
 # Anota a árvore testada (a árvore de trabalho estava limpa no início e no fim e o HEAD^{tree} não mudou durante a suíte,
 # para valer a do commit) como prova do próximo push: a suíte inteira, em `.verde`; as classes curtas do `so_parecer`,
 # sobre árvore remota já provada, também em `.verde`, por acréscimo sem a trava; o dirigido, em `.dirigida`.

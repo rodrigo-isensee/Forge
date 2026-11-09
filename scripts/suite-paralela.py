@@ -41,6 +41,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 import shutil
 import signal
 import stat
@@ -66,6 +67,13 @@ FORA_DO_HASH = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/", "
 CARIMBO = "forge-suite-verde"
 REGISTRO_PASTA, REGISTRO = ".forge-contrib", "suite-vermelha.jsonl"  # fora do git (L32)
 LIMITE_REGISTRO, LINHAS_LIDAS = 50, 2000
+# O7 (0.44.1): a causa tipada de cada teste que cai (o diagnóstico lê o tipo, não o log inteiro); valores cortados e sem segredo
+TETO_DA_SAIDA, TETO_DO_VALOR = 4000, 160  # caracteres do traceback acima dos quais a causa é `saida-grande`; de esperado e obtido
+SEGREDO = re.compile(r"(?i)(?:gh[pousr]_\w{20,}|github_pat_\w{20,}|glpat-[\w-]{20,}|sk-[\w-]{20,}|AKIA[0-9A-Z]{16}|xox[abpr]-[\w-]{10,}"
+                     r"|\b(?:token|senha|password|secret|segredo|api[_-]?key|chave)\b\s*[:=]\s*\S+)")
+LOCAL_DO_TESTE = re.compile(r'File "[^"]*/(tests/[^"]+)", line (\d+)')
+COMPARACAO = re.compile(r"^AssertionError: (.*?) != (.*)$", re.M)
+TESTE_DE_TEMPO = re.compile(r"tempo|prazo|relogio|hora|duracao|timeout|espera", re.I)
 LIMITE_LENTAS, LIMITE_SEM_PESO, LIMITE_SEM_DURACAO = 10, 20, 20  # o resumo do CI é curto (N-CI, C-11)
 CONFIG, LIMITE_PULADOS = RAIZ / TESTES / "config.json", 20  # teto de pulados (T3)
 
@@ -301,9 +309,53 @@ def processo(entrada, saida):
                  "erros": len(resultado.errors), "pulados": len(resultado.skipped),
                  "pulados_ids": [t.id() for t, _ in resultado.skipped],
                  "esperados": len(resultado.expectedFailures), "inesperados": len(resultado.unexpectedSuccesses),
-                 "ok": resultado.wasSuccessful(), "duracoes": duracoes}
+                 "ok": resultado.wasSuccessful(), "duracoes": duracoes,
+                 "causas": [causa_da_falha(getattr(t, "test_case", t).id(), texto)
+                            for t, texto in (resultado.failures + resultado.errors)[:LIMITE_REGISTRO]]}
     Path(saida).write_text(json.dumps(relatorio), encoding="utf-8")
     return 0 if resultado.wasSuccessful() else 1
+
+
+def redigir(texto):
+    """O7: o valor sem segredo (token, chave, `senha=`...), sem controle e cortado em TETO_DO_VALOR."""
+    return neutro(SEGREDO.sub("[redigido]", texto))[:TETO_DO_VALOR]
+
+
+def causa_da_falha(ident, traceback_):
+    """O7: {id, tipo, local?, obtido?, esperado?} do teste que caiu. Tipo: `timeout`, `saida-grande` (traceback acima de
+    TETO_DA_SAIDA), `teste-de-tempo` (asserção num teste de nome de tempo ou prazo), `assercao` ou `erro`. O `local` é o
+    último quadro em tests/; obtido e esperado vêm do `X != Y` do assertEqual (o primeiro é o obtido), redigidos."""
+    causa = {"id": neutro(ident)}
+    locais = LOCAL_DO_TESTE.findall(traceback_)
+    if locais:
+        causa["local"] = neutro(f"{locais[-1][0]}:{locais[-1][1]}")
+    if "TimeoutExpired" in traceback_ or "timed out" in traceback_:
+        causa["tipo"] = "timeout"
+    elif len(traceback_) > TETO_DA_SAIDA:
+        causa["tipo"] = "saida-grande"
+    elif "AssertionError" in traceback_:
+        causa["tipo"] = "teste-de-tempo" if TESTE_DE_TEMPO.search(ident) else "assercao"
+    else:
+        causa["tipo"] = "erro"
+    comparacao = COMPARACAO.search(traceback_)
+    if comparacao:
+        causa["obtido"], causa["esperado"] = redigir(comparacao.group(1)), redigir(comparacao.group(2))
+    return causa
+
+
+def causas_da_suite(filhos, relatorios):
+    """O7: as causas dos relatórios mais `sinal` por processo morto por sinal (esse não deixa relatório)."""
+    causas = [{"id": f"processo-{i}", "tipo": "sinal", "sinal": -p.returncode} for i, p in enumerate(filhos, 1) if p.returncode < 0]
+    return causas + [c for rel in relatorios if rel for c in rel.get("causas", ())][:LIMITE_REGISTRO]
+
+
+def imprimir_causas(filhos, relatorios):
+    """O7: uma linha `suite-paralela: causa tipo=... id=...` por causa, no stderr (também o `suite-partes` a usa); devolve as causas."""
+    causas = causas_da_suite(filhos, relatorios)
+    for causa in causas:
+        print(f"suite-paralela: causa tipo={causa['tipo']} " + " ".join(f"{k}={v}" for k, v in causa.items() if k != "tipo"),
+              file=sys.stderr)
+    return causas
 
 
 # Reuso por árvore (K6) --------------------------------------------------------------------------------------------
@@ -563,9 +615,10 @@ def pasta_do_registro():
     return pasta
 
 
-def registrar_vermelha(relatorios, carga, memoria):
+def registrar_vermelha(relatorios, carga, memoria, causas=()):
     """Suíte vermelha: acrescenta ao registro fora do git uma linha com a carga e os testes que caíram, cada um com a
-    taxa (vezes em que caiu / suíte vermelhas registradas). Só ids e números, nunca a mensagem da falha (C-32b).
+    taxa (vezes em que caiu / suíte vermelhas registradas). Só ids e números, nunca a mensagem da falha (C-32b); a exceção são
+    as causas tipadas (O7, 0.44.1): tipo, local e o esperado e obtido do assertEqual, cortados e com segredos redigidos.
     Roda depois do veredito impresso: qualquer erro daqui vira uma linha em stderr e não muda o código de saída (C-32a)."""
     if os.environ.get("GITHUB_ACTIONS") == "true":
         return
@@ -588,7 +641,8 @@ def registrar_vermelha(relatorios, carga, memoria):
         registro = {"quando": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                     "carga": carga, "memoria_gb": None if memoria is None else round(memoria, 1),
                     "vermelhas": vermelhas + 1,
-                    "testes": [{"id": i, "vezes": antes[i] + 1, "de": vermelhas + 1} for i in caidos]}
+                    "testes": [{"id": i, "vezes": antes[i] + 1, "de": vermelhas + 1} for i in caidos],
+                    "causas": list(causas)[:LIMITE_REGISTRO]}
         fd = os.open(arquivo, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o600)
         with os.fdopen(fd, "a", encoding="utf-8") as f:
             f.write(json.dumps(registro, ensure_ascii=False) + "\n")
@@ -674,10 +728,11 @@ def orquestrar():
     else:  # o teto antes de fechar_verde: estourado não regrava pesos nem carimbo (T3)
         veredito = conferir_teto(relatorios, pulados, linhas)
         veredito, codigo = (veredito, 1) if veredito else (fechar_verde(relatorios, hash_arvore, pulados), 0)
+    causas = imprimir_causas(filhos, relatorios)
     print(veredito)
     publicar_no_ci(veredito, linhas, partes, relatorios, duracoes, pesos, rodados, segundos)
     if codigo:
-        registrar_vermelha(relatorios, carga, memoria)
+        registrar_vermelha(relatorios, carga, memoria, causas)
     return codigo
 
 
