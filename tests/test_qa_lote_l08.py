@@ -364,7 +364,9 @@ class AceiteDoQaComDecisao(RepoComOrigem):
         fc = carregar_forge_check()
         campos = {"parecer": "aprovado", "aceite_usuario": "sim", "bugs_medios": "1", "commit": self.n}
         with mock.patch.object(fc, "RAIZES_DE_BRIEF", (self.home / ".forge-contrib",)), contextlib.redirect_stderr(io.StringIO()) as erro:
-            self.assertIn("sem o pedido", fc.aceite_do_qa_sem_dono(self.repo, "p9", "docs/qa/p9.md", campos)[0])
+            violacoes = fc.aceite_do_qa_sem_dono(self.repo, "p9", "docs/qa/p9.md", campos)  # lista vazia é falha, não erro
+            self.assertEqual(len(violacoes), 1, violacoes)
+            self.assertIn("sem o pedido", violacoes[0])
             self.assertEqual(erro.getvalue(), "")
             (self.repo / ".claude-plugin").mkdir()
             (self.repo / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")

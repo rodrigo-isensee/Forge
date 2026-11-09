@@ -1,0 +1,18 @@
+{
+  "descricao": "N5 (L22, IMPL-FURO-HOOK-N): notes show é leitura",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git notes show HEAD"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

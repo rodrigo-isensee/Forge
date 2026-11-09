@@ -4,6 +4,11 @@
     "src/app.js": "v1\n",
     "docs/pedidos/p1.md": "# p1\n"
   },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {

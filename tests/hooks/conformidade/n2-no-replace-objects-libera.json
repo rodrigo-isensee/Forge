@@ -1,0 +1,29 @@
+{
+  "descricao": "N2 (L20b, IMPL-FURO-HOOK-N): ligar GIT_NO_REPLACE_OBJECTS só desliga a troca",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "GIT_NO_REPLACE_OBJECTS=1 git log -1"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

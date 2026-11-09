@@ -1,0 +1,30 @@
+{
+  "descricao": "N2 (L20b, IMPL-FURO-HOOK-N): git config --worktree core.useReplaceRefs não isenta",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git config --worktree core.useReplaceRefs true"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: git config com refs/replace"
+  }
+}

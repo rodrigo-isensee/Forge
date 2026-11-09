@@ -1,0 +1,13 @@
+{
+  "pedido": "versao-071",
+  "executor": "unittest",
+  "mutantes": [
+    {"id": "AT1", "guarda": "o executor troca o difflib do unittest.case pelo DiffOmitido", "arquivo": "bin/forge-mutante",
+     "de": "unittest.case.difflib = DiffOmitido", "para": "unittest.case.difflib = unittest.case.difflib",
+     "testes": ["tests.test_forge_mutante.DiffDeTextoGrande.test_assertequal_de_textos_grandes_falha_dentro_do_prazo"]},
+    {"id": "AT2", "guarda": "o ndiff do executor devolve só o aviso, sem montar o diff", "arquivo": "bin/forge-mutante",
+     "de": "return iter([DiffOmitido.AVISO])", "para": "return __import__(\"difflib\").ndiff(a, b, *args, **kwargs)",
+     "testes": ["tests.test_forge_mutante.DiffDeTextoGrande.test_assertequal_de_textos_grandes_falha_dentro_do_prazo",
+                "tests.test_forge_mutante.DiffDeTextoGrande.test_o_diff_omitido_e_uma_linha_so"]}
+  ]
+}

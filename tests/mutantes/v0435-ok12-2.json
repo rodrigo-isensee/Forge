@@ -1,0 +1,78 @@
+{
+  "pedido": "v0435-ok12",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S17",
+      "guarda": "limite de taxa: só a pública sem global e sem o da rota",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "if publica and not limite_global and not LIMITE_DA_ROTA.search(corpo):",
+      "para": "if publica and not LIMITE_DA_ROTA.search(corpo):",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S18",
+      "guarda": "validação na borda: só o método com corpo",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "if metodo in COM_CORPO and not ESQUEMA.search(corpo)",
+      "para": "if not ESQUEMA.search(corpo)",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S19",
+      "guarda": "cors: origem aberta e credenciais juntas",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "if ORIGEM_ABERTA.search(corpo) and CREDENCIAIS.search(corpo):",
+      "para": "if ORIGEM_ABERTA.search(corpo):",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S20",
+      "guarda": "arquivo acima de 1 MB é pulado",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "if os.path.getsize(caminho) > MAXIMO_DO_ARQUIVO:",
+      "para": "if os.path.getsize(caminho) > MAXIMO_DO_ARQUIVO * 4:",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S22",
+      "guarda": "global: false desliga o limite global",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "return any(LIMITE_GLOBAL.search(t) for _, t in lidos) and not any(",
+      "para": "return any(LIMITE_GLOBAL.search(t) for _, t in lidos) or not any(",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S23",
+      "guarda": "erro de uso dá 2",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "if len(argv) != 1 or not os.path.isdir(argv[0]):",
+      "para": "if len(argv) != 1:",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "trecho": "erro.strerror or 'erro de leitura'",
+      "motivo": "o OSError de leitura não se provoca no teste: o runner roda como root e o link simbólico fica de fora antes da leitura"
+    },
+    {
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "trecho": "__name__ == \"__main__\"",
+      "motivo": "forma padrão do script; sem ela todo teste dá erro de execução (veredito inválido), nunca falha"
+    }
+  ]
+}
