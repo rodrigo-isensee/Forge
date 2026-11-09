@@ -1,2 +1,0 @@
-### Alterado
-- O pre-push do modelo de projeto roda a checagem do projeto (`pre-push.local`) uma por vez por usuário e máquina (R-TETO): trava `forge-prepush-<uid>.lock` em `XDG_RUNTIME_DIR` ou `$HOME/.local/state/forge` (pasta conferida, recusada barra o envio), espera pela vez até `FORGE_PREPUSH_ESPERA` segundos (padrão 1200, inteiro de 1 a 999999; outro valor barra), com aviso uma vez; estourou, o envio é barrado. A etapa roda sem a trava; sem o binário `flock`, roda como antes, com aviso. Chega aos projetos pelo `forge atualizar` (E1a, versao-047).
