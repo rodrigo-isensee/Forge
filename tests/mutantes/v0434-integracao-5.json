@@ -1,0 +1,26 @@
+{
+  "pedido": "v0434-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Q65",
+      "guarda": "hooks/conformidade.py:1462 sub == 'commit' and emenda(args) and self.ja_enviado(pasta) (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif sub == \"commit\" and emenda(args) and self.ja_enviado(pasta):",
+      "para": "        elif not (sub == \"commit\" and emenda(args) and self.ja_enviado(pasta)):",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "Q66",
+      "guarda": "hooks/conformidade.py:1480 bool(cod) or bool(saida.strip()) (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return bool(cod) or bool(saida.strip())",
+      "para": "        return not (bool(cod) or bool(saida.strip()))",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    }
+  ]
+}

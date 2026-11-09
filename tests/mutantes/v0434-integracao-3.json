@@ -1,0 +1,181 @@
+{
+  "pedido": "v0434-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Q33",
+      "guarda": "bin/forge-doutor:519 not mexeu (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "    if not mexeu:",
+      "para": "    if not (not mexeu):",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q34",
+      "guarda": "bin/forge_versoes.py:604 achou (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    achou = re.fullmatch(r\"(\\d+)\\.(\\d+)\\.(\\d+)\", nome)\n    return tuple(int(x) for x in achou.groups()) if achou else None",
+      "para": "    achou = re.fullmatch(r\"(\\d+)\\.(\\d+)\\.(\\d+)\", nome)\n    return tuple(int(x) for x in achou.groups()) if not (achou) else None",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q35",
+      "guarda": "bin/forge_versoes.py:611 cache.is_symlink() or not cache.is_dir() (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "        if cache.is_symlink() or not cache.is_dir():",
+      "para": "        if not (cache.is_symlink() or not cache.is_dir()):",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q36",
+      "guarda": "bin/forge_versoes.py:616 real == Path('/') or real == Path(casa_).resolve() (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    if real == Path(\"/\") or real == Path(casa_).resolve():",
+      "para": "    if not (real == Path(\"/\") or real == Path(casa_).resolve()):",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q37",
+      "guarda": "bin/forge_versoes.py:628 not stat.S_ISREG(os.fstat(fd).st_mode) (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "        if not stat.S_ISREG(os.fstat(fd).st_mode):",
+      "para": "        if not (not stat.S_ISREG(os.fstat(fd).st_mode)):",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q38",
+      "guarda": "bin/forge_versoes.py:632 len(bruto) <= limite (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "        return bruto.decode(\"utf-8\") if len(bruto) <= limite else None",
+      "para": "        return bruto.decode(\"utf-8\") if not (len(bruto) <= limite) else None",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q39",
+      "guarda": "bin/forge_versoes.py:646 len(partes) != 3 or partes[1] != 'forge' or partes[0] in ('', '.', '..') or (not _versao_estrita(partes[2])) (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    if len(partes) != 3 or partes[1] != \"forge\" or partes[0] in (\"\", \".\", \"..\") or not _versao_estrita(partes[2]):",
+      "para": "    if not (len(partes) != 3 or partes[1] != \"forge\" or partes[0] in (\"\", \".\", \"..\") or not _versao_estrita(partes[2])):",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q40",
+      "guarda": "bin/forge_versoes.py:652 atual.is_symlink() or not atual.is_dir() (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "            if atual.is_symlink() or not atual.is_dir():",
+      "para": "            if not (atual.is_symlink() or not atual.is_dir()):",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q41",
+      "guarda": "bin/forge_versoes.py:654 pasta.resolve(strict=True) != pasta or os.lstat(pasta).st_dev != os.lstat(raiz).st_dev (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "        if pasta.resolve(strict=True) != pasta or os.lstat(pasta).st_dev != os.lstat(raiz).st_dev:",
+      "para": "        if not (pasta.resolve(strict=True) != pasta or os.lstat(pasta).st_dev != os.lstat(raiz).st_dev):",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q42",
+      "guarda": "bin/forge_versoes.py:660 texto is not None (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    texto = _ler_limitado(pasta / \".claude-plugin\" / \"plugin.json\", LIMITE_PLUGIN_JSON)\n    try:\n        dados = json.loads(texto) if texto is not None else None",
+      "para": "    texto = _ler_limitado(pasta / \".claude-plugin\" / \"plugin.json\", LIMITE_PLUGIN_JSON)\n    try:\n        dados = json.loads(texto) if not (texto is not None) else None",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q43",
+      "guarda": "bin/forge_versoes.py:663 isinstance(dados, dict) and dados.get('name') == 'forge' and (dados.get('version') == partes[2]) (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    return isinstance(dados, dict) and dados.get(\"name\") == \"forge\" and dados.get(\"version\") == partes[2]",
+      "para": "    return not (isinstance(dados, dict) and dados.get(\"name\") == \"forge\" and dados.get(\"version\") == partes[2])",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q44",
+      "guarda": "bin/forge_versoes.py:669 raiz is None (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    if raiz is None:",
+      "para": "    if not (raiz is None):",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q45",
+      "guarda": "bin/forge_versoes.py:678 not mkt.is_symlink() and (mkt / 'forge').is_dir() (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "            versoes = sorted((mkt / \"forge\").iterdir()) if not mkt.is_symlink() and (mkt / \"forge\").is_dir() else []",
+      "para": "            versoes = sorted((mkt / \"forge\").iterdir()) if not (not mkt.is_symlink() and (mkt / \"forge\").is_dir()) else []",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q46",
+      "guarda": "bin/forge_versoes.py:681 pasta_do_forge_valida(p, raiz) (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "        achadas += [p for p in versoes if pasta_do_forge_valida(p, raiz)]",
+      "para": "        achadas += [p for p in versoes if not (pasta_do_forge_valida(p, raiz))]",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q47",
+      "guarda": "bin/forge_versoes.py:690 texto is not None (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    texto = _ler_limitado(Path(casa_) / \".claude\" / \"plugins\" / \"installed_plugins.json\", LIMITE_INSTALADOS)\n    try:\n        dados = json.loads(texto) if texto is not None else None",
+      "para": "    texto = _ler_limitado(Path(casa_) / \".claude\" / \"plugins\" / \"installed_plugins.json\", LIMITE_INSTALADOS)\n    try:\n        dados = json.loads(texto) if not (texto is not None) else None",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q48",
+      "guarda": "bin/forge_versoes.py:693 isinstance(dados, dict) and dados.get('version') == 2 (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    plugins = dados.get(\"plugins\") if isinstance(dados, dict) and dados.get(\"version\") == 2 else None",
+      "para": "    plugins = dados.get(\"plugins\") if not (isinstance(dados, dict) and dados.get(\"version\") == 2) else None",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    }
+  ]
+}

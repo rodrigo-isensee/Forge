@@ -1,0 +1,188 @@
+{
+  "pedido": "v0434-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Q1",
+      "guarda": "bin/forge-check:512 not livre(nome, livres) or (nome.startswith(ACEITES_DO_USUARIO) and nome not in livres) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    return not livre(nome, livres) or (nome.startswith(ACEITES_DO_USUARIO) and nome not in livres)",
+      "para": "    return not (not livre(nome, livres) or (nome.startswith(ACEITES_DO_USUARIO) and nome not in livres))",
+      "testes": [
+        "tests.test_qa_lote_l08",
+        "tests.test_sobreposicao_quadro"
+      ]
+    },
+    {
+      "id": "Q2",
+      "guarda": "bin/forge-check:602 desatualiza(n, ignorar) and n not in leves (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        divergem = {n for n in nomes_z(saida) if desatualiza(n, ignorar) and n not in leves}",
+      "para": "        divergem = {n for n in nomes_z(saida) if not (desatualiza(n, ignorar) and n not in leves)}",
+      "testes": [
+        "tests.test_qa_lote_l08",
+        "tests.test_sobreposicao_quadro"
+      ]
+    },
+    {
+      "id": "Q3",
+      "guarda": "bin/forge-check:604 not desatualiza(nome, ignorar) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "            if not desatualiza(nome, ignorar):",
+      "para": "            if not (not desatualiza(nome, ignorar)):",
+      "testes": [
+        "tests.test_qa_lote_l08",
+        "tests.test_sobreposicao_quadro"
+      ]
+    },
+    {
+      "id": "Q4",
+      "guarda": "bin/forge-check:732 desatualiza(f, livres) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    fora = [f for f in nomes_z(saida) if desatualiza(f, livres)]",
+      "para": "    fora = [f for f in nomes_z(saida) if not (desatualiza(f, livres))]",
+      "testes": [
+        "tests.test_qa_lote_l08",
+        "tests.test_sobreposicao_quadro"
+      ]
+    },
+    {
+      "id": "Q5",
+      "guarda": "bin/forge-check:1162 campos.get(c) or 0 (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    medios_baixos = sum(int(campos.get(c) or 0) for c in (\"bugs_medios\", \"bugs_baixos\") if INTEIRO.match(campos.get(c) or \"0\"))",
+      "para": "    medios_baixos = sum(int(not (campos.get(c) or 0)) for c in (\"bugs_medios\", \"bugs_baixos\") if INTEIRO.match(campos.get(c) or \"0\"))",
+      "testes": [
+        "tests.test_qa_lote_l08",
+        "tests.test_sobreposicao_quadro"
+      ]
+    },
+    {
+      "id": "Q6",
+      "guarda": "bin/forge-check:1162 INTEIRO.match(campos.get(c) or '0') (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    medios_baixos = sum(int(campos.get(c) or 0) for c in (\"bugs_medios\", \"bugs_baixos\") if INTEIRO.match(campos.get(c) or \"0\"))",
+      "para": "    medios_baixos = sum(int(campos.get(c) or 0) for c in (\"bugs_medios\", \"bugs_baixos\") if not (INTEIRO.match(campos.get(c) or \"0\")))",
+      "testes": [
+        "tests.test_qa_lote_l08",
+        "tests.test_sobreposicao_quadro"
+      ]
+    },
+    {
+      "id": "Q7",
+      "guarda": "bin/forge-check:1163 campos.get('parecer') != 'aprovado' or campos.get('aceite_usuario') != 'sim' or (not medios_baixos) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if campos.get(\"parecer\") != \"aprovado\" or campos.get(\"aceite_usuario\") != \"sim\" or not medios_baixos:",
+      "para": "    if not (campos.get(\"parecer\") != \"aprovado\" or campos.get(\"aceite_usuario\") != \"sim\" or not medios_baixos):",
+      "testes": [
+        "tests.test_qa_lote_l08",
+        "tests.test_sobreposicao_quadro"
+      ]
+    },
+    {
+      "id": "Q8",
+      "guarda": "bin/forge-check:1165 campos.get('commit') or '' (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    commit = (campos.get(\"commit\") or \"\").lower()",
+      "para": "    commit = (not (campos.get(\"commit\") or \"\")).lower()",
+      "testes": [
+        "tests.test_qa_lote_l08",
+        "tests.test_sobreposicao_quadro"
+      ]
+    },
+    {
+      "id": "Q9",
+      "guarda": "bin/forge-check:1167 texto is None (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    caminho, texto, problema = pedido_da_conferencia(raiz, pedido, branch)\n    if texto is None:",
+      "para": "    caminho, texto, problema = pedido_da_conferencia(raiz, pedido, branch)\n    if not (texto is None):",
+      "testes": [
+        "tests.test_qa_lote_l08",
+        "tests.test_sobreposicao_quadro"
+      ]
+    },
+    {
+      "id": "Q10",
+      "guarda": "bin/forge-check:1168 caminho is None and (not problema) and e_o_forge(Path(raiz)) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        if caminho is None and not problema and e_o_forge(Path(raiz)):",
+      "para": "        if not (caminho is None and not problema and e_o_forge(Path(raiz))):",
+      "testes": [
+        "tests.test_qa_lote_l08",
+        "tests.test_sobreposicao_quadro"
+      ]
+    },
+    {
+      "id": "Q11",
+      "guarda": "bin/forge-check:1174 COMMIT.match(commit) and (commit.startswith(citado) or citado.startswith(commit)) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "            if COMMIT.match(commit) and (commit.startswith(citado) or citado.startswith(commit)):",
+      "para": "            if not (COMMIT.match(commit) and (commit.startswith(citado) or citado.startswith(commit))):",
+      "testes": [
+        "tests.test_qa_lote_l08",
+        "tests.test_sobreposicao_quadro"
+      ]
+    },
+    {
+      "id": "Q12",
+      "guarda": "bin/forge-check:1176 commit[:7] or '?' (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    return [f\"{caminho_impresso(rel)}: aceite_usuario: sim sem DECISÃO DO DONO no pedido com \\\"aceite QA {commit[:7] or '?'}\\\" \"",
+      "para": "    return [f\"{caminho_impresso(rel)}: aceite_usuario: sim sem DECISÃO DO DONO no pedido com \\\"aceite QA {not (commit[:7] or '?')}\\\" \"",
+      "testes": [
+        "tests.test_qa_lote_l08",
+        "tests.test_sobreposicao_quadro"
+      ]
+    },
+    {
+      "id": "Q13",
+      "guarda": "bin/forge-check:1532 tipo == 'qa' (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        saida += viol + extra + (aceite_do_qa_sem_dono(raiz, pedido, rel, campos, branch) if tipo == \"qa\" else [])  # QA-ACEITE-FALSO",
+      "para": "        saida += viol + extra + (aceite_do_qa_sem_dono(raiz, pedido, rel, campos, branch) if not (tipo == \"qa\") else [])  # QA-ACEITE-FALSO",
+      "testes": [
+        "tests.test_qa_lote_l08",
+        "tests.test_sobreposicao_quadro"
+      ]
+    },
+    {
+      "id": "Q14",
+      "guarda": "bin/forge-check:3384 not b and base (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not b and base:",
+      "para": "    if not (not b and base):",
+      "testes": [
+        "tests.test_qa_lote_l08",
+        "tests.test_sobreposicao_quadro"
+      ]
+    },
+    {
+      "id": "Q15",
+      "guarda": "bin/forge-check:9808 rc or (1 if a.cmd == 'movimento' and linhas[0].startswith('movimento:') or (a.cmd == 'sobreposicao' and linhas[0].starts (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        return rc or (1 if (a.cmd == \"movimento\" and linhas[0].startswith(\"movimento:\"))\n                      or (a.cmd == \"sobreposicao\" and linhas[0].startswith(\"sobreposicao: erro:\")) else 0)",
+      "para": "        return not (rc or (1 if (a.cmd == \"movimento\" and linhas[0].startswith(\"movimento:\"))\n                      or (a.cmd == \"sobreposicao\" and linhas[0].startswith(\"sobreposicao: erro:\")) else 0))",
+      "testes": [
+        "tests.test_qa_lote_l08",
+        "tests.test_sobreposicao_quadro"
+      ]
+    },
+    {
+      "id": "Q16",
+      "guarda": "bin/forge-doutor:217 codigo is None (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "    if codigo is None:  # o `gh` não respondeu a tempo; não é falta de login",
+      "para": "    if not (codigo is None):  # o `gh` não respondeu a tempo; não é falta de login",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "base or ', '.join(BASES)",
+      "motivo": "BUG-B1: a --base dada que não existe saiu deste ramo para o `erro:` acima (falha fechada, provado por test_base_dada_inexistente_falha_fechada); aqui só sobra o caso sem --base, que lista as BASES"
+    }
+  ]
+}
