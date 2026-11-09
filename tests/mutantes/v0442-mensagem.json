@@ -1,0 +1,76 @@
+{
+ "pedido": "v0442-s6-mensagem",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M1",
+   "guarda": "so o assistente",
+   "arquivo": "hooks/meta.py",
+   "de": "if obj[\"type\"] == \"assistant\" else []",
+   "para": "if obj[\"type\"] != \"assistant\" else []",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M2",
+   "guarda": "so o texto",
+   "arquivo": "hooks/meta.py",
+   "de": "if c[\"type\"] == \"text\"]",
+   "para": "if c[\"type\"] != \"text\"]",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M3",
+   "guarda": "mensagem so de ferramenta e pulada",
+   "arquivo": "hooks/meta.py",
+   "de": "        if textos:\n",
+   "para": "        if True:\n",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M4",
+   "guarda": "jargao achado",
+   "arquivo": "hooks/meta.py",
+   "de": "if re.search(r\"(?<!\\w)\" + re.escape(p) + r\"(?!\\w)\", texto, re.I)}",
+   "para": "if re.search(r\"xyz\", texto)}",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M5",
+   "guarda": "teto de caracteres",
+   "arquivo": "hooks/meta.py",
+   "de": "\"passou_do_teto\": len(texto) > TETO_DA_MENSAGEM,",
+   "para": "\"passou_do_teto\": len(texto) > TETO_DA_MENSAGEM * 2,",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M6",
+   "guarda": "lista da tabela",
+   "arquivo": "hooks/meta.py",
+   "de": "        return []\n    return [p.strip() for linha in linhas",
+   "para": "        return []\n    return [p.strip() for linha in linhas[:1]",
+   "testes": [
+    "tests.test_meta.Jargao.test_lista_vem_da_tabela_do_modo_iniciante"
+   ]
+  },
+  {
+   "id": "M7",
+   "guarda": "medida nunca bloqueia",
+   "arquivo": "hooks/meta.py",
+   "de": "    except Exception as erro:  # noqa: BLE001 - S6 só mede",
+   "para": "    except ZeroDivisionError as erro:  # noqa: BLE001 - S6 só mede",
+   "testes": [
+    "tests.test_meta.Jargao.test_medida_que_falha_nao_troca_o_stop"
+   ]
+  }
+ ]
+}

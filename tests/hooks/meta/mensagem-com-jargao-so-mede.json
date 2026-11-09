@@ -4,7 +4,9 @@
     "t.jsonl": [
       "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"text\", \"text\": \"mensagem velha sem nada\"}]}}",
       "{\"type\": \"user\", \"message\": {\"content\": \"oi\"}}",
-      "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"text\", \"text\": \"Abri o PR na branch nova e fiz o merge.\"}]}}"
+      "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {}}, {\"type\": \"text\", \"text\": \"Abri o PR na branch nova e fiz o merge.\"}]}}",
+      "{\"type\": \"user\", \"message\": {\"content\": \"oi\"}}",
+      "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {}}]}}"
     ]
   },
   "entrada": {

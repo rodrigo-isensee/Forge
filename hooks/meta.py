@@ -86,18 +86,20 @@ def avaliar_meta(hook, raiz):
 
 
 # ---- S6: medida da mensagem ao dono ----
+TABELA = re.compile(r"^\|\s*Em vez de\s*\|.*\n\|[-|: ]+\|\n((?:[ \t]*\|.*\n)+)", re.M)
+
+
 def jargao():
-    """As palavras da coluna "Em vez de" da tabela de skills/modo-iniciante/SKILL.md (fonte única)."""
-    palavras = []
-    for linha in ler(PLUGIN / "skills" / "modo-iniciante" / "SKILL.md").splitlines():
-        m = re.match(r"\s*\|\s*([^|]+?)\s*\|\s*[^|]+\|\s*$", linha)
-        if m and m.group(1) not in ("Em vez de",) and not set(m.group(1)) <= set("-: "):
-            palavras += [p.strip() for p in m.group(1).split(",") if p.strip()]
-    return palavras
+    """As palavras da coluna "Em vez de" da tabela de skills/modo-iniciante/SKILL.md (fonte única); [] sem a tabela."""
+    try:
+        linhas = TABELA.search(ler(PLUGIN / "skills" / "modo-iniciante" / "SKILL.md").replace("  |", "|")).group(1).splitlines()
+    except AttributeError:
+        return []
+    return [p.strip() for linha in linhas for p in linha.strip().strip("|").split("|")[0].split(",")]
 
 
 def ultima_mensagem(transcrito):
-    """O texto da última mensagem do assistente no transcrito JSONL (lido do fim, até LEITURA_MAXIMA bytes)."""
+    """O texto da última mensagem do assistente (com texto) no transcrito JSONL, lido do fim (até LEITURA_MAXIMA bytes)."""
     try:
         with open(transcrito, "rb") as f:
             f.seek(0, 2)
@@ -108,25 +110,21 @@ def ultima_mensagem(transcrito):
     for linha in reversed(linhas):
         try:
             obj = json.loads(linha)
-        except ValueError:
+            textos = [c["text"] for c in obj["message"]["content"] if c["type"] == "text"] if obj["type"] == "assistant" else []
+        except (ValueError, KeyError, TypeError, AttributeError):
             continue
-        if isinstance(obj, dict) and obj.get("type") == "assistant":
-            conteudo = (obj.get("message") or {}).get("content")
-            textos = [c.get("text", "") for c in conteudo if isinstance(c, dict) and c.get("type") == "text"] if isinstance(conteudo, list) else []
-            if textos:
-                return "\n".join(textos)
+        if textos:
+            return "\n".join(textos)
     return None
 
 
 def medir_mensagem(hook):
-    texto = ultima_mensagem(hook.campo("transcript_path"))
-    if texto is None:
-        return
-    achados = sorted({p for p in jargao() if re.search(r"(?<!\w)" + re.escape(p) + r"(?!\w)", texto, re.I)})
-    linha = {"em": agora(), "caracteres": len(texto), "teto": TETO_DA_MENSAGEM, "passou_do_teto": len(texto) > TETO_DA_MENSAGEM,
-             "jargao": achados, "iniciante": hook.iniciante()}
-    with open(hook.run() / "mensagens.jsonl", "a", encoding="utf-8") as f:
-        f.write(json.dumps(linha, ensure_ascii=False) + "\n")
+    for texto in filter(None, [ultima_mensagem(hook.campo("transcript_path"))]):
+        achados = sorted({p for p in jargao() if re.search(r"(?<!\w)" + re.escape(p) + r"(?!\w)", texto, re.I)})
+        linha = {"em": agora(), "caracteres": len(texto), "teto": TETO_DA_MENSAGEM, "passou_do_teto": len(texto) > TETO_DA_MENSAGEM,
+                 "jargao": achados, "iniciante": hook.iniciante()}
+        with open(hook.run() / "mensagens.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps(linha, ensure_ascii=False) + "\n")
 
 
 def principal(hook):
