@@ -1,4 +1,0 @@
-### Adicionado
-- `forge-check metricas` mede, por item e por período, o tempo do código pronto (primeira `entrega conferida`) até a develop e até a main (pelo git), as voltas, as revalidações, as suítes e falhas e os minutos de espera do dono lidos do Histórico dos pedidos, e as reprovações por classe do registro de conferências; o mérito sai marcado `declarada` (anotado pelo Jarvis), texto ou `--json` (0.43.1 H).
-- `forge-check regras` lista `Revisar em:` e `Medida:` de cada `docs/regras/R-*.md`; campo ausente, data vencida ou medida sem número dão aviso (rc 0), e `--estrito` reprova (0.43.1 H).
-- Orçamento de instrução por agente em `docs/regras/orcamento.json` (teto = medida de 2026-11-08; alvo bem menor para o jarvis e o conferente), conferido por `tests/test_orcamento_instrucao.py`; uso em `docs/governanca.md` (0.43.1 H).

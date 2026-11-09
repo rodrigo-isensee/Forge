@@ -1,7 +1,8 @@
 // Forge: definição mínima do container de desenvolvimento (P9 da 0.43.1).
-// Ao recriar o container, só /workspaces, ~/.claude e ~/.vscode-server sobrevivem. O postStartCommand roda a
-// cada início, inclusive logo depois da criação, e refaz o resto com `scripts/preparar-estacao.sh --container`
-// (idempotente): gh, tmux e shellcheck, o link ~/Forge, a área ~/.forge-contrib como link para
+// Ao recriar o container, só /workspaces, ~/.claude e ~/.vscode-server sobrevivem. Depois de recriar, o dono roda
+// à mão `bash /workspaces/Forge/scripts/preparar-estacao.sh --container` (idempotente). Não há postStartCommand:
+// ele rodaria como root, fora do sandbox, um script que o agente pode editar (B2 do review de segurança da 0.43.1).
+// O script refaz: gh, tmux e shellcheck, o link ~/Forge, a área ~/.forge-contrib como link para
 // /workspaces/.forge-contrib, a configuração do gh em ~/.claude/gh, a cópia vigente e o dev-marketplace.
 // O script nunca apaga dados; a saída diz o que fez e o que falta (ex.: o login do gh, que é manual).
 // A imagem é a base Ubuntu 24.04 dos dev containers, a mesma versão do sistema em uso; o volume nomeado
@@ -13,6 +14,5 @@
   "workspaceFolder": "/workspaces/Forge",
   "mounts": [
     "source=forge-claude,target=/root/.claude,type=volume"
-  ],
-  "postStartCommand": "bash /workspaces/Forge/scripts/preparar-estacao.sh --container"
+  ]
 }

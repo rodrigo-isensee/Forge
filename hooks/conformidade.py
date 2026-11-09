@@ -622,11 +622,15 @@ class Guarda:
             formas.append(("proj", caminho.relative_to(raiz).as_posix()))
         if home in pais:
             formas.append(("home", "~/" + caminho.relative_to(home).as_posix()))
+        # B1 da 0.43.1: ~/.forge-contrib como link para fora do home. A forma pelo link só BARRA (regras `caminhos`);
+        # nunca entra na lista de escrita, que continua recusando o que fica fora do home.
+        pelo_link = [("home", f"~/{nome}/" + caminho.relative_to(alvo_link).as_posix() if caminho != alvo_link
+                      else f"~/{nome}") for nome, alvo_link in self.links_do_home(home) if alvo_link in pais]
         no_claude_do_home = (home / ".claude") in pais
         for e in self.pol["caminhos"]:
             c = e["caminho"]
             if c.startswith("~/"):
-                achou = any(t == "home" and casa(r, c) for t, r in formas)
+                achou = any(t == "home" and casa(r, c) for t, r in [*formas, *pelo_link])
             elif e.get("so_forge") and not self.regras_do_forge():
                 continue
             else:
@@ -655,6 +659,18 @@ class Guarda:
             return ("R-CONTRIB", f"manifesto de plugin no projeto ({MANIFESTO}): só a sessão do Forge escreve",
                     "proponha a mudança ao usuário (R-DECISAO)")
         return None
+
+    def links_do_home(self, home):
+        """(nome, realpath do alvo) de cada pasta do home citada nas regras `~/X/...` que é link para fora do home."""
+        if getattr(self, "_links_do_home", None) is None:
+            nomes = {e["caminho"][2:].split("/", 1)[0] for e in self.pol["caminhos"] if e["caminho"].startswith("~/")}
+            links = []
+            for nome in sorted(n for n in nomes if n and "*" not in n):
+                alvo = Path(os.path.realpath(home / nome))
+                if (home / nome).is_symlink() and home not in {alvo, *alvo.parents}:
+                    links.append((nome, alvo))
+            self._links_do_home = links
+        return self._links_do_home
 
     def fora_da_lista_de_escrita(self, caminho, formas):
         """Papel com `escrita_permitida` (ADR 0009, seção 6): escreve só nos caminhos da lista, pelo caminho normalizado.
@@ -718,7 +734,8 @@ class Guarda:
             c = e["caminho"]
             if e["quem"]:
                 continue
-            for dentro in ([home] if c.startswith("~/") else raizes):
+            fora = [a.parent for n, a in self.links_do_home(home) if c.startswith(f"~/{n}/") or c == f"~/{n}"]
+            for dentro in ([home, *fora] if c.startswith("~/") else raizes):
                 protegido = home / c[2:] if c.startswith("~/") else dentro / c
                 if alvo != dentro and dentro in alvo.parents and alvo in Path(os.path.realpath(protegido)).parents:
                     self.barrar("R-CONFORMIDADE", f"apagar {alvo.name}/ apaga {c}: {e['motivo']}",

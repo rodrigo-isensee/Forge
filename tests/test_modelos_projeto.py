@@ -82,11 +82,11 @@ class ChecagemDoBrief(unittest.TestCase):
         self.assertRegex(ler(SKILL_CHECAGEM), r"\A---\nname: checagem-do-brief\n")
 
     def test_skill_cita_a_lista_local(self):
-        self.assertIn(f"Se existir `{LISTA_LOCAL}` no projeto, confira cada item dele", ler(SKILL_CHECAGEM))
+        self.assertIn(f"Se existir `{LISTA_LOCAL}` no projeto, confira cada item cujo `quando:` casa com o tipo do brief", ler(SKILL_CHECAGEM))
 
     def test_lista_local_so_acrescenta(self):
         for caminho in (SKILL_CHECAGEM, "templates/projeto/" + LISTA_LOCAL, LISTA_LOCAL):
-            self.assertIn("nunca dispensa conferente, review, QA, segurança nem rótulo do dono", ler(caminho), caminho)
+            self.assertIn("nunca dispensa portão, review, QA, segurança nem rótulo do dono", ler(caminho), caminho)
         self.assertIn("vira pergunta ao dono (`R-DECISAO`)", ler(SKILL_CHECAGEM))
 
     def test_modelo_do_projeto_existe_e_e_neutro(self):
@@ -106,7 +106,7 @@ class ChecagemDoBrief(unittest.TestCase):
             self.assertEqual(sum(l.endswith(f" · {item}") for l in linhas), 1, item)
 
     def test_briefs_e_conferencia_manda_ler_a_skill(self):
-        self.assertIn("leia a skill `checagem-do-brief` (`skills/checagem-do-brief/SKILL.md`)",
+        self.assertIn("Leia a skill `checagem-do-brief` para o que a ferramenta não sabe",
                       ler("skills/briefs-e-conferencia/SKILL.md"))
 
 
