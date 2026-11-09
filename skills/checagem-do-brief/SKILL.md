@@ -11,7 +11,7 @@ O `forge-check brief selar` confere a forma, o corte, as etapas, as decisões po
 - **Estado do remoto citado:** branch, PR, tag ou sha que o brief cita existe agora e é o que o brief diz (leia com `git ls-remote` ou `gh`, não de memória).
 - **Rede ou credencial:** o brief diz qual comando precisa delas, e o agente tem o escopo; sem ele, o passo é ato do dono.
 - **Efeito fora da worktree:** escrita em outra pasta, no remoto, no quadro ou na configuração aparece no Entregar com o caminho literal.
-- **Arquivo temporário e log:** levam o pedido ou o slug da branch no nome, numa pasta por papel e pedido (`$TMPDIR/<papel>-<pedido>/`).
+- **Arquivo temporário e log:** levam o pedido ou o slug da branch no nome, numa pasta por papel e pedido (`${TMPDIR:-/tmp}/<papel>-<pedido>/`; o `:-/tmp` vale quando o ambiente do agente não define `TMPDIR`).
 - **Etapa seguinte:** o Entregar deixa pronto o que ela lê (commit, parecer, caminho).
 - **Gatilho de outra etapa:** se o Entregar toca o que dispara segurança, devops ou rótulo do dono, a etapa já está no pedido.
 - **Pontos da decisão do dono:** cada ponto da opção escolhida tem um item no Entregar.

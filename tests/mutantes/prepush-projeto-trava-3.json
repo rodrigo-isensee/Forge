@@ -1,0 +1,64 @@
+{
+  "pedido": "prepush-projeto-trava",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M13",
+      "guarda": "sem /proc confere o caminho logo depois de abrir",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "[ -e \"$fd\" ] || fd=\"$trava\"",
+      "para": "[ -e \"$fd\" ] || true",
+      "equivalente": "em Linux /proc/self/fd/9 sempre existe depois do exec, entao o recuo para o caminho nunca roda nos testes nem no CI"
+    },
+    {
+      "id": "M14",
+      "guarda": "trava que e link e recusada sem tocar o alvo (C-3)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if [ -L \"$trava\" ] || [ ! -O \"$fd\" ]; then",
+      "para": "if [ ! -O \"$fd\" ]; then",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_trava_link_pasta_ou_alheia_recusada"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "trava de outro usuario e recusada (C-3; o caso so roda como root, que pode dar chown)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if [ -L \"$trava\" ] || [ ! -O \"$fd\" ]; then",
+      "para": "if [ -L \"$trava\" ]; then",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_trava_link_pasta_ou_alheia_recusada"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "so quem acha a trava ocupada avisa, uma vez",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if ! flock -n 9; then",
+      "para": "if true; then",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_quatro_envios_nunca_se_sobrepoem_e_avisam_uma_vez"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "espera estourada barra sem rodar a checagem",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "foi barrado; tente de novo\" >&2; exit 1; }",
+      "para": "foi barrado; tente de novo\" >&2; }",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_espera_estourada_barra_sem_rodar"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "pasta da trava de outro dono recua para o HOME ou e recusada (C-2)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "[ ! -L \"$1\" ] && [ -O \"$1\" ] &&",
+      "para": "[ ! -L \"$1\" ] &&",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_pasta_de_outro_dono_recua_ou_e_recusada"
+      ]
+    }
+  ]
+}

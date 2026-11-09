@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
@@ -343,6 +344,23 @@ class EsperaPorPortaoETokens(unittest.TestCase):
         custos = G.tokens_por_item([self.tmp / "transcritos"], self.tmp)
         self.assertEqual(custos, {("p9", "E1"): {"tokens": 50, "agentes": 1}, ("p9", "E2"): {"tokens": 50, "agentes": 1},
                                   ("p9", "-"): {"tokens": 10, "agentes": 1}})
+
+    def test_transcritos_acima_dos_tetos_ficam_fora_com_aviso(self):  # B2 do review da 0.43.3
+        self.gravar("docs/briefs/p9-tech-lead-1.md", "Pedido: p9\nCobre: E1\n")
+        for nome in ("agent-a", "agent-b", "agent-c"):
+            self.transcrito(nome, "docs/briefs/p9-tech-lead-1.md", [(5, 5)])
+        avisos = []
+        with mock.patch.object(G, "TETO_DE_TRANSCRITOS", 2):
+            custos = G.tokens_por_item([self.tmp / "transcritos"], self.tmp, avisos)
+        self.assertEqual(custos, {("p9", "E1"): {"tokens": 22, "agentes": 2}})  # 5 + 5 + 1 de cache por agente
+        self.assertIn("1 transcritos mais antigos", avisos[0])
+        avisos = []
+        grande = self.tmp / "transcritos" / "sessao" / "subagents" / "agent-a.jsonl"
+        with mock.patch.object(G, "TETO_DO_TRANSCRITO", grande.stat().st_size - 1):
+            custos = G.tokens_por_item([self.tmp / "transcritos"], self.tmp, avisos)
+        self.assertEqual(custos, {})
+        self.assertEqual(len(avisos), 3)
+        self.assertIn("agent-a.jsonl passa de", avisos[0])
 
     def test_item_do_historico_ganha_a_coluna_e_sem_fonte_sai_tracinho(self):
         self.gravar("docs/pedidos/p9.md", "# p9\n\n## Histórico\n- 2026-11-02 10:00: (E1) aberto\n- 2026-11-02 10:05: (E3) aberto\n")

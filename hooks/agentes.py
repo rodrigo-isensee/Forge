@@ -232,8 +232,31 @@ ARQUIVO_DA_MENSAGEM = re.compile(r"^Arquivo:[ \t]*.*docs/briefs/\S.*$", re.M)
 HASH_DA_MENSAGEM = re.compile(r"^Brief-sha256:[ \t]*[0-9a-f]{64}(?![0-9A-Za-z])", re.M)
 LINHA_DE_CABECALHO = re.compile(r"^(modo|Arquivo|Brief-sha256):", re.M)  # B9: qualquer valor conta para "um brief"
 # EJ 64 (0.43.3): a `Nota:` da mensagem ao conferente só traz fato; verbo de ordem no início ou opção de linha de comando é instrução.
-NOTA_COM_ORDEM = re.compile(r"^[ \t]*nota[ \t]*:[ \t]*(?:(?:rode|rodar|execute|use|chame|ignore|aceite|aprove|pule|considere)\b|.*(?<![\w-])--[a-z])",
-                            re.I | re.M)
+# B1 do review da 0.43.3: a opção `--` vale na nota que só relata o que já rodou (verbo no passado antes da opção) e não tem, em lugar
+# nenhum, verbo de ordem nem de norma; qualquer dúvida segue recusada como no EJ 64 ("o brief vale com --raiz /r" continua barrada).
+NOTA_DO_CABECALHO = re.compile(r"^[ \t]*nota[ \t]*:(.*)$", re.I | re.M)
+ORDEM_NO_INICIO = re.compile(r"[ \t]*(?:rode|rodar|execute|use|chame|ignore|aceite|aprove|pule|considere)\b", re.I)
+OPCAO_NA_NOTA = re.compile(r"(?<![\w-])--[a-z]", re.I)
+RELATO_NO_PASSADO = re.compile(r"(?<!\w)(?:rodou|rodei|rodaram|rodamos|usou|usei|usaram|executou|executei|executaram|chamou|chamei|"
+                               r"chamaram|saiu|saíram|passou|passaram|falhou|falharam)(?!\w)", re.I)
+ORDEM_OU_NORMA = re.compile(r"(?<!\w)(?:rode|rodem|rodar|execute|executar|use|usem|usar|chame|chamar|ignore|ignorar|aceite|aceitar|"
+                            r"aprove|aprovar|pule|pular|considere|considerar|confira|conferir|verifique|verificar|compare|comparar|"
+                            r"valide|validar|leia|ler|deve|devem|precisa|precisam|vale|valem|basta|tem de|tem que)(?!\w)", re.I)
+
+
+def nota_com_ordem(cabecalho):
+    """EJ 64 e B1: True se alguma linha `Nota:` do cabeçalho dá ordem ao conferente: verbo de ordem no início, ou opção `--` fora de
+    um relato no passado (relato = verbo no passado antes da opção e nenhum verbo de ordem ou de norma na linha)."""
+    for achado in NOTA_DO_CABECALHO.finditer(cabecalho):
+        corpo = achado.group(1)
+        if ORDEM_NO_INICIO.match(corpo):
+            return True
+        opcao = OPCAO_NA_NOTA.search(corpo)
+        if opcao and not (RELATO_NO_PASSADO.search(corpo[:opcao.start()]) and not ORDEM_OU_NORMA.search(corpo)):
+            return True
+    return False
+
+
 VALOR_DO_HASH = re.compile(r"Brief-sha256:[ \t]*([0-9a-f]{64})(?![0-9A-Za-z])")
 ABRE_BLOCO = "<<<BRIEF"
 LIMITE_DO_BRIEF = 256 * 1024  # limite técnico: o mesmo do `forge-check brief mensagem`
@@ -257,7 +280,7 @@ def mensagem_sem_forma(prompt):
         faltas.append("uma linha `Arquivo:` com o caminho em docs/briefs/")
     if not HASH_DA_MENSAGEM.search("\n".join(linhas)):
         faltas.append("uma linha `Brief-sha256:` com 64 hex")
-    if NOTA_COM_ORDEM.search(texto.split("<<<BRIEF", 1)[0]):  # EJ 64: só o cabeçalho; o corpo do brief citado não conta
+    if nota_com_ordem(texto.split("<<<BRIEF", 1)[0]):  # EJ 64: só o cabeçalho; o corpo do brief citado não conta
         faltas.append("a `Nota:` só traz fato, nunca instrução ao conferente (verbo de ordem ou opção `--`)")
     return "; ".join(faltas) or None
 

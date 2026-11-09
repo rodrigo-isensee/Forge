@@ -51,7 +51,7 @@ class Mapa(unittest.TestCase):
                                     "test_pre_push_afetados"],
             "bin/forge-placar": ["evals.test_placar", "test_forge"],  # 0.43.1, frente I
             ".devcontainer/devcontainer.json": ["test_forge"],  # 0.43.1, frente A
-            "bin/forge-doutor": ["test_atualizar", "test_doutor", "test_forge"],
+            "bin/forge-doutor": ["test_atualizar", "test_doutor", "test_forge", "test_novo_projeto"],
             "bin/forge-sugerir": ["test_forge", "test_sugerir"],
             "scripts/ci-local": ["test_ci_local", "test_forge", "test_testes_tocados"],
         }

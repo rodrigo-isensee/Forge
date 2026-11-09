@@ -12,7 +12,7 @@
 # --armar: pula a espera do passo 4, arma o auto-merge logo depois do passo 5 e sai com código 4 se o PR ainda não mesclou (o tech-lead
 # não fica esperando o CI; a limpeza vem depois com --limpar, que só age com prova de MERGED).
 # Código de saída: 0 fechado e limpo; 1 parou; 3 fechado (o merge ocorreu) com limpeza pendente (o resumo "limpeza: ..." lista o comando de cada parte);
-# 4 (só com --armar) auto-merge armado, o PR mescla quando os checks obrigatórios passarem.
+# 4 (só com --armar) auto-merge armado, o PR mescla quando os checks obrigatórios passarem; se a base andar antes, rode de novo (M3).
 # --limpar: roda só o passo 7, sem forge-check nem merge, e só com prova de PR MERGED na develop para a branch; cada parte é "se existe" (repete sem
 # efeito colateral). Rodado de dentro da worktree da própria branch, sai dela para a principal antes de remover. Só apaga a branch (local e remota) se o sha é o do PR mesclado ou já está na base; nunca usa a opção que força.
 # --sem-limpar: faz o merge e pula o passo 7: imprime os comandos da limpeza pendente (o `--limpar` primeiro, que confere o sha; worktree, branch local se existe e branch remota) e sai com
@@ -610,6 +610,7 @@ esperar_o_merged() {
     if [ "$armar" = 1 ]; then
       subida_extra="ARMADO ${remoto_sha:0:7}"
       echo "auto-merge armado no PR #$pr_n (head ${remoto_sha:0:7}): o GitHub mescla em $alvo quando os checks obrigatórios passarem."
+      echo "a base foi conferida agora, antes dos checks: se a $alvo andar antes do merge (outro PR mesclado), este PR não mescla sozinho; rode o forge-fechar com --armar de novo."
       printf 'depois do merge, rode: forge-fechar %q --ref %q --limpar\n' "$pedido" "$ref"
       exit 4
     fi

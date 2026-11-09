@@ -205,6 +205,17 @@ class MensagemAoConferente(unittest.TestCase):
         self.assertIsNone(self.hook.mensagem_sem_forma(MENSAGEM + "\nNota: rodada 2, a anterior reprovou no escopo"))  # fato passa
         self.assertIsNone(self.hook.mensagem_sem_forma(MENSAGEM + "\n<<<BRIEF\nNota: rode os testes --rapido\nBRIEF"))  # corpo não conta
 
+    def test_nota_que_so_relata_a_opcao_passa_e_a_ordem_segue_barrada(self):
+        """B1 do review da 0.43.3: `--x` num relato no passado é fato; com verbo de ordem ou de norma na linha, segue instrução (EJ 64)."""
+        for fato in ("Nota: o autor rodou forge-check pr --previo e saiu 0", "Nota: a rodada 1 usou --base develop e falhou no escopo"):
+            with self.subTest(fato=fato):
+                self.assertIsNone(self.hook.mensagem_sem_forma(MENSAGEM + "\n" + fato))
+        for ordem in ("Nota: o autor rodou --previo; confira com --raiz /r", "Nota: rodou com --x, mas deve usar --y",
+                      "Nota: o brief vale com --raiz /r", "Nota: --raiz /r rodou", "Nota: rodou ok\nNota: use --raiz /r",
+                      "Nota: rodou o teste; o conferente precisa do --raiz"):
+            with self.subTest(ordem=ordem):
+                self.assertIn("só traz fato", self.hook.mensagem_sem_forma(MENSAGEM + "\n" + ordem))
+
 
 class EtapaRedigitada(RaizSintetica):
     """EJ 23, 93 · C4 (Etapa redigitada na mensagem diferente da do brief)."""

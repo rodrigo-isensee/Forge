@@ -22,6 +22,22 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# E21: o Forge precisa do Python 3.12 ou mais novo (o menor que o CI prova; o mesmo PYTHON_MINIMO do forge-doutor).
+# Confere antes de mexer em qualquer arquivo, com a frase para quem não é técnico.
+python_minimo="3.12"
+conferir_python() {
+  local versao
+  if ! versao="$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null)" || [ -z "$versao" ]; then
+    echo "forge-init: não achei o Python 3 neste computador, e o Forge precisa do Python $python_minimo ou mais novo. Instale-o (no Ubuntu 24.04 ele já vem; nos outros sistemas, em python.org) e rode de novo. Nada foi mudado." >&2
+    exit 2
+  fi
+  if [ "$(printf '%s\n%s\n' "$python_minimo" "$versao" | sort -V | head -n1)" != "$python_minimo" ]; then
+    echo "forge-init: este computador tem o Python $versao, e o Forge precisa do Python $python_minimo ou mais novo. Instale um Python mais novo (no Ubuntu 24.04 ele já vem) ou peça ajuda a quem cuida do computador, e rode de novo. Nada foi mudado." >&2
+    exit 2
+  fi
+}
+conferir_python
+
 [ -d "$destino" ] || { echo "forge-init: diretório não existe: $destino" >&2; exit 2; }
 destino="$(cd "$destino" && pwd)"
 [ -n "$nome" ] || nome="$(basename "$destino")"
@@ -109,7 +125,7 @@ elif [ ! -e "$destino/.forge/versao" ] || [ "$forcar" -eq 1 ]; then
 fi
 # Estado de execução local e preferências da pessoa (perfil de experiência) não são versionados.
 for ignorado in '.forge/run/' '.forge/perfil' '.forge/novo-projeto.json' '.forge/onboarding.md'; do
-  if ! grep -qxF "$ignorado" "$destino/.gitignore" 2>/dev/null; then
+  if ! command grep -qxF "$ignorado" "$destino/.gitignore" 2>/dev/null; then
     echo "$ignorado" >> "$destino/.gitignore"; echo "  gitignore $ignorado"
   fi
 done

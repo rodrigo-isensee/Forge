@@ -29,6 +29,9 @@ GIT_TIMEOUT_S = 10
 GH_TIMEOUT_S = 20
 ID_DE_PEDIDO = re.compile(r"[A-Za-z0-9._-]+")
 TETO_DE_BYTES = 8_000_000  # arquivo maior não é lido (nada é contado e sai aviso)
+# B2 do review da 0.43.3: o transcrito longo é o que mais custa, então o teto dele é largo, mas existe; a leitura é linha a linha.
+TETO_DO_TRANSCRITO = 256 * 1024 * 1024  # bytes por subagents/*.jsonl; maior fica de fora e sai aviso
+TETO_DE_TRANSCRITOS = 5000  # arquivos por pasta, os mais novos; os demais ficam de fora e sai aviso
 
 # ---- Histórico: forma da linha e classes de evento (texto sem acento, minúsculo) ----
 LINHA_DO_HISTORICO = re.compile(r"^- (\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2}): (.*)$")
@@ -350,14 +353,20 @@ def esperas_por_portao(arquivos, janela):
 
 def primeiro_pedido(arq):
     """O texto do primeiro registro `user` do transcrito (o prompt do agente) e a soma do uso de tokens das respostas, com cada
-    mensagem contada uma vez (o mesmo `id` se repete nos pedaços de uma resposta). (None, 0) se o arquivo não é lido."""
-    prompt, usos = None, {}
+    mensagem contada uma vez (o mesmo `id` se repete nos pedaços de uma resposta). (None, 0) se o arquivo não é lido: link,
+    não regular ou acima de TETO_DO_TRANSCRITO (B2). Lê linha a linha, sem o arquivo inteiro na memória."""
     try:
-        if arq.is_symlink():
+        if arq.is_symlink() or not arq.is_file() or arq.stat().st_size > TETO_DO_TRANSCRITO:
             return None, 0
-        linhas = arq.read_text(encoding="utf-8", errors="replace").splitlines()  # sem o teto: o transcrito longo é o que mais custa
+        with open(arq, encoding="utf-8", errors="replace") as fonte:
+            return _uso_do_transcrito(fonte)
     except OSError:
         return None, 0
+
+
+def _uso_do_transcrito(linhas):
+    """(prompt, tokens) de `primeiro_pedido`, a partir das linhas do transcrito."""
+    prompt, usos = None, {}
     for linha in linhas:
         try:
             registro = json.loads(linha)
@@ -383,15 +392,42 @@ def transcritos_da_raiz(raiz):
     return [pasta] if pasta.is_dir() else []
 
 
-def tokens_por_item(pastas, raiz_pedidos):
+def grande_demais(arq):
+    try:
+        return not arq.is_symlink() and arq.stat().st_size > TETO_DO_TRANSCRITO
+    except OSError:
+        return False
+
+
+def transcritos_da_pasta(pasta, avisos=None):
+    """Os `subagents/*.jsonl` da pasta, no máximo TETO_DE_TRANSCRITOS (os mais novos, em ordem de nome); o resto vira aviso (B2)."""
+    achados = sorted(Path(pasta).glob("*/subagents/*.jsonl")) + sorted(Path(pasta).glob("subagents/*.jsonl"))
+    if len(achados) <= TETO_DE_TRANSCRITOS:
+        return achados
+
+    def idade(arq):
+        try:
+            return arq.lstat().st_mtime
+        except OSError:
+            return 0
+    mantidos = set(sorted(achados, key=idade, reverse=True)[:TETO_DE_TRANSCRITOS])
+    if avisos is not None:
+        avisos.append(f"{len(achados) - TETO_DE_TRANSCRITOS} transcritos mais antigos de {pasta} ficaram fora dos tokens "
+                      f"(teto de {TETO_DE_TRANSCRITOS} por pasta)")
+    return [a for a in achados if a in mantidos]
+
+
+def tokens_por_item(pastas, raiz_pedidos, avisos=None):
     """{(pedido, item): {"tokens": n, "agentes": k}} dos transcritos `*.jsonl` das `pastas` (busca recursiva): o brief citado no
     primeiro pedido do agente dá o pedido (`Pedido:` ou o nome `<pedido>-<papel>-<n>`) e os itens (`Cobre:`); sem `Cobre:`, o item é
     `-`. Os itens vêm do `Cobre:` e das citações do Entregar; agente que cobre vários itens divide os tokens entre eles (rateio).
-    Transcrito sem brief citado fica de fora (não é de item)."""
+    Transcrito sem brief citado fica de fora (não é de item); o acima dos tetos (B2) também, com aviso em `avisos`."""
     saida = {}
     for pasta in pastas:
-        for arq in sorted(Path(pasta).glob("*/subagents/*.jsonl")) + sorted(Path(pasta).glob("subagents/*.jsonl")):
+        for arq in transcritos_da_pasta(pasta, avisos):
             prompt, tokens = primeiro_pedido(arq)
+            if prompt is None and avisos is not None and grande_demais(arq):
+                avisos.append(f"transcrito {arq.name} passa de {TETO_DO_TRANSCRITO // 1024 // 1024} MB e ficou fora dos tokens")
             nome = BRIEF_NO_PROMPT.search(prompt or "")
             if not nome or not tokens:
                 continue
@@ -442,7 +478,7 @@ def calcular(raiz, raiz_pedidos, pedidos=None, desde=None, ate=None, por="dia", 
     conferencias = [c for c in conferencias if janela(datetime.datetime.fromisoformat(c["data"].replace(" ", "T")))]
     variavel = [t for t in os.environ.get("FORGE_TRANSCRITOS", "").split(os.pathsep) if t]
     pastas = [Path(t) for t in (transcritos or variavel)] or transcritos_da_raiz(raiz)
-    custos = tokens_por_item(pastas, raiz_pedidos) if pastas else None
+    custos = tokens_por_item(pastas, raiz_pedidos, avisos) if pastas else None
     itens, por_pedido = [], []
     for nome in nomes:
         texto = ler_texto(pasta / f"{nome}.md") if ID_DE_PEDIDO.fullmatch(nome) and nome.strip(".") else None

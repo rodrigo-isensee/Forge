@@ -1,0 +1,33 @@
+{
+  "descricao": "AGENTE-NAO-EMENDA-ENVIADO: o git aceita `--amen` (prefixo único de `--amend`); a recusa também.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "ref": "refs/remotes/origin/melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git commit -a --amen -m 'feat: x'"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-VERIFY: git commit --amend de commit já enviado"
+  }
+}

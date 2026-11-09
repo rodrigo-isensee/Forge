@@ -520,6 +520,12 @@ def acrescenta_linha_de_portao(caminho, entrada, pasta):
     return bool(novas - antigas)
 
 
+def emenda(args):
+    """`git commit --amend`, também abreviado (`--am`, `--amen`: o git aceita o prefixo único da opção longa); depois do `--` é caminho."""
+    args = args[:args.index("--")] if "--" in args else args
+    return any(len(a) >= 4 and "--amend".startswith(a) for a in args)
+
+
 class Guarda:
     def __init__(self, hook, politica, papel):
         self.h, self.pol, self.papel = hook, politica, papel
@@ -1453,6 +1459,9 @@ class Guarda:
                 self.reescreve_historico(f"git {sub} move a {nome_da_branch(alvo)}")
             if git(pasta, "branch", "-r", "--list", f"*/{nome_da_branch(alvo)}")[1].strip():
                 self.perguntar("mover")
+        elif sub == "commit" and emenda(args) and self.ja_enviado(pasta):
+            self.barrar("R-VERIFY", "git commit --amend de commit já enviado (AGENTE-NAO-EMENDA-ENVIADO)",
+                        "o commit enviado não se emenda: faça um commit novo", "historico")
         elif sub == "reset" and "--hard" in args:
             self.perguntar("descartar")
         elif sub == "clean" and (any(a == "--force" or re.fullmatch(r"-[a-zA-Z]*f[a-zA-Z]*", a) for a in args)
@@ -1463,6 +1472,12 @@ class Guarda:
         elif sub == "restore" and "." in args and (
                 not {"--staged", "-S"} & set(args) or {"--worktree", "-W"} & set(args)):
             self.perguntar("descartar")
+
+    @staticmethod
+    def ja_enviado(pasta):
+        """O HEAD está em alguma branch remota (`git branch -r --contains HEAD`); git que falha conta como enviado (falha fechada)."""
+        cod, saida = git(pasta, "branch", "-r", "--contains", "HEAD")
+        return bool(cod) or bool(saida.strip())
 
     @staticmethod
     def branch_movida(sub, args, positivos):

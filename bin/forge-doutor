@@ -4,10 +4,11 @@ Uso: forge doutor [--rapido] [-v] [DIRETORIO]
   --rapido  só o que é local e instantâneo (sem `gh`, sem rede); nunca conserta nem pergunta (é o que o hook e o atalho usam)
   -v        diz também que está tudo em ordem (sem ele, tudo bem = silêncio)
 No modo completo também confere o relógio deste computador contra o `Date` do GitHub (só avisa; nunca acerta o relógio).
-Confere: Python mínimo (3.12), plugin instalado e versão, `.forge/versao`, proteção do git, `gh` logado (modo completo), identidade do git,
+Confere: Python mínimo (3.12), plugin instalado e versão, `.forge/versao`, proteção do git, `gh` logado com os escopos repo e workflow (modo completo), identidade do git,
 `.claude/settings.json` com o Jarvis, sandbox, sinais de login por token (R-CUSTO; só o nome, nunca o valor) e as branches develop e homolog. Fora de um projeto do Forge, não diz nada.
 Conserta sozinho só o que é seguro (idempotente, restaurável a partir do modelo do Forge, com cópia de segurança), num
-terminal e depois de um "s". O resto vira uma frase dizendo o que fazer. Nunca envia nada ao GitHub (só lê: o modo completo confere a proteção das branches), nem mescla, nem apaga.
+terminal e depois de um "s". O resto vira uma frase dizendo o que fazer. Nunca envia nada ao GitHub (só lê: o modo completo confere a proteção das branches), nem mescla; só apaga, com o seu "s" e fora do Claude,
+as versões antigas do Forge no cache do plugin (nunca a em uso nem as duas maiores).
 Saída: 0 tudo em ordem; 1 sobrou algo a ver. Só biblioteca padrão."""
 import json
 import os
@@ -29,8 +30,8 @@ PYTHON_MINIMO = (3, 12)  # o menor Python que o CI prova (`ci.yml`, `release.yml
 class Problema:
     """Uma coisa fora do lugar: `texto` em linguagem simples e, se houver, `conserto` = (o que faz, função segura)."""
 
-    def __init__(self, texto, conserto=None):
-        self.texto, self.conserto = texto, conserto
+    def __init__(self, texto, conserto=None, sem_volta=False):
+        self.texto, self.conserto, self.sem_volta = texto, conserto, sem_volta  # sem_volta: pergunta própria, nunca no "s" geral
 
 
 LIMITE_GIT = 15  # segundos por comando; o hook usa um valor menor
@@ -164,7 +165,9 @@ def conferir_python():
     """O Python que roda o Forge abaixo do mínimo declarado (E21): nada prova que o Forge funcione nele."""
     if sys.version_info < PYTHON_MINIMO:
         atual, minimo = ".".join(map(str, sys.version_info[:2])), ".".join(map(str, PYTHON_MINIMO))
-        return [Problema(f"Python {atual} abaixo do mínimo {minimo} do Forge: instale o Python {minimo} ou mais novo.")]
+        return [Problema(f"Python {atual} abaixo do mínimo {minimo} do Forge: este computador precisa do Python {minimo} ou mais novo "
+                         "para o Forge funcionar. Instale um Python mais novo (no Ubuntu 24.04 ele já vem) ou peça ajuda a quem "
+                         "cuida do computador.")]
     return []
 
 
@@ -211,12 +214,32 @@ def conferir_gh(raiz):
         return [Problema("O `gh` (a ferramenta que fala com o GitHub) não está instalado: instale em https://cli.github.com "
                          "e rode `gh auth login`.")]
     codigo, saida = rodar(["gh", "auth", "status"], raiz)
-    if codigo == 0 or codigo is None:  # None: o `gh` não respondeu a tempo; não é falta de login
+    if codigo is None:  # o `gh` não respondeu a tempo; não é falta de login
         return []
+    if codigo == 0:
+        return conferir_escopos(saida)
     if re.search(r"error connecting|internet|network|timeout|timed out|dial tcp|no such host|resolve|connection", saida, re.I):
         return []  # sem conexão não é falta de login; o doutor não adivinha
     return [Problema("Você ainda não entrou no GitHub por aqui: rode `gh auth login` neste terminal "
                      "(o login acontece no navegador).")]
+
+
+ESCOPOS_DO_GH = ("repo", "workflow")  # S-17/WORKFLOW-SCOPE: sem `workflow`, o envio que muda `.github/` é recusado no fim
+
+
+def conferir_escopos(saida):
+    """Escopos que faltam no token do `gh` (linha `Token scopes:` do `gh auth status`). Sem a linha (token de escopo fino,
+    ou `gh` que não a imprime), não adivinha: silêncio."""
+    linha = re.search(r"Token scopes:\s*(.*)", saida)
+    if not linha:
+        return []
+    tem = set(re.findall(r"[\w:-]+", linha.group(1)))
+    faltam = [e for e in ESCOPOS_DO_GH if e not in tem]
+    if not faltam:
+        return []
+    return [Problema(f"O login do GitHub por aqui não tem a permissão {' nem a '.join(f'`{e}`' for e in faltam)}, e sem ela o envio "
+                     "de algumas mudanças é recusado no fim. Rode `gh auth refresh -h github.com -s repo,workflow` neste terminal "
+                     "(confirma no navegador) e depois `forge doutor` de novo.")]
 
 
 def conferir_relogio():
@@ -225,6 +248,30 @@ def conferir_relogio():
     import forge_versoes
     texto = forge_versoes.texto_de_relogio(forge_versoes.desvio_do_relogio(forge_versoes.url_do_forge(), 3))
     return [Problema(texto)] if texto else []
+
+
+def conferir_cache():
+    """Só no modo completo (M11): versões antigas do Forge no cache do plugin. Apaga só no conserto, num terminal fora do Claude,
+    depois do "s"; a versão em uso, a desta sessão e as duas maiores ficam sempre."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import forge_versoes
+    antigas, em_uso = forge_versoes.versoes_antigas_do_cache(casa())
+    if not antigas:
+        return []  # sem nada a apagar, ou sem conseguir conferir o que está em uso: silêncio, nada sai
+    tamanhos = [forge_versoes.tamanho(p) for p in antigas]
+    total = "" if None in tamanhos else f", {sum(tamanhos) / 1024 / 1024:.1f} MB"
+    nomes = ", ".join(forge_versoes.sem_controle(p.name) for p in antigas)
+    texto = (f"O cache do plugin guarda {len(antigas)} {'versão antiga' if len(antigas) == 1 else 'versões antigas'} do Forge "
+             f"({nomes}{total}) que nenhuma instalação usa.")
+    if forge_versoes.dentro_do_claude():
+        return [Problema(texto + " Para apagar, rode `forge doutor` no seu terminal, fora do Claude, e responda s.")]
+
+    def limpar():
+        apagadas, puladas = forge_versoes.remover_do_cache(antigas, casa())
+        resto = f"; pulei {len(puladas)} que mudaram desde a lista" if puladas else ""
+        return (f"apaguei do cache do plugin as versões {', '.join(forge_versoes.sem_controle(p.name) for p in apagadas) or 'nenhuma'}"
+                f" (a em uso ficou; o cache se refaz reinstalando ou atualizando){resto}")
+    return [Problema(texto, ("apagar as versões antigas do cache", limpar), sem_volta=True)]
 
 
 def conferir_identidade(config_git):
@@ -413,6 +460,7 @@ def diagnosticar(raiz, rapido=True):
     if not rapido:
         problemas += conferir_gh(raiz)
         problemas += conferir_relogio()
+        problemas += conferir_cache()
     if codigo is not None:
         problemas += conferir_identidade(config_git)
     if not rapido:
@@ -434,6 +482,10 @@ def relatar(problemas, consertaveis, interativo):
         print(f"Dá para consertar {len(consertaveis)} sozinho: rode `forge doutor` num terminal e responda s.")
 
 
+def sim(resposta):
+    return resposta.strip().lower() in ("s", "sim")
+
+
 def main():
     args = sys.argv[1:]
     if "-h" in args or "--help" in args:
@@ -449,16 +501,23 @@ def main():
         if detalhe:
             print(f"Forge doutor: tudo em ordem (Forge {versao_do_plugin()}).")
         return 0
-    consertaveis = [p for p in problemas if p.conserto]
+    consertaveis = [p for p in problemas if p.conserto and not p.sem_volta]
+    sem_volta = [p for p in problemas if p.conserto and p.sem_volta]
     interativo = not rapido and sys.stdin.isatty() and sys.stdout.isatty()
-    relatar(problemas, consertaveis, interativo)
-    if not (consertaveis and interativo):
+    relatar(problemas, consertaveis + sem_volta, interativo)
+    if not ((consertaveis or sem_volta) and interativo):
         return 1
-    resposta = input(f"Posso consertar sozinho {len(consertaveis)} (mexo só no que é seguro e guardo cópia)? [s/N] ")
-    if resposta.strip().lower() not in ("s", "sim"):
+    mexeu = False
+    if consertaveis and sim(input(f"Posso consertar sozinho {len(consertaveis)} (mexo só no que é seguro e guardo cópia)? [s/N] ")):
+        for p in consertaveis:
+            print(f"Consertei: {p.conserto[1]()}.")
+        mexeu = True
+    for p in sem_volta:  # cada um com a sua pergunta: apagar não tem volta
+        if sim(input(f"Posso {p.conserto[0]}? Não tem volta (o cache se refaz reinstalando ou atualizando); a versão em uso fica. [s/N] ")):
+            print(f"Feito: {p.conserto[1]()}.")
+            mexeu = True
+    if not mexeu:
         return 1
-    for p in consertaveis:
-        print(f"Consertei: {p.conserto[1]()}.")
     restantes = diagnosticar(raiz, rapido)
     if not restantes:
         print("Tudo em ordem agora.")
