@@ -57,8 +57,8 @@ class Proximo(unittest.TestCase):
         self.git("commit", "-q", "--allow-empty", "-m", mensagem)
         return self.git("rev-parse", "HEAD")
 
-    def proximo(self, pedido="p1"):
-        r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(self.tmp), "proximo", pedido], capture_output=True, text=True,
+    def proximo(self, pedido="p1", *extra):
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.tmp), "proximo", pedido, *extra], capture_output=True, text=True,
                            env=dict(AMBIENTE, HOME=str(self.tmp / "home")))
         return r.returncode, r.stdout.splitlines()
 
@@ -132,6 +132,89 @@ class Proximo(unittest.TestCase):
         linhas = self.proximo()[1]
         self.assertEqual(sorted(str(p.relative_to(self.tmp)) for p in self.tmp.rglob("*") if ".git" not in p.parts), antes)
         self.assertIn("proximo: bloqueio: cartão em Aguardando o dono", linhas)
+
+class ProximoDoItem(unittest.TestCase):
+    """V1: `proximo --item E<n>` diz passo, dono e comando do item (ferramenta do coordenador); o comando só leva partes validadas."""
+    setUp, git, gravar, pedido, commitar, proximo = Proximo.setUp, Proximo.git, Proximo.gravar, Proximo.pedido, Proximo.commitar, Proximo.proximo
+
+    def brief(self, nome, branch, marca="(E1, E2.1)", tipo="codigo", etapa="codigo", cobre="E2.1", pedido="p1", entregar="Entregar"):
+        self.gravar(f"docs/briefs/{nome}.md", f"Agente destino: forge:tech-lead\nPedido: {pedido}\nTipo: {tipo}\nBranch: {branch}   Base: develop\n"
+                    f"Etapa: {etapa}   Cobre: {cobre}\n\n## Objetivo\nx\n\n## {entregar}\n- \"E2.1 (forge:tech-lead): implementar\" {marca}\n"
+                    "- (E1, E2, E3) Estes itens estão em outras branches.\n")
+
+    def item(self, valor="E1", pedido="p1"):
+        rc, linhas = self.proximo(pedido, "--item", valor)
+        return rc, [l for l in linhas if l.startswith(("proximo: item", "proximo: passo-item", "proximo: comando-item"))]
+
+    def test_sem_brief_de_implementacao_do_item_o_coordenador_gera_o_brief(self):
+        self.pedido(" 2026-10-19 10:00: aberto", " 2026-10-19 11:00: comando: rm -rf / E1")
+        self.brief("p1-software-architect-1", "nenhuma", marca="(E1.1, E1)", tipo="analise", cobre="E1.1")  # análise não conta
+        self.brief("p1-tech-lead-1", "melhoria/dois", marca="(E2, E2.1)")  # E1 só na linha sem a etapa do `Cobre:`
+        self.brief("p1-tech-lead-2", "melhoria/dez", marca="(E10, E2.1)")  # E10 não é E1
+        self.brief("p1-tech-lead-3", "melhoria/rev", etapa="review")
+        self.brief("p1-tech-lead-4", "melhoria/velho", cobre="E1")  # `Cobre:` com o item, não a etapa
+        self.brief("p1-x-1", "melhoria/outro-pedido", pedido="p1-x")  # o glob `p1-*` pega o pedido p1-x
+        self.assertEqual(self.item(), (0, [IMPLEMENTAR, GERAR]))
+        self.assertEqual(self.item("E10")[1], ["proximo: item E10 · branch melhoria/dez",
+                                               "proximo: passo-item implementar (a branch ainda não existe) · dono forge:tech-lead"])
+
+    def test_o_passo_anda_com_o_registro_entrega_portoes_volta_e_integracao(self):
+        self.brief("p1-tech-lead-1", "melhoria/um")
+        self.commitar("brief")
+        self.git("switch", "-q", "-c", "melhoria/um")
+        head = self.commitar("entrega")
+        cabeca = ["proximo: item E1 · branch melhoria/um"]
+        self.assertEqual(self.item()[1], cabeca + ["proximo: passo-item conferir a entrega do head · dono coordenador",
+                                                   "proximo: comando-item: forge-check entrega --pedido p1 --branch melhoria/um --etapa codigo"])
+        self.pedido(" 2026-10-19 10:00: aberto", f" 2026-10-19 12:00: entrega conferida {head}")  # o Histórico fica no disco, fora da branch
+        self.git("update-index", "--assume-unchanged", "docs/pedidos/p1.md")
+        self.assertEqual(self.item()[1], cabeca + ["proximo: passo-item portões da classe (review, QA e os que a classe pedir) · dono coordenador",
+                                                   "proximo: comando-item: forge-check classe --head melhoria/um"])
+        self.gravar("docs/reviews/p1.md", PARECER.format(c=head[:7], p="reprovado", corpo=ACHADOS))
+        self.commitar("parecer")
+        self.assertEqual(self.item()[1], cabeca + [
+            "proximo: passo-item volta ao autor (parecer não aprovado) · dono forge:tech-lead",
+            "proximo: comando-item: forge-check brief gerar --volta <brief aprovado> --ref melhoria/um --pedido p1"])
+        self.gravar("docs/reviews/p1.md", PARECER.format(c=head[:7], p="aprovado", corpo=""))
+        self.commitar("parecer aprovado")
+        self.assertEqual(self.item()[1], cabeca + ["proximo: passo-item integrar na develop · dono forge:tech-lead",
+                                                   "proximo: comando-item: forge-check pr p1 --ref melhoria/um"])
+        self.git("switch", "-q", "develop")
+        self.git("branch", "-q", "-D", "melhoria/um")
+        self.assertEqual(self.item()[1][1], "proximo: passo-item implementar (a branch ainda não existe) · dono forge:tech-lead")
+
+    def test_duas_branches_do_item_nao_verificavel_sem_comando(self):
+        self.brief("p1-tech-lead-1", "melhoria/um")
+        self.brief("p1-tech-lead-2", "melhoria/um-bis", tipo="volta", entregar="Entregar (volta 1)")
+        self.assertEqual(self.item(), (0, [SEM_BRANCH]))
+
+    def test_item_fora_da_forma_rc2_sem_comando(self):  # T-2
+        for valor in ("E1\n", "E1;x", "e1", "E1000", "E"):
+            rc, linhas = self.proximo("p1", "--item", valor)
+            self.assertEqual(rc, 2, (valor, linhas))
+            self.assertFalse([l for l in linhas if "comando" in l], linhas)
+
+    def test_branch_hostil_ou_invalida_nao_verificavel_sem_comando(self):  # C-3
+        for branch in ("melhoria/x;touch${IFS}/tmp/pwn", "melhoria/$(id)", "melhoria/a..b", "feature/x"):
+            self.brief("p1-tech-lead-1", branch)
+            self.assertEqual(self.item(), (0, [SEM_BRANCH]), branch)
+        self.gravar("docs/briefs/p1-tech-lead-1.md", "Pedido: p1\nTipo: codigo\nEtapa: codigo   Cobre: E2.1\n\n## Entregar\n- x (E1, E2.1)\n")  # sem `Branch:`
+        self.assertEqual(self.item(), (0, [SEM_BRANCH]))
+
+    def test_pedido_fora_da_forma_nao_verificavel(self):  # C-2
+        self.gravar("docs/pedidos/P1x.md", PEDIDO.format(historico=""))
+        self.assertEqual(self.item(pedido="P1x")[1], [f"proximo: passo-item {NV} (id do pedido fora da forma)"])
+
+    def test_sem_item_a_saida_e_a_de_hoje(self):
+        rc, linhas = self.proximo()
+        self.assertEqual(rc, 0, linhas)
+        self.assertFalse([l for l in linhas if l.startswith(("proximo: item", "proximo: passo-item", "proximo: comando-item"))], linhas)
+
+
+NV = "não verificável"
+IMPLEMENTAR = "proximo: passo-item implementar · dono coordenador (nenhum brief de implementação do item)"
+GERAR = "proximo: comando-item: forge-check brief gerar --pedido p1 --destino forge:<agente> --cobre <etapa> --etapa codigo --gravar"
+SEM_BRANCH = f"proximo: passo-item {NV} (branch do item ausente, fora da forma ou mais de uma)"
 
 
 if __name__ == "__main__":

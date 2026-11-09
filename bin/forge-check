@@ -6882,6 +6882,87 @@ def branch_do_proximo(raiz, pedido):
     return branch, head[:7] if head else None
 
 
+ITEM_DO_PROXIMO = r"E\d{1,3}"  # `--item`; sempre por `fullmatch` (V1, T-2)
+PEDIDO_DO_ITEM = r"[a-z0-9][a-z0-9._-]{0,80}"  # id do pedido que entra no comando do item (V1, C-2)
+BRANCH_DO_ITEM = r"melhoria/[a-z0-9][a-z0-9._-]{0,80}"  # `\S+` do cabeçalho não valida nada para shell (V1, C-3)
+ETAPA_DO_BRIEF = r"E\d{1,3}\.\d{1,3}[a-z]?"  # o `Cobre:` do brief é a etapa do pedido, nunca o item
+DESTINO_DO_ITEM = r"forge:[a-z0-9-]{1,40}"  # dono do passo de implementação, lido do `Agente destino:` do brief
+
+
+def item_na_marca(texto, item):
+    """V1: o item está na citação `(…)` do primeiro item do `## Entregar` que traz a etapa do `Cobre:`, por igualdade de id
+    (`E1` não é `E10` nem `E1.2`); as outras linhas do `Entregar` citam itens que o brief não entrega e não contam."""
+    cobre = grupo(r"\bCobre:\s*(\S+)", cabecalho_do_brief(texto))
+    if not re.fullmatch(ETAPA_DO_BRIEF, cobre or ""):
+        return False
+    for linha in itens_de(secoes_por(texto, CABECALHO_BRIEF).get("Entregar", [])):
+        for m in CITACAO.finditer(linha):
+            ids = ids_do_texto(m.group(1))
+            if cobre in ids:
+                return item in ids
+    return False
+
+
+def briefs_do_item(raiz, pedido, item):
+    """V1: (n de briefs, branch, destino) dos briefs de implementação do pedido (`Pedido:` igual, `Etapa: codigo`, `Tipo:` codigo ou volta)
+    com o item na marca. A branch só vale com `BRANCH_DO_ITEM` e o `git check-ref-format --branch`; inválida, ausente ou duas distintas:
+    None. O destino só vale com `DESTINO_DO_ITEM` e um só; senão None."""
+    branches, destinos, briefs = set(), set(), 0
+    for base in dict.fromkeys((raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF)):
+        for arq in sorted((Path(base) / "docs" / "briefs").glob(f"{pedido}-*.md")):
+            try:
+                texto = arq.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            cabecalho = cabecalho_do_brief(texto)
+            if grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho) != pedido or grupo(ETAPA_DO_CABECALHO, cabecalho) != "codigo" \
+                    or tipo_do_brief(texto) not in ("codigo", "volta") or not item_na_marca(texto, item):
+                continue
+            briefs += 1
+            branches.add(grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho))
+            destinos.add(grupo(r"^\s*Agente destino:\s*(\S+)", cabecalho))
+    branch = branches.pop() if len(branches) == 1 else None
+    if not (re.fullmatch(BRANCH_DO_ITEM, branch or "") and git(raiz, "check-ref-format", "--branch", branch)[0] == 0):
+        branch = None
+    destino = destinos.pop() if len(destinos) == 1 else None
+    return briefs, branch, (destino if re.fullmatch(DESTINO_DO_ITEM, destino or "") else None)
+
+
+def passo_do_item(raiz, pedido, branch, destino):
+    """V1: (passo, dono, comando) do item com brief e branch válidos, na ordem do fluxo (R-PROVA, R-REVIEW, R-FLUXO). O comando só
+    leva partes validadas (pedido, branch); nada vem de frase do pedido nem do Histórico."""
+    autor = destino or "autor do brief"
+    ref = branch if sha_do_commit(raiz, f"refs/heads/{branch}") else f"origin/{branch}"
+    if not sha_do_commit(raiz, ref):
+        return "implementar (a branch ainda não existe)", autor, None
+    if conferencia_do_head(raiz, pedido, ref=ref, branch=branch):
+        return "conferir a entrega do head", "coordenador", f"forge-check entrega --pedido {pedido} --branch {branch} --etapa codigo"
+    vereditos = [(tipo, parecer) for tipo, _, parecer, _, commitado in vereditos_do_proximo(raiz, {pedido, branch.removeprefix("melhoria/")})
+                 if commitado]
+    if any(p not in ("aprovado", "riscos-aceitos") for _, p in vereditos):
+        return "volta ao autor (parecer não aprovado)", autor, f"forge-check brief gerar --volta <brief aprovado> --ref {branch} --pedido {pedido}"
+    if not vereditos:
+        return "portões da classe (review, QA e os que a classe pedir)", "coordenador", f"forge-check classe --head {ref}"
+    return "integrar na develop", "forge:tech-lead", f"forge-check pr {pedido} --ref {ref}"
+
+
+def linhas_do_item(raiz, caminho, item):
+    """V1 (ferramenta do coordenador): as linhas do `--item`, uma com o passo e o dono e, quando há, uma com o comando, para nenhum
+    item ficar parado sem dono. Só leitura; o que não se prova pelo registro sai `não verificável`, sem comando."""
+    pedido = caminho.stem
+    if not re.fullmatch(PEDIDO_DO_ITEM, pedido):
+        return [f"proximo: passo-item {NAO_VERIFICAVEL} (id do pedido fora da forma)"]
+    briefs, branch, destino = briefs_do_item(raiz, pedido, item)
+    if not briefs:
+        return ["proximo: passo-item implementar · dono coordenador (nenhum brief de implementação do item)",
+                f"proximo: comando-item: forge-check brief gerar --pedido {pedido} --destino forge:<agente> --cobre <etapa> --etapa codigo --gravar"]
+    if branch is None:
+        return [f"proximo: passo-item {NAO_VERIFICAVEL} (branch do item ausente, fora da forma ou mais de uma)"]
+    passo, dono, comando = passo_do_item(raiz, pedido, branch, destino)
+    return [f"proximo: item {item} · branch {branch}", f"proximo: passo-item {passo} · dono {dono}"] \
+        + ([f"proximo: comando-item: {comando}"] if comando else [])
+
+
 def vereditos_do_proximo(raiz, ids):
     """[(tipo, rel, parecer, commit, commitado)] do parecer mais recente de cada tipo para algum dos `ids` (o frontmatter validado é a fonte)."""
     saida = []
@@ -6897,10 +6978,13 @@ def vereditos_do_proximo(raiz, ids):
     return saida
 
 
-def cmd_proximo(raiz, pedido):
+def cmd_proximo(raiz, pedido, item=None):
     """L17 (AQ-2): o ponto em que o pedido está, só leitura e sem rede: etapas com o estado que o Histórico prova, branch, último veredito dos
     pareceres, próximo passo e bloqueios. O texto do pedido é DADO: cada linha sai por `sem_controle`, limitada em largura, e o próximo
-    passo nunca é montado com frase do Histórico (C-17a, T-17). O que falta de registro sai `não verificável`; nada se grava."""
+    passo nunca é montado com frase do Histórico (C-17a, T-17). O que falta de registro sai `não verificável`; nada se grava.
+    Com `item` (V1), as linhas do item vêm logo depois da do pedido; item fora de `ITEM_DO_PROXIMO`: rc 2, sem comando."""
+    if item is not None and not re.fullmatch(ITEM_DO_PROXIMO, item):
+        return [f"proximo: --item {nome_seguro(sem_controle(item))}: fora da forma E<n> (até 3 dígitos)"], 2
     caminho = caminho_do_pedido(raiz, pedido)
     try:
         pedido_txt = caminho.read_text(encoding="utf-8")
@@ -6908,7 +6992,7 @@ def cmd_proximo(raiz, pedido):
         return [f"proximo: pedido {nome_seguro(sem_controle(pedido))}: {NAO_VERIFICAVEL} (o arquivo do pedido não abre)"], 2
     pedido_id = (re.search(r"^id:\s*(\S+)", pedido_txt, re.M) or [None, caminho.stem])[1]
     historico = [l for l in secoes_por(pedido_txt, CABECALHO_PEDIDO).get("Histórico", []) if l.strip()]
-    linhas = [f"proximo: pedido {caminho_impresso(pedido_id)}"]
+    linhas = [f"proximo: pedido {caminho_impresso(pedido_id)}"] + (linhas_do_item(raiz, caminho, item) if item is not None else [])
     etapas = etapas_do_proximo(pedido_txt, historico)
     linhas += [f"proximo: etapa {e} ({papel}) · {estado} · {texto_da_etapa(texto)}" for e, papel, texto, estado in etapas] \
         or [f"proximo: etapas: {NAO_VERIFICAVEL} (o pedido não tem `## Etapas`)"]
@@ -8953,6 +9037,7 @@ def main():
     rt.add_argument("--dias", type=int, default=30, help="janela do P85 do lead time, em dias (padrão 30)")
     px = sub.add_parser("proximo", parents=[comum], help="onde o pedido está: etapas, branch, último veredito, próximo passo e bloqueios; só leitura (AQ-2)")
     px.add_argument("pedido", help="id de docs/pedidos/<id>.md")
+    px.add_argument("--item", help="E<n> (até 3 dígitos): passo, dono e comando do item, lidos da marca do brief de implementação e do registro (V1)")
     de = sub.add_parser("decisoes", parents=[comum], help="registro das linhas DECISÃO DO DONO dos pedidos (data, decisão, motivo, reabre se); só leitura, no stdout (EXT-2)")
     de.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md); padrão: todos")
     de.add_argument("--sem-cartao", action="store_true", help="cruza cada decisão com os cartões do KANBAN.md e do histórico e lista as sem cartão (rc 0)")
@@ -9215,7 +9300,7 @@ def executar(a, raiz):
             return cmd_brief_selar(raiz, a)
         return cmd_brief_conferir(raiz, a.alvo, a.pedido, a.destino, a.anterior, a.ref, a.parecer)
     if a.cmd == "proximo":
-        linhas, codigo = cmd_proximo(raiz, a.pedido)
+        linhas, codigo = cmd_proximo(raiz, a.pedido, a.item)
         for linha in linhas:
             print(linha)
         return codigo
