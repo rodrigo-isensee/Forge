@@ -125,7 +125,7 @@ elif [ ! -e "$destino/.forge/versao" ] || [ "$forcar" -eq 1 ]; then
 fi
 # Estado de execução local e preferências da pessoa (perfil de experiência) não são versionados.
 for ignorado in '.forge/run/' '.forge/perfil' '.forge/novo-projeto.json' '.forge/onboarding.md'; do
-  if ! grep -qxF "$ignorado" "$destino/.gitignore" 2>/dev/null; then
+  if ! command grep -qxF "$ignorado" "$destino/.gitignore" 2>/dev/null; then
     echo "$ignorado" >> "$destino/.gitignore"; echo "  gitignore $ignorado"
   fi
 done

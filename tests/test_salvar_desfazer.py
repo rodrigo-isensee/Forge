@@ -419,7 +419,30 @@ class AjudaEOpcao(Base):  # SALVAR-AJUDA-E-OPCAO: `forge salvar --help` virou me
         self.assertEqual(self.topo_remoto("feature/x"), self.git("rev-parse", "HEAD"))
 
 
+class GrepDoUsuario(Base):
+    """GREP-UGREP: uma função `grep` exportada pelo shell do usuário (ugrep, por exemplo) não muda o que o `forge salvar` decide."""
+
+    def test_funcao_grep_exportada_nao_vira_marca_de_conflito(self):
+        self.git("checkout", "-q", "-b", "feature/x")
+        self.escrever("a.txt", "texto limpo\n")
+        self.env.update({"BASH_FUNC_grep%%": "() {  return 0\n}"})  # o que `export -f grep` põe no ambiente
+        r = self.forge("salvar", "texto limpo")
+        self.assertEqual(r.returncode, 0, self.saida(r))
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "texto limpo")
+
+
+SCRIPTS_COM_COMMAND_GREP = ("bin/forge-salvar", "bin/forge-init", "scripts/preparar-estacao.sh")
+
+
 class Garantias(unittest.TestCase):
+    def test_scripts_chamam_command_grep(self):
+        """GREP-UGREP: `grep` solto pegaria a função exportada pelo shell do usuário; `command grep` vai ao programa."""
+        for rel in SCRIPTS_COM_COMMAND_GREP:
+            with self.subTest(script=rel):
+                codigo = [l for l in (RAIZ / rel).read_text(encoding="utf-8").splitlines() if not l.lstrip().startswith("#")]
+                soltos = [l for l in codigo if re.search(r"(?<![\w.-])grep\s", l.replace("command grep", ""))]
+                self.assertEqual(soltos, [])
+
     def test_scripts_nunca_usam_force_nem_reset_hard(self):
         for nome in ("forge-salvar", "forge-desfazer"):
             codigo = "\n".join(l for l in (RAIZ / "bin" / nome).read_text(encoding="utf-8").splitlines()
