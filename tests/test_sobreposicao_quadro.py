@@ -105,9 +105,20 @@ class Sobreposicao(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertIn("melhoria/a <-> melhoria/b: comum.txt", saida)
 
-    def test_base_inexistente_nao_falha(self):
-        git(self.repo, "branch", "-m", "outra")
-        rc, saida = checar(self.repo, "sobreposicao", "--base", "nao-existe-xyz")
+    def test_base_dada_inexistente_falha_fechada(self):
+        """BUG-B1: a `--base` dada que não existe reprova e diz qual é; antes ela caía em silêncio na develop (pares de outra base)."""
+        for renomeia in (False, True):
+            with self.subTest(sem_develop=renomeia):
+                if renomeia:
+                    git(self.repo, "branch", "-m", "develop", "outra")
+                rc, saida = checar(self.repo, "sobreposicao", "--base", "nao-existe-xyz")
+                self.assertEqual(rc, 1, saida)
+                self.assertIn('sobreposicao: erro: a base "nao-existe-xyz" não existe', saida)
+                self.assertNotIn("par(es)", saida)
+
+    def test_sem_base_e_sem_nenhuma_das_bases_so_avisa(self):
+        git(self.repo, "branch", "-m", "develop", "outra")
+        rc, saida = checar(self.repo, "sobreposicao")
         self.assertEqual(rc, 0)
         self.assertIn("base não encontrada", saida)
 
