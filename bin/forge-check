@@ -4063,6 +4063,26 @@ CLASSES_DE_FALHA = {
     "outra": "—",
 }
 AUTORES_DE_FALHA = ("jarvis", "destino", "conferente", "ferramenta")
+# O1 (0.44.1): ação fixa por classe de reprovação, (quem, ação). As de forma a ferramenta corrige no registro, sem rodada do Jarvis
+# (`brief selar` recalcula o merge-base, o Base-sha, o Revisar-sha, o --desde e confere de novo citações e etapa; `brief mensagem`
+# refaz a mensagem); a mesma classe reprovada LIMIAR_AO_DONO vezes no mesmo brief vai ao dono. Toda classe do catálogo tem ação.
+ACAO_DA_CLASSE = {
+    "decisao": ("jarvis", "grave a decisão com `forge-check anotar --tipo decisao` e sele o brief de novo"),
+    "etapa": ("ferramenta", "brief selar"),
+    "escopo": ("jarvis", "cite a etapa `(E<n>)` de cada item do Entregar ou corte com a marca; sele de novo"),
+    "prova": ("destino", "dê a cada prova tipo e `espera:` do vocabulário, que falhe sem a mudança (R-PROVA)"),
+    "base": ("ferramenta", "brief selar"),
+    "forma": ("ferramenta", "brief mensagem"),
+    "citacao": ("ferramenta", "brief selar"),
+    "implementacao": ("destino", "rode a suíte e cada prova antes do relatório e entregue de novo (R-PROVA)"),
+    "ambiente": ("jarvis", "rode o `forge-check` da versão vigente; a limitação da ferramenta vira cartão de melhoria"),
+    "hora": ("jarvis", "grave a hora com `forge-check anotar` (o relógio, nunca digitada)"),
+    "consentimento": ("dono", "pergunte ao dono e grave a fala literal (`forge-check pedido fala --gravar`) antes de seguir"),
+    "estado": ("jarvis", "confira develop, disco ou remoto (git grep, git log, ls-remote) antes de afirmar o estado"),
+    "outra": ("jarvis", "classifique a falha numa classe do catálogo ou proponha classe nova na retrospectiva"),
+}
+LIMIAR_AO_DONO = 3  # reprovações da mesma classe no mesmo brief
+PRAZO_DA_ACAO = 120  # segundos da correção pela ferramenta
 TIPOS_DE_BRIEF = ("codigo", "volta", "review", "qa", "merge", "ato-github", "desconhecido")
 TETO_DA_TABELA = 1024 * 1024
 JANELA_DE_RECORRENCIA = 30  # dias
@@ -4147,11 +4167,35 @@ def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, meri
         saida += [protecao] if protecao else []
     if modo == "entrega" and _aprovou(resultado):  # E7: a etapa conferida salva a área do Jarvis; aviso não muda o rc
         saida += [x for x in [salvar_area(raiz, pedido, brief)] if x]
+    if classe != "—":
+        saida += acao_da_reprovacao(raiz, arq, pedido, brief, modo, classe)
     if classe not in ("—", "outra"):
         quem = autor if autor != "destino" else f"destino:{agente_do_brief(pedido, brief)}"
         grupos, _ = recorrencias(raiz)
         saida += [proposta_de(g) for g in grupos if g["classe"] == classe and g["quem"] == quem and g["n"] >= LIMIAR_DA_PROPOSTA]
     return saida
+
+
+def acao_da_reprovacao(raiz, arq, pedido, brief, modo, classe):
+    """O1: a linha `ação:` da reprovação recém-gravada em `arq`. A mesma classe LIMIAR_AO_DONO vezes no brief vai ao dono; a classe
+    de forma no modo brief roda a correção pela ferramenta (o próprio script, sem shell) e imprime o rc; as outras, a ação fixa."""
+    n = sum(1 for c in _ler_tabela(arq) if len(c) >= 9 and c[1:4] == [pedido, brief, modo] and c[8] == classe)
+    if n >= LIMIAR_AO_DONO:
+        return [f"ação: ao dono: {classe} reprovou {n} vezes o brief {brief}; nem a ferramenta nem a ação fixa resolveram (R-DECISAO)"]
+    quem, acao = ACAO_DA_CLASSE[classe]
+    if quem != "ferramenta":
+        return [f"ação: {quem}: {acao}"]
+    if modo != "brief":
+        return [f"ação: jarvis: {CLASSES_DE_FALHA[classe]}"]
+    alvo = ["--pedido", pedido, "--arquivo", f"docs/briefs/{brief.removesuffix('.md')}.md"]
+    comando = f"forge-check {acao} {' '.join(alvo)}"
+    try:
+        r = subprocess.run([sys.executable, str(Path(__file__).resolve()), "--raiz", str(raiz), *acao.split(), *alvo],
+                           capture_output=True, text=True, timeout=PRAZO_DA_ACAO)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return [f"ação: ferramenta: {comando} não terminou ({type(e).__name__}); corrija com o mesmo comando"]
+    ultima = r.stdout.strip().rsplit("\n", 1)[-1]
+    return [f"ação: ferramenta: {comando} -> rc {r.returncode} ({sem_controle(ultima)[:160]})"]
 
 
 def proteger_brief_aprovado(raiz, brief):
