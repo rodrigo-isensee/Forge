@@ -19,6 +19,7 @@ Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, http
 ## Comandos do projeto
 - **Pronto** (critério de entrega dos agentes): `{{COMANDO_PRONTO}}`
 - **Testes rápidos**: <!-- comando de testes da stack -->
+- **Linha de status (opcional)**: `forge-status` mostra uma linha por pedido em curso; para ligar, ponha `"statusLine": {"type": "command", "command": "forge-status"}` em `.claude/settings.local.json`.
 
 ## Exceções locais às regras da fábrica
 <!-- Só o que diverge do Forge, com o motivo. Ex.: teto de recursos diferente, outro banco, outra branch de integração. -->

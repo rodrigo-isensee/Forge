@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""Forge: uma linha por pedido em curso, para a statusLine do Claude Code (S3, 0.44.1). Só biblioteca padrão.
+
+Uso: forge-status [--raiz DIR] [--max N]
+  Na statusLine, o JSON da entrada traz a pasta (`workspace.current_dir` ou `cwd`); sem ele, vale --raiz ou a pasta atual.
+  Por pedido de docs/pedidos/<id>.md: `<id> · <coluna do KANBAN.md> · PR #<n> · <hora> <última linha do ## Histórico>`. A coluna é a
+  seção do quadro em que a coluna Pedido do cartão cita o id; o PR é o último `PR #<n>` citado no pedido. Pedido em "Pronto" fica
+  fora; os mais recentes primeiro, até --max (padrão 3), e `+<k>` com o resto. Só lê o disco: sem rede, sem git, nunca escreve;
+  arquivo ilegível vale vazio. Sem pedido em curso: `forge: nenhum pedido em curso`. Sai sempre com 0 (a statusLine não trava).
+Oferecida no modelo de projeto (templates/projeto/CLAUDE.md), não ligada à força.
+"""
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+FECHADAS = frozenset({"Pronto"})
+HISTORICO = re.compile(r"^- (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}): (.*)$", re.M)
+PR = re.compile(r"\bPR #(\d+)\b")
+ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+TETO_DE_BYTES = 1_000_000
+CORTE = 60
+
+
+def ler(arq):
+    try:
+        return arq.read_bytes()[:TETO_DE_BYTES].decode("utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def colunas(kanban):
+    """{id do pedido: seção do quadro} das linhas de tabela cuja 3ª célula (Pedido) cita um id."""
+    saida, secao = {}, ""
+    for linha in kanban.splitlines():
+        secao = re.sub(r"\s*\(.*", "", linha[3:]).strip() if linha.startswith("## ") else secao
+        celulas = [c.strip() for c in linha.strip().strip("|").split("|")]
+        nome = LINK.sub(r"\1", celulas[2]).rsplit("/", 1)[-1].removesuffix(".md") if len(celulas) > 2 else ""
+        if linha.startswith("|") and ID.fullmatch(nome) and nome != "Pedido":
+            saida[nome] = secao
+    return saida
+
+
+def linhas(raiz, maximo):
+    quadro = colunas(ler(raiz / "KANBAN.md"))
+    pedidos = []
+    for arq in sorted((raiz / "docs" / "pedidos").glob("*.md")):
+        texto, coluna = ler(arq), quadro.get(arq.stem, "fora do quadro")
+        historico, prs = HISTORICO.findall(texto), PR.findall(texto)
+        ultimo = historico[-1] if historico else ("", "--:--", "sem histórico")
+        if coluna not in FECHADAS:
+            pr = f" · PR #{prs[-1]}" if prs else ""
+            texto_ = re.sub(r"[\x00-\x1f\x7f]", " ", ultimo[2])[:CORTE]
+            pedidos.append((ultimo[0] + ultimo[1], f"{arq.stem} · {coluna}{pr} · {ultimo[1]} {texto_}"))
+    pedidos.sort(reverse=True)
+    saida = [linha for _, linha in pedidos[:maximo]] or ["forge: nenhum pedido em curso"]
+    return saida + [f"+{len(pedidos) - maximo}"] * (len(pedidos) > maximo)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="forge-status", description="uma linha por pedido em curso, para a statusLine")
+    ap.add_argument("--raiz", default=".")
+    ap.add_argument("--max", type=int, default=3)
+    a = ap.parse_args(argv)
+    try:
+        entrada = json.loads(("{}" if sys.stdin.isatty() else sys.stdin.read(TETO_DE_BYTES)) or "{}")
+        pasta = entrada.get("workspace", {}).get("current_dir") or entrada.get("cwd") or a.raiz
+    except (ValueError, AttributeError, OSError):
+        pasta = a.raiz
+    print("\n".join(linhas(Path(pasta), max(1, a.max))))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
