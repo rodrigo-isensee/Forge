@@ -6,6 +6,7 @@ todos os `tests/*.py` falha se uma chamada direta a `git` (subprocess) não rece
 montado por ele; (4) os módulos de tests/ carregam também no modo dirigido (`python3 -m unittest tests.<módulo>`).
 Origem: erros de tearDown por `maintenance.lock` só em worktree (S-9)."""
 import ast
+import functools
 import os
 import subprocess
 import sys
@@ -15,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import CONFIGURACAO, remoto_sem_manutencao, sem_manutencao  # noqa: E402
+from modelo_git import copiar_modelo  # noqa: E402
 
 AQUI = Path(__file__).resolve().parent
 RAIZ = AQUI.parent
@@ -54,6 +56,14 @@ def _no_repositorio_real(chamada):
     return cwd is not None and ast.unparse(cwd) in REPOSITORIO_REAL
 
 
+@functools.lru_cache(maxsize=None)
+def _construtores_do_modulo(fonte, pasta, vistos):
+    """Os construtores do módulo importado de texto `fonte`, lidos uma vez por texto (S-SUITE-RAPIDA): o mesmo módulo de
+    apoio (`test_forge`, 6 mil linhas) é importado por dezenas de módulos, e a leitura só depende do texto, da pasta e de
+    `vistos`."""
+    return frozenset(_Leitura(ast.parse(fonte), pasta, vistos).construtores)
+
+
 class _Leitura:
     """Resolve, para cada chamada, de onde vem o `env=`: só vale o que sai do ponto único na mesma função (atribuição
     mais próxima antes da chamada), no preparo da classe (`self.env`) ou no nível do módulo, ou de uma função do
@@ -82,8 +92,8 @@ class _Leitura:
         for imp in ast.walk(self.arvore):
             origem = pasta / f"{getattr(imp, 'module', None)}.py"
             if isinstance(imp, ast.ImportFrom) and imp.module and imp.module not in vistos and origem.is_file():
-                daquele = _Leitura(ast.parse(origem.read_text(encoding="utf-8")), pasta, vistos | {imp.module})
-                nomes |= {a.asname or a.name for a in imp.names if a.name in daquele.construtores}
+                daquele = _construtores_do_modulo(origem.read_text(encoding="utf-8"), pasta, vistos | {imp.module})
+                nomes |= {a.asname or a.name for a in imp.names if a.name in daquele}
         return nomes
 
     def _acima(self, no, tipos):
@@ -345,6 +355,55 @@ class RemotoSemManutencao(unittest.TestCase):
             self.assertEqual(vistos["com"], [f"{c}={v}" for c, v in (("receive.autogc", "false"), ("gc.auto", "0"),
                                                                       ("maintenance.auto", "false"))] + ["COUNT="])
             self.assertEqual(dict(CONFIGURACAO), {"receive.autogc": "false", "gc.auto": "0", "maintenance.auto": "false"})
+
+
+class ModeloCopiado(unittest.TestCase):
+    """S-SUITE-RAPIDA: o repositório-modelo (`modelo_git.copiar_modelo`) é montado uma vez por processo e cada teste
+    recebe uma cópia independente: o commit numa cópia não chega ao modelo nem à outra cópia."""
+
+    def test_monta_uma_vez_e_as_copias_sao_independentes(self):
+        montagens = []
+
+        def montar(pasta):
+            montagens.append(pasta)
+            env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+            subprocess.run(["git", "init", "-q", "-b", "develop"], cwd=pasta, env=env, check=True)
+            (pasta / "a.txt").write_text("a\n", encoding="utf-8")
+            subprocess.run(["git", "add", "-A"], cwd=pasta, env=env, check=True)
+            subprocess.run(["git", "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "base"],
+                           cwd=pasta, env=env, check=True)
+
+        chave = f"teste-{id(self)}"
+        with tempfile.TemporaryDirectory() as d:
+            um, dois = Path(d) / "um", Path(d) / "dois"
+            modelo = copiar_modelo(chave, um, montar)
+            self.assertEqual(copiar_modelo(chave, dois, montar), modelo)
+            self.assertEqual(montagens, [modelo], "o modelo é montado uma vez só")
+            self.assertNotIn(modelo, (um, dois))
+            env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+            (um / "b.txt").write_text("b\n", encoding="utf-8")
+            subprocess.run(["git", "add", "-A"], cwd=um, env=env, check=True)
+            subprocess.run(["git", "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "um"],
+                           cwd=um, env=env, check=True)
+            contar = lambda pasta: subprocess.run(["git", "rev-list", "--count", "HEAD"], cwd=pasta, env=env, check=True,
+                                                  capture_output=True, text=True).stdout.strip()
+            self.assertEqual((contar(um), contar(dois), contar(modelo)), ("2", "1", "1"))
+            self.assertEqual(subprocess.run(["git", "status", "--porcelain"], cwd=dois, env=env, check=True,
+                                            capture_output=True, text=True).stdout, "", "a cópia sai limpa")
+
+    def test_montagem_que_falha_nao_fica_guardada(self):
+        chave = f"teste-falha-{id(self)}"
+
+        def quebra(pasta):
+            (pasta / "x").write_text("x", encoding="utf-8")
+            raise RuntimeError("falhou de propósito")
+
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(RuntimeError):
+                copiar_modelo(chave, Path(d) / "um", quebra)
+            modelo = copiar_modelo(chave, Path(d) / "dois", lambda pasta: (pasta / "y").write_text("y", encoding="utf-8"))
+            self.assertEqual(sorted(p.name for p in (Path(d) / "dois").iterdir()), ["y"])
+            self.assertEqual(sorted(p.name for p in modelo.iterdir()), ["y"])
 
 
 class ModoDirigido(unittest.TestCase):
