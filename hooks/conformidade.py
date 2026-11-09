@@ -1292,11 +1292,9 @@ class Guarda:
                 and not (sub == "pedido" and so_le(args, "--ler")):
             destinos = [f"{r}/{FORGE_CHECK_ESCRITAS[sub]}/pedido.md" for r in (".", "~/.forge-contrib")]
         elif sub == "recado" and not so_le(args, "--confirmar"):
-            # S8 (review da 0.44.1): a caixa de recados é da sessão principal; a raiz de destino (`--para`) é livre, então confere a
-            # dela e a da sessão (a política de `.forge/recados/` decide); sem `--confirmar`, grava (na dúvida, recusa)
-            raizes = [a.split("=", 1)[1] for a in args if "=" in a and prefixo_de(a.split("=", 1)[0], "--para")]
-            raizes += [args[i + 1] for i, a in enumerate(args[:-1]) if prefixo_de(a, "--para")]
-            destinos = [f"{r}/.forge/recados/recado.md" for r in (*raizes, ".")]
+            # S8 (review da 0.44.1): a caixa de recados é da sessão principal; a raiz de destino (`--para`) é livre, então a política de
+            # `.forge/recados/` da sessão decide, com qualquer raiz; sem `--confirmar`, grava (na dúvida, recusa)
+            destinos = ["./.forge/recados/recado.md"]
         else:
             destinos = livres[3:4] if sub == "transcricao" and livres[1:2] == ["anonimizar"] else []
         for destino in destinos:

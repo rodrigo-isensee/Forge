@@ -51,6 +51,36 @@
       "testes": [
         "tests.test_forge_status.Status.test_controle_c1_vira_espaco"
       ]
+    },
+    {
+      "id": "M22",
+      "guarda": "O4: a marca sem acento",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if not unicodedata.combining(c)",
+      "para": "if unicodedata.combining(c)",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_palavra_solta_so_escolhe_a_marcada_reversivel"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "upgrade: subchave do modelo mesclada a fundo",
+      "arquivo": "bin/forge-upgrade",
+      "de": "        if isinstance(valor, dict):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "upgrade: chave do projeto fica",
+      "arquivo": "bin/forge-upgrade",
+      "de": "        elif chave not in atual:",
+      "para": "        elif True:",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
     }
   ]
 }
