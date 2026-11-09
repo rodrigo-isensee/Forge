@@ -21,6 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import SINAIS_DE_CUSTO, remoto_sem_manutencao, sem_manutencao  # noqa: E402
 from sem_claude_ancestral import comando  # noqa: E402
+from modelo_git import copiar_modelo  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 ATUALIZAR = RAIZ / "bin" / "forge-atualizar"
@@ -55,26 +56,20 @@ exit 0
 
 class Base(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp(prefix="atualizar-"))
-        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
-        self.home, self.bin, self.fake = self.tmp / "home", self.tmp / "bin", self.tmp / "fake"
-        for p in (self.home, self.bin, self.fake):
-            p.mkdir()
-        (self.bin / "claude").write_text(CLAUDE_FALSO, encoding="utf-8")
-        (self.bin / "claude").chmod(0o755)
-        self.gitconfig = self.home / "gitconfig"
-        self.gitconfig.write_text("[user]\n\tname = Pessoa Teste\n\temail = pessoa@exemplo.test\n", encoding="utf-8")
-        self.publicado = self.tmp / "forge-publicado.git"
-        # A suíte roda dentro do Claude Code (CLAUDECODE e CLAUDE_CODE_ENTRYPOINT definidas, `claude` ancestral), e os scripts
-        # se recusam a rodar aí (F5-01). Os testes do caminho feliz simulam "a pessoa no terminal": tiram essas variáveis do
-        # ambiente e rodam o script pelo lançador `sem_claude_ancestral`, que não olha acima do processo do teste.
-        self.env = {k: v for k, v in os.environ.items()
-                    if not k.startswith("GIT_") and k not in ("CLAUDE_PROJECT_DIR", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", *SINAIS_DE_CUSTO)}
-        self.env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.gitconfig),
-                        PATH=f"{self.bin}:{os.environ['PATH']}", FAKE_DIR=str(self.fake), FORGE_HOJE=HOJE,
-                        FORGE_REPO_URL=str(self.publicado), FORGE_PERMITE_LOCAL="1")
-        self.env.pop("XDG_STATE_HOME", None)
-        self.env = sem_manutencao(self.env)
+        tmp = Path(tempfile.mkdtemp(prefix="atualizar-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        # S-SUITE-RAPIDA: o Forge publicado com a tag da versão, o remoto e o projeto clonado são os mesmos em todo teste;
+        # montados uma vez por processo e copiados. O clone grava o caminho absoluto do remoto: a cópia aponta o dela.
+        modelo = copiar_modelo("atualizar-base", tmp, self._montar_modelo)
+        self._preparar(tmp)
+        self.env = sem_manutencao(self._ambiente())
+        config = self.proj / ".git" / "config"
+        config.write_text(config.read_text(encoding="utf-8").replace(str(modelo), str(tmp)), encoding="utf-8")
+
+    def _montar_modelo(self, pasta):
+        self._preparar(pasta)
+        self.env = sem_manutencao(self._ambiente())
+        self._escrever_arquivos_do_preparo()
         self.git("init", "-q", "--bare", "-b", "main", str(self.publicado), cwd=self.tmp)
         remoto_sem_manutencao(self.publicado)
         self.montar_projeto()
@@ -85,9 +80,36 @@ class Base(unittest.TestCase):
             "extraKnownMarketplaces": {"forge": {"source": {"source": "github", "repo": "dono/Forge"}}}}))
         self.publicar(VERSAO)
 
+    def _escrever_arquivos_do_preparo(self):
+        for p in (self.home, self.bin, self.fake):
+            p.mkdir()
+        (self.bin / "claude").write_text(CLAUDE_FALSO, encoding="utf-8")
+        (self.bin / "claude").chmod(0o755)
+        self.gitconfig.write_text("[user]\n\tname = Pessoa Teste\n\temail = pessoa@exemplo.test\n", encoding="utf-8")
+
+    def _preparar(self, tmp):
+        """Os caminhos do teste sobre `tmp` (sem escrever nada)."""
+        self.tmp = tmp
+        self.proj = self.tmp / "proj"
+        self.home, self.bin, self.fake = self.tmp / "home", self.tmp / "bin", self.tmp / "fake"
+        self.gitconfig = self.home / "gitconfig"
+        self.publicado = self.tmp / "forge-publicado.git"
+
+    def _ambiente(self):
+        """O ambiente do teste, antes do ponto único (`sem_manutencao`, aplicado por quem chama)."""
+        # A suíte roda dentro do Claude Code (CLAUDECODE e CLAUDE_CODE_ENTRYPOINT definidas, `claude` ancestral), e os scripts
+        # se recusam a rodar aí (F5-01). Os testes do caminho feliz simulam "a pessoa no terminal": tiram essas variáveis do
+        # ambiente e rodam o script pelo lançador `sem_claude_ancestral`, que não olha acima do processo do teste.
+        env = {k: v for k, v in os.environ.items()
+               if not k.startswith("GIT_") and k not in ("CLAUDE_PROJECT_DIR", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", *SINAIS_DE_CUSTO)}
+        env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.gitconfig),
+                   PATH=f"{self.bin}:{os.environ['PATH']}", FAKE_DIR=str(self.fake), FORGE_HOJE=HOJE,
+                   FORGE_REPO_URL=str(self.publicado), FORGE_PERMITE_LOCAL="1")
+        env.pop("XDG_STATE_HOME", None)
+        return env
+
     def montar_projeto(self):
         remoto = self.tmp / "remoto.git"
-        self.proj = self.tmp / "proj"
         self.git("init", "-q", "--bare", "-b", "main", str(remoto), cwd=self.tmp)
         remoto_sem_manutencao(remoto)
         self.git("clone", "-q", str(remoto), str(self.proj), cwd=self.tmp)

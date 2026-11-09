@@ -26,6 +26,10 @@ def com(base, **troca):
 
 
 class Registrar(Raiz):
+    # S-SUITE-RAPIDA: as dezenas de recusas por campo rodam o forge-check pelo bytecode em cache (apoio_forge_check_rapido);
+    # `Tardio` e `SalvarArea` seguem pelo script, de ponta a ponta
+    SCRIPT_DIRETO = False
+
     def setUp(self):
         super().setUp()
         self.gravar("KANBAN.md", "# Quadro\n")  # sem quadro o registro recusa (FC-PEDIDO-FORA)

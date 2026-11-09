@@ -28,6 +28,8 @@ import apoio_versao_defasada as ap  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 from test_voltas import Raiz  # noqa: E402  (raiz sintética do CONF-CORRECAO; sem teste próprio)
 from apoio_conferida import gravar_conferida  # noqa: E402  (E7: a conferida do head nos testes que não tratam dela)
+from modelo_git import copiar_modelo  # noqa: E402  (S-SUITE-RAPIDA: repositório de partida montado uma vez)
+from apoio_forge_check_rapido import comando_do_forge_check  # noqa: E402  (S-SUITE-RAPIDA: o forge-check sem recompilar)
 
 RAIZ = Path(__file__).resolve().parent.parent
 AGENTES = RAIZ / "agents"
@@ -1896,12 +1898,18 @@ class ForgeCheck(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="forge-check-"))
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
-        git("init", "-q", "-b", "melhoria/x", cwd=self.tmp)
-        git("config", "user.email", "t@example.com", cwd=self.tmp)
-        git("config", "user.name", "Teste", cwd=self.tmp)
-        self.escrever("src/app.txt", "v1\n")
-        git("add", "-A", cwd=self.tmp)
-        git("commit", "-q", "-m", "base", cwd=self.tmp)
+        copiar_modelo("forge-check", self.tmp, ForgeCheck._montar)  # S-SUITE-RAPIDA: o mesmo repositório, montado uma vez
+
+    @staticmethod
+    def _montar(pasta):
+        """O repositório de partida: branch melhoria/x com o commit base de `src/app.txt`."""
+        git("init", "-q", "-b", "melhoria/x", cwd=pasta)
+        git("config", "user.email", "t@example.com", cwd=pasta)
+        git("config", "user.name", "Teste", cwd=pasta)
+        (pasta / "src").mkdir()
+        (pasta / "src" / "app.txt").write_text("v1\n", encoding="utf-8")
+        git("add", "-A", cwd=pasta)
+        git("commit", "-q", "-m", "base", cwd=pasta)
 
     def escrever(self, rel, texto):
         p = self.tmp / rel
@@ -1934,7 +1942,7 @@ class ForgeCheck(unittest.TestCase):
             self.addCleanup(shutil.rmtree, casa, ignore_errors=True)
             gravar_conferida(casa, self.tmp, args[1], args[args.index("--ref") + 1] if "--ref" in args else "HEAD")
             env["HOME"] = str(casa)
-        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "--raiz", str(self.tmp), *args],
+        r = subprocess.run([*comando_do_forge_check(), "--raiz", str(self.tmp), *args],
                            env=env, capture_output=True, text=True)
         return r.returncode, r.stdout
 
@@ -2475,6 +2483,32 @@ class ForgeCheck(unittest.TestCase):
         self.assertIn("bugs_altos", saida)
 
 
+class ForgeCheckRapido(unittest.TestCase):
+    """S-SUITE-RAPIDA: o lançador com bytecode em cache (`apoio_forge_check_rapido`) roda o mesmo forge-check que o script: a
+    mesma saída, o mesmo erro e o mesmo código, em sucesso, em uso errado e com a raiz de um repositório."""
+
+    def test_lancador_da_a_mesma_saida_e_codigo_que_o_script(self):
+        with tempfile.TemporaryDirectory() as d:
+            git("init", "-q", "-b", "melhoria/x", cwd=Path(d))
+            for args in (["--help"], ["brief", "--help"], ["nao-existe"], ["pr"], ["--raiz", d, "docs"], ["--raiz", d, "pr", "p1"]):
+                with self.subTest(args=args):
+                    script = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), *args], capture_output=True,
+                                            text=True, cwd=d, env=ambiente_limpo())
+                    rapido = subprocess.run([*comando_do_forge_check(), *args], capture_output=True, text=True, cwd=d,
+                                            env=ambiente_limpo())
+                    self.assertEqual((rapido.returncode, rapido.stdout, rapido.stderr),
+                                     (script.returncode, script.stdout, script.stderr))
+
+    def test_so_o_script_do_repositorio_e_os_mesmos_argv_e_nome(self):
+        inicio = comando_do_forge_check()
+        self.assertEqual(inicio[:2], [sys.executable, "-c"])
+        self.assertEqual(inicio[3], str(RAIZ / "bin" / "forge-check"))
+        r = subprocess.run([sys.executable, "-c", inicio[2].replace("carregador.exec_module(modulo)\n", "")
+                            + "print(sys.argv, sys.path[0], modulo.__name__)", inicio[3], "a", "b"],
+                           capture_output=True, text=True)
+        self.assertEqual(r.stdout.strip(), f"[{inicio[3]!r}, 'a', 'b'] {RAIZ / 'bin'} __main__")
+
+
 class Orcamento(unittest.TestCase):
     def test_conferente_usa_o_pedido_da_mensagem(self):  # LOTE E4: a mensagem traz `Pedido: <id>`; o caminho montado à mão duplicava docs/pedidos/
         texto = RAIZ.joinpath("agents", "conferente.md").read_text(encoding="utf-8")
@@ -2846,7 +2880,7 @@ class Transcricoes(unittest.TestCase):
     """ADR 0007: verificador offline de sessões gravadas, sem IA e sem rede."""
 
     def rodar(self, *args):
-        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "transcricao", *args],
+        r = subprocess.run([*comando_do_forge_check(), "transcricao", *args],
                            capture_output=True, text=True)
         return r.returncode, r.stdout
 
@@ -3115,7 +3149,7 @@ class CustoDeTokens(unittest.TestCase):
     USO = RAIZ / "tests/transcricoes/uso"
 
     def rodar(self, *args):
-        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "transcricao", "custo", *args],
+        r = subprocess.run([*comando_do_forge_check(), "transcricao", "custo", *args],
                            capture_output=True, text=True)
         return r.returncode, r.stdout, r.stderr
 
@@ -3234,7 +3268,7 @@ class MedirAlucinacao(unittest.TestCase):
         tmp = Path(tempfile.mkdtemp(prefix="forge-medida-"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         (tmp / "s.jsonl").write_text("".join(json.dumps(o) + "\n" for o in linhas), encoding="utf-8")
-        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "transcricao", acao, str(tmp)],
+        r = subprocess.run([*comando_do_forge_check(), "transcricao", acao, str(tmp)],
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         return r.stdout, r.stderr
@@ -3414,7 +3448,7 @@ class ConferirBrief(unittest.TestCase):
             guardado.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(args[args.index("--pedido") + 1], guardado)
             args[args.index("--pedido") + 1] = str(guardado)
-        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "brief", *args], capture_output=True, text=True, cwd=cwd or RAIZ,
+        r = subprocess.run([*comando_do_forge_check(), "brief", *args], capture_output=True, text=True, cwd=cwd or RAIZ,
                            env=dict(com_gh_falso(), HOME=str(casa)))  # o gerar --branch não vai à rede (P5)
         return r.returncode, r.stdout
 
@@ -3746,6 +3780,7 @@ def com_decisoes(*linhas, brief=BRIEF):
 
 class Cenario(Raiz):
     """Raiz sintética: pedido que cita o registro `r`, o registro, o terceiro e o brief que cobre tudo."""
+    SCRIPT_DIRETO = False  # S-SUITE-RAPIDA: o forge-check pelo bytecode em cache (apoio_forge_check_rapido)
 
     PEDIDO_CITANDO = PEDIDO + CITA_R + "\n"
 
@@ -3764,7 +3799,7 @@ class Cenario(Raiz):
         args = ["brief", "mensagem", "--arquivo", arquivo, "--pedido", ID, "--destino", "forge:dev-exemplo"]
         if etapa is not None:
             args += ["--etapa", etapa]
-        r = subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(self.tmp), *args, *extra], capture_output=True,
+        r = subprocess.run([*comando_do_forge_check(), "--raiz", str(self.tmp), *args, *extra], capture_output=True,
                            env=dict(os.environ, HOME=str(self.tmp / "home")))
         return r.returncode, r.stdout
 
@@ -4323,12 +4358,13 @@ def rodar_fc(*args, raiz, home, cwd=None, env_extra=None, conferir=True):
     if conferir and args[:1] == ("pr",) and "--pr" not in args and len(args) > 1:
         gravar_conferida(home, raiz, args[1], args[args.index("--ref") + 1] if "--ref" in args else "HEAD")
     env = dict(ambiente_limpo(), HOME=str(home), **(env_extra or {}))
-    return subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(raiz), *args], capture_output=True, text=True, env=env,
+    return subprocess.run([*comando_do_forge_check(), "--raiz", str(raiz), *args], capture_output=True, text=True, env=env,
                           cwd=cwd, timeout=60)
 
 
 class SaidaSanitizada(Raiz):
     """E7 (FC-SAIDA-SANITIZADA): todo caminho impresso passa por `sem_controle` ou `nome_seguro`; C1, Cf, Zl e Zp também."""
+    SCRIPT_DIRETO = False  # S-SUITE-RAPIDA: o forge-check pelo bytecode em cache (apoio_forge_check_rapido)
     CONTROLES = ("\x00", "\n", "\r", "\x7f", "\x85", "\u2028", "\u2029", "\u202e", "\u200b", "\u2066")
     LISTA = {"caminho", "arquivo", "real", "raiz", "rel", "rel_volta", "alvo", "onde", "filename", "token", "pedido_id", "name", "quais"}
     # f-strings com um nome da lista que NÃO vão à saída (argumento do git, índice de evento); cada uma com o motivo
@@ -4491,6 +4527,7 @@ class SaidaSanitizadaNoGit(unittest.TestCase):
 
 class DecisaoAncora(Raiz):
     """E6 (DECISAO-ANCORA): a frase do dono só conta quando abre a linha, ou depois de um prefixo `AAAA-MM-DD[ HH:MM]:`; uma função só; nada some em silêncio."""
+    SCRIPT_DIRETO = False  # S-SUITE-RAPIDA: o forge-check pelo bytecode em cache (apoio_forge_check_rapido)
     MENCAO = "- 2026-10-20: ajuste conforme DECISÃO DO DONO acima"
 
     def pedido_com(self, extra):
@@ -4774,7 +4811,7 @@ class MensagemRecusaPorCampo(Cenario):
         args = {"--arquivo": ARQ, "--pedido": ID, "--destino": "forge:dev-exemplo", "--etapa": "E1.1"}
         args.update(troca)
         linha = ["brief", "mensagem"] + [x for par in args.items() for x in par if x is not None and par != ()]
-        r = subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(self.tmp), *[a for a in linha if a is not None]],
+        r = subprocess.run([*comando_do_forge_check(), "--raiz", str(self.tmp), *[a for a in linha if a is not None]],
                            capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp / "home")))
         return r.returncode, r.stdout
 
@@ -5569,6 +5606,7 @@ class CaminhoDoPedido(unittest.TestCase):
 
 
 class CustoPorPedido(Raiz):
+    SCRIPT_DIRETO = False  # S-SUITE-RAPIDA: o forge-check pelo bytecode em cache (apoio_forge_check_rapido)
     """E8 (CUSTO-POR-PEDIDO): `transcricao custo` lê as pastas da raiz e das worktrees (não a do cwd), separa por janela e por pedido
     existente, e nunca sai texto de prompt nem caminho (M8.1 a M8.3, abuso 19)."""
 
