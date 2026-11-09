@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Forge: despachante de subcomandos. `forge <sub> [args]` executa `bin/forge-<sub>`.
-# Uso: forge <subcomando> [argumentos]   (sem argumento, lista os subcomandos)
+# Uso: forge <subcomando> [argumentos]   (sem argumento, boas-vindas e os subcomandos; -h, só os subcomandos)
 #   forge novo-projeto   cria um projeto novo no GitHub e abre o Jarvis nele
+#   forge adotar         traz um projeto que já existe para o Forge, sem quebrar nada
 #   forge salvar         salva o trabalho (commit e envio) na branch de trabalho
 #   forge desfazer       volta ao último ponto bom, sem apagar histórico
 #   forge atualizar      atualiza o Forge do projeto, com ponto de retorno
@@ -19,7 +20,17 @@ listar() {
   done
 }
 
-if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then listar; exit 0; fi
+# ADR 0015, item 1: quem chega digita `forge` e vê os dois caminhos antes da lista.
+boas_vindas() {
+  echo "Forge: um time de agentes (o Jarvis e os especialistas) que desenvolve o seu sistema com você."
+  echo "Por onde começar:"
+  echo "  projeto novo:          forge novo-projeto"
+  echo "  projeto que já existe: entre na pasta dele e rode forge adotar"
+  echo
+}
+
+if [ $# -eq 0 ]; then boas_vindas; listar; exit 0; fi
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then listar; exit 0; fi
 
 sub="$1"; shift
 if ! [[ "$sub" =~ ^[a-z][a-z0-9-]*$ ]] || [ ! -x "$dir/forge-$sub" ]; then

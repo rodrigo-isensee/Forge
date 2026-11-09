@@ -1,0 +1,96 @@
+{
+  "pedido": "v0450-adotar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A378",
+      "guarda": "forge adotar: stack",
+      "arquivo": "bin/forge-adotar",
+      "de": "    d[\"pronto\"], d[\"pronto_origem\"] = pronto_existente(topo, stack) if stack else (None, \"\")",
+      "para": "    d[\"pronto\"], d[\"pronto_origem\"] = pronto_existente(topo, stack) if not (stack) else (None, \"\")",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A381",
+      "guarda": "forge adotar: faltam",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if faltam:",
+      "para": "    if not (faltam):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A383",
+      "guarda": "forge adotar: not stack and (not o['so_ler']) and (not o['stack']) and (no",
+      "arquivo": "bin/forge-adotar",
+      "de": "        if not stack and not o[\"so_ler\"] and not o[\"stack\"] and not d[\"detectadas\"]:",
+      "para": "        if not (not stack and not o[\"so_ler\"] and not o[\"stack\"] and not d[\"detectadas\"]):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A388",
+      "guarda": "forge adotar: o['so_ler'] or not confirmou()",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if o[\"so_ler\"] or not confirmou():",
+      "para": "    if not (o[\"so_ler\"] or not confirmou()):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A394",
+      "guarda": "forge adotar: __name__ == '__main__'",
+      "arquivo": "bin/forge-adotar",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if not (__name__ == \"__main__\"):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A114",
+      "guarda": "forge adotar: ternário",
+      "arquivo": "bin/forge-adotar",
+      "de": "d[\"hooks_ativos\"] = [] if d[\"hooks_path\"] else hooks_ativos(topo)",
+      "para": "d[\"hooks_ativos\"] = [] if not d[\"hooks_path\"] else hooks_ativos(topo)",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A147",
+      "guarda": "forge adotar: ternário",
+      "arquivo": "bin/forge-adotar",
+      "de": "arquivo(s)\" if d[\"sujos\"] else",
+      "para": "arquivo(s)\" if not d[\"sujos\"] else",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A312",
+      "guarda": "forge adotar: ternário",
+      "arquivo": "bin/forge-adotar",
+      "de": "*([\"--pronto\", d[\"pronto\"]] if d[\"pronto\"] else [])",
+      "para": "*([\"--pronto\", d[\"pronto\"]] if not d[\"pronto\"] else [])",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A385",
+      "guarda": "forge adotar: ternário",
+      "arquivo": "bin/forge-adotar",
+      "de": "        return 0 if o[\"so_ler\"] else 1",
+      "para": "        return 0 if not o[\"so_ler\"] else 1",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    }
+  ]
+}

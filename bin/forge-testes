@@ -104,6 +104,7 @@ MAPA = [
     (r"bin/forge_(governanca|decisor|run|meta)\.py", FORGE_CHECK),  # o forge-check importa o módulo ao montar os subcomandos (0.43.1 H)
     (r"bin/forge-placar", ("evals.test_placar", "test_forge")),  # 0.43.1, frente I
     (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge", "test_novo_projeto")),
+    (r"bin/forge-adotar", ("test_adotar", "test_stack_python", "test_forge")),  # 0.45.0: adoção de projeto existente
     (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge", "test_reval_delta", "test_salvar_desfazer")),  # EST-M4: guarda C-2; GREP-UGREP
     (r"bin/(forge-atualizar|forge_versoes\.py|forge-voltar-versao)", ("test_atualizar", "test_forge", "test_doutor")),
     (r"bin/forge-upgrade", ("test_atualizar", "test_forge", "test_doutor")),

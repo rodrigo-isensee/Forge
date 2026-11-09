@@ -1,0 +1,156 @@
+{
+  "pedido": "v0450-adotar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A151",
+      "guarda": "forge adotar: d['pronto'] or '(sugerido pelo pacote)'",
+      "arquivo": "bin/forge-adotar",
+      "de": "        print(f\"- pronto: {d['pronto'] or '(sugerido pelo pacote)'} ({d['pronto_origem']})\")",
+      "para": "        print(f\"- pronto: {d['pronto'] and '(sugerido pelo pacote)'} ({d['pronto_origem']})\")",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A153",
+      "guarda": "forge adotar: d['existentes']",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if d[\"existentes\"]:",
+      "para": "    if not (d[\"existentes\"]):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A155",
+      "guarda": "forge adotar: '.claude/settings.json' in d['existentes']",
+      "arquivo": "bin/forge-adotar",
+      "de": "              + (\" (o .claude/settings.json é mesclado, sem apagar nada)\" if \".claude/settings.json\" in d[\"existentes\"] else \"\"))",
+      "para": "              + (\" (o .claude/settings.json é mesclado, sem apagar nada)\" if \".claude/settings.json\" not in d[\"existentes\"] else \"\"))",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A160",
+      "guarda": "forge adotar: d['sujos']",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if d[\"sujos\"]:",
+      "para": "    if not (d[\"sujos\"]):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A162",
+      "guarda": "forge adotar: not d['tem_commit']",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if not d[\"tem_commit\"]:",
+      "para": "    if not (not d[\"tem_commit\"]):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A164",
+      "guarda": "forge adotar: d['branch_adotar']",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if d[\"branch_adotar\"]:",
+      "para": "    if not (d[\"branch_adotar\"]):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A166",
+      "guarda": "forge adotar: not stack",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if not stack:",
+      "para": "    if not (not stack):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A177",
+      "guarda": "forge adotar: r.returncode == 0",
+      "arquivo": "bin/forge-adotar",
+      "de": "    print(\"Pendência guardada para o Forge (envie com forge sugerir --fila).\" if r.returncode == 0",
+      "para": "    print(\"Pendência guardada para o Forge (envie com forge sugerir --fila).\" if r.returncode != 0",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A183",
+      "guarda": "forge adotar: not sys.stdin.isatty()",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if not sys.stdin.isatty():",
+      "para": "    if not (not sys.stdin.isatty()):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A190",
+      "guarda": "forge adotar: resposta.strip().lower() == 's'",
+      "arquivo": "bin/forge-adotar",
+      "de": "    return resposta.strip().lower() == \"s\"",
+      "para": "    return resposta.strip().lower() != \"s\"",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A196",
+      "guarda": "forge adotar: caminho and caminho not in ('.githooks', str(d['topo'] / '.g",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if caminho and caminho not in (\".githooks\", str(d[\"topo\"] / \".githooks\")):",
+      "para": "    if not (caminho and caminho not in (\".githooks\", str(d[\"topo\"] / \".githooks\"))):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A198",
+      "guarda": "forge adotar: pasta.name == '_' and pasta.parent.name.startswith('.')",
+      "arquivo": "bin/forge-adotar",
+      "de": "        if pasta.name == \"_\" and pasta.parent.name.startswith(\".\"):",
+      "para": "        if not (pasta.name == \"_\" and pasta.parent.name.startswith(\".\")):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A201",
+      "guarda": "forge adotar: d['hooks_ativos']",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if d[\"hooks_ativos\"]:\n        codigo, pasta = git(d[\"topo\"], \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"hooks\")",
+      "para": "    if not (d[\"hooks_ativos\"]):\n        codigo, pasta = git(d[\"topo\"], \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"hooks\")",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A203",
+      "guarda": "forge adotar: codigo == 0",
+      "arquivo": "bin/forge-adotar",
+      "de": "        return Path(pasta.strip()) / \"pre-push\" if codigo == 0 else None",
+      "para": "        return Path(pasta.strip()) / \"pre-push\" if not (codigo == 0) else None",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A211",
+      "guarda": "forge adotar: alvo is None",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if alvo is None:",
+      "para": "    if not (alvo is None):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    }
+  ]
+}
