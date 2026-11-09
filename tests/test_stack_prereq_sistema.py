@@ -114,6 +114,25 @@ class SuperficieDeRede(unittest.TestCase):
         self.escrever("a.ts", "app.post('/t', { onRequest: auth }, h, '" + "x" * 9000 + "', { schema: { body: C } })\n")
         self.assertEqual(self.achados(), ["a.ts:1 POST /t | sem validação na borda reconhecida | confirmar"])
 
+    def test_teto_de_rotas_por_arquivo_corta_e_avisa(self):
+        self.escrever("muitas.ts", "".join(f"app.get('/r{i}', h)\n" for i in range(501)))
+        self.escrever("route.ts", "".join(f"server.route({{ method: 'GET', url: '/q{i}' }})\n" for i in range(501)))
+        self.escrever("quinhentas.ts", "".join(f"app.get('/s{i}', h)\n" for i in range(500)))
+        self.escrever("cors.ts", "app.register(cors, { origin: true })\n" * 500 + "app.register(cors, { origin: '*', credentials: true })\n")
+        saida = self.rodar().stdout.splitlines()
+        self.assertIn("cortado: muitas.ts (mais de 500 rotas; só as primeiras)", saida)
+        self.assertIn("cortado: route.ts (mais de 500 rotas; só as primeiras)", saida)
+        self.assertFalse([l for l in saida if l.startswith("cortado: quinhentas.ts")])
+        self.assertIn("superficie: muitas.ts:500 GET /r499 | sem autenticação reconhecida | confirmar", saida)
+        self.assertFalse([l for l in saida if "/r500 " in l or "/q500 " in l])
+        self.assertIn("superficie: route.ts:500 GET /q499 | sem autenticação reconhecida | confirmar", saida)
+        self.assertFalse([l for l in saida if "cors.ts" in l])
+        self.assertTrue(saida[-1].startswith("superficie: 1500 rotas,"), saida[-1])
+
+    def test_numero_da_linha_conta_as_quebras_uma_vez(self):
+        self.escrever("a.ts", "\n" * 200000 + "app.get('/fim', h)\n")
+        self.assertIn("a.ts:200001 GET /fim | sem autenticação reconhecida | confirmar", self.achados())
+
     def test_pastas_de_fora_e_link_simbolico_sao_ignorados(self):
         fora = Path(self.tmp.name) / "fora"
         fora.mkdir()

@@ -20,9 +20,12 @@ itens da seção "API Node/Fastify" de `stacks/node-react/seguranca.md`):
 
 Não é portão: o `security-engineer` anexa a saída ao parecer e confirma cada linha. Toda linha pede confirmação,
 e a saída nunca diz "seguro": o que a varredura não reconhece (outra forma de rota, autenticação por outro nome)
-não aparece. Texto do projeto sai com caracteres de controle trocados por `?` e cortado em 200 caracteres.
+não aparece. Texto do projeto sai com caracteres de controle trocados por `?` e cortado em 200 caracteres. Arquivo com
+mais de 500 rotas sai com as 500 primeiras e a linha `cortado:`; de `cors`, valem as 500 primeiras chamadas.
 Saída: 0 sempre que leu a raiz; 2 em erro de uso.
 """
+import bisect
+import itertools
 import os
 import re
 import sys
@@ -34,6 +37,7 @@ PASTAS_FORA = {"node_modules", "dist", "build", ".git"}
 MAXIMO_DO_ARQUIVO = 1 << 20
 MAXIMO_DA_CHAMADA = 8000  # caracteres lidos depois do `(` da rota
 MAXIMO_DA_LINHA = 200
+MAXIMO_DE_ROTAS = 500  # por arquivo: a leitura de cada chamada custa até MAXIMO_DA_CHAMADA
 METODOS = "get|post|put|patch|delete|head|options|all"
 COM_CORPO = {"POST", "PUT", "PATCH"}
 # Expressões sem quantificador aninhado: cada uma anda em tempo linear mesmo em código hostil.
@@ -93,17 +97,24 @@ def chamada(texto, inicio):
     return texto[inicio:fim]
 
 
-def rotas(texto):
-    """(linha, MÉTODO, rota, texto da chamada) de cada rota do arquivo, na ordem em que aparecem."""
+def numerador(texto):
+    """Função que dá a linha (1, 2...) de uma posição do texto, com as quebras contadas uma vez só."""
+    quebras = [m.start() for m in re.finditer("\n", texto)]
+    return lambda posicao: bisect.bisect_left(quebras, posicao) + 1
+
+
+def rotas(texto, linha_de):
+    """(linha, MÉTODO, rota, texto da chamada) das primeiras MAXIMO_DE_ROTAS + 1 rotas do arquivo, na ordem em que
+    aparecem (a sobra avisa o corte)."""
     achadas = []
-    for m in ROTA.finditer(texto):
+    for m in itertools.islice(ROTA.finditer(texto), MAXIMO_DE_ROTAS + 1):
         abre = texto.index("(", m.start())
         achadas.append((m.start(), m.group(1).upper(), m.group(3), chamada(texto, abre)))
-    for m in ROUTE.finditer(texto):
+    for m in itertools.islice(ROUTE.finditer(texto), MAXIMO_DE_ROTAS + 1):
         corpo = chamada(texto, texto.index("(", m.start()))
         metodo, url = METODO_DO_ROUTE.search(corpo), URL_DO_ROUTE.search(corpo)
         achadas.append((m.start(), metodo.group(1).upper() if metodo else "?", url.group(1) if url else "?", corpo))
-    return [(texto.count("\n", 0, ini) + 1, metodo, rota, corpo) for ini, metodo, rota, corpo in sorted(achadas)]
+    return [(linha_de(ini), metodo, rota, corpo) for ini, metodo, rota, corpo in sorted(achadas)[:MAXIMO_DE_ROTAS + 1]]
 
 
 def autenticada(corpo, gancho_no_arquivo):
@@ -124,13 +135,13 @@ def achados_da_rota(metodo, corpo, gancho_no_arquivo, limite_global):
     return achados
 
 
-def cors_aberto(texto):
+def cors_aberto(texto, linha_de):
     """Linhas das chamadas de `cors` com origem aberta junto de credenciais."""
     linhas = []
-    for m in CORS.finditer(texto):
+    for m in itertools.islice(CORS.finditer(texto), MAXIMO_DE_ROTAS):  # o teto das rotas: cada chamada custa até 8000
         corpo = chamada(texto, m.end() - 1)
         if ORIGEM_ABERTA.search(corpo) and CREDENCIAIS.search(corpo):
-            linhas.append(texto.count("\n", 0, m.start()) + 1)
+            linhas.append(linha_de(m.start()))
     return sorted(set(linhas))
 
 
@@ -161,8 +172,12 @@ def varrer(raiz):
     total_de_rotas = total_de_achados = 0
     for relativo, texto in lidos:
         gancho = any(AUTENTICACAO.search(g) for g in GANCHO_DO_ARQUIVO.findall(texto))
-        linhas = [(n, "-", "-", "cors com origin aberta e credentials") for n in cors_aberto(texto)]
-        for n, metodo, rota, corpo in rotas(texto):
+        linha_de = numerador(texto)
+        linhas = [(n, "-", "-", "cors com origin aberta e credentials") for n in cors_aberto(texto, linha_de)]
+        achadas = rotas(texto, linha_de)
+        if len(achadas) > MAXIMO_DE_ROTAS:
+            saida.append(f"cortado: {limpo(relativo)} (mais de {MAXIMO_DE_ROTAS} rotas; só as primeiras)")
+        for n, metodo, rota, corpo in achadas[:MAXIMO_DE_ROTAS]:
             total_de_rotas += 1
             linhas += [(n, metodo, rota, a) for a in achados_da_rota(metodo, corpo, gancho, global_)]
         for n, metodo, rota, achado in sorted(linhas, key=lambda x: x[0]):
