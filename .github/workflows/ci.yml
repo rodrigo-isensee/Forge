@@ -4,8 +4,11 @@ name: CI
 # scripts/suite-partes.py, o mecanismo do scripts/suite-paralela.py), os demais passos da bateria num job (bateria (passos))
 # e um job agregador por versão com o nome do check exigido ("bateria" e "bateria (python 3.14)"), que só passa com todas
 # as partes e passos verdes (SUITE-NO-CI, decisão do dono de 2026-11-08: a suíte inteira roda uma vez, no CI). Push na
-# develop: só o job "rapida", que roda a suíte inteira (scripts/suite-paralela.py, Python 3.12) e é a prova da develop
-# que a EST-M7 (scripts/arvore-testada.py) vai ler. Push na homolog e na main: tudo de novo. Commit de PR que só muda
+# develop: só os jobs "rapida" e "rapida-quatorze", que rodam a suíte inteira (scripts/suite-paralela.py, Python 3.12 e
+# 3.14, com o mesmo preparo das partes) e são a prova da develop. Promoção (PR develop -> homolog e homolog -> main, push
+# na homolog e na main): cada parte roda antes scripts/arvore-testada.py (SP4, EST-M7) e pula a suíte só com a prova de
+# verdade: um commit do HEAD com a MESMA árvore (tree-sha) e o job "checagem rápida" daquele commit em success na develop;
+# sem prova, erro de rede ou evento fora da lista, a suíte roda inteira. Os passos e os agregadores não mudam. Commit de PR que só muda
 # docs/reviews/, docs/qa/, docs/security/, docs/devops/ ou docs/ux/ (fora modelos _* e docs/security/{ameacas,aceites}/),
 # com a bateria verde no commit anterior, pula os passos pesados do job de passos (gate por passo, nunca paths-ignore: ele
 # deixaria o check exigido pendente); as partes da suíte rodam sempre.
@@ -26,30 +29,10 @@ concurrency:
 jobs:
   rapida:
     name: checagem rápida (push na develop)
+    # Prova do Python 3.12 que o scripts/arvore-testada.py lê (o nome é o JOBS_DE_PROVA dele): mesmo preparo das partes.
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-26.04
     timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.12"
-      - name: Testes do Forge
-        run: python3 scripts/suite-paralela.py
-
-  partes-doze:
-    name: suíte (python 3.12, parte ${{ matrix.parte }}/3)
-    # Um terço da suíte inteira por job (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nos três). O
-    # agregador "bateria" exige os três verdes; cada parte confere que a divisão cobre todo o discover.
-    if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
-    runs-on: ubuntu-26.04
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        parte: [1, 2, 3]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -83,24 +66,15 @@ jobs:
           gnu=$(command -v gnuenv) || { echo "faltou gnuenv depois da instalação"; exit 1; }
           [ "$("$gnu" --s 'echo a  b')" = "a b" ] || { echo "o $gnu não divide --s como o GNU"; exit 1; }
           env --version | head -1
-      - name: Testes do Forge (parte)
-        env:
-          PARTE: ${{ matrix.parte }}
-        run: |
-          python3 --version
-          python3 scripts/suite-partes.py --parte "$PARTE/3"
+      - name: Testes do Forge
+        run: python3 scripts/suite-paralela.py
 
-  partes-quatorze:
-    name: suíte (python 3.14, parte ${{ matrix.parte }}/3)
-    # Um terço da suíte inteira por job (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nos três). O
-    # agregador "bateria (python 3.14)" exige os três verdes; cada parte confere que a divisão cobre todo o discover.
-    if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
+  rapida-quatorze:
+    name: checagem rápida (push na develop, python 3.14)
+    # Prova do Python 3.14 (SP4): sem ela, as partes do 3.14 rodariam em toda promoção.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-26.04
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        parte: [1, 2, 3]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -134,7 +108,145 @@ jobs:
           gnu=$(command -v gnuenv) || { echo "faltou gnuenv depois da instalação"; exit 1; }
           [ "$("$gnu" --s 'echo a  b')" = "a b" ] || { echo "o $gnu não divide --s como o GNU"; exit 1; }
           env --version | head -1
+      - name: Testes do Forge
+        run: python3 scripts/suite-paralela.py
+
+  partes-doze:
+    name: suíte (python 3.12, parte ${{ matrix.parte }}/3)
+    # Um terço da suíte inteira por job (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nos três). O
+    # agregador "bateria" exige os três verdes; cada parte confere que a divisão cobre todo o discover.
+    if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
+    permissions:
+      contents: read
+      actions: read  # o passo da árvore lê as execuções e os jobs da develop (SP4)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        parte: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Árvore já provada na develop (SP4; sem prova, a suíte roda inteira)
+        # rc 0 só com a prova completa (mesma tree-sha e o job de prova verde); o token só neste passo, nunca no da suíte.
+        id: arvore
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENTO: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REF: ${{ github.ref }}
+        run: |
+          if python3 scripts/arvore-testada.py; then provada=true; else provada=false; fi
+          echo "provada=$provada" >> "$GITHUB_OUTPUT"
+          echo "árvore provada na develop: $provada" >> "$GITHUB_STEP_SUMMARY"
+      - name: env com -a (uutils-coreutils do apt; prova viva de 20 formas do lançador)
+        if: steps.arvore.outputs.provada != 'true'
+        run: |
+          # uutils-coreutils do apt do runner (universe, sem custo): o env do runner pode recusar `-a`/`--argv0` (era o GNU env 9.4
+          # do ubuntu-24.04; o README da imagem 26.04 lista coreutils 9.5-1ubuntu2+0.0.0~ubuntu25, o pacote de transição para o
+          # uutils, e o passo abaixo confere o `env --version` e o `-a` de qualquer jeito). Sem `-a` a prova viva do lançador cairia
+          # de 20 formas para 2 (CI-ENV-ARGV0). Falha fechado: o passo reprova o job, sem tolerar falha.
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends rust-coreutils gnu-coreutils
+          alvo=/usr/lib/cargo/bin/coreutils/env
+          [ -x "$alvo" ] || { echo "faltou $alvo depois da instalação"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/env-argv0"
+          ln -sf "$alvo" "$RUNNER_TEMP/env-argv0/env"
+          echo "$RUNNER_TEMP/env-argv0" >> "$GITHUB_PATH"
+          # conferência no caminho que tests/apoio_volta_unica.py (envs_da_maquina, shutil.which) acha
+          export PATH="$RUNNER_TEMP/env-argv0:$PATH"
+          achado=$(python3 -c 'import shutil; print(shutil.which("env"))')
+          [ "$achado" = "$RUNNER_TEMP/env-argv0/env" ] || { echo "o env do PATH é $achado, não o do uutils"; exit 1; }
+          env -a x true || { echo "o env $achado não aceita -a"; exit 1; }
+          env X=1 printf '%s' ok | grep -qx ok || { echo "o env $achado não roda env X=1 printf"; exit 1; }
+          # gnuenv do gnu-coreutils (o GNU com prefixo): o env_gnu de tests/apoio_volta_unica.py exige toda grafia do
+          # --split-string, e o uutils 0.10.0 do 26.04 recusa as abreviaturas (--split, --spl=, --s). Falha fechado.
+          gnu=$(command -v gnuenv) || { echo "faltou gnuenv depois da instalação"; exit 1; }
+          [ "$("$gnu" --s 'echo a  b')" = "a b" ] || { echo "o $gnu não divide --s como o GNU"; exit 1; }
+          env --version | head -1
       - name: Testes do Forge (parte)
+        if: steps.arvore.outputs.provada != 'true'
+        env:
+          PARTE: ${{ matrix.parte }}
+        run: |
+          python3 --version
+          python3 scripts/suite-partes.py --parte "$PARTE/3"
+
+  partes-quatorze:
+    name: suíte (python 3.14, parte ${{ matrix.parte }}/3)
+    # Um terço da suíte inteira por job (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nos três). O
+    # agregador "bateria (python 3.14)" exige os três verdes; cada parte confere que a divisão cobre todo o discover.
+    if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
+    permissions:
+      contents: read
+      actions: read  # o passo da árvore lê as execuções e os jobs da develop (SP4)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        parte: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Árvore já provada na develop (SP4; sem prova, a suíte roda inteira)
+        # rc 0 só com a prova completa (mesma tree-sha e o job de prova verde); o token só neste passo, nunca no da suíte.
+        id: arvore
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENTO: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REF: ${{ github.ref }}
+        run: |
+          if python3 scripts/arvore-testada.py; then provada=true; else provada=false; fi
+          echo "provada=$provada" >> "$GITHUB_OUTPUT"
+          echo "árvore provada na develop: $provada" >> "$GITHUB_STEP_SUMMARY"
+      - name: env com -a (uutils-coreutils do apt; prova viva de 20 formas do lançador)
+        if: steps.arvore.outputs.provada != 'true'
+        run: |
+          # uutils-coreutils do apt do runner (universe, sem custo): o env do runner pode recusar `-a`/`--argv0` (era o GNU env 9.4
+          # do ubuntu-24.04; o README da imagem 26.04 lista coreutils 9.5-1ubuntu2+0.0.0~ubuntu25, o pacote de transição para o
+          # uutils, e o passo abaixo confere o `env --version` e o `-a` de qualquer jeito). Sem `-a` a prova viva do lançador cairia
+          # de 20 formas para 2 (CI-ENV-ARGV0). Falha fechado: o passo reprova o job, sem tolerar falha.
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends rust-coreutils gnu-coreutils
+          alvo=/usr/lib/cargo/bin/coreutils/env
+          [ -x "$alvo" ] || { echo "faltou $alvo depois da instalação"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/env-argv0"
+          ln -sf "$alvo" "$RUNNER_TEMP/env-argv0/env"
+          echo "$RUNNER_TEMP/env-argv0" >> "$GITHUB_PATH"
+          # conferência no caminho que tests/apoio_volta_unica.py (envs_da_maquina, shutil.which) acha
+          export PATH="$RUNNER_TEMP/env-argv0:$PATH"
+          achado=$(python3 -c 'import shutil; print(shutil.which("env"))')
+          [ "$achado" = "$RUNNER_TEMP/env-argv0/env" ] || { echo "o env do PATH é $achado, não o do uutils"; exit 1; }
+          env -a x true || { echo "o env $achado não aceita -a"; exit 1; }
+          env X=1 printf '%s' ok | grep -qx ok || { echo "o env $achado não roda env X=1 printf"; exit 1; }
+          # gnuenv do gnu-coreutils (o GNU com prefixo): o env_gnu de tests/apoio_volta_unica.py exige toda grafia do
+          # --split-string, e o uutils 0.10.0 do 26.04 recusa as abreviaturas (--split, --spl=, --s). Falha fechado.
+          gnu=$(command -v gnuenv) || { echo "faltou gnuenv depois da instalação"; exit 1; }
+          [ "$("$gnu" --s 'echo a  b')" = "a b" ] || { echo "o $gnu não divide --s como o GNU"; exit 1; }
+          env --version | head -1
+      - name: Testes do Forge (parte)
+        if: steps.arvore.outputs.provada != 'true'
         env:
           PARTE: ${{ matrix.parte }}
         run: |
