@@ -34,7 +34,7 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TET
                     construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, formas_que_o_shell_le, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, fora_da_gramatica_com_heredoc,
                     fora_da_gramatica_de_leitura, motivo_da_reavaliacao,
-                    forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, reavaliacao,
+                    forge_check, git, leituras, mensagem, nome_da_branch, nome_do_caminho, raiz_declarada, raiz_do_projeto, reavaliacao,
                     sem_atribuicoes, separar_lancadores, SHELLS, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
 # custo de uma conferência cresce com o tamanho do texto, então o número delas não basta (A1 do review): conta também os
@@ -89,7 +89,7 @@ def interpreta_o_corpo(dono):
 
 def interprete(programa):
     """Python, Perl, Node, awk...: o corpo de heredoc que eles leem é programa, conferido pelo `checar_texto`."""
-    programa = Path(programa).name
+    programa = nome_do_caminho(programa)
     return bool(INTERPRETES.match(programa)) or programa in AWKS
 
 
@@ -100,7 +100,7 @@ def args_do_forge_check(prog, args):
         return args
     if INTERPRETES.match(prog):
         # a opção do interpretador pode levar valor (`-X utf8`, `-W ignore`): procura a palavra, não a 1.ª sem `-`
-        achados = [i for i, a in enumerate(args) if Path(a).name == "forge-check"]
+        achados = [i for i, a in enumerate(args) if nome_do_caminho(a) == "forge-check"]
         return args[achados[0] + 1:] if achados else None
     opaco = re.search(r"[`$]", prog) and ("anotar" in args and any(abreviacao_de(a, ("--tipo",)) for a in args)
                                            or any(abreviacao_de(a, ("--gravar",)) for a in args))
@@ -346,6 +346,30 @@ def papel_de(politica, agent_type):
         if agent_type in tipos:
             return papel
     return politica["papel_padrao"]
+
+
+@functools.lru_cache(maxsize=1024)
+def _pasta_real(pasta):
+    return os.path.realpath(pasta)
+
+
+def realpath_pela_pasta(caminho):
+    """`os.path.realpath(caminho)`, com o `realpath` da pasta guardado (a linha com milhares de arquivos na mesma pasta não
+    resolve a pasta de novo a cada um). O último nome que é link, `.`, `..` ou vazio vai ao `realpath` inteiro."""
+    pasta, nome = os.path.split(caminho)
+    if not pasta or nome in ("", ".", "..") or os.path.islink(caminho):
+        return os.path.realpath(caminho)
+    return os.path.join(_pasta_real(pasta), nome)
+
+
+def relativo_ao_pai(posix, base):
+    """O `relative_to(base).as_posix()` do caminho absoluto e resolvido `posix` quando `base` (resolvida) é ele ou um pai dele
+    (`.` quando é ele); senão None. Pelo texto, sem montar os `parents` (custo: uma chamada por arquivo gravado da linha)."""
+    b = base.as_posix()
+    if posix == b:
+        return "."
+    prefixo = b if b.endswith("/") else b + "/"
+    return posix[len(prefixo):] if posix.startswith(prefixo) else None
 
 
 def casa(rel, caminho):
@@ -691,26 +715,27 @@ class Guarda:
         if self._raiz_home is None:
             self._raiz_home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
         raiz, home = self._raiz_home
-        pais = {caminho, *caminho.parents}
         posix = caminho.as_posix()
         formas = []
-        if raiz in pais:
-            formas.append(("proj", caminho.relative_to(raiz).as_posix()))
-        if home in pais:
-            formas.append(("home", "~/" + caminho.relative_to(home).as_posix()))
+        if (rel := relativo_ao_pai(posix, raiz)) is not None:
+            formas.append(("proj", rel))
+        if (rel := relativo_ao_pai(posix, home)) is not None:
+            formas.append(("home", "~/" + rel))
         # B1 da 0.43.1: ~/.forge-contrib como link para fora do home. A forma pelo link só BARRA (regras `caminhos`);
         # nunca entra na lista de escrita, que continua recusando o que fica fora do home.
-        pelo_link = [("home", f"~/{nome}/" + caminho.relative_to(alvo_link).as_posix() if caminho != alvo_link
-                      else f"~/{nome}") for nome, alvo_link in self.links_do_home(home) if alvo_link in pais]
-        no_claude_do_home = (home / ".claude") in pais
+        pelo_link = [("home", f"~/{nome}/" + rel if rel != "." else f"~/{nome}") for nome, alvo_link in self.links_do_home(home)
+                     if (rel := relativo_ao_pai(posix, alvo_link)) is not None]
+        no_claude_do_home = relativo_ao_pai(posix, home / ".claude") is not None
+        do_home = [r for t, r in [*formas, *pelo_link] if t == "home"]  # fora do laço das regras (custo por arquivo)
+        do_proj = [r for t, r in formas if t == "proj"]
         for e in self.pol["caminhos"]:
             c = e["caminho"]
             if c.startswith("~/"):
-                achou = any(t == "home" and casa(r, c) for t, r in [*formas, *pelo_link])
+                achou = any(casa(r, c) for r in do_home)
             elif e.get("so_forge") and not self.regras_do_forge():
                 continue
             else:
-                achou = any(t == "proj" and casa(r, c) for t, r in formas) or (
+                achou = any(casa(r, c) for r in do_proj) or (
                     not e["quem"] and not no_claude_do_home and em_qualquer_lugar(posix, c))
             if not achou:
                 continue
@@ -770,7 +795,7 @@ class Guarda:
 
     def resolver(self, caminho, pasta):
         p = Path(caminho).expanduser()
-        return Path(os.path.realpath(p if p.is_absolute() else pasta / p))
+        return Path(realpath_pela_pasta(str(p if p.is_absolute() else pasta / p)))
 
     def checar_escrita(self, caminho, pasta):
         """Na dúvida, recusa: o que vem depois de uma substituição (`$(git rev-parse --show-toplevel)/docs/reviews/x`) é
@@ -788,6 +813,8 @@ class Guarda:
 
     def expandir(self, caminho, pasta):
         """`$PWD`, `$CLAUDE_PROJECT_DIR` e `$HOME` (com ou sem chaves; as aspas o shlex já tirou) viram o caminho real."""
+        if "$" not in caminho:  # sem `$`, nada a expandir (a crase que `VARIAVEL` casa volta igual): custo por arquivo
+            return caminho
         valores = {"PWD": str(pasta), "CLAUDE_PROJECT_DIR": str(self.h.raiz), "HOME": str(Path.home())}
         return VARIAVEL.sub(lambda m: valores.get(m.group(1), m.group(0)), caminho)
 
@@ -1152,8 +1179,8 @@ class Guarda:
             return pasta
         prog = Path(palavras[0].lstrip("`")).name
         args = palavras[1:]
-        if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}:
-            self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}).pop()  # recusa no fim da linha
+        if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}:
+            self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}).pop()  # recusa no fim da linha
         parte = parecer.analisar(palavras)
         if parecer.expande(palavras[0]) and parecer.gh_de_merge_ou_api(args):
             self.barrar("R-MAIN", "programa por expansão com pr merge ou api: o hook não sabe se é o gh",
@@ -1232,7 +1259,7 @@ class Guarda:
                     self.checar_escrita(destino, pasta)
         if prog in LEITORES:
             for a in args:
-                nome = Path(a).name
+                nome = nome_do_caminho(a)
                 if ARQUIVO_ENV.match(nome) and nome.rsplit(".", 1)[-1] not in ENV_DE_EXEMPLO:
                     self.barrar("R-CONFORMIDADE", f"ler {nome} expõe segredos",
                                 "peça ao usuário o valor de que precisa (R-DECISAO)")
@@ -1986,9 +2013,9 @@ class Guarda:
         """`forge atualizar`, `forge voltar-versao` e os binários `forge-atualizar` e `forge-voltar-versao`, direto ou por baixo de
         `env`, `script` (terminal falso), interpretador ou aspas: o agente não roda (R-CONFORMIDADE); a pessoa roda no terminal."""
         todas = [w.strip("'\"`;()") for p in palavras for w in p.split()]
-        direto = Path(palavras[0]).name in ("forge", *BINARIOS_DE_ATUALIZACAO)  # só o comando em si, não o texto que ele recebe
+        direto = nome_do_caminho(palavras[0]) in ("forge", *BINARIOS_DE_ATUALIZACAO)  # só o comando em si, não o texto que ele recebe
         for i, palavra in enumerate(todas[:1] if direto else todas):
-            nome = Path(palavra).name
+            nome = nome_do_caminho(palavra)
             sub = next((x for x in todas[i + 1:] if not x.startswith("-")), "")
             e_sugerir = nome == "forge-sugerir" or (nome == "forge" and sub == "sugerir")
             if e_sugerir:
@@ -2261,7 +2288,7 @@ def alvos_de_escrita(comando):
             try:
                 lidas = sem_lancadores(palavras)  # a união das leituras possíveis do lançador
             except TextoAbertoComLeituras:
-                tees = [k for k, p in enumerate(palavras) if Path(p).name == "tee"]
+                tees = [k for k, p in enumerate(palavras) if nome_do_caminho(p) == "tee"]
                 alvos += [a for a in palavras[tees[0] + 1:] if not a.startswith("-")] if tees else []
                 continue
             except ValueError:  # texto dividido do `env` com aspas abertas, ou acima do teto de palavras fora da tabela

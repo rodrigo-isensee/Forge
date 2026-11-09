@@ -1,0 +1,138 @@
+{
+  "pedido": "v0440-decisoes",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Q6",
+      "guarda": "custo: a forma do projeto pelo texto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if (rel := relativo_ao_pai(posix, raiz)) is not None:",
+      "para": "        if (rel := relativo_ao_pai(posix, raiz)) is None:",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    },
+    {
+      "id": "Q7",
+      "guarda": "custo: a forma do home pelo texto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if (rel := relativo_ao_pai(posix, home)) is not None:",
+      "para": "        if (rel := relativo_ao_pai(posix, home)) is None:",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    },
+    {
+      "id": "Q8",
+      "guarda": "custo: o próprio link do home vira ~/<nome>",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if rel != \".\" else f\"~/{nome}\")",
+      "para": "if rel == \".\" else f\"~/{nome}\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_clone_como_link_para_fora_do_home_nao_desliga_as_regras_do_home"
+      ]
+    },
+    {
+      "id": "Q9",
+      "guarda": "custo: só o que está dentro do alvo do link",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if (rel := relativo_ao_pai(posix, alvo_link)) is not None]",
+      "para": "if (rel := relativo_ao_pai(posix, alvo_link)) is None]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_clone_como_link_para_fora_do_home_nao_desliga_as_regras_do_home"
+      ]
+    },
+    {
+      "id": "Q10",
+      "guarda": "custo: dentro de ~/.claude pelo texto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "relativo_ao_pai(posix, home / \".claude\") is not None",
+      "para": "relativo_ao_pai(posix, home / \".claude\") is None",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    },
+    {
+      "id": "Q11",
+      "guarda": "custo: as formas do home fora do laço",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for t, r in [*formas, *pelo_link] if t == \"home\"]",
+      "para": "for t, r in [*formas, *pelo_link] if t != \"home\"]",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    },
+    {
+      "id": "Q12",
+      "guarda": "custo: as formas do projeto fora do laço",
+      "arquivo": "hooks/conformidade.py",
+      "de": "do_proj = [r for t, r in formas if t == \"proj\"]",
+      "para": "do_proj = [r for t, r in formas if t != \"proj\"]",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    },
+    {
+      "id": "Q13",
+      "guarda": "custo: regra do projeto pela forma do projeto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "achou = any(casa(r, c) for r in do_proj) or (",
+      "para": "achou = any(casa(r, c) for r in do_proj) and (",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    },
+    {
+      "id": "Q14",
+      "guarda": "custo: sem `$`, nada a expandir",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if \"$\" not in caminho:  # sem `$`",
+      "para": "        if \"$\" in caminho:  # sem `$`",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    },
+    {
+      "id": "Q15",
+      "guarda": "custo: lançador recusado pelo nome guardado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}:",
+      "para": "        if self.raiz_e_projeto() and not LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}:",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    },
+    {
+      "id": "Q16",
+      "guarda": "custo: o forge e os binários de atualização pelo nome guardado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "direto = nome_do_caminho(palavras[0]) in (\"forge\"",
+      "para": "direto = nome_do_caminho(palavras[0]) not in (\"forge\"",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    },
+    {
+      "id": "Q17",
+      "guarda": "custo: o tee pelo nome guardado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if nome_do_caminho(p) == \"tee\"]",
+      "para": "if nome_do_caminho(p) != \"tee\"]",
+      "testes": [
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_mutacoes_do_texto_dividido_aberto_ficam_vermelhas"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "t == \"home\" and casa(r, c)",
+      "motivo": "custo: a forma do home saiu do laço das regras (do_home), coberta pelos mutantes Q11 e Q7"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "caminho != alvo_link",
+      "motivo": "custo: virou rel != \".\" por relativo_ao_pai, coberta pelos mutantes Q8 e Q9"
+    }
+  ]
+}

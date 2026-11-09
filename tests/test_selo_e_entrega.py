@@ -438,6 +438,12 @@ class Hook(Repositorio):
             r = self.lancar(prompt, tipo=tipo)
             self.assertEqual(r.returncode, 2, tipo)
             self.assertIn("o brief é para `forge-dev:aq`", r.stderr, tipo)
+        arq.write_text(arq.read_text(encoding="utf-8").replace("Agente destino: forge-dev:aq\n", ""), encoding="utf-8")
+        self.gravar("docs/pedidos/exemplo.md", self.pedido() + "- 2026-01-02 10:01: brief selado docs/briefs/exemplo-node-backend-1.md "
+                    + hashlib.sha256(arq.read_bytes()).hexdigest() + "\n")
+        r = self.lancar(prompt, tipo="forge-dev:aq")  # sem `Agente destino:`, nenhum tipo casa (falha fechada)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("o brief é para ``", r.stderr)
 
     def test_brief_vencido_so_avisa(self):
         """D3 (0.44.0): selado e depois vencido (decisão nova no pedido; a base trazida para a branch), o disparo segue com aviso."""

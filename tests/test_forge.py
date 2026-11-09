@@ -850,7 +850,8 @@ class ForgeUpgrade(unittest.TestCase):
     def test_sandbox_desligado_so_e_oferecido(self):
         """D1 (0.44.0): o upgrade oferece o comando e não toca o settings; `--ligar-sandbox` grava o bloco do modelo sem commitar."""
         (self.tmp / ".claude").mkdir()
-        (self.tmp / ".claude/settings.json").write_text(json.dumps({"agent": "forge:jarvis", "sandbox": {"enabled": False}}), encoding="utf-8")
+        (self.tmp / ".claude/settings.json").write_text(json.dumps({"agent": "forge:jarvis", "sandbox": {"enabled": False, "excludedCommands": ["x"]}}),
+                                                         encoding="utf-8")
         git("add", "-A", cwd=self.tmp)
         git("commit", "-q", "-m", "settings", cwd=self.tmp)
         r = self.upgrade()
@@ -861,12 +862,30 @@ class ForgeUpgrade(unittest.TestCase):
         r = subprocess.run([str(RAIZ / "bin/forge-upgrade"), "--ligar-sandbox", str(self.tmp)], env=ambiente_limpo(), capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
         dados = json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8"))
-        self.assertEqual(dados["agent"], "forge:jarvis")
-        self.assertIs(dados["sandbox"]["enabled"], True)
+        self.assertEqual(dados.get("agent"), "forge:jarvis")
+        self.assertIs(dados["sandbox"].get("enabled"), True)
         self.assertIn("~/.ssh", dados["sandbox"]["filesystem"]["denyRead"])
+        self.assertEqual(dados["sandbox"].get("excludedCommands"), ["x"], "a chave que o projeto já tinha fica")
         self.assertIn(" M .claude/settings.json", git("status", "--porcelain", cwd=self.tmp).stdout)
         git("commit", "-q", "-am", "liga", cwd=self.tmp)
         self.assertNotIn("--ligar-sandbox", self.upgrade().stdout)
+
+    def test_ligar_sandbox_recusa_link_e_json_que_nao_e_objeto(self):
+        """D1: o `--ligar-sandbox` não segue link nem reescreve settings que não é objeto JSON (rc 2, nada gravado)."""
+        (self.tmp / ".claude").mkdir()
+        (self.tmp / "outro.json").write_text("{}", encoding="utf-8")
+        (self.tmp / ".claude/settings.json").symlink_to(self.tmp / "outro.json")
+        ligar = [str(RAIZ / "bin/forge-upgrade"), "--ligar-sandbox", str(self.tmp)]
+        r = subprocess.run(ligar, env=ambiente_limpo(), capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("é um link", r.stderr)
+        self.assertEqual((self.tmp / "outro.json").read_text(encoding="utf-8"), "{}")
+        (self.tmp / ".claude/settings.json").unlink()
+        (self.tmp / ".claude/settings.json").write_text("[]", encoding="utf-8")
+        r = subprocess.run(ligar, env=ambiente_limpo(), capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("não é um objeto JSON", r.stderr)
+        self.assertEqual((self.tmp / ".claude/settings.json").read_text(encoding="utf-8"), "[]")
 
     def test_migracao_so_acrescenta_ao_gitignore(self):
         for antes, depois in (("a/\r\nb/\r\n", "a/\r\nb/\r\n.forge/run/\r\n"), ("a/\r\nb/", "a/\r\nb/\r\n.forge/run/\r\n"),

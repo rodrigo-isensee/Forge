@@ -464,11 +464,12 @@ def destino_diferente(fc, tipo, dados):
     return None
 
 
-def selo_ausente(hook, prompt, tipo=None):
+def selo_ausente(hook, prompt, tipo, lidos):
     """P1 (0.43.1, R-BRIEF): por que o disparo de especialista não pode sair, ou None. O prompt cita ao menos um brief em docs/briefs/
     (até MAXIMO_DE_BRIEFS); cada um citado precisa de selo com o sha256 de agora no `## Histórico` do pedido dele (`selo_do_brief`
     do forge-check, a mesma função que o `brief selar` usa para gravar). Linha `Brief-sha256:` no prompt, se houver, precisa ser o hash
-    de um brief citado. Erro na leitura é falta (falha fechada, só nesta mensagem)."""
+    de um brief citado. Erro na leitura é falta (falha fechada, só nesta mensagem). Cada brief selado entra em `lidos` (citado, real,
+    bytes), que o aviso de brief vencido (D3) relê sem abrir o arquivo de novo."""
     texto = str(prompt or "")
     caminhos = list(dict.fromkeys(caminhos_de_brief(texto)))
     if not caminhos:
@@ -487,6 +488,7 @@ def selo_ausente(hook, prompt, tipo=None):
         motivo = fc.selo_do_brief(os.path.realpath(hook.cwd() / real), dados) or destino_diferente(fc, tipo, dados)
         if motivo:
             return motivo
+        lidos.append((caminho, os.path.realpath(hook.cwd() / real), dados))
         hashes.add(hashlib.sha256(dados).hexdigest())
     citados = set(VALOR_DO_HASH.findall(texto))
     if citados - hashes:
@@ -494,17 +496,12 @@ def selo_ausente(hook, prompt, tipo=None):
     return None
 
 
-def avisos_de_brief_vencido(hook, prompt):
-    """D3 (0.44.0): para cada brief citado (já selado), as correções que o `brief selar` faria hoje (`brief_vencido` do forge-check). Só
-    avisa: qualquer erro registra e devolve [], nunca barra o disparo."""
+def avisos_de_brief_vencido(hook, lidos):
+    """D3 (0.44.0): para cada brief selado (`lidos`, de `selo_ausente`: caminho citado, caminho real e bytes), as correções que o
+    `brief selar` faria hoje (`brief_vencido` do forge-check). Só avisa: qualquer erro registra e devolve [], nunca barra o disparo."""
     try:
-        fc, avisos = forge_check(), []
-        for caminho in list(dict.fromkeys(caminhos_de_brief(str(prompt or ""))))[:MAXIMO_DE_BRIEFS]:
-            real = str(Path.home() / caminho[2:]) if caminho.startswith("~/") else caminho
-            dados = ler_brief(hook, real)
-            if dados is not None:
-                avisos += [f"{caminho}: {linha}" for linha in fc.brief_vencido(hook.raiz, os.path.realpath(hook.cwd() / real), dados)]
-        return avisos
+        fc = forge_check()
+        return [f"{caminho}: {linha}" for caminho, real, dados in lidos for linha in fc.brief_vencido(hook.raiz, real, dados)]
     except Exception as erro:  # noqa: BLE001 - o aviso nunca troca o disparo por recusa
         hook.registrar_erro(erro)
         return []
@@ -566,16 +563,17 @@ def lancar(hook, agentes, agora):
     divergencia = hash_do_brief_diverge(hook, entrada.get("prompt")) if tipo == CONFERENTE else None
     if divergencia:
         bloquear("R-BRIEF", f"{divergencia}; gere de novo com `forge-check brief mensagem` e envie-a.")
+    lidos = []
     if exige_selo(tipo):
         try:
-            sem_selo = selo_ausente(hook, entrada.get("prompt"), tipo)
+            sem_selo = selo_ausente(hook, entrada.get("prompt"), tipo, lidos)
         except Exception as erro:  # noqa: BLE001 - falha fechada: sem prova do selo, o especialista não sai
             hook.registrar_erro(erro)
             sem_selo = "erro ao conferir o selo (registrado no erros.log)"
         if sem_selo:
             bloquear("R-BRIEF", f"{sem_selo}; sele o brief com `forge-check brief selar --arquivo <brief> --pedido <id>` e cite o "
                                 "caminho dele no prompt (o selo vale para o sha256 de agora).")
-        vencido = avisos_de_brief_vencido(hook, entrada.get("prompt"))
+        vencido = avisos_de_brief_vencido(hook, lidos)
     else:
         vencido = []
     descricao = " ".join(str(entrada.get("description") or "").split())

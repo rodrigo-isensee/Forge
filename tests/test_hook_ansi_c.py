@@ -4,6 +4,8 @@ O bash lê `$'…'` até o `'` que fecha (`\\'` dentro é aspa literal); o `shle
 sozinho, liberaria `echo $'it\\'s'; cat .env\\'`. O leitor fiel (`palavras_do_texto`) sabe a diferença e `leituras`
 falha fechado nela. Só arquivos de um diretório temporário: nenhum teste lê ou apaga `.env` ou `.git` reais."""
 import json
+import os
+import re
 import shutil
 import subprocess
 import sys
@@ -14,6 +16,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 from test_forge import ambiente_limpo  # noqa: E402
+import test_hooks  # noqa: E402  (o módulo, não a classe Hooks: importada, o unittest a rodaria aqui também)
+from test_hooks import FIXTURES, Fixture, modulos_dos_hooks  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / "hooks" / "conformidade.py"
@@ -139,6 +143,69 @@ class HookAnsiC(unittest.TestCase):
         self.assertFalse(_comum.palavras_do_texto(r"echo \$'a\\'; echo ok").aspa_escapada)
         self.assertFalse(_comum.palavras_do_texto(r"echo \$'a\nb'").aspa_escapada)
         self.assertFalse(_comum.palavras_do_texto(r"echo \$'a'; echo it\'s").aspa_escapada)
+
+
+class AtalhosDoLote(unittest.TestCase):
+    """Custo do hook no lote de heredocs (CI do PR #474, 0.44.0): o leitor pula de uma vez o que só avança, o nome do programa e a
+    pasta resolvida ficam guardados e o caminho se compara pelo texto. A leitura tem de sair igual à de antes (as saídas abaixo são
+    as da develop, conferidas por comparação com o código antigo em 200 mil textos)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.c, cls.conf, _ = modulos_dos_hooks()
+
+    def test_leitor_igual_ao_de_antes(self):
+        c = self.c
+        leitura = c.palavras_do_texto("x=`echo 'a`b' c`")  # na crase, o acento fecha também dentro das aspas simples
+        self.assertEqual([[p.valor for p in s.palavras] for s in leitura.simples], [["echo", "a"], ["x=_b c`"]])
+        self.assertTrue(leitura.duvida)
+        leitura = c.palavras_do_texto("echo 'a b' c|d >f 2>&1")
+        self.assertEqual([[p.valor for p in s.palavras] for s in leitura.simples], [["echo", "a b", "c"], ["d"]])
+        self.assertEqual([(r.prefixo, r.operador, r.alvo.valor) for r in leitura.simples[1].redirecoes], [("", ">", "f"), ("2", ">&", "1")])
+        self.assertEqual(c.varrer_comentarios("ab.c # x\nd=~e"), (frozenset({5}), 10))
+        self.assertEqual(c.varrer_comentarios("a_b-c/d:e@f,g+h%i~j^k*l?m[n]o{p}q!r # s"), (frozenset({36}), 39))
+        self.assertEqual(c.varrer_comentarios("x >#y"), (frozenset(), 3))
+        achados, duvida = c.heredocs("cat <<'E' $((1+2)) ${x} $[1] $'a' <<<w ((y)) \"$(z)\" `q`\nbody\nE\necho fim")
+        self.assertEqual([(h.operador, h.delimitador, h.corpo, h.fim) for h in achados], [(4, "E", (56, 61), 63)])
+        self.assertIsNone(duvida)
+        achados, duvida = c.heredocs('"a" <<X\nb\nX\n')  # a aspa logo antes do comum abre aspas: o atalho não a pula
+        self.assertEqual([(h.operador, h.delimitador, h.corpo) for h in achados], [(4, "X", (8, 10))])
+        self.assertEqual(c.ansi_c_decodificado("a $'\\x68i' \"q\" 'r' $\"s\""), "a 'hi' \"q\" 'r' \"s\"")
+        self.assertEqual(c.ansi_c_decodificado("plain text only"), "plain text only")
+        self.assertEqual([t for t, _, _ in c.fichas("a  # c\nb")], ["a", "\n", "b"])
+        self.assertEqual([(t, sinal) for t, sinal, _ in c.fichas("a | b>c")], [("a", False), ("|", True), ("b", False), (">", True), ("c", False)])
+
+    def test_nome_relativo_e_pasta_resolvida_como_o_pathlib(self):
+        c, conf = self.c, self.conf
+        for palavra in ("/usr/bin/python3", "a/", "a/.", "..", "", "x"):
+            self.assertEqual(c.nome_do_caminho(palavra), Path(palavra).name, palavra)
+        for posix, base, esperado in (("/a/b/c", "/a", "b/c"), ("/a", "/a", "."), ("/ab/c", "/a", None), ("/a/b", "/", "a/b"),
+                                      ("/x", "/a", None)):
+            self.assertEqual(conf.relativo_ao_pai(posix, Path(base)), esperado, (posix, base))
+        tmp = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(shutil.rmtree, tmp, True)
+        (tmp / "real").mkdir()
+        (tmp / "pela").symlink_to(tmp / "real")
+        (tmp / "real" / "alvo").write_text("x", encoding="utf-8")
+        (tmp / "real" / "atalho").symlink_to(tmp / "real" / "alvo")
+        for caminho in ("pela/novo", "pela/atalho", "pela/..", "pela/.", "real/alvo", "pela"):
+            self.assertEqual(conf.realpath_pela_pasta(str(tmp / caminho)), os.path.realpath(tmp / caminho), caminho)
+
+
+class CorpusDosCaminhos(unittest.TestCase):
+    """O subconjunto do corpus de tests/hooks/conformidade que passa pela escrita em caminho protegido, pelo nome do programa e pelo
+    `entrega --pedido` do conferente (D4): roda rápido, para os mutantes da 0.44.0 (o corpus inteiro é do test_hooks)."""
+    SELECAO = re.compile(r"^(conferente-entrega|aq-escreve|home-|lancador-|heredoc-donos-1-|i-perl|fc-|trava-forge-atualizar|expandir-)|tee|claude|"
+                         r"manifesto|xargs")
+    executar_em_lote = test_hooks.Hooks.executar_em_lote
+    executar_fixture = test_hooks.Hooks.executar_fixture
+    _pasta_temporaria = test_hooks.Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(test_hooks.Hooks.depende_de_pid_ou_trava)
+
+    def test_subconjunto(self):
+        casos = [(f"conformidade/{p.stem}", Fixture(p)) for p in sorted((FIXTURES / "conformidade").glob("*.json")) if self.SELECAO.search(p.stem)]
+        self.assertGreaterEqual(len(casos), 150)
+        self.assertEqual(self.executar_em_lote(casos), len(casos))
 
 
 if __name__ == "__main__":
