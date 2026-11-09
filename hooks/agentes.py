@@ -18,8 +18,11 @@ de escrita; `hooks_desligados` não vale no clone. Registros expiram (reserva se
 O registro leva o PID da sessão do Claude Code, o namespace de PID e o session_id: com a sessão morta (PID inexistente, no mesmo
 namespace) a vaga sai na hora, sem esperar o prazo. Qualquer dúvida (tipo, faixa, namespace, erro) mantém o registro.
 AG-1a (E10): a reserva grava em `branches` as `Branch:` do cabeçalho dos briefs citados no prompt (só registro, sem recusa).
+RN-6 (0.43.3): cada recusa do R-TETO (memória, teto, duplicado) deixa uma linha em `recusas.log`, na pasta do estado
+(`registrar_recusa`, que o hook `pesado` também pode chamar); o `forge-check metricas` mede por ela a espera por portão.
 """
 import hashlib
+import math
 import os
 import re
 import stat
@@ -27,7 +30,7 @@ import sys
 import time
 from pathlib import Path
 
-from _comum import (RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check, gravar_json,
+from _comum import (LIMITE_LOG, RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check, gravar_json,
                     ler_json)
 from pesado import CASCAS, pid_da_sessao, pid_vivo
 
@@ -373,6 +376,43 @@ def selo_ausente(hook, prompt):
     return None
 
 
+MOTIVOS_DA_RECUSA = frozenset({"memoria", "teto", "duplicado", "pesado"})  # conjunto fechado: nunca texto do disparo
+
+
+def numero_da_recusa(valor, forma):
+    """Número finito na `forma` (`%.2f`, `%d`); ausente, texto, bool, NaN ou infinito saem `-` (RN-6)."""
+    if isinstance(valor, bool) or not isinstance(valor, (int, float)) or not math.isfinite(valor):
+        return "-"
+    return forma % valor
+
+
+def registrar_recusa(hook, motivo, campos=None):
+    """RN-6: a recusa do R-TETO vira uma linha em `recusas.log` da pasta do estado (`hook._run` do clone ou `.forge/run/`):
+    hora, hook, regra, números (`mem_gb=`, `nproc=`, `ativos=`) e o motivo de `MOTIVOS_DA_RECUSA`, nunca a descrição nem o
+    comando. Abre sem seguir link nem esperar FIFO, gira em `recusas.log.1` no limite do `erros.log` e cala qualquer falha:
+    registrar nunca troca a recusa por liberação."""
+    try:
+        if motivo not in MOTIVOS_DA_RECUSA:
+            return
+        campos = campos or {}
+        pasta = hook._run or hook.run()
+        log = pasta / "recusas.log"
+        estado = os.lstat(log) if os.path.lexists(log) else None
+        if estado and stat.S_ISREG(estado.st_mode) and estado.st_size > LIMITE_LOG:
+            os.replace(log, pasta / "recusas.log.1")
+        numeros = " ".join(f"{chave}={numero_da_recusa(campos.get(chave), forma)}"
+                           for chave, forma in (("mem_gb", "%.2f"), ("nproc", "%d"), ("ativos", "%d")))
+        linha = f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {hook.nome} R-TETO {numeros} motivo={motivo}\n"
+        fd = os.open(log, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+        try:
+            if stat.S_ISREG(os.fstat(fd).st_mode):
+                os.write(fd, linha.encode("ascii"))
+        finally:
+            os.close(fd)
+    except Exception:  # noqa: BLE001 - registrar a recusa nunca a troca por liberação
+        pass
+
+
 def lancar(hook, agentes, agora):
     entrada = hook.campo("tool_input") or {}
     tipo = str(entrada.get("subagent_type") or "general-purpose")
@@ -395,6 +435,7 @@ def lancar(hook, agentes, agora):
     descricao = " ".join(str(entrada.get("description") or "").split())
     for a in agentes:
         if descricao and a.get("tipo") == tipo and a.get("descricao") == descricao:
+            registrar_recusa(hook, "duplicado", {"ativos": len(agentes)})
             bloquear("R-TETO", f"já há um agente {tipo} ativo com a descrição \"{descricao[:60]}\"; "
                                "não relance, espere o resultado dele.")
     carga, memoria, total = medir()
@@ -407,10 +448,12 @@ def lancar(hook, agentes, agora):
         if os.environ.get("FORGE_CARGA_LIVRE") == "1":  # escape só do dono: pula só a trava de memória
             hook.registrar_escape(f"FORGE_CARGA_LIVRE=1 liberou o disparo com memória baixa ({memoria:.1f} GB disponíveis, piso {piso:.1f} GB)")
         else:
+            registrar_recusa(hook, "memoria", {"mem_gb": memoria, "nproc": nproc, "ativos": len(agentes)})
             bloquear("R-TETO", f"memória baixa ({memoria:.1f} GB disponíveis; piso {piso:.1f} GB, `piso_memoria_gb` em .forge/config.json): "
                                "nenhum agente novo; espere memória liberar; só o dono: FORGE_CARGA_LIVRE=1.")
     teto, motivo = calcular_teto(hook.config())
     if len(agentes) >= teto:
+        registrar_recusa(hook, "teto", {"mem_gb": memoria, "nproc": nproc, "ativos": len(agentes)})
         bloquear("R-TETO", f"{len(agentes)} agentes ativos, teto {teto} ({motivo}); "
                            "espere um terminar antes de lançar outro.")
     try:  # AG-1a (G-3): depois do teto e só calcula; o erro registra e a reserva sai com a lista vazia
