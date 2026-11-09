@@ -2773,7 +2773,7 @@ class Workflows(unittest.TestCase):
         self.assertNotRegex(ci, r"(?m)^  (catraca|pr-texto):")
 
     def test_ci_em_poucos_jobs_com_timeout_e_gate_sem_paths_ignore(self):
-        """Economia de minutos: bateria num job, push na develop só com a checagem rápida, timeout em todo job."""
+        """Economia de minutos: passos da bateria num job, push na develop só com a checagem rápida, timeout em todo job."""
         for nome in ("ci.yml", "catraca.yml", "release.yml"):
             texto = self.texto(nome)
             jobs = len(re.findall(r"(?m)^  [a-z-]+:\n    (?:name|if|runs-on):", texto))
@@ -2784,14 +2784,19 @@ class Workflows(unittest.TestCase):
         self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/develop'", ci)
         self.assertRegex(ci, r"(?m)^  bateria:")
         self.assertIn("docs/(reviews|qa|security|devops|ux)/", ci)
-        # Teto de tempo (ci-suite-no-teto): checagem rápida 20 min; bateria e bateria python 3.14, 25 min.
-        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["20", "25", "25"])
+        # Teto de tempo (ci-suite-no-teto; SUITE-NO-CI): checagem rápida 20 min; cada parte da suíte (3.12 e 3.14) 20 min;
+        # instalação no 3.14 15 min; passos da bateria 20 min; os dois agregadores 5 min.
+        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["20", "20", "20", "15", "5", "20", "5"])
 
     def test_gate_do_ci_nao_deixa_codigo_escapar_nem_forjar_o_verde(self):
         """Review independente: renomeação, testes de pareceres, check forjado, cancelamento e promoção."""
         ci = self.texto("ci.yml")
         self.assertIn("git diff --name-only --no-renames", ci)  # renomear código para docs/reviews não pode esconder a origem
-        self.assertNotIn("always()", ci)  # execução cancelada não gasta os minutos que o gate poupa
+        # Execução cancelada não gasta os minutos que o gate poupa: always() só no if dos dois agregadores (SUITE-NO-CI),
+        # que não fazem checkout e só conferem o resultado dos jobs necessários (cancelado ou pulado reprova).
+        agregadores = "    if: always() && (github.event_name != 'push' || github.ref != 'refs/heads/develop')\n"
+        self.assertEqual(ci.count("always()"), ci.count(agregadores) + ci.count("always():"), "always() fora do if de agregador")
+        self.assertEqual(ci.count(agregadores), 2)
         self.assertNotIn("always()", self.texto("catraca.yml"))
         self.assertIn("!cancelled()", ci)
         self.assertIn('[ "$BASE_REF" = develop ]', ci)  # promoção para a homolog roda a bateria completa (R-FLUXO)

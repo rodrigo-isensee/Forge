@@ -270,7 +270,7 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         (bateria,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
                       if j["id"] == "bateria"]
         comandos = "\n".join(p["run"] for p in bateria["passos"])
-        for trecho in ("scripts/suite-paralela.py", "shellcheck", "actionlint", "zizmor", "claude plugin validate", "e2e-instalacao",
+        for trecho in ("shellcheck", "actionlint", "zizmor", "claude plugin validate", "e2e-instalacao",
                        "scripts/conferir-release.py", "Nada pula degrau", "verificar-contribuicao"):
             self.assertIn(trecho, comandos + "\n".join(p["nome"] for p in bateria["passos"]))
 
@@ -278,11 +278,17 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         """D4: os dois passos "Testes do Forge" chamam o mesmo script do pre-push (guarda de completude nos dois);
         o passo curto dos pareceres continua como está; a release também roda em paralelo (RELEASE-SUITE-PARALELA)."""
         jobs = {j["id"]: j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))}
-        for nome in ("rapida", "bateria"):
+        (passo,) = [p for p in jobs["rapida"]["passos"] if p["nome"] == "Testes do Forge"]
+        self.assertEqual(passo["run"].strip(), "python3 scripts/suite-paralela.py")
+        # SUITE-NO-CI: no PR, a suíte roda em 3 partes por versão (scripts/suite-partes.py, o mecanismo do suite-paralela).
+        for nome in ("partes-doze", "partes-quatorze"):
             with self.subTest(job=nome):
-                (passo,) = [p for p in jobs[nome]["passos"] if p["nome"] == "Testes do Forge"]
-                self.assertEqual(passo["run"].strip(), "python3 scripts/suite-paralela.py")
+                (passo,) = [p for p in jobs[nome]["passos"] if p["nome"] == "Testes do Forge (parte)"]
+                self.assertIn('python3 scripts/suite-partes.py --parte "$PARTE/3"', passo["run"])
+        for nome in jobs:
+            with self.subTest(job=nome):
                 self.assertFalse([p["nome"] for p in jobs[nome]["passos"] if "unittest discover" in p["run"]])
+        self.assertFalse([p for p in jobs["bateria"]["passos"] if "suite-paralela" in p["run"] or "suite-partes" in p["run"]])
         self.assertTrue([p for p in jobs["bateria"]["passos"] if p["nome"].startswith("Testes que leem pareceres")
                          and "python3 -m unittest tests.test_forge.Neutralidade" in p["run"]])
         release = (RAIZ / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
@@ -298,7 +304,8 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         def pos(trecho):
             (i,) = [n for n, nome in enumerate(nomes) if trecho in nome]
             return i
-        testes = pos("Testes do Forge")
+        self.assertFalse([n for n in nomes if n.startswith("Testes do Forge")], "a suíte roda nas partes, não nos passos")
+        testes = len(nomes)  # SUITE-NO-CI: os passos baratos continuam no job de passos, que não espera a suíte
         for trecho in ("Claude Code CLI", "claude plugin validate", "Nada pula degrau", "changelog.d",
                        "release exige versão", "Segredo, .env", "Parecer de review"):
             self.assertLess(pos(trecho), testes, trecho)
@@ -308,9 +315,10 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertIn("npm install", passo)
         self.assertNotIn("continue-on-error", texto)
         self.assertNotIn("skip ci", texto)
-        teste = [p for p in bateria["passos"] if p["nome"] == "Testes do Forge"][0]
-        self.assertNotIn("for ", teste["run"])
-        self.assertNotIn("||", teste["run"])
+        for job in ("partes-doze", "partes-quatorze"):
+            (teste,) = [p for j in ci.ler_jobs(texto) if j["id"] == job for p in j["passos"] if p["nome"] == "Testes do Forge (parte)"]
+            self.assertNotIn("for ", teste["run"])
+            self.assertNotIn("||", teste["run"])
 
     def test_bateria_lint_e_ferramentas_antes_de_qualquer_codigo_da_branch(self):
         """CI-ORDEM-LINT: actionlint e zizmor baixados e rodados antes de todo passo que executa código da branch."""
