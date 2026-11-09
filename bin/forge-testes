@@ -20,7 +20,9 @@ Os módulos do plano dirigido rodam em paralelo por `scripts/suite-partes.py` (o
                 Nunca escreve na árvore de trabalho, que precisa estar limpa. Saída 0 = há prova e nada cai no HEAD;
                 1 = sem prova ou com falha no HEAD; 2 = uso inválido, erro do git ou sem veredito.
 
-Falha fechada: qualquer caminho sem entrada no mapa, `tests/config.json`, este script (que contém o mapa),
+Convenção (O2, 0.44.1): sem regra no mapa, bin/forge-x leva a tests/test_forge_x.py, hooks/x.py e scripts/x.py a
+tests/test_x.py (se o arquivo existe); o mapa fica para as exceções.
+Falha fechada: qualquer caminho sem entrada no mapa nem teste pela convenção, `tests/config.json`, este script (que contém o mapa),
 um módulo mapeado que não existe, um erro ao ler o git e todo módulo de teste no diff (alterado, novo ou apagado:
 ele pode importar outro, ler todos os de tests/ ou carregá-los pelo nome) fazem rodar a suíte completa. O `--vermelho`
 sem `--modulos` é a exceção: usa os módulos de teste do diff mais o plano dos outros caminhos, sem os dados de teste
@@ -106,7 +108,6 @@ MAPA = [
     (r"bin/(forge-atualizar|forge_versoes\.py|forge-voltar-versao)", ("test_atualizar", "test_forge", "test_doutor")),
     (r"bin/forge-upgrade", ("test_atualizar", "test_forge", "test_doutor")),
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
-    (r"bin/forge-mutante", ("test_forge_mutante", "test_forge")),
     (r"bin/forge-sugerir", ("test_sugerir", "test_forge")),
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
     (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge", "test_atualizar")),
@@ -118,9 +119,6 @@ MAPA = [
                    "test_hooks_parecer_pasta", "test_esperar_estado", "test_brief_forma_aceita", "test_conformidade_verde", "test_reval_delta", "test_selo_e_entrega",
                    "test_classe_risco") + VOLTA_UNICA
      + EVALS_DE_FORMA),  # EST-M4: guarda C-2
-    (r"scripts/arvore-testada\.py", ("test_arvore_testada", "test_forge", "test_testes_tocados")),  # EST-M7
-    (r"scripts/ci-local", ("test_ci_local", "test_forge", "test_testes_tocados")),
-    (r"scripts/conferir-reversao\.py", ("test_conferir_reversao", "test_forge", "test_testes_tocados")),  # aviso: NaoEPortao
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados")),
     (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer")),
     (r"stacks/.*", CONTEUDO + ("test_hooks",) + VOLTA_UNICA),
@@ -145,6 +143,14 @@ MAPA = [
 # Módulo de teste no diff não tem regra: cai na suíte completa (M8, opção C). Um teste pode importar outro, ler todos os
 # de tests/ ou carregá-los pelo nome; o mapa não tenta saber como, e por isso não há grafo de importação para divergir.
 ALTERA_O_MAPA = {"bin/forge-testes", "tests/config.json"}
+# O2 (0.44.1): sem regra no MAPA, o teste se acha pelo nome: bin/forge-x -> tests/test_forge_x.py, hooks/x.py e scripts/x.py ->
+# tests/test_x.py, mais quem varre a pasta (test_forge varre as três; test_testes_tocados, scripts/). O MAPA fica para as exceções:
+# arquivo lido por outros testes, nome que não segue a convenção e o que a decisão manda à suíte completa (SEM_CONVENCAO).
+CONVENCAO = re.compile(r"(bin|hooks|scripts)/([a-z][a-z0-9_-]*)(?:\.py)?")
+VARREM_A_PASTA = {"bin": ("test_forge",), "hooks": ("test_forge",), "scripts": ("test_forge", "test_testes_tocados")}
+SEM_CONVENCAO = frozenset({"scripts/promover-homolog.py",  # decisão 7 do dono (MP-1): segue na suíte completa
+                           "scripts/suite-partes.py", "scripts/suite-paralela.py",  # rodam a própria suíte: mudá-los roda todos
+                           "scripts/conferir-release.py", "scripts/reexecutar-provas.py"})  # lidos por outros testes: completa, como antes
 # --- `--afetados`: o plano do pre-push (decisão do dono de 2026-11-08: a suíte inteira roda uma vez, no CI) ---------
 # Nunca vira a suíte completa: o que o mapa não sabe entra pelos leitores (o módulo de teste que cita o caminho, o nome
 # do arquivo ou, para .py, o nome do módulo) e, na dúvida, o módulo entra. Os arquivos de controle (EXERCITAM) levam
@@ -206,6 +212,7 @@ def planejar(caminhos, raiz=Path(".")):
             if re.fullmatch(padrao, caminho):
                 casou = destino
                 break
+        casou = casou or modulos_da_convencao(caminho, raiz)
         if casou is None:
             return "completo", [f"{caminho} sem mapa"]
         modulos.update(casou)
@@ -215,6 +222,18 @@ def planejar(caminhos, raiz=Path(".")):
     if modulos:
         modulos.update(oraculos(raiz))
     return "dirigido", sorted(modulos)
+
+
+def modulos_da_convencao(caminho, raiz=Path(".")):
+    """O2: os módulos do caminho pela convenção de nome, ou None (fora de bin/, hooks/ e scripts/, em SEM_CONVENCAO ou sem o
+    arquivo tests/test_<nome>.py)."""
+    achado = CONVENCAO.fullmatch(caminho)
+    if not achado or caminho in SEM_CONVENCAO:
+        return None
+    modulo = "test_" + achado.group(2).replace("-", "_")
+    if not arquivo_do_modulo(modulo, raiz).is_file():
+        return None
+    return (modulo,) + VARREM_A_PASTA[achado.group(1)]
 
 
 def arquivo_do_modulo(modulo, raiz=Path(".")):
@@ -268,7 +287,7 @@ def planejar_afetados(caminhos, raiz=Path(".")):
     modulos, notas = set(), []
     for caminho in caminhos:
         achados = set(citam(textos, {caminho}))
-        regra = next((destino for padrao, destino in MAPA if re.fullmatch(padrao, caminho)), None)
+        regra = next((destino for padrao, destino in MAPA if re.fullmatch(padrao, caminho)), None) or modulos_da_convencao(caminho, raiz)
         achados.update(regra or ())
         for padrao, agulhas in EXERCITAM:
             if re.fullmatch(padrao, caminho):

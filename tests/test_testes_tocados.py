@@ -159,6 +159,58 @@ class Mapa(unittest.TestCase):
                 self.assertTrue(self.f.arquivo_do_modulo(m, RAIZ).is_file())  # `evals.test_x` é tests/evals/test_x.py
 
 
+class Convencao(unittest.TestCase):
+    """O2 (0.44.1): o teste se acha pela convenção de nome (bin/forge-x -> tests/test_forge_x.py, hooks/x.py e scripts/x.py ->
+    tests/test_x.py); o MAPA fica só para as exceções, e sem o arquivo do teste o caminho segue na suíte completa."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+
+    def brinquedo(self, *arquivos):
+        t = tempfile.TemporaryDirectory()
+        self.addCleanup(t.cleanup)
+        raiz = Path(t.name)
+        for rel in ("tests/test_forge.py", "tests/test_testes_tocados.py") + arquivos:
+            (raiz / rel).parent.mkdir(parents=True, exist_ok=True)
+            (raiz / rel).write_text("x = 1\n", encoding="utf-8")
+        return raiz
+
+    def test_bin_scripts_e_hooks_pela_convencao(self):
+        raiz = self.brinquedo("tests/test_forge_novo.py", "tests/test_coisa_nova.py", "tests/test_gancho.py")
+        self.assertEqual(self.f.planejar(["bin/forge-novo"], raiz), ("dirigido", ["test_forge", "test_forge_novo"]))
+        self.assertEqual(self.f.planejar(["scripts/coisa-nova.py"], raiz),
+                         ("dirigido", ["test_coisa_nova", "test_forge", "test_testes_tocados"]))
+        self.assertEqual(self.f.modulos_da_convencao("hooks/gancho.py", raiz), ("test_gancho", "test_forge"))
+        self.assertIn("test_forge_novo", self.f.planejar_afetados(["bin/forge-novo"], raiz)[0])
+
+    def test_sem_o_arquivo_do_teste_ou_fora_das_pastas_segue_na_completa(self):
+        raiz = self.brinquedo("tests/test_x_y.py")
+        for caminho in ("bin/forge-sem-teste", "outra/x_y.py", "bin/sub/forge-x", "scripts/x-y.sh.py"):
+            with self.subTest(caminho):
+                self.assertEqual(self.f.planejar([caminho], raiz), ("completo", [f"{caminho} sem mapa"]))
+        self.assertIsNone(self.f.modulos_da_convencao("scripts/promover-homolog.py", RAIZ))  # decisão 7: exceção à convenção
+        for caminho in ("outra/x_y.py", "bin/sub/forge-x"):  # fora das pastas: None, sem levantar
+            with self.subTest(caminho):
+                try:
+                    achado = self.f.modulos_da_convencao(caminho, raiz)
+                except AttributeError as e:
+                    achado = f"levantou {e}"
+                self.assertIsNone(achado)
+
+    def test_o_mapa_nao_repete_o_que_a_convencao_ja_acha(self):  # some o conflito C8: a entrada do mapa vira exceção de verdade
+        repetidas = []
+        for padrao, destino in self.f.MAPA:
+            convencao = self.f.modulos_da_convencao(padrao.replace("\\", ""), RAIZ)
+            if convencao is not None and sorted(convencao) == sorted(destino):
+                repetidas.append(padrao)
+        self.assertEqual(repetidas, [])
+        for caminho in ("bin/forge-mutante", "scripts/arvore-testada.py", "scripts/ci-local", "scripts/conferir-reversao.py"):
+            with self.subTest(caminho):
+                self.assertFalse(any(re.fullmatch(p, caminho) for p, _ in self.f.MAPA))
+                self.assertEqual(self.f.planejar([caminho], RAIZ)[0], "dirigido")
+
+
 class MapaCobreOQueOsTestesLeem(unittest.TestCase):
     """Cada arquivo do Forge que um tests/test_*.py lê ou executa tem de levar a esse módulo (o pre-push filtra por isto).
 
