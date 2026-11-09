@@ -54,6 +54,8 @@ class AutoMerge(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", "--armar")
         self.assertEqual(r.returncode, 4, r.stderr + r.stdout)
         self.assertIn("auto-merge armado no PR #7", r.stdout)
+        self.assertIn("se a develop andar antes do merge (outro PR mesclado), este PR não mescla sozinho; rode o forge-fechar com --armar de novo",
+                      r.stdout)  # M3 do review da 0.43.3: a base foi conferida antes dos checks
         self.assertIn("forge-fechar p1 --ref melhoria/x --limpar", r.stdout)
         self.assertFalse([c for c in self.chamadas() if c.startswith("gh pr checks")])
         self.assertEqual(self.merges(), [f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha}"])
