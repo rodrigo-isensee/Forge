@@ -30,6 +30,9 @@ Chamado pelo `.githooks/pre-push` e pelo CI. Só biblioteca padrão; nada de red
 - No CI (`GITHUB_STEP_SUMMARY`), o resumo do passo traz as unidades mais lentas, a soma, a maior unidade, o desequilíbrio
   e os módulos sem peso (só informa: nunca reprova, nem muda a divisão). O título de cada `::group::` traz os módulos.
 - FORGE_SUITE_MEDIR=1 regrava `tests/pesos-d4.json` com as durações de cada unidade da execução, se tudo passou.
+- Teto de pulados (T3): só no CI (GITHUB_ACTIONS=true), mais pulados que `teto_pulados` de `tests/config.json` (inteiro
+  >= 0; ausente, de outro tipo ou ilegível reprova) é `FAILED`, antes de regravar pesos e carimbo; fora do CI só avisa.
+  Na suíte em partes (`scripts/suite-partes.py --parte`), cada parte publica os pulados e o agregador do CI soma.
 A última linha é `OK` (ou `OK (skipped=N)`) ou `FAILED (...)`, como no `unittest`.
 """
 import collections
@@ -47,6 +50,7 @@ import sys
 import tempfile
 import threading
 import time
+import unicodedata
 import unittest
 from pathlib import Path
 
@@ -63,6 +67,7 @@ CARIMBO = "forge-suite-verde"
 REGISTRO_PASTA, REGISTRO = ".forge-contrib", "suite-vermelha.jsonl"  # fora do git (L32)
 LIMITE_REGISTRO, LINHAS_LIDAS = 50, 2000
 LIMITE_LENTAS, LIMITE_SEM_PESO, LIMITE_SEM_DURACAO = 10, 20, 20  # o resumo do CI é curto (N-CI, C-11)
+CONFIG, LIMITE_PULADOS = RAIZ / TESTES / "config.json", 20  # teto de pulados (T3)
 
 
 class Interrompido(Exception):
@@ -294,6 +299,7 @@ def processo(entrada, saida):
     caidos = sorted({getattr(t, "test_case", t).id() for t, _ in resultado.failures + resultado.errors})
     relatorio = {"ids": resultado.ids, "caidos": caidos, "rodados": resultado.testsRun, "falhas": len(resultado.failures),
                  "erros": len(resultado.errors), "pulados": len(resultado.skipped),
+                 "pulados_ids": [t.id() for t, _ in resultado.skipped],
                  "esperados": len(resultado.expectedFailures), "inesperados": len(resultado.unexpectedSuccesses),
                  "ok": resultado.wasSuccessful(), "duracoes": duracoes}
     Path(saida).write_text(json.dumps(relatorio), encoding="utf-8")
@@ -665,13 +671,61 @@ def orquestrar():
         detalhes = [f"failures={falhas}"] * bool(falhas) + [f"errors={erros_t}"] * bool(erros_t) \
             + [f"skipped={pulados}"] * bool(pulados) + ["guarda=" + str(len(erros))] * bool(erros)
         veredito, codigo = f"FAILED ({', '.join(detalhes)})", 1
-    else:
-        veredito, codigo = fechar_verde(relatorios, hash_arvore, pulados), 0
+    else:  # o teto antes de fechar_verde: estourado não regrava pesos nem carimbo (T3)
+        veredito = conferir_teto(relatorios, pulados, linhas)
+        veredito, codigo = (veredito, 1) if veredito else (fechar_verde(relatorios, hash_arvore, pulados), 0)
     print(veredito)
     publicar_no_ci(veredito, linhas, partes, relatorios, duracoes, pesos, rodados, segundos)
     if codigo:
         registrar_vermelha(relatorios, carga, memoria)
     return codigo
+
+
+def ler_teto(caminho=CONFIG):
+    """`teto_pulados` de tests/config.json, inteiro de verdade e >= 0; None se falta, tem outro tipo ou o arquivo não lê
+    (falha fechada: None nunca vale como "sem teto")."""
+    try:
+        teto = json.loads(Path(caminho).read_text(encoding="utf-8")).get("teto_pulados")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return teto if type(teto) is int and teto >= 0 else None
+
+
+def neutro(texto):
+    """Id de teste para o resumo e o log: sem caracteres de controle e de formato, `|`, crase nem `::`; cortado."""
+    texto = "".join(c for c in str(texto)[:200] if unicodedata.category(c) not in ("Cc", "Cf", "Co", "Cs"))
+    return texto.replace("|", " ").replace("`", " ").replace("::", ": ")
+
+
+def pulados_ids(relatorios):
+    """Os ids pulados de todos os relatórios, neutros e ordenados."""
+    return sorted(neutro(i) for rel in relatorios if rel for i in rel.get("pulados_ids", ()))
+
+
+def comparar_teto(pulados, ids, teto, linhas, quem="suite-paralela"):
+    """"" ou o veredito FAILED de `pulados` contra `teto` (None: ilegível); acima do teto, os ids (até 20) vão às linhas
+    do resumo. O agregador das partes (`suite-partes.py --somar-pulados`) usa a mesma conta."""
+    if teto is None:
+        print(f"{quem}: teto_pulados ausente ou inválido em {TESTES}/config.json.", file=sys.stderr)
+        return "FAILED (teto de pulados ilegível)"
+    if pulados > teto:
+        linhas.append(f"pulados acima do teto: {lista_curta(ids, LIMITE_PULADOS)}")
+        print(f"{quem}: {linhas[-1]}", file=sys.stderr)
+        return f"FAILED (skipped={pulados} acima do teto {teto})"
+    if pulados < teto:
+        print(f"{quem}: o teto de pulados pode cair para {pulados}", file=sys.stderr)
+    return ""
+
+
+def conferir_teto(relatorios, pulados, linhas):
+    """T3: "" ou o veredito FAILED do teto de pulados. Só reprova no CI, onde a contagem é a do runner (localmente o
+    root pula os testes de permissão)."""
+    teto = ler_teto()
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        print(f"suite-paralela: pulados {pulados} (teto {'ilegível' if teto is None else teto}; só reprova no CI).",
+              file=sys.stderr)
+        return ""
+    return comparar_teto(pulados, pulados_ids(relatorios), teto, linhas)
 
 
 def fechar_verde(relatorios, hash_arvore, pulados):

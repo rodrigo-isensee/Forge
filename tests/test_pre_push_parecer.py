@@ -16,8 +16,9 @@ from ambiente_git import sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / ".githooks" / "pre-push"
-# FORGE_SUITE_* (processos, medição, trava) da suíte que roda estes testes não vazam para a suíte de brinquedo.
-AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_"))})
+# FORGE_SUITE_* (processos, medição, trava) e o GITHUB_ACTIONS do runner (teto de pulados, T3) não vazam para o brinquedo.
+AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items()
+                           if not k.startswith(("GIT_", "FORGE_SUITE_")) and k != "GITHUB_ACTIONS"})
 ZERO = "0" * 40
 
 SUITE = '''import unittest, pathlib
