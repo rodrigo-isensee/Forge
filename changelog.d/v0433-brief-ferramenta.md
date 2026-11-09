@@ -5,8 +5,8 @@
 - AQ-5: o brief de review, segurança e QA leva `Revisar-sha:` (o código da branch sem os commits só de parecer), calculado pelo `brief gerar` e corrigido pelo `brief selar`; o `parecer novo` grava esse sha em `commit:`.
 
 ### Alterado
-- `forge-check pr` recusa o parecer cujo `commit:` é um commit só de parecer (o HEAD depois dos pareceres paralelos) e dá o sha certo; o `commit não existe` ganha a mesma dica (AQ-5).
+- `forge-check pr` recusa o parecer cujo `commit:` é um commit só de pareceres do mesmo pedido (o HEAD depois dos pareceres paralelos) e dá o sha certo (AQ-5).
 
 ### Corrigido
-- `brief gerar` num registro grande: o autorrelato lia cada pedido rodando um `git rev-parse`; agora reaproveita as raízes já calculadas (de 4 a 5 s para menos de 1 s no registro do Forge; o teste conta as chamadas ao git) (BRIEF-GERAR-TIMEOUT).
+- `brief gerar` num registro grande: o autorrelato lia cada pedido rodando um `git rev-parse`; agora reaproveita as raízes já calculadas (de 4 a 5 s para cerca de 2 s no registro do Forge, com `--branch`; o teste conta as chamadas ao git) (BRIEF-GERAR-TIMEOUT).
 - `brief gerar --cobre` aceita a etapa escrita com o prefixo do plugin (`(forge:tech-lead)`), que antes saía como de outro papel.

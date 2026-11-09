@@ -708,10 +708,10 @@ def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES, estritos=(),
     return f"desatualizado: {caminho_impresso(alvo)} mudou depois do parecer; peça novo parecer{qual}{doms}"
 
 
-def commit_de_pareceres_paralelos(raiz, commit):
+def commit_de_pareceres_paralelos(raiz, commit, pedido):
     """AQ-5: o motivo da recusa se o `commit:` do parecer é um commit só de parecer (o HEAD da branch depois que outro parecer da mesma
     rodada entrou), com a dica do sha certo (`sha_a_revisar` a partir dele, o mesmo do `Revisar-sha:` do brief selado); senão None."""
-    if not sha_do_commit(raiz, commit) or not so_de_parecer(raiz, commit):
+    if not sha_do_commit(raiz, commit) or not so_de_parecer(raiz, commit, pedido):
         return None
     certo = sha_a_revisar(raiz, commit)
     return (f"{commit[:12]} é um commit só de parecer (o HEAD com os pareceres paralelos), não o código revisado; grave "
@@ -1277,14 +1277,12 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
         elif campos.get("commit") and COMMIT.match(campos["commit"]):
             livres = LIVRES + (f"changelog.d/{pedido}.md",)  # D4
             dispensados = testes_do_qa(raiz, pedido, branch if de_trabalho else None, ref or "HEAD", campos["commit"])[1] if tipo == "review" else ()
-            paralelo = commit_de_pareceres_paralelos(raiz, campos["commit"])
+            paralelo = commit_de_pareceres_paralelos(raiz, campos["commit"], pedido)
             if paralelo:  # AQ-5: o `commit:` é o HEAD com os pareceres paralelos, não o código revisado
                 saida.append(f"{caminho_impresso(rel)}: commit: {paralelo} ({rid})")
                 continue
             motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base, livres, estritos=FRAGMENTOS, dominio=tipo,
                                  mais=dominio_mais(campos), dispensados=dispensados)  # PARECER-CONTEUDO
-            if motivo == "commit não existe no repositório" and (certo := sha_a_revisar(raiz, ref or "HEAD")):
-                motivo += f" (o commit de um parecer refeito por rebase?); o sha a revisar da branch é {certo} (AQ-5)"
             junto = commit_junto_do_parecer(raiz, rel, ref or "HEAD", livres) if motivo and motivo.startswith("desatualizado") else None
             if junto and not e_ancestral(raiz, junto[0], campos["commit"]):  # E16: o parecer veio no mesmo commit do teste, depois do que cita
                 cabeca, sep, dom = motivo.partition(f"; {caminho_impresso(junto[1])} é do domínio")  # E16 logo depois do "peça novo parecer"
@@ -1644,14 +1642,17 @@ ETAPAS_DE_PARECER = ("review", "seguranca", "qa")
 TETO_DE_COMMITS_SO_DE_PARECER = 64
 
 
-def so_de_parecer(raiz, sha):
-    """AQ-5: True se o commit `sha` só muda pareceres e quadro (LIVRES) em relação ao primeiro pai; None se o git falha. Commit vazio
+def so_de_parecer(raiz, sha, pedido=None):
+    """AQ-5: True se o commit `sha` só muda pareceres e quadro (LIVRES) em relação ao primeiro pai; com `pedido`, só os pareceres dele
+    (`docs/<pasta de parecer>/<pedido>.md`), o que a entrega de um arquivo livre qualquer não imita. None se o git falha. Commit vazio
     ou raiz não é só de parecer."""
     cod, saida = git(raiz, "diff-tree", "--root", "--no-commit-id", "--name-only", "-z", "-r", "--no-renames", "-m", "--first-parent",
                      sha, bruto=True)
     if cod:
         return None
     nomes = nomes_z(saida)
+    if pedido:
+        return bool(nomes) and all(n in {f"{pasta}/{pedido}.md" for pasta in PASTAS_DE_PARECER} for n in nomes)
     return bool(nomes) and all(livre(n, LIVRES) for n in nomes)
 
 
@@ -2265,7 +2266,7 @@ def cmd_parecer_novo(raiz, a):
     if violacoes:  # a ferramenta nunca entrega forma que ela mesma reprova
         print("\n".join(["parecer novo: o esqueleto saiu fora do contrato (defeito da ferramenta):", *violacoes]))
         return 2
-    print(f"parecer novo: grave em {rel}; commit: {commit[:12]} ({fonte}); troque cada {PREENCHER}", file=sys.stderr)
+    print(f"parecer novo: grave em {caminho_impresso(rel)}; commit: {commit[:12]} ({fonte}); troque cada {PREENCHER}", file=sys.stderr)
     sys.stdout.write(texto)
     return 0
 

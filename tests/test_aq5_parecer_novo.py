@@ -39,6 +39,8 @@ class ShaARevisar(Base):
         codigo = self.codigo_e_pareceres()
         self.assertEqual(fc.so_de_parecer(self.proj, self.so_qa), True)
         self.assertEqual(fc.so_de_parecer(self.proj, codigo), False)
+        self.assertEqual(fc.so_de_parecer(self.proj, self.so_qa, "x"), True)
+        self.assertEqual(fc.so_de_parecer(self.proj, self.so_qa, "outro"), False)  # parecer de outro pedido é entrega
         self.assertEqual(fc.sha_a_revisar(self.proj, "melhoria/x"), codigo)
         self.assertIsNone(fc.sha_a_revisar(self.proj, "nao-existe"))
 
@@ -73,10 +75,10 @@ class RecusaNoPr(Base):
         self.gravar("docs/reviews/x.md", PARECER.format(tipo="review", commit=self.so_qa, extra="revisor: forge:tech-lead\n"))
         self.git("add", "docs/reviews/x.md")
         self.commit("docs(review): parecer")
-        motivo = fc.commit_de_pareceres_paralelos(self.proj, self.so_qa)
+        motivo = fc.commit_de_pareceres_paralelos(self.proj, self.so_qa, "x")
         self.assertIn("é um commit só de parecer", motivo)
         self.assertIn(f"`commit: {codigo}`", motivo)
-        self.assertIsNone(fc.commit_de_pareceres_paralelos(self.proj, codigo))
+        self.assertIsNone(fc.commit_de_pareceres_paralelos(self.proj, codigo, "x"))
         rc, saida = self.rodar("pr", "x", "--base", "develop")
         self.assertIn(f"docs/reviews/x.md: commit: {self.so_qa[:12]} é um commit só de parecer", saida)
         self.assertNotIn("docs/qa/x.md: commit:", saida)  # o QA gravou o sha do código: vale
