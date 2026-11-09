@@ -46,8 +46,8 @@
    "id": "M6",
    "guarda": "PQ sem crases",
    "arquivo": "bin/forge_run.py",
-   "de": "if achado is not None else None",
-   "para": "if achado is None else None",
+   "de": "if achado is not None else []",
+   "para": "if achado is None else []",
    "testes": [
     "tests.test_forge_run.PqCitaORun.test_le_o_json_e_confere_a_espera_sem_rodar"
    ]
