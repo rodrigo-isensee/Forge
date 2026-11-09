@@ -630,6 +630,32 @@ class T(unittest.TestCase):
         pesos = json.loads((self.repo / "tests" / "pesos-d4.json").read_text())
         self.assertEqual(sorted(pesos), ["test_a", "test_a.T.test_a2", "test_a.U", "test_b", "test_c"])
 
+    def test_modulo_de_pacote_entra_pelo_nome_com_ponto(self):  # S-SUITE-RAPIDA: tests/<pacote>/ (ex.: tests/evals/)
+        (self.repo / "tests" / "pac").mkdir()
+        (self.repo / "tests" / "pac" / "__init__.py").write_text("")
+        (self.repo / "tests" / "pac" / "test_p.py").write_text(modulo_de_teste("p"))
+        (self.repo / "tests" / "solta").mkdir()  # sem __init__.py: o discover não entra, e a divisão também não
+        (self.repo / "tests" / "solta" / "test_s.py").write_text(modulo_de_teste("s"))
+        script = self.script_do_brinquedo()
+        self.assertEqual(script.modulos(), ["pac.test_p", "test_a", "test_b", "test_c"])
+        codigo, saida, erro = self.roda(FORGE_SUITE_SEM_REUSO="1", FORGE_SUITE_MEDIR="1")
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertIn("Ran 4 tests", saida)
+        self.assertEqual(self.rodaram(), ["a", "b", "c", "p"])
+        self.assertIn("pac.test_p", saida)
+        pesos = json.loads((self.repo / "tests" / "pesos-d4.json").read_text())
+        self.assertEqual(sorted(pesos), ["pac.test_p", "test_a", "test_b", "test_c"])
+
+    def test_nome_de_arquivo_repetido_no_pacote_reprova_a_divisao(self):  # S-SUITE-RAPIDA
+        (self.repo / "tests" / "pac").mkdir()
+        (self.repo / "tests" / "pac" / "__init__.py").write_text("")
+        (self.repo / "tests" / "pac" / "test_a.py").write_text(modulo_de_teste("a2"))
+        codigo, saida, erro = self.roda(FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual(codigo, 1, saida + erro)
+        self.assertIn("nome de arquivo repetido em tests/ e nos pacotes dela: pac.test_a, test_a", erro)
+        self.assertEqual(saida.strip().splitlines()[-1], "FAILED (divisão)")
+        self.assertEqual(self.rodaram(), [])
+
     def test_procs_acima_do_teto_e_recusado(self):
         codigo, saida, erro = self.roda(FORGE_SUITE_PROCS="5")
         self.assertEqual(codigo, 1)

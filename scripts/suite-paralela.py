@@ -5,7 +5,8 @@ Uso: python3 scripts/suite-paralela.py
 Chamado pelo `.githooks/pre-push` e pelo CI. Só biblioteca padrão; nada de rede nem de custo (R-CUSTO).
 
 - Divisão por unidade, por LPT sobre os pesos de `tests/pesos-d4.json` (unidade -> segundos); peso ausente vale a
-  mediana. A unidade é o módulo (`tests/test*.py`); uma chave `módulo.Classe` ou `módulo.Classe.teste` nos pesos tira
+  mediana. A unidade é o módulo (`tests/test*.py`, e `pacote.test_x` para `tests/pacote/test_x.py` de um pacote com
+  `__init__.py`; nome de arquivo repetido entre a raiz e um pacote reprova a divisão); uma chave `módulo.Classe` ou `módulo.Classe.teste` nos pesos tira
   esses testes do módulo para uma unidade própria (o módulo pesado se divide entre os processos), e o resto do módulo
   segue como a unidade `módulo`. O peso só equilibra: nunca decide o que roda. A mesma árvore dá a mesma divisão.
 - Processos: N = min(4, nproc); com carga alta (load de 1 min >= 0,8 x nproc ou memória disponível no piso), 2.
@@ -88,8 +89,34 @@ def ids(suite):
 
 
 def modulos():
-    """Os módulos de teste da raiz de `tests/`; a guarda de completude confere esta lista contra o `discover`."""
-    return sorted(p.stem for p in (RAIZ / TESTES).glob("test*.py") if p.stem.isidentifier())
+    """Os módulos de teste da raiz de `tests/` e os dos pacotes dela (pasta com `__init__.py` em todo nível, que o
+    `discover` também acha), estes pelo nome com ponto (`evals.test_x`); a guarda de completude confere esta lista
+    contra o `discover`."""
+    base = RAIZ / TESTES
+    nomes = []
+    for p in base.rglob("test*.py"):
+        partes = (*p.parent.relative_to(base).parts, p.stem)
+        if all(x.isidentifier() for x in partes) and all(
+                (base / Path(*partes[:i + 1]) / "__init__.py").is_file() for i in range(len(partes) - 1)):
+            nomes.append(".".join(partes))
+    return sorted(nomes)
+
+
+def nomes_de_arquivo_repetidos(nomes):
+    """Os módulos cujo nome de arquivo se repete entre a raiz de `tests/` e os pacotes: o `discover` do módulo da raiz
+    (padrão `<nome>.py`) acharia também o do pacote, e o teste rodaria duas vezes (falha fechada)."""
+    contagem = collections.Counter(m.rsplit(".", 1)[-1] for m in nomes)
+    return sorted(m for m in nomes if contagem[m.rsplit(".", 1)[-1]] > 1)
+
+
+def suite_do_modulo(nome):
+    """Os testes do módulo `nome` como no `discover` da suíte inteira (os mesmos IDs): o da raiz pelo padrão
+    `<nome>.py`; o de pacote (`pacote.test_x`) pelo `discover` na pasta do pacote, com `tests/` como raiz."""
+    if "." not in nome:
+        return descobrir(f"{nome}.py")
+    pacote, arquivo = nome.rsplit(".", 1)
+    return unittest.TestLoader().discover(str(Path(TESTES, *pacote.split("."))), pattern=f"{arquivo}.py",
+                                          top_level_dir=TESTES)
 
 
 def ler_pesos(caminho=PESOS):
@@ -241,8 +268,8 @@ def suite_da_unidade(unidade):
     """O módulo inteiro (texto: o nome) ou só os testes das posições dele ({"unidade", "modulo", "posicoes"}), na ordem
     do `discover`; numa suíte só, para o `unittest` rodar uma vez o setUpModule e o setUpClass da unidade."""
     if isinstance(unidade, str):
-        return descobrir(f"{unidade}.py")
-    testes = list(achatar(descobrir(f"{unidade['modulo']}.py")))
+        return suite_do_modulo(unidade)
+    testes = list(achatar(suite_do_modulo(unidade["modulo"])))
     return unittest.TestSuite(testes[i] for i in unidade["posicoes"] if i < len(testes))
 
 
@@ -568,7 +595,8 @@ def gravar_pesos(relatorios):
     for rel in relatorios:
         pesos.update(rel["duracoes"])
     vivos = set(modulos())
-    pesos = {k: round(v, 1) for k, v in sorted(pesos.items()) if k.split(".", 1)[0] in vivos}
+    pesos = {k: round(v, 1) for k, v in sorted(pesos.items())
+             if k in vivos or any(k.startswith(m + ".") for m in vivos)}
     PESOS.write_text(json.dumps(pesos, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
@@ -585,10 +613,14 @@ def orquestrar():
     esperado = ids(descobrir())
     total = sum(esperado.values())
     pesos = ler_pesos()
-    plano = planejar(modulos(), pesos, lambda nome: [t.id() for t in achatar(descobrir(f"{nome}.py"))])
+    todos = modulos()
+    plano = planejar(todos, pesos, lambda nome: [t.id() for t in achatar(suite_do_modulo(nome))])
     nomes = sorted(plano)
     partes = repartir(nomes, pesos, min(n, max(1, len(nomes))))
     erros = conferir_particao(nomes, partes)
+    repetidos = nomes_de_arquivo_repetidos(todos)
+    if repetidos:
+        erros.append(f"nome de arquivo repetido em tests/ e nos pacotes dela: {', '.join(repetidos)}")
     if erros or not nomes:
         print("suite-paralela: " + ("; ".join(erros) or "nenhum módulo de teste em tests/") + ".", file=sys.stderr)
         print("FAILED (divisão)")
