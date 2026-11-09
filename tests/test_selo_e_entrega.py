@@ -209,6 +209,13 @@ class Selar(Repositorio):
         self.assertEqual(rc, 1, saida)
         self.assertIn(f"teto {fc.TETO_DE_CARACTERES_DO_BRIEF}", saida)
 
+    def test_o_teto_do_texto_e_o_da_ferramenta(self):
+        """R-BRIEF e a skill citam o mesmo teto que o selo aplica (o texto da T dizia 8.000; a ferramenta usa 10.000)."""
+        numero = f"{fc.TETO_DE_CARACTERES_DO_BRIEF:,}".replace(",", ".")
+        for rel in ("docs/regras/R-BRIEF.md", "skills/briefs-e-conferencia/SKILL.md"):
+            with self.subTest(rel=rel):
+                self.assertIn(f"até {numero} caracteres", (FORGE_CHECK.parent.parent / rel).read_text(encoding="utf-8"))
+
     def test_anotar_nao_grava_linha_da_ferramenta(self):
         for literal in ("brief selado docs/briefs/x.md " + "a" * 64, "entrega conferida " + "b" * 40):
             rc, saida = self.rodar("anotar", "--pedido", "exemplo", "--tipo", "historico", "--literal", literal)

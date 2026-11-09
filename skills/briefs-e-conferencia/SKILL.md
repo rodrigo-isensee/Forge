@@ -9,14 +9,14 @@ Texto do Jarvis lido no passo (L51, núcleo curto). Desde a 0.43.1 a forma é da
 
 ## Antes de delegar (`R-BRIEF`)
 1. `forge-check brief gerar --pedido <p> --destino forge:<nome> --branch <b> --gravar` monta o brief a partir do pedido e do desenho, com base, `Desde:` e etapa calculados e as decisões do dono por referência. Nunca parta de outro brief nem de um molde copiado.
-2. Preencha só o que é da tarefa (Objetivo, Ler, Entregar, Pronto quando); mantenha o brief curto (até cerca de 8.000 caracteres). Leia a skill `checagem-do-brief` para o que a ferramenta não sabe (estado do remoto, credencial, efeito fora da worktree).
+2. Preencha só o que é da tarefa (Objetivo, Ler, Entregar, Pronto quando); mantenha o brief curto (até 10.000 caracteres; acima, o selo reprova). Leia a skill `checagem-do-brief` para o que a ferramenta não sabe (estado do remoto, credencial, efeito fora da worktree).
 3. `forge-check brief selar --arquivo <brief> --pedido <p>`: reprovado, corrija o que ele aponta e rode de novo; aprovado, ele grava o selo e imprime o hash.
 4. Delegue citando no prompt o caminho do brief e o hash do selo. O hook `agentes` recusa brief sem selo ou com hash diferente. Brief editado pede selo novo.
 
 O `forge:conferente` é opcional: chame-o só com uma dúvida de conteúdo que a ferramenta não decide (o Entregar é fiel ao pedido? contradiz uma decisão?), com a mensagem de `forge-check brief mensagem`. Ele não confere forma.
 
 ## Ao receber a entrega (`R-PROVA`)
-- `forge-check entrega --pedido <p> --branch <b> --etapa <etapa>`: confere o estado real, roda os PQ que sabe conferir e grava a linha `entrega conferida <sha40>` no `## Histórico`. Nunca escreva essa linha à mão.
+- `forge-check entrega --pedido <p> --branch <b> --etapa <etapa>`: confere o estado real, roda os PQ que sabe conferir e grava a linha `entrega conferida <sha40>` no `## Histórico`. Nunca escreva essa linha à mão; `--sem-gravar` só confere (o PQ do autor e o conferente).
 - Compare a saída com o bloco `Provas:` do relatório; divergência volta ao autor.
 - Em seguida, `forge-check classe` e os portões da classe numa passada, em paralelo, no mesmo head (`R-REVIEW`).
 

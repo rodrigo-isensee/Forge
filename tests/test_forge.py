@@ -246,7 +246,7 @@ class Agentes(unittest.TestCase):
         texto = (AGENTES / "conferente.md").read_text(encoding="utf-8")
         self.assertIn("é `pendente: \"<item>\"`", texto)
         self.assertIn("(fora pareceres, quadro, `CHANGELOG.md` e o fragmento `changelog.d/`) é `escopo: fora | <arquivo>`", texto)
-        self.assertIn("Não rode `forge-check entrega`: ele grava a linha `entrega conferida`, que não é sua.", texto)
+        self.assertIn("`forge-check entrega --pedido` sem `--sem-gravar` grava a linha `entrega conferida`, que não é sua (o hook barra).", texto)
 
     def test_conferente_so_leitura(self):
         """R-PROVA e R-BRIEF: o conferente confere sem escrever. Sem ferramenta de escrita no frontmatter, em haiku, e
@@ -4334,7 +4334,7 @@ class TextosDoAgenteEDaRegra(unittest.TestCase):
     def test_decisoes_por_referencia_e_brief_curto(self):
         self.assertIn("**por referência**", self.regra)
         self.assertIn("nunca copiadas", self.regra)
-        self.assertIn("até cerca de 8.000 caracteres", self.regra)
+        self.assertIn("até 10.000 caracteres (o selo reprova acima)", self.regra)  # TETO_DE_CARACTERES_DO_BRIEF
         self.assertIn("o agente lê o pedido e, se o brief divergir, para e relata", self.regra)
 
     def test_selo_e_hook_no_jarvis_e_na_regra(self):

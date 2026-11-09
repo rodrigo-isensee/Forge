@@ -586,7 +586,7 @@
       "hook `agentes` recusa a delegação sem selo",
       "docs/briefs/",
       "\\*\\*por referência\\*\\*",
-      "até cerca de 8\\.000 caracteres"
+      "até 10\\.000 caracteres"
     ],
     "docs/regras/R-CONFORMIDADE.md": [
       "\\*\\*Nenhum agente desliga, enfraquece ou dribla um controle\\*\\*",
