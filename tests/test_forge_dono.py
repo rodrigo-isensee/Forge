@@ -116,5 +116,64 @@ class Fala(Raiz):  # S2
         self.assertEqual(list((self.tmp / "fora").iterdir()), [])
 
 
+class Recado(Raiz):  # S8
+    def setUp(self):
+        super().setUp()
+        self.outra = self.tmp / "outra-sessao"
+        self.outra.mkdir()
+
+    def confirmar(self, *extra, raiz=None):
+        return self.rodar("recado", "--confirmar", *extra) if raiz is None else self._rodar_em(raiz, "recado", "--confirmar", *extra)
+
+    def _rodar_em(self, raiz, *args):
+        import subprocess
+        r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(raiz), *args], capture_output=True, text=True,
+                           env=dict(os.environ, HOME=str(self.tmp / "home")))
+        return r.returncode, r.stdout.splitlines(), r.stderr
+
+    def test_grava_com_cabecalho_e_so_a_sessao_de_destino_confirma(self):
+        cod, linhas, _ = self.rodar("recado", "--para", str(self.outra), "--texto", "suba a 0.44.1 depois da suíte")
+        self.assertEqual(cod, 0, linhas)
+        arq = next((self.outra / ".forge" / "recados").glob("recado-*.md"))
+        texto = arq.read_text(encoding="utf-8")
+        for campo in (f"Para: {os.path.realpath(self.outra)}", f"Versao: {VERSAO}",
+                      "Sha256: " + hashlib.sha256("suba a 0.44.1 depois da suíte".encode()).hexdigest()):
+            self.assertIn(campo + "\n", texto)
+        cod, linhas, _ = self._rodar_em(self.outra, "recado", "--confirmar")
+        self.assertEqual(cod, 0, linhas)
+        self.assertEqual(linhas[-1], "> suba a 0.44.1 depois da suíte")
+        (self.tmp / ".forge" / "recados").mkdir(parents=True)
+        (self.tmp / ".forge" / "recados" / arq.name).write_text(texto, encoding="utf-8")
+        cod, linhas, _ = self.confirmar(arq.name)
+        self.assertEqual(cod, 1)
+        self.assertIn("sessão errada", linhas[0])
+
+    def test_versao_defasada_ou_texto_adulterado_recusa(self):
+        self.rodar("recado", "--para", str(self.outra), "--texto", "x")
+        arq = next((self.outra / ".forge" / "recados").glob("recado-*.md"))
+        texto = arq.read_text(encoding="utf-8")
+        arq.write_text(texto.replace(f"Versao: {VERSAO}", "Versao: 0.1.0"), encoding="utf-8")
+        cod, linhas, _ = self._rodar_em(self.outra, "recado", "--confirmar", arq.name)
+        self.assertEqual(cod, 1)
+        self.assertIn("versão defasada", linhas[0])
+        self.assertNotIn("sessão errada", linhas[0])
+        arq.write_text(texto.replace("\n\nx\n", "\n\ny\n"), encoding="utf-8")
+        cod, linhas, _ = self._rodar_em(self.outra, "recado", "--confirmar", arq.name)
+        self.assertEqual((cod, "texto adulterado" in linhas[0], "versão" in linhas[0]), (1, True, False))
+
+    def test_confirmar_pelo_nome_le_esse_recado_e_nao_o_mais_novo(self):
+        for texto in ("primeiro", "segundo"):
+            self.assertEqual(self._rodar_em(self.outra, "recado", "--para", str(self.outra), "--texto", texto)[0], 0)
+        nomes = sorted(p.name for p in (self.outra / ".forge" / "recados").glob("recado-*.md"))
+        self.assertEqual(self._rodar_em(self.outra, "recado", "--confirmar")[1][-1], "> segundo")
+        self.assertEqual(self._rodar_em(self.outra, "recado", "--confirmar", nomes[0])[1][-1], "> primeiro")
+        self.assertEqual(self._rodar_em(self.outra, "recado", "--confirmar", "nao-existe.md")[0], 2)
+
+    def test_sem_recado_ou_destino_invalido(self):
+        self.assertEqual(self.confirmar()[0], 2)
+        self.assertEqual(self.rodar("recado", "--para", str(self.tmp / "nao-existe"), "--texto", "x")[0], 2)
+        self.assertEqual(self.rodar("recado", "--para", str(self.outra), "--texto", "")[0], 2)
+
+
 if __name__ == "__main__":
     unittest.main()

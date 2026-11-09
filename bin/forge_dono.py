@@ -7,6 +7,8 @@ Importado pelo `bin/forge-check` só quando um destes roda:
   solta nunca vale para opção irreversível. Só lê: o Jarvis grava a decisão com `forge-check anotar`.
 - `pedido fala --gravar|--ler --pedido P` (S2): as palavras do dono, literais, com sha256, em docs/pedidos/<P>/fala-<stamp>.md;
   gravar não amplia autorização (o registro diz isso) e ler confere o hash de cada fala.
+- `recado --para RAIZ --texto T` e `recado --confirmar [ARQ]` (S8): texto entre sessões em <RAIZ>/.forge/recados/, com
+  cabeçalho (raiz de destino, versão do plugin, sha256); a sessão de outra raiz ou de outra versão recusa.
 """
 import datetime
 import hashlib
@@ -162,8 +164,46 @@ def cmd_fala(raiz, a, ctx):
     return 1 if adulteradas else 0
 
 
+# ---- S8: recado entre sessões ----
+
+def cmd_recado(raiz, a, ctx):
+    versao = ctx["versao"]()
+    if a.para:
+        destino = Path(os.path.realpath(a.para))
+        motivo = _recusa_do_texto(a.texto) or (None if destino.is_dir() else "--para não é uma pasta")
+        if motivo:
+            print(f"recado: {motivo}; nada gravado")
+            return 2
+        conteudo = (f"Para: {destino}\nDe: {os.path.realpath(raiz)}\nVersao: {versao}\nHora: {_agora():%Y-%m-%d %H:%M}\n"
+                    f"Sha256: {_sha(a.texto)}\n\n{a.texto}\n")
+        try:
+            gravado = _gravar_novo(destino / ".forge" / "recados", "recado", conteudo)
+        except OSError as e:
+            print(f"recado: não gravei ({ctx['seguro'](e)}); nada gravado")
+            return 2
+        print(f"recado: gravado {gravado}; a outra sessão confirma com `forge-check recado --confirmar {gravado.name}`")
+        return 0
+    pasta = Path(raiz) / ".forge" / "recados"
+    nomes = sorted(pasta.glob("recado-*.md"))
+    arq = pasta / Path(a.confirmar).name if a.confirmar else (nomes[-1] if nomes else None)
+    if arq is None or not arq.is_file():
+        print("recado: nenhum recado para esta sessão em .forge/recados/")
+        return 2
+    campos, corpo = _ler_registro(arq)
+    recusas = [f"sessão errada: o recado é para {ctx['seguro'](campos.get('Para', '?'))}"] * (campos.get("Para") != os.path.realpath(raiz))
+    recusas += [f"versão defasada: recado da {ctx['seguro'](campos.get('Versao', '?'))}, esta sessão na {versao}"] * (
+        campos.get("Versao") != versao)
+    recusas += ["texto adulterado: o sha256 não bate"] * (campos.get("Sha256") != _sha(corpo))
+    if recusas:
+        print(f"recado: recusado ({'; '.join(recusas)})")
+        return 1
+    print(f"recado: confirmado {arq.name} de {ctx['seguro'](campos.get('De', '?'))} ({campos.get('Hora', '?')})")
+    print("\n".join(f"> {ctx['seguro'](l)}" for l in corpo.splitlines()))
+    return 0
+
+
 def executar(a, raiz, ctx):
     """Despacha o subcomando; `ctx` traz do forge-check `pedido` (resolve docs/pedidos/<id>.md ou None), `versao` e `seguro`."""
     if a.cmd == "decisoes":
         return cmd_resposta(raiz, a.pedido or "", a.resposta, ctx)
-    return {"pedido": cmd_fala}[a.cmd](raiz, a, ctx)
+    return {"pedido": cmd_fala, "recado": cmd_recado}[a.cmd](raiz, a, ctx)
