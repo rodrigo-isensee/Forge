@@ -1,0 +1,5 @@
+### Adicionado
+- **V1 reduzido:** `forge-check proximo <pedido> --item E<n>` (só leitura, ferramenta do coordenador) diz o passo, o dono e o comando do item, lidos da marca do brief de implementação e do registro: gerar o brief, implementar na branch, conferir a entrega do head, portões da classe, volta ao autor ou integrar na develop. O comando só leva o pedido e a branch validados (`melhoria/...` e `git check-ref-format`); item fora de `E<n>` sai com rc 2.
+
+### Alterado
+- **ONBOARDING-1 mínimo:** a skill `novo-projeto` vale para a primeira abertura num projeto novo ou adotado: boas-vindas em linguagem simples, só três perguntas de produto (objetivo, quem usa, o que não pode quebrar), stack e comando de pronto decididos pelo time e uma mensagem com o que o time faz e quando a pessoa é chamada. A skill ficou menor, e a `modo-iniciante` vale desde a primeira abertura. Desenho em `docs/propostas/onboarding-minimo.md`.
