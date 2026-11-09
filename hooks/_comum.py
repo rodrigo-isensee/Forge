@@ -231,6 +231,9 @@ def git(raiz, *args):
 # comentário, não o liga.
 LITERAIS_DE_G = frozenset("_./:=@,+%-~^*?[]{}!#")
 SEPARADORES_DE_G = frozenset(" \t\n;&|")  # depois deles (lidos pela varredura, sem `\`), começa palavra
+# Na varredura de G, o caractere que só avança e zera o começo de palavra (alfanumérico ou de LITERAIS_DE_G, menos o `#`, que
+# depende do começo, e o `=`, que abre `=~`): uma sequência deles se pula de uma vez, com o mesmo resultado.
+_COMUNS_DE_G = re.compile("[\\w" + re.escape("".join(sorted(LITERAIS_DE_G - {"#", "=", "_"}))) + "]+")
 PARAMETRO = re.compile(r"[A-Za-z_][A-Za-z0-9_]*|[0-9?#@*!$-]")  # depois de `$`: nome ou parâmetro especial
 
 
@@ -263,6 +266,9 @@ def varrer_comentarios(linha):
     provados, i, n = set(), 0, len(linha)
     inicio, depois_de_redirecionar = True, False
     while i < n:
+        if (m := _COMUNS_DE_G.match(linha, i)) is not None:  # o que a varredura só pula, de uma vez (custo do lote)
+            i, inicio, depois_de_redirecionar = m.end(), False, False
+            continue
         c = linha[i]
         if c == "#" and inicio:
             provados.add(i)
@@ -381,11 +387,18 @@ def formas_que_o_shell_le(texto, corpo_de_heredoc=False):
     raise RuntimeError("o texto não para de mudar com as transformações do shell")
 
 
+_COMUNS_DO_ANSI_C = re.compile(r"[^\\$'\"]+")  # em `ansi_c_decodificado`, o que não é `\`, `$` nem aspa só se copia
+
+
 def ansi_c_decodificado(texto):
     """HOOK-CONTINUACAO-LINHA, A5 da segurança: o texto com cada `$'…'` fora de aspas trocado pelo conteúdo
     decodificado entre aspas simples, em qualquer ponto da palavra (`g$'\\x68'`, `gh $'r\\x65po'`)."""
     saida, i, aspas = [], 0, None
     while i < len(texto):
+        if (m := _COMUNS_DO_ANSI_C.match(texto, i)) is not None:  # o que só se copia, de uma vez (custo do lote)
+            saida.append(m.group())
+            i = m.end()
+            continue
         c = texto[i]
         if aspas != "'" and c == "\\":
             saida.append(texto[i:i + 2])
@@ -465,6 +478,16 @@ def conteudos_de_crase(comando, so_os_fechados=False):
     return saida
 
 
+BRANCOS_DO_SHLEX = re.compile(r"[ \t\r]*")
+_PONTUACAO_DO_SHLEX = frozenset(PONTUACAO)
+
+
+@functools.lru_cache(maxsize=4096)
+def nome_do_caminho(palavra):
+    """`Path(palavra).name`, guardado: a linha com milhares de comandos repete os mesmos programas (custo do hook)."""
+    return Path(palavra).name
+
+
 def fichas(comando, legado=False):
     """As palavras e os sinais da linha, sem executar nada: (texto, é sinal fora de aspas, colada na seguinte).
     Aspas desbalanceadas levantam ValueError.
@@ -483,10 +506,9 @@ def fichas(comando, legado=False):
     def posicao():
         return lex.instream.tell() - len(lex._pushback_chars)
 
-    def pular_comentario():
-        """Entre duas fichas: se a próxima começa num `#` provado, pula até a quebra de linha (ou o fim)."""
-        atual = posicao()
-        proximo = len(comando) - len(comando[atual:].lstrip(" \t\r"))
+    def pular_comentario(atual):
+        """Entre duas fichas (`atual`, a posição de agora): se a próxima começa num `#` provado, pula até a quebra de linha (ou o fim)."""
+        proximo = BRANCOS_DO_SHLEX.match(comando, atual).end()  # sem copiar o resto da linha a cada ficha (custo)
         if proximo not in provados:
             return atual
         fim = comando.find("\n", proximo)
@@ -495,14 +517,14 @@ def fichas(comando, legado=False):
         lex.instream.seek(fim)
         return fim
 
-    inicio = pular_comentario()
+    inicio = pular_comentario(posicao())
     while (tok := lex.get_token()) is not None:
         fim = posicao()
         bruto = comando[inicio:fim].rstrip(" \t\r")
-        sinal = bool(tok) and set(tok) <= set(PONTUACAO) and bruto.endswith(tok) and (
+        sinal = bool(tok) and set(tok) <= _PONTUACAO_DO_SHLEX and bruto.endswith(tok) and (
             len(bruto) == len(tok) or bruto[-len(tok) - 1] in " \t\r\n")
         yield tok, sinal, bool(lex._pushback_chars)
-        inicio = pular_comentario()
+        inicio = pular_comentario(fim)  # quem consome não mexe no `lex`: a posição é a mesma de `fim`
 
 
 def comandos(comando, legado=False, com_sinal=False):
@@ -687,6 +709,11 @@ def palavra_do_delimitador(comando, j):
     return "".join(partes), literal, min(j, n)
 
 
+# Em `heredocs`, fora de aspas, o caractere que não é nenhum dos que a varredura decide (aspas, escape, `$`, crase, `#`, `<`,
+# quebra de linha, parênteses, chaves e colchetes) só avança: uma sequência deles se pula de uma vez, com o mesmo resultado.
+_COMUNS_DO_HEREDOC = re.compile("[^" + re.escape("'\"\\$`#<\n(){}[]") + "]+")
+
+
 def heredocs(comando):
     """HEREDOC-FURO-HOOK: os heredocs cujo operador a varredura prova, e a posição do primeiro `<<` em dúvida (ou None).
     Um `<<` é operador provado fora de aspas, de escape e de comentário provado (`comentarios`), no nível da linha, num
@@ -746,6 +773,9 @@ def heredocs(comando):
                 i += 1
                 continue
         # fora, subst, chave, aritm, colchete e os `$`/crase entre aspas duplas
+        if (m := _COMUNS_DO_HEREDOC.match(comando, i)) is not None:  # o que só avança, de uma vez (custo do lote de heredocs)
+            i = m.end()
+            continue
         nivel_da_linha = tipo in ("fora", "subst")
         if c == "`":
             pilha.append(["crase", 0])
@@ -1098,6 +1128,11 @@ OPERADORES_DE_REDIRECAO = ("<<<", "<<-", "<<", "<>", "<&", ">&", ">>", ">|", "<"
 PREFIXO_DE_REDIRECAO = re.compile(r"\d+|\{[A-Za-z_][A-Za-z0-9_]*\}")
 SEPARADORES_DO_LEITOR = frozenset(";&|\n()")
 ESCAPES_DAS_DUPLAS = frozenset('$`"\\\n')
+# Custo do leitor (lote de heredocs): as sequências que o `palavras_do_texto` lê caractere a caractere sem decidir nada (o comum
+# fora de aspas e o conteúdo das aspas simples) entram de uma vez; o resultado é o mesmo.
+_COMUNS_DO_LEITOR = re.compile("[^" + re.escape("\\'\"$`<>#& \t" + "".join(sorted(SEPARADORES_DO_LEITOR))) + "]+")
+_DENTRO_DAS_SIMPLES = re.compile(r"[^']+")
+_DENTRO_DAS_SIMPLES_NA_CRASE = re.compile(r"[^'`]+")
 
 
 class _Nivel:
@@ -1180,9 +1215,11 @@ def palavras_do_texto(texto):
         if nivel.aspas == "simples":
             if c == "'":
                 nivel.aspas = None
+                i += 1
             else:
-                nivel.valor.append(c)
-            i += 1
+                m = (_DENTRO_DAS_SIMPLES_NA_CRASE if nivel.tipo == "crase" else _DENTRO_DAS_SIMPLES).match(texto, i)
+                nivel.valor.append(m.group())
+                i = m.end()
             continue
         if nivel.aspas == "ansi":
             if c == "\\":
@@ -1218,6 +1255,10 @@ def palavras_do_texto(texto):
                 i += 1
             continue
         # fora de aspas, no texto de fora ou numa substituição
+        if (m := _COMUNS_DO_LEITOR.match(texto, i)) is not None:
+            acrescentar(nivel, m.group(), i)
+            i = m.end()
+            continue
         if c == "\\":
             if texto.startswith("$'", i + 1):  # HOOK-ANSI-C: o shell de dentro (`bash -c "…"`, `eval "…"`) lê `$'…'`
                 aspa_escapada = aspa_escapada or _ansi_com_aspa_escapada(texto, i + 3)
@@ -2071,12 +2112,12 @@ def _ler_lancadores(base, inicio, lancadas, gasto, saidas, meio=None):
     meio das opções de um), junta a leitura que fecha em `saidas` e, depois dela, as que cada palavra fora da tabela
     adiou (com valor, texto dividido): a leitura sem valor sai primeiro. `gasto`: as palavras fora da tabela vistas."""
     adiadas = []
-    while meio or (inicio < len(base) and Path(base[inicio]).name in LANCADORES):
+    while meio or (inicio < len(base) and nome_do_caminho(base[inicio]) in LANCADORES):
         if meio:
             nome, i, dividido = meio
             meio = None
         else:
-            nome = Path(base[inicio]).name
+            nome = nome_do_caminho(base[inicio])
             i, dividido = inicio + 1, []
         while i < len(base):
             opcao = base[i]
@@ -2187,7 +2228,7 @@ def reavaliacao_das_palavras(palavras):
         if palavra is INDECIDIVEL:
             achada = ACHADO_DO_INDECIDIVEL
             continue
-        nome = Path(palavra).name
+        nome = nome_do_caminho(palavra)
         if palavra == "eval":
             achada = "eval"
         elif nome in SHELLS_DA_REAVALIACAO and opcao_a_partir[k + 1]:
