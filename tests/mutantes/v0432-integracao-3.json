@@ -1,0 +1,179 @@
+{
+  "pedido": "v0432-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I33",
+      "guarda": "bin/forge-upgrade:40 mesclada and a.simular (negada)",
+      "arquivo": "bin/forge-upgrade",
+      "de": "    if mesclada and a.simular:",
+      "para": "    if not (mesclada and a.simular):",
+      "testes": [
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I34",
+      "guarda": "bin/forge-upgrade:42 mesclada (negada)",
+      "arquivo": "bin/forge-upgrade",
+      "de": "    elif mesclada:",
+      "para": "    elif not (mesclada):",
+      "testes": [
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I35",
+      "guarda": "bin/forge-upgrade:45 git(projeto, 'show', f'refs/heads/{base}:.forge/versao', check=False) == alvo (negada)",
+      "arquivo": "bin/forge-upgrade",
+      "de": "    elif git(projeto, \"show\", f\"refs/heads/{base}:.forge/versao\", check=False) == alvo:",
+      "para": "    elif not (git(projeto, \"show\", f\"refs/heads/{base}:.forge/versao\", check=False) == alvo):",
+      "testes": [
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I36",
+      "guarda": "hooks/_comum.py:1745 c in (OPERADOR_K, PALAVRA_K3, PALAVRA_K1) or c.isalnum() or c in ALFABETO_LEITURA (negada)",
+      "arquivo": "hooks/_comum.py",
+      "de": "        elif c in (OPERADOR_K, PALAVRA_K3, PALAVRA_K1) or c.isalnum() or c in ALFABETO_LEITURA:",
+      "para": "        elif not (c in (OPERADOR_K, PALAVRA_K3, PALAVRA_K1) or c.isalnum() or c in ALFABETO_LEITURA):",
+      "testes": [
+        "tests.test_hooks",
+        "tests.test_agentes_clone"
+      ]
+    },
+    {
+      "id": "I37",
+      "guarda": "hooks/_comum.py:1775 not any((PALAVRA_K1 in palavra for palavras in lidos for palavra in palavras)) (negada)",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if not any(PALAVRA_K1 in palavra for palavras in lidos for palavra in palavras):",
+      "para": "    if not (not any(PALAVRA_K1 in palavra for palavras in lidos for palavra in palavras)):",
+      "testes": [
+        "tests.test_hooks",
+        "tests.test_agentes_clone"
+      ]
+    },
+    {
+      "id": "I38",
+      "guarda": "hooks/_comum.py:1778 PALAVRA_K1 in ''.join(palavras) and palavras != [PALAVRA_K1] (negada)",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if PALAVRA_K1 in \"\".join(palavras) and palavras != [PALAVRA_K1]:",
+      "para": "        if not (PALAVRA_K1 in \"\".join(palavras) and palavras != [PALAVRA_K1]):",
+      "testes": [
+        "tests.test_hooks",
+        "tests.test_agentes_clone"
+      ]
+    },
+    {
+      "id": "I39",
+      "guarda": "hooks/_comum.py:1780 palavras != [PALAVRA_K1] and sem_aspas(palavras[0]) not in PROGRAMAS_COM_K1 (negada)",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if palavras != [PALAVRA_K1] and sem_aspas(palavras[0]) not in PROGRAMAS_COM_K1:",
+      "para": "        if not (palavras != [PALAVRA_K1] and sem_aspas(palavras[0]) not in PROGRAMAS_COM_K1):",
+      "testes": [
+        "tests.test_hooks",
+        "tests.test_agentes_clone"
+      ]
+    },
+    {
+      "id": "I40",
+      "guarda": "hooks/_comum.py:1783 palavras != [PALAVRA_K1] and any((c in '\\'\"$' for palavra in palavras for c in palavra)) (negada)",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if palavras != [PALAVRA_K1] and any(c in \"'\\\"$\" for palavra in palavras for c in palavra):",
+      "para": "        if not (palavras != [PALAVRA_K1] and any(c in \"'\\\"$\" for palavra in palavras for c in palavra)):",
+      "testes": [
+        "tests.test_hooks",
+        "tests.test_agentes_clone"
+      ]
+    },
+    {
+      "id": "I41",
+      "guarda": "hooks/_comum.py:1840 k in texto (negada)",
+      "arquivo": "hooks/_comum.py",
+      "de": "    reservado = OPERADOR_K if OPERADOR_K in texto else next((k for k in (PALAVRA_K3, PALAVRA_K1) if k in texto), None)",
+      "para": "    reservado = OPERADOR_K if OPERADOR_K in texto else next((k for k in (PALAVRA_K3, PALAVRA_K1) if not (k in texto)), None)",
+      "testes": [
+        "tests.test_hooks",
+        "tests.test_agentes_clone"
+      ]
+    },
+    {
+      "id": "I42",
+      "guarda": "hooks/_comum.py:1841 reservado is not None (negada)",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if reservado is not None:",
+      "para": "    if not (reservado is not None):",
+      "testes": [
+        "tests.test_hooks",
+        "tests.test_agentes_clone"
+      ]
+    },
+    {
+      "id": "I43",
+      "guarda": "hooks/_comum.py:1857 k1_fora_da_lista(lidos) or next((sinal for palavras in lidos if palavras != [PALAVRA_K1] for sinal in [comando_fora_da_g (negada)",
+      "arquivo": "hooks/_comum.py",
+      "de": "    sinal = k1_fora_da_lista(lidos) or next((sinal for palavras in lidos if palavras != [PALAVRA_K1]\n                                             for sinal in [comando_fora_da_gramatica(palavras)] if sinal), None)",
+      "para": "    sinal = not (k1_fora_da_lista(lidos) or next((sinal for palavras in lidos if palavras != [PALAVRA_K1]\n                                             for sinal in [comando_fora_da_gramatica(palavras)] if sinal), None))",
+      "testes": [
+        "tests.test_hooks",
+        "tests.test_agentes_clone"
+      ]
+    },
+    {
+      "id": "I44",
+      "guarda": "hooks/_comum.py:2463 os.path.lexists(run.parent) and (not run.parent.is_dir()) and e_clone_do_forge(self.raiz) (negada)",
+      "arquivo": "hooks/_comum.py",
+      "de": "            if os.path.lexists(run.parent) and not run.parent.is_dir() and e_clone_do_forge(self.raiz):",
+      "para": "            if not (os.path.lexists(run.parent) and not run.parent.is_dir() and e_clone_do_forge(self.raiz)):",
+      "testes": [
+        "tests.test_hooks",
+        "tests.test_agentes_clone"
+      ]
+    },
+    {
+      "id": "I45",
+      "guarda": "hooks/_comum.py:2465 comum is None (negada)",
+      "arquivo": "hooks/_comum.py",
+      "de": "                if comum is None:",
+      "para": "                if not (comum is None):",
+      "testes": [
+        "tests.test_hooks",
+        "tests.test_agentes_clone"
+      ]
+    },
+    {
+      "id": "I46",
+      "guarda": "hooks/agentes.py:332 unicodedata.category(c) in CONTROLES (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "        controle = unicodedata.category(c) in CONTROLES",
+      "para": "        controle = not (unicodedata.category(c) in CONTROLES)",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I47",
+      "guarda": "hooks/agentes.py:333 not (controle and anterior) (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if not (controle and anterior):",
+      "para": "        if not (not (controle and anterior)):",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I48",
+      "guarda": "hooks/agentes.py:334 controle (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "            saida.append(\" \" if controle else c)",
+      "para": "            saida.append(\" \" if not (controle) else c)",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    }
+  ]
+}

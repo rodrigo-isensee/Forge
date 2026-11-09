@@ -1837,7 +1837,7 @@ def gramatica_com_heredoc(texto):
     achados, duvida = heredocs(texto)
     if duvida is not None:
         return "<< que o hook não prova ser heredoc"
-    reservado = next((k for k in (OPERADOR_K, PALAVRA_K3, PALAVRA_K1) if k in texto), None)
+    reservado = OPERADOR_K if OPERADOR_K in texto else next((k for k in (PALAVRA_K3, PALAVRA_K1) if k in texto), None)
     if reservado is not None:
         return nome_do_sinal(reservado)
     for h in achados:

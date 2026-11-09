@@ -1702,11 +1702,11 @@ class Guarda:
         if not parte or parte[0] != "api" or self.pode("pr_criar") or not parecer.metodo_mutante(parte[1]):
             return
         endpoint = parecer.endpoint_da_api(parte[1])
-        cria = bool(CRIAR_PR_POR_API.search(endpoint))
-        if not cria and parecer.ENDPOINT_GRAPHQL.search(endpoint):
+        abre_pr = bool(CRIAR_PR_POR_API.search(endpoint))
+        if not abre_pr and parecer.ENDPOINT_GRAPHQL.search(endpoint):
             textos, ilegivel = self.textos_da_api(parte[1], pasta)
-            cria = ilegivel or any(CRIAR_PR_NO_GRAPHQL.search(t) for t in textos)
-        if cria:
+            abre_pr = ilegivel or any(CRIAR_PR_NO_GRAPHQL.search(t) for t in textos)
+        if abre_pr:
             self.barrar("R-CONFORMIDADE", f"gh api que abre PR {self.so_de('pr_criar')} (papel: {self.papel})", "peça ao tech-lead")
 
     def gh_pr_na_sessao_do_forge(self, palavras, pasta="."):

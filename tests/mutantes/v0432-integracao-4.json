@@ -1,0 +1,180 @@
+{
+  "pedido": "v0432-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I49",
+      "guarda": "hooks/agentes.py:341 len(sem_controle(motivo)) >= MOTIVO_MINIMO (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    return any(len(sem_controle(motivo)) >= MOTIVO_MINIMO for motivo in EXCECAO_DE_BRANCH.findall(texto))",
+      "para": "    return any(not (len(sem_controle(motivo)) >= MOTIVO_MINIMO) for motivo in EXCECAO_DE_BRANCH.findall(texto))",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I50",
+      "guarda": "hooks/agentes.py:347 not (etapa and etapa.group(1) in ETAPAS_DE_PARECER) (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    return not (etapa and etapa.group(1) in ETAPAS_DE_PARECER)",
+      "para": "    return not (not (etapa and etapa.group(1) in ETAPAS_DE_PARECER))",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I51",
+      "guarda": "hooks/agentes.py:375 escrita is not None and de_escrita(fc, cabecalho) (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "            if escrita is not None and de_escrita(fc, cabecalho):",
+      "para": "            if not (escrita is not None and de_escrita(fc, cabecalho)):",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I52",
+      "guarda": "hooks/agentes.py:377 a_conferir is not None and (not tem_excecao(texto)) (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "                if a_conferir is not None and not tem_excecao(texto):",
+      "para": "                if not (a_conferir is not None and not tem_excecao(texto)):",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I53",
+      "guarda": "hooks/agentes.py:385 isinstance(lista, list) (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    return lista if isinstance(lista, list) else []",
+      "para": "    return lista if not (isinstance(lista, list)) else []",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I54",
+      "guarda": "hooks/agentes.py:393 branch in ocupadas (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "            if branch in ocupadas:",
+      "para": "            if not (branch in ocupadas):",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I55",
+      "guarda": "hooks/agentes.py:394 a.get('id') (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "                prazo = hook.expira_s() if a.get(\"id\") else min(RESERVA_S, hook.expira_s())",
+      "para": "                prazo = hook.expira_s() if not (a.get(\"id\")) else min(RESERVA_S, hook.expira_s())",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I56",
+      "guarda": "hooks/agentes.py:420 tipo == CONFERENTE (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if tipo == CONFERENTE:",
+      "para": "    if not (tipo == CONFERENTE):",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I57",
+      "guarda": "hooks/agentes.py:422 tipo.startswith('forge:') or tipo in papeis_do_forge() (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if tipo.startswith(\"forge:\") or tipo in papeis_do_forge():",
+      "para": "    if not (tipo.startswith(\"forge:\") or tipo in papeis_do_forge()):",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I58",
+      "guarda": "hooks/agentes.py:424 tipo in EXECUTORES_GENERICOS and next(caminhos_de_brief(str(prompt or '')), None) is not None (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    return tipo in EXECUTORES_GENERICOS and next(caminhos_de_brief(str(prompt or \"\")), None) is not None",
+      "para": "    return not (tipo in EXECUTORES_GENERICOS and next(caminhos_de_brief(str(prompt or \"\")), None) is not None)",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I59",
+      "guarda": "hooks/agentes.py:430 tipo is None or tipo in EXECUTORES_GENERICOS (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if tipo is None or tipo in EXECUTORES_GENERICOS:",
+      "para": "    if not (tipo is None or tipo in EXECUTORES_GENERICOS):",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I60",
+      "guarda": "hooks/agentes.py:434 destino != tipo.removeprefix('forge:').lower() (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if destino != tipo.removeprefix(\"forge:\").lower():",
+      "para": "    if not (destino != tipo.removeprefix(\"forge:\").lower()):",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I61",
+      "guarda": "hooks/agentes.py:459 fc.selo_do_brief(os.path.realpath(hook.cwd() / real), dados) or destino_diferente(fc, tipo, dados) (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "        motivo = fc.selo_do_brief(os.path.realpath(hook.cwd() / real), dados) or destino_diferente(fc, tipo, dados)",
+      "para": "        motivo = not (fc.selo_do_brief(os.path.realpath(hook.cwd() / real), dados) or destino_diferente(fc, tipo, dados))",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I62",
+      "guarda": "hooks/agentes.py:479 exige_selo(tipo, entrada.get('prompt')) (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if exige_selo(tipo, entrada.get(\"prompt\")):",
+      "para": "    if not (exige_selo(tipo, entrada.get(\"prompt\"))):",
+      "testes": [
+        "tests.test_agentes_hash_brief",
+        "tests.test_selo_e_entrega"
+      ]
+    },
+    {
+      "id": "I63",
+      "guarda": "hooks/conformidade.py:503 not re.search('(^|/)docs/pedidos/[^/]+\\\\.md$', alvo) (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not re.search(r\"(^|/)docs/pedidos/[^/]+\\.md$\", alvo):",
+      "para": "    if not (not re.search(r\"(^|/)docs/pedidos/[^/]+\\.md$\", alvo)):",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "I64",
+      "guarda": "hooks/conformidade.py:505 'content' in entrada (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if \"content\" in entrada:",
+      "para": "    if not (\"content\" in entrada):",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    }
+  ]
+}

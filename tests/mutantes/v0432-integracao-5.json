@@ -1,0 +1,166 @@
+{
+  "pedido": "v0432-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I65",
+      "guarda": "hooks/conformidade.py:804 acrescenta_linha_de_portao(caminho, entrada, self.h.cwd()) (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if acrescenta_linha_de_portao(caminho, entrada, self.h.cwd()):",
+      "para": "            if not (acrescenta_linha_de_portao(caminho, entrada, self.h.cwd())):",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "I66",
+      "guarda": "hooks/conformidade.py:818 nivel == 0 and CITA_PORTAO.search(comando) and ESCRITA_NA_LINHA.search(comando) (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if nivel == 0 and CITA_PORTAO.search(comando) and ESCRITA_NA_LINHA.search(comando):",
+      "para": "        if not (nivel == 0 and CITA_PORTAO.search(comando) and ESCRITA_NA_LINHA.search(comando)):",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "I67",
+      "guarda": "hooks/conformidade.py:1702 not parte or parte[0] != 'api' or self.pode('pr_criar') or (not parecer.metodo_mutante(parte[1])) (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not parte or parte[0] != \"api\" or self.pode(\"pr_criar\") or not parecer.metodo_mutante(parte[1]):",
+      "para": "        if not (not parte or parte[0] != \"api\" or self.pode(\"pr_criar\") or not parecer.metodo_mutante(parte[1])):",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "I68",
+      "guarda": "hooks/conformidade.py:1706 not abre_pr and parecer.ENDPOINT_GRAPHQL.search(endpoint) (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not abre_pr and parecer.ENDPOINT_GRAPHQL.search(endpoint):",
+      "para": "        if not (not abre_pr and parecer.ENDPOINT_GRAPHQL.search(endpoint)):",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "I69",
+      "guarda": "hooks/conformidade.py:1708 ilegivel or any((CRIAR_PR_NO_GRAPHQL.search(t) for t in textos)) (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            abre_pr = ilegivel or any(CRIAR_PR_NO_GRAPHQL.search(t) for t in textos)",
+      "para": "            abre_pr = not (ilegivel or any(CRIAR_PR_NO_GRAPHQL.search(t) for t in textos))",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "I70",
+      "guarda": "hooks/conformidade.py:1709 abre_pr (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if abre_pr:",
+      "para": "        if not (abre_pr):",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "I71",
+      "guarda": "hooks/conformidade.py:1717 parte and parte[0] == 'pr' and (not self.pode('pr_criar')) (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if parte and parte[0] == \"pr\" and not self.pode(\"pr_criar\"):",
+      "para": "        if not (parte and parte[0] == \"pr\" and not self.pode(\"pr_criar\")):",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "I72",
+      "guarda": "hooks/conformidade.py:1720 parte and parte[0] == 'prmerge' and (not self.pode('pr_merge_integracao')) (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if parte and parte[0] == \"prmerge\" and not self.pode(\"pr_merge_integracao\"):",
+      "para": "        if not (parte and parte[0] == \"prmerge\" and not self.pode(\"pr_merge_integracao\")):",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "I73",
+      "guarda": "scripts/ci-local:180 chave in ('name', 'id', 'if', 'shell', 'uses') (negada)",
+      "arquivo": "scripts/ci-local",
+      "de": "            if chave in (\"name\", \"id\", \"if\", \"shell\", \"uses\"):",
+      "para": "            if not (chave in (\"name\", \"id\", \"if\", \"shell\", \"uses\")):",
+      "testes": [
+        "tests.test_ci_local"
+      ]
+    },
+    {
+      "id": "I74",
+      "guarda": "scripts/ci-local:182 chave == 'with' (negada)",
+      "arquivo": "scripts/ci-local",
+      "de": "            elif chave == \"with\":",
+      "para": "            elif not (chave == \"with\"):",
+      "testes": [
+        "tests.test_ci_local"
+      ]
+    },
+    {
+      "id": "I75",
+      "guarda": "scripts/ci-local:183 i < len(linhas) and linhas[i].startswith(' ') and linhas[i].strip() (negada)",
+      "arquivo": "scripts/ci-local",
+      "de": "            elif chave == \"with\":\n                while i < len(linhas) and linhas[i].startswith(\"          \") and linhas[i].strip():",
+      "para": "            elif chave == \"with\":\n                while not (i < len(linhas) and linhas[i].startswith(\"          \") and linhas[i].strip()):",
+      "testes": [
+        "tests.test_ci_local"
+      ]
+    },
+    {
+      "id": "I76",
+      "guarda": "scripts/ci-local:428 tipo == 'upload' (negada)",
+      "arquivo": "scripts/ci-local",
+      "de": "    if tipo == \"upload\":",
+      "para": "    if not (tipo == \"upload\"):",
+      "testes": [
+        "tests.test_ci_local"
+      ]
+    },
+    {
+      "id": "I77",
+      "guarda": "scripts/ci-local:430 not nome or not origem.is_file() (negada)",
+      "arquivo": "scripts/ci-local",
+      "de": "        if not nome or not origem.is_file():",
+      "para": "        if not (not nome or not origem.is_file()):",
+      "testes": [
+        "tests.test_ci_local"
+      ]
+    },
+    {
+      "id": "I78",
+      "guarda": "scripts/ci-local:437 loja.is_dir() (negada)",
+      "arquivo": "scripts/ci-local",
+      "de": "    for pasta in sorted(loja.iterdir()) if loja.is_dir() else []:",
+      "para": "    for pasta in sorted(loja.iterdir()) if not (loja.is_dir()) else []:",
+      "testes": [
+        "tests.test_ci_local"
+      ]
+    },
+    {
+      "id": "I79",
+      "guarda": "scripts/ci-local:438 fnmatch.fnmatchcase(pasta.name, padrao) (negada)",
+      "arquivo": "scripts/ci-local",
+      "de": "        if fnmatch.fnmatchcase(pasta.name, padrao):",
+      "para": "        if not (fnmatch.fnmatchcase(pasta.name, padrao)):",
+      "testes": [
+        "tests.test_ci_local"
+      ]
+    },
+    {
+      "id": "I80",
+      "guarda": "scripts/ci-local:447 ARTEFATO.match(passo.get('uses', '')) and passo['uses'].startswith('actions/upload') (negada)",
+      "arquivo": "scripts/ci-local",
+      "de": "        if ARTEFATO.match(passo.get(\"uses\", \"\")) and passo[\"uses\"].startswith(\"actions/upload\"):",
+      "para": "        if not (ARTEFATO.match(passo.get(\"uses\", \"\")) and passo[\"uses\"].startswith(\"actions/upload\")):",
+      "testes": [
+        "tests.test_ci_local"
+      ]
+    }
+  ]
+}

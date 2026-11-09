@@ -326,17 +326,14 @@ class ChecagensBaratasAntesDaTrava(Base):
         self.assertEqual(codigo, 0, erro)
         self.assertLess(erro.index("checagens baratas ok"), erro.index("pre-push: entrou"), "barata antes da fila")
 
-    def test_shellcheck_so_dos_scripts_do_ci_alterados(self):
+    def test_shellcheck_so_dos_scripts_alterados_e_pelo_shebang(self):  # COBERTURA-P6: também o script fora da antiga lista
         if shutil.which("shellcheck") is None:
             self.skipTest("AVISO: shellcheck fora do PATH; o CI roda este passo")
-        self.commit("script do ci com aviso", **{"scripts/validar-plugin.sh": "#!/bin/bash\necho $1\n"})
-        self.reprova_sem_esperar("shellcheck reprovou (scripts/validar-plugin.sh)")
-
-    def test_shellcheck_pelo_shebang_pega_script_fora_da_antiga_lista(self):  # COBERTURA-P6
-        if shutil.which("shellcheck") is None:
-            self.skipTest("AVISO: shellcheck fora do PATH; o CI roda este passo")
-        self.commit("script novo sem extensão", **{"bin/forge-novo": "#!/usr/bin/env bash\necho $1\n"})
-        self.reprova_sem_esperar("shellcheck reprovou (bin/forge-novo)")
+        for arquivo, texto in (("scripts/validar-plugin.sh", "#!/bin/bash\necho $1\n"), ("bin/forge-novo", "#!/usr/bin/env bash\necho $1\n")):
+            with self.subTest(arquivo=arquivo):
+                self.setUp()  # um repositório novo por caso
+                self.commit("script com aviso", **{arquivo: texto})
+                self.reprova_sem_esperar(f"shellcheck reprovou ({arquivo})")
 
 
 class ShellcheckPeloShebang(unittest.TestCase):
