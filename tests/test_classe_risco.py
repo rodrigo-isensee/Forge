@@ -180,6 +180,15 @@ class PrPelaClasse(Repo):
         self.assertIn("exigidos review ·", saida)
         self.assertIn("pr: classe T", erro)
 
+    def test_t_com_qa_reprovado_reprova(self):  # dispensar o QA não é ignorar um QA reprovado (como a catraca)
+        head = self.commitar({"src/app.py": "v2\n"}, "entrega")
+        qa = ("---\ntipo: qa\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: reprovado\nescopo: completo\n"
+              "bugs_criticos: 1\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0\ndata: 2026-10-12\n---\n# QA\n")
+        self.commitar({"docs/reviews/p1.md": REVIEW.format(c=head), "docs/qa/p1.md": qa.format(c=head)}, "pareceres")
+        rc, saida, _ = self.pr()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("docs/qa/p1.md: parecer: o último parecer não é aprovado", saida)
+
     def test_n_pede_qa(self):
         self.entrega({"src/app.py": "".join(f"v{i}\n" for i in range(30))})
         rc, saida, _ = self.pr()

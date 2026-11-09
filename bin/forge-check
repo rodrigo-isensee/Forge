@@ -940,10 +940,12 @@ def base_do_delta(raiz, base, ref=None):
 
 
 def avisar_classe(raiz, ref, base):
-    """P5: a classe da entrega e o motivo, no stderr do `pr` (o veredito do stdout não muda de forma)."""
+    """P5: a classe da entrega e o motivo, no stderr do `pr` (o veredito do stdout não muda de forma), só em T e C, que mudam o que
+    se exige; N (review e QA) é o de sempre e não fala."""
     classe, motivos, _ = classe_da_entrega(raiz, ref, base)
-    print(f"pr: classe {classe} ({motivos[0]}); review e QA pela classe, devops e segurança também pelos gatilhos (P5; forge-check classe)",
-          file=sys.stderr)
+    if classe != "N":
+        print(f"pr: classe {classe} ({motivos[0]}); review e QA pela classe, devops e segurança também pelos gatilhos (P5; forge-check classe)",
+              file=sys.stderr)
 
 
 def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, previo=False):
@@ -1263,6 +1265,29 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
                            "teste e parecer vão em commits separados e o `commit:` do parecer é o do teste (QA-TESTE-E-PARECER-SEPARADOS)")
             if motivo:
                 saida.append(f"{caminho_impresso(rel)}: commit: {motivo} ({rid})")
+    return saida + nao_exigidos_que_nao_aprovam(raiz, pedido, ref, branch if de_trabalho else None, exigidos)
+
+
+def nao_exigidos_que_nao_aprovam(raiz, pedido, ref, branch, exigidos):
+    """P5: o parecer de um tipo que a classe não exige (o QA numa entrega T, o devops sem infraestrutura) não conta como ausente, mas o
+    último dele, se existe e não aprova, reprova como na catraca (`pareceres_que_nao_aprovam`): dispensar não é ignorar um reprovado.
+    Numa branch de trabalho, só os pareceres dela."""
+    saida = []
+    for tipo in (t for t in ORDEM_DOS_PARECERES if t not in exigidos):
+        pasta, rid = PASTA_E_REGRA[tipo]
+        achados = []
+        for rel, texto in documentos(raiz, tipo, ref):
+            campos, _ = validar_documento(rel, texto)
+            if campos is not None and campos.get("pedido") == pedido and (branch is None or campos.get("branch") == branch):
+                achados.append((campos.get("data", ""), rel, campos))
+        if not achados:
+            continue
+        _, rel, campos = sorted(achados, key=lambda a: a[:2])[-1]
+        valor = campos.get("parecer")
+        if valor == "aprovado" or (valor == "riscos-aceitos" and aceite_do_usuario(raiz, pedido, campos.get("commit"), ref)):
+            continue
+        saida.append(f"{caminho_impresso(rel)}: parecer: o último parecer não é aprovado; o tipo não é exigido pela classe, mas o "
+                     f"reprovado não se ignora (P5) ({rid})")
     return saida
 
 
