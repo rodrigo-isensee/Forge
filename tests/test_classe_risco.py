@@ -215,5 +215,31 @@ class PrPelaClasse(Repo):
         self.assertEqual(fc.classe_da_entrega(self.tmp, None, "develop")[0], "T")
 
 
+class HookSemPedido(Repo):
+    """O hook `parecer` na branch sem pedido pede os mesmos pareceres do `forge-check pr` (classe + gatilhos), nunca menos."""
+
+    def exigidos(self):
+        import importlib.util
+        hooks = str(Path(__file__).resolve().parent.parent / "hooks")
+        if hooks not in sys.path:
+            sys.path.insert(0, hooks)  # o `_comum` dos hooks, como o Claude Code os roda
+        spec = importlib.util.spec_from_file_location("hook_parecer_classe", Path(__file__).resolve().parent.parent / "hooks" / "parecer.py")
+        modulo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modulo)
+        return modulo.exigidos_sem_pedido(fc, self.tmp, None, "develop")
+
+    def test_t_so_review(self):
+        self.entrega({"src/app.py": "v2\n"}, com_review=False)
+        self.assertEqual(self.exigidos(), (["review"], "T"))
+
+    def test_gatilho_de_seguranca_soma_na_classe_n(self):
+        self.entrega({"package.json": "{}\n"}, com_review=False)
+        self.assertEqual(self.exigidos(), (["review", "qa", "revisao-seguranca"], "N"))
+
+    def test_c_pede_seguranca(self):
+        self.entrega({"bin/ferramenta": "x\n"}, com_review=False)
+        self.assertEqual(self.exigidos()[0], ["review", "qa", "revisao-seguranca"])
+
+
 if __name__ == "__main__":
     unittest.main()

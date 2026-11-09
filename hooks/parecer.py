@@ -9,8 +9,8 @@ pasta do git é a que o bash e o git calculam (`cd` no nível de cima da linha, 
 literal; o que o hook não resolve (variável, crase, `$( )`, `cd` em subshell, pipeline, segundo plano, condicional
 (`if cd`, `! cd`) ou bloco, pasta inexistente, `popd`, `pushd`, `--git-dir`, `--work-tree`, `GIT_DIR`) recusa o merge e o pull, nunca é julgado pela pasta
 da sessão (HK3-PARECER, E1 e E3).
-A isenção é a regra única do forge-check (`isencoes_da_entrega`, M13): diff só de `.md` comum dispensa o QA e exige o
-review; `.md` de controle (`agents/`, `skills/`, `stacks/*/agents|skills/`, `stacks/*/seguranca.md` e `pronto.md`, `docs/regras/`, `templates/projeto/`, `CLAUDE.md`) não tem isenção. Libera
+Os pareceres exigidos são os do forge-check (P5, `exigidos_do_pr`: a classe T dispensa o QA e exige o review; os gatilhos de
+segurança e devops somam por cima); `.md` de controle (`agents/`, `skills/`, `stacks/*/agents|skills/`, `stacks/*/seguranca.md` e `pronto.md`, `docs/regras/`, `templates/projeto/`, `CLAUDE.md`) não tem isenção. Libera
 atualização a partir de uma branch de integração e promoção entre branches de integração. O merge de PR (ADR 0008, 4.3) é resolvido sem rede, pela branch: base `main` é `R-MAIN`;
 PR só por número, `gh api` de merge e merge no Forge a partir de projeto são `R-CONTRIB`.
 No clone do Forge (`raiz_de_estado`: `~/Forge` e as worktrees de `~/.forge-contrib/wt/`) age também, sem
@@ -405,19 +405,28 @@ def guarda_de_versao(fc, raiz):
         bloquear("R-CONFORMIDADE", texto)
 
 
+def exigidos_sem_pedido(fc, raiz, ref, base):
+    """(pareceres exigidos, classe) da branch sem pedido: a mesma soma do `forge-check pr` (`pareceres_exigidos`, P5), com os gatilhos
+    só do diff (sem pedido não há plano técnico). A classe nunca exige menos que os gatilhos de segurança e devops."""
+    classe = fc.classe_da_entrega(raiz, ref, base)[0]
+    infra, seguranca = fc.gatilhos_do_diff(fc.arquivos_da_entrega(raiz, ref, base))
+    return fc.pareceres_exigidos(classe, infra, seguranca), classe
+
+
 def verificar(hook, raiz, branch, ref, base, dica=""):
-    """Bloqueia se a branch não tem os pareceres exigidos aprovados e válidos. A isenção é a do `forge-check` (M13,
-    `isencoes_da_entrega`): só o QA, em diff só de `.md` fora dos de controle; o review vale sempre. `dica` abre o motivo."""
+    """Bloqueia se a branch não tem os pareceres exigidos aprovados e válidos. Os exigidos são os do `forge-check` (P5: a classe
+    da entrega mais os gatilhos de segurança e devops; o review vale sempre). `dica` abre o motivo."""
     fc = forge_check()
     guarda_de_versao(fc, raiz)
     base, _ = fc.base_do_delta(raiz, base, ref) if base else (None, None)  # a mesma base do `forge-check pr` (K-164)
     pedidos = fc.pedidos_da_branch(raiz, branch, ref)
     if not pedidos:
-        so_review = "qa" in fc.isencoes_da_entrega(raiz, ref, base)
-        bloquear("R-REVIEW", f"{dica}nenhum parecer em docs/reviews/{'' if so_review else ' e docs/qa/'} com `branch: {branch}`; "
-                             + ("faça o code review antes do PR ou do merge (só .md comum: isento de QA, R-QA)." if so_review else
-                                "faça o code review e o QA (R-QA) antes do PR ou do merge (devops e segurança, "
-                                "quando há gatilho, ficam em docs/devops/ e docs/security/)."))
+        exigidos, classe = exigidos_sem_pedido(fc, raiz, ref, base)
+        pastas = " e ".join(f"{fc.CONTRATOS[t][0]}/" for t in exigidos)
+        bloquear("R-REVIEW", f"{dica}nenhum parecer em {pastas} com `branch: {branch}`; "
+                             + ("faça o code review antes do PR ou do merge (classe T: sem QA, R-QA)." if exigidos == ["review"] else
+                                f"faça o code review e os pareceres da classe {classe} e dos gatilhos antes do PR ou do merge "
+                                "(forge-check classe)."))
     for pedido in pedidos:
         violacoes = fc.cmd_pr(raiz, pedido, ref, base)  # a mesma base do `forge-check pr`: merge puro da base não invalida; base fora do fluxo, estrito
         if violacoes:
