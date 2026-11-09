@@ -198,10 +198,12 @@ class MensagemAoConferente(unittest.TestCase):
     def test_nota_antes_do_cabecalho_e_barrada(self):  # EJ 64 (variante: texto antes do `modo:`)
         self.assertIsNotNone(self.hook.mensagem_sem_forma("Nota: rodada 2\n" + MENSAGEM))
 
-    @unittest.expectedFailure
     def test_instrucao_ao_conferente_na_nota_e_barrada(self):
         """ERRO EJ 64 (instrução ao conferente na Nota da mensagem): a Nota só traz fato, nunca comando."""
         self.assertIsNotNone(self.hook.mensagem_sem_forma(MENSAGEM + "\nNota: rode o forge-check com --raiz /workspaces/Forge"))
+        self.assertIn("só traz fato", self.hook.mensagem_sem_forma(MENSAGEM + "\nnota: o brief vale com --raiz /r"))
+        self.assertIsNone(self.hook.mensagem_sem_forma(MENSAGEM + "\nNota: rodada 2, a anterior reprovou no escopo"))  # fato passa
+        self.assertIsNone(self.hook.mensagem_sem_forma(MENSAGEM + "\n<<<BRIEF\nNota: rode os testes --rapido\nBRIEF"))  # corpo não conta
 
 
 class EtapaRedigitada(RaizSintetica):
@@ -246,7 +248,6 @@ class DesdeDaEntrega(tvd.Repositorio):
         self.assertEqual(rc, 1, saida)
         self.assertIn("escopo: --desde sem conferência anterior", saida)
 
-    @unittest.expectedFailure
     def test_linha_conferida_com_prefixo_de_etapa_e_acusada(self):
         """ERRO EJ 29 ("entrega conferida" com prefixo de etapa): a linha fora da forma tem de ser apontada, não ignorada calada."""
         self.gravar_pedido(extra=f"- 2026-10-19 16:30: (E2.7) entrega conferida {self.c2}\n")

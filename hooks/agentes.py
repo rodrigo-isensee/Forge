@@ -231,6 +231,9 @@ MODO_DA_MENSAGEM = re.compile(r"modo: (brief|entrega)[ \t]*")
 ARQUIVO_DA_MENSAGEM = re.compile(r"^Arquivo:[ \t]*.*docs/briefs/\S.*$", re.M)
 HASH_DA_MENSAGEM = re.compile(r"^Brief-sha256:[ \t]*[0-9a-f]{64}(?![0-9A-Za-z])", re.M)
 LINHA_DE_CABECALHO = re.compile(r"^(modo|Arquivo|Brief-sha256):", re.M)  # B9: qualquer valor conta para "um brief"
+# EJ 64 (0.43.3): a `Nota:` da mensagem ao conferente só traz fato; verbo de ordem no início ou opção de linha de comando é instrução.
+NOTA_COM_ORDEM = re.compile(r"^[ \t]*nota[ \t]*:[ \t]*(?:(?:rode|rodar|execute|use|chame|ignore|aceite|aprove|pule|considere)\b|.*(?<![\w-])--[a-z])",
+                            re.I | re.M)
 VALOR_DO_HASH = re.compile(r"Brief-sha256:[ \t]*([0-9a-f]{64})(?![0-9A-Za-z])")
 ABRE_BLOCO = "<<<BRIEF"
 LIMITE_DO_BRIEF = 256 * 1024  # limite técnico: o mesmo do `forge-check brief mensagem`
@@ -254,6 +257,8 @@ def mensagem_sem_forma(prompt):
         faltas.append("uma linha `Arquivo:` com o caminho em docs/briefs/")
     if not HASH_DA_MENSAGEM.search("\n".join(linhas)):
         faltas.append("uma linha `Brief-sha256:` com 64 hex")
+    if NOTA_COM_ORDEM.search(texto.split("<<<BRIEF", 1)[0]):  # EJ 64: só o cabeçalho; o corpo do brief citado não conta
+        faltas.append("a `Nota:` só traz fato, nunca instrução ao conferente (verbo de ordem ou opção `--`)")
     return "; ".join(faltas) or None
 
 

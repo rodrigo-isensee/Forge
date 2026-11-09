@@ -1282,6 +1282,13 @@ def entregas_conferidas(texto):
     return [m.group(1) for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", []) if (m := ENTREGA_CONFERIDA.match(linha))]
 
 
+def conferidas_fora_da_forma(texto):
+    """EJ 29: as linhas do `## Histórico` que citam `entrega conferida <sha40>` fora da forma de `ENTREGA_CONFERIDA` (prefixo de
+    etapa, hora faltando): o portão as ignora, e o `entrega` as aponta em vez de calar."""
+    return [linha for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", [])
+            if re.search(r"\bentrega conferida [0-9a-f]{40}\b", linha) and not ENTREGA_CONFERIDA.match(linha)]
+
+
 def branch_do_sha(raiz, sha):
     """E7 (review A1): a branch de trabalho cujo head é `sha` (local ou `origin/`), se for uma só; senão None. O `forge-fechar` passa o
     sha, não o nome: sem isto o `pr` não acharia os briefs da branch."""
@@ -2254,6 +2261,8 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
     valido, origem_da_base, linha_do_desde, reprova = veredito_do_desde(raiz, texto, desde, base_sha, head, base_ref)
     if linha_do_desde:
         linhas.append((linha_do_desde, reprova))
+    linhas += [(f"conferida: linha fora da forma `- <data> <hora>: entrega conferida <sha40>`, não conta para o portão (EJ 29): "
+                f"{linha_legivel(linha.strip())[:160]}", False) for linha in conferidas_fora_da_forma(texto)]
     de = valido or base_sha
     falhas = []  # C-1: os passos do git que falharam; com algum, a entrega reprova em toda etapa e nenhum filtro tira arquivo (C-3)
     arquivos = arquivos_da_entrega(raiz, head, base_sha, valido)

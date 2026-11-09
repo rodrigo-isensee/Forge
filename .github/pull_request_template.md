@@ -10,6 +10,9 @@
 ## Como medir
 <!-- OBRIGATÓRIA (a catraca barra o PR sem ela): mínimo de 20 caracteres fora de comentários. Como saber se melhorou (ver docs/melhoria-continua.md). -->
 
+## Sem teste
+<!-- Só quando o `forge-check pr` dá `sem teste:` (T1): por que o código mudou sem teste mudado ou novo; o review confere. Sem o aviso, apague a seção. -->
+
 ## Checklist
 - [ ] `python3 -m unittest discover -s tests -v` verde
 - [ ] `claude plugin validate . --strict` verde

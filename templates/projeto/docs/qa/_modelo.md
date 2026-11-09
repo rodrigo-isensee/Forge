@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: <id-do-pedido>
 branch: <branch>
-commit: <hash do HEAD testado>
+commit: <o Revisar-sha do brief (o código testado, sem os commits de parecer)>
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
