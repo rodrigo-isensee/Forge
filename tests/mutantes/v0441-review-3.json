@@ -97,7 +97,7 @@
       "guarda": "B2: --sem-selar com reprovação é rc 1",
       "arquivo": "bin/forge-check",
       "de": "        return 1 if reprovas else 0\n    lembrar_do_jarvis",
-      "para": "        return 0\n    lembrar_do_jarvis",
+      "para": "        return 1 if not reprovas else 0\n    lembrar_do_jarvis",
       "testes": [
         "tests.test_selo_e_entrega.Selar.test_sem_selar_corrige_os_derivados_e_nao_grava_selo"
       ]
