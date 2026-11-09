@@ -52,14 +52,13 @@ def espera_s():
 
 
 def branch_de(pasta):
-    r = subprocess.run(["git", "-C", str(pasta), "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True,
-                       stdin=subprocess.DEVNULL)
-    return r.stdout.strip() if r.returncode == 0 else ""
+    return subprocess.run(["git", "-C", str(pasta), "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True,
+                          stdin=subprocess.DEVNULL).stdout.strip()
 
 
 def prioridade(branch):
     """A versão da branch (`melhoria/v0442` -> 4402, `v0431` -> 4301): a menor é a versão em curso e passa na frente."""
-    m = VERSAO_DA_BRANCH.search(branch or "")
+    m = VERSAO_DA_BRANCH.search(branch)
     return int(m.group(1)) * 10000 + int(m.group(2)) * 100 + int(m.group(3) or 0) if m else SEM_VERSAO
 
 
@@ -85,7 +84,7 @@ def entrar_na_fila(pasta, prio):
 def fila_viva(pasta):
     """As senhas vivas, em ordem (prioridade, chegada); a de processo morto (flock livre) sai."""
     vivas = []
-    for c in sorted(pasta.glob("[0-9]*") if pasta.is_dir() else ()):
+    for c in sorted(pasta.glob("[0-9]*")):
         if c.is_symlink():
             continue
         try:

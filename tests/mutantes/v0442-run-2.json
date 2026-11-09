@@ -56,18 +56,8 @@
  "isentas": [
   {
    "arquivo": "bin/forge_run.py",
-   "trecho": "r.returncode == 0",
-   "motivo": "git rev-parse só falha fora de repositório; aí o head fica nulo e a conferência reprova por outro commit"
-  },
-  {
-   "arquivo": "bin/forge_run.py",
    "trecho": "base.is_symlink() or base.parent.is_symlink()",
    "motivo": "defesa contra link na pasta da prova; sem cenário de teste"
-  },
-  {
-   "arquivo": "bin/forge_run.py",
-   "trecho": "e.strerror or e",
-   "motivo": "só a mensagem do erro do sistema; o rc 127 é o que conta"
   },
   {
    "arquivo": "bin/forge_run.py",

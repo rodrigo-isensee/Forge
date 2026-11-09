@@ -36,8 +36,7 @@ def passos_de(argv):
 
 
 def _head(raiz):
-    r = subprocess.run(["git", "-C", str(raiz), "rev-parse", "HEAD"], capture_output=True, text=True)
-    return r.stdout.strip() if r.returncode == 0 else None
+    return subprocess.run(["git", "-C", str(raiz), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
 
 
 def rodar(raiz, slug, argv, tempo=TEMPO_PADRAO_S):
@@ -70,7 +69,7 @@ def rodar(raiz, slug, argv, tempo=TEMPO_PADRAO_S):
             except subprocess.TimeoutExpired:
                 rc_passo = 124
             except OSError as e:
-                f.write(f"rodar: não rodou: {e.strerror or e}\n".encode())
+                f.write(f"rodar: não rodou: {e}\n".encode())
                 rc_passo = 127
         registros.append({"passo": n, "argv": passo, "rc": rc_passo, "segundos": round(time.monotonic() - t0, 3), "log": log.name})
         if rc_passo != 0:

@@ -22,6 +22,7 @@ class Fila(unittest.TestCase):
         self.assertLess(pesado.prioridade("melhoria/v0442"), pesado.prioridade("melhoria/v0450"))
         self.assertLess(pesado.prioridade("melhoria/v0450-adotar"), pesado.prioridade("melhoria/sem-versao"))
         self.assertEqual(pesado.prioridade("develop"), pesado.SEM_VERSAO)
+        self.assertLess(pesado.prioridade("melhoria/v045"), pesado.prioridade("melhoria/v0451"))
 
     def test_fila_anda_pela_prioridade_e_descarta_a_morta(self):
         import tempfile
