@@ -5,6 +5,8 @@ Importado pelo `bin/forge-check` só quando um destes roda:
   Opções `1a)`, `1b)`...; `[recomendada]` e `[irreversível]` no texto da opção. Vocabulário fechado: os códigos da pergunta e as
   palavras de PALAVRAS (aprova a recomendada de cada questão sem código). O ambíguo volta como pergunta (rc 1), e a palavra
   solta nunca vale para opção irreversível. Só lê: o Jarvis grava a decisão com `forge-check anotar`.
+- `pedido fala --gravar|--ler --pedido P` (S2): as palavras do dono, literais, com sha256, em docs/pedidos/<P>/fala-<stamp>.md;
+  gravar não amplia autorização (o registro diz isso) e ler confere o hash de cada fala.
 """
 import datetime
 import hashlib
@@ -125,6 +127,43 @@ def cmd_resposta(raiz, pedido, resposta, ctx):
     return 0
 
 
+# ---- S2: a fala do dono literal ----
+
+def cmd_fala(raiz, a, ctx):
+    arq = ctx["pedido"](raiz, a.pedido)
+    if arq is None:
+        print(f"pedido fala: pedido {ctx['seguro'](a.pedido)} ausente ou fora de docs/pedidos/; nada feito")
+        return 2
+    pasta = arq.parent / a.pedido
+    if a.gravar:
+        motivo = _recusa_do_texto(a.texto)
+        if motivo:
+            print(f"pedido fala: {motivo}; nada gravado")
+            return 2
+        conteudo = (f"Pedido: {a.pedido}\nHora: {_agora():%Y-%m-%d %H:%M}\nSha256: {_sha(a.texto)}\n"
+                    "Autoriza: nada além do que o pedido já registra (gravar a fala não amplia autorização; R-DECISAO)\n\n"
+                    f"{a.texto}\n")
+        try:
+            gravado = _gravar_novo(pasta, "fala", conteudo)
+        except OSError as e:
+            print(f"pedido fala: não gravei ({ctx['seguro'](e)}); nada gravado")
+            return 2
+        print(f"pedido fala: gravada {gravado.relative_to(arq.parent.parent.parent)} sha256 {_sha(a.texto)}")
+        return 0
+    falas = sorted(pasta.glob("fala-*.md"))
+    adulteradas = 0
+    for f in falas:
+        campos, corpo = _ler_registro(f)
+        integra = campos.get("Sha256") == _sha(corpo)
+        adulteradas += not integra
+        print(f"fala: {f.name} {campos.get('Hora', '?')} {'íntegra' if integra else 'ADULTERADA (sha256 não bate)'}")
+        print("\n".join(f"> {ctx['seguro'](l)}" for l in corpo.splitlines()))
+    print(f"pedido fala: {len(falas)} fala(s), {adulteradas} adulterada(s); leia antes de perguntar de novo (R-DECISAO)")
+    return 1 if adulteradas else 0
+
+
 def executar(a, raiz, ctx):
     """Despacha o subcomando; `ctx` traz do forge-check `pedido` (resolve docs/pedidos/<id>.md ou None), `versao` e `seguro`."""
-    return cmd_resposta(raiz, a.pedido or "", a.resposta, ctx)
+    if a.cmd == "decisoes":
+        return cmd_resposta(raiz, a.pedido or "", a.resposta, ctx)
+    return {"pedido": cmd_fala}[a.cmd](raiz, a, ctx)

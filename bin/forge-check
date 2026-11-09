@@ -9430,7 +9430,7 @@ ATUALIZAR_NO_PROJETO = "`forge atualizar`"
 BLOQUEIAM_COM_FERRAMENTA_ATRASADA = ("pr", "entrega")  # nos projetos, e `brief gerar` e `brief mensagem`; no Forge e nos outros subcomandos só avisa
 NAO_CONFERIDA_DESLIGADA = "verificação desligada"
 MARCADOR_DA_DECISAO_D = "decisão D: não muda o veredito"  # a linha que o conferente aceita como não reprovante (conferente.md)
-SEM_GUARDA_DE_VERSAO = ("fontes", "transcricao")  # não conferem repositório
+SEM_GUARDA_DE_VERSAO = ("fontes", "transcricao", "pedido")  # não conferem repositório
 
 
 def versao_em_tupla(texto):
@@ -9699,6 +9699,13 @@ def main():
     de.add_argument("--desde", type=datetime.date.fromisoformat, help="com --sem-cartao: só decisões desta data (AAAA-MM-DD) em diante")
     de.add_argument("--resposta", help="com --pedido: a resposta curta do dono (\"1a 2c\", \"aprovo\") lida contra a última PERGUNTA AO DONO "
                     "do pedido; vocabulário fechado, ambígua volta como pergunta (rc 1), palavra solta nunca vale para opção irreversível (O4)")
+    pe = sub.add_parser("pedido", parents=[comum], help="a fala do dono literal, com sha256, em docs/pedidos/<id>/fala-<hora>.md (S2)")
+    pe.add_argument("acao", choices=("fala",))
+    modo = pe.add_mutually_exclusive_group(required=True)
+    modo.add_argument("--gravar", action="store_true", help="grava --texto (gravar não amplia autorização)")
+    modo.add_argument("--ler", action="store_true", help="lista as falas e confere o sha256 de cada uma (rc 1 se alguma não bate)")
+    pe.add_argument("--pedido", required=True, help="id em docs/pedidos/<id>.md")
+    pe.add_argument("--texto", default="", help="com --gravar: as palavras do dono, literais")
     es = sub.add_parser("esperas", parents=[comum], help="quanto tempo cada cartão esperou o dono ou uma credencial, lido de docs/kanban/historico.md; só leitura (M14b)")
     es.add_argument("--pedido", help="só os cartões deste pedido (cartão igual, da mesma família de nome, com o pedido na coluna Pedido do KANBAN.md ou no motivo do movimento)")
     es.add_argument("--kanban", help="com --pedido: o KANBAN.md a ler (padrão: o da raiz)")
@@ -9897,7 +9904,7 @@ def executar(a, raiz):
             print(f"{a.cmd}: bin/forge_governanca.py ausente ao lado do forge-check; nada medido")
             return 2
         return modulo.executar(a, raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz)
-    if (a.cmd == "decisoes" and a.resposta is not None):
+    if a.cmd in ("pedido",) or (a.cmd == "decisoes" and a.resposta is not None):
         modulo = modulo_do_dono()
         if modulo is None:
             print(f"{a.cmd}: bin/forge_dono.py ausente ao lado do forge-check; nada feito")

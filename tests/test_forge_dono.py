@@ -71,5 +71,50 @@ class Resposta(Raiz):  # O4
         self.assertEqual(self.resposta("1b")[1][0], "resposta: 1 -> 1b: não")
 
 
+class Fala(Raiz):  # S2
+    def setUp(self):
+        super().setUp()
+        self.gravar("docs/pedidos/xpto.md", "# p\n")
+
+    def test_grava_literal_com_sha256_e_le_conferindo(self):
+        texto = "Pode fazer a fila,\nmas sem apagar nada."
+        cod, linhas, _ = self.rodar("pedido", "fala", "--gravar", "--pedido", "xpto", "--texto", texto)
+        self.assertEqual(cod, 0, linhas)
+        sha = hashlib.sha256(texto.encode()).hexdigest()
+        self.assertTrue(linhas[0].endswith(f"sha256 {sha}"))
+        falas = list((self.tmp / "docs" / "pedidos" / "xpto").glob("fala-*.md"))
+        self.assertEqual(len(falas), 1)
+        conteudo = falas[0].read_text(encoding="utf-8")
+        self.assertIn(f"Sha256: {sha}\n", conteudo)
+        self.assertIn("não amplia autorização", conteudo)
+        self.assertTrue(conteudo.endswith("\n\n" + texto + "\n"))
+        self.assertEqual((self.tmp / "docs" / "pedidos" / "xpto.md").read_text(encoding="utf-8"), "# p\n", "o pedido não muda")
+        cod, linhas, _ = self.rodar("pedido", "fala", "--ler", "--pedido", "xpto")
+        self.assertEqual(cod, 0)
+        self.assertIn("íntegra", linhas[0])
+        self.assertEqual(linhas[1:3], ["> Pode fazer a fila,", "> mas sem apagar nada."])
+        falas[0].write_text(conteudo.replace("sem apagar", "apagando"), encoding="utf-8")
+        cod, linhas, _ = self.rodar("pedido", "fala", "--ler", "--pedido", "xpto")
+        self.assertEqual(cod, 1)
+        self.assertIn("ADULTERADA", linhas[0])
+
+    def test_segunda_fala_nao_sobrescreve_e_recusas_nao_gravam(self):
+        for _ in range(2):
+            self.assertEqual(self.rodar("pedido", "fala", "--gravar", "--pedido", "xpto", "--texto", "sim")[0], 0)
+        self.assertEqual(len(list((self.tmp / "docs" / "pedidos" / "xpto").glob("fala-*.md"))), 2)
+        self.assertEqual(self.rodar("pedido", "fala", "--gravar", "--pedido", "xpto", "--texto", "  ")[0], 2)
+        self.assertEqual(self.rodar("pedido", "fala", "--gravar", "--pedido", "xpto", "--texto", "x" * 70000)[0], 2)
+        self.assertEqual(self.rodar("pedido", "fala", "--gravar", "--pedido", "../x", "--texto", "sim")[0], 2)
+        cod, linhas, _ = self.rodar("pedido", "fala", "--ler", "--pedido", "xpto")
+        self.assertEqual((cod, linhas[-1][:30]), (0, "pedido fala: 2 fala(s), 0 adul"))
+
+    def test_pasta_da_fala_que_e_link_recusa(self):
+        (self.tmp / "fora").mkdir()
+        (self.tmp / "docs" / "pedidos" / "xpto").symlink_to(self.tmp / "fora")
+        cod, linhas, _ = self.rodar("pedido", "fala", "--gravar", "--pedido", "xpto", "--texto", "sim")
+        self.assertEqual(cod, 2, linhas)
+        self.assertEqual(list((self.tmp / "fora").iterdir()), [])
+
+
 if __name__ == "__main__":
     unittest.main()
