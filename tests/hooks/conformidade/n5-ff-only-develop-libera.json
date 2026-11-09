@@ -1,0 +1,18 @@
+{
+  "descricao": "N5 (L22, IMPL-FURO-HOOK-N): atualizar a develop com merge --ff-only",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git merge --ff-only origin/develop"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

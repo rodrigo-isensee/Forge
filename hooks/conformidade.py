@@ -167,6 +167,18 @@ CONFIG_COM_VALOR = {"-f", "--file", "--blob", "--type", "--default", "--comment"
 AMBIENTE_DE_TROCA = re.compile(r"^(GIT_REPLACE_REF_BASE|GIT_GRAFT_FILE|GIT_ALTERNATE_OBJECT_DIRECTORIES"
                                r"|GIT_OBJECT_DIRECTORY)$")
 CITA_TROCA = re.compile(r"refs/replace|replace-?refs|grafts", re.I)
+# IMPL-FURO-HOOK-N, N5 (L22, C-22-1): na branch de integração a única entrada é o `git merge` com parecer; o que grava
+# commit, move a branch ou conclui um merge fora dele recusa para todo papel (o conflito se resolve na branch de trabalho).
+RESET_MODOS = {"--soft", "--mixed", "--hard", "--keep", "--merge"}
+NA_INTEGRACAO_RECUSADOS = {"commit", "cherry-pick", "revert", "am", "commit-tree", "fast-import"}
+SAIDAS_DA_OPERACAO = {"--abort", "--quit", "--skip"}  # desfazem a operação em curso: livres
+NOTAS_DE_LEITURA = {None, "list", "show", "get-ref"}
+RESET_COM_VALOR = {"--pathspec-from-file"}
+FETCH_COM_VALOR = {"--depth", "--deepen", "--shallow-since", "--shallow-exclude", "--negotiation-tip", "-j", "--jobs",
+                   "--upload-pack", "--refmap", "-o", "--server-option", "--filter", "--recurse-submodules-default",
+                   "--submodule-prefix"}
+CONTORNO_DA_INTEGRACAO = ("faça o commit na branch de trabalho e mescle com `git merge` (parecer); para atualizar a "
+                          "integração, `git merge --ff-only origin/<branch>`")
 REFS_DE_TROCA = {"fetch", "pull", "push", "send-pack", "update-ref", "symbolic-ref"}  # gravam refs pelo argumento
 
 # Travas para atos perigosos (arquitetura do primeiro uso, 2.2 e 2.5). Valem para todo papel e todo perfil; no perfil
@@ -1240,6 +1252,7 @@ class Guarda:
         if sub == "config" and not ativacao:
             self.git_config(args)
         self.git_troca(sub, args, palavras[1:i])
+        self.git_integracao(sub, args, pasta_git, ramos)
         self.git_trava(sub, args, pasta_git, ramos)
         if sub in CAMINHOS_NO_GIT:
             self.git_caminhos(sub, args, [pasta, pasta_git], opcoes)
@@ -1350,6 +1363,55 @@ class Guarda:
         if motivo:
             self.barrar("R-REVIEW", f"{motivo}: objeto de troca faz o forge-check ler outro parecer",
                         "não troque objetos do repositório; o parecer vale pelo que está commitado")
+
+    def git_integracao(self, sub, args, pasta, ramos):
+        """N5 (L22): o que muda a branch de integração depois do merge revisado. Em qualquer branch, `update-ref` e
+        refspec de `fetch` que escrevem na integração; nela, commit (e `--amend`), `cherry-pick`, `revert`, `am`,
+        `commit-tree`, `fast-import`, `reset <rev>` (todo modo), `merge --continue`, `pull --rebase` e `notes` que grava."""
+        pos = parecer.posicionais(args, {"-m"}) if sub == "update-ref" else [a for a in args if not a.startswith("-")]
+        if sub == "update-ref" and pos and self.ref_local_da_integracao(pos[0]):
+            self.integracao_movida(f"git update-ref {nome_da_branch(pos[0])}")
+        if sub in ("fetch", "pull"):
+            destinos = [r.split(":", 1)[1] for r in parecer.posicionais(args, FETCH_COM_VALOR)[1:] if ":" in r]
+            if any(map(self.ref_local_da_integracao, destinos)):
+                self.integracao_movida(f"git {sub} <ref>:<integração>")
+        relevante = sub in NA_INTEGRACAO_RECUSADOS | {"reset", "merge", "pull", "notes", "update-ref"}
+        if not relevante or SAIDAS_DA_OPERACAO & set(args):
+            return
+        atual = self.ramo_em(pasta, ramos)
+        if atual not in INTEGRACAO:
+            return
+        if sub in NA_INTEGRACAO_RECUSADOS:
+            self.integracao_movida(f"git {sub} na {atual}")
+        elif sub == "update-ref" and pos and pos[0] == "HEAD":
+            self.integracao_movida(f"git update-ref HEAD na {atual}")
+        elif sub == "merge" and "--continue" in args:
+            self.integracao_movida(f"git merge --continue na {atual}")
+        elif sub == "pull" and any(a == "-r" or a.startswith("--rebase") and a != "--rebase=false" for a in args):
+            self.integracao_movida(f"git pull --rebase na {atual}")
+        elif sub == "notes" and (pos[:1] or [None])[0] not in NOTAS_DE_LEITURA:
+            self.integracao_movida(f"git notes {pos[0]} na {atual}")
+        elif sub == "reset" and self.reset_com_revisao(args, pasta):
+            self.integracao_movida(f"git reset <rev> na {atual}")
+
+    @staticmethod
+    def ref_local_da_integracao(ref):
+        """`develop`, `refs/heads/develop`, `+develop`: a branch local de integração (a de rastreio do remoto não conta)."""
+        ref = ref.lstrip("+")
+        return not ref.startswith("refs/remotes/") and nome_da_branch(ref) in INTEGRACAO
+
+    def reset_com_revisao(self, args, pasta):
+        """`git reset` que move a branch: com modo (`--soft`, `--hard`...) e uma revisão que não é `HEAD`, ou sem modo com
+        revisão antes do `--` que não é caminho existente. `git reset`, `git reset HEAD <arq>` e `git reset -- <arq>`
+        só tiram do índice."""
+        antes = args[:args.index("--")] if "--" in args else args
+        revs = [a for a in parecer.posicionais(antes, RESET_COM_VALOR) if a != "HEAD"]
+        if RESET_MODOS & set(args):
+            return bool(revs)
+        return any(not os.path.lexists(self.resolver(a, pasta)) for a in revs[:1])
+
+    def integracao_movida(self, o_que):
+        self.barrar("R-REVIEW", f"{o_que}: muda a integração depois do merge revisado", CONTORNO_DA_INTEGRACAO)
 
     def reescreve_historico(self, o_que):
         self.barrar("R-VERIFY", f"reescrever histórico ({o_que}) da main, develop ou homolog",
