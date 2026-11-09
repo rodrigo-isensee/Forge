@@ -43,6 +43,9 @@ case "$1 $2" in
       *number,state*) [ -f "$ESTADO/aberto" ] && cat "$ESTADO/aberto"; exit 0 ;;
       *state,headRefOid,baseRefName,mergeCommit*)
         falha_n falha_estado && exit 1
+        if [ -f "$ESTADO/armado" ] && [ -f "$ESTADO/mescla_apos" ]; then
+          n="$(cat "$ESTADO/mescla_apos")"; echo $((n - 1)) > "$ESTADO/mescla_apos"; [ "$n" -gt 1 ] || echo MERGED > "$ESTADO/estado"
+        fi
         pre_base="$(cut -d' ' -f1 "$ESTADO/pre" 2>/dev/null || echo develop)"
         merge_oid="$(cat "$ESTADO/merge_commit" 2>/dev/null || echo 0123456789abcdef0123456789abcdef01234567)"
         [ -f "$ESTADO/merge_commit_vazio" ] && merge_oid=-
@@ -90,6 +93,8 @@ case "$1 $2" in
       [[ "$*" == *"--match-head-commit $(cat "$ESTADO/head")"* ]] || exit 1
     fi
     [[ "$*" == *--match-head-commit* ]] || exit 1
+    # R7: com "auto_arma", o --auto só arma (checks obrigatórios pendentes); "mescla_apos" N: o GitHub mescla na N-ésima leitura do estado
+    if [ -f "$ESTADO/auto_arma" ] && [[ "$*" == *" --auto "* ]]; then : > "$ESTADO/armado"; exit 0; fi
     echo MERGED > "$ESTADO/estado"; exit 0 ;;
 esac
 exit 64
@@ -198,7 +203,7 @@ class Fechar(unittest.TestCase):
         chamadas = self.chamadas()
         self.assertEqual(chamadas[0], f"forge-check pr p1 --ref {sha} --base origin/develop")  # B5: o parecer é conferido no sha
         self.assertTrue(any(c.startswith("gh pr create --base develop --head melhoria/x") for c in chamadas))
-        self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {sha}", chamadas)
+        self.assertIn(f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha}", chamadas)
         self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
         self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
         corpo = self.registro.read_text()

@@ -266,7 +266,7 @@ class Teste(unittest.TestCase):
         sha = self.git("rev-parse", "melhoria/x")
         r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {sha}", self.chamadas())
+        self.assertIn(f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha}", self.chamadas())
         self.assertEqual(self.resumo(r), ["limpeza: pulada (--sem-limpar)"])
         pendentes = r.stdout.split("pendente, rode:\n")[1].splitlines()
         self.assertEqual(pendentes[:4], ["forge-fechar p1 --ref melhoria/x --limpar", f"git worktree remove {wt}",
