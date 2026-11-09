@@ -20,6 +20,7 @@ import tempfile
 import shlex
 import subprocess
 import time
+import types
 import unicodedata
 import urllib.parse
 from functools import lru_cache
@@ -43,6 +44,8 @@ TOKEN_DO_GITHUB = re.compile(r"(gh[pousr]_|github_pat_)[A-Za-z0-9_]+")  # mascar
 INVISIVEIS = frozenset(("Cc", "Cf", "Zl", "Zp"))  # controle C0/C1 e formato (bidirecionais): fora do trecho (C-A6-1)
 TETO_DE_CARACTERES = 150_000  # a conferência de 290 mil caracteres levava 4,2 s (recomendação do review, volta 3)
 PRAZO_DA_LINHA_S = 3.0
+TETO_DO_CAMINHO = 4096  # VV-3 C-8: bytes do caminho vindo de texto (brief), na escrita pública
+NAO_CONFERIDA, NAO_VERIFICAVEL = "não conferida", "não verificável"  # VV-3: quarto campo da recusa da escrita pública
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
@@ -1925,6 +1928,38 @@ def politica():
         bloquear("R-CONFORMIDADE", "política de conformidade inválida: chave ausente ou com tipo errado "
                                    "(hooks/conformidade.json). Corrigir: leve ao usuário (R-DECISAO)")
     return pol
+
+
+def escrita_barrada(agent_type, caminho, raiz, ramo):
+    """A resposta do hook para a escrita de `caminho` pelo `agent_type`, na `raiz` do pedido e no `ramo` dado (VV-3):
+    a tupla de recusa de `Guarda.caminho_barrado` ou None. Não decide escrita; quem decide é o hook: o None não libera
+    nada. Só lê: não chama `politica()` nem `bloquear`, não grava, não lê stdin nem o ambiente (`CLAUDE_PROJECT_DIR`,
+    `FORGE_GUARDA_ABERTA`); a raiz e o ramo vêm de quem chama, e o `git branch` não roda. Raiz vazia, política
+    inválida e qualquer exceção interna saem como recusa (C-4: falha fechado, nunca None); as duas últimas levam
+    `NAO_CONFERIDA` no quarto campo. O caminho é texto (de brief, C-5): caractere invisível recusa; acima de
+    `TETO_DO_CAMINHO` bytes sai com `NAO_VERIFICAVEL` no quarto campo; só o `~/` do começo se expande (o home do
+    `caminho_barrado`; variável nunca), e o relativo vale a partir da raiz, nunca da pasta corrente."""
+    if not raiz:
+        return ("R-CONFORMIDADE", "raiz vazia: a raiz do pedido é obrigatória", "leve ao usuário (R-DECISAO)")
+    try:
+        pol = json.loads((PLUGIN / "hooks" / "conformidade.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        pol = None
+    if not politica_valida(pol):
+        return ("R-CONFORMIDADE", "política de conformidade inválida (hooks/conformidade.json)", "leve ao usuário (R-DECISAO)",
+                NAO_CONFERIDA)
+    try:
+        if any(unicodedata.category(c) in INVISIVEIS for c in caminho):
+            return ("R-CONFORMIDADE", "caractere invisível no caminho", "escreva o caminho sem controle nem formato")
+        if len(caminho.encode("utf-8", "surrogatepass")) > TETO_DO_CAMINHO:
+            return ("R-CONFORMIDADE", f"caminho acima de {TETO_DO_CAMINHO} bytes", "encurte o caminho", NAO_VERIFICAVEL)
+        raiz = Path(os.path.realpath(raiz))
+        caminho = raiz / (str(Path.home()) + caminho[1:] if caminho.startswith("~/") else caminho)
+        guarda = Guarda(types.SimpleNamespace(raiz=raiz, iniciante=lambda: False), pol, papel_de(pol, agent_type))
+        guarda._ramo, guarda.sessao_forge = ramo, e_clone_do_forge(raiz)
+        return guarda.caminho_barrado(Path(os.path.realpath(caminho)))
+    except Exception as erro:  # noqa: BLE001 - C-4: qualquer erro interno recusa, nunca escapa nem libera
+        return ("R-CONFORMIDADE", f"erro interno ({type(erro).__name__})", "leve ao usuário (R-DECISAO)", NAO_CONFERIDA)
 
 
 def raiz_do_parecer(hook, p):

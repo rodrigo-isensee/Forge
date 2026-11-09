@@ -197,6 +197,21 @@ class Selar(Repositorio):
         self.assertIn("resultado: reprovado (sem selo)", saida)
         self.assertEqual(fc.selos_do_pedido(self.pedido()), [])
 
+    def test_vv3_arquivos_onde_o_hook_barra_o_destino_nao_sela(self):
+        """VV-3: a linha `- arquivos:` declara `docs/reviews/`, que o hook só deixa o tech-lead escrever; o brief ao node-backend sai
+        reprovado no selo, antes do trabalho, e o pedido fica sem selo."""
+        self.brief(arquivos="bin/app, docs/reviews/exemplo.md")
+        rc, saida = self.selar()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('escrita: barrada "docs/reviews/exemplo.md" (', saida)
+        self.assertIn('escrita: ok "bin/app"', saida)
+        self.assertEqual(fc.selos_do_pedido(self.pedido()), [])
+
+    def test_vv3_caminhos_da_linha_arquivos_sem_crase(self):
+        secoes = {"Entregar": ["- a função f em `bin/app` (E1.1)", "- arquivos: bin/app, docs/notas/, tests/test_*.py"]}
+        self.assertEqual(fc.caminhos_do_entregar(secoes), ["bin/app", "docs/notas/", "tests/test_*.py"])
+        self.assertEqual(fc.caminhos_do_entregar({"Entregar": [f"- arquivos: {fc.PREENCHER}: caminhos"]}), [])
+
     def test_aplicavel_ausente_e_outro_pedido_reprovam(self):
         self.brief(decisoes=lambda t: t.replace('- DECISÃO DO DONO (2026-01-01 10:01): "na E1.1 use a função f".\n', ""))
         rc, saida = self.selar()

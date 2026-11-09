@@ -2527,5 +2527,138 @@ class TravaPesadaEmSegundoPlano(unittest.TestCase):
             self.assertIs(self.pesado.comando_vivo(["", "   "]), False)
 
 
+# VV-3 E1a-1: a função chamada num processo limpo (-I), sem stdin e com o ambiente hostil (C-2, C-3); o caminho vai
+# absoluto (a pasta corrente do fixture e o `~` do HOME dele), sem resolver `..` nem link: isso é da função.
+CHAMADA_DA_ESCRITA = ("import json, sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); sys.stdin = None; "
+                      "import conformidade as c; a = sys.argv[2:]; alvo = Path(a[4]) / Path(a[1]).expanduser(); "
+                      "print(json.dumps(c.escrita_barrada(a[0] or None, str(alvo), a[2], a[3])))")
+
+CHAMADA_DO_TEXTO = ("import json, sys; sys.path.insert(0, sys.argv[1]); sys.stdin = None; import conformidade as c; "
+                    "print(json.dumps(c.escrita_barrada(*json.loads(sys.argv[2]))))")
+
+
+class EscritaPublica(unittest.TestCase):
+    """VV-3 E1a-1: `conformidade.escrita_barrada` dá a resposta do hook para escrita (C-7), sem efeito colateral (C-2),
+    sem ler o ambiente (C-3), e nenhum hook nem script a usa para liberar (C-1)."""
+
+    def funcao(self, hooks, agent_type, caminho, raiz, ramo, cwd, env=None, codigo=0, troca=""):
+        hostil = {"CLAUDE_PROJECT_DIR": str(RAIZ), "FORGE_GUARDA_ABERTA": "1"}  # a raiz da sessão é um clone do Forge
+        chamada = CHAMADA_DA_ESCRITA.replace("import conformidade as c; ", "import conformidade as c; " + troca)
+        r = subprocess.run([sys.executable, "-I", "-c", chamada, str(hooks), agent_type or "", caminho,
+                            str(raiz), ramo, str(cwd)], cwd=cwd, env={**ambiente_limpo(), **(env or {}), **hostil},
+                           capture_output=True, text=True, timeout=120)
+        self.assertEqual(r.returncode, codigo, r.stderr)
+        return json.loads(r.stdout) if codigo == 0 else r.stderr
+
+    @staticmethod
+    def de_escrita(d):
+        """Fixture de escrita decidida só pelo caminho: fora os que dependem da sessão (`CLAUDE_PROJECT_DIR`), da config
+        ou do perfil do projeto (a função vê o perfil experiente, C-3) ou de projeto sem o Forge."""
+        e = d["entrada"]
+        return (e.get("tool_name") in {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+                and e.get("hook_event_name") == "PreToolUse" and d.get("forge", True) and "config" not in d
+                and "config_bruta" not in d and "CLAUDE_PROJECT_DIR" not in d.get("env", {})
+                and ".forge/perfil" not in d.get("arquivos", {}))
+
+    def par(self, f):
+        """(código do hook de verdade, resposta da função) para o mesmo fixture, a mesma raiz e o mesmo ramo."""
+        tmp = Path(tempfile.mkdtemp(prefix="forge-escrita-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        raiz, entrada = f.montar(tmp, os.getpid())
+        env = {k: v.replace("{tmp}", str(tmp)) for k, v in f.dados.get("env", {}).items()}
+        hook = rodar("conformidade", entrada, raiz, extra=env)
+        ramo = git("branch", "--show-current", cwd=raiz).stdout.strip()
+        e = entrada["tool_input"]
+        alvo = e.get("file_path") or e.get("notebook_path")
+        return hook.returncode, self.funcao(HOOKS, entrada.get("agent_type"), alvo, raiz, ramo, entrada["cwd"], env)
+
+    def test_paridade_com_o_hook_em_cada_fixture_de_escrita(self):  # C-7: enumeração, fixture nova entra sozinha
+        casos = minimo([Fixture(p) for p in sorted((FIXTURES / "conformidade").glob("*.json"))
+                        if self.de_escrita(json.loads(p.read_text(encoding="utf-8")))], 90, "fixtures de escrita")
+        with concurrent.futures.ThreadPoolExecutor(trabalhadores_do_pool(nucleos_do_processo())) as pool:
+            respostas = list(pool.map(self.par, casos))
+        for f, (codigo, resposta) in zip(casos, respostas):
+            with self.subTest(fixture=f.caminho.stem):
+                self.assertEqual(codigo == 2, resposta is not None, resposta)
+
+    def test_sem_efeito_colateral_e_raiz_obrigatoria(self):  # C-2 e C-3
+        with tempfile.TemporaryDirectory() as t:
+            raiz = Path(os.path.realpath(t))
+            git("init", "-q", "-b", "develop", cwd=raiz)
+            (raiz / ".forge").mkdir()
+            self.assertIsNotNone(self.funcao(HOOKS, "forge:tech-lead", ".forge/versao", raiz, "develop", raiz))
+            self.assertEqual(list((raiz / ".forge").iterdir()), [], "nada gravado em .forge/")
+            self.assertIn("raiz vazia", str(self.funcao(HOOKS, "forge:tech-lead", "a.md", "", "develop", raiz)))
+
+    def test_excecao_interna_recusa_sem_levantar(self):  # C-4: exceção dentro da função reprova, não libera
+        with tempfile.TemporaryDirectory() as t:
+            for troca in ("c.e_clone_do_forge = lambda r: 1 / 0; ", "c.Guarda.caminho_barrado = lambda s, p: 1 / 0; "):
+                with self.subTest(troca=troca):
+                    resposta = self.funcao(HOOKS, "forge:tech-lead", "a.md", t, "develop", t, troca=troca)
+                    self.assertIn("erro interno (ZeroDivisionError)", str(resposta))
+                    self.assertEqual(resposta[3:], ["não conferida"])  # E1a-2: a E1b a distingue de barrada
+
+    def test_politica_ilegivel_recusa_sem_sair_do_processo(self):  # C-2: sem o `bloquear` de `politica()`
+        with tempfile.TemporaryDirectory() as t:
+            hooks = Path(t) / "hooks"
+            shutil.copytree(HOOKS, hooks, ignore=shutil.ignore_patterns("__pycache__"))
+            (hooks / "conformidade.json").write_text("{", encoding="utf-8")
+            resposta = self.funcao(hooks, "forge-dev:aq", "docs/propostas/a.md", t, "develop", t)
+            self.assertIn("política de conformidade inválida", resposta[1])
+            self.assertEqual(resposta[3:], ["não conferida"])  # caso 7 do modelo
+
+    def test_nenhum_hook_nem_script_usa_a_funcao(self):  # C-1: só a definição (e, depois, a chamada no forge-check)
+        achados = git("grep", "-n", "escrita_barrada", "--", "hooks", "bin", "scripts", ".githooks", cwd=RAIZ).stdout
+        fora = [linha for linha in achados.splitlines() if not linha.startswith("bin/forge-check:")
+                and not re.match(r"hooks/conformidade\.py:\d+:def escrita_barrada\(", linha)]
+        self.assertEqual(fora, [], "chamada nova de escrita_barrada: volte ao modelo de ameaças (VV-3, C-1)")
+
+    def texto(self, raiz, caminho, home):
+        """E1a-2: a resposta para o `caminho` cru, como no brief (JSON no argv leva o NUL), com a pasta corrente fora da
+        raiz e o ambiente hostil (C-3, C-5)."""
+        with tempfile.TemporaryDirectory() as fora:
+            env = {**ambiente_limpo(), "HOME": str(home), "CLAUDE_PROJECT_DIR": str(RAIZ), "FORGE_GUARDA_ABERTA": "1"}
+            r = subprocess.run([sys.executable, "-I", "-c", CHAMADA_DO_TEXTO, str(HOOKS), json.dumps(
+                ["forge-dev:aq", caminho, str(raiz), "develop"])], cwd=fora, env=env, capture_output=True, text=True,
+                timeout=120)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return json.loads(r.stdout)
+
+    def respostas(self, *caminhos):
+        """{caminho: resposta} para o papel `aq`, com raiz e home em pastas separadas; `docs/propostas/link.md` aponta
+        para `../briefs/x.md`."""
+        with tempfile.TemporaryDirectory() as t, tempfile.TemporaryDirectory() as h:
+            raiz = Path(os.path.realpath(t))
+            (raiz / "docs" / "propostas").mkdir(parents=True)
+            (raiz / "docs" / "propostas" / "link.md").symlink_to("../briefs/x.md")
+            return {c: self.texto(raiz, c.replace("{raiz}", str(raiz)), Path(os.path.realpath(h))) for c in caminhos}
+
+    def test_relativo_vale_na_raiz_com_ponto_ponto_e_link_resolvidos(self):  # C-5, casos 2 e 3 do modelo
+        r = self.respostas("docs/propostas/x.md", "docs/propostas/../briefs/x.md", "docs/propostas/link.md",
+                           "{raiz}/docs/briefs/x.md")
+        self.assertIsNone(r.pop("docs/propostas/x.md"))  # legítimo 1: a raiz decide, não a pasta corrente
+        for caminho, resposta in r.items():
+            with self.subTest(caminho=caminho):
+                self.assertIn(": docs/briefs/ (papel: aq)", (resposta or [None, ""])[1])
+
+    def test_so_o_til_do_comeco_expande_e_variavel_nunca(self):  # C-5, T-3
+        r = self.respostas("~/.forge-contrib/docs/propostas/x.md", "~/.forge-contrib/docs/briefs/x.md",
+                           "$HOME/.forge-contrib/docs/propostas/x.md", "docs/propostas/~/x.md")
+        self.assertEqual([r[c] is None for c in r], [True, False, False, True], r)
+        self.assertIn(": ~/.forge-contrib/docs/briefs/ (papel: aq)", r["~/.forge-contrib/docs/briefs/x.md"][1])
+
+    def test_caractere_invisivel_recusa_sem_traceback(self):  # C-5, caso 6 do modelo
+        for caminho, resposta in self.respostas(*(f"docs/propostas/x{c}.md" for c in "\u202e\x00\u200b\n")).items():
+            with self.subTest(caminho=repr(caminho)):
+                self.assertEqual((resposta or [None, ""])[1], "caractere invisível no caminho")
+
+    def test_caminho_acima_de_4096_bytes_nao_verificavel(self):  # C-8: bytes, não caracteres (o ç vale 2)
+        no_teto, acima = "docs/propostas/" + "ç/" * 1360 + "a", "docs/propostas/" + "ç/" * 1360 + "ç"
+        r = self.respostas(no_teto, acima)
+        self.assertEqual((len(no_teto.encode()), len(acima), r[acima][1:]),
+                         (4096, 2736, ["caminho acima de 4096 bytes", "encurte o caminho", "não verificável"]))
+        self.assertNotIn("não verificável", r[no_teto] or [])
+
+
 if __name__ == "__main__":
     unittest.main()

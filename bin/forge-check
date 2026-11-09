@@ -6976,7 +6976,64 @@ def conferir_decisoes(cobradas, secoes):
     return saida
 
 
-def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_id="", conteudo=b"", caminho=None, anterior=None, cobradas=None):
+SEM_VERIFICACAO = re.compile(r"[$*?\[<]")  # VV-3: variável, curinga ou `<...>`: o caminho não se resolve sem adivinhar
+TETO_DE_CAMINHOS = 64  # VV-3 (C-8): caminhos do Entregar conferidos por brief; o excedente reprova
+
+
+def caminhos_do_entregar(secoes):
+    """VV-3: cada palavra com `/` dentro de crases no `## Entregar` e cada item da linha `- arquivos:` (0.43.1), na ordem e sem
+    repetir."""
+    entregar = secoes.get("Entregar", [])
+    texto = "\n".join(entregar)
+    crases = [p for t in re.findall(r"`([^`\n]+)`", texto) for p in t.split() if "/" in p]
+    declarados = [t.strip("`'\".;") for linha in entregar if (m := LINHA_DE_ARQUIVOS.match(linha)) for t in re.split(r"[,\s]+", m.group(1))]
+    return list(dict.fromkeys(crases + [t for t in declarados if "/" in t and PREENCHER not in t]))
+
+
+def conferir_escrita(secoes, destino, raiz, ramo):
+    """VV-3: uma linha `escrita: ok|barrada|não conferida|não verificável` por caminho do Entregar, pela resposta do hook
+    `conformidade` (`escrita_barrada`, sem copiar regra) para o destino, na raiz do pedido e no `ramo`. `barrada` e `não conferida`
+    reprovam (hook ilegível ou erro nunca vira `ok`); a linha nunca é `aviso:`. Caractere de `conformidade.INVISIVEIS` no caminho
+    dá `barrada`; com `$ * ? [ <`, a pasta fixa antes da marca, se já barrada, dá `barrada`; os `não verificável` saem contados numa
+    linha; acima de `TETO_DE_CAMINHOS`, o excedente não é conferido e reprova. O brief que manda escrever onde o hook do papel destino
+    barra sai reprovado antes do trabalho (o `brief selar` não sela)."""
+    caminhos = caminhos_do_entregar(secoes)
+    if not caminhos:
+        return []
+    sys.path.insert(0, str(PLUGIN / "hooks"))
+    try:
+        import conformidade
+    except Exception as erro:  # noqa: BLE001 - sem o hook nada se confere, e o brief reprova
+        return [(f"escrita: não conferida {nome_seguro(c)} (hook ilegível: {type(erro).__name__})", True) for c in caminhos]
+    finally:
+        sys.path.remove(str(PLUGIN / "hooks"))
+    saida, sem_verificar = [], 0
+    for c in caminhos[:TETO_DE_CAMINHOS]:
+        marca = None
+        try:
+            if any(unicodedata.category(x) in conformidade.INVISIVEIS for x in c):  # o caminho inteiro, antes da marca
+                recusa = ("R-CONFORMIDADE", "caractere invisível no caminho", "")
+            else:  # com `$ * ? [ <`, a pasta fixa antes da primeira marca decide se o caminho já é barrado
+                fixo = c[:c.rfind("/", 0, marca.start()) + 1] if (marca := SEM_VERIFICACAO.search(c)) else c
+                recusa = conformidade.escrita_barrada(destino, fixo, raiz, ramo) if fixo else None
+        except Exception as erro:  # noqa: BLE001 - exceção nunca vira `ok` nem `não verificável`
+            recusa = ("", f"erro interno ({type(erro).__name__})", "", conformidade.NAO_CONFERIDA)
+        if marca and recusa is None:
+            recusa = ("", "", "", conformidade.NAO_VERIFICAVEL)
+        estado = "ok" if recusa is None else {conformidade.NAO_VERIFICAVEL: "não verificável",
+                                               conformidade.NAO_CONFERIDA: "não conferida"}.get(recusa[3:4] and recusa[3], "barrada")
+        motivo = f" ({sem_controle(recusa[1])})" if recusa and recusa[1] else ""
+        saida.append((f"escrita: {estado} {nome_seguro(c)}{motivo}", estado in ("barrada", "não conferida")))
+        sem_verificar += estado == "não verificável"
+    if sem_verificar:  # a contagem numa linha própria, para quem lê ver; não reprova
+        saida.append((f"escrita: {sem_verificar} não verificáveis", False))
+    if len(caminhos) > TETO_DE_CAMINHOS:  # o excedente não é conferido e reprova
+        saida.append((f"escrita: {len(caminhos) - TETO_DE_CAMINHOS} caminhos além do teto de {TETO_DE_CAMINHOS}, não conferidos", True))
+    return saida
+
+
+def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_id="", conteudo=b"", caminho=None, anterior=None, cobradas=None,
+                   raiz=None):
     """Linhas de saída do `forge-check brief`: lista de (linha, reprova). Mesmo texto, mesma saída."""
     secoes = secoes_por(texto, CABECALHO_BRIEF)
     pedido = ler_pedido_brief(pedido_txt)
@@ -7001,6 +7058,8 @@ def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_i
         saida.append(("forma: ok", False))
     saida += conferir_corte(secoes, pedido, destino, grupo(r"\bCobre:\s*(\S+)", cabecalho_do_brief(texto)))
     saida += conferir_pedido_contraditorio(secoes, pedido)
+    if destino:  # VV-3: o Entregar contra a fronteira de escrita do destino, no ramo do `Branch:` (sem ele, ramo vazio; nunca o do disco)
+        saida += conferir_escrita(secoes, destino, raiz, grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(texto)) or "")
     if cobradas is not None:
         referencia = referencia_do_brief(secoes)  # P4 (0.43.1): a referência ao bloco substitui a cópia; o brief antigo segue cobrado
         cabecalho = cabecalho_do_brief(texto)
@@ -7277,7 +7336,8 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
     pedido_id = m.group(1) if m else caminho_pedido.stem
     cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt, brief, pedido_id)
-    linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, caminho if destino else None, bytes_anterior, cobradas)
+    linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, caminho if destino else None, bytes_anterior, cobradas,
+                            raiz=raiz)
     linhas += [(o, False) for o in (linha_de_origem(caminho_pedido), linha_de_origem(brief)) if o]
     linhas += aviso_de_base_sha(raiz, texto)
     linhas += caminhos_ausentes_do_pq(raiz, texto, secoes_por(texto, CABECALHO_BRIEF))
