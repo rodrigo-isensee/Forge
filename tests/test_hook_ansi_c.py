@@ -168,6 +168,8 @@ class AtalhosDoLote(unittest.TestCase):
         achados, duvida = c.heredocs("cat <<'E' $((1+2)) ${x} $[1] $'a' <<<w ((y)) \"$(z)\" `q`\nbody\nE\necho fim")
         self.assertEqual([(h.operador, h.delimitador, h.corpo, h.fim) for h in achados], [(4, "E", (56, 61), 63)])
         self.assertIsNone(duvida)
+        achados, duvida = c.heredocs('"a" <<X\nb\nX\n')  # a aspa logo antes do comum abre aspas: o atalho não a pula
+        self.assertEqual([(h.operador, h.delimitador, h.corpo) for h in achados], [(4, "X", (8, 10))])
         self.assertEqual(c.ansi_c_decodificado("a $'\\x68i' \"q\" 'r' $\"s\""), "a 'hi' \"q\" 'r' \"s\"")
         self.assertEqual(c.ansi_c_decodificado("plain text only"), "plain text only")
         self.assertEqual([t for t, _, _ in c.fichas("a  # c\nb")], ["a", "\n", "b"])
@@ -193,7 +195,7 @@ class AtalhosDoLote(unittest.TestCase):
 class CorpusDosCaminhos(unittest.TestCase):
     """O subconjunto do corpus de tests/hooks/conformidade que passa pela escrita em caminho protegido, pelo nome do programa e pelo
     `entrega --pedido` do conferente (D4): roda rápido, para os mutantes da 0.44.0 (o corpus inteiro é do test_hooks)."""
-    SELECAO = re.compile(r"^(conferente-entrega|aq-escreve|home-|lancador-|heredoc-donos-1-|i-perl|fc-|trava-forge-atualizar)|tee|claude|"
+    SELECAO = re.compile(r"^(conferente-entrega|aq-escreve|home-|lancador-|heredoc-donos-1-|i-perl|fc-|trava-forge-atualizar|expandir-)|tee|claude|"
                          r"manifesto|xargs")
     executar_em_lote = test_hooks.Hooks.executar_em_lote
     executar_fixture = test_hooks.Hooks.executar_fixture

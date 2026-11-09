@@ -119,7 +119,7 @@
       "de": "if nome_do_caminho(p) == \"tee\"]",
       "para": "if nome_do_caminho(p) != \"tee\"]",
       "testes": [
-        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_mutacoes_do_texto_dividido_aberto_ficam_vermelhas"
       ]
     }
   ],

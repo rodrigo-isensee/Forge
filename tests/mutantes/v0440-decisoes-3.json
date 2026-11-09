@@ -7,7 +7,7 @@
       "guarda": "custo: a varredura de G pula o comum de uma vez",
       "arquivo": "hooks/_comum.py",
       "de": "        if (m := _COMUNS_DE_G.match(linha, i)) is not None:",
-      "para": "        if (m := _COMUNS_DE_G.match(linha, i)) is None:",
+      "para": "        if (m := _COMUNS_DE_G.match(linha, i + 1)) is not None:",
       "testes": [
         "tests.test_hook_ansi_c.AtalhosDoLote"
       ]
@@ -17,7 +17,7 @@
       "guarda": "custo: o ansi_c copia o comum de uma vez",
       "arquivo": "hooks/_comum.py",
       "de": "        if (m := _COMUNS_DO_ANSI_C.match(texto, i)) is not None:",
-      "para": "        if (m := _COMUNS_DO_ANSI_C.match(texto, i)) is None:",
+      "para": "        if (m := _COMUNS_DO_ANSI_C.match(texto, i + 1)) is not None:",
       "testes": [
         "tests.test_hook_ansi_c.AtalhosDoLote"
       ]
@@ -37,7 +37,7 @@
       "guarda": "custo: os heredocs pulam o comum de uma vez",
       "arquivo": "hooks/_comum.py",
       "de": "        if (m := _COMUNS_DO_HEREDOC.match(comando, i)) is not None:",
-      "para": "        if (m := _COMUNS_DO_HEREDOC.match(comando, i)) is None:",
+      "para": "        if (m := _COMUNS_DO_HEREDOC.match(comando, i + 1)) is not None:",
       "testes": [
         "tests.test_hook_ansi_c.AtalhosDoLote"
       ]
@@ -57,7 +57,7 @@
       "guarda": "custo: o leitor pula o comum de uma vez",
       "arquivo": "hooks/_comum.py",
       "de": "        if (m := _COMUNS_DO_LEITOR.match(texto, i)) is not None:",
-      "para": "        if (m := _COMUNS_DO_LEITOR.match(texto, i)) is None:",
+      "para": "        if (m := _COMUNS_DO_LEITOR.match(texto, i + 1)) is not None:",
       "testes": [
         "tests.test_hook_ansi_c.AtalhosDoLote"
       ]
