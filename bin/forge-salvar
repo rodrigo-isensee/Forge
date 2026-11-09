@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Forge: salva o trabalho (commit e envio ao GitHub) na branch de trabalho. Rode no terminal, dentro do projeto.
-# Uso: forge salvar [-h|--help] ["mensagem"]   (a mensagem não começa com -)
+# Uso: forge salvar [-h|--help] ["mensagem"]   (mensagem que começa com -: forge salvar -- "-mensagem")
 # Nunca grava na main, develop ou homolog: nelas, cria antes a branch trabalho/<AAAAMMDD-HHMM>.
 # Respeita o .gitignore, recusa arquivos de segredo (.env, chaves) e nunca força o envio.
 set -euo pipefail
@@ -11,7 +11,8 @@ uso() { sed -n '2,5p' "$0" | sed 's/^# \{0,1\}//'; }
 
 case "${1:-}" in
   -h|--help) uso; exit 0 ;;
-  -*) echo "forge salvar: a mensagem não pode começar com '-' (recebi: $1). Escreva a mensagem entre aspas, sem traço no início; nada foi salvo." >&2; uso >&2; exit 2 ;;
+  --) shift ;;  # o resto é a mensagem, mesmo que comece com -
+  -*) echo "forge salvar: a mensagem não pode começar com '-' (recebi: $1), porque parece uma opção. Para salvar com ela, rode: forge salvar -- \"$*\". Nada foi salvo." >&2; uso >&2; exit 2 ;;
 esac
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 \

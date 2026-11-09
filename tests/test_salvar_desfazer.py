@@ -391,14 +391,26 @@ class AjudaEOpcao(Base):  # SALVAR-AJUDA-E-OPCAO: `forge salvar --help` virou me
         self.assertIn("Uso: forge salvar", r.stdout)
 
     def test_mensagem_que_comeca_com_traco_e_recusada_sem_commit(self):
-        for args in (("-m", "x"), ("--amend",), ("--",)):
+        for args in (("-m", "x"), ("--amend",)):
             with self.subTest(args=args):
                 antes = self.estado()
                 r = self.forge("salvar", *args)
                 self.assertEqual(r.returncode, 2, self.saida(r))
                 self.assertIn("não pode começar com '-'", r.stderr)
                 self.assertIn(f"recebi: {args[0]})", r.stderr)
+                self.assertIn('forge salvar -- "' + " ".join(args) + '"', r.stderr)
                 self.assertEqual(self.estado(), antes)
+
+    def test_mensagem_que_comeca_com_traco_vale_depois_de_dois_tracos(self):
+        r = self.forge("salvar", "--", "- corrige o texto")
+        self.assertEqual(r.returncode, 0, self.saida(r))
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "- corrige o texto")
+        self.assertEqual(self.topo_remoto("feature/x"), self.git("rev-parse", "HEAD"))
+
+    def test_dois_tracos_sem_mensagem_usa_a_padrao(self):
+        r = self.forge("salvar", "--")
+        self.assertEqual(r.returncode, 0, self.saida(r))
+        self.assertTrue(self.git("log", "-1", "--format=%s").startswith("Salva o trabalho em "))
 
     def test_traco_no_meio_da_mensagem_vale(self):
         r = self.forge("salvar", "corrige -m no texto")
