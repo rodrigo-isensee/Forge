@@ -297,8 +297,7 @@ def validar_documento(rel, texto, estrito=False):
             for c in ("bugs_criticos", "bugs_altos"):
                 if n.get(c, 0) > 0:
                     erro(c, "parecer aprovado exige 0 bugs abertos")
-            if (n.get("bugs_medios", 0) or n.get("bugs_baixos", 0)) and campos.get("aceite_usuario") != "sim":
-                erro("aceite_usuario", "bugs médios ou baixos abertos exigem `aceite_usuario: sim`")
+            # BUR-B4 (R-QA): médio e baixo abertos viram cartão no quadro, sem aceite do usuário; `aceite_usuario` é opcional
     if tipo == "plano-tecnico" and campos.get("estado") and campos["estado"] not in ("proposta", "vigente"):
         erro("estado", "use proposta ou vigente")
     return campos, saida

@@ -1963,8 +1963,6 @@ class ForgeCheck(unittest.TestCase):
                                  "parecer: use aprovado"),
             "qa com bug alto": ("docs/qa/a.md", "---\n" + self.QA.format(c="abc1234", p="aprovado", a=1, m=0, extra="") + "---\n",
                                 "bugs_altos: parecer aprovado exige 0"),
-            "qa médio sem aceite": ("docs/qa/a.md", "---\n" + self.QA.format(c="abc1234", p="aprovado", a=0, m=2, extra="") + "---\n",
-                                    "aceite_usuario"),
             "plano com estado ruim": ("docs/architecture/features/a.md",
                                       "---\ntipo: plano-tecnico\ncontrato: 1\npedido: p\nestado: x\nux: u\nadrs: []\nagentes: [a]\n---\n",
                                       "estado: use proposta"),
@@ -1980,6 +1978,11 @@ class ForgeCheck(unittest.TestCase):
 
     def test_qa_medio_com_aceite_vale(self):
         self.pareceres(self.head(), m=2, extra="aceite_usuario: sim\n")
+        self.assertEqual(self.check("docs"), (0, ""))
+
+    def test_qa_medio_sem_aceite_vale(self):
+        """BUR-B4 (R-QA): médio ou baixo aberto vira cartão; o parecer aprovado vale sem `aceite_usuario`."""
+        self.pareceres(self.head(), m=2)
         self.assertEqual(self.check("docs"), (0, ""))
 
     def kanban(self, corpo):
