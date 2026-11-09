@@ -589,9 +589,20 @@ class ErroJarvisContado(Base):
         self.assertEqual(fc.recorrencias(self.tmp)[0], [])
         self.assertIn("classes: nenhuma falha classificada na janela", self.classes())
 
+    def test_g_prevencao_do_processo_novo_conta(self):
+        """0.43.1 (kanban-scrum): `Prevenção: eval/trava: <caso>` e `Prevenção: sem trava possível` são a forma aceita."""
+        trava = f"- {hora()}: ERRO-JARVIS: hora: gravei 17:35 sem a ferramenta. Prevenção: eval/trava: hora-sem-date.\n"
+        sem = f"- {hora()}: ERRO-JARVIS: hora: gravei 17:35 sem a ferramenta. Prevenção: sem trava possível\n"
+        self.pedido("p", trava)
+        self.pedido("q", sem)
+        saida = self.classes()
+        self.assertIn("classes: hora · jarvis · 2 briefs (2 autorrelato)", saida)
+        self.assertFalse([l for l in saida if l.startswith("classes: aviso:")])
+
     def test_f_modelo_tem_a_tag_e_o_coach_a_le(self):
         modelo = (RAIZ / "templates" / "projeto" / "docs" / "pedidos" / "_modelo.md").read_text(encoding="utf-8")
-        self.assertIn("`ERRO-JARVIS: <classe do catálogo>: <o que errou, com a evidência>. Prevenção: <o que muda>`", modelo)
+        self.assertIn("`ERRO-JARVIS: <classe do catálogo>: <o que errou, com a evidência>. Prevenção: eval/trava: <caso>` "
+                      "(ou `Prevenção: sem trava possível`)", modelo)
         self.assertIn("`ERRO-JARVIS:`", (RAIZ / "agents" / "agile-coach.md").read_text(encoding="utf-8"))
 
 
