@@ -152,15 +152,17 @@ class PrePushParecerCurto(unittest.TestCase):
         self.dirigida.unlink()
         (self.run_dir / "real").write_text(conteudo)
         self.dirigida.symlink_to(self.run_dir / "real")
-        _, marcas, _ = self.roda(self.parecer(), codigo_sha)
-        self.assertIn("rodou-a", marcas)
+        _, marcas, erro = self.roda(self.parecer(), codigo_sha)
+        self.assertNotIn("só acrescenta pareceres", erro)
+        self.assertIn("rodou-outra", marcas)  # SUITE-NO-CI: sem a prova, o plano dos afetados (test_forge inteiro), não as classes curtas
 
     def test_codigo_junto_com_o_parecer_continua_rodando_o_plano_do_codigo(self):
         codigo_sha = self.codigo_dirigido()
         misto = self.commit("misto", docs__reviews__p_md="x\n", novo_txt="y\n")
         _, marcas, erro = self.roda(misto, codigo_sha)
         self.assertNotIn("só acrescenta pareceres", erro)
-        self.assertIn("rodou-a", marcas)
+        self.assertIn("rodou-sugerir", marcas)  # SUITE-NO-CI: o plano dos afetados do código (antes, a suíte inteira)
+        self.assertIn("rodou-outra", marcas)
 
     # E2: o envio curto não espera a fila; o pesado continua esperando.
     def test_envio_so_de_parecer_nao_espera_a_trava_da_suite_alheia(self):
