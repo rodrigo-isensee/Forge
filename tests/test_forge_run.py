@@ -10,13 +10,16 @@ import unittest
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = str(RAIZ / "bin" / "forge-check")
 
 
 def git(pasta, *args):
     return subprocess.run(["git", "-C", str(pasta), "-c", "user.name=t", "-c", "user.email=t@t", *args], capture_output=True, text=True,
-                          env=dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")).stdout.strip()
+                          env=sem_manutencao(dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1"))).stdout.strip()
 
 
 class Rodar(unittest.TestCase):

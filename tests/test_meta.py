@@ -9,6 +9,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = str(RAIZ / "bin" / "forge-check")
 
@@ -17,7 +20,7 @@ class Meta(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="forge-meta-"))
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
-        subprocess.run(["git", "init", "-q", str(self.tmp)], check=True)
+        subprocess.run(["git", "init", "-q", str(self.tmp)], check=True, env=sem_manutencao())
         (self.tmp / ".forge").mkdir()
 
     def rodar(self, *args):

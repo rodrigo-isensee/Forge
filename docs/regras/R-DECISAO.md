@@ -5,7 +5,7 @@ verificada_por: `forge-check brief selar` (corte de escopo); vigia (`entrada-sem
 ---
 # R-DECISAO: Decisões do dono em lote, com opções, recomendação e prazo
 
-Propósito: texto único desta regra. Público: todo o time.
+Propósito: texto único desta regra. Público: o time.
 
 Revisar em: 2027-01-07
 Medida: esperas do dono de ~10 h e ~7 h numa noite com perguntas em série (estudo 0.43.1)
@@ -28,7 +28,7 @@ Medida: esperas do dono de ~10 h e ~7 h numa noite com perguntas em série (estu
 
 ## Complemento: melhoria vista e entrada direta
 - **(a)** Todo relatório termina com `Melhoria vista:` (problema, evidência, mudança) ou `nenhuma`; não se inventa melhoria para preenchê-la. Remover regra, passo ou trava também é melhoria.
-- **(b)** O Jarvis a grava como `MELHORIA:` no pedido e a retro a classifica (`cartão`, `ao usuário` ou `descartada`).
+- **(b)** O Jarvis a grava como `MELHORIA:` no pedido e a retro a classifica (`cartão`, `ao usuário`, `descartada`).
 - **(c) Entrada direta**, sem perguntar: não custa dinheiro real, sem exceção; não é afrouxamento; não é decisão de produto; não aumenta tokens nem tempo de entrega.
 - **(d) Afrouxamento** é a mudança que faz a qualidade medida cair ou tira controle sem medida. Simplificar o processo quando a qualidade medida (escapes, falhas de CI, achados reais) não cai **não é afrouxamento**.
 - **(e) Evoluir sem piorar:** a retrospectiva escolhe no máximo 1 causa nova pelo `forge-placar` (uma proposta aberta por vez) e a corrige de preferência em código ou eval de regressão; texto só para julgamento. Toda mudança declara a métrica e a data de revisão, quando `forge-placar comparar` decide manter ou reverter. Regra nova só com medida (é proibido acrescentar regra sem ela) e diz qual sai no lugar dela.

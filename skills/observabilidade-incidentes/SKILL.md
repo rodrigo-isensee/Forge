@@ -5,7 +5,7 @@ description: Logs, métricas, alertas e roteiro de incidente do projeto. Mantida
 
 # Observabilidade e incidentes
 
-Dono: o `devops-engineer`. Documente no projeto, num arquivo de `docs/devops/` sobre observabilidade, sem dado pessoal nem segredo em log, métrica ou alerta.
+Dono: o `devops-engineer`. Documente no projeto. Sem dado pessoal nem segredo em log, métrica ou alerta.
 
 ## Logs
 - Uma linha por evento, estruturada (campos nomeados), com nível, hora, identificador da requisição e resultado.
@@ -21,6 +21,6 @@ Dono: o `devops-engineer`. Documente no projeto, num arquivo de `docs/devops/` s
 2. **Conter:** reverter a última entrega (rollback, `ci-cd`) vem antes de achar a causa.
 3. **Comunicar:** o Jarvis avisa a pessoa em linguagem simples: o que está afetado e quando volta.
 4. **Corrigir e confirmar** pelo mesmo sinal que alertou.
-5. **Registrar em até 2 dias** na pasta de retrospectivas do projeto: linha do tempo, causa, o que faltou para detectar antes e uma ação com responsável. Sem culpa de pessoa.
+5. **Registrar em até 2 dias** na retrospectiva: linha do tempo, causa, o que faltou para detectar antes e uma ação com responsável. Sem culpa de pessoa.
 
 Segurança (vazamento, acesso indevido) entra também no `security-engineer`; custo novo de ferramenta de monitoramento passa pelo `R-CUSTO`.

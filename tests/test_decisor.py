@@ -9,6 +9,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = str(RAIZ / "bin" / "forge-check")
 FATOS_OK = {"irreversivel": "nao", "dinheiro": "nao", "escopo": "nao", "alternativas-piores": "sim", "reversivel": "sim", "erro-barato": "sim"}
@@ -104,7 +107,7 @@ class Decisor(unittest.TestCase):
         (repo / "bin").mkdir()
         for nome in ("forge-check", "forge_decisor.py"):
             shutil.copy(RAIZ / "bin" / nome, repo / "bin" / nome)
-        env = dict(os.environ, HOME=str(self.tmp / "home"), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+        env = sem_manutencao(dict(os.environ, HOME=str(self.tmp / "home"), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1"))
         g = lambda *a: subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t", "-c",  # noqa: E731
                                        "core.hooksPath=.githooks", *a], capture_output=True, text=True, env=env)
         g("init", "-q")
