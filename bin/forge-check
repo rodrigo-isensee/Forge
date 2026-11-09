@@ -807,6 +807,96 @@ def isencoes_da_entrega(raiz, ref=None, base=None):
     return isencoes_do_diff(arquivos_da_entrega(raiz, ref, base))
 
 
+# ---- T1 (decisão 20; 0.43.3): código mudado sem teste mudado nem acrescentado, sinalizado nas classes N e C; a T fica isenta ----------
+CAMINHO_DE_TESTE = re.compile(r"(^|/)(tests?|__tests__|spec)/|(^|/)(test_[^/]+|[^/]+_test\.[^/.]+|[^/]+\.(test|spec)\.[^/]+)$")
+CODIGO_EM_TESTS = ("tests/catraca.py", "tests/neutralidade.py", "tests/guarda_git.py")  # código do portão que mora em tests/ (Forge)
+NAO_TESTE_EM_TESTS = ("tests/config.json", "tests/pesos-d4.json")  # configuração em tests/: nem código nem teste
+EXTENSOES_DE_CODIGO = (".py", ".sh", ".bash", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".go", ".rs", ".java", ".kt", ".rb", ".php",
+                       ".cs", ".c", ".h", ".cpp", ".hpp", ".swift", ".sql", ".vue", ".svelte")
+PASTAS_DE_EXECUTAVEIS = ("bin/", "scripts/", "hooks/", ".githooks/", "templates/projeto/.githooks/")  # sem extensão, ainda é código
+COMENTARIO_OU_VAZIO = re.compile(rb"^\s*(#|//|/\*|\*|--|$)")
+
+
+def e_teste(nome):
+    return bool(CAMINHO_DE_TESTE.search(nome)) and not nome.startswith(CODIGO_EM_TESTS + NAO_TESTE_EM_TESTS)
+
+
+def e_codigo(nome):
+    """T1: código é o que roda (extensão de código, executável sem extensão nas pastas de executáveis, workflow do CI), fora de teste,
+    de documentação, dos pareceres e do quadro; os módulos do portão em `tests/` (`CODIGO_EM_TESTS`) são código."""
+    if nome.startswith(CODIGO_EM_TESTS):
+        return True
+    if e_teste(nome) or nome.startswith(NAO_TESTE_EM_TESTS) or livre(nome, LIVRES) or nome.startswith(("docs/", "changelog.d/")):
+        return False
+    base = nome.rpartition("/")[2]
+    return (base.endswith(EXTENSOES_DE_CODIGO) or (nome.startswith(PASTAS_DE_EXECUTAVEIS) and "." not in base)
+            or bool(re.match(r"^\.github/workflows/[^/]+\.ya?ml$", nome)))
+
+
+def teste_mudou_de_verdade(raiz, rev, testes):
+    """True se algum arquivo de `testes` muda, no `rev` (`a..b` ou `a...b`), uma linha fora de comentário e de linha vazia; None se o
+    git falha. Fixture que não é código (json, txt) conta pela linha inteira."""
+    if not testes:
+        return False
+    cod, saida = git(raiz, "diff", "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames", rev, "--", *testes, bruto=True)
+    if cod:
+        return None
+    for linha in saida.split(b"\n"):
+        if linha[:1] in (b"+", b"-") and not linha.startswith((b"+++ ", b"--- ")) and not COMENTARIO_OU_VAZIO.match(linha[1:]):
+            return True
+    return False
+
+
+def codigo_sem_teste(raiz, rev, nomes):
+    """T1: os arquivos de código de `nomes` quando nenhum teste mudou de verdade no `rev`; [] com teste mudado ou sem código; None se
+    o git falha (quem chama sinaliza, nunca cala)."""
+    codigo = [n for n in nomes if e_codigo(n)]
+    if not codigo:
+        return []
+    mudou = teste_mudou_de_verdade(raiz, rev, [n for n in nomes if e_teste(n)])
+    return None if mudou is None else [] if mudou else codigo
+
+
+def classe_para_o_t1(raiz, ref, base):
+    """A classe de risco (T, N, C) pela regra única `classe_da_entrega` (frente G da 0.43.1, `forge-check classe`) quando ela existe
+    nesta cópia; sem ela, None, e o T1 sinaliza sem isentar (gancho: ao chegar a `classe_da_entrega`, a T passa a ficar isenta sem
+    mudar nada aqui)."""
+    calcular = globals().get("classe_da_entrega")
+    if calcular is None:
+        return None
+    try:
+        return calcular(raiz, ref, base)[0]
+    except Exception:  # noqa: BLE001 - classe ilegível não isenta: vale como N
+        return "N"
+
+
+def aviso_de_codigo_sem_teste(raiz, rev, nomes, classe):
+    """A linha `sem teste:` do T1, ou None (classe T, sem código, ou teste mudado). Nunca reprova sozinha: o review confere a
+    justificativa do `## Sem teste` do PR."""
+    if classe == "T":
+        return None
+    achados = codigo_sem_teste(raiz, rev, nomes)
+    if achados == []:
+        return None
+    rotulo = f"classe {classe}" if classe else "classe não calculada nesta cópia"
+    if achados is None:
+        return f"sem teste: não conferido ({rotulo}): o git não leu o diff dos testes (T1)"
+    lista = ", ".join(caminho_impresso(n) for n in achados[:5]) + (f" e mais {len(achados) - 5}" if len(achados) > 5 else "")
+    return (f"sem teste: código mudado sem teste mudado ou novo ({rotulo}): {lista}; acrescente o teste ou justifique no "
+            "`## Sem teste` do PR, que o review confere (T1)")
+
+
+def aviso_t1_do_pr(raiz, ref, base):
+    """T1 no `forge-check pr`: o diff `base...ref` da entrega, no stderr (o veredito do stdout não muda)."""
+    b = base_da_entrega(raiz, base, so_a_pedida=True)
+    nomes = arquivos_da_entrega(raiz, ref, base)
+    if not b or not nomes:
+        return
+    aviso = aviso_de_codigo_sem_teste(raiz, f"{b}...{ref or 'HEAD'}", nomes, classe_para_o_t1(raiz, ref, base))
+    if aviso:
+        print(f"pr: {aviso}", file=sys.stderr)
+
+
 def aceite_do_usuario(raiz, pedido, commit, ref=None):
     """True se `docs/security/aceites/<pedido>.md` existe com `pedido` igual, `aceite: sim` e `commit` igual ao
     do parecer de segurança (o usuário aceitou exatamente esses riscos; parecer novo pede aceite novo). Nenhum papel o grava
@@ -875,6 +965,8 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
     qualquer ref para a catraca do CI, que recebe a base do próprio evento do PR. `conferir=False` (só o escopo da `entrega` na
     merge-integracao, como o caminho do squash pelo `cmd_pr`) lê só os pareceres: a conferência do head é portão do `pr` e do `forge-fechar`.
     `previo` (FC-6, só do `--previo` do argparse do `pr`, o pré-voo do pre-push): o parecer ausente vira aviso; o resto segue violação."""
+    if conferir:  # T1: código sem teste sinalizado (a classe T isenta), antes do veredito
+        aviso_t1_do_pr(raiz, ref, None if base is None else base.removeprefix("origin/"))
     if base is None:
         if isencoes_da_entrega(raiz, ref, None):
             print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
@@ -8438,6 +8530,10 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
     cod, contagem = git(raiz, "rev-list", "--count", f"{inicio}..{head}")
     linhas.append((f"commits: {contagem if not cod else '?'} em {inicio[:12]}..{head[:12]}", bool(cod)))
     linhas += conferir_provas(raiz, brief, branch, head, pasta)
+    if etapa == "codigo" and not cod:  # T1: código sem teste no intervalo da delegação, sinalizado sem reprovar (a classe T isenta)
+        aviso = aviso_de_codigo_sem_teste(raiz, f"{inicio}..{head}", nomes_do_intervalo(raiz, inicio, head),
+                                          classe_para_o_t1(raiz, head, base))
+        linhas += [(aviso, False)] if aviso else []
     for linha, _ in linhas:
         print(linha)
     if any(r for _, r in linhas):
