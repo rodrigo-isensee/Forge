@@ -323,7 +323,8 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertIn(f"name: pulados-{versao}-${{{{ matrix.parte }}}}", parte)
                 self.assertIn("if-no-files-found: error", parte)
                 soma = self.jobs[f"pulados-{versao}"]
-                self.assertRegex(soma, rf"(?m)^    needs: \[partes-{versao}\]$")
+                self.assertRegex(soma, rf"(?m)^    needs: \[partes-{versao}, arvore\]$")
+                self.assertNotIn(f"needs.partes-{versao}.outputs", soma)  # M2: a saída de job em matriz fica com a última perna
                 self.assertIn(f"pattern: pulados-{versao}-*", soma)
                 self.assertIn('python3 scripts/suite-partes.py --somar-pulados 3 "$RUNNER_TEMP/pulados"', soma)
                 self.assertIn("persist-credentials: false", soma)
@@ -348,18 +349,25 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/develop'", bloco)
 
     def test_partes_pulam_a_suite_so_com_a_arvore_provada(self):
-        """SP4: o passo da árvore vem antes do preparo e da suíte, e os dois só rodam sem a prova (falha fechada)."""
+        """SP4 e M2: um job prévio único tira a prova (só com a dos dois Pythons); as 3 partes de cada versão dependem dele e o
+        preparo e a suíte só rodam sem a prova (falha fechada). A prova no passo de cada perna dava o `outputs` da última perna."""
+        arvore = self.jobs["arvore"]
+        passo = arvore[arvore.index("        id: arvore\n"):]
+        self.assertIn("          provada=false\n          if python3 scripts/arvore-testada.py --python 3.12 && "
+                      "python3 scripts/arvore-testada.py --python 3.14; then provada=true; fi\n", passo)
+        self.assertIn("      provada: ${{ steps.arvore.outputs.provada }}", arvore)
+        self.assertIn("      actions: read", arvore)
+        self.assertEqual(arvore.count("GH_TOKEN"), 1)
         for job in ("partes-doze", "partes-quatorze"):
             with self.subTest(job):
                 bloco = self.jobs[job]
-                arvore = bloco.index("        id: arvore\n")
-                self.assertIn("if python3 scripts/arvore-testada.py; then provada=true; else provada=false; fi", bloco)
-                self.assertIn("      actions: read", bloco)
-                for passo in ("      - name: env com -a", "      - name: Testes do Forge (parte)\n"):
-                    i = bloco.index(passo)
-                    self.assertLess(arvore, i)
-                    self.assertEqual(bloco[i:].split("\n")[1], "        if: steps.arvore.outputs.provada != 'true'")
-                self.assertEqual(bloco.count("GH_TOKEN"), 1, "o token só no passo da árvore")
+                self.assertRegex(bloco, r"(?m)^    needs: \[arvore\]$")
+                self.assertNotIn("arvore-testada", bloco)
+                self.assertNotIn("outputs:", bloco)
+                for nome in ("      - name: env com -a", "      - name: Testes do Forge (parte)\n"):
+                    i = bloco.index(nome)
+                    self.assertEqual(bloco[i:].split("\n")[1], "        if: needs.arvore.outputs.provada != 'true'")
+                self.assertNotIn("GH_TOKEN", bloco, "o token só no passo da árvore")
         release = (RAIZ / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
         i = release.index("      - name: Testes antes de publicar\n")
         self.assertLess(release.index("        id: arvore\n"), i)

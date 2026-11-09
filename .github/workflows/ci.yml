@@ -6,8 +6,8 @@ name: CI
 # as partes e passos verdes (SUITE-NO-CI, decisão do dono de 2026-11-08: a suíte inteira roda uma vez, no CI). Push na
 # develop: só os jobs "rapida" e "rapida-quatorze", que rodam a suíte inteira (scripts/suite-paralela.py, Python 3.12 e
 # 3.14, com o mesmo preparo das partes) e são a prova da develop. Promoção (PR develop -> homolog e homolog -> main, push
-# na homolog e na main): cada parte roda antes scripts/arvore-testada.py (SP4, EST-M7) e pula a suíte só com a prova de
-# verdade: um commit do HEAD com a MESMA árvore (tree-sha) e o job "checagem rápida" daquele commit em success na develop;
+# na homolog e na main): o job prévio único "árvore" roda scripts/arvore-testada.py (SP4, EST-M7, M2) e as partes pulam a suíte
+# só com a prova de verdade: um commit do HEAD com a MESMA árvore (tree-sha) e o job "checagem rápida" daquele commit em success na develop;
 # sem prova, erro de rede ou evento fora da lista, a suíte roda inteira. Os passos e os agregadores não mudam. Commit de PR que só muda
 # docs/reviews/, docs/qa/, docs/security/, docs/devops/ ou docs/ux/ (fora modelos _* e docs/security/{ameacas,aceites}/),
 # com a bateria verde no commit anterior, pula os passos pesados do job de passos (gate por passo, nunca paths-ignore: ele
@@ -111,18 +111,55 @@ jobs:
       - name: Testes do Forge
         run: python3 scripts/suite-paralela.py
 
+  arvore:
+    name: árvore já provada na develop
+    # SP4 e M2 do review da 0.43.3: um job só, antes das partes. Com o passo em cada perna da matriz, o `outputs` do job ficava
+    # com a última perna; uma perna sem prova e as outras com prova davam o pulados-* vermelho falso. rc 0 só com a prova
+    # completa dos dois Pythons (mesma tree-sha e os dois jobs de prova verdes na develop); sem as duas, as 6 partes rodam a suíte.
+    if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
+    permissions:
+      contents: read
+      actions: read  # lê as execuções e os jobs da develop (SP4)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      provada: ${{ steps.arvore.outputs.provada }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Árvore já provada na develop (SP4; sem prova, a suíte roda inteira)
+        # o token só neste passo, nunca no da suíte.
+        id: arvore
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENTO: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REF: ${{ github.ref }}
+        run: |
+          provada=false
+          if python3 scripts/arvore-testada.py --python 3.12 && python3 scripts/arvore-testada.py --python 3.14; then provada=true; fi
+          echo "provada=$provada" >> "$GITHUB_OUTPUT"
+          echo "árvore provada na develop (3.12 e 3.14): $provada" >> "$GITHUB_STEP_SUMMARY"
+
   partes-doze:
     name: suíte (python 3.12, parte ${{ matrix.parte }}/3)
     # Um terço da suíte inteira por job (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nos três). O
     # agregador "bateria" exige os três verdes; cada parte confere que a divisão cobre todo o discover.
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
+    # M2: a prova vem de um job só (arvore), lida igual pelas 3 partes
+    needs: [arvore]
     permissions:
       contents: read
-      actions: read  # o passo da árvore lê as execuções e os jobs da develop (SP4)
     runs-on: ubuntu-26.04
     timeout-minutes: 20
-    outputs:
-      provada: ${{ steps.arvore.outputs.provada }}  # SP4: os pulados-* só somam quando as partes rodaram a suíte
     strategy:
       fail-fast: false
       matrix:
@@ -135,23 +172,8 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
-      - name: Árvore já provada na develop (SP4; sem prova, a suíte roda inteira)
-        # rc 0 só com a prova completa (mesma tree-sha e o job de prova verde); o token só neste passo, nunca no da suíte.
-        id: arvore
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          EVENTO: ${{ github.event_name }}
-          BASE_REF: ${{ github.base_ref }}
-          HEAD_REF: ${{ github.head_ref }}
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          REF: ${{ github.ref }}
-        run: |
-          if python3 scripts/arvore-testada.py; then provada=true; else provada=false; fi
-          echo "provada=$provada" >> "$GITHUB_OUTPUT"
-          echo "árvore provada na develop: $provada" >> "$GITHUB_STEP_SUMMARY"
       - name: env com -a (uutils-coreutils do apt; prova viva de 20 formas do lançador)
-        if: steps.arvore.outputs.provada != 'true'
+        if: needs.arvore.outputs.provada != 'true'
         run: |
           # uutils-coreutils do apt do runner (universe, sem custo): o env do runner pode recusar `-a`/`--argv0` (era o GNU env 9.4
           # do ubuntu-24.04; o README da imagem 26.04 lista coreutils 9.5-1ubuntu2+0.0.0~ubuntu25, o pacote de transição para o
@@ -177,14 +199,14 @@ jobs:
           [ "$("$gnu" --s 'echo a  b')" = "a b" ] || { echo "o $gnu não divide --s como o GNU"; exit 1; }
           env --version | head -1
       - name: Testes do Forge (parte)
-        if: steps.arvore.outputs.provada != 'true'
+        if: needs.arvore.outputs.provada != 'true'
         env:
           PARTE: ${{ matrix.parte }}
         run: |
           python3 --version
           FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json" python3 scripts/suite-partes.py --parte "$PARTE/3"
       - name: Pulados da parte para o agregador (T3)
-        if: steps.arvore.outputs.provada != 'true'
+        if: needs.arvore.outputs.provada != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pulados-doze-${{ matrix.parte }}
@@ -197,13 +219,12 @@ jobs:
     # Um terço da suíte inteira por job (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nos três). O
     # agregador "bateria (python 3.14)" exige os três verdes; cada parte confere que a divisão cobre todo o discover.
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
+    # M2: a prova vem de um job só (arvore), lida igual pelas 3 partes
+    needs: [arvore]
     permissions:
       contents: read
-      actions: read  # o passo da árvore lê as execuções e os jobs da develop (SP4)
     runs-on: ubuntu-26.04
     timeout-minutes: 20
-    outputs:
-      provada: ${{ steps.arvore.outputs.provada }}  # SP4: os pulados-* só somam quando as partes rodaram a suíte
     strategy:
       fail-fast: false
       matrix:
@@ -216,23 +237,8 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
-      - name: Árvore já provada na develop (SP4; sem prova, a suíte roda inteira)
-        # rc 0 só com a prova completa (mesma tree-sha e o job de prova verde); o token só neste passo, nunca no da suíte.
-        id: arvore
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          EVENTO: ${{ github.event_name }}
-          BASE_REF: ${{ github.base_ref }}
-          HEAD_REF: ${{ github.head_ref }}
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          REF: ${{ github.ref }}
-        run: |
-          if python3 scripts/arvore-testada.py; then provada=true; else provada=false; fi
-          echo "provada=$provada" >> "$GITHUB_OUTPUT"
-          echo "árvore provada na develop: $provada" >> "$GITHUB_STEP_SUMMARY"
       - name: env com -a (uutils-coreutils do apt; prova viva de 20 formas do lançador)
-        if: steps.arvore.outputs.provada != 'true'
+        if: needs.arvore.outputs.provada != 'true'
         run: |
           # uutils-coreutils do apt do runner (universe, sem custo): o env do runner pode recusar `-a`/`--argv0` (era o GNU env 9.4
           # do ubuntu-24.04; o README da imagem 26.04 lista coreutils 9.5-1ubuntu2+0.0.0~ubuntu25, o pacote de transição para o
@@ -258,14 +264,14 @@ jobs:
           [ "$("$gnu" --s 'echo a  b')" = "a b" ] || { echo "o $gnu não divide --s como o GNU"; exit 1; }
           env --version | head -1
       - name: Testes do Forge (parte)
-        if: steps.arvore.outputs.provada != 'true'
+        if: needs.arvore.outputs.provada != 'true'
         env:
           PARTE: ${{ matrix.parte }}
         run: |
           python3 --version
           FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json" python3 scripts/suite-partes.py --parte "$PARTE/3"
       - name: Pulados da parte para o agregador (T3)
-        if: steps.arvore.outputs.provada != 'true'
+        if: needs.arvore.outputs.provada != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pulados-quatorze-${{ matrix.parte }}
@@ -301,7 +307,7 @@ jobs:
     name: teto de pulados (python 3.12)
     # T3: a soma dos pulados das 3 partes (cada parte verde publica os dela) contra teto_pulados de tests/config.json,
     # fora do agregador, que não roda código da branch.
-    needs: [partes-doze]
+    needs: [partes-doze, arvore]
     # SP4: com a árvore provada na develop as partes não rodam a suíte nem publicam pulados; o teto já valeu lá (suite-paralela),
     # e o job passa sem somar (pulado, o agregador o reprovaria).
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
@@ -315,21 +321,21 @@ jobs:
         with:
           python-version: "3.12"
       - name: Pulados das 3 partes (T3)
-        if: needs.partes-doze.outputs.provada != 'true'
+        if: needs.arvore.outputs.provada != 'true'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: pulados-doze-*
           merge-multiple: true
           path: ${{ runner.temp }}/pulados
       - name: Teto de pulados na soma das partes (T3)
-        if: needs.partes-doze.outputs.provada != 'true'
+        if: needs.arvore.outputs.provada != 'true'
         run: python3 scripts/suite-partes.py --somar-pulados 3 "$RUNNER_TEMP/pulados"
 
   pulados-quatorze:
     name: teto de pulados (python 3.14)
     # T3: a soma dos pulados das 3 partes (cada parte verde publica os dela) contra teto_pulados de tests/config.json,
     # fora do agregador, que não roda código da branch.
-    needs: [partes-quatorze]
+    needs: [partes-quatorze, arvore]
     # SP4: com a árvore provada na develop as partes não rodam a suíte nem publicam pulados; o teto já valeu lá (suite-paralela),
     # e o job passa sem somar (pulado, o agregador o reprovaria).
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
@@ -343,14 +349,14 @@ jobs:
         with:
           python-version: "3.14"
       - name: Pulados das 3 partes (T3)
-        if: needs.partes-quatorze.outputs.provada != 'true'
+        if: needs.arvore.outputs.provada != 'true'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: pulados-quatorze-*
           merge-multiple: true
           path: ${{ runner.temp }}/pulados
       - name: Teto de pulados na soma das partes (T3)
-        if: needs.partes-quatorze.outputs.provada != 'true'
+        if: needs.arvore.outputs.provada != 'true'
         run: python3 scripts/suite-partes.py --somar-pulados 3 "$RUNNER_TEMP/pulados"
 
   bateria-python-tres-quatorze:

@@ -828,8 +828,9 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         chamados = []
 
         def rodar(job, ctx, raiz, base, tmp):
-            # o teto de pulados (T3) soma o que as partes publicam; aqui as partes não rodam, então ele também é pronto
-            if (job.get("needs") and not job["id"].startswith("pulados-")) or not ci.avaliar_se(job["se"], ctx):
+            # o teto de pulados (T3) soma o que as partes publicam; aqui as partes não rodam, então ele também é pronto; as partes
+            # dependem do job prévio da árvore (M2) e também viram resultado pronto
+            if (job.get("needs") and not job["id"].startswith(("pulados-", "partes-"))) or not ci.avaliar_se(job["se"], ctx):
                 return ci.rodar_job(job, ctx, self.tmp, base, self.tmp)
             chamados.append((job["nome"], ctx.get("matrix.parte")))
             if ctx.get("matrix.parte"):  # a parte verde deixa os pulados no RUNNER_TEMP dela, para o upload (T3)
