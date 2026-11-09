@@ -7359,11 +7359,12 @@ def travas_dos_evals(texto, secoes, pedido_id):
     for l in secoes.get("Pronto quando", []):
         pq = PQ.search(l)
         for m in TMP_CITADO.finditer(l):
-            rotulo, caminho = f"PQ-{pq.group(1)}" if pq else "o Pronto quando", nome_seguro(sem_controle(m.group(0)))
+            rotulo = f"PQ-{pq.group(1)}" if pq else "o Pronto quando"
             if m.group(2) and f"/tmp/{m.group(1)}" not in resto:
-                saida.append((f"pq: {rotulo} usa {caminho}, que o Entregar não cria (EJ 96)", True))
+                saida.append((f"pq: {rotulo} usa {nome_seguro(sem_controle(m.group(0)))}, que o Entregar não cria (EJ 96)", True))
             elif not m.group(2) and pedido_id not in m.group(1) and "XXXXXX" not in m.group(1):
-                saida.append((f"pq: {rotulo} grava em {caminho}, nome comum a todos os agentes; ponha o id do pedido no nome (EJ 101)", True))
+                saida.append((f"pq: {rotulo} grava em {nome_seguro(sem_controle(m.group(0)))}, nome comum a todos os agentes; ponha o id "
+                              "do pedido no nome (EJ 101)", True))
     return saida
 
 
