@@ -9,7 +9,7 @@
    "de": "if obj[\"type\"] == \"assistant\" else []",
    "para": "if obj[\"type\"] != \"assistant\" else []",
    "testes": [
-    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+    "tests.test_meta.Jargao.test_ultima_mensagem_com_texto_do_assistente"
    ]
   },
   {
@@ -19,7 +19,7 @@
    "de": "if c[\"type\"] == \"text\"]",
    "para": "if c[\"type\"] != \"text\"]",
    "testes": [
-    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+    "tests.test_meta.Jargao.test_ultima_mensagem_com_texto_do_assistente"
    ]
   },
   {
@@ -29,7 +29,7 @@
    "de": "        if textos:\n",
    "para": "        if True:\n",
    "testes": [
-    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+    "tests.test_meta.Jargao.test_ultima_mensagem_com_texto_do_assistente"
    ]
   },
   {
@@ -67,7 +67,7 @@
    "guarda": "medida nunca bloqueia",
    "arquivo": "hooks/meta.py",
    "de": "    except Exception as erro:  # noqa: BLE001 - S6 só mede",
-   "para": "    except ZeroDivisionError as erro:  # noqa: BLE001 - S6 só mede",
+   "para": "    except ValueError as erro:  # noqa: BLE001 - S6 só mede",
    "testes": [
     "tests.test_meta.Jargao.test_medida_que_falha_nao_troca_o_stop"
    ]

@@ -51,6 +51,23 @@ class Jargao(unittest.TestCase):
         self.assertEqual(set(meta.jargao()), {"pull request", "PR", "branch", "merge", "mesclar", "commit", "repositório", "hook", "CI",
                                               "deploy"})
 
+    def test_ultima_mensagem_com_texto_do_assistente(self):
+        sys.path.insert(0, str(RAIZ / "hooks"))
+        try:
+            import meta  # noqa: PLC0415
+        finally:
+            sys.path.pop(0)
+        ferramenta = {"type": "tool_use", "name": "Bash", "input": {}}
+        linhas = [{"type": "assistant", "message": {"content": [{"type": "text", "text": "velha"}]}},
+                  {"type": "user", "message": {"content": "oi"}},
+                  {"type": "assistant", "message": {"content": [ferramenta, {"type": "text", "text": "nova"}]}},
+                  {"type": "user", "message": {"content": [{"type": "text", "text": "do dono"}]}},
+                  {"type": "assistant", "message": {"content": [ferramenta]}}]
+        with tempfile.TemporaryDirectory() as pasta:
+            arq = Path(pasta) / "t.jsonl"
+            arq.write_text("\n".join(json.dumps(l) for l in linhas) + "\n", encoding="utf-8")
+            self.assertEqual(meta.ultima_mensagem(str(arq)), "nova")
+
     def test_medida_que_falha_nao_troca_o_stop(self):
         sys.path.insert(0, str(RAIZ / "hooks"))
         try:
@@ -73,13 +90,13 @@ class Jargao(unittest.TestCase):
                 chamado.append(erro)
 
         original_medir, original_meta = meta.medir_mensagem, meta.avaliar_meta
-        meta.medir_mensagem = lambda hook: 1 / 0
+        meta.medir_mensagem = lambda hook: (_ for _ in ()).throw(RuntimeError("medida"))
         meta.avaliar_meta = lambda hook, raiz: chamado.append("meta")
         try:
             meta.principal(type("H", (Falso,), {"campo": lambda self, *c: "Stop"})())
         finally:
             meta.medir_mensagem, meta.avaliar_meta = original_medir, original_meta
-        self.assertIsInstance(chamado[0], ZeroDivisionError)
+        self.assertIsInstance(chamado[0], RuntimeError)
         self.assertEqual(chamado[1], "meta", "a falha da medida não pula a conferência do objetivo")
 
 
