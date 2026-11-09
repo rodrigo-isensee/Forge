@@ -845,6 +845,91 @@ class ForgeUpgrade(unittest.TestCase):
         self.assertEqual(git("branch", "--show-current", cwd=self.tmp).stdout.strip(), "main")
 
 
+class UpgradeBranchMesclada(unittest.TestCase):
+    """A branch do upgrade ficou depois do merge e o projeto lê a versão de uma branch atrás da develop."""
+    setUp, tearDown, upgrade = ForgeUpgrade.setUp, ForgeUpgrade.tearDown, ForgeUpgrade.upgrade
+    NOVA = "forge/upgrade-0.5.0"
+
+    def montar(self, como):
+        git("branch", "antiga", cwd=self.tmp)
+        self.assertEqual(self.upgrade().returncode, 0)
+        git("switch", "-q", "develop", cwd=self.tmp)
+        if como == "merge":
+            git("merge", "-q", "--no-ff", "-m", "merge", self.NOVA, cwd=self.tmp)
+        elif como == "squash":
+            git("merge", "-q", "--squash", self.NOVA, cwd=self.tmp)
+            git("commit", "-q", "-m", "squash", cwd=self.tmp)
+        git("switch", "-q", "antiga", cwd=self.tmp)
+        return git("rev-parse", self.NOVA, cwd=self.tmp).stdout
+
+    def existe(self):
+        return git("branch", "--list", self.NOVA, cwd=self.tmp).stdout.strip() != ""
+
+    def test_mesclada_sem_opcao_recusa_e_sugere_o_comando(self):
+        self.montar("merge")
+        r = self.upgrade()
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("já foi mesclada na 'develop'", r.stderr)
+        self.assertIn(f"git branch -d {self.NOVA}", r.stderr)
+        self.assertIn("--apagar-mesclada", r.stderr)
+        self.assertTrue(self.existe())
+
+    def test_mesclada_com_opcao_apaga_e_segue(self):
+        antes = self.montar("merge")
+        r = self.upgrade("--apagar-mesclada")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(f"apagada a branch {self.NOVA}", r.stdout)
+        self.assertEqual(git("branch", "--show-current", cwd=self.tmp).stdout.strip(), self.NOVA)
+        self.assertNotEqual(git("rev-parse", "HEAD", cwd=self.tmp).stdout, antes)
+
+    def test_simular_com_opcao_nao_apaga(self):
+        antes = self.montar("merge")
+        r = self.upgrade("--simular", "--apagar-mesclada")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(f"apagaria a branch {self.NOVA} (mesclada na 'develop')", r.stdout)
+        self.assertEqual(git("rev-parse", self.NOVA, cwd=self.tmp).stdout, antes)
+        self.assertEqual(git("branch", "--show-current", cwd=self.tmp).stdout.strip(), "antiga")
+
+    def test_branch_movida_depois_da_checagem_nao_e_apagada(self):
+        self.montar("merge")
+        movido = git("rev-parse", "antiga", cwd=self.tmp).stdout.strip()
+        real = shutil.which("git", path=ambiente_limpo().get("PATH"))
+        bin_falso = Path(tempfile.mkdtemp(prefix="forge-git-falso-"))
+        self.addCleanup(shutil.rmtree, bin_falso)
+        falso = bin_falso / "git"
+        # o git falso mexe na branch logo depois da checagem de mesclada (a corrida que o sha conferido fecha)
+        falso.write_text(
+            f'#!/bin/sh\n{real} "$@"; rc=$?\ncase "$*" in *merge-base*) {real} -C {self.tmp} update-ref '
+            f'refs/heads/{self.NOVA} {movido};; esac\nexit $rc\n', encoding="utf-8")
+        falso.chmod(0o755)
+        env = ambiente_limpo()
+        env["PATH"] = f"{bin_falso}{os.pathsep}{env['PATH']}"
+        r = subprocess.run([str(RAIZ / "bin/forge-upgrade"), "--ate", "0.5.0", "--apagar-mesclada", str(self.tmp)],
+                           env=env, capture_output=True, text=True)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("update-ref", r.stderr)
+        self.assertNotIn("apagada a branch", r.stdout)
+        self.assertEqual(git("rev-parse", self.NOVA, cwd=self.tmp).stdout.strip(), movido)
+
+    def test_squash_recusa_sugere_o_D_e_nao_apaga(self):
+        self.montar("squash")
+        for args in ((), ("--apagar-mesclada",)):
+            with self.subTest(args=args):
+                r = self.upgrade(*args)
+                self.assertEqual(r.returncode, 2)
+                self.assertIn("parece mesclada por squash", r.stderr)
+                self.assertIn(f"git branch -D {self.NOVA}", r.stderr)
+                self.assertTrue(self.existe())
+
+    def test_nao_mesclada_e_base_em_outra_versao_recusa_como_antes(self):
+        self.montar("nenhum")
+        r = self.upgrade("--apagar-mesclada")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn(f"a branch {self.NOVA} já existe", r.stderr)
+        self.assertNotIn("mesclada", r.stderr)
+        self.assertTrue(self.existe())
+
+
 class Migracao070(unittest.TestCase):
     """Migração 0.7.0: só `teto_agentes` igual a 3 sai do config; fixtures antes/depois em tests/migracoes/0.7.0/."""
 
