@@ -5,7 +5,7 @@ verificada_por: `forge-check brief selar` (corte de escopo); vigia (`entrada-sem
 ---
 # R-DECISAO: Decisões do dono em lote, com opções, recomendação e prazo
 
-Propósito: texto único desta regra; os outros arquivos citam o ID. Público: todo o time, em qualquer projeto.
+Propósito: texto único desta regra. Público: todo o time.
 
 Revisar em: 2027-01-07
 Medida: esperas do dono de ~10 h e ~7 h numa noite com perguntas em série (estudo 0.43.1)
@@ -19,7 +19,7 @@ Medida: esperas do dono de ~10 h e ~7 h numa noite com perguntas em série (estu
 - **Teste de bloqueante:** vai ao usuário só a dúvida com leituras de resultado bem distinto, que o projeto não resolve e que custa caro desfazer. Senão, vira "Suposições" com a base, `muda com` e `custo de reverter`.
 - **O teste não se aplica** a custo, acesso, exceção a regra nem a fato de negócio já declarado.
 - **Escada da recomendação:** o que o usuário disse, fato do projeto, regra ou ADR, prática da fábrica, preferência do time (com essa marca em escopo, prioridade ou custo).
-- **Decisão só vale gravada:** pedido, lista ou decisão do dono vai ao arquivo do pedido ou ao quadro no mesmo turno, nunca ao scratchpad; depois de compactação, o que não está no disco é perguntado de novo. Proposta aprovada leva a versão nomeada (`versão: X.Y`). Versão cheia passa para a seguinte com vaga.
+- **Decisão só vale gravada:** pedido, lista ou decisão do dono vai ao pedido ou ao quadro no mesmo turno, nunca ao scratchpad; a fala vai literal por `forge-check pedido fala --gravar` (não amplia autorização) e é lida antes de perguntar de novo. Proposta aprovada leva a versão nomeada (`versão: X.Y`). Versão cheia passa para a seguinte com vaga.
 
 ## Complemento: "tanto faz" e ordem ampla
 - "Tanto faz" e "decidam vocês" viram item `delegado`. Esses nunca são delegáveis assim: **custo** (`R-CUSTO`), **acesso**, **exceção a regra** (`R-CONFORMIDADE`) e **ato irreversível**.

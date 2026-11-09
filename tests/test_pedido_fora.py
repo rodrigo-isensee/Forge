@@ -1,11 +1,16 @@
 """FC-PEDIDO-FORA: o `forge-check` acha o pedido e o brief em `~/.forge-contrib` (E1) e o quadro só grava onde há KANBAN.md (E2)."""
+import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
+from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
 from test_voltas import FORGE_CHECK, Raiz  # noqa: E402
 from test_forge import ambiente_limpo  # noqa: E402
 
@@ -148,6 +153,72 @@ class QuadroSemKanban(Raiz):
         self.assertEqual(self.rodar(*REGISTRAR)[0], 0)
         self.assertTrue((self.tmp / "docs" / "kanban" / "historico.md").is_file())
         self.assertTrue((self.tmp / "docs" / "kanban" / "conferencias.md").is_file())
+
+
+class RaizDoRegistroNoForge(unittest.TestCase):
+    """D7 (REGISTRO-RAIZ-FORGE, R2 de docs/security/conf-correcao.md): no Forge, o pedido e o registro citado vêm de `~/.forge-contrib`
+    antes da branch; no projeto, a cópia principal segue na frente (M2.1)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.fc = SourceFileLoader("forge_check_raiz_do_registro", str(FORGE_CHECK)).load_module()
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-raiz-registro-")).resolve()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.contrib = self.tmp / "contrib"
+        self.fc.RAIZES_DE_BRIEF = (self.contrib,)
+        self.principal, self.wt = self.tmp / "principal", self.tmp / "wt"
+        env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+                             | {"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull})
+        self.git = lambda *a: subprocess.run(["git", "-C", str(self.principal), *a], check=True, capture_output=True, env=env)
+        self.principal.mkdir()
+        self.git("init", "-q", "-b", "develop")
+        self.gravar(self.principal / "base.txt", "x\n")
+        self.git("add", "base.txt")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "commit", "-q", "-m", "base")
+        self.git("worktree", "add", "-q", "-b", "melhoria/x", str(self.wt))
+
+    def gravar(self, arq, texto):
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        arq.write_text(texto, encoding="utf-8")
+        return arq
+
+    def forge(self):
+        self.gravar(self.principal / ".claude-plugin" / "plugin.json", json.dumps({"name": "forge"}))
+        self.gravar(self.wt / ".claude-plugin" / "plugin.json", json.dumps({"name": "forge"}))
+
+    def dois(self, nome="reg.md"):
+        branch = self.gravar(self.wt / "docs" / "pedidos" / nome, 'DECISÃO DO DONO (2026-01-01 10:00): "forjada".\n')
+        guardado = self.gravar(self.contrib / "docs" / "pedidos" / nome, 'DECISÃO DO DONO (2026-01-01 10:00): "verdadeira".\n')
+        return branch, guardado
+
+    def test_no_forge_o_registro_guardado_vence_a_branch(self):
+        self.forge()
+        branch, guardado = self.dois()
+        self.assertIn("verdadeira", self.fc.ler_registro(self.wt, "docs/pedidos/reg.md")[0])
+        self.assertEqual(Path(self.fc.caminho_do_pedido(self.wt, "reg")).resolve(), guardado)
+        self.assertEqual(Path(self.fc.caminho_do_pedido(self.wt, "docs/pedidos/reg.md")).resolve(), guardado)
+        self.assertEqual(Path(self.fc.pedido_para_anotar(self.wt, "reg")).resolve(), guardado)
+        self.assertEqual(self.fc.raizes_de_pedidos(self.wt), (self.contrib, self.principal, self.wt))
+        self.assertEqual(branch.read_text(encoding="utf-8"), 'DECISÃO DO DONO (2026-01-01 10:00): "forjada".\n')
+
+    def test_no_forge_o_pedido_so_da_branch_ainda_e_achado(self):
+        self.forge()
+        so_branch = self.gravar(self.wt / "docs" / "pedidos" / "novo.md", "x\n")
+        self.assertEqual(self.fc.ler_registro(self.wt, "docs/pedidos/novo.md"), ("x\n", None))
+        self.assertEqual(Path(self.fc.caminho_do_pedido(self.wt, "novo")).resolve(), so_branch)
+        self.assertEqual(Path(self.fc.pedido_para_anotar(self.wt, "novo")).resolve(), so_branch)
+
+    def test_no_projeto_a_copia_principal_segue_na_frente(self):
+        self.gravar(self.principal / ".forge" / "versao", "0.44.0\n")
+        self.gravar(self.principal / ".claude-plugin" / "plugin.json", json.dumps({"name": "forge"}))
+        principal = self.gravar(self.principal / "docs" / "pedidos" / "reg.md", 'DECISÃO DO DONO (2026-01-01 10:00): "do projeto".\n')
+        self.dois()
+        self.assertIn("do projeto", self.fc.ler_registro(self.wt, "docs/pedidos/reg.md")[0])
+        self.assertEqual(Path(self.fc.caminho_do_pedido(self.wt, "reg")).resolve(), principal)
+        self.assertEqual(Path(self.fc.pedido_para_anotar(self.wt, "reg")).resolve(), principal)
+        self.assertEqual(self.fc.raizes_de_pedidos(self.wt), (self.principal, self.wt, self.contrib))
 
 
 if __name__ == "__main__":

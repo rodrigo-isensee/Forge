@@ -1118,10 +1118,10 @@ class TextoDosAgentes(unittest.TestCase):
 
     def test_conferente_usa_entrega_desde_e_imprime_a_conferida(self):
         """0.43.1 (processo novo): a `entrega conferida` é do `forge-check entrega --pedido`, que calcula Base, Base-sha e Desde; o
-        conferente opcional roda só a forma antiga (com `--desde`) ou a nova com `--sem-gravar`, e confirma a rodada com `--anterior`."""
+        conferente opcional roda só a forma antiga (com `--desde`) ou a nova com `--so-leitura` (D4 da 0.44.0), e confirma a rodada com `--anterior`."""
         t = self.texto("conferente")
         for trecho in ("forge-check entrega <pedido> --branch <b> --base <Base> --base-sha <Base-sha> --etapa <etapa> [--desde <conferida>]",
-                       "forge-check entrega --pedido <p> --branch <b> --etapa <etapa> --sem-gravar", "--anterior",
+                       "forge-check entrega --pedido <p> --branch <b> --etapa <etapa> --so-leitura", "--anterior",
                        "grava a linha `entrega conferida`, que não é sua"):
             self.assertIn(trecho, t)
 

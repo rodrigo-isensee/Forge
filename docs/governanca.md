@@ -27,6 +27,8 @@ Só leitura e sem rede (o `gh` só com `--gh`); rc 0, e 2 só com data, hora ou 
 
 O item é o primeiro `E<n>` do parêntese que abre a linha, ou do que segue `entrega conferida <sha>`; linha sem item conta no item `-` (o pedido inteiro). Saem uma linha por item, uma por pedido e uma por período (`--por dia` ou `semana`, pela data do `pronto`), e a linha `fontes`. O `--json` traz os mesmos números e a natureza de cada um em `fontes`. Merge por squash não deixa o sha na develop: o item fica `aberto` (limite conhecido).
 
+**Orçamento de tokens por versão (X2, 0.44.1):** o pedido declara a estimativa nas linhas `Versão: X.Y.Z` e `Tokens previstos: N` (aceita `2.000.000`, `500k`, `3M`). O `metricas` soma o previsto e o gasto medido (`tokens` dos transcritos; sem medida conta 0) por versão, imprime `metricas: orcamento versao <v> previsto=<n> gasto=<n>` e `metricas: alerta: ...` quando o gasto passa do previsto, por pedido e por versão. Só avisa: o rc segue 0.
+
 ## Orçamento de instrução: `tests/test_orcamento_instrucao.py`
 
 Mede o que cada agente carrega: `agents/<x>.md`, as skills obrigatórias (as do `skills:` do cabeçalho e as que o texto cita pelo caminho `${CLAUDE_PLUGIN_ROOT}/skills/<nome>/SKILL.md`) e os `docs/regras/R-*.md` citados pelo agente ou por essas skills. Três números: caracteres do arquivo do agente, caracteres do total e marcadores normativos (nunca, sempre, só, proibido, obrigatório, reprova). O teto e o alvo de cada agente ficam em `docs/regras/orcamento.json`; o teste reprova acima do teto, e agente sem orçamento também.

@@ -157,6 +157,14 @@ class PrePushTrava(unittest.TestCase):
         codigo, _, erro = self.roda()
         self.assertEqual(codigo, 1)
         self.assertIn("testes do Forge falharam", erro)
+        self.assertIn("pre-push: causa=testes", erro)  # O7 (0.44.1): a causa tipada da falha
+
+    def test_suite_morta_por_sinal_sai_com_a_causa_sinal(self):  # O7 (0.44.1)
+        self.suite("import os, signal, unittest\nclass T(unittest.TestCase):\n    def test_morre(self):\n"
+                   "        os.kill(os.getpid(), signal.SIGKILL)\n")
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 1)
+        self.assertIn("pre-push: causa=sinal 9", erro)
 
     def test_segunda_execucao_espera_a_vez(self):
         self.suite(SUITE_LENTA)

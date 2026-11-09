@@ -34,7 +34,7 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TET
                     construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, formas_que_o_shell_le, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, fora_da_gramatica_com_heredoc,
                     fora_da_gramatica_de_leitura, motivo_da_reavaliacao,
-                    forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, reavaliacao,
+                    forge_check, git, leituras, mensagem, nome_da_branch, nome_do_caminho, raiz_declarada, raiz_do_projeto, reavaliacao,
                     sem_atribuicoes, separar_lancadores, SHELLS, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
 # custo de uma conferência cresce com o tamanho do texto, então o número delas não basta (A1 do review): conta também os
@@ -89,7 +89,7 @@ def interpreta_o_corpo(dono):
 
 def interprete(programa):
     """Python, Perl, Node, awk...: o corpo de heredoc que eles leem é programa, conferido pelo `checar_texto`."""
-    programa = Path(programa).name
+    programa = nome_do_caminho(programa)
     return bool(INTERPRETES.match(programa)) or programa in AWKS
 
 
@@ -100,7 +100,7 @@ def args_do_forge_check(prog, args):
         return args
     if INTERPRETES.match(prog):
         # a opção do interpretador pode levar valor (`-X utf8`, `-W ignore`): procura a palavra, não a 1.ª sem `-`
-        achados = [i for i, a in enumerate(args) if Path(a).name == "forge-check"]
+        achados = [i for i, a in enumerate(args) if nome_do_caminho(a) == "forge-check"]
         return args[achados[0] + 1:] if achados else None
     opaco = re.search(r"[`$]", prog) and ("anotar" in args and any(abreviacao_de(a, ("--tipo",)) for a in args)
                                            or any(abreviacao_de(a, ("--gravar",)) for a in args))
@@ -326,7 +326,8 @@ FORGE_CHECK_GRAVA = ("--gerar-entrada", "--gravar", "--escrever", "--salvar")
 FORGE_CHECK_GRAVA_EXATA = ("--destino-arquivo",)
 # FURO-HOOK-A, A4: o subcomando do `forge-check` que grava fora do papel só de leitura -> a pasta de destino (a política de caminhos
 # decide quem grava lá); o `transcricao anonimizar` grava no 2.º argumento. Os que gravam em caminho livre ficam na 2.ª lista.
-FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs", "medida": "docs/kanban"}
+FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs", "medida": "docs/kanban", "pedido": "docs/pedidos",
+                        "pausa": ".forge"}  # X1: `pausa` sem `--retomar` grava .forge/pausa.json  # S2: `pedido fala --gravar`
 FORGE_CHECK_EM_CAMINHO_LIVRE = {"movimento", "registrar"}
 # 0.43.1 (P1, P2): a forma nova grava no `## Histórico` do pedido: `brief selar` (o selo) e `entrega --pedido` (a `entrega conferida`),
 # esta salvo com `--sem-gravar`. A forma antiga do `entrega` (pedido posicional) só lê.
@@ -346,6 +347,30 @@ def papel_de(politica, agent_type):
         if agent_type in tipos:
             return papel
     return politica["papel_padrao"]
+
+
+@functools.lru_cache(maxsize=1024)
+def _pasta_real(pasta):
+    return os.path.realpath(pasta)
+
+
+def realpath_pela_pasta(caminho):
+    """`os.path.realpath(caminho)`, com o `realpath` da pasta guardado (a linha com milhares de arquivos na mesma pasta não
+    resolve a pasta de novo a cada um). O último nome que é link, `.`, `..` ou vazio vai ao `realpath` inteiro."""
+    pasta, nome = os.path.split(caminho)
+    if not pasta or nome in ("", ".", "..") or os.path.islink(caminho):
+        return os.path.realpath(caminho)
+    return os.path.join(_pasta_real(pasta), nome)
+
+
+def relativo_ao_pai(posix, base):
+    """O `relative_to(base).as_posix()` do caminho absoluto e resolvido `posix` quando `base` (resolvida) é ele ou um pai dele
+    (`.` quando é ele); senão None. Pelo texto, sem montar os `parents` (custo: uma chamada por arquivo gravado da linha)."""
+    b = base.as_posix()
+    if posix == b:
+        return "."
+    prefixo = b if b.endswith("/") else b + "/"
+    return posix[len(prefixo):] if posix.startswith(prefixo) else None
 
 
 def casa(rel, caminho):
@@ -480,17 +505,35 @@ def livres_do_forge_check(args):
     return livres
 
 
+def entrega_pela_forma_nova(livres, args):
+    """`entrega --pedido`: o argparse aceita abreviação, então `--p`/`--ped` contam como `--pedido` (na dúvida, é a forma nova)."""
+    return next(iter(livres), "") == "entrega" and any(a.startswith("--p") and "--pedido".startswith(a.split("=", 1)[0]) for a in args)
+
+
+def so_leitura_no_entrega(args):
+    """D4 (0.44.0): `--so-leitura` (ou a abreviação longa, `--so`), sem `=valor`: o `entrega --pedido` não grava nem roda os PQ cmd."""
+    return any(abreviacao_de(a, ("--so-leitura",)) and "=" not in a for a in args)
+
+
 def grava_no_pedido(livres, args):
-    """A forma nova que grava no pedido: `brief selar` e `entrega --pedido` sem `--sem-gravar`. O argparse aceita
-    abreviação, então `--p`/`--ped` contam como `--pedido` (na dúvida, grava) e só a abreviação longa (`--sem`) conta
-    como `--sem-gravar`."""
+    """A forma nova que grava no pedido: `brief selar` e `entrega --pedido` sem `--sem-gravar` nem `--so-leitura`. Só a abreviação
+    longa (`--sem`, `--so`) conta como uma delas."""
     sub = next(iter(livres), "")
     if sub == "brief":
         return "selar" in livres[1:]
-    if sub != "entrega":
+    if not entrega_pela_forma_nova(livres, args):
         return False
-    pedido = any(a.startswith("--p") and "--pedido".startswith(a.split("=", 1)[0]) for a in args)
-    return pedido and not any(abreviacao_de(a, ("--sem-gravar",)) and "=" not in a for a in args)
+    return not (any(abreviacao_de(a, ("--sem-gravar",)) and "=" not in a for a in args) or so_leitura_no_entrega(args))
+
+
+def prefixo_de(opcao, longa):
+    """A opção é a `longa` ou uma abreviação dela que o argparse aceita (`--p` de `--para`)."""
+    return len(opcao) >= 3 and longa.startswith(opcao)
+
+
+def so_le(args, leitura):
+    """S2/S8 (review da 0.44.1): o modo de leitura (`--ler`, `--confirmar`, com ou sem `=valor`) está na linha; sem ele, grava."""
+    return any(prefixo_de(a.split("=", 1)[0], leitura) for a in args)
 
 
 def abreviacao_de(opcao, longas):
@@ -683,26 +726,27 @@ class Guarda:
         if self._raiz_home is None:
             self._raiz_home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
         raiz, home = self._raiz_home
-        pais = {caminho, *caminho.parents}
         posix = caminho.as_posix()
         formas = []
-        if raiz in pais:
-            formas.append(("proj", caminho.relative_to(raiz).as_posix()))
-        if home in pais:
-            formas.append(("home", "~/" + caminho.relative_to(home).as_posix()))
+        if (rel := relativo_ao_pai(posix, raiz)) is not None:
+            formas.append(("proj", rel))
+        if (rel := relativo_ao_pai(posix, home)) is not None:
+            formas.append(("home", "~/" + rel))
         # B1 da 0.43.1: ~/.forge-contrib como link para fora do home. A forma pelo link só BARRA (regras `caminhos`);
         # nunca entra na lista de escrita, que continua recusando o que fica fora do home.
-        pelo_link = [("home", f"~/{nome}/" + caminho.relative_to(alvo_link).as_posix() if caminho != alvo_link
-                      else f"~/{nome}") for nome, alvo_link in self.links_do_home(home) if alvo_link in pais]
-        no_claude_do_home = (home / ".claude") in pais
+        pelo_link = [("home", f"~/{nome}/" + rel if rel != "." else f"~/{nome}") for nome, alvo_link in self.links_do_home(home)
+                     if (rel := relativo_ao_pai(posix, alvo_link)) is not None]
+        no_claude_do_home = relativo_ao_pai(posix, home / ".claude") is not None
+        do_home = [r for t, r in [*formas, *pelo_link] if t == "home"]  # fora do laço das regras (custo por arquivo)
+        do_proj = [r for t, r in formas if t == "proj"]
         for e in self.pol["caminhos"]:
             c = e["caminho"]
             if c.startswith("~/"):
-                achou = any(t == "home" and casa(r, c) for t, r in [*formas, *pelo_link])
+                achou = any(casa(r, c) for r in do_home)
             elif e.get("so_forge") and not self.regras_do_forge():
                 continue
             else:
-                achou = any(t == "proj" and casa(r, c) for t, r in formas) or (
+                achou = any(casa(r, c) for r in do_proj) or (
                     not e["quem"] and not no_claude_do_home and em_qualquer_lugar(posix, c))
             if not achou:
                 continue
@@ -762,7 +806,7 @@ class Guarda:
 
     def resolver(self, caminho, pasta):
         p = Path(caminho).expanduser()
-        return Path(os.path.realpath(p if p.is_absolute() else pasta / p))
+        return Path(realpath_pela_pasta(str(p if p.is_absolute() else pasta / p)))
 
     def checar_escrita(self, caminho, pasta):
         """Na dúvida, recusa: o que vem depois de uma substituição (`$(git rev-parse --show-toplevel)/docs/reviews/x`) é
@@ -780,6 +824,8 @@ class Guarda:
 
     def expandir(self, caminho, pasta):
         """`$PWD`, `$CLAUDE_PROJECT_DIR` e `$HOME` (com ou sem chaves; as aspas o shlex já tirou) viram o caminho real."""
+        if "$" not in caminho:  # sem `$`, nada a expandir (a crase que `VARIAVEL` casa volta igual): custo por arquivo
+            return caminho
         valores = {"PWD": str(pasta), "CLAUDE_PROJECT_DIR": str(self.h.raiz), "HOME": str(Path.home())}
         return VARIAVEL.sub(lambda m: valores.get(m.group(1), m.group(0)), caminho)
 
@@ -1144,8 +1190,8 @@ class Guarda:
             return pasta
         prog = Path(palavras[0].lstrip("`")).name
         args = palavras[1:]
-        if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}:
-            self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}).pop()  # recusa no fim da linha
+        if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}:
+            self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}).pop()  # recusa no fim da linha
         parte = parecer.analisar(palavras)
         if parecer.expande(palavras[0]) and parecer.gh_de_merge_ou_api(args):
             self.barrar("R-MAIN", "programa por expansão com pr merge ou api: o hook não sabe se é o gh",
@@ -1224,7 +1270,7 @@ class Guarda:
                     self.checar_escrita(destino, pasta)
         if prog in LEITORES:
             for a in args:
-                nome = Path(a).name
+                nome = nome_do_caminho(a)
                 if ARQUIVO_ENV.match(nome) and nome.rsplit(".", 1)[-1] not in ENV_DE_EXEMPLO:
                     self.barrar("R-CONFORMIDADE", f"ler {nome} expõe segredos",
                                 "peça ao usuário o valor de que precisa (R-DECISAO)")
@@ -1243,8 +1289,15 @@ class Guarda:
         sub = next(iter(livres), "")
         if grava_no_pedido(livres, args):  # o selo e a `entrega conferida` são do jarvis (docs/pedidos/)
             destinos = [f"{r}/docs/pedidos/pedido.md" for r in (".", "~/.forge-contrib")]
-        elif sub in FORGE_CHECK_ESCRITAS and (sub != "brief" or any(abreviacao_de(a, ("--gravar",)) for a in args)):
+        elif sub == "pausa":  # X1 (review da 0.44.1): a pausa é da sessão principal; `--retomar` só lê (e apaga a pausa vencida)
+            destinos = [] if so_le(args, "--retomar") else ["./.forge/pausa.json"]
+        elif sub in FORGE_CHECK_ESCRITAS and (sub != "brief" or any(abreviacao_de(a, ("--gravar",)) for a in args)) \
+                and not (sub == "pedido" and so_le(args, "--ler")):
             destinos = [f"{r}/{FORGE_CHECK_ESCRITAS[sub]}/pedido.md" for r in (".", "~/.forge-contrib")]
+        elif sub == "recado" and not so_le(args, "--confirmar"):
+            # S8 (review da 0.44.1): a caixa de recados é da sessão principal; a raiz de destino (`--para`) é livre, então a política de
+            # `.forge/recados/` da sessão decide, com qualquer raiz; sem `--confirmar`, grava (na dúvida, recusa)
+            destinos = ["./.forge/recados/recado.md"]
         else:
             destinos = livres[3:4] if sub == "transcricao" and livres[1:2] == ["anonimizar"] else []
         for destino in destinos:
@@ -1279,7 +1332,11 @@ class Guarda:
         if prog == "forge-check" and self.forge_check_grava_no_pedido(args):
             self.barrar("R-CONFORMIDADE", f"`{chave}` grava no Histórico do pedido (papel só de leitura: {self.papel})",
                         "use a forma antiga (`forge-check entrega <pedido> --branch ... --base ... --base-sha ...`) ou "
-                        "`entrega --pedido ... --sem-gravar`; o selo e a `entrega conferida` são do jarvis")
+                        "`entrega --pedido ... --so-leitura`; o selo e a `entrega conferida` são do jarvis")
+        if prog == "forge-check" and entrega_pela_forma_nova(livres_do_forge_check(args), args) and not so_leitura_no_entrega(args):
+            self.barrar("R-CONFORMIDADE", f"`{chave} --pedido` sem `--so-leitura` roda os PQ cmd, código da branch (papel só de leitura: "
+                                          f"{self.papel})", "use `forge-check entrega --pedido <p> --branch <b> --etapa <etapa> --so-leitura`; "
+                                                            "os PQ cmd ficam com o autor, o CI e o QA (D4)")
         if prog == "forge-check" and any(re.match(r"--[\w-]+=-", a) for a in args):
             self.barrar("R-CONFORMIDADE", f"`{chave}` com valor de opção que começa com `-` (papel só de leitura: "
                                           f"{self.papel})", DICA_LEITURA)
@@ -1974,9 +2031,9 @@ class Guarda:
         """`forge atualizar`, `forge voltar-versao` e os binários `forge-atualizar` e `forge-voltar-versao`, direto ou por baixo de
         `env`, `script` (terminal falso), interpretador ou aspas: o agente não roda (R-CONFORMIDADE); a pessoa roda no terminal."""
         todas = [w.strip("'\"`;()") for p in palavras for w in p.split()]
-        direto = Path(palavras[0]).name in ("forge", *BINARIOS_DE_ATUALIZACAO)  # só o comando em si, não o texto que ele recebe
+        direto = nome_do_caminho(palavras[0]) in ("forge", *BINARIOS_DE_ATUALIZACAO)  # só o comando em si, não o texto que ele recebe
         for i, palavra in enumerate(todas[:1] if direto else todas):
-            nome = Path(palavra).name
+            nome = nome_do_caminho(palavra)
             sub = next((x for x in todas[i + 1:] if not x.startswith("-")), "")
             e_sugerir = nome == "forge-sugerir" or (nome == "forge" and sub == "sugerir")
             if e_sugerir:
@@ -2249,7 +2306,7 @@ def alvos_de_escrita(comando):
             try:
                 lidas = sem_lancadores(palavras)  # a união das leituras possíveis do lançador
             except TextoAbertoComLeituras:
-                tees = [k for k, p in enumerate(palavras) if Path(p).name == "tee"]
+                tees = [k for k, p in enumerate(palavras) if nome_do_caminho(p) == "tee"]
                 alvos += [a for a in palavras[tees[0] + 1:] if not a.startswith("-")] if tees else []
                 continue
             except ValueError:  # texto dividido do `env` com aspas abertas, ou acima do teto de palavras fora da tabela

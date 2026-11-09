@@ -161,6 +161,20 @@ class Gerar(Repositorio):
 
 
 class Selar(Repositorio):
+    def test_sem_selar_corrige_os_derivados_e_nao_grava_selo(self):
+        """B2 (review da 0.44.1): a ação automática do O1 (`brief selar --sem-selar`) recalcula o Base-sha e nunca grava o selo."""
+        arq = self.brief(base_sha="0" * 40)
+        rc, saida = self.rodar("brief", "selar", "--sem-selar", "--arquivo", "docs/briefs/exemplo-node-backend-1.md", "--pedido", "exemplo")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("sem selo", saida)
+        self.assertIn(f"Base-sha: {self.base}", arq.read_text(encoding="utf-8"))
+        self.assertEqual(fc.selos_do_pedido(self.pedido()), [])
+        arq.write_text(arq.read_text(encoding="utf-8").replace(f"Base-sha: {self.base}\n", ""), encoding="utf-8")
+        rc, saida = self.rodar("brief", "selar", "--sem-selar", "--arquivo", "docs/briefs/exemplo-node-backend-1.md", "--pedido", "exemplo")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("com reprovação (sem selo)", saida)
+        self.assertEqual(fc.selos_do_pedido(self.pedido()), [])
+
     def test_sela_uma_vez_e_grava_no_historico(self):
         arq = self.brief()
         rc, saida = self.selar()
@@ -288,6 +302,24 @@ class Entrega(Repositorio):
         self.assertEqual(rc, 0, saida)
         self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
 
+    def test_so_leitura_nao_roda_prova_cmd_nem_grava(self):
+        """D4 (0.44.0, L2 do review de segurança da 0.43.1): a forma do conferente lê só git e disco; o PQ cmd fica com o autor e o CI."""
+        self.selado(pq_extra="- PQ-4 (cmd): `git rev-parse HEAD` · espera: igual 'nada'\n")
+        self.entregar()
+        rc, saida = self.conferir("--so-leitura")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("prova: PQ-4 (cmd): não reexecutada (--so-leitura: quem confere não roda código da branch)", saida)
+        self.assertIn("prova: PQ-1 (cmd): não reexecutada (--so-leitura", saida)
+        self.assertIn("gravado: nada (--so-leitura)", saida)
+        self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
+        rc, saida = self.conferir("--sem-gravar")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("prova: PQ-4 (cmd): diverge de", saida)
+        rc, saida = self.rodar("entrega", "exemplo", "--branch", "melhoria/x", "--base", "develop", "--base-sha", self.base,
+                               "--etapa", "codigo", "--so-leitura")
+        self.assertEqual(rc, 2, saida)
+        self.assertIn("--so-leitura só valem com `entrega --pedido`", saida)
+
     def test_arquivo_fora_do_declarado_nao_cumpre(self):
         self.selado()
         self.gravar("fora.txt", "z\n")
@@ -376,8 +408,9 @@ class Hook(Repositorio):
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("não cita o brief", r.stderr)
 
-    def test_fora_do_plugin_e_conferente_nao_pedem_selo(self):
-        self.assertEqual(self.lancar("faça X", tipo="general-purpose").returncode, 0)
+    def test_fora_do_plugin_pede_selo_e_conferente_nao(self):
+        """D2 (0.44.0, M2 do review de segurança da 0.43.1): o tipo de fora do plugin também escreve e pede o selo."""
+        self.assertEqual(self.lancar("faça X", tipo="general-purpose").returncode, 2)
         r = self.lancar("faça X", tipo="forge:conferente")  # o conferente segue com a forma da mensagem, sem selo
         self.assertEqual(r.returncode, 2)
         self.assertIn("forge-check brief mensagem", r.stderr)
@@ -395,12 +428,62 @@ class Hook(Repositorio):
         for tipo in ("general-purpose", "fork", "claude"):
             self.assertEqual(self.lancar(prompt, tipo=tipo).returncode, 0, tipo)
 
-    def test_pesquisa_sem_brief_e_tipo_so_de_leitura_seguem_livres(self):
+    def test_todo_tipo_que_escreve_pede_selo_e_so_leitura_segue_livre(self):
+        """D2 (0.44.0): sem brief, o executor genérico, o tipo de outro plugin e o desconhecido são barrados; a lista só de leitura passa."""
         self.brief()
-        for tipo in ("general-purpose", "fork", "claude"):
-            self.assertEqual(self.lancar("procure onde o hook lê o selo e resuma", tipo=tipo).returncode, 0, tipo)
-        for tipo in ("Explore", "Plan", "time:tech-lead"):
+        for tipo in ("general-purpose", "fork", "claude", "time:tech-lead", "forge-dev:aq", "outro", "statusline-setup"):
+            r = self.lancar("procure onde o hook lê o selo e resuma", tipo=tipo)
+            self.assertEqual(r.returncode, 2, tipo)
+            self.assertIn("não cita o brief", r.stderr, tipo)
+        for tipo in ("Explore", "Plan", "claude-code-guide", "web-fetch"):
             self.assertEqual(self.lancar("Leia docs/briefs/exemplo-node-backend-1.md e resuma.", tipo=tipo).returncode, 0, tipo)
+
+    def test_brief_de_outro_plugin_casa_o_tipo_inteiro(self):
+        """D2: o brief para `forge-dev:aq` dispara o `forge-dev:aq` (o prefixo de fora do Forge fica no nome), não o `outro:aq`."""
+        self.brief()
+        arq = self.proj / "docs/briefs/exemplo-node-backend-1.md"
+        arq.write_text(arq.read_text(encoding="utf-8").replace("Agente destino: forge:node-backend", "Agente destino: forge-dev:aq"),
+                       encoding="utf-8")
+        self.gravar("docs/pedidos/exemplo.md", self.pedido() + "- 2026-01-02 10:00: brief selado docs/briefs/exemplo-node-backend-1.md "
+                    + hashlib.sha256(arq.read_bytes()).hexdigest() + "\n")
+        prompt = "Leia docs/briefs/exemplo-node-backend-1.md e execute."
+        self.assertEqual(self.lancar(prompt, tipo="forge-dev:aq").returncode, 0)
+        for tipo in ("outro:aq", "aq", "forge:aq"):
+            r = self.lancar(prompt, tipo=tipo)
+            self.assertEqual(r.returncode, 2, tipo)
+            self.assertIn("o brief é para `forge-dev:aq`", r.stderr, tipo)
+        arq.write_text(arq.read_text(encoding="utf-8").replace("Agente destino: forge-dev:aq\n", ""), encoding="utf-8")
+        self.gravar("docs/pedidos/exemplo.md", self.pedido() + "- 2026-01-02 10:01: brief selado docs/briefs/exemplo-node-backend-1.md "
+                    + hashlib.sha256(arq.read_bytes()).hexdigest() + "\n")
+        r = self.lancar(prompt, tipo="forge-dev:aq")  # sem `Agente destino:`, nenhum tipo casa (falha fechada)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("o brief é para ``", r.stderr)
+
+    def test_brief_vencido_so_avisa(self):
+        """D3 (0.44.0): selado e depois vencido (decisão nova no pedido; a base trazida para a branch), o disparo segue com aviso."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        prompt = "Leia docs/briefs/exemplo-node-backend-1.md e execute."
+        r = self.lancar(prompt)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("vencido", r.stderr + r.stdout)
+        self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--literal", "outra regra geral")
+        r = self.lancar(prompt)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("R-BRIEF: aviso: brief vencido", r.stderr)
+        self.assertIn("corrigido: hash das decisões", r.stderr)
+        self.assertIn("brief vencido", json.loads(r.stdout)["systemMessage"])
+        self.assertEqual(self.selar()[0], 0)
+        self.git("switch", "-q", "develop")
+        self.gravar("bin/outro", "z\n")
+        self.git("add", "bin/outro")
+        self.commit("base anda")
+        self.git("push", "-q", "origin", "develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-edit", "origin/develop")
+        r = self.lancar(prompt)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("corrigido: Base-sha", r.stderr)
 
     def test_papel_do_forge_sem_o_prefixo_pede_selo(self):
         for tipo in ("node-backend", "tech-lead", "jarvis"):

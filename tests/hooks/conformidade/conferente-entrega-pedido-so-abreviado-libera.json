@@ -1,12 +1,12 @@
 {
-  "descricao": "0.43.1: contraprova: `entrega --pedido --sem-gravar` só confere; o conferente a roda.",
+  "descricao": "D4 (0.44.0): `--so` é a abreviação longa de `--so-leitura` para o argparse; o conferente a roda.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "forge-check entrega --pedido p1 --branch melhoria/x --etapa codigo --sem-gravar"
+      "command": "forge-check entrega --ped p1 --branch melhoria/x --etapa codigo --so"
     },
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9",

@@ -56,11 +56,15 @@ n_esc="$(escapar "$nome")"; d_esc="$(escapar "$descricao")"; p_esc="$(escapar "$
 
 # .claude/settings.json existente (o próprio `claude plugin install --scope project` cria um): mescla em vez de pular.
 # Preenche agent, marketplace e plugin do Forge e une as listas de permissões; não apaga nada do projeto.
+# D1 (0.44.0): o projeto novo no Forge (sem .forge/versao) ganha o sandbox do modelo se não tiver a chave; no projeto que já usa o
+# Forge, o sandbox é escolha do dono (o forge-upgrade só oferece).
 mesclar_settings() {
-  python3 - "$1" "$2" <<'PY'
+  python3 - "$1" "$2" "$3" <<'PY'
 import json, sys
 modelo, alvo = (json.load(open(p, encoding="utf-8")) for p in sys.argv[1:3])
 alvo.setdefault("agent", modelo["agent"])
+if sys.argv[3] == "1":
+    alvo.setdefault("sandbox", modelo["sandbox"])
 for chave in ("extraKnownMarketplaces", "enabledPlugins"):
     alvo.setdefault(chave, {})
     for k, v in modelo[chave].items():
@@ -79,12 +83,40 @@ PY
 antigo=0
 if [ ! -e "$destino/.forge/versao" ] && { [ -e "$destino/CLAUDE.md" ] || [ -e "$destino/KANBAN.md" ]; }; then antigo=1; fi
 
+novo_no_forge=0
+if [ ! -e "$destino/.forge/versao" ] && [ "$antigo" -eq 0 ]; then novo_no_forge=1; fi
+
+# B3 (review da 0.44.1): o sandbox do modelo só liga com o bubblewrap instalado e a credencial do bot configurada (ADR 0009, etapa 2:
+# GH_TOKEN no ambiente ou no `env` do ~/.claude/settings.json; GIT_CONFIG_COUNT no ambiente, no `env` dele ou no do
+# .claude/settings.local.json do projeto). Sem os dois, o sandbox quebraria o gh, o push e a abertura da sessão: não liga e oferece.
+sandbox_pronto() {
+  command -v bwrap >/dev/null 2>&1 || return 1
+  python3 - "$HOME/.claude/settings.json" "$destino/.claude/settings.local.json" <<'PY'
+import json, os, sys
+envs = [os.environ]
+for p in sys.argv[1:]:
+    try:
+        e = json.load(open(p, encoding="utf-8")).get("env")
+    except (OSError, ValueError, AttributeError):
+        continue
+    if isinstance(e, dict):
+        envs.append(e)
+tem = lambda k: any(isinstance(e.get(k), str) and e.get(k).strip() for e in envs)  # noqa: E731
+sys.exit(0 if tem("GH_TOKEN") and tem("GIT_CONFIG_COUNT") else 1)
+PY
+}
+sandbox_ok=0; sandbox_novo=0; sandbox_oferta=0
+if sandbox_pronto; then sandbox_ok=1; fi
+if [ "$novo_no_forge" -eq 1 ]; then
+  if [ "$sandbox_ok" -eq 1 ]; then sandbox_novo=1; else sandbox_oferta=1; fi
+fi
+
 criados=0; mantidos=0; config_nova=0
 while IFS= read -r -d '' arq; do
   rel="${arq#"$modelo"/}"
   alvo="$destino/$rel"
   if [ "$rel" = ".claude/settings.json" ] && [ -e "$alvo" ] && [ "$forcar" -eq 0 ]; then
-    mesclar_settings "$arq" "$alvo"
+    mesclar_settings "$arq" "$alvo" "$sandbox_novo"
     echo "  mesclado $rel"; continue
   fi
   if [ -e "$alvo" ] && [ "$forcar" -eq 0 ]; then
@@ -93,6 +125,17 @@ while IFS= read -r -d '' arq; do
   mkdir -p "$(dirname "$alvo")"
   sed -e "s|{{PROJETO}}|$n_esc|g" -e "s|{{DESCRICAO}}|$d_esc|g" -e "s|{{STACK}}|$s_esc|g" -e "s|{{COMANDO_PRONTO}}|$p_esc|g" "$arq" > "$alvo"
   [ -x "$arq" ] && chmod +x "$alvo"
+  if [ "$rel" = ".claude/settings.json" ] && [ "$sandbox_ok" -eq 0 ]; then  # B3: sem bwrap ou credencial, o modelo sai sem sandbox
+    sandbox_oferta=1
+    python3 - "$alvo" <<'PY'
+import json, sys
+dados = json.load(open(sys.argv[1], encoding="utf-8"))
+dados.pop("sandbox", None)
+with open(sys.argv[1], "w", encoding="utf-8") as f:
+    json.dump(dados, f, ensure_ascii=False, indent=2)
+    f.write("\n")
+PY
+  fi
   echo "  criado   $rel"; criados=$((criados + 1))
   if [ "$rel" = ".forge/config.json" ]; then config_nova=1; fi
 done < <(find "$modelo" -type f -print0 | sort -z)
@@ -135,5 +178,10 @@ if git -C "$destino" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "  hook     core.hooksPath=.githooks"
 else
   echo "  aviso    $destino não é um repositório git; rode 'git init' e 'git config core.hooksPath .githooks'"
+fi
+if [ "$sandbox_oferta" -eq 1 ]; then
+  echo "  oferta   sandbox do Bash NÃO ligado: falta o bubblewrap (bwrap) ou a credencial do bot (ADR 0009, etapa 2). Para ligá-lo:"
+  echo "           1) instale bubblewrap e socat (scripts/preparar-estacao.sh); 2) ponha o GH_TOKEN do bot no env do ~/.claude/settings.json;"
+  echo "           3) rode scripts/configurar-ambiente-local.sh (GIT_CONFIG_* no .claude/settings.local.json); 4) forge-upgrade --ligar-sandbox $destino"
 fi
 echo "forge-init: $criados criado(s), $mantidos mantido(s) em $destino"

@@ -387,6 +387,57 @@ class EsperaPorPortaoETokens(unittest.TestCase):
 REGRA_OK = "# R-A\n\nTexto.\n\n- **Revisar em:** 2027-01-10\n- **Medida:** 36 % das reprovações (609 de 1742)\n"
 
 
+class OrcamentoDeTokens(unittest.TestCase):
+    """X2 (0.44.1): `Tokens previstos:` e `Versão:` no pedido; o `metricas` soma o previsto e o gasto por versão e alerta quando o
+    gasto passa do previsto (só leitura, rc 0)."""
+
+    setUp, gravar, transcrito = EsperaPorPortaoETokens.setUp, EsperaPorPortaoETokens.gravar, EsperaPorPortaoETokens.transcrito
+
+    def pedido(self, nome, previsto, versao="0.44.1", tokens=(20, 19)):
+        self.gravar(f"docs/pedidos/{nome}.md", f"# {nome}\nVersão: {versao}\nTokens previstos: {previsto}\n\n## Histórico\n"
+                    "- 2026-11-02 10:00: (E1) aberto\n")
+        self.gravar(f"docs/briefs/{nome}-tech-lead-1.md", f"Pedido: {nome}\nCobre: E1\n")
+        self.transcrito(f"agent-{nome}", f"docs/briefs/{nome}-tech-lead-1.md", [tokens])
+
+    def calcular(self, *nomes):
+        dados, _ = G.calcular(self.tmp, self.tmp, list(nomes), fuso=FUSO, transcritos=[self.tmp / "transcritos"], recusas=[])
+        return dados
+
+    def test_previsto_do_pedido(self):
+        for texto, esperado in (("Tokens previstos: 2.000.000", 2_000_000), ("- **Tokens previstos:** 500k", 500_000),
+                                ("Tokens previstos: 3M", 3_000_000), ("tokens previstos: 1_200", 1200), ("sem linha", None)):
+            with self.subTest(texto):
+                self.assertEqual(G.previsto_do_pedido(texto), esperado)
+
+    def test_alerta_quando_o_gasto_passa_do_previsto_por_pedido_e_por_versao(self):
+        self.pedido("p9", 30)
+        self.pedido("p8", 100)
+        dados = self.calcular("p8", "p9")
+        self.assertEqual(dados["orcamento"]["versoes"], {"0.44.1": {"previsto": 130, "gasto": 80}})
+        self.assertEqual(dados["orcamento"]["alertas"], ["pedido p9: gasto 40 tokens passa do previsto 30 (+33%)"])
+        texto = G.linhas_de_texto(dados)
+        self.assertIn("metricas: orcamento versao 0.44.1 previsto=130 gasto=80", texto)
+        self.assertIn("metricas: alerta: pedido p9: gasto 40 tokens passa do previsto 30 (+33%)", texto)
+        self.pedido("p8", 10)
+        alertas = self.calcular("p8", "p9")["orcamento"]["alertas"]
+        self.assertIn("versão 0.44.1: gasto 80 tokens passa do previsto 40 (+100%)", alertas)
+
+    def test_dentro_do_previsto_ou_sem_previsto_nao_alerta(self):
+        self.pedido("p9", 40)
+        self.gravar("docs/pedidos/p7.md", "# p7\n\n## Histórico\n- 2026-11-02 10:00: (E1) aberto\n")
+        dados = self.calcular("p7", "p9")
+        self.assertEqual(dados["orcamento"], {"versoes": {"0.44.1": {"previsto": 40, "gasto": 40}}, "alertas": []})
+        self.assertEqual([p.get("tokens_previstos") for p in dados["pedidos"]], [None, 40])
+        self.assertFalse(any("alerta" in l for l in G.linhas_de_texto(dados)))
+
+    def test_pedido_sem_versao_e_sem_medida_conta_gasto_zero_na_versao_tracinho(self):
+        self.pedido("p9", 40)
+        self.gravar("docs/pedidos/p6.md", "# p6\nTokens previstos: 5\n\n## Histórico\n- 2026-11-02 10:00: (E1) aberto\n")
+        dados = self.calcular("p6", "p9")
+        self.assertEqual(dados["orcamento"]["versoes"]["-"], {"previsto": 5, "gasto": 0})
+        self.assertEqual(dados["orcamento"]["alertas"], [])
+
+
 class Regras(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="forge-regras-"))

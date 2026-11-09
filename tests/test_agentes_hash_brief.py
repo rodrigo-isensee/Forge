@@ -115,8 +115,8 @@ class HashDoBrief(Apoio):
 
     def test_outro_agente_nao_e_conferido(self):
         """O hash da mensagem é só do conferente; desde a 0.43.1 (P1) o especialista do Forge é barrado pelo selo, que
-        tests/test_selo_e_entrega.py cobre: o tipo fora do plugin segue sem conferência."""
-        self.aceito(self.mensagem(sha="a" * 64), tipo="time:tech-lead")
+        tests/test_selo_e_entrega.py cobre: o tipo só de leitura (D2 da 0.44.0) segue sem conferência."""
+        self.aceito(self.mensagem(sha="a" * 64), tipo="Explore")
         r = self.lancar(self.mensagem(sha="a" * 64), tipo="forge:tech-lead")
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("forge-check brief selar", r.stderr)
@@ -218,7 +218,7 @@ class BranchesDaReserva(Apoio):
         return self.gravar(f"docs/briefs/{nome}.md", f"Agente destino: forge:x\nBranch: {branch}   Base: develop\n\n## Objetivo\n{corpo}\n"
                            .encode(), base=base)
 
-    def reserva(self, prompt, tipo="time:tech-lead", agentes=()):  # fora do plugin: o selo (0.43.1) é de test_selo_e_entrega
+    def reserva(self, prompt, tipo="Explore", agentes=()):  # tipo só de leitura: o selo (0.43.1, D2 da 0.44.0) é de test_selo_e_entrega
         estado = self.projeto / ".forge" / "run" / "agentes.json"
         estado.parent.mkdir(parents=True, exist_ok=True)
         estado.write_text(json.dumps({"agentes": list(agentes)}), encoding="utf-8")
@@ -236,7 +236,7 @@ class BranchesDaReserva(Apoio):
         estado = self.projeto / ".forge" / "run" / "agentes.json"
         estado.parent.mkdir(parents=True, exist_ok=True)
         estado.write_text(json.dumps({"agentes": outros}), encoding="utf-8")
-        r = self.lancar(prompt, tipo="time:tech-lead")
+        r = self.lancar(prompt, tipo="Explore")
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("R-TETO", r.stderr)
         self.assertEqual(self.reserva(prompt, agentes=outros[:9])[1], [])
@@ -293,7 +293,7 @@ class BranchesDaReserva(Apoio):
 
 class RecusaPorBranch(Apoio):
     """Z10 (0.43.2, AG-1b do adendo E1.3, R-TETO): uma delegação de escrita vigente por branch; a exceção vem só do arquivo do brief.
-    Os tipos ficam fora do plugin (`time:`): o selo dos `forge:*` (0.43.1) é de test_selo_e_entrega."""
+    Os tipos são só de leitura (`Explore`, `Plan`): o selo (0.43.1, D2 da 0.44.0) é de test_selo_e_entrega."""
     reserva = BranchesDaReserva.reserva
 
     def brief(self, nome, branch, corpo="", etapa=None):
@@ -312,7 +312,7 @@ class RecusaPorBranch(Apoio):
 
     def barrado(self, prompt, agentes):
         estado = self.estado(agentes)
-        r = self.lancar(prompt, tipo="time:tech-lead")
+        r = self.lancar(prompt, tipo="Explore")
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("R-TETO", r.stderr)
         self.assertIn("SubagentStop", r.stderr)
@@ -322,10 +322,10 @@ class RecusaPorBranch(Apoio):
     def test_duas_delegacoes_de_escrita_na_mesma_branch_a_segunda_bloqueia(self):
         self.brief("a", "melhoria/a", etapa="codigo")
         self.brief("b", "melhoria/a")
-        self.assertEqual(self.lancar("docs/briefs/a.md", tipo="time:tech-lead").returncode, 0)
-        r = self.lancar("docs/briefs/b.md", tipo="time:dev")
+        self.assertEqual(self.lancar("docs/briefs/a.md", tipo="Explore").returncode, 0)
+        r = self.lancar("docs/briefs/b.md", tipo="Plan")
         self.assertEqual(r.returncode, 2, r.stderr)
-        self.assertIn("R-TETO: melhoria/a ocupada por time:tech-lead (uma delegação de escrita por branch): espere o `SubagentStop`",
+        self.assertIn("R-TETO: melhoria/a ocupada por Explore (uma delegação de escrita por branch): espere o `SubagentStop`",
                       r.stderr)
 
     def test_parecer_nao_ocupa_nem_e_barrado(self):
@@ -386,13 +386,13 @@ class RecusaPorBranch(Apoio):
         self.brief("a", "melhoria/a")
         self.barrado("docs/briefs/a.md", [self.ocupada("melhoria/a")])
         self.assertEqual(self.lancar("", evento={"hook_event_name": "SubagentStop", "agent_id": "a1"}).returncode, 0)
-        self.assertEqual(self.lancar("docs/briefs/a.md", tipo="time:tech-lead").returncode, 0)
+        self.assertEqual(self.lancar("docs/briefs/a.md", tipo="Explore").returncode, 0)
 
     def test_nome_na_recusa_sai_sem_controle_e_cortado_em_80(self):
         nome = "melhoria/\u202ex\x1b[31m" + "y" * 100
         self.gravar("docs/briefs/c.md", f"Branch: {nome}\nlinha forjada\n\n## Objetivo\n".encode())
         self.estado([self.ocupada(nome)])
-        r = self.lancar("docs/briefs/c.md", tipo="time:tech-lead")
+        r = self.lancar("docs/briefs/c.md", tipo="Explore")
         saida = r.stderr  # o corte em 80 vale antes do limite de 200 da mensagem do hook
         self.assertEqual(r.returncode, 2, saida)
         self.assertIn("R-TETO: melhoria/ x [31m" + "y" * 64 + " ocupada por", saida)

@@ -4,6 +4,28 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.44.1] - 2026-11-09
+### Adicionado
+- **D1, sandbox no modelo de projeto (BP-5):** `templates/projeto/.claude/settings.json` traz o sandbox do Bash no padrão do Forge; o `forge-init` só o liga num projeto novo quando o `bwrap` existe e a credencial (`GH_TOKEN` e `GIT_CONFIG_*`) está configurada; senão imprime os passos. Em projeto existente, o `forge-upgrade` só oferece `--ligar-sandbox <projeto>`, que mescla sem apagar as listas do usuário e impõe os campos de segurança.
+- **D3, brief vencido só avisa:** o hook `agentes` reconfere no disparo os campos que o `brief selar` calcula e avisa (`R-BRIEF: aviso: brief vencido`, código 0) quando a base andou ou as decisões mudaram; nunca barra.
+- **D4, conferente sem código da branch:** `forge-check entrega --pedido ... --so-leitura` só lê git e disco; o hook `conformidade` recusa ao papel só de leitura a forma que roda os PQ `cmd`.
+- `forge-check conferencia registrar`: ação fixa por classe de reprovação (`ACAO_DA_CLASSE`, toda classe do catálogo tem uma); forma e base no modo brief são corrigidas pela ferramenta (`brief mensagem` e `brief selar --sem-selar`, que recalcula os campos derivados sem gravar selo) sem rodada do Jarvis; etapa e citação voltam ao Jarvis, e a mesma classe reprovada 3 vezes no mesmo brief vai ao dono (O1)
+- `forge-check decisoes --pedido <id> --resposta "1a 2c"`: a resposta curta do dono lida contra a última PERGUNTA AO DONO, com vocabulário fechado; a ambígua volta como pergunta e a palavra solta nunca escolhe opção irreversível (O4)
+- Causa tipada nas falhas da suíte (timeout, sinal, teste de tempo, asserção com esperado, obtido e local, saída grande) nas linhas `suite-paralela: causa`, no `suite-vermelha.jsonl` (com segredos redigidos) e no `pre-push: causa=` (O7)
+- `forge-check pausa --gravar|--retomar [--esperar]`: onde parou na pausa por limite de uso e a retomada quando a cota renova, sem contornar limite nem trocar de conta (X1)
+- `forge-check metricas`: orçamento de tokens por versão e por pedido (`Versão:` e `Tokens previstos:` no pedido) com alerta quando o gasto passa do previsto (X2)
+- `tests/test_metricas_texto.py`: métricas do texto de instrução (Jarvis, regras e skills) com teto que só desce em `tests/fixtures/metricas-texto.json` (S1)
+- `forge-check pedido fala --gravar|--ler`: a fala do dono literal, com sha256, em `docs/pedidos/<id>/fala-<hora>.md`; gravar não amplia autorização e `R-DECISAO` manda lê-la antes de perguntar de novo (S2)
+- `bin/forge-status`: uma linha por pedido em curso para a statusLine, lida só do disco; oferecida no modelo de projeto, não ligada (S3)
+- `forge-check recado --para|--confirmar`: recado entre sessões com raiz de destino, versão do plugin e sha256; sessão errada, versão diferente ou texto adulterado recusa (S8)
+### Alterado
+- **D2, selo de todo tipo que escreve:** o hook `agentes` exige o brief selado de todo `subagent_type`, menos o conferente e os tipos só de leitura (Explore, Plan, claude-code-guide, web-fetch), que entram no papel novo `leitura` da conformidade e não escrevem; `statusline-setup` exige selo. O `Agente destino:` casa o tipo inteiro.
+- **D7, REGISTRO-RAIZ-FORGE:** no Forge, o pedido e o registro vêm de `~/.forge-contrib` antes da branch; nos projetos a ordem não muda.
+- `forge-check pedido fala --gravar`, `recado --para` e `pausa` passam pela política de caminhos (só o jarvis grava); a pausa grava sem seguir link; `forge-status` filtra controles C1.
+- Desempenho do hook `conformidade`: o leitor pula por expressão compilada os trechos que só avançam (cerca de 35% menos CPU no caso de 3.000 heredocs), sem mudar decisão.
+- `bin/forge-testes` acha o teste pela convenção de nome (`bin/forge-x` → `tests/test_forge_x.py`, `hooks/x.py` e `scripts/x.py` → `tests/test_x.py`); o mapa fica só para as exceções (O2)
+- Textos do Jarvis (falar-com-o-dono, trabalho-em-paralelo, kanban-scrum) e `R-DECISAO` enxugados para os acréscimos caberem no orçamento de instrução sem subir teto
+
 ## [0.44.0] - 2026-11-09
 ### Adicionado
 - **V1 reduzido:** `forge-check proximo <pedido> --item E<n>` (só leitura, ferramenta do coordenador) diz o passo, o dono e o comando do item, lidos da marca do brief de implementação e do registro: gerar o brief, implementar na branch, conferir a entrega do head, portões da classe, volta ao autor ou integrar na develop. O comando só leva o pedido e a branch validados (`melhoria/...` e `git check-ref-format`); item fora de `E<n>` sai com rc 2. Só conta parecer do head (ou que o `commit_vale` aceite), e "integrar" só sai com todos os pareceres que a classe exige.

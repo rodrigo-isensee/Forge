@@ -16,7 +16,7 @@
     "tool_name": "Agent",
     "tool_use_id": "toolu_1",
     "tool_input": {
-      "subagent_type": "time:qa-engineer",
+      "subagent_type": "Explore",
       "description": "Validar a entrega",
       "prompt": "..."
     }

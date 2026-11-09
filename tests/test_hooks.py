@@ -1257,7 +1257,7 @@ class Hooks(unittest.TestCase):
         (raiz / ".forge" / "versao").write_text("0.0.0\n", encoding="utf-8")
         proc = montar_proc(raiz, {"loadavg": "0.1 0.1 0.1", "mem_gb": 8})
         entrada = {"hook_event_name": "PreToolUse", "tool_name": "Agent", "session_id": "s", "cwd": str(raiz),
-                   "tool_input": {"subagent_type": "x", "description": "d"}}
+                   "tool_input": {"subagent_type": "Explore", "description": "d"}}
         r = rodar("agentes", entrada, raiz, proc, {"FORGE_NPROC": "8"})
         self.assertEqual(r.returncode, 0, r.stderr)
         logs = list(raiz.glob("**/erros.log"))

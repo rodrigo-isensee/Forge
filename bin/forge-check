@@ -1667,6 +1667,17 @@ def raiz_principal(raiz):
     return Path(raiz)
 
 
+def raizes_de_pedidos(raiz):
+    """D7 (REGISTRO-RAIZ-FORGE, R2 de docs/security/conf-correcao.md): a ordem das raízes onde se procura `docs/pedidos/`. No projeto,
+    a de sempre: cópia principal, raiz, `RAIZES_DE_BRIEF`. No Forge (`e_o_forge` da cópia principal), os pedidos moram em
+    `~/.forge-contrib`: `RAIZES_DE_BRIEF` vêm na frente, e a raiz da branch fica por último (um pedido só da branch ainda é achado, mas
+    nunca vence o registro guardado)."""
+    principal = raiz_principal(raiz)
+    if e_o_forge(principal):
+        return (*RAIZES_DE_BRIEF, principal, Path(raiz))
+    return (principal, Path(raiz), *RAIZES_DE_BRIEF)
+
+
 def arquivo_existe(caminho):
     """`is_file` que trata nome longo demais ou com NUL como "não achou" (C-11)."""
     try:
@@ -1681,7 +1692,7 @@ class PedidoFora(Exception):
 
 def caminho_do_pedido(raiz, pedido):
     """Arquivo do pedido: `docs/pedidos/<id>.md` da cópia principal (nunca o da branch entregue, A1), da raiz e, por último, de cada
-    raiz de brief; o caminho dado (absoluto, `~/` ou relativo) só vale se o `realpath` cair em `docs/pedidos/` de uma dessas raízes
+    raiz de brief (no Forge, as raízes de brief primeiro: `raizes_de_pedidos`, D7); o caminho dado (absoluto, `~/` ou relativo) só vale se o `realpath` cair em `docs/pedidos/` de uma dessas raízes
     (travessia, link e pasta vizinha não valem) e o que se lê é o caminho resolvido (C-3). Fora delas, levanta `PedidoFora`."""
     caminhoso = "/" in pedido or pedido.endswith(".md")  # com cara de caminho nunca recebe `docs/pedidos/` nem `.md` (C2)
     dado = Path(pedido)
@@ -1689,7 +1700,7 @@ def caminho_do_pedido(raiz, pedido):
         dado = Path.home() / pedido[2:]
     if caminhoso:
         dentro, escapa = [], False  # escapa: numa raiz o caminho existe, mas o `realpath` sai de docs/pedidos/ (link, `..`)
-        for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+        for base in raizes_de_pedidos(raiz):
             try:
                 achado = dentro_da_raiz(base, dado, ("docs/pedidos",))  # C-8: travessia e link para fora não valem
             except ValueError:  # NUL no nome
@@ -1704,7 +1715,7 @@ def caminho_do_pedido(raiz, pedido):
             raise PedidoFora(pedido)
         return dentro[0]  # dentro das raízes e sem arquivo: quem lê diz que não conseguiu
     escapa = False  # id nu cujo arquivo é link para fora de docs/pedidos/ (C-3): nunca é lido
-    for pasta in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+    for pasta in raizes_de_pedidos(raiz):
         relativo = Path("docs") / "pedidos" / f"{pedido}.md"
         try:
             achado = dentro_da_raiz(pasta, relativo, ("docs/pedidos",))
@@ -3915,13 +3926,13 @@ def fim_da_secao(linhas, titulo):
 
 
 def pedido_para_anotar(raiz, pedido):
-    """Revisão de segurança A1: o arquivo que o `anotar` grava é só `docs/pedidos/<id>.md` (cópia principal, raiz, depois cada raiz de
-    brief), com `<id>` de `ID_DE_PEDIDO` e sem caminho; resolvido por `realpath` dentro de `docs/pedidos/` (pasta ou arquivo que é
+    """Revisão de segurança A1: o arquivo que o `anotar` grava é só `docs/pedidos/<id>.md` (na ordem de `raizes_de_pedidos`: cópia
+    principal, raiz, depois cada raiz de brief; no Forge, as raízes de brief primeiro), com `<id>` de `ID_DE_PEDIDO` e sem caminho; resolvido por `realpath` dentro de `docs/pedidos/` (pasta ou arquivo que é
     link para fora não vale). Sem o atalho de caminho do `caminho_do_pedido`: o anotar nunca escreve em outro arquivo. Ou None."""
     if not ID_DE_PEDIDO.fullmatch(pedido) or pedido.strip(".") == "":
         return None
     rel = Path("docs") / "pedidos" / f"{pedido}.md"
-    for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+    for base in raizes_de_pedidos(raiz):
         achado = dentro_da_raiz(base, rel, ("docs/pedidos",))
         if achado is not None and achado.parent == Path(os.path.realpath(base)) / "docs" / "pedidos" and achado.is_file():
             return Path(base) / rel
@@ -4052,6 +4063,26 @@ CLASSES_DE_FALHA = {
     "outra": "—",
 }
 AUTORES_DE_FALHA = ("jarvis", "destino", "conferente", "ferramenta")
+# O1 (0.44.1): ação fixa por classe de reprovação, (quem, ação). As de forma a ferramenta corrige no registro, sem rodada do Jarvis
+# (`brief selar --sem-selar` só recalcula o merge-base, o Base-sha, o Revisar-sha e o --desde, sem gravar selo; `brief mensagem`
+# refaz a mensagem). Review da 0.44.1 (B2): a ação automática nunca sela; etapa e citação são do jarvis. A mesma classe reprovada LIMIAR_AO_DONO vezes no mesmo brief vai ao dono. Toda classe do catálogo tem ação.
+ACAO_DA_CLASSE = {
+    "decisao": ("jarvis", "grave a decisão com `forge-check anotar --tipo decisao` e sele o brief de novo"),
+    "etapa": ("jarvis", "dê ao brief a `Etapa:` da delegação (codigo, review, qa, pr, merge-integracao, pedido-de-merge-ao-dono) e sele de novo"),
+    "escopo": ("jarvis", "cite a etapa `(E<n>)` de cada item do Entregar ou corte com a marca; sele de novo"),
+    "prova": ("destino", "dê a cada prova tipo e `espera:` do vocabulário, que falhe sem a mudança (R-PROVA)"),
+    "base": ("ferramenta", "brief selar --sem-selar"),
+    "forma": ("ferramenta", "brief mensagem"),
+    "citacao": ("jarvis", "corrija a citação (decisão, fala ou regra) para a que está gravada no pedido e sele de novo"),
+    "implementacao": ("destino", "rode a suíte e cada prova antes do relatório e entregue de novo (R-PROVA)"),
+    "ambiente": ("jarvis", "rode o `forge-check` da versão vigente; a limitação da ferramenta vira cartão de melhoria"),
+    "hora": ("jarvis", "grave a hora com `forge-check anotar` (o relógio, nunca digitada)"),
+    "consentimento": ("dono", "pergunte ao dono e grave a fala literal (`forge-check pedido fala --gravar`) antes de seguir"),
+    "estado": ("jarvis", "confira develop, disco ou remoto (git grep, git log, ls-remote) antes de afirmar o estado"),
+    "outra": ("jarvis", "classifique a falha numa classe do catálogo ou proponha classe nova na retrospectiva"),
+}
+LIMIAR_AO_DONO = 3  # reprovações da mesma classe no mesmo brief
+PRAZO_DA_ACAO = 120  # segundos da correção pela ferramenta
 TIPOS_DE_BRIEF = ("codigo", "volta", "review", "qa", "merge", "ato-github", "desconhecido")
 TETO_DA_TABELA = 1024 * 1024
 JANELA_DE_RECORRENCIA = 30  # dias
@@ -4136,11 +4167,35 @@ def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, meri
         saida += [protecao] if protecao else []
     if modo == "entrega" and _aprovou(resultado):  # E7: a etapa conferida salva a área do Jarvis; aviso não muda o rc
         saida += [x for x in [salvar_area(raiz, pedido, brief)] if x]
+    if classe != "—":
+        saida += acao_da_reprovacao(raiz, arq, pedido, brief, modo, classe)
     if classe not in ("—", "outra"):
         quem = autor if autor != "destino" else f"destino:{agente_do_brief(pedido, brief)}"
         grupos, _ = recorrencias(raiz)
         saida += [proposta_de(g) for g in grupos if g["classe"] == classe and g["quem"] == quem and g["n"] >= LIMIAR_DA_PROPOSTA]
     return saida
+
+
+def acao_da_reprovacao(raiz, arq, pedido, brief, modo, classe):
+    """O1: a linha `ação:` da reprovação recém-gravada em `arq`. A mesma classe LIMIAR_AO_DONO vezes no brief vai ao dono; a classe
+    de forma no modo brief roda a correção pela ferramenta (o próprio script, sem shell) e imprime o rc; as outras, a ação fixa."""
+    n = sum(1 for c in _ler_tabela(arq) if len(c) >= 9 and c[1:4] == [pedido, brief, modo] and c[8] == classe)
+    if n >= LIMIAR_AO_DONO:
+        return [f"ação: ao dono: {classe} reprovou {n} vezes o brief {brief}; nem a ferramenta nem a ação fixa resolveram (R-DECISAO)"]
+    quem, acao = ACAO_DA_CLASSE[classe]
+    if quem != "ferramenta":
+        return [f"ação: {quem}: {acao}"]
+    if modo != "brief":
+        return [f"ação: jarvis: {CLASSES_DE_FALHA[classe]}"]
+    alvo = ["--pedido", pedido, "--arquivo", f"docs/briefs/{brief.removesuffix('.md')}.md"]
+    comando = f"forge-check {acao} {' '.join(alvo)}"
+    try:
+        r = subprocess.run([sys.executable, str(Path(__file__).resolve()), "--raiz", str(raiz), *acao.split(), *alvo],
+                           capture_output=True, text=True, timeout=PRAZO_DA_ACAO)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return [f"ação: ferramenta: {comando} não terminou ({type(e).__name__}); corrija com o mesmo comando"]
+    ultima = r.stdout.strip().rsplit("\n", 1)[-1]
+    return [f"ação: ferramenta: {comando} -> rc {r.returncode} ({sem_controle(ultima)[:160]})"]
 
 
 def proteger_brief_aprovado(raiz, brief):
@@ -7147,9 +7202,9 @@ def mencoes_da_frase(texto):
 
 
 def ler_registro(raiz, rel, pastas=("docs/pedidos",), erros="replace", bases=None):
-    """(texto, None) do registro `rel` (`docs/pedidos/<x>.md`), ou (None, 'ausente'|'grande'). A cópia principal vem na frente; a
-    primeira raiz que tem o nome decide: link para fora ou fora de `docs/pedidos/` é 'ausente', sem cair na raiz seguinte (M2.1)."""
-    for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF) if bases is None else bases:
+    """(texto, None) do registro `rel` (`docs/pedidos/<x>.md`), ou (None, 'ausente'|'grande'). A ordem é a de `raizes_de_pedidos` (a
+    cópia principal na frente; no Forge, `~/.forge-contrib`); a primeira raiz que tem o nome decide: link para fora ou fora de `docs/pedidos/` é 'ausente', sem cair na raiz seguinte (M2.1)."""
+    for base in raizes_de_pedidos(raiz) if bases is None else bases:
         if not os.path.lexists(Path(base) / rel):
             continue
         real = dentro_da_raiz(base, rel, pastas)
@@ -8913,6 +8968,17 @@ def selo_do_brief(arquivo, dados=None):
     return f"{caminho_impresso(rel)} sem selo no ## Histórico do pedido {caminho_impresso(pid)}"
 
 
+def brief_vencido(raiz, arquivo, dados):
+    """D3 (0.44.0): as linhas `corrigido:` que o `brief selar` faria hoje no brief selado `arquivo` (`corrigir_derivados`: Base-sha,
+    `--base-sha` e `--desde` das linhas `forge-check entrega`, hash das decisões, Revisar-sha), ou []. Uma linha é o brief vencido: a
+    base andou ou o pedido mudou depois do selo. Só lê; o hook `agentes` a usa para avisar, nunca para barrar."""
+    texto = dados.decode("utf-8")
+    caminho, _, motivo = pedido_do_brief(arquivo, texto)
+    if motivo:
+        return []
+    return corrigir_derivados(raiz, texto, ler_pedido_do_selo(caminho), caminho)[1]
+
+
 def base_sha_esperado(raiz, texto, base, branch):
     """O Base-sha que a ferramenta calcula para o brief (nunca o digitado): na volta, o do brief anterior enquanto ele for ancestral
     do head da branch (como o `gerar --volta`, P5); senão `base_sha_real` (a base comum da branch com `origin/<base>`, ou o
@@ -9045,6 +9111,7 @@ def cmd_brief_selar(raiz, a):
     if caractere := caractere_disfarcado(texto):
         return recusar(f"o brief tem o caractere U+{ord(caractere):04X} (controle, formato ou uso privado)")
     novo, correcoes, reprovas = corrigir_derivados(raiz, texto, pedido_txt, caminho_pedido)
+    sem_selar = getattr(a, "sem_selar", False)
     if not reprovas and novo != texto:
         if not os.access(arquivo, os.W_OK):
             reprovas.append("base: o brief é só leitura e tem campo calculado errado; gere outro com `brief gerar --gravar`")
@@ -9053,6 +9120,11 @@ def cmd_brief_selar(raiz, a):
             texto, conteudo = novo, novo.encode("utf-8")
             for linha in correcoes:
                 print(linha)
+    if sem_selar:  # B2 (review da 0.44.1): a ação automática do O1 só recalcula os campos derivados; o selo é do jarvis
+        for linha in reprovas:
+            print(linha)
+        print("resultado: campos derivados " + ("com reprovação (sem selo)" if reprovas else "em dia (sem selo)"))
+        return 1 if reprovas else 0
     lembrar_do_jarvis(raiz, tipo_do_brief(texto))
     _, linhas = avaliar_brief(raiz, arquivo, conteudo, texto, caminho_pedido, pedido_txt, destino, rel, None, a.ref, a.parecer)
     linhas = [(r, True) for r in reprovas] + list(linhas) + [(aviso, False) for aviso in avisos_de_suposicao(pedido_txt)]
@@ -9149,10 +9221,11 @@ def rodar_prova(script, argv, espera, pasta):
     return (f"diverge de '{divergiu}' (rc={r.returncode})", True) if divergiu else ("ok", False)
 
 
-def conferir_provas(raiz, texto, branch, head, pasta):
+def conferir_provas(raiz, texto, branch, head, pasta, so_leitura=False):
     """P2 (0.43.1): (linha, reprova) por PQ do brief selado. `cmd` da lista do reexecutar-provas roda na worktree; o `forge-check entrega`
     é esta conferência; `cmd` fora da lista e `pr`/`merge`/`run` (GitHub) não são reexecutados e não reprovam (ficam com o relatório
-    do autor, o CI e, se o Jarvis quiser, o conferente); `arquivo`, `sha` e `push` são lidos do git."""
+    do autor, o CI e, se o Jarvis quiser, o conferente); `arquivo`, `sha` e `push` são lidos do git. D4 (0.44.0): com `so_leitura`
+    (o conferente), nenhum `cmd` roda: código da branch não se executa na sessão de quem confere."""
     script, saida = carregar_reexecutar_provas(), []
     for linha in secoes_por(texto, CABECALHO_BRIEF).get("Pronto quando", []):
         m = PQ.search(linha)
@@ -9164,6 +9237,9 @@ def conferir_provas(raiz, texto, branch, head, pasta):
         if tipo == "cmd":
             if comando and re.match(r"\s*forge-check entrega\b", comando.group(1)):
                 saida.append((f"{rotulo}: ok (é esta conferência)", False))
+                continue
+            if so_leitura:
+                saida.append((f"{rotulo}: não reexecutada (--so-leitura: quem confere não roda código da branch); fica com o autor, o CI e o QA", False))
                 continue
             try:
                 argv = shlex.split(comando.group(1)) if comando else []
@@ -9210,11 +9286,11 @@ def estado_da_worktree(raiz, branch, head, worktree):
     return pasta, [(f"worktree: {caminho_impresso(pasta)} no head {head[:12]}, limpa", False)]
 
 
-def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True):
+def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True, so_leitura=False):
     """P2 (0.43.1): a conferência de entrega por ferramenta. Acha o brief selado da branch e da etapa, calcula Base, Base-sha e Desde
     (nada digitado), roda o escopo do `entrega` com o escopo declarado no brief, as provas e a contagem de commits; sem reprovação, grava
     `- <data> <hora>: entrega conferida <sha40>` no `## Histórico` (único escritor; o mesmo sha não se grava duas vezes). rc 0 cumpriu,
-    1 não cumpriu, 2 entrada ilegível."""
+    1 não cumpriu, 2 entrada ilegível. D4 (0.44.0): `so_leitura` (a forma do conferente) não grava e não roda os PQ `cmd`."""
     if etapa == ATO_GITHUB:
         print("entrega: ato-github não tem sha de branch para gravar; use `forge-check entrega <pedido> --etapa ato-github --brief ...`")
         return 2
@@ -9259,7 +9335,7 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
     inicio = valido or base_sha
     cod, contagem = git(raiz, "rev-list", "--count", f"{inicio}..{head}")
     linhas.append((f"commits: {contagem if not cod else '?'} em {inicio[:12]}..{head[:12]}", bool(cod)))
-    linhas += conferir_provas(raiz, brief, branch, head, pasta)
+    linhas += conferir_provas(raiz, brief, branch, head, pasta, so_leitura)
     if etapa == "codigo" and not cod:  # T1: código sem teste no intervalo da delegação, sinalizado sem reprovar (a classe T isenta)
         aviso = aviso_de_codigo_sem_teste(raiz, f"{inicio}..{head}", nomes_do_intervalo(raiz, inicio, head),
                                           classe_para_o_t1(raiz, head, base))
@@ -9271,7 +9347,7 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
         return 1
     print("resultado: cumpriu")
     if not gravar:
-        print("gravado: nada (--sem-gravar)")
+        print(f"gravado: nada ({'--so-leitura' if so_leitura else '--sem-gravar'})")
     elif head in entregas_conferidas(ler_pedido_do_selo(caminho)):
         print(f"gravado: já existia a linha entrega conferida {head}")
     else:
@@ -9360,7 +9436,7 @@ ATUALIZAR_NO_PROJETO = "`forge atualizar`"
 BLOQUEIAM_COM_FERRAMENTA_ATRASADA = ("pr", "entrega")  # nos projetos, e `brief gerar` e `brief mensagem`; no Forge e nos outros subcomandos só avisa
 NAO_CONFERIDA_DESLIGADA = "verificação desligada"
 MARCADOR_DA_DECISAO_D = "decisão D: não muda o veredito"  # a linha que o conferente aceita como não reprovante (conferente.md)
-SEM_GUARDA_DE_VERSAO = ("fontes", "transcricao")  # não conferem repositório
+SEM_GUARDA_DE_VERSAO = ("fontes", "transcricao", "pedido", "recado", "pausa")  # não conferem repositório
 
 
 def versao_em_tupla(texto):
@@ -9545,6 +9621,18 @@ def governanca():
     return forge_governanca
 
 
+def modulo_do_dono():
+    """O módulo bin/forge_dono.py (0.44.1: `decisoes --resposta`, `pedido fala`, `recado`, `pausa`), como `governanca`."""
+    sys.path.insert(0, str(PLUGIN / "bin"))
+    try:
+        import forge_dono
+    except ImportError:
+        return None
+    finally:
+        sys.path.remove(str(PLUGIN / "bin"))
+    return forge_dono
+
+
 def guarda_de_versao(a, raiz):
     """None para seguir; um código de saída se a ferramenta está atrás do repositório e o subcomando bloqueia (`avaliar_versao`)."""
     nivel, texto = avaliar_versao(a, raiz)
@@ -9574,6 +9662,7 @@ def main():
     br.add_argument("--arquivo", nargs="+", help="em `selar` e `mensagem`: o brief, resolvido só em docs/briefs/ (da raiz ou de ~/.forge-contrib); um só; vários são recusados (um brief por mensagem)")
     br.add_argument("--pedido", required=True, help="id do pedido: grava só em docs/pedidos/<id>.md (caminho de arquivo é recusado)")
     br.add_argument("--destino", nargs="+", help="agente destino, forge:<nome> (vários só em `gerar --gravar`, o lote: um arquivo por destino). Em `mensagem` só é preciso se o brief não tem `Agente destino:` no cabeçalho (antes da primeira seção); se tem, o --destino precisa ser igual ao do brief. Na conferência (`brief <arquivo>`), o padrão é o `Agente destino:` do brief ou o nome do arquivo")
+    br.add_argument("--sem-selar", action="store_true", help="só em `selar`: recalcula e regrava os campos derivados (Base-sha, Revisar-sha, --desde) e para, sem conferir nem gravar selo (a ação automática do O1)")
     br.add_argument("--anterior", help="brief da rodada anterior (em docs/briefs/): imprime `anterior:` e uma linha `delta:` por linha que mudou em cada seção (só informa)")
     br.add_argument("--volta", help="só em `gerar`: brief aprovado da rodada anterior (em docs/briefs/); gera o brief da volta: blocos copiados, Entregar dos achados bloqueantes dos pareceres (exige --ref)")
     br.add_argument("--parecer", nargs="+", help="pareceres (docs/reviews, qa, devops, security; lidos da --ref) de que `gerar --volta` e a conferência de um brief com `Volta-de:` tiram os achados; padrão: o mais recente de cada tipo do pedido que não aprovou")
@@ -9615,6 +9704,29 @@ def main():
     de.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md); padrão: todos")
     de.add_argument("--sem-cartao", action="store_true", help="cruza cada decisão com os cartões do KANBAN.md e do histórico e lista as sem cartão (rc 0)")
     de.add_argument("--desde", type=datetime.date.fromisoformat, help="com --sem-cartao: só decisões desta data (AAAA-MM-DD) em diante")
+    de.add_argument("--resposta", help="com --pedido: a resposta curta do dono (\"1a 2c\", \"aprovo\") lida contra a última PERGUNTA AO DONO "
+                    "do pedido; vocabulário fechado, ambígua volta como pergunta (rc 1), palavra solta nunca vale para opção irreversível (O4)")
+    pe = sub.add_parser("pedido", parents=[comum], help="a fala do dono literal, com sha256, em docs/pedidos/<id>/fala-<hora>.md (S2)")
+    pe.add_argument("acao", choices=("fala",))
+    modo = pe.add_mutually_exclusive_group(required=True)
+    modo.add_argument("--gravar", action="store_true", help="grava --texto (gravar não amplia autorização)")
+    modo.add_argument("--ler", action="store_true", help="lista as falas e confere o sha256 de cada uma (rc 1 se alguma não bate)")
+    pe.add_argument("--pedido", required=True, help="id em docs/pedidos/<id>.md")
+    pe.add_argument("--texto", default="", help="com --gravar: as palavras do dono, literais")
+    rc_ = sub.add_parser("recado", parents=[comum], help="texto entre sessões com cabeçalho (raiz de destino, versão do plugin, sha256) (S8)")
+    modo = rc_.add_mutually_exclusive_group(required=True)
+    modo.add_argument("--para", metavar="RAIZ", help="grava --texto em <RAIZ>/.forge/recados/")
+    modo.add_argument("--confirmar", nargs="?", const="", metavar="ARQ", help="lê o recado desta raiz (padrão: o mais novo); "
+                      "sessão de outra raiz, versão diferente ou sha256 que não bate recusa (rc 1)")
+    rc_.add_argument("--texto", default="", help="com --para: o recado")
+    pz = sub.add_parser("pausa", parents=[comum], help="pausa por limite de uso (Q1): grava onde parou e retoma quando a cota renova (X1)")
+    modo = pz.add_mutually_exclusive_group(required=True)
+    modo.add_argument("--gravar", action="store_true", help="grava .forge/pausa.json (pede --retoma-em e --onde)")
+    modo.add_argument("--retomar", action="store_true", help="rc 0 com a cota renovada (diz onde parou), rc 1 antes da hora")
+    pz.add_argument("--retoma-em", default="", help="HH:MM ou AAAA-MM-DDTHH:MM: quando a cota renova (até 24 h)")
+    pz.add_argument("--onde", default="", help="onde parou: o próximo passo, em uma linha")
+    pz.add_argument("--pedido", help="id do pedido em curso (a retomada sugere `forge-check proximo`)")
+    pz.add_argument("--esperar", action="store_true", help="com --retomar: espera a hora da cota (rode em segundo plano)")
     es = sub.add_parser("esperas", parents=[comum], help="quanto tempo cada cartão esperou o dono ou uma credencial, lido de docs/kanban/historico.md; só leitura (M14b)")
     es.add_argument("--pedido", help="só os cartões deste pedido (cartão igual, da mesma família de nome, com o pedido na coluna Pedido do KANBAN.md ou no motivo do movimento)")
     es.add_argument("--kanban", help="com --pedido: o KANBAN.md a ler (padrão: o da raiz)")
@@ -9728,6 +9840,8 @@ def main():
                     "`entrega conferida <sha40>` no ## Histórico; sem --base, --base-sha, --desde nem --brief")
     en.add_argument("--worktree", help="só com --pedido: a pasta absoluta da worktree da branch (padrão: a do `git worktree list`), onde os PQ cmd rodam")
     en.add_argument("--sem-gravar", action="store_true", help="só com --pedido: confere e não grava (o PQ do autor)")
+    en.add_argument("--so-leitura", action="store_true", help="só com --pedido: como --sem-gravar e sem rodar os PQ cmd (lê só git e disco; "
+                    "a forma do conferente, que não roda código da branch: os PQ cmd ficam com o autor, o CI e o QA)")
     en.add_argument("--branch", required=True, help="branch entregue")
     en.add_argument("--base", help="forma antiga: branch de integração da entrega (develop, homolog ou main)")
     en.add_argument("--base-sha", help="forma antiga: sha40 da base gravado na delegação (Base-sha)")
@@ -9786,8 +9900,8 @@ def main():
         faltam = [nome for nome, valor in (("pedido", a.pedido), ("--base", a.base), ("--base-sha", a.base_sha)) if valor is None]
         if faltam:
             ap.error(f"the following arguments are required: {', '.join(faltam)} (ou use a forma nova `entrega --pedido`)")
-        if a.worktree is not None or a.sem_gravar:
-            ap.error("--worktree e --sem-gravar só valem com `entrega --pedido`")
+        if a.worktree is not None or a.sem_gravar or a.so_leitura:
+            ap.error("--worktree, --sem-gravar e --so-leitura só valem com `entrega --pedido`")
     if a.cmd == "brief" and a.incluir and not (a.alvo == "gerar" and a.volta):
         ap.error("argument --incluir: só vale em `brief gerar --volta`")
     raiz = Path(a.raiz).resolve()
@@ -9811,6 +9925,12 @@ def executar(a, raiz):
             print(f"{a.cmd}: bin/forge_governanca.py ausente ao lado do forge-check; nada medido")
             return 2
         return modulo.executar(a, raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz)
+    if a.cmd in ("pedido", "recado", "pausa") or (a.cmd == "decisoes" and a.resposta is not None):
+        modulo = modulo_do_dono()
+        if modulo is None:
+            print(f"{a.cmd}: bin/forge_dono.py ausente ao lado do forge-check; nada feito")
+            return 2
+        return modulo.executar(a, raiz, {"pedido": pedido_para_anotar, "versao": versao_da_propria_copia, "seguro": sem_controle})
     if a.cmd == "transcricao" and a.acao == "custo":
         return cmd_transcricao_custo(a.alvo, a.entregas, a.entrega, raiz, a.desde, a.ate, a.pedido)
     if a.cmd == "transcricao" and a.acao == "lastro":
@@ -9842,7 +9962,7 @@ def executar(a, raiz):
         print(linha)
         return rc
     if a.cmd == "entrega" and a.pedido_conferir is not None:
-        return cmd_entrega_conferir(raiz, a.pedido_conferir, a.branch, a.etapa, a.worktree, not a.sem_gravar)
+        return cmd_entrega_conferir(raiz, a.pedido_conferir, a.branch, a.etapa, a.worktree, not (a.sem_gravar or a.so_leitura), a.so_leitura)
     if a.cmd == "entrega":
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
     if a.cmd == "voltas":

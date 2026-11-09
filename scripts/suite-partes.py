@@ -201,6 +201,7 @@ def rodar(sp, nomes, esperado, rotulo, todos=None, publicar=None):
     rodados = sum(rel["rodados"] for rel in relatorios if rel)
     print(f"\nRan {rodados} tests in {segundos:.3f}s ({len(partes)} processos, {rotulo})\n")
     linha, codigo = veredito(relatorios, erros)
+    sp.imprimir_causas(filhos, relatorios)  # O7 (0.44.1): a causa tipada também no plano dirigido do pre-push
     if not codigo and publicar:
         publicar(relatorios)
     print(linha)

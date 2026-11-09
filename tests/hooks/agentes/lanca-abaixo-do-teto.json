@@ -5,13 +5,13 @@
       "agentes": [
         {
           "id": "a1",
-          "tipo": "time:node-backend",
+          "tipo": "Plan",
           "descricao": "Implementar a API",
           "desde": "{agora-60}"
         },
         {
           "id": "a2",
-          "tipo": "time:tech-lead",
+          "tipo": "web-fetch",
           "descricao": "Review",
           "desde": "{agora-60}"
         }
@@ -23,7 +23,7 @@
     "tool_name": "Agent",
     "tool_use_id": "toolu_1",
     "tool_input": {
-      "subagent_type": "time:qa-engineer",
+      "subagent_type": "Explore",
       "description": "Validar a entrega",
       "prompt": "..."
     }
@@ -33,7 +33,7 @@
     "estado": {
       "agentes.json": {
         "contem": [
-          "time:qa-engineer",
+          "Explore",
           "Validar a entrega"
         ]
       }

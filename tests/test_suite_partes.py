@@ -120,6 +120,7 @@ class Brinquedo(unittest.TestCase):
         r, _ = self.roda("--modulos", "test_a,test_b")
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertTrue(r.stdout.strip().splitlines()[-1].startswith("FAILED"))
+        self.assertIn("suite-paralela: causa tipo=assercao id=test_b.", r.stderr)  # O7 (0.44.1): a causa tipada no dirigido
 
     def test_modulo_inexistente_ou_fora_do_padrao_e_uso_invalido(self):
         for pedido in ("test_zz", "os", "", "test_a,../x"):

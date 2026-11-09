@@ -1,0 +1,166 @@
+{
+  "pedido": "v0441-review",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "upgrade: listas unidas",
+      "arquivo": "bin/forge-upgrade",
+      "de": "saida[chave] = base + [v for v in valor if v not in base]",
+      "para": "saida[chave] = base",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "O4: sem marca reversível a palavra solta não escolhe",
+      "arquivo": "bin/forge_dono.py",
+      "de": "elif \"reversivel\" not in marcas(",
+      "para": "elif \"reversivel\" in marcas(",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_palavra_solta_so_escolhe_a_marcada_reversivel"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "O4: marca sem acento",
+      "arquivo": "bin/forge_dono.py",
+      "de": "elif \"irreversivel\" in marcas(",
+      "para": "elif \"irreversível\" in marcas(",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_palavra_solta_so_escolhe_a_marcada_reversivel"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "X1: link recusado",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if arq.parent.is_symlink() or arq.parent.parent.is_symlink() or arq.is_symlink():",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_dono.Pausa.test_nao_grava_atraves_de_link"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "status: C1 filtrado",
+      "arquivo": "bin/forge-status",
+      "de": "[\\x00-\\x1f\\x7f-\\x9f]",
+      "para": "[\\x00-\\x1f\\x7f]",
+      "testes": [
+        "tests.test_forge_status.Status.test_controle_c1_vira_espaco"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "O4: a marca sem acento",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if not unicodedata.combining(c)",
+      "para": "if unicodedata.combining(c)",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_palavra_solta_so_escolhe_a_marcada_reversivel"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "upgrade: subchave do modelo mesclada a fundo",
+      "arquivo": "bin/forge-upgrade",
+      "de": "        if isinstance(valor, dict):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "upgrade: chave do projeto fica",
+      "arquivo": "bin/forge-upgrade",
+      "de": "        elif chave not in atual:",
+      "para": "        elif True:",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "B2: --sem-selar diz a reprovação",
+      "arquivo": "bin/forge-check",
+      "de": "(\"com reprovação (sem selo)\" if reprovas else \"em dia (sem selo)\")",
+      "para": "(\"com reprovação (sem selo)\" if not reprovas else \"em dia (sem selo)\")",
+      "testes": [
+        "tests.test_selo_e_entrega.Selar.test_sem_selar_corrige_os_derivados_e_nao_grava_selo"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "B2: --sem-selar com reprovação é rc 1",
+      "arquivo": "bin/forge-check",
+      "de": "        return 1 if reprovas else 0\n    lembrar_do_jarvis",
+      "para": "        return 1 if not reprovas else 0\n    lembrar_do_jarvis",
+      "testes": [
+        "tests.test_selo_e_entrega.Selar.test_sem_selar_corrige_os_derivados_e_nao_grava_selo"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "upgrade: subchave do projeto com outro tipo volta ao modelo",
+      "arquivo": "bin/forge-upgrade",
+      "de": "mesclar_sandbox(valor, tinha if isinstance(tinha, dict) else {})",
+      "para": "mesclar_sandbox(valor, tinha if True else {})",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "upgrade: lista do modelo une",
+      "arquivo": "bin/forge-upgrade",
+      "de": "        elif isinstance(valor, list):",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "upgrade: lista do projeto com outro tipo volta ao modelo",
+      "arquivo": "bin/forge-upgrade",
+      "de": "base = tinha if isinstance(tinha, list) else []",
+      "para": "base = tinha if True else []",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "upgrade: sem repetir item da lista",
+      "arquivo": "bin/forge-upgrade",
+      "de": "[v for v in valor if v not in base]",
+      "para": "[v for v in valor if True]",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "X1: pausa sem --retomar grava (só a sessão principal)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "destinos = [] if so_le(args, \"--retomar\") else [\"./.forge/pausa.json\"]",
+      "para": "destinos = [] if not so_le(args, \"--retomar\") else [\"./.forge/pausa.json\"]",
+      "testes": [
+        "tests.test_v0441_review.GravacaoDoForgeCheckSoNaSessaoPrincipal.test_agente_nao_grava"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "X1: o subcomando pausa é conferido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif sub == \"pausa\":  # X1",
+      "para": "        elif sub == \"pausa-x\":  # X1",
+      "testes": [
+        "tests.test_v0441_review.GravacaoDoForgeCheckSoNaSessaoPrincipal.test_agente_nao_grava"
+      ]
+    }
+  ]
+}

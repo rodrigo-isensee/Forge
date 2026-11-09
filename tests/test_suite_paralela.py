@@ -139,6 +139,40 @@ class Logica(unittest.TestCase):
                 n({"FORGE_SUITE_PROCS": valor}, 16, 1.0, 6.0, 8.0)
 
 
+class CausaTipada(unittest.TestCase):
+    """O7 (0.44.1): cada teste que cai ganha um tipo (timeout, teste de tempo, saída grande, asserção ou erro)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.s = carregar()
+
+    def tb(self, final, local='  File "/x/tests/test_a.py", line 7, in test_a\n'):
+        return "Traceback (most recent call last):\n" + local + final
+
+    def test_tipos(self):
+        casos = {
+            "timeout": ("test_a.T.test_a", self.tb("subprocess.TimeoutExpired: Command 'x' timed out after 5 seconds\n")),
+            "teste-de-tempo": ("test_a.T.test_prazo_vence", self.tb("AssertionError: 3 != 4\n")),
+            "saida-grande": ("test_a.T.test_a", self.tb("AssertionError: " + "x" * 5000 + "\n")),
+            "assercao": ("test_a.T.test_a", self.tb("AssertionError: 3 != 4\n")),
+            "erro": ("test_a.T.test_a", self.tb("KeyError: 'k'\n")),
+        }
+        for tipo, (ident, texto) in casos.items():
+            with self.subTest(tipo):
+                self.assertEqual(self.s.causa_da_falha(ident, texto)["tipo"], tipo)
+
+    def test_esperado_obtido_e_local_redigidos(self):
+        causa = self.s.causa_da_falha("test_a.T.test_a", self.tb("AssertionError: 'senha: abc123' != 'sk-" + "b" * 24 + "'\n"))
+        self.assertEqual(causa.get("local"), "tests/test_a.py:7")
+        self.assertEqual(causa.get("obtido"), "'[redigido]")
+        self.assertEqual(causa.get("esperado"), "'[redigido]'")
+        sem_local = self.s.causa_da_falha("test_a.T.test_a", self.tb("ValueError: x\n", local=""))
+        self.assertNotIn("local", sem_local)
+        self.assertNotIn("esperado", sem_local)
+        self.assertEqual(len(self.s.causa_da_falha("t", self.tb("AssertionError: " + "y" * 900 + " != 1\n"))["obtido"]),
+                         self.s.TETO_DO_VALOR)
+
+
 class Brinquedo(unittest.TestCase):
     """O script de verdade num repositório de brinquedo."""
 
@@ -425,6 +459,30 @@ class Brinquedo(unittest.TestCase):
         self.assertEqual(self.roda()[0], 1)
         outra = json.loads(arquivo.read_text(encoding="utf-8").splitlines()[1])
         self.assertEqual(outra["testes"], [{"id": "test_b.T.test_b", "vezes": 2, "de": 2}])
+
+    def test_causa_tipada_da_assercao_na_saida_e_no_registro(self):  # O7 (0.44.1): esperado, obtido e local, sem segredo
+        pasta = self.pasta_do_registro()
+        self.modulo("b", modulo_de_teste("b", "self.assertEqual('token=ghp_' + 'a' * 30, 'certo')"))
+        codigo, saida, erro = self.roda()
+        self.assertEqual(codigo, 1, saida + erro)
+        linha = next((l for l in erro.splitlines() if l.startswith("suite-paralela: causa ")), "")
+        self.assertIn("tipo=assercao id=test_b.T.test_b local=tests/test_b.py:", linha)
+        self.assertIn("esperado='certo'", linha)
+        self.assertNotIn("ghp_", erro)
+        registro = json.loads((pasta / "suite-vermelha.jsonl").read_text(encoding="utf-8"))
+        causa = registro["causas"][0]
+        self.assertEqual((causa["id"], causa["tipo"], causa["esperado"]), ("test_b.T.test_b", "assercao", "'certo'"))
+        self.assertRegex(causa["local"], r"^tests/test_b\.py:\d+$")
+        self.assertIn("[redigido]", causa["obtido"])
+        self.assertNotIn("ghp_", json.dumps(registro))
+
+    def test_processo_morto_sai_com_a_causa_sinal(self):  # O7
+        self.pasta_do_registro()
+        self.modulo("b", modulo_de_teste("b", "os.kill(os.getpid(), signal.SIGKILL)", "import signal\n"))
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 1)
+        self.assertIn("tipo=sinal id=processo", erro)
+        self.assertIn(f"sinal={int(signal.SIGKILL)}", erro)
 
     def test_suite_verde_nao_grava_o_registro(self):  # L32
         pasta = self.pasta_do_registro()

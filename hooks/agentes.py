@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Forge: teto de agentes, relançamento duplicado (ADR 0003, R-TETO), brief selado do especialista e forma da mensagem ao conferente (R-BRIEF).
 
-P1 (0.43.1): todo disparo de `forge:<papel>` (fora o conferente; também o nome do papel sem o prefixo e, desde a 0.43.2, o
-`general-purpose`, o `fork` e o `claude` cujo prompt cita um brief em docs/briefs/) exige no prompt o caminho de um brief em docs/briefs/ com selo no
+P1 (0.43.1) e D2 (0.44.0): todo disparo (fora o conferente e os tipos só de leitura de `TIPOS_SO_DE_LEITURA`: Explore, Plan,
+claude-code-guide, web-fetch, que a conformidade põe no papel só de leitura `leitura`) exige no prompt o caminho de um brief em docs/briefs/ com selo no
 `## Histórico` do pedido (`- <data> <hora>: brief selado docs/briefs/<nome>.md <sha256>`, gravado só pelo `forge-check brief selar`)
 e com o sha256 de agora; sem isso, bloqueia (falha fechada). O conferente é opcional e segue com a forma e o hash da mensagem.
+D3 (0.44.0): com o selo em dia, o hook reconfere os campos calculados do brief (`forge-check`, `brief_vencido`) e, se a base andou
+ou as decisões do pedido mudaram, só avisa (`systemMessage` e stderr, código 0); nunca barra por isso.
 
 O teto é adaptativo (nproc, load de 1 min e memória lidos de /proc; fallback 3) e `teto_agentes` em
 .forge/config.json o fixa; `teto_maximo` limita o adaptativo.
@@ -28,6 +30,7 @@ RN-6 (0.43.3): cada recusa do R-TETO (memória, teto, duplicado) deixa uma linha
 (`registrar_recusa`, que o hook `pesado` também pode chamar); o `forge-check metricas` mede por ela a espera por portão.
 """
 import hashlib
+import json
 import math
 import os
 import re
@@ -37,8 +40,8 @@ import time
 import unicodedata
 from pathlib import Path
 
-from _comum import (LIMITE_LOG, PLUGIN, RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check,
-                    gravar_json, ler_json)
+from _comum import (LIMITE_LOG, RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check,
+                    gravar_json, ler_json, mensagem)
 from pesado import CASCAS, pid_da_sessao, pid_vivo
 
 FERRAMENTAS = {"Agent", "Task"}
@@ -434,26 +437,21 @@ def recusar_branch_ocupada(hook, agentes, branches):
                          cauda=f"; registro em {sem_controle(hook.run() / 'agentes.json')}")
 
 
-# BRIEF-EXECUTOR-SEM-PORTAO (0.43.2): os tipos de fora do plugin que escrevem como um especialista (todas as ferramentas). O
-# `Explore`, o `Plan` e os outros só de leitura ficam fora: a pesquisa não passa pelo selo.
+# BRIEF-EXECUTOR-SEM-PORTAO (0.43.2): os tipos de fora do plugin que escrevem como um especialista (todas as ferramentas); o
+# brief deles vale para qualquer papel (`destino_diferente` não compara).
 EXECUTORES_GENERICOS = {"general-purpose", "fork", "claude"}
+# D2 (decisão do dono de 09/11, M2 do review de segurança da 0.43.1): o selo vale para todo tipo que escreve; só estes, que não têm
+# Write nem Edit no repositório (pesquisa, leitura, guia, busca na web, linha de status), e o conferente seguem sem ele.
+# Review da 0.44.1 (B1): estes tipos vão ao papel `leitura` de hooks/conformidade.json (só de leitura); o statusline-setup edita
+# arquivo e por isso exige o selo.
+TIPOS_SO_DE_LEITURA = frozenset({"Explore", "Plan", "claude-code-guide", "web-fetch"})
 
 
-def papeis_do_forge():
-    """Os nomes dos agentes do plugin (`agents/` e `stacks/*/agents/`), sem o conferente: o tipo pode chegar sem o prefixo `forge:`."""
-    return {p.stem for p in (*PLUGIN.glob("agents/*.md"), *PLUGIN.glob("stacks/*/agents/*.md"))} - {"conferente"}
-
-
-def exige_selo(tipo, prompt=""):
-    """P1 (0.43.1): o especialista do Forge (`forge:<papel>`, ou o nome do papel sem o prefixo) só sai com brief selado; o conferente
-    (opcional, conferência de conteúdo pedida pelo Jarvis) segue com a forma e o hash da mensagem. BRIEF-EXECUTOR-SEM-PORTAO (0.43.2):
-    o executor genérico (`EXECUTORES_GENERICOS`) cujo prompt cita um brief em docs/briefs/ faz o trabalho do especialista e também
-    precisa do selo; sem brief citado (leitura, pesquisa), segue livre. Os outros tipos de fora do plugin não passam por aqui."""
-    if tipo == CONFERENTE:
-        return False
-    if tipo.startswith("forge:") or tipo in papeis_do_forge():
-        return True
-    return tipo in EXECUTORES_GENERICOS and next(caminhos_de_brief(str(prompt or "")), None) is not None
+def exige_selo(tipo):
+    """P1 (0.43.1) e D2 (0.44.0): todo disparo sai com brief selado (falha fechada), menos o conferente (opcional, segue com a forma e
+    o hash da mensagem, com ou sem o prefixo `forge:`) e os tipos de `TIPOS_SO_DE_LEITURA`. Tipo de outro plugin, o `general-purpose`
+    sem brief e o tipo desconhecido pedem o selo: na dúvida, escreve."""
+    return tipo not in (CONFERENTE, "conferente") and tipo not in TIPOS_SO_DE_LEITURA
 
 
 def destino_diferente(fc, tipo, dados):
@@ -462,17 +460,18 @@ def destino_diferente(fc, tipo, dados):
     if tipo is None or tipo in EXECUTORES_GENERICOS:
         return None
     texto = dados.decode("utf-8", errors="replace")
-    destino = fc.nome_do_papel(fc.grupo(r"^\s*Agente destino:\s*(\S+)", fc.cabecalho_do_brief(texto)))
-    if destino != tipo.removeprefix("forge:").lower():
+    destino = (fc.grupo(r"^\s*Agente destino:\s*(\S+)", fc.cabecalho_do_brief(texto)) or "").lower().removeprefix("forge:")
+    if destino != tipo.lower().removeprefix("forge:"):
         return f"o brief é para `{sem_controle(str(destino))[:CORTE_DO_NOME]}`, não para `{sem_controle(tipo)[:CORTE_DO_NOME]}`"
     return None
 
 
-def selo_ausente(hook, prompt, tipo=None):
+def selo_ausente(hook, prompt, tipo, lidos):
     """P1 (0.43.1, R-BRIEF): por que o disparo de especialista não pode sair, ou None. O prompt cita ao menos um brief em docs/briefs/
     (até MAXIMO_DE_BRIEFS); cada um citado precisa de selo com o sha256 de agora no `## Histórico` do pedido dele (`selo_do_brief`
     do forge-check, a mesma função que o `brief selar` usa para gravar). Linha `Brief-sha256:` no prompt, se houver, precisa ser o hash
-    de um brief citado. Erro na leitura é falta (falha fechada, só nesta mensagem)."""
+    de um brief citado. Erro na leitura é falta (falha fechada, só nesta mensagem). Cada brief selado entra em `lidos` (citado, real,
+    bytes), que o aviso de brief vencido (D3) relê sem abrir o arquivo de novo."""
     texto = str(prompt or "")
     caminhos = list(dict.fromkeys(caminhos_de_brief(texto)))
     if not caminhos:
@@ -491,11 +490,32 @@ def selo_ausente(hook, prompt, tipo=None):
         motivo = fc.selo_do_brief(os.path.realpath(hook.cwd() / real), dados) or destino_diferente(fc, tipo, dados)
         if motivo:
             return motivo
+        lidos.append((caminho, os.path.realpath(hook.cwd() / real), dados))
         hashes.add(hashlib.sha256(dados).hexdigest())
     citados = set(VALOR_DO_HASH.findall(texto))
     if citados - hashes:
         return "a linha `Brief-sha256:` do prompt não é o hash de um brief citado"
     return None
+
+
+def avisos_de_brief_vencido(hook, lidos):
+    """D3 (0.44.0): para cada brief selado (`lidos`, de `selo_ausente`: caminho citado, caminho real e bytes), as correções que o
+    `brief selar` faria hoje (`brief_vencido` do forge-check). Só avisa: qualquer erro registra e devolve [], nunca barra o disparo."""
+    try:
+        fc = forge_check()
+        return [f"{caminho}: {linha}" for caminho, real, dados in lidos for linha in fc.brief_vencido(hook.raiz, real, dados)]
+    except Exception as erro:  # noqa: BLE001 - o aviso nunca troca o disparo por recusa
+        hook.registrar_erro(erro)
+        return []
+
+
+def avisar_brief_vencido(avisos):
+    """D3: uma linha `R-BRIEF: aviso` no stderr e no `systemMessage` (código 0), com o caminho de volta: selar de novo."""
+    if avisos:
+        texto = mensagem("R-BRIEF", f"aviso: brief vencido depois do selo ({sem_controle('; '.join(avisos))}); o disparo segue. "
+                                    "Rode `forge-check brief selar` de novo para o especialista ler a base e as decisões de agora.")
+        print(texto, file=sys.stderr)
+        print(json.dumps({"systemMessage": texto}, ensure_ascii=False))
 
 
 MOTIVOS_DA_RECUSA = frozenset({"memoria", "teto", "duplicado", "pesado"})  # conjunto fechado: nunca texto do disparo
@@ -545,15 +565,19 @@ def lancar(hook, agentes, agora):
     divergencia = hash_do_brief_diverge(hook, entrada.get("prompt")) if tipo == CONFERENTE else None
     if divergencia:
         bloquear("R-BRIEF", f"{divergencia}; gere de novo com `forge-check brief mensagem` e envie-a.")
-    if exige_selo(tipo, entrada.get("prompt")):
+    lidos = []
+    if exige_selo(tipo):
         try:
-            sem_selo = selo_ausente(hook, entrada.get("prompt"), tipo)
+            sem_selo = selo_ausente(hook, entrada.get("prompt"), tipo, lidos)
         except Exception as erro:  # noqa: BLE001 - falha fechada: sem prova do selo, o especialista não sai
             hook.registrar_erro(erro)
             sem_selo = "erro ao conferir o selo (registrado no erros.log)"
         if sem_selo:
             bloquear("R-BRIEF", f"{sem_selo}; sele o brief com `forge-check brief selar --arquivo <brief> --pedido <id>` e cite o "
                                 "caminho dele no prompt (o selo vale para o sha256 de agora).")
+        vencido = avisos_de_brief_vencido(hook, lidos)
+    else:
+        vencido = []
     descricao = " ".join(str(entrada.get("description") or "").split())
     for a in agentes:
         if descricao and a.get("tipo") == tipo and a.get("descricao") == descricao:
@@ -587,6 +611,7 @@ def lancar(hook, agentes, agora):
     recusar_branch_ocupada(hook, agentes, sorted(a_conferir))  # Z10: fora do try, sobre a lista pronta
     agentes.append({"id": None, "tipo": tipo, "descricao": descricao, "desde": agora, "branches": branches,
                     "escrita": sorted(escrita), **da_sessao(hook)})
+    avisar_brief_vencido(vencido)
 
 
 def iniciar(hook, agentes, agora):

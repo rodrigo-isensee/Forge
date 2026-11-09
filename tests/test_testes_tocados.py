@@ -62,7 +62,7 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 59)  # 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
+        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 62)  # 0.44.1: + test_v0441_review (review), test_acao_da_reprovacao (O1) e test_forge_dono (O4, S2, S8, X1). 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
         for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
                        "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
@@ -157,6 +157,58 @@ class Mapa(unittest.TestCase):
         for m in sorted(modulos):
             with self.subTest(m):
                 self.assertTrue(self.f.arquivo_do_modulo(m, RAIZ).is_file())  # `evals.test_x` é tests/evals/test_x.py
+
+
+class Convencao(unittest.TestCase):
+    """O2 (0.44.1): o teste se acha pela convenção de nome (bin/forge-x -> tests/test_forge_x.py, hooks/x.py e scripts/x.py ->
+    tests/test_x.py); o MAPA fica só para as exceções, e sem o arquivo do teste o caminho segue na suíte completa."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+
+    def brinquedo(self, *arquivos):
+        t = tempfile.TemporaryDirectory()
+        self.addCleanup(t.cleanup)
+        raiz = Path(t.name)
+        for rel in ("tests/test_forge.py", "tests/test_testes_tocados.py") + arquivos:
+            (raiz / rel).parent.mkdir(parents=True, exist_ok=True)
+            (raiz / rel).write_text("x = 1\n", encoding="utf-8")
+        return raiz
+
+    def test_bin_scripts_e_hooks_pela_convencao(self):
+        raiz = self.brinquedo("tests/test_forge_novo.py", "tests/test_coisa_nova.py", "tests/test_gancho.py")
+        self.assertEqual(self.f.planejar(["bin/forge-novo"], raiz), ("dirigido", ["test_forge", "test_forge_novo"]))
+        self.assertEqual(self.f.planejar(["scripts/coisa-nova.py"], raiz),
+                         ("dirigido", ["test_coisa_nova", "test_forge", "test_testes_tocados"]))
+        self.assertEqual(self.f.modulos_da_convencao("hooks/gancho.py", raiz), ("test_gancho", "test_forge"))
+        self.assertIn("test_forge_novo", self.f.planejar_afetados(["bin/forge-novo"], raiz)[0])
+
+    def test_sem_o_arquivo_do_teste_ou_fora_das_pastas_segue_na_completa(self):
+        raiz = self.brinquedo("tests/test_x_y.py")
+        for caminho in ("bin/forge-sem-teste", "outra/x_y.py", "bin/sub/forge-x", "scripts/x-y.sh.py"):
+            with self.subTest(caminho):
+                self.assertEqual(self.f.planejar([caminho], raiz), ("completo", [f"{caminho} sem mapa"]))
+        self.assertIsNone(self.f.modulos_da_convencao("scripts/promover-homolog.py", RAIZ))  # decisão 7: exceção à convenção
+        for caminho in ("outra/x_y.py", "bin/sub/forge-x"):  # fora das pastas: None, sem levantar
+            with self.subTest(caminho):
+                try:
+                    achado = self.f.modulos_da_convencao(caminho, raiz)
+                except AttributeError as e:
+                    achado = f"levantou {e}"
+                self.assertIsNone(achado)
+
+    def test_o_mapa_nao_repete_o_que_a_convencao_ja_acha(self):  # some o conflito C8: a entrada do mapa vira exceção de verdade
+        repetidas = []
+        for padrao, destino in self.f.MAPA:
+            convencao = self.f.modulos_da_convencao(padrao.replace("\\", ""), RAIZ)
+            if convencao is not None and sorted(convencao) == sorted(destino):
+                repetidas.append(padrao)
+        self.assertEqual(repetidas, [])
+        for caminho in ("bin/forge-mutante", "scripts/arvore-testada.py", "scripts/ci-local", "scripts/conferir-reversao.py"):
+            with self.subTest(caminho):
+                self.assertFalse(any(re.fullmatch(p, caminho) for p, _ in self.f.MAPA))
+                self.assertEqual(self.f.planejar([caminho], RAIZ)[0], "dirigido")
 
 
 class MapaCobreOQueOsTestesLeem(unittest.TestCase):
