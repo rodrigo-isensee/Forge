@@ -708,6 +708,17 @@ def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES, estritos=(),
     return f"desatualizado: {caminho_impresso(alvo)} mudou depois do parecer; peça novo parecer{qual}{doms}"
 
 
+def commit_de_pareceres_paralelos(raiz, commit):
+    """AQ-5: o motivo da recusa se o `commit:` do parecer é um commit só de parecer (o HEAD da branch depois que outro parecer da mesma
+    rodada entrou), com a dica do sha certo (`sha_a_revisar` a partir dele, o mesmo do `Revisar-sha:` do brief selado); senão None."""
+    if not sha_do_commit(raiz, commit) or not so_de_parecer(raiz, commit):
+        return None
+    certo = sha_a_revisar(raiz, commit)
+    return (f"{commit[:12]} é um commit só de parecer (o HEAD com os pareceres paralelos), não o código revisado; grave "
+            f"`commit: {certo or 'o Revisar-sha do brief selado'}` (o `Revisar-sha:` do brief selado; `forge-check parecer novo` já o "
+            "preenche) (AQ-5)")
+
+
 def pedidos_da_branch(raiz, branch, ref=None):
     """Pedidos cujos pareceres (review, QA, devops ou segurança) declaram `branch: <branch>`."""
     pedidos = set()
@@ -1266,8 +1277,14 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
         elif campos.get("commit") and COMMIT.match(campos["commit"]):
             livres = LIVRES + (f"changelog.d/{pedido}.md",)  # D4
             dispensados = testes_do_qa(raiz, pedido, branch if de_trabalho else None, ref or "HEAD", campos["commit"])[1] if tipo == "review" else ()
+            paralelo = commit_de_pareceres_paralelos(raiz, campos["commit"])
+            if paralelo:  # AQ-5: o `commit:` é o HEAD com os pareceres paralelos, não o código revisado
+                saida.append(f"{caminho_impresso(rel)}: commit: {paralelo} ({rid})")
+                continue
             motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base, livres, estritos=FRAGMENTOS, dominio=tipo,
                                  mais=dominio_mais(campos), dispensados=dispensados)  # PARECER-CONTEUDO
+            if motivo == "commit não existe no repositório" and (certo := sha_a_revisar(raiz, ref or "HEAD")):
+                motivo += f" (o commit de um parecer refeito por rebase?); o sha a revisar da branch é {certo} (AQ-5)"
             junto = commit_junto_do_parecer(raiz, rel, ref or "HEAD", livres) if motivo and motivo.startswith("desatualizado") else None
             if junto and not e_ancestral(raiz, junto[0], campos["commit"]):  # E16: o parecer veio no mesmo commit do teste, depois do que cita
                 cabeca, sep, dom = motivo.partition(f"; {caminho_impresso(junto[1])} é do domínio")  # E16 logo depois do "peça novo parecer"
@@ -1622,6 +1639,37 @@ def autoria_do_parecer(raiz, registros, head, nome, tipo):
 
 
 CABECALHO_DE_BRIEF_CAMPOS = {"Pedido": r"^\s*Pedido:\s*(\S+)", "Branch": r"\bBranch:\s*(\S+)", "Base": r"\bBase:\s*(\S+)", "Base-sha": r"\bBase-sha:\s*([0-9a-f]{40})\b"}
+REVISAR_SHA = r"^\s*Revisar-sha:\s*([0-9a-f]{40})\b"  # AQ-5: o sha que review, segurança e QA revisam, calculado pelo `brief selar`
+ETAPAS_DE_PARECER = ("review", "seguranca", "qa")
+TETO_DE_COMMITS_SO_DE_PARECER = 64
+
+
+def so_de_parecer(raiz, sha):
+    """AQ-5: True se o commit `sha` só muda pareceres e quadro (LIVRES) em relação ao primeiro pai; None se o git falha. Commit vazio
+    ou raiz não é só de parecer."""
+    cod, saida = git(raiz, "diff-tree", "--root", "--no-commit-id", "--name-only", "-z", "-r", "--no-renames", "-m", "--first-parent",
+                     sha, bruto=True)
+    if cod:
+        return None
+    nomes = nomes_z(saida)
+    return bool(nomes) and all(livre(n, LIVRES) for n in nomes)
+
+
+def sha_a_revisar(raiz, ref):
+    """AQ-5: o sha do código que os pareceres paralelos revisam: o primeiro commit da linha de primeiros pais de `ref` que não é só de
+    parecer (os pareceres de review, segurança e QA commitados por cima não o movem). None sem `ref` ou se o git falha."""
+    cod, saida = git(raiz, "rev-list", "--first-parent", f"--max-count={TETO_DE_COMMITS_SO_DE_PARECER}", "--end-of-options", ref or "HEAD")
+    if cod:
+        return None
+    for sha in saida.split():
+        so = so_de_parecer(raiz, sha)
+        if so is None:
+            return None
+        if not so:
+            return sha
+    return None
+
+
 ETAPA_DO_CABECALHO = r"^\s*Etapa:\s*(\S+)"  # escrita pelo `brief gerar` (P2); fora da comparação da união de briefs
 
 
@@ -2148,6 +2196,78 @@ def cmd_delta(raiz, refs, parecer, classe=False):
 def linha_legivel(linha):
     """A linha do diff sem caractere de controle (menos o tab): nada nela imita outra linha da saída."""
     return "".join("?" if e_controle(c) and c != "\t" else c for c in linha)
+
+
+# ---- Z7 (0.43.3): o esqueleto válido do parecer, com o `commit:` do sha a revisar (AQ-5) -------------------------------------------
+TIPO_DO_PARECER_NOVO = {"review": ("review", "forge:tech-lead", "Review"), "qa": ("qa", None, "QA"),
+                        "seguranca": ("revisao-seguranca", "forge:security-engineer", "Review de segurança"),
+                        "devops": ("revisao-devops", "forge:devops-engineer", "Review de devops")}
+def secoes_do_parecer_novo(tipo, marca):
+    """As seções do modelo de cada tipo, depois do `## Achados` (Z7)."""
+    return {
+        "review": ["## Sondas", "", "## Parecer", f"{marca}: a síntese; cada ajuste em `## Achados`"],
+        "qa": ["## Critério → teste → resultado", "| Critério | Teste | Fronteira protegida | Resultado |", "|---|---|---|---|",
+               f"| {marca} | {marca} | {marca} | {marca} |", "", "## Cenários e resultado real", f"{marca}"],
+        "revisao-seguranca": ["## Sondas", "", "## Gatilhos", f"{marca}: os gatilhos da `R-SEGURANCA` que a entrega toca", "",
+                              "## Detalhe dos achados", f"{marca}", "", "## Riscos aceitos e ferramentas", f"{marca}"],
+        "revisao-devops": ["## Detalhes", f"{marca}: a síntese e as ferramentas usadas", "", "## Custo e rollback", f"{marca}"],
+    }[tipo]
+
+
+def commit_do_parecer_novo(raiz, pedido, branch, etapa):
+    """(sha, fonte) do `commit:` do parecer novo: o `Revisar-sha:` do brief selado do pedido para a branch e a etapa (AQ-5); sem ele,
+    o `sha_a_revisar` da branch; (None, motivo) se nenhum."""
+    caminho = None
+    try:
+        caminho = caminho_do_pedido(raiz, pedido)
+        texto = ler_pedido_do_selo(caminho) if etapa and arquivo_existe(caminho) else ""
+    except (PedidoFora, OSError, UnicodeDecodeError, ValueError):
+        texto = ""
+    achado = brief_selado_da_entrega(raiz, caminho, texto, branch, etapa) if texto else None
+    if achado and (sha := grupo(REVISAR_SHA, cabecalho_do_brief(achado[1]))):
+        return sha, f"Revisar-sha do brief selado {caminho_impresso(achado[0].name)}"
+    sha = sha_a_revisar(raiz, branch)
+    return (sha, "o código da branch, sem os commits só de parecer") if sha else (None, f"a branch {nome_seguro(branch)} não é um commit")
+
+
+def esqueleto_do_parecer(tipo_cli, pedido, branch, commit, parecer, data):
+    """O texto do parecer novo: frontmatter com os campos obrigatórios do contrato (`CONTRATOS`), o bloco `## Achados` e as seções do
+    modelo do tipo. Reprovado já traz a linha de um `bloqueante` para preencher (sem ela o parecer reprovado não passa)."""
+    tipo, revisor, titulo = TIPO_DO_PARECER_NOVO[tipo_cli]
+    campos = [("tipo", tipo), ("contrato", "1"), ("pedido", pedido), ("branch", branch), ("commit", commit), ("parecer", parecer)]
+    if tipo == "qa":
+        campos += [("escopo", "completo"), ("bugs_criticos", "0"), ("bugs_altos", "0"), ("bugs_medios", "0"), ("bugs_baixos", "0")]
+    else:
+        campos.append(("revisor", revisor))
+    campos.append(("data", data))
+    achados = [f"- A1 (bloqueante) {PREENCHER}:1 · {PREENCHER}: o defeito provado e a prova"] if parecer == "reprovado" else []
+    linhas = ["---", *(f"{c}: {v}" for c, v in campos), "---", f"# {titulo}: {pedido}", "", "## Achados", *achados, "",
+              *secoes_do_parecer_novo(tipo, PREENCHER)]
+    return "\n".join(linhas) + "\n"
+
+
+def cmd_parecer_novo(raiz, a):
+    """`forge-check parecer novo` (Z7): imprime o esqueleto válido do parecer (só leitura; quem grava é o papel do parecer, com a
+    própria ferramenta de escrita, para o hook registrar a autoria). O `commit:` é o sha a revisar (AQ-5), nunca o HEAD. rc 0 impresso,
+    2 recusado."""
+    if not NOME_SEGURO_DE_BRIEF.fullmatch(a.pedido or "") or not a.branch or com_controle(a.branch) or " " in a.branch:
+        print("parecer novo: --pedido com caractere fora de [A-Za-z0-9._-] ou --branch inválida")
+        return 2
+    etapa = {"review": "review", "seguranca": "seguranca", "qa": "qa"}.get(a.tipo)
+    commit, fonte = commit_do_parecer_novo(raiz, a.pedido, a.branch, etapa)
+    if not commit:
+        print(f"parecer novo: sem o sha a revisar: {fonte}")
+        return 2
+    tipo = TIPO_DO_PARECER_NOVO[a.tipo][0]
+    rel = f"{CONTRATOS[tipo][0]}/{a.pedido}.md"
+    texto = esqueleto_do_parecer(a.tipo, a.pedido, a.branch, commit, a.parecer, datetime.date.today().isoformat())
+    _, violacoes = validar_documento(rel, texto, estrito=True)
+    if violacoes:  # a ferramenta nunca entrega forma que ela mesma reprova
+        print("\n".join(["parecer novo: o esqueleto saiu fora do contrato (defeito da ferramenta):", *violacoes]))
+        return 2
+    print(f"parecer novo: grave em {rel}; commit: {commit[:12]} ({fonte}); troque cada {PREENCHER}", file=sys.stderr)
+    sys.stdout.write(texto)
+    return 0
 
 
 def cmd_parecer_delta(raiz, arquivo, ate=None):
@@ -7992,6 +8112,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
         saida.append(f"Branch: {branch}   Base: {base}   Base-sha: {sha_base}")
     if etapa or coberta:
         saida.append(f"Etapa: {etapa or PREENCHER}" + (f"   Cobre: {coberta}" if coberta else ""))  # sem --etapa, o brief não passa
+    if branch and etapa in ETAPAS_DE_PARECER:  # AQ-5: o parecer grava este sha em `commit:`, nunca o HEAD de agora
+        saida.append(f"Revisar-sha: {sha_a_revisar(raiz, branch) or PREENCHER}")
     if coberta:
         saida += ["", "## Entregar", f"- \"{sem_controle(dados['etapas'][coberta][1])}\" ({coberta})",
                   f"- {PREENCHER}: o que esta etapa entrega, cada item citando o ID do pedido"]
@@ -8267,6 +8389,7 @@ def corrigir_derivados(raiz, texto, pedido_txt, caminho_pedido):
         correcoes.append(f"corrigido: --base-sha e --desde das linhas `forge-check entrega` (calculados: {(sha_base or '-')[:12]}, "
                          f"{(desde or 'sem --desde')[:12]})")
         corrigido = novo
+    corrigido = corrigir_revisar_sha(raiz, corrigido, branch, correcoes, reprovas)
     referencia = referencia_do_brief(secoes_por(corrigido, CABECALHO_BRIEF))
     if referencia:
         atual = hash_das_decisoes(decisoes_cobradas(raiz, caminho_pedido, pedido_txt))
@@ -8274,6 +8397,32 @@ def corrigir_derivados(raiz, texto, pedido_txt, caminho_pedido):
             corrigido = re.sub(rf"(decisões: pedido \S+ até ){referencia[1]}", lambda m: m.group(1) + atual, corrigido, count=1)
             correcoes.append(f"corrigido: hash das decisões {referencia[1][:12]} -> {atual[:12]} (bloco atual do pedido)")
     return corrigido, correcoes, reprovas
+
+
+def corrigir_revisar_sha(raiz, texto, branch, correcoes, reprovas):
+    """AQ-5: no brief de review, segurança ou QA com branch, o `Revisar-sha:` do cabeçalho é o `sha_a_revisar` da branch (nunca o
+    digitado); sem a linha, ela entra logo depois da linha do `Branch:`. Devolve o texto; anota em `correcoes` e `reprovas`."""
+    cabecalho = cabecalho_do_brief(texto)
+    if grupo(ETAPA_DO_CABECALHO, cabecalho) not in ETAPAS_DE_PARECER or not branch or branch in SEM_BRANCH:
+        return texto
+    esperado = sha_a_revisar(raiz, branch)
+    if not esperado:
+        reprovas.append(f"base: não calculei o sha a revisar da branch {nome_seguro(branch)} (Revisar-sha, AQ-5)")
+        return texto
+    digitado = grupo(r"^\s*Revisar-sha:[ \t]*(\S+)", cabecalho)
+    if digitado == esperado:
+        return texto
+    fim = len(cabecalho)
+    if digitado is None:
+        novo, n = re.subn(r"^(.*\bBranch:.*)$", lambda m: f"{m.group(1)}\nRevisar-sha: {esperado}", texto[:fim], count=1, flags=re.M)
+    else:
+        novo, n = re.subn(r"^(\s*Revisar-sha:[ \t]*)\S+", lambda m: m.group(1) + esperado, texto[:fim], count=1, flags=re.M)
+    if not n:
+        reprovas.append(f"base: o cabeçalho não tem `Branch:`; o sha a revisar calculado é {esperado}")
+        return texto
+    correcoes.append(f"corrigido: Revisar-sha {sem_controle(digitado or 'ausente')[:40]} -> {esperado} (o código da branch, sem os "
+                     "commits só de parecer)")
+    return novo + texto[fim:]
 
 
 def regravar_brief(arquivo, texto):
@@ -8340,6 +8489,8 @@ def cmd_brief_selar(raiz, a):
         print(f"selo: {gravar_no_historico(caminho_pedido, f'brief selado {nome} {sha}')}")
     print(f"Arquivo: {caminho_impresso(arquivo)}")
     print(f"Brief-sha256: {sha}")
+    if revisar := grupo(REVISAR_SHA, cabecalho_do_brief(texto)):  # AQ-5: o `commit:` que o parecer grava
+        print(f"Revisar-sha: {revisar}")
     print("resultado: selado")
     return 0
 
@@ -8894,6 +9045,11 @@ def main():
     pd = psub.add_parser("delta", parents=[comum], help="o diff desde o `commit:` do parecer, só nos arquivos do domínio do tipo dele; só leitura, nunca reprova")
     pd.add_argument("arquivo", help="o parecer (docs/reviews, qa, devops ou security)")
     pd.add_argument("--ate", help="o fim do intervalo (padrão HEAD)")
+    pn = psub.add_parser("novo", parents=[comum], help="imprime o esqueleto válido do parecer com o `commit:` do sha a revisar (Z7, AQ-5); só leitura")
+    pn.add_argument("--tipo", required=True, choices=tuple(TIPO_DO_PARECER_NOVO))
+    pn.add_argument("--pedido", required=True)
+    pn.add_argument("--branch", required=True)
+    pn.add_argument("--parecer", required=True, choices=("aprovado", "reprovado"), help="o veredito é de quem revisa; sem padrão")
     ec = sub.add_parser("escape", help="defeito escapado: bug achado depois do parecer final (M14b)")
     esub = ec.add_subparsers(dest="acao", required=True)
     er = esub.add_parser("registrar", parents=[comum], help="acrescenta o defeito escapado em docs/kanban/escapes.md, em formato fixo, com a hora real")
@@ -9081,6 +9237,8 @@ def executar(a, raiz):
         return cmd_transcricao_medida("decisoes", a.alvo, ler_respostas_do_jarvis, medir_decisoes, ("respostas", "com_grupo", "violacoes"), 0, raiz)
     if a.cmd == "provas" and a.acao == "gerar":
         return cmd_provas_gerar(raiz, a.brief)
+    if a.cmd == "parecer" and a.acao == "novo":
+        return cmd_parecer_novo(raiz, a)
     if a.cmd == "parecer" and a.acao == "delta":
         return cmd_parecer_delta(raiz, a.arquivo, a.ate)
     if a.cmd == "delta":

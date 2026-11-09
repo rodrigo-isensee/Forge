@@ -1030,7 +1030,7 @@ class VoltaUnicaComQa(Repositorio):
         self.assertRegex(saida, rf"\(qa {h} A2\) mensagem vaga \[src/app.txt:2\] · PREENCHER: entra ou corta")
 
     def test_qa_aprovado_antes_do_codigo_novo_fica_desatualizado(self):  # C-2, caso de abuso 1
-        h = self.head()
+        h = self.c1  # AQ-5 (0.43.3): o QA cita o código revisado; o HEAD com o parecer do review por cima é recusado
         self.commitar({"docs/qa/pedido-sintetico.md": self.QA.format(c=h, p="aprovado", b=0, corpo="ok\n")}, "parecer de QA em H")
         modulo = carregar_forge_check()
         self.assertEqual([l for l in modulo.cmd_pr(self.repo, "pedido-sintetico") if l.startswith("docs/qa/")], [])  # em H vale
