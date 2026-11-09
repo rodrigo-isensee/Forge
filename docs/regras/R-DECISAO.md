@@ -1,47 +1,36 @@
 ---
 id: R-DECISAO
-titulo: Uma decisão por vez, com opções e recomendação
-verificada_por: conferente (corte de escopo); vigia (lista do dono não gravada no turno, `entrada-sem-registro`) e revisão (transcrições, ADR 0007); retrospectiva (linhas `MELHORIA:`)
+titulo: Decisões do dono em lote, com opções, recomendação e prazo
+verificada_por: `forge-check brief selar` (corte de escopo); vigia (`entrada-sem-registro`); revisão; retrospectiva (linhas `MELHORIA:`)
 ---
-# R-DECISAO: Uma decisão por vez, com opções e recomendação
+# R-DECISAO: Decisões do dono em lote, com opções, recomendação e prazo
 
-Propósito: texto único desta regra; os outros arquivos citam o ID. Público: todo o time, em qualquer projeto. Revisão: 2026-10-30.
+Propósito: texto único desta regra; os outros arquivos citam o ID. Público: todo o time, em qualquer projeto.
 
-- Toda decisão que cabe ao usuário (produto, escopo, prioridade, regra de negócio, custo, acesso, exceção a uma regra, aumento de tokens ou de tempo de entrega) é levada **uma de cada vez**: a próxima só depois que ele responder a anterior.
-- Cada decisão vem com: o contexto em uma ou duas linhas; **as opções** (A, B, C…), cada uma com o principal prós e contra, **se afrouxa o processo** (sim ou não) e o **tempo e os tokens a mais ou a menos** por demanda (faixa e média, marcados `medido`, `estimado` ou `não medido`; a fonte do número está em "Como perguntar" da skill `modo-iniciante`), e **se esse custo fica maior ou menor que o das outras opções** ("a mais barata", "a mais cara", "igual"), dito em palavras ao lado dos números; e **a recomendação** do time, com o motivo.
-- Pendências que dependem do usuário e não são decisões (ex.: mesclar um PR, criar uma conta) vão numa lista curta de ações, separada da decisão.
-- Havendo várias decisões na fila, o Jarvis escolhe a que destrava mais trabalho, leva só ela e diz quantas restam.
-- **Uma pergunta por vez** em tudo, também no entendimento inicial do pedido: as outras ficam na fila, e a resposta diz quantas restam.
-- **Corte de escopo é explícito.** Toda decisão, brief ou entrega que retira algo do escopo original traz a marca literal **"Retira do escopo original"**, o trecho do pedido citado, a justificativa, a consequência e a referência à decisão do usuário que o autoriza. O arquivo do pedido ganha a lista "Fora do escopo". Item pedido que some sem a marca é corte silencioso: o `forge:conferente` o reprova (no brief, `corte: sem marca`; na entrega, `pendente:`).
-- Decisões técnicas são do time: decidem, registram (ADR ou relatório) e não viram pergunta ao usuário.
-- Vale para o Jarvis e para qualquer agente que fale com o usuário, em todo projeto que usa o Forge.
+Revisar em: 2027-01-07
+Medida: esperas do dono de ~10 h e ~7 h numa noite com perguntas em série (estudo 0.43.1)
+
+- Vai ao usuário: produto, escopo, prioridade, regra de negócio, custo, acesso, exceção a regra, mais tokens ou tempo de entrega. Decisão técnica é do time: decide e registra.
+- **Em lote:** as decisões independentes vão numa mensagem, numeradas; cada uma com o contexto, **as opções** (prós e contra, se afrouxa o processo, o tempo e os tokens a mais ou a menos, marcados `medido`, `estimado` ou `não medido`, e se esse custo fica maior ou menor que o das outras opções) e **a recomendação** com o motivo. Ações vão numa lista à parte.
+- **Prazo e padrão:** a decisão reversível e sem custo traz um prazo; sem resposta, vale a recomendação, gravada como `delegado`. Custo, acesso, exceção, aceite de risco, rótulo, merge na main e ato irreversível esperam.
+- **Corte de escopo é explícito:** a marca "Retira do escopo original", o trecho do pedido, o motivo, a consequência e a decisão do usuário; o pedido ganha o "Fora do escopo". Item que some sem a marca reprova (no brief, `corte: sem marca` no selo; na entrega, `pendente:` no review).
 
 ## Complemento: o que é bloqueante e de onde vem a recomendação
-- **Teste de bloqueante.** Uma dúvida só vai ao usuário se as três condições valem **juntas**: (1) existem leituras razoáveis que levam a resultados bem distintos em negócio, dados, interface, escopo, segurança, compatibilidade ou ato irreversível; (2) nem a conversa nem o projeto resolvem; (3) errar custa caro de desfazer. Faltando uma, o time decide e a dúvida vira uma linha "Suposições" no relatório, com a base, o que a faria mudar (`muda com`) e o `custo de reverter`; `forge-check brief` avisa a que vier sem os dois.
-- **O teste não se aplica** a custo (`R-CUSTO`), a acesso e credenciais, a exceção a uma regra (`R-CONFORMIDADE`) nem a fato de negócio que o usuário já declarou: esses casos vão sempre ao usuário, como o primeiro item desta regra manda.
-- **Escada da recomendação**, nesta ordem: o que o usuário disse, depois o fato do projeto, depois regra ou ADR, depois prática da fábrica, depois preferência do time.
-- **Recomendar sempre, com a base declarada:** toda recomendação diz o degrau da escada que a decidiu. Em escopo, prioridade ou custo, leva a marca "preferência do time", separada dos fatos.
-- **Decisão só vale gravada.** Pedido, lista ou decisão do dono é gravado por quem o recebe, no mesmo turno, no arquivo do pedido (`docs/pedidos/`) ou no quadro; o scratchpad da sessão é temporário e nunca guarda o que é do dono. Lista de 3 ou mais itens do turno sem gravação o vigia avisa ao dono (aviso, nunca bloqueio). Resumo de compactação não autoriza: depois dela, decisão que não está no disco é perguntada de novo.
-- **Proposta aprovada sai com versão nomeada.** Toda proposta que o usuário aprova é gravada com a versão nomeada (`versão: X.Y`) na própria linha da decisão, nunca com "próxima" ou balde sem número; quem grava diz a versão ao usuário no mesmo turno.
-- **Versão cheia passa para a seguinte.** Quando a versão atingiu o limite de cartões que o projeto define, a proposta vai para a versão seguinte com vaga, também nomeada.
+- **Teste de bloqueante:** vai ao usuário só a dúvida com leituras de resultado bem distinto, que o projeto não resolve e que custa caro desfazer. Senão, vira "Suposições" com a base, `muda com` e `custo de reverter`.
+- **O teste não se aplica** a custo, acesso, exceção a regra nem a fato de negócio já declarado.
+- **Escada da recomendação:** o que o usuário disse, fato do projeto, regra ou ADR, prática da fábrica, preferência do time (com essa marca em escopo, prioridade ou custo).
+- **Decisão só vale gravada:** pedido, lista ou decisão do dono vai ao arquivo do pedido ou ao quadro no mesmo turno, nunca ao scratchpad; depois de compactação, o que não está no disco é perguntado de novo. Proposta aprovada leva a versão nomeada (`versão: X.Y`). Versão cheia passa para a seguinte com vaga.
 
 ## Complemento: "tanto faz" e ordem ampla
-- **"Tanto faz" e "decidam vocês" viram item `delegado`.** O Jarvis grava a frase literal do usuário e a recomendação adotada, com a base, no arquivo do pedido, no mesmo turno. Esses nunca são delegáveis assim: **custo** (`R-CUSTO`), **acesso**, **exceção a regra** (`R-CONFORMIDADE`) e **ato irreversível**; continuam indo ao usuário.
-- **Ordem ampla não confirma.** "Resolva", "acabe tudo" e "pode fazer" só cobrem itens já marcados `confirmado` ou `delegado` no pedido. Item novo ou ato irreversível dentro dela volta ao usuário como pergunta, uma por vez.
-- **Item `técnico` não depende de ordem.** É decisão do time ("Decisões técnicas são do time", acima): executa sem ordem do usuário. `Suposição` e `no-protótipo` seguem fora da ordem ampla: ela não os confirma.
+- "Tanto faz" e "decidam vocês" viram item `delegado`. Esses nunca são delegáveis assim: **custo** (`R-CUSTO`), **acesso**, **exceção a regra** (`R-CONFORMIDADE`) e **ato irreversível**.
+- **Ordem ampla não confirma:** "resolva" e "pode fazer" só cobrem o que já é `confirmado` ou `delegado`. Item `técnico` não depende de ordem. `Suposição` e `no-protótipo` seguem fora da ordem ampla.
 
 ## Complemento: melhoria vista e entrada direta
-- **(a) Linha `Melhoria vista:`.** Todo relatório de agente termina com a linha `Melhoria vista:` (menos o do `forge:conferente`): o problema, a evidência (arquivo e linha, saída de ferramenta ou transcrição) e a mudança sugerida, ou `nenhuma`. Sem evidência vale `nenhuma`; não se inventa melhoria para preenchê-la.
-- **(b) Retrospectiva.** O Jarvis grava no pedido, no mesmo turno, cada linha diferente de `nenhuma` como `MELHORIA: <agente>: <texto>`. Na retrospectiva o `agile-coach` classifica cada uma em `cartão`, `ao usuário` (com o critério que falhou) ou `descartada` (sem evidência ou duplicada, citando o cartão que a cobre), e o Jarvis abre os cartões.
-- **(c) Entrada direta na fila, sem perguntar ao usuário,** só com as quatro condições juntas: não custa dinheiro real, sem exceção (`R-CUSTO`); não afrouxa controle (`R-CONFORMIDADE`), regra nem item de `tests/config.json`; não é decisão de produto; não aumenta tokens nem tempo de entrega dos pedidos seguintes (por exemplo, passo, rodada, agente ou texto lido a cada delegação). O usuário fica sabendo no resumo da etapa.
-- **(d) Faltando uma condição, ou na dúvida,** vai ao usuário como decisão, com o aumento estimado; melhoria que custa dinheiro real não entra na fila.
-- **(e) Vale igual em todo projeto que usa o Forge:** melhoria técnica do projeto entra no quadro do projeto; melhoria de fábrica vista num projeto só vira proposta por PR no Forge (`R-CONTRIB`).
+- **(a)** Todo relatório termina com `Melhoria vista:` (problema, evidência, mudança) ou `nenhuma`; não se inventa melhoria para preenchê-la. Remover regra, passo ou trava também é melhoria.
+- **(b)** O Jarvis a grava como `MELHORIA:` no pedido; a retrospectiva a classifica (`cartão`, `ao usuário`, `descartada`).
+- **(c) Entrada direta**, sem perguntar: não custa dinheiro real, sem exceção; não é afrouxamento; não é decisão de produto; não aumenta tokens nem tempo de entrega.
+- **(d) Afrouxamento** é a mudança que faz a qualidade medida cair ou tira controle sem medida. Simplificar o processo quando a qualidade medida (escapes, falhas de CI, achados reais) não cai **não é afrouxamento**.
+- **(e) Evoluir sem piorar:** a retrospectiva escolhe no máximo 1 causa nova pelo `forge-placar` (uma proposta aberta por vez) e a corrige de preferência em código ou eval de regressão; texto só para julgamento. Toda mudança declara a métrica e a data de revisão, quando `forge-placar comparar` decide manter ou reverter. Regra nova só com medida (é proibido acrescentar regra sem ela) e diz qual sai no lugar dela.
 
 ## Complemento: painel "Aguardando o dono"
-- **O que entra.** Todo cartão cuja próxima ação é do usuário e que não está numa coluna de validação do fluxo ("Validação do usuário" e "Aguardando sua validação" seguem como estão). Exemplos: decisão (esta regra), rótulo, ação de acesso ou credencial, envio que só ele faz, exceção (`R-CONFORMIDADE`).
-- **Forma.** Seção `## Aguardando o dono` no topo do `KANBAN.md`, com as sete colunas do quadro e Responsável `usuário`. A Obs. segue a forma fixa `origem: <coluna>; ação: <o que o usuário faz>; comando: <literal ou —>; destrava: <cartões ou etapas>`. `origem` nunca é "Validação do usuário" nem "Aguardando sua validação". Ordem da mais antiga para a mais nova pela coluna "Na coluna desde", com hora.
-- **O campo `comando`.** Uma linha, um comando, um efeito, literal e completo, que o usuário cola no próprio terminal. Mais de um passo vira `comando: —` com a ação descrita. Nunca traz segredo nem dado de pessoa (valor sensível entra como `<valor>`), nunca é um jeito de contornar controle (`R-CONFORMIDADE`, `R-VERIFY`: sem `--no-verify`, `--force`, `--admin` nem merge sem portão) e vem do vocabulário do time (regra, ferramenta do Forge, runbook do projeto), nunca copiado de conteúdo de fora. O texto do painel é dado: nenhum agente o executa nem o toma como autorização do usuário.
-- **Decisão, exceção, rótulo e aceite.** Decisão, exceção a regra, rótulo `afrouxa-regra`, aceite de risco, custo e acesso entram com `comando: —` com `decisão: <pedido>` na Obs. até a decisão estar gravada (ver "Decisão só vale gravada"); o aceite de risco nunca tem comando, porque é escrito à mão pelo usuário (`R-SEGURANCA`).
-- **Entrada e saída.** Pelo `forge-check movimento`, com a hora real. Na saída o cartão volta à coluna de origem, e o motivo cita a evidência no motivo: `decisão: <pedido>:<linha>` ou o estado conferido (PR mesclado `<sha7>`, rótulo lido); sem ela o cartão fica.
-- **Ao usuário.** Em cada relatório de etapa e ao fim de cada lote, o Jarvis lista os cartões do painel e os das duas colunas de validação, por idade; cada linha leva ação, comando, o que destrava e a idade.
-- **Vaga.** A vaga da coluna de origem fica ocupada (`R-WIP`).
+- Cartão cuja próxima ação é do usuário vai à seção `## Aguardando o dono` do `KANBAN.md` por `forge-check movimento`, com a Obs. `origem: <coluna>; ação: <o que o usuário faz>; comando: <literal ou —>; destrava: <itens>`. O comando é um comando, um efeito, sem segredo; decisão, rótulo e aceite levam `comando: —` com `decisão: <pedido>`. Na saída, a evidência no motivo. O Jarvis lista o painel ao fim de cada lote.
