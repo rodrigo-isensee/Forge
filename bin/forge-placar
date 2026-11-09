@@ -50,6 +50,7 @@ CLASSES_DE_MERITO = ("implementacao", "prova")  # o resto dos negativos é forma
 DATA = re.compile(r"\d{4}-\d{2}-\d{2}")
 LINHA_DO_HISTORICO = re.compile(r"^- (\d{4}-\d{2}-\d{2})(?: (\d{2}):(\d{2}))?: (.*)$")
 CONFERIDA = re.compile(r"^entrega conferida [0-9a-f]{40}\b")
+SELADO = re.compile(r"^brief selado docs/briefs/\S+\.md [0-9a-f]{64}\s*$")  # A2 (0.43.2): a delegação do processo novo
 MESCLADO = re.compile(r"\b(?:mesclad[oa]|integrad[oa])\b.*\bdevelop\b", re.I)
 ERRO_REGISTRO = re.compile(r"^## \d+\. .*\((\d{4}-\d{2}-\d{2})[ T]\d{2}:\d", re.M)
 TIPOS_DE_MUDANCA = ("código:", "codigo:", "texto:")
@@ -163,10 +164,12 @@ def razao(n, d):
 def medir(fontes, janela):
     """As métricas de uma janela [início, fim): dict com os números brutos e as razões (None quando não há fonte ou base)."""
     conf = [v for v in fontes["conferencias"] or [] if dentro(v[0], janela)]
-    delegacoes = sum(1 for _, modo, negativo, _ in conf if modo == "brief" and not negativo)
+    hist = fontes["historicos"] or {}
+    # A2 (0.43.2): com o conferente opcional, a delegação é o `brief selado` do Histórico; o maior dos dois registros vale
+    selados = sum(1 for linhas in hist.values() for quando, texto in linhas if SELADO.match(texto) and dentro(quando.date(), janela))
+    delegacoes = max(selados, sum(1 for _, modo, negativo, _ in conf if modo == "brief" and not negativo))
     negativos = [classe for _, _, negativo, classe in conf if negativo]
     forma = sum(1 for classe in negativos if classe not in CLASSES_DE_MERITO)
-    hist = fontes["historicos"] or {}
     erros = sum(1 for linhas in hist.values() for quando, texto in linhas if "ERRO-JARVIS" in texto and dentro(quando.date(), janela))
     erros += sum(1 for d in fontes["erros"] if dentro(d, janela))
     escapados = {nome: (None if fontes[nome] is None else sum(1 for d in fontes[nome] if dentro(d, janela)))
@@ -178,7 +181,7 @@ def medir(fontes, janela):
         fim = next((q for q, t in linhas if pronto and q >= pronto and MESCLADO.search(t)), None)
         if pronto and fim and dentro(fim.date(), janela):
             tempos.append((fim - pronto).total_seconds() / 60)
-    sem_conf = fontes["conferencias"] is None
+    sem_conf = fontes["conferencias"] is None and not selados
     return {
         "janela": [janela[0].isoformat(), janela[1].isoformat()],
         "vereditos": len(conf), "delegacoes": delegacoes, "negativos": len(negativos), "negativos_forma": forma,
