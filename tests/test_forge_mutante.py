@@ -1064,8 +1064,11 @@ class DiffDeTextoGrande(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             Path(d, "test_grande.py").write_text(self.TESTE_GRANDE, encoding="utf-8")
             registro = Path(d, "registro.jsonl")
-            r = subprocess.run([sys.executable, str(FERRAMENTA), "--executar", *ids, "--registro", str(registro)],
-                               cwd=d, capture_output=True, text=True, timeout=30)  # sem a troca, o ndiff passa de 30 s
+            try:  # sem a troca, o ndiff passa de 30 s: estourar é falha da asserção, não erro do teste
+                r = subprocess.run([sys.executable, str(FERRAMENTA), "--executar", *ids, "--registro", str(registro)],
+                                   cwd=d, capture_output=True, text=True, timeout=30)
+            except subprocess.TimeoutExpired:
+                self.fail("o executor passou de 30 s montando o diff da asserção")
             self.assertEqual(r.returncode, 0, r.stderr)
             return {e["id"]: e["res"] for e in map(json.loads, registro.read_text(encoding="utf-8").splitlines())}
 
