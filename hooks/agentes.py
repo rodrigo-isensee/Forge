@@ -2,7 +2,7 @@
 """Forge: teto de agentes, relançamento duplicado (ADR 0003, R-TETO), brief selado do especialista e forma da mensagem ao conferente (R-BRIEF).
 
 P1 (0.43.1) e D2 (0.44.0): todo disparo (fora o conferente e os tipos só de leitura de `TIPOS_SO_DE_LEITURA`: Explore, Plan,
-claude-code-guide, web-fetch, statusline-setup) exige no prompt o caminho de um brief em docs/briefs/ com selo no
+claude-code-guide, web-fetch, que a conformidade põe no papel só de leitura `leitura`) exige no prompt o caminho de um brief em docs/briefs/ com selo no
 `## Histórico` do pedido (`- <data> <hora>: brief selado docs/briefs/<nome>.md <sha256>`, gravado só pelo `forge-check brief selar`)
 e com o sha256 de agora; sem isso, bloqueia (falha fechada). O conferente é opcional e segue com a forma e o hash da mensagem.
 D3 (0.44.0): com o selo em dia, o hook reconfere os campos calculados do brief (`forge-check`, `brief_vencido`) e, se a base andou
@@ -442,7 +442,9 @@ def recusar_branch_ocupada(hook, agentes, branches):
 EXECUTORES_GENERICOS = {"general-purpose", "fork", "claude"}
 # D2 (decisão do dono de 09/11, M2 do review de segurança da 0.43.1): o selo vale para todo tipo que escreve; só estes, que não têm
 # Write nem Edit no repositório (pesquisa, leitura, guia, busca na web, linha de status), e o conferente seguem sem ele.
-TIPOS_SO_DE_LEITURA = frozenset({"Explore", "Plan", "claude-code-guide", "web-fetch", "statusline-setup"})
+# Review da 0.44.1 (B1): estes tipos vão ao papel `leitura` de hooks/conformidade.json (só de leitura); o statusline-setup edita
+# arquivo e por isso exige o selo.
+TIPOS_SO_DE_LEITURA = frozenset({"Explore", "Plan", "claude-code-guide", "web-fetch"})
 
 
 def exige_selo(tipo):

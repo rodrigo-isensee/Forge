@@ -161,6 +161,15 @@ class Gerar(Repositorio):
 
 
 class Selar(Repositorio):
+    def test_sem_selar_corrige_os_derivados_e_nao_grava_selo(self):
+        """B2 (review da 0.44.1): a ação automática do O1 (`brief selar --sem-selar`) recalcula o Base-sha e nunca grava o selo."""
+        arq = self.brief(base_sha="0" * 40)
+        rc, saida = self.rodar("brief", "selar", "--sem-selar", "--arquivo", "docs/briefs/exemplo-node-backend-1.md", "--pedido", "exemplo")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("sem selo", saida)
+        self.assertIn(f"Base-sha: {self.base}", arq.read_text(encoding="utf-8"))
+        self.assertEqual(fc.selos_do_pedido(self.pedido()), [])
+
     def test_sela_uma_vez_e_grava_no_historico(self):
         arq = self.brief()
         rc, saida = self.selar()
@@ -417,11 +426,11 @@ class Hook(Repositorio):
     def test_todo_tipo_que_escreve_pede_selo_e_so_leitura_segue_livre(self):
         """D2 (0.44.0): sem brief, o executor genérico, o tipo de outro plugin e o desconhecido são barrados; a lista só de leitura passa."""
         self.brief()
-        for tipo in ("general-purpose", "fork", "claude", "time:tech-lead", "forge-dev:aq", "outro"):
+        for tipo in ("general-purpose", "fork", "claude", "time:tech-lead", "forge-dev:aq", "outro", "statusline-setup"):
             r = self.lancar("procure onde o hook lê o selo e resuma", tipo=tipo)
             self.assertEqual(r.returncode, 2, tipo)
             self.assertIn("não cita o brief", r.stderr, tipo)
-        for tipo in ("Explore", "Plan", "claude-code-guide", "web-fetch", "statusline-setup"):
+        for tipo in ("Explore", "Plan", "claude-code-guide", "web-fetch"):
             self.assertEqual(self.lancar("Leia docs/briefs/exemplo-node-backend-1.md e resuma.", tipo=tipo).returncode, 0, tipo)
 
     def test_brief_de_outro_plugin_casa_o_tipo_inteiro(self):

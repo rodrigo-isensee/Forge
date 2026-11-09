@@ -326,7 +326,7 @@ FORGE_CHECK_GRAVA = ("--gerar-entrada", "--gravar", "--escrever", "--salvar")
 FORGE_CHECK_GRAVA_EXATA = ("--destino-arquivo",)
 # FURO-HOOK-A, A4: o subcomando do `forge-check` que grava fora do papel só de leitura -> a pasta de destino (a política de caminhos
 # decide quem grava lá); o `transcricao anonimizar` grava no 2.º argumento. Os que gravam em caminho livre ficam na 2.ª lista.
-FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs", "medida": "docs/kanban"}
+FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs", "medida": "docs/kanban", "pedido": "docs/pedidos"}  # S2: `pedido fala --gravar`
 FORGE_CHECK_EM_CAMINHO_LIVRE = {"movimento", "registrar"}
 # 0.43.1 (P1, P2): a forma nova grava no `## Histórico` do pedido: `brief selar` (o selo) e `entrega --pedido` (a `entrega conferida`),
 # esta salvo com `--sem-gravar`. A forma antiga do `entrega` (pedido posicional) só lê.
@@ -523,6 +523,16 @@ def grava_no_pedido(livres, args):
     if not entrega_pela_forma_nova(livres, args):
         return False
     return not (any(abreviacao_de(a, ("--sem-gravar",)) and "=" not in a for a in args) or so_leitura_no_entrega(args))
+
+
+def prefixo_de(opcao, longa):
+    """A opção é a `longa` ou uma abreviação dela que o argparse aceita (`--p` de `--para`)."""
+    return len(opcao) >= 3 and longa.startswith(opcao)
+
+
+def so_le(args, leitura):
+    """S2/S8 (review da 0.44.1): o modo de leitura (`--ler`, `--confirmar`, com ou sem `=valor`) está na linha; sem ele, grava."""
+    return any(prefixo_de(a.split("=", 1)[0], leitura) for a in args)
 
 
 def abreviacao_de(opcao, longas):
@@ -1278,8 +1288,15 @@ class Guarda:
         sub = next(iter(livres), "")
         if grava_no_pedido(livres, args):  # o selo e a `entrega conferida` são do jarvis (docs/pedidos/)
             destinos = [f"{r}/docs/pedidos/pedido.md" for r in (".", "~/.forge-contrib")]
-        elif sub in FORGE_CHECK_ESCRITAS and (sub != "brief" or any(abreviacao_de(a, ("--gravar",)) for a in args)):
+        elif sub in FORGE_CHECK_ESCRITAS and (sub != "brief" or any(abreviacao_de(a, ("--gravar",)) for a in args)) \
+                and not (sub == "pedido" and so_le(args, "--ler")):
             destinos = [f"{r}/{FORGE_CHECK_ESCRITAS[sub]}/pedido.md" for r in (".", "~/.forge-contrib")]
+        elif sub == "recado" and not so_le(args, "--confirmar"):
+            # S8 (review da 0.44.1): a caixa de recados é da sessão principal; a raiz de destino (`--para`) é livre, então confere a
+            # dela e a da sessão (a política de `.forge/recados/` decide); sem `--confirmar`, grava (na dúvida, recusa)
+            raizes = [a.split("=", 1)[1] for a in args if "=" in a and prefixo_de(a.split("=", 1)[0], "--para")]
+            raizes += [args[i + 1] for i, a in enumerate(args[:-1]) if prefixo_de(a, "--para")]
+            destinos = [f"{r}/.forge/recados/recado.md" for r in (*raizes, ".", "~/.forge-contrib")]
         else:
             destinos = livres[3:4] if sub == "transcricao" and livres[1:2] == ["anonimizar"] else []
         for destino in destinos:
