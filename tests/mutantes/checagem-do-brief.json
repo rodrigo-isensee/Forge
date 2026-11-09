@@ -6,7 +6,7 @@
       "id": "M1",
       "guarda": "a skill manda conferir a lista local do projeto quando ela existe",
       "arquivo": "skills/checagem-do-brief/SKILL.md",
-      "de": "Se existir `docs/engineering/brief-checklist.md` no projeto, confira cada item dele",
+      "de": "Se existir `docs/engineering/brief-checklist.md` no projeto, confira cada item cujo `quando:` casa com o tipo do brief",
       "para": "Se existir uma lista do projeto, leia",
       "testes": ["tests.test_modelos_projeto.ChecagemDoBrief"]
     },
@@ -28,17 +28,17 @@
     },
     {
       "id": "M4",
-      "guarda": "a lista local só acrescenta: nenhum item dispensa conferente, review, QA, segurança nem rótulo do dono",
+      "guarda": "a lista local só acrescenta: nenhum item dispensa portão, review, QA, segurança nem rótulo do dono",
       "arquivo": "skills/checagem-do-brief/SKILL.md",
-      "de": "Um item dela nunca dispensa conferente, review, QA, segurança nem rótulo do dono",
-      "para": "Um item dela pode dispensar o conferente",
+      "de": "Um item local nunca dispensa portão, review, QA, segurança nem rótulo do dono",
+      "para": "Um item local pode dispensar o portão",
       "testes": ["tests.test_modelos_projeto.ChecagemDoBrief"]
     },
     {
       "id": "M5",
-      "guarda": "a skill do brief manda ler a checagem-do-brief antes de mandar o brief",
+      "guarda": "a skill do brief manda ler a checagem-do-brief antes de selar o brief",
       "arquivo": "skills/briefs-e-conferencia/SKILL.md",
-      "de": "Antes de mandar o brief, leia a skill `checagem-do-brief` (`skills/checagem-do-brief/SKILL.md`) e confira a lista dela e a lista local do projeto. ",
+      "de": " Leia a skill `checagem-do-brief` para o que a ferramenta não sabe (estado do remoto, credencial, efeito fora da worktree).",
       "para": "",
       "testes": ["tests.test_modelos_projeto.ChecagemDoBrief"]
     }
