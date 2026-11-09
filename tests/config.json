@@ -687,7 +687,8 @@
       "skills/falar-com-o-dono/SKILL\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o formato da pergunta ao dono"}
     },
     "agents/tech-lead.md": {
-      "suíte inteira roda só no CI": {"regra": "R-QA", "porque": "sem o texto, review, segurança e QA voltam a rodar a suíte inteira na máquina e a fila local cresce sem ganho; ela roda uma vez no CI do PR"}
+      "suíte inteira roda só no CI": {"regra": "R-QA", "porque": "sem o texto, review, segurança e QA voltam a rodar a suíte inteira na máquina e a fila local cresce sem ganho; ela roda uma vez no CI do PR"},
+      "`sem teste:` do `forge-check pr` pede justificativa no `## Sem teste` do PR": {"regra": "R-REVIEW", "porque": "sem o texto, o review aceita código mudado sem teste e sem justificativa, e o aviso do T1 vira ruído que ninguém lê"}
     },
     "agents/security-engineer.md": {
       "suíte inteira roda só no CI": {"regra": "R-QA", "porque": "sem o texto, review, segurança e QA voltam a rodar a suíte inteira na máquina e a fila local cresce sem ganho; ela roda uma vez no CI do PR"},
