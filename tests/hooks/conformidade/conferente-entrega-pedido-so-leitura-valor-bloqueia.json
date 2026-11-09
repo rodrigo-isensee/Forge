@@ -1,0 +1,19 @@
+{
+  "descricao": "D4 (0.44.0): `--so-leitura=x` não é a opção (o argparse recusa o valor); na dúvida, roda as provas e o conferente não a roda.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "forge-check entrega --pedido p1 --branch melhoria/x --etapa codigo --so-leitura=1"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:conferente"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "sem `--so-leitura` roda os PQ cmd"
+  }
+}

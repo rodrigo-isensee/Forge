@@ -480,17 +480,25 @@ def livres_do_forge_check(args):
     return livres
 
 
+def entrega_pela_forma_nova(livres, args):
+    """`entrega --pedido`: o argparse aceita abreviação, então `--p`/`--ped` contam como `--pedido` (na dúvida, é a forma nova)."""
+    return next(iter(livres), "") == "entrega" and any(a.startswith("--p") and "--pedido".startswith(a.split("=", 1)[0]) for a in args)
+
+
+def so_leitura_no_entrega(args):
+    """D4 (0.44.0): `--so-leitura` (ou a abreviação longa, `--so`), sem `=valor`: o `entrega --pedido` não grava nem roda os PQ cmd."""
+    return any(abreviacao_de(a, ("--so-leitura",)) and "=" not in a for a in args)
+
+
 def grava_no_pedido(livres, args):
-    """A forma nova que grava no pedido: `brief selar` e `entrega --pedido` sem `--sem-gravar`. O argparse aceita
-    abreviação, então `--p`/`--ped` contam como `--pedido` (na dúvida, grava) e só a abreviação longa (`--sem`) conta
-    como `--sem-gravar`."""
+    """A forma nova que grava no pedido: `brief selar` e `entrega --pedido` sem `--sem-gravar` nem `--so-leitura`. Só a abreviação
+    longa (`--sem`, `--so`) conta como uma delas."""
     sub = next(iter(livres), "")
     if sub == "brief":
         return "selar" in livres[1:]
-    if sub != "entrega":
+    if not entrega_pela_forma_nova(livres, args):
         return False
-    pedido = any(a.startswith("--p") and "--pedido".startswith(a.split("=", 1)[0]) for a in args)
-    return pedido and not any(abreviacao_de(a, ("--sem-gravar",)) and "=" not in a for a in args)
+    return not (any(abreviacao_de(a, ("--sem-gravar",)) and "=" not in a for a in args) or so_leitura_no_entrega(args))
 
 
 def abreviacao_de(opcao, longas):
@@ -1279,7 +1287,11 @@ class Guarda:
         if prog == "forge-check" and self.forge_check_grava_no_pedido(args):
             self.barrar("R-CONFORMIDADE", f"`{chave}` grava no Histórico do pedido (papel só de leitura: {self.papel})",
                         "use a forma antiga (`forge-check entrega <pedido> --branch ... --base ... --base-sha ...`) ou "
-                        "`entrega --pedido ... --sem-gravar`; o selo e a `entrega conferida` são do jarvis")
+                        "`entrega --pedido ... --so-leitura`; o selo e a `entrega conferida` são do jarvis")
+        if prog == "forge-check" and entrega_pela_forma_nova(livres_do_forge_check(args), args) and not so_leitura_no_entrega(args):
+            self.barrar("R-CONFORMIDADE", f"`{chave} --pedido` sem `--so-leitura` roda os PQ cmd, código da branch (papel só de leitura: "
+                                          f"{self.papel})", "use `forge-check entrega --pedido <p> --branch <b> --etapa <etapa> --so-leitura`; "
+                                                            "os PQ cmd ficam com o autor, o CI e o QA (D4)")
         if prog == "forge-check" and any(re.match(r"--[\w-]+=-", a) for a in args):
             self.barrar("R-CONFORMIDADE", f"`{chave}` com valor de opção que começa com `-` (papel só de leitura: "
                                           f"{self.papel})", DICA_LEITURA)

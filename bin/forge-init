@@ -56,11 +56,15 @@ n_esc="$(escapar "$nome")"; d_esc="$(escapar "$descricao")"; p_esc="$(escapar "$
 
 # .claude/settings.json existente (o próprio `claude plugin install --scope project` cria um): mescla em vez de pular.
 # Preenche agent, marketplace e plugin do Forge e une as listas de permissões; não apaga nada do projeto.
+# D1 (0.44.0): o projeto novo no Forge (sem .forge/versao) ganha o sandbox do modelo se não tiver a chave; no projeto que já usa o
+# Forge, o sandbox é escolha do dono (o forge-upgrade só oferece).
 mesclar_settings() {
-  python3 - "$1" "$2" <<'PY'
+  python3 - "$1" "$2" "$3" <<'PY'
 import json, sys
 modelo, alvo = (json.load(open(p, encoding="utf-8")) for p in sys.argv[1:3])
 alvo.setdefault("agent", modelo["agent"])
+if sys.argv[3] == "1":
+    alvo.setdefault("sandbox", modelo["sandbox"])
 for chave in ("extraKnownMarketplaces", "enabledPlugins"):
     alvo.setdefault(chave, {})
     for k, v in modelo[chave].items():
@@ -79,12 +83,15 @@ PY
 antigo=0
 if [ ! -e "$destino/.forge/versao" ] && { [ -e "$destino/CLAUDE.md" ] || [ -e "$destino/KANBAN.md" ]; }; then antigo=1; fi
 
+novo_no_forge=0
+if [ ! -e "$destino/.forge/versao" ] && [ "$antigo" -eq 0 ]; then novo_no_forge=1; fi
+
 criados=0; mantidos=0; config_nova=0
 while IFS= read -r -d '' arq; do
   rel="${arq#"$modelo"/}"
   alvo="$destino/$rel"
   if [ "$rel" = ".claude/settings.json" ] && [ -e "$alvo" ] && [ "$forcar" -eq 0 ]; then
-    mesclar_settings "$arq" "$alvo"
+    mesclar_settings "$arq" "$alvo" "$novo_no_forge"
     echo "  mesclado $rel"; continue
   fi
   if [ -e "$alvo" ] && [ "$forcar" -eq 0 ]; then

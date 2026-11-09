@@ -1667,6 +1667,17 @@ def raiz_principal(raiz):
     return Path(raiz)
 
 
+def raizes_de_pedidos(raiz):
+    """D7 (REGISTRO-RAIZ-FORGE, R2 de docs/security/conf-correcao.md): a ordem das raízes onde se procura `docs/pedidos/`. No projeto,
+    a de sempre: cópia principal, raiz, `RAIZES_DE_BRIEF`. No Forge (`e_o_forge` da cópia principal), os pedidos moram em
+    `~/.forge-contrib`: `RAIZES_DE_BRIEF` vêm na frente, e a raiz da branch fica por último (um pedido só da branch ainda é achado, mas
+    nunca vence o registro guardado)."""
+    principal = raiz_principal(raiz)
+    if e_o_forge(principal):
+        return (*RAIZES_DE_BRIEF, principal, Path(raiz))
+    return (principal, Path(raiz), *RAIZES_DE_BRIEF)
+
+
 def arquivo_existe(caminho):
     """`is_file` que trata nome longo demais ou com NUL como "não achou" (C-11)."""
     try:
@@ -1681,7 +1692,7 @@ class PedidoFora(Exception):
 
 def caminho_do_pedido(raiz, pedido):
     """Arquivo do pedido: `docs/pedidos/<id>.md` da cópia principal (nunca o da branch entregue, A1), da raiz e, por último, de cada
-    raiz de brief; o caminho dado (absoluto, `~/` ou relativo) só vale se o `realpath` cair em `docs/pedidos/` de uma dessas raízes
+    raiz de brief (no Forge, as raízes de brief primeiro: `raizes_de_pedidos`, D7); o caminho dado (absoluto, `~/` ou relativo) só vale se o `realpath` cair em `docs/pedidos/` de uma dessas raízes
     (travessia, link e pasta vizinha não valem) e o que se lê é o caminho resolvido (C-3). Fora delas, levanta `PedidoFora`."""
     caminhoso = "/" in pedido or pedido.endswith(".md")  # com cara de caminho nunca recebe `docs/pedidos/` nem `.md` (C2)
     dado = Path(pedido)
@@ -1689,7 +1700,7 @@ def caminho_do_pedido(raiz, pedido):
         dado = Path.home() / pedido[2:]
     if caminhoso:
         dentro, escapa = [], False  # escapa: numa raiz o caminho existe, mas o `realpath` sai de docs/pedidos/ (link, `..`)
-        for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+        for base in raizes_de_pedidos(raiz):
             try:
                 achado = dentro_da_raiz(base, dado, ("docs/pedidos",))  # C-8: travessia e link para fora não valem
             except ValueError:  # NUL no nome
@@ -1704,7 +1715,7 @@ def caminho_do_pedido(raiz, pedido):
             raise PedidoFora(pedido)
         return dentro[0]  # dentro das raízes e sem arquivo: quem lê diz que não conseguiu
     escapa = False  # id nu cujo arquivo é link para fora de docs/pedidos/ (C-3): nunca é lido
-    for pasta in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+    for pasta in raizes_de_pedidos(raiz):
         relativo = Path("docs") / "pedidos" / f"{pedido}.md"
         try:
             achado = dentro_da_raiz(pasta, relativo, ("docs/pedidos",))
@@ -3915,13 +3926,13 @@ def fim_da_secao(linhas, titulo):
 
 
 def pedido_para_anotar(raiz, pedido):
-    """Revisão de segurança A1: o arquivo que o `anotar` grava é só `docs/pedidos/<id>.md` (cópia principal, raiz, depois cada raiz de
-    brief), com `<id>` de `ID_DE_PEDIDO` e sem caminho; resolvido por `realpath` dentro de `docs/pedidos/` (pasta ou arquivo que é
+    """Revisão de segurança A1: o arquivo que o `anotar` grava é só `docs/pedidos/<id>.md` (na ordem de `raizes_de_pedidos`: cópia
+    principal, raiz, depois cada raiz de brief; no Forge, as raízes de brief primeiro), com `<id>` de `ID_DE_PEDIDO` e sem caminho; resolvido por `realpath` dentro de `docs/pedidos/` (pasta ou arquivo que é
     link para fora não vale). Sem o atalho de caminho do `caminho_do_pedido`: o anotar nunca escreve em outro arquivo. Ou None."""
     if not ID_DE_PEDIDO.fullmatch(pedido) or pedido.strip(".") == "":
         return None
     rel = Path("docs") / "pedidos" / f"{pedido}.md"
-    for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+    for base in raizes_de_pedidos(raiz):
         achado = dentro_da_raiz(base, rel, ("docs/pedidos",))
         if achado is not None and achado.parent == Path(os.path.realpath(base)) / "docs" / "pedidos" and achado.is_file():
             return Path(base) / rel
@@ -7147,9 +7158,9 @@ def mencoes_da_frase(texto):
 
 
 def ler_registro(raiz, rel, pastas=("docs/pedidos",), erros="replace", bases=None):
-    """(texto, None) do registro `rel` (`docs/pedidos/<x>.md`), ou (None, 'ausente'|'grande'). A cópia principal vem na frente; a
-    primeira raiz que tem o nome decide: link para fora ou fora de `docs/pedidos/` é 'ausente', sem cair na raiz seguinte (M2.1)."""
-    for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF) if bases is None else bases:
+    """(texto, None) do registro `rel` (`docs/pedidos/<x>.md`), ou (None, 'ausente'|'grande'). A ordem é a de `raizes_de_pedidos` (a
+    cópia principal na frente; no Forge, `~/.forge-contrib`); a primeira raiz que tem o nome decide: link para fora ou fora de `docs/pedidos/` é 'ausente', sem cair na raiz seguinte (M2.1)."""
+    for base in raizes_de_pedidos(raiz) if bases is None else bases:
         if not os.path.lexists(Path(base) / rel):
             continue
         real = dentro_da_raiz(base, rel, pastas)
@@ -8913,6 +8924,17 @@ def selo_do_brief(arquivo, dados=None):
     return f"{caminho_impresso(rel)} sem selo no ## Histórico do pedido {caminho_impresso(pid)}"
 
 
+def brief_vencido(raiz, arquivo, dados):
+    """D3 (0.44.0): as linhas `corrigido:` que o `brief selar` faria hoje no brief selado `arquivo` (`corrigir_derivados`: Base-sha,
+    `--base-sha` e `--desde` das linhas `forge-check entrega`, hash das decisões, Revisar-sha), ou []. Uma linha é o brief vencido: a
+    base andou ou o pedido mudou depois do selo. Só lê; o hook `agentes` a usa para avisar, nunca para barrar."""
+    texto = dados.decode("utf-8")
+    caminho, _, motivo = pedido_do_brief(arquivo, texto)
+    if motivo:
+        return []
+    return corrigir_derivados(raiz, texto, ler_pedido_do_selo(caminho), caminho)[1]
+
+
 def base_sha_esperado(raiz, texto, base, branch):
     """O Base-sha que a ferramenta calcula para o brief (nunca o digitado): na volta, o do brief anterior enquanto ele for ancestral
     do head da branch (como o `gerar --volta`, P5); senão `base_sha_real` (a base comum da branch com `origin/<base>`, ou o
@@ -9149,10 +9171,11 @@ def rodar_prova(script, argv, espera, pasta):
     return (f"diverge de '{divergiu}' (rc={r.returncode})", True) if divergiu else ("ok", False)
 
 
-def conferir_provas(raiz, texto, branch, head, pasta):
+def conferir_provas(raiz, texto, branch, head, pasta, so_leitura=False):
     """P2 (0.43.1): (linha, reprova) por PQ do brief selado. `cmd` da lista do reexecutar-provas roda na worktree; o `forge-check entrega`
     é esta conferência; `cmd` fora da lista e `pr`/`merge`/`run` (GitHub) não são reexecutados e não reprovam (ficam com o relatório
-    do autor, o CI e, se o Jarvis quiser, o conferente); `arquivo`, `sha` e `push` são lidos do git."""
+    do autor, o CI e, se o Jarvis quiser, o conferente); `arquivo`, `sha` e `push` são lidos do git. D4 (0.44.0): com `so_leitura`
+    (o conferente), nenhum `cmd` roda: código da branch não se executa na sessão de quem confere."""
     script, saida = carregar_reexecutar_provas(), []
     for linha in secoes_por(texto, CABECALHO_BRIEF).get("Pronto quando", []):
         m = PQ.search(linha)
@@ -9164,6 +9187,9 @@ def conferir_provas(raiz, texto, branch, head, pasta):
         if tipo == "cmd":
             if comando and re.match(r"\s*forge-check entrega\b", comando.group(1)):
                 saida.append((f"{rotulo}: ok (é esta conferência)", False))
+                continue
+            if so_leitura:
+                saida.append((f"{rotulo}: não reexecutada (--so-leitura: quem confere não roda código da branch); fica com o autor, o CI e o QA", False))
                 continue
             try:
                 argv = shlex.split(comando.group(1)) if comando else []
@@ -9210,11 +9236,11 @@ def estado_da_worktree(raiz, branch, head, worktree):
     return pasta, [(f"worktree: {caminho_impresso(pasta)} no head {head[:12]}, limpa", False)]
 
 
-def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True):
+def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True, so_leitura=False):
     """P2 (0.43.1): a conferência de entrega por ferramenta. Acha o brief selado da branch e da etapa, calcula Base, Base-sha e Desde
     (nada digitado), roda o escopo do `entrega` com o escopo declarado no brief, as provas e a contagem de commits; sem reprovação, grava
     `- <data> <hora>: entrega conferida <sha40>` no `## Histórico` (único escritor; o mesmo sha não se grava duas vezes). rc 0 cumpriu,
-    1 não cumpriu, 2 entrada ilegível."""
+    1 não cumpriu, 2 entrada ilegível. D4 (0.44.0): `so_leitura` (a forma do conferente) não grava e não roda os PQ `cmd`."""
     if etapa == ATO_GITHUB:
         print("entrega: ato-github não tem sha de branch para gravar; use `forge-check entrega <pedido> --etapa ato-github --brief ...`")
         return 2
@@ -9259,7 +9285,7 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
     inicio = valido or base_sha
     cod, contagem = git(raiz, "rev-list", "--count", f"{inicio}..{head}")
     linhas.append((f"commits: {contagem if not cod else '?'} em {inicio[:12]}..{head[:12]}", bool(cod)))
-    linhas += conferir_provas(raiz, brief, branch, head, pasta)
+    linhas += conferir_provas(raiz, brief, branch, head, pasta, so_leitura)
     if etapa == "codigo" and not cod:  # T1: código sem teste no intervalo da delegação, sinalizado sem reprovar (a classe T isenta)
         aviso = aviso_de_codigo_sem_teste(raiz, f"{inicio}..{head}", nomes_do_intervalo(raiz, inicio, head),
                                           classe_para_o_t1(raiz, head, base))
@@ -9271,7 +9297,7 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
         return 1
     print("resultado: cumpriu")
     if not gravar:
-        print("gravado: nada (--sem-gravar)")
+        print(f"gravado: nada ({'--so-leitura' if so_leitura else '--sem-gravar'})")
     elif head in entregas_conferidas(ler_pedido_do_selo(caminho)):
         print(f"gravado: já existia a linha entrega conferida {head}")
     else:
@@ -9728,6 +9754,8 @@ def main():
                     "`entrega conferida <sha40>` no ## Histórico; sem --base, --base-sha, --desde nem --brief")
     en.add_argument("--worktree", help="só com --pedido: a pasta absoluta da worktree da branch (padrão: a do `git worktree list`), onde os PQ cmd rodam")
     en.add_argument("--sem-gravar", action="store_true", help="só com --pedido: confere e não grava (o PQ do autor)")
+    en.add_argument("--so-leitura", action="store_true", help="só com --pedido: como --sem-gravar e sem rodar os PQ cmd (lê só git e disco; "
+                    "a forma do conferente, que não roda código da branch: os PQ cmd ficam com o autor, o CI e o QA)")
     en.add_argument("--branch", required=True, help="branch entregue")
     en.add_argument("--base", help="forma antiga: branch de integração da entrega (develop, homolog ou main)")
     en.add_argument("--base-sha", help="forma antiga: sha40 da base gravado na delegação (Base-sha)")
@@ -9786,8 +9814,8 @@ def main():
         faltam = [nome for nome, valor in (("pedido", a.pedido), ("--base", a.base), ("--base-sha", a.base_sha)) if valor is None]
         if faltam:
             ap.error(f"the following arguments are required: {', '.join(faltam)} (ou use a forma nova `entrega --pedido`)")
-        if a.worktree is not None or a.sem_gravar:
-            ap.error("--worktree e --sem-gravar só valem com `entrega --pedido`")
+        if a.worktree is not None or a.sem_gravar or a.so_leitura:
+            ap.error("--worktree, --sem-gravar e --so-leitura só valem com `entrega --pedido`")
     if a.cmd == "brief" and a.incluir and not (a.alvo == "gerar" and a.volta):
         ap.error("argument --incluir: só vale em `brief gerar --volta`")
     raiz = Path(a.raiz).resolve()
@@ -9842,7 +9870,7 @@ def executar(a, raiz):
         print(linha)
         return rc
     if a.cmd == "entrega" and a.pedido_conferir is not None:
-        return cmd_entrega_conferir(raiz, a.pedido_conferir, a.branch, a.etapa, a.worktree, not a.sem_gravar)
+        return cmd_entrega_conferir(raiz, a.pedido_conferir, a.branch, a.etapa, a.worktree, not (a.sem_gravar or a.so_leitura), a.so_leitura)
     if a.cmd == "entrega":
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
     if a.cmd == "voltas":

@@ -12,7 +12,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 TEXTO = (RAIZ / "agents" / "conferente.md").read_text(encoding="utf-8")
-COMANDOS_SHA = "d4073204714c6cc0852d2f8ae1c08baffe999e82f8ab508fed56884d9824151b"  # 0.43.1: + `entrega --pedido ... --sem-gravar`
+COMANDOS_SHA = "03a2e78d49168c6f09aed92c288a1a98ab77401bf5cd289af78d97caf6f583c7"  # D4 da 0.44.0: `entrega --pedido ... --so-leitura`
 
 
 def paragrafo(titulo):
@@ -35,7 +35,7 @@ class ConferenteOpcional(unittest.TestCase):
         self.assertIn("`decisões: contradiz \"<trecho>\" (<arquivo>:<linha>)`", TEXTO)
 
     def test_nao_grava_a_entrega_conferida_nem_roda_a_suite(self):
-        self.assertIn("`forge-check entrega --pedido` sem `--sem-gravar` grava a linha `entrega conferida`, que não é sua (o hook barra).", TEXTO)
+        self.assertIn("`forge-check entrega --pedido` sem `--so-leitura` grava a linha `entrega conferida`, que não é sua (o hook barra).", TEXTO)
         self.assertIn("Não rode a suíte (`python3 -m unittest`)", TEXTO)
 
     def test_texto_curto(self):  # decisão 11: de 29,9 mil caracteres para menos de um terço

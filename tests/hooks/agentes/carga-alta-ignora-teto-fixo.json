@@ -13,7 +13,7 @@
       "agentes": [
         {
           "id": "a0",
-          "tipo": "time:tech-lead",
+          "tipo": "web-fetch",
           "descricao": "Tarefa 0",
           "desde": "{agora-60}"
         }
@@ -25,7 +25,7 @@
     "tool_name": "Agent",
     "tool_use_id": "toolu_1",
     "tool_input": {
-      "subagent_type": "time:qa-engineer",
+      "subagent_type": "Explore",
       "description": "Validar a entrega",
       "prompt": "..."
     }

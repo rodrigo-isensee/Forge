@@ -253,7 +253,7 @@ class Agentes(unittest.TestCase):
         texto = (AGENTES / "conferente.md").read_text(encoding="utf-8")
         self.assertIn("é `pendente: \"<item>\"`", texto)
         self.assertIn("(fora pareceres, quadro, `CHANGELOG.md` e o fragmento `changelog.d/`) é `escopo: fora | <arquivo>`", texto)
-        self.assertIn("`forge-check entrega --pedido` sem `--sem-gravar` grava a linha `entrega conferida`, que não é sua (o hook barra).", texto)
+        self.assertIn("`forge-check entrega --pedido` sem `--so-leitura` grava a linha `entrega conferida`, que não é sua (o hook barra).", texto)
 
     def test_conferente_so_leitura(self):
         """R-PROVA e R-BRIEF: o conferente confere sem escrever. Sem ferramenta de escrita no frontmatter, em haiku, e
@@ -721,6 +721,24 @@ class ForgeInit(unittest.TestCase):
         self.assertIn("Read(./segredo)", s["permissions"]["deny"])
         self.assertIn("Bash(git * --no-verify*)", s["permissions"]["deny"])
 
+    def test_projeto_novo_nasce_com_sandbox_e_o_que_ja_usa_o_forge_nao(self):
+        """D1 (0.44.0, BP-5): o projeto novo nasce com o sandbox do modelo, também quando o `.claude/settings.json` já existe (o
+        `claude plugin install` o cria); no projeto que já tem `.forge/versao`, a mescla não liga o sandbox (o forge-upgrade só oferece)."""
+        modelo = json.loads((RAIZ / "templates/projeto/.claude/settings.json").read_text(encoding="utf-8"))["sandbox"]
+        self.rodar()
+        self.assertEqual(json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8"))["sandbox"], modelo)
+        for versao, esperado in ((None, modelo), ("0.40.0\n", None)):
+            with self.subTest(versao=versao):
+                shutil.rmtree(self.tmp)
+                self.setUp()
+                (self.tmp / ".claude").mkdir()
+                if versao:
+                    (self.tmp / ".forge").mkdir()
+                    (self.tmp / ".forge/versao").write_text(versao, encoding="utf-8")
+                (self.tmp / ".claude/settings.json").write_text(json.dumps({"enabledPlugins": {}}), encoding="utf-8")
+                self.rodar()
+                self.assertEqual(json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8")).get("sandbox"), esperado)
+
     def test_nao_sobrescreve_sem_forcar(self):
         (self.tmp / "CLAUDE.md").write_text("meu conteúdo\n", encoding="utf-8")
         saida = self.rodar().stdout
@@ -828,6 +846,27 @@ class ForgeUpgrade(unittest.TestCase):
         # a própria migração é idempotente quando rodada direto sobre o resultado
         subprocess.run([sys.executable, str(RAIZ / "migrations/0.5.0/migrar"), str(self.tmp)], check=True)
         self.assertEqual(git("status", "--porcelain", cwd=self.tmp).stdout, "")
+
+    def test_sandbox_desligado_so_e_oferecido(self):
+        """D1 (0.44.0): o upgrade oferece o comando e não toca o settings; `--ligar-sandbox` grava o bloco do modelo sem commitar."""
+        (self.tmp / ".claude").mkdir()
+        (self.tmp / ".claude/settings.json").write_text(json.dumps({"agent": "forge:jarvis", "sandbox": {"enabled": False}}), encoding="utf-8")
+        git("add", "-A", cwd=self.tmp)
+        git("commit", "-q", "-m", "settings", cwd=self.tmp)
+        r = self.upgrade()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(f"forge-upgrade --ligar-sandbox {self.tmp.resolve()}", r.stdout)
+        self.assertIs(json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8"))["sandbox"]["enabled"], False)
+        self.assertEqual(git("status", "--porcelain", cwd=self.tmp).stdout, "")
+        r = subprocess.run([str(RAIZ / "bin/forge-upgrade"), "--ligar-sandbox", str(self.tmp)], env=ambiente_limpo(), capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        dados = json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8"))
+        self.assertEqual(dados["agent"], "forge:jarvis")
+        self.assertIs(dados["sandbox"]["enabled"], True)
+        self.assertIn("~/.ssh", dados["sandbox"]["filesystem"]["denyRead"])
+        self.assertIn(" M .claude/settings.json", git("status", "--porcelain", cwd=self.tmp).stdout)
+        git("commit", "-q", "-am", "liga", cwd=self.tmp)
+        self.assertNotIn("--ligar-sandbox", self.upgrade().stdout)
 
     def test_migracao_so_acrescenta_ao_gitignore(self):
         for antes, depois in (("a/\r\nb/\r\n", "a/\r\nb/\r\n.forge/run/\r\n"), ("a/\r\nb/", "a/\r\nb/\r\n.forge/run/\r\n"),
@@ -1337,6 +1376,16 @@ class SandboxDoBash(unittest.TestCase):
         self.assertIs(cfg["enabled"], True)
         self.assertIs(cfg["failIfUnavailable"], True)
         self.assertIs(cfg["allowUnsandboxedCommands"], False)
+
+    def test_modelo_do_projeto_nasce_com_o_sandbox_do_forge(self):
+        """D1 (0.44.0): o modelo de projeto liga o sandbox com as mesmas leituras negadas e a mesma rede do Forge."""
+        forge = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]
+        cfg = json.loads((RAIZ / "templates/projeto/.claude/settings.json").read_text())["sandbox"]
+        for chave in ("enabled", "failIfUnavailable"):
+            self.assertIs(cfg[chave], True, chave)
+        self.assertIs(cfg["allowUnsandboxedCommands"], False)
+        self.assertEqual(cfg["filesystem"]["denyRead"], forge["filesystem"]["denyRead"])
+        self.assertEqual(cfg["network"], {k: forge["network"][k] for k in ("allowedDomains", "deniedDomains")})
 
     def test_apis_de_modelo_negadas(self):
         negados = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["network"]["deniedDomains"]

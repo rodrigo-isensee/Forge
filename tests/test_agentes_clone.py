@@ -75,7 +75,7 @@ class ClonePronto(unittest.TestCase):
         entrada = {"hook_event_name": nome, "session_id": "s", "cwd": str(onde), **campos}
         return rodar_hook("agentes", entrada, onde, self.proc(nproc), {"FORGE_NPROC": str(nproc)})
 
-    def lancar(self, onde, descricao="d", tipo="time:x", nproc=4):  # fora do plugin: o selo (0.43.1) é de test_selo_e_entrega
+    def lancar(self, onde, descricao="d", tipo="Explore", nproc=4):  # só de leitura: o selo (0.43.1, D2 da 0.44.0) é de test_selo_e_entrega
         return self.evento("PreToolUse", onde, nproc, tool_name="Agent",
                            tool_input={"subagent_type": tipo, "description": descricao, "prompt": "p"})
 
@@ -150,7 +150,7 @@ class RegistroNoClone(ClonePronto):
         pasta = self.tmp / "pouca"
         pasta.mkdir()
         entrada = {"hook_event_name": "PreToolUse", "session_id": "s", "cwd": str(self.clone), "tool_name": "Agent",
-                   "tool_input": {"subagent_type": "time:x", "description": "outra", "prompt": "p"}}
+                   "tool_input": {"subagent_type": "Explore", "description": "outra", "prompt": "p"}}
         r = rodar_hook("agentes", entrada, self.clone, montar_proc(pasta, mem_gb=0.5), {"FORGE_NPROC": "4"})
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertRegex(self.recusas()[-1], r" mem_gb=0\.50 nproc=4 ativos=1 motivo=memoria$")
@@ -176,7 +176,7 @@ class RegistroNoClone(ClonePronto):
         """A15: o `agentes` segue sem `critico`; `FORGE_GUARDA_ABERTA=1` não libera o teto cheio."""
         self.semear(2)
         entrada = {"hook_event_name": "PreToolUse", "session_id": "s", "cwd": str(self.clone), "tool_name": "Agent",
-                   "tool_input": {"subagent_type": "time:x", "description": "d", "prompt": "p"}}
+                   "tool_input": {"subagent_type": "Explore", "description": "d", "prompt": "p"}}
         r = rodar_hook("agentes", entrada, self.clone, self.proc(2), {"FORGE_NPROC": "2", "FORGE_GUARDA_ABERTA": "1"})
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("R-TETO", r.stderr)
