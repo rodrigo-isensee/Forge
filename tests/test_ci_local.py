@@ -810,5 +810,93 @@ class SinalTest(unittest.TestCase):
         self._confere(*self._interromper(signal.SIGTERM), 143)
 
 
+class MatrizNeedsEAgregadorTest(unittest.TestCase):
+    """0.43.1 (frente D): o ci.yml em partes (`strategy.matrix` com `parte`, `needs` e agregadores com `always()`)."""
+    ctx = ci.contexto_do_pr(PR, "b" * 40)
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.tmp = Path(self._tmp.name)
+
+    def jobs_reais(self):
+        return ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+
+    def rodar_com(self, jobs, falha=None):
+        """Os jobs sem `needs` viram resultado pronto (a suíte não roda aqui); o agregador roda os passos dele de verdade."""
+        chamados = []
+
+        def rodar(job, ctx, raiz, base, tmp):
+            if job.get("needs") or not ci.avaliar_se(job["se"], ctx):
+                return ci.rodar_job(job, ctx, self.tmp, base, self.tmp)
+            chamados.append((job["nome"], ctx.get("matrix.parte")))
+            return ci.resultado(job["nome"], ci.FALHOU if job["nome"] == falha else ci.OK)
+
+        return ci.rodar_jobs(jobs, self.ctx, self.tmp, "b" * 40, self.tmp, rodar=rodar), chamados
+
+    def test_leitor_entende_matriz_e_needs_do_ci_real(self):
+        jobs = {j["id"]: j for j in self.jobs_reais()}
+        self.assertEqual(jobs["partes-doze"]["matriz"], {"parte": ["1", "2", "3"]})
+        self.assertEqual(jobs["partes-quatorze"]["matriz"], {"parte": ["1", "2", "3"]})
+        self.assertEqual(jobs["agregador"]["needs"], ["bateria", "partes-doze"])
+        self.assertEqual(jobs["bateria-python-tres-quatorze"]["needs"], ["partes-quatorze", "instalacao-quatorze"])
+        self.assertEqual((jobs["agregador"]["nome"], jobs["bateria-python-tres-quatorze"]["nome"]), ("bateria", "bateria (python 3.14)"))
+
+    def test_needs_em_lista_de_tracos_e_numa_palavra(self):
+        texto = ("jobs:\n  a:\n    steps:\n      - run: true\n  b:\n    needs: a\n    steps:\n      - run: true\n"
+                 "  c:\n    needs:\n      - a\n      - b\n    steps:\n      - run: true\n")
+        self.assertEqual([j["needs"] for j in ci.ler_jobs(texto)], [[], ["a"], ["a", "b"]])
+        self.assertEqual([len(j["passos"]) for j in ci.ler_jobs(texto)], [1, 1, 1])
+
+    def test_cada_perna_roda_uma_vez_e_a_igual_reaproveita(self):
+        resultados, chamados = self.rodar_com(self.jobs_reais())
+        partes = [c for c in chamados if c[1]]
+        self.assertEqual(partes, [(f"suíte (python 3.12, parte {k}/3)", str(k)) for k in (1, 2, 3)])
+        por_nome = {r["nome"]: r for r in resultados}
+        for k in (1, 2, 3):
+            self.assertIn("reaproveitado", por_nome[f"suíte (python 3.14, parte {k}/3)"]["motivo"])
+        self.assertEqual(ci.status(resultados)[0], "success")
+        self.assertIn("resumo de bateria: success, partes-doze: success", por_nome["bateria"]["motivo"])
+        self.assertEqual(por_nome["bateria (python 3.14)"]["estado"], ci.OK)
+        self.assertEqual(por_nome["checagem rápida (push na develop)"]["estado"], ci.PULADO)
+
+    def test_agregador_reprova_com_uma_perna_vermelha(self):
+        resultados, _ = self.rodar_com(self.jobs_reais(), falha="suíte (python 3.12, parte 2/3)")
+        por_nome = {r["nome"]: r for r in resultados}
+        self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.FALHOU))
+        self.assertEqual(por_nome["bateria (passos)"]["estado"], ci.OK)
+        self.assertEqual(ci.status(resultados)[0], "failure")
+
+    def test_need_sem_job_reprova_e_job_sem_always_e_pulado(self):
+        texto = ("jobs:\n  a:\n    steps:\n      - run: false\n  b:\n    needs: [a]\n    steps:\n      - run: true\n"
+                 "  c:\n    needs: [x]\n    steps:\n      - run: true\n")
+        resultados = ci.rodar_jobs(ci.ler_jobs(texto), self.ctx, self.tmp, "b" * 40, self.tmp)
+        self.assertEqual([(r["nome"], r["estado"]) for r in resultados], [("a", ci.FALHOU), ("b", ci.PULADO), ("c", ci.PULADO)])
+        self.assertFalse(ci.pulado_obrigatorio(resultados[1]))
+        self.assertTrue(ci.pulado_obrigatorio(resultados[2]))
+
+    def test_if_com_funcoes_de_status_negacao_e_chaves(self):
+        self.assertTrue(ci.avaliar_se("${{ !cancelled() && github.event_name == 'pull_request' }}", self.ctx))
+        self.assertTrue(ci.avaliar_se("always() && (github.event_name != 'push' || github.ref != 'refs/heads/develop')", self.ctx))
+        self.assertFalse(ci.avaliar_se("github.event_name == 'push' && github.ref == 'refs/heads/develop'", self.ctx))
+        self.assertFalse(ci.avaliar_se("failure() || cancelled()", self.ctx))
+        with self.assertRaises(ci.PassoDinamico):
+            ci.avaliar_se("steps.gate.outputs.pesada == 'true'", self.ctx)
+        self.assertFalse(ci.avaliar_se("steps.gate.outputs.pesada == 'true'", self.ctx, saidas_lidas=True))
+
+    def test_saida_do_passo_decide_o_if_dos_seguintes(self):
+        for valor, esperado in (("true", ci.FALHOU), ("false", ci.OK)):
+            with self.subTest(pesada=valor):
+                job = {"id": f"j{valor}", "nome": "j", "se": "", "passos": [
+                    {"nome": "gate", "id": "gate", "se": "", "env": {}, "run": f'echo "pesada={valor}" >> "$GITHUB_OUTPUT"\n'},
+                    {"nome": "pesado", "se": "${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}", "env": {}, "run": "false\n"},
+                    {"nome": "leve", "se": "${{ !cancelled() && steps.gate.outputs.pesada != 'true' }}", "env": {}, "run": "true\n"}]}
+                self.assertEqual(ci.rodar_job(job, self.ctx, self.tmp, "b" * 40, self.tmp)["estado"], esperado)
+
+    def test_apt_get_e_preparo_do_runner(self):
+        self.assertTrue(ci.PASSO_DE_PREPARO.search("sudo apt-get install -y x\n"))
+
+
 if __name__ == "__main__":
     unittest.main()
