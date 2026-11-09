@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Forge: placar de qualidade do processo e portão de evolução (0.43.1, frente I). Só leitura, sem rede, biblioteca padrão.
 
-Uso: forge-placar [--raiz DIR] [--erros ARQ] [--git DIR --ref REF] [--ci ARQ.json] [--dias N] [--ate AAAA-MM-DD] [--json]
+Uso: forge-placar [--raiz DIR] [--erros ARQ] [--git DIR --ref REF] [--ci ARQ.json] [--dias N] [--ate AAAA-MM-DD] [--evals DIR] [--json]
      forge-placar comparar --antes AAAA-MM-DD --depois AAAA-MM-DD [--metrica NOME] [--tolerancia F] [--folga F] [--minimo N] [...]
      forge-placar propostas [ARQUIVO] [--hoje AAAA-MM-DD] [--max-abertas N] [--json]
 
@@ -31,11 +31,18 @@ Métrica | Critério de reversão | Início | Revisão | Resultado |`): cada lin
 `manter (...)` ou `reverter (...)` com a leitura do `comparar`, e há no máximo `--max-abertas` (padrão 1) abertas: uma causa
 por vez, para o placar atribuir o efeito. rc 1 com uma linha `falta:` por problema.
 
+Por papel (0.43.3, E23 "erros por papel"): o placar mostra, para cada papel, a taxa de vereditos negativos que o registro atribui
+a ele (coluna `autor`; `destino` vira o papel do brief, `<pedido>-<papel>-<n>`) sobre os vereditos em que ele responde (jarvis:
+os de brief; papel destino: as entregas dos briefs dele; conferente e ferramenta: todos), e os casos de eval do papel em
+`--evals` (padrão tests/evals/ do Forge): travados (teste comum), backlog (`expectedFailure`) e sem ferramenta (`SEM_FERRAMENTA`).
+Linha de 8 colunas (sem autor) fica fora da taxa por papel.
+
 A última linha do placar e do `comparar` é o `resumo:` em linguagem simples, para a pessoa que não programa (ex.: "os erros
 de forma do time caíram 20%; os defeitos que escaparam ficaram iguais; a mudança fica"); no `--json`, a chave `resumo`.
 
 Saída: 0 ok; 1 reprovado (comparar ou propostas); 2 uso errado ou fonte ilegível; 3 inconclusivo."""
 import argparse
+import ast
 import datetime
 import json
 import re
@@ -152,6 +159,87 @@ def ci_vermelha(arq):
             if isinstance(e, dict) and e.get("conclusion") == "failure" and DATA.match(str(e.get("createdAt", "")))]
 
 
+PAPEIS_GERAIS = ("jarvis", "conferente", "ferramenta")
+FORGE = Path(__file__).resolve().parent.parent
+
+
+def nomes_de_papel():
+    """Os papéis do time: agents/*.md e stacks/*/agents/*.md do Forge, do nome mais longo ao mais curto (o sufixo casa primeiro)."""
+    nomes = {a.stem for a in [*FORGE.glob("agents/*.md"), *FORGE.glob("stacks/*/agents/*.md")]}
+    return sorted(nomes, key=len, reverse=True)
+
+
+def papel_do_brief(brief, papeis):
+    """O papel do brief `<pedido>-<papel>-<n>` (aceita o caminho `docs/briefs/...md`), ou `destino` se nenhum casa."""
+    nome = Path(brief).name.removesuffix(".md")
+    return next((p for p in papeis if re.search(rf"-{re.escape(p)}-\d+$", nome)), "destino")
+
+
+def vereditos_por_papel(raiz):
+    """[(dia, modo, negativo, papel do autor, papel do brief)] das linhas de 10 colunas do registro; None sem registro."""
+    texto = ler(Path(raiz) / "docs" / "kanban" / "conferencias.md")
+    if texto is None:
+        return None
+    papeis, saida = nomes_de_papel(), []
+    for linha in texto.splitlines():
+        c = celulas(linha)
+        if not c or len(c) < 10 or not DATA.match(c[0]):
+            continue
+        do_brief = papel_do_brief(c[2], papeis)
+        autor = c[9].lower()
+        saida.append((datetime.date.fromisoformat(c[0][:10]), c[3], not c[5].lower().startswith(("aprovado", "cumpriu")),
+                      do_brief if autor == "destino" else autor, do_brief))
+    return saida
+
+
+def taxas_por_papel(vereditos, janela, papeis=()):
+    """{papel: {"erros": n, "base": d, "taxa": n/d}} na janela (ver o cabeçalho para a base de cada papel); `papeis` entra mesmo
+    sem veredito na janela (base 0, taxa `-`)."""
+    na_janela = [v for v in vereditos or [] if dentro(v[0], janela)]
+    saida = {}
+    for papel in sorted({v[3] for v in na_janela if v[2]} | {v[4] for v in na_janela if v[1] == "entrega"} | {"jarvis"} | set(papeis)):
+        if papel == "jarvis":
+            base = [v for v in na_janela if v[1] == "brief"]
+        elif papel in PAPEIS_GERAIS:
+            base = na_janela
+        else:
+            base = [v for v in na_janela if v[1] == "entrega" and v[4] == papel]
+        erros = sum(1 for v in na_janela if v[2] and v[3] == papel)
+        saida[papel] = {"erros": erros, "base": len(base), "taxa": razao(erros, len(base))}
+    return saida
+
+
+def evals_por_papel(pasta):
+    """{papel: {"travados": n, "backlog": n, "sem_ferramenta": n}} dos tests/evals/test_*.py, lidos por AST (sem executar): a classe
+    com `PAPEL = "<papel>"` (sem ela, jarvis) conta cada `test_*`, em backlog se tem `@unittest.expectedFailure`; o dicionário
+    `SEM_FERRAMENTA` conta os erros de julgamento. None se a pasta não existe."""
+    pasta = Path(pasta)
+    if not pasta.is_dir():
+        return None
+    saida = {}
+
+    def conta(papel, chave, n=1):
+        saida.setdefault(papel, {"travados": 0, "backlog": 0, "sem_ferramenta": 0})[chave] += n
+
+    for arq in sorted(pasta.glob("test_*.py")):
+        if arq.name == "test_placar.py":
+            continue
+        arvore = ast.parse(arq.read_text(encoding="utf-8"))
+        for no in arvore.body:
+            if isinstance(no, ast.Assign) and any(getattr(a, "id", None) == "SEM_FERRAMENTA" for a in no.targets):
+                for papel, erros in ast.literal_eval(no.value).items():
+                    conta(papel, "sem_ferramenta", len(erros))
+            if not isinstance(no, ast.ClassDef):
+                continue
+            papel = next((ast.literal_eval(c.value) for c in no.body if isinstance(c, ast.Assign)
+                          and any(getattr(a, "id", None) == "PAPEL" for a in c.targets)), "jarvis")
+            for f in no.body:
+                if isinstance(f, ast.FunctionDef) and f.name.startswith("test_"):
+                    falha = any(getattr(d, "attr", getattr(d, "id", None)) == "expectedFailure" for d in f.decorator_list)
+                    conta(papel, "backlog" if falha else "travados")
+    return saida
+
+
 def dentro(dia, janela):
     return janela[0] <= dia < janela[1]
 
@@ -212,15 +300,35 @@ def imprimir(rotulos, medidas):
         print(f"base {r} [{m['janela'][0]}, {m['janela'][1]}): {brutos}")
 
 
+def imprimir_papeis(papeis):
+    """Uma linha `papel <nome>:` por papel com a taxa atual e a anterior (`n/d`) e os casos de eval; sem fonte, nada."""
+    if papeis is None:
+        return
+    evals = papeis["evals"] or {}
+    for papel in sorted(set(papeis["atual"]) | set(papeis["anterior"]) | set(evals)):
+        taxas = " · ".join(f"{r} {fmt(t['taxa'])} ({t['erros']}/{t['base']})" if (t := papeis[r].get(papel)) else f"{r} -"
+                           for r in ("atual", "anterior"))
+        e = evals.get(papel)
+        casos = f"evals {e['travados']} travados, {e['backlog']} backlog, {e['sem_ferramenta']} sem ferramenta" if e else "evals -"
+        print(f"papel {papel}: {taxas} · {casos}")
+
+
 def cmd_placar(args):
     ate = data(args.ate, "--ate") if args.ate else datetime.date.today()
     passo = datetime.timedelta(days=args.dias)
     fontes = carregar(args)
-    atual, anterior = medir(fontes, (ate - passo, ate)), medir(fontes, (ate - 2 * passo, ate - passo))
+    janelas = (ate - passo, ate), (ate - 2 * passo, ate - passo)
+    atual, anterior = medir(fontes, janelas[0]), medir(fontes, janelas[1])
+    vereditos = vereditos_por_papel(args.raiz)
+    vistos = set(taxas_por_papel(vereditos, janelas[0])) | set(taxas_por_papel(vereditos, janelas[1]))
+    papeis = {"atual": taxas_por_papel(vereditos, janelas[0], vistos), "anterior": taxas_por_papel(vereditos, janelas[1], vistos),
+              "evals": evals_por_papel(args.evals)} if vereditos is not None or Path(args.evals).is_dir() else None
     if args.json:
-        print(json.dumps({"atual": atual, "anterior": anterior, "resumo": resumo(anterior, atual)}, ensure_ascii=False, sort_keys=True))
+        print(json.dumps({"atual": atual, "anterior": anterior, "papeis": papeis, "resumo": resumo(anterior, atual)},
+                         ensure_ascii=False, sort_keys=True))
     else:
         imprimir(("atual", "anterior"), (atual, anterior))
+        imprimir_papeis(papeis)
         print(resumo(anterior, atual))
     return 0
 
@@ -361,6 +469,7 @@ def analisar(argv):
     comum.add_argument("--ci")
     comum.add_argument("--dias", type=int, default=7)
     comum.add_argument("--json", action="store_true")
+    comum.add_argument("--evals", default=str(FORGE / "tests" / "evals"))
     if argv[:1] == ["comparar"]:
         p = argparse.ArgumentParser(prog="forge-placar comparar", parents=[comum])
         p.add_argument("--antes", required=True)

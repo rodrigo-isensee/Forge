@@ -208,5 +208,48 @@ class Propostas(Placar):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
 
+
+class PorPapel(Placar):
+    """0.43.3 (E23, erros por papel): a taxa de cada papel pela coluna `autor` e os casos de eval do papel."""
+
+    def linha(self, dia, brief, modo, resultado, autor, classe="—"):
+        return f"| {dia} 10:00 | p | {brief} | {modo} | 1 | {resultado} | s | n | {classe} | {autor} |\n"
+
+    def test_taxa_por_papel_com_destino_virando_o_papel_do_brief(self):
+        self.gravar("docs/kanban/conferencias.md", CAB_CONF
+                    + self.linha("2026-11-10", "p-tech-lead-1", "brief", "aprovado", "jarvis") * 3
+                    + self.linha("2026-11-10", "p-tech-lead-2", "brief", "reprovado", "jarvis", "forma")
+                    + self.linha("2026-11-10", "docs/briefs/p-qa-engineer-1.md", "entrega", "não cumpriu", "destino", "implementacao")
+                    + self.linha("2026-11-10", "p-qa-engineer-2", "entrega", "cumpriu", "destino")
+                    + self.linha("2026-11-10", "p-tech-lead-3", "entrega", "não cumpriu", "conferente", "escopo")
+                    + "| 2026-11-10 10:00 | p | p-x-0 | brief | 1 | reprovado | s | 8 colunas |\n")
+        evals = self.gravar("evals/test_x.py", "import unittest\nSEM_FERRAMENTA = {'qa-engineer': [('C9', 'x')]}\n"
+                            "class A(unittest.TestCase):\n    PAPEL = 'qa-engineer'\n    def test_a(self): pass\n"
+                            "    @unittest.expectedFailure\n    def test_b(self): pass\n"
+                            "class B(unittest.TestCase):\n    def test_c(self): pass\n").parent
+        rc, dados = self.json("--ate", "2026-11-14", "--evals", str(evals))
+        self.assertEqual(rc, 0)
+        atual = dados["papeis"]["atual"]
+        self.assertEqual(atual["jarvis"], {"erros": 1, "base": 4, "taxa": 0.25})
+        self.assertEqual(atual["qa-engineer"], {"erros": 1, "base": 2, "taxa": 0.5})
+        self.assertEqual(atual["tech-lead"], {"erros": 0, "base": 1, "taxa": 0.0})
+        self.assertEqual(atual["conferente"], {"erros": 1, "base": 7, "taxa": round(1 / 7, 4)})
+        self.assertEqual(dados["papeis"]["anterior"]["jarvis"], {"erros": 0, "base": 0, "taxa": None})
+        self.assertEqual(dados["papeis"]["evals"], {"qa-engineer": {"travados": 1, "backlog": 1, "sem_ferramenta": 1},
+                                                    "jarvis": {"travados": 1, "backlog": 0, "sem_ferramenta": 0}})
+        rc, saida, _ = self.rodar("--ate", "2026-11-14", "--evals", str(evals))
+        self.assertIn("papel qa-engineer: atual 50.00% (1/2) · anterior - (0/0) · evals 1 travados, 1 backlog, 1 sem ferramenta", saida)
+        self.assertTrue(saida.splitlines()[-1].startswith("resumo: "))
+
+    def test_evals_do_forge_tem_casos_por_papel(self):
+        rc, dados = self.json("--ate", "2026-11-14")
+        evals = dados["papeis"]["evals"]
+        self.assertGreaterEqual(set(evals), {"jarvis", "tech-lead", "conferente", "agile-coach"})
+        self.assertGreater(evals["jarvis"]["travados"], 20)
+
+    def test_sem_registro_nem_evals_nao_ha_papel(self):
+        rc, dados = self.json("--ate", "2026-11-14", "--evals", str(self.raiz / "nada"))
+        self.assertIsNone(dados["papeis"])
+
 if __name__ == "__main__":
     unittest.main()
