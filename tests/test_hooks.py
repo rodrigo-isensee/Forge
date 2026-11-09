@@ -2673,9 +2673,12 @@ class EscritaPublica(unittest.TestCase):
     @staticmethod
     def de_escrita(d):
         """Fixture de escrita decidida só pelo caminho: fora os que dependem da sessão (`CLAUDE_PROJECT_DIR`), da config
-        ou do perfil do projeto (a função vê o perfil experiente, C-3) ou de projeto sem o Forge."""
+        ou do perfil do projeto (a função vê o perfil experiente, C-3) ou de projeto sem o Forge; nem os que o M1 (0.43.2) barra
+        pelo conteúdo (a linha `brief selado` ou `entrega conferida` escrita à mão), que o brief não conhece de antemão."""
         e = d["entrada"]
-        return (e.get("tool_name") in {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+        conteudo = json.dumps(e.get("tool_input", {}), ensure_ascii=False)
+        return ("brief selado" not in conteudo and "entrega conferida" not in conteudo
+                and e.get("tool_name") in {"Write", "Edit", "MultiEdit", "NotebookEdit"}
                 and e.get("hook_event_name") == "PreToolUse" and d.get("forge", True) and "config" not in d
                 and "config_bruta" not in d and "CLAUDE_PROJECT_DIR" not in d.get("env", {})
                 and ".forge/perfil" not in d.get("arquivos", {}))
