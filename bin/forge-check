@@ -4064,16 +4064,16 @@ CLASSES_DE_FALHA = {
 }
 AUTORES_DE_FALHA = ("jarvis", "destino", "conferente", "ferramenta")
 # O1 (0.44.1): ação fixa por classe de reprovação, (quem, ação). As de forma a ferramenta corrige no registro, sem rodada do Jarvis
-# (`brief selar` recalcula o merge-base, o Base-sha, o Revisar-sha, o --desde e confere de novo citações e etapa; `brief mensagem`
-# refaz a mensagem); a mesma classe reprovada LIMIAR_AO_DONO vezes no mesmo brief vai ao dono. Toda classe do catálogo tem ação.
+# (`brief selar --sem-selar` só recalcula o merge-base, o Base-sha, o Revisar-sha e o --desde, sem gravar selo; `brief mensagem`
+# refaz a mensagem). Review da 0.44.1 (B2): a ação automática nunca sela; etapa e citação são do jarvis. A mesma classe reprovada LIMIAR_AO_DONO vezes no mesmo brief vai ao dono. Toda classe do catálogo tem ação.
 ACAO_DA_CLASSE = {
     "decisao": ("jarvis", "grave a decisão com `forge-check anotar --tipo decisao` e sele o brief de novo"),
-    "etapa": ("ferramenta", "brief selar"),
+    "etapa": ("jarvis", "dê ao brief a `Etapa:` da delegação (codigo, review, qa, pr, merge-integracao, pedido-de-merge-ao-dono) e sele de novo"),
     "escopo": ("jarvis", "cite a etapa `(E<n>)` de cada item do Entregar ou corte com a marca; sele de novo"),
     "prova": ("destino", "dê a cada prova tipo e `espera:` do vocabulário, que falhe sem a mudança (R-PROVA)"),
-    "base": ("ferramenta", "brief selar"),
+    "base": ("ferramenta", "brief selar --sem-selar"),
     "forma": ("ferramenta", "brief mensagem"),
-    "citacao": ("ferramenta", "brief selar"),
+    "citacao": ("jarvis", "corrija a citação (decisão, fala ou regra) para a que está gravada no pedido e sele de novo"),
     "implementacao": ("destino", "rode a suíte e cada prova antes do relatório e entregue de novo (R-PROVA)"),
     "ambiente": ("jarvis", "rode o `forge-check` da versão vigente; a limitação da ferramenta vira cartão de melhoria"),
     "hora": ("jarvis", "grave a hora com `forge-check anotar` (o relógio, nunca digitada)"),
@@ -9111,6 +9111,7 @@ def cmd_brief_selar(raiz, a):
     if caractere := caractere_disfarcado(texto):
         return recusar(f"o brief tem o caractere U+{ord(caractere):04X} (controle, formato ou uso privado)")
     novo, correcoes, reprovas = corrigir_derivados(raiz, texto, pedido_txt, caminho_pedido)
+    sem_selar = getattr(a, "sem_selar", False)
     if not reprovas and novo != texto:
         if not os.access(arquivo, os.W_OK):
             reprovas.append("base: o brief é só leitura e tem campo calculado errado; gere outro com `brief gerar --gravar`")
@@ -9119,6 +9120,11 @@ def cmd_brief_selar(raiz, a):
             texto, conteudo = novo, novo.encode("utf-8")
             for linha in correcoes:
                 print(linha)
+    if sem_selar:  # B2 (review da 0.44.1): a ação automática do O1 só recalcula os campos derivados; o selo é do jarvis
+        for linha in reprovas:
+            print(linha)
+        print("resultado: campos derivados " + ("com reprovação (sem selo)" if reprovas else "em dia (sem selo)"))
+        return 1 if reprovas else 0
     lembrar_do_jarvis(raiz, tipo_do_brief(texto))
     _, linhas = avaliar_brief(raiz, arquivo, conteudo, texto, caminho_pedido, pedido_txt, destino, rel, None, a.ref, a.parecer)
     linhas = [(r, True) for r in reprovas] + list(linhas) + [(aviso, False) for aviso in avisos_de_suposicao(pedido_txt)]
@@ -9656,6 +9662,7 @@ def main():
     br.add_argument("--arquivo", nargs="+", help="em `selar` e `mensagem`: o brief, resolvido só em docs/briefs/ (da raiz ou de ~/.forge-contrib); um só; vários são recusados (um brief por mensagem)")
     br.add_argument("--pedido", required=True, help="id do pedido: grava só em docs/pedidos/<id>.md (caminho de arquivo é recusado)")
     br.add_argument("--destino", nargs="+", help="agente destino, forge:<nome> (vários só em `gerar --gravar`, o lote: um arquivo por destino). Em `mensagem` só é preciso se o brief não tem `Agente destino:` no cabeçalho (antes da primeira seção); se tem, o --destino precisa ser igual ao do brief. Na conferência (`brief <arquivo>`), o padrão é o `Agente destino:` do brief ou o nome do arquivo")
+    br.add_argument("--sem-selar", action="store_true", help="só em `selar`: recalcula e regrava os campos derivados (Base-sha, Revisar-sha, --desde) e para, sem conferir nem gravar selo (a ação automática do O1)")
     br.add_argument("--anterior", help="brief da rodada anterior (em docs/briefs/): imprime `anterior:` e uma linha `delta:` por linha que mudou em cada seção (só informa)")
     br.add_argument("--volta", help="só em `gerar`: brief aprovado da rodada anterior (em docs/briefs/); gera o brief da volta: blocos copiados, Entregar dos achados bloqueantes dos pareceres (exige --ref)")
     br.add_argument("--parecer", nargs="+", help="pareceres (docs/reviews, qa, devops, security; lidos da --ref) de que `gerar --volta` e a conferência de um brief com `Volta-de:` tiram os achados; padrão: o mais recente de cada tipo do pedido que não aprovou")

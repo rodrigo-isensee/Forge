@@ -29,7 +29,7 @@ class Catalogo(unittest.TestCase):
                 self.assertIn(quem, ("ferramenta", "jarvis", "destino", "dono"))
                 self.assertGreater(len(acao), 8)
         self.assertEqual(sorted(c for c, (q, _) in fc.ACAO_DA_CLASSE.items() if q == "ferramenta"),
-                         ["base", "citacao", "etapa", "forma"])
+                         ["base", "forma"])
         self.assertGreaterEqual(fc.LIMIAR_AO_DONO, 2)
 
 
@@ -47,8 +47,7 @@ class Registrar(Raiz):
         return [l for l in linhas if l.startswith("ação: ")]
 
     def test_classe_de_forma_roda_a_ferramenta_sem_rodada_do_jarvis(self):
-        for classe, comando in (("base", "brief selar"), ("citacao", "brief selar"), ("etapa", "brief selar"),
-                                ("forma", "brief mensagem")):
+        for classe, comando in (("base", "brief selar --sem-selar"), ("forma", "brief mensagem")):
             with self.subTest(classe):
                 self.gravar("docs/kanban/conferencias.md", "")
                 cod, linhas, erro = self.registrar(classe)
@@ -57,6 +56,15 @@ class Registrar(Raiz):
                 self.assertEqual(len(acao), 1, linhas)
                 self.assertTrue(acao[0].startswith(f"ação: ferramenta: forge-check {comando} --pedido xpto --arquivo "
                                                    "docs/briefs/xpto-tech-lead-1.md -> rc 2 "), acao)
+
+    def test_etapa_e_citacao_sao_do_jarvis(self):
+        """B2 (review da 0.44.1): etapa e citação não rodam a ferramenta (o `brief selar` gravaria o selo)."""
+        for classe in ("etapa", "citacao"):
+            with self.subTest(classe):
+                self.gravar("docs/kanban/conferencias.md", "")
+                cod, linhas, _ = self.registrar(classe)
+                self.assertEqual(cod, 0)
+                self.assertEqual(self.acao(linhas), ["ação: jarvis: " + carregar().ACAO_DA_CLASSE[classe][1]])
 
     def test_outra_classe_traz_a_acao_fixa_de_quem_corrige(self):
         cod, linhas, _ = self.registrar("escopo")
