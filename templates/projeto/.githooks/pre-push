@@ -66,7 +66,7 @@ lider_vivo() {
   return 1
 }
 encerrar_etapa() {
-  [ "$encerrada" -eq 0 ] || return 0
+  [ -n "${etapa:-}" ] && [ "$encerrada" -eq 0 ] || return 0
   encerrada=1
   if [ "$alvo" = "$etapa" ]; then lider_vivo || return 0; else kill -0 -- "$alvo" 2>/dev/null || return 0; fi
   kill -TERM -- "$alvo" 2>/dev/null; kill -CONT -- "$alvo" 2>/dev/null
@@ -74,17 +74,83 @@ encerrar_etapa() {
   kill -KILL -- "$alvo" 2>/dev/null
   return 0
 }
+# Quem pediu o envio (git, o shell, o agente...) morreu com kill -9: o hook não recebe sinal, então confere a cadeia de
+# ancestrais anotada no início, cada um como par PID e starttime (/proc/<pid>/stat), para não confundir PID reusado.
+# Fica só na memória do hook: nenhum arquivo de PIDs que outro processo possa escrever. Sem /proc, a conferência desliga.
+inicio_de() {  # starttime e pai do PID $1 em st_inicio e st_pai (campos 22 e 4, contados depois do último ")" do nome)
+  local linha c
+  { read -r linha <"/proc/$1/stat"; } 2>/dev/null || return 1
+  read -ra c <<<"${linha##*) }"
+  st_inicio="${c[19]:-}" st_pai="${c[1]:-}"
+  [ -n "$st_inicio" ]
+}
+anotar_ancestrais() {
+  local p=$$
+  ancestrais=()
+  [ -r /proc/self/stat ] || { echo "pre-push: aviso: sem /proc; a checagem não é encerrada se quem pediu o envio morrer." >&2; return 0; }
+  while [ "${#ancestrais[@]}" -lt 16 ] && inicio_de "$p"; do
+    p="$st_pai"
+    case "$p" in ''|0|1|*[!0-9]*) break ;; esac
+    inicio_de "$p" || break
+    ancestrais+=("$p $st_inicio")
+  done
+}
+ancestral_morto() {  # algum ancestral sumiu ou o PID dele agora é de outro processo (starttime diferente)
+  local a
+  for a in "${ancestrais[@]}"; do
+    inicio_de "${a%% *}" || return 0
+    [ "$st_inicio" = "${a#* }" ] || return 0
+  done
+  return 1
+}
+barrar_orfao() {
+  encerrar_etapa
+  echo "pre-push: o processo que pediu o envio terminou; a checagem foi encerrada com os filhos e o envio foi barrado." >&2
+  exit 1
+}
+# Prioridade baixa (nice e, quando existe e funciona, ionice de melhor esforço): a checagem não toma a máquina do resto.
+prioridade() {
+  prefixo=()
+  [ "${FORGE_PREPUSH_PRIORIDADE:-}" = normal ] && return 0
+  nice -n 10 true 2>/dev/null && prefixo=(nice -n 10)
+  ionice -c2 -n7 true 2>/dev/null && prefixo+=(ionice -c2 -n7)
+  return 0
+}
 rodar_etapa() {
-  local pg rc
+  local pg rc inicio
   trap 'encerrar_etapa; echo "pre-push: checagem interrompida; o envio foi barrado." >&2; exit 1' INT TERM HUP
-  trap 'encerrar_etapa' EXIT
-  set -m; "$local_hook" </dev/null 9>&- & etapa=$! alvo=$!; set +m  # sem o descritor da trava: um servidor que a etapa deixe vivo não prende os envios
+  trap 'encerrar_etapa; rm -f -- "${lista_enviada:-}"' EXIT
+  prioridade
+  inicio=$SECONDS
+  set -m; "${prefixo[@]}" "$local_hook" </dev/null 9>&- & etapa=$! alvo=$!; set +m  # sem o descritor da trava: um servidor que a etapa deixe vivo não prende os envios
   pg="$(ps -o pgid= -p "$etapa" 2>/dev/null | tr -d ' ')"
   if [ "$pg" = "$etapa" ] && [ "$pg" != "$(ps -o pgid= -p "$$" 2>/dev/null | tr -d ' ')" ]; then alvo="-$etapa"; fi
-  while lider_vivo; do sleep 1; done
+  while lider_vivo; do
+    if ancestral_morto; then barrar_orfao; fi
+    if [ "$((SECONDS - inicio))" -ge "$limite" ]; then
+      encerrar_etapa
+      echo "pre-push: a checagem do projeto passou de ${limite} s e foi encerrada com os filhos; o envio foi barrado. Suba FORGE_PREPUSH_TIMEOUT ou veja a carga da máquina." >&2
+      exit 1
+    fi
+    sleep 1
+  done
   wait "$etapa"; rc=$?
   encerrar_etapa
   [ "$rc" -eq 0 ] || exit 1
+}
+
+# Lista dos arquivos mudados pelo envio (separados por NUL; apagados não entram), para a checagem olhar só eles.
+# Falha (e a checagem olha tudo) quando alguma ref não tem base clara: ref nova, tag ou ref apagada.
+arquivos_enviados() {
+  local par ls rr rs
+  [ "${#refs_enviadas[@]}" -gt 0 ] || return 1
+  for par in "${refs_enviadas[@]}"; do
+    read -r ls rr rs <<<"$par"
+    case "$ls" in *[!0]*) ;; *) return 1 ;; esac
+    case "$rs" in *[!0]*) ;; *) return 1 ;; esac
+    case "$rr" in refs/tags/*) return 1 ;; esac
+    git diff --name-only -z --no-renames --diff-filter=d "$rs" "$ls" >>"$1" 2>/dev/null || return 1
+  done
 }
 
 # R-TETO: uma checagem do projeto por vez por usuário e máquina (flock; o kernel solta a trava quando o processo morre).
@@ -139,6 +205,9 @@ if [ -x "$local_hook" ]; then
   else
     espera="${FORGE_PREPUSH_ESPERA-1200}"  # inteiro de 1 a 999999 s, conferido só por case (nunca em aritmética)
     case "$espera" in ''|*[!0-9]*|0*|???????*) echo "pre-push: FORGE_PREPUSH_ESPERA precisa ser um inteiro de 1 a 999999 (segundos); envio barrado." >&2; exit 1 ;; esac
+    limite="${FORGE_PREPUSH_TIMEOUT-600}"  # idem; não há valor que desligue o limite
+    case "$limite" in ''|*[!0-9]*|0*|???????*) echo "pre-push: FORGE_PREPUSH_TIMEOUT precisa ser um inteiro de 1 a 999999 (segundos); envio barrado." >&2; exit 1 ;; esac
+    anotar_ancestrais
     if ! command -v flock >/dev/null 2>&1; then
       echo "pre-push: sem flock; a checagem do projeto roda sem esperar a vez" >&2
     else
@@ -150,6 +219,7 @@ if [ -x "$local_hook" ]; then
       fila_entrar
       while [ -n "$senha" ] && n="$(fila_na_frente)" && [ "$n" -gt 0 ]; do
         avisar "$n"
+        if ancestral_morto; then fila_sair; barrar_orfao; fi
         if [ "$SECONDS" -ge "$prazo" ]; then fila_sair; echo "pre-push: a vez não chegou em ${prazo} s (fila); a checagem não rodou e o envio foi barrado; tente de novo" >&2; exit 1; fi
         sleep 1
       done
@@ -159,6 +229,12 @@ if [ -x "$local_hook" ]; then
         flock -w "$espera" 9 || { echo "pre-push: a vez não chegou em ${prazo} s; a checagem não rodou e o envio foi barrado; tente de novo" >&2; exit 1; }
       fi
       fila_sair  # a senha sai e o descritor 8 fecha antes da etapa: nada da fila passa para ela
+    fi
+    lista_enviada="$(mktemp 2>/dev/null)" || lista_enviada=""
+    if [ -n "$lista_enviada" ] && arquivos_enviados "$lista_enviada"; then
+      export FORGE_PREPUSH_ARQUIVOS="$lista_enviada"  # a checagem pode olhar só estes; sem a variável, olha tudo
+    else
+      unset FORGE_PREPUSH_ARQUIVOS
     fi
     rodar_etapa
   fi

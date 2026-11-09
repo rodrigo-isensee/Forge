@@ -544,5 +544,129 @@ class FilaDaChecagem(Repo):
         self.assertEqual(list(self.fila.iterdir()), [])
 
 
+class EnvioDeCodigo(Repo):
+    """Base das classes abaixo: um envio com código (não cai no "só docs"), lançado como na TravaDaChecagem."""
+    lanca, fim, barra = TravaDaChecagem.lanca, TravaDaChecagem.fim, TravaDaChecagem.barra
+
+    def setUp(self):
+        super().setUp()
+        self.escreve("src/a.ts")
+        self.linhas = [self.ref(self.commit("codigo"), self.base)]
+        self.trava = self.fora / f"forge-prepush-{os.getuid()}.lock"
+
+
+class LimiteDaEtapa(EnvioDeCodigo):
+    """F2 (E2b): FORGE_PREPUSH_TIMEOUT encerra a checagem com os filhos e barra; o prazo conta do início da etapa."""
+    def local(self, corpo):
+        (self.dir / ".githooks" / "pre-push.local").write_text(f'#!/usr/bin/env bash\ncd "$(dirname "$0")/.."\n{corpo}\n')
+
+    def test_estouro_encerra_com_os_filhos_e_barra(self):
+        self.local("sleep 300 & echo $! > filho; sleep 300")
+        rc, err, _ = self.fim(self.lanca(dict(self.amb, FORGE_PREPUSH_TIMEOUT="2")))
+        self.assertEqual(rc, 1)
+        self.assertIn("passou de 2 s e foi encerrada com os filhos", err)
+        filho = int((self.dir / "filho").read_text())
+        self.assertTrue(ate(lambda: filho not in vivos()))
+
+    def test_limite_invalido_recusa(self):
+        for v in ("0", "x", "", "-5", "1234567"):
+            with self.subTest(v):
+                self.barra(dict(self.amb, FORGE_PREPUSH_TIMEOUT=v), "FORGE_PREPUSH_TIMEOUT")
+
+    def test_espera_na_trava_nao_conta_no_limite(self):
+        self.local("sleep 0.5; echo rodou > marca")
+        with open(self.trava, "w") as t:
+            fcntl.flock(t, fcntl.LOCK_EX)
+            p = self.lanca(dict(self.amb, FORGE_PREPUSH_TIMEOUT="2", FORGE_PREPUSH_ESPERA="20"))
+            time.sleep(3)
+        rc, err, marca = self.fim(p)
+        self.assertEqual((rc, marca), (0, True), err)
+
+
+class AncestralMorto(EnvioDeCodigo):
+    """F3: kill -9 em quem pediu o envio encerra a checagem com os filhos (A3), sem sinal para quem não é dela (A5)."""
+    def test_kill_9_no_agente_encerra_a_checagem_e_o_hook(self):
+        (self.dir / ".githooks" / "pre-push.local").write_text(
+            '#!/usr/bin/env bash\ncd "$(dirname "$0")/.."\nsleep 300 & echo $$ $PPID $(ps -o pgid= -p $$) > etapa; sleep 300\n')
+        (self.fora / "entrada").write_text("".join(self.linhas))
+        intermediario = subprocess.Popen(
+            [sys.executable, "-c", "import subprocess, sys; subprocess.run(sys.argv[1:])", shutil.which("bash"), "-c",
+             f'.githooks/pre-push origin x < {self.fora}/entrada; echo fim'],
+            cwd=self.dir, env=self.amb, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        self.addCleanup(subprocess.run, ["kill", "-KILL", "--", f"-{intermediario.pid}"], stderr=subprocess.DEVNULL)
+        irmao = subprocess.Popen(["sleep", "60"], start_new_session=True)
+        self.addCleanup(irmao.kill)
+        self.assertTrue(ate((self.dir / "etapa").exists))
+        time.sleep(0.3)
+        etapa, hook, pgid = (int(x) for x in (self.dir / "etapa").read_text().split())
+        time.sleep(1.5)
+        self.assertIn(hook, vivos(), "com o agente vivo, nada é encerrado")
+        intermediario.kill()
+        intermediario.wait()
+        self.assertTrue(ate(lambda: pgid not in vivos().values() and hook not in vivos(), prazo=30))
+        self.assertIsNone(irmao.poll())
+
+    def test_pid_reusado_conta_como_ancestral_morto(self):
+        funcoes = subprocess.run(["sed", "-n", "/^inicio_de() {/,/^}/p;/^ancestral_morto() {/,/^}/p", str(HOOK)],
+                                 capture_output=True, text=True, check=True).stdout
+        roteiro = funcoes + 'inicio_de $$; ancestrais=("$$ $st_inicio"); ancestral_morto && echo morto || echo vivo\n' \
+            'ancestrais=("$$ 1"); ancestral_morto && echo morto || echo vivo\n'
+        saida = subprocess.run([shutil.which("bash"), "-c", roteiro], capture_output=True, text=True).stdout.split()
+        self.assertEqual(saida, ["vivo", "morto"])
+
+
+class PrioridadeDaEtapa(EnvioDeCodigo):
+    """F4: a checagem roda com nice 10 a mais (e ionice de melhor esforço quando funciona); normal tira os prefixos."""
+    def nice_da_etapa(self, amb=None):
+        (self.dir / ".githooks" / "pre-push.local").write_text(
+            '#!/usr/bin/env bash\nread -r l < /proc/self/stat; set -- ${l##*) }; echo "${17}" > "$(dirname "$0")/../nice"\n')
+        rc, err, _ = self.fim(self.lanca(amb))
+        self.assertEqual(rc, 0, err)
+        return int((self.dir / "nice").read_text())
+
+    def test_nice_baixo_por_padrao_e_normal_desliga(self):
+        base = os.nice(0)
+        self.assertEqual(self.nice_da_etapa(), min(base + 10, 19))
+        self.assertEqual(self.nice_da_etapa(dict(self.amb, FORGE_PREPUSH_PRIORIDADE="normal")), base)
+
+    def test_ionice_que_falha_nao_impede_a_checagem(self):
+        falso = self.fora / "falso"
+        falso.mkdir()
+        (falso / "ionice").write_text("#!/bin/sh\nexit 1\n")
+        (falso / "ionice").chmod(0o755)
+        self.assertEqual(self.nice_da_etapa(dict(self.amb, PATH=f"{falso}:{self.amb['PATH']}")), min(os.nice(0) + 10, 19))
+
+
+class ListaDosArquivos(EnvioDeCodigo):
+    """F5: FORGE_PREPUSH_ARQUIVOS aponta a lista (NUL) dos arquivos mudados pelo envio; sem base clara, não existe."""
+    def setUp(self):
+        super().setUp()
+        (self.dir / ".githooks" / "pre-push.local").write_text(
+            '#!/usr/bin/env bash\ncd "$(dirname "$0")/.."\nif [ -n "${FORGE_PREPUSH_ARQUIVOS+x}" ]; then tr "\\0" "\\n" < "$FORGE_PREPUSH_ARQUIVOS" > lista;'
+            ' echo "$FORGE_PREPUSH_ARQUIVOS" > caminho; else echo TUDO > lista; fi\n')
+
+    def envia_e_le(self, linhas):
+        self.linhas = linhas
+        rc, err, _ = self.fim(self.lanca())
+        self.assertEqual(rc, 0, err)
+        return sorted((self.dir / "lista").read_text().split("\n")[:-1])
+
+    def test_so_os_arquivos_mudados_sem_os_apagados(self):
+        self.escreve("src/velho.ts")
+        antes = self.commit("velho")
+        self.escreve("src/novo arquivo.ts")
+        (self.dir / "src" / "velho.ts").unlink()
+        self.escreve("docs/a.md")
+        novo = self.commit("muda")
+        self.assertEqual(self.envia_e_le([self.ref(novo, antes)]), ["docs/a.md", "src/novo arquivo.ts"])
+        self.assertFalse(Path((self.dir / "caminho").read_text().strip()).exists(), "a lista ficou para trás")
+
+    def test_sem_base_clara_olha_tudo(self):
+        self.escreve("src/a.ts")
+        novo = self.commit("codigo")
+        self.assertEqual(self.envia_e_le([self.ref(novo, ZERO)]), ["TUDO"])
+        self.assertEqual(self.envia_e_le([self.ref(novo, self.base, "refs/tags/v1")]), ["TUDO"])
+
+
 if __name__ == "__main__":
     unittest.main()
