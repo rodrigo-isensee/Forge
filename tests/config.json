@@ -21,6 +21,14 @@
         "node-backend",
         "react-frontend"
       ]
+    },
+    "python": {
+      "agentes": [
+        "python-backend"
+      ],
+      "skills": [
+        "python-backend"
+      ]
     }
   },
   "neutralidade_nucleo": {
@@ -54,6 +62,10 @@
       "\\bPrisma\\b",
       "node-backend",
       "react-frontend",
+      "python-backend",
+      "\\bFastAPI\\b",
+      "\\bSQLAlchemy\\b",
+      "\\bruff\\b",
       "node_modules",
       "eslint-plugin-security",
       "\\bbandit\\b",

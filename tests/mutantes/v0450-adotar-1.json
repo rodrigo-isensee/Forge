@@ -1,0 +1,166 @@
+{
+  "pedido": "v0450-adotar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A39",
+      "guarda": "forge adotar: not k.startswith('GIT_')",
+      "arquivo": "bin/forge-adotar",
+      "de": "    env = {k: v for k, v in os.environ.items() if not k.startswith(\"GIT_\")}",
+      "para": "    env = {k: v for k, v in os.environ.items() if not (not k.startswith(\"GIT_\"))}",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A40",
+      "guarda": "forge adotar: sem_hooks",
+      "arquivo": "bin/forge-adotar",
+      "de": "    extra = [\"-c\", \"core.hooksPath=/dev/null\"] if sem_hooks else []",
+      "para": "    extra = [\"-c\", \"core.hooksPath=/dev/null\"] if not (sem_hooks) else []",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A51",
+      "guarda": "forge adotar: not destino.is_dir()",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if not destino.is_dir():",
+      "para": "    if not (not destino.is_dir()):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A53",
+      "guarda": "forge adotar: destino in (Path.home().resolve(), Path('/'))",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if destino in (Path.home().resolve(), Path(\"/\")):",
+      "para": "    if not (destino in (Path.home().resolve(), Path(\"/\"))):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A59",
+      "guarda": "forge adotar: isinstance(plugin, dict) and plugin.get('name') == 'forge'",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if isinstance(plugin, dict) and plugin.get(\"name\") == \"forge\":",
+      "para": "    if not (isinstance(plugin, dict) and plugin.get(\"name\") == \"forge\"):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A69",
+      "guarda": "forge adotar: linha",
+      "arquivo": "bin/forge-adotar",
+      "de": "        itens = re.findall(r\"`([^`]+)`\", linha.group(1)) if linha else []",
+      "para": "        itens = re.findall(r\"`([^`]+)`\", linha.group(1)) if not (linha) else []",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A70",
+      "guarda": "forge adotar: seguro(i)",
+      "arquivo": "bin/forge-adotar",
+      "de": "        achados[pronto.parent.name] = [i for i in itens if seguro(i)]",
+      "para": "        achados[pronto.parent.name] = [i for i in itens if not (seguro(i))]",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A75",
+      "guarda": "forge adotar: not rel.startswith('/') and '..' not in Path(rel).parts",
+      "arquivo": "bin/forge-adotar",
+      "de": "    return not rel.startswith(\"/\") and \"..\" not in Path(rel).parts",
+      "para": "    return not rel.startswith(\"/\") and \"..\" in Path(rel).parts",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A81",
+      "guarda": "forge adotar: arq.is_file()",
+      "arquivo": "bin/forge-adotar",
+      "de": "    linha = PRONTO_EXISTENTE.search(arq.read_text(encoding=\"utf-8\")) if arq.is_file() else None",
+      "para": "    linha = PRONTO_EXISTENTE.search(arq.read_text(encoding=\"utf-8\")) if not (arq.is_file()) else None",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A82",
+      "guarda": "forge adotar: linha",
+      "arquivo": "bin/forge-adotar",
+      "de": "    for nome, trecho, comando in REGRA_PRONTO.findall(linha.group(1) if linha else \"\"):",
+      "para": "    for nome, trecho, comando in REGRA_PRONTO.findall(linha.group(1) if not (linha) else \"\"):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A85",
+      "guarda": "forge adotar: seguro(nome) and alvo.is_file() and (not alvo.is_symlink()) ",
+      "arquivo": "bin/forge-adotar",
+      "de": "            if seguro(nome) and alvo.is_file() and not alvo.is_symlink() and trecho in alvo.read_text(encoding=\"utf-8\")[:200_000]:",
+      "para": "            if not (seguro(nome) and alvo.is_file() and not alvo.is_symlink() and trecho in alvo.read_text(encoding=\"utf-8\")[:200_000]):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A95",
+      "guarda": "forge adotar: codigo == 0",
+      "arquivo": "bin/forge-adotar",
+      "de": "    pasta = Path(pasta.strip()) if codigo == 0 else None",
+      "para": "    pasta = Path(pasta.strip()) if not (codigo == 0) else None",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A96",
+      "guarda": "forge adotar: not pasta or not pasta.is_dir()",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if not pasta or not pasta.is_dir():",
+      "para": "    if not (not pasta or not pasta.is_dir()):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A98",
+      "guarda": "forge adotar: a.is_file() and os.access(a, os.X_OK) and (not a.name.endswi",
+      "arquivo": "bin/forge-adotar",
+      "de": "    return sorted(a.name for a in pasta.iterdir() if a.is_file() and os.access(a, os.X_OK) and not a.name.endswith(\".sample\"))",
+      "para": "    return sorted(a.name for a in pasta.iterdir() if not (a.is_file() and os.access(a, os.X_OK) and not a.name.endswith(\".sample\")))",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A104",
+      "guarda": "forge adotar: git(topo, 'symbolic-ref', '--short', '-q', 'HEAD')[1].strip(",
+      "arquivo": "bin/forge-adotar",
+      "de": "    d[\"branch\"] = git(topo, \"symbolic-ref\", \"--short\", \"-q\", \"HEAD\")[1].strip() or \"(sem branch)\"",
+      "para": "    d[\"branch\"] = git(topo, \"symbolic-ref\", \"--short\", \"-q\", \"HEAD\")[1].strip() and \"(sem branch)\"",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A105",
+      "guarda": "forge adotar: git(topo, 'rev-parse', '-q', '--verify', 'HEAD')[0] == 0",
+      "arquivo": "bin/forge-adotar",
+      "de": "    d[\"tem_commit\"] = git(topo, \"rev-parse\", \"-q\", \"--verify\", \"HEAD\")[0] == 0",
+      "para": "    d[\"tem_commit\"] = git(topo, \"rev-parse\", \"-q\", \"--verify\", \"HEAD\")[0] != 0",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    }
+  ]
+}

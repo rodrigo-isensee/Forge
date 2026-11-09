@@ -4,6 +4,10 @@ O `forge-init` usa o comando abaixo como padrão do "pronto" do projeto (`--pron
 
 Comando sugerido: `pnpm run pronto`
 
+Detecção: `package.json`
+
+Pronto existente: `package.json` com `"pronto":` → `pnpm run pronto`; `package.json` com `"test":` → `npm test`
+
 Ele precisa rodar, e falhar se algo falhar: lint (ESLint) e formatação (Prettier) · type-check (TypeScript `strict`) · testes unitários e de integração · build. Reporte o resultado real.
 
 ## Código

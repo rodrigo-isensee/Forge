@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # Forge: prepara um projeto para ser desenvolvido pela fábrica.
-# Uso: forge-init [--nome NOME] [--descricao TEXTO] [--stack NOME] [--pronto COMANDO] [--forcar] [DIRETORIO]
+# Uso: forge-init [--nome NOME] [--descricao TEXTO] [--stack NOME] [--pronto COMANDO] [--forcar] [--sem-versionar] [--sem-sandbox] [DIRETORIO]
 # Copia templates/projeto para o diretório sem sobrescrever o que já existe (salvo --forcar),
-# substitui os marcadores {{PROJETO}}, {{DESCRICAO}}, {{STACK}} e {{COMANDO_PRONTO}} e ativa o hook de git.
+# substitui os marcadores {{PROJETO}}, {{DESCRICAO}}, {{STACK}} e {{COMANDO_PRONTO}} e ativa o hook de git
+# (nunca troca um core.hooksPath de outra ferramenta nem desliga hooks ativos em .git/hooks).
+# --sem-versionar (FILA-24, D1 = B): no git ficam só .forge/versao, .forge/config.json e as chaves enabledPlugins e
+# extraKnownMarketplaces do .claude/settings.json; o resto vai para .claude/settings.local.json e .git/info/exclude.
+# --sem-sandbox (0.45.0): o sandbox não liga nem é oferecido aqui; quem chama (o forge adotar) oferece.
 set -euo pipefail
 
 raiz_forge="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 modelo="$raiz_forge/templates/projeto"
 
-nome=""; descricao="Descreva aqui o objetivo do sistema."; pronto=""; stack="node-react"; forcar=0; destino="."
+nome=""; descricao="Descreva aqui o objetivo do sistema."; pronto=""; stack="node-react"; forcar=0; sem_versionar=0; sem_sandbox=0; destino="."
 while [ $# -gt 0 ]; do
   case "$1" in
     --nome) nome="$2"; shift 2 ;;
@@ -16,7 +20,9 @@ while [ $# -gt 0 ]; do
     --stack) stack="$2"; shift 2 ;;
     --pronto) pronto="$2"; shift 2 ;;
     --forcar) forcar=1; shift ;;
-    -h|--help) sed -n '2,5p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --sem-versionar) sem_versionar=1; shift ;;
+    --sem-sandbox) sem_sandbox=1; shift ;;
+    -h|--help) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) echo "forge-init: opção desconhecida: $1" >&2; exit 2 ;;
     *) destino="$1"; shift ;;
   esac
@@ -55,29 +61,43 @@ escapar() { printf '%s' "$1" | sed -e 's/[\/&|]/\\&/g'; }
 n_esc="$(escapar "$nome")"; d_esc="$(escapar "$descricao")"; p_esc="$(escapar "$pronto")"; s_esc="$(escapar "$stack")"
 
 # .claude/settings.json existente (o próprio `claude plugin install --scope project` cria um): mescla em vez de pular.
-# Preenche agent, marketplace e plugin do Forge e une as listas de permissões; não apaga nada do projeto.
-# D1 (0.44.0): o projeto novo no Forge (sem .forge/versao) ganha o sandbox do modelo se não tiver a chave; no projeto que já usa o
-# Forge, o sandbox é escolha do dono (o forge-upgrade só oferece).
+# Une as chaves do modelo ao arquivo (dicionário por chave, lista sem repetir, valor do projeto fica); não apaga nada.
+# A parte: tudo (padrão), declaracao (só enabledPlugins e extraKnownMarketplaces) ou resto (as outras chaves).
+# D1 (0.44.0): o sandbox do modelo só entra com o 4º argumento 1 (projeto novo no Forge com bwrap e credencial).
 mesclar_settings() {
-  python3 - "$1" "$2" "$3" <<'PY'
-import json, sys
-modelo, alvo = (json.load(open(p, encoding="utf-8")) for p in sys.argv[1:3])
-alvo.setdefault("agent", modelo["agent"])
-if sys.argv[3] == "1":
-    alvo.setdefault("sandbox", modelo["sandbox"])
-for chave in ("extraKnownMarketplaces", "enabledPlugins"):
-    alvo.setdefault(chave, {})
-    for k, v in modelo[chave].items():
-        alvo[chave].setdefault(k, v)
-perm = alvo.setdefault("permissions", {})
-for lista, regras in modelo.get("permissions", {}).items():
-    atual = perm.setdefault(lista, [])
-    atual += [r for r in regras if r not in atual]
-with open(sys.argv[2], "w", encoding="utf-8") as f:
+  python3 - "$1" "$2" "${3:-tudo}" "${4:-0}" <<'PY'
+import copy, json, sys
+from pathlib import Path
+DECLARACAO = {"extraKnownMarketplaces", "enabledPlugins"}
+modelo = json.load(open(sys.argv[1], encoding="utf-8"))
+destino, parte = Path(sys.argv[2]), sys.argv[3]
+alvo = json.load(open(destino, encoding="utf-8")) if destino.exists() else {}
+def unir(base, chave, valor):
+    if chave not in base:
+        base[chave] = copy.deepcopy(valor)
+    elif isinstance(valor, dict) and isinstance(base[chave], dict):
+        for k, v in valor.items():
+            unir(base[chave], k, v)
+    elif isinstance(valor, list) and isinstance(base[chave], list):
+        base[chave] += [r for r in valor if r not in base[chave]]
+for chave, valor in modelo.items():
+    if chave == "sandbox" and sys.argv[4] != "1":
+        continue
+    if parte == "tudo" or (parte == "declaracao") == (chave in DECLARACAO):
+        unir(alvo, chave, valor)
+destino.parent.mkdir(parents=True, exist_ok=True)
+with open(destino, "w", encoding="utf-8") as f:
     json.dump(alvo, f, ensure_ascii=False, indent=2)
     f.write("\n")
 PY
 }
+
+# Repositório git do destino: o hook e o modo --sem-versionar dependem dele.
+em_git=0
+if git -C "$destino" rev-parse --is-inside-work-tree >/dev/null 2>&1; then em_git=1; fi
+if [ "$sem_versionar" -eq 1 ] && [ "$em_git" -eq 0 ]; then
+  echo "forge-init: --sem-versionar pede um repositório git (rode 'git init' antes)" >&2; exit 2
+fi
 
 # Projeto que já usa o Forge mas é anterior ao .forge/ (ADR 0005): a versão real é desconhecida.
 antigo=0
@@ -106,17 +126,23 @@ sys.exit(0 if tem("GH_TOKEN") and tem("GIT_CONFIG_COUNT") else 1)
 PY
 }
 sandbox_ok=0; sandbox_novo=0; sandbox_oferta=0
-if sandbox_pronto; then sandbox_ok=1; fi
+if [ "$sem_sandbox" -eq 0 ] && sandbox_pronto; then sandbox_ok=1; fi
 if [ "$novo_no_forge" -eq 1 ]; then
   if [ "$sandbox_ok" -eq 1 ]; then sandbox_novo=1; else sandbox_oferta=1; fi
 fi
 
-criados=0; mantidos=0; config_nova=0
+criados=0; mantidos=0; config_nova=0; fora_do_git=()
 while IFS= read -r -d '' arq; do
   rel="${arq#"$modelo"/}"
   alvo="$destino/$rel"
+  if [ "$rel" = ".claude/settings.json" ] && [ "$sem_versionar" -eq 1 ]; then
+    mesclar_settings "$arq" "$alvo" declaracao 0
+    mesclar_settings "$arq" "$destino/.claude/settings.local.json" resto "$sandbox_novo"
+    fora_do_git+=(".claude/settings.local.json")
+    echo "  mesclado $rel (só a declaração do plugin; o resto em .claude/settings.local.json)"; continue
+  fi
   if [ "$rel" = ".claude/settings.json" ] && [ -e "$alvo" ] && [ "$forcar" -eq 0 ]; then
-    mesclar_settings "$arq" "$alvo" "$sandbox_novo"
+    mesclar_settings "$arq" "$alvo" tudo "$sandbox_novo"
     echo "  mesclado $rel"; continue
   fi
   if [ -e "$alvo" ] && [ "$forcar" -eq 0 ]; then
@@ -137,7 +163,7 @@ with open(sys.argv[1], "w", encoding="utf-8") as f:
 PY
   fi
   echo "  criado   $rel"; criados=$((criados + 1))
-  if [ "$rel" = ".forge/config.json" ]; then config_nova=1; fi
+  if [ "$rel" = ".forge/config.json" ]; then config_nova=1; else fora_do_git+=("$rel"); fi
 done < <(find "$modelo" -type f -print0 | sort -z)
 
 # Tarefas pesadas padrão (hook `pesado`): vêm do pacote da stack (stacks/<stack>/pesados.json, uma lista JSON), não do núcleo.
@@ -167,19 +193,57 @@ elif [ ! -e "$destino/.forge/versao" ] || [ "$forcar" -eq 1 ]; then
   echo "  criado   .forge/versao ($versao_forge)"
 fi
 # Estado de execução local e preferências da pessoa (perfil de experiência) não são versionados.
-for ignorado in '.forge/run/' '.forge/perfil' '.forge/novo-projeto.json' '.forge/onboarding.md'; do
-  if ! command grep -qxF "$ignorado" "$destino/.gitignore" 2>/dev/null; then
-    echo "$ignorado" >> "$destino/.gitignore"; echo "  gitignore $ignorado"
-  fi
-done
+ignorados=('.forge/run/' '.forge/perfil' '.forge/novo-projeto.json' '.forge/onboarding.md')
+if [ "$sem_versionar" -eq 1 ]; then
+  # FILA-24 (D1 = B): o que o Forge criou fica fora do git pelo .git/info/exclude, que não é versionado; o .gitignore do
+  # projeto não muda. Só entram os arquivos criados agora: o que o projeto já tinha continua como estava.
+  exclude="$(git -C "$destino" rev-parse --path-format=absolute --git-path info/exclude)"
+  prefixo="$(git -C "$destino" rev-parse --show-prefix)"
+  mkdir -p "$(dirname "$exclude")"
+  for rel in "${ignorados[@]}" "${fora_do_git[@]}"; do
+    if ! command grep -qxF "/$prefixo$rel" "$exclude" 2>/dev/null; then echo "/$prefixo$rel" >> "$exclude"; fi
+  done
+  echo "  exclude  ${#fora_do_git[@]} arquivo(s) do Forge e o estado local fora do git (.git/info/exclude)"
+  python3 - "$destino/.forge/config.json" <<'PY'
+import json, sys
+config = json.load(open(sys.argv[1], encoding="utf-8"))
+config["arquivos_do_forge_no_git"] = False
+with open(sys.argv[1], "w", encoding="utf-8") as f:
+    json.dump(config, f, ensure_ascii=False, indent=2)
+    f.write("\n")
+PY
+  echo "  config   .forge/config.json (arquivos_do_forge_no_git: false)"
+else
+  for ignorado in "${ignorados[@]}"; do
+    if ! command grep -qxF "$ignorado" "$destino/.gitignore" 2>/dev/null; then
+      echo "$ignorado" >> "$destino/.gitignore"; echo "  gitignore $ignorado"
+    fi
+  done
+fi
 
-if git -C "$destino" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  git -C "$destino" config core.hooksPath .githooks
-  echo "  hook     core.hooksPath=.githooks"
+# Hook de git: liga o .githooks do Forge, mas nunca troca o core.hooksPath de outra ferramenta nem desliga hooks ativos
+# em .git/hooks (o core.hooksPath faria o git ignorá-los). Nesses casos avisa e deixa como está (C-46-3).
+if [ "$em_git" -eq 1 ]; then
+  atual="$(git -C "$destino" config --get core.hooksPath || true)"
+  ativos=""
+  if [ -z "$atual" ]; then
+    pasta_hooks="$(git -C "$destino" rev-parse --path-format=absolute --git-path hooks)"
+    ativos="$(find "$pasta_hooks" -maxdepth 1 -type f -perm -u+x ! -name '*.sample' -printf '%f ' 2>/dev/null | sed 's/ $//' || true)"
+  fi
+  if [ -n "$atual" ] && [ "$atual" != ".githooks" ] && [ "$atual" != "$destino/.githooks" ]; then
+    echo "  aviso    core.hooksPath=$atual é de outra ferramenta e fica como está; o pre-push do Forge (proteção da main)"
+    echo "           não foi ligado: chame .githooks/pre-push a partir do pre-push dessa ferramenta"
+  elif [ -n "$ativos" ]; then
+    echo "  aviso    hooks ativos em .git/hooks ($ativos) ficam como estão; core.hooksPath não foi trocado para não"
+    echo "           desligá-los: chame .githooks/pre-push a partir do seu pre-push para ter a proteção da main"
+  else
+    git -C "$destino" config core.hooksPath .githooks
+    echo "  hook     core.hooksPath=.githooks"
+  fi
 else
   echo "  aviso    $destino não é um repositório git; rode 'git init' e 'git config core.hooksPath .githooks'"
 fi
-if [ "$sandbox_oferta" -eq 1 ]; then
+if [ "$sandbox_oferta" -eq 1 ] && [ "$sem_sandbox" -eq 0 ]; then
   echo "  oferta   sandbox do Bash NÃO ligado: falta o bubblewrap (bwrap) ou a credencial do bot (ADR 0009, etapa 2). Para ligá-lo:"
   echo "           1) instale bubblewrap e socat (scripts/preparar-estacao.sh); 2) ponha o GH_TOKEN do bot no env do ~/.claude/settings.json;"
   echo "           3) rode scripts/configurar-ambiente-local.sh (GIT_CONFIG_* no .claude/settings.local.json); 4) forge-upgrade --ligar-sandbox $destino"

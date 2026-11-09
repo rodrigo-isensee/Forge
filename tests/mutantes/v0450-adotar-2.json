@@ -1,0 +1,166 @@
+{
+  "pedido": "v0450-adotar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A106",
+      "guarda": "forge adotar: l.strip()",
+      "arquivo": "bin/forge-adotar",
+      "de": "    d[\"sujos\"] = [l for l in git(topo, \"status\", \"--porcelain\")[1].splitlines() if l.strip()]",
+      "para": "    d[\"sujos\"] = [l for l in git(topo, \"status\", \"--porcelain\")[1].splitlines() if not (l.strip())]",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A108",
+      "guarda": "forge adotar: git(topo, 'show-ref', '--verify', '-q', f'refs/heads/{b}')[0",
+      "arquivo": "bin/forge-adotar",
+      "de": "    d[\"branches\"] = {b: (git(topo, \"show-ref\", \"--verify\", \"-q\", f\"refs/heads/{b}\")[0] == 0,",
+      "para": "    d[\"branches\"] = {b: (git(topo, \"show-ref\", \"--verify\", \"-q\", f\"refs/heads/{b}\")[0] != 0,",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A109",
+      "guarda": "forge adotar: git(topo, 'show-ref', '--verify', '-q', f'refs/remotes/origi",
+      "arquivo": "bin/forge-adotar",
+      "de": "                         git(topo, \"show-ref\", \"--verify\", \"-q\", f\"refs/remotes/origin/{b}\")[0] == 0) for b in DEGRAUS}",
+      "para": "                         git(topo, \"show-ref\", \"--verify\", \"-q\", f\"refs/remotes/origin/{b}\")[0] != 0) for b in DEGRAUS}",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A110",
+      "guarda": "forge adotar: git(topo, 'show-ref', '--verify', '-q', f'refs/heads/{BRANCH",
+      "arquivo": "bin/forge-adotar",
+      "de": "    d[\"branch_adotar\"] = git(topo, \"show-ref\", \"--verify\", \"-q\", f\"refs/heads/{BRANCH}\")[0] == 0",
+      "para": "    d[\"branch_adotar\"] = git(topo, \"show-ref\", \"--verify\", \"-q\", f\"refs/heads/{BRANCH}\")[0] != 0",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A112",
+      "guarda": "forge adotar: versao.is_file()",
+      "arquivo": "bin/forge-adotar",
+      "de": "    d[\"versao\"] = versao.read_text(encoding=\"utf-8\").strip() if versao.is_file() else None",
+      "para": "    d[\"versao\"] = versao.read_text(encoding=\"utf-8\").strip() if not (versao.is_file()) else None",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A116",
+      "guarda": "forge adotar: a.is_file() and (topo / a.relative_to(MODELO)).exists()",
+      "arquivo": "bin/forge-adotar",
+      "de": "                             if a.is_file() and (topo / a.relative_to(MODELO)).exists())",
+      "para": "                             if not (a.is_file() and (topo / a.relative_to(MODELO)).exists()))",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A117",
+      "guarda": "forge adotar: any(((topo / i).exists() for i in itens))",
+      "arquivo": "bin/forge-adotar",
+      "de": "    d[\"detectadas\"] = [s for s, itens in pacotes().items() if any((topo / i).exists() for i in itens)]",
+      "para": "    d[\"detectadas\"] = [s for s, itens in pacotes().items() if not (any((topo / i).exists() for i in itens))]",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A124",
+      "guarda": "forge adotar: pedida",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if pedida:",
+      "para": "    if not (pedida):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A125",
+      "guarda": "forge adotar: pedida in todos",
+      "arquivo": "bin/forge-adotar",
+      "de": "        return (pedida, \"escolhida por você\") if pedida in todos else (None, f\"o pacote {pedida} não existe ({', '.join(todos)})\")",
+      "para": "        return (pedida, \"escolhida por você\") if not (pedida in todos) else (None, f\"o pacote {pedida} não existe ({', '.join(todos)})\")",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A126",
+      "guarda": "forge adotar: len(d['detectadas']) == 1",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if len(d[\"detectadas\"]) == 1:",
+      "para": "    if not (len(d[\"detectadas\"]) == 1):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A128",
+      "guarda": "forge adotar: d['detectadas']",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if d[\"detectadas\"]:",
+      "para": "    if not (d[\"detectadas\"]):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A134",
+      "guarda": "forge adotar: d['hooks_path'] and d['hooks_path'] != '.githooks'",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if d[\"hooks_path\"] and d[\"hooks_path\"] != \".githooks\":",
+      "para": "    if not (d[\"hooks_path\"] and d[\"hooks_path\"] != \".githooks\"):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A137",
+      "guarda": "forge adotar: d['hooks_ativos']",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if d[\"hooks_ativos\"]:\n        return (f\"ativos em .git/hooks ({', '.join(d['hooks_ativos'])}); ficam como estão, o core.hooksPath não muda e o \"",
+      "para": "    if not (d[\"hooks_ativos\"]):\n        return (f\"ativos em .git/hooks ({', '.join(d['hooks_ativos'])}); ficam como estão, o core.hooksPath não muda e o \"",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A146",
+      "guarda": "forge adotar: ', '.join(d['remotos']) or 'nenhum'",
+      "arquivo": "bin/forge-adotar",
+      "de": "    print(f\"- git: branch {d['branch']}; remoto: {', '.join(d['remotos']) or 'nenhum'}\")",
+      "para": "    print(f\"- git: branch {d['branch']}; remoto: {', '.join(d['remotos']) and 'nenhum'}\")",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A149",
+      "guarda": "forge adotar: stack or '?'",
+      "arquivo": "bin/forge-adotar",
+      "de": "    print(f\"- stack: {stack or '?'} ({nota})\")",
+      "para": "    print(f\"- stack: {stack and '?'} ({nota})\")",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A150",
+      "guarda": "forge adotar: stack",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if stack:",
+      "para": "    if not (stack):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    }
+  ]
+}

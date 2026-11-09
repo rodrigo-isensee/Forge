@@ -1,0 +1,1 @@
+["python -m pytest", "tox", "docker compose up"]

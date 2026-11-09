@@ -1,6 +1,6 @@
 {
   "name": "forge",
-  "version": "0.44.2",
+  "version": "0.45.0",
   "description": "Forge: fábrica de software com agentes. Jarvis (orquestrador), tech lead, arquiteto, UX, back-end Node, front-end React, QA, devops, segurança e agile coach, com as skills, o processo (discovery, code review, QA obrigatório, Kanban, melhoria contínua) e os modelos para iniciar projetos.",
   "author": {
     "name": "Rodrigo Isensee"
@@ -25,10 +25,12 @@
     "./agents/tech-lead.md",
     "./agents/ux-designer.md",
     "./stacks/node-react/agents/node-backend.md",
-    "./stacks/node-react/agents/react-frontend.md"
+    "./stacks/node-react/agents/react-frontend.md",
+    "./stacks/python/agents/python-backend.md"
   ],
   "skills": [
     "./stacks/node-react/skills/node-backend",
-    "./stacks/node-react/skills/react-frontend"
+    "./stacks/node-react/skills/react-frontend",
+    "./stacks/python/skills/python-backend"
   ]
 }
