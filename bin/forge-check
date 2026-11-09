@@ -1998,10 +1998,12 @@ def caminho_impresso(caminho):
 HUNK = re.compile(rb"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", re.M)
 
 
-def trechos_novos(raiz, de, ate, nome):
-    """(início, fim) das linhas do lado novo de cada trecho do `git diff -U0` de `nome`."""
+def trechos_novos(raiz, de, ate, nome, estrito=False):
+    """(início, fim) das linhas do lado novo de cada trecho do `git diff -U0` de `nome`. Com `estrito`, a falha do git devolve None."""
     cod, saida = git(raiz, "--literal-pathspecs", "diff", "-U0", "--no-renames", "--no-ext-diff", "--no-textconv",
                      f"{de}..{ate}", "--", nome, bruto=True)
+    if cod and estrito:
+        return None
     trechos = []
     for m in ([] if cod else HUNK.finditer(saida)):
         inicio, tamanho = int(m.group(1)), int(m.group(2) if m.group(2) is not None else 1)
@@ -2009,9 +2011,53 @@ def trechos_novos(raiz, de, ate, nome):
     return trechos
 
 
-def cmd_delta(raiz, refs, parecer, classe=False):
-    """O que mudou desde um commit (ou desde o `commit:` de um parecer) fora de LIVRES (VV-2, M12). Só leitura; não reprova.
-    rc 2 se o commit não existe, não é ancestral do fim ou o parecer não abre."""
+BASES_DO_DELTA = ("develop", "homolog")  # lista branca do `--base` do delta: a própria branch como base esconderia tudo (FC-DELTA-APOS-MERGE-BASE)
+FALHA_DO_DELTA = "o git falhou ({}); o delta não foi lido"  # FC-DELTA-GIT-FALHA: nunca "nenhum" depois de uma falha do git
+
+
+def escopo_sem_a_base(raiz, inicio, fim, base, nomes):
+    """FC-DELTA-APOS-MERGE-BASE: `(nomes, linha)` do intervalo sem o que veio da `base` por merge na branch. Fica o arquivo do autor
+    pelo `escopo_pelo_primeiro_pai` (por conteúdo contra o segundo pai: resolução de conflito e `-s ours` ficam) e o desfeito (o que a
+    branch tinha mudado até `inicio`). Sem base legível, com `fim` já na base ou sem merge da base, os `nomes` voltam inteiros, com a
+    linha do motivo ou None. `FalhaDoGit` se o git falha: o delta para com rc 2 e nunca encolhe."""
+    base_ref = ref_da_base(raiz, base)
+    if not base_ref:
+        return nomes, f"base {base} não encontrada; o intervalo vale inteiro"
+    if e_ancestral(raiz, fim, base_ref):
+        return nomes, None
+    proprios = escopo_pelo_primeiro_pai(raiz, inicio, fim, base_ref)
+    if proprios is None or isinstance(proprios, FalhaDoGit):
+        return (nomes, None) if proprios is None else proprios
+    desfeitos = desfeitos_da_entrega(raiz, base_ref, inicio)
+    if desfeitos is None:
+        return FalhaDoGit("diff dos desfeitos")
+    return [n for n in nomes if n in proprios or n in desfeitos], f"escopo: sem o que veio da base ({base})"
+
+
+def intervalo_do_delta(raiz, inicio, fim, base):
+    """`(nomes, linha de escopo ou None)` de `inicio..fim` sem o que veio da base, ou `FalhaDoGit` (FC-DELTA-GIT-FALHA)."""
+    nomes = nomes_do_intervalo(raiz, inicio, fim, estrito=True)
+    if nomes is None:
+        return FalhaDoGit("diff --name-only")
+    return escopo_sem_a_base(raiz, inicio, fim, base, nomes)
+
+
+def sem_git_que_falha(prefixo, corpo):
+    """Roda `corpo()`; git ausente ou que passa do prazo vira a linha da falha e rc 2, nunca um delta vazio (FC-DELTA-GIT-FALHA)."""
+    try:
+        return corpo()
+    except (OSError, subprocess.TimeoutExpired) as e:
+        print(f"{prefixo}: " + FALHA_DO_DELTA.format(nome_seguro(type(e).__name__)))
+        return 2
+
+
+def cmd_delta(raiz, refs, parecer, classe=False, base="develop"):
+    """O que mudou desde um commit (ou desde o `commit:` de um parecer) fora de LIVRES (VV-2, M12), sem o que veio da `base` por
+    merge na branch. Só leitura; não reprova. rc 2 se o commit não existe, não é ancestral do fim, o parecer não abre, a base está
+    fora da lista ou o git falha (nunca `delta: nenhum` depois de uma falha, FC-DELTA-GIT-FALHA)."""
+    if base not in BASES_DO_DELTA:
+        print(f"delta: --base {nome_seguro(base)}: use {' ou '.join(BASES_DO_DELTA)}")
+        return 2
     if parecer:
         arquivo = dentro_da_raiz(raiz, parecer, PASTAS_DE_PARECER)
         if arquivo is None or len(refs) > 1:
@@ -2028,6 +2074,11 @@ def cmd_delta(raiz, refs, parecer, classe=False):
     else:
         print("delta: use `delta <commit> [<fim>]` ou `delta --parecer <arquivo> [<fim>]`")
         return 2
+    return sem_git_que_falha("delta", lambda: delta_do_intervalo(raiz, inicio_txt, fim_txt, classe, base))
+
+
+def delta_do_intervalo(raiz, inicio_txt, fim_txt, classe, base):
+    """O corpo do `cmd_delta` depois dos argumentos: toda falha do git sai com rc 2 e a linha `o delta não foi lido`."""
     inicio, fim = sha_do_commit(raiz, inicio_txt), sha_do_commit(raiz, fim_txt)
     if not inicio or not fim:
         print(f"delta: commit {nome_seguro(inicio_txt if not inicio else fim_txt)} não existe")
@@ -2036,18 +2087,29 @@ def cmd_delta(raiz, refs, parecer, classe=False):
         print(f"delta: {inicio[:7]} não é ancestral de {fim[:7]}")
         return 2
     print(f"intervalo: {inicio}..{fim}")
-    nomes = [n for n in nomes_do_intervalo(raiz, inicio, fim) if not livre(n, LIVRES)]
+    lido = intervalo_do_delta(raiz, inicio, fim, base)
+    if isinstance(lido, FalhaDoGit):
+        print("delta: " + FALHA_DO_DELTA.format(lido.passo))
+        return 2
+    nomes, escopo = lido
+    if escopo:
+        print(f"delta: {escopo}")
+    nomes = [n for n in nomes if not livre(n, LIVRES)]
     if not nomes:
         print("delta: nenhum")
         return 0
-    contagens = contagens_do_intervalo(raiz, inicio, fim)
+    contagens = contagens_do_intervalo(raiz, inicio, fim, estrito=True)
+    trechos = {nome: trechos_novos(raiz, inicio, fim, nome, estrito=True) for nome in nomes}
+    if contagens is None or None in trechos.values():
+        print("delta: " + FALHA_DO_DELTA.format("diff --numstat" if contagens is None else "diff -U0"))
+        return 2
     classes = classes_do_intervalo(raiz, inicio, fim, nomes) if classe else {}
     for nome in nomes:
         acrescidas, removidas = contagens.get(nome, ("?", "?"))
         print(f"delta: {nome_seguro(nome)} +{acrescidas} -{removidas}")
         if classe:
             print(f"delta: {nome_seguro(nome)} classe {classes[nome]}")
-        for de, ate in trechos_novos(raiz, inicio, fim, nome):
+        for de, ate in trechos[nome]:
             print(f"delta: {nome_seguro(nome)}:{de}-{ate}")
     if classe:
         print(f"delta: classe {max(classes.values(), key=CLASSES.index)}")
@@ -2059,10 +2121,19 @@ def linha_legivel(linha):
     return "".join("?" if e_controle(c) and c != "\t" else c for c in linha)
 
 
-def cmd_parecer_delta(raiz, arquivo, ate=None):
+def cmd_parecer_delta(raiz, arquivo, ate=None, base="develop"):
     """PARECER-CONTEUDO: o diff desde o `commit:` do parecer até `ate` (padrão HEAD), só nos arquivos do domínio do tipo dele, para a
-    revalidação ler só o que mudou. Lista também o que mudou fora do domínio e os testes do QA aprovado (review). Só leitura; rc 0, e
-    rc 2 se o parecer não abre, não é de review, QA, devops ou segurança, ou o commit não existe ou não é ancestral do fim."""
+    revalidação ler só o que mudou, sem o que veio da `base` por merge na branch (FC-DELTA-APOS-MERGE-BASE). Lista também o que mudou
+    fora do domínio e os testes do QA aprovado (review). Só leitura; rc 0, e rc 2 se o parecer não abre, não é de review, QA, devops ou
+    segurança, o commit não existe ou não é ancestral do fim, a base está fora da lista ou o git falha (FC-DELTA-GIT-FALHA)."""
+    if base not in BASES_DO_DELTA:
+        print(f"parecer delta: --base {nome_seguro(base)}: use {' ou '.join(BASES_DO_DELTA)}")
+        return 2
+    return sem_git_que_falha("parecer delta", lambda: parecer_delta(raiz, arquivo, ate, base))
+
+
+def parecer_delta(raiz, arquivo, ate, base):
+    """O corpo do `cmd_parecer_delta`: toda falha do git sai com rc 2, nunca com `nenhum arquivo do domínio mudou`."""
     caminho = dentro_da_raiz(raiz, arquivo, PASTAS_DE_PARECER)
     if caminho is None:
         print(f"parecer delta: {nome_seguro(arquivo)}: use um parecer de {', '.join(PASTAS_DE_PARECER)} dentro da raiz")
@@ -2089,10 +2160,13 @@ def cmd_parecer_delta(raiz, arquivo, ate=None):
     print(f"intervalo: {inicio}..{fim}")
     no = predicado_do_dominio(raiz, tipo, inicio, fim, dominio_mais(campos))
     q, dispensados = testes_do_qa(raiz, campos.get("pedido"), campos.get("branch"), fim, inicio) if tipo == "review" else (None, set())
-    nomes = nomes_do_intervalo(raiz, inicio, fim, estrito=True)
-    if nomes is None:
-        print("parecer delta: o git diff falhou")
+    lido = intervalo_do_delta(raiz, inicio, fim, base)
+    if isinstance(lido, FalhaDoGit):
+        print("parecer delta: " + FALHA_DO_DELTA.format(lido.passo))
         return 2
+    nomes, escopo = lido
+    if escopo:
+        print(escopo)
     nomes = [n for n in nomes if not livre(n, LIVRES)]
     dentro = [n for n in nomes if no(n) and n not in dispensados]
     for n in nomes:
@@ -2107,7 +2181,7 @@ def cmd_parecer_delta(raiz, arquivo, ate=None):
         print(f"no dominio: {nome_seguro(n)}")
     cod, saida = git(raiz, "--literal-pathspecs", "diff", "--no-ext-diff", "--no-textconv", "--no-renames", inicio, fim, "--", *dentro, bruto=True)
     if cod:
-        print("parecer delta: o git diff falhou")
+        print("parecer delta: " + FALHA_DO_DELTA.format("diff do domínio"))
         return 2
     for linha in saida.decode("utf-8", "replace").splitlines():
         print(linha_legivel(linha))
@@ -8711,6 +8785,7 @@ def main():
     de.add_argument("refs", nargs="*", help="<commit> [<fim>] (com --parecer, só o <fim>); fim padrão HEAD")
     de.add_argument("--parecer", help="parecer (docs/reviews, qa, devops ou security) cujo `commit:` é o começo do intervalo")
     de.add_argument("--classe", action="store_true", help="classe de cada arquivo (texto, forma ou codigo) e a mais pesada; só `codigo` desatualiza o parecer (EST-M4)")
+    de.add_argument("--base", default="develop", help="develop (padrão) ou homolog: o que veio dela por merge na branch sai do delta (FC-DELTA-APOS-MERGE-BASE)")
     ju = sub.add_parser("juncao", parents=[comum], help="as partes da junção da versão (segundos pais dos merges da primeira linha); octopus rc 1, git que falha rc 2; só leitura (E20)")
     ju.add_argument("pedido", help="slug do pedido")
     ju.add_argument("--ref", required=True, help="branch ou commit da versão")
@@ -8743,6 +8818,7 @@ def main():
     pd = psub.add_parser("delta", parents=[comum], help="o diff desde o `commit:` do parecer, só nos arquivos do domínio do tipo dele; só leitura, nunca reprova")
     pd.add_argument("arquivo", help="o parecer (docs/reviews, qa, devops ou security)")
     pd.add_argument("--ate", help="o fim do intervalo (padrão HEAD)")
+    pd.add_argument("--base", default="develop", help="develop (padrão) ou homolog: o que veio dela por merge na branch sai do delta (FC-DELTA-APOS-MERGE-BASE)")
     ec = sub.add_parser("escape", help="defeito escapado: bug achado depois do parecer final (M14b)")
     esub = ec.add_subparsers(dest="acao", required=True)
     er = esub.add_parser("registrar", parents=[comum], help="acrescenta o defeito escapado em docs/kanban/escapes.md, em formato fixo, com a hora real")
@@ -8931,9 +9007,9 @@ def executar(a, raiz):
     if a.cmd == "provas" and a.acao == "gerar":
         return cmd_provas_gerar(raiz, a.brief)
     if a.cmd == "parecer" and a.acao == "delta":
-        return cmd_parecer_delta(raiz, a.arquivo, a.ate)
+        return cmd_parecer_delta(raiz, a.arquivo, a.ate, a.base)
     if a.cmd == "delta":
-        return cmd_delta(raiz, a.refs, a.parecer, a.classe)
+        return cmd_delta(raiz, a.refs, a.parecer, a.classe, a.base)
     if a.cmd == "juncao":
         return cmd_juncao(raiz, a.pedido, a.ref, a.base)
     if a.cmd == "vazio":
