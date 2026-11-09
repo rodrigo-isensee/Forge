@@ -2431,9 +2431,17 @@ class Hook:
 
     # Estado em .forge/run/ da cópia principal ------------------------------------------------
     def run(self):
-        """`.forge/run/` da cópia de trabalho principal (as worktrees somam no mesmo estado)."""
+        """`.forge/run/` da cópia de trabalho principal (as worktrees somam no mesmo estado). FORGE-RUN-INERTE (0.43.2): no clone do
+        Forge com `.forge` que existe e não é pasta (arquivo de proteção), `<diretório comum do git>/forge/run/` (pasta 0700, o mesmo
+        lugar do `agentes`); sem o recuo o `mkdir` falhava e o estado do `pesado` e o erros.log ficavam inertes."""
         if self._run is None:
             run = self.copia_principal() / ".forge" / "run"
+            if os.path.lexists(run.parent) and not run.parent.is_dir() and e_clone_do_forge(self.raiz):
+                comum = diretorio_comum(self.raiz)
+                if comum is None:
+                    raise NotADirectoryError(f"{run.parent} não é pasta e o clone não tem diretório comum de git")
+                run = comum / "forge" / "run"
+                run.mkdir(mode=0o700, parents=True, exist_ok=True)
             run.mkdir(parents=True, exist_ok=True)
             ignorar = run / ".gitignore"
             if not ignorar.exists():
