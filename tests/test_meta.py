@@ -41,5 +41,16 @@ class Meta(unittest.TestCase):
         self.assertFalse((self.tmp / ".forge" / "run" / "meta.json").exists())
 
 
+class Jargao(unittest.TestCase):
+    def test_lista_vem_da_tabela_do_modo_iniciante(self):
+        sys.path.insert(0, str(RAIZ / "hooks"))
+        try:
+            import meta  # noqa: PLC0415
+        finally:
+            sys.path.pop(0)
+        self.assertEqual(set(meta.jargao()), {"pull request", "PR", "branch", "merge", "mesclar", "commit", "repositório", "hook", "CI",
+                                              "deploy"})
+
+
 if __name__ == "__main__":
     unittest.main()

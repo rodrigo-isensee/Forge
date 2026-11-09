@@ -1,0 +1,33 @@
+{
+  "descricao": "S6: a última mensagem ao dono é medida (caracteres e jargão do modo iniciante) e o Stop passa.",
+  "arquivos": {
+    "t.jsonl": [
+      "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"text\", \"text\": \"mensagem velha sem nada\"}]}}",
+      "{\"type\": \"user\", \"message\": {\"content\": \"oi\"}}",
+      "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"text\", \"text\": \"Abri o PR na branch nova e fiz o merge.\"}]}}"
+    ]
+  },
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{raiz}/t.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "mensagens.jsonl": {
+        "contem": [
+          "\"caracteres\": 39",
+          "\"PR\"",
+          "\"branch\"",
+          "\"merge\"",
+          "\"passou_do_teto\": false"
+        ],
+        "ausente": [
+          "Abri o PR",
+          "velha"
+        ]
+      }
+    }
+  }
+}
