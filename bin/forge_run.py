@@ -11,6 +11,7 @@ import datetime
 import json
 import os
 import re
+import shlex
 import subprocess
 import time
 from pathlib import Path
@@ -114,6 +115,24 @@ def ler(pasta, slug, argv, head):
             return None, "", "log do passo ausente"
         saida.append(log.read_text(encoding="utf-8", errors="replace"))
     return dados.get("rc"), "".join(saida), None
+
+
+CRASES = re.compile(r"`([^`]+)`")
+
+
+def prova_do_pq(resto, pasta, head, script, espera_do_script):
+    """(linha, reprova) do PQ `cmd` cujo comando é `forge-check rodar <slug> -- ...`; None se o PQ não cita um run."""
+    achado = CRASES.search(resto)
+    try:
+        run = citado(shlex.split(achado.group(1))) if achado is not None else None
+    except ValueError:
+        run = None
+    if run is None:
+        return None
+    espera = espera_do_script(script, resto[achado.end():].partition("espera:")[2].strip())
+    rc, saida, motivo = ler(pasta, run[0], run[1], head)
+    divergiu = motivo or (espera is None and "espera fora do vocabulário") or script.avaliar(espera, saida, rc)
+    return (f"run {run[0]}: diverge ({divergiu})", True) if divergiu else (f"run {run[0]}: ok", False)
 
 
 def executar(a, raiz):

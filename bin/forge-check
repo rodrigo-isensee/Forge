@@ -9235,17 +9235,9 @@ def conferir_provas(raiz, texto, branch, head, pasta, so_leitura=False):
         comando = re.search(r"`([^`]+)`", resto)
         rotulo = f"prova: PQ-{n} ({tipo})"
         if tipo == "cmd":
-            try:
-                argv_run = shlex.split(comando.group(1)) if comando else []
-            except ValueError:
-                argv_run = []
-            run = modulo_do_bin("forge_run").citado(argv_run) if argv_run[1:2] == ["rodar"] else None
-            if run:  # S5 (0.44.2): o PQ cita a execução capturada; lê o run.json da worktree, não roda de novo (vale no --so-leitura)
-                script = script or carregar_reexecutar_provas()
-                espera = espera_do_script(script, resto[comando.end():].partition("espera:")[2].strip()) if script else None
-                rc_run, saida_run, motivo = modulo_do_bin("forge_run").ler(pasta or raiz, run[0], run[1], head)
-                divergiu = motivo or (espera is None and "espera fora do vocabulário") or script.avaliar(espera, saida_run, rc_run)
-                saida.append((f"{rotulo}: run {run[0]}: " + (f"diverge ({sem_controle(divergiu)})" if divergiu else "ok"), bool(divergiu)))
+            prova = modulo_do_bin("forge_run").prova_do_pq(resto, pasta or raiz, head, script, espera_do_script)
+            if prova is not None:  # S5 (0.44.2): o PQ cita a execução capturada; lida do run.json, não roda de novo (vale no --so-leitura)
+                saida.append((f"{rotulo}: {sem_controle(prova[0])}", prova[1]))
                 continue
             if comando and re.match(r"\s*forge-check entrega\b", comando.group(1)):
                 saida.append((f"{rotulo}: ok (é esta conferência)", False))

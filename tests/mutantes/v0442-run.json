@@ -24,12 +24,12 @@
   },
   {
    "id": "M3",
-   "guarda": "para no primeiro que falha",
+   "guarda": "rc do passo",
    "arquivo": "bin/forge_run.py",
-   "de": "        if rc_passo != 0:\n            rc = rc_passo\n            break",
-   "para": "        if rc_passo != 0:\n            rc = rc_passo",
+   "de": "        if rc_passo != 0:",
+   "para": "        if rc_passo == 0:",
    "testes": [
-    "tests.test_forge_run.Rodar.test_para_no_primeiro_passo_que_falha"
+    "tests.test_forge_run.Rodar.test_grava_rc_tempo_por_passo_e_log_completo"
    ]
   },
   {
@@ -66,34 +66,24 @@
    "id": "M7",
    "guarda": "run ausente",
    "arquivo": "bin/forge_run.py",
-   "de": "        return None, \"\", f\"{PASTA / slug / 'run.json'} ausente",
-   "para": "        return None, \"\", None and f\"{PASTA / slug / 'run.json'} ausente",
+   "de": "    if not arq.is_file() or arq.is_symlink():\n        return None, \"\", f\"{PASTA",
+   "para": "    if not arq.is_file() and False:\n        return None, \"\", f\"{PASTA",
    "testes": [
     "tests.test_forge_run.PqCitaORun.test_run_de_outro_comando_ou_commit_ou_ausente_reprova"
    ]
   },
   {
    "id": "M8",
-   "guarda": "PQ que cita o run le o json",
+   "guarda": "PQ que cita o run e lido",
    "arquivo": "bin/forge-check",
-   "de": "            if run:  # S5",
-   "para": "            if not run:  # S5",
+   "de": "            if prova is not None:  # S5",
+   "para": "            if prova is None:  # S5",
    "testes": [
     "tests.test_forge_run.PqCitaORun.test_le_o_json_e_confere_a_espera_sem_rodar"
    ]
   },
   {
    "id": "M9",
-   "guarda": "divergencia reprova",
-   "arquivo": "bin/forge-check",
-   "de": "\"ok\"), bool(divergiu)))",
-   "para": "\"ok\"), False))",
-   "testes": [
-    "tests.test_forge_run.PqCitaORun.test_rc_ou_log_que_diverge_reprova"
-   ]
-  },
-  {
-   "id": "M10",
    "guarda": "so forge-check rodar e citado",
    "arquivo": "bin/forge_run.py",
    "de": "    if len(argv) >= 3 and Path(argv[0]).name == \"forge-check\" and argv[1] == \"rodar\":",
@@ -103,7 +93,7 @@
    ]
   },
   {
-   "id": "M11",
+   "id": "M10",
    "guarda": "despacho do rodar",
    "arquivo": "bin/forge-check",
    "de": "    if a.cmd == \"rodar\":",
@@ -113,37 +103,7 @@
    ]
   },
   {
-   "id": "M12",
-   "guarda": "o rodar citado no PQ",
-   "arquivo": "bin/forge-check",
-   "de": "if argv_run[1:2] == [\"rodar\"] else None",
-   "para": "if argv_run[1:2] == [\"x\"] else None",
-   "testes": [
-    "tests.test_forge_run.PqCitaORun.test_le_o_json_e_confere_a_espera_sem_rodar"
-   ]
-  },
-  {
-   "id": "M13",
-   "guarda": "motivo do run reprova com o nome",
-   "arquivo": "bin/forge-check",
-   "de": "                divergiu = motivo or (espera is None",
-   "para": "                divergiu = (espera is None",
-   "testes": [
-    "tests.test_forge_run.PqCitaORun.test_run_de_outro_comando_ou_commit_ou_ausente_reprova"
-   ]
-  },
-  {
-   "id": "M14",
-   "guarda": "linha diz diverge",
-   "arquivo": "bin/forge-check",
-   "de": "(f\"diverge ({sem_controle(divergiu)})\" if divergiu else \"ok\")",
-   "para": "(f\"diverge ({sem_controle(divergiu)})\" if False else \"ok\")",
-   "testes": [
-    "tests.test_forge_run.PqCitaORun.test_run_de_outro_comando_ou_commit_ou_ausente_reprova"
-   ]
-  },
-  {
-   "id": "M15",
+   "id": "M11",
    "guarda": "separador de passos",
    "arquivo": "bin/forge_run.py",
    "de": "        if a == SEPARADOR:",
@@ -153,13 +113,13 @@
    ]
   },
   {
-   "id": "M16",
+   "id": "M12",
    "guarda": "tira o -- do rodar",
    "arquivo": "bin/forge_run.py",
    "de": "    argv = argv[1:] if argv[:1] == [\"--\"] else argv",
    "para": "    argv = argv[1:] if argv[:1] == [\"x\"] else argv",
    "testes": [
-    "tests.test_forge_run.Rodar.test_slug_repetido_ou_invalido_recusa"
+    "tests.test_forge_run.Rodar.test_tira_o_separador_do_inicio"
    ]
   }
  ]

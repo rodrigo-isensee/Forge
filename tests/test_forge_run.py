@@ -45,6 +45,10 @@ class Rodar(unittest.TestCase):
         log = (self.tmp / ".forge" / "run" / "a1" / d["passos"][0]["log"]).read_text()
         self.assertEqual(log, "x" * 5000 + "\n", "log completo, sem corte")
 
+    def test_tira_o_separador_do_inicio(self):
+        self.assertEqual(self.rodar("a0", "--", "true")[0], 0)
+        self.assertEqual(self.run_json("a0")["argv"], ["true"])
+
     def test_para_no_primeiro_passo_que_falha(self):
         self.rodar("a2", "--", sys.executable, "-c", "raise SystemExit(1)", ";", "touch", "nao-devia")
         self.assertEqual(len(self.run_json("a2")["passos"]), 1)
