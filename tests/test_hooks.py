@@ -2427,6 +2427,11 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 16, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_v0442(self):  # 0.44.2: S4/S6 (hook meta) e orkastery 5 (pesado), para a mutação sem a bateria inteira
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.hook in ("meta", "pesado")]
+        self.assertGreaterEqual(len(lote), 28, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_t4_nenhum_hook_le_a_linha_fora_de_leituras(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
         """T4, estrutural: os hooks leem a linha só por `leituras` (`_comum.py`); `comandos` só é chamada por ela e
         `fichas`, só por `comandos`. `segmentos`, que lia por fora, não existe mais."""

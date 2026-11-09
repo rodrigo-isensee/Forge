@@ -1,0 +1,33 @@
+{
+  "descricao": "S4: última linha do dono no pedido é PERGUNTA AO DONO: espera o dono.",
+  "arquivos": {
+    "docs/pedidos/p1.md": "# p1\n- DECISÃO DO DONO (2026-11-09): A\n- PERGUNTA AO DONO (2026-11-09 10:00): \"1a) x 1b) y\"\n"
+  },
+  "estado": {
+    "meta.json": {
+      "pedido": "p1",
+      "checagens": [
+        [
+          "false"
+        ]
+      ],
+      "armado": true,
+      "repeticoes": 0
+    }
+  },
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "stop_hook_active": false
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "meta.json": {
+        "contem": [
+          "espera o dono"
+        ]
+      }
+    }
+  }
+}

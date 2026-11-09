@@ -1,0 +1,31 @@
+{
+  "descricao": "S4: checagem que falha bloqueia o Stop dizendo qual.",
+  "estado": {
+    "meta.json": {
+      "pedido": "p1",
+      "checagens": [
+        [
+          "false"
+        ]
+      ],
+      "armado": true,
+      "repeticoes": 0
+    }
+  },
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "stop_hook_active": false
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "`false` (rc=1)",
+    "estado": {
+      "meta.json": {
+        "contem": [
+          "ainda não"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,126 @@
+{
+ "pedido": "v0442-s4-meta",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M1",
+   "guarda": "sem objetivo armado passa",
+   "arquivo": "hooks/meta.py",
+   "de": "    if not isinstance(meta, dict) or not meta.get(\"armado\") or meta.get(\"pausado\"):",
+   "para": "    if not isinstance(meta, dict):",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M2",
+   "guarda": "espera o dono passa",
+   "arquivo": "hooks/meta.py",
+   "de": "    if espera_o_dono(raiz, pedido):",
+   "para": "    if False:",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M3",
+   "guarda": "todas com rc 0 entrega",
+   "arquivo": "hooks/meta.py",
+   "de": "    if not falhou:",
+   "para": "    if False:",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M4",
+   "guarda": "rc diferente de zero falha",
+   "arquivo": "hooks/meta.py",
+   "de": "        if rc != 0:",
+   "para": "        if rc == 99:",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M5",
+   "guarda": "repeticao igual soma",
+   "arquivo": "hooks/meta.py",
+   "de": "if meta.get(\"ultimo\") == falhou else 1",
+   "para": "if True else 1",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M6",
+   "guarda": "quarta repeticao pausa",
+   "arquivo": "hooks/meta.py",
+   "de": "    if repeticoes >= REPETICOES_PARA_PAUSAR:",
+   "para": "    if repeticoes > REPETICOES_PARA_PAUSAR:",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M7",
+   "guarda": "painel do KANBAN",
+   "arquivo": "hooks/meta.py",
+   "de": "    if re.search(r\"(?<![\\w/.-])\" + re.escape(pedido)",
+   "para": "    if False and re.search(r\"(?<![\\w/.-])\" + re.escape(pedido)",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M8",
+   "guarda": "ultima linha e pergunta",
+   "arquivo": "hooks/meta.py",
+   "de": "    return bool(linhas) and \"PERGUNTA AO DONO\" in linhas[-1]",
+   "para": "    return False",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M9",
+   "guarda": "so no Stop",
+   "arquivo": "hooks/meta.py",
+   "de": "    if hook.campo(\"hook_event_name\") != \"Stop\":",
+   "para": "    if hook.campo(\"hook_event_name\") == \"Stop\":",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M10",
+   "guarda": "pedido valido para armar",
+   "arquivo": "bin/forge_meta.py",
+   "de": "    if not PEDIDO.fullmatch(a.armar or \"\") or not checagens or not all(checagens):",
+   "para": "    if not checagens or not all(checagens):",
+   "testes": [
+    "tests.test_meta.Meta.test_sem_checagem_ou_pedido_invalido_recusa"
+   ]
+  },
+  {
+   "id": "M11",
+   "guarda": "desarmar tira",
+   "arquivo": "bin/forge_meta.py",
+   "de": "    if a.desarmar:",
+   "para": "    if False:",
+   "testes": [
+    "tests.test_meta.Meta.test_armar_grava_no_run_do_hook_e_desarmar_tira"
+   ]
+  },
+  {
+   "id": "M12",
+   "guarda": "estado",
+   "arquivo": "bin/forge_meta.py",
+   "de": "    if a.estado:",
+   "para": "    if False:",
+   "testes": [
+    "tests.test_meta.Meta.test_armar_grava_no_run_do_hook_e_desarmar_tira"
+   ]
+  }
+ ]
+}

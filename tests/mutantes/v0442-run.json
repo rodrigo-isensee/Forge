@@ -96,8 +96,8 @@
    "id": "M10",
    "guarda": "despacho do rodar",
    "arquivo": "bin/forge-check",
-   "de": "    if a.cmd == \"rodar\":",
-   "para": "    if a.cmd == \"x\":",
+   "de": "    if a.cmd in (\"rodar\", \"meta\"):",
+   "para": "    if a.cmd in (\"x\", \"y\"):",
    "testes": [
     "tests.test_forge_run.Rodar.test_grava_rc_tempo_por_passo_e_log_completo"
    ]

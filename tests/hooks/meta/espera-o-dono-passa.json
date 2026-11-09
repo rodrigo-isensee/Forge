@@ -1,0 +1,33 @@
+{
+  "descricao": "S4: pedido em Aguardando o dono: o Stop passa e o objetivo fica armado.",
+  "arquivos": {
+    "KANBAN.md": "# Quadro\n\n## Aguardando o dono\n| C1 | p1 | decisão |\n"
+  },
+  "estado": {
+    "meta.json": {
+      "pedido": "p1",
+      "checagens": [
+        [
+          "false"
+        ]
+      ],
+      "armado": true,
+      "repeticoes": 0
+    }
+  },
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "stop_hook_active": false
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "meta.json": {
+        "contem": [
+          "espera o dono"
+        ]
+      }
+    }
+  }
+}

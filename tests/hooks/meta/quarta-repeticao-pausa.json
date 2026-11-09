@@ -1,0 +1,33 @@
+{
+  "descricao": "S4: o quarto \"ainda não\" igual seguido pausa sozinho e o Stop passa.",
+  "estado": {
+    "meta.json": {
+      "pedido": "p1",
+      "checagens": [
+        [
+          "false"
+        ]
+      ],
+      "armado": true,
+      "repeticoes": 3,
+      "ultimo": [
+        "`false` (rc=1)"
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "stop_hook_active": false
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "meta.json": {
+        "contem": [
+          "pausado"
+        ]
+      }
+    }
+  }
+}

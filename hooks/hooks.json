@@ -201,6 +201,14 @@
               "${CLAUDE_PLUGIN_ROOT}/hooks/doutor.py"
             ],
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/meta.py"
+            ],
+            "timeout": 300
           }
         ]
       }
