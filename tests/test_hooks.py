@@ -1365,6 +1365,21 @@ class Hooks(unittest.TestCase):
                                               "agent_type": "forge-dev:aq", "hook_event_name": "PreToolUse",
                                               "tool_use_id": "toolu_9"}, "esperado": esperado})
 
+    def test_clone_como_link_para_fora_do_home_nao_desliga_as_regras_do_home(self):
+        """B1 do review de segurança da 0.43.1: com `~/.forge-contrib` como link para /workspaces/.forge-contrib
+        (preparar-estacao --container), as regras `~/.forge-contrib/...` continuam barrando pelo alvo do link."""
+        link = {"links": {"../home/.forge-contrib": "{tmp}/fora"}}
+        casos = {"pedido pelo home": ("{tmp}/home/.forge-contrib/docs/pedidos/p1.md", link),
+                 "pedido pelo alvo": ("{tmp}/fora/docs/pedidos/p1.md", link),
+                 "brief pelo alvo": ("{tmp}/fora/docs/briefs/p1-dev-1.md", link),
+                 "pasta real": ("{tmp}/home/.forge-contrib/docs/pedidos/p1.md", {})}
+        for nome, (caminho, extra) in casos.items():
+            with self.subTest(nome):
+                self.rodar_dados({"arquivos": {"src/app.js": "v1\n"}, "env": {"HOME": "{tmp}/home"}, **extra,
+                                  "entrada": {"tool_name": "Write", "tool_input": {"file_path": caminho},
+                                              "agent_type": "forge:tech-lead", "hook_event_name": "PreToolUse",
+                                              "tool_use_id": "toolu_9"}, "esperado": {"codigo": 2, "stderr": "R-"}})
+
     def test_escrita_permitida_malformada_bloqueia(self):
         """ADR 0009, seção 6.6: `escrita_permitida` com forma errada (ou lista vazia) falha fechado, não libera."""
         base = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))

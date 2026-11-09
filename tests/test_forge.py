@@ -1166,10 +1166,15 @@ class PrepararEstacao(unittest.TestCase):
                 self.assertFalse((home / criado).exists() or (home / criado).is_symlink(), f"criou {criado}")
             self.assertNotIn("claude plugin", chamadas)
 
-    def test_devcontainer_roda_o_preparo_do_container(self):
+    def test_devcontainer_nao_roda_script_do_work_tree(self):
+        """B2 do review de segurança da 0.43.1: nenhum comando de ciclo de vida roda, como root e fora do sandbox, um
+        script que o agente pode editar; o dono roda o preparo à mão, e o comentário diz como."""
         texto = (RAIZ / ".devcontainer/devcontainer.json").read_text(encoding="utf-8")
         cfg = json.loads(re.sub(r"(?m)^\s*//.*$", "", texto))
-        self.assertIn("scripts/preparar-estacao.sh --container", cfg["postStartCommand"])
+        for chave in ("initializeCommand", "onCreateCommand", "updateContentCommand", "postCreateCommand",
+                      "postStartCommand", "postAttachCommand"):
+            self.assertNotIn(chave, cfg)
+        self.assertIn("scripts/preparar-estacao.sh --container", texto)
         self.assertNotIn("build", cfg)  # sem imagem própria: só a base
 
     def test_atalhos_do_jarvis_com_ajuda(self):
