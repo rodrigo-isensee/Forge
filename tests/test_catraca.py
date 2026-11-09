@@ -390,6 +390,430 @@ class TestesEnfraquecidos(Base):
         self.assertFalse(any("asserções" in v for v in self.repo.violacoes()))
 
 
+class ControlesEnfraquecidos(Base):
+    """MAQ-I7a: a força conta por módulo de controle; ilegível, grande demais ou renomeado conta zero."""
+    HOOKS_PY = "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        self.assertTrue(1)\n        assert 2\n"
+
+    def com_controle(self, nome="tests/test_hooks.py"):
+        self.repo.escreve(nome, self.HOOKS_PY)
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "com controle")
+        self.repo.git("tag", "-f", "base")
+
+    def sem_traceback(self, funcao, *args):
+        try:
+            return funcao(*args)
+        except Exception as e:  # a catraca que morre por um arquivo falha aqui por asserção, não por erro
+            self.fail(f"a catraca morreu: {e!r}")
+
+    def test_assercao_movida_para_modulo_comum_barra_mesmo_com_o_total_igual(self):
+        self.com_controle()
+        self.repo.escreve("tests/test_hooks.py", self.HOOKS_PY.replace("        assert 2\n", ""))
+        self.repo.escreve("tests/test_forge.py", "def f():\n    assert 2\n")
+        self.barra("módulo de controle tests/test_hooks.py enfraqueceu", "R-CONFORMIDADE")
+        self.assertFalse(any("asserções em tests/ caíram" in v for v in self.repo.violacoes()))
+
+    def test_cada_familia_de_controle_conta_por_modulo(self):
+        for nome in ("tests/test_hooks_volta_x.py", "tests/test_pre_push_y.py", "tests/test_suite_partes.py",
+                     "tests/test_testes_tocados.py", "tests/test_catraca_z.py"):
+            with self.subTest(nome):
+                self.repo.git("reset", "-q", "--hard", "base")
+                self.com_controle(nome)
+                self.repo.escreve(nome, self.HOOKS_PY.replace("        assert 2\n", ""))
+                self.repo.escreve("tests/test_y.py", "def f():\n    assert 2\n")
+                self.barra(f"módulo de controle {nome} enfraqueceu")
+
+    def test_fora_das_familias_nao_e_controle(self):
+        for nome in ("tests/test_forge.py", "tests/evals/test_hooks.py", "tests/hooks_test.py", "tests/test_hooks.txt"):
+            self.assertFalse(catraca.eh_controle(nome), nome)
+
+    def test_controle_renomeado_ou_apagado_barra(self):
+        self.com_controle()
+        self.repo.git("mv", "tests/test_hooks.py", "tests/hooks_t.py")
+        self.barra("tests/test_hooks.py enfraqueceu")
+
+    def test_controle_ilegivel_ou_grande_demais_barra_sem_derrubar_a_catraca(self):
+        self.com_controle()
+        casos = {"parêntese a mais": self.HOOKS_PY + ")\n", "10 mil parênteses": self.HOOKS_PY + "x = " + "(" * 10000 + ")" * 10000 + "\n",
+                 "aninhamento fundo": self.HOOKS_PY + "x = " + "-" * 200000 + "1\n", "UTF-8 inválido": None,
+                 "acima de 2 MB": self.HOOKS_PY + "#" * catraca.TETO_DO_MODULO + "\n"}
+        queda = "tests/test_hooks.py enfraqueceu: (asserções, pulos, vazios) de (2, 0, 0) para (0, 0, 0)"
+        for nome, texto in casos.items():
+            with self.subTest(nome):
+                (self.repo.dir / "tests/test_hooks.py").write_bytes(texto.encode() if texto else self.HOOKS_PY.encode() + b"# \xff\n")
+                self.repo.commit()
+                self.assertIn(queda, "".join(self.sem_traceback(catraca.regra_controles_enfraquecidos, self.repo.dir, "base", "HEAD")))
+        self.repo.escreve("tests/test_hooks.py", casos["parêntese a mais"])
+        self.repo.commit()
+        self.assertIn(queda, "".join(self.sem_traceback(self.repo.violacoes)))  # a catraca inteira não morre
+
+    def test_pulo_ou_teste_vazio_levado_para_o_controle_barra(self):
+        for nome, texto in (("skip", "import unittest\nclass T(unittest.TestCase):\n    @unittest.skip('x')\n    def test_a(self):\n        assert 1\n"),
+                            ("vazio", TESTE)):
+            with self.subTest(nome):
+                repo = Repo()
+                self.addCleanup(repo.fecha)
+                repo.escreve("tests/test_hooks.py", "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        assert 1\n")
+                repo.commit()
+                repo.git("tag", "-f", "base")
+                repo.escreve("tests/test_hooks.py", texto)
+                repo.commit()
+                self.assertTrue(any("tests/test_hooks.py enfraqueceu" in v for v in repo.violacoes()), nome)
+
+    def test_corpus_de_legitimos_passa(self):
+        self.com_controle()
+        self.repo.escreve("tests/test_y.py", "def f():\n    assert 1\n")
+        self.repo.escreve("tests/test_hooks.py", self.HOOKS_PY.replace("assertTrue(1)", "assertEqual(1, 1)") + "        assert 3\n")
+        self.repo.escreve("tests/test_catraca.py", "def f():\n    assert 1\n")
+        self.passa()
+
+    def test_git_que_falha_ao_ler_o_controle_falha_fechada(self):
+        self.com_controle()
+        real = catraca.git
+
+        def falso(raiz, *a):
+            return (128, "") if a[0] == "show" and a[-1].endswith(":tests/test_hooks.py") else real(raiz, *a)
+        self.repo.commit()
+        with mock.patch.object(catraca, "git", falso):
+            achadas = self.sem_traceback(catraca.violacoes_das_regras, self.repo.dir, "base", "HEAD")
+        self.assertTrue(any(catraca.NAO_LIBERAVEL in v and "tests/test_hooks.py" in v for v in achadas), achadas)
+
+    def test_piora_no_controle_depois_do_rotulo_derruba_o_rotulo(self):
+        """P9: os déficits por módulo de controle entram na conta do rótulo preso ao conteúdo."""
+        self.com_controle()
+        self.repo.escreve("tests/test_hooks.py", self.HOOKS_PY.replace("        assert 2\n", ""))
+        self.repo.escreve("tests/test_y.py", "def f():\n    assert 2\n")
+        self.repo.commit()
+        rotulado = self.repo.git("rev-parse", "HEAD").strip()
+        self.repo.escreve("tests/test_hooks.py", self.HOOKS_PY.replace("        assert 2\n", "").replace("self.assertTrue(1)", "pass"))
+        self.repo.escreve("tests/test_y.py", "def f():\n    assert 2\n    assert 1\n")
+        self.repo.commit()
+        self.assertFalse(catraca.protegidos_como_no_rotulo(self.repo.dir, "base", rotulado, "HEAD"))
+        self.assertTrue(catraca.protegidos_como_no_rotulo(self.repo.dir, "base", rotulado, rotulado))
+
+
+class TestesNoCi(Base):
+    """MAQ-I7b com T4, uma regra só: o teste que sai do discover, o arquivo de teste que nenhum comando do CI roda, a classe
+    citada num `run:` que some e a exceção nova em `testes_fora_do_ci` barram. Tudo pela árvore do git e por AST."""
+    QUEDA = "módulos de teste que o `discover` da suíte vê caíram de 1 para 0"
+    sem_traceback = ControlesEnfraquecidos.sem_traceback
+
+    def move(self, destino, extra=None):
+        (self.repo.dir / destino).parent.mkdir(parents=True, exist_ok=True)
+        (self.repo.dir / "tests/test_x.py").rename(self.repo.dir / destino)
+        if extra:
+            self.repo.escreve(extra, "")
+
+    def nova_base(self):
+        self.repo.commit()
+        self.repo.git("tag", "-f", "base")
+
+    def test_modulo_fora_do_alcance_do_discover_barra(self):
+        for destino, extra in (("tests/test-x.py", None), ("tests/x.py", None), ("tests/Test_x.py", None), ("tests/test_x_py", None),
+                               ("tests/sub/test_x.py", None), ("tests/pa-c/test_x.py", "tests/pa-c/__init__.py")):
+            with self.subTest(destino):
+                self.repo.git("reset", "-q", "--hard", "base")  # no começo: o caso que falha não contamina o seguinte
+                self.repo.git("clean", "-qfd", "tests")
+                self.move(destino, extra)
+                self.barra(self.QUEDA, "R-CONFORMIDADE")
+
+    def test_init_apagado_tira_o_pacote_do_discover(self):
+        self.repo.escreve("tests/pac/__init__.py", "")
+        self.repo.escreve("tests/pac/test_p.py", TESTE)
+        self.nova_base()
+        (self.repo.dir / "tests/pac/__init__.py").unlink()
+        self.barra("módulos de teste que o `discover` da suíte vê caíram de 2 para 1")
+        self.assertTrue(any("nenhum comando do CI roda: tests/pac/test_p.py" in v for v in self.repo.violacoes()))
+
+    def test_corpus_de_legitimos_passa(self):
+        self.move("tests/pac/testx.py", "tests/pac/__init__.py")
+        self.repo.escreve("tests/pac/testx.py", TESTE + "#" * catraca.TETO_DO_MODULO + "\n")  # o teto vale só para módulo de controle
+        self.passa()
+        self.repo.escreve("tests/test_novo.py", TESTE.replace("pass", "assert 1"))
+        self.passa()
+
+    def test_rename_compensado_por_modulo_novo_barra(self):
+        """S1 da segurança g2: tests/test_x.py vira tests/x.py e tests/test_z.py novo repõe a contagem; os totais não caem."""
+        self.move("tests/x.py")
+        self.repo.escreve("tests/test_z.py", TESTE)
+        self.barra("testes `test_*` em tests/ fora do alcance do `discover` subiram de 0 para 2", "R-CONFORMIDADE")
+
+    def test_legitimos_nao_sobem_os_testes_fora_do_discover(self):
+        cheio = TESTE.replace("pass", "assert 1")  # sem `pass`: a regra dos testes vazios não entra no caso
+        casos = {"módulo novo": lambda: self.repo.escreve("tests/test_novo.py", cheio),
+                 "rename de test_a.py para test_b.py": lambda: self.move("tests/test_b.py"),
+                 "asserção nova": lambda: self.repo.escreve("tests/test_x.py", cheio),
+                 "corpus em tests/hooks/": lambda: self.repo.escreve("tests/hooks/caso.py", cheio),
+                 "ajudante sem teste": lambda: self.repo.escreve("tests/ajuda.py", "def f():\n    return 1\n"),
+                 "pacote novo com __init__.py": lambda: (self.repo.escreve("tests/evals/__init__.py", ""),
+                                                         self.repo.escreve("tests/evals/test_e.py", cheio))}
+        for nome, muda in casos.items():
+            with self.subTest(nome):
+                self.repo.git("reset", "-q", "--hard", "base")
+                self.repo.git("clean", "-qfd", "tests")
+                muda()
+                self.passa()
+
+    def test_modulo_ilegivel_ou_controle_grande_demais_derruba_os_testes_sem_traceback(self):
+        self.repo.escreve("tests/test_hooks.py", TESTE)
+        self.nova_base()
+        casos = {"parêntese a mais": ("tests/test_x.py", TESTE.encode() + b")\n"), "UTF-8 inválido": ("tests/test_x.py", TESTE.encode() + b"# \xff\n"),
+                 "aninhamento fundo": ("tests/test_x.py", TESTE.encode() + b"x = " + b"-" * 200000 + b"1\n"),
+                 "controle acima de 2 MB": ("tests/test_hooks.py", TESTE.encode() + b"#" * catraca.TETO_DO_MODULO + b"\n")}
+        for nome, (arq, texto) in casos.items():
+            with self.subTest(nome):
+                self.repo.git("reset", "-q", "--hard", "base")
+                (self.repo.dir / arq).write_bytes(texto)
+                self.repo.commit()
+                achadas = self.sem_traceback(catraca.regra_testes_no_ci, self.repo.dir, "base", "HEAD", {})
+                self.assertIn("testes `test_*` que o `discover` da suíte vê caíram de 4 para 2", "".join(achadas))
+
+    def test_git_que_falha_ao_ler_o_modulo_falha_fechada(self):
+        real = catraca.git
+
+        def falso(raiz, *a):
+            return (128, "") if a[0] == "show" and a[-1] == "HEAD:tests/test_x.py" else real(raiz, *a)
+        self.repo.commit()
+        with mock.patch.object(catraca, "git", falso):
+            achadas = self.sem_traceback(catraca.violacoes_das_regras, self.repo.dir, "base", "HEAD")
+        self.assertTrue(any(catraca.NAO_LIBERAVEL in v and "tests/test_x.py" in v for v in achadas), achadas)
+
+    # T4: arquivo de teste que nenhum comando do CI roda.
+    SOLTOS = ["tests/b_test.py", "tests/c.test.ts", "tests/sub/test_s.py", "tests/web/a.spec.js", "tests/x.sh"]
+
+    def fora(self, achadas):
+        return sorted(v.split("nenhum comando do CI roda: ", 1)[1].split(". Por quê", 1)[0] for v in achadas if "nenhum comando do CI roda" in v)
+
+    def test_arquivo_de_teste_que_nenhum_comando_roda_barra(self):
+        for a in self.SOLTOS:
+            self.repo.escreve(a, "")
+        self.repo.commit()
+        self.assertEqual(self.fora(self.repo.violacoes()), self.SOLTOS)
+
+    def test_run_com_o_caminho_inteiro_ou_excecao_da_base_bastam(self):
+        self.repo.config(testes_fora_do_ci={"tests/sub/test_s.py": "roda à mão: precisa de rede real"})
+        self.nova_base()
+        for a in self.SOLTOS:
+            self.repo.escreve(a, "")
+        self.repo.escreve(".github/workflows/ci.yml", "jobs:\n  t:\n    steps:\n      - run: bash tests/x.sh\n      - run: |\n"
+                          "          node tests/web/a.spec.js tests/c.test.ts\n          python3 tests/b_test.py\n      - name: y\n        run: echo\n")
+        self.repo.commit()
+        achadas = [v for v in self.repo.violacoes() if not v.startswith("R-CONFORMIDADE: mudança em .github")]
+        self.assertEqual(self.fora(achadas), [])
+
+    def test_nome_sem_o_caminho_comentario_fim_do_bloco_ou_motivo_invalido_nao_bastam(self):
+        soltos = ["tests/sub/test_s.py", "tests/u.sh", "tests/v.sh", "tests/w.sh", "tests/x.sh", "tests/y.sh", "tests/z.sh"]
+        self.repo.config(testes_fora_do_ci={"tests/sub/test_s.py": "curto", "tests/u.sh": "\u200b" * 25, "tests/w.sh": list("x" * 25)})
+        self.nova_base()
+        for a in soltos:
+            self.repo.escreve(a, "")
+        self.repo.escreve(".github/workflows/ci.yml", "      - run: bash x.sh; bash outro/tests/x.sh tests/x.sh.bak; echo ok # tests/y.sh\n"
+                          "      - run: |\n          # bash tests/z.sh\n          true\n        env: tests/v.sh\n")
+        self.repo.commit()
+        self.assertEqual(self.fora(self.repo.violacoes()), soltos)
+
+    def test_comando_do_ci_que_deixa_de_rodar_o_arquivo_barra(self):
+        self.repo.escreve("tests/e2e.sh", "")
+        self.repo.escreve(".github/workflows/ci.yml", "      - run: bash tests/e2e.sh\n")
+        self.nova_base()
+        self.repo.escreve(".github/workflows/ci.yml", "      - run: echo nada\n")
+        self.barra("nenhum comando do CI roda: tests/e2e.sh")
+
+    def test_arquivo_ja_fora_na_base_nao_barra_de_novo(self):
+        self.repo.escreve("tests/velho.sh", "")
+        self.nova_base()
+        self.repo.escreve("tests/velho.sh", "echo mudou\n")
+        self.passa()
+
+    def test_excecao_nova_no_head_barra_e_nao_libera_o_arquivo(self):
+        self.repo.config(testes_fora_do_ci={"tests/x.sh": "roda à mão: precisa de rede real"})
+        self.repo.escreve("tests/x.sh", "")
+        self.repo.commit()
+        achadas = self.repo.violacoes()
+        self.assertTrue(any("exceção nova em `testes_fora_do_ci`: tests/x.sh" in v for v in achadas), achadas)
+        self.assertEqual(self.fora(achadas), ["tests/x.sh"])
+
+    def test_classe_citada_num_run_que_some_barra(self):
+        self.repo.escreve("tests/test_m0.py", "import unittest\nclass Existe(unittest.TestCase):\n    def test_a(self):\n        assert 1\n")
+        self.repo.escreve("tests/evals/__init__.py", "")
+        self.repo.escreve("tests/evals/test_e.py", "import unittest\nclass E(unittest.TestCase):\n    def test_a(self):\n        assert 1\n")
+        self.repo.escreve(".github/workflows/ci.yml", "      - run: python3 -m unittest tests.test_m0.Existe.test_a tests.evals.test_e.E\n")
+        self.nova_base()
+        self.assertEqual(catraca.classes_citadas_ausentes(self.repo.dir, "base"), set())
+        self.repo.escreve("tests/test_m0.py", "import unittest\nclass Outra(unittest.TestCase):\n    def test_a(self):\n        assert 1\n")
+        self.barra("classe citada num `run:` do CI não existe: tests.test_m0.Existe", "R-CONFORMIDADE")
+
+    def test_bate_com_os_modulos_da_suite_paralela(self):
+        """A mesma lista que `modulos()` de scripts/suite-paralela.py (e o discover que scripts/suite-partes.py divide) dá."""
+        spec_suite = importlib.util.spec_from_file_location("suite_paralela_i7", AQUI.parent / "scripts" / "suite-paralela.py")
+        suite = importlib.util.module_from_spec(spec_suite)
+        spec_suite.loader.exec_module(suite)
+        for nome in ("testy.py", "test-z.py", "Test_w.py", "x.py", "test_v.txt", "pac/__init__.py", "pac/test_p.py", "sem/test_q.py"):
+            self.repo.escreve(f"tests/{nome}", TESTE)
+        self.repo.commit()
+        for raiz in (AQUI.parent, self.repo.dir):
+            with self.subTest(str(raiz)), mock.patch.object(suite, "RAIZ", raiz):
+                self.assertEqual(sorted(catraca.modulos_descobriveis(raiz, "HEAD")),
+                                 sorted(f"tests/{m.replace('.', '/')}.py" for m in suite.modulos()))
+        self.assertGreater(len(suite.modulos()), 100)
+
+    def test_arvore_do_forge_roda_todo_teste_no_ci(self):
+        """Na árvore real: nenhum arquivo de teste fora do CI e nenhuma classe citada ausente."""
+        cfg = json.loads((AQUI / "config.json").read_text(encoding="utf-8"))
+        self.assertEqual(catraca.testes_fora_do_ci(AQUI.parent, "HEAD", catraca._excecoes_do_ci(cfg)), [])
+        self.assertTrue([c for r in catraca.runs_dos_workflows(AQUI.parent, "HEAD") for c in catraca.CLASSE_CITADA.findall(r)])
+        self.assertEqual(catraca.classes_citadas_ausentes(AQUI.parent, "HEAD"), set())
+
+    def test_funcoes_do_i7_so_leem_pelo_git_e_pelo_ast(self):
+        """As funções do I7 e da T4, e as do arquivo que elas chamam, não importam nem executam nada do head."""
+        funcoes = {n.name: n for n in ast.parse((AQUI / "catraca.py").read_text(encoding="utf-8")).body if isinstance(n, ast.FunctionDef)}
+        proibidos = {"importlib", "__import__", "exec", "eval", "compile", "runpy", "TestLoader", "discover", "SourceFileLoader",
+                     "import_module", "system", "popen", "execv", "execvp", "spawnv", "run_path", "run_module", "loadTestsFromName"}
+        pendentes, vistas = ["regra_controles_enfraquecidos", "regra_testes_no_ci", "deficits_do_ci"], set()
+        while pendentes:
+            nome = pendentes.pop()
+            vistas.add(nome)
+            for n in ast.walk(funcoes[nome]):
+                palavra = n.id if isinstance(n, ast.Name) else n.attr if isinstance(n, ast.Attribute) else None
+                self.assertNotIn(palavra, proibidos, f"{nome} usa {palavra}")
+                if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and catraca._nome(n.func.value) == "subprocess":
+                    self.assertEqual(ast.literal_eval(n.args[0].elts[0]), "git", nome)
+                if palavra in funcoes and palavra not in vistas:
+                    pendentes.append(palavra)
+        self.assertLessEqual({"git", "ler", "listar", "modulos_descobriveis", "_forca_das_arvores", "testes_fora_do_ci"}, vistas)
+
+    def test_saida_do_ci_depois_do_rotulo_derruba_o_rotulo(self):
+        """P9: arquivo de teste novo fora do CI depois do rótulo entra na conta do rótulo preso ao conteúdo."""
+        self.repo.escreve("tests/a.sh", "")
+        self.repo.commit()
+        rotulado = self.repo.git("rev-parse", "HEAD").strip()
+        self.repo.escreve("tests/b.sh", "")
+        self.repo.commit()
+        self.assertFalse(catraca.protegidos_como_no_rotulo(self.repo.dir, "base", rotulado, "HEAD"))
+
+
+class TetoDePulados(Base):
+    """T3: `teto_pulados` de tests/config.json só cai; sair, virar outro tipo ou subir barra."""
+
+    def com_teto(self, teto):
+        self.repo.config(teto_pulados=teto)
+        self.repo.commit()
+        self.repo.git("tag", "-f", "base")
+
+    def test_teto_que_sobe_barra_e_que_cai_passa(self):
+        self.com_teto(1)
+        self.repo.config(teto_pulados=2)
+        self.barra("`teto_pulados` subiu de 1 para 2", "R-CONFORMIDADE")
+        self.repo.config(teto_pulados=0)
+        self.passa()
+
+    def test_teto_que_sai_ou_vira_outro_tipo_barra(self):
+        self.com_teto(1)
+        for teto in (None, "1", True, 1.0, -1, [1]):
+            with self.subTest(teto=teto):
+                cfg = copy.deepcopy(CONFIG)
+                if teto is not None:
+                    cfg["teto_pulados"] = teto
+                self.repo.escreve("tests/config.json", json.dumps(cfg))
+                self.barra("`teto_pulados` saiu de tests/config.json ou não é inteiro >= 0")
+
+    def test_sem_teto_na_base_nada_a_conferir(self):
+        self.repo.config(teto_pulados=5)
+        self.passa()
+        self.assertEqual(catraca.regra_teto_pulados(None, {}), [])
+
+    def test_o_forge_tem_teto(self):
+        teto = json.loads((AQUI / "config.json").read_text(encoding="utf-8")).get("teto_pulados")
+        self.assertIs(type(teto), int)
+        self.assertGreaterEqual(teto, 0)
+
+
+class GuardasDosHooks(Base):
+    """MUTANTES-SPEC-HOOKS: condição mudada ou apagada em hooks/*.py sem mutante declarado numa spec do diff barra."""
+    HOOK = "def decide(valor):\n    if valor > 10:\n        return 'bloqueia'\n    return 'passa'\n"
+
+    def setUp(self):
+        super().setUp()
+        self.repo.escreve("hooks/x.py", self.HOOK)
+        self.repo.commit()
+        self.repo.git("tag", "-f", "base")
+
+    def spec(self, mutantes, isentas=None, nome="tests/mutantes/p.json"):
+        dados = {"pedido": "p", "mutantes": mutantes} | ({"isentas": isentas} if isentas else {})
+        self.repo.escreve(nome, json.dumps(dados))
+
+    def mutante(self, de="if valor > 11:", para="if valor >= 11:"):
+        return {"id": "M1", "guarda": "limite do bloqueio", "arquivo": "hooks/x.py", "de": de, "para": para,
+                "testes": ["tests.test_x.T.test_a"]}
+
+    def test_guarda_mudada_sem_spec_barra(self):
+        self.repo.escreve("hooks/x.py", self.HOOK.replace("valor > 10", "valor > 11"))
+        self.barra("guarda de hooks/x.py mudada sem mutante declarado: sem mutante · hooks/x.py:2", "R-QA")
+
+    def test_guarda_mudada_com_mutante_na_spec_do_diff_passa(self):
+        self.repo.escreve("hooks/x.py", self.HOOK.replace("valor > 10", "valor > 11"))
+        self.spec([self.mutante()])
+        self.passa()
+
+    def test_spec_que_ja_estava_na_base_nao_vale(self):
+        self.spec([self.mutante()])
+        self.repo.commit()
+        self.repo.git("tag", "-f", "base")
+        self.repo.escreve("hooks/x.py", self.HOOK.replace("valor > 10", "valor > 11"))
+        self.barra("sem mutante · hooks/x.py:2")
+
+    def test_mutante_de_outro_arquivo_ou_que_nao_cobre_a_condicao_barra(self):
+        self.repo.escreve("hooks/x.py", self.HOOK.replace("valor > 10", "valor > 11"))
+        self.repo.escreve("hooks/y.py", "Y = 1\n")
+        self.spec([self.mutante() | {"arquivo": "hooks/y.py", "de": "Y = 1", "para": "Y = 2"}])
+        self.barra("sem mutante · hooks/x.py:2")
+
+    def test_guarda_apagada_barra_e_isenta_com_motivo_passa(self):
+        self.repo.escreve("hooks/x.py", "def decide(valor):\n    return 'passa'\n")
+        self.barra("apagada · hooks/x.py:2(base)")
+        self.spec([self.mutante() | {"de": "return 'passa'", "para": "return 'bloqueia'"}],
+                  [{"arquivo": "hooks/x.py", "trecho": "valor > 10", "motivo": "a guarda saiu com o comportamento que ela protegia"}])
+        self.repo.commit()
+        self.assertFalse(any(v.startswith("R-QA:") for v in self.repo.violacoes()), self.repo.violacoes())
+
+    def test_mudanca_sem_guarda_e_arquivo_que_nao_e_python_passam(self):
+        self.repo.escreve("hooks/x.py", self.HOOK.replace("'bloqueia'", "'bloqueia agora'"))
+        self.repo.escreve("hooks/dados.json", "{\"if\": 1}\n")
+        self.passa()
+
+    def test_guarda_fora_de_hooks_nao_entra_na_regra(self):
+        self.repo.escreve("scripts/x.py", self.HOOK.replace("valor > 10", "valor > 11"))
+        self.passa()
+
+    def test_spec_invalida_barra(self):
+        self.repo.escreve("hooks/x.py", self.HOOK.replace("valor > 10", "valor > 11"))
+        self.repo.escreve("tests/mutantes/p.json", "{quebrado")
+        self.barra("spec de mutantes inválida: tests/mutantes/p.json", "R-QA")
+        self.spec([self.mutante() | {"testes": []}])
+        self.barra("spec de mutantes inválida: tests/mutantes/p.json")
+
+    def test_hook_ilegivel_barra_sem_derrubar_a_catraca(self):
+        self.repo.escreve("hooks/x.py", self.HOOK + "if (:\n")
+        self.repo.commit()
+        achadas = ControlesEnfraquecidos.sem_traceback(self, self.repo.violacoes)
+        self.assertTrue(any("não consegui analisar as guardas de hooks/x.py" in v for v in achadas), achadas)
+
+    def test_forge_mutante_que_nao_carrega_barra(self):
+        self.repo.escreve("hooks/x.py", self.HOOK.replace("valor > 10", "valor > 11"))
+        self.spec([self.mutante()])
+        self.repo.commit()
+        with mock.patch.object(catraca, "forge_mutante", side_effect=OSError("sumiu")):
+            achadas = self.repo.violacoes()
+        self.assertTrue(any("não consegui carregar bin/forge-mutante" in v for v in achadas), achadas)
+
+    def test_muitas_faltas_mostram_as_primeiras_e_a_contagem(self):
+        corpo = "".join(f"    if valor > {i}:\n        return {i}\n" for i in range(20, 28))
+        self.repo.escreve("hooks/x.py", self.HOOK.replace("    return 'passa'\n", corpo + "    return 'passa'\n"))
+        self.repo.commit()
+        (achada,) = [v for v in self.repo.violacoes() if v.startswith("R-QA:")]
+        self.assertIn("e mais 3", achada)
+
+
 class Custo(Base):
     def test_github_token_passa(self):
         self.repo.escreve(".github/workflows/ci.yml", "env:\n  T: ${{ secrets.GITHUB_TOKEN }}\n")

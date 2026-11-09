@@ -696,6 +696,8 @@
     }
   },
   "custo_permitido": {},
+  "testes_fora_do_ci": {},
+  "teto_pulados": 1,
   "padroes_custo_transcricao": [
     {"token": "custo claude -p", "regex": "^claude\\b.*\\s(?:-p|--print)\\b"},
     {"token": "custo plugin eval", "regex": "^claude\\s+plugin\\b.*\\beval\\b"},
