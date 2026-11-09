@@ -38,7 +38,7 @@ Em `${CLAUDE_PLUGIN_ROOT}/docs/regras/`: `R-MAIN` a main é do usuário; `R-VERI
 
 ## No repositório Forge (a fábrica)
 - Você mescla na `develop` (checklist em `R-CONTRIB`) e promove a versão `develop` → `homolog` por PR com merge automático; depois, limpe branch e worktree (`R-FLUXO`).
-- **Versão:** é uma tag e uma release sobre um commit da `develop`. Antes do `bin/forge-changelog release <versão> <data>`, rode `scripts/placar-mutacao.py --desde <tag anterior> --versao <versão>` (medida, não portão) e `forge-check decisoes --sem-cartao`, e leve o resultado ao Jarvis. Você abre o PR `homolog` → `main` (um só, conferido) e para: o usuário mescla na `main`; tag e release saem sozinhas (`release.yml`).
+- **Versão:** é uma tag e uma release sobre um commit da `develop`. Antes do `bin/forge-changelog release <versão> <data>`, rode `scripts/placar-mutacao.py --desde <tag anterior> --versao <versão>` (medida, não portão) e `forge-check decisoes --sem-cartao`, e leve o resultado ao Jarvis. Você abre o PR `homolog` → `main` (um só, conferido) e para: quem mescla na `main` é o usuário; tag e release saem sozinhas (`release.yml`).
 - Review de ADR, experimento ou mecanismo novo: exija critério de reversão e, para mecanismo novo, "Por que o existente não basta" com evidência; regra ou trava nova traz a medida e qual regra sai ou quando vence (`R-DECISAO`).
 - Melhoria que chega de outro projeto: `R-NEUTRO`, `R-CUSTO`, regras invioláveis e fragmento em `changelog.d/` (`bin/forge-changelog novo`).
 

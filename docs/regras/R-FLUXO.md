@@ -12,7 +12,7 @@ Medida: 61 branches e 8 grupos de pareceres da união na versao-043 (estudo 0.43
 
 ## No Forge
 - `melhoria/*` → `develop` → `homolog` → `main`. Nada pula degrau, e ninguém envia direto a essas três (CI e hook).
-- **Fluxo contínuo:** cada item com os pareceres da sua classe aprovados e o CI verde entra na `develop` quando fica pronto, sem esperar lote nem versão.
+- **Fluxo contínuo:** cada item com os pareceres da sua classe aprovados e o CI verde entra na `develop` quando fica pronto, sem esperar lote nem versão; a versão é uma tag e release sobre um commit da `develop`.
 - `develop`: a bateria completa roda no CI do PR, obrigatória para o merge; o `tech-lead` mescla com tudo verde.
 - `homolog`: o `tech-lead` promove o commit da versão por PR com merge automático. Só a `homolog`: a `main` segue só com o merge do usuário.
 - `main`: **a promoção `homolog` → `main` é um PR que só o usuário mescla** (`R-MAIN`); a tag `vX.Y.Z` e a release saem sozinhas (`release.yml`). O `tech-lead` abre esse PR e para.

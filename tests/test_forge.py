@@ -698,8 +698,19 @@ class ForgeInit(unittest.TestCase):
         (casa / ".claude").mkdir()
         env = {"GH_TOKEN": "x", "GIT_CONFIG_COUNT": "2"} if credencial else {"GH_TOKEN": "x"}
         (casa / ".claude/settings.json").write_text(json.dumps({"env": env}), encoding="utf-8")
-        caminho = ":".join(p for p in os.environ["PATH"].split(":") if not (Path(p) / "bwrap").exists())
-        return {"HOME": str(casa), "PATH": f"{casa / 'bin'}:{caminho}", "GH_TOKEN": "", "GIT_CONFIG_COUNT": ""}
+        # CI-0442: no runner do GitHub o bwrap fica em /usr/bin, ao lado do bash e do git; tirar a pasta do PATH tirava tudo.
+        # A pasta com o bwrap vira uma sombra (links para tudo, menos o bwrap), e o PATH não perde nenhum outro programa.
+        caminho = []
+        for n, p in enumerate(os.environ["PATH"].split(":")):
+            if p and (Path(p) / "bwrap").exists():
+                sombra = casa / f"sombra-{n}"
+                sombra.mkdir()
+                for item in Path(p).iterdir():
+                    if item.name != "bwrap":
+                        (sombra / item.name).symlink_to(item)
+                p = str(sombra)
+            caminho.append(p)
+        return {"HOME": str(casa), "PATH": f"{casa / 'bin'}:{':'.join(caminho)}", "GH_TOKEN": "", "GIT_CONFIG_COUNT": ""}
 
     def test_cria_estrutura_completa(self):
         self.rodar()

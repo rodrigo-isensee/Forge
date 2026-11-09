@@ -1,4 +1,4 @@
-"""Forge: arma o objetivo que o hook de Stop (hooks/meta.py) confere (siegard S4, 0.44.2). Só biblioteca padrão.
+"""Forge: arma o objetivo que o hook de Stop (hooks/meta.py) confere (S4, 0.44.2). Só biblioteca padrão.
 
 `forge-check meta --armar <pedido> --checagem "<cmd>" [--checagem ...]` grava .forge/run/meta.json (o mesmo lugar do hook:
 `Hook.run()`); `--desarmar` o tira; `--estado` imprime o estado (entregue e provado, espera o dono, ainda não, pausado).

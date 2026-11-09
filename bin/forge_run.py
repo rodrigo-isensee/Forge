@@ -1,4 +1,4 @@
-"""Forge: execução capturada como prova (siegard S5, 0.44.2). Só biblioteca padrão.
+"""Forge: execução capturada como prova (S5, 0.44.2). Só biblioteca padrão.
 
 Importado pelo `bin/forge-check` só quando roda:
 - `rodar <slug> -- <cmd> [args] [; <cmd2> args]`: roda cada passo SEM shell (o `;` sozinho separa passos), na raiz, e grava

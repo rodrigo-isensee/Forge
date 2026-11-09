@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Forge: objetivo armado no Stop (siegard S4) e medida da mensagem ao dono (siegard S6), 0.44.2. Só biblioteca padrão.
+"""Forge: objetivo armado no Stop (S4) e medida da mensagem ao dono (S6), 0.44.2. Só biblioteca padrão.
 
 Stop, com objetivo armado (`forge-check meta --armar <pedido> --checagem "<cmd>"...`, estado em .forge/run/meta.json):
 - **espera o dono**: o pedido está em `## Aguardando o dono` do KANBAN.md ou a última linha do dono no pedido é uma
