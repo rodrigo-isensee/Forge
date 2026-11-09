@@ -191,7 +191,7 @@ class EstadoDoCloneInerte(ClonePronto):
     def pesado(self, onde, agente, uso, evento="PreToolUse"):
         entrada = {"hook_event_name": evento, "session_id": "s", "cwd": str(onde), "tool_name": "Bash", "agent_id": agente,
                    "tool_use_id": uso, "tool_input": {"command": self.SUITE}}
-        return rodar_hook("pesado", entrada, onde, self.proc(4))
+        return rodar_hook("pesado", entrada, onde, self.proc(4), {"FORGE_PESADO_ESPERA_S": "0"})  # 0.44.2: sem espera na fila, recusa na hora
 
     def test_suite_de_outro_agente_no_clone_e_na_worktree_bloqueia(self):
         self.assertEqual(self.pesado(self.clone, "a1", "u1").returncode, 0)
