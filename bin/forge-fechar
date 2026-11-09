@@ -16,6 +16,9 @@
 # (a cada FORGE_FECHAR_INTERVALO, até --espera) e segue para o merge preso ao head quando o rótulo está no PR e a Catraca verde. Nessa
 # espera o check `catraca` vermelho conta como pendente (é ele que pede o rótulo); qualquer outro check vermelho para. O head do PR
 # mudar durante a espera para. Prazo esgotado para como sem a opção. O script nunca aplica rótulo nem marca item do checklist.
+# Sem a branch local, --ref vale com a branch só no origin (FECHAR-BRANCH-LOCAL): o sha conferido vem do servidor (ls-remote), o commit
+# tem de existir aqui (senão pede git fetch origin <branch>) e trazer a base (passos 2b e 6a) para, pedindo a branch local.
+# Antes do merge (6a), a base é relida: se andou durante os checks e mudou código, em melhoria/* é trazida e a cadeia recomeça; senão para.
 # Idempotente: head já mesclado na base ou PR já MERGED com este head não abre PR nem mescla de novo (vai direto à limpeza).
 # Erro passageiro do GitHub (502): só as operações que não mudam o PR repetem, até 3 vezes (leituras de estado, de PR e de checks; `push --delete`
 # da limpeza). Push de código, criação de PR, `pr ready` e merge nunca se repetem sozinhos.
@@ -56,7 +59,7 @@ subida_fecha() {
 readonly CHECKS_EXIGIDOS=("CI/bateria" "CI/bateria (python 3.14)" "Catraca/catraca")
 [ "${#CHECKS_EXIGIDOS[@]}" -gt 0 ] || die "CHECKS_EXIGIDOS vazia: o merge sem check exigido é recusado (I4)"
 
-pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 trazida=0 base_2b="" tmp2b="" dorme_pid="" promover_teste="" subida_n="" subida_ini="" subida_extra=""  # nascem vazios: o fim (rm -rf, kill) nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
+pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 trazida=0 so_remota=0 base_2b="" tmp2b="" dorme_pid="" promover_teste="" subida_n="" subida_ini="" subida_extra=""  # nascem vazios: o fim (rm -rf, kill) nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
 args_originais=("$@")  # o recomeço da cadeia depois do merge da base (passo 2b) roda o mesmo comando com `--trazida`
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -595,6 +598,8 @@ estado_do_pr() {
 # Com conflito volta a quem chamou, que para e lista os arquivos; falha de leitura, de escrita ou do envio para aqui mesmo (falha fechada).
 trazer_a_base() {
   local base_srv="$1" arvore novo st ramo
+  # FECHAR-BRANCH-LOCAL: o merge da base avança e envia a branch local; sem ela, para em vez de improvisar (falha fechada).
+  [ "$so_remota" = 0 ] || die "parou: a base andou e precisa entrar em $ref, mas não há a branch local; crie-a com git branch --no-track $ref $sha_conferido e rode de novo (nada foi enviado nem mesclado)"
   if arvore="$(git merge-tree --write-tree --no-messages "$sha_conferido" "$base_srv")"; then st=0; else st=$?; fi
   case "$st" in
     0) ;;
@@ -765,7 +770,19 @@ fi
 
 # Cadeia única (B5): o parecer vale para sha_conferido, o remoto tem de ser esse mesmo sha e o merge sai preso a ele (--match-head-commit). O sha é
 # lido antes do passo 1 e o forge-check recebe o sha, não o nome da branch; o sha local é relido depois do passo 1 e de novo no passo 2.
-sha_conferido="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)" || die "parou no passo 1: a branch local $ref não existe"
+# FECHAR-BRANCH-LOCAL: sem a branch local (worktree já removida, branch de outra instância), o modo só remota lê o sha do servidor
+# (ls-remote, nunca a refs/remotes/origin, que pode estar velha), exige o commit aqui e relê o servidor onde leria a branch local.
+if sha_conferido="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)"; then :; else
+  so_remota=1
+  sha_conferido="$(remoto_exato "$ref")" || die "parou no passo 1: sem a branch local $ref e sem leitura dela no origin (nada foi aberto)"
+  [ -n "$sha_conferido" ] || die "parou no passo 1: a branch $ref não existe aqui nem no origin"
+  git cat-file -e "$sha_conferido^{commit}" 2>/dev/null || die "parou no passo 1: sem a branch local e sem o commit $sha_conferido; rode git fetch origin $ref, e rode de novo"
+  echo "aviso: sem a branch local $ref; confiro o head do servidor ($sha_conferido)." >&2
+fi
+# head_atual: o head de $ref onde ele vale (a branch local; no modo só remota, o servidor). Falha de leitura sai com rc 1.
+head_atual() {
+  if [ "$so_remota" = 1 ]; then remoto_exato "$ref"; else git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null; fi
+}
 
 # Lock órfão (LOTE-0307-A): um `index.lock` na pasta git da worktree da branch (resto de envio que morreu com a tarefa) trava o avanço da branch
 # sem aviso. Só lê e avisa: nunca apaga o lock (quem apaga é o dono ou o Jarvis, depois de conferir que nenhum git está rodando).
@@ -783,14 +800,14 @@ fi
 
 passo 1 "pareceres: $check pr $pedido --ref $sha_conferido --base $base"
 "$check" pr "$pedido" --ref "$sha_conferido" --base "$base" || die "parou no passo 1: forge-check pr acusou violação (nada foi aberto nem mesclado)"
-local_sha="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null || true)"
-[ "$local_sha" = "$sha_conferido" ] || die "parou no passo 1: o head local de $ref mudou durante a conferência dos pareceres (conferido $sha_conferido, agora ${local_sha:-ausente}); os pareceres valem para o sha conferido; confira e rode de novo"
+local_sha="$(head_atual || true)"
+[ "$local_sha" = "$sha_conferido" ] || die "parou no passo 1: o head de $ref mudou durante a conferência dos pareceres (conferido $sha_conferido, agora ${local_sha:-ausente}); os pareceres valem para o sha conferido; confira e rode de novo"
 passo "1c" "promovível: $promover --conferir-ref $sha_conferido"
 promovivel "$sha_conferido"
 
 passo 2 "head no servidor"
-local_sha="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)" || die "parou no passo 2: a branch local $ref não existe"
-[ "$local_sha" = "$sha_conferido" ] || die "parou no passo 2: o head local de $ref mudou depois da conferência dos pareceres (conferido $sha_conferido, agora $local_sha); confira e rode de novo"
+local_sha="$(head_atual)" || die "parou no passo 2: a branch $ref não existe ou não foi lida (local ou, no modo só remota, no origin)"
+[ "$local_sha" = "$sha_conferido" ] || die "parou no passo 2: o head de $ref mudou depois da conferência dos pareceres (conferido $sha_conferido, agora $local_sha); confira e rode de novo"
 remoto_sha="$(remoto_exato "$ref")" || die "parou no passo 2: não consegui ler a branch $ref no origin"
 [ -n "$remoto_sha" ] || die "parou no passo 2: $ref não está no origin (git push origin $ref, sem -u)"
 [ "$remoto_sha" = "$sha_conferido" ] || die "parou no passo 2: o head local ($sha_conferido) difere do remoto ($remoto_sha); envie a branch"
