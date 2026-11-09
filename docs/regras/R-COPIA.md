@@ -5,7 +5,10 @@ verificada_por: revisão (skill iniciar-projeto avisa sobre cópias)
 ---
 # R-COPIA: Não copiar agentes e skills para o projeto
 
-Propósito: texto único desta regra; os outros arquivos citam o ID. Público: todo o time. Revisão: 2026-10-12.
+Propósito: texto único desta regra; os outros arquivos citam o ID. Público: todo o time.
+
+Revisar em: 2027-01-07
+Medida: sem medida
 
 - Nunca copie agentes ou skills do Forge para `.claude/agents/` ou `.claude/skills/` do projeto para "consertar rápido": a cópia tem prioridade sobre o plugin e vira uma versão paralela que diverge da fábrica.
 - Nunca edite o cache do plugin em `~/.claude/plugins/`.

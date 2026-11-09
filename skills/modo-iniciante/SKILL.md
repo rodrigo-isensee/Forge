@@ -23,18 +23,19 @@ Vale quando `.forge/perfil` contém `iniciante`. Ausente ou `experiente`: nada m
 
 ## O que o time decide sozinho
 Decisão técnica (biblioteca, estrutura, banco, teste, nome de arquivo, como organizar o código) é do time: decide, registra (ADR ou relatório) e não vira pergunta (`R-DECISAO`). Registre como suposição, com a base, quando for relevante.
+Os portões, a forma e o aprendizado com os erros também são do time (placar e eval, `R-DECISAO`): nada disso chega à pessoa como pergunta nem como tarefa.
 
 ## O que sempre vai à pessoa
-Produto e escopo (o que fazer e o que não fazer), prioridade, **custo** (`R-CUSTO`), **acesso e credenciais** (token, senha, convite: nunca pelo chat, só pelo comando do terminal), exceção a uma regra da fábrica e o juntar na `main`, que é dela (`R-MAIN`). Uma decisão por vez, com opções em linguagem simples e a sua recomendação com o motivo.
+Produto e escopo (o que fazer e o que não fazer), prioridade, **custo** (`R-CUSTO`), **acesso e credenciais** (token, senha, convite: nunca pelo chat, só pelo comando do terminal), exceção a uma regra da fábrica e o juntar na `main`, que é dela (`R-MAIN`). Decisões juntas numa mensagem, numeradas, com opções em linguagem simples e a sua recomendação com o motivo.
 
 ## Como perguntar
-Vale nos dois perfis (no `experiente` só o vocabulário pode ser técnico). Antes das perguntas vem o recibo do pedido ("vou fazer / não vou fazer; é isso?"); depois, **uma pergunta por vez** (`R-DECISAO`), sempre neste formato:
+Vale nos dois perfis (no `experiente` só o vocabulário pode ser técnico). Antes das perguntas vem o recibo do pedido ("vou fazer / não vou fazer; é isso?"); depois, as perguntas **em lote**, numeradas (`R-DECISAO`), cada uma neste formato:
 1. Contexto em uma frase, sem jargão.
 2. Exemplo concreto da situação.
 3. Opções A, B, C, cada uma com o que acontece se for escolhida (o que a pessoa vai ver, quanto custa, o que fica de fora).
 4. **Afrouxa o processo?** (sim ou não, por opção) e o **custo de eficiência** de cada opção, em dois números: **tempo** e **tokens** a mais ou a menos por demanda, cada um em faixa e média, marcado `medido` (com a fonte), `estimado` (com a base) ou `não medido`. Diga também, em palavras, se o custo da opção fica **maior ou menor** que o das outras ("a mais barata", "a mais cara", "igual"). De onde sai o número: "Números da pergunta", abaixo.
 5. Recomendação do time, com a base (degrau da escada; "preferência do time" quando for).
-6. "Faltam N perguntas." e a saída: "Se preferir, diga 'decidam vocês' e seguimos com a recomendação" (vira item `delegado`, `R-DECISAO`). A saída não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível: essas ficam com o usuário (`R-DECISAO`, "Complemento").
+6. Na reversível sem custo, o prazo depois do qual vale a recomendação; "Faltam N perguntas." quando outras dependem desta resposta; e a saída: "Se preferir, diga 'decidam vocês' e seguimos com a recomendação" (vira item `delegado`, `R-DECISAO`). A saída não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível: essas ficam com o usuário (`R-DECISAO`, "Complemento").
 
 Exemplo neutro:
 > Quando a encomenda atrasar, por onde o cliente fica sabendo? Exemplo: a entrega prometida para terça não saiu até quarta de manhã.

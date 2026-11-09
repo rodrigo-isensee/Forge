@@ -237,20 +237,14 @@ class Agentes(unittest.TestCase):
                 self.assertTrue(fm.get("tools"), "tools vazio")
                 self.assertIn(fm.get("model"), MODELOS_VALIDOS)
 
-    def test_conferente_lista_de_anexos_implicitos(self):
-        """Escopo da entrega (agents/conferente.md): os pareceres de outro papel na mesma branch (segurança, devops)
-        são anexo implícito, junto dos demais; `tests/config.json` continua fora da lista."""
+    def test_conferente_escopo_da_entrega_e_so_de_conteudo(self):
+        """0.43.1 (decisão 3 do dono): a entrega conferida é do `forge-check entrega`; o conferente opcional olha só o conteúdo
+        (item sem commit, arquivo fora do Entregar) e não grava a linha. A lista de anexos implícitos era do conferente que
+        conferia a forma e saiu com ele (o `forge-check entrega` a aplica)."""
         texto = (AGENTES / "conferente.md").read_text(encoding="utf-8")
-        m = re.search(r"salvo os anexos implícitos \((.*?)\): `escopo: ok \(anexo\)` \*\*só por acréscimo\*\*", texto)
-        self.assertIsNotNone(m, "trecho da lista de anexos implícitos não encontrado")
-        itens = [i.strip().strip("`") for i in m.group(1).split(", ")]
-        self.assertEqual(itens, ["CHANGELOG.md", ".claude-plugin/plugin.json", "teste do que mudou", "docs/reviews/",
-                                 "docs/qa/", "docs/kanban/", "docs/security/", "docs/devops/"])
-        self.assertIn("`tests/config.json` nunca é anexo", texto)
-        # a lista vale a partir da raiz e o aceite de risco (só o dono grava) fica fora dela
-        self.assertIn("a lista vale a partir da raiz do repositório", texto)
-        self.assertIn("`docs/security/aceites/` fica fora dela (aceite na entrega é `escopo: fora`)", texto)
-        self.assertNotIn("docs/security/aceites/", m.group(1))
+        self.assertIn("é `pendente: \"<item>\"`", texto)
+        self.assertIn("(fora pareceres, quadro, `CHANGELOG.md` e o fragmento `changelog.d/`) é `escopo: fora | <arquivo>`", texto)
+        self.assertIn("Não rode `forge-check entrega`: ele grava a linha `entrega conferida`, que não é sua.", texto)
 
     def test_conferente_so_leitura(self):
         """R-PROVA e R-BRIEF: o conferente confere sem escrever. Sem ferramenta de escrita no frontmatter, em haiku, e
@@ -2487,7 +2481,7 @@ class Orcamento(unittest.TestCase):
     def test_conferente_usa_o_pedido_da_mensagem(self):  # LOTE E4: a mensagem traz `Pedido: <id>`; o caminho montado à mão duplicava docs/pedidos/
         texto = RAIZ.joinpath("agents", "conferente.md").read_text(encoding="utf-8")
         self.assertNotIn("docs/pedidos/<Pedido>.md", texto)
-        self.assertIn("--pedido <Pedido> --destino <Agente conferido>", texto)
+        self.assertIn("forge-check brief <arquivo> --pedido <pedido> --destino forge:<nome>", texto)  # 0.43.1: só lê a linha `arquivo:`
 
     def test_tamanho_dos_prompts(self):
         lim = CONFIG["limite_linhas"]
@@ -3686,10 +3680,8 @@ class ConferirBrief(unittest.TestCase):
     def test_conferente_lista_o_comando_e_a_passada_unica(self):
         conferente = (RAIZ / "agents" / "conferente.md").read_text(encoding="utf-8")
         self.assertIn("forge-check brief <arquivo> --pedido <pedido>", conferente)
-        for rel in ("agents/conferente.md", "docs/regras/R-BRIEF.md", "agents/jarvis.md"):
-            with self.subTest(arquivo=rel):
-                texto = texto_do_jarvis(RAIZ) if rel == "agents/jarvis.md" else (RAIZ / rel).read_text(encoding="utf-8")
-                self.assertIn("todos os achados", texto)
+        self.assertIn("todos os achados", conferente)  # 0.43.1: R-BRIEF e o Jarvis não têm mais rodada de conferente agente
+        self.assertIn("forge-check brief selar", (RAIZ / "docs" / "regras" / "R-BRIEF.md").read_text(encoding="utf-8"))
 
 
 class PraticasDeEspecificacao(unittest.TestCase):
@@ -4282,49 +4274,32 @@ class GuardaDeVersao(unittest.TestCase):
 
 
 class TextosDoAgenteEDaRegra(unittest.TestCase):
+    """0.43.1 (decisões 1 e 2 do dono): a primeira passada, o `tardio:`, a rodada de confirmação e a cópia das decisões eram do
+    conferente que conferia a forma de todo brief; agora o brief é selado pela ferramenta, com as decisões por referência, e o
+    conferente é opcional. Ficam a passada única do conferente, a contradição literal por leitura e o hash do arquivo lido."""
+
     @classmethod
     def setUpClass(cls):
         cls.agente = (RAIZ / "agents" / "conferente.md").read_text(encoding="utf-8")
         cls.regra = (RAIZ / "docs" / "regras" / "R-BRIEF.md").read_text(encoding="utf-8")
         cls.jarvis = texto_do_jarvis(RAIZ)
 
-    def test_ordem_da_primeira_passada_e_tardio_no_agente(self):  # 15 e 17
-        for trecho in ("Primeira passada", "`tardio:`", "reprova como os outros", "não muda o veredito", "por leitura, sempre",
-                       "fidelidade", "contradição", "etapa"):
-            with self.subTest(trecho):
-                self.assertIn(trecho, self.agente)
-        self.assertNotIn("só acrescenta achado que a correção tenha introduzido", self.agente)
+    def test_passada_unica_e_contradicao_por_leitura(self):
         self.assertIn("liste **todos os achados** de uma vez", self.agente)
+        self.assertIn("`decisões: contradiz", self.agente)
+        self.assertIn("forma: brief diferente do arquivo", self.agente)
 
-    def test_ordem_de_leitura_fixa_e_so_as_fontes_do_comando(self):  # M3.3
-        passada = self.agente.split("Primeira passada", 1)[1].split("\n", 1)[0]
-        passos = [passada.find(f"({n})") for n in range(1, 6)]
-        self.assertTrue(all(p >= 0 for p in passos), passada)
-        self.assertEqual(passos, sorted(passos))
-        self.assertIn("só os caminhos das linhas `fonte:`", self.agente)
+    def test_decisoes_por_referencia_e_brief_curto(self):
+        self.assertIn("**por referência**", self.regra)
+        self.assertIn("nunca copiadas", self.regra)
+        self.assertIn("até cerca de 8.000 caracteres", self.regra)
+        self.assertIn("o agente lê o pedido e, se o brief divergir, para e relata", self.regra)
 
-    def test_tardio_na_regra_e_no_campo_do_veredito(self):  # M3.1
-        self.assertIn("`tardio:`", self.regra)
-        self.assertIn("reprova", self.regra.split("`tardio:`", 1)[1][:200])
-        self.assertRegex(self.agente, r"`tardio:` antes de qualquer campo conta como o campo")
-
-    def test_rodada_de_confirmacao_nao_proibe_registrar_tardio(self):  # M3.2
-        confirmacao = self.agente.split("**Rodada de confirmação**", 1)[1].split("\n", 1)[0]
-        self.assertNotIn("sem reler o que não mudou", confirmacao)
-        self.assertIn("`tardio:`", confirmacao)
-
-    def test_decisoes_do_comando_e_contradicao_do_conferente(self):  # M2.3
-        self.assertIn("`decisões:`", self.agente)
-        self.assertIn("a contradição literal é sua, mesmo com `decisões: ok`", self.agente)
-        self.assertIn("todas as linhas `DECISÃO DO DONO`", self.regra)
-        self.assertIn("docs/pedidos", self.regra)
-
-    def test_mensagem_vai_ao_conferente_e_nao_o_substitui(self):  # M1.6
-        self.assertIn("forge-check brief mensagem", self.jarvis)
-        self.assertIn("forge-check brief mensagem", self.regra)
-        self.assertIn("não substitui", self.regra)
+    def test_selo_e_hook_no_jarvis_e_na_regra(self):
+        self.assertIn("forge-check brief selar", self.jarvis)
+        self.assertIn("forge-check brief selar --arquivo <brief> --pedido <pedido>", self.regra)
+        self.assertIn("hook `agentes` recusa a delegação sem selo", self.regra)
         self.assertIn("Brief-sha256:", self.agente)
-        self.assertIn("Vale o hash do arquivo que você leu", self.agente)  # TEMPO-B1: o texto vem só do arquivo
 
 
 # --- FORGE-CHECK-LOTE (E1 a E11): saída sanitizada, âncora da decisão, recomendação incluída, mensagem, versão, merge, custo ----------
@@ -5711,70 +5686,26 @@ class CustoPorPedido(Raiz):
 
 
 class TextoDoConferenteNoLote(unittest.TestCase):
-    """O texto de `agents/conferente.md` que o FORGE-CHECK-LOTE acrescentou: o que o haiku lê e as frases que não podem sumir (E1, E3, E4, E5, E6, E9)."""
+    """O que sobra do texto do FORGE-CHECK-LOTE no conferente da 0.43.1: um bloco por mensagem, sem suíte e a política de leitura
+    do hook. As frases das etapas (tabela de pré-condições), do aviso de versão, das entregas paralelas e da recomendação incluída
+    eram do conferente que conferia forma e etapa; a ferramenta (`forge-check entrega`, `forge-check pr`) as aplica."""
 
     @classmethod
     def setUpClass(cls):
         cls.agente = (RAIZ / "agents" / "conferente.md").read_text(encoding="utf-8")
 
-    def test_o_marcador_da_decisao_d_so_vale_no_forge_e_so_para_o_aviso_da_copia_atras(self):  # M1.4
-        self.assertIn("`forge-check: aviso: cópia vigente ... atrás do repositório (decisão D: não muda o veredito)`", self.agente)
-        trecho = self.agente.split("**Aviso de versão**", 1)[1].split("\n", 1)[0]
-        for frase in ("só no Forge", "sozinha nunca dá `não verificável` nem reprova", "`versão não conferida (...)`",
-                      "o bloqueio `a conferência não vale`", "o comando recusado pelo hook", "seguem como estavam",
-                      "os checks verdes do CI em `merge-integracao` e `pedido-de-merge-ao-dono` continuam exigidos"):
-            with self.subTest(frase):
-                self.assertIn(frase, trecho)
-
-    def test_o_conferente_nao_roda_a_suite_e_a_linha_do_autor_continua(self):  # E3, T3
+    def test_o_conferente_nao_roda_a_suite(self):  # E3, T3
         self.assertIn("Não rode a suíte (`python3 -m unittest`) nem `scripts/validar-plugin.sh`", self.agente)
-        self.assertIn("`PQ-n do autor | <comando> → conferido pelo QA (R-QA) e pelo lastro`", self.agente)
 
-    def test_um_bloco_por_mensagem_e_o_segundo_modo_e_instrucao_ao_conferente(self):  # E15 (BRIEF-MENSAGEM-LIMPA), antes E9b
-        linhas = [l for l in self.agente.splitlines() if l.startswith("- Cada mensagem traz um bloco só")]
-        self.assertEqual(len(linhas), 1, "a regra do bloco único sumiu ou duplicou")
-        for frase in ("`modo: brief` ou `modo: entrega`", "mensagens separadas", "uma segunda `Arquivo:`", "`forma: instrução ao conferente`",
-                      "responda só ao primeiro bloco"):
-            with self.subTest(frase):
-                self.assertIn(frase, linhas[0])
-        self.assertNotIn("A mensagem pode ter dois blocos", self.agente)  # a regra antiga não volta
-        self.assertIn("use só a seção Modo brief", self.agente)  # as frases protegidas continuam
+    def test_um_bloco_por_mensagem(self):  # E15 (BRIEF-MENSAGEM-LIMPA)
+        self.assertIn("brief e entrega vão em mensagens separadas", self.agente)
+        self.assertNotIn("A mensagem pode ter dois blocos", self.agente)
+        self.assertIn("use só a seção Modo brief", self.agente)
         self.assertIn("use só a seção Modo entrega", self.agente)
 
-    def test_mensagem_sem_brief_sha256_reprova(self):  # E15, review A3 do L09: a regra nova tem teste
-        self.assertIn("`forma: mensagem sem Brief-sha256` (reprova: sem o hash nada prende a mensagem ao conteúdo que você leu)", self.agente)
-        entrada = self.agente.split("## Modo `brief`", 1)[1].split("**O que conferir**", 1)[0]
-        self.assertRegex(entrada, r"Brief-sha256: <64 hex>   Bytes: <n>")  # segurança A1 do L09: o exemplo da Entrada mostra a linha
-
-    def test_pr_da_etapa_de_merge_le_a_origin_e_a_seguranca_e_etapa(self):  # E4, E5
-        self.assertIn("forge-check pr <pedido> --ref <ref> --base origin/<Base>`", self.agente)
-        self.assertIn("| `review`, `seguranca` | Commit do autor no remoto; à frente dele, só pareceres (linha `commit:` ou `aviso: commit:` do `forge-check brief`", self.agente)
-        self.assertIn("Etapa: <codigo|review|seguranca|qa|pr|merge-integracao|pedido-de-merge-ao-dono>", self.agente)
-        self.assertIn("nas etapas `codigo`, `review`, `seguranca` e `qa`", self.agente)
-        self.assertIn("nas etapas `codigo`, `review`, `seguranca` e `qa` (todo `PQ-n` cumpriu", self.agente)
-
-    def test_mencao_fora_do_inicio_nao_muda_o_veredito_e_o_grep_de_reserva_usa_a_mesma_ancora(self):  # E6, M6.3
-        self.assertIn("`decisões: menção fora do início ...` é informativa e não muda o veredito", self.agente)
-        self.assertIn("grep -n -E '^[[:space:]]*([-*+>]|[0-9]+[.)])*[[:space:]]*[*_]*([0-9]{4}-[0-9]{2}-[0-9]{2}([ T][0-9]{2}:[0-9]{2})?:[[:space:]]*)?DECISÃO DO DONO'", self.agente)
-
-    def test_entregas_paralelas_so_por_brief_aprovado_e_conferida_so_com_todas(self):  # E9a, M9.1 a M9.3
-        trecho = next(l for l in self.agente.splitlines() if l.strip().startswith("**Entregas paralelas**"))
-        for frase in ("--brief <Arquivo>", "só brief aprovado entra", "`escopo: união de briefs de entregas diferentes` reprova",
-                      "`anexo com remoção do parecer de <papel>` só no do papel dele", "`conferida:` só sai se todas cumpriram"):
-            with self.subTest(frase):
-                self.assertIn(frase, trecho)
-
-    def test_recomendacao_incluida_precisa_da_decisao_tecnica_do_historico(self):  # M2.5, AQ1 P5
-        self.assertIn("A recomendação incluída (`(incluído <tipo> <sha> R<n> de <parecer>)`) também precisa da DECISÃO TÉCNICA no Histórico do pedido: "
-                      "o comando confere (`volta: recomendação <id> sem DECISÃO TÉCNICA no Histórico` reprova) e você copia a linha dele", self.agente)
-        self.assertIn("`recomendação ... difere do parecer`", self.agente)
-
     def test_o_comando_do_hook_aceita_o_que_o_texto_manda_rodar(self):
-        """`hooks/conformidade.json` libera `forge-check pr|entrega|brief|delta|docs` ao conferente: as opções novas (`--brief`, `--base`) não gravam arquivo."""
         politica = json.loads((RAIZ / "hooks" / "conformidade.json").read_text(encoding="utf-8"))["so_leitura"]["comandos"]
-        for comando in ("forge-check pr", "forge-check entrega", "forge-check brief"):
-            self.assertIn(comando, politica)
-
+        self.assertIn("forge-check brief", politica)
 
 
 class GuiaDaPromocao(unittest.TestCase):
@@ -5788,45 +5719,28 @@ class GuiaDaPromocao(unittest.TestCase):
 
 
 class TetoPorPr(unittest.TestCase):
-    """EST-030-L5, M14: o teto de tamanho por PR e a classe única em `hooks/` estão escritos onde o time lê."""
+    """EST-030-L5, M14, revista na 0.43.1 (decisão 7 do dono): o teto de 150 linhas por PR é orientação por risco, não trava por
+    volume; acima dele o PR diz por que. Saem as asserções do achado `bloqueante` por volume e da exceção que não valia em `hooks/`."""
 
-    def test_teto_e_classe_unica_no_jarvis_no_tech_lead_e_na_skill(self):
+    def test_orientacao_e_classe_unica_no_jarvis_no_tech_lead_e_na_skill(self):
         for caminho in ("agents/jarvis.md", "agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
             texto = texto_do_jarvis(RAIZ) if caminho == "agents/jarvis.md" else (RAIZ / caminho).read_text(encoding="utf-8")
-            for frase in ("linhas alteradas de código e teste",
-                          "uma classe de comportamento por PR em `hooks/`, com corpus próprio"):
+            for frase in ("150 linhas alteradas de código e teste", "uma classe de comportamento por PR em `hooks/`, com corpus próprio"):
                 with self.subTest(arquivo=caminho, frase=frase):
                     self.assertIn(frase, texto)
+            self.assertNotIn("400 linhas", texto)
 
-    def test_teto_de_150_linhas_tambem_no_jarvis(self):
-        texto = texto_do_jarvis(RAIZ)
-        self.assertIn("150 linhas alteradas de código e teste", texto)
-        self.assertNotIn("400 linhas", texto)
-
-    def test_teto_de_150_linhas_e_um_comportamento_por_pr_no_tech_lead_e_na_skill(self):
+    def test_nao_e_trava_por_volume(self):
         for caminho in ("agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
             texto = (RAIZ / caminho).read_text(encoding="utf-8")
             with self.subTest(arquivo=caminho):
                 self.assertIn("até 150 linhas alteradas de código e teste", texto)
-                self.assertNotIn("400 linhas", texto)
                 self.assertIn("um comportamento só", texto)
-
-    def test_conta_e_excecao_no_tech_lead_e_na_skill(self):
-        for caminho in ("agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
-            texto = (RAIZ / caminho).read_text(encoding="utf-8")
-            for frase in ("git diff --numstat --no-renames origin/develop...HEAD", "`tests/*.py` e `tests/config.json`",
-                          "`teto: excedido, <n> linhas, <motivo>`", "decisão M14",
-                          "a exceção não vale em PR que mexe em qualquer arquivo de `hooks/` nem em caminho de `PROTEGIDOS`"):
-                with self.subTest(arquivo=caminho, frase=frase):
-                    self.assertIn(frase, texto)
-
-    def test_tech_lead_marca_o_no_forge_e_nao_cita_a_r_review_como_fonte_do_teto(self):
-        texto = (RAIZ / "agents/tech-lead.md").read_text(encoding="utf-8")
-        for frase in ("**No Forge:**", "`tests/mutantes/` e o texto `.md`", "A M14 não vale para o `lote-leitura-hook`",
-                      "requisito da decisão M14", "duas classes em `hooks/` é achado `bloqueante`"):
-            with self.subTest(frase=frase):
-                self.assertIn(frase, texto)
-        self.assertNotIn("requisito da regra, `R-REVIEW`", texto)
+                self.assertIn("Não é trava por volume", texto)
+                self.assertIn("`teto: excedido, <n> linhas, <motivo>`", texto)
+                self.assertIn("git diff --numstat --no-renames origin/develop...HEAD", texto)
+                self.assertIn("`tests/*.py` e `tests/config.json`", texto)
+                self.assertNotIn("é achado `bloqueante`", texto.split("Tamanho por risco", 1)[1].split("\n", 1)[0])
 
     def test_a_skill_de_qa_divide_a_spec_no_mesmo_limite_que_a_ferramenta(self):
         texto = (RAIZ / "skills/qa-testing/SKILL.md").read_text(encoding="utf-8")
