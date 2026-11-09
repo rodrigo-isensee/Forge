@@ -1,0 +1,19 @@
+{
+  "descricao": "N5 (review da 0.43.5): GIT_CONFIG_PARAMETERS pelo env",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "env GIT_CONFIG_PARAMETERS=\"'alias.ci'='commit'\" git ci -am x"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: GIT_CONFIG_PARAMETERS"
+  }
+}

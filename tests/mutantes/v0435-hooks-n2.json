@@ -6,8 +6,8 @@
       "id": "N2-1",
       "guarda": "N2: export e declare -x também valem como atribuição",
       "arquivo": "hooks/conformidade.py",
-      "de": "(palavras[1:] if exporta(palavras) else [])",
-      "para": "(palavras[1:] if False else [])",
+      "de": "for a in atribuicoes + (palavras[1:] if exporta(palavras) else []):\n            if \"core.hookspath\"",
+      "para": "for a in atribuicoes + (palavras[1:] if False else []):\n            if \"core.hookspath\"",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_n2"
       ]

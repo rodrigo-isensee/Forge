@@ -6,8 +6,8 @@
       "id": "N5-1",
       "guarda": "N5: update-ref lê as posicionais sem o valor do -m",
       "arquivo": "hooks/conformidade.py",
-      "de": "parecer.posicionais(args, {\"-m\"}) if sub == \"update-ref\" else",
-      "para": "parecer.posicionais(args, {\"-m\"}) if sub == \"update-refx\" else",
+      "de": "parecer.posicionais(args, {\"-m\"}) if sub in (\"update-ref\", \"symbolic-ref\") else",
+      "para": "parecer.posicionais(args, {\"-m\"}) if sub in (\"update-refx\", \"symbolic-ref\") else",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_n5"
       ]
@@ -16,8 +16,8 @@
       "id": "N5-2",
       "guarda": "N5: as posicionais dos outros subcomandos ignoram opções",
       "arquivo": "hooks/conformidade.py",
-      "de": "else [a for a in args if not a.startswith(\"-\")]",
-      "para": "else [a for a in args if not a.startswith(\"s\")]",
+      "de": "\\\n            [a for a in args if not a.startswith(\"-\")]",
+      "para": "\\\n            [a for a in args if not a.startswith(\"s\")]",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_n5"
       ]

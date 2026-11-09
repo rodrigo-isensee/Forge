@@ -1,0 +1,19 @@
+{
+  "descricao": "N5 (review da 0.43.5): --config-env dá configuração que o hook não lê",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git --config-env=alias.ci=CI ci -am x"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: git --config-env"
+  }
+}

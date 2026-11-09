@@ -26,8 +26,8 @@
       "id": "N5-16",
       "guarda": "N5: a branch de rastreio do remoto não é a integração",
       "arquivo": "hooks/conformidade.py",
-      "de": "return not ref.startswith(\"refs/remotes/\") and",
-      "para": "return not ref.startswith(\"refs/\") and",
+      "de": "        if ref.startswith(\"refs/remotes/\"):\n            return False",
+      "para": "        if ref.startswith(\"refs/\"):\n            return False",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_n5"
       ]
@@ -66,8 +66,8 @@
       "id": "N5-20",
       "guarda": "N5: sem modo, a revisão que é caminho existente só tira do índice",
       "arquivo": "hooks/conformidade.py",
-      "de": "not os.path.lexists(self.resolver(a, pasta))",
-      "para": "not os.path.lexists(self.resolver(a + \"x\", pasta))",
+      "de": "for a in revs[:2])",
+      "para": "for a in revs[:1])",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_n5"
       ]
