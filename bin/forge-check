@@ -9615,6 +9615,18 @@ def governanca():
     return forge_governanca
 
 
+def modulo_do_dono():
+    """O módulo bin/forge_dono.py (0.44.1: `decisoes --resposta`, `pedido fala`, `recado`, `pausa`), como `governanca`."""
+    sys.path.insert(0, str(PLUGIN / "bin"))
+    try:
+        import forge_dono
+    except ImportError:
+        return None
+    finally:
+        sys.path.remove(str(PLUGIN / "bin"))
+    return forge_dono
+
+
 def guarda_de_versao(a, raiz):
     """None para seguir; um código de saída se a ferramenta está atrás do repositório e o subcomando bloqueia (`avaliar_versao`)."""
     nivel, texto = avaliar_versao(a, raiz)
@@ -9685,6 +9697,8 @@ def main():
     de.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md); padrão: todos")
     de.add_argument("--sem-cartao", action="store_true", help="cruza cada decisão com os cartões do KANBAN.md e do histórico e lista as sem cartão (rc 0)")
     de.add_argument("--desde", type=datetime.date.fromisoformat, help="com --sem-cartao: só decisões desta data (AAAA-MM-DD) em diante")
+    de.add_argument("--resposta", help="com --pedido: a resposta curta do dono (\"1a 2c\", \"aprovo\") lida contra a última PERGUNTA AO DONO "
+                    "do pedido; vocabulário fechado, ambígua volta como pergunta (rc 1), palavra solta nunca vale para opção irreversível (O4)")
     es = sub.add_parser("esperas", parents=[comum], help="quanto tempo cada cartão esperou o dono ou uma credencial, lido de docs/kanban/historico.md; só leitura (M14b)")
     es.add_argument("--pedido", help="só os cartões deste pedido (cartão igual, da mesma família de nome, com o pedido na coluna Pedido do KANBAN.md ou no motivo do movimento)")
     es.add_argument("--kanban", help="com --pedido: o KANBAN.md a ler (padrão: o da raiz)")
@@ -9883,6 +9897,12 @@ def executar(a, raiz):
             print(f"{a.cmd}: bin/forge_governanca.py ausente ao lado do forge-check; nada medido")
             return 2
         return modulo.executar(a, raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz)
+    if (a.cmd == "decisoes" and a.resposta is not None):
+        modulo = modulo_do_dono()
+        if modulo is None:
+            print(f"{a.cmd}: bin/forge_dono.py ausente ao lado do forge-check; nada feito")
+            return 2
+        return modulo.executar(a, raiz, {"pedido": pedido_para_anotar, "versao": versao_da_propria_copia, "seguro": sem_controle})
     if a.cmd == "transcricao" and a.acao == "custo":
         return cmd_transcricao_custo(a.alvo, a.entregas, a.entrega, raiz, a.desde, a.ate, a.pedido)
     if a.cmd == "transcricao" and a.acao == "lastro":

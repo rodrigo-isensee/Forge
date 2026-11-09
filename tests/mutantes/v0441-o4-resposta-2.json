@@ -1,0 +1,16 @@
+{
+  "pedido": "v0441-o4-resposta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "O4: pedido ausente vira texto vazio",
+      "arquivo": "bin/forge_dono.py",
+      "de": "cmd_resposta(raiz, a.pedido or \"\", a.resposta, ctx)",
+      "para": "cmd_resposta(raiz, a.pedido and \"\", a.resposta, ctx)",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_codigos_curtos_viram_as_opcoes_da_pergunta"
+      ]
+    }
+  ]
+}

@@ -6,7 +6,7 @@ description: Práticas de Kanban e Scrum do time - estrutura do quadro KANBAN.md
 # Kanban e Scrum do time
 
 ## Quadro (`KANBAN.md`, na raiz)
-Visível no GitHub e no editor. Duas partes, separadas pelo **ponto de compromisso**. Limites de cada coluna e política de puxar: `R-WIP` 1 cartão por agente e limites de coluna (`${CLAUDE_PLUGIN_ROOT}/docs/regras/R-WIP.md`). Antes do Upstream, no topo, fica a coluna **Aguardando o dono** (topo do quadro): entra o cartão cuja próxima ação é do usuário (`R-DECISAO` painel "Aguardando o dono"; vaga: `R-WIP`).
+Duas partes, separadas pelo **ponto de compromisso**. Limites de cada coluna e política de puxar: `R-WIP` 1 cartão por agente e limites de coluna (`${CLAUDE_PLUGIN_ROOT}/docs/regras/R-WIP.md`). Antes do Upstream, no topo, fica a coluna **Aguardando o dono** (topo do quadro): entra o cartão cuja próxima ação é do usuário (`R-DECISAO` painel "Aguardando o dono"; vaga: `R-WIP`).
 
 **Upstream — descoberta (Design Thinking, conduzido pelo `ux-designer`)**
 
@@ -62,7 +62,7 @@ Append-only, uma linha por movimento — é a fonte das métricas:
 | 2026-10-10T14:05:00-03:00 | K-012 | Pronto para fazer | Em andamento | — |
 ```
 
-A linha não se escreve à mão: a cada mudança de estado, inclusive "Aguardando o dono" e "Sem credencial", rode `forge-check movimento <cartão> --de <coluna> --para <coluna> [--motivo <texto>]`. Ele grava a hora real (ISO 8601, com fuso) e cria o arquivo se faltar; as esperas passam a ser medidas. Coluna que não está no `KANBAN.md` (fora "Sem credencial", "Conferência" e "Review"; `—` só no `--de`) sai com rc 1 e nada é gravado. Ao parar o cartão ("Aguardando o dono", "Sem credencial", "Bloqueado", "Aguardando sua validação"), o motivo ganha `custo do trecho: <N> tokens` (lido das transcrições locais, do último movimento até agora) e, no "Pronto", `custo total`; sem transcrição na janela sai `lacuna`, nunca 0.
+A linha não se escreve à mão: a cada mudança de estado, inclusive "Aguardando o dono" e "Sem credencial", rode `forge-check movimento <cartão> --de <coluna> --para <coluna> [--motivo <texto>]`. Ele grava a hora real (ISO 8601, com fuso) e cria o arquivo se faltar. Coluna que não está no `KANBAN.md` (fora "Sem credencial", "Conferência" e "Review"; `—` só no `--de`) sai com rc 1 e nada é gravado. Ao parar o cartão ("Aguardando o dono", "Sem credencial", "Bloqueado", "Aguardando sua validação"), o motivo ganha `custo do trecho: <N> tokens` (lido das transcrições locais, do último movimento até agora) e, no "Pronto", `custo total`; sem transcrição na janela sai `lacuna`, nunca 0.
 
 ## Métricas de fluxo do time
 - **Lead time:** entrada no Backlog → Pronto. **Cycle time:** entrada em "Em andamento" → Pronto.

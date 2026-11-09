@@ -1,0 +1,166 @@
+{
+  "pedido": "v0441-o4-resposta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "O4: a resposta curta vai ao modulo do dono",
+      "arquivo": "bin/forge-check",
+      "de": "(a.cmd == \"decisoes\" and a.resposta is not None)",
+      "para": "(a.cmd == \"decisoes\" and a.resposta is None)",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_codigos_curtos_viram_as_opcoes_da_pergunta"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "O4: sem o modulo, nada feito",
+      "arquivo": "bin/forge-check",
+      "de": "        if modulo is None:\n            print(f\"{a.cmd}: bin/forge_dono.py",
+      "para": "        if modulo is not None:\n            print(f\"{a.cmd}: bin/forge_dono.py",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_codigos_curtos_viram_as_opcoes_da_pergunta"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "O4: palavra do vocabulario fechado",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        if token in PALAVRAS:",
+      "para": "        if token not in PALAVRAS:",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_palavra_solta_aprova_a_recomendada_e_nunca_a_irreversivel"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "O4: fora do vocabulario e ambiguo",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        elif not codigo:",
+      "para": "        elif codigo:",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_ambigua_volta_como_pergunta"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "O4: codigo que nao existe na pergunta",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        elif codigo.group(2) not in questoes.get(",
+      "para": "        elif codigo.group(2) in questoes.get(",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_ambigua_volta_como_pergunta"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "O4: duas opcoes para a mesma questao",
+      "arquivo": "bin/forge_dono.py",
+      "de": "codigo.group(2)) != codigo.group(2):",
+      "para": "codigo.group(2)) == codigo.group(2):",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_codigos_curtos_viram_as_opcoes_da_pergunta"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "O4: so a palavra solta aplica a recomendada",
+      "arquivo": "bin/forge_dono.py",
+      "de": "set(escolhas)) if solta else ():",
+      "para": "set(escolhas)) if not solta else ():",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_palavra_solta_aprova_a_recomendada_e_nunca_a_irreversivel"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "O4: a recomendada e a marcada",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if \"[recomendada]\" in texto]",
+      "para": "if \"[recomendada]\" not in texto]",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_palavra_solta_aprova_a_recomendada_e_nunca_a_irreversivel"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "O4: uma recomendada so",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        if len(recomendadas) != 1:",
+      "para": "        if len(recomendadas) != 2:",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_palavra_solta_aprova_a_recomendada_e_nunca_a_irreversivel"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "O4: palavra solta nunca vale para irreversivel",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        elif \"[irreversível]\" in questoes[n]",
+      "para": "        elif \"[irreversível]\" not in questoes[n]",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_palavra_solta_aprova_a_recomendada_e_nunca_a_irreversivel"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "O4: pedido ausente nao le",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if arq is None:\n        print(f\"decisoes:",
+      "para": "    if arq is not None:\n        print(f\"decisoes:",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_codigos_curtos_viram_as_opcoes_da_pergunta"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "O4: vale a ultima pergunta",
+      "arquivo": "bin/forge_dono.py",
+      "de": "(perguntas[-1][1]) if perguntas else {}",
+      "para": "(perguntas[-1][1]) if not perguntas else {}",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_codigos_curtos_viram_as_opcoes_da_pergunta"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "O4: sem opcoes nao le",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if not questoes:",
+      "para": "    if questoes:",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_codigos_curtos_viram_as_opcoes_da_pergunta"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "O4: ambiguidade com escolhas validas ainda volta",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if ambiguas or not escolhas:",
+      "para": "    if ambiguas and not escolhas:",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_ambigua_volta_como_pergunta"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "O4: resposta vazia diz que nada foi respondido",
+      "arquivo": "bin/forge_dono.py",
+      "de": "'; '.join(ambiguas) or 'nenhuma questão respondida'",
+      "para": "'; '.join(ambiguas) and 'nenhuma questão respondida'",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_ambigua_volta_como_pergunta"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "O4: questao sem resposta segue pendente",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        if n in escolhas:",
+      "para": "        if n not in escolhas:",
+      "testes": [
+        "tests.test_forge_dono.Resposta.test_codigo_parcial_deixa_a_outra_pendente"
+      ]
+    }
+  ]
+}
