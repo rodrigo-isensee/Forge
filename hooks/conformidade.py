@@ -293,6 +293,8 @@ FORGE_CHECK_GRAVA_EXATA = ("--destino-arquivo",)
 # decide quem grava lá); o `transcricao anonimizar` grava no 2.º argumento. Os que gravam em caminho livre ficam na 2.ª lista.
 FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs", "medida": "docs/kanban"}
 FORGE_CHECK_EM_CAMINHO_LIVRE = {"movimento", "registrar"}
+# 0.43.1 (P1, P2): a forma nova grava no `## Histórico` do pedido: `brief selar` (o selo) e `entrega --pedido` (a `entrega conferida`),
+# esta salvo com `--sem-gravar`. A forma antiga do `entrega` (pedido posicional) só lê.
 # `test` no papel só de leitura: só estas, com um caminho (`agents/conferente.md`); o `-v` reavalia o índice como código.
 TESTE_LEITURA = {"-e", "-f", "-d", "-s"}
 DICA_LEITURA = ("use só os comandos de `so_leitura` em hooks/conformidade.json, um por vez ou encadeados com &&, ; e |; "
@@ -428,6 +430,32 @@ def forma_de_leitura_git(chave, args):
             padroes.append(a)
         i += 1
     return lista or not padroes
+
+
+def livres_do_forge_check(args):
+    """As palavras livres (subcomando e posicionais) do `forge-check`, sem `--raiz` e `--raiz-pedidos` e o valor delas."""
+    livres, pular = [], False
+    for a in args:
+        if pular:
+            pular = False
+        elif abreviacao_de(a, ("--raiz", "--raiz-pedidos")):
+            pular = "=" not in a  # o valor vem na palavra seguinte
+        elif not a.startswith("-"):
+            livres.append(a)
+    return livres
+
+
+def grava_no_pedido(livres, args):
+    """A forma nova que grava no pedido: `brief selar` e `entrega --pedido` sem `--sem-gravar`. O argparse aceita
+    abreviação, então `--p`/`--ped` contam como `--pedido` (na dúvida, grava) e só a abreviação longa (`--sem`) conta
+    como `--sem-gravar`."""
+    sub = next(iter(livres), "")
+    if sub == "brief":
+        return "selar" in livres[1:]
+    if sub != "entrega":
+        return False
+    pedido = any(a.startswith("--p") and "--pedido".startswith(a.split("=", 1)[0]) for a in args)
+    return pedido and not any(abreviacao_de(a, ("--sem-gravar",)) and "=" not in a for a in args)
 
 
 def abreviacao_de(opcao, longas):
@@ -1104,21 +1132,20 @@ class Guarda:
                                 "peça ao usuário o valor de que precisa (R-DECISAO)")
         return pasta
 
+    def forge_check_grava_no_pedido(self, args):
+        """True se a linha do `forge-check` grava no pedido pela forma nova (`grava_no_pedido`)."""
+        return grava_no_pedido(livres_do_forge_check(args), args)
+
     def forge_check_grava(self, args, pasta):
         """A4: o que o `forge-check` grava passa pela política de caminhos do papel, como o Write no mesmo destino (o `anotar`
         em `docs/pedidos/`, o `brief --gravar` em `docs/briefs/`, a saída do `transcricao anonimizar`), a partir da pasta da
         sessão e de `~/.forge-contrib`, as duas raízes que o `forge-check` aceita. `--raiz` e `--raiz-pedidos`, antes ou depois
         do subcomando, só saem do caminho para achar o subcomando: a política não depende do nome do pedido nem da raiz."""
-        livres, pular = [], False
-        for a in args:
-            if pular:
-                pular = False
-            elif abreviacao_de(a, ("--raiz", "--raiz-pedidos")):
-                pular = "=" not in a  # o valor vem na palavra seguinte
-            elif not a.startswith("-"):
-                livres.append(a)
+        livres = livres_do_forge_check(args)
         sub = next(iter(livres), "")
-        if sub in FORGE_CHECK_ESCRITAS and (sub != "brief" or any(abreviacao_de(a, ("--gravar",)) for a in args)):
+        if grava_no_pedido(livres, args):  # o selo e a `entrega conferida` são do jarvis (docs/pedidos/)
+            destinos = [f"{r}/docs/pedidos/pedido.md" for r in (".", "~/.forge-contrib")]
+        elif sub in FORGE_CHECK_ESCRITAS and (sub != "brief" or any(abreviacao_de(a, ("--gravar",)) for a in args)):
             destinos = [f"{r}/{FORGE_CHECK_ESCRITAS[sub]}/pedido.md" for r in (".", "~/.forge-contrib")]
         else:
             destinos = livres[3:4] if sub == "transcricao" and livres[1:2] == ["anonimizar"] else []
@@ -1151,6 +1178,10 @@ class Guarda:
                 abreviacao_de(a, FORGE_CHECK_GRAVA) or a.split("=", 1)[0] in FORGE_CHECK_GRAVA_EXATA for a in args):
             self.barrar("R-CONFORMIDADE", f"`{chave}` com opção que grava arquivo (papel só de leitura: {self.papel})",
                         DICA_LEITURA)
+        if prog == "forge-check" and self.forge_check_grava_no_pedido(args):
+            self.barrar("R-CONFORMIDADE", f"`{chave}` grava no Histórico do pedido (papel só de leitura: {self.papel})",
+                        "use a forma antiga (`forge-check entrega <pedido> --branch ... --base ... --base-sha ...`) ou "
+                        "`entrega --pedido ... --sem-gravar`; o selo e a `entrega conferida` são do jarvis")
         if prog == "forge-check" and any(re.match(r"--[\w-]+=-", a) for a in args):
             self.barrar("R-CONFORMIDADE", f"`{chave}` com valor de opção que começa com `-` (papel só de leitura: "
                                           f"{self.papel})", DICA_LEITURA)
