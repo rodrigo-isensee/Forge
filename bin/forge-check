@@ -8700,6 +8700,10 @@ ETAPAS_DE_PARECER = ("review", "seguranca", "qa")  # as do hook `agentes` (Z10):
 LINHA_DE_PARALELO = "- paralelo na mesma branch: parecer, lê a branch sem escrever nela (Z10)"
 
 
+# Orkastery 6 (0.44.2): o agente começa pela ferramenta; regra que só ferramenta verifica vale pelo ID (a ferramenta a aplica).
+LINHA_DO_PROXIMO = "regra que só ferramenta verifica vale pelo ID: siga o que a ferramenta disser, sem reler o texto dela"
+
+
 def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, cobre=None, citar=None):
     """Blocos fixos do brief a partir do pedido e da branch; o que o Jarvis ainda decide fica em `PREENCHER`. Com `volta`
     (o namespace dos argumentos, com `--volta`), o brief da volta: `gerar_volta`. `cobre` (P2) é a etapa do pedido que o brief
@@ -8762,6 +8766,7 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
             avisar_dos_achados(problemas_achados)
         if existe_achados:
             saida.append(LINHA_DE_ACHADOS)
+        saida.append(f"- comece por `forge-check proximo {caminho_impresso(pedido_id)}` (passo, dono, bloqueios); {LINHA_DO_PROXIMO}")  # orkastery 6: o agente começa pela ferramenta
         saida.append(f"- docs/pedidos/{sem_controle(caminho_pedido.name)}: só `## Escopo`, `## Etapas` e `## Decisões` e, do `## Histórico`, só as linhas que este brief cita; "
                      "nunca o pedido inteiro (docs/economia-de-tokens.md, regra 4)")
         if existe_achados:
