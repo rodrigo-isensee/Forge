@@ -312,6 +312,8 @@ class Hook(Repositorio):
 
     def lancar(self, prompt, tipo="forge:node-backend"):
         self.n = getattr(self, "n", 0) + 1
+        # cada lançamento sai sem reserva anterior: aqui só o selo é conferido; a delegação por branch (Z10) é de test_agentes_hash_brief
+        (self.proj / ".forge" / "run" / "agentes.json").unlink(missing_ok=True)
         entrada = {"hook_event_name": "PreToolUse", "tool_name": "Agent", "session_id": "s", "cwd": str(self.proj),
                    "tool_input": {"subagent_type": tipo, "description": f"d{self.n}", "prompt": prompt}}
         env = dict(self.env, FORGE_PROC=str(self.proc), FORGE_NPROC="8")
