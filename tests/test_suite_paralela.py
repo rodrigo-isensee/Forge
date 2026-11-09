@@ -148,6 +148,12 @@ class Brinquedo(unittest.TestCase):
         self.env.pop("CI", None)
         self.env.pop("GITHUB_ACTIONS", None)
         self.env.pop("GITHUB_STEP_SUMMARY", None)
+        # P11 da 0.43.1: o HOME deste processo também é o do brinquedo. `orquestrar_no_processo` e as funções do script
+        # chamadas aqui leem `Path.home()`; com o HOME real, a suíte vermelha de brinquedo gravava `test_b.T.test_b` em
+        # ~/.forge-contrib/suite-vermelha.jsonl, o registro das suítes vermelhas de verdade.
+        home = mock.patch.dict(os.environ, {"HOME": self.env["HOME"]})
+        home.start()
+        self.addCleanup(home.stop)
 
     def git(self, *args):
         subprocess.run(["git", *args], cwd=self.repo, env=AMBIENTE, check=True, capture_output=True)
@@ -431,6 +437,15 @@ class Brinquedo(unittest.TestCase):
         texto = (pasta / "suite-vermelha.jsonl").read_text(encoding="utf-8")
         self.assertIn("test_b.T.test_b[31m", texto)
         self.assertNotIn("\x1b", texto)
+
+    def test_orquestrar_no_processo_grava_o_registro_so_no_home_do_brinquedo(self):  # P11 da 0.43.1
+        pasta = self.pasta_do_registro()
+        self.modulo("b", modulo_de_teste("b", "self.fail('x')"))
+        codigo, saida, erro = self.orquestrar_no_processo(self.script_do_brinquedo(), FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual(codigo, 1, saida + erro)
+        self.assertEqual(Path.home(), pasta.parent)
+        registro = json.loads((pasta / "suite-vermelha.jsonl").read_text(encoding="utf-8"))
+        self.assertEqual([t["id"] for t in registro["testes"]], ["test_b.T.test_b"])
 
     def test_sem_a_leitura_da_memoria_o_registro_grava_nulo(self):  # L32: /proc/meminfo ilegível
         pasta = self.pasta_do_registro()

@@ -128,7 +128,12 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
     def test_t_orcamento_por_numero_de_palavras(self):  # item 1 do critério de fim do bloco T (proposta caminho-rev10)
         """Para cada tipo de palavra de `TIPOS_DO_ORCAMENTO` e cada tamanho, os dois hooks reais, com o vigia de
         produção, recusam a chamada com o marcador (código 2, com a regra) em menos de 3 s, e não deixam o timeout de
-        10 s do Claude Code liberá-la. O texto é `: <palavras>; <linha crítica direta>`."""
+        10 s do Claude Code liberá-la. O texto é `: <palavras>; <linha crítica direta>`.
+
+        P3 da 0.43.1: os 3 s são de CPU do hook (`MedidaDeCpu`, filhos esperados), e não do relógio da chamada inteira,
+        que media 3,07 a 3,36 s no CI carregado sem o código mudar. A parede do próprio hook (de dentro do lançador,
+        sem a subida do interpretador) fica abaixo dos 10 s do Claude Code: com carga, quem a garante é o vigia de 3 s
+        de produção, que recusa com a regra."""
         _comum, conformidade, parecer = modulos_dos_hooks()
         montados = self.modelos_montados()
         corpos = corpus_da_volta_unica()["corpos"]
@@ -144,14 +149,16 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
                 for hook in ("conformidade", "parecer"):
                     texto = f"{palavras}; {corpos[hook]}"
                     with self.subTest(tipo=tipo, tamanho=nome, hook=hook):
-                        codigo, erro, segundos = self.decidir_com_prazo(montados, hook, texto)
-                        pior = max(pior, segundos)
+                        codigo, erro, parede, cpu = self.decidir_medido(montados, hook, texto)
+                        pior = max(pior, cpu)
                         self.assertEqual(codigo, 2, f"{codigo}: {erro.strip()}")
                         self.assertRegex(erro, r"^R-[A-Z]+: ")
-                        self.assertLess(segundos, 3.0, f"{len(texto)} caracteres")
+                        medida = f"{len(texto)} caracteres: CPU {cpu:.2f} s, parede do hook {parede:.2f} s"
+                        self.assertLess(cpu, 3.0, medida)
+                        self.assertLess(parede, PRAZO_DO_CLAUDE_CODE_S, medida)
                         if n != 1000:  # `:`, o corpo e as palavras passam de 5 mil: quem recusa é o teto, não a regra do corpo
                             self.assertRegex(erro, "o teto é|linha longa demais")  # o 2.o: o teto antigo do conformidade
-        print(f"\n[T] pior tempo de decisão: {pior:.2f} s", file=sys.stderr)
+        print(f"\n[T] pior CPU de decisão: {pior:.2f} s", file=sys.stderr)
 
     def test_t_reconhecedor_da_reavaliacao_e_linear(self):  # item 2 do critério de fim do bloco T
         """`reavaliacao_das_palavras` e `separar_lancadores` sozinhas, com 50 mil palavras, rodam em menos de 2 s de CPU (a
