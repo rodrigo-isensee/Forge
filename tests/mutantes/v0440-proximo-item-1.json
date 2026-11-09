@@ -111,6 +111,26 @@
       "testes": [
         "tests.test_proximo"
       ]
+    },
+    {
+      "id": "V12",
+      "guarda": "bin/forge-check:7339 conferencia_do_head(raiz, pedido, ref=ref, branch=branch) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if conferencia_do_head(raiz, pedido, ref=ref, branch=branch):",
+      "para": "    if not (conferencia_do_head(raiz, pedido, ref=ref, branch=branch)):",
+      "testes": [
+        "tests.test_proximo"
+      ]
+    },
+    {
+      "id": "V13",
+      "guarda": "bin/forge-check:7342 commitado and parecer_do_head(raiz, commit, ref) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "                 if commitado and parecer_do_head(raiz, commit, ref)]",
+      "para": "                 if not (commitado and parecer_do_head(raiz, commit, ref))]",
+      "testes": [
+        "tests.test_proximo"
+      ]
     }
   ]
 }
