@@ -140,6 +140,7 @@ import datetime
 import difflib
 import errno
 import fcntl
+import fnmatch
 import hashlib
 import json
 import os
@@ -1695,26 +1696,30 @@ def entrega_ato_github(raiz, caminho, pedido_id, branch, base, base_sha, briefs)
 
 def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     """Escopo da entrega (VV-2, M9): `intervalo:` e uma linha `escopo:` por arquivo; só leitura. rc 0, 1 com reprovação, 2 entrada ilegível."""
+    rc, saida = linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs)
+    for linha, _ in saida:
+        print(linha)
+    return rc
+
+
+def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=(), declarado=None):
+    """(rc, [(linha, reprova)]) do `cmd_entrega`, sem imprimir. Com `declarado` (0.43.1, P2: função nome -> rótulo ou None, o escopo
+    declarado no brief selado), cada `escopo: confira` vira `ok (declarado no brief)` ou `fora do declarado no brief` (reprova)."""
     caminho = caminho_do_pedido(raiz, pedido)
     try:
         texto = caminho.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as e:
-        print(f"entrega: não consegui ler o pedido {caminho_impresso(caminho)}: {sem_controle(getattr(e, 'strerror', None) or e)}")
-        return 2
-    if origem := linha_de_origem(caminho):
-        print(origem)
+        return 2, [(f"entrega: não consegui ler o pedido {caminho_impresso(caminho)}: {sem_controle(getattr(e, 'strerror', None) or e)}", True)]
+    saida = [(origem, False)] if (origem := linha_de_origem(caminho)) else []
     if etapa == ATO_GITHUB:  # E19: sem branch, sem intervalo do git; o --desde não se aplica
         m = re.search(r"^id:\s*(\S+)", texto, re.M)
         linhas = entrega_ato_github(raiz, caminho, m.group(1) if m else caminho.stem, branch, base, base_sha, list(briefs))
         linhas += [("escopo: --desde não vale na etapa ato-github (sem branch)", True)] if desde else []
-        print("intervalo: — (ato-github: sem branch de trabalho; a prova é o estado no GitHub)")
-        for linha, _ in linhas:
-            print(linha)
-        return 1 if any(r for _, r in linhas) else 0
+        saida += [("intervalo: — (ato-github: sem branch de trabalho; a prova é o estado no GitHub)", False)] + linhas
+        return (1 if any(r for _, r in linhas) else 0), saida
     head, inicio = sha_do_commit(raiz, branch), sha_do_commit(raiz, base_sha)
     if not head or inicio != base_sha:
-        print(f"entrega: ref ilegível (--branch {nome_seguro(branch)} e --base-sha precisam ser commits; o Base-sha, sha40)")
-        return 2
+        return 2, saida + [(f"entrega: ref ilegível (--branch {nome_seguro(branch)} e --base-sha precisam ser commits; o Base-sha, sha40)", True)]
     linhas = []  # (linha, reprova)
     if base not in BASES_DO_FLUXO or base == branch:
         linhas.append(("escopo: base fora do fluxo", True))
@@ -1809,7 +1814,8 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
                 linhas.append((f"escopo: ok (parecer trazido {p[:7]} de {PAPEL_DO_PARECER[tipo]}) {mostrado}", False))
             elif removidas != "0" and not reescrito_por_portao(raiz, pedido_id, branch, head, nome, tipo):  # A6; G6: o portão do -REV reescreve
                 papel = PAPEL_DO_PARECER[tipo]
-                linhas.append((f"escopo: confira {mostrado} +{acrescidas} -{removidas} (anexo com remoção do parecer de {papel}: "
+                linhas.append(escopo_resolvido(declarado, nome, mostrado) or
+                              (f"escopo: confira {mostrado} +{acrescidas} -{removidas} (anexo com remoção do parecer de {papel}: "
                                f"reprova se fora do \"Entregar\" da entrega do {papel})", False))
             else:
                 linhas.append((f"escopo: ok (parecer de {PAPEL_DO_PARECER[tipo]}) {mostrado}", False))
@@ -1818,15 +1824,21 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         elif rotulo := anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
             linhas.append((f"escopo: ok (anexo implícito: {rotulo}) {mostrado}", False))
         else:
-            linhas.append((f"escopo: confira {mostrado} +{acrescidas} -{removidas}", False))
+            linhas.append(escopo_resolvido(declarado, nome, mostrado) or (f"escopo: confira {mostrado} +{acrescidas} -{removidas}", False))
     if briefs:
         linhas = uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs, caminho) + sondas_no_corpus(raiz, head, briefs) + linhas
-    print(f"intervalo: {de}..{head}")
-    for linha, _ in linhas:
-        print(linha)
+    saida += [(f"intervalo: {de}..{head}", False)] + linhas
     if not any(r for _, r in linhas) and branch.startswith(PREFIXO_DE_PARECER):  # M5, T-4: só com rc 0 e o sha do `rev-parse` (o head)
-        print(f"linha-final: parecer-conferido {head}")
-    return 1 if any(r for _, r in linhas) else 0
+        saida.append((f"linha-final: parecer-conferido {head}", False))
+    return (1 if any(r for _, r in linhas) else 0), saida
+
+
+def escopo_resolvido(declarado, nome, mostrado):
+    """0.43.1 (P2): a linha `escopo:` de um arquivo que pedia `confira`, resolvida pelo escopo declarado no brief selado; None sem ele."""
+    if declarado is None:
+        return None
+    rotulo = declarado(nome)
+    return (f"escopo: ok (declarado no brief: {rotulo}) {mostrado}", False) if rotulo else (f"escopo: fora do declarado no brief {mostrado}", True)
 
 
 def dentro_da_raiz(raiz, caminho, pastas):
@@ -2004,7 +2016,7 @@ CABECALHO_SONDAS = re.compile(r"^##\s+Sondas\s*$")
 SONDA_NO_ENTREGAR = re.compile(r"^- \(sonda (review|qa|revisao-seguranca|revisao-devops) ([0-9a-f]{7}) (S\d+)\) grave no corpus da branch: (.+?) · espera: ")  # C-6
 MINIMO_DA_SONDA = 8  # C-3: entrada mais curta casa em qualquer lugar; nunca dá ok sozinha
 TETO_DO_ACHADO = 300
-SECOES_COPIADAS = ("Objetivo", "Fora do escopo", "Relatório")  # byte a byte do brief anterior (a volta só muda o Entregar; o Fora do escopo só ganha etapa nova no fim, E14)
+SECOES_COPIADAS = ("Objetivo", "Relatório")  # byte a byte do brief anterior; o Fora do escopo e as decisões saem do pedido (0.43.1, C2)
 VOLTA_DE = re.compile(r"^Volta-de:\s*(\S+)\s+sha256\s+([0-9a-f]{64})\s*$", re.M)
 RAIZES_DE_BRIEF = (Path.home() / ".forge-contrib",)  # onde o Jarvis do Forge guarda docs/briefs/ (fora do clone)
 CRITERIO = re.compile(r"^docs/(arquitetura|architecture)/[A-Za-z0-9._/-]+\.md$")  # PAR-P2 C-1: lista branca do `criterio:`
@@ -2305,44 +2317,6 @@ def acrescentar(linhas, novas):
     return corpo + [n + "\n" for n in novas] + ["\n"]
 
 
-ETAPA_ABERTA = re.compile(r"^-\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}: etapa (E\d+\.\d+[a-z]?) aberta\s*$")  # E14: a linha do Jarvis no `## Histórico`, fechada no fim (QA L10-1, T-3)
-
-
-def etapas_novas_da_volta(pedido_txt, anterior, rel_anterior, cobre, etapa):
-    """E14 (VOLTA-ETAPA-NOVA, Q14 = A): {linha do gerador: motivo ou None} para cada etapa de `## Etapas` do pedido. None = a volta pode
-    acrescentá-la ao fim do `Fora do escopo`: aberta no `## Histórico` do pedido (`- <data> <hora>: etapa <id> aberta`) depois da linha que
-    cita o brief anterior pelo nome (C-3: a prova vem só do pedido), e não é a `Cobre:`/`Etapa:` da volta nem está no `Entregar` ou no
-    `Fora do escopo` do anterior (C-4). Fonte única do `gerar --volta` e da conferência (C-5)."""
-    historico = secoes_por(pedido_txt, CABECALHO_PEDIDO).get("Histórico", [])
-    nome = re.compile(rf"(?<![\w-]){re.escape(Path(rel_anterior).stem)}(?![\w-])")
-    inicio = next((i for i, linha in enumerate(historico) if nome.search(linha)), None)
-    abertas = {m.group(1) for linha in historico[inicio + 1:] if (m := ETAPA_ABERTA.match(linha))} if inicio is not None else set()
-    blocos = blocos_literais(anterior)
-    ja = "".join(blocos.get("Entregar", []) + blocos.get("Fora do escopo", []))
-    decisao = {}
-    for id_, (_, texto) in ler_pedido_brief(pedido_txt)["etapas"].items():
-        linha = f"- \"{sem_controle(texto)}\" · etapa de outra delegação; continua no pedido"
-        if id_ in (cobre, etapa) or re.search(rf"(?<![\w-]){re.escape(id_)}(?![\w-]|\.\d)", ja) or sem_controle(texto) in ja:
-            decisao[linha] = f"volta: etapa {id_} já estava no brief anterior ou é a da volta"
-        else:
-            decisao[linha] = None if id_ in abertas else f"volta: etapa {id_} sem prova de abertura depois do brief anterior"
-    return decisao
-
-
-def fora_do_escopo_da_volta(novo, antigo, decisao):
-    """E14: o `Fora do escopo` da volta é o do anterior, byte a byte, mais linhas no fim, cada uma uma só vez e com motivo None em `decisao`
-    (C-1, C-2); qualquer outra mudança reprova como antes. Lista de (linha, reprova)."""
-    velhas, novas = bloco_sem_final(antigo).split("\n"), bloco_sem_final(novo).split("\n")
-    if novas[:len(velhas)] != velhas:
-        return [('volta: bloco "Fora do escopo" difere do anterior', True)]
-    saida, vistas = [], set()
-    for linha in novas[len(velhas):]:
-        motivo = "volta: etapa repetida no Fora do escopo" if linha in vistas else decisao.get(linha, "volta: linha nova no Fora do escopo não é etapa de ## Etapas")
-        vistas.add(linha)
-        saida += [(f"{motivo} \"{sem_controle(linha)[:60]}\"", True)] if motivo else []
-    return saida
-
-
 def recusa_do_desde(raiz, pedido_txt, ref, base_sha, base):
     """P-N6: o motivo de o `gerar --volta` não propor como `--desde` a última base do `## Histórico` (`conferida` ou a do dono),
     pela regra única do `entrega` (`veredito_do_desde`), para a recusa não virar pergunta ao dono; None se ela vale."""
@@ -2358,6 +2332,17 @@ def recusa_do_desde(raiz, pedido_txt, ref, base_sha, base):
             "ela precisa ser commit da branch (ancestral da ref, fora do Base-sha), sem commit em docs/pedidos/ depois dela e, a do "
             "dono, diferente da ref; grave no ## Histórico a linha `conferida <sha40>` da entrega que o Jarvis conferiu (ou peça ao "
             "dono a base certa) e gere de novo; nada gerado (P-N6)")
+
+
+def fora_do_escopo_do_pedido(dados, cobre, entregues, anterior=()):
+    """0.43.1 (C2): o bloco `## Fora do escopo` gerado do pedido: cada etapa de `## Etapas` que não é a `cobre` nem é citada pelo id
+    exato no Entregar da volta (`entregues`), sem a marca. Do bloco `anterior` só passam as linhas de corte real (`MARCA_DE_CORTE`, decisão do
+    dono); NÃO tocar, worktree e outros textos do brief anterior não passam."""
+    saida = ["## Fora do escopo (outras etapas do pedido, sem a marca; R-BRIEF)\n"]
+    etapas = [t for e, (_, t) in dados["etapas"].items() if e != cobre and e not in entregues]
+    saida += [f"- \"{sem_controle(t)}\" · etapa de outra delegação; continua no pedido\n" for t in etapas] or ["- (o pedido não tem outra etapa)\n"]
+    saida += [l if l.endswith("\n") else l + "\n" for l in anterior if MARCA_DE_CORTE in l]
+    return saida + ["\n"]
 
 
 def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
@@ -2454,27 +2439,20 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
                 recomendados += 1
                 entregar.append(f"- {marca_do_achado(p, achado)} {achado['texto']} [{caminho_impresso(achado['arquivo'])}:{achado['linha']}] · {PREENCHER}: entra ou corta\n")
     saida += entregar + ["\n"]
-    novas_etapas = [l for l, motivo in etapas_novas_da_volta(pedido_txt, anterior, rel_volta, cobre_anterior, etapa_anterior).items() if motivo is None]
-    saida += acrescentar(copiado("Fora do escopo"), novas_etapas) if novas_etapas else copiado("Fora do escopo")  # E14: só acréscimo
+    # 0.43.1 (P4, C2): o Fora do escopo e as decisões saem do pedido, nunca do brief anterior; do anterior só ficam os cortes (marca)
+    saida += fora_do_escopo_do_pedido(dados, cobre_anterior, ids_da_linha(anteriores), blocos.get("Fora do escopo", []))
     linhas_pedido = pedido_txt.splitlines()
     sha_anterior = hashlib.sha256(conteudo).hexdigest()
     depois = next((i for i, l in enumerate(linhas_pedido) if sha_anterior in l), None)
-    texto_decisoes = normalizar_espacos(" ".join(blocos.get("Decisões e restrições", [])))
-    novas = [l.strip().lstrip("-* ").strip() for i, l in enumerate(linhas_pedido)
-             if e_linha_de_decisao(l) or (e_linha_de_decisao(l, FRASE_TECNICA) and (depois is None or i > depois))]
+    tecnicas = [l.strip().lstrip("-* ").strip() for i, l in enumerate(linhas_pedido)
+                if e_linha_de_decisao(l, FRASE_TECNICA) and (depois is None or i > depois)]
     cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt)
-    do_registro = []
-    for rel, linhas in cobradas["fontes"][1:]:
-        faltam = [linha for _, linha in linhas if chave_da_decisao(linha) not in chave_da_decisao(texto_decisoes)]
-        if faltam:
-            subtitulo = SUBTITULO_DO_REGISTRO.format(rel)
-            do_registro += ([] if subtitulo in texto_decisoes else [subtitulo]) + [f"- {sem_controle(linha)}" for linha in faltam]
-    do_registro += [f"- {PREENCHER}: {linha}" for linha, reprova in cobradas["avisos"] if reprova]
+    decisoes = linhas_da_referencia(pedido_id, cobradas, cobre_anterior, branch) + [f"- {d}" for d in tecnicas]
+    decisoes += [f"- {PREENCHER}: {linha}" for linha, reprova in cobradas["avisos"] if reprova]
     erros, _ = erros_do_destino(raiz, destino)  # o aviso do registro já saiu em `lembrar_do_jarvis`
-    antigas = [l for l in copiado("Decisões e restrições") if ROTULO_DO_DESTINO not in l]  # as linhas de erro do anterior saem; valem as de agora
-    do_registro += [f"- {PREENCHER}: DECISÃO TÉCNICA para {parecer['tipo']} {parecer['commit'][:7]} {achado['id']} (linha do `## Histórico` do pedido que abre com DECISÃO TÉCNICA e cita {achado['id']})"
-                    for parecer, achado in incluidas if not tem_decisao_tecnica(pedido_txt, achado["id"])]
-    saida += acrescentar(antigas, [f"- {d}" for d in novas if normalizar_espacos(d) not in texto_decisoes] + do_registro + erros)
+    decisoes += [f"- {PREENCHER}: DECISÃO TÉCNICA para {parecer['tipo']} {parecer['commit'][:7]} {achado['id']} (linha do `## Histórico` do pedido que abre com DECISÃO TÉCNICA e cita {achado['id']})"
+                 for parecer, achado in incluidas if not tem_decisao_tecnica(pedido_txt, achado["id"])]
+    saida += acrescentar(["## Decisões e restrições (decisões do dono por referência ao bloco do pedido; R-BRIEF)\n"], decisoes + erros)
     bases = bases_do_pedido(pedido_txt)  # a `conferida` e a base do dono, como o `entrega`
     proximo = max([int(x) for x in re.findall(r"\bPQ-(\d+)", "".join(blocos.get("Pronto quando", [])))] or [0]) + 1
     seguro = interpolacao_segura(pedido=pedido_id, branch=branch, base=a.base, sha=sha_base)  # G-5: a Branch do anterior é `\S+`
@@ -2506,22 +2484,22 @@ def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=N
         return [("volta: anterior diferente (sha256)", True)]
     saida = []
     novos, antigos = blocos_literais(texto), blocos_literais(anterior)
-    for nome in SECOES_COPIADAS:
-        if nome == "Fora do escopo":  # E14: só acréscimo de etapa aberta depois do anterior; Objetivo e Relatório seguem byte a byte
-            cabecalho = cabecalho_do_brief(texto)
-            decisao = etapas_novas_da_volta(pedido_txt, anterior, m.group(1), grupo(r"\bCobre:\s*(\S+)", cabecalho), grupo(ETAPA_DO_CABECALHO, cabecalho))
-            saida += fora_do_escopo_da_volta(novos.get(nome, []), antigos.get(nome, []), decisao)
-        elif bloco_sem_final(novos.get(nome, [])) != bloco_sem_final(antigos.get(nome, [])):
+    for nome in SECOES_COPIADAS:  # 0.43.1: o Fora do escopo sai do pedido (a conferência do corte o cobra), não do anterior
+        if bloco_sem_final(novos.get(nome, [])) != bloco_sem_final(antigos.get(nome, [])):
             saida.append((f"volta: bloco \"{nome}\" difere do anterior", True))
-    decisoes = chave_da_decisao(" ".join(novos.get("Decisões e restrições", [])))
-    for linha in antigos.get("Decisões e restrições", [])[1:]:
-        if linha.strip() and ROTULO_DO_DESTINO not in linha and chave_da_decisao(linha) not in decisoes:  # as linhas de erro são do momento
-            saida.append((f"volta: bloco \"Decisões e restrições\" perdeu \"{normalizar_espacos(sem_controle(linha))[:60]}\"", True))
-    cobradas = cobradas or {"fontes": [("", linhas_de_decisao(pedido_txt))]}  # sem o cálculo do chamador: só as do pedido
-    for _, linhas in cobradas["fontes"]:  # o pedido e os registros citados, como em `decisoes_cobradas`
-        for _, decisao in linhas:
-            if chave_da_decisao(decisao) not in decisoes:
-                saida.append((f"volta: falta decisão do dono \"{normalizar_espacos(sem_controle(decisao))[:60]}\"", True))
+    for linha in [l for l in antigos.get("Fora do escopo", []) if MARCA_DE_CORTE in l]:  # o corte do dono não some na volta
+        if linha.rstrip("\n") not in [l.rstrip("\n") for l in novos.get("Fora do escopo", [])]:
+            saida.append((f"volta: bloco \"Fora do escopo\" perdeu o corte \"{normalizar_espacos(sem_controle(linha))[:60]}\"", True))
+    if referencia_do_brief(secoes_por(texto, CABECALHO_BRIEF)) is None:  # brief de volta antigo, com a cópia literal: cobrado como antes
+        decisoes = chave_da_decisao(" ".join(novos.get("Decisões e restrições", [])))
+        for linha in antigos.get("Decisões e restrições", [])[1:]:
+            if linha.strip() and ROTULO_DO_DESTINO not in linha and chave_da_decisao(linha) not in decisoes:  # as linhas de erro são do momento
+                saida.append((f"volta: bloco \"Decisões e restrições\" perdeu \"{normalizar_espacos(sem_controle(linha))[:60]}\"", True))
+        cobradas = cobradas or {"fontes": [("", linhas_de_decisao(pedido_txt))]}  # sem o cálculo do chamador: só as do pedido
+        for _, linhas in cobradas["fontes"]:  # o pedido e os registros citados, como em `decisoes_cobradas`
+            for _, decisao in linhas:
+                if chave_da_decisao(decisao) not in decisoes:
+                    saida.append((f"volta: falta decisão do dono \"{normalizar_espacos(sem_controle(decisao))[:60]}\"", True))
     for linha in novos.get("Entregar", []):  # AQ1 P5: toda recomendação incluída tem a sua DECISÃO TÉCNICA no Histórico, com ou sem --ref
         incluida = INCLUIDO.search(linha)
         if incluida and not tem_decisao_tecnica(pedido_txt, incluida.group(3)):
@@ -2776,14 +2754,19 @@ def agentes_vigentes(raiz):
     return len(agentes.vigentes(lista if isinstance(lista, list) else [], time.time(), horas * 3600))
 
 
-def carga_alta_agora():
+def carga_alta_agora(raiz=None):
+    """A trava de memória do hook `agentes` agora (R-TETO-DISPONIBILIDADE), com o `piso_memoria_gb` do .forge/config.json da raiz."""
     sys.path.insert(0, str(PLUGIN / "hooks"))
     try:
         import agentes
     finally:
         sys.path.remove(str(PLUGIN / "hooks"))
     carga, memoria, total = agentes.medir()
-    return agentes.carga_alta(carga, memoria, total, agentes.nucleos())
+    try:
+        config = json.loads((Path(raiz) / ".forge" / "config.json").read_text(encoding="utf-8")) if raiz else {}
+    except (OSError, ValueError):
+        config = {}
+    return agentes.carga_alta(carga, memoria, total, agentes.nucleos(), agentes.piso_de_memoria(config if isinstance(config, dict) else {}))
 
 
 LIMITE_DE_OCUPACAO = 0.6  # M7: acima dele o Jarvis não despacha etapa que roda a suíte
@@ -2841,7 +2824,7 @@ def cmd_fila(raiz):
             for chave in (id_do_pedido(c[2]).lower(), c[0].lower()):
                 onde.setdefault(chave, set()).add(coluna)
     teto, ativos = teto_calculado(raiz), agentes_vigentes(raiz)
-    alta = carga_alta_agora()
+    alta = carga_alta_agora(raiz)
     vagas = 0 if alta else max(0, teto - ativos)
     _, tocados = arquivos_por_branch(raiz)
     saida, pode, esperam, avisados = [], 0, 0, set()
@@ -3192,6 +3175,9 @@ def propagar_decisao(raiz_pedido, pedido, nova, propagar):
     aberto com `x`) igual ao anterior mais `- <nova>` no fim das linhas de `## Decisões e restrições` (antes de `### `). O anterior fica."""
     saida, rc = [], 0
     for arq, papel, texto in briefs_em_voo(raiz_pedido, pedido):
+        if referencia_do_brief(secoes_por(texto, CABECALHO_BRIEF)):  # P4 (0.43.1): a referência já vale para a decisão nova
+            saida.append(f"decisao: em voo {caminho_impresso(arq.name)} (decisões por referência; nada a propagar)")
+            continue
         if not propagar:
             saida.append(f"decisao: em voo {caminho_impresso(arq.name)}")
             continue
@@ -3220,6 +3206,9 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False):
         return ["anotar: --literal não pode ser vazio"], 2
     if propagar and tipo != "decisao":
         return ["anotar: --propagar só vale com --tipo decisao; nada gravado"], 2
+    if tipo == "historico" and literal.startswith(LINHAS_DA_FERRAMENTA):
+        return [f"anotar: a linha `{literal.split(' ', 2)[0]} {literal.split(' ', 2)[1]}` só a ferramenta grava (`forge-check brief selar` e "
+                "`forge-check entrega --pedido`); nada gravado"], 2
     arq = pedido_para_anotar(raiz, pedido)
     if arq is None or arq.is_symlink() or not arq.is_file():
         return [f"anotar: pedido {nome_seguro(sem_controle(pedido))} ausente, fora de docs/pedidos/ ou link simbólico (use o id do "
@@ -6694,6 +6683,89 @@ def decisoes_cobradas(raiz, caminho_pedido, pedido_txt, brief=None, pedido_id=No
     return {"fontes": fontes, "adrs": adrs, "avisos": avisos, "aprovacao": hora_da_aprovacao(raiz, brief, pedido_id) if brief and pedido_id else None}
 
 
+TETO_DE_CARACTERES_DO_BRIEF = 10000  # P4 (0.43.1): p95 dos briefs reais sem as linhas DECISÃO DO DONO copiadas (9,5 mil; mediana 5,4 mil)
+REFERENCIA_DE_DECISOES = re.compile(r"^\s*[-*]\s+decisões: pedido (\S+) até ([0-9a-f]{64})\b")  # P4 (0.43.1): o brief cita o bloco, não copia
+
+
+def hash_das_decisoes(cobradas):
+    """P4 (0.43.1): sha256 do bloco de decisões que o brief cita por referência: toda linha `DECISÃO DO DONO` de cada fonte de
+    `decisoes_cobradas` (o pedido, os registros citados, as dependências e o pedido de origem), na ordem, com a fonte e os espaços
+    normalizados. Linha nova em qualquer fonte muda o hash; linha nova no `## Histórico` (selo, conferida) não."""
+    corpo = "\n".join(f"{rel}\t{chave_da_decisao(linha)}" for rel, linhas in cobradas["fontes"] for _, linha in linhas)
+    return hashlib.sha256(corpo.encode("utf-8")).hexdigest()
+
+
+def ids_da_linha(linha):
+    """Os ids `E<n>` e `E<n>.<m>[x]` citados numa linha (P4: o filtro das decisões aplicáveis)."""
+    return {m.group(0) for m in ID_CITADO.finditer(linha)}
+
+
+def decisoes_aplicaveis(cobradas, cobre=None, branch=None):
+    """P4 (0.43.1): [(rel, n, linha)] das decisões que o brief copia literalmente: as que citam a etapa `cobre` (`E1.2`) ou o item
+    dela sozinho (`E1`), ou o nome da `branch`. As demais valem pela referência (`decisões: pedido <id> até <hash>`). Sem
+    `cobre` nem `branch`, nenhuma: a referência cobre todas. Ordem fixa: a de `decisoes_cobradas`."""
+    alvos = {cobre, item_da_etapa(cobre)} if cobre else set()
+    saida = []
+    for rel, linhas in cobradas["fontes"]:
+        for n, linha in linhas:
+            if (alvos & ids_da_linha(linha)) or (branch and branch not in SEM_BRANCH and branch in linha):
+                saida.append((rel, n, linha))
+    return saida
+
+
+def linhas_da_referencia(pedido_id, cobradas, cobre=None, branch=None):
+    """P4 (0.43.1): o bloco curto de `## Decisões e restrições` do `brief gerar`: a referência ao bloco de decisões (pedido e hash),
+    as ADRs citadas no pedido pelo número e as decisões aplicáveis à etapa, copiadas literalmente."""
+    total = sum(len(linhas) for _, linhas in cobradas["fontes"])
+    fontes = ", ".join(caminho_impresso(rel) for rel, _ in cobradas["fontes"])
+    saida = [f"- decisões: pedido {caminho_impresso(pedido_id)} até {hash_das_decisoes(cobradas)} ({total} linhas DECISÃO DO DONO em "
+             f"{len(cobradas['fontes'])} fontes: {fontes}; valem todas, leia-as nas fontes)"]
+    if cobradas["adrs"]:
+        saida.append("- ADRs citadas no pedido (valem como as decisões): " + ", ".join(f"ADR {adr}" for adr in cobradas["adrs"]))
+    aplicaveis = decisoes_aplicaveis(cobradas, cobre, branch)
+    if aplicaveis:
+        saida.append(f"- aplicáveis a {cobre or caminho_impresso(branch)} (copiadas literalmente):")
+        saida += [f"- {sem_controle(linha)}" for _, _, linha in aplicaveis]
+    return saida
+
+
+def conferir_referencia(cobradas, secoes, referencia, pedido_id, cobre=None, branch=None):
+    """P4 (0.43.1): as linhas `decisões:` do brief que cita o bloco por referência. Reprova: referência a outro pedido, decisão
+    aplicável (`decisoes_aplicaveis`) ausente e ADR citada no pedido ausente. O hash diferente do atual não reprova sozinho (a decisão
+    nova depois do brief vale pela referência; o `brief selar` o corrige antes de selar): sai como linha informativa."""
+    pedido_ref, hash_ref = referencia
+    presentes = chave_da_decisao(" ".join(secoes.get("Decisões e restrições", [])))
+    saida = [(f"fonte: {caminho_impresso(rel)} ({len(linhas)} decisões)", False) for rel, linhas in cobradas["fontes"]]
+    saida += cobradas["avisos"]
+    faltas = []
+    if pedido_ref.removeprefix("docs/pedidos/").removesuffix(".md") != pedido_id:
+        faltas.append((f"decisões: a referência cita o pedido {nome_seguro(pedido_ref)}, não {nome_seguro(pedido_id)}", True))
+    atual = hash_das_decisoes(cobradas)
+    if hash_ref != atual:
+        saida.append((f"decisões: referência {hash_ref[:12]} difere do bloco atual {atual[:12]} (decisão nova depois do brief; "
+                      "aplicáveis conferidas abaixo; o `brief selar` corrige)", False))
+    for rel, n, linha in decisoes_aplicaveis(cobradas, cobre, branch):
+        if chave_da_decisao(linha) not in presentes:
+            faltas.append((f"decisões: falta a aplicável {nome_seguro(chave_da_decisao(linha)[:60])} ({caminho_impresso(rel)}:{n})", True))
+    for adr in cobradas["adrs"]:
+        if not re.search(rf"\bADR[ -]?{adr}\b|\bdocs/adr/{adr}-", presentes):
+            faltas.append((f"decisões: falta {nome_seguro('ADR ' + adr)}", True))
+    saida += faltas
+    if not faltas and not any(r for _, r in cobradas["avisos"]):
+        total = sum(len(linhas) for _, linhas in cobradas["fontes"])
+        saida.append((f"decisões: ok por referência ({total} linhas de {len(cobradas['fontes'])} fontes até {hash_ref[:12]}; "
+                      f"aplicáveis a {cobre or branch or 'nenhuma etapa'}: presentes)", False))
+    return saida
+
+
+def referencia_do_brief(secoes):
+    """(pedido, hash) da linha `- decisões: pedido <id> até <sha256>` de `## Decisões e restrições`, ou None (brief antigo, com cópia)."""
+    for linha in secoes.get("Decisões e restrições", []):
+        if m := REFERENCIA_DE_DECISOES.match(linha):
+            return m.group(1), m.group(2)
+    return None
+
+
 def conferir_decisoes(cobradas, secoes):
     """Linhas `fonte:` e `decisões:` do `brief` (lista de (linha, reprova)): cada linha cobrada e cada ADR precisa estar em
     `Decisões e restrições`. Só presença: a contradição literal é do conferente (M2.3). Brief aprovado: a decisão com data e hora
@@ -6734,6 +6806,9 @@ def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_i
     forma = [(f"forma: falta seção \"{s}\"", True) for s in faltam]
     if re.search(rf"\b{PREENCHER}\b", texto):
         forma.append((f"forma: bloco gerado sem preencher ({PREENCHER})", True))
+    if len(texto) > TETO_DE_CARACTERES_DO_BRIEF:  # P4 (0.43.1): o brief curto, com as decisões por referência
+        forma.append((f"forma: brief com {len(texto)} caracteres; teto {TETO_DE_CARACTERES_DO_BRIEF} (decisões por referência, "
+                      "`- decisões: pedido <id> até <hash>`; R-BRIEF)", True))
     forma += conferir_erros_do_destino(secoes.get("Decisões e restrições", []))
     pqs, tipos = conferir_pq(secoes.get("Pronto quando", []), tipo_do_brief(texto))
     com_commit = re.search(r"(?<!sem )\bcommit", " ".join(secoes.get("Entregar", []) + secoes.get("Pronto quando", [])), re.I)
@@ -6745,7 +6820,11 @@ def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_i
     saida += conferir_corte(secoes, pedido, destino, grupo(r"\bCobre:\s*(\S+)", cabecalho_do_brief(texto)))
     saida += conferir_pedido_contraditorio(secoes, pedido)
     if cobradas is not None:
-        saida += conferir_decisoes(cobradas, secoes)
+        referencia = referencia_do_brief(secoes)  # P4 (0.43.1): a referência ao bloco substitui a cópia; o brief antigo segue cobrado
+        cabecalho = cabecalho_do_brief(texto)
+        saida += (conferir_referencia(cobradas, secoes, referencia, pedido_id, grupo(r"\bCobre:\s*(\S+)", cabecalho),
+                                      grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho))
+                  if referencia else conferir_decisoes(cobradas, secoes))
     saida.append((f"arquivo: {len(conteudo)} bytes sha256 {hashlib.sha256(conteudo).hexdigest()}", False))
     if destino and caminho is not None:  # só com --destino: o conferente passa o agente da delegação
         esperado = f"docs/briefs/{caminho_impresso(pedido_id)}-{caminho_impresso(nome_do_papel(destino))}-"
@@ -7582,6 +7661,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     if coberta:
         saida += ["", "## Entregar", f"- \"{sem_controle(dados['etapas'][coberta][1])}\" ({coberta})",
                   f"- {PREENCHER}: o que esta etapa entrega, cada item citando o ID do pedido"]
+        if tipo == "codigo":  # 0.43.1: o escopo que o `forge-check entrega --pedido` confere vem desta linha, tirada do desenho
+            saida.append(f"- {ESCOPO_DECLARADO} {PREENCHER}: caminhos, pastas/ ou globs que esta etapa toca, tirados do desenho")
     saida += ["", "## Ler"]
     if etapa == "merge-integracao":  # L09 (P3): o integrador só roda o comando; o `modelo:` é texto para o Jarvis, sem efeito sobre o portão
         print("brief gerar: modelo: haiku (merge-integracao é mecânico; docs/economia-de-tokens.md, regra 2)", file=sys.stderr)
@@ -7597,14 +7678,10 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
                      "nunca o pedido inteiro (docs/economia-de-tokens.md, regra 4)")
         if existe_achados:
             saida.append(f"- {PREENCHER}: demais leituras do destino (propostas, arquivos)")
-    saida += ["", "## Decisões e restrições (linhas `DECISÃO DO DONO` copiadas literalmente do pedido)"]
-    saida += [f"- {d}" for d in dados["decisoes"]] or [f"- {PREENCHER}: o pedido não tem linha `DECISÃO DO DONO`"]
-    cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt)
-    for rel, linhas in cobradas["fontes"][1:]:
-        saida.append(SUBTITULO_DO_REGISTRO.format(rel))
-        saida += [f"- {sem_controle(linha)}" for _, linha in linhas]
+    saida += ["", "## Decisões e restrições (decisões do dono por referência ao bloco do pedido; R-BRIEF)"]
+    cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt)  # P4 (0.43.1): referência e aplicáveis, nunca a cópia de todas
+    saida += linhas_da_referencia(pedido_id, cobradas, coberta, branch)
     saida += [f"- {PREENCHER}: {linha}" for linha, reprova in cobradas["avisos"] if reprova]
-    saida += [f"- ADR {adr} (citada no pedido): {PREENCHER}: o que ela decide para esta entrega" for adr in cobradas["adrs"]]
     erros, _ = erros_do_destino(raiz, destino)  # o aviso do registro já saiu em `lembrar_do_jarvis`
     saida += erros
     if citar:
@@ -7710,6 +7787,428 @@ def cmd_brief_gerar(raiz, pedido, destinos, branch, base, etapa=None, volta=None
         print(linha)
         rc_final = rc_final or rc
     return rc_final
+
+
+# --- Selo do brief e conferência de entrega por ferramenta (0.43.1, P1, P2) ----------------------------------------------
+BRIEF_SELADO = re.compile(r"^-\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}: brief selado (docs/briefs/[A-Za-z0-9][A-Za-z0-9._-]*\.md) ([0-9a-f]{64})\s*$")
+LINHAS_DA_FERRAMENTA = ("brief selado", "entrega conferida")  # um só escritor: `brief selar` e `entrega --pedido`; o `anotar` recusa
+ESCOPO_DECLARADO = "arquivos:"  # a linha do Entregar com os caminhos, pastas/ e globs que a etapa toca (o `entrega --pedido` confere por ela)
+LINHA_DE_ARQUIVOS = re.compile(r"^\s*[-*]\s+arquivos:\s*(.*)$")
+TETO_DO_PEDIDO_NO_SELO = 4 * 1024 * 1024
+TEMPO_DA_PROVA_S = 600
+MODULO_NO_PQ = re.compile(r"(?<![\w.])tests\.(test_[A-Za-z0-9_]+)")
+REGISTROS_DO_JARVIS = ("docs/pedidos/", "docs/briefs/", "docs/kanban/", "KANBAN.md")  # mudam na cópia do projeto sem ser da entrega
+SHA40_NO_TEXTO = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])")
+
+
+def gravar_no_historico(arq, texto):
+    """Acrescenta `- <data> <hora do relógio>: <texto>` ao fim do `## Histórico` de `arq` (cria a seção no fim se faltar), sob trava
+    exclusiva do próprio arquivo: dois escritores ao mesmo tempo não perdem linha. Nenhuma linha existente muda. Devolve a linha."""
+    with open(arq, "r+", encoding="utf-8") as f:
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        linhas = f.read().split("\n")
+        nova = f"- {datetime.datetime.now().astimezone().strftime('%Y-%m-%d %H:%M')}: {texto}"
+        fim = fim_da_secao(linhas, "Histórico")
+        if fim is None:
+            linhas = (linhas[:-1] if linhas and not linhas[-1] else linhas) + ["", "## Histórico", nova, ""]
+        else:
+            linhas.insert(fim, nova)
+        f.seek(0)
+        f.write("\n".join(linhas))
+        f.truncate()
+    return nova
+
+
+def selos_do_pedido(texto):
+    """[(docs/briefs/<nome>.md, sha256)] das linhas `- <data> <hora>: brief selado <arquivo> <sha256>` do `## Histórico`, na ordem."""
+    return [m.groups() for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", []) if (m := BRIEF_SELADO.match(linha))]
+
+
+def pedido_do_brief(arquivo, texto):
+    """(caminho, id, motivo) do pedido de um brief: o `Pedido:` do cabeçalho (id, ou caminho de que vale o nome), achado por
+    `caminho_do_pedido` a partir da raiz do próprio brief (a pasta acima de docs/briefs/). O `brief selar` grava ali e o hook
+    `agentes` lê dali: a mesma função nos dois lados."""
+    valor = grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho_do_brief(texto))
+    if not valor:
+        return None, None, "o brief não tem `Pedido:` no cabeçalho"
+    pid = Path(valor).name.removesuffix(".md")
+    if not NOME_SEGURO_DE_BRIEF.fullmatch(pid):
+        return None, None, "o `Pedido:` do brief tem caractere fora de [A-Za-z0-9._-]"
+    try:
+        caminho = caminho_do_pedido(Path(arquivo).parent.parent.parent, pid)
+    except PedidoFora:
+        return None, pid, "o pedido do brief fica fora de docs/pedidos/"
+    if not arquivo_existe(caminho) or Path(caminho).is_symlink():
+        return None, pid, f"o pedido {pid} do brief não existe em docs/pedidos/ (ou é link)"
+    return Path(caminho), pid, None
+
+
+def ler_pedido_do_selo(caminho):
+    """Texto do pedido, lido até `TETO_DO_PEDIDO_NO_SELO` bytes; levanta ValueError se passar ou não for UTF-8."""
+    with open(caminho, "rb") as f:
+        bruto = f.read(TETO_DO_PEDIDO_NO_SELO + 1)
+    if len(bruto) > TETO_DO_PEDIDO_NO_SELO:
+        raise ValueError("o pedido passa do teto de leitura do selo")
+    return bruto.decode("utf-8")
+
+
+def selo_do_brief(arquivo, dados=None):
+    """P1 (0.43.1): None se o brief `arquivo` (em docs/briefs/) tem selo no `## Histórico` do pedido dele com o sha256 de agora
+    (`dados`, os bytes já lidos, ou o arquivo); senão o motivo. Usada pelo hook `agentes` antes de todo disparo de especialista."""
+    arquivo = Path(os.path.realpath(arquivo))
+    if arquivo.parent.name != "briefs" or arquivo.parent.parent.name != "docs":
+        return "o brief não está em docs/briefs/"
+    try:
+        dados = arquivo.read_bytes() if dados is None else dados
+        texto = dados.decode("utf-8")
+    except (OSError, UnicodeDecodeError):
+        return "o brief não abriu ou não é UTF-8"
+    caminho, pid, motivo = pedido_do_brief(arquivo, texto)
+    if motivo:
+        return motivo
+    try:
+        selos = selos_do_pedido(ler_pedido_do_selo(caminho))
+    except (OSError, ValueError):
+        return f"o pedido {pid} não abriu"
+    rel, sha = f"docs/briefs/{arquivo.name}", hashlib.sha256(dados).hexdigest()
+    if (rel, sha) in selos:
+        return None
+    if any(r == rel for r, _ in selos):
+        return f"{rel} mudou depois do selo (sha256 {sha[:12]} sem selo)"
+    return f"{rel} sem selo no ## Histórico do pedido {pid}"
+
+
+def base_sha_esperado(raiz, texto, base, branch):
+    """O Base-sha que a ferramenta calcula para o brief (nunca o digitado): na volta, o do brief anterior enquanto ele for ancestral
+    do head da branch (como o `gerar --volta`, P5); senão `base_sha_real` (a base comum da branch com `origin/<base>`, ou o
+    `origin/<base>` de agora). None sem como calcular (sem `origin/<base>`)."""
+    head = next((s for s in (sha_do_commit(raiz, f"refs/heads/{branch}"), sha_do_commit(raiz, f"refs/remotes/origin/{branch}")) if s), None)
+    volta = VOLTA_DE.search(texto)
+    if volta and head:
+        arquivo, _ = caminho_de_brief(raiz, volta.group(1))
+        try:
+            anterior = arquivo.read_text(encoding="utf-8") if arquivo else ""
+        except (OSError, UnicodeDecodeError):
+            anterior = ""
+        sha = grupo(CABECALHO_DE_BRIEF_CAMPOS["Base-sha"], cabecalho_do_brief(anterior))
+        if sha and sha_do_commit(raiz, sha) == sha and e_ancestral(raiz, sha, head):
+            return sha
+    return base_sha_real(raiz, base, branch)
+
+
+def corrigir_derivados(raiz, texto, pedido_txt, caminho_pedido):
+    """P1 (0.43.1, C3): (texto, [linhas `corrigido:`], [reprovas]) com os campos que a ferramenta calcula reescritos: o `Base-sha:` do
+    cabeçalho (`base_sha_esperado`), o `--base-sha` e o `--desde` das linhas `forge-check entrega` (o `--desde` sai do `## Histórico`,
+    `desde_da_branch`; sem base ali, a opção sai) e o hash da referência às decisões (`hash_das_decisoes`)."""
+    cabecalho = cabecalho_do_brief(texto)
+    branch, base, digitado = (grupo(CABECALHO_DE_BRIEF_CAMPOS[c], cabecalho) for c in ("Branch", "Base", "Base-sha"))
+    if digitado is None:
+        digitado = grupo(r"\bBase-sha:[ \t]*(\S+)", cabecalho)
+    corrigido, correcoes, reprovas = texto, [], []
+    esperado = base_sha_esperado(raiz, texto, base, branch) if branch and base and branch not in SEM_BRANCH else None
+    if esperado and digitado != esperado:
+        fim = len(cabecalho)
+        novo_cabecalho, n = re.subn(r"(\bBase-sha:[ \t]*)\S+", lambda m: m.group(1) + esperado, corrigido[:fim], count=1)
+        if not n:
+            reprovas.append(f"base: o cabeçalho não tem `Base-sha:`; o valor calculado é {esperado}")
+        else:
+            corrigido = novo_cabecalho + corrigido[fim:]
+            correcoes.append(f"corrigido: Base-sha {sem_controle(digitado or 'ausente')[:40]} -> {esperado} (calculado do git)")
+    sha_base = esperado or (digitado if digitado and re.fullmatch(r"[0-9a-f]{40}", digitado) else None)
+    head = sha_do_commit(raiz, branch) if branch and branch not in SEM_BRANCH else None
+    desde = desde_da_branch(raiz, pedido_txt, head, sha_base)[0] if head and sha_base and bases_do_pedido(pedido_txt) else None
+
+    def entrega(m):
+        linha = m.group(0)
+        if sha_base:
+            linha = re.sub(r"(--base-sha[ \t]+)[^\s`]+", lambda x: x.group(1) + sha_base, linha)
+        if desde:
+            linha = re.sub(r"(--desde[ \t]+)[^\s`]+", lambda x: x.group(1) + desde, linha)
+        elif head:
+            linha = re.sub(r"[ \t]+--desde[ \t]+[^\s`]+", "", linha)
+        return linha
+
+    novo = re.sub(r"^.*\bforge-check entrega\b.*$", entrega, corrigido, flags=re.M)
+    if novo != corrigido:
+        correcoes.append(f"corrigido: --base-sha e --desde das linhas `forge-check entrega` (calculados: {(sha_base or '-')[:12]}, "
+                         f"{(desde or 'sem --desde')[:12]})")
+        corrigido = novo
+    referencia = referencia_do_brief(secoes_por(corrigido, CABECALHO_BRIEF))
+    if referencia:
+        atual = hash_das_decisoes(decisoes_cobradas(raiz, caminho_pedido, pedido_txt))
+        if referencia[1] != atual:
+            corrigido = re.sub(rf"(decisões: pedido \S+ até ){referencia[1]}", lambda m: m.group(1) + atual, corrigido, count=1)
+            correcoes.append(f"corrigido: hash das decisões {referencia[1][:12]} -> {atual[:12]} (bloco atual do pedido)")
+    return corrigido, correcoes, reprovas
+
+
+def regravar_brief(arquivo, texto):
+    """Troca o conteúdo do brief de uma vez (arquivo temporário na mesma pasta e `os.replace`), com o mesmo modo."""
+    modo = stat.S_IMODE(os.stat(arquivo).st_mode)
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=Path(arquivo).parent, delete=False, prefix=".selar-", suffix=".tmp") as f:
+        f.write(texto)
+        temporario = f.name
+    os.chmod(temporario, modo)
+    os.replace(temporario, arquivo)
+
+
+def cmd_brief_selar(raiz, a):
+    """P1 (0.43.1): o portão do brief. Corrige os campos calculados (`corrigir_derivados`), roda todas as checagens do `forge-check
+    brief` e, sem reprovação, grava `- <data> <hora>: brief selado docs/briefs/<nome>.md <sha256>` no `## Histórico` do pedido do
+    brief (uma vez por hash). O hook `agentes` só dispara especialista com brief selado. rc 0 selado, 1 reprovado, 2 recusado."""
+    def recusar(motivo):
+        print(f"brief selar: {motivo}")
+        return 2
+
+    if not a.arquivo or len(a.arquivo) != 1:
+        return recusar("--arquivo <um brief em docs/briefs/> é obrigatório (um selo por brief)")
+    arquivo, rel = caminho_de_brief(raiz, a.arquivo[0])
+    if arquivo is None or not arquivo.is_file() or not NOME_SEGURO_DE_BRIEF.fullmatch(arquivo.name):
+        return recusar(f"--arquivo {nome_seguro(sem_controle(a.arquivo[0]))}: fora de docs/briefs/, inexistente ou com nome fora de [A-Za-z0-9._-]")
+    try:
+        conteudo = arquivo.read_bytes()
+        texto = conteudo.decode("utf-8")
+        caminho_pedido = caminho_do_pedido(raiz, a.pedido)
+        pedido_txt = ler_pedido_do_selo(caminho_pedido)
+    except (OSError, UnicodeDecodeError, ValueError) as e:
+        return recusar(f"não consegui ler o brief ou o pedido: {sem_controle(getattr(e, 'strerror', None) or e)}")
+    if len(conteudo) > TETO_DO_BRIEF:
+        return recusar(f"o brief passa de {TETO_DO_BRIEF} bytes")
+    do_brief, _, motivo = pedido_do_brief(arquivo, texto)
+    if motivo or os.path.realpath(do_brief) != os.path.realpath(caminho_pedido):
+        return recusar(motivo or "o `Pedido:` do brief não é o --pedido (o selo vai ao pedido do brief, achado pela raiz dele)")
+    destino, motivo = destino_da_mensagem(texto, a.destino)
+    if motivo:
+        return recusar(motivo)
+    if caractere := caractere_disfarcado(texto):
+        return recusar(f"o brief tem o caractere U+{ord(caractere):04X} (controle, formato ou uso privado)")
+    novo, correcoes, reprovas = corrigir_derivados(raiz, texto, pedido_txt, caminho_pedido)
+    if not reprovas and novo != texto:
+        if not os.access(arquivo, os.W_OK):
+            reprovas.append("base: o brief é só leitura e tem campo calculado errado; gere outro com `brief gerar --gravar`")
+        else:
+            regravar_brief(arquivo, novo)
+            texto, conteudo = novo, novo.encode("utf-8")
+            for linha in correcoes:
+                print(linha)
+    lembrar_do_jarvis(raiz, tipo_do_brief(texto))
+    _, linhas = avaliar_brief(raiz, arquivo, conteudo, texto, caminho_pedido, pedido_txt, destino, rel, None, a.ref, a.parecer)
+    linhas = [(r, True) for r in reprovas] + list(linhas) + [(aviso, False) for aviso in avisos_de_suposicao(pedido_txt)]
+    for linha, _ in linhas:
+        print(linha)
+    if any(r for _, r in linhas):
+        print("resultado: reprovado (sem selo)")
+        return 1
+    sha, nome = hashlib.sha256(conteudo).hexdigest(), f"docs/briefs/{arquivo.name}"
+    if (nome, sha) in selos_do_pedido(ler_pedido_do_selo(caminho_pedido)):
+        print(f"selo: já gravado para {nome} {sha}")
+    else:
+        print(f"selo: {gravar_no_historico(caminho_pedido, f'brief selado {nome} {sha}')}")
+    print(f"Arquivo: {caminho_impresso(arquivo)}")
+    print(f"Brief-sha256: {sha}")
+    print("resultado: selado")
+    return 0
+
+
+def brief_selado_da_entrega(raiz, caminho_pedido, pedido_txt, branch, etapa):
+    """P2 (0.43.1): (arquivo, texto, sha256) do brief selado mais recente do pedido cuja `Branch:` e `Etapa:` são as da entrega e cujo
+    conteúdo ainda é o do selo; None sem nenhum. O arquivo é procurado na raiz do pedido e depois em docs/briefs/ das raízes."""
+    raiz_pedido = Path(caminho_pedido).parent.parent.parent
+    for rel, sha in reversed(selos_do_pedido(pedido_txt)):
+        for arquivo in (dentro_da_raiz(raiz_pedido, rel, ("docs/briefs",)), caminho_de_brief(raiz, rel)[0]):
+            try:
+                dados = arquivo.read_bytes() if arquivo else None
+            except OSError:
+                dados = None
+            if dados is None or hashlib.sha256(dados).hexdigest() != sha:
+                continue
+            texto = dados.decode("utf-8", "replace")
+            cabecalho = cabecalho_do_brief(texto)
+            if grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho) == branch and grupo(ETAPA_DO_CABECALHO, cabecalho) == etapa:
+                return arquivo, texto, sha
+    return None
+
+
+def escopo_declarado(texto, branch):
+    """P2 (0.43.1): função nome -> rótulo (ou None) do escopo que o brief selado declara: os itens da linha `- arquivos:` do Entregar
+    (caminho exato, `pasta/` ou glob); sem ela, os caminhos citados no Entregar. Sempre valem os módulos `tests.test_x` dos PQ (o teste
+    que prova) e o fragmento `changelog.d/<slug da branch>.md`."""
+    secoes = secoes_por(texto, CABECALHO_BRIEF)
+    entregar = secoes.get("Entregar", [])
+    linhas = [m.group(1) for linha in entregar if (m := LINHA_DE_ARQUIVOS.match(linha))]
+    if linhas:
+        itens = [t.strip("`'\".;").removeprefix("./") for linha in linhas for t in re.split(r"[,\s]+", linha)]
+        itens = [t for t in itens if t and ("/" in t or "." in t or "*" in t)]
+    else:
+        itens = [t.removeprefix("./") for linha in entregar for t in CAMINHO_NO_PQ.findall(linha)]
+    itens += [f"tests/{m}.py" for linha in secoes.get("Pronto quando", []) for m in MODULO_NO_PQ.findall(linha)]
+    slug = (branch or "").removeprefix("melhoria/")
+    itens += [f"changelog.d/{slug}.md"] if slug else []
+
+    def casa(nome):
+        for item in itens:
+            if nome == item or (item.endswith("/") and nome.startswith(item)) \
+                    or (any(c in item for c in "*?[") and fnmatch.fnmatchcase(nome, item)):
+                return item
+        return None
+    return casa
+
+
+def prova_do_arquivo(raiz, head, comando):
+    """(linha, reprova) do PQ `arquivo`: `test -e|-f|-d|-s <caminho>` relativo lido no head da branch (`git cat-file`), ou absoluto/`~`
+    lido no disco; outra forma sai como não conferida (sem reprovar)."""
+    try:
+        argv = shlex.split(comando or "")
+    except ValueError:
+        argv = []
+    if len(argv) != 3 or argv[0] != "test" or argv[1] not in ("-e", "-f", "-d", "-s"):
+        return "não conferido pela ferramenta (forma fora de `test -e <caminho>`); fica com o relatório do autor", False
+    caminho = argv[2]
+    if caminho.startswith(("/", "~")):
+        existe = os.path.exists(os.path.expanduser(caminho))
+    else:
+        existe = ".." not in caminho.split("/") and git(raiz, "cat-file", "-e", f"{head}:{caminho.removeprefix('./')}")[0] == 0
+    return ("ok", False) if existe else (f"{nome_seguro(caminho)} não existe", True)
+
+
+def rodar_prova(script, argv, espera, pasta):
+    """(linha, reprova) de um PQ `cmd` da lista do `scripts/reexecutar-provas.py`, rodado sem shell na `pasta` (a worktree da branch)."""
+    ambiente = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LC_ALL": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1",
+                "HOME": os.environ.get("HOME", "/")}
+    try:
+        r = subprocess.run(argv, cwd=pasta, env=ambiente, capture_output=True, text=True, timeout=TEMPO_DA_PROVA_S, stdin=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired:
+        return f"passou de {TEMPO_DA_PROVA_S} s", True
+    except OSError as e:
+        return f"não rodou ({sem_controle(e.strerror or e)})", True
+    divergiu = script.avaliar(espera, r.stdout + r.stderr, r.returncode)
+    return (f"diverge de '{divergiu}' (rc={r.returncode})", True) if divergiu else ("ok", False)
+
+
+def conferir_provas(raiz, texto, branch, head, pasta):
+    """P2 (0.43.1): (linha, reprova) por PQ do brief selado. `cmd` da lista do reexecutar-provas roda na worktree; o `forge-check entrega`
+    é esta conferência; `cmd` fora da lista e `pr`/`merge`/`run` (GitHub) não são reexecutados e não reprovam (ficam com o relatório
+    do autor, o CI e, se o Jarvis quiser, o conferente); `arquivo`, `sha` e `push` são lidos do git."""
+    script, saida = carregar_reexecutar_provas(), []
+    for linha in secoes_por(texto, CABECALHO_BRIEF).get("Pronto quando", []):
+        m = PQ.search(linha)
+        if not m or not m.group(2):
+            continue
+        n, tipo, resto = m.group(1), m.group(2).split(",")[0].strip().lower(), linha[m.end():]
+        comando = re.search(r"`([^`]+)`", resto)
+        rotulo = f"prova: PQ-{n} ({tipo})"
+        if tipo == "cmd":
+            if comando and re.match(r"\s*forge-check entrega\b", comando.group(1)):
+                saida.append((f"{rotulo}: ok (é esta conferência)", False))
+                continue
+            try:
+                argv = shlex.split(comando.group(1)) if comando else []
+            except ValueError:
+                argv = []
+            motivo = "scripts/reexecutar-provas.py ausente" if script is None else script.comando_permitido(argv)
+            espera = None if motivo else espera_do_script(script, resto[comando.end():].partition("espera:")[2].strip())
+            if motivo or espera is None:
+                saida.append((f"{rotulo}: não reexecutada ({sem_controle(motivo or 'espera fora do vocabulário')}); fica com o relatório do autor e o CI", False))
+            elif pasta is None:
+                saida.append((f"{rotulo}: sem worktree da branch para rodar (passe --worktree)", True))
+            else:
+                resultado, reprova = rodar_prova(script, argv, espera, pasta)
+                saida.append((f"{rotulo}: {resultado}", reprova))
+        elif tipo == "arquivo":
+            resultado, reprova = prova_do_arquivo(raiz, head, comando.group(1) if comando else "")
+            saida.append((f"{rotulo}: {resultado}", reprova))
+        elif tipo == "sha":
+            shas = SHA40_NO_TEXTO.findall(resto)
+            ruins = [s for s in shas if not (sha_do_commit(raiz, s) == s and e_ancestral(raiz, s, head))]
+            texto_da_prova = "sem sha40 no PQ; fica com o relatório do autor" if not shas else "ok" if not ruins else f"{ruins[0][:12]} fora da branch"
+            saida.append((f"{rotulo}: {texto_da_prova}", bool(ruins)))
+        elif tipo == "push":
+            cod, remoto = git(raiz, "ls-remote", "origin", f"refs/heads/{branch}")
+            igual = not cod and remoto.split("\t")[0] == head
+            saida.append((f"{rotulo}: " + ("ok" if igual else f"origin/{nome_seguro(branch)} não é o head {head[:12]}"), not igual))
+        else:
+            saida.append((f"{rotulo}: estado no GitHub, fora da ferramenta; fica com o relatório do autor e o CI", False))
+    return saida
+
+
+def estado_da_worktree(raiz, branch, head, worktree):
+    """(pasta ou None, [(linha, reprova)]): a worktree dada ou a da branch (`git worktree list`); ela precisa estar no head da branch e
+    limpa (sem mudança fora do commit, nem arquivo novo), senão a prova rodaria sobre outra árvore."""
+    pasta = worktree or worktree_da_branch(raiz, branch)
+    if pasta is None:
+        return None, [("worktree: nenhuma para a branch (as provas cmd não rodam)", False)]
+    if sha_do_commit(pasta, "HEAD") != head:
+        return None, [(f"worktree: {caminho_impresso(pasta)} não está no head {head[:12]} da branch", True)]
+    cod, bruto = git(pasta, "status", "--porcelain", "-z", "--no-renames", bruto=True)
+    mudancas = [l for l in nomes_z(bruto) if not l[3:].startswith(REGISTROS_DO_JARVIS)]
+    if cod or mudancas:
+        return None, [(f"worktree: {caminho_impresso(pasta)} com mudança fora do commit (git status)", True)]
+    return pasta, [(f"worktree: {caminho_impresso(pasta)} no head {head[:12]}, limpa", False)]
+
+
+def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True):
+    """P2 (0.43.1): a conferência de entrega por ferramenta. Acha o brief selado da branch e da etapa, calcula Base, Base-sha e Desde
+    (nada digitado), roda o escopo do `entrega` com o escopo declarado no brief, as provas e a contagem de commits; sem reprovação, grava
+    `- <data> <hora>: entrega conferida <sha40>` no `## Histórico` (único escritor; o mesmo sha não se grava duas vezes). rc 0 cumpriu,
+    1 não cumpriu, 2 entrada ilegível."""
+    if etapa == ATO_GITHUB:
+        print("entrega: ato-github não tem sha de branch para gravar; use `forge-check entrega <pedido> --etapa ato-github --brief ...`")
+        return 2
+    if worktree is not None and not (os.path.isabs(worktree) and os.path.isdir(worktree)):
+        print("entrega: --worktree precisa ser uma pasta absoluta existente")
+        return 2
+    caminho = caminho_do_pedido(raiz, pedido)
+    try:
+        texto = ler_pedido_do_selo(caminho)
+    except (OSError, UnicodeDecodeError, ValueError) as e:
+        print(f"entrega: não consegui ler o pedido {caminho_impresso(caminho)}: {sem_controle(getattr(e, 'strerror', None) or e)}")
+        return 2
+    achado = brief_selado_da_entrega(raiz, caminho, texto, branch, etapa)
+    if achado is None:
+        print(f"entrega: nenhum brief selado e intacto do pedido para a branch {nome_seguro(branch)} e a etapa {nome_seguro(etapa)} "
+              "(`forge-check brief selar`)")
+        print("resultado: não cumpriu")
+        return 1
+    arquivo, brief, sha_brief = achado
+    cabecalho = cabecalho_do_brief(brief)
+    base, base_sha = grupo(CABECALHO_DE_BRIEF_CAMPOS["Base"], cabecalho), grupo(CABECALHO_DE_BRIEF_CAMPOS["Base-sha"], cabecalho)
+    head = sha_do_commit(raiz, branch)
+    print(f"brief: {caminho_impresso(arquivo)} sha256 {sha_brief} (selado)")
+    print(f"etapa: {etapa} (a do brief selado)")
+    if not (base and base_sha and head):
+        print("entrega: o brief selado não tem Base e Base-sha, ou a branch não é um commit")
+        print("resultado: não cumpriu")
+        return 1
+    if head in entregas_conferidas(texto):  # já conferido e gravado: o Desde seria o próprio head (intervalo vazio)
+        print(f"resultado: cumpriu (o head {head} já tem a linha entrega conferida)")
+        print(f"gravado: já existia a linha entrega conferida {head}")
+        return 0
+    valido = desde_valido(raiz, texto, head, base_sha)[0]
+    desde = valido or (base_sha if base_sha_como_desde(raiz, texto, base_sha, head) else None)
+    rc, linhas = linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, declarado=escopo_declarado(brief, branch))
+    if rc == 2:
+        for linha, _ in linhas:
+            print(linha)
+        return 2
+    pasta, da_worktree = estado_da_worktree(raiz, branch, head, worktree)
+    linhas += da_worktree
+    inicio = valido or base_sha
+    cod, contagem = git(raiz, "rev-list", "--count", f"{inicio}..{head}")
+    linhas.append((f"commits: {contagem if not cod else '?'} em {inicio[:12]}..{head[:12]}", bool(cod)))
+    linhas += conferir_provas(raiz, brief, branch, head, pasta)
+    for linha, _ in linhas:
+        print(linha)
+    if any(r for _, r in linhas):
+        print("resultado: não cumpriu")
+        return 1
+    print("resultado: cumpriu")
+    if not gravar:
+        print("gravado: nada (--sem-gravar)")
+    elif head in entregas_conferidas(ler_pedido_do_selo(caminho)):
+        print(f"gravado: já existia a linha entrega conferida {head}")
+    else:
+        print(f"gravado: {gravar_no_historico(caminho, f'entrega conferida {head}')}")
+    return 0
 
 
 def versao(texto):
@@ -7960,7 +8459,7 @@ def avaliar_versao(a, raiz):
     if forge:  # O1 = A (dono, 2026-10-20): só no Forge, e só neste estado, o aviso diz que não muda o veredito; nos projetos, nada muda
         return "aviso", f"forge-check: aviso: cópia vigente {texto} atrás do repositório ({MARCADOR_DA_DECISAO_D}); para atualizar: {comando}"
     mensagem = f"forge-check {texto} atrás do repositório; a conferência não vale; peça à pessoa: {comando}"
-    if not forge and (a.cmd in BLOQUEIAM_COM_FERRAMENTA_ATRASADA or (a.cmd == "brief" and a.alvo in ("gerar", "mensagem"))):
+    if not forge and (a.cmd in BLOQUEIAM_COM_FERRAMENTA_ATRASADA or (a.cmd == "brief" and a.alvo in ("gerar", "selar", "mensagem"))):
         return "bloqueio", mensagem
     return "aviso", f"forge-check: aviso: {mensagem}"
 
@@ -7990,8 +8489,8 @@ def main():
     sub.add_parser("kanban", parents=[comum]).add_argument("--gerar", action="store_true", help="refaz o KANBAN.md de docs/kanban/historico.md (EST-M12)")
     sub.add_parser("fontes", help="confere se as fontes de boas práticas do registro local têm versão nova")
     br = sub.add_parser("brief", parents=[comum], help="forma, corte e decisões de um brief (C2, C4); `brief gerar` monta os blocos fixos; `brief mensagem` imprime a mensagem ao conferente")
-    br.add_argument("alvo", help="arquivo do brief, `gerar` ou `mensagem` (a mensagem integral ao conferente, só se o brief passa)")
-    br.add_argument("--arquivo", nargs="+", help="só em `mensagem`: o brief, resolvido só em docs/briefs/ (da raiz ou de ~/.forge-contrib); um só; vários são recusados (um brief por mensagem)")
+    br.add_argument("alvo", help="arquivo do brief, `gerar`, `selar` (todas as checagens, os campos calculados corrigidos e o selo no ## Histórico do pedido; P1) ou `mensagem` (a mensagem integral ao conferente, opcional, só se o brief passa)")
+    br.add_argument("--arquivo", nargs="+", help="em `selar` e `mensagem`: o brief, resolvido só em docs/briefs/ (da raiz ou de ~/.forge-contrib); um só; vários são recusados (um brief por mensagem)")
     br.add_argument("--pedido", required=True, help="id do pedido: grava só em docs/pedidos/<id>.md (caminho de arquivo é recusado)")
     br.add_argument("--destino", nargs="+", help="agente destino, forge:<nome> (vários só em `gerar --gravar`, o lote: um arquivo por destino). Em `mensagem` só é preciso se o brief não tem `Agente destino:` no cabeçalho (antes da primeira seção); se tem, o --destino precisa ser igual ao do brief. Na conferência (`brief <arquivo>`), o padrão é o `Agente destino:` do brief ou o nome do arquivo")
     br.add_argument("--anterior", help="brief da rodada anterior (em docs/briefs/): imprime `anterior:` e uma linha `delta:` por linha que mudou em cada seção (só informa)")
@@ -8103,10 +8602,15 @@ def main():
     pr.add_argument("--pr", dest="numero_pr", help="PR já mesclado (squash, branch apagada): os pareceres são conferidos no head dele (headRefOid, "
                     "lido do gh e presente no clone), nunca no commit do merge; não se combina com --ref (E10, CONF-MERGE-APOS-SQUASH)")
     en = sub.add_parser("entrega", parents=[comum], help="escopo da entrega: arquivos do intervalo da delegação (`--desde` só depois de uma conferência); só leitura")
-    en.add_argument("pedido", help="arquivo do pedido ou id (docs/pedidos/<id>.md da cópia principal)")
+    en.add_argument("pedido", nargs="?", help="arquivo do pedido ou id (docs/pedidos/<id>.md da cópia principal); forma antiga, só leitura")
+    en.add_argument("--pedido", dest="pedido_conferir", metavar="PEDIDO", help="forma nova (P2, 0.43.1): confere a entrega contra o brief selado "
+                    "da branch e da etapa (escopo declarado, provas, commits; Base, Base-sha e Desde calculados) e, com rc 0, grava "
+                    "`entrega conferida <sha40>` no ## Histórico; sem --base, --base-sha, --desde nem --brief")
+    en.add_argument("--worktree", help="só com --pedido: a pasta absoluta da worktree da branch (padrão: a do `git worktree list`), onde os PQ cmd rodam")
+    en.add_argument("--sem-gravar", action="store_true", help="só com --pedido: confere e não grava (o PQ do autor)")
     en.add_argument("--branch", required=True, help="branch entregue")
-    en.add_argument("--base", required=True, help="branch de integração da entrega (develop, homolog ou main)")
-    en.add_argument("--base-sha", required=True, help="sha40 da base gravado na delegação (Base-sha)")
+    en.add_argument("--base", help="forma antiga: branch de integração da entrega (develop, homolog ou main)")
+    en.add_argument("--base-sha", help="forma antiga: sha40 da base gravado na delegação (Base-sha)")
     en.add_argument("--etapa", required=True, choices=ETAPAS_DE_CODIGO + ETAPAS_DE_BRANCH_INTEIRA + (ATO_GITHUB,),
                     help="etapa conferida; `--desde` vale em todas as etapas (C1)")
     en.add_argument("--brief", action="append", default=[], help="entregas paralelas conferidas juntas: um brief (em docs/briefs/) por entrega, de mesma Branch, Base, Base-sha e pedido; repita a opção; sem ela, a saída é a de sempre")
@@ -8155,6 +8659,15 @@ def main():
         if a.gravar and a.alvo != "gerar":
             ap.error("argument --gravar: só vale em `brief gerar`")
         a.destino = a.destinos[0] if a.destinos else None
+    if a.cmd == "entrega" and a.pedido_conferir is not None:
+        if a.pedido is not None or a.base is not None or a.base_sha is not None or a.desde is not None or a.brief:
+            ap.error("entrega --pedido: Base, Base-sha e Desde são calculados e o brief é o selado; sem pedido posicional, --base, --base-sha, --desde e --brief")
+    elif a.cmd == "entrega":
+        faltam = [nome for nome, valor in (("pedido", a.pedido), ("--base", a.base), ("--base-sha", a.base_sha)) if valor is None]
+        if faltam:
+            ap.error(f"the following arguments are required: {', '.join(faltam)} (ou use a forma nova `entrega --pedido`)")
+        if a.worktree is not None or a.sem_gravar:
+            ap.error("--worktree e --sem-gravar só valem com `entrega --pedido`")
     if a.cmd == "brief" and a.incluir and not (a.alvo == "gerar" and a.volta):
         ap.error("argument --incluir: só vale em `brief gerar --volta`")
     raiz = Path(a.raiz).resolve()
@@ -8196,6 +8709,8 @@ def executar(a, raiz):
         rc, linha = diff_vazio(raiz, a.base, a.ref)
         print(linha)
         return rc
+    if a.cmd == "entrega" and a.pedido_conferir is not None:
+        return cmd_entrega_conferir(raiz, a.pedido_conferir, a.branch, a.etapa, a.worktree, not a.sem_gravar)
     if a.cmd == "entrega":
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
     if a.cmd == "voltas":
@@ -8234,6 +8749,8 @@ def executar(a, raiz):
             return cmd_brief_gerar(raiz, a.pedido, a.destinos, a.branch, a.base, a.etapa, a if a.volta else None, a.cobre, a.gravar, a.retomada, a.citar)
         if a.alvo == "mensagem":
             return cmd_brief_mensagem(raiz, a)
+        if a.alvo == "selar":
+            return cmd_brief_selar(raiz, a)
         return cmd_brief_conferir(raiz, a.alvo, a.pedido, a.destino, a.anterior, a.ref, a.parecer)
     if a.cmd == "proximo":
         linhas, codigo = cmd_proximo(raiz, a.pedido)

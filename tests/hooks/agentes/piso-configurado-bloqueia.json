@@ -1,8 +1,8 @@
 {
-  "descricao": "4 GB no total (15% = 0,6 GB; vale o piso de 1 GB): 1 GB livre bloqueia.",
+  "descricao": "`piso_memoria_gb` 3 em .forge/config.json: 2,5 GB livres bloqueia.",
   "proc": {
     "loadavg": "0.5 1.0 1.0 1/100 1",
-    "mem_gb": 1.0,
+    "mem_gb": 2.5,
     "mem_total_gb": 4,
     "nproc": 8
   },
@@ -11,13 +11,13 @@
       "agentes": [
         {
           "id": "a0",
-          "tipo": "forge:tech-lead",
+          "tipo": "time:tech-lead",
           "descricao": "Tarefa 0",
           "desde": "{agora-60}"
         },
         {
           "id": "a1",
-          "tipo": "forge:tech-lead",
+          "tipo": "time:tech-lead",
           "descricao": "Tarefa 1",
           "desde": "{agora-60}"
         }
@@ -29,13 +29,16 @@
     "tool_name": "Agent",
     "tool_use_id": "toolu_1",
     "tool_input": {
-      "subagent_type": "forge:qa-engineer",
+      "subagent_type": "time:qa-engineer",
       "description": "Validar a entrega",
       "prompt": "..."
     }
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "e 1.0 GB)"
+    "stderr": "piso 3.0 GB"
+  },
+  "config": {
+    "piso_memoria_gb": 3
   }
 }

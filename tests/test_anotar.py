@@ -2,6 +2,7 @@
 do relógio; `brief gerar --retomada` avisa a decisão que cita o pedido e falta nele. Sem rede."""
 import datetime
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -165,13 +166,18 @@ class Anotar(Base):
         rc, _, _ = self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--literal", "C", "--hora", "2020-01-01 00:00")
         self.assertEqual(rc, 2)
 
-    def test_o_gerar_seguinte_copia_a_decisao_gravada(self):
+    def test_o_gerar_seguinte_cita_o_bloco_com_a_decisao_gravada(self):
+        """P4 (0.43.1): o brief cita as decisões por referência; a decisão nova entra no hash do bloco que o gerar seguinte cita."""
         self.com(COM_SECAO)
+        rc, antes, _ = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo")
+        self.assertEqual(rc, 0, antes)
         self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--literal", "D", "--contexto", "item novo")
-        linha = next(l for l in self.pedido.read_text(encoding="utf-8").splitlines() if '"D"' in l)
         rc, saida, _ = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo")
         self.assertEqual(rc, 0, saida)
-        self.assertIn(f"- {linha}\n", saida)
+        referencia = re.compile(r"^- decisões: pedido exemplo até ([0-9a-f]{64}) \((\d+) linhas", re.M)
+        (hash_antes, n_antes), (hash_depois, n_depois) = referencia.search(antes).groups(), referencia.search(saida).groups()
+        self.assertNotEqual(hash_antes, hash_depois)
+        self.assertEqual(int(n_depois), int(n_antes) + 1)
 
 
 BRIEF = """Pedido: {pedido}

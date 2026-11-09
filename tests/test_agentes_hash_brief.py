@@ -114,7 +114,12 @@ class HashDoBrief(Apoio):
         self.recusado(self.mensagem(modo="modo: entrega", sha="b" * 64))
 
     def test_outro_agente_nao_e_conferido(self):
-        self.aceito(self.mensagem(sha="a" * 64), tipo="forge:tech-lead")
+        """O hash da mensagem é só do conferente; desde a 0.43.1 (P1) o especialista do Forge é barrado pelo selo, que
+        tests/test_selo_e_entrega.py cobre: o tipo fora do plugin segue sem conferência."""
+        self.aceito(self.mensagem(sha="a" * 64), tipo="time:tech-lead")
+        r = self.lancar(self.mensagem(sha="a" * 64), tipo="forge:tech-lead")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("forge-check brief selar", r.stderr)
 
     # Caminho -----------------------------------------------------------------------------
     def test_arquivo_inexistente_bloqueia(self):
@@ -213,7 +218,7 @@ class BranchesDaReserva(Apoio):
         return self.gravar(f"docs/briefs/{nome}.md", f"Agente destino: forge:x\nBranch: {branch}   Base: develop\n\n## Objetivo\n{corpo}\n"
                            .encode(), base=base)
 
-    def reserva(self, prompt, tipo="forge:tech-lead", agentes=()):
+    def reserva(self, prompt, tipo="time:tech-lead", agentes=()):  # fora do plugin: o selo (0.43.1) é de test_selo_e_entrega
         estado = self.projeto / ".forge" / "run" / "agentes.json"
         estado.parent.mkdir(parents=True, exist_ok=True)
         estado.write_text(json.dumps({"agentes": list(agentes)}), encoding="utf-8")
@@ -231,7 +236,7 @@ class BranchesDaReserva(Apoio):
         estado = self.projeto / ".forge" / "run" / "agentes.json"
         estado.parent.mkdir(parents=True, exist_ok=True)
         estado.write_text(json.dumps({"agentes": outros}), encoding="utf-8")
-        r = self.lancar(prompt, tipo="forge:tech-lead")
+        r = self.lancar(prompt, tipo="time:tech-lead")
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("R-TETO", r.stderr)
         self.assertEqual(self.reserva(prompt, agentes=outros[:9])[1], [])

@@ -2421,6 +2421,7 @@ class Hook:
             "teto_maximo": valor("teto_maximo", inteiro, None),
             "pesados": valor("pesados", lista, RESERVA["pesados"]),
             "expiracao_horas": valor("expiracao_horas", numero, 2),
+            "piso_memoria_gb": valor("piso_memoria_gb", numero, 2.0),  # R-TETO-DISPONIBILIDADE: o único freio de carga do hook agentes
             "hooks_desligados": valor("hooks_desligados", lista, []),
         }
         return self._config

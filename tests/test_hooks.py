@@ -1075,21 +1075,26 @@ class Hooks(unittest.TestCase):
         self.assertTrue((agentes.nucleos() or 1) >= 1)
 
     def test_faixas_do_teto_segue_o_hardware(self):
-        """R-TETO: bloqueia com load >= 0,8 x nproc ou MemAvailable <= max(1 GB, 15% do total); o teto é nproc."""
+        """R-TETO (R-TETO-DISPONIBILIDADE, 2026-11-06): bloqueia só com MemAvailable <= piso (padrão 2 GB, `piso_memoria_gb`); o load
+        não trava; o teto é nproc."""
         sys.path.insert(0, str(HOOKS))
         import agentes
         casos = [  # (load, disponível, total, nproc, carga alta)
-            (3, 6, 8, 16, False), (12.7, 6, 8, 16, False), (12.8, 6, 8, 16, True),
-            (6.39, 8, 16, 8, False), (6.4, 8, 16, 8, True), (0.1, 2.5, 16, 8, False), (0.1, 2.4, 16, 8, True),
-            (0.1, 1.1, 4, 8, False), (0.1, 1.0, 4, 8, True), (0.8, 8, 16, 1, True), (0.7, 8, 16, 1, False)]
+            (3, 6, 8, 16, False), (12.8, 6, 8, 16, False), (6.4, 8, 16, 8, False), (0.8, 8, 16, 1, False), (50, 2.1, 4, 1, False),
+            (0.1, 2.0, 16, 8, True), (0.1, 1.0, 4, 8, True), (0.1, 2.01, 16, 8, False)]
         for carga, memoria, total, nproc, alta in casos:
             with self.subTest(carga=carga, memoria=memoria, total=total, nproc=nproc):
                 self.assertEqual(agentes.carga_alta(carga, memoria, total, nproc), alta)
                 self.assertEqual(agentes.teto_adaptativo(carga, memoria, total, nproc), nproc)
-        for faltando in range(4):  # sem uma das medidas: nunca é carga alta e o teto cai no padrão 3
+        self.assertFalse(agentes.carga_alta(0.1, 1.5, 16, 8, agentes.piso_de_memoria({"piso_memoria_gb": 1})))
+        self.assertTrue(agentes.carga_alta(0.1, 2.5, 16, 8, agentes.piso_de_memoria({"piso_memoria_gb": 3})))
+        for invalido in (True, "2", 0, -1, None, [1]):
+            with self.subTest(piso=invalido):
+                self.assertEqual(agentes.piso_de_memoria({"piso_memoria_gb": invalido}), 2.0)
+        self.assertFalse(agentes.carga_alta(1.0, None, 16.0, 8))  # sem a medida de memória: nunca é carga alta
+        for faltando in range(4):  # sem uma das medidas: o teto cai no padrão 3
             medidas = [1.0, 6.0, 16.0, 8]
             medidas[faltando] = None
-            self.assertFalse(agentes.carga_alta(*medidas))
             self.assertEqual(agentes.teto_adaptativo(*medidas), 3)
 
     def test_teto_sem_leitura_nunca_passa_de_nproc(self):  # A3

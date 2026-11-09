@@ -9,7 +9,7 @@
       "agentes": [
         {
           "id": "a0",
-          "tipo": "forge:tech-lead",
+          "tipo": "time:tech-lead",
           "descricao": "Tarefa 0",
           "desde": "{agora-60}"
         }
@@ -21,13 +21,13 @@
     "tool_name": "Agent",
     "tool_use_id": "toolu_1",
     "tool_input": {
-      "subagent_type": "forge:qa-engineer",
+      "subagent_type": "time:qa-engineer",
       "description": "Validar a entrega",
       "prompt": "..."
     }
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "espere a carga baixar; só o dono: FORGE_CARGA_LIVRE=1"
+    "stderr": "espere memória liberar; só o dono: FORGE_CARGA_LIVRE=1"
   }
 }
