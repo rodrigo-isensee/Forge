@@ -100,6 +100,20 @@ class SuperficieDeRede(unittest.TestCase):
         self.escrever("r.mjs", "server.route({\n  method: 'POST',\n  url: '/pedidos',\n  handler: h\n})\n")
         self.assertIn("r.mjs:1 POST /pedidos | sem validação na borda reconhecida | confirmar", self.achados())
 
+    def test_route_sem_metodo_nem_url_sai_com_interrogacao(self):
+        self.escrever("r.js", "server.route({ handler: h })\n")
+        self.assertIn("r.js:1 ? ? | sem autenticação reconhecida | confirmar", self.achados())
+
+    def test_parentese_dentro_de_string_nao_fecha_a_chamada(self):
+        self.escrever("a.ts", "app.post('/s', { onRequest: auth }, ')', { schema: { body: C } }, h)\n"
+                              "app.post('/c', { onRequest: auth }, `)`, { schema: { body: C } }, h)\n"
+                              "app.post('/e', { onRequest: auth }, 'a\\')', { schema: { body: C } }, h)\n")
+        self.assertEqual(self.achados(), [])
+
+    def test_chamada_para_no_teto_de_caracteres(self):
+        self.escrever("a.ts", "app.post('/t', { onRequest: auth }, h, '" + "x" * 9000 + "', { schema: { body: C } })\n")
+        self.assertEqual(self.achados(), ["a.ts:1 POST /t | sem validação na borda reconhecida | confirmar"])
+
     def test_pastas_de_fora_e_link_simbolico_sao_ignorados(self):
         fora = Path(self.tmp.name) / "fora"
         fora.mkdir()
