@@ -9,6 +9,8 @@ Importado pelo `bin/forge-check` só quando um destes roda:
   gravar não amplia autorização (o registro diz isso) e ler confere o hash de cada fala.
 - `recado --para RAIZ --texto T` e `recado --confirmar [ARQ]` (S8): texto entre sessões em <RAIZ>/.forge/recados/, com
   cabeçalho (raiz de destino, versão do plugin, sha256); a sessão de outra raiz ou de outra versão recusa.
+- `pausa --gravar --retoma-em H --onde T` e `pausa --retomar [--esperar]` (X1): onde parou na pausa por limite de uso (Q1), em
+  .forge/pausa.json, e a retomada quando a cota renova. Não contorna limite nem troca de conta: só espera o horário dado.
 """
 import datetime
 import hashlib
@@ -202,8 +204,54 @@ def cmd_recado(raiz, a, ctx):
     return 0
 
 
+# ---- X1: pausa por limite de uso e retomada ----
+
+def horario(texto, agora):
+    """O instante de `AAAA-MM-DDTHH:MM` ou de `HH:MM` (hoje, ou amanhã se já passou), no fuso local; ValueError se inválido."""
+    if re.fullmatch(r"\d{2}:\d{2}", texto):
+        alvo = datetime.datetime.combine(agora.date(), datetime.time.fromisoformat(texto), agora.tzinfo)
+        return alvo + datetime.timedelta(days=1) if alvo <= agora else alvo
+    alvo = datetime.datetime.fromisoformat(texto)
+    return alvo if alvo.tzinfo else alvo.replace(tzinfo=agora.tzinfo)
+
+
+def cmd_pausa(raiz, a, ctx):
+    arq, agora = Path(raiz) / ".forge" / "pausa.json", _agora()
+    if a.gravar:
+        try:
+            alvo = horario(a.retoma_em, agora)
+        except ValueError:
+            print("pausa: --retoma-em é HH:MM ou AAAA-MM-DDTHH:MM (a hora em que a cota renova); nada gravado")
+            return 2
+        if not a.onde.strip() or alvo - agora > ESPERA_MAXIMA:
+            print("pausa: --onde (onde parou) é obrigatório e a retomada fica em até 24 h; nada gravado")
+            return 2
+        arq.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        dados = {"motivo": "limite de uso (Q1)", "gravada": agora.isoformat(timespec="minutes"),
+                 "retoma_em": alvo.isoformat(timespec="minutes"), "onde": a.onde.strip()[:500], "pedido": a.pedido}
+        arq.write_text(json.dumps(dados, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        print(f"pausa: gravada; retoma em {dados['retoma_em']}; `forge-check pausa --retomar --esperar` em segundo plano retoma sozinho")
+        return 0
+    try:
+        dados = json.loads(arq.read_text(encoding="utf-8"))
+        alvo = horario(dados["retoma_em"], agora)
+    except (OSError, ValueError, KeyError, TypeError):
+        print("pausa: nenhuma pausa gravada em .forge/pausa.json")
+        return 0
+    while a.esperar and _agora() < alvo:
+        time.sleep(min(60, max(0.2, (alvo - _agora()).total_seconds())))
+    if _agora() < alvo:
+        print(f"pausa: a cota ainda não renovou; retoma em {dados['retoma_em']} (com --esperar, espera até lá)")
+        return 1
+    arq.replace(arq.with_name(f"pausa-retomada-{_agora():%Y%m%d-%H%M%S}.json"))
+    print(f"pausa: cota renovada; retome: {ctx['seguro'](dados.get('onde', '?'))}")
+    if dados.get("pedido"):
+        print(f"pausa: próximo passo: `forge-check proximo {ctx['seguro'](dados['pedido'])}`")
+    return 0
+
+
 def executar(a, raiz, ctx):
     """Despacha o subcomando; `ctx` traz do forge-check `pedido` (resolve docs/pedidos/<id>.md ou None), `versao` e `seguro`."""
     if a.cmd == "decisoes":
         return cmd_resposta(raiz, a.pedido or "", a.resposta, ctx)
-    return {"pedido": cmd_fala, "recado": cmd_recado}[a.cmd](raiz, a, ctx)
+    return {"pedido": cmd_fala, "recado": cmd_recado, "pausa": cmd_pausa}[a.cmd](raiz, a, ctx)

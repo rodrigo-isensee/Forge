@@ -16,4 +16,4 @@ Texto do Jarvis lido no passo (L51, núcleo curto).
 - **Lote de até 3 tópicos (D3):** até 3 tópicos pequenos sem arquivo em comum, com as regras do lote por arquivo.
 - **Tamanho por risco:** cerca de 150 linhas alteradas de código e teste por PR orientam, sem travar; pesa o risco (classe C). Vale uma classe de comportamento por PR em `hooks/`, com corpus próprio.
 - **Medidas do pedido:** no fim, cole `forge-check transcricao custo --entregas --entrega <pedido> --pedido <pedido>` e `forge-check esperas --pedido <pedido>` em `docs/kanban/entregas.md`; defeito achado depois do parecer final vai por `forge-check escape registrar` na hora.
-- **Pausa por limite de uso (Q1):** na pausa por limite de uso só seguem conferências e integradores; nada novo é disparado.
+- **Pausa por limite de uso (Q1):** na pausa por limite de uso só seguem conferências e integradores; nada novo é disparado. Grave onde parou (`forge-check pausa --gravar`); `pausa --retomar --esperar` em segundo plano retoma com a cota nova.

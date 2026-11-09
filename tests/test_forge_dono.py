@@ -175,5 +175,49 @@ class Recado(Raiz):  # S8
         self.assertEqual(self.rodar("recado", "--para", str(self.outra), "--texto", "")[0], 2)
 
 
+class Pausa(Raiz):  # X1
+    def hora(self, minutos):
+        return (datetime.datetime.now() + datetime.timedelta(minutes=minutos)).strftime("%Y-%m-%dT%H:%M")
+
+    def test_grava_onde_parou_e_so_retoma_quando_a_cota_renova(self):
+        cod, linhas, _ = self.rodar("pausa", "--gravar", "--retoma-em", self.hora(30), "--onde", "selar o brief do E2", "--pedido", "xpto")
+        self.assertEqual(cod, 0, linhas)
+        dados = json.loads((self.tmp / ".forge" / "pausa.json").read_text(encoding="utf-8"))
+        self.assertEqual((dados["onde"], dados["pedido"], dados["motivo"]), ("selar o brief do E2", "xpto", "limite de uso (Q1)"))
+        cod, linhas, _ = self.rodar("pausa", "--retomar")
+        self.assertEqual(cod, 1)
+        self.assertIn("ainda não renovou", linhas[0])
+        dados["retoma_em"] = self.hora(-1)
+        (self.tmp / ".forge" / "pausa.json").write_text(json.dumps(dados), encoding="utf-8")
+        cod, linhas, _ = self.rodar("pausa", "--retomar")
+        self.assertEqual(cod, 0)
+        self.assertEqual(linhas, ["pausa: cota renovada; retome: selar o brief do E2", "pausa: próximo passo: `forge-check proximo xpto`"])
+        self.assertFalse((self.tmp / ".forge" / "pausa.json").exists(), "a pausa retomada não vale de novo")
+        self.assertEqual(self.rodar("pausa", "--retomar")[1], ["pausa: nenhuma pausa gravada em .forge/pausa.json"])
+
+    def test_esperar_retoma_sozinho_na_hora(self):
+        alvo = (datetime.datetime.now() + datetime.timedelta(seconds=2)).isoformat(timespec="seconds")
+        self.gravar(".forge/pausa.json", json.dumps({"retoma_em": alvo, "onde": "seguir"}))
+        cod, linhas, _ = self.rodar("pausa", "--retomar", "--esperar")
+        self.assertEqual(cod, 0)
+        self.assertEqual(linhas, ["pausa: cota renovada; retome: seguir"])
+
+    def test_hora_curta_e_recusas(self):
+        cod, _, _ = self.rodar("pausa", "--gravar", "--retoma-em", "23:59", "--onde", "x")
+        self.assertEqual(cod, 0)
+        for args in (("--retoma-em", "amanhã", "--onde", "x"), ("--retoma-em", self.hora(10), "--onde", " "),
+                     ("--retoma-em", self.hora(60 * 30), "--onde", "x")):
+            with self.subTest(args):
+                self.assertEqual(self.rodar("pausa", "--gravar", *args)[0], 2)
+
+    def test_horario_de_hh_mm_passado_e_amanha(self):
+        sys.path.insert(0, str(Path(FORGE_CHECK).parent))
+        import forge_dono
+        agora = datetime.datetime(2026, 11, 9, 12, 0).astimezone()
+        self.assertEqual(forge_dono.horario("13:00", agora).date(), agora.date())
+        self.assertEqual(forge_dono.horario("11:00", agora).date(), agora.date() + datetime.timedelta(days=1))
+        self.assertEqual(forge_dono.horario("12:00", agora).date(), agora.date() + datetime.timedelta(days=1))
+
+
 if __name__ == "__main__":
     unittest.main()
