@@ -71,11 +71,31 @@ def oferecer_sandbox(projeto):
               f"credenciais do gh, rede só na lista e sem as APIs pagas), rode, se quiser:\n  forge-upgrade --ligar-sandbox {projeto}")
 
 
+IMPOSTOS_DO_SANDBOX = {"enabled": True, "failIfUnavailable": True, "allowUnsandboxedCommands": False}
+
+
+def mesclar_sandbox(modelo, atual):
+    """Mescla profunda (review da 0.44.1): as chaves do projeto ficam, as do modelo que faltam entram, as listas se unem (as do
+    projeto primeiro, nada apagado: `denyRead` e `deniedDomains` ganham as do modelo) e as subchaves que o projeto tinha com outro
+    tipo voltam ao modelo."""
+    saida = dict(atual)
+    for chave, valor in modelo.items():
+        tinha = atual.get(chave)
+        if isinstance(valor, dict):
+            saida[chave] = mesclar_sandbox(valor, tinha if isinstance(tinha, dict) else {})
+        elif isinstance(valor, list):
+            base = tinha if isinstance(tinha, list) else []
+            saida[chave] = base + [v for v in valor if v not in base]
+        elif chave not in atual:
+            saida[chave] = valor
+    return saida
+
+
 def ligar_sandbox(projeto):
     """Grava o bloco `sandbox` do modelo no `.claude/settings.json` do projeto (o resto do arquivo e as chaves do sandbox que o projeto
     já tinha ficam; `enabled` vira true); não commita."""
     alvo = projeto / ".claude" / "settings.json"
-    if alvo.is_symlink():
+    if alvo.parent.is_symlink() or alvo.is_symlink():
         sair(f"{alvo} é um link; ligue o sandbox à mão (`/sandbox` no Claude)", 2)
     try:
         dados = json.loads(alvo.read_text(encoding="utf-8")) if alvo.exists() else {}
@@ -85,7 +105,7 @@ def ligar_sandbox(projeto):
         sair(f"{alvo} não é um objeto JSON; corrija-o antes", 2)
     modelo = json.loads((RAIZ / "templates/projeto/.claude/settings.json").read_text(encoding="utf-8"))["sandbox"]
     atual = dados.get("sandbox") if isinstance(dados.get("sandbox"), dict) else {}
-    dados["sandbox"] = {**modelo, **atual, "enabled": True}
+    dados["sandbox"] = {**mesclar_sandbox(modelo, atual), **IMPOSTOS_DO_SANDBOX}  # os campos de segurança do modelo valem sempre
     alvo.parent.mkdir(exist_ok=True)
     alvo.write_text(json.dumps(dados, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"forge-upgrade: sandbox ligado em {alvo}; revise o diff e commite (reabra o Claude para valer)")

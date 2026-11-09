@@ -661,8 +661,8 @@ def git(*args, cwd):
                           check=True, capture_output=True, text=True)
 
 
-def forge_init(*args, cwd):
-    return subprocess.run(["bash", str(RAIZ / "bin/forge-init"), *args], cwd=cwd, env=ambiente_limpo(),
+def forge_init(*args, cwd, env=None):
+    return subprocess.run(["bash", str(RAIZ / "bin/forge-init"), *args], cwd=cwd, env={**ambiente_limpo(), **(env or {})},
                           check=True, capture_output=True, text=True)
 
 
@@ -674,8 +674,32 @@ class ForgeInit(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp)
 
-    def rodar(self, *extra):
-        return forge_init("--nome", "Demo", "--pronto", "make pronto", *extra, str(self.tmp), cwd=self.tmp)
+    def rodar(self, *extra, env=None):
+        return forge_init("--nome", "Demo", "--pronto", "make pronto", *extra, str(self.tmp), cwd=self.tmp, env=env)
+
+    def com_sandbox_pronto(self):
+        """B3: o ambiente com o bubblewrap (falso, no PATH) e a credencial do bot no ~/.claude/settings.json (HOME falso)."""
+        casa = Path(tempfile.mkdtemp(prefix="forge-init-home-"))
+        self.addCleanup(shutil.rmtree, casa, True)
+        (casa / "bin").mkdir()
+        (casa / "bin/bwrap").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        (casa / "bin/bwrap").chmod(0o755)
+        (casa / ".claude").mkdir()
+        (casa / ".claude/settings.json").write_text(json.dumps({"env": {"GH_TOKEN": "x", "GIT_CONFIG_COUNT": "2"}}), encoding="utf-8")
+        return {"HOME": str(casa), "PATH": f"{casa / 'bin'}:{os.environ['PATH']}"}
+
+    def sem_sandbox_pronto(self, bwrap=False, credencial=False):
+        casa = Path(tempfile.mkdtemp(prefix="forge-init-home-"))
+        self.addCleanup(shutil.rmtree, casa, True)
+        (casa / "bin").mkdir()
+        if bwrap:
+            (casa / "bin/bwrap").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            (casa / "bin/bwrap").chmod(0o755)
+        (casa / ".claude").mkdir()
+        env = {"GH_TOKEN": "x", "GIT_CONFIG_COUNT": "2"} if credencial else {"GH_TOKEN": "x"}
+        (casa / ".claude/settings.json").write_text(json.dumps({"env": env}), encoding="utf-8")
+        caminho = ":".join(p for p in os.environ["PATH"].split(":") if not (Path(p) / "bwrap").exists())
+        return {"HOME": str(casa), "PATH": f"{casa / 'bin'}:{caminho}", "GH_TOKEN": "", "GIT_CONFIG_COUNT": ""}
 
     def test_cria_estrutura_completa(self):
         self.rodar()
@@ -725,7 +749,7 @@ class ForgeInit(unittest.TestCase):
         """D1 (0.44.0, BP-5): o projeto novo nasce com o sandbox do modelo, também quando o `.claude/settings.json` já existe (o
         `claude plugin install` o cria); no projeto que já tem `.forge/versao`, a mescla não liga o sandbox (o forge-upgrade só oferece)."""
         modelo = json.loads((RAIZ / "templates/projeto/.claude/settings.json").read_text(encoding="utf-8"))["sandbox"]
-        self.rodar()
+        self.rodar(env=self.com_sandbox_pronto())
         self.assertEqual(json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8"))["sandbox"], modelo)
         for versao, esperado in ((None, modelo), ("0.40.0\n", None)):
             with self.subTest(versao=versao):
@@ -736,8 +760,23 @@ class ForgeInit(unittest.TestCase):
                     (self.tmp / ".forge").mkdir()
                     (self.tmp / ".forge/versao").write_text(versao, encoding="utf-8")
                 (self.tmp / ".claude/settings.json").write_text(json.dumps({"enabledPlugins": {}}), encoding="utf-8")
-                self.rodar()
+                self.rodar(env=self.com_sandbox_pronto())
                 self.assertEqual(json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8")).get("sandbox"), esperado)
+
+    def test_sem_bwrap_ou_sem_credencial_nao_liga_e_oferece(self):
+        """B3 (review da 0.44.1): sem o bubblewrap ou sem a credencial do bot (GH_TOKEN e GIT_CONFIG_*), o projeto novo nasce sem o
+        sandbox (que quebraria o gh, o push e a abertura da sessão) e o forge-init imprime a oferta com os passos."""
+        for bwrap, credencial, existe in ((False, True, False), (True, False, False), (False, True, True), (True, False, True)):
+            with self.subTest(bwrap=bwrap, credencial=credencial, existe=existe):
+                shutil.rmtree(self.tmp)
+                self.setUp()
+                if existe:
+                    (self.tmp / ".claude").mkdir()
+                    (self.tmp / ".claude/settings.json").write_text(json.dumps({"enabledPlugins": {}}), encoding="utf-8")
+                saida = self.rodar(env=self.sem_sandbox_pronto(bwrap, credencial)).stdout
+                self.assertNotIn("sandbox", json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8")))
+                self.assertIn("sandbox do Bash NÃO ligado", saida)
+                self.assertIn(f"forge-upgrade --ligar-sandbox {self.tmp.resolve()}", saida)
 
     def test_nao_sobrescreve_sem_forcar(self):
         (self.tmp / "CLAUDE.md").write_text("meu conteúdo\n", encoding="utf-8")
@@ -846,6 +885,30 @@ class ForgeUpgrade(unittest.TestCase):
         # a própria migração é idempotente quando rodada direto sobre o resultado
         subprocess.run([sys.executable, str(RAIZ / "migrations/0.5.0/migrar"), str(self.tmp)], check=True)
         self.assertEqual(git("status", "--porcelain", cwd=self.tmp).stdout, "")
+
+    def test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas(self):
+        """Review da 0.44.1: `--ligar-sandbox` impõe enabled, failIfUnavailable e allowUnsandboxedCommands do modelo, une o denyRead e
+        mantém as listas do projeto; `.claude` por link é recusado."""
+        (self.tmp / ".claude").mkdir()
+        (self.tmp / ".claude/settings.json").write_text(json.dumps({"sandbox": {
+            "enabled": False, "failIfUnavailable": False, "allowUnsandboxedCommands": True, "excludedCommands": ["x"],
+            "filesystem": {"denyRead": ["~/meu"]}, "network": {"allowedDomains": ["meu.exemplo"]}}}), encoding="utf-8")
+        r = subprocess.run([str(RAIZ / "bin/forge-upgrade"), "--ligar-sandbox", str(self.tmp)], env=ambiente_limpo(), capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        caixa = json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8"))["sandbox"]
+        self.assertEqual((caixa["enabled"], caixa["failIfUnavailable"], caixa["allowUnsandboxedCommands"]), (True, True, False))
+        self.assertEqual(caixa["excludedCommands"], ["x"])
+        self.assertEqual(caixa["filesystem"]["denyRead"][0], "~/meu")
+        self.assertIn("~/.ssh", caixa["filesystem"]["denyRead"])
+        self.assertIn("meu.exemplo", caixa["network"]["allowedDomains"])
+        self.assertIn("api.anthropic.com", caixa["network"]["deniedDomains"])
+        outra = Path(tempfile.mkdtemp(prefix="forge-up-link-"))
+        self.addCleanup(shutil.rmtree, outra, True)
+        shutil.rmtree(self.tmp / ".claude")
+        (self.tmp / ".claude").symlink_to(outra)
+        r = subprocess.run([str(RAIZ / "bin/forge-upgrade"), "--ligar-sandbox", str(self.tmp)], env=ambiente_limpo(), capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.assertFalse((outra / "settings.json").exists())
 
     def test_sandbox_desligado_so_e_oferecido(self):
         """D1 (0.44.0): o upgrade oferece o comando e não toca o settings; `--ligar-sandbox` grava o bloco do modelo sem commitar."""
