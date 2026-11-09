@@ -590,6 +590,9 @@ def linhas_de_texto(dados):
                      f"max_s={_n(r['max_s'])}")
     if "prepush" in dados and not dados["prepush"]:
         saida.append("metricas: prepush nenhuma linha de duração nos logs")
+    if dados.get("placar") is not None:
+        p = dados["placar"]
+        saida.append(f"metricas: placar decididas={p['decididas']} perguntas={p['perguntas']} revertidas={p['revertidas']}")
     fontes = {**FONTES, "prepush": "medida (linhas `pre-push: duracao` do log do envio)"} if "prepush" in dados else FONTES
     saida.append("metricas: fontes: " + "; ".join(f"{k}={v}" for k, v in fontes.items()))
     return saida
@@ -625,6 +628,18 @@ def duracoes_do_prepush(logs, desde=None, ate=None):
     return saida, avisos
 
 
+def placar_das_decisoes(raiz_pedidos):
+    """Orkastery 3 (0.44.2): decididas × perguntas × revertidas de docs/kanban/decisoes-obvias.jsonl (bin/forge_decisor.py)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    try:
+        import forge_decisor  # noqa: PLC0415
+    except ImportError:
+        return None
+    finally:
+        sys.path.pop(0)
+    return forge_decisor.placar(raiz_pedidos)
+
+
 def cmd_metricas(raiz, raiz_pedidos, a):
     """Imprime as métricas em texto (linhas `metricas:`) ou em JSON. rc 0; entrada inválida, rc 2."""
     try:
@@ -642,6 +657,7 @@ def cmd_metricas(raiz, raiz_pedidos, a):
     if getattr(a, "log_prepush", None):
         dados["prepush"], mais = duracoes_do_prepush(a.log_prepush, desde, ate)
         avisos += mais
+    dados["placar"] = placar_das_decisoes(raiz_pedidos)
     for aviso in avisos:
         print(f"metricas: aviso: {aviso}", file=sys.stderr)
     print(json.dumps(dados, ensure_ascii=False, indent=1) if a.json else "\n".join(linhas_de_texto(dados)))

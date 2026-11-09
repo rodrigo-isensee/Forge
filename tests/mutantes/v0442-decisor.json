@@ -1,0 +1,21 @@
+{
+  "pedido": "v0442-orkastery3-decisor",
+  "executor": "unittest",
+  "mutantes": [
+    {"id": "M1", "guarda": "porta fechada vira pergunta", "arquivo": "bin/forge_decisor.py",
+     "de": "        if valor is not False:\n            return \"pergunta\", f\"porta fechada: {nome}\"", "para": "        if valor is None:\n            return \"pergunta\", f\"porta fechada: {nome}\"",
+     "testes": ["tests.test_decisor.Decisor.test_porta_fechada_vira_pergunta"]},
+    {"id": "M2", "guarda": "condicao que falta vira pergunta", "arquivo": "bin/forge_decisor.py",
+     "de": "        if valor is not True:\n            return \"pergunta\", f\"condição não atendida: {nome}\"", "para": "        if valor is None:\n            return \"pergunta\", f\"condição não atendida: {nome}\"",
+     "testes": ["tests.test_decisor.Decisor.test_condicao_que_falta_vira_pergunta"]},
+    {"id": "M3", "guarda": "criterio escrito exigido", "arquivo": "bin/forge_decisor.py",
+     "de": "    if not (isinstance(criterio, str) and CRITERIO_ESCRITO.fullmatch(criterio.strip())):", "para": "    if not isinstance(criterio, str):",
+     "testes": ["tests.test_decisor.Decisor.test_condicao_que_falta_vira_pergunta"]},
+    {"id": "M4", "guarda": "linha decidido fora da forma recusa", "arquivo": "bin/forge_decisor.py",
+     "de": "        return 1 if ruins else 0", "para": "        return 0",
+     "testes": ["tests.test_decisor.Decisor.test_conferir_recusa_linha_decidido_fora_da_forma"]},
+    {"id": "M5", "guarda": "placar conta revertidas", "arquivo": "bin/forge_decisor.py",
+     "de": "\"revertida\": \"revertidas\"}", "para": "\"revertida\": \"x\"}",
+     "testes": ["tests.test_decisor.Decisor.test_reverter_e_placar_no_metricas"]}
+  ]
+}

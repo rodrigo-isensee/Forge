@@ -9633,6 +9633,17 @@ def modulo_do_dono():
     return forge_dono
 
 
+def modulo_do_bin(nome):
+    """Um módulo de bin/ (0.44.2: forge_decisor, forge_run), como `governanca`; None se não está ao lado do script."""
+    sys.path.insert(0, str(PLUGIN / "bin"))
+    try:
+        return __import__(nome)
+    except ImportError:
+        return None
+    finally:
+        sys.path.remove(str(PLUGIN / "bin"))
+
+
 def guarda_de_versao(a, raiz):
     """None para seguir; um código de saída se a ferramenta está atrás do repositório e o subcomando bloqueia (`avaliar_versao`)."""
     nivel, texto = avaliar_versao(a, raiz)
@@ -9701,7 +9712,12 @@ def main():
     px.add_argument("pedido", help="id de docs/pedidos/<id>.md")
     px.add_argument("--item", help="E<n> (até 3 dígitos): passo, dono e comando do item, lidos da marca do brief de implementação e do registro (V1)")
     de = sub.add_parser("decisoes", parents=[comum], help="registro das linhas DECISÃO DO DONO dos pedidos (data, decisão, motivo, reabre se); só leitura, no stdout (EXT-2)")
+    de.add_argument("acao", nargs="?", choices=("registrar", "reverter", "conferir"), help="decisão óbvia por regra fixa (orkastery 3): "
+                    "registrar (só os fatos; porta fechada ou condição faltando vira pergunta, rc 1), reverter --id, conferir --mensagem")
     de.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md); padrão: todos")
+    for nome in ("porta", "criterio", "fato", "porque", "como-mudar", "custo-reverter", "irreversivel", "dinheiro", "escopo",
+                 "alternativas-piores", "reversivel", "erro-barato", "id", "mensagem"):
+        de.add_argument(f"--{nome}", help="com registrar/reverter/conferir (ver bin/forge_decisor.py)")
     de.add_argument("--sem-cartao", action="store_true", help="cruza cada decisão com os cartões do KANBAN.md e do histórico e lista as sem cartão (rc 0)")
     de.add_argument("--desde", type=datetime.date.fromisoformat, help="com --sem-cartao: só decisões desta data (AAAA-MM-DD) em diante")
     de.add_argument("--resposta", help="com --pedido: a resposta curta do dono (\"1a 2c\", \"aprovo\") lida contra a última PERGUNTA AO DONO "
@@ -10009,6 +10025,12 @@ def executar(a, raiz):
         for linha in linhas:
             print(linha)
         return codigo
+    if a.cmd == "decisoes" and a.acao:
+        modulo = modulo_do_bin("forge_decisor")
+        if modulo is None:
+            print("decisoes: bin/forge_decisor.py ausente ao lado do forge-check; nada feito")
+            return 2
+        return modulo.executar(a, raiz)
     if a.cmd == "decisoes":
         for linha in cmd_decisoes(raiz, a.pedido, a.sem_cartao, a.desde):
             print(linha)
