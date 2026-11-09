@@ -1045,5 +1045,39 @@ class MedidaDaVagaPesada(unittest.TestCase):
             self.assertIn(" load1=? ", f.contexto())
 
 
+class DiffDeTextoGrande(unittest.TestCase):
+    """MUTANTE-ASSERTEQUAL-TEXTO (versao-071 E2): o `assertEqual` de sequência grande de textos dá veredito no prazo."""
+
+    TESTE_GRANDE = ("import unittest\n\n\n"
+                    "def linhas(fim):\n"
+                    "    return tuple(f'{i:05d} ' + ''.join(chr(97 + (i * 7 + j * 13) % 26) for j in range(60)) + fim\n"
+                    "                 for i in range(400))\n\n\n"
+                    "class G(unittest.TestCase):\n"
+                    "    def test_tuplas(self):\n"
+                    "        self.assertEqual(linhas('a'), linhas('b'))\n\n"
+                    "    def test_texto(self):\n"
+                    "        self.assertEqual('\\n'.join(linhas('a')), '\\n'.join(linhas('b')))\n\n"
+                    "    def test_igual(self):\n"
+                    "        self.assertEqual(linhas('a'), linhas('a'))\n")
+
+    def executar(self, *ids):
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, "test_grande.py").write_text(self.TESTE_GRANDE, encoding="utf-8")
+            registro = Path(d, "registro.jsonl")
+            r = subprocess.run([sys.executable, str(FERRAMENTA), "--executar", *ids, "--registro", str(registro)],
+                               cwd=d, capture_output=True, text=True, timeout=30)  # sem a troca, o ndiff passa de 30 s
+            self.assertEqual(r.returncode, 0, r.stderr)
+            return {e["id"]: e["res"] for e in map(json.loads, registro.read_text(encoding="utf-8").splitlines())}
+
+    def test_assertequal_de_textos_grandes_falha_dentro_do_prazo(self):
+        ids = ("test_grande.G.test_tuplas", "test_grande.G.test_texto", "test_grande.G.test_igual")
+        self.assertEqual(self.executar(*ids), dict(zip(ids, ("falha", "falha", "ok"))))
+
+    def test_o_diff_omitido_e_uma_linha_so(self):
+        f = carregar()
+        self.assertEqual(list(f.DiffOmitido.ndiff(["a"], ["b"])), [f.DiffOmitido.AVISO])
+        self.assertEqual(list(f.DiffOmitido.ndiff([], [], linejunk=None)), [f.DiffOmitido.AVISO])
+
+
 if __name__ == "__main__":
     unittest.main()

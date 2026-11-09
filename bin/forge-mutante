@@ -39,7 +39,9 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS] [--processos K
 Para cada mutante, uma cópia nova do commit em $TMPDIR (clone local com `.git` próprio). O controle (os testes
 declarados, sem a troca) tem de passar. Aí o `de` tem de aparecer uma vez só no arquivo, a troca é aplicada e os
 testes rodam: falha por asserção = morreu; tudo passa = sobreviveu. Erro de carga, teste que não rodou, sintaxe
-quebrada, estouro de prazo ou sinal não são "morreu": são inválido ou sem veredito (saída 2).
+quebrada, estouro de prazo ou sinal não são "morreu": são inválido ou sem veredito (saída 2). No executor `unittest`,
+a asserção que falha não monta o diff do `difflib` (o `assertEqual` de texto ou sequência grande estourava o prazo):
+só o veredito conta, e ele não depende do diff.
 
 Saída: 0 = todos morreram (ou são equivalentes declarados) e algum teste rodou; 1 = algum sobreviveu e nenhum é
 inválido; 2 = spec inválida, controle vermelho, mutante inválido, sem veredito ou nenhum teste rodou. Atenção: o 0
@@ -171,9 +173,23 @@ class Registro(unittest.TestResult):
             self.anotar(teste, "falha" if issubclass(err[0], teste.failureException) else "erro")
 
 
+class DiffOmitido:
+    """O `difflib` que o `unittest.case` vê no executor: o veredito é passou ou falhou, e a mensagem da asserção nunca
+    sai do filho (stdout e stderr vão para /dev/null). O `ndiff` do `assertEqual` entre sequências ou textos grandes
+    custa mais que o `--prazo` (a 300 linhas de 70 caracteres, mais de 30 s) e virava "sem veredito"."""
+
+    AVISO = "(diff omitido pelo forge-mutante: o veredito não depende dele)"
+
+    @staticmethod
+    def ndiff(a, b, *args, **kwargs):
+        return iter([DiffOmitido.AVISO])
+
+
 def executar(ids, registro):
-    """Roda os testes `ids` no diretório atual e grava um registro por teste em `registro` (JSON, uma linha por teste)."""
+    """Roda os testes `ids` no diretório atual e grava um registro por teste em `registro` (JSON, uma linha por teste).
+    A asserção que falha não monta diff (`DiffOmitido`): a igualdade já foi decidida antes dele."""
     sys.path.insert(0, os.getcwd())
+    unittest.case.difflib = DiffOmitido
     resultado = Registro()
     unittest.defaultTestLoader.loadTestsFromNames(ids).run(resultado)
     Path(registro).write_text("".join(json.dumps(e) + "\n" for e in resultado.por_id.values()), encoding="utf-8")
