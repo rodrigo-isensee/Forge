@@ -46,7 +46,12 @@ class Rodar(unittest.TestCase):
         self.assertEqual(log, "x" * 5000 + "\n", "log completo, sem corte")
 
     def test_tira_o_separador_do_inicio(self):
-        self.assertEqual(self.rodar("a0", "--", "true")[0], 0)
+        sys.path.insert(0, str(RAIZ / "bin"))
+        try:
+            import forge_run  # noqa: PLC0415
+        finally:
+            sys.path.pop(0)
+        self.assertEqual(forge_run.rodar(self.tmp, "a0", ["--", "true"]), 0)
         self.assertEqual(self.run_json("a0")["argv"], ["true"])
 
     def test_para_no_primeiro_passo_que_falha(self):

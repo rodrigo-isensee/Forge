@@ -43,16 +43,6 @@
    ]
   },
   {
-   "id": "M5",
-   "guarda": "PQ sem run segue o caminho de antes",
-   "arquivo": "bin/forge_run.py",
-   "de": "    if run is None:\n        return None",
-   "para": "    if run is False:\n        return None",
-   "testes": [
-    "tests.test_forge_run.PqCitaORun.test_pq_com_pipe_segue_no_modo_de_antes"
-   ]
-  },
-  {
    "id": "M6",
    "guarda": "PQ sem crases",
    "arquivo": "bin/forge_run.py",
@@ -88,6 +78,11 @@
    "arquivo": "bin/forge-check",
    "trecho": "pasta or raiz",
    "motivo": "sem worktree (so-leitura) o run se lê da raiz; os testes passam a pasta"
+  },
+  {
+   "arquivo": "bin/forge_run.py",
+   "trecho": "run is None",
+   "motivo": "sem a guarda o PQ comum levanta TypeError em run[0] (erro, não asserção); o caminho de antes é provado por test_pq_com_pipe_segue_no_modo_de_antes"
   }
  ]
 }

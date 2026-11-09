@@ -102,7 +102,7 @@ def ler(pasta, slug, argv, head):
         return None, "", f"{PASTA / slug / 'run.json'} ausente (rode o PQ antes de pedir a conferência)"
     try:
         dados = json.loads(arq.read_text(encoding="utf-8"))
-    except ValueError:
+    except (OSError, ValueError):
         return None, "", "run.json ilegível"
     if dados.get("argv") != argv:
         return None, "", "run.json é de outro comando"
