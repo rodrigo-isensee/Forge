@@ -1,0 +1,30 @@
+{
+  "descricao": "N2 (L20b, IMPL-FURO-HOOK-N): git replace vale para todo papel (tech-lead)",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git -C . replace 0123456789abcdef0123456789abcdef01234567 0123456789abcdef0123456789abcdef01234567"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: git replace"
+  }
+}

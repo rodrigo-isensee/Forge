@@ -1,0 +1,76 @@
+{
+  "pedido": "v0435-hooks",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "N2-1",
+      "guarda": "N2: export e declare -x também valem como atribuição",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(palavras[1:] if exporta(palavras) else [])",
+      "para": "(palavras[1:] if False else [])",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n2"
+      ]
+    },
+    {
+      "id": "N2-2",
+      "guarda": "N2: o nome da variável de troca (antes do =) recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "AMBIENTE_DE_TROCA.match(a.partition(\"=\")[0])",
+      "para": "AMBIENTE_DE_TROCA.match(a.partition(\"=\")[2])",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n2"
+      ]
+    },
+    {
+      "id": "N2-3",
+      "guarda": "N2: git replace em toda forma recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if sub == \"replace\":\n            motivo",
+      "para": "if sub == \"replace-x\":\n            motivo",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n2"
+      ]
+    },
+    {
+      "id": "N2-4",
+      "guarda": "N2: fast-import grava refs pela entrada padrão",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif sub == \"fast-import\" or sub == \"update-ref\"",
+      "para": "elif sub == \"update-ref\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n2"
+      ]
+    },
+    {
+      "id": "N2-5",
+      "guarda": "N2: -c global com refs/replace ou core.useReplaceRefs recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif any(map(CITA_TROCA.search, globais)) or sub in REFS_DE_TROCA",
+      "para": "elif sub in REFS_DE_TROCA",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n2"
+      ]
+    },
+    {
+      "id": "N2-6",
+      "guarda": "N2: o motivo achado barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if motivo:\n            self.barrar(\"R-REVIEW\", f\"{motivo}: objeto de troca",
+      "para": "if False:\n            self.barrar(\"R-REVIEW\", f\"{motivo}: objeto de troca",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n2"
+      ]
+    },
+    {
+      "id": "N2-7",
+      "guarda": "N2: git config que grava refs/replace ou core.useReplaceRefs recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if grava and any(CITA_TROCA.search(c) for c in chaves):",
+      "para": "if grava and any(CITA_TROCA.search(c) for c in chaves[:0]):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n2"
+      ]
+    }
+  ]
+}
