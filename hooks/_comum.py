@@ -1779,6 +1779,9 @@ def k1_fora_da_lista(lidos):
             return "cat > arq <<'FIM' fora de um comando só"
         if palavras != [PALAVRA_K1] and sem_aspas(palavras[0]) not in PROGRAMAS_COM_K1:
             return f"{legivel(palavras[0])} com cat > arq <<'FIM' na chamada (só cd, mkdir, echo e true)"
+        # só palavras literais: o `"rc=$?"` da H1-1 fica fora (PN7, a recusa segue)
+        if palavras != [PALAVRA_K1] and any(c in "'\"$" for palavra in palavras for c in palavra):
+            return "aspas ou $ com cat > arq <<'FIM' na chamada"
     return None
 
 
