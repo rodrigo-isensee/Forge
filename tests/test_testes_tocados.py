@@ -755,7 +755,9 @@ class Oraculos(unittest.TestCase):
         self.f = carregar()
 
     def gravar(self, nome, texto=TRIVIAL):
-        (self.dir / "tests" / nome).write_text(texto, encoding="utf-8")
+        alvo = self.dir / "tests" / nome
+        alvo.parent.mkdir(parents=True, exist_ok=True)  # módulo de pacote (evals/test_x.py)
+        alvo.write_text(texto, encoding="utf-8")
 
     def test_oraculo_entra_no_plano_sem_mudar_a_contagem(self):
         self.gravar("test_oraculo_x.py")
@@ -763,7 +765,7 @@ class Oraculos(unittest.TestCase):
             with self.subTest(caminho):
                 _, real = self.f.planejar([caminho], RAIZ)
                 for m in real:
-                    self.gravar(f"{m}.py")
+                    self.gravar(m.replace(".", "/") + ".py")
                 modo, modulos = self.f.planejar([caminho], self.dir)
                 self.assertEqual(modo, "dirigido")
                 self.assertIn("test_oraculo_x", modulos)
