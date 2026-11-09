@@ -33,12 +33,12 @@ Em `${CLAUDE_PLUGIN_ROOT}/docs/regras/`: `R-MAIN` a main é do usuário; `R-VERI
 - A branch se atualiza com a integração **só na hora do merge** (`R-FLUXO`). Conflito resolvido que muda o patch invalida os pareceres do domínio tocado, e quem deu o parecer revalida; você, que resolveu, não decide o alcance: o `forge-check pr <pedido>` aponta.
 - **Fechamento:** `bin/forge-fechar <pedido> --ref <branch>` roda `forge-check pr`, `git ls-remote`, o PR, os checks, o merge pelo método da base e a limpeza; `--dry-run` mostra os passos. Ele não dispensa portão nem aplica rótulo e recusa a main. Saída 3 é merge feito com limpeza pendente: rode o que ele imprime ou `--limpar`.
 - Fila de integração (`R-FLUXO`): itens com arquivo em comum entram em ordem de chegada (`forge-check sobreposicao`); os outros não esperam.
-- PR de melhoria nasce em rascunho (`gh pr create --draft`, aberto pelo autor depois do push); o `forge-fechar` o marca como pronto preso ao head.
-- Espera de PR pelo estado (skill `esperar-estado`): o laço sai em `MERGED` ou `CLOSED`, nunca só pelos checks.
+- PR de melhoria nasce em rascunho (`gh pr create --draft`, aberto pelo autor depois do push); você o marca pronto (`gh pr ready <branch>`) com os pareceres aprovados.
+- Espera de PR (skill `esperar-estado`): sai em `MERGED` ou `CLOSED`, nunca só pelos checks.
 
 ## No repositório Forge (a fábrica)
-- Você mescla na `develop` (checklist em `R-CONTRIB`) e promove a versão `develop` → `homolog` por PR com merge automático; depois de cada merge, limpe branch remota, local e worktree (`R-FLUXO`).
-- **Versão:** é uma tag e uma release sobre um commit da `develop`. Antes do `bin/forge-changelog release <versão> <data>`, rode `scripts/placar-mutacao.py --desde <tag anterior> --versao <versão>` (medida, não portão) e `forge-check decisoes --sem-cartao`, e leve o resultado ao Jarvis. Você abre o PR `homolog` → `main` (um só, conferido, corpo por arquivo) e para: quem mescla na `main` é o usuário.
+- Você mescla na `develop` (checklist em `R-CONTRIB`) e promove a versão `develop` → `homolog` por PR com merge automático; depois, limpe branch e worktree (`R-FLUXO`).
+- **Versão:** é uma tag e uma release sobre um commit da `develop`. Antes do `bin/forge-changelog release <versão> <data>`, rode `scripts/placar-mutacao.py --desde <tag anterior> --versao <versão>` (medida, não portão) e `forge-check decisoes --sem-cartao`, e leve o resultado ao Jarvis. Você abre o PR `homolog` → `main` (um só, conferido) e para: quem mescla na `main` é o usuário; tag e release saem sozinhas (`release.yml`).
 - Review de ADR, experimento ou mecanismo novo: exija critério de reversão e, para mecanismo novo, "Por que o existente não basta" com evidência; regra ou trava nova traz a medida e qual regra sai ou quando vence (`R-DECISAO`).
 - Melhoria que chega de outro projeto: `R-NEUTRO`, `R-CUSTO`, regras invioláveis e fragmento em `changelog.d/` (`bin/forge-changelog novo`).
 

@@ -1,0 +1,78 @@
+{
+ "pedido": "v0442-s5-run-2",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M1",
+   "guarda": "tira o -- do citado",
+   "arquivo": "bin/forge_run.py",
+   "de": "        return argv[2], (resto[1:] if resto[:1] == [\"--\"] else resto)",
+   "para": "        return argv[2], (resto[1:] if resto[:1] == [\"x\"] else resto)",
+   "testes": [
+    "tests.test_forge_run.PqCitaORun.test_le_o_json_e_confere_a_espera_sem_rodar"
+   ]
+  },
+  {
+   "id": "M2",
+   "guarda": "slug do PQ validado",
+   "arquivo": "bin/forge_run.py",
+   "de": "    if not SLUG.fullmatch(slug or \"\"):\n        return None, \"\", \"slug inválido\"",
+   "para": "    if not SLUG.fullmatch(\"ok\"):\n        return None, \"\", \"slug inválido\"",
+   "testes": [
+    "tests.test_forge_run.PqCitaORun.test_slug_invalido_e_outro_programa_nao_leem_run"
+   ]
+  },
+  {
+   "id": "M3",
+   "guarda": "motivo do run reprova com o nome",
+   "arquivo": "bin/forge_run.py",
+   "de": "        divergiu = motivo or (espera is None",
+   "para": "        divergiu = (espera is None",
+   "testes": [
+    "tests.test_forge_run.PqCitaORun.test_run_de_outro_comando_ou_commit_ou_ausente_reprova"
+   ]
+  },
+  {
+   "id": "M4",
+   "guarda": "divergencia reprova",
+   "arquivo": "bin/forge_run.py",
+   "de": "if divergiu else (f\"run {slug}: ok\", False)",
+   "para": "if False else (f\"run {slug}: ok\", False)",
+   "testes": [
+    "tests.test_forge_run.PqCitaORun.test_rc_ou_log_que_diverge_reprova"
+   ]
+  },
+  {
+   "id": "M6",
+   "guarda": "PQ sem crases",
+   "arquivo": "bin/forge_run.py",
+   "de": "if achado is not None else []",
+   "para": "if achado is None else []",
+   "testes": [
+    "tests.test_forge_run.PqCitaORun.test_le_o_json_e_confere_a_espera_sem_rodar"
+   ]
+  },
+  {
+   "id": "M7",
+   "guarda": "pasta da prova que e link recusa",
+   "arquivo": "bin/forge_run.py",
+   "de": "    if base.is_symlink() or base.parent.is_symlink():",
+   "para": "    if False:",
+   "testes": [
+    "tests.test_forge_run.Rodar.test_pasta_run_link_recusa"
+   ]
+  }
+ ],
+ "isentas": [
+  {
+   "arquivo": "bin/forge_run.py",
+   "trecho": "log.parent != arq.parent or not log.is_file() or log.is_symlink()",
+   "motivo": "defesa contra run.json editado à mão apontando log fora da pasta"
+  },
+  {
+   "arquivo": "bin/forge-check",
+   "trecho": "pasta or raiz",
+   "motivo": "sem worktree (so-leitura) o run se lê da raiz; os testes passam a pasta"
+  }
+ ]
+}

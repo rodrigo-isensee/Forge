@@ -1,7 +1,7 @@
 """Orçamento de instrução (P11, 0.43.1 H): o que cada agente carrega não passa do teto de docs/regras/orcamento.json.
 
 O que o agente carrega: agents/<x>.md, as skills obrigatórias (as do `skills:` do cabeçalho e as que o texto cita pelo caminho
-`${CLAUDE_PLUGIN_ROOT}/skills/<nome>/SKILL.md`) e os docs/regras/R-*.md citados pelo agente ou por essas skills. Mede-se em
+`${CLAUDE_PLUGIN_ROOT}/skills/<nome>/SKILL.md`) e os docs/regras/R-*.md citados pelo agente ou por essas skills, menos a regra que só ferramenta verifica (vale pelo ID, orkastery 6). Mede-se em
 caracteres (o arquivo do agente e o total) e em marcadores normativos (nunca, sempre, só, proibido, obrigatório, reprova). O alvo é a
 meta documentada; só o teto reprova."""
 import json
@@ -22,6 +22,17 @@ DIMENSOES = ("agente_caracteres", "total_caracteres", "marcadores")
 BASE_85531B1 = {"jarvis": 96774, "conferente": 53441}
 
 
+# Orkastery 6 (0.44.2): a regra cuja `verificada_por` é só ferramenta executável (forge-check, hook, CI, teste, catraca, sandbox,
+# permissões) vale pelo ID: a ferramenta a aplica e diz o que fazer; o agente não carrega o texto dela. Com revisão, retrospectiva
+# ou auditoria (julgamento de alguém), o texto segue carregado.
+JULGAMENTO = re.compile(r"revis[ãa]o|retrospectiva|auditoria", re.I)
+
+
+def so_ferramenta(texto_da_regra):
+    achou = re.search(r"^verificada_por:\s*(.+)$", texto_da_regra, re.M)
+    return bool(achou) and not JULGAMENTO.search(achou.group(1))
+
+
 def skills_obrigatorias(texto):
     """As do `skills:` do cabeçalho mais as que o texto cita pelo caminho do plugin."""
     cabecalho = texto.split("\n---", 1)[0] if texto.startswith("---") else ""
@@ -36,7 +47,8 @@ def medir(raiz, agente):
     skills = skills_obrigatorias(texto)
     textos = [texto] + [(raiz / "skills" / s / "SKILL.md").read_text(encoding="utf-8") for s in skills]
     ids = sorted({i for t in textos for i in ID_DE_REGRA.findall(t)})
-    regras = [i for i in ids if (raiz / "docs" / "regras" / f"{i}.md").is_file()]
+    regras = [i for i in ids if (raiz / "docs" / "regras" / f"{i}.md").is_file()
+              and not so_ferramenta((raiz / "docs" / "regras" / f"{i}.md").read_text(encoding="utf-8"))]
     todos = textos + [(raiz / "docs" / "regras" / f"{i}.md").read_text(encoding="utf-8") for i in regras]
     return {"agente_caracteres": len(texto), "total_caracteres": sum(len(t) for t in todos),
             "marcadores": sum(len(MARCADOR.findall(t)) for t in todos), "skills": skills, "regras": regras}
@@ -88,7 +100,8 @@ class Orcamento(unittest.TestCase):
     def test_jarvis_carrega_as_skills_que_manda_ler(self):
         medida = medir(RAIZ, "jarvis")
         self.assertIn("briefs-e-conferencia", medida["skills"])
-        self.assertIn("R-BRIEF", medida["regras"])
+        self.assertIn("R-DECISAO", medida["regras"], "regra com julgamento (revisão) segue carregada")
+        self.assertNotIn("R-BRIEF", medida["regras"], "orkastery 6: regra que só ferramenta verifica vale pelo ID")
 
 
 class Medida(unittest.TestCase):
@@ -120,6 +133,11 @@ class Medida(unittest.TestCase):
         textos = [self.tmp / "agents" / "a.md", self.tmp / "skills" / "s1" / "SKILL.md", self.tmp / "skills" / "s2" / "SKILL.md",
                   self.tmp / "docs" / "regras" / "R-UM.md", self.tmp / "docs" / "regras" / "R-DOIS.md"]
         self.assertEqual(medida["total_caracteres"], sum(len(p.read_text(encoding="utf-8")) for p in textos))
+
+    def test_regra_que_so_ferramenta_verifica_vale_pelo_id(self):
+        (self.tmp / "docs" / "regras" / "R-UM.md").write_text("---\nverificada_por: `forge-check x`; hook `y`\n---\nSempre.\n", encoding="utf-8")
+        (self.tmp / "docs" / "regras" / "R-DOIS.md").write_text("---\nverificada_por: hook `y`; revisão\n---\nObrigatório.\n", encoding="utf-8")
+        self.assertEqual(medir(self.tmp, "a")["regras"], ["R-DOIS"])
 
     def test_passar_do_teto_reprova_e_agente_sem_orcamento_tambem(self):
         medida = medir(self.tmp, "a")

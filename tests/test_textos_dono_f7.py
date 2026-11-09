@@ -1,26 +1,19 @@
-"""D4 (F7): texto de revisão de UX no Jarvis e em economia-de-tokens. Texto curto e estável, não invariante."""
+"""D4 (F7): a revisão de UX só com interface, no Jarvis e em economia-de-tokens. 0.44.2: âncora e ID da regra (`R-REVIEW`),
+não a frase (tests/apoio_regra_id.py)."""
+import sys
 import unittest
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parent.parent
-
-
-def ler(rel):
-    return (RAIZ / rel).read_text(encoding="utf-8")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from apoio_regra_id import ids, linha  # noqa: E402
 
 
 class F7UxSoComInterface(unittest.TestCase):
-    """F7 (variante B): diff sem interface não tem revisão de UX."""
+    def test_passo_de_ux_do_jarvis_cita_a_regra(self):
+        self.assertIn("R-REVIEW", ids(linha("agents/jarvis.md", "7. **Revisão de UX**")))
 
-    def test_passo_de_ux_do_jarvis_tem_a_condicao(self):
-        passo = next(l for l in ler("agents/jarvis.md").splitlines() if l.startswith("7. **Revisão de UX**"))
-        self.assertIn("só quando a entrega muda interface", passo)
-        self.assertIn("diff sem interface não tem revisão de UX", passo)
-
-    def test_economia_de_tokens_tem_a_mesma_condicao(self):
-        regra = next(l for l in ler("docs/economia-de-tokens.md").splitlines() if l.startswith("1. **Uma rodada por entrega.**"))
-        self.assertIn("só quando a entrega muda interface", regra)
-        self.assertIn("diff sem interface não tem revisão de UX", regra)
+    def test_economia_de_tokens_cita_a_mesma_regra(self):
+        self.assertIn("R-REVIEW", ids(linha("docs/economia-de-tokens.md", "1. **Uma rodada por entrega.**")))
 
 
 if __name__ == "__main__":

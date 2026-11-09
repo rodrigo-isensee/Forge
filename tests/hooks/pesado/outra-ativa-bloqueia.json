@@ -19,5 +19,8 @@
   "esperado": {
     "codigo": 2,
     "stderr": "de outra sessão ou agente há 2 min"
+  },
+  "env": {
+    "FORGE_PESADO_ESPERA_S": "0"
   }
 }

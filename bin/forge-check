@@ -8700,6 +8700,10 @@ ETAPAS_DE_PARECER = ("review", "seguranca", "qa")  # as do hook `agentes` (Z10):
 LINHA_DE_PARALELO = "- paralelo na mesma branch: parecer, lê a branch sem escrever nela (Z10)"
 
 
+# Orkastery 6 (0.44.2): o agente começa pela ferramenta; regra que só ferramenta verifica vale pelo ID (a ferramenta a aplica).
+LINHA_DO_PROXIMO = "regra que só ferramenta verifica vale pelo ID: siga o que a ferramenta disser, sem reler o texto dela"
+
+
 def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, cobre=None, citar=None):
     """Blocos fixos do brief a partir do pedido e da branch; o que o Jarvis ainda decide fica em `PREENCHER`. Com `volta`
     (o namespace dos argumentos, com `--volta`), o brief da volta: `gerar_volta`. `cobre` (P2) é a etapa do pedido que o brief
@@ -8762,6 +8766,7 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
             avisar_dos_achados(problemas_achados)
         if existe_achados:
             saida.append(LINHA_DE_ACHADOS)
+        saida.append(f"- comece por `forge-check proximo {caminho_impresso(pedido_id)}` (passo, dono, bloqueios); {LINHA_DO_PROXIMO}")  # orkastery 6: o agente começa pela ferramenta
         saida.append(f"- docs/pedidos/{sem_controle(caminho_pedido.name)}: só `## Escopo`, `## Etapas` e `## Decisões` e, do `## Histórico`, só as linhas que este brief cita; "
                      "nunca o pedido inteiro (docs/economia-de-tokens.md, regra 4)")
         if existe_achados:
@@ -9235,6 +9240,10 @@ def conferir_provas(raiz, texto, branch, head, pasta, so_leitura=False):
         comando = re.search(r"`([^`]+)`", resto)
         rotulo = f"prova: PQ-{n} ({tipo})"
         if tipo == "cmd":
+            prova = modulo_do_bin("forge_run").prova_do_pq(resto, pasta or raiz, head, script, espera_do_script)
+            if prova is not None:  # S5 (0.44.2): o PQ cita a execução capturada; lida do run.json, não roda de novo (vale no --so-leitura)
+                saida.append((f"{rotulo}: {sem_controle(prova[0])}", prova[1]))
+                continue
             if comando and re.match(r"\s*forge-check entrega\b", comando.group(1)):
                 saida.append((f"{rotulo}: ok (é esta conferência)", False))
                 continue
@@ -9633,6 +9642,18 @@ def modulo_do_dono():
     return forge_dono
 
 
+def modulo_do_bin(nome):
+    """Um módulo de bin/ (0.44.2: forge_decisor, forge_run), como `governanca`; ausente ao lado do script, sai com rc 2."""
+    sys.path.insert(0, str(PLUGIN / "bin"))
+    try:
+        return __import__(nome)
+    except ImportError:
+        print(f"forge-check: bin/{nome}.py ausente ao lado do forge-check; nada feito")
+        raise SystemExit(2) from None
+    finally:
+        sys.path.remove(str(PLUGIN / "bin"))
+
+
 def guarda_de_versao(a, raiz):
     """None para seguir; um código de saída se a ferramenta está atrás do repositório e o subcomando bloqueia (`avaliar_versao`)."""
     nivel, texto = avaliar_versao(a, raiz)
@@ -9701,7 +9722,12 @@ def main():
     px.add_argument("pedido", help="id de docs/pedidos/<id>.md")
     px.add_argument("--item", help="E<n> (até 3 dígitos): passo, dono e comando do item, lidos da marca do brief de implementação e do registro (V1)")
     de = sub.add_parser("decisoes", parents=[comum], help="registro das linhas DECISÃO DO DONO dos pedidos (data, decisão, motivo, reabre se); só leitura, no stdout (EXT-2)")
+    de.add_argument("acao", nargs="?", choices=("registrar", "reverter", "conferir"), help="decisão óbvia por regra fixa (orkastery 3): "
+                    "registrar (só os fatos; porta fechada ou condição faltando vira pergunta, rc 1), reverter --id, conferir --mensagem")
     de.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md); padrão: todos")
+    for nome in ("porta", "criterio", "fato", "porque", "como-mudar", "custo-reverter", "irreversivel", "dinheiro", "escopo",
+                 "alternativas-piores", "reversivel", "erro-barato", "id", "mensagem"):
+        de.add_argument(f"--{nome}", default="", help="com registrar/reverter/conferir (ver bin/forge_decisor.py)")
     de.add_argument("--sem-cartao", action="store_true", help="cruza cada decisão com os cartões do KANBAN.md e do histórico e lista as sem cartão (rc 0)")
     de.add_argument("--desde", type=datetime.date.fromisoformat, help="com --sem-cartao: só decisões desta data (AAAA-MM-DD) em diante")
     de.add_argument("--resposta", help="com --pedido: a resposta curta do dono (\"1a 2c\", \"aprovo\") lida contra a última PERGUNTA AO DONO "
@@ -9719,6 +9745,18 @@ def main():
     modo.add_argument("--confirmar", nargs="?", const="", metavar="ARQ", help="lê o recado desta raiz (padrão: o mais novo); "
                       "sessão de outra raiz, versão diferente ou sha256 que não bate recusa (rc 1)")
     rc_.add_argument("--texto", default="", help="com --para: o recado")
+    ro = sub.add_parser("rodar", parents=[comum], help="execução capturada como prova (S5): roda sem shell e grava .forge/run/<slug>/run.json "
+                        "(rc, tempo por passo, log completo); `;` sozinho separa passos; slug repetido recusa (rc 2)")
+    ro.add_argument("slug")
+    ro.add_argument("--tempo", type=int, default=1800, help="teto por passo, em segundos (padrão 1800)")
+    ro.add_argument("comando", nargs=argparse.REMAINDER)
+    mt = sub.add_parser("meta", parents=[comum], help="objetivo armado que o hook de Stop confere (S4): entregue e provado, espera o dono "
+                        "ou ainda não (bloqueia o Stop); 4 \"ainda não\" iguais seguidos pausam sozinho")
+    modo = mt.add_mutually_exclusive_group(required=True)
+    modo.add_argument("--armar", metavar="PEDIDO")
+    modo.add_argument("--desarmar", action="store_true")
+    modo.add_argument("--estado", action="store_true")
+    mt.add_argument("--checagem", action="append", default=[], help="com --armar: comando (sem shell) que sai com rc 0 quando entregue; repita")
     pz = sub.add_parser("pausa", parents=[comum], help="pausa por limite de uso (Q1): grava onde parou e retoma quando a cota renova (X1)")
     modo = pz.add_mutually_exclusive_group(required=True)
     modo.add_argument("--gravar", action="store_true", help="grava .forge/pausa.json (pede --retoma-em e --onde)")
@@ -10009,6 +10047,10 @@ def executar(a, raiz):
         for linha in linhas:
             print(linha)
         return codigo
+    if a.cmd in ("rodar", "meta"):
+        return modulo_do_bin({"rodar": "forge_run", "meta": "forge_meta"}[a.cmd]).executar(a, raiz)
+    if a.cmd == "decisoes" and a.acao:
+        return modulo_do_bin("forge_decisor").executar(a, raiz)
     if a.cmd == "decisoes":
         for linha in cmd_decisoes(raiz, a.pedido, a.sem_cartao, a.desde):
             print(linha)

@@ -19,5 +19,8 @@
   "esperado": {
     "codigo": 2,
     "stderr": "R-TETO"
+  },
+  "env": {
+    "FORGE_PESADO_ESPERA_S": "0"
   }
 }

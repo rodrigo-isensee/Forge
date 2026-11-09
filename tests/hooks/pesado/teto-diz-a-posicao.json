@@ -1,0 +1,36 @@
+{
+  "descricao": "Orkastery 5: ocupado, espera na fila até o teto e recusa dizendo a posição.",
+  "env": {
+    "FORGE_PESADO_ESPERA_S": "1"
+  },
+  "estado": {
+    "pesado.json": {
+      "pid": "{pid_outro}",
+      "comando": "npx playwright test",
+      "desde": "{agora-120}",
+      "tool_use_id": "toolu_1"
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "npx playwright test"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "posição 1 de 1",
+    "estado": {
+      "pesado.json": {
+        "contem": [
+          "toolu_1"
+        ],
+        "ausente": [
+          "toolu_9"
+        ]
+      }
+    }
+  }
+}

@@ -64,9 +64,9 @@
   "sinonimos": 0
  },
  "docs/regras/R-FLUXO.md": {
-  "caracteres": 2740,
+  "caracteres": 2660,
   "frase_max": 45,
-  "frase_media_x10": 158,
+  "frase_media_x10": 151,
   "linhas_longas": 11,
   "descricao": 0,
   "sinonimos": 0
@@ -199,10 +199,18 @@
   "descricao": 310,
   "sinonimos": 0
  },
+ "skills/explicar-para-o-leigo/SKILL.md": {
+  "caracteres": 1237,
+  "frase_max": 25,
+  "frase_media_x10": 147,
+  "linhas_longas": 3,
+  "descricao": 172,
+  "sinonimos": 0
+ },
  "skills/falar-com-o-dono/SKILL.md": {
   "caracteres": 2091,
-  "frase_max": 57,
-  "frase_media_x10": 252,
+  "frase_max": 49,
+  "frase_media_x10": 226,
   "linhas_longas": 5,
   "descricao": 233,
   "sinonimos": 0
@@ -224,9 +232,9 @@
   "sinonimos": 0
  },
  "skills/modo-iniciante/SKILL.md": {
-  "caracteres": 6443,
+  "caracteres": 6406,
   "frase_max": 47,
-  "frase_media_x10": 159,
+  "frase_media_x10": 155,
   "linhas_longas": 23,
   "descricao": 332,
   "sinonimos": 0
@@ -237,6 +245,22 @@
   "frase_media_x10": 162,
   "linhas_longas": 17,
   "descricao": 442,
+  "sinonimos": 0
+ },
+ "skills/observabilidade-incidentes/SKILL.md": {
+  "caracteres": 1710,
+  "frase_max": 22,
+  "frase_media_x10": 129,
+  "linhas_longas": 6,
+  "descricao": 170,
+  "sinonimos": 0
+ },
+ "skills/produto-criterios/SKILL.md": {
+  "caracteres": 1417,
+  "frase_max": 25,
+  "frase_media_x10": 149,
+  "linhas_longas": 7,
+  "descricao": 198,
   "sinonimos": 0
  },
  "skills/qa-testing/SKILL.md": {

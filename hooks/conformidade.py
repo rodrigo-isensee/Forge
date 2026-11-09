@@ -327,7 +327,7 @@ FORGE_CHECK_GRAVA_EXATA = ("--destino-arquivo",)
 # FURO-HOOK-A, A4: o subcomando do `forge-check` que grava fora do papel só de leitura -> a pasta de destino (a política de caminhos
 # decide quem grava lá); o `transcricao anonimizar` grava no 2.º argumento. Os que gravam em caminho livre ficam na 2.ª lista.
 FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs", "medida": "docs/kanban", "pedido": "docs/pedidos",
-                        "pausa": ".forge"}  # X1: `pausa` sem `--retomar` grava .forge/pausa.json  # S2: `pedido fala --gravar`
+                        "pausa": ".forge", "rodar": ".forge", "meta": ".forge"}  # 0.44.2: `rodar` (S5) e `meta` (S4) gravam em .forge/run  # X1: `pausa` sem `--retomar` grava .forge/pausa.json  # S2: `pedido fala --gravar`
 FORGE_CHECK_EM_CAMINHO_LIVRE = {"movimento", "registrar"}
 # 0.43.1 (P1, P2): a forma nova grava no `## Histórico` do pedido: `brief selar` (o selo) e `entrega --pedido` (a `entrega conferida`),
 # esta salvo com `--sem-gravar`. A forma antiga do `entrega` (pedido posicional) só lê.

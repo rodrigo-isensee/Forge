@@ -20,5 +20,8 @@
   "esperado": {
     "codigo": 2,
     "stderr": "apague .forge/run/pesado.json"
+  },
+  "env": {
+    "FORGE_PESADO_ESPERA_S": "0"
   }
 }

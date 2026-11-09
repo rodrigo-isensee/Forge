@@ -1,0 +1,12 @@
+{
+  "pedido": "v0442-skills",
+  "executor": "unittest",
+  "mutantes": [
+    {"id": "M1", "guarda": "skill nova sem o gatilho 'Use' na descrição reprova", "arquivo": "skills/produto-criterios/SKILL.md",
+     "de": "Use quando o Jarvis", "para": "Quando o Jarvis",
+     "testes": ["tests.test_skills_v0442.SkillsDaV0442.test_cabecalho_com_nome_e_descricao_de_uso"]},
+    {"id": "M2", "guarda": "o devops-engineer cita a skill de observabilidade", "arquivo": "agents/devops-engineer.md",
+     "de": "skill `observabilidade-incidentes`", "para": "skill de observabilidade",
+     "testes": ["tests.test_skills_v0442.SkillsDaV0442.test_citada_onde_e_usada"]}
+  ]
+}

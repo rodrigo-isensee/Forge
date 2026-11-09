@@ -1,0 +1,113 @@
+{
+ "pedido": "v0442-orkastery5-pesado",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M1",
+   "guarda": "espera a vez em vez de recusar",
+   "arquivo": "hooks/pesado.py",
+   "de": "        for _ in range(int(espera_s() / PASSO_S) + 1):",
+   "para": "        for _ in range(1):",
+   "testes": [
+    "tests.test_pesado_fila.Fila.test_espera_a_vez_e_pega_quando_solta"
+   ]
+  },
+  {
+   "id": "M2",
+   "guarda": "pega a vez so sendo o primeiro da fila e livre",
+   "arquivo": "hooks/pesado.py",
+   "de": "                if not ocupada(hook, trava, uso, agora) and vivas[:1] == [senha]:",
+   "para": "                if not ocupada(hook, trava, uso, agora) and vivas[:1] == []:",
+   "testes": [
+    "tests.test_pesado_fila.Fila.test_espera_a_vez_e_pega_quando_solta"
+   ]
+  },
+  {
+   "id": "M3",
+   "guarda": "versao em curso na frente",
+   "arquivo": "hooks/pesado.py",
+   "de": " if m else SEM_VERSAO",
+   "para": " if m and False else SEM_VERSAO",
+   "testes": [
+    "tests.test_pesado_fila.Fila.test_prioridade_pela_versao_da_branch"
+   ]
+  },
+  {
+   "id": "M4",
+   "guarda": "senha morta sai da fila",
+   "arquivo": "hooks/pesado.py",
+   "de": "        except BlockingIOError:\n            vivas.append(c)",
+   "para": "        except BlockingIOError:\n            continue",
+   "testes": [
+    "tests.test_pesado_fila.Fila.test_fila_anda_pela_prioridade_e_descarta_a_morta"
+   ]
+  },
+  {
+   "id": "M5",
+   "guarda": "aguardando o dono recusa",
+   "arquivo": "hooks/pesado.py",
+   "de": "    if aguardando_o_dono(raiz, branch):",
+   "para": "    if False:",
+   "testes": [
+    "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+   ]
+  },
+  {
+   "id": "M6",
+   "guarda": "so a secao aguardando o dono",
+   "arquivo": "hooks/pesado.py",
+   "de": "    secao = achada.group(1) if achada else \"\"",
+   "para": "    secao = achada.group(1) if achada and False else \"\"",
+   "testes": [
+    "tests.test_pesado_fila.Fila.test_aguardando_o_dono_so_na_secao"
+   ]
+  },
+  {
+   "id": "M7",
+   "guarda": "fila nao vazia nao pula",
+   "arquivo": "hooks/pesado.py",
+   "de": " and not fila_viva(hook.run() / \"pesado.fila\"):",
+   "para": " and True:",
+   "testes": [
+    "tests.test_pesado_fila.Fila.test_quem_esta_na_fila_tem_a_vez_mesmo_livre"
+   ]
+  },
+  {
+   "id": "M8",
+   "guarda": "teto do ambiente limitado",
+   "arquivo": "hooks/pesado.py",
+   "de": "        return max(0, min(ESPERA_S, int(os.environ.get(\"FORGE_PESADO_ESPERA_S\", ESPERA_S))))",
+   "para": "        return 0",
+   "testes": [
+    "tests.test_pesado_fila.Fila.test_espera_a_vez_e_pega_quando_solta"
+   ]
+  },
+  {
+   "id": "M9",
+   "guarda": "versao sem patch vale zero",
+   "arquivo": "hooks/pesado.py",
+   "de": "int(m.group(3) or 0)",
+   "para": "int(m.group(3) or 99)",
+   "testes": [
+    "tests.test_pesado_fila.Fila.test_prioridade_pela_versao_da_branch"
+   ]
+  },
+  {
+   "id": "M10",
+   "guarda": "busca a branch na secao",
+   "arquivo": "hooks/pesado.py",
+   "de": "    return bool(branch) and re.search(",
+   "para": "    return bool(branch) or re.search(",
+   "testes": [
+    "tests.test_pesado_fila.Fila.test_aguardando_o_dono_so_na_secao"
+   ]
+  }
+ ],
+ "isentas": [
+  {
+   "arquivo": "hooks/pesado.py",
+   "trecho": "c.is_symlink()",
+   "motivo": "defesa contra link na pasta da fila; sem cenário de teste"
+  }
+ ]
+}

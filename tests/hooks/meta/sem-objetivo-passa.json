@@ -1,0 +1,11 @@
+{
+  "descricao": "S4: sem objetivo armado o Stop passa.",
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "stop_hook_active": false
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

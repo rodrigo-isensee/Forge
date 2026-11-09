@@ -7,9 +7,15 @@ PostToolUse, PostToolUseFailure e PermissionDenied (Bash) do mesmo comando solta
 No clone do Forge (cópia principal e worktrees), que não tem `.forge/config.json`, valem também os PESADOS_DO_FORGE
 abaixo: duas suítes completas ao mesmo tempo esgotam a memória (R-TETO).
 Estado em .forge/run/pesado.json.
+Orkastery 5 (0.44.2): ocupado, o PreToolUse ESPERA a vez numa fila flock (a mesma ideia do .githooks/pre-push: senha presa
+por flock em .forge/run/pesado.fila/, a de processo morto se descarta) até ESPERA_S; a fila anda pela versão da branch (a
+versão em curso, a menor, primeiro) e depois pela chegada. Cartão da branch em "Aguardando o dono" recusa na hora. Passado o
+teto, bloqueia dizendo a posição na fila.
 """
+import fcntl
 import os
 import re
+import subprocess
 import time
 from pathlib import Path
 
@@ -28,6 +34,75 @@ SUBCOMANDOS_DE_LANCE = {"exec", "run", "dlx", "x"}
 PESADOS_DO_FORGE = ["python3 -m unittest discover", "python -m unittest discover",
                     "python3 scripts/suite-paralela.py", "python scripts/suite-paralela.py",
                     "scripts/suite-paralela.py", "./scripts/suite-paralela.py", ".githooks/pre-push --suite"]
+
+
+# Orkastery 5: espera na fila em vez de bloquear. O timeout do PreToolUse do pesado em hooks.json fica acima deste teto.
+ESPERA_S = 240
+PASSO_S = 0.5
+SEM_VERSAO = 999999
+VERSAO_DA_BRANCH = re.compile(r"(?:^|/)v(\d)(\d{2})(\d{1,2})?(?:\b|-)")
+
+
+def espera_s():
+    """O teto da espera: ESPERA_S, ou FORGE_PESADO_ESPERA_S (0 a ESPERA_S) para os testes."""
+    try:
+        return max(0, min(ESPERA_S, int(os.environ.get("FORGE_PESADO_ESPERA_S", ESPERA_S))))
+    except ValueError:
+        return ESPERA_S
+
+
+def branch_de(pasta):
+    return subprocess.run(["git", "-C", str(pasta), "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True,
+                          stdin=subprocess.DEVNULL).stdout.strip()
+
+
+def prioridade(branch):
+    """A versão da branch (`melhoria/v0442` -> 4402, `v0431` -> 4301): a menor é a versão em curso e passa na frente."""
+    m = VERSAO_DA_BRANCH.search(branch)
+    return int(m.group(1)) * 10000 + int(m.group(2)) * 100 + int(m.group(3) or 0) if m else SEM_VERSAO
+
+
+def aguardando_o_dono(raiz, branch):
+    """O cartão da branch está na seção `## Aguardando o dono` do KANBAN.md (a branch citada lá)."""
+    try:
+        texto = (Path(raiz) / "KANBAN.md").read_text(encoding="utf-8")
+    except (OSError, ValueError):
+        return False
+    achada = re.search(r"^## Aguardando o dono\s*$(.*?)(?=^## |\Z)", texto, re.M | re.S)
+    secao = achada.group(1) if achada else ""
+    return bool(branch) and re.search(r"(?<![\w/.-])" + re.escape(branch) + r"(?![\w/.-])", secao) is not None
+
+
+def entrar_na_fila(pasta, prio):
+    """Cria e prende (flock) a senha `<prioridade>-<ns>-<pid>`; devolve (caminho, arquivo aberto)."""
+    pasta.mkdir(mode=0o700, exist_ok=True)
+    caminho = pasta / f"{prio:06d}-{time.time_ns()}-{os.getpid()}"
+    f = open(caminho, "w", encoding="utf-8")  # noqa: SIM115 - fica aberto (e preso) enquanto espera
+    fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    return caminho, f
+
+
+def fila_viva(pasta):
+    """As senhas vivas, em ordem (prioridade, chegada); a de processo morto (flock livre) sai."""
+    vivas = []
+    for c in sorted(pasta.glob("[0-9]*")):
+        if c.is_symlink():
+            continue
+        try:
+            with open(c, encoding="utf-8") as f:
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            c.unlink(missing_ok=True)
+        except BlockingIOError:
+            vivas.append(c)
+        except OSError:
+            continue
+    return vivas
+
+
+def ocupada(hook, trava, uso, agora):
+    return isinstance(trava, dict) and trava.get("tool_use_id") != uso and not mesma_sessao(hook, trava) \
+        and pid_vivo(trava.get("pid")) and isinstance(trava.get("desde"), (int, float)) \
+        and agora - trava["desde"] < min(hook.expira_s(), TRAVA_S)
 
 
 def pesados_da_raiz(hook, raiz):
@@ -151,15 +226,46 @@ def principal(hook):
                 arquivo.unlink()
             return
         agora = time.time()
-        if isinstance(trava, dict) and trava.get("tool_use_id") != uso and not mesma_sessao(hook, trava) \
-                and pid_vivo(trava.get("pid")) and isinstance(trava.get("desde"), (int, float)) \
-                and agora - trava["desde"] < min(hook.expira_s(), TRAVA_S):
-            minutos = int((agora - trava["desde"]) // 60)
-            registrar_a_recusa(hook)
-            bloquear("R-TETO", f"tarefa pesada de outra sessão ou agente há {minutos} min (`{str(trava.get('comando'))[:40]}`); "
-                               "espere ela terminar ou, se travou, apague .forge/run/pesado.json.")
-        gravar_json(arquivo, {"pid": pid_da_sessao(), "agente": hook.campo("agent_id"),
-                              "comando": " ".join(comando.split())[:120], "desde": agora, "tool_use_id": uso})
+        if not ocupada(hook, trava, uso, agora) and not fila_viva(hook.run() / "pesado.fila"):
+            gravar_json(arquivo, {"pid": pid_da_sessao(), "agente": hook.campo("agent_id"),
+                                  "comando": " ".join(comando.split())[:120], "desde": agora, "tool_use_id": uso})
+            return
+    esperar_a_vez(hook, raiz, arquivo, comando, uso)
+
+
+def descricao(trava, agora):
+    """` há N min (`comando`)` da trava de outra sessão; vazio se ela já não está lá."""
+    try:
+        return f" há {int((agora - trava['desde']) // 60)} min (`{str(trava.get('comando'))[:40]}`)"
+    except (TypeError, KeyError, AttributeError):
+        return ""
+
+
+def esperar_a_vez(hook, raiz, arquivo, comando, uso):
+    """Orkastery 5: ocupado, espera na fila até o teto; cartão em "Aguardando o dono" recusa; o teto vencido recusa com a posição."""
+    branch = branch_de(hook.cwd())
+    if aguardando_o_dono(raiz, branch):
+        registrar_a_recusa(hook)
+        bloquear("R-TETO", f"o cartão da branch `{branch}` está em \"Aguardando o dono\" no KANBAN.md; tarefa pesada não roda "
+                           "enquanto ele não responde (a vez fica com quem pode andar).")
+    pasta = hook.run() / "pesado.fila"
+    senha, preso = entrar_na_fila(pasta, prioridade(branch))
+    try:
+        for _ in range(int(espera_s() / PASSO_S) + 1):
+            with hook.trava():
+                trava, agora = ler_json(arquivo, None), time.time()
+                vivas = fila_viva(pasta)
+                if not ocupada(hook, trava, uso, agora) and vivas[:1] == [senha]:
+                    gravar_json(arquivo, {"pid": pid_da_sessao(), "agente": hook.campo("agent_id"),
+                                          "comando": " ".join(comando.split())[:120], "desde": agora, "tool_use_id": uso})
+                    return
+            time.sleep(PASSO_S)
+        registrar_a_recusa(hook)
+        bloquear("R-TETO", f"tarefa pesada de outra sessão ou agente{descricao(trava, agora)}; se travou, apague .forge/run/pesado.json; "
+                           f"fila: posição {vivas.index(senha) + 1} de {len(vivas)} após {espera_s()} s (versão em curso na frente).")
+    finally:
+        preso.close()
+        senha.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
