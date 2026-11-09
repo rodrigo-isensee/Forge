@@ -9,7 +9,7 @@ PARALELO = "skills/trabalho-em-paralelo/SKILL.md"
 DONO = "skills/falar-com-o-dono/SKILL.md"
 FRASES = (
     (PARALELO, "entra na `develop` na hora, sem esperar o lote nem a versão"),
-    (PARALELO, "até 3 tópicos pequenos sem arquivo em comum podem ir num lote, com as mesmas regras do \"Lote por arquivo\""),
+    (PARALELO, "até 3 tópicos pequenos sem arquivo em comum, com as regras do lote por arquivo"),
     (PARALELO, "na pausa por limite de uso só seguem conferências e integradores; nada novo é disparado"),
     (DONO, "o time segue com a escolha provisória recomendada, registrada como `suposição` com `muda com` e `custo de reverter`"),
     (DONO, "se o dono trocar 2 de 5 escolhas provisórias, a prática volta a esperar"),

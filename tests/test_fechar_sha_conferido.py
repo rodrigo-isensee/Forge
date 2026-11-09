@@ -84,7 +84,7 @@ class SoBranchRemota(unittest.TestCase):
         self.assertIn(r.returncode, (0, 3), r.stderr + r.stdout)
         self.assertIn(f"sem a branch local melhoria/x; confiro o head do servidor ({self.sha})", r.stderr)
         self.assertEqual(self.chamadas()[0], f"forge-check pr p1 --ref {self.sha} --base origin/develop")
-        self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {self.sha}", self.chamadas())
+        self.assertIn(f"gh pr merge melhoria/x --auto --squash --match-head-commit {self.sha}", self.chamadas())
 
     def test_servidor_que_anda_no_passo_1_para(self):
         r = self.fechar("p1", "--ref", "melhoria/x", CHECK_ANTES=self.envia_outro_commit())

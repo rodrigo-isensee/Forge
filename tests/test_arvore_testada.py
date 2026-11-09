@@ -207,7 +207,7 @@ class LinhaDeComando(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="arvore-"))
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
-        self.amb = sem_manutencao({"PATH": os.environ["PATH"], "HOME": str(self.tmp), "GIT_CONFIG_GLOBAL": "/dev/null",
+        self.env = sem_manutencao({"PATH": os.environ["PATH"], "HOME": str(self.tmp), "GIT_CONFIG_GLOBAL": "/dev/null",
                                    "GIT_CONFIG_SYSTEM": "/dev/null", "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
                                    "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
         self.git("init", "-q", "-b", "develop")
@@ -226,10 +226,10 @@ class LinhaDeComando(unittest.TestCase):
         self.addCleanup(self.servidor.shutdown)
 
     def git(self, *args):
-        return subprocess.run(["git", *args], cwd=self.tmp, env=self.amb, capture_output=True, text=True, check=True).stdout.strip()
+        return subprocess.run(["git", *args], cwd=self.tmp, env=self.env, capture_output=True, text=True, check=True).stdout.strip()
 
     def roda(self, *args, **muda):
-        e = {**self.amb, **env("push", ref="refs/heads/homolog"), "GH_TOKEN": "segredo-do-teste",
+        e = {**self.env, **env("push", ref="refs/heads/homolog"), "GH_TOKEN": "segredo-do-teste",
              "GITHUB_API_URL": f"http://127.0.0.1:{self.servidor.server_port}", **muda}
         return subprocess.run([sys.executable, "-I", str(SCRIPT), *args], cwd=self.tmp, env=e, capture_output=True, text=True)
 
