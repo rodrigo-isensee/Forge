@@ -10,6 +10,7 @@ from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
 from test_voltas import FORGE_CHECK, Raiz  # noqa: E402
 from test_forge import ambiente_limpo  # noqa: E402
 
@@ -168,7 +169,8 @@ class RaizDoRegistroNoForge(unittest.TestCase):
         self.contrib = self.tmp / "contrib"
         self.fc.RAIZES_DE_BRIEF = (self.contrib,)
         self.principal, self.wt = self.tmp / "principal", self.tmp / "wt"
-        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")} | {"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
+        env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+                             | {"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull})
         self.git = lambda *a: subprocess.run(["git", "-C", str(self.principal), *a], check=True, capture_output=True, env=env)
         self.principal.mkdir()
         self.git("init", "-q", "-b", "develop")
