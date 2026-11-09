@@ -232,6 +232,14 @@ def principal(hook):
     esperar_a_vez(hook, raiz, arquivo, comando, uso)
 
 
+def descricao(trava, agora):
+    """` há N min (`comando`)` da trava de outra sessão; vazio se ela já não está lá."""
+    try:
+        return f" há {int((agora - trava['desde']) // 60)} min (`{str(trava.get('comando'))[:40]}`)"
+    except (TypeError, KeyError, AttributeError):
+        return ""
+
+
 def esperar_a_vez(hook, raiz, arquivo, comando, uso):
     """Orkastery 5: ocupado, espera na fila até o teto; cartão em "Aguardando o dono" recusa; o teto vencido recusa com a posição."""
     branch = branch_de(hook.cwd())
@@ -241,9 +249,8 @@ def esperar_a_vez(hook, raiz, arquivo, comando, uso):
                            "enquanto ele não responde (a vez fica com quem pode andar).")
     pasta = hook.run() / "pesado.fila"
     senha, preso = entrar_na_fila(pasta, prioridade(branch))
-    limite = time.monotonic() + espera_s()
     try:
-        while True:
+        for _ in range(int(espera_s() / PASSO_S) + 1):
             with hook.trava():
                 trava, agora = ler_json(arquivo, None), time.time()
                 vivas = fila_viva(pasta)
@@ -251,20 +258,13 @@ def esperar_a_vez(hook, raiz, arquivo, comando, uso):
                     gravar_json(arquivo, {"pid": pid_da_sessao(), "agente": hook.campo("agent_id"),
                                           "comando": " ".join(comando.split())[:120], "desde": agora, "tool_use_id": uso})
                     return
-            if time.monotonic() >= limite:
-                break
             time.sleep(PASSO_S)
-        posicao = vivas.index(senha) + 1 if senha in vivas else len(vivas) + 1
-        minutos = int((agora - trava["desde"]) // 60) if isinstance(trava, dict) and isinstance(trava.get("desde"), (int, float)) else 0
         registrar_a_recusa(hook)
-        bloquear("R-TETO", f"tarefa pesada de outra sessão ou agente há {minutos} min (`{str((trava or {}).get('comando'))[:40]}`); "
-                           f"se travou, apague .forge/run/pesado.json; fila: posição {posicao} de {len(vivas)} após {espera_s()} s "
-                           "(versão em curso na frente).")
+        bloquear("R-TETO", f"tarefa pesada de outra sessão ou agente{descricao(trava, agora)}; se travou, apague .forge/run/pesado.json; "
+                           f"fila: posição {vivas.index(senha) + 1} de {len(vivas)} após {espera_s()} s (versão em curso na frente).")
     finally:
         preso.close()
         senha.unlink(missing_ok=True)
-
-
 
 
 if __name__ == "__main__":
