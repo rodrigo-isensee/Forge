@@ -1678,8 +1678,14 @@ VALOR_DE_TEXTO = frozenset({"-m", "--message", "-b", "--body", "-t", "--title", 
 OPERADOR_K = "\x01"  # o operador e o delimitador de um heredoc modelado, na linha sem os corpos
 PALAVRA_K3 = "\x02"  # a palavra `"$(cat <<'X'⏎…⏎X⏎)"`, já sem o corpo
 K1 = re.compile(r"[ \t]*cat[ \t]+>>?[ \t]*[\w./:@,+%~^-]+[ \t]+\x01[ \t\n]*")  # a chamada inteira (fullmatch)
+# HOOK-PARECER-HEREDOC-FALSO-POSITIVO (0.43.2): a K1 também como um comando simples da chamada (`mkdir -p docs/qa && cat > docs/qa/p.md
+# <<'FIM'`, `…FIM⏎echo ok`), entre separadores da gramática, vira a palavra PALAVRA_K1. Ela só vale com os outros comandos em
+# PROGRAMAS_COM_K1 (nenhum roda o arquivo gravado nem lê o corpo; sem `git`, que roda ganchos e filtros, e sem `gh`).
+PALAVRA_K1 = "\x03"
+K1_NA_LISTA = re.compile(r"(^|&&|;|\n)([ \t]*)cat[ \t]+>>?[ \t]*[\w./:@,+%~^-]+[ \t]+\x01(?=[ \t]*(?:&&|;|\n|$))")
+PROGRAMAS_COM_K1 = frozenset({"cd", "mkdir", "echo", "true"})
 K3 = re.compile(r'"\$\(cat[ \t]+\x01[ \t]*\n\)"')
-CONTORNO_DA_GRAMATICA = ("na chamada com heredoc e ação crítica, só cat > arq <<'FIM' sozinho na chamada, "
+CONTORNO_DA_GRAMATICA = ("na chamada com heredoc e ação crítica, só cat > arq <<'FIM' (sozinho ou com cd, mkdir, echo e true), "
                          "git commit -F - <<'FIM' e -m, --body ou --title \"$(cat <<'FIM'…FIM)\", com comandos git, gh, "
                          "cd, mkdir, echo e true literais, separados por &&, ; ou quebra de linha (sem atribuição, $, "
                          "redireção nem pipe); o resto vai noutra chamada do Bash (docs/hooks.md)")
@@ -1699,7 +1705,7 @@ def sem_os_corpos(texto, achados):
 
 def legivel(palavra):
     """A palavra com as formas K de volta no texto, para a mensagem."""
-    return palavra.replace(OPERADOR_K, "<<'FIM'").replace(PALAVRA_K3, '"$(cat <<…)"')
+    return palavra.replace(OPERADOR_K, "<<'FIM'").replace(PALAVRA_K3, '"$(cat <<…)"').replace(PALAVRA_K1, "cat > arq <<'FIM'")
 
 
 def simples_da_gramatica(resto):
@@ -1736,7 +1742,7 @@ def simples_da_gramatica(resto):
             continue
         if c in " \t":
             fechar()
-        elif c in (OPERADOR_K, PALAVRA_K3) or c.isalnum() or c in ALFABETO_LEITURA:
+        elif c in (OPERADOR_K, PALAVRA_K3, PALAVRA_K1) or c.isalnum() or c in ALFABETO_LEITURA:
             palavra += c
         else:
             return nome_do_sinal(c)
@@ -1761,6 +1767,22 @@ def sem_aspas(palavra):
             partes.append(c)
             i += 1
     return "".join(partes)
+
+
+def k1_fora_da_lista(lidos):
+    """HOOK-PARECER-HEREDOC-FALSO-POSITIVO (0.43.2): com a K1 numa lista de comandos (PALAVRA_K1), o primeiro sinal fora da forma, ou
+    None: ela é o comando simples inteiro, e os outros comandos são todos de PROGRAMAS_COM_K1 (sem `git` nem `gh`). Sem a K1, None."""
+    if not any(PALAVRA_K1 in palavra for palavras in lidos for palavra in palavras):
+        return None
+    for palavras in lidos:
+        if PALAVRA_K1 in "".join(palavras) and palavras != [PALAVRA_K1]:
+            return "cat > arq <<'FIM' fora de um comando só"
+        if palavras != [PALAVRA_K1] and sem_aspas(palavras[0]) not in PROGRAMAS_COM_K1:
+            return f"{legivel(palavras[0])} com cat > arq <<'FIM' na chamada (só cd, mkdir, echo e true)"
+        # só palavras literais: o `"rc=$?"` da H1-1 fica fora (PN7, a recusa segue)
+        if palavras != [PALAVRA_K1] and any(c in "'\"$" for palavra in palavras for c in palavra):
+            return "aspas ou $ com cat > arq <<'FIM' na chamada"
+    return None
 
 
 def comando_fora_da_gramatica(palavras):
@@ -1815,8 +1837,9 @@ def gramatica_com_heredoc(texto):
     achados, duvida = heredocs(texto)
     if duvida is not None:
         return "<< que o hook não prova ser heredoc"
-    if OPERADOR_K in texto or PALAVRA_K3 in texto:
-        return nome_do_sinal(OPERADOR_K if OPERADOR_K in texto else PALAVRA_K3)
+    reservado = next((k for k in (OPERADOR_K, PALAVRA_K3, PALAVRA_K1) if k in texto), None)
+    if reservado is not None:
+        return nome_do_sinal(reservado)
     for h in achados:
         m = HEREDOC_MODELADO.match(texto, h.operador)
         if m is None or m.end() != h.fim_do_operador:
@@ -1828,10 +1851,11 @@ def gramatica_com_heredoc(texto):
     resto = sem_os_corpos(texto, achados)
     if len(achados) == 1 and K1.fullmatch(resto):
         return Gramatica([], corpos, True)
-    lidos = simples_da_gramatica(K3.sub(PALAVRA_K3, resto))
+    lidos = simples_da_gramatica(K1_NA_LISTA.sub(rf"\1\2{PALAVRA_K1}", K3.sub(PALAVRA_K3, resto)))
     if isinstance(lidos, str):
         return lidos
-    sinal = next((sinal for sinal in map(comando_fora_da_gramatica, lidos) if sinal), None)
+    sinal = k1_fora_da_lista(lidos) or next((sinal for palavras in lidos if palavras != [PALAVRA_K1]
+                                             for sinal in [comando_fora_da_gramatica(palavras)] if sinal), None)
     return sinal or Gramatica([[sem_aspas(p) for p in palavras] for palavras in lidos], corpos, False)
 
 
@@ -2431,9 +2455,17 @@ class Hook:
 
     # Estado em .forge/run/ da cópia principal ------------------------------------------------
     def run(self):
-        """`.forge/run/` da cópia de trabalho principal (as worktrees somam no mesmo estado)."""
+        """`.forge/run/` da cópia de trabalho principal (as worktrees somam no mesmo estado). FORGE-RUN-INERTE (0.43.2): no clone do
+        Forge com `.forge` que existe e não é pasta (arquivo de proteção), `<diretório comum do git>/forge/run/` (pasta 0700, o mesmo
+        lugar do `agentes`); sem o recuo o `mkdir` falhava e o estado do `pesado` e o erros.log ficavam inertes."""
         if self._run is None:
             run = self.copia_principal() / ".forge" / "run"
+            if os.path.lexists(run.parent) and not run.parent.is_dir() and e_clone_do_forge(self.raiz):
+                comum = diretorio_comum(self.raiz)
+                if comum is None:
+                    raise NotADirectoryError(f"{run.parent} não é pasta e o clone não tem diretório comum de git")
+                run = comum / "forge" / "run"
+                run.mkdir(mode=0o700, parents=True, exist_ok=True)
             run.mkdir(parents=True, exist_ok=True)
             ignorar = run / ".gitignore"
             if not ignorar.exists():

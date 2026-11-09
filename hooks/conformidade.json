@@ -18,9 +18,9 @@
   "sem_agent_type": "jarvis",
   "papel_padrao": "dev",
   "acoes": {
-    "merge_integracao": ["tech-lead", "jarvis"],
-    "pr_criar": ["jarvis", "tech-lead"],
-    "pr_merge_integracao": ["tech-lead", "jarvis"],
+    "merge_integracao": ["tech-lead"],
+    "pr_criar": ["tech-lead"],
+    "pr_merge_integracao": ["tech-lead"],
     "instalar_pacote": ["dev"],
     "instalar_congelado": ["dev", "qa", "tech-lead"]
   },

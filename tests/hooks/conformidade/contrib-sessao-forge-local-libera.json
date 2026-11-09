@@ -1,5 +1,5 @@
 {
-  "descricao": "Sessão do Forge no ~/Forge: push, merge e rótulo liberam.",
+  "descricao": "Sessão do Forge no ~/Forge: push, merge e rótulo liberam. O tech-lead mescla (FILA-22: o jarvis não).",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -24,7 +24,8 @@
     },
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9",
-    "cwd": "{tmp}/home/Forge"
+    "cwd": "{tmp}/home/Forge",
+    "agent_type": "forge:tech-lead"
   },
   "esperado": {
     "codigo": 0

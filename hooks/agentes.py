@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Forge: teto de agentes, relançamento duplicado (ADR 0003, R-TETO), brief selado do especialista e forma da mensagem ao conferente (R-BRIEF).
 
-P1 (0.43.1): todo disparo de `forge:<papel>` (fora o conferente) exige no prompt o caminho de um brief em docs/briefs/ com selo no
+P1 (0.43.1): todo disparo de `forge:<papel>` (fora o conferente; também o nome do papel sem o prefixo e, desde a 0.43.2, o
+`general-purpose`, o `fork` e o `claude` cujo prompt cita um brief em docs/briefs/) exige no prompt o caminho de um brief em docs/briefs/ com selo no
 `## Histórico` do pedido (`- <data> <hora>: brief selado docs/briefs/<nome>.md <sha256>`, gravado só pelo `forge-check brief selar`)
 e com o sha256 de agora; sem isso, bloqueia (falha fechada). O conferente é opcional e segue com a forma e o hash da mensagem.
 
@@ -17,7 +18,11 @@ em <diretório comum do git>/forge/run/agentes.json: protegido pela conformidade
 de escrita; `hooks_desligados` não vale no clone. Registros expiram (reserva sem início: 5 min; agente: expiracao_horas).
 O registro leva o PID da sessão do Claude Code, o namespace de PID e o session_id: com a sessão morta (PID inexistente, no mesmo
 namespace) a vaga sai na hora, sem esperar o prazo. Qualquer dúvida (tipo, faixa, namespace, erro) mantém o registro.
-AG-1a (E10): a reserva grava em `branches` as `Branch:` do cabeçalho dos briefs citados no prompt (só registro, sem recusa).
+AG-1a (E10): a reserva grava em `branches` as `Branch:` do cabeçalho dos briefs citados no prompt.
+Z10 (0.43.2, AG-1b): uma delegação de escrita vigente por branch (R-TETO). A reserva grava também em `escrita` as branches dos briefs
+de escrita (`Etapa:` fora de review, seguranca e qa; sem `Etapa:`, escrita); a segunda delegação de escrita numa branch que outra
+reserva vigente escreve é recusada até o SubagentStop dela (ou o prazo). Só passa o brief que traz no próprio arquivo
+`paralelo na mesma branch: <motivo>` (10 caracteres ou mais). Registro antigo, sem `escrita`, ocupa todas as `branches` dele.
 """
 import hashlib
 import os
@@ -25,9 +30,10 @@ import re
 import stat
 import sys
 import time
+import unicodedata
 from pathlib import Path
 
-from _comum import (RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check, gravar_json,
+from _comum import (PLUGIN, RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check, gravar_json,
                     ler_json)
 from pesado import CASCAS, pid_da_sessao, pid_vivo
 
@@ -312,9 +318,39 @@ def caminhos_de_brief(prompt):
             inicio = achado.end()
 
 
-def branches_dos_briefs(hook, prompt):
+EXCECAO_DE_BRANCH = re.compile(r"^(?:[-*] )?paralelo na mesma branch:(.*)$", re.M)
+MOTIVO_MINIMO = 10  # AG-1/C-3: caracteres do motivo depois de sem_controle
+CONTROLES = {"Cc", "Cf", "Zl", "Zp"}
+CORTE_DO_NOME = 80
+ETAPAS_DE_PARECER = ("review", "seguranca", "qa")  # Z10: o parecer não escreve a branch; o resto (e a falta de `Etapa:`) escreve
+
+
+def sem_controle(texto):
+    """O critério do `sem_controle` do forge-check: Cc, Cf, Zl e Zp viram um espaço só por sequência (a mensagem não forja linha)."""
+    saida, anterior = [], False
+    for c in str(texto):
+        controle = unicodedata.category(c) in CONTROLES
+        if not (controle and anterior):
+            saida.append(" " if controle else c)
+        anterior = controle
+    return "".join(saida).strip()
+
+
+def tem_excecao(texto):
+    """AG-1b (AG-1/C-3): o texto do brief traz `paralelo na mesma branch: <motivo>` com motivo de 10 caracteres ou mais."""
+    return any(len(sem_controle(motivo)) >= MOTIVO_MINIMO for motivo in EXCECAO_DE_BRANCH.findall(texto))
+
+
+def de_escrita(fc, cabecalho):
+    """Z10: o brief é de escrita na branch? `Etapa:` do cabeçalho fora de ETAPAS_DE_PARECER, ou ausente (na dúvida, escreve)."""
+    etapa = re.search(fc.ETAPA_DO_CABECALHO, cabecalho, re.M)
+    return not (etapa and etapa.group(1) in ETAPAS_DE_PARECER)
+
+
+def branches_dos_briefs(hook, prompt, escrita=None, a_conferir=None):
     """AG-1a (E10): as `Branch:` do cabeçalho de cada brief em docs/briefs/ citado no prompt, sem `nenhuma` e `—`, em ordem.
-    Brief ausente ou recusado pela `ler_brief` fica fora; outro erro sobe (quem chama registra e grava a lista vazia)."""
+    Brief ausente ou recusado pela `ler_brief` fica fora; outro erro sobe (quem chama registra e grava a lista vazia).
+    Z10: a branch de brief de escrita (`de_escrita`) entra também em `escrita` e, sem a exceção no próprio arquivo, em `a_conferir`."""
     caminhos = list(dict.fromkeys(caminhos_de_brief(str(prompt or ""))))
     if len(caminhos) > MAXIMO_DE_BRIEFS:
         print(f"aviso: {len(caminhos)} briefs citados (máximo {MAXIMO_DE_BRIEFS}); a reserva não grava branch.", file=sys.stderr)
@@ -331,16 +367,61 @@ def branches_dos_briefs(hook, prompt):
         if dados is None:
             continue
         fc = fc or forge_check()  # carregado uma vez, só com brief lido
-        achada = re.search(fc.CABECALHO_DE_BRIEF_CAMPOS["Branch"], fc.cabecalho_do_brief(dados.decode("utf-8", "replace")))
+        texto = dados.decode("utf-8", "replace")
+        cabecalho = fc.cabecalho_do_brief(texto)
+        achada = re.search(fc.CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho)
         if achada and achada.group(1) not in SEM_BRANCH:
             branches.add(achada.group(1))
+            if escrita is not None and de_escrita(fc, cabecalho):
+                escrita.add(achada.group(1))
+                if a_conferir is not None and not tem_excecao(texto):
+                    a_conferir.add(achada.group(1))
     return sorted(branches)
 
 
-def exige_selo(tipo):
-    """P1 (0.43.1): o especialista do Forge (`forge:<papel>`) só sai com brief selado; o conferente (opcional, conferência de conteúdo
-    pedida pelo Jarvis) segue com a forma e o hash da mensagem. Os tipos fora do plugin não passam por aqui."""
-    return tipo.startswith("forge:") and tipo != CONFERENTE
+def escritas_do_registro(registro):
+    """Z10: as branches que a reserva vigente escreve: `escrita`; no registro sem a chave (anterior à 0.43.2), todas as `branches`."""
+    lista = registro.get("escrita", registro.get("branches"))
+    return lista if isinstance(lista, list) else []
+
+
+def recusar_branch_ocupada(hook, agentes, branches):
+    """Z10 (AG-1b, R-TETO): bloqueia se outra reserva vigente escreve uma das `branches` (igualdade exata)."""
+    for a in agentes:
+        ocupadas = escritas_do_registro(a)
+        for branch in branches:
+            if branch in ocupadas:
+                prazo = hook.expira_s() if a.get("id") else min(RESERVA_S, hook.expira_s())
+                try:
+                    hora = time.strftime("%H:%M", time.localtime(a["desde"] + prazo))
+                except (OverflowError, ValueError, OSError, TypeError):  # `desde` absurdo: a recusa sai do mesmo jeito
+                    hora = "?"
+                tipo = sem_controle(a.get("tipo"))[:CORTE_DO_NOME]
+                bloquear("R-TETO", f"{sem_controle(branch)[:CORTE_DO_NOME]} ocupada por {tipo} (uma delegação de escrita por branch): "
+                                   f"espere o `SubagentStop` ou a expiração às {hora}; registro em "
+                                   f"{sem_controle(hook.run() / 'agentes.json')}")
+
+
+# BRIEF-EXECUTOR-SEM-PORTAO (0.43.2): os tipos de fora do plugin que escrevem como um especialista (todas as ferramentas). O
+# `Explore`, o `Plan` e os outros só de leitura ficam fora: a pesquisa não passa pelo selo.
+EXECUTORES_GENERICOS = {"general-purpose", "fork", "claude"}
+
+
+def papeis_do_forge():
+    """Os nomes dos agentes do plugin (`agents/` e `stacks/*/agents/`), sem o conferente: o tipo pode chegar sem o prefixo `forge:`."""
+    return {p.stem for p in (*PLUGIN.glob("agents/*.md"), *PLUGIN.glob("stacks/*/agents/*.md"))} - {"conferente"}
+
+
+def exige_selo(tipo, prompt=""):
+    """P1 (0.43.1): o especialista do Forge (`forge:<papel>`, ou o nome do papel sem o prefixo) só sai com brief selado; o conferente
+    (opcional, conferência de conteúdo pedida pelo Jarvis) segue com a forma e o hash da mensagem. BRIEF-EXECUTOR-SEM-PORTAO (0.43.2):
+    o executor genérico (`EXECUTORES_GENERICOS`) cujo prompt cita um brief em docs/briefs/ faz o trabalho do especialista e também
+    precisa do selo; sem brief citado (leitura, pesquisa), segue livre. Os outros tipos de fora do plugin não passam por aqui."""
+    if tipo == CONFERENTE:
+        return False
+    if tipo.startswith("forge:") or tipo in papeis_do_forge():
+        return True
+    return tipo in EXECUTORES_GENERICOS and next(caminhos_de_brief(str(prompt or "")), None) is not None
 
 
 def selo_ausente(hook, prompt):
@@ -383,7 +464,7 @@ def lancar(hook, agentes, agora):
     divergencia = hash_do_brief_diverge(hook, entrada.get("prompt")) if tipo == CONFERENTE else None
     if divergencia:
         bloquear("R-BRIEF", f"{divergencia}; gere de novo com `forge-check brief mensagem` e envie-a.")
-    if exige_selo(tipo):
+    if exige_selo(tipo, entrada.get("prompt")):
         try:
             sem_selo = selo_ausente(hook, entrada.get("prompt"))
         except Exception as erro:  # noqa: BLE001 - falha fechada: sem prova do selo, o especialista não sai
@@ -413,12 +494,15 @@ def lancar(hook, agentes, agora):
     if len(agentes) >= teto:
         bloquear("R-TETO", f"{len(agentes)} agentes ativos, teto {teto} ({motivo}); "
                            "espere um terminar antes de lançar outro.")
+    escrita, a_conferir = set(), set()
     try:  # AG-1a (G-3): depois do teto e só calcula; o erro registra e a reserva sai com a lista vazia
-        branches = branches_dos_briefs(hook, entrada.get("prompt")) if tipo != CONFERENTE else []
+        branches = branches_dos_briefs(hook, entrada.get("prompt"), escrita, a_conferir) if tipo != CONFERENTE else []
     except Exception as erro:  # noqa: BLE001 - a exceção não pode levar a reserva (o executar liberaria sem ela)
         hook.registrar_erro(erro)
-        branches = []
-    agentes.append({"id": None, "tipo": tipo, "descricao": descricao, "desde": agora, "branches": branches, **da_sessao(hook)})
+        branches, escrita, a_conferir = [], set(), set()
+    recusar_branch_ocupada(hook, agentes, sorted(a_conferir))  # Z10: fora do try, sobre a lista pronta
+    agentes.append({"id": None, "tipo": tipo, "descricao": descricao, "desde": agora, "branches": branches,
+                    "escrita": sorted(escrita), **da_sessao(hook)})
 
 
 def iniciar(hook, agentes, agora):
