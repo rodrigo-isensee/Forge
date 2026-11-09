@@ -25,10 +25,12 @@
     "./agents/tech-lead.md",
     "./agents/ux-designer.md",
     "./stacks/node-react/agents/node-backend.md",
-    "./stacks/node-react/agents/react-frontend.md"
+    "./stacks/node-react/agents/react-frontend.md",
+    "./stacks/python/agents/python-backend.md"
   ],
   "skills": [
     "./stacks/node-react/skills/node-backend",
-    "./stacks/node-react/skills/react-frontend"
+    "./stacks/node-react/skills/react-frontend",
+    "./stacks/python/skills/python-backend"
   ]
 }
