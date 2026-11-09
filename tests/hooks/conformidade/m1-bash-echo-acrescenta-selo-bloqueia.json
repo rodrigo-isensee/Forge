@@ -1,0 +1,19 @@
+{
+  "descricao": "M1 (review da 0.43.2): a linha de selo ou de conferência é da ferramenta; `echo ... >> docs/pedidos/p1.md` pelo Bash.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# Pedido p1\n\n## Histórico\n- 2026-10-30: aberto\n- 2026-11-09 10:00: brief selado docs/briefs/p1-dev-1.md aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo '- 2026-11-09 10:00: brief selado docs/briefs/p1-dev-2.md bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' >> docs/pedidos/p1.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "escrita pelo Bash"
+  }
+}

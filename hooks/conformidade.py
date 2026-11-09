@@ -9,6 +9,7 @@ PostToolUse registra a autoria dos pareceres em `.forge/run/autoria.jsonl`.
 Falha fechado nas ações críticas (seção 7); `FORGE_GUARDA_ABERTA=1` no ambiente do processo abre a guarda.
 Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB).
 """
+import collections
 import contextlib
 import functools
 import hashlib
@@ -47,6 +48,10 @@ PRAZO_DA_LINHA_S = 3.0
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 # M1 (review de segurança da 0.43.1): as linhas que o `forge-check` grava no `## Histórico` do pedido e que os portões leem como
 # prova (`brief selar`, `entrega --pedido`). Write/Edit/MultiEdit que acrescente uma delas no pedido é recusado, de qualquer papel.
+# No Bash (M1, [B]): a linha que cita a forma do selo ou da conferência e escreve (redireção, heredoc, tee, sed, interpretador,
+# cópia) é recusada, onde quer que grave: o hook não segue `cd` nem variável até o pedido (falha fechada, ADR 0009).
+CITA_PORTAO = re.compile(r"brief selado\s+\S*docs/briefs/\S+\s+[0-9a-f]{64}|entrega conferida\s+[0-9a-f]{40}")
+ESCRITA_NA_LINHA = re.compile(r">|<<|\b(?:tee|sed|dd|cp|mv|install|python\w*|perl\w*|ruby\w*|node|awk|gawk|nawk|printf)\b")
 LINHA_DE_PORTAO = re.compile(r"(?m)^-\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}: (?:brief selado docs/briefs/\S+ [0-9a-f]{64}|entrega conferida [0-9a-f]{40})")
 CRITICO = re.compile(
     r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
@@ -133,6 +138,8 @@ LONGAS_SEM_EXEC = {"recursive", "dereference-recursive", "line-number", "ignore-
 ARQUIVO_ENV = re.compile(r"^\.env(\.[\w.-]+)?$")
 ENV_DE_EXEMPLO = {"example", "sample", "template", "dist"}
 PUSH_COM_VALOR = {"-o", "--push-option", "--repo", "--receive-pack", "--exec"}
+CRIAR_PR_POR_API = re.compile(r"(^|/)repos/[^/]+/[^/]+/pulls/?$", re.I)  # FILA-22: POST aqui abre PR
+CRIAR_PR_NO_GRAPHQL = re.compile(r"createPullRequest", re.I)
 API_ADMIN = re.compile(r"/(git/refs|contents/|rulesets|branches/[^/]+/protection|collaborators|actions/(secrets|variables)"
                        r"|hooks|keys|transfer)")
 GRAPHQL_PERIGOSO = re.compile(r"mergePullRequest|enablePullRequestAutoMerge|updateRef|createRef|deleteRef|"
@@ -483,13 +490,15 @@ def opcao_de_merge_que_muda_o_resultado(args):
     return None
 
 
-def contar_linhas_de_portao(texto):
-    return len(LINHA_DE_PORTAO.findall(texto)) if isinstance(texto, str) else 0
+def linhas_de_portao(texto):
+    """O multiconjunto das linhas de `LINHA_DE_PORTAO` do texto (cada linha com a data, o arquivo e o hash dela)."""
+    return collections.Counter(LINHA_DE_PORTAO.findall(texto)) if isinstance(texto, str) else collections.Counter()
 
 
 def acrescenta_linha_de_portao(caminho, entrada, pasta):
-    """M1: True se o Write/Edit/MultiEdit em `docs/pedidos/*.md` deixa mais linhas de `LINHA_DE_PORTAO` do que havia (no Write,
-    contra o arquivo de hoje; no Edit e no MultiEdit, `new_string` contra `old_string`). Arquivo ilegível conta zero (falha fechada)."""
+    """M1: True se o Write/Edit/MultiEdit em `docs/pedidos/*.md` deixa alguma linha de `LINHA_DE_PORTAO` que não havia (o
+    multiconjunto: trocar o arquivo, o hash ou o tipo da linha também conta; no Write, contra o arquivo de hoje; no Edit e no
+    MultiEdit, `new_string` contra `old_string`). Arquivo ilegível vale vazio (falha fechada)."""
     alvo = os.path.normpath(os.path.join(str(pasta), os.path.expanduser(caminho)))
     if not re.search(r"(^|/)docs/pedidos/[^/]+\.md$", alvo):
         return False
@@ -498,11 +507,14 @@ def acrescenta_linha_de_portao(caminho, entrada, pasta):
             antes = Path(alvo).read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             antes = ""
-        return contar_linhas_de_portao(entrada.get("content")) > contar_linhas_de_portao(antes)
+        return bool(linhas_de_portao(entrada.get("content")) - linhas_de_portao(antes))
     edicoes = entrada.get("edits") if isinstance(entrada.get("edits"), list) else [entrada]
     edicoes = [edicao for edicao in edicoes if isinstance(edicao, dict)]
-    return sum(contar_linhas_de_portao(e.get("new_string")) for e in edicoes) > \
-        sum(contar_linhas_de_portao(e.get("old_string")) for e in edicoes)
+    novas, antigas = collections.Counter(), collections.Counter()
+    for edicao in edicoes:
+        novas += linhas_de_portao(edicao.get("new_string"))
+        antigas += linhas_de_portao(edicao.get("old_string"))
+    return bool(novas - antigas)
 
 
 class Guarda:
@@ -803,6 +815,9 @@ class Guarda:
         conferido duas vezes, e a linha é recusada acima de
         `TETO_DE_CONFERENCIAS` conferências, de `TETO_DE_CARACTERES` caracteres conferidos ao todo ou de
         `PRAZO_DA_LINHA_S` segundos."""
+        if nivel == 0 and CITA_PORTAO.search(comando) and ESCRITA_NA_LINHA.search(comando):
+            self.barrar("R-CONFORMIDADE", "linha `brief selado` ou `entrega conferida` escrita pelo Bash",
+                        "quem grava é a ferramenta: `forge-check brief selar` e `forge-check entrega --pedido`")
         if nivel == 0:
             self.conferidas, self.conferencias, self.caracteres = {}, 0, 0
             self.reavaliacao = None
@@ -1657,7 +1672,7 @@ class Guarda:
                     prog = Path(palavras[0].lstrip("`")).name if palavras else ""
                     if prog == "gh":
                         self.gh_rotulo(palavras, pasta, atras_do_xargs(escritas, palavras))
-                        self.gh_pr_na_sessao_do_forge(palavras)
+                        self.gh_pr_na_sessao_do_forge(palavras, pasta)
                     elif prog == "alias" and CITA_ROTULO.search(" ".join(palavras)):  # A5: o alias do shell guarda o rótulo
                         self.exigir_dono()
                     elif prog in SHELLS:
@@ -1681,13 +1696,27 @@ class Guarda:
         if "\\`" in texto:
             self.rotulo_na_sessao_do_forge(texto.replace("\\`", "`"), pasta, nivel)
 
-    def gh_pr_na_sessao_do_forge(self, palavras):
+    def gh_api_cria_pr(self, parte, pasta):
+        """FILA-22 (review da 0.43.2): o PR aberto pelo `gh api` (POST em `repos/<o>/<r>/pulls` ou `createPullRequest` no GraphQL,
+        inline ou em arquivo; ilegível falha fechado) segue a política `pr_criar`, como o `gh pr create`."""
+        if not parte or parte[0] != "api" or self.pode("pr_criar") or not parecer.metodo_mutante(parte[1]):
+            return
+        endpoint = parecer.endpoint_da_api(parte[1])
+        cria = bool(CRIAR_PR_POR_API.search(endpoint))
+        if not cria and parecer.ENDPOINT_GRAPHQL.search(endpoint):
+            textos, ilegivel = self.textos_da_api(parte[1], pasta)
+            cria = ilegivel or any(CRIAR_PR_NO_GRAPHQL.search(t) for t in textos)
+        if cria:
+            self.barrar("R-CONFORMIDADE", f"gh api que abre PR {self.so_de('pr_criar')} (papel: {self.papel})", "peça ao tech-lead")
+
+    def gh_pr_na_sessao_do_forge(self, palavras, pasta="."):
         """FILA-22 (0.43.2, N4; diretiva do dono "Jarvis só interface"): na sessão do Forge, `gh pr create` e `gh pr merge` seguem a
         política dos projetos (`pr_criar`, `pr_merge_integracao`): o jarvis e os papéis fora da lista não abrem nem mesclam PR.
         O tech-lead abre o PR e o `bin/forge-fechar` mescla."""
         parte = parecer.analisar(palavras)
         if parte and parte[0] == "pr" and not self.pode("pr_criar"):
             self.barrar("R-CONFORMIDADE", f"gh pr create {self.so_de('pr_criar')} (papel: {self.papel})", "peça ao tech-lead")
+        self.gh_api_cria_pr(parte, pasta)
         if parte and parte[0] == "prmerge" and not self.pode("pr_merge_integracao"):
             self.barrar("R-CONFORMIDADE", f"gh pr merge {self.so_de('pr_merge_integracao')} (papel: {self.papel})",
                         "peça ao tech-lead (bin/forge-fechar)")
@@ -1863,6 +1892,7 @@ class Guarda:
                 self.barrar("R-CONFORMIDADE", f"gh pr merge {self.so_de('pr_merge_integracao')} "
                                               f"(papel: {self.papel})", "peça ao tech-lead")
         elif parte[0] == "api":
+            self.gh_api_cria_pr(parte, pasta)
             args = parte[1]
             if parecer.metodo_mutante(args) and (
                     API_ADMIN.search(parecer.endpoint_da_api(args))
