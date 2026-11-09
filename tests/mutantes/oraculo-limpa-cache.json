@@ -1,0 +1,26 @@
+{
+  "pedido": "oraculo-limpa-cache",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o dono lido em partes so le quando todas as partes leem (o diferencial com os caches zerados pega so a ultima parte)",
+      "arquivo": "hooks/_comum.py",
+      "de": "        return any(tem for tem, _ in lidas) and all(ok for _, ok in lidas)",
+      "para": "        return lidas[-1][0] and lidas[-1][1]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_donos_em_partes_leem_como_o_texto_inteiro"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o dono lido em partes so le quando todas as partes leem (so a primeira parte)",
+      "arquivo": "hooks/_comum.py",
+      "de": "        return any(tem for tem, _ in lidas) and all(ok for _, ok in lidas)",
+      "para": "        return lidas[0][0] and lidas[0][1]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_donos_em_partes_leem_como_o_texto_inteiro"
+      ]
+    }
+  ]
+}

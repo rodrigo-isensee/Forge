@@ -220,6 +220,22 @@ def modulos_dos_hooks():
     return _comum, conformidade, parecer
 
 
+CARREGADORES_EM_CACHE = {"forge_check", "forge_doutor"}  # carregam bin/ como módulo: não guardam leitura de texto
+
+
+def limpar_caches_dos_hooks():
+    """ORACULO-LIMPA-CACHE: zera todo `lru_cache` de nível de módulo dos hooks (menos os carregadores de `bin/`) e devolve
+    os nomes zerados. O teste diferencial chama antes de cada lado de cada caso: o resultado guardado por um caso (ou pelo
+    outro lado) não responde no lugar da regra. O cache confunde dois `Dono` do mesmo texto, com e sem `partes`."""
+    zerados = set()  # o nome importado de outro módulo (`from _comum import corpo_so_lido`) também: é o que o hook chama
+    for modulo in modulos_dos_hooks():
+        for nome, funcao in vars(modulo).items():
+            if callable(getattr(funcao, "cache_clear", None)) and nome not in CARREGADORES_EM_CACHE:
+                funcao.cache_clear()
+                zerados.add(f"{modulo.__name__}.{nome}")
+    return zerados
+
+
 def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True):
     """Composição de teste (desenho do lote, 3.3), sem função nova no hook: o caminho de leitura do `Guarda.bash` e do
     `segmento`, que devolve (palavras, destinos) de cada comando que o hook confere ou levanta `Ilegivel`. `todas`:
@@ -1956,8 +1972,18 @@ class Hooks(unittest.TestCase):
                        sep.join(cab) + "\n" + "".join(f"x{i}\nE{i}\n" for i in range(n)) + "git push origin main",
                        "# c\n".join(f"{h}\nx\nE{i}\n" for i, h in enumerate(cab)) + ("" if dono[0] == "e" else ")\"")]
         self.assertGreater(len(linhas), 4200)
-        diferentes = [t for t in linhas if self._lidos(_comum, t) != self._donos_da_base(_comum, t)]
-        self.assertEqual(diferentes, [])
+        self.assertEqual(self._diferentes_da_base(_comum, linhas), [])
+
+    def _diferentes_da_base(self, _comum, linhas):
+        """Os textos em que o `montar` de agora e o da base leem diferente, com os caches zerados antes de cada lado."""
+        diferentes = []
+        for texto in linhas:
+            limpar_caches_dos_hooks()
+            base = self._donos_da_base(_comum, texto)
+            limpar_caches_dos_hooks()
+            if self._lidos(_comum, texto) != base:
+                diferentes.append(texto)
+        return diferentes
 
     def test_dono_largo_acima_do_teto_de_custo(self):  # HEREDOC-COMENTARIO, C-4
         """Com o texto novo dos donos acima de 150 mil caracteres, o dono vira um só, maior que o da base (todas as
@@ -1993,6 +2019,59 @@ class Hooks(unittest.TestCase):
 
     def test_donos_em_partes_leem_como_o_texto_inteiro(self):  # HEREDOC-DONOS, C-1
         """O `vestir` da develop 032b4cb (o dono lido inteiro) e o de agora dão a mesma leitura, nos corpos também."""
+        linhas = self._linhas_em_partes()
+        self.assertGreater(len(linhas), 1500)
+        self.assertEqual(self._diferentes_em_partes(linhas), [])
+
+    def test_oraculo_em_partes_pega_o_mutante_da_regra_e_nao_le_o_cache(self):  # ORACULO-LIMPA-CACHE
+        """Mutante do ramo `partes` de `corpo_so_lido` (só a última parte decide): o diferencial com os caches zerados o
+        pega. Controle do oráculo: com o cache aquecido pelo mesmo dono lido inteiro (outro caso, ou o outro lado: o `Dono`
+        sem `partes` dá a mesma chave) e sem zerar, a resposta guardada responde no lugar da regra e o mutante passa."""
+        _comum, conformidade, _ = modulos_dos_hooks()
+        self.assertLessEqual({"_comum.corpo_so_lido", "_comum._leitura_do_dono", "_comum.palavras_do_texto",
+                              "_comum.fronteira_limpa", "conformidade.corpo_so_lido", "conformidade.interpretado"},
+                             limpar_caches_dos_hooks())
+        self.assertNotIn("_comum.forge_check", limpar_caches_dos_hooks())
+        regra = _comum.corpo_so_lido.__wrapped__
+
+        @functools.lru_cache(maxsize=None)
+        def mutante(dono, tambem=_comum.nenhum):
+            partes = getattr(dono, "partes", None)
+            if partes is None:
+                return regra(dono, tambem)
+            tem, ok = _comum._leitura_do_dono(partes[-1], tambem)
+            return tem and ok
+
+        linhas = self._linhas_em_partes()[::8]
+        with mock.patch.object(_comum, "corpo_so_lido", mutante), mock.patch.object(conformidade, "corpo_so_lido", mutante):
+            pegos = self._diferentes_em_partes(linhas)
+            self.assertGreater(len(pegos), 20, "o diferencial não pega o mutante da regra")
+            limpar_caches_dos_hooks()
+            for texto in pegos:  # o texto inteiro de cada dono, lido antes sem as partes, fica guardado com a mesma chave
+                for dono, _ in _comum.tirar_heredocs(texto, com_gravado=True)[1]:
+                    inteiro = _comum.Dono(str(dono))  # o mesmo texto, sem `partes`: para o `lru_cache`, a mesma chave
+                    mutante(inteiro)
+                    mutante(inteiro, conformidade.interprete)
+            self.assertEqual(self._diferentes_em_partes(pegos, limpar=False), [], "sem zerar, o cache esconde o mutante")
+
+    def _linhas_em_partes(self):
+        linhas = [f.dados["entrada"]["tool_input"]["command"] for f in self.fixtures
+                  if "<<" in str(f.dados["entrada"].get("tool_input", {}).get("command"))]
+        linhas = [l for l in linhas + list(self.corpus_de_recusas()) if "<<" in l and len(l) < 3000]  # o oráculo é quadrático
+        linhas += ["python3 - <<'E'\nx\nE\n(<<'F'\nx\nF\n)",  # o programa só no texto de fora; o dono não tem
+                   "PATH=/tmp/x cat <<'E'\nx\nE\ncat <<'F'\nx\nF\n"]  # a atribuição antes do comando (M4)
+        for dono, sep, pre, n in itertools.product(
+                ("./x{i}", "sh -s a{i}", "python3 - a{i}", "cat > f{i}", "bash", "git commit -F -", 'eval "$(cat', "cat 'a{i}"),
+                ("\n", " && ", " | ", " |\n", " \\\n"),
+                ("", "export A=1\n", "cat > g <<'Z'\nx\nZ\ngit add g\n", "echo 'a\n", "cat $(x\n", "cat a \\\n"), (1, 2, 5, 12)):
+            cab = [f"{dono.format(i=i)} <<'E{i}'" for i in range(n)]
+            linhas += [pre + "".join(f"{h}\nx{i}\nE{i}\n" for i, h in enumerate(cab)) + "git push origin main",
+                       pre + sep.join(cab) + "\n" + "".join(f"x{i}\nE{i}\n" for i in range(n)) + "git push origin main"]
+        return linhas
+
+    def _diferentes_em_partes(self, linhas, limpar=True):
+        """Os textos em que o `vestir` velho (o dono inteiro) e o de agora leem diferente. `limpar`: zera os caches antes
+        de cada lado de cada caso (ORACULO-LIMPA-CACHE); sem isso, a resposta guardada de um caso responde por outro."""
         _comum, conformidade, _ = modulos_dos_hooks()
 
         def velho(self, sozinho):
@@ -2016,26 +2095,17 @@ class Hooks(unittest.TestCase):
                 return "ilegível"
             return resto, gravado, [(str(d), d.rodado, c, leitura(d, antigo), ler(c, antigo)) for d, c in lidos]
 
-        linhas = [f.dados["entrada"]["tool_input"]["command"] for f in self.fixtures
-                  if "<<" in str(f.dados["entrada"].get("tool_input", {}).get("command"))]
-        linhas = [l for l in linhas + list(self.corpus_de_recusas()) if "<<" in l and len(l) < 3000]  # o oráculo é quadrático
-        linhas += ["python3 - <<'E'\nx\nE\n(<<'F'\nx\nF\n)",  # o programa só no texto de fora; o dono não tem
-                   "PATH=/tmp/x cat <<'E'\nx\nE\ncat <<'F'\nx\nF\n"]  # a atribuição antes do comando (M4)
-        for dono, sep, pre, n in itertools.product(
-                ("./x{i}", "sh -s a{i}", "python3 - a{i}", "cat > f{i}", "bash", "git commit -F -", 'eval "$(cat', "cat 'a{i}"),
-                ("\n", " && ", " | ", " |\n", " \\\n"),
-                ("", "export A=1\n", "cat > g <<'Z'\nx\nZ\ngit add g\n", "echo 'a\n", "cat $(x\n", "cat a \\\n"), (1, 2, 5, 12)):
-            cab = [f"{dono.format(i=i)} <<'E{i}'" for i in range(n)]
-            linhas += [pre + "".join(f"{h}\nx{i}\nE{i}\n" for i, h in enumerate(cab)) + "git push origin main",
-                       pre + sep.join(cab) + "\n" + "".join(f"x{i}\nE{i}\n" for i in range(n)) + "git push origin main"]
-        self.assertGreater(len(linhas), 1500)
         diferentes = []
         for texto in linhas:
+            if limpar:
+                limpar_caches_dos_hooks()
             with mock.patch.object(_comum.DonosDosHeredocs, "vestir", velho):
                 base = ler(texto, True)
+            if limpar:
+                limpar_caches_dos_hooks()
             if ler(texto, False) != base:
                 diferentes.append(texto)
-        self.assertEqual(diferentes, [])
+        return diferentes
 
     def test_fronteira_limpa_e_o_teto_dos_donos_sem_fronteira(self):  # HEREDOC-DONOS, T2 e C-5
         """Sem fronteira o dono se lê inteiro e conta o prefixo no teto: o dono largo assume, e o corpo do `bash` final fica comando."""
