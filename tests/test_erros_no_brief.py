@@ -222,10 +222,11 @@ class Recorrencia(Base):
         self.registro(linha("forma", brief="xpto-tech-lead-7"), linha("forma", brief="xpto-tech-lead-8"))
         cod, saida, _ = self.rodar(*REPROVADO, "--classe", "forma")
         self.assertEqual(cod, 0)
-        self.assertEqual(len(saida), 2)
-        self.assertTrue(saida[1].startswith("proposta: forma de jarvis em 3 briefs"), saida)
+        self.assertEqual(len(saida), 3)  # O1 (0.44.1): a linha `ação:` da reprovação vem antes da proposta
+        self.assertTrue(saida[1].startswith("ação: ferramenta: forge-check brief mensagem"), saida)
+        self.assertTrue(saida[2].startswith("proposta: forma de jarvis em 3 briefs"), saida)
         cod, saida, _ = self.rodar(*REPROVADO[:REPROVADO.index("--brief") + 1], "xpto-tech-lead-9", *REPROVADO[REPROVADO.index("--brief") + 2:], "--classe", "etapa")
-        self.assertEqual((cod, len(saida)), (0, 1))
+        self.assertEqual((cod, len(saida)), (0, 2))
 
     def test_dias_e_janela(self):
         self.registro(linha("forma", dias=10), linha("etapa", brief="xpto-tech-lead-2", dias=2))
