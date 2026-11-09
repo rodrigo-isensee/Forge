@@ -2818,22 +2818,18 @@ def versao_do_plugin(raiz, ref):
 
 
 def release_em_curso(raiz, ref):
-    """(linhas, rc) da trava de release (DV-5): com release em curso (versão da origin/develop maior que a da
-    origin/homolog), só a branch `melhoria/release-<versão da develop>` entra na develop; as outras saem com rc 1.
-    Sem release em curso, rc 0 e nada a dizer; erro de leitura vira aviso e rc 0 (não bloqueia sem prova)."""
+    """(linhas, 0): informativo (R-FLUXO, 0.43.1). A develop não congela durante a release: cada item entra quando fica
+    pronto e a versão é uma tag sobre um commit dela. Com a versão da origin/develop maior que a da origin/homolog, só
+    avisa que a release está em curso e que `ref` entra assim mesmo; erro de leitura vira aviso. Nunca barra (rc 0)."""
     dev, erro_dev = versao_do_plugin(raiz, "origin/develop")
     hom, erro_hom = versao_do_plugin(raiz, "origin/homolog")
     if erro_dev or erro_hom:
-        return [f"sobreposicao: aviso: {erro_dev or erro_hom}; trava de release não conferida"], 0
+        return [f"sobreposicao: aviso: {erro_dev or erro_hom}; versão da release não lida"], 0
     if dev <= hom:
         return [], 0
-    versao = ".".join(map(str, dev))
     nome = ref.removeprefix("refs/heads/").removeprefix("origin/")
-    if nome == f"melhoria/release-{versao}":
-        return [], 0
-    return [f"sobreposicao: release {versao} em curso (origin/homolog está em {'.'.join(map(str, hom))}); "
-            f"{nome} não é melhoria/release-{versao}: espere a promoção da release para a homolog antes de mesclar na develop"], 1
-
+    return [f"sobreposicao: release {'.'.join(map(str, dev))} em curso (origin/homolog está em {'.'.join(map(str, hom))}); "
+            f"{nome} entra na develop assim mesmo: sem congelamento (R-FLUXO)"], 0
 
 SEM_QUADRO = "{cmd}: {raiz} não tem KANBAN.md; não crio docs/kanban/ numa pasta sem quadro (rode na raiz do projeto ou passe --raiz)"
 
@@ -8760,7 +8756,7 @@ def main():
     af.add_argument("--ref", help="branch ou commit onde estão os PRs mesclados (padrão: origin/develop, develop ou HEAD)")
     so = sub.add_parser("sobreposicao", parents=[comum], help="arquivos em comum entre as branches melhoria/* (informativo, rc 0)")
     so.add_argument("--base", help="branch de integração da comparação (padrão: origin/develop, develop, origin/main, main)")
-    so.add_argument("--ref", help="branch prestes a ser mesclada na develop: com release em curso (versão da origin/develop maior que a da origin/homolog), só melhoria/release-<versão> passa; as outras saem com rc 1")
+    so.add_argument("--ref", help="branch prestes a ser mesclada na develop: com release em curso (versão da origin/develop maior que a da origin/homolog), só avisa; sem congelamento, nunca barra (R-FLUXO)")
     sub.add_parser("fila", parents=[comum], help="o que pode começar agora: dependências, teto e sobreposição (só leitura, rc 0)")
     # metricas e regras (0.43.1 H): a lógica fica em bin/forge_governanca.py, importado só quando um dos dois roda
     me = sub.add_parser("metricas", parents=[comum], help="tempo do código pronto à develop e à main, voltas, revalidações, suítes, "
