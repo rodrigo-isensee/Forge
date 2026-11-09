@@ -1,5 +1,5 @@
 {
-  "descricao": "D4 (0.44.0): `--so-leitura=x` não é a opção (o argparse recusa o valor); na dúvida, roda as provas e o conferente não a roda.",
+  "descricao": "D4 (0.44.0): `--so-leitura=x` não é a opção (o argparse recusa o valor); na dúvida, a forma grava e o conferente não a roda.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -14,6 +14,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "sem `--so-leitura` roda os PQ cmd"
+    "stderr": "grava no Histórico do pedido"
   }
 }
