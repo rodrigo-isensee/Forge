@@ -31,7 +31,7 @@ n=123; fim=""; for i in $(seq 1 17); do e=$(gh pr view "$n" --json state --jq .s
 | `fim=erro` | 0 | O `gh` não leu o estado (rede, credencial, número errado): relate a mensagem dele. |
 | `fim=teto` | 1 | Passaram 540 s com o PR aberto e checks pendentes: repita a mesma chamada. |
 
-No sandbox, se o `gh` reclamar do cache, rode o laço com `XDG_CACHE_HOME` apontando para uma pasta gravável (por exemplo, `$TMPDIR`).
+No sandbox, se o `gh` reclamar do cache, rode o laço com `XDG_CACHE_HOME` apontando para uma pasta gravável (por exemplo, `${TMPDIR:-/tmp}`).
 
 ## O envio longo
 Lance com o `run_in_background` da ferramenta, trocando `<envio>` pelo comando e `<log>` pelo caminho absoluto, escrito por extenso, de um log próprio da tarefa (sem `$TMPDIR` nem `$?`, que a `conformidade` recusa ao lado do envio):

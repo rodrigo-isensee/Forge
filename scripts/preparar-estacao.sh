@@ -124,11 +124,26 @@ container_forge() {
 }
 
 logado=0
+# S-17/WORKFLOW-SCOPE: além do login, o token precisa dos escopos repo e workflow (sem workflow, o push que muda
+# .github/ é recusado no fim). Sem a linha "Token scopes" (token de escopo fino), não adivinha.
+container_escopos() {
+  local saida linha e faltam=()
+  saida="$(gh auth status 2>&1)" || return 0
+  linha="$(printf '%s\n' "$saida" | command grep -m1 'Token scopes:')" || return 0
+  for e in repo workflow; do
+    [[ "$linha" == *"'$e'"* ]] || faltam+=("$e")
+  done
+  if [ ${#faltam[@]} -gt 0 ]; then
+    falta "escopo do gh sem ${faltam[*]}: rode gh auth refresh -h github.com -s repo,workflow e depois este script de novo"
+  fi
+}
+
 container_login() {
   if tem gh && gh auth status >/dev/null 2>&1; then
     logado=1
     fazer gh auth setup-git >/dev/null 2>&1 || true
     fez "gh com login (credencial em $HOME/.claude/gh)"
+    container_escopos
   else
     falta "login do gh: rode gh auth login -s repo,workflow --web e depois este script de novo"
   fi
@@ -229,7 +244,7 @@ if [ "$container" = 1 ]; then
 fi
 
 passo "Sistema"
-if [ -r /etc/os-release ] && grep -q '^ID=ubuntu' /etc/os-release && grep -qi microsoft /proc/version 2>/dev/null; then
+if [ -r /etc/os-release ] && command grep -q '^ID=ubuntu' /etc/os-release && command grep -qi microsoft /proc/version 2>/dev/null; then
   echo "Ubuntu em WSL: ok."
 else
   echo "aviso: não parece Ubuntu em WSL; seguindo mesmo assim (o apt é necessário)." >&2
@@ -238,7 +253,7 @@ fi
 passo "Pacotes do sistema (apt)"
 faltam=()
 for pacote in git tmux curl ca-certificates unzip python3 shellcheck jq gh bubblewrap socat; do
-  if ! dpkg-query -W -f='${Status}' "$pacote" 2>/dev/null | grep -q '^install ok installed'; then
+  if ! dpkg-query -W -f='${Status}' "$pacote" 2>/dev/null | command grep -q '^install ok installed'; then
     faltam+=("$pacote")
   fi
 done
@@ -333,7 +348,7 @@ fi
 
 passo "Plugin do Forge no Claude Code"
 if tem claude; then
-  if claude plugin list 2>/dev/null | grep -q 'forge@forge'; then
+  if claude plugin list 2>/dev/null | command grep -q 'forge@forge'; then
     echo "plugin forge@forge já instalado."
   else
     fazer claude plugin marketplace add "$REPO" || echo "aviso: marketplace já registrado ou indisponível; seguindo." >&2

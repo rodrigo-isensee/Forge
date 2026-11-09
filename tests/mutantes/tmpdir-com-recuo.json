@@ -1,0 +1,40 @@
+{
+  "pedido": "tmpdir-com-recuo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a pasta por papel e pedido da checagem do brief recua para /tmp sem TMPDIR",
+      "arquivo": "skills/checagem-do-brief/SKILL.md",
+      "de": "`${TMPDIR:-/tmp}/<papel>-<pedido>/`",
+      "para": "`$TMPDIR/<papel>-<pedido>/`",
+      "testes": [
+        "tests.test_forge.TmpdirComRecuo.test_nenhum_tmpdir_sem_recuo",
+        "tests.test_forge.TmpdirComRecuo.test_formas_do_recuo"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o tar do agile-coach extrai em pasta com recuo para /tmp",
+      "arquivo": "agents/agile-coach.md",
+      "de": "tar -x -C \"${TMPDIR:-/tmp}\"/...",
+      "para": "tar -x -C $TMPDIR/...",
+      "testes": [
+        "tests.test_forge.TmpdirComRecuo.test_nenhum_tmpdir_sem_recuo",
+        "tests.test_forge.TmpdirComRecuo.test_formas_do_recuo",
+        "tests.test_forge.TextosAQ3AgileCoach.test_git_so_de_leitura_em_outra_ref"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o XDG_CACHE_HOME da esperar-estado aponta para pasta com recuo para /tmp",
+      "arquivo": "skills/esperar-estado/SKILL.md",
+      "de": "(por exemplo, `${TMPDIR:-/tmp}`)",
+      "para": "(por exemplo, `$TMPDIR`)",
+      "testes": [
+        "tests.test_forge.TmpdirComRecuo.test_nenhum_tmpdir_sem_recuo",
+        "tests.test_forge.TmpdirComRecuo.test_formas_do_recuo"
+      ]
+    }
+  ]
+}

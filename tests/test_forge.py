@@ -1178,7 +1178,7 @@ class PrepararEstacao(unittest.TestCase):
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 2)
 
-    def _container(self, tmp, *args, logado=False):
+    def _container(self, tmp, *args, logado=False, escopos="'gist', 'repo', 'workflow'"):
         """Roda `preparar-estacao.sh --container` sem rede: gh, tmux, shellcheck, claude, sudo, curl e apt-get são
         falsos e registram a chamada; o jarvis-forge da origem falsa cria a cópia vigente com `dev/`."""
         tmp = Path(tmp)
@@ -1189,10 +1189,11 @@ class PrepararEstacao(unittest.TestCase):
         registro = tmp / "chamadas"
         (origem / "scripts" / "jarvis-forge").write_text(
             '#!/bin/sh\nd="$HOME/.local/share/forge/vigente/dev/agents"\nmkdir -p "$d" && echo aq > "$d/aq.md"\n')
+        mostrar_escopos = f"echo \"  - Token scopes: {escopos}\"; " if escopos else ""
         falsos = {
             "gh": f'echo "gh $*" >> "{registro}"\n'
                   'case "$1 $2" in\n'
-                  f'  "auth status") exit {0 if logado else 1} ;;\n'
+                  f'  "auth status") {mostrar_escopos}exit {0 if logado else 1} ;;\n'
                   '  "repo clone") mkdir -p "$4" && echo clonado > "$4/marca" ;;\n'
                   'esac\nexit 0\n',
             "claude": f'echo "claude $*" >> "{registro}"\nexit 0\n',
@@ -1285,6 +1286,17 @@ class PrepararEstacao(unittest.TestCase):
             self.assertIn("dev-marketplace: link que sai de vigente/dev (vaza); nada copiado", r.stdout + r.stderr)
             self.assertFalse((mk / "forge-dev").exists())
             self.assertNotIn("token", "".join(p.read_text() for p in mk.rglob("*") if p.is_file() and not p.is_symlink()))
+
+    def test_container_confere_os_escopos_repo_e_workflow(self):
+        """S-17/WORKFLOW-SCOPE: com login mas sem `workflow`, diz como corrigir; sem a linha de escopos, não adivinha."""
+        for escopos, esperado in (("'gist', 'repo'", "sem workflow"), ("'gist'", "sem repo workflow"), (None, None)):
+            with self.subTest(escopos=escopos), tempfile.TemporaryDirectory() as tmp:
+                r, _, _, _ = self._container(tmp, logado=True, escopos=escopos)
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                if esperado:
+                    self.assertIn(f"falta: escopo do gh {esperado}: rode gh auth refresh -h github.com -s repo,workflow", r.stdout)
+                else:
+                    self.assertNotIn("escopo do gh", r.stdout)
 
     def test_container_simular_nao_altera_nada(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -6376,13 +6388,41 @@ class TextosAQ3AgileCoach(unittest.TestCase):
         self.assertNotIn("nunca número estimado", self.texto)
 
     def test_git_so_de_leitura_em_outra_ref(self):
-        self.assertIn("`git show <ref>:<caminho>`, `git archive <ref> | tar -x -C $TMPDIR/...` ou `--ref` do `forge-check`", self.texto)
+        self.assertIn("`git show <ref>:<caminho>`, `git archive <ref> | tar -x -C \"${TMPDIR:-/tmp}\"/...` ou `--ref` do `forge-check`", self.texto)
         self.assertIn("nada de `worktree`, `checkout` nem `switch` no repositório medido", self.texto)
 
     def test_propor_e_implementar_numa_regra_so(self):
         self.assertEqual(self.texto.count("**Melhorias você mesmo implementa**"), 0)
         self.assertIn("mudança em agente, skill, script ou teste do Forge vira cartão para o `tech-lead`", self.texto)
         self.assertIn("(na sessão do Forge, com o AQ, `forge-dev:aq`)", self.texto)
+
+
+class TmpdirComRecuo(unittest.TestCase):
+    """TMPDIR-DO-AGENTE (0.67 E3, refeito na 0.43.4): o texto que manda criar ou usar pasta temporária recua para `/tmp` quando o
+    ambiente do agente não define `TMPDIR`; com `$TMPDIR` vazio, `$TMPDIR/<papel>-<pedido>/` cairia na raiz."""
+
+    # Só descreve, não manda caminho: a `esperar-estado` proíbe a expansão ao lado do envio.
+    DESCRICOES = {
+        "skills/esperar-estado/SKILL.md": ("(sem `$TMPDIR` nem `$?`,",),
+        "skills/checagem-do-brief/SKILL.md": (),
+        "agents/agile-coach.md": (),
+    }
+
+    def test_nenhum_tmpdir_sem_recuo(self):
+        for arquivo, descricoes in self.DESCRICOES.items():
+            with self.subTest(arquivo=arquivo):
+                texto = (RAIZ / arquivo).read_text(encoding="utf-8")
+                for d in descricoes:
+                    self.assertEqual(texto.count(d), 1, d)
+                    texto = texto.replace(d, "")
+                self.assertEqual(re.findall(r".{0,40}\$TMPDIR\b.{0,20}", texto), [])
+                self.assertIn("${TMPDIR:-/tmp}", texto)
+
+    def test_formas_do_recuo(self):
+        checagem = (RAIZ / "skills" / "checagem-do-brief" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("(`${TMPDIR:-/tmp}/<papel>-<pedido>/`; o `:-/tmp` vale quando o ambiente do agente não define `TMPDIR`)", checagem)
+        esperar = (RAIZ / "skills" / "esperar-estado" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("pasta gravável (por exemplo, `${TMPDIR:-/tmp}`)", esperar)
 
 
 class TextosAQ3Stack(unittest.TestCase):

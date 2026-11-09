@@ -365,7 +365,84 @@ class Desfazer(Base):
         self.assertIn("desfeito", self.git("stash", "list"))
 
 
+class AjudaEOpcao(Base):  # SALVAR-AJUDA-E-OPCAO: `forge salvar --help` virou mensagem e gravou um commit
+    def setUp(self):
+        super().setUp()
+        self.git("checkout", "-q", "-b", "feature/x")
+        self.escrever("a.txt", "x\n")
+
+    def estado(self):
+        remotos = self.git("for-each-ref", "--format=%(refname) %(objectname)", cwd=self.remoto)
+        return self.git("rev-parse", "HEAD"), self.ramo(), self.git("status", "--porcelain"), remotos
+
+    def test_ajuda_mostra_o_uso_sem_salvar_nem_enviar(self):
+        for opcao in ("-h", "--help"):
+            with self.subTest(opcao=opcao):
+                antes = self.estado()
+                r = self.forge("salvar", opcao)
+                self.assertEqual(r.returncode, 0, self.saida(r))
+                self.assertIn("Uso: forge salvar", r.stdout)
+                self.assertEqual(self.estado(), antes)
+                self.assertIn("a.txt", antes[2])
+
+    def test_ajuda_funciona_fora_de_repositorio(self):
+        r = self.forge("salvar", "--help", cwd=self.home)
+        self.assertEqual(r.returncode, 0, self.saida(r))
+        self.assertIn("Uso: forge salvar", r.stdout)
+
+    def test_mensagem_que_comeca_com_traco_e_recusada_sem_commit(self):
+        for args in (("-m", "x"), ("--amend",)):
+            with self.subTest(args=args):
+                antes = self.estado()
+                r = self.forge("salvar", *args)
+                self.assertEqual(r.returncode, 2, self.saida(r))
+                self.assertIn("não pode começar com '-'", r.stderr)
+                self.assertIn(f"recebi: {args[0]})", r.stderr)
+                self.assertIn('forge salvar -- "' + " ".join(args) + '"', r.stderr)
+                self.assertEqual(self.estado(), antes)
+
+    def test_mensagem_que_comeca_com_traco_vale_depois_de_dois_tracos(self):
+        r = self.forge("salvar", "--", "- corrige o texto")
+        self.assertEqual(r.returncode, 0, self.saida(r))
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "- corrige o texto")
+        self.assertEqual(self.topo_remoto("feature/x"), self.git("rev-parse", "HEAD"))
+
+    def test_dois_tracos_sem_mensagem_usa_a_padrao(self):
+        r = self.forge("salvar", "--")
+        self.assertEqual(r.returncode, 0, self.saida(r))
+        self.assertTrue(self.git("log", "-1", "--format=%s").startswith("Salva o trabalho em "))
+
+    def test_traco_no_meio_da_mensagem_vale(self):
+        r = self.forge("salvar", "corrige -m no texto")
+        self.assertEqual(r.returncode, 0, self.saida(r))
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "corrige -m no texto")
+        self.assertEqual(self.topo_remoto("feature/x"), self.git("rev-parse", "HEAD"))
+
+
+class GrepDoUsuario(Base):
+    """GREP-UGREP: uma função `grep` exportada pelo shell do usuário (ugrep, por exemplo) não muda o que o `forge salvar` decide."""
+
+    def test_funcao_grep_exportada_nao_vira_marca_de_conflito(self):
+        self.git("checkout", "-q", "-b", "feature/x")
+        self.escrever("a.txt", "texto limpo\n")
+        self.env.update({"BASH_FUNC_grep%%": "() {  return 0\n}"})  # o que `export -f grep` põe no ambiente
+        r = self.forge("salvar", "texto limpo")
+        self.assertEqual(r.returncode, 0, self.saida(r))
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "texto limpo")
+
+
+SCRIPTS_COM_COMMAND_GREP = ("bin/forge-salvar", "bin/forge-init", "scripts/preparar-estacao.sh")
+
+
 class Garantias(unittest.TestCase):
+    def test_scripts_chamam_command_grep(self):
+        """GREP-UGREP: `grep` solto pegaria a função exportada pelo shell do usuário; `command grep` vai ao programa."""
+        for rel in SCRIPTS_COM_COMMAND_GREP:
+            with self.subTest(script=rel):
+                codigo = [l for l in (RAIZ / rel).read_text(encoding="utf-8").splitlines() if not l.lstrip().startswith("#")]
+                soltos = [l for l in codigo if re.search(r"(?<![\w.-])grep\s", l.replace("command grep", ""))]
+                self.assertEqual(soltos, [])
+
     def test_scripts_nunca_usam_force_nem_reset_hard(self):
         for nome in ("forge-salvar", "forge-desfazer"):
             codigo = "\n".join(l for l in (RAIZ / "bin" / nome).read_text(encoding="utf-8").splitlines()

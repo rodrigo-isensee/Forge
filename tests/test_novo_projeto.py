@@ -497,3 +497,60 @@ class PerfilEJarvis(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PythonMinimoNoInit(unittest.TestCase):
+    """E21: o `forge-init` confere o Python mínimo (3.12) antes de mexer em qualquer arquivo, com a frase para leigo."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="init-python-"))
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.proj = self.tmp / "proj"
+        self.falsos = self.tmp / "bin"
+        self.falsos.mkdir()
+        self.env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+        subprocess.run(["git", "init", "-q", str(self.proj)], env=self.env, check=True)
+
+    def init(self, python=None):
+        """Roda o forge-init; `python` é o corpo de um `python3` falso posto na frente do PATH (None: o de verdade)."""
+        env = dict(self.env)
+        if python is not None:
+            falso = self.falsos / "python3"
+            falso.write_text("#!/bin/sh\n" + python + "\n", encoding="utf-8")
+            falso.chmod(0o755)
+            env["PATH"] = f"{self.falsos}:{env['PATH']}"
+        return subprocess.run(["bash", str(RAIZ / "bin/forge-init"), "--nome", "Demo", str(self.proj)],
+                              env=env, capture_output=True, text=True, timeout=60)
+
+    def nada_mudou(self):
+        self.assertEqual(sorted(p.name for p in self.proj.iterdir()), [".git"])
+
+    def test_python_abaixo_do_minimo_recusa_sem_mexer(self):
+        r = self.init("echo 3.11")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("este computador tem o Python 3.11, e o Forge precisa do Python 3.12 ou mais novo", r.stderr)
+        self.assertIn("Nada foi mudado.", r.stderr)
+        self.nada_mudou()
+
+    def test_sem_python_recusa_sem_mexer(self):
+        r = self.init("exit 127")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("não achei o Python 3 neste computador", r.stderr)
+        self.nada_mudou()
+
+    def test_versao_maior_com_dois_digitos_passa(self):
+        r = self.init("[ \"$1\" = -c ] && case \"$2\" in *version_info*) echo 3.100; exit 0;; esac; "
+                      f"exec {sys.executable} \"$@\"")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertTrue((self.proj / ".forge" / "versao").is_file())
+
+    def test_python_de_verdade_passa(self):
+        r = self.init()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("Python", r.stderr)
+
+    def test_minimo_igual_ao_do_doutor(self):
+        init = (RAIZ / "bin/forge-init").read_text(encoding="utf-8")
+        doutor = (RAIZ / "bin/forge-doutor").read_text(encoding="utf-8")
+        x, y = re.search(r"^PYTHON_MINIMO = \((\d+), (\d+)\)", doutor, re.M).groups()
+        self.assertIn(f'python_minimo="{x}.{y}"', init)

@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
 # Forge: salva o trabalho (commit e envio ao GitHub) na branch de trabalho. Rode no terminal, dentro do projeto.
-# Uso: forge salvar ["mensagem"]
+# Uso: forge salvar [-h|--help] ["mensagem"]   (mensagem que começa com -: forge salvar -- "-mensagem")
 # Nunca grava na main, develop ou homolog: nelas, cria antes a branch trabalho/<AAAAMMDD-HHMM>.
 # Respeita o .gitignore, recusa arquivos de segredo (.env, chaves) e nunca força o envio.
 set -euo pipefail
 
 die() { echo "forge salvar: $*" >&2; exit 1; }
 protegida() { case "$1" in ""|main|develop|homolog) return 0 ;; *) return 1 ;; esac; }
+uso() { sed -n '2,5p' "$0" | sed 's/^# \{0,1\}//'; }
+
+case "${1:-}" in
+  -h|--help) uso; exit 0 ;;
+  --) shift ;;  # o resto é a mensagem, mesmo que comece com -
+  -*) echo "forge salvar: a mensagem não pode começar com '-' (recebi: $1), porque parece uma opção. Para salvar com ela, rode: forge salvar -- \"$*\". Nada foi salvo." >&2; uso >&2; exit 2 ;;
+esac
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 \
   || die "esta pasta não é um projeto (repositório do git). Entre na pasta do projeto e rode de novo."
@@ -50,7 +57,7 @@ for arq in "${tocados[@]}"; do
     segredos="$segredos$arq
 "
   fi
-  if [ -f "$arq" ] && grep -qE -- '^(<<<<<<<|>>>>>>>) ' "$arq"; then
+  if [ -f "$arq" ] && command grep -qE -- '^(<<<<<<<|>>>>>>>) ' "$arq"; then
     marcas="$marcas$arq
 "
   fi
@@ -75,10 +82,10 @@ git add -A
 git commit -q -m "$mensagem" || die "não consegui registrar as mudanças (uma verificação do projeto recusou). Veja a mensagem acima."
 echo "Trabalho registrado: \"$mensagem\"."
 if ! erro="$(git push -q -u origin "$ramo" 2>&1)"; then
-  if printf '%s' "$erro" | grep -qiE -- 'non-fast-forward|fetch first|stale info'; then
+  if printf '%s' "$erro" | command grep -qiE -- 'non-fast-forward|fetch first|stale info'; then
     die "o trabalho ficou salvo aqui na pasta (branch $ramo), mas alguém mudou o trabalho no GitHub depois da sua última cópia, e por isso não enviei (para não apagar o que há lá). Nada se perdeu. Peça ajuda ao Jarvis para juntar as duas versões e rode 'forge salvar' de novo."
   fi
-  if printf '%s' "$erro" | grep -qiE -- 'remote rejected|pre-receive|protected|declined'; then
+  if printf '%s' "$erro" | command grep -qiE -- 'remote rejected|pre-receive|protected|declined'; then
     die "o trabalho ficou salvo aqui na pasta (branch $ramo), mas o servidor do GitHub recusou o envio (uma proteção ou verificação do projeto). Nada se perdeu. Peça ajuda ao Jarvis para ver o motivo e rode 'forge salvar' de novo."
   fi
   die "o trabalho ficou salvo aqui na pasta (branch $ramo), mas não consegui enviar ao GitHub (rede ou permissão). Rode 'forge salvar' de novo quando puder."
