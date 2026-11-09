@@ -155,22 +155,22 @@
     },
     {
       "id": "Q63",
-      "guarda": "hooks/conformidade.py:525 '--' in args (negada)",
-      "arquivo": "hooks/conformidade.py",
-      "de": "    args = args[:args.index(\"--\")] if \"--\" in args else args",
-      "para": "    args = args[:args.index(\"--\")] if not (\"--\" in args) else args",
+      "guarda": "bin/forge_governanca.py:359 arq.is_symlink() or not arq.is_file() or arq.stat().st_size > TETO_DO_TRANSCRITO (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        if arq.is_symlink() or not arq.is_file() or arq.stat().st_size > TETO_DO_TRANSCRITO:",
+      "para": "        if not (arq.is_symlink() or not arq.is_file() or arq.stat().st_size > TETO_DO_TRANSCRITO):",
       "testes": [
-        "tests.test_hooks"
+        "tests.test_governanca"
       ]
     },
     {
       "id": "Q64",
-      "guarda": "hooks/conformidade.py:526 len(a) >= 4 and '--amend'.startswith(a) (negada)",
-      "arquivo": "hooks/conformidade.py",
-      "de": "    return any(len(a) >= 4 and \"--amend\".startswith(a) for a in args)",
-      "para": "    return any(not (len(a) >= 4 and \"--amend\".startswith(a)) for a in args)",
+      "guarda": "bin/forge_governanca.py:397 not arq.is_symlink() and arq.stat().st_size > TETO_DO_TRANSCRITO (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        return not arq.is_symlink() and arq.stat().st_size > TETO_DO_TRANSCRITO",
+      "para": "        return not (not arq.is_symlink() and arq.stat().st_size > TETO_DO_TRANSCRITO)",
       "testes": [
-        "tests.test_hooks"
+        "tests.test_governanca"
       ]
     }
   ]
