@@ -1,0 +1,9 @@
+### Adicionado
+- `forge-check brief selar --arquivo <brief> --pedido <id>`: corrige os campos calculados (Base-sha do git, `--base-sha` e `--desde` das linhas `forge-check entrega`, hash da referência às decisões), roda todas as checagens do `forge-check brief` e, sem reprovação, grava `- <data> <hora>: brief selado docs/briefs/<nome>.md <sha256>` no `## Histórico` do pedido, uma vez por hash (P1, 0.43.1).
+- `forge-check entrega --pedido <id> --branch <b> --etapa <e> [--worktree W] [--sem-gravar]`: confere a entrega contra o brief selado da branch e da etapa (escopo pela linha `- arquivos:` do Entregar, provas `cmd` da lista do reexecutar-provas na worktree, `arquivo`, `sha` e `push` pelo git, commits) e, com rc 0, grava `entrega conferida <sha40>` no `## Histórico`, sem repetir o sha (P2, 0.43.1).
+
+### Alterado
+- Hook `agentes`: todo disparo de `forge:<papel>` (fora o conferente) exige no prompt o caminho de um brief selado e intacto; o agente conferente fica opcional (P1, 0.43.1).
+- `forge-check brief gerar` cita as decisões do dono por referência (`- decisões: pedido <id> até <sha256 do bloco>`) e copia só as que citam a etapa ou a branch; o `forge-check brief` aceita a referência e reprova brief acima de 10000 caracteres; o `gerar --volta` refaz o Fora do escopo e as decisões a partir do pedido, sem herdar texto do brief anterior (só os cortes com a marca passam) (P4, 0.43.1).
+- `forge-check anotar --tipo historico` recusa as linhas `brief selado` e `entrega conferida`: só a ferramenta as grava (0.43.1).
+- Hook `agentes` (R-TETO-DISPONIBILIDADE, decisão do dono de 2026-11-06): sai a trava por load (load >= 0,8 x nproc); fica só o piso de memória disponível, padrão 2 GB e configurável por `piso_memoria_gb` em `.forge/config.json` (antes max(1 GB, 15% do total)); o `forge-check fila` usa o mesmo piso.

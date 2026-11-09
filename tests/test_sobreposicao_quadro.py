@@ -387,10 +387,10 @@ class Fila(unittest.TestCase):
         self.proc = self.tmp / "proc-falso"  # a carga da máquina real não pode mudar o resultado
         self.carga(0.1)
 
-    def carga(self, load, nucleos=8):
+    def carga(self, load, nucleos=8, disponivel_kb=12582912):
         self.proc.mkdir(exist_ok=True)
         (self.proc / "loadavg").write_text(f"{load} 0.1 0.1 1/100 1\n", encoding="utf-8")
-        (self.proc / "meminfo").write_text("MemTotal: 16777216 kB\nMemAvailable: 12582912 kB\n", encoding="utf-8")
+        (self.proc / "meminfo").write_text(f"MemTotal: 16777216 kB\nMemAvailable: {disponivel_kb} kB\n", encoding="utf-8")
         self.nucleos = nucleos
 
     def gravar(self, rel, texto):
@@ -459,15 +459,25 @@ class Fila(unittest.TestCase):
         self.assertEqual(linhas[:3], ["pode-comecar: C1 (p1)", "pode-comecar: C2 (p2)", "espera: C3 (p3) | teto"])
         self.assertEqual(linhas[-1], "fila: 2 podem começar, 2 vagas de 3 (1 ativos), 1 esperam")
 
-    def test_t5_carga_alta_zera_as_vagas(self):
+    def test_t5_memoria_abaixo_do_piso_zera_as_vagas(self):
+        """R-TETO-DISPONIBILIDADE: só a memória disponível (piso de 2 GB) zera as vagas; o load alto não."""
+        self.quadro(pronto_para_fazer=[("C1", "p1")])
+        self.pedido("p1", "nenhum")
+        self.teto(3)
+        self.carga(0.1, nucleos=4, disponivel_kb=1024 * 1024)
+        rc, linhas = self.rodar()
+        self.assertEqual(rc, 0)
+        self.assertEqual(linhas[0], "espera: C1 (p1) | teto")
+        self.assertEqual(linhas[-1], "fila: 0 podem começar, 0 vagas de 3 (0 ativos), 1 esperam")
+
+    def test_t5b_load_alto_nao_zera_as_vagas(self):
         self.quadro(pronto_para_fazer=[("C1", "p1")])
         self.pedido("p1", "nenhum")
         self.teto(3)
         self.carga(50.0, nucleos=4)
         rc, linhas = self.rodar()
         self.assertEqual(rc, 0)
-        self.assertEqual(linhas[0], "espera: C1 (p1) | teto")
-        self.assertEqual(linhas[-1], "fila: 0 podem começar, 0 vagas de 3 (0 ativos), 1 esperam")
+        self.assertEqual(linhas[0], "pode-comecar: C1 (p1)")
 
     def test_t6_sobreposicao_avisa_sem_bloquear(self):
         git(self.tmp, "init", "-q", "-b", "develop")

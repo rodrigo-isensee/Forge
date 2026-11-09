@@ -1,7 +1,7 @@
 {
-  "descricao": "8 núcleos, load 6,4 (= 80%): bloqueia, o disparo exige load < 0,8 x nproc.",
+  "descricao": "8 núcleos, load 7 (acima de 80%) e 8 GB livres: o load não trava mais, dispara (R-TETO-DISPONIBILIDADE).",
   "proc": {
-    "loadavg": "6.4 1.0 1.0 1/100 1",
+    "loadavg": "7.0 1.0 1.0 1/100 1",
     "mem_gb": 8,
     "mem_total_gb": 16,
     "nproc": 8
@@ -16,13 +16,12 @@
     "tool_name": "Agent",
     "tool_use_id": "toolu_1",
     "tool_input": {
-      "subagent_type": "forge:qa-engineer",
+      "subagent_type": "time:qa-engineer",
       "description": "Validar a entrega",
       "prompt": "..."
     }
   },
   "esperado": {
-    "codigo": 2,
-    "stderr": "carga alta (load 6.4 de 8 núcleos"
+    "codigo": 0
   }
 }

@@ -3646,13 +3646,19 @@ class ConferirBrief(unittest.TestCase):
         self.assertEqual(rc, 0, saida)
 
     # PA-2: brief gerar
-    def test_gerar_copia_as_decisoes_literalmente_e_traz_a_marca_e_as_provas(self):
+    def test_gerar_cita_as_decisoes_por_referencia_e_traz_a_marca_e_as_provas(self):
+        """P4 (0.43.1): a referência conta todas as linhas do pedido; só as que citam E1.1 (ou E1) vêm copiadas."""
         args = ("gerar", "--pedido", self.PEDIDO, "--destino", "forge:dev-exemplo", "--branch", "melhoria/a", "--cobre", "E1.1")
         rc, saida = self.rodar(*args)
         self.assertEqual(rc, 0, saida)
-        for linha in self.PEDIDO.read_text(encoding="utf-8").splitlines():
-            if "DECISÃO DO DONO" in linha:
-                self.assertIn(f"- {linha}\n", saida)
+        mod = carregar_forge_check()
+        texto = self.PEDIDO.read_text(encoding="utf-8")
+        referencia = re.search(r"^- decisões: pedido \S+ até ([0-9a-f]{64}) \((\d+) linhas DECISÃO DO DONO em \d+ fontes: ([^;]*);", saida, re.M)
+        self.assertIsNotNone(referencia, saida)
+        self.assertEqual(int(referencia.group(2)), len(mod.linhas_de_decisao(texto)))
+        for _, linha in mod.linhas_de_decisao(texto):
+            if {"E1.1", "E1"} & mod.ids_da_linha(linha):
+                self.assertIn(f"- {linha.strip()}\n", saida)
         self.assertIn("Retira do escopo original", saida)
         self.assertIn("E3.1 (revisor): revisão de código da branch.", saida)
         self.assertIn('- "E1.1 (dev-exemplo): implementação do recurso A." (E1.1)', saida)  # a etapa coberta abre o Entregar (P2)
@@ -4135,14 +4141,14 @@ class DecisoesCobradas(Cenario):
         self.assertFalse([l for l in saida if l.startswith("decisões: fontes demais")], saida)
         self.assertEqual(len([l for l in saida if "dependência sem registro legível" in l]), 1, saida)
 
-    def test_gerar_copia_a_decisao_do_origem_com_o_subtitulo_do_registro(self):
+    def test_gerar_cita_o_registro_do_origem_na_referencia(self):
+        """P4 (0.43.1): a dependência entra nas fontes da referência (e no hash), sem cópia literal."""
         self.gravar("docs/pedidos/origem.md", f"# origem\n{self.ORIGEM_DONO}\n")
         self.com_depende_de("origem")
         rc, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--branch", "melhoria/a", "--cobre", "E1.1")
         self.assertEqual(rc, 0, saida)
         texto = "\n".join(saida)
-        self.assertIn(SUBTITULO_CC.format("docs/pedidos/origem.md"), texto)
-        self.assertIn(f"- {self.ORIGEM_DONO}", texto)
+        self.assertIn("docs/pedidos/origem.md", re.search(r"^- decisões: pedido \S+ até ([0-9a-f]{64}) \((\d+) linhas DECISÃO DO DONO em \d+ fontes: ([^;]*);", texto, re.M).group(3))
 
     def test_fontes_demais_reprova(self):
         citas = []
@@ -4196,18 +4202,18 @@ class DecisoesCobradas(Cenario):
         self.assertEqual(rc, 1, saida)
         self.assertTrue([l for l in saida if l.startswith("decisões: falta") and "do registro de fora" in l and "s.md:1" in l], saida)
 
-    def test_gerar_copia_o_registro_sob_o_subtitulo(self):  # 13
+    def test_gerar_cita_o_registro_na_referencia(self):  # 13; P4 (0.43.1): o registro citado entra nas fontes, sem cópia nem subtítulo
         rc, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1")
         texto = "\n".join(saida)
         self.assertEqual(rc, 0, texto)
-        sub = [l for l in saida if l.startswith("### Do registro citado docs/pedidos/r.md")]
-        self.assertEqual(len(sub), 1, texto)
-        self.assertIn("contexto, não ampliam o Entregar", sub[0])
-        corpo = texto.split(sub[0], 1)[1]
-        self.assertIn(DECISAO_R1, corpo)
-        self.assertIn(DECISAO_R2, corpo)
+        referencia = re.search(r"^- decisões: pedido \S+ até ([0-9a-f]{64}) \((\d+) linhas DECISÃO DO DONO em \d+ fontes: ([^;]*);", texto, re.M)
+        self.assertIn("docs/pedidos/r.md", referencia.group(3))
+        mod = carregar_forge_check()
+        cobradas = mod.decisoes_cobradas(self.tmp, self.tmp / "docs/pedidos/pedido-sintetico.md",
+                                         (self.tmp / "docs/pedidos/pedido-sintetico.md").read_text(encoding="utf-8"))
+        self.assertEqual(referencia.group(1), mod.hash_das_decisoes(cobradas))  # o mesmo conjunto que o brief cobra
+        self.assertNotIn("### Do registro citado", texto)
         self.assertNotIn("Texto solto", texto)
-        self.assertLess(texto.index(CITA_R), texto.index(sub[0]))
 
     def test_brief_gerado_e_completado_passa_sem_falta(self):  # 13
         _, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1")
@@ -4268,7 +4274,7 @@ class DecisoesNaVolta(Cenario):
 class GuardaDeVersao(unittest.TestCase):
     def test_mensagem_bloqueia_como_gerar(self):  # 16
         fonte = Path(FORGE_CHECK_CC).read_text(encoding="utf-8")
-        self.assertRegex(fonte, r'a\.alvo in \("gerar", "mensagem"\)')
+        self.assertRegex(fonte, r'a\.alvo in \("gerar", "selar", "mensagem"\)')  # 0.43.1: o `selar` bloqueia como o `gerar`
 
 
 class TextosDoAgenteEDaRegra(unittest.TestCase):
@@ -4528,7 +4534,11 @@ class DecisaoAncora(Raiz):
         self.pedido_com(f'\n{self.MENCAO}\n- DECISÃO DO DONO (2026-10-20): "G1".\n')
         r = subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(self.tmp), "brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1"],
                            capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp / "home")))
-        self.assertIn('- DECISÃO DO DONO (2026-10-20): "G1".', r.stdout)
+        mod = carregar_forge_check()  # P4 (0.43.1): a referência é o hash do mesmo conjunto que o brief cobra, com G1 e sem a menção
+        caminho = self.tmp / "docs" / "pedidos" / f"{ID}.md"
+        cobradas = mod.decisoes_cobradas(self.tmp, caminho, caminho.read_text(encoding="utf-8"))
+        self.assertTrue(any("G1" in l for _, linhas in cobradas["fontes"] for _, l in linhas))
+        self.assertEqual(re.search(r"^- decisões: pedido \S+ até ([0-9a-f]{64}) \((\d+) linhas DECISÃO DO DONO em \d+ fontes: ([^;]*);", r.stdout, re.M).group(1), mod.hash_das_decisoes(cobradas))
         self.assertNotIn("ajuste conforme", r.stdout)
 
     def test_uma_funcao_so_decide_a_frase(self):
@@ -4733,14 +4743,15 @@ class VoltaComRecomendacao(unittest.TestCase):
     def test_a_volta_cobra_o_mesmo_conjunto_de_decisoes_do_gerar_e_do_brief(self):  # abuso 16 (conferir_volta)
         self.pedido.write_text(self.pedido.read_text(encoding="utf-8") + '- DECISÃO DO DONO (2026-10-20): "V1" na volta.\n- 2026-10-20: ajuste, conforme DECISÃO DO DONO acima\n', encoding="utf-8")
         saida = self.gerar().stdout
-        self.assertIn('- DECISÃO DO DONO (2026-10-20): "V1" na volta.', saida)
+        mod = carregar_forge_check()  # P4 (0.43.1): a volta cita o bloco por referência, o mesmo conjunto (com V1, sem a menção)
+        cobradas = mod.decisoes_cobradas(self.repo, self.pedido, self.pedido.read_text(encoding="utf-8"))
+        self.assertEqual(re.search(r"^- decisões: pedido \S+ até ([0-9a-f]{64}) \((\d+) linhas DECISÃO DO DONO em \d+ fontes: ([^;]*);", saida, re.M).group(1), mod.hash_das_decisoes(cobradas))
         self.assertNotIn("conforme DECISÃO DO DONO acima", saida)  # a menção não é decisão: o gerar não a copia
         texto = self.preenchido(saida)
         rc, conferencia = self.conferir(texto)
         self.assertNotIn("falta decisão do dono", conferencia)  # e a conferência da volta não a cobra
         self.assertIn("decisões: menção fora do início", conferencia)
-        sem_a_linha = self.conferir(texto.replace('- DECISÃO DO DONO (2026-10-20): "V1" na volta.\n', ""))[1]
-        self.assertIn('volta: falta decisão do dono "- DECISÃO DO DONO (2026-10-20): "V1" na volta."', sem_a_linha)
+        self.assertIn("decisões: ok por referência", conferencia)
 
     def test_objetivo_alterado_continua_reprovando(self):  # M2.4
         texto = self.preenchido(self.gerar("--incluir", "docs/reviews/p1.md:R1").stdout)

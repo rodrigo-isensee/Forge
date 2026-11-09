@@ -119,7 +119,7 @@ class GuardaDoConferente(ProjetoDoConferente):
         self.assertIn("um brief por mensagem", r.stderr)
 
     def test_outro_agente_passa_sem_cabecalho(self):
-        r = self.lancar("faça algo", tipo="forge:tech-lead")
+        r = self.lancar("faça algo", tipo="time:tech-lead")  # fora do plugin; o `forge:` pede o selo (0.43.1, test_selo_e_entrega)
         self.assertEqual(r.returncode, 0, r.stderr)
 
 
