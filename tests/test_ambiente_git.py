@@ -6,11 +6,13 @@ todos os `tests/*.py` falha se uma chamada direta a `git` (subprocess) não rece
 montado por ele; (4) os módulos de tests/ carregam também no modo dirigido (`python3 -m unittest tests.<módulo>`).
 Origem: erros de tearDown por `maintenance.lock` só em worktree (S-9)."""
 import ast
+import concurrent.futures
 import functools
 import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -390,6 +392,22 @@ class ModeloCopiado(unittest.TestCase):
             self.assertEqual((contar(um), contar(dois), contar(modelo)), ("2", "1", "1"))
             self.assertEqual(subprocess.run(["git", "status", "--porcelain"], cwd=dois, env=env, check=True,
                                             capture_output=True, text=True).stdout, "", "a cópia sai limpa")
+
+    def test_threads_montam_o_modelo_uma_vez_so(self):  # a corrida da suíte inteira: fixtures de hooks num pool
+        chave = f"teste-threads-{id(self)}"
+        montagens = []
+
+        def montar(pasta):
+            montagens.append(pasta)
+            time.sleep(0.2)  # a primeira montagem demora: as outras threads chegam no meio dela
+            (pasta / "a.txt").write_text("a", encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as d:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+                modelos = list(pool.map(lambda i: copiar_modelo(chave, Path(d) / f"c{i}", montar), range(16)))
+            self.assertEqual(len(montagens), 1)
+            self.assertEqual(set(modelos), {montagens[0]})
+            self.assertTrue(all((Path(d) / f"c{i}" / "a.txt").read_text(encoding="utf-8") == "a" for i in range(16)))
 
     def test_montagem_que_falha_nao_fica_guardada(self):
         chave = f"teste-falha-{id(self)}"
