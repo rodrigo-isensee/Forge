@@ -1,0 +1,23 @@
+{
+  "descricao": "FILA-22 (0.43.2): na sessão de projeto, o Jarvis também não abre o PR de contribuição; quem abre é o tech-lead.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin melhoria/proj-tema && gh pr create --base develop --title t --body-file x.md -R rodrigo-isensee/Forge"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/proj"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: gh pr create é de tech-lead (papel: jarvis)"
+  }
+}

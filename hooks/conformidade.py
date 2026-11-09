@@ -1581,6 +1581,7 @@ class Guarda:
                     prog = Path(palavras[0].lstrip("`")).name if palavras else ""
                     if prog == "gh":
                         self.gh_rotulo(palavras, pasta, atras_do_xargs(escritas, palavras))
+                        self.gh_pr_na_sessao_do_forge(palavras)
                     elif prog == "alias" and CITA_ROTULO.search(" ".join(palavras)):  # A5: o alias do shell guarda o rótulo
                         self.exigir_dono()
                     elif prog in SHELLS:
@@ -1603,6 +1604,17 @@ class Guarda:
         self.rotulo_na_sessao_do_forge(texto, pasta, nivel)
         if "\\`" in texto:
             self.rotulo_na_sessao_do_forge(texto.replace("\\`", "`"), pasta, nivel)
+
+    def gh_pr_na_sessao_do_forge(self, palavras):
+        """FILA-22 (0.43.2, N4; diretiva do dono "Jarvis só interface"): na sessão do Forge, `gh pr create` e `gh pr merge` seguem a
+        política dos projetos (`pr_criar`, `pr_merge_integracao`): o jarvis e os papéis fora da lista não abrem nem mesclam PR.
+        O tech-lead abre o PR e o `bin/forge-fechar` mescla."""
+        parte = parecer.analisar(palavras)
+        if parte and parte[0] == "pr" and not self.pode("pr_criar"):
+            self.barrar("R-CONFORMIDADE", f"gh pr create {self.so_de('pr_criar')} (papel: {self.papel})", "peça ao tech-lead")
+        if parte and parte[0] == "prmerge" and not self.pode("pr_merge_integracao"):
+            self.barrar("R-CONFORMIDADE", f"gh pr merge {self.so_de('pr_merge_integracao')} (papel: {self.papel})",
+                        "peça ao tech-lead (bin/forge-fechar)")
 
     def gh_rotulo(self, palavras, pasta, por_xargs=False):
         """R-CONTRIB: na sessão do Forge, só a conta do dono do Forge aplica o rótulo `afrouxa-regra`; qualquer outra conta,
@@ -1761,7 +1773,7 @@ class Guarda:
             return
         if parte[0] == "pr" and not self.pode("pr_criar"):
             self.barrar("R-CONFORMIDADE", f"gh pr create {self.so_de('pr_criar')} (papel: {self.papel})",
-                        "peça ao tech-lead ou ao jarvis")
+                        "peça ao tech-lead")
         elif parte[0] == "prmerge":
             raiz = self.h.raiz
             branch = parecer.branch_do_pr(raiz, parte[2])

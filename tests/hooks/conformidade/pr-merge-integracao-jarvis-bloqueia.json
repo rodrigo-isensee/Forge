@@ -1,5 +1,5 @@
 {
-  "descricao": "Jarvis com gh pr merge na develop: o papel libera (o parecer é do hook parecer).",
+  "descricao": "FILA-22 (0.43.2): o Jarvis não roda gh pr merge na develop; o tech-lead (ou o forge-fechar) mescla.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -28,6 +28,7 @@
     }
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: gh pr merge é de tech-lead (papel: jarvis)"
   }
 }

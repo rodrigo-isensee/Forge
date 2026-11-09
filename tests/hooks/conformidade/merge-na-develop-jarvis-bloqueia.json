@@ -1,5 +1,5 @@
 {
-  "descricao": "Jarvis mescla na develop: o papel libera (o parecer é do hook parecer); a main segue barrada.",
+  "descricao": "FILA-22 (0.43.2, Jarvis só interface): o Jarvis não mescla na develop; quem mescla é o tech-lead.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -26,6 +26,7 @@
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: merge em develop é de tech-lead"
   }
 }
