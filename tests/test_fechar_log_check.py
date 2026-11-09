@@ -159,9 +159,9 @@ class FecharLogCheck(unittest.TestCase):
             self.assertRegex(l[1], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
             self.assertLessEqual(l[1], l[2], l)
         self.assertLess(linhas[0][1], linhas[0][2])  # o passo 1 (check de 1,2 s) fecha com a hora do fim, não a do início
-        self.assertEqual(linhas[7][3:], ["MERGED", "0123456", head7])
-        self.assertEqual(linhas[8][3:], ["rc", "0"])
-        self.assertEqual([l[3:] for l in linhas[:7]], [[]] * 7)
+        self.assertEqual(linhas[8][3:], ["MERGED", "0123456", head7])
+        self.assertEqual(linhas[9][3:], ["rc", "0"])
+        self.assertEqual([l[3:] for l in linhas[:8]], [[]] * 8)
         self.assertNotIn("subida:", r.stdout + r.stderr)  # só no log
 
     def test_parada_no_passo_4_fecha_a_linha_do_4_com_rc_1(self):
