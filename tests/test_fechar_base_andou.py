@@ -47,6 +47,9 @@ case "$1 $2" in
     # $ESTADO/mb_falha: o merge-base sai com erro mas já imprimiu um ponto de partida (só o rc denuncia); $ESTADO/mb_vazio: rc 0 e nada na saída
     if [ -f "$ESTADO/mb_falha" ]; then "$(dirname "$0")/git-base" "$@"; echo "fatal: simulado" >&2; exit 128; fi
     if [ -f "$ESTADO/mb_vazio" ]; then exit 0; fi ;;
+  "diff --quiet")
+    # $ESTADO/diff_quiet_falha: o diff da base no passo 6a (código ou só texto) falha
+    if [ -f "$ESTADO/diff_quiet_falha" ]; then echo "fatal: bad object" >&2; exit 128; fi ;;
   "rev-list --count")
     # $ESTADO/revlist_falha: a contagem de commits da base (passo 2b) falha
     if [ -f "$ESTADO/revlist_falha" ]; then echo "fatal: bad object" >&2; exit 128; fi ;;
@@ -127,7 +130,7 @@ class Teste(unittest.TestCase):
         self.assertEqual(self.criacoes(), [])
 
     def test_c5_base_que_andou_sem_arquivo_em_comum_avisa_e_segue(self):
-        self.base_anda({"outro": "x\n"})
+        self.base_anda({"outro.md": "x\n"})  # só texto: código na base traz o merge (E4)
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertIn("a base andou 1 commit sem arquivo em comum", r.stdout)
@@ -183,6 +186,7 @@ class Teste(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("[2b]", r.stdout)
+        self.assertIn("se a base mudou código", r.stdout)  # E4
         self.assertEqual(self.chamadas(), [])
 
     # ---- LOTE-FECHAR2: guardas do passo 2b e do passo 2 que a QA mostrou sem teste ----
@@ -410,6 +414,126 @@ class Teste(unittest.TestCase):
         for proibido in ("--no-verify", "--force", " -f ", "-X ", "--allow-unrelated-histories", "+refs"):
             self.assertNotIn(proibido, corpo)
 
+    # ---- CONFLITO-SEMANTICO-ANTES-DO-PR (0.58 E4): a base mudou código sem arquivo em comum ----
+    def base_muda_codigo(self):
+        (self.proj / "bin").mkdir(exist_ok=True)
+        self.base_anda({"bin/x": "da base\n"})
+        return self.head_remoto("develop")
+
+    def test_e4_base_que_mudou_codigo_sem_arquivo_em_comum_faz_o_merge_e_recomeca(self):
+        antigo, base_sha = self.git("rev-parse", "melhoria/x"), self.base_muda_codigo()
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        novo = self.git("rev-parse", "melhoria/x")
+        self.assertEqual(self.git("rev-list", "--parents", "-n", "1", novo).split(), [novo, antigo, base_sha])
+        self.assertEqual([c.split()[4] for c in self.chamadas() if c.startswith("forge-check pr")], [antigo, novo])
+        self.assertEqual(len(self.merges()), 1)
+        self.assertIn(novo, self.merges()[0])
+        self.assertIn("merge limpo em melhoria/x", r.stdout)
+
+    def test_e4_base_que_mudou_so_md_e_docs_avisa_sem_merge(self):
+        antigo = self.git("rev-parse", "melhoria/x")
+        (self.proj / "docs").mkdir()
+        self.base_anda({"nota.md": "x\n", "docs/guia.txt": "y\n"})
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn("o CI do PR confere o merge", r.stdout)
+        self.assertNotIn("merge limpo", r.stdout)
+        self.assertEqual(self.git("rev-parse", "melhoria/x"), antigo)
+
+    def _so_avisa(self, ref, *extra):
+        antigo = self.git("rev-parse", ref)
+        self.base_muda_codigo()
+        r = self.fechar("p1", "--ref", ref, "--sem-limpar", *extra)
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn("a base mudou código; o CI deste PR pode ter rodado antes dela", r.stdout)
+        self.assertNotIn("merge limpo", r.stdout)
+        self.assertEqual((self.git("rev-parse", ref), self.head_remoto(ref)), (antigo, antigo))
+        self.assertEqual(len(self.merges()), 1)
+
+    def test_e4_ref_fora_de_melhoria_so_avisa_com_o_texto_novo(self):
+        self.ramo_que_edita("feature/z", "z", "z\n")
+        self._so_avisa("feature/z")
+
+    def test_e4_com_trazida_nao_traz_a_base_de_novo(self):
+        self._so_avisa("melhoria/x", "--trazida")
+
+    def test_e4_merge_da_base_com_conflito_sem_arquivo_em_comum_para(self):
+        (self.proj / "d").mkdir()
+        self.ramo_que_edita("melhoria/d", "d/x", "da branch\n")  # a base cria o arquivo `d`: conflito de pasta e arquivo
+        antigo = self.git("rev-parse", "melhoria/d")
+        self.base_anda({"d": "da base\n"})
+        r = self.fechar("p1", "--ref", "melhoria/d")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("tem conflito", r.stderr)
+        self.assertEqual((self.git("rev-parse", "melhoria/d"), self.head_remoto("melhoria/d")), (antigo, antigo))
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    # ---- CONFLITO-SEMANTICO-ANTES-DO-PR (0.43.2): a base anda durante os checks (passo 6a, antes do merge) ----
+    def base_anda_nos_checks(self, arquivo, local=True):
+        """Um commit na develop do servidor durante o `gh pr checks`; com `local`, a origin/develop desta cópia o acompanha
+        (como depois de um `git fetch`); sem `local`, só o servidor anda (outra cópia envia)."""
+        embrulho = self.tmp / "gh-nos-checks"
+        embrulho.write_text('#!/usr/bin/env bash\nif [ "$1 $2" = "pr checks" ] && [ -f "$ESTADO/durante_checks" ]; then\n'
+                            '  sh "$ESTADO/durante_checks" >&2; rm -f "$ESTADO/durante_checks"\nfi\nexec "$GH_REAL" "$@"\n', encoding="utf-8")
+        embrulho.chmod(0o755)
+        self.env.update(FORGE_GH=str(embrulho), GH_REAL=str(self.tmp / "gh"))
+        copia = self.proj
+        if not local:
+            copia = self.tmp / "outra"
+            self.git("clone", "-q", "-b", "develop", str(self.remoto), str(copia), cwd=self.tmp)
+        pasta = os.path.dirname(arquivo) or "."
+        (self.estado / "durante_checks").write_text(
+            f'cd "{copia}" && git switch -q develop && mkdir -p "{pasta}" && echo novo > "{arquivo}" && git add -- "{arquivo}"'
+            f' && git commit -q -m "feat: outro PR" && git push -q origin develop\n', encoding="utf-8")
+
+    def test_6a_base_que_mudou_codigo_nos_checks_traz_a_base_antes_do_merge(self):
+        antigo = self.git("rev-parse", "melhoria/x")
+        self.base_anda_nos_checks("bin/y")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn("a base mudou código durante os checks", r.stdout)
+        novo, base_sha = self.git("rev-parse", "melhoria/x"), self.head_remoto("develop")
+        self.assertEqual(self.git("rev-list", "--parents", "-n", "1", novo).split(), [novo, antigo, base_sha])
+        self.assertEqual(len(self.merges()), 1)
+        self.assertIn(novo, self.merges()[0])
+
+    def test_6a_base_que_mudou_so_texto_nos_checks_segue_para_o_merge(self):
+        antigo = self.git("rev-parse", "melhoria/x")
+        self.base_anda_nos_checks("docs/nota.txt")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn("a base andou durante os checks só em texto", r.stdout)
+        self.assertEqual(self.git("rev-parse", "melhoria/x"), antigo)
+        self.assertEqual(len(self.merges()), 1)
+        self.assertIn(antigo, self.merges()[0])
+
+    def assert_parou_no_6a(self, r, texto):
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("parou no passo 6a", r.stderr)
+        self.assertIn(texto, r.stderr)
+        self.assertEqual(self.merges(), [])
+
+    def test_6a_base_local_velha_para_e_pede_o_fetch(self):
+        self.base_anda_nos_checks("docs/nota.txt", local=False)
+        self.assert_parou_no_6a(self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar"), "git fetch origin develop")
+
+    def test_6a_fora_de_melhoria_e_com_trazida_para_sem_mesclar(self):
+        self.ramo_que_edita("feature/z", "z", "z\n")
+        for ref, extra, texto in (("feature/z", (), "o CI deste PR rodou antes dela"),
+                                  ("melhoria/x", ("--trazida",), "já trouxe a base uma vez")):
+            with self.subTest(ref):
+                self.registro.write_text("")
+                antigo = self.git("rev-parse", ref)
+                self.base_anda_nos_checks(f"bin/{ref.replace('/', '-')}")
+                self.assert_parou_no_6a(self.fechar("p1", "--ref", ref, "--sem-limpar", *extra), texto)
+                self.assertEqual((self.git("rev-parse", ref), self.head_remoto(ref)), (antigo, antigo))
+
+    def test_6a_falha_do_diff_da_base_para(self):
+        self.base_anda_nos_checks("bin/y")
+        (self.estado / "diff_quiet_falha").write_text("")
+        self.assert_parou_no_6a(self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar"), "o diff da base falhou")
+
     # ---- LOTE-0307-A, E1: index.lock na pasta git da worktree da branch ----
     def worktree_de_x(self):
         arvore = self.tmp / "wt-x"
@@ -484,8 +608,8 @@ class Teste(unittest.TestCase):
                 self.assertEqual(self.git("branch", "--list", "melhoria/x"), "melhoria/x")  # a limpeza não chega a rodar
 
     def test_a4_a_mensagem_da_base_conta_os_commits_no_plural(self):
-        self.base_anda({"outro": "x\n"})
-        self.base_anda({"outro2": "y\n"})
+        self.base_anda({"outro.md": "x\n"})
+        self.base_anda({"outro2.md": "y\n"})
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertIn("a base andou 2 commits sem arquivo em comum com melhoria/x", r.stdout)

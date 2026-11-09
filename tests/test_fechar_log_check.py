@@ -154,7 +154,7 @@ class FecharLogCheck(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", FORGE_CHECK=self.check_lento())
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         linhas = self.subidas()
-        self.assertEqual([l[0] for l in linhas], ["1", "1c", "2", "3", "2b", "4", "5", "6", "7"])
+        self.assertEqual([l[0] for l in linhas], ["1", "1c", "2", "3", "2b", "4", "5", "6a", "6", "7"])
         for l in linhas:
             self.assertRegex(l[1], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
             self.assertLessEqual(l[1], l[2], l)
