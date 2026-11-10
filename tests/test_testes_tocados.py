@@ -633,7 +633,14 @@ class NaoEPortao(unittest.TestCase):
         self.assertGreaterEqual(len(arquivos), 4)
         for arquivo in arquivos:
             with self.subTest(str(arquivo.relative_to(RAIZ))):
-                self.assertNotIn("forge-testes", arquivo.read_text(encoding="utf-8", errors="replace"))
+                texto = arquivo.read_text(encoding="utf-8", errors="replace")
+                if arquivo == RAIZ / "hooks" / "pesado.py":
+                    # Exceção única (maq-a1b-classe, 0.45.1): o pesado não roda o script, só classifica a carga do comando
+                    # (R-TETO); o nome entra numa linha só, a constante PELOS_ARGUMENTOS, e nada no hook o executa.
+                    linhas = [l for l in texto.splitlines() if "forge-testes" in l]
+                    self.assertEqual([l.split(" =", 1)[0] for l in linhas], ["PELOS_ARGUMENTOS"], linhas)
+                    continue
+                self.assertNotIn("forge-testes", texto)
 
     # REVERSAO-MAPA (A6): script de aviso chama o forge-testes e não é portão; a lista é fechada. Script novo que o
     # cite sem entrar aqui reprova, e a entrada na lista é a decisão consciente de que ele só avisa.

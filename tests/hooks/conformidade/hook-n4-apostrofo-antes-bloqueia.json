@@ -1,0 +1,24 @@
+{
+  "descricao": "HOOK-N4: o apóstrofo entre aspas duplas é texto e não protege o $( seguinte",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo \"it's $(true \")\"; gh repo delete o/r --yes)\" \"it's\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o hook não modela a linha"
+  }
+}

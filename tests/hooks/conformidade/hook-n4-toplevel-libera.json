@@ -1,0 +1,23 @@
+{
+  "descricao": "HOOK-N4: substituição entre aspas sem aspa nem case no corpo segue livre",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo \"$(git rev-parse --show-toplevel)\" \"$(date) e $(whoami)\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

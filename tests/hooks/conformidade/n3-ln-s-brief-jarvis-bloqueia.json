@@ -1,0 +1,24 @@
+{
+  "descricao": "N3 (IMPL-FURO-HOOK-N, S3): o brief não nasce como link para fora da pasta protegida",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ln -s /tmp/x docs/briefs/p1-dev-2.md"
+    },
+    "agent_type": "forge:jarvis",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "link com caminho protegido"
+  }
+}

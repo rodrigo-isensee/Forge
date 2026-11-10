@@ -1,0 +1,16 @@
+{
+  "pedido": "v0451-suite-morta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S1",
+      "guarda": "suíte reprovada (processo morto por sinal) para o pre-push antes de anotar a prova .verde e o carimbo",
+      "arquivo": ".githooks/pre-push",
+      "de": "  echo \"pre-push: testes do Forge falharam.\" >&2\n  exit 1\nfi",
+      "para": "  echo \"pre-push: testes do Forge falharam.\" >&2\nfi",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_pre_push_com_processo_morto_nao_anota_prova_nem_carimbo"
+      ]
+    }
+  ]
+}

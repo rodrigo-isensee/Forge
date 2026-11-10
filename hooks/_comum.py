@@ -1931,6 +1931,65 @@ def excede_o_teto(texto):
 
 Leituras = collections.namedtuple("Leituras", "partes ilegivel")
 
+# HOOK-N4: dentro de `"…"`, o `$(` abre um contexto novo do bash, com aspas próprias, e o `case` tem `)` que não fecha a
+# substituição. O `shlex` lê o `"` de dentro como o fim das aspas de fora e o `x)` do `case` como o fim do `$(`, e o
+# comando do meio vira texto: `x="$(true ")"; L)"`, `x="$(echo ")"; L; echo "(")"` e `x="$(case x in x) L;; esac)"`
+# rodam o `L` sem que o hook o leia. O hook não modela essas formas: a linha é ilegível (ADR 0011, o que não se modela
+# recusa).
+CASE_NO_CORPO = re.compile(r"(?<![\w-])case(?![\w-])")
+
+
+def _fim_da_substituicao(texto, i):
+    """O índice do `)` que fecha o `$(` aberto antes de `i`, lido como o bash fora do `case`: `\\x` e `'…'` não contam,
+    `(` aninha. None se o corpo tem `"` (outro contexto de aspas) ou não fecha."""
+    nivel = 1
+    while i < len(texto):
+        c = texto[i]
+        if c == "\\":
+            i += 2
+            continue
+        if c == "'":
+            apostrofo = texto.find("'", i + 1)
+            if apostrofo < 0:
+                return None
+            i = apostrofo + 1
+            continue
+        if c == '"':
+            return None
+        if c == "(":
+            nivel += 1
+        elif c == ")":
+            nivel -= 1
+            if not nivel:
+                return i
+        i += 1
+    return None
+
+
+def substituicao_ambigua_entre_aspas(texto):
+    """HOOK-N4: True se algum `$(` dentro de aspas duplas tem no corpo um `"`, um `case` ou não fecha."""
+    i, entre_duplas = 0, False
+    while i < len(texto):
+        c = texto[i]
+        if c == "\\":
+            i += 2
+            continue
+        if c == "'" and not entre_duplas:
+            fim_da_aspa = texto.find("'", i + 1)
+            if fim_da_aspa < 0:
+                return False  # aspa simples sem par: a leitura do `shlex` já não fecha
+            i = fim_da_aspa + 1
+            continue
+        if c == '"':
+            entre_duplas ^= True
+        elif entre_duplas and texto.startswith("$(", i) and not texto.startswith("$((", i):
+            fim = _fim_da_substituicao(texto, i + 2)
+            if fim is None or CASE_NO_CORPO.search(texto, i + 2, fim):
+                return True
+            i = fim
+        i += 1
+    return False
+
 
 def leituras(comando, com_sinal=False, sem_marcas=None):
     """ADR 0013: a única porta dos hooks para ler a linha. `partes`: a leitura fiel (`comandos`) e, se a linha tem `#`
@@ -1959,6 +2018,8 @@ def leituras(comando, com_sinal=False, sem_marcas=None):
                 or palavras_do_texto(comando if sem_marcas is None else sem_marcas).aspa_escapada
                 else list(comandos(comando, com_sinal=com_sinal)))
     except ValueError:
+        fiel = None
+    if substituicao_ambigua_entre_aspas(comando):  # HOOK-N4: o bash e o `shlex` leem outro fim para o `$(` entre aspas
         fiel = None
     partes = [] if fiel is None else [fiel]
     if "#" in comando:

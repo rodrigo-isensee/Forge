@@ -129,7 +129,7 @@ CITACOES_CONHECIDAS = {**{(a, "README.md"): (n, "nome") for a, n in _NOME.items(
                        ("hooks/conformidade.py", "README.md"): (1, "prosa"),  # 0.43.1 T: o jarvis.md não cita mais o README.md
                        ("skills/novo-projeto/SKILL.md", "docs/propostas/"): (1, "prosa"),
                        ("tests/apoio_volta_unica.py", "docs/propostas/"): (1, "prosa"),
-                       ("tests/test_forge.py", "README.md"): (11, "teste-le"), ("tests/test_doutor.py", "README.md"): (1, "teste-le"),
+                       ("tests/test_forge.py", "README.md"): (11, "teste-le"), ("tests/test_conferir_reversao.py", "README.md"): (13, "teste-le"), ("tests/test_doutor.py", "README.md"): (1, "teste-le"),
                        ("tests/test_forge.py", "docs/propostas/"): (2, "teste-le")}
 MOTIVOS = ("nome", "destino", "prosa", "teste-le")
 LE_CONTEUDO = ("read_text(", "open(", '"show"', "cat ")  # (d): leitura de conteúdo não se esconde atrás de `nome`

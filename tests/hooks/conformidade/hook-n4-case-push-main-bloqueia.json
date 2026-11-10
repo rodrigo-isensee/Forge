@@ -1,0 +1,24 @@
+{
+  "descricao": "HOOK-N4: o x) do case não fecha o $( no bash; o push na main do meio rodava sem leitura",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "x=\"$(case x in x) git push origin main;; esac)\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o hook não modela a linha"
+  }
+}

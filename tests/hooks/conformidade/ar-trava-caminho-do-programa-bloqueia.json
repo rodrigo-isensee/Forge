@@ -1,0 +1,24 @@
+{
+  "descricao": "AR-TRAVA-UMA-SINTAXE: o programa pelo caminho é o mesmo",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "/usr/bin/git push origin HEAD:refs/heads/main"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-MAIN"
+  }
+}

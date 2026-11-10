@@ -1,0 +1,25 @@
+{
+  "descricao": "N3 (IMPL-FURO-HOOK-N): o link na pasta livre ganha o nome da origem e vira caminho protegido (docs/ + briefs = docs/briefs)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/leia.md": "ok\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ln -s /tmp/briefs docs"
+    },
+    "agent_type": "forge:jarvis",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "link com caminho protegido"
+  }
+}

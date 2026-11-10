@@ -532,6 +532,57 @@ class ConferirNomeDaBranch(Base):
         self.assertEqual(self.conferir("--branch=fix/a").returncode, 0)
 
 
+class ConferirFragmentoDaBranchDeBaixo(Base):
+    """CHANGELOG-FRAGMENTO-BASE: na branch empilhada, o fragmento `<s>.md` da branch de baixo (`melhoria/<s>`, local ou de
+    origin, ancestral do HEAD e que o tem) não conta como fragmento com outro nome; sem essa branch, segue reprovado."""
+
+    def fragmento(self, nome):
+        self.mudar_fabrica()
+        (self.dir / "changelog.d").mkdir(exist_ok=True)
+        (self.dir / "changelog.d" / nome).write_text("### Alterado\n- v\n", encoding="utf-8")
+        self.commitar()
+
+    def empilhar(self):
+        git(self.dir, "checkout", "-q", "-b", "melhoria/a")
+        self.fragmento("a.md")
+        git(self.dir, "checkout", "-q", "-b", "melhoria/a-2")
+        self.fragmento("a-2.md")
+
+    def conferir(self):
+        return forge_changelog(self.dir, "conferir", "--base", "develop", "--branch=melhoria/a-2")
+
+    def test_fragmento_da_branch_de_baixo_ancestral_passa(self):
+        self.empilhar()
+        r = self.conferir()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_fragmento_sem_a_branch_de_baixo_reprova(self):
+        self.empilhar()
+        git(self.dir, "branch", "-q", "-D", "melhoria/a")
+        r = self.conferir()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("changelog.d/a.md", r.stderr)
+
+    def test_branch_de_baixo_que_andou_depois_reprova(self):
+        self.empilhar()
+        git(self.dir, "checkout", "-q", "melhoria/a")
+        git(self.dir, "commit", "-q", "--allow-empty", "-m", "andou")
+        git(self.dir, "checkout", "-q", "melhoria/a-2")
+        self.assertEqual(self.conferir().returncode, 1)
+
+    def test_branch_de_baixo_sem_o_fragmento_reprova(self):
+        self.empilhar()
+        git(self.dir, "branch", "-q", "-f", "melhoria/a", "develop")
+        self.assertEqual(self.conferir().returncode, 1)
+
+    def test_branch_de_baixo_de_origin_passa(self):
+        self.empilhar()
+        git(self.dir, "update-ref", "refs/remotes/origin/melhoria/a", "melhoria/a")
+        git(self.dir, "branch", "-q", "-D", "melhoria/a")
+        r = self.conferir()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+
 class ConferirSaidaDeErro(Base):
     """CL-1 (adendo E1.3): rc 1 é só reprovação; erro de git ou exceção sai com 2 (o pré-voo do pre-push não barra)."""
 

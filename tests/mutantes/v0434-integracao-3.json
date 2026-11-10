@@ -19,8 +19,7 @@
       "de": "    achou = re.fullmatch(r\"(\\d+)\\.(\\d+)\\.(\\d+)\", nome)\n    return tuple(int(x) for x in achou.groups()) if achou else None",
       "para": "    achou = re.fullmatch(r\"(\\d+)\\.(\\d+)\\.(\\d+)\", nome)\n    return tuple(int(x) for x in achou.groups()) if not (achou) else None",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -30,8 +29,7 @@
       "de": "        if cache.is_symlink() or not cache.is_dir():",
       "para": "        if not (cache.is_symlink() or not cache.is_dir()):",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -41,8 +39,7 @@
       "de": "    if real == Path(\"/\") or real == Path(casa_).resolve():",
       "para": "    if not (real == Path(\"/\") or real == Path(casa_).resolve()):",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -52,8 +49,7 @@
       "de": "        if not stat.S_ISREG(os.fstat(fd).st_mode):",
       "para": "        if not (not stat.S_ISREG(os.fstat(fd).st_mode)):",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -63,8 +59,7 @@
       "de": "        return bruto.decode(\"utf-8\") if len(bruto) <= limite else None",
       "para": "        return bruto.decode(\"utf-8\") if not (len(bruto) <= limite) else None",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -74,8 +69,7 @@
       "de": "    if len(partes) != 3 or partes[1] != \"forge\" or partes[0] in (\"\", \".\", \"..\") or not _versao_estrita(partes[2]):",
       "para": "    if not (len(partes) != 3 or partes[1] != \"forge\" or partes[0] in (\"\", \".\", \"..\") or not _versao_estrita(partes[2])):",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -85,8 +79,7 @@
       "de": "            if atual.is_symlink() or not atual.is_dir():",
       "para": "            if not (atual.is_symlink() or not atual.is_dir()):",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -96,8 +89,7 @@
       "de": "        if pasta.resolve(strict=True) != pasta or os.lstat(pasta).st_dev != os.lstat(raiz).st_dev:",
       "para": "        if not (pasta.resolve(strict=True) != pasta or os.lstat(pasta).st_dev != os.lstat(raiz).st_dev):",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -107,8 +99,7 @@
       "de": "    texto = _ler_limitado(pasta / \".claude-plugin\" / \"plugin.json\", LIMITE_PLUGIN_JSON)\n    try:\n        dados = json.loads(texto) if texto is not None else None",
       "para": "    texto = _ler_limitado(pasta / \".claude-plugin\" / \"plugin.json\", LIMITE_PLUGIN_JSON)\n    try:\n        dados = json.loads(texto) if not (texto is not None) else None",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -118,8 +109,7 @@
       "de": "    return isinstance(dados, dict) and dados.get(\"name\") == \"forge\" and dados.get(\"version\") == partes[2]",
       "para": "    return not (isinstance(dados, dict) and dados.get(\"name\") == \"forge\" and dados.get(\"version\") == partes[2])",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -129,8 +119,7 @@
       "de": "    if raiz is None:",
       "para": "    if not (raiz is None):",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -140,8 +129,7 @@
       "de": "            versoes = sorted((mkt / \"forge\").iterdir()) if not mkt.is_symlink() and (mkt / \"forge\").is_dir() else []",
       "para": "            versoes = sorted((mkt / \"forge\").iterdir()) if not (not mkt.is_symlink() and (mkt / \"forge\").is_dir()) else []",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -151,8 +139,7 @@
       "de": "        achadas += [p for p in versoes if pasta_do_forge_valida(p, raiz)]",
       "para": "        achadas += [p for p in versoes if not (pasta_do_forge_valida(p, raiz))]",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -162,8 +149,7 @@
       "de": "    texto = _ler_limitado(Path(casa_) / \".claude\" / \"plugins\" / \"installed_plugins.json\", LIMITE_INSTALADOS)\n    try:\n        dados = json.loads(texto) if texto is not None else None",
       "para": "    texto = _ler_limitado(Path(casa_) / \".claude\" / \"plugins\" / \"installed_plugins.json\", LIMITE_INSTALADOS)\n    try:\n        dados = json.loads(texto) if not (texto is not None) else None",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -173,8 +159,7 @@
       "de": "    plugins = dados.get(\"plugins\") if isinstance(dados, dict) and dados.get(\"version\") == 2 else None",
       "para": "    plugins = dados.get(\"plugins\") if not (isinstance(dados, dict) and dados.get(\"version\") == 2) else None",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     }
   ]

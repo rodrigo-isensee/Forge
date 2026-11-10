@@ -111,6 +111,33 @@ jobs:
       - name: Testes do Forge
         run: python3 scripts/suite-paralela.py
 
+  cobertura:
+    name: cobertura (informativa)
+    # Piso de cobertura informativo (0.45.1): mede e publica o número no resumo do job, sem reprovar. Só no push na main
+    # (uma medida por versão; o ci-local o pula por não se aplicar ao PR). O coletor (scripts/cobertura.py, sys.monitoring)
+    # entra como sitecustomize.py do Python do job, para valer também nos processos filhos, inclusive com `python -I`.
+    # Nenhum passo reprova (cada comando que pode falhar termina em `|| echo`), e nenhum job depende deste.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Suíte com o coletor de cobertura
+        run: |
+          site=$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
+          python3 scripts/cobertura.py instalar "$site" "$RUNNER_TEMP/cobertura" || echo "coletor não instalado: o número sai zero"
+          python3 scripts/suite-paralela.py || echo "suíte vermelha sob o coletor: o número sai assim mesmo (o check é a bateria)"
+          python3 scripts/cobertura.py remover "$site" || echo "coletor não removido"
+      - name: Publica a cobertura (não reprova)
+        if: ${{ !cancelled() }}
+        run: python3 scripts/cobertura.py relatorio "$RUNNER_TEMP/cobertura" || echo "relatório não saiu"
+
   arvore:
     name: árvore já provada na develop
     # SP4 e M2 do review da 0.43.3: um job só, antes das partes. Com o passo em cada perna da matriz, o `outputs` do job ficava

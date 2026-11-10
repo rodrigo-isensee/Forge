@@ -1,0 +1,25 @@
+{
+  "descricao": "N3 (IMPL-FURO-HOOK-N): o link na pasta protegida recebe o nome da origem",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/reviews/p1-1.md": "ok\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ln -s ../../src/app.js docs/reviews/"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "link com caminho protegido"
+  }
+}

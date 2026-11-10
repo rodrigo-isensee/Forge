@@ -1,0 +1,24 @@
+{
+  "descricao": "N1 (IMPL-FURO-HOOK-N, C-N1-2): sem conseguir ler a configuração, o subcomando que não é do git recusa",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git -C /nao/existe pm origin main"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "não conseguiu ler se é alias"
+  }
+}

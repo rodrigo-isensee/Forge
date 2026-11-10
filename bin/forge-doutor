@@ -255,7 +255,7 @@ def conferir_cache():
     depois do "s"; a versão em uso, a desta sessão e as duas maiores ficam sempre."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import forge_versoes
-    antigas, em_uso = forge_versoes.versoes_antigas_do_cache(casa())
+    antigas, _em_uso = forge_versoes.versoes_antigas_do_cache(casa())
     if not antigas:
         return []  # sem nada a apagar, ou sem conseguir conferir o que está em uso: silêncio, nada sai
     tamanhos = [forge_versoes.tamanho(p) for p in antigas]

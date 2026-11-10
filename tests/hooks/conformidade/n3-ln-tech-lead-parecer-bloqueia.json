@@ -1,0 +1,25 @@
+{
+  "descricao": "N3 (IMPL-FURO-HOOK-N): nem o dono do caminho dá outro nome ao parecer",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/reviews/p1-1.md": "ok\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ln docs/reviews/p1-1.md notas.md"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "link com caminho protegido"
+  }
+}
