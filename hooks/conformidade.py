@@ -648,6 +648,10 @@ class Guarda:
         self.trecho = None  # as palavras do comando simples em conferência (`segmento`), que a recusa cita
         leitura = politica.get("so_leitura")
         self.leitura = leitura if leitura and papel in leitura["papeis"] else None  # papel só de leitura (conferente)
+        # 0.45.3: o aq tem a lista própria de comandos e grava pelas ferramentas de arquivo, só em `escrita_permitida`
+        self.comandos_de_leitura = (leitura.get("comandos_por_papel", {}).get(papel, leitura["comandos"])
+                                    if self.leitura else ())
+        self.arquivo_pela_lista = bool(self.leitura) and papel in leitura.get("arquivos_por_escrita_permitida", [])
 
     # Respostas -------------------------------------------------------------------------------
     def pode(self, acao):
@@ -947,7 +951,7 @@ class Guarda:
 
     # Write, Edit, MultiEdit, NotebookEdit -------------------------------------------------------
     def arquivo(self, entrada):
-        if self.leitura:
+        if self.leitura and not self.arquivo_pela_lista:
             self.barrar("R-CONFORMIDADE", f"escrita de arquivo pelo papel só de leitura ({self.papel})", DICA_LEITURA)
         caminho = entrada.get("file_path") or entrada.get("notebook_path")
         if isinstance(caminho, str) and caminho:
@@ -1422,7 +1426,10 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", f"`{chave} --web` abre o navegador (papel só de leitura: {self.papel})", DICA_LEITURA)
         if prog == "git":
             self.git_so_leitura(chave, args[1:])
-        if "/" in prog or chave not in self.leitura["comandos"]:
+        if prog == "forge-check" and livres_do_forge_check(args)[:2] == ["transcricao", "anonimizar"]:
+            self.barrar("R-CONFORMIDADE", f"`forge-check transcricao anonimizar` grava arquivo (papel só de leitura: "
+                                          f"{self.papel})", DICA_LEITURA)
+        if "/" in prog or chave not in self.comandos_de_leitura:
             self.barrar("R-CONFORMIDADE", f"`{chave}` fora da lista do papel só de leitura ({self.papel})", DICA_LEITURA)
 
     def git_so_leitura(self, chave, args):
@@ -2321,7 +2328,10 @@ def pacote_valido(cfg):
 
 def leitura_valida(v):
     """`so_leitura` é opcional; presente, precisa das três listas (sem elas o papel só de leitura cairia em KeyError)."""
-    return v is None or (isinstance(v, dict) and all(lista_de_textos(v.get(k)) for k in ("papeis", "comandos", "saidas")))
+    return v is None or (isinstance(v, dict) and all(lista_de_textos(v.get(k)) for k in ("papeis", "comandos", "saidas"))
+                         and isinstance(v.get("comandos_por_papel", {}), dict)
+                         and all(lista_de_textos(c) and c for c in v.get("comandos_por_papel", {}).values())
+                         and lista_de_textos(v.get("arquivos_por_escrita_permitida", [])))
 
 
 def escrita_valida(v):

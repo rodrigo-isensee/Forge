@@ -168,8 +168,9 @@ class PluginDeDesenvolvimento(unittest.TestCase):
     def test_aq_tem_papel_e_lista_de_escrita_no_hook(self):
         politica = json.loads((RAIZ / "hooks/conformidade.json").read_text(encoding="utf-8"))
         self.assertEqual(politica["papeis"]["aq"], ["forge-dev:aq"])
-        self.assertEqual(politica["escrita_permitida"], {"aq": ["docs/propostas/", "docs/arquitetura/",
-                                                              "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/"],
+        self.assertEqual(politica["escrita_permitida"], {"aq": ["docs/propostas/", "docs/arquitetura/", "docs/avaliacoes/",
+                                                              "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/",
+                                                              "~/.forge-contrib/docs/avaliacoes/"],
                                                               "conferente": ["/dev/null"], "leitura": ["/dev/null"]})
         texto = (RAIZ / "dev/agents/aq.md").read_text(encoding="utf-8")
         self.assertRegex(texto, r"(?m)^tools: Read, Grep, Glob, Write, Edit$")
@@ -266,10 +267,18 @@ class Agentes(unittest.TestCase):
         papeis = [p for p, tipos in politica["papeis"].items() if "forge:conferente" in tipos]
         self.assertEqual(papeis, ["conferente"])
         self.assertIn("conferente", politica["so_leitura"]["papeis"])
+        por_arquivo = politica["so_leitura"].get("arquivos_por_escrita_permitida", [])
+        self.assertEqual(por_arquivo, ["aq"])  # 0.45.3: só o aq grava, pelas ferramentas de arquivo
+        self.assertNotIn("conferente", por_arquivo)
         for papel in politica["so_leitura"]["papeis"]:
             with self.subTest(papel=papel):
                 self.assertFalse([a for a, quem in politica["acoes"].items() if papel in quem])
-                self.assertFalse([c["caminho"] for c in politica["caminhos"] if papel in c["quem"]])
+                donos = [c["caminho"] for c in politica["caminhos"] if papel in c["quem"]]
+                if papel in por_arquivo:  # o caminho protegido de que ele é dono está na lista de escrita dele
+                    lista = politica["escrita_permitida"][papel]
+                    self.assertTrue(donos and all(any(d.endswith(e) for e in lista if not e.startswith("~/")) for d in donos), donos)
+                else:
+                    self.assertFalse(donos)
 
     def test_skills_citadas_existem(self):
         for p in self.agentes:

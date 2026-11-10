@@ -1536,6 +1536,11 @@ class Hooks(unittest.TestCase):
             "so_leitura em lista": dict(base, so_leitura=["conferente"]),
             "so_leitura sem comandos": dict(base, so_leitura={"papeis": ["conferente"], "saidas": []}),
             "so_leitura: saidas não lista": dict(base, so_leitura=dict(base["so_leitura"], saidas="/dev/null")),
+            "so_leitura: comandos_por_papel em lista": dict(base, so_leitura=dict(base["so_leitura"], comandos_por_papel=["ls"])),
+            "so_leitura: comandos_por_papel vazio": dict(base, so_leitura=dict(base["so_leitura"], comandos_por_papel={"aq": []})),
+            "so_leitura: comandos do papel não lista": dict(base, so_leitura=dict(base["so_leitura"], comandos_por_papel={"aq": "ls"})),
+            "so_leitura: arquivos_por_escrita_permitida não lista": dict(
+                base, so_leitura=dict(base["so_leitura"], arquivos_por_escrita_permitida="aq")),
         }
         for nome, politica in malformadas.items():
             with self.subTest(nome):
@@ -2393,6 +2398,12 @@ class Hooks(unittest.TestCase):
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith("V0453-PUSH-TODAS:")]
         self.assertGreaterEqual(len(lote), 14, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_do_v0453_aq_leitura(self):  # 0.45.3: o aq ganha Bash só de leitura, com a lista dele
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("V0453-AQ-LEITURA:")]
+        self.assertGreaterEqual(len(lote), 23, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
     def test_fixtures_do_n5(self):  # IMPL-FURO-HOOK-N, N5: a descrição abre com o item, para a mutação

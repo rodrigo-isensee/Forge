@@ -1,0 +1,54 @@
+{
+  "pedido": "v0453-hooks-aq-leitura",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Q1",
+      "guarda": "o aq usa a lista própria de comandos de leitura",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        self.comandos_de_leitura = (leitura.get(\"comandos_por_papel\", {}).get(papel, leitura[\"comandos\"])",
+      "para": "        self.comandos_de_leitura = (leitura[\"comandos\"]",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"]
+    },
+    {
+      "id": "Q2",
+      "guarda": "o aq grava pelas ferramentas de arquivo, só na lista de escrita",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self.leitura and not self.arquivo_pela_lista:",
+      "para": "        if self.leitura:",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"]
+    },
+    {
+      "id": "Q3",
+      "guarda": "o conferente segue sem ferramenta de arquivo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self.leitura and not self.arquivo_pela_lista:",
+      "para": "        if False:",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"]
+    },
+    {
+      "id": "Q4",
+      "guarda": "transcricao anonimizar grava arquivo e recusa no papel só de leitura",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if prog == \"forge-check\" and livres_do_forge_check(args)[:2] == [\"transcricao\", \"anonimizar\"]:",
+      "para": "        if False:",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"]
+    },
+    {
+      "id": "Q5",
+      "guarda": "só o papel de arquivos_por_escrita_permitida grava por arquivo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        self.arquivo_pela_lista = bool(self.leitura) and papel in leitura.get(\"arquivos_por_escrita_permitida\", [])",
+      "para": "        self.arquivo_pela_lista = bool(self.leitura)",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"]
+    },
+    {
+      "id": "Q6",
+      "guarda": "comandos_por_papel malformado falha fechado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                         and all(lista_de_textos(c) and c for c in v.get(\"comandos_por_papel\", {}).values())",
+      "para": "                         and True",
+      "testes": ["tests.test_hooks.Hooks.test_politica_com_chave_de_topo_malformada_bloqueia"]
+    }
+  ]
+}
