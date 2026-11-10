@@ -358,14 +358,41 @@ class Entrega(Repositorio):
     def test_merge_da_develop_nao_tira_do_declarado(self):  # v0455: o que o merge da base trouxe, igual à base, sai do escopo
         self.merge_da_develop_cumpre(squash=False)
 
-    def test_merge_squash_da_develop_nao_tira_do_declarado(self):  # v0455: por conteúdo, também sem o 2.o pai na base
-        self.merge_da_develop_cumpre(squash=True)
+    def test_merge_squash_da_develop_fora_das_etapas_de_merge_segue_fora_do_declarado(self):
+        """v0455 (A1 do review): o filtro por conteúdo vale só nas etapas de merge; o `merge --squash` da develop não é coberto
+        na `codigo`, e o que ele trouxe conta como fora do declarado, como na 0.45.4."""
+        self.conferida_e_merge_da_develop(squash=True)
+        head = self.gravar_app_de_novo()
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('escopo: fora do declarado no brief "docs/reviews/outro-1.md"', saida)
+        self.assertIn('escopo: fora do declarado no brief "bin/outro"', saida)
+        self.assertNotIn(head, fc.entregas_conferidas(self.pedido()))
+
+    def test_origin_da_base_forjada_nao_esconde_o_fora_do_declarado(self):
+        """v0455 (A1 do review, sonda S1): a `origin/<base>` é ref local; reescrita com a árvore do head (`git update-ref`), o
+        arquivo fora do declarado na etapa `codigo` continua reprovando e nada se grava."""
+        self.selado()
+        self.gravar("fora.txt", "z\n")
+        self.entregar("fora.txt")
+        arvore = self.git("rev-parse", "HEAD^{tree}")
+        dev = self.git("rev-parse", "refs/remotes/origin/develop")
+        falso = self.git("-c", "user.email=a@b", "-c", "user.name=a", "commit-tree", arvore, "-p", dev, "-m", "forjado")
+        self.git("update-ref", "refs/remotes/origin/develop", falso)
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('escopo: fora do declarado no brief "fora.txt"', saida)
+        self.assertNotIn("resultado: cumpriu", saida)
+        self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
+
+    def gravar_app_de_novo(self):
+        self.gravar("bin/app", "x\ny\nz\n")
+        self.git("add", "bin/app")
+        return self.commit("feat: f de novo")
 
     def merge_da_develop_cumpre(self, squash):
         self.conferida_e_merge_da_develop(squash)
-        self.gravar("bin/app", "x\ny\nz\n")
-        self.git("add", "bin/app")
-        head = self.commit("feat: f de novo")
+        head = self.gravar_app_de_novo()
         rc, saida = self.conferir()
         self.assertEqual(rc, 0, saida)
         self.assertNotIn("outro-1.md", saida)
@@ -376,9 +403,6 @@ class Entrega(Repositorio):
 
     def test_merge_da_develop_nao_esconde_o_que_a_branch_mudou(self):  # v0455: o arquivo diferente da base segue contando
         self.merge_da_develop_nao_esconde(squash=False)
-
-    def test_merge_squash_da_develop_nao_esconde_o_que_a_branch_mudou(self):  # v0455
-        self.merge_da_develop_nao_esconde(squash=True)
 
     def merge_da_develop_nao_esconde(self, squash):
         self.conferida_e_merge_da_develop(squash)

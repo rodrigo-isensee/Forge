@@ -100,7 +100,7 @@ reprova (`escopo: --desde sem conferência anterior`, `--desde gravado na própr
 vale como a branch inteira (`base: Base-sha do brief`, P-N1; `brief mensagem --entrega` emite esse `Desde:`). Intervalo vazio:
 `pendente:` na etapa `codigo`, `escopo: sem commit (nada a conferir)` nas outras. Parecer do papel certo e com autoria:
 `escopo: ok (parecer de <papel>)`; o resto: `escopo: confira "<arquivo>" +a -r`, para a leitura contra o Entregar.
-`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Com o blob do último `parecer conferido` do Histórico que o altera, ancestral do head, sai `escopo: ok (parecer trazido <sha7> de <papel>)`, mesmo com remoção. Em toda etapa, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`; v0455: antes, só nas etapas de merge). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`).
+`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Com o blob do último `parecer conferido` do Histórico que o altera, ancestral do head, sai `escopo: ok (parecer trazido <sha7> de <papel>)`, mesmo com remoção. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`).
 `delta` (VV-2, M12; só leitura, nunca reprova) imprime `delta: <arquivo> +a -r` e `delta: <arquivo>:<ini>-<fim>` (lado novo
 de cada trecho de `git diff -U0`) do que mudou entre o commit (ou o `commit:` do parecer de `--parecer`) e o fim (padrão HEAD),
 fora de docs/reviews, qa, devops, security e do quadro; `delta: nenhum` sem mudança. Com `--classe` (EST-M4), também
@@ -2333,11 +2333,11 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
         antes = len(arquivos)
         arquivos = [n for n in arquivos if n in primeiro_pai or n in desfeitos]
         informativas += [("escopo: integração da base (o que difere dos dois pais)", False)] if len(arquivos) < antes else []
-    if base_ref and not e_ancestral(raiz, head, base_ref):
+    if etapa in ETAPAS_DE_MERGE and base_ref and not e_ancestral(raiz, head, base_ref):
         # E4: o merge da base trouxe arquivos já revisados no PR de origem; só o que ainda difere da base atual é da entrega. Por
         # CONTEÚDO (o que o head tem, byte a byte, contra o que a base tem), nunca por nome: um byte a mais no commit de merge aparece.
-        # Em toda etapa (v0455): depois de um merge da develop (também `--squash`, sem o 2.o pai), o parecer de outro lote e o arquivo
-        # igual ao da base não entram no escopo, que nenhum brief da branch declara; o que a branch mudou de verdade continua.
+        # Só nas etapas de merge (v0455, A1 do review): a `origin/<base>` é ref local que o agente reescreve (`git update-ref`), e nas
+        # outras etapas o filtro esconderia do escopo um arquivo mudado de verdade. O `merge --squash` da develop fica sem cobertura.
         nomes_da_base = nomes_do_intervalo(raiz, base_ref, head, estrito=True)
         if nomes_da_base is None:  # C3: o git falhou; nada se filtra e a etapa reprova, com ou sem arquivo (C-13)
             linhas.append(("escopo: E4 sem o diff da base (o git falhou); nada foi filtrado", True))
