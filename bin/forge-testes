@@ -171,7 +171,6 @@ VARRE_OS_TESTES = re.compile(r"glob\(\s*[\"']test_?\*\.py[\"']\s*\)")
 MINIMO_DA_AGULHA = 5  # nome de arquivo mais curto que isto (ex.: `x.py`) casaria com quase tudo
 MODULO_DE_TESTE = re.compile(r"tests/(test_[a-z0-9_]+)\.py")
 SUBMODULO_DE_TESTE = re.compile(r"tests/((?:[a-z0-9_]+/)*test_[a-z0-9_]+)\.py")  # o da raiz ou o de um pacote de tests/
-NOME_COM_PONTO = re.compile(r"(?:[a-z0-9_]+\.)*test_[a-z0-9_]+")
 ORACULO = re.compile(r"test_oraculo_[a-z0-9_]+")
 
 

@@ -7168,7 +7168,6 @@ ADR_CITADA = re.compile(r"\bADR[ -]?(\d{4})\b|\bdocs/adr/(\d{4})-")
 DECISAO_COM_ID = re.compile(r"^\W*D-[A-Z0-9][A-Z0-9-]*\s*=\s*\S")
 TETO_DE_REGISTRO = 1024 * 1024
 TETO_DE_FONTES = 20
-SUBTITULO_DO_REGISTRO = "### Do registro citado {} (todas as linhas DECISÃO DO DONO; contexto, não ampliam o Entregar)"
 
 
 def chave_da_decisao(texto):
