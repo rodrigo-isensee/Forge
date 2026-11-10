@@ -1,0 +1,166 @@
+{
+  "pedido": "v0451-cobertura",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1",
+      "guarda": "o callback devolve DISABLE e cada linha conta uma vez",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    return _DISABLE\n",
+      "para": "    return None\n",
+      "testes": [
+        "tests.test_cobertura.ColetorDeCobertura.test_anota_cada_linha_da_raiz_uma_vez_em_arquivo_600"
+      ]
+    },
+    {
+      "id": "C2",
+      "guarda": "so entra arquivo sob a raiz",
+      "arquivo": "scripts/cobertura.py",
+      "de": "            if real.startswith(raiz):",
+      "para": "            if True:",
+      "testes": [
+        "tests.test_cobertura.ColetorDeCobertura.test_anota_cada_linha_da_raiz_uma_vez_em_arquivo_600"
+      ]
+    },
+    {
+      "id": "C3",
+      "guarda": "excecao no callback vira falha contada, nunca sobe",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    except BaseException:\n        _estado[\"falhas\"] += 1\n    return _DISABLE",
+      "para": "    except ValueError:\n        _estado[\"falhas\"] += 1\n    return _DISABLE",
+      "testes": [
+        "tests.test_cobertura.ColetorDeCobertura.test_falha_no_coletor_nao_muda_o_processo_e_e_contada"
+      ]
+    },
+    {
+      "id": "C4",
+      "guarda": "sem sys.monitoring o coletor nao liga",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    if m is None:",
+      "para": "    if m is not None:",
+      "testes": [
+        "tests.test_cobertura.ColetorDeCobertura.test_anota_cada_linha_da_raiz_uma_vez_em_arquivo_600"
+      ]
+    },
+    {
+      "id": "C5",
+      "guarda": "id ocupado nao escreve na tela (C-4)",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    except ValueError:\n        _estado[\"motivo\"]",
+      "para": "    except ValueError:\n        print(\"id de ferramenta ocupado\")\n        _estado[\"motivo\"]",
+      "testes": [
+        "tests.test_cobertura.ColetorDeCobertura.test_id_ocupado_nao_liga_e_nao_escreve_na_tela"
+      ]
+    },
+    {
+      "id": "C6",
+      "guarda": "falha ao gravar os acertos fica calada",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    except BaseException:\n        pass",
+      "para": "    except ValueError:\n        pass",
+      "testes": [
+        "tests.test_cobertura.ColetorDeCobertura.test_falha_no_coletor_nao_muda_o_processo_e_e_contada"
+      ]
+    },
+    {
+      "id": "C7",
+      "guarda": "falha na instalacao do callback vira falha contada",
+      "arquivo": "scripts/cobertura.py",
+      "de": "\nexcept BaseException:\n    _estado[\"falhas\"] += 1\n",
+      "para": "\nexcept ValueError:\n    _estado[\"falhas\"] += 1\n",
+      "testes": [
+        "tests.test_cobertura.ColetorDeCobertura.test_falha_no_coletor_nao_muda_o_processo_e_e_contada"
+      ]
+    },
+    {
+      "id": "C8",
+      "guarda": "caminho com quebra de linha ou nulo e recusado (C-3)",
+      "arquivo": "scripts/cobertura.py",
+      "de": "        if any(c in caminho for c",
+      "para": "        if False and any(c in caminho for c",
+      "testes": [
+        "tests.test_cobertura.ColetorDeCobertura.test_caminho_com_quebra_de_linha_ou_nulo_e_recusado"
+      ]
+    },
+    {
+      "id": "C9",
+      "guarda": "o nome do arquivo de acertos e unico por processo, lido no atexit (C-6)",
+      "arquivo": "scripts/cobertura.py",
+      "de": "f\"{os.getpid()}-{secrets.token_hex(8)}.json\"",
+      "para": "\"acertos.json\"",
+      "testes": [
+        "tests.test_cobertura.ColetorDeCobertura.test_fork_grava_um_arquivo_por_processo"
+      ]
+    },
+    {
+      "id": "C10",
+      "guarda": "o arquivo de acertos nasce com modo 600",
+      "arquivo": "scripts/cobertura.py",
+      "de": "os.O_NOFOLLOW, 0o600)",
+      "para": "os.O_NOFOLLOW, 0o644)",
+      "testes": [
+        "tests.test_cobertura.ColetorDeCobertura.test_anota_cada_linha_da_raiz_uma_vez_em_arquivo_600"
+      ]
+    },
+    {
+      "id": "C11",
+      "guarda": "instalar não sobrescreve o sitecustomize de outro dono",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    if destino.is_symlink() or (destino.exists() and not destino.read_text(encoding=\"utf-8\").startswith(MARCA)):",
+      "para": "    if destino.is_symlink():",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_instalar_nao_sobrescreve_o_sitecustomize_de_outro_dono_nem_atalho"
+      ]
+    },
+    {
+      "id": "C12",
+      "guarda": "instalar recusa o sitecustomize que é atalho",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    if destino.is_symlink() or (destino.exists()",
+      "para": "    if False or (destino.exists()",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_instalar_nao_sobrescreve_o_sitecustomize_de_outro_dono_nem_atalho"
+      ]
+    },
+    {
+      "id": "C13",
+      "guarda": "remover só apaga o sitecustomize do coletor",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    if destino.is_file() and not destino.is_symlink() and destino.read_text(encoding=\"utf-8\").startswith(MARCA):",
+      "para": "    if destino.is_file():",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_instalar_nao_sobrescreve_o_sitecustomize_de_outro_dono_nem_atalho"
+      ]
+    },
+    {
+      "id": "C14",
+      "guarda": "sem extensão, só o shebang de python conta",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    return primeira.startswith(b\"#!\") and b\"python\" in primeira",
+      "para": "    return primeira.startswith(b\"#!\")",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_mede_so_o_python_do_primeiro_nivel_de_bin_hooks_e_scripts"
+      ]
+    },
+    {
+      "id": "C15",
+      "guarda": "extensão que não é .py não conta",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    if caminho.suffix or not caminho.is_file():",
+      "para": "    if not caminho.is_file():",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_mede_so_o_python_do_primeiro_nivel_de_bin_hooks_e_scripts"
+      ]
+    },
+    {
+      "id": "C16",
+      "guarda": "atalho não é medido",
+      "arquivo": "scripts/cobertura.py",
+      "de": "if p.is_file() and not p.is_symlink() and e_python(p))",
+      "para": "if p.is_file() and e_python(p))",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_mede_so_o_python_do_primeiro_nivel_de_bin_hooks_e_scripts"
+      ]
+    }
+  ]
+}

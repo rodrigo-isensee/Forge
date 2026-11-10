@@ -1,0 +1,166 @@
+{
+  "pedido": "v0451-cobertura",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C17",
+      "guarda": "a docstring não é linha executável",
+      "arquivo": "scripts/cobertura.py",
+      "de": "(ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and corpo and _docstring(corpo[0]):",
+      "para": "(ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and corpo and False:",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_linha_executavel_e_o_comando_menos_a_docstring"
+      ]
+    },
+    {
+      "id": "C18",
+      "guarda": "acerto fora das linhas executáveis não conta",
+      "arquivo": "scripts/cobertura.py",
+      "de": "len(executaveis & acertos.get(nome, set()))",
+      "para": "len(acertos.get(nome, set()))",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_relatorio_publica_o_numero_no_resumo_e_nao_reprova"
+      ]
+    },
+    {
+      "id": "C19",
+      "guarda": "só conta o processo com o coletor ligado",
+      "arquivo": "scripts/cobertura.py",
+      "de": "        ligados += dados.get(\"ligado\") is True",
+      "para": "        ligados += 1",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_relatorio_publica_o_numero_no_resumo_e_nao_reprova"
+      ]
+    },
+    {
+      "id": "C20",
+      "guarda": "a tabela vai do menos coberto ao mais",
+      "arquivo": "scripts/cobertura.py",
+      "de": "key=lambda x: (x[1][0] / x[1][1] if x[1][1] else 1, x[0])",
+      "para": "key=lambda x: x[0]",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_relatorio_publica_o_numero_no_resumo_e_nao_reprova"
+      ]
+    },
+    {
+      "id": "C21",
+      "guarda": "com GITHUB_STEP_SUMMARY o número vai ao resumo do job",
+      "arquivo": "scripts/cobertura.py",
+      "de": "        if resumo:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_relatorio_publica_o_numero_no_resumo_e_nao_reprova"
+      ]
+    },
+    {
+      "id": "C22",
+      "guarda": "o .py conta sem ler o shebang",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    if caminho.suffix == \".py\":\n        return True",
+      "para": "    if False:\n        return True",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_mede_so_o_python_do_primeiro_nivel_de_bin_hooks_e_scripts"
+      ]
+    },
+    {
+      "id": "C23",
+      "guarda": "a docstring se reconhece pela forma",
+      "arquivo": "scripts/cobertura.py",
+      "de": "isinstance(no, ast.Expr) and isinstance(no.value, ast.Constant) and isinstance(no.value.value, str)",
+      "para": "False",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_linha_executavel_e_o_comando_menos_a_docstring"
+      ]
+    },
+    {
+      "id": "C24",
+      "guarda": "só o comando (ast.stmt) é linha executável",
+      "arquivo": "scripts/cobertura.py",
+      "de": "if isinstance(no, ast.stmt) and id(no) not in fora}",
+      "para": "if id(no) not in fora}",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_linha_executavel_e_o_comando_menos_a_docstring"
+      ]
+    },
+    {
+      "id": "C25",
+      "guarda": "acertos fora de dicionário não contam",
+      "arquivo": "scripts/cobertura.py",
+      "de": "        if not isinstance(dados, dict) or not isinstance(dados.get(\"acertos\"), dict):",
+      "para": "        if not isinstance(dados, dict):",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_arquivo_de_acertos_fora_da_forma_nao_conta_nem_levanta"
+      ]
+    },
+    {
+      "id": "C26",
+      "guarda": "arquivo de acertos que não é dicionário não conta",
+      "arquivo": "scripts/cobertura.py",
+      "de": "        if not isinstance(dados, dict) or not isinstance(dados.get(\"acertos\"), dict):",
+      "para": "        if not isinstance(dados.get(\"acertos\"), dict):",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_arquivo_de_acertos_fora_da_forma_nao_conta_nem_levanta"
+      ]
+    },
+    {
+      "id": "C27",
+      "guarda": "linhas fora de lista não contam",
+      "arquivo": "scripts/cobertura.py",
+      "de": "            if isinstance(linhas, list):",
+      "para": "            if True:",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_arquivo_de_acertos_fora_da_forma_nao_conta_nem_levanta"
+      ]
+    },
+    {
+      "id": "C28",
+      "guarda": "só número de linha conta",
+      "arquivo": "scripts/cobertura.py",
+      "de": "for x in linhas if isinstance(x, int))",
+      "para": "for x in linhas if True)",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_arquivo_de_acertos_fora_da_forma_nao_conta_nem_levanta"
+      ]
+    },
+    {
+      "id": "C29",
+      "guarda": "a raiz dada vale no lugar da do Forge",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    raiz = RAIZ if raiz is None else raiz",
+      "para": "    raiz = RAIZ if True else raiz",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_o_processo_filho_com_python_i_conta_pelo_sitecustomize"
+      ]
+    },
+    {
+      "id": "C30",
+      "guarda": "sem linhas executáveis, sem divisão por zero",
+      "arquivo": "scripts/cobertura.py",
+      "de": ":.1f}%\" if executaveis else \"sem linhas\"",
+      "para": ":.1f}%\" if True else \"sem linhas\"",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_tabela_e_numero_sem_linhas_executaveis"
+      ]
+    },
+    {
+      "id": "C31",
+      "guarda": "arquivo sem linhas vai ao fim da tabela",
+      "arquivo": "scripts/cobertura.py",
+      "de": "x[1][0] / x[1][1] if x[1][1] else 1",
+      "para": "x[1][0] / x[1][1] if True else 1",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_tabela_e_numero_sem_linhas_executaveis"
+      ]
+    },
+    {
+      "id": "C32",
+      "guarda": "a linha de comando instala",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    if len(argv) == 3 and argv[0] == \"instalar\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_linha_de_comando_instala_e_remove"
+      ]
+    }
+  ]
+}
