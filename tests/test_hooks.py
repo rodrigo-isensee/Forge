@@ -2389,6 +2389,12 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 13, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_v0453_push_todas(self):  # 0.45.3 (decisão do dono): --all e --mirror recusam, uma branch por vez
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("V0453-PUSH-TODAS:")]
+        self.assertGreaterEqual(len(lote), 14, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_do_n5(self):  # IMPL-FURO-HOOK-N, N5: a descrição abre com o item, para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N5 (")]
         self.assertGreaterEqual(len(lote), 34, "as fixtures do item")

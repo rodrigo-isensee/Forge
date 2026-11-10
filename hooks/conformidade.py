@@ -193,7 +193,7 @@ CITA_TROCA = re.compile(r"refs/replace|replace-?refs|grafts", re.I)
 # ordem importa: a inteira vem antes das que ela abrevia (`--force` antes de `--force-with-lease`).
 # As opções do merge que mudam o resultado (`--strat`, `--squa`) já se leem abreviadas em opcao_de_merge_que_muda_o_resultado.
 LONGAS_VIGIADAS = ("--no-verify", "--force", "--force-with-lease", "--force-if-includes", "--mirror", "--continue",
-                   "--delete", "--hard", "--amend")
+                   "--delete", "--hard", "--amend", "--all")
 COMANDOS_DO_GIT = frozenset("""add am annotate apply archive bisect blame branch bugreport bundle cat-file check-attr
 check-ignore check-mailmap check-ref-format checkout checkout-index cherry cherry-pick clean clone column commit commit-graph
 commit-tree config count-objects credential describe diagnose diff diff-files diff-index diff-tree difftool fast-export
@@ -220,6 +220,8 @@ FETCH_COM_VALOR = {"--depth", "--deepen", "--shallow-since", "--shallow-exclude"
                    "--submodule-prefix"}
 CONTORNO_DA_INTEGRACAO = ("faça o commit na branch de trabalho e mescle com `git merge` (parecer); para atualizar a "
                           "integração, `git merge --ff-only origin/<branch>`")
+# 0.45.3 (decisão do dono): `git push --all` e `--mirror` (também abreviados) recusam para todo papel.
+UMA_BRANCH_POR_VEZ = "envie uma branch por vez (R-FLUXO)"
 REFS_DE_TROCA = {"fetch", "pull", "push", "send-pack", "update-ref", "symbolic-ref"}  # gravam refs pelo argumento
 
 # Travas para atos perigosos (arquitetura do primeiro uso, 2.2 e 2.5). Valem para todo papel e todo perfil; no perfil
@@ -1510,7 +1512,7 @@ class Guarda:
         if sub in CAMINHOS_NO_GIT:
             self.git_caminhos(sub, args, [pasta, pasta_git], opcoes)
         if sub in ("push", "send-pack"):  # o send-pack grava refs no destino como o push
-            self.git_push(args, pasta_git, ramos)
+            self.git_push(args, pasta_git, ramos, sub)
         elif parte and parte[0] == "merge" and parte[2]:
             atual = self.ramo_em(pasta_git, ramos)
             if atual in INTEGRACAO and not all(b == atual for b, _ in parte[2]):
@@ -1828,7 +1830,7 @@ class Guarda:
         dica = "deixe ao usuário (R-DECISAO)" if do_merge else "use --worktree ou deixe ao usuário (R-DECISAO)"
         self.barrar("R-CONFORMIDADE", f"git config grava {chaves[0]} na configuração compartilhada do repositório", dica)
 
-    def git_push(self, args, pasta, ramos):
+    def git_push(self, args, pasta, ramos, sub="push"):
         refs = []
         pulo = False
         for a in args:
@@ -1838,9 +1840,11 @@ class Guarda:
                 pulo = True
             elif a.startswith("--force") or re.fullmatch(r"-[a-zA-Z]*f[a-zA-Z]*", a) or a.startswith("+"):
                 self.barrar("R-VERIFY", "git push --force", "nunca force o push; refaça com um commit novo", "forca")
-            elif a == "--mirror":
+            elif a == "--mirror":  # 0.45.3 (decisão do dono): todas as refs de uma vez, e sobrescreve como o force
                 self.barrar("R-VERIFY", "git push --mirror", "sobrescreve o remoto como um force push; "
-                            "envie só a branch, com um commit novo", "forca")
+                            f"{UMA_BRANCH_POR_VEZ}, com um commit novo", "forca")
+            elif a == "--all":  # 0.45.3 (decisão do dono): o envio agrupado roda a suíte inteira e cai junto
+                self.barrar("R-FLUXO", f"git {sub} --all envia todas as branches de uma vez", UMA_BRANCH_POR_VEZ)
             elif not a.startswith("-"):
                 refs.append(a)
         remoto, refs = (refs[0] if refs else None), refs[1:]

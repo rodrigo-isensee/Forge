@@ -1,0 +1,23 @@
+{
+  "descricao": "V0453-PUSH-TODAS: vale para a sessão principal",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push --all origin"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "uma branch por vez (R-FLUXO)"
+  }
+}
