@@ -4,6 +4,7 @@ import importlib.util
 import io
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -20,6 +21,16 @@ def falso(saida, rc=0, chamadas=None):
             chamadas.append(cmd)
         return subprocess.CompletedProcess(cmd, rc, stdout=saida, stderr="")
     return executar
+
+
+class ParecidoComObjeto:
+    """Tem `get` e itera como um dict, mas não é dict: a validação recusa pelo tipo, não por quebrar."""
+
+    def __iter__(self):
+        return iter(["id", "entrada"])
+
+    def get(self, _campo, padrao=None):
+        return "x"
 
 
 def proibido(*_a, **_kw):
@@ -52,6 +63,8 @@ class Bancada(unittest.TestCase):
         self.assertTrue(b.validar_casos([{"id": "a", "entrada": "x", "extra": 1}]))
         self.assertTrue(b.validar_casos([{"id": "a", "entrada": "x"}, {"id": "a", "entrada": "y"}]))
         self.assertTrue(b.validar_casos([{"id": "a", "entrada": "x", "espera": 3}]))
+        self.assertTrue(b.validar_casos([{"id": "a", "entrada": "   "}]))
+        self.assertEqual(b.validar_casos([ParecidoComObjeto()]), ["caso 1: não é objeto"])
 
     def test_sem_executar_so_estima_e_nao_chama_o_modelo(self):
         rc, saida = self.rodar("--rodadas", "2")
@@ -64,10 +77,15 @@ class Bancada(unittest.TestCase):
         self.casos.write_text("[{}]", encoding="utf-8")
         self.assertEqual(self.rodar()[0], 1)
 
+    def test_id_repetido_da_rc_1_sem_chamar(self):
+        self.casos.write_text(json.dumps([{"id": "a", "entrada": "x"}, {"id": "a", "entrada": "y"}]), encoding="utf-8")
+        self.assertEqual(self.rodar()[0], 1)
+
     def test_executar_mede_tokens_tempo_e_espera(self):
         chamadas = []
         resposta = json.dumps({"result": "Recomendo A", "usage": {"input_tokens": 10, "output_tokens": 5,
-                                                                  "cache_read_input_tokens": 3}})
+                                                                  "cache_read_input_tokens": 3,
+                                                                  "web_search_requests": 7, "outros_tokens": 2.5}})
         rc, saida = self.rodar("--executar", executar=falso(resposta, chamadas=chamadas))
         self.assertEqual(rc, 0)
         self.assertIn("antes c1 rodada=1 tokens=18", saida)
@@ -80,11 +98,24 @@ class Bancada(unittest.TestCase):
     def test_chamada_que_falha_da_rc_1(self):
         self.assertEqual(self.rodar("--executar", executar=falso("", rc=1))[0], 1)
         self.assertEqual(self.rodar("--executar", executar=falso(json.dumps({"is_error": True})))[0], 1)
+        valida = json.dumps({"result": "Recomendo", "usage": {"input_tokens": 1}})
+        self.assertEqual(self.rodar("--executar", executar=falso(valida, rc=1))[0], 1)
 
     def test_rodadas_fora_do_limite_e_erro_de_uso(self):
         with self.assertRaises(SystemExit) as e, contextlib.redirect_stderr(io.StringIO()):
             self.rodar("--rodadas", "0")
         self.assertEqual(e.exception.code, 2)
+        with self.assertRaises(SystemExit) as e, contextlib.redirect_stderr(io.StringIO()):
+            self.rodar("--rodadas", str(b.RODADAS_MAX + 1))
+        self.assertEqual(e.exception.code, 2)
+
+    def test_script_direto_roda_a_simulacao(self):
+        # sem --executar: só valida e estima, nunca chama o modelo
+        r = subprocess.run([sys.executable, str(RAIZ / "tests" / "bancada" / "bancada.py"), "--antes", str(self.antes),
+                            "--depois", str(self.depois), "--casos", str(self.casos)],
+                           capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL)
+        self.assertEqual(r.returncode, 0)
+        self.assertIn("simulação", r.stdout)
 
 
 if __name__ == "__main__":
