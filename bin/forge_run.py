@@ -9,7 +9,6 @@ Importado pelo `bin/forge-check` só quando roda:
 """
 import datetime
 import json
-import os
 import re
 import shlex
 import subprocess
