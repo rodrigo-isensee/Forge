@@ -23,6 +23,16 @@
       ]
     },
     {
+      "id": "E4A-6",
+      "guarda": "só a 1.a palavra (o programa) vale pelo fim do caminho",
+      "arquivo": "hooks/parecer.py",
+      "de": "Path(p.valor).name if i == 0 else p.valor",
+      "para": "Path(p.valor).name if not (i == 0) else p.valor",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge"
+      ]
+    },
+    {
       "id": "E4A-3",
       "guarda": "só as palavras gh pr merge de um comando ganham o prazo longo",
       "arquivo": "hooks/parecer.py",
