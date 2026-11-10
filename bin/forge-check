@@ -2336,6 +2336,8 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
     if etapa in ETAPAS_DE_MERGE and base_ref and not e_ancestral(raiz, head, base_ref):
         # E4: o merge da base trouxe arquivos já revisados no PR de origem; só o que ainda difere da base atual é da entrega. Por
         # CONTEÚDO (o que o head tem, byte a byte, contra o que a base tem), nunca por nome: um byte a mais no commit de merge aparece.
+        # Só nas etapas de merge (v0455, A1 do review): a `origin/<base>` é ref local que o agente reescreve (`git update-ref`), e nas
+        # outras etapas o filtro esconderia do escopo um arquivo mudado de verdade. O `merge --squash` da develop fica sem cobertura.
         nomes_da_base = nomes_do_intervalo(raiz, base_ref, head, estrito=True)
         if nomes_da_base is None:  # C3: o git falhou; nada se filtra e a etapa reprova, com ou sem arquivo (C-13)
             linhas.append(("escopo: E4 sem o diff da base (o git falhou); nada foi filtrado", True))
@@ -5196,8 +5198,8 @@ def carregar_catraca():
         return None
 
 
-# ---- M15 (E5a1): o arquivo de provas da branch, gerado do brief pela lista do script que o CI roda (uma lista só, C-1) ----
-TITULO_DAS_PROVAS = "# Provas reexecutáveis da branch"  # fixo e sem o slug: o MARCA_DE_PROVA do script reprova título com cara de prova
+# ---- M15 (E5a1): o arquivo de provas da branch, gerado do brief pela lista do script que o CI roda (uma lista só, C-1);
+# o gerador está em bin/forge_provas.py (FILA-31 F6) ----
 
 
 def carregar_reexecutar_provas():
@@ -5225,56 +5227,24 @@ def espera_do_script(script, espera):
     return None
 
 
-def provas_reexecutaveis(texto, script):
-    """(linhas de prova, linhas `fora:`) das PQ `cmd` do `Pronto quando`. Quem decide é só o script (`comando_permitido` e `ler_espera`,
-    C-1); o comando vai byte a byte e a espera também, salvo o prefixo `rc=0 e ` (C-4); o motivo do `fora:` é o texto fixo do script (C-9)."""
-    provas, fora = [], []
-    for linha in secoes_por(texto, CABECALHO_BRIEF).get("Pronto quando", []):
-        m = PQ.search(linha)
-        if not m or (m.group(2) or "").split(",")[0].strip().lower() != "cmd":
-            continue
-        resto = linha[m.end():]
-        comando = re.search(r"`([^`]+)`", resto)
-        try:
-            argv = shlex.split(comando.group(1)) if comando else []
-        except ValueError:
-            argv = []
-        motivo = script.comando_permitido(argv)
-        espera = None if motivo else espera_do_script(script, resto[comando.end():].partition("espera:")[2].strip())
-        if motivo or espera is None:
-            fora.append(f"fora: PQ-{m.group(1)} ({motivo or 'espera recusada pelo ler_espera do script'})")
-        else:
-            provas.append(f"- PQ-{m.group(1)} (cmd): `{comando.group(1)}` · espera: {espera}")
-    return provas, fora
+def argv_do_comando(comando):
+    """O argv do comando entre crases da PQ (`provas gerar`, bin/forge_provas.py); [] sem comando. ValueError do shlex sobe."""
+    return shlex.split(comando.group(1)) if comando else []
+
+
+def espera_da_pq(script, motivo, resto, comando):
+    """A espera da PQ como o script a aceita (`espera_do_script`), ou None se o comando já foi recusado (`motivo`)."""
+    return None if motivo else espera_do_script(script, resto[comando.end():].partition("espera:")[2].strip())
 
 
 def cmd_provas_gerar(raiz, brief):
-    """Imprime o arquivo de provas da branch (M15 E5a1; não escreve): as PQ do brief no stdout, as `fora:` no stderr. rc 0 com ou sem
-    PQ elegível; rc 2 com o brief fora de docs/briefs/, o script do CI que não carrega (C-6) ou o texto gerado que o `ler_provas` recusa (C-1)."""
-    script = carregar_reexecutar_provas()
-    if script is None:
-        print("provas: não verificável (scripts/reexecutar-provas.py ausente)")
-        return 2
-    arquivo, _ = caminho_de_brief(raiz, brief)
-    try:
-        texto = arquivo.read_text(encoding="utf-8")
-    except (AttributeError, OSError, UnicodeDecodeError):  # AttributeError: `arquivo` None, fora de docs/briefs/
-        print(f"provas: --brief {nome_seguro(sem_controle(brief))}: fora de docs/briefs/, inexistente ou ilegível")
-        return 2
-    provas, fora = provas_reexecutaveis(texto, script)
-    for linha in fora:
-        print(linha, file=sys.stderr)
-    if not provas:
-        print("provas: nenhuma PQ cmd reexecutável")
-        return 0
-    gerado = "\n".join((TITULO_DAS_PROVAS, "", "## Provas", "", *provas)) + "\n"
-    try:
-        script.ler_provas("docs/provas/gerado.md", gerado, Path(raiz))
-    except script.Falha as erro:
-        print(f"provas: o script do CI recusa o texto gerado; nada impresso ({sem_controle(erro)})")
-        return 2
-    print(gerado, end="")
-    return 0
+    """`provas gerar` (M15 E5a1): a lógica fica em bin/forge_provas.py (FILA-31 F6), com os nomes que a conferência das provas
+    também usa."""
+    ctx = {"secoes_por": secoes_por, "CABECALHO_BRIEF": CABECALHO_BRIEF, "PQ": PQ, "espera_do_script": espera_do_script,
+           "carregar_reexecutar_provas": carregar_reexecutar_provas, "caminho_de_brief": caminho_de_brief,
+           "nome_seguro": nome_seguro, "sem_controle": sem_controle, "argv_do_comando": argv_do_comando,
+           "espera_da_pq": espera_da_pq}
+    return modulo_do_bin("forge_provas").cmd_provas_gerar(raiz, brief, ctx)
 
 
 def numeros_dos_rotulados(prs, arquivo):

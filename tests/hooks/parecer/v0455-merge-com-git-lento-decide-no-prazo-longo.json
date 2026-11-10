@@ -1,0 +1,80 @@
+{
+  "descricao": "gh pr merge com pareceres e o 1.o git do hook levando 4 s (máquina carregada), com o vigia de produção: o prazo do merge (PRAZO_DO_MERGE_S, 8 s) cobre a decisão e libera; com os 3 s de antes, recusava por prazo.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "lento/git": [
+      "#!/bin/sh",
+      "[ -e \"{tmp}/git-ja-dormiu\" ] || { : > \"{tmp}/git-ja-dormiu\"; sleep 4; }",
+      "PATH=\"${PATH#*:}\" exec git \"$@\""
+    ]
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "arquivos": {
+        "docs/reviews/p1-1.md": [
+          "---",
+          "tipo: review",
+          "contrato: 1",
+          "pedido: p1",
+          "branch: feature/x",
+          "commit: {HEAD}",
+          "parecer: aprovado",
+          "revisor: forge:tech-lead",
+          "data: 2026-10-12",
+          "---",
+          "# x"
+        ],
+        "docs/qa/p1.md": [
+          "---",
+          "tipo: qa",
+          "contrato: 1",
+          "pedido: p1",
+          "branch: feature/x",
+          "commit: {HEAD}",
+          "parecer: aprovado",
+          "escopo: completo",
+          "bugs_criticos: 0",
+          "bugs_altos: 0",
+          "bugs_medios: 0",
+          "bugs_baixos: 0",
+          "data: 2026-10-12",
+          "---",
+          "# x"
+        ]
+      },
+      "commit": "docs: pareceres"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh pr merge feature/x --squash"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "executaveis": [
+    "lento/git"
+  ],
+  "env": {
+    "PATH": "{tmp}/proj/lento:/usr/local/bin:/usr/bin:/bin"
+  },
+  "prazo_de_producao": true
+}

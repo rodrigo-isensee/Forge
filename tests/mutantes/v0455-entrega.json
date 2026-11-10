@@ -1,0 +1,17 @@
+{
+  "pedido": "v0455-entrega",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "E1",
+      "guarda": "o filtro por conteúdo contra a origin/<base> vale só nas etapas de merge (A1 do review)",
+      "arquivo": "bin/forge-check",
+      "de": "    if etapa in ETAPAS_DE_MERGE and base_ref and not e_ancestral(raiz, head, base_ref):\n        # E4: o merge da base",
+      "para": "    if base_ref and not e_ancestral(raiz, head, base_ref):\n        # E4: o merge da base",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_origin_da_base_forjada_nao_esconde_o_fora_do_declarado",
+        "tests.test_selo_e_entrega.Entrega.test_merge_squash_da_develop_fora_das_etapas_de_merge_segue_fora_do_declarado"
+      ]
+    }
+  ]
+}

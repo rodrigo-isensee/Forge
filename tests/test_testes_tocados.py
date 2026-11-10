@@ -67,6 +67,12 @@ class Mapa(unittest.TestCase):
                        "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
 
+    def test_modulos_do_forge_check_rodam_os_testes_dele(self):  # FILA-31 F6: bin/forge_provas.py entra com os outros módulos
+        esperado = ("dirigido", sorted(set(self.f.FORGE_CHECK) | set(self.f.oraculos(RAIZ))))
+        for caminho in ("bin/forge_governanca.py", "bin/forge_decisor.py", "bin/forge_run.py", "bin/forge_meta.py", "bin/forge_provas.py"):
+            with self.subTest(caminho):
+                self.assertEqual(self.plano(caminho), esperado)
+
     def test_evals_de_forma_rodam_com_a_ferramenta_que_exercitam(self):  # 0.43.1, frentes I e D: módulo em pacote
         for caminho in ("bin/forge-check", "hooks/conformidade.py", "bin/forge-changelog"):
             with self.subTest(caminho):

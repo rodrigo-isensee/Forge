@@ -1,0 +1,108 @@
+{
+  "pedido": "v0455-f6",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "linha do Pronto quando sem PQ e PQ de outro tipo são puladas (só cmd entra)",
+      "arquivo": "bin/forge_provas.py",
+      "de": "if not m or (m.group(2) or \"\").split(\",\")[0].strip().lower() != \"cmd\":",
+      "para": "if not m or (m.group(2) or \"\").split(\",\")[0].strip().lower() not in (\"cmd\", \"arquivo\"):",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "PQ cmd sem comando entre crases sai fora, não quebra",
+      "arquivo": "bin/forge-check",
+      "de": "return shlex.split(comando.group(1)) if comando else []",
+      "para": "return shlex.split(comando.group(1)) if True else []",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "comando recusado não lê a espera (comando ausente não quebra)",
+      "arquivo": "bin/forge-check",
+      "de": "return None if motivo else espera_do_script",
+      "para": "return None if False else espera_do_script",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "espera recusada pelo ler_espera sai fora",
+      "arquivo": "bin/forge_provas.py",
+      "de": "if motivo or espera is None:",
+      "para": "if motivo:",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "C-9: o fora traz o motivo fixo do script",
+      "arquivo": "bin/forge_provas.py",
+      "de": "({motivo or 'espera recusada",
+      "para": "({'espera recusada",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "C-6: o script do CI que não carrega dá rc 2 não verificável",
+      "arquivo": "bin/forge_provas.py",
+      "de": "    script = carregar_reexecutar_provas()\n    if script is None:\n",
+      "para": "    script = carregar_reexecutar_provas()\n    if script is not None:\n",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "sem PQ elegível: nada sai e rc 0 (não manda texto vazio ao ler_provas)",
+      "arquivo": "bin/forge_provas.py",
+      "de": "    if not provas:\n",
+      "para": "    if provas == [0]:\n",
+      "testes": [
+        "tests.test_brief_gravar.ProvasGerar.test_sem_pq_elegivel_nada_sai_e_rc0"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "not m or (m.group(2) or \"\").split(\",\")[0].strip().lower() != \"cmd\"",
+      "motivo": "FILA-31 F6: a condição só mudou de arquivo para bin/forge_provas.py, onde o mutante M1 desta spec a prova",
+      "linha_base": 5234
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "motivo or espera is None",
+      "motivo": "FILA-31 F6: a condição só mudou de arquivo para bin/forge_provas.py, onde o mutante M4 desta spec a prova",
+      "linha_base": 5244
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "motivo or 'espera recusada pelo ler_espera do script'",
+      "motivo": "FILA-31 F6: a condição só mudou de arquivo para bin/forge_provas.py, onde o mutante M5 desta spec a prova",
+      "linha_base": 5245
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "script is None",
+      "motivo": "FILA-31 F6: a condição só mudou de arquivo para bin/forge_provas.py, onde o mutante M6 desta spec a prova",
+      "linha_base": 4422
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "not provas",
+      "motivo": "FILA-31 F6: a condição só mudou de arquivo para bin/forge_provas.py, onde o mutante M7 desta spec a prova",
+      "linha_base": 5267
+    }
+  ]
+}
