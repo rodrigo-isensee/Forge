@@ -4,6 +4,13 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.45.5] - 2026-11-10
+### Alterado
+- FILA-31 F6: o `provas gerar` mudou do `bin/forge-check` para o módulo `bin/forge_provas.py`, com a mesma saída e os mesmos códigos de saída; o mapa de testes afetados do `bin/forge-testes` passa a incluir o módulo novo.
+### Corrigido
+- O hook R-REVIEW (`hooks/parecer.py`) dá à linha com `gh pr merge` o prazo `PRAZO_DO_MERGE_S` (8 s), abaixo do `timeout` de 10 s do hooks.json, em vez dos 3 s que a decisão pelo `forge-check pr` estourava com a máquina carregada; estourado, continua recusando, e não há cache de veredito.
+- O `forge-check entrega` continua a tirar do escopo por conteúdo (o arquivo igual ao da `origin/<base>`) só nas etapas de merge: a `origin/<base>` é ref local que o agente pode reescrever, e nas outras etapas isso esconderia um arquivo mudado de verdade (A1 do review). O merge comum da develop (`--no-ff`) segue fora do escopo pelo primeiro pai; o `merge --squash` da develop não é coberto, e o que ele traz conta como fora do declarado fora das etapas de merge. Testes novos: o merge comum, o squash e a `origin/<base>` forjada na etapa `codigo`.
+
 ## [0.45.4] - 2026-11-10
 ### Adicionado
 - Primeira avaliação de fora do AQ em `docs/avaliacoes/2026-11-10-avaliacao-de-fora.md` (versão 0.45.3): medidas de base e cinco propostas de remoção ou simplificação, com evidência e custo.
