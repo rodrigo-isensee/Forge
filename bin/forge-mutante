@@ -55,6 +55,7 @@ A rodada é evidência do QA; `--cobertura` é a checagem do autor; nenhum hook,
 import argparse
 import ast
 import concurrent.futures
+import functools
 import hashlib
 import importlib.util
 import json
@@ -134,24 +135,10 @@ def ambiente_da_copia(cache=None):
     return env
 
 
-def git_da_copia(*args, cwd=None):
-    r = subprocess.run(["git", "-c", "core.hooksPath=/dev/null", *args], cwd=cwd, env=ambiente_da_copia(),
-                       capture_output=True, text=True)
-    if r.returncode:
-        raise RuntimeError(f"git {' '.join(args)}: {r.stderr.strip()}")
-    return r.stdout
-
-
-def resolver(ref):
-    """Sha do commit de `ref`, ou None. `--end-of-options`: uma REF começada por `-` nunca vira opção do git."""
-    r = subprocess.run(["git", "rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref}^{{commit}}"],
-                       capture_output=True, text=True)
-    return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
-
-
-def montar_copia(raiz, destino, sha):
-    git_da_copia("clone", "--quiet", "--shared", "--no-checkout", "--", str(raiz), str(destino))
-    git_da_copia("checkout", "--quiet", "--detach", sha, cwd=destino)
+# FILA-31 F2: o git da cópia vem do módulo comum, com o ambiente deste script.
+git_da_copia = functools.partial(apoio.git_da_copia, ambiente_da_copia)
+montar_copia = functools.partial(apoio.montar_copia, ambiente_da_copia)
+resolver = apoio.resolver
 
 
 # --- leitor de veredito do `unittest` (a stack do próprio Forge) ----------------------------------------------------

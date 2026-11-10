@@ -1,7 +1,9 @@
-"""Forge: o que `bin/forge-testes` e `bin/forge-mutante` têm em comum (FILA-31 F1): a linha de contexto do log (MAQ-A7), com as
-outras pesadas vivas. Só biblioteca padrão; importado pelos dois pelo caminho da própria pasta."""
+"""Forge: o que `bin/forge-testes` e `bin/forge-mutante` têm em comum: a linha de contexto do log (MAQ-A7), com as outras
+pesadas vivas (FILA-31 F1), e o git da cópia em $TMPDIR (FILA-31 F2). Só biblioteca padrão; importado pelos dois pelo
+caminho da própria pasta."""
 import os
 import re
+import subprocess
 from pathlib import Path
 
 # MAQ-A7: a linha do log ganha a entrada (FORGE_ENTRADA validada), o load, os núcleos e as outras pesadas vivas.
@@ -35,3 +37,25 @@ def contexto():
         load1 = "?"
     return f" entrada={entrada if ENTRADA.fullmatch(entrada) else '?'} load1={load1} nproc={os.cpu_count()} outras={outras()}"
 
+
+
+# FILA-31 F2: o git da cópia. O ambiente vem de quem chama (`functools.partial`), porque é guarda de isolamento e difere
+# por script: o do `forge-mutante` também tira o `PYTHONPYCACHEPREFIX` herdado.
+def git_da_copia(ambiente, *args, cwd=None):
+    r = subprocess.run(["git", "-c", "core.hooksPath=/dev/null", *args], cwd=cwd, env=ambiente(),
+                       capture_output=True, text=True)
+    if r.returncode:
+        raise RuntimeError(f"git {' '.join(args)}: {r.stderr.strip()}")
+    return r.stdout
+
+
+def resolver(ref):
+    """Sha do commit de `ref`, ou None. `--end-of-options`: uma REF começada por `-` nunca vira opção do git."""
+    r = subprocess.run(["git", "rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref}^{{commit}}"],
+                       capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
+
+
+def montar_copia(ambiente, raiz, destino, sha):
+    git_da_copia(ambiente, "clone", "--quiet", "--shared", "--no-checkout", "--", str(raiz), str(destino))
+    git_da_copia(ambiente, "checkout", "--quiet", "--detach", sha, cwd=destino)

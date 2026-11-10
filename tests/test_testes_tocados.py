@@ -1424,5 +1424,60 @@ class MedidaDaVagaPesada(unittest.TestCase):
             self.assertRegex(mutante.contexto(), r"^ entrada=push load1=")
 
 
+def sem_git(**extra):
+    """os.environ sem `GIT_*` herdado (um hook exporta `GIT_DIR`), mais `extra`."""
+    return {**{k: v for k, v in os.environ.items() if not k.startswith("GIT_")}, **extra}
+
+
+class GitDaCopia(unittest.TestCase):
+    """FILA-31 F2: `git_da_copia`, `resolver` e `montar_copia` vêm de bin/forge_apoio_testes.py nos dois scripts, cada um
+    com o próprio `ambiente_da_copia` (o do forge-mutante também tira o PYTHONPYCACHEPREFIX)."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.dir = Path(tmp.name)
+        self.raiz = self.dir / "raiz"
+        self.raiz.mkdir()
+        git(self.raiz, "init", "-q", "-b", "main")
+        (self.raiz / "a.txt").write_text("a\n", encoding="utf-8")
+        git(self.raiz, "add", "a.txt")
+        git(self.raiz, "commit", "-qm", "a")
+        self.sha = git(self.raiz, "rev-parse", "HEAD").strip()
+
+    def test_fila31_f2_os_dois_scripts_usam_o_git_da_copia_comum_com_o_proprio_ambiente(self):
+        from test_forge_mutante import carregar as carregar_mutante  # noqa: PLC0415
+        testes, mutante = carregar(), carregar_mutante()
+        comum = str(Path(testes.__file__).resolve().parent / "forge_apoio_testes.py")
+        for script in (testes, mutante):
+            with self.subTest(script=script.__name__):
+                for nome in ("git_da_copia", "montar_copia"):
+                    parcial = getattr(script, nome)
+                    self.assertEqual(parcial.func.__code__.co_filename, comum)
+                    self.assertEqual(parcial.args, (script.ambiente_da_copia,))
+                self.assertEqual(script.resolver.__code__.co_filename, comum)
+
+    def test_fila31_f2_copia_isolada_do_git_dir_herdado_e_erro_do_git_levanta(self):
+        for script in (carregar(), __import__("test_forge_mutante").carregar()):
+            with self.subTest(script=script.__name__):
+                destino = self.dir / script.__name__
+                with mock.patch.dict(os.environ, sem_git(GIT_DIR=str(self.dir / "nao-existe")), clear=True):
+                    try:
+                        script.montar_copia(self.raiz, destino, self.sha)
+                    except RuntimeError as erro:
+                        self.fail(f"o GIT_DIR herdado venceu a cópia: {erro}")
+                    with self.assertRaisesRegex(RuntimeError, "^git rev-parse"):
+                        script.git_da_copia("rev-parse", "--verify", "--quiet", "refs/nao/existe", cwd=destino)
+                self.assertEqual(git(destino, "rev-parse", "HEAD").strip(), self.sha)
+
+    def test_fila31_f2_resolver_da_o_sha_ou_none(self):
+        for script in (carregar(), __import__("test_forge_mutante").carregar()):
+            with self.subTest(script=script.__name__), \
+                    mock.patch.dict(os.environ, sem_git(GIT_DIR=str(self.raiz / ".git")), clear=True):
+                self.assertEqual(script.resolver("HEAD"), self.sha)
+                self.assertIsNone(script.resolver("refs/nao/existe"))
+                self.assertIsNone(script.resolver("-h"))
+
+
 if __name__ == "__main__":
     unittest.main()
