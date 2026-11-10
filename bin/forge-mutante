@@ -540,7 +540,7 @@ def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
         for v, n in zip([c for c in velhas if falta[c[0]] and toca(c, velho)], [c for c in mudadas if toca(c, novo)]):
             if falta[v[0]] and parecidas(v[0], n[0]):
                 falta[v[0]] -= 1
-    for texto, ini, fim, de, ate in mudadas:
+    for texto, ini, _fim, de, ate in mudadas:
         casados = [(f"{espec}:{m['id']}", "equivalente" in m) for espec, m in mutantes
                    if casa(m, arquivo, depois, de, ate)]
         cobrem = [nome for nome, equivalente in casados if not equivalente]
