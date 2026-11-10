@@ -93,18 +93,25 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         driver = ast.parse(self.DRIVER_DOS_HOOKS)
         no_driver = chamada(driver)
         self.assertEqual([ast.unparse(a) for a in no_driver.args], ["hook", "modulo.principal", "modulo.CRITICO"])
-        self.assertEqual([ast.unparse(k) for k in no_driver.keywords], ["**argumentos"])
+        self.assertEqual([ast.unparse(k) for k in no_driver.keywords], ["**argumentos", "**PRAZO_LONGO.get(hook, {})"])
         execucao = next(n.value for n in ast.walk(driver) if isinstance(n, ast.Assign)
                         and any(getattr(t, "id", None) == "EXECUCAO" for t in n.targets))
         argumentos = {ast.literal_eval(k): ast.literal_eval(v.elts[1]) for k, v in zip(execucao.keys, execucao.values)}
         modulos = {ast.literal_eval(k): v.elts[0].id for k, v in zip(execucao.keys, execucao.values)}
+        longo = next(n.value for n in ast.walk(driver) if isinstance(n, ast.Assign)
+                     and any(getattr(t, "id", None) == "PRAZO_LONGO" for t in n.targets))
+        nomes = {ast.literal_eval(k): {ast.literal_eval(a): ast.unparse(b) for a, b in zip(v.keys, v.values)}
+                 for k, v in zip(longo.keys, longo.values)}  # v0455: o argumento que é um nome do módulo do hook
         self.assertEqual(set(argumentos), {"conformidade", "parecer"})
         for hook in argumentos:
             with self.subTest(hook=hook):
                 principal = chamada(ast.parse((HOOKS / f"{hook}.py").read_text(encoding="utf-8")))
                 self.assertEqual([ast.literal_eval(principal.args[0]), ast.unparse(principal.args[1]), ast.unparse(principal.args[2])],
                                  [hook, "principal", "CRITICO"])
-                self.assertEqual({k.arg: ast.literal_eval(k.value) for k in principal.keywords}, argumentos[hook])
+                literais = {k.arg: ast.literal_eval(k.value) for k in principal.keywords if not isinstance(k.value, ast.Name)}
+                self.assertEqual(literais, argumentos[hook])
+                self.assertEqual({k.arg: f"{hook}.{k.value.id}" for k in principal.keywords if isinstance(k.value, ast.Name)},
+                                 nomes.get(hook, {}))
                 self.assertEqual(modulos[hook], hook)
         self.assertIn('os.chdir(dados["raizes"][hook])', self.DRIVER_DOS_HOOKS)  # a pasta de cada hook, não a do conformidade
 

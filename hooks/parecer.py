@@ -35,6 +35,9 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, 
 
 MERGE = r"merge(?!-base\b)"  # `git merge-base` só lê o grafo (HK3-PARECER, E2): não é merge
 PREFILTRO = re.compile(rf"\bgh\b.*\bpr\b.*\b(create|{MERGE}|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b({MERGE}|pull)\b", re.S)
+# A linha com `gh pr merge` ganha o prazo `PRAZO_DO_MERGE_S` (o `forge-check pr` leva cerca de 2 s; v0455). Sem `.*`:
+# a busca é linear, e só dá mais prazo, nunca libera; o prazo vencido segue recusando.
+MERGE_DE_PR = re.compile(r"\bgh[ \t]+pr[ \t]+merge\b")
 CRITICO = re.compile(rf"\bpr\b.*\b(create|{MERGE}|ready)\b|\bapi\b|\b({MERGE}|pull)\b", re.S)
 # A palavra crítica só no texto (HK3-PARECER, E2). `sed -n <N,Mp> <arquivos>` só imprime: vale `cat <arquivos>` (só números,
 # sem metacaractere: a troca não muda o que o bash lê). `sh -c` cujo texto só usa estes programas não roda merge, pull nem gh pr.
@@ -878,4 +881,4 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
 
 
 if __name__ == "__main__":
-    executar("parecer", principal, CRITICO, clone_do_forge=True, regra_do_prazo="R-REVIEW")
+    executar("parecer", principal, CRITICO, clone_do_forge=True, regra_do_prazo="R-REVIEW", prazo_longo=MERGE_DE_PR)

@@ -1,0 +1,149 @@
+{
+  "pedido": "v0455-prazo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "P1",
+      "guarda": "o prazo do merge é maior que o comum",
+      "arquivo": "hooks/_comum.py",
+      "de": "PRAZO_DO_MERGE_S = 8.0",
+      "para": "PRAZO_DO_MERGE_S = 3.0",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge",
+        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+      ]
+    },
+    {
+      "id": "P2",
+      "guarda": "a recusa cita o prazo que venceu",
+      "arquivo": "hooks/_comum.py",
+      "de": "    prazo = hook.prazo_s or PRAZO_DA_DECISAO_S",
+      "para": "    prazo = PRAZO_DA_DECISAO_S",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge",
+        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+      ]
+    },
+    {
+      "id": "P3",
+      "guarda": "a entrada sem dicionário não tem comando",
+      "arquivo": "hooks/_comum.py",
+      "de": "    comando = entrada.get(\"command\") if isinstance(entrada, dict) else None",
+      "para": "    comando = entrada.get(\"command\") if not (isinstance(entrada, dict)) else None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge",
+        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+      ]
+    },
+    {
+      "id": "P4",
+      "guarda": "só texto ganha o prazo longo",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if not isinstance(comando, str) or not prazo_longo.search(comando)",
+      "para": "    if not (not isinstance(comando, str)) or not prazo_longo.search(comando)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge",
+        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+      ]
+    },
+    {
+      "id": "P5",
+      "guarda": "só a linha com gh pr merge ganha o prazo longo",
+      "arquivo": "hooks/_comum.py",
+      "de": "or not prazo_longo.search(comando) or",
+      "para": "or not (not prazo_longo.search(comando)) or",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge",
+        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+      ]
+    },
+    {
+      "id": "P6",
+      "guarda": "o prazo longo nunca encurta o vigente",
+      "arquivo": "hooks/_comum.py",
+      "de": "or PRAZO_DO_MERGE_S <= hook.prazo_s:",
+      "para": "or not (PRAZO_DO_MERGE_S <= hook.prazo_s):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge",
+        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+      ]
+    },
+    {
+      "id": "P7",
+      "guarda": "sem getitimer não se estende",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if not hasattr(signal, \"getitimer\") or signal.getitimer",
+      "para": "    if not (not hasattr(signal, \"getitimer\")) or signal.getitimer",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge",
+        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+      ]
+    },
+    {
+      "id": "P8",
+      "guarda": "só o vigia armado se estende",
+      "arquivo": "hooks/_comum.py",
+      "de": "signal.getitimer(signal.ITIMER_REAL)[0] <= 0:",
+      "para": "not (signal.getitimer(signal.ITIMER_REAL)[0] <= 0):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge",
+        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+      ]
+    },
+    {
+      "id": "P9",
+      "guarda": "o prazo estendido fica no hook",
+      "arquivo": "hooks/_comum.py",
+      "de": "    hook.prazo_s = PRAZO_DO_MERGE_S\n",
+      "para": "    hook.prazo_s = hook.prazo_s\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge",
+        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+      ]
+    },
+    {
+      "id": "P10",
+      "guarda": "o alarme é rearmado com o prazo longo",
+      "arquivo": "hooks/_comum.py",
+      "de": "    signal.setitimer(signal.ITIMER_REAL, max(PRAZO_DO_MERGE_S - (time.monotonic() - inicio), 0.001))",
+      "para": "    signal.setitimer(signal.ITIMER_REAL, max(PRAZO_DA_DECISAO_S - (time.monotonic() - inicio), 0.001))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge",
+        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+      ]
+    },
+    {
+      "id": "P11",
+      "guarda": "o vigia arma com a regra e o marcador",
+      "arquivo": "hooks/_comum.py",
+      "de": "        hook.prazo_s = PRAZO_DA_DECISAO_S if regra_do_prazo and critico is not None else None",
+      "para": "        hook.prazo_s = PRAZO_DA_DECISAO_S if not (regra_do_prazo and critico is not None) else None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge",
+        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+      ]
+    },
+    {
+      "id": "P12",
+      "guarda": "o prazo longo só com o vigia e o regex",
+      "arquivo": "hooks/_comum.py",
+      "de": "                if hook.prazo_s and prazo_longo is not None:",
+      "para": "                if not (hook.prazo_s and prazo_longo is not None):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge",
+        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+      ]
+    },
+    {
+      "id": "P13",
+      "guarda": "o parecer passa o regex do merge",
+      "arquivo": "hooks/parecer.py",
+      "de": "regra_do_prazo=\"R-REVIEW\", prazo_longo=MERGE_DE_PR)",
+      "para": "regra_do_prazo=\"R-REVIEW\", prazo_longo=None)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge",
+        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+      ]
+    }
+  ]
+}
