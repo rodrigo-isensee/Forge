@@ -1,0 +1,29 @@
+{
+  "descricao": "N1 (IMPL-FURO-HOOK-N, C-N1-2): alias vazio recusa",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "config": {
+        "alias.v": " "
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git v"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "alias da configuração que o hook não lê"
+  }
+}

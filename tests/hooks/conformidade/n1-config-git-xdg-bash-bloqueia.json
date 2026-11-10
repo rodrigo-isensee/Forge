@@ -1,0 +1,27 @@
+{
+  "descricao": "N1 (IMPL-FURO-HOOK-N, C-N1-3): o Bash que grava ~/.config/git/config",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo x >> {tmp}/home/.config/git/config"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "~/.config/git/config"
+  }
+}

@@ -47,6 +47,8 @@
     {"caminho": "~/.claude/skills/", "quem": [], "motivo": "skills em vigor"},
     {"caminho": "~/.claude/hooks/", "quem": [], "motivo": "hooks em vigor"},
     {"caminho": "~/.claude/plugins/", "quem": [], "motivo": "plugins em vigor (cache do Forge)"},
+    {"caminho": "~/.gitconfig", "quem": [], "motivo": "configuração global do git (alias e hooks valem em todo repositório)"},
+    {"caminho": "~/.config/git/config", "quem": [], "motivo": "configuração global do git (alias e hooks valem em todo repositório)"},
     {"caminho": "docs/pedidos/", "quem": ["jarvis"], "motivo": "o pedido e o Histórico dele (a linha `conferida`, que abre o `--desde` do `forge-check entrega`) são do jarvis (VV-2, R-DECISAO)"},
     {"caminho": "~/.forge-contrib/docs/pedidos/", "quem": ["jarvis"], "motivo": "o pedido e o Histórico dele (a linha `conferida`, que abre o `--desde` do `forge-check entrega`) são do jarvis (VV-2, R-DECISAO)"},
     {"caminho": "~/.forge-contrib/*/docs/pedidos/", "quem": ["jarvis"], "motivo": "o pedido e o Histórico dele (a linha `conferida`, que abre o `--desde` do `forge-check entrega`) são do jarvis (VV-2, R-DECISAO)"},

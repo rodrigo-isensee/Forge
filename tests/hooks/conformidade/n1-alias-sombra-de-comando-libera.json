@@ -1,0 +1,28 @@
+{
+  "descricao": "N1 (IMPL-FURO-HOOK-N, C-N1-2): o git ignora o alias que esconde um comando dele (status = push origin main), e o status segue livre",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "config": {
+        "alias.status": "push origin main"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git status"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

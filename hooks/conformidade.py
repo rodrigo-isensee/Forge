@@ -182,6 +182,22 @@ AMBIENTE_DE_TROCA = re.compile(r"^(GIT_REPLACE_REF_BASE|GIT_GRAFT_FILE|GIT_ALTER
 CITA_TROCA = re.compile(r"refs/replace|replace-?refs|grafts", re.I)
 # Review da 0.43.5: configuração dada na linha que o hook não avalia (alias troca o subcomando; GIT_CONFIG_* e
 # --config-env escondem o -c) recusa para todo papel; o refspec de remote.*.fetch|push no -c vale como o da linha.
+# IMPL-FURO-HOOK-N, N1 (C-N1-2, 0.45.1): o git roda o alias da configuração (repositório, ~/.gitconfig) no lugar do
+# subcomando que não é dele, e o hook lia o nome do alias. Os comandos internos do git (`git --list-cmds=builtins`) não
+# se trocam por alias (o git ignora o alias que esconde um deles); o resto é lido na configuração e a expansão passa
+# pelas mesmas regras. `!` (shell) e o alias que mescla recusam: o `parecer` só lê o merge escrito por extenso.
+COMANDOS_DO_GIT = frozenset("""add am annotate apply archive bisect blame branch bugreport bundle cat-file check-attr
+check-ignore check-mailmap check-ref-format checkout checkout-index cherry cherry-pick clean clone column commit commit-graph
+commit-tree config count-objects credential describe diagnose diff diff-files diff-index diff-tree difftool fast-export
+fast-import fetch fetch-pack fmt-merge-msg for-each-ref for-each-repo format-patch fsck gc grep hash-object help hook
+index-pack init interpret-trailers log ls-files ls-remote ls-tree mailinfo mailsplit maintenance merge merge-base
+merge-file merge-index merge-tree mktag mktree multi-pack-index mv name-rev notes pack-objects pack-refs patch-id prune
+pull push range-diff read-tree rebase receive-pack reflog remote repack replace rerere reset restore rev-list rev-parse
+revert rm send-pack shortlog show show-branch show-index show-ref sparse-checkout stash status stripspace submodule
+switch symbolic-ref tag unpack-objects update-index update-ref upload-pack var verify-commit verify-pack verify-tag
+version whatchanged worktree write-tree""".split())
+ALIAS_QUE_MESCLA = {"merge", "pull"}
+PROFUNDIDADE_DO_ALIAS = 8
 CONFIG_NO_AMBIENTE = re.compile(r"^GIT_CONFIG_(COUNT|KEY_\d+|VALUE_\d+|PARAMETERS)$")
 REFSPEC_NA_CONFIG = re.compile(r"remote\..+\.(fetch|push)", re.I)
 # IMPL-FURO-HOOK-N, N5 (L22, C-22-1): na branch de integração a única entrada é o `git merge` com parecer; o que grava
@@ -829,6 +845,25 @@ class Guarda:
         valores = {"PWD": str(pasta), "CLAUDE_PROJECT_DIR": str(self.h.raiz), "HOME": str(Path.home())}
         return VARIAVEL.sub(lambda m: valores.get(m.group(1), m.group(0)), caminho)
 
+    def link_em_protegido(self, args, pasta):
+        """N3 (IMPL-FURO-HOOK-N, 0.45.1): `ln` e `cp -l|-s|--link|--symbolic-link` com origem ou destino num caminho
+        protegido recusam para todo papel, mesmo o dono do caminho: o link físico dá ao arquivo protegido um nome livre, e o
+        link criado dentro da pasta protegida (o brief) aponta para um arquivo que qualquer papel edita depois. O destino
+        que é pasta (também o de `-t` e `--target-directory=`) recebe o nome da origem, e ele também é conferido."""
+        caminhos = [a.split("=", 1)[1] if a.startswith("--target-directory=") else a for a in args
+                    if not a.startswith("-") or a.startswith("--target-directory=")]
+        alvos = [self.resolver(self.expandir(a, pasta), pasta) for a in caminhos]
+        alvos += [d / Path(a).name for d in alvos if d.is_dir() for a in caminhos]
+        papel, self.papel = self.papel, "-"  # nenhum papel: vale o caminho protegido para qualquer um
+        try:
+            achado = next(filter(None, map(self.caminho_barrado, alvos)), None)
+        finally:
+            self.papel = papel
+        if achado:
+            motivo = achado[1].replace(" (papel: -)", "")
+            self.barrar("R-CONFORMIDADE", f"link com caminho protegido ({motivo}): o link dá outro nome ao arquivo",
+                        "copie o conteúdo sem link (cp sem -l nem -s) ou peça ao dono do caminho (R-DECISAO)")
+
     def checar_remocao(self, caminho, pasta):
         """`rm -rf .forge`, `rm -r .githooks`: apagar a pasta que contém um caminho protegido sem dono (a instalação) é
         o mesmo que apagar o arquivo. A raiz do projeto e as pastas acima dela ficam de fora (`rm` de worktree).
@@ -1254,6 +1289,8 @@ class Guarda:
                     nomes = Path(a).name, self.resolver(self.expandir(a, pasta), pasta).name
                     if any(map(MARCA_DA_SUITE.fullmatch, nomes)):
                         self.barrar(*PROVA_DA_SUITE)
+            if prog == "ln" or prog == "cp" and any(re.fullmatch(r"-[^-]*[ls]\w*|--(link|symbolic-link)", a) for a in args):
+                self.link_em_protegido(args, pasta)
             alvo = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-t", "--target-directory")), None)
             alvo = alvo or next((a for a in reversed(args) if not a.startswith("-")), None)
             if alvo:
@@ -1394,7 +1431,7 @@ class Guarda:
         return [opcao for nome, opcao in PATHSPECS_NO_AMBIENTE.items()
                 if valores[nome] is not None and valores[nome].strip().lower() not in ("", "0", "false", "no", "off")]
 
-    def git(self, palavras, parte, pasta, ramos, git_dir=None, atribuicoes=()):
+    def git(self, palavras, parte, pasta, ramos, git_dir=None, atribuicoes=(), alias=0):
         i, pasta_git, opcoes = 1, self.caminho(pasta, git_dir) if git_dir else pasta, self.pathspecs_da_linha(atribuicoes)
         while i < len(palavras) and palavras[i].startswith("-"):
             if palavras[i].endswith("-pathspecs"):  # `--literal-pathspecs`...: valem também para o `ls-files` do hook
@@ -1413,6 +1450,12 @@ class Guarda:
                             "rode o git sem configuração pela variável de ambiente")
             i += 2 if palavras[i] in parecer.GIT_COM_VALOR else 1
         sub, args = (palavras[i], palavras[i + 1:]) if i < len(palavras) else (None, [])
+        expansao = self.alias_do_git(sub, pasta_git)
+        if expansao is not None:  # N1 (C-N1-2): o git roda a expansão, e é ela que as regras leem
+            novas = self.expansao_do_alias(sub, expansao, alias) + args
+            novas = palavras[:i] + novas
+            self.git(novas, parecer.analisar(novas), pasta, ramos, git_dir, atribuicoes, alias + 1)
+            return
         ativacao = sub == "config" and args == ["core.hooksPath", ".githooks"]  # R-CONTRIB: ativar o hook do repositório
         if any("core.hookspath" in p.lower() for p in (palavras[:i] if ativacao else palavras)):
             self.barrar("R-VERIFY", "core.hooksPath", "não desative nem troque o caminho dos hooks")
@@ -1440,6 +1483,41 @@ class Guarda:
                 if not self.pode("merge_integracao"):
                     self.barrar("R-CONFORMIDADE", f"merge em {atual} {self.so_de('merge_integracao')} "
                                                   f"(papel: {self.papel})", "peça ao tech-lead")
+
+    def alias_do_git(self, sub, pasta):
+        """A expansão do alias `sub` na configuração que o git lê em `pasta`, ou None se `sub` é comando do git ou não é
+        alias (o nome que não é chave válida também sai 1). O git que não responde recusa (na dúvida, o hook não lê)."""
+        if sub is None or sub in COMANDOS_DO_GIT:
+            return None
+        try:
+            cod, saida = forge_check().git(pasta, "config", "--get", f"alias.{sub}")
+        except (OSError, subprocess.SubprocessError):
+            cod, saida = None, ""
+        if cod == 1:
+            return None
+        if cod != 0:
+            self.barrar("R-REVIEW", f"git {sub}: o hook não conseguiu ler se é alias da configuração",
+                        "rode o subcomando do git por extenso")
+        return saida
+
+    def expansao_do_alias(self, sub, expansao, alias):
+        """As palavras da expansão do alias `sub`; recusa o alias de shell, o que mescla, o encadeado demais e o ilegível."""
+        if expansao.startswith("!"):
+            self.barrar("R-REVIEW", f"git {sub}: alias de shell (`!`) da configuração roda o que o hook não lê",
+                        "rode o comando direto, sem alias")
+        if alias >= PROFUNDIDADE_DO_ALIAS:
+            self.barrar("R-REVIEW", f"git {sub}: alias encadeado demais", "rode o subcomando do git por extenso")
+        try:
+            palavras = shlex.split(expansao)
+        except ValueError:
+            palavras = None
+        if not palavras:
+            self.barrar("R-REVIEW", f"git {sub}: alias da configuração que o hook não lê",
+                        "rode o subcomando do git por extenso")
+        if palavras[0] in ALIAS_QUE_MESCLA:
+            self.barrar("R-REVIEW", f"git {sub}: alias da configuração que mescla (`{palavras[0]}`); o parecer só lê o merge "
+                                    "por extenso", f"rode git {palavras[0]} direto, sem alias")
+        return palavras
 
     def git_caminhos(self, sub, args, pastas, opcoes=()):
         """`git rm|mv|checkout|restore` mexem nos arquivos como `rm`/`mv`: os caminhos passam pela mesma conferência de
@@ -2063,6 +2141,13 @@ class Guarda:
 
     CORRIGIR_DO_MERGE = "o dono mescla pela interface do GitHub, fora dos hooks do agente (R-DECISAO)"
 
+    def gh_alias(self, palavras):
+        """N1 (C-N1-4): `gh alias set|import|delete` grava a configuração do usuário e troca o comando que os hooks leem."""
+        pos = parecer.posicionais(palavras[1:], GH_COM_VALOR)
+        if pos[:2] in (["alias", "set"], ["alias", "import"], ["alias", "delete"]):
+            self.barrar("R-REVIEW", f"gh alias {pos[1]}: o alias do gh troca o comando que os hooks leem",
+                        "rode o comando do gh por extenso; o alias é configuração do usuário (R-DECISAO)")
+
     def gh_admin(self, palavras, parte):
         """GH-MERGE-ADMIN (R-MAIN): `gh pr merge` com `--admin` (qualquer valor) pula a proteção do GitHub: recusa em
         qualquer papel, base e pasta, antes de toda saída antecipada de `gh`."""
@@ -2087,6 +2172,7 @@ class Guarda:
         if self.sessao_forge:
             self.gh_rotulo(palavras, pasta, por_xargs)
         self.gh_admin(palavras, parte)  # antes de toda saída antecipada: não depende de branch, base nem raiz
+        self.gh_alias(palavras)
         if not parte:
             return
         if parte[0] == "pr" and not self.pode("pr_criar"):

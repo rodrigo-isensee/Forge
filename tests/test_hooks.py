@@ -2373,6 +2373,16 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 16, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_n1(self):  # IMPL-FURO-HOOK-N, N1 (0.45.1): alias da configuração e do gh, ~/.gitconfig
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N1 (")]
+        self.assertGreaterEqual(len(lote), 21, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_do_n3(self):  # IMPL-FURO-HOOK-N, N3 (0.45.1): link com caminho protegido
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N3 (")]
+        self.assertGreaterEqual(len(lote), 12, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_do_n5(self):  # IMPL-FURO-HOOK-N, N5: a descrição abre com o item, para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N5 (")]
         self.assertGreaterEqual(len(lote), 34, "as fixtures do item")

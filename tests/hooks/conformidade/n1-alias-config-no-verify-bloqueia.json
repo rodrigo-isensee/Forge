@@ -1,0 +1,29 @@
+{
+  "descricao": "N1 (IMPL-FURO-HOOK-N, S15 pela configuração): alias c = commit --no-verify",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "config": {
+        "alias.c": "commit --no-verify"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git c -m x"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-VERIFY"
+  }
+}

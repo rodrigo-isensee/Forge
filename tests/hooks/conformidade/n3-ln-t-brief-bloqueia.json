@@ -1,0 +1,25 @@
+{
+  "descricao": "N3 (IMPL-FURO-HOOK-N): -t numa pasta protegida também é destino",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/briefs/p1-dev-1.md": "ok\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ln -s -t docs/briefs /tmp/x"
+    },
+    "agent_type": "forge:jarvis",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "link com caminho protegido"
+  }
+}

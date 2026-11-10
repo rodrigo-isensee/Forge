@@ -1,0 +1,17 @@
+{
+  "pedido": "v0451-n1n3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "L7",
+      "guarda": "o destino que é pasta recebe o nome da origem",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for d in alvos if d.is_dir() for a in caminhos]",
+      "para": "for d in alvos if False for a in caminhos]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n3"
+      ]
+    }
+  ],
+  "isentas": []
+}
