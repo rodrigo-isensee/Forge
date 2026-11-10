@@ -386,6 +386,12 @@ def devolver_original(original):
     return trocar_marketplace(original["fonte"])[0]
 
 
+def git(projeto, *args):
+    """(código, saída sem espaços nas pontas) do `git -C projeto ...`; usado por `forge atualizar` e `forge voltar-versao` (FILA-31 F3)."""
+    r = subprocess.run(["git", "-C", str(projeto), *args], capture_output=True, text=True)
+    return r.returncode, r.stdout.strip()
+
+
 def arquivos_alterados(projeto):
     """Os arquivos versionados com mudança (`git status --porcelain`, sem os não versionados). Conjunto vazio se `projeto` é None."""
     if projeto is None:
