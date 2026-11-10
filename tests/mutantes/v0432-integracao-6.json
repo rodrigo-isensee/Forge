@@ -1,0 +1,166 @@
+{
+  "pedido": "v0432-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I81",
+      "guarda": "scripts/ci-local:449 motivo (negada)",
+      "arquivo": "scripts/ci-local",
+      "de": "            motivo = artefato(passo, ctx, tmp, tmp_job)\n            if motivo:",
+      "para": "            motivo = artefato(passo, ctx, tmp, tmp_job)\n            if not (motivo):",
+      "testes": [
+        "tests.test_ci_local"
+      ]
+    },
+    {
+      "id": "I82",
+      "guarda": "scripts/ci-local:460 p['run'] and (not PASSO_DE_PREPARO.search(p['run'])) or ARTEFATO.match(p.get('uses', '')) (negada)",
+      "arquivo": "scripts/ci-local",
+      "de": "        passos = [p for p in job[\"passos\"] if (p[\"run\"] and not PASSO_DE_PREPARO.search(p[\"run\"])) or ARTEFATO.match(p.get(\"uses\", \"\"))]",
+      "para": "        passos = [p for p in job[\"passos\"] if not ((p[\"run\"] and not PASSO_DE_PREPARO.search(p[\"run\"])) or ARTEFATO.match(p.get(\"uses\", \"\")))]",
+      "testes": [
+        "tests.test_ci_local"
+      ]
+    },
+    {
+      "id": "I83",
+      "guarda": "scripts/ci-local:478 ARTEFATO.match(passo.get('uses', '')) (negada)",
+      "arquivo": "scripts/ci-local",
+      "de": "        if ARTEFATO.match(passo.get(\"uses\", \"\")):",
+      "para": "        if not (ARTEFATO.match(passo.get(\"uses\", \"\"))):",
+      "testes": [
+        "tests.test_ci_local"
+      ]
+    },
+    {
+      "id": "I84",
+      "guarda": "scripts/ci-local:480 motivo (negada)",
+      "arquivo": "scripts/ci-local",
+      "de": "            motivo = artefato(passo, ctx, tmp_raiz, tmp)\n            if motivo:",
+      "para": "            motivo = artefato(passo, ctx, tmp_raiz, tmp)\n            if not (motivo):",
+      "testes": [
+        "tests.test_ci_local"
+      ]
+    },
+    {
+      "id": "I85",
+      "guarda": "scripts/ci-local:571 r['estado'] == OK (negada)",
+      "arquivo": "scripts/ci-local",
+      "de": "                motivo = publicar_artefatos(perna, ctx_perna, tmp, pasta_do_job(tmp, quem)) if r[\"estado\"] == OK else \"\"",
+      "para": "                motivo = publicar_artefatos(perna, ctx_perna, tmp, pasta_do_job(tmp, quem)) if not (r[\"estado\"] == OK) else \"\"",
+      "testes": [
+        "tests.test_ci_local"
+      ]
+    },
+    {
+      "id": "I86",
+      "guarda": "scripts/ci-local:572 motivo (negada)",
+      "arquivo": "scripts/ci-local",
+      "de": "                if motivo:",
+      "para": "                if not (motivo):",
+      "testes": [
+        "tests.test_ci_local"
+      ]
+    },
+    {
+      "id": "I87",
+      "guarda": "scripts/suite-paralela.py:676 veredito (negada)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "        veredito, codigo = (veredito, 1) if veredito else (fechar_verde(relatorios, hash_arvore, pulados), 0)",
+      "para": "        veredito, codigo = (veredito, 1) if not (veredito) else (fechar_verde(relatorios, hash_arvore, pulados), 0)",
+      "testes": [
+        "tests.test_suite_paralela"
+      ]
+    },
+    {
+      "id": "I88",
+      "guarda": "scripts/suite-paralela.py:691 type(teto) is int and teto >= 0 (negada)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    return teto if type(teto) is int and teto >= 0 else None",
+      "para": "    return teto if not (type(teto) is int and teto >= 0) else None",
+      "testes": [
+        "tests.test_suite_paralela"
+      ]
+    },
+    {
+      "id": "I89",
+      "guarda": "scripts/suite-paralela.py:696 unicodedata.category(c) not in ('Cc', 'Cf', 'Co', 'Cs') (negada)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    texto = \"\".join(c for c in str(texto)[:200] if unicodedata.category(c) not in (\"Cc\", \"Cf\", \"Co\", \"Cs\"))",
+      "para": "    texto = \"\".join(c for c in str(texto)[:200] if not (unicodedata.category(c) not in (\"Cc\", \"Cf\", \"Co\", \"Cs\")))",
+      "testes": [
+        "tests.test_suite_paralela"
+      ]
+    },
+    {
+      "id": "I90",
+      "guarda": "scripts/suite-paralela.py:702 rel (negada)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    return sorted(neutro(i) for rel in relatorios if rel for i in rel.get(\"pulados_ids\", ()))",
+      "para": "    return sorted(neutro(i) for rel in relatorios if not (rel) for i in rel.get(\"pulados_ids\", ()))",
+      "testes": [
+        "tests.test_suite_paralela"
+      ]
+    },
+    {
+      "id": "I91",
+      "guarda": "scripts/suite-paralela.py:708 teto is None (negada)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    if teto is None:",
+      "para": "    if not (teto is None):",
+      "testes": [
+        "tests.test_suite_paralela"
+      ]
+    },
+    {
+      "id": "I92",
+      "guarda": "scripts/suite-paralela.py:711 pulados > teto (negada)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    if pulados > teto:",
+      "para": "    if not (pulados > teto):",
+      "testes": [
+        "tests.test_suite_paralela"
+      ]
+    },
+    {
+      "id": "I93",
+      "guarda": "scripts/suite-paralela.py:715 pulados < teto (negada)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    if pulados < teto:",
+      "para": "    if not (pulados < teto):",
+      "testes": [
+        "tests.test_suite_paralela"
+      ]
+    },
+    {
+      "id": "I94",
+      "guarda": "scripts/suite-paralela.py:724 os.environ.get('GITHUB_ACTIONS') != 'true' (negada)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    if os.environ.get(\"GITHUB_ACTIONS\") != \"true\":",
+      "para": "    if not (os.environ.get(\"GITHUB_ACTIONS\") != \"true\"):",
+      "testes": [
+        "tests.test_suite_paralela"
+      ]
+    },
+    {
+      "id": "I95",
+      "guarda": "scripts/suite-paralela.py:725 teto is None (negada)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "        print(f\"suite-paralela: pulados {pulados} (teto {'ilegível' if teto is None else teto}; só reprova no CI).\",",
+      "para": "        print(f\"suite-paralela: pulados {pulados} (teto {'ilegível' if not (teto is None) else teto}; só reprova no CI).\",",
+      "testes": [
+        "tests.test_suite_paralela"
+      ]
+    },
+    {
+      "id": "I96",
+      "guarda": "scripts/suite-partes.py:115 k == nome or k.startswith(nome + '.') (negada)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "        partes = [v for k, v in pesos.items() if k == nome or k.startswith(nome + \".\")]",
+      "para": "        partes = [v for k, v in pesos.items() if not (k == nome or k.startswith(nome + \".\"))]",
+      "testes": [
+        "tests.test_suite_partes"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,166 @@
+{
+  "pedido": "v0450-adotar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A213",
+      "guarda": "forge adotar: alvo.is_file()",
+      "arquivo": "bin/forge-adotar",
+      "de": "    atual = alvo.read_text(encoding=\"utf-8\", errors=\"replace\") if alvo.is_file() else None",
+      "para": "    atual = alvo.read_text(encoding=\"utf-8\", errors=\"replace\") if not (alvo.is_file()) else None",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A214",
+      "guarda": "forge adotar: atual is not None and MARCA in atual",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if atual is not None and MARCA in atual:",
+      "para": "    if not (atual is not None and MARCA in atual):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A216",
+      "guarda": "forge adotar: atual",
+      "arquivo": "bin/forge-adotar",
+      "de": "    primeira = atual.splitlines()[0] if atual else \"\"",
+      "para": "    primeira = atual.splitlines()[0] if not (atual) else \"\"",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A217",
+      "guarda": "forge adotar: atual is not None and (not re.match('#!\\\\s*(/usr/bin/env\\\\s+",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if atual is not None and not re.match(r\"#!\\s*(/usr/bin/env\\s+)?(/bin/|/usr/bin/)?(ba|da|z)?sh\\b\", primeira):",
+      "para": "    if not (atual is not None and not re.match(r\"#!\\s*(/usr/bin/env\\s+)?(/bin/|/usr/bin/)?(ba|da|z)?sh\\b\", primeira)):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A221",
+      "guarda": "forge adotar: atual is not None",
+      "arquivo": "bin/forge-adotar",
+      "de": "    acao = \"acrescentar no começo de\" if atual is not None else \"criar\"",
+      "para": "    acao = \"acrescentar no começo de\" if not (atual is not None) else \"criar\"",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A222",
+      "guarda": "forge adotar: not confirmou(f'O projeto já tem hooks próprios. Posso {acao",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if not confirmou(f\"O projeto já tem hooks próprios. Posso {acao} {rel} a chamada ao pre-push do Forge \"",
+      "para": "    if confirmou(f\"O projeto já tem hooks próprios. Posso {acao} {rel} a chamada ao pre-push do Forge \"",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A229",
+      "guarda": "forge adotar: atual is None",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if atual is None:",
+      "para": "    if not (atual is None):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A233",
+      "guarda": "forge adotar: '\\n' in atual",
+      "arquivo": "bin/forge-adotar",
+      "de": "        resto = atual.split(\"\\n\", 1)[1] if \"\\n\" in atual else \"\"",
+      "para": "        resto = atual.split(\"\\n\", 1)[1] if not (\"\\n\" in atual) else \"\"",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A243",
+      "guarda": "forge adotar: not tem_main or local or remota",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if not tem_main or local or remota:",
+      "para": "    if not (not tem_main or local or remota):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A245",
+      "guarda": "forge adotar: not confirmou('O projeto não tem a branch develop, onde o ti",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if not confirmou(\"O projeto não tem a branch develop, onde o time junta o trabalho antes da main. \"",
+      "para": "    if confirmou(\"O projeto não tem a branch develop, onde o time junta o trabalho antes da main. \"",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A250",
+      "guarda": "forge adotar: codigo == 0",
+      "arquivo": "bin/forge-adotar",
+      "de": "    print(\"  branch   develop criada a partir da main\" if codigo == 0 else \"  aviso    não consegui criar a develop\")",
+      "para": "    print(\"  branch   develop criada a partir da main\" if not (codigo == 0) else \"  aviso    não consegui criar a develop\")",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A257",
+      "guarda": "forge adotar: arq.exists()",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if arq.exists():",
+      "para": "    if not (arq.exists()):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A261",
+      "guarda": "forge adotar: d['pronto'] or 'o sugerido pelo pacote'",
+      "arquivo": "bin/forge-adotar",
+      "de": "    pronto = d[\"pronto\"] or \"o sugerido pelo pacote\"",
+      "para": "    pronto = d[\"pronto\"] and \"o sugerido pelo pacote\"",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A272",
+      "guarda": "forge adotar: sem_versionar",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if sem_versionar:",
+      "para": "    if not (sem_versionar):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A286",
+      "guarda": "forge adotar: isinstance(caixa, dict) and caixa.get('enabled') is True",
+      "arquivo": "bin/forge-adotar",
+      "de": "        if isinstance(caixa, dict) and caixa.get(\"enabled\") is True:",
+      "para": "        if not (isinstance(caixa, dict) and caixa.get(\"enabled\") is True):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A293",
+      "guarda": "forge adotar: sandbox_ligado(topo)",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if sandbox_ligado(topo):",
+      "para": "    if not (sandbox_ligado(topo)):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    }
+  ]
+}

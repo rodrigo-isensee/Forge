@@ -9,18 +9,20 @@
     "devops": ["forge:devops-engineer"],
     "seguranca": ["forge:security-engineer"],
     "conferente": ["forge:conferente"],
+    "leitura": ["Explore", "Plan", "claude-code-guide", "web-fetch", "conferente"],
     "aq": ["forge-dev:aq"]
   },
   "escrita_permitida": {
     "aq": ["docs/propostas/", "docs/arquitetura/", "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/"],
-    "conferente": ["/dev/null"]
+    "conferente": ["/dev/null"],
+    "leitura": ["/dev/null"]
   },
   "sem_agent_type": "jarvis",
   "papel_padrao": "dev",
   "acoes": {
-    "merge_integracao": ["tech-lead", "jarvis"],
-    "pr_criar": ["jarvis", "tech-lead"],
-    "pr_merge_integracao": ["tech-lead", "jarvis"],
+    "merge_integracao": ["tech-lead"],
+    "pr_criar": ["tech-lead"],
+    "pr_merge_integracao": ["tech-lead"],
     "instalar_pacote": ["dev"],
     "instalar_congelado": ["dev", "qa", "tech-lead"]
   },
@@ -48,6 +50,9 @@
     {"caminho": "docs/pedidos/", "quem": ["jarvis"], "motivo": "o pedido e o Histórico dele (a linha `conferida`, que abre o `--desde` do `forge-check entrega`) são do jarvis (VV-2, R-DECISAO)"},
     {"caminho": "~/.forge-contrib/docs/pedidos/", "quem": ["jarvis"], "motivo": "o pedido e o Histórico dele (a linha `conferida`, que abre o `--desde` do `forge-check entrega`) são do jarvis (VV-2, R-DECISAO)"},
     {"caminho": "~/.forge-contrib/*/docs/pedidos/", "quem": ["jarvis"], "motivo": "o pedido e o Histórico dele (a linha `conferida`, que abre o `--desde` do `forge-check entrega`) são do jarvis (VV-2, R-DECISAO)"},
+    {"caminho": ".forge/pausa.json", "quem": ["jarvis"], "motivo": "a pausa por limite de uso é da sessão principal (X1, review da 0.44.1)"},
+    {"caminho": ".forge/recados/", "quem": ["jarvis"], "motivo": "a caixa de recados entre sessões é da sessão principal (S8, review da 0.44.1)"},
+    {"caminho": "~/.forge-contrib/.forge/recados/", "quem": ["jarvis"], "motivo": "a caixa de recados entre sessões é da sessão principal (S8, review da 0.44.1)"},
     {"caminho": "docs/briefs/", "quem": ["jarvis"], "motivo": "o brief aprovado (que o `brief gerar --volta` lê e confere pelo sha256) é do jarvis (R-BRIEF, VV-2)"},
     {"caminho": "~/.forge-contrib/docs/briefs/", "quem": ["jarvis"], "motivo": "o brief aprovado (que o `brief gerar --volta` lê e confere pelo sha256) é do jarvis (R-BRIEF, VV-2)"},
     {"caminho": "~/.forge-contrib/*/docs/briefs/", "quem": ["jarvis"], "motivo": "o brief aprovado (que o `brief gerar --volta` lê e confere pelo sha256) é do jarvis (R-BRIEF, VV-2)"},
@@ -89,7 +94,7 @@
   "flags_congeladas": ["--frozen-lockfile", "--immutable", "--locked", "--frozen", "--require-hashes"],
   "so_leitura": {
     "descricao": "Papéis só de leitura (R-PROVA, R-BRIEF): nenhuma ferramenta de arquivo, linha dentro da gramática da ADR 0011 (alfabeto fixo; redirecionamento, variável e substituição recusados) e só os comandos da lista (programa sem caminho; git e gh com o subcomando; test só como -e, -f, -d ou -s e um caminho). Fora da lista, recusa: na dúvida, recusa.",
-    "papeis": ["conferente"],
+    "papeis": ["conferente", "leitura"],
     "comandos": ["git log", "git show", "git diff", "git ls-remote", "git rev-parse", "git merge-base", "git status", "git cat-file", "git branch", "git worktree",
                  "gh pr view", "gh pr list", "gh pr checks", "gh pr diff", "gh run list", "gh run view",
                  "forge-check pr", "forge-check docs", "forge-check brief", "forge-check entrega", "forge-check delta",

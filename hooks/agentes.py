@@ -1,26 +1,47 @@
 #!/usr/bin/env python3
-"""Forge: teto de agentes, relançamento duplicado (ADR 0003, R-TETO) e forma da mensagem ao conferente (R-BRIEF).
+"""Forge: teto de agentes, relançamento duplicado (ADR 0003, R-TETO), brief selado do especialista e forma da mensagem ao conferente (R-BRIEF).
+
+P1 (0.43.1) e D2 (0.44.0): todo disparo (fora o conferente e os tipos só de leitura de `TIPOS_SO_DE_LEITURA`: Explore, Plan,
+claude-code-guide, web-fetch, que a conformidade põe no papel só de leitura `leitura`) exige no prompt o caminho de um brief em docs/briefs/ com selo no
+`## Histórico` do pedido (`- <data> <hora>: brief selado docs/briefs/<nome>.md <sha256>`, gravado só pelo `forge-check brief selar`)
+e com o sha256 de agora; sem isso, bloqueia (falha fechada). O conferente é opcional e segue com a forma e o hash da mensagem.
+D3 (0.44.0): com o selo em dia, o hook reconfere os campos calculados do brief (`forge-check`, `brief_vencido`) e, se a base andou
+ou as decisões do pedido mudaram, só avisa (`systemMessage` e stderr, código 0); nunca barra por isso.
 
 O teto é adaptativo (nproc, load de 1 min e memória lidos de /proc; fallback 3) e `teto_agentes` em
 .forge/config.json o fixa; `teto_maximo` limita o adaptativo.
-PreToolUse (Agent/Task): bloqueia qualquer disparo com load >= 0,8 x nproc ou MemAvailable <= max(1 GB, 15% do total) (R-TETO);
+PreToolUse (Agent/Task): bloqueia qualquer disparo com MemAvailable <= o piso de memória (padrão 2 GB; `piso_memoria_gb` em
+.forge/config.json o muda), sem trava por load (R-TETO, decisão do dono R-TETO-DISPONIBILIDADE de 2026-11-06 14:26);
 bloqueia também se já há o teto de agentes ativos ou um ativo com o mesmo tipo e descrição;
-senão reserva a vaga. `FORGE_CARGA_LIVRE=1` no ambiente do processo (só o dono) pula só a trava de carga
+senão reserva a vaga. `FORGE_CARGA_LIVRE=1` no ambiente do processo (só o dono) pula só a trava de memória
 (teto e duplicado seguem; o uso fica no erros.log). SubagentStart confirma a reserva com o agent_id; SubagentStop libera a vaga.
 Estado em .forge/run/agentes.json; no clone do Forge e nas worktrees dele (onde `.forge` é um arquivo, não uma pasta),
 em <diretório comum do git>/forge/run/agentes.json: protegido pela conformidade só nas sessões de projeto, no Forge sem guarda
 de escrita; `hooks_desligados` não vale no clone. Registros expiram (reserva sem início: 5 min; agente: expiracao_horas).
 O registro leva o PID da sessão do Claude Code, o namespace de PID e o session_id: com a sessão morta (PID inexistente, no mesmo
 namespace) a vaga sai na hora, sem esperar o prazo. Qualquer dúvida (tipo, faixa, namespace, erro) mantém o registro.
+AG-1a (E10): a reserva grava em `branches` as `Branch:` do cabeçalho dos briefs citados no prompt.
+Z10 (0.43.2, AG-1b): uma delegação de escrita vigente por branch (R-TETO). A reserva grava também em `escrita` as branches dos briefs
+de escrita (`Etapa:` fora de review, seguranca e qa; sem `Etapa:`, escrita); a segunda delegação de escrita numa branch que outra
+reserva vigente escreve é recusada até o SubagentStop dela (ou o prazo). Só passa o brief que traz no próprio arquivo
+`paralelo na mesma branch: <motivo>` (10 caracteres ou mais). Registro antigo, sem `escrita`, ocupa todas as `branches` dele.
+AG-1a (E10): a reserva grava em `branches` as `Branch:` do cabeçalho dos briefs citados no prompt (só registro, sem recusa).
+RN-6 (0.43.3): cada recusa do R-TETO (memória, teto, duplicado) deixa uma linha em `recusas.log`, na pasta do estado
+(`registrar_recusa`, que o hook `pesado` também pode chamar); o `forge-check metricas` mede por ela a espera por portão.
 """
 import hashlib
+import json
+import math
 import os
 import re
 import stat
+import sys
 import time
+import unicodedata
 from pathlib import Path
 
-from _comum import (RESERVA, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, gravar_json, ler_json)
+from _comum import (LIMITE_LOG, RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check,
+                    gravar_json, ler_json, mensagem)
 from pesado import CASCAS, pid_da_sessao, pid_vivo
 
 FERRAMENTAS = {"Agent", "Task"}
@@ -29,9 +50,7 @@ RESERVA_S = 300  # a reserva sem SubagentStart (lançamento negado ou falho) nã
 
 
 GB_KB = 1024 * 1024
-CARGA_MAX = 0.8  # fração de nproc: o load de 1 min abaixo disso (R-TETO)
-PISO_GB = 1.0  # piso de memória disponível; vale o maior entre ele e PISO_FRACAO do total
-PISO_FRACAO = 0.15
+PISO_GB_PADRAO = 2.0  # R-TETO-DISPONIBILIDADE (dono, 2026-11-06 14:26): só o piso de memória disponível; o load não trava
 
 
 def nucleos():
@@ -65,12 +84,21 @@ def medir(proc=None):
     return carga, memoria, total
 
 
-def carga_alta(carga, memoria, total, nproc):
-    """R-TETO: load de 1 min >= 0,8 x nproc ou MemAvailable <= max(1 GB, 15% do total).
-    Sem medida (None), nunca é carga alta."""
-    if None in (carga, memoria, total, nproc):
+def piso_de_memoria(config=None):
+    """GB de MemAvailable abaixo (ou igual) dos quais nenhum agente sai: `piso_memoria_gb` de .forge/config.json, número positivo;
+    ausente ou inválido (booleano, texto, zero ou negativo), o padrão de 2 GB (R-TETO-DISPONIBILIDADE)."""
+    valor = (config or {}).get("piso_memoria_gb")
+    if isinstance(valor, bool) or not isinstance(valor, (int, float)) or not valor > 0:
+        return PISO_GB_PADRAO
+    return float(valor)
+
+
+def carga_alta(carga, memoria, total, nproc, piso=PISO_GB_PADRAO):
+    """R-TETO (R-TETO-DISPONIBILIDADE, 2026-11-06): MemAvailable <= `piso` GB. O load de 1 min e o nproc não travam mais (ficam na
+    assinatura para quem já chama). Sem a medida de memória (None), nunca é carga alta."""
+    if memoria is None:
         return False
-    return carga >= CARGA_MAX * nproc or memoria <= max(PISO_GB, PISO_FRACAO * total)
+    return memoria <= piso
 
 
 def teto_adaptativo(carga, memoria, total, nproc):
@@ -205,6 +233,33 @@ CONFERENTE = "forge:conferente"
 MODO_DA_MENSAGEM = re.compile(r"modo: (brief|entrega)[ \t]*")
 ARQUIVO_DA_MENSAGEM = re.compile(r"^Arquivo:[ \t]*.*docs/briefs/\S.*$", re.M)
 HASH_DA_MENSAGEM = re.compile(r"^Brief-sha256:[ \t]*[0-9a-f]{64}(?![0-9A-Za-z])", re.M)
+LINHA_DE_CABECALHO = re.compile(r"^(modo|Arquivo|Brief-sha256):", re.M)  # B9: qualquer valor conta para "um brief"
+# EJ 64 (0.43.3): a `Nota:` da mensagem ao conferente só traz fato; verbo de ordem no início ou opção de linha de comando é instrução.
+# B1 do review da 0.43.3: a opção `--` vale na nota que só relata o que já rodou (verbo no passado antes da opção) e não tem, em lugar
+# nenhum, verbo de ordem nem de norma; qualquer dúvida segue recusada como no EJ 64 ("o brief vale com --raiz /r" continua barrada).
+NOTA_DO_CABECALHO = re.compile(r"^[ \t]*nota[ \t]*:(.*)$", re.I | re.M)
+ORDEM_NO_INICIO = re.compile(r"[ \t]*(?:rode|rodar|execute|use|chame|ignore|aceite|aprove|pule|considere)\b", re.I)
+OPCAO_NA_NOTA = re.compile(r"(?<![\w-])--[a-z]", re.I)
+RELATO_NO_PASSADO = re.compile(r"(?<!\w)(?:rodou|rodei|rodaram|rodamos|usou|usei|usaram|executou|executei|executaram|chamou|chamei|"
+                               r"chamaram|saiu|saíram|passou|passaram|falhou|falharam)(?!\w)", re.I)
+ORDEM_OU_NORMA = re.compile(r"(?<!\w)(?:rode|rodem|rodar|execute|executar|use|usem|usar|chame|chamar|ignore|ignorar|aceite|aceitar|"
+                            r"aprove|aprovar|pule|pular|considere|considerar|confira|conferir|verifique|verificar|compare|comparar|"
+                            r"valide|validar|leia|ler|deve|devem|precisa|precisam|vale|valem|basta|tem de|tem que)(?!\w)", re.I)
+
+
+def nota_com_ordem(cabecalho):
+    """EJ 64 e B1: True se alguma linha `Nota:` do cabeçalho dá ordem ao conferente: verbo de ordem no início, ou opção `--` fora de
+    um relato no passado (relato = verbo no passado antes da opção e nenhum verbo de ordem ou de norma na linha)."""
+    for achado in NOTA_DO_CABECALHO.finditer(cabecalho):
+        corpo = achado.group(1)
+        if ORDEM_NO_INICIO.match(corpo):
+            return True
+        opcao = OPCAO_NA_NOTA.search(corpo)
+        if opcao and not (RELATO_NO_PASSADO.search(corpo[:opcao.start()]) and not ORDEM_OU_NORMA.search(corpo)):
+            return True
+    return False
+
+
 VALOR_DO_HASH = re.compile(r"Brief-sha256:[ \t]*([0-9a-f]{64})(?![0-9A-Za-z])")
 ABRE_BLOCO = "<<<BRIEF"
 LIMITE_DO_BRIEF = 256 * 1024  # limite técnico: o mesmo do `forge-check brief mensagem`
@@ -212,15 +267,24 @@ LIMITE_DO_BRIEF = 256 * 1024  # limite técnico: o mesmo do `forge-check brief m
 
 def mensagem_sem_forma(prompt):
     """R-BRIEF, só a forma: o que falta no cabeçalho da mensagem ao conferente (primeira linha `modo: brief|entrega`, uma linha
-    `Arquivo:` em docs/briefs/ e uma `Brief-sha256:` de 64 hex), ou None. Não lê o arquivo nem recalcula o hash; vários blocos passam."""
+    `Arquivo:` em docs/briefs/ e uma `Brief-sha256:` de 64 hex), ou None. Não lê o arquivo nem recalcula o hash. HASH-BRIEF (B9): no
+    prompt inteiro, mais de uma linha que comece por `modo:`, `Arquivo:` ou `Brief-sha256:`, qualquer que seja o valor, é falta (um
+    brief por mensagem); citação recuada ou entre crases não conta."""
     linhas = str(prompt or "").splitlines()
     faltas = []
+    texto = "\n".join(linhas)
+    achadas = LINHA_DE_CABECALHO.findall(texto)
+    contagens = tuple(achadas.count(chave) for chave in ("modo", "Arquivo", "Brief-sha256"))
+    if any(n > 1 for n in contagens):
+        faltas.append("um brief por mensagem (mais de uma linha `modo:`, `Arquivo:` ou `Brief-sha256:`)")
     if not (linhas and MODO_DA_MENSAGEM.fullmatch(linhas[0])):
         faltas.append("`modo: brief` ou `modo: entrega` na primeira linha")
     if not ARQUIVO_DA_MENSAGEM.search("\n".join(linhas)):
         faltas.append("uma linha `Arquivo:` com o caminho em docs/briefs/")
     if not HASH_DA_MENSAGEM.search("\n".join(linhas)):
         faltas.append("uma linha `Brief-sha256:` com 64 hex")
+    if nota_com_ordem(texto.split("<<<BRIEF", 1)[0]):  # EJ 64: só o cabeçalho; o corpo do brief citado não conta
+        faltas.append("a `Nota:` só traz fato, nunca instrução ao conferente (verbo de ordem ou opção `--`)")
     return "; ".join(faltas) or None
 
 
@@ -270,6 +334,227 @@ def hash_do_brief_diverge(hook, prompt):
     return None
 
 
+CAMINHO_DE_BRIEF = re.compile(r"docs/briefs/[^\s`'\"]+?\.md\b")
+SEPARADOR_DE_TOKEN = re.compile(r"[\s`'\"]+")
+MAIOR_TOKEN = 4096  # A1 da segurança g2: token maior fica fora da busca, que é quadrática nele (base64, JSON compacto)
+MAXIMO_DE_BRIEFS = 4  # AG-1/C-2: acima disso, aviso e a regra fica sem efeito no lançamento
+SEM_BRANCH = ("nenhuma", "\u2014")
+
+
+def caminhos_de_brief(prompt):
+    """Os caminhos de docs/briefs/*.md do prompt, token a token, com o prefixo do token (`~/`, absoluto); sem o prefixo
+    na expressão, a busca é linear no token, e o token de mais de MAIOR_TOKEN caracteres é pulado."""
+    for token in SEPARADOR_DE_TOKEN.split(prompt):
+        if len(token) > MAIOR_TOKEN:
+            continue
+        inicio = 0
+        while achado := CAMINHO_DE_BRIEF.search(token, inicio):
+            yield token[inicio:achado.end()]
+            inicio = achado.end()
+
+
+EXCECAO_DE_BRANCH = re.compile(r"^(?:[-*] )?paralelo na mesma branch:(.*)$", re.M)
+MOTIVO_MINIMO = 10  # AG-1/C-3: caracteres do motivo depois de sem_controle
+CONTROLES = {"Cc", "Cf", "Zl", "Zp"}
+CORTE_DO_NOME = 80
+ETAPAS_DE_PARECER = ("review", "seguranca", "qa")  # Z10: o parecer não escreve a branch; o resto (e a falta de `Etapa:`) escreve
+
+
+def sem_controle(texto):
+    """O critério do `sem_controle` do forge-check: Cc, Cf, Zl e Zp viram um espaço só por sequência (a mensagem não forja linha)."""
+    saida, anterior = [], False
+    for c in str(texto):
+        controle = unicodedata.category(c) in CONTROLES
+        if not (controle and anterior):
+            saida.append(" " if controle else c)
+        anterior = controle
+    return "".join(saida).strip()
+
+
+def tem_excecao(texto):
+    """AG-1b (AG-1/C-3): o texto do brief traz `paralelo na mesma branch: <motivo>` com motivo de 10 caracteres ou mais."""
+    return any(len(sem_controle(motivo)) >= MOTIVO_MINIMO for motivo in EXCECAO_DE_BRANCH.findall(texto))
+
+
+def de_escrita(fc, cabecalho):
+    """Z10: o brief é de escrita na branch? `Etapa:` do cabeçalho fora de ETAPAS_DE_PARECER, ou ausente (na dúvida, escreve)."""
+    etapa = re.search(fc.ETAPA_DO_CABECALHO, cabecalho, re.M)
+    return not (etapa and etapa.group(1) in ETAPAS_DE_PARECER)
+
+
+def branches_dos_briefs(hook, prompt, escrita=None, a_conferir=None):
+    """AG-1a (E10): as `Branch:` do cabeçalho de cada brief em docs/briefs/ citado no prompt, sem `nenhuma` e `—`, em ordem.
+    Brief ausente ou recusado pela `ler_brief` fica fora; outro erro sobe (quem chama registra e grava a lista vazia).
+    Z10: a branch de brief de escrita (`de_escrita`) entra também em `escrita` e, sem a exceção no próprio arquivo, em `a_conferir`."""
+    caminhos = list(dict.fromkeys(caminhos_de_brief(str(prompt or ""))))
+    if len(caminhos) > MAXIMO_DE_BRIEFS:
+        print(f"aviso: {len(caminhos)} briefs citados (máximo {MAXIMO_DE_BRIEFS}); a reserva não grava branch.", file=sys.stderr)
+        hook.registrar_erro(Aviso(f"agentes: {len(caminhos)} briefs citados no prompt; a reserva saiu sem branch"))
+        return []
+    branches, fc = set(), None
+    for caminho in caminhos:
+        if caminho.startswith("~/"):
+            caminho = str(Path.home() / caminho[2:])
+        try:
+            dados = ler_brief(hook, caminho)
+        except FileNotFoundError:
+            continue
+        if dados is None:
+            continue
+        fc = fc or forge_check()  # carregado uma vez, só com brief lido
+        texto = dados.decode("utf-8", "replace")
+        cabecalho = fc.cabecalho_do_brief(texto)
+        achada = re.search(fc.CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho)
+        if achada and achada.group(1) not in SEM_BRANCH:
+            branches.add(achada.group(1))
+            if escrita is not None and de_escrita(fc, cabecalho):
+                escrita.add(achada.group(1))
+                if a_conferir is not None and not tem_excecao(texto):
+                    a_conferir.add(achada.group(1))
+    return sorted(branches)
+
+
+def escritas_do_registro(registro):
+    """Z10: as branches que a reserva vigente escreve: `escrita`; no registro sem a chave (anterior à 0.43.2), todas as `branches`."""
+    lista = registro.get("escrita", registro.get("branches"))
+    return lista if isinstance(lista, list) else []
+
+
+def recusar_branch_ocupada(hook, agentes, branches):
+    """Z10 (AG-1b, R-TETO): bloqueia se outra reserva vigente escreve uma das `branches` (igualdade exata)."""
+    for a in agentes:
+        ocupadas = escritas_do_registro(a)
+        for branch in branches:
+            if branch in ocupadas:
+                prazo = hook.expira_s() if a.get("id") else min(RESERVA_S, hook.expira_s())
+                try:
+                    hora = time.strftime("%H:%M", time.localtime(a["desde"] + prazo))
+                except (OverflowError, ValueError, OSError, TypeError):  # `desde` absurdo: a recusa sai do mesmo jeito
+                    hora = "?"
+                tipo = sem_controle(a.get("tipo"))[:CORTE_DO_NOME]
+                bloquear("R-TETO", f"{sem_controle(branch)[:CORTE_DO_NOME]} ocupada por {tipo} (uma delegação de escrita por branch): "
+                                   f"espere o `SubagentStop` ou a expiração às {hora}",
+                         cauda=f"; registro em {sem_controle(hook.run() / 'agentes.json')}")
+
+
+# BRIEF-EXECUTOR-SEM-PORTAO (0.43.2): os tipos de fora do plugin que escrevem como um especialista (todas as ferramentas); o
+# brief deles vale para qualquer papel (`destino_diferente` não compara).
+EXECUTORES_GENERICOS = {"general-purpose", "fork", "claude"}
+# D2 (decisão do dono de 09/11, M2 do review de segurança da 0.43.1): o selo vale para todo tipo que escreve; só estes, que não têm
+# Write nem Edit no repositório (pesquisa, leitura, guia, busca na web, linha de status), e o conferente seguem sem ele.
+# Review da 0.44.1 (B1): estes tipos vão ao papel `leitura` de hooks/conformidade.json (só de leitura); o statusline-setup edita
+# arquivo e por isso exige o selo.
+TIPOS_SO_DE_LEITURA = frozenset({"Explore", "Plan", "claude-code-guide", "web-fetch"})
+
+
+def exige_selo(tipo):
+    """P1 (0.43.1) e D2 (0.44.0): todo disparo sai com brief selado (falha fechada), menos o conferente (opcional, segue com a forma e
+    o hash da mensagem, com ou sem o prefixo `forge:`) e os tipos de `TIPOS_SO_DE_LEITURA`. Tipo de outro plugin, o `general-purpose`
+    sem brief e o tipo desconhecido pedem o selo: na dúvida, escreve."""
+    return tipo not in (CONFERENTE, "conferente") and tipo not in TIPOS_SO_DE_LEITURA
+
+
+def destino_diferente(fc, tipo, dados):
+    """M3 (review de segurança da 0.43.1, 0.43.2): o motivo, se o `Agente destino:` do brief não é o papel disparado; None se é. O
+    executor genérico (`EXECUTORES_GENERICOS`) faz o trabalho de qualquer papel e não tem o que comparar."""
+    if tipo is None or tipo in EXECUTORES_GENERICOS:
+        return None
+    texto = dados.decode("utf-8", errors="replace")
+    destino = (fc.grupo(r"^\s*Agente destino:\s*(\S+)", fc.cabecalho_do_brief(texto)) or "").lower().removeprefix("forge:")
+    if destino != tipo.lower().removeprefix("forge:"):
+        return f"o brief é para `{sem_controle(str(destino))[:CORTE_DO_NOME]}`, não para `{sem_controle(tipo)[:CORTE_DO_NOME]}`"
+    return None
+
+
+def selo_ausente(hook, prompt, tipo, lidos):
+    """P1 (0.43.1, R-BRIEF): por que o disparo de especialista não pode sair, ou None. O prompt cita ao menos um brief em docs/briefs/
+    (até MAXIMO_DE_BRIEFS); cada um citado precisa de selo com o sha256 de agora no `## Histórico` do pedido dele (`selo_do_brief`
+    do forge-check, a mesma função que o `brief selar` usa para gravar). Linha `Brief-sha256:` no prompt, se houver, precisa ser o hash
+    de um brief citado. Erro na leitura é falta (falha fechada, só nesta mensagem). Cada brief selado entra em `lidos` (citado, real,
+    bytes), que o aviso de brief vencido (D3) relê sem abrir o arquivo de novo."""
+    texto = str(prompt or "")
+    caminhos = list(dict.fromkeys(caminhos_de_brief(texto)))
+    if not caminhos:
+        return "o prompt não cita o brief (docs/briefs/<pedido>-<papel>-<n>.md)"
+    if len(caminhos) > MAXIMO_DE_BRIEFS:
+        return f"{len(caminhos)} briefs citados (máximo {MAXIMO_DE_BRIEFS})"
+    fc, hashes = forge_check(), set()
+    for caminho in caminhos:
+        real = str(Path.home() / caminho[2:]) if caminho.startswith("~/") else caminho
+        try:
+            dados = ler_brief(hook, real)
+        except (OSError, ValueError, RuntimeError):
+            dados = None
+        if dados is None:
+            return f"{caminho}: o brief não abriu, não está em docs/briefs/ ou passa de 256 KiB"
+        motivo = fc.selo_do_brief(os.path.realpath(hook.cwd() / real), dados) or destino_diferente(fc, tipo, dados)
+        if motivo:
+            return motivo
+        lidos.append((caminho, os.path.realpath(hook.cwd() / real), dados))
+        hashes.add(hashlib.sha256(dados).hexdigest())
+    citados = set(VALOR_DO_HASH.findall(texto))
+    if citados - hashes:
+        return "a linha `Brief-sha256:` do prompt não é o hash de um brief citado"
+    return None
+
+
+def avisos_de_brief_vencido(hook, lidos):
+    """D3 (0.44.0): para cada brief selado (`lidos`, de `selo_ausente`: caminho citado, caminho real e bytes), as correções que o
+    `brief selar` faria hoje (`brief_vencido` do forge-check). Só avisa: qualquer erro registra e devolve [], nunca barra o disparo."""
+    try:
+        fc = forge_check()
+        return [f"{caminho}: {linha}" for caminho, real, dados in lidos for linha in fc.brief_vencido(hook.raiz, real, dados)]
+    except Exception as erro:  # noqa: BLE001 - o aviso nunca troca o disparo por recusa
+        hook.registrar_erro(erro)
+        return []
+
+
+def avisar_brief_vencido(avisos):
+    """D3: uma linha `R-BRIEF: aviso` no stderr e no `systemMessage` (código 0), com o caminho de volta: selar de novo."""
+    if avisos:
+        texto = mensagem("R-BRIEF", f"aviso: brief vencido depois do selo ({sem_controle('; '.join(avisos))}); o disparo segue. "
+                                    "Rode `forge-check brief selar` de novo para o especialista ler a base e as decisões de agora.")
+        print(texto, file=sys.stderr)
+        print(json.dumps({"systemMessage": texto}, ensure_ascii=False))
+
+
+MOTIVOS_DA_RECUSA = frozenset({"memoria", "teto", "duplicado", "pesado"})  # conjunto fechado: nunca texto do disparo
+
+
+def numero_da_recusa(valor, forma):
+    """Número finito na `forma` (`%.2f`, `%d`); ausente, texto, bool, NaN ou infinito saem `-` (RN-6)."""
+    if isinstance(valor, bool) or not isinstance(valor, (int, float)) or not math.isfinite(valor):
+        return "-"
+    return forma % valor
+
+
+def registrar_recusa(hook, motivo, campos=None):
+    """RN-6: a recusa do R-TETO vira uma linha em `recusas.log` da pasta do estado (`hook._run` do clone ou `.forge/run/`):
+    hora, hook, regra, números (`mem_gb=`, `nproc=`, `ativos=`) e o motivo de `MOTIVOS_DA_RECUSA`, nunca a descrição nem o
+    comando. Abre sem seguir link nem esperar FIFO, gira em `recusas.log.1` no limite do `erros.log` e cala qualquer falha:
+    registrar nunca troca a recusa por liberação."""
+    try:
+        if motivo not in MOTIVOS_DA_RECUSA:
+            return
+        campos = campos or {}
+        pasta = hook._run or hook.run()
+        log = pasta / "recusas.log"
+        estado = os.lstat(log) if os.path.lexists(log) else None
+        if estado and stat.S_ISREG(estado.st_mode) and estado.st_size > LIMITE_LOG:
+            os.replace(log, pasta / "recusas.log.1")
+        numeros = " ".join(f"{chave}={numero_da_recusa(campos.get(chave), forma)}"
+                           for chave, forma in (("mem_gb", "%.2f"), ("nproc", "%d"), ("ativos", "%d")))
+        linha = f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {hook.nome} R-TETO {numeros} motivo={motivo}\n"
+        fd = os.open(log, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+        try:
+            if stat.S_ISREG(os.fstat(fd).st_mode):
+                os.write(fd, linha.encode("ascii"))
+        finally:
+            os.close(fd)
+    except Exception:  # noqa: BLE001 - registrar a recusa nunca a troca por liberação
+        pass
+
+
 def lancar(hook, agentes, agora):
     entrada = hook.campo("tool_input") or {}
     tipo = str(entrada.get("subagent_type") or "general-purpose")
@@ -280,9 +565,23 @@ def lancar(hook, agentes, agora):
     divergencia = hash_do_brief_diverge(hook, entrada.get("prompt")) if tipo == CONFERENTE else None
     if divergencia:
         bloquear("R-BRIEF", f"{divergencia}; gere de novo com `forge-check brief mensagem` e envie-a.")
+    lidos = []
+    if exige_selo(tipo):
+        try:
+            sem_selo = selo_ausente(hook, entrada.get("prompt"), tipo, lidos)
+        except Exception as erro:  # noqa: BLE001 - falha fechada: sem prova do selo, o especialista não sai
+            hook.registrar_erro(erro)
+            sem_selo = "erro ao conferir o selo (registrado no erros.log)"
+        if sem_selo:
+            bloquear("R-BRIEF", f"{sem_selo}; sele o brief com `forge-check brief selar --arquivo <brief> --pedido <id>` e cite o "
+                                "caminho dele no prompt (o selo vale para o sha256 de agora).")
+        vencido = avisos_de_brief_vencido(hook, lidos)
+    else:
+        vencido = []
     descricao = " ".join(str(entrada.get("description") or "").split())
     for a in agentes:
         if descricao and a.get("tipo") == tipo and a.get("descricao") == descricao:
+            registrar_recusa(hook, "duplicado", {"ativos": len(agentes)})
             bloquear("R-TETO", f"já há um agente {tipo} ativo com a descrição \"{descricao[:60]}\"; "
                                "não relance, espere o resultado dele.")
     carga, memoria, total = medir()
@@ -290,19 +589,29 @@ def lancar(hook, agentes, agora):
     for variavel in ("FORGE_NPROC", "FORGE_PROC"):  # substituem a medida real: ficam registrados
         if os.environ.get(variavel):
             hook.registrar_escape(f"{variavel}={os.environ[variavel]} substitui a medida real do teto de agentes")
-    if carga_alta(carga, memoria, total, nproc):  # vale para qualquer teto: teto_agentes e teto_maximo não desligam
-        if os.environ.get("FORGE_CARGA_LIVRE") == "1":  # escape só do dono: pula só a trava de carga
-            hook.registrar_escape(f"FORGE_CARGA_LIVRE=1 liberou o disparo com carga alta (load {carga:.1f} de {nproc} núcleos, "
-                                  f"{memoria:.1f} GB disponíveis)")
+    piso = piso_de_memoria(hook.config())
+    if carga_alta(carga, memoria, total, nproc, piso):  # vale para qualquer teto: teto_agentes e teto_maximo não desligam
+        if os.environ.get("FORGE_CARGA_LIVRE") == "1":  # escape só do dono: pula só a trava de memória
+            hook.registrar_escape(f"FORGE_CARGA_LIVRE=1 liberou o disparo com memória baixa ({memoria:.1f} GB disponíveis, piso {piso:.1f} GB)")
         else:
-            bloquear("R-TETO", f"carga alta (load {carga:.1f} de {nproc} núcleos, {memoria:.1f} GB disponíveis; limite: load "
-                               f"{CARGA_MAX * nproc:.1f} e {max(PISO_GB, PISO_FRACAO * total):.1f} GB): "
-                               "nenhum agente novo; espere a carga baixar; só o dono: FORGE_CARGA_LIVRE=1.")
+            registrar_recusa(hook, "memoria", {"mem_gb": memoria, "nproc": nproc, "ativos": len(agentes)})
+            bloquear("R-TETO", f"memória baixa ({memoria:.1f} GB disponíveis; piso {piso:.1f} GB, `piso_memoria_gb` em .forge/config.json): "
+                               "nenhum agente novo; espere memória liberar; só o dono: FORGE_CARGA_LIVRE=1.")
     teto, motivo = calcular_teto(hook.config())
     if len(agentes) >= teto:
+        registrar_recusa(hook, "teto", {"mem_gb": memoria, "nproc": nproc, "ativos": len(agentes)})
         bloquear("R-TETO", f"{len(agentes)} agentes ativos, teto {teto} ({motivo}); "
                            "espere um terminar antes de lançar outro.")
-    agentes.append({"id": None, "tipo": tipo, "descricao": descricao, "desde": agora, **da_sessao(hook)})
+    escrita, a_conferir = set(), set()
+    try:  # AG-1a (G-3): depois do teto e só calcula; o erro registra e a reserva sai com a lista vazia
+        branches = branches_dos_briefs(hook, entrada.get("prompt"), escrita, a_conferir) if tipo != CONFERENTE else []
+    except Exception as erro:  # noqa: BLE001 - a exceção não pode levar a reserva (o executar liberaria sem ela)
+        hook.registrar_erro(erro)
+        branches, escrita, a_conferir = [], set(), set()
+    recusar_branch_ocupada(hook, agentes, sorted(a_conferir))  # Z10: fora do try, sobre a lista pronta
+    agentes.append({"id": None, "tipo": tipo, "descricao": descricao, "desde": agora, "branches": branches,
+                    "escrita": sorted(escrita), **da_sessao(hook)})
+    avisar_brief_vencido(vencido)
 
 
 def iniciar(hook, agentes, agora):

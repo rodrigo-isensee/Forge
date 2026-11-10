@@ -1,0 +1,27 @@
+{
+  "descricao": "8 núcleos, load 7 (acima de 80%) e 8 GB livres: o load não trava mais, dispara (R-TETO-DISPONIBILIDADE).",
+  "proc": {
+    "loadavg": "7.0 1.0 1.0 1/100 1",
+    "mem_gb": 8,
+    "mem_total_gb": 16,
+    "nproc": 8
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": []
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

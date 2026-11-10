@@ -5,19 +5,19 @@
       "agentes": [
         {
           "id": "a1",
-          "tipo": "forge:node-backend",
+          "tipo": "Plan",
           "descricao": "Implementar a API",
           "desde": "{agora-60}"
         },
         {
           "id": "a2",
-          "tipo": "forge:react-frontend",
+          "tipo": "claude-code-guide",
           "descricao": "Tela",
           "desde": "{agora-60}"
         },
         {
           "id": "a3",
-          "tipo": "forge:tech-lead",
+          "tipo": "web-fetch",
           "descricao": "Review",
           "desde": "{agora-60}"
         }

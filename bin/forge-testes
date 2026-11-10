@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Forge: teste dirigido durante a iteração do autor (TA-3). Só biblioteca padrão.
 
-Uso: forge-testes [--base REF] [--listar] [--completa] [-k PADRAO ...] [CAMINHO ...]
-     forge-testes --vermelho [BASE] [--modulos M[,M...]] [--prazo SEGUNDOS]
+Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO ...] [CAMINHO ...]
+     forge-testes --vermelho [BASE] [--modulos M[,M...]] [--prazo SEGUNDOS]   (M: test_<nome> ou tests.test_<nome>)
   (sem opção)   lê o que mudou desde o ancestral comum com REF (padrão origin/develop), mais os arquivos
                 não commitados e os novos, e roda só os módulos de teste que cobrem esses caminhos
   CAMINHO       planeja só para estes caminhos (relativos ao diretório atual ou absolutos, dentro do repositório) e
@@ -11,12 +11,18 @@ Uso: forge-testes [--base REF] [--listar] [--completa] [-k PADRAO ...] [CAMINHO 
   -k PADRAO     filtra por classe ou nome de teste (`unittest -k`; repetível); para rodar uma parte de módulo grande
   --listar      mostra o plano (modo e módulos) e não roda nada
   --completa    roda a suíte inteira, sem consultar o mapa
+  --afetados    o plano do pre-push: os testes afetados (mapa, mais todo teste que cita o caminho, mais os que exercitam
+                os arquivos de controle), nunca a suíte completa; o que nenhum teste lê fica para o CI, com aviso
+Os módulos do plano dirigido rodam em paralelo por `scripts/suite-partes.py` (o mecanismo do `suite-paralela`, em até
+4 processos, com a guarda de completude); com `-k`, ou sem os dois scripts, em série no `unittest`.
   --vermelho    prova que algum teste do diff derruba o defeito: roda os módulos em duas cópias commitadas em
                 $TMPDIR (o HEAD, e o HEAD com a produção do diff devolvida à base) e classifica cada teste.
                 Nunca escreve na árvore de trabalho, que precisa estar limpa. Saída 0 = há prova e nada cai no HEAD;
                 1 = sem prova ou com falha no HEAD; 2 = uso inválido, erro do git ou sem veredito.
 
-Falha fechada: qualquer caminho sem entrada no mapa, `tests/config.json`, este script (que contém o mapa),
+Convenção (O2, 0.44.1): sem regra no mapa, bin/forge-x leva a tests/test_forge_x.py, hooks/x.py e scripts/x.py a
+tests/test_x.py (se o arquivo existe); o mapa fica para as exceções.
+Falha fechada: qualquer caminho sem entrada no mapa nem teste pela convenção, `tests/config.json`, este script (que contém o mapa),
 um módulo mapeado que não existe, um erro ao ler o git e todo módulo de teste no diff (alterado, novo ou apagado:
 ele pode importar outro, ler todos os de tests/ ou carregá-los pelo nome) fazem rodar a suíte completa. O `--vermelho`
 sem `--modulos` é a exceção: usa os módulos de teste do diff mais o plano dos outros caminhos, sem os dados de teste
@@ -24,7 +30,9 @@ sem `--modulos` é a exceção: usa os módulos de teste do diff mais o plano do
 Cada execução (dirigida ou completa) anota uma linha em `.forge/run/testes.log` (ignorado pelo git):
 data UTC, modo, módulos, duração e código de saída.
 
-Ferramenta de iteração do autor e, por decisão do dono (M8, 2026-10-24, que substitui a de 2026-10-23), o filtro
+Decisão do dono de 2026-11-08 ("Faça tudo"): a suíte inteira roda uma vez, no CI; o envio local roda só os testes
+afetados (`--afetados`) para qualquer branch e para envio de várias refs, e a suíte inteira local é opt-in.
+Antes dela: ferramenta de iteração do autor e, por decisão do dono (M8, 2026-10-24, que substitui a de 2026-10-23), o filtro
 do pre-push do envio de código: o pre-push roda só os módulos que este plano aponta (qualquer dúvida cai na
 suíte inteira). O autor e os revisores rodam só os testes do item; a suíte inteira fica no pre-push e no CI
 (`python3 -m unittest discover -s tests`, de todo PR e do caminho para a main) e não chama este
@@ -70,31 +78,37 @@ NOME_DE_MODULO = re.compile(r"test_[a-z0-9_]+")
 # Os módulos que saíram de `test_hooks` (HOOKS-CORPUS-RAPIDO) rodam onde `test_hooks` roda e executam o `bin/forge-check`
 # pelo apoio `tests/apoio_volta_unica.py` (`test_doutor_relogio` o copia pelo apoio `tests/apoio_versao_defasada.py`).
 VOLTA_UNICA = ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades")
-FORGE_CHECK = ("test_anotar", "test_brief_forma_aceita", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio", "test_qa_doutor_034",
+FORGE_CHECK = ("test_anotar", "test_v0441_review", "test_brief_forma_aceita", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio", "test_qa_doutor_034",
                "test_conf_escopo", "test_conferencia_registrar", "test_decisao_aprovacao", "test_decisao_aprovacao_raiz", "test_erros_no_brief", "test_hook_ansi_c", "test_citacao_p2",
                "test_entrega_git_falha", "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks", "test_hooks_parecer_pasta",
                "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_mensagem_conferente", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
                "test_testes_tocados", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
-               "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt") + VOLTA_UNICA
+               "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt", "test_governanca", "test_selo_e_entrega",
+               "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados", "test_aq5_parecer_novo", "test_brief_gerar_custo",
+               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
 LEITORES_DE_TEXTO = ("test_anotar", "test_citacao", "test_clareza", "test_dependabot_modelo", "test_erros_no_brief",
                      "test_forge_mutante", "test_jarvis_nucleo", "test_modelos_projeto", "test_stack_prereq_sistema",
-                     "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09", "test_conferente_estavel", "test_jarvis_n_jar_a", "test_reval_delta")  # EST-M4: a guarda C-2 lê agents/ e skills/
+                     "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09", "test_conferente_estavel", "test_jarvis_n_jar_a", "test_reval_delta", "test_orcamento_instrucao", "test_metricas_texto", "test_aq1_texto", "test_textos_034", "test_achado_teto_doc")  # EST-M4: a guarda C-2 lê agents/ e skills/
 CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor",
             "test_modelos_citados") + LEITORES_DE_TEXTO
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
 # .claude-plugin/ para montar versões publicadas e roda o doutor e o `forge` contra elas.
 PUBLICADO = CONTEUDO + ("test_atualizar",)
+# Módulo em subpasta de tests/ (pacote com __init__.py) entra pelo nome com ponto: `evals.test_x` é tests/evals/test_x.py.
+EVALS_DE_FORMA = ("evals.test_regressao_forma", "evals.test_erros_por_papel")  # 0.43.1, frente I, e E23 (0.43.3): os erros já cometidos contra a ferramenta
 MAPA = [
-    (r"bin/forge-changelog", ("test_changelog", "test_conferir_release", "test_forge")),
-    (r"bin/forge-check", FORGE_CHECK),
-    (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge")),
-    (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge", "test_reval_delta")),  # EST-M4: guarda C-2
+    (r"bin/forge-changelog", ("test_changelog", "test_conferir_release", "test_forge", "test_pre_push_afetados") + EVALS_DE_FORMA),  # PREPUSH-BARATAS
+    (r"bin/forge-check", FORGE_CHECK + EVALS_DE_FORMA),
+    (r"bin/forge_(governanca|decisor|run|meta)\.py", FORGE_CHECK),  # o forge-check importa o módulo ao montar os subcomandos (0.43.1 H)
+    (r"bin/forge-placar", ("evals.test_placar", "test_forge")),  # 0.43.1, frente I
+    (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge", "test_novo_projeto")),
+    (r"bin/forge-adotar", ("test_adotar", "test_stack_python", "test_forge")),  # 0.45.0: adoção de projeto existente
+    (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge", "test_reval_delta", "test_salvar_desfazer", "test_adotar", "test_stack_python")),  # EST-M4: guarda C-2; GREP-UGREP
     (r"bin/(forge-atualizar|forge_versoes\.py|forge-voltar-versao)", ("test_atualizar", "test_forge", "test_doutor")),
     (r"bin/forge-upgrade", ("test_atualizar", "test_forge", "test_doutor")),
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
-    (r"bin/forge-mutante", ("test_forge_mutante", "test_forge")),
     (r"bin/forge-sugerir", ("test_sugerir", "test_forge")),
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
     (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge", "test_atualizar")),
@@ -103,25 +117,26 @@ MAPA = [
     # hooks/vigia.py: test_textos_dono_f10 lê o texto. O resto de hooks/ é coberto pela regra larga seguinte.
     (r"hooks/.*", ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados",
                    "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10", "test_hook_ansi_c",
-                   "test_hooks_parecer_pasta", "test_esperar_estado", "test_brief_forma_aceita", "test_conformidade_verde", "test_reval_delta") + VOLTA_UNICA),  # EST-M4: guarda C-2
-    (r"scripts/arvore-testada\.py", ("test_arvore_testada", "test_forge", "test_testes_tocados")),  # EST-M7
-    (r"scripts/ci-local", ("test_ci_local", "test_forge", "test_testes_tocados")),
-    (r"scripts/conferir-reversao\.py", ("test_conferir_reversao", "test_forge", "test_testes_tocados")),  # aviso: NaoEPortao
+                   "test_hooks_parecer_pasta", "test_esperar_estado", "test_brief_forma_aceita", "test_conformidade_verde", "test_reval_delta", "test_selo_e_entrega",
+                   "test_classe_risco", "test_pesado_fila", "test_meta") + VOLTA_UNICA
+     + EVALS_DE_FORMA),  # EST-M4: guarda C-2
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados")),
-    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_testes_tocados")),
-    (r"stacks/.*", CONTEUDO + ("test_hooks",) + VOLTA_UNICA),
-    (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks",) + VOLTA_UNICA),
-    (r"templates/projeto/docs/(reviews|qa|security)/_modelo\.md", PUBLICADO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),  # o teste gera parecer do modelo
+    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer")),
+    (r"stacks/.*", CONTEUDO + ("test_hooks", "test_adotar", "test_stack_python") + VOLTA_UNICA),
+    (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks", "test_stack_python") + VOLTA_UNICA),
+    (r"templates/projeto/docs/(reviews|qa|security|devops)/_modelo\.md", PUBLICADO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),  # o teste gera parecer do modelo
     (r"templates/projeto/\.githooks/pre-push", PUBLICADO + ("test_prepush_so_docs",)),
     (r"(migrations|templates)/.*", PUBLICADO),
     (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
-    (r"docs/security/_modelo\.md", CONTEUDO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),
+    (r"docs/(security|devops)/_modelo\.md", CONTEUDO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),
     (r"skills/esperar-estado/.*|agents/tech-lead\.md", CONTEUDO + ("test_esperar_estado",)),
+    (r"skills/(produto-criterios|observabilidade-incidentes|explicar-para-o-leigo|modo-iniciante)/.*|agents/(jarvis|devops-engineer)\.md", CONTEUDO + ("test_skills_v0442",)),
     (r"(agents|skills|docs)/.*", CONTEUDO),
-    (r"README\.md", ("test_forge",)),
+    (r"README\.md", ("test_forge", "test_doutor")),  # PY-MINIMO: test_doutor confere o Python mínimo no README
     (r"CONTRIBUTING\.md", ("test_forge", "test_changelog")),
     (r"(CHANGELOG\.md|changelog\.d/.*)", ("test_forge", "test_changelog")),
     (r"tests/comportamento/.*", ("test_comportamento",)),
+    (r"\.devcontainer/.*", ("test_forge",)),  # 0.43.1, frente A
 ]
 # Sem regra (de propósito), por exemplo: .github/, .githooks/, tests/config.json, tests/catraca.py e os outros
 # arquivos de apoio de tests/ (inclui tests/hooks/, tests/migracoes/, tests/transcricoes/ e fixtures), LICENSE,
@@ -130,7 +145,33 @@ MAPA = [
 # Módulo de teste no diff não tem regra: cai na suíte completa (M8, opção C). Um teste pode importar outro, ler todos os
 # de tests/ ou carregá-los pelo nome; o mapa não tenta saber como, e por isso não há grafo de importação para divergir.
 ALTERA_O_MAPA = {"bin/forge-testes", "tests/config.json"}
+# O2 (0.44.1): sem regra no MAPA, o teste se acha pelo nome: bin/forge-x -> tests/test_forge_x.py, hooks/x.py e scripts/x.py ->
+# tests/test_x.py, mais quem varre a pasta (test_forge varre as três; test_testes_tocados, scripts/). O MAPA fica para as exceções:
+# arquivo lido por outros testes, nome que não segue a convenção e o que a decisão manda à suíte completa (SEM_CONVENCAO).
+CONVENCAO = re.compile(r"(bin|hooks|scripts)/([a-z][a-z0-9_-]*)(?:\.py)?")
+VARREM_A_PASTA = {"bin": ("test_forge",), "hooks": ("test_forge",), "scripts": ("test_forge", "test_testes_tocados")}
+SEM_CONVENCAO = frozenset({"scripts/promover-homolog.py",  # decisão 7 do dono (MP-1): segue na suíte completa
+                           "scripts/suite-partes.py", "scripts/suite-paralela.py",  # rodam a própria suíte: mudá-los roda todos
+                           "scripts/conferir-release.py", "scripts/reexecutar-provas.py"})  # lidos por outros testes: completa, como antes
+# --- `--afetados`: o plano do pre-push (decisão do dono de 2026-11-08: a suíte inteira roda uma vez, no CI) ---------
+# Nunca vira a suíte completa: o que o mapa não sabe entra pelos leitores (o módulo de teste que cita o caminho, o nome
+# do arquivo ou, para .py, o nome do módulo) e, na dúvida, o módulo entra. Os arquivos de controle (EXERCITAM) levam
+# todo módulo que os exercita, além da regra do MAPA. Um módulo de teste no diff roda ele mesmo, quem o cita (quem o
+# importa) e quem varre tests/ (`glob("test_*.py")`). O CI do PR continua rodando a suíte inteira e é quem decide.
+EXERCITAM = [
+    (r"hooks/_comum\.py", ("_comum", "hooks/", '"hooks"')),
+    (r"bin/forge-check", ("forge-check", "forge_check")),
+    (r"\.githooks/.*", (".githooks", "pre-push", "pre_push")),
+    (r"bin/forge-testes|tests/config\.json|tests/pesos-d4\.json|scripts/suite-(paralela|partes)\.py",
+     ("forge-testes", "forge_testes", "suite-paralela", "suite_paralela", "suite-partes", "pesos-d4", "config.json")),
+]
+# test_forge varre estas pastas (neutralidade, anti-duplicação, referências): caminho sem mapa nelas o leva.
+PASTAS_VARRIDAS = ("bin/", "scripts/", "hooks/", "agents/", "skills/", "stacks/", "docs/", "templates/", "dev/")
+VARRE_OS_TESTES = re.compile(r"glob\(\s*[\"']test_?\*\.py[\"']\s*\)")
+MINIMO_DA_AGULHA = 5  # nome de arquivo mais curto que isto (ex.: `x.py`) casaria com quase tudo
 MODULO_DE_TESTE = re.compile(r"tests/(test_[a-z0-9_]+)\.py")
+SUBMODULO_DE_TESTE = re.compile(r"tests/((?:[a-z0-9_]+/)*test_[a-z0-9_]+)\.py")  # o da raiz ou o de um pacote de tests/
+NOME_COM_PONTO = re.compile(r"(?:[a-z0-9_]+\.)*test_[a-z0-9_]+")
 ORACULO = re.compile(r"test_oraculo_[a-z0-9_]+")
 
 
@@ -173,15 +214,117 @@ def planejar(caminhos, raiz=Path(".")):
             if re.fullmatch(padrao, caminho):
                 casou = destino
                 break
+        casou = casou or modulos_da_convencao(caminho, raiz)
         if casou is None:
             return "completo", [f"{caminho} sem mapa"]
         modulos.update(casou)
-    ausentes = sorted(m for m in modulos if not (raiz / "tests" / f"{m}.py").is_file())
+    ausentes = sorted(m for m in modulos if not arquivo_do_modulo(m, raiz).is_file())
     if ausentes:
         return "completo", [f"módulo sem arquivo: {', '.join(ausentes)}"]
     if modulos:
         modulos.update(oraculos(raiz))
     return "dirigido", sorted(modulos)
+
+
+def modulos_da_convencao(caminho, raiz=Path(".")):
+    """O2: os módulos do caminho pela convenção de nome, ou None (fora de bin/, hooks/ e scripts/, em SEM_CONVENCAO ou sem o
+    arquivo tests/test_<nome>.py)."""
+    achado = CONVENCAO.fullmatch(caminho)
+    if not achado or caminho in SEM_CONVENCAO:
+        return None
+    modulo = "test_" + achado.group(2).replace("-", "_")
+    if not arquivo_do_modulo(modulo, raiz).is_file():
+        return None
+    return (modulo,) + VARREM_A_PASTA[achado.group(1)]
+
+
+def arquivo_do_modulo(modulo, raiz=Path(".")):
+    """tests/test_x.py de `test_x`; tests/evals/test_x.py de `evals.test_x`."""
+    return raiz / "tests" / (modulo.replace(".", "/") + ".py")
+
+
+def nome_do_modulo(relativo):
+    """`evals.test_x` de tests/evals/test_x.py, se toda pasta do caminho é pacote (o discover só desce em pacote)."""
+    achado = SUBMODULO_DE_TESTE.fullmatch(relativo)
+    if not achado:
+        return None
+    partes = achado.group(1).split("/")
+    return ".".join(partes)
+
+
+def textos_dos_testes(raiz=Path(".")):
+    """{módulo: texto} de todo tests/test_*.py e dos tests/<pacote>/test_*.py (link ou ilegível fica de fora: o CI o
+    roda)."""
+    textos = {}
+    for p in sorted((raiz / "tests").rglob("test_*.py")):
+        nome = nome_do_modulo(p.relative_to(raiz).as_posix())
+        pastas = p.parent.relative_to(raiz / "tests").parts
+        pacote = all((raiz / "tests" / Path(*pastas[:i + 1]) / "__init__.py").is_file() for i in range(len(pastas)))
+        if nome and pacote and p.is_file() and not p.is_symlink():
+            try:
+                textos[nome] = p.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+    return textos
+
+
+def citam(textos, agulhas):
+    """Módulos cujo texto contém alguma das agulhas."""
+    return {m for m, texto in textos.items() if any(a in texto for a in agulhas)}
+
+
+def agulhas_do_caminho(caminho):
+    """O caminho inteiro, o nome do arquivo e, para .py, o nome do módulo; os curtos demais ficam de fora."""
+    nome = caminho.rsplit("/", 1)[-1]
+    agulhas = {caminho, nome}
+    if nome.endswith(".py"):
+        agulhas.add(nome[:-3])
+    return {a for a in agulhas if len(a) >= MINIMO_DA_AGULHA}
+
+
+def planejar_afetados(caminhos, raiz=Path(".")):
+    """(módulos, notas) dos testes afetados por `caminhos`, para o pre-push. Conservador: na dúvida, o módulo entra.
+    Nunca devolve a suíte completa; o que não tem leitor conhecido vira nota (o CI do PR roda a suíte inteira)."""
+    textos = textos_dos_testes(raiz)
+    modulos, notas = set(), []
+    for caminho in caminhos:
+        achados = set(citam(textos, {caminho}))
+        regra = next((destino for padrao, destino in MAPA if re.fullmatch(padrao, caminho)), None) or modulos_da_convencao(caminho, raiz)
+        achados.update(regra or ())
+        for padrao, agulhas in EXERCITAM:
+            if re.fullmatch(padrao, caminho):
+                achados |= citam(textos, agulhas)
+        nome = nome_do_modulo(caminho)
+        if nome:
+            achados |= {nome} if nome in textos else set()
+            achados |= citam(textos, {nome, nome.rsplit(".", 1)[-1]})
+            achados |= {m for m, texto in textos.items() if VARRE_OS_TESTES.search(texto)}
+        elif regra is None:
+            achados |= citam(textos, agulhas_do_caminho(caminho))
+            if caminho.startswith(PASTAS_VARRIDAS):
+                achados.add("test_forge")
+        if not achados:
+            notas.append(f"{caminho}: nenhum teste o lê; fica para o CI")
+        modulos |= achados
+    ausentes = sorted(m for m in modulos if m not in textos)
+    if ausentes:
+        notas.append(f"módulo do mapa sem arquivo (fica para o CI): {', '.join(ausentes)}")
+    modulos -= set(ausentes)
+    if modulos:
+        modulos.update(oraculos(raiz))
+    return sorted(modulos), notas
+
+
+def comando_dirigido(modulos, filtros, raiz=Path(".")):
+    """Os módulos em paralelo (`scripts/suite-partes.py`, o mecanismo do suite-paralela) quando os dois scripts
+    existem e não há `-k`; senão, em série no `unittest`, como antes."""
+    partes, paralela = raiz / "scripts" / "suite-partes.py", raiz / "scripts" / "suite-paralela.py"
+    if not filtros and all(p.is_file() and not p.is_symlink() for p in (partes, paralela)):
+        return [sys.executable, "-I", str(partes), "--modulos", ",".join(modulos)]
+    comando = [sys.executable, "-m", "unittest", "-q", *[f"tests.{m}" for m in modulos]]
+    for filtro in filtros:
+        comando += ["-k", filtro]
+    return comando
 
 
 def oraculos(raiz=Path(".")):
@@ -257,11 +400,43 @@ def avisos_de_mapa(caminhos, raiz=Path(".")):
     return avisos
 
 
+# MAQ-A7: a linha do log ganha a entrada (FORGE_ENTRADA validada), o load, os núcleos e as outras pesadas vivas.
+ENTRADA, PESADA = re.compile(r"[a-z-]{1,20}"), re.compile(r"suite-paralela\.py|unittest discover|forge-testes|forge-mutante")
+
+
+def outras(proc=Path("/proc"), eu=None):
+    """Pesadas vivas fora desta e dos ancestrais dela; erro de leitura do /proc dá "?"; a linha lida nunca se guarda."""
+    try:
+        fora, pid = set(), eu or os.getpid()
+        while pid > 1 and pid not in fora:
+            fora.add(pid)
+            pid = int((proc / str(pid) / "stat").read_text().rsplit(")", 1)[1].split()[1])
+        pids = [p for p in os.listdir(proc) if p.isdigit() and int(p) not in fora]
+    except (OSError, ValueError, IndexError):
+        return "?"
+    n = 0
+    for p in pids:
+        try:  # o processo que termina no meio da leitura não derruba a contagem
+            n += bool(PESADA.search((proc / p / "cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")))
+        except OSError:
+            continue
+    return n
+
+
+def contexto():
+    entrada = os.environ.get("FORGE_ENTRADA", "autor")
+    try:
+        load1 = f"{os.getloadavg()[0]:.2f}"
+    except OSError:
+        load1 = "?"
+    return f" entrada={entrada if ENTRADA.fullmatch(entrada) else '?'} load1={load1} nproc={os.cpu_count()} outras={outras()}"
+
+
 def anotar(modo, modulos, segundos, codigo):
     LOG.parent.mkdir(parents=True, exist_ok=True)
     agora = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     with LOG.open("a", encoding="utf-8") as f:
-        f.write(f"{agora} modo={modo} modulos={','.join(modulos) or '-'} duracao={segundos:.1f}s saida={codigo}\n")
+        f.write(f"{agora} modo={modo} modulos={','.join(modulos) or '-'} duracao={segundos:.1f}s saida={codigo}{contexto()}\n")
 
 
 # --- `--vermelho`: a prova de que o teste derruba o defeito -------------------------------------------------------
@@ -568,6 +743,8 @@ def main(argv=None):
     p.add_argument("--base", default=BASE_PADRAO)
     p.add_argument("--listar", action="store_true")
     p.add_argument("--completa", action="store_true")
+    p.add_argument("--afetados", action="store_true",
+                   help="plano do pre-push: os testes afetados, nunca a suíte completa (o CI a roda)")
     p.add_argument("-k", dest="filtros", action="append", default=[], metavar="PADRAO",
                    help="só os testes cujo nome contém PADRAO (como `unittest -k`; repita para somar)")
     p.add_argument("--vermelho", nargs="?", const=True, default=None, metavar="BASE")
@@ -580,8 +757,10 @@ def main(argv=None):
         return executar(args.executar, args.registro)
     if args.vermelho is None and args.modulos is not None:
         p.error("--modulos só vale com --vermelho")
-    if args.vermelho is not None and (args.completa or args.listar):
-        p.error("--vermelho não combina com --completa nem com --listar")
+    if args.vermelho is not None and (args.completa or args.listar or args.afetados):
+        p.error("--vermelho não combina com --completa, --listar nem --afetados")
+    if args.afetados and args.completa:
+        p.error("--afetados não combina com --completa")
     if args.vermelho is not None and args.filtros:
         p.error("-k não combina com --vermelho")
     if args.vermelho is None and args.prazo is not None:
@@ -591,9 +770,11 @@ def main(argv=None):
         p.error(f"--prazo vai de 1 a {PRAZO_MAXIMO} segundos")
     modulos_pedidos = None
     if args.modulos is not None:
-        modulos_pedidos = args.modulos.split(",")
+        # FORGE-TESTES-MODULOS-NOME: o nome com o pacote (`tests.test_x`, a forma do `unittest`) vale como `test_x`; um
+        # corte só, no começo, e a validação depois dele (`tests.tests.test_x` e `tests/test_x.py` seguem recusados).
+        modulos_pedidos = [m.removeprefix("tests.") for m in args.modulos.split(",")]
         if not all(NOME_DE_MODULO.fullmatch(m) for m in modulos_pedidos):
-            p.error("--modulos: nomes de módulo de teste (test_<nome>) separados por vírgula")
+            p.error("--modulos: nomes de módulo de teste (test_<nome> ou tests.test_<nome>) separados por vírgula")
 
     if args.caminhos and (args.completa or args.vermelho is not None):
         p.error("caminhos não combinam com --completa nem com --vermelho")
@@ -620,6 +801,19 @@ def main(argv=None):
         pass  # o plano abaixo trata o erro do git
     if args.completa:
         modo, detalhe = "completo", ["pedido --completa"]
+    elif args.afetados:
+        try:
+            alterados = pedidos or caminhos_alterados(args.base)
+        except RuntimeError as erro:
+            print(f"forge-testes: não consegui ler o git ({erro})", file=sys.stderr)
+            return 2
+        detalhe, notas = planejar_afetados(alterados)
+        for nota in notas:
+            print(f"forge-testes: {nota}", file=sys.stderr)
+        if not detalhe:
+            print("forge-testes: nada a rodar (nenhum teste afetado). O CI do PR roda a suíte inteira.")
+            return 0
+        modo = "dirigido"
     elif pedidos and (so_modulos := modulos_sem_mapa(pedidos)):
         modo, detalhe = "dirigido", so_modulos
         print(f"forge-testes: sem mapa para {', '.join(pedidos)}; roda só {', '.join(detalhe)}.", file=sys.stderr)
@@ -637,12 +831,13 @@ def main(argv=None):
 
     if modo == "completo":
         print(f"forge-testes: suíte completa ({'; '.join(detalhe)})")
-        comando, modulos = SUITE_COMPLETA, []
+        comando, modulos = list(SUITE_COMPLETA), []
     else:
         print(f"forge-testes: dirigido ({', '.join(detalhe)}). O CI do PR roda a suíte inteira.")
-        comando, modulos = [sys.executable, "-m", "unittest", "-q", *[f"tests.{m}" for m in detalhe]], detalhe
-    for filtro in args.filtros:
-        comando += ["-k", filtro]
+        comando, modulos = comando_dirigido(detalhe, args.filtros), detalhe
+    if modo == "completo":
+        for filtro in args.filtros:
+            comando += ["-k", filtro]
     if args.listar:
         return 0
     inicio = time.monotonic()

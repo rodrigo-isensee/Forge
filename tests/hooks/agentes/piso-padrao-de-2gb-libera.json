@@ -1,0 +1,34 @@
+{
+  "descricao": "4 GB no total, 2,1 GB livres: acima do piso padrão de 2 GB, dispara.",
+  "proc": {
+    "loadavg": "0.5 1.0 1.0 1/100 1",
+    "mem_gb": 2.1,
+    "mem_total_gb": 4,
+    "nproc": 8
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a0",
+          "tipo": "web-fetch",
+          "descricao": "Tarefa 0",
+          "desde": "{agora-60}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

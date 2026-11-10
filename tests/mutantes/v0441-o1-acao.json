@@ -1,0 +1,27 @@
+{
+  "pedido": "v0441-o1-acao",
+  "executor": "unittest",
+  "mutantes": [
+    {"id": "M1", "guarda": "O1: toda reprovacao gravada sai com a linha de acao", "arquivo": "bin/forge-check",
+     "de": "    if classe != \"—\":\n        saida += acao_da_reprovacao(", "para": "    if classe == \"—\":\n        saida += acao_da_reprovacao(",
+     "testes": ["tests.test_acao_da_reprovacao.Registrar.test_outra_classe_traz_a_acao_fixa_de_quem_corrige"]},
+    {"id": "M2", "guarda": "O1: conta so as linhas de 9+ colunas do mesmo pedido, brief e modo", "arquivo": "bin/forge-check",
+     "de": "if len(c) >= 9 and c[1:4] == [pedido, brief, modo] and c[8] == classe)", "para": "if len(c) >= 99 and c[1:4] == [pedido, brief, modo] and c[8] == classe)",
+     "testes": ["tests.test_acao_da_reprovacao.Registrar.test_a_mesma_classe_reprovada_n_vezes_no_brief_vai_ao_dono"]},
+    {"id": "M3", "guarda": "O1: o mesmo pedido, brief e modo", "arquivo": "bin/forge-check",
+     "de": "if len(c) >= 9 and c[1:4] == [pedido, brief, modo] and c[8] == classe)", "para": "if len(c) >= 9 and c[1:3] == [pedido, \"x\"] and c[8] == classe)",
+     "testes": ["tests.test_acao_da_reprovacao.Registrar.test_a_mesma_classe_reprovada_n_vezes_no_brief_vai_ao_dono"]},
+    {"id": "M4", "guarda": "O1: so a mesma classe conta para ir ao dono", "arquivo": "bin/forge-check",
+     "de": "if len(c) >= 9 and c[1:4] == [pedido, brief, modo] and c[8] == classe)", "para": "if len(c) >= 9 and c[1:4] == [pedido, brief, modo] and c[8] != \"—\")",
+     "testes": ["tests.test_acao_da_reprovacao.Registrar.test_a_mesma_classe_reprovada_n_vezes_no_brief_vai_ao_dono"]},
+    {"id": "M5", "guarda": "O1: no limiar vai ao dono", "arquivo": "bin/forge-check",
+     "de": "    if n >= LIMIAR_AO_DONO:", "para": "    if n > LIMIAR_AO_DONO:",
+     "testes": ["tests.test_acao_da_reprovacao.Registrar.test_a_mesma_classe_reprovada_n_vezes_no_brief_vai_ao_dono"]},
+    {"id": "M6", "guarda": "O1: classe que nao e da ferramenta da a acao fixa", "arquivo": "bin/forge-check",
+     "de": "    if quem != \"ferramenta\":\n        return [f\"ação: {quem}: {acao}\"]", "para": "    if quem == \"dono\":\n        return [f\"ação: {quem}: {acao}\"]",
+     "testes": ["tests.test_acao_da_reprovacao.Registrar.test_outra_classe_traz_a_acao_fixa_de_quem_corrige"]},
+    {"id": "M7", "guarda": "O1: no modo entrega a classe de forma nao roda o brief", "arquivo": "bin/forge-check",
+     "de": "    if modo != \"brief\":\n        return [f\"ação: jarvis: {CLASSES_DE_FALHA[classe]}\"]", "para": "    if modo == \"x\":\n        return [f\"ação: jarvis: {CLASSES_DE_FALHA[classe]}\"]",
+     "testes": ["tests.test_acao_da_reprovacao.Registrar.test_no_modo_entrega_a_classe_de_forma_nao_roda_o_brief"]}
+  ]
+}

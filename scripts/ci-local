@@ -19,11 +19,23 @@ Os testes rodam sobre a cabeça do PR, não sobre o merge com a base (o CI testa
 Fidelidade ao CI: a base dos jobs é o ponto de partida do PR (merge-base entre a cabeça e a base atual), no lugar do
 primeiro pai do merge commit que o GitHub monta; o texto `git rev-parse HEAD^1` dos workflows é trocado por esse sha.
 
+Jobs com `strategy.matrix` rodam uma vez por perna (`matrix.<chave>` no contexto e no nome); a perna com os mesmos
+passos de outra já rodada (a mesma parte da suíte em outra versão de Python, que aqui é a mesma) reaproveita o resultado.
+Os `needs:` decidem a ordem; o agregador (`if: always()` com `needs:`) roda os passos dele com `needs.<id>.result` dos jobs
+locais (success, failure ou skipped), e o resultado é o resumo deles. `steps.<id>.outputs.<k>` vem do `$GITHUB_OUTPUT`
+de cada passo, e o `if:` do passo é avaliado na hora de rodá-lo; `always()`, `success()`, `cancelled()`, `failure()` e `!`
+valem (aqui nada é cancelado e o job para no primeiro passo que falha).
+Artefatos (T3): `actions/upload-artifact` (`name`, `path`) copia o arquivo para uma pasta da execução e
+`actions/download-artifact` (`pattern`, `path`) traz de volta os que casam o padrão, como o `merge-multiple` do CI; a
+perna que reaproveita outra publica os artefatos dela a partir do RUNNER_TEMP da perna que rodou.
+
 Jobs obrigatórios: todos; só os passos do actionlint e do zizmor são opcionais (eles são baixados pelo CI; localmente só rodam se já
 estiverem instalados). Um job é "pulado" por duas razões: não se aplica ao PR (condição `if` do workflow: não afeta
 o status) ou falta algo para rodá-lo (ferramenta ausente: se o job é obrigatório, o status vira `failure`).
 """
 import argparse
+import fnmatch
+import itertools
 import json
 import os
 import re
@@ -40,11 +52,14 @@ NAO_OBRIGATORIOS = set()
 # aviso e o resto do job continua obrigatório (antes eram o job `workflows`, o único não obrigatório).
 FERRAMENTAS_OPCIONAIS = {"actionlint", "zizmor"}
 # Passos que o CI faz só para preparar o runner (baixar ferramentas, instalar o CLI); local, o que existe no PATH vale.
-PASSO_DE_PREPARO = re.compile(r"\b(curl|wget)\b|\binstall\s+(-g|--global)\b")
+PASSO_DE_PREPARO = re.compile(r"\b(curl|wget|apt-get)\b|\binstall\s+(-g|--global)\b")
 FERRAMENTAS_DO_JOB = {"shellcheck": "shellcheck", "claude": "claude", "actionlint": "actionlint", "zizmor": "zizmor"}
 OK, FALHOU, PULADO = "ok", "falhou", "pulado"
 # Um grupo por token do `if:`: contexto `github.*`, literal entre aspas simples (aspa dobrada = aspa) e operadores.
-TOKEN_SE = re.compile(r"\s*(?:(github\.[a-z_.]+)|'((?:[^']|'')*)'|(==|!=|&&|\|\||\(|\)))")
+TOKEN_SE = re.compile(r"\s*(?:(github\.[a-z_.]+|(?:steps|needs)\.[\w-]+\.[\w.-]+|matrix\.[\w-]+)|'((?:[^']|'')*)'|"
+                      r"(==|!=|&&|\|\||\(|\)|!)|(always|success|cancelled|failure)\(\))")
+# Funções de status do `if:`: aqui nada é cancelado e o job para no primeiro passo que falha (o que ainda roda vem de sucesso).
+FUNCOES_DE_STATUS = {"always": True, "success": True, "cancelled": False, "failure": False}
 CHAVES_IGNORADAS = {0: ("env", "defaults"), 4: ("env", "defaults", "continue-on-error"),
                     8: ("working-directory", "shell", "continue-on-error")}
 # Ambiente dos passos por lista branca (o usuário tem credenciais de outros serviços no ambiente); fora daqui, só o que
@@ -111,10 +126,20 @@ def _bloco(linhas, i, indent):
     return "\n".join(l[base:] for l in corpo).rstrip("\n") + "\n", i
 
 
+def _lista(valor):
+    """`[a, b]` ou `a` -> ['a', 'b'] / ['a'] (lista em fluxo do YAML, sem aninhamento)."""
+    valor = valor.strip()
+    if valor.startswith("[") and valor.endswith("]"):
+        return [_valor(v) for v in valor[1:-1].split(",") if v.strip()]
+    return [_valor(valor)] if valor else []
+
+
 def ler_jobs(texto):
-    """Lista de jobs: {id, nome, se, passos: [{nome, se, env, run, shell}]} na ordem do arquivo."""
+    """Lista de jobs: {id, nome, se, needs, matriz, passos: [{nome, id, se, env, run, shell, uses, com}]} na ordem do
+    arquivo (`com` é o `with:` do passo).
+    `needs` vem em fluxo (`[a, b]`), numa palavra ou em lista de `- `; `matriz` é {chave: [valores]} de `strategy.matrix`."""
     linhas = texto.splitlines()
-    jobs, job, passo, i = [], None, None, 0
+    jobs, job, passo, secao, i = [], None, None, "", 0
     while i < len(linhas) and not linhas[i].startswith("jobs:"):
         i += 1
     i += 1
@@ -127,29 +152,38 @@ def ler_jobs(texto):
         if ind == 0:
             break
         if ind == 2 and linha.rstrip().endswith(":"):
-            job = {"id": linha.strip()[:-1], "nome": linha.strip()[:-1], "se": "", "passos": []}
+            job = {"id": linha.strip()[:-1], "nome": linha.strip()[:-1], "se": "", "needs": [], "matriz": {}, "passos": []}
             jobs.append(job)
-            passo = None
+            passo, secao = None, ""
         elif job is None:
             continue
-        elif ind == 4 and not linha.startswith("    steps:"):
+        elif ind == 4:
             chave, _, valor = linha.strip().partition(":")
+            secao = chave
             if chave == "name":
                 job["nome"] = _valor(valor)
             elif chave == "if":
                 job["se"] = _valor(valor)
-        elif ind >= 6 and linha.startswith("      - "):
-            passo = {"nome": "", "se": "", "env": {}, "run": "", "shell": ""}
+            elif chave == "needs":
+                job["needs"] = _lista(valor)
+        elif secao == "needs" and linha.startswith("      - "):
+            job["needs"].append(_valor(linha.strip()[2:]))
+        elif secao == "strategy" and ind == 8:
+            chave, _, valor = linha.strip().partition(":")
+            job["matriz"][chave] = _lista(valor)
+        elif secao == "steps" and ind >= 6 and linha.startswith("      - "):
+            passo = {"nome": "", "id": "", "se": "", "env": {}, "run": "", "shell": "", "uses": "", "com": {}}
             job["passos"].append(passo)
             linha, ind = "        " + linha[8:], 8
-        if passo is not None and ind == 8:
+        if passo is not None and secao == "steps" and ind == 8:
             chave, _, valor = linha.strip().partition(":")
-            if chave == "name":
-                passo["nome"] = _valor(valor)
-            elif chave == "if":
-                passo["se"] = _valor(valor)
-            elif chave == "shell":
-                passo["shell"] = _valor(valor)
+            if chave in ("name", "id", "if", "shell", "uses"):
+                passo[{"name": "nome", "if": "se"}.get(chave, chave)] = _valor(valor.split(" #", 1)[0])
+            elif chave == "with":
+                while i < len(linhas) and linhas[i].startswith("          ") and linhas[i].strip():
+                    k, _, v = linhas[i].strip().partition(":")
+                    passo["com"][k] = _valor(v)
+                    i += 1
             elif chave == "run":
                 if valor.strip() in ("|", ">"):
                     passo["run"], i = _bloco(linhas, i, 8)
@@ -167,6 +201,7 @@ def ler_jobs(texto):
 def contexto_do_pr(pr, base_sha, token=""):
     return {
         "github.event_name": "pull_request",
+        "github.ref": f"refs/pull/{pr['number']}/merge",  # o que o GitHub põe no evento pull_request
         "github.base_ref": pr["baseRefName"],
         "github.head_ref": pr["headRefName"],
         "github.token": token,
@@ -184,16 +219,25 @@ def _tokens_se(expressao):
         m = TOKEN_SE.match(expressao, pos)
         if not m:
             raise ValueError(f"condição sem suporte (token inesperado): {expressao}")
-        ctx_, lit, op = m.groups()
-        tokens.append(("ctx", ctx_) if ctx_ else ("lit", lit.replace("''", "'")) if lit is not None else ("op", op))
+        ctx_, lit, op, fn = m.groups()
+        tokens.append(("ctx", ctx_) if ctx_ else ("lit", lit.replace("''", "'")) if lit is not None
+                      else ("fn", fn) if fn else ("op", op))
         pos = m.end()
     return tokens
 
 
-def avaliar_se(expressao, ctx):
-    """Avalia um `if:` com avaliador próprio (nunca `eval`): `github.*`, literais, ==, !=, &&, ||, parênteses.
-    Vazio = verdadeiro; fora do subconjunto levanta ValueError. `||` pesa menos que `&&`, que pesa menos que `==`/`!=`."""
+class PassoDinamico(ValueError):
+    """O `if:` lê `steps.<id>.outputs.*` de um passo que ainda não rodou: só se sabe na hora de rodar o passo."""
+
+
+def avaliar_se(expressao, ctx, saidas_lidas=False):
+    """Avalia um `if:` com avaliador próprio (nunca `eval`): `github.*`, `steps.*`, `needs.*`, `matrix.*`, literais, ==, !=,
+    &&, ||, `!`, parênteses e as funções de status (`FUNCOES_DE_STATUS`); `${{ }}` em volta é tirado.
+    Vazio = verdadeiro; fora do subconjunto levanta ValueError. `||` pesa menos que `&&`, que pesa menos que `==`/`!=`.
+    `steps.*` fora do contexto levanta PassoDinamico; com `saidas_lidas` (os passos anteriores já rodaram), vale ''."""
     expressao = expressao.strip()
+    if expressao.startswith("${{") and expressao.endswith("}}"):
+        expressao = expressao[3:-2].strip()
     if not expressao:
         return True
     tokens, pos = _tokens_se(expressao), [0]
@@ -214,8 +258,18 @@ def avaliar_se(expressao, ctx):
                 raise ValueError(f"condição sem suporte (parêntese aberto): {expressao}")
             tomar()
             return r
+        if tipo == "op" and valor == "!":
+            tomar()
+            return not operando()
+        if tipo == "fn":
+            tomar()
+            return FUNCOES_DE_STATUS[valor]
         if tipo == "ctx":
             tomar()
+            if valor not in ctx and valor.startswith("steps."):
+                if saidas_lidas:
+                    return ""
+                raise PassoDinamico(f"`{valor}` só se sabe ao rodar o passo: {expressao}")
             if valor not in ctx:
                 raise ValueError(f"condição sem suporte (contexto `{valor}` desconhecido): {expressao}")
             return ctx[valor]
@@ -279,7 +333,7 @@ def avisos_do_script(script):
 
 
 def expandir(valor, ctx):
-    return re.sub(r"\$\{\{\s*([\w.]+)\s*\}\}", lambda m: ctx.get(m.group(1), ""), valor)
+    return re.sub(r"\$\{\{\s*([\w.-]+)\s*\}\}", lambda m: str(ctx.get(m.group(1), "")), valor)
 
 
 # --- Resultado, resumo e status (lógica pura, sem rede) ----------------------------------------------------
@@ -358,33 +412,82 @@ def sem_passos_opcionais_ausentes(passos, nome_do_job):
     return restantes
 
 
+ARTEFATO = re.compile(r"actions/(upload|download)-artifact@")
+
+
+def pasta_do_job(tmp, job):
+    return tmp / re.sub(r"\W+", "_", job["id"])
+
+
+def artefato(passo, ctx, tmp_raiz, tmp_job):
+    """Emula o passo de artefato (T3): o upload copia `path` para `tmp_raiz/artefatos/<name>/`; o download copia para
+    `path` os arquivos dos artefatos que casam `pattern`. Devolve "" ou o motivo da falha."""
+    ctx = {**ctx, "runner.temp": str(tmp_job)}
+    loja = tmp_raiz / "artefatos"
+    tipo = ARTEFATO.match(passo.get("uses", "")).group(1)
+    if tipo == "upload":
+        origem, nome = Path(expandir(passo["com"].get("path", ""), ctx)), expandir(passo["com"].get("name", ""), ctx)
+        if not nome or not origem.is_file():
+            return f"artefato '{nome}' sem arquivo em {origem}"
+        (loja / nome).mkdir(parents=True, exist_ok=True)
+        shutil.copy(origem, loja / nome / origem.name)
+        return ""
+    destino, padrao = Path(expandir(passo["com"].get("path", ""), ctx)), passo["com"].get("pattern", "")
+    destino.mkdir(parents=True, exist_ok=True)
+    for pasta in sorted(loja.iterdir()) if loja.is_dir() else []:
+        if fnmatch.fnmatchcase(pasta.name, padrao):
+            for arquivo in pasta.iterdir():
+                shutil.copy(arquivo, destino / arquivo.name)
+    return ""
+
+
+def publicar_artefatos(job, ctx, tmp, tmp_job):
+    """Os uploads da perna que reaproveitou outra, a partir do RUNNER_TEMP de quem rodou; "" ou o motivo da falha."""
+    for passo in job["passos"]:
+        if ARTEFATO.match(passo.get("uses", "")) and passo["uses"].startswith("actions/upload"):
+            motivo = artefato(passo, ctx, tmp, tmp_job)
+            if motivo:
+                return motivo
+    return ""
+
+
 def rodar_job(job, ctx, raiz, base_sha, tmp):
     nome = job["nome"]
     obrigatorio = job["id"] not in NAO_OBRIGATORIOS
     try:
         if not avaliar_se(job["se"], ctx):
             return resultado(nome, PULADO, f"não se aplica a este PR (if: {job['se']})", obrigatorio)
-        passos = [p for p in job["passos"] if p["run"] and not PASSO_DE_PREPARO.search(p["run"])]
-        passos = [p for p in passos if avaliar_se(p["se"], ctx)]
+        passos = [p for p in job["passos"] if (p["run"] and not PASSO_DE_PREPARO.search(p["run"])) or ARTEFATO.match(p.get("uses", ""))]
+        passos = [p for p in passos if talvez_rode(p["se"], ctx)]
     except ValueError as erro:
         print(f"AVISO: job '{nome}' pulado por falta de suporte: {erro}", file=sys.stderr, flush=True)
         return resultado(nome, PULADO, f"sem suporte do ci-local: {erro}", obrigatorio, ausente=True)
     if not passos:
         return resultado(nome, PULADO, "nenhum passo a rodar neste PR", obrigatorio)
-    tmp = tmp / re.sub(r"\W+", "_", job["id"])  # cada job tem seu RUNNER_TEMP, como num runner próprio
+    tmp_raiz, tmp = tmp, pasta_do_job(tmp, job)  # cada job tem seu RUNNER_TEMP, como num runner próprio
     tmp.mkdir(parents=True, exist_ok=True)
     passos = sem_passos_opcionais_ausentes(passos, nome)
     faltam = sorted({f for p in passos for f in ferramentas_ausentes(p["run"])})
     if faltam:
         return resultado(nome, PULADO, f"ferramenta ausente no PATH: {', '.join(faltam)}", obrigatorio, ausente=True)
-    for passo in passos:
+    ctx = dict(ctx)  # as saídas dos passos (`steps.<id>.outputs.<k>`) entram aqui, só neste job
+    for n, passo in enumerate(passos):
+        if not avaliar_se(passo["se"], ctx, saidas_lidas=True):
+            print(f"--- {nome}: {passo['nome'] or 'passo'} (pulado: if: {passo['se']})", flush=True)
+            continue
+        if ARTEFATO.match(passo.get("uses", "")):
+            motivo = artefato(passo, ctx, tmp_raiz, tmp)
+            if motivo:
+                return resultado(nome, FALHOU, f"passo '{passo['nome']}': {motivo}", obrigatorio)
+            continue
+        saida = tmp / f"saida-{n}"
         script = passo["run"].replace("git rev-parse HEAD^1", f"echo {base_sha}").replace("/tmp/", "$RUNNER_TEMP/")
         for aviso in avisos_do_script(script):
             print(f"AVISO: {nome}/{passo['nome'] or 'passo'}: {aviso}", file=sys.stderr, flush=True)
         # Lista branca: o token e o resto do ambiente do usuário não entram; só chega o que o passo declara em `env:`.
         # Isso reduz vazamento acidental; não protege de PR mal-intencionado (ele escreve os `env:` e o gh lê a credencial em disco).
         env = ambiente_minimo(os.environ)
-        env.update({"RUNNER_TEMP": str(tmp), "GITHUB_STEP_SUMMARY": str(tmp / "resumo.md"), "CI": "true"})
+        env.update({"RUNNER_TEMP": str(tmp), "GITHUB_STEP_SUMMARY": str(tmp / "resumo.md"), "GITHUB_OUTPUT": str(saida), "CI": "true"})
         env.update({k: expandir(v, ctx) for k, v in passo["env"].items()})
         print(f"--- {nome}: {passo['nome'] or 'passo'}", flush=True)
         try:
@@ -395,7 +498,87 @@ def rodar_job(job, ctx, raiz, base_sha, tmp):
             return resultado(nome, FALHOU, f"passo '{passo['nome']}' passou de 30 minutos", obrigatorio)
         if p.returncode:
             return resultado(nome, FALHOU, f"passo '{passo['nome']}' saiu com {p.returncode}", obrigatorio)
+        ctx.update(saidas_do_passo(passo, saida))
     return resultado(nome, OK, "", obrigatorio)
+
+
+def talvez_rode(se, ctx):
+    """O `if:` do passo antes de rodar o job: falso só se já se sabe; o que depende de passo anterior talvez rode."""
+    try:
+        return avaliar_se(se, ctx)
+    except PassoDinamico:
+        return True
+
+
+def saidas_do_passo(passo, arquivo):
+    """`steps.<id>.outputs.<k>` das linhas `k=v` que o passo com `id:` escreveu no `$GITHUB_OUTPUT`."""
+    if not passo.get("id") or not arquivo.is_file():
+        return {}
+    pares = (l.split("=", 1) for l in arquivo.read_text(encoding="utf-8").splitlines() if "=" in l)
+    return {f"steps.{passo['id']}.outputs.{k.strip()}": v for k, v in pares}
+
+
+def pernas(job):
+    """[(job, contexto da perna)]: uma por combinação de `strategy.matrix`, com `matrix.<chave>` no nome; sem matriz, uma."""
+    matriz = job.get("matriz") or {}
+    if not matriz:
+        return [(job, {})]
+    chaves = sorted(matriz)
+    saida = []
+    for combinacao in itertools.product(*(matriz[c] for c in chaves)):
+        extra = {f"matrix.{c}": v for c, v in zip(chaves, combinacao)}
+        sufixo = "-".join(re.sub(r"\W+", "_", str(v)) for v in combinacao)  # RUNNER_TEMP próprio por perna
+        saida.append(({**job, "id": f"{job['id']}-{sufixo}", "nome": expandir(job["nome"], extra)}, extra))
+    return saida
+
+
+def assinatura(job, ctx):
+    """O que o job roda de fato: duas pernas com a mesma assinatura dão o mesmo resultado nesta máquina."""
+    return (job["se"], tuple((p["se"], p["run"], p.get("shell", ""), tuple(sorted((k, expandir(v, ctx)) for k, v in p["env"].items())))
+                             for p in job["passos"]))
+
+
+def resultado_dos_needs(lista):
+    """`needs.<id>.result` de um job (todas as pernas): failure se alguma falhou, success se todas ok, senão skipped."""
+    if any(r["estado"] == FALHOU or pulado_obrigatorio(r) for r in lista):
+        return "failure"
+    return "success" if lista and all(r["estado"] == OK for r in lista) else "skipped"
+
+
+def rodar_jobs(jobs, ctx, raiz, base_sha, tmp, rodar=None):
+    """Os jobs de um workflow na ordem do arquivo, cada um depois dos seus `needs`. O agregador (`always()` com `needs`)
+    roda com `needs.<id>.result` dos jobs locais e vira o resumo deles; job sem `always()` com need sem sucesso é pulado,
+    como no GitHub (a falha já conta no need). `needs` sem job correspondente reprova (ausente e obrigatório)."""
+    rodar = rodar or rodar_job
+    resultados, por_id, feitos, pendentes = [], {}, {}, list(jobs)
+    while pendentes:
+        job = next((j for j in pendentes if all(n in por_id for n in j.get("needs") or [])), None)
+        if job is None:
+            for j in pendentes:
+                resultados.append(resultado(j["nome"], PULADO, f"needs sem job neste workflow: {', '.join(j['needs'])}", ausente=True))
+            break
+        pendentes.remove(job)
+        needs = job.get("needs") or []
+        ctx_job = {**ctx, **{f"needs.{n}.result": resultado_dos_needs(por_id[n]) for n in needs}}
+        por_id[job["id"]] = []
+        for perna, extra in pernas(job):
+            ctx_perna = {**ctx_job, **extra}
+            if needs and "always()" not in job["se"] and any(ctx_job[f"needs.{n}.result"] != "success" for n in needs):
+                r = resultado(perna["nome"], PULADO, "need sem sucesso (pulado, como no GitHub)")
+            elif assinatura(perna, ctx_perna) in feitos:
+                primeiro, quem = feitos[assinatura(perna, ctx_perna)]
+                r = {**primeiro, "nome": perna["nome"], "motivo": f"mesmos passos de '{primeiro['nome']}': resultado reaproveitado"}
+                motivo = publicar_artefatos(perna, ctx_perna, tmp, pasta_do_job(tmp, quem)) if r["estado"] == OK else ""
+                if motivo:
+                    r = resultado(perna["nome"], FALHOU, motivo)
+            else:
+                r = rodar(perna, ctx_perna, raiz, base_sha, tmp)
+                feitos[assinatura(perna, ctx_perna)] = (r, perna)
+                if needs and r["estado"] == OK:
+                    r = {**r, "motivo": "resumo de " + ", ".join(f"{n}: {ctx_job[f'needs.{n}.result']}" for n in needs)}
+            por_id[job["id"]].append(r)
+            resultados.append(r)
+    return resultados
 
 
 def gh_json(*args):
@@ -461,8 +644,7 @@ def main(argv=None):
                 continue
             for aviso in avisos_do_workflow(arquivo, texto):
                 print(f"AVISO: {aviso}", file=sys.stderr, flush=True)
-            for job in ler_jobs(texto):
-                resultados.append(rodar_job(job, ctx, raiz, base, tmp))
+            resultados += rodar_jobs(ler_jobs(texto), ctx, raiz, base, tmp)
     finally:
         signal.signal(signal.SIGINT, signal.SIG_IGN)  # um segundo sinal não interrompe a limpeza
         signal.signal(signal.SIGTERM, signal.SIG_IGN)

@@ -1,0 +1,136 @@
+{
+  "pedido": "v0440-decisoes",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "U1",
+      "guarda": "D1: sandbox ligado só com enabled true",
+      "arquivo": "bin/forge-upgrade",
+      "de": "caixa.get(\"enabled\") is True:",
+      "para": "caixa.get(\"enabled\") is not True:",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_sandbox_desligado_so_e_oferecido"
+      ]
+    },
+    {
+      "id": "U2",
+      "guarda": "D1: o upgrade só oferece com o sandbox desligado",
+      "arquivo": "bin/forge-upgrade",
+      "de": "    if not sandbox_ligado(projeto):",
+      "para": "    if sandbox_ligado(projeto):",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_sandbox_desligado_so_e_oferecido"
+      ]
+    },
+    {
+      "id": "U3",
+      "guarda": "D1: --ligar-sandbox não segue link",
+      "arquivo": "bin/forge-upgrade",
+      "de": "    if alvo.is_symlink():",
+      "para": "    if not alvo.is_symlink():",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_recusa_link_e_json_que_nao_e_objeto"
+      ]
+    },
+    {
+      "id": "U4",
+      "guarda": "D1: o settings existente é lido, não trocado",
+      "arquivo": "bin/forge-upgrade",
+      "de": "read_text(encoding=\"utf-8\")) if alvo.exists() else {}",
+      "para": "read_text(encoding=\"utf-8\")) if not alvo.exists() else {}",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_sandbox_desligado_so_e_oferecido"
+      ]
+    },
+    {
+      "id": "U5",
+      "guarda": "D1: settings que não é objeto JSON é recusado",
+      "arquivo": "bin/forge-upgrade",
+      "de": "    if not isinstance(dados, dict):",
+      "para": "    if isinstance(dados, dict):",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_recusa_link_e_json_que_nao_e_objeto"
+      ]
+    },
+    {
+      "id": "U6",
+      "guarda": "D1: as chaves do sandbox que o projeto já tinha ficam",
+      "arquivo": "bin/forge-upgrade",
+      "de": "if isinstance(dados.get(\"sandbox\"), dict) else {}",
+      "para": "if not isinstance(dados.get(\"sandbox\"), dict) else {}",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_sandbox_desligado_so_e_oferecido"
+      ]
+    },
+    {
+      "id": "U7",
+      "guarda": "D1: --ligar-sandbox só grava o bloco",
+      "arquivo": "bin/forge-upgrade",
+      "de": "    if a.ligar_sandbox:",
+      "para": "    if not a.ligar_sandbox:",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_sandbox_desligado_so_e_oferecido"
+      ]
+    },
+    {
+      "id": "F1",
+      "guarda": "D7: no Forge, ~/.forge-contrib antes da branch",
+      "arquivo": "bin/forge-check",
+      "de": "    if e_o_forge(principal):",
+      "para": "    if not e_o_forge(principal):",
+      "testes": [
+        "tests.test_pedido_fora.RaizDoRegistroNoForge"
+      ]
+    },
+    {
+      "id": "F2",
+      "guarda": "D3: brief sem pedido legível não avisa",
+      "arquivo": "bin/forge-check",
+      "de": "    if motivo:\n        return []\n    return corrigir_derivados",
+      "para": "    if not motivo:\n        return []\n    return corrigir_derivados",
+      "testes": [
+        "tests.test_selo_e_entrega.Hook.test_brief_vencido_so_avisa"
+      ]
+    },
+    {
+      "id": "F3",
+      "guarda": "D4: --so-leitura não roda PQ cmd",
+      "arquivo": "bin/forge-check",
+      "de": "            if so_leitura:\n                saida.append",
+      "para": "            if not so_leitura:\n                saida.append",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_so_leitura_nao_roda_prova_cmd_nem_grava"
+      ]
+    },
+    {
+      "id": "F4",
+      "guarda": "D4: a saída diz --so-leitura",
+      "arquivo": "bin/forge-check",
+      "de": "{'--so-leitura' if so_leitura else '--sem-gravar'}",
+      "para": "{'--so-leitura' if not so_leitura else '--sem-gravar'}",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_so_leitura_nao_roda_prova_cmd_nem_grava"
+      ]
+    },
+    {
+      "id": "F5",
+      "guarda": "D4: --so-leitura só com entrega --pedido",
+      "arquivo": "bin/forge-check",
+      "de": "if a.worktree is not None or a.sem_gravar or a.so_leitura:",
+      "para": "if a.worktree is not None or a.sem_gravar:",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_so_leitura_nao_roda_prova_cmd_nem_grava"
+      ]
+    },
+    {
+      "id": "F6",
+      "guarda": "D4: --so-leitura não grava",
+      "arquivo": "bin/forge-check",
+      "de": "not (a.sem_gravar or a.so_leitura), a.so_leitura)",
+      "para": "not a.sem_gravar, a.so_leitura)",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_so_leitura_nao_roda_prova_cmd_nem_grava"
+      ]
+    }
+  ]
+}

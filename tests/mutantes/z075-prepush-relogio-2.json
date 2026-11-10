@@ -1,0 +1,46 @@
+{
+  "pedido": "z075-prepush-relogio",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M7",
+      "guarda": "PP-1, A1 do QA g1: o envio dirigido sai como dirigida na linha fim e em .duracoes",
+      "arquivo": ".githooks/pre-push",
+      "de": "elif [ \"$completa\" = 1 ]; then modo=completa;",
+      "para": "elif true; then modo=completa;",
+      "testes": [
+        "tests.test_pre_push_trava.PrePushTrava.test_envio_dirigido_imprime_fim_e_grava_dirigida"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "PP-1, A2 do QA g1: a linha entrou vai ao stderr",
+      "arquivo": ".githooks/pre-push",
+      "de": "  echo \"pre-push: entrou $(date +%H:%M:%S)\" >&2\n",
+      "para": "",
+      "testes": [
+        "tests.test_pre_push_trava.PrePushTrava.test_relogio_imprime_entrou_vez_e_fim_e_grava_a_duracao_depois_da_suite"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "PP-1, A2 do QA g1: a linha vez vai ao stderr",
+      "arquivo": ".githooks/pre-push",
+      "de": "  echo \"pre-push: vez $(date +%H:%M:%S)\" >&2\n",
+      "para": "",
+      "testes": [
+        "tests.test_pre_push_trava.PrePushTrava.test_relogio_imprime_entrou_vez_e_fim_e_grava_a_duracao_depois_da_suite"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "PP-1, A2 do QA g1: .duracoes guarda as últimas 50 linhas",
+      "arquivo": ".githooks/pre-push",
+      "de": "tail -n 49 -- \"$arq\"",
+      "para": "tail -n 48 -- \"$arq\"",
+      "testes": [
+        "tests.test_pre_push_trava.PrePushTrava.test_duracoes_guarda_as_ultimas_50_linhas"
+      ]
+    }
+  ]
+}

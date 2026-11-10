@@ -1,0 +1,96 @@
+{
+  "pedido": "v0441-o7-causa",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "O7: o local e o ultimo quadro em tests/",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    if locais:\n        causa[\"local\"]",
+      "para": "    if len(locais) > 1:\n        causa[\"local\"]",
+      "testes": [
+        "tests.test_suite_paralela.CausaTipada.test_esperado_obtido_e_local_redigidos"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "O7: TimeoutExpired vira timeout",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    if \"TimeoutExpired\" in traceback_ or \"timed out\" in traceback_:",
+      "para": "    if \"TimeoutExpired\" in traceback_ and \"nunca\" in traceback_:",
+      "testes": [
+        "tests.test_suite_paralela.CausaTipada.test_tipos"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "O7: traceback acima do teto vira saida-grande",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    elif len(traceback_) > TETO_DA_SAIDA:",
+      "para": "    elif len(traceback_) > TETO_DA_SAIDA * 10:",
+      "testes": [
+        "tests.test_suite_paralela.CausaTipada.test_tipos"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "O7: AssertionError vira assercao, o resto erro",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    elif \"AssertionError\" in traceback_:",
+      "para": "    elif \"Error\" in traceback_:",
+      "testes": [
+        "tests.test_suite_paralela.CausaTipada.test_tipos"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "O7: teste de nome de tempo vira teste-de-tempo",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "\"teste-de-tempo\" if TESTE_DE_TEMPO.search(ident) else",
+      "para": "\"teste-de-tempo\" if not TESTE_DE_TEMPO.search(ident) else",
+      "testes": [
+        "tests.test_suite_paralela.CausaTipada.test_tipos"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "O7: esperado e obtido so do X != Y",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    if comparacao:\n        causa[\"obtido\"]",
+      "para": "    if comparacao and \"!=\" not in traceback_:\n        causa[\"obtido\"]",
+      "testes": [
+        "tests.test_suite_paralela.CausaTipada.test_esperado_obtido_e_local_redigidos"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "O7: processo morto por sinal vira causa sinal",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "for i, p in enumerate(filhos, 1) if p.returncode < 0]",
+      "para": "for i, p in enumerate(filhos, 1) if p.returncode < -100]",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_processo_morto_sai_com_a_causa_sinal"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "O7: as causas dos relatorios entram na suite",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "[c for rel in relatorios if rel for c in rel.get(\"causas\", ())]",
+      "para": "[c for rel in relatorios if not rel for c in rel.get(\"causas\", ())]",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_causa_tipada_da_assercao_na_saida_e_no_registro"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "O7: a linha da causa traz o tipo uma vez e o id",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "for k, v in causa.items() if k != \"tipo\")",
+      "para": "for k, v in causa.items() if k != \"id\")",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_causa_tipada_da_assercao_na_saida_e_no_registro"
+      ]
+    }
+  ]
+}

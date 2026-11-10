@@ -152,7 +152,7 @@ class DesdeNaBranchNova(Cenario):
                 self.assertEqual(self.desde(historico), [f"Desde: {esperado}"])
 
 
-class UniaoDeEntregas(Cenario):  # E3 (P3); o um brief só de hoje (f) segue em MensagemPelaEtapaDoBrief
+class UniaoDeEntregas(Cenario):  # UM-BRIEF: a união saiu; o um brief só de hoje (f) segue em MensagemPelaEtapaDoBrief
     def setUp(self):
         super().setUp()
         self.gravar("docs/pedidos/pedido-sintetico.md", self.PEDIDO_CITANDO + "\n## Histórico\n")
@@ -177,37 +177,11 @@ class UniaoDeEntregas(Cenario):  # E3 (P3); o um brief só de hoje (f) segue em 
         self.assertIn(trecho, saida)
         self.assertNotIn("modo: entrega", saida)  # C-1: nada sai antes de todas as recusas
 
-    def test_codigo_com_parecer_e_recusado_sem_bloco(self):  # (a)
-        self.recusada("união de código e parecer", self.briefs["tech-lead"], self.briefs["dev-exemplo"])
-        self.recusada("união de código e parecer", self.briefs["dev-exemplo"], self.briefs["qa-engineer"])
-
-    def test_review_e_qa_do_mesmo_head_saem_dois_blocos_na_ordem(self):  # (b)
-        rc, saida = self.uniao(self.briefs["qa-engineer"], self.briefs["tech-lead"])
-        self.assertEqual(rc, 0, saida)
-        self.assertEqual(saida.count("modo: entrega"), 2)
-        self.assertEqual([lin for lin in saida.splitlines() if lin.startswith("Agente conferido:")], ["Agente conferido: forge:qa-engineer", "Agente conferido: forge:tech-lead"])  # C-4
-
-    def test_head_diferente_e_recusado(self):  # (c)
-        outro = self.brief_de("qa-engineer", "qa", sha="d" * 40, n=2)
-        self.recusada("Base-sha difere entre", self.briefs["tech-lead"], outro)
-        self.gravar(outro, (self.tmp / self.briefs["qa-engineer"]).read_text().replace("Base: develop", "Base: origin/develop"))
-        self.recusada("Base difere entre", self.briefs["tech-lead"], outro)
-
-    def test_tipo_fora_da_lista_branca_e_recusado(self):  # (d)
-        for tipo in (None, "merge"):
-            with self.subTest(tipo=tipo):
-                fora = self.brief_de("dev-exemplo", tipo, n=3)
-                self.recusada(f"união recusada: {tipo or 'desconhecido'} não é parecer", self.briefs["tech-lead"], fora)
-
-    def test_sem_entrega_repetido_outro_pedido_destino_e_teto_recusam(self):  # (e) e C-4 a C-7
+    def test_varios_arquivos_sao_recusados_sem_bloco(self):  # UM-BRIEF (versao-075 UN-1): o caso que a união aceitava
         tl, qa = self.briefs["tech-lead"], self.briefs["qa-engineer"]
-        self.recusada("vários --arquivo só com --entrega", tl, qa, extra=())
-        self.recusada("brief repetido", tl, f"docs/briefs/./{ID}-tech-lead-1.md")
-        alheio = "docs/briefs/outro-tech-lead-1.md"
-        self.gravar(alheio, (self.tmp / tl).read_text())
-        self.recusada("não é do pedido", qa, alheio)
-        self.recusada("sem --destino nem --etapa", qa, tl, extra=("--destino", "forge:qa-engineer", "--entrega", "--worktree"))
-        self.recusada("até 6 briefs", *[self.brief_de("qa-engineer", "qa", n=i) for i in range(1, 8)])
+        for extra in (("--entrega", "--worktree"), ()):
+            with self.subTest(extra=extra):
+                self.recusada("um brief por mensagem", tl, qa, extra=extra)
 
     def test_pq_de_parecer_em_head_avisa_sem_mudar_o_rc(self):  # (g), C-9 e C-10
         pq, rcs = "`grep -c recurso docs/pedidos/pedido-sintetico.md`", set()

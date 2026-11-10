@@ -1,0 +1,26 @@
+{
+  "descricao": "FILA-22 (review da 0.43.2): abrir PR pelo `gh api` segue a política `pr_criar`; na sessão do Forge também.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    "docs/pedidos/p1.md": "# Pedido p1\n\n## Histórico\n- 2026-10-30: aberto\n- 2026-11-09 10:00: brief selado docs/briefs/p1-dev-1.md aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api repos/o/r/pulls -f title=x -f head=melhoria/x -f base=develop"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/proj"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "gh api que abre PR é de tech-lead (papel: jarvis)"
+  }
+}

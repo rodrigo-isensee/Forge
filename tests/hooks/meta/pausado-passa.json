@@ -1,0 +1,24 @@
+{
+  "descricao": "S4: objetivo pausado não bloqueia o Stop.",
+  "estado": {
+    "meta.json": {
+      "pedido": "p1",
+      "checagens": [
+        [
+          "false"
+        ]
+      ],
+      "repeticoes": 0,
+      "armado": true,
+      "pausado": true
+    }
+  },
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "stop_hook_active": false
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

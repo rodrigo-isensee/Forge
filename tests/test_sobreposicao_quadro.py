@@ -1,6 +1,7 @@
 """`forge-check sobreposicao` (TA-6) e `forge-check movimento` (PA-9), mais a fila de integração (PA-3) como texto;
 `forge-check fila` (P9: o que pode começar agora, T1 a T8)."""
 import datetime
+import fcntl
 import json
 import os
 import re
@@ -10,7 +11,9 @@ import sys
 import tempfile
 import time
 import unittest
+from importlib.machinery import SourceFileLoader
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
@@ -102,15 +105,26 @@ class Sobreposicao(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertIn("melhoria/a <-> melhoria/b: comum.txt", saida)
 
-    def test_base_inexistente_nao_falha(self):
-        git(self.repo, "branch", "-m", "outra")
-        rc, saida = checar(self.repo, "sobreposicao", "--base", "nao-existe-xyz")
+    def test_base_dada_inexistente_falha_fechada(self):
+        """BUG-B1: a `--base` dada que não existe reprova e diz qual é; antes ela caía em silêncio na develop (pares de outra base)."""
+        for renomeia in (False, True):
+            with self.subTest(sem_develop=renomeia):
+                if renomeia:
+                    git(self.repo, "branch", "-m", "develop", "outra")
+                rc, saida = checar(self.repo, "sobreposicao", "--base", "nao-existe-xyz")
+                self.assertEqual(rc, 1, saida)
+                self.assertIn('sobreposicao: erro: a base "nao-existe-xyz" não existe', saida)
+                self.assertNotIn("par(es)", saida)
+
+    def test_sem_base_e_sem_nenhuma_das_bases_so_avisa(self):
+        git(self.repo, "branch", "-m", "develop", "outra")
+        rc, saida = checar(self.repo, "sobreposicao")
         self.assertEqual(rc, 0)
         self.assertIn("base não encontrada", saida)
 
 
-class TravaDeRelease(unittest.TestCase):
-    """DV-5: com release em curso, `sobreposicao --ref` barra a branch que não é a da release."""
+class SemCongelamentoNaRelease(unittest.TestCase):
+    """R-FLUXO (0.43.1): sem congelamento da develop; com release em curso, `sobreposicao --ref` só avisa (rc 0)."""
 
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -134,21 +148,18 @@ class TravaDeRelease(unittest.TestCase):
         self.versao("homolog", '{"version": "%s"}' % hom)
         self.versao("develop", '{"version": "%s"}' % dev)
 
-    def test_release_em_curso_e_branch_de_fora_barra(self):
+    def test_release_em_curso_so_avisa_e_nao_barra(self):
         self.par("0.24.0", "0.23.0")
         rc, saida = checar(self.repo, "sobreposicao", "--ref", "melhoria/outra")
-        self.assertEqual(rc, 1)
+        self.assertEqual(rc, 0)
         self.assertIn("release 0.24.0 em curso", saida)
-        self.assertIn("espere a promoção", saida)
+        self.assertIn("melhoria/outra entra na develop assim mesmo: sem congelamento (R-FLUXO)", saida)
+        self.assertNotIn("espere a promoção", saida)
 
-    def test_branch_da_release_passa(self):
+    def test_branch_da_release_e_de_outra_versao_passam(self):
         self.par("0.24.0", "0.23.0")
-        for ref in ("melhoria/release-0.24.0", "origin/melhoria/release-0.24.0"):
+        for ref in ("melhoria/release-0.24.0", "origin/melhoria/release-0.24.0", "melhoria/release-0.23.0"):
             self.assertEqual(checar(self.repo, "sobreposicao", "--ref", ref)[0], 0)
-
-    def test_release_de_outra_versao_nao_passa(self):
-        self.par("0.24.0", "0.23.0")
-        self.assertEqual(checar(self.repo, "sobreposicao", "--ref", "melhoria/release-0.23.0")[0], 1)
 
     def test_sem_release_em_curso_nada_muda(self):
         for dev, hom in (("0.23.0", "0.23.0"), ("0.22.0", "0.23.0")):
@@ -301,12 +312,62 @@ class Movimento(unittest.TestCase):
         self.assertFalse(self.arq.exists())
 
 
+class MovimentoGeraQuadro(unittest.TestCase):  # EST-M12, E3-2a: o `movimento` grava a marca de atributos (C-7, C-8)
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.raiz = Path(self._tmp.name)
+        (self.raiz / "KANBAN.md").write_text("# Q\n\n## Entrada\n\n## Em andamento (WIP 1 por agente)\n\n## Aguardando o dono\n\n## Pronto\n", encoding="utf-8")
+        self.arq = self.raiz / "docs" / "kanban" / "historico.md"
+
+    def mover(self, *args):
+        rc, saida = checar(self.raiz, "movimento", "K-1", *args)
+        return rc, saida, self.arq.read_text(encoding="utf-8").splitlines()[-1] if self.arq.exists() else ""
+
+    def test_atributos_vao_na_marca_sempre_por_ultimo(self):  # legítimos 1 e 5; a marca depois do custo
+        rc, _, linha = self.mover("--de", "—", "--para", "Entrada", "--titulo", "Fazer  X", "--pedido", "versao-043", "--responsavel", "forge:dev")
+        self.assertEqual(rc, 0)
+        self.assertTrue(linha.endswith("| — · atributos: titulo=Fazer X; pedido=versao-043; responsavel=forge:dev |"), linha)
+        rc, _, linha = self.mover("--de", "Entrada", "--para", "Aguardando o dono", "--motivo", "ajustei o atributo do teste", "--responsavel", "usuário")
+        self.assertEqual(rc, 0)
+        self.assertTrue(linha.endswith("| ajustei o atributo do teste · custo do trecho: lacuna · atributos: responsavel=usuário |"), linha)
+
+    def test_titulo_com_texto_de_custo_nao_fabrica_custo(self):
+        self.assertEqual(self.mover("--de", "Entrada", "--para", "Aguardando o dono", "--titulo", "custo do trecho: 99 tokens")[0], 0)
+        self.assertTrue(self.mover("--de", "Aguardando o dono", "--para", "Pronto")[2].endswith("| custo total: lacuna |"))
+
+    def test_marca_no_motivo_recusa_em_qualquer_forma(self):  # caso de abuso 5
+        for motivo in ("Atributos: responsavel=forge:x", "x atributos : y", "atributos\u200b: y", "atributos\uff1a y"):
+            rc, saida, _ = self.mover("--de", "—", "--para", "Entrada", "--motivo", motivo)
+            self.assertEqual((rc, "nada gravado" in saida), (1, True), motivo)
+        self.assertFalse(self.arq.exists())
+
+    def test_valor_fora_da_forma_ou_acima_do_teto_recusa(self):  # caso de abuso 7 e os tetos do C-8
+        for args in (("--responsavel", "forge:x; pedido=y"), ("--responsavel", "fulano"), ("--pedido", "../../segredo"), ("--pedido", "p/../segredo"), ("--titulo", "a; b"), ("--titulo", "a=b"),
+                     ("--titulo", "a\u200bb"), ("--titulo", "a\x07b"), ("--titulo", "a · b"), ("--titulo", "a|b"), ("--titulo", " "), ("--titulo", "t" * 121), ("--motivo", "m" * 501)):
+            rc, saida, _ = self.mover("--de", "—", "--para", "Entrada", *args)
+            self.assertEqual((rc, "nada gravado" in saida), (1, True), args)
+        self.assertFalse(self.arq.exists())
+        self.assertEqual(self.mover("--de", "—", "--para", "Entrada", "--titulo", "t" * 120, "--motivo", "m" * 500)[0], 0)
+
+    def test_voltas_e_esperas_iguais_com_e_sem_a_marca(self):  # legítimo 2
+        movimentos = (("Entrada", "Em andamento"), ("Em andamento", "Aguardando o dono"), ("Aguardando o dono", "Em andamento"), ("Em andamento", "Pronto"))
+        saidas = []
+        for marca in ("", " · atributos: titulo=T; pedido=p-1; responsavel=forge:dev"):
+            self.arq.parent.mkdir(parents=True, exist_ok=True)
+            self.arq.write_text("| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n" + "".join(
+                f"| 2026-11-0{i + 1}T10:00:00+00:00 | K-1 | {de} | {para} | m{marca} |\n" for i, (de, para) in enumerate(movimentos)), encoding="utf-8")
+            saidas.append([checar(self.raiz, cmd) for cmd in ("voltas", "esperas")])
+        self.assertIn("esperas: K-1 dono", saidas[0][1][1])
+        self.assertEqual(saidas[0], saidas[1])
+
+
 class RegrasEmTexto(unittest.TestCase):
     def texto(self, rel):
         return (RAIZ / rel).read_text(encoding="utf-8")
 
     def test_fila_de_integracao_na_regra_e_no_tech_lead(self):
-        for rel, trechos in (("docs/regras/R-FLUXO.md", ("um por vez", "ordem de chegada", "forge-check sobreposicao")),
+        for rel, trechos in (("docs/regras/R-FLUXO.md", ("os outros não esperam", "ordem de chegada", "forge-check sobreposicao")),
                              ("agents/tech-lead.md", ("Fila de integração", "ordem de chegada", "forge-check sobreposicao"))):
             for trecho in trechos:
                 self.assertIn(trecho, self.texto(rel), rel)
@@ -334,10 +395,10 @@ class Fila(unittest.TestCase):
         self.proc = self.tmp / "proc-falso"  # a carga da máquina real não pode mudar o resultado
         self.carga(0.1)
 
-    def carga(self, load, nucleos=8):
+    def carga(self, load, nucleos=8, disponivel_kb=12582912):
         self.proc.mkdir(exist_ok=True)
         (self.proc / "loadavg").write_text(f"{load} 0.1 0.1 1/100 1\n", encoding="utf-8")
-        (self.proc / "meminfo").write_text("MemTotal: 16777216 kB\nMemAvailable: 12582912 kB\n", encoding="utf-8")
+        (self.proc / "meminfo").write_text(f"MemTotal: 16777216 kB\nMemAvailable: {disponivel_kb} kB\n", encoding="utf-8")
         self.nucleos = nucleos
 
     def gravar(self, rel, texto):
@@ -406,15 +467,25 @@ class Fila(unittest.TestCase):
         self.assertEqual(linhas[:3], ["pode-comecar: C1 (p1)", "pode-comecar: C2 (p2)", "espera: C3 (p3) | teto"])
         self.assertEqual(linhas[-1], "fila: 2 podem começar, 2 vagas de 3 (1 ativos), 1 esperam")
 
-    def test_t5_carga_alta_zera_as_vagas(self):
+    def test_t5_memoria_abaixo_do_piso_zera_as_vagas(self):
+        """R-TETO-DISPONIBILIDADE: só a memória disponível (piso de 2 GB) zera as vagas; o load alto não."""
+        self.quadro(pronto_para_fazer=[("C1", "p1")])
+        self.pedido("p1", "nenhum")
+        self.teto(3)
+        self.carga(0.1, nucleos=4, disponivel_kb=1024 * 1024)
+        rc, linhas = self.rodar()
+        self.assertEqual(rc, 0)
+        self.assertEqual(linhas[0], "espera: C1 (p1) | teto")
+        self.assertEqual(linhas[-1], "fila: 0 podem começar, 0 vagas de 3 (0 ativos), 1 esperam")
+
+    def test_t5b_load_alto_nao_zera_as_vagas(self):
         self.quadro(pronto_para_fazer=[("C1", "p1")])
         self.pedido("p1", "nenhum")
         self.teto(3)
         self.carga(50.0, nucleos=4)
         rc, linhas = self.rodar()
         self.assertEqual(rc, 0)
-        self.assertEqual(linhas[0], "espera: C1 (p1) | teto")
-        self.assertEqual(linhas[-1], "fila: 0 podem começar, 0 vagas de 3 (0 ativos), 1 esperam")
+        self.assertEqual(linhas[0], "pode-comecar: C1 (p1)")
 
     def test_t6_sobreposicao_avisa_sem_bloquear(self):
         git(self.tmp, "init", "-q", "-b", "develop")
@@ -517,6 +588,162 @@ class Fila(unittest.TestCase):
         r = subprocess.run([sys.executable, str(FERRAMENTA), "fila", "--help"], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0)
 
+
+def secao(titulo, *cartoes):
+    return f"## {titulo}\n| {' | '.join(fc.COLUNAS)} |\n|---|---|---|---|---|---|---|\n" + "".join(f"| {c} |\n" for c in cartoes)
+
+
+fc = SourceFileLoader("forge_check_quadro", str(FERRAMENTA)).load_module()
+NOTA = "# Quadro\n\n> nota do agile-coach: fica byte a byte\n\n"
+QUADRO = NOTA + secao("Em andamento (WIP 1 por agente)", "K-1 | Da ponte | p-1 | forge:dev | 2026-09-01 | x | y",
+                      "K-9 | Sem movimento | p-1 | forge:qa | 2026-09-01 | x | y", "K-3 | Ponte ruim | p-1 | forge:X Y | 2026-09-01 | x | y") + \
+    "\ntexto entre tabelas | com barra\n\n" + secao("Code review (WIP 2)") + "\n" + secao("Pronto") + "\n" + secao("Bloqueado")
+AGORA = datetime.datetime(2026, 11, 7, 12, 0, tzinfo=datetime.timezone.utc)
+
+
+def mov(dias, cartao, para, motivo="—"):
+    return [(AGORA - datetime.timedelta(days=dias)).isoformat(timespec="seconds"), cartao, "—", para, motivo]
+
+
+class QuadroGerado(unittest.TestCase):
+    """EST-M12, E3-1a: `montar_quadro` pura (C-3 a C-6; casos de abuso 6, 13 e 14; legítimo 7 do modelo de ameaças)."""
+    def montar(self, *movimentos, quadro=QUADRO):
+        texto, por_secao, avisos = fc.montar_quadro(quadro, [["Data/hora", "Cartão", "De", "Para", "Motivo"], ["---"] * 5, *movimentos], AGORA)
+        return texto, {c[0]: (s, *c[1:]) for s, cs in por_secao.items() for c in cs}, avisos
+
+    def test_coluna_e_a_do_ultimo_movimento_na_ordem_do_arquivo_nunca_por_hora(self):
+        _, q, avisos = self.montar(mov(10, "k-1", "Code review"), mov(-400, "K-1", "Pronto"), mov(5, "K-1", "Em andamento", "voltou"),
+                                   ["ontem", "K-1", "—", "Pronto", "x"], mov(31, "P-1", "Pronto"), mov(29, "P-2", "Pronto"))
+        self.assertEqual(q.get("K-1"), ("Em andamento", "Da ponte", "p-1", "forge:dev", mov(10, "", "")[0][:10], mov(5, "", "")[0], "voltou"))
+        self.assertEqual([q.get("P-1"), q.get("P-2", "")[0]], [None, "Pronto"])  # a janela do Pronto: 31 dias sai, 29 fica
+        self.assertIn("linha do histórico fora da forma, ignorada: ontem", avisos)
+
+    def test_marca_do_fim_vence_a_ponte_e_marca_fora_da_forma_e_ignorada_inteira(self):
+        _, q, avisos = self.montar(mov(3, "K-1", "Em andamento", "a · atributos: titulo=Novo; pedido=p-2; responsavel=forge:qa"),
+                                   mov(2, "K-1", "Em andamento", "b · atributos: responsavel=forge:X"),
+                                   mov(1, "K-1", "Em andamento", "c · atributos: responsavel=forge:y · atributos: pedido=p-3"))
+        self.assertEqual(q.get("K-1")[1:4] + q.get("K-1")[6:], ("Novo", "p-3", "forge:qa", "c · atributos: responsavel=forge:y"))
+        self.assertIn("cartão K-1: marca de atributos fora da forma, ignorada", avisos)
+        for ruim in ("responsavel=forge:a; responsavel=forge:b", "dono=forge:a", "pedido=../x", "responsavel=forge:X", "titulo=a\u200bb", "titulo=", "titulo=a=b"):
+            self.assertEqual(fc.ler_marca("m · atributos: " + ruim), ("m", None, "marca de atributos fora da forma, ignorada"), ruim)
+
+    def test_ponte_fora_de_id_resp_vira_travessao_e_cartao_sem_movimento_fica(self):
+        _, q, avisos = self.montar(mov(1, "K-3", "Em andamento"))
+        self.assertEqual([q.get("K-3", "")[3:4], q.get("K-9", "")[1:2], q.get("K-1", "")[3:4]], [("—",), ("Sem movimento",), ("forge:dev",)])
+        self.assertEqual(avisos, ["cartão K-3: responsável da linha do quadro fora da forma; vira —", "cartão K-1 sem movimento no histórico; fica onde está",
+                                  "cartão K-9 sem movimento no histórico; fica onde está", "cartão K-3 sem responsável válido"])
+
+    def test_estado_sem_secao_aparece_com_estado_e_aviso(self):
+        _, q, avisos = self.montar(mov(1, "R-1", "Review", "rv"), mov(1, "R-2", "Integração"), mov(90, "R-3", "Feito"), mov(1, "R-4", "Outro"))
+        self.assertEqual({i: (q[i][0], q[i][6]) for i in q if i.startswith("R-")}, {"R-1": ("Code review", "estado: Review · rv"),
+                         "R-2": ("Code review", "estado: Integração · —"), "R-3": ("Pronto", "estado: Feito · —"), "R-4": ("Bloqueado", "estado: Outro · —")})
+        self.assertIn('cartão R-1: estado "Review" sem seção no quadro; posto em Code review', avisos)
+        self.assertIsNone(self.montar(mov(1, "R-4", "Outro"), quadro=NOTA + secao("Pronto"))[0])
+
+    def test_texto_fora_das_tabelas_igual_quadro_passa_no_kanban_e_regerar_da_o_mesmo(self):
+        historico = [mov(2, "K-1", "Code review"), mov(1, "N-1", "Pronto", "ok · atributos: titulo=T; pedido=p; responsavel=forge:dev")]
+        legitimo = QUADRO.replace("| K-3 | Ponte ruim | p-1 | forge:X Y | 2026-09-01 | x | y |\n", "")
+        texto, _, _ = self.montar(*historico, quadro=legitimo)
+        fora = lambda t: [l for l in t.split("\n") if not l.startswith("|")]  # noqa: E731
+        self.assertEqual(fora(texto), fora(QUADRO))
+        self.assertEqual(self.montar(*historico, quadro=texto)[0], texto)
+        self.assertIn("| N-1 | T | p | forge:dev |", texto)
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "KANBAN.md").write_text(texto, encoding="utf-8")
+            self.assertEqual(fc.cmd_kanban(Path(tmp)), [])
+
+    def test_motivo_em_duas_celulas_nao_duplica_o_cartao_ao_regerar(self):  # A1 do review g2: as células a mais se juntam com /
+        historico = [[*mov(1, "A-1", "Code review", "a"), "b · atributos: titulo=T; pedido=p; responsavel=forge:dev"]]
+        texto = self.montar(*historico, quadro=QUADRO.replace("| K-3 | Ponte ruim | p-1 | forge:X Y | 2026-09-01 | x | y |\n", ""))[0]
+        self.assertEqual([l.count("|") for l in texto.split("\n") if l.startswith("| A-1 | T | p | forge:dev |")], [8])  # uma vez, 7 colunas
+        self.assertEqual(self.montar(*historico, quadro=texto)[0], texto)
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "KANBAN.md").write_text(texto, encoding="utf-8")
+            self.assertEqual(fc.cmd_kanban(Path(tmp)), [])
+
+    def test_quadro_por_coluna_corta_a_secao_como_colunas_do_quadro(self):  # C-6: a mesma função para os dois
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "KANBAN.md").write_text(secao("Pronto (develop)") + secao("Em andamento (WIP 3)"), encoding="utf-8")
+            self.assertEqual([*fc.quadro_por_coluna(Path(tmp))], fc.colunas_do_quadro(Path(tmp))[:2])
+
+    def test_proximo_ve_o_pedido_parado_em_secao_com_nota(self):  # C-6 no leitor: sem o corte, a coluna não casa ESPERAS_DO_PROXIMO
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "KANBAN.md").write_text(secao("Aguardando o dono (PA-6: resposta)", "K-1 | C | p-1 | forge:dev | 2026-09-01 | x | y"), encoding="utf-8")
+            self.assertTrue(fc.pedido_em_coluna(Path(tmp), "p-1", fc.ESPERAS_DO_PROXIMO))
+
+    def test_estados_antigos_vao_a_coluna_que_o_quadro_ja_lhes_da(self):  # adendo dos estados antigos; o resto segue em "Bloqueado"
+        quadro = QUADRO + "\n" + secao("Entrada") + "\n" + secao("Pronto para fazer (WIP 5)")
+        _, q, avisos = self.montar(mov(1, "E-1", "a fazer"), mov(1, "E-2", "Backlog"), mov(31, "E-3", "Pronto (develop)"), mov(1, "E-4", "Outro"), quadro=quadro)
+        self.assertEqual({i: q[i][0] for i in q if i[0] == "E"}, {"E-1": "Pronto para fazer", "E-2": "Entrada", "E-3": "Pronto", "E-4": "Bloqueado"})
+        self.assertIn('cartão E-3: estado "Pronto (develop)" sem seção no quadro; posto em Pronto', avisos)
+
+    def test_quadro_gerado_dos_tres_estados_antigos_passa_no_kanban(self):  # C-6: o `--gerar` e o portão leem o mesmo quadro; Pronto para fazer dentro do limite
+        with tempfile.TemporaryDirectory() as tmp:
+            ATR = "x · atributos: titulo=T; pedido=p; responsavel=forge:dev"
+            (Path(tmp) / "docs" / "kanban").mkdir(parents=True)
+            Path(tmp, "KANBAN.md").write_text(NOTA + secao("Entrada") + secao("Pronto para fazer (WIP 5)") + secao("Pronto") + secao("Bloqueado"), encoding="utf-8")
+            Path(tmp, "docs", "kanban", "historico.md").write_text("| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n" + "".join(
+                f"| {' | '.join(m)} |\n" for m in (mov(1, "E-1", "a fazer", ATR), mov(1, "E-2", "Backlog", ATR), mov(1, "E-3", "Pronto (develop)", ATR))), encoding="utf-8")
+            self.assertEqual(fc.cmd_kanban_gerar(Path(tmp))[1], 0)
+            self.assertEqual(fc.cmd_kanban(Path(tmp)), [])
+            self.assertIn("| E-1 |", Path(tmp, "KANBAN.md").read_text(encoding="utf-8").split("## Pronto para fazer")[1].split("## ")[0])
+
+
+SEGREDO = "TOKEN=x\n" + QUADRO
+
+
+class KanbanGerar(unittest.TestCase):
+    """EST-M12, E3-1b: `kanban --gerar` (C-1, C-2, C-10, C-15; casos de abuso 1 a 4 e duas gerações iguais do modelo de ameaças)."""
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.raiz, self.fora = Path(self._tmp.name, "p"), Path(self._tmp.name, "segredo.md")
+        self.kanban, self.hist = self.raiz / "KANBAN.md", self.raiz / "docs" / "kanban" / "historico.md"
+        self.hist.parent.mkdir(parents=True)
+        self.fora.write_text(SEGREDO, encoding="utf-8")
+        self.kanban.write_text(QUADRO.replace("| K-3 | Ponte ruim | p-1 | forge:X Y | 2026-09-01 | x | y |\n", ""), encoding="utf-8")
+        self.hist.write_text("| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n" + "".join(f"| {' | '.join(m)} |\n" for m in (
+            mov(2, "K-1", "Code review"), mov(1, "N-1", "Em andamento", "ok · atributos: titulo=T; pedido=p; responsavel=forge:qa"))), encoding="utf-8")
+
+    def recusa(self, causa):
+        antes = self.kanban.read_bytes()
+        linhas, rc = fc.cmd_kanban_gerar(self.raiz)
+        self.assertEqual((rc, self.kanban.read_bytes(), self.fora.read_text(encoding="utf-8")), (1, antes, SEGREDO), causa)
+        self.assertIn(causa, linhas[-1])
+
+    def test_gera_do_historico_duas_vezes_igual_e_avisa_a_edicao_a_mao(self):  # C-15 e C-6 como aviso; legítimo 6
+        rc, saida = checar(self.raiz, "kanban", "--gerar")  # o `kanban` sobre o quadro novo avisa K-9 e N-1 do mesmo agente sem worktree
+        self.assertEqual((rc, "aviso: quadro editado fora do movimento: K-1, N-1" in saida, "forge:qa com 2 cartões" in saida), (0, True, True), saida)
+        gerado = self.kanban.read_bytes()
+        self.assertIn(b"| K-1 | Da ponte | p-1 | forge:dev |", gerado.split(b"## Code review")[1])
+        linhas, rc = fc.cmd_kanban_gerar(self.raiz)
+        self.assertEqual((rc, self.kanban.read_bytes(), "editado" in "\n".join(linhas)), (0, gerado, False))
+        self.kanban.write_bytes(gerado.replace(b"forge:dev | " + mov(2, "", "")[0][:10].encode(), b"forge:dev | 2000-01-01"))  # o título é da ponte
+        self.assertIn("kanban --gerar: aviso: quadro editado fora do movimento: K-1", fc.cmd_kanban_gerar(self.raiz)[0])
+
+    def test_link_grande_fifo_ou_ausente_recusa_com_o_quadro_e_o_alvo_intactos(self):  # C-1, C-5 sem "Bloqueado" e a trava sem seguir link; casos 1, 2 e 3
+        for arq, causa, preparar in ((self.kanban, "sem a seção \"Bloqueado\"", lambda k: k.write_text(NOTA + secao("Pronto"), encoding="utf-8")),
+                                     (self.hist, "é link simbólico", lambda h: h.symlink_to(self.fora)), (self.hist, "não existe", lambda h: None),
+                                     (self.hist, "passa de", lambda h: h.write_bytes(b"|" * (fc.TETO_DA_TABELA + 1))),
+                                     (self.hist, "não é arquivo regular", os.mkfifo), (self.kanban, "KANBAN.md: é link simbólico", lambda k: k.symlink_to(self.fora)),
+                                     (self.raiz / ".forge" / "run" / "quadro.trava", "quadro.trava", lambda t: t.symlink_to(self.fora))):  # a pasta e a trava já existem
+            arq.unlink(missing_ok=True)
+            preparar(arq)
+            self.recusa(causa)
+
+    def test_temporario_exclusivo_e_apagado_em_erro(self):  # C-2; caso 4
+        (self.raiz / ".KANBAN.tmp").symlink_to(self.fora)
+        self.assertEqual(fc.cmd_kanban_gerar(self.raiz)[1], 0)
+        with mock.patch.object(fc.os, "replace", side_effect=OSError(5, "falhou")):
+            self.recusa("falhou")
+        self.assertEqual([p.name for p in self.raiz.glob(".KANBAN.*")], [".KANBAN.tmp"])
+
+    def test_trava_ocupada_recusa(self):  # C-10 no `--gerar`
+        trava = self.raiz / ".forge" / "run" / "quadro.trava"
+        trava.parent.mkdir(parents=True)
+        with open(trava, "w") as f, mock.patch.object(fc, "ESPERA_DA_TRAVA_S", 0.3):
+            fcntl.flock(f, fcntl.LOCK_EX)
+            self.recusa("trava do quadro ocupada")
 
 if __name__ == "__main__":
     unittest.main()

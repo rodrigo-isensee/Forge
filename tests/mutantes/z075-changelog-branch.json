@@ -1,0 +1,77 @@
+{
+  "pedido": "versao-075",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "--branch explicito vale antes do ambiente e do HEAD (C-2)",
+      "arquivo": "bin/forge-changelog",
+      "de": "explicita or os.environ.get",
+      "para": "os.environ.get",
+      "testes": [
+        "tests.test_changelog.ConferirNomeDaBranch.test_branch_explicita_nome_errado_reprova_e_nome_certo_passa",
+        "tests.test_changelog.ConferirNomeDaBranch.test_branch_explicita_vence_o_github_head_ref"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "GITHUB_HEAD_REF vale sem --branch (C-2)",
+      "arquivo": "bin/forge-changelog",
+      "de": "os.environ.get(\"GITHUB_HEAD_REF\") or git(",
+      "para": "git(",
+      "testes": [
+        "tests.test_changelog.ConferirNomeDaBranch.test_github_head_ref_vale_sem_branch_explicita"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "sem --branch nem ambiente vale o HEAD local",
+      "arquivo": "bin/forge-changelog",
+      "de": "or git(\"rev-parse\", \"--abbrev-ref\", \"HEAD\").strip()",
+      "para": "or \"\"",
+      "testes": [
+        "tests.test_changelog.ConferirNomeDaBranch.test_sem_branch_nem_ambiente_vale_o_head"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "igualdade exata do nome, nao prefixo (C-3)",
+      "arquivo": "bin/forge-changelog",
+      "de": "Path(n).name != esperado",
+      "para": "not Path(n).name.startswith(esperado[:-3])",
+      "testes": [
+        "tests.test_changelog.ConferirNomeDaBranch.test_nome_com_o_slug_como_prefixo_reprova"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a regra roda antes do return de versao mudou (C-1)",
+      "arquivo": "bin/forge-changelog",
+      "de": "branch_do_pr(args.branch) if novos else \"\"",
+      "para": "branch_do_pr(args.branch) if novos and atual == anterior else \"\"",
+      "testes": [
+        "tests.test_changelog.ConferirNomeDaBranch.test_versao_mudada_nao_pula_a_regra"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "so branch melhoria/* aplica a regra",
+      "arquivo": "bin/forge-changelog",
+      "de": "if branch.startswith(\"melhoria/\") and (errados",
+      "para": "if branch and (errados",
+      "testes": [
+        "tests.test_changelog.ConferirNomeDaBranch.test_branch_fora_de_melhoria_nao_aplica_a_regra"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "fragmento com outro nome reprova",
+      "arquivo": "bin/forge-changelog",
+      "de": "and (errados := fragmentos_com_outro_nome(branch, novos))",
+      "para": "and (errados := [])",
+      "testes": [
+        "tests.test_changelog.ConferirNomeDaBranch.test_branch_explicita_nome_errado_reprova_e_nome_certo_passa"
+      ]
+    }
+  ]
+}

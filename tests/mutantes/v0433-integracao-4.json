@@ -1,0 +1,294 @@
+{
+  "pedido": "v0433-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I49",
+      "guarda": "bin/forge-check:7594 not caminhos (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not caminhos:",
+      "para": "    if not (not caminhos):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I50",
+      "guarda": "bin/forge-check:7607 any((unicodedata.category(x) in conformidade.INVISIVEIS for x in c)) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "            if any(unicodedata.category(x) in conformidade.INVISIVEIS for x in c):  # o caminho inteiro, antes da marca",
+      "para": "            if not (any(unicodedata.category(x) in conformidade.INVISIVEIS for x in c)):  # o caminho inteiro, antes da marca",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I51",
+      "guarda": "bin/forge-check:7610 (marca := SEM_VERIFICACAO.search(c)) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "                fixo = c[:c.rfind(\"/\", 0, marca.start()) + 1] if (marca := SEM_VERIFICACAO.search(c)) else c",
+      "para": "                fixo = c[:c.rfind(\"/\", 0, marca.start()) + 1] if (not (marca := SEM_VERIFICACAO.search(c))) else c",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I52",
+      "guarda": "bin/forge-check:7611 fixo (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "                recusa = conformidade.escrita_barrada(destino, fixo, raiz, ramo) if fixo else None",
+      "para": "                recusa = conformidade.escrita_barrada(destino, fixo, raiz, ramo) if not (fixo) else None",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I53",
+      "guarda": "bin/forge-check:7614 marca and recusa is None (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        if marca and recusa is None:",
+      "para": "        if not (marca and recusa is None):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I54",
+      "guarda": "bin/forge-check:7616 recusa is None (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        estado = \"ok\" if recusa is None else {conformidade.NAO_VERIFICAVEL: \"não verificável\",",
+      "para": "        estado = \"ok\" if not (recusa is None) else {conformidade.NAO_VERIFICAVEL: \"não verificável\",",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I55",
+      "guarda": "bin/forge-check:7617 recusa[3:4] and recusa[3] (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "                                               conformidade.NAO_CONFERIDA: \"não conferida\"}.get(recusa[3:4] and recusa[3], \"barrada\")",
+      "para": "                                               conformidade.NAO_CONFERIDA: \"não conferida\"}.get(not (recusa[3:4] and recusa[3]), \"barrada\")",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I56",
+      "guarda": "bin/forge-check:7618 recusa and recusa[1] (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        motivo = f\" ({sem_controle(recusa[1])})\" if recusa and recusa[1] else \"\"",
+      "para": "        motivo = f\" ({sem_controle(recusa[1])})\" if not (recusa and recusa[1]) else \"\"",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I57",
+      "guarda": "bin/forge-check:7619 estado in ('barrada', 'não conferida') (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        saida.append((f\"escrita: {estado} {nome_seguro(c)}{motivo}\", estado in (\"barrada\", \"não conferida\")))",
+      "para": "        saida.append((f\"escrita: {estado} {nome_seguro(c)}{motivo}\", not (estado in (\"barrada\", \"não conferida\"))))",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I58",
+      "guarda": "bin/forge-check:7620 estado == 'não verificável' (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        sem_verificar += estado == \"não verificável\"",
+      "para": "        sem_verificar += not (estado == \"não verificável\")",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I59",
+      "guarda": "bin/forge-check:7621 sem_verificar (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if sem_verificar:  # a contagem numa linha própria, para quem lê ver; não reprova",
+      "para": "    if not (sem_verificar):  # a contagem numa linha própria, para quem lê ver; não reprova",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I60",
+      "guarda": "bin/forge-check:7623 len(caminhos) > TETO_DE_CAMINHOS (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if len(caminhos) > TETO_DE_CAMINHOS:  # o excedente não é conferido e reprova",
+      "para": "    if not (len(caminhos) > TETO_DE_CAMINHOS):  # o excedente não é conferido e reprova",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I61",
+      "guarda": "bin/forge-check:7654 destino (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if destino:  # VV-3: o Entregar contra a fronteira de escrita do destino, no ramo do `Branch:` (sem ele, ramo vazio; nunca o do disco)",
+      "para": "    if not (destino):  # VV-3: o Entregar contra a fronteira de escrita do destino, no ramo do `Branch:` (sem ele, ramo vazio; nunca o do disco)",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I62",
+      "guarda": "bin/forge-check:7655 grupo(CABECALHO_DE_BRIEF_CAMPOS['Branch'], cabecalho_do_brief(texto)) or '' (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        saida += conferir_escrita(secoes, destino, raiz, grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho_do_brief(texto)) or \"\")",
+      "para": "        saida += conferir_escrita(secoes, destino, raiz, not (grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho_do_brief(texto)) or \"\"))",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I63",
+      "guarda": "bin/forge-check:7932 destino (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, caminho if destino else None, bytes_anterior, cobradas,",
+      "para": "    linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, caminho if not (destino) else None, bytes_anterior, cobradas,",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I64",
+      "guarda": "bin/forge-check:7943 not a.startswith('aviso:') (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    linhas += [(a, not a.startswith(\"aviso:\")) for a in avisos_do_historico(pedido_txt) + aviso_de_recibo(pedido_txt)]",
+      "para": "    linhas += [(a, not (not a.startswith(\"aviso:\"))) for a in avisos_do_historico(pedido_txt) + aviso_de_recibo(pedido_txt)]",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    }
+  ]
+}

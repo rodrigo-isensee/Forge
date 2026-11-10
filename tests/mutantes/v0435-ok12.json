@@ -1,0 +1,166 @@
+{
+  "pedido": "v0435-ok12",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S1",
+      "guarda": "caractere de controle e de formatação viram ?",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "unicodedata.category(c).startswith(\"C\")",
+      "para": "unicodedata.category(c).startswith(\"Cc\")",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S2",
+      "guarda": "pastas de fora e link de pasta não entram",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "p not in PASTAS_FORA and not os.path.islink(os.path.join(pasta, p))",
+      "para": "not os.path.islink(os.path.join(pasta, p))",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S3",
+      "guarda": "só as extensões do pacote e sem link de arquivo",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "if nome.endswith(EXTENSOES) and not os.path.islink(caminho):",
+      "para": "if nome.endswith(EXTENSOES):",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S4",
+      "guarda": "a chamada para no teto",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "while i < fim:",
+      "para": "while i < len(texto):",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S5",
+      "guarda": "dentro de string os parênteses não contam",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "        if aspa:\n            if c ==",
+      "para": "        if False:\n            if c ==",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S6",
+      "guarda": "barra invertida pula o caractere escapado",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "if c == \"\\\\\":\n                i += 1",
+      "para": "if c == \"|\":\n                i += 1",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S7",
+      "guarda": "a aspa igual fecha a string",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "elif c == aspa:",
+      "para": "elif c == \"#\":",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S8",
+      "guarda": "aspas simples, duplas e crase abrem string",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "elif c in \"'\\\"`\":",
+      "para": "elif c in \"'\\\"\":",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S9",
+      "guarda": "abre parêntese, chave e colchete",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "elif c in \"({[\":",
+      "para": "elif c in \"(\":",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S10",
+      "guarda": "fecha parêntese, chave e colchete",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "elif c in \")}]\":",
+      "para": "elif c in \")\":",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S11",
+      "guarda": "a chamada termina no nível zero",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "if nivel == 0:",
+      "para": "if nivel == -1:",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S12",
+      "guarda": "route sem method sai com ?",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "metodo.group(1).upper() if metodo else \"?\"",
+      "para": "metodo.group(1).upper() if True else \"?\"",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S13",
+      "guarda": "route sem url sai com ?",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "url.group(1) if url else \"?\"",
+      "para": "url.group(1) if True else \"?\"",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S14",
+      "guarda": "gancho do arquivo ou da rota autentica",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "return gancho_no_arquivo or any(AUTENTICACAO.search(g)",
+      "para": "return any(AUTENTICACAO.search(g)",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S15",
+      "guarda": "rota sem autenticação reconhecida",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "publica = not autenticada(corpo, gancho_no_arquivo)",
+      "para": "publica = not autenticada(corpo, False)",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    },
+    {
+      "id": "S16",
+      "guarda": "a pública é achado",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "    if publica:\n",
+      "para": "    if not publica:\n",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    }
+  ]
+}

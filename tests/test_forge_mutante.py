@@ -456,6 +456,23 @@ class Execucao(unittest.TestCase):
                        GIT_DIR=str(self.dir / ".git"), GIT_WORK_TREE=str(self.dir), FORGE_X="1")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
+    def test_bytecode_fora_da_copia_e_o_mutante_nao_le_o_do_controle(self):
+        """O teste que mede CPU de um script grande não paga a compilação a cada subprocesso (controle vermelho do
+        `test_doutor`): o bytecode vai para uma pasta fora da cópia, e a do mutante não é a do controle (a troca do
+        mesmo tamanho no mesmo segundo leria o `.pyc` velho e o mutante sobreviveria)."""
+        corpo = ("assert 'PYTHONDONTWRITEBYTECODE' not in os.environ\n"
+                 "        prefixo = os.environ.get('PYTHONPYCACHEPREFIX', os.getcwd())\n"
+                 "        self.assertFalse(os.path.realpath(prefixo).startswith(os.path.realpath(os.getcwd())))\n"
+                 "        r = subprocess.run([sys.executable, '-c', 'import lib; assert lib.limite(11) == 2'])\n"
+                 "        self.assertEqual(r.returncode, 0)")
+        self.gravar("tests/test_lib.py", "import os, subprocess, sys\n" + TESTE
+                    + f"\n    def test_filho(self):\n        {corpo}\n")
+        self.salvar()
+        r = self.rodar(self.spec(mutante(de="x > 10", para="x > 99", testes=["tests.test_lib.T.test_filho"])),
+                       PYTHONDONTWRITEBYTECODE="1")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("M1 · morreu", r.stdout)
+
     def test_spec_ilegivel_ou_grande_demais_sai_2(self):
         caminho = Path(self._t.name) / "ruim.json"
         for conteudo in ("{", "[]", "x" * 70000):
@@ -870,6 +887,84 @@ class Cobertura(unittest.TestCase):
                 self.assertEqual(r.returncode, 2)
                 self.assertIn("vêm juntos", r.stderr)
 
+    # E4-IL: isenta por linha (`linha_base`), só para a condição apagada; casa a linha que a saída imprime em `(base)`.
+    REPETIDA = "x = 1\nif x > 100 and y:\n    x = 2\nif x > 100 and y:\n    x = 3\n"
+    SEM_A_PRIMEIRA = "x = 1\nx = 2\nif x > 100 and y:\n    x = 3\n"
+    POR_LINHA = {**ISENTA, "linha_base": 2}
+
+    def por_linha(self, lista, base=REPETIDA, ponta=SEM_A_PRIMEIRA):
+        """Cobertura da `ponta` sobre a `base` com as `isentas` da spec `i`, a partir do commit inicial."""
+        git(self.dir, "reset", "-q", "--hard", git(self.dir, "rev-list", "--max-parents=0", "HEAD").strip())
+        self.salvar({"lib.py": base}, base=True)
+        self.salvar({"lib.py": ponta, **self.isentas(lista)})
+        return self.cobertura()
+
+    def test_isenta_por_linha_libera_a_apagada_de_texto_repetido(self):
+        for antes in ("", 's = "ção"\n'):  # o texto não ASCII antes da condição desloca bytes e caracteres
+            with self.subTest(antes):
+                linha, base, ponta = 2 + bool(antes), antes + self.REPETIDA, antes + self.SEM_A_PRIMEIRA
+                r = self.por_linha([{**self.POR_LINHA, "linha_base": linha}], base, ponta)
+                self.assertEqual((r.returncode, r.stdout.splitlines()[1:]),
+                                 (0, [f"isenta · lib.py:{linha}(base) · {self.MOTIVO}"]), r.stderr)
+        self.assertEqual(self.por_linha([self.ISENTA]).returncode, 2, "a forma antiga não casa o texto repetido")
+        nova = self.SEM_A_PRIMEIRA + "if w > 500 and v:\n    x = 4\n"
+        r = self.por_linha([self.POR_LINHA, {**self.ISENTA, "trecho": "w > 500 and v"}], ponta=nova)
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (0, [f"isenta · lib.py:5 · {self.MOTIVO}",
+                         f"isenta · lib.py:2(base) · {self.MOTIVO}"]), r.stderr)
+
+    def test_isenta_por_linha_que_nao_casa_a_linha_impressa_fica_solta(self):
+        duas = "x = 1\nif x > 100 and y:\n    x = 2\nif z > 300 and w:\n    x = 3\n"
+        casos = {"segunda ocorrência": ([{**self.POR_LINHA, "linha_base": 4}], {}),
+                 "linha sem condição": ([{**self.POR_LINHA, "linha_base": 1}], {}),
+                 "além do fim da base": ([{**self.POR_LINHA, "linha_base": 99}], {}),
+                 "outro arquivo": ([{**self.POR_LINHA, "arquivo": "outro.py"}], {}),
+                 "trecho fora do nó": ([{**self.POR_LINHA, "trecho": "x = 1\nif x > 100"}], {}),
+                 "condição nova": ([{**self.POR_LINHA, "trecho": "z > 300 and w", "linha_base": 6}],
+                                   {"ponta": self.REPETIDA + "if z > 300 and w:\n    x = 4\n"}),
+                 "linha da outra apagada": ([{**self.POR_LINHA, "linha_base": 4}], {"base": duas, "ponta": "x = 1\nx = 2\nx = 3\n"}),
+                 "ocorrência não impressa": ([{**self.POR_LINHA, "linha_base": 4}],
+                                             {"ponta": "x = 1\nif x > 100 and y:\n    x = 2\nx = 3\n"}),
+                 "isenta repetida": ([self.POR_LINHA, self.POR_LINHA], {}),
+                 "base deslocada": ([self.POR_LINHA], {"base": "# novo\n" + self.REPETIDA, "ponta": "# novo\n" + self.SEM_A_PRIMEIRA})}
+        for nome, (lista, arquivos) in casos.items():
+            with self.subTest(nome):
+                r = self.por_linha(lista, **arquivos)
+                self.assertEqual(r.returncode, 2, r.stdout)
+                self.assertIn("isenta que não cruza condição listada", r.stderr)
+
+    def test_isenta_por_linha_cobre_uma_condicao_so(self):  # C-4: duas condições externas na mesma linha da base
+        base = "obj = 1\nif obj.ready > 100 and ok: y = 1 if obj.ready > 100 or z else 2\n"
+        uma = {**self.POR_LINHA, "trecho": "obj.ready > 100"}
+        r = self.por_linha([uma], base, "obj = 1\n")
+        self.assertEqual((r.returncode, sorted(x.split(" · ")[0] for x in r.stdout.splitlines()[1:])), (1, ["apagada", "isenta"]))
+        duas = [{**uma, "trecho": "obj.ready > 100 and ok"}, {**uma, "trecho": "obj.ready > 100 or z"}]
+        self.assertEqual(self.por_linha(duas, base, "obj = 1\n").returncode, 0)
+
+    def test_isenta_por_linha_nao_casa_texto_apagado_duas_vezes(self):  # C-4: A1 e sonda S1 da segurança g6
+        ponta, usadas = "x = 1\nx = 2\nx = 3\n", set()
+        saida = self.f.analisar("lib.py", [([2, 3, 4, 5], [2, 3])], self.REPETIDA, ponta, [], [self.POR_LINHA], usadas)
+        self.assertEqual((saida, usadas), (["apagada · lib.py:2(base) · x > 100 and y"], set()))
+        for lista in ([self.POR_LINHA], [self.POR_LINHA, {**self.POR_LINHA, "linha_base": 4}]):
+            with self.subTest(len(lista)):
+                self.assertNotEqual(self.por_linha(lista, ponta=ponta).returncode, 0)
+
+    def test_isenta_por_linha_invalida_e_o_teto_conta_as_duas_formas(self):
+        maximo = self.f.MAXIMO_DO_ARQUIVO
+        ruins = [{**self.POR_LINHA, "linha_base": v} for v in ("2", True, False, 0, -1, maximo + 1, 2.0, None)]
+        ruins += [{**self.POR_LINHA, "motivo": "m" * 19}, {**self.POR_LINHA, "trecho": "x > 100 an"},
+                  {**self.POR_LINHA, "extra": "x"}, {k: v for k, v in self.POR_LINHA.items() if k != "trecho"}]
+        for ruim in ruins:
+            with self.subTest(ruim):
+                self.assertRegex(" ".join(self.f.validar_isentas([ruim])), r"^isenta 1: .*linha_base")
+        self.assertEqual(self.f.validar_isentas([{**self.POR_LINHA, "linha_base": maximo}, self.POR_LINHA, self.ISENTA]), [])
+        r = self.por_linha([{**self.POR_LINHA, "linha_base": True}])
+        self.assertEqual(r.returncode, 2)
+        self.assertRegex(r.stderr, r"isenta 1: .*linha_base")
+        self.salvar({**self.isentas([self.POR_LINHA] * 5), **self.isentas([self.ISENTA] * 4, "j")})
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("mais de 8 isentas somadas", r.stderr)
+
 
 PLACAR = RAIZ / "scripts" / "placar-mutacao.py"
 # `forge-mutante` falso: anota a chamada, recusa sem `--` e pedido misto (como o de verdade) e imprime uma linha por classe.
@@ -941,6 +1036,67 @@ class PlacarDaRelease(unittest.TestCase):
                 r, chamadas = self.placar(f"--desde={desde}")
                 self.assertEqual((r.returncode, chamadas), (2, []))
                 self.assertIn("não é commit", r.stderr)
+
+
+class MedidaDaVagaPesada(unittest.TestCase):
+    """MAQ-A7: a cópia do contexto no forge-mutante faz o mesmo que a do forge-testes."""
+    setUp, gravar, salvar, spec, rodar = Execucao.setUp, Execucao.gravar, Execucao.salvar, Execucao.spec, Execucao.rodar
+
+    def test_a_linha_modo_mutante_traz_entrada_validada_e_load1(self):
+        self.assertEqual(self.rodar(self.spec(mutante()), FORGE_ENTRADA="push\n").returncode, 0)
+        linha = (self.dir / ".forge" / "run" / "testes.log").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(linha), 1)
+        self.assertRegex(linha[0], r"^\S+Z modo=mutante modulos=- duracao=[0-9.]+s saida=0 entrada=\? load1=[0-9.]+ "
+                                   r"nproc=\d+ outras=(\d+|\?)$")
+
+    def test_outras_e_contexto_toleram_falha_de_leitura(self):
+        f, proc = carregar(), self.dir / "proc"
+        for pid, pai, linha in ((10, 5, b"bin/forge-mutante"), (5, 1, b"suite-paralela.py"), (40, 1, b"")):  # 40 sumiu
+            (proc / str(pid)).mkdir(parents=True)
+            (proc / str(pid) / "stat").write_text(f"{pid} (a b) S {pai} 0", encoding="utf-8")
+            (proc / str(pid) / ("cmdline" if linha else "outro")).write_bytes(linha)
+        (proc / "self").mkdir()
+        self.assertEqual(f.outras(proc, eu=10), 0)  # nem a própria, nem o ancestral pesado
+        self.assertEqual(f.outras(self.dir / "sem-proc", eu=10), "?")
+        with mock.patch("os.getloadavg", side_effect=OSError):
+            self.assertIn(" load1=? ", f.contexto())
+
+
+class DiffDeTextoGrande(unittest.TestCase):
+    """MUTANTE-ASSERTEQUAL-TEXTO (versao-071 E2): o `assertEqual` de sequência grande de textos dá veredito no prazo."""
+
+    TESTE_GRANDE = ("import unittest\n\n\n"
+                    "def linhas(fim):\n"
+                    "    return tuple(f'{i:05d} ' + ''.join(chr(97 + (i * 7 + j * 13) % 26) for j in range(60)) + fim\n"
+                    "                 for i in range(400))\n\n\n"
+                    "class G(unittest.TestCase):\n"
+                    "    def test_tuplas(self):\n"
+                    "        self.assertEqual(linhas('a'), linhas('b'))\n\n"
+                    "    def test_texto(self):\n"
+                    "        self.assertEqual('\\n'.join(linhas('a')), '\\n'.join(linhas('b')))\n\n"
+                    "    def test_igual(self):\n"
+                    "        self.assertEqual(linhas('a'), linhas('a'))\n")
+
+    def executar(self, *ids):
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, "test_grande.py").write_text(self.TESTE_GRANDE, encoding="utf-8")
+            registro = Path(d, "registro.jsonl")
+            try:  # sem a troca, o ndiff passa de 30 s: estourar é falha da asserção, não erro do teste
+                r = subprocess.run([sys.executable, str(FERRAMENTA), "--executar", *ids, "--registro", str(registro)],
+                                   cwd=d, capture_output=True, text=True, timeout=30)
+            except subprocess.TimeoutExpired:
+                self.fail("o executor passou de 30 s montando o diff da asserção")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            return {e["id"]: e["res"] for e in map(json.loads, registro.read_text(encoding="utf-8").splitlines())}
+
+    def test_assertequal_de_textos_grandes_falha_dentro_do_prazo(self):
+        ids = ("test_grande.G.test_tuplas", "test_grande.G.test_texto", "test_grande.G.test_igual")
+        self.assertEqual(self.executar(*ids), dict(zip(ids, ("falha", "falha", "ok"))))
+
+    def test_o_diff_omitido_e_uma_linha_so(self):
+        f = carregar()
+        self.assertEqual(list(f.DiffOmitido.ndiff(["a"], ["b"])), [f.DiffOmitido.AVISO])
+        self.assertEqual(list(f.DiffOmitido.ndiff([], [], linejunk=None)), [f.DiffOmitido.AVISO])
 
 
 if __name__ == "__main__":

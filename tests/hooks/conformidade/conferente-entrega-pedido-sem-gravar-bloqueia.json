@@ -1,0 +1,19 @@
+{
+  "descricao": "D4 (0.44.0): `entrega --pedido --sem-gravar` não grava, mas roda os PQ cmd (código da branch); o conferente não a roda.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "forge-check entrega --pedido p1 --branch melhoria/x --etapa codigo --sem-gravar"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:conferente"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "sem `--so-leitura` roda os PQ cmd"
+  }
+}

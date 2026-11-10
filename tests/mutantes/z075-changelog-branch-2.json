@@ -1,0 +1,36 @@
+{
+  "pedido": "versao-075",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "git() que falha sai com 2, nao com o 1 da reprovacao (CL-1)",
+      "arquivo": "bin/forge-changelog",
+      "de": "        sys.exit(2)\n    return r.stdout",
+      "para": "        sys.exit(f\"git {' '.join(args)}: {r.stderr.strip()}\")\n    return r.stdout",
+      "testes": [
+        "tests.test_changelog.ConferirSaidaDeErro.test_fora_de_repositorio_git_sai_com_2"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "excecao sem tratamento no main sai com 2 (CL-1)",
+      "arquivo": "bin/forge-changelog",
+      "de": "except Exception as erro:",
+      "para": "except ZeroDivisionError as erro:",
+      "testes": [
+        "tests.test_changelog.ConferirSaidaDeErro.test_plugin_json_sem_version_sai_com_2"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o rc da excecao no main e 2",
+      "arquivo": "bin/forge-changelog",
+      "de": "        sys.exit(2)\n\n\nif __name__",
+      "para": "        sys.exit(1)\n\n\nif __name__",
+      "testes": [
+        "tests.test_changelog.ConferirSaidaDeErro.test_plugin_json_sem_version_sai_com_2"
+      ]
+    }
+  ]
+}

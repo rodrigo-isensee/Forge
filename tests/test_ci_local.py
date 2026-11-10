@@ -270,7 +270,7 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         (bateria,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
                       if j["id"] == "bateria"]
         comandos = "\n".join(p["run"] for p in bateria["passos"])
-        for trecho in ("scripts/suite-paralela.py", "shellcheck", "actionlint", "zizmor", "claude plugin validate", "e2e-instalacao",
+        for trecho in ("shellcheck", "actionlint", "zizmor", "claude plugin validate", "e2e-instalacao",
                        "scripts/conferir-release.py", "Nada pula degrau", "verificar-contribuicao"):
             self.assertIn(trecho, comandos + "\n".join(p["nome"] for p in bateria["passos"]))
 
@@ -278,11 +278,17 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         """D4: os dois passos "Testes do Forge" chamam o mesmo script do pre-push (guarda de completude nos dois);
         o passo curto dos pareceres continua como está; a release também roda em paralelo (RELEASE-SUITE-PARALELA)."""
         jobs = {j["id"]: j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))}
-        for nome in ("rapida", "bateria"):
+        (passo,) = [p for p in jobs["rapida"]["passos"] if p["nome"] == "Testes do Forge"]
+        self.assertEqual(passo["run"].strip(), "python3 scripts/suite-paralela.py")
+        # SUITE-NO-CI: no PR, a suíte roda em 3 partes por versão (scripts/suite-partes.py, o mecanismo do suite-paralela).
+        for nome in ("partes-doze", "partes-quatorze"):
             with self.subTest(job=nome):
-                (passo,) = [p for p in jobs[nome]["passos"] if p["nome"] == "Testes do Forge"]
-                self.assertEqual(passo["run"].strip(), "python3 scripts/suite-paralela.py")
+                (passo,) = [p for p in jobs[nome]["passos"] if p["nome"] == "Testes do Forge (parte)"]
+                self.assertIn('python3 scripts/suite-partes.py --parte "$PARTE/3"', passo["run"])
+        for nome in jobs:
+            with self.subTest(job=nome):
                 self.assertFalse([p["nome"] for p in jobs[nome]["passos"] if "unittest discover" in p["run"]])
+        self.assertFalse([p for p in jobs["bateria"]["passos"] if "suite-paralela" in p["run"] or "suite-partes" in p["run"]])
         self.assertTrue([p for p in jobs["bateria"]["passos"] if p["nome"].startswith("Testes que leem pareceres")
                          and "python3 -m unittest tests.test_forge.Neutralidade" in p["run"]])
         release = (RAIZ / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
@@ -298,7 +304,8 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         def pos(trecho):
             (i,) = [n for n, nome in enumerate(nomes) if trecho in nome]
             return i
-        testes = pos("Testes do Forge")
+        self.assertFalse([n for n in nomes if n.startswith("Testes do Forge")], "a suíte roda nas partes, não nos passos")
+        testes = len(nomes)  # SUITE-NO-CI: os passos baratos continuam no job de passos, que não espera a suíte
         for trecho in ("Claude Code CLI", "claude plugin validate", "Nada pula degrau", "changelog.d",
                        "release exige versão", "Segredo, .env", "Parecer de review"):
             self.assertLess(pos(trecho), testes, trecho)
@@ -308,9 +315,10 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertIn("npm install", passo)
         self.assertNotIn("continue-on-error", texto)
         self.assertNotIn("skip ci", texto)
-        teste = [p for p in bateria["passos"] if p["nome"] == "Testes do Forge"][0]
-        self.assertNotIn("for ", teste["run"])
-        self.assertNotIn("||", teste["run"])
+        for job in ("partes-doze", "partes-quatorze"):
+            (teste,) = [p for j in ci.ler_jobs(texto) if j["id"] == job for p in j["passos"] if p["nome"] == "Testes do Forge (parte)"]
+            self.assertNotIn("for ", teste["run"])
+            self.assertNotIn("||", teste["run"])
 
     def test_bateria_lint_e_ferramentas_antes_de_qualquer_codigo_da_branch(self):
         """CI-ORDEM-LINT: actionlint e zizmor baixados e rodados antes de todo passo que executa código da branch."""
@@ -800,6 +808,123 @@ class SinalTest(unittest.TestCase):
     def test_term_limpa_e_sai_143_sem_traceback(self):
         import signal
         self._confere(*self._interromper(signal.SIGTERM), 143)
+
+
+class MatrizNeedsEAgregadorTest(unittest.TestCase):
+    """0.43.1 (frente D): o ci.yml em partes (`strategy.matrix` com `parte`, `needs` e agregadores com `always()`)."""
+    ctx = ci.contexto_do_pr(PR, "b" * 40)
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.tmp = Path(self._tmp.name)
+
+    def jobs_reais(self):
+        return ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+
+    def rodar_com(self, jobs, falha=None):
+        """Os jobs sem `needs` viram resultado pronto (a suíte não roda aqui); o agregador roda os passos dele de verdade."""
+        chamados = []
+
+        def rodar(job, ctx, raiz, base, tmp):
+            # o teto de pulados (T3) soma o que as partes publicam; aqui as partes não rodam, então ele também é pronto; as partes
+            # dependem do job prévio da árvore (M2) e também viram resultado pronto
+            if (job.get("needs") and not job["id"].startswith(("pulados-", "partes-"))) or not ci.avaliar_se(job["se"], ctx):
+                return ci.rodar_job(job, ctx, self.tmp, base, self.tmp)
+            chamados.append((job["nome"], ctx.get("matrix.parte")))
+            if ctx.get("matrix.parte"):  # a parte verde deixa os pulados no RUNNER_TEMP dela, para o upload (T3)
+                pasta = ci.pasta_do_job(self.tmp, job) / "pulados"
+                pasta.mkdir(parents=True, exist_ok=True)
+                (pasta / f"parte-{ctx['matrix.parte']}.json").write_text("{}")
+            return ci.resultado(job["nome"], ci.FALHOU if job["nome"] == falha else ci.OK)
+
+        return ci.rodar_jobs(jobs, self.ctx, self.tmp, "b" * 40, self.tmp, rodar=rodar), chamados
+
+    def test_leitor_entende_matriz_e_needs_do_ci_real(self):
+        jobs = {j["id"]: j for j in self.jobs_reais()}
+        self.assertEqual(jobs["partes-doze"]["matriz"], {"parte": ["1", "2", "3"]})
+        self.assertEqual(jobs["partes-quatorze"]["matriz"], {"parte": ["1", "2", "3"]})
+        self.assertEqual(jobs["agregador"]["needs"], ["bateria", "partes-doze", "pulados-doze"])
+        self.assertEqual(jobs["bateria-python-tres-quatorze"]["needs"],
+                         ["partes-quatorze", "pulados-quatorze", "instalacao-quatorze"])
+        (upload,) = [p for p in jobs["partes-doze"]["passos"] if p["uses"].startswith("actions/upload-artifact@")]
+        self.assertEqual(upload["com"]["name"], "pulados-doze-${{ matrix.parte }}")
+        (download,) = [p for p in jobs["pulados-doze"]["passos"] if p["uses"].startswith("actions/download-artifact@")]
+        self.assertEqual(download["com"]["pattern"], "pulados-doze-*")
+        self.assertEqual((jobs["agregador"]["nome"], jobs["bateria-python-tres-quatorze"]["nome"]), ("bateria", "bateria (python 3.14)"))
+
+    def test_artefato_da_perna_vai_ao_job_que_baixa_mesmo_reaproveitada(self):  # T3
+        passos_parte = ("    strategy:\n      matrix:\n        parte: [1, 2]\n    steps:\n"
+                        "      - env:\n          PARTE: ${{{{ matrix.parte }}}}\n"
+                        "        run: mkdir -p \"$RUNNER_TEMP/p\" && echo $PARTE > \"$RUNNER_TEMP/p/x-$PARTE.txt\"\n"
+                        "      - uses: actions/upload-artifact@" + "a" * 40 + " # v7\n        with:\n"
+                        "          name: art-{v}-${{{{ matrix.parte }}}}\n"
+                        "          path: ${{{{ runner.temp }}}}/p/x-${{{{ matrix.parte }}}}.txt\n")
+        soma = ("    steps:\n      - uses: actions/download-artifact@" + "b" * 40 + " # v8\n        with:\n"
+                "          pattern: art-{v}-*\n          path: ${{{{ runner.temp }}}}/baixados\n"
+                "      - run: test \"$(cat \"$RUNNER_TEMP\"/baixados/*.txt | sort | tr -d '\\n')\" = 12\n")
+        texto = "jobs:\n"
+        for v in ("um", "dois"):
+            texto += f"  partes-{v}:\n" + passos_parte.format(v=v) + f"  soma-{v}:\n    needs: [partes-{v}]\n" + soma.format(v=v)
+        resultados = ci.rodar_jobs(ci.ler_jobs(texto), self.ctx, self.tmp, "b" * 40, self.tmp)
+        por_nome = {r["nome"]: r for r in resultados}
+        self.assertIn("reaproveitado", por_nome["partes-dois"]["motivo"])
+        self.assertEqual((por_nome["soma-um"]["estado"], por_nome["soma-dois"]["estado"]), (ci.OK, ci.OK), resultados)
+
+    def test_needs_em_lista_de_tracos_e_numa_palavra(self):
+        texto = ("jobs:\n  a:\n    steps:\n      - run: true\n  b:\n    needs: a\n    steps:\n      - run: true\n"
+                 "  c:\n    needs:\n      - a\n      - b\n    steps:\n      - run: true\n")
+        self.assertEqual([j["needs"] for j in ci.ler_jobs(texto)], [[], ["a"], ["a", "b"]])
+        self.assertEqual([len(j["passos"]) for j in ci.ler_jobs(texto)], [1, 1, 1])
+
+    def test_cada_perna_roda_uma_vez_e_a_igual_reaproveita(self):
+        resultados, chamados = self.rodar_com(self.jobs_reais())
+        partes = [c for c in chamados if c[1]]
+        self.assertEqual(partes, [(f"suíte (python 3.12, parte {k}/3)", str(k)) for k in (1, 2, 3)])
+        por_nome = {r["nome"]: r for r in resultados}
+        for k in (1, 2, 3):
+            self.assertIn("reaproveitado", por_nome[f"suíte (python 3.14, parte {k}/3)"]["motivo"])
+        self.assertEqual(ci.status(resultados)[0], "success")
+        self.assertIn("resumo de bateria: success, partes-doze: success", por_nome["bateria"]["motivo"])
+        self.assertEqual(por_nome["bateria (python 3.14)"]["estado"], ci.OK)
+        self.assertEqual(por_nome["checagem rápida (push na develop)"]["estado"], ci.PULADO)
+
+    def test_agregador_reprova_com_uma_perna_vermelha(self):
+        resultados, _ = self.rodar_com(self.jobs_reais(), falha="suíte (python 3.12, parte 2/3)")
+        por_nome = {r["nome"]: r for r in resultados}
+        self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.FALHOU))
+        self.assertEqual(por_nome["bateria (passos)"]["estado"], ci.OK)
+        self.assertEqual(ci.status(resultados)[0], "failure")
+
+    def test_need_sem_job_reprova_e_job_sem_always_e_pulado(self):
+        texto = ("jobs:\n  a:\n    steps:\n      - run: false\n  b:\n    needs: [a]\n    steps:\n      - run: true\n"
+                 "  c:\n    needs: [x]\n    steps:\n      - run: true\n")
+        resultados = ci.rodar_jobs(ci.ler_jobs(texto), self.ctx, self.tmp, "b" * 40, self.tmp)
+        self.assertEqual([(r["nome"], r["estado"]) for r in resultados], [("a", ci.FALHOU), ("b", ci.PULADO), ("c", ci.PULADO)])
+        self.assertFalse(ci.pulado_obrigatorio(resultados[1]))
+        self.assertTrue(ci.pulado_obrigatorio(resultados[2]))
+
+    def test_if_com_funcoes_de_status_negacao_e_chaves(self):
+        self.assertTrue(ci.avaliar_se("${{ !cancelled() && github.event_name == 'pull_request' }}", self.ctx))
+        self.assertTrue(ci.avaliar_se("always() && (github.event_name != 'push' || github.ref != 'refs/heads/develop')", self.ctx))
+        self.assertFalse(ci.avaliar_se("github.event_name == 'push' && github.ref == 'refs/heads/develop'", self.ctx))
+        self.assertFalse(ci.avaliar_se("failure() || cancelled()", self.ctx))
+        with self.assertRaises(ci.PassoDinamico):
+            ci.avaliar_se("steps.gate.outputs.pesada == 'true'", self.ctx)
+        self.assertFalse(ci.avaliar_se("steps.gate.outputs.pesada == 'true'", self.ctx, saidas_lidas=True))
+
+    def test_saida_do_passo_decide_o_if_dos_seguintes(self):
+        for valor, esperado in (("true", ci.FALHOU), ("false", ci.OK)):
+            with self.subTest(pesada=valor):
+                job = {"id": f"j{valor}", "nome": "j", "se": "", "passos": [
+                    {"nome": "gate", "id": "gate", "se": "", "env": {}, "run": f'echo "pesada={valor}" >> "$GITHUB_OUTPUT"\n'},
+                    {"nome": "pesado", "se": "${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}", "env": {}, "run": "false\n"},
+                    {"nome": "leve", "se": "${{ !cancelled() && steps.gate.outputs.pesada != 'true' }}", "env": {}, "run": "true\n"}]}
+                self.assertEqual(ci.rodar_job(job, self.ctx, self.tmp, "b" * 40, self.tmp)["estado"], esperado)
+
+    def test_apt_get_e_preparo_do_runner(self):
+        self.assertTrue(ci.PASSO_DE_PREPARO.search("sudo apt-get install -y x\n"))
 
 
 if __name__ == "__main__":

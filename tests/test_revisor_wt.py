@@ -6,6 +6,7 @@ também trazido). E6b-1: a volta lê o último P de cada arquivo fora da `--ref`
 import hashlib
 import json
 import os
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -406,6 +407,89 @@ class VoltaLeParecerConferido(Repositorio):
         ps = self.p("s1", arquivo="docs/security/s1.md", tipo="revisao-seguranca")
         self.historico(ps)
         self.assertEqual(self.gerar()[1].count(f"(revisao-seguranca {ps[:7]} A1)"), 1)
+
+
+QA = ("---\ntipo: qa\ncontrato: 1\npedido: x\nbranch: melhoria/x\ncommit: {commit}\nparecer: {parecer}\nescopo: completo\n"
+      "bugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0\ndata: 2026-11-06\n---\n\n## Achados\n")
+SEM_PREVIO = ("bin/forge-fechar", "hooks/parecer.py", "tests/catraca.py", "scripts/promover-homolog.py")
+
+
+class PrPrevio(ComParecer):
+    """FC-6 (E15, PP-5/C-1 e C-2): `pr --previo` só rebaixa o parecer ausente a aviso; desatualizado e reprovado seguem rc 1."""
+
+    def setUp(self):
+        super().setUp()
+        self.gravar_pedido(conferidas=(self.c1,))
+
+    def pr(self, *extra):
+        r = subprocess.run([sys.executable, "-I", volta.FORGE_CHECK, "--raiz", str(self.repo), "pr", "x", "--ref", "melhoria/x", *extra],
+                           env=dict(volta.ambiente_limpo(), HOME=str(self.home)), capture_output=True, text=True)
+        return r.returncode, r.stdout, r.stderr
+
+    def pareceres(self, review="aprovado", qa="aprovado", commit=None):
+        c = commit or self.c1
+        return self.commitar({"docs/reviews/x.md": PARECER.format(branch="melhoria/x", commit=c, parecer=review, data="2026-11-06"),
+                              "docs/qa/x.md": QA.format(commit=c, parecer=qa)}, "pareceres")
+
+    def test_ausente_com_previo_e_aviso_e_sem_previo_e_violacao(self):
+        rc, saida, erro = self.pr("--previo")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn("aviso: docs/reviews: review: sem parecer para o pedido `x`", erro)
+        self.assertNotIn("veredito: aprovado", saida)  # o prévio sem parecer não é veredito
+        rc, saida, _ = self.pr()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("docs/reviews: review: sem parecer para o pedido `x`", saida)
+
+    def test_ausente_com_base_como_o_pre_voo_chama(self):  # PP-5: `pr --ref <sha> --base origin/develop --previo -- <slug>`
+        rc, saida, erro = self.pr("--base", "origin/develop", "--previo")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn("aviso: docs/reviews: review: sem parecer para o pedido `x`", erro)  # P5: a entrega pequena é T (só review)
+        self.assertEqual(self.pr("--base", "origin/develop")[0], 1)
+
+    def test_parecer_so_de_outra_branch_tambem_e_ausente(self):
+        self.commitar({"docs/reviews/x.md": PARECER.format(branch="melhoria/y", commit=self.c1, parecer="aprovado", data="2026-11-06")})
+        self.gravar_pedido(conferidas=(self.head(),))
+        rc, saida, erro = self.pr("--previo")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn("aviso: docs/reviews: review: sem parecer da branch \"melhoria/x\" para o pedido `x`", erro)
+        self.assertEqual(self.pr()[0], 1)
+
+    def test_desatualizado_com_previo_e_rc_1(self):
+        self.pareceres()
+        c2 = self.commitar({"src/app.txt": "v3\n"}, "o head andou")
+        self.gravar_pedido(conferidas=(c2,))
+        rc, saida, erro = self.pr("--previo")
+        self.assertEqual(rc, 1, saida + erro)
+        self.assertIn("docs/reviews/x.md: commit: desatualizado", saida)
+
+    def test_reprovado_com_previo_e_rc_1(self):
+        self.pareceres(review="reprovado")
+        rc, saida, erro = self.pr("--previo")
+        self.assertEqual(rc, 1, saida + erro)
+        self.assertIn("docs/reviews/x.md: parecer: o último parecer não é aprovado", saida)
+
+    def test_aprovado_com_previo_passa(self):
+        self.pareceres()
+        rc, saida, erro = self.pr("--previo")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertNotIn("aviso: docs/", erro)
+
+    def test_cmd_pr_como_o_hook_parecer_chama_nao_le_ambiente(self):  # PP-5/C-1: `parecer.py` chama `fc.cmd_pr(raiz, pedido, ref, base)`
+        nomes = ("FORGE_PREVIO", "FORGE_CHECK_PREVIO", "PREVIO")
+        antes = {n: os.environ.get(n) for n in nomes}
+        self.addCleanup(lambda: [os.environ.pop(n, None) if v is None else os.environ.__setitem__(n, v) for n, v in antes.items()])
+        os.environ.update({n: "1" for n in nomes})
+        fc = volta.carregar_forge_check()  # depois do ambiente: nem o padrão do parâmetro nem o corpo o leem
+        violacoes = fc.cmd_pr(str(self.repo), "x", "melhoria/x", None)
+        self.assertIn("docs/reviews: review: sem parecer para o pedido `x` (R-REVIEW)", violacoes)
+
+    def test_previo_nao_vaza_para_o_merge_o_hook_a_catraca_e_o_ci(self):  # PREVIO-vaza (PP-5/C-1)
+        alvos = [volta.RAIZ / a for a in SEM_PREVIO] + sorted((volta.RAIZ / ".github" / "workflows").glob("*.yml"))
+        self.assertGreaterEqual(len(alvos), len(SEM_PREVIO) + 1)
+        for alvo in alvos:
+            texto = alvo.read_text(encoding="utf-8")
+            self.assertNotIn("--previo", texto, alvo)
+            self.assertNotIn("previo=True", texto, alvo)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,166 @@
+{
+  "pedido": "v0450-adotar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A297",
+      "guarda": "forge adotar: not confirmou('Ligar o sandbox agora (forge-upgrade --ligar-",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if not confirmou(\"Ligar o sandbox agora (forge-upgrade --ligar-sandbox, sem commit)? [s/N] \"):",
+      "para": "    if not (not confirmou(\"Ligar o sandbox agora (forge-upgrade --ligar-sandbox, sem commit)? [s/N] \")):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A305",
+      "guarda": "forge adotar: git(topo, 'status', '--porcelain')[1].strip()",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if git(topo, \"status\", \"--porcelain\")[1].strip():",
+      "para": "    if not (git(topo, \"status\", \"--porcelain\")[1].strip()):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A309",
+      "guarda": "forge adotar: codigo != 0",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if codigo != 0:\n        print(f\"forge adotar: não consegui criar a branch {BRANCH}; nada foi alterado.\", file=sys.stderr)",
+      "para": "    if not (codigo != 0):\n        print(f\"forge adotar: não consegui criar a branch {BRANCH}; nada foi alterado.\", file=sys.stderr)",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A313",
+      "guarda": "forge adotar: sem_versionar",
+      "arquivo": "bin/forge-adotar",
+      "de": "           *([\"--sem-versionar\"] if sem_versionar else []), str(topo)]",
+      "para": "           *([\"--sem-versionar\"] if not (sem_versionar) else []), str(topo)]",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A314",
+      "guarda": "forge adotar: subprocess.run(cmd).returncode != 0",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if subprocess.run(cmd).returncode != 0:",
+      "para": "    if not (subprocess.run(cmd).returncode != 0):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A325",
+      "guarda": "forge adotar: sys.stdout.isatty() and shutil.which('claude')",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if sys.stdout.isatty() and shutil.which(\"claude\"):",
+      "para": "    if not (sys.stdout.isatty() and shutil.which(\"claude\")):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A334",
+      "guarda": "forge adotar: i < len(args)",
+      "arquivo": "bin/forge-adotar",
+      "de": "    while i < len(args):",
+      "para": "    while not (i < len(args)):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A336",
+      "guarda": "forge adotar: a in ('-h', '--help')",
+      "arquivo": "bin/forge-adotar",
+      "de": "        if a in (\"-h\", \"--help\"):",
+      "para": "        if not (a in (\"-h\", \"--help\")):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A339",
+      "guarda": "forge adotar: a == '--so-ler'",
+      "arquivo": "bin/forge-adotar",
+      "de": "        elif a == \"--so-ler\":",
+      "para": "        elif not (a == \"--so-ler\"):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A341",
+      "guarda": "forge adotar: a == '--sem-versionar'",
+      "arquivo": "bin/forge-adotar",
+      "de": "        elif a == \"--sem-versionar\":",
+      "para": "        elif not (a == \"--sem-versionar\"):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A343",
+      "guarda": "forge adotar: a == '--stack' and i + 1 < len(args) and re.fullmatch('[a-z0",
+      "arquivo": "bin/forge-adotar",
+      "de": "        elif a == \"--stack\" and i + 1 < len(args) and re.fullmatch(r\"[a-z0-9-]+\", args[i + 1]):",
+      "para": "        elif not (a == \"--stack\" and i + 1 < len(args) and re.fullmatch(r\"[a-z0-9-]+\", args[i + 1])):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A346",
+      "guarda": "forge adotar: a.startswith('-')",
+      "arquivo": "bin/forge-adotar",
+      "de": "        elif a.startswith(\"-\"):",
+      "para": "        elif not (a.startswith(\"-\")):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A359",
+      "guarda": "forge adotar: motivo",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if motivo:\n        print(f\"forge adotar: {motivo}.\", file=sys.stderr)\n        return 1\n    codigo, topo = git(destino, \"rev-parse\", \"--show-toplevel\")",
+      "para": "    if not (motivo):\n        print(f\"forge adotar: {motivo}.\", file=sys.stderr)\n        return 1\n    codigo, topo = git(destino, \"rev-parse\", \"--show-toplevel\")",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A363",
+      "guarda": "forge adotar: codigo != 0",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if codigo != 0:\n        print(\"forge adotar: esta pasta não está no git. Projeto do zero: forge novo-projeto; \"",
+      "para": "    if not (codigo != 0):\n        print(\"forge adotar: esta pasta não está no git. Projeto do zero: forge novo-projeto; \"",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A369",
+      "guarda": "forge adotar: motivo",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if motivo:\n        print(f\"forge adotar: {motivo}.\", file=sys.stderr)\n        return 1\n    d = ler(topo)",
+      "para": "    if not (motivo):\n        print(f\"forge adotar: {motivo}.\", file=sys.stderr)\n        return 1\n    d = ler(topo)",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    },
+    {
+      "id": "A373",
+      "guarda": "forge adotar: d['versao']",
+      "arquivo": "bin/forge-adotar",
+      "de": "    if d[\"versao\"]:",
+      "para": "    if not (d[\"versao\"]):",
+      "testes": [
+        "tests.test_adotar"
+      ]
+    }
+  ]
+}

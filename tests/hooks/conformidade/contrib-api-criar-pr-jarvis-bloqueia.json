@@ -1,0 +1,21 @@
+{
+  "descricao": "FILA-22 (review da 0.43.2): POST em pulls (sem número) abre PR; o jarvis não abre, nem pela API.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api repos/rodrigo-isensee/Forge/pulls -f title=t -f head=melhoria/proj-x -f base=develop"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "api que abre PR é de tech-lead (papel: jarvis)"
+  }
+}

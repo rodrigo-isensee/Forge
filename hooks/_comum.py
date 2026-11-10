@@ -231,6 +231,9 @@ def git(raiz, *args):
 # comentário, não o liga.
 LITERAIS_DE_G = frozenset("_./:=@,+%-~^*?[]{}!#")
 SEPARADORES_DE_G = frozenset(" \t\n;&|")  # depois deles (lidos pela varredura, sem `\`), começa palavra
+# Na varredura de G, o caractere que só avança e zera o começo de palavra (alfanumérico ou de LITERAIS_DE_G, menos o `#`, que
+# depende do começo, e o `=`, que abre `=~`): uma sequência deles se pula de uma vez, com o mesmo resultado.
+_COMUNS_DE_G = re.compile("[\\w" + re.escape("".join(sorted(LITERAIS_DE_G - {"#", "=", "_"}))) + "]+")
 PARAMETRO = re.compile(r"[A-Za-z_][A-Za-z0-9_]*|[0-9?#@*!$-]")  # depois de `$`: nome ou parâmetro especial
 
 
@@ -263,6 +266,9 @@ def varrer_comentarios(linha):
     provados, i, n = set(), 0, len(linha)
     inicio, depois_de_redirecionar = True, False
     while i < n:
+        if (m := _COMUNS_DE_G.match(linha, i)) is not None:  # o que a varredura só pula, de uma vez (custo do lote)
+            i, inicio, depois_de_redirecionar = m.end(), False, False
+            continue
         c = linha[i]
         if c == "#" and inicio:
             provados.add(i)
@@ -381,11 +387,18 @@ def formas_que_o_shell_le(texto, corpo_de_heredoc=False):
     raise RuntimeError("o texto não para de mudar com as transformações do shell")
 
 
+_COMUNS_DO_ANSI_C = re.compile(r"[^\\$'\"]+")  # em `ansi_c_decodificado`, o que não é `\`, `$` nem aspa só se copia
+
+
 def ansi_c_decodificado(texto):
     """HOOK-CONTINUACAO-LINHA, A5 da segurança: o texto com cada `$'…'` fora de aspas trocado pelo conteúdo
     decodificado entre aspas simples, em qualquer ponto da palavra (`g$'\\x68'`, `gh $'r\\x65po'`)."""
     saida, i, aspas = [], 0, None
     while i < len(texto):
+        if (m := _COMUNS_DO_ANSI_C.match(texto, i)) is not None:  # o que só se copia, de uma vez (custo do lote)
+            saida.append(m.group())
+            i = m.end()
+            continue
         c = texto[i]
         if aspas != "'" and c == "\\":
             saida.append(texto[i:i + 2])
@@ -465,6 +478,16 @@ def conteudos_de_crase(comando, so_os_fechados=False):
     return saida
 
 
+BRANCOS_DO_SHLEX = re.compile(r"[ \t\r]*")
+_PONTUACAO_DO_SHLEX = frozenset(PONTUACAO)
+
+
+@functools.lru_cache(maxsize=4096)
+def nome_do_caminho(palavra):
+    """`Path(palavra).name`, guardado: a linha com milhares de comandos repete os mesmos programas (custo do hook)."""
+    return Path(palavra).name
+
+
 def fichas(comando, legado=False):
     """As palavras e os sinais da linha, sem executar nada: (texto, é sinal fora de aspas, colada na seguinte).
     Aspas desbalanceadas levantam ValueError.
@@ -483,10 +506,9 @@ def fichas(comando, legado=False):
     def posicao():
         return lex.instream.tell() - len(lex._pushback_chars)
 
-    def pular_comentario():
-        """Entre duas fichas: se a próxima começa num `#` provado, pula até a quebra de linha (ou o fim)."""
-        atual = posicao()
-        proximo = len(comando) - len(comando[atual:].lstrip(" \t\r"))
+    def pular_comentario(atual):
+        """Entre duas fichas (`atual`, a posição de agora): se a próxima começa num `#` provado, pula até a quebra de linha (ou o fim)."""
+        proximo = BRANCOS_DO_SHLEX.match(comando, atual).end()  # sem copiar o resto da linha a cada ficha (custo)
         if proximo not in provados:
             return atual
         fim = comando.find("\n", proximo)
@@ -495,14 +517,14 @@ def fichas(comando, legado=False):
         lex.instream.seek(fim)
         return fim
 
-    inicio = pular_comentario()
+    inicio = pular_comentario(posicao())
     while (tok := lex.get_token()) is not None:
         fim = posicao()
         bruto = comando[inicio:fim].rstrip(" \t\r")
-        sinal = bool(tok) and set(tok) <= set(PONTUACAO) and bruto.endswith(tok) and (
+        sinal = bool(tok) and set(tok) <= _PONTUACAO_DO_SHLEX and bruto.endswith(tok) and (
             len(bruto) == len(tok) or bruto[-len(tok) - 1] in " \t\r\n")
         yield tok, sinal, bool(lex._pushback_chars)
-        inicio = pular_comentario()
+        inicio = pular_comentario(fim)  # quem consome não mexe no `lex`: a posição é a mesma de `fim`
 
 
 def comandos(comando, legado=False, com_sinal=False):
@@ -687,6 +709,11 @@ def palavra_do_delimitador(comando, j):
     return "".join(partes), literal, min(j, n)
 
 
+# Em `heredocs`, fora de aspas, o caractere que não é nenhum dos que a varredura decide (aspas, escape, `$`, crase, `#`, `<`,
+# quebra de linha, parênteses, chaves e colchetes) só avança: uma sequência deles se pula de uma vez, com o mesmo resultado.
+_COMUNS_DO_HEREDOC = re.compile("[^" + re.escape("'\"\\$`#<\n(){}[]") + "]+")
+
+
 def heredocs(comando):
     """HEREDOC-FURO-HOOK: os heredocs cujo operador a varredura prova, e a posição do primeiro `<<` em dúvida (ou None).
     Um `<<` é operador provado fora de aspas, de escape e de comentário provado (`comentarios`), no nível da linha, num
@@ -746,6 +773,9 @@ def heredocs(comando):
                 i += 1
                 continue
         # fora, subst, chave, aritm, colchete e os `$`/crase entre aspas duplas
+        if (m := _COMUNS_DO_HEREDOC.match(comando, i)) is not None:  # o que só avança, de uma vez (custo do lote de heredocs)
+            i = m.end()
+            continue
         nivel_da_linha = tipo in ("fora", "subst")
         if c == "`":
             pilha.append(["crase", 0])
@@ -1098,6 +1128,11 @@ OPERADORES_DE_REDIRECAO = ("<<<", "<<-", "<<", "<>", "<&", ">&", ">>", ">|", "<"
 PREFIXO_DE_REDIRECAO = re.compile(r"\d+|\{[A-Za-z_][A-Za-z0-9_]*\}")
 SEPARADORES_DO_LEITOR = frozenset(";&|\n()")
 ESCAPES_DAS_DUPLAS = frozenset('$`"\\\n')
+# Custo do leitor (lote de heredocs): as sequências que o `palavras_do_texto` lê caractere a caractere sem decidir nada (o comum
+# fora de aspas e o conteúdo das aspas simples) entram de uma vez; o resultado é o mesmo.
+_COMUNS_DO_LEITOR = re.compile("[^" + re.escape("\\'\"$`<>#& \t" + "".join(sorted(SEPARADORES_DO_LEITOR))) + "]+")
+_DENTRO_DAS_SIMPLES = re.compile(r"[^']+")
+_DENTRO_DAS_SIMPLES_NA_CRASE = re.compile(r"[^'`]+")
 
 
 class _Nivel:
@@ -1180,9 +1215,11 @@ def palavras_do_texto(texto):
         if nivel.aspas == "simples":
             if c == "'":
                 nivel.aspas = None
+                i += 1
             else:
-                nivel.valor.append(c)
-            i += 1
+                m = (_DENTRO_DAS_SIMPLES_NA_CRASE if nivel.tipo == "crase" else _DENTRO_DAS_SIMPLES).match(texto, i)
+                nivel.valor.append(m.group())
+                i = m.end()
             continue
         if nivel.aspas == "ansi":
             if c == "\\":
@@ -1218,6 +1255,10 @@ def palavras_do_texto(texto):
                 i += 1
             continue
         # fora de aspas, no texto de fora ou numa substituição
+        if (m := _COMUNS_DO_LEITOR.match(texto, i)) is not None:
+            acrescentar(nivel, m.group(), i)
+            i = m.end()
+            continue
         if c == "\\":
             if texto.startswith("$'", i + 1):  # HOOK-ANSI-C: o shell de dentro (`bash -c "…"`, `eval "…"`) lê `$'…'`
                 aspa_escapada = aspa_escapada or _ansi_com_aspa_escapada(texto, i + 3)
@@ -1678,8 +1719,14 @@ VALOR_DE_TEXTO = frozenset({"-m", "--message", "-b", "--body", "-t", "--title", 
 OPERADOR_K = "\x01"  # o operador e o delimitador de um heredoc modelado, na linha sem os corpos
 PALAVRA_K3 = "\x02"  # a palavra `"$(cat <<'X'⏎…⏎X⏎)"`, já sem o corpo
 K1 = re.compile(r"[ \t]*cat[ \t]+>>?[ \t]*[\w./:@,+%~^-]+[ \t]+\x01[ \t\n]*")  # a chamada inteira (fullmatch)
+# HOOK-PARECER-HEREDOC-FALSO-POSITIVO (0.43.2): a K1 também como um comando simples da chamada (`mkdir -p docs/qa && cat > docs/qa/p.md
+# <<'FIM'`, `…FIM⏎echo ok`), entre separadores da gramática, vira a palavra PALAVRA_K1. Ela só vale com os outros comandos em
+# PROGRAMAS_COM_K1 (nenhum roda o arquivo gravado nem lê o corpo; sem `git`, que roda ganchos e filtros, e sem `gh`).
+PALAVRA_K1 = "\x03"
+K1_NA_LISTA = re.compile(r"(^|&&|;|\n)([ \t]*)cat[ \t]+>>?[ \t]*[\w./:@,+%~^-]+[ \t]+\x01(?=[ \t]*(?:&&|;|\n|$))")
+PROGRAMAS_COM_K1 = frozenset({"cd", "mkdir", "echo", "true"})
 K3 = re.compile(r'"\$\(cat[ \t]+\x01[ \t]*\n\)"')
-CONTORNO_DA_GRAMATICA = ("na chamada com heredoc e ação crítica, só cat > arq <<'FIM' sozinho na chamada, "
+CONTORNO_DA_GRAMATICA = ("na chamada com heredoc e ação crítica, só cat > arq <<'FIM' (sozinho ou com cd, mkdir, echo e true), "
                          "git commit -F - <<'FIM' e -m, --body ou --title \"$(cat <<'FIM'…FIM)\", com comandos git, gh, "
                          "cd, mkdir, echo e true literais, separados por &&, ; ou quebra de linha (sem atribuição, $, "
                          "redireção nem pipe); o resto vai noutra chamada do Bash (docs/hooks.md)")
@@ -1699,7 +1746,7 @@ def sem_os_corpos(texto, achados):
 
 def legivel(palavra):
     """A palavra com as formas K de volta no texto, para a mensagem."""
-    return palavra.replace(OPERADOR_K, "<<'FIM'").replace(PALAVRA_K3, '"$(cat <<…)"')
+    return palavra.replace(OPERADOR_K, "<<'FIM'").replace(PALAVRA_K3, '"$(cat <<…)"').replace(PALAVRA_K1, "cat > arq <<'FIM'")
 
 
 def simples_da_gramatica(resto):
@@ -1736,7 +1783,7 @@ def simples_da_gramatica(resto):
             continue
         if c in " \t":
             fechar()
-        elif c in (OPERADOR_K, PALAVRA_K3) or c.isalnum() or c in ALFABETO_LEITURA:
+        elif c in (OPERADOR_K, PALAVRA_K3, PALAVRA_K1) or c.isalnum() or c in ALFABETO_LEITURA:
             palavra += c
         else:
             return nome_do_sinal(c)
@@ -1761,6 +1808,22 @@ def sem_aspas(palavra):
             partes.append(c)
             i += 1
     return "".join(partes)
+
+
+def k1_fora_da_lista(lidos):
+    """HOOK-PARECER-HEREDOC-FALSO-POSITIVO (0.43.2): com a K1 numa lista de comandos (PALAVRA_K1), o primeiro sinal fora da forma, ou
+    None: ela é o comando simples inteiro, e os outros comandos são todos de PROGRAMAS_COM_K1 (sem `git` nem `gh`). Sem a K1, None."""
+    if not any(PALAVRA_K1 in palavra for palavras in lidos for palavra in palavras):
+        return None
+    for palavras in lidos:
+        if PALAVRA_K1 in "".join(palavras) and palavras != [PALAVRA_K1]:
+            return "cat > arq <<'FIM' fora de um comando só"
+        if palavras != [PALAVRA_K1] and sem_aspas(palavras[0]) not in PROGRAMAS_COM_K1:
+            return f"{legivel(palavras[0])} com cat > arq <<'FIM' na chamada (só cd, mkdir, echo e true)"
+        # só palavras literais: o `"rc=$?"` da H1-1 fica fora (PN7, a recusa segue)
+        if palavras != [PALAVRA_K1] and any(c in "'\"$" for palavra in palavras for c in palavra):
+            return "aspas ou $ com cat > arq <<'FIM' na chamada"
+    return None
 
 
 def comando_fora_da_gramatica(palavras):
@@ -1815,8 +1878,9 @@ def gramatica_com_heredoc(texto):
     achados, duvida = heredocs(texto)
     if duvida is not None:
         return "<< que o hook não prova ser heredoc"
-    if OPERADOR_K in texto or PALAVRA_K3 in texto:
-        return nome_do_sinal(OPERADOR_K if OPERADOR_K in texto else PALAVRA_K3)
+    reservado = OPERADOR_K if OPERADOR_K in texto else next((k for k in (PALAVRA_K3, PALAVRA_K1) if k in texto), None)
+    if reservado is not None:
+        return nome_do_sinal(reservado)
     for h in achados:
         m = HEREDOC_MODELADO.match(texto, h.operador)
         if m is None or m.end() != h.fim_do_operador:
@@ -1828,10 +1892,11 @@ def gramatica_com_heredoc(texto):
     resto = sem_os_corpos(texto, achados)
     if len(achados) == 1 and K1.fullmatch(resto):
         return Gramatica([], corpos, True)
-    lidos = simples_da_gramatica(K3.sub(PALAVRA_K3, resto))
+    lidos = simples_da_gramatica(K1_NA_LISTA.sub(rf"\1\2{PALAVRA_K1}", K3.sub(PALAVRA_K3, resto)))
     if isinstance(lidos, str):
         return lidos
-    sinal = next((sinal for sinal in map(comando_fora_da_gramatica, lidos) if sinal), None)
+    sinal = k1_fora_da_lista(lidos) or next((sinal for palavras in lidos if palavras != [PALAVRA_K1]
+                                             for sinal in [comando_fora_da_gramatica(palavras)] if sinal), None)
     return sinal or Gramatica([[sem_aspas(p) for p in palavras] for palavras in lidos], corpos, False)
 
 
@@ -2047,12 +2112,12 @@ def _ler_lancadores(base, inicio, lancadas, gasto, saidas, meio=None):
     meio das opções de um), junta a leitura que fecha em `saidas` e, depois dela, as que cada palavra fora da tabela
     adiou (com valor, texto dividido): a leitura sem valor sai primeiro. `gasto`: as palavras fora da tabela vistas."""
     adiadas = []
-    while meio or (inicio < len(base) and Path(base[inicio]).name in LANCADORES):
+    while meio or (inicio < len(base) and nome_do_caminho(base[inicio]) in LANCADORES):
         if meio:
             nome, i, dividido = meio
             meio = None
         else:
-            nome = Path(base[inicio]).name
+            nome = nome_do_caminho(base[inicio])
             i, dividido = inicio + 1, []
         while i < len(base):
             opcao = base[i]
@@ -2163,7 +2228,7 @@ def reavaliacao_das_palavras(palavras):
         if palavra is INDECIDIVEL:
             achada = ACHADO_DO_INDECIDIVEL
             continue
-        nome = Path(palavra).name
+        nome = nome_do_caminho(palavra)
         if palavra == "eval":
             achada = "eval"
         elif nome in SHELLS_DA_REAVALIACAO and opcao_a_partir[k + 1]:
@@ -2320,18 +2385,19 @@ def gravar_json(caminho, dados):
     os.replace(tmp, caminho)
 
 
-def mensagem(rid, texto):
-    """Uma linha com o ID da regra, até LIMITE_MENSAGEM caracteres."""
+def mensagem(rid, texto, cauda=""):
+    """Uma linha com o ID da regra, até LIMITE_MENSAGEM caracteres. A `cauda` (um caminho que o usuário precisa abrir,
+    já sem controle) vem depois do corte e sai inteira: um caminho cortado não serve a ninguém."""
     linha = " ".join(f"{rid}: {texto}".split())
-    return linha if len(linha) <= LIMITE_MENSAGEM else linha[: LIMITE_MENSAGEM - 1] + "…"
+    return (linha if len(linha) <= LIMITE_MENSAGEM else linha[: LIMITE_MENSAGEM - 1] + "…") + cauda
 
 
-def bloquear(rid, texto):
+def bloquear(rid, texto, cauda=""):
     """Saída 2: o Claude Code bloqueia a ferramenta (PreToolUse) ou mostra o motivo (PostToolUse). A decisão já está
     tomada: o vigia de prazo se desarma, para o alarme não trocar a recusa por um prazo vencido."""
     if hasattr(signal, "setitimer"):
         signal.setitimer(signal.ITIMER_REAL, 0)
-    print(mensagem(rid, texto), file=sys.stderr)
+    print(mensagem(rid, texto, cauda), file=sys.stderr)
     sys.exit(2)
 
 
@@ -2421,6 +2487,7 @@ class Hook:
             "teto_maximo": valor("teto_maximo", inteiro, None),
             "pesados": valor("pesados", lista, RESERVA["pesados"]),
             "expiracao_horas": valor("expiracao_horas", numero, 2),
+            "piso_memoria_gb": valor("piso_memoria_gb", numero, 2.0),  # R-TETO-DISPONIBILIDADE: o único freio de carga do hook agentes
             "hooks_desligados": valor("hooks_desligados", lista, []),
         }
         return self._config
@@ -2430,9 +2497,17 @@ class Hook:
 
     # Estado em .forge/run/ da cópia principal ------------------------------------------------
     def run(self):
-        """`.forge/run/` da cópia de trabalho principal (as worktrees somam no mesmo estado)."""
+        """`.forge/run/` da cópia de trabalho principal (as worktrees somam no mesmo estado). FORGE-RUN-INERTE (0.43.2): no clone do
+        Forge com `.forge` que existe e não é pasta (arquivo de proteção), `<diretório comum do git>/forge/run/` (pasta 0700, o mesmo
+        lugar do `agentes`); sem o recuo o `mkdir` falhava e o estado do `pesado` e o erros.log ficavam inertes."""
         if self._run is None:
             run = self.copia_principal() / ".forge" / "run"
+            if os.path.lexists(run.parent) and not run.parent.is_dir() and e_clone_do_forge(self.raiz):
+                comum = diretorio_comum(self.raiz)
+                if comum is None:
+                    raise NotADirectoryError(f"{run.parent} não é pasta e o clone não tem diretório comum de git")
+                run = comum / "forge" / "run"
+                run.mkdir(mode=0o700, parents=True, exist_ok=True)
             run.mkdir(parents=True, exist_ok=True)
             ignorar = run / ".gitignore"
             if not ignorar.exists():

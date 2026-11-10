@@ -43,6 +43,9 @@ case "$1 $2" in
       *number,state*) [ -f "$ESTADO/aberto" ] && cat "$ESTADO/aberto"; exit 0 ;;
       *state,headRefOid,baseRefName,mergeCommit*)
         falha_n falha_estado && exit 1
+        if [ -f "$ESTADO/armado" ] && [ -f "$ESTADO/mescla_apos" ]; then
+          n="$(cat "$ESTADO/mescla_apos")"; echo $((n - 1)) > "$ESTADO/mescla_apos"; [ "$n" -gt 1 ] || echo MERGED > "$ESTADO/estado"
+        fi
         pre_base="$(cut -d' ' -f1 "$ESTADO/pre" 2>/dev/null || echo develop)"
         merge_oid="$(cat "$ESTADO/merge_commit" 2>/dev/null || echo 0123456789abcdef0123456789abcdef01234567)"
         [ -f "$ESTADO/merge_commit_vazio" ] && merge_oid=-
@@ -90,6 +93,8 @@ case "$1 $2" in
       [[ "$*" == *"--match-head-commit $(cat "$ESTADO/head")"* ]] || exit 1
     fi
     [[ "$*" == *--match-head-commit* ]] || exit 1
+    # R7: com "auto_arma", o --auto só arma (checks obrigatórios pendentes); "mescla_apos" N: o GitHub mescla na N-ésima leitura do estado
+    if [ -f "$ESTADO/auto_arma" ] && [[ "$*" == *" --auto "* ]]; then : > "$ESTADO/armado"; exit 0; fi
     echo MERGED > "$ESTADO/estado"; exit 0 ;;
 esac
 exit 64
@@ -116,6 +121,18 @@ esac
 exec "$REAL_GIT_FALSO" "$@"
 '''
 CHECK_FALSO = '#!/usr/bin/env bash\necho "forge-check $*" >> "$REGISTRO"\nexit "${CHECK_RC:-0}"\n'
+# FF-1: promover-homolog falso (rodado com `python3 -I`); anota os argumentos em $ESTADO/<marca> e sai com o rc dado (o padrão lê PROMOVER_RC)
+PROMOVER_FALSO = """import os, sys
+with open(os.path.join(os.environ["ESTADO"], "{marca}"), "a") as f: f.write(" ".join(sys.argv[1:]) + "\\n")
+print(os.environ.get("PROMOVER_SAIDA", "linha do promover"))
+sys.exit({rc})
+"""
+
+
+def promover_falso(caminho, marca, rc='int(os.environ.get("PROMOVER_RC", "0"))'):
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    caminho.write_text(PROMOVER_FALSO.format(marca=marca, rc=rc), encoding="utf-8")
+    return str(caminho)
 
 
 class Fechar(unittest.TestCase):
@@ -134,7 +151,8 @@ class Fechar(unittest.TestCase):
         self.env.update(HOME=str(self.tmp), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.tmp / "gitconfig"),
                         FORGE_GH=str(self.tmp / "gh"), FORGE_CHECK=str(self.tmp / "check"),
                         REGISTRO=str(self.registro), ESTADO=str(self.estado), FORGE_FECHAR_INTERVALO="0",
-                        FORGE_FECHAR_TESTE="1", FORGE_FECHAR_LOG_DIR=str(self.tmp / "logs"))
+                        FORGE_FECHAR_TESTE="1", FORGE_FECHAR_LOG_DIR=str(self.tmp / "logs"),
+                        FORGE_PROMOVER=promover_falso(self.tmp / "promover.py", "promover"))
         (self.tmp / "bin").mkdir()
         (self.tmp / "bin" / "git").write_text(GIT_FALSO, encoding="utf-8")
         (self.tmp / "bin" / "git").chmod(0o755)
@@ -185,12 +203,84 @@ class Fechar(unittest.TestCase):
         chamadas = self.chamadas()
         self.assertEqual(chamadas[0], f"forge-check pr p1 --ref {sha} --base origin/develop")  # B5: o parecer é conferido no sha
         self.assertTrue(any(c.startswith("gh pr create --base develop --head melhoria/x") for c in chamadas))
-        self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {sha}", chamadas)
+        self.assertIn(f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha}", chamadas)
         self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
         self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
         corpo = self.registro.read_text()
         self.assertIn("## Projeto de origem\nForge", corpo)
         self.assertIn("## Como medir\nVer", corpo)
+
+    def test_1c_promovivel_segue_com_o_sha_conferido(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("[1c]", r.stdout)
+        self.assertEqual((self.estado / "promover").read_text(), f"--conferir-ref {sha}\n")
+
+    def assert_parou_no_1c(self, r):
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("parou no passo 1c", r.stderr)
+        self.assertFalse([c for c in self.chamadas() if c.startswith(("gh pr create", "gh pr ready", "gh pr merge"))])
+
+    def test_1c_rc_diferente_de_0_ou_prazo_para_sem_pr_nem_merge(self):
+        for rc in ("1", "2", "124"):
+            with self.subTest(rc=rc):
+                r = self.fechar("p1", "--ref", "melhoria/x", PROMOVER_RC=rc, PROMOVER_SAIDA="docs/qa/x.md: parecer reprovado")
+                self.assert_parou_no_1c(r)
+                self.assertIn(f"(rc {rc};", r.stderr)
+                self.assertIn("docs/qa/x.md: parecer reprovado", r.stderr)
+
+    def test_1c_release_nao_promovida_para_e_manda_promover(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", PROMOVER_RC="1",
+                        PROMOVER_SAIDA="forge-check pr release-9.9.9 contra a main: parecer desatualizado ou faltando")
+        self.assert_parou_no_1c(r)
+        self.assertIn("release-9.9.9 contra a main", r.stderr)
+        self.assertIn("com release na develop ainda não promovida, promova-a (scripts/promover-homolog.py) antes de mesclar "
+                      "outra branch (R-FLUXO)", r.stderr)
+
+    def test_1c_script_ausente_para(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", FORGE_PROMOVER=str(self.tmp / "nao-existe.py"))
+        self.assert_parou_no_1c(r)
+        self.assertIn("não achei", r.stderr)
+
+    def fabrica_copiada(self):
+        """bin/forge-fechar copiado para outra pasta, com o promover dela (rc 1); o scripts/ do cwd (a branch) traz um que passa."""
+        fab = self.tmp / "fab"
+        (fab / "bin").mkdir(parents=True)
+        shutil.copy(SCRIPT, fab / "bin" / "forge-fechar")
+        promover_falso(fab / "scripts" / "promover-homolog.py", "da_fabrica", rc=1)
+        promover_falso(self.proj / "scripts" / "promover-homolog.py", "do_cwd", rc=0)
+        return fab / "bin" / "forge-fechar"
+
+    def test_1c_usa_o_script_do_diretorio_do_fechar_e_nao_o_do_cwd(self):
+        env = {k: v for k, v in self.env.items() if k != "FORGE_PROMOVER"}
+        r = subprocess.run(["bash", str(self.fabrica_copiada()), "p1", "--ref", "melhoria/x"], cwd=self.proj, env=env,
+                           capture_output=True, text=True, timeout=60)
+        self.assert_parou_no_1c(r)
+        self.assertTrue((self.estado / "da_fabrica").exists())
+        self.assertFalse((self.estado / "do_cwd").exists())
+
+    def test_1c_forge_promover_sem_o_modo_de_teste_e_ignorado_com_aviso(self):
+        caminho = self.tmp / "caminho"
+        caminho.mkdir()
+        (caminho / "forge-check").symlink_to(self.tmp / "check")
+        (caminho / "gh").symlink_to(self.tmp / "gh")
+        env = {k: v for k, v in self.env.items() if k not in ("FORGE_FECHAR_TESTE", "FORGE_CHECK", "FORGE_GH",
+                                                              "FORGE_FECHAR_INTERVALO", "FORGE_FECHAR_PAUSA")}
+        env.update(PATH=f"{caminho}:{env['PATH']}", FORGE_PROMOVER=promover_falso(self.tmp / "falso.py", "falso", rc=0))
+        r = subprocess.run(["bash", str(self.fabrica_copiada()), "p1", "--ref", "melhoria/x"], cwd=self.proj, env=env,
+                           capture_output=True, text=True, timeout=60)
+        self.assertIn("FORGE_PROMOVER só valem com FORGE_FECHAR_TESTE=1", r.stderr)
+        self.assert_parou_no_1c(r)
+        self.assertTrue((self.estado / "da_fabrica").exists())
+        self.assertFalse((self.estado / "falso").exists())
+
+    def test_1c_no_dry_run_e_fora_da_base_develop_nao_roda(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertIn(f"[1c] python3 -I {self.tmp / 'promover.py'} --conferir-ref {sha}", r.stdout)
+        self.assertNotEqual(self.fechar("p1", "--ref", "melhoria/x", "--base", "origin/homolog").returncode, 0)
+        self.assertFalse((self.estado / "promover").exists())
 
     def test_dry_run_nao_altera_nada_nem_chama_gh_ou_check(self):
         antes = self.estado_do_repo()
@@ -646,10 +736,11 @@ class Fechar(unittest.TestCase):
 
     # ---- SHELLCHECK-FECHAR: o forge-fechar passa no shellcheck e está na lista do shellcheck do CI ----
     def test_shellcheck_fechar_esta_na_lista_do_ci(self):
+        # COBERTURA-P6: a lista do CI vem do shebang (tests.test_pre_push_afetados.ShellcheckPeloShebang roda o passo); o
+        # forge-fechar entra porque a primeira linha dele é de bash.
         ci = (RAIZ / ".github/workflows/ci.yml").read_text()
-        linhas = [l.split("run:", 1)[1].split() for l in ci.splitlines() if l.strip().startswith("run: shellcheck ")]
-        self.assertEqual(len(linhas), 1, linhas)
-        self.assertIn("bin/forge-fechar", linhas[0])
+        self.assertIn("'#!'*bash*|'#!'*/sh|'#!'*' sh') lista+=(\"$f\")", ci)
+        self.assertRegex(SCRIPT.read_text().splitlines()[0], r"^#!.*bash")
 
     def test_shellcheck_fechar_passa_limpo(self):
         if shutil.which("shellcheck") is None:

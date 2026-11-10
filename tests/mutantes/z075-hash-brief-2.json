@@ -1,0 +1,46 @@
+{
+  "pedido": "z075-hash-brief",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "B9 C-2 (volta 2): toda linha Arquivo: conta, qualquer que seja o valor",
+      "arquivo": "hooks/agentes.py",
+      "de": "r\"^(modo|Arquivo|Brief-sha256):\", re.M)",
+      "para": "r\"^(modo|Arquivo(?=:[ \\t]*\\S*docs/briefs/)|Brief-sha256):\", re.M)",
+      "testes": ["tests.test_agentes_hash_brief.HashDoBrief.test_segunda_arquivo_fora_de_docs_briefs_bloqueia"]
+    },
+    {
+      "id": "M2",
+      "guarda": "B9 C-2 (volta 2): toda linha Brief-sha256: conta, mesmo mal formada",
+      "arquivo": "hooks/agentes.py",
+      "de": "r\"^(modo|Arquivo|Brief-sha256):\", re.M)",
+      "para": "r\"^(modo|Arquivo|Brief-sha256(?=:[ \\t]*[0-9a-f]{64})):\", re.M)",
+      "testes": ["tests.test_agentes_hash_brief.HashDoBrief.test_segundo_hash_mal_formado_bloqueia"]
+    },
+    {
+      "id": "M3",
+      "guarda": "B9 C-2 (volta 2): toda linha modo: conta, qualquer que seja o valor",
+      "arquivo": "hooks/agentes.py",
+      "de": "r\"^(modo|Arquivo|Brief-sha256):\", re.M)",
+      "para": "r\"^(modo(?=: (brief|entrega))|Arquivo|Brief-sha256):\", re.M)",
+      "testes": ["tests.test_agentes_hash_brief.HashDoBrief.test_segundo_modo_com_outro_valor_bloqueia"]
+    },
+    {
+      "id": "M4",
+      "guarda": "B9 C-1 (volta 2): só no começo da linha; citação recuada ou entre crases não conta",
+      "arquivo": "hooks/agentes.py",
+      "de": "r\"^(modo|Arquivo|Brief-sha256):\", re.M)",
+      "para": "r\"(modo|Arquivo|Brief-sha256):\", re.M)",
+      "testes": ["tests.test_agentes_hash_brief.HashDoBrief.test_citacao_recuada_ou_entre_crases_de_valor_qualquer_passa"]
+    },
+    {
+      "id": "M5",
+      "guarda": "B9 C-2 (volta 2): cada chave conta à parte (um modo, um Arquivo e um hash passam)",
+      "arquivo": "hooks/agentes.py",
+      "de": "tuple(achadas.count(chave) for chave in (\"modo\", \"Arquivo\", \"Brief-sha256\"))",
+      "para": "(len(achadas),)",
+      "testes": ["tests.test_agentes_hash_brief.HashDoBrief.test_hash_do_arquivo_passa_relativo_e_absoluto"]
+    }
+  ]
+}

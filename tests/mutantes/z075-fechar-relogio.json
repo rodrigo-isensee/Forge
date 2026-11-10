@@ -1,0 +1,68 @@
+{
+  "pedido": "z075-fechar-relogio",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "FF-2: o --dry-run nao abre relogio de passo",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$seco\" = 1 ] || { subida_n=",
+      "para": "[ \"$seco\" = 9 ] || { subida_n=",
+      "testes": [
+        "tests.test_fechar_log_check.FecharLogCheck.test_dry_run_nao_grava_linha_subida"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "FF-2: sem passo aberto, subida_fecha nao grava linha",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -n \"$subida_n\" ] || return 0",
+      "para": "[ -n \"x\" ] || return 0",
+      "testes": [
+        "tests.test_fechar_log_check.FecharLogCheck.test_fechamento_grava_uma_linha_subida_por_passo_e_a_do_6_com_merged",
+        "tests.test_fechar_log_check.FecharLogCheck.test_parada_no_passo_4_fecha_a_linha_do_4_com_rc_1"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "FF-2: o fim() fecha o ultimo passo com rc (pular o ultimo passo no fim)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  subida_fecha \"rc $rc\"",
+      "para": "  : \"rc $rc\"",
+      "testes": [
+        "tests.test_fechar_log_check.FecharLogCheck.test_fechamento_grava_uma_linha_subida_por_passo_e_a_do_6_com_merged",
+        "tests.test_fechar_log_check.FecharLogCheck.test_parada_no_passo_4_fecha_a_linha_do_4_com_rc_1"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "FF-2: a linha grava a hora do fim, nao a do inicio",
+      "arquivo": "bin/forge-fechar",
+      "de": "$subida_ini $(date -u +%Y-%m-%dT%H:%M:%SZ)${subida_extra",
+      "para": "$subida_ini $subida_ini${subida_extra",
+      "testes": [
+        "tests.test_fechar_log_check.FecharLogCheck.test_fechamento_grava_uma_linha_subida_por_passo_e_a_do_6_com_merged"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "FF-2: a linha do passo 6 leva MERGED, o merge e o head",
+      "arquivo": "bin/forge-fechar",
+      "de": "  subida_extra=\"MERGED",
+      "para": "  subida_xx=\"MERGED",
+      "testes": [
+        "tests.test_fechar_log_check.FecharLogCheck.test_fechamento_grava_uma_linha_subida_por_passo_e_a_do_6_com_merged"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "FF-2: o sufixo do 6 nao passa ao passo seguinte",
+      "arquivo": "bin/forge-fechar",
+      "de": "  subida_n=\"\" subida_extra=\"\"\n",
+      "para": "  subida_n=\"\"\n",
+      "testes": [
+        "tests.test_fechar_log_check.FecharLogCheck.test_fechamento_grava_uma_linha_subida_por_passo_e_a_do_6_com_merged"
+      ]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
 {"formato": "forge-transcricao/1", "origem": "claude-code (anonimizada)"}
 {"ev": "agente", "t": "2026-01-01T10:00:01Z", "id": "a1", "tipo": "forge:dev-exemplo", "bg": false, "secoes": {"Objetivo": true, "Ler": true, "Entregar": true, "Decisões e restrições": true, "Pronto quando": true, "Relatório": true}}
 {"ev": "cmd", "t": "2026-01-01T11:00:01Z", "cmd": "git push <branch>", "branch": "<branch>"}
-{"ev": "cmd", "t": "2026-01-01T11:00:02Z", "cmd": "gh pr create", "branch": "<branch>"}
+{"ev": "cmd", "t": "2026-01-01T11:00:02Z", "cmd": "gh pr create", "branch": "<branch>", "ator": "forge:tech-lead"}

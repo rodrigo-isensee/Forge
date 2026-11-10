@@ -21,5 +21,43 @@
       "Bash(git config * core.hooksPath*)"
     ],
     "ask": ["Bash(gh pr merge*)", "Bash(gh api * -X PUT*)"]
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "autoAllowBashIfSandboxed": true,
+    "filesystem": {
+      "denyRead": [
+        "~/.ssh",
+        "~/.config/gh",
+        "~/.claude/gh",
+        "~/.git-credentials"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "github.com",
+        "api.github.com",
+        "*.githubusercontent.com",
+        "codeload.github.com",
+        "uploads.github.com",
+        "registry.npmjs.org",
+        "registry.yarnpkg.com",
+        "nodejs.org",
+        "pypi.org",
+        "files.pythonhosted.org",
+        "playwright.azureedge.net",
+        "playwright.download.prss.microsoft.com",
+        "cdn.playwright.dev"
+      ],
+      "deniedDomains": [
+        "api.anthropic.com",
+        "*.anthropic.com",
+        "api.openai.com",
+        "*.openai.com",
+        "generativelanguage.googleapis.com"
+      ]
+    }
   }
 }

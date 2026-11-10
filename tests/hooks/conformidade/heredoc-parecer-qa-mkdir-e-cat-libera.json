@@ -1,0 +1,29 @@
+{
+  "descricao": "HOOK-PARECER-HEREDOC-FALSO-POSITIVO (0.43.2), projeto: mkdir antes do cat do parecer.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "mkdir -p docs/qa && cat > docs/qa/p.md <<'FIM'\nQA: rodei git pull e o merge passou; don't quebra.\nFIM"
+    },
+    "agent_type": "forge:qa-engineer",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

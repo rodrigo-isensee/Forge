@@ -1,0 +1,116 @@
+{
+  "pedido": "v0435-hooks",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "R15",
+      "guarda": "--force conta como força",
+      "arquivo": "hooks/conformidade.py",
+      "de": "forca = any(a == \"--force\" or re.fullmatch(r\"-[a-zA-Z]*f[a-zA-Z]*\", a) for a in args)",
+      "para": "forca = any(a == \"--forcex\" or re.fullmatch(r\"-[a-zA-Z]*f[a-zA-Z]*\", a) for a in args)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R16",
+      "guarda": "as letras curtas juntas",
+      "arquivo": "hooks/conformidade.py",
+      "de": "curtas = \"\".join(a[1:] for a in args if re.fullmatch(r\"-[a-zA-Z]+\", a))",
+      "para": "curtas = \"\".join(a[1:] for a in args if re.fullmatch(r\"--[a-zA-Z]+\", a))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R17",
+      "guarda": "branch -M move",
+      "arquivo": "hooks/conformidade.py",
+      "de": "move = \"M\" in curtas or forca and",
+      "para": "move = \"MX\" in curtas or forca and",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R18",
+      "guarda": "branch -C copia por cima",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if sub == \"branch\" and (move or \"C\" in curtas or",
+      "para": "if sub == \"branch\" and (move or \"CX\" in curtas or",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R19",
+      "guarda": "no -M, a de origem também conta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(positivos[:1] if move and len(positivos) > 1 else [])",
+      "para": "(positivos[:1] if move and len(positivos) > 2 else [])",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R20",
+      "guarda": "só a candidata de integração volta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "next((b for b in candidatas if nome_da_branch(b) in INTEGRACAO), None)",
+      "para": "next((b for b in candidatas if nome_da_branch(b) not in INTEGRACAO), None)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R21",
+      "guarda": "branch -f recria a branch",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if sub == \"branch\" and forca:\n",
+      "para": "        if sub == \"branchx\" and forca:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R22",
+      "guarda": "worktree add -B recria a branch",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if sub == \"worktree\" and args[:1] == [\"add\"] and \"-B\" in args:",
+      "para": "if sub == \"worktree\" and args[:1] == [\"add\"] and \"-Bx\" in args:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R23",
+      "guarda": "o nome depois do -B no fim da linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "args.index(\"-B\") + 1 < len(args) else None",
+      "para": "args.index(\"-B\") + 2 < len(args) else None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R24",
+      "guarda": "push com curinga que alcança a integração",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if \"*\" in destino and self.ref_local_da_integracao(destino):",
+      "para": "if \"?\" in destino and self.ref_local_da_integracao(destino):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R25",
+      "guarda": "o arquivo com mais rotas que o teto avisa o corte",
+      "arquivo": "stacks/node-react/skills/node-backend/superficie-de-rede.py",
+      "de": "        if len(achadas) > MAXIMO_DE_ROTAS:\n",
+      "para": "        if len(achadas) >= MAXIMO_DE_ROTAS:\n",
+      "testes": [
+        "tests.test_stack_prereq_sistema.SuperficieDeRede"
+      ]
+    }
+  ]
+}

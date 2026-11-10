@@ -535,6 +535,136 @@ class Delta(Repositorio):
         self.assertEqual(self.arvore(), antes)
 
 
+class DeltaAposMergeBase(Repositorio):
+    """FC-DELTA-APOS-MERGE-BASE (0.43.2): depois do merge da develop na branch, o `delta` e o `parecer delta` mostram só o que é do
+    autor (por conteúdo contra o segundo pai, com a resolução de conflito e o desfeito), não o que veio da base."""
+    SEG = ("---\ntipo: revisao-seguranca\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\n"
+           "revisor: forge:security-engineer\ndata: 2026-11-08\n---\n# s\n")
+
+    def setUp(self):
+        super().setUp()
+        self.c1 = self.commitar({"src/app.txt": "da branch\n", "proprio.txt": "1\n"}, "entrega")
+        self.commitar({"docs/security/p1.md": self.SEG.format(c=self.c1)}, "parecer")
+
+    def base_anda(self, arquivos):
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar(arquivos, "a base anda")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+
+    def integrar(self, *opcoes):
+        git("merge", "-q", "--no-ff", *opcoes, "-m", "integra a base", "develop", cwd=self.repo)
+
+    def nomes(self, saida):
+        return [l.split('"')[1] for l in saida.splitlines() if l.startswith('delta: "') and "+" in l]
+
+    def test_so_o_arquivo_proprio_com_a_linha_de_escopo(self):
+        self.base_anda({"d1.txt": "1\n", "d2.txt": "2\n", "src/d3.txt": "3\n"})
+        self.integrar()
+        self.commitar({"proprio.txt": "2\n"}, "trabalho depois do merge")
+        rc, saida = self.check("delta", self.c1)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("delta: escopo: sem o que veio da base (develop)", saida)
+        self.assertEqual(self.nomes(saida), ["proprio.txt"])
+        rc, saida = self.check("parecer", "delta", "docs/security/p1.md")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("escopo: sem o que veio da base (develop)", saida)
+        self.assertIn('no dominio: "proprio.txt"', saida)
+        self.assertNotIn("d1.txt", saida)
+
+    def test_conflito_resolvido_aparece(self):
+        self.base_anda({"src/app.txt": "da base\n", "d1.txt": "1\n"})
+        with self.assertRaises(subprocess.CalledProcessError):  # conflito no src/app.txt
+            git("merge", "-q", "develop", cwd=self.repo)
+        (self.repo / "src" / "app.txt").write_text("resolvido\n", encoding="utf-8")
+        git("add", "-A", cwd=self.repo)
+        git("commit", "-q", "--no-edit", cwd=self.repo)
+        rc, saida = self.check("delta", self.c1)
+        self.assertEqual((rc, self.nomes(saida)), (0, ["src/app.txt"]), saida)
+
+    def test_arquivo_proprio_que_o_merge_devolveu_a_base_aparece(self):  # desfeito: a mudança do autor sumiu no merge
+        self.base_anda({"src/app.txt": "da base\n"})
+        self.integrar("-X", "theirs")
+        rc, saida = self.check("delta", self.c1)
+        self.assertEqual((rc, self.nomes(saida)), (0, ["src/app.txt"]), saida)
+
+    def test_sem_merge_da_base_e_como_antes(self):
+        self.commitar({"proprio.txt": "2\n"}, "trabalho")
+        rc, saida = self.check("delta", self.c1)
+        self.assertEqual((rc, self.nomes(saida)), (0, ["proprio.txt"]), saida)
+        self.assertNotIn("escopo", saida)
+
+    def test_base_inexistente_vale_o_intervalo_inteiro_e_base_fora_da_lista_da_rc_2(self):
+        self.base_anda({"d1.txt": "1\n"})
+        self.integrar()
+        rc, saida = self.check("delta", self.c1, "--base", "homolog")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("delta: base homolog não encontrada; o intervalo vale inteiro", saida)
+        self.assertEqual(self.nomes(saida), ["d1.txt"])
+        for args in (("delta", self.c1, "--base", "melhoria/x"), ("parecer", "delta", "docs/security/p1.md", "--base", "main")):
+            with self.subTest(args):
+                self.assertEqual(self.check(*args)[0], 2)
+
+
+class DeltaDaJuncao(Repositorio):
+    """B19a (E20): as partes da junção são os segundos pais dos merges da primeira linha; octopus rc 1 (C-4), merge da
+    base não é parte (C-5), git que falha rc 2 (C-9)."""
+
+    def setUp(self):
+        super().setUp()
+        git("update-ref", "refs/remotes/origin/develop", "develop", cwd=self.repo)
+        self.a = self.parte("parte-a", {"a.txt": "a\n"})
+        git("switch", "-q", "-c", "interna", cwd=self.repo)
+        self.commitar({"i.txt": "i\n"}, "interna")
+        git("switch", "-q", "parte-a", cwd=self.repo)
+        self.juntar("interna")  # merge dentro da parte: fora da primeira linha da junção
+        self.a = self.head()
+        self.b = self.parte("parte-b", {"b.txt": "b\n"})
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+
+    def parte(self, nome, arquivos):
+        git("switch", "-q", "-c", nome, "develop", cwd=self.repo)
+        return self.commitar(arquivos, nome)
+
+    def juntar(self, *refs, mensagem="Merge"):
+        git("merge", "-q", "--no-ff", "-m", mensagem, *refs, cwd=self.repo)
+        return self.head()
+
+    def juncao(self, *args):
+        return self.check("juncao", "p1", "--ref", "melhoria/x", *args)
+
+    def test_duas_partes_e_o_merge_da_base_no_meio_nao_vira_parte(self):
+        m1 = self.juntar("parte-a", mensagem="Merge parte-a")
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"d.txt": "d\n"}, "develop anda")
+        git("update-ref", "refs/remotes/origin/develop", "develop", cwd=self.repo)
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        self.juntar("origin/develop", mensagem="Merge origin/develop")
+        m3 = self.juntar("parte-b", mensagem="Merge parte-b\x1bjuncao: ok")
+        rc, saida = self.juncao()
+        self.assertEqual((rc, saida.splitlines()), (0, [f"parte: {self.a[:7]} merge {m1[:7]} Merge parte-a",
+                                                        f"parte: {self.b[:7]} merge {m3[:7]} Merge parte-b juncao: ok"]))
+
+    def test_octopus_da_rc_1_e_sem_merge_nenhuma_parte(self):
+        self.assertEqual(self.juncao(), (0, ""))
+        m = self.juntar("parte-a", "parte-b")
+        self.assertEqual(self.juncao(), (1, f"juncao: octopus não aceito: {m[:7]}\n"))
+
+    def test_entrada_ilegivel_e_git_que_falha_dao_rc_2(self):
+        self.juntar("parte-a")
+        self.assertEqual(self.check("juncao", "../p1", "--ref", "melhoria/x")[0], 2)
+        self.assertEqual(self.check("juncao", "p1", "--ref", "nao-existe")[0], 2)
+        git("update-ref", "-d", "refs/remotes/origin/develop", cwd=self.repo)
+        self.assertEqual(self.juncao()[0], 2)
+        git("update-ref", "refs/remotes/origin/develop", "develop", cwd=self.repo)
+        fc, head = carregar_forge_check(), self.head()
+        for falha in ("log", "--is-ancestor"):
+            with self.subTest(falha):
+                real = fc.git
+                fc.git = lambda raiz, *args, bruto=False, real=real, falha=falha: (128, b"" if bruto else "") if falha in args else real(raiz, *args, bruto=bruto)
+                self.assertEqual(fc.partes_da_juncao(self.repo, head, "develop")[0], 2)
+                fc.git = real
+
+
 class BriefAnterior(unittest.TestCase):
     PASTA = RAIZ / "tests" / "fixtures" / "brief"
 
@@ -694,8 +824,11 @@ class BriefDeVolta(Repositorio):
         self.assertIn(f"Volta-de: {self.rel_anterior} sha256 {sha}\n", saida)
         modulo = carregar_forge_check()
         anterior = modulo.blocos_literais(self.ANTERIOR.read_text(encoding="utf-8"))
-        for nome in ("Objetivo", "Fora do escopo", "Relatório"):
+        for nome in ("Objetivo", "Relatório"):
             self.assertIn("".join(anterior[nome]).rstrip("\n"), saida, nome)  # byte a byte
+        # 0.43.1 (C2): o Fora do escopo sai do pedido (as etapas fora do Entregar), não do brief anterior
+        self.assertNotIn("".join(anterior["Fora do escopo"]).rstrip("\n"), saida)
+        self.assertIn('- "E2.1 (dev-exemplo): texto da documentação." · etapa de outra delegação; continua no pedido\n', saida)
         self.assertIn("## Entregar (volta 1)\n", saida)
         self.assertIn(f"- (review {self.head()[:7]} A1) a função perde o erro de domínio [src/app.txt:3]\n", saida)
         self.assertIn(f"- (review {self.head()[:7]} A3) falta teste do caso de borda [tests/x.py:10]\n", saida)
@@ -704,8 +837,7 @@ class BriefDeVolta(Repositorio):
         self.assertIn("Recomendados", entregar)
         self.assertRegex(entregar, r"\(review \w{7} A2\) nome pouco claro \[src/app.txt:7\] · PREENCHER: entra ou corta")
         self.assertIn("esta volta só corrige os achados abaixo (E1, E1.1, E2)", saida)  # o escopo original e a etapa seguem cobertos no corte por IDs
-        for decisao in ('DECISÃO DO DONO (2026-01-01): "A".', 'DECISÃO DO DONO (2026-01-02): "sem custo".'):
-            self.assertIn(decisao, saida.split("## Decisões e restrições")[1])
+        self.assertRegex(saida.split("## Decisões e restrições")[1], r"\n- decisões: pedido pedido-sintetico até [0-9a-f]{64} \(2 linhas")  # P4
         self.assertIn(f"- PQ-4 (cmd, do autor): `forge-check entrega pedido-sintetico --branch melhoria/x --base develop --base-sha {self.base} --etapa codigo --desde PREENCHER` · espera: rc=0", saida)
         self.assertIn("- PQ-1 (sha): `git log -1 --format=%h` da branch", saida)  # os PQs do anterior continuam
         self.assertIn(f"- PQ-5 (cmd, do autor): `bin/forge-mutante --cobertura --base {self.base}` · espera: rc=0", saida)
@@ -720,17 +852,22 @@ class BriefDeVolta(Repositorio):
     def test_brief_de_volta_marca_os_blocos_identicos_ao_anterior(self):  # C3, qa A2: a fiação no `forge-check brief --anterior`
         rc, saida = self.gerar()
         rc, conferencia = self.conferir(self.preenchido(saida), "--anterior", self.rel_anterior)
-        for nome in ("Objetivo", "Fora do escopo", "Relatório"):
+        for nome in ("Objetivo", "Relatório"):  # 0.43.1: o Fora do escopo sai do pedido
             self.assertIn(f'volta: bloco "{nome}" idêntico ao anterior (exigido)\n', conferencia)
 
-    def test_decisao_do_dono_nova_do_pedido_entra_na_volta(self):  # C2
+    def test_decisao_do_dono_nova_do_pedido_entra_na_volta(self):  # C2; P4 (0.43.1): pela referência ao bloco
+        referencia = re.compile(r"^- decisões: pedido pedido-sintetico até ([0-9a-f]{64}) \((\d+) linhas", re.M)
+        antes = referencia.search(self.gerar()[1]).groups()
         self.pedido.write_text(self.pedido.read_text(encoding="utf-8") + "- DECISÃO DO DONO (2026-02-01): \"B\" para a volta.\n", encoding="utf-8")
         rc, saida = self.gerar()
-        self.assertIn('- DECISÃO DO DONO (2026-02-01): "B" para a volta.', saida)
+        depois = referencia.search(saida).groups()
+        self.assertNotEqual(antes[0], depois[0])
+        self.assertEqual(int(depois[1]), int(antes[1]) + 1)
         rc, conferencia = self.conferir(saida, ref=None)
         self.assertNotIn("falta decisão do dono", conferencia)
-        faltando = saida.replace('- DECISÃO DO DONO (2026-02-01): "B" para a volta.', "")
-        self.assertIn('volta: falta decisão do dono "- DECISÃO DO DONO (2026-02-01)', self.conferir(faltando, ref=None)[1])
+        self.assertIn("decisões: ok por referência", conferencia)
+        antigo = saida.replace(referencia.search(saida).group(0), "- sem referência (")  # brief antigo, sem a referência: a cópia é cobrada
+        self.assertIn('volta: falta decisão do dono "- DECISÃO DO DONO (2026-02-01)', self.conferir(antigo, ref=None)[1])
 
     def test_pareceres_vem_da_ref_nao_do_disco_do_jarvis(self):  # C1
         git("switch", "-q", "develop", cwd=self.repo)
@@ -852,46 +989,24 @@ class BriefDeVolta(Repositorio):
         texto = self.PEDIDO_FIXTURE.read_text(encoding="utf-8").replace("\n\n## Decisões", "\n- E1.4b (dev-exemplo): ajuste do recurso B.\n\n## Decisões", 1)
         self.pedido.write_text(texto + f"\n## Histórico\n- 2026-10-19 16:00: entrega conferida {self.c1}\n" + "".join(f"{h}\n" for h in historico), encoding="utf-8")
 
-    def test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior(self):  # E14 (VOLTA-ETAPA-NOVA, Q14 = A): C-1 a C-6
-        brief = "- 2026-11-04 09:00: brief pedido-sintetico-dev-exemplo-1 delegado"
-        aberta = "- 2026-11-04 10:00: etapa E1.4b aberta"
-        self.pedido_e14(brief, aberta)
+    def test_volta_tira_o_fora_do_escopo_do_pedido(self):  # 0.43.1 (C2): substitui o E14 (só acréscimo ao Fora do anterior)
+        self.pedido_e14()
         rc, saida = self.gerar()
         self.assertEqual(rc, 0, saida)
-        fora = saida.split("## Fora do escopo")[1].split("\n## ")[0].rstrip("\n").split("\n")
-        self.assertEqual(fora[-1], self.LINHA_E14)  # C-5: o gerador propõe o que a conferência aceita, no fim (C-1)
+        fora = saida.split("## Fora do escopo")[1].split("\n## ")[0]
+        self.assertIn(self.LINHA_E14, fora)  # a etapa do pedido entra sem prova de abertura nem cópia do anterior
+        self.assertNotIn("etapa do mesmo papel em outra delegação", fora)  # o texto do anterior não passa
         texto = self.preenchido(saida)
         rc, conferencia = self.conferir(texto)
         self.assertEqual(rc, 0, conferencia)
-        self.assertNotIn('"Fora do escopo"', conferencia)
-        antiga = '- "E2.1 (dev-exemplo): texto da documentação." · etapa do mesmo papel em outra delegação; continua no pedido.'
-        casos = {  # C-6: cada abuso reprova com o motivo
-            "linha anterior editada com acréscimo no fim": (texto.replace(antiga, antiga + " extra"), 'volta: bloco "Fora do escopo" difere do anterior'),
-            "linha anterior com espaço a mais (T-1)": (texto.replace(antiga, antiga.replace(" · ", "  · ")), 'volta: bloco "Fora do escopo" difere do anterior'),
-            "acréscimo no meio": (texto.replace(antiga + "\n", self.LINHA_E14 + "\n" + antiga + "\n", 1), 'volta: bloco "Fora do escopo" difere do anterior'),
-            "texto diferente do de ## Etapas": (texto.replace("recurso B.", "recurso C."), "volta: linha nova no Fora do escopo não é etapa de ## Etapas"),
-            "a mesma etapa duas vezes": (texto.replace(self.LINHA_E14, self.LINHA_E14 + "\n" + self.LINHA_E14), "volta: etapa repetida no Fora do escopo"),
-            "etapa que já estava no Entregar do anterior (C-4)": (texto.replace(self.LINHA_E14, self.LINHA_E14.replace("E1.4b (dev-exemplo): ajuste do recurso B.",
-                                                                                     "E1.1 (dev-exemplo): implementação do recurso A.")),
-                                                                  "volta: etapa E1.1 já estava no brief anterior ou é a da volta"),
-            "a etapa da própria volta (C-4)": (texto.replace("Volta-de:", "Cobre: E1.4b\nVolta-de:", 1), "volta: etapa E1.4b já estava no brief anterior ou é a da volta"),
-            "Relatório segue byte a byte (T-2)": (texto.replace("Até 8 linhas", "Até 20 linhas"), 'volta: bloco "Relatório" difere do anterior'),
-            "Objetivo segue byte a byte (T-2)": (texto.replace("Entregar o recurso A", "Entregar o recurso A e o B"), 'volta: bloco "Objetivo" difere do anterior'),
-        }
-        for nome, (brief_volta, esperado) in casos.items():
-            with self.subTest(nome):
-                rc, conferencia = self.conferir(brief_volta)
-                self.assertEqual(rc, 1, conferencia)
-                self.assertIn(esperado, conferencia)
-        for nome, historico in {"etapa aberta antes do brief anterior": (aberta, brief), "sem prova no Histórico": (brief,),
-                                "brief anterior não registrado": (aberta,), "prova fora da forma": (brief, "- etapa E1.4b aberta", "- nota: 2026-11-04 10:00: etapa E1.4b aberta",
-                                                        "- 2026-11-04 10:00: etapa E1.4b aberta-nao", "- 2026-11-04 10:00: etapa E1.4b aberta.")}.items():
-            with self.subTest(nome):  # C-3: a prova é só a ordem do Histórico do pedido
-                self.pedido_e14(*historico)
-                self.assertNotIn(self.LINHA_E14, self.gerar()[1].split("## Fora do escopo")[1].split("\n## ")[0])
-                rc, conferencia = self.conferir(texto)
-                self.assertEqual(rc, 1, conferencia)
-                self.assertIn("volta: etapa E1.4b sem prova de abertura depois do brief anterior", conferencia)
+        sem = texto.replace(self.LINHA_E14 + "\n", "")
+        rc, conferencia = self.conferir(sem)
+        self.assertEqual(rc, 1, conferencia)
+        self.assertIn('"E1.4b"', conferencia)
+        corte = '- Retira do escopo original: "x" · justificativa: a · consequência: b · decisão: c\n'
+        anterior = self.ANTERIOR.read_text(encoding="utf-8").replace("## Fora do escopo\n", "## Fora do escopo\n" + corte, 1)
+        self.brief_anterior.write_text(anterior, encoding="utf-8")
+        self.assertIn(corte, self.gerar()[1])  # o corte do dono passa para a volta
 
     def test_conferencia_reprova_anterior_bloco_e_achado(self):
         pedido = self.pedido.read_text(encoding="utf-8")
@@ -901,7 +1016,7 @@ class BriefDeVolta(Repositorio):
             "volta: anterior diferente (sha256)": texto.replace("sha256 " + hashlib.sha256(self.ANTERIOR.read_bytes()).hexdigest(), "sha256 " + "0" * 64),
             'volta: bloco "Objetivo" difere do anterior': texto.replace("Entregar o recurso A (exemplo sintético).", "Entregar outra coisa."),
             'volta: bloco "Relatório" difere do anterior': texto.replace("Até 8 linhas", "Até 20 linhas"),
-            'volta: bloco "Fora do escopo" difere do anterior': texto.replace("continua no pedido.", "continua."),
+            'corte: sem marca "E2.1"': "\n".join(l for l in texto.splitlines() if not l.startswith('- "E2.1')) + "\n",  # 0.43.1: o corte cobra o Fora
             'volta: falta achado "A3" de docs/reviews/p1.md': "\n".join(l for l in texto.splitlines() if " A3)" not in l) + "\n",
             'volta: falta achado "A1" de docs/reviews/p1.md': texto.replace(" A1)", " A9)"),
         }
@@ -938,7 +1053,8 @@ class BriefDeVolta(Repositorio):
         (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=self.ACHADOS), encoding="utf-8")
         self.assertEqual(self.check("docs"), (0, ""))
         for corpo in ("## Achados\n1. achado em texto livre, formato antigo\n", "sem bloco\n"):  # transição: pareceres antigos seguem válidos
-            (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=corpo), encoding="utf-8")
+            self.commitar({"docs/reviews/p1.md": self.REVIEW.format(c="abc1234", p="reprovado", corpo=corpo)}, "parecer antigo")
+            git("update-ref", "refs/remotes/origin/develop", self.head(), cwd=self.repo)  # antigo: fora do delta (B12)
             self.assertEqual(self.check("docs"), (0, ""), corpo)
         (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=self.ACHADOS + "achado em prosa\n"), encoding="utf-8")
         self.assertIn("fora do formato", self.check("docs")[1])
@@ -984,7 +1100,7 @@ class VoltaUnicaComQa(Repositorio):
         self.assertRegex(saida, rf"\(qa {h} A2\) mensagem vaga \[src/app.txt:2\] · PREENCHER: entra ou corta")
 
     def test_qa_aprovado_antes_do_codigo_novo_fica_desatualizado(self):  # C-2, caso de abuso 1
-        h = self.head()
+        h = self.c1  # AQ-5 (0.43.3): o QA cita o código revisado; o HEAD com o parecer do review por cima é recusado
         self.commitar({"docs/qa/pedido-sintetico.md": self.QA.format(c=h, p="aprovado", b=0, corpo="ok\n")}, "parecer de QA em H")
         modulo = carregar_forge_check()
         self.assertEqual([l for l in modulo.cmd_pr(self.repo, "pedido-sintetico") if l.startswith("docs/qa/")], [])  # em H vale
@@ -1001,26 +1117,28 @@ class TextoDosAgentes(unittest.TestCase):
         return (RAIZ / "agents" / f"{nome}.md").read_text(encoding="utf-8")
 
     def test_conferente_usa_entrega_desde_e_imprime_a_conferida(self):
+        """0.43.1 (processo novo): a `entrega conferida` é do `forge-check entrega --pedido`, que calcula Base, Base-sha e Desde; o
+        conferente opcional roda só a forma antiga (com `--desde`) ou a nova com `--so-leitura` (D4 da 0.44.0), e confirma a rodada com `--anterior`."""
         t = self.texto("conferente")
-        for trecho in ("forge-check entrega <Pedido> --branch <b> --base <Base> --base-sha <Base-sha> --etapa <etapa> --desde",
-                       "use também o `Desde:` da mensagem", "`conferida: <sha40 do head da branch>`", "--anterior", "só o Jarvis"):
+        for trecho in ("forge-check entrega <pedido> --branch <b> --base <Base> --base-sha <Base-sha> --etapa <etapa> [--desde <conferida>]",
+                       "forge-check entrega --pedido <p> --branch <b> --etapa <etapa> --so-leitura", "--anterior",
+                       "grava a linha `entrega conferida`, que não é sua"):
             self.assertIn(trecho, t)
 
-    def test_desde_vem_da_mensagem_do_jarvis_e_o_texto_do_hook_e_exato(self):  # S-A2, S-A5, R-A4
+    def test_desde_vem_da_mensagem_do_jarvis_e_o_texto_do_hook_e_exato(self):  # S-A2, S-A5, R-A4; 0.43.1: o Desde é calculado
         conferente, jarvis = self.texto("conferente"), texto_do_jarvis(RAIZ)
-        for trecho in ("Desde: <sha40", "o valor de `Desde:` da mensagem", "diverge do Histórico", "a forma `--opção=-valor`",
-                       "peça a ref da branch da entrega ao Jarvis"):
-            self.assertIn(trecho, conferente)
-        self.assertIn("`Desde:` (o sha40 da linha mais recente da própria branch no `## Histórico`", jarvis)  # E12 (CONFERIDA-DESDE-POR-BRANCH)
+        self.assertIn("a forma `--opção=-valor`", conferente)
+        self.assertIn("forge-check entrega --pedido <p> --branch <b> --etapa <etapa>", jarvis)
+        self.assertIn("Base, Base-sha e Desde são calculados", (RAIZ / "bin" / "forge-check").read_text(encoding="utf-8"))
 
-    def test_pareceres_trazem_achados_e_leem_o_delta(self):
+    def test_pareceres_trazem_achados_e_leem_o_delta(self):  # 0.43.1 F: a revalidação lê `forge-check parecer delta`
         for agente, pasta in (("tech-lead", "reviews"), ("security-engineer", "security"), ("qa-engineer", "qa")):
             with self.subTest(agente):
                 t = self.texto(agente)
                 self.assertIn("`## Achados`", t)
                 self.assertIn("- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>", t)
-                self.assertIn(f"forge-check delta --parecer docs/{pasta}/<pedido>.md", t)
-        self.assertIn("sempre sobre o head", self.texto("qa-engineer"))
+                self.assertIn(f"forge-check parecer delta docs/{pasta}/<pedido>.md", t)
+        self.assertIn("no mesmo head", self.texto("qa-engineer"))
         self.assertIn("sem dispensar a releitura", self.texto("security-engineer"))
 
 
@@ -1160,6 +1278,124 @@ class SondaNoCorpus(BriefDeVolta):
         self.assertNotIn("fora do corpus", saida)
 
 
+
+class ModelosNoFormato(unittest.TestCase):
+    """MODELO-PARECER (Z7, B11): todo modelo de parecer nasce com o bloco `## Achados` que o `forge-check pr` lê no estrito, e
+    com a frase da evidência; um modelo com prosa (as ferramentas, por exemplo) dentro do bloco reprova aqui."""
+    MODELOS = tuple(f"templates/projeto/docs/{p}/_modelo.md" for p in ("reviews", "security", "qa", "devops")) + (
+        "docs/security/_modelo.md", "docs/devops/_modelo.md")
+    EVIDENCIA = "a evidência não muda para caber (`reproduzido` não vira `visto`)"
+
+    def test_cada_modelo_passa_no_bloco_estrito(self):
+        modulo = carregar_forge_check()
+        self.assertEqual(len(self.MODELOS), 6)
+        for rel in self.MODELOS:
+            texto = (RAIZ / rel).read_text(encoding="utf-8")
+            achados, erros, tem = modulo.achados_do_parecer(texto)
+            self.assertTrue(tem, f"{rel}: sem o bloco ## Achados")
+            self.assertEqual(erros, [], rel)
+            self.assertEqual(modulo.problemas_do_bloco(achados, erros, tem, {"parecer": "aprovado"}, True), [], rel)
+            self.assertEqual(achados, [], rel)  # adendo 2, ponto 1: bloco vazio, sem achado de exemplo
+            self.assertIn("- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>", texto, rel)
+
+    def test_prosa_dentro_do_bloco_reprova(self):
+        modulo = carregar_forge_check()
+        achados, erros, tem = modulo.achados_do_parecer("# P\n## Achados\nFerramentas: as do ambiente.\n")
+        self.assertTrue(erros)
+        self.assertTrue(modulo.problemas_do_bloco(achados, erros, tem, {"parecer": "aprovado"}, True))
+
+    def test_os_quatro_modelos_do_projeto_trazem_a_frase_da_evidencia(self):
+        for rel in self.MODELOS[:4]:
+            self.assertIn(self.EVIDENCIA, (RAIZ / rel).read_text(encoding="utf-8"), rel)
+
+
+class ProvaDaSuite(Repositorio):
+    """MAQ-I5: parecer de QA que cita o `forge-suite-*.verde` ou `.dirigida` local como evidência é recusado; a prova da
+    suíte é o check-run `bateria` do sha. A seção de método que só explica que o arquivo não vale passa (corpus de legítimos)."""
+    QA = ("---\ntipo: qa\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: abc1234\nparecer: aprovado\nescopo: completo\n"
+          "bugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0\ndata: 2026-11-08\n---\n# QA: p1\n\n## Achados\n\n{corpo}")
+    VERDE = "suíte inteira verde: `/run/user/1000/forge-suite-1000.verde`\n"
+    VIOLACAO = "docs/qa/p1.md: achados: prova de suíte por arquivo local não vale; cite o check-run bateria do sha (I5) (R-QA)"
+
+    def docs(self, corpo, pasta="qa", modelo=None):
+        (self.repo / "docs" / pasta).mkdir(parents=True, exist_ok=True)
+        texto = (modelo or self.QA).format(c="abc1234", p="aprovado", corpo=corpo)
+        (self.repo / "docs" / pasta / "p1.md").write_text(texto, encoding="utf-8")
+        return self.check("docs")
+
+    def test_verde_ou_dirigida_na_evidencia_e_recusado(self):
+        casos = {"verde no critério": "## Critério → teste → resultado\n" + self.VERDE,
+                 "dirigida na suíte": "## Suíte\nverde em /tmp/forge-suite-0.dirigida (sha abc1234)\n",
+                 "subseção da evidência": "## Cenários e resultado real\n### Suíte\n" + self.VERDE,
+                 "no bloco de achados": "- R1 (recomendado) bin/x:1 · prova em forge-suite-1000.verde\n",
+                 "carimbo K6 da suíte paralela": "## Resultado\nárvore em .git/forge-suite-verde (K6)\n"}
+        for nome, corpo in casos.items():
+            with self.subTest(nome):
+                rc, saida = self.docs(corpo)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn(self.VIOLACAO, saida)
+
+    def test_bateria_metodo_e_outro_tipo_passam(self):
+        casos = {"check-run bateria": "## Critério → teste → resultado\nbateria pass 0123456789abcdef (gh pr checks)\n",
+                 "método explica que não usou": "## Critério → teste → resultado\nbateria pass abc1234\n\n## Método\n"
+                                                "Não usei o `/run/user/1000/forge-suite-1000.verde`: ele não vale (I5).\n",
+                 "nome parecido": "## Suíte\nforge-suite-1000.verdes, forge-suite-verdes e forge-suite/x.verde não são o carimbo\n"}
+        for nome, corpo in casos.items():
+            with self.subTest(nome):
+                self.assertEqual(self.docs(corpo), (0, ""))
+        with self.subTest("parecer de review não é de QA"):
+            self.assertEqual(self.docs("## Suíte\n" + self.VERDE, "reviews", BriefDeVolta.REVIEW), (0, ""))
+
+
 for _nome in dir(BriefDeVolta):  # só os testes desta classe; os herdados já rodam em BriefDeVolta
     if _nome.startswith("test_") and _nome not in SondaNoCorpus.__dict__:
         setattr(SondaNoCorpus, _nome, None)
+
+
+class DocsEstritoNoDelta(Repositorio):
+    """B12 (versao-075, E7): o `forge-check docs` cobra o bloco `## Achados` estrito no parecer novo ou alterado desde o
+    merge-base(origin/develop, HEAD), commitado ou não; fora do delta, ou com o git que falha, segue o modo de hoje."""
+    LONGO = ("---\ntipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: abc1234\nparecer: aprovado\n"
+             "revisor: forge:tech-lead\ndata: 2026-10-19\n---\n# Parecer\n\n## Achados\n- A1 (recomendado) bin/x:1 · " + "x" * 302 + "\n")
+    AVISO = "aviso: docs: base ilegível; estrito só no forge-check pr"
+
+    def docs(self):
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.repo), "docs"],
+                           env=dict(ambiente_limpo(), HOME=str(self.home)), capture_output=True, text=True)
+        return r.returncode, r.stdout, r.stderr
+
+    def com_origem(self, sha):
+        git("update-ref", "refs/remotes/origin/develop", sha, cwd=self.repo)
+
+    def test_parecer_novo_commitado_ou_nao_reprova_com_achado_acima_do_teto(self):
+        self.com_origem(self.base)
+        self.commitar({"docs/reviews/p1.md": self.LONGO}, "parecer")
+        self.commitar({"src/app.txt": "v2\n"}, "outro commit: o delta é desde o merge-base, não do HEAD~1")
+        (self.repo / "docs" / "reviews" / "p2.md").write_text(self.LONGO, encoding="utf-8")  # novo, fora do índice
+        rc, saida, erro = self.docs()
+        self.assertEqual(rc, 1, saida)
+        for rel in ("docs/reviews/p1.md", "docs/reviews/p2.md"):
+            self.assertIn(f"{rel}: achados: achado A1 com mais de 300 caracteres", saida)
+        self.assertNotIn(self.AVISO, erro)
+
+    def test_parecer_antigo_fora_do_delta_no_formato_antigo_passa(self):
+        self.commitar({"docs/reviews/p1.md": self.LONGO}, "parecer antigo")
+        self.com_origem(self.head())
+        self.commitar({"src/app.txt": "v2\n"}, "mudança da branch")
+        self.assertEqual(self.docs(), (0, "", ""))
+
+    def test_sem_origin_develop_avisa_e_segue_o_modo_de_hoje(self):
+        (self.repo / "docs" / "reviews").mkdir(parents=True)
+        (self.repo / "docs" / "reviews" / "p1.md").write_text(self.LONGO, encoding="utf-8")
+        rc, saida, erro = self.docs()
+        self.assertEqual((rc, saida), (0, ""))
+        self.assertIn(self.AVISO, erro)
+
+    def test_ls_files_que_falha_devolve_none(self):
+        self.com_origem(self.base)
+        modulo = carregar_forge_check()
+        real = modulo.git
+        modulo.git = lambda raiz, *args, **kw: (128, b"") if args[0] == "ls-files" else real(raiz, *args, **kw)
+        self.assertIsNone(modulo.documentos_do_delta(self.repo))
+        modulo.git = real
+        self.assertEqual(modulo.documentos_do_delta(self.repo), set())

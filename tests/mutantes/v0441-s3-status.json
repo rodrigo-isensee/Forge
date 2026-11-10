@@ -1,0 +1,116 @@
+{
+  "pedido": "v0441-s3-status",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "S3: a secao do quadro vem do titulo ##",
+      "arquivo": "bin/forge-status",
+      "de": "if linha.startswith(\"## \") else secao",
+      "para": "if linha.startswith(\"### \") else secao",
+      "testes": [
+        "tests.test_forge_status.Status.test_uma_linha_por_pedido_em_curso_do_mais_recente"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "S3: so linha com a celula Pedido",
+      "arquivo": "bin/forge-status",
+      "de": "if len(celulas) > 2 else \"\"",
+      "para": "if len(celulas) > 4 else \"\"",
+      "testes": [
+        "tests.test_forge_status.Status.test_uma_linha_por_pedido_em_curso_do_mais_recente"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "S3: o cabecalho da tabela nao e pedido",
+      "arquivo": "bin/forge-status",
+      "de": "and ID.fullmatch(nome) and nome != \"Pedido\":",
+      "para": "and ID.fullmatch(nome) and nome == \"Pedido\":",
+      "testes": [
+        "tests.test_forge_status.Status.test_uma_linha_por_pedido_em_curso_do_mais_recente"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "S3: sem historico sai sem historico",
+      "arquivo": "bin/forge-status",
+      "de": "historico[-1] if historico else",
+      "para": "historico[-1] if not historico else",
+      "testes": [
+        "tests.test_forge_status.Status.test_raiz_pela_opcao_ou_pelo_cwd_do_json_e_o_maximo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "S3: pedido em Pronto fica fora",
+      "arquivo": "bin/forge-status",
+      "de": "        if coluna not in FECHADAS:",
+      "para": "        if coluna in FECHADAS:",
+      "testes": [
+        "tests.test_forge_status.Status.test_uma_linha_por_pedido_em_curso_do_mais_recente"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "S3: o ultimo PR citado",
+      "arquivo": "bin/forge-status",
+      "de": "f\" · PR #{prs[-1]}\" if prs else \"\"",
+      "para": "f\" · PR #{prs[-1]}\" if not prs else \"\"",
+      "testes": [
+        "tests.test_forge_status.Status.test_uma_linha_por_pedido_em_curso_do_mais_recente"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "S3: sem pedido em curso diz isso",
+      "arquivo": "bin/forge-status",
+      "de": "or [\"forge: nenhum pedido em curso\"]",
+      "para": "and [\"forge: nenhum pedido em curso\"]",
+      "testes": [
+        "tests.test_forge_status.Status.test_sem_pedido_em_curso_ou_entrada_invalida_nunca_falha"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "S3: o resto acima do maximo",
+      "arquivo": "bin/forge-status",
+      "de": "* (len(pedidos) > maximo)",
+      "para": "* (len(pedidos) >= maximo)",
+      "testes": [
+        "tests.test_forge_status.Status.test_raiz_pela_opcao_ou_pelo_cwd_do_json_e_o_maximo"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "S3: a entrada da statusLine e lida quando nao e terminal",
+      "arquivo": "bin/forge-status",
+      "de": "(\"{}\" if sys.stdin.isatty() else",
+      "para": "(\"{}\" if not sys.stdin.isatty() else",
+      "testes": [
+        "tests.test_forge_status.Status.test_uma_linha_por_pedido_em_curso_do_mais_recente"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "S3: a pasta pelo cwd do JSON",
+      "arquivo": "bin/forge-status",
+      "de": "or entrada.get(\"cwd\") or a.raiz",
+      "para": "or entrada.get(\"pwd\") or a.raiz",
+      "testes": [
+        "tests.test_forge_status.Status.test_raiz_pela_opcao_ou_pelo_cwd_do_json_e_o_maximo"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "S3: roda como programa",
+      "arquivo": "bin/forge-status",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if __name__ != \"__main__\":",
+      "testes": [
+        "tests.test_forge_status.Status.test_sem_pedido_em_curso_ou_entrada_invalida_nunca_falha"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "descricao": "FILA-22 (0.43.2, Jarvis só interface), sessão do Forge: `bin/forge-fechar versao-x --ref melhoria/x --dry-run` pelo papel jarvis (sessão principal).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "bin/forge-fechar versao-x --ref melhoria/x --dry-run"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/proj"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

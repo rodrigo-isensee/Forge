@@ -1,0 +1,76 @@
+{
+  "pedido": "v0435-hooks",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "N5-14",
+      "guarda": "N5: notes que grava recusa e a de leitura passa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(pos[:1] or [None])[0] not in NOTAS_DE_LEITURA",
+      "para": "(pos[:1] or [None])[0] in NOTAS_DE_LEITURA",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-15",
+      "guarda": "N5: reset com revisão na integração recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif sub == \"reset\" and self.reset_com_revisao(args, pasta):",
+      "para": "elif sub == \"reset\" and self.reset_com_revisao(args[:0], pasta):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-16",
+      "guarda": "N5: a branch de rastreio do remoto não é a integração",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if ref.startswith(\"refs/remotes/\"):\n            return False",
+      "para": "        if ref.startswith(\"refs/\"):\n            return False",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-17",
+      "guarda": "N5: o que vem depois do -- é caminho, não revisão",
+      "arquivo": "hooks/conformidade.py",
+      "de": "antes = args[:args.index(\"--\")] if \"--\" in args else args",
+      "para": "antes = args[:args.index(\"--\")] if \"--x\" in args else args",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-18",
+      "guarda": "N5: HEAD não conta como revisão do reset",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if a != \"HEAD\"]",
+      "para": "if a != \"HEADX\"]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-19",
+      "guarda": "N5: com modo, basta uma revisão para mover a branch",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if RESET_MODOS & set(args):",
+      "para": "if RESET_MODOS & set(args + [\"--hard\"]):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-20",
+      "guarda": "N5: sem modo, a revisão que é caminho existente só tira do índice",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for a in revs[:2])",
+      "para": "for a in revs[:1])",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    }
+  ]
+}

@@ -9,6 +9,7 @@ PostToolUse registra a autoria dos pareceres em `.forge/run/autoria.jsonl`.
 Falha fechado nas ações críticas (seção 7); `FORGE_GUARDA_ABERTA=1` no ambiente do processo abre a guarda.
 Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB).
 """
+import collections
 import contextlib
 import functools
 import hashlib
@@ -20,6 +21,7 @@ import tempfile
 import shlex
 import subprocess
 import time
+import types
 import unicodedata
 import urllib.parse
 from functools import lru_cache
@@ -32,7 +34,7 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TET
                     construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, formas_que_o_shell_le, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, fora_da_gramatica_com_heredoc,
                     fora_da_gramatica_de_leitura, motivo_da_reavaliacao,
-                    forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, reavaliacao,
+                    forge_check, git, leituras, mensagem, nome_da_branch, nome_do_caminho, raiz_declarada, raiz_do_projeto, reavaliacao,
                     sem_atribuicoes, separar_lancadores, SHELLS, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
 # custo de uma conferência cresce com o tamanho do texto, então o número delas não basta (A1 do review): conta também os
@@ -43,8 +45,17 @@ TOKEN_DO_GITHUB = re.compile(r"(gh[pousr]_|github_pat_)[A-Za-z0-9_]+")  # mascar
 INVISIVEIS = frozenset(("Cc", "Cf", "Zl", "Zp"))  # controle C0/C1 e formato (bidirecionais): fora do trecho (C-A6-1)
 TETO_DE_CARACTERES = 150_000  # a conferência de 290 mil caracteres levava 4,2 s (recomendação do review, volta 3)
 PRAZO_DA_LINHA_S = 3.0
+TETO_DO_CAMINHO = 4096  # VV-3 C-8: bytes do caminho vindo de texto (brief), na escrita pública
+NAO_CONFERIDA, NAO_VERIFICAVEL = "não conferida", "não verificável"  # VV-3: quarto campo da recusa da escrita pública
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+# M1 (review de segurança da 0.43.1): as linhas que o `forge-check` grava no `## Histórico` do pedido e que os portões leem como
+# prova (`brief selar`, `entrega --pedido`). Write/Edit/MultiEdit que acrescente uma delas no pedido é recusado, de qualquer papel.
+# No Bash (M1, [B]): a linha que cita a forma do selo ou da conferência e escreve (redireção, heredoc, tee, sed, interpretador,
+# cópia) é recusada, onde quer que grave: o hook não segue `cd` nem variável até o pedido (falha fechada, ADR 0009).
+CITA_PORTAO = re.compile(r"brief selado\s+\S*docs/briefs/\S+\s+[0-9a-f]{64}|entrega conferida\s+[0-9a-f]{40}")
+ESCRITA_NA_LINHA = re.compile(r">|<<|\b(?:tee|sed|dd|cp|mv|install|python\w*|perl\w*|ruby\w*|node|awk|gawk|nawk|printf)\b")
+LINHA_DE_PORTAO = re.compile(r"(?m)^-\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}: (?:brief selado docs/briefs/\S+ [0-9a-f]{64}|entrega conferida [0-9a-f]{40})")
 CRITICO = re.compile(
     r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
     r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|docs/devops|docs/security|CLAUDE\.md|\.git/|commondir|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
@@ -78,7 +89,7 @@ def interpreta_o_corpo(dono):
 
 def interprete(programa):
     """Python, Perl, Node, awk...: o corpo de heredoc que eles leem é programa, conferido pelo `checar_texto`."""
-    programa = Path(programa).name
+    programa = nome_do_caminho(programa)
     return bool(INTERPRETES.match(programa)) or programa in AWKS
 
 
@@ -89,7 +100,7 @@ def args_do_forge_check(prog, args):
         return args
     if INTERPRETES.match(prog):
         # a opção do interpretador pode levar valor (`-X utf8`, `-W ignore`): procura a palavra, não a 1.ª sem `-`
-        achados = [i for i, a in enumerate(args) if Path(a).name == "forge-check"]
+        achados = [i for i, a in enumerate(args) if nome_do_caminho(a) == "forge-check"]
         return args[achados[0] + 1:] if achados else None
     opaco = re.search(r"[`$]", prog) and ("anotar" in args and any(abreviacao_de(a, ("--tipo",)) for a in args)
                                            or any(abreviacao_de(a, ("--gravar",)) for a in args))
@@ -130,6 +141,8 @@ LONGAS_SEM_EXEC = {"recursive", "dereference-recursive", "line-number", "ignore-
 ARQUIVO_ENV = re.compile(r"^\.env(\.[\w.-]+)?$")
 ENV_DE_EXEMPLO = {"example", "sample", "template", "dist"}
 PUSH_COM_VALOR = {"-o", "--push-option", "--repo", "--receive-pack", "--exec"}
+CRIAR_PR_POR_API = re.compile(r"(^|/)repos/[^/]+/[^/]+/pulls/?$", re.I)  # FILA-22: POST aqui abre PR
+CRIAR_PR_NO_GRAPHQL = re.compile(r"createPullRequest", re.I)
 API_ADMIN = re.compile(r"/(git/refs|contents/|rulesets|branches/[^/]+/protection|collaborators|actions/(secrets|variables)"
                        r"|hooks|keys|transfer)")
 GRAPHQL_PERIGOSO = re.compile(r"mergePullRequest|enablePullRequestAutoMerge|updateRef|createRef|deleteRef|"
@@ -162,6 +175,28 @@ CONFIG_ESCRITA = {"--unset", "--unset-all", "--add", "--replace-all", "--rename-
                   "--edit"}
 CONFIG_ESCOPO = {"--local", "--global", "--system", "--worktree"}  # escolhem o arquivo, não são valor
 CONFIG_COM_VALOR = {"-f", "--file", "--blob", "--type", "--default", "--comment", "--value"}
+# IMPL-FURO-HOOK-N, N2 (L20b): objeto de troca (`refs/replace/*`) e enxerto fazem o `git show <ref>:<parecer>` do
+# forge-check ler outro conteúdo, sem diff nem cópia suja. As variáveis mudam onde o git os procura.
+AMBIENTE_DE_TROCA = re.compile(r"^(GIT_REPLACE_REF_BASE|GIT_GRAFT_FILE|GIT_ALTERNATE_OBJECT_DIRECTORIES"
+                               r"|GIT_OBJECT_DIRECTORY)$")
+CITA_TROCA = re.compile(r"refs/replace|replace-?refs|grafts", re.I)
+# Review da 0.43.5: configuração dada na linha que o hook não avalia (alias troca o subcomando; GIT_CONFIG_* e
+# --config-env escondem o -c) recusa para todo papel; o refspec de remote.*.fetch|push no -c vale como o da linha.
+CONFIG_NO_AMBIENTE = re.compile(r"^GIT_CONFIG_(COUNT|KEY_\d+|VALUE_\d+|PARAMETERS)$")
+REFSPEC_NA_CONFIG = re.compile(r"remote\..+\.(fetch|push)", re.I)
+# IMPL-FURO-HOOK-N, N5 (L22, C-22-1): na branch de integração a única entrada é o `git merge` com parecer; o que grava
+# commit, move a branch ou conclui um merge fora dele recusa para todo papel (o conflito se resolve na branch de trabalho).
+RESET_MODOS = {"--soft", "--mixed", "--hard", "--keep", "--merge"}
+NA_INTEGRACAO_RECUSADOS = {"commit", "cherry-pick", "revert", "am", "commit-tree", "fast-import"}
+SAIDAS_DA_OPERACAO = {"--abort", "--quit", "--skip"}  # desfazem a operação em curso: livres
+NOTAS_DE_LEITURA = {None, "list", "show", "get-ref"}
+RESET_COM_VALOR = {"--pathspec-from-file"}
+FETCH_COM_VALOR = {"--depth", "--deepen", "--shallow-since", "--shallow-exclude", "--negotiation-tip", "-j", "--jobs",
+                   "--upload-pack", "--refmap", "-o", "--server-option", "--filter", "--recurse-submodules-default",
+                   "--submodule-prefix"}
+CONTORNO_DA_INTEGRACAO = ("faça o commit na branch de trabalho e mescle com `git merge` (parecer); para atualizar a "
+                          "integração, `git merge --ff-only origin/<branch>`")
+REFS_DE_TROCA = {"fetch", "pull", "push", "send-pack", "update-ref", "symbolic-ref"}  # gravam refs pelo argumento
 
 # Travas para atos perigosos (arquitetura do primeiro uso, 2.2 e 2.5). Valem para todo papel e todo perfil; no perfil
 # `iniciante` a recusa e a confirmação trazem a consequência em linguagem simples. Mensagem de uma linha (200 caracteres).
@@ -291,8 +326,11 @@ FORGE_CHECK_GRAVA = ("--gerar-entrada", "--gravar", "--escrever", "--salvar")
 FORGE_CHECK_GRAVA_EXATA = ("--destino-arquivo",)
 # FURO-HOOK-A, A4: o subcomando do `forge-check` que grava fora do papel só de leitura -> a pasta de destino (a política de caminhos
 # decide quem grava lá); o `transcricao anonimizar` grava no 2.º argumento. Os que gravam em caminho livre ficam na 2.ª lista.
-FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs", "medida": "docs/kanban"}
+FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs", "medida": "docs/kanban", "pedido": "docs/pedidos",
+                        "pausa": ".forge", "rodar": ".forge", "meta": ".forge"}  # 0.44.2: `rodar` (S5) e `meta` (S4) gravam em .forge/run  # X1: `pausa` sem `--retomar` grava .forge/pausa.json  # S2: `pedido fala --gravar`
 FORGE_CHECK_EM_CAMINHO_LIVRE = {"movimento", "registrar"}
+# 0.43.1 (P1, P2): a forma nova grava no `## Histórico` do pedido: `brief selar` (o selo) e `entrega --pedido` (a `entrega conferida`),
+# esta salvo com `--sem-gravar`. A forma antiga do `entrega` (pedido posicional) só lê.
 # `test` no papel só de leitura: só estas, com um caminho (`agents/conferente.md`); o `-v` reavalia o índice como código.
 TESTE_LEITURA = {"-e", "-f", "-d", "-s"}
 DICA_LEITURA = ("use só os comandos de `so_leitura` em hooks/conformidade.json, um por vez ou encadeados com &&, ; e |; "
@@ -309,6 +347,30 @@ def papel_de(politica, agent_type):
         if agent_type in tipos:
             return papel
     return politica["papel_padrao"]
+
+
+@functools.lru_cache(maxsize=1024)
+def _pasta_real(pasta):
+    return os.path.realpath(pasta)
+
+
+def realpath_pela_pasta(caminho):
+    """`os.path.realpath(caminho)`, com o `realpath` da pasta guardado (a linha com milhares de arquivos na mesma pasta não
+    resolve a pasta de novo a cada um). O último nome que é link, `.`, `..` ou vazio vai ao `realpath` inteiro."""
+    pasta, nome = os.path.split(caminho)
+    if not pasta or nome in ("", ".", "..") or os.path.islink(caminho):
+        return os.path.realpath(caminho)
+    return os.path.join(_pasta_real(pasta), nome)
+
+
+def relativo_ao_pai(posix, base):
+    """O `relative_to(base).as_posix()` do caminho absoluto e resolvido `posix` quando `base` (resolvida) é ele ou um pai dele
+    (`.` quando é ele); senão None. Pelo texto, sem montar os `parents` (custo: uma chamada por arquivo gravado da linha)."""
+    b = base.as_posix()
+    if posix == b:
+        return "."
+    prefixo = b if b.endswith("/") else b + "/"
+    return posix[len(prefixo):] if posix.startswith(prefixo) else None
 
 
 def casa(rel, caminho):
@@ -430,6 +492,50 @@ def forma_de_leitura_git(chave, args):
     return lista or not padroes
 
 
+def livres_do_forge_check(args):
+    """As palavras livres (subcomando e posicionais) do `forge-check`, sem `--raiz` e `--raiz-pedidos` e o valor delas."""
+    livres, pular = [], False
+    for a in args:
+        if pular:
+            pular = False
+        elif abreviacao_de(a, ("--raiz", "--raiz-pedidos")):
+            pular = "=" not in a  # o valor vem na palavra seguinte
+        elif not a.startswith("-"):
+            livres.append(a)
+    return livres
+
+
+def entrega_pela_forma_nova(livres, args):
+    """`entrega --pedido`: o argparse aceita abreviação, então `--p`/`--ped` contam como `--pedido` (na dúvida, é a forma nova)."""
+    return next(iter(livres), "") == "entrega" and any(a.startswith("--p") and "--pedido".startswith(a.split("=", 1)[0]) for a in args)
+
+
+def so_leitura_no_entrega(args):
+    """D4 (0.44.0): `--so-leitura` (ou a abreviação longa, `--so`), sem `=valor`: o `entrega --pedido` não grava nem roda os PQ cmd."""
+    return any(abreviacao_de(a, ("--so-leitura",)) and "=" not in a for a in args)
+
+
+def grava_no_pedido(livres, args):
+    """A forma nova que grava no pedido: `brief selar` e `entrega --pedido` sem `--sem-gravar` nem `--so-leitura`. Só a abreviação
+    longa (`--sem`, `--so`) conta como uma delas."""
+    sub = next(iter(livres), "")
+    if sub == "brief":
+        return "selar" in livres[1:]
+    if not entrega_pela_forma_nova(livres, args):
+        return False
+    return not (any(abreviacao_de(a, ("--sem-gravar",)) and "=" not in a for a in args) or so_leitura_no_entrega(args))
+
+
+def prefixo_de(opcao, longa):
+    """A opção é a `longa` ou uma abreviação dela que o argparse aceita (`--p` de `--para`)."""
+    return len(opcao) >= 3 and longa.startswith(opcao)
+
+
+def so_le(args, leitura):
+    """S2/S8 (review da 0.44.1): o modo de leitura (`--ler`, `--confirmar`, com ou sem `=valor`) está na linha; sem ele, grava."""
+    return any(prefixo_de(a.split("=", 1)[0], leitura) for a in args)
+
+
 def abreviacao_de(opcao, longas):
     """A opção longa (sem o `=valor`) é uma das `longas` ou a abreviação dela que o git aceita (`--upload-p`)."""
     nome = opcao.split("=", 1)[0]
@@ -450,6 +556,39 @@ def opcao_de_merge_que_muda_o_resultado(args):
                 if letra in "mFS":  # o resto do grupo é o valor
                     break
     return None
+
+
+def linhas_de_portao(texto):
+    """O multiconjunto das linhas de `LINHA_DE_PORTAO` do texto (cada linha com a data, o arquivo e o hash dela)."""
+    return collections.Counter(LINHA_DE_PORTAO.findall(texto)) if isinstance(texto, str) else collections.Counter()
+
+
+def acrescenta_linha_de_portao(caminho, entrada, pasta):
+    """M1: True se o Write/Edit/MultiEdit em `docs/pedidos/*.md` deixa alguma linha de `LINHA_DE_PORTAO` que não havia (o
+    multiconjunto: trocar o arquivo, o hash ou o tipo da linha também conta; no Write, contra o arquivo de hoje; no Edit e no
+    MultiEdit, `new_string` contra `old_string`). Arquivo ilegível vale vazio (falha fechada)."""
+    alvo = os.path.normpath(os.path.join(str(pasta), os.path.expanduser(caminho)))
+    if not re.search(r"(^|/)docs/pedidos/[^/]+\.md$", alvo):
+        return False
+    if "content" in entrada:
+        try:
+            antes = Path(alvo).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            antes = ""
+        return bool(linhas_de_portao(entrada.get("content")) - linhas_de_portao(antes))
+    edicoes = entrada.get("edits") if isinstance(entrada.get("edits"), list) else [entrada]
+    edicoes = [edicao for edicao in edicoes if isinstance(edicao, dict)]
+    novas, antigas = collections.Counter(), collections.Counter()
+    for edicao in edicoes:
+        novas += linhas_de_portao(edicao.get("new_string"))
+        antigas += linhas_de_portao(edicao.get("old_string"))
+    return bool(novas - antigas)
+
+
+def emenda(args):
+    """`git commit --amend`, também abreviado (`--am`, `--amen`: o git aceita o prefixo único da opção longa); depois do `--` é caminho."""
+    args = args[:args.index("--")] if "--" in args else args
+    return any(len(a) >= 4 and "--amend".startswith(a) for a in args)
 
 
 class Guarda:
@@ -587,22 +726,27 @@ class Guarda:
         if self._raiz_home is None:
             self._raiz_home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
         raiz, home = self._raiz_home
-        pais = {caminho, *caminho.parents}
         posix = caminho.as_posix()
         formas = []
-        if raiz in pais:
-            formas.append(("proj", caminho.relative_to(raiz).as_posix()))
-        if home in pais:
-            formas.append(("home", "~/" + caminho.relative_to(home).as_posix()))
-        no_claude_do_home = (home / ".claude") in pais
+        if (rel := relativo_ao_pai(posix, raiz)) is not None:
+            formas.append(("proj", rel))
+        if (rel := relativo_ao_pai(posix, home)) is not None:
+            formas.append(("home", "~/" + rel))
+        # B1 da 0.43.1: ~/.forge-contrib como link para fora do home. A forma pelo link só BARRA (regras `caminhos`);
+        # nunca entra na lista de escrita, que continua recusando o que fica fora do home.
+        pelo_link = [("home", f"~/{nome}/" + rel if rel != "." else f"~/{nome}") for nome, alvo_link in self.links_do_home(home)
+                     if (rel := relativo_ao_pai(posix, alvo_link)) is not None]
+        no_claude_do_home = relativo_ao_pai(posix, home / ".claude") is not None
+        do_home = [r for t, r in [*formas, *pelo_link] if t == "home"]  # fora do laço das regras (custo por arquivo)
+        do_proj = [r for t, r in formas if t == "proj"]
         for e in self.pol["caminhos"]:
             c = e["caminho"]
             if c.startswith("~/"):
-                achou = any(t == "home" and casa(r, c) for t, r in formas)
+                achou = any(casa(r, c) for r in do_home)
             elif e.get("so_forge") and not self.regras_do_forge():
                 continue
             else:
-                achou = any(t == "proj" and casa(r, c) for t, r in formas) or (
+                achou = any(casa(r, c) for r in do_proj) or (
                     not e["quem"] and not no_claude_do_home and em_qualquer_lugar(posix, c))
             if not achou:
                 continue
@@ -628,6 +772,18 @@ class Guarda:
                     "proponha a mudança ao usuário (R-DECISAO)")
         return None
 
+    def links_do_home(self, home):
+        """(nome, realpath do alvo) de cada pasta do home citada nas regras `~/X/...` que é link para fora do home."""
+        if getattr(self, "_links_do_home", None) is None:
+            nomes = {e["caminho"][2:].split("/", 1)[0] for e in self.pol["caminhos"] if e["caminho"].startswith("~/")}
+            links = []
+            for nome in sorted(n for n in nomes if n and "*" not in n):
+                alvo = Path(os.path.realpath(home / nome))
+                if (home / nome).is_symlink() and home not in {alvo, *alvo.parents}:
+                    links.append((nome, alvo))
+            self._links_do_home = links
+        return self._links_do_home
+
     def fora_da_lista_de_escrita(self, caminho, formas):
         """Papel com `escrita_permitida` (ADR 0009, seção 6): escreve só nos caminhos da lista, pelo caminho normalizado.
         Entrada `~/...` vale a partir do home; as demais, a partir da raiz do projeto ou da raiz de uma cópia do Forge
@@ -650,7 +806,7 @@ class Guarda:
 
     def resolver(self, caminho, pasta):
         p = Path(caminho).expanduser()
-        return Path(os.path.realpath(p if p.is_absolute() else pasta / p))
+        return Path(realpath_pela_pasta(str(p if p.is_absolute() else pasta / p)))
 
     def checar_escrita(self, caminho, pasta):
         """Na dúvida, recusa: o que vem depois de uma substituição (`$(git rev-parse --show-toplevel)/docs/reviews/x`) é
@@ -668,6 +824,8 @@ class Guarda:
 
     def expandir(self, caminho, pasta):
         """`$PWD`, `$CLAUDE_PROJECT_DIR` e `$HOME` (com ou sem chaves; as aspas o shlex já tirou) viram o caminho real."""
+        if "$" not in caminho:  # sem `$`, nada a expandir (a crase que `VARIAVEL` casa volta igual): custo por arquivo
+            return caminho
         valores = {"PWD": str(pasta), "CLAUDE_PROJECT_DIR": str(self.h.raiz), "HOME": str(Path.home())}
         return VARIAVEL.sub(lambda m: valores.get(m.group(1), m.group(0)), caminho)
 
@@ -690,7 +848,8 @@ class Guarda:
             c = e["caminho"]
             if e["quem"]:
                 continue
-            for dentro in ([home] if c.startswith("~/") else raizes):
+            fora = [a.parent for n, a in self.links_do_home(home) if c.startswith(f"~/{n}/") or c == f"~/{n}"]
+            for dentro in ([home, *fora] if c.startswith("~/") else raizes):
                 protegido = home / c[2:] if c.startswith("~/") else dentro / c
                 if alvo != dentro and dentro in alvo.parents and alvo in Path(os.path.realpath(protegido)).parents:
                     self.barrar("R-CONFORMIDADE", f"apagar {alvo.name}/ apaga {c}: {e['motivo']}",
@@ -719,6 +878,9 @@ class Guarda:
         caminho = entrada.get("file_path") or entrada.get("notebook_path")
         if isinstance(caminho, str) and caminho:
             self.checar_escrita(caminho, self.h.cwd())
+            if acrescenta_linha_de_portao(caminho, entrada, self.h.cwd()):
+                self.barrar("R-CONFORMIDADE", "linha `brief selado` ou `entrega conferida` escrita à mão no pedido",
+                            "quem grava é a ferramenta: `forge-check brief selar` e `forge-check entrega --pedido`")
 
     # Bash ----------------------------------------------------------------------------------------
     def bash(self, comando, pasta, nivel=0, so_substituicoes=False, corpo_de_heredoc=False):
@@ -730,6 +892,9 @@ class Guarda:
         conferido duas vezes, e a linha é recusada acima de
         `TETO_DE_CONFERENCIAS` conferências, de `TETO_DE_CARACTERES` caracteres conferidos ao todo ou de
         `PRAZO_DA_LINHA_S` segundos."""
+        if nivel == 0 and CITA_PORTAO.search(comando) and ESCRITA_NA_LINHA.search(comando):
+            self.barrar("R-CONFORMIDADE", "linha `brief selado` ou `entrega conferida` escrita pelo Bash",
+                        "quem grava é a ferramenta: `forge-check brief selar` e `forge-check entrega --pedido`")
         if nivel == 0:
             self.conferidas, self.conferencias, self.caracteres = {}, 0, 0
             self.reavaliacao = None
@@ -1000,9 +1165,16 @@ class Guarda:
                 self.barrar("R-CONFORMIDADE", f"lançador `{Path(originais[0]).name}` repassa argumentos que o hook não vê "
                                               f"(papel só de leitura: {self.papel})", DICA_LEITURA)
             self.checar_so_leitura(palavras, atribuicoes)
-        for a in atribuicoes:
+        for a in atribuicoes + (palavras[1:] if exporta(palavras) else []):
             if "core.hookspath" in a.lower():
                 self.barrar("R-VERIFY", "core.hooksPath por variável de ambiente", "não troque o caminho dos hooks")
+            if AMBIENTE_DE_TROCA.match(a.partition("=")[0]):  # N2: atribuição, `env` ou `export`
+                self.barrar("R-REVIEW", f"{a.partition('=')[0]} muda os objetos que o git lê",
+                            "não troque objetos do repositório; o parecer vale pelo que está commitado")
+        for a in atribuicoes + (palavras[1:] if exporta(palavras) else []):  # depois do core.hooksPath
+            if CONFIG_NO_AMBIENTE.match(a.partition("=")[0]):  # alias e -c escondidos do hook
+                self.barrar("R-REVIEW", f"{a.partition('=')[0]} dá ao git configuração que o hook não lê",
+                            "rode o git sem configuração pela variável de ambiente")
         definidas = [p for p in palavras[1:] if not p.startswith("-")] if exporta(palavras) else \
             [] if palavras else atribuicoes
         for a in definidas:
@@ -1018,8 +1190,8 @@ class Guarda:
             return pasta
         prog = Path(palavras[0].lstrip("`")).name
         args = palavras[1:]
-        if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}:
-            self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}).pop()  # recusa no fim da linha
+        if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}:
+            self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}).pop()  # recusa no fim da linha
         parte = parecer.analisar(palavras)
         if parecer.expande(palavras[0]) and parecer.gh_de_merge_ou_api(args):
             self.barrar("R-MAIN", "programa por expansão com pr merge ou api: o hook não sabe se é o gh",
@@ -1098,28 +1270,34 @@ class Guarda:
                     self.checar_escrita(destino, pasta)
         if prog in LEITORES:
             for a in args:
-                nome = Path(a).name
+                nome = nome_do_caminho(a)
                 if ARQUIVO_ENV.match(nome) and nome.rsplit(".", 1)[-1] not in ENV_DE_EXEMPLO:
                     self.barrar("R-CONFORMIDADE", f"ler {nome} expõe segredos",
                                 "peça ao usuário o valor de que precisa (R-DECISAO)")
         return pasta
+
+    def forge_check_grava_no_pedido(self, args):
+        """True se a linha do `forge-check` grava no pedido pela forma nova (`grava_no_pedido`)."""
+        return grava_no_pedido(livres_do_forge_check(args), args)
 
     def forge_check_grava(self, args, pasta):
         """A4: o que o `forge-check` grava passa pela política de caminhos do papel, como o Write no mesmo destino (o `anotar`
         em `docs/pedidos/`, o `brief --gravar` em `docs/briefs/`, a saída do `transcricao anonimizar`), a partir da pasta da
         sessão e de `~/.forge-contrib`, as duas raízes que o `forge-check` aceita. `--raiz` e `--raiz-pedidos`, antes ou depois
         do subcomando, só saem do caminho para achar o subcomando: a política não depende do nome do pedido nem da raiz."""
-        livres, pular = [], False
-        for a in args:
-            if pular:
-                pular = False
-            elif abreviacao_de(a, ("--raiz", "--raiz-pedidos")):
-                pular = "=" not in a  # o valor vem na palavra seguinte
-            elif not a.startswith("-"):
-                livres.append(a)
+        livres = livres_do_forge_check(args)
         sub = next(iter(livres), "")
-        if sub in FORGE_CHECK_ESCRITAS and (sub != "brief" or any(abreviacao_de(a, ("--gravar",)) for a in args)):
+        if grava_no_pedido(livres, args):  # o selo e a `entrega conferida` são do jarvis (docs/pedidos/)
+            destinos = [f"{r}/docs/pedidos/pedido.md" for r in (".", "~/.forge-contrib")]
+        elif sub == "pausa":  # X1 (review da 0.44.1): a pausa é da sessão principal; `--retomar` só lê (e apaga a pausa vencida)
+            destinos = [] if so_le(args, "--retomar") else ["./.forge/pausa.json"]
+        elif sub in FORGE_CHECK_ESCRITAS and (sub != "brief" or any(abreviacao_de(a, ("--gravar",)) for a in args)) \
+                and not (sub == "pedido" and so_le(args, "--ler")):
             destinos = [f"{r}/{FORGE_CHECK_ESCRITAS[sub]}/pedido.md" for r in (".", "~/.forge-contrib")]
+        elif sub == "recado" and not so_le(args, "--confirmar"):
+            # S8 (review da 0.44.1): a caixa de recados é da sessão principal; a raiz de destino (`--para`) é livre, então a política de
+            # `.forge/recados/` da sessão decide, com qualquer raiz; sem `--confirmar`, grava (na dúvida, recusa)
+            destinos = ["./.forge/recados/recado.md"]
         else:
             destinos = livres[3:4] if sub == "transcricao" and livres[1:2] == ["anonimizar"] else []
         for destino in destinos:
@@ -1151,6 +1329,14 @@ class Guarda:
                 abreviacao_de(a, FORGE_CHECK_GRAVA) or a.split("=", 1)[0] in FORGE_CHECK_GRAVA_EXATA for a in args):
             self.barrar("R-CONFORMIDADE", f"`{chave}` com opção que grava arquivo (papel só de leitura: {self.papel})",
                         DICA_LEITURA)
+        if prog == "forge-check" and self.forge_check_grava_no_pedido(args):
+            self.barrar("R-CONFORMIDADE", f"`{chave}` grava no Histórico do pedido (papel só de leitura: {self.papel})",
+                        "use a forma antiga (`forge-check entrega <pedido> --branch ... --base ... --base-sha ...`) ou "
+                        "`entrega --pedido ... --so-leitura`; o selo e a `entrega conferida` são do jarvis")
+        if prog == "forge-check" and entrega_pela_forma_nova(livres_do_forge_check(args), args) and not so_leitura_no_entrega(args):
+            self.barrar("R-CONFORMIDADE", f"`{chave} --pedido` sem `--so-leitura` roda os PQ cmd, código da branch (papel só de leitura: "
+                                          f"{self.papel})", "use `forge-check entrega --pedido <p> --branch <b> --etapa <etapa> --so-leitura`; "
+                                                            "os PQ cmd ficam com o autor, o CI e o QA (D4)")
         if prog == "forge-check" and any(re.match(r"--[\w-]+=-", a) for a in args):
             self.barrar("R-CONFORMIDADE", f"`{chave}` com valor de opção que começa com `-` (papel só de leitura: "
                                           f"{self.papel})", DICA_LEITURA)
@@ -1220,6 +1406,11 @@ class Guarda:
             if palavras[i] == "-c" and i + 1 < len(palavras) and CONFIG_DO_MERGE.match(palavras[i + 1]):
                 self.barrar("R-REVIEW", f"git -c {palavras[i + 1]} muda como o merge mescla o que o review leu",
                             "mescle sem estratégia, --squash nem --no-commit")
+            if palavras[i] == "-c" and i + 1 < len(palavras):
+                self.config_da_linha(palavras[i + 1])
+            if palavras[i].startswith("--config-env"):
+                self.barrar("R-REVIEW", "git --config-env dá ao git configuração que o hook não lê",
+                            "rode o git sem configuração pela variável de ambiente")
             i += 2 if palavras[i] in parecer.GIT_COM_VALOR else 1
         sub, args = (palavras[i], palavras[i + 1:]) if i < len(palavras) else (None, [])
         ativacao = sub == "config" and args == ["core.hooksPath", ".githooks"]  # R-CONTRIB: ativar o hook do repositório
@@ -1230,10 +1421,12 @@ class Guarda:
             self.barrar("R-VERIFY", f"git {sub} --no-verify", "corrija a causa do hook que falhou")
         if sub == "config" and not ativacao:
             self.git_config(args)
-        self.git_trava(sub, args, pasta_git, ramos)
+        self.git_troca(sub, args, palavras[1:i])
+        self.git_trava(sub, args, pasta_git, ramos)  # antes da N5: apagar ou reescrever a integração tem recusa própria
+        self.git_integracao(sub, args, pasta_git, ramos)
         if sub in CAMINHOS_NO_GIT:
             self.git_caminhos(sub, args, [pasta, pasta_git], opcoes)
-        if sub == "push":
+        if sub in ("push", "send-pack"):  # o send-pack grava refs no destino como o push
             self.git_push(args, pasta_git, ramos)
         elif parte and parte[0] == "merge" and parte[2]:
             atual = self.ramo_em(pasta_git, ramos)
@@ -1326,6 +1519,93 @@ class Guarda:
             return []
         return [str(Path(pasta) / n) for n in forge_check().nomes_z(saida)]
 
+    def git_troca(self, sub, args, globais):
+        """N2 (L20b, C-20b-1): `git replace` (toda forma), `update-ref` de `refs/replace/*` ou pela entrada padrão (o hook
+        não a lê), `fast-import` (grava refs pela entrada padrão), refspec de `fetch`/`push` e `-c` com `refs/replace` ou
+        `core.useReplaceRefs`: o objeto trocado vale para todas as worktrees e o forge-check o leria no lugar do parecer."""
+        motivo = None
+        if sub == "replace":
+            motivo = "git replace"
+        elif sub == "fast-import" or sub == "update-ref" and "--stdin" in args:
+            motivo = f"git {sub} pela entrada padrão (o hook não a lê)"
+        elif any(map(CITA_TROCA.search, globais)) or sub in REFS_DE_TROCA and any(map(CITA_TROCA.search, args)):
+            motivo = f"git {sub} com refs/replace, grafts ou core.useReplaceRefs"
+        if motivo:
+            self.barrar("R-REVIEW", f"{motivo}: objeto de troca faz o forge-check ler outro parecer",
+                        "não troque objetos do repositório; o parecer vale pelo que está commitado")
+
+    def config_da_linha(self, valor):
+        """`git -c <chave>=<valor>`: alias troca o subcomando que o hook leu; refspec de `remote.*.fetch|push` que
+        escreve na integração vale como o da linha."""
+        chave, _, refspec = valor.partition("=")
+        if chave.lower().startswith("alias."):
+            self.barrar("R-REVIEW", f"git -c {chave}: o alias da linha troca o subcomando que o hook leu",
+                        "rode o subcomando do git direto, sem alias")
+        if REFSPEC_NA_CONFIG.fullmatch(chave) and ":" in refspec and self.ref_local_da_integracao(refspec.split(":", 1)[1]):
+            self.integracao_movida(f"git -c {chave}")
+
+    def git_integracao(self, sub, args, pasta, ramos):
+        """N5 (L22): o que muda a branch de integração depois do merge revisado. Em qualquer branch, `update-ref` e
+        refspec de `fetch` que escrevem na integração; nela, commit (e `--amend`), `cherry-pick`, `revert`, `am`,
+        `commit-tree`, `fast-import`, `reset <rev>` (todo modo), `merge --continue`, `pull --rebase` e `notes` que grava."""
+        pos = parecer.posicionais(args, {"-m"}) if sub in ("update-ref", "symbolic-ref") else \
+            [a for a in args if not a.startswith("-")]
+        if sub == "update-ref" and pos and self.ref_local_da_integracao(pos[0]):
+            self.integracao_movida(f"git update-ref {nome_da_branch(pos[0])}")
+        if sub == "symbolic-ref" and len(pos) > 1 and (self.ref_local_da_integracao(pos[0]) or (
+                pos[0] == "HEAD" and self.ref_local_da_integracao(pos[1]))):
+            self.integracao_movida(f"git symbolic-ref {pos[0]} {pos[1]}")
+        if sub in ("fetch", "pull"):
+            destinos = [r.split(":", 1)[1] for r in parecer.posicionais(args, FETCH_COM_VALOR)[1:] if ":" in r]
+            if any(map(self.ref_local_da_integracao, destinos)):
+                self.integracao_movida(f"git {sub} <ref>:<integração>")
+        relevante = sub in NA_INTEGRACAO_RECUSADOS | {"reset", "merge", "pull", "notes", "update-ref"}
+        if not relevante or SAIDAS_DA_OPERACAO & set(args):
+            return
+        atual = self.ramo_em(pasta, ramos)
+        if atual not in INTEGRACAO:
+            return
+        if sub in NA_INTEGRACAO_RECUSADOS:
+            self.integracao_movida(f"git {sub} na {atual}")
+        elif sub == "update-ref" and pos and pos[0] == "HEAD":
+            self.integracao_movida(f"git update-ref HEAD na {atual}")
+        elif sub == "merge" and "--continue" in args:
+            self.integracao_movida(f"git merge --continue na {atual}")
+        elif sub == "pull" and any(a == "-r" or a.startswith("--rebase") and a != "--rebase=false" for a in args):
+            self.integracao_movida(f"git pull --rebase na {atual}")
+        elif sub == "notes" and (pos[:1] or [None])[0] not in NOTAS_DE_LEITURA:
+            self.integracao_movida(f"git notes {pos[0]} na {atual}")
+        elif sub == "reset" and self.reset_com_revisao(args, pasta):
+            self.integracao_movida(f"git reset <rev> na {atual}")
+
+    @staticmethod
+    def ref_local_da_integracao(ref):
+        """`develop`, `refs/heads/develop`, `heads/develop`, `+develop`: a branch local de integração (a de rastreio do
+        remoto não conta); o destino com curinga conta quando o prefixo dele alcança uma delas (`refs/heads/*`)."""
+        ref = ref.lstrip("+")
+        ref = "refs/" + ref if ref.startswith("heads/") else ref
+        if ref.startswith("refs/remotes/"):
+            return False
+        if "*" in ref:
+            prefixo = ref.split("*", 1)[0]
+            return any(f"refs/heads/{b}".startswith(prefixo) or b.startswith(prefixo) for b in INTEGRACAO)
+        return nome_da_branch(ref) in INTEGRACAO
+
+    def reset_com_revisao(self, args, pasta):
+        """`git reset` que move a branch: com modo (`--soft`, `--hard`...) e uma revisão que não é `HEAD`, ou sem modo com
+        revisão antes do `--` que não é caminho existente. `git reset`, `git reset HEAD <arq>` e `git reset -- <arq>`
+        só tiram do índice."""
+        antes = args[:args.index("--")] if "--" in args else args
+        revs = [a for a in parecer.posicionais(antes, RESET_COM_VALOR) if a != "HEAD"]
+        if RESET_MODOS & set(args):
+            return bool(revs)
+        if args[len(antes) + 1:]:  # `git reset <rev> -- <caminho>`: só o índice
+            return False
+        return bool(revs) and not any(os.path.lexists(self.resolver(a, pasta)) for a in revs[:2])
+
+    def integracao_movida(self, o_que):
+        self.barrar("R-REVIEW", f"{o_que}: muda a integração depois do merge revisado", CONTORNO_DA_INTEGRACAO)
+
     def reescreve_historico(self, o_que):
         self.barrar("R-VERIFY", f"reescrever histórico ({o_que}) da main, develop ou homolog",
                     "faça um commit novo (git revert) em vez de reescrever", "historico")
@@ -1359,6 +1639,9 @@ class Guarda:
                 self.reescreve_historico(f"git {sub} move a {nome_da_branch(alvo)}")
             if git(pasta, "branch", "-r", "--list", f"*/{nome_da_branch(alvo)}")[1].strip():
                 self.perguntar("mover")
+        elif sub == "commit" and emenda(args) and self.ja_enviado(pasta):
+            self.barrar("R-VERIFY", "git commit --amend de commit já enviado (AGENTE-NAO-EMENDA-ENVIADO)",
+                        "o commit enviado não se emenda: faça um commit novo", "historico")
         elif sub == "reset" and "--hard" in args:
             self.perguntar("descartar")
         elif sub == "clean" and (any(a == "--force" or re.fullmatch(r"-[a-zA-Z]*f[a-zA-Z]*", a) for a in args)
@@ -1371,10 +1654,26 @@ class Guarda:
             self.perguntar("descartar")
 
     @staticmethod
+    def ja_enviado(pasta):
+        """O HEAD está em alguma branch remota (`git branch -r --contains HEAD`); git que falha conta como enviado (falha fechada)."""
+        cod, saida = git(pasta, "branch", "-r", "--contains", "HEAD")
+        return bool(cod) or bool(saida.strip())
+
+    @staticmethod
     def branch_movida(sub, args, positivos):
-        """Branch que `checkout -B`, `switch -C` ou `branch -f` recriam apontando para outro commit; senão None."""
-        if sub == "branch" and any(a == "--force" or re.fullmatch(r"-[a-zA-Z]*f[a-zA-Z]*", a) for a in args):
+        """Branch que `checkout -B`, `switch -C`, `worktree add -B`, `branch -f` e `branch -M|-C` (ou `-m|-c` com força)
+        recriam apontando para outro commit; senão None. No `-M|-C`, só a de integração:
+        a de destino ou, no `-M`, a de origem."""
+        forca = any(a == "--force" or re.fullmatch(r"-[a-zA-Z]*f[a-zA-Z]*", a) for a in args)
+        curtas = "".join(a[1:] for a in args if re.fullmatch(r"-[a-zA-Z]+", a))
+        move = "M" in curtas or forca and ("m" in curtas or "--move" in args)
+        if sub == "branch" and (move or "C" in curtas or forca and ("c" in curtas or "--copy" in args)):
+            candidatas = positivos[-1:] + (positivos[:1] if move and len(positivos) > 1 else [])
+            return next((b for b in candidatas if nome_da_branch(b) in INTEGRACAO), None)
+        if sub == "branch" and forca:
             return positivos[0] if positivos else None
+        if sub == "worktree" and args[:1] == ["add"] and "-B" in args:
+            return args[args.index("-B") + 1] if args.index("-B") + 1 < len(args) else None
         letra = {"checkout": "B", "switch": "C"}.get(sub)
         for i, a in enumerate(args):
             if letra and (re.fullmatch(rf"-[a-zA-Z]*{letra}", a) or (sub == "switch" and a == "--force-create")):
@@ -1400,6 +1699,9 @@ class Guarda:
             elif not a.startswith("-") or (chaves and a not in CONFIG_ESCOPO):  # depois da chave, toda palavra é valor
                 chaves.append(a)
         grava = subcomando or len(chaves) > 1 or any(a in CONFIG_ESCRITA for a in args)  # só a chave é leitura
+        if grava and any(CITA_TROCA.search(c) for c in chaves):  # N2: refspec de troca ou core.useReplaceRefs, todo escopo
+            self.barrar("R-REVIEW", "git config com refs/replace ou core.useReplaceRefs: objeto de troca faz o forge-check "
+                                    "ler outro parecer", "não troque objetos do repositório")
         if not (grava and chaves[:1] and CONFIG_PROTEGIDA.match(chaves[0])):
             return
         do_merge = bool(CONFIG_DO_MERGE.match(chaves[0]))
@@ -1433,7 +1735,9 @@ class Guarda:
             if destino in (None, "", "HEAD"):
                 atual = atual or self.ramo_em(pasta, ramos)
                 destino = atual
-            destinos.append(nome_da_branch(destino))
+            if "*" in destino and self.ref_local_da_integracao(destino):  # `refs/heads/*`: o curinga alcança a integração
+                destino = "develop"
+            destinos.append(nome_da_branch(re.sub(r"^heads/", "refs/heads/", destino)))
         for d in destinos:
             if d in ("main", "master"):
                 self.barrar("R-MAIN", f"push direto para {d}", "abra um PR; a main é do usuário", "main")
@@ -1581,6 +1885,7 @@ class Guarda:
                     prog = Path(palavras[0].lstrip("`")).name if palavras else ""
                     if prog == "gh":
                         self.gh_rotulo(palavras, pasta, atras_do_xargs(escritas, palavras))
+                        self.gh_pr_na_sessao_do_forge(palavras, pasta)
                     elif prog == "alias" and CITA_ROTULO.search(" ".join(palavras)):  # A5: o alias do shell guarda o rótulo
                         self.exigir_dono()
                     elif prog in SHELLS:
@@ -1603,6 +1908,31 @@ class Guarda:
         self.rotulo_na_sessao_do_forge(texto, pasta, nivel)
         if "\\`" in texto:
             self.rotulo_na_sessao_do_forge(texto.replace("\\`", "`"), pasta, nivel)
+
+    def gh_api_cria_pr(self, parte, pasta):
+        """FILA-22 (review da 0.43.2): o PR aberto pelo `gh api` (POST em `repos/<o>/<r>/pulls` ou `createPullRequest` no GraphQL,
+        inline ou em arquivo; ilegível falha fechado) segue a política `pr_criar`, como o `gh pr create`."""
+        if not parte or parte[0] != "api" or self.pode("pr_criar") or not parecer.metodo_mutante(parte[1]):
+            return
+        endpoint = parecer.endpoint_da_api(parte[1])
+        abre_pr = bool(CRIAR_PR_POR_API.search(endpoint))
+        if not abre_pr and parecer.ENDPOINT_GRAPHQL.search(endpoint):
+            textos, ilegivel = self.textos_da_api(parte[1], pasta)
+            abre_pr = ilegivel or any(CRIAR_PR_NO_GRAPHQL.search(t) for t in textos)
+        if abre_pr:
+            self.barrar("R-CONFORMIDADE", f"gh api que abre PR {self.so_de('pr_criar')} (papel: {self.papel})", "peça ao tech-lead")
+
+    def gh_pr_na_sessao_do_forge(self, palavras, pasta="."):
+        """FILA-22 (0.43.2, N4; diretiva do dono "Jarvis só interface"): na sessão do Forge, `gh pr create` e `gh pr merge` seguem a
+        política dos projetos (`pr_criar`, `pr_merge_integracao`): o jarvis e os papéis fora da lista não abrem nem mesclam PR.
+        O tech-lead abre o PR e o `bin/forge-fechar` mescla."""
+        parte = parecer.analisar(palavras)
+        if parte and parte[0] == "pr" and not self.pode("pr_criar"):
+            self.barrar("R-CONFORMIDADE", f"gh pr create {self.so_de('pr_criar')} (papel: {self.papel})", "peça ao tech-lead")
+        self.gh_api_cria_pr(parte, pasta)
+        if parte and parte[0] == "prmerge" and not self.pode("pr_merge_integracao"):
+            self.barrar("R-CONFORMIDADE", f"gh pr merge {self.so_de('pr_merge_integracao')} (papel: {self.papel})",
+                        "peça ao tech-lead (bin/forge-fechar)")
 
     def gh_rotulo(self, palavras, pasta, por_xargs=False):
         """R-CONTRIB: na sessão do Forge, só a conta do dono do Forge aplica o rótulo `afrouxa-regra`; qualquer outra conta,
@@ -1701,9 +2031,9 @@ class Guarda:
         """`forge atualizar`, `forge voltar-versao` e os binários `forge-atualizar` e `forge-voltar-versao`, direto ou por baixo de
         `env`, `script` (terminal falso), interpretador ou aspas: o agente não roda (R-CONFORMIDADE); a pessoa roda no terminal."""
         todas = [w.strip("'\"`;()") for p in palavras for w in p.split()]
-        direto = Path(palavras[0]).name in ("forge", *BINARIOS_DE_ATUALIZACAO)  # só o comando em si, não o texto que ele recebe
+        direto = nome_do_caminho(palavras[0]) in ("forge", *BINARIOS_DE_ATUALIZACAO)  # só o comando em si, não o texto que ele recebe
         for i, palavra in enumerate(todas[:1] if direto else todas):
-            nome = Path(palavra).name
+            nome = nome_do_caminho(palavra)
             sub = next((x for x in todas[i + 1:] if not x.startswith("-")), "")
             e_sugerir = nome == "forge-sugerir" or (nome == "forge" and sub == "sugerir")
             if e_sugerir:
@@ -1761,7 +2091,7 @@ class Guarda:
             return
         if parte[0] == "pr" and not self.pode("pr_criar"):
             self.barrar("R-CONFORMIDADE", f"gh pr create {self.so_de('pr_criar')} (papel: {self.papel})",
-                        "peça ao tech-lead ou ao jarvis")
+                        "peça ao tech-lead")
         elif parte[0] == "prmerge":
             raiz = self.h.raiz
             branch = parecer.branch_do_pr(raiz, parte[2])
@@ -1775,6 +2105,7 @@ class Guarda:
                 self.barrar("R-CONFORMIDADE", f"gh pr merge {self.so_de('pr_merge_integracao')} "
                                               f"(papel: {self.papel})", "peça ao tech-lead")
         elif parte[0] == "api":
+            self.gh_api_cria_pr(parte, pasta)
             args = parte[1]
             if parecer.metodo_mutante(args) and (
                     API_ADMIN.search(parecer.endpoint_da_api(args))
@@ -1896,6 +2227,38 @@ def politica():
     return pol
 
 
+def escrita_barrada(agent_type, caminho, raiz, ramo):
+    """A resposta do hook para a escrita de `caminho` pelo `agent_type`, na `raiz` do pedido e no `ramo` dado (VV-3):
+    a tupla de recusa de `Guarda.caminho_barrado` ou None. Não decide escrita; quem decide é o hook: o None não libera
+    nada. Só lê: não chama `politica()` nem `bloquear`, não grava, não lê stdin nem o ambiente (`CLAUDE_PROJECT_DIR`,
+    `FORGE_GUARDA_ABERTA`); a raiz e o ramo vêm de quem chama, e o `git branch` não roda. Raiz vazia, política
+    inválida e qualquer exceção interna saem como recusa (C-4: falha fechado, nunca None); as duas últimas levam
+    `NAO_CONFERIDA` no quarto campo. O caminho é texto (de brief, C-5): caractere invisível recusa; acima de
+    `TETO_DO_CAMINHO` bytes sai com `NAO_VERIFICAVEL` no quarto campo; só o `~/` do começo se expande (o home do
+    `caminho_barrado`; variável nunca), e o relativo vale a partir da raiz, nunca da pasta corrente."""
+    if not raiz:
+        return ("R-CONFORMIDADE", "raiz vazia: a raiz do pedido é obrigatória", "leve ao usuário (R-DECISAO)")
+    try:
+        pol = json.loads((PLUGIN / "hooks" / "conformidade.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        pol = None
+    if not politica_valida(pol):
+        return ("R-CONFORMIDADE", "política de conformidade inválida (hooks/conformidade.json)", "leve ao usuário (R-DECISAO)",
+                NAO_CONFERIDA)
+    try:
+        if any(unicodedata.category(c) in INVISIVEIS for c in caminho):
+            return ("R-CONFORMIDADE", "caractere invisível no caminho", "escreva o caminho sem controle nem formato")
+        if len(caminho.encode("utf-8", "surrogatepass")) > TETO_DO_CAMINHO:
+            return ("R-CONFORMIDADE", f"caminho acima de {TETO_DO_CAMINHO} bytes", "encurte o caminho", NAO_VERIFICAVEL)
+        raiz = Path(os.path.realpath(raiz))
+        caminho = raiz / (str(Path.home()) + caminho[1:] if caminho.startswith("~/") else caminho)
+        guarda = Guarda(types.SimpleNamespace(raiz=raiz, iniciante=lambda: False), pol, papel_de(pol, agent_type))
+        guarda._ramo, guarda.sessao_forge = ramo, e_clone_do_forge(raiz)
+        return guarda.caminho_barrado(Path(os.path.realpath(caminho)))
+    except Exception as erro:  # noqa: BLE001 - C-4: qualquer erro interno recusa, nunca escapa nem libera
+        return ("R-CONFORMIDADE", f"erro interno ({type(erro).__name__})", "leve ao usuário (R-DECISAO)", NAO_CONFERIDA)
+
+
 def raiz_do_parecer(hook, p):
     """Raiz da cópia de trabalho que contém `p`, ou None: a mais próxima (só pelo disco, `Guarda.raiz_git`), se for a
     da sessão ou uma worktree do mesmo repositório (mesmo diretório comum, `.git` conferido nos dois sentidos).
@@ -1943,7 +2306,7 @@ def alvos_de_escrita(comando):
             try:
                 lidas = sem_lancadores(palavras)  # a união das leituras possíveis do lançador
             except TextoAbertoComLeituras:
-                tees = [k for k, p in enumerate(palavras) if Path(p).name == "tee"]
+                tees = [k for k, p in enumerate(palavras) if nome_do_caminho(p) == "tee"]
                 alvos += [a for a in palavras[tees[0] + 1:] if not a.startswith("-")] if tees else []
                 continue
             except ValueError:  # texto dividido do `env` com aspas abertas, ou acima do teto de palavras fora da tabela

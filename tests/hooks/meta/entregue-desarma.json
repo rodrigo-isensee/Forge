@@ -1,0 +1,30 @@
+{
+  "descricao": "S4: todas as checagens com rc 0: entregue e provado, desarma.",
+  "estado": {
+    "meta.json": {
+      "pedido": "p1",
+      "checagens": [
+        [
+          "true"
+        ]
+      ],
+      "armado": true,
+      "repeticoes": 0
+    }
+  },
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "stop_hook_active": false
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "meta.json": {
+        "contem": [
+          "entregue e provado"
+        ]
+      }
+    }
+  }
+}

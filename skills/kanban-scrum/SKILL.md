@@ -6,7 +6,7 @@ description: Práticas de Kanban e Scrum do time - estrutura do quadro KANBAN.md
 # Kanban e Scrum do time
 
 ## Quadro (`KANBAN.md`, na raiz)
-Visível no GitHub e no editor. Duas partes, separadas pelo **ponto de compromisso**. Limites de cada coluna e política de puxar: `R-WIP` 1 cartão por agente e limites de coluna (`${CLAUDE_PLUGIN_ROOT}/docs/regras/R-WIP.md`). Antes do Upstream, no topo, fica a coluna **Aguardando o dono** (topo do quadro): entra o cartão cuja próxima ação é do usuário (`R-DECISAO` painel "Aguardando o dono"; vaga: `R-WIP`).
+Duas partes, separadas pelo **ponto de compromisso**. Limites de cada coluna e política de puxar: `R-WIP` 1 cartão por agente e limites de coluna (`${CLAUDE_PLUGIN_ROOT}/docs/regras/R-WIP.md`). Antes do Upstream, no topo, fica a coluna **Aguardando o dono** (topo do quadro): entra o cartão cuja próxima ação é do usuário (`R-DECISAO` painel "Aguardando o dono"; vaga: `R-WIP`).
 
 **Upstream — descoberta (Design Thinking, conduzido pelo `ux-designer`)**
 
@@ -62,7 +62,7 @@ Append-only, uma linha por movimento — é a fonte das métricas:
 | 2026-10-10T14:05:00-03:00 | K-012 | Pronto para fazer | Em andamento | — |
 ```
 
-A linha não se escreve à mão: a cada mudança de estado, inclusive "Aguardando o dono" e "Sem credencial", rode `forge-check movimento <cartão> --de <coluna> --para <coluna> [--motivo <texto>]`. Ele grava a hora real (ISO 8601, com fuso) e cria o arquivo se faltar; as esperas passam a ser medidas. Coluna que não está no `KANBAN.md` (fora "Sem credencial", "Conferência" e "Review"; `—` só no `--de`) sai com rc 1 e nada é gravado. Ao parar o cartão ("Aguardando o dono", "Sem credencial", "Bloqueado", "Aguardando sua validação"), o motivo ganha `custo do trecho: <N> tokens` (lido das transcrições locais, do último movimento até agora) e, no "Pronto", `custo total`; sem transcrição na janela sai `lacuna`, nunca 0.
+A linha não se escreve à mão: a cada mudança de estado, inclusive "Aguardando o dono" e "Sem credencial", rode `forge-check movimento <cartão> --de <coluna> --para <coluna> [--motivo <texto>]`. Ele grava a hora real (ISO 8601, com fuso) e cria o arquivo se faltar. Coluna que não está no `KANBAN.md` (fora "Sem credencial", "Conferência" e "Review"; `—` só no `--de`) sai com rc 1 e nada é gravado. Ao parar o cartão ("Aguardando o dono", "Sem credencial", "Bloqueado", "Aguardando sua validação"), o motivo ganha `custo do trecho: <N> tokens` (lido das transcrições locais, do último movimento até agora) e, no "Pronto", `custo total`; sem transcrição na janela sai `lacuna`, nunca 0.
 
 ## Métricas de fluxo do time
 - **Lead time:** entrada no Backlog → Pronto. **Cycle time:** entrada em "Em andamento" → Pronto.
@@ -122,11 +122,11 @@ Um cartão por (origem, área, faixa de severidade), revisável de uma vez: bloq
 1. Dados do pedido: lead time, cycle time, vazão, retrabalho, bloqueios e as quatro métricas DORA, lendo velocidade e estabilidade juntas.
 2. O que funcionou.
 3. O que atrapalhou (fatos, não pessoas).
-4. Até 3 ações — cada uma com responsável, mudança exata e como medir — e a tabela das linhas `MELHORIA:` (`R-DECISAO`).
-5. Revisão das ações da retrospectiva anterior: funcionou, não funcionou, abandonar.
+4. **No máximo 1 causa nova**, escolhida por `forge-placar` e `forge-placar propostas` (o checklist: métrica, `Mudança: código:` ou `Mudança: texto:`, critério de reversão, Início e Revisão de 1 a 30 dias; uma proposta aberta por vez), mais a tabela das linhas `MELHORIA:` (`R-DECISAO`), que são só candidatas. O ciclo é do `agile-coach` com o `tech-lead`, sem a pessoa.
+5. Revisão das propostas vencidas: `forge-placar comparar --antes <data> --depois <data> --metrica <m>` (rc 0 manter, rc 1 reverter a mudança inteira, rc 3 inconclusivo), com o resultado gravado. `ERRO-JARVIS:` entra como dado, com `Prevenção: eval/trava: <caso>` ou `sem trava possível`. Proibido: regra, lembrete ou checklist em texto sem métrica e prazo; trava sem eval; segunda proposta aberta. À pessoa, só a linha `resumo:` do `forge-placar`.
 
 ## Experimentos de melhoria (`docs/kanban/melhorias.md`)
-| ID | Hipótese | Mudança | Métrica | Início | Revisão | Resultado |
+| ID | Hipótese | Mudança | Métrica | Critério de reversão | Início | Revisão | Resultado |
 Uma mudança por vez em cada parte do processo, para saber o que causou o efeito.
 
 ## Elementos de Scrum usados

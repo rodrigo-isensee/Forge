@@ -1,0 +1,395 @@
+#!/usr/bin/env python3
+"""Forge: traz um projeto que já existe para o Forge, sem quebrar nada (ADR 0015, item 4; fase E, L46).
+
+Uso: forge-adotar [--so-ler] [--stack NOME] [--sem-versionar] [DIRETORIO]
+Lê o projeto (git, branches, hooks, stack, comando de pronto e arquivos que já existem) sem mudar nada e mostra o
+diagnóstico com a recomendação. Só com o "s" digitado no terminal cria a branch chore/adotar-forge e roda nela o
+forge-init, que não sobrescreve arquivo, mescla o .claude/settings.json e não troca o core.hooksPath de outra
+ferramenta. Depois, cada passo com o seu "s": encadear o pre-push do Forge no hook que o projeto já tem e criar a
+develop a partir da main. Registra o pedido adotar-forge com a stack e o pronto supostos (D5, 0.45.0).
+Stack sem pacote no Forge: guarda a pendência (forge sugerir --guardar) e para. O sandbox do Bash nunca liga sozinho:
+no fim, a oferta do forge-upgrade --ligar-sandbox, que só roda com o "s".
+  --so-ler          só o diagnóstico, sem perguntar
+  --stack NOME      pacote de stack (padrão: o que os pacotes detectam no projeto)
+  --sem-versionar   arquivos do Forge fora do git do projeto (FILA-24; forge-init --sem-versionar)
+Nada do repositório é executado: na leitura o git roda só com subcomandos de leitura e sem fsmonitor."""
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+RAIZ_FORGE = Path(__file__).resolve().parent.parent
+MODELO = RAIZ_FORGE / "templates" / "projeto"
+STACKS = RAIZ_FORGE / "stacks"
+BRANCH = "chore/adotar-forge"
+DEGRAUS = ("main", "develop", "homolog")
+DETECCAO = re.compile(r"^Detecção:\s*(.+)$", re.M)
+PRONTO_EXISTENTE = re.compile(r"^Pronto existente:\s*(.+)$", re.M)
+REGRA_PRONTO = re.compile(r"`([^`]+)` com `([^`]+)` → `([^`]+)`")
+MARCA = "# Forge (forge adotar): pre-push do Forge (proteção da main) encadeado"
+
+
+def git(raiz, *args, sem_hooks=False):
+    """Git sem nada do repositório: sem fsmonitor (C-46-2), sem trava opcional (o status não regrava o índice), sem
+    as variáveis GIT_* do ambiente, que poderiam apontar para outro repositório, e sem hooks nos que escrevem."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    extra = ["-c", "core.hooksPath=/dev/null"] if sem_hooks else []
+    cmd = ["git", "--no-optional-locks", "-c", "core.fsmonitor=", *extra, "-C", str(raiz), *args]
+    try:
+        r = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        return 1, ""
+    return r.returncode, r.stdout
+
+
+def recusa(destino):
+    """Lugares onde adotar nunca faz sentido: a pasta pessoal, a raiz e o clone do próprio Forge (ADR 0015, item 3)."""
+    if not destino.is_dir():
+        return f"a pasta não existe: {destino}"
+    if destino in (Path.home().resolve(), Path("/")):
+        return f"{destino} é a pasta pessoal ou a raiz do sistema; entre na pasta do projeto e rode de novo"
+    try:
+        plugin = json.loads((destino / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        plugin = {}
+    if isinstance(plugin, dict) and plugin.get("name") == "forge":
+        return "esta pasta é o próprio Forge; o forge adotar é para os seus projetos"
+    return None
+
+
+def pacotes():
+    """Pacotes de stack do Forge, com os arquivos que os detectam (linha `Detecção:` do pronto.md do pacote)."""
+    achados = {}
+    for pronto in sorted(STACKS.glob("*/pronto.md")):
+        linha = DETECCAO.search(pronto.read_text(encoding="utf-8"))
+        itens = re.findall(r"`([^`]+)`", linha.group(1)) if linha else []
+        achados[pronto.parent.name] = [i for i in itens if seguro(i)]
+    return achados
+
+
+def seguro(rel):
+    return not rel.startswith("/") and ".." not in Path(rel).parts
+
+
+def pronto_existente(topo, stack):
+    """(comando, origem) do pronto que o projeto já tem, pelas linhas `Pronto existente:` do pronto.md do pacote."""
+    arq = STACKS / stack / "pronto.md"
+    linha = PRONTO_EXISTENTE.search(arq.read_text(encoding="utf-8")) if arq.is_file() else None
+    for nome, trecho, comando in REGRA_PRONTO.findall(linha.group(1) if linha else ""):
+        alvo = topo / nome
+        try:
+            if seguro(nome) and alvo.is_file() and not alvo.is_symlink() and trecho in alvo.read_text(encoding="utf-8")[:200_000]:
+                return comando, f"o projeto já tem ({nome})"
+        except (OSError, UnicodeDecodeError):
+            continue
+    return None, "o sugerido pelo pacote; o projeto não tem um que o pacote reconheça"
+
+
+def hooks_ativos(topo):
+    """Hooks ativos em .git/hooks (executáveis que não são os exemplos do git)."""
+    codigo, pasta = git(topo, "rev-parse", "--path-format=absolute", "--git-path", "hooks")
+    pasta = Path(pasta.strip()) if codigo == 0 else None
+    if not pasta or not pasta.is_dir():
+        return []
+    return sorted(a.name for a in pasta.iterdir() if a.is_file() and os.access(a, os.X_OK) and not a.name.endswith(".sample"))
+
+
+def ler(topo):
+    """O diagnóstico, só com leituras."""
+    d = {"topo": topo}
+    d["branch"] = git(topo, "symbolic-ref", "--short", "-q", "HEAD")[1].strip() or "(sem branch)"
+    d["tem_commit"] = git(topo, "rev-parse", "-q", "--verify", "HEAD")[0] == 0
+    d["sujos"] = [l for l in git(topo, "status", "--porcelain")[1].splitlines() if l.strip()]
+    d["remotos"] = git(topo, "remote")[1].split()
+    d["branches"] = {b: (git(topo, "show-ref", "--verify", "-q", f"refs/heads/{b}")[0] == 0,
+                         git(topo, "show-ref", "--verify", "-q", f"refs/remotes/origin/{b}")[0] == 0) for b in DEGRAUS}
+    d["branch_adotar"] = git(topo, "show-ref", "--verify", "-q", f"refs/heads/{BRANCH}")[0] == 0
+    versao = topo / ".forge" / "versao"
+    d["versao"] = versao.read_text(encoding="utf-8").strip() if versao.is_file() else None
+    d["hooks_path"] = git(topo, "config", "--get", "core.hooksPath")[1].strip()
+    d["hooks_ativos"] = [] if d["hooks_path"] else hooks_ativos(topo)
+    d["existentes"] = sorted(str(a.relative_to(MODELO)) for a in MODELO.rglob("*")
+                             if a.is_file() and (topo / a.relative_to(MODELO)).exists())
+    d["detectadas"] = [s for s, itens in pacotes().items() if any((topo / i).exists() for i in itens)]
+    return d
+
+
+def escolher_stack(d, pedida):
+    """(stack, observação). Stack None: não dá para escolher sozinho."""
+    todos = sorted(pacotes())
+    if pedida:
+        return (pedida, "escolhida por você") if pedida in todos else (None, f"o pacote {pedida} não existe ({', '.join(todos)})")
+    if len(d["detectadas"]) == 1:
+        return d["detectadas"][0], "detectada pelos arquivos do projeto"
+    if d["detectadas"]:
+        return None, f"mais de um pacote serve ({', '.join(d['detectadas'])}); escolha com --stack"
+    return None, f"sem pacote: nenhum pacote do Forge ({', '.join(todos)}) reconhece este projeto; se um serve, escolha com --stack"
+
+
+def texto_hooks(d):
+    if d["hooks_path"] and d["hooks_path"] != ".githooks":
+        return (f"core.hooksPath={d['hooks_path']} é de outra ferramenta e fica como está; "
+                "o pre-push do Forge (proteção da main) entra encadeado no dela, com o seu sim")
+    if d["hooks_ativos"]:
+        return (f"ativos em .git/hooks ({', '.join(d['hooks_ativos'])}); ficam como estão, o core.hooksPath não muda e o "
+                "pre-push do Forge entra encadeado, com o seu sim")
+    return "nenhum de outra ferramenta; o pre-push do Forge (proteção da main) é ligado"
+
+
+def mostrar(d, stack, nota):
+    sim = {True: "sim", False: "não"}
+    print(f"forge adotar: leitura de {d['topo']} (nada foi alterado)")
+    print(f"- git: branch {d['branch']}; remoto: {', '.join(d['remotos']) or 'nenhum'}")
+    print(f"- trabalho não salvo: {len(d['sujos'])} arquivo(s)" if d["sujos"] else "- trabalho não salvo: nenhum")
+    print("- branches (local/origin): " + "; ".join(f"{b} {sim[l]}/{sim[r]}" for b, (l, r) in d["branches"].items()))
+    print(f"- stack: {stack or '?'} ({nota})")
+    if stack:
+        print(f"- pronto: {d['pronto'] or '(sugerido pelo pacote)'} ({d['pronto_origem']})")
+    print(f"- hooks: {texto_hooks(d)}")
+    if d["existentes"]:
+        print(f"- já existem e ficam como estão: {', '.join(d['existentes'])}"
+              + (" (o .claude/settings.json é mesclado, sem apagar nada)" if ".claude/settings.json" in d["existentes"] else ""))
+
+
+def impedimentos(d, stack):
+    itens = []
+    if d["sujos"]:
+        itens.append("há trabalho não salvo: guarde-o antes (commit ou git stash) para a adoção não se misturar com ele")
+    if not d["tem_commit"]:
+        itens.append("o repositório ainda não tem nenhum commit: faça o primeiro antes")
+    if d["branch_adotar"]:
+        itens.append(f"a branch {BRANCH} já existe: termine ou apague a adoção anterior antes")
+    if not stack:
+        itens.append("falta a stack (veja a linha stack acima)")
+    return itens
+
+
+def guardar_pendencia(topo):
+    """Stack sem pacote (skill novo-projeto): a pendência vai para a fila de sugestões ao Forge, sem dado do projeto."""
+    texto = ("Adoção parada: o forge adotar não achou pacote de stack para um projeto existente. Proposta: criar o "
+             "pacote dessa stack em stacks/. Medida: o forge adotar --so-ler passa a detectar a stack do projeto.")
+    r = subprocess.run([sys.executable, str(RAIZ_FORGE / "bin" / "forge-sugerir"), "--guardar", texto], cwd=topo,
+                       capture_output=True, text=True)
+    print("Pendência guardada para o Forge (envie com forge sugerir --fila)." if r.returncode == 0
+          else "Não consegui guardar a pendência; conte ao time do Forge que falta o pacote desta stack.")
+
+
+def confirmou(pergunta=f"Adotar agora, na branch nova {BRANCH}? [s/N] "):
+    """O "s" só vale digitado no terminal (C-40-1): sem terminal, nenhuma opção nem variável responde por você."""
+    if not sys.stdin.isatty():
+        print("Para aplicar, rode forge adotar num terminal: a confirmação só vale digitada.")
+        return False
+    try:
+        resposta = input(pergunta)
+    except EOFError:
+        return False
+    return resposta.strip().lower() == "s"
+
+
+def alvo_do_encadeamento(d):
+    """O pre-push onde o do Forge entra, ou None quando o core.hooksPath já é o do Forge e nada há a encadear."""
+    caminho = d["hooks_path"]
+    if caminho and caminho not in (".githooks", str(d["topo"] / ".githooks")):
+        pasta = d["topo"] / caminho  # caminho absoluto: o / do Path o mantém
+        if pasta.name == "_" and pasta.parent.name.startswith("."):
+            pasta = pasta.parent  # gerenciador que regenera a pasta `_`: o hook do projeto fica na pasta de cima
+        return pasta / "pre-push"
+    if d["hooks_ativos"]:
+        codigo, pasta = git(d["topo"], "rev-parse", "--path-format=absolute", "--git-path", "hooks")
+        return Path(pasta.strip()) / "pre-push" if codigo == 0 else None
+    return None
+
+
+def encadear(d):
+    """Põe o pre-push do Forge no começo do pre-push que o projeto já usa (ou cria um que só o chama), sem trocar o
+    core.hooksPath. Só com o "s"; hook que não é de shell fica como está, com o aviso."""
+    alvo = alvo_do_encadeamento(d)
+    if alvo is None:
+        return
+    atual = alvo.read_text(encoding="utf-8", errors="replace") if alvo.is_file() else None
+    if atual is not None and MARCA in atual:
+        return
+    primeira = atual.splitlines()[0] if atual else ""
+    if atual is not None and not re.match(r"#!\s*(/usr/bin/env\s+)?(/bin/|/usr/bin/)?(ba|da|z)?sh\b", primeira):
+        print(f"Aviso: {alvo} não é de shell; encadeie à mão o .githooks/pre-push nele para ter a proteção da main.")
+        return
+    rel = os.path.relpath(alvo, d["topo"])
+    acao = "acrescentar no começo de" if atual is not None else "criar"
+    if not confirmou(f"O projeto já tem hooks próprios. Posso {acao} {rel} a chamada ao pre-push do Forge "
+                     "(proteção da main)? Nada do que existe é apagado. [s/N] "):
+        print("Hook não encadeado: a proteção da main fica só no GitHub até você encadear o .githooks/pre-push.")
+        return
+    bloco = (f"{MARCA}\nforge_entrada=\"$(cat)\"\n"
+             "{ [ -z \"$forge_entrada\" ] || printf '%s\\n' \"$forge_entrada\"; } | \"$(git rev-parse --show-toplevel)/.githooks/pre-push\" \"$@\" || exit 1\n"
+             "exec 0<<FORGE_ENTRADA\n$forge_entrada\nFORGE_ENTRADA\n")
+    if atual is None:
+        alvo.parent.mkdir(parents=True, exist_ok=True)
+        alvo.write_text("#!/bin/sh\n" + bloco, encoding="utf-8")
+    else:
+        resto = atual.split("\n", 1)[1] if "\n" in atual else ""
+        alvo.write_text(primeira + "\n" + bloco + resto, encoding="utf-8")
+    alvo.chmod(alvo.stat().st_mode | 0o111)
+    print(f"  hook     pre-push do Forge encadeado em {rel}")
+
+
+def criar_develop(d):
+    """A develop nasce da main só com o "s" (D5); só local, sem envio."""
+    tem_main, _ = d["branches"]["main"]
+    local, remota = d["branches"]["develop"]
+    if not tem_main or local or remota:
+        return
+    if not confirmou("O projeto não tem a branch develop, onde o time junta o trabalho antes da main. "
+                     "Criar a develop a partir da main (só aqui, sem envio)? [s/N] "):
+        print("Sem develop por ora: o time pede de novo antes do primeiro PR.")
+        return
+    codigo, _ = git(d["topo"], "branch", "develop", "main", sem_hooks=True)
+    print("  branch   develop criada a partir da main" if codigo == 0 else "  aviso    não consegui criar a develop")
+
+
+def registrar_pedido(d, stack, nota, sem_versionar):
+    """Pedido adotar-forge com a suposição de stack e de pronto no Histórico; o que já existe não é tocado."""
+    rel = "docs/pedidos/adotar-forge.md"
+    arq = d["topo"] / rel
+    if arq.exists():
+        print(f"  mantido  {rel} (já existia; acrescente a adoção nele)")
+        return
+    agora = time.strftime("%Y-%m-%d %H:%M")
+    pronto = d["pronto"] or "o sugerido pelo pacote"
+    arq.parent.mkdir(parents=True, exist_ok=True)
+    arq.write_text(
+        "# Pedido adotar-forge: adota o Forge neste projeto\n\n- **Modo:** implementar\n"
+        "- **Objetivo:** trazer o projeto para o Forge sem quebrar nada\n- **Depende de:** nenhum\n\n## Escopo\n"
+        f"- E1. arquivos do Forge na branch {BRANCH}, sem sobrescrever os do projeto · `confirmado`\n"
+        f"- E2. stack {stack} · `suposição`\n- E3. comando de pronto: {pronto} · `suposição`\n\n## Suposições\n"
+        f"- stack {stack}: {nota}\n- pronto {pronto}: {d['pronto_origem']}\n\n## Histórico\n"
+        f"- {agora}: forge adotar criou a branch {BRANCH} e rodou o forge-init (stack {stack}, pronto {pronto}).\n"
+        f"- {agora}: suposição de stack: {stack} ({nota}); suposição de pronto: {pronto} ({d['pronto_origem']}).\n",
+        encoding="utf-8")
+    if sem_versionar:
+        _, exclude = git(d["topo"], "rev-parse", "--path-format=absolute", "--git-path", "info/exclude")
+        with open(exclude.strip(), "a", encoding="utf-8") as f:
+            f.write(f"/{rel}\n")
+    print(f"  criado   {rel} (stack e pronto supostos no Histórico)")
+
+
+def sandbox_ligado(topo):
+    """O .claude/settings.json ou o settings.local.json do projeto já liga o sandbox (`sandbox.enabled` true)."""
+    for nome in ("settings.json", "settings.local.json"):
+        try:
+            caixa = json.loads((topo / ".claude" / nome).read_text(encoding="utf-8")).get("sandbox")
+        except (OSError, ValueError, AttributeError):
+            continue
+        if isinstance(caixa, dict) and caixa.get("enabled") is True:
+            return True
+    return False
+
+
+def oferecer_sandbox(topo):
+    """Projeto existente: o sandbox é escolha do dono (D1); só a oferta, e o forge-upgrade --ligar-sandbox roda com o "s"."""
+    if sandbox_ligado(topo):
+        return
+    print("Oferta: o sandbox do Bash está desligado (sem ler ~/.ssh nem as credenciais do gh, rede só na lista). Ele pede o "
+          "bubblewrap e a credencial do bot (ADR 0009); sem eles, a sessão quebra.")
+    if not confirmou("Ligar o sandbox agora (forge-upgrade --ligar-sandbox, sem commit)? [s/N] "):
+        print(f"Sandbox desligado; para ligar depois: forge-upgrade --ligar-sandbox {topo}")
+        return
+    subprocess.run([sys.executable, str(RAIZ_FORGE / "bin" / "forge-upgrade"), "--ligar-sandbox", str(topo)])
+
+
+def aplicar(d, stack, nota, sem_versionar):
+    topo = d["topo"]
+    if git(topo, "status", "--porcelain")[1].strip():
+        print("forge adotar: apareceu trabalho não salvo; nada foi alterado.", file=sys.stderr)
+        return 1
+    codigo, _ = git(topo, "checkout", "-q", "-b", BRANCH, sem_hooks=True)
+    if codigo != 0:
+        print(f"forge adotar: não consegui criar a branch {BRANCH}; nada foi alterado.", file=sys.stderr)
+        return 1
+    cmd = ["bash", str(RAIZ_FORGE / "bin" / "forge-init"), "--sem-sandbox", "--stack", stack, *(["--pronto", d["pronto"]] if d["pronto"] else []),
+           *(["--sem-versionar"] if sem_versionar else []), str(topo)]
+    if subprocess.run(cmd).returncode != 0:
+        print(f"forge adotar: o forge-init falhou na branch {BRANCH}. Para voltar: git checkout {d['branch']} "
+              f"e apague a branch {BRANCH}.", file=sys.stderr)
+        return 1
+    encadear(d)
+    criar_develop(d)
+    registrar_pedido(d, stack, nota, sem_versionar)
+    oferecer_sandbox(topo)
+    print(f"\nPronto: os arquivos do Forge estão na branch {BRANCH}, ainda sem commit e sem envio.")
+    pedido = (f"Adoção: o forge adotar criou a branch {BRANCH} com os arquivos do Forge. Conduza o resto pela skill "
+              "forge:iniciar-projeto (objetivo, regras, comando de pronto), registre nessa branch e abra o PR \"adota o Forge\".")
+    if sys.stdout.isatty() and shutil.which("claude"):
+        os.execvp("claude", ["claude", "--agent", "forge:jarvis", pedido])
+    print("Próximo passo: abra o Jarvis nesta pasta (jarvis, ou claude --agent forge:jarvis) e peça para revisar a adoção.")
+    return 0
+
+
+def argumentos(args):
+    opcoes = {"so_ler": False, "stack": None, "sem_versionar": False, "destino": "."}
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a in ("-h", "--help"):
+            print(__doc__.split("\n", 2)[2].strip())
+            sys.exit(0)
+        elif a == "--so-ler":
+            opcoes["so_ler"] = True
+        elif a == "--sem-versionar":
+            opcoes["sem_versionar"] = True
+        elif a == "--stack" and i + 1 < len(args) and re.fullmatch(r"[a-z0-9-]+", args[i + 1]):
+            opcoes["stack"] = args[i + 1]
+            i += 1
+        elif a.startswith("-"):
+            print(f"forge adotar: opção desconhecida ou incompleta: {a} (veja forge adotar -h)", file=sys.stderr)
+            sys.exit(2)
+        else:
+            opcoes["destino"] = a
+        i += 1
+    return opcoes
+
+
+def main(args):
+    o = argumentos(args)
+    destino = Path(o["destino"]).resolve()
+    motivo = recusa(destino)
+    if motivo:
+        print(f"forge adotar: {motivo}.", file=sys.stderr)
+        return 1
+    codigo, topo = git(destino, "rev-parse", "--show-toplevel")
+    if codigo != 0:
+        print("forge adotar: esta pasta não está no git. Projeto do zero: forge novo-projeto; "
+              "para esta pasta: git init, um primeiro commit e forge adotar de novo.", file=sys.stderr)
+        return 1
+    topo = Path(topo.strip()).resolve()
+    motivo = recusa(topo)
+    if motivo:
+        print(f"forge adotar: {motivo}.", file=sys.stderr)
+        return 1
+    d = ler(topo)
+    if d["versao"]:
+        print(f"forge adotar: {topo} já usa o Forge (versão {d['versao']}). Para conferir: forge doutor; "
+              "para atualizar: forge atualizar.")
+        return 0
+    stack, nota = escolher_stack(d, o["stack"])
+    d["pronto"], d["pronto_origem"] = pronto_existente(topo, stack) if stack else (None, "")
+    mostrar(d, stack, nota)
+    faltam = impedimentos(d, stack)
+    if faltam:
+        print("Antes de adotar:\n" + "\n".join(f"- {f}" for f in faltam))
+        if not stack and not o["so_ler"] and not o["stack"] and not d["detectadas"]:
+            guardar_pendencia(topo)
+        return 0 if o["so_ler"] else 1
+    print(f"Recomendação: adotar numa branch nova ({BRANCH}, a partir de {d['branch']}); nenhum arquivo seu é "
+          "sobrescrito, nada vai ao GitHub e o Jarvis revisa com você antes do PR.")
+    if o["so_ler"] or not confirmou():
+        print("Nada foi alterado.")
+        return 0
+    return aplicar(d, stack, nota, o["sem_versionar"])
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

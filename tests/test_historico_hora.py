@@ -1,5 +1,6 @@
 """P4 e P5 da 0.37 (E1 e E2): o `forge-check brief` avisa hora do `## Histórico` no futuro ou fora de ordem e o pedido
-aberto depois da mudança sem a linha `DECISÃO DO DONO (...): recibo confirmado: "<resposta>"`. Só aviso: o rc não muda."""
+aberto depois da mudança sem a linha `DECISÃO DO DONO (...): recibo confirmado: "<resposta>"`. Só aviso, o rc não muda, salvo a
+hora no futuro, que reprova desde a 0.43.3 (EJ 63/79)."""
 import sys
 import unittest
 from importlib.machinery import SourceFileLoader
@@ -22,14 +23,14 @@ class HistoricoERecibo(Raiz):
         self.gravar("docs/pedidos/pedido-sintetico.md", pedido + ("\n## Histórico\n" + historico if historico else ""))
         self.gravar("docs/briefs/pedido-sintetico-dev-exemplo-1.md", BRIEF)
         rc, saida, _ = self.rodar("brief", "docs/briefs/pedido-sintetico-dev-exemplo-1.md", "--pedido", "pedido-sintetico")
-        return rc, [l for l in saida if l.startswith(("aviso: histórico:", "aviso: recibo:"))]
+        return rc, [l for l in saida if l.startswith(("aviso: histórico:", "aviso: recibo:", "histórico:"))]
 
-    def test_hora_no_futuro_avisa_sem_mudar_o_rc(self):
+    def test_hora_no_futuro_reprova(self):  # 0.43.3: o aviso não bastou (EJ 63/79)
         rc_sem, avisos_sem = self.conferir("- 2026-01-01 10:00: aberto\n")
         rc, avisos = self.conferir("- 2026-01-01 10:00: aberto\n- 2099-01-01 00:00: hora inventada\n")
-        self.assertEqual(avisos_sem, [])
-        self.assertEqual(avisos, ["aviso: histórico: 2099-01-01 00:00 no futuro"])
-        self.assertEqual(rc, rc_sem)
+        self.assertEqual((rc_sem, avisos_sem), (0, []))
+        self.assertEqual(avisos, ["histórico: 2099-01-01 00:00 no futuro (hora escrita sem `date`; EJ 63/79)"])
+        self.assertEqual(rc, 1)
 
     def test_ordem_decrescente_avisa(self):
         _, avisos = self.conferir("- 2026-01-01 10:00: aberto\n- 2026-01-01 09:59: antes\n")

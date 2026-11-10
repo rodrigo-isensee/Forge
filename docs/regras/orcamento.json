@@ -1,0 +1,86 @@
+{
+ "_leia": "Orçamento de instrução (P11 da avaliação de 08/11, 0.43.1). Dois tetos, cada um com um número só: (1) por agente, em `agentes`: tests/test_orcamento_instrucao.py mede o que cada agente carrega (agents/<x>.md, as skills que ele cita pelo caminho do plugin e os R-*.md citados por eles) e reprova acima do teto; (2) o núcleo, em `nucleo`: agents/jarvis.md mais todos os docs/regras/*.md, lido por tests/test_jarvis_nucleo.py (decisão 11 do dono: no máximo metade da base da 0.43). Teto por agente = medida de 2026-11-08 depois dos textos da 0.43.1 (integração); o alvo é a meta, não trava. Subir um teto é afrouxar: diga no PR e peça a decisão do dono. Uso em docs/governanca.md.",
+ "revisar_em": "2026-12-08",
+ "medida": "jarvis carregava 96.774 caracteres e 221 marcadores normativos na base 85531b1 (161 linhas ERRO-JARVIS em 4 dias, estudo de 08/11); depois da 0.43.1, 54.662 caracteres e 130 marcadores",
+ "nucleo": {
+  "arquivos": "agents/jarvis.md + docs/regras/*.md",
+  "teto_caracteres": 37511,
+  "origem": "decisão 11 do dono (2026-11-08): metade dos 75.022 caracteres da base da 0.43"
+ },
+ "agentes": {
+  "agile-coach": {
+   "teto": {
+    "agente_caracteres": 6748,
+    "total_caracteres": 25418,
+    "marcadores": 37
+   }
+  },
+  "conferente": {
+   "teto": {
+    "agente_caracteres": 6936,
+    "total_caracteres": 8045,
+    "marcadores": 23
+   },
+   "alvo": {
+    "agente_caracteres": 5000,
+    "total_caracteres": 8045,
+    "marcadores": 23
+   }
+  },
+  "devops-engineer": {
+   "teto": {
+    "agente_caracteres": 5155,
+    "total_caracteres": 22243,
+    "marcadores": 44
+   }
+  },
+  "jarvis": {
+   "teto": {
+    "agente_caracteres": 12000,
+    "total_caracteres": 40566,
+    "marcadores": 82
+   },
+   "alvo": {
+    "agente_caracteres": 12000,
+    "total_caracteres": 40566,
+    "marcadores": 82
+   }
+  },
+  "qa-engineer": {
+   "teto": {
+    "agente_caracteres": 4195,
+    "total_caracteres": 21765,
+    "marcadores": 47
+   }
+  },
+  "security-engineer": {
+   "teto": {
+    "agente_caracteres": 6828,
+    "total_caracteres": 18879,
+    "marcadores": 37
+   }
+  },
+  "software-architect": {
+   "teto": {
+    "agente_caracteres": 4206,
+    "total_caracteres": 12863,
+    "marcadores": 14
+   }
+  },
+  "tech-lead": {
+   "teto": {
+    "agente_caracteres": 8828,
+    "total_caracteres": 30227,
+    "marcadores": 61
+   }
+  },
+  "ux-designer": {
+   "teto": {
+    "agente_caracteres": 3091,
+    "total_caracteres": 13407,
+    "marcadores": 17
+   }
+  }
+ },
+ "medida_corte_orkastery6": "0.44.2: regra verificada só por ferramenta vale pelo ID; o teto total e o de marcadores de cada agente desceram na medida do corte (antes - depois)"
+}

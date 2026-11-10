@@ -1,0 +1,68 @@
+{
+  "pedido": "salvar-ajuda-e-opcao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o ramo -h|--help mostra o uso e sai com 0",
+      "arquivo": "bin/forge-salvar",
+      "de": "  -h|--help) uso; exit 0 ;;\n",
+      "para": "",
+      "testes": [
+        "tests.test_salvar_desfazer.AjudaEOpcao.test_ajuda_mostra_o_uso_sem_salvar_nem_enviar",
+        "tests.test_salvar_desfazer.AjudaEOpcao.test_ajuda_funciona_fora_de_repositorio"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a ajuda casa -h e não só --help",
+      "arquivo": "bin/forge-salvar",
+      "de": "  -h|--help) uso;",
+      "para": "  --help) uso;",
+      "testes": [
+        "tests.test_salvar_desfazer.AjudaEOpcao.test_ajuda_mostra_o_uso_sem_salvar_nem_enviar"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "toda mensagem que começa com - é recusada, não só -m",
+      "arquivo": "bin/forge-salvar",
+      "de": "  -*) echo",
+      "para": "  -m) echo",
+      "testes": [
+        "tests.test_salvar_desfazer.AjudaEOpcao.test_mensagem_que_comeca_com_traco_e_recusada_sem_commit"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a recusa sai com o código 2 de uso errado",
+      "arquivo": "bin/forge-salvar",
+      "de": "uso >&2; exit 2 ;;",
+      "para": "uso >&2; exit 0 ;;",
+      "testes": [
+        "tests.test_salvar_desfazer.AjudaEOpcao.test_mensagem_que_comeca_com_traco_e_recusada_sem_commit"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a ajuda vem antes do teste de repositório",
+      "arquivo": "bin/forge-salvar",
+      "de": "case \"${1:-}\" in\n  -h|--help) uso; exit 0 ;;\n  --) shift ;;  # o resto é a mensagem, mesmo que comece com -\n  -*) echo \"forge salvar: a mensagem não pode começar com '-' (recebi: $1), porque parece uma opção. Para salvar com ela, rode: forge salvar -- \\\"$*\\\". Nada foi salvo.\" >&2; uso >&2; exit 2 ;;\nesac\n\ngit rev-parse --is-inside-work-tree >/dev/null 2>&1 \\\n  || die \"esta pasta não é um projeto (repositório do git). Entre na pasta do projeto e rode de novo.\"\n",
+      "para": "git rev-parse --is-inside-work-tree >/dev/null 2>&1 \\\n  || die \"esta pasta não é um projeto (repositório do git). Entre na pasta do projeto e rode de novo.\"\n\ncase \"${1:-}\" in\n  -h|--help) uso; exit 0 ;;\n  --) shift ;;  # o resto é a mensagem, mesmo que comece com -\n  -*) echo \"forge salvar: a mensagem não pode começar com '-' (recebi: $1), porque parece uma opção. Para salvar com ela, rode: forge salvar -- \\\"$*\\\". Nada foi salvo.\" >&2; uso >&2; exit 2 ;;\nesac\n",
+      "testes": [
+        "tests.test_salvar_desfazer.AjudaEOpcao.test_ajuda_funciona_fora_de_repositorio"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "-- separa a mensagem que começa com -",
+      "arquivo": "bin/forge-salvar",
+      "de": "  --) shift ;;",
+      "para": "  --) ;;",
+      "testes": [
+        "tests.test_salvar_desfazer.AjudaEOpcao.test_mensagem_que_comeca_com_traco_vale_depois_de_dois_tracos",
+        "tests.test_salvar_desfazer.AjudaEOpcao.test_dois_tracos_sem_mensagem_usa_a_padrao"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,166 @@
+{
+  "pedido": "v0433-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I129",
+      "guarda": "bin/forge_governanca.py:371 isinstance(conteudo, str) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            prompt = conteudo if isinstance(conteudo, str) else \" \".join(",
+      "para": "            prompt = conteudo if not (isinstance(conteudo, str)) else \" \".join(",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I130",
+      "guarda": "bin/forge_governanca.py:372 isinstance(c, dict) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "                str(c.get(\"text\", \"\")) for c in conteudo if isinstance(c, dict)) if isinstance(conteudo, list) else \"\"",
+      "para": "                str(c.get(\"text\", \"\")) for c in conteudo if not (isinstance(c, dict))) if isinstance(conteudo, list) else \"\"",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I131",
+      "guarda": "bin/forge_governanca.py:372 isinstance(conteudo, list) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "                str(c.get(\"text\", \"\")) for c in conteudo if isinstance(c, dict)) if isinstance(conteudo, list) else \"\"",
+      "para": "                str(c.get(\"text\", \"\")) for c in conteudo if isinstance(c, dict)) if not (isinstance(conteudo, list)) else \"\"",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I132",
+      "guarda": "bin/forge_governanca.py:374 registro.get('type') == 'assistant' and isinstance(uso, dict) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        if registro.get(\"type\") == \"assistant\" and isinstance(uso, dict):",
+      "para": "        if not (registro.get(\"type\") == \"assistant\" and isinstance(uso, dict)):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I133",
+      "guarda": "bin/forge_governanca.py:375 mensagem.get('id') or len(usos) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            usos[mensagem.get(\"id\") or len(usos)] = sum(v for k in CHAVES_DE_USO if isinstance(v := uso.get(k), int))",
+      "para": "            usos[not (mensagem.get(\"id\") or len(usos))] = sum(v for k in CHAVES_DE_USO if isinstance(v := uso.get(k), int))",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I134",
+      "guarda": "bin/forge_governanca.py:375 isinstance((v := uso.get(k)), int) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            usos[mensagem.get(\"id\") or len(usos)] = sum(v for k in CHAVES_DE_USO if isinstance(v := uso.get(k), int))",
+      "para": "            usos[mensagem.get(\"id\") or len(usos)] = sum(v for k in CHAVES_DE_USO if not (isinstance(v := uso.get(k), int)))",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I135",
+      "guarda": "bin/forge_governanca.py:383 pasta.is_dir() (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    return [pasta] if pasta.is_dir() else []",
+      "para": "    return [pasta] if not (pasta.is_dir()) else []",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I136",
+      "guarda": "bin/forge_governanca.py:395 prompt or '' (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            nome = BRIEF_NO_PROMPT.search(prompt or \"\")",
+      "para": "            nome = BRIEF_NO_PROMPT.search(not (prompt or \"\"))",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I137",
+      "guarda": "bin/forge_governanca.py:396 not nome or not tokens (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            if not nome or not tokens:",
+      "para": "            if not (not nome or not tokens):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I138",
+      "guarda": "bin/forge_governanca.py:398 ler_texto(raiz_pedidos / 'docs' / 'briefs' / f'{nome.group(1)}.md') or '' (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            brief = ler_texto(raiz_pedidos / \"docs\" / \"briefs\" / f\"{nome.group(1)}.md\") or \"\"",
+      "para": "            brief = not (ler_texto(raiz_pedidos / \"docs\" / \"briefs\" / f\"{nome.group(1)}.md\") or \"\")",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I139",
+      "guarda": "bin/forge_governanca.py:400 pedido (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            pedido = pedido.group(1).removesuffix(\".md\").rsplit(\"/\", 1)[-1] if pedido else re.sub(r\"-[a-z-]+-\\d+$\", \"\", nome.group(1))",
+      "para": "            pedido = pedido.group(1).removesuffix(\".md\").rsplit(\"/\", 1)[-1] if not (pedido) else re.sub(r\"-[a-z-]+-\\d+$\", \"\", nome.group(1))",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I140",
+      "guarda": "bin/forge_governanca.py:402 cobre (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            itens = list(dict.fromkeys(ITEM.findall(\" \".join([cobre.group(1) if cobre else \"\"] + secao(brief, \"Entregar\")))))",
+      "para": "            itens = list(dict.fromkeys(ITEM.findall(\" \".join([cobre.group(1) if not (cobre) else \"\"] + secao(brief, \"Entregar\")))))",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I141",
+      "guarda": "bin/forge_governanca.py:403 itens or ['-'] (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            for item in itens or [\"-\"]:",
+      "para": "            for item in not (itens or [\"-\"]):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I142",
+      "guarda": "bin/forge_governanca.py:405 itens or ['-'] (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "                d[\"tokens\"] += tokens // len(itens or [\"-\"])",
+      "para": "                d[\"tokens\"] += tokens // len(not (itens or [\"-\"]))",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I143",
+      "guarda": "bin/forge_governanca.py:422 i.get('tokens') is not None (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            \"tokens\": sum(i[\"tokens\"] for i in itens if i.get(\"tokens\") is not None) if any(i.get(\"tokens\") is not None for i in itens) else None}",
+      "para": "            \"tokens\": sum(i[\"tokens\"] for i in itens if not (i.get(\"tokens\") is not None)) if any(i.get(\"tokens\") is not None for i in itens) else None}",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I144",
+      "guarda": "bin/forge_governanca.py:422 any((i.get('tokens') is not None for i in itens)) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            \"tokens\": sum(i[\"tokens\"] for i in itens if i.get(\"tokens\") is not None) if any(i.get(\"tokens\") is not None for i in itens) else None}",
+      "para": "            \"tokens\": sum(i[\"tokens\"] for i in itens if i.get(\"tokens\") is not None) if not (any(i.get(\"tokens\") is not None for i in itens)) else None}",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    }
+  ]
+}

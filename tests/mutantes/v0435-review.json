@@ -1,0 +1,146 @@
+{
+  "pedido": "v0435-hooks",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "R1",
+      "guarda": "GIT_CONFIG_* pelo export",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for a in atribuicoes + (palavras[1:] if exporta(palavras) else []):  # depois do core.hooksPath",
+      "para": "for a in atribuicoes + (palavras[1:] if False else []):  # depois do core.hooksPath",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R2",
+      "guarda": "GIT_CONFIG_COUNT/KEY/VALUE/PARAMETERS recusam",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if CONFIG_NO_AMBIENTE.match(a.partition(\"=\")[0]):",
+      "para": "if CONFIG_NO_AMBIENTE.match(a.partition(\"=\")[2]):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R3",
+      "guarda": "todo -c da linha passa pela config_da_linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if palavras[i] == \"-c\" and i + 1 < len(palavras):\n                self.config_da_linha",
+      "para": "if palavras[i] == \"-cx\" and i + 1 < len(palavras):\n                self.config_da_linha",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R4",
+      "guarda": "--config-env recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if palavras[i].startswith(\"--config-env\"):",
+      "para": "if palavras[i].startswith(\"--config-envx\"):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R5",
+      "guarda": "send-pack vai pelo caminho do push",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if sub in (\"push\", \"send-pack\"):",
+      "para": "if sub in (\"push\",):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R6",
+      "guarda": "-c alias.* recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if chave.lower().startswith(\"alias.\"):",
+      "para": "if chave.lower().startswith(\"aliasx.\"):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R7",
+      "guarda": "refspec de remote.*.fetch no -c que escreve na integração",
+      "arquivo": "hooks/conformidade.py",
+      "de": "REFSPEC_NA_CONFIG.fullmatch(chave) and \":\" in refspec and",
+      "para": "REFSPEC_NA_CONFIG.fullmatch(chave) and \";\" in refspec and",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R8",
+      "guarda": "symbolic-ref que grava a integração ou põe o HEAD nela",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if sub == \"symbolic-ref\" and len(pos) > 1 and (",
+      "para": "if sub == \"symbolic-ref\" and len(pos) > 2 and (",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R9",
+      "guarda": "heads/<b> vale como refs/heads/<b>",
+      "arquivo": "hooks/conformidade.py",
+      "de": "ref = \"refs/\" + ref if ref.startswith(\"heads/\") else ref",
+      "para": "ref = \"refs/\" + ref if ref.startswith(\"headsx/\") else ref",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R10",
+      "guarda": "destino com curinga é conferido pelo prefixo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if \"*\" in ref:\n            prefixo",
+      "para": "        if \"?\" in ref:\n            prefixo",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R11",
+      "guarda": "o prefixo do curinga que alcança refs/heads/<integração>",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return any(f\"refs/heads/{b}\".startswith(prefixo) or b.startswith(prefixo)",
+      "para": "return any(f\"refs/heads/{b}\".startswith(prefixo + \"x\") or b.startswith(prefixo)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R12",
+      "guarda": "o prefixo do curinga sem refs/heads/",
+      "arquivo": "hooks/conformidade.py",
+      "de": "f\"refs/heads/{b}\".startswith(prefixo) or b.startswith(prefixo) for b in INTEGRACAO)",
+      "para": "f\"refs/heads/{b}\".startswith(prefixo) or b.startswith(prefixo + \"x\") for b in INTEGRACAO)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R13",
+      "guarda": "o nome sem curinga vale pela branch",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return nome_da_branch(ref) in INTEGRACAO\n\n    def reset_com_revisao",
+      "para": "        return nome_da_branch(ref) not in INTEGRACAO\n\n    def reset_com_revisao",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "R14",
+      "guarda": "reset <rev> -- <caminho> só mexe no índice",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if args[len(antes) + 1:]:",
+      "para": "if args[len(antes) + 2:]:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    }
+  ]
+}

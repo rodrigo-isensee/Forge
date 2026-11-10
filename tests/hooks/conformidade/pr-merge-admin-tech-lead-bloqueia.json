@@ -1,0 +1,35 @@
+{
+  "descricao": "R7 (0.43.3): --admin é negado ao tech-lead, o único papel que mescla na develop.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh pr merge feature/x --squash --admin"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-MAIN: gh pr merge com --admin"
+  }
+}

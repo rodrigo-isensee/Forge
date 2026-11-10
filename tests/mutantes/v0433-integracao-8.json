@@ -1,0 +1,166 @@
+{
+  "pedido": "v0433-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I113",
+      "guarda": "bin/forge-placar:240 falha (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "                    conta(papel, \"backlog\" if falha else \"travados\")",
+      "para": "                    conta(papel, \"backlog\" if not (falha) else \"travados\")",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I114",
+      "guarda": "bin/forge-placar:308 papeis is None (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "    if papeis is None:",
+      "para": "    if not (papeis is None):",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I115",
+      "guarda": "bin/forge-placar:310 papeis['evals'] or {} (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "    evals = papeis[\"evals\"] or {}",
+      "para": "    evals = not (papeis[\"evals\"] or {})",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I116",
+      "guarda": "bin/forge-placar:312 (t := papeis[r].get(papel)) (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "        taxas = \" · \".join(f\"{r} {fmt(t['taxa'])} ({t['erros']}/{t['base']})\" if (t := papeis[r].get(papel)) else f\"{r} -\"",
+      "para": "        taxas = \" · \".join(f\"{r} {fmt(t['taxa'])} ({t['erros']}/{t['base']})\" if (not (t := papeis[r].get(papel))) else f\"{r} -\"",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I117",
+      "guarda": "bin/forge-placar:315 e (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "        casos = f\"evals {e['travados']} travados, {e['backlog']} backlog, {e['sem_ferramenta']} sem ferramenta\" if e else \"evals -\"",
+      "para": "        casos = f\"evals {e['travados']} travados, {e['backlog']} backlog, {e['sem_ferramenta']} sem ferramenta\" if not (e) else \"evals -\"",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I118",
+      "guarda": "bin/forge-placar:328 vereditos is not None or Path(args.evals).is_dir() (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "              \"evals\": evals_por_papel(args.evals)} if vereditos is not None or Path(args.evals).is_dir() else None",
+      "para": "              \"evals\": evals_por_papel(args.evals)} if not (vereditos is not None or Path(args.evals).is_dir()) else None",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I119",
+      "guarda": "bin/forge_governanca.py:321 not codigo and comum (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if not codigo and comum:",
+      "para": "    if not (not codigo and comum):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I120",
+      "guarda": "bin/forge_governanca.py:324 c.is_file() and (not c.is_symlink()) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    return list(dict.fromkeys(c for c in candidatos if c.is_file() and not c.is_symlink()))",
+      "para": "    return list(dict.fromkeys(c for c in candidatos if not (c.is_file() and not c.is_symlink())))",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I121",
+      "guarda": "bin/forge_governanca.py:333 ler_texto(arq) or '' (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        for linha in (ler_texto(arq) or \"\").splitlines():",
+      "para": "        for linha in (not (ler_texto(arq) or \"\")).splitlines():",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I122",
+      "guarda": "bin/forge_governanca.py:335 achou (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            if achou:",
+      "para": "            if not (achou):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I123",
+      "guarda": "bin/forge_governanca.py:337 janela(quando) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "                if janela(quando):",
+      "para": "                if not (janela(quando)):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I124",
+      "guarda": "bin/forge_governanca.py:344 atual is None or atual - anterior > INTERVALO_DA_ESPERA (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            if atual is None or atual - anterior > INTERVALO_DA_ESPERA:",
+      "para": "            if not (atual is None or atual - anterior > INTERVALO_DA_ESPERA):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I125",
+      "guarda": "bin/forge_governanca.py:356 arq.is_symlink() (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        if arq.is_symlink():",
+      "para": "        if not (arq.is_symlink()):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I126",
+      "guarda": "bin/forge_governanca.py:366 isinstance(registro, dict) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        mensagem = registro.get(\"message\") if isinstance(registro, dict) else None",
+      "para": "        mensagem = registro.get(\"message\") if not (isinstance(registro, dict)) else None",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I127",
+      "guarda": "bin/forge_governanca.py:367 not isinstance(mensagem, dict) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        if not isinstance(mensagem, dict):",
+      "para": "        if not (not isinstance(mensagem, dict)):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I128",
+      "guarda": "bin/forge_governanca.py:369 prompt is None and registro.get('type') == 'user' (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        if prompt is None and registro.get(\"type\") == \"user\":",
+      "para": "        if not (prompt is None and registro.get(\"type\") == \"user\"):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    }
+  ]
+}

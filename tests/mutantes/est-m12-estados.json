@@ -1,0 +1,16 @@
+{
+  "pedido": "est-m12-estados",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o estado antigo \"a fazer\" vai a Pronto para fazer, nao a Bloqueado (C-5, C-6)",
+      "arquivo": "bin/forge-check",
+      "de": "\"a fazer\": \"Pronto para fazer\", ",
+      "para": "",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_quadro_gerado_dos_tres_estados_antigos_passa_no_kanban"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "descricao": "S4: \"ainda não\" com outra falha recomeça a conta e bloqueia.",
+  "estado": {
+    "meta.json": {
+      "pedido": "p1",
+      "checagens": [
+        [
+          "false"
+        ]
+      ],
+      "armado": true,
+      "repeticoes": 3,
+      "ultimo": [
+        "`outra` (rc=1)"
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "stop_hook_active": false
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "(1/4)"
+  }
+}

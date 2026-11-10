@@ -1,0 +1,44 @@
+{
+  "descricao": "`piso_memoria_gb` 3 em .forge/config.json: 2,5 GB livres bloqueia.",
+  "proc": {
+    "loadavg": "0.5 1.0 1.0 1/100 1",
+    "mem_gb": 2.5,
+    "mem_total_gb": 4,
+    "nproc": 8
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a0",
+          "tipo": "web-fetch",
+          "descricao": "Tarefa 0",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a1",
+          "tipo": "web-fetch",
+          "descricao": "Tarefa 1",
+          "desde": "{agora-60}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "piso 3.0 GB"
+  },
+  "config": {
+    "piso_memoria_gb": 3
+  }
+}
