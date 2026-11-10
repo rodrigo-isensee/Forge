@@ -5,6 +5,7 @@ F1 (versao-047, E1a): uma checagem do projeto por vez por usuário e máquina.
 Cada teste roda o hook de verdade num repositório descartável, num grupo novo criado pelo teste (G-6).
 """
 import fcntl
+import json
 import os
 import shutil
 import stat
@@ -674,6 +675,65 @@ class ListaDosArquivos(EnvioDeCodigo):
         novo = self.commit("codigo")
         self.assertEqual(self.envia_e_le([self.ref(novo, ZERO)]), ["TUDO"])
         self.assertEqual(self.envia_e_le([self.ref(novo, self.base, "refs/tags/v1")]), ["TUDO"])
+
+
+class CaminhosExtra(Repo):
+    """0.45.3: a chave opcional `caminhos_extra` do .forge/config.json soma pastas ao fim do PATH da checagem (o agente novo do
+    piloto abria sem pnpm e travava no pre-push); vale a pasta absoluta, real (sem link), sem `:` e existente."""
+
+    FERRAMENTA = "ferramenta-do-projeto-x"
+
+    def setUp(self):
+        super().setUp()
+        self.pasta = (self.fora / "ferramentas").resolve()
+        self.pasta.mkdir()
+        exe = self.pasta / self.FERRAMENTA
+        exe.write_text("#!/bin/sh\nexit 0\n")
+        exe.chmod(0o755)
+        local = self.dir / ".githooks" / "pre-push.local"
+        local.write_text(f'#!/usr/bin/env bash\ncommand -v {self.FERRAMENTA} >> "$(dirname "$0")/../marca" || echo ausente >> "$(dirname "$0")/../marca"\n')
+        (self.dir / ".forge").mkdir()
+
+    def envia_com(self, config):
+        (self.dir / ".forge" / "config.json").write_text(config if isinstance(config, str) else json.dumps(config))
+        self.escreve("src/a.ts", str(time.time()))
+        r, _ = self.envia([self.ref(self.commit("codigo"), self.base)])
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return (self.dir / "marca").read_text().splitlines()[-1], r.stderr
+
+    def test_pasta_valida_entra_no_path_da_checagem(self):
+        achado, erro = self.envia_com({"caminhos_extra": [str(self.pasta)]})
+        self.assertEqual(achado, str(self.pasta / self.FERRAMENTA))
+        self.assertNotIn("caminhos_extra", erro)
+
+    def test_sem_a_chave_o_path_nao_muda_e_nada_avisa(self):
+        achado, erro = self.envia_com({"pesados": []})
+        self.assertEqual(achado, "ausente")
+        self.assertNotIn("caminhos_extra", erro)
+
+    def test_pasta_relativa_com_dois_pontos_link_ou_inexistente_fica_de_fora_com_aviso(self):
+        link = self.fora / "atalho"
+        link.symlink_to(self.pasta)
+        casos = {"relativa": "ferramentas", "dois pontos": f"{self.pasta}:/bin", "link": str(link),
+                 "ponto-ponto": f"{self.pasta}/../ferramentas", "inexistente": str(self.fora / "nao-existe"), "nao-texto": 7}
+        for nome, valor in casos.items():
+            with self.subTest(caso=nome):
+                achado, erro = self.envia_com({"caminhos_extra": [valor]})
+                self.assertEqual(achado, "ausente")
+                self.assertIn("pre-push: aviso: caminhos_extra:", erro)
+                self.assertIn("ignorada", erro)
+
+    def test_chave_que_nao_e_lista_ou_json_ilegivel_avisa_e_o_envio_segue(self):
+        for config in ({"caminhos_extra": str(self.pasta)}, "{nao e json", "[1, 2]"):
+            with self.subTest(config=config):
+                achado, erro = self.envia_com(config)
+                self.assertEqual(achado, "ausente")
+                self.assertIn("pre-push: aviso: caminhos_extra:", erro)
+
+    def test_uma_pasta_ruim_nao_derruba_a_boa(self):
+        achado, erro = self.envia_com({"caminhos_extra": ["relativa", str(self.pasta)]})
+        self.assertEqual(achado, str(self.pasta / self.FERRAMENTA))
+        self.assertIn("ignorada", erro)
 
 
 if __name__ == "__main__":

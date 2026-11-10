@@ -197,6 +197,47 @@ avisar() {  # uma vez, e de novo só quando N muda
   echo "pre-push: outra checagem do projeto está rodando nesta máquina; aguardando a vez${senha:+ ($1 na frente)} por até ${prazo} s (R-TETO)" >&2
 }
 
+# Caminhos extra (chave opcional `caminhos_extra` do .forge/config.json): pastas somadas ao fim do PATH da checagem, para ela
+# achar as ferramentas da stack quando o agente abre sem o PATH do terminal. Vale a pasta absoluta, sem link em nenhum trecho, sem `:`
+# e existente; a que não passa fica de fora com aviso. Sem python3, sem o arquivo ou sem a chave, o PATH não muda.
+somar_caminhos_extra() {
+  local raiz cfg extra
+  raiz="$(git rev-parse --show-toplevel 2>/dev/null)" || return 0
+  cfg="$raiz/.forge/config.json"
+  if [ ! -f "$cfg" ] || [ -L "$cfg" ]; then return 0; fi
+  command -v python3 >/dev/null 2>&1 || { echo "pre-push: aviso: sem python3; caminhos_extra do .forge/config.json não lido" >&2; return 0; }
+  extra="$(python3 -I -c '
+import json, os, sys
+def aviso(texto):
+    print(f"pre-push: aviso: caminhos_extra: {texto}", file=sys.stderr)
+try:
+    with open(sys.argv[1], encoding="utf-8") as f:
+        lista = json.load(f).get("caminhos_extra")
+except (OSError, ValueError, AttributeError):
+    aviso(".forge/config.json ilegível; nada somado ao PATH")
+    sys.exit(0)
+if lista is None:
+    sys.exit(0)
+if not isinstance(lista, list):
+    aviso("precisa ser uma lista de pastas; nada somado ao PATH")
+    sys.exit(0)
+boas = []
+for pasta in lista:
+    nome = ascii(pasta)[:200]
+    if not isinstance(pasta, str) or not os.path.isabs(pasta) or ":" in pasta or not pasta.isprintable():
+        aviso(f"{nome} ignorada (precisa ser caminho absoluto, sem : nem caractere de controle)")
+    elif os.path.realpath(pasta) != os.path.normpath(pasta) or os.path.normpath(pasta) != pasta.rstrip("/"):
+        aviso(f"{nome} ignorada (link simbólico ou trecho . e ..; use o caminho real)")
+    elif not os.path.isdir(pasta):
+        aviso(f"{nome} ignorada (não existe ou não é pasta)")
+    else:
+        boas.append(pasta)
+print(":".join(boas))
+' "$cfg")" || return 0
+  if [ -n "$extra" ]; then export PATH="$PATH:$extra"; fi
+  return 0
+}
+
 # Checagem própria do projeto (opcional): crie .githooks/pre-push.local executável (ex.: lint + typecheck).
 local_hook="$(dirname "$0")/pre-push.local"
 if [ -x "$local_hook" ]; then
@@ -236,6 +277,7 @@ if [ -x "$local_hook" ]; then
     else
       unset FORGE_PREPUSH_ARQUIVOS
     fi
+    somar_caminhos_extra
     rodar_etapa
   fi
 fi

@@ -242,7 +242,8 @@ def ler_checks(gh, numero):
     return estados, linhas, saida
 
 
-def promover(args):
+def conferir_ref_e_versao(args):
+    """Passos 1 a 3: refs, pareceres, versão e CHANGELOG (e o forge-check pr contra a main). Devolve a versão."""
     ref, base = args.ref, args.base
     if args.dry_run:
         print("promover-homolog --dry-run: nada será escrito (sem fetch, sem gh, sem PR); passos 1 a 3 leem as refs locais.")
@@ -258,63 +259,91 @@ def promover(args):
     else:
         print("forge-check pr: sem versão nova, sem pedido de release; não roda contra a main")
     print("[3] versão, CHANGELOG e forge-check pr contra a main")
-    sha = git("rev-parse", ref).stdout.strip()
-    comando_merge = f"gh pr merge develop --auto --merge --match-head-commit {sha}"
-    if args.dry_run:
-        gh = comando_gh()
-        print(f"[4] {gh} pr create --base homolog --head develop (só se não houver PR aberto; PR com base que não seja homolog para)")
-        print(f"[5] checks: {gh} pr checks <PR> --json (uma leitura; só os do evento pull_request; só pass/skipping passam; pendente sai com 0)")
-        print(f"[6] rótulo: catraca vermelha pede o rótulo {ROTULO} do dono; o script nunca o aplica")
-        print(f"[7] imprime o comando do tech-lead que liga o merge automático ({comando_merge}); com ele desligado no repositório, mescla com tudo verde; o script não mescla")
-        print("dry-run concluído: nada foi alterado.")
-        return 0
+    return versao
+
+
+def simular_passos_do_pr(comando_merge):
+    """--dry-run: descreve os passos 4 a 7 sem chamar o gh."""
     gh = comando_gh()
+    print(f"[4] {gh} pr create --base homolog --head develop (só se não houver PR aberto; PR com base que não seja homolog para)")
+    print(f"[5] checks: {gh} pr checks <PR> --json (uma leitura; só os do evento pull_request; só pass/skipping passam; pendente sai com 0)")
+    print(f"[6] rótulo: catraca vermelha pede o rótulo {ROTULO} do dono; o script nunca o aplica")
+    print(f"[7] imprime o comando do tech-lead que liga o merge automático ({comando_merge}); com ele desligado no repositório, mescla com tudo verde; o script não mescla")
+    print("dry-run concluído: nada foi alterado.")
+    return 0
+
+
+def abrir_ou_reusar_pr(gh, versao, ref, base):
+    """Passo 4: reusa o PR aberto da develop ou abre um para a homolog. Devolve o número."""
     numero = pr_aberto(gh)
     if numero:
         print(f"[4] PR #{numero} já aberto; reusado")
+        return numero
+    criado = subprocess.run([gh, "pr", "create", "--base", "homolog", "--head", "develop", "--title",
+                             f"chore(promoção): develop para homolog ({versao})", "--body",
+                             corpo_do_pr(versao, ref, base)], capture_output=True, text=True)
+    if criado.returncode:
+        parar(f"não consegui abrir o PR: {criado.stderr.strip()}")
+    numero = pr_aberto(gh)
+    if not numero:
+        parar("abri o PR, mas não o achei na leitura seguinte; confira no GitHub")
+    print(f"[4] PR #{numero} aberto (develop -> homolog)")
+    return numero
+
+
+def esperar_checks(sha, comando_merge, motivo):
+    """Checks ainda não verdes: o merge automático espera; imprime o comando do tech-lead (passo 7)."""
+    print(motivo)
+    print(f"head: {sha}")
+    print(f"[7] liga o merge automático (o tech-lead não espera os checks): {comando_merge}")
+    return 0
+
+
+def avisar_rotulo(gh, numero):
+    """Passo 6 com a catraca vermelha: diz se o rótulo do dono falta ou se a leitura é velha. Devolve 3."""
+    cod, rotulos = ler(gh, "pr", "view", numero, "--json", "labels", "--jq", ".labels[].name")
+    if cod:
+        parar(f"não consegui ler os rótulos do PR: {rotulos.strip()}")
+    if ROTULO in rotulos.split():
+        print(f"[6] rótulo {ROTULO} aplicado, mas a catraca ainda está vermelha (leitura velha?); rode de novo")
     else:
-        criado = subprocess.run([gh, "pr", "create", "--base", "homolog", "--head", "develop", "--title",
-                                 f"chore(promoção): develop para homolog ({versao})", "--body",
-                                 corpo_do_pr(versao, ref, base)], capture_output=True, text=True)
-        if criado.returncode:
-            parar(f"não consegui abrir o PR: {criado.stderr.strip()}")
-        numero = pr_aberto(gh)
-        if not numero:
-            parar("abri o PR, mas não o achei na leitura seguinte; confira no GitHub")
-        print(f"[4] PR #{numero} aberto (develop -> homolog)")
+        print(f"[6] a catraca está vermelha: a leva toca caminho de controle; o dono aplica o rótulo {ROTULO} (o script nunca o aplica)")
+    return 3
+
+
+def decidir_pelos_checks(gh, numero, sha, comando_merge):
+    """Passos 5 a 7: lê os checks do PR e decide entre parar, pedir o rótulo, esperar ou liberar o merge."""
     estados, linhas, saida = ler_checks(gh, numero)
     print("[5] checks")
     print("\n".join(linhas))
     if estados is None and saida.strip() and "no checks reported" not in saida.lower():
         parar(f"não consegui ler os checks: {saida.strip()}")
     if not estados:
-        print("nenhum check do evento pull_request apareceu ainda; o merge automático espera os checks.")
-        print(f"head: {sha}")
-        print(f"[7] liga o merge automático (o tech-lead não espera os checks): {comando_merge}")
-        return 0
+        return esperar_checks(sha, comando_merge, "nenhum check do evento pull_request apareceu ainda; o merge automático espera os checks.")
     vermelhos = [(n, e) for n, e in estados if e not in OK and e not in PENDENTES and not (n == CATRACA and e == "fail")]
     if vermelhos:
         parar("check vermelho ou desconhecido: " + ", ".join(f"{n}={e}" for n, e in vermelhos) + "; corrija e rode de novo")
     pendente = any(e in PENDENTES for _, e in estados)
     if any(n == CATRACA and e == "fail" for n, e in estados):
-        cod, rotulos = ler(gh, "pr", "view", numero, "--json", "labels", "--jq", ".labels[].name")
-        if cod:
-            parar(f"não consegui ler os rótulos do PR: {rotulos.strip()}")
-        if ROTULO in rotulos.split():
-            print(f"[6] rótulo {ROTULO} aplicado, mas a catraca ainda está vermelha (leitura velha?); rode de novo")
-        else:
-            print(f"[6] a catraca está vermelha: a leva toca caminho de controle; o dono aplica o rótulo {ROTULO} (o script nunca o aplica)")
-        return 3
+        return avisar_rotulo(gh, numero)
     print(f"[6] rótulo: a catraca não pede o rótulo {ROTULO}")
     if pendente:
-        print("checks ainda pendentes; o merge automático espera os checks.")
-        print(f"head: {sha}")
-        print(f"[7] liga o merge automático (o tech-lead não espera os checks): {comando_merge}")
-        return 0
+        return esperar_checks(sha, comando_merge, "checks ainda pendentes; o merge automático espera os checks.")
     print("checks verdes.")
     print(f"head: {sha}")
     print(f"[7] pronta para o merge do tech-lead; este script não mescla. Liga o merge automático: {comando_merge} (com ele desligado no repositório, o comando recusa: mescle com tudo verde)")
     return 0
+
+
+def promover(args):
+    versao = conferir_ref_e_versao(args)
+    sha = git("rev-parse", args.ref).stdout.strip()
+    comando_merge = f"gh pr merge develop --auto --merge --match-head-commit {sha}"
+    if args.dry_run:
+        return simular_passos_do_pr(comando_merge)
+    gh = comando_gh()
+    numero = abrir_ou_reusar_pr(gh, versao, args.ref, args.base)
+    return decidir_pelos_checks(gh, numero, sha, comando_merge)
 
 
 def main():

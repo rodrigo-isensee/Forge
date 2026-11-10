@@ -1,0 +1,24 @@
+{
+  "descricao": "V0453-PARECER-BASH: parecer de review por heredoc",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat > docs/reviews/p1.md <<'FIM'\nparecer: aprovado\nFIM"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "regrave com a ferramenta Write"
+  }
+}

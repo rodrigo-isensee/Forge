@@ -68,6 +68,10 @@ FONTES = {
     "espera_portao_min": "estimada (recusas.log do R-TETO: da primeira à última recusa de cada sequência do mesmo portão, "
                          "com até 10 min entre elas)",
     "tokens": "medida (usage dos transcritos dos subagentes com --transcritos: entrada, saída e cache; '-' sem fonte)",
+    "lead": "medida (da primeira linha do item no Histórico à chegada do sha na develop e na main), com fatias: autor até a entrega "
+            "conferida, portões dela à chegada, dono pela espera_dono_min, sem sobreposição",
+    "colunas": "medida (docs/kanban/historico.md: minutos de cada cartão em cada coluna até o movimento seguinte; o aberto conta "
+               "até agora, menos no Pronto)",
 }
 RECUSA = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}) (\w+) R-TETO .*\bmotivo=(\w+)\s*$")
 INTERVALO_DA_ESPERA = datetime.timedelta(minutes=10)  # recusas do mesmo portão mais próximas que isso são a mesma espera
@@ -276,6 +280,71 @@ def horas_entre(a, b):
     return round((b - a).total_seconds() / 3600, 2) if a and b else None
 
 
+def _minutos(a, b):
+    return round((b - a).total_seconds() / 60, 1)
+
+
+def _dentro(janelas, a, b):
+    """Minutos das `janelas` (união) cortadas em [a, b]."""
+    return uniao_em_minutos([(max(i, a), min(f, b)) for i, f in janelas if min(f, b) > max(i, a)])
+
+
+def fatias(inicio, pronto, chegada, janelas):
+    """0.45.3: o lead time do item (do início à chegada numa ref) em minutos de autor (do início à entrega conferida), de portões
+    (da entrega à chegada) e de espera do dono (as janelas do item, tiradas das outras duas), com a porcentagem de cada; None sem
+    entrega, sem chegada ou com a chegada antes da entrega."""
+    if not pronto or not chegada or chegada < pronto:
+        return None
+    total = _minutos(inicio, chegada)
+    partes = {"autor_min": round(_minutos(inicio, pronto) - _dentro(janelas, inicio, pronto), 1),
+              "portoes_min": round(_minutos(pronto, chegada) - _dentro(janelas, pronto, chegada), 1),
+              "dono_min": _dentro(janelas, inicio, chegada)}
+    return {**partes, **{k.replace("_min", "_pct"): round(100 * v / total, 1) if total else None for k, v in partes.items()}}
+
+
+def somar_fatias(lista):
+    """As fatias de vários itens somadas em minutos, com a porcentagem sobre o total; None sem nenhuma."""
+    lista = [f for f in lista if f]
+    if not lista:
+        return None
+    soma = {k: round(sum(f[k] for f in lista), 1) for k in ("autor_min", "portoes_min", "dono_min")}
+    total = sum(soma.values())
+    return {**soma, **{k.replace("_min", "_pct"): round(100 * v / total, 1) if total else None for k, v in soma.items()}}
+
+
+def minutos_por_coluna(raiz_pedidos, agora, janela):
+    """0.45.3 (card voltas-tempo-colunas): {coluna: {minutos, cartoes, abertos}} lido de docs/kanban/historico.md. Cada movimento
+    abre o trecho do cartão na coluna `Para` até o movimento seguinte dele; o último fica aberto até `agora`, menos no Pronto (fim
+    do fluxo). Conta o trecho que começa na janela. ([], aviso|None) sem o arquivo; só leitura."""
+    arq = raiz_pedidos / "docs" / "kanban" / "historico.md"
+    texto = ler_texto(arq)
+    if texto is None:
+        return None, (None if not arq.exists() else "historico.md ilegível, link simbólico ou grande demais")
+    por_cartao = {}
+    for linha in texto.splitlines():
+        celulas = [c.strip() for c in linha.strip().strip("|").split("|")]
+        if len(celulas) < 4 or not re.match(r"\d{4}-\d{2}-\d{2}T", celulas[0]):
+            continue
+        try:
+            momento = datetime.datetime.fromisoformat(celulas[0])
+        except ValueError:
+            continue
+        if momento.tzinfo is not None:
+            por_cartao.setdefault(celulas[1].casefold(), []).append((momento, celulas[3]))
+    colunas = {}
+    for movimentos in por_cartao.values():
+        movimentos.sort(key=lambda m: m[0])
+        for (inicio, coluna), seguinte in zip(movimentos, movimentos[1:] + [None]):
+            aberto = seguinte is None
+            if not janela(inicio) or (aberto and sem_acento(coluna) == "pronto"):
+                continue
+            d = colunas.setdefault(coluna, {"minutos": 0.0, "cartoes": 0, "abertos": 0})
+            d["minutos"] = round(d["minutos"] + _minutos(inicio, agora if aberto else seguinte[0]), 1)
+            d["cartoes"] += 1
+            d["abertos"] += aberto
+    return dict(sorted(colunas.items())), None
+
+
 def periodo_de(momento, por):
     if por == "semana":
         ano, semana, _ = momento.isocalendar()
@@ -305,14 +374,19 @@ def itens_do_pedido(pedido, texto, fuso, chegadas, agora, usar_gh, janela):
     for item, d in itens.items():
         pronto, sha = (d["conferidas"][0][0], d["conferidas"][-1][1]) if d["conferidas"] else (None, None)
         develop, main = (chegadas[0](sha), chegadas[1](sha)) if sha else (None, None)
+        janelas = esperas.get(item, [])
         registro = {"pedido": pedido, "item": d["item"], "periodo_base": (pronto or d["inicio"]),
                     "pronto": pronto.isoformat(timespec="minutes") if pronto else None, "sha": sha,
                     "develop": develop.isoformat(timespec="minutes") if develop else None,
                     "main": main.isoformat(timespec="minutes") if main else None,
                     "pronto_ate_develop_h": horas_entre(pronto, develop), "pronto_ate_main_h": horas_entre(pronto, main),
                     "aberto_h": horas_entre(pronto, agora) if pronto and not develop else None,
+                    "inicio": d["inicio"].isoformat(timespec="minutes"),
+                    "lead_develop_h": horas_entre(d["inicio"], develop), "lead_main_h": horas_entre(d["inicio"], main),
+                    "fatias_develop": fatias(d["inicio"], pronto, develop, janelas),
+                    "fatias_main": fatias(d["inicio"], pronto, main, janelas),
                     "voltas": d["voltas"], "revalidacoes": d["revalidacoes"], "suites": d["suites"],
-                    "suites_falhas": d["suites_falhas"], "espera_dono_min": uniao_em_minutos(esperas.get(item, [])),
+                    "suites_falhas": d["suites_falhas"], "espera_dono_min": uniao_em_minutos(janelas),
                     "branches": sorted(d["branches"])}
         if usar_gh:
             ci = [c for c in (ci_da_branch(b) for b in registro["branches"]) if c is not None]
@@ -482,7 +556,11 @@ def resumo(itens, conferencias):
     tempos = [i["pronto_ate_develop_h"] for i in itens if i["pronto_ate_develop_h"] is not None]
     tempos_main = [i["pronto_ate_main_h"] for i in itens if i["pronto_ate_main_h"] is not None]
     classes, meritos = reprovacoes(conferencias)
+    leads = [i["lead_develop_h"] for i in itens if i.get("lead_develop_h") is not None]
     return {"itens_prontos": sum(1 for i in itens if i["pronto"]),
+            "lead_develop_h_p50": round(statistics.median(leads), 2) if leads else None,
+            "fatias_develop": somar_fatias([i.get("fatias_develop") for i in itens]),
+            "fatias_main": somar_fatias([i.get("fatias_main") for i in itens]),
             "pronto_ate_develop_h_p50": round(statistics.median(tempos), 2) if tempos else None, "n_develop": len(tempos),
             "pronto_ate_main_h_p50": round(statistics.median(tempos_main), 2) if tempos_main else None, "n_main": len(tempos_main),
             "abertos": sum(1 for i in itens if i["pronto"] and not i["develop"]),
@@ -546,8 +624,11 @@ def calcular(raiz, raiz_pedidos, pedidos=None, desde=None, ate=None, por="dia", 
         i.pop("periodo_base")
     arquivos = [Path(r) for r in recusas] if recusas else arquivos_de_recusas(raiz)
     portoes = esperas_por_portao(arquivos, lambda q: janela(q))
+    colunas, aviso = minutos_por_coluna(raiz_pedidos, agora, janela)
+    avisos += [aviso] if aviso else []
     return {"fontes": FONTES, "por": por, "itens": itens, "pedidos": por_pedido, "periodos": lista_periodos,
-            "espera_por_portao": portoes if arquivos else None, "orcamento": orcamento_de_tokens(por_pedido, textos)}, avisos
+            "espera_por_portao": portoes if arquivos else None, "orcamento": orcamento_de_tokens(por_pedido, textos),
+            "colunas": colunas}, avisos
 
 
 def _n(valor):
@@ -558,6 +639,10 @@ def _contagem(d):
     return ",".join(f"{k}={v}" for k, v in d.items()) or "-"
 
 
+def _fatias(f):
+    return "-" if f is None else f"autor={_n(f['autor_pct'])}%,portoes={_n(f['portoes_pct'])}%,dono={_n(f['dono_pct'])}%"
+
+
 def linhas_de_texto(dados):
     saida = []
     for i in dados["itens"]:
@@ -566,7 +651,8 @@ def linhas_de_texto(dados):
                  f"main_h={_n(i['pronto_ate_main_h']) if i['main'] else ('aberto' if i['pronto'] else '-')} "
                  f"aberto_h={_n(i['aberto_h']) if i['aberto_h'] is not None else '-'} voltas={i['voltas']} "
                  f"revalidacoes={i['revalidacoes']} suites={i['suites']} falhas={i['suites_falhas']} espera_dono_min={_n(i['espera_dono_min'])} "
-                 f"tokens={'-' if i.get('tokens') is None else i['tokens']}")
+                 f"lead_develop_h={_n(i['lead_develop_h'])} lead_main_h={_n(i['lead_main_h'])} fatias_develop={_fatias(i['fatias_develop'])} "
+                 f"fatias_main={_fatias(i['fatias_main'])} tokens={'-' if i.get('tokens') is None else i['tokens']}")
         if "ci" in i:
             linha += " ci=" + (f"{i['ci']['execucoes']}/{i['ci']['falhas']}" if isinstance(i["ci"], dict) else i["ci"])
         saida.append(linha)
@@ -576,10 +662,14 @@ def linhas_de_texto(dados):
                          f"(n={r['n_develop']}) main_h_p50={_n(r['pronto_ate_main_h_p50'])}(n={r['n_main']}) abertos={r['abertos']} "
                          f"voltas={r['voltas']} revalidacoes={r['revalidacoes']} suites={r['suites']} falhas={r['suites_falhas']} "
                          f"espera_dono_min={_n(r['espera_dono_min'])} reprovacoes={_contagem(r['reprovacoes_por_classe'])} "
-                         f"merito(declarada)={_contagem(r['merito_declarado'])} tokens={'-' if r.get('tokens') is None else r['tokens']}")
+                         f"merito(declarada)={_contagem(r['merito_declarado'])} lead_develop_h_p50={_n(r['lead_develop_h_p50'])} "
+                         f"fatias_develop={_fatias(r['fatias_develop'])} fatias_main={_fatias(r['fatias_main'])} "
+                         f"tokens={'-' if r.get('tokens') is None else r['tokens']}")
     for versao, soma in dados.get("orcamento", {}).get("versoes", {}).items():
         saida.append(f"metricas: orcamento versao {versao} previsto={soma['previsto']} gasto={soma['gasto']}")
     saida += [f"metricas: alerta: {a}" for a in dados.get("orcamento", {}).get("alertas", [])]
+    for coluna, d in (dados.get("colunas") or {}).items():
+        saida.append(f"metricas: coluna {coluna} minutos={_n(d['minutos'])} cartoes={d['cartoes']} abertos={d['abertos']}")
     portoes = dados.get("espera_por_portao")
     if portoes is None:
         saida.append("metricas: portao - (sem recusas.log: o hook agentes ainda não recusou nada ou a fonte falta)")
@@ -723,8 +813,58 @@ def cmd_regras(raiz, hoje=None, estrito=False, como_json=False):
     return 1 if estrito and com_aviso else 0
 
 
+# ---- avaliação de fora (0.45.3): a cadência do AQ, lida do CHANGELOG.md e de docs/avaliacoes/ ----
+CADENCIA_DA_AVALIACAO = 5  # versões publicadas desde a última avaliação
+VERSAO_DO_CHANGELOG = re.compile(r"^## \[(\d+\.\d+\.\d+)\] - (\d{4}-\d{2}-\d{2})", re.M)
+NOME_DA_AVALIACAO = re.compile(r"(\d{4}-\d{2}-\d{2})[A-Za-z0-9._-]*\.md")
+VERSAO_DA_AVALIACAO = re.compile(r"^versao:\s*v?(\d+\.\d+\.\d+)\s*$", re.M)
+
+
+def avaliacao_pendente(raiz):
+    """(pendente, [versões desde a última avaliação, da mais nova], nome da última | None), ou None sem CHANGELOG.md legível.
+    A última é a docs/avaliacoes/<AAAA-MM-DD>*.md de maior nome; contam as versões depois da `versao:` dela ou, sem essa linha,
+    as publicadas depois da data do nome. Só lê."""
+    texto = ler_texto(Path(raiz) / "CHANGELOG.md")
+    if texto is None:
+        return None
+    versoes = VERSAO_DO_CHANGELOG.findall(texto)
+    pasta = Path(raiz) / "docs" / "avaliacoes"
+    nomes = sorted(p.name for p in pasta.glob("*.md") if NOME_DA_AVALIACAO.fullmatch(p.name))
+    ultima, desde = (nomes[-1] if nomes else None), versoes
+    if ultima:
+        achou = VERSAO_DA_AVALIACAO.search(ler_texto(pasta / ultima) or "")
+        numeros = [v for v, _ in versoes]
+        if achou and achou.group(1) in numeros:
+            desde = versoes[:numeros.index(achou.group(1))]
+        else:
+            data = NOME_DA_AVALIACAO.fullmatch(ultima).group(1)
+            desde = [(v, d) for v, d in versoes if d > data]
+    return len(desde) >= CADENCIA_DA_AVALIACAO, [v for v, _ in desde], ultima
+
+
+def frase_da_avaliacao(estado):
+    pendente, desde, ultima = estado
+    origem = f"docs/avaliacoes/{ultima}" if ultima else "o início (nenhuma docs/avaliacoes/*.md)"
+    if pendente:
+        return (f"avaliação de fora pendente: {len(desde)} versões desde {origem} (a mais nova: {desde[0]}); "
+                "acione o AQ (forge-dev:aq)")
+    return f"em dia: {len(desde)} de {CADENCIA_DA_AVALIACAO} versões desde {origem}"
+
+
+def cmd_avaliacao(raiz):
+    """Só avisa, nunca barra: rc 0 pendente ou em dia; rc 2 sem CHANGELOG.md legível."""
+    estado = avaliacao_pendente(raiz)
+    if estado is None:
+        print(f"avaliacao: CHANGELOG.md ausente ou ilegível em {raiz}; nada medido")
+        return 2
+    print(f"avaliacao: {frase_da_avaliacao(estado)}")
+    return 0
+
+
 def executar(a, raiz, raiz_pedidos):
-    """Despacho dos dois subcomandos; None se `a.cmd` não é deles."""
+    """Despacho dos subcomandos; None se `a.cmd` não é deles."""
+    if a.cmd == "avaliacao":
+        return cmd_avaliacao(raiz)
     if a.cmd == "metricas":
         return cmd_metricas(raiz, raiz_pedidos, a)
     if a.cmd == "regras":

@@ -1410,6 +1410,19 @@ class MedidaDaVagaPesada(unittest.TestCase):
         with mock.patch("os.getloadavg", side_effect=OSError), mock.patch.dict(os.environ, {"FORGE_ENTRADA": "push\n"}):
             self.assertRegex(f.contexto(), r"^ entrada=\? load1=\? nproc=")
 
+    def test_fila31_forge_testes_e_forge_mutante_usam_o_mesmo_modulo_comum(self):
+        """FILA-31 F1: a linha de contexto do log (MAQ-A7) vem de bin/forge_apoio_testes.py nos dois scripts."""
+        from test_forge_mutante import carregar as carregar_mutante  # noqa: PLC0415
+        testes, mutante = carregar(), carregar_mutante()
+        comum = str(Path(testes.__file__).resolve().parent / "forge_apoio_testes.py")
+        for nome in ("outras", "contexto"):
+            with self.subTest(nome=nome):
+                self.assertEqual(getattr(testes, nome).__code__.co_filename, comum)
+                self.assertEqual(getattr(mutante, nome).__code__.co_filename, comum)
+        self.assertEqual((testes.ENTRADA.pattern, testes.PESADA.pattern), (mutante.ENTRADA.pattern, mutante.PESADA.pattern))
+        with mock.patch.dict(os.environ, {"FORGE_ENTRADA": "push"}):
+            self.assertRegex(mutante.contexto(), r"^ entrada=push load1=")
+
 
 if __name__ == "__main__":
     unittest.main()

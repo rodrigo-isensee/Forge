@@ -1,0 +1,56 @@
+{
+  "pedido": "v0453-aq-lead-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "item sem lead fica fora do p50",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "if i.get(\"lead_develop_h\") is not None]",
+      "para": "if i.get(\"lead_main_h\") is not None or True]",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_lead_time_ate_a_develop_e_a_main_com_a_fatia_do_autor_dos_portoes_e_do_dono"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "sem lead o p50 é None",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "round(statistics.median(leads), 2) if leads else None",
+      "para": "round(statistics.median(leads), 2) if True else None",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_pedido_sem_lead_sai_nao_medido"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "sem aviso das colunas, nada vai aos avisos",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    colunas, aviso = minutos_por_coluna(raiz_pedidos, agora, janela)\n    avisos += [aviso] if aviso else []",
+      "para": "    colunas, aviso = minutos_por_coluna(raiz_pedidos, agora, janela)\n    avisos += [aviso] if True else []",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_sem_historico_do_quadro_colunas_sai_vazio_e_link_avisa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "fatias ausentes saem tracinho no texto",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "return \"-\" if f is None else f\"autor=",
+      "para": "return \"-\" if False else f\"autor=",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_lead_time_ate_a_develop_e_a_main_com_a_fatia_do_autor_dos_portoes_e_do_dono"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "sem historico.md o texto não lista coluna",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "in (dados.get(\"colunas\") or {}).items():",
+      "para": "in (dados.get(\"colunas\") or None).items():",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_sem_historico_do_quadro_colunas_sai_vazio_e_link_avisa"
+      ]
+    }
+  ]
+}

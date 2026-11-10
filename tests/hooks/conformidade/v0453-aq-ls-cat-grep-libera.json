@@ -1,14 +1,19 @@
 {
-  "descricao": "QA grava o próprio parecer por heredoc (caminho não protegido para ele).",
+  "descricao": "V0453-AQ-LEITURA: aq lê arquivos com ls, cat e grep",
   "arquivos": {
     "src/app.js": "v1\n"
   },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "cat > docs/qa/p1.md <<'EOF'\nparecer: aprovado\nEOF"
+      "command": "ls docs && cat src/app.js | grep -n v1"
     },
-    "agent_type": "forge:qa-engineer",
+    "agent_type": "forge-dev:aq",
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9"
   },
