@@ -1,0 +1,88 @@
+{
+  "pedido": "v0453-bancada",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "B15",
+      "guarda": "rodada sem medida conta como falha",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "                if m is None:",
+      "para": "                if m is not None:",
+      "testes": [
+        "tests.test_bancada.Bancada.test_executar_mede_tokens_tempo_e_espera"
+      ]
+    },
+    {
+      "id": "B16",
+      "guarda": "a média só sai com alguma medida",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "        if medidas:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_bancada.Bancada.test_executar_mede_tokens_tempo_e_espera"
+      ]
+    },
+    {
+      "id": "B17",
+      "guarda": "alguma falha dá rc 1",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "    return 1 if falhas else 0",
+      "para": "    return 1 if not falhas else 0",
+      "testes": [
+        "tests.test_bancada.Bancada.test_executar_mede_tokens_tempo_e_espera",
+        "tests.test_bancada.Bancada.test_chamada_que_falha_da_rc_1"
+      ]
+    },
+    {
+      "id": "B18",
+      "guarda": "--rodadas acima do teto é erro de uso",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "    if not 1 <= args.rodadas <= RODADAS_MAX:",
+      "para": "    if not 1 <= args.rodadas:",
+      "testes": [
+        "tests.test_bancada.Bancada.test_rodadas_fora_do_limite_e_erro_de_uso"
+      ]
+    },
+    {
+      "id": "B19",
+      "guarda": "--rodadas abaixo de 1 é erro de uso",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "    if not 1 <= args.rodadas <= RODADAS_MAX:",
+      "para": "    if not args.rodadas <= RODADAS_MAX:",
+      "testes": [
+        "tests.test_bancada.Bancada.test_rodadas_fora_do_limite_e_erro_de_uso"
+      ]
+    },
+    {
+      "id": "B20",
+      "guarda": "caso inválido dá rc 1 sem chamar",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "    if erros:\n        for erro in erros:",
+      "para": "    if False:\n        for erro in erros:",
+      "testes": [
+        "tests.test_bancada.Bancada.test_id_repetido_da_rc_1_sem_chamar"
+      ]
+    },
+    {
+      "id": "B21",
+      "guarda": "sem --executar não chama o modelo",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "    if not args.executar:",
+      "para": "    if args.executar:",
+      "testes": [
+        "tests.test_bancada.Bancada.test_sem_executar_so_estima_e_nao_chama_o_modelo",
+        "tests.test_bancada.Bancada.test_executar_mede_tokens_tempo_e_espera"
+      ]
+    },
+    {
+      "id": "B22",
+      "guarda": "rodado como script, a bancada roda",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_bancada.Bancada.test_script_direto_roda_a_simulacao"
+      ]
+    }
+  ]
+}

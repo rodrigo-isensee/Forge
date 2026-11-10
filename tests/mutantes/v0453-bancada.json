@@ -1,0 +1,147 @@
+{
+  "pedido": "v0453-bancada",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "B1",
+      "guarda": "lista vazia de casos é inválida",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "    if not isinstance(dados, list) or not dados:",
+      "para": "    if not isinstance(dados, list):",
+      "testes": [
+        "tests.test_bancada.Bancada.test_validacao_recusa_forma_errada"
+      ]
+    },
+    {
+      "id": "B2",
+      "guarda": "caso que não é dict é recusado pelo tipo",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "        if not isinstance(caso, dict):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_bancada.Bancada.test_validacao_recusa_forma_errada"
+      ]
+    },
+    {
+      "id": "B3",
+      "guarda": "campo desconhecido no caso é erro",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "        if sobra:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_bancada.Bancada.test_validacao_recusa_forma_errada"
+      ]
+    },
+    {
+      "id": "B4",
+      "guarda": "id e entrada só de espaços são vazios",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "if not isinstance(caso.get(campo), str) or not caso.get(campo).strip():",
+      "para": "if not isinstance(caso.get(campo), str):",
+      "testes": [
+        "tests.test_bancada.Bancada.test_validacao_recusa_forma_errada"
+      ]
+    },
+    {
+      "id": "B5",
+      "guarda": "espera que não é texto é erro",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "        if \"espera\" in caso and not isinstance(caso[\"espera\"], str):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_bancada.Bancada.test_validacao_recusa_forma_errada"
+      ]
+    },
+    {
+      "id": "B6",
+      "guarda": "id repetido é erro",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "        if caso.get(\"id\") in vistos:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_bancada.Bancada.test_validacao_recusa_forma_errada",
+        "tests.test_bancada.Bancada.test_id_repetido_da_rc_1_sem_chamar"
+      ]
+    },
+    {
+      "id": "B7",
+      "guarda": "resposta com is_error não vale como medida",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "    if not isinstance(dados, dict) or dados.get(\"is_error\"):",
+      "para": "    if not isinstance(dados, dict):",
+      "testes": [
+        "tests.test_bancada.Bancada.test_chamada_que_falha_da_rc_1"
+      ]
+    },
+    {
+      "id": "B8",
+      "guarda": "o usage em dict é o que se soma",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "if isinstance(dados.get(\"usage\"), dict) else {}",
+      "para": "if isinstance(dados.get(\"usage\"), list) else {}",
+      "testes": [
+        "tests.test_bancada.Bancada.test_executar_mede_tokens_tempo_e_espera"
+      ]
+    },
+    {
+      "id": "B9",
+      "guarda": "só chave terminada em _tokens entra na soma",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "if k.endswith(\"_tokens\") and type(v) is int)",
+      "para": "if type(v) is int)",
+      "testes": [
+        "tests.test_bancada.Bancada.test_executar_mede_tokens_tempo_e_espera"
+      ]
+    },
+    {
+      "id": "B10",
+      "guarda": "só valor int entra na soma",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "if k.endswith(\"_tokens\") and type(v) is int)",
+      "para": "if k.endswith(\"_tokens\"))",
+      "testes": [
+        "tests.test_bancada.Bancada.test_executar_mede_tokens_tempo_e_espera"
+      ]
+    },
+    {
+      "id": "B11",
+      "guarda": "chamada com rc diferente de 0 falha mesmo com JSON válido",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "if r.returncode == 0 else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_bancada.Bancada.test_chamada_que_falha_da_rc_1"
+      ]
+    },
+    {
+      "id": "B12",
+      "guarda": "medida ausente é rodada que falhou",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "    if medida is None:",
+      "para": "    if medida is not None:",
+      "testes": [
+        "tests.test_bancada.Bancada.test_executar_mede_tokens_tempo_e_espera"
+      ]
+    },
+    {
+      "id": "B13",
+      "guarda": "ok diz se a resposta contém a espera",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "ok = caso[\"espera\"] in resposta if",
+      "para": "ok = caso[\"espera\"] not in resposta if",
+      "testes": [
+        "tests.test_bancada.Bancada.test_executar_mede_tokens_tempo_e_espera"
+      ]
+    },
+    {
+      "id": "B14",
+      "guarda": "ok só é medido quando o caso tem espera",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "in resposta if \"espera\" in caso else None",
+      "para": "in resposta if \"espera\" not in caso else None",
+      "testes": [
+        "tests.test_bancada.Bancada.test_executar_mede_tokens_tempo_e_espera"
+      ]
+    }
+  ]
+}
