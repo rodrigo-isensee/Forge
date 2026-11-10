@@ -19,6 +19,7 @@ exige o parecer, como o merge (o GitHub não mescla PR em rascunho).
 Falha fechado nas ações críticas (ADR 0009, seção 7), também no clone do Forge.
 """
 import collections
+import functools
 import json
 import os
 import re
@@ -77,7 +78,10 @@ ABRE = {"if", "while", "until", "for", "case", "select", "then", "do", "else", "
 LE_VARIAVEL = {"source", ".", "eval", "read", "mapfile", "readarray", "getopts", "for", "select", "let", "declare",
                "typeset", "local", "readonly", "unset", "set", "printf"}  # mexem em variável sem `NOME=` na palavra
 DESVIOS = {"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR"}
-SENSIVEIS = DESVIOS | {"HOME", "CDPATH"}  # o bash e o git os leem sozinhos: mexidos na linha, a pasta fica desconhecida
+# 0.45.4: as variáveis que mudam o config.yml que o gh lê (e os aliases dele); mexidas antes na linha, o alias fica incerto
+CONFIG_DO_GH = {"GH_CONFIG_DIR", "XDG_CONFIG_HOME", "HOME"}
+SENSIVEIS = DESVIOS | {"HOME", "CDPATH"} | CONFIG_DO_GH  # o bash, o git e o gh os leem sozinhos: mexidos na linha, a pasta
+# (ou o alias do gh) fica desconhecida
 ATRIBUICAO = re.compile(r"^([A-Za-z_]\w*)\+?=")
 Ambiente = collections.namedtuple("Ambiente", "mexidas desviado")  # mexidas: os SENSIVEIS que a linha mexeu (frozenset)
 SEM_AMBIENTE = Ambiente(frozenset(), bool(DESVIOS & set(os.environ)))
@@ -290,11 +294,116 @@ def analise_do_comando(palavras):
         bloquear("R-REVIEW", f"`{nome}` na chamada com gh pr, gh api, merge ou pull: o hook não lê o que ele roda. "
                              f"Corrigir: rode o comando direto, sem `{nome}`")
     analise = analisar(palavras[: len(palavras) - len(sem)] + lancadas + comando)
+    analise = alias_do_gh(palavras[: len(palavras) - len(sem)] + lancadas, comando, analise)  # 0.45.4
     antes = sem[: max(0, len(sem) - len(comando))]
-    if analise and analise[0] in ("prmerge", "merge") and "xargs" in {Path(p).name for p in antes}:
+    lidas = analise[2] if analise and analise[0] == "alias" else [analise]  # cada expansão do alias do gh, também
+    if any(lida and lida[0] in ("prmerge", "merge") for lida in lidas) and "xargs" in {Path(p).name for p in antes}:
         bloquear("R-REVIEW", "`xargs` antes de gh pr merge, git merge ou git pull: o alvo vem da entrada padrão e o hook "
                              "não o conhece. Corrigir: rode o merge direto, com a branch na linha")
     return None if antes and analise and analise[0] == "cd" else analise
+
+
+# 0.45.4 (N1 resto no parecer): o alias do gh já gravado (`aliases:` do config.yml) troca o comando que o hook lê. A leitura
+# é a do conformidade (`aliases_do_gh`, `expandir_alias_do_gh`, `Guarda.configs_do_gh`, `COMANDOS_DO_GH`), por import tardio:
+# o conformidade importa este módulo, e só a linha com `gh <nome>` paga o import. O nome logo depois do `gh` e a menção às
+# variáveis da configuração do gh abrem o filtro de entrada.
+NOME_DO_GH = re.compile(r"\bgh\s+['\"\\]*([^\s;&|()<>'\"\\-][^\s;&|()<>'\"\\]*)")
+MENCIONA_A_CONFIG_DO_GH = re.compile(r"\b(?:GH_CONFIG_DIR|XDG_CONFIG_HOME|HOME)\b")
+
+
+def leitor_do_alias():
+    import conformidade  # noqa: PLC0415 - import tardio: o conformidade importa o parecer
+    return conformidade
+
+
+def expansoes_do_alias(nome, ambiente):
+    """(as expansões de `nome` nos `aliases:` dos config.yml que o gh lê, com GH_CONFIG_DIR e XDG_CONFIG_HOME de `ambiente`;
+    o primeiro config.yml que o hook não lê, se `nome` não é comando do gh, senão None), como o conformidade."""
+    leitor, expansoes = leitor_do_alias(), []
+    for arquivo in leitor.Guarda.configs_do_gh(SimpleNamespace(ambiente=ambiente)):
+        try:
+            aliases = leitor.aliases_do_gh(arquivo.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            continue
+        except (OSError, ValueError):  # `AliasIlegivel` e o texto que não é UTF-8 também
+            if nome in leitor.COMANDOS_DO_GH:
+                continue
+            return expansoes, arquivo
+        if nome in aliases:
+            expansoes.append(aliases[nome])
+    return expansoes, None
+
+
+def alias_na_linha(textos):
+    """A linha chama `gh <nome>` com alias gravado que expande para o que o parecer confere (gh pr create, merge ou ready,
+    gh api), de shell (`!`) ou num config.yml que o hook não lê; ou chama `gh <nome fora dos comandos do gh>` e cita
+    GH_CONFIG_DIR, XDG_CONFIG_HOME ou HOME."""
+    nomes = sorted({m.group(1) for texto in textos for m in NOME_DO_GH.finditer(texto)})
+    if set(nomes) - leitor_do_alias().COMANDOS_DO_GH and any(MENCIONA_A_CONFIG_DO_GH.search(texto) for texto in textos):
+        return True
+    for nome in nomes:
+        expansoes, ilegivel = expansoes_do_alias(nome, {})
+        if ilegivel or any(e.startswith("!") or PREFILTRO.search(f"gh {e}") for e in expansoes):
+            return True
+    return False
+
+
+def textos_da_linha(comando):
+    """A linha e as formas que o shell lê dela, cada uma também sem aspas nem barra (`g\\h`, `g'h'`)."""
+    return [g for f in [comando, *formas_que_o_shell_le(comando, True)] for g in (f, re.sub(r"[\\'\"]", "", f))]
+
+
+@functools.lru_cache(maxsize=256)
+def critico_ou_alias(texto):
+    """A1 da segurança da 0.45.4: a linha é crítica para as travas do parecer se tem o marcador (`CRITICO`) ou se chama
+    alias do gh que o parecer confere (`alias_na_linha`). Sem isso, `eval gh junta …` (junta = pr merge) escapava da
+    reavaliação, do teto, do heredoc gravado, da gramática com heredoc, da falha fechada e do prazo."""
+    return bool(CRITICO.search(texto)) or alias_na_linha(textos_da_linha(texto))
+
+
+class CriticoOuAlias:
+    """`critico_ou_alias` com a interface que `executar` espera do marcador (`.search`: None sem marcador). O erro ao ler a
+    configuração do gh marca a chamada: ela falha fechada, como a que tem o marcador."""
+
+    @staticmethod
+    def search(texto):
+        try:
+            if critico_ou_alias(texto):
+                return True
+        except Exception:  # noqa: BLE001 - ADR 0009, seção 7: na dúvida, a ação é crítica
+            return True
+        return None
+
+
+def alias_do_gh(atribuicoes, comando, analise):
+    """`gh <nome>` com `nome` no `aliases:` do gh roda a expansão: ("alias", nome, [`analise` e a `analisar` de cada expansão]);
+    a própria `analise` se o comando não é `gh <nome>` ou se `nome` é comando do gh sem alias. GH_CONFIG_DIR e
+    XDG_CONFIG_HOME de prefixo ou de lançador valem. Recusam, como no conformidade: alias de shell, expansão ou config.yml que o hook não lê; e o
+    prefixo que muda a configuração sem valor literal (HOME, `$`, crase, `+=`) com nome fora dos comandos do gh."""
+    nome, do_gh = (comando + ["", ""])[1], leitor_do_alias().COMANDOS_DO_GH
+    if Path((comando + [""])[0]).name != "gh" or not nome or nome.startswith("-"):
+        return analise
+    ambiente = {}
+    for chave, _, valor in (a.partition("=") for a in atribuicoes):
+        if chave.rstrip("+") in CONFIG_DO_GH and nome not in do_gh and (chave.startswith("HOME") or expande(valor)
+                                                                           or chave.endswith("+")):
+            bloquear("R-REVIEW", f"gh {nome}: a linha muda a configuração do gh ({chave.rstrip('+')}) e o hook não sabe "
+                                 "qual alias vale. Corrigir: rode o comando do gh por extenso")
+        ambiente[chave] = valor
+    expansoes, ilegivel = expansoes_do_alias(nome, ambiente)
+    if ilegivel:
+        bloquear("R-REVIEW", f"gh {nome}: o hook não lê os aliases do gh em {ilegivel}. Corrigir: rode o comando do gh "
+                             "por extenso")
+    analises = [analise]
+    for expansao in expansoes:
+        if expansao.startswith("!"):
+            bloquear("R-REVIEW", f"gh {nome}: alias de shell (`!`) do gh roda o que o hook não lê. Corrigir: rode o "
+                                 "comando direto, sem alias")
+        novas = leitor_do_alias().expandir_alias_do_gh(expansao, comando[2:])
+        if not novas:
+            bloquear("R-REVIEW", f"gh {nome}: alias do gh que o hook não lê. Corrigir: rode o comando do gh por extenso")
+        analises.append(analisar(list(atribuicoes) + [comando[0], *novas]))  # só a leitura da expansão; nada roda
+    return analise if nome in do_gh and not expansoes else ("alias", nome, analises)
 
 
 def soltos(leitura):
@@ -655,8 +764,10 @@ def merge_por_api(hook, pasta, args):
 
 def principal(hook):
     comando = hook.campo("tool_input", "command")
-    if hook.campo("tool_name") != "Bash" or not isinstance(comando, str) or not any(  # HOOK-CONTINUACAO-LINHA: e `g\h`, `g'h'`
-            PREFILTRO.search(g) for f in [comando, *formas_que_o_shell_le(comando, True)] for g in (f, re.sub(r"[\\'\"]", "", f))):
+    if hook.campo("tool_name") != "Bash" or not isinstance(comando, str):
+        return
+    textos = textos_da_linha(comando)
+    if not any(PREFILTRO.search(g) for g in textos) and not alias_na_linha(textos):  # HOOK-CONTINUACAO-LINHA: e `g\h`, `g'h'`
         return
     conferir_linha(hook, SED_LE.sub(r"cat\2", comando), [(hook.cwd(), {}, SEM_AMBIENTE)])
 
@@ -685,7 +796,7 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull com um heredoc que o hook não lê (<< que ele não "
                              "prova ser heredoc, ou corpo sem aspas no delimitador com $( ou crase). Corrigir: use "
                              "<<'FIM' ou separe os comandos")
-    if nivel == 0 and CRITICO.search(original):  # bloco T da revalidação 10: o orçamento da chamada, antes de ler o resto
+    if nivel == 0 and critico_ou_alias(original):  # bloco T da revalidação 10: o orçamento da chamada, antes de ler o resto
         excesso = excede_o_teto(comando)
         if excesso:
             bloquear("R-REVIEW", f"chamada com gh pr, gh api, merge ou pull e {excesso}: o hook não a decide dentro do "
@@ -721,19 +832,19 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                      if "$(" in p.replace(OPACO["$"], "")]
     for texto, so, de_heredoc in dict.fromkeys(internos):
         conferir_linha(hook, texto, list(vistos.values()), nivel + 1, so, de_heredoc, reavaliacoes)
-    if gravado and CRITICO.search(original):  # M3 (ADR 0011, item 2), depois das regras da linha e do corpo
+    if gravado and critico_ou_alias(original):  # M3 (ADR 0011, item 2), depois das regras da linha e do corpo
         bloquear("R-REVIEW", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`), com gh pr, gh "
                              f"api, merge ou pull. Corrigir: {GRAVE_E_RODE_NOUTRA}")
     # ADR 0011, item 2 (opção B da revalidação 8), depois das regras da linha e do corpo: com o marcador no nível 0, a
     # reavaliação pelo shell em qualquer nível recusa (o parecer não segue `eval` nem `bash -c`; o texto deles não chega)
-    if nivel == 0 and reavaliacoes and CRITICO.search(original):
+    if nivel == 0 and reavaliacoes and critico_ou_alias(original):
         bloquear("R-REVIEW", f"`{reavaliacoes[0]}` na chamada com gh pr, gh api, merge ou pull: "
                              f"{motivo_da_reavaliacao(reavaliacoes[0])}. Corrigir: "
                              f"{contorno_da_reavaliacao(reavaliacoes[0])}")
     # ADR 0011, item 2 (opções D e A), depois das regras da linha e do corpo: sobre o texto do nível 0, com o `<<` que o
     # bash pode formar nele ou num nível de cima (`bash -c`, `eval`, `$(…)`; `tem_heredoc_no_texto`), haja heredoc
     # provado ou não
-    if nivel == 0 and CRITICO.search(original) and not (SO_CAT.fullmatch(comando) and heredocs_simples(original)):
+    if nivel == 0 and critico_ou_alias(original) and not (SO_CAT.fullmatch(comando) and heredocs_simples(original)):
         sinal = fora_da_gramatica_com_heredoc(original)
         if sinal is not None:
             bloquear("R-REVIEW", f"`{sinal}` na chamada com heredoc e gh pr, gh api, merge ou pull: o hook não modela. "
@@ -748,7 +859,15 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
     branches = dict(branches)  # raiz do projeto -> branch depois de checkout/switch na linha
     mexidas, desviado = ambiente.mexidas, ambiente.desviado
     estados = [(pasta, dict(branches), ambiente)]
-    for parte, palavras, solto in partes:
+    fila = collections.deque(partes)
+    while fila:
+        parte, palavras, solto = fila.popleft()
+        if parte and parte[0] == "alias":  # 0.45.4: cada leitura do alias do gh, com as mesmas regras e a mesma pasta
+            if parte[1] not in leitor_do_alias().COMANDOS_DO_GH and CONFIG_DO_GH & mexidas:
+                bloquear("R-REVIEW", f"gh {parte[1]}: a linha mudou antes a configuração do gh (GH_CONFIG_DIR, XDG_CONFIG_HOME "
+                                     "ou HOME) e o hook não sabe qual alias vale. Corrigir: rode o comando do gh por extenso")
+            fila.extendleft(reversed([(lida, palavras, solto) for lida in parte[2]]))
+            continue
         mexidas = mexidas | mexidas_na_linha(palavras)
         desviado |= bool(DESVIOS & mexidas)
         sem = sem_atribuicoes(palavras)
@@ -787,4 +906,4 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
 
 
 if __name__ == "__main__":
-    executar("parecer", principal, CRITICO, clone_do_forge=True, regra_do_prazo="R-REVIEW")
+    executar("parecer", principal, CriticoOuAlias, clone_do_forge=True, regra_do_prazo="R-REVIEW")

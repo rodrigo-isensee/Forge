@@ -1,0 +1,70 @@
+{
+  "descricao": "V0454-GH-ALIAS-PARECER: A1 da segurança, heredoc e `gh cria` na mesma chamada, fora da gramática, com cria = pr create e pareceres aprovados",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "../home/.config/gh/config.yml": "git_protocol: https\naliases:\n    junta: pr merge\n    cria: pr create\n    ap: api repos/o/r/pulls/1/merge -X PUT\nbrowser:\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "arquivos": {
+        "docs/reviews/p1-1.md": [
+          "---",
+          "tipo: review",
+          "contrato: 1",
+          "pedido: p1",
+          "branch: feature/x",
+          "commit: {HEAD}",
+          "parecer: aprovado",
+          "revisor: forge:tech-lead",
+          "data: 2026-10-12",
+          "---",
+          "# Review"
+        ],
+        "docs/qa/p1.md": [
+          "---",
+          "tipo: qa",
+          "contrato: 1",
+          "pedido: p1",
+          "branch: feature/x",
+          "commit: {HEAD}",
+          "parecer: aprovado",
+          "escopo: completo",
+          "bugs_criticos: 0",
+          "bugs_altos: 0",
+          "bugs_medios: 0",
+          "bugs_baixos: 0",
+          "data: 2026-10-12",
+          "---",
+          "# QA"
+        ]
+      },
+      "commit": "docs: pareceres"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cat <<'EOF'\nx\nEOF\ngh cria --base develop --title 'feat: app' --body x"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o hook não modela"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "GH_CONFIG_DIR": "",
+    "XDG_CONFIG_HOME": ""
+  }
+}

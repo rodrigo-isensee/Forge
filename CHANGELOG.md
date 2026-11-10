@@ -4,6 +4,23 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.45.4] - 2026-11-10
+### Adicionado
+- Primeira avaliação de fora do AQ em `docs/avaliacoes/2026-11-10-avaliacao-de-fora.md` (versão 0.45.3): medidas de base e cinco propostas de remoção ou simplificação, com evidência e custo.
+- **`caminhos_extra` no hook `meta`:** as checagens do objetivo armado (`forge-check meta --checagem`) rodam com as pastas de `caminhos_extra` do `.forge/config.json` no fim do PATH, com a mesma conferência do `.githooks/pre-push` (absoluta, real, sem `:`, existente); a pasta ruim fica de fora com aviso no `erros.log`.
+- Índice do corpus de fixtures dos hooks (`docs/hooks-fixtures.md`, Fase C): por hook e por prefixo do nome do caso, com a contagem, quantos recusam e liberam, as regras `R-*` esperadas, os cartões e um exemplo do que o grupo prova. Sai de `scripts/indice-fixtures.py` (`--conferir` dá rc 1 se não está em dia), e `tests/test_indice_fixtures.py` confere que está em dia. Nenhuma fixture muda de nome nem de lugar.
+- Bancada de instrução (S7): `--saida ARQ` grava em JSON, por versão, caso e rodada, a entrada, a resposta, os tokens, os segundos, o `ok` e o `invalida`, com o resumo por versão, para comparar a qualidade das respostas.
+- Bancada de instrução (S7): `--contexto ARQ` (opcional) e a nota fixa "sem ferramentas", iguais nas duas versões; a rodada cuja resposta escreve uma chamada de ferramenta falsa (`<invoke`, `"name": "Bash"`) é `invalida`, sai das médias e é contada por versão.
+### Alterado
+- FILA-31 F2: `git_da_copia`, `resolver` e `montar_copia`, iguais em bin/forge-testes e bin/forge-mutante, vão para bin/forge_apoio_testes.py; cada script passa o próprio `ambiente_da_copia` por `functools.partial` (o do forge-mutante segue tirando o `PYTHONPYCACHEPREFIX`), sem mudar comportamento.
+- Bancada de instrução (S7): o `espera` dos casos aceita alternativas separadas por `|` e compara sem diferenciar maiúsculas e acentos ("Minha recomendação" conta para "recomend").
+### Corrigido
+- **Alias do gh no `parecer`:** `gh <nome>` com alias gravado que esconde `gh pr create`, `gh pr merge`, `gh pr ready` ou `gh api` passa pelas regras do parecer (review e QA antes do PR e do merge), com o mesmo leitor do `conformidade`; alias de shell, configuração ilegível e configuração do gh mudada antes na linha recusam.
+- Testes do pre-push (`test_pre_push_afetados`, `test_pre_push_parecer_curto`): o repositório falso copia também `bin/forge_apoio_testes.py`, que o `bin/forge-testes` carrega da própria pasta desde a FILA-31 F1; sem ele o `forge-testes` caía e o pre-push rodava a suíte completa.
+- `bin/forge-testes --afetados`: mudar `bin/forge_apoio_testes.py` leva quem exercita o `forge-testes` e o `forge-mutante` (antes, só `test_forge` e `test_testes_tocados`, e a quebra acima passou).
+- `tests/test_hooks.py`: o hook roda sem `GH_CONFIG_DIR` e `XDG_CONFIG_HOME` herdados; o runner do GitHub exporta `XDG_CONFIG_HOME` e as fixtures `v0453-gh-alias-*-bloqueia` liam a configuração do gh dele, não a do HOME do fixture.
+- **Alias do gh no `parecer`, dentro de `eval`, `sh -c` e `bash -c`** (A1 da segurança): `eval gh junta x` com alias de `gh pr merge` passava; a linha com alias agora vale como crítica para a reavaliação pelo shell, o teto, o heredoc gravado, a gramática com heredoc, a falha fechada e o prazo, como por extenso.
+
 ## [0.45.3] - 2026-11-10
 ### Adicionado
 - **Avaliação de fora (cadência):** `forge-check avaliacao --pendente` diz se passaram 5 versões do `CHANGELOG.md` desde a última `docs/avaliacoes/*.md` (pela `versao:` dela ou pela data do nome); o fim do `bin/forge-changelog release` avisa "avaliação de fora pendente". Só avisa, nunca barra.

@@ -1,0 +1,137 @@
+{
+  "pedido": "v0454-indice",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a lista longa diz quantos ficaram de fora, só quando passa do máximo",
+      "arquivo": "scripts/indice-fixtures.py",
+      "de": "if len(nomes) > MAXIMO_DA_LISTA else \"\")",
+      "para": "if True else \"\")",
+      "testes": [
+        "tests.test_indice_fixtures.IndiceDasFixtures.test_resumo_corta_a_lista"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a lista vazia vira —",
+      "arquivo": "scripts/indice-fixtures.py",
+      "de": "else \"\") or \"—\"",
+      "para": "else \"\")",
+      "testes": [
+        "tests.test_indice_fixtures.IndiceDasFixtures.test_resumo_corta_a_lista"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a descrição longa é cortada no máximo do exemplo",
+      "arquivo": "scripts/indice-fixtures.py",
+      "de": "if len(texto) > MAXIMO_DO_EXEMPLO else texto",
+      "para": "if False else texto",
+      "testes": [
+        "tests.test_indice_fixtures.IndiceDasFixtures.test_grupos_contagens_regras_e_celula_segura"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "--conferir não grava e dá o rc da comparação",
+      "arquivo": "scripts/indice-fixtures.py",
+      "de": "if argv == [\"--conferir\"]:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_indice_fixtures.IndiceDasFixtures.test_main_grava_confere_e_recusa_opcao"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "--conferir sem o índice dá rc 1, sem ler arquivo que não existe",
+      "arquivo": "scripts/indice-fixtures.py",
+      "de": "em_dia = destino.is_file() and destino.read_text(",
+      "para": "em_dia = destino.read_text(",
+      "testes": [
+        "tests.test_indice_fixtures.IndiceDasFixtures.test_main_grava_confere_e_recusa_opcao"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "em dia só com o texto igual ao gerado",
+      "arquivo": "scripts/indice-fixtures.py",
+      "de": "destino.read_text(encoding=\"utf-8\") == texto",
+      "para": "destino.read_text(encoding=\"utf-8\") != texto",
+      "testes": [
+        "tests.test_indice_fixtures.IndiceDasFixtures.test_main_grava_confere_e_recusa_opcao"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "a mensagem diz desatualizado quando não está em dia",
+      "arquivo": "scripts/indice-fixtures.py",
+      "de": "{'em dia' if em_dia else",
+      "para": "{'em dia' if True else",
+      "testes": [
+        "tests.test_indice_fixtures.IndiceDasFixtures.test_main_grava_confere_e_recusa_opcao"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o rc 1 do índice desatualizado",
+      "arquivo": "scripts/indice-fixtures.py",
+      "de": "return 0 if em_dia else 1",
+      "para": "return 0 if True else 1",
+      "testes": [
+        "tests.test_indice_fixtures.IndiceDasFixtures.test_main_grava_confere_e_recusa_opcao"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "opção desconhecida dá rc 2 sem gravar",
+      "arquivo": "scripts/indice-fixtures.py",
+      "de": "    if argv:\n        print(__doc__",
+      "para": "    if False:\n        print(__doc__",
+      "testes": [
+        "tests.test_indice_fixtures.IndiceDasFixtures.test_main_grava_confere_e_recusa_opcao"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o script chamado como programa roda o main e devolve o rc dele",
+      "arquivo": "scripts/indice-fixtures.py",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_indice_fixtures.IndiceDasFixtures.test_conferir_da_rc_0_em_dia"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o exemplo pula a descrição com termo de stack (ADR 0001)",
+      "arquivo": "scripts/indice-fixtures.py",
+      "de": "if not any(t.search(texto) for t in termos):",
+      "para": "if True:",
+      "testes": [
+        "tests.test_indice_fixtures.IndiceDasFixtures.test_exemplo_sem_termo_de_stack"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "sem termos dados, valem os do tests/config.json",
+      "arquivo": "scripts/indice-fixtures.py",
+      "de": "termos_de_stack() if termos is None else termos",
+      "para": "[] if termos is None else termos",
+      "testes": [
+        "tests.test_indice_fixtures.IndiceDasFixtures.test_exemplo_sem_termo_de_stack",
+        "tests.test_indice_fixtures.IndiceDasFixtures.test_indice_esta_em_dia_com_o_corpus"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "os termos dados vencem os do config",
+      "arquivo": "scripts/indice-fixtures.py",
+      "de": "termos_de_stack() if termos is None else termos",
+      "para": "termos_de_stack() if termos is not None else termos",
+      "testes": [
+        "tests.test_indice_fixtures.IndiceDasFixtures.test_exemplo_sem_termo_de_stack"
+      ]
+    }
+  ]
+}

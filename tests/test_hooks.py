@@ -541,6 +541,10 @@ def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_co
     env = ambiente_limpo()
     env.pop("FORGE_GUARDA_ABERTA", None)
     env.pop("FORGE_CARGA_LIVRE", None)
+    # 0.45.4: a pasta de configuração do gh vem só do fixture (HOME em `env`, ou GH_CONFIG_DIR e XDG_CONFIG_HOME declarados).
+    # O runner do GitHub exporta XDG_CONFIG_HOME (a .config do usuário do runner); herdado, o hook lia lá e não no HOME do fixture.
+    for nome in ("GH_CONFIG_DIR", "XDG_CONFIG_HOME"):
+        env.pop(nome, None)
     env.update(extra or {})
     if proc is not None:
         env["FORGE_PROC"] = str(proc)
@@ -2418,6 +2422,69 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 16, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_v0454_caminhos_extra(self):  # 0.45.4: `caminhos_extra` no PATH das checagens do hook meta
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("V0454-CAMINHOS-EXTRA:")]
+        self.assertGreaterEqual(len(lote), 12, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def lote_do_v0454_gh_alias_parecer(self):
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("V0454-GH-ALIAS-PARECER:")]
+        self.assertGreaterEqual(len(lote), 21, "as fixtures do item")
+        return lote
+
+    def test_fixtures_do_v0454_gh_alias_parecer(self):  # 0.45.4: o alias do gh já gravado passa pelas regras do parecer
+        lote = self.lote_do_v0454_gh_alias_parecer()
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_do_v0454_gh_alias_parecer_em_qualquer_ambiente(self):
+        """0.45.4: as fixtures do alias no parecer dão o mesmo resultado seja qual for o ambiente de quem roda os testes (o
+        que quebrou o CI da 0.45.3): com e sem XDG_CONFIG_HOME e GH_CONFIG_DIR do runner, que apontam uma configuração do
+        gh com os mesmos nomes de alias inofensivos e chegam ao hook (A3 da segurança: vão pelo `env` de cada fixture, por
+        baixo do que ela declara, porque o `rodar` tira as do processo), e com o HOME de fora sem ~/.claude/gh. O controle
+        prova que a variável chega: sem a declaração da fixture, o alias inofensivo de fora vale e `gh junta` libera."""
+        lote = self.lote_do_v0454_gh_alias_parecer()
+        fora = self._pasta_temporaria()
+        inofensivo = "aliases:\n    nova: pr checkout\n    junta: pr view\n    co: pr create\n"
+        for rel in ("xdg/gh/config.yml", "ghdir/config.yml", "home/.config/gh/config.yml"):
+            (fora / rel).parent.mkdir(parents=True, exist_ok=True)
+            (fora / rel).write_text(inofensivo, encoding="utf-8")
+        merge = next(f for _, f in lote if f.caminho.stem == "v0454-gh-alias-pr-merge-bloqueia")
+        for xdg, ghdir in itertools.product((None, str(fora / "xdg")), (None, str(fora / "ghdir"))):
+            do_runner = {nome: valor for nome, valor in (("XDG_CONFIG_HOME", xdg), ("GH_CONFIG_DIR", ghdir)) if valor}
+            with self.subTest(XDG_CONFIG_HOME=xdg, GH_CONFIG_DIR=ghdir), mock.patch.dict(os.environ, {"HOME": str(fora / "home")}):
+                self.assertFalse((fora / "home" / ".claude" / "gh").exists())
+                com_o_runner = [(nome, Fixture(f.caminho, {**f.dados, "env": {**do_runner, **f.dados.get("env", {})}}))
+                                for nome, f in lote]
+                self.assertEqual(self.executar_em_lote(com_o_runner), len(lote))
+                if do_runner:  # controle: a variável do runner chega ao hook quando a fixture não a declara
+                    env = {k: v for k, v in merge.dados["env"].items() if k not in do_runner} | do_runner
+                    controle = Fixture(merge.caminho, {**merge.dados, "env": env, "esperado": {"codigo": 0}})
+                    self.assertEqual(self.executar_em_lote([("controle", controle)]), 1)
+
+    def test_alias_do_gh_no_parecer_vale_para_o_prazo(self):  # A1 da segurança da 0.45.4
+        """`eval gh junta …` (junta = pr merge) é ação crítica para o vigia de prazo do `executar`, como por extenso: o passo
+        lento injetado recusa pelo prazo, em vez de liberar."""
+        f = next(f for f in self.fixtures if f.hook == "parecer" and f.caminho.stem == "v0454-gh-alias-eval-bloqueia")
+        tmp = self._pasta_temporaria()
+        raiz, entrada = f.montar(tmp, os.getpid())
+        extra = {k: v.replace("{tmp}", str(tmp)) for k, v in f.dados["env"].items()} | {"FORGE_NPROC": "8"}
+        r = rodar("parecer", entrada, raiz, extra=extra, producao=True, lento=True)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("R-REVIEW: o hook não decidiu", r.stderr)
+
+    def test_critico_ou_alias_marca_na_duvida(self):  # A1 da segurança da 0.45.4
+        """O marcador do parecer (`CriticoOuAlias.search`): None sem marcador nem alias; o erro ao ler o alias marca."""
+        parecer = modulos_dos_hooks()[2]
+        parecer.critico_ou_alias.cache_clear()
+        self.assertIsNone(parecer.CriticoOuAlias.search("echo oi"))
+        self.assertTrue(parecer.CriticoOuAlias.search("gh pr merge x"))
+        with mock.patch.object(parecer, "alias_na_linha", side_effect=OSError("config.yml")):
+            parecer.critico_ou_alias.cache_clear()
+            self.assertTrue(parecer.CriticoOuAlias.search("echo oi"))
+        parecer.critico_ou_alias.cache_clear()
+
     def test_fixtures_do_n5(self):  # IMPL-FURO-HOOK-N, N5: a descrição abre com o item, para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N5 (")]
         self.assertGreaterEqual(len(lote), 34, "as fixtures do item")
@@ -2689,6 +2756,47 @@ class CodigoDeSaida(unittest.TestCase):  # PN7-DOLAR-INTERROG (ADR 0011, emenda 
         saida = subprocess.run(["bash", "-c", "IFS=1; false; printf '<%s>' x$?main; false; printf '<%s>' \"x$?main\""],
                                capture_output=True, text=True, check=False).stdout
         self.assertEqual(saida, "<x><main><x1main>")
+
+
+class CaminhosExtra(unittest.TestCase):
+    """0.45.4: `_comum.caminhos_extra`, a leitura de `caminhos_extra` do `.forge/config.json` que os hooks somam ao PATH, com a
+    conferência do `.githooks/pre-push` (as fixtures V0454-CAMINHOS-EXTRA a provam pelo hook `meta`)."""
+
+    def setUp(self):
+        self.comum = modulos_dos_hooks()[0]
+        self.raiz = Path(tempfile.mkdtemp(prefix="forge-caminhos-"))
+        self.addCleanup(shutil.rmtree, self.raiz, ignore_errors=True)
+        (self.raiz / ".forge").mkdir()
+        self.pasta = self.raiz / "ferramentas"
+        self.pasta.mkdir()
+
+    def com_config(self, texto, arquivo=None):
+        (arquivo or self.raiz / ".forge" / "config.json").write_text(texto, encoding="utf-8")
+        return self.comum.caminhos_extra(self.raiz)
+
+    def test_sem_arquivo_ou_sem_chave_nada_muda(self):
+        self.assertEqual(self.comum.caminhos_extra(self.raiz), ([], []))
+        self.assertEqual(self.com_config("{}"), ([], []))
+        self.assertEqual(self.com_config(json.dumps({"caminhos_extra": None})), ([], []))
+
+    def test_config_em_link_nao_e_lido(self):
+        alvo = self.raiz / "outro.json"
+        alvo.write_text(json.dumps({"caminhos_extra": [str(self.pasta)]}), encoding="utf-8")
+        (self.raiz / ".forge" / "config.json").symlink_to(alvo)
+        self.assertEqual(self.comum.caminhos_extra(self.raiz), ([], []))
+
+    def test_pasta_boa_entra_e_a_ruim_avisa(self):
+        boas, avisos = self.com_config(json.dumps({"caminhos_extra": [str(self.pasta), "relativa", str(self.raiz / "nao")]}))
+        self.assertEqual(boas, [str(self.pasta)])
+        self.assertEqual(len(avisos), 2)
+
+    def test_json_ilegivel_e_nao_lista_so_avisam(self):
+        for texto in ("{nao e json", "[1, 2]", json.dumps({"caminhos_extra": str(self.pasta)})):
+            with self.subTest(texto=texto):
+                boas, avisos = self.com_config(texto)
+                self.assertEqual(boas, [])
+                self.assertEqual(len(avisos), 1)
+                self.assertTrue(avisos[0].startswith("caminhos_extra: "))
 
 
 class PoolDosFixtures(unittest.TestCase):

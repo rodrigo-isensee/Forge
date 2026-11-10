@@ -83,7 +83,8 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
 
     def test_driver_do_lote_chama_o_executar_como_o_main_de_cada_hook(self):  # A2 da segurança, E1
         """O driver do lote (`DRIVER_DOS_HOOKS`) passa a `_comum.executar` os mesmos argumentos do `__main__` de cada hook:
-        o nome, `principal`, `CRITICO` (não `None`), `clone_do_forge` e `regra_do_prazo`; e roda na pasta do hook."""
+        o nome, `principal`, o marcador crítico do hook (não `None`; o parecer usa `CriticoOuAlias`), `clone_do_forge` e
+        `regra_do_prazo`; e roda na pasta do hook."""
         def chamada(arvore):
             achadas = [n for n in ast.walk(arvore) if isinstance(n, ast.Call) and isinstance(n.func, (ast.Name, ast.Attribute))
                        and getattr(n.func, "attr", getattr(n.func, "id", None)) == "executar"]
@@ -92,18 +93,20 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
 
         driver = ast.parse(self.DRIVER_DOS_HOOKS)
         no_driver = chamada(driver)
-        self.assertEqual([ast.unparse(a) for a in no_driver.args], ["hook", "modulo.principal", "modulo.CRITICO"])
+        self.assertEqual([ast.unparse(a) for a in no_driver.args], ["hook", "modulo.principal", "getattr(modulo, marcador)"])
         self.assertEqual([ast.unparse(k) for k in no_driver.keywords], ["**argumentos"])
         execucao = next(n.value for n in ast.walk(driver) if isinstance(n, ast.Assign)
                         and any(getattr(t, "id", None) == "EXECUCAO" for t in n.targets))
-        argumentos = {ast.literal_eval(k): ast.literal_eval(v.elts[1]) for k, v in zip(execucao.keys, execucao.values)}
+        argumentos = {ast.literal_eval(k): ast.literal_eval(v.elts[2]) for k, v in zip(execucao.keys, execucao.values)}
+        marcadores = {ast.literal_eval(k): ast.literal_eval(v.elts[1]) for k, v in zip(execucao.keys, execucao.values)}
         modulos = {ast.literal_eval(k): v.elts[0].id for k, v in zip(execucao.keys, execucao.values)}
         self.assertEqual(set(argumentos), {"conformidade", "parecer"})
+        self.assertEqual(marcadores, {"conformidade": "CRITICO", "parecer": "CriticoOuAlias"})
         for hook in argumentos:
             with self.subTest(hook=hook):
                 principal = chamada(ast.parse((HOOKS / f"{hook}.py").read_text(encoding="utf-8")))
                 self.assertEqual([ast.literal_eval(principal.args[0]), ast.unparse(principal.args[1]), ast.unparse(principal.args[2])],
-                                 [hook, "principal", "CRITICO"])
+                                 [hook, "principal", marcadores[hook]])
                 self.assertEqual({k.arg: ast.literal_eval(k.value) for k in principal.keywords}, argumentos[hook])
                 self.assertEqual(modulos[hook], hook)
         self.assertIn('os.chdir(dados["raizes"][hook])', self.DRIVER_DOS_HOOKS)  # a pasta de cada hook, não a do conformidade

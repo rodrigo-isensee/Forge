@@ -1,0 +1,35 @@
+{
+  "descricao": "V0454-GH-ALIAS-PARECER: A1 da segurança, `bash -c \"gh junta …\"`, com junta = pr merge",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "../home/.config/gh/config.yml": "git_protocol: https\naliases:\n    junta: pr merge\n    cria: pr create\n    ap: api repos/o/r/pulls/1/merge -X PUT\nbrowser:\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "bash -c \"gh junta feature/x\""
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "GH_CONFIG_DIR": "",
+    "XDG_CONFIG_HOME": ""
+  }
+}

@@ -2440,6 +2440,37 @@ def ler_json(caminho, padrao):
     return json.loads(caminho.read_text(encoding="utf-8"))
 
 
+def caminhos_extra(raiz):
+    """0.45.4: (pastas, avisos) da chave opcional `caminhos_extra` do `.forge/config.json` da raiz, a mesma leitura do
+    `.githooks/pre-push` do modelo de projeto: as pastas que o hook soma ao fim do PATH de quem ele roda (as ferramentas da
+    stack, quando o agente abre sem o PATH do terminal). Vale a pasta absoluta, real (sem link em nenhum trecho, sem `.`/`..`),
+    sem `:` nem caractere de controle e existente; a que não passa fica de fora com aviso, e a chave que não é lista só
+    avisa. Sem o arquivo (ou com ele em link) ou sem a chave: ([], [])."""
+    arquivo = Path(raiz) / ".forge" / "config.json"
+    if not arquivo.is_file() or arquivo.is_symlink():
+        return [], []
+    try:
+        lista = json.loads(arquivo.read_text(encoding="utf-8")).get("caminhos_extra")
+    except (OSError, ValueError, AttributeError):
+        return [], ["caminhos_extra: .forge/config.json ilegível; nada somado ao PATH"]
+    if lista is None:
+        return [], []
+    if not isinstance(lista, list):
+        return [], ["caminhos_extra: precisa ser uma lista de pastas; nada somado ao PATH"]
+    boas, avisos = [], []
+    for pasta in lista:
+        nome = ascii(pasta)[:200]
+        if not isinstance(pasta, str) or not os.path.isabs(pasta) or ":" in pasta or not pasta.isprintable():
+            avisos.append(f"caminhos_extra: {nome} ignorada (precisa ser caminho absoluto, sem : nem caractere de controle)")
+        elif os.path.realpath(pasta) != os.path.normpath(pasta) or os.path.normpath(pasta) != pasta.rstrip("/"):
+            avisos.append(f"caminhos_extra: {nome} ignorada (link simbólico ou trecho . e ..; use o caminho real)")
+        elif not os.path.isdir(pasta):
+            avisos.append(f"caminhos_extra: {nome} ignorada (não existe ou não é pasta)")
+        else:
+            boas.append(pasta)
+    return boas, avisos
+
+
 def gravar_json(caminho, dados):
     tmp = caminho.with_name(caminho.name + f".{os.getpid()}.tmp")
     tmp.write_text(json.dumps(dados, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
