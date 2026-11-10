@@ -172,8 +172,23 @@ class PluginDeDesenvolvimento(unittest.TestCase):
                                                               "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/"],
                                                               "conferente": ["/dev/null"], "leitura": ["/dev/null"]})
         texto = (RAIZ / "dev/agents/aq.md").read_text(encoding="utf-8")
-        self.assertRegex(texto, r"(?m)^tools: Read, Grep, Glob, Write, Edit$")
-        self.assertNotRegex(texto, r"(?m)^tools:.*(Bash|WebFetch)")
+        # 0.45.3 (AVALIACAO-DE-FORA): o AQ mede sozinho com Bash de leitura (a conformidade limita); rede continua fora.
+        self.assertRegex(texto, r"(?m)^tools: Read, Grep, Glob, Bash, Write, Edit$")
+        self.assertNotRegex(texto, r"(?m)^tools:.*WebFetch")
+
+    def test_aq_faz_a_avaliacao_de_fora_com_comandos_que_existem_e_nao_avalia_contribuicao(self):
+        texto = (RAIZ / "dev/agents/aq.md").read_text(encoding="utf-8")
+        self.assertIn("docs/avaliacoes/", texto)
+        self.assertIn("REMOVER", texto)
+        self.assertNotIn("agents/jarvis.md", re.sub(r"não leia [^.]*\.", "", texto), "o AQ fica fora do contexto do Jarvis")
+        citados = set(re.findall(r"`forge-check ([a-z]+)", texto))
+        self.assertLessEqual({"metricas", "regras", "avaliacao"}, citados)
+        for sub in sorted(citados):
+            with self.subTest(sub=sub):
+                r = subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-check"), sub, "--help"], capture_output=True, text=True)
+                self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotRegex(texto, r"Contribuição \(`R-CONTRIB`\)", "o mérito da contribuição passou ao tech-lead")
+        self.assertIn("mérito", (RAIZ / "agents/tech-lead.md").read_text(encoding="utf-8"))
 
     def test_dev_so_tem_manifesto_e_agentes(self):
         """O Claude Code descobre `hooks/`, `skills/`, `commands/` e `.mcp.json` por convenção: em `dev/` entrariam em
