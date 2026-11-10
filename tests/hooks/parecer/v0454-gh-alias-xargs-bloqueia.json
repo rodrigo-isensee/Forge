@@ -1,0 +1,35 @@
+{
+  "descricao": "V0454-GH-ALIAS-PARECER: alias de pr merge atrás do xargs",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "../home/.config/gh/config.yml": "git_protocol: https\naliases:\n    junta: pr merge\nbrowser:\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "echo feature/x | xargs gh junta"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "`xargs` antes de gh pr merge"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "GH_CONFIG_DIR": "",
+    "XDG_CONFIG_HOME": ""
+  }
+}

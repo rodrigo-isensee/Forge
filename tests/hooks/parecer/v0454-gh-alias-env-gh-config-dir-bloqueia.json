@@ -1,0 +1,35 @@
+{
+  "descricao": "V0454-GH-ALIAS-PARECER: GH_CONFIG_DIR passado pelo `env`",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "../home/outra/config.yml": "git_protocol: https\naliases:\n    nova: pr create\nbrowser:\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "env GH_CONFIG_DIR=~/outra gh nova --fill"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: nenhum parecer"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "GH_CONFIG_DIR": "",
+    "XDG_CONFIG_HOME": ""
+  }
+}

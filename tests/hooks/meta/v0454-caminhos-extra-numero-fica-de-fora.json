@@ -1,0 +1,43 @@
+{
+  "descricao": "V0454-CAMINHOS-EXTRA: item que não é texto fica de fora com aviso",
+  "arquivos": {
+    "../ferramentas/forge-ferramenta-v0454": "#!/bin/sh\nexit 0\n"
+  },
+  "executaveis": [
+    "../ferramentas/forge-ferramenta-v0454"
+  ],
+  "config": {
+    "caminhos_extra": [
+      7,
+      "{tmp}/ferramentas"
+    ]
+  },
+  "estado": {
+    "meta.json": {
+      "pedido": "p1",
+      "checagens": [
+        [
+          "forge-ferramenta-v0454"
+        ]
+      ],
+      "armado": true,
+      "repeticoes": 0
+    }
+  },
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "stop_hook_active": false
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "meta.json": {
+        "contem": [
+          "entregue e provado"
+        ]
+      }
+    },
+    "erros_log": "caminhos_extra: 7 ignorada"
+  }
+}
