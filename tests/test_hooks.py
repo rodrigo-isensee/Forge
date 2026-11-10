@@ -9,6 +9,8 @@ Formato do fixture:
   executaveis [caminho] relativos à raiz que ganham permissão de execução (ex.: um `gh` falso, sem rede, no PATH do `env`)
   links       {caminho: alvo} links simbólicos criados depois dos arquivos ({raiz} e {tmp} valem no alvo)
   env         variáveis de ambiente do processo do hook ({tmp} vale; ex.: FORGE_GUARDA_ABERTA, HOME)
+  prazo_de_producao  true: o hook roda com o vigia de prazo de produção (`PRAZO_DA_DECISAO_S`, `PRAZO_DO_MERGE_S`), e não
+              o largo dos testes (v0455: o prazo do `gh pr merge`)
   git         passos depois do commit inicial: {"branch": b} | {"checkout": b} | {"worktree": pasta, "branch": b} (com "solto": true, HEAD solto)
               | {"ref": "refs/remotes/origin/b"} (aponta para o HEAD) | {"config": {chave: valor}} (git config local)
               | {"arquivos": {...}, "commit": msg}  ({HEAD} no texto vira o hash do commit atual)
@@ -624,7 +626,10 @@ def lancador(hook, producao=False, lento=False):
 
 class Hooks(unittest.TestCase):
     def setUp(self):
-        self.fixtures = minimo([Fixture(p) for p in sorted(FIXTURES.glob("*/*.json"))], 460, "fixtures em tests/hooks/")
+        todos = [Fixture(p) for p in sorted(FIXTURES.glob("*/*.json"))]
+        # os de prazo de produção esperam o vigia de verdade (até 9 s cada): rodam à parte, em `test_prazo_do_merge`
+        self.fixtures = minimo([f for f in todos if f.dados.get("prazo_de_producao") is not True], 460, "fixtures em tests/hooks/")
+        self.de_prazo = [f for f in todos if f.dados.get("prazo_de_producao") is True]
 
     def test_fixtures(self):
         self.assertTrue(self.fixtures, "nenhum fixture em tests/hooks/")
@@ -685,8 +690,9 @@ class Hooks(unittest.TestCase):
         extra["FORGE_NPROC"] = str((f.dados.get("proc") or {}).get("nproc", 8))
         if f.dados.get("pathlib_312"):  # a fixture provoca erro interno por Path.exists (tests/apoio_pathlib_312)
             extra["PYTHONPATH"] = str(PATHLIB_312)
-        f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra))
-        r = rodar(f.hook, entrada, raiz, proc, extra)
+        producao = f.dados.get("prazo_de_producao") is True
+        f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra, producao=producao))
+        r = rodar(f.hook, entrada, raiz, proc, extra, producao=producao)
         esperado = f.dados["esperado"]
         if "saida" in esperado:  # só o vigia: aviso ao usuário, nunca contexto para o modelo
             self.assertEqual(f.hook, "vigia")
@@ -1010,6 +1016,26 @@ class Hooks(unittest.TestCase):
         inicio = time.monotonic()
         self.rodar_dados(grande)
         self.assertLess(time.monotonic() - inicio, limite / 2, "a recusa pelo teto sai antes do prazo")
+
+    def test_prazo_do_merge(self):  # v0455: o `gh pr merge` decide com PRAZO_DO_MERGE_S; o resto, com os 3 s
+        """Os fixtures com `prazo_de_producao` (tests/hooks/parecer/v0455-*.json), com o vigia de produção e um `git` lento
+        no PATH: o merge com 4 s de git libera; o `gh pr create` e o `git merge` com o mesmo git recusam em 3 s; o merge
+        com 9 s recusa em 8 s, antes do timeout do hooks.json."""
+        casos = [(f"{f.hook}/{f.caminho.stem}", f) for f in minimo(self.de_prazo, 4, "fixtures de prazo de produção")]
+        self.assertEqual(self.executar_em_lote(casos), len(casos))
+
+    def test_prazo_do_merge_abaixo_do_timeout_do_hooks_json(self):  # v0455
+        """O prazo do `gh pr merge` (`PRAZO_DO_MERGE_S`) passa do prazo comum e fica abaixo do `timeout` do parecer no
+        hooks.json com folga de 2 s (a subida do Python e a recusa): senão o Claude Code mata o hook e libera o merge."""
+        _comum, _, parecer = modulos_dos_hooks()
+        d = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))
+        limites = [h["timeout"] for grupos in d["hooks"].values() for g in grupos for h in g["hooks"]
+                   if any(a.endswith("/hooks/parecer.py") for a in h.get("args", []))]
+        self.assertTrue(limites, "o parecer.py no hooks.json")
+        self.assertGreater(_comum.PRAZO_DO_MERGE_S, _comum.PRAZO_DA_DECISAO_S)
+        self.assertLessEqual(_comum.PRAZO_DO_MERGE_S, min(limites) - 2)
+        self.assertRegex("gh pr merge 12 --squash", parecer.MERGE_DE_PR)
+        self.assertNotRegex("gh pr create --title merge", parecer.MERGE_DE_PR)
 
     def test_timeout_de_rede_dos_hooks_abaixo_do_hooks_json(self):
         """Segurança A1: todo subprocesso de rede dos hooks (`gh`, `curl`, `git fetch`...) tem limite de tempo menor que o
