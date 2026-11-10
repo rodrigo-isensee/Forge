@@ -1,0 +1,66 @@
+{
+  "pedido": "v0451-vigente",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "saida 2 do --status nao vira livre",
+      "arquivo": "scripts/jarvis-forge",
+      "de": "    1) suite=livre ;;",
+      "para": "    1|2) suite=livre ;;",
+      "testes": [
+        "tests.test_forge.JarvisForgeVigente.test_ocupacao_status_nao_conferido_manda_esperar"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "rc do --status e o do comando",
+      "arquivo": "scripts/jarvis-forge",
+      "de": "2>/dev/null)\" || rc=$?",
+      "para": "2>/dev/null)\" || rc=1",
+      "testes": [
+        "tests.test_forge.JarvisForgeVigente.test_ocupacao_status_nao_conferido_manda_esperar"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o --status lido e o da copia vigente",
+      "arquivo": "scripts/jarvis-forge",
+      "de": "\"$vigente/.githooks/pre-push\" --status",
+      "para": "\"$HOME/Forge/.githooks/pre-push\" --status",
+      "testes": [
+        "tests.test_forge.JarvisForgeVigente.test_ocupacao_suite_rodando_manda_esperar"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "nao conferido nunca vira zero agentes",
+      "arquivo": "scripts/jarvis-forge",
+      "de": "then agentes=\"não conferido\"",
+      "para": "then agentes=nenhum",
+      "testes": [
+        "tests.test_forge.JarvisForgeVigente.test_ocupacao_agentes_com_erro_ou_texto_nao_conferido"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "so zero agentes e nenhum",
+      "arquivo": "scripts/jarvis-forge",
+      "de": "elif [ \"$n\" = 0 ]; then agentes=nenhum",
+      "para": "elif [ \"$n\" -le 1 ]; then agentes=nenhum",
+      "testes": [
+        "tests.test_forge.JarvisForgeVigente.test_ocupacao_com_agente_ativo_manda_esperar"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "seguro nunca sai antes da I9: com as duas fontes livres o aviso segue esperando",
+      "arquivo": "scripts/jarvis-forge",
+      "de": "  echo \"espere: testes de módulo: não conferidos; reinicie",
+      "para": "  if [ \"$suite\" = livre ] && [ \"$agentes\" = nenhum ]; then echo \"seguro reiniciar agora\"; exit 0; fi; echo \"espere: testes de módulo: não conferidos; reinicie",
+      "testes": [
+        "tests.test_forge.JarvisForgeVigente.test_ocupacao_livre_nao_diz_seguro"
+      ]
+    }
+  ]
+}
