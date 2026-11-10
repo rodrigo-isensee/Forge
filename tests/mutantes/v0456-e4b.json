@@ -24,10 +24,10 @@
     },
     {
       "id": "M3",
-      "guarda": "erro de gravação vira mensagem, não exceção",
+      "guarda": "o erro de gravação do destino vira a mensagem de recusa",
       "arquivo": "tests/bancada/bancada.py",
       "de": "    except OSError as e:\n        return f\"bancada: --saida",
-      "para": "    except PermissionError as e:\n        return f\"bancada: --saida",
+      "para": "    except OSError as e:\n        return None\n        return f\"bancada: --saida",
       "testes": [
         "tests.test_bancada.BancadaGravaEValida.test_saida_nao_gravavel_recusa_antes_da_primeira_chamada"
       ]
