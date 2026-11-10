@@ -2406,6 +2406,12 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 23, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_v0453_parecer_pelo_bash(self):  # 0.45.3: parecer pelo Bash recusa na hora, com a orientação
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("V0453-PARECER-BASH:")]
+        self.assertGreaterEqual(len(lote), 16, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_do_n5(self):  # IMPL-FURO-HOOK-N, N5: a descrição abre com o item, para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N5 (")]
         self.assertGreaterEqual(len(lote), 34, "as fixtures do item")

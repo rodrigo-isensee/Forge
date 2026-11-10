@@ -2606,6 +2606,17 @@ class ForgeCheck(unittest.TestCase):
                 self.assertEqual(codigo, 1)
                 self.assertIn(trecho, saida)
 
+    def test_pr_autoria_ausente_diz_como_corrigir(self):  # 0.45.3: a recusa diz a forma certa, sem afrouxar
+        self.pareceres(self.head())
+        self.commitar("pareceres")
+        self.autoria(("docs/reviews/p1.md", "tech-lead"))
+        rc, saida = self.check("pr", "p1")
+        self.assertEqual(rc, 1, saida)
+        linha = next(l for l in saida.splitlines() if l.startswith("docs/qa/p1.md: autoria"))
+        self.assertIn("regrave com a ferramenta Write", linha)
+        self.assertIn("`forge-check parecer novo`", linha)
+        self.assertIn("pelo Bash", linha)
+
     def test_pr_autoria_de_versao_anterior_do_parecer_falha(self):
         self.pareceres(self.head())
         self.autoria(("docs/reviews/p1.md", "tech-lead"), ("docs/qa/p1.md", "qa"))

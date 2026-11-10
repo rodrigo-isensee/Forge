@@ -220,6 +220,12 @@ FETCH_COM_VALOR = {"--depth", "--deepen", "--shallow-since", "--shallow-exclude"
                    "--submodule-prefix"}
 CONTORNO_DA_INTEGRACAO = ("faça o commit na branch de trabalho e mescle com `git merge` (parecer); para atualizar a "
                           "integração, `git merge --ff-only origin/<branch>`")
+# 0.45.3: parecer gravado pelo Bash (`>`, `>>`, `tee`, `cp`, `sed -i`...) não tem a autoria que o `forge-check pr` exige, e a
+# volta caía no PR; agora recusa na hora da escrita, para todo papel, com a forma certa. O `git` (checkout de parecer trazido) e
+# a remoção não são escrita de parecer.
+PASTAS_DE_PARECER = ("reviews", "qa", "security", "devops", "ux")
+COMO_GRAVAR_PARECER = ("regrave com a ferramenta Write (o esqueleto sai de `forge-check parecer novo`); "
+                       "parecer gravado pelo Bash fica sem autoria")
 # 0.45.3 (decisão do dono): `git push --all` e `--mirror` (também abreviados) recusam para todo papel.
 UMA_BRANCH_POR_VEZ = "envie uma branch por vez (R-FLUXO)"
 REFS_DE_TROCA = {"fetch", "pull", "push", "send-pack", "update-ref", "symbolic-ref"}  # gravam refs pelo argumento
@@ -646,6 +652,7 @@ class Guarda:
         self.lancador_recusado = None  # lançador da linha que o hook não modela (`LANCADORES_RECUSADOS`), recusado no fim
         self.reavaliacao = None  # a primeira reavaliação pelo shell da linha, em qualquer nível (`reavaliacao`, opção B)
         self.trecho = None  # as palavras do comando simples em conferência (`segmento`), que a recusa cita
+        self.pelo_bash = False  # 0.45.3: a escrita vem do Bash (parecer só pela ferramenta de arquivo)
         leitura = politica.get("so_leitura")
         self.leitura = leitura if leitura and papel in leitura["papeis"] else None  # papel só de leitura (conferente)
         # 0.45.3: o aq tem a lista própria de comandos e grava pelas ferramentas de arquivo, só em `escrita_permitida`
@@ -850,9 +857,10 @@ class Guarda:
         p = Path(caminho).expanduser()
         return Path(realpath_pela_pasta(str(p if p.is_absolute() else pasta / p)))
 
-    def checar_escrita(self, caminho, pasta):
+    def checar_escrita(self, caminho, pasta, parecer_conta=True):
         """Na dúvida, recusa: o que vem depois de uma substituição (`$(git rev-parse --show-toplevel)/docs/reviews/x`) é
-        conferido também a partir da raiz do projeto."""
+        conferido também a partir da raiz do projeto. Pelo Bash, o parecer recusa depois da regra do caminho (0.45.3);
+        `parecer_conta=False` no `git` e na remoção."""
         if MARCA_DA_SUITE.fullmatch(Path(caminho).name):  # S8 (C-2): o nome literal, antes da expansão
             self.barrar(*PROVA_DA_SUITE)
         alvos = self.alvos_da_escrita(caminho, pasta)
@@ -861,6 +869,9 @@ class Guarda:
             achado = self.caminho_barrado(alvo)
             if achado:
                 self.barrar(*achado)
+        for alvo in alvos:
+            if self.pelo_bash and parecer_conta and e_parecer(alvo):
+                self.barrar("R-REVIEW", f"parecer {alvo.name} gravado pelo Bash ({alvo.parent.name}/)", COMO_GRAVAR_PARECER)
 
     def alvos_da_escrita(self, caminho, pasta):
         """O caminho resolvido e, depois de uma substituição (`$(…)/x`), o resto resolvido a partir da raiz do projeto."""
@@ -1323,7 +1334,7 @@ class Guarda:
         elif prog in TODOS_OS_ARGUMENTOS or (prog == "sed" and sed_no_lugar(args)):
             for a in args:
                 if not a.startswith("-"):
-                    self.checar_escrita(a, pasta)
+                    self.checar_escrita(a, pasta, parecer_conta=prog == "mv" or prog not in REMOCAO)
                     if prog in REMOCAO:
                         self.checar_remocao(a, pasta)
         elif prog in SO_DESTINO:
@@ -1582,11 +1593,11 @@ class Guarda:
         caminhos, com_origem = self.pathspecs_do_git(sub, args, pastas[0])
         for pasta in dict.fromkeys(pastas):
             for c in caminhos:
-                self.checar_escrita(c, pasta)
+                self.checar_escrita(c, pasta, parecer_conta=False)
                 self.checar_remocao(c, pasta)
                 if com_origem or sub in ("rm", "mv") or not self.varredura(c):
                     for alvo in filter(self.pode_ser_protegido, self.tracked_do_pathspec(c, pasta, opcoes)):
-                        self.checar_escrita(alvo, pasta)
+                        self.checar_escrita(alvo, pasta, parecer_conta=False)
                         self.checar_remocao(alvo, pasta)
 
     def pode_ser_protegido(self, caminho):
@@ -2411,6 +2422,11 @@ def raiz_do_parecer(hook, p):
     return topo if comum and comum == diretorio_comum(raiz) else None
 
 
+def e_parecer(p):
+    """O `.md` dentro de `docs/<pasta de parecer>/` (`PASTAS_DE_PARECER`), em qualquer raiz ou worktree."""
+    return p.suffix == ".md" and any(par == ("docs", pasta) for par in zip(p.parts, p.parts[1:]) for pasta in PASTAS_DE_PARECER)
+
+
 def autoria(hook, guarda, alvos):
     """PostToolUse: grava quem escreveu cada parecer (caminho, hash do texto sem espaços nas pontas, agente, papel,
     hora) em autoria.jsonl; o `forge-check pr` confere (ADR 0009, 6.4). Vale também para parecer gravado em outra
@@ -2585,6 +2601,7 @@ def decidir(hook, guarda, ferramenta, entrada):
         autoria(hook, guarda, [a for a in alvos if a])
     elif ferramenta == "Bash":
         if isinstance(entrada.get("command"), str):
+            guarda.pelo_bash = True
             guarda.bash(entrada["command"], hook.cwd())
             if guarda.perguntas:
                 pedir_confirmacao(guarda.perguntas)
