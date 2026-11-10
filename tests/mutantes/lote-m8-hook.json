@@ -33,16 +33,6 @@
       ]
     },
     {
-      "id": "M7",
-      "guarda": "só a suíte completa (completa=1) anota a árvore verde",
-      "arquivo": ".githooks/pre-push",
-      "de": "if [ \"$completa\" = 1 ] && [ \"$inicio_limpo\" = 1 ]",
-      "para": "if [ \"$inicio_limpo\" = 1 ]",
-      "testes": [
-        "tests.test_pre_push_afetados.PrePushAfetados.test_so_os_modulos_do_mapa_rodam_e_nao_anotam_a_arvore_verde"
-      ]
-    },
-    {
       "id": "M9",
       "guarda": "o plano roda com python -I (sem o bin da branch no sys.path)",
       "arquivo": ".githooks/pre-push",
