@@ -1,0 +1,35 @@
+{
+  "descricao": "V0454-GH-ALIAS-PARECER: alias `gh m` = api de merge com `$1`",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "../home/.config/gh/config.yml": "git_protocol: https\naliases:\n    m: api -X PUT repos/o/r/pulls/$1/merge\nbrowser:\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh m 7"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "GH_CONFIG_DIR": "",
+    "XDG_CONFIG_HOME": ""
+  }
+}

@@ -8,7 +8,6 @@ Lê o ponto de retorno guardado por `forge atualizar` (~/.local/state/forge/reto
 Nunca força nada, nem reescreve a história, nem apaga branch, arquivo ou trabalho: arquivos que a atualização criou só são listados.
 Saída: 0 voltou (ou você recusou); 1 não deu para voltar; 2 sem terminal."""
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -16,9 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import forge_versoes as fv  # noqa: E402
 
 
-def git(projeto, *args):
-    r = subprocess.run(["git", "-C", str(projeto), *args], capture_output=True, text=True)
-    return r.returncode, r.stdout.strip()
+git = fv.git  # FILA-31 F3: o mesmo dos dois scripts mora em bin/forge_versoes.py
 
 
 def existe_branch(projeto, nome):

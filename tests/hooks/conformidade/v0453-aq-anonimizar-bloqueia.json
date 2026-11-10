@@ -1,0 +1,24 @@
+{
+  "descricao": "V0453-AQ-LEITURA: transcricao anonimizar grava arquivo",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "forge-check transcricao anonimizar sessao.jsonl docs/propostas/s.jsonl"
+    },
+    "agent_type": "forge-dev:aq",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "anonimizar"
+  }
+}

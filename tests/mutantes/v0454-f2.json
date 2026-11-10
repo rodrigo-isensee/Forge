@@ -1,0 +1,72 @@
+{
+  "pedido": "v0454-f2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o git da cópia roda no ambiente de quem chama, nunca no herdado (GIT_DIR de hook)",
+      "arquivo": "bin/forge_apoio_testes.py",
+      "de": "cwd=cwd, env=ambiente(),",
+      "para": "cwd=cwd, env=None,",
+      "testes": [
+        "tests.test_testes_tocados.GitDaCopia.test_fila31_f2_copia_isolada_do_git_dir_herdado_e_erro_do_git_levanta"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o git da cópia que falha levanta RuntimeError",
+      "arquivo": "bin/forge_apoio_testes.py",
+      "de": "    if r.returncode:\n        raise RuntimeError",
+      "para": "    if False:\n        raise RuntimeError",
+      "testes": [
+        "tests.test_testes_tocados.GitDaCopia.test_fila31_f2_copia_isolada_do_git_dir_herdado_e_erro_do_git_levanta"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "resolver dá o sha só com rev-parse rc 0",
+      "arquivo": "bin/forge_apoio_testes.py",
+      "de": "if r.returncode == 0 and r.stdout.strip() else None",
+      "para": "if r.returncode != 0 and r.stdout.strip() else None",
+      "testes": [
+        "tests.test_testes_tocados.GitDaCopia.test_fila31_f2_resolver_da_o_sha_ou_none"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a ref que não resolve dá None, nunca texto vazio",
+      "arquivo": "bin/forge_apoio_testes.py",
+      "de": "if r.returncode == 0 and r.stdout.strip() else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_testes_tocados.GitDaCopia.test_fila31_f2_resolver_da_o_sha_ou_none"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-mutante",
+      "trecho": "r.returncode",
+      "motivo": "FILA-31 F2: a condição só mudou de arquivo para bin/forge_apoio_testes.py, onde o mutante M2 desta spec a prova (a linha_base é a da primeira ocorrência do texto, que o forge-mutante reporta quando uma de duas sai)",
+      "linha_base": 118
+    },
+    {
+      "arquivo": "bin/forge-mutante",
+      "trecho": "r.returncode == 0 and r.stdout.strip()",
+      "motivo": "FILA-31 F2: a condição só mudou de arquivo para bin/forge_apoio_testes.py, onde o mutante M3 e M4 desta spec a prova",
+      "linha_base": 149
+    },
+    {
+      "arquivo": "bin/forge-testes",
+      "trecho": "r.returncode",
+      "motivo": "FILA-31 F2: a condição só mudou de arquivo para bin/forge_apoio_testes.py, onde o mutante M2 desta spec a prova (a linha_base é a da primeira ocorrência do texto, que o forge-mutante reporta quando uma de duas sai)",
+      "linha_base": 187
+    },
+    {
+      "arquivo": "bin/forge-testes",
+      "trecho": "r.returncode == 0 and r.stdout.strip()",
+      "motivo": "FILA-31 F2: a condição só mudou de arquivo para bin/forge_apoio_testes.py, onde o mutante M3 e M4 desta spec a prova",
+      "linha_base": 445
+    }
+  ]
+}

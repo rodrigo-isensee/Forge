@@ -1,0 +1,66 @@
+{
+  "pedido": "v0453-aq-avaliacao-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "sem avaliação a origem é o início",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "origem = f\"docs/avaliacoes/{ultima}\" if ultima else",
+      "para": "origem = f\"docs/avaliacoes/{ultima}\" if True else",
+      "testes": [
+        "tests.test_governanca.AvaliacaoDeFora.test_sem_avaliacao_cinco_versoes_avisam_e_quatro_nao"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o despacho leva avaliacao ao cmd_avaliacao",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if a.cmd == \"avaliacao\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_governanca.AvaliacaoDeFora.test_sem_avaliacao_cinco_versoes_avisam_e_quatro_nao"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o forge-check passa avaliacao ao módulo de governança",
+      "arquivo": "bin/forge-check",
+      "de": "if a.cmd in (\"metricas\", \"regras\", \"avaliacao\"):",
+      "para": "if a.cmd in (\"metricas\", \"regras\"):",
+      "testes": [
+        "tests.test_governanca.AvaliacaoDeFora.test_sem_avaliacao_cinco_versoes_avisam_e_quatro_nao"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a release só avisa quando está pendente",
+      "arquivo": "bin/forge-changelog",
+      "de": "        if estado and estado[0]:",
+      "para": "        if estado:",
+      "testes": [
+        "tests.test_changelog.ReleaseAvisaAvaliacaoDeFora.test_quarta_versao_nao_avisa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "cmd_avaliacao: CHANGELOG ilegível sai rc 2",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if estado is None:\n        print(f\"avaliacao: CHANGELOG.md",
+      "para": "    if False:\n        print(f\"avaliacao: CHANGELOG.md",
+      "testes": [
+        "tests.test_governanca.AvaliacaoDeFora.test_sem_changelog_nada_medido"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "sem avaliação nenhuma, contam todas as versões",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if ultima:\n        achou = VERSAO_DA_AVALIACAO",
+      "para": "    if True:\n        achou = VERSAO_DA_AVALIACAO",
+      "testes": [
+        "tests.test_governanca.AvaliacaoDeFora.test_sem_avaliacao_cinco_versoes_avisam_e_quatro_nao"
+      ]
+    }
+  ]
+}

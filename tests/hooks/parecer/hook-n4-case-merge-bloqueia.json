@@ -1,0 +1,19 @@
+{
+  "descricao": "HOOK-N4: o merge escondido no case de \"$(case x in x) L;; esac)\" rodava sem leitura",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "x=\"$(case x in x) git merge melhoria/x;; esac)\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW"
+  }
+}

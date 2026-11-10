@@ -9,8 +9,7 @@
       "de": "    if not isinstance(plugins, dict) or not all(isinstance(v, list) for v in plugins.values()):",
       "para": "    if not (not isinstance(plugins, dict) or not all(isinstance(v, list) for v in plugins.values())):",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -20,8 +19,7 @@
       "de": "            if not isinstance(entrada, dict) or not isinstance(entrada.get(\"installPath\"), str):",
       "para": "            if not (not isinstance(entrada, dict) or not isinstance(entrada.get(\"installPath\"), str)):",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -31,8 +29,7 @@
       "de": "    return a == b or a in b.parents or b in a.parents",
       "para": "    return not (a == b or a in b.parents or b in a.parents)",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -42,8 +39,7 @@
       "de": "    if os.environ.get(\"CLAUDE_PLUGIN_ROOT\"):",
       "para": "    if not (os.environ.get(\"CLAUDE_PLUGIN_ROOT\")):",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -53,8 +49,7 @@
       "de": "    if em_uso is None:",
       "para": "    if not (em_uso is None):",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -64,8 +59,7 @@
       "de": "    return [p for p in candidatas if p not in maiores and not any(_relacionados(p, u) for u in list(em_uso) + list(protegidas))]",
       "para": "    return [p for p in candidatas if not (p not in maiores and not any(_relacionados(p, u) for u in list(em_uso) + list(protegidas)))]",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -75,8 +69,7 @@
       "de": "    \"\"\"(lista que pode sair, em_uso): em_uso None quer dizer \"não consegui conferir o que está em uso\" (e a lista vem vazia).\"\"\"\n    casa_ = casa_ or casa()",
       "para": "    \"\"\"(lista que pode sair, em_uso): em_uso None quer dizer \"não consegui conferir o que está em uso\" (e a lista vem vazia).\"\"\"\n    casa_ = not (casa_ or casa())",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -86,8 +79,7 @@
       "de": "        if time.monotonic() > fim:",
       "para": "        if not (time.monotonic() > fim):",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -97,8 +89,7 @@
       "de": "    return \"\".join(c if c.isprintable() else \"?\" for c in str(texto))",
       "para": "    return \"\".join(c if not (c.isprintable()) else \"?\" for c in str(texto))",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -108,8 +99,7 @@
       "de": "    CM-7) e gravando a linha no registro antes de apagar (CM-12). Devolve (apagadas, puladas).\"\"\"\n    casa_ = casa_ or casa()",
       "para": "    CM-7) e gravando a linha no registro antes de apagar (CM-12). Devolve (apagadas, puladas).\"\"\"\n    casa_ = not (casa_ or casa())",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {
@@ -119,8 +109,7 @@
       "de": "        if pasta not in ainda:",
       "para": "        if not (pasta not in ainda):",
       "testes": [
-        "tests.test_doutor",
-        "tests.test_atualizar"
+        "tests.test_doutor.CacheDoPlugin"
       ]
     },
     {

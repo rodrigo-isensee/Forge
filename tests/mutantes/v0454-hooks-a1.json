@@ -1,0 +1,87 @@
+{
+  "pedido": "v0454-hooks-a1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A1-1",
+      "guarda": "o alias do gh na linha também a faz crítica",
+      "arquivo": "hooks/parecer.py",
+      "de": "    return bool(CRITICO.search(texto)) or alias_na_linha(textos_da_linha(texto))",
+      "para": "    return bool(CRITICO.search(texto)) and alias_na_linha(textos_da_linha(texto))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A1-2",
+      "guarda": "o teto da chamada vale para a linha com alias",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if nivel == 0 and critico_ou_alias(original):  # bloco T",
+      "para": "    if nivel == 0 and CRITICO.search(original):  # bloco T",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A1-3",
+      "guarda": "o heredoc gravado vale para a linha com alias",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if gravado and critico_ou_alias(original):  # M3",
+      "para": "    if gravado and CRITICO.search(original):  # M3",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A1-4",
+      "guarda": "a reavaliação pelo shell (eval, sh -c, bash -c) recusa a linha com alias",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if nivel == 0 and reavaliacoes and critico_ou_alias(original):",
+      "para": "    if nivel == 0 and reavaliacoes and CRITICO.search(original):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A1-5",
+      "guarda": "a gramática com heredoc vale para a linha com alias",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if nivel == 0 and critico_ou_alias(original) and not (SO_CAT",
+      "para": "    if nivel == 0 and CRITICO.search(original) and not (SO_CAT",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A1-6",
+      "guarda": "o executar recebe o marcador com alias (prazo e falha fechada)",
+      "arquivo": "hooks/parecer.py",
+      "de": "executar(\"parecer\", principal, CriticoOuAlias,",
+      "para": "executar(\"parecer\", principal, CRITICO,",
+      "testes": [
+        "tests.test_hooks.Hooks.test_alias_do_gh_no_parecer_vale_para_o_prazo"
+      ]
+    },
+    {
+      "id": "A1-7",
+      "guarda": "o marcador com alias devolve não-None quando a linha é crítica",
+      "arquivo": "hooks/parecer.py",
+      "de": "            if critico_ou_alias(texto):\n                return True",
+      "para": "            if False:\n                return True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_alias_do_gh_no_parecer_vale_para_o_prazo",
+        "tests.test_hooks.Hooks.test_critico_ou_alias_marca_na_duvida"
+      ]
+    },
+    {
+      "id": "A1-8",
+      "guarda": "o erro ao ler o alias marca a chamada (falha fechada)",
+      "arquivo": "hooks/parecer.py",
+      "de": "        except Exception:  # noqa: BLE001 - ADR 0009, seção 7: na dúvida, a ação é crítica\n            return True",
+      "para": "        except Exception:  # noqa: BLE001 - ADR 0009, seção 7: na dúvida, a ação é crítica\n            return None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_critico_ou_alias_marca_na_duvida"
+      ]
+    }
+  ]
+}

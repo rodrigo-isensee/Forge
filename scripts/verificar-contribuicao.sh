@@ -15,7 +15,7 @@ fi
 
 segredos=(
   'sk-[A-Za-z0-9_-]{20,}'
-  'ghp_[A-Za-z0-9]{20,}'
+  'gh[pousr]_[A-Za-z0-9]{20,}'
   'github_pat_[A-Za-z0-9_]{20,}'
   'AKIA[0-9A-Z]{16}'
   '-{5}BEGIN [A-Z ]*PRIVATE KEY'

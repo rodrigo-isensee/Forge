@@ -1931,6 +1931,65 @@ def excede_o_teto(texto):
 
 Leituras = collections.namedtuple("Leituras", "partes ilegivel")
 
+# HOOK-N4: dentro de `"…"`, o `$(` abre um contexto novo do bash, com aspas próprias, e o `case` tem `)` que não fecha a
+# substituição. O `shlex` lê o `"` de dentro como o fim das aspas de fora e o `x)` do `case` como o fim do `$(`, e o
+# comando do meio vira texto: `x="$(true ")"; L)"`, `x="$(echo ")"; L; echo "(")"` e `x="$(case x in x) L;; esac)"`
+# rodam o `L` sem que o hook o leia. O hook não modela essas formas: a linha é ilegível (ADR 0011, o que não se modela
+# recusa).
+CASE_NO_CORPO = re.compile(r"(?<![\w-])case(?![\w-])")
+
+
+def _fim_da_substituicao(texto, i):
+    """O índice do `)` que fecha o `$(` aberto antes de `i`, lido como o bash fora do `case`: `\\x` e `'…'` não contam,
+    `(` aninha. None se o corpo tem `"` (outro contexto de aspas) ou não fecha."""
+    nivel = 1
+    while i < len(texto):
+        c = texto[i]
+        if c == "\\":
+            i += 2
+            continue
+        if c == "'":
+            apostrofo = texto.find("'", i + 1)
+            if apostrofo < 0:
+                return None
+            i = apostrofo + 1
+            continue
+        if c == '"':
+            return None
+        if c == "(":
+            nivel += 1
+        elif c == ")":
+            nivel -= 1
+            if not nivel:
+                return i
+        i += 1
+    return None
+
+
+def substituicao_ambigua_entre_aspas(texto):
+    """HOOK-N4: True se algum `$(` dentro de aspas duplas tem no corpo um `"`, um `case` ou não fecha."""
+    i, entre_duplas = 0, False
+    while i < len(texto):
+        c = texto[i]
+        if c == "\\":
+            i += 2
+            continue
+        if c == "'" and not entre_duplas:
+            fim_da_aspa = texto.find("'", i + 1)
+            if fim_da_aspa < 0:
+                return False  # aspa simples sem par: a leitura do `shlex` já não fecha
+            i = fim_da_aspa + 1
+            continue
+        if c == '"':
+            entre_duplas ^= True
+        elif entre_duplas and texto.startswith("$(", i) and not texto.startswith("$((", i):
+            fim = _fim_da_substituicao(texto, i + 2)
+            if fim is None or CASE_NO_CORPO.search(texto, i + 2, fim):
+                return True
+            i = fim
+        i += 1
+    return False
+
 
 def leituras(comando, com_sinal=False, sem_marcas=None):
     """ADR 0013: a única porta dos hooks para ler a linha. `partes`: a leitura fiel (`comandos`) e, se a linha tem `#`
@@ -1959,6 +2018,8 @@ def leituras(comando, com_sinal=False, sem_marcas=None):
                 or palavras_do_texto(comando if sem_marcas is None else sem_marcas).aspa_escapada
                 else list(comandos(comando, com_sinal=com_sinal)))
     except ValueError:
+        fiel = None
+    if substituicao_ambigua_entre_aspas(comando):  # HOOK-N4: o bash e o `shlex` leem outro fim para o `$(` entre aspas
         fiel = None
     partes = [] if fiel is None else [fiel]
     if "#" in comando:
@@ -2379,6 +2440,37 @@ def ler_json(caminho, padrao):
     return json.loads(caminho.read_text(encoding="utf-8"))
 
 
+def caminhos_extra(raiz):
+    """0.45.4: (pastas, avisos) da chave opcional `caminhos_extra` do `.forge/config.json` da raiz, a mesma leitura do
+    `.githooks/pre-push` do modelo de projeto: as pastas que o hook soma ao fim do PATH de quem ele roda (as ferramentas da
+    stack, quando o agente abre sem o PATH do terminal). Vale a pasta absoluta, real (sem link em nenhum trecho, sem `.`/`..`),
+    sem `:` nem caractere de controle e existente; a que não passa fica de fora com aviso, e a chave que não é lista só
+    avisa. Sem o arquivo (ou com ele em link) ou sem a chave: ([], [])."""
+    arquivo = Path(raiz) / ".forge" / "config.json"
+    if not arquivo.is_file() or arquivo.is_symlink():
+        return [], []
+    try:
+        lista = json.loads(arquivo.read_text(encoding="utf-8")).get("caminhos_extra")
+    except (OSError, ValueError, AttributeError):
+        return [], ["caminhos_extra: .forge/config.json ilegível; nada somado ao PATH"]
+    if lista is None:
+        return [], []
+    if not isinstance(lista, list):
+        return [], ["caminhos_extra: precisa ser uma lista de pastas; nada somado ao PATH"]
+    boas, avisos = [], []
+    for pasta in lista:
+        nome = ascii(pasta)[:200]
+        if not isinstance(pasta, str) or not os.path.isabs(pasta) or ":" in pasta or not pasta.isprintable():
+            avisos.append(f"caminhos_extra: {nome} ignorada (precisa ser caminho absoluto, sem : nem caractere de controle)")
+        elif os.path.realpath(pasta) != os.path.normpath(pasta) or os.path.normpath(pasta) != pasta.rstrip("/"):
+            avisos.append(f"caminhos_extra: {nome} ignorada (link simbólico ou trecho . e ..; use o caminho real)")
+        elif not os.path.isdir(pasta):
+            avisos.append(f"caminhos_extra: {nome} ignorada (não existe ou não é pasta)")
+        else:
+            boas.append(pasta)
+    return boas, avisos
+
+
 def gravar_json(caminho, dados):
     tmp = caminho.with_name(caminho.name + f".{os.getpid()}.tmp")
     tmp.write_text(json.dumps(dados, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
@@ -2429,6 +2521,7 @@ class Hook:
         self._config = None
         self._run = None
         self.marcado = None  # o texto da ação tem o marcador crítico? None: ainda não se sabe (`marcado`)
+        self.prazo_s = None  # o prazo do vigia desta chamada, em s (`executar`, `estender_prazo`); None: sem vigia
         self.corpos_pendentes = 0  # corpos de heredoc tirados da linha e ainda não conferidos (`prazo_vencido`)
 
     # Entrada -------------------------------------------------------------------------------
@@ -2626,6 +2719,10 @@ def barrar_sem_versao(hook, critico, bruto):
 # chamada, o prazo vencido recusa, e sem o marcador nada muda. Não existe no Windows nativo (sem `SIGALRM`): lá a decisão
 # fica com os tetos de custo (`excede_o_teto` e o de `DonosDosHeredocs.montar`), sem outro prazo.
 PRAZO_DA_DECISAO_S = 3.0
+# O `gh pr merge` decide pelo `forge-check pr` (cerca de 2 s; mais com a máquina carregada): com 3 s ele caía no prazo com
+# o git respondendo rápido. A linha com `gh pr merge` ganha este prazo, abaixo do `timeout` do parecer no hooks.json (10 s)
+# com folga; estourado, recusa como o de 3 s. Sem cache de veredito: seria um arquivo que o agente escreve (v0455).
+PRAZO_DO_MERGE_S = 8.0
 
 
 class PrazoVencido(BaseException):
@@ -2656,30 +2753,49 @@ def prazo_vencido(hook, critico, bruto, clone_do_forge, regra):
     marcador passou do prazo) ou com corpo de heredoc ainda por conferir (C-4: o último corpo é o que ninguém leu),
     numa sessão vigiada e antes da ferramenta, recusa pela `regra` do hook; senão, libera, com a linha no erros.log.
     Roda fora do vigia, e não refaz a busca do marcador."""
-    hook.registrar_erro(Aviso(f"prazo de {PRAZO_DA_DECISAO_S:g} s da decisão vencido"))
+    prazo = hook.prazo_s or PRAZO_DA_DECISAO_S
+    hook.registrar_erro(Aviso(f"prazo de {prazo:g} s da decisão vencido"))
     if (critico is None or hook.entrada.get("hook_event_name") == "PostToolUse" or (hook.marcado is False and not hook.corpos_pendentes)
             or not sessao_vigiada(hook, clone_do_forge)):
         return
     quem, como = (("a chamada com ação crítica", CONTORNO_DO_TETO) if hook.marcado is not False else
                   (f"{hook.corpos_pendentes} corpo(s) de heredoc", "separe o comando em chamadas menores"))
-    bloquear(regra, f"o hook não decidiu em {PRAZO_DA_DECISAO_S:g} s {quem} (texto longo ou lento demais, ou um `git` "
+    bloquear(regra, f"o hook não decidiu em {prazo:g} s {quem} (texto longo ou lento demais, ou um `git` "
                     f"lento): recusa, em vez de deixar o timeout liberá-la. Corrigir: {como}")
 
 
-def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None):
+def estender_prazo(hook, prazo_longo, inicio):
+    """Com o vigia armado e a linha da entrada casando `prazo_longo` (regex), troca o prazo por `PRAZO_DO_MERGE_S` contado
+    de `inicio`; nunca o encurta. Lê a entrada direto, sem `Hook.campo` (o marcador é a 1.a leitura do hook)."""
+    entrada = hook.entrada.get("tool_input")
+    comando = entrada.get("command") if isinstance(entrada, dict) else None
+    if not isinstance(comando, str) or not prazo_longo.search(comando) or PRAZO_DO_MERGE_S <= hook.prazo_s:
+        return
+    if not hasattr(signal, "getitimer") or signal.getitimer(signal.ITIMER_REAL)[0] <= 0:
+        return
+    hook.prazo_s = PRAZO_DO_MERGE_S
+    signal.setitimer(signal.ITIMER_REAL, max(PRAZO_DO_MERGE_S - (time.monotonic() - inicio), 0.001))
+
+
+def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None, prazo_longo=None):
     """Lê o JSON do stdin, chama `funcao(hook)` e sai com 0; `bloquear` sai com 2. `critico` (regex) liga a falha
     fechada seletiva (`clone_do_forge`: também no clone do Forge); `FORGE_GUARDA_ABERTA=1` no ambiente do processo
     (só o dono) abre a guarda desses hooks. `regra_do_prazo` (a regra que o hook cita ao recusar) liga o vigia de prazo:
-    o marcador se calcula primeiro, e a decisão toda roda sob `PRAZO_DA_DECISAO_S`."""
+    o marcador se calcula primeiro, e a decisão toda roda sob `PRAZO_DA_DECISAO_S`; com a linha casando `prazo_longo`
+    (regex), sob `PRAZO_DO_MERGE_S` (`estender_prazo`)."""
     hook = Hook(nome)
     bruto = sys.stdin.read()
     if critico is not None and os.environ.get("FORGE_GUARDA_ABERTA") == "1":
         sys.exit(0)
     try:
-        with vigia_de_prazo(PRAZO_DA_DECISAO_S if regra_do_prazo and critico is not None else None):
+        hook.prazo_s = PRAZO_DA_DECISAO_S if regra_do_prazo and critico is not None else None
+        inicio = time.monotonic()
+        with vigia_de_prazo(hook.prazo_s):
             entrada = json.loads(bruto or "{}")
             if isinstance(entrada, dict):
                 hook.entrada = entrada
+                if hook.prazo_s and prazo_longo is not None:
+                    estender_prazo(hook, prazo_longo, inicio)
                 if critico is not None:
                     marcado(hook, critico, bruto)
                     barrar_sem_versao(hook, critico, bruto)

@@ -103,6 +103,18 @@ REGISTRO = """# Registro de conferências (S-4)
 | 2026-11-03 09:00 | versao-901 | docs/briefs/versao-901-tech-lead-1.md | brief | 1 | reprovado | s | outro pedido | decisao | jarvis |
 """
 
+HISTORICO_DO_QUADRO = """| Data/hora | Cartão | De | Para | Motivo |
+|---|---|---|---|---|
+| 2026-11-02T09:00:00-03:00 | C1 | — | Fazendo | — |
+| 2026-11-02T10:30:00-03:00 | C1 | Code review | Pronto | — |
+| 2026-11-02T10:00:00-03:00 | c1 | Fazendo | Code review | — |
+| 2026-11-02T11:00:00-03:00 | C2 | — | Fazendo | — |
+| 2026-11-02T11:30:00 | C3 | — | Fazendo | sem fuso: fora |
+| 2026-11-02T99:00:00-03:00 | C4 | — | Fazendo | hora inválida: fora |
+| C5 | — | Fazendo | sem hora | — |
+| 2026-11-02T12:00:00-03:00 | C6 |
+"""
+
 
 class Metricas(unittest.TestCase):
     @classmethod
@@ -215,6 +227,89 @@ class Metricas(unittest.TestCase):
         itens = {i["item"]: i for i in json.loads(r.stdout)["itens"]}
         self.assertEqual(itens["E1"]["ci"], {"execucoes": 2, "falhas": 1})
         self.assertNotIn("ci", self.itens["E1"])
+
+
+class LeadEColunas(unittest.TestCase):
+    """0.45.3: lead time do item até a develop e a main com a fatia do autor, dos portões e da espera do dono, e os minutos por
+    coluna do quadro (card voltas-tempo-colunas). Cada teste roda o forge-check e confere o rc antes de ler a saída."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="forge-lead-"))
+        cls.repo = Repositorio(cls.tmp)
+        (cls.tmp / "docs" / "pedidos").mkdir(parents=True)
+        (cls.tmp / "docs" / "kanban").mkdir(parents=True)
+        (cls.tmp / "docs" / "pedidos" / "versao-900.md").write_text(PEDIDO.format(e1=cls.repo.e1, e2=cls.repo.e2[:9]), encoding="utf-8")
+        (cls.tmp / "docs" / "pedidos" / "versao-901.md").write_text("# p\n\n## Histórico\n- 2026-11-02 10:00: (E9) aberto\n",
+                                                                    encoding="utf-8")
+        (cls.tmp / "docs" / "kanban" / "historico.md").write_text(HISTORICO_DO_QUADRO, encoding="utf-8")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def medir(self, *extra, raiz=None, pedido="versao-900", como_json=True):
+        rc, saida, erro = rodar("--raiz", str(raiz or self.tmp), "metricas", "--pedido", pedido, "--fuso=-03:00", "--agora",
+                                "2026-11-02T15:00", "--develop", "develop", "--main", "main", *extra, *(["--json"] if como_json else []))
+        self.assertEqual(rc, 0, erro)
+        return (json.loads(saida) if como_json else saida), erro
+
+    def test_lead_time_ate_a_develop_e_a_main_com_a_fatia_do_autor_dos_portoes_e_do_dono(self):
+        dados, _ = self.medir()
+        itens = {i["item"]: i for i in dados["itens"]}
+        e1 = itens["E1"]  # início 02/11 09:00, entrega conferida 10:30, dono 12:10-12:35, develop 03/11 10:00, main 04/11 10:00
+        self.assertEqual((e1["inicio"], e1["lead_develop_h"], e1["lead_main_h"]), ("2026-11-02T09:00-03:00", 25.0, 49.0))
+        self.assertEqual(e1["fatias_develop"], {"autor_min": 90.0, "portoes_min": 1385.0, "dono_min": 25.0,
+                                                "autor_pct": 6.0, "portoes_pct": 92.3, "dono_pct": 1.7})
+        self.assertEqual(e1["fatias_main"], {"autor_min": 90.0, "portoes_min": 2825.0, "dono_min": 25.0,
+                                             "autor_pct": 3.1, "portoes_pct": 96.1, "dono_pct": 0.9})
+        e2 = itens["E2"]
+        self.assertEqual((e2["lead_develop_h"], e2["fatias_develop"], e2["fatias_main"]), (None, None, None))
+        pedido = dados["pedidos"][0]
+        self.assertEqual(pedido["lead_develop_h_p50"], 25.0)
+        self.assertEqual(pedido["fatias_develop"], e1["fatias_develop"])
+        texto, _ = self.medir(como_json=False)
+        self.assertIn("lead_develop_h=25 lead_main_h=49 fatias_develop=autor=6%,portoes=92.3%,dono=1.7%", texto)
+        self.assertRegex(texto, r"item versao-900 E2 .* fatias_develop=- fatias_main=- ")
+
+    def test_pedido_sem_lead_sai_nao_medido(self):
+        dados, _ = self.medir(pedido="versao-901")
+        self.assertEqual((dados["pedidos"][0]["lead_develop_h_p50"], dados["pedidos"][0]["fatias_develop"]), (None, None))
+
+    def test_fatias_somam_itens_e_a_chegada_antes_da_entrega_nao_se_mede(self):
+        h = lambda hh: datetime.datetime(2026, 11, 2, hh, tzinfo=FUSO)  # noqa: E731
+        try:
+            self.assertIsNone(G.fatias(h(9), h(12), h(11), []))
+            self.assertIsNone(G.fatias(h(9), None, h(11), []))
+            self.assertEqual(G.fatias(h(9), h(10), h(10), [(h(8), h(9) + datetime.timedelta(minutes=30))])["dono_min"], 30.0)
+            soma = G.somar_fatias([G.fatias(h(9), h(10), h(12), []), None, G.fatias(h(10), h(13), h(14), [])])
+            self.assertEqual((soma["autor_min"], soma["portoes_min"], soma["autor_pct"]), (240.0, 180.0, 57.1))
+            self.assertIsNone(G.somar_fatias([None]))
+            zero = G.fatias(h(9), h(9), h(9), [])
+            self.assertEqual((zero["autor_pct"], G.somar_fatias([zero])["autor_pct"]), (None, None))
+        except Exception as erro:  # noqa: BLE001 - a conta que quebra é falha da medida, não erro do teste
+            self.fail(f"a conta das fatias quebrou: {type(erro).__name__}: {erro}")
+
+    def test_minutos_por_coluna_do_quadro(self):
+        dados, _ = self.medir()
+        self.assertEqual(dados["colunas"], {"Code review": {"minutos": 30.0, "cartoes": 1, "abertos": 0},
+                                            "Fazendo": {"minutos": 300.0, "cartoes": 2, "abertos": 1}})
+        texto, _ = self.medir(como_json=False)
+        self.assertIn("metricas: coluna Fazendo minutos=300 cartoes=2 abertos=1", texto)
+        self.assertEqual(self.medir("--desde", "2026-11-03")[0]["colunas"], {})
+
+    def test_sem_historico_do_quadro_colunas_sai_vazio_e_link_avisa(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-colunas-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        (tmp / "docs" / "kanban").mkdir(parents=True)
+        dados, erro = self.medir(raiz=tmp)
+        self.assertEqual(dados["colunas"], None)
+        self.assertNotIn("aviso: None", erro)
+        self.assertNotIn("metricas: coluna", self.medir(raiz=tmp, como_json=False)[0])
+        (tmp / "docs" / "kanban" / "historico.md").symlink_to(self.tmp / "docs" / "kanban" / "historico.md")
+        dados, erro = self.medir(raiz=tmp)
+        self.assertEqual(dados["colunas"], None)
+        self.assertIn("historico.md ilegível, link simbólico", erro)
 
 
 class DuracaoDoPrePush(unittest.TestCase):
@@ -515,6 +610,68 @@ class Regras(unittest.TestCase):
         rc, saida, _ = rodar("--raiz", str(RAIZ), "regras")
         self.assertEqual(rc, 0)
         self.assertRegex(saida.splitlines()[-1], r"^regras: \d+ regras, \d+ em dia, \d+ com aviso")
+
+
+def changelog(*versoes):
+    """CHANGELOG.md com as versões (número, data), da mais nova à mais antiga."""
+    return "# Changelog\n\n## [Não publicado]\n\n" + "".join(f"## [{v}] - {d}\n### Corrigido\n- x\n\n" for v, d in versoes)
+
+
+SEIS = [("0.6.0", "2026-11-06"), ("0.5.0", "2026-11-05"), ("0.4.0", "2026-11-04"), ("0.3.0", "2026-11-03"),
+        ("0.2.0", "2026-11-02"), ("0.1.0", "2026-11-01")]
+
+
+class AvaliacaoDeFora(unittest.TestCase):
+    """0.45.3: `forge-check avaliacao --pendente` diz se passaram 5 versões do CHANGELOG.md desde a última docs/avaliacoes/*.md;
+    só avisa (rc 0 nos dois casos)."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-avaliacao-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        (self.tmp / "docs" / "avaliacoes").mkdir(parents=True)
+
+    def avaliacao(self, *versoes):
+        (self.tmp / "CHANGELOG.md").write_text(changelog(*versoes), encoding="utf-8")
+        return rodar("--raiz", str(self.tmp), "avaliacao", "--pendente")
+
+    def test_sem_avaliacao_cinco_versoes_avisam_e_quatro_nao(self):
+        rc, saida, _ = self.avaliacao(*SEIS[:5])
+        self.assertEqual(rc, 0)
+        self.assertIn("avaliação de fora pendente: 5 versões desde o início", saida)
+        rc, saida, _ = self.avaliacao(*SEIS[:4])
+        self.assertEqual(rc, 0, "só avisa, nunca barra")
+        self.assertIn("em dia: 4 de 5", saida)
+        self.assertNotIn("pendente", saida)
+
+    def test_conta_so_as_versoes_depois_da_versao_da_ultima_avaliacao(self):
+        (self.tmp / "docs" / "avaliacoes" / "2026-10-01.md").write_text("versao: 0.1.0\n", encoding="utf-8")
+        (self.tmp / "docs" / "avaliacoes" / "2026-11-02.md").write_text("versao: 0.2.0\n", encoding="utf-8")
+        rc, saida, _ = self.avaliacao(*SEIS)
+        self.assertEqual(rc, 0)
+        self.assertIn("em dia: 4 de 5 versões desde docs/avaliacoes/2026-11-02.md", saida)
+        (self.tmp / "docs" / "avaliacoes" / "2026-11-02.md").write_text("versao: 0.1.0\n", encoding="utf-8")
+        self.assertIn("pendente: 5 versões", self.avaliacao(*SEIS)[1])
+
+    def test_sem_linha_versao_vale_a_data_do_nome(self):
+        (self.tmp / "docs" / "avaliacoes" / "2026-11-01-forge.md").write_text("# avaliação\n", encoding="utf-8")
+        self.assertIn("pendente: 5 versões", self.avaliacao(*SEIS)[1])  # depois de 01/11: 0.2.0 a 0.6.0
+        (self.tmp / "docs" / "avaliacoes" / "2026-11-02.md").write_text("# avaliação\n", encoding="utf-8")
+        self.assertIn("em dia: 4 de 5", self.avaliacao(*SEIS)[1])
+        (self.tmp / "docs" / "avaliacoes" / "notas.md").write_text("versao: 0.6.0\n", encoding="utf-8")
+        self.assertIn("em dia: 4 de 5", self.avaliacao(*SEIS)[1], "arquivo fora de <AAAA-MM-DD>*.md não conta")
+
+    def test_versao_fora_do_changelog_ou_avaliacao_ilegivel_cai_na_data_do_nome(self):
+        (self.tmp / "docs" / "avaliacoes" / "2026-11-01.md").write_text("versao: 9.9.9\n", encoding="utf-8")
+        self.assertIn("pendente: 5 versões desde docs/avaliacoes/2026-11-01.md", self.avaliacao(*SEIS)[1])
+        fora = self.tmp / "fora.md"
+        fora.write_text("versao: 0.5.0\n", encoding="utf-8")
+        (self.tmp / "docs" / "avaliacoes" / "2026-11-02.md").symlink_to(fora)  # link não é lido: vale a data
+        self.assertIn("em dia: 4 de 5 versões desde docs/avaliacoes/2026-11-02.md", self.avaliacao(*SEIS)[1])
+
+    def test_sem_changelog_nada_medido(self):
+        rc, saida, _ = rodar("--raiz", str(self.tmp), "avaliacao", "--pendente")
+        self.assertEqual(rc, 2)
+        self.assertIn("nada medido", saida)
 
 
 if __name__ == "__main__":

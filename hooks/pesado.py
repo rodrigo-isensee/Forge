@@ -5,7 +5,8 @@ PreToolUse (Bash): se um comando simples da linha começa com um item de `pesado
 sessão ou agente tem tarefa pesada ativa (trava com PID vivo, com menos de TRAVA_S), bloqueia; senão pega a trava.
 PostToolUse, PostToolUseFailure e PermissionDenied (Bash) do mesmo comando soltam a trava.
 No clone do Forge (cópia principal e worktrees), que não tem `.forge/config.json`, valem também os PESADOS_DO_FORGE
-abaixo: duas suítes completas ao mesmo tempo esgotam a memória (R-TETO).
+abaixo: duas suítes completas ao mesmo tempo esgotam a memória (R-TETO); os scripts de PELOS_ARGUMENTOS são
+pesados salvo nas formas leves exatas (MAQ-A1b).
 Estado em .forge/run/pesado.json.
 Orkastery 5 (0.44.2): ocupado, o PreToolUse ESPERA a vez numa fila flock (a mesma ideia do .githooks/pre-push: senha presa
 por flock em .forge/run/pesado.fila/, a de processo morto se descarta) até ESPERA_S; a fila anda pela versão da branch (a
@@ -31,9 +32,12 @@ GERENCIADORES = {"npm", "pnpm", "yarn", "bun", "uv", "poetry"}
 SUBCOMANDOS_DE_LANCE = {"exec", "run", "dlx", "x"}
 # A suíte completa do Forge é tarefa pesada (R-TETO): o `.forge/` do clone é protegido e não traz esta lista.
 # scripts/suite-paralela.py é a mesma suíte dividida em processos (D4), que o pre-push e o CI chamam.
+# MAQ-A1b (C-5): a classe de PELOS_ARGUMENTOS depende dos argumentos; leves só nas formas de `leve_pelos_argumentos`.
+PELOS_ARGUMENTOS = ("bin/forge-testes", "./bin/forge-testes", "bin/forge-mutante", "./bin/forge-mutante")
 PESADOS_DO_FORGE = ["python3 -m unittest discover", "python -m unittest discover",
                     "python3 scripts/suite-paralela.py", "python scripts/suite-paralela.py",
-                    "scripts/suite-paralela.py", "./scripts/suite-paralela.py", ".githooks/pre-push --suite"]
+                    "scripts/suite-paralela.py", "./scripts/suite-paralela.py", ".githooks/pre-push --suite",
+                    *PELOS_ARGUMENTOS]
 
 
 # Orkastery 5: espera na fila em vez de bloquear. O timeout do PreToolUse do pesado em hooks.json fica acima deste teto.
@@ -154,6 +158,27 @@ def inicios(palavras):
     return saida
 
 
+def pede_opcao(argumento, opcao):
+    """O argparse lê `argumento` como `opcao`: inteira, um prefixo dela (`--comp`) ou na forma `=` (`--verm=x`)."""
+    nome = argumento.split("=", 1)[0]
+    return len(nome) > 2 and opcao.startswith(nome)
+
+
+def leve_pelos_argumentos(inicio):
+    """O teste dirigido (os dois primeiros de PELOS_ARGUMENTOS) sem `--completa` nem `--vermelho` em posição nenhuma; o
+    mutante só com `--listar` sozinho."""
+    nome, *argumentos = inicio.split()
+    if nome in PELOS_ARGUMENTOS[:2]:
+        return not any(pede_opcao(a, o) for a in argumentos for o in ("--completa", "--vermelho"))
+    return argumentos == ["--listar"]
+
+
+def casa(inicio, padrao):
+    if padrao in PELOS_ARGUMENTOS:
+        return inicio.split()[:1] == [padrao] and not leve_pelos_argumentos(inicio)
+    return inicio == padrao or inicio.startswith(padrao + " ")
+
+
 def pesado(comando, padroes):
     """O comando tem um comando simples que começa com um dos padrões (citar a ferramenta não conta)."""
     texto = normalizar(comando)
@@ -163,7 +188,7 @@ def pesado(comando, padroes):
     # ADR 0013, tabela 2.4: pesado se qualquer leitura (a fiel e, se diferir, a da develop) for; se nenhuma fecha,
     # libera, como na develop (a trava de recurso fica aberta na dúvida).
     partes = [inicios(palavras) for leitura in leituras(comando).partes for palavras, _, _ in leitura]
-    return any(t == p or t.startswith(p + " ") for inicio in partes for t in inicio for p in padroes)
+    return any(casa(t, p) for inicio in partes for t in inicio for p in padroes)
 
 
 def comando_vivo(padroes):

@@ -668,8 +668,15 @@ class CacheDoPlugin(unittest.TestCase):
         dados = {"version": 2, "plugins": {"forge@mkt": [{"installPath": str(self.forge / v)} for v in versoes]}}
         (self.casa / ".claude" / "plugins" / "installed_plugins.json").write_text(json.dumps(dados), encoding="utf-8")
 
+    def sem_erro(self, funcao, *args):
+        """Na dúvida, nada sai: o cache fora da forma nunca derruba o doutor (a exceção vira falha do teste, não erro)."""
+        try:
+            return funcao(*args)
+        except Exception as erro:  # noqa: BLE001
+            self.fail(f"{funcao.__name__} levantou {type(erro).__name__}: {erro}")
+
     def antigas(self):
-        return sorted(p.name for p in self.fv.versoes_antigas_do_cache(self.casa)[0])
+        return sorted(p.name for p in self.sem_erro(self.fv.versoes_antigas_do_cache, self.casa)[0])
 
     def test_fica_a_em_uso_e_as_duas_maiores(self):
         self.assertEqual(self.antigas(), ["0.40.0"])
@@ -688,15 +695,46 @@ class CacheDoPlugin(unittest.TestCase):
 
     def test_remover_apaga_registra_e_pula_a_que_passou_a_ser_usada(self):
         self.versao("0.39.0")
-        lista = self.fv.versoes_antigas_do_cache(self.casa)[0]
+        lista = self.sem_erro(self.fv.versoes_antigas_do_cache, self.casa)[0]
         self.instalados(["0.41.0", "0.39.0"])
         estado = self.casa / "estado"
         with unittest.mock.patch.dict(os.environ, {"XDG_STATE_HOME": str(estado)}):
-            apagadas, puladas = self.fv.remover_do_cache(lista, self.casa)
+            apagadas, puladas = self.sem_erro(self.fv.remover_do_cache, lista, self.casa)
         self.assertEqual(([p.name for p in apagadas], [p.name for p in puladas]), (["0.40.0"], ["0.39.0"]))
         self.assertFalse((self.forge / "0.40.0").exists())
         self.assertTrue((self.forge / "0.39.0").exists())
         self.assertIn("0.40.0", (estado / "forge" / "cache-removido.log").read_text(encoding="utf-8"))
+
+
+    def test_sem_casa_vale_a_do_usuario(self):  # Q55: o padrão de `casa_` é a casa do usuário
+        with unittest.mock.patch.object(self.fv, "casa", return_value=self.casa):
+            self.assertEqual(sorted(p.name for p in self.sem_erro(self.fv.versoes_antigas_do_cache)[0]), ["0.40.0"])
+
+    def test_cache_ausente_ou_installed_ilegivel_nada_sai(self):  # Q44 e Q53, sem erro
+        self.assertEqual(self.sem_erro(self.fv.fora_de_uso, [self.forge / "0.40.0"], None, []), [])
+        shutil.rmtree(self.casa / ".claude" / "plugins" / "cache")
+        self.assertEqual(self.sem_erro(self.fv.candidatas_do_cache, self.casa), [])
+
+    def test_installpath_fora_da_forma_nada_sai(self):  # Q50
+        dados = {"version": 2, "plugins": {"forge@mkt": [{"installPath": 3}]}}
+        (self.casa / ".claude" / "plugins" / "installed_plugins.json").write_text(json.dumps(dados), encoding="utf-8")
+        self.assertIsNone(self.sem_erro(self.fv.caminhos_em_uso, self.casa))
+        self.assertEqual(self.antigas(), [])
+
+    def test_protege_a_copia_do_claude_plugin_root(self):  # Q52
+        with unittest.mock.patch.dict(os.environ, {"CLAUDE_PLUGIN_ROOT": str(self.forge / "0.40.0")}):
+            self.assertEqual(self.antigas(), [])
+        with unittest.mock.patch.dict(os.environ):
+            os.environ.pop("CLAUDE_PLUGIN_ROOT", None)
+            self.assertNotIn(self.forge / "0.40.0", self.sem_erro(self.fv.protegidas_da_sessao))
+
+    def test_tamanho_soma_os_bytes_e_respeita_o_teto(self):  # Q56 (CM-11)
+        (self.forge / "0.40.0" / "dados.bin").write_bytes(b"x" * 1000)
+        total = self.sem_erro(self.fv.tamanho, self.forge / "0.40.0")
+        self.assertIsInstance(total, int)
+        self.assertGreaterEqual(total, 1000)
+        with unittest.mock.patch.object(self.fv.time, "monotonic", side_effect=[0.0, 10.0, 10.0]):
+            self.assertIsNone(self.sem_erro(self.fv.tamanho, self.forge / "0.40.0", 5.0))
 
 
 class DoutorVersao(ap.Base):

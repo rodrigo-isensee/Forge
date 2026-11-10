@@ -1,0 +1,28 @@
+{
+  "descricao": "V0453-GH-ALIAS: valor com marca do YAML (&) é ilegível",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "../home/.config/gh/config.yml": "git_protocol: https\naliases:\n    nova: &a pr create\nbrowser:\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh nova"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "não lê"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  }
+}

@@ -660,20 +660,8 @@ def gravar_pesos(relatorios):
     PESOS.write_text(json.dumps(pesos, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def orquestrar():
-    os.chdir(RAIZ)
-    inicio = time.monotonic()
-    carga, memoria, total_gb = medir_carga()
-    try:
-        n, origem = numero_de_processos(os.environ, os.cpu_count(), carga, memoria, total_gb)
-    except ValueError as e:
-        print(f"suite-paralela: {e}.", file=sys.stderr)
-        print("FAILED (configuração)")
-        return 1
-    esperado = ids(descobrir())
-    total = sum(esperado.values())
-    pesos = ler_pesos()
-    todos = modulos()
+def dividir(todos, pesos, n):
+    """Planeja as unidades e as reparte em até `n` processos. Devolve (plano, nomes, partes, erros da divisão)."""
     plano = planejar(todos, pesos, lambda nome: [t.id() for t in achatar(suite_do_modulo(nome))])
     nomes = sorted(plano)
     partes = repartir(nomes, pesos, min(n, max(1, len(nomes))))
@@ -681,15 +669,12 @@ def orquestrar():
     repetidos = nomes_de_arquivo_repetidos(todos)
     if repetidos:
         erros.append(f"nome de arquivo repetido em tests/ e nos pacotes dela: {', '.join(repetidos)}")
-    if erros or not nomes:
-        print("suite-paralela: " + ("; ".join(erros) or "nenhum módulo de teste em tests/") + ".", file=sys.stderr)
-        print("FAILED (divisão)")
-        return 1
-    print(f"suite-paralela: {total} testes em {len(modulos())} módulos ({len(nomes)} unidades), {len(partes)} processos "
-          f"({origem}).",
-          file=sys.stderr, flush=True)
-    antes = estado_da_arvore()
-    hash_arvore = hash_da_arvore(RAIZ)
+    return plano, nomes, partes, erros
+
+
+def rodar_partes(partes, plano, inicio, esperado, antes):
+    """Lança os processos, espera e junta os relatórios numa pasta temporária. Devolve (filhos, relatórios, erros, linhas,
+    durações). No sinal, encerra os processos, avisa e repassa o `Interrompido`."""
     pasta = Path(tempfile.mkdtemp(prefix="forge-suite-"))
     filhos = []
     anteriores = {s: signal.signal(s, ao_sinal) for s in SINAIS}
@@ -703,6 +688,7 @@ def orquestrar():
         executado = collections.Counter(i for rel in relatorios if rel for i in rel["ids"])
         erros += conferir_completude(esperado, executado)
         erros += conferir_arvore(antes, estado_da_arvore())
+        return filhos, relatorios, erros, linhas, duracoes
     except Interrompido as e:
         for s in SINAIS:
             signal.signal(s, signal.SIG_IGN)
@@ -710,24 +696,58 @@ def orquestrar():
         print(f"suite-paralela: interrompida pelo sinal {e.numero}; os processos da suíte foram encerrados.",
               file=sys.stderr)
         print("FAILED (interrompida)")
-        return 128 + e.numero
+        raise
     finally:
         shutil.rmtree(pasta, ignore_errors=True)
-    segundos = time.monotonic() - inicio
-    rodados = sum(rel["rodados"] for rel in relatorios if rel)
-    print(f"\nRan {rodados} tests in {segundos:.3f}s ({len(partes)} processos)\n")
+
+
+def decidir_veredito(relatorios, erros, linhas, hash_arvore, pulados):
+    """Veredito e código da rodada: vermelho com falha, erro ou guarda; senão o teto de pulados, e só então o verde."""
     falhas = sum(rel["falhas"] for rel in relatorios if rel)
     erros_t = sum(rel["erros"] for rel in relatorios if rel)
-    pulados = sum(rel["pulados"] for rel in relatorios if rel)
     if erros or falhas or erros_t:
         for erro in erros:
             print(f"suite-paralela: {erro}", file=sys.stderr)
         detalhes = [f"failures={falhas}"] * bool(falhas) + [f"errors={erros_t}"] * bool(erros_t) \
             + [f"skipped={pulados}"] * bool(pulados) + ["guarda=" + str(len(erros))] * bool(erros)
-        veredito, codigo = f"FAILED ({', '.join(detalhes)})", 1
-    else:  # o teto antes de fechar_verde: estourado não regrava pesos nem carimbo (T3)
-        veredito = conferir_teto(relatorios, pulados, linhas)
-        veredito, codigo = (veredito, 1) if veredito else (fechar_verde(relatorios, hash_arvore, pulados), 0)
+        return f"FAILED ({', '.join(detalhes)})", 1
+    # o teto antes de fechar_verde: estourado não regrava pesos nem carimbo (T3)
+    veredito = conferir_teto(relatorios, pulados, linhas)
+    return (veredito, 1) if veredito else (fechar_verde(relatorios, hash_arvore, pulados), 0)
+
+
+def orquestrar():
+    os.chdir(RAIZ)
+    inicio = time.monotonic()
+    carga, memoria, total_gb = medir_carga()
+    try:
+        n, origem = numero_de_processos(os.environ, os.cpu_count(), carga, memoria, total_gb)
+    except ValueError as e:
+        print(f"suite-paralela: {e}.", file=sys.stderr)
+        print("FAILED (configuração)")
+        return 1
+    esperado = ids(descobrir())
+    total = sum(esperado.values())
+    pesos = ler_pesos()
+    plano, nomes, partes, erros = dividir(modulos(), pesos, n)
+    if erros or not nomes:
+        print("suite-paralela: " + ("; ".join(erros) or "nenhum módulo de teste em tests/") + ".", file=sys.stderr)
+        print("FAILED (divisão)")
+        return 1
+    print(f"suite-paralela: {total} testes em {len(modulos())} módulos ({len(nomes)} unidades), {len(partes)} processos "
+          f"({origem}).",
+          file=sys.stderr, flush=True)
+    antes = estado_da_arvore()
+    hash_arvore = hash_da_arvore(RAIZ)
+    try:
+        filhos, relatorios, erros, linhas, duracoes = rodar_partes(partes, plano, inicio, esperado, antes)
+    except Interrompido as e:
+        return 128 + e.numero
+    segundos = time.monotonic() - inicio
+    rodados = sum(rel["rodados"] for rel in relatorios if rel)
+    print(f"\nRan {rodados} tests in {segundos:.3f}s ({len(partes)} processos)\n")
+    pulados = sum(rel["pulados"] for rel in relatorios if rel)
+    veredito, codigo = decidir_veredito(relatorios, erros, linhas, hash_arvore, pulados)
     causas = imprimir_causas(filhos, relatorios)
     print(veredito)
     publicar_no_ci(veredito, linhas, partes, relatorios, duracoes, pesos, rodados, segundos)

@@ -1,0 +1,29 @@
+{
+  "descricao": "V0453-GH-ALIAS: GH_CONFIG_DIR do ambiente aponta a configuração",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "../outra/config.yml": "git_protocol: https\naliases:\n    nova: pr create\nbrowser:\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh nova"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "gh pr create"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "GH_CONFIG_DIR": "{tmp}/outra"
+  }
+}

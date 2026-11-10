@@ -13,11 +13,12 @@ contra TETO_DA_MENSAGEM e as palavras da tabela "Em vez de" de skills/modo-inici
 """
 import datetime
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
 
-from _comum import PLUGIN, bloquear, executar, gravar_json, ler_json
+from _comum import PLUGIN, bloquear, caminhos_extra, executar, gravar_json, ler_json
 
 CHECAGEM_S = 60
 REPETICOES_PARA_PAUSAR = 4
@@ -49,13 +50,26 @@ def espera_o_dono(raiz, pedido):
     return bool(linhas) and "PERGUNTA AO DONO" in linhas[-1]
 
 
-def falhas(raiz, checagens):
-    """As checagens (argv) que não saíram com rc 0, como texto."""
+def ambiente_das_checagens(hook, raiz):
+    """0.45.4: o ambiente do hook com as pastas de `caminhos_extra` (.forge/config.json) no fim do PATH, como o
+    `.githooks/pre-push`: a checagem acha a ferramenta da stack mesmo quando o agente abre sem o PATH do terminal. A pasta que
+    não passa na conferência fica de fora, com aviso no erros.log."""
+    pastas, avisos = caminhos_extra(raiz)
+    for aviso in avisos:
+        hook.registrar_escape(aviso)
+    ambiente = dict(os.environ)
+    if pastas:
+        ambiente["PATH"] = os.pathsep.join(filter(None, [ambiente.get("PATH", ""), *pastas]))
+    return ambiente
+
+
+def falhas(raiz, checagens, ambiente=None):
+    """As checagens (argv) que não saíram com rc 0, como texto. `ambiente`: o do processo (com o PATH dos `caminhos_extra`)."""
     saida = []
     for argv in checagens:
         try:
             rc = subprocess.run(argv, cwd=raiz, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                timeout=CHECAGEM_S).returncode
+                                timeout=CHECAGEM_S, env=ambiente).returncode
         except (OSError, subprocess.TimeoutExpired):
             rc = "erro"
         if rc != 0:
@@ -72,7 +86,7 @@ def avaliar_meta(hook, raiz):
     if espera_o_dono(raiz, pedido):
         gravar_json(arquivo, {**meta, "estado": "espera o dono", "repeticoes": 0, "ultimo": None, "em": agora()})
         return
-    falhou = falhas(raiz, checagens)
+    falhou = falhas(raiz, checagens, ambiente_das_checagens(hook, raiz))
     if not falhou:
         gravar_json(arquivo, {**meta, "armado": False, "estado": "entregue e provado", "repeticoes": 0, "em": agora()})
         return

@@ -29,9 +29,9 @@
   },
   "devops-engineer": {
    "teto": {
-    "agente_caracteres": 5155,
-    "total_caracteres": 22243,
-    "marcadores": 44
+    "agente_caracteres": 5052,
+    "total_caracteres": 21991,
+    "marcadores": 42
    }
   },
   "jarvis": {
@@ -48,16 +48,16 @@
   },
   "qa-engineer": {
    "teto": {
-    "agente_caracteres": 4195,
-    "total_caracteres": 21765,
-    "marcadores": 47
+    "agente_caracteres": 3962,
+    "total_caracteres": 21480,
+    "marcadores": 45
    }
   },
   "security-engineer": {
    "teto": {
-    "agente_caracteres": 6828,
-    "total_caracteres": 18879,
-    "marcadores": 37
+    "agente_caracteres": 6645,
+    "total_caracteres": 18619,
+    "marcadores": 35
    }
   },
   "software-architect": {
@@ -69,9 +69,9 @@
   },
   "tech-lead": {
    "teto": {
-    "agente_caracteres": 8828,
-    "total_caracteres": 30227,
-    "marcadores": 61
+    "agente_caracteres": 8615,
+    "total_caracteres": 29861,
+    "marcadores": 56
    }
   },
   "ux-designer": {

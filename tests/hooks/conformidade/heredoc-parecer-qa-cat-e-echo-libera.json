@@ -1,5 +1,5 @@
 {
-  "descricao": "HOOK-PARECER-HEREDOC-FALSO-POSITIVO (0.43.2), projeto: echo depois do corpo.",
+  "descricao": "HOOK-PARECER-HEREDOC-FALSO-POSITIVO (0.43.2), projeto: echo depois do corpo. O alvo é .txt: desde a 0.45.3 o parecer .md pelo Bash recusa (V0453-PARECER-BASH).",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -17,7 +17,7 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "cat > docs/qa/p.md <<'FIM'\nQA: rodei git pull e o merge passou; don't quebra.\nFIM\necho gravado"
+      "command": "cat > docs/qa/p.txt <<'FIM'\nQA: rodei git pull e o merge passou; don't quebra.\nFIM\necho gravado"
     },
     "agent_type": "forge:qa-engineer",
     "hook_event_name": "PreToolUse",

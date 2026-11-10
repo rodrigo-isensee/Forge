@@ -1,0 +1,28 @@
+{
+  "pedido": "v0451-hook-n4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "H18",
+      "guarda": "a linha ambígua é ilegível nos dois hooks",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if substituicao_ambigua_entre_aspas(comando):  # HOOK-N4",
+      "para": "    if False:  # HOOK-N4",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/_comum.py",
+      "trecho": "apostrofo < 0",
+      "motivo": "apóstrofo sem par no corpo de \"$(…)\": a leitura do shlex já não fecha e a linha é ilegível antes desta conferência"
+    },
+    {
+      "arquivo": "hooks/_comum.py",
+      "trecho": "fim_da_aspa < 0",
+      "motivo": "apóstrofo sem par fora de aspas: a leitura do shlex já não fecha e a linha é ilegível antes desta conferência"
+    }
+  ]
+}

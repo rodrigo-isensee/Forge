@@ -1,0 +1,154 @@
+{
+  "pedido": "v0454-bancada",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "B1",
+      "guarda": "espera com alternativa vazia é inválida",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": " and all(alternativas(caso[\"espera\"])))",
+      "para": ")",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_espera_com_alternativas_sem_maiusculas_nem_acentos"
+      ]
+    },
+    {
+      "id": "B2",
+      "guarda": "a comparação ignora acentos",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "if not unicodedata.combining(c))",
+      "para": "if unicodedata.combining(c))",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_espera_com_alternativas_sem_maiusculas_nem_acentos"
+      ]
+    },
+    {
+      "id": "B3",
+      "guarda": "ok quando a resposta contém alguma alternativa",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "any(a in texto for a",
+      "para": "any(a not in texto for a",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_espera_com_alternativas_sem_maiusculas_nem_acentos"
+      ]
+    },
+    {
+      "id": "B4",
+      "guarda": "sem --contexto, a instrução não ganha o bloco de contexto",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "contexto and f\"Contexto do projeto",
+      "para": "f\"Contexto do projeto",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_nota_sem_ferramentas_igual_nas_duas_versoes_e_contexto_opcional"
+      ]
+    },
+    {
+      "id": "B5",
+      "guarda": "a rodada inválida sai das médias",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "if not m[\"invalida\"]]",
+      "para": "if m[\"invalida\"]]",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_chamada_de_ferramenta_falsa_e_invalida_e_sai_das_medias"
+      ]
+    },
+    {
+      "id": "B6",
+      "guarda": "o ok conta só as rodadas com espera",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "if m[\"ok\"] is not None]",
+      "para": "if m[\"ok\"] is None]",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_saida_grava_entrada_resposta_tokens_segundos_e_ok_por_versao_caso_e_rodada"
+      ]
+    },
+    {
+      "id": "B7",
+      "guarda": "as médias saem das rodadas válidas, quando há",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "    if validas:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_saida_grava_entrada_resposta_tokens_segundos_e_ok_por_versao_caso_e_rodada"
+      ]
+    },
+    {
+      "id": "B8",
+      "guarda": "a linha da rodada marca a inválida",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "\" invalida (chamada de ferramenta falsa)\" if m[\"invalida\"] else \"\"",
+      "para": "\" invalida (chamada de ferramenta falsa)\" if True else \"\"",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_chamada_de_ferramenta_falsa_e_invalida_e_sai_das_medias"
+      ]
+    },
+    {
+      "id": "B9",
+      "guarda": "a média sem rodada válida não imprime tokens",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "segundos={resumo['segundos']} \" if \"tokens\" in resumo else \"\"",
+      "para": "segundos={resumo['segundos']} \" if False else \"\"",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_chamada_de_ferramenta_falsa_e_invalida_e_sai_das_medias"
+      ]
+    },
+    {
+      "id": "B10",
+      "guarda": "--saida sem --executar é erro de uso",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "if args.saida and not args.executar:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_saida_sem_executar_e_erro_de_uso"
+      ]
+    },
+    {
+      "id": "B11",
+      "guarda": "o --contexto entra na instrução",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "read_text(encoding=\"utf-8\").strip() if args.contexto else \"\"",
+      "para": "read_text(encoding=\"utf-8\").strip() if False else \"\"",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_nota_sem_ferramentas_igual_nas_duas_versoes_e_contexto_opcional"
+      ]
+    },
+    {
+      "id": "B12",
+      "guarda": "contexto acima do máximo dá rc 1 sem chamar",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "if len(contexto) > CONTEXTO_MAX:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_contexto_longo_da_rc_1_sem_chamar"
+      ]
+    },
+    {
+      "id": "B13",
+      "guarda": "o contexto no máximo exato passa",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "if len(contexto) > CONTEXTO_MAX:",
+      "para": "if len(contexto) >= CONTEXTO_MAX:",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_contexto_longo_da_rc_1_sem_chamar"
+      ]
+    },
+    {
+      "id": "B14",
+      "guarda": "com --saida, o registro é gravado e o rc soma o da gravação",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "gravar(args.saida, registro)) if args.saida else rc",
+      "para": "gravar(args.saida, registro)) if False else rc",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_saida_grava_entrada_resposta_tokens_segundos_e_ok_por_versao_caso_e_rodada"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "tests/bancada/bancada.py",
+      "trecho": "caso[\"espera\"] in resposta",
+      "motivo": "S7 0.45.4: a comparação foi para `atende` (alternativas, sem maiúsculas nem acentos), onde o mutante B3 desta spec prova o `a in texto`",
+      "linha_base": 94
+    }
+  ]
+}

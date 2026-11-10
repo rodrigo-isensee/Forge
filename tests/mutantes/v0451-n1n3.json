@@ -1,0 +1,166 @@
+{
+  "pedido": "v0451-n1n3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A1",
+      "guarda": "o comando do git não se troca por alias",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if sub is None or sub in COMANDOS_DO_GIT:",
+      "para": "        if sub is None:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n1"
+      ]
+    },
+    {
+      "id": "A2",
+      "guarda": "sem alias (código 1), o subcomando segue como está",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if cod == 1:\n            return None",
+      "para": "        if cod == 0:\n            return None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n1"
+      ]
+    },
+    {
+      "id": "A3",
+      "guarda": "o git que não responde recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if cod != 0:\n            self.barrar(",
+      "para": "        if False:\n            self.barrar(",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n1"
+      ]
+    },
+    {
+      "id": "A4",
+      "guarda": "a expansão do alias passa pelas regras",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if expansao is not None:  # N1",
+      "para": "        if False:  # N1",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n1"
+      ]
+    },
+    {
+      "id": "A5",
+      "guarda": "alias de shell recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if expansao.startswith(\"!\"):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n1"
+      ]
+    },
+    {
+      "id": "A6",
+      "guarda": "alias encadeado para no teto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if alias >= PROFUNDIDADE_DO_ALIAS:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n1"
+      ]
+    },
+    {
+      "id": "A7",
+      "guarda": "alias que o hook não divide recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not palavras:\n            self.barrar(",
+      "para": "        if False:\n            self.barrar(",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n1"
+      ]
+    },
+    {
+      "id": "A8",
+      "guarda": "alias que mescla recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if palavras[0] in ALIAS_QUE_MESCLA:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n1"
+      ]
+    },
+    {
+      "id": "A9",
+      "guarda": "gh alias set, import e delete recusam",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if pos[:2] in ([\"alias\", \"set\"], [\"alias\", \"import\"], [\"alias\", \"delete\"]):",
+      "para": "        if pos[:2] in ([\"alias\", \"set\"], [\"alias\", \"import\"]):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n1"
+      ]
+    },
+    {
+      "id": "A10",
+      "guarda": "o alias que mescla inclui o pull",
+      "arquivo": "hooks/conformidade.py",
+      "de": "ALIAS_QUE_MESCLA = {\"merge\", \"pull\"}",
+      "para": "ALIAS_QUE_MESCLA = {\"merge\"}",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n1"
+      ]
+    },
+    {
+      "id": "L1",
+      "guarda": "o cp com link também passa pela conferência",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if prog == \"ln\" or prog == \"cp\" and any(re.fullmatch(r\"-[^-]*[ls]\\w*|--(link|symbolic-link)\", a) for a in args):",
+      "para": "            if prog == \"ln\":",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n3"
+      ]
+    },
+    {
+      "id": "L2",
+      "guarda": "o ln passa pela conferência",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if prog == \"ln\" or prog == \"cp\" and any(re.fullmatch(r\"-[^-]*[ls]\\w*|--(link|symbolic-link)\", a) for a in args):",
+      "para": "            if prog == \"cp\" and any(re.fullmatch(r\"-[^-]*[ls]\\w*|--(link|symbolic-link)\", a) for a in args):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n3"
+      ]
+    },
+    {
+      "id": "L3",
+      "guarda": "o cp sem link só lê",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if prog == \"ln\" or prog == \"cp\" and any(re.fullmatch(r\"-[^-]*[ls]\\w*|--(link|symbolic-link)\", a) for a in args):",
+      "para": "            if prog == \"ln\" or prog == \"cp\":",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n3"
+      ]
+    },
+    {
+      "id": "L4",
+      "guarda": "--target-directory= é caminho",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if not a.startswith(\"-\") or a.startswith(\"--target-directory=\")]",
+      "para": "            if not a.startswith(\"-\")]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n3"
+      ]
+    },
+    {
+      "id": "L5",
+      "guarda": "o valor de --target-directory= é o caminho",
+      "arquivo": "hooks/conformidade.py",
+      "de": "a.split(\"=\", 1)[1] if a.startswith(\"--target-directory=\") else a for a in args",
+      "para": "a.split(\"=\", 1)[1] if False else a for a in args",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n3"
+      ]
+    },
+    {
+      "id": "L6",
+      "guarda": "o achado recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if achado:\n            motivo",
+      "para": "        if False:\n            motivo",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n3"
+      ]
+    }
+  ]
+}

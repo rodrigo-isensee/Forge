@@ -1,0 +1,30 @@
+{
+  "pedido": "v0453-hooks-push-todas",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "T1",
+      "guarda": "git push --all recusa para todo papel (uma branch por vez)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            elif a == \"--all\":  # 0.45.3",
+      "para": "            elif False:  # 0.45.3",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_push_todas"]
+    },
+    {
+      "id": "T2",
+      "guarda": "--al é lido como --all antes das regras",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"--delete\", \"--hard\", \"--amend\", \"--all\")",
+      "para": "\"--delete\", \"--hard\", \"--amend\")",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_push_todas"]
+    },
+    {
+      "id": "T3",
+      "guarda": "o --mirror orienta a enviar uma branch por vez",
+      "arquivo": "hooks/conformidade.py",
+      "de": "f\"{UMA_BRANCH_POR_VEZ}, com um commit novo\", \"forca\")",
+      "para": "\"envie só a branch, com um commit novo\", \"forca\")",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_push_todas"]
+    }
+  ]
+}

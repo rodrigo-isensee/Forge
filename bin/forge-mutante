@@ -55,7 +55,9 @@ A rodada é evidência do QA; `--cobertura` é a checagem do autor; nenhum hook,
 import argparse
 import ast
 import concurrent.futures
+import functools
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -71,6 +73,13 @@ import unittest
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
+
+# FILA-31 F1: o módulo comum mora ao lado e é carregado pelo arquivo, nunca pelo cache de `sys.modules`: o executor do mutante
+# já o importou da cópia de trabalho, e a cópia em $TMPDIR precisa do dela.
+_APOIO = importlib.util.spec_from_file_location("forge_apoio_testes", Path(__file__).resolve().parent / "forge_apoio_testes.py")
+apoio = importlib.util.module_from_spec(_APOIO)
+_APOIO.loader.exec_module(apoio)
+ENTRADA, PESADA, contexto, outras = apoio.ENTRADA, apoio.PESADA, apoio.contexto, apoio.outras
 
 LOG = Path(".forge/run/testes.log")
 PRAZO_PADRAO = 600
@@ -126,24 +135,10 @@ def ambiente_da_copia(cache=None):
     return env
 
 
-def git_da_copia(*args, cwd=None):
-    r = subprocess.run(["git", "-c", "core.hooksPath=/dev/null", *args], cwd=cwd, env=ambiente_da_copia(),
-                       capture_output=True, text=True)
-    if r.returncode:
-        raise RuntimeError(f"git {' '.join(args)}: {r.stderr.strip()}")
-    return r.stdout
-
-
-def resolver(ref):
-    """Sha do commit de `ref`, ou None. `--end-of-options`: uma REF começada por `-` nunca vira opção do git."""
-    r = subprocess.run(["git", "rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref}^{{commit}}"],
-                       capture_output=True, text=True)
-    return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
-
-
-def montar_copia(raiz, destino, sha):
-    git_da_copia("clone", "--quiet", "--shared", "--no-checkout", "--", str(raiz), str(destino))
-    git_da_copia("checkout", "--quiet", "--detach", sha, cwd=destino)
+# FILA-31 F2: o git da cópia vem do módulo comum, com o ambiente deste script.
+git_da_copia = functools.partial(apoio.git_da_copia, ambiente_da_copia)
+montar_copia = functools.partial(apoio.montar_copia, ambiente_da_copia)
+resolver = apoio.resolver
 
 
 # --- leitor de veredito do `unittest` (a stack do próprio Forge) ----------------------------------------------------
@@ -540,7 +535,7 @@ def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
         for v, n in zip([c for c in velhas if falta[c[0]] and toca(c, velho)], [c for c in mudadas if toca(c, novo)]):
             if falta[v[0]] and parecidas(v[0], n[0]):
                 falta[v[0]] -= 1
-    for texto, ini, fim, de, ate in mudadas:
+    for texto, ini, _fim, de, ate in mudadas:
         casados = [(f"{espec}:{m['id']}", "equivalente" in m) for espec, m in mutantes
                    if casa(m, arquivo, depois, de, ate)]
         cobrem = [nome for nome, equivalente in casados if not equivalente]
@@ -618,38 +613,6 @@ def cobertura(base, rev):
         return 2
     sys.stdout.writelines(f"{x}\n" for x in saida)
     return 1 if any(x.startswith(("sem mutante", "só equivalente", "apagada")) for x in saida) else 0
-
-
-# MAQ-A7: a linha do log ganha a entrada (FORGE_ENTRADA validada), o load, os núcleos e as outras pesadas vivas.
-ENTRADA, PESADA = re.compile(r"[a-z-]{1,20}"), re.compile(r"suite-paralela\.py|unittest discover|forge-testes|forge-mutante")
-
-
-def outras(proc=Path("/proc"), eu=None):
-    """Pesadas vivas fora desta e dos ancestrais dela; erro de leitura do /proc dá "?"; a linha lida nunca se guarda."""
-    try:
-        fora, pid = set(), eu or os.getpid()
-        while pid > 1 and pid not in fora:
-            fora.add(pid)
-            pid = int((proc / str(pid) / "stat").read_text().rsplit(")", 1)[1].split()[1])
-        pids = [p for p in os.listdir(proc) if p.isdigit() and int(p) not in fora]
-    except (OSError, ValueError, IndexError):
-        return "?"
-    n = 0
-    for p in pids:
-        try:  # o processo que termina no meio da leitura não derruba a contagem
-            n += bool(PESADA.search((proc / p / "cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")))
-        except OSError:
-            continue
-    return n
-
-
-def contexto():
-    entrada = os.environ.get("FORGE_ENTRADA", "autor")
-    try:
-        load1 = f"{os.getloadavg()[0]:.2f}"
-    except OSError:
-        load1 = "?"
-    return f" entrada={entrada if ENTRADA.fullmatch(entrada) else '?'} load1={load1} nproc={os.cpu_count()} outras={outras()}"
 
 
 def anotar(segundos, codigo):

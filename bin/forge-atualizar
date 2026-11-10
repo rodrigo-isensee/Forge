@@ -31,9 +31,7 @@ def confirmar(pergunta, principal=False):
     return principal
 
 
-def git(projeto, *args):
-    r = subprocess.run(["git", "-C", str(projeto), *args], capture_output=True, text=True)
-    return r.returncode, r.stdout.strip()
+git = fv.git  # FILA-31 F3: o mesmo dos dois scripts mora em bin/forge_versoes.py
 
 
 def raiz_do_projeto():

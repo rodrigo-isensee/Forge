@@ -168,12 +168,28 @@ class PluginDeDesenvolvimento(unittest.TestCase):
     def test_aq_tem_papel_e_lista_de_escrita_no_hook(self):
         politica = json.loads((RAIZ / "hooks/conformidade.json").read_text(encoding="utf-8"))
         self.assertEqual(politica["papeis"]["aq"], ["forge-dev:aq"])
-        self.assertEqual(politica["escrita_permitida"], {"aq": ["docs/propostas/", "docs/arquitetura/",
-                                                              "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/"],
+        self.assertEqual(politica["escrita_permitida"], {"aq": ["docs/propostas/", "docs/arquitetura/", "docs/avaliacoes/",
+                                                              "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/",
+                                                              "~/.forge-contrib/docs/avaliacoes/"],
                                                               "conferente": ["/dev/null"], "leitura": ["/dev/null"]})
         texto = (RAIZ / "dev/agents/aq.md").read_text(encoding="utf-8")
-        self.assertRegex(texto, r"(?m)^tools: Read, Grep, Glob, Write, Edit$")
-        self.assertNotRegex(texto, r"(?m)^tools:.*(Bash|WebFetch)")
+        # 0.45.3 (AVALIACAO-DE-FORA): o AQ mede sozinho com Bash de leitura (a conformidade limita); rede continua fora.
+        self.assertRegex(texto, r"(?m)^tools: Read, Grep, Glob, Bash, Write, Edit$")
+        self.assertNotRegex(texto, r"(?m)^tools:.*WebFetch")
+
+    def test_aq_faz_a_avaliacao_de_fora_com_comandos_que_existem_e_nao_avalia_contribuicao(self):
+        texto = (RAIZ / "dev/agents/aq.md").read_text(encoding="utf-8")
+        self.assertIn("docs/avaliacoes/", texto)
+        self.assertIn("REMOVER", texto)
+        self.assertNotIn("agents/jarvis.md", re.sub(r"não leia [^.]*\.", "", texto), "o AQ fica fora do contexto do Jarvis")
+        citados = set(re.findall(r"`forge-check ([a-z]+)", texto))
+        self.assertLessEqual({"metricas", "regras", "avaliacao"}, citados)
+        for sub in sorted(citados):
+            with self.subTest(sub=sub):
+                r = subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-check"), sub, "--help"], capture_output=True, text=True)
+                self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotRegex(texto, r"Contribuição \(`R-CONTRIB`\)", "o mérito da contribuição passou ao tech-lead")
+        self.assertIn("mérito", (RAIZ / "agents/tech-lead.md").read_text(encoding="utf-8"))
 
     def test_dev_so_tem_manifesto_e_agentes(self):
         """O Claude Code descobre `hooks/`, `skills/`, `commands/` e `.mcp.json` por convenção: em `dev/` entrariam em
@@ -266,10 +282,18 @@ class Agentes(unittest.TestCase):
         papeis = [p for p, tipos in politica["papeis"].items() if "forge:conferente" in tipos]
         self.assertEqual(papeis, ["conferente"])
         self.assertIn("conferente", politica["so_leitura"]["papeis"])
+        por_arquivo = politica["so_leitura"].get("arquivos_por_escrita_permitida", [])
+        self.assertEqual(por_arquivo, ["aq"])  # 0.45.3: só o aq grava, pelas ferramentas de arquivo
+        self.assertNotIn("conferente", por_arquivo)
         for papel in politica["so_leitura"]["papeis"]:
             with self.subTest(papel=papel):
                 self.assertFalse([a for a, quem in politica["acoes"].items() if papel in quem])
-                self.assertFalse([c["caminho"] for c in politica["caminhos"] if papel in c["quem"]])
+                donos = [c["caminho"] for c in politica["caminhos"] if papel in c["quem"]]
+                if papel in por_arquivo:  # o caminho protegido de que ele é dono está na lista de escrita dele
+                    lista = politica["escrita_permitida"][papel]
+                    self.assertTrue(donos and all(any(d.endswith(e) for e in lista if not e.startswith("~/")) for d in donos), donos)
+                else:
+                    self.assertFalse(donos)
 
     def test_skills_citadas_existem(self):
         for p in self.agentes:
@@ -1772,6 +1796,59 @@ class JarvisForgeVigente(unittest.TestCase):
         r = self.rodar("--atualizar-vigente", STUB_GIT_HEAD_FIXO="1")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertNotIn("reinicie", r.stderr)
+        self.assertNotIn("agora:", r.stderr)
+
+    def ocupacao(self, status=1, agentes="return []"):
+        """VIGENTE-REINICIO-OCIOSO: falsos do `--status` e do hook `agentes` na cópia vigente; a de trabalho diz livre."""
+        for raiz, rc in ((self.vigente, status), (self.home / "Forge", 1)):
+            (raiz / ".githooks").mkdir(parents=True, exist_ok=True)
+            falso = raiz / ".githooks/pre-push"
+            falso.write_text(f'#!/usr/bin/env bash\necho "linha"\necho "suíte do Forge rodando (x); 2 na fila"\nexit {rc}\n')
+            falso.chmod(0o755)
+        (self.vigente / ".git").mkdir(parents=True, exist_ok=True)
+        (self.vigente / "hooks").mkdir(exist_ok=True)
+        estado = Path(self._tmp.name) / "agentes.json"
+        estado.write_text('{"agentes": []}', encoding="utf-8")
+        (self.vigente / "hooks/agentes.py").write_text(
+            "class Hook:\n    def __init__(self, nome):\n        self.raiz = None\n"
+            "    def expira_s(self):\n        return 60\n"
+            f"def arquivo_de_estado(raiz):\n    return {str(estado)!r}\n"
+            f"def vigentes(agentes, agora, expira_s):\n    {agentes}\n", encoding="utf-8")
+        r = self.rodar("--atualizar-vigente")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stderr
+
+    def test_ocupacao_livre_nao_diz_seguro(self):
+        """Antes da I9 os testes de módulo não são conferidos: nem com suíte livre e 0 agentes o aviso diz "seguro"."""
+        saida = self.ocupacao()
+        self.assertIn("agora: suíte do Forge livre; agentes nenhum; espere:", saida)
+        self.assertIn("testes de módulo: não conferidos", saida)
+        self.assertNotIn("seguro reiniciar agora", saida)
+
+    def test_ocupacao_suite_rodando_manda_esperar(self):
+        saida = self.ocupacao(status=0)
+        self.assertIn("suíte do Forge rodando, 2 na fila;", saida)
+        self.assertIn("; espere:", saida)
+        self.assertIn("testes de módulo: não conferidos", saida)
+
+    def test_ocupacao_com_agente_ativo_manda_esperar(self):
+        saida = self.ocupacao(agentes="return [1]")
+        self.assertIn("agentes 1 ativos; espere:", saida)
+        self.assertIn("testes de módulo: não conferidos", saida)
+
+    def test_ocupacao_status_nao_conferido_manda_esperar(self):
+        saida = self.ocupacao(status=2)
+        self.assertIn("suíte do Forge não conferida;", saida)
+        self.assertIn("; espere:", saida)
+        self.assertIn("testes de módulo: não conferidos", saida)
+
+    def test_ocupacao_agentes_com_erro_ou_texto_nao_conferido(self):
+        for corpo in ("raise RuntimeError('x')", "print('3 texto'); return []"):
+            with self.subTest(corpo=corpo):
+                saida = self.ocupacao(agentes=corpo)
+                self.assertIn("agentes não conferido; espere:", saida)
+                self.assertIn("testes de módulo: não conferidos", saida)
+                self.assertNotIn("texto", saida)
 
     def test_dev_com_atualizar_vigente_sai_com_2(self):
         r = self.rodar("--dev", "--atualizar-vigente")
@@ -2164,6 +2241,19 @@ class VerificarContribuicao(unittest.TestCase):
                 self.assertIn("n.md:1", r.stdout)
                 self.assertNotIn(linha, r.stdout + r.stderr, "o valor não pode ser impresso")
 
+    def test_token_do_github_de_cada_prefixo_falha(self):  # verificador-gh-prefixos (0.45.1)
+        for prefixo in ("ghp", "gho", "ghu", "ghs", "ghr"):
+            with self.subTest(prefixo=prefixo):
+                linha = "t = " + prefixo + "_" + "e" * 24
+                r = self.verificar("n.md", linha + "\n")
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn("n.md:1", r.stdout)
+                self.assertNotIn(linha, r.stdout + r.stderr, "o valor não pode ser impresso")
+
+    def test_token_com_sublinhado_a_cada_4_letras_passa(self):  # a sequência de 20 do padrão se quebra no `_`
+        r = self.verificar("n.md", "t = ghs" + "_FAKE" * 6 + "\n")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
     def test_arquivo_env_falha(self):
         r = self.verificar(".env", "X=1\n")
         self.assertEqual(r.returncode, 1)
@@ -2530,6 +2620,17 @@ class ForgeCheck(unittest.TestCase):
                 codigo, saida = self.check("pr", "p1")
                 self.assertEqual(codigo, 1)
                 self.assertIn(trecho, saida)
+
+    def test_pr_autoria_ausente_diz_como_corrigir(self):  # 0.45.3: a recusa diz a forma certa, sem afrouxar
+        self.pareceres(self.head())
+        self.commitar("pareceres")
+        self.autoria(("docs/reviews/p1.md", "tech-lead"))
+        rc, saida = self.check("pr", "p1")
+        self.assertEqual(rc, 1, saida)
+        linha = next(l for l in saida.splitlines() if l.startswith("docs/qa/p1.md: autoria"))
+        self.assertIn("regrave com a ferramenta Write", linha)
+        self.assertIn("`forge-check parecer novo`", linha)
+        self.assertIn("pelo Bash", linha)
 
     def test_pr_autoria_de_versao_anterior_do_parecer_falha(self):
         self.pareceres(self.head())

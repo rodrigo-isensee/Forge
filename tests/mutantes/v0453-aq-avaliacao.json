@@ -1,0 +1,86 @@
+{
+  "pedido": "v0453-aq-avaliacao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "sem CHANGELOG.md legível nada se mede (rc 2)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if texto is None:\n        return None\n    versoes",
+      "para": "    if False:\n        return None\n    versoes",
+      "testes": [
+        "tests.test_governanca.AvaliacaoDeFora.test_sem_changelog_nada_medido"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "só <AAAA-MM-DD>*.md conta como avaliação",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "if NOME_DA_AVALIACAO.fullmatch(p.name))",
+      "para": "if True)",
+      "testes": [
+        "tests.test_governanca.AvaliacaoDeFora.test_sem_linha_versao_vale_a_data_do_nome"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "sem avaliação, a última é None",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "(nomes[-1] if nomes else None)",
+      "para": "(nomes[-1] if True else None)",
+      "testes": [
+        "tests.test_governanca.AvaliacaoDeFora.test_sem_avaliacao_cinco_versoes_avisam_e_quatro_nao"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "avaliação ilegível ou link vale como sem versao:",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "ler_texto(pasta / ultima) or \"\"",
+      "para": "ler_texto(pasta / ultima)",
+      "testes": [
+        "tests.test_governanca.AvaliacaoDeFora.test_versao_fora_do_changelog_ou_avaliacao_ilegivel_cai_na_data_do_nome"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "versao: fora do CHANGELOG cai na data do nome",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "if achou and achou.group(1) in numeros:",
+      "para": "if achou:",
+      "testes": [
+        "tests.test_governanca.AvaliacaoDeFora.test_versao_fora_do_changelog_ou_avaliacao_ilegivel_cai_na_data_do_nome"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "pela data, só as versões depois do dia da avaliação",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "if d > data]",
+      "para": "if d >= data]",
+      "testes": [
+        "tests.test_governanca.AvaliacaoDeFora.test_sem_linha_versao_vale_a_data_do_nome"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "5 versões já é pendente (limite)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "len(desde) >= CADENCIA_DA_AVALIACAO,",
+      "para": "len(desde) > CADENCIA_DA_AVALIACAO,",
+      "testes": [
+        "tests.test_governanca.AvaliacaoDeFora.test_sem_avaliacao_cinco_versoes_avisam_e_quatro_nao"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "em dia não diz pendente",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if pendente:\n        return (f\"avaliação de fora pendente",
+      "para": "    if True:\n        return (f\"avaliação de fora pendente",
+      "testes": [
+        "tests.test_governanca.AvaliacaoDeFora.test_sem_avaliacao_cinco_versoes_avisam_e_quatro_nao"
+      ]
+    }
+  ]
+}

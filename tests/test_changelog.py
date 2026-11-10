@@ -288,6 +288,29 @@ class Release(Base):
         self.assertNotEqual(forge_changelog(self.dir, "release", "0.1.0", "2026-02-02").returncode, 0)
 
 
+class ReleaseAvisaAvaliacaoDeFora(Base):
+    """0.45.3: o fim da release avisa a avaliação de fora pendente (5 versões desde a última docs/avaliacoes/*.md); só avisa."""
+
+    def preparar(self, versoes):
+        texto = "".join(f"## [0.1.{i}] - 2026-01-0{i}\n### Corrigido\n- v{i}\n\n" for i in range(versoes, 0, -1))
+        (self.dir / "CHANGELOG.md").write_text("# Changelog\n\n## [Não publicado]\n\n" + texto, encoding="utf-8")
+        (self.dir / "changelog.d").mkdir()
+        (self.dir / "changelog.d" / "x.md").write_text("### Alterado\n- Nova\n", encoding="utf-8")
+
+    def test_quinta_versao_avisa_e_a_release_sai_com_0(self):
+        self.preparar(4)
+        r = forge_changelog(self.dir, "release", "0.2.0", "2026-02-02")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("aviso: avaliação de fora pendente: 5 versões", r.stdout)
+        self.assertIn("## [0.2.0] - 2026-02-02", (self.dir / "CHANGELOG.md").read_text(encoding="utf-8"))
+
+    def test_quarta_versao_nao_avisa(self):
+        self.preparar(3)
+        r = forge_changelog(self.dir, "release", "0.2.0", "2026-02-02")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("aviso:", r.stdout)
+
+
 class ConferirNoCI(Base):
     def conferir(self):
         return forge_changelog(self.dir, "conferir", "--base", "develop")
@@ -530,6 +553,57 @@ class ConferirNomeDaBranch(Base):
     def test_branch_fora_de_melhoria_nao_aplica_a_regra(self):
         self.fragmento("b.md")
         self.assertEqual(self.conferir("--branch=fix/a").returncode, 0)
+
+
+class ConferirFragmentoDaBranchDeBaixo(Base):
+    """CHANGELOG-FRAGMENTO-BASE: na branch empilhada, o fragmento `<s>.md` da branch de baixo (`melhoria/<s>`, local ou de
+    origin, ancestral do HEAD e que o tem) não conta como fragmento com outro nome; sem essa branch, segue reprovado."""
+
+    def fragmento(self, nome):
+        self.mudar_fabrica()
+        (self.dir / "changelog.d").mkdir(exist_ok=True)
+        (self.dir / "changelog.d" / nome).write_text("### Alterado\n- v\n", encoding="utf-8")
+        self.commitar()
+
+    def empilhar(self):
+        git(self.dir, "checkout", "-q", "-b", "melhoria/a")
+        self.fragmento("a.md")
+        git(self.dir, "checkout", "-q", "-b", "melhoria/a-2")
+        self.fragmento("a-2.md")
+
+    def conferir(self):
+        return forge_changelog(self.dir, "conferir", "--base", "develop", "--branch=melhoria/a-2")
+
+    def test_fragmento_da_branch_de_baixo_ancestral_passa(self):
+        self.empilhar()
+        r = self.conferir()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_fragmento_sem_a_branch_de_baixo_reprova(self):
+        self.empilhar()
+        git(self.dir, "branch", "-q", "-D", "melhoria/a")
+        r = self.conferir()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("changelog.d/a.md", r.stderr)
+
+    def test_branch_de_baixo_que_andou_depois_reprova(self):
+        self.empilhar()
+        git(self.dir, "checkout", "-q", "melhoria/a")
+        git(self.dir, "commit", "-q", "--allow-empty", "-m", "andou")
+        git(self.dir, "checkout", "-q", "melhoria/a-2")
+        self.assertEqual(self.conferir().returncode, 1)
+
+    def test_branch_de_baixo_sem_o_fragmento_reprova(self):
+        self.empilhar()
+        git(self.dir, "branch", "-q", "-f", "melhoria/a", "develop")
+        self.assertEqual(self.conferir().returncode, 1)
+
+    def test_branch_de_baixo_de_origin_passa(self):
+        self.empilhar()
+        git(self.dir, "update-ref", "refs/remotes/origin/melhoria/a", "melhoria/a")
+        git(self.dir, "branch", "-q", "-D", "melhoria/a")
+        r = self.conferir()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
 
 class ConferirSaidaDeErro(Base):

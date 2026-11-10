@@ -13,7 +13,7 @@
     "aq": ["forge-dev:aq"]
   },
   "escrita_permitida": {
-    "aq": ["docs/propostas/", "docs/arquitetura/", "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/"],
+    "aq": ["docs/propostas/", "docs/arquitetura/", "docs/avaliacoes/", "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/", "~/.forge-contrib/docs/avaliacoes/"],
     "conferente": ["/dev/null"],
     "leitura": ["/dev/null"]
   },
@@ -47,6 +47,8 @@
     {"caminho": "~/.claude/skills/", "quem": [], "motivo": "skills em vigor"},
     {"caminho": "~/.claude/hooks/", "quem": [], "motivo": "hooks em vigor"},
     {"caminho": "~/.claude/plugins/", "quem": [], "motivo": "plugins em vigor (cache do Forge)"},
+    {"caminho": "~/.gitconfig", "quem": [], "motivo": "configuração global do git (alias e hooks valem em todo repositório)"},
+    {"caminho": "~/.config/git/config", "quem": [], "motivo": "configuração global do git (alias e hooks valem em todo repositório)"},
     {"caminho": "docs/pedidos/", "quem": ["jarvis"], "motivo": "o pedido e o Histórico dele (a linha `conferida`, que abre o `--desde` do `forge-check entrega`) são do jarvis (VV-2, R-DECISAO)"},
     {"caminho": "~/.forge-contrib/docs/pedidos/", "quem": ["jarvis"], "motivo": "o pedido e o Histórico dele (a linha `conferida`, que abre o `--desde` do `forge-check entrega`) são do jarvis (VV-2, R-DECISAO)"},
     {"caminho": "~/.forge-contrib/*/docs/pedidos/", "quem": ["jarvis"], "motivo": "o pedido e o Histórico dele (a linha `conferida`, que abre o `--desde` do `forge-check entrega`) são do jarvis (VV-2, R-DECISAO)"},
@@ -93,8 +95,13 @@
   },
   "flags_congeladas": ["--frozen-lockfile", "--immutable", "--locked", "--frozen", "--require-hashes"],
   "so_leitura": {
-    "descricao": "Papéis só de leitura (R-PROVA, R-BRIEF): nenhuma ferramenta de arquivo, linha dentro da gramática da ADR 0011 (alfabeto fixo; redirecionamento, variável e substituição recusados) e só os comandos da lista (programa sem caminho; git e gh com o subcomando; test só como -e, -f, -d ou -s e um caminho). Fora da lista, recusa: na dúvida, recusa.",
-    "papeis": ["conferente", "leitura"],
+    "descricao": "Papéis só de leitura (R-PROVA, R-BRIEF): nenhuma ferramenta de arquivo, linha dentro da gramática da ADR 0011 (alfabeto fixo; redirecionamento, variável e substituição recusados) e só os comandos da lista (programa sem caminho; git e gh com o subcomando; test só como -e, -f, -d ou -s e um caminho). Fora da lista, recusa: na dúvida, recusa. `comandos_por_papel` troca a lista do papel (0.45.3: o aq lê métricas, transcrições e o git); o papel de `arquivos_por_escrita_permitida` segue gravando pelas ferramentas de arquivo, só nos caminhos de `escrita_permitida`.",
+    "papeis": ["conferente", "leitura", "aq"],
+    "comandos_por_papel": {
+      "aq": ["forge-check metricas", "forge-check transcricao", "forge-check proximo", "forge-check voltas", "forge-check esperas",
+             "git log", "git show", "git diff", "git status", "git rev-parse", "ls", "cat", "grep"]
+    },
+    "arquivos_por_escrita_permitida": ["aq"],
     "comandos": ["git log", "git show", "git diff", "git ls-remote", "git rev-parse", "git merge-base", "git status", "git cat-file", "git branch", "git worktree",
                  "gh pr view", "gh pr list", "gh pr checks", "gh pr diff", "gh run list", "gh run view",
                  "forge-check pr", "forge-check docs", "forge-check brief", "forge-check entrega", "forge-check delta",
