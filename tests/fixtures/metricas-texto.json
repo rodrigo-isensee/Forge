@@ -1,0 +1,298 @@
+{
+ "agents/jarvis.md": {
+  "caracteres": 7795,
+  "frase_max": 47,
+  "frase_media_x10": 182,
+  "linhas_longas": 18,
+  "descricao": 296,
+  "sinonimos": 0
+ },
+ "docs/regras/R-BRIEF.md": {
+  "caracteres": 2028,
+  "frase_max": 55,
+  "frase_media_x10": 208,
+  "linhas_longas": 6,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-CONFORMIDADE.md": {
+  "caracteres": 1280,
+  "frase_max": 35,
+  "frase_media_x10": 177,
+  "linhas_longas": 5,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-CONTRIB.md": {
+  "caracteres": 1921,
+  "frase_max": 47,
+  "frase_media_x10": 191,
+  "linhas_longas": 5,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-COPIA.md": {
+  "caracteres": 825,
+  "frase_max": 32,
+  "frase_media_x10": 141,
+  "linhas_longas": 3,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-CUSTO.md": {
+  "caracteres": 622,
+  "frase_max": 19,
+  "frase_media_x10": 113,
+  "linhas_longas": 1,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-DECISAO.md": {
+  "caracteres": 4472,
+  "frase_max": 58,
+  "frase_media_x10": 174,
+  "linhas_longas": 15,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-DISCOVERY.md": {
+  "caracteres": 715,
+  "frase_max": 26,
+  "frase_media_x10": 120,
+  "linhas_longas": 2,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-FLUXO.md": {
+  "caracteres": 2660,
+  "frase_max": 45,
+  "frase_media_x10": 151,
+  "linhas_longas": 11,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-MAIN.md": {
+  "caracteres": 1077,
+  "frase_max": 26,
+  "frase_media_x10": 146,
+  "linhas_longas": 3,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-NEUTRO.md": {
+  "caracteres": 905,
+  "frase_max": 20,
+  "frase_media_x10": 144,
+  "linhas_longas": 4,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-PROVA.md": {
+  "caracteres": 1769,
+  "frase_max": 38,
+  "frase_media_x10": 189,
+  "linhas_longas": 7,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-QA.md": {
+  "caracteres": 1310,
+  "frase_max": 22,
+  "frase_media_x10": 157,
+  "linhas_longas": 5,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-REVIEW.md": {
+  "caracteres": 1848,
+  "frase_max": 34,
+  "frase_media_x10": 156,
+  "linhas_longas": 5,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-SEGURANCA.md": {
+  "caracteres": 1906,
+  "frase_max": 46,
+  "frase_media_x10": 176,
+  "linhas_longas": 4,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-TETO.md": {
+  "caracteres": 1285,
+  "frase_max": 29,
+  "frase_media_x10": 152,
+  "linhas_longas": 4,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-VERIFY.md": {
+  "caracteres": 957,
+  "frase_max": 20,
+  "frase_media_x10": 110,
+  "linhas_longas": 2,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "docs/regras/R-WIP.md": {
+  "caracteres": 1649,
+  "frase_max": 53,
+  "frase_media_x10": 202,
+  "linhas_longas": 4,
+  "descricao": 0,
+  "sinonimos": 0
+ },
+ "skills/briefs-e-conferencia/SKILL.md": {
+  "caracteres": 2744,
+  "frase_max": 33,
+  "frase_media_x10": 169,
+  "linhas_longas": 9,
+  "descricao": 224,
+  "sinonimos": 0
+ },
+ "skills/checagem-do-brief/SKILL.md": {
+  "caracteres": 2045,
+  "frase_max": 32,
+  "frase_media_x10": 187,
+  "linhas_longas": 8,
+  "descricao": 176,
+  "sinonimos": 0
+ },
+ "skills/ci-cd/SKILL.md": {
+  "caracteres": 6781,
+  "frase_max": 63,
+  "frase_media_x10": 172,
+  "linhas_longas": 27,
+  "descricao": 261,
+  "sinonimos": 0
+ },
+ "skills/contribuir-com-o-forge/SKILL.md": {
+  "caracteres": 6270,
+  "frase_max": 70,
+  "frase_media_x10": 162,
+  "linhas_longas": 18,
+  "descricao": 292,
+  "sinonimos": 0
+ },
+ "skills/cyber-security/SKILL.md": {
+  "caracteres": 5975,
+  "frase_max": 42,
+  "frase_media_x10": 204,
+  "linhas_longas": 18,
+  "descricao": 406,
+  "sinonimos": 0
+ },
+ "skills/engineering-practices/SKILL.md": {
+  "caracteres": 6982,
+  "frase_max": 54,
+  "frase_media_x10": 152,
+  "linhas_longas": 23,
+  "descricao": 292,
+  "sinonimos": 0
+ },
+ "skills/esperar-estado/SKILL.md": {
+  "caracteres": 4324,
+  "frase_max": 44,
+  "frase_media_x10": 215,
+  "linhas_longas": 9,
+  "descricao": 310,
+  "sinonimos": 0
+ },
+ "skills/explicar-para-o-leigo/SKILL.md": {
+  "caracteres": 1237,
+  "frase_max": 25,
+  "frase_media_x10": 147,
+  "linhas_longas": 3,
+  "descricao": 172,
+  "sinonimos": 0
+ },
+ "skills/falar-com-o-dono/SKILL.md": {
+  "caracteres": 2091,
+  "frase_max": 49,
+  "frase_media_x10": 226,
+  "linhas_longas": 5,
+  "descricao": 233,
+  "sinonimos": 0
+ },
+ "skills/iniciar-projeto/SKILL.md": {
+  "caracteres": 2175,
+  "frase_max": 38,
+  "frase_media_x10": 191,
+  "linhas_longas": 7,
+  "descricao": 348,
+  "sinonimos": 0
+ },
+ "skills/kanban-scrum/SKILL.md": {
+  "caracteres": 11717,
+  "frase_max": 46,
+  "frase_media_x10": 151,
+  "linhas_longas": 32,
+  "descricao": 301,
+  "sinonimos": 0
+ },
+ "skills/modo-iniciante/SKILL.md": {
+  "caracteres": 6406,
+  "frase_max": 47,
+  "frase_media_x10": 155,
+  "linhas_longas": 23,
+  "descricao": 332,
+  "sinonimos": 0
+ },
+ "skills/novo-projeto/SKILL.md": {
+  "caracteres": 5583,
+  "frase_max": 55,
+  "frase_media_x10": 162,
+  "linhas_longas": 17,
+  "descricao": 442,
+  "sinonimos": 0
+ },
+ "skills/observabilidade-incidentes/SKILL.md": {
+  "caracteres": 1710,
+  "frase_max": 22,
+  "frase_media_x10": 129,
+  "linhas_longas": 6,
+  "descricao": 170,
+  "sinonimos": 0
+ },
+ "skills/produto-criterios/SKILL.md": {
+  "caracteres": 1417,
+  "frase_max": 25,
+  "frase_media_x10": 149,
+  "linhas_longas": 7,
+  "descricao": 198,
+  "sinonimos": 0
+ },
+ "skills/qa-testing/SKILL.md": {
+  "caracteres": 11761,
+  "frase_max": 106,
+  "frase_media_x10": 192,
+  "linhas_longas": 30,
+  "descricao": 208,
+  "sinonimos": 0
+ },
+ "skills/software-architecture/SKILL.md": {
+  "caracteres": 3458,
+  "frase_max": 38,
+  "frase_media_x10": 142,
+  "linhas_longas": 13,
+  "descricao": 255,
+  "sinonimos": 0
+ },
+ "skills/trabalho-em-paralelo/SKILL.md": {
+  "caracteres": 3006,
+  "frase_max": 51,
+  "frase_media_x10": 202,
+  "linhas_longas": 10,
+  "descricao": 304,
+  "sinonimos": 0
+ },
+ "skills/ux-design/SKILL.md": {
+  "caracteres": 5117,
+  "frase_max": 40,
+  "frase_media_x10": 125,
+  "linhas_longas": 6,
+  "descricao": 232,
+  "sinonimos": 0
+ }
+}

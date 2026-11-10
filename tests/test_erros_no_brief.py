@@ -114,7 +114,8 @@ class Registrar(Base):
         self.assertEqual(self.rodar(*REPROVADO, "--classe", "etapa", "--nota", "x")[0], 0)
         entrega = REPROVADO[:REPROVADO.index("--modo") + 1] + ["entrega"] + REPROVADO[REPROVADO.index("--modo") + 2:]
         self.assertEqual(self.rodar(*entrega, "--classe", "implementacao")[0], 0)
-        self.assertEqual(self.rodar(*entrega, "--classe", "escopo", "--autor", "jarvis")[0], 0)
+        outro = [x.replace("xpto-tech-lead-1", "xpto-tech-lead-2") for x in entrega]  # 0.43.3: a mesma chave duas vezes é recusada
+        self.assertEqual(self.rodar(*outro, "--classe", "escopo", "--autor", "jarvis")[0], 0)
         linhas = self.lido().splitlines()
         self.assertTrue(linhas[0].endswith("| classe | autor |"))
         self.assertEqual(linhas[1], "|---|---|---|---|---|---|---|---|---|---|")
@@ -128,7 +129,7 @@ class Registrar(Base):
         self.assertTrue(saida[0].startswith("conferencia: --autor"), saida)
 
     def test_arquivo_antigo_de_8_colunas_recebe_a_linha_nova_e_os_bytes_anteriores_ficam(self):
-        antigo = CAB8 + "| 2026-10-15 21:00 | xpto | xpto-tech-lead-1 | brief | 1 | reprovado | s | nota antiga |\n"
+        antigo = CAB8 + "| 2026-10-15 21:00 | xpto | xpto-tech-lead-0 | brief | 1 | reprovado | s | nota antiga |\n"  # outra chave (0.43.3)
         self.gravar(ARQ, antigo)
         self.assertEqual(self.rodar(*REPROVADO, "--classe", "forma")[0], 0)
         texto = self.lido()
@@ -221,10 +222,11 @@ class Recorrencia(Base):
         self.registro(linha("forma", brief="xpto-tech-lead-7"), linha("forma", brief="xpto-tech-lead-8"))
         cod, saida, _ = self.rodar(*REPROVADO, "--classe", "forma")
         self.assertEqual(cod, 0)
-        self.assertEqual(len(saida), 2)
-        self.assertTrue(saida[1].startswith("proposta: forma de jarvis em 3 briefs"), saida)
+        self.assertEqual(len(saida), 3)  # O1 (0.44.1): a linha `ação:` da reprovação vem antes da proposta
+        self.assertTrue(saida[1].startswith("ação: ferramenta: forge-check brief mensagem"), saida)
+        self.assertTrue(saida[2].startswith("proposta: forma de jarvis em 3 briefs"), saida)
         cod, saida, _ = self.rodar(*REPROVADO[:REPROVADO.index("--brief") + 1], "xpto-tech-lead-9", *REPROVADO[REPROVADO.index("--brief") + 2:], "--classe", "etapa")
-        self.assertEqual((cod, len(saida)), (0, 1))
+        self.assertEqual((cod, len(saida)), (0, 2))
 
     def test_dias_e_janela(self):
         self.registro(linha("forma", dias=10), linha("etapa", brief="xpto-tech-lead-2", dias=2))
@@ -589,9 +591,20 @@ class ErroJarvisContado(Base):
         self.assertEqual(fc.recorrencias(self.tmp)[0], [])
         self.assertIn("classes: nenhuma falha classificada na janela", self.classes())
 
+    def test_g_prevencao_do_processo_novo_conta(self):
+        """0.43.1 (kanban-scrum): `Prevenção: eval/trava: <caso>` e `Prevenção: sem trava possível` são a forma aceita."""
+        trava = f"- {hora()}: ERRO-JARVIS: hora: gravei 17:35 sem a ferramenta. Prevenção: eval/trava: hora-sem-date.\n"
+        sem = f"- {hora()}: ERRO-JARVIS: hora: gravei 17:35 sem a ferramenta. Prevenção: sem trava possível\n"
+        self.pedido("p", trava)
+        self.pedido("q", sem)
+        saida = self.classes()
+        self.assertIn("classes: hora · jarvis · 2 briefs (2 autorrelato)", saida)
+        self.assertFalse([l for l in saida if l.startswith("classes: aviso:")])
+
     def test_f_modelo_tem_a_tag_e_o_coach_a_le(self):
         modelo = (RAIZ / "templates" / "projeto" / "docs" / "pedidos" / "_modelo.md").read_text(encoding="utf-8")
-        self.assertIn("`ERRO-JARVIS: <classe do catálogo>: <o que errou, com a evidência>. Prevenção: <o que muda>`", modelo)
+        self.assertIn("`ERRO-JARVIS: <classe do catálogo>: <o que errou, com a evidência>. Prevenção: eval/trava: <caso>` "
+                      "(ou `Prevenção: sem trava possível`)", modelo)
         self.assertIn("`ERRO-JARVIS:`", (RAIZ / "agents" / "agile-coach.md").read_text(encoding="utf-8"))
 
 

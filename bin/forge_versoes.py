@@ -14,6 +14,7 @@ import re
 import shutil
 import signal
 import ssl
+import stat
 import subprocess
 import sys
 import tempfile
@@ -587,3 +588,193 @@ def ultimo_ponto(projeto):
 def marcar_usado(ponto, meta):
     meta["usado"] = True
     (ponto / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+# Cache do plugin (M11) -------------------------------------------------------------------------
+# ~/.claude/plugins/cache/<marketplace>/forge/<X.Y.Z>/ guarda cada versão já instalada, e o Claude Code não poda. Só sai a
+# pasta que é do Forge pela forma (CM-1 a CM-3), está fora de todo `installPath` (CM-5), não é a carregada (CM-4) nem uma das
+# duas maiores (CM-13), sem atalho no caminho (CM-2) e no mesmo disco (CM-8). Na dúvida, nada sai.
+LIMITE_PLUGIN_JSON = 64 * 1024
+LIMITE_INSTALADOS = 1024 * 1024
+MANTER_MAIORES = 2
+
+
+def _versao_estrita(nome):
+    achou = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", nome)
+    return tuple(int(x) for x in achou.groups()) if achou else None
+
+
+def raiz_do_cache(casa_):
+    """O caminho real de <casa>/.claude/plugins/cache, ou None se não é pasta, é atalho, é `/` ou é a própria casa (CM-6)."""
+    cache = Path(casa_) / ".claude" / "plugins" / "cache"
+    try:
+        if cache.is_symlink() or not cache.is_dir():
+            return None
+        real = cache.resolve(strict=True)
+    except OSError:
+        return None
+    if real == Path("/") or real == Path(casa_).resolve():
+        return None
+    return real
+
+
+def _ler_limitado(caminho, limite):
+    """O texto de um arquivo regular de até `limite` bytes (sem seguir atalho), ou None."""
+    try:
+        fd = os.open(caminho, os.O_RDONLY | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0))
+    except OSError:
+        return None
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return None
+        with os.fdopen(fd, "rb", closefd=False) as arq:
+            bruto = arq.read(limite + 1)
+        return bruto.decode("utf-8") if len(bruto) <= limite else None
+    except (OSError, UnicodeDecodeError):
+        return None
+    finally:
+        os.close(fd)
+
+
+def pasta_do_forge_valida(pasta, raiz):
+    """True se `pasta` é <raiz>/<mkt>/forge/<X.Y.Z> sem atalho no caminho, no disco da raiz, com plugin.json do Forge na versão do nome."""
+    try:
+        rel = pasta.relative_to(raiz)
+    except ValueError:
+        return False
+    partes = rel.parts
+    if len(partes) != 3 or partes[1] != "forge" or partes[0] in ("", ".", "..") or not _versao_estrita(partes[2]):
+        return False
+    try:
+        atual = raiz
+        for parte in partes:
+            atual = atual / parte
+            if atual.is_symlink() or not atual.is_dir():
+                return False
+        if pasta.resolve(strict=True) != pasta or os.lstat(pasta).st_dev != os.lstat(raiz).st_dev:
+            return False
+    except OSError:
+        return False
+    texto = _ler_limitado(pasta / ".claude-plugin" / "plugin.json", LIMITE_PLUGIN_JSON)
+    try:
+        dados = json.loads(texto) if texto is not None else None
+    except ValueError:
+        return False
+    return isinstance(dados, dict) and dados.get("name") == "forge" and dados.get("version") == partes[2]
+
+
+def candidatas_do_cache(casa_):
+    """As pastas do Forge no cache que passam na forma, em ordem de versão. Só lê."""
+    raiz = raiz_do_cache(casa_)
+    if raiz is None:
+        return []
+    achadas = []
+    try:
+        mercados = sorted(raiz.iterdir())
+    except OSError:
+        return []
+    for mkt in mercados:
+        try:
+            versoes = sorted((mkt / "forge").iterdir()) if not mkt.is_symlink() and (mkt / "forge").is_dir() else []
+        except OSError:
+            continue
+        achadas += [p for p in versoes if pasta_do_forge_valida(p, raiz)]
+    return sorted(achadas, key=lambda p: _versao_estrita(p.name))
+
+
+def caminhos_em_uso(casa_):
+    """Os caminhos reais de todo `installPath` do installed_plugins.json (todas as chaves e escopos), ou None se não deu para
+    conferir: arquivo ausente, grande, fora da forma, ou um `installPath` que não resolve (CM-5)."""
+    texto = _ler_limitado(Path(casa_) / ".claude" / "plugins" / "installed_plugins.json", LIMITE_INSTALADOS)
+    try:
+        dados = json.loads(texto) if texto is not None else None
+    except ValueError:
+        return None
+    plugins = dados.get("plugins") if isinstance(dados, dict) and dados.get("version") == 2 else None
+    if not isinstance(plugins, dict) or not all(isinstance(v, list) for v in plugins.values()):
+        return None
+    caminhos = []
+    for entradas in plugins.values():
+        for entrada in entradas:
+            if not isinstance(entrada, dict) or not isinstance(entrada.get("installPath"), str):
+                return None
+            try:
+                caminhos.append(Path(entrada["installPath"]).resolve(strict=True))
+            except OSError:
+                return None
+    return caminhos
+
+
+def _relacionados(a, b):
+    """True se um caminho é o outro, está dentro dele ou o contém."""
+    return a == b or a in b.parents or b in a.parents
+
+
+def protegidas_da_sessao():
+    """Os caminhos reais das cópias em uso agora: esta (RAIZ) e a do CLAUDE_PLUGIN_ROOT, se houver (CM-4)."""
+    caminhos = [RAIZ]
+    if os.environ.get("CLAUDE_PLUGIN_ROOT"):
+        caminhos.append(Path(os.environ["CLAUDE_PLUGIN_ROOT"]))
+    reais = []
+    for c in caminhos:
+        try:
+            reais.append(c.resolve(strict=True))
+        except OSError:
+            continue
+    return reais
+
+
+def fora_de_uso(candidatas, em_uso, protegidas):
+    """As candidatas que podem sair: fora de todo `installPath` e das `protegidas`, e nunca uma das MANTER_MAIORES maiores (CM-13)."""
+    if em_uso is None:
+        return []
+    maiores = set(sorted(candidatas, key=lambda p: _versao_estrita(p.name))[-MANTER_MAIORES:])
+    return [p for p in candidatas if p not in maiores and not any(_relacionados(p, u) for u in list(em_uso) + list(protegidas))]
+
+
+def versoes_antigas_do_cache(casa_=None):
+    """(lista que pode sair, em_uso): em_uso None quer dizer "não consegui conferir o que está em uso" (e a lista vem vazia)."""
+    casa_ = casa_ or casa()
+    em_uso = caminhos_em_uso(casa_)
+    return fora_de_uso(candidatas_do_cache(casa_), em_uso, protegidas_da_sessao()), em_uso
+
+
+def tamanho(pasta, teto=5.0):
+    """Bytes da pasta pelo `lstat`, sem seguir atalho; None se passou de `teto` segundos (CM-11)."""
+    fim, total = time.monotonic() + teto, 0
+    for raiz, pastas, arquivos in os.walk(pasta, followlinks=False):
+        if time.monotonic() > fim:
+            return None
+        for nome in arquivos + pastas:
+            try:
+                total += os.lstat(os.path.join(raiz, nome)).st_size
+            except OSError:
+                pass
+    return total
+
+
+def sem_controle(texto):
+    """O texto sem caracteres de controle (nome de pasta vai à tela)."""
+    return "".join(c if c.isprintable() else "?" for c in str(texto))
+
+
+def remover_do_cache(lista, casa_=None):
+    """Apaga uma pasta por vez, só as de `lista`, refazendo antes todas as conferências (a pasta pode ter mudado desde a lista,
+    CM-7) e gravando a linha no registro antes de apagar (CM-12). Devolve (apagadas, puladas)."""
+    casa_ = casa_ or casa()
+    apagadas, puladas = [], []
+    for pasta in lista:
+        ainda = versoes_antigas_do_cache(casa_)[0]
+        if pasta not in ainda:
+            puladas.append(pasta)
+            continue
+        estado = pasta_de_estado()
+        estado.mkdir(parents=True, exist_ok=True)
+        with open(estado / "cache-removido.log", "a", encoding="utf-8") as log:
+            log.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S')}\t{sem_controle(pasta)}\t{sem_controle(pasta.name)}\n")
+        try:
+            shutil.rmtree(pasta)  # recusa atalho no topo e não segue atalho interno
+            apagadas.append(pasta)
+        except OSError:
+            puladas.append(pasta)
+    return apagadas, puladas

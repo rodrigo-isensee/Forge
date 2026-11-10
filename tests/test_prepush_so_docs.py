@@ -1,13 +1,18 @@
-"""E18 PREPUSH-SO-DOCS: o pre-push do modelo de projeto pula o pre-push.local só quando todo arquivo enviado é docs/** ou .md.
+"""Pre-push do modelo de projeto. E18 PREPUSH-SO-DOCS: pula o pre-push.local só quando todo arquivo enviado é docs/** ou .md;
+F2 (versao-047, E2a): o pre-push.local roda num grupo próprio, e só esse grupo recebe sinal;
+F1 (versao-047, E1a): uma checagem do projeto por vez por usuário e máquina.
 
-Cada teste roda o hook de verdade num repositório descartável; o pre-push.local grava a marca "rodou".
+Cada teste roda o hook de verdade num repositório descartável, num grupo novo criado pelo teste (G-6).
 """
+import fcntl
 import os
 import shutil
 import stat
 import subprocess
+import signal
 import tempfile
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -21,10 +26,12 @@ AMBIENTE.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME=
 PULO = "só docs/** e .md; lint e typecheck pulados"
 
 
-class PrePushSoDocs(unittest.TestCase):
+class Repo(unittest.TestCase):
     def setUp(self):
-        self.dir = Path(tempfile.mkdtemp())
+        self.dir, self.fora = Path(tempfile.mkdtemp()), Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.dir, True)
+        self.addCleanup(shutil.rmtree, self.fora, True)
+        self.amb = dict(AMBIENTE, HOME=str(self.fora), XDG_RUNTIME_DIR=str(self.fora), TMPDIR=str(self.fora))
         self.git("init", "-q", "-b", "base")
         (self.dir / ".githooks").mkdir()
         shutil.copy(HOOK, self.dir / ".githooks" / "pre-push")
@@ -49,7 +56,7 @@ class PrePushSoDocs(unittest.TestCase):
 
     def envia(self, linhas, ambiente=None):
         r = subprocess.run([str(self.dir / ".githooks" / "pre-push"), "origin", "x"], input="".join(linhas),
-                           cwd=self.dir, env=ambiente or AMBIENTE, capture_output=True, text=True)
+                           cwd=self.dir, env=ambiente or self.amb, capture_output=True, text=True, start_new_session=True)
         return r, (self.dir / "marca").exists()
 
     def ref(self, local, remoto, nome="refs/heads/f"):
@@ -73,6 +80,8 @@ class PrePushSoDocs(unittest.TestCase):
         self.assertTrue(marca)
         self.assertNotIn(PULO, r.stdout)
 
+
+class PrePushSoDocs(Repo):
     def test_pula_so_docs(self):
         self.pula(["docs/a.md"])
 
@@ -189,7 +198,7 @@ class PrePushSoDocs(unittest.TestCase):
         g = falso / "git"
         g.write_text(f'#!/usr/bin/env bash\n[ "$1" = diff ] && exit 1\nexec {real} "$@"\n')
         g.chmod(0o755)
-        amb = dict(AMBIENTE, PATH=f"{falso}:{AMBIENTE['PATH']}")
+        amb = dict(self.amb, PATH=f"{falso}:{AMBIENTE['PATH']}")
         r, marca = self.envia([self.ref(novo, self.base)], amb)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertTrue(marca)
@@ -207,7 +216,7 @@ class PrePushSoDocs(unittest.TestCase):
         self.escreve("src/a.ts")
         novo = self.commit("codigo")
         for nome in ("FORGE_PREPUSH_SO_DOCS", "SKIP_PREPUSH_LOCAL", "FORGE_SO_DOCS"):
-            amb = dict(AMBIENTE, **{nome: "1"})
+            amb = dict(self.amb, **{nome: "1"})
             self.assertTrue(self.envia([self.ref(novo, self.base)], amb)[1], nome)
             (self.dir / "marca").unlink()
 
@@ -224,6 +233,439 @@ class PrePushSoDocs(unittest.TestCase):
         (self.dir / ".githooks" / "pre-push.local").write_text("#!/usr/bin/env bash\nexit 1\n")
         r, _ = self.envia([self.ref(novo, self.base)])
         self.assertEqual(r.returncode, 1)
+
+
+def vivos():
+    """PID -> PGID dos processos vivos, sem os zumbis (o PID 1 do contêiner pode não colher os órfãos)."""
+    v = {}
+    for p in Path("/proc").glob("[0-9]*"):
+        try:
+            c = (p / "stat").read_text().rsplit(")", 1)[1].split()
+        except OSError:
+            continue
+        if c[0] != "Z":
+            v[int(p.name)] = int(c[2])
+    return v
+
+
+def ate(cond, prazo=10):
+    fim = time.monotonic() + prazo
+    while not cond() and time.monotonic() < fim:
+        time.sleep(0.1)
+    return cond()
+
+
+class GrupoDaEtapa(Repo):
+    """Hook e irmão num grupo novo do teste (G-6); HOME, XDG_RUNTIME_DIR e TMPDIR na pasta de fora do teste."""
+    def setUp(self):
+        super().setUp()
+        self.escreve("src/a.ts")
+        self.novo = self.commit("codigo")
+
+    def etapa(self, corpo):
+        (self.dir / ".githooks" / "pre-push.local").write_text(
+            f'#!/usr/bin/env bash\necho $$ $(ps -o pgid= -p $$) > "$(dirname "$0")/../etapa"\nexec >/dev/null 2>&1\n{corpo}\n')
+
+    def lanca(self):
+        p = subprocess.Popen([shutil.which("bash"), "-c", "sleep 60 >/dev/null 2>&1 & echo $! > irmao; exec .githooks/pre-push origin x"],
+                             cwd=self.dir, env=self.amb, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             text=True, start_new_session=True)
+        self.addCleanup(subprocess.run, ["kill", "-KILL", "--", f"-{p.pid}"], stderr=subprocess.DEVNULL)
+        p.stdin.write(self.ref(self.novo, self.base))
+        p.stdin.close()
+        return p
+
+    def le(self, nome):
+        self.assertTrue(ate((self.dir / nome).exists), nome)
+        time.sleep(0.2)
+        return [int(x) for x in (self.dir / nome).read_text().split()]
+
+    def fim(self, p):
+        try:
+            return p.wait(timeout=30), p.stderr.read()
+        except subprocess.TimeoutExpired:
+            self.fail("o hook não saiu em 30 s")
+
+    def interrompe(self):
+        p = self.lanca()
+        etapa = self.le("etapa")[0]
+        time.sleep(1)
+        p.send_signal(signal.SIGTERM)
+        rc, err = self.fim(p)
+        self.assertEqual(rc, 1)
+        self.assertIn("checagem interrompida; o envio foi barrado", err)
+        self.assertIn(self.le("irmao")[0], vivos())
+        return etapa
+
+    def test_etapa_em_grupo_proprio_e_saida_repassada(self):
+        for saida, esperado in ((0, 0), (3, 1)):
+            with self.subTest(saida):
+                self.etapa(f"exit {saida}")
+                p = self.lanca()
+                self.assertEqual(self.fim(p)[0], esperado)
+                pid, pgid = self.le("etapa")
+                self.assertEqual(pgid, pid)
+                self.assertNotEqual(pgid, p.pid)
+                (self.dir / "etapa").unlink()
+
+    def test_term_no_hook_encerra_o_grupo_e_poupa_o_irmao(self):
+        self.etapa("sleep 60 & exec sleep 60")
+        etapa = self.interrompe()
+        self.assertTrue(ate(lambda: etapa not in vivos().values()))
+
+    def test_filho_deixado_pela_etapa_nao_sobrevive(self):
+        self.etapa('sleep 60 & echo $! > "$(dirname "$0")/../filho"')
+        self.assertEqual(self.fim(self.lanca())[0], 0)
+        filho = self.le("filho")[0]
+        self.assertTrue(ate(lambda: filho not in vivos()))
+
+    def test_grupo_nao_criado_ou_pgid_ilegivel_sinaliza_so_a_etapa(self):
+        falso = self.dir / "falso"
+        falso.mkdir()
+        (falso / "bash").write_text(f"#!/bin/sh\nexec {shutil.which('bash')} -c 'set() {{ [ \"$1\" = -m ] || builtin set \"$@\"; }}; . \"$0\"' \"$@\"\n")
+        self.amb["PATH"] = f"{falso}:{self.amb['PATH']}"
+        for corpo in ("echo $$", ""):
+            with self.subTest(corpo):
+                (falso / "ps").write_text(f"#!/bin/sh\n{corpo}\n")
+                for f in falso.iterdir():
+                    f.chmod(0o755)
+                self.etapa("exec sleep 60")
+                etapa = self.interrompe()
+                self.assertTrue(ate(lambda: etapa not in vivos()))
+                for nome in ("etapa", "irmao"):
+                    (self.dir / nome).unlink()
+
+
+class TravaDaChecagem(Repo):
+    def setUp(self):
+        super().setUp()
+        self.escreve("src/a.ts")
+        self.linhas = [self.ref(self.commit("codigo"), self.base)]
+        self.trava = self.fora / f"forge-prepush-{os.getuid()}.lock"
+
+    def lanca(self, amb=None):
+        (self.fora / "entrada").write_text("".join(self.linhas))
+        with open(self.fora / "entrada") as entrada:
+            return subprocess.Popen([str(self.dir / ".githooks" / "pre-push"), "origin", "x"], cwd=self.dir, env=amb or self.amb,
+                                    stdin=entrada, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                    start_new_session=True)
+
+    def fim(self, p):
+        try:
+            _, err = p.communicate(timeout=20)
+        except subprocess.TimeoutExpired:
+            os.killpg(p.pid, 9)
+            p.communicate()
+            self.fail("o hook não saiu em 20 s")
+        return p.returncode, err, (self.dir / "marca").exists()
+
+    def barra(self, amb=None, texto=""):
+        rc, err, marca = self.fim(self.lanca(amb))
+        self.assertEqual((rc, marca, texto in err), (1, False, True), err)
+
+    def test_quatro_envios_nunca_se_sobrepoem_e_avisam_uma_vez(self):
+        (self.dir / ".githooks" / "pre-push.local").write_text("#!/usr/bin/env bash\n" + 'echo i >> "$(dirname "$0")/../log"; sleep 1; echo o >> "$(dirname "$0")/../log"\n')
+        fins = [self.fim(p) for p in [self.lanca() for _ in range(4)]]
+        self.assertEqual((self.dir / "log").read_text().split(), ["i", "o"] * 4)
+        self.assertEqual([f[0] for f in fins], [0] * 4, fins)
+        avisos = [[linha for linha in f[1].splitlines() if "aguardando a vez" in linha] for f in fins]
+        self.assertEqual(sorted(bool(a) for a in avisos), [False] + [True] * 3)
+        self.assertFalse([a for a in avisos if any(x == y for x, y in zip(a, a[1:]))], "aviso repetido sem N mudar")
+
+    def test_espera_estourada_barra_sem_rodar(self):
+        with open(self.trava, "w") as t:
+            fcntl.flock(t, fcntl.LOCK_EX)
+            self.barra(dict(self.amb, FORGE_PREPUSH_ESPERA="1"), "a vez não chegou em 1 s")
+
+    def test_espera_invalida_recusa(self):
+        for v in ("0", "abc", "", "0012", "1234567", f"a[$(touch {self.fora}/S)]"):
+            with self.subTest(v):
+                self.barra(dict(self.amb, FORGE_PREPUSH_ESPERA=v), "FORGE_PREPUSH_ESPERA")
+        self.assertFalse((self.fora / "S").exists())
+
+    def test_trava_nao_passa_para_a_etapa(self):
+        (self.dir / ".githooks" / "pre-push.local").write_text("#!/usr/bin/env bash\n" + f'setsid sleep 300 >/dev/null 2>&1 & echo $! > {self.fora}/pid\n')
+        self.assertEqual(self.fim(self.lanca())[0], 0)
+        self.addCleanup(os.kill, int((self.fora / "pid").read_text()), 9)
+        self.assertEqual(self.fim(self.lanca(dict(self.amb, FORGE_PREPUSH_ESPERA="1")))[0], 0)
+        fila = self.trava.with_suffix(".fila")
+        self.assertTrue(fila.is_dir(), "a fila não nasceu")
+        self.assertEqual(list(fila.iterdir()), [])
+
+    def test_xdg_com_escrita_alheia_recua_para_o_home(self):
+        self.fora.chmod(0o777)
+        self.assertEqual(self.fim(self.lanca())[0:3:2], (0, True))
+        pasta = self.fora / ".local" / "state" / "forge"
+        self.assertEqual((self.trava.exists(), (pasta / self.trava.name).exists(), pasta.exists() and pasta.stat().st_mode & 0o777), (False, True, 0o700))
+
+    def test_pasta_de_outro_dono_recua_ou_e_recusada(self):
+        xdg = Path(tempfile.mkdtemp(dir=self.fora))
+        xdg.chmod(0o700)
+        if os.geteuid() == 0:
+            os.chown(xdg, 65534, 65534)
+        else:
+            xdg = Path("/")  # do root e sem escrita alheia: só o dono a recusa
+        self.assertEqual(self.fim(self.lanca(dict(self.amb, XDG_RUNTIME_DIR=str(xdg))))[0:3:2], (0, True))
+        pasta = self.fora / ".local" / "state" / "forge"
+        self.assertEqual(((xdg / self.trava.name).exists(), (pasta / self.trava.name).exists()), (False, True))
+        if os.geteuid() == 0:
+            (pasta / self.trava.name).unlink()
+            (self.dir / "marca").unlink()
+            os.chown(pasta, 65534, 65534)
+            self.barra({k: v for k, v in self.amb.items() if k != "XDG_RUNTIME_DIR"}, "recusada")
+            self.assertFalse((pasta / self.trava.name).exists())
+
+    def test_pasta_do_home_link_ou_775_recusada(self):
+        amb = {k: v for k, v in self.amb.items() if k != "XDG_RUNTIME_DIR"}
+        pasta, alvo = self.fora / ".local" / "state" / "forge", Path(tempfile.mkdtemp(dir=self.fora))
+        pasta.parent.mkdir(parents=True)
+        pasta.symlink_to(alvo)
+        self.barra(amb, "recusada")
+        self.assertEqual(list(alvo.iterdir()), [])
+        pasta.unlink()
+        pasta.mkdir()
+        pasta.chmod(0o775)
+        self.barra(amb, "recusada")
+
+    def test_trava_link_pasta_ou_alheia_recusada(self):
+        sentinela = self.fora / "sentinela"
+        sentinela.write_text("intacta")
+        self.trava.symlink_to(sentinela)
+        self.barra(texto="link")
+        self.assertEqual(sentinela.read_text(), "intacta")
+        self.trava.unlink()
+        self.trava.mkdir()
+        self.barra(texto="não abriu")
+        if os.geteuid() == 0:
+            self.trava.rmdir()
+            self.trava.touch()
+            os.chown(self.trava, 65534, 65534)
+            self.barra(texto="não é do próprio usuário")
+
+    def test_sem_flock_roda_com_aviso_e_flock_que_falha_barra(self):
+        sem = self.fora / "sem"
+        sem.mkdir()
+        for n in ("bash", "git", "dirname", "mktemp", "rm", "id", "find", "mkdir"):
+            (sem / n).symlink_to(shutil.which(n))
+        rc, err, marca = self.fim(self.lanca(dict(self.amb, PATH=str(sem))))
+        self.assertEqual((rc, marca, "sem flock" in err), (0, True, True), err)
+        (self.dir / "marca").unlink()
+        (sem / "flock").write_text("#!/bin/sh\nexit 2\n")
+        (sem / "flock").chmod(0o755)
+        self.barra(dict(self.amb, PATH=str(sem)))
+
+    def test_so_docs_nao_abre_a_trava(self):
+        self.base = self.git("rev-parse", "HEAD")
+        self.pula(["docs/a.md"])
+        self.assertFalse(self.trava.exists())
+
+
+class FilaDaChecagem(Repo):
+    lanca, fim, barra = TravaDaChecagem.lanca, TravaDaChecagem.fim, TravaDaChecagem.barra
+
+    def setUp(self):
+        super().setUp()
+        self.escreve("src/a.ts")
+        self.linhas = [self.ref(self.commit("codigo"), self.base)]
+        self.trava, self.fila = (self.fora / f"forge-prepush-{os.getuid()}.{x}" for x in ("lock", "fila"))
+        (self.dir / ".githooks" / "pre-push.local").write_text('#!/usr/bin/env bash\necho "${ORDEM-0}" >> "$(dirname "$0")/../marca"; sleep "${DORME-0}"\n')
+
+    def viva(self, nome):
+        self.fila.mkdir(mode=0o700, exist_ok=True)
+        f = open(self.fila / nome, "w")
+        self.addCleanup(f.close)
+        fcntl.flock(f, fcntl.LOCK_EX)
+
+    def roda_sozinho(self, amb=None):
+        rc, err, marca = self.fim(self.lanca(dict(amb or self.amb, FORGE_PREPUSH_ESPERA="3")))
+        self.assertEqual((rc, marca), (0, True), err)
+        return err
+
+    def test_tres_esperam_em_ordem_de_chegada_contando_quem_esta_na_frente(self):
+        ps = []
+        with open(self.trava, "w") as t:
+            fcntl.flock(t, fcntl.LOCK_EX)
+            for k in range(3):
+                ps.append(self.lanca(dict(self.amb, ORDEM=str(k), DORME="2")))
+                for _ in range(100):
+                    if len(list(self.fila.glob("[0-9]*-[0-9]*"))) > k:
+                        break
+                    time.sleep(0.1)
+        fins = [self.fim(p) for p in ps]
+        self.assertEqual([f[0] for f in fins], [0] * 3, fins)
+        self.assertEqual((self.dir / "marca").read_text().split(), ["0", "1", "2"])
+        avisos = [[linha.split("(")[1].split(")")[0] for linha in f[1].splitlines() if "aguardando a vez" in linha] for f in fins]
+        self.assertEqual(avisos, [["0 na frente"], ["1 na frente", "0 na frente"], ["2 na frente", "1 na frente", "0 na frente"]])
+        self.assertEqual(list(self.fila.iterdir()), [])
+
+    def test_senha_morta_sai_e_a_propria_nao_conta(self):
+        self.fila.mkdir(mode=0o700)
+        (self.fila / "1-1").touch()
+        self.roda_sozinho()
+        self.assertEqual(list(self.fila.iterdir()), [])
+
+    def test_senha_viva_na_frente_espera_ate_o_prazo(self):
+        self.viva("1-1")
+        self.barra(dict(self.amb, FORGE_PREPUSH_ESPERA="2"), "(1 na frente)")
+        self.assertTrue((self.fila / "1-1").exists())
+
+    def test_nome_fora_do_formato_ou_link_nao_conta_nem_vai_ao_terminal(self):
+        self.viva("0\x1b]0;x\x07-1")
+        self.viva("alvo")
+        (self.fila / "1-2").symlink_to(self.fila / "alvo")
+        err = self.roda_sozinho()
+        self.assertFalse(set(err) & {"\x1b", "\x07"}, err)
+
+    def test_pasta_da_fila_link_ou_775_espera_so_pela_trava(self):
+        alvo = Path(tempfile.mkdtemp(dir=self.fora))
+        self.fila.symlink_to(alvo)
+        self.assertIn("só pela trava", self.roda_sozinho())
+        self.assertEqual(list(alvo.iterdir()), [])
+        (self.dir / "marca").unlink()
+        self.fila.unlink()
+        self.fila.mkdir(mode=0o700)
+        self.fila.chmod(0o775)
+        self.assertIn("só pela trava", self.roda_sozinho())
+
+    def test_senha_morta_no_destino_da_fila_link_fica(self):
+        alvo = Path(tempfile.mkdtemp(dir=self.fora))
+        alvo.chmod(0o700)
+        (alvo / "1-1").touch()
+        self.fila.symlink_to(alvo)
+        self.assertIn("só pela trava", self.roda_sozinho())
+        self.assertEqual([f.name for f in alvo.iterdir()], ["1-1"])
+
+    def test_senha_que_nao_nasce_espera_so_pela_trava_sem_sobra(self):
+        falso = self.fora / "bin"
+        falso.mkdir()
+        (falso / "flock").write_text(f'#!/bin/sh\n[ "$*" = "-n 8" ] && exit 1\nexec {shutil.which("flock")} "$@"\n')
+        (falso / "flock").chmod(0o755)
+        self.assertIn("não foi criada", self.roda_sozinho(dict(self.amb, PATH=f"{falso}:{AMBIENTE['PATH']}")))
+        self.assertEqual(list(self.fila.iterdir()), [])
+
+
+class EnvioDeCodigo(Repo):
+    """Base das classes abaixo: um envio com código (não cai no "só docs"), lançado como na TravaDaChecagem."""
+    lanca, fim, barra = TravaDaChecagem.lanca, TravaDaChecagem.fim, TravaDaChecagem.barra
+
+    def setUp(self):
+        super().setUp()
+        self.escreve("src/a.ts")
+        self.linhas = [self.ref(self.commit("codigo"), self.base)]
+        self.trava = self.fora / f"forge-prepush-{os.getuid()}.lock"
+
+
+class LimiteDaEtapa(EnvioDeCodigo):
+    """F2 (E2b): FORGE_PREPUSH_TIMEOUT encerra a checagem com os filhos e barra; o prazo conta do início da etapa."""
+    def local(self, corpo):
+        (self.dir / ".githooks" / "pre-push.local").write_text(f'#!/usr/bin/env bash\ncd "$(dirname "$0")/.."\n{corpo}\n')
+
+    def test_estouro_encerra_com_os_filhos_e_barra(self):
+        self.local("sleep 300 & echo $! > filho; sleep 300")
+        rc, err, _ = self.fim(self.lanca(dict(self.amb, FORGE_PREPUSH_TIMEOUT="2")))
+        self.assertEqual(rc, 1)
+        self.assertIn("passou de 2 s e foi encerrada com os filhos", err)
+        filho = int((self.dir / "filho").read_text())
+        self.assertTrue(ate(lambda: filho not in vivos()))
+
+    def test_limite_invalido_recusa(self):
+        for v in ("0", "x", "", "-5", "1234567"):
+            with self.subTest(v):
+                self.barra(dict(self.amb, FORGE_PREPUSH_TIMEOUT=v), "FORGE_PREPUSH_TIMEOUT")
+
+    def test_espera_na_trava_nao_conta_no_limite(self):
+        self.local("sleep 0.5; echo rodou > marca")
+        with open(self.trava, "w") as t:
+            fcntl.flock(t, fcntl.LOCK_EX)
+            p = self.lanca(dict(self.amb, FORGE_PREPUSH_TIMEOUT="2", FORGE_PREPUSH_ESPERA="20"))
+            time.sleep(3)
+        rc, err, marca = self.fim(p)
+        self.assertEqual((rc, marca), (0, True), err)
+
+
+class AncestralMorto(EnvioDeCodigo):
+    """F3: kill -9 em quem pediu o envio encerra a checagem com os filhos (A3), sem sinal para quem não é dela (A5)."""
+    def test_kill_9_no_agente_encerra_a_checagem_e_o_hook(self):
+        (self.dir / ".githooks" / "pre-push.local").write_text(
+            '#!/usr/bin/env bash\ncd "$(dirname "$0")/.."\nsleep 300 & echo $$ $PPID $(ps -o pgid= -p $$) > etapa; sleep 300\n')
+        (self.fora / "entrada").write_text("".join(self.linhas))
+        intermediario = subprocess.Popen(
+            [sys.executable, "-c", "import subprocess, sys; subprocess.run(sys.argv[1:])", shutil.which("bash"), "-c",
+             f'.githooks/pre-push origin x < {self.fora}/entrada; echo fim'],
+            cwd=self.dir, env=self.amb, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        self.addCleanup(subprocess.run, ["kill", "-KILL", "--", f"-{intermediario.pid}"], stderr=subprocess.DEVNULL)
+        irmao = subprocess.Popen(["sleep", "60"], start_new_session=True)
+        self.addCleanup(irmao.kill)
+        self.assertTrue(ate((self.dir / "etapa").exists))
+        time.sleep(0.3)
+        etapa, hook, pgid = (int(x) for x in (self.dir / "etapa").read_text().split())
+        time.sleep(1.5)
+        self.assertIn(hook, vivos(), "com o agente vivo, nada é encerrado")
+        intermediario.kill()
+        intermediario.wait()
+        self.assertTrue(ate(lambda: pgid not in vivos().values() and hook not in vivos(), prazo=30))
+        self.assertIsNone(irmao.poll())
+
+    def test_pid_reusado_conta_como_ancestral_morto(self):
+        funcoes = subprocess.run(["sed", "-n", "/^inicio_de() {/,/^}/p;/^ancestral_morto() {/,/^}/p", str(HOOK)],
+                                 capture_output=True, text=True, check=True).stdout
+        roteiro = funcoes + 'inicio_de $$; ancestrais=("$$ $st_inicio"); ancestral_morto && echo morto || echo vivo\n' \
+            'ancestrais=("$$ 1"); ancestral_morto && echo morto || echo vivo\n'
+        saida = subprocess.run([shutil.which("bash"), "-c", roteiro], capture_output=True, text=True).stdout.split()
+        self.assertEqual(saida, ["vivo", "morto"])
+
+
+class PrioridadeDaEtapa(EnvioDeCodigo):
+    """F4: a checagem roda com nice 10 a mais (e ionice de melhor esforço quando funciona); normal tira os prefixos."""
+    def nice_da_etapa(self, amb=None):
+        (self.dir / ".githooks" / "pre-push.local").write_text(
+            '#!/usr/bin/env bash\nread -r l < /proc/self/stat; set -- ${l##*) }; echo "${17}" > "$(dirname "$0")/../nice"\n')
+        rc, err, _ = self.fim(self.lanca(amb))
+        self.assertEqual(rc, 0, err)
+        return int((self.dir / "nice").read_text())
+
+    def test_nice_baixo_por_padrao_e_normal_desliga(self):
+        base = os.nice(0)
+        self.assertEqual(self.nice_da_etapa(), min(base + 10, 19))
+        self.assertEqual(self.nice_da_etapa(dict(self.amb, FORGE_PREPUSH_PRIORIDADE="normal")), base)
+
+    def test_ionice_que_falha_nao_impede_a_checagem(self):
+        falso = self.fora / "falso"
+        falso.mkdir()
+        (falso / "ionice").write_text("#!/bin/sh\nexit 1\n")
+        (falso / "ionice").chmod(0o755)
+        self.assertEqual(self.nice_da_etapa(dict(self.amb, PATH=f"{falso}:{self.amb['PATH']}")), min(os.nice(0) + 10, 19))
+
+
+class ListaDosArquivos(EnvioDeCodigo):
+    """F5: FORGE_PREPUSH_ARQUIVOS aponta a lista (NUL) dos arquivos mudados pelo envio; sem base clara, não existe."""
+    def setUp(self):
+        super().setUp()
+        (self.dir / ".githooks" / "pre-push.local").write_text(
+            '#!/usr/bin/env bash\ncd "$(dirname "$0")/.."\nif [ -n "${FORGE_PREPUSH_ARQUIVOS+x}" ]; then tr "\\0" "\\n" < "$FORGE_PREPUSH_ARQUIVOS" > lista;'
+            ' echo "$FORGE_PREPUSH_ARQUIVOS" > caminho; else echo TUDO > lista; fi\n')
+
+    def envia_e_le(self, linhas):
+        self.linhas = linhas
+        rc, err, _ = self.fim(self.lanca())
+        self.assertEqual(rc, 0, err)
+        return sorted((self.dir / "lista").read_text().split("\n")[:-1])
+
+    def test_so_os_arquivos_mudados_sem_os_apagados(self):
+        self.escreve("src/velho.ts")
+        antes = self.commit("velho")
+        self.escreve("src/novo arquivo.ts")
+        (self.dir / "src" / "velho.ts").unlink()
+        self.escreve("docs/a.md")
+        novo = self.commit("muda")
+        self.assertEqual(self.envia_e_le([self.ref(novo, antes)]), ["docs/a.md", "src/novo arquivo.ts"])
+        self.assertFalse(Path((self.dir / "caminho").read_text().strip()).exists(), "a lista ficou para trás")
+
+    def test_sem_base_clara_olha_tudo(self):
+        self.escreve("src/a.ts")
+        novo = self.commit("codigo")
+        self.assertEqual(self.envia_e_le([self.ref(novo, ZERO)]), ["TUDO"])
+        self.assertEqual(self.envia_e_le([self.ref(novo, self.base, "refs/tags/v1")]), ["TUDO"])
 
 
 if __name__ == "__main__":

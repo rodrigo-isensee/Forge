@@ -1,0 +1,238 @@
+{
+  "pedido": "v0432-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I17",
+      "guarda": "bin/forge-check:2364 contagens is None or None in trechos.values() (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if contagens is None or None in trechos.values():",
+      "para": "    if not (contagens is None or None in trechos.values()):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I18",
+      "guarda": "bin/forge-check:2365 contagens is None (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        print(\"delta: \" + FALHA_DO_DELTA.format(\"diff --numstat\" if contagens is None else \"diff -U0\"))",
+      "para": "        print(\"delta: \" + FALHA_DO_DELTA.format(\"diff --numstat\" if not (contagens is None) else \"diff -U0\"))",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I19",
+      "guarda": "bin/forge-check:2390 base not in BASES_DO_DELTA (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    segurança, o commit não existe ou não é ancestral do fim, a base está fora da lista ou o git falha (FC-DELTA-GIT-FALHA).\"\"\"\n    if base not in BASES_DO_DELTA:",
+      "para": "    segurança, o commit não existe ou não é ancestral do fim, a base está fora da lista ou o git falha (FC-DELTA-GIT-FALHA).\"\"\"\n    if not (base not in BASES_DO_DELTA):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I20",
+      "guarda": "bin/forge-check:2425 isinstance(lido, FalhaDoGit) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    q, dispensados = testes_do_qa(raiz, campos.get(\"pedido\"), campos.get(\"branch\"), fim, inicio) if tipo == \"review\" else (None, set())\n    lido = intervalo_do_delta(raiz, inicio, fim, base)\n    if isinstance(lido, FalhaDoGit):",
+      "para": "    q, dispensados = testes_do_qa(raiz, campos.get(\"pedido\"), campos.get(\"branch\"), fim, inicio) if tipo == \"review\" else (None, set())\n    lido = intervalo_do_delta(raiz, inicio, fim, base)\n    if not (isinstance(lido, FalhaDoGit)):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I21",
+      "guarda": "bin/forge-check:2429 escopo (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        print(\"parecer delta: \" + FALHA_DO_DELTA.format(lido.passo))\n        return 2\n    nomes, escopo = lido\n    if escopo:",
+      "para": "        print(\"parecer delta: \" + FALHA_DO_DELTA.format(lido.passo))\n        return 2\n    nomes, escopo = lido\n    if not (escopo):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I22",
+      "guarda": "bin/forge-check:6966 (m := BRIEF_SELADO.match(linha)) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        if (m := BRIEF_SELADO.match(linha)):",
+      "para": "        if (not (m := BRIEF_SELADO.match(linha))):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I23",
+      "guarda": "bin/forge-check:6972 cobre and branch (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "            if cobre and branch:",
+      "para": "            if not (cobre and branch):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I24",
+      "guarda": "bin/forge-check:6974 (m := ENTREGA_CONFERIDA.match(linha)) and sha_do_commit(raiz, m.group(1)) == m.group(1) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        elif (m := ENTREGA_CONFERIDA.match(linha)) and sha_do_commit(raiz, m.group(1)) == m.group(1):",
+      "para": "        elif not ((m := ENTREGA_CONFERIDA.match(linha)) and sha_do_commit(raiz, m.group(1)) == m.group(1)):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I25",
+      "guarda": "bin/forge-check:6976 sha_do_commit(raiz, f'refs/heads/{branch}') or sha_do_commit(raiz, f'refs/remotes/origin/{branch}') (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "                head = sha_do_commit(raiz, f\"refs/heads/{branch}\") or sha_do_commit(raiz, f\"refs/remotes/origin/{branch}\")",
+      "para": "                head = not (sha_do_commit(raiz, f\"refs/heads/{branch}\") or sha_do_commit(raiz, f\"refs/remotes/origin/{branch}\"))",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I26",
+      "guarda": "bin/forge-check:6977 head and e_ancestral(raiz, m.group(1), head) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "                if head and e_ancestral(raiz, m.group(1), head):",
+      "para": "                if not (head and e_ancestral(raiz, m.group(1), head)):",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I27",
+      "guarda": "bin/forge-check:6988 etapa in conferidas or any(('entregue' in l.casefold() for l in citam)) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        estado = \"entregue\" if etapa in conferidas or any(\"entregue\" in l.casefold() for l in citam) \\",
+      "para": "        estado = \"entregue\" if not (etapa in conferidas or any(\"entregue\" in l.casefold() for l in citam)) \\",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I28",
+      "guarda": "bin/forge-check:8231 etapa in ETAPAS_DE_PARECER (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if etapa in ETAPAS_DE_PARECER:  # Z10: o parecer lê a branch e roda junto da escrita (hook `agentes`, AG-1b)",
+      "para": "    if not (etapa in ETAPAS_DE_PARECER):  # Z10: o parecer lê a branch e roda junto da escrita (hook `agentes`, AG-1b)",
+      "testes": [
+        "tests.test_classe_risco",
+        "tests.test_proximo",
+        "tests.test_etapa_do_brief",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha",
+        "tests.test_reval_delta",
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I29",
+      "guarda": "bin/forge-placar:169 SELADO.match(texto) and dentro(quando.date(), janela) (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "    selados = sum(1 for linhas in hist.values() for quando, texto in linhas if SELADO.match(texto) and dentro(quando.date(), janela))",
+      "para": "    selados = sum(1 for linhas in hist.values() for quando, texto in linhas if not (SELADO.match(texto) and dentro(quando.date(), janela)))",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I30",
+      "guarda": "bin/forge-placar:184 fontes['conferencias'] is None and (not selados) (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "    sem_conf = fontes[\"conferencias\"] is None and not selados",
+      "para": "    sem_conf = not (fontes[\"conferencias\"] is None and not selados)",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I31",
+      "guarda": "bin/forge-upgrade:35 subprocess.run(['git', '-C', str(projeto), 'merge-base', '--is-ancestor', sha, f'refs/heads/{base}'], capture_output=Tru (negada)",
+      "arquivo": "bin/forge-upgrade",
+      "de": "    mesclada = subprocess.run([\"git\", \"-C\", str(projeto), \"merge-base\", \"--is-ancestor\", sha, f\"refs/heads/{base}\"],\n                              capture_output=True).returncode == 0",
+      "para": "    mesclada = not (subprocess.run([\"git\", \"-C\", str(projeto), \"merge-base\", \"--is-ancestor\", sha, f\"refs/heads/{base}\"],\n                              capture_output=True).returncode == 0)",
+      "testes": [
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "I32",
+      "guarda": "bin/forge-upgrade:37 mesclada and (not a.apagar_mesclada) (negada)",
+      "arquivo": "bin/forge-upgrade",
+      "de": "    if mesclada and not a.apagar_mesclada:",
+      "para": "    if not (mesclada and not a.apagar_mesclada):",
+      "testes": [
+        "tests.test_forge"
+      ]
+    }
+  ]
+}

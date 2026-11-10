@@ -16,6 +16,8 @@ Passos, em ordem; para no primeiro erro:
      mesmo sha, não são a bateria do PR); só pass/skipping passam.
   6. rótulo: a Catraca vermelha pede o rótulo `afrouxa-regra` do dono; o script só avisa, nunca o aplica.
   7. imprime o comando que liga o merge automático (--auto); com o merge automático desligado no repositório, o comando recusa e o tech-lead mescla com tudo verde. O script NÃO mescla: o rótulo segue com o dono.
+--conferir-ref <sha40> (PROMOVER-CONFERIR, Z6 e SP4): só leitura, sem fetch e sem gh; roda os passos 2 e 3 do commit
+contra a origin/homolog local (a ref de commit pode ser qualquer uma, não só a develop); rc 0 promovível, 1 não (sempre 0 ou 1).
 --dry-run: roda só as leituras locais dos passos 1 a 3, o forge-check pr inclusive (nenhum fetch, nenhum gh, nenhum PR, nenhuma escrita) e descreve 4 a 7.
 Sem --dry-run, antes do passo 1 roda `git fetch origin` (atualiza as refs remotas; é a única escrita local).
 Código de saída: 0 pronta para o merge automático (checks verdes, pendentes ou ainda sem check; ou dry-run sem problema);
@@ -40,6 +42,7 @@ PENDENTES = {"pending", "queued", "in_progress"}
 FORGE_CHECK = Path(__file__).resolve().parent.parent / "bin" / "forge-check"
 PARECERES_DA_LEVA = ("docs/devops", "docs/security")  # com --base main, os gatilhos leem a leva inteira (P-N3)
 OK = {"pass", "skipping"}
+SHA40 = re.compile(r"[0-9a-f]{40}")
 
 
 def parar(msg, codigo=1):
@@ -162,6 +165,19 @@ def conferir_contra_main(ref, versao):
     for linha in da_leva:
         print(f"forge-check pr: não conta (devops e segurança são dos PRs da leva, não da release): {linha}")
     print(f"forge-check pr: pareceres de review e QA de {pedido} valem contra a main")
+
+
+def conferir_ref(sha):
+    """PH-1 (PROMOVER-CONFERIR): os passos 2 e 3 do sha contra a homolog local, sem fetch, sem gh e sem conferir_refs."""
+    if not SHA40.fullmatch(sha) or git("rev-parse", "--verify", "-q", f"{sha}^{{commit}}", ok_vazio=True).returncode:
+        parar(f"--conferir-ref quer o sha de 40 hex de um commit que exista: {sha!r}")
+    base = git("rev-parse", "--verify", "origin/homolog^{commit}").stdout.strip()  # um sha só para todas as leituras
+    conferir_pareceres(sha, base)
+    versao = conferir_versao(sha, base)
+    if versao_de(base) != versao:
+        conferir_contra_main(sha, versao)
+    print(f"conferir-ref: {sha} promovível para a homolog")
+    return 0
 
 
 def comando_gh():
@@ -302,10 +318,27 @@ def promover(args):
 
 
 def main():
-    ap = argparse.ArgumentParser(prog="promover-homolog", description="Prepara e confere a promoção develop -> homolog.")
+    """No --conferir-ref o rc é só 0 ou 1: erro de opção (2) e exceção viram 1 (C-3)."""
+    so_ler = any(a.split("=")[0] == "--conferir-ref" for a in sys.argv[1:])
+    try:
+        principal()
+    except SystemExit as saida:
+        if so_ler and saida.code not in (0, None):
+            sys.exit(1)
+        raise
+    except Exception as erro:  # noqa: BLE001 - no modo de leitura, toda exceção é "não promovível"
+        if not so_ler:
+            raise
+        parar(f"--conferir-ref não concluiu: {erro!r}")
+
+
+def principal():
+    ap = argparse.ArgumentParser(prog="promover-homolog", description="Prepara e confere a promoção develop -> homolog.",
+                                 allow_abbrev=False)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--ref", default="origin/develop")
     ap.add_argument("--base", default="origin/homolog")
+    ap.add_argument("--conferir-ref", metavar="SHA40")
     args = ap.parse_args()
     topo = git("rev-parse", "--show-toplevel", ok_vazio=True)
     if topo.returncode:
@@ -317,7 +350,7 @@ def main():
         nome = None
     if nome != "forge":
         parar("este não é o repositório do Forge (sem .claude-plugin/plugin.json com name forge); a promoção é do tech-lead no Forge (R-CONTRIB)")
-    sys.exit(promover(args))
+    sys.exit(conferir_ref(args.conferir_ref) if args.conferir_ref is not None else promover(args))
 
 
 if __name__ == "__main__":

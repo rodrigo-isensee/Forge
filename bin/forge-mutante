@@ -28,7 +28,9 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS] [--processos K
            nova; a nova sem relação deixa a velha como `apagada`. `isentas` na spec do diff (até 8 somadas):
            [{"arquivo", "trecho" exato com 8+ não brancos e dentro do nó, "motivo" de 20+ caracteres}] libera a
            condição sem mutante ou apagada que cruzam, impressa `isenta · arq:L · motivo`; isenta que não cruza condição
-           listada ou cujo trecho não casa uma vez é rc 2. O mutante declarado equivalente não prova a condição: coberta
+           listada ou cujo trecho não casa uma vez é rc 2. `linha_base` (opcional, só condição apagada): a linha da base
+           que a saída imprime em `(base)`; o trecho casa uma vez dentro do nó dessa condição, e cada isenta cobre uma
+           condição só; base que muda solta a isenta (rc 2). O mutante declarado equivalente não prova a condição: coberta
            só por ele sai `só equivalente · arq:L · <spec>:<id> · …`. Saída: 0 = toda condição mudada tem mutante com
            teste ou isenta, 1 = alguma sem mutante, só com equivalente ou apagada, 2 = entrada inválida (base que não
            é commit, diff vazio, spec inválida, arquivo que não faz parse, mais de 300 arquivos, 1 MiB por arquivo, 4 MiB
@@ -37,7 +39,9 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS] [--processos K
 Para cada mutante, uma cópia nova do commit em $TMPDIR (clone local com `.git` próprio). O controle (os testes
 declarados, sem a troca) tem de passar. Aí o `de` tem de aparecer uma vez só no arquivo, a troca é aplicada e os
 testes rodam: falha por asserção = morreu; tudo passa = sobreviveu. Erro de carga, teste que não rodou, sintaxe
-quebrada, estouro de prazo ou sinal não são "morreu": são inválido ou sem veredito (saída 2).
+quebrada, estouro de prazo ou sinal não são "morreu": são inválido ou sem veredito (saída 2). No executor `unittest`,
+a asserção que falha não monta o diff do `difflib` (o `assertEqual` de texto ou sequência grande estourava o prazo):
+só o veredito conta, e ele não depende do diff.
 
 Saída: 0 = todos morreram (ou são equivalentes declarados) e algum teste rodou; 1 = algum sobreviveu e nenhum é
 inválido; 2 = spec inválida, controle vermelho, mutante inválido, sem veredito ou nenhum teste rodou. Atenção: o 0
@@ -81,6 +85,7 @@ ID_DE_MUTANTE = re.compile(r"[A-Za-z0-9_-]{1,32}")
 CAMINHO = re.compile(r"[A-Za-z0-9_@+.][A-Za-z0-9_@+./-]*")
 CHAVES_DA_SPEC = {"pedido", "executor", "mutantes", "isentas"}
 CHAVES_DA_ISENTA = {"arquivo", "trecho", "motivo"}
+CHAVES_DA_ISENTA_POR_LINHA = CHAVES_DA_ISENTA | {"linha_base"}  # só para a condição apagada
 CHAVES_DO_MUTANTE = {"id", "guarda", "arquivo", "de", "para", "testes"}
 CHAVES_DO_EQUIVALENTE = CHAVES_DO_MUTANTE | {"equivalente"}  # a justificativa vai no campo; `testes` é opcional
 EXECUTORES = {"unittest"}
@@ -107,10 +112,17 @@ def git(*args, cwd=None):
     return r.stdout
 
 
-def ambiente_da_copia():
-    """Sem `GIT_*` (um hook exporta `GIT_DIR`, que venceria o repositório da cópia), `FORGE_*` nem a sessão real."""
-    env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
-    env["PYTHONDONTWRITEBYTECODE"] = "1"
+def ambiente_da_copia(cache=None):
+    """Sem `GIT_*` (um hook exporta `GIT_DIR`, que venceria o repositório da cópia), `FORGE_*` nem a sessão real. Com
+    `cache`, o bytecode vai para essa pasta fora da cópia (`PYTHONPYCACHEPREFIX`), uma por rodada: o teste que mede a
+    CPU de um script grande (o `test_doutor` com o `forge-check`) não paga a compilação a cada subprocesso, e o mutante
+    nunca lê o `.pyc` do controle (mesmo tamanho e mesmo segundo). Sem `cache`, nada de bytecode."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "PYTHONPYCACHEPREFIX"))
+           and k not in ("CLAUDE_PROJECT_DIR", "PYTHONDONTWRITEBYTECODE")}
+    if cache is None:
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
+    else:
+        env["PYTHONPYCACHEPREFIX"] = str(cache)
     return env
 
 
@@ -168,9 +180,23 @@ class Registro(unittest.TestResult):
             self.anotar(teste, "falha" if issubclass(err[0], teste.failureException) else "erro")
 
 
+class DiffOmitido:
+    """O `difflib` que o `unittest.case` vê no executor: o veredito é passou ou falhou, e a mensagem da asserção nunca
+    sai do filho (stdout e stderr vão para /dev/null). O `ndiff` do `assertEqual` entre sequências ou textos grandes
+    custa mais que o `--prazo` (a 300 linhas de 70 caracteres, mais de 30 s) e virava "sem veredito"."""
+
+    AVISO = "(diff omitido pelo forge-mutante: o veredito não depende dele)"
+
+    @staticmethod
+    def ndiff(a, b, *args, **kwargs):
+        return iter([DiffOmitido.AVISO])
+
+
 def executar(ids, registro):
-    """Roda os testes `ids` no diretório atual e grava um registro por teste em `registro` (JSON, uma linha por teste)."""
+    """Roda os testes `ids` no diretório atual e grava um registro por teste em `registro` (JSON, uma linha por teste).
+    A asserção que falha não monta diff (`DiffOmitido`): a igualdade já foi decidida antes dele."""
     sys.path.insert(0, os.getcwd())
+    unittest.case.difflib = DiffOmitido
     resultado = Registro()
     unittest.defaultTestLoader.loadTestsFromNames(ids).run(resultado)
     Path(registro).write_text("".join(json.dumps(e) + "\n" for e in resultado.por_id.values()), encoding="utf-8")
@@ -193,13 +219,13 @@ def encerrar_todos():
                 pass
 
 
-def rodar(copia, ids, registro, prazo):
+def rodar(copia, ids, registro, prazo, cache=None):
     """Roda os testes na cópia e devolve o registro por teste, ou None (prazo, sinal ou executor sem registro)."""
     with TRAVA_DOS_ATIVOS:
         if ABORTAR.is_set():
             return None
         processo = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--executar", *ids,
-                                     "--registro", str(registro)], cwd=copia, env=ambiente_da_copia(),
+                                     "--registro", str(registro)], cwd=copia, env=ambiente_da_copia(cache),
                                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                     start_new_session=True)
         ATIVOS.add(processo)
@@ -283,15 +309,19 @@ def validar_spec(dados):
 
 
 def validar_isentas(lista):
-    """Problemas das `isentas` da spec: `arquivo` + `trecho` exato (8+ caracteres não brancos) + `motivo` (20+ caracteres)."""
+    """Problemas das `isentas` da spec: `arquivo` + `trecho` exato (8+ caracteres não brancos) + `motivo` (20+ caracteres)
+    e, opcional, `linha_base` (inteiro, nunca `bool`, de 1 a MAXIMO_DO_ARQUIVO)."""
     if not isinstance(lista, list) or len(lista) > MAXIMO_DE_ISENTAS:
         return [f"isentas é uma lista de até {MAXIMO_DE_ISENTAS}"]
     problemas = []
     for n, i in enumerate(lista, 1):
-        certa = (isinstance(i, dict) and set(i) == CHAVES_DA_ISENTA and all(isinstance(v, str) for v in i.values())
+        certa = (isinstance(i, dict) and (set(i) == CHAVES_DA_ISENTA or set(i) == CHAVES_DA_ISENTA_POR_LINHA)
+                 and all(isinstance(i[k], str) for k in CHAVES_DA_ISENTA)
                  and len("".join(i["trecho"].split())) >= 8 and len(i["trecho"]) <= MAXIMO_DO_TRECHO
-                 and len(i["motivo"].strip()) >= 20 and not validar_caminho(i["arquivo"]))
-        problemas += [] if certa else [f"isenta {n}: arquivo, trecho (8+ não brancos) e motivo (20+ caracteres)"]
+                 and len(i["motivo"].strip()) >= 20 and not validar_caminho(i["arquivo"])
+                 and ("linha_base" not in i or type(i["linha_base"]) is int and 1 <= i["linha_base"] <= MAXIMO_DO_ARQUIVO))
+        problemas += [] if certa else [f"isenta {n}: arquivo, trecho (8+ não brancos), motivo (20+ caracteres) e linha_base "
+                                       f"opcional (inteiro de 1 a {MAXIMO_DO_ARQUIVO})"]
     return problemas
 
 
@@ -467,14 +497,24 @@ def toca(condicao, linhas):
     return any(n in linhas for n in range(condicao[1], condicao[2] + 1))
 
 
-def isenta(isentas, usadas, arquivo, texto, ini, fim):
-    """Motivo da isenção que cruza a condição [ini, fim] do `texto` (trecho único no arquivo e dentro do nó), ou None;
-    marca a isenção como usada: a que não cruza nenhuma condição listada é rc 2."""
+def cruza(i, usadas, arquivo, dados, ini, fim, linha_base_da_condicao):
+    """A isenção `i` cruza a condição dos bytes [ini, fim] de `dados`? A de hoje: trecho único no arquivo e dentro do nó.
+    A por linha (`linha_base`, só a apagada; a condição nova passa None): a mesma linha da base, sem tolerância, ainda
+    não usada (uma condição por isenta) e o trecho uma vez na fatia de bytes do nó."""
+    trecho = i["trecho"].encode("utf-8")
+    if "linha_base" not in i:
+        onde = dados.find(trecho)
+        return i["arquivo"] == arquivo and dados.count(trecho) == 1 and ini <= onde and onde + len(trecho) <= fim
+    return (id(i) not in usadas and i["linha_base"] == linha_base_da_condicao and i["arquivo"] == arquivo
+            and dados[ini:fim].count(trecho) == 1)
+
+
+def isenta(isentas, usadas, arquivo, texto, ini, fim, linha_base_da_condicao):
+    """Motivo da isenção que cruza a condição [ini, fim] do `texto` (`cruza`), ou None; marca a isenção como usada: a
+    que não cruza nenhuma condição listada é rc 2."""
     dados = texto.encode("utf-8")
     for i in isentas:
-        trecho = i["trecho"].encode("utf-8")
-        onde = dados.find(trecho)
-        if i["arquivo"] == arquivo and dados.count(trecho) == 1 and ini <= onde and onde + len(trecho) <= fim:
+        if cruza(i, usadas, arquivo, dados, ini, fim, linha_base_da_condicao):
             usadas.add(id(i))
             return i["motivo"]
     return None
@@ -504,7 +544,7 @@ def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
         casados = [(f"{espec}:{m['id']}", "equivalente" in m) for espec, m in mutantes
                    if casa(m, arquivo, depois, de, ate)]
         cobrem = [nome for nome, equivalente in casados if not equivalente]
-        motivo = None if cobrem else isenta(isentas, usadas, arquivo, depois, de, ate)
+        motivo = None if cobrem else isenta(isentas, usadas, arquivo, depois, de, ate, None)
         if cobrem:
             saida.append(f"coberta · {arquivo}:{ini} · {', '.join(cobrem)} · declarado, não provado")
         elif motivo:
@@ -514,7 +554,8 @@ def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
         else:
             saida.append(f"sem mutante · {arquivo}:{ini} · {' '.join(texto.split())[:60]}")
     for texto, ini, fim, de, ate in {c[0]: c for c in reversed(velhas) if falta[c[0]]}.values():
-        motivo = isenta(isentas, usadas, arquivo, antes, de, ate)
+        motivo = (isenta(isentas, usadas, arquivo, antes, de, ate, ini) if falta[texto] == 1
+                  else isenta(isentas, usadas, arquivo, antes, de, ate, None))  # 2+ apagadas: a por linha não casa
         saida.append(f"isenta · {arquivo}:{ini}(base) · {motivo}" if motivo else
                      f"apagada · {arquivo}:{ini}(base) · {' '.join(texto.split())[:60]}")
     return saida
@@ -579,11 +620,43 @@ def cobertura(base, rev):
     return 1 if any(x.startswith(("sem mutante", "só equivalente", "apagada")) for x in saida) else 0
 
 
+# MAQ-A7: a linha do log ganha a entrada (FORGE_ENTRADA validada), o load, os núcleos e as outras pesadas vivas.
+ENTRADA, PESADA = re.compile(r"[a-z-]{1,20}"), re.compile(r"suite-paralela\.py|unittest discover|forge-testes|forge-mutante")
+
+
+def outras(proc=Path("/proc"), eu=None):
+    """Pesadas vivas fora desta e dos ancestrais dela; erro de leitura do /proc dá "?"; a linha lida nunca se guarda."""
+    try:
+        fora, pid = set(), eu or os.getpid()
+        while pid > 1 and pid not in fora:
+            fora.add(pid)
+            pid = int((proc / str(pid) / "stat").read_text().rsplit(")", 1)[1].split()[1])
+        pids = [p for p in os.listdir(proc) if p.isdigit() and int(p) not in fora]
+    except (OSError, ValueError, IndexError):
+        return "?"
+    n = 0
+    for p in pids:
+        try:  # o processo que termina no meio da leitura não derruba a contagem
+            n += bool(PESADA.search((proc / p / "cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")))
+        except OSError:
+            continue
+    return n
+
+
+def contexto():
+    entrada = os.environ.get("FORGE_ENTRADA", "autor")
+    try:
+        load1 = f"{os.getloadavg()[0]:.2f}"
+    except OSError:
+        load1 = "?"
+    return f" entrada={entrada if ENTRADA.fullmatch(entrada) else '?'} load1={load1} nproc={os.cpu_count()} outras={outras()}"
+
+
 def anotar(segundos, codigo):
     LOG.parent.mkdir(parents=True, exist_ok=True)
     agora = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     with LOG.open("a", encoding="utf-8") as f:
-        f.write(f"{agora} modo=mutante modulos=- duracao={segundos:.1f}s saida={codigo}\n")
+        f.write(f"{agora} modo=mutante modulos=- duracao={segundos:.1f}s saida={codigo}{contexto()}\n")
 
 
 class Controles:
@@ -611,7 +684,8 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
     montar_copia(raiz, copia, sha)
 
     def controle():  # mesmo commit e mesmos testes: o controle dá o mesmo resultado
-        registro = rodar(copia, m["testes"], trabalho / f"controle-{m['id']}.jsonl", prazo)
+        registro = rodar(copia, m["testes"], trabalho / f"controle-{m['id']}.jsonl", prazo,
+                         trabalho / f"pyc-controle-{m['id']}")
         resultado = None if registro is None else veredito(m["testes"], registro)
         return "sem veredito" if resultado is None else ("ok" if resultado[0] == "sobreviveu" else "vermelho")
 
@@ -621,7 +695,7 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
     linha, motivo = mutar(copia, m)
     if motivo:
         return f"{m['id']} · inválido · {m['arquivo']} · {motivo}", 2, False
-    registro = rodar(copia, m["testes"], trabalho / f"mutante-{m['id']}.jsonl", prazo)
+    registro = rodar(copia, m["testes"], trabalho / f"mutante-{m['id']}.jsonl", prazo, trabalho / f"pyc-{m['id']}")
     if registro is None:
         return f"{m['id']} · sem veredito · {m['arquivo']}:{linha}", 2, False
     classe, motivo = veredito(m["testes"], registro)

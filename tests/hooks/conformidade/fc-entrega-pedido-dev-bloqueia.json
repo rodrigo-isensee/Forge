@@ -1,0 +1,20 @@
+{
+  "descricao": "0.43.1: a `entrega conferida` é do jarvis; o dev não a grava pelo `entrega --pedido`.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# Pedido p1\n\n## Histórico\n- 2026-10-30: aberto\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "forge-check entrega --pedido p1 --branch melhoria/x --etapa codigo"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:node-backend"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: o pedido"
+  }
+}

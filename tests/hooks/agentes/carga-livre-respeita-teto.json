@@ -1,11 +1,11 @@
 {
-  "descricao": "FORGE_CARGA_LIVRE=1 pula só a trava de carga: o teto (2 núcleos = teto 2) segue valendo.",
+  "descricao": "FORGE_CARGA_LIVRE=1 pula só a trava de carga: o teto (2 núcleos = teto 2) segue valendo. (memória 1,5 GB, abaixo do piso de 2 GB)",
   "env": {
     "FORGE_CARGA_LIVRE": "1"
   },
   "proc": {
     "loadavg": "7.0 1.0 1.0 1/100 1",
-    "mem_gb": 8,
+    "mem_gb": 1.5,
     "mem_total_gb": 16,
     "nproc": 2
   },
@@ -14,13 +14,13 @@
       "agentes": [
         {
           "id": "a0",
-          "tipo": "forge:tech-lead",
+          "tipo": "web-fetch",
           "descricao": "Tarefa 0",
           "desde": "{agora-60}"
         },
         {
           "id": "a1",
-          "tipo": "forge:tech-lead",
+          "tipo": "web-fetch",
           "descricao": "Tarefa 1",
           "desde": "{agora-60}"
         }
@@ -32,7 +32,7 @@
     "tool_name": "Agent",
     "tool_use_id": "toolu_1",
     "tool_input": {
-      "subagent_type": "forge:qa-engineer",
+      "subagent_type": "Explore",
       "description": "Validar a entrega",
       "prompt": "..."
     }

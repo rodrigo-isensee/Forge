@@ -1,0 +1,26 @@
+{
+  "pedido": "est-m12-estados",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M-A1a",
+      "guarda": "as celulas a mais do movimento se juntam com /, sem abrir coluna no quadro; regerar da o mesmo texto (A1 do review g2)",
+      "arquivo": "bin/forge-check",
+      "de": "ler_marca(\"/\".join(m[4:]))",
+      "para": "ler_marca(\"|\".join(m[4:]))",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_motivo_em_duas_celulas_nao_duplica_o_cartao_ao_regerar"
+      ]
+    },
+    {
+      "id": "M-A1b",
+      "guarda": "a marca de atributos na celula a mais do movimento e lida (A1 do review g2)",
+      "arquivo": "bin/forge-check",
+      "de": "ler_marca(\"/\".join(m[4:]))",
+      "para": "ler_marca(\"/\".join(m[4:5]))",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado.test_motivo_em_duas_celulas_nao_duplica_o_cartao_ao_regerar"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "pedido": "z075-mapa-modelos-devops",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o modelo de devops de templates/ leva os testes que o leem: sem devops na regra, cai no PUBLICADO sem eles",
+      "arquivo": "bin/forge-testes",
+      "de": "r\"templates/projeto/docs/(reviews|qa|security|devops)/_modelo\\.md\"",
+      "para": "r\"templates/projeto/docs/(reviews|qa|security)/_modelo\\.md\"",
+      "testes": [
+        "tests.test_testes_tocados.Mapa.test_modelos_de_parecer_rodam_os_testes_que_os_leem"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o modelo de devops de docs/ leva os testes que o leem: sem devops na regra, cai no CONTEUDO sem eles",
+      "arquivo": "bin/forge-testes",
+      "de": "r\"docs/(security|devops)/_modelo\\.md\"",
+      "para": "r\"docs/security/_modelo\\.md\"",
+      "testes": [
+        "tests.test_testes_tocados.Mapa.test_modelos_de_parecer_rodam_os_testes_que_os_leem"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "scripts/promover-homolog.py segue sem regra (suíte completa): uma regra qualquer para ele o tira da completa",
+      "arquivo": "bin/forge-testes",
+      "de": "r\"docs/economia-de-tokens\\.md\"",
+      "para": "r\"docs/economia-de-tokens\\.md|scripts/promover-homolog\\.py\"",
+      "testes": [
+        "tests.test_testes_tocados.Mapa.test_promover_e_apoio_seguem_na_completa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "tests/apoio_*.py segue sem regra (decisão 7 do dono): uma regra para o apoio o tira da completa",
+      "arquivo": "bin/forge-testes",
+      "de": "r\"(CHANGELOG\\.md|changelog\\.d/.*)\"",
+      "para": "r\"(CHANGELOG\\.md|changelog\\.d/.*|tests/apoio_.*)\"",
+      "testes": [
+        "tests.test_testes_tocados.Mapa.test_promover_e_apoio_seguem_na_completa"
+      ]
+    }
+  ]
+}

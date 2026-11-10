@@ -5,7 +5,8 @@ Só biblioteca padrão. Lê a base com `git show <base>:<arquivo>` (a base efeti
 Exceção estreita: PR de `dependabot[bot]` que só troca SHA de `uses:` em workflows passa sem rótulo e sem parecer.
 Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY) e `pareceres`.
 Exceção única das regras (menos `R-CUSTO`, que só tem `custo_permitido`): rótulo `afrouxa-regra` aplicado pelo `dono` (de tests/config.json da base) depois do
-último push, ou cujo diff efetivo (merge-base, fora dos pareceres dos pedidos desta branch) não mudou desde o rótulo e
+último push, ou cujos arquivos protegidos (VIGIADOS_DO_ROTULO e forma compilada: mesmo blob e modo) e a piora dos testes não
+mudaram desde o rótulo (P9), ou cujo diff efetivo (merge-base, fora dos pareceres dos pedidos desta branch) não mudou desde ele, e
 cujas violações já existiam no head rotulado. Na promoção (PROMOCOES), também vale o rótulo do dono já posto num PR mesclado
 em base..head, só para as violações "mudança em <arquivo>" cujo arquivo tem o mesmo blob e modo do head rotulado (S-16). Com squash
 (develop → homolog) o head rotulado vem de `refs/pull/<n>/head`, buscado num namespace próprio (`refs/catraca/pull/<n>`), e vale
@@ -383,14 +384,22 @@ def _nome(no):
 
 def forca_dos_testes(raiz, ref):
     """(asserções, pulos, testes vazios) somados em tests/**/*.py, exceto a própria catraca (AST, sem executar nada)."""
-    asserts = pulos = vazios = 0
+    return _forca_das_arvores(_arvores_dos_testes(raiz, ref))
+
+
+def _arvores_dos_testes(raiz, ref):
     for arq in listar(raiz, ref, "tests"):
         if not arq.endswith(".py") or arq == "tests/catraca.py":
             continue
         try:
-            arvore = ast.parse(ler(raiz, ref, arq) or "")
+            yield ast.parse(ler(raiz, ref, arq) or "")
         except SyntaxError:
             continue
+
+
+def _forca_das_arvores(arvores):
+    asserts = pulos = vazios = 0
+    for arvore in arvores:
         for n in ast.walk(arvore):
             if isinstance(n, ast.Assert):
                 asserts += 1
@@ -416,6 +425,325 @@ def regra_testes_enfraquecidos(raiz, b, h):
             v.append(msg("R-CONFORMIDADE", oque, "teste esvaziado ou pulado deixa a regra sem proteção mantendo a contagem de testes",
                          f"restaure as asserções ou peça o rótulo `{ROTULO}` ao dono", "docs/regras/R-CONFORMIDADE.md"))
     return v
+
+
+# --- Nenhum teste some em silêncio com a suíte só no CI (0.43.2: MAQ-I7a, I7b com T4, T3, MUTANTES-SPEC-HOOKS) ------------
+# Tudo pela árvore do git e por `ast.parse`: nada do head é importado nem executado.
+PREFIXOS_DE_CONTROLE = ("tests/test_hooks", "tests/test_pre_push", "tests/test_suite_", "tests/test_testes_tocados",
+                        "tests/test_catraca")  # MAQ-I7a: os módulos que provam hooks, trava, suíte e a catraca
+TETO_DO_MODULO = 2 * 1024 * 1024  # bytes; módulo de controle maior não é lido e conta zero (orçamento do modelo de ameaças do I7)
+ILEGIVEL = (SyntaxError, ValueError, RecursionError, MemoryError)  # ValueError cobre o UTF-8 inválido do `git show`
+POR_QUE_DO_CI = "com a suíte inteira só no CI, o teste que sai do alcance dele some sem ninguém ver"
+
+
+def eh_controle(arq):
+    """Módulo de controle: `tests/test_hooks*.py`, `test_pre_push*`, `test_suite_*`, `test_testes_tocados*` ou `test_catraca*`
+    na raiz de tests/. Vale a lista da base: o módulo renomeado para fora do prefixo conta zero no head."""
+    return arq.startswith(PREFIXOS_DE_CONTROLE) and arq.endswith(".py") and arq.count("/") == 1
+
+
+def _arvore_do_modulo(raiz, ref, arq, presentes):
+    """A AST de `arq` em `ref`, ou None se ausente, ilegível ou de controle acima do teto (conta zero, nunca é pulado).
+    O `git show` que falha num arquivo presente levanta `ErroDeGit` (falha fechada)."""
+    if arq not in presentes:
+        return None
+    try:
+        texto = ler(raiz, ref, arq)
+        if texto is None:
+            raise ErroDeGit(msg_falha_git(f"o `git show` de {arq} em {ref} falhou"))
+        return None if eh_controle(arq) and len(texto.encode()) > TETO_DO_MODULO else ast.parse(texto)
+    except ILEGIVEL:
+        return None
+
+
+def forca_por_modulo(raiz, ref, modulos):
+    """{módulo: (asserções, pulos, vazios)} em `ref`; ausente, acima do teto ou ilegível conta (0, 0, 0)."""
+    presentes = set(listar(raiz, ref, "tests"))
+    forca = {}
+    for arq in modulos:
+        arvore = _arvore_do_modulo(raiz, ref, arq, presentes)
+        forca[arq] = (0, 0, 0) if arvore is None else _forca_das_arvores([arvore])
+    return forca
+
+
+def _piora(antes, depois):
+    """(asserções a menos, pulos a mais, vazios a mais), cada um 0 se não piora."""
+    return tuple(max(d, 0) for d in (antes[0] - depois[0], depois[1] - antes[1], depois[2] - antes[2]))
+
+
+def regra_controles_enfraquecidos(raiz, b, h):
+    """MAQ-I7a: asserção que cai num módulo de controle barra mesmo que outro módulo compense no total."""
+    modulos = [a for a in listar(raiz, b, "tests") if eh_controle(a)]
+    fb, fh = forca_por_modulo(raiz, b, modulos), forca_por_modulo(raiz, h, modulos)
+    return [msg("R-CONFORMIDADE", f"o módulo de controle {arq} enfraqueceu: (asserções, pulos, vazios) de {fb[arq]} para {fh[arq]}",
+                "o teste que prova hook, trava, suíte ou a catraca não se compensa em outro módulo",
+                f"restaure as asserções no próprio módulo ou peça o rótulo `{ROTULO}` ao dono", "docs/regras/R-CONFORMIDADE.md")
+            for arq in modulos if any(_piora(fb[arq], fh[arq]))]
+
+
+def modulos_descobriveis(raiz, ref, arquivos=None):
+    """Módulos que o `discover -s tests` carrega em `ref` (o que `scripts/suite-partes.py` divide no CI): `test*.py` de nome
+    importável na raiz de tests/ ou em pacote com `__init__.py` em cada pasta, pela árvore do git."""
+    arquivos = listar(raiz, ref, "tests") if arquivos is None else arquivos
+    pacotes = {a.rsplit("/", 1)[0] for a in arquivos if a.endswith("/__init__.py")}
+
+    def descobrivel(arq):
+        pastas, nome = arq.split("/")[1:-1], arq.rsplit("/", 1)[-1]
+        dentro = all(p.isidentifier() and "/".join(["tests", *pastas[:i + 1]]) in pacotes for i, p in enumerate(pastas))
+        return nome.startswith("test") and nome.endswith(".py") and nome[:-3].isidentifier() and dentro
+    return [a for a in arquivos if descobrivel(a)]
+
+
+def _testes_dos_modulos(raiz, ref, modulos, presentes):
+    testes = 0
+    for arq in modulos:
+        arvore = _arvore_do_modulo(raiz, ref, arq, presentes)
+        testes += 0 if arvore is None else sum(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name.startswith("test_")
+                                               for n in ast.walk(arvore))
+    return testes
+
+
+def forca_do_discover(raiz, ref):
+    """(módulos descobríveis, `def test_*` neles, `def test_*` nos `tests/**/*.py` fora do discover) em `ref`; fora de conta
+    ficam tests/catraca.py e tests/hooks/ (corpus)."""
+    arquivos = listar(raiz, ref, "tests")
+    presentes, modulos = set(arquivos), modulos_descobriveis(raiz, ref, arquivos)
+    fora = [a for a in arquivos if a.endswith(".py") and a not in modulos and a != "tests/catraca.py" and not a.startswith("tests/hooks/")]
+    return len(modulos), _testes_dos_modulos(raiz, ref, modulos, presentes), _testes_dos_modulos(raiz, ref, fora, presentes)
+
+
+# T4: todo arquivo de teste de tests/ roda no CI, pelo discover, por um `run:` dos workflows com o caminho inteiro (fora de
+# comentário de shell) ou pela exceção com motivo em `testes_fora_do_ci` de tests/config.json, lida só da base.
+ARQUIVO_DE_TESTE = re.compile(r"tests/(?:[^/]+/)*(?:test[^/]*\.py|[^/]+_test\.py|[^/]+\.sh|[^/]+\.(?:test|spec)\.[^/]+)")
+COMENTARIO_DE_SHELL = re.compile(r"(?:^|(?<=\s))#.*", re.M)
+CLASSE_CITADA = re.compile(r"(?<![\w./-])tests\.((?:\w+\.)*test\w*)\.(\w+)")
+MINIMO_DO_MOTIVO = 20  # caracteres visíveis
+
+
+def textos_de_run(texto):
+    """O texto de cada `run:` de um workflow, em linha ou em bloco (`|`, `>`), lido como texto e sem comentário de shell."""
+    linhas, runs = texto.splitlines(), []
+    for i, linha in enumerate(linhas):
+        m = re.match(r"\s*(?:- )?run:\s*(.*)$", linha)
+        if not m:
+            continue
+        if not m.group(1).startswith(("|", ">")):
+            runs.append(m.group(1))
+            continue
+        coluna, bloco = linha.index("run:"), []
+        for seguinte in linhas[i + 1:]:
+            if seguinte.strip() and len(seguinte) - len(seguinte.lstrip()) <= coluna:
+                break
+            bloco.append(seguinte)
+        runs.append("\n".join(bloco))
+    return [COMENTARIO_DE_SHELL.sub("", r) for r in runs]
+
+
+def runs_dos_workflows(raiz, ref):
+    return [r for w in listar(raiz, ref, ".github/workflows") if w.endswith((".yml", ".yaml"))
+            for r in textos_de_run(ler(raiz, ref, w) or "")]
+
+
+def motivo_valido(motivo):
+    return isinstance(motivo, str) and sum(not c.isspace() and unicodedata.category(c) not in CATEGORIAS_FORA
+                                           for c in motivo) >= MINIMO_DO_MOTIVO
+
+
+def testes_fora_do_ci(raiz, ref, excecoes):
+    """Arquivos de teste de tests/ em `ref` que nem o discover, nem um `run:` dos workflows, nem a exceção com motivo rodam."""
+    arquivos = listar(raiz, ref, "tests")
+    descobertos, runs = set(modulos_descobriveis(raiz, ref, arquivos)), runs_dos_workflows(raiz, ref)
+    return sorted(a for a in arquivos if ARQUIVO_DE_TESTE.fullmatch(a) and a not in descobertos
+                  and not any(re.search(rf"(?<![\w./-]){re.escape(a)}(?![\w./-])", r) for r in runs)
+                  and not motivo_valido(excecoes.get(a)))
+
+
+def classes_citadas_ausentes(raiz, ref):
+    """Cada `tests.<módulo>.<Classe>` citado num `run:` dos workflows de `ref` cuja classe não está no módulo (por AST)."""
+    presentes, ausentes = set(listar(raiz, ref, "tests")), set()
+    for modulo, classe in {c for r in runs_dos_workflows(raiz, ref) for c in CLASSE_CITADA.findall(r)}:
+        arvore = _arvore_do_modulo(raiz, ref, f"tests/{modulo.replace('.', '/')}.py", presentes)
+        if arvore is None or classe not in {n.name for n in arvore.body if isinstance(n, ast.ClassDef)}:
+            ausentes.add(f"tests.{modulo}.{classe}")
+    return ausentes
+
+
+def _excecoes_do_ci(cfg):
+    excecoes = (cfg or {}).get("testes_fora_do_ci") if isinstance(cfg, dict) else None
+    return excecoes if isinstance(excecoes, dict) else {}
+
+
+def regra_testes_no_ci(raiz, b, h, cfg_base, cfg_head=None):
+    """I7b com T4, uma regra só: o teste que sai do alcance do CI barra. (1) Módulos e `def test_*` que o discover vê não caem
+    e `def test_*` fora dele não sobem (rename para `tests/x.py`, pasta sem `__init__.py`, módulo ilegível); (2) arquivo de
+    teste que nenhum caminho do CI roda e rodava (ou é novo); (3) classe citada num `run:` que deixou de existir; (4) exceção
+    nova ou alterada em `testes_fora_do_ci` (vale a lista da base: a exceção nova só vale depois de mesclada com o rótulo)."""
+    corrigir = (f"volte o teste ao padrão `tests/test*.py` (ou ao pacote com `__init__.py`), cite o caminho num `run:` do CI ou peça "
+                f"o rótulo `{ROTULO}` ao dono")
+    (mb, tb, fb), (mh, th, fh) = forca_do_discover(raiz, b), forca_do_discover(raiz, h)
+    v = [msg("R-CONFORMIDADE", f"{oque} que o `discover` da suíte vê caíram de {antes} para {depois}", POR_QUE_DO_CI, corrigir,
+             "docs/regras/R-CONFORMIDADE.md")
+         for oque, antes, depois in (("módulos de teste", mb, mh), ("testes `test_*`", tb, th)) if depois < antes]
+    if fh > fb:
+        v.append(msg("R-CONFORMIDADE", f"testes `test_*` em tests/ fora do alcance do `discover` subiram de {fb} para {fh}",
+                     POR_QUE_DO_CI, corrigir, "docs/regras/R-CONFORMIDADE.md"))
+    excecoes = _excecoes_do_ci(cfg_base)
+    for a, motivo in sorted(_excecoes_do_ci(cfg_head).items()):
+        if excecoes.get(a) != motivo:
+            v.append(msg("R-CONFORMIDADE", f"exceção nova em `testes_fora_do_ci`: {neutralizar(a)[:CORTE_DA_DECISAO]}",
+                         "a exceção tira o arquivo de teste do CI", f"rode o teste no CI ou peça o rótulo `{ROTULO}` ao dono",
+                         "docs/regras/R-CONFORMIDADE.md"))
+    for a in sorted(set(testes_fora_do_ci(raiz, h, excecoes)) - set(testes_fora_do_ci(raiz, b, excecoes))):
+        v.append(msg("R-CONFORMIDADE", f"arquivo de teste que nenhum comando do CI roda: {a}", POR_QUE_DO_CI,
+                     f"{corrigir}; a exceção com motivo vai em `testes_fora_do_ci` de tests/config.json", "docs/regras/R-CONFORMIDADE.md"))
+    for c in sorted(classes_citadas_ausentes(raiz, h) - classes_citadas_ausentes(raiz, b)):
+        v.append(msg("R-CONFORMIDADE", f"classe citada num `run:` do CI não existe: {c}", "o passo que a cita não roda o teste que diz rodar",
+                     f"restaure a classe ou atualize o `run:`, ou peça o rótulo `{ROTULO}` ao dono", "docs/regras/R-CONFORMIDADE.md"))
+    return v
+
+
+def _teto_valido(teto):
+    return type(teto) is int and teto >= 0
+
+
+def regra_teto_pulados(cb, ch):
+    """T3: `teto_pulados` de tests/config.json (o máximo de testes pulados na suíte do CI) só cai; sair ou virar outro tipo barra."""
+    if not isinstance(cb, dict) or "teto_pulados" not in cb:
+        return []
+    tb, th = cb["teto_pulados"], (ch if isinstance(ch, dict) else {}).get("teto_pulados")
+    if not _teto_valido(th):
+        oque = "`teto_pulados` saiu de tests/config.json ou não é inteiro >= 0"
+    elif _teto_valido(tb) and th > tb:
+        oque = f"`teto_pulados` subiu de {tb} para {th}"
+    else:
+        return []
+    return [msg("R-CONFORMIDADE", oque, "teste pulado não prova nada, e o teto que sobe deixa o pulo se acumular",
+                f"desfaça o pulo novo em vez de subir o teto, ou peça o rótulo `{ROTULO}` ao dono", "docs/regras/R-CONFORMIDADE.md")]
+
+
+# MUTANTES-SPEC-HOOKS: diff que muda linha de guarda em código Python de controle (a classe C do `forge-check classe`, pela
+# mesma lista: `motivo_de_controle`; hooks/, bin/, scripts/, templates/projeto/...; fora os testes) pede mutante declarado
+# numa spec de tests/mutantes/ do próprio diff. A análise é a do `bin/forge-mutante --cobertura` (uma fonte só), carregado ao lado
+# deste script (no CI, o da base), sobre o diff merge-base..head; Python é `*.py` ou o script com shebang de python.
+SPEC_DE_MUTANTES = re.compile(r"tests/mutantes/[^/]+\.json")
+FALTAS_DE_MUTANTE = ("sem mutante", "só equivalente", "apagada")
+MOSTRADAS_POR_ARQUIVO = 5
+
+
+def forge_mutante():
+    """O `bin/forge-mutante` ao lado deste script (no CI, o da base), como módulo."""
+    caminho = Path(__file__).resolve().parent.parent / "bin" / "forge-mutante"
+    loader = SourceFileLoader("forge_mutante", str(caminho))
+    modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader("forge_mutante", loader))
+    loader.exec_module(modulo)
+    return modulo
+
+
+def msg_guarda(oque):
+    return msg("R-QA", oque, "mudar a guarda de um hook sem mutante declarado deixa o ramo de falha sem prova (2 dos 4 escapes do P7)",
+               "declare um mutante por condição mudada em tests/mutantes/<pedido>.json (`bin/forge-mutante --cobertura --base <base>` "
+               f"lista as que faltam), ou a isenta com motivo, ou peça o rótulo `{ROTULO}` ao dono", "docs/regras/R-QA.md")
+
+
+def _texto_no(raiz, ref, arq):
+    """Texto de `arq` em `ref`, "" se ausente; o git que falha num presente levanta (falha fechada)."""
+    if not existe(raiz, ref, arq):
+        return ""
+    texto = ler(raiz, ref, arq)
+    if texto is None:
+        raise ErroDeGit(msg_falha_git(f"o `git show` de {arq} em {ref} falhou"))
+    return texto
+
+
+def _specs_do_diff(raiz, h, fm, mudados):
+    """(mutantes, isentas, violações) das specs de tests/mutantes/ que o diff acrescenta ou edita."""
+    mutantes, isentas, v = [], [], []
+    for spec in filter(SPEC_DE_MUTANTES.fullmatch, mudados):
+        texto = _texto_no(raiz, h, spec)
+        if not texto:
+            continue
+        try:
+            dados = json.loads(texto)
+            problemas = fm.validar_spec(dados)
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
+            problemas = [type(e).__name__]
+        if problemas:
+            v.append(msg_guarda(f"spec de mutantes inválida: {spec} ({neutralizar('; '.join(map(str, problemas)))[:CORTE_DA_DECISAO]})"))
+            continue
+        mutantes += [(spec, m) for m in dados["mutantes"]]
+        isentas += list(dados.get("isentas", []))
+    return mutantes, isentas, v
+
+
+def _hunks(raiz, b, h, arq, fm):
+    cod, corpo = git(raiz, "--literal-pathspecs", "diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff", "--text",
+                     "--no-textconv", b, h, "--", arq)
+    if cod:
+        raise ErroDeGit(msg_falha_git(f"o `git diff` de {arq} falhou"))
+    return [(range(int(a), int(a) + int(n or 1)), range(int(c), int(c) + int(m or 1))) for a, n, c, m in fm.HUNK.findall(corpo)]
+
+
+def e_python(raiz, b, h, arq):
+    """True se `arq` é `*.py` ou, sem extensão, começa por shebang de python no head (ou na base, se saiu)."""
+    if arq.endswith(".py"):
+        return True
+    if "." in arq.rsplit("/", 1)[-1]:
+        return False
+    texto = ler(raiz, h, arq) if existe(raiz, h, arq) else ler(raiz, b, arq)
+    primeira = (texto or "").split("\n", 1)[0]
+    return primeira.startswith("#!") and "python" in primeira
+
+
+def guardas_do_diff(raiz, b, h, mudados):
+    """(arquivos Python de controle do diff, violação): a classe C do `forge-check classe` (`motivo_de_controle`, com os
+    PROTEGIDOS e SENSIVEIS daqui), fora os testes (`TESTE`). Sem o forge-check, falha fechada."""
+    try:
+        fc = forge_check()
+    except (OSError, SyntaxError, ImportError) as e:
+        return [], [msg_guarda(f"não consegui carregar bin/forge-check para achar o código de controle do diff ({type(e).__name__})")]
+    listas = argparse.Namespace(PROTEGIDOS=PROTEGIDOS, SENSIVEIS=SENSIVEIS, FORMA_COMPILADA=FORMA_COMPILADA)
+    return [a for a in mudados if fc.motivo_de_controle(a, listas) and not fc.TESTE.search(a)
+            and e_python(raiz, b, h, a)], []
+
+
+def regra_guardas_dos_hooks(raiz, b, h):
+    """MUTANTES-SPEC-HOOKS: condição mudada ou apagada em código Python de controle (classe C) sem mutante (ou isenta) numa
+    spec do diff barra."""
+    mudados = alterados(raiz, b, h)
+    candidatos = [a for a in mudados if not a.endswith((".md", ".json", ".yml", ".yaml", ".txt", ".sh", ".toml", ".cfg"))]
+    if not candidatos:
+        return []
+    hooks, v = guardas_do_diff(raiz, b, h, candidatos)
+    if v or not hooks:
+        return v
+    try:
+        fm = forge_mutante()
+    except (OSError, SyntaxError, ImportError) as e:
+        return [msg_guarda(f"não consegui carregar bin/forge-mutante para conferir as guardas de {', '.join(hooks)} ({type(e).__name__})")]
+    mutantes, isentas, v = _specs_do_diff(raiz, h, fm, mudados)
+    for arq in hooks:
+        try:
+            saida = fm.analisar(arq, _hunks(raiz, b, h, arq, fm), _texto_no(raiz, b, arq), _texto_no(raiz, h, arq), mutantes, isentas, set())
+        except ILEGIVEL as e:
+            v.append(msg_guarda(f"não consegui analisar as guardas de {arq} ({neutralizar(str(e))[:CORTE_DA_DECISAO]})"))
+            continue
+        faltas = [neutralizar(x) for x in saida if x.startswith(FALTAS_DE_MUTANTE)]
+        if faltas:
+            mais = f" e mais {len(faltas) - MOSTRADAS_POR_ARQUIVO}" if len(faltas) > MOSTRADAS_POR_ARQUIVO else ""
+            v.append(msg_guarda(f"guarda de {arq} mudada sem mutante declarado: {'; '.join(faltas[:MOSTRADAS_POR_ARQUIVO])}{mais}"))
+    return v
+
+
+def deficits_do_ci(raiz, b, h):
+    """O quanto o head piora o que as regras desta seção medem (para o rótulo preso ao conteúdo, P9): piora somada dos módulos
+    de controle, módulos e testes que saem do discover, testes fora dele e arquivos de teste novos fora do CI."""
+    modulos = [a for a in listar(raiz, b, "tests") if eh_controle(a)]
+    fb, fh = forca_por_modulo(raiz, b, modulos), forca_por_modulo(raiz, h, modulos)
+    controle = tuple(sum(p) for p in zip((0, 0, 0), *(_piora(fb[a], fh[a]) for a in modulos)))
+    (mb, tb, ob), (mh, th, oh) = forca_do_discover(raiz, b), forca_do_discover(raiz, h)
+    excecoes = _excecoes_do_ci(json_de(raiz, b, "tests/config.json"))
+    fora = len(set(testes_fora_do_ci(raiz, h, excecoes)) - set(testes_fora_do_ci(raiz, b, excecoes)))
+    return controle + tuple(max(d, 0) for d in (mb - mh, tb - th, oh - ob)) + (fora,)
 
 
 def regra_custo(raiz, ref, permitido):
@@ -578,7 +906,9 @@ def _violacoes_das_regras(raiz, base, head):
     cb, ch = json_de(raiz, b, "tests/config.json"), json_de(raiz, head, "tests/config.json")
     permitido = (ch or {}).get("custo_permitido", {})
     return (regras_de_config(cb, ch or {}) + regra_arquivos_de_regras(raiz, b, head, cb or {}) + regra_hooks(raiz, b, head) + regra_testes(raiz, b, head)
-            + regra_testes_enfraquecidos(raiz, b, head) + regra_politica(raiz, b, head)
+            + regra_testes_enfraquecidos(raiz, b, head) + regra_controles_enfraquecidos(raiz, b, head)
+            + regra_testes_no_ci(raiz, b, head, cb, ch) + regra_teto_pulados(cb, ch) + regra_guardas_dos_hooks(raiz, b, head)
+            + regra_politica(raiz, b, head)
             + regra_custo(raiz, head, permitido) + regra_protegidos(raiz, b, head) + regra_compilados(raiz, b, head))
 
 
@@ -651,11 +981,56 @@ def violacoes_novas(atuais, rotuladas):
     return [v for v in atuais if sobra.get(chave_da_violacao(v))]
 
 
+# PARECER-CONTEUDO (0.43.1, P9, decisão do dono de 08/11): o rótulo fica preso aos arquivos que o fazem ser exigido. Além dos
+# PROTEGIDOS e da forma compilada, os arquivos de configuração que as regras leem (a contagem e a força dos testes vão por número).
+VIGIADOS_DO_ROTULO = PROTEGIDOS + ("tests/config.json", POLITICA, "hooks/hooks.json")
+
+
+def blob_e_modo(raiz, ref, caminho):
+    """(modo, blob) de `caminho` em `ref`; None se ele não existe lá. Falha do git levanta `ErroDeGit` (falha fechada)."""
+    cod, saida = git(raiz, "--literal-pathspecs", "ls-tree", "-z", ref, "--", caminho)
+    if cod:
+        raise ErroDeGit(msg_falha_git(f"`git ls-tree {ref} -- {caminho}` falhou"))
+    for registro in saida.split("\0"):
+        cabeca, _, nome = registro.partition("\t")
+        if nome == caminho:
+            modo, _, blob = cabeca.split(" ")
+            return modo, blob
+    return None
+
+
+def deficits_dos_testes(raiz, base, head):
+    """Quanto o head piora os testes sobre o merge-base (o que `regra_testes` e `regra_testes_enfraquecidos` medem), 0 se não piora:
+    testes e fixtures a menos, asserções a menos, pulos e testes vazios a mais, e os `deficits_do_ci` (0.43.2)."""
+    b = base_efetiva(raiz, base, head)
+    (tb, fb), (th, fh) = contar_testes(raiz, b), contar_testes(raiz, head)
+    (ab, pb, vb), (ah, ph, vh) = forca_dos_testes(raiz, b), forca_dos_testes(raiz, head)
+    return tuple(max(d, 0) for d in (tb - th, fb - fh, ab - ah, ph - pb, vh - vb)) + deficits_do_ci(raiz, b, head)
+
+
+def protegidos_como_no_rotulo(raiz, base, rotulado, head):
+    """True se cada arquivo vigiado (VIGIADOS_DO_ROTULO ou forma compilada) que o PR muda, no head ou no head rotulado, tem no head o
+    mesmo modo e blob do head rotulado (ou já não difere da base), e os testes não pioram mais do que pioravam no head rotulado.
+    Push que não muda arquivo vigiado não derruba o rótulo (P9). Falha do git levanta (falha fechada)."""
+    bh, br = base_efetiva(raiz, base, head), base_efetiva(raiz, base, rotulado)
+    nomes = {a for a in alterados(raiz, bh, head) + alterados(raiz, br, rotulado)
+             if a.startswith(VIGIADOS_DO_ROTULO) or FORMA_COMPILADA.search(a)}
+    for a in sorted(nomes):
+        atual = blob_e_modo(raiz, head, a)
+        if atual != blob_e_modo(raiz, rotulado, a) and atual != blob_e_modo(raiz, bh, a):
+            return False
+    return all(h <= r for h, r in zip(deficits_dos_testes(raiz, base, head), deficits_dos_testes(raiz, base, rotulado)))
+
+
 def rotulo_vale_pelo_conteudo(raiz, base, head, eventos, execucoes, numero, dono, ramo="", atuais=None):
-    """True se o diff efetivo do head (merge-base com a base, fora dos pareceres do pedido) é o do head no instante do
-    rótulo e nenhuma violação atual é nova em relação às do head rotulado sobre o merge-base dele (ex.: vinda da base)."""
+    """True se os arquivos vigiados são os do head no instante do rótulo (`protegidos_como_no_rotulo`, P9) ou o diff efetivo do head
+    (merge-base com a base, fora dos pareceres do pedido) é o do head rotulado, e, nos dois casos, nenhuma violação atual é nova em
+    relação às do head rotulado sobre o merge-base dele (ex.: vinda da base)."""
     sha = commit_do_rotulo(eventos, execucoes, numero, dono)
-    if not sha or not forge_check().mesmo_diff(raiz, base, sha, head, pareceres_do_pedido(raiz, base, sha, head, ramo)):
+    if not sha:
+        return False
+    if not protegidos_como_no_rotulo(raiz, base, sha, head) and not forge_check().mesmo_diff(
+            raiz, base, sha, head, pareceres_do_pedido(raiz, base, sha, head, ramo)):
         return False
     atuais = violacoes_das_regras(raiz, base, head) if atuais is None else atuais
     return not violacoes_novas(atuais, violacoes_das_regras(raiz, base, sha))
@@ -1357,7 +1732,7 @@ def _main(a):
                     execucoes = json.loads(Path(a.execucoes).read_text(encoding="utf-8")) if a.execucoes else ([] if a.eventos else execucoes_do_pr())
                     ramo = a.ramo or ("" if a.eventos else ramo_do_pr())
                     if execucoes is not None and rotulo_vale_pelo_conteudo(raiz, a.base, a.head, eventos, execucoes, a.pr, dono, ramo, viol):
-                        liberado = "diff efetivo igual ao do instante do rótulo"
+                        liberado = "arquivos protegidos ou diff efetivo iguais aos do instante do rótulo"
             if not custo and not liberado:
                 fonte = FonteJson(json.loads(Path(a.mesclados).read_text(encoding="utf-8"))) if a.mesclados else (
                     None if a.eventos else fonte_do_github())

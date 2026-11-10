@@ -1,5 +1,5 @@
 {
-  "descricao": "Sessão do Forge (raiz no ~/Forge) em wt/*: push alheio e merge liberam.",
+  "descricao": "Sessão do Forge (raiz no ~/Forge) em wt/*: push alheio e merge liberam. O tech-lead mescla (FILA-22: o jarvis não).",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -32,7 +32,8 @@
     },
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9",
-    "cwd": "{tmp}/home/.forge-contrib/wt/x"
+    "cwd": "{tmp}/home/.forge-contrib/wt/x",
+    "agent_type": "forge:tech-lead"
   },
   "esperado": {
     "codigo": 0

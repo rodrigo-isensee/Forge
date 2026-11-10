@@ -49,7 +49,7 @@ Use `.github/pull_request_template.md` e preencha:
 - **Como medir** o efeito (`docs/melhoria-continua.md`);
 - checklist: testes, validate, `verificar-contribuicao`, CHANGELOG, neutralidade.
 
-Comando: `gh pr create --base develop --title "<tipo>: <resumo>" --body-file <texto>` (de um fork: `--repo rodrigo-isensee/Forge`).
+Quem abre o PR é o `tech-lead` (FILA-22: o Jarvis não abre nem mescla PR). Comando: `gh pr create --base develop --title "<tipo>: <resumo>" --body-file <texto>` (de um fork: `--repo rodrigo-isensee/Forge`).
 
 ## 7. Depois
-**Pare.** `R-CONTRIB`: sessão de outro projeto só propõe. Avise o usuário com o link do PR e não toque em mais nada no Forge: não commite em branch que não criou, não resolva conflito nem revalide parecer de PR alheio, não mescle, não feche, não edite, não rotule. Pedido de ajuste do review vira commit novo na sua própria branch `melhoria/<projeto>-<tema>`, só quando o usuário pedir; quem integra é a sessão do Forge (`tech-lead` ou Jarvis), com a aprovação do dono. A promoção até a `main` segue `R-FLUXO`. O projeto recebe a melhoria com `claude plugin update forge@forge` depois da release. Depois do merge do PR, apague a branch remota, a local e a worktree (`R-FLUXO`, "Depois do merge").
+**Pare.** `R-CONTRIB`: sessão de outro projeto só propõe. Avise o usuário com o link do PR e não toque em mais nada no Forge: não commite em branch que não criou, não resolva conflito nem revalide parecer de PR alheio, não mescle, não feche, não edite, não rotule. Pedido de ajuste do review vira commit novo na sua própria branch `melhoria/<projeto>-<tema>`, só quando o usuário pedir; quem integra é o `tech-lead` da sessão do Forge, com a aprovação do dono. A promoção até a `main` segue `R-FLUXO`. O projeto recebe a melhoria com `claude plugin update forge@forge` depois da release. Depois do merge do PR, apague a branch remota, a local e a worktree (`R-FLUXO`, "Depois do merge").

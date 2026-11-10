@@ -1,8 +1,9 @@
 """Nenhum módulo de teste pesa mais que 25% do teto do job `bateria` (HOOKS-CORPUS-RAPIDO, E3).
 
-A suite-paralela (D4) divide a suíte por módulo: um módulo é indivisível, e o caminho crítico de um processo nunca é menor
-que o maior. Um módulo que passa de um quarto do teto de 15 min do job deixa de caber no runner mais lento (2 CPUs, com os
-outros processos disputando as mesmas); o remédio é dividi-lo em módulos menores, não subir o teto."""
+A suite-paralela (D4) divide a suíte por unidade (o módulo, ou a classe ou o teste com chave própria nos pesos,
+S-SUITE-RAPIDA): uma unidade é indivisível, e o caminho crítico de um processo nunca é menor que a maior. Uma unidade que
+passa de um quarto do teto de 15 min do job deixa de caber no runner mais lento (2 CPUs, com os outros processos
+disputando as mesmas); o remédio é dividi-la (módulos menores, ou chaves `módulo.Classe[.teste]`), não subir o teto."""
 import json
 import sys
 import unittest
@@ -28,7 +29,8 @@ class PesosDoD4(unittest.TestCase):
         for modulo, peso in acima_do_limite(pesos):
             with self.subTest(modulo=modulo):
                 self.fail(f"{modulo} pesa {peso} s, acima de {LIMITE_DO_MODULO_S} s (25% do teto de {TETO_DO_JOB_S} s do "
-                          "job bateria): divida o módulo em módulos menores e regrave os pesos com FORGE_SUITE_MEDIR=1")
+                          "job bateria): divida o módulo (módulos menores ou chave `módulo.Classe[.teste]`) e regrave os pesos "
+                          "com FORGE_SUITE_MEDIR=1")
 
     def test_o_limite_e_de_225_segundos_e_o_peso_acima_dele_e_apontado(self):
         self.assertEqual(LIMITE_DO_MODULO_S, 225)

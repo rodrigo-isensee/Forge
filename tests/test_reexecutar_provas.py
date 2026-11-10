@@ -52,10 +52,15 @@ class ModeloDeProvas(unittest.TestCase):
         self.assertIn("p.md:9: linha fora do formato do arquivo de provas", saida)
 
     def test_regra_descreve_o_arquivo_a_lista_permitida_e_a_falha_fechada(self):
+        # A regra encurtada (orçamento de instrução) cita o arquivo, o script e a lista branca; o detalhe
+        # (sem shell, lista permitida, falha fechada) vive no script, e o CI não usa pull_request_target.
         regra = (DOCS / "regras" / "R-PROVA.md").read_text(encoding="utf-8")
-        for trecho in ("docs/provas/<pedido>.md", "scripts/reexecutar-provas.py", "sem shell", "lista permitida",
-                       "falha fechada", "pull_request_target"):
+        for trecho in ("docs/provas/<pedido>.md", "scripts/reexecutar-provas.py", "lista branca"):
             self.assertIn(trecho, regra)
+        script = (AQUI.parent / "scripts" / "reexecutar-provas.py").read_text(encoding="utf-8")
+        for trecho in ("sem shell", "lista permitida", "falha fechada"):
+            self.assertIn(trecho, script)
+        self.assertNotIn("pull_request_target", (AQUI.parent / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
 
 
 spec = importlib.util.spec_from_file_location("reexecutar_provas", AQUI.parent / "scripts" / "reexecutar-provas.py")
@@ -475,7 +480,11 @@ class PassoDoCi(unittest.TestCase):
             self.assertEqual(git("diff", "--name-only", "--cached", "--", pathspec).split(), ["docs/provas/a.md"])
 
     def test_passo_vem_antes_da_suite(self):
-        self.assertLess(self.CI.index("Provas cmd do arquivo de provas"), self.CI.index("- name: Testes do Forge\n        if: ${{ !cancelled() && steps"))
+        # A suíte saiu da bateria para as partes; as provas rodam na bateria, que o agregador exige.
+        bateria, agregador = self.CI.index("\n  bateria:\n"), self.CI.index("\n  agregador:\n")
+        self.assertLess(bateria, self.CI.index("Provas cmd do arquivo de provas"))
+        self.assertLess(self.CI.index("Provas cmd do arquivo de provas"), agregador)
+        self.assertRegex(self.CI[agregador:], r"needs: \[[^\]]*\bbateria\b")
 
 
 if __name__ == "__main__":

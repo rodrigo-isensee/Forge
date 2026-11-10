@@ -1,0 +1,36 @@
+{
+  "pedido": "forge-testes-modulos-nome",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o nome com o pacote (tests.test_x) vale como test_x",
+      "arquivo": "bin/forge-testes",
+      "de": "modulos_pedidos = [m.removeprefix(\"tests.\") for m in args.modulos.split(\",\")]",
+      "para": "modulos_pedidos = args.modulos.split(\",\")",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_o_modulo_pelo_nome_com_o_pacote"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "um corte so, no comeco: tests.tests.test_x segue recusado",
+      "arquivo": "bin/forge-testes",
+      "de": "modulos_pedidos = [m.removeprefix(\"tests.\") for m in args.modulos.split(\",\")]",
+      "para": "modulos_pedidos = [m.replace(\"tests.\", \"\") for m in args.modulos.split(\",\")]",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_o_modulo_pelo_nome_com_o_pacote"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a validacao roda depois do corte, com fullmatch",
+      "arquivo": "bin/forge-testes",
+      "de": "        if not all(NOME_DE_MODULO.fullmatch(m) for m in modulos_pedidos):",
+      "para": "        if not all(NOME_DE_MODULO.match(m) for m in modulos_pedidos):",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_o_modulo_pelo_nome_com_o_pacote"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "pedido": "v0441-x2-orcamento",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "X2: sem a linha nao ha previsto",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if not achado:\n        return None\n    return int(",
+      "para": "    if not achado or achado.group(1) == \"500\":\n        return None\n    return int(",
+      "testes": [
+        "tests.test_governanca.OrcamentoDeTokens.test_previsto_do_pedido"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "X2: o sufixo k ou M multiplica",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "MULTIPLO[(achado.group(2) or \"\").lower()]",
+      "para": "MULTIPLO[(achado.group(2) or \"k\").lower()]",
+      "testes": [
+        "tests.test_governanca.OrcamentoDeTokens.test_previsto_do_pedido"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "X2: sem medida o gasto conta zero",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "previsto_do_pedido(texto), r.get(\"tokens\") or 0",
+      "para": "previsto_do_pedido(texto), r.get(\"tokens\") or 6",
+      "testes": [
+        "tests.test_governanca.OrcamentoDeTokens.test_pedido_sem_versao_e_sem_medida_conta_gasto_zero_na_versao_tracinho"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "X2: pedido sem previsto fica fora do orcamento",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        if previsto is None:\n            continue",
+      "para": "        if previsto is not None:\n            continue",
+      "testes": [
+        "tests.test_governanca.OrcamentoDeTokens.test_alerta_quando_o_gasto_passa_do_previsto_por_pedido_e_por_versao"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "X2: a versao do pedido agrupa",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "versao.group(1) if versao else \"-\"",
+      "para": "versao.group(1) if not versao else \"-\"",
+      "testes": [
+        "tests.test_governanca.OrcamentoDeTokens.test_alerta_quando_o_gasto_passa_do_previsto_por_pedido_e_por_versao"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "X2: alerta do pedido so acima do previsto",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "* (gasto > previsto)",
+      "para": "* (gasto >= previsto)",
+      "testes": [
+        "tests.test_governanca.OrcamentoDeTokens.test_dentro_do_previsto_ou_sem_previsto_nao_alerta"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "X2: alerta da versao so acima do previsto",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "if s[\"gasto\"] > s[\"previsto\"]]",
+      "para": "if s[\"gasto\"] >= s[\"previsto\"]]",
+      "testes": [
+        "tests.test_governanca.OrcamentoDeTokens.test_dentro_do_previsto_ou_sem_previsto_nao_alerta"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "descricao": "FILA-22 (review da 0.43.2): abrir PR pelo `gh api` segue a política `pr_criar`; listar PRs (GET) segue livre.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# Pedido p1\n\n## Histórico\n- 2026-10-30: aberto\n- 2026-11-09 10:00: brief selado docs/briefs/p1-dev-1.md aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api repos/o/r/pulls"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

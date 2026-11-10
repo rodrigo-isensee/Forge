@@ -1,0 +1,294 @@
+{
+  "pedido": "v0433-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I65",
+      "guarda": "bin/forge-check:7962 p (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    da_branch = [p for p in re.split(r\"[-_./]\", curto) if p]",
+      "para": "    da_branch = [p for p in re.split(r\"[-_./]\", curto) if not (p)]",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I66",
+      "guarda": "bin/forge-check:7963 p == b or (len(p) >= 3 and b.startswith(p)) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    return any(p == b or (len(p) >= 3 and b.startswith(p)) for p in re.split(r\"[-_.]\", nome) if p for b in da_branch)",
+      "para": "    return any(not (p == b or (len(p) >= 3 and b.startswith(p))) for p in re.split(r\"[-_.]\", nome) if p for b in da_branch)",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I67",
+      "guarda": "bin/forge-check:7963 p (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    return any(p == b or (len(p) >= 3 and b.startswith(p)) for p in re.split(r\"[-_.]\", nome) if p for b in da_branch)",
+      "para": "    return any(p == b or (len(p) >= 3 and b.startswith(p)) for p in re.split(r\"[-_.]\", nome) if not (p) for b in da_branch)",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I68",
+      "guarda": "bin/forge-check:7975 branch and len((partes := branch.split('/'))) > 2 and (partes[0] == partes[1]) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if branch and len(partes := branch.split(\"/\")) > 2 and partes[0] == partes[1]:",
+      "para": "    if not (branch and len(partes := branch.split(\"/\")) > 2 and partes[0] == partes[1]):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I69",
+      "guarda": "bin/forge-check:7977 branch and '/' in branch (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    curto = branch.split(\"/\", 1)[1] if branch and \"/\" in branch else None",
+      "para": "    curto = branch.split(\"/\", 1)[1] if not (branch and \"/\" in branch) else None",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I70",
+      "guarda": "bin/forge-check:7978 not NAO_TOCAR.search(l) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    corpo = [l for nome, linhas in secoes.items() for l in linhas if not NAO_TOCAR.search(l)]",
+      "para": "    corpo = [l for nome, linhas in secoes.items() for l in linhas if not (not NAO_TOCAR.search(l))]",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I71",
+      "guarda": "bin/forge-check:7979 curto (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    citadas = [curto] + BRANCH_CITADA_NO_BRIEF.findall(texto) if curto else []  # revisão de várias branches cita cada worktree",
+      "para": "    citadas = [curto] + BRANCH_CITADA_NO_BRIEF.findall(texto) if not (curto) else []  # revisão de várias branches cita cada worktree",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I72",
+      "guarda": "bin/forge-check:7981 citadas and nome and (not any((nome_de_worktree_da_branch(nome, b) for b in citadas))) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        if citadas and nome and not any(nome_de_worktree_da_branch(nome, b) for b in citadas):",
+      "para": "        if not (citadas and nome and not any(nome_de_worktree_da_branch(nome, b) for b in citadas)):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I73",
+      "guarda": "bin/forge-check:7984 any((COMMIT_DO_HEAD.search(l) for nome in ('Entregar', 'Pronto quando') for l in secoes.get(nome, []))) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if any(COMMIT_DO_HEAD.search(l) for nome in (\"Entregar\", \"Pronto quando\") for l in secoes.get(nome, [])):",
+      "para": "    if not (any(COMMIT_DO_HEAD.search(l) for nome in (\"Entregar\", \"Pronto quando\") for l in secoes.get(nome, []))):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I74",
+      "guarda": "bin/forge-check:7987 re.search('\\\\brecomendad', l, re.I) and CONDICIONAL.search(l) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "        if re.search(r\"\\brecomendad\", l, re.I) and CONDICIONAL.search(l):",
+      "para": "        if not (re.search(r\"\\brecomendad\", l, re.I) and CONDICIONAL.search(l)):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I75",
+      "guarda": "bin/forge-check:7992 pedido_id not in m.group(1) and (not m.group(1).startswith(TMP_PROPRIO)) and ('XXXXXX' not in m.group(1)) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "            if pedido_id not in m.group(1) and not m.group(1).startswith(TMP_PROPRIO) and \"XXXXXX\" not in m.group(1):",
+      "para": "            if not (pedido_id not in m.group(1) and not m.group(1).startswith(TMP_PROPRIO) and \"XXXXXX\" not in m.group(1)):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I76",
+      "guarda": "bin/forge-check:7995 nome != 'Pronto quando' (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    resto = \" \".join(l for nome, linhas in secoes.items() if nome != \"Pronto quando\" for l in linhas)",
+      "para": "    resto = \" \".join(l for nome, linhas in secoes.items() if not (nome != \"Pronto quando\") for l in linhas)",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I77",
+      "guarda": "bin/forge-check:7999 pq (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "            rotulo = f\"PQ-{pq.group(1)}\" if pq else \"o Pronto quando\"",
+      "para": "            rotulo = f\"PQ-{pq.group(1)}\" if not (pq) else \"o Pronto quando\"",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I78",
+      "guarda": "bin/forge-check:8000 m.group(2) and f'/tmp/{m.group(1)}' not in resto (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "            if m.group(2) and f\"/tmp/{m.group(1)}\" not in resto:",
+      "para": "            if not (m.group(2) and f\"/tmp/{m.group(1)}\" not in resto):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I79",
+      "guarda": "bin/forge-check:8002 not m.group(2) and pedido_id not in m.group(1) and ('XXXXXX' not in m.group(1)) (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "            elif not m.group(2) and pedido_id not in m.group(1) and \"XXXXXX\" not in m.group(1):",
+      "para": "            elif not (not m.group(2) and pedido_id not in m.group(1) and \"XXXXXX\" not in m.group(1)):",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "I80",
+      "guarda": "bin/forge-check:8560 branch and etapa in ETAPAS_DE_PARECER (negada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if branch and etapa in ETAPAS_DE_PARECER:  # AQ-5: o parecer grava este sha em `commit:`, nunca o HEAD de agora",
+      "para": "    if not (branch and etapa in ETAPAS_DE_PARECER):  # AQ-5: o parecer grava este sha em `commit:`, nunca o HEAD de agora",
+      "testes": [
+        "tests.test_t1_codigo_sem_teste",
+        "tests.test_aq5_parecer_novo",
+        "tests.test_brief_gerar_custo",
+        "tests.test_brief_forma_aceita",
+        "tests.test_selo_e_entrega",
+        "tests.evals.test_regressao_forma",
+        "tests.test_erros_no_brief",
+        "tests.test_conferencia_registrar",
+        "tests.test_governanca"
+      ]
+    }
+  ]
+}

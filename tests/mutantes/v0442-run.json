@@ -1,0 +1,126 @@
+{
+ "pedido": "v0442-s5-run",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M1",
+   "guarda": "slug repetido recusa",
+   "arquivo": "bin/forge_run.py",
+   "de": "        pasta.mkdir()\n",
+   "para": "        pasta.mkdir(exist_ok=True)\n",
+   "testes": [
+    "tests.test_forge_run.Rodar.test_slug_repetido_ou_invalido_recusa"
+   ]
+  },
+  {
+   "id": "M2",
+   "guarda": "slug valido",
+   "arquivo": "bin/forge_run.py",
+   "de": "    if not SLUG.fullmatch(slug or \"\") or not passos:",
+   "para": "    if not passos:",
+   "testes": [
+    "tests.test_forge_run.Rodar.test_slug_repetido_ou_invalido_recusa"
+   ]
+  },
+  {
+   "id": "M3",
+   "guarda": "rc do passo",
+   "arquivo": "bin/forge_run.py",
+   "de": "        if rc_passo != 0:",
+   "para": "        if rc_passo == 0:",
+   "testes": [
+    "tests.test_forge_run.Rodar.test_grava_rc_tempo_por_passo_e_log_completo"
+   ]
+  },
+  {
+   "id": "M4",
+   "guarda": "passo vazio recusa",
+   "arquivo": "bin/forge_run.py",
+   "de": "    return passos if all(passos) else []",
+   "para": "    return passos if passos else []",
+   "testes": [
+    "tests.test_forge_run.Rodar.test_slug_repetido_ou_invalido_recusa"
+   ]
+  },
+  {
+   "id": "M5",
+   "guarda": "run de outro comando",
+   "arquivo": "bin/forge_run.py",
+   "de": "    if dados.get(\"argv\") != argv:",
+   "para": "    if dados.get(\"argv\") is None:",
+   "testes": [
+    "tests.test_forge_run.PqCitaORun.test_run_de_outro_comando_ou_commit_ou_ausente_reprova"
+   ]
+  },
+  {
+   "id": "M6",
+   "guarda": "run de outro commit",
+   "arquivo": "bin/forge_run.py",
+   "de": "    if head and dados.get(\"head\") != head:",
+   "para": "    if head and dados.get(\"head\") is None:",
+   "testes": [
+    "tests.test_forge_run.PqCitaORun.test_run_de_outro_comando_ou_commit_ou_ausente_reprova"
+   ]
+  },
+  {
+   "id": "M7",
+   "guarda": "run ausente",
+   "arquivo": "bin/forge_run.py",
+   "de": "    if not arq.is_file() or arq.is_symlink():\n        return None, \"\", f\"{PASTA",
+   "para": "    if not arq.is_file() and False:\n        return None, \"\", f\"{PASTA",
+   "testes": [
+    "tests.test_forge_run.PqCitaORun.test_run_de_outro_comando_ou_commit_ou_ausente_reprova"
+   ]
+  },
+  {
+   "id": "M8",
+   "guarda": "PQ que cita o run e lido",
+   "arquivo": "bin/forge-check",
+   "de": "            if prova is not None:  # S5",
+   "para": "            if prova is None:  # S5",
+   "testes": [
+    "tests.test_forge_run.PqCitaORun.test_le_o_json_e_confere_a_espera_sem_rodar"
+   ]
+  },
+  {
+   "id": "M9",
+   "guarda": "so forge-check rodar e citado",
+   "arquivo": "bin/forge_run.py",
+   "de": "    if len(argv) >= 3 and Path(argv[0]).name == \"forge-check\" and argv[1] == \"rodar\":",
+   "para": "    if len(argv) >= 3 and argv[1] == \"rodar\":",
+   "testes": [
+    "tests.test_forge_run.PqCitaORun.test_slug_invalido_e_outro_programa_nao_leem_run"
+   ]
+  },
+  {
+   "id": "M10",
+   "guarda": "despacho do rodar",
+   "arquivo": "bin/forge-check",
+   "de": "    if a.cmd in (\"rodar\", \"meta\"):",
+   "para": "    if a.cmd in (\"x\", \"y\"):",
+   "testes": [
+    "tests.test_forge_run.Rodar.test_grava_rc_tempo_por_passo_e_log_completo"
+   ]
+  },
+  {
+   "id": "M11",
+   "guarda": "separador de passos",
+   "arquivo": "bin/forge_run.py",
+   "de": "        if a == SEPARADOR:",
+   "para": "        if a == \"x\":",
+   "testes": [
+    "tests.test_forge_run.Rodar.test_grava_rc_tempo_por_passo_e_log_completo"
+   ]
+  },
+  {
+   "id": "M12",
+   "guarda": "tira o -- do rodar",
+   "arquivo": "bin/forge_run.py",
+   "de": "    argv = argv[1:] if argv[:1] == [\"--\"] else argv",
+   "para": "    argv = argv[1:] if argv[:1] == [\"x\"] else argv",
+   "testes": [
+    "tests.test_forge_run.Rodar.test_tira_o_separador_do_inicio"
+   ]
+  }
+ ]
+}

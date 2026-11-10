@@ -10,6 +10,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import sem_manutencao  # noqa: E402
@@ -46,8 +47,11 @@ class Mapa(unittest.TestCase):
 
     def test_caminhos_conhecidos_rodam_so_os_modulos_do_mapa(self):
         casos = {
-            "bin/forge-changelog": ["test_changelog", "test_conferir_release", "test_forge"],
-            "bin/forge-doutor": ["test_atualizar", "test_doutor", "test_forge"],
+            "bin/forge-changelog": ["evals.test_erros_por_papel", "evals.test_regressao_forma", "test_changelog", "test_conferir_release", "test_forge",
+                                    "test_pre_push_afetados"],
+            "bin/forge-placar": ["evals.test_placar", "test_forge"],  # 0.43.1, frente I
+            ".devcontainer/devcontainer.json": ["test_forge"],  # 0.43.1, frente A
+            "bin/forge-doutor": ["test_atualizar", "test_doutor", "test_forge", "test_novo_projeto"],
             "bin/forge-sugerir": ["test_forge", "test_sugerir"],
             "scripts/ci-local": ["test_ci_local", "test_forge", "test_testes_tocados"],
         }
@@ -58,10 +62,18 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 49)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
+        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 68)  # 0.44.2: + test_decisor (orkastery 3), test_forge_run (S5), test_meta (S4), test_pesado_fila (orkastery 5), test_aq1_texto e test_textos_034 (troca dos testes de frase). 0.44.1: + test_v0441_review (review), test_acao_da_reprovacao (O1) e test_forge_dono (O4, S2, S8, X1). 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
         for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
                        "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
+
+    def test_evals_de_forma_rodam_com_a_ferramenta_que_exercitam(self):  # 0.43.1, frentes I e D: módulo em pacote
+        for caminho in ("bin/forge-check", "hooks/conformidade.py", "bin/forge-changelog"):
+            with self.subTest(caminho):
+                modo, modulos = self.plano(caminho)
+                self.assertEqual(modo, "dirigido")
+                self.assertIn("evals.test_regressao_forma", modulos)
+        self.assertTrue(self.f.arquivo_do_modulo("evals.test_placar", RAIZ).is_file())
 
     def test_os_casos_de_comportamento_rodam_so_o_modulo_deles(self):  # L36
         self.assertEqual(self.plano("tests/comportamento/casos.json"), ("dirigido", ["test_comportamento"]))
@@ -125,12 +137,78 @@ class Mapa(unittest.TestCase):
             (Path(t) / "tests").mkdir()
             self.assertEqual(self.f.planejar(["bin/forge-sugerir"], Path(t))[0], "completo")
 
+    def test_modelos_de_parecer_rodam_os_testes_que_os_leem(self):  # MP-1: devops com o mesmo destino de security
+        guardas = {"test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034"}
+        for caminho in ("docs/devops/_modelo.md", "templates/projeto/docs/devops/_modelo.md",
+                        "docs/security/_modelo.md", "templates/projeto/docs/security/_modelo.md"):
+            with self.subTest(caminho):
+                modo, modulos = self.plano(caminho)
+                self.assertEqual(modo, "dirigido")
+                self.assertLessEqual(guardas, set(modulos))
+
+    def test_promover_e_apoio_seguem_na_completa(self):  # MP-1: adendo 2, ponto 3 (decisão 7 do dono)
+        for caminho in ("scripts/promover-homolog.py", "tests/apoio_volta_unica.py"):
+            with self.subTest(caminho):
+                self.assertEqual(self.plano(caminho), ("completo", [f"{caminho} sem mapa"]))
+
     def test_todo_modulo_do_mapa_existe(self):
         modulos = {m for _, destino in self.f.MAPA if destino for m in destino}
         self.assertGreaterEqual(len(modulos), 10)
         for m in sorted(modulos):
             with self.subTest(m):
-                self.assertTrue((RAIZ / "tests" / f"{m}.py").is_file())
+                self.assertTrue(self.f.arquivo_do_modulo(m, RAIZ).is_file())  # `evals.test_x` é tests/evals/test_x.py
+
+
+class Convencao(unittest.TestCase):
+    """O2 (0.44.1): o teste se acha pela convenção de nome (bin/forge-x -> tests/test_forge_x.py, hooks/x.py e scripts/x.py ->
+    tests/test_x.py); o MAPA fica só para as exceções, e sem o arquivo do teste o caminho segue na suíte completa."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+
+    def brinquedo(self, *arquivos):
+        t = tempfile.TemporaryDirectory()
+        self.addCleanup(t.cleanup)
+        raiz = Path(t.name)
+        for rel in ("tests/test_forge.py", "tests/test_testes_tocados.py") + arquivos:
+            (raiz / rel).parent.mkdir(parents=True, exist_ok=True)
+            (raiz / rel).write_text("x = 1\n", encoding="utf-8")
+        return raiz
+
+    def test_bin_scripts_e_hooks_pela_convencao(self):
+        raiz = self.brinquedo("tests/test_forge_novo.py", "tests/test_coisa_nova.py", "tests/test_gancho.py")
+        self.assertEqual(self.f.planejar(["bin/forge-novo"], raiz), ("dirigido", ["test_forge", "test_forge_novo"]))
+        self.assertEqual(self.f.planejar(["scripts/coisa-nova.py"], raiz),
+                         ("dirigido", ["test_coisa_nova", "test_forge", "test_testes_tocados"]))
+        self.assertEqual(self.f.modulos_da_convencao("hooks/gancho.py", raiz), ("test_gancho", "test_forge"))
+        self.assertIn("test_forge_novo", self.f.planejar_afetados(["bin/forge-novo"], raiz)[0])
+
+    def test_sem_o_arquivo_do_teste_ou_fora_das_pastas_segue_na_completa(self):
+        raiz = self.brinquedo("tests/test_x_y.py")
+        for caminho in ("bin/forge-sem-teste", "outra/x_y.py", "bin/sub/forge-x", "scripts/x-y.sh.py"):
+            with self.subTest(caminho):
+                self.assertEqual(self.f.planejar([caminho], raiz), ("completo", [f"{caminho} sem mapa"]))
+        self.assertIsNone(self.f.modulos_da_convencao("scripts/promover-homolog.py", RAIZ))  # decisão 7: exceção à convenção
+        for caminho in ("outra/x_y.py", "bin/sub/forge-x"):  # fora das pastas: None, sem levantar
+            with self.subTest(caminho):
+                try:
+                    achado = self.f.modulos_da_convencao(caminho, raiz)
+                except AttributeError as e:
+                    achado = f"levantou {e}"
+                self.assertIsNone(achado)
+
+    def test_o_mapa_nao_repete_o_que_a_convencao_ja_acha(self):  # some o conflito C8: a entrada do mapa vira exceção de verdade
+        repetidas = []
+        for padrao, destino in self.f.MAPA:
+            convencao = self.f.modulos_da_convencao(padrao.replace("\\", ""), RAIZ)
+            if convencao is not None and sorted(convencao) == sorted(destino):
+                repetidas.append(padrao)
+        self.assertEqual(repetidas, [])
+        for caminho in ("bin/forge-mutante", "scripts/arvore-testada.py", "scripts/ci-local", "scripts/conferir-reversao.py"):
+            with self.subTest(caminho):
+                self.assertFalse(any(re.fullmatch(p, caminho) for p, _ in self.f.MAPA))
+                self.assertEqual(self.f.planejar([caminho], RAIZ)[0], "dirigido")
 
 
 class MapaCobreOQueOsTestesLeem(unittest.TestCase):
@@ -402,6 +480,144 @@ class Execucao(unittest.TestCase):
         self.assertFalse((self.dir / ".forge").exists())
 
 
+class PlanoAfetados(unittest.TestCase):
+    """SUITE-NO-CI: o plano `--afetados` do pre-push, conferido no repositório real. Conservador: nunca menos que o mapa,
+    todo módulo que cita o caminho entra e os arquivos de controle levam todo módulo que os exercita."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+        cls.textos = cls.f.textos_dos_testes(RAIZ)
+
+    def plano(self, *caminhos):
+        return self.f.planejar_afetados(list(caminhos), RAIZ)
+
+    def citam(self, *agulhas):
+        return {m for m, texto in self.textos.items() if any(a in texto for a in agulhas)}
+
+    def test_nunca_menos_que_o_mapa(self):
+        rastreados = git(RAIZ, "ls-files").splitlines()
+        conferidos = 0
+        for padrao, _ in self.f.MAPA:
+            for caminho in [c for c in rastreados if re.fullmatch(padrao, c)][:2]:
+                modo, mapa = self.f.planejar([caminho], RAIZ)
+                if modo != "dirigido":
+                    continue
+                conferidos += 1
+                with self.subTest(caminho):
+                    self.assertLessEqual(set(mapa), set(self.plano(caminho)[0]))
+        self.assertGreaterEqual(conferidos, 20)
+
+    def test_quem_cita_o_caminho_entra(self):
+        for caminho in ("bin/forge-sugerir", "scripts/ci-local", "docs/economia-de-tokens.md"):
+            with self.subTest(caminho):
+                self.assertLessEqual(self.citam(caminho), set(self.plano(caminho)[0]))
+
+    def test_arquivos_de_controle_levam_todo_modulo_que_os_exercita(self):
+        casos = {"hooks/_comum.py": ("_comum", "hooks/"), "bin/forge-check": ("forge-check", "forge_check"),
+                 ".githooks/pre-push": (".githooks", "pre-push", "pre_push"),
+                 "scripts/suite-paralela.py": ("suite-paralela", "suite_paralela"), "scripts/suite-partes.py": ("suite-partes",)}
+        for caminho, agulhas in casos.items():
+            with self.subTest(caminho):
+                modulos = set(self.plano(caminho)[0])
+                exercitam = self.citam(*agulhas)
+                self.assertGreaterEqual(len(exercitam), 2)
+                self.assertLessEqual(exercitam, modulos)
+        self.assertLessEqual(set(self.f.FORGE_CHECK), set(self.plano("bin/forge-check")[0]))
+        self.assertLessEqual({"test_hooks", "test_catraca"} | set(self.f.VOLTA_UNICA), set(self.plano("hooks/_comum.py")[0]))
+        self.assertLessEqual({"test_pre_push_afetados", "test_pre_push_trava", "test_pre_push_shellcheck", "test_prepush_so_docs"},
+                             set(self.plano(".githooks/pre-push")[0]))
+        self.assertLessEqual({"test_suite_paralela", "test_suite_partes"}, set(self.plano("scripts/suite-paralela.py")[0]))
+
+    def test_modulo_de_teste_roda_ele_quem_o_importa_e_quem_varre_tests(self):
+        modulos = set(self.plano("tests/test_fechar.py")[0])
+        importam = {m for m, texto in self.textos.items() if "from test_fechar import" in texto or "import test_fechar" in texto}
+        self.assertTrue(importam)
+        self.assertLessEqual({"test_fechar", "test_testes_tocados", "test_forge"} | importam, modulos)
+        self.assertNotIn("test_hooks", modulos)  # não é a suíte inteira
+
+    def test_apoio_de_tests_roda_quem_o_importa(self):
+        modulos, notas = self.plano("tests/apoio_volta_unica.py")
+        self.assertLessEqual(self.citam("apoio_volta_unica"), set(modulos))
+        self.assertTrue(modulos)
+        self.assertEqual(notas, [])
+
+    def test_caminho_sem_leitor_vira_nota_e_nao_suite_completa(self):
+        caminho = "coisa-" + "nova/" + "ninguem" + "-le.txt"  # montado: o texto deste módulo não pode citá-lo
+        modulos, notas = self.plano(caminho)
+        self.assertEqual(modulos, [])
+        self.assertEqual(notas, [f"{caminho}: nenhum teste o lê; fica para o CI"])
+
+    def test_caminho_sem_mapa_nas_pastas_varridas_leva_test_forge(self):
+        self.assertIn("test_forge", self.plano("scripts/script-novo-sem-leitor.py")[0])
+
+    def test_modulo_de_pacote_mudado_roda_ele(self):  # tests/evals/ é pacote: o discover o acha
+        modulos = set(self.plano("tests/evals/test_placar.py")[0])
+        self.assertIn("evals.test_placar", modulos)
+        self.assertIn("evals.test_regressao_forma", self.textos)
+        self.assertLessEqual({"evals.test_placar", "test_forge"}, set(self.plano("bin/forge-placar")[0]))
+
+    def test_modulo_do_mapa_sem_arquivo_sai_com_nota(self):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "tests").mkdir()
+            (Path(d) / "tests" / "test_sugerir.py").write_text("x = 1\n", encoding="utf-8")
+            modulos, notas = self.f.planejar_afetados(["bin/forge-sugerir"], Path(d))
+        self.assertEqual(modulos, ["test_sugerir"])
+        self.assertIn("test_forge", notas[0])
+
+
+class ExecucaoAfetados(Execucao):
+    """`--afetados` de verdade: os módulos rodam em paralelo pelo `scripts/suite-partes.py` quando ele existe."""
+
+    def setUp(self):
+        super().setUp()
+        (self.dir / "scripts").mkdir()
+        for origem in ("scripts/suite-paralela.py", "scripts/suite-partes.py", "tests/guarda_git.py", "tests/ambiente_git.py"):
+            (self.dir / origem).write_bytes((RAIZ / origem).read_bytes())
+        (self.dir / ".gitignore").write_text("__pycache__/\n/.forge\n", encoding="utf-8")
+        git(self.dir, "switch", "-q", "develop")  # o mecanismo está na base: fora do diff da branch
+        git(self.dir, "add", "-A")
+        git(self.dir, "commit", "-qm", "mecanismo paralelo")
+        git(self.dir, "switch", "-q", "-C", "melhoria/x")
+
+    # Os testes herdados de Execucao continuam valendo com os scripts no repositório: o modo padrão não mudou.
+
+    def test_afetados_rodam_em_paralelo_e_anotam_o_log(self):
+        (self.dir / "bin" / "forge-sugerir").write_text("x = 2\n", encoding="utf-8")
+        r = self.rodar("--afetados")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("dirigido (test_forge, test_sugerir)", r.stdout)
+        self.assertIn("suite-partes: afetados: 2 testes em 2 módulos", r.stderr)
+        self.assertIn("modo=dirigido", self.log())
+
+    def test_afetados_paralelo_reprova_a_falha(self):
+        (self.dir / "tests" / "test_sugerir.py").write_text(
+            "import unittest\nclass T(unittest.TestCase):\n    def test_ruim(self):\n        self.fail('x')\n", encoding="utf-8")
+        r = self.rodar("--afetados")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("FAILED", r.stdout)
+        self.assertIn("saida=1", self.log())
+
+    def test_com_k_roda_em_serie(self):
+        (self.dir / "bin" / "forge-sugerir").write_text("x = 2\n", encoding="utf-8")
+        r = self.rodar("--afetados", "-k", "test_ok")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("suite-partes", r.stderr)
+
+    def test_afetados_nunca_a_completa_e_sem_nada_nao_roda(self):
+        (self.dir / "novo.txt").write_text("x\n", encoding="utf-8")
+        r = self.rodar("--afetados")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("nada a rodar", r.stdout)
+        self.assertIn("novo.txt: nenhum teste o lê; fica para o CI", r.stderr)
+        self.assertNotIn("suíte completa", r.stdout)
+
+    def test_afetados_nao_combina_com_completa_nem_vermelho(self):
+        for opcao in (("--completa",), ("--vermelho",)):
+            with self.subTest(opcao):
+                self.assertEqual(self.rodar("--afetados", *opcao).returncode, 2)
+
+
 class NaoEPortao(unittest.TestCase):
     """Decisão do dono: "A, desde que para main rode tudo." O CI e os hooks do Claude não chamam o script; o único
     portão local que o chama é o pre-push (M8, decisões do dono de 2026-10-23 e 2026-10-24: A), que recua para a
@@ -591,7 +807,9 @@ class Oraculos(unittest.TestCase):
         self.f = carregar()
 
     def gravar(self, nome, texto=TRIVIAL):
-        (self.dir / "tests" / nome).write_text(texto, encoding="utf-8")
+        alvo = self.dir / "tests" / nome
+        alvo.parent.mkdir(parents=True, exist_ok=True)  # módulo de pacote (evals/test_x.py)
+        alvo.write_text(texto, encoding="utf-8")
 
     def test_oraculo_entra_no_plano_sem_mudar_a_contagem(self):
         self.gravar("test_oraculo_x.py")
@@ -599,7 +817,7 @@ class Oraculos(unittest.TestCase):
             with self.subTest(caminho):
                 _, real = self.f.planejar([caminho], RAIZ)
                 for m in real:
-                    self.gravar(f"{m}.py")
+                    self.gravar(m.replace(".", "/") + ".py")
                 modo, modulos = self.f.planejar([caminho], self.dir)
                 self.assertEqual(modo, "dirigido")
                 self.assertIn("test_oraculo_x", modulos)
@@ -828,6 +1046,25 @@ class Vermelho(unittest.TestCase):
         self.assertEqual(modulos, ["test_outro"], r.stdout + r.stderr)
         self.assertIn("(restrito por --modulos)", linha)
         self.assertNotIn("o mapa não sabe", r.stdout)
+
+    def test_vermelho_aceita_o_modulo_pelo_nome_com_o_pacote(self):  # FORGE-TESTES-MODULOS-NOME
+        """`tests.test_outro` (a forma do `unittest`) dá o mesmo plano que `test_outro`; outra grafia segue rc 2, sem cópia."""
+        self.com_modulos_do_mapa()
+        self.gravar("lib.py", "def dobro(x):\n    return x\n# mudou\n")
+        self.salvar("muda")
+        curto = self.modulos_do_vermelho(self.rodar("--vermelho", "HEAD~1", "--modulos", "test_outro"))
+        r = self.rodar("--vermelho", "HEAD~1", "--modulos", "tests.test_outro,test_lib")
+        self.assertIn("vermelho: base=", r.stdout, r.stderr)
+        self.assertEqual(self.modulos_do_vermelho(r)[0], ["test_outro", "test_lib"], r.stdout + r.stderr)
+        r = self.rodar("--vermelho", "HEAD~1", "--modulos", "tests.test_outro")
+        self.assertEqual(self.modulos_do_vermelho(r), curto, r.stdout + r.stderr)
+        for grafia in ("tests.tests.test_outro", "tests/test_outro.py", "tests.", "test_a,,test_b", "tests.test_a;b",
+                       "Tests.test_outro", "tests.test_outro.py", "xtests.test_outro"):
+            with self.subTest(grafia):
+                r = self.rodar("--vermelho", "HEAD~1", "--modulos", grafia)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("test_<nome> ou tests.test_<nome>", r.stderr)
+                self.assertEqual(list(self.tmp.iterdir()), [])
 
     def test_vermelho_com_modulo_de_teste_apagado_no_diff_nao_o_roda(self):
         self.com_modulos_do_mapa()
@@ -1119,6 +1356,52 @@ class CaminhoFiltroEAviso(unittest.TestCase):
         r = self.rodar("--vermelho", "-k", "x")
         self.assertEqual(r.returncode, 2)
         self.assertIn("-k não combina com --vermelho", r.stderr)
+
+
+def proc_falso(pasta, quem=b"bin/forge-testes"):
+    """/proc de brinquedo: 10 é quem anota, 5 o ancestral pesado, 20 a outra pesada, 40 sumiu no meio da leitura."""
+    for pid, pai, linha in ((10, 5, quem), (5, 1, b"suite-paralela.py"), (20, 1, b"-m\0unittest\0discover"), (40, 1, b"")):
+        (pasta / str(pid)).mkdir(parents=True)
+        (pasta / str(pid) / "stat").write_text(f"{pid} (a b) S {pai} 0", encoding="utf-8")
+        (pasta / str(pid) / ("cmdline" if linha else "outro")).write_bytes(linha)
+    (pasta / "self").mkdir()
+    return pasta
+
+
+class MedidaDaVagaPesada(unittest.TestCase):
+    """MAQ-A7: a linha do testes.log guarda os campos de hoje e ganha entrada, load1, nproc e outras."""
+    setUp, log = Execucao.setUp, Execucao.log
+
+    def rodar_com(self, **env):
+        limpo = {k: v for k, v in AMBIENTE.items() if k not in ("FORGE_ENTRADA", "CI")}
+        return subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--base", "develop", "--completa"], cwd=self.dir,
+                              env={**limpo, **env}, capture_output=True, text=True)
+
+    def test_a_linha_mantem_o_formato_de_hoje_e_so_aceita_entrada_valida(self):
+        for valor, esperado in ((None, "autor"), ("push", "push"), ("push\n", "?"), ("push\nmodo=x", "?")):
+            with self.subTest(valor):
+                self.assertEqual(self.rodar_com(**({} if valor is None else {"FORGE_ENTRADA": valor})).returncode, 0)
+                self.assertRegex(self.log().splitlines()[-1], r"^\S+Z modo=completo modulos=- duracao=[0-9.]+s saida=0 "
+                                 rf"entrada={re.escape(esperado)} load1=[0-9.]+ nproc=\d+ outras=(\d+|\?)$")
+        self.assertEqual(len(self.log().splitlines()), 4)  # a quebra de linha no valor não abre linha nova
+
+    def test_conta_a_pesada_viva_sem_gravar_a_linha_de_comando_dela(self):
+        falso = self.dir / "marca-a7" / "suite-paralela.py"
+        falso.parent.mkdir()
+        falso.write_text("import time\ntime.sleep(120)\n", encoding="utf-8")
+        processo = subprocess.Popen([sys.executable, "-I", str(falso)])
+        self.addCleanup(processo.wait)
+        self.addCleanup(processo.kill)
+        self.rodar_com()
+        self.assertGreaterEqual(int(re.search(r"outras=(\d+)", self.log()).group(1)), 1)
+        self.assertNotIn("marca-a7", self.log())
+
+    def test_outras_e_contexto_toleram_falha_de_leitura(self):
+        f = carregar()
+        self.assertEqual(f.outras(proc_falso(self.dir / "proc"), eu=10), 1)  # nem a própria, nem o ancestral, nem a 40
+        self.assertEqual(f.outras(self.dir / "sem-proc", eu=10), "?")
+        with mock.patch("os.getloadavg", side_effect=OSError), mock.patch.dict(os.environ, {"FORGE_ENTRADA": "push\n"}):
+            self.assertRegex(f.contexto(), r"^ entrada=\? load1=\? nproc=")
 
 
 if __name__ == "__main__":

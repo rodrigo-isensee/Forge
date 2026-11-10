@@ -1,0 +1,86 @@
+{
+  "pedido": "v0441-review",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "B2: a ação da base não sela",
+      "arquivo": "bin/forge-check",
+      "de": "\"base\": (\"ferramenta\", \"brief selar --sem-selar\"),",
+      "para": "\"base\": (\"ferramenta\", \"brief selar\"),",
+      "testes": [
+        "tests.test_acao_da_reprovacao.Registrar.test_classe_de_forma_roda_a_ferramenta_sem_rodada_do_jarvis"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "B2: --sem-selar para antes do selo",
+      "arquivo": "bin/forge-check",
+      "de": "    if sem_selar:  # B2",
+      "para": "    if False:  # B2",
+      "testes": [
+        "tests.test_selo_e_entrega.Selar.test_sem_selar_corrige_os_derivados_e_nao_grava_selo"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "B2: etapa é do jarvis",
+      "arquivo": "bin/forge-check",
+      "de": "\"etapa\": (\"jarvis\",",
+      "para": "\"etapa\": (\"ferramenta\",",
+      "testes": [
+        "tests.test_acao_da_reprovacao.Catalogo.test_toda_classe_do_catalogo_tem_acao_e_as_de_forma_sao_da_ferramenta"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "B3: sem bwrap não liga",
+      "arquivo": "bin/forge-init",
+      "de": "command -v bwrap >/dev/null 2>&1 || return 1",
+      "para": "true",
+      "testes": [
+        "tests.test_forge.ForgeInit.test_sem_bwrap_ou_sem_credencial_nao_liga_e_oferece"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "B3: sem a credencial completa não liga",
+      "arquivo": "bin/forge-init",
+      "de": "tem(\"GH_TOKEN\") and tem(\"GIT_CONFIG_COUNT\")",
+      "para": "tem(\"GH_TOKEN\") or tem(\"GIT_CONFIG_COUNT\")",
+      "testes": [
+        "tests.test_forge.ForgeInit.test_sem_bwrap_ou_sem_credencial_nao_liga_e_oferece"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "B3: o modelo copiado sai sem sandbox",
+      "arquivo": "bin/forge-init",
+      "de": "[ \"$sandbox_ok\" -eq 0 ]; then  # B3",
+      "para": "[ \"$sandbox_ok\" -eq 9 ]; then  # B3",
+      "testes": [
+        "tests.test_forge.ForgeInit.test_sem_bwrap_ou_sem_credencial_nao_liga_e_oferece"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "upgrade: impõe a segurança do modelo",
+      "arquivo": "bin/forge-upgrade",
+      "de": "{**mesclar_sandbox(modelo, atual), **IMPOSTOS_DO_SANDBOX}",
+      "para": "{**IMPOSTOS_DO_SANDBOX, **mesclar_sandbox(modelo, atual)}",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "upgrade: .claude por link recusado",
+      "arquivo": "bin/forge-upgrade",
+      "de": "if alvo.parent.is_symlink() or alvo.is_symlink():",
+      "para": "if alvo.is_symlink():",
+      "testes": [
+        "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_impoe_a_seguranca_do_modelo_sem_apagar_listas"
+      ]
+    }
+  ]
+}

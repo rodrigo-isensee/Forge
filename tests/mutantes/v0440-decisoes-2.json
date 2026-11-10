@@ -1,0 +1,128 @@
+{
+  "pedido": "v0440-decisoes",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A1",
+      "guarda": "D2: só os tipos só de leitura saem sem selo",
+      "arquivo": "hooks/agentes.py",
+      "de": "    return tipo not in (CONFERENTE, \"conferente\") and tipo not in TIPOS_SO_DE_LEITURA",
+      "para": "    return tipo not in (CONFERENTE, \"conferente\")",
+      "testes": [
+        "tests.test_selo_e_entrega.Hook.test_todo_tipo_que_escreve_pede_selo_e_so_leitura_segue_livre"
+      ]
+    },
+    {
+      "id": "A2",
+      "guarda": "D2: brief sem Agente destino não casa tipo nenhum",
+      "arquivo": "hooks/agentes.py",
+      "de": "fc.cabecalho_do_brief(texto)) or \"\").lower()",
+      "para": "fc.cabecalho_do_brief(texto)) or tipo).lower()",
+      "testes": [
+        "tests.test_selo_e_entrega.Hook.test_brief_de_outro_plugin_casa_o_tipo_inteiro"
+      ]
+    },
+    {
+      "id": "A3",
+      "guarda": "D2: o destino casa o tipo inteiro",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if destino != tipo.lower().removeprefix(\"forge:\"):",
+      "para": "    if destino == tipo.lower().removeprefix(\"forge:\"):",
+      "testes": [
+        "tests.test_selo_e_entrega.Hook.test_brief_de_outro_plugin_casa_o_tipo_inteiro"
+      ]
+    },
+    {
+      "id": "A4",
+      "guarda": "D3: só avisa com brief vencido",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if avisos:\n        texto = mensagem(",
+      "para": "    if not avisos:\n        texto = mensagem(",
+      "testes": [
+        "tests.test_selo_e_entrega.Hook.test_brief_vencido_so_avisa"
+      ]
+    },
+    {
+      "id": "A5",
+      "guarda": "D2: o selo é conferido de quem o exige",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if exige_selo(tipo):",
+      "para": "    if not exige_selo(tipo):",
+      "testes": [
+        "tests.test_selo_e_entrega.Hook.test_todo_tipo_que_escreve_pede_selo_e_so_leitura_segue_livre"
+      ]
+    },
+    {
+      "id": "C1",
+      "guarda": "D4: a forma nova é a do entrega",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return next(iter(livres), \"\") == \"entrega\" and any(",
+      "para": "    return next(iter(livres), \"\") != \"entrega\" and any(",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    },
+    {
+      "id": "C2",
+      "guarda": "D4: --so-leitura sem =valor",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return any(abreviacao_de(a, (\"--so-leitura\",)) and \"=\" not in a for a in args)",
+      "para": "    return any(abreviacao_de(a, (\"--so-leitura\",)) and \"=\" in a for a in args)",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    },
+    {
+      "id": "C3",
+      "guarda": "D4: só o entrega --pedido grava",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not entrega_pela_forma_nova(livres, args):\n        return False",
+      "para": "    if entrega_pela_forma_nova(livres, args):\n        return False",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    },
+    {
+      "id": "C4",
+      "guarda": "D4: --so-leitura não grava no pedido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for a in args) or so_leitura_no_entrega(args))",
+      "para": "for a in args))",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    },
+    {
+      "id": "C5",
+      "guarda": "D4: o conferente só roda entrega --pedido com --so-leitura",
+      "arquivo": "hooks/conformidade.py",
+      "de": "and entrega_pela_forma_nova(livres_do_forge_check(args), args) and not so_leitura_no_entrega(args):",
+      "para": "and entrega_pela_forma_nova(livres_do_forge_check(args), args) and so_leitura_no_entrega(args):",
+      "testes": [
+        "tests.test_hook_ansi_c.CorpusDosCaminhos"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/agentes.py",
+      "trecho": "tipo.startswith(\"forge:\") or tipo in papeis_do_forge()",
+      "motivo": "D2: a regra antiga (só forge:) saiu inteira; a nova, exige_selo de todo tipo menos os só de leitura, tem o mutante A1"
+    },
+    {
+      "arquivo": "hooks/agentes.py",
+      "trecho": "tipo in EXECUTORES_GENERICOS and next(caminhos_de_brief(",
+      "motivo": "D2: o executor genérico com brief deixou de ser caso à parte; todo tipo que escreve pede o selo (mutante A1)"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "sub != \"entrega\"",
+      "motivo": "D4: virou entrega_pela_forma_nova, coberta pelos mutantes C1 e C3"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "pedido and not any(abreviacao_de(a, (\"--sem-gravar\",))",
+      "motivo": "D4: a mesma regra ganhou o --so-leitura, coberta pelo mutante C4"
+    }
+  ]
+}

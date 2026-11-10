@@ -1,20 +1,15 @@
-"""PERMISSAO-AGENTES-MD: texto cobrado por teste."""
+"""PERMISSAO-AGENTES-MD: a skill manda avisar antes de delegar edição de agents/*.md. 0.44.2: âncora e ID da regra."""
+import sys
 import unittest
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parent.parent
-
-
-def ler(*partes):
-    return RAIZ.joinpath(*partes).read_text(encoding="utf-8")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from apoio_regra_id import ids, linha  # noqa: E402
 
 
 class PermissaoAgentesMd(unittest.TestCase):
     def test_skill_manda_avisar_antes_de_delegar_edicao_de_agents(self):
-        texto = ler("skills", "trabalho-em-paralelo", "SKILL.md")
-        self.assertIn("**Delegação que edita `agents/*.md`:**", texto)
-        self.assertIn("Quando a regra de permissão para editar `agents/**` não estiver configurada", texto)
-        self.assertIn("não contorna por script (`R-CONFORMIDADE`)", texto)
+        self.assertIn("R-CONFORMIDADE", ids(linha("skills/trabalho-em-paralelo/SKILL.md", "- **Delegação que edita `agents/*.md`:**")))
 
 
 if __name__ == "__main__":

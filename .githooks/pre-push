@@ -127,6 +127,13 @@ if [ "$#" -eq 1 ] && [ "$1" = "--status" ]; then
 fi
 # Modo --suite (só à mão, com exatamente esse argumento, como o --status): a suíte inteira com a mesma trava e a
 # mesma fila do push, sem refs e sem anotar prova. É por onde scripts/suite-paralela.py passa quando chamado à mão.
+# F8 (0.43.3): o início do envio, para a linha de duração (linha_de_duracao, abaixo).
+inicio_prepush="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+# F8: uma linha de duração no log do envio (o stderr do pre-push), lida pelo `forge-check metricas --log-prepush <log>`: início
+# e fim em UTC, o plano (baratas, curta, completa, dirigida, nada) e o rc. Sem arquivo novo e sem aviso novo.
+linha_de_duracao() {
+  echo "pre-push: duracao inicio=${inicio_prepush} fim=$(date -u +%Y-%m-%dT%H:%M:%SZ) plano=$1 rc=$2" >&2
+}
 modo_suite=0
 if [ "$#" -eq 1 ] && [ "$1" = "--suite" ]; then modo_suite=1; exec </dev/null; fi
 n_refs=0; n_envios=0; unico_local=""; unico_remoto=""; unico_ref=""; envio_sha=(); envio_ref=(); envios=()
@@ -230,6 +237,141 @@ ja_no_remoto() {
   echo "pre-push: o remoto já tem o que seria enviado (${achados}); suíte não roda." >&2
 }
 if [ "$modo_suite" -eq 0 ] && ja_no_remoto "${2:-}"; then exit 0; fi
+# SUITE-NO-CI (decisão do dono, 2026-11-08, "Faça tudo"): a suíte inteira roda uma vez, no CI do PR; o envio local roda
+# as checagens baratas (em segundos, antes da trava) e depois só os testes afetados pelo diff (`bin/forge-testes
+# --afetados`), para qualquer branch e para envio de várias refs. A suíte inteira local é opt-in: FORGE_PREPUSH_SUITE=1.
+suite_local="${FORGE_PREPUSH_SUITE:-0}"
+case "$suite_local" in 0|1) ;; *) echo "pre-push: FORGE_PREPUSH_SUITE vale 0 (só os afetados, o padrão) ou 1 (a suíte inteira local); veio '${suite_local}'." >&2; exit 1 ;; esac
+# A base é `refs/remotes/origin/develop`, resolvida uma vez só para um sha: plano, checagens e execução leem a mesma base,
+# e a ref curta `origin/develop` poderia ser uma branch local de mesmo nome.
+base_dev="$(git rev-parse --verify -q 'refs/remotes/origin/develop^{commit}' 2>/dev/null || true)"
+# Caminhos do envio: o delta de cada ref enviada e o do HEAD desde a base comum com a develop (a branch inteira, não só o
+# que o remoto ainda não tem), mais o que a árvore de trabalho muda (os testes rodam nela). Sem a base: lista vazia e
+# `sem_caminhos=1` (o plano cai na suíte inteira, falha fechada).
+alterados=()
+sem_caminhos=0
+caminhos_do_envio() {
+  local envio ponta ancora lista
+  [ -n "$base_dev" ] || { sem_caminhos=1; return 0; }
+  lista="$(mktemp "${TMPDIR:-/tmp}/forge-alterados.XXXXXX")" || { sem_caminhos=1; return 0; }
+  {
+    for envio in "${envios[@]}" "HEAD 0 HEAD"; do
+      read -r ponta _ _ <<< "$envio"
+      ancora="$(git merge-base "$base_dev" "$ponta" 2>/dev/null)" || { sem_caminhos=1; continue; }
+      git -c core.quotepath=false diff --name-only --no-renames -z "$ancora" "$ponta" -- || sem_caminhos=1
+    done
+    git -c core.quotepath=false diff --name-only --no-renames -z HEAD -- || sem_caminhos=1
+    git -c core.quotepath=false ls-files -z --others --exclude-standard || sem_caminhos=1
+  } > "$lista" 2>/dev/null
+  mapfile -d '' -t alterados < <(sort -zu "$lista")
+  rm -f -- "$lista"
+}
+if [ "$modo_suite" -eq 0 ]; then caminhos_do_envio; fi
+# PREPUSH-BARATAS (P4 do estudo de 2026-11-08): o vermelho de forma sai em segundos, antes da fila e da trava. Sintaxe
+# (bash -n e ast do Python) de todo script alterado, shellcheck dos scripts shell que o envio alterou, a neutralidade e o
+# scripts/verificar-contribuicao.sh nos arquivos tocados (0.43.3) e `bin/forge-changelog conferir` do HEAD (o fragmento com o
+# nome da branch, CHANGELOG-BRANCH). Ferramenta ausente: aviso e segue (o CI repete tudo). Nunca afrouxa: o CI roda as mesmas checagens.
+# COBERTURA-P6: o shellcheck escolhe pelo shebang (tipo_de_script), a mesma regra do passo shellcheck do ci.yml, sem lista fixa.
+# PARECER-NEUTRALIDADE-CEDO (0.43.3): a regra das classes Neutralidade e NeutralidadeDoNucleo de tests/test_forge.py, só nos
+# arquivos tocados (argumentos), com a lista de tests/config.json e o detector de tests/neutralidade.py da árvore. Sem os dois
+# (repositório mínimo), nada a conferir: o CI roda as classes inteiras. Termo de projeto sai só com o arquivo, nunca o termo.
+NEUTRALIDADE_PY='import json, re, sys
+from pathlib import Path
+try:
+    cfg = json.loads(Path("tests/config.json").read_text(encoding="utf-8"))
+    sys.path.insert(0, "tests")
+    from neutralidade import termos_achados
+except Exception:
+    sys.exit(0)
+TEXTO = ("agents/", "skills/", "stacks/", "docs/", "templates/", "bin/", "scripts/", "hooks/", "dev/", "tests/transcricoes/")
+nucleo = cfg.get("neutralidade_nucleo") or {}
+termos = [re.compile(t) for t in nucleo.get("termos", [])]
+pastas = tuple(d.rstrip("/") + "/" for d in nucleo.get("pastas", []))
+ignorar = tuple(nucleo.get("ignorar", []))
+falhas = 0
+for rel in sys.argv[1:]:
+    arq = Path(rel)
+    if arq.is_symlink() or not arq.is_file():
+        continue
+    texto = arq.read_text(encoding="utf-8", errors="ignore")
+    if rel.startswith(TEXTO) and termos_achados(texto, cfg.get("termos_proibidos_hash", [])):
+        print(f"pre-push: {rel}: termo de projeto (R-NEUTRO; compare por hash em tests/config.json).", file=sys.stderr)
+        falhas = 1
+    if rel.startswith(pastas) and not rel.startswith(ignorar):
+        for termo in termos:
+            if termo.pattern not in nucleo.get("excecoes", {}).get(rel, []) and termo.search(texto):
+                print(f"pre-push: {rel}: stack no núcleo ({termo.pattern}); mova para stacks/ ou registre exceção em tests/config.json.", file=sys.stderr)
+                falhas = 1
+sys.exit(falhas)
+'
+tipo_de_script() {
+  local primeira
+  case "$1" in *.py) echo python; return ;; *.sh) echo shell; return ;; esac
+  IFS= read -r primeira < "$1" 2>/dev/null || return 0
+  case "$primeira" in '#!'*python*) echo python ;; '#!'*bash*|'#!'*/sh|'#!'*' sh') echo shell ;; esac
+}
+checagens_baratas() {
+  local arquivo falhas=0 shell=() ancora branch envio ponta ref saida rc
+  for arquivo in "${alterados[@]}"; do
+    if [ ! -f "$arquivo" ] || [ -L "$arquivo" ]; then continue; fi
+    n_baratas=$((n_baratas + 1))
+    case "$(tipo_de_script "$arquivo")" in
+      python) python3 -I -c 'import ast, sys; ast.parse(open(sys.argv[1], "rb").read(), sys.argv[1])' "$arquivo" || { echo "pre-push: erro de sintaxe Python em ${arquivo}." >&2; falhas=1; } ;;
+      shell) bash -n "$arquivo" || { echo "pre-push: erro de sintaxe shell em ${arquivo}." >&2; falhas=1; }
+             shell+=("$arquivo") ;;
+    esac
+  done
+  if [ "${#shell[@]}" -gt 0 ]; then
+    if command -v shellcheck >/dev/null 2>&1; then
+      shellcheck -- "${shell[@]}" >&2 || { echo "pre-push: shellcheck reprovou (${shell[*]})." >&2; falhas=1; }
+    else
+      echo "pre-push: aviso: shellcheck fora do PATH; ${shell[*]} não foi conferido (o CI confere)." >&2
+    fi
+  fi
+  # PARECER-NEUTRALIDADE-CEDO: termo de projeto e stack no núcleo nos arquivos tocados, em segundos (o CI roda as classes inteiras).
+  if [ "${#alterados[@]}" -gt 0 ] && [ -f tests/config.json ] && [ -f tests/neutralidade.py ] && [ ! -L tests/neutralidade.py ]; then
+    python3 -I -c "$NEUTRALIDADE_PY" "${alterados[@]}" || { echo "pre-push: neutralidade reprovada nos arquivos tocados (o CI reprova igual)." >&2; falhas=1; }
+  fi
+  # SENTINELA-CAMINHO-LOCAL: o scripts/verificar-contribuicao.sh da própria árvore no delta do HEAD desde a develop (caminho pessoal,
+  # segredo, .env), além do da base, que a varredura de segredo já rodou: a branch só soma recusas. Arquivo e linha, nunca o valor.
+  if [ -n "$base_dev" ] && [ -f scripts/verificar-contribuicao.sh ] && [ ! -L scripts/verificar-contribuicao.sh ] \
+    && ancora="$(git merge-base "$base_dev" HEAD 2>/dev/null)"; then
+    rc=0; saida="$(env -u BASH_ENV -u ENV bash --noprofile --norc scripts/verificar-contribuicao.sh "$ancora" HEAD 2>&1)" || rc=$?
+    if [ "$rc" -eq 1 ]; then
+      printf '%s\n' "$saida" | LC_ALL=C tr -d '\000-\011\013-\037\177' >&2
+      echo "pre-push: scripts/verificar-contribuicao.sh reprovou o delta (o CI reprova igual); marque exemplo de propósito com forge:exemplo." >&2
+      falhas=1
+    elif [ "$rc" -ne 0 ]; then
+      echo "pre-push: aviso: scripts/verificar-contribuicao.sh não conferiu o delta (saída ${rc}); o CI confere." >&2
+    fi
+  fi
+  # O changelog é o do HEAD: confere quando o HEAD é a ponta de uma branch enviada (o nome da branch decide o fragmento).
+  if [ -n "$base_dev" ] && [ -f bin/forge-changelog ] && [ ! -L bin/forge-changelog ] && [ -f .claude-plugin/plugin.json ]; then
+    for envio in "${envios[@]}"; do
+      read -r ponta _ ref <<< "$envio"
+      case "$ref" in refs/heads/?*) ;; *) continue ;; esac
+      [ "$ponta" = "$(git rev-parse HEAD 2>/dev/null)" ] || continue
+      branch="${ref#refs/heads/}"
+      ancora="$(git merge-base "$base_dev" HEAD 2>/dev/null)" || continue
+      rc=0; saida="$(python3 -I bin/forge-changelog conferir --base "$ancora" --branch="$branch" 2>&1)" || rc=$?
+      if [ "$rc" -eq 1 ]; then
+        printf '%s\n' "$saida" | LC_ALL=C tr -d '\000-\011\013-\037\177' >&2
+        echo "pre-push: changelog de ${branch} reprovado (o CI reprova igual); corrija o fragmento em changelog.d/." >&2
+        falhas=1
+      elif [ "$rc" -ne 0 ]; then
+        echo "pre-push: aviso: bin/forge-changelog conferir não conseguiu conferir ${branch} (saída ${rc}); o CI confere." >&2
+      fi
+      break
+    done
+  fi
+  return "$falhas"
+}
+n_baratas=0
+if [ "$modo_suite" -eq 0 ]; then
+  inicio_baratas="$(date +%s)"
+  checagens_baratas || { echo "pre-push: checagens baratas reprovadas em $(( $(date +%s) - inicio_baratas ))s; a suíte nem entrou na fila. Nunca --no-verify." >&2; linha_de_duracao baratas 1; exit 1; }
+  [ "$n_baratas" -eq 0 ] || echo "pre-push: checagens baratas ok em $(( $(date +%s) - inicio_baratas ))s (${n_baratas} arquivos)" >&2
+fi
 espera="${FORGE_TRAVA_ESPERA:-1200}"
 case "$espera" in ''|*[!0-9]*) echo "pre-push: FORGE_TRAVA_ESPERA deve ser um número de segundos inteiro (veio '${espera}')." >&2; exit 1 ;; esac
 trava="$(trava_arquivo criar)" || exit 1
@@ -303,6 +445,8 @@ if [ "$curta" = 0 ]; then
     exit 1
   }
   fila="${trava%.lock}.fila"
+  # PREPUSH-RELOGIO: entrou, vez e fim vão ao stderr, só com a hora e campos fixos (a medida da espera e da suíte).
+  echo "pre-push: entrou $(date +%H:%M:%S)" >&2
   if fila_entrar; then
     while [ "$(fila_vivas limpar | head -n 1)" != "$senha" ]; do
       avisar
@@ -316,6 +460,7 @@ if [ "$curta" = 0 ]; then
     [ "$resta_ns" -gt 0 ] || resta_ns=0
     flock -w "$((resta_ns / 1000000000)).$(printf '%03d' $(( resta_ns / 1000000 % 1000 )))" 9 || barrar
   fi
+  echo "pre-push: vez $(date +%H:%M:%S)" >&2
   fila_sair
   # PUSH-PARECER-JA-NO-REMOTO: o remoto pode ter recebido o mesmo commit durante a espera; a senha já saiu e a trava solta no exit.
   if ja_no_remoto "${2:-}"; then exit 0; fi
@@ -331,54 +476,50 @@ fi
 # No modo --suite a suíte toma o lugar do hook (exec) e herda a trava: morre a suíte, solta a trava.
 if [ "$modo_suite" = 1 ]; then
   if [ -f scripts/suite-paralela.py ]; then
-    FORGE_SUITE_TRAVA="$trava" exec python3 scripts/suite-paralela.py
+    FORGE_ENTRADA=suite FORGE_SUITE_TRAVA="$trava" exec python3 scripts/suite-paralela.py
   fi
   exec python3 -m unittest discover -s tests -q
 fi
-# EST-M8 (decisão M8 do dono, 2026-10-24: A, que substitui a de 2026-10-23): o pre-push de `melhoria/*` roda só os testes afetados
-# pelo mapa do `bin/forge-testes`; a bateria completa segue no CI do PR. Os bloqueios de conteúdo (main, homolog, develop,
-# não fast-forward) já valeram acima, antes de qualquer teste. Falha fechada: tudo o que não for um envio simples de
-# uma branch com a ferramenta e a base presentes, o plano dirigido e a árvore limpa roda a suíte inteira, como antes.
-# O dirigido vale só para `refs/heads/melhoria/*` (decisão do dono); outra branch roda a suíte inteira. O Python do plano e da
-# execução roda com `-I` (sem o diretório do script no sys.path nem PYTHON*): um `bin/json.py` da branch não decide o plano.
-# O plano vem do `--listar` (primeira linha "forge-testes: dirigido (...)"); qualquer outra saída ou erro = suíte inteira.
-# A prova de árvore verde (`so_parecer`) vale "a suíte inteira passou": só a suíte inteira anota a prova, e o caminho
-# `so_parecer` a repete porque a árvore remota que ele confere já estava verde (herança da suíte inteira, não prova nova).
-# A base é `refs/remotes/origin/develop`, resolvida uma vez só para um sha: plano e execução leem a mesma base, e a ref
-# curta `origin/develop` poderia ser uma branch local de mesmo nome.
+# SUITE-NO-CI (decisão do dono, 2026-11-08, que substitui a M8 de 2026-10-24): todo envio de código roda só os testes
+# afetados pelo plano `--afetados` do `bin/forge-testes`, para qualquer branch e para várias refs (um plano só, sobre a
+# união dos caminhos); a bateria completa roda no CI do PR, que é quem decide. Os bloqueios de conteúdo (main, homolog,
+# develop, não fast-forward) e a varredura de segredo já valeram acima, antes de qualquer teste. Falha fechada: sem a
+# ferramenta, sem a base origin/develop, com erro ao ler os caminhos ou com qualquer saída do plano fora do esperado, roda
+# a suíte inteira, como antes. O Python do plano e da execução roda com `-I` (sem o diretório do script no sys.path nem
+# PYTHON*): um `bin/json.py` da branch não decide o plano. O plano vem do `--listar` (primeira linha "forge-testes:
+# dirigido (...)" ou "forge-testes: nada a rodar"). Quem muda o mapa, a ferramenta ou o hook roda os testes deles (o
+# plano os inclui) e o CI repete a suíte inteira: o envio local não é mais o juiz (P1 do estudo de 2026-11-08).
+# A prova de árvore verde (`so_parecer`) vale "a suíte inteira passou" (`.verde`) ou "o envio de código passou" (`.dirigida`).
 completa=1
-base_dev=""
-dirigido() {
-  local plano ancora
-  [ "$n_refs" -eq 1 ] || return 1
-  case "$unico_ref" in refs/heads/melhoria/*) ;; *) return 1 ;; esac
-  case "$unico_local" in ''|*[!0-9a-f]*) return 1 ;; esac
-  case "$unico_local" in *[!0]*) ;; *) return 1 ;; esac
+nada=0
+afetados() {
+  local plano
+  [ "$suite_local" = 0 ] && [ "$sem_caminhos" = 0 ] && [ -n "$base_dev" ] || return 1
   [ -f bin/forge-testes ] && [ ! -L bin/forge-testes ] || return 1
-  [ "$(git rev-parse HEAD 2>/dev/null)" = "$unico_local" ] || return 1
-  [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ] || return 1
-  # Redundante com o plano, que falha fechado: sem a base o `--listar` cai na suíte inteira e este caso devolve 1 do mesmo jeito.
-  base_dev="$(git rev-parse --verify -q 'refs/remotes/origin/develop^{commit}' 2>/dev/null)" || return 1
-  [ -n "$base_dev" ] || return 1
-  # O plano vem do bin/forge-testes da própria branch: quem muda o filtro, o mapa (tests/config.json) ou o hook não pode
-  # se auto-julgar. O hook confere sozinho e, se o diff toca um deles, roda a suíte inteira (decisão do dono, 2026-10-24).
-  ancora="$(git merge-base "$base_dev" HEAD 2>/dev/null)" || return 1
-  [ -n "$ancora" ] || return 1
-  [ -z "$(git -c core.quotepath=false diff --name-only --no-renames "$ancora" HEAD -- bin/forge-testes tests/config.json .githooks/ 2>/dev/null)" ] || return 1
-  plano="$(python3 -I bin/forge-testes --listar --base "$base_dev" 2>/dev/null)" || return 1
-  case "$plano" in "forge-testes: dirigido ("*) return 0 ;; esac
+  if [ "${#alterados[@]}" -eq 0 ]; then nada=1; return 0; fi
+  plano="$(python3 -I bin/forge-testes --afetados --listar -- "${alterados[@]}" 2>/dev/null)" || return 1
+  case "$plano" in
+    "forge-testes: dirigido ("*) return 0 ;;
+    "forge-testes: nada a rodar"*) nada=1; return 0 ;;
+  esac
   return 1
 }
 if [ "$curta" = 1 ]; then
   echo "pre-push: o envio só acrescenta pareceres sobre código já testado; rodando só as classes que leem pareceres (o CI repete tudo)." >&2
   suite=(python3 -m unittest tests.test_forge.Neutralidade tests.test_forge.Referencias tests.test_forge.AntiDuplicacao tests.test_forge.NeutralidadeDoNucleo -q)
-elif dirigido; then
+elif afetados; then
   completa=0
-  echo "pre-push: rodando só os testes afetados (bin/forge-testes, base origin/develop); a suíte completa roda no CI do PR." >&2
-  suite=(python3 -I bin/forge-testes --base "$base_dev")
+  if [ "$nada" = 1 ]; then
+    echo "pre-push: nenhum teste afetado pelo envio; a suíte completa roda no CI do PR." >&2
+    suite=(true)
+  else
+    echo "pre-push: rodando só os testes afetados (bin/forge-testes --afetados, base origin/develop); a suíte completa roda no CI do PR (local: FORGE_PREPUSH_SUITE=1)." >&2
+    suite=(env FORGE_ENTRADA=push python3 -I bin/forge-testes --afetados -- "${alterados[@]}")
+  fi
 elif [ -f scripts/suite-paralela.py ]; then
+  [ "$suite_local" = 1 ] && echo "pre-push: FORGE_PREPUSH_SUITE=1: a suíte inteira local, além da do CI." >&2
   # D4: a suíte inteira dividida em processos, com a guarda de completude contra o discover (R-TETO: uma por vez).
-  suite=(env FORGE_SUITE_TRAVA="$trava" python3 scripts/suite-paralela.py)
+  suite=(env FORGE_ENTRADA=push FORGE_SUITE_TRAVA="$trava" python3 scripts/suite-paralela.py)
 else
   # Árvore sem o script (repositório mínimo): a mesma suíte em série, mais lenta e nunca mais frouxa.
   suite=(python3 -m unittest discover -s tests -q)
@@ -396,12 +537,34 @@ parar() {
 }
 trap parar TERM INT HUP
 echo "pre-push: suíte do Forge no pid ${$}; para parar só esta execução: kill ${$} (nunca pkill -f, que derruba a suíte de outro agente)." >&2
+# PREPUSH-RELOGIO: a suíte que rodou até o fim (verde ou vermelha, completa ou dirigida) grava "<segundos> <modo>" em
+# <trava>.duracoes; como o anotar: não segue link, só arquivo do próprio usuário, as últimas 50 linhas, umask 077.
+gravar_duracao() {
+  local arq="${trava%.lock}.duracoes" novo
+  [ ! -L "$arq" ] && { [ ! -e "$arq" ] || [ -O "$arq" ]; } || return 0
+  novo="$(mktemp "${arq}.XXXXXX" 2>/dev/null)"
+  { (umask 077; tail -n 49 -- "$arq" 2>/dev/null || true; printf '%s %s\n' "$1" "$2") > "$novo" \
+    && mv -fT -- "$novo" "$arq"; } 2>/dev/null || rm -f -- "$novo"
+}
+inicio_s="$(date +%s)"
 "${suite[@]}" 9>&- >&2 &
 suite_pid=$!
 rc=0
 wait "$suite_pid" || rc=$?
 trap - TERM INT HUP
-[ "$rc" -eq 0 ] || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
+duracao=$(( $(date +%s) - inicio_s ))
+if [ "$curta" = 1 ]; then modo=curta; elif [ "$completa" = 1 ]; then modo=completa; else modo=dirigida; fi
+echo "pre-push: fim $(date +%H:%M:%S) rc ${rc} ${modo} ${duracao}s" >&2
+if [ "$nada" = 1 ]; then linha_de_duracao nada "$rc"; else linha_de_duracao "$modo" "$rc"; fi
+[ "$curta" = 1 ] || gravar_duracao "$duracao" "$modo"
+# O7 (0.44.1): a causa tipada da falha; a de cada teste (tipo, esperado, obtido, local) vem nas linhas `suite-paralela: causa`.
+if [ "$rc" -ne 0 ]; then
+  if [ "$rc" -gt 128 ]; then causa="sinal $((rc - 128))"; elif [ "$rc" -eq 124 ]; then causa=timeout
+  else causa="testes (veja as linhas suite-paralela: causa acima)"; fi
+  echo "pre-push: causa=${causa}" >&2
+  echo "pre-push: testes do Forge falharam." >&2
+  exit 1
+fi
 # Anota a árvore testada (a árvore de trabalho estava limpa no início e no fim e o HEAD^{tree} não mudou durante a suíte,
 # para valer a do commit) como prova do próximo push: a suíte inteira, em `.verde`; as classes curtas do `so_parecer`,
 # sobre árvore remota já provada, também em `.verde`, por acréscimo sem a trava; o dirigido, em `.dirigida`.
@@ -415,7 +578,10 @@ anotar() {
   fi
 }
 arvore_fim="$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)"
-if [ "$inicio_limpo" = 1 ] && [ "$arvore_fim" = "$arvore_inicio" ] && [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ]; then
+# PREPUSH-PROVA-ARVORE (PP-4/C-1): com uma ref, só anota a árvore do commit enviado; HEAD trocado na fila não grava prova.
+arvore_enviada="$arvore_inicio"
+if [ "$n_refs" -eq 1 ]; then arvore_enviada="$(git rev-parse --verify -q "${unico_local}^{tree}" 2>/dev/null || true)"; fi
+if [ "$inicio_limpo" = 1 ] && [ "$arvore_fim" = "$arvore_inicio" ] && [ "$arvore_fim" = "$arvore_enviada" ] && [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ]; then
   if [ "$curta" = 1 ]; then anotar "$verde" acrescentar
   elif [ "$completa" = 1 ]; then anotar "$verde" aparar
   else anotar "$dirigida" aparar; fi

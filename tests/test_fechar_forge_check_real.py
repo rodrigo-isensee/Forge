@@ -55,7 +55,7 @@ class FecharComOForgeCheckReal(unittest.TestCase):
         self.pedido.write_text(f"# real\n\n## Histórico\n- 2026-11-04 09:00: entrega conferida {self.entrega} (E1.2)\n", encoding="utf-8")
         r = self.fechar("x", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertTrue([c for c in self.chamadas() if c.startswith("gh pr merge melhoria/x --squash")])
+        self.assertTrue([c for c in self.chamadas() if c.startswith("gh pr merge melhoria/x --auto --squash")])
 
 
 

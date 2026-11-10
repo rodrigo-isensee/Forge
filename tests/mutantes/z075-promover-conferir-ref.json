@@ -1,0 +1,96 @@
+{
+  "pedido": "z075-promover-conferir-ref",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "--conferir-ref recusa o que nao e sha de 40 hex (C-1)",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "if not SHA40.fullmatch(sha) or git(",
+      "para": "if False or git(",
+      "testes": [
+        "tests.test_promover_homolog.ConferirRef.test_ref_que_nao_e_sha40_de_commit_da_rc_1"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "--conferir-ref recusa sha40 que nao e commit (C-1)",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "f\"{sha}^{{commit}}\", ok_vazio=True).returncode:",
+      "para": "f\"{sha}^{{commit}}\", ok_vazio=True).returncode == 99:",
+      "testes": [
+        "tests.test_promover_homolog.ConferirRef.test_ref_que_nao_e_sha40_de_commit_da_rc_1"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "compara com a origin/homolog, nao com a develop",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "\"origin/homolog^{commit}\"",
+      "para": "\"origin/develop^{commit}\"",
+      "testes": [
+        "tests.test_promover_homolog.ConferirRef.test_parecer_reprovado_fora_da_homolog_da_rc_1_com_a_linha"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "versao nova passa por conferir_versao",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "versao = conferir_versao(sha, base)",
+      "para": "versao = versao_de(sha)",
+      "testes": [
+        "tests.test_promover_homolog.ConferirRef.test_versao_nova_sem_entrada_no_changelog_da_rc_1"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "versao nova roda o forge-check pr contra a main",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "if versao_de(base) != versao:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_promover_homolog.ConferirRef.test_release_com_parecer_desatualizado_contra_a_main_da_rc_1"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "--conferir-ref nunca cai na promocao (sem fetch, sem gh, sem conferir_refs; C-2)",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "if args.conferir_ref is not None else",
+      "para": "if False else",
+      "testes": [
+        "tests.test_promover_homolog.ConferirRef.test_todos_aprovados_da_rc_0_sem_gh_e_sem_fetch"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "o modo de leitura e reconhecido nas duas formas da opcao",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "a.split(\"=\")[0] == \"--conferir-ref\"",
+      "para": "a == \"--conferir-ref\"",
+      "testes": [
+        "tests.test_promover_homolog.ConferirRefSaida.test_excecao_e_erro_de_opcao_viram_1_so_no_modo_de_leitura"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "no modo de leitura, saida diferente de 0 vira 1 (C-3)",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "if so_ler and saida.code not in (0, None):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_promover_homolog.ConferirRefSaida.test_excecao_e_erro_de_opcao_viram_1_so_no_modo_de_leitura"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "excecao no modo de leitura vira rc 1, fora dele sobe (C-3)",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "if not so_ler:",
+      "para": "if so_ler:",
+      "testes": [
+        "tests.test_promover_homolog.ConferirRefSaida.test_excecao_e_erro_de_opcao_viram_1_so_no_modo_de_leitura"
+      ]
+    }
+  ]
+}

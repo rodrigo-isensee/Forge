@@ -1,0 +1,47 @@
+{
+  "pedido": "v0441-o2-convencao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "O2: sem regra no MAPA, o planejar consulta a convencao de nome",
+      "arquivo": "bin/forge-testes",
+      "de": "        casou = casou or modulos_da_convencao(caminho, raiz)",
+      "para": "        casou = casou",
+      "testes": ["tests.test_testes_tocados.Convencao.test_bin_scripts_e_hooks_pela_convencao"]
+    },
+    {
+      "id": "M2",
+      "guarda": "O2: caminho fora de bin/, hooks/ e scripts/ nao entra na convencao",
+      "arquivo": "bin/forge-testes",
+      "de": "    if not achado or caminho in SEM_CONVENCAO:",
+      "para": "    if False or caminho in SEM_CONVENCAO:",
+      "testes": ["tests.test_testes_tocados.Convencao.test_sem_o_arquivo_do_teste_ou_fora_das_pastas_segue_na_completa"]
+    },
+    {
+      "id": "M3",
+      "guarda": "O2: a excecao da decisao 7 (promover-homolog) nao entra na convencao",
+      "arquivo": "bin/forge-testes",
+      "de": "    if not achado or caminho in SEM_CONVENCAO:",
+      "para": "    if not achado or caminho not in SEM_CONVENCAO:",
+      "testes": ["tests.test_testes_tocados.Convencao.test_bin_scripts_e_hooks_pela_convencao",
+                 "tests.test_testes_tocados.Convencao.test_sem_o_arquivo_do_teste_ou_fora_das_pastas_segue_na_completa"]
+    },
+    {
+      "id": "M4",
+      "guarda": "O2: sem o arquivo tests/test_<nome>.py o caminho segue na suite completa",
+      "arquivo": "bin/forge-testes",
+      "de": "    if not arquivo_do_modulo(modulo, raiz).is_file():\n        return None\n    return (modulo,)",
+      "para": "    if False:\n        return None\n    return (modulo,)",
+      "testes": ["tests.test_testes_tocados.Convencao.test_sem_o_arquivo_do_teste_ou_fora_das_pastas_segue_na_completa"]
+    },
+    {
+      "id": "M5",
+      "guarda": "O2: o plano do pre-push (--afetados) tambem usa a convencao",
+      "arquivo": "bin/forge-testes",
+      "de": "if re.fullmatch(padrao, caminho)), None) or modulos_da_convencao(caminho, raiz)",
+      "para": "if re.fullmatch(padrao, caminho)), None)",
+      "testes": ["tests.test_testes_tocados.Convencao.test_bin_scripts_e_hooks_pela_convencao"]
+    }
+  ]
+}

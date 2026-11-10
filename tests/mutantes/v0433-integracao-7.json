@@ -1,0 +1,166 @@
+{
+  "pedido": "v0433-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I97",
+      "guarda": "bin/forge-placar:199 vereditos or [] (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "    na_janela = [v for v in vereditos or [] if dentro(v[0], janela)]",
+      "para": "    na_janela = [v for v in not (vereditos or []) if dentro(v[0], janela)]",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I98",
+      "guarda": "bin/forge-placar:199 dentro(v[0], janela) (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "    na_janela = [v for v in vereditos or [] if dentro(v[0], janela)]",
+      "para": "    na_janela = [v for v in vereditos or [] if not (dentro(v[0], janela))]",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I99",
+      "guarda": "bin/forge-placar:201 v[2] (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "    for papel in sorted({v[3] for v in na_janela if v[2]} | {v[4] for v in na_janela if v[1] == \"entrega\"} | {\"jarvis\"} | set(papeis)):",
+      "para": "    for papel in sorted({v[3] for v in na_janela if not (v[2])} | {v[4] for v in na_janela if v[1] == \"entrega\"} | {\"jarvis\"} | set(papeis)):",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I100",
+      "guarda": "bin/forge-placar:201 v[1] == 'entrega' (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "    for papel in sorted({v[3] for v in na_janela if v[2]} | {v[4] for v in na_janela if v[1] == \"entrega\"} | {\"jarvis\"} | set(papeis)):",
+      "para": "    for papel in sorted({v[3] for v in na_janela if v[2]} | {v[4] for v in na_janela if not (v[1] == \"entrega\")} | {\"jarvis\"} | set(papeis)):",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I101",
+      "guarda": "bin/forge-placar:202 papel == 'jarvis' (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "        if papel == \"jarvis\":",
+      "para": "        if not (papel == \"jarvis\"):",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I102",
+      "guarda": "bin/forge-placar:203 v[1] == 'brief' (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "            base = [v for v in na_janela if v[1] == \"brief\"]",
+      "para": "            base = [v for v in na_janela if not (v[1] == \"brief\")]",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I103",
+      "guarda": "bin/forge-placar:204 papel in PAPEIS_GERAIS (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "        elif papel in PAPEIS_GERAIS:",
+      "para": "        elif not (papel in PAPEIS_GERAIS):",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I104",
+      "guarda": "bin/forge-placar:207 v[1] == 'entrega' and v[4] == papel (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "            base = [v for v in na_janela if v[1] == \"entrega\" and v[4] == papel]",
+      "para": "            base = [v for v in na_janela if not (v[1] == \"entrega\" and v[4] == papel)]",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I105",
+      "guarda": "bin/forge-placar:208 v[2] and v[3] == papel (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "        erros = sum(1 for v in na_janela if v[2] and v[3] == papel)",
+      "para": "        erros = sum(1 for v in na_janela if not (v[2] and v[3] == papel))",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I106",
+      "guarda": "bin/forge-placar:218 not pasta.is_dir() (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "    pasta = Path(pasta)\n    if not pasta.is_dir():",
+      "para": "    pasta = Path(pasta)\n    if not (not pasta.is_dir()):",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I107",
+      "guarda": "bin/forge-placar:226 arq.name == 'test_placar.py' (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "        if arq.name == \"test_placar.py\":",
+      "para": "        if not (arq.name == \"test_placar.py\"):",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I108",
+      "guarda": "bin/forge-placar:230 isinstance(no, ast.Assign) and any((getattr(a, 'id', None) == 'SEM_FERRAMENTA' for a in no.targets)) (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "            if isinstance(no, ast.Assign) and any(getattr(a, \"id\", None) == \"SEM_FERRAMENTA\" for a in no.targets):",
+      "para": "            if not (isinstance(no, ast.Assign) and any(getattr(a, \"id\", None) == \"SEM_FERRAMENTA\" for a in no.targets)):",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I109",
+      "guarda": "bin/forge-placar:233 not isinstance(no, ast.ClassDef) (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "            if not isinstance(no, ast.ClassDef):",
+      "para": "            if not (not isinstance(no, ast.ClassDef)):",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I110",
+      "guarda": "bin/forge-placar:235 isinstance(c, ast.Assign) and any((getattr(a, 'id', None) == 'PAPEL' for a in c.targets)) (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "            papel = next((ast.literal_eval(c.value) for c in no.body if isinstance(c, ast.Assign)\n                          and any(getattr(a, \"id\", None) == \"PAPEL\" for a in c.targets)), \"jarvis\")",
+      "para": "            papel = next((ast.literal_eval(c.value) for c in no.body if not (isinstance(c, ast.Assign)\n                          and any(getattr(a, \"id\", None) == \"PAPEL\" for a in c.targets))), \"jarvis\")",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I111",
+      "guarda": "bin/forge-placar:238 isinstance(f, ast.FunctionDef) and f.name.startswith('test_') (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "                if isinstance(f, ast.FunctionDef) and f.name.startswith(\"test_\"):",
+      "para": "                if not (isinstance(f, ast.FunctionDef) and f.name.startswith(\"test_\")):",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    },
+    {
+      "id": "I112",
+      "guarda": "bin/forge-placar:239 getattr(d, 'attr', getattr(d, 'id', None)) == 'expectedFailure' (negada)",
+      "arquivo": "bin/forge-placar",
+      "de": "                    falha = any(getattr(d, \"attr\", getattr(d, \"id\", None)) == \"expectedFailure\" for d in f.decorator_list)",
+      "para": "                    falha = any(not (getattr(d, \"attr\", getattr(d, \"id\", None)) == \"expectedFailure\") for d in f.decorator_list)",
+      "testes": [
+        "tests.evals.test_placar"
+      ]
+    }
+  ]
+}

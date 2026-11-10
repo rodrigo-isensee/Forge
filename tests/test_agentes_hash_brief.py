@@ -3,6 +3,7 @@ Módulo à parte do AGT-1 (cada commit se reverte sozinho): os apoios de execuç
 import hashlib
 import json
 import os
+import resource
 import shutil
 import subprocess
 import sys
@@ -23,7 +24,7 @@ LANCADOR = ("import runpy, sys; sys.path.insert(0, sys.argv[1]); import _comum; 
 TETO = 256 * 1024
 
 
-class HashDoBrief(unittest.TestCase):
+class Apoio(unittest.TestCase):
     def setUp(self):
         self.projeto = Path(tempfile.mkdtemp(prefix="forge-agt2-")).resolve()
         self.addCleanup(shutil.rmtree, self.projeto, True)
@@ -53,10 +54,10 @@ class HashDoBrief(unittest.TestCase):
                   f"Brief-sha256: {sha}   Bytes: {len(self.conteudo)}", *extra_no_cabecalho]
         return "\n".join(linhas) + f"\n<<<BRIEF\n{corpo}\nBRIEF>>>\n"
 
-    def lancar(self, prompt, tipo="forge:conferente", home=None):
+    def lancar(self, prompt, tipo="forge:conferente", home=None, evento=None):
         self.chamadas = getattr(self, "chamadas", 0) + 1  # descrição única: a mesma duas vezes seria o duplicado do R-TETO
         entrada = {"hook_event_name": "PreToolUse", "tool_name": "Agent", "session_id": "s", "cwd": str(self.projeto),
-                   "tool_input": {"subagent_type": tipo, "description": f"d{self.chamadas}", "prompt": prompt}}
+                   "tool_input": {"subagent_type": tipo, "description": f"d{self.chamadas}", "prompt": prompt}, **(evento or {})}
         env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
         env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, FORGE_PROC=str(self.proc), FORGE_NPROC="8",
                    HOME=str(home or self.home))
@@ -75,6 +76,8 @@ class HashDoBrief(unittest.TestCase):
         r = self.lancar(prompt, **kw)
         self.assertEqual(r.returncode, 0, r.stderr)
 
+
+class HashDoBrief(Apoio):
     # O caminho feliz e o hash ---------------------------------------------------------------
     def test_hash_do_arquivo_passa_relativo_e_absoluto(self):
         self.aceito(self.mensagem())
@@ -111,7 +114,12 @@ class HashDoBrief(unittest.TestCase):
         self.recusado(self.mensagem(modo="modo: entrega", sha="b" * 64))
 
     def test_outro_agente_nao_e_conferido(self):
-        self.aceito(self.mensagem(sha="a" * 64), tipo="forge:tech-lead")
+        """O hash da mensagem é só do conferente; desde a 0.43.1 (P1) o especialista do Forge é barrado pelo selo, que
+        tests/test_selo_e_entrega.py cobre: o tipo só de leitura (D2 da 0.44.0) segue sem conferência."""
+        self.aceito(self.mensagem(sha="a" * 64), tipo="Explore")
+        r = self.lancar(self.mensagem(sha="a" * 64), tipo="forge:tech-lead")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("forge-check brief selar", r.stderr)
 
     # Caminho -----------------------------------------------------------------------------
     def test_arquivo_inexistente_bloqueia(self):
@@ -154,12 +162,38 @@ class HashDoBrief(unittest.TestCase):
         mensagem = f"modo: brief\nBrief-sha256: {hashlib.sha256(self.conteudo).hexdigest()}\n<<<BRIEF\nArquivo: docs/briefs/p-x-1.md\nBRIEF>>>\n"
         self.recusado(mensagem)
 
-    def test_linha_arquivo_extra_no_corpo_nao_atrapalha(self):
-        self.aceito(self.mensagem(corpo="Arquivo: docs/briefs/outro.md\nBrief-sha256: " + "e" * 64))
+    # Um brief por mensagem (HASH-BRIEF, B9): o prompt inteiro, não só o cabeçalho ----------------
+    def recusado_por_dois(self, prompt):
+        self.assertIn("um brief por mensagem", self.recusado(prompt).stderr)
 
-    def test_so_o_primeiro_bloco_e_conferido(self):
-        """Mensagem de dois blocos (brief e entrega): vale o cabeçalho do primeiro; o Jarvis manda o brief sozinho."""
-        self.aceito(self.mensagem() + "\n" + self.mensagem(arquivo="/abs/docs/briefs/q-y-2.md", sha="b" * 64))
+    def test_dois_blocos_completos_bloqueiam(self):
+        self.recusado_por_dois(self.mensagem() + "\n" + self.mensagem(arquivo="/abs/docs/briefs/q-y-2.md", sha="b" * 64))
+
+    def test_arquivo_repetido_no_texto_do_brief_bloqueia(self):
+        self.recusado_por_dois(self.mensagem(corpo="Arquivo: docs/briefs/outro.md"))
+
+    def test_hash_repetido_no_texto_do_brief_bloqueia(self):
+        self.recusado_por_dois(self.mensagem(corpo="Brief-sha256: " + "e" * 64))
+
+    def test_modo_repetido_no_texto_do_brief_bloqueia(self):
+        self.recusado_por_dois(self.mensagem(corpo="modo: entrega"))
+
+    def test_segunda_arquivo_fora_de_docs_briefs_bloqueia(self):
+        self.recusado_por_dois(self.mensagem(corpo="Arquivo: /abs/outro.md"))
+
+    def test_segundo_hash_mal_formado_bloqueia(self):
+        self.recusado_por_dois(self.mensagem(corpo="Brief-sha256: x"))
+
+    def test_segundo_modo_com_outro_valor_bloqueia(self):
+        self.recusado_por_dois(self.mensagem(corpo="modo: outro"))
+
+    def test_citacao_recuada_ou_entre_crases_de_valor_qualquer_passa(self):
+        self.aceito(self.mensagem(corpo="`Arquivo: /abs/outro.md` e `Brief-sha256: x`\n    modo: outro\n\tArquivo: /abs/b.md"))
+
+    def test_um_bloco_com_citacao_recuada_ou_entre_crases_passa(self):
+        corpo = ("cite `Brief-sha256:` e `Arquivo: docs/briefs/x.md`; Exemplo: `modo: brief`\n"
+                 "    modo: brief\n    Arquivo: docs/briefs/exemplo.md\n    Brief-sha256: " + "f" * 64)
+        self.aceito(self.mensagem(corpo=corpo))
 
     # Leitura limitada ----------------------------------------------------------------------
     def test_fifo_bloqueia_sem_travar(self):
@@ -175,6 +209,196 @@ class HashDoBrief(unittest.TestCase):
         limite = b"y" * TETO
         self.gravar("docs/briefs/limite.md", limite)
         self.aceito(self.mensagem(arquivo="docs/briefs/limite.md", sha=hashlib.sha256(limite).hexdigest()))
+
+
+class BranchesDaReserva(Apoio):
+    """AG-1a (E10, adendo E1.3): a reserva grava as `Branch:` do cabeçalho dos briefs citados; só registro, sem recusa."""
+
+    def brief(self, nome, branch, corpo="", base=None):
+        return self.gravar(f"docs/briefs/{nome}.md", f"Agente destino: forge:x\nBranch: {branch}   Base: develop\n\n## Objetivo\n{corpo}\n"
+                           .encode(), base=base)
+
+    def reserva(self, prompt, tipo="Explore", agentes=()):  # tipo só de leitura: o selo (0.43.1, D2 da 0.44.0) é de test_selo_e_entrega
+        estado = self.projeto / ".forge" / "run" / "agentes.json"
+        estado.parent.mkdir(parents=True, exist_ok=True)
+        estado.write_text(json.dumps({"agentes": list(agentes)}), encoding="utf-8")
+        r = self.lancar(prompt, tipo=tipo)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        gravados = json.loads(estado.read_text(encoding="utf-8"))["agentes"]
+        self.assertEqual(len(gravados), len(agentes) + 1, "a reserva não foi gravada")
+        return r, gravados[-1].get("branches")
+
+    def test_g3_erro_na_leitura_nao_pula_o_teto_e_grava_a_reserva_vazia(self):
+        (self.projeto / ".forge" / "config.json").write_text('{"teto_agentes": 10}', encoding="utf-8")
+        self.brief("b", "melhoria/a")
+        prompt = f"leia docs/briefs/{'n' * 300}.md e docs/briefs/b.md"  # ENAMETOOLONG: o OSError real do os.lstat
+        outros = [{"id": f"a{i}", "tipo": "t", "descricao": f"o{i}", "desde": time.time()} for i in range(10)]
+        estado = self.projeto / ".forge" / "run" / "agentes.json"
+        estado.parent.mkdir(parents=True, exist_ok=True)
+        estado.write_text(json.dumps({"agentes": outros}), encoding="utf-8")
+        r = self.lancar(prompt, tipo="Explore")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("R-TETO", r.stderr)
+        self.assertEqual(self.reserva(prompt, agentes=outros[:9])[1], [])
+
+    LONGO = ("docs/briefs/" * 5000)[:60000]  # A1 da segurança g2: um token de 60 mil sem branco; sem o corte, passa de 10 s
+
+    def reserva_cronometrada(self, prompt):
+        cpu = resource.getrusage(resource.RUSAGE_CHILDREN)
+        r, branches = self.reserva(prompt)
+        depois = resource.getrusage(resource.RUSAGE_CHILDREN)
+        self.assertLess(depois.ru_utime + depois.ru_stime - cpu.ru_utime - cpu.ru_stime, 2, "a busca de brief passou de 2 s de CPU")
+        return branches
+
+    def test_token_de_60_mil_sem_branco_grava_a_reserva_em_menos_de_2_s(self):
+        self.assertEqual(self.reserva_cronometrada(self.LONGO), [])
+
+    def test_brief_ao_lado_do_token_longo_continua_contado(self):
+        self.brief("a", "melhoria/a")
+        self.assertEqual(self.reserva_cronometrada(f"{self.LONGO} docs/briefs/a.md\n{self.LONGO}"), ["melhoria/a"])
+
+    def test_todos_os_briefs_contam_e_nenhuma_fica_fora(self):
+        self.brief("n", "nenhuma")
+        self.brief("a", "melhoria/a")
+        self.assertEqual(self.reserva("docs/briefs/n.md e depois docs/briefs/a.md")[1], ["melhoria/a"])
+
+    def test_caminho_com_til_e_lido(self):
+        self.brief("t", "melhoria/t", base=self.home / ".forge-contrib")
+        self.assertEqual(self.reserva("Arquivo: ~/.forge-contrib/docs/briefs/t.md")[1], ["melhoria/t"])
+
+    def test_branch_so_no_corpo_nao_conta(self):
+        self.gravar("docs/briefs/c.md", b"Agente destino: forge:x\n\n## Objetivo\nBranch: melhoria/corpo\n")
+        self.assertEqual(self.reserva("docs/briefs/c.md")[1], [])
+
+    def test_cinco_briefs_avisam_e_gravam_vazio(self):
+        for i in range(5):
+            self.brief(f"b{i}", f"melhoria/b{i}")
+        r, branches = self.reserva(" ".join(f"docs/briefs/b{i}.md" for i in range(5)))
+        self.assertEqual(branches, [])
+        self.assertIn("aviso", r.stderr)
+        self.assertEqual(self.reserva(" ".join(f"docs/briefs/b{i}.md" for i in range(4)))[1], [f"melhoria/b{i}" for i in range(4)])
+
+    def test_brief_ausente_ou_fora_de_docs_briefs_e_pulado_sem_perder_os_outros(self):
+        self.brief("a", "melhoria/a")
+        self.gravar("docs/fora/docs-briefs.md", b"Branch: melhoria/fora\n")
+        prompt = "docs/briefs/sumiu.md docs/briefs/../fora/docs-briefs.md docs/briefs/a.md"
+        self.assertEqual(self.reserva(prompt)[1], ["melhoria/a"])
+
+    def test_conferente_e_prompt_sem_brief_gravam_vazio(self):
+        self.brief("p-x-1", "melhoria/a")
+        self.conteudo = self.arquivo.read_bytes()
+        self.assertEqual(self.reserva(self.mensagem(), tipo="forge:conferente")[1], [])
+        self.assertEqual(self.reserva("sem brief nenhum")[1], [])
+
+
+class RecusaPorBranch(Apoio):
+    """Z10 (0.43.2, AG-1b do adendo E1.3, R-TETO): uma delegação de escrita vigente por branch; a exceção vem só do arquivo do brief.
+    Os tipos são só de leitura (`Explore`, `Plan`): o selo (0.43.1, D2 da 0.44.0) é de test_selo_e_entrega."""
+    reserva = BranchesDaReserva.reserva
+
+    def brief(self, nome, branch, corpo="", etapa=None):
+        linha = f"Etapa: {etapa}\n" if etapa else ""
+        return self.gravar(f"docs/briefs/{nome}.md", f"Agente destino: forge:x\nBranch: {branch}   Base: develop\n{linha}\n## Objetivo\n"
+                                                     f"{corpo}\n".encode())
+
+    def ocupada(self, branch, **registro):
+        return {"id": "a1", "tipo": "forge:qa-engineer", "descricao": "o", "desde": time.time(), "branches": [branch], **registro}
+
+    def estado(self, agentes):
+        estado = self.projeto / ".forge" / "run" / "agentes.json"
+        estado.parent.mkdir(parents=True, exist_ok=True)
+        estado.write_text(json.dumps({"agentes": list(agentes)}), encoding="utf-8")
+        return estado
+
+    def barrado(self, prompt, agentes):
+        estado = self.estado(agentes)
+        r = self.lancar(prompt, tipo="Explore")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("R-TETO", r.stderr)
+        self.assertIn("SubagentStop", r.stderr)
+        self.assertIn(str(estado), r.stderr)
+        return r.stderr
+
+    def test_duas_delegacoes_de_escrita_na_mesma_branch_a_segunda_bloqueia(self):
+        self.brief("a", "melhoria/a", etapa="codigo")
+        self.brief("b", "melhoria/a")
+        self.assertEqual(self.lancar("docs/briefs/a.md", tipo="Explore").returncode, 0)
+        r = self.lancar("docs/briefs/b.md", tipo="Plan")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("R-TETO: melhoria/a ocupada por Explore (uma delegação de escrita por branch): espere o `SubagentStop`",
+                      r.stderr)
+
+    def test_parecer_nao_ocupa_nem_e_barrado(self):
+        self.brief("c", "melhoria/a", etapa="codigo")
+        for etapa in ("review", "seguranca", "qa"):
+            self.brief(etapa, "melhoria/a", etapa=etapa)
+        r, branches = self.reserva("docs/briefs/review.md", agentes=[self.ocupada("melhoria/a", escrita=["melhoria/a"])])
+        self.assertEqual(branches, ["melhoria/a"])
+        estado = json.loads((self.projeto / ".forge" / "run" / "agentes.json").read_text(encoding="utf-8"))["agentes"]
+        self.assertEqual(estado[-1]["escrita"], [])
+        pareceres = [self.ocupada("melhoria/a", escrita=[]), self.ocupada("melhoria/a", id="a2", escrita=[])]
+        self.assertEqual(self.reserva("docs/briefs/qa.md docs/briefs/seguranca.md", agentes=pareceres)[1], ["melhoria/a"])
+        self.assertEqual(self.reserva("docs/briefs/c.md", agentes=pareceres)[1], ["melhoria/a"])
+
+    def test_etapa_de_merge_e_brief_sem_etapa_sao_de_escrita(self):
+        self.brief("m", "melhoria/a", etapa="merge-integracao")
+        self.brief("s", "melhoria/a")
+        for nome in ("m", "s"):
+            self.barrado(f"docs/briefs/{nome}.md", [self.ocupada("melhoria/a", escrita=["melhoria/a"])])
+
+    def test_registro_antigo_sem_escrita_ocupa_as_branches(self):
+        self.brief("a", "melhoria/a", etapa="codigo")
+        self.barrado("docs/briefs/a.md", [self.ocupada("melhoria/a")])
+
+    def test_hora_da_expiracao_segue_o_prazo_do_registro(self):
+        self.brief("a", "melhoria/a")
+        desde = time.time()
+        for registro, prazo in (({}, 2 * 3600), ({"id": None}, 300)):
+            hora = time.strftime("%H:%M", time.localtime(desde + prazo))
+            self.assertIn(f"expiração às {hora}", self.barrado("docs/briefs/a.md", [self.ocupada("melhoria/a", desde=desde, **registro)]))
+        self.assertIn("expiração às ?", self.barrado("docs/briefs/a.md", [self.ocupada("melhoria/a", desde=1e300)]))
+
+    def test_excecao_no_brief_com_motivo_de_dez_passa_e_de_nove_bloqueia(self):
+        self.brief("dez", "melhoria/a", corpo="paralelo na mesma branch: 0123456789")
+        self.brief("nove", "melhoria/a", corpo="paralelo na mesma branch: \u202e012345678\x07")
+        self.assertEqual(self.reserva("docs/briefs/dez.md", agentes=[self.ocupada("melhoria/a")])[1], ["melhoria/a"])
+        self.barrado("docs/briefs/nove.md", [self.ocupada("melhoria/a")])
+
+    def test_excecao_escrita_no_prompt_e_nao_no_brief_bloqueia(self):
+        self.brief("a", "melhoria/a")
+        self.barrado("docs/briefs/a.md\nparalelo na mesma branch: pareceres do mesmo sha", [self.ocupada("melhoria/a")])
+
+    def test_outra_branch_prefixo_nenhuma_e_registro_sem_lista_passam(self):
+        self.brief("a", "melhoria/a")
+        self.brief("n", "nenhuma")
+        self.assertEqual(self.reserva("docs/briefs/a.md", agentes=[self.ocupada("melhoria/a-recusa")])[1], ["melhoria/a"])
+        self.assertEqual(self.reserva("docs/briefs/n.md", agentes=[self.ocupada("nenhuma")])[1], [])
+        self.assertEqual(self.reserva("docs/briefs/a.md", agentes=[self.ocupada("x", branches="melhoria/a")])[1], ["melhoria/a"])
+
+    def test_conferente_e_brief_fora_de_docs_briefs_passam(self):
+        self.brief("p-x-1", "melhoria/a")
+        self.conteudo = self.arquivo.read_bytes()
+        self.gravar("docs/fora/b.md", b"Branch: melhoria/a\n")
+        self.assertEqual(self.reserva(self.mensagem(), tipo="forge:conferente", agentes=[self.ocupada("melhoria/a")])[1], [])
+        self.assertEqual(self.reserva("docs/fora/b.md", agentes=[self.ocupada("melhoria/a")])[1], [])
+
+    def test_depois_do_subagentstop_passa(self):
+        self.brief("a", "melhoria/a")
+        self.barrado("docs/briefs/a.md", [self.ocupada("melhoria/a")])
+        self.assertEqual(self.lancar("", evento={"hook_event_name": "SubagentStop", "agent_id": "a1"}).returncode, 0)
+        self.assertEqual(self.lancar("docs/briefs/a.md", tipo="Explore").returncode, 0)
+
+    def test_nome_na_recusa_sai_sem_controle_e_cortado_em_80(self):
+        nome = "melhoria/\u202ex\x1b[31m" + "y" * 100
+        self.gravar("docs/briefs/c.md", f"Branch: {nome}\nlinha forjada\n\n## Objetivo\n".encode())
+        self.estado([self.ocupada(nome)])
+        r = self.lancar("docs/briefs/c.md", tipo="Explore")
+        saida = r.stderr  # o corte em 80 vale antes do limite de 200 da mensagem do hook
+        self.assertEqual(r.returncode, 2, saida)
+        self.assertIn("R-TETO: melhoria/ x [31m" + "y" * 64 + " ocupada por", saida)
+        self.assertNotIn("\u202e", saida)
+        self.assertNotIn("\x1b", saida)
+        self.assertNotIn("linha forjada", saida)
 
 
 if __name__ == "__main__":

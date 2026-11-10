@@ -1,0 +1,19 @@
+{
+  "descricao": "0.43.1: `brief selar` grava o selo no pedido; o conferente não o roda.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "forge-check brief selar --arquivo docs/briefs/p1-x-1.md --pedido p1"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:conferente"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "grava no Histórico do pedido"
+  }
+}

@@ -1,50 +1,48 @@
-"""AQ1-TEXTO: regras novas cobradas por texto (guardas do diff, QA como fonte de achados, brief seguinte)."""
+"""AQ1-TEXTO: guardas do diff, QA como fonte de achados e brief seguinte. 0.44.2: comportamento onde há (o formato que o
+forge-check lê, o comando que existe) e, no resto, âncora e ID da regra, não a frase (tests/apoio_regra_id.py)."""
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parent.parent
-
-
-def ler(*partes):
-    return RAIZ.joinpath(*partes).read_text(encoding="utf-8")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from apoio_regra_id import RAIZ, ids, ler, linha  # noqa: E402
 
 
 class GuardasDoDiff(unittest.TestCase):
-    def test_tech_lead_manda_um_mutante_por_linha_de_guarda(self):
-        texto = ler("agents", "tech-lead.md")
-        self.assertIn("**Guardas do diff (no Forge, `bin/`, `hooks/`, `.githooks/`, `tests/catraca.py`):**", texto)
-        self.assertIn("**um mutante por linha** em `tests/mutantes/<pedido>.json`", texto)
-        self.assertIn("teste que lê o texto da fonte não conta", texto)
-        self.assertIn("chama Python com `-I`", texto)
-        self.assertIn("'Mutantes declarados'", texto)
+    def test_a_catraca_confere_as_guardas_e_o_tech_lead_cita_a_secao_do_qa(self):
+        guardas = linha("agents/tech-lead.md", "**Guardas do diff")
+        import catraca  # noqa: PLC0415 - quem confere as guardas é a catraca, não o texto
+        self.assertTrue(callable(catraca.regra_guardas_dos_hooks))
+        self.assertIn("tests/mutantes/", guardas)
+        self.assertIn("Mutantes declarados", guardas, "a seção citada é a do qa-testing")
 
     def test_a_secao_citada_existe_no_qa_testing(self):
-        self.assertIn("## Mutantes declarados nos pedidos de controle", ler("skills", "qa-testing", "SKILL.md"))
+        self.assertIn("## Mutantes declarados nos pedidos de controle", ler("skills/qa-testing/SKILL.md").splitlines())
 
-    def test_skill_de_praticas_pede_mutante_e_ramo_de_falha_sem_caminho_do_forge(self):
-        texto = ler("skills", "engineering-practices", "SKILL.md")
-        linha = [l for l in texto.splitlines() if l.startswith("- Guarda nova ou mudada:")]
-        self.assertEqual(len(linha), 1)
-        self.assertIn("mutante declarado e teste do ramo de falha", linha[0])
-        self.assertNotIn("bin/", linha[0])
-        self.assertNotIn("hooks/", linha[0])
+    def test_skill_de_praticas_pede_mutante_sem_caminho_do_forge(self):
+        guarda = linha("skills/engineering-practices/SKILL.md", "- Guarda nova ou mudada:")
+        self.assertNotIn("bin/", guarda)
+        self.assertNotIn("hooks/", guarda)
 
 
 class AchadosDoQa(unittest.TestCase):
-    def test_arquivo_aceita_qa_como_tipo_e_escritor(self):
-        texto = ler("docs", "engineering", "achados-recorrentes.md")
-        self.assertIn("`- AR-<n> · review|seguranca|qa · <classe>", texto)
-        self.assertIn("o `tech-lead` (review), o `security-engineer` e o `qa-engineer`, no mesmo PR do parecer", texto)
+    def test_o_qa_escreve_parecer_como_review_e_seguranca(self):
+        sys.path.insert(0, str(RAIZ / "tests"))
+        from test_selo_e_entrega import fc  # noqa: PLC0415
+        self.assertIn("qa", fc.ETAPAS_DE_PARECER)  # o QA escreve parecer (e com ele os achados) como o review e a segurança
+        self.assertIn("R-QA", ids(ler("skills/qa-testing/SKILL.md")))
 
-    def test_qa_testing_manda_registrar_classe_reincidente(self):
-        texto = ler("skills", "qa-testing", "SKILL.md")
-        self.assertIn("Classe que já reprovou antes vira linha `AR-<n> · qa` em `docs/engineering/achados-recorrentes.md`.", texto)
+    def test_arquivo_de_achados_cita_as_regras_dos_tres_escritores(self):
+        self.assertLessEqual({"R-REVIEW", "R-SEGURANCA", "R-QA"}, ids(ler("docs/engineering/achados-recorrentes.md")))
 
 
 class BriefSeguinte(unittest.TestCase):
-    def test_jarvis_fixa_o_brief_seguinte_depois_de_gravar_a_etapa_em_curso(self):
-        texto = ler("agents", "jarvis.md")
-        self.assertIn("prepare o brief da etapa seguinte em paralelo à etapa em curso; o `Desde:`, o head, o `Base-sha:` e as decisões dele só se fixam depois de gravar no pedido a `conferida` e a decisão da etapa em curso: rode o `brief gerar` de novo na hora de enviar", texto)
+    def test_o_comando_citado_pela_skill_existe(self):
+        self.assertIn("forge-check brief selar", ler("skills/briefs-e-conferencia/SKILL.md"))
+        r = subprocess.run([sys.executable, str(RAIZ / "bin" / "forge-check"), "brief", "selar", "--help"], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("R-BRIEF", ids(ler("skills/briefs-e-conferencia/SKILL.md")))
 
 
 if __name__ == "__main__":

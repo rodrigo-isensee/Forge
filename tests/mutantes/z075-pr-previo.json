@@ -1,0 +1,118 @@
+{
+  "pedido": "z075-pr-previo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o aviso só com previo; sem ele, a violação",
+      "arquivo": "bin/forge-check",
+      "de": "        if previo:  # FC-6",
+      "para": "        if False:  # FC-6",
+      "testes": [
+        "tests.test_revisor_wt.PrPrevio.test_ausente_com_previo_e_aviso_e_sem_previo_e_violacao",
+        "tests.test_revisor_wt.PrPrevio.test_ausente_com_base_como_o_pre_voo_chama"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "desatualizado continua violação com --previo (não vira ausente)",
+      "arquivo": "bin/forge-check",
+      "de": "saida.append(f\"{caminho_impresso(rel)}: commit: {motivo} ({rid})\")",
+      "para": "ausente(f\"{caminho_impresso(rel)}: commit: {motivo} ({rid})\")",
+      "testes": [
+        "tests.test_revisor_wt.PrPrevio.test_desatualizado_com_previo_e_rc_1"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "previo nunca vem do ambiente (PP-5/C-1)",
+      "arquivo": "bin/forge-check",
+      "de": "    saida = []\n\n    def ausente(linha):",
+      "para": "    saida = []\n    previo = previo or bool(os.environ.get(\"FORGE_PREVIO\"))\n\n    def ausente(linha):",
+      "testes": [
+        "tests.test_revisor_wt.PrPrevio.test_cmd_pr_como_o_hook_parecer_chama_nao_le_ambiente"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "reprovado continua violação com --previo (PP-5/C-2)",
+      "arquivo": "bin/forge-check",
+      "de": "        elif campos.get(\"parecer\") not in (\"aprovado\", \"riscos-aceitos\"):",
+      "para": "        elif not previo and campos.get(\"parecer\") not in (\"aprovado\", \"riscos-aceitos\"):",
+      "testes": [
+        "tests.test_revisor_wt.PrPrevio.test_reprovado_com_previo_e_rc_1"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "--previo é opção ligada só quando passada",
+      "arquivo": "bin/forge-check",
+      "de": "pr.add_argument(\"--previo\", action=\"store_true\"",
+      "para": "pr.add_argument(\"--previo\", action=\"store_false\"",
+      "testes": [
+        "tests.test_revisor_wt.PrPrevio.test_ausente_com_previo_e_aviso_e_sem_previo_e_violacao"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "a CLI repassa o --previo a pr_da_cli",
+      "arquivo": "bin/forge-check",
+      "de": "previo=getattr(a, \"previo\", False))}[a.cmd]()",
+      "para": "previo=False)}[a.cmd]()",
+      "testes": [
+        "tests.test_revisor_wt.PrPrevio.test_ausente_com_previo_e_aviso_e_sem_previo_e_violacao"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "pr_da_cli sem --base repassa previo ao cmd_pr",
+      "arquivo": "bin/forge-check",
+      "de": "return cmd_pr(raiz, pedido, ref, None, branch, previo) + (",
+      "para": "return cmd_pr(raiz, pedido, ref, None, branch) + (",
+      "testes": [
+        "tests.test_revisor_wt.PrPrevio.test_ausente_com_previo_e_aviso_e_sem_previo_e_violacao"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "pr_da_cli com --base repassa previo ao cmd_pr",
+      "arquivo": "bin/forge-check",
+      "de": "return cmd_pr(raiz, pedido, ref, resolvida, branch, previo) + (",
+      "para": "return cmd_pr(raiz, pedido, ref, resolvida, branch) + (",
+      "testes": [
+        "tests.test_revisor_wt.PrPrevio.test_ausente_com_base_como_o_pre_voo_chama"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o prévio não imprime veredito aprovado",
+      "arquivo": "bin/forge-check",
+      "de": "if a.cmd == \"pr\" and not violacoes and not getattr(a, \"previo\", False):",
+      "para": "if a.cmd == \"pr\" and not violacoes:",
+      "testes": [
+        "tests.test_revisor_wt.PrPrevio.test_ausente_com_previo_e_aviso_e_sem_previo_e_violacao"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "sem parecer para o pedido passa pelo ausente",
+      "arquivo": "bin/forge-check",
+      "de": "            ausente(f\"{pasta}: {tipo}: sem parecer para o pedido",
+      "para": "            saida.append(f\"{pasta}: {tipo}: sem parecer para o pedido",
+      "testes": [
+        "tests.test_revisor_wt.PrPrevio.test_ausente_com_previo_e_aviso_e_sem_previo_e_violacao",
+        "tests.test_revisor_wt.PrPrevio.test_ausente_com_base_como_o_pre_voo_chama"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "sem parecer da branch passa pelo ausente",
+      "arquivo": "bin/forge-check",
+      "de": "            ausente(f\"{pasta}: {tipo}: sem parecer da branch",
+      "para": "            saida.append(f\"{pasta}: {tipo}: sem parecer da branch",
+      "testes": [
+        "tests.test_revisor_wt.PrPrevio.test_parecer_so_de_outra_branch_tambem_e_ausente"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "descricao": "AGENTE-NAO-EMENDA-ENVIADO: `--force-with-lease` também reescreve o enviado, mesmo fora das branches de integração.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "ref": "refs/remotes/origin/melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push --force-with-lease origin melhoria/x"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-VERIFY: git push --force"
+  }
+}

@@ -1,11 +1,11 @@
 ---
 name: modo-iniciante
-description: Modo de conversa para quem não programa (perfil iniciante em .forge/perfil) - o Jarvis fala sem jargão, o time decide e registra as questões técnicas e só chegam à pessoa as decisões de produto, escopo, custo, acesso e exceção, com uma recomendação. Use quando .forge/perfil contiver iniciante.
+description: Modo de conversa para quem não programa (perfil iniciante em .forge/perfil) - o Jarvis fala sem jargão, o time decide e registra as questões técnicas e só chegam à pessoa as decisões de produto, escopo, custo, acesso e exceção, com uma recomendação. Use quando .forge/perfil contiver iniciante ou na primeira abertura de um projeto.
 ---
 
 # Modo iniciante
 
-Vale quando `.forge/perfil` contém `iniciante`. Ausente ou `experiente`: nada muda. O perfil é da pessoa (fica fora do git) e só ela o muda; não edite o arquivo por conta própria.
+Vale quando `.forge/perfil` contém `iniciante` e na primeira abertura (skill `forge:novo-projeto`). Com `experiente`, nada muda. O perfil é da pessoa (fora do git): começa `iniciante` na primeira abertura e só muda quando ela diz.
 
 ## Como falar
 - Frases curtas, sem sigla nem termo de programação sem explicar. Troque:
@@ -23,18 +23,19 @@ Vale quando `.forge/perfil` contém `iniciante`. Ausente ou `experiente`: nada m
 
 ## O que o time decide sozinho
 Decisão técnica (biblioteca, estrutura, banco, teste, nome de arquivo, como organizar o código) é do time: decide, registra (ADR ou relatório) e não vira pergunta (`R-DECISAO`). Registre como suposição, com a base, quando for relevante.
+Os portões, a forma e o aprendizado com os erros também são do time (placar e eval, `R-DECISAO`): nada disso chega à pessoa como pergunta nem como tarefa.
 
 ## O que sempre vai à pessoa
-Produto e escopo (o que fazer e o que não fazer), prioridade, **custo** (`R-CUSTO`), **acesso e credenciais** (token, senha, convite: nunca pelo chat, só pelo comando do terminal), exceção a uma regra da fábrica e o juntar na `main`, que é dela (`R-MAIN`). Uma decisão por vez, com opções em linguagem simples e a sua recomendação com o motivo.
+Produto e escopo (o que fazer e o que não fazer), prioridade, **custo** (`R-CUSTO`), **acesso e credenciais** (token, senha, convite: nunca pelo chat, só pelo comando do terminal), exceção a uma regra da fábrica e o juntar na `main`, que é dela (`R-MAIN`). Decisões juntas numa mensagem, numeradas, com opções em linguagem simples e a sua recomendação com o motivo.
 
 ## Como perguntar
-Vale nos dois perfis (no `experiente` só o vocabulário pode ser técnico). Antes das perguntas vem o recibo do pedido ("vou fazer / não vou fazer; é isso?"); depois, **uma pergunta por vez** (`R-DECISAO`), sempre neste formato:
+Vale nos dois perfis (no `experiente` só o vocabulário pode ser técnico). Antes das perguntas vem o recibo do pedido ("vou fazer / não vou fazer; é isso?"); depois, as perguntas **em lote**, numeradas (`R-DECISAO`), cada uma neste formato:
 1. Contexto em uma frase, sem jargão.
 2. Exemplo concreto da situação.
 3. Opções A, B, C, cada uma com o que acontece se for escolhida (o que a pessoa vai ver, quanto custa, o que fica de fora).
 4. **Afrouxa o processo?** (sim ou não, por opção) e o **custo de eficiência** de cada opção, em dois números: **tempo** e **tokens** a mais ou a menos por demanda, cada um em faixa e média, marcado `medido` (com a fonte), `estimado` (com a base) ou `não medido`. Diga também, em palavras, se o custo da opção fica **maior ou menor** que o das outras ("a mais barata", "a mais cara", "igual"). De onde sai o número: "Números da pergunta", abaixo.
 5. Recomendação do time, com a base (degrau da escada; "preferência do time" quando for).
-6. "Faltam N perguntas." e a saída: "Se preferir, diga 'decidam vocês' e seguimos com a recomendação" (vira item `delegado`, `R-DECISAO`). A saída não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível: essas ficam com o usuário (`R-DECISAO`, "Complemento").
+6. Na reversível sem custo, o prazo depois do qual vale a recomendação; "Faltam N perguntas." quando outras dependem desta resposta; e a saída: "Se preferir, diga 'decidam vocês' e seguimos com a recomendação" (vira item `delegado`, `R-DECISAO`). A saída não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível: essas ficam com o usuário (`R-DECISAO`, "Complemento").
 
 Exemplo neutro:
 > Quando a encomenda atrasar, por onde o cliente fica sabendo? Exemplo: a entrega prometida para terça não saiu até quarta de manhã.
@@ -51,7 +52,6 @@ Números da pergunta (nunca inventados; tokens = entrada + saída + cache, como 
 Não pergunta: o que é técnico (o time decide e registra), o que a conversa ou o projeto já respondem e o que o protótipo vai mostrar (marca `no-protótipo`).
 
 ## Rotina
-- Ao fim de cada etapa concluída, resuma em duas linhas: o que ficou pronto e qual é o próximo passo.
-- Pedido para mexer no próprio Forge (plugin, hooks, `.forge/`, `.claude/`) é recusado pela proteção: explique em uma frase que isso protege o projeto de quebrar e ofereça registrar como sugestão ao Forge. Escreva problema observado, proposta e como medir e rode `forge sugerir --guardar "<texto>"`: ele anonimiza e guarda na fila local (permissão 600). Nunca grave direto em `~/.local/state/forge/sugestoes/` nem envie: quem envia é a pessoa, no terminal dela, fora do Claude, com `forge sugerir --fila`, vendo o texto final.
-- Apagar o projeto, torná-lo público, enviar à força e reescrever o histórico a proteção recusa: explique a consequência e diga que, se for mesmo a intenção, a pessoa faz pelo site do GitHub. Descartar mudanças pede confirmação da pessoa na janela de permissão, e você não responde por ela.
-- Se algo parece perigoso para o projeto (apagar, tornar público, descartar mudanças), explique a consequência em uma frase e peça confirmação antes.
+- Ao fim de cada etapa, resuma em duas linhas o que ficou pronto e o próximo passo; PR, parecer ou entrega, pela skill `explicar-para-o-leigo`.
+- Pedido para mexer no próprio Forge (plugin, hooks, `.forge/`, `.claude/`) é recusado pela proteção: explique que isso protege o projeto e ofereça registrar como sugestão ao Forge. Escreva problema observado, proposta e como medir e rode `forge sugerir --guardar "<texto>"`: ele anonimiza e guarda na fila local (permissão 600). Nunca grave direto na fila nem envie: quem envia é a pessoa, no terminal dela, fora do Claude, com `forge sugerir --fila`, vendo o texto final.
+- Apagar o projeto, torná-lo público, enviar à força e reescrever o histórico a proteção recusa: explique a consequência e diga que a pessoa faz pelo site do GitHub. Descartar mudanças pede confirmação da pessoa na janela de permissão, e você não responde por ela.

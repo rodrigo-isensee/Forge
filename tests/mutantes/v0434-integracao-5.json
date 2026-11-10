@@ -1,0 +1,86 @@
+{
+  "pedido": "v0434-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Q65",
+      "guarda": "bin/forge_governanca.py:405 len(achados) <= TETO_DE_TRANSCRITOS (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if len(achados) <= TETO_DE_TRANSCRITOS:",
+      "para": "    if not (len(achados) <= TETO_DE_TRANSCRITOS):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "Q66",
+      "guarda": "bin/forge_governanca.py:414 avisos is not None (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if avisos is not None:",
+      "para": "    if not (avisos is not None):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "Q67",
+      "guarda": "bin/forge_governanca.py:417 a in mantidos (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    return [a for a in achados if a in mantidos]",
+      "para": "    return [a for a in achados if not (a in mantidos)]",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "Q68",
+      "guarda": "bin/forge_governanca.py:429 prompt is None and avisos is not None and grande_demais(arq) (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            if prompt is None and avisos is not None and grande_demais(arq):",
+      "para": "            if not (prompt is None and avisos is not None and grande_demais(arq)):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "Q69",
+      "guarda": "hooks/conformidade.py:525 '--' in args (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    args = args[:args.index(\"--\")] if \"--\" in args else args",
+      "para": "    args = args[:args.index(\"--\")] if not (\"--\" in args) else args",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "Q70",
+      "guarda": "hooks/conformidade.py:526 len(a) >= 4 and '--amend'.startswith(a) (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return any(len(a) >= 4 and \"--amend\".startswith(a) for a in args)",
+      "para": "    return any(not (len(a) >= 4 and \"--amend\".startswith(a)) for a in args)",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "Q71",
+      "guarda": "hooks/conformidade.py:1462 sub == 'commit' and emenda(args) and self.ja_enviado(pasta) (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif sub == \"commit\" and emenda(args) and self.ja_enviado(pasta):",
+      "para": "        elif not (sub == \"commit\" and emenda(args) and self.ja_enviado(pasta)):",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    },
+    {
+      "id": "Q72",
+      "guarda": "hooks/conformidade.py:1480 bool(cod) or bool(saida.strip()) (negada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return bool(cod) or bool(saida.strip())",
+      "para": "        return not (bool(cod) or bool(saida.strip()))",
+      "testes": [
+        "tests.test_hooks"
+      ]
+    }
+  ]
+}

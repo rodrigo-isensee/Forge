@@ -5,7 +5,7 @@
       "agentes": [
         {
           "id": "a1",
-          "tipo": "forge:node-backend",
+          "tipo": "Plan",
           "descricao": "Implementar a API",
           "desde": "{agora-60}",
           "pid": "{pid_vivo}",
@@ -20,7 +20,7 @@
     "tool_name": "Agent",
     "tool_use_id": "toolu_1",
     "tool_input": {
-      "subagent_type": "forge:node-backend",
+      "subagent_type": "Plan",
       "description": "Implementar a API",
       "prompt": "..."
     },

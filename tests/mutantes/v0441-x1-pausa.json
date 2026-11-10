@@ -1,0 +1,96 @@
+{
+  "pedido": "v0441-x1-pausa",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "X1: HH:MM vira hoje ou amanha",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if re.fullmatch(r\"\\d{2}:\\d{2}\", texto):",
+      "para": "    if not re.fullmatch(r\"\\d{2}:\\d{2}\", texto):",
+      "testes": [
+        "tests.test_forge_dono.Pausa.test_hora_curta_e_recusas"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "X1: hora ja passada ou igual vai a amanha",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if alvo <= agora else alvo",
+      "para": "if alvo < agora else alvo",
+      "testes": [
+        "tests.test_forge_dono.Pausa.test_horario_de_hh_mm_passado_e_amanha"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "X1: hora sem fuso vale no fuso local",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    return alvo if alvo.tzinfo else",
+      "para": "    return alvo if True else",
+      "testes": [
+        "tests.test_forge_dono.Pausa.test_grava_onde_parou_e_so_retoma_quando_a_cota_renova"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "X1: gravar ou retomar",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if a.gravar:\n        try:\n            alvo = horario(",
+      "para": "    if not a.gravar:\n        try:\n            alvo = horario(",
+      "testes": [
+        "tests.test_forge_dono.Pausa.test_hora_curta_e_recusas"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "X1: onde e obrigatorio e ate 24 h",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        if not a.onde.strip() or alvo - agora > ESPERA_MAXIMA:",
+      "para": "        if not a.onde.strip() and alvo - agora > ESPERA_MAXIMA:",
+      "testes": [
+        "tests.test_forge_dono.Pausa.test_hora_curta_e_recusas"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "X1: --esperar espera a cota",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    while a.esperar and _agora() < alvo:",
+      "para": "    while not a.esperar and _agora() < alvo:",
+      "testes": [
+        "tests.test_forge_dono.Pausa.test_esperar_retoma_sozinho_na_hora"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "X1: antes da hora nao retoma",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if _agora() < alvo:\n        print(f\"pausa: a cota",
+      "para": "    if _agora() > alvo:\n        print(f\"pausa: a cota",
+      "testes": [
+        "tests.test_forge_dono.Pausa.test_grava_onde_parou_e_so_retoma_quando_a_cota_renova"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "X1: com pedido sugere o proximo",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if dados.get(\"pedido\"):",
+      "para": "    if not dados.get(\"pedido\"):",
+      "testes": [
+        "tests.test_forge_dono.Pausa.test_esperar_retoma_sozinho_na_hora"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "X1: despacho da resposta",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if a.cmd == \"decisoes\":",
+      "para": "    if a.cmd != \"decisoes\":",
+      "testes": [
+        "tests.test_forge_dono.Pausa.test_grava_onde_parou_e_so_retoma_quando_a_cota_renova"
+      ]
+    }
+  ]
+}

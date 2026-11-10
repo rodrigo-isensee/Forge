@@ -19,6 +19,7 @@ Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, http
 ## Comandos do projeto
 - **Pronto** (critério de entrega dos agentes): `{{COMANDO_PRONTO}}`
 - **Testes rápidos**: <!-- comando de testes da stack -->
+- **Linha de status (opcional)**: `forge-status` mostra uma linha por pedido em curso; para ligar, ponha `"statusLine": {"type": "command", "command": "forge-status"}` em `.claude/settings.local.json`.
 
 ## Exceções locais às regras da fábrica
 <!-- Só o que diverge do Forge, com o motivo. Ex.: teto de recursos diferente, outro banco, outra branch de integração. -->
@@ -26,7 +27,7 @@ Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, http
 
 ## Regras da fábrica
 Valem aqui; o texto completo de cada uma está em `docs/regras/` do Forge (https://github.com/rodrigo-isensee/Forge/tree/main/docs/regras). Exceções só na seção acima, com o motivo.
-- `R-DECISAO` decisões levadas ao usuário uma de cada vez, com opções e a recomendação do time; melhoria vista entra direto pelo critério da regra.
+- `R-DECISAO` decisões levadas ao usuário em lote, com opções, a recomendação do time e prazo nas reversíveis; melhoria vista entra direto pelo critério da regra.
 - `R-MAIN` a main é do usuário (hook `.githooks/pre-push`; ative com `git config core.hooksPath .githooks`).
 - `R-VERIFY` nunca `--no-verify` nem `--force`.
 - `R-FLUXO` branches e promoção · `R-WIP` 1 cartão por agente e limites de coluna · `R-TETO` teto de recursos da máquina.

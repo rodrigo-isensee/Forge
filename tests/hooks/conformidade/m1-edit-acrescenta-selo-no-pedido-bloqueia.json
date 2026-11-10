@@ -1,0 +1,21 @@
+{
+  "descricao": "M1 (review de segurança da 0.43.1, v0432): a linha de selo ou de conferência no pedido é da ferramenta; Write/Edit que a acrescenta é recusado.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# Pedido p1\n\n## Histórico\n- 2026-10-30: aberto\n- 2026-11-09 10:00: brief selado docs/briefs/p1-dev-1.md aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  "entrada": {
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "{raiz}/docs/pedidos/p1.md",
+      "old_string": "- 2026-10-30: aberto\n",
+      "new_string": "- 2026-10-30: aberto\n- 2026-11-09 10:00: brief selado docs/briefs/p1-dev-2.md aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "escrita à mão no pedido"
+  }
+}

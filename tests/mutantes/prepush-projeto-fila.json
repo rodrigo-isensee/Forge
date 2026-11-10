@@ -1,0 +1,146 @@
+{
+  "pedido": "prepush-projeto-fila",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a pasta da fila nasce quando falta",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "|| mkdir -m 700 \"$fila\" 2>/dev/null",
+      "para": "|| true",
+      "testes": [
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_tres_esperam_em_ordem_de_chegada_contando_quem_esta_na_frente"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "pasta da fila link ou com escrita alheia cai no modo so trava, com aviso (C-3)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if ! pasta_confere \"$fila\"; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_pasta_da_fila_link_ou_775_espera_so_pela_trava"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a senha nasce presa por flock antes de ganhar o nome",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "exec 8>\"$nova\" && flock -n 8 &&",
+      "para": "exec 8>\"$nova\" && true &&",
+      "testes": [
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_tres_esperam_em_ordem_de_chegada_contando_quem_esta_na_frente"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "senha que nao nasce nao deixa sobra na fila",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "rm -f -- \"$nova\"; exec 8>&-;",
+      "para": "exec 8>&-;",
+      "testes": [
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_senha_que_nao_nasce_espera_so_pela_trava_sem_sobra"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "so nomes <digitos>-<digitos> contam (C-4, C-2)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "*[!0-9-]*|*-*-*) continue ;;",
+      "para": "__nunca__) continue ;;",
+      "testes": [
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_nome_fora_do_formato_ou_link_nao_conta_nem_vai_ao_terminal"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "link na fila nao conta (C-4)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if [ ! -f \"$f\" ] || [ -L \"$f\" ]; then continue; fi",
+      "para": "if [ ! -f \"$f\" ]; then continue; fi",
+      "testes": [
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_nome_fora_do_formato_ou_link_nao_conta_nem_vai_ao_terminal"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "senha de processo morto e descartada",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if (exec 7<\"$f\" && flock -n 7) 2>/dev/null; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_senha_morta_sai_e_a_propria_nao_conta"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "a propria senha nao conta",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if [[ \"${f##*/}\" < \"${senha##*/}\" ]]; then",
+      "para": "if [[ ! \"${f##*/}\" > \"${senha##*/}\" ]]; then",
+      "testes": [
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_senha_morta_sai_e_a_propria_nao_conta",
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_tres_esperam_em_ordem_de_chegada_contando_quem_esta_na_frente"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "so espera na fila quem tem alguem na frente",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "&& [ \"$n\" -gt 0 ]; do",
+      "para": "&& [ \"$n\" -ge 0 ]; do",
+      "testes": [
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_senha_morta_sai_e_a_propria_nao_conta"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "a espera na fila tem limite (FORGE_PREPUSH_ESPERA)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if [ \"$SECONDS\" -ge \"$prazo\" ]; then fila_sair;",
+      "para": "if false; then fila_sair;",
+      "testes": [
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_senha_viva_na_frente_espera_ate_o_prazo"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "a senha sai antes da etapa (C-1)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "fila_sair  # a senha sai",
+      "para": "true  # a senha sai",
+      "testes": [
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_senha_morta_sai_e_a_propria_nao_conta",
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_tres_esperam_em_ordem_de_chegada_contando_quem_esta_na_frente"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "aviso uma vez e de novo so quando N muda",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if [ \"$1\" = \"$avisou\" ]; then return 0; fi",
+      "para": "if false; then return 0; fi",
+      "testes": [
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_tres_esperam_em_ordem_de_chegada_contando_quem_esta_na_frente"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "o descritor 8 fecha com a senha (a etapa nao o herda)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "rm -f -- \"$senha\"; exec 8>&-;",
+      "para": "rm -f -- \"$senha\";",
+      "equivalente": "a senha ja foi apagada da pasta antes da etapa: um filho que herde o descritor 8 segura so um inode sem nome, que nenhuma espera le"
+    },
+    {
+      "id": "M19",
+      "guarda": "sem senha (pasta da fila recusada) nao le nem apaga nada na fila (C-3, C-4)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "while [ -n \"$senha\" ] && n=",
+      "para": "while true && n=",
+      "testes": [
+        "tests.test_prepush_so_docs.FilaDaChecagem.test_senha_morta_no_destino_da_fila_link_fica"
+      ]
+    }
+  ]
+}

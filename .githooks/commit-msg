@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Forge (orkastery 3, 0.44.2): a linha `decidido:` da mensagem de commit segue `<porta> — <critério> — <fato>`
+# (critério escrito: R-*, ADR n ou docs/...); fora da forma, o commit é recusado. Sem linha `decidido:`, passa.
+set -u
+msg="${1:-}"
+[ -n "$msg" ] && [ -f "$msg" ] || exit 0
+grep -Eq '^[[:space:]]*(- )?decidido:' "$msg" || exit 0
+raiz="$(cd "$(dirname "$0")/.." && pwd)"
+exec python3 "$raiz/bin/forge-check" --raiz "$raiz" decisoes conferir --mensagem "$msg"

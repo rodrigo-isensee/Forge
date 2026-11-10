@@ -1,0 +1,166 @@
+{
+  "pedido": "v0434-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Q17",
+      "guarda": "bin/forge-doutor:219 codigo == 0 (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "    if codigo == 0:",
+      "para": "    if not (codigo == 0):",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q18",
+      "guarda": "bin/forge-doutor:234 not linha (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "    if not linha:",
+      "para": "    if not (not linha):",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q19",
+      "guarda": "bin/forge-doutor:237 e not in tem (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "    faltam = [e for e in ESCOPOS_DO_GH if e not in tem]",
+      "para": "    faltam = [e for e in ESCOPOS_DO_GH if not (e not in tem)]",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q20",
+      "guarda": "bin/forge-doutor:238 not faltam (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "    faltam = [e for e in ESCOPOS_DO_GH if e not in tem]\n    if not faltam:",
+      "para": "    faltam = [e for e in ESCOPOS_DO_GH if e not in tem]\n    if not (not faltam):",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q21",
+      "guarda": "bin/forge-doutor:259 not antigas (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "    if not antigas:",
+      "para": "    if not (not antigas):",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q22",
+      "guarda": "bin/forge-doutor:262 None in tamanhos (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "    total = \"\" if None in tamanhos else f\", {sum(tamanhos) / 1024 / 1024:.1f} MB\"",
+      "para": "    total = \"\" if not (None in tamanhos) else f\", {sum(tamanhos) / 1024 / 1024:.1f} MB\"",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q23",
+      "guarda": "bin/forge-doutor:264 len(antigas) == 1 (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "    texto = (f\"O cache do plugin guarda {len(antigas)} {'versão antiga' if len(antigas) == 1 else 'versões antigas'} do Forge \"",
+      "para": "    texto = (f\"O cache do plugin guarda {len(antigas)} {'versão antiga' if not (len(antigas) == 1) else 'versões antigas'} do Forge \"",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q24",
+      "guarda": "bin/forge-doutor:266 forge_versoes.dentro_do_claude() (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "    if forge_versoes.dentro_do_claude():",
+      "para": "    if not (forge_versoes.dentro_do_claude()):",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q25",
+      "guarda": "bin/forge-doutor:271 puladas (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "        resto = f\"; pulei {len(puladas)} que mudaram desde a lista\" if puladas else \"\"",
+      "para": "        resto = f\"; pulei {len(puladas)} que mudaram desde a lista\" if not (puladas) else \"\"",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q26",
+      "guarda": "bin/forge-doutor:272 ', '.join((forge_versoes.sem_controle(p.name) for p in apagadas)) or 'nenhuma' (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "        return (f\"apaguei do cache do plugin as versões {', '.join(forge_versoes.sem_controle(p.name) for p in apagadas) or 'nenhuma'}\"",
+      "para": "        return (f\"apaguei do cache do plugin as versões {not (', '.join(forge_versoes.sem_controle(p.name) for p in apagadas) or 'nenhuma')}\"",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q27",
+      "guarda": "bin/forge-doutor:486 resposta.strip().lower() in ('s', 'sim') (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "    return resposta.strip().lower() in (\"s\", \"sim\")",
+      "para": "    return not (resposta.strip().lower() in (\"s\", \"sim\"))",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q28",
+      "guarda": "bin/forge-doutor:504 p.conserto and (not p.sem_volta) (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "    consertaveis = [p for p in problemas if p.conserto and not p.sem_volta]",
+      "para": "    consertaveis = [p for p in problemas if not (p.conserto and not p.sem_volta)]",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q29",
+      "guarda": "bin/forge-doutor:505 p.conserto and p.sem_volta (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "    sem_volta = [p for p in problemas if p.conserto and p.sem_volta]",
+      "para": "    sem_volta = [p for p in problemas if not (p.conserto and p.sem_volta)]",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q30",
+      "guarda": "bin/forge-doutor:508 not ((consertaveis or sem_volta) and interativo) (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "    if not ((consertaveis or sem_volta) and interativo):",
+      "para": "    if not (not ((consertaveis or sem_volta) and interativo)):",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q31",
+      "guarda": "bin/forge-doutor:511 consertaveis and sim(input(f'Posso consertar sozinho {len(consertaveis)} (mexo só no que é seguro e guardo cópia)? [s/N] (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "    if consertaveis and sim(input(f\"Posso consertar sozinho {len(consertaveis)} (mexo só no que é seguro e guardo cópia)? [s/N] \")):",
+      "para": "    if not (consertaveis and sim(input(f\"Posso consertar sozinho {len(consertaveis)} (mexo só no que é seguro e guardo cópia)? [s/N] \"))):",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    },
+    {
+      "id": "Q32",
+      "guarda": "bin/forge-doutor:516 sim(input(f'Posso {p.conserto[0]}? Não tem volta (o cache se refaz reinstalando ou atualizando); a versão em uso fica. [ (negada)",
+      "arquivo": "bin/forge-doutor",
+      "de": "        if sim(input(f\"Posso {p.conserto[0]}? Não tem volta (o cache se refaz reinstalando ou atualizando); a versão em uso fica. [s/N] \")):",
+      "para": "        if not (sim(input(f\"Posso {p.conserto[0]}? Não tem volta (o cache se refaz reinstalando ou atualizando); a versão em uso fica. [s/N] \"))):",
+      "testes": [
+        "tests.test_doutor"
+      ]
+    }
+  ]
+}

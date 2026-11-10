@@ -3,4 +3,4 @@
 {"ev": "agente", "t": "2026-01-01T10:00:00Z", "id": "a2", "tipo": "forge:qa-engineer", "bg": false, "secoes": {"Objetivo": true, "Ler": true, "Entregar": true, "Decisões e restrições": true, "Pronto quando": true, "Relatório": true}}
 {"ev": "cmd", "t": "2026-01-01T10:00:00Z", "cmd": "gh pr create", "branch": "<branch>", "c": "c1", "ator": "<agente>"}
 {"ev": "bloqueio", "t": "2026-01-01T10:00:00Z", "c": "c1", "causa": "hook", "ator": "<agente>"}
-{"ev": "cmd", "t": "2026-01-01T10:00:00Z", "cmd": "gh pr create", "branch": "<branch>", "c": "c2", "ator": "forge:jarvis"}
+{"ev": "cmd", "t": "2026-01-01T10:00:00Z", "cmd": "gh pr create", "branch": "<branch>", "c": "c2", "ator": "forge:tech-lead"}

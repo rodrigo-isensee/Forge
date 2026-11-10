@@ -1,0 +1,96 @@
+{
+ "pedido": "v0442-orkastery3-decisor",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M1",
+   "guarda": "porta fechada vira pergunta",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "        if valor is not False:\n            return \"pergunta\", f\"porta fechada: {nome}\"",
+   "para": "        if valor is None:\n            return \"pergunta\", f\"porta fechada: {nome}\"",
+   "testes": [
+    "tests.test_decisor.Decisor.test_porta_fechada_vira_pergunta"
+   ]
+  },
+  {
+   "id": "M2",
+   "guarda": "condicao que falta vira pergunta",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "        if valor is not True:\n            return \"pergunta\", f\"condição não atendida: {nome}\"",
+   "para": "        if valor is None:\n            return \"pergunta\", f\"condição não atendida: {nome}\"",
+   "testes": [
+    "tests.test_decisor.Decisor.test_condicao_que_falta_vira_pergunta"
+   ]
+  },
+  {
+   "id": "M3",
+   "guarda": "criterio escrito exigido",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "    if not (isinstance(criterio, str) and CRITERIO_ESCRITO.fullmatch(criterio.strip())):",
+   "para": "    if not isinstance(criterio, str):",
+   "testes": [
+    "tests.test_decisor.Decisor.test_condicao_que_falta_vira_pergunta"
+   ]
+  },
+  {
+   "id": "M4",
+   "guarda": "linha decidido fora da forma recusa",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "        return 1 if ruins else 0",
+   "para": "        return 1 if [] else 0",
+   "testes": [
+    "tests.test_decisor.Decisor.test_conferir_recusa_linha_decidido_fora_da_forma"
+   ]
+  },
+  {
+   "id": "M5",
+   "guarda": "placar conta revertidas",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "\"revertida\": \"revertidas\"}",
+   "para": "\"revertida\": \"x\"}",
+   "testes": [
+    "tests.test_decisor.Decisor.test_reverter_e_placar_no_metricas"
+   ]
+  },
+  {
+   "id": "M6",
+   "guarda": "so a linha decidido e conferida",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "if LINHA_DECIDIDO.match(l) and not FORMA_DECIDIDO.match(l.rstrip())]",
+   "para": "if LINHA_DECIDIDO.match(l)]",
+   "testes": [
+    "tests.test_decisor.Decisor.test_conferir_recusa_linha_decidido_fora_da_forma"
+   ]
+  },
+  {
+   "id": "M7",
+   "guarda": "reverter pede id e porque",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "        if not a.id or not _campo(a.porque):",
+   "para": "        if False:",
+   "testes": [
+    "tests.test_decisor.Decisor.test_reverter_pede_id_e_porque"
+   ]
+  },
+  {
+   "id": "M8",
+   "guarda": "so decidida se reverte",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "if r.get(\"resultado\") == \"decidida\"}",
+   "para": "if r.get(\"resultado\") != \"decidida\"}",
+   "testes": [
+    "tests.test_decisor.Decisor.test_reverter_e_placar_no_metricas"
+   ]
+  },
+  {
+   "id": "M9",
+   "guarda": "id fora do registro recusa",
+   "arquivo": "bin/forge_decisor.py",
+   "de": "        if a.id not in ids:",
+   "para": "        if False:",
+   "testes": [
+    "tests.test_decisor.Decisor.test_reverter_e_placar_no_metricas"
+   ]
+  }
+ ]
+}

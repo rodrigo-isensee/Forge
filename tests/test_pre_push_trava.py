@@ -61,6 +61,11 @@ class T(unittest.TestCase):
             time.sleep(0.1)
         self.fail("ninguem liberou")
 '''
+SUITE_VE_DURACOES = '''import unittest, pathlib, os
+class T(unittest.TestCase):
+    def test_duracoes(self):
+        pathlib.Path("duracoes-durante").write_text(str(os.path.exists(os.environ["DURACOES"])))
+'''
 SEGURA_TRAVA = '''import fcntl, sys, time
 f = open(sys.argv[1], "a")
 fcntl.flock(f, fcntl.LOCK_EX)
@@ -152,6 +157,14 @@ class PrePushTrava(unittest.TestCase):
         codigo, _, erro = self.roda()
         self.assertEqual(codigo, 1)
         self.assertIn("testes do Forge falharam", erro)
+        self.assertIn("pre-push: causa=testes", erro)  # O7 (0.44.1): a causa tipada da falha
+
+    def test_suite_morta_por_sinal_sai_com_a_causa_sinal(self):  # O7 (0.44.1)
+        self.suite("import os, signal, unittest\nclass T(unittest.TestCase):\n    def test_morre(self):\n"
+                   "        os.kill(os.getpid(), signal.SIGKILL)\n")
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 1)
+        self.assertIn("pre-push: causa=sinal 9", erro)
 
     def test_segunda_execucao_espera_a_vez(self):
         self.suite(SUITE_LENTA)
@@ -698,6 +711,147 @@ class PrePushTrava(unittest.TestCase):
         codigo, _, erro = self.roda("origin", "u", entrada=entrada, env=b)
         self.assertEqual(codigo, 0, erro)
         self.assertTrue((self.repo / "rodou").exists(), "o lado B aceitou a prova do lado A e pulou a suíte")
+
+
+    # PREPUSH-RELOGIO (versao-075, PP-1): entrou, vez e fim no stderr; a duração da suíte que rodou até o fim em .duracoes.
+    HORA = r"\d\d:\d\d:\d\d"
+
+    def duracoes(self):
+        return self.trava.with_suffix(".duracoes")
+
+    def git(self, *args):
+        return subprocess.run(["git", "-c", "user.email=t@example.com", "-c", "user.name=t", *args], cwd=self.repo,
+                              env=AMBIENTE, check=True, capture_output=True, text=True).stdout.strip()
+
+    def test_relogio_imprime_entrou_vez_e_fim_e_grava_a_duracao_depois_da_suite(self):
+        self.suite(SUITE_VE_DURACOES)
+        codigo, _, erro = self.roda(DURACOES=str(self.duracoes()))
+        self.assertEqual(codigo, 0, erro)
+        self.assertRegex(erro, rf"(?m)^pre-push: entrou {self.HORA}$")
+        self.assertRegex(erro, rf"(?m)^pre-push: vez {self.HORA}$")
+        self.assertRegex(erro, rf"(?m)^pre-push: fim {self.HORA} rc 0 completa \d+s$")
+        # F8 (0.43.3): a linha de duração no log do envio, que o `forge-check metricas --log-prepush` lê
+        self.assertRegex(erro, r"(?m)^pre-push: duracao inicio=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ fim=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ plano=completa rc=0$")
+        self.assertEqual((self.repo / "duracoes-durante").read_text(), "False", "a duração foi gravada antes da suíte")
+        self.assertRegex(self.duracoes().read_text(), r"\A\d+ completa\n\Z")
+        self.assertEqual(self.duracoes().stat().st_mode & 0o077, 0)
+        self.suite(SUITE_FALHA)
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 1)
+        self.assertRegex(erro, rf"(?m)^pre-push: fim {self.HORA} rc 1 completa \d+s$")
+        self.assertRegex(erro, r"(?m)^pre-push: duracao inicio=\S+ fim=\S+ plano=completa rc=1$")
+        self.assertEqual(len(self.duracoes().read_text().splitlines()), 2, "a suíte vermelha que rodou até o fim também conta")
+
+    def test_duracoes_guarda_as_ultimas_50_linhas(self):
+        self.suite(SUITE_RAPIDA)
+        self.duracoes().write_text("".join(f"{n} completa\n" for n in range(1000, 1060)))
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+        linhas = self.duracoes().read_text().splitlines()
+        self.assertEqual(len(linhas), 50)
+        self.assertEqual(linhas[0], "1011 completa")
+        self.assertRegex(linhas[-1], r"^\d+ completa$")
+
+    def test_duracoes_que_e_link_nao_e_seguido(self):  # PP-1/C-1
+        self.suite(SUITE_RAPIDA)
+        alvo = Path(self._tmp.name) / "alvo"
+        alvo.write_text("intacto\n")
+        self.duracoes().symlink_to(alvo)
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+        self.assertEqual(alvo.read_text(), "intacto\n")
+        self.assertTrue(self.duracoes().is_symlink(), "o link foi trocado ou seguido")
+        self.assertEqual(list(self.run_dir.glob("*.duracoes.*")), [])
+
+    def test_duracoes_de_outro_dono_nao_e_tocado(self):  # PP-1/C-1
+        if os.getuid() != 0:
+            self.skipTest("trocar o dono do arquivo pede root")
+        self.suite(SUITE_RAPIDA)
+        self.duracoes().write_text("7 completa\n")
+        os.chown(self.duracoes(), 12345, 12345)
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+        self.assertEqual(self.duracoes().read_text(), "7 completa\n")
+
+    def test_duracoes_que_nao_da_para_trocar_nao_deixa_temporario(self):
+        self.suite(SUITE_RAPIDA)
+        self.duracoes().mkdir()
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+        self.assertEqual(list(self.duracoes().iterdir()), [])
+        self.assertEqual(list(self.run_dir.glob("*.duracoes.*")), [])
+
+    def test_envio_curto_imprime_fim_e_nao_grava_duracao(self):
+        (self.repo / ".gitignore").write_text("rodou\n__pycache__/\n")
+        self.suite(SUITE_RAPIDA)
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "codigo")
+        codigo_sha = self.git("rev-parse", "HEAD")
+        self.trava.with_suffix(".verde").write_text(self.git("rev-parse", "HEAD^{tree}") + "\n")
+        (self.repo / "docs" / "reviews").mkdir(parents=True)
+        (self.repo / "docs" / "reviews" / "p.md").write_text("parecer\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "parecer")
+        entrada = self.refs("melhoria/x", local=self.git("rev-parse", "HEAD"), remoto=codigo_sha)
+        _, _, erro = self.roda(entrada=entrada)
+        self.assertIn("só acrescenta pareceres", erro)
+        self.assertNotIn("pre-push: entrou", erro)
+        self.assertRegex(erro, rf"(?m)^pre-push: fim {self.HORA} rc \d+ curta \d+s$")
+        self.assertFalse(self.duracoes().exists(), "o envio curto gravou duração")
+
+    def test_envio_dirigido_imprime_fim_e_grava_dirigida(self):  # PP-1, A1 do QA g1
+        ferramenta = self.repo / "bin" / "forge-testes"
+        ferramenta.parent.mkdir()
+        ferramenta.write_text("import sys\nif '--listar' in sys.argv:\n    print('forge-testes: dirigido (1)')\n")
+        (self.repo / ".gitignore").write_text("__pycache__/\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("update-ref", "refs/remotes/origin/develop", self.git("rev-parse", "HEAD"))
+        (self.repo / "a.txt").write_text("a\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "item")
+        codigo, _, erro = self.roda(entrada=self.refs("melhoria/x", local=self.git("rev-parse", "HEAD")))
+        self.assertEqual(codigo, 0, erro)
+        self.assertIn("rodando só os testes afetados", erro)
+        self.assertRegex(erro, rf"(?m)^pre-push: fim {self.HORA} rc 0 dirigida \d+s$")
+        self.assertRegex(self.duracoes().read_text(), r"\A\d+ dirigida\n\Z")
+
+    # PREPUSH-PROVA-ARVORE (versao-075, PP-4a, PP-4/C-1): com uma ref, a prova só anota a árvore do commit enviado.
+    def commit_limpo(self, nome):
+        (self.repo / ".gitignore").write_text("rodou\n__pycache__/\n")
+        (self.repo / nome).write_text(nome + "\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", nome)
+        return self.git("rev-parse", "HEAD")
+
+    def test_head_trocado_na_espera_nao_anota_a_prova(self):
+        self.suite(SUITE_RAPIDA)
+        enviado = self.commit_limpo("codigo")
+        dono = self.segura_trava()
+        p = self.hook("origin", "u", entrada=self.refs("melhoria/x", local=enviado))
+        self.filhos.append(p)
+        self.assertTrue(self.espera_ate(lambda: len(self.vezes()) == 1), "o hook não entrou na fila")
+        self.commit_limpo("senha-a-frente")  # quem estava à frente fez commit nesta worktree durante a espera
+        dono.kill()
+        dono.wait()
+        self.assertEqual(p.wait(timeout=60), 0)
+        self.assertTrue((self.repo / "rodou").exists(), "a suíte não rodou")
+        verde = self.trava.with_suffix(".verde")
+        self.assertFalse(verde.exists() and verde.read_text().strip(), "anotou a árvore de um commit que não foi enviado")
+        codigo, _, erro = self.roda("origin", "u", entrada=self.refs("melhoria/x", local=self.git("rev-parse", "HEAD")))
+        self.assertEqual(codigo, 0, erro)
+        self.assertEqual(verde.read_text().split(), [self.git("rev-parse", "HEAD^{tree}")], "o envio do checkout não anotou")
+
+    def test_mais_de_uma_ref_segue_a_regra_de_antes(self):
+        self.suite(SUITE_RAPIDA)
+        antigo = self.commit_limpo("antigo")
+        atual = self.commit_limpo("atual")
+        entrada = self.refs("melhoria/a", local=atual) + self.refs("melhoria/b", local=antigo)
+        codigo, _, erro = self.roda("origin", "u", entrada=entrada)
+        self.assertEqual(codigo, 0, erro)
+        verde = self.trava.with_suffix(".verde")
+        self.assertTrue(verde.exists(), "com mais de uma ref, a prova da árvore do HEAD deixou de ser anotada")
+        self.assertEqual(verde.read_text().split(), [self.git("rev-parse", "HEAD^{tree}")])
 
 
 class TodoTesteDoHookUsaHomeTemporario(unittest.TestCase):

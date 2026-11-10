@@ -11,13 +11,13 @@
       "agentes": [
         {
           "id": "a0",
-          "tipo": "forge:tech-lead",
+          "tipo": "web-fetch",
           "descricao": "Tarefa 0",
           "desde": "{agora-60}"
         },
         {
           "id": "a1",
-          "tipo": "forge:tech-lead",
+          "tipo": "web-fetch",
           "descricao": "Tarefa 1",
           "desde": "{agora-60}"
         }
@@ -29,7 +29,7 @@
     "tool_name": "Agent",
     "tool_use_id": "toolu_1",
     "tool_input": {
-      "subagent_type": "forge:qa-engineer",
+      "subagent_type": "Explore",
       "description": "Validar a entrega",
       "prompt": "..."
     }

@@ -1,0 +1,106 @@
+{
+  "pedido": "v0441-s2-fala",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "S2: texto vazio recusa",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if not texto.strip():",
+      "para": "    if not texto:",
+      "testes": [
+        "tests.test_forge_dono.Fala.test_segunda_fala_nao_sobrescreve_e_recusas_nao_gravam"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "S2: texto grande recusa",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if len(texto.encode(\"utf-8\")) > TETO_DO_TEXTO or",
+      "para": "    if len(texto.encode(\"utf-8\")) > TETO_DO_TEXTO * 2 or",
+      "testes": [
+        "tests.test_forge_dono.Fala.test_segunda_fala_nao_sobrescreve_e_recusas_nao_gravam"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "S2: pasta que e link recusa",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if pasta.is_symlink() or pasta.parent.is_symlink():",
+      "para": "    if pasta.is_symlink() and pasta.parent.is_symlink():",
+      "testes": [
+        "tests.test_forge_dono.Fala.test_pasta_da_fala_que_e_link_recusa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "S2: pedido ausente nada feito",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if arq is None:\n        print(f\"pedido fala:",
+      "para": "    if arq is not None:\n        print(f\"pedido fala:",
+      "testes": [
+        "tests.test_forge_dono.Fala.test_grava_literal_com_sha256_e_le_conferindo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "S2: gravar ou ler",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if a.gravar:\n        motivo = _recusa_do_texto(a.texto)\n        if motivo:\n            print(f\"pedido fala:",
+      "para": "    if not a.gravar:\n        motivo = _recusa_do_texto(a.texto)\n        if motivo:\n            print(f\"pedido fala:",
+      "testes": [
+        "tests.test_forge_dono.Fala.test_grava_literal_com_sha256_e_le_conferindo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "S2: recusa do texto nao grava",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        if motivo:\n            print(f\"pedido fala: {motivo}",
+      "para": "        if not motivo:\n            print(f\"pedido fala: {motivo}",
+      "testes": [
+        "tests.test_forge_dono.Fala.test_grava_literal_com_sha256_e_le_conferindo"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "S2: integra so com o sha256 igual",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        integra = campos.get(\"Sha256\") == _sha(corpo)",
+      "para": "        integra = campos.get(\"Sha256\") != _sha(corpo)",
+      "testes": [
+        "tests.test_forge_dono.Fala.test_grava_literal_com_sha256_e_le_conferindo"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "S2: conta as adulteradas",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        adulteradas += not integra",
+      "para": "        adulteradas += integra",
+      "testes": [
+        "tests.test_forge_dono.Fala.test_grava_literal_com_sha256_e_le_conferindo"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "S2: a linha diz integra ou adulterada",
+      "arquivo": "bin/forge_dono.py",
+      "de": "{'íntegra' if integra else",
+      "para": "{'íntegra' if not integra else",
+      "testes": [
+        "tests.test_forge_dono.Fala.test_grava_literal_com_sha256_e_le_conferindo"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "S2: adulterada da rc 1",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    return 1 if adulteradas else 0",
+      "para": "    return 1 if not adulteradas else 0",
+      "testes": [
+        "tests.test_forge_dono.Fala.test_grava_literal_com_sha256_e_le_conferindo"
+      ]
+    }
+  ]
+}

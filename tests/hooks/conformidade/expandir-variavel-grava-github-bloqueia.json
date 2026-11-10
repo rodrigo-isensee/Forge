@@ -1,0 +1,25 @@
+{
+  "descricao": "Custo (0.44.0): `$CLAUDE_PROJECT_DIR` no caminho gravado ainda se expande (o atalho de `expandir` só pula o caminho sem `$`): o dev gravando `.github/` por ele recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo x > $CLAUDE_PROJECT_DIR/.github/workflows/ci.yml"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": ".github/ (papel: dev)"
+  }
+}

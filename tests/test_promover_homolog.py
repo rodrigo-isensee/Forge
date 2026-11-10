@@ -426,6 +426,82 @@ class ContraMainFalha(unittest.TestCase):
         self.assertIn("melhoria/release-0.2.0", self.para(caiu))
 
 
+class ConferirRef(Promover):
+    """PH-1 (PROMOVER-CONFERIR): `--conferir-ref <sha40>` roda os passos 2 e 3 contra a origin/homolog, sem fetch nem gh."""
+
+    def confere(self, sha=None):
+        return self.roda("--conferir-ref", sha or self.git("rev-parse", "HEAD"))
+
+    def test_parecer_reprovado_fora_da_homolog_da_rc_1_com_a_linha(self):
+        self.avancar(docs__qa__x_md=PARECER.format(p="x", v="reprovado"))
+        r = self.confere()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("docs/qa/x.md: parecer 'reprovado'", r.stderr)
+        self.assertEqual(self.gh_chamadas(), [])
+
+    def test_todos_aprovados_da_rc_0_sem_gh_e_sem_fetch(self):
+        self.pronta()
+        outro = self.tmp / "outro"
+        self.git("clone", "-q", "-b", "develop", str(self.remoto), str(outro), cwd=self.tmp)
+        self.git("commit", "-q", "--allow-empty", "-m", "feat: z", cwd=outro)
+        self.git("push", "-q", "origin", "develop", cwd=outro)  # só o remoto sabe: o fetch mudaria a ref local
+        antes = self.refs()
+        r = self.confere()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("promovível", r.stdout)
+        self.assertEqual((self.refs(), self.gh_chamadas()), (antes, []))
+
+    def test_versao_nova_sem_entrada_no_changelog_da_rc_1(self):
+        self.escrever(".claude-plugin/plugin.json", json.dumps({"name": "forge", "version": "0.2.0"}))
+        self.avancar(CHANGELOG_md=CHANGELOG.format(np="", v="0.1.0"))
+        r = self.confere()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("## [0.2.0]", r.stderr)
+
+    def test_release_com_parecer_desatualizado_contra_a_main_da_rc_1(self):
+        self.pronta()
+        self.avancar(codigo_py="x = 1\n")
+        r = self.confere()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("desatualizado", r.stderr)
+
+    def test_ref_que_nao_e_sha40_de_commit_da_rc_1(self):
+        sha = self.git("rev-parse", "HEAD")
+        for valor in ("-x", "HEAD~0", "HEAD", sha[:12], "0" * 40, sha.upper()):
+            r = self.roda(f"--conferir-ref={valor}")
+            self.assertEqual(r.returncode, 1, valor)
+            self.assertIn("40 hex", r.stderr, valor)
+        for args in (("--conferir-ref", "-x"), ("--conferir-ref",)):
+            self.assertEqual(self.roda(*args).returncode, 1, args)
+
+
+class ConferirRefSaida(unittest.TestCase):
+    """C-3: no --conferir-ref, erro de opção e exceção saem com 1; fora dele, nada muda."""
+
+    def setUp(self):
+        spec = importlib.util.spec_from_file_location("promover_homolog", SCRIPT)
+        self.mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.mod)
+
+    def saida(self, argv, efeito):
+        with mock.patch.object(self.mod, "principal", side_effect=efeito), mock.patch.object(sys, "argv", ["p", *argv]), \
+                redirect_stderr(io.StringIO()):
+            try:
+                self.mod.main()
+            except BaseException as e:  # noqa: BLE001 - o teste compara o que saiu
+                return e
+        return None
+
+    def test_excecao_e_erro_de_opcao_viram_1_so_no_modo_de_leitura(self):
+        sha = "a" * 40
+        for argv in (["--conferir-ref", sha], [f"--conferir-ref={sha}"]):
+            for efeito in (RuntimeError("x"), SystemExit(2)):
+                e = self.saida(argv, efeito)
+                self.assertEqual((type(e), getattr(e, "code", None)), (SystemExit, 1), (argv, efeito))
+        self.assertIsInstance(self.saida(["--dry-run"], RuntimeError("x")), RuntimeError)
+        self.assertEqual(self.saida(["--dry-run"], SystemExit(3)).code, 3)
+
+
 class Executavel(unittest.TestCase):
     def test_script_e_executavel(self):
         self.assertTrue(os.access(SCRIPT, os.X_OK))

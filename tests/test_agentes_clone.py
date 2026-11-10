@@ -75,7 +75,7 @@ class ClonePronto(unittest.TestCase):
         entrada = {"hook_event_name": nome, "session_id": "s", "cwd": str(onde), **campos}
         return rodar_hook("agentes", entrada, onde, self.proc(nproc), {"FORGE_NPROC": str(nproc)})
 
-    def lancar(self, onde, descricao="d", tipo="forge:x", nproc=4):
+    def lancar(self, onde, descricao="d", tipo="Explore", nproc=4):  # só de leitura: o selo (0.43.1, D2 da 0.44.0) é de test_selo_e_entrega
         return self.evento("PreToolUse", onde, nproc, tool_name="Agent",
                            tool_input={"subagent_type": tipo, "description": descricao, "prompt": "p"})
 
@@ -129,6 +129,41 @@ class RegistroNoClone(ClonePronto):
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("já há um agente", r.stderr)
 
+    def recusas(self):
+        arq = self.comum / "recusas.log"
+        return arq.read_text(encoding="utf-8").splitlines() if arq.exists() else []
+
+    def test_recusa_do_teto_e_do_duplicado_deixa_linha_em_recusas_log(self):  # RN-6 (0.43.3)
+        self.assertEqual(self.lancar(self.clone, descricao="segredo-da-descricao").returncode, 0)
+        self.assertEqual(self.lancar(self.clone, descricao="segredo-da-descricao").returncode, 2)
+        self.semear(2)
+        self.assertEqual(self.lancar(self.clone, nproc=2).returncode, 2)
+        linhas = self.recusas()
+        self.assertEqual(len(linhas), 2, linhas)
+        self.assertRegex(linhas[0], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2} agentes R-TETO mem_gb=- nproc=- ativos=1 motivo=duplicado$")
+        self.assertRegex(linhas[1], r" agentes R-TETO mem_gb=8\.00 nproc=2 ativos=2 motivo=teto$")
+        self.assertNotIn("segredo", "".join(linhas))  # nunca a descrição do disparo
+
+    def test_recusa_por_memoria_e_registrada_e_liberacao_nao(self):  # RN-6 (0.43.3)
+        self.assertEqual(self.lancar(self.clone).returncode, 0)
+        self.assertEqual(self.recusas(), [])
+        pasta = self.tmp / "pouca"
+        pasta.mkdir()
+        entrada = {"hook_event_name": "PreToolUse", "session_id": "s", "cwd": str(self.clone), "tool_name": "Agent",
+                   "tool_input": {"subagent_type": "Explore", "description": "outra", "prompt": "p"}}
+        r = rodar_hook("agentes", entrada, self.clone, montar_proc(pasta, mem_gb=0.5), {"FORGE_NPROC": "4"})
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertRegex(self.recusas()[-1], r" mem_gb=0\.50 nproc=4 ativos=1 motivo=memoria$")
+
+    def test_recusas_log_que_e_link_nao_e_seguido_e_a_recusa_segue(self):  # RN-6: O_NOFOLLOW, falha calada
+        self.semear(2)
+        alvo = self.tmp / "alvo.txt"
+        alvo.write_text("", encoding="utf-8")
+        (self.comum / "recusas.log").symlink_to(alvo)
+        r = self.lancar(self.clone, nproc=2)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertEqual(alvo.read_text(encoding="utf-8"), "")
+
     def test_erro_interno_no_clone_deixa_linha_no_erros_log(self):
         self.comum.mkdir(parents=True)
         self.estado.write_text("{truncado", encoding="utf-8")
@@ -141,10 +176,51 @@ class RegistroNoClone(ClonePronto):
         """A15: o `agentes` segue sem `critico`; `FORGE_GUARDA_ABERTA=1` não libera o teto cheio."""
         self.semear(2)
         entrada = {"hook_event_name": "PreToolUse", "session_id": "s", "cwd": str(self.clone), "tool_name": "Agent",
-                   "tool_input": {"subagent_type": "forge:x", "description": "d", "prompt": "p"}}
+                   "tool_input": {"subagent_type": "Explore", "description": "d", "prompt": "p"}}
         r = rodar_hook("agentes", entrada, self.clone, self.proc(2), {"FORGE_NPROC": "2", "FORGE_GUARDA_ABERTA": "1"})
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("R-TETO", r.stderr)
+
+
+class EstadoDoCloneInerte(ClonePronto):
+    """FORGE-RUN-INERTE (0.43.2, E2a do desenho da 0.60): com `.forge` arquivo na cópia principal do clone, o `Hook.run()` comum
+    recua para `<diretório comum>/forge/run/`; antes o `mkdir` falhava e o `pesado` e o erros.log ficavam inertes."""
+
+    SUITE = "python3 -m unittest discover"
+
+    def pesado(self, onde, agente, uso, evento="PreToolUse"):
+        entrada = {"hook_event_name": evento, "session_id": "s", "cwd": str(onde), "tool_name": "Bash", "agent_id": agente,
+                   "tool_use_id": uso, "tool_input": {"command": self.SUITE}}
+        return rodar_hook("pesado", entrada, onde, self.proc(4), {"FORGE_PESADO_ESPERA_S": "0"})  # 0.44.2: sem espera na fila, recusa na hora
+
+    def test_suite_de_outro_agente_no_clone_e_na_worktree_bloqueia(self):
+        self.assertEqual(self.pesado(self.clone, "a1", "u1").returncode, 0)
+        self.assertTrue((self.comum / "pesado.json").is_file(), "o estado do pesado vai para o diretório comum")
+        self.assertEqual(stat.S_IMODE(self.comum.stat().st_mode), 0o700)
+        self.assertEqual((self.comum / ".gitignore").read_text(encoding="utf-8"), "*\n")
+        r = self.pesado(self.wt, "a2", "u2")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("R-TETO", r.stderr)
+        recusas = (self.comum / "recusas.log").read_text(encoding="utf-8").splitlines()  # RN-6 (0.43.3): a recusa do pesado também
+        self.assertEqual(len(recusas), 1, recusas)
+        self.assertRegex(recusas[0], r" pesado R-TETO mem_gb=- nproc=- ativos=- motivo=pesado$")
+        self.assertEqual(self.pesado(self.clone, "a1", "u1", "PostToolUse").returncode, 0)
+        self.assertEqual(self.pesado(self.wt, "a2", "u3").returncode, 0)
+        self.assertTrue((self.clone / ".forge").is_file(), "`.forge` do clone continua sendo o arquivo")
+
+    def test_erro_interno_vai_para_o_erros_log_comum(self):
+        self.comum.mkdir(parents=True, exist_ok=True)
+        (self.comum / "pesado.json").write_text("{truncado", encoding="utf-8")
+        self.assertEqual(self.pesado(self.wt, "a1", "u1").returncode, 0)  # erro interno libera (ADR 0003)
+        self.assertIn("pesado JSONDecodeError", (self.comum / "erros.log").read_text(encoding="utf-8"))
+
+    def test_forge_pasta_continua_com_o_estado_em_forge_run(self):
+        (self.clone / ".forge").chmod(0o644)
+        (self.clone / ".forge").unlink()
+        (self.clone / ".forge").mkdir()
+        self.assertEqual(self.pesado(self.wt, "a1", "u1").returncode, 0)
+        self.assertTrue((self.clone / ".forge" / "run" / "pesado.json").is_file())
+        self.assertFalse((self.comum / "pesado.json").exists())
 
 
 class ArquivoDeEstado(ClonePronto):

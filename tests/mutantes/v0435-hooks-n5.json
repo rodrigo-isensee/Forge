@@ -1,0 +1,136 @@
+{
+  "pedido": "v0435-hooks",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "N5-1",
+      "guarda": "N5: update-ref lê as posicionais sem o valor do -m",
+      "arquivo": "hooks/conformidade.py",
+      "de": "parecer.posicionais(args, {\"-m\"}) if sub in (\"update-ref\", \"symbolic-ref\") else",
+      "para": "parecer.posicionais(args, {\"-m\"}) if sub in (\"update-refx\", \"symbolic-ref\") else",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-2",
+      "guarda": "N5: as posicionais dos outros subcomandos ignoram opções",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\\\n            [a for a in args if not a.startswith(\"-\")]",
+      "para": "\\\n            [a for a in args if not a.startswith(\"s\")]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-3",
+      "guarda": "N5: update-ref de fora que escreve na integração recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self.ref_local_da_integracao(pos[0]):",
+      "para": "self.ref_local_da_integracao(pos[-1]):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-4",
+      "guarda": "N5: refspec de fetch para a integração recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if sub in (\"fetch\", \"pull\"):",
+      "para": "if sub in (\"pull\",):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-5",
+      "guarda": "N5: só a refspec com destino conta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "FETCH_COM_VALOR)[1:] if \":\" in r]",
+      "para": "FETCH_COM_VALOR)[1:] if \";\" in r]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-6",
+      "guarda": "N5: todo destino da refspec é conferido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if any(map(self.ref_local_da_integracao, destinos)):",
+      "para": "if any(map(self.ref_local_da_integracao, destinos[1:])):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-7",
+      "guarda": "N5: reset é subcomando relevante",
+      "arquivo": "hooks/conformidade.py",
+      "de": "NA_INTEGRACAO_RECUSADOS | {\"reset\", \"merge\"",
+      "para": "NA_INTEGRACAO_RECUSADOS | {\"merge\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-8",
+      "guarda": "N5: --abort, --quit e --skip ficam livres",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not relevante or SAIDAS_DA_OPERACAO & set(args):",
+      "para": "if not relevante or SAIDAS_DA_OPERACAO & set(args[:0]):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-9",
+      "guarda": "N5: fora da integração não recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "atual = self.ramo_em(pasta, ramos)\n        if atual not in INTEGRACAO:",
+      "para": "atual = self.ramo_em(pasta, ramos)\n        if atual in INTEGRACAO:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-10",
+      "guarda": "N5: commit, cherry-pick e afins recusam na integração",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if sub in NA_INTEGRACAO_RECUSADOS:\n",
+      "para": "if sub in NA_INTEGRACAO_RECUSADOS - {\"commit\"}:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-11",
+      "guarda": "N5: update-ref HEAD na integração recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "pos and pos[0] == \"HEAD\":",
+      "para": "pos and pos[0] == \"HEADX\":",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-12",
+      "guarda": "N5: merge --continue na integração recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif sub == \"merge\" and \"--continue\" in args:",
+      "para": "elif sub == \"merge\" and \"--continuex\" in args:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    },
+    {
+      "id": "N5-13",
+      "guarda": "N5: pull -r na integração recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "any(a == \"-r\" or a.startswith(\"--rebase\")",
+      "para": "any(a == \"-rx\" or a.startswith(\"--rebase\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_n5"
+      ]
+    }
+  ]
+}

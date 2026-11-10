@@ -4,8 +4,11 @@
 Uso: python3 scripts/suite-paralela.py
 Chamado pelo `.githooks/pre-push` e pelo CI. Só biblioteca padrão; nada de rede nem de custo (R-CUSTO).
 
-- Divisão por módulo (`tests/test*.py`), por LPT sobre os pesos de `tests/pesos-d4.json` (módulo -> segundos);
-  peso ausente vale a mediana. O peso só equilibra: nunca decide o que roda. A mesma árvore dá a mesma divisão.
+- Divisão por unidade, por LPT sobre os pesos de `tests/pesos-d4.json` (unidade -> segundos); peso ausente vale a
+  mediana. A unidade é o módulo (`tests/test*.py`, e `pacote.test_x` para `tests/pacote/test_x.py` de um pacote com
+  `__init__.py`; nome de arquivo repetido entre a raiz e um pacote reprova a divisão); uma chave `módulo.Classe` ou `módulo.Classe.teste` nos pesos tira
+  esses testes do módulo para uma unidade própria (o módulo pesado se divide entre os processos), e o resto do módulo
+  segue como a unidade `módulo`. O peso só equilibra: nunca decide o que roda. A mesma árvore dá a mesma divisão.
 - Processos: N = min(4, nproc); com carga alta (load de 1 min >= 0,8 x nproc ou memória disponível no piso), 2.
   FORGE_SUITE_PROCS fixa N de 1 a 4; fora disso o script recusa (falha fechada).
 - Cada processo roda com `nice`, num grupo de processos próprio e com um TMPDIR próprio (modo 700), apagado ao fim.
@@ -26,7 +29,10 @@ Chamado pelo `.githooks/pre-push` e pelo CI. Só biblioteca padrão; nada de red
   ou ilegível roda a suíte (falha fechada). FORGE_SUITE_SEM_REUSO=1 força a execução; com CI definido sempre roda.
 - No CI (`GITHUB_STEP_SUMMARY`), o resumo do passo traz as unidades mais lentas, a soma, a maior unidade, o desequilíbrio
   e os módulos sem peso (só informa: nunca reprova, nem muda a divisão). O título de cada `::group::` traz os módulos.
-- FORGE_SUITE_MEDIR=1 regrava `tests/pesos-d4.json` com as durações da execução, se tudo passou.
+- FORGE_SUITE_MEDIR=1 regrava `tests/pesos-d4.json` com as durações de cada unidade da execução, se tudo passou.
+- Teto de pulados (T3): só no CI (GITHUB_ACTIONS=true), mais pulados que `teto_pulados` de `tests/config.json` (inteiro
+  >= 0; ausente, de outro tipo ou ilegível reprova) é `FAILED`, antes de regravar pesos e carimbo; fora do CI só avisa.
+  Na suíte em partes (`scripts/suite-partes.py --parte`), cada parte publica os pulados e o agregador do CI soma.
 A última linha é `OK` (ou `OK (skipped=N)`) ou `FAILED (...)`, como no `unittest`.
 """
 import collections
@@ -35,6 +41,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 import shutil
 import signal
 import stat
@@ -44,6 +51,7 @@ import sys
 import tempfile
 import threading
 import time
+import unicodedata
 import unittest
 from pathlib import Path
 
@@ -59,7 +67,15 @@ FORA_DO_HASH = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/", "
 CARIMBO = "forge-suite-verde"
 REGISTRO_PASTA, REGISTRO = ".forge-contrib", "suite-vermelha.jsonl"  # fora do git (L32)
 LIMITE_REGISTRO, LINHAS_LIDAS = 50, 2000
+# O7 (0.44.1): a causa tipada de cada teste que cai (o diagnóstico lê o tipo, não o log inteiro); valores cortados e sem segredo
+TETO_DA_SAIDA, TETO_DO_VALOR = 4000, 160  # caracteres do traceback acima dos quais a causa é `saida-grande`; de esperado e obtido
+SEGREDO = re.compile(r"(?i)(?:gh[pousr]_\w{20,}|github_pat_\w{20,}|glpat-[\w-]{20,}|sk-[\w-]{20,}|AKIA[0-9A-Z]{16}|xox[abpr]-[\w-]{10,}"
+                     r"|\b(?:token|senha|password|secret|segredo|api[_-]?key|chave)\b\s*[:=]\s*\S+)")
+LOCAL_DO_TESTE = re.compile(r'File "[^"]*/(tests/[^"]+)", line (\d+)')
+COMPARACAO = re.compile(r"^AssertionError: (.*?) != (.*)$", re.M)
+TESTE_DE_TEMPO = re.compile(r"tempo|prazo|relogio|hora|duracao|timeout|espera", re.I)
 LIMITE_LENTAS, LIMITE_SEM_PESO, LIMITE_SEM_DURACAO = 10, 20, 20  # o resumo do CI é curto (N-CI, C-11)
+CONFIG, LIMITE_PULADOS = RAIZ / TESTES / "config.json", 20  # teto de pulados (T3)
 
 
 class Interrompido(Exception):
@@ -86,8 +102,34 @@ def ids(suite):
 
 
 def modulos():
-    """Os módulos de teste da raiz de `tests/`; a guarda de completude confere esta lista contra o `discover`."""
-    return sorted(p.stem for p in (RAIZ / TESTES).glob("test*.py") if p.stem.isidentifier())
+    """Os módulos de teste da raiz de `tests/` e os dos pacotes dela (pasta com `__init__.py` em todo nível, que o
+    `discover` também acha), estes pelo nome com ponto (`evals.test_x`); a guarda de completude confere esta lista
+    contra o `discover`."""
+    base = RAIZ / TESTES
+    nomes = []
+    for p in base.rglob("test*.py"):
+        partes = (*p.parent.relative_to(base).parts, p.stem)
+        if all(x.isidentifier() for x in partes) and all(
+                (base / Path(*partes[:i + 1]) / "__init__.py").is_file() for i in range(len(partes) - 1)):
+            nomes.append(".".join(partes))
+    return sorted(nomes)
+
+
+def nomes_de_arquivo_repetidos(nomes):
+    """Os módulos cujo nome de arquivo se repete entre a raiz de `tests/` e os pacotes: o `discover` do módulo da raiz
+    (padrão `<nome>.py`) acharia também o do pacote, e o teste rodaria duas vezes (falha fechada)."""
+    contagem = collections.Counter(m.rsplit(".", 1)[-1] for m in nomes)
+    return sorted(m for m in nomes if contagem[m.rsplit(".", 1)[-1]] > 1)
+
+
+def suite_do_modulo(nome):
+    """Os testes do módulo `nome` como no `discover` da suíte inteira (os mesmos IDs): o da raiz pelo padrão
+    `<nome>.py`; o de pacote (`pacote.test_x`) pelo `discover` na pasta do pacote, com `tests/` como raiz."""
+    if "." not in nome:
+        return descobrir(f"{nome}.py")
+    pacote, arquivo = nome.rsplit(".", 1)
+    return unittest.TestLoader().discover(str(Path(TESTES, *pacote.split("."))), pattern=f"{arquivo}.py",
+                                          top_level_dir=TESTES)
 
 
 def ler_pesos(caminho=PESOS):
@@ -111,6 +153,36 @@ def repartir(nomes, pesos, n):
         partes[i].append(nome)
         cargas[i] += pesos.get(nome, mediana)
     return [sorted(p) for p in partes if p]
+
+
+def separadas(nome, pesos):
+    """As chaves de `pesos` que tiram testes do módulo `nome` para uma unidade própria: `nome.Classe` ou
+    `nome.Classe.teste` (o prefixo do ID do teste no `discover`)."""
+    return sorted(k for k in pesos if k.startswith(nome + "."))
+
+
+def unidade_do_teste(ident, chaves, nome):
+    """A chave mais longa de `chaves` que é o ID ou um prefixo dele (até um ponto); sem nenhuma, o próprio módulo."""
+    casadas = [k for k in chaves if ident == k or ident.startswith(k + ".")]
+    return max(casadas, key=len) if casadas else nome
+
+
+def planejar(nomes, pesos, ids_do_modulo):
+    """As unidades da divisão: {unidade: (módulo, posições)}, com posições None para o módulo inteiro. Só o módulo com
+    chave separada nos pesos é aberto (`ids_do_modulo(nome)` dá os IDs na ordem do `discover`); cada teste vai para a
+    unidade da chave mais longa que casa com o ID, e o que sobra fica na unidade do módulo. Unidade sem teste não entra."""
+    plano = {}
+    for nome in nomes:
+        chaves = separadas(nome, pesos)
+        if not chaves:
+            plano[nome] = (nome, None)
+            continue
+        por_unidade = {}
+        for posicao, ident in enumerate(ids_do_modulo(nome)):
+            por_unidade.setdefault(unidade_do_teste(ident, chaves, nome), []).append(posicao)
+        for unidade, posicoes in sorted(por_unidade.items()):
+            plano[unidade] = (nome, posicoes)
+    return plano
 
 
 def conferir_particao(nomes, partes):
@@ -205,18 +277,28 @@ def vigiar_pai(pai):
             os.killpg(0, signal.SIGKILL)
 
 
+def suite_da_unidade(unidade):
+    """O módulo inteiro (texto: o nome) ou só os testes das posições dele ({"unidade", "modulo", "posicoes"}), na ordem
+    do `discover`; numa suíte só, para o `unittest` rodar uma vez o setUpModule e o setUpClass da unidade."""
+    if isinstance(unidade, str):
+        return suite_do_modulo(unidade)
+    testes = list(achatar(suite_do_modulo(unidade["modulo"])))
+    return unittest.TestSuite(testes[i] for i in unidade["posicoes"] if i < len(testes))
+
+
 def processo(entrada, saida):
     os.nice(10)
     threading.Thread(target=vigiar_pai, args=(os.getppid(),), daemon=True).start()
-    nomes = json.loads(Path(entrada).read_text(encoding="utf-8"))
+    unidades = json.loads(Path(entrada).read_text(encoding="utf-8"))
     verbosidade = 2 if os.environ.get("GITHUB_ACTIONS") == "true" else 1
     resultado = Resultado(unittest.runner._WritelnDecorator(sys.stderr), True, verbosidade)
     duracoes = {}
     resultado.startTestRun()
     try:
-        for nome in nomes:
+        for unidade in unidades:
             inicio = time.monotonic()
-            descobrir(f"{nome}.py").run(resultado)
+            suite_da_unidade(unidade).run(resultado)
+            nome = unidade if isinstance(unidade, str) else unidade["unidade"]
             duracoes[nome] = round(time.monotonic() - inicio, 1)
     finally:
         resultado.stopTestRun()
@@ -225,10 +307,55 @@ def processo(entrada, saida):
     caidos = sorted({getattr(t, "test_case", t).id() for t, _ in resultado.failures + resultado.errors})
     relatorio = {"ids": resultado.ids, "caidos": caidos, "rodados": resultado.testsRun, "falhas": len(resultado.failures),
                  "erros": len(resultado.errors), "pulados": len(resultado.skipped),
+                 "pulados_ids": [t.id() for t, _ in resultado.skipped],
                  "esperados": len(resultado.expectedFailures), "inesperados": len(resultado.unexpectedSuccesses),
-                 "ok": resultado.wasSuccessful(), "duracoes": duracoes}
+                 "ok": resultado.wasSuccessful(), "duracoes": duracoes,
+                 "causas": [causa_da_falha(getattr(t, "test_case", t).id(), texto)
+                            for t, texto in (resultado.failures + resultado.errors)[:LIMITE_REGISTRO]]}
     Path(saida).write_text(json.dumps(relatorio), encoding="utf-8")
     return 0 if resultado.wasSuccessful() else 1
+
+
+def redigir(texto):
+    """O7: o valor sem segredo (token, chave, `senha=`...), sem controle e cortado em TETO_DO_VALOR."""
+    return neutro(SEGREDO.sub("[redigido]", texto))[:TETO_DO_VALOR]
+
+
+def causa_da_falha(ident, traceback_):
+    """O7: {id, tipo, local?, obtido?, esperado?} do teste que caiu. Tipo: `timeout`, `saida-grande` (traceback acima de
+    TETO_DA_SAIDA), `teste-de-tempo` (asserção num teste de nome de tempo ou prazo), `assercao` ou `erro`. O `local` é o
+    último quadro em tests/; obtido e esperado vêm do `X != Y` do assertEqual (o primeiro é o obtido), redigidos."""
+    causa = {"id": neutro(ident)}
+    locais = LOCAL_DO_TESTE.findall(traceback_)
+    if locais:
+        causa["local"] = neutro(f"{locais[-1][0]}:{locais[-1][1]}")
+    if "TimeoutExpired" in traceback_ or "timed out" in traceback_:
+        causa["tipo"] = "timeout"
+    elif len(traceback_) > TETO_DA_SAIDA:
+        causa["tipo"] = "saida-grande"
+    elif "AssertionError" in traceback_:
+        causa["tipo"] = "teste-de-tempo" if TESTE_DE_TEMPO.search(ident) else "assercao"
+    else:
+        causa["tipo"] = "erro"
+    comparacao = COMPARACAO.search(traceback_)
+    if comparacao:
+        causa["obtido"], causa["esperado"] = redigir(comparacao.group(1)), redigir(comparacao.group(2))
+    return causa
+
+
+def causas_da_suite(filhos, relatorios):
+    """O7: as causas dos relatórios mais `sinal` por processo morto por sinal (esse não deixa relatório)."""
+    causas = [{"id": f"processo-{i}", "tipo": "sinal", "sinal": -p.returncode} for i, p in enumerate(filhos, 1) if p.returncode < 0]
+    return causas + [c for rel in relatorios if rel for c in rel.get("causas", ())][:LIMITE_REGISTRO]
+
+
+def imprimir_causas(filhos, relatorios):
+    """O7: uma linha `suite-paralela: causa tipo=... id=...` por causa, no stderr (também o `suite-partes` a usa); devolve as causas."""
+    causas = causas_da_suite(filhos, relatorios)
+    for causa in causas:
+        print(f"suite-paralela: causa tipo={causa['tipo']} " + " ".join(f"{k}={v}" for k, v in causa.items() if k != "tipo"),
+              file=sys.stderr)
+    return causas
 
 
 # Reuso por árvore (K6) --------------------------------------------------------------------------------------------
@@ -350,13 +477,22 @@ def encerrar(filhos):
         p.wait()
 
 
-def lancar(partes, pasta, filhos):
+def entrada_do_processo(parte, plano):
+    """O que o processo recebe: o nome, para o módulo inteiro, ou a unidade com o módulo e as posições dos testes."""
+    entrada = []
+    for unidade in parte:
+        modulo, posicoes = plano.get(unidade, (unidade, None))
+        entrada.append(unidade if posicoes is None else {"unidade": unidade, "modulo": modulo, "posicoes": posicoes})
+    return entrada
+
+
+def lancar(partes, pasta, filhos, plano=None):
     """Lança um processo por parte; cada um entra em `filhos` assim que nasce (o sinal pode chegar no meio)."""
     env_base = dict(os.environ)
     for i, parte in enumerate(partes, 1):
         tmp = pasta / f"p{i}"
         tmp.mkdir(mode=0o700)
-        (pasta / f"p{i}.entrada.json").write_text(json.dumps(parte), encoding="utf-8")
+        (pasta / f"p{i}.entrada.json").write_text(json.dumps(entrada_do_processo(parte, plano or {})), encoding="utf-8")
         log = (pasta / f"p{i}.log").open("w", encoding="utf-8")
         env = dict(env_base, TMPDIR=str(tmp))
         try:
@@ -405,7 +541,7 @@ def resumir(partes, filhos, relatorios, duracoes, pasta):
     for i, (parte, p, rel) in enumerate(zip(partes, filhos, relatorios), 1):
         rodados = rel["rodados"] if rel else 0
         linhas.append(f"processo {i}: rc {p.returncode}, {rodados} testes, {duracoes[i - 1]:.1f} s, "
-                      f"{len(parte)} módulos")
+                      f"{len(parte)} unidades")
         if p.returncode != 0:
             causa = f"morto pelo sinal {-p.returncode}" if p.returncode < 0 else f"saiu com {p.returncode}"
             erros.append(f"processo {i} {causa}")
@@ -479,9 +615,10 @@ def pasta_do_registro():
     return pasta
 
 
-def registrar_vermelha(relatorios, carga, memoria):
+def registrar_vermelha(relatorios, carga, memoria, causas=()):
     """Suíte vermelha: acrescenta ao registro fora do git uma linha com a carga e os testes que caíram, cada um com a
-    taxa (vezes em que caiu / suíte vermelhas registradas). Só ids e números, nunca a mensagem da falha (C-32b).
+    taxa (vezes em que caiu / suíte vermelhas registradas). Só ids e números, nunca a mensagem da falha (C-32b); a exceção são
+    as causas tipadas (O7, 0.44.1): tipo, local e o esperado e obtido do assertEqual, cortados e com segredos redigidos.
     Roda depois do veredito impresso: qualquer erro daqui vira uma linha em stderr e não muda o código de saída (C-32a)."""
     if os.environ.get("GITHUB_ACTIONS") == "true":
         return
@@ -504,7 +641,8 @@ def registrar_vermelha(relatorios, carga, memoria):
         registro = {"quando": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                     "carga": carga, "memoria_gb": None if memoria is None else round(memoria, 1),
                     "vermelhas": vermelhas + 1,
-                    "testes": [{"id": i, "vezes": antes[i] + 1, "de": vermelhas + 1} for i in caidos]}
+                    "testes": [{"id": i, "vezes": antes[i] + 1, "de": vermelhas + 1} for i in caidos],
+                    "causas": list(causas)[:LIMITE_REGISTRO]}
         fd = os.open(arquivo, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o600)
         with os.fdopen(fd, "a", encoding="utf-8") as f:
             f.write(json.dumps(registro, ensure_ascii=False) + "\n")
@@ -517,7 +655,8 @@ def gravar_pesos(relatorios):
     for rel in relatorios:
         pesos.update(rel["duracoes"])
     vivos = set(modulos())
-    pesos = {k: round(v, 1) for k, v in sorted(pesos.items()) if k in vivos}
+    pesos = {k: round(v, 1) for k, v in sorted(pesos.items())
+             if k in vivos or any(k.startswith(m + ".") for m in vivos)}
     PESOS.write_text(json.dumps(pesos, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
@@ -533,15 +672,21 @@ def orquestrar():
         return 1
     esperado = ids(descobrir())
     total = sum(esperado.values())
-    nomes = modulos()
     pesos = ler_pesos()
+    todos = modulos()
+    plano = planejar(todos, pesos, lambda nome: [t.id() for t in achatar(suite_do_modulo(nome))])
+    nomes = sorted(plano)
     partes = repartir(nomes, pesos, min(n, max(1, len(nomes))))
     erros = conferir_particao(nomes, partes)
+    repetidos = nomes_de_arquivo_repetidos(todos)
+    if repetidos:
+        erros.append(f"nome de arquivo repetido em tests/ e nos pacotes dela: {', '.join(repetidos)}")
     if erros or not nomes:
         print("suite-paralela: " + ("; ".join(erros) or "nenhum módulo de teste em tests/") + ".", file=sys.stderr)
         print("FAILED (divisão)")
         return 1
-    print(f"suite-paralela: {total} testes em {len(nomes)} módulos, {len(partes)} processos ({origem}).",
+    print(f"suite-paralela: {total} testes em {len(modulos())} módulos ({len(nomes)} unidades), {len(partes)} processos "
+          f"({origem}).",
           file=sys.stderr, flush=True)
     antes = estado_da_arvore()
     hash_arvore = hash_da_arvore(RAIZ)
@@ -549,7 +694,7 @@ def orquestrar():
     filhos = []
     anteriores = {s: signal.signal(s, ao_sinal) for s in SINAIS}
     try:
-        lancar(partes, pasta, filhos)
+        lancar(partes, pasta, filhos, plano)
         duracoes = esperar(filhos, inicio)
         for s, h in anteriores.items():
             signal.signal(s, h)
@@ -580,13 +725,62 @@ def orquestrar():
         detalhes = [f"failures={falhas}"] * bool(falhas) + [f"errors={erros_t}"] * bool(erros_t) \
             + [f"skipped={pulados}"] * bool(pulados) + ["guarda=" + str(len(erros))] * bool(erros)
         veredito, codigo = f"FAILED ({', '.join(detalhes)})", 1
-    else:
-        veredito, codigo = fechar_verde(relatorios, hash_arvore, pulados), 0
+    else:  # o teto antes de fechar_verde: estourado não regrava pesos nem carimbo (T3)
+        veredito = conferir_teto(relatorios, pulados, linhas)
+        veredito, codigo = (veredito, 1) if veredito else (fechar_verde(relatorios, hash_arvore, pulados), 0)
+    causas = imprimir_causas(filhos, relatorios)
     print(veredito)
     publicar_no_ci(veredito, linhas, partes, relatorios, duracoes, pesos, rodados, segundos)
     if codigo:
-        registrar_vermelha(relatorios, carga, memoria)
+        registrar_vermelha(relatorios, carga, memoria, causas)
     return codigo
+
+
+def ler_teto(caminho=CONFIG):
+    """`teto_pulados` de tests/config.json, inteiro de verdade e >= 0; None se falta, tem outro tipo ou o arquivo não lê
+    (falha fechada: None nunca vale como "sem teto")."""
+    try:
+        teto = json.loads(Path(caminho).read_text(encoding="utf-8")).get("teto_pulados")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return teto if type(teto) is int and teto >= 0 else None
+
+
+def neutro(texto):
+    """Id de teste para o resumo e o log: sem caracteres de controle e de formato, `|`, crase nem `::`; cortado."""
+    texto = "".join(c for c in str(texto)[:200] if unicodedata.category(c) not in ("Cc", "Cf", "Co", "Cs"))
+    return texto.replace("|", " ").replace("`", " ").replace("::", ": ")
+
+
+def pulados_ids(relatorios):
+    """Os ids pulados de todos os relatórios, neutros e ordenados."""
+    return sorted(neutro(i) for rel in relatorios if rel for i in rel.get("pulados_ids", ()))
+
+
+def comparar_teto(pulados, ids, teto, linhas, quem="suite-paralela"):
+    """"" ou o veredito FAILED de `pulados` contra `teto` (None: ilegível); acima do teto, os ids (até 20) vão às linhas
+    do resumo. O agregador das partes (`suite-partes.py --somar-pulados`) usa a mesma conta."""
+    if teto is None:
+        print(f"{quem}: teto_pulados ausente ou inválido em {TESTES}/config.json.", file=sys.stderr)
+        return "FAILED (teto de pulados ilegível)"
+    if pulados > teto:
+        linhas.append(f"pulados acima do teto: {lista_curta(ids, LIMITE_PULADOS)}")
+        print(f"{quem}: {linhas[-1]}", file=sys.stderr)
+        return f"FAILED (skipped={pulados} acima do teto {teto})"
+    if pulados < teto:
+        print(f"{quem}: o teto de pulados pode cair para {pulados}", file=sys.stderr)
+    return ""
+
+
+def conferir_teto(relatorios, pulados, linhas):
+    """T3: "" ou o veredito FAILED do teto de pulados. Só reprova no CI, onde a contagem é a do runner (localmente o
+    root pula os testes de permissão)."""
+    teto = ler_teto()
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        print(f"suite-paralela: pulados {pulados} (teto {'ilegível' if teto is None else teto}; só reprova no CI).",
+              file=sys.stderr)
+        return ""
+    return comparar_teto(pulados, pulados_ids(relatorios), teto, linhas)
 
 
 def fechar_verde(relatorios, hash_arvore, pulados):

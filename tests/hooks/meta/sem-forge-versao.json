@@ -1,0 +1,13 @@
+{
+  "descricao": "Projeto sem .forge/versao: o hook não age.",
+  "forge": false,
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "stop_hook_active": false
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

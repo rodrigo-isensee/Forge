@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Forge: atualiza o Forge do projeto com ponto de retorno (primeiro uso, F5). Rode no terminal, dentro do projeto.
-Uso: forge atualizar [--fixar]
+Uso: forge atualizar [--fixar] [--sim]
   --fixar   só deixa o plugin fixado na versão que está em uso (nada muda no projeto)
+  --sim     sem terminal (automação do dono, fora do Claude): responde sim só à atualização; as outras perguntas ficam em não
 Só começa com tudo salvo no projeto (também com --fixar). Passos: mostra a versão atual, a nova e o que mudou (do CHANGELOG, em linguagem simples); pede "s"; guarda o ponto de retorno
 (versão do plugin e cópia dos arquivos VERSIONADOS de `.forge/`, em ~/.local/state/forge/retorno/; nunca segredo nem arquivo local);
 roda o doutor antes; traz a `develop` do projeto para a versão do remoto (só avanço, sem forçar) para a branch do upgrade nascer dela; roda `forge-upgrade --simular` e, se der certo, troca o plugin (só no escopo do usuário, fixado na tag vX.Y.Z, depois de
@@ -19,6 +20,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import forge_versoes as fv  # noqa: E402
 
 RAIZ = fv.RAIZ
+SIM = False  # --sim: só a pergunta principal responde sim; a recusa dentro do Claude e a de árvore suja continuam
+
+
+def confirmar(pergunta, principal=False):
+    """Sem --sim, pergunta no terminal; com --sim, a principal responde sim e as outras, não (a resposta de quem tecla Enter)."""
+    if not SIM:
+        return fv.confirmar(pergunta)
+    print(f"{pergunta} " + ("sim (--sim)" if principal else "não (--sim responde só a atualização)"))
+    return principal
 
 
 def git(projeto, *args):
@@ -157,7 +167,7 @@ def resolver_conflito(projeto, nova, antes):
                     print(f"  Atenção: a da develop é MAIOR; responder s rebaixa o projeto de {da_develop} para {nossa}. O mais seguro é responder n.")
             else:
                 print("  Atenção: uma das versões não está no formato X.Y.Z, então não dá para comparar qual é a maior. O mais seguro é responder n.")
-        if fv.confirmar(f"Manter a versão {nova} em .forge/versao (a versão da develop é descartada)?"):
+        if confirmar(f"Manter a versão {nova} em .forge/versao (a versão da develop é descartada)?"):
             git(projeto, "checkout", "--ours", ".forge/versao")
             git(projeto, "add", ".forge/versao")
             if git(projeto, "commit", "--no-edit")[0] == 0:
@@ -175,7 +185,7 @@ def resolver_conflito(projeto, nova, antes):
 
 def oferecer_voltar(atual):
     print("\nAlgo não saiu como esperado. Nada foi enviado ao GitHub e nada foi apagado.")
-    if fv.confirmar(f"Voltar para a versão {atual}?"):
+    if confirmar(f"Voltar para a versão {atual}?"):
         subprocess.run([sys.executable, str(RAIZ / "bin" / "forge-voltar-versao"), "--ja-confirmado"])
     else:
         print("Tudo bem, ficou como está. Para voltar quando quiser: forge voltar-versao")
@@ -189,20 +199,23 @@ def fixar_somente(url, atual, projeto):
 
 
 def main():
+    global SIM
     args = sys.argv[1:]
     if "-h" in args or "--help" in args:
         print(__doc__.split("Saída:")[0].strip())
         return 0
-    desconhecidas = [a for a in args if a != "--fixar"]
+    desconhecidas = [a for a in args if a not in ("--fixar", "--sim")]
     if desconhecidas:
         print(f"forge atualizar: opção desconhecida: {desconhecidas[0]}", file=sys.stderr)
         return 2
+    SIM = "--sim" in args  # só vale depois da recusa dentro do Claude, que vem logo abaixo e recusa com ou sem --sim
     recusa = fv.recusar_dentro_do_claude("forge atualizar")
     if recusa:
         print(recusa, file=sys.stderr)
         return 2
-    if not fv.tem_terminal():
-        print("forge atualizar: rode num terminal (a atualização pede a sua confirmação) e responda s para seguir.", file=sys.stderr)
+    if not SIM and not fv.tem_terminal():
+        print("forge atualizar: rode num terminal (a atualização pede a sua confirmação) e responda s para seguir, ou rode com --sim (fora do Claude).",
+              file=sys.stderr)
         return 2
     projeto = raiz_do_projeto()
     if projeto is None:
@@ -239,7 +252,7 @@ def main():
         print("\n".join(f"  - {n}" for n in novidades) or "  - (o CHANGELOG não trouxe um resumo)")
         print(f"Vou guardar um ponto de retorno (a versão {atual} e uma cópia dos arquivos do `.forge/` que estão no git), conferir o que muda "
               f"no projeto e só então atualizar. Nada vai ao GitHub sem você.")
-        if not fv.confirmar(f"Atualizar o Forge da versão {atual} para a {nova}?"):
+        if not confirmar(f"Atualizar o Forge da versão {atual} para a {nova}?", principal=True):
             print("Tudo bem, não mudei nada.")
             return 0
         return atualizar(projeto, url, atual, nova, forge_novo)

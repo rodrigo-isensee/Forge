@@ -1,0 +1,106 @@
+{
+  "pedido": "v0441-s8-recado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "S8: gravar ou confirmar",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if a.para:",
+      "para": "    if not a.para:",
+      "testes": [
+        "tests.test_forge_dono.Recado.test_grava_com_cabecalho_e_so_a_sessao_de_destino_confirma"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "S8: destino tem de ser pasta",
+      "arquivo": "bin/forge_dono.py",
+      "de": "(None if destino.is_dir() else",
+      "para": "(None if not destino.is_dir() else",
+      "testes": [
+        "tests.test_forge_dono.Recado.test_sem_recado_ou_destino_invalido"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "S8: recusa nao grava",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        if motivo:\n            print(f\"recado:",
+      "para": "        if not motivo:\n            print(f\"recado:",
+      "testes": [
+        "tests.test_forge_dono.Recado.test_grava_com_cabecalho_e_so_a_sessao_de_destino_confirma"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "S8: confirmar pelo nome le esse recado",
+      "arquivo": "bin/forge_dono.py",
+      "de": "Path(a.confirmar).name if a.confirmar else",
+      "para": "Path(a.confirmar).name if not a.confirmar else",
+      "testes": [
+        "tests.test_forge_dono.Recado.test_confirmar_pelo_nome_le_esse_recado_e_nao_o_mais_novo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "S8: sem recado nada a confirmar",
+      "arquivo": "bin/forge_dono.py",
+      "de": "(nomes[-1] if nomes else None)",
+      "para": "(nomes[-1] if not nomes else None)",
+      "testes": [
+        "tests.test_forge_dono.Recado.test_sem_recado_ou_destino_invalido"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "S8: arquivo que nao existe",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if arq is None or not arq.is_file():",
+      "para": "    if arq is None:",
+      "testes": [
+        "tests.test_forge_dono.Recado.test_confirmar_pelo_nome_le_esse_recado_e_nao_o_mais_novo"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "S8: sessao errada recusa",
+      "arquivo": "bin/forge_dono.py",
+      "de": "* (campos.get(\"Para\") != os.path.realpath(raiz))",
+      "para": "* (campos.get(\"Para\") == os.path.realpath(raiz))",
+      "testes": [
+        "tests.test_forge_dono.Recado.test_grava_com_cabecalho_e_so_a_sessao_de_destino_confirma"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "S8: versao defasada recusa",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        campos.get(\"Versao\") != versao)",
+      "para": "        campos.get(\"Versao\") == versao)",
+      "testes": [
+        "tests.test_forge_dono.Recado.test_versao_defasada_ou_texto_adulterado_recusa"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "S8: texto adulterado recusa",
+      "arquivo": "bin/forge_dono.py",
+      "de": "* (campos.get(\"Sha256\") != _sha(corpo))",
+      "para": "* (campos.get(\"Sha256\") == _sha(corpo))",
+      "testes": [
+        "tests.test_forge_dono.Recado.test_versao_defasada_ou_texto_adulterado_recusa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "S8: qualquer recusa da rc 1",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if recusas:",
+      "para": "    if not recusas:",
+      "testes": [
+        "tests.test_forge_dono.Recado.test_grava_com_cabecalho_e_so_a_sessao_de_destino_confirma"
+      ]
+    }
+  ]
+}

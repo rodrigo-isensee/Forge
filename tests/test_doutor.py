@@ -5,12 +5,15 @@ O projeto de partida está em ordem; cada teste estraga uma coisa e confere o av
 import json
 import os
 import pty
+import re
+import resource
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
+import unittest.mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
@@ -38,6 +41,9 @@ responder() {  # nome, stdout padrão, código padrão, stderr padrão
   [ -n "$4" ] && echo "$4" >&2
   printf '%s' "$2"; exit "$3"
 }
+if [ "$1 $2" = "auth status" ]; then
+  responder auth '' 0
+fi
 if [ "$1 $2" = "repo view" ]; then
   responder repo '{"nameWithOwner":"dono/proj","url":"https://github.com/dono/proj"}' 0
 fi
@@ -199,6 +205,30 @@ class Diagnostico(Base):
         self.assertEqual(r.returncode, 1)
         self.assertIn("gh auth login", r.stdout)
 
+    def escopos(self, linha):
+        (self.home / "gh-auth").write_text("github.com\n  ✓ Logged in to github.com account pessoa (keyring)\n" + linha + "\n",
+                                           encoding="utf-8")
+
+    def test_gh_sem_escopo_workflow_diz_como_corrigir(self):
+        self.escopos("  - Token scopes: 'gist', 'read:org', 'repo'")
+        self.assertEqual(self.doutor("--rapido").stdout, "", "o modo rápido não chama o gh")
+        r = self.doutor()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("não tem a permissão `workflow`", r.stdout)
+        self.assertIn("gh auth refresh -h github.com -s repo,workflow", r.stdout)
+
+    def test_gh_sem_repo_nem_workflow(self):
+        self.escopos("  - Token scopes: 'gist', 'read:org'")
+        r = self.doutor()
+        self.assertIn("não tem a permissão `repo` nem a `workflow`", r.stdout)
+
+    def test_gh_com_os_escopos_ou_sem_a_linha_fica_em_silencio(self):
+        for linha in ("  - Token scopes: 'gist', 'read:org', 'repo', 'workflow'", "  - Token: gho_****"):
+            with self.subTest(linha=linha):
+                self.escopos(linha)
+                r = self.doutor()
+                self.assertNotIn("permissão", r.stdout)
+
     def test_gh_ausente(self):
         sem_gh = self.tmp / "sem-gh"
         sem_gh.mkdir()
@@ -269,6 +299,46 @@ class Diagnostico(Base):
         self.git("config", "--unset", "core.hooksPath")
         self.doutor("--rapido")
         self.assertFalse(self.gh_log.exists() and self.gh_log.read_text())
+
+
+class PythonMinimo(Base):
+    """E21 da 0.75: o doutor avisa Python abaixo do mínimo, e o mínimo é o que o CI prova e o README declara."""
+
+    def doutor_em(self, versao):
+        """Roda o doutor com `sys.version_info` simulado em `versao` (o resto do Python é o de verdade)."""
+        codigo = (f"import runpy, sys; sys.version_info = {versao!r}; sys.argv = [{str(DOUTOR)!r}, '--rapido']; "
+                  f"runpy.run_path({str(DOUTOR)!r}, run_name='__main__')")
+        return subprocess.run([sys.executable, "-I", "-c", codigo], env=self.env, cwd=self.proj,
+                              capture_output=True, text=True, timeout=60)
+
+    def minimo(self):
+        from importlib.machinery import SourceFileLoader
+        from importlib.util import module_from_spec, spec_from_loader
+        spec = spec_from_loader("forge_doutor", SourceFileLoader("forge_doutor", str(DOUTOR)))
+        modulo = module_from_spec(spec)
+        spec.loader.exec_module(modulo)
+        return modulo.PYTHON_MINIMO
+
+    def test_python_abaixo_do_minimo_avisa(self):
+        r = self.doutor_em((3, 11, 9, "final", 0))
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("Python 3.11 abaixo do mínimo 3.12 do Forge", r.stdout)
+
+    def test_python_no_minimo_fica_em_silencio(self):
+        r = self.doutor_em((3, 12, 0, "final", 0))
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+
+    def test_minimo_e_o_menor_python_do_ci(self):
+        versoes = set()
+        for arquivo in (RAIZ / ".github/workflows/ci.yml", RAIZ / ".github/workflows/release.yml"):
+            texto = arquivo.read_text(encoding="utf-8")
+            versoes.update(tuple(int(n) for n in v.split(".")) for v in re.findall(r'python-version:\s*"(\d+\.\d+)"', texto))
+        self.assertGreaterEqual(len(versoes), 2)  # 3.12 e 3.14: a leitura achou as baterias
+        self.assertEqual(self.minimo(), min(versoes))
+
+    def test_readme_declara_o_minimo(self):
+        x, y = self.minimo()
+        self.assertIn(f"Python {x}.{y} ou mais novo", (RAIZ / "README.md").read_text(encoding="utf-8"))
 
 
 class Conserto(Base):
@@ -472,11 +542,28 @@ class HookDoutor(Base):
         self.assertIn("doutor JSONDecodeError", (self.proj / ".forge/run/erros.log").read_text(encoding="utf-8"))
 
     def test_abrir_em_menos_de_cem_ms_em_media(self):
+        """O `Stop` com o cache de hoje só lê o arquivo: o custo próprio do hook (CPU dele e dos filhos, menos a subida
+        do interpretador medida na mesma execução) fica abaixo de 0,25 s em média. Era 0,3 s de relógio, que a máquina
+        carregada passava sem o hook mudar (P3 da 0.43.1): o relógio de um `python3` vazio vai de 0,09 a 0,39 s com
+        carga, a CPU fica em 0,03 s; a do hook, em 0,10 s. O hook que espera a rede não gasta CPU: quem o pega é
+        `test_o_hook_nao_chama_gh_nem_a_rede`."""
         self.hook("SessionStart", {"source": "startup"})
-        t0 = time.perf_counter()
-        for _ in range(5):
-            self.hook("Stop")  # com o cache de hoje: só lê o arquivo
-        self.assertLess((time.perf_counter() - t0) / 5, 0.3)
+        vazio = self.cpu_media_dos_filhos(lambda: subprocess.run(
+            [sys.executable, "-c", "import json, sys; json.load(sys.stdin)"], input="{}", env=self.env, cwd=self.proj,
+            capture_output=True, text=True, timeout=30))
+        hook = self.cpu_media_dos_filhos(lambda: self.hook("Stop"))  # com o cache de hoje: só lê o arquivo
+        self.assertLess(hook - vazio, 0.25, f"CPU média: hook {hook:.3f} s, interpretador vazio {vazio:.3f} s")
+
+    @staticmethod
+    def cpu_media_dos_filhos(rodar, vezes=5):
+        """Segundos de CPU (usuário + sistema) de `rodar()` em média, pelos filhos já esperados (`RUSAGE_CHILDREN`)."""
+        def filhos():
+            uso = resource.getrusage(resource.RUSAGE_CHILDREN)
+            return uso.ru_utime + uso.ru_stime
+        antes = filhos()
+        for _ in range(vezes):
+            rodar()
+        return (filhos() - antes) / vezes
 
     def git_falso(self, quando, segundos):
         """Um `git` que demora `segundos` quando a linha de comando contém `quando`; o resto vai ao git de verdade."""
@@ -557,6 +644,59 @@ class Frequencia(Base):
     def test_o_tech_lead_roda_o_doutor_antes_de_abrir_pr(self):
         texto = (RAIZ / "agents/tech-lead.md").read_text(encoding="utf-8")
         self.assertIn("forge doutor --rapido", texto)
+
+
+class CacheDoPlugin(unittest.TestCase):
+    """M11: só saem do cache as versões antigas do Forge fora de todo installPath, nunca as duas maiores nem atalho."""
+    def setUp(self):
+        sys.path.insert(0, str(RAIZ / "bin"))
+        import forge_versoes
+        self.fv = forge_versoes
+        self.casa = Path(tempfile.mkdtemp(prefix="cache-"))
+        self.addCleanup(shutil.rmtree, self.casa, ignore_errors=True)
+        self.forge = self.casa / ".claude" / "plugins" / "cache" / "mkt" / "forge"
+        for v in ("0.40.0", "0.41.0", "0.42.0", "0.43.0"):
+            self.versao(v)
+        self.instalados(["0.41.0"])
+
+    def versao(self, v, nome="forge"):
+        pasta = self.forge / v / ".claude-plugin"
+        pasta.mkdir(parents=True)
+        (pasta / "plugin.json").write_text(json.dumps({"name": nome, "version": v}), encoding="utf-8")
+
+    def instalados(self, versoes):
+        dados = {"version": 2, "plugins": {"forge@mkt": [{"installPath": str(self.forge / v)} for v in versoes]}}
+        (self.casa / ".claude" / "plugins" / "installed_plugins.json").write_text(json.dumps(dados), encoding="utf-8")
+
+    def antigas(self):
+        return sorted(p.name for p in self.fv.versoes_antigas_do_cache(self.casa)[0])
+
+    def test_fica_a_em_uso_e_as_duas_maiores(self):
+        self.assertEqual(self.antigas(), ["0.40.0"])
+
+    def test_sem_conferir_o_em_uso_nada_sai(self):
+        (self.casa / ".claude" / "plugins" / "installed_plugins.json").write_text("{", encoding="utf-8")
+        self.assertEqual(self.antigas(), [])
+        self.instalados(["9.9.9"])  # installPath que não resolve
+        self.assertEqual(self.antigas(), [])
+
+    def test_pasta_fora_da_forma_ou_atalho_nao_sai(self):
+        self.versao("0.39.0", nome="outro")
+        (self.forge / "0.38.0").symlink_to(self.forge / "0.40.0")
+        (self.forge / "lixo").mkdir()
+        self.assertEqual(self.antigas(), ["0.40.0"])
+
+    def test_remover_apaga_registra_e_pula_a_que_passou_a_ser_usada(self):
+        self.versao("0.39.0")
+        lista = self.fv.versoes_antigas_do_cache(self.casa)[0]
+        self.instalados(["0.41.0", "0.39.0"])
+        estado = self.casa / "estado"
+        with unittest.mock.patch.dict(os.environ, {"XDG_STATE_HOME": str(estado)}):
+            apagadas, puladas = self.fv.remover_do_cache(lista, self.casa)
+        self.assertEqual(([p.name for p in apagadas], [p.name for p in puladas]), (["0.40.0"], ["0.39.0"]))
+        self.assertFalse((self.forge / "0.40.0").exists())
+        self.assertTrue((self.forge / "0.39.0").exists())
+        self.assertIn("0.40.0", (estado / "forge" / "cache-removido.log").read_text(encoding="utf-8"))
 
 
 class DoutorVersao(ap.Base):

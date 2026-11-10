@@ -45,7 +45,7 @@
             "args": [
               "${CLAUDE_PLUGIN_ROOT}/hooks/pesado.py"
             ],
-            "timeout": 10
+            "timeout": 300
           }
         ]
       }
@@ -201,6 +201,14 @@
               "${CLAUDE_PLUGIN_ROOT}/hooks/doutor.py"
             ],
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/meta.py"
+            ],
+            "timeout": 300
           }
         ]
       }

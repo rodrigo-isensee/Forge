@@ -55,6 +55,9 @@ class T(unittest.TestCase):
 '''
 
 
+EXTRA_DO_A = '\n    def test_a2(self):\n        marca("a2")\n\n\nclass U(unittest.TestCase):\n    def test_a3(self):\n        marca("a3")\n'
+
+
 class Logica(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -100,6 +103,27 @@ class Logica(unittest.TestCase):
         erros = self.s.conferir_completude(esperado, collections.Counter({"a.T.t1": 1, "b.T.t1": 1, "v.Raiz.t": 1}))
         self.assertTrue(any("ausente" in e for e in erros), erros)
 
+    def test_chave_separada_tira_os_testes_do_modulo_para_unidade_propria(self):  # S-SUITE-RAPIDA
+        ids = {"test_a": ["test_a.T.test_1", "test_a.T.test_2", "test_a.U.test_3", "test_b.Importada.test_x"],
+               "test_c": ["test_c.T.test_1"]}
+        pesos = {"test_a": 5, "test_a.T.test_2": 100, "test_a.U": 50, "test_a.Sumiu.test_9": 7, "test_c": 1}
+        plano = self.s.planejar(["test_a", "test_c"], pesos, ids.__getitem__)
+        self.assertEqual(plano, {"test_a": ("test_a", [0, 3]), "test_a.T.test_2": ("test_a", [1]),
+                                 "test_a.U": ("test_a", [2]), "test_c": ("test_c", None)})
+        # cada posição numa unidade só, e todas as posições do módulo cobertas
+        posicoes = sorted(i for modulo, ps in plano.values() if modulo == "test_a" for i in ps)
+        self.assertEqual(posicoes, [0, 1, 2, 3])
+        self.assertEqual(self.s.unidade_do_teste("test_a.T.test_20", ["test_a.T.test_2"], "test_a"), "test_a")
+        self.assertEqual(self.s.unidade_do_teste("test_a.T.test_2", ["test_a.T", "test_a.T.test_2"], "test_a"),
+                         "test_a.T.test_2")
+        # sem chave separada, o módulo não é aberto
+        self.assertEqual(self.s.planejar(["test_c"], pesos, lambda nome: self.fail("abriu")), {"test_c": ("test_c", None)})
+
+    def test_entrada_do_processo_leva_as_posicoes_so_da_unidade_aberta(self):  # S-SUITE-RAPIDA
+        plano = {"test_a": ("test_a", [0]), "test_a.T.test_2": ("test_a", [1]), "test_c": ("test_c", None)}
+        self.assertEqual(self.s.entrada_do_processo(["test_a.T.test_2", "test_c"], plano),
+                         [{"unidade": "test_a.T.test_2", "modulo": "test_a", "posicoes": [1]}, "test_c"])
+
     def test_numero_de_processos(self):
         n = self.s.numero_de_processos
         self.assertEqual(n({}, 16, 1.0, 6.0, 8.0)[0], 4)
@@ -113,6 +137,40 @@ class Logica(unittest.TestCase):
         for valor in ("5", "0", "x", "-1", "4.0"):
             with self.subTest(valor=valor), self.assertRaises(ValueError):
                 n({"FORGE_SUITE_PROCS": valor}, 16, 1.0, 6.0, 8.0)
+
+
+class CausaTipada(unittest.TestCase):
+    """O7 (0.44.1): cada teste que cai ganha um tipo (timeout, teste de tempo, saída grande, asserção ou erro)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.s = carregar()
+
+    def tb(self, final, local='  File "/x/tests/test_a.py", line 7, in test_a\n'):
+        return "Traceback (most recent call last):\n" + local + final
+
+    def test_tipos(self):
+        casos = {
+            "timeout": ("test_a.T.test_a", self.tb("subprocess.TimeoutExpired: Command 'x' timed out after 5 seconds\n")),
+            "teste-de-tempo": ("test_a.T.test_prazo_vence", self.tb("AssertionError: 3 != 4\n")),
+            "saida-grande": ("test_a.T.test_a", self.tb("AssertionError: " + "x" * 5000 + "\n")),
+            "assercao": ("test_a.T.test_a", self.tb("AssertionError: 3 != 4\n")),
+            "erro": ("test_a.T.test_a", self.tb("KeyError: 'k'\n")),
+        }
+        for tipo, (ident, texto) in casos.items():
+            with self.subTest(tipo):
+                self.assertEqual(self.s.causa_da_falha(ident, texto)["tipo"], tipo)
+
+    def test_esperado_obtido_e_local_redigidos(self):
+        causa = self.s.causa_da_falha("test_a.T.test_a", self.tb("AssertionError: 'senha: abc123' != 'sk-" + "b" * 24 + "'\n"))
+        self.assertEqual(causa.get("local"), "tests/test_a.py:7")
+        self.assertEqual(causa.get("obtido"), "'[redigido]")
+        self.assertEqual(causa.get("esperado"), "'[redigido]'")
+        sem_local = self.s.causa_da_falha("test_a.T.test_a", self.tb("ValueError: x\n", local=""))
+        self.assertNotIn("local", sem_local)
+        self.assertNotIn("esperado", sem_local)
+        self.assertEqual(len(self.s.causa_da_falha("t", self.tb("AssertionError: " + "y" * 900 + " != 1\n"))["obtido"]),
+                         self.s.TETO_DO_VALOR)
 
 
 class Brinquedo(unittest.TestCase):
@@ -137,6 +195,7 @@ class Brinquedo(unittest.TestCase):
         for apoio in ("guarda_git.py", "ambiente_git.py"):
             shutil.copy(RAIZ / "tests" / apoio, self.repo / "tests" / apoio)
         (self.repo / ".gitignore").write_text("__pycache__/\n")
+        (self.repo / "tests" / "config.json").write_text('{"teto_pulados": 0}')  # T3: no CI o teto é obrigatório
         for nome in ("a", "b", "c"):
             self.modulo(nome, modulo_de_teste(nome))
         self.git("init", "-q")
@@ -148,6 +207,12 @@ class Brinquedo(unittest.TestCase):
         self.env.pop("CI", None)
         self.env.pop("GITHUB_ACTIONS", None)
         self.env.pop("GITHUB_STEP_SUMMARY", None)
+        # P11 da 0.43.1: o HOME deste processo também é o do brinquedo. `orquestrar_no_processo` e as funções do script
+        # chamadas aqui leem `Path.home()`; com o HOME real, a suíte vermelha de brinquedo gravava `test_b.T.test_b` em
+        # ~/.forge-contrib/suite-vermelha.jsonl, o registro das suítes vermelhas de verdade.
+        home = mock.patch.dict(os.environ, {"HOME": self.env["HOME"]})
+        home.start()
+        self.addCleanup(home.stop)
 
     def git(self, *args):
         subprocess.run(["git", *args], cwd=self.repo, env=AMBIENTE, check=True, capture_output=True)
@@ -395,6 +460,30 @@ class Brinquedo(unittest.TestCase):
         outra = json.loads(arquivo.read_text(encoding="utf-8").splitlines()[1])
         self.assertEqual(outra["testes"], [{"id": "test_b.T.test_b", "vezes": 2, "de": 2}])
 
+    def test_causa_tipada_da_assercao_na_saida_e_no_registro(self):  # O7 (0.44.1): esperado, obtido e local, sem segredo
+        pasta = self.pasta_do_registro()
+        self.modulo("b", modulo_de_teste("b", "self.assertEqual('token=ghp_' + 'a' * 30, 'certo')"))
+        codigo, saida, erro = self.roda()
+        self.assertEqual(codigo, 1, saida + erro)
+        linha = next((l for l in erro.splitlines() if l.startswith("suite-paralela: causa ")), "")
+        self.assertIn("tipo=assercao id=test_b.T.test_b local=tests/test_b.py:", linha)
+        self.assertIn("esperado='certo'", linha)
+        self.assertNotIn("ghp_", erro)
+        registro = json.loads((pasta / "suite-vermelha.jsonl").read_text(encoding="utf-8"))
+        causa = registro["causas"][0]
+        self.assertEqual((causa["id"], causa["tipo"], causa["esperado"]), ("test_b.T.test_b", "assercao", "'certo'"))
+        self.assertRegex(causa["local"], r"^tests/test_b\.py:\d+$")
+        self.assertIn("[redigido]", causa["obtido"])
+        self.assertNotIn("ghp_", json.dumps(registro))
+
+    def test_processo_morto_sai_com_a_causa_sinal(self):  # O7
+        self.pasta_do_registro()
+        self.modulo("b", modulo_de_teste("b", "os.kill(os.getpid(), signal.SIGKILL)", "import signal\n"))
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 1)
+        self.assertIn("tipo=sinal id=processo", erro)
+        self.assertIn(f"sinal={int(signal.SIGKILL)}", erro)
+
     def test_suite_verde_nao_grava_o_registro(self):  # L32
         pasta = self.pasta_do_registro()
         self.assertEqual(self.roda()[0], 0)
@@ -431,6 +520,15 @@ class Brinquedo(unittest.TestCase):
         texto = (pasta / "suite-vermelha.jsonl").read_text(encoding="utf-8")
         self.assertIn("test_b.T.test_b[31m", texto)
         self.assertNotIn("\x1b", texto)
+
+    def test_orquestrar_no_processo_grava_o_registro_so_no_home_do_brinquedo(self):  # P11 da 0.43.1
+        pasta = self.pasta_do_registro()
+        self.modulo("b", modulo_de_teste("b", "self.fail('x')"))
+        codigo, saida, erro = self.orquestrar_no_processo(self.script_do_brinquedo(), FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual(codigo, 1, saida + erro)
+        self.assertEqual(Path.home(), pasta.parent)
+        registro = json.loads((pasta / "suite-vermelha.jsonl").read_text(encoding="utf-8"))
+        self.assertEqual([t["id"] for t in registro["testes"]], ["test_b.T.test_b"])
 
     def test_sem_a_leitura_da_memoria_o_registro_grava_nulo(self):  # L32: /proc/meminfo ilegível
         pasta = self.pasta_do_registro()
@@ -587,6 +685,51 @@ class T(unittest.TestCase):
         self.assertEqual(list(self.tmpdir.iterdir()), [])
         self.assertFalse((self.run_dir / f"forge-suite-{os.getuid()}.verde").exists())
 
+    def test_modulo_com_chave_separada_divide_os_testes_entre_os_processos(self):  # S-SUITE-RAPIDA
+        self.modulo("a", modulo_de_teste("a") + EXTRA_DO_A)
+        (self.repo / "tests" / "pesos-d4.json").write_text(json.dumps(
+            {"test_a": 1.0, "test_a.T.test_a2": 9.0, "test_a.U": 8.0, "test_b": 1.0, "test_c": 1.0}))
+        codigo, saida, erro = self.roda(FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertIn("Ran 5 tests", saida)
+        self.assertEqual(self.rodaram(), ["a", "a2", "a3", "b", "c"])  # cada teste uma vez só
+        pids = {n.name.rsplit("-", 1)[0]: n.name.rsplit("-", 1)[1] for n in self.marcas.iterdir()}
+        self.assertEqual(len({pids["a"], pids["a2"], pids["a3"]}), 3, "o módulo pesado se divide entre os processos")
+        self.assertIn("test_a.T.test_a2", saida)
+        # MEDIR grava o peso de cada unidade, inclusive as separadas
+        self.git("add", "-A")
+        self.git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "y")
+        codigo, saida, erro = self.roda(FORGE_SUITE_MEDIR="1", FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual(codigo, 0, saida + erro)
+        pesos = json.loads((self.repo / "tests" / "pesos-d4.json").read_text())
+        self.assertEqual(sorted(pesos), ["test_a", "test_a.T.test_a2", "test_a.U", "test_b", "test_c"])
+
+    def test_modulo_de_pacote_entra_pelo_nome_com_ponto(self):  # S-SUITE-RAPIDA: tests/<pacote>/ (ex.: tests/evals/)
+        (self.repo / "tests" / "pac").mkdir()
+        (self.repo / "tests" / "pac" / "__init__.py").write_text("")
+        (self.repo / "tests" / "pac" / "test_p.py").write_text(modulo_de_teste("p"))
+        (self.repo / "tests" / "solta").mkdir()  # sem __init__.py: o discover não entra, e a divisão também não
+        (self.repo / "tests" / "solta" / "test_s.py").write_text(modulo_de_teste("s"))
+        script = self.script_do_brinquedo()
+        self.assertEqual(script.modulos(), ["pac.test_p", "test_a", "test_b", "test_c"])
+        codigo, saida, erro = self.roda(FORGE_SUITE_SEM_REUSO="1", FORGE_SUITE_MEDIR="1")
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertIn("Ran 4 tests", saida)
+        self.assertEqual(self.rodaram(), ["a", "b", "c", "p"])
+        self.assertIn("pac.test_p", saida)
+        pesos = json.loads((self.repo / "tests" / "pesos-d4.json").read_text())
+        self.assertEqual(sorted(pesos), ["pac.test_p", "test_a", "test_b", "test_c"])
+
+    def test_nome_de_arquivo_repetido_no_pacote_reprova_a_divisao(self):  # S-SUITE-RAPIDA
+        (self.repo / "tests" / "pac").mkdir()
+        (self.repo / "tests" / "pac" / "__init__.py").write_text("")
+        (self.repo / "tests" / "pac" / "test_a.py").write_text(modulo_de_teste("a2"))
+        codigo, saida, erro = self.roda(FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual(codigo, 1, saida + erro)
+        self.assertIn("nome de arquivo repetido em tests/ e nos pacotes dela: pac.test_a, test_a", erro)
+        self.assertEqual(saida.strip().splitlines()[-1], "FAILED (divisão)")
+        self.assertEqual(self.rodaram(), [])
+
     def test_procs_acima_do_teto_e_recusado(self):
         codigo, saida, erro = self.roda(FORGE_SUITE_PROCS="5")
         self.assertEqual(codigo, 1)
@@ -626,6 +769,64 @@ class T(unittest.TestCase):
         with self.assertRaises(ProcessLookupError):
             os.kill(pid, 0)
         self.assertEqual(list(self.tmpdir.iterdir()), [])
+
+
+class TetoDePulados(unittest.TestCase):
+    """T3 (0.43.2): no CI, mais pulados que `teto_pulados` reprova; teto ilegível reprova; fora do CI só avisa."""
+
+    setUp, roda, modulo, resumo_do_ci, git = (Brinquedo.setUp, Brinquedo.roda, Brinquedo.modulo, Brinquedo.resumo_do_ci,
+                                              Brinquedo.git)
+
+    def com_pulado(self, teto):
+        corpo = 'with self.subTest("a|b`c::d\\x07"): self.skipTest("motivo-secreto")'
+        self.modulo("b", modulo_de_teste("b", corpo))
+        (self.repo / "tests" / "config.json").write_text(teto if isinstance(teto, str) else json.dumps(teto))
+
+    def no_ci(self, teto, **extra):
+        self.com_pulado(teto)
+        return self.roda(GITHUB_ACTIONS="true", FORGE_SUITE_SEM_REUSO="1", **extra)
+
+    def test_acima_do_teto_reprova_com_os_ids_neutros_no_resumo(self):
+        self.com_pulado({"teto_pulados": 0})
+        codigo, saida, erro, resumo = self.resumo_do_ci(GITHUB_ACTIONS="true", FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual(codigo, 1, saida + erro)
+        self.assertEqual(saida.strip().splitlines()[-1], "FAILED (skipped=1 acima do teto 0)")
+        (linha,) = [x for x in resumo.splitlines() if "pulados acima do teto" in x]
+        self.assertIn("test_b.T.test_b", linha)
+        for proibido in ("|", "`", "::", "\x07", "motivo-secreto"):
+            self.assertNotIn(proibido, linha)
+
+    def test_no_teto_passa_e_abaixo_avisa_que_pode_cair(self):
+        codigo, saida, erro = self.no_ci({"teto_pulados": 1})
+        self.assertEqual((codigo, saida.strip().splitlines()[-1]), (0, "OK (skipped=1)"), saida + erro)
+        self.assertNotIn("pode cair", erro)
+        codigo, saida, erro = self.no_ci({"teto_pulados": 3})
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertIn("o teto de pulados pode cair para 1", erro)
+
+    def test_teto_ilegivel_reprova_no_ci(self):
+        for teto in ({}, {"teto_pulados": "x"}, {"teto_pulados": True}, {"teto_pulados": None},
+                     {"teto_pulados": 1.0}, {"teto_pulados": -1}, [1], "{quebrado"):
+            with self.subTest(teto=teto):
+                codigo, saida, erro = self.no_ci(teto)
+                self.assertEqual(codigo, 1, saida + erro)
+                self.assertEqual(saida.strip().splitlines()[-1], "FAILED (teto de pulados ilegível)")
+        (self.repo / "tests" / "config.json").unlink()
+        codigo, saida, _ = self.roda(GITHUB_ACTIONS="true", FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual((codigo, saida.strip().splitlines()[-1]), (1, "FAILED (teto de pulados ilegível)"))
+
+    def test_fora_do_ci_so_avisa(self):
+        self.com_pulado({"teto_pulados": 0})
+        codigo, saida, erro = self.roda(FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual((codigo, saida.strip().splitlines()[-1]), (0, "OK (skipped=1)"), saida + erro)
+        self.assertIn("pulados 1 (teto 0; só reprova no CI)", erro)
+
+    def test_estourado_nao_regrava_os_pesos(self):
+        pesos = self.repo / "tests" / "pesos-d4.json"
+        pesos.write_text("{}\n")
+        codigo, saida, erro = self.no_ci({"teto_pulados": 0}, FORGE_SUITE_MEDIR="1")
+        self.assertEqual(codigo, 1, saida + erro)
+        self.assertEqual(pesos.read_text(), "{}\n")
 
 
 if __name__ == "__main__":

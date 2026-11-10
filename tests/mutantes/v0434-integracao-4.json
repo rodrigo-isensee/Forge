@@ -1,0 +1,177 @@
+{
+  "pedido": "v0434-integracao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Q49",
+      "guarda": "bin/forge_versoes.py:694 not isinstance(plugins, dict) or not all((isinstance(v, list) for v in plugins.values())) (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    if not isinstance(plugins, dict) or not all(isinstance(v, list) for v in plugins.values()):",
+      "para": "    if not (not isinstance(plugins, dict) or not all(isinstance(v, list) for v in plugins.values())):",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q50",
+      "guarda": "bin/forge_versoes.py:699 not isinstance(entrada, dict) or not isinstance(entrada.get('installPath'), str) (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "            if not isinstance(entrada, dict) or not isinstance(entrada.get(\"installPath\"), str):",
+      "para": "            if not (not isinstance(entrada, dict) or not isinstance(entrada.get(\"installPath\"), str)):",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q51",
+      "guarda": "bin/forge_versoes.py:710 a == b or a in b.parents or b in a.parents (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    return a == b or a in b.parents or b in a.parents",
+      "para": "    return not (a == b or a in b.parents or b in a.parents)",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q52",
+      "guarda": "bin/forge_versoes.py:716 os.environ.get('CLAUDE_PLUGIN_ROOT') (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    if os.environ.get(\"CLAUDE_PLUGIN_ROOT\"):",
+      "para": "    if not (os.environ.get(\"CLAUDE_PLUGIN_ROOT\")):",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q53",
+      "guarda": "bin/forge_versoes.py:729 em_uso is None (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    if em_uso is None:",
+      "para": "    if not (em_uso is None):",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q54",
+      "guarda": "bin/forge_versoes.py:732 p not in maiores and (not any((_relacionados(p, u) for u in list(em_uso) + list(protegidas)))) (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    return [p for p in candidatas if p not in maiores and not any(_relacionados(p, u) for u in list(em_uso) + list(protegidas))]",
+      "para": "    return [p for p in candidatas if not (p not in maiores and not any(_relacionados(p, u) for u in list(em_uso) + list(protegidas)))]",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q55",
+      "guarda": "bin/forge_versoes.py:737 casa_ or casa() (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    \"\"\"(lista que pode sair, em_uso): em_uso None quer dizer \"não consegui conferir o que está em uso\" (e a lista vem vazia).\"\"\"\n    casa_ = casa_ or casa()",
+      "para": "    \"\"\"(lista que pode sair, em_uso): em_uso None quer dizer \"não consegui conferir o que está em uso\" (e a lista vem vazia).\"\"\"\n    casa_ = not (casa_ or casa())",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q56",
+      "guarda": "bin/forge_versoes.py:746 time.monotonic() > fim (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "        if time.monotonic() > fim:",
+      "para": "        if not (time.monotonic() > fim):",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q57",
+      "guarda": "bin/forge_versoes.py:758 c.isprintable() (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    return \"\".join(c if c.isprintable() else \"?\" for c in str(texto))",
+      "para": "    return \"\".join(c if not (c.isprintable()) else \"?\" for c in str(texto))",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q58",
+      "guarda": "bin/forge_versoes.py:764 casa_ or casa() (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    CM-7) e gravando a linha no registro antes de apagar (CM-12). Devolve (apagadas, puladas).\"\"\"\n    casa_ = casa_ or casa()",
+      "para": "    CM-7) e gravando a linha no registro antes de apagar (CM-12). Devolve (apagadas, puladas).\"\"\"\n    casa_ = not (casa_ or casa())",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q59",
+      "guarda": "bin/forge_versoes.py:768 pasta not in ainda (negada)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "        if pasta not in ainda:",
+      "para": "        if not (pasta not in ainda):",
+      "testes": [
+        "tests.test_doutor",
+        "tests.test_atualizar"
+      ]
+    },
+    {
+      "id": "Q60",
+      "guarda": "hooks/agentes.py:252 ORDEM_NO_INICIO.match(corpo) (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if ORDEM_NO_INICIO.match(corpo):",
+      "para": "        if not (ORDEM_NO_INICIO.match(corpo)):",
+      "testes": [
+        "tests.evals.test_regressao_forma"
+      ]
+    },
+    {
+      "id": "Q61",
+      "guarda": "hooks/agentes.py:255 opcao and (not (RELATO_NO_PASSADO.search(corpo[:opcao.start()]) and (not ORDEM_OU_NORMA.search(corpo)))) (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if opcao and not (RELATO_NO_PASSADO.search(corpo[:opcao.start()]) and not ORDEM_OU_NORMA.search(corpo)):",
+      "para": "        if not (opcao and not (RELATO_NO_PASSADO.search(corpo[:opcao.start()]) and not ORDEM_OU_NORMA.search(corpo))):",
+      "testes": [
+        "tests.evals.test_regressao_forma"
+      ]
+    },
+    {
+      "id": "Q62",
+      "guarda": "hooks/agentes.py:283 nota_com_ordem(texto.split('<<<BRIEF', 1)[0]) (negada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if nota_com_ordem(texto.split(\"<<<BRIEF\", 1)[0]):  # EJ 64: só o cabeçalho; o corpo do brief citado não conta",
+      "para": "    if not (nota_com_ordem(texto.split(\"<<<BRIEF\", 1)[0])):  # EJ 64: só o cabeçalho; o corpo do brief citado não conta",
+      "testes": [
+        "tests.evals.test_regressao_forma"
+      ]
+    },
+    {
+      "id": "Q63",
+      "guarda": "bin/forge_governanca.py:359 arq.is_symlink() or not arq.is_file() or arq.stat().st_size > TETO_DO_TRANSCRITO (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        if arq.is_symlink() or not arq.is_file() or arq.stat().st_size > TETO_DO_TRANSCRITO:",
+      "para": "        if not (arq.is_symlink() or not arq.is_file() or arq.stat().st_size > TETO_DO_TRANSCRITO):",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    },
+    {
+      "id": "Q64",
+      "guarda": "bin/forge_governanca.py:397 not arq.is_symlink() and arq.stat().st_size > TETO_DO_TRANSCRITO (negada)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        return not arq.is_symlink() and arq.stat().st_size > TETO_DO_TRANSCRITO",
+      "para": "        return not (not arq.is_symlink() and arq.stat().st_size > TETO_DO_TRANSCRITO)",
+      "testes": [
+        "tests.test_governanca"
+      ]
+    }
+  ]
+}

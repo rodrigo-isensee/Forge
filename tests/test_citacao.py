@@ -14,7 +14,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = RAIZ.joinpath("bin", "forge-check")
 fc = SourceFileLoader("forge_check_citacao", str(FORGE_CHECK)).load_module()
 REGRA = RAIZ.joinpath("docs", "regras", "R-BRIEF.md").read_text(encoding="utf-8").splitlines()
-TRECHO_DA_REGRA = "passa pelo `forge:conferente` no modo `brief`"
+TRECHO_DA_REGRA = "O `forge:conferente` é **opcional**, só para dúvida de conteúdo"
 
 PEDIDO = """---
 id: exemplo

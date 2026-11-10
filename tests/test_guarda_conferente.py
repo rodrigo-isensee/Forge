@@ -112,12 +112,14 @@ class GuardaDoConferente(ProjetoDoConferente):
         r = self.lancar(self.cabecalho(modo="modo: entrega"))
         self.assertEqual(r.returncode, 0, r.stderr)
 
-    def test_passa_mensagem_com_varios_blocos(self):
-        r = self.lancar(self.cabecalho() + "\n" + self.cabecalho(arquivo="Arquivo: /abs/docs/briefs/q-y-2.md", sha="b" * 64))  # só o 1º bloco vale
-        self.assertEqual(r.returncode, 0, r.stderr)
+    def test_recusa_mensagem_com_varios_blocos(self):
+        r = self.lancar(self.cabecalho() + "\n" + self.cabecalho(arquivo="Arquivo: /abs/docs/briefs/q-y-2.md", sha="b" * 64))  # adendo 3, B9
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("R-BRIEF", r.stderr)
+        self.assertIn("um brief por mensagem", r.stderr)
 
     def test_outro_agente_passa_sem_cabecalho(self):
-        r = self.lancar("faça algo", tipo="forge:tech-lead")
+        r = self.lancar("faça algo", tipo="Explore")  # só de leitura; os outros pedem o selo (0.43.1 e D2, test_selo_e_entrega)
         self.assertEqual(r.returncode, 0, r.stderr)
 
 
