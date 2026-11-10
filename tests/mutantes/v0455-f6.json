@@ -96,7 +96,7 @@
       "arquivo": "bin/forge-check",
       "trecho": "script is None",
       "motivo": "FILA-31 F6: a condição só mudou de arquivo para bin/forge_provas.py, onde o mutante M6 desta spec a prova",
-      "linha_base": 5255
+      "linha_base": 4422
     },
     {
       "arquivo": "bin/forge-check",
