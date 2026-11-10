@@ -2440,23 +2440,50 @@ class Hooks(unittest.TestCase):
 
     def test_fixtures_do_v0454_gh_alias_parecer_em_qualquer_ambiente(self):
         """0.45.4: as fixtures do alias no parecer dão o mesmo resultado seja qual for o ambiente de quem roda os testes (o
-        que quebrou o CI da 0.45.3): com e sem XDG_CONFIG_HOME e GH_CONFIG_DIR, que apontam uma configuração do gh com os
-        mesmos nomes de alias inofensivos, e com o HOME de fora sem ~/.claude/gh."""
+        que quebrou o CI da 0.45.3): com e sem XDG_CONFIG_HOME e GH_CONFIG_DIR do runner, que apontam uma configuração do
+        gh com os mesmos nomes de alias inofensivos e chegam ao hook (A3 da segurança: vão pelo `env` de cada fixture, por
+        baixo do que ela declara, porque o `rodar` tira as do processo), e com o HOME de fora sem ~/.claude/gh. O controle
+        prova que a variável chega: sem a declaração da fixture, o alias inofensivo de fora vale e `gh junta` libera."""
         lote = self.lote_do_v0454_gh_alias_parecer()
         fora = self._pasta_temporaria()
         inofensivo = "aliases:\n    nova: pr checkout\n    junta: pr view\n    co: pr create\n"
         for rel in ("xdg/gh/config.yml", "ghdir/config.yml", "home/.config/gh/config.yml"):
             (fora / rel).parent.mkdir(parents=True, exist_ok=True)
             (fora / rel).write_text(inofensivo, encoding="utf-8")
+        merge = next(f for _, f in lote if f.caminho.stem == "v0454-gh-alias-pr-merge-bloqueia")
         for xdg, ghdir in itertools.product((None, str(fora / "xdg")), (None, str(fora / "ghdir"))):
+            do_runner = {nome: valor for nome, valor in (("XDG_CONFIG_HOME", xdg), ("GH_CONFIG_DIR", ghdir)) if valor}
             with self.subTest(XDG_CONFIG_HOME=xdg, GH_CONFIG_DIR=ghdir), mock.patch.dict(os.environ, {"HOME": str(fora / "home")}):
-                for nome, valor in (("XDG_CONFIG_HOME", xdg), ("GH_CONFIG_DIR", ghdir)):
-                    if valor is None:
-                        os.environ.pop(nome, None)
-                    else:
-                        os.environ[nome] = valor
                 self.assertFalse((fora / "home" / ".claude" / "gh").exists())
-                self.assertEqual(self.executar_em_lote(lote), len(lote))
+                com_o_runner = [(nome, Fixture(f.caminho, {**f.dados, "env": {**do_runner, **f.dados.get("env", {})}}))
+                                for nome, f in lote]
+                self.assertEqual(self.executar_em_lote(com_o_runner), len(lote))
+                if do_runner:  # controle: a variável do runner chega ao hook quando a fixture não a declara
+                    env = {k: v for k, v in merge.dados["env"].items() if k not in do_runner} | do_runner
+                    controle = Fixture(merge.caminho, {**merge.dados, "env": env, "esperado": {"codigo": 0}})
+                    self.assertEqual(self.executar_em_lote([("controle", controle)]), 1)
+
+    def test_alias_do_gh_no_parecer_vale_para_o_prazo(self):  # A1 da segurança da 0.45.4
+        """`eval gh junta …` (junta = pr merge) é ação crítica para o vigia de prazo do `executar`, como por extenso: o passo
+        lento injetado recusa pelo prazo, em vez de liberar."""
+        f = next(f for f in self.fixtures if f.hook == "parecer" and f.caminho.stem == "v0454-gh-alias-eval-bloqueia")
+        tmp = self._pasta_temporaria()
+        raiz, entrada = f.montar(tmp, os.getpid())
+        extra = {k: v.replace("{tmp}", str(tmp)) for k, v in f.dados["env"].items()} | {"FORGE_NPROC": "8"}
+        r = rodar("parecer", entrada, raiz, extra=extra, producao=True, lento=True)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("R-REVIEW: o hook não decidiu", r.stderr)
+
+    def test_critico_ou_alias_marca_na_duvida(self):  # A1 da segurança da 0.45.4
+        """O marcador do parecer (`CriticoOuAlias.search`): None sem marcador nem alias; o erro ao ler o alias marca."""
+        parecer = modulos_dos_hooks()[2]
+        parecer.critico_ou_alias.cache_clear()
+        self.assertIsNone(parecer.CriticoOuAlias.search("echo oi"))
+        self.assertTrue(parecer.CriticoOuAlias.search("gh pr merge x"))
+        with mock.patch.object(parecer, "alias_na_linha", side_effect=OSError("config.yml")):
+            parecer.critico_ou_alias.cache_clear()
+            self.assertTrue(parecer.CriticoOuAlias.search("echo oi"))
+        parecer.critico_ou_alias.cache_clear()
 
     def test_fixtures_do_n5(self):  # IMPL-FURO-HOOK-N, N5: a descrição abre com o item, para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N5 (")]

@@ -19,6 +19,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 - Testes do pre-push (`test_pre_push_afetados`, `test_pre_push_parecer_curto`): o repositório falso copia também `bin/forge_apoio_testes.py`, que o `bin/forge-testes` carrega da própria pasta desde a FILA-31 F1; sem ele o `forge-testes` caía e o pre-push rodava a suíte completa.
 - `bin/forge-testes --afetados`: mudar `bin/forge_apoio_testes.py` leva quem exercita o `forge-testes` e o `forge-mutante` (antes, só `test_forge` e `test_testes_tocados`, e a quebra acima passou).
 - `tests/test_hooks.py`: o hook roda sem `GH_CONFIG_DIR` e `XDG_CONFIG_HOME` herdados; o runner do GitHub exporta `XDG_CONFIG_HOME` e as fixtures `v0453-gh-alias-*-bloqueia` liam a configuração do gh dele, não a do HOME do fixture.
+- **Alias do gh no `parecer`, dentro de `eval`, `sh -c` e `bash -c`** (A1 da segurança): `eval gh junta x` com alias de `gh pr merge` passava; a linha com alias agora vale como crítica para a reavaliação pelo shell, o teto, o heredoc gravado, a gramática com heredoc, a falha fechada e o prazo, como por extenso.
 
 ## [0.45.3] - 2026-11-10
 ### Adicionado

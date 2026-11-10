@@ -19,6 +19,7 @@ exige o parecer, como o merge (o GitHub não mescla PR em rascunho).
 Falha fechado nas ações críticas (ADR 0009, seção 7), também no clone do Forge.
 """
 import collections
+import functools
 import json
 import os
 import re
@@ -345,6 +346,33 @@ def alias_na_linha(textos):
         if ilegivel or any(e.startswith("!") or PREFILTRO.search(f"gh {e}") for e in expansoes):
             return True
     return False
+
+
+def textos_da_linha(comando):
+    """A linha e as formas que o shell lê dela, cada uma também sem aspas nem barra (`g\\h`, `g'h'`)."""
+    return [g for f in [comando, *formas_que_o_shell_le(comando, True)] for g in (f, re.sub(r"[\\'\"]", "", f))]
+
+
+@functools.lru_cache(maxsize=256)
+def critico_ou_alias(texto):
+    """A1 da segurança da 0.45.4: a linha é crítica para as travas do parecer se tem o marcador (`CRITICO`) ou se chama
+    alias do gh que o parecer confere (`alias_na_linha`). Sem isso, `eval gh junta …` (junta = pr merge) escapava da
+    reavaliação, do teto, do heredoc gravado, da gramática com heredoc, da falha fechada e do prazo."""
+    return bool(CRITICO.search(texto)) or alias_na_linha(textos_da_linha(texto))
+
+
+class CriticoOuAlias:
+    """`critico_ou_alias` com a interface que `executar` espera do marcador (`.search`: None sem marcador). O erro ao ler a
+    configuração do gh marca a chamada: ela falha fechada, como a que tem o marcador."""
+
+    @staticmethod
+    def search(texto):
+        try:
+            if critico_ou_alias(texto):
+                return True
+        except Exception:  # noqa: BLE001 - ADR 0009, seção 7: na dúvida, a ação é crítica
+            return True
+        return None
 
 
 def alias_do_gh(atribuicoes, comando, analise):
@@ -738,7 +766,7 @@ def principal(hook):
     comando = hook.campo("tool_input", "command")
     if hook.campo("tool_name") != "Bash" or not isinstance(comando, str):
         return
-    textos = [g for f in [comando, *formas_que_o_shell_le(comando, True)] for g in (f, re.sub(r"[\\'\"]", "", f))]
+    textos = textos_da_linha(comando)
     if not any(PREFILTRO.search(g) for g in textos) and not alias_na_linha(textos):  # HOOK-CONTINUACAO-LINHA: e `g\h`, `g'h'`
         return
     conferir_linha(hook, SED_LE.sub(r"cat\2", comando), [(hook.cwd(), {}, SEM_AMBIENTE)])
@@ -768,7 +796,7 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull com um heredoc que o hook não lê (<< que ele não "
                              "prova ser heredoc, ou corpo sem aspas no delimitador com $( ou crase). Corrigir: use "
                              "<<'FIM' ou separe os comandos")
-    if nivel == 0 and CRITICO.search(original):  # bloco T da revalidação 10: o orçamento da chamada, antes de ler o resto
+    if nivel == 0 and critico_ou_alias(original):  # bloco T da revalidação 10: o orçamento da chamada, antes de ler o resto
         excesso = excede_o_teto(comando)
         if excesso:
             bloquear("R-REVIEW", f"chamada com gh pr, gh api, merge ou pull e {excesso}: o hook não a decide dentro do "
@@ -804,19 +832,19 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                      if "$(" in p.replace(OPACO["$"], "")]
     for texto, so, de_heredoc in dict.fromkeys(internos):
         conferir_linha(hook, texto, list(vistos.values()), nivel + 1, so, de_heredoc, reavaliacoes)
-    if gravado and CRITICO.search(original):  # M3 (ADR 0011, item 2), depois das regras da linha e do corpo
+    if gravado and critico_ou_alias(original):  # M3 (ADR 0011, item 2), depois das regras da linha e do corpo
         bloquear("R-REVIEW", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`), com gh pr, gh "
                              f"api, merge ou pull. Corrigir: {GRAVE_E_RODE_NOUTRA}")
     # ADR 0011, item 2 (opção B da revalidação 8), depois das regras da linha e do corpo: com o marcador no nível 0, a
     # reavaliação pelo shell em qualquer nível recusa (o parecer não segue `eval` nem `bash -c`; o texto deles não chega)
-    if nivel == 0 and reavaliacoes and CRITICO.search(original):
+    if nivel == 0 and reavaliacoes and critico_ou_alias(original):
         bloquear("R-REVIEW", f"`{reavaliacoes[0]}` na chamada com gh pr, gh api, merge ou pull: "
                              f"{motivo_da_reavaliacao(reavaliacoes[0])}. Corrigir: "
                              f"{contorno_da_reavaliacao(reavaliacoes[0])}")
     # ADR 0011, item 2 (opções D e A), depois das regras da linha e do corpo: sobre o texto do nível 0, com o `<<` que o
     # bash pode formar nele ou num nível de cima (`bash -c`, `eval`, `$(…)`; `tem_heredoc_no_texto`), haja heredoc
     # provado ou não
-    if nivel == 0 and CRITICO.search(original) and not (SO_CAT.fullmatch(comando) and heredocs_simples(original)):
+    if nivel == 0 and critico_ou_alias(original) and not (SO_CAT.fullmatch(comando) and heredocs_simples(original)):
         sinal = fora_da_gramatica_com_heredoc(original)
         if sinal is not None:
             bloquear("R-REVIEW", f"`{sinal}` na chamada com heredoc e gh pr, gh api, merge ou pull: o hook não modela. "
@@ -878,4 +906,4 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
 
 
 if __name__ == "__main__":
-    executar("parecer", principal, CRITICO, clone_do_forge=True, regra_do_prazo="R-REVIEW")
+    executar("parecer", principal, CriticoOuAlias, clone_do_forge=True, regra_do_prazo="R-REVIEW")
