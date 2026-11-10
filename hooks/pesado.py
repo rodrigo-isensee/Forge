@@ -5,7 +5,7 @@ PreToolUse (Bash): se um comando simples da linha começa com um item de `pesado
 sessão ou agente tem tarefa pesada ativa (trava com PID vivo, com menos de TRAVA_S), bloqueia; senão pega a trava.
 PostToolUse, PostToolUseFailure e PermissionDenied (Bash) do mesmo comando soltam a trava.
 No clone do Forge (cópia principal e worktrees), que não tem `.forge/config.json`, valem também os PESADOS_DO_FORGE
-abaixo: duas suítes completas ao mesmo tempo esgotam a memória (R-TETO); `forge-testes` e `forge-mutante` são
+abaixo: duas suítes completas ao mesmo tempo esgotam a memória (R-TETO); os scripts de PELOS_ARGUMENTOS são
 pesados salvo nas formas leves exatas (MAQ-A1b).
 Estado em .forge/run/pesado.json.
 Orkastery 5 (0.44.2): ocupado, o PreToolUse ESPERA a vez numa fila flock (a mesma ideia do .githooks/pre-push: senha presa
@@ -165,9 +165,10 @@ def pede_opcao(argumento, opcao):
 
 
 def leve_pelos_argumentos(inicio):
-    """`forge-testes` sem `--completa` nem `--vermelho` em posição nenhuma; `forge-mutante` só com `--listar` sozinho."""
+    """O teste dirigido (os dois primeiros de PELOS_ARGUMENTOS) sem `--completa` nem `--vermelho` em posição nenhuma; o
+    mutante só com `--listar` sozinho."""
     nome, *argumentos = inicio.split()
-    if nome.endswith("forge-testes"):
+    if nome in PELOS_ARGUMENTOS[:2]:
         return not any(pede_opcao(a, o) for a in argumentos for o in ("--completa", "--vermelho"))
     return argumentos == ["--listar"]
 

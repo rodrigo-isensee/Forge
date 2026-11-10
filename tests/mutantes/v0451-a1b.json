@@ -44,8 +44,8 @@
       "id": "M4",
       "guarda": "forge-testes e forge-mutante tem regras leves proprias",
       "arquivo": "hooks/pesado.py",
-      "de": "    if nome.endswith(\"forge-testes\"):",
-      "para": "    if not nome.endswith(\"forge-testes\"):",
+      "de": "    if nome in PELOS_ARGUMENTOS[:2]:",
+      "para": "    if False:",
       "testes": [
         "tests.test_hooks.PesadoClassePelosArgumentos.test_formas_leves_e_citacoes_nao_sao_pesadas"
       ]

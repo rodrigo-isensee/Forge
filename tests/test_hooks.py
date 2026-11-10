@@ -2590,7 +2590,7 @@ class PesadoClassePelosArgumentos(unittest.TestCase):
     def test_forge_mutante_e_pesado_salvo_listar_sozinho(self):
         for comando in ("bin/forge-mutante x.json", "bin/forge-mutante x.json --listar",
                         "bin/forge-mutante --listar x.json", "./bin/forge-mutante x.json --cobertura --base abc",
-                        "bin/forge-mutante"):
+                        "bin/forge-mutante >/dev/null"):  # sem argumentos (o literal sozinho seria lido como arquivo)
             with self.subTest(comando=comando):
                 self.assertTrue(self.classe(comando))
 
