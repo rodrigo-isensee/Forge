@@ -160,7 +160,7 @@ def por_duas_partes(sp, environ, lancar=None):
         config = {}
     carga, memoria, _ = sp.medir_carga()
     paralelo = ha_folga(carga, memoria, os.cpu_count(), piso_de_memoria(config))
-    modo = "paralelo" if paralelo else "em série"
+    modo = ("em série", "paralelo")[paralelo]
     print(f"suite-partes: 2 partes {modo} (load1 {carga}, {memoria} GB livres, {os.cpu_count()} núcleos).",
           file=sys.stderr, flush=True)
     filho_env = {**environ, "CI": "1"}

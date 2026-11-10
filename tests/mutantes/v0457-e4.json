@@ -98,8 +98,8 @@
       "id": "M10",
       "guarda": "o aviso diz o modo escolhido",
       "arquivo": "scripts/suite-partes.py",
-      "de": "modo = \"paralelo\" if paralelo else \"em série\"",
-      "para": "modo = \"em série\" if paralelo else \"paralelo\"",
+      "de": "modo = (\"em série\", \"paralelo\")[paralelo]",
+      "para": "modo = (\"paralelo\", \"em série\")[paralelo]",
       "testes": [
         "tests.test_suite_partes_paralelas.DuasPartes.test_o_aviso_diz_o_modo_escolhido"
       ]
