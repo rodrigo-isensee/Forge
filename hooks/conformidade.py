@@ -191,8 +191,9 @@ CITA_TROCA = re.compile(r"refs/replace|replace-?refs|grafts", re.I)
 # `--conti`), e a trava que compara o nome inteiro deixava a abreviação passar. A opção que uma trava confere é lida por
 # extenso antes das regras; a abreviação de mais de uma (ambígua, que o git recusa) vira a primeira, e recusa também. A
 # ordem importa: a inteira vem antes das que ela abrevia (`--force` antes de `--force-with-lease`).
+# As opções do merge que mudam o resultado (`--strat`, `--squa`) já se leem abreviadas em opcao_de_merge_que_muda_o_resultado.
 LONGAS_VIGIADAS = ("--no-verify", "--force", "--force-with-lease", "--force-if-includes", "--mirror", "--continue",
-                   "--delete", "--hard", "--amend", "--squash", "--no-commit", "--strategy", "--strategy-option")
+                   "--delete", "--hard", "--amend")
 COMANDOS_DO_GIT = frozenset("""add am annotate apply archive bisect blame branch bugreport bundle cat-file check-attr
 check-ignore check-mailmap check-ref-format checkout checkout-index cherry cherry-pick clean clone column commit commit-graph
 commit-tree config count-objects credential describe diagnose diff diff-files diff-index diff-tree difftool fast-export
@@ -1326,12 +1327,13 @@ class Guarda:
                     self.curinga_na_prova(nomes[0], self.pastas_do_curinga(a, pasta))
                     if any(map(MARCA_DA_SUITE.fullmatch, nomes)):
                         self.barrar(*PROVA_DA_SUITE)
-            if prog == "ln" or prog == "cp" and any(re.fullmatch(r"-[^-]*[ls]\w*|--(link|symbolic-link)", a) for a in args):
-                self.link_em_protegido(args, pasta)
             alvo = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-t", "--target-directory")), None)
             alvo = alvo or next((a for a in reversed(args) if not a.startswith("-")), None)
             if alvo:
                 self.checar_escrita(alvo, pasta)
+            # N3: depois da escrita no destino, para a regra do papel falar primeiro
+            if prog == "ln" or prog == "cp" and any(re.fullmatch(r"-[^-]*[ls]\w*|--(link|symbolic-link)", a) for a in args):
+                self.link_em_protegido(args, pasta)
         elif prog == "dd":
             for a in args:
                 if a.startswith("of="):
