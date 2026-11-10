@@ -110,7 +110,7 @@ EVALS_DE_FORMA = ("evals.test_regressao_forma", "evals.test_erros_por_papel")  #
 MAPA = [
     (r"bin/forge-changelog", ("test_changelog", "test_conferir_release", "test_forge", "test_pre_push_afetados") + EVALS_DE_FORMA),  # PREPUSH-BARATAS
     (r"bin/forge-check", FORGE_CHECK + EVALS_DE_FORMA),
-    (r"bin/forge_(governanca|decisor|run|meta)\.py", FORGE_CHECK),  # o forge-check importa o módulo ao montar os subcomandos (0.43.1 H)
+    (r"bin/forge_(governanca|decisor|run|meta|provas)\.py", FORGE_CHECK),  # o forge-check importa o módulo ao montar os subcomandos (0.43.1 H)
     (r"bin/forge-placar", ("evals.test_placar", "test_forge")),  # 0.43.1, frente I
     (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge", "test_novo_projeto")),
     (r"bin/forge-adotar", ("test_adotar", "test_stack_python", "test_forge")),  # 0.45.0: adoção de projeto existente

@@ -191,6 +191,7 @@ class ProvasGerar(Base):
 
     def test_script_ausente_da_rc2_nao_verificavel(self):
         self.gravar("docs/briefs/b.md", "## Pronto quando\n" + self.LISTA)
+        fc.modulo_do_bin("forge_provas")  # FILA-31 F6: o gerador vem de bin/ antes da troca do PLUGIN; só o script do CI some
         original, fc.PLUGIN = fc.PLUGIN, self.tmp
         self.addCleanup(setattr, fc, "PLUGIN", original)
         with contextlib.redirect_stdout(io.StringIO()) as saida:
