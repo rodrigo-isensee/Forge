@@ -40,6 +40,7 @@ script, `--vermelho` incluído: ele é evidência que o autor e o QA colam no pa
 """
 import argparse
 import ast
+import functools
 import importlib.util
 import json
 import os
@@ -136,6 +137,7 @@ MAPA = [
     (r"templates/projeto/\.githooks/pre-push", PUBLICADO + ("test_prepush_so_docs",)),
     (r"(migrations|templates)/.*", PUBLICADO),
     (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
+    (r"docs/hooks-fixtures\.md", CONTEUDO + ("test_indice_fixtures",)),  # Fase C: o índice gerado confere em dia
     (r"docs/(security|devops)/_modelo\.md", CONTEUDO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),
     (r"skills/esperar-estado/.*|agents/tech-lead\.md", CONTEUDO + ("test_esperar_estado",)),
     (r"skills/(produto-criterios|observabilidade-incidentes|explicar-para-o-leigo|modo-iniciante)/.*|agents/(jarvis|devops-engineer)\.md", CONTEUDO + ("test_skills_v0442",)),
@@ -430,30 +432,16 @@ def ambiente_da_copia():
     return env
 
 
-def git_da_copia(*args, cwd=None):
-    r = subprocess.run(["git", "-c", "core.hooksPath=/dev/null", *args], cwd=cwd, env=ambiente_da_copia(),
-                       capture_output=True, text=True)
-    if r.returncode:
-        raise RuntimeError(f"git {' '.join(args)}: {r.stderr.strip()}")
-    return r.stdout
-
-
-def resolver(ref):
-    """Sha do commit de `ref`, ou None. `--end-of-options`: uma REF começada por `-` nunca vira opção do git."""
-    r = subprocess.run(["git", "rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref}^{{commit}}"],
-                       capture_output=True, text=True)
-    return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
+# FILA-31 F2: o git da cópia vem do módulo comum, com o ambiente deste script.
+git_da_copia = functools.partial(apoio.git_da_copia, ambiente_da_copia)
+montar_copia = functools.partial(apoio.montar_copia, ambiente_da_copia)
+resolver = apoio.resolver
 
 
 def mudancas(ancora, cabeca):
     """[(status, caminho)] do diff commitado, sem detectar renomeação (o arquivo movido lista os dois caminhos)."""
     partes = git("diff", "--name-status", "--no-renames", "-z", ancora, cabeca).split("\0")
     return [(partes[i][0], partes[i + 1]) for i in range(0, len(partes) - 1, 2)]
-
-
-def montar_copia(raiz, destino, sha):
-    git_da_copia("clone", "--quiet", "--shared", "--no-checkout", "--", str(raiz), str(destino))
-    git_da_copia("checkout", "--quiet", "--detach", sha, cwd=destino)
 
 
 def devolver_producao(copia, ancora, producao):
