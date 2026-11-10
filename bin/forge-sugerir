@@ -14,7 +14,6 @@ de dentro do Claude (só --fila)."""
 import ipaddress
 import json
 import os
-import posixpath
 import re
 import subprocess
 import sys

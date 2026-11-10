@@ -1,0 +1,46 @@
+{
+  "pedido": "v0451-cobertura",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C33",
+      "guarda": "a linha de comando remove",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    if len(argv) == 2 and argv[0] == \"remover\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_linha_de_comando_instala_e_remove"
+      ]
+    },
+    {
+      "id": "C34",
+      "guarda": "remover diz se apagou",
+      "arquivo": "scripts/cobertura.py",
+      "de": "\"coletor removido\" if remover(argv[1]) else",
+      "para": "\"coletor removido\" if True else",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_linha_de_comando_instala_e_remove"
+      ]
+    },
+    {
+      "id": "C35",
+      "guarda": "a linha de comando publica o relatório",
+      "arquivo": "scripts/cobertura.py",
+      "de": "    if len(argv) == 2 and argv[0] == \"relatorio\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_sem_acertos_o_numero_e_zero_e_sai_zero"
+      ]
+    },
+    {
+      "id": "C36",
+      "guarda": "rodar o arquivo chama a linha de comando",
+      "arquivo": "scripts/cobertura.py",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_cobertura.PisoInformativo.test_uso_errado_sai_dois"
+      ]
+    }
+  ]
+}

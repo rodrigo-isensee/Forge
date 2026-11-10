@@ -1,0 +1,66 @@
+{
+  "pedido": "v0451-ar-trava",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "P1",
+      "guarda": "o separador -- e as curtas não se leem como abreviação",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if len(nome) < 4:  # `-`, `--` e as curtas",
+      "para": "    if False:  # `-`, `--` e as curtas",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_ar_trava"
+      ]
+    },
+    {
+      "id": "P2",
+      "guarda": "a abreviação vira a opção inteira",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return palavra if inteira is None else inteira + igual + valor",
+      "para": "    return palavra if True else inteira + igual + valor",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_ar_trava"
+      ]
+    },
+    {
+      "id": "P3",
+      "guarda": "a opção abreviada é lida por extenso antes das regras",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        args = [por_extenso(a) for a in args]  # AR-TRAVA",
+      "para": "        args = list(args)  # AR-TRAVA",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_ar_trava"
+      ]
+    },
+    {
+      "id": "P4",
+      "guarda": "--no-verify é vigiada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "LONGAS_VIGIADAS = (\"--no-verify\", \"--force\",",
+      "para": "LONGAS_VIGIADAS = (\"--force\",",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_ar_trava"
+      ]
+    },
+    {
+      "id": "P5",
+      "guarda": "--continue é vigiada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"--mirror\", \"--continue\",",
+      "para": "\"--mirror\",",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_ar_trava"
+      ]
+    },
+    {
+      "id": "P6",
+      "guarda": "a abreviação é o começo da opção inteira",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for o in LONGAS_VIGIADAS if o.startswith(nome)), None)",
+      "para": "for o in LONGAS_VIGIADAS if o == nome), None)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_ar_trava"
+      ]
+    }
+  ]
+}

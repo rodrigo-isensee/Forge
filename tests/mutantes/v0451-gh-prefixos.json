@@ -1,0 +1,26 @@
+{
+  "pedido": "v0451-gh-prefixos",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G1",
+      "guarda": "o verificador barra os tokens do GitHub de todos os prefixos",
+      "arquivo": "scripts/verificar-contribuicao.sh",
+      "de": "  'gh[pousr]_[A-Za-z0-9]{20,}'",
+      "para": "  'ghp_[A-Za-z0-9]{20,}'",
+      "testes": [
+        "tests.test_forge.VerificarContribuicao.test_token_do_github_de_cada_prefixo_falha"
+      ]
+    },
+    {
+      "id": "G2",
+      "guarda": "o tamanho mínimo de 20 vale para todo prefixo",
+      "arquivo": "scripts/verificar-contribuicao.sh",
+      "de": "  'gh[pousr]_[A-Za-z0-9]{20,}'",
+      "para": "  'gh[pousr]_[A-Za-z0-9_]{20,}'",
+      "testes": [
+        "tests.test_forge.VerificarContribuicao.test_token_com_sublinhado_a_cada_4_letras_passa"
+      ]
+    }
+  ]
+}

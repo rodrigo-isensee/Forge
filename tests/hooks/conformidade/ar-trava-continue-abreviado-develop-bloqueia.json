@@ -1,0 +1,19 @@
+{
+  "descricao": "AR-TRAVA-UMA-SINTAXE: --conti é --continue e muda a integração depois do merge revisado",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git merge --conti"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW"
+  }
+}

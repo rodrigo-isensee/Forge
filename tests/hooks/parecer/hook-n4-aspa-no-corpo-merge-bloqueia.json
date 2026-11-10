@@ -1,0 +1,19 @@
+{
+  "descricao": "HOOK-N4: o merge escondido em \"$(true \")\"; L)\" na integração, sem parecer, rodava sem leitura",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "x=\"$(true \")\"; git merge melhoria/x)\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW"
+  }
+}

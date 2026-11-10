@@ -224,7 +224,7 @@ def corpo_do_pr(versao, ref, base):
 
 def ler_checks(gh, numero):
     """Só os checks do evento pull_request do PR: os do push da develop (mesmo sha) não são a bateria do PR."""
-    cod, saida = ler(gh, "pr", "checks", numero, "--json", "name,bucket,event,link", tentativas=1)
+    _cod, saida = ler(gh, "pr", "checks", numero, "--json", "name,bucket,event,link", tentativas=1)
     try:
         todos = json.loads(saida)
     except ValueError:

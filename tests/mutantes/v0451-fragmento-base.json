@@ -1,0 +1,76 @@
+{
+  "pedido": "v0451-fragmento-base",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "F1",
+      "guarda": "a branch de baixo precisa ser ancestral do HEAD",
+      "arquivo": "bin/forge-changelog",
+      "de": "if ok(\"merge-base\", \"--is-ancestor\", ref, \"HEAD\") and ok(",
+      "para": "if ok(\"rev-parse\", \"--verify\", ref) and ok(",
+      "testes": [
+        "tests.test_changelog.ConferirFragmentoDaBranchDeBaixo.test_branch_de_baixo_que_andou_depois_reprova"
+      ]
+    },
+    {
+      "id": "F2",
+      "guarda": "a branch de baixo precisa ter o fragmento",
+      "arquivo": "bin/forge-changelog",
+      "de": "and ok(\"cat-file\", \"-e\", f\"{ref}:{caminho}\"):",
+      "para": "and True:",
+      "testes": [
+        "tests.test_changelog.ConferirFragmentoDaBranchDeBaixo.test_branch_de_baixo_sem_o_fragmento_reprova"
+      ]
+    },
+    {
+      "id": "F3",
+      "guarda": "o fragmento da branch de baixo passa",
+      "arquivo": "bin/forge-changelog",
+      "de": "            return True\n    return False\n\n\ndef branch_do_pr",
+      "para": "            return False\n    return False\n\n\ndef branch_do_pr",
+      "testes": [
+        "tests.test_changelog.ConferirFragmentoDaBranchDeBaixo.test_fragmento_da_branch_de_baixo_ancestral_passa"
+      ]
+    },
+    {
+      "id": "F4",
+      "guarda": "a branch de baixo vale também como ref de origin",
+      "arquivo": "bin/forge-changelog",
+      "de": ", f\"refs/remotes/origin/melhoria/{stem}\"):",
+      "para": ",):",
+      "testes": [
+        "tests.test_changelog.ConferirFragmentoDaBranchDeBaixo.test_branch_de_baixo_de_origin_passa"
+      ]
+    },
+    {
+      "id": "F5",
+      "guarda": "o fragmento da branch de baixo sai da lista dos com outro nome",
+      "arquivo": "bin/forge-changelog",
+      "de": "if not de_branch_abaixo(n)]):",
+      "para": "]):",
+      "testes": [
+        "tests.test_changelog.ConferirFragmentoDaBranchDeBaixo.test_fragmento_da_branch_de_baixo_ancestral_passa"
+      ]
+    },
+    {
+      "id": "F6",
+      "guarda": "sem a branch de baixo, o outro nome segue reprovado",
+      "arquivo": "bin/forge-changelog",
+      "de": "if not de_branch_abaixo(n)]):",
+      "para": "if de_branch_abaixo(n)]):",
+      "testes": [
+        "tests.test_changelog.ConferirFragmentoDaBranchDeBaixo.test_fragmento_sem_a_branch_de_baixo_reprova"
+      ]
+    },
+    {
+      "id": "F7",
+      "guarda": "o git que falha não prova a branch de baixo",
+      "arquivo": "bin/forge-changelog",
+      "de": "capture_output=True).returncode == 0",
+      "para": "capture_output=True).returncode != 0",
+      "testes": [
+        "tests.test_changelog.ConferirFragmentoDaBranchDeBaixo.test_fragmento_sem_a_branch_de_baixo_reprova"
+      ]
+    }
+  ]
+}

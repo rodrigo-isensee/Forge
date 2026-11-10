@@ -1,0 +1,174 @@
+{
+  "pedido": "v0451-k6",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "K1",
+      "guarda": "conformidade.py:177 (E5a/C-1): a alternativa do carimbo K6 na MARCA_DA_SUITE (sem ela, o Write passa)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "|forge-suite-verde(\\.\\d{1,10})?\")",
+      "para": "\")",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_escrita_no_carimbo_recusa"
+      ]
+    },
+    {
+      "id": "K2",
+      "guarda": "conformidade.py:177 (E5a/C-1): o temporário `.<pid>` do os.replace também é carimbo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "|forge-suite-verde(\\.\\d{1,10})?",
+      "para": "|forge-suite-verde",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_escrita_no_carimbo_recusa"
+      ]
+    },
+    {
+      "id": "K3",
+      "guarda": "conformidade.py:177 (E5a/C-1, A4): o sufixo só de dígitos (`.bak`, `.lock` passam)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "|forge-suite-verde(\\.\\d{1,10})?",
+      "para": "|forge-suite-verde(\\.\\w+)?",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_leitura_gravador_e_vizinhos_passam"
+      ]
+    },
+    {
+      "id": "K4",
+      "guarda": "conformidade.py:177 (E5a/C-1, A4): o sufixo com teto de 10 dígitos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "|forge-suite-verde(\\.\\d{1,10})?",
+      "para": "|forge-suite-verde(\\.\\d+)?",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_leitura_gravador_e_vizinhos_passam"
+      ]
+    },
+    {
+      "id": "K5",
+      "guarda": "conformidade.py:178 (E5a/C-4): a mensagem diz quem grava o carimbo",
+      "arquivo": "hooks/conformidade.py",
+      "de": " e pela suíte (scripts/suite-paralela.py)",
+      "para": "",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_escrita_no_carimbo_recusa"
+      ]
+    },
+    {
+      "id": "K6",
+      "guarda": "conformidade.py:799 (E5a/C-3 refeito, adendo de 2026-11-07): a regra da marca só fala na raiz de projeto (sem self.raiz_e_projeto(), a leitura do carimbo no clone do Forge é recusada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self.h.raiz and self.raiz_e_projeto() and CITA_A_MARCA",
+      "para": "self.h.raiz and CITA_A_MARCA",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_clone_do_forge_le_e_recusa_escrita"
+      ]
+    },
+    {
+      "id": "K7",
+      "guarda": "conformidade.py:686 (E5a/C-2, A1 e A2 da segurança g1): o nome com curinga é expandido por glob nas pastas do alvo (sem a expansão, `echo x > <d>/forge-suite-verd?` grava o carimbo)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if CURINGA.search(nome) and any(",
+      "para": "if False and any(",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_curinga_que_casa_a_prova_recusa"
+      ]
+    },
+    {
+      "id": "K8",
+      "guarda": "conformidade.py:680 (E5a/C-2, sonda S3 da segurança g1, método único pastas_do_curinga): com `$(…)` ou variável no caminho, o curinga também se expande no diretório comum do git (sem ele, `echo x > \"$(git rev-parse --git-common-dir)\"/forge-suite-verd?` e `ln \"$d\"/forge-suite-verd? h` passam)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if opaco or VARIAVEL.search(caminho) else None",
+      "para": "if opaco else None",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_curinga_que_casa_a_prova_recusa",
+        "tests.test_conformidade_verde.CarimboK6.test_curinga_na_origem_do_link_com_substituicao"
+      ]
+    },
+    {
+      "id": "K9",
+      "guarda": "conformidade.py:2049 (E5a/C-2, A1 da segurança g1, 4.ª posição): no fallback S8 de prova_fora_de_projeto, o curinga do alvo é expandido como nas outras posições (sem ele, `<outra recusa>; echo x > <d>/forge-suite-verd?` fora de projeto grava o carimbo)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for t in filter(CURINGA.search, palavras):",
+      "para": "for t in filter(CURINGA.search, []):",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_curinga_no_fallback_fora_de_projeto"
+      ]
+    },
+    {
+      "id": "K10",
+      "guarda": "conformidade.py:2048 (E5a/C-2, A1 da segurança g1, sonda S3 no fallback): com `$(…)` ou variável no alvo, o fallback S8 de prova_fora_de_projeto pede o diretório comum do git a pastas_do_curinga (sem ele, `<outra recusa>; echo x > \"$(git rev-parse --git-common-dir)\"/forge-suite-verd?` fora de projeto grava o carimbo)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "opaco = bool(palavras and VARIAVEL.search(alvo))",
+      "para": "opaco = False",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_curinga_com_substituicao_no_fallback"
+      ]
+    },
+    {
+      "id": "K11",
+      "guarda": "conformidade.py:1104 (E5a/C-2, A1 da segurança g1-r2): a origem de `ln`/`cp -l`/`cp -s` expande o curinga nas pastas de pastas_do_curinga, com o diretório comum do git (sem ele, `ln \"$(git rev-parse --git-common-dir)\"/forge-suite-verd? h` faz o link físico do carimbo)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self.curinga_na_prova(nomes[0], self.pastas_do_curinga(a, pasta))",
+      "para": "self.curinga_na_prova(nomes[0], [self.resolver(self.expandir(a, pasta), pasta).parent])",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_curinga_na_origem_do_link_com_substituicao"
+      ]
+    },
+    {
+      "id": "K12",
+      "guarda": "conformidade.py:680 (E5a/C-2, A1 da segurança g1, fallback): o `opaco` de quem chama também pede o diretório comum (no fallback o `$(…)` está no alvo, não na palavra; sem ele, `<outra recusa>; echo x > \"$(git rev-parse --git-common-dir)\"/forge-suite-verd?` fora de projeto passa)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if opaco or VARIAVEL.search(caminho) else None",
+      "para": "if VARIAVEL.search(caminho) else None",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_curinga_com_substituicao_no_fallback"
+      ]
+    },
+    {
+      "id": "K13",
+      "guarda": "conformidade.py:675 (E5a/C-2, alvos_da_escrita): o que vem depois de `$(…)` também é resolvido a partir da raiz do projeto (sem ele, `ln $(git rev-parse --show-toplevel)/forge-suite-verde.[7] h` passa)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if resto else alvos",
+      "para": "if False else alvos",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_curinga_na_origem_do_link_com_substituicao"
+      ]
+    },
+    {
+      "id": "K14",
+      "guarda": "sem raiz do git não há diretório comum; com ela, o curinga se expande lá",
+      "arquivo": "hooks/conformidade.py",
+      "de": "+ [topo and diretorio_comum(topo)]",
+      "para": "+ [None and diretorio_comum(topo)]",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_curinga_com_substituicao_no_fallback"
+      ]
+    },
+    {
+      "id": "K15",
+      "guarda": "o fallback recusa o nome literal da prova",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in palavras):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conformidade_verde"
+      ]
+    },
+    {
+      "id": "K16",
+      "guarda": "com $( ou variável no alvo, o fallback expande o curinga no diretório comum",
+      "arquivo": "hooks/conformidade.py",
+      "de": "opaco = bool(palavras and VARIAVEL.search(alvo))",
+      "para": "opaco = bool(False)",
+      "testes": [
+        "tests.test_conformidade_verde.CarimboK6.test_curinga_com_substituicao_no_fallback"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "isinstance(alvo, str)",
+      "motivo": "o alvo do Bash, do Write e do Edit é sempre texto; a guarda só poupa o re.split da entrada malformada, que o hook já recusa antes"
+    }
+  ]
+}

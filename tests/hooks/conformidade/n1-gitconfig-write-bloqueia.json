@@ -1,0 +1,28 @@
+{
+  "descricao": "N1 (IMPL-FURO-HOOK-N, S20): o Write em ~/.gitconfig grava alias global",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/.gitconfig",
+      "content": "[alias]\n\tp = push\n"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "~/.gitconfig"
+  }
+}

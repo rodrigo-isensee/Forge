@@ -409,6 +409,22 @@ class Brinquedo(unittest.TestCase):
         self.assertIn("ausente", erro)
         self.assertTrue(saida.strip().splitlines()[-1].startswith("FAILED"))
 
+    def test_pre_push_com_processo_morto_nao_anota_prova_nem_carimbo(self):  # versao-046 E2c/C-3 (MAQ-A2)
+        # O OOM killer mata um processo da suíte: o envio reprova, sem a prova `.verde` do pre-push nem o carimbo K6.
+        self.modulo("b", modulo_de_teste("b", "os.kill(os.getpid(), signal.SIGKILL)", "import signal\n"))
+        self.git("add", "-A")
+        self.git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "morto")
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, env=AMBIENTE, capture_output=True,
+                              text=True, check=True).stdout.strip()
+        r = subprocess.run([str(self.repo / ".githooks" / "pre-push"), "origin", "u"], cwd=self.repo, env=self.env,
+                           input=f"refs/heads/x {head} refs/heads/melhoria/x {'0' * 40}\n", capture_output=True,
+                           text=True, timeout=120)
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("morto pelo sinal 9", r.stderr)
+        self.assertIn("testes do Forge falharam", r.stderr)
+        self.assertFalse((self.run_dir / f"forge-suite-{os.getuid()}.verde").exists(), "suíte morta anotou a prova")
+        self.assertFalse((self.repo / ".git" / "forge-suite-verde").exists(), "suíte morta gravou o carimbo")
+
     def test_processo_com_zero_testes_reprova(self):  # AB-5
         for nome in ("b", "c"):
             (self.repo / "tests" / f"test_{nome}.py").unlink()
