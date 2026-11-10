@@ -93,14 +93,19 @@
       "testes": [
         "tests.test_suite_partes_paralelas.FolgaDaMaquina.test_piso_de_memoria_vem_da_config_e_invalido_vale_o_padrao"
       ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o aviso diz o modo escolhido",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "modo = \"paralelo\" if paralelo else \"em série\"",
+      "para": "modo = \"em série\" if paralelo else \"paralelo\"",
+      "testes": [
+        "tests.test_suite_partes_paralelas.DuasPartes.test_o_aviso_diz_o_modo_escolhido"
+      ]
     }
   ],
   "isentas": [
-    {
-      "arquivo": "scripts/suite-partes.py",
-      "trecho": "\"paralelo\" if paralelo else \"em série\"",
-      "motivo": "só o rótulo da mensagem de aviso no stderr; o modo de fato é decidido por `paralelo`, mutado em M5"
-    },
     {
       "arquivo": "scripts/suite-partes.py",
       "trecho": "lancar or (lambda cmd: subprocess.Popen(cmd, env=filho_env))",

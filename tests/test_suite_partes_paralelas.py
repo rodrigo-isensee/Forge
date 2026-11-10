@@ -2,6 +2,7 @@
 (load1 < nproc e memória livre acima do piso) e em série sem ela. Classe do defeito: paralelizar com a máquina cheia
 (o que gera FLAKY por carga) ou dar verde com uma parte só."""
 import importlib.util
+import io
 import json
 import sys
 import tempfile
@@ -87,6 +88,14 @@ class DuasPartes(unittest.TestCase):
         self.assertEqual([r[0] for r in registro], ["lancou", "lancou", "wait", "wait"])
         self.assertEqual([c[-1] for c in comandos], ["1/2", "2/2"])
         self.assertEqual(comandos[0][1], "-I")
+
+    def test_o_aviso_diz_o_modo_escolhido(self):
+        for medida, modo in (((2.0, 10.0, 31.0), "paralelo"), ((14.0, 10.0, 31.0), "em série")):
+            with unittest.mock.patch.object(self.sp.os, "cpu_count", return_value=12), \
+                    unittest.mock.patch.object(self.sp.sys, "stderr", new_callable=io.StringIO) as erro:
+                self.paralela.medir_carga.return_value = medida
+                self.sp.por_duas_partes(self.paralela, {}, lambda comando: Filho(0, [], comando))
+            self.assertIn(f"2 partes {modo} ", erro.getvalue())
 
     def test_sem_folga_roda_em_serie(self):
         codigo, registro, _ = self.rodar((14.0, 10.0, 31.0), [0, 0])
