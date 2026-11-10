@@ -528,6 +528,9 @@ class PlanoAfetados(unittest.TestCase):
         self.assertLessEqual({"test_pre_push_afetados", "test_pre_push_trava", "test_pre_push_shellcheck", "test_prepush_so_docs"},
                              set(self.plano(".githooks/pre-push")[0]))
         self.assertLessEqual({"test_suite_paralela", "test_suite_partes"}, set(self.plano("scripts/suite-paralela.py")[0]))
+        # 0.45.4: o módulo comum dos dois scripts leva quem roda o forge-testes de verdade (o repositório falso do pre-push)
+        self.assertLessEqual({"test_pre_push_afetados", "test_pre_push_parecer_curto", "test_forge_mutante", "test_testes_tocados"},
+                             set(self.plano("bin/forge_apoio_testes.py")[0]))
 
     def test_modulo_de_teste_roda_ele_quem_o_importa_e_quem_varre_tests(self):
         modulos = set(self.plano("tests/test_fechar.py")[0])

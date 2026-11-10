@@ -174,6 +174,8 @@ EXERCITAM = [
     (r"\.githooks/.*", (".githooks", "pre-push", "pre_push")),
     (r"bin/forge-testes|tests/config\.json|tests/pesos-d4\.json|scripts/suite-(paralela|partes)\.py",
      ("forge-testes", "forge_testes", "suite-paralela", "suite_paralela", "suite-partes", "pesos-d4", "config.json")),
+    # 0.45.4: o módulo comum (FILA-31 F1) é carregado pelos dois scripts; mudá-lo leva quem exercita qualquer um deles.
+    (r"bin/forge_apoio_testes\.py", ("forge-testes", "forge_testes", "forge-mutante", "forge_mutante", "forge_apoio_testes")),
 ]
 # test_forge varre estas pastas (neutralidade, anti-duplicação, referências): caminho sem mapa nelas o leva.
 PASTAS_VARRIDAS = ("bin/", "scripts/", "hooks/", "agents/", "skills/", "stacks/", "docs/", "templates/", "dev/")

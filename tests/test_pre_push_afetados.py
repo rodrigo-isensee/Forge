@@ -51,6 +51,7 @@ class Base(unittest.TestCase):
         (self.repo / "tests").mkdir(parents=True)
         (self.repo / "bin").mkdir()
         shutil.copy(RAIZ / "bin" / "forge-testes", self.repo / "bin" / "forge-testes")
+        shutil.copy(RAIZ / "bin" / "forge_apoio_testes.py", self.repo / "bin" / "forge_apoio_testes.py")  # FILA-31 F1: o script o carrega da pasta dele
         self.git("init", "-q", "-b", "melhoria/x")
         self.git("config", "user.email", "t@example.com")
         self.git("config", "user.name", "t")
