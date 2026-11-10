@@ -1542,7 +1542,8 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
             if not any(r.get("caminho") == rel and r.get("sha256") == hash_atual and r.get("papel") == papel
                        for r in registros):
                 saida.append(f"{caminho_impresso(rel)}: autoria: sem registro de que o papel `{papel}` gravou esta versão; "
-                             f"o {papel} deve escrevê-lo ({rid})")
+                             f"o {papel} deve escrevê-lo: regrave com a ferramenta Write (o esqueleto sai de `forge-check parecer novo`); "
+                             f"parecer gravado pelo Bash (heredoc, `cat >`) fica sem autoria ({rid})")
         if campos.get("parecer") == "riscos-aceitos" and not aceite_do_usuario(raiz, pedido, campos.get("commit"), ref):
             saida.append(f"{caminho_impresso(rel)}: parecer: `riscos-aceitos` só vale com o aceite do usuário em "
                          f"docs/security/aceites/{pedido}.md (`aceite: sim` e `commit:` igual ao do parecer, gravado à mão por ele) ({rid})")

@@ -1,0 +1,27 @@
+{
+  "descricao": "V0453-GH-ALIAS: configuração ilegível não barra o comando do gh",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "../home/.config/gh/config.yml": "git_protocol: https\naliases:\n    nova: |\n        pr create\nbrowser:\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh pr list"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  }
+}

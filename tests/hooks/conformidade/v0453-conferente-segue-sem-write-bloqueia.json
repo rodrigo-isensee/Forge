@@ -1,0 +1,25 @@
+{
+  "descricao": "V0453-AQ-LEITURA: o conferente segue sem ferramenta de arquivo",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/docs/avaliacoes/a.md",
+      "content": "x\n"
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "escrita de arquivo"
+  }
+}

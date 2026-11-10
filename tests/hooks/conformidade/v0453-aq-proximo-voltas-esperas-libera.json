@@ -1,0 +1,23 @@
+{
+  "descricao": "V0453-AQ-LEITURA: aq encadeia proximo, voltas e esperas",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "forge-check proximo p1 && forge-check voltas; forge-check esperas --pedido p1"
+    },
+    "agent_type": "forge-dev:aq",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

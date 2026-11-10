@@ -1,0 +1,24 @@
+{
+  "descricao": "V0453-PARECER-BASH: apagar o parecer não é escrita de parecer",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/reviews/p1.md": "x\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "rm docs/reviews/p1.md"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

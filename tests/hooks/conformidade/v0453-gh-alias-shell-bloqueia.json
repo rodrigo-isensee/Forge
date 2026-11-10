@@ -1,0 +1,28 @@
+{
+  "descricao": "V0453-GH-ALIAS: alias de shell (!) roda o que o hook não lê",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "../home/.config/gh/config.yml": "git_protocol: https\naliases:\n    limpa: '!gh repo delete x --yes'\nbrowser:\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh limpa"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "alias de shell"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  }
+}
