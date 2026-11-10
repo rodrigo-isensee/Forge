@@ -717,7 +717,7 @@ class Guarda:
         self.lancador_recusado = None  # lançador da linha que o hook não modela (`LANCADORES_RECUSADOS`), recusado no fim
         self.reavaliacao = None  # a primeira reavaliação pelo shell da linha, em qualquer nível (`reavaliacao`, opção B)
         self.trecho = None  # as palavras do comando simples em conferência (`segmento`), que a recusa cita
-        self.pelo_bash = False  # 0.45.3: a escrita vem do Bash (parecer só pela ferramenta de arquivo)
+        self.parecer_pelo_bash = None  # 0.45.3: um parecer que a linha grava; só o Bash o recusa, no fim
         leitura = politica.get("so_leitura")
         self.leitura = leitura if leitura and papel in leitura["papeis"] else None  # papel só de leitura (conferente)
         # 0.45.3: o aq tem a lista própria de comandos e grava pelas ferramentas de arquivo, só em `escrita_permitida`
@@ -934,9 +934,9 @@ class Guarda:
             achado = self.caminho_barrado(alvo)
             if achado:
                 self.barrar(*achado)
-        for alvo in alvos:
-            if self.pelo_bash and parecer_conta and e_parecer(alvo):
-                self.barrar("R-REVIEW", f"parecer {alvo.name} gravado pelo Bash ({alvo.parent.name}/)", COMO_GRAVAR_PARECER)
+        for alvo in alvos:  # o Bash recusa no fim da linha (`parecer_pelo_bash`), depois das regras específicas dela
+            if parecer_conta and e_parecer(alvo):
+                self.parecer_pelo_bash = alvo
 
     def alvos_da_escrita(self, caminho, pasta):
         """O caminho resolvido e, depois de uma substituição (`$(…)/x`), o resto resolvido a partir da raiz do projeto."""
@@ -2715,8 +2715,10 @@ def decidir(hook, guarda, ferramenta, entrada):
         autoria(hook, guarda, [a for a in alvos if a])
     elif ferramenta == "Bash":
         if isinstance(entrada.get("command"), str):
-            guarda.pelo_bash = True
             guarda.bash(entrada["command"], hook.cwd())
+            alvo = guarda.parecer_pelo_bash
+            if alvo:  # 0.45.3: depois de todas as regras da linha, para a mais específica falar primeiro
+                guarda.barrar("R-REVIEW", f"parecer {alvo.name} gravado pelo Bash ({alvo.parent.name}/)", COMO_GRAVAR_PARECER)
             if guarda.perguntas:
                 pedir_confirmacao(guarda.perguntas)
     else:
