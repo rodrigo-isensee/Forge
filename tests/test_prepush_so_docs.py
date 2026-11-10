@@ -26,6 +26,14 @@ AMBIENTE.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME=
 PULO = "só docs/** e .md; lint e typecheck pulados"
 
 
+def matar_se_vivo(pid):
+    """Limpeza: o processo pode já ter saído (corrida vista no runner do GitHub)."""
+    try:
+        os.kill(pid, 9)
+    except ProcessLookupError:
+        pass
+
+
 class Repo(unittest.TestCase):
     def setUp(self):
         self.dir, self.fora = Path(tempfile.mkdtemp()), Path(tempfile.mkdtemp())
@@ -386,7 +394,7 @@ class TravaDaChecagem(Repo):
     def test_trava_nao_passa_para_a_etapa(self):
         (self.dir / ".githooks" / "pre-push.local").write_text("#!/usr/bin/env bash\n" + f'setsid sleep 300 >/dev/null 2>&1 & echo $! > {self.fora}/pid\n')
         self.assertEqual(self.fim(self.lanca())[0], 0)
-        self.addCleanup(os.kill, int((self.fora / "pid").read_text()), 9)
+        self.addCleanup(matar_se_vivo, int((self.fora / "pid").read_text()))
         self.assertEqual(self.fim(self.lanca(dict(self.amb, FORGE_PREPUSH_ESPERA="1")))[0], 0)
         fila = self.trava.with_suffix(".fila")
         self.assertTrue(fila.is_dir(), "a fila não nasceu")
