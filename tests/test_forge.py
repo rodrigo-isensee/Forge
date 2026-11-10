@@ -2164,6 +2164,19 @@ class VerificarContribuicao(unittest.TestCase):
                 self.assertIn("n.md:1", r.stdout)
                 self.assertNotIn(linha, r.stdout + r.stderr, "o valor não pode ser impresso")
 
+    def test_token_do_github_de_cada_prefixo_falha(self):  # verificador-gh-prefixos (0.45.1)
+        for prefixo in ("ghp", "gho", "ghu", "ghs", "ghr"):
+            with self.subTest(prefixo=prefixo):
+                linha = "t = " + prefixo + "_" + "e" * 24
+                r = self.verificar("n.md", linha + "\n")
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn("n.md:1", r.stdout)
+                self.assertNotIn(linha, r.stdout + r.stderr, "o valor não pode ser impresso")
+
+    def test_token_com_sublinhado_a_cada_4_letras_passa(self):  # a sequência de 20 do padrão se quebra no `_`
+        r = self.verificar("n.md", "t = ghs" + "_FAKE" * 6 + "\n")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
     def test_arquivo_env_falha(self):
         r = self.verificar(".env", "X=1\n")
         self.assertEqual(r.returncode, 1)
