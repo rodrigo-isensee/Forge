@@ -40,6 +40,7 @@ script, `--vermelho` incluído: ele é evidência que o autor e o QA colam no pa
 """
 import argparse
 import ast
+import importlib.util
 import json
 import os
 import re
@@ -52,6 +53,13 @@ import time
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+
+# FILA-31 F1: o módulo comum mora ao lado e é carregado pelo arquivo, nunca pelo cache de `sys.modules`: o executor do mutante
+# já o importou da cópia de trabalho, e a cópia em $TMPDIR precisa do dela.
+_APOIO = importlib.util.spec_from_file_location("forge_apoio_testes", Path(__file__).resolve().parent / "forge_apoio_testes.py")
+apoio = importlib.util.module_from_spec(_APOIO)
+_APOIO.loader.exec_module(apoio)
+ENTRADA, PESADA, contexto, outras = apoio.ENTRADA, apoio.PESADA, apoio.contexto, apoio.outras
 
 BASE_PADRAO = "origin/develop"
 LOG = Path(".forge/run/testes.log")
@@ -397,38 +405,6 @@ def avisos_de_mapa(caminhos, raiz=Path(".")):
                 avisos.append(f"forge-testes: {caminho} lê bin/{alvo}, mas o MAPA não leva a {achado.group(1)}; "
                               f"acrescente em bin/forge-testes e em tests/test_testes_tocados.py")
     return avisos
-
-
-# MAQ-A7: a linha do log ganha a entrada (FORGE_ENTRADA validada), o load, os núcleos e as outras pesadas vivas.
-ENTRADA, PESADA = re.compile(r"[a-z-]{1,20}"), re.compile(r"suite-paralela\.py|unittest discover|forge-testes|forge-mutante")
-
-
-def outras(proc=Path("/proc"), eu=None):
-    """Pesadas vivas fora desta e dos ancestrais dela; erro de leitura do /proc dá "?"; a linha lida nunca se guarda."""
-    try:
-        fora, pid = set(), eu or os.getpid()
-        while pid > 1 and pid not in fora:
-            fora.add(pid)
-            pid = int((proc / str(pid) / "stat").read_text().rsplit(")", 1)[1].split()[1])
-        pids = [p for p in os.listdir(proc) if p.isdigit() and int(p) not in fora]
-    except (OSError, ValueError, IndexError):
-        return "?"
-    n = 0
-    for p in pids:
-        try:  # o processo que termina no meio da leitura não derruba a contagem
-            n += bool(PESADA.search((proc / p / "cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")))
-        except OSError:
-            continue
-    return n
-
-
-def contexto():
-    entrada = os.environ.get("FORGE_ENTRADA", "autor")
-    try:
-        load1 = f"{os.getloadavg()[0]:.2f}"
-    except OSError:
-        load1 = "?"
-    return f" entrada={entrada if ENTRADA.fullmatch(entrada) else '?'} load1={load1} nproc={os.cpu_count()} outras={outras()}"
 
 
 def anotar(modo, modulos, segundos, codigo):

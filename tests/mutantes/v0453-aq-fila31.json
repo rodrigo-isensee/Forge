@@ -1,0 +1,96 @@
+{
+  "pedido": "v0453-aq-fila31",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o ancestral de partida é o `eu` dado (MAQ-A7)",
+      "arquivo": "bin/forge_apoio_testes.py",
+      "de": "fora, pid = set(), eu or os.getpid()",
+      "para": "fora, pid = set(), os.getpid()",
+      "testes": [
+        "tests.test_testes_tocados.MedidaDaVagaPesada.test_outras_e_contexto_toleram_falha_de_leitura"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a subida pelos ancestrais para no pid 1",
+      "arquivo": "bin/forge_apoio_testes.py",
+      "de": "while pid > 1 and pid not in fora:",
+      "para": "while pid not in fora:",
+      "testes": [
+        "tests.test_testes_tocados.MedidaDaVagaPesada.test_outras_e_contexto_toleram_falha_de_leitura"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a própria e os ancestrais ficam fora da contagem",
+      "arquivo": "bin/forge_apoio_testes.py",
+      "de": "if p.isdigit() and int(p) not in fora]",
+      "para": "if p.isdigit()]",
+      "testes": [
+        "tests.test_testes_tocados.MedidaDaVagaPesada.test_outras_e_contexto_toleram_falha_de_leitura"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "FORGE_ENTRADA fora da forma vira ?",
+      "arquivo": "bin/forge_apoio_testes.py",
+      "de": "entrada if ENTRADA.fullmatch(entrada) else '?'",
+      "para": "entrada if True else '?'",
+      "testes": [
+        "tests.test_testes_tocados.MedidaDaVagaPesada.test_outras_e_contexto_toleram_falha_de_leitura"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-mutante",
+      "trecho": "eu or os.getpid()",
+      "motivo": "FILA-31 F1: a condição só mudou de arquivo para bin/forge_apoio_testes.py, onde o mutante M1 desta spec a prova",
+      "linha_base": 630
+    },
+    {
+      "arquivo": "bin/forge-mutante",
+      "trecho": "pid > 1 and pid not in fora",
+      "motivo": "FILA-31 F1: a condição só mudou de arquivo para bin/forge_apoio_testes.py, onde o mutante M2 desta spec a prova",
+      "linha_base": 631
+    },
+    {
+      "arquivo": "bin/forge-mutante",
+      "trecho": "p.isdigit() and int(p) not in fora",
+      "motivo": "FILA-31 F1: a condição só mudou de arquivo para bin/forge_apoio_testes.py, onde o mutante M3 desta spec a prova",
+      "linha_base": 634
+    },
+    {
+      "arquivo": "bin/forge-mutante",
+      "trecho": "ENTRADA.fullmatch(entrada)",
+      "motivo": "FILA-31 F1: a condição só mudou de arquivo para bin/forge_apoio_testes.py, onde o mutante M4 desta spec a prova",
+      "linha_base": 652
+    },
+    {
+      "arquivo": "bin/forge-testes",
+      "trecho": "eu or os.getpid()",
+      "motivo": "FILA-31 F1: a condição só mudou de arquivo para bin/forge_apoio_testes.py, onde o mutante M1 desta spec a prova",
+      "linha_base": 409
+    },
+    {
+      "arquivo": "bin/forge-testes",
+      "trecho": "pid > 1 and pid not in fora",
+      "motivo": "FILA-31 F1: a condição só mudou de arquivo para bin/forge_apoio_testes.py, onde o mutante M2 desta spec a prova",
+      "linha_base": 410
+    },
+    {
+      "arquivo": "bin/forge-testes",
+      "trecho": "p.isdigit() and int(p) not in fora",
+      "motivo": "FILA-31 F1: a condição só mudou de arquivo para bin/forge_apoio_testes.py, onde o mutante M3 desta spec a prova",
+      "linha_base": 413
+    },
+    {
+      "arquivo": "bin/forge-testes",
+      "trecho": "ENTRADA.fullmatch(entrada)",
+      "motivo": "FILA-31 F1: a condição só mudou de arquivo para bin/forge_apoio_testes.py, onde o mutante M4 desta spec a prova",
+      "linha_base": 431
+    }
+  ]
+}
