@@ -20,7 +20,6 @@ from pathlib import Path
 
 REGISTRO = Path("docs") / "kanban" / "decisoes-obvias.jsonl"
 PORTAS_FECHADAS = ("irreversivel", "dinheiro", "escopo")  # sempre do dono
-CONDICOES = ("criterio", "alternativas_piores", "reversivel", "erro_barato")  # as 4 de pé para decidir sem o dono
 CRITERIO_ESCRITO = re.compile(r"(R-[A-Z0-9-]{2,40}|ADR \d{1,4}|docs/[\w./-]{3,120})")
 SEP = " — "
 LINHA_DECIDIDO = re.compile(r"^\s*(?:- )?decidido:")
