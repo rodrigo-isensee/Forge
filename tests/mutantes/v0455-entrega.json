@@ -1,0 +1,36 @@
+{
+  "pedido": "v0455-entrega",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "E1",
+      "guarda": "o igual à base sai do escopo em toda etapa, não só nas de merge",
+      "arquivo": "bin/forge-check",
+      "de": "    if base_ref and not e_ancestral(raiz, head, base_ref):\n        # E4: o merge da base",
+      "para": "    if etapa in ETAPAS_DE_MERGE and base_ref and not e_ancestral(raiz, head, base_ref):\n        # E4: o merge da base",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_merge_squash_da_develop_nao_tira_do_declarado"
+      ]
+    },
+    {
+      "id": "E2",
+      "guarda": "o filtro por conteúdo só roda com a base legível e o head fora dela",
+      "arquivo": "bin/forge-check",
+      "de": "    if base_ref and not e_ancestral(raiz, head, base_ref):\n        # E4: o merge da base",
+      "para": "    if not (base_ref and not e_ancestral(raiz, head, base_ref)):\n        # E4: o merge da base",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_merge_squash_da_develop_nao_tira_do_declarado"
+      ]
+    },
+    {
+      "id": "E3",
+      "guarda": "o arquivo que a branch mudou e difere da base continua no escopo",
+      "arquivo": "bin/forge-check",
+      "de": "            arquivos = [n for n in arquivos if n in diferem]",
+      "para": "            arquivos = [n for n in arquivos if n not in diferem]",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_merge_squash_da_develop_nao_esconde_o_que_a_branch_mudou"
+      ]
+    }
+  ]
+}

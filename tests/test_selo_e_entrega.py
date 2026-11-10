@@ -329,6 +329,69 @@ class Entrega(Repositorio):
         self.assertIn('escopo: fora do declarado no brief "fora.txt"', saida)
         self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
 
+    def merge_da_develop(self, arquivos, squash=False):
+        """A develop anda no `origin` com `arquivos` (outro lote) e a branch a mescla, como depois de um `git merge origin/develop`;
+        com `squash`, num commit de um pai só (`git merge --squash`), que o git não liga à base."""
+        self.git("switch", "-q", "develop")
+        for rel, texto in arquivos.items():
+            self.gravar(rel, texto)
+        self.git("add", *arquivos)
+        self.commit("outro lote")
+        self.git("push", "-q", "origin", "develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("fetch", "-q", "origin")
+        if squash:
+            self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--squash", "origin/develop")
+            self.commit("merge da develop")
+        else:
+            self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "-m", "merge da develop", "origin/develop")
+
+    def conferida_e_merge_da_develop(self, squash):
+        """A 1.a entrega conferida e, depois dela, o merge da develop com o parecer de outro lote."""
+        self.selado()
+        self.entregar()
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 0, saida)
+        self.merge_da_develop({"docs/reviews/outro-1.md": "---\ntipo: review\nparecer: aprovado\n---\n# outro lote\n",
+                               "bin/outro": "do outro lote\n"}, squash)
+
+    def test_merge_da_develop_nao_tira_do_declarado(self):  # v0455: o que o merge da base trouxe, igual à base, sai do escopo
+        self.merge_da_develop_cumpre(squash=False)
+
+    def test_merge_squash_da_develop_nao_tira_do_declarado(self):  # v0455: por conteúdo, também sem o 2.o pai na base
+        self.merge_da_develop_cumpre(squash=True)
+
+    def merge_da_develop_cumpre(self, squash):
+        self.conferida_e_merge_da_develop(squash)
+        self.gravar("bin/app", "x\ny\nz\n")
+        self.git("add", "bin/app")
+        head = self.commit("feat: f de novo")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 0, saida)
+        self.assertNotIn("outro-1.md", saida)
+        self.assertNotIn('"bin/outro"', saida)
+        self.assertIn('escopo: ok (declarado no brief: bin/app) "bin/app"', saida)
+        self.assertIn("resultado: cumpriu", saida)
+        self.assertIn(head, fc.entregas_conferidas(self.pedido()))
+
+    def test_merge_da_develop_nao_esconde_o_que_a_branch_mudou(self):  # v0455: o arquivo diferente da base segue contando
+        self.merge_da_develop_nao_esconde(squash=False)
+
+    def test_merge_squash_da_develop_nao_esconde_o_que_a_branch_mudou(self):  # v0455
+        self.merge_da_develop_nao_esconde(squash=True)
+
+    def merge_da_develop_nao_esconde(self, squash):
+        self.conferida_e_merge_da_develop(squash)
+        self.gravar("bin/outro", "a branch mudou\n")
+        self.gravar("fora.txt", "z\n")
+        self.git("add", "bin/outro", "fora.txt")
+        self.commit("feat: fora do declarado")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('escopo: fora do declarado no brief "bin/outro"', saida)
+        self.assertIn('escopo: fora do declarado no brief "fora.txt"', saida)
+        self.assertNotIn("outro-1.md", saida)
+
     def test_prova_que_falha_nao_cumpre(self):
         self.selado(pq_extra="- PQ-4 (cmd): `git rev-parse HEAD` · espera: igual 'nada'\n")
         self.entregar()
