@@ -168,12 +168,28 @@ class PluginDeDesenvolvimento(unittest.TestCase):
     def test_aq_tem_papel_e_lista_de_escrita_no_hook(self):
         politica = json.loads((RAIZ / "hooks/conformidade.json").read_text(encoding="utf-8"))
         self.assertEqual(politica["papeis"]["aq"], ["forge-dev:aq"])
-        self.assertEqual(politica["escrita_permitida"], {"aq": ["docs/propostas/", "docs/arquitetura/",
-                                                              "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/"],
+        self.assertEqual(politica["escrita_permitida"], {"aq": ["docs/propostas/", "docs/arquitetura/", "docs/avaliacoes/",
+                                                              "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/",
+                                                              "~/.forge-contrib/docs/avaliacoes/"],
                                                               "conferente": ["/dev/null"], "leitura": ["/dev/null"]})
         texto = (RAIZ / "dev/agents/aq.md").read_text(encoding="utf-8")
-        self.assertRegex(texto, r"(?m)^tools: Read, Grep, Glob, Write, Edit$")
-        self.assertNotRegex(texto, r"(?m)^tools:.*(Bash|WebFetch)")
+        # 0.45.3 (AVALIACAO-DE-FORA): o AQ mede sozinho com Bash de leitura (a conformidade limita); rede continua fora.
+        self.assertRegex(texto, r"(?m)^tools: Read, Grep, Glob, Bash, Write, Edit$")
+        self.assertNotRegex(texto, r"(?m)^tools:.*WebFetch")
+
+    def test_aq_faz_a_avaliacao_de_fora_com_comandos_que_existem_e_nao_avalia_contribuicao(self):
+        texto = (RAIZ / "dev/agents/aq.md").read_text(encoding="utf-8")
+        self.assertIn("docs/avaliacoes/", texto)
+        self.assertIn("REMOVER", texto)
+        self.assertNotIn("agents/jarvis.md", re.sub(r"não leia [^.]*\.", "", texto), "o AQ fica fora do contexto do Jarvis")
+        citados = set(re.findall(r"`forge-check ([a-z]+)", texto))
+        self.assertLessEqual({"metricas", "regras", "avaliacao"}, citados)
+        for sub in sorted(citados):
+            with self.subTest(sub=sub):
+                r = subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-check"), sub, "--help"], capture_output=True, text=True)
+                self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotRegex(texto, r"Contribuição \(`R-CONTRIB`\)", "o mérito da contribuição passou ao tech-lead")
+        self.assertIn("mérito", (RAIZ / "agents/tech-lead.md").read_text(encoding="utf-8"))
 
     def test_dev_so_tem_manifesto_e_agentes(self):
         """O Claude Code descobre `hooks/`, `skills/`, `commands/` e `.mcp.json` por convenção: em `dev/` entrariam em
@@ -266,10 +282,18 @@ class Agentes(unittest.TestCase):
         papeis = [p for p, tipos in politica["papeis"].items() if "forge:conferente" in tipos]
         self.assertEqual(papeis, ["conferente"])
         self.assertIn("conferente", politica["so_leitura"]["papeis"])
+        por_arquivo = politica["so_leitura"].get("arquivos_por_escrita_permitida", [])
+        self.assertEqual(por_arquivo, ["aq"])  # 0.45.3: só o aq grava, pelas ferramentas de arquivo
+        self.assertNotIn("conferente", por_arquivo)
         for papel in politica["so_leitura"]["papeis"]:
             with self.subTest(papel=papel):
                 self.assertFalse([a for a, quem in politica["acoes"].items() if papel in quem])
-                self.assertFalse([c["caminho"] for c in politica["caminhos"] if papel in c["quem"]])
+                donos = [c["caminho"] for c in politica["caminhos"] if papel in c["quem"]]
+                if papel in por_arquivo:  # o caminho protegido de que ele é dono está na lista de escrita dele
+                    lista = politica["escrita_permitida"][papel]
+                    self.assertTrue(donos and all(any(d.endswith(e) for e in lista if not e.startswith("~/")) for d in donos), donos)
+                else:
+                    self.assertFalse(donos)
 
     def test_skills_citadas_existem(self):
         for p in self.agentes:
@@ -2596,6 +2620,17 @@ class ForgeCheck(unittest.TestCase):
                 codigo, saida = self.check("pr", "p1")
                 self.assertEqual(codigo, 1)
                 self.assertIn(trecho, saida)
+
+    def test_pr_autoria_ausente_diz_como_corrigir(self):  # 0.45.3: a recusa diz a forma certa, sem afrouxar
+        self.pareceres(self.head())
+        self.commitar("pareceres")
+        self.autoria(("docs/reviews/p1.md", "tech-lead"))
+        rc, saida = self.check("pr", "p1")
+        self.assertEqual(rc, 1, saida)
+        linha = next(l for l in saida.splitlines() if l.startswith("docs/qa/p1.md: autoria"))
+        self.assertIn("regrave com a ferramenta Write", linha)
+        self.assertIn("`forge-check parecer novo`", linha)
+        self.assertIn("pelo Bash", linha)
 
     def test_pr_autoria_de_versao_anterior_do_parecer_falha(self):
         self.pareceres(self.head())

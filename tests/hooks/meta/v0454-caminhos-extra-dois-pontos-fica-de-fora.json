@@ -1,0 +1,36 @@
+{
+  "descricao": "V0454-CAMINHOS-EXTRA: pasta com `:` fica de fora com aviso",
+  "arquivos": {
+    "../ferramentas/forge-ferramenta-v0454": "#!/bin/sh\nexit 0\n"
+  },
+  "executaveis": [
+    "../ferramentas/forge-ferramenta-v0454"
+  ],
+  "config": {
+    "caminhos_extra": [
+      "{tmp}/ferramentas:/bin"
+    ]
+  },
+  "estado": {
+    "meta.json": {
+      "pedido": "p1",
+      "checagens": [
+        [
+          "forge-ferramenta-v0454"
+        ]
+      ],
+      "armado": true,
+      "repeticoes": 0
+    }
+  },
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "stop_hook_active": false
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "`forge-ferramenta-v0454` (rc=erro)",
+    "erros_log": "ignorada (precisa ser caminho absoluto, sem :"
+  }
+}

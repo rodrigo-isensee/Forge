@@ -1,0 +1,28 @@
+{
+  "descricao": "V0453-GH-ALIAS: alias com nome de comando do gh: o gh roda o comando, e as regras dele valem",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "../home/.config/gh/config.yml": "git_protocol: https\naliases:\n    pr: list\nbrowser:\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh pr create --title x"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "gh pr create"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  }
+}

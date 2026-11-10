@@ -1,0 +1,27 @@
+{
+  "descricao": "V0453-GH-ALIAS: chave aninhada de outro bloco não é alias",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "../home/.config/gh/config.yml": "git_protocol: https\noutro:\n    chave: pr create\naliases:\n    lista: pr list\nbrowser:\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh chave"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  }
+}

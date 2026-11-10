@@ -4,6 +4,48 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.45.5] - 2026-11-10
+### Alterado
+- FILA-31 F6: o `provas gerar` mudou do `bin/forge-check` para o módulo `bin/forge_provas.py`, com a mesma saída e os mesmos códigos de saída; o mapa de testes afetados do `bin/forge-testes` passa a incluir o módulo novo.
+### Corrigido
+- O hook R-REVIEW (`hooks/parecer.py`) dá à linha com `gh pr merge` o prazo `PRAZO_DO_MERGE_S` (8 s), abaixo do `timeout` de 10 s do hooks.json, em vez dos 3 s que a decisão pelo `forge-check pr` estourava com a máquina carregada; estourado, continua recusando, e não há cache de veredito.
+- O `forge-check entrega` continua a tirar do escopo por conteúdo (o arquivo igual ao da `origin/<base>`) só nas etapas de merge: a `origin/<base>` é ref local que o agente pode reescrever, e nas outras etapas isso esconderia um arquivo mudado de verdade (A1 do review). O merge comum da develop (`--no-ff`) segue fora do escopo pelo primeiro pai; o `merge --squash` da develop não é coberto, e o que ele traz conta como fora do declarado fora das etapas de merge. Testes novos: o merge comum, o squash e a `origin/<base>` forjada na etapa `codigo`.
+
+## [0.45.4] - 2026-11-10
+### Adicionado
+- Primeira avaliação de fora do AQ em `docs/avaliacoes/2026-11-10-avaliacao-de-fora.md` (versão 0.45.3): medidas de base e cinco propostas de remoção ou simplificação, com evidência e custo.
+- **`caminhos_extra` no hook `meta`:** as checagens do objetivo armado (`forge-check meta --checagem`) rodam com as pastas de `caminhos_extra` do `.forge/config.json` no fim do PATH, com a mesma conferência do `.githooks/pre-push` (absoluta, real, sem `:`, existente); a pasta ruim fica de fora com aviso no `erros.log`.
+- Índice do corpus de fixtures dos hooks (`docs/hooks-fixtures.md`, Fase C): por hook e por prefixo do nome do caso, com a contagem, quantos recusam e liberam, as regras `R-*` esperadas, os cartões e um exemplo do que o grupo prova. Sai de `scripts/indice-fixtures.py` (`--conferir` dá rc 1 se não está em dia), e `tests/test_indice_fixtures.py` confere que está em dia. Nenhuma fixture muda de nome nem de lugar.
+- Bancada de instrução (S7): `--saida ARQ` grava em JSON, por versão, caso e rodada, a entrada, a resposta, os tokens, os segundos, o `ok` e o `invalida`, com o resumo por versão, para comparar a qualidade das respostas.
+- Bancada de instrução (S7): `--contexto ARQ` (opcional) e a nota fixa "sem ferramentas", iguais nas duas versões; a rodada cuja resposta escreve uma chamada de ferramenta falsa (`<invoke`, `"name": "Bash"`) é `invalida`, sai das médias e é contada por versão.
+### Alterado
+- FILA-31 F2: `git_da_copia`, `resolver` e `montar_copia`, iguais em bin/forge-testes e bin/forge-mutante, vão para bin/forge_apoio_testes.py; cada script passa o próprio `ambiente_da_copia` por `functools.partial` (o do forge-mutante segue tirando o `PYTHONPYCACHEPREFIX`), sem mudar comportamento.
+- Bancada de instrução (S7): o `espera` dos casos aceita alternativas separadas por `|` e compara sem diferenciar maiúsculas e acentos ("Minha recomendação" conta para "recomend").
+### Corrigido
+- **Alias do gh no `parecer`:** `gh <nome>` com alias gravado que esconde `gh pr create`, `gh pr merge`, `gh pr ready` ou `gh api` passa pelas regras do parecer (review e QA antes do PR e do merge), com o mesmo leitor do `conformidade`; alias de shell, configuração ilegível e configuração do gh mudada antes na linha recusam.
+- Testes do pre-push (`test_pre_push_afetados`, `test_pre_push_parecer_curto`): o repositório falso copia também `bin/forge_apoio_testes.py`, que o `bin/forge-testes` carrega da própria pasta desde a FILA-31 F1; sem ele o `forge-testes` caía e o pre-push rodava a suíte completa.
+- `bin/forge-testes --afetados`: mudar `bin/forge_apoio_testes.py` leva quem exercita o `forge-testes` e o `forge-mutante` (antes, só `test_forge` e `test_testes_tocados`, e a quebra acima passou).
+- `tests/test_hooks.py`: o hook roda sem `GH_CONFIG_DIR` e `XDG_CONFIG_HOME` herdados; o runner do GitHub exporta `XDG_CONFIG_HOME` e as fixtures `v0453-gh-alias-*-bloqueia` liam a configuração do gh dele, não a do HOME do fixture.
+- **Alias do gh no `parecer`, dentro de `eval`, `sh -c` e `bash -c`** (A1 da segurança): `eval gh junta x` com alias de `gh pr merge` passava; a linha com alias agora vale como crítica para a reavaliação pelo shell, o teto, o heredoc gravado, a gramática com heredoc, a falha fechada e o prazo, como por extenso.
+
+## [0.45.3] - 2026-11-10
+### Adicionado
+- **Avaliação de fora (cadência):** `forge-check avaliacao --pendente` diz se passaram 5 versões do `CHANGELOG.md` desde a última `docs/avaliacoes/*.md` (pela `versao:` dela ou pela data do nome); o fim do `bin/forge-changelog release` avisa "avaliação de fora pendente". Só avisa, nunca barra.
+- **Lead time por etapa no `forge-check metricas`:** cada item ganha `lead_develop_h` e `lead_main_h` (da primeira linha do Histórico à chegada na develop e na main) e as fatias de autor, portões e espera do dono em minutos e %, somadas por pedido e período; mais os minutos por coluna do quadro, lidos de `docs/kanban/historico.md` (card voltas-tempo-colunas).
+- **`caminhos_extra` no `.forge/config.json`:** o `.githooks/pre-push` do modelo de projeto soma essas pastas ao fim do PATH da checagem, para o agente novo achar as ferramentas da stack; cada pasta é conferida (absoluta, sem link, sem `:`, existente) e a ruim fica de fora com aviso.
+- Hook `conformidade`: `git push --all` e `git send-pack --all` (também `--al`, com `-C` e `GIT_DIR`) recusam para todo papel com "envie uma branch por vez (R-FLUXO)"; o `--mirror` segue recusado e dá a mesma orientação (decisão do dono, 0.45.3).
+- Hook `conformidade`: o AQ (`forge-dev:aq`) ganha Bash só de leitura, com a lista própria em `so_leitura.comandos_por_papel` (`forge-check metricas|transcricao|proximo|voltas|esperas`, `git log|show|diff|status|rev-parse`, `ls`, `cat`, `grep`); redirecionamento, commit, push e o resto que grava recusam, e a escrita pelas ferramentas de arquivo segue só em `docs/propostas/`, `docs/arquitetura/` e, novo, `docs/avaliacoes/`.
+- Hook `conformidade`: o alias do gh gravado antes da trava (`aliases:` do config.yml em `GH_CONFIG_DIR`, `XDG_CONFIG_HOME/gh`, `~/.config/gh` e `~/.claude/gh`) é lido e a expansão passa pelas mesmas regras, como o alias do git (N1 resto); alias de shell e bloco ilegível recusam.
+- S7 bancada de instrução: `tests/bancada/bancada.py --antes <a> --depois <b>` compara duas versões de um texto sobre casos gravados (tokens e tempo por rodada); sem `--executar` só valida os casos e estima o custo; com ele chama o modelo, só com aprovação do dono (R-CUSTO), nunca no CI.
+- `scripts/publicar-releases-faltantes.sh`: para cada versão do CHANGELOG entre 0.43.1 e 0.44.2 sem release no GitHub, mostra o `gh release create` no commit `release: X.Y.Z` da main, com a seção do CHANGELOG e `--latest=false`; só imprime, `--publicar` executa.
+### Alterado
+- **AQ reformado para a avaliação de fora:** `dev/agents/aq.md` mais enxuto, com Bash de leitura para medir sozinho (`forge-check metricas`, `regras`, `transcricao custo`, `git log`), cadência a cada 5 versões, repositórios de referência como dado, missão de propor o que REMOVER com medida e saída em `docs/avaliacoes/<data>.md`; o mérito das contribuições passa ao `tech-lead`.
+- **Clean code da FILA-31 (F1, F7):** a linha de contexto do log (`outras`, `contexto`, `ENTRADA`, `PESADA`) sai duplicada de `bin/forge-testes` e `bin/forge-mutante` para `bin/forge_apoio_testes.py`, carregado pelo arquivo; sai o `import datetime` sem uso de `bin/forge_versoes.py`. Sem mudança de comportamento.
+- Hook `conformidade`: parecer gravado pelo Bash (heredoc, `>`, `>>`, `tee`, `cp`, `mv`, `sed -i`) em `docs/reviews|qa|security|devops|ux/*.md` recusa na hora da escrita (R-REVIEW), com "regrave com a ferramenta Write (o esqueleto sai de `forge-check parecer novo`)"; antes a volta só caía no `forge-check pr`.
+- `forge-check pr`: a recusa de autoria do parecer diz como corrigir (ferramenta Write ou `forge-check parecer novo`); a exigência de autoria não muda.
+- F4 e F5 (FILA-31): `promover` (scripts/promover-homolog.py) e `orquestrar` (scripts/suite-paralela.py) quebradas em funções menores, sem mudar saída nem códigos de saída.
+- F3 (FILA-31): o `git(projeto, *args)` idêntico de `bin/forge-atualizar` e `bin/forge-voltar-versao` passa a morar em `bin/forge_versoes.py`, que os dois já importam. Sem mudança de comportamento.
+
 ## [0.45.2] - 2026-11-10
 ### Corrigido
 - Três testes vermelhos na main com a 0.45.1: a lista de citações conhece o `README.md` do repositório falso do `test_conferir_reversao`, o teste dos timeouts do CI inclui o job de cobertura (45 min) e a limpeza do `test_prepush_so_docs` não falha quando o processo já saiu.

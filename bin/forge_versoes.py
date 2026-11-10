@@ -4,7 +4,6 @@ Consulta as releases do Forge por `git` (grátis, R-CUSTO), com as mesmas defesa
 só https, pasta corrente neutra (nunca o projeto), todos os outros protocolos negados, sem pergunta de senha, sem configuração
 do git do usuário. Fixa e troca a versão do plugin pelo `claude plugin ...` (marketplace na tag `vX.Y.Z`, sempre no escopo do usuário). Só biblioteca padrão."""
 import contextlib
-import datetime
 import email.utils
 import http.client
 import ipaddress
@@ -385,6 +384,12 @@ def devolver_original(original):
         claude(["plugin", "marketplace", "remove", MARKETPLACE, "--scope", "user"])
         return instalar_plugin()[0]
     return trocar_marketplace(original["fonte"])[0]
+
+
+def git(projeto, *args):
+    """(código, saída sem espaços nas pontas) do `git -C projeto ...`; usado por `forge atualizar` e `forge voltar-versao` (FILA-31 F3)."""
+    r = subprocess.run(["git", "-C", str(projeto), *args], capture_output=True, text=True)
+    return r.returncode, r.stdout.strip()
 
 
 def arquivos_alterados(projeto):

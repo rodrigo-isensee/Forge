@@ -1,0 +1,31 @@
+{
+  "descricao": "V0453-GH-ALIAS: config.yml que não se lê (pasta) recusa o nome que não é comando do gh",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "../home/x/y": "z\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh nova"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "não lê"
+  },
+  "links": {
+    "../home/.config/gh/config.yml": "{tmp}/home/x"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  }
+}

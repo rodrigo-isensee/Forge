@@ -64,7 +64,7 @@ CRITICO = re.compile(
 # Variáveis definidas antes na linha que os comandos seguintes herdam; as `GIT_*_PATHSPECS` são as opções `--*-pathspecs`.
 PATHSPECS_NO_AMBIENTE = {"GIT_GLOB_PATHSPECS": "--glob-pathspecs", "GIT_NOGLOB_PATHSPECS": "--noglob-pathspecs",
                          "GIT_LITERAL_PATHSPECS": "--literal-pathspecs", "GIT_ICASE_PATHSPECS": "--icase-pathspecs"}
-VARIAVEIS_DA_LINHA = {"GH_REPO", "GIT_DIR", *PATHSPECS_NO_AMBIENTE}
+VARIAVEIS_DA_LINHA = {"GH_REPO", "GIT_DIR", "GH_CONFIG_DIR", "XDG_CONFIG_HOME", *PATHSPECS_NO_AMBIENTE}
 MANIFESTO = ".claude-plugin/"  # no projeto, só a sessão do Forge escreve (R-CONTRIB): a identidade não vem dele
 # Nome do interpretador, com versão ou plataforma depois do nome (`perl5.34.0`, `perl5.34-x86_64-linux-gnu`, `ruby3.2`,
 # `python3.12`): fonte única para as três conferências (`-e`, edição no lugar, heredoc).
@@ -193,7 +193,7 @@ CITA_TROCA = re.compile(r"refs/replace|replace-?refs|grafts", re.I)
 # ordem importa: a inteira vem antes das que ela abrevia (`--force` antes de `--force-with-lease`).
 # As opções do merge que mudam o resultado (`--strat`, `--squa`) já se leem abreviadas em opcao_de_merge_que_muda_o_resultado.
 LONGAS_VIGIADAS = ("--no-verify", "--force", "--force-with-lease", "--force-if-includes", "--mirror", "--continue",
-                   "--delete", "--hard", "--amend")
+                   "--delete", "--hard", "--amend", "--all")
 COMANDOS_DO_GIT = frozenset("""add am annotate apply archive bisect blame branch bugreport bundle cat-file check-attr
 check-ignore check-mailmap check-ref-format checkout checkout-index cherry cherry-pick clean clone column commit commit-graph
 commit-tree config count-objects credential describe diagnose diff diff-files diff-index diff-tree difftool fast-export
@@ -220,6 +220,79 @@ FETCH_COM_VALOR = {"--depth", "--deepen", "--shallow-since", "--shallow-exclude"
                    "--submodule-prefix"}
 CONTORNO_DA_INTEGRACAO = ("faça o commit na branch de trabalho e mescle com `git merge` (parecer); para atualizar a "
                           "integração, `git merge --ff-only origin/<branch>`")
+# 0.45.3: parecer gravado pelo Bash (`>`, `>>`, `tee`, `cp`, `sed -i`...) não tem a autoria que o `forge-check pr` exige, e a
+# volta caía no PR; agora recusa na hora da escrita, para todo papel, com a forma certa. O `git` (checkout de parecer trazido) e
+# a remoção não são escrita de parecer.
+PASTAS_DE_PARECER = ("reviews", "qa", "security", "devops", "ux")
+COMO_GRAVAR_PARECER = ("regrave com a ferramenta Write (o esqueleto sai de `forge-check parecer novo`); "
+                       "parecer gravado pelo Bash fica sem autoria")
+# 0.45.3 (N1 resto): o alias do gh gravado antes da trava (`aliases:` do config.yml) troca o comando que o hook lê. O gh só
+# expande o nome que não é comando dele; a expansão (com `$1`... e o resto da linha no fim, como o gh faz) passa pelas mesmas
+# regras. O hook lê o config.yml de GH_CONFIG_DIR (ou XDG_CONFIG_HOME/gh, ou ~/.config/gh) e também ~/.claude/gh; o bloco que
+# ele não lê (valor em bloco, mapa em linha) recusa o nome que não é comando do gh (na dúvida, recusa).
+COMANDOS_DO_GH = frozenset("""accessibility actions agent-task alias api attestation auth browse cache codespace completion config
+copilot discussion environment exit-codes extension formatting gist gpg-key help issue label licenses mintty org pr preview
+project reference release repo ruleset run search secret skill ssh-key status telemetry variable version workflow""".split())
+CHAVE_DE_ALIAS = re.compile(r"^(\s+)([^\s:#'\"][^:#]*?|'[^']*'|\"[^\"]*\"):(?:\s+(.*?))?\s*$")
+
+
+class AliasIlegivel(ValueError):
+    """O bloco `aliases:` do config.yml do gh tem forma que o hook não lê."""
+
+
+def valor_do_yaml(bruto):
+    """O texto de um valor escalar simples do YAML (sem aspas, entre aspas simples ou duplas); o resto é ilegível."""
+    if bruto.startswith("'"):
+        if not bruto.endswith("'") or len(bruto) < 2:
+            raise AliasIlegivel(bruto)
+        return bruto[1:-1].replace("''", "'")
+    if bruto.startswith('"'):
+        try:
+            return json.loads(bruto)  # começa com `"`: só sai texto ou erro
+        except ValueError:
+            raise AliasIlegivel(bruto) from None
+    if not bruto or bruto[0] in "|>{[&*!%@`":
+        raise AliasIlegivel(bruto)
+    return re.sub(r"\s+#.*$", "", bruto)
+
+
+def aliases_do_gh(texto):
+    """{nome: expansão} do bloco `aliases:` de topo do config.yml do gh; AliasIlegivel se ele tem forma que o hook não lê."""
+    aliases, dentro = {}, False
+    for linha in texto.splitlines():
+        if not linha.strip() or linha.lstrip().startswith("#"):
+            continue
+        if not linha[0].isspace():
+            topo = linha.split("#", 1)[0].rstrip()
+            dentro = topo == "aliases:"
+            if not dentro and topo.startswith("aliases:") and topo.split(":", 1)[1].strip() not in ("{}", ""):
+                raise AliasIlegivel(topo)
+            continue
+        if not dentro:
+            continue
+        achado = CHAVE_DE_ALIAS.match(linha)
+        if not achado or achado.group(3) is None:
+            raise AliasIlegivel(linha)
+        aliases[valor_do_yaml(achado.group(2).strip())] = valor_do_yaml(achado.group(3))
+    return aliases
+
+
+def expandir_alias_do_gh(expansao, resto):
+    """As palavras que o gh roda: `$N` trocado pelo N-ésimo argumento (e o resto sem `$` vai no fim), como o gh."""
+    if "$" in expansao:
+        for i, a in enumerate(resto, 1):
+            expansao = expansao.replace(f"${i}", a)
+        resto = []
+    if re.search(r"\$\d", expansao):
+        return None  # o gh recusa: argumento que falta
+    try:
+        return shlex.split(expansao) + list(resto)
+    except ValueError:
+        return None
+
+
+# 0.45.3 (decisão do dono): `git push --all` e `--mirror` (também abreviados) recusam para todo papel.
+UMA_BRANCH_POR_VEZ = "envie uma branch por vez (R-FLUXO)"
 REFS_DE_TROCA = {"fetch", "pull", "push", "send-pack", "update-ref", "symbolic-ref"}  # gravam refs pelo argumento
 
 # Travas para atos perigosos (arquitetura do primeiro uso, 2.2 e 2.5). Valem para todo papel e todo perfil; no perfil
@@ -644,8 +717,13 @@ class Guarda:
         self.lancador_recusado = None  # lançador da linha que o hook não modela (`LANCADORES_RECUSADOS`), recusado no fim
         self.reavaliacao = None  # a primeira reavaliação pelo shell da linha, em qualquer nível (`reavaliacao`, opção B)
         self.trecho = None  # as palavras do comando simples em conferência (`segmento`), que a recusa cita
+        self.parecer_pelo_bash = None  # 0.45.3: um parecer que a linha grava; só o Bash o recusa, no fim
         leitura = politica.get("so_leitura")
         self.leitura = leitura if leitura and papel in leitura["papeis"] else None  # papel só de leitura (conferente)
+        # 0.45.3: o aq tem a lista própria de comandos e grava pelas ferramentas de arquivo, só em `escrita_permitida`
+        self.comandos_de_leitura = (leitura.get("comandos_por_papel", {}).get(papel, leitura["comandos"])
+                                    if self.leitura else ())
+        self.arquivo_pela_lista = bool(self.leitura) and papel in leitura.get("arquivos_por_escrita_permitida", [])
 
     # Respostas -------------------------------------------------------------------------------
     def pode(self, acao):
@@ -844,9 +922,10 @@ class Guarda:
         p = Path(caminho).expanduser()
         return Path(realpath_pela_pasta(str(p if p.is_absolute() else pasta / p)))
 
-    def checar_escrita(self, caminho, pasta):
+    def checar_escrita(self, caminho, pasta, parecer_conta=True):
         """Na dúvida, recusa: o que vem depois de uma substituição (`$(git rev-parse --show-toplevel)/docs/reviews/x`) é
-        conferido também a partir da raiz do projeto."""
+        conferido também a partir da raiz do projeto. Pelo Bash, o parecer recusa depois da regra do caminho (0.45.3);
+        `parecer_conta=False` no `git` e na remoção."""
         if MARCA_DA_SUITE.fullmatch(Path(caminho).name):  # S8 (C-2): o nome literal, antes da expansão
             self.barrar(*PROVA_DA_SUITE)
         alvos = self.alvos_da_escrita(caminho, pasta)
@@ -855,6 +934,9 @@ class Guarda:
             achado = self.caminho_barrado(alvo)
             if achado:
                 self.barrar(*achado)
+        for alvo in alvos:  # o Bash recusa no fim da linha (`parecer_pelo_bash`), depois das regras específicas dela
+            if parecer_conta and e_parecer(alvo):
+                self.parecer_pelo_bash = alvo
 
     def alvos_da_escrita(self, caminho, pasta):
         """O caminho resolvido e, depois de uma substituição (`$(…)/x`), o resto resolvido a partir da raiz do projeto."""
@@ -945,7 +1027,7 @@ class Guarda:
 
     # Write, Edit, MultiEdit, NotebookEdit -------------------------------------------------------
     def arquivo(self, entrada):
-        if self.leitura:
+        if self.leitura and not self.arquivo_pela_lista:
             self.barrar("R-CONFORMIDADE", f"escrita de arquivo pelo papel só de leitura ({self.papel})", DICA_LEITURA)
         caminho = entrada.get("file_path") or entrada.get("notebook_path")
         if isinstance(caminho, str) and caminho:
@@ -1311,13 +1393,14 @@ class Guarda:
         elif prog == "git":
             self.git(palavras, parte, pasta, ramos, self.da_atribuicao(atribuicoes, "GIT_DIR"), atribuicoes)
         elif prog == "gh":
-            self.gh(palavras, parte, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"), atras_do_xargs(originais, palavras))
+            self.gh(palavras, parte, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"), atras_do_xargs(originais, palavras),
+                    self.da_atribuicao(atribuicoes, "GH_CONFIG_DIR"))
         elif prog == "claude":
             self.claude(args)
         elif prog in TODOS_OS_ARGUMENTOS or (prog == "sed" and sed_no_lugar(args)):
             for a in args:
                 if not a.startswith("-"):
-                    self.checar_escrita(a, pasta)
+                    self.checar_escrita(a, pasta, parecer_conta=prog == "mv" or prog not in REMOCAO)
                     if prog in REMOCAO:
                         self.checar_remocao(a, pasta)
         elif prog in SO_DESTINO:
@@ -1420,7 +1503,10 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", f"`{chave} --web` abre o navegador (papel só de leitura: {self.papel})", DICA_LEITURA)
         if prog == "git":
             self.git_so_leitura(chave, args[1:])
-        if "/" in prog or chave not in self.leitura["comandos"]:
+        if prog == "forge-check" and livres_do_forge_check(args)[:2] == ["transcricao", "anonimizar"]:
+            self.barrar("R-CONFORMIDADE", f"`forge-check transcricao anonimizar` grava arquivo (papel só de leitura: "
+                                          f"{self.papel})", DICA_LEITURA)
+        if "/" in prog or chave not in self.comandos_de_leitura:
             self.barrar("R-CONFORMIDADE", f"`{chave}` fora da lista do papel só de leitura ({self.papel})", DICA_LEITURA)
 
     def git_so_leitura(self, chave, args):
@@ -1510,7 +1596,7 @@ class Guarda:
         if sub in CAMINHOS_NO_GIT:
             self.git_caminhos(sub, args, [pasta, pasta_git], opcoes)
         if sub in ("push", "send-pack"):  # o send-pack grava refs no destino como o push
-            self.git_push(args, pasta_git, ramos)
+            self.git_push(args, pasta_git, ramos, sub)
         elif parte and parte[0] == "merge" and parte[2]:
             atual = self.ramo_em(pasta_git, ramos)
             if atual in INTEGRACAO and not all(b == atual for b, _ in parte[2]):
@@ -1573,11 +1659,11 @@ class Guarda:
         caminhos, com_origem = self.pathspecs_do_git(sub, args, pastas[0])
         for pasta in dict.fromkeys(pastas):
             for c in caminhos:
-                self.checar_escrita(c, pasta)
+                self.checar_escrita(c, pasta, parecer_conta=False)
                 self.checar_remocao(c, pasta)
                 if com_origem or sub in ("rm", "mv") or not self.varredura(c):
                     for alvo in filter(self.pode_ser_protegido, self.tracked_do_pathspec(c, pasta, opcoes)):
-                        self.checar_escrita(alvo, pasta)
+                        self.checar_escrita(alvo, pasta, parecer_conta=False)
                         self.checar_remocao(alvo, pasta)
 
     def pode_ser_protegido(self, caminho):
@@ -1828,7 +1914,7 @@ class Guarda:
         dica = "deixe ao usuário (R-DECISAO)" if do_merge else "use --worktree ou deixe ao usuário (R-DECISAO)"
         self.barrar("R-CONFORMIDADE", f"git config grava {chaves[0]} na configuração compartilhada do repositório", dica)
 
-    def git_push(self, args, pasta, ramos):
+    def git_push(self, args, pasta, ramos, sub="push"):
         refs = []
         pulo = False
         for a in args:
@@ -1838,9 +1924,11 @@ class Guarda:
                 pulo = True
             elif a.startswith("--force") or re.fullmatch(r"-[a-zA-Z]*f[a-zA-Z]*", a) or a.startswith("+"):
                 self.barrar("R-VERIFY", "git push --force", "nunca force o push; refaça com um commit novo", "forca")
-            elif a == "--mirror":
+            elif a == "--mirror":  # 0.45.3 (decisão do dono): todas as refs de uma vez, e sobrescreve como o force
                 self.barrar("R-VERIFY", "git push --mirror", "sobrescreve o remoto como um force push; "
-                            "envie só a branch, com um commit novo", "forca")
+                            f"{UMA_BRANCH_POR_VEZ}, com um commit novo", "forca")
+            elif a == "--all":  # 0.45.3 (decisão do dono): o envio agrupado roda a suíte inteira e cai junto
+                self.barrar("R-FLUXO", f"git {sub} --all envia todas as branches de uma vez", UMA_BRANCH_POR_VEZ)
             elif not a.startswith("-"):
                 refs.append(a)
         remoto, refs = (refs[0] if refs else None), refs[1:]
@@ -2206,7 +2294,55 @@ class Guarda:
             self.barrar("R-MAIN", "gh api que mescla PR (merge REST ou GraphQL) pode desviar a proteção da branch",
                         self.CORRIGIR_DO_MERGE)
 
-    def gh(self, palavras, parte, pasta, repo_env=None, por_xargs=False):
+    def configs_do_gh(self, config_env=None):
+        """Os config.yml que o gh pode ler: o de GH_CONFIG_DIR (linha, `export` ou ambiente), senão o de XDG_CONFIG_HOME/gh,
+        senão o de ~/.config/gh; e sempre o de ~/.claude/gh (onde a estação guarda a configuração)."""
+        pasta = config_env or self.ambiente.get("GH_CONFIG_DIR") or os.environ.get("GH_CONFIG_DIR")
+        xdg = self.ambiente.get("XDG_CONFIG_HOME") or os.environ.get("XDG_CONFIG_HOME")
+        if not pasta:
+            pasta = os.path.join(xdg, "gh") if xdg else os.path.join(Path.home(), ".config", "gh")
+        return list(dict.fromkeys(Path(os.path.expanduser(p)) / "config.yml"
+                                  for p in (pasta, os.path.join(Path.home(), ".claude", "gh"))))
+
+    def gh_pelo_alias(self, palavras, pasta, repo_env, por_xargs, config_env):
+        """N1 resto (0.45.3): `gh <nome>` com `nome` no `aliases:` do gh roda a expansão; ela passa pelas mesmas regras.
+        Devolve True se o nome não é comando do gh (o que roda é só a expansão)."""
+        nome = palavras[1] if len(palavras) > 1 else ""
+        if not nome or nome.startswith("-"):
+            return False
+        expansoes = []
+        for arquivo in self.configs_do_gh(config_env):
+            try:
+                texto = arquivo.read_text(encoding="utf-8")
+            except FileNotFoundError:
+                continue
+            except (OSError, ValueError):
+                texto = None
+            try:
+                if texto is None:
+                    raise AliasIlegivel(str(arquivo))
+                aliases = aliases_do_gh(texto)
+            except AliasIlegivel:
+                if nome in COMANDOS_DO_GH:
+                    continue
+                self.barrar("R-REVIEW", f"gh {nome}: o hook não lê os aliases do gh em {arquivo}",
+                            "rode o comando do gh por extenso")
+            if nome in aliases:
+                expansoes.append(aliases[nome])
+        for expansao in expansoes:
+            if expansao.startswith("!"):
+                self.barrar("R-REVIEW", f"gh {nome}: alias de shell (`!`) do gh roda o que o hook não lê",
+                            "rode o comando direto, sem alias")
+            novas = expandir_alias_do_gh(expansao, palavras[2:])
+            if not novas:
+                self.barrar("R-REVIEW", f"gh {nome}: alias do gh que o hook não lê", "rode o comando do gh por extenso")
+            novas = [palavras[0], *novas]  # o mesmo programa; não roda nada (é a leitura da expansão)
+            self.gh(novas, parecer.analisar(novas), pasta, repo_env, por_xargs, config_env, alias=False)
+        return bool(expansoes) and nome not in COMANDOS_DO_GH
+
+    def gh(self, palavras, parte, pasta, repo_env=None, por_xargs=False, config_env=None, alias=True):
+        if alias and self.gh_pelo_alias(palavras, pasta, repo_env, por_xargs, config_env):
+            return
         self.gh_trava(palavras, pasta)
         self.gh_contrib(palavras, pasta, repo_env)
         if self.sessao_forge:
@@ -2317,7 +2453,10 @@ def pacote_valido(cfg):
 
 def leitura_valida(v):
     """`so_leitura` é opcional; presente, precisa das três listas (sem elas o papel só de leitura cairia em KeyError)."""
-    return v is None or (isinstance(v, dict) and all(lista_de_textos(v.get(k)) for k in ("papeis", "comandos", "saidas")))
+    return v is None or (isinstance(v, dict) and all(lista_de_textos(v.get(k)) for k in ("papeis", "comandos", "saidas"))
+                         and isinstance(v.get("comandos_por_papel", {}), dict)
+                         and all(lista_de_textos(c) and c for c in v.get("comandos_por_papel", {}).values())
+                         and lista_de_textos(v.get("arquivos_por_escrita_permitida", [])))
 
 
 def escrita_valida(v):
@@ -2395,6 +2534,11 @@ def raiz_do_parecer(hook, p):
         return raiz if raiz in p.parents else None
     comum = diretorio_comum(topo)
     return topo if comum and comum == diretorio_comum(raiz) else None
+
+
+def e_parecer(p):
+    """O `.md` dentro de `docs/<pasta de parecer>/` (`PASTAS_DE_PARECER`), em qualquer raiz ou worktree."""
+    return p.suffix == ".md" and any(par == ("docs", pasta) for par in zip(p.parts, p.parts[1:]) for pasta in PASTAS_DE_PARECER)
 
 
 def autoria(hook, guarda, alvos):
@@ -2572,6 +2716,9 @@ def decidir(hook, guarda, ferramenta, entrada):
     elif ferramenta == "Bash":
         if isinstance(entrada.get("command"), str):
             guarda.bash(entrada["command"], hook.cwd())
+            alvo = guarda.parecer_pelo_bash
+            if alvo:  # 0.45.3: depois de todas as regras da linha, para a mais específica falar primeiro
+                guarda.barrar("R-REVIEW", f"parecer {alvo.name} gravado pelo Bash ({alvo.parent.name}/)", COMO_GRAVAR_PARECER)
             if guarda.perguntas:
                 pedir_confirmacao(guarda.perguntas)
     else:

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0453-aq-lead-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "historico.md ilegível ou link não é lido",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if texto is None:\n        return None, (None if",
+      "para": "    if False:\n        return None, (None if",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_sem_historico_do_quadro_colunas_sai_vazio_e_link_avisa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "link do historico.md avisa",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "(None if not arq.exists() else \"historico.md",
+      "para": "(None if True else \"historico.md",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_sem_historico_do_quadro_colunas_sai_vazio_e_link_avisa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "linha com menos de 4 células fica fora",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "if len(celulas) < 4 or not re.match(",
+      "para": "if not re.match(",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_minutos_por_coluna_do_quadro"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "hora sem fuso fica fora",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        if momento.tzinfo is not None:",
+      "para": "        if True:",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_minutos_por_coluna_do_quadro"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o último movimento do cartão fica aberto",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "aberto = seguinte is None",
+      "para": "aberto = False",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_minutos_por_coluna_do_quadro"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o trecho conta só se começa na janela",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "if not janela(inicio) or (aberto and",
+      "para": "if (aberto and",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_minutos_por_coluna_do_quadro"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "o aberto no Pronto não conta",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "or (aberto and sem_acento(coluna) == \"pronto\"):",
+      "para": "or False:",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_minutos_por_coluna_do_quadro"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o trecho fechado vai até o movimento seguinte",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "_minutos(inicio, agora if aberto else seguinte[0])",
+      "para": "_minutos(inicio, agora if True else seguinte[0])",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_minutos_por_coluna_do_quadro"
+      ]
+    }
+  ]
+}

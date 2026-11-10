@@ -1,0 +1,76 @@
+{
+  "pedido": "v0453-hooks-parecer-bash",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "R1",
+      "guarda": "parecer gravado pelo Bash recusa na hora",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if parecer_conta and e_parecer(alvo):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_parecer_pelo_bash"
+      ]
+    },
+    {
+      "id": "R3",
+      "guarda": "a remoção não é escrita de parecer",
+      "arquivo": "hooks/conformidade.py",
+      "de": "parecer_conta=prog == \"mv\" or prog not in REMOCAO)",
+      "para": "parecer_conta=True)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_parecer_pelo_bash"
+      ]
+    },
+    {
+      "id": "R4",
+      "guarda": "o mv para o parecer é escrita",
+      "arquivo": "hooks/conformidade.py",
+      "de": "parecer_conta=prog == \"mv\" or prog not in REMOCAO)",
+      "para": "parecer_conta=prog not in REMOCAO)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_parecer_pelo_bash"
+      ]
+    },
+    {
+      "id": "R5",
+      "guarda": "só o .md é parecer",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return p.suffix == \".md\" and any(par == (\"docs\", pasta)",
+      "para": "    return any(par == (\"docs\", pasta)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_parecer_pelo_bash"
+      ]
+    },
+    {
+      "id": "R6",
+      "guarda": "docs/ux entra nas pastas de parecer",
+      "arquivo": "hooks/conformidade.py",
+      "de": "PASTAS_DE_PARECER = (\"reviews\", \"qa\", \"security\", \"devops\", \"ux\")",
+      "para": "PASTAS_DE_PARECER = (\"reviews\", \"qa\", \"security\", \"devops\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_parecer_pelo_bash"
+      ]
+    },
+    {
+      "id": "R8",
+      "guarda": "a recusa de autoria do forge-check pr diz como corrigir",
+      "arquivo": "bin/forge-check",
+      "de": "regrave com a ferramenta Write (o esqueleto sai de `forge-check parecer novo`); \"",
+      "para": "\"",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_pr_autoria_ausente_diz_como_corrigir"
+      ]
+    },
+    {
+      "id": "R9",
+      "guarda": "o parecer pelo Bash recusa no fim da linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if alvo:  # 0.45.3: depois de todas as regras da linha",
+      "para": "            if False:  # 0.45.3: depois de todas as regras da linha",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_parecer_pelo_bash"
+      ]
+    }
+  ]
+}

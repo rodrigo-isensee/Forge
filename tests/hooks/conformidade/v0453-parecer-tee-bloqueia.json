@@ -1,0 +1,24 @@
+{
+  "descricao": "V0453-PARECER-BASH: parecer de segurança por tee",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo x | tee docs/security/p1.md"
+    },
+    "agent_type": "forge:security-engineer",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "regrave com a ferramenta Write"
+  }
+}
