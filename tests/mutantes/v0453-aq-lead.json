@@ -1,0 +1,66 @@
+{
+  "pedido": "v0453-aq-lead",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a janela do dono fora do trecho não conta",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "if min(f, b) > max(i, a)])",
+      "para": "if min(f, b) >= min(i, a)])",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_lead_time_ate_a_develop_e_a_main_com_a_fatia_do_autor_dos_portoes_e_do_dono"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "chegada antes da entrega não se mede",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if not pronto or not chegada or chegada < pronto:\n        return None\n    total",
+      "para": "    if not pronto or not chegada:\n        return None\n    total",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_fatias_somam_itens_e_a_chegada_antes_da_entrega_nao_se_mede"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "lead zero não divide (fatias)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "round(100 * v / total, 1) if total else None for k, v in partes.items()",
+      "para": "round(100 * v / total, 1) if True else None for k, v in partes.items()",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_fatias_somam_itens_e_a_chegada_antes_da_entrega_nao_se_mede"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "item sem fatias fica fora da soma",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "lista = [f for f in lista if f]",
+      "para": "lista = [f for f in lista if True]",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_fatias_somam_itens_e_a_chegada_antes_da_entrega_nao_se_mede"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "sem nenhuma fatia a soma é None",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if not lista:\n        return None\n    soma",
+      "para": "    if False:\n        return None\n    soma",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_fatias_somam_itens_e_a_chegada_antes_da_entrega_nao_se_mede"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "lead zero não divide (soma)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "round(100 * v / total, 1) if total else None for k, v in soma.items()",
+      "para": "round(100 * v / total, 1) if True else None for k, v in soma.items()",
+      "testes": [
+        "tests.test_governanca.LeadEColunas.test_fatias_somam_itens_e_a_chegada_antes_da_entrega_nao_se_mede"
+      ]
+    }
+  ]
+}

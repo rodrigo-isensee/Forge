@@ -288,6 +288,29 @@ class Release(Base):
         self.assertNotEqual(forge_changelog(self.dir, "release", "0.1.0", "2026-02-02").returncode, 0)
 
 
+class ReleaseAvisaAvaliacaoDeFora(Base):
+    """0.45.3: o fim da release avisa a avaliação de fora pendente (5 versões desde a última docs/avaliacoes/*.md); só avisa."""
+
+    def preparar(self, versoes):
+        texto = "".join(f"## [0.1.{i}] - 2026-01-0{i}\n### Corrigido\n- v{i}\n\n" for i in range(versoes, 0, -1))
+        (self.dir / "CHANGELOG.md").write_text("# Changelog\n\n## [Não publicado]\n\n" + texto, encoding="utf-8")
+        (self.dir / "changelog.d").mkdir()
+        (self.dir / "changelog.d" / "x.md").write_text("### Alterado\n- Nova\n", encoding="utf-8")
+
+    def test_quinta_versao_avisa_e_a_release_sai_com_0(self):
+        self.preparar(4)
+        r = forge_changelog(self.dir, "release", "0.2.0", "2026-02-02")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("aviso: avaliação de fora pendente: 5 versões", r.stdout)
+        self.assertIn("## [0.2.0] - 2026-02-02", (self.dir / "CHANGELOG.md").read_text(encoding="utf-8"))
+
+    def test_quarta_versao_nao_avisa(self):
+        self.preparar(3)
+        r = forge_changelog(self.dir, "release", "0.2.0", "2026-02-02")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("aviso:", r.stdout)
+
+
 class ConferirNoCI(Base):
     def conferir(self):
         return forge_changelog(self.dir, "conferir", "--base", "develop")

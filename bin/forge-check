@@ -9801,7 +9801,7 @@ def main():
     so.add_argument("--base", help="branch de integração da comparação (padrão: origin/develop, develop, origin/main, main)")
     so.add_argument("--ref", help="branch prestes a ser mesclada na develop: com release em curso (versão da origin/develop maior que a da origin/homolog), só avisa; sem congelamento, nunca barra (R-FLUXO)")
     sub.add_parser("fila", parents=[comum], help="o que pode começar agora: dependências, teto e sobreposição (só leitura, rc 0)")
-    # metricas e regras (0.43.1 H): a lógica fica em bin/forge_governanca.py, importado só quando um dos dois roda
+    # metricas, regras e avaliacao (0.43.1 H, 0.45.3): a lógica fica em bin/forge_governanca.py, importado só quando um deles roda
     me = sub.add_parser("metricas", parents=[comum], help="tempo do código pronto à develop e à main, voltas, revalidações, suítes, "
                         "espera do dono e reprovações por classe (mérito: declarada), por item e por período; só leitura (0.43.1 H)")
     me.add_argument("--pedido", action="append", help="id em docs/pedidos/ (repita para vários; padrão: todos)")
@@ -9818,6 +9818,9 @@ def main():
     me.add_argument("--transcritos", action="append", metavar="PASTA", help="pasta de transcritos `*.jsonl` dos subagentes (CUSTO; repita "
                     "para várias; padrão: FORGE_TRANSCRITOS ou a pasta do Claude Code da raiz): tokens por item")
     me.add_argument("--json", action="store_true", help="saída em JSON")
+    av = sub.add_parser("avaliacao", parents=[comum], help="cadência da avaliação de fora do AQ: 5 versões do CHANGELOG.md desde a última "
+                        "docs/avaliacoes/*.md; só avisa, rc 0 (0.45.3)")
+    av.add_argument("--pendente", action="store_true", help="diz se a avaliação de fora está pendente (o padrão; nunca barra)")
     rg = sub.add_parser("regras", parents=[comum], help="validade das regras: 'Revisar em:' e 'Medida:' de cada docs/regras/R-*.md; "
                         "aviso rc 0, --estrito rc 1 (0.43.1 H)")
     rg.add_argument("--estrito", action="store_true", help="reprova (rc 1) se alguma regra tem aviso")
@@ -9956,7 +9959,7 @@ def executar(a, raiz):
     bloqueio = guarda_de_versao(a, raiz)
     if bloqueio is not None:
         return bloqueio
-    if a.cmd in ("metricas", "regras"):
+    if a.cmd in ("metricas", "regras", "avaliacao"):
         modulo = governanca()
         if modulo is None:
             print(f"{a.cmd}: bin/forge_governanca.py ausente ao lado do forge-check; nada medido")

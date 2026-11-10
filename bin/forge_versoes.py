@@ -4,7 +4,6 @@ Consulta as releases do Forge por `git` (grátis, R-CUSTO), com as mesmas defesa
 só https, pasta corrente neutra (nunca o projeto), todos os outros protocolos negados, sem pergunta de senha, sem configuração
 do git do usuário. Fixa e troca a versão do plugin pelo `claude plugin ...` (marketplace na tag `vX.Y.Z`, sempre no escopo do usuário). Só biblioteca padrão."""
 import contextlib
-import datetime
 import email.utils
 import http.client
 import ipaddress
