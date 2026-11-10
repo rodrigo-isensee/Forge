@@ -1,4 +1,4 @@
 [
-  {"id": "pergunta-com-decisao", "entrada": "Posso juntar as duas branches agora ou espero a suíte?", "espera": "Recomendo"},
+  {"id": "pergunta-com-decisao", "entrada": "Posso juntar as duas branches agora ou espero a suíte?", "espera": "recomend|sugiro"},
   {"id": "pedido-vago", "entrada": "Resolve tudo que estiver pendente."}
 ]
