@@ -723,8 +723,58 @@ def cmd_regras(raiz, hoje=None, estrito=False, como_json=False):
     return 1 if estrito and com_aviso else 0
 
 
+# ---- avaliação de fora (0.45.3): a cadência do AQ, lida do CHANGELOG.md e de docs/avaliacoes/ ----
+CADENCIA_DA_AVALIACAO = 5  # versões publicadas desde a última avaliação
+VERSAO_DO_CHANGELOG = re.compile(r"^## \[(\d+\.\d+\.\d+)\] - (\d{4}-\d{2}-\d{2})", re.M)
+NOME_DA_AVALIACAO = re.compile(r"(\d{4}-\d{2}-\d{2})[A-Za-z0-9._-]*\.md")
+VERSAO_DA_AVALIACAO = re.compile(r"^versao:\s*v?(\d+\.\d+\.\d+)\s*$", re.M)
+
+
+def avaliacao_pendente(raiz):
+    """(pendente, [versões desde a última avaliação, da mais nova], nome da última | None), ou None sem CHANGELOG.md legível.
+    A última é a docs/avaliacoes/<AAAA-MM-DD>*.md de maior nome; contam as versões depois da `versao:` dela ou, sem essa linha,
+    as publicadas depois da data do nome. Só lê."""
+    texto = ler_texto(Path(raiz) / "CHANGELOG.md")
+    if texto is None:
+        return None
+    versoes = VERSAO_DO_CHANGELOG.findall(texto)
+    pasta = Path(raiz) / "docs" / "avaliacoes"
+    nomes = sorted(p.name for p in pasta.glob("*.md") if NOME_DA_AVALIACAO.fullmatch(p.name))
+    ultima, desde = (nomes[-1] if nomes else None), versoes
+    if ultima:
+        achou = VERSAO_DA_AVALIACAO.search(ler_texto(pasta / ultima) or "")
+        numeros = [v for v, _ in versoes]
+        if achou and achou.group(1) in numeros:
+            desde = versoes[:numeros.index(achou.group(1))]
+        else:
+            data = NOME_DA_AVALIACAO.fullmatch(ultima).group(1)
+            desde = [(v, d) for v, d in versoes if d > data]
+    return len(desde) >= CADENCIA_DA_AVALIACAO, [v for v, _ in desde], ultima
+
+
+def frase_da_avaliacao(estado):
+    pendente, desde, ultima = estado
+    origem = f"docs/avaliacoes/{ultima}" if ultima else "o início (nenhuma docs/avaliacoes/*.md)"
+    if pendente:
+        return (f"avaliação de fora pendente: {len(desde)} versões desde {origem} (a mais nova: {desde[0]}); "
+                "acione o AQ (forge-dev:aq)")
+    return f"em dia: {len(desde)} de {CADENCIA_DA_AVALIACAO} versões desde {origem}"
+
+
+def cmd_avaliacao(raiz):
+    """Só avisa, nunca barra: rc 0 pendente ou em dia; rc 2 sem CHANGELOG.md legível."""
+    estado = avaliacao_pendente(raiz)
+    if estado is None:
+        print(f"avaliacao: CHANGELOG.md ausente ou ilegível em {raiz}; nada medido")
+        return 2
+    print(f"avaliacao: {frase_da_avaliacao(estado)}")
+    return 0
+
+
 def executar(a, raiz, raiz_pedidos):
-    """Despacho dos dois subcomandos; None se `a.cmd` não é deles."""
+    """Despacho dos subcomandos; None se `a.cmd` não é deles."""
+    if a.cmd == "avaliacao":
+        return cmd_avaliacao(raiz)
     if a.cmd == "metricas":
         return cmd_metricas(raiz, raiz_pedidos, a)
     if a.cmd == "regras":

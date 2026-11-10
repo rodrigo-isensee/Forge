@@ -517,5 +517,67 @@ class Regras(unittest.TestCase):
         self.assertRegex(saida.splitlines()[-1], r"^regras: \d+ regras, \d+ em dia, \d+ com aviso")
 
 
+def changelog(*versoes):
+    """CHANGELOG.md com as versões (número, data), da mais nova à mais antiga."""
+    return "# Changelog\n\n## [Não publicado]\n\n" + "".join(f"## [{v}] - {d}\n### Corrigido\n- x\n\n" for v, d in versoes)
+
+
+SEIS = [("0.6.0", "2026-11-06"), ("0.5.0", "2026-11-05"), ("0.4.0", "2026-11-04"), ("0.3.0", "2026-11-03"),
+        ("0.2.0", "2026-11-02"), ("0.1.0", "2026-11-01")]
+
+
+class AvaliacaoDeFora(unittest.TestCase):
+    """0.45.3: `forge-check avaliacao --pendente` diz se passaram 5 versões do CHANGELOG.md desde a última docs/avaliacoes/*.md;
+    só avisa (rc 0 nos dois casos)."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-avaliacao-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        (self.tmp / "docs" / "avaliacoes").mkdir(parents=True)
+
+    def avaliacao(self, *versoes):
+        (self.tmp / "CHANGELOG.md").write_text(changelog(*versoes), encoding="utf-8")
+        return rodar("--raiz", str(self.tmp), "avaliacao", "--pendente")
+
+    def test_sem_avaliacao_cinco_versoes_avisam_e_quatro_nao(self):
+        rc, saida, _ = self.avaliacao(*SEIS[:5])
+        self.assertEqual(rc, 0)
+        self.assertIn("avaliação de fora pendente: 5 versões desde o início", saida)
+        rc, saida, _ = self.avaliacao(*SEIS[:4])
+        self.assertEqual(rc, 0, "só avisa, nunca barra")
+        self.assertIn("em dia: 4 de 5", saida)
+        self.assertNotIn("pendente", saida)
+
+    def test_conta_so_as_versoes_depois_da_versao_da_ultima_avaliacao(self):
+        (self.tmp / "docs" / "avaliacoes" / "2026-10-01.md").write_text("versao: 0.1.0\n", encoding="utf-8")
+        (self.tmp / "docs" / "avaliacoes" / "2026-11-02.md").write_text("versao: 0.2.0\n", encoding="utf-8")
+        rc, saida, _ = self.avaliacao(*SEIS)
+        self.assertEqual(rc, 0)
+        self.assertIn("em dia: 4 de 5 versões desde docs/avaliacoes/2026-11-02.md", saida)
+        (self.tmp / "docs" / "avaliacoes" / "2026-11-02.md").write_text("versao: 0.1.0\n", encoding="utf-8")
+        self.assertIn("pendente: 5 versões", self.avaliacao(*SEIS)[1])
+
+    def test_sem_linha_versao_vale_a_data_do_nome(self):
+        (self.tmp / "docs" / "avaliacoes" / "2026-11-01-forge.md").write_text("# avaliação\n", encoding="utf-8")
+        self.assertIn("pendente: 5 versões", self.avaliacao(*SEIS)[1])  # depois de 01/11: 0.2.0 a 0.6.0
+        (self.tmp / "docs" / "avaliacoes" / "2026-11-02.md").write_text("# avaliação\n", encoding="utf-8")
+        self.assertIn("em dia: 4 de 5", self.avaliacao(*SEIS)[1])
+        (self.tmp / "docs" / "avaliacoes" / "notas.md").write_text("versao: 0.6.0\n", encoding="utf-8")
+        self.assertIn("em dia: 4 de 5", self.avaliacao(*SEIS)[1], "arquivo fora de <AAAA-MM-DD>*.md não conta")
+
+    def test_versao_fora_do_changelog_ou_avaliacao_ilegivel_cai_na_data_do_nome(self):
+        (self.tmp / "docs" / "avaliacoes" / "2026-11-01.md").write_text("versao: 9.9.9\n", encoding="utf-8")
+        self.assertIn("pendente: 5 versões desde docs/avaliacoes/2026-11-01.md", self.avaliacao(*SEIS)[1])
+        fora = self.tmp / "fora.md"
+        fora.write_text("versao: 0.5.0\n", encoding="utf-8")
+        (self.tmp / "docs" / "avaliacoes" / "2026-11-02.md").symlink_to(fora)  # link não é lido: vale a data
+        self.assertIn("em dia: 4 de 5 versões desde docs/avaliacoes/2026-11-02.md", self.avaliacao(*SEIS)[1])
+
+    def test_sem_changelog_nada_medido(self):
+        rc, saida, _ = rodar("--raiz", str(self.tmp), "avaliacao", "--pendente")
+        self.assertEqual(rc, 2)
+        self.assertIn("nada medido", saida)
+
+
 if __name__ == "__main__":
     unittest.main()

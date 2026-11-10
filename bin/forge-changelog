@@ -206,6 +206,22 @@ def release(args):
     for a in arquivos:
         a.unlink()
     print(f"[{args.versao}]: {len(arquivos)} fragmento(s) juntado(s) e apagado(s)")
+    avisar_avaliacao(Path.cwd())
+
+
+def avisar_avaliacao(raiz):
+    """0.45.3: no fim da release, imprime `aviso: avaliação de fora pendente ...` (bin/forge_governanca.py). Só avisa: módulo
+    ausente ou qualquer falha da leitura não muda a release nem o código de saída."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    try:
+        import forge_governanca  # noqa: PLC0415
+        estado = forge_governanca.avaliacao_pendente(raiz)
+        if estado and estado[0]:
+            print(f"aviso: {forge_governanca.frase_da_avaliacao(estado)}")
+    except Exception:  # noqa: BLE001 - o aviso nunca derruba a release
+        pass
+    finally:
+        sys.path.pop(0)
 
 
 def linhas_nao_publicado(texto):
