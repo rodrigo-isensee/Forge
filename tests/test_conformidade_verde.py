@@ -15,7 +15,7 @@ from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 RAIZ = Path(__file__).resolve().parent.parent
 
 
-class ProvaDaSuite(unittest.TestCase):
+class ComProjeto(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(self.enterContext(tempfile.TemporaryDirectory(prefix="forge-s8-")))
         self.proj, self.d, self.verde = self.tmp / "proj", self.tmp / "forge-1000", self.tmp / "forge-1000/forge-suite-1000.verde"
@@ -39,6 +39,8 @@ class ProvaDaSuite(unittest.TestCase):
         self.assertRegex(r.stderr, "R-VERIFY.*só é gravada pelo pre-push.*pre-push --suite", caso)
         self.assertNotIn("--no-verify", r.stderr, caso)
 
+
+class ProvaDaSuite(ComProjeto):
     def test_escrita_na_prova_recusa(self):
         v, d = str(self.verde), str(self.d)
         for papel in ("forge:node-backend", "forge:tech-lead", "forge:qa-engineer", None):
@@ -87,3 +89,100 @@ class ProvaDaSuite(unittest.TestCase):
             self.assertEqual(r.returncode, 0, f"{c}: {r.stderr}")
         r = self.rodar("Write", {"file_path": str(self.proj / "tests" / "test_x.py"), "content": f"# {v}\n"})
         self.assertEqual(r.returncode, 0, r.stderr)
+
+
+class CarimboK6(ComProjeto):
+    """N4/P3 (versao-045 E5a): o carimbo K6 (`forge-suite-verde`) e o temporário do `os.replace` de scripts/suite-paralela.py
+    entram na prova da suíte (C-1 a C-4 de docs/security/ameacas/versao-045.md, E5a). C-3 refeito no adendo do desenho de
+    2026-11-07: a leitura literal de `.git/forge-suite-verde` passa no clone do Forge, onde o carimbo existe; no projeto, a
+    regra da marca da sessão fala antes e recusa (só o caminho montado passa)."""
+
+    def test_clone_do_forge_le_e_recusa_escrita(self):  # caso 1 do adendo: raiz sem .forge/versao
+        k6 = f"{RAIZ}/.git/forge-suite-verde"
+        for c in ("cat .git/forge-suite-verde", f"cat {k6}", 'cat "$(git rev-parse --git-common-dir)/forge-suite-verde"'):
+            r = self.rodar("Bash", {"command": c}, cwd=RAIZ, CLAUDE_PROJECT_DIR=str(RAIZ))
+            self.assertEqual(r.returncode, 0, f"{c}: {r.stderr}")
+        for f, e in (("Bash", {"command": "printf x > .git/forge-suite-verde.123"}), ("Write", {"file_path": k6, "content": "x"}),
+                     ("Bash", {"command": "python3 -c \"open('.git/forge-suite-verde','w')\""})):
+            r = self.rodar(f, e, cwd=RAIZ, CLAUDE_PROJECT_DIR=str(RAIZ))
+            self.assertEqual(r.returncode, 2, f"{e}: {r.stderr}")
+            self.assertNotRegex(r.stderr, r"\brm\b|apague", f"{e}: C-4, nunca sugere apagar")
+
+    def test_projeto_recusa_o_literal_pela_marca(self):  # caso 2 do adendo: a precedência da regra da marca
+        r = self.rodar("Bash", {"command": "cat .git/forge-suite-verde"})
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("marca da sessão", r.stderr)
+        r = self.rodar("Bash", {"command": 'cat "$(git rev-parse --git-common-dir)/forge-suite-verde"'})
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_escrita_no_carimbo_recusa(self):
+        d, k6 = str(self.d), str(self.proj / ".git" / "forge-suite-verde")
+        comum = "import subprocess as s; d=s.check_output(['git','rev-parse','--git-common-dir']).decode().strip(); "
+        self.recusa(self.rodar("Write", {"file_path": k6, "content": "x"}), "Write")
+        self.recusa(self.rodar("Write", {"file_path": f"{d}/forge-suite-verde.123", "content": "x"}), "temporário")
+        self.recusa(self.rodar("Write", {"file_path": f"{d}/forge-suite-verde", "content": "x"}, cwd=self.tmp), "fora de projeto")
+        for c in ("printf x > .git/forge-suite-verde.123", "python3 -c \"open('.git/forge-suite-verde','w')\""):
+            self.assertEqual(self.rodar("Bash", {"command": c}).returncode, 2, c)  # o literal `.git/forge` já recusa antes
+        for c in ('d=$(git rev-parse --git-common-dir); echo x > "$d/forge-suite-verde"', f"echo x > {d}/forge-suite-verde.4294967295",
+                  'cd "$(git rev-parse --git-common-dir)" && echo x > forge-suite-verde', f"ln {d}/forge-suite-verde /tmp/h",
+                  f"cp -l {d}/forge-suite-verde /tmp/h",
+                  f"python3 -c \"{comum}open(d+'/forge-suite-verde','w')\"", f"printf x > {d}/forge-suite-verde.123"):
+            r = self.rodar("Bash", {"command": c})
+            self.recusa(r, c)
+            self.assertIn("scripts/suite-paralela.py", r.stderr, f"{c}: C-4, quem grava o carimbo")
+            self.assertNotRegex(r.stderr, r"\brm\b|apague", f"{c}: C-4, nunca sugere apagar")
+
+    def test_curinga_que_casa_a_prova_recusa(self):  # A1 e A2 da segurança g1 da 0.45 (sondas S1 a S4)
+        d = str(self.d)
+        for k in (self.d / "forge-suite-verde", self.d / "forge-suite-verde.1", self.verde, self.proj / ".git/forge-suite-verde"):
+            k.write_text("x", encoding="utf-8")
+        for c in (f"echo x > {d}/forge-suite-verd?", f"echo x > {d}/forge-suite-ver*", f"echo x > {d}/forge-suite-verd[e]",
+                  f"cp /tmp/x {d}/forge-suite-verd?", f"echo x > {d}/forge-suite-verde.[0-9]", f"ln {d}/forge-suite-verd? /tmp/h",
+                  'echo x > "$(git rev-parse --git-common-dir)"/forge-suite-verd?', f"echo x > {d}/forge-suite-1000.ver?e"):
+            self.recusa(self.rodar("Bash", {"command": c}), c)
+        for c in (f"echo x > {d}/forge-suite-verdX?", f"cat {d}/forge-suite-verd?"):  # curinga que não casa, e leitura
+            self.assertEqual(self.rodar("Bash", {"command": c}).returncode, 0, c)
+
+    def test_curinga_no_fallback_fora_de_projeto(self):  # A1 da segurança g1, 4.ª posição: a outra recusa vem antes
+        d, fora, outra = str(self.d), self.tmp / "fora", "echo x > ~/.claude/settings.json"
+        fora.mkdir()
+        (self.d / "forge-suite-verde").write_text("x", encoding="utf-8")
+        for c in (f"{outra}; echo x > {d}/forge-suite-verd?", f"{outra}; cp /tmp/x {d}/forge-suite-ver*"):
+            self.recusa(self.rodar("Bash", {"command": c}, cwd=fora, CLAUDE_PROJECT_DIR=str(RAIZ)), c)
+        c = f"{outra}; echo x > {d}/forge-suite-verdX?"  # curinga que não casa a prova: a outra recusa não vale fora
+        self.assertEqual(self.rodar("Bash", {"command": c}, cwd=fora, CLAUDE_PROJECT_DIR=str(RAIZ)).returncode, 0, c)
+
+    def test_curinga_com_substituicao_no_fallback(self):  # A1 da segurança g1, sonda S3 no fallback fora de projeto
+        fora, outra, comum = self.tmp / "fora", "echo x > ~/.claude/settings.json", '"$(git rev-parse --git-common-dir)"'
+        subprocess.run(["git", "init", "-q", str(fora)], check=True, env=sem_manutencao(self.env()))
+        (fora / ".git" / "forge-suite-verde").write_text("x", encoding="utf-8")
+        for c in (f"{outra}; echo x > {comum}/forge-suite-verd?", f"{outra}; cp /tmp/x {comum}/forge-suite-ver*"):
+            self.recusa(self.rodar("Bash", {"command": c}, cwd=fora, CLAUDE_PROJECT_DIR=str(RAIZ)), c)
+        c = f"{outra}; echo x > {comum}/forge-suite-verdX?"  # curinga que não casa a prova passa
+        self.assertEqual(self.rodar("Bash", {"command": c}, cwd=fora, CLAUDE_PROJECT_DIR=str(RAIZ)).returncode, 0, c)
+
+    def test_curinga_na_origem_do_link_com_substituicao(self):  # A1 da segurança g1-r2 (S5, S6): o diretório comum
+        comum, fora = '"$(git rev-parse --git-common-dir)"', self.tmp / "fora"
+        subprocess.run(["git", "init", "-q", str(fora)], check=True, env=sem_manutencao(self.env()))
+        for k in (g / ".git" / n for g in (self.proj, fora) for n in ("forge-suite-verde", "forge-suite-verde.1")):
+            k.write_text("x", encoding="utf-8")
+        for c in (f"ln {comum}/forge-suite-verd? /tmp/h", "ln $(git rev-parse --git-common-dir)/forge-suite-verd? h",
+                  f"cp -l {comum}/forge-suite-ver* h", f"ln -s {comum}/forge-suite-verd? h", f"cp -s {comum}/forge-suite-verd? h",
+                  'd=$(git rev-parse --git-common-dir); ln "$d"/forge-suite-verd? h', f"cp -l {comum}/forge-suite-verde.[0-9] h"):
+            par = c.replace("forge-suite-ver", "forge-suite-Xver")  # o par legítimo: curinga que não casa o carimbo
+            for cwd in (self.proj, fora):
+                self.recusa(self.rodar("Bash", {"command": c}, cwd=cwd), f"{cwd}: {c}")
+                self.assertEqual(self.rodar("Bash", {"command": par}, cwd=cwd).returncode, 0, f"{cwd}: {par}")
+        (self.proj / "forge-suite-verde.7").write_text("x", encoding="utf-8")  # o resto depois de `$(…)`, lido da raiz
+        c = "ln $(git rev-parse --show-toplevel)/forge-suite-verde.[7] h"
+        self.recusa(self.rodar("Bash", {"command": c}), c)
+
+    def test_leitura_gravador_e_vizinhos_passam(self):
+        d = str(self.d)
+        for c in (f"cat {d}/forge-suite-verde", 'cat "$(git rev-parse --git-common-dir)/forge-suite-verde"',
+                  "python3 -m unittest tests.test_suite_reuso",
+                  "python3 -I scripts/suite-paralela.py", ".githooks/pre-push --suite", f"echo x > {d}/forge-suite-verdeX",
+                  f"echo x > {d}/forge-suite-verde.", f"echo x > {d}/forge-suite-verde.bak", f"echo x > {d}/forge-suite-verde.lock",
+                  f"echo x > {d}/forge-suite-verde.12345678901", f"touch {d}/forge-suite-verde.fila/1-5"):
+            r = self.rodar("Bash", {"command": c})
+            self.assertEqual(r.returncode, 0, f"{c}: {r.stderr}")

@@ -12,6 +12,7 @@ Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT
 import collections
 import contextlib
 import functools
+import glob
 import hashlib
 import json
 import os
@@ -229,8 +230,11 @@ CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem e
 PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
 # S8: a prova da suíte (`.verde`, `.dirigida`, o `.novo` do `mv`) só o pre-push grava, fora deste hook; todo papel e pasta. Limites
 # aceitos (o hook protege contra engano; o CI é o portão): nome inteiro numa variável, script em arquivo, `curl -o`, `tar -x`.
-MARCA_DA_SUITE = re.compile(r"forge-suite-[^/]*\.(verde|dirigida)(\.novo)?")
-PROVA_DA_SUITE = ("R-VERIFY", "a prova da suíte só é gravada pelo pre-push", "rode o push ou .githooks/pre-push --suite")
+# N4/P3 (versao-045 E5a): também o carimbo K6 de scripts/suite-paralela.py e o temporário do `os.replace` (`.<pid>`).
+MARCA_DA_SUITE = re.compile(r"forge-suite-[^/]*\.(verde|dirigida)(\.novo)?|forge-suite-verde(\.\d{1,10})?")
+PROVA_DA_SUITE = ("R-VERIFY", "a prova da suíte só é gravada pelo pre-push e pela suíte (scripts/suite-paralela.py)",
+                  "rode o push ou .githooks/pre-push --suite")
+CURINGA = re.compile(r"[*?\[]")  # o bash expande no alvo antes de gravar (A1 e A2 da segurança g1 da 0.45)
 MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
 GLOB_DE_PATHSPEC = re.compile(r"[*?\[\\]")
 CHECKOUT_COM_VALOR = {"-b", "-B", "--orphan"}
@@ -844,14 +848,31 @@ class Guarda:
         conferido também a partir da raiz do projeto."""
         if MARCA_DA_SUITE.fullmatch(Path(caminho).name):  # S8 (C-2): o nome literal, antes da expansão
             self.barrar(*PROVA_DA_SUITE)
-        alvos = [self.resolver(self.expandir(caminho, pasta), pasta)]
-        resto = caminho.rsplit(OPACO["$"], 1)[1].lstrip("/") if OPACO["$"] in caminho else ""
-        if resto:
-            alvos.append(self.resolver(resto, Path(self.h.raiz)))
+        alvos = self.alvos_da_escrita(caminho, pasta)
+        self.curinga_na_prova(Path(caminho).name, self.pastas_do_curinga(caminho, pasta))
         for alvo in alvos:
             achado = self.caminho_barrado(alvo)
             if achado:
                 self.barrar(*achado)
+
+    def alvos_da_escrita(self, caminho, pasta):
+        """O caminho resolvido e, depois de uma substituição (`$(…)/x`), o resto resolvido a partir da raiz do projeto."""
+        alvos = [self.resolver(self.expandir(caminho, pasta), pasta)]
+        resto = caminho.rsplit(OPACO["$"], 1)[1].lstrip("/") if OPACO["$"] in caminho else ""
+        return [*alvos, self.resolver(resto, Path(self.h.raiz))] if resto else alvos
+
+    def pastas_do_curinga(self, caminho, pasta, opaco=False):
+        """S8 (E5a/C-2, A1 da segurança g1-r2): onde o bash expande o curinga do nome, igual na escrita, na origem de
+        link e no fallback: as pastas dos alvos e, com `$(…)` ou variável (`opaco`), o diretório comum do git."""
+        topo = self.raiz_git(pasta) if opaco or VARIAVEL.search(caminho) else None
+        return [a.parent for a in self.alvos_da_escrita(caminho, pasta)] + [topo and diretorio_comum(topo)]
+
+    def curinga_na_prova(self, nome, pastas):
+        """S8 (E5a/C-2, A1 e A2 da segurança g1): com `*`, `?` ou `[` no nome, o hook expande o nome nas pastas onde o
+        alvo cai, como o bash fará, e barra se algum nome expandido casar a prova da suíte."""
+        if CURINGA.search(nome) and any(MARCA_DA_SUITE.fullmatch(Path(n).name)
+                                        for p in filter(None, pastas) for n in glob.glob(f"{glob.escape(str(p))}/{nome}")):
+            self.barrar(*PROVA_DA_SUITE)
 
     def expandir(self, caminho, pasta):
         """`$PWD`, `$CLAUDE_PROJECT_DIR` e `$HOME` (com ou sem chaves; as aspas o shlex já tirou) viram o caminho real."""
@@ -1302,6 +1323,7 @@ class Guarda:
             if prog == "ln" or any(re.fullmatch(r"-[^-]*[ls]\w*|--(link|symbolic-link)", a) for a in args):  # S8 (C-3)
                 for a in args:  # o link aponta a prova: a origem também conta, pelo nome literal e pelo resolvido
                     nomes = Path(a).name, self.resolver(self.expandir(a, pasta), pasta).name
+                    self.curinga_na_prova(nomes[0], self.pastas_do_curinga(a, pasta))
                     if any(map(MARCA_DA_SUITE.fullmatch, nomes)):
                         self.barrar(*PROVA_DA_SUITE)
             if prog == "ln" or prog == "cp" and any(re.fullmatch(r"-[^-]*[ls]\w*|--(link|symbolic-link)", a) for a in args):
@@ -2484,8 +2506,13 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
         decidir(hook, guarda, ferramenta, entrada)
     except Exception as erro:  # noqa: BLE001 - ForaDaProva ou erro interno; a decisão vem do texto do alvo
         alvo = entrada.get("command") or entrada.get("file_path") or entrada.get("notebook_path")
-        if isinstance(alvo, str) and any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in re.split(r"[\s'\"(),;=<>|&]+", alvo)):
+        palavras = re.split(r"[\s'\"(),;=<>|&]+", alvo) if isinstance(alvo, str) else []
+        if any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in palavras):
             Guarda.barrar(guarda, *PROVA_DA_SUITE)
+        pasta = Path(hook.cwd())
+        opaco = bool(palavras and VARIAVEL.search(alvo))  # S3: `$(…)` ou variável no alvo
+        for t in filter(CURINGA.search, palavras):  # A1 da segurança g1: o curinga que o bash expande no alvo
+            guarda.curinga_na_prova(Path(t).name, guarda.pastas_do_curinga(t, pasta, opaco))
         if not isinstance(erro, ForaDaProva):
             hook.registrar_erro(erro)
 
