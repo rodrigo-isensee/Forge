@@ -2336,7 +2336,7 @@ class Guarda:
             novas = expandir_alias_do_gh(expansao, palavras[2:])
             if not novas:
                 self.barrar("R-REVIEW", f"gh {nome}: alias do gh que o hook não lê", "rode o comando do gh por extenso")
-            novas = ["gh", *novas]
+            novas = [palavras[0], *novas]  # o mesmo programa; não roda nada (é a leitura da expansão)
             self.gh(novas, parecer.analisar(novas), pasta, repo_env, por_xargs, config_env, alias=False)
         return bool(expansoes) and nome not in COMANDOS_DO_GH
 
