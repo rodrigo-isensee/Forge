@@ -54,8 +54,12 @@ class FolgaDaMaquina(unittest.TestCase):
         self.assertEqual(self.sp.piso_de_memoria({"piso_memoria_gb": 4}), 4.0)
         for ruim in ("zero", 0, -1, True, None):
             self.assertEqual(self.sp.piso_de_memoria({"piso_memoria_gb": ruim}), 2.0, ruim)
-        self.assertEqual(self.sp.piso_de_memoria({}), 2.0)
-        self.assertEqual(self.sp.piso_de_memoria(None), 2.0)
+        for config in ({}, None, [], "texto"):
+            try:
+                piso = self.sp.piso_de_memoria(config)
+            except Exception as erro:  # noqa: BLE001 - config ruim tem de valer o padrão, não estourar
+                self.fail(f"config {config!r} estourou: {erro!r}")
+            self.assertEqual(piso, 2.0, config)
 
 
 class DuasPartes(unittest.TestCase):

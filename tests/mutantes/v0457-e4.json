@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "sem medida não há folga",
       "arquivo": "scripts/suite-partes.py",
-      "de": "    if None in (carga, memoria, nproc) or not nproc:",
-      "para": "    if False:",
+      "de": "or not nproc:",
+      "para": "or nproc:",
       "testes": [
         "tests.test_suite_partes_paralelas.FolgaDaMaquina.test_sem_medida_nao_ha_folga"
       ]
