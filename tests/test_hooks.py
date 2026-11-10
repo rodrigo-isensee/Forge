@@ -544,7 +544,7 @@ def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_co
     env.pop("FORGE_GUARDA_ABERTA", None)
     env.pop("FORGE_CARGA_LIVRE", None)
     # 0.45.4: a pasta de configuração do gh vem só do fixture (HOME em `env`, ou GH_CONFIG_DIR e XDG_CONFIG_HOME declarados).
-    # O runner do GitHub exporta XDG_CONFIG_HOME=/home/runner/.config; herdado, o hook lia lá e não no HOME do fixture.
+    # O runner do GitHub exporta XDG_CONFIG_HOME (a .config do usuário do runner); herdado, o hook lia lá e não no HOME do fixture.
     for nome in ("GH_CONFIG_DIR", "XDG_CONFIG_HOME"):
         env.pop(nome, None)
     env.update(extra or {})
