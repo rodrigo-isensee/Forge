@@ -248,12 +248,9 @@ def valor_do_yaml(bruto):
         return bruto[1:-1].replace("''", "'")
     if bruto.startswith('"'):
         try:
-            valor = json.loads(bruto)
+            return json.loads(bruto)  # começa com `"`: só sai texto ou erro
         except ValueError:
             raise AliasIlegivel(bruto) from None
-        if not isinstance(valor, str):
-            raise AliasIlegivel(bruto)
-        return valor
     if not bruto or bruto[0] in "|>{[&*!%@`":
         raise AliasIlegivel(bruto)
     return re.sub(r"\s+#.*$", "", bruto)

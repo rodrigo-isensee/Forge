@@ -8,7 +8,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "        self.comandos_de_leitura = (leitura.get(\"comandos_por_papel\", {}).get(papel, leitura[\"comandos\"])",
       "para": "        self.comandos_de_leitura = (leitura[\"comandos\"]",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"
+      ]
     },
     {
       "id": "Q2",
@@ -16,7 +18,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "        if self.leitura and not self.arquivo_pela_lista:",
       "para": "        if self.leitura:",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"
+      ]
     },
     {
       "id": "Q3",
@@ -24,7 +28,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "        if self.leitura and not self.arquivo_pela_lista:",
       "para": "        if False:",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"
+      ]
     },
     {
       "id": "Q4",
@@ -32,7 +38,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "        if prog == \"forge-check\" and livres_do_forge_check(args)[:2] == [\"transcricao\", \"anonimizar\"]:",
       "para": "        if False:",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"
+      ]
     },
     {
       "id": "Q5",
@@ -40,7 +48,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "        self.arquivo_pela_lista = bool(self.leitura) and papel in leitura.get(\"arquivos_por_escrita_permitida\", [])",
       "para": "        self.arquivo_pela_lista = bool(self.leitura)",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"
+      ]
     },
     {
       "id": "Q6",
@@ -48,7 +58,19 @@
       "arquivo": "hooks/conformidade.py",
       "de": "                         and all(lista_de_textos(c) and c for c in v.get(\"comandos_por_papel\", {}).values())",
       "para": "                         and True",
-      "testes": ["tests.test_hooks.Hooks.test_politica_com_chave_de_topo_malformada_bloqueia"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_politica_com_chave_de_topo_malformada_bloqueia"
+      ]
+    },
+    {
+      "id": "Q7",
+      "guarda": "a lista do papel só de leitura é a do papel",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if \"/\" in prog or chave not in self.comandos_de_leitura:",
+      "para": "        if \"/\" in prog:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_aq_leitura"
+      ]
     }
   ]
 }

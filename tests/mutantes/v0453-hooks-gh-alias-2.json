@@ -1,0 +1,156 @@
+{
+  "pedido": "v0453-hooks-gh-alias-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G16",
+      "guarda": "só o bloco aliases: abre a leitura",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            dentro = topo == \"aliases:\"",
+      "para": "            dentro = True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G17",
+      "guarda": "aliases em mapa de uma linha é ilegível",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if not dentro and topo.startswith(\"aliases:\") and topo.split(\":\", 1)[1].strip() not in (\"{}\", \"\"):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G18",
+      "guarda": "fora do bloco aliases: a chave aninhada não é alias",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not dentro:\n            continue\n        achado = CHAVE_DE_ALIAS",
+      "para": "        if False:\n            continue\n        achado = CHAVE_DE_ALIAS",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G19",
+      "guarda": "a linha que não é chave: valor é ilegível",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not achado or achado.group(3) is None:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G20",
+      "guarda": "o alias com $ consome os argumentos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if \"$\" in expansao:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G21",
+      "guarda": "o $N sem argumento recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if re.search(r\"\\$\\d\", expansao):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G22",
+      "guarda": "XDG_CONFIG_HOME é lido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        xdg = self.ambiente.get(\"XDG_CONFIG_HOME\") or os.environ.get(\"XDG_CONFIG_HOME\")",
+      "para": "        xdg = None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G23",
+      "guarda": "sem GH_CONFIG_DIR, a pasta padrão do gh",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not pasta:\n            pasta = os.path.join(xdg, \"gh\")",
+      "para": "        if False:\n            pasta = os.path.join(xdg, \"gh\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G24",
+      "guarda": "com XDG_CONFIG_HOME, a pasta gh dele",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            pasta = os.path.join(xdg, \"gh\") if xdg else",
+      "para": "            pasta = os.path.join(xdg, \"gh\") if False else",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G25",
+      "guarda": "o gh sem nada não é alias",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        nome = palavras[1] if len(palavras) > 1 else \"\"",
+      "para": "        nome = palavras[1] if True else \"\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G26",
+      "guarda": "a opção da raiz não é alias",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not nome or nome.startswith(\"-\"):\n            return False",
+      "para": "        if False:\n            return False",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G27",
+      "guarda": "o config.yml que não se lê é ilegível",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if texto is None:",
+      "para": "                if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G28",
+      "guarda": "o comando do gh não depende dos aliases",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if nome in COMANDOS_DO_GH:\n                    continue",
+      "para": "                if False:\n                    continue",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G29",
+      "guarda": "só o nome do bloco é alias",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if nome in aliases:",
+      "para": "            if True:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G30",
+      "guarda": "a expansão que não se lê recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if not novas:",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    }
+  ]
+}

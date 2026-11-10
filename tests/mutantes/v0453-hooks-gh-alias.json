@@ -8,7 +8,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "        if alias and self.gh_pelo_alias(palavras, pasta, repo_env, por_xargs, config_env):",
       "para": "        if False:",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
     },
     {
       "id": "G2",
@@ -16,7 +18,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "            self.gh(novas, parecer.analisar(novas), pasta, repo_env, por_xargs, config_env, alias=False)",
       "para": "            pass",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
     },
     {
       "id": "G3",
@@ -24,7 +28,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "            if expansao.startswith(\"!\"):\n                self.barrar(\"R-REVIEW\", f\"gh {nome}: alias de shell",
       "para": "            if False:\n                self.barrar(\"R-REVIEW\", f\"gh {nome}: alias de shell",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
     },
     {
       "id": "G4",
@@ -32,7 +38,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "            expansao = expansao.replace(f\"${i}\", a)",
       "para": "            pass",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
     },
     {
       "id": "G5",
@@ -40,7 +48,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "                                  for p in (pasta, os.path.join(Path.home(), \".claude\", \"gh\"))))",
       "para": "                                  for p in (pasta,)))",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
     },
     {
       "id": "G6",
@@ -48,7 +58,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "        pasta = config_env or self.ambiente.get(\"GH_CONFIG_DIR\") or os.environ.get(\"GH_CONFIG_DIR\")",
       "para": "        pasta = None",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
     },
     {
       "id": "G7",
@@ -56,7 +68,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "                self.barrar(\"R-REVIEW\", f\"gh {nome}: o hook não lê os aliases do gh em {arquivo}\",",
       "para": "                continue\n                self.barrar(\"R-REVIEW\", f\"gh {nome}: o hook não lê os aliases do gh em {arquivo}\",",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
     },
     {
       "id": "G8",
@@ -64,7 +78,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "    if bruto.startswith('\"'):\n        try:",
       "para": "    if False:\n        try:",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
     },
     {
       "id": "G9",
@@ -72,7 +88,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "    if not bruto or bruto[0] in \"|>{[&*!%@`\":",
       "para": "    if not bruto:",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
     },
     {
       "id": "G10",
@@ -80,7 +98,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "        return bool(expansoes) and nome not in COMANDOS_DO_GH",
       "para": "        return bool(expansoes)",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
     },
     {
       "id": "G11",
@@ -88,7 +108,49 @@
       "arquivo": "hooks/conformidade.py",
       "de": "                    self.da_atribuicao(atribuicoes, \"GH_CONFIG_DIR\"))",
       "para": "                    None)",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G12",
+      "guarda": "o valor entre aspas simples é lido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if bruto.startswith(\"'\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G13",
+      "guarda": "aspa simples sem par é ilegível",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not bruto.endswith(\"'\") or len(bruto) < 2:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G14",
+      "guarda": "comentário e linha em branco não são alias",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not linha.strip() or linha.lstrip().startswith(\"#\"):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
+    },
+    {
+      "id": "G15",
+      "guarda": "a chave de topo fecha o bloco anterior",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not linha[0].isspace():",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0453_gh_alias"
+      ]
     }
   ]
 }
