@@ -1,5 +1,5 @@
 {
-  "descricao": "HOOK-N4: o $( entre aspas que não fecha é lido como o bash não lê",
+  "descricao": "AR-TRAVA-UMA-SINTAXE: o programa pelo caminho é o mesmo",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -11,7 +11,7 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "echo \"$(gh repo delete o/r --yes \""
+      "command": "/usr/bin/git push origin HEAD:refs/heads/main"
     },
     "agent_type": "forge:node-backend",
     "hook_event_name": "PreToolUse",
@@ -19,6 +19,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "o hook não modela a linha"
+    "stderr": "R-MAIN"
   }
 }

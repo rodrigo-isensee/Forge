@@ -186,6 +186,12 @@ CITA_TROCA = re.compile(r"refs/replace|replace-?refs|grafts", re.I)
 # subcomando que não é dele, e o hook lia o nome do alias. Os comandos internos do git (`git --list-cmds=builtins`) não
 # se trocam por alias (o git ignora o alias que esconde um deles); o resto é lido na configuração e a expansão passa
 # pelas mesmas regras. `!` (shell) e o alias que mescla recusam: o `parecer` só lê o merge escrito por extenso.
+# AR-TRAVA-UMA-SINTAXE (0.45.1): o git aceita a opção longa abreviada sem ambiguidade (`--no-verif`, `--forc`, `--mirr`,
+# `--conti`), e a trava que compara o nome inteiro deixava a abreviação passar. A opção que uma trava confere é lida por
+# extenso antes das regras; a abreviação de mais de uma (ambígua, que o git recusa) vira a primeira, e recusa também. A
+# ordem importa: a inteira vem antes das que ela abrevia (`--force` antes de `--force-with-lease`).
+LONGAS_VIGIADAS = ("--no-verify", "--force", "--force-with-lease", "--force-if-includes", "--mirror", "--continue",
+                   "--delete", "--hard", "--amend", "--squash", "--no-commit", "--strategy", "--strategy-option")
 COMANDOS_DO_GIT = frozenset("""add am annotate apply archive bisect blame branch bugreport bundle cat-file check-attr
 check-ignore check-mailmap check-ref-format checkout checkout-index cherry cherry-pick clean clone column commit commit-graph
 commit-tree config count-objects credential describe diagnose diff diff-files diff-index diff-tree difftool fast-export
@@ -556,6 +562,15 @@ def abreviacao_de(opcao, longas):
     """A opção longa (sem o `=valor`) é uma das `longas` ou a abreviação dela que o git aceita (`--upload-p`)."""
     nome = opcao.split("=", 1)[0]
     return nome.startswith("--") and len(nome) > 3 and any(o.startswith(nome) for o in longas)
+
+
+def por_extenso(palavra):
+    """A opção longa de `LONGAS_VIGIADAS` que `palavra` abrevia (com o `=valor`, se houver), ou a própria palavra."""
+    nome, igual, valor = palavra.partition("=")
+    if len(nome) < 4:  # `-`, `--` e as curtas
+        return palavra
+    inteira = next((o for o in LONGAS_VIGIADAS if o.startswith(nome)), None)
+    return palavra if inteira is None else inteira + igual + valor
 
 
 def opcao_de_merge_que_muda_o_resultado(args):
@@ -1456,6 +1471,7 @@ class Guarda:
             novas = palavras[:i] + novas
             self.git(novas, parecer.analisar(novas), pasta, ramos, git_dir, atribuicoes, alias + 1)
             return
+        args = [por_extenso(a) for a in args]  # AR-TRAVA-UMA-SINTAXE: `--no-verif` é `--no-verify` para o git
         ativacao = sub == "config" and args == ["core.hooksPath", ".githooks"]  # R-CONTRIB: ativar o hook do repositório
         if any("core.hookspath" in p.lower() for p in (palavras[:i] if ativacao else palavras)):
             self.barrar("R-VERIFY", "core.hooksPath", "não desative nem troque o caminho dos hooks")
