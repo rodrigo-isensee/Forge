@@ -4,6 +4,10 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.45.2] - 2026-11-10
+### Corrigido
+- Três testes vermelhos na main com a 0.45.1: a lista de citações conhece o `README.md` do repositório falso do `test_conferir_reversao`, o teste dos timeouts do CI inclui o job de cobertura (45 min) e a limpeza do `test_prepush_so_docs` não falha quando o processo já saiu.
+
 ## [0.45.1] - 2026-11-10
 ### Adicionado
 - CI: job `cobertura (informativa)` no push na main mede a cobertura por linha do Python de `bin/`, `hooks/` e `scripts/` com o coletor de `scripts/cobertura.py` (`sys.monitoring`, instalado como `sitecustomize.py` do Python do job, vale nos processos filhos) e publica o número e a tabela por arquivo no resumo do job, sem reprovar (cada comando termina em `|| echo`; fora do agregador). `scripts/cobertura.py` ganha `instalar`, `remover` (só o sitecustomize do coletor; recusa atalho e o de outro dono) e `relatorio` (piso de cobertura informativo).
