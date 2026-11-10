@@ -1,0 +1,166 @@
+{
+  "pedido": "v0454-hooks-gh-alias",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A1",
+      "guarda": "cada expansão do alias também passa pela regra do xargs",
+      "arquivo": "hooks/parecer.py",
+      "de": "    lidas = analise[2] if analise and analise[0] == \"alias\" else [analise]",
+      "para": "    lidas = analise[2] if False else [analise]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A2",
+      "guarda": "o xargs antes do gh pr merge do alias recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if any(lida and lida[0] in (\"prmerge\", \"merge\") for lida in lidas)",
+      "para": "    if any(lida and lida[0] in (\"merge\",) for lida in lidas)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A3",
+      "guarda": "o config.yml ilegível não pesa no nome que é comando do gh",
+      "arquivo": "hooks/parecer.py",
+      "de": "            if nome in leitor.COMANDOS_DO_GH:\n                continue",
+      "para": "            if False:\n                continue",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A4",
+      "guarda": "o nome no aliases: dá a expansão",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if nome in aliases:\n            expansoes.append(aliases[nome])",
+      "para": "        if False:\n            expansoes.append(aliases[nome])",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A5",
+      "guarda": "a menção à configuração do gh abre o filtro",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if set(nomes) - leitor_do_alias().COMANDOS_DO_GH and any(",
+      "para": "    if False and any(",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A6",
+      "guarda": "o config.yml ilegível abre o filtro",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if ilegivel or any(e.startswith(\"!\")",
+      "para": "        if any(e.startswith(\"!\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A7",
+      "guarda": "só o comando gh tem alias do gh",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if Path((comando + [\"\"])[0]).name != \"gh\" or not nome or nome.startswith(\"-\"):",
+      "para": "    if Path((comando + [\"\"])[0]).name != \"gh-x\" or not nome or nome.startswith(\"-\"):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A8",
+      "guarda": "HOME de prefixo recusa o nome fora dos comandos",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if chave.rstrip(\"+\") in CONFIG_DO_GH and nome not in do_gh and (",
+      "para": "        if False and nome not in do_gh and (",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A9",
+      "guarda": "o config.yml ilegível recusa no alias",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if ilegivel:\n        bloquear(\"R-REVIEW\", f\"gh {nome}: o hook não lê os aliases do gh em {ilegivel}.",
+      "para": "    if False:\n        bloquear(\"R-REVIEW\", f\"gh {nome}: o hook não lê os aliases do gh em {ilegivel}.",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A10",
+      "guarda": "alias de shell recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if expansao.startswith(\"!\"):\n            bloquear(\"R-REVIEW\", f\"gh {nome}: alias de shell",
+      "para": "        if False:\n            bloquear(\"R-REVIEW\", f\"gh {nome}: alias de shell",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A11",
+      "guarda": "expansão que o hook não lê recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if not novas:\n            bloquear(\"R-REVIEW\", f\"gh {nome}: alias do gh que o hook não lê.",
+      "para": "        if False:\n            bloquear(\"R-REVIEW\", f\"gh {nome}: alias do gh que o hook não lê.",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A12",
+      "guarda": "o alias com nome de comando do gh também é conferido",
+      "arquivo": "hooks/parecer.py",
+      "de": "    return analise if nome in do_gh and not expansoes else (\"alias\", nome, analises)",
+      "para": "    return analise if nome in do_gh else (\"alias\", nome, analises)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A13",
+      "guarda": "só o Bash passa pelo hook",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if hook.campo(\"tool_name\") != \"Bash\" or not isinstance(comando, str):\n        return\n    textos",
+      "para": "    if hook.campo(\"tool_name\") == \"Bash\" or not isinstance(comando, str):\n        return\n    textos",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A14",
+      "guarda": "o alias do gh abre o filtro de entrada",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if not any(PREFILTRO.search(g) for g in textos) and not alias_na_linha(textos):",
+      "para": "    if not any(PREFILTRO.search(g) for g in textos):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A15",
+      "guarda": "a fila das partes é lida",
+      "arquivo": "hooks/parecer.py",
+      "de": "    while fila:\n        parte, palavras, solto = fila.popleft()",
+      "para": "    while fila and False:\n        parte, palavras, solto = fila.popleft()",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "A16",
+      "guarda": "a parte do alias vira as leituras dela",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if parte and parte[0] == \"alias\":  # 0.45.4",
+      "para": "        if False:  # 0.45.4",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    }
+  ]
+}

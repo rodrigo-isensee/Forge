@@ -1,0 +1,87 @@
+{
+  "pedido": "v0454-hooks-caminhos-extra",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1",
+      "guarda": "a configuração mudada antes na linha recusa o alias",
+      "arquivo": "hooks/parecer.py",
+      "de": "            if parte[1] not in leitor_do_alias().COMANDOS_DO_GH and CONFIG_DO_GH & mexidas:",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
+      ]
+    },
+    {
+      "id": "C2",
+      "guarda": "config.json em link não é lido",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if not arquivo.is_file() or arquivo.is_symlink():\n        return [], []",
+      "para": "    if not arquivo.is_file():\n        return [], []",
+      "testes": [
+        "tests.test_hooks.CaminhosExtra"
+      ]
+    },
+    {
+      "id": "C3",
+      "guarda": "sem a chave nada muda",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if lista is None:\n        return [], []",
+      "para": "    if False:\n        return [], []",
+      "testes": [
+        "tests.test_hooks.CaminhosExtra"
+      ]
+    },
+    {
+      "id": "C4",
+      "guarda": "chave que não é lista só avisa",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if not isinstance(lista, list):\n        return [], [\"caminhos_extra: precisa",
+      "para": "    if False:\n        return [], [\"caminhos_extra: precisa",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_caminhos_extra",
+        "tests.test_hooks.CaminhosExtra"
+      ]
+    },
+    {
+      "id": "C5",
+      "guarda": "pasta com : fica de fora",
+      "arquivo": "hooks/_comum.py",
+      "de": "not os.path.isabs(pasta) or \":\" in pasta or not pasta.isprintable():",
+      "para": "not os.path.isabs(pasta):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_caminhos_extra"
+      ]
+    },
+    {
+      "id": "C6",
+      "guarda": "link e trecho .. ficam de fora",
+      "arquivo": "hooks/_comum.py",
+      "de": "        elif os.path.realpath(pasta) != os.path.normpath(pasta) or os.path.normpath(pasta) != pasta.rstrip(\"/\"):",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_caminhos_extra"
+      ]
+    },
+    {
+      "id": "C7",
+      "guarda": "pasta que não existe fica de fora",
+      "arquivo": "hooks/_comum.py",
+      "de": "        elif not os.path.isdir(pasta):\n            avisos.append(f\"caminhos_extra: {nome} ignorada (não existe",
+      "para": "        elif False:\n            avisos.append(f\"caminhos_extra: {nome} ignorada (não existe",
+      "testes": [
+        "tests.test_hooks.CaminhosExtra"
+      ]
+    },
+    {
+      "id": "C8",
+      "guarda": "as pastas entram no PATH da checagem",
+      "arquivo": "hooks/meta.py",
+      "de": "    if pastas:\n        ambiente[\"PATH\"]",
+      "para": "    if False:\n        ambiente[\"PATH\"]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0454_caminhos_extra"
+      ]
+    }
+  ]
+}
