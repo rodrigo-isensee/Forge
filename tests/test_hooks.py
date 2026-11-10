@@ -2368,6 +2368,11 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 28, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_hook_n4(self):  # HOOK-N4 (0.45.1): `"$(…)"` com aspa ou case no corpo; a descrição abre com o item
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("HOOK-N4:")]
+        self.assertGreaterEqual(len(lote), 16, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_do_n5(self):  # IMPL-FURO-HOOK-N, N5: a descrição abre com o item, para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N5 (")]
         self.assertGreaterEqual(len(lote), 34, "as fixtures do item")

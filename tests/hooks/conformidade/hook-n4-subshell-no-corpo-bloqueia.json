@@ -1,0 +1,24 @@
+{
+  "descricao": "HOOK-N4: o ( do subshell aninha dentro do $(, e a aspa depois dele segue no corpo",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "x=\"$( (true); true \")\"; gh repo delete o/r --yes)\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o hook não modela a linha"
+  }
+}

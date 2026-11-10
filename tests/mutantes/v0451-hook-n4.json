@@ -1,0 +1,166 @@
+{
+  "pedido": "v0451-hook-n4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "H1",
+      "guarda": "o \\x no corpo é escape, não aspa nova",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if c == \"\\\\\":\n            i += 2\n            continue\n        if c == \"'\":\n            apostrofo",
+      "para": "        if False:\n            i += 2\n            continue\n        if c == \"'\":\n            apostrofo",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    },
+    {
+      "id": "H2",
+      "guarda": "o ( entre apóstrofos no corpo não aninha",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if c == \"'\":\n            apostrofo",
+      "para": "        if False:\n            apostrofo",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    },
+    {
+      "id": "H3",
+      "guarda": "a aspa dupla no corpo é outro contexto de aspas",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if c == '\"':\n            return None",
+      "para": "        if False:\n            return None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    },
+    {
+      "id": "H4",
+      "guarda": "o ( aninha dentro do $(",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if c == \"(\":\n            nivel += 1",
+      "para": "        if False:\n            nivel += 1",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    },
+    {
+      "id": "H5",
+      "guarda": "o ) desce um nível",
+      "arquivo": "hooks/_comum.py",
+      "de": "        elif c == \")\":\n            nivel -= 1",
+      "para": "        elif False:\n            nivel -= 1",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    },
+    {
+      "id": "H6",
+      "guarda": "no nível zero o $( fechou",
+      "arquivo": "hooks/_comum.py",
+      "de": "            if not nivel:\n                return i",
+      "para": "            if False:\n                return i",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    },
+    {
+      "id": "H7",
+      "guarda": "o corpo é lido até o fim do texto",
+      "arquivo": "hooks/_comum.py",
+      "de": "    nivel = 1\n    while i < len(texto):",
+      "para": "    nivel = 1\n    while False and i < len(texto):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    },
+    {
+      "id": "H8",
+      "guarda": "o texto inteiro é varrido",
+      "arquivo": "hooks/_comum.py",
+      "de": "    i, entre_duplas = 0, False\n    while i < len(texto):",
+      "para": "    i, entre_duplas = 0, False\n    while False and i < len(texto):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    },
+    {
+      "id": "H9",
+      "guarda": "o \\\" fora de aspas não abre aspas",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if c == \"\\\\\":\n            i += 2\n            continue\n        if c == \"'\" and not entre_duplas:",
+      "para": "        if False:\n            i += 2\n            continue\n        if c == \"'\" and not entre_duplas:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    },
+    {
+      "id": "H11",
+      "guarda": "entre apóstrofos, aspa e $( são texto",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if c == \"'\" and not entre_duplas:",
+      "para": "        if False and not entre_duplas:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    },
+    {
+      "id": "H12",
+      "guarda": "as aspas duplas abrem e fecham",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if c == '\"':\n            entre_duplas ^= True",
+      "para": "        if False:\n            entre_duplas ^= True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    },
+    {
+      "id": "H13",
+      "guarda": "$(( é aritmética",
+      "arquivo": "hooks/_comum.py",
+      "de": "entre_duplas and texto.startswith(\"$(\", i) and not texto.startswith(\"$((\", i):",
+      "para": "entre_duplas and texto.startswith(\"$(\", i):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    },
+    {
+      "id": "H14",
+      "guarda": "só o $( dentro de aspas duplas é conferido",
+      "arquivo": "hooks/_comum.py",
+      "de": "        elif entre_duplas and texto.startswith(\"$(\", i)",
+      "para": "        elif False and texto.startswith(\"$(\", i)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    },
+    {
+      "id": "H15",
+      "guarda": "o case no corpo é ambíguo",
+      "arquivo": "hooks/_comum.py",
+      "de": "            if fim is None or CASE_NO_CORPO.search(texto, i + 2, fim):",
+      "para": "            if fim is None:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    },
+    {
+      "id": "H16",
+      "guarda": "o $( que não fecha ou tem aspa no corpo é ambíguo",
+      "arquivo": "hooks/_comum.py",
+      "de": "            if fim is None or CASE_NO_CORPO.search(texto, i + 2, fim):",
+      "para": "            if CASE_NO_CORPO.search(texto, i + 2, fim or 0):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    },
+    {
+      "id": "H17",
+      "guarda": "case só como palavra",
+      "arquivo": "hooks/_comum.py",
+      "de": "CASE_NO_CORPO = re.compile(r\"(?<![\\w-])case(?![\\w-])\")",
+      "para": "CASE_NO_CORPO = re.compile(r\"case\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_hook_n4"
+      ]
+    }
+  ]
+}
