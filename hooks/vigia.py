@@ -15,6 +15,11 @@ SessionStart grava em `.forge/run/vigia.json` os hashes dos arquivos em vigor do
                  itens de lista e nenhuma gravação depois dela em `docs/pedidos/`, `docs/kanban/` nem `KANBAN.md` (aviso, nunca
                  bloqueio). Só conta itens: o texto do dono não vai à saída, ao log (só a contagem e o id da mensagem) nem ao
                  parser do `contorno`.
+Medida por papel (AV3, etapa 1; só mede, nada passa a ser recusado): cada comando crítico das chamadas do Bash da transcrição
+lida vai para `.forge/run/comandos.jsonl`, uma linha `{hora, sessao, agente, papel, forma, barrado}`. `forma` é o programa e o
+subcomando (`git push`, `gh pr merge`, `npm install`) com as flags críticas (`--force`, `--no-verify`, `--all`...), nunca o
+comando inteiro; `barrado` é a regra do hook que recusou a chamada, ou null. O papel vem de `conformidade.json` pelo
+`agent_type` (a transcrição principal fora do `Stop` é da sessão sem `agent_type`).
 Cada violação nova vai para `.forge/run/violacoes.jsonl`; havendo alguma, a saída é só
 `{"systemMessage": "Forge: <n> violação(ões) - ..."}` com código 0 (nunca `additionalContext`: ADR 0003).
 Sem violação não escreve nada. Erro interno: sai 0 e registra em `erros.log`. Só biblioteca padrão.
@@ -55,6 +60,14 @@ MINIMO_ITENS = 3
 LIMITE_MENSAGEM = 64 * 1024  # bytes lidos de cada mensagem do dono para a contagem
 _ITEM = re.compile(r"^[ \t]*(?:[-*+]|\d+[.)])[ \t]+\S", re.M)  # sem repetição aninhada: tempo linear
 DESTINOS_DO_REGISTRO = ("docs/pedidos/", "docs/kanban/", "KANBAN.md")
+# AV3 etapa 1: o que conta como comando crítico (os gerenciadores de pacote vêm de `conformidade.json`).
+CRITICOS_GIT = {"push", "merge", "rebase", "cherry-pick", "reset", "commit", "revert", "tag", "config", "worktree"}
+GH_COM_ACAO = {"pr", "release", "label", "repo", "workflow", "secret", "ruleset"}  # `gh pr merge`; `gh api` fica só `gh api`
+CRITICOS_GH = GH_COM_ACAO | {"api"}
+OPCOES_COM_VALOR = {"-C", "-c", "-R", "--repo", "--git-dir", "--work-tree"}
+FLAGS_CRITICAS = {"--force", "--force-with-lease", "--no-verify", "--all", "--mirror", "--admin", "--delete"}
+_SEPARADORES = re.compile(r"\|\||&&|[;|&\n()`]|\$\(")
+_ATRIBUICAO = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
 
 # Política ---------------------------------------------------------------------------------------
@@ -218,6 +231,71 @@ def contornos(linhas, estado, raiz, sessao, agora, expira):
     return achados
 
 
+def forma_do_trecho(palavras, pacotes):
+    """`git push --force`, `gh pr merge`, `npm install`... do comando simples em `palavras`; None se não é crítico."""
+    while palavras and (_ATRIBUICAO.match(palavras[0]) or palavras[0] in ("env", "command", "exec", "sudo")):
+        palavras = palavras[1:]
+    if not palavras:
+        return None
+    programa, resto, pular = os.path.basename(palavras[0]), [], False
+    for p in palavras[1:]:
+        if pular or p.startswith("-"):
+            pular = not pular and p in OPCOES_COM_VALOR
+            continue
+        resto.append(p)
+    criticos = {"git": CRITICOS_GIT, "gh": CRITICOS_GH}.get(programa)
+    if criticos is None:
+        verbos = pacotes.get(programa) if isinstance(pacotes.get(programa), dict) else {}
+        criticos = set(verbos.get("adicionam", [])) | set(verbos.get("congelados", []))
+    if not resto or resto[0] not in criticos:
+        return None
+    acao = resto[:2] if programa == "gh" and resto[0] in GH_COM_ACAO else resto[:1]
+    flags = sorted(FLAGS_CRITICAS.intersection(p.split("=")[0] for p in palavras))
+    return " ".join([programa, *acao, *flags])
+
+
+def formas_criticas(comando, pacotes):
+    """As formas críticas de cada comando simples da linha (separada por `;`, `&&`, `||`, `|`, `&`, subshell)."""
+    formas = []
+    for trecho in _SEPARADORES.split(comando):
+        try:
+            palavras = shlex.split(trecho)
+        except ValueError:
+            palavras = trecho.split()
+        forma = forma_do_trecho(palavras, pacotes)
+        if forma:
+            formas.append(forma)
+    return formas
+
+
+def comandos_criticos(linhas, pacotes):
+    """[(forma, regra que barrou ou None)] das chamadas do Bash da transcrição, na ordem."""
+    usos, barrados = [], {}
+    for linha in linhas:
+        try:
+            registro = json.loads(linha)
+        except ValueError:
+            continue
+        mensagem = registro.get("message") if isinstance(registro, dict) else None
+        blocos = mensagem.get("content") if isinstance(mensagem, dict) else None
+        for bloco in blocos if isinstance(blocos, list) else []:
+            if not isinstance(bloco, dict):
+                continue
+            entrada = bloco.get("input") if isinstance(bloco.get("input"), dict) else {}
+            if bloco.get("type") == "tool_use" and bloco.get("name") == "Bash" and isinstance(entrada.get("command"), str):
+                usos += [(bloco.get("id"), f) for f in formas_criticas(entrada["command"], pacotes)]
+            elif bloco.get("type") == "tool_result":
+                barrados[bloco.get("tool_use_id")] = regra_do_bloqueio(bloco)
+    return [(forma, barrados.get(id_)) for id_, forma in usos]
+
+
+def papel_do_agente(politica, agente):
+    """O papel de `conformidade.json` (a mesma regra do hook conformidade): sem tipo, a sessão principal."""
+    if not agente:
+        return politica.get("sem_agent_type", "")
+    return next((p for p, tipos in politica.get("papeis", {}).items() if agente in tipos), politica.get("papel_padrao", ""))
+
+
 def texto_do_dono(registro):
     """Texto digitado pelo dono, ou None. Na dúvida (resultado de ferramenta, meta, subagente, lembrete de sistema,
     saída de comando) a entrada não conta."""
@@ -345,7 +423,8 @@ def verificar(hook, raiz):
     with hook.trava():
         estado = carregar(hook)
         podar(estado, time.time(), hook.expira_s())
-        achados, com_hash = [], set()
+        achados, com_hash, medidas = [], set(), []
+        politica = ler_json(PLUGIN / "hooks" / "conformidade.json", {})
         antes = estado["raizes"].get(str(raiz))
         agora = hashes(raiz)
         if antes is not None:
@@ -365,6 +444,9 @@ def verificar(hook, raiz):
                 continue
             inicio = estado["transcricoes"].get(caminho, 0 if chave == "agent_transcript_path" else tamanho(caminho))
             linhas, estado["transcricoes"][caminho] = linhas_novas(caminho, inicio)
+            do_agente = chave == "agent_transcript_path" or hook.campo("hook_event_name") == "Stop"
+            agente = hook.campo("agent_type") if do_agente else ""
+            medidas += [(agente, forma, regra) for forma, regra in comandos_criticos(linhas, politica.get("pacotes", {}))]
             for id_, texto in contornos(linhas, estado, raiz, hook.campo("session_id") or "", time.time(), hook.expira_s()):
                 if id_ not in estado["contornos"]:  # a identidade é o evento (id da chamada), não o texto
                     estado["contornos"] = (estado["contornos"] + [id_])[-LIMITE_IDS:]
@@ -379,6 +461,13 @@ def verificar(hook, raiz):
                     achados.append(("entrada-sem-registro", f"{TEXTO_SEM_REGISTRO} (itens={itens}, mensagem={id_})"))
         novas = achados
         gravar_json(hook.run() / "vigia.json", estado)
+        if medidas:
+            rotacionar(hook.run() / "comandos.jsonl")
+            with open(hook.run() / "comandos.jsonl", "a", encoding="utf-8") as f:
+                for agente, forma, regra in medidas:
+                    f.write(json.dumps({"hora": time.strftime("%Y-%m-%dT%H:%M:%S"), "sessao": hook.campo("session_id"),
+                                        "agente": agente, "papel": papel_do_agente(politica, agente), "forma": forma,
+                                        "barrado": regra}, ensure_ascii=False) + "\n")
         if novas:
             rotacionar(hook.run() / "violacoes.jsonl")
             with open(hook.run() / "violacoes.jsonl", "a", encoding="utf-8") as f:

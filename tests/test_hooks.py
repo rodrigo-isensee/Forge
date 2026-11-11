@@ -2392,6 +2392,11 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 8, "as fixtures do lote")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_da_medida_av3(self):  # v0457 E2.1: a medida dos comandos críticos por papel, para a mutação
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("AV3 etapa 1")]
+        self.assertGreaterEqual(len(lote), 2, "as fixtures da medida")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_da_trilha_034(self):  # trilha hooks/conformidade da 0.34: a descrição abre com o cartão, para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith(CARTOES_DA_TRILHA_034)]
