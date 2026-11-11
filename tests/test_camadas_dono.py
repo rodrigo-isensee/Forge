@@ -93,6 +93,7 @@ class TravaDeOrigem(Base):  # E6
     def test_origem_nao_achada_pede_dois_lugares(self):  # CT-E6-03, CT-E6-12
         um = CORTE_OK.replace("origem: relatório do agente que corrigiu o CI da 0.45.4", "origem: não achada").replace("docs/qa/, tests/", "docs/")
         self.assertIn("2 lugares", self.recusa("pergunta", um))
+        self.assertIn("2 lugares", self.recusa("pergunta", um.replace("procurado: docs/", "procurado: docs/, ;")))  # pedaço vazio não conta
         linhas, rc = self.anotar("pergunta", um.replace("procurado: docs/", "procurado: docs/, tests/"))
         self.assertEqual(rc, 0, linhas)
 

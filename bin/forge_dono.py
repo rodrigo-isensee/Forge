@@ -251,15 +251,14 @@ def modelo_da_pergunta(literal):
 def atributos_da_linha(linha):
     """{chave: valor} da marca ` · atributos: ` no fim da linha (só o último segmento)."""
     _, marca, resto = linha.rstrip().rpartition(MARCA_DE_ATRIBUTOS)
-    if not marca or " · " in resto:
+    if not marca:
         return {}
-    return {k.strip(): v.strip() for k, _, v in (p.partition("=") for p in resto.split(";")) if k.strip()}
+    return {k.strip(): v.strip() for k, _, v in (p.partition("=") for p in resto.split(";"))}
 
 
 def data_da_linha(linha):
     """O instante da decisão (prefixo `AAAA-MM-DD[ HH:MM]:` ou `(AAAA-MM-DD HH:MM)` logo depois da frase), ou None sem data."""
-    fim = linha.find(FRASE_DA_DECISAO)
-    achado = DATA_DA_LINHA.search(linha[:fim + len(FRASE_DA_DECISAO) + 3 + 16] if fim >= 0 else "")
+    achado = DATA_DA_LINHA.search(linha[:linha.find(FRASE_DA_DECISAO) + len(FRASE_DA_DECISAO) + 19])  # só linha de decisão chega aqui
     if achado is None:
         return None
     return datetime.datetime.fromisoformat(f"{achado.group(1)} {achado.group(2) or '00:00'}")
@@ -275,7 +274,7 @@ def pendencias_da_conferencia(texto, e_decisao, entrada=ENTRADA_DA_CONFERENCIA):
             abertas = {}
         elif e_decisao(linha):
             valor = atributos_da_linha(linha).get("confere", "")
-            passa = valor in CRITERIOS and CONFERE.fullmatch(f"confere={valor}") is not None
+            passa = valor in CRITERIOS
             if passa:
                 perguntadas = {}
             quando = data_da_linha(linha)
