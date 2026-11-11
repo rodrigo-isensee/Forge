@@ -1,4 +1,4 @@
-"""N-FECHAR-b, R2 do parecer de segurança do lote a: `tmp2b` e `dorme_pid` nascem vazios no topo do script, não vêm do ambiente.
+"""N-FECHAR-b, R2 do parecer de segurança do lote a: `dorme_pid` nasce vazio no topo do script, não vem do ambiente (o `tmp2b` saiu na E8).
 
 Reaproveita o ambiente de `test_fechar.Fechar` (repositório temporário, `gh` e `forge-check` falsos) sem herdar os testes dele.
 """
@@ -18,17 +18,6 @@ class VariaveisVazias(unittest.TestCase):
     chamadas = base.Fechar.chamadas
     setUp = base.Fechar.setUp
 
-    def test_tmp2b_herdado_do_ambiente_nao_e_apagado_pelo_fim(self):
-        alvo = self.tmp / "nao-e-do-script"
-        alvo.mkdir()
-        (alvo / "arquivo").write_text("x")
-        for modo in (("--dry-run",), ()):
-            with self.subTest(modo=modo):
-                r = self.fechar("p1", "--ref", "melhoria/x", *modo, tmp2b=str(alvo))
-                self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-                self.assertTrue((alvo / "arquivo").exists())
-                self.setUp()
-
     def test_dorme_pid_herdado_do_ambiente_nao_recebe_kill(self):
         import subprocess
         vitima = subprocess.Popen(["sleep", "30"])
@@ -40,9 +29,9 @@ class VariaveisVazias(unittest.TestCase):
             vitima.kill()
             vitima.wait()
 
-    def test_as_duas_variaveis_comecam_vazias_junto_das_iniciais(self):
+    def test_dorme_pid_comeca_vazio_junto_das_iniciais(self):
         linha = next(l for l in base.SCRIPT.read_text().splitlines() if l.startswith("pedido=") and "espera=" in l)
-        self.assertIn('tmp2b=""', linha)
+        self.assertIn('dorme_pid=""', linha)
 
 
 if __name__ == "__main__":
