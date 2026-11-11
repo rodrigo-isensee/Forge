@@ -1,0 +1,2 @@
+### Adicionado
+- Camadas da conversa com o dono (E6 a E8 da 0.45.7): o `forge-check anotar --tipo pergunta` recusa a recomendação de corte sem `origem:`, `procurado:`, `seguir:` e `não seguir:` (também na resposta a pergunta antiga); a decisão exige `--confere rapido|seguro|barato|mede|nao-passa`, grava `forge=<versão>` e, em códigos contra a recomendada, a marca `revertida=`; o `brief selar` recusa decisão do dono a partir de 2026-11-12 sem `confere=` ou com `nao-passa` sem pergunta e resposta depois.
