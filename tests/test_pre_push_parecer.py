@@ -19,6 +19,7 @@ HOOK = RAIZ / ".githooks" / "pre-push"
 # FORGE_SUITE_* (processos, medição, trava) e o GITHUB_ACTIONS do runner (teto de pulados, T3) não vazam para o brinquedo.
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items()
                            if not k.startswith(("GIT_", "FORGE_SUITE_")) and k != "GITHUB_ACTIONS"})
+AMBIENTE["FORGE_PREPUSH_SUITE"] = "afetados"  # ENVIO-LEVE: o padrão do hook não roda teste; estes testes exercitam o plano dos afetados
 ZERO = "0" * 40
 
 SUITE = '''import unittest, pathlib

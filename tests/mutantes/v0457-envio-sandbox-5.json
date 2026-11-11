@@ -1,0 +1,53 @@
+{
+  "pedido": "v0457-envio-sandbox",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "E11 do auxiliar contam só os test_* que o chamam",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "and f.name.startswith(\"test_\") and _chama_self(f, funcao.name)]",
+      "para": "and f.name.startswith(\"test_\")]",
+      "testes": [
+        "tests.test_apoio_sandbox.ListaFechada.test_auxiliar_vale_so_com_todos_os_testes_que_o_chamam_na_lista"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "E11 só o método que chama exigir conta como quem chama",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "_nome(x.func) == \"exigir\" for x in ast.walk(f))}",
+      "para": "_nome(x.func) != \"exigir\" for x in ast.walk(f))}",
+      "testes": [
+        "tests.test_apoio_sandbox.ListaFechada.test_orfao_acusado"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "tests/apoio_sandbox.py",
+      "trecho": "fora or 'nenhum teste'",
+      "motivo": "só escolhe o texto da queixa; a queixa em si é a guarda M22/M23"
+    },
+    {
+      "arquivo": "tests/apoio_sandbox.py",
+      "trecho": "not arquivo.exists()",
+      "motivo": "o mutante troca o órfão por FileNotFoundError, que já reprova o teste; não há ramo silencioso"
+    },
+    {
+      "arquivo": "tests/apoio_sandbox.py",
+      "trecho": "isinstance(c, ast.ClassDef)",
+      "motivo": "filtro de tipo do corpo do módulo; o mutante só quebra com AttributeError, que já reprova"
+    },
+    {
+      "arquivo": "tests/apoio_sandbox.py",
+      "trecho": "nome not in [c.name for c in cadeia]",
+      "motivo": "laço da herança; o corte de ciclo só evita laço infinito em herança circular, que o Python não carrega"
+    },
+    {
+      "arquivo": "tests/apoio_sandbox.py",
+      "trecho": "isinstance(g, ast.FunctionDef)",
+      "motivo": "filtro de tipo do corpo da classe; o mutante só quebra com AttributeError, que já reprova"
+    }
+  ]
+}

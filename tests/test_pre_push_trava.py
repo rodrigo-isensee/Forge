@@ -14,12 +14,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ambiente_git import sem_manutencao  # noqa: E402
+from apoio_sandbox import exigir  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
 
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / ".githooks" / "pre-push"
 # FORGE_SUITE_* (processos, medição, trava) da suíte que roda estes testes não vazam para a suíte de brinquedo.
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_"))})
 
+AMBIENTE["FORGE_PREPUSH_SUITE"] = "afetados"  # ENVIO-LEVE: o padrão do hook não roda teste; estes testes exercitam o plano dos afetados
 SUITE_RAPIDA = '''import unittest, pathlib
 class T(unittest.TestCase):
     def test_roda(self):
@@ -766,6 +768,7 @@ class PrePushTrava(unittest.TestCase):
     def test_duracoes_de_outro_dono_nao_e_tocado(self):  # PP-1/C-1
         if os.getuid() != 0:
             self.skipTest("trocar o dono do arquivo pede root")
+        exigir(self, "chown")
         self.suite(SUITE_RAPIDA)
         self.duracoes().write_text("7 completa\n")
         os.chown(self.duracoes(), 12345, 12345)
