@@ -7907,6 +7907,17 @@ LINHA_DE_PARALELO = "- paralelo na mesma branch: parecer, lê a branch sem escre
 LINHA_DO_PROXIMO = "regra que só ferramenta verifica vale pelo ID: siga o que a ferramenta disser, sem reler o texto dela"
 
 
+ETAPA_FEITA = re.compile(r"·\s*feito\s*$")  # AQR-2 (E15.1): a marca de feita no fim da etapa de `## Etapas`
+
+
+def linha_de_outra_etapa(etapa, papel, texto):
+    """AQR-2 (E15.1): no `Fora do escopo` do brief novo, a etapa com a marca de feita vai numa linha curta (id, papel e a marca), que
+    o `conferir_corte` aceita pelo id; a aberta vai com o texto inteiro. A volta não passa por aqui (`fora_do_escopo_do_pedido`)."""
+    if ETAPA_FEITA.search(texto):
+        return f"- {etapa} ({sem_controle(papel or '')}) · feito · etapa de outra delegação; continua no pedido"
+    return f"- \"{sem_controle(texto)}\" · etapa de outra delegação; continua no pedido"
+
+
 def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, cobre=None, citar=None):
     """Blocos fixos do brief a partir do pedido e da branch; o que o Jarvis ainda decide fica em `PREENCHER`. Com `volta`
     (o namespace dos argumentos, com `--volta`), o brief da volta: `gerar_volta`. `cobre` (P2) é a etapa do pedido que o brief
@@ -7988,8 +7999,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     if papel_destino is None:
         saida.append(f"- {PREENCHER}: rode com --destino forge:<nome> para listar as outras etapas do pedido")
     else:
-        etapas = [t for e, (papel, t) in dados["etapas"].items() if e != coberta and (coberta or papel != papel_destino)]
-        saida += [f"- \"{sem_controle(t)}\" · etapa de outra delegação; continua no pedido" for t in etapas] or ["- (o pedido não tem outra etapa)"]
+        etapas = [(e, papel, t) for e, (papel, t) in dados["etapas"].items() if e != coberta and (coberta or papel != papel_destino)]
+        saida += [linha_de_outra_etapa(*etapa) for etapa in etapas] or ["- (o pedido não tem outra etapa)"]
     saida += ["", f"## Marca de corte (só item de `## Escopo` retirado, `R-DECISAO`; copie uma linha por item)",
               f"- {MARCA_DE_CORTE}: \"{PREENCHER}: trecho literal do pedido\" · justificativa: {PREENCHER} · consequência: {PREENCHER} · decisão: {PREENCHER}"]
     saida += ["", "## Pronto quando: formato das provas (`R-PROVA`; numere PQ-1, PQ-2… e apague o que não usar)",
