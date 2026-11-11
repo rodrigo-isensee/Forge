@@ -2408,6 +2408,14 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 28, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_rverify_falso_positivo(self):  # E16.1 (v0457): a prova pelo destino, fora de projeto
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("HOOK-RVERIFY-FALSO-POSITIVO:")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 7, "os falsos positivos da noite")
+        self.assertGreaterEqual(len(lote) - len(liberam), 22, "o caso verdadeiro, em cada forma")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_do_hook_n4(self):  # HOOK-N4 (0.45.1): `"$(…)"` com aspa ou case no corpo; a descrição abre com o item
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("HOOK-N4:")]
         self.assertGreaterEqual(len(lote), 16, "as fixtures do item")
