@@ -718,6 +718,7 @@ class Guarda:
         self.reavaliacao = None  # a primeira reavaliação pelo shell da linha, em qualquer nível (`reavaliacao`, opção B)
         self.trecho = None  # as palavras do comando simples em conferência (`segmento`), que a recusa cita
         self.parecer_pelo_bash = None  # 0.45.3: um parecer que a linha grava; só o Bash o recusa, no fim
+        self.sem_leitura = False  # E16.1: a linha que o hook não lê (teto, ilegível); a `GuardaDaProva` volta ao texto
         leitura = politica.get("so_leitura")
         self.leitura = leitura if leitura and papel in leitura["papeis"] else None  # papel só de leitura (conferente)
         # 0.45.3: o aq tem a lista própria de comandos e grava pelas ferramentas de arquivo, só em `escrita_permitida`
@@ -1075,11 +1076,13 @@ class Guarda:
         if nivel == 0 and not self.leitura and CRITICO.search(original):
             excesso = excede_o_teto(comando)
             if excesso:
+                self.sem_leitura = True
                 self.barrar("R-CONFORMIDADE", f"chamada com ação crítica e {excesso}: o hook não a decide dentro do "
                                               "prazo", CONTORNO_DO_TETO)
 
     def conferir_linha(self, comando, pasta, nivel, so_substituicoes, corpo_de_heredoc=False):
         if nivel > PROFUNDIDADE:
+            self.sem_leitura = True
             self.ilegivel(comando, pasta)
             return
         if self.leitura and nivel:  # depois da gramática, só `$(`/crase entre aspas simples: o bash só roda por reavaliação
@@ -1112,6 +1115,7 @@ class Guarda:
                 self.reavaliacao = self.reavaliacao or reavaliacao(comando)
         self.h.corpos_pendentes += len(corpos) - provisorios  # C-4: descontado depois do corpo conferido, no laço
         if lidas is None or lidas.ilegivel:
+            self.sem_leitura = True
             if nivel:
                 self.ilegivel(comando, pasta)
             self.nao_modelada(achado)
@@ -2631,11 +2635,15 @@ class ForaDaProva(Exception):
 
 
 class GuardaDaProva(Guarda):
-    """S8 (C-1) com a pasta corrente fora de projeto: a Guarda lê a escrita, mas só a recusa da prova da suíte vale."""
+    """S8 (C-1) com a pasta corrente fora de projeto: a Guarda lê a escrita, mas só a recusa da prova da suíte vale.
+    E16.1 (HOOK-RVERIFY-FALSO-POSITIVO): a outra recusa não para a leitura, que segue até o fim da linha; a prova é
+    recusada pelo destino da escrita, resolvido pela Guarda, e não pelo texto. Só a linha que o hook não lê (teto,
+    ilegível: `sem_leitura`) volta ao texto em `prova_fora_de_projeto`, falhando fechado."""
     def barrar(self, rid, o_que, corrigir, simples=None):
-        if (rid, o_que, corrigir) != PROVA_DA_SUITE:
+        if (rid, o_que, corrigir) == PROVA_DA_SUITE:
+            super().barrar(rid, o_que, corrigir)
+        if self.sem_leitura:
             raise ForaDaProva(rid)
-        super().barrar(rid, o_que, corrigir)
 
     def perguntar(self, texto):
         """Fora de projeto não há confirmação a pedir."""
@@ -2643,7 +2651,8 @@ class GuardaDaProva(Guarda):
 
 def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
     """S8 (C-1, A2 da segurança g3): a prova da suíte é por uid, então vale também fora de projeto, em toda sessão e
-    para todo papel. Outra recusa ou erro interno: falha fechado só se o alvo cita o nome da prova."""
+    para todo papel. A outra recusa não vale e a leitura segue (`GuardaDaProva`); linha que o hook não lê ou erro
+    interno: falha fechado só se o alvo cita o nome da prova."""
     if hook.campo("hook_event_name") == "PostToolUse":
         return
     hook.raiz = raiz or Path(hook.cwd())

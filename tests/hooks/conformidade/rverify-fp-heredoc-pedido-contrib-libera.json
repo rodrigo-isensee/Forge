@@ -1,0 +1,28 @@
+{
+  "descricao": "HOOK-RVERIFY-FALSO-POSITIVO: python em heredoc que edita um pedido em ~/.forge-contrib, com `*` no corpo e `$HOME` na linha; sessão do Forge, pasta fora de projeto: só cita, não grava a prova, libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    ".git/forge-suite-verde": "x\n",
+    "docs/hooks.md": "git push * x\n",
+    "bin/forge-fechar": "x\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj",
+    "XDG_RUNTIME_DIR": "{tmp}/run"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 - \"$HOME/.forge-contrib/docs/pedidos/v0457.md\" <<'EOF'\nimport sys, pathlib\np = pathlib.Path(sys.argv[1])\nt = p.read_text()\nt = t.replace('git push origin x', 'git push origin x  # * feito')\np.write_text(t)\nEOF"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
