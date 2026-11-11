@@ -25,7 +25,9 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS] [--processos K
            com `git show`, nunca a árvore. Cobrir é ter o trecho `de` do mutante, único no arquivo, com a troca dentro
            do nó da condição, `de` de 8+ caracteres e, em Python, troca que muda o `ast`. A condição editada (a velha
            sai e uma nova com nome ou número em comum entra no mesmo hunk, na mesma posição) é coberta pelo mutante da
-           nova; a nova sem relação deixa a velha como `apagada`. `isentas` na spec do diff (até 8 somadas):
+           nova; a nova sem relação deixa a velha como `apagada`. A apagada cujo texto idêntico (espaços normalizados)
+           entra coberta noutro arquivo do mesmo diff sai `movida · arq:L(base) · destino:L` e não pede isenta; cada
+           coberta serve a uma apagada. `isentas` na spec do diff (até 8 somadas):
            [{"arquivo", "trecho" exato com 8+ não brancos e dentro do nó, "motivo" de 20+ caracteres}] libera a
            condição sem mutante ou apagada que cruzam, impressa `isenta · arq:L · motivo`; isenta que não cruza condição
            listada ou cujo trecho não casa uma vez é rc 2. `linha_base` (opcional, só condição apagada): a linha da base
@@ -521,10 +523,16 @@ def parecidas(velha, nova):
 
 
 def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
+    """Linhas de saída de um arquivo (`analisar_com_textos` sem os textos)."""
+    return analisar_com_textos(arquivo, hunks, antes, depois, mutantes, isentas, usadas)[0]
+
+
+def analisar_com_textos(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
     """Linhas de saída de um arquivo: a condição nova (texto que aparece mais vezes que no merge-base, em linha nova)
     coberta, isenta ou sem mutante, e a apagada (texto que aparece menos vezes que no merge-base) isenta ou não. A
     editada (a velha sai num hunk em que entra uma nova, na mesma posição do nó e com nome ou número em comum) é coberta
-    pelo mutante da nova; a nova sem relação com a velha deixa a velha apagada."""
+    pelo mutante da nova; a nova sem relação com a velha deixa a velha apagada. Os textos: {posição na saída: (texto
+    com espaços normalizados, vezes)} da coberta (1) e da apagada (as vezes que faltam), para `movidas`."""
     novas, velhas = condicoes(depois), condicoes(antes)
     if max(len(novas), len(velhas)) > MAXIMO_DE_CONDICOES:
         raise ValueError(f"{arquivo}: mais de {MAXIMO_DE_CONDICOES} condições")
@@ -535,12 +543,14 @@ def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
         for v, n in zip([c for c in velhas if falta[c[0]] and toca(c, velho)], [c for c in mudadas if toca(c, novo)]):
             if falta[v[0]] and parecidas(v[0], n[0]):
                 falta[v[0]] -= 1
+    textos = {}
     for texto, ini, _fim, de, ate in mudadas:
         casados = [(f"{espec}:{m['id']}", "equivalente" in m) for espec, m in mutantes
                    if casa(m, arquivo, depois, de, ate)]
         cobrem = [nome for nome, equivalente in casados if not equivalente]
         motivo = None if cobrem else isenta(isentas, usadas, arquivo, depois, de, ate, None)
         if cobrem:
+            textos[len(saida)] = (" ".join(texto.split()), 1)
             saida.append(f"coberta · {arquivo}:{ini} · {', '.join(cobrem)} · declarado, não provado")
         elif motivo:
             saida.append(f"isenta · {arquivo}:{ini} · {motivo}")
@@ -551,8 +561,31 @@ def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
     for texto, ini, fim, de, ate in {c[0]: c for c in reversed(velhas) if falta[c[0]]}.values():
         motivo = (isenta(isentas, usadas, arquivo, antes, de, ate, ini) if falta[texto] == 1
                   else isenta(isentas, usadas, arquivo, antes, de, ate, None))  # 2+ apagadas: a por linha não casa
+        textos[len(saida)] = (" ".join(texto.split()), falta[texto])  # a isenta não começa com `apagada`: fica
         saida.append(f"isenta · {arquivo}:{ini}(base) · {motivo}" if motivo else
                      f"apagada · {arquivo}:{ini}(base) · {' '.join(texto.split())[:60]}")
+    return saida, textos
+
+
+def movidas(por_arquivo):
+    """Troca por `movida · arq:L(base) · destino` a apagada cujo texto (espaços normalizados) entra coberta noutro
+    arquivo do mesmo diff, uma coberta por vez apagada; a apagada sem cobertas bastantes segue `apagada`. No mesmo
+    arquivo não há o caso: o texto coberto ali aparece mais vezes que na base e o apagado, menos. `por_arquivo`:
+    [(linhas, textos)] de `analisar_com_textos`; devolve as linhas, na ordem."""
+    destinos = {}
+    for linhas, textos in por_arquivo:
+        for i, (texto, _vezes) in textos.items():
+            if linhas[i].startswith("coberta"):
+                destinos.setdefault(texto, []).append(linhas[i].split(" · ")[1])
+    saida = []
+    for linhas, textos in por_arquivo:
+        for i, linha in enumerate(linhas):
+            texto, vezes = textos.get(i, ("", 0))
+            livres = destinos.get(texto, [])
+            if linha.startswith("apagada") and len(livres) >= vezes:
+                linha = f"movida · {linha.split(' · ')[1]} · {', '.join(livres[:vezes])}"
+                del livres[:vezes]
+            saida.append(linha)
     return saida
 
 
@@ -594,7 +627,7 @@ def cobertura(base, rev):
         if len(mudadas) > MAXIMO_DE_ARQUIVOS:
             raise ValueError(f"o diff muda mais de {MAXIMO_DE_ARQUIVOS} arquivos")
         mutantes, isentas, saida = mutantes_do_diff(mudadas, sha_rev)
-        usadas = set()
+        usadas, por_arquivo = set(), []
         for arquivo, (status, hunks) in sorted(mudadas.items()):
             if TESTE.fullmatch(arquivo) or FORA_DA_COBERTURA.fullmatch(arquivo):
                 continue
@@ -602,9 +635,11 @@ def cobertura(base, rev):
             antes = b"" if status == "A" else ler_no_commit(mb, arquivo)
             exemplo = antes or depois
             if not eh_python(arquivo, exemplo):  # shell, binário e fora do UTF-8: só não coberto, por arquivo
-                saida.append(f"não coberto: {arquivo}")
+                por_arquivo.append(([f"não coberto: {arquivo}"], {}))
                 continue
-            saida += analisar(arquivo, hunks, fonte(arquivo, antes), fonte(arquivo, depois), mutantes, isentas, usadas)
+            por_arquivo.append(analisar_com_textos(arquivo, hunks, fonte(arquivo, antes), fonte(arquivo, depois),
+                                                   mutantes, isentas, usadas))
+        saida += movidas(por_arquivo)
         soltas = [f"{i['spec']}: {i['arquivo']}" for i in isentas if id(i) not in usadas]
         if soltas:
             raise ValueError(f"isenta que não cruza condição listada ou cujo trecho não casa uma vez: {'; '.join(soltas)}")

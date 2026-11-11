@@ -651,6 +651,41 @@ class Cobertura(unittest.TestCase):
         self.salvar({"lib.py": "x = 1\nif x >= 100:\n    x = 2\n"})
         self.assertEqual(self.cobertura().stdout.splitlines()[2:], ["apagada · lib.py:1(base) · y"])
 
+    # MUTANTE-CONDICAO-MOVIDA (v0457 E13.1): a condição que sai de um arquivo e entra coberta noutro é movida.
+    MOVIDA = "def f(x, y):\n    if x > 100 and y:\n        return 1\n    return 0\n"
+
+    def test_condicao_movida_coberta_noutro_arquivo_sai_movida_e_0_e_a_so_apagada_sai_1(self):
+        self.salvar({"lib.py": "x = 1\n" + self.MOVIDA + "if z < 3:\n    pass\n"}, base=True)
+        novo = self.MOVIDA.replace("x > 100 and y", "(x  >  100) and y")  # espaços e parênteses: o mesmo texto
+        self.salvar({"lib.py": "x = 1\n", "mod.py": novo, **self.spec("(x  >  100) and y", "(x  >  101) and y",
+                                                                       arquivo="mod.py")})
+        r = self.cobertura()
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (1, [
+            "apagada · lib.py:6(base) · z < 3", "movida · lib.py:3(base) · mod.py:2",
+            "coberta · mod.py:2 · tests/mutantes/x.json:M1 · declarado, não provado"]), r.stderr)
+        self.salvar({"lib.py": "x = 1\nif z < 3:\n    pass\n"})
+        r = self.cobertura()
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:3]), (0, [
+            "movida · lib.py:3(base) · mod.py:2", "coberta · mod.py:2 · tests/mutantes/x.json:M1 · declarado, não provado"]))
+
+    def test_movida_exige_coberta_e_uma_coberta_por_apagada(self):
+        dupla = self.MOVIDA + self.MOVIDA.replace("def f", "def g")
+        self.salvar({"lib.py": "x = 1\n" + dupla}, base=True)
+        self.salvar({"lib.py": "x = 1\n", "mod.py": self.MOVIDA})  # sem mutante: segue apagada
+        r = self.cobertura()
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (1, [
+            "apagada · lib.py:3(base) · x > 100 and y", "sem mutante · mod.py:2 · x > 100 and y"]))
+        self.salvar(self.spec("if x > 100 and y:", "if x > 101 and y:", arquivo="mod.py"))  # 1 coberta, 2 apagadas
+        r = self.cobertura()
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1]), (1, "apagada · lib.py:3(base) · x > 100 and y"))
+
+    def test_movidas_consome_o_destino_e_nao_casa_texto_diferente(self):
+        cob = ["coberta · b.py:2 · s:M1 · declarado, não provado"]
+        apag = ["apagada · a.py:1(base) · p", "apagada · c.py:1(base) · p", "apagada · d.py:1(base) · q"]
+        saida = self.f.movidas([(apag, {0: ("p", 1), 1: ("p", 1), 2: ("q", 1)}), (cob, {0: ("p", 1)})])
+        self.assertEqual(saida[:3], ["movida · a.py:1(base) · b.py:2", "apagada · c.py:1(base) · p",
+                                     "apagada · d.py:1(base) · q"])
+
     def test_binario_e_fora_do_utf8_so_param_no_python_e_o_cr_solto_e_2(self):  # A1 do review, A2 da segurança
         for nome, dados, rc in (("tests/fixtures/a.txt", b"caf\xe9", 0), ("logo.png", b"\x89PNG\0\xff", 0),
                                 ("c.py", b"x = '\xe9'\n", 2), ("d.py", b"x = 1\rif y:\n    pass\n", 2),
