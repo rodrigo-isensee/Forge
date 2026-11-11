@@ -64,7 +64,7 @@ subida_fecha() {
 readonly CHECKS_EXIGIDOS=("CI/bateria" "CI/bateria (python 3.14)" "Catraca/catraca")
 [ "${#CHECKS_EXIGIDOS[@]}" -gt 0 ] || die "CHECKS_EXIGIDOS vazia: o merge sem check exigido é recusado (I4)"
 
-pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 trazida=0 so_remota=0 base_2b="" tmp2b="" dorme_pid="" promover_teste="" subida_n="" subida_ini="" subida_extra=""  # nascem vazios: o fim (rm -rf, kill) nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
+pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 trazida=0 so_remota=0 base_2b="" tmp2b="" dorme_pid="" promover_teste="" subida_n="" subida_ini="" subida_extra=""  # nascem vazios: o fim nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
 armar=0 estado_lido=0  # --armar (R7): arma o auto-merge sem esperar os checks
 args_originais=("$@")  # o recomeço da cadeia depois do merge da base (passo 2b) roda o mesmo comando com `--trazida`
 while [ $# -gt 0 ]; do
