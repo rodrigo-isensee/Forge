@@ -58,6 +58,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RAIZ, ambiente_limpo, git, minimo  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 from modelo_git import copiar_modelo  # noqa: E402
+from apoio_sandbox import exigir  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
 
 HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
@@ -1281,6 +1282,7 @@ class Hooks(unittest.TestCase):
         self.assertEqual(agentes.vigentes(registros, agora, 7200), registros[4:5])
         hook = mock.Mock()
         hook.campo.return_value = "s1"
+        exigir(self, "proc")
         with mock.patch.object(agentes, "pid_da_sessao", return_value=os.getpid()):
             self.assertEqual(agentes.da_sessao(hook), {"pid": os.getpid(), "pidns": ns, "sessao": "s1"})
         with mock.patch.object(agentes, "pid_da_sessao", return_value=morto):  # pid que já morreu
@@ -2873,6 +2875,7 @@ class TravaPesadaEmSegundoPlano(unittest.TestCase):
 
     def lancar(self, argv, marca, **kw):
         """Processo real, de ambiente limpo, esperado até o `cmdline` começar por `marca` (o exec já aconteceu)."""
+        exigir(self, "proc")
         processo = subprocess.Popen(argv, env=ambiente_limpo(), stdout=subprocess.DEVNULL, **kw)
         self.addCleanup(processo.wait)
         self.addCleanup(processo.kill)
