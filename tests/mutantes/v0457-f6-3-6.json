@@ -14,5 +14,13 @@
         "tests.test_medidas_m14b.RamosDeFalhaDoModuloCorrigidos"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "a.cmd == \"corrigidos\"",
+      "motivo": "o despacho de corrigidos virou o `a.cmd in (\"afrouxamentos\", \"corrigidos\")` (M1, coberto), sem mudar comportamento",
+      "linha_base": 10000
+    }
   ]
 }
