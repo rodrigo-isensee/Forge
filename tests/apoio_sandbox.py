@@ -172,7 +172,7 @@ def orfaos(lista, pasta):
             nome = next((_nome(b) for b in classes[nome].bases), None)
         metodos = {}
         for c in reversed(cadeia):
-            metodos.update({f.name: f for f in c.body if isinstance(f, ast.FunctionDef)})
+            metodos.update({g.name: g for g in c.body if isinstance(g, ast.FunctionDef)})
         chamam = {n for n, f in metodos.items()
                   if any(isinstance(x, ast.Call) and _nome(x.func) == "exigir" for x in ast.walk(f))}
         alvo = metodos.get(metodo)

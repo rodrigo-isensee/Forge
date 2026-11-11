@@ -26,17 +26,17 @@
   "isentas": [
     {
       "arquivo": "tests/apoio_sandbox.py",
-      "trecho": "{fora or 'nenhum teste'}",
+      "trecho": "fora or 'nenhum teste'",
       "motivo": "só escolhe o texto da queixa; a queixa em si é a guarda M22/M23"
     },
     {
       "arquivo": "tests/apoio_sandbox.py",
-      "trecho": "{} if not arquivo.exists() else",
+      "trecho": "not arquivo.exists()",
       "motivo": "o mutante troca o órfão por FileNotFoundError, que já reprova o teste; não há ramo silencioso"
     },
     {
       "arquivo": "tests/apoio_sandbox.py",
-      "trecho": "if isinstance(c, ast.ClassDef)}",
+      "trecho": "isinstance(c, ast.ClassDef)",
       "motivo": "filtro de tipo do corpo do módulo; o mutante só quebra com AttributeError, que já reprova"
     },
     {
@@ -46,7 +46,7 @@
     },
     {
       "arquivo": "tests/apoio_sandbox.py",
-      "trecho": "{f.name: f for f in c.body if isinstance(f, ast.FunctionDef)}",
+      "trecho": "isinstance(g, ast.FunctionDef)",
       "motivo": "filtro de tipo do corpo da classe; o mutante só quebra com AttributeError, que já reprova"
     }
   ]
