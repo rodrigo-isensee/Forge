@@ -568,7 +568,8 @@ def so_a_versao_muda(raiz, de, ate, nome):
     if nome != PLUGIN_JSON:
         return False
     antes = manifesto_sem_versao(raiz, de, nome)
-    return antes is not None and antes == manifesto_sem_versao(raiz, ate, nome)
+    depois = manifesto_sem_versao(raiz, ate, nome)  # pelo texto JSON: no dict do Python true == 1 == 1.0
+    return antes is not None and json.dumps(antes, sort_keys=True) == json.dumps(depois, sort_keys=True)
 
 
 def classes_do_intervalo(raiz, de, ate, nomes):

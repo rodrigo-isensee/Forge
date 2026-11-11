@@ -74,6 +74,16 @@ class VersaoLivre(unittest.TestCase):
         self.commit("versão e hooks")
         self.assertIn(f"desatualizado: {PLUGIN} mudou", self.vale() or "")
 
+    def test_booleano_trocado_por_numero_pede_parecer(self):
+        """Segurança A1 (junção 0.45.6): no dict do Python true == 1 == 1.0; a troca de tipo é mudança de campo."""
+        for antes, depois in ((True, 1), (1, 1.0)):
+            with self.subTest(antes=antes, depois=depois):
+                self.manifesto({**MANIFESTO, "strict": antes})
+                self.parecer = self.commit(f"strict {antes!r}")
+                self.manifesto({**MANIFESTO, "version": "1.0.1", "strict": depois})
+                self.commit(f"versão e strict {depois!r}")
+                self.assertIn(f"desatualizado: {PLUGIN} mudou", self.vale() or "")
+
     def test_outro_campo_sem_versao_pede_parecer(self):
         self.manifesto({**MANIFESTO, "description": "outra"})
         self.commit("descrição")
