@@ -26,7 +26,7 @@
       "id": "M3",
       "guarda": "E12.1 GIT_CONFIG_GLOBAL e afins continuam fora no comando de rede",
       "arquivo": "bin/forge-check",
-      "de": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_\\d+|VALUE_\\d+)\")",
+      "de": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_[0-9]+|VALUE_[0-9]+)\")",
       "para": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_CONFIG_\\w+\")",
       "testes": [
         "tests.test_git_rede_config.GitRedeConfig.test_ls_remote_continua_sem_git_config_global"
@@ -36,8 +36,8 @@
       "id": "M4",
       "guarda": "E12.1 GIT_CONFIG_PARAMETERS é herdada no comando de rede",
       "arquivo": "bin/forge-check",
-      "de": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_\\d+|VALUE_\\d+)\")",
-      "para": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_CONFIG_(?:COUNT|KEY_\\d+|VALUE_\\d+)\")",
+      "de": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_[0-9]+|VALUE_[0-9]+)\")",
+      "para": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_CONFIG_(?:COUNT|KEY_[0-9]+|VALUE_[0-9]+)\")",
       "testes": [
         "tests.test_git_rede_config.GitRedeConfig.test_ls_remote_herda_git_config_parameters"
       ]
@@ -56,7 +56,7 @@
       "id": "M6",
       "guarda": "E12.1 GIT_DIR continua fora no comando de rede",
       "arquivo": "bin/forge-check",
-      "de": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_\\d+|VALUE_\\d+)\")",
+      "de": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_[0-9]+|VALUE_[0-9]+)\")",
       "para": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_\\w+\")",
       "testes": [
         "tests.test_git_rede_config.GitRedeConfig.test_ls_remote_continua_sem_git_dir"

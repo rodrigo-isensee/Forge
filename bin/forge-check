@@ -472,7 +472,7 @@ def cmd_kanban(raiz):
 # Comandos de rede herdam só a configuração que o ambiente injeta (proxy, credencial, insteadOf); sem ela o
 # `ls-remote` da prova de push falha atrás do proxy. GIT_DIR, GIT_WORK_TREE, GIT_CONFIG_GLOBAL e afins saem sempre.
 GIT_REDE = frozenset({"ls-remote", "fetch"})
-GIT_CONFIG_DO_AMBIENTE = re.compile(r"GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_\d+|VALUE_\d+)")
+GIT_CONFIG_DO_AMBIENTE = re.compile(r"GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_[0-9]+|VALUE_[0-9]+)")
 
 
 def git(raiz, *args, bruto=False):
