@@ -90,5 +90,19 @@
         "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "reversoes_do_pedido(pasta / f\"{nome}.md\")",
+      "motivo": "movida igual para bin/forge_voltas.py:150, só com o ctx no argumento (M43 a cobre), sem mudar comportamento",
+      "linha_base": 4809
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "_fecha_volta(coluna, d2, p)",
+      "motivo": "movida igual para bin/forge_voltas.py:62, só com o ctx no argumento (M11 a cobre), sem mudar comportamento",
+      "linha_base": 4708
+    }
   ]
 }
