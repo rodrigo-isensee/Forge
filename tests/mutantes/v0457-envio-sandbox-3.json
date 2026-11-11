@@ -44,10 +44,10 @@
     },
     {
       "id": "M21",
-      "guarda": "E11 só em método de classe do módulo (try, função solta)",
+      "guarda": "E11 só em método de classe do próprio módulo (não aninhada, não try, não função solta)",
       "arquivo": "tests/apoio_sandbox.py",
-      "de": "        if not (isinstance(funcao, ast.FunctionDef) and isinstance(classe, ast.ClassDef)",
-      "para": "        if False and (isinstance(funcao, ast.FunctionDef) and isinstance(classe, ast.ClassDef)",
+      "de": "        if not (isinstance(funcao, ast.FunctionDef) and isinstance(classe, ast.ClassDef)\n                and isinstance(pai.get(classe), ast.Module)):",
+      "para": "        if not isinstance(classe, ast.ClassDef):",
       "testes": [
         "tests.test_apoio_sandbox.ListaFechada.test_brinquedo_acusa_cada_uso_fora_da_lista"
       ]

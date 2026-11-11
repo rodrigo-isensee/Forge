@@ -241,6 +241,14 @@ class Listado(unittest.TestCase):
         getattr(apoio_sandbox, "exigir")(self, "proc")  # acusa
     def test_guardado(self):
         x = exigir  # acusa
+    def test_outro_alvo(self):
+        exigir(outro, "proc")  # acusa
+    def test_valor(self):
+        ok = exigir(self, "proc")  # acusa
+def fabrica():
+    class Aninhada(unittest.TestCase):
+        def test_aninhado(self):
+            exigir(self, "proc")  # acusa
 @exigir  # acusa
 class Decorada(unittest.TestCase):
     pass
@@ -250,7 +258,8 @@ class Mixin:
 def solta(self):
     apoio_sandbox.exigir(self, "proc")  # acusa
 """
-LISTADOS = {f"brinquedo.Listado.{m}" for m in ("test_listado", "test_no_try", "test_por_texto", "test_guardado")}
+LISTADOS = {f"brinquedo.Listado.{m}" for m in ("test_listado", "test_no_try", "test_por_texto", "test_guardado",
+                                                "test_outro_alvo", "test_valor")} | {"brinquedo.Aninhada.test_aninhado"}
 
 
 class ListaFechada(unittest.TestCase):
@@ -259,7 +268,7 @@ class ListaFechada(unittest.TestCase):
     def test_brinquedo_acusa_cada_uso_fora_da_lista(self):
         queixas = apoio_sandbox.usos_fora_da_lista(BRINQUEDO, "brinquedo", LISTADOS)
         acusar = [n for n, linha in enumerate(BRINQUEDO.splitlines(), 1) if linha.endswith("# acusa")]
-        self.assertGreaterEqual(len(acusar), 10)
+        self.assertGreaterEqual(len(acusar), 13)
         self.assertEqual(sorted(linha for linha, _ in queixas), acusar, queixas)
 
     def test_auxiliar_vale_so_com_todos_os_testes_que_o_chamam_na_lista(self):
