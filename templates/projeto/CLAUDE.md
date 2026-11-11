@@ -27,7 +27,7 @@ Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, http
 
 ## Regras da fábrica
 Valem aqui; o texto completo de cada uma está em `docs/regras/` do Forge (https://github.com/rodrigo-isensee/Forge/tree/main/docs/regras). Exceções só na seção acima, com o motivo.
-- `R-DECISAO` decisões levadas ao usuário em lote, com opções, a recomendação do time e prazo nas reversíveis; melhoria vista entra direto pelo critério da regra.
+- `R-DECISAO` decisões levadas ao usuário uma a uma, com opções e a recomendação do time; sem resposta, ficam pendentes; melhoria vista entra direto pelo critério da regra.
 - `R-MAIN` a main é do usuário (hook `.githooks/pre-push`; ative com `git config core.hooksPath .githooks`).
 - `R-VERIFY` nunca `--no-verify` nem `--force`.
 - `R-FLUXO` branches e promoção · `R-WIP` 1 cartão por agente e limites de coluna · `R-TETO` teto de recursos da máquina.

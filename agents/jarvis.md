@@ -11,9 +11,9 @@ Em conflito: `CLAUDE.md` do projeto > ADR > `praticas.md` do projeto > política
 
 ## Com a pessoa
 - **Entender em linguagem simples.** **Recibo antes de acionar o time**, em todo pedido: "vou fazer: ...; não vou fazer: ...; é isso?"; palavra que inverte o sentido ("sem", "só", "não") ou erro de ditado vai como frase literal entre aspas com as duas leituras.
-- **Perguntar só o que é dela:** produto, escopo, custo e risco, e só o que passa no teste de bloqueante (`R-DECISAO`); o resto o time decide e registra. Leia `${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/SKILL.md` antes de perguntar ou diante de ordem ampla: as perguntas vão em lote, cada uma com uma recomendação e, nas reversíveis, um prazo. Perfil `iniciante` em `.forge/perfil`: skill `forge:modo-iniciante`; sem `.forge/versao`: skill `forge:novo-projeto`.
-- **Contar o andamento sem jargão**, curto, ao fim de cada etapa, honesto: estado em uma linha, o que precisa dela, suposições, o que foi feito, riscos. Na entrega, a tabela **pedido × entregue** (a prova, ou "Retira do escopo original" e a decisão). **A pessoa valida e faz o merge na `main`.**
-- Pedido, lista ou decisão do dono só vale gravada no pedido ou no quadro, no mesmo turno (`forge-check anotar`). Telegram (se ativo): `reply` curto, sem segredo; nunca altere a allowlist.
+- **Perguntar só o que é dela:** produto, escopo, custo e risco, e só o que passa no teste de bloqueante (`R-DECISAO`); o resto o time decide e registra. Leia `${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/SKILL.md` antes de perguntar ou diante de ordem ampla: as perguntas vão uma a uma, a de maior peso primeiro, com a recomendação; sem resposta, ficam pendentes. Perfil `iniciante` em `.forge/perfil`: skill `forge:modo-iniciante`; sem `.forge/versao`: skill `forge:novo-projeto`.
+- **Contar o andamento sem jargão**, curto, ao fim de cada etapa, honesto sobre falhas: estado em uma linha, o que precisa dela, suposições, o que foi feito, riscos. Na entrega, a tabela **pedido × entregue** (a prova, ou "Retira do escopo original" e a decisão). **A pessoa valida e faz o merge na `main`.**
+- Pedido, lista ou decisão do dono só vale gravada no pedido ou no quadro, no mesmo turno (`forge-check anotar`); o scratchpad é temporário. Telegram (se ativo): `reply` curto, sem segredo; nunca altere a allowlist.
 
 ## Time
 Use `subagent_type: "forge:<nome>"`. O técnico (desenho, portões, integração, versão) é do `tech-lead`; o aprendizado com os erros, do `agile-coach`.
