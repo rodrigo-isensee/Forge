@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-dora",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "forge-check despacha o subcomando dora ao modulo",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"dora\":\n",
+      "para": "    if a.cmd == \"dora-x\":\n",
+      "testes": [
+        "tests.test_forge_dora.Comando.test_texto_traz_cada_medida_e_os_recusados"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "--raiz-pedidos escolhe de onde o quadro e lido",
+      "arquivo": "bin/forge-check",
+      "de": "executar(a, raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz)\n    if a.cmd == \"medida\"",
+      "para": "executar(a, raiz, Path(a.raiz_pedidos).resolve() if False else raiz)\n    if a.cmd == \"medida\"",
+      "testes": [
+        "tests.test_forge_dora.Comando.test_raiz_pedidos_le_o_quadro_de_la"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "git que nao le as tags da aviso",
+      "arquivo": "bin/forge_dora.py",
+      "de": "if rc != 0:",
+      "para": "if rc == 999:",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_git_que_falha_da_aviso_e_nenhuma_release"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "so tag vX.Y.Z inteira e release",
+      "arquivo": "bin/forge_dora.py",
+      "de": "TAG_DE_VERSAO.fullmatch(nome)",
+      "para": "TAG_DE_VERSAO.match(nome)",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_frequencia_conta_so_tags_de_versao_por_semana"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "espera da mudanca so das releases da janela",
+      "arquivo": "bin/forge_dora.py",
+      "de": "        if not janela(data):\n            continue\n        _, saida",
+      "para": "        if False:\n            continue\n        _, saida",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_janela_inclusiva_corta_release_escape_e_cartao"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "data do historico sem fuso e recusada",
+      "arquivo": "bin/forge_dora.py",
+      "de": "if data.tzinfo is None:",
+      "para": "if data.tzinfo is None and False:",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_recusa_linha_incompleta_com_o_motivo"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "quadro ausente vale vazio",
+      "arquivo": "bin/forge_dora.py",
+      "de": "(ler_texto(arq) or \"\")",
+      "para": "(ler_texto(arq) or \"| 2026-01-01 | x |\")",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_quadro_ausente_vale_vazio_sem_recusado"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "so linha de tabela que comeca por data e lida",
+      "arquivo": "bin/forge_dora.py",
+      "de": "if not linha.lstrip().startswith(\"|\") or not COMECA_COM_DATA.match(c[0]):",
+      "para": "if not linha.lstrip().startswith(\"|\"):",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_recusa_linha_incompleta_com_o_motivo"
+      ]
+    }
+  ]
+}

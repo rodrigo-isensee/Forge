@@ -117,11 +117,16 @@ class Metricas(Base):
             {"fonte": "historico.md:10", "cartao": "E", "motivo": "coluna vazia ou faltando"}])
 
     def test_janela_inclusiva_corta_release_escape_e_cartao(self):
-        dados = self.calcular(datetime.date(2026, 11, 3), datetime.date(2026, 11, 9))
+        dados = self.calcular(datetime.date(2026, 11, 4), datetime.date(2026, 11, 9))  # v0.2.0 é 04/11 em +09:00: inclusiva
         self.assertEqual(dados["frequencia"]["semanas"], {"2026-S45": 1})
         self.assertEqual(dados["espera_da_mudanca_h"]["brutos"], [0.0, 6.0])
         self.assertEqual((dados["taxa_de_falha"], dados["recuperacao_h"]["n"]), ({"entregas": 1, "com_falha": 1}, 1))
         self.assertEqual(dados["vazao"]["semanas"], {})
+
+    def test_quadro_ausente_vale_vazio_sem_recusado(self):
+        with tempfile.TemporaryDirectory() as vazio:
+            dados = D.calcular(self.ex.pasta, Path(vazio), fuso=FUSO)
+        self.assertEqual((dados["vazao"]["n"], dados["recusados"], dados["taxa_de_falha"]["com_falha"]), (0, [], 0))
 
     def test_git_que_falha_da_aviso_e_nenhuma_release(self):
         with tempfile.TemporaryDirectory() as fora:
@@ -160,6 +165,13 @@ class Comando(Base):
         self.assertIn('dora: frequencia n=3 semanas={"2026-S45":2,"2026-S46":1}', r.stdout)
         self.assertIn("dora: recuperacao_h n=1 brutos=[159.0] abertas=1", r.stdout)
         self.assertIn("dora: recusado historico.md:8 D motivo: data-hora sem fuso", r.stdout)
+
+    def test_raiz_pedidos_le_o_quadro_de_la(self):
+        with tempfile.TemporaryDirectory(dir=self.ex.pasta) as vazio:  # dentro da raiz: o forge-check recusa fora dela
+            r = self.rodar("--fuso", "+09:00", "--raiz-pedidos", vazio)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn('dora: vazao n=0 semanas={}', r.stdout)
+        self.assertIn('dora: frequencia n=3 ', r.stdout)
 
     def test_json(self):
         r = self.rodar("--fuso", "+09:00", "--json")
