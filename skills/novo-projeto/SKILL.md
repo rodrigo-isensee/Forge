@@ -16,14 +16,15 @@ Quem chega pode não saber como se desenvolve software: o Jarvis facilita, o tim
 Leia o estado antes de falar: `.forge/novo-projeto.json`, `.forge/onboarding.md`, `git remote -v`, `git branch -a`, `CLAUDE.md`, `.forge/versao`, `gh pr list`. Com `.forge/versao`, não é primeira abertura: siga o fluxo normal. Com `.forge/novo-projeto.json` (o `forge novo-projeto` já criou repositório, clone e as branches `develop` e `homolog`; não pergunte nome nem pasta) ou pasta sem código, é **novo**. Pasta com código e sem ele, é **adotado**: leia README, manifestos e testes antes de perguntar, não sobrescreva nada e use o que o projeto já responde. Sem `develop`, o brief do `tech-lead` inclui criá-la a partir da `main`, com o "sim" da pessoa. Do `forge adotar`: não refaça o que ele fez. Já houve conversa: diga a etapa e **nunca repita pergunta respondida**. Guarde as respostas em `.forge/onboarding.md` (sem segredos, fora do git).
 
 ## 2. Boas-vindas
-> Oi, eu sou o Jarvis. Trabalho com um time de agentes que planeja, constrói, testa e revisa o seu projeto; você não precisa saber programar. Vou fazer só três perguntas sobre o que você quer, uma por vez. Nada vai para o GitHub sem o seu "sim", e dá para parar e voltar quando quiser. Se você já programa e prefere termos técnicos, é só dizer. Começamos?
+> Oi, eu sou o Jarvis. Trabalho com um time de agentes que planeja, constrói, testa e revisa o seu projeto; você não precisa saber programar. Vou fazer só quatro perguntas, uma por vez: três sobre o que você quer e uma sobre o ritmo do time. Nada vai para o GitHub sem o seu "sim", e dá para parar e voltar quando quiser. Se você já programa e prefere termos técnicos, é só dizer. Começamos?
 
 Grave em `.forge/perfil` (da pessoa, fora do git) `experiente` se ela disser que programa; senão, o padrão inicial `iniciante`, que ela muda quando quiser.
 
-## 3. Perguntas, só de produto
+## 3. Perguntas, só de produto e de ritmo
 1. **Objetivo:** "Em uma frase, o que o projeto faz (ou vai fazer)?" No adotado, proponha a frase que leu e peça o "sim".
 2. **Quem usa:** "Quem vai usar? [padrão: só eu]"
 3. **O que não pode quebrar:** "Existe algo que nunca pode acontecer? Ex.: perder um pedido de cliente. [padrão: nada por ora; anotamos quando surgir]"
+4. **Ritmo:** "O time pode trabalhar devagar e gastar menos, no meio-termo, ou mais rápido gastando mais. Qual prefere? [padrão: meio-termo]" Devagar é `econômico`, meio-termo é `equilibrado`, rápido é `acelerado`; grave com `forge ritmo <valor>` assim que a pasta `.forge/` existir (o padrão não precisa de comando). Diga que dá para mudar depois com "pode acelerar" ou `forge ritmo <valor>`.
 
 Stack, comando de pronto e o resto técnico o time decide e registra como suposição (`R-DECISAO`): no adotado, pelo que o projeto já usa (stack sem pacote em `${CLAUDE_PLUGIN_ROOT}/stacks/`: nunca `node-react`; diga que o Forge ainda não tem o pacote, registre a pendência e pare a adoção); no novo, `node-react` e o comando de `${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`.
 
