@@ -575,6 +575,7 @@ class LimiteDaEtapa(EnvioDeCodigo):
         (self.dir / ".githooks" / "pre-push.local").write_text(f'#!/usr/bin/env bash\ncd "$(dirname "$0")/.."\n{corpo}\n')
 
     def test_estouro_encerra_com_os_filhos_e_barra(self):
+        exigir(self, "proc")
         self.local("sleep 300 & echo $! > filho; sleep 300")
         rc, err, _ = self.fim(self.lanca(dict(self.amb, FORGE_PREPUSH_TIMEOUT="2")))
         self.assertEqual(rc, 1)
@@ -622,6 +623,7 @@ class AncestralMorto(EnvioDeCodigo):
         self.assertIsNone(irmao.poll())
 
     def test_pid_reusado_conta_como_ancestral_morto(self):
+        exigir(self, "proc")
         funcoes = subprocess.run(["sed", "-n", "/^inicio_de() {/,/^}/p;/^ancestral_morto() {/,/^}/p", str(HOOK)],
                                  capture_output=True, text=True, check=True).stdout
         roteiro = funcoes + 'inicio_de $$; ancestrais=("$$ $st_inicio"); ancestral_morto && echo morto || echo vivo\n' \
