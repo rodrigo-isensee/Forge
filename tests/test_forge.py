@@ -1327,12 +1327,19 @@ class PrepararEstacao(unittest.TestCase):
                 falso = bin_falso / nome
                 falso.write_text(f'#!/bin/sh\necho "{nome} $*" >> "{registro}"\nexit 1\n')
                 falso.chmod(0o755)
+            # R-CUSTO: a CLI real faria `plugin list` pela rede; o falso (log à parte) sai 1, como um plugin ausente
+            claude_log = Path(tmp) / "claude-chamadas"
+            falso = bin_falso / "claude"
+            falso.write_text(f'#!/bin/sh\necho "$*" >> "{claude_log}"\nexit 1\n')
+            falso.chmod(0o755)
             env = ambiente_limpo()
             env.update(HOME=str(home), PATH=f"{bin_falso}:{env['PATH']}")
             r = subprocess.run(["bash", str(RAIZ / "scripts/preparar-estacao.sh"), "--simular"],
                                env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL)
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertIn("[simular]", r.stdout)
+            self.assertEqual(claude_log.read_text().splitlines(), ["plugin list"])
+            self.assertIn("[simular] claude plugin install forge@forge --scope user", r.stdout)
             self.assertFalse(registro.exists(), "chamou comando que altera o sistema")
             for criado in (".nvm", "Forge", ".local/bin/jarvis", ".local/bin/jarvis-forge"):
                 self.assertFalse((home / criado).exists(), f"criou {criado} no HOME")
