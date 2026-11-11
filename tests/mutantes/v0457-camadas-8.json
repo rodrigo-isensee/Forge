@@ -51,6 +51,36 @@
       "testes": [
         "tests.test_forge_dono.ConfereNoAnotar.test_nao_passa_imprime_o_modelo_da_pergunta"
       ]
+    },
+    {
+      "id": "M59",
+      "guarda": "alternativa: só as questões respondidas",
+      "arquivo": "bin/forge_dono.py",
+      "de": "questoes.items() if n in respondidas}",
+      "para": "questoes.items() if True}",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_nao_passa_imprime_o_modelo_da_pergunta"
+      ]
+    },
+    {
+      "id": "M60",
+      "guarda": "alternativa: só a opção [recomendada]",
+      "arquivo": "bin/forge_dono.py",
+      "de": "questoes[n].values() if \"recomendada\" in marcas(t)]",
+      "para": "questoes[n].values() if True]",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_nao_passa_imprime_o_modelo_da_pergunta"
+      ]
+    },
+    {
+      "id": "M61",
+      "guarda": "alternativa: sem recomendada, o marcador",
+      "arquivo": "bin/forge_dono.py",
+      "de": "\"; \".join(t for t in textos if t)[:160] or None",
+      "para": "\"; \".join(t for t in textos if t)[:160] or \"x\"",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_nao_passa_imprime_o_modelo_da_pergunta"
+      ]
     }
   ]
 }
