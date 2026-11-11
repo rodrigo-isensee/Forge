@@ -9125,7 +9125,7 @@ def cmd_brief_selar(raiz, a):
     fontes = decisoes_cobradas(raiz, caminho_pedido, pedido_txt)["fontes"] if dono else []  # a 1ª é o pedido; as outras, já lidas
     for (rel, _), fonte in zip(fontes, [pedido_txt] + [ler_registro(raiz, rel)[0] for rel, _ in fontes[1:]]):
         for n, motivo in dono.pendencias_da_conferencia(fonte, e_linha_de_decisao):
-            linhas.append((f"decisões: {rel}:{n} {motivo}: confira com `anotar --tipo decisao --confere` e, se não passa, pergunte ao dono "
+            linhas.append((f"decisões: {caminho_impresso(rel)}:{n} {motivo}: confira com `anotar --tipo decisao --confere` e, se não passa, pergunte ao dono "
                            "antes de cumprir (E8)", True))
     for linha, _ in linhas:
         print(linha)
