@@ -47,9 +47,10 @@ só o veredito conta, e ele não depende do diff.
 
 Saída: 0 = todos morreram (ou são equivalentes declarados) e algum teste rodou; 1 = algum sobreviveu e nenhum é
 inválido; 2 = spec inválida, controle vermelho, mutante inválido, sem veredito ou nenhum teste rodou. Atenção: o 0
-aqui é "provado", o inverso do costume das ferramentas de mutação. Nunca escreve na árvore de trabalho nem muta
-arquivo de teste. Só até 16 mutantes por spec. Sem shell. Uma spec inválida barra todas antes de rodar qualquer
-mutante.
+aqui é "provado", o inverso do costume das ferramentas de mutação. A árvore de trabalho se confere a cada mutante
+pronto: na primeira mudança (`git status --porcelain`), a rodada para, lista o que mudou e sai 2, e recomeça do zero.
+Nunca escreve na árvore de trabalho nem muta arquivo de teste. Só até 16 mutantes por spec. Sem shell. Uma spec
+inválida barra todas antes de rodar qualquer mutante.
 
 A rodada é evidência do QA; `--cobertura` é a checagem do autor; nenhum hook, pre-push nem CI chama. Cobertura é
 "declarado, não provado": quem prova que o mutante morre é a rodada (`forge-mutante SPEC`).
@@ -704,6 +705,15 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
     return texto, {"inválido": 2, "sobreviveu": 1}.get(classe, 0), True
 
 
+class ArvoreMudou(Exception):
+    """A árvore de trabalho mudou durante a rodada: (id do mutante recém-pronto, quantos prontos, linhas que mudaram)."""
+
+
+def mudanca_da_arvore(antes):
+    """As linhas do `git status --porcelain` que entraram ou saíram desde `antes`; vazia se nada mudou."""
+    return sorted(set(git("status", "--porcelain").splitlines()).symmetric_difference(antes.splitlines()))
+
+
 def principal(specs, sha, prazo, processos=1):
     """`specs`: lista de (bytes, dados) já validada por `validar_specs`; os mutantes saem na ordem das specs, rodados em
     até `processos` de cada vez (um clone cada; o veredito agrega: um inválido ou sem veredito dá 2, um que sobreviveu dá 1)."""
@@ -719,15 +729,27 @@ def principal(specs, sha, prazo, processos=1):
     inicio = time.monotonic()
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(processos, len(mutantes)))) as pool:
-            futuros = [pool.submit(provar, m, sha, raiz, trabalho, prazo, controles) for m in mutantes]
-            try:
+            futuros = {pool.submit(provar, m, sha, raiz, trabalho, prazo, controles): m["id"] for m in mutantes}
+            try:  # a árvore se confere a cada mutante pronto: na primeira mudança, a rodada para (MUTANTE-ARVORE-MUDOU)
+                for prontos, f in enumerate(concurrent.futures.as_completed(futuros), 1):
+                    f.result()
+                    mudou = mudanca_da_arvore(antes)
+                    if mudou:
+                        raise ArvoreMudou(futuros[f], prontos, mudou)
                 resultados = [f.result() for f in futuros]
             except BaseException:  # um erro, SIGTERM ou Ctrl-C: nada fica rodando (C-33a)
                 encerrar_todos()
                 for f in futuros:
                     f.cancel()
                 raise
-        depois = git("status", "--porcelain")
+    except ArvoreMudou as erro:
+        ident, prontos, mudou = erro.args
+        print(f"forge-mutante: a árvore de trabalho mudou durante a rodada; parei depois do mutante {ident} "
+              f"({prontos} de {len(mutantes)} prontos) e nada foi provado. O que mudou (git status --porcelain):",
+              file=sys.stderr)
+        print("\n".join(f"  {linha}" for linha in mudou), file=sys.stderr)
+        print("forge-mutante: a rodada recomeça do zero: deixe a árvore parada e rode de novo.", file=sys.stderr)
+        return 2
     except (RuntimeError, OSError) as erro:
         print(f"forge-mutante: {erro}", file=sys.stderr)
         return 2
@@ -741,9 +763,6 @@ def principal(specs, sha, prazo, processos=1):
     if not rodou and codigo == 0:
         print("forge-mutante: nenhum teste rodou (spec só de equivalentes sem `testes`); nada provado.", file=sys.stderr)
         codigo = 2
-    if depois != antes:
-        print("forge-mutante: a árvore de trabalho mudou durante a rodada; resultado descartado.", file=sys.stderr)
-        return 2
     anotar(time.monotonic() - inicio, codigo)
     return codigo
 

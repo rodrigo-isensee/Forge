@@ -2,6 +2,7 @@
 import hashlib
 import importlib.machinery
 import importlib.util
+import io
 import json
 import os
 import signal
@@ -188,6 +189,61 @@ class Encerramento(unittest.TestCase):
         with mock.patch.object(self.f.subprocess, "Popen") as popen:
             self.assertIsNone(self.f.rodar(Path("."), ["tests.m.T.t"], "registro.jsonl", 5))
         popen.assert_not_called()
+
+
+class ArvoreQueMuda(unittest.TestCase):
+    """MUTANTE-ARVORE-MUDOU: a árvore se confere a cada mutante pronto; a primeira mudança para a rodada já."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+
+    def rodada(self, sujar_depois_de):
+        """Dublês do `git status` e do `provar`: o mutante `sujar_depois_de` suja a árvore ao terminar; o M2 espera o
+        sinal de parada (no máximo 5 s) e conta se o recebeu, se chegou a sair da fila; o M3 só anota que rodou."""
+        estado, chamados, parada = {"status": ""}, [], []
+
+        def git(*args, cwd=None):
+            self.assertEqual(args, ("status", "--porcelain"))
+            return estado["status"]
+
+        def provar(m, *resto):
+            chamados.append(m["id"])
+            if m["id"] == "M2":
+                parada.append(self.f.ABORTAR.wait(5))
+                time.sleep(0.5)  # a parada cancela o M3 antes de ele sair da fila
+            if m["id"] == sujar_depois_de:
+                estado["status"] = " M lib.py\n?? novo.txt\n"
+            return f"{m['id']} · morreu · lib.py:2", 0, True
+
+        self.addCleanup(self.f.ABORTAR.clear)
+        specs = [(b"{}", {"pedido": "x", "mutantes": [mutante("M1"), mutante("M2"), mutante("M3")]})]
+        with mock.patch.object(self.f, "git", git), mock.patch.object(self.f, "provar", provar), \
+                mock.patch.object(self.f, "anotar") as anotar, \
+                mock.patch("sys.stdout", new_callable=io.StringIO) as saida, \
+                mock.patch("sys.stderr", new_callable=io.StringIO) as erro:
+            codigo = self.f.principal(specs, "a" * 40, 5)
+        return codigo, saida.getvalue(), erro.getvalue(), chamados, parada, anotar
+
+    def test_a_primeira_mudanca_para_a_rodada_no_mutante_seguinte_e_diz_o_que_mudou(self):
+        codigo, saida, erro, chamados, parada, anotar = self.rodada("M1")
+        self.assertEqual(codigo, 2, saida + erro)
+        self.assertIn("parei depois do mutante M1 (1 de 3 prontos)", erro)
+        self.assertIn("   M lib.py\n  ?? novo.txt\n", erro)
+        self.assertIn("a rodada recomeça do zero", erro)
+        self.assertTrue(all(parada), "o M2 em curso não recebeu o sinal de parada")  # ou foi cancelado na fila
+        self.assertNotIn("M3", chamados, "o mutante da fila rodou depois da mudança")
+        self.assertNotIn("morreu", saida, "resultado de rodada com a árvore mudada saiu como prova")
+        anotar.assert_not_called()
+
+    def test_arvore_parada_roda_todos_e_nao_avisa(self):
+        codigo, saida, erro, chamados, parada, anotar = self.rodada(None)
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertEqual(chamados, ["M1", "M2", "M3"])
+        self.assertEqual(parada, [False])
+        self.assertNotIn("árvore", erro)
+        for ident in ("M1", "M2", "M3"):
+            self.assertIn(f"{ident} · morreu", saida)
 
 
 class Execucao(unittest.TestCase):
