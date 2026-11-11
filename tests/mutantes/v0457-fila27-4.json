@@ -61,6 +61,16 @@
       "testes": [
         "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
       ]
+    },
+    {
+      "id": "M22",
+      "guarda": "FILA-27 A-F27-3: com a pasta desconhecida, o absoluto se lê sem pasta de base (sem erro interno)",
+      "arquivo": "hooks/parecer.py",
+      "de": "ler_regular(os.path.join(pasta or \"\", arq))",
+      "para": "ler_regular(os.path.join(pasta, arq))",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
     }
   ]
 }
