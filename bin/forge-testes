@@ -21,7 +21,9 @@ Os módulos do plano dirigido rodam em paralelo por `scripts/suite-partes.py` (o
                 1 = sem prova ou com falha no HEAD; 2 = uso inválido, erro do git ou sem veredito.
 
 Convenção (O2, 0.44.1): sem regra no mapa, bin/forge-x leva a tests/test_forge_x.py, hooks/x.py e scripts/x.py a
-tests/test_x.py (se o arquivo existe); o mapa fica para as exceções.
+tests/test_x.py (se o arquivo existe); o mapa fica para as exceções. Sem as duas (E14.1): bin/forge-x leva a tests/test_x.py,
+test_forge e quem cita forge-x; bin/forge_x.py, a quem cita forge_x e test_forge; tests/mutantes/<spec>.json, aos módulos
+do campo `testes` da spec.
 Falha fechada: qualquer caminho sem entrada no mapa nem teste pela convenção, `tests/config.json`, este script (que contém o mapa),
 um módulo mapeado que não existe, um erro ao ler o git e todo módulo de teste no diff (alterado, novo ou apagado:
 ele pode importar outro, ler todos os de tests/ ou carregá-los pelo nome) fazem rodar a suíte completa. O `--vermelho`
@@ -120,6 +122,9 @@ MAPA = [
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
     (r"bin/forge-sugerir", ("test_sugerir", "test_forge")),
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
+    # E14.1: o módulo comum é carregado pelo forge-testes e pelo forge-mutante, e os testes do forge-mutante não o citam
+    (r"bin/forge_apoio_testes\.py", ("test_testes_tocados", "test_forge_mutante", "test_pre_push_afetados",
+                                     "test_pre_push_parecer_curto", "test_forge")),
     (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge", "test_atualizar")),
     (r"hooks/doutor\.py", ("test_atualizar", "test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor") + VOLTA_UNICA),
     # hooks/agentes.py e hooks/_comum.py: o teto de agentes (R-TETO) e o hash do brief (R-BRIEF) rodam o script nos testes abaixo;
@@ -184,6 +189,11 @@ MINIMO_DA_AGULHA = 5  # nome de arquivo mais curto que isto (ex.: `x.py`) casari
 MODULO_DE_TESTE = re.compile(r"tests/(test_[a-z0-9_]+)\.py")
 SUBMODULO_DE_TESTE = re.compile(r"tests/((?:[a-z0-9_]+/)*test_[a-z0-9_]+)\.py")  # o da raiz ou o de um pacote de tests/
 ORACULO = re.compile(r"test_oraculo_[a-z0-9_]+")
+# E14.1 (FORGE-TESTES-MAPA): o que entra novo sem regra no MAPA nem teste pela convenção O2 deixa de cair na suíte completa.
+SUBCOMANDO = re.compile(r"bin/forge-([a-z][a-z0-9-]*)")  # bin/forge-x -> tests/test_x.py, test_forge e quem cita forge-x
+MODULO_DO_BIN = re.compile(r"bin/(forge_[a-z][a-z0-9_]*)\.py")  # bin/forge_x.py -> quem cita forge_x (o importa), e test_forge
+SPEC_DE_MUTANTES = re.compile(r"tests/mutantes/[a-z0-9][a-z0-9_.-]*\.json")  # -> os módulos do campo `testes` da spec
+TESTE_DA_SPEC = re.compile(r"tests\.((?:[a-z0-9_]+\.)*?test_[a-z0-9_]+)(?:\.[A-Za-z0-9_]+)*")
 
 
 def git(*args):
@@ -225,7 +235,7 @@ def planejar(caminhos, raiz=Path(".")):
             if re.fullmatch(padrao, caminho):
                 casou = destino
                 break
-        casou = casou or modulos_da_convencao(caminho, raiz)
+        casou = casou or modulos_da_convencao(caminho, raiz) or modulos_do_novo(caminho, raiz)
         if casou is None:
             return "completo", [f"{caminho} sem mapa"]
         modulos.update(casou)
@@ -247,6 +257,41 @@ def modulos_da_convencao(caminho, raiz=Path(".")):
     if not arquivo_do_modulo(modulo, raiz).is_file():
         return None
     return (modulo,) + VARREM_A_PASTA[achado.group(1)]
+
+
+def modulos_do_novo(caminho, raiz=Path(".")):
+    """E14.1: os módulos de um subcomando, módulo do bin/ ou spec de mutantes sem regra no MAPA, ou None (suíte completa).
+    O subcomando sem tests/test_<sub>.py e a spec ilegível, sem teste ou com teste fora de tests.test_* seguem na completa."""
+    sub = SUBCOMANDO.fullmatch(caminho)
+    if sub:
+        modulo = "test_" + sub.group(1).replace("-", "_")
+        if not arquivo_do_modulo(modulo, raiz).is_file():
+            return None
+        return tuple(sorted({modulo, "test_forge"} | leitores(f"forge-{sub.group(1)}", raiz)))
+    do_bin = MODULO_DO_BIN.fullmatch(caminho)
+    if do_bin:
+        return tuple(sorted({"test_forge"} | leitores(do_bin.group(1), raiz)))
+    if SPEC_DE_MUTANTES.fullmatch(caminho):
+        return modulos_da_spec(raiz / caminho)
+    return None
+
+
+def leitores(nome, raiz=Path(".")):
+    """Módulos de teste que citam `nome` como palavra inteira (forge-x não casa com forge-xy nem com o_forge-x)."""
+    palavra = re.compile(rf"(?<![\w-]){re.escape(nome)}(?![\w-])")
+    return {m for m, texto in textos_dos_testes(raiz).items() if palavra.search(texto)}
+
+
+def modulos_da_spec(arquivo):
+    """Os módulos citados no campo `testes` de cada mutante da spec, ou None (falha fechada)."""
+    try:
+        ids = [t for m in json.loads(arquivo.read_text(encoding="utf-8"))["mutantes"] for t in m["testes"]]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    achados = [TESTE_DA_SPEC.fullmatch(t) if isinstance(t, str) else None for t in ids]
+    if not achados or None in achados:
+        return None
+    return tuple(sorted({a.group(1) for a in achados}))
 
 
 def arquivo_do_modulo(modulo, raiz=Path(".")):
@@ -300,7 +345,8 @@ def planejar_afetados(caminhos, raiz=Path(".")):
     modulos, notas = set(), []
     for caminho in caminhos:
         achados = set(citam(textos, {caminho}))
-        regra = next((destino for padrao, destino in MAPA if re.fullmatch(padrao, caminho)), None) or modulos_da_convencao(caminho, raiz)
+        regra = (next((destino for padrao, destino in MAPA if re.fullmatch(padrao, caminho)), None)
+                 or modulos_da_convencao(caminho, raiz) or modulos_do_novo(caminho, raiz))
         achados.update(regra or ())
         for padrao, agulhas in EXERCITAM:
             if re.fullmatch(padrao, caminho):

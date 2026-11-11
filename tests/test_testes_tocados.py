@@ -217,6 +217,68 @@ class Convencao(unittest.TestCase):
                 self.assertEqual(self.f.planejar([caminho], RAIZ)[0], "dirigido")
 
 
+class MapaDosNovos(unittest.TestCase):
+    """E14.1 (FORGE-TESTES-MAPA): comando, módulo do bin/ e spec de mutantes novos, sem regra no MAPA nem teste pela
+    convenção O2, levam aos testes deles em vez de cair na suíte completa; o que não se resolve segue na completa."""
+
+    SPEC_REAL = ('{"pedido": "varredura-caminho-pessoal", "executor": "unittest", "mutantes": ['
+                 '{"id": "P1", "testes": ["tests.test_forge.VerificarContribuicao.test_home_com_ponto_no_nome_falha"]},'
+                 '{"id": "P2", "testes": ["tests.evals.test_placar.Placar.test_x"]}]}')
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+
+    def brinquedo(self, **arquivos):
+        t = tempfile.TemporaryDirectory()
+        self.addCleanup(t.cleanup)
+        raiz = Path(t.name)
+        base = {"tests/test_forge.py": "x = 1\n", "tests/evals/__init__.py": "", "tests/evals/test_placar.py": "x = 1\n"}
+        for rel, texto in {**base, **arquivos}.items():
+            (raiz / rel).parent.mkdir(parents=True, exist_ok=True)
+            (raiz / rel).write_text(texto, encoding="utf-8")
+        return raiz
+
+    def test_comando_novo_leva_ao_teste_dele_ao_test_forge_e_a_quem_o_cita(self):
+        raiz = self.brinquedo(**{"tests/test_ritmo.py": "x = 1\n", "tests/test_cita.py": "RAIZ / 'bin/forge-ritmo'\n",
+                                 "tests/test_outro.py": "'forge-ritmo-x' 'meu-forge-ritmo' 'forge-ritmox'\n"})
+        self.assertEqual(self.f.planejar(["bin/forge-ritmo"], raiz), ("dirigido", ["test_cita", "test_forge", "test_ritmo"]))
+        self.assertIn("test_ritmo", self.f.planejar_afetados(["bin/forge-ritmo"], raiz)[0])
+
+    def test_comando_novo_sem_o_teste_dele_segue_na_completa(self):
+        raiz = self.brinquedo(**{"tests/test_cita.py": "'bin/forge-ritmo'\n"})
+        self.assertEqual(self.f.planejar(["bin/forge-ritmo"], raiz), ("completo", ["bin/forge-ritmo sem mapa"]))
+
+    def test_modulo_novo_do_bin_leva_a_quem_o_importa_e_ao_test_forge(self):
+        raiz = self.brinquedo(**{"tests/test_leitor.py": "import forge_fontes\n",
+                                 "tests/test_outro.py": "'forge_fontes_x' 'o_forge_fontes'\n"})
+        self.assertEqual(self.f.planejar(["bin/forge_fontes.py"], raiz), ("dirigido", ["test_forge", "test_leitor"]))
+        self.assertEqual(self.f.planejar(["bin/forge_outro.py"], raiz), ("dirigido", ["test_forge"]))
+
+    def test_spec_nova_leva_aos_modulos_do_campo_testes(self):
+        raiz = self.brinquedo(**{"tests/mutantes/varredura-caminho-pessoal.json": self.SPEC_REAL})
+        caminho = "tests/mutantes/varredura-caminho-pessoal.json"
+        self.assertEqual(self.f.planejar([caminho], raiz), ("dirigido", ["evals.test_placar", "test_forge"]))
+        self.assertIn("evals.test_placar", self.f.planejar_afetados([caminho], raiz)[0])
+
+    def test_spec_ilegivel_sem_teste_ou_com_teste_de_fora_segue_na_completa(self):
+        casos = {"quebrada": "{", "nula": '{"mutantes": null}', "vazia": '{"mutantes": []}',
+                 "fora": '{"mutantes": [{"testes": ["test_forge.X.y"]}]}', "numero": '{"mutantes": [{"testes": [1]}]}',
+                 "uma-fora": '{"mutantes": [{"testes": ["tests.test_forge.X.y", "outro.test_x"]}]}'}
+        raiz = self.brinquedo(**{f"tests/mutantes/{nome}.json": texto for nome, texto in casos.items()})
+        for nome in (*casos, "ausente"):
+            caminho = f"tests/mutantes/{nome}.json"
+            with self.subTest(nome):
+                try:
+                    plano = self.f.planejar([caminho], raiz)
+                except Exception as e:  # noqa: BLE001  levantar é falha do caso, não erro do teste
+                    plano = f"levantou {type(e).__name__}"
+                self.assertEqual(plano, ("completo", [f"{caminho} sem mapa"]))
+
+    def test_o_modulo_comum_do_bin_segue_com_os_testes_do_forge_mutante(self):
+        self.assertIn("test_forge_mutante", self.f.planejar(["bin/forge_apoio_testes.py"], RAIZ)[1])
+
+
 class MapaCobreOQueOsTestesLeem(unittest.TestCase):
     """Cada arquivo do Forge que um tests/test_*.py lê ou executa tem de levar a esse módulo (o pre-push filtra por isto).
 
