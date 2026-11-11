@@ -19,7 +19,7 @@ Head revisado: 157c1da9 (157c1da96cbf8f49abd3aef4b6e41b9b37cf4a58), volta 2 da E
 
 ## Sondas
 - S1 · `python3 -m unittest tests.test_forge -k trechos_obrigatorios` em 157c1da9 · espera: OK · obtido: OK (Ran 1 test)
-- S2 (volta 1, histórico) · o mesmo teste em 6b77a7c7 · espera: OK · obtido: FAILED (failures=2), o que provou A3
+- S2 · o mesmo teste em 6b77a7c7 (volta 1, histórico) · espera: OK · obtido: FAILED (failures=2), o que provou A3
 
 ## Parecer
 Aprovado. A3 fechado pela sonda S1; A1 e A2 seguem resolvidos. O delta é só a troca das duas frases pela forma sugerida na volta 1, sem outra mudança de sentido. O fragmento `changelog.d/seguranca-sem-rerrodar.md:2` ("nenhum trecho de `invariantes` mudou") fica correto.
