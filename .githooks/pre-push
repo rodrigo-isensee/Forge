@@ -495,7 +495,7 @@ nada=0
 afetados() {
   local plano
   [ "$suite_local" = 0 ] && [ "$sem_caminhos" = 0 ] && [ -n "$base_dev" ] || return 1
-  [ -f bin/forge-testes ] && [ ! -L bin/forge-testes ] || return 1
+  [ -f bin/forge-testes ] && [ ! -L bin/forge-testes ] && [ ! -L bin/forge_apoio_testes.py ] || return 1
   if [ "${#alterados[@]}" -eq 0 ]; then nada=1; return 0; fi
   plano="$(python3 -I bin/forge-testes --afetados --listar -- "${alterados[@]}" 2>/dev/null)" || return 1
   case "$plano" in
