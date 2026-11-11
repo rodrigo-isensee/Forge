@@ -1,0 +1,76 @@
+{
+  "pedido": "v0457-e3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "ritmo que não é texto vale o padrão",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if not isinstance(valor, str):\n        return None\n    chave",
+      "para": "    if False:\n        return None\n    chave",
+      "testes": [
+        "tests.test_ritmo.RitmoNoHook.test_ausente_invalido_ou_ilegivel_vale_o_padrao"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "ritmo casa sem caixa nem acento, só com um dos três",
+      "arquivo": "hooks/agentes.py",
+      "de": "if sem_acento(r) == chave), None)\n\n\ndef ritmo_do_projeto",
+      "para": "if sem_acento(r) != chave), None)\n\n\ndef ritmo_do_projeto",
+      "testes": [
+        "tests.test_ritmo.RitmoNoHook.test_le_o_ritmo_do_config_sem_caixa_nem_acento"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "config.json ilegível vale o padrão, sem derrubar o hook",
+      "arquivo": "hooks/agentes.py",
+      "de": "    except (OSError, ValueError, TypeError):\n        return RITMO_PADRAO",
+      "para": "    except OSError:\n        return RITMO_PADRAO",
+      "testes": [
+        "tests.test_ritmo.RitmoNoHook.test_ausente_invalido_ou_ilegivel_vale_o_padrao"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "config.json que não é objeto vale o padrão",
+      "arquivo": "hooks/agentes.py",
+      "de": "if isinstance(dados, dict) else None) or RITMO_PADRAO",
+      "para": "if True else None) or RITMO_PADRAO",
+      "testes": [
+        "tests.test_ritmo.RitmoNoHook.test_ausente_invalido_ou_ilegivel_vale_o_padrao"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "ritmo desconhecido vale o padrão equilibrado",
+      "arquivo": "hooks/agentes.py",
+      "de": "if isinstance(dados, dict) else None) or RITMO_PADRAO",
+      "para": "if isinstance(dados, dict) else None)",
+      "testes": [
+        "tests.test_ritmo.RitmoNoHook.test_ausente_invalido_ou_ilegivel_vale_o_padrao"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "só o econômico muda o teto, e só para baixo",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if ritmo in TETO_DO_RITMO and teto > TETO_DO_RITMO[ritmo]:",
+      "para": "    if ritmo in TETO_DO_RITMO or teto > TETO_DO_RITMO[ritmo]:",
+      "testes": [
+        "tests.test_ritmo.RitmoNoHook.test_equilibrado_e_acelerado_ficam_no_teto_de_sempre"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "econômico limita o teto a 1",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if ritmo in TETO_DO_RITMO and teto > TETO_DO_RITMO[ritmo]:",
+      "para": "    if ritmo in TETO_DO_RITMO and teto < TETO_DO_RITMO[ritmo]:",
+      "testes": [
+        "tests.test_ritmo.RitmoNoHook.test_economico_limita_a_um_qualquer_teto"
+      ]
+    }
+  ]
+}
