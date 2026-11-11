@@ -1,0 +1,26 @@
+{
+  "pedido": "v0457-fila27-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "FILA-27 A2: --input arq lê o argumento seguinte como o arquivo",
+      "arquivo": "hooks/parecer.py",
+      "de": "(args[i + 1] if i + 1 < len(args) else \"-\") if a == \"--input\" else",
+      "para": "(args[i + 1] if i + 1 < len(args) else \"-\") if a == \"--input-x\" else",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "FILA-27 A2: --input sem valor no fim da linha vale como entrada padrão (ilegível), sem erro interno",
+      "arquivo": "hooks/parecer.py",
+      "de": "(args[i + 1] if i + 1 < len(args) else \"-\")",
+      "para": "(args[i + 1] if True else \"-\")",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    }
+  ]
+}
