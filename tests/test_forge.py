@@ -2192,6 +2192,64 @@ class ForgeCheckFontes(unittest.TestCase):
         self.assertNotIn("versão nova", r.stdout)
         self.assertEqual(r.returncode, 3)
 
+    # 0.45.7 E5.1 (FILA-31 F6): os ramos de falha do bin/forge_fontes.py, pelo forge-check, com Python -I
+    def rodar_isolado(self, path=None, script=None, **extra):
+        env = ambiente_limpo()
+        env.update(HOME=str(self.home), PATH=path or f"{self.bin_falso}:{env['PATH']}", FALSO_TOPO=self.TOPO, **extra)
+        return subprocess.run([sys.executable, "-I", str(script or RAIZ / "bin/forge-check"), "fontes"], env=env,
+                              capture_output=True, text=True, timeout=60)
+
+    def gravar_registro(self, texto):
+        pasta = self.home / ".forge-contrib/fontes"
+        pasta.mkdir(parents=True, exist_ok=True)
+        (pasta / "fontes.json").write_text(texto)
+
+    def test_registro_que_nao_e_json_sai_com_1_ilegivel(self):
+        self.gravar_registro("{nao e json")
+        r = self.rodar_isolado()
+        self.assertEqual((r.returncode, r.stdout), (1, "fontes: registro local ilegível\n"))
+        self.assertFalse(self.chamou_git())
+
+    def test_registro_que_nao_e_objeto_sai_com_1_ilegivel(self):
+        self.gravar_registro("[]")
+        r = self.rodar_isolado()
+        self.assertEqual((r.returncode, r.stdout), (1, "fontes: registro local ilegível\n"))
+
+    def test_fonte_sem_commit_revisado_e_pulada_sem_chamar_o_git(self):
+        self.gravar_registro(json.dumps({"F0": "nao e objeto", "F1": {"url": self.URL, "commit_revisado": ""}}))
+        r = self.rodar_isolado()
+        self.assertEqual((r.returncode, r.stdout), (0, "fontes: sem novidade\n"))
+        self.assertFalse(self.chamou_git())
+
+    def test_git_ausente_conta_como_fonte_que_nao_respondeu(self):
+        self.registrar("a" * 7)
+        vazia = self.tmp / "sem-git"
+        vazia.mkdir()
+        r = self.rodar_isolado(path=str(vazia))
+        self.assertEqual((r.returncode, r.stdout), (3, ""))
+
+    def test_variavel_git_herdada_nao_chega_ao_git(self):
+        self.registrar(self.TOPO[:7])
+        (self.bin_falso / "git").write_text(f'#!/usr/bin/env bash\nenv | grep -c "^GIT_HERDADA=" >> "{self.chamadas}"\n'
+                                            'printf "%s\\tHEAD\\n" "$FALSO_TOPO"\n')
+        r = self.rodar_isolado(GIT_HERDADA="1")
+        self.assertEqual((r.returncode, r.stdout, self.chamadas.read_text().strip()), (0, "fontes: sem novidade\n", "0"))
+
+    def test_versao_nova_e_url_recusada_saem_nas_duas_linhas(self):
+        self.gravar_registro(json.dumps({"F1": {"url": self.URL, "commit_revisado": "a" * 7},
+                                         "F2": {"url": "http://host/r.git", "commit_revisado": "a" * 7}}))
+        r = self.rodar_isolado()
+        self.assertEqual((r.returncode, r.stdout.splitlines()),
+                         (0, [f"fontes: F1 tem versão nova (aaaaaaa -> {self.TOPO[:7]}); abra o estudo comparativo",
+                              "fontes: URL recusada (só https:// é aceito) em: F2"]))
+
+    def test_copia_avulsa_do_forge_check_sai_com_2_sem_o_modulo(self):
+        avulsa = self.tmp / "avulsa" / "bin"
+        avulsa.mkdir(parents=True)
+        shutil.copy(RAIZ / "bin/forge-check", avulsa / "forge-check")
+        r = self.rodar_isolado(script=avulsa / "forge-check")
+        self.assertEqual((r.returncode, r.stdout), (2, "forge-check: bin/forge_fontes.py ausente ao lado do forge-check; nada feito\n"))
+
 
 class VerificarContribuicao(unittest.TestCase):
     """scripts/verificar-contribuicao.sh barra segredo e caminho pessoal no diff contra a base."""
