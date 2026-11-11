@@ -9,7 +9,7 @@
       "de": "dono and tipo != \"historico\" and dono.recusa_da_forja(valor)",
       "para": "dono and dono.recusa_da_forja(valor)",
       "testes": [
-        "tests.test_camadas_dono.RecomendacaoRevertida.test_marca_escrita_a_mao_e_recusada"
+        "tests.test_forge_dono.RecomendacaoRevertida.test_marca_escrita_a_mao_e_recusada"
       ]
     },
     {
@@ -19,7 +19,7 @@
       "de": "    if dono is None and tipo != \"historico\":\n        return [\"anotar: bin/forge_dono.py",
       "para": "    if False:\n        return [\"anotar: bin/forge_dono.py",
       "testes": [
-        "tests.test_camadas_dono.ConfereNoAnotar.test_sem_o_modulo_do_dono_nada_e_gravado"
+        "tests.test_forge_dono.ConfereNoAnotar.test_sem_o_modulo_do_dono_nada_e_gravado"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "de": "or (confere is not None and not dono.CONFERE.fullmatch(f\"confere={confere}\"))",
       "para": "or (confere is not None and False)",
       "testes": [
-        "tests.test_camadas_dono.ConfereNoAnotar.test_decisao_sem_confere_ou_com_valor_fora_do_vocabulario"
+        "tests.test_forge_dono.ConfereNoAnotar.test_decisao_sem_confere_ou_com_valor_fora_do_vocabulario"
       ]
     },
     {
@@ -39,7 +39,7 @@
       "de": "dono.leitura_da_decisao(texto, literal) if tipo == \"decisao\" else",
       "para": "dono.leitura_da_decisao(texto, literal) if tipo != \"decisao\" else",
       "testes": [
-        "tests.test_camadas_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
+        "tests.test_forge_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
       ]
     },
     {
@@ -49,7 +49,7 @@
       "de": "if tipo == \"pergunta\" and (motivos := dono.recusa_de_corte(",
       "para": "if tipo != \"pergunta\" and (motivos := dono.recusa_de_corte(",
       "testes": [
-        "tests.test_camadas_dono.TravaDeOrigem.test_corte_recomendado_sem_campos_e_recusado_sem_gravar"
+        "tests.test_forge_dono.TravaDeOrigem.test_corte_recomendado_sem_campos_e_recusado_sem_gravar"
       ]
     },
     {
@@ -59,7 +59,7 @@
       "de": "    if recusa:\n        return [f\"anotar: {recusa}; nada gravado\"], 2",
       "para": "    if False:\n        return [f\"anotar: {recusa}; nada gravado\"], 2",
       "testes": [
-        "tests.test_camadas_dono.TravaDeOrigem.test_corte_recomendado_sem_campos_e_recusado_sem_gravar"
+        "tests.test_forge_dono.TravaDeOrigem.test_corte_recomendado_sem_campos_e_recusado_sem_gravar"
       ]
     },
     {
@@ -69,7 +69,7 @@
       "de": "        if tipo == \"decisao\":\n            atributos = {\"confere\"",
       "para": "        if tipo != \"decisao\":\n            atributos = {\"confere\"",
       "testes": [
-        "tests.test_camadas_dono.ConfereNoAnotar.test_cada_criterio_e_gravado"
+        "tests.test_forge_dono.ConfereNoAnotar.test_cada_criterio_e_gravado"
       ]
     },
     {
@@ -79,7 +79,7 @@
       "de": "versao_da_propria_copia() or \"desconhecida\"",
       "para": "versao_da_propria_copia() and \"desconhecida\"",
       "testes": [
-        "tests.test_camadas_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
+        "tests.test_forge_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
       ]
     }
   ]

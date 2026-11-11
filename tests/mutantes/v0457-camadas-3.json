@@ -9,7 +9,7 @@
       "de": "        if achado:\n            campos[achado.group(1)]",
       "para": "        if achado and False:\n            campos[achado.group(1)]",
       "testes": [
-        "tests.test_camadas_dono.TravaDeOrigem.test_corte_com_os_quatro_campos_grava_a_linha_com_a_origem"
+        "tests.test_forge_dono.TravaDeOrigem.test_corte_com_os_quatro_campos_grava_a_linha_com_a_origem"
       ]
     },
     {
@@ -19,7 +19,7 @@
       "de": "texto.split(\"·\") if not re.match(",
       "para": "texto.split(\"·\") if True or re.match(",
       "testes": [
-        "tests.test_camadas_dono.TravaDeOrigem.test_recomendada_sem_corte_passa_sem_campos"
+        "tests.test_forge_dono.TravaDeOrigem.test_recomendada_sem_corte_passa_sem_campos"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "de": "return CORTE.search(_sem_acento(sem_campos)) is not None",
       "para": "return CORTE.search(_sem_acento(sem_campos)) is None",
       "testes": [
-        "tests.test_camadas_dono.TravaDeOrigem.test_marca_corte_sem_verbo_do_lexico"
+        "tests.test_forge_dono.TravaDeOrigem.test_marca_corte_sem_verbo_do_lexico"
       ]
     },
     {
@@ -39,7 +39,7 @@
       "de": "if not campos.get(chave)]",
       "para": "if chave not in campos]",
       "testes": [
-        "tests.test_camadas_dono.TravaDeOrigem.test_campo_vazio_vale_como_ausente"
+        "tests.test_forge_dono.TravaDeOrigem.test_campo_vazio_vale_como_ausente"
       ]
     },
     {
@@ -49,7 +49,7 @@
       "de": "    if faltam:\n        return \"recomendação de corte sem \"",
       "para": "    if False:\n        return \"recomendação de corte sem \"",
       "testes": [
-        "tests.test_camadas_dono.TravaDeOrigem.test_cada_campo_faltando_e_citado"
+        "tests.test_forge_dono.TravaDeOrigem.test_cada_campo_faltando_e_citado"
       ]
     },
     {
@@ -59,7 +59,7 @@
       "de": "re.split(r\",|;|\\s+e\\s+\", campos[\"procurado\"]) if p.strip()]",
       "para": "re.split(r\",|;|\\s+e\\s+\", campos[\"procurado\"]) if p]",
       "testes": [
-        "tests.test_camadas_dono.TravaDeOrigem.test_origem_nao_achada_pede_dois_lugares"
+        "tests.test_forge_dono.TravaDeOrigem.test_origem_nao_achada_pede_dois_lugares"
       ]
     },
     {
@@ -69,7 +69,7 @@
       "de": "len(lugares) < LUGARES_DO_NAO_ACHADA:",
       "para": "len(lugares) < 1:",
       "testes": [
-        "tests.test_camadas_dono.TravaDeOrigem.test_origem_nao_achada_pede_dois_lugares"
+        "tests.test_forge_dono.TravaDeOrigem.test_origem_nao_achada_pede_dois_lugares"
       ]
     },
     {
@@ -79,7 +79,7 @@
       "de": "(escolhas is not None and escolhas.get(n) != letra)",
       "para": "False",
       "testes": [
-        "tests.test_camadas_dono.TravaDeOrigem.test_resposta_a_pergunta_antiga_de_corte_volta_como_pergunta"
+        "tests.test_forge_dono.TravaDeOrigem.test_resposta_a_pergunta_antiga_de_corte_volta_como_pergunta"
       ]
     }
   ]

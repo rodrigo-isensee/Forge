@@ -9,7 +9,7 @@
       "de": "    if diverge := divergencia(questoes, escolhas):",
       "para": "    if (diverge := divergencia(questoes, escolhas)) and False:",
       "testes": [
-        "tests.test_camadas_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
+        "tests.test_forge_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
       ]
     },
     {
@@ -19,7 +19,7 @@
       "de": "if (o := campos_de_origem(questoes[n][l]).get(\"origem\"))]",
       "para": "if (o := campos_de_origem(questoes[n][l]).get(\"origem\") or \"x\")]",
       "testes": [
-        "tests.test_camadas_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
+        "tests.test_forge_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "de": "    if origens:\n",
       "para": "    if True:\n",
       "testes": [
-        "tests.test_camadas_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
+        "tests.test_forge_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
       ]
     },
     {
@@ -39,7 +39,7 @@
       "de": "    if not marca:\n        return {}",
       "para": "    if False:\n        return {}",
       "testes": [
-        "tests.test_camadas_dono.Pendencias.test_tabela"
+        "tests.test_forge_dono.Pendencias.test_tabela"
       ]
     },
     {
@@ -49,7 +49,7 @@
       "de": "    if achado is None:\n        return None",
       "para": "    if False:\n        return None",
       "testes": [
-        "tests.test_camadas_dono.Pendencias.test_tabela"
+        "tests.test_forge_dono.Pendencias.test_tabela"
       ]
     },
     {
@@ -59,7 +59,7 @@
       "de": "{achado.group(2) or '00:00'}",
       "para": "{achado.group(2)}",
       "testes": [
-        "tests.test_camadas_dono.Pendencias.test_tabela"
+        "tests.test_forge_dono.Pendencias.test_tabela"
       ]
     },
     {
@@ -69,7 +69,7 @@
       "de": "if linha.strip().lstrip(\"-*> \").startswith(FRASE_DA_PERGUNTA):",
       "para": "if linha.strip().lstrip(\"-*> \").startswith(\"NADA\"):",
       "testes": [
-        "tests.test_camadas_dono.Pendencias.test_tabela"
+        "tests.test_forge_dono.Pendencias.test_tabela"
       ]
     },
     {
@@ -79,7 +79,7 @@
       "de": "        elif e_decisao(linha):",
       "para": "        elif True:",
       "testes": [
-        "tests.test_camadas_dono.Pendencias.test_tabela"
+        "tests.test_forge_dono.Pendencias.test_tabela"
       ]
     }
   ]
