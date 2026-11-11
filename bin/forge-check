@@ -3982,14 +3982,20 @@ def propagar_decisao(raiz_pedido, pedido, nova, propagar):
     return saida, rc
 
 
-def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False):
+def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False, confere=None):
     """P4: grava no pedido a decisão, a pergunta ou a ordem do dono (no fim de `## Decisões do usuário`, criada antes de `## Histórico`
     se faltar) ou a linha do Histórico, com a hora do relógio (nunca do argumento). O `literal` é a fala do dono, entre aspas; o
-    `contexto`, a paráfrase, fica fora delas. Nenhuma linha existente muda. (linhas, rc)."""
+    `contexto`, a paráfrase, fica fora delas. Nenhuma linha existente muda. (linhas, rc). 0.45.7 (`forge_dono`): a pergunta com
+    recomendação de corte leva a origem (E6); a decisão leva `--confere` (E8) e, em códigos, a marca `revertida=` e a `origem=` (E7)."""
+    dono = modulo_do_dono()
     for nome, valor in (("--literal", literal), ("--contexto", contexto)):
-        motivo = recusa_do_campo(valor, nome)
+        motivo = recusa_do_campo(valor, nome) or (dono and tipo != "historico" and dono.recusa_da_forja(valor))
         if motivo:
-            return [f"anotar: {motivo}; nada gravado"], 2
+            return [f"anotar: {motivo} ({nome}); nada gravado"], 2
+    if dono is None and tipo != "historico":
+        return ["anotar: bin/forge_dono.py ausente ao lado do forge-check; nada gravado"], 2
+    if (tipo == "decisao") != (confere is not None) or (confere is not None and not dono.CONFERE.fullmatch(f"confere={confere}")):
+        return ["anotar: --confere rapido|seguro|barato|mede|nao-passa vai com --tipo decisao, e só com ele (E8); nada gravado"], 2
     literal, contexto = literal.strip(), (contexto or "").strip()
     if not literal:
         return ["anotar: --literal não pode ser vazio"], 2
@@ -4003,6 +4009,11 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False):
         return [f"anotar: pedido {nome_seguro(sem_controle(pedido))} ausente, fora de docs/pedidos/ ou link simbólico (use o id do "
                 "pedido); nada gravado"], 2
     texto = arq.read_text(encoding="utf-8")
+    atributos, recusa = dono.leitura_da_decisao(texto, literal) if tipo == "decisao" else ({}, None)
+    if tipo == "pergunta" and (motivos := dono.recusa_de_corte(dono.opcoes_da_pergunta(literal))):
+        recusa = "; ".join(motivos) + " (E6)"
+    if recusa:
+        return [f"anotar: {recusa}; nada gravado"], 2
     linhas = texto.split("\n")
     hora = datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
     if tipo == "historico":
@@ -4014,6 +4025,9 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False):
             linhas.insert(fim, nova)
     else:
         nova = f"{FRASES_DO_ANOTAR[tipo]} ({hora}): " + (f"{contexto} → \"{literal}\"" if contexto else f"\"{literal}\"")
+        if tipo == "decisao":
+            atributos = {"confere": confere, "forge": versao_da_propria_copia() or "desconhecida", **atributos}
+            nova += MARCA_DE_ATRIBUTOS + "; ".join(f"{k}={v}" for k, v in atributos.items())
         fim = fim_da_secao(linhas, "Decisões do usuário")
         if fim is not None:
             linhas.insert(fim, nova)
@@ -4026,7 +4040,9 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False):
                 linhas[historico:historico] = bloco
     arq.write_text("\n".join(linhas), encoding="utf-8")
     saida, rc = propagar_decisao(raiz_do_pedido(raiz, arq), pedido, nova, propagar) if tipo == "decisao" else ([], 0)
-    return [f"anotado: {caminho_impresso(arq.name)}: {nova}", *saida], rc
+    if "revertida" in atributos:
+        saida.append(f"decisao: {dono.MARCA_REVERTIDA} ({atributos['revertida']}): dono contra o time")
+    return [f"anotado: {caminho_impresso(arq.name)}: {nova}", *saida, *(dono.modelo_da_pergunta(literal, texto) if confere == "nao-passa" else [])], rc
 
 
 def avisos_da_retomada(raiz, retomada, pedido_id, pedido_txt):
@@ -8320,6 +8336,14 @@ def cmd_brief_selar(raiz, a):
     lembrar_do_jarvis(raiz, tipo_do_brief(texto))
     _, linhas = avaliar_brief(raiz, arquivo, conteudo, texto, caminho_pedido, pedido_txt, destino, rel, None, a.ref, a.parecer)
     linhas = [(r, True) for r in reprovas] + list(linhas) + [(aviso, False) for aviso in avisos_de_suposicao(pedido_txt)]
+    dono = modulo_do_dono()  # E8 (0.45.7): delegar é cumprir; a decisão do dono cobrada passa antes pela conferência do Jarvis
+    if dono is None:
+        linhas.append(("decisões: bin/forge_dono.py ausente; a conferência das decisões (E8) não foi verificada", True))
+    fontes = decisoes_cobradas(raiz, caminho_pedido, pedido_txt)["fontes"] if dono else []  # a 1ª é o pedido; as outras, já lidas
+    for (rel, _), fonte in zip(fontes, [pedido_txt] + [ler_registro(raiz, rel)[0] for rel, _ in fontes[1:]]):
+        for n, motivo in dono.pendencias_da_conferencia(fonte, e_linha_de_decisao):
+            linhas.append((f"decisões: {caminho_impresso(rel)}:{n} {motivo}: confira com `anotar --tipo decisao --confere` e, se não passa, pergunte ao dono "
+                           "antes de cumprir (E8)", True))
     for linha, _ in linhas:
         print(linha)
     if any(r for _, r in linhas):
@@ -8973,6 +8997,7 @@ def main():
     na.add_argument("--literal", required=True, help="a fala do dono, literal (vai entre aspas); no historico, o texto da linha")
     na.add_argument("--contexto", help="a paráfrase do Jarvis, fora das aspas (decisao, pergunta, ordem)")
     na.add_argument("--propagar", action="store_true", help="só com --tipo decisao: grava o brief seguinte de cada brief em voo do pedido com a linha nova (B15)")
+    na.add_argument("--confere", help="obrigatório com --tipo decisao: rapido, seguro, barato, mede ou nao-passa (E8, critério do Jarvis)")
     cf = sub.add_parser("conferencia", help="registro das conferências do conferente (S-18)")
     csub = cf.add_subparsers(dest="acao", required=True)
     rg = csub.add_parser("registrar", parents=[comum], help="acrescenta uma conferência em docs/kanban/conferencias.md, em formato fixo, com a hora real")
@@ -9139,7 +9164,7 @@ def executar(a, raiz):
     if a.cmd == "retro":
         return cmd_retro(raiz, a.pedido, a.dias)
     if a.cmd == "anotar":
-        linhas, rc = cmd_anotar(raiz, a.pedido, a.tipo, a.literal, a.contexto, a.propagar)
+        linhas, rc = cmd_anotar(raiz, a.pedido, a.tipo, a.literal, a.contexto, a.propagar, a.confere)
         print("\n".join(linhas))
         return rc
     if a.cmd == "escape":
