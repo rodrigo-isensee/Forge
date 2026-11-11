@@ -7860,7 +7860,11 @@ def linhas_da_fonte(raiz, fonte):
     imprime a linha e a conferência responde se um trecho está nela; segredo nunca é fonte). O conteúdo nunca vai à saída."""
     if fonte.startswith("R-"):
         arq = PLUGIN / "docs" / "regras" / f"{fonte}.md"
-        return (arq.read_text(encoding="utf-8").splitlines(), None) if arq.is_file() else (None, "regra ausente")
+        if arq.is_file():
+            return arq.read_text(encoding="utf-8").splitlines(), None
+        limites = PLUGIN / "docs" / "regras" / "R-LIMITES.md"  # AV5: R-MAIN, R-VERIFY, R-CUSTO, R-CONTRIB e R-COPIA são trechos dele
+        partes = limites.read_text(encoding="utf-8").split(f"\n## {fonte}: ", 1) if limites.is_file() else []
+        return (partes[1].split("\n## ", 1)[0].splitlines(), None) if len(partes) == 2 else (None, "regra ausente")
     m = FONTE_DE_ARQUIVO.fullmatch(fonte)
     caminho, de = m.group(1), int(m.group(2))
     ate = int(m.group(3) or de)

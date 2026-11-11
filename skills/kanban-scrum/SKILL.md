@@ -6,7 +6,7 @@ description: Práticas de Kanban e Scrum do time - estrutura do quadro KANBAN.md
 # Kanban e Scrum do time
 
 ## Quadro (`KANBAN.md`, na raiz)
-Duas partes, separadas pelo **ponto de compromisso**. Limites de cada coluna e política de puxar: `R-WIP` 1 cartão por agente e limites de coluna (`${CLAUDE_PLUGIN_ROOT}/docs/regras/R-WIP.md`). Antes do Upstream, no topo, fica a coluna **Aguardando o dono** (topo do quadro): entra o cartão cuja próxima ação é do usuário (`R-DECISAO` painel "Aguardando o dono"; vaga: `R-WIP`).
+Duas partes, separadas pelo **ponto de compromisso**. Limites de cada coluna e política de puxar: `R-WIP` 1 cartão por agente e limites de coluna (`${CLAUDE_PLUGIN_ROOT}/docs/regras/`). Antes do Upstream, no topo, fica a coluna **Aguardando o dono** (topo do quadro): entra o cartão cuja próxima ação é do usuário (`R-DECISAO` painel "Aguardando o dono"; vaga: `R-WIP`).
 
 **Upstream — descoberta (Design Thinking, conduzido pelo `ux-designer`)**
 

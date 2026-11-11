@@ -13,8 +13,9 @@ def ler(rel):
 
 
 def ids(texto):
-    """Os IDs de regra citados no texto que existem em docs/regras/."""
-    return {i for i in ID.findall(texto) if (RAIZ / "docs" / "regras" / f"{i}.md").is_file()}
+    """Os IDs de regra citados no texto que existem em docs/regras/ (arquivo próprio ou trecho de R-LIMITES.md)."""
+    limites = ler("docs/regras/R-LIMITES.md")
+    return {i for i in ID.findall(texto) if (RAIZ / "docs" / "regras" / f"{i}.md").is_file() or f"## {i}:" in limites}
 
 
 def linha(rel, ancora):

@@ -621,12 +621,17 @@ class AntiDuplicacao(unittest.TestCase):
     def test_regra_so_na_fonte(self):
         fontes = sorted(REGRAS.glob("R-*.md"))
         self.assertTrue(fontes, "docs/regras sem regras")
-        minimo(fontes, 13, "regras em docs/regras")
+        minimo(fontes, 12, "regras em docs/regras")
+        corpos = {p: corpo_da_regra(p) for p in fontes}
+        # AV5: a R-WIP (regra só de hook) é a linha `**`R-WIP`` do índice; só ela vale como fonte, não os títulos da tabela
+        wip = [l for l in (REGRAS / "README.md").read_text(encoding="utf-8").splitlines() if l.startswith("**`R-WIP`")]
+        self.assertEqual(len(wip), 1, "a linha da R-WIP no README das regras")
+        corpos[REGRAS / "README.md"] = wip[0]
         alvos = [p for pasta in self.pastas if (RAIZ / pasta).is_dir() for p in arquivos_de(pasta)]
         minimo(alvos, 110, "arquivos comparados pelo anti-duplicação")
         textos = {p: sequencias(p.read_text(encoding="utf-8", errors="ignore"), self.n) for p in alvos}
-        for fonte in fontes:
-            trechos = sequencias(corpo_da_regra(fonte), self.n) - self.excecoes
+        for fonte, corpo in corpos.items():
+            trechos = sequencias(corpo, self.n) - self.excecoes
             for alvo, seqs in textos.items():
                 if alvo == fonte:
                     continue
@@ -639,7 +644,7 @@ class RegrasComId(unittest.TestCase):
     """ADR 0002: toda regra citada existe e diz como é verificada; o índice lista todas."""
 
     def setUp(self):
-        self.regras = {p.stem: p for p in minimo(sorted(REGRAS.glob("R-*.md")), 13, "regras em docs/regras")}
+        self.regras = {p.stem: p for p in minimo(sorted(REGRAS.glob("R-*.md")), 12, "regras em docs/regras")}  # AV5: R-LIMITES.md junta cinco
 
     def test_frontmatter_restrito(self):
         for nome, p in self.regras.items():
@@ -662,10 +667,16 @@ class RegrasComId(unittest.TestCase):
         for pasta in ("agents", "skills", "templates"):
             origens += arquivos_de(pasta)
         minimo(origens, 45, "arquivos que citam IDs de regra")
+        # AV5: trecho de R-LIMITES.md e regra só de hook com a linha dela no README também são IDs válidos
+        limites = (REGRAS / "R-LIMITES.md").read_text(encoding="utf-8")
+        indice = (REGRAS / "README.md").read_text(encoding="utf-8")
+        validos = set(self.regras) | set(re.findall(r"^## (R-[A-Z]+): ", limites, re.M)) \
+            | set(re.findall(r"^\*\*`(R-[A-Z]+)` \(regra só de hook", indice, re.M))
+        self.assertGreaterEqual(len(validos - set(self.regras)), 6, "os cinco trechos de R-LIMITES e a R-WIP")
         for p in origens:
             for rid in set(re.findall(r"\bR-[A-Z][A-Z0-9-]*\b", p.read_text(encoding="utf-8", errors="ignore"))):
                 with self.subTest(arquivo=str(p.relative_to(RAIZ)), regra=rid):
-                    self.assertTrue(rid in self.regras, f"{rid} não existe em docs/regras/")
+                    self.assertTrue(rid in validos, f"{rid} não existe em docs/regras/")
 
 
 def ambiente_limpo():
