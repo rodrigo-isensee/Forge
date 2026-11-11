@@ -58,7 +58,7 @@ class Fila27(unittest.TestCase):
         self.assertIsNone(achada)
 
     def test_a2_ready_por_graphql_no_clone(self):
-        self.rodar("fila27-a2-*.json", 18)
+        self.rodar("fila27-a2-*.json", 19)
 
     def test_a2_fifo_em_arroba_arq_recusa_sem_esperar(self):
         """A-F27-1: `-F query=@q` com `q` FIFO sem escritor recusa sem abrir para leitura bloqueante; aberto assim, o
