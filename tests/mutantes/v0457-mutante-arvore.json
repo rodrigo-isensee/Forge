@@ -8,7 +8,9 @@
       "arquivo": "bin/forge-mutante",
       "de": "                    if mudou:\n",
       "para": "                    if False and mudou:\n",
-      "testes": ["tests.test_forge_mutante.ArvoreQueMuda.test_a_primeira_mudanca_para_a_rodada_no_mutante_seguinte_e_diz_o_que_mudou"]
+      "testes": [
+        "tests.test_forge_mutante.ArvoreQueMuda.test_a_primeira_mudanca_para_a_rodada_no_mutante_seguinte_e_diz_o_que_mudou"
+      ]
     },
     {
       "id": "M2",
@@ -16,7 +18,9 @@
       "arquivo": "bin/forge-mutante",
       "de": "raise ArvoreMudou(futuros[f], prontos, mudou)",
       "para": "pass",
-      "testes": ["tests.test_forge_mutante.ArvoreQueMuda.test_a_primeira_mudanca_para_a_rodada_no_mutante_seguinte_e_diz_o_que_mudou"]
+      "testes": [
+        "tests.test_forge_mutante.ArvoreQueMuda.test_a_primeira_mudanca_para_a_rodada_no_mutante_seguinte_e_diz_o_que_mudou"
+      ]
     },
     {
       "id": "M3",
@@ -24,7 +28,17 @@
       "arquivo": "bin/forge-mutante",
       "de": "rode de novo.\", file=sys.stderr)\n        return 2\n",
       "para": "rode de novo.\", file=sys.stderr)\n        return 0\n",
-      "testes": ["tests.test_forge_mutante.ArvoreQueMuda.test_a_primeira_mudanca_para_a_rodada_no_mutante_seguinte_e_diz_o_que_mudou"]
+      "testes": [
+        "tests.test_forge_mutante.ArvoreQueMuda.test_a_primeira_mudanca_para_a_rodada_no_mutante_seguinte_e_diz_o_que_mudou"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-mutante",
+      "trecho": "depois != antes",
+      "linha_base": 709,
+      "motivo": "a conferência única do fim virou a conferência por mutante pronto, provada pelo M1"
     }
   ]
 }
