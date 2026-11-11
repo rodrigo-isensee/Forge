@@ -63,6 +63,17 @@ class Logica(unittest.TestCase):
     def setUpClass(cls):
         cls.s = carregar()
 
+    def test_testes_que_cairam_no_resumo_tem_teto_e_id_limpo(self):  # QA-1
+        self.assertEqual(self.s.testes_que_cairam([None, {"caidos": []}, {}]), [])
+        rels = [{"caidos": ["test_b.T.test_y", "test_a.T.test_x"]}, None, {"caidos": ["test_a.T.test_x", "x`y\nz" + "a" * 300]}]
+        linhas = self.s.testes_que_cairam(rels)
+        self.assertEqual(linhas[:4], ["", "#### Testes que caíram (3)", "- `test_a.T.test_x`", "- `test_b.T.test_y`"])
+        self.assertEqual(linhas[4], "- `xyz" + "a" * 195 + "`")  # cortado em 200, depois sem crase nem quebra de linha
+        self.assertEqual(self.s.LIMITE_CAIDOS, 30)  # A2 do review: o teto literal, não o valor da própria constante
+        muitos = self.s.testes_que_cairam([{"caidos": [f"test_m.T.test_{i:03d}" for i in range(37)]}])
+        self.assertEqual(len(muitos), 2 + 30 + 1)
+        self.assertEqual(muitos[-1], "- e mais 7 (a lista inteira está no log do passo)")
+
     def test_repartir_cobre_todos_e_e_determinista(self):
         nomes = [f"test_{i}" for i in range(9)]
         pesos = {"test_0": 50, "test_1": 30, "test_2": 20, "test_3": 5, "test_4": 5, "test_5": 5}
@@ -201,7 +212,7 @@ class Brinquedo(unittest.TestCase):
         self.git("init", "-q")
         self.git("add", "-A")
         self.git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "x")
-        self.env = dict(AMBIENTE, MARCAS=str(self.marcas), TMPDIR=str(self.tmpdir), FORGE_SUITE_PROCS="3",
+        self.env = dict(AMBIENTE, MARCAS=str(self.marcas), TMPDIR=str(self.tmpdir), FORGE_SUITE_PROCS="3", FORGE_PREPUSH_SUITE="afetados",  # ENVIO-LEVE: o padrão do hook não roda teste
                         XDG_RUNTIME_DIR=str(self.run_dir), HOME=str(base / "home"), FORGE_TRAVA_ESPERA="20")
         self.env.pop("FORGE_SUITE_TRAVA", None)
         self.env.pop("CI", None)
@@ -352,6 +363,9 @@ class Brinquedo(unittest.TestCase):
         self.assertIn("execução reprovada: não vale para o orçamento", resumo)
         for linha in ("unidades mais lentas", "soma das unidades", "maior unidade", "desequilíbrio"):
             self.assertNotIn(linha, resumo)  # C-7: a medida da c2 só existe no resumo verde
+        # QA-1: o resumo vermelho lista os testes que caíram, sem a mensagem da falha
+        self.assertIn("#### Testes que caíram (1)\n- `test_b.T.test_b`\n", resumo)
+        self.assertNotIn("de propósito", resumo)
 
     def test_resumo_com_processo_morto_nao_quebra_o_veredito(self):  # AB-1, C-8
         self.modulo("b", modulo_de_teste("b", "os.kill(os.getpid(), signal.SIGKILL)", "import signal\n"))

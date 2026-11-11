@@ -21,6 +21,7 @@ HOOK = RAIZ / ".githooks" / "pre-push"
 # FORGE_SUITE_* (processos, medição, trava) da suíte que roda estes testes não vazam para a suíte de brinquedo.
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_"))})
 
+AMBIENTE["FORGE_PREPUSH_SUITE"] = "afetados"  # ENVIO-LEVE: o padrão do hook não roda teste; estes testes exercitam o plano dos afetados
 SUITE_RAPIDA = '''import unittest, pathlib
 class T(unittest.TestCase):
     def test_roda(self):

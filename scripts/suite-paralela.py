@@ -75,6 +75,7 @@ LOCAL_DO_TESTE = re.compile(r'File "[^"]*/(tests/[^"]+)", line (\d+)')
 COMPARACAO = re.compile(r"^AssertionError: (.*?) != (.*)$", re.M)
 TESTE_DE_TEMPO = re.compile(r"tempo|prazo|relogio|hora|duracao|timeout|espera", re.I)
 LIMITE_LENTAS, LIMITE_SEM_PESO, LIMITE_SEM_DURACAO = 10, 20, 20  # o resumo do CI é curto (N-CI, C-11)
+LIMITE_CAIDOS = 30  # QA-1: os testes que caíram no resumo do CI; o resto fica no log do passo
 CONFIG, LIMITE_PULADOS = RAIZ / TESTES / "config.json", 20  # teto de pulados (T3)
 
 
@@ -557,6 +558,19 @@ def lista_curta(nomes, limite):
     return ", ".join(nomes[:limite]) + (f" e mais {len(nomes) - limite}" if len(nomes) > limite else "")
 
 
+def testes_que_cairam(relatorios):
+    """QA-1: as linhas do resumo com os IDs que caíram (falha ou erro), sem a mensagem; cada ID cortado em 200 caracteres,
+    só imprimíveis e sem crase (não fecha o código do Markdown), até LIMITE_CAIDOS e a contagem do resto."""
+    caidos = sorted({str(i) for rel in relatorios if rel for i in rel.get("caidos", ()) or ()})
+    if not caidos:
+        return []
+    linhas = ["", f"#### Testes que caíram ({len(caidos)})"]
+    linhas += ["- `" + "".join(c for c in i[:200] if c.isprintable() and c != "`") + "`" for i in caidos[:LIMITE_CAIDOS]]
+    if len(caidos) > LIMITE_CAIDOS:
+        linhas.append(f"- e mais {len(caidos) - LIMITE_CAIDOS} (a lista inteira está no log do passo)")
+    return linhas
+
+
 def montar_resumo(veredito, linhas, partes, relatorios, duracoes, pesos, total, segundos):
     """O texto do resumo do passo (Markdown): só nomes de unidade e números, nunca portão. O veredito vem primeiro; a
     execução reprovada não leva as linhas da medida e não vale para o orçamento (N-CI, C-7, C-9 a C-12)."""
@@ -571,6 +585,7 @@ def montar_resumo(veredito, linhas, partes, relatorios, duracoes, pesos, total, 
         texto.append(f"- sem duração: {lista_curta(sem_duracao, LIMITE_SEM_DURACAO)}")
     if veredito.startswith("FAILED"):
         texto.append("- execução reprovada: não vale para o orçamento")
+        texto += testes_que_cairam(relatorios)
         return "\n".join(texto) + "\n"
     media = sum(duracoes) / n
     desequilibrio = max(duracoes) - media

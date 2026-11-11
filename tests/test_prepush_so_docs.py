@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ambiente_git import sem_manutencao  # noqa: E402
 from apoio_sandbox import exigir  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+AMBIENTE["FORGE_PREPUSH_SUITE"] = "afetados"  # ENVIO-LEVE: o padrão do hook não roda teste; estes testes exercitam o plano dos afetados
 AMBIENTE.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
 PULO = "só docs/** e .md; lint e typecheck pulados"
 
@@ -285,10 +286,16 @@ class GrupoDaEtapa(Repo):
         p.stdin.close()
         return p
 
-    def le(self, nome):
-        self.assertTrue(ate((self.dir / nome).exists), nome)
-        time.sleep(0.2)
-        return [int(x) for x in (self.dir / nome).read_text().split()]
+    def le(self, nome, quer=1):
+        """Espera o arquivo ter `quer` números inteiros (a etapa anota "pid pgid" só quando o grupo existe), não uma janela fixa."""
+
+        def campos():
+            try:
+                return [int(x) for x in (self.dir / nome).read_text().split()]
+            except (OSError, ValueError):
+                return []
+        self.assertTrue(ate(lambda: len(campos()) >= quer, 30), nome)
+        return campos()[:quer]
 
     def fim(self, p):
         try:
@@ -315,7 +322,7 @@ class GrupoDaEtapa(Repo):
                 self.etapa(f"exit {saida}")
                 p = self.lanca()
                 self.assertEqual(self.fim(p)[0], esperado)
-                pid, pgid = self.le("etapa")
+                pid, pgid = self.le("etapa", 2)
                 self.assertEqual(pgid, pid)
                 self.assertNotEqual(pgid, p.pid)
                 (self.dir / "etapa").unlink()
@@ -329,7 +336,7 @@ class GrupoDaEtapa(Repo):
         self.etapa('sleep 60 & echo $! > "$(dirname "$0")/../filho"')
         self.assertEqual(self.fim(self.lanca())[0], 0)
         filho = self.le("filho")[0]
-        self.assertTrue(ate(lambda: filho not in vivos()))
+        self.assertTrue(ate(lambda: filho not in vivos(), 30))
 
     def test_grupo_nao_criado_ou_pgid_ilegivel_sinaliza_so_a_etapa(self):
         falso = self.dir / "falso"
