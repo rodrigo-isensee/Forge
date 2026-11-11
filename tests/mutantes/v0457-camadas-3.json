@@ -26,8 +26,8 @@
       "id": "M19",
       "guarda": "M-E6-1/M-E6-7: o léxico (e a marca [corte]) acha o corte",
       "arquivo": "bin/forge_dono.py",
-      "de": "return CORTE.search(_sem_acento(sem_campos)) is not None",
-      "para": "return CORTE.search(_sem_acento(sem_campos)) is None",
+      "de": "return CORTE.search(_sem_acento(_sem_campos(texto))) is not None",
+      "para": "return CORTE.search(_sem_acento(_sem_campos(texto))) is None",
       "testes": [
         "tests.test_forge_dono.TravaDeOrigem.test_marca_corte_sem_verbo_do_lexico"
       ]

@@ -137,7 +137,8 @@ def ler_resposta(questoes, resposta):
 # ---- E6, E7 e E8 (0.45.7): origem da recomendação de corte, recomendação revertida e conferência da decisão ----
 
 CAMPOS_DE_ORIGEM = {"origem": "origem", "procurado": "procurado", "seguir": "seguir", "nao seguir": "não seguir"}
-CORTE = re.compile(r"(?<![a-z])(?:cort|descart|afrouxa|retir|remov|apag|aposent|abandon)")  # sobre o texto sem acento, em casefold
+CORTE = re.compile(r"(?<![a-z])(?:cort(?!esi)|descart|afrouxa|retir|remov|apag|aposent|abandon|deslig|deix\S*(?:\s+\S+){0,3}?\s+de\s+lado)")
+# sobre o texto sem acento, em casefold; `cortesia` não é corte; `deixar (o teste) de lado` e `desligar` são
 LUGARES_DO_NAO_ACHADA = 2  # `origem: não achada` só vale com `procurado:` de 2 lugares ou mais
 MARCA_REVERTIDA = "recomendação revertida"
 CRITERIOS = ("rapido", "seguro", "barato", "mede")
@@ -171,10 +172,13 @@ def campos_de_origem(texto):
     return campos
 
 
+def _sem_campos(texto):
+    return " ".join(s for s in texto.split("·") if not re.match(r"\s*(origem|procurado|seguir|nao seguir)\s*:", _sem_acento(s)))
+
+
 def e_corte(texto):
     """E6: a opção recomenda cortar: raiz do léxico fora dos campos de origem; a marca `[corte]` cai na raiz `cort`."""
-    sem_campos = " ".join(s for s in texto.split("·") if not re.match(r"\s*(origem|procurado|seguir|nao seguir)\s*:", _sem_acento(s)))
-    return CORTE.search(_sem_acento(sem_campos)) is not None
+    return CORTE.search(_sem_acento(_sem_campos(texto))) is not None
 
 
 def falta_de_origem(campos):
@@ -241,10 +245,28 @@ def leitura_da_decisao(pedido_txt, literal):
     return atributos, None
 
 
-def modelo_da_pergunta(literal):
-    """E8: as linhas do modelo da `PERGUNTA AO DONO` para a decisão que não passa no critério (`confere=nao-passa`)."""
+def alternativa(pedido_txt, literal):
+    """E8: o texto (sem marcas nem campos de origem) da `[recomendada]` única de cada questão da última `PERGUNTA AO DONO`; com o
+    literal em códigos, só das questões que ele responde. None sem recomendada."""
+    questoes = ultima_pergunta(pedido_txt)
+    tokens = list(filter(None, re.split(r"[\s,;.]+", literal.lower())))
+    if tokens and all(CODIGO.fullmatch(t) for t in tokens):
+        respondidas = {int(CODIGO.fullmatch(t).group(1)) for t in tokens}
+        questoes = {n: q for n, q in questoes.items() if n in respondidas}
+    textos = []
+    for n in sorted(questoes):
+        recomendadas = [t for t in questoes[n].values() if "recomendada" in marcas(t)]
+        if len(recomendadas) == 1:
+            textos.append(" ".join(re.sub(r"\[[^\[\]]{1,40}\]", " ", _sem_campos(recomendadas[0])).split()).strip(" ·"))
+    return "; ".join(t for t in textos if t)[:160] or None
+
+
+def modelo_da_pergunta(literal, pedido_txt=""):
+    """E8: as linhas do modelo da `PERGUNTA AO DONO` para a decisão que não passa no critério (`confere=nao-passa`); a alternativa é
+    o texto da `[recomendada]` da última pergunta (sem ela, o Jarvis escreve a dele no lugar indicado)."""
+    texto = alternativa(pedido_txt, literal) or "<a do Jarvis: a última pergunta não tem [recomendada]>"
     return ["decisao: confere=nao-passa: antes de cumprir, pergunte ao dono com `forge-check anotar --tipo pergunta`; modelo:",
-            "pergunta: 1a) alternativa: <a do Jarvis> [recomendada] · origem: <ref> · procurado: <onde> · seguir: <custo> · "
+            f"pergunta: 1a) alternativa: {texto} [recomendada] · origem: <ref> · procurado: <onde> · seguir: <custo> · "
             f"não seguir: <custo> · 1b) seguir a decisão \"{literal[:120]}\""]
 
 

@@ -271,7 +271,7 @@ PEDIDO_CAMADAS = "# p\n\n## Decisões do usuário (registro literal)\nDECISÃO D
 CAMPOS = "origem: relatório do agente que corrigiu o CI da 0.45.4 · procurado: docs/qa/, tests/ · seguir: perde a recusa · não seguir: mantém o custo"
 CORTE_SEM = "1a) descartar a recusa do bin/forge_apoio_testes.py como link [recomendada] [reversível] · 1b) manter a recusa [reversível]"
 CORTE_OK = f"1a) descartar a recusa do bin/forge_apoio_testes.py como link [recomendada] [reversível] · {CAMPOS} · 1b) manter a recusa [reversível]"
-RAIZES = ("cortar", "descartar", "afrouxar", "retirar", "remover", "apagar", "aposentar", "abandonar")
+RAIZES = ("cortar", "descartar", "afrouxar", "retirar", "remover", "apagar", "aposentar", "abandonar", "desligar")
 
 
 def pergunta(literal):
@@ -363,18 +363,29 @@ class TravaDeOrigem(BaseCamadas):  # E6
         self.assertEqual(rc, 0, linhas)  # o léxico vale fora dos campos de origem
 
     def test_marca_corte_sem_verbo_do_lexico(self):  # CT-E6-04, CT-E6-13
-        sem = "1a) deixar o teste de lado [recomendada] [corte] · 1b) seguir com ele"
+        sem = "1a) pular o teste [recomendada] [corte] · 1b) seguir com ele"
+        linhas, rc = self.anotar("pergunta", sem.replace(" [corte]", ""))
+        self.assertEqual(rc, 0, linhas)  # sem verbo do léxico e sem a marca, não é corte
         self.recusa("pergunta", sem)
         linhas, rc = self.anotar("pergunta", sem.replace("[corte]", f"[corte] · {CAMPOS}"))
         self.assertEqual(rc, 0, linhas)
 
-    def test_cada_raiz_do_lexico_com_acento_e_caixa(self):  # CT-E6-14
+    def test_cada_raiz_do_lexico_com_acento_e_caixa(self):  # CT-E6-14, pelo `anotar`
         casos = [f"1a) {r} o teste [recomendada] · 1b) manter" for r in RAIZES]
-        casos += [f"1a) {r} [recomendada] · 1b) manter" for r in ("Descartar o teste", "REMOVÊ-LO", "retirá-la", "Afrouxá-la")]
-        self.assertGreaterEqual(len(casos), 8)
+        casos += [f"1a) {r} [recomendada] · 1b) manter" for r in ("Descartar o teste", "REMOVÊ-LO", "retirá-la", "Afrouxá-la",
+                                                                  "deixar o teste de lado", "Deixá-lo de lado", "DESLIGÁ-LO")]
+        self.assertGreaterEqual(len(casos), 10)
         for literal in casos:
             with self.subTest(literal=literal):
-                self.assertTrue(dono.recusa_de_corte(dono.opcoes_da_pergunta(literal)), literal)
+                self.assertIn("recomendação de corte sem", self.recusa("pergunta", literal))
+
+    def test_o_que_nao_e_corte_passa_sem_campos(self):  # pré-QA risco 6: lista negativa do léxico
+        casos = ["responder com cortesia", "Cortesia ao dono", "manter a regra irremovível", "deixar o prazo como está"]
+        self.assertGreaterEqual(len(casos), 4)
+        for texto in casos:
+            with self.subTest(texto=texto):
+                linhas, rc = self.anotar("pergunta", f"1a) {texto} [recomendada] · 1b) mudar")
+                self.assertEqual(rc, 0, linhas)
 
     def test_campos_no_contexto_nao_valem(self):  # CT-E6-18
         self.recusa("pergunta", CORTE_SEM, contexto=CAMPOS)
@@ -425,6 +436,14 @@ class RecomendacaoRevertida(BaseCamadas):  # E7
             with self.subTest(literal=literal):
                 self.assertEqual(dono.divergencia(dono.opcoes_da_pergunta(literal), {1: "b"}), {})
 
+    def test_origem_copiada_nao_abre_atributo(self):  # `_valor`: a origem da pergunta não injeta chave na marca
+        self.com_pergunta(CORTE_OK.replace("relatório do agente que corrigiu o CI da 0.45.4", "a;b=c|d" + "x" * 200))
+        linhas, rc = self.anotar("decisao", "1a", confere="mede")
+        self.assertEqual(rc, 0, linhas)
+        atributos = dono.atributos_da_linha(self.ultima())
+        self.assertEqual(set(atributos), {"confere", "forge", "origem"}, self.ultima())
+        self.assertEqual(atributos["origem"], ("a b c d" + "x" * 200)[:160])
+
     def test_codigos_que_nao_se_leem_sao_recusados(self):
         self.com_pergunta(CORTE_OK)
         self.assertIn("decisoes --resposta", self.recusa("decisao", "1a 1c", confere="mede"))
@@ -461,12 +480,22 @@ class ConfereNoAnotar(BaseCamadas):  # E8
                 self.assertEqual(rc, 0, linhas)
                 self.assertIn(f"atributos: confere={confere}; forge=", self.ultima())
 
-    def test_nao_passa_imprime_o_modelo_da_pergunta(self):  # CT-E8-12
-        linhas, rc = self.anotar("decisao", "corte o teste", confere="nao-passa")
+    def test_nao_passa_imprime_o_modelo_da_pergunta(self):  # CT-E8-12: a alternativa é o texto da [recomendada]
+        self.com_pergunta("1a) manter o prazo [recomendada] [reversível] · 1b) adiar 2a) fila 2b) banco [recomendada]")
+        linhas, rc = self.anotar("decisao", "1b", confere="nao-passa")
         self.assertEqual(rc, 0, linhas)
         modelo = linhas[-1]
-        for campo in ("alternativa:", "[recomendada]", "origem:", "procurado:", "seguir:", "não seguir:", 'seguir a decisão "corte o teste"'):
+        for campo in ("1a) alternativa: manter o prazo [recomendada] · origem:", "procurado:", "seguir:", "não seguir:",
+                      '1b) seguir a decisão "1b"'):
             self.assertIn(campo, modelo)
+        self.assertNotIn("banco", modelo)  # só a questão que o literal responde
+        linhas, rc = self.anotar("decisao", "corte o teste", confere="nao-passa")
+        self.assertEqual(rc, 0, linhas)
+        self.assertIn("alternativa: manter o prazo; banco [recomendada]", linhas[-1])  # em prosa, a de cada questão
+        self.arq.write_text(PEDIDO_CAMADAS, encoding="utf-8")
+        linhas, rc = self.anotar("decisao", "corte o teste", confere="nao-passa")
+        self.assertEqual(rc, 0, linhas)
+        self.assertIn("alternativa: <a do Jarvis: a última pergunta não tem [recomendada]>", linhas[-1])
 
     def test_sem_o_modulo_do_dono_nada_e_gravado(self):
         original = fc.modulo_do_dono
@@ -528,6 +557,21 @@ class Pendencias(unittest.TestCase):  # E8: a regra que o selar aplica, linha a 
         motivos = [m for _, m in dono.pendencias_da_conferencia("\n".join(linhas), fc.e_linha_de_decisao, self.ENTRADA)]
         self.assertEqual(motivos, ["sem `confere=`", "`confere=nao-passa` sem pergunta e resposta do dono depois"])
 
+    def test_linha_de_plugin_antigo_depois_da_entrada_pende(self):  # pré-QA risco 1
+        """O plugin sem a E8 grava a decisão sem a marca; depois da entrada ela pende até pergunta e resposta com critério,
+        porque a marca só nasce da ferramenta (a diretriz 9 vale para a decisão nova e para a antiga)."""
+        antiga = 'DECISÃO DO DONO (2026-11-13 09:00): paráfrase → "regra B"'
+        self.assertEqual(self.pendentes(antiga), [1])
+        self.assertEqual(self.pendentes(antiga, decisao("2026-11-13 09:05", "outra", "mede")), [1])  # outra decisão não a resolve
+        self.assertEqual(self.pendentes(antiga, pergunta("1a) regra C [recomendada] 1b) regra B").strip(),
+                                        decisao("2026-11-13 09:10", "1b", "mede")), [])
+
+    def test_decisao_sem_data_nunca_trava(self):  # pré-QA risco 2: sem data, não se sabe se é anterior à entrada
+        for linha in ("DECISÃO DO DONO: sem data", '- DECISÃO DO DONO → "x"', "DECISÃO DO DONO, registrada depois (2030-01-01 10:00): x",
+                      "DECISÃO DO DONO (ontem): x · atributos: confere=nao-passa"):
+            with self.subTest(linha=linha):
+                self.assertEqual(self.pendentes(linha), [])
+
     def test_a_entrada_e_uma_constante_com_hora(self):  # PQ-A3
         self.assertEqual(dono.ENTRADA_DA_CONFERENCIA, self.ENTRADA)
 
@@ -560,6 +604,19 @@ class SelarConfere(Repositorio):  # E8 no `brief selar`, numa raiz de projeto co
         rc, saida = self.selar()
         self.assertEqual(rc, 0, saida)
 
+    def test_decisao_posterior_com_criterio_passa(self):  # CT-E8-02
+        self.com_decisoes(decisao("2030-01-01 10:00", "regra B", "mede"))
+        self.brief()
+        rc, saida = self.selar()
+        self.assertEqual(rc, 0, saida)
+
+    def test_linha_de_plugin_antigo_barra_o_selar(self):  # pré-QA risco 1
+        self.com_decisoes('DECISÃO DO DONO (2026-11-13 09:00): paráfrase → "regra B"')
+        self.brief()
+        rc, saida = self.selar()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("decisões: docs/pedidos/exemplo.md:16 sem `confere=`", saida)
+
     def test_sem_o_modulo_do_dono_o_selar_reprova(self):
         self.brief()
         original, fc.modulo_do_dono = fc.modulo_do_dono, lambda: None
@@ -583,6 +640,53 @@ class SelarConfere(Repositorio):  # E8 no `brief selar`, numa raiz de projeto co
         rc, saida = self.selar()
         self.assertEqual(rc, 1, saida)
         self.assertIn("decisões: docs/pedidos/outro.md:3 sem `confere=`", saida)
+
+
+class ModeloDeProjeto(SelarConfere):  # CT-E6-19, CT-E7-10, CT-E8-18: as três camadas numa raiz copiada de templates/projeto
+    def setUp(self):
+        super().setUp()
+        shutil.copytree(Path(FORGE_CHECK).resolve().parent.parent / "templates" / "projeto", self.proj, dirs_exist_ok=True)
+        self.assertTrue((self.proj / ".forge" / "config.json").is_file())
+        self.gravar("docs/pedidos/exemplo.md", PEDIDO_DO_SELO)
+        self.git("add", "-A")
+        self.commit("modelo do projeto")
+
+    def rodar(self, *args):
+        env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.home), "LANG": "C.UTF-8", "GIT_CONFIG_NOSYSTEM": "1",
+               "GIT_CONFIG_GLOBAL": os.devnull}
+        r = subprocess.run([sys.executable, "-I", str(FORGE_CHECK), "--raiz", str(self.proj), *map(str, args)], capture_output=True,
+                           text=True, env=env, timeout=300)
+        return r.returncode, r.stdout + r.stderr
+
+    def brief(self, **opcoes):
+        """O modelo traz `docs/engineering/achados-recorrentes.md`, que pede ao Jarvis as demais leituras no `## Ler`."""
+        arq = super().brief(**opcoes)
+        texto = arq.read_text(encoding="utf-8")
+        self.assertIn("- PREENCHER: demais leituras do destino", texto)
+        arq.write_text(texto.replace("- PREENCHER: demais leituras do destino (propostas, arquivos)\n", ""), encoding="utf-8")
+        return arq
+
+    def anotar(self, tipo, literal, *extra):
+        return self.rodar("anotar", "--pedido", "exemplo", "--tipo", tipo, "--literal", literal, *extra)
+
+    def test_trava_de_origem(self):  # CT-E6-10, CT-E6-01
+        antes = self.pedido()
+        rc, saida = self.anotar("pergunta", CORTE_SEM)
+        self.assertEqual((rc, self.pedido()), (2, antes), saida)
+        rc, saida = self.anotar("pergunta", CORTE_OK)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("origem: relatório do agente que corrigiu o CI da 0.45.4", self.pedido())
+
+    def test_recomendacao_revertida(self):  # CT-E7-01
+        self.assertEqual(self.anotar("pergunta", CORTE_OK)[0], 0)
+        rc, saida = self.anotar("decisao", "1b", "--confere", "seguro")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("revertida=1b-contra-1a", self.pedido())
+
+    def test_decisao_sem_confere(self):  # CT-E8-10; CT-E8-13 e CT-E8-02 vêm herdados do SelarConfere, nesta raiz
+        antes = self.pedido()
+        rc, saida = self.anotar("decisao", "sim")
+        self.assertEqual((rc, self.pedido()), (2, antes), saida)
 
 
 if __name__ == "__main__":

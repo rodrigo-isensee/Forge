@@ -4042,7 +4042,7 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False, confe
     saida, rc = propagar_decisao(raiz_do_pedido(raiz, arq), pedido, nova, propagar) if tipo == "decisao" else ([], 0)
     if "revertida" in atributos:
         saida.append(f"decisao: {dono.MARCA_REVERTIDA} ({atributos['revertida']}): dono contra o time")
-    return [f"anotado: {caminho_impresso(arq.name)}: {nova}", *saida, *(dono.modelo_da_pergunta(literal) if confere == "nao-passa" else [])], rc
+    return [f"anotado: {caminho_impresso(arq.name)}: {nova}", *saida, *(dono.modelo_da_pergunta(literal, texto) if confere == "nao-passa" else [])], rc
 
 
 def avisos_da_retomada(raiz, retomada, pedido_id, pedido_txt):
