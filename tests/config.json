@@ -398,7 +398,9 @@
       "o único limite é a memória livre",
       "nunca relaxa as regras abaixo",
       "\\*\\*tarefas pesadas uma de cada vez\\*\\*",
-      "A suíte inteira segue serial"
+      "A suíte inteira roda uma por vez\\.",
+      "`suite-partes\\.py --duas-partes` junta as 2 partes só com load1 < nproc e memória sobre o piso",
+      "Reverter se passar de 21 FLAKY em 7 dias"
     ],
     "docs/regras/R-DISCOVERY.md": [
       "\\*\\*Todo pedido começa com discovery\\.\\*\\*"
