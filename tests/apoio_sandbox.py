@@ -130,7 +130,7 @@ def usos_fora_da_lista(fonte, modulo, lista):
             queixas.append((no.lineno, "exigir com outro nome"))
         if isinstance(no, ast.Constant) and no.value == "exigir":
             queixas.append((no.lineno, "exigir por nome em texto"))
-        if _nome(no) != "exigir" or isinstance(no, ast.alias):
+        if _nome(no) != "exigir":
             continue
         chamada = pai.get(no)
         comando = pai.get(chamada)
