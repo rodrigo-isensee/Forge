@@ -2,14 +2,14 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2282 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2286 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 68 | 36 | 32 | 25 |
-| `conformidade` | 1676 | 1234 | 442 | 86 |
+| `conformidade` | 1680 | 1238 | 442 | 86 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 25 | 10 | 15 | 12 |
 | `parecer` | 436 | 340 | 96 | 22 |
@@ -67,11 +67,11 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2282 fixtures) roda em `tests/test
 | `n5-*` | 34 | 21 | 13 | `R-REVIEW` | — | N5 (L22, IMPL-FURO-HOOK-N): am na develop |
 | `nao-*` | 34 | 21 | 13 | `R-MAIN` | `ADR`, `AA2-01` | ADR 0011 (item 2): $' que o shlex lê como aspas abertas. |
 | `pn7-*` | 32 | 24 | 8 | `R-MAIN` | `PN7-DOLAR-INTERROG` | PN7-DOLAR-INTERROG (H1-1, ADR 0011): continua barrado. |
+| `rverify-*` | 29 | 22 | 7 | `R-VERIFY` | `HOOK-RVERIFY-FALSO-POSITIVO` | HOOK-RVERIFY-FALSO-POSITIVO: cat > $TMPDIR/x.py <<'EOF' com `*` e .githooks/pre-push só no corpo (dado, não destino); sessão do Forge, pasta… |
 | `n2-*` | 28 | 22 | 6 | `R-REVIEW` | — | N2 (L20b, IMPL-FURO-HOOK-N): GIT_OBJECT_DIRECTORY por declare -x |
 | `shell-*` | 28 | 20 | 8 | `R-CONFORMIDADE` | — | Contorno pelo shell: echo 9.9.9 >> .forge/versao |
 | `comentario-*` | 26 | 23 | 3 | `R-VERIFY`, `R-CONFORMIDADE`, `R-MAIN` | `HOOK-COMENTARIO-SHLEX` | Na regex do `=~` o bash não abre comentário depois de `\|`: o push seguinte é lido. |
 | `fc-*` | 26 | 17 | 9 | `R-CONFORMIDADE` | `FURO-HOOK-A` | FURO-HOOK-A, A4: contraprova: saída fora de pasta protegida. |
-| `rverify-*` | 25 | 18 | 7 | `R-VERIFY` | `HOOK-RVERIFY-FALSO-POSITIVO` | HOOK-RVERIFY-FALSO-POSITIVO: cat > $TMPDIR/x.py <<'EOF' com `*` e .githooks/pre-push só no corpo (dado, não destino); sessão do Forge, pasta… |
 | `vigor-*` | 25 | 24 | 1 | `R-CONFORMIDADE` | `CLAUDE` | {raiz}/.claude/agents/x.md é do usuário: bloqueia até o jarvis. |
 | `hook-*` | 21 | 13 | 8 | `R-VERIFY` | `HOOK-N4`, `HOOK-MSG-SEGMENTO` | hooks_desligados com conformidade (escolha do usuário): libera. |
 | `leitura-*` | 21 | 17 | 4 | — | `K2-REC` | bash -c com forge sugerir segue recusada (F6, só leitura) |
