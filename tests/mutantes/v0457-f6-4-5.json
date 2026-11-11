@@ -1,0 +1,102 @@
+{
+  "pedido": "v0457-f6-4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "bin/forge_voltas.py:138 h and m is not None",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        janelas = [(_hora(h.replace(\" \", \"T\")), m, True) for _, _, h, m in rodadas[\"extras\"] if h and m is not None]",
+      "para": "        janelas = [(_hora(h.replace(\" \", \"T\")), m, True) for _, _, h, m in rodadas[\"extras\"] if (not (h and m is not None))]",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "bin/forge_voltas.py:139 m is not None",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        janelas += [(h, m, False) for _, h, m in voltas if m is not None]",
+      "para": "        janelas += [(h, m, False) for _, h, m in voltas if (not (m is not None))]",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "bin/forge_voltas.py:140 j[2]",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        total = _uniao_de_minutos([(j[0] - datetime.timedelta(minutes=j[1]), j[0]) if j[2] else (j[0], j[0] + datetime.timedelta(minutes=j[1]))",
+      "para": "        total = _uniao_de_minutos([(j[0] - datetime.timedelta(minutes=j[1]), j[0]) if (not (j[2])) else (j[0], j[0] + datetime.timedelta(minutes=j[1]))",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "bin/forge_voltas.py:141 j[0]",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "                                   for j in janelas if j[0]])",
+      "para": "                                   for j in janelas if (not (j[0]))])",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "bin/forge_voltas.py:142 construcao",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        razao = f\"{total / construcao:.2f}\" if construcao else \"-\"",
+      "para": "        razao = f\"{total / construcao:.2f}\" if (not (construcao)) else \"-\"",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "bin/forge_voltas.py:144 construcao is not None",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "              + f\" minutos={_numero(total)} construcao={_numero(construcao) if construcao is not None else '-'} razao={razao}\")",
+      "para": "              + f\" minutos={_numero(total)} construcao={_numero(construcao) if (not (construcao is not None)) else '-'} razao={razao}\")",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "bin/forge_voltas.py:145 relogios",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        if relogios:",
+      "para": "        if (not (relogios)):",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "bin/forge_voltas.py:147 pronto is None",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "            dentro = \"-\" if pronto is None else \"sim\" if pronto <= META_PRONTO_ATE_DEVELOP else \"nao\"",
+      "para": "            dentro = \"-\" if (not (pronto is None)) else \"sim\" if pronto <= META_PRONTO_ATE_DEVELOP else \"nao\"",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    }
+  ]
+}
