@@ -1,15 +1,25 @@
 {
-  "pedido": "v0457-envio-sandbox-2",
+  "pedido": "v0457-envio-sandbox",
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M1",
+      "id": "M9",
       "guarda": "E11 o CI lido por padrão é o do ambiente do processo",
       "arquivo": "tests/apoio_sandbox.py",
       "de": "    ambiente = os.environ if ambiente is None else ambiente",
       "para": "    ambiente = {} if ambiente is None else ambiente",
       "testes": [
         "tests.test_apoio_sandbox.NoProcessoReal.test_com_ci_definido_no_ambiente_reprova_sem_pular"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "E11 o pid dado à sonda vale (o /proc falso do teste)",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    pid = os.getpid() if pid is None else pid",
+      "para": "    pid = os.getpid()",
+      "testes": [
+        "tests.test_apoio_sandbox.Sondas.test_proc_do_proprio_namespace_nao_falta_e_o_de_outro_falta"
       ]
     }
   ]
