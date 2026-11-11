@@ -3,7 +3,7 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M1",
+      "id": "J17",
       "guarda": "E1.1: reprovação ou revalidação conta volta",
       "arquivo": "bin/forge_governanca.py",
       "de": "bool(VOLTA.search(s) or portao == \"revalidacao\")",
@@ -13,7 +13,7 @@
       ]
     },
     {
-      "id": "M2",
+      "id": "J18",
       "guarda": "E1.1: com início aberto o tempo conta dele",
       "arquivo": "bin/forge_governanca.py",
       "de": "_minutos(aberto or anterior, h)",
@@ -23,7 +23,7 @@
       ]
     },
     {
-      "id": "M3",
+      "id": "J19",
       "guarda": "E1.1: o primeiro início do portão vale",
       "arquivo": "bin/forge_governanca.py",
       "de": "aberto = aberto or h",
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "id": "M4",
+      "id": "J20",
       "guarda": "E1.1: pedido sem dado no portão não entra na soma",
       "arquivo": "bin/forge_governanca.py",
       "de": "            if d is None:\n                continue",
@@ -43,7 +43,7 @@
       ]
     },
     {
-      "id": "M5",
+      "id": "J21",
       "guarda": "E1.1: a soma acumula os pedidos da versão",
       "arquivo": "bin/forge_governanca.py",
       "de": "s = saida[portao] = saida[portao] or {\"minutos\": 0.0, \"voltas\": 0, \"tempo\": None}",
@@ -53,7 +53,7 @@
       ]
     },
     {
-      "id": "M6",
+      "id": "J22",
       "guarda": "E1.1: um pedaço estimado deixa a soma estimada",
       "arquivo": "bin/forge_governanca.py",
       "de": "\"estimado\" if \"estimado\" in (s[\"tempo\"], d[\"tempo\"]) else",
@@ -63,7 +63,7 @@
       ]
     },
     {
-      "id": "M7",
+      "id": "J23",
       "guarda": "E1.1: só os eventos da janela entram na fatia",
       "arquivo": "bin/forge_governanca.py",
       "de": "        eventos = [e for e in eventos_do_pedido(texto, fuso) if janela(e[0])]",
@@ -73,7 +73,7 @@
       ]
     },
     {
-      "id": "M8",
+      "id": "J24",
       "guarda": "E1.1: o pedido com versão soma na versão",
       "arquivo": "bin/forge_governanca.py",
       "de": "versao.group(1) if versao else nome",

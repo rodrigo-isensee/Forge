@@ -3,7 +3,7 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M1",
+      "id": "J1",
       "guarda": "E1/E5: branch ausente no gh vira texto vazio, não erro",
       "arquivo": "bin/forge_governanca.py",
       "de": "VERSAO_DA_BRANCH.search(texto or \"\")",
@@ -13,7 +13,7 @@
       ]
     },
     {
-      "id": "M2",
+      "id": "J2",
       "guarda": "E5.1: gh que falha não tem a saída lida",
       "arquivo": "bin/forge_governanca.py",
       "de": "lista = json.loads(r.stdout) if r.returncode == 0 else None",
@@ -23,7 +23,7 @@
       ]
     },
     {
-      "id": "M3",
+      "id": "J3",
       "guarda": "E5.1: item da lista que não é objeto fica fora",
       "arquivo": "bin/forge_governanca.py",
       "de": "for x in lista if isinstance(x, dict)]",
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "id": "M4",
+      "id": "J4",
       "guarda": "E5.1: resposta que não é lista vira None",
       "arquivo": "bin/forge_governanca.py",
       "de": "if isinstance(lista, list) else None",
@@ -43,7 +43,7 @@
       ]
     },
     {
-      "id": "M5",
+      "id": "J5",
       "guarda": "E5.1: sem --gh os PRs não são lidos",
       "arquivo": "bin/forge_governanca.py",
       "de": "\"headRefName,statusCheckRollup\"]) if usar_gh else None",
@@ -53,7 +53,7 @@
       ]
     },
     {
-      "id": "M6",
+      "id": "J6",
       "guarda": "E5.1: sem execuções lidas o laço não quebra",
       "arquivo": "bin/forge_governanca.py",
       "de": "for e in execucoes or []:",
@@ -63,7 +63,7 @@
       ]
     },
     {
-      "id": "M7",
+      "id": "J7",
       "guarda": "E5.1: só a conclusão vermelha conta como main vermelha",
       "arquivo": "bin/forge_governanca.py",
       "de": "e[\"conclusion\"] in VERMELHO_DA_EXECUCAO",
@@ -73,7 +73,7 @@
       ]
     },
     {
-      "id": "M8",
+      "id": "J8",
       "guarda": "E5.1: sem PRs lidos o laço não quebra",
       "arquivo": "bin/forge_governanca.py",
       "de": "for pr in prs or []:",
