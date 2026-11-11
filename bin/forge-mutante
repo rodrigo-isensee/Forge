@@ -40,8 +40,10 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS] [--processos K
 
 Para cada mutante, uma cópia nova do commit em $TMPDIR (clone local com `.git` próprio). O controle (os testes
 declarados, sem a troca) tem de passar. Aí o `de` tem de aparecer uma vez só no arquivo, a troca é aplicada e os
-testes rodam: falha por asserção = morreu; tudo passa = sobreviveu. Erro de carga, teste que não rodou, sintaxe
-quebrada, estouro de prazo ou sinal não são "morreu": são inválido ou sem veredito (saída 2). No executor `unittest`,
+testes rodam: falha por asserção = morreu; tudo passa = sobreviveu. Erro (exceção, não asserção) de um teste
+declarado sob o mutante, com o controle verde, também mata: sai `morreu · <arq>:<linha> · (erro) ...`. Erro de carga
+do módulo, erro de fixture de classe, teste que não rodou, sintaxe quebrada, estouro de prazo ou sinal não são
+"morreu": são inválido ou sem veredito (saída 2); o erro também sem o mutante é controle vermelho (saída 2). No executor `unittest`,
 a asserção que falha não monta o diff do `difflib` (o `assertEqual` de texto ou sequência grande estourava o prazo):
 só o veredito conta, e ele não depende do diff.
 
@@ -153,10 +155,11 @@ class Registro(unittest.TestResult):
         self.por_id = {}
 
     def anotar(self, teste, res):
-        ident = teste.id().removeprefix("unittest.loader._FailedTest.")
+        bruto = teste.id()
+        ident = bruto.removeprefix("unittest.loader._FailedTest.")
         if res == "ok" and ident in self.por_id:
             return
-        self.por_id[ident] = {"id": ident, "res": res}
+        self.por_id[ident] = {"id": ident, "res": res, "carga": ident != bruto}
 
     def addSuccess(self, teste):
         self.anotar(teste, "ok")
@@ -250,14 +253,26 @@ def cobre(declarado, ident):
     return ident == declarado or ident.startswith(declarado + ".")
 
 
-def veredito(declarados, registro):
-    """('morreu'|'sobreviveu'|'inválido', motivo) a partir do registro por teste; nunca pelo código de saída."""
-    if any(e["res"] == "erro" for e in registro):
+MORREU_POR_ERRO = "(erro) o teste declarado deu erro sob o mutante e passa sem ele"
+
+
+def erro_que_mata(declarados, e):
+    """Erro de um teste declarado que rodou; o de carga do módulo e o de fixture de classe não contam."""
+    return not e.get("carga") and any(cobre(d, e["id"]) for d in declarados)
+
+
+def veredito(declarados, registro, erro_mata=False):
+    """('morreu'|'sobreviveu'|'inválido', motivo) a partir do registro por teste; nunca pelo código de saída.
+    `erro_mata`: o controle (os mesmos testes sem o mutante) passou, e o erro de um teste declarado é morte."""
+    erros = [e for e in registro if e["res"] == "erro"]
+    if any(not (erro_mata and erro_que_mata(declarados, e)) for e in erros):
         return "inválido", "erro de carga ou de execução do teste"
     for declarado in declarados:
-        if not any(cobre(declarado, e["id"]) and e["res"] in ("ok", "falha") for e in registro):
+        if not any(cobre(declarado, e["id"]) and e["res"] in ("ok", "falha", "erro") for e in registro):
             return "inválido", f"teste declarado que não rodou: {declarado}"
-    return ("morreu", "") if any(e["res"] == "falha" for e in registro) else ("sobreviveu", "")
+    if any(e["res"] == "falha" for e in registro):
+        return "morreu", ""
+    return ("morreu", MORREU_POR_ERRO) if erros else ("sobreviveu", "")
 
 
 # --- spec ----------------------------------------------------------------------------------------------------------
@@ -697,7 +712,7 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
     registro = rodar(copia, m["testes"], trabalho / f"mutante-{m['id']}.jsonl", prazo, trabalho / f"pyc-{m['id']}")
     if registro is None:
         return f"{m['id']} · sem veredito · {m['arquivo']}:{linha}", 2, False
-    classe, motivo = veredito(m["testes"], registro)
+    classe, motivo = veredito(m["testes"], registro, erro_mata=True)  # o controle passou: erro agora é do mutante
     if "equivalente" in m and classe != "inválido":  # o teste listado que o mata desmente o equivalente
         classe, motivo = ("equivalente", "") if classe == "sobreviveu" else (
             "inválido", "declarado equivalente, mas os testes listados o matam")

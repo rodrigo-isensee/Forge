@@ -68,6 +68,41 @@ class Veredito(unittest.TestCase):
         self.assertEqual(self.f.veredito(["tests.m"], [{"id": "tests.m.T.t", "res": "falha"}])[0], "morreu")
         self.assertEqual(self.f.veredito(["tests.m.T"], [{"id": "tests.m.TT.t", "res": "falha"}])[0], "inválido")
 
+    def test_erro_do_teste_declarado_mata_so_com_o_controle_verde(self):  # MUTANTE-ERRO-INVALIDO
+        D, erro = ["tests.m.T.t"], [{"id": "tests.m.T.t", "res": "erro", "carga": False}]
+        classe, motivo = self.f.veredito(D, erro, erro_mata=True)
+        self.assertEqual((classe, motivo), ("morreu", self.f.MORREU_POR_ERRO))
+        self.assertTrue(motivo.startswith("(erro)"))
+        self.assertEqual(self.f.veredito(D, erro)[0], "inválido")  # o controle: erro sem o mutante não é verde
+
+    def test_erro_que_nao_e_do_teste_declarado_segue_invalido(self):  # MUTANTE-ERRO-INVALIDO
+        carga = [{"id": "tests.m", "res": "erro", "carga": True}]
+        self.assertEqual(self.f.veredito(["tests.m"], carga, erro_mata=True)[0], "inválido")
+        fixture = [{"id": "tests.m.T.t", "res": "ok"}, {"id": "setUpClass (tests.m.T)", "res": "erro"}]
+        self.assertEqual(self.f.veredito(["tests.m.T.t"], fixture, erro_mata=True)[0], "inválido")
+        faltou = [{"id": "tests.m.T.t", "res": "erro"}]
+        self.assertEqual(self.f.veredito(["tests.m.T.t", "tests.m.T.u"], faltou, erro_mata=True)[0], "inválido")
+
+    def test_falha_com_erro_e_morte_por_assercao(self):  # MUTANTE-ERRO-INVALIDO
+        D = ["tests.m.T"]
+        registro = [{"id": "tests.m.T.t", "res": "erro"}, {"id": "tests.m.T.u", "res": "falha"}]
+        self.assertEqual(self.f.veredito(D, registro, erro_mata=True), ("morreu", ""))
+        self.assertEqual(self.f.veredito(D, [{"id": "tests.m.T.t", "res": "ok"}], erro_mata=True), ("sobreviveu", ""))
+
+    def test_registro_marca_o_erro_de_carga(self):  # MUTANTE-ERRO-INVALIDO
+        class Falso:
+            def __init__(self, ident):
+                self.ident = ident
+
+            def id(self):
+                return self.ident
+
+        registro = self.f.Registro()
+        registro.addError(Falso("unittest.loader._FailedTest.tests.m"), None)
+        registro.addError(Falso("tests.m.T.t"), None)
+        self.assertEqual(registro.por_id["tests.m"], {"id": "tests.m", "res": "erro", "carga": True})
+        self.assertEqual(registro.por_id["tests.m.T.t"], {"id": "tests.m.T.t", "res": "erro", "carga": False})
+
 
 class ValidacaoDaSpec(unittest.TestCase):
     """A spec fecha na dúvida: o que não é o objeto esperado, ou aponta para fora, é inválido."""
@@ -312,6 +347,20 @@ class Execucao(unittest.TestCase):
         r = self.rodar(self.spec(mutante(testes=["tests.test_lib.T.test_borda", "tests.test_lib.T.test_ruim"])))
         self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
         self.assertIn("controle vermelho", r.stdout)
+
+    def test_mutante_que_leva_o_teste_a_erro_morre_por_erro_e_sai_0(self):  # MUTANTE-ERRO-INVALIDO
+        r = self.rodar(self.spec(mutante(de="return 2", para="return None + 2")))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("M1 · morreu · lib.py:3 · (erro)", r.stdout)
+
+    def test_teste_que_da_erro_tambem_sem_o_mutante_sai_2_e_nunca_morreu(self):  # MUTANTE-ERRO-INVALIDO
+        self.gravar("tests/test_lib.py", TESTE + "\n    def test_quebrado(self):\n        raise KeyError('x')\n")
+        self.salvar()
+        r = self.rodar(self.spec(mutante(de="return 2", para="return None + 2",
+                                         testes=["tests.test_lib.T.test_quebrado"])))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("controle vermelho", r.stdout)
+        self.assertNotIn("morreu", r.stdout)
 
     def test_teste_inexistente_sai_2_e_nunca_morreu(self):  # CA-11
         r = self.rodar(self.spec(mutante(testes=["tests.test_lib.T.test_nao_existe"])))
