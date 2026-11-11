@@ -72,5 +72,13 @@
         "tests.test_pesado_v046.B4.test_por_caminho_absoluto_ou_relativo"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/pesado.py",
+      "trecho": "inicio.startswith(padrao + \" \")",
+      "linha_base": 179,
+      "motivo": "B4: a comparação por texto virou comeca_com, coberta pelos mutantes B3 e B7"
+    }
   ]
 }
