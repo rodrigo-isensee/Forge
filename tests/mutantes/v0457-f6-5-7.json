@@ -35,5 +35,19 @@
         "tests.test_forge_medidas"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "\"\\n\".join(piora_da_release(atual, anterior, tags))",
+      "motivo": "movida igual para bin/forge_medidas.py:79, só com o ctx no argumento (M23 a cobre), sem mudar comportamento",
+      "linha_base": 4873
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "origem_do_escape(e) == o",
+      "motivo": "movida igual para bin/forge_medidas.py:192, só com o ctx no argumento (M50 a cobre), sem mudar comportamento",
+      "linha_base": 5178
+    }
   ]
 }
