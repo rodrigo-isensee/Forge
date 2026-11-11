@@ -35,6 +35,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban [--gerar] | pr 
      forge-check provas medida [--desde AAAA-MM-DD]
      forge-check metricas [--pedido ID]... [--desde D --ate D] [--por dia|semana] [--json] [--gh] [--log-prepush LOG]... [--transcritos PASTA]...   (0.43.1 H; bin/forge_governanca.py)
      forge-check regras [--estrito] [--hoje D] [--json]   (validade das regras: Revisar em e Medida; 0.43.1 H)
+     forge-check dora [--desde D --ate D] [--fuso ±HH:MM] [--json]   (DORA e vazão, só o que voltas, esperas e metricas não dão; 0.45.7; bin/forge_dora.py)
 `classe` (P5, rigor proporcional ao risco; só leitura, sem rede, rc 0) classifica o diff `base...head`: `C` se toca caminho de controle (PROTEGIDOS e
 SENSIVEIS de tests/catraca.py, CONTROLES_DO_FORGE, MD_DE_CONTROLE, pipeline e infraestrutura, .claude/, .mcp.json ou teste de controle), `T` se é só documentação comum, só testes ou até 20
 linhas (sem binário, link, remoção, gatilho de segurança nem arquivo novo em pasta que a base não tem), `N` no resto; git que falha dá `C`.
@@ -9738,6 +9739,13 @@ def main():
     es = sub.add_parser("esperas", parents=[comum], help="quanto tempo cada cartão esperou o dono ou uma credencial, lido de docs/kanban/historico.md; só leitura (M14b)")
     es.add_argument("--pedido", help="só os cartões deste pedido (cartão igual, da mesma família de nome, com o pedido na coluna Pedido do KANBAN.md ou no motivo do movimento)")
     es.add_argument("--kanban", help="com --pedido: o KANBAN.md a ler (padrão: o da raiz)")
+    do = sub.add_parser("dora", parents=[comum], help="frequência de entrega, espera da mudança, taxa de falha, recuperação e vazão por "
+                        "semana, lidas das tags do git e do quadro; abaixo de 20 valores, os brutos; só leitura (0.45.7, TM-16)")
+    do.add_argument("--desde", type=datetime.date.fromisoformat, help="AAAA-MM-DD (inclusive)")
+    do.add_argument("--ate", type=datetime.date.fromisoformat, help="AAAA-MM-DD (inclusive)")
+    do.add_argument("--fuso", type=lambda t: datetime.datetime.strptime(t, "%z").tzinfo,
+                    help="fuso das horas de escapes.md e da janela, ±HHMM ou ±HH:MM (padrão: o da máquina)")
+    do.add_argument("--json", action="store_true", help="saída em JSON")
     co = sub.add_parser("corrigidos", parents=[comum], help="PRs `fix` que corrigem PR já mesclado, lidos do histórico do git; só leitura (M14b)")
     co.add_argument("--ref", help="branch ou commit onde ler a linha de PRs (padrão: origin/develop, develop ou HEAD)")
     co.add_argument("--dias", type=int, default=DIAS_DO_CORRIGIDO, help=f"janela, em dias, do indício por arquivo em comum (padrão {DIAS_DO_CORRIGIDO})")
@@ -9978,6 +9986,8 @@ def executar(a, raiz):
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
     if a.cmd == "voltas":
         return cmd_voltas(raiz, a.pedido)
+    if a.cmd == "dora":
+        return modulo_do_bin("forge_dora").executar(a, raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz)
     if a.cmd == "medida":
         return cmd_medida(raiz, a.pedido, a.merge)
     if a.cmd == "retro":
