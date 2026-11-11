@@ -8,6 +8,7 @@ from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 HOOK = Path(__file__).resolve().parent.parent / ".githooks" / "pre-push"
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_"))
                            and k.lower() not in ("ssh_askpass", "http_proxy", "https_proxy", "all_proxy")})
+AMBIENTE["FORGE_PREPUSH_SUITE"] = "afetados"  # ENVIO-LEVE: o padrão do hook não roda teste; estes testes exercitam o plano dos afetados
 SUITE_FALHA = "import unittest\nclass T(unittest.TestCase):\n    def test_f(self):\n        self.fail('rodou')\n"
 ZERO, RODOU, PULOU = "0" * 40, "AssertionError: rodou", "o remoto já tem o que seria enviado"
 

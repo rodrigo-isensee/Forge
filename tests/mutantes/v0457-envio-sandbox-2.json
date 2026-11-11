@@ -1,0 +1,88 @@
+{
+  "pedido": "v0457-envio-sandbox",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "E11 GITHUB_ACTIONS também é sinal de CI",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "SINAIS_DE_CI = (\"CI\", \"GITHUB_ACTIONS\")",
+      "para": "SINAIS_DE_CI = (\"CI\",)",
+      "testes": [
+        "tests.test_apoio_sandbox.Exigir.test_com_ci_definido_a_falta_reprova_e_nao_pula",
+        "tests.test_apoio_sandbox.NoProcessoReal.test_com_ci_definido_no_ambiente_reprova_sem_pular"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "E11 o pid dado à sonda vale (o /proc falso do teste)",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    pid = os.getpid() if pid is None else pid",
+      "para": "    pid = os.getpid() if True else pid",
+      "testes": [
+        "tests.test_apoio_sandbox.Sondas.test_proc_do_proprio_namespace_nao_falta_e_o_de_outro_falta"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "E11 CI também é sinal de CI",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "SINAIS_DE_CI = (\"CI\", \"GITHUB_ACTIONS\")",
+      "para": "SINAIS_DE_CI = (\"GITHUB_ACTIONS\",)",
+      "testes": [
+        "tests.test_apoio_sandbox.Exigir.test_com_ci_definido_a_falta_reprova_e_nao_pula"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "E11 o CI da carga vale mesmo tirado do ambiente",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    return sorted(CI_NA_CARGA | {nome for nome in SINAIS_DE_CI if os.environ.get(nome)})",
+      "para": "    return sorted({nome for nome in SINAIS_DE_CI if os.environ.get(nome)})",
+      "testes": [
+        "tests.test_apoio_sandbox.Exigir.test_ci_da_carga_vale_mesmo_tirado_do_ambiente_depois",
+        "tests.test_apoio_sandbox.NoProcessoReal.test_com_ci_definido_no_ambiente_reprova_sem_pular"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "E11 o CI de agora vale além do da carga",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    return sorted(CI_NA_CARGA | {nome for nome in SINAIS_DE_CI if os.environ.get(nome)})",
+      "para": "    return sorted(CI_NA_CARGA)",
+      "testes": [
+        "tests.test_apoio_sandbox.Exigir.test_com_ci_definido_a_falta_reprova_e_nao_pula"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "E11 qualquer valor não vazio é CI",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    return sorted(CI_NA_CARGA | {nome for nome in SINAIS_DE_CI if os.environ.get(nome)})",
+      "para": "    return sorted(CI_NA_CARGA | {nome for nome in SINAIS_DE_CI if os.environ.get(nome) == \"true\"})",
+      "testes": [
+        "tests.test_apoio_sandbox.Exigir.test_com_ci_definido_a_falta_reprova_e_nao_pula"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "E11 teste fora de PODEM_PULAR reprova",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    if ident not in PODEM_PULAR:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_apoio_sandbox.Exigir.test_teste_fora_da_lista_reprova_com_ou_sem_a_capacidade"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "E11 o ID vale sem o prefixo tests.",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    ident = teste.id().removeprefix(\"tests.\")",
+      "para": "    ident = teste.id()",
+      "testes": [
+        "tests.test_apoio_sandbox.Exigir.test_fora_do_ci_a_falta_pula_com_motivo_e_contagem"
+      ]
+    }
+  ]
+}

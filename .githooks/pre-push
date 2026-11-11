@@ -240,8 +240,11 @@ if [ "$modo_suite" -eq 0 ] && ja_no_remoto "${2:-}"; then exit 0; fi
 # SUITE-NO-CI (decisão do dono, 2026-11-08, "Faça tudo"): a suíte inteira roda uma vez, no CI do PR; o envio local roda
 # as checagens baratas (em segundos, antes da trava) e depois só os testes afetados pelo diff (`bin/forge-testes
 # --afetados`), para qualquer branch e para envio de várias refs. A suíte inteira local é opt-in: FORGE_PREPUSH_SUITE=1.
+# ENVIO-LEVE (decisão do dono, 2026-11-11, que substitui a SUITE-NO-CI no envio; diretriz 15): o padrão é o envio leve, só as
+# checagens baratas e os bloqueios, sem teste nenhum; o CI do PR é o portão. Opt-in à mão: FORGE_PREPUSH_SUITE=afetados (o plano
+# do `bin/forge-testes --afetados`) ou =1 (a suíte inteira local).
 suite_local="${FORGE_PREPUSH_SUITE:-0}"
-case "$suite_local" in 0|1) ;; *) echo "pre-push: FORGE_PREPUSH_SUITE vale 0 (só os afetados, o padrão) ou 1 (a suíte inteira local); veio '${suite_local}'." >&2; exit 1 ;; esac
+case "$suite_local" in 0|1|afetados) ;; *) echo "pre-push: FORGE_PREPUSH_SUITE vale 0 (envio leve, sem testes, o padrão), afetados (os testes afetados) ou 1 (a suíte inteira local); veio '${suite_local}'." >&2; exit 1 ;; esac
 # A base é `refs/remotes/origin/develop`, resolvida uma vez só para um sha: plano, checagens e execução leem a mesma base,
 # e a ref curta `origin/develop` poderia ser uma branch local de mesmo nome.
 base_dev="$(git rev-parse --verify -q 'refs/remotes/origin/develop^{commit}' 2>/dev/null || true)"
@@ -372,6 +375,12 @@ if [ "$modo_suite" -eq 0 ]; then
   checagens_baratas || { echo "pre-push: checagens baratas reprovadas em $(( $(date +%s) - inicio_baratas ))s; a suíte nem entrou na fila. Nunca --no-verify." >&2; linha_de_duracao baratas 1; exit 1; }
   [ "$n_baratas" -eq 0 ] || echo "pre-push: checagens baratas ok em $(( $(date +%s) - inicio_baratas ))s (${n_baratas} arquivos)" >&2
 fi
+# ENVIO-LEVE: sem opt-in, o envio termina aqui: nenhum teste, nem trava nem fila (nada pesado a esperar). O CI do PR roda a bateria.
+if [ "$modo_suite" -eq 0 ] && [ "$suite_local" = 0 ]; then
+  echo "pre-push: envio leve: sem testes locais; a bateria completa roda no CI do PR (opt-in: FORGE_PREPUSH_SUITE=afetados ou 1)." >&2
+  linha_de_duracao leve 0
+  exit 0
+fi
 espera="${FORGE_TRAVA_ESPERA:-1200}"
 case "$espera" in ''|*[!0-9]*) echo "pre-push: FORGE_TRAVA_ESPERA deve ser um número de segundos inteiro (veio '${espera}')." >&2; exit 1 ;; esac
 trava="$(trava_arquivo criar)" || exit 1
@@ -494,7 +503,7 @@ completa=1
 nada=0
 afetados() {
   local plano
-  [ "$suite_local" = 0 ] && [ "$sem_caminhos" = 0 ] && [ -n "$base_dev" ] || return 1
+  [ "$suite_local" = afetados ] && [ "$sem_caminhos" = 0 ] && [ -n "$base_dev" ] || return 1
   [ -f bin/forge-testes ] && [ ! -L bin/forge-testes ] || return 1
   if [ "${#alterados[@]}" -eq 0 ]; then nada=1; return 0; fi
   plano="$(python3 -I bin/forge-testes --afetados --listar -- "${alterados[@]}" 2>/dev/null)" || return 1
