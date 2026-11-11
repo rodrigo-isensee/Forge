@@ -69,7 +69,15 @@ class Raiz(unittest.TestCase):
         return r.returncode, r.stdout.splitlines(), r.stderr
 
 
-class Voltas(Raiz):
+class SemQueda:
+    """F6, E5.4: a queda do script (Traceback) é falha do teste, não erro de índice adiante (o forge-mutante conta erro como inválido)."""
+    def rodar(self, *args, **kwargs):
+        cod, linhas, erro = super().rodar(*args, **kwargs)
+        self.assertNotIn("Traceback", erro)
+        return cod, linhas, erro
+
+
+class Voltas(SemQueda, Raiz):
     def setUp(self):
         super().setUp()
         self.gravar("docs/kanban/historico.md", HISTORICO)
@@ -134,7 +142,8 @@ class Voltas(Raiz):
     def test_pedido_sem_voltas_so_aparece_com_pedido_explicito(self):
         _, todos, _ = self.rodar("voltas")
         self.assertFalse(any("OUTRO" in l for l in todos), todos)
-        _, um, _ = self.rodar("voltas", "--pedido", "outro")
+        cod, um, _ = self.rodar("voltas", "--pedido", "outro")
+        self.assertEqual((cod, len(um)), (0, 2), um)  # F6, E5.4: rc e linhas antes do índice (falha, não erro)
         self.assertEqual(um[0], "voltas: OUTRO resumo: brief=0 conferencia=0 review=0 revalidacao=0 barrada=0 "
                                 "nao-classificado=0 minutos=0 construcao=- razao=-")
 
@@ -172,21 +181,31 @@ class Voltas(Raiz):
         self.assertEqual((self.tmp / "docs/kanban/historico.md").read_text(encoding="utf-8"), antes)
 
 
-class RodadasDeBrief(Raiz):
+class RodadasDeBrief(SemQueda, Raiz):
     def test_conferencias_manda_quando_ha_linhas_e_so_conta_modo_brief(self):
         self.gravar("docs/kanban/conferencias.md", CONFERENCIAS)
         self.gravar("docs/briefs/xpto-tech-lead-1.md")
         self.gravar("docs/briefs/xpto-tech-lead-2.md")
         self.gravar("docs/kanban/historico.md", "")
-        _, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        cod, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        self.assertEqual((cod, len(linhas)), (0, 3), linhas)  # F6, E5.4: rc e linhas antes do índice (falha, não erro)
         self.assertEqual(linhas[0], "voltas: xpto brief inicio=2026-10-15 21:07 minutos=7 ref=xpto-tech-lead-1")
         self.assertIn("brief=1 ", linhas[1])
+        self.assertIn(" minutos=7 construcao=- ", linhas[1])  # F6, E5.4: os minutos da rodada extra entram no resumo
+
+    def test_pedido_so_em_docs_pedidos_existe_sem_historico(self):  # F6, E5.4
+        self.gravar("docs/pedidos/P1.md", "# p\n")
+        self.gravar("docs/kanban/historico.md", "")
+        self.assertEqual(self.rodar("voltas", "--pedido", "p1")[:2], (0, [
+            "voltas: P1 resumo: brief=0 conferencia=0 review=0 revalidacao=0 barrada=0 nao-classificado=0 minutos=0 construcao=- razao=-",
+            "voltas: total: pedidos=1 voltas=0 minutos=0"]))
 
     def test_sem_conferencias_vale_o_disco_dos_briefs_por_destino(self):
         for nome in ("xpto-tech-lead-1", "xpto-tech-lead-2", "xpto-tech-lead-3", "xpto-qa-engineer-1", "xptoz-tech-lead-1", "xpto-2-tech-lead-1"):
             self.gravar(f"docs/briefs/{nome}.md")
         self.gravar("docs/kanban/historico.md", "")
-        _, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        cod, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        self.assertEqual((cod, len(linhas)), (0, 2), linhas)  # F6, E5.4: rc e linhas antes do índice (falha, não erro)
         self.assertFalse([l for l in linhas if " brief inicio=" in l], linhas)  # delegações não são voltas
         self.assertIn("brief=0 ", linhas[0])
         self.assertTrue(linhas[0].startswith("voltas: xpto resumo:"), linhas)

@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import sem_manutencao  # noqa: E402
 from apoio_jarvis import texto_do_jarvis  # noqa: E402
-from test_voltas import FORGE_CHECK, RAIZ, Raiz  # noqa: E402
+from test_voltas import FORGE_CHECK, RAIZ, Raiz, SemQueda  # noqa: E402
 
 
 def carregar_forge_check_m14b():
@@ -89,7 +89,7 @@ class CustoCasaOPedidoComOsCartoes(Raiz):
         self.assertFalse(any("\x1b" in l for l in linhas), linhas)
 
 
-class Esperas(Raiz):
+class Esperas(SemQueda, Raiz):
     """`forge-check esperas`: o registro de `forge-check movimento` vira minutos de espera pelo dono e por credencial."""
     HISTORICO = CABECALHO_HISTORICO + "".join(l + "\n" for l in (
         "| 2026-10-22T10:00:00-03:00 | K-1 | Em andamento | Aguardando o dono | decisão de escopo |",
