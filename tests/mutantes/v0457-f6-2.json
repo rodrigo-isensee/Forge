@@ -84,5 +84,25 @@
         "tests.test_forge.MedirAlucinacao"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "a.acao == \"avisos\"",
+      "motivo": "o despacho de avisos virou o `a.acao in TRANSCRICAO_DO_MODULO` (M1, coberto), sem mudar comportamento",
+      "linha_base": 9953
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "a.acao == \"vereditos\"",
+      "motivo": "o despacho de vereditos virou o `a.acao in TRANSCRICAO_DO_MODULO` (M1, coberto), sem mudar comportamento",
+      "linha_base": 9955
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "a.acao == \"decisoes\"",
+      "motivo": "o despacho de decisoes virou o `a.acao in TRANSCRICAO_DO_MODULO` (M1, coberto), sem mudar comportamento",
+      "linha_base": 9957
+    }
   ]
 }
