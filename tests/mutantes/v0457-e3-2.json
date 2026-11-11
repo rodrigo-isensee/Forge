@@ -46,18 +46,18 @@
       "id": "R5",
       "guarda": "mais de um argumento sai 2",
       "arquivo": "bin/forge-ritmo",
-      "de": "    if len(args) > 1 or",
-      "para": "    if len(args) > 2 or",
+      "de": "    if len(args) > 1:",
+      "para": "    if len(args) > 2:",
       "testes": [
         "tests.test_ritmo.ComandoRitmo.test_valor_desconhecido_sai_2_sem_gravar"
       ]
     },
     {
       "id": "R6",
-      "guarda": "ajuda sai 0; uso errado, 2",
+      "guarda": "--help sai 0 com o uso",
       "arquivo": "bin/forge-ritmo",
-      "de": "        return 0 if args and args[0] in (\"-h\", \"--help\") else 2",
-      "para": "        return 2",
+      "de": "    if args[:1] in ([\"-h\"], [\"--help\"]):",
+      "para": "    if args[:1] in ([\"-h\"],):",
       "testes": [
         "tests.test_ritmo.ComandoRitmo.test_ajuda_sai_0_e_mostra_o_uso"
       ]
@@ -66,8 +66,8 @@
       "id": "R7",
       "guarda": "ritmo gravado que não é texto mostra o padrão",
       "arquivo": "bin/forge-ritmo",
-      "de": "if isinstance(dados.get(\"ritmo\"), str) else None",
-      "para": "if True else None",
+      "de": "    if not isinstance(valor, str):",
+      "para": "    if False:",
       "testes": [
         "tests.test_ritmo.ComandoRitmo.test_ritmo_gravado_que_nao_e_texto_mostra_o_padrao"
       ]

@@ -14,12 +14,12 @@
     },
     {
       "id": "M2",
-      "guarda": "ritmo casa sem caixa nem acento, só com um dos três",
+      "guarda": "só um dos três ritmos vale",
       "arquivo": "hooks/agentes.py",
-      "de": "if sem_acento(r) == chave), None)\n\n\ndef ritmo_do_projeto",
-      "para": "if sem_acento(r) != chave), None)\n\n\ndef ritmo_do_projeto",
+      "de": "    return chave if chave in RITMOS else None",
+      "para": "    return chave if True else None",
       "testes": [
-        "tests.test_ritmo.RitmoNoHook.test_le_o_ritmo_do_config_sem_caixa_nem_acento"
+        "tests.test_ritmo.RitmoNoHook.test_ausente_invalido_ou_ilegivel_vale_o_padrao"
       ]
     },
     {
@@ -54,7 +54,7 @@
     },
     {
       "id": "M6",
-      "guarda": "só o econômico muda o teto, e só para baixo",
+      "guarda": "só o econômico muda o teto",
       "arquivo": "hooks/agentes.py",
       "de": "    if ritmo in TETO_DO_RITMO and teto > TETO_DO_RITMO[ritmo]:",
       "para": "    if ritmo in TETO_DO_RITMO or teto > TETO_DO_RITMO[ritmo]:",

@@ -10,7 +10,6 @@ import os
 import subprocess
 import sys
 import tempfile
-import unicodedata
 from pathlib import Path
 
 PADRAO = "equilibrado"
@@ -21,13 +20,16 @@ OPCOES = {
 }
 
 
-def sem_acento(texto):
-    return "".join(c for c in unicodedata.normalize("NFD", texto) if not unicodedata.combining(c))
+APELIDOS = {"economico": "econômico"}  # o mesmo do hook `agentes` (APELIDOS_DO_RITMO)
 
 
 def ritmo_valido(valor):
-    chave = sem_acento(valor.strip().lower())
-    return next((r for r in OPCOES if sem_acento(r) == chave), None)
+    """O ritmo canônico de `valor` (caixa não conta; `economico` vale `econômico`), ou None."""
+    if not isinstance(valor, str):
+        return None
+    chave = valor.strip().lower()
+    chave = APELIDOS.get(chave, chave)
+    return chave if chave in OPCOES else None
 
 
 def falhar(codigo, texto):
@@ -52,26 +54,28 @@ def config_do_projeto():
     return arquivo, dados
 
 
-def opcoes(atual):
+def opcoes():
     for nome, texto in OPCOES.items():
-        print(f"  {nome}{' [agora]' if nome == atual else ''}: {texto}")
+        print(f"  {nome}: {texto}")
     print("Tarefa pesada (como a bateria de testes) segue uma por vez em qualquer ritmo.")
 
 
 def main(args):
-    if len(args) > 1 or (args and args[0] in ("-h", "--help")):
+    if args[:1] in (["-h"], ["--help"]):
         print(__doc__.strip())
-        return 0 if args and args[0] in ("-h", "--help") else 2
+        return 0
+    if len(args) > 1:
+        falhar(2, "um valor só: forge ritmo <valor> (forge ritmo -h mostra o uso).")
     arquivo, dados = config_do_projeto()
     if not args:
-        atual = ritmo_valido(dados["ritmo"]) if isinstance(dados.get("ritmo"), str) else None
-        print(f"Ritmo de agora: {atual or PADRAO}{'' if atual else ' (padrão)'}. Mude com: forge ritmo <valor>")
-        opcoes(atual or PADRAO)
+        atual = ritmo_valido(dados.get("ritmo")) or f"{PADRAO} (padrão)"
+        print(f"Ritmo de agora: {atual}. Mude com: forge ritmo <valor>")
+        opcoes()
         return 0
     novo = ritmo_valido(args[0])
     if novo is None:
         print(f"forge ritmo: valor desconhecido: {args[0]}", file=sys.stderr)
-        opcoes(None)
+        opcoes()
         return 2
     dados["ritmo"] = novo
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=arquivo.parent, delete=False) as tmp:

@@ -118,16 +118,16 @@ RITMO_PADRAO = "equilibrado"
 TETO_DO_RITMO = {"econômico": 1}  # E3 (0.45.7): só o econômico muda o teto; o acelerado não passa do teto de sempre (R-TETO)
 
 
-def sem_acento(texto):
-    return "".join(c for c in unicodedata.normalize("NFD", texto) if not unicodedata.combining(c))
+APELIDOS_DO_RITMO = {"economico": "econômico"}  # sem acento também vale (o `forge ritmo` aceita o mesmo)
 
 
 def ritmo_valido(valor):
-    """O ritmo canônico de `valor` (caixa e acento não contam: `economico` vale `econômico`), ou None."""
+    """O ritmo canônico de `valor` (caixa não conta; `economico` vale `econômico`), ou None."""
     if not isinstance(valor, str):
         return None
-    chave = sem_acento(valor.strip().lower())
-    return next((r for r in RITMOS if sem_acento(r) == chave), None)
+    chave = valor.strip().lower()
+    chave = APELIDOS_DO_RITMO.get(chave, chave)
+    return chave if chave in RITMOS else None
 
 
 def ritmo_do_projeto(raiz):
