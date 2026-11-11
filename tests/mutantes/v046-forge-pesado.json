@@ -1,0 +1,87 @@
+{
+  "pedido": "v046-forge-pesado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "M12: link simbólico na fila não conta como senha",
+      "arquivo": "bin/forge-pesado",
+      "de": "        if senha.is_symlink():\n            continue",
+      "para": "        if False:\n            continue",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_fila_conta_so_a_senha_presa_sem_apagar_a_morta_nem_seguir_link"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "M12: desde que não é número deixa a trava fora de vigor",
+      "arquivo": "bin/forge-pesado",
+      "de": "if not isinstance(desde, (int, float)) or time.time()",
+      "para": "if time.time()",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_trava_sem_desde_numerico_ou_que_nao_e_objeto_fica_livre"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "M12: a trava vence em desde mais a validade",
+      "arquivo": "bin/forge-pesado",
+      "de": "time.time() - desde >= validade:",
+      "para": "time.time() - desde >= validade * 100:",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_trava_vencida_fica_livre"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "M12: estado que não é objeto não tem desde",
+      "arquivo": "bin/forge-pesado",
+      "de": "trava.get(\"desde\") if isinstance(trava, dict) else None",
+      "para": "trava.get(\"desde\") if True else None",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_trava_sem_desde_numerico_ou_que_nao_e_objeto_fica_livre"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "M12: sem trava em vigor a linha diz livre",
+      "arquivo": "bin/forge-pesado",
+      "de": "    if trava is None:\n        return f\"pesado: livre",
+      "para": "    if False:\n        return f\"pesado: livre",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_status_livre_sem_trava"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "M12: o pid gravado só se mostra vivo se o processo existe",
+      "arquivo": "bin/forge-pesado",
+      "de": "vivo = \"vivo\" if pesado.pid_vivo(trava.get(\"pid\")) else",
+      "para": "vivo = \"vivo\" if True else",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_pid_morto_aparece_mas_nao_solta_a_trava",
+        "tests.test_forge_pesado.ForgePesado.test_status_ocupada_diz_quem_desde_quando_e_o_pid_vivo"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "M12: com fila viva a vez não é de quem chega",
+      "arquivo": "bin/forge-pesado",
+      "de": "if trava is None and fila == 0:",
+      "para": "if trava is None:",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_esperar_com_fila_viva_nao_tem_a_vez"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "M12: com trava em vigor a vez não está livre",
+      "arquivo": "bin/forge-pesado",
+      "de": "if trava is None and fila == 0:",
+      "para": "if fila == 0:",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_esperar_ocupada_sai_1_no_teto_com_progresso"
+      ]
+    }
+  ]
+}
