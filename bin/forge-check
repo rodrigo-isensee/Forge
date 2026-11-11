@@ -516,10 +516,11 @@ def desatualiza(nome, livres):
 # `texto` é lista branca (C-1, T-3) do que nenhum código, agente ou skill lê como regra (`test_reval_delta` guarda, C-2).
 # Reversão (C-9): escape com causa "delta de texto" (`forge-check escape registrar`) esvazia TEXTO e SO_TEXTO_E_FORMA.
 TEXTO = ("README.md", "CHANGELOG.md", "changelog.d/", "docs/propostas/", "docs/retrospectivas/")
-FRAGMENTOS = ("changelog.d/",)  # D4: no `pr` o fragmento que não é o do pedido nunca é leve (adendo da 0.35, opção b)
+FRAGMENTOS = ("changelog.d/",)  # D4: no `pr` o fragmento que não é o do pedido nunca é leve (adendo da 0.35, opção b); apagado (a release, AV4(b)) é leve
 SO_TEXTO_E_FORMA = (".md", ".txt")
 SEM_FORMA = ("agents/", "skills/", "templates/", "stacks/", "hooks/", "bin/", "scripts/", ".githooks/", ".github/", "tests/")  # cobre os PROTEGIDOS (C-3)
 SEMPRE_CODIGO = ("docs/regras/", "docs/adr/")  # normativos: nunca `texto` nem `forma` (C-1)
+PLUGIN_JSON = ".claude-plugin/plugin.json"  # AV4(b) (0.45.6, E2.1): só o `version` dele muda sem pedir parecer novo
 CLASSES = ("texto", "forma", "codigo")  # da mais leve à mais pesada
 
 
@@ -544,6 +545,32 @@ def com_frontmatter(raiz, nome, refs):
     return False
 
 
+def manifesto_sem_versao(raiz, ref, nome):
+    """O objeto do `nome` (JSON) em `ref` sem o campo `version`, que tem de ser texto; None se o git falha, o JSON é ilegível, tem
+    chave repetida, não é objeto ou não tem `version` texto (falha fechada: o arquivo fica `codigo`)."""
+    def sem_repetida(pares):
+        if len({k for k, _ in pares}) != len(pares):
+            raise ValueError("chave repetida")
+        return dict(pares)
+    texto = git(raiz, "show", f"{ref}:{nome}")[1]  # git que falha deixa a saída vazia: JSON ilegível, None
+    try:
+        objeto = json.loads(texto, object_pairs_hook=sem_repetida)
+    except ValueError:
+        return None
+    if not isinstance(objeto, dict) or not isinstance(objeto.get("version"), str):
+        return None
+    return {k: v for k, v in objeto.items() if k != "version"}
+
+
+def so_a_versao_muda(raiz, de, ate, nome):
+    """AV4(b) (0.45.6, E2.1): True se `nome` é o PLUGIN_JSON e de `de` para `ate` só o `version` dele muda (o resto do objeto igual,
+    a ordem das chaves e o espaço não contam); qualquer outro campo, ou leitura que falha, deixa o arquivo `codigo`."""
+    if nome != PLUGIN_JSON:
+        return False
+    antes = manifesto_sem_versao(raiz, de, nome)
+    return antes is not None and antes == manifesto_sem_versao(raiz, ate, nome)
+
+
 def classes_do_intervalo(raiz, de, ate, nomes):
     """{arquivo: texto|forma|codigo} dos `nomes` que mudam em `de`..`ate` (EST-M4). `codigo`: invariante, `_*.md`,
     SEMPRE_CODIGO, frontmatter (nos dois ramos, C-1), modo, link ou submódulo (C-5), e o que o git não leu. `forma`: `.md`/`.txt` fora de SEM_FORMA cujo diff
@@ -556,10 +583,13 @@ def classes_do_intervalo(raiz, de, ate, nomes):
     classes = {}
     for nome in nomes:
         modo = modos.get(nome, ())
-        leve = (len(modo) == 2 and not set(modo) - {"000000", "100644"} and inv_de is not None and inv_ate is not None
-                and nome not in inv_de | inv_ate and nome.endswith(SO_TEXTO_E_FORMA) and not nome.rpartition("/")[2].startswith("_")
+        seguro = (len(modo) == 2 and not set(modo) - {"000000", "100644"} and inv_de is not None and inv_ate is not None
+                  and nome not in inv_de | inv_ate)
+        leve = (seguro and nome.endswith(SO_TEXTO_E_FORMA) and not nome.rpartition("/")[2].startswith("_")
                 and not livre(nome, SEMPRE_CODIGO) and not com_frontmatter(raiz, nome, (de, ate)))
         if leve and livre(nome, TEXTO) and nome.endswith(".md"):
+            classes[nome] = "texto"
+        elif seguro and so_a_versao_muda(raiz, de, ate, nome):  # `seguro`: modo 100644 e fora dos invariantes
             classes[nome] = "texto"
         elif leve and modo == ("100644", "100644") and not livre(nome, SEM_FORMA) and git(
                 raiz, "--literal-pathspecs", "diff", "--quiet", "--ignore-space-at-eol", "--no-ext-diff", "--no-textconv",
@@ -711,6 +741,43 @@ def testes_do_qa(raiz, pedido, branch, ate, desde):
     return q, {n for n in puros - mistos if blob_de(raiz, ate, n) == blob_de(raiz, q, n)}
 
 
+def removidos_do_intervalo(raiz, de, ate):
+    """Caminhos apagados de `de` para `ate` (AV4(b), E2.1: a release apaga os fragmentos de `changelog.d/`); vazio se o git falha
+    (falha fechada: o fragmento segue estrito; o git que falha não escreve na saída)."""
+    return set(nomes_z(git(raiz, "diff", "--name-only", "-z", "--no-renames", "--diff-filter=D", de, ate, "--", bruto=True)[1]))
+
+
+class ArvoreIlegivel(Exception):
+    """E7: o `git ls-tree` falhou; falha não é ausência (o ausente dos dois lados seria "igual")."""
+
+
+def entradas_da_arvore(raiz, commit, nomes):
+    """{nome: "modo tipo sha"} dos `nomes` na árvore de `commit` (o ausente fica fora; o registro vazio do fim vira a chave "", que
+    nenhum nome tem); ArvoreIlegivel se o git falha."""
+    cod, saida = git(raiz, "--literal-pathspecs", "ls-tree", "-z", "--full-tree", commit, "--", *nomes, bruto=True)
+    if cod:
+        raise ArvoreIlegivel(commit)
+    pares = (r.partition(b"\t") for r in saida.split(b"\0"))
+    return {nome.decode("utf-8", "surrogateescape"): meta.decode() for meta, _, nome in pares}
+
+
+def vindos_da_base(raiz, base, commit, ate, nomes):
+    """E7 (0.45.6): dos `nomes`, os que vieram da base: em `ate`, modo e conteúdo iguais aos da ponta da `base`, e no `commit` do
+    parecer iguais aos do merge-base dela com o `commit` (a branch não os mudou, antes nem depois do parecer; o que ela mudou e depois
+    desfez segue desatualizando). O igual ao merge-base já sai pelo merge simulado (`arquivos_divergentes`) e pelo escopo do delta
+    (`escopo_sem_a_base`); este pega o que chegou sem merge (cherry-pick, rebase). Vazio sem base ou com git que falha (falha fechada).
+    A `base` local (`origin/<base>`) é forjável no cliente (A1 de docs/reviews/v0455.md): a garantia é a catraca do CI, com a base do servidor."""
+    ponta = sha_do_commit(raiz, base) or ""
+    if not nomes or not ponta:  # economia: nada a ler (sem ponta, o `ls-tree` de "" falharia e nada sairia)
+        return set()
+    mb_commit = git(raiz, "merge-base", ponta, commit)[1]  # o merge-base que falha sai vazio, e o `ls-tree` dele falha
+    try:
+        no_ate, na_ponta, no_commit, no_mb = (entradas_da_arvore(raiz, c, nomes) for c in (ate, ponta, commit, mb_commit))
+    except ArvoreIlegivel:
+        return set()
+    return {n for n in nomes if no_ate.get(n) == na_ponta.get(n) and no_commit.get(n) == no_mb.get(n)}
+
+
 def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES, estritos=(), dominio=None, mais=(), dispensados=()):
     """None se o parecer vale para `ate` (padrão: o HEAD); senão o motivo.
 
@@ -732,9 +799,11 @@ def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES, estritos=(),
     fora = [f for f in nomes_z(saida) if desatualiza(f, livres)]
     no = predicado_do_dominio(raiz, dominio, commit, ate, mais) if dominio else (lambda nome: True)
     alheios = {f for f in fora if not no(f) or f in dispensados}  # fora do domínio do parecer: não o desatualizam
+    alheios |= vindos_da_base(raiz, base, commit, ate, fora) if dominio else set()  # E7: o que veio da base também não
     fora = [f for f in fora if f not in alheios]
     classes = classes_do_intervalo(raiz, commit, ate, fora) if fora else {}
-    leves = {f for f, c in classes.items() if c != "codigo" and not livre(f, estritos)}  # EST-M4: só `codigo` desatualiza
+    removidos = removidos_do_intervalo(raiz, commit, ate) if classes else set()  # AV4(b): fragmento apagado (release) é leve
+    leves = {f for f, c in classes.items() if c != "codigo" and (not livre(f, estritos) or f in removidos)}  # EST-M4: só `codigo` desatualiza
     fora = [f for f in fora if f not in leves]
     if not fora:
         return None
@@ -2695,9 +2764,12 @@ def parecer_delta(raiz, arquivo, ate, base):
     if escopo:
         print(escopo)
     nomes = [n for n in nomes if not livre(n, LIVRES)]
-    dentro = [n for n in nomes if no(n) and n not in dispensados]
+    da_base = vindos_da_base(raiz, ref_da_base(raiz, base), inicio, fim, nomes)  # E7: conteúdo igual ao da base, sem mudança da branch
+    dentro = [n for n in nomes if no(n) and n not in dispensados and n not in da_base]
     for n in nomes:
-        if n in dispensados:
+        if n in da_base:
+            print(f"da base: {nome_seguro(n)} (igual ao da base {base}; a garantia é a catraca do CI)")
+        elif n in dispensados:
             print(f"dispensado: {nome_seguro(n)} (teste do QA aprovado em {q[:7]})")
         elif n not in dentro:
             print(f"fora do dominio: {nome_seguro(n)}")
