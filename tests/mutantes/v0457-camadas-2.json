@@ -47,7 +47,7 @@
       "guarda": "M-E6-10: sem acento",
       "arquivo": "bin/forge_dono.py",
       "de": "if not unicodedata.combining(c)).casefold()",
-      "para": ").casefold()",
+      "para": "if True).casefold()",
       "testes": [
         "tests.test_camadas_dono.TravaDeOrigem.test_corte_com_os_quatro_campos_grava_a_linha_com_a_origem"
       ]
@@ -64,22 +64,22 @@
     },
     {
       "id": "M15",
+      "guarda": "E7: sem --contexto, a forja lê o vazio",
+      "arquivo": "bin/forge_dono.py",
+      "de": "unicodedata.normalize(\"NFKC\", texto or \"\")",
+      "para": "unicodedata.normalize(\"NFKC\", texto)",
+      "testes": [
+        "tests.test_camadas_dono.ConfereNoAnotar.test_cada_criterio_e_gravado"
+      ]
+    },
+    {
+      "id": "M16",
       "guarda": "M-E7-3/M-E8-11: a marca à mão é recusada",
       "arquivo": "bin/forge_dono.py",
       "de": "só a ferramenta grava\" if FORJA.search(normal) else None",
       "para": "só a ferramenta grava\" if False else None",
       "testes": [
         "tests.test_camadas_dono.RecomendacaoRevertida.test_marca_escrita_a_mao_e_recusada"
-      ]
-    },
-    {
-      "id": "M16",
-      "guarda": "E6: só segmento com chave é campo",
-      "arquivo": "bin/forge_dono.py",
-      "de": "        if achado:\n            campos[achado.group(1)]",
-      "para": "        if True:\n            campos[achado.group(1)]",
-      "testes": [
-        "tests.test_camadas_dono.TravaDeOrigem.test_corte_com_os_quatro_campos_grava_a_linha_com_a_origem"
       ]
     }
   ]

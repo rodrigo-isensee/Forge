@@ -4,16 +4,26 @@
   "mutantes": [
     {
       "id": "M33",
-      "guarda": "M-E6-12: a origem da opção escolhida",
+      "guarda": "M-E7-4: marca só na divergência",
       "arquivo": "bin/forge_dono.py",
-      "de": "if (o := campos_de_origem(questoes[n][l]).get(\"origem\"))]",
-      "para": "if (o := campos_de_origem(questoes[n][l]).get(\"origem\")) or True]",
+      "de": "    if diverge := divergencia(questoes, escolhas):",
+      "para": "    if (diverge := divergencia(questoes, escolhas)) and False:",
       "testes": [
         "tests.test_camadas_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
       ]
     },
     {
       "id": "M34",
+      "guarda": "M-E6-12: a origem da opção escolhida",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if (o := campos_de_origem(questoes[n][l]).get(\"origem\"))]",
+      "para": "if (o := campos_de_origem(questoes[n][l]).get(\"origem\") or \"x\")]",
+      "testes": [
+        "tests.test_camadas_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
+      ]
+    },
+    {
+      "id": "M35",
       "guarda": "M-E6-12: sem origem, sem atributo",
       "arquivo": "bin/forge_dono.py",
       "de": "    if origens:\n",
@@ -23,7 +33,7 @@
       ]
     },
     {
-      "id": "M35",
+      "id": "M36",
       "guarda": "M-E8-11: só a marca da ferramenta é lida",
       "arquivo": "bin/forge_dono.py",
       "de": "    if not marca:\n        return {}",
@@ -33,7 +43,7 @@
       ]
     },
     {
-      "id": "M36",
+      "id": "M37",
       "guarda": "E8: decisão sem data não trava",
       "arquivo": "bin/forge_dono.py",
       "de": "    if achado is None:\n        return None",
@@ -43,7 +53,7 @@
       ]
     },
     {
-      "id": "M37",
+      "id": "M38",
       "guarda": "M-E8-3: só a data vale 00:00",
       "arquivo": "bin/forge_dono.py",
       "de": "{achado.group(2) or '00:00'}",
@@ -53,7 +63,7 @@
       ]
     },
     {
-      "id": "M38",
+      "id": "M39",
       "guarda": "M-E8-6: a pergunta depois do nao-passa",
       "arquivo": "bin/forge_dono.py",
       "de": "if linha.strip().lstrip(\"-*> \").startswith(FRASE_DA_PERGUNTA):",
@@ -63,21 +73,11 @@
       ]
     },
     {
-      "id": "M39",
+      "id": "M40",
       "guarda": "E8: só linha de decisão é conferida",
       "arquivo": "bin/forge_dono.py",
       "de": "        elif e_decisao(linha):",
       "para": "        elif True:",
-      "testes": [
-        "tests.test_camadas_dono.Pendencias.test_tabela"
-      ]
-    },
-    {
-      "id": "M40",
-      "guarda": "M-E8-4: cada critério passa",
-      "arquivo": "bin/forge_dono.py",
-      "de": "            passa = valor in CRITERIOS\n",
-      "para": "            passa = valor in CRITERIOS[1:]\n",
       "testes": [
         "tests.test_camadas_dono.Pendencias.test_tabela"
       ]

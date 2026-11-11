@@ -4,6 +4,16 @@
   "mutantes": [
     {
       "id": "M17",
+      "guarda": "E6: só segmento com chave é campo",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        if achado:\n            campos[achado.group(1)]",
+      "para": "        if True:\n            campos[achado.group(1)]",
+      "testes": [
+        "tests.test_camadas_dono.TravaDeOrigem.test_corte_com_os_quatro_campos_grava_a_linha_com_a_origem"
+      ]
+    },
+    {
+      "id": "M18",
       "guarda": "E6: o léxico não lê os campos de origem",
       "arquivo": "bin/forge_dono.py",
       "de": "texto.split(\"·\") if not re.match(",
@@ -13,7 +23,7 @@
       ]
     },
     {
-      "id": "M18",
+      "id": "M19",
       "guarda": "M-E6-7: a marca [corte] vale sozinha",
       "arquivo": "bin/forge_dono.py",
       "de": "return \"corte\" in marcas(texto) or CORTE",
@@ -23,7 +33,7 @@
       ]
     },
     {
-      "id": "M19",
+      "id": "M20",
       "guarda": "M-E6-5: valor vazio é campo ausente",
       "arquivo": "bin/forge_dono.py",
       "de": "if not campos.get(chave)]",
@@ -33,7 +43,7 @@
       ]
     },
     {
-      "id": "M20",
+      "id": "M21",
       "guarda": "M-E6-9: cada campo que falta recusa",
       "arquivo": "bin/forge_dono.py",
       "de": "    if faltam:\n        return \"recomendação de corte sem \"",
@@ -43,7 +53,7 @@
       ]
     },
     {
-      "id": "M21",
+      "id": "M22",
       "guarda": "E6: pedaço vazio não é lugar",
       "arquivo": "bin/forge_dono.py",
       "de": "re.split(r\",|;|\\s+e\\s+\", campos[\"procurado\"]) if p.strip()]",
@@ -53,7 +63,7 @@
       ]
     },
     {
-      "id": "M22",
+      "id": "M23",
       "guarda": "M-E6-2: não achada com 1 lugar",
       "arquivo": "bin/forge_dono.py",
       "de": "len(lugares) < LUGARES_DO_NAO_ACHADA:",
@@ -63,23 +73,13 @@
       ]
     },
     {
-      "id": "M23",
+      "id": "M24",
       "guarda": "M-E6-11/PQ-A2: na resposta, só a recomendada escolhida",
       "arquivo": "bin/forge_dono.py",
       "de": "(escolhas is not None and escolhas.get(n) != letra)",
       "para": "False",
       "testes": [
         "tests.test_camadas_dono.TravaDeOrigem.test_resposta_a_pergunta_antiga_de_corte_volta_como_pergunta"
-      ]
-    },
-    {
-      "id": "M24",
-      "guarda": "E6: o motivo vira recusa",
-      "arquivo": "bin/forge_dono.py",
-      "de": "            if motivo := falta_de_origem(campos_de_origem(texto)):",
-      "para": "            if (motivo := falta_de_origem(campos_de_origem(texto))) and False:",
-      "testes": [
-        "tests.test_camadas_dono.TravaDeOrigem.test_corte_recomendado_sem_campos_e_recusado_sem_gravar"
       ]
     }
   ]
