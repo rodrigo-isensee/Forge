@@ -11,11 +11,10 @@ data: 2026-11-11
 # Review de devops: v046 (E1.2, lote E1 do CI), volta 1
 
 ## Achados
-- Nenhum bloqueante. A1 e A2 da volta anterior resolvidos (ver Detalhes).
-- B1 (informativo) .github/workflows/ci.yml:562 · O job `verificacoes` repete checkout, setup-python, setup-node e instalação do CLI (cerca de 1 a 2 min a mais de runner por execução, dentro da franquia; R-CUSTO sem recurso pago). Aceito; o tempo de parede cai porque roda em paralelo às partes.
+- A1 (recomendado) .github/workflows/ci.yml:562 · O job `verificacoes` repete checkout, setup-python, setup-node e instalação do CLI (cerca de 1 a 2 min a mais de runner por execução, dentro da franquia; R-CUSTO sem recurso pago). Aceito; o tempo de parede cai porque roda em paralelo às partes.
 
 ## Detalhes
-Revalidação lendo só o delta b38fe7e6..00e6d430 (ci.yml, 3 testes, mutantes, fragmento).
+Sem bloqueante: A1 e A2 da volta anterior resolvidos. Revalidação lendo só o delta b38fe7e6..00e6d430 (ci.yml, 3 testes, mutantes, fragmento).
 
 A1/A2 resolvidos: o job `bateria` ficou só com passos baratos (gate, lint, degrau, CLI, validate, changelog, segredo, parecer). Provas, shellcheck e e2e foram para `verificacoes` (`needs: [bateria]`), que roda em paralelo às partes. O agregador `bateria` passou a exigir `bateria`, `verificacoes`, partes e pulados em `success`; vermelho barato deixa `verificacoes` e partes skipped e o agregador (`if: always()`) reprova. O check exigido segue com o mesmo nome; `bateria (python 3.14)` não precisa de `verificacoes` (suas partes já esperam `bateria`). `pesada` é exposta como output do job e lida com `!= 'false'` nos passos longos, correto para o ci-local. Comentário sem promessa de tempo ("sem medida do vermelho ainda"), honesto.
 

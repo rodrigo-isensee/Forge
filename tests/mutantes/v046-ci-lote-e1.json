@@ -62,6 +62,46 @@
       "testes": [
         "tests.test_suite_partes.FiacaoDoCI.test_agregadores_tem_o_nome_exigido_e_exigem_todas_as_partes"
       ]
+    },
+    {
+      "id": "M7",
+      "guarda": "relatorio ausente (None) e ignorado ao juntar os caidos",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "sorted({str(i) for rel in relatorios if rel for i in",
+      "para": "sorted({str(i) for rel in relatorios for i in",
+      "testes": [
+        "tests.test_suite_paralela.Logica.test_testes_que_cairam_no_resumo_tem_teto_e_id_limpo"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "caidos ausente ou vazio no relatorio vira lista vazia",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "rel.get(\"caidos\", ()) or ()",
+      "para": "rel.get(\"caidos\", ()) and ()",
+      "testes": [
+        "tests.test_suite_paralela.Logica.test_testes_que_cairam_no_resumo_tem_teto_e_id_limpo"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o ID no resumo so leva caractere imprimivel",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "c.isprintable() and c != \"`\"",
+      "para": "c != \"`\"",
+      "testes": [
+        "tests.test_suite_paralela.Logica.test_testes_que_cairam_no_resumo_tem_teto_e_id_limpo"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o ID no resumo nao leva crase",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "c.isprintable() and c != \"`\"",
+      "para": "c.isprintable()",
+      "testes": [
+        "tests.test_suite_paralela.Logica.test_testes_que_cairam_no_resumo_tem_teto_e_id_limpo"
+      ]
     }
   ]
 }
