@@ -9122,8 +9122,9 @@ def cmd_brief_selar(raiz, a):
     dono = modulo_do_dono()  # E8 (0.45.7): delegar é cumprir; a decisão do dono cobrada passa antes pela conferência do Jarvis
     if dono is None:
         linhas.append(("decisões: bin/forge_dono.py ausente; a conferência das decisões (E8) não foi verificada", True))
-    for i, (rel, _) in enumerate(decisoes_cobradas(raiz, caminho_pedido, pedido_txt)["fontes"] if dono else []):
-        for n, motivo in dono.pendencias_da_conferencia(pedido_txt if i == 0 else ler_registro(raiz, rel)[0] or "", e_linha_de_decisao):
+    fontes = decisoes_cobradas(raiz, caminho_pedido, pedido_txt)["fontes"] if dono else []  # a 1ª é o pedido; as outras, já lidas
+    for (rel, _), fonte in zip(fontes, [pedido_txt] + [ler_registro(raiz, rel)[0] for rel, _ in fontes[1:]]):
+        for n, motivo in dono.pendencias_da_conferencia(fonte, e_linha_de_decisao):
             linhas.append((f"decisões: {rel}:{n} {motivo}: confira com `anotar --tipo decisao --confere` e, se não passa, pergunte ao dono "
                            "antes de cumprir (E8)", True))
     for linha, _ in linhas:

@@ -1,14 +1,18 @@
 """0.45.7 (E6, E7 e E8; desenho docs/arquitetura/v0457-camadas.md): a recomendação de corte leva a origem (`anotar --tipo pergunta` e
 `decisoes --resposta`), a decisão em códigos contra a recomendada leva `revertida=` e toda decisão leva `--confere`; o `brief selar`
 recusa a decisão posterior à entrada sem conferência ou com `nao-passa` sem pergunta e resposta do dono. Sem rede."""
+import argparse
+import contextlib
 import datetime
 import hashlib
+import io
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
@@ -109,6 +113,8 @@ class TravaDeOrigem(Base):  # E6
         linhas, rc = self.anotar("pergunta", "1a) manter a recusa [recomendada] · 1b) remover a recusa")
         self.assertEqual(rc, 0, linhas)  # o corte só na opção não recomendada
         self.recusa("pergunta", "1a) manter a recusa · 1b) remover a recusa [recomendada]")
+        linhas, rc = self.anotar("pergunta", "1a) manter a recusa [recomendada] · não seguir: remove a recusa · 1b) remover")
+        self.assertEqual(rc, 0, linhas)  # o léxico vale fora dos campos de origem
 
     def test_marca_corte_sem_verbo_do_lexico(self):  # CT-E6-04, CT-E6-13
         sem = "1a) deixar o teste de lado [recomendada] [corte] · 1b) seguir com ele"
@@ -175,7 +181,7 @@ class RecomendacaoRevertida(Base):  # E7
 
     def test_codigos_que_nao_se_leem_sao_recusados(self):
         self.com_pergunta(CORTE_OK)
-        self.assertIn("decisoes --resposta", self.recusa("decisao", "1c", confere="mede"))
+        self.assertIn("decisoes --resposta", self.recusa("decisao", "1a 1c", confere="mede"))
         self.arq.write_text(PEDIDO, encoding="utf-8")
         self.assertIn("PERGUNTA AO DONO", self.recusa("decisao", "1a", confere="mede"))
 
@@ -188,6 +194,9 @@ class RecomendacaoRevertida(Base):  # E7
                 self.assertIn("só a ferramenta grava", self.recusa("decisao", literal, contexto, confere="mede"))
         self.assertIn("só a ferramenta grava", self.recusa("pergunta", "1a) x [recomendada] confere=mede 1b) y"))
         self.assertIn("U+200B", self.recusa("decisao", "sim", "re\u200bvertida=1b", confere="mede"))  # o invisível cai antes
+        self.assertIsNotNone(dono.recusa_da_forja("con\u200bfere=mede"))  # e a forja o ignora mesmo assim
+        linhas, rc = self.anotar("historico", "a linha leva confere=mede como texto")
+        self.assertEqual(rc, 0, linhas)  # o Histórico não leva marca do dono
 
 
 class ConfereNoAnotar(Base):  # E8
@@ -212,6 +221,14 @@ class ConfereNoAnotar(Base):  # E8
         modelo = linhas[-1]
         for campo in ("alternativa:", "[recomendada]", "origem:", "procurado:", "seguir:", "não seguir:", 'seguir a decisão "corte o teste"'):
             self.assertIn(campo, modelo)
+
+    def test_sem_o_modulo_do_dono_nada_e_gravado(self):
+        original = fc.modulo_do_dono
+        fc.modulo_do_dono = lambda: None
+        try:
+            self.assertIn("forge_dono.py ausente", self.recusa("decisao", "sim", confere="mede"))
+        finally:
+            fc.modulo_do_dono = original
 
     def test_pela_linha_de_comando(self):
         rc, saida = self.rodar("anotar", "--pedido", "p", "--tipo", "decisao", "--confere", "barato", "--literal", "sim")
@@ -249,11 +266,18 @@ class Pendencias(unittest.TestCase):  # E8: a regra que o selar aplica, linha a 
             ("resposta de uma pergunta anterior", [pergunta("1a) x 1b) y").strip(), decisao("2030-01-01 10:00", "a", "nao-passa"),
                                                    decisao("2030-01-01 10:05", "1b", "mede")], [2]),
             ("citada no meio não é decisão", ["texto que cita DECISÃO DO DONO (2030-01-01 10:00) sem abrir a linha"], []),
+            ("sem data não trava", ["DECISÃO DO DONO: sem data"], []),
+            ("confere no texto, sem a marca", ['DECISÃO DO DONO (2030-01-01 10:00): ok; confere=mede'], [1]),
         ]
         self.assertGreaterEqual(len(casos), 6)
         for nome, linhas, esperado in casos:
             with self.subTest(nome):
                 self.assertEqual(self.pendentes(*linhas), esperado)
+
+    def test_o_motivo_diz_o_que_falta(self):
+        linhas = [decisao("2030-01-01 10:00", "a"), decisao("2030-01-01 10:01", "b", "nao-passa")]
+        motivos = [m for _, m in dono.pendencias_da_conferencia("\n".join(linhas), fc.e_linha_de_decisao, self.ENTRADA)]
+        self.assertEqual(motivos, ["sem `confere=`", "`confere=nao-passa` sem pergunta e resposta do dono depois"])
 
     def test_a_entrada_e_uma_constante_com_hora(self):  # PQ-A3
         self.assertEqual(dono.ENTRADA_DA_CONFERENCIA, self.ENTRADA)
@@ -286,6 +310,20 @@ class SelarConfere(Repositorio):  # E8 no `brief selar`, numa raiz de projeto co
         self.brief()
         rc, saida = self.selar()
         self.assertEqual(rc, 0, saida)
+
+    def test_sem_o_modulo_do_dono_o_selar_reprova(self):
+        self.brief()
+        original, fc.modulo_do_dono = fc.modulo_do_dono, lambda: None
+        a = argparse.Namespace(arquivo=["docs/briefs/exemplo-node-backend-1.md"], pedido="exemplo", destino=None, sem_selar=False,
+                               ref=None, parecer=None)
+        saida = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(saida), unittest.mock.patch.dict(os.environ, self.env, clear=True):
+                rc = fc.cmd_brief_selar(self.proj, a)
+        finally:
+            fc.modulo_do_dono = original
+        self.assertEqual(rc, 1, saida.getvalue())
+        self.assertIn("forge_dono.py ausente", saida.getvalue())
 
     def test_fonte_citada_tambem_e_conferida(self):  # CT-E8-15
         self.gravar("docs/pedidos/outro.md", "# outro\n\n" + decisao("2030-01-01 10:00", "regra de lá") + "\n")
