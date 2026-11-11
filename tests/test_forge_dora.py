@@ -1,7 +1,7 @@
 """0.45.7 (TM-16): `forge-check dora` (bin/forge_dora.py): frequência de entrega, espera da mudança, taxa de falha, recuperação e
 vazão por semana, lidas de um repositório git e de um quadro de exemplo; um teste por métrica e o ramo de falha de cada guarda."""
 import datetime
-import os
+import json
 import subprocess
 import sys
 import tempfile
@@ -142,7 +142,7 @@ class Brutos(unittest.TestCase):
 
     def test_media_por_semana_so_com_20(self):
         self.assertNotIn("media_por_semana", D.por_semana({"S1": 19}))
-        self.assertEqual(D.por_semana({"S1": 12, "S2": 8})["media_por_semana"], 10.0)
+        self.assertEqual(D.por_semana({"S1": 12, "S2": 8}).get("media_por_semana"), 10.0)
 
     def test_taxa_pct_so_com_20_releases(self):
         base = datetime.datetime(2026, 1, 5, tzinfo=FUSO)
@@ -176,7 +176,8 @@ class Comando(Base):
     def test_json(self):
         r = self.rodar("--fuso", "+09:00", "--json")
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertEqual(__import__("json").loads(r.stdout)["vazao"]["n"], 2)
+        self.assertTrue(r.stdout.startswith("{"), r.stdout)
+        self.assertEqual(json.loads(r.stdout)["vazao"]["n"], 2)
 
     def test_data_ou_fuso_invalido_sai_2(self):
         for args in (("--desde", "2026-13-01"), ("--fuso", "-3h")):
