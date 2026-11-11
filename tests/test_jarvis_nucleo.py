@@ -95,13 +95,13 @@ class OrcamentoDeInstrucao(unittest.TestCase):
     def test_jarvis_e_regras_cabem_na_metade_da_base(self):
         self.assertEqual(ORCAMENTO_0431, 75_022 // 2)  # metade da base da 0.43: subir é afrouxar
         arquivos = [RAIZ / JARVIS, *sorted((RAIZ / "docs" / "regras").glob("*.md"))]
-        self.assertGreaterEqual(len(arquivos), 18)
+        self.assertGreaterEqual(len(arquivos), 14)  # AV5: seis regras viraram trechos de R-LIMITES.md e uma linha do README
         total = sum(len(a.read_text(encoding="utf-8")) for a in arquivos)
         self.assertLessEqual(total, ORCAMENTO_0431)
 
     def test_toda_regra_tem_revisao_e_medida(self):  # decisão 10: `Revisar em:` e `Medida:` no começo da linha
         regras = sorted((RAIZ / "docs" / "regras").glob("R-*.md"))
-        self.assertGreaterEqual(len(regras), 17)
+        self.assertGreaterEqual(len(regras), 12)  # AV5: R-LIMITES.md junta cinco; R-WIP é linha do README
         for regra in regras:
             with self.subTest(regra=regra.name):
                 texto = regra.read_text(encoding="utf-8")
