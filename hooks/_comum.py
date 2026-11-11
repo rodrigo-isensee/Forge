@@ -2481,16 +2481,13 @@ def so_do_usuario(pasta):
     info = os.stat(pasta)
     if info.st_uid != os.getuid() or info.st_mode & 0o022:
         return False
-    acima = os.path.dirname(os.path.normpath(pasta))
-    while True:
+    for acima in Path(os.path.normpath(pasta)).parents:
         info = os.stat(acima)
         if info.st_uid not in (0, os.getuid()):
             return False
         if info.st_mode & 0o022 and not info.st_mode & stat.S_ISVTX:
             return False
-        if acima == os.path.dirname(acima):
-            return True
-        acima = os.path.dirname(acima)
+    return True
 
 
 def gravar_json(caminho, dados):

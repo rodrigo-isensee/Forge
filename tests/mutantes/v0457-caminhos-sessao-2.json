@@ -37,7 +37,7 @@
       "guarda": "arquivo sem quebra no fim: a linha nova fica numa linha própria",
       "arquivo": "hooks/doutor.py",
       "de": "    separador = \"\\n\" if antes and not antes.endswith(\"\\n\") else \"\"",
-      "para": "    separador = \"\"",
+      "para": "    separador = \"\\n\" if False else \"\"",
       "testes": [
         "tests.test_doutor.CaminhosNaSessao"
       ]
