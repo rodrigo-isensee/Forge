@@ -80,14 +80,16 @@ class Fora(Raiz):
                 self.assertFalse([l for l in saida if l.startswith("origem:")], saida)
         (self.fora / "docs" / "briefs" / "elo.md").symlink_to(alvo)
         (self.fora / "docs" / "outro.md").write_text(BRIEF, encoding="utf-8")
-        (self.tmp / "x.md").write_text(BRIEF, encoding="utf-8")  # o alvo de ../../x.md a partir da raiz de brief falsa
-        cwd = self.tmp / "c1" / "c2" / "c3"  # onde ../../x.md não existe: só a regra de raízes pode recusar
+        (self.tmp / "x.md").write_text(BRIEF, encoding="utf-8")  # o alvo de ../../x.md se ele fosse resolvido de docs/briefs/ da raiz falsa; do cwd abaixo, o arquivo não existe
+        cwd = self.tmp / "c1" / "c2" / "c3"  # de c1/c2/c3, ../../x.md é c1/x.md, que não existe: a recusa é a leitura falha, nunca o conteúdo plantado
         cwd.mkdir(parents=True)
         for arquivo in ("docs/briefs/elo.md", "docs/outro.md", "../../x.md"):
             with self.subTest(arquivo):
                 rc, saida = self.rodar_em(cwd, "brief", arquivo, "--pedido", "pedido-sintetico")
                 self.assertEqual(rc, 2, saida)
                 self.assertFalse([l for l in saida if l.startswith(("origem:", "conferencia-brief-regra:"))], saida)
+                if arquivo == "../../x.md":
+                    self.assertTrue([l for l in saida if l.startswith("brief: não consegui ler")], saida)
 
     def test_mesmo_nome_nas_duas_raizes_a_raiz_do_repositorio_vence(self):
         (self.tmp / "docs" / "pedidos").mkdir(parents=True)
