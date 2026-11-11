@@ -785,6 +785,8 @@ def textos_da_consulta(args, pasta):
     até `TETO_DA_CONSULTA`; `-` (entrada padrão), arquivo ausente ou acima do teto não dá para ler. O corpo de `--input`
     vai ao GitHub como JSON: lido decodificado (escape `\\uXXXX` no nome), e o que não é JSON não dá para ler (AR-11)."""
     textos = []
+    if any(map(expande, args)):  # A-F27-2: `$( )`, `$VAR` ou crase: o gh recebe outro texto, que o hook não lê
+        return textos, False
     for i, a in enumerate(args):
         corpo = a == "--input" or a.startswith("--input=")
         if corpo or "=@" in a:
