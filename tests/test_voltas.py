@@ -144,13 +144,15 @@ class Voltas(Raiz):
         self.assertIn("voltas: XPTO nao-classificado inicio=2026-10-17T10:50:00-03:00 minutos=8", linhas)
 
     def test_classificacao_por_coluna_e_motivo(self):
-        carga = subprocess.run([sys.executable, "-c", (
+        carga = subprocess.run([sys.executable, "-I", "-c", (
             "import importlib.machinery as m, importlib.util as u, sys\n"
             f"l = m.SourceFileLoader('fc', {FORGE_CHECK!r}); s = u.spec_from_loader('fc', l); mod = u.module_from_spec(s); l.exec_module(mod)\n"
-            "c = mod.classificar_volta\n"
+            f"l2 = m.SourceFileLoader('fv', {str(RAIZ / 'bin' / 'forge_voltas.py')!r}); s2 = u.spec_from_loader('fv', l2)\n"
+            "fv = u.module_from_spec(s2); l2.exec_module(fv); ctx = mod.ctx_das_voltas()\n"
+            "c = lambda de, para, motivo: fv.classificar_volta(de, para, motivo, ctx)\n"
             "print(c('Conferência', 'Review', 'não cumpriu'), c('Conferência', 'Review', 'conferido'), c('Review', 'Review', 'reprovou'),"
             " c('Em andamento', 'Aguardando o dono', 'barrada'), c('Review', 'Em andamento', 'x'), c('Em andamento', 'Conferência', 'x'))")],
-            capture_output=True, text=True)
+            capture_output=True, text=True, env={"PATH": os.environ.get("PATH", ""), "HOME": str(self.tmp / "home")})
         self.assertEqual(carga.stdout.split(), ["conferencia", "None", "review", "barrada", "nao-classificado", "None"], carga.stderr)
 
     def test_sem_historico_avisa_e_nao_quebra(self):
