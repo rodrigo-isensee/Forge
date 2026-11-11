@@ -77,6 +77,19 @@ def _cpu_dos_filhos():
     return r.ru_utime + r.ru_stime
 
 
+# ORCAMENTO-TEMPO-NO-LOG (E1.10): a linha de formato fixo que o teste do orçamento de heredocs põe no stderr, passe ou
+# falhe, para o log do CI dizer o tempo medido e o limite (o `--medir` do `forge-fechar` se cumpre por ela). A forma vai
+# por último porque tem espaços; `medida` diz se o número é CPU ou parede.
+FORMATO_DO_ORCAMENTO = re.compile(
+    r"^ORCAMENTO-TEMPO teste=(\S+) medido=(\d+\.\d{2})s limite=(\d+(?:\.\d+)?)s medida=(cpu|parede) forma=(.+)$")
+
+
+def registrar_orcamento(teste, medido, limite, medida, forma):
+    """Escreve no stderr, numa linha só, o tempo medido, o limite e o nome do teste (`FORMATO_DO_ORCAMENTO`)."""
+    print(f"ORCAMENTO-TEMPO teste={teste} medido={medido:.2f}s limite={limite:g}s medida={medida} forma={forma}",
+          file=sys.stderr, flush=True)
+
+
 def pid_morto():
     p = subprocess.Popen([sys.executable, "-c", ""])
     p.wait()
@@ -1961,6 +1974,20 @@ class Hooks(unittest.TestCase):
                 # M2 da volta única: com o texto gravando (`cat > f`), o `git` do texto faz de todo corpo comando
                 self.assertEqual(set(lidos), {forma in ("pipeline", "mesma linha")})
 
+    def test_orcamento_sai_numa_linha_de_formato_fixo(self):  # ORCAMENTO-TEMPO-NO-LOG (E1.10)
+        """A linha do orçamento sai no stderr, uma só, com o nome do teste, o tempo medido e o limite, e casa com o
+        `FORMATO_DO_ORCAMENTO` que o `--medir` lê; nada vai ao stdout."""
+        saida, erro = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(saida), contextlib.redirect_stderr(erro):
+            registrar_orcamento("tests.test_hooks.Hooks.t", 1.234, 3.0, "cpu", "um por linha")
+        self.assertEqual(saida.getvalue(), "")
+        self.assertEqual(erro.getvalue(), "ORCAMENTO-TEMPO teste=tests.test_hooks.Hooks.t medido=1.23s limite=3s "
+                                          "medida=cpu forma=um por linha\n")
+        achado = FORMATO_DO_ORCAMENTO.match(erro.getvalue().rstrip("\n"))
+        self.assertIsNotNone(achado)
+        self.assertEqual(achado.groups(), ("tests.test_hooks.Hooks.t", "1.23", "3", "cpu", "um por linha"))
+        self.assertIsNone(FORMATO_DO_ORCAMENTO.match("ORCAMENTO-TEMPO teste=t medido=nan limite=3s medida=cpu forma=x"))
+
     def test_muitos_heredocs_recusam_dentro_do_orcamento(self):  # LOTE-LEITURA-HOOK, A1 do review, volta 5
         """Pelo hook real: 3000 heredocs com `git push origin main` no fim recusam (R-MAIN) bem antes do timeout do
         `hooks.json` (26,9 s antes, e o Claude Code libera o comando que o hook não decidiu a tempo).
@@ -1996,6 +2023,7 @@ class Hooks(unittest.TestCase):
         for dono, m in itertools.product(("./x{i}", "sh -s a{i}", "python3 -", "python3 - a{i}"), (1000, 3000)):
             formas[f"{dono} x{m}"] = ("".join(f"{dono.format(i=i)} <<'E'\nx\nE\n" for i in range(m))
                                      + "bash <<'Z'\necho x > .github/workflows/ci.yml\nZ", None, base)
+        medidas = []  # ORCAMENTO-TEMPO-NO-LOG: (valor, forma) de cada forma medida; o pior vai ao log
         for forma, (texto, recusa, *outra) in formas.items():
             with self.subTest(forma=forma):
                 caso = json.loads(json.dumps(*outra or [dados]))
@@ -2016,11 +2044,16 @@ class Hooks(unittest.TestCase):
                 medida = f"{parede:.2f} s de parede, {cpu or 0:.2f} s de CPU"
                 if outra:
                     print(f"HEREDOC-DONOS {forma}: {medida} (limite {conformidade.PRAZO_DA_LINHA_S:g} s de CPU)")
+                medidas.append((parede if cpu is None else cpu, forma))
                 if cpu is None:  # sem `resource` (Windows) só vale a parede
                     self.assertLess(parede, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
                 else:
                     self.assertLess(cpu, conformidade.PRAZO_DA_LINHA_S,
                                     f"o custo do hook cabe no prazo da linha, sem depender da carga ({medida})")
+        pior, forma = max(medidas, default=(float("nan"), "nenhuma"))
+        sem_cpu = _cpu_dos_filhos() is None
+        registrar_orcamento(self.id(), pior, limite / 2 if sem_cpu else conformidade.PRAZO_DA_LINHA_S,
+                            "parede" if sem_cpu else "cpu", forma)
 
     @staticmethod
     def _donos_da_base(_comum, texto):
