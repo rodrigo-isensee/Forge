@@ -469,10 +469,19 @@ def cmd_kanban(raiz):
     return saida
 
 
+# Comandos de rede herdam só a configuração que o ambiente injeta (proxy, credencial, insteadOf); sem ela o
+# `ls-remote` da prova de push falha atrás do proxy. GIT_DIR, GIT_WORK_TREE, GIT_CONFIG_GLOBAL e afins saem sempre.
+GIT_REDE = frozenset({"ls-remote", "fetch"})
+GIT_CONFIG_DO_AMBIENTE = re.compile(r"GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_\d+|VALUE_\d+)")
+
+
 def git(raiz, *args, bruto=False):
-    """Único ponto que roda git (aqui e nos hooks): sem as variáveis GIT_* herdadas e com limite de tempo
+    """Único ponto que roda git (aqui e nos hooks): sem as variáveis GIT_* herdadas (nos comandos de `GIT_REDE`, menos
+    as de `GIT_CONFIG_DO_AMBIENTE`) e com limite de tempo
     (subprocess.TimeoutExpired sobe; nos hooks vira erro interno: libera, ou bloqueia se o comando tem marcador crítico, ADR 0009, seção 7). Devolve (código, stdout); com `bruto`, o stdout sai em bytes e sem `strip`."""
-    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    rede = bool(args) and args[0] in GIT_REDE
+    env = {k: v for k, v in os.environ.items()
+           if not k.startswith("GIT_") or (rede and GIT_CONFIG_DO_AMBIENTE.fullmatch(k))}
     r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=not bruto, env=env,
                        timeout=GIT_TIMEOUT_S)
     return r.returncode, (r.stdout if bruto else r.stdout.strip())
