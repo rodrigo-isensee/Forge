@@ -286,9 +286,16 @@ class GrupoDaEtapa(Repo):
         return p
 
     def le(self, nome):
-        self.assertTrue(ate((self.dir / nome).exists), nome)
-        time.sleep(0.2)
-        return [int(x) for x in (self.dir / nome).read_text().split()]
+        """Espera o arquivo ter conteúdo inteiro (a etapa anota "pid pgid", o resto um pid), não uma janela fixa."""
+        quer = 2 if nome == "etapa" else 1
+
+        def campos():
+            try:
+                return [int(x) for x in (self.dir / nome).read_text().split()]
+            except (OSError, ValueError):
+                return []
+        self.assertTrue(ate(lambda: len(campos()) >= quer, 30), nome)
+        return campos()[:quer]
 
     def fim(self, p):
         try:
@@ -329,7 +336,7 @@ class GrupoDaEtapa(Repo):
         self.etapa('sleep 60 & echo $! > "$(dirname "$0")/../filho"')
         self.assertEqual(self.fim(self.lanca())[0], 0)
         filho = self.le("filho")[0]
-        self.assertTrue(ate(lambda: filho not in vivos()))
+        self.assertTrue(ate(lambda: filho not in vivos(), 30))
 
     def test_grupo_nao_criado_ou_pgid_ilegivel_sinaliza_so_a_etapa(self):
         falso = self.dir / "falso"
