@@ -283,7 +283,9 @@ class DefeitoEscapado(Raiz):
         self.gravar("KANBAN.md", "# Quadro\n")
 
     def arquivo(self):
-        return (self.tmp / "docs/kanban/escapes.md").read_text(encoding="utf-8")
+        arq = self.tmp / "docs/kanban/escapes.md"
+        self.assertTrue(arq.is_file(), "escapes.md não foi gravado")  # falta do arquivo é falha do teste, não erro (F6, E5.5)
+        return arq.read_text(encoding="utf-8")
 
     def com(self, **troca):
         args = list(ESCAPE)
