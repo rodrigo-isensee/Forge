@@ -105,7 +105,8 @@ class EnvioLeve(unittest.TestCase):
                 self.assertNotIn("envio leve", erro)
 
     def test_segredo_no_delta_ainda_barra_sem_imprimir_o_valor(self):
-        self.commit("token", **{"a.md": f"t = {TOKEN}\n"})
+        # A branch neutraliza o próprio script de segredo: só a varredura da base (segredo_no_delta) pode barrar.
+        self.commit("token", **{"a.md": f"t = {TOKEN}\n", "scripts/verificar-contribuicao.sh": "#!/bin/bash\nexit 0\n"})
         codigo, rodou, erro = self.roda()
         self.assertEqual((codigo, rodou), (1, False), erro)
         self.assertIn("varredura de segredo", erro)
