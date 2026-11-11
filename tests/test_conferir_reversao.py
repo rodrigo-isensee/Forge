@@ -202,6 +202,28 @@ class ConferirReversao(unittest.TestCase):
         with tempfile.TemporaryDirectory() as fora:
             self.assertEqual(self.rodar("a", "b", cwd=fora).returncode, 2)
 
+    def test_revert_que_pede_a_suite_inteira_nao_roda_nada(self):
+        # Abuso 9 (C-7): a ponta é dirigida, mas o revert de c2 traz de volta extra.txt (sem mapa). Todo passo dirigido
+        # carrega test_forge e grava a marca; a marca `.completa` vem de um módulo da base que só a suíte inteira carrega.
+        completa = Path(f"{self.marca}.completa")
+        (self.repo / "tests" / "test_so_na_completa.py").write_text(
+            f"from pathlib import Path\nPath({str(completa)!r}).touch()\n")
+        base = self.commitar("base com um módulo que só a suíte inteira carrega")
+        self.escrever("README.md", "r\n")
+        c0 = self.commitar("c0")
+        self.escrever("extra.txt", "x\n")
+        c1 = self.commitar("c1")
+        git(self.repo, "rm", "-q", "extra.txt")
+        c2 = self.commitar("c2")
+        r = self.rodar(base, "feat")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        linhas = r.stdout.splitlines()
+        self.assertEqual([l.split()[0] for l in linhas], [c0, c1, c2])
+        self.assertNotIn("sem-veredito", linhas[0] + linhas[1])
+        self.assertEqual(linhas[2], f"{c2} sem-veredito: o revert pede a suíte inteira (R-TETO)")
+        self.assertTrue(self.marca.exists())  # controle: os passos dirigidos rodaram e gravaram a marca
+        self.assertFalse(completa.exists())  # a suíte inteira não rodou no revert de c2
+
 
 if __name__ == "__main__":
     unittest.main()

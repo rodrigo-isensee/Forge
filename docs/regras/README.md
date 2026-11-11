@@ -19,7 +19,7 @@ Decisão: `docs/adr/0002-uma-fonte-por-regra.md`. Agentes, skills e modelos cita
 | [`R-NEUTRO`](R-NEUTRO.md) | Neutralidade da fábrica |
 | [`R-COPIA`](R-LIMITES.md#r-copia-não-copiar-agentes-e-skills-para-o-projeto) | Não copiar agentes e skills para o projeto |
 | [`R-VERIFY`](R-LIMITES.md#r-verify-nunca---no-verify-nem---force) | Nunca `--no-verify` nem `--force` |
-| [`R-DECISAO`](R-DECISAO.md) | Decisões do dono em lote, com opções, recomendação e prazo |
+| [`R-DECISAO`](R-DECISAO.md) | Decisões do dono uma a uma, com opções e recomendação, sem prazo que decida |
 | [`R-CONFORMIDADE`](R-CONFORMIDADE.md) | Controles não se contornam; o que está em vigor é do usuário |
 | [`R-CONTRIB`](R-LIMITES.md#r-contrib-contribuição-ao-forge-projeto-abre-pr-nunca-mescla) | Contribuição ao Forge: projeto abre PR, nunca mescla |
 | [`R-SEGURANCA`](R-SEGURANCA.md) | Parecer de segurança quando há gatilho |
