@@ -11,7 +11,9 @@ from unittest import mock
 
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ / "hooks"))
+sys.path.insert(0, str(RAIZ / "tests"))
 import agentes  # noqa: E402
+from ambiente_git import sem_manutencao  # noqa: E402
 
 
 def sem_excecao(funcao, *args, **kwargs):
@@ -75,8 +77,8 @@ class RitmoNoHook(unittest.TestCase):
 class ComandoRitmo(unittest.TestCase):
     def setUp(self):
         self.raiz = pasta_temporaria(self)
-        self.env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.raiz), "LANG": "C.UTF-8",
-                    "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
+        self.env = sem_manutencao({"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.raiz), "LANG": "C.UTF-8",
+                                   "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull})
         subprocess.run(["git", "init", "-q", str(self.raiz)], env=self.env, check=True)
         (self.raiz / ".forge").mkdir()
         self.config = self.raiz / ".forge/config.json"

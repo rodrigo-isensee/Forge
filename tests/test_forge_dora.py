@@ -2,6 +2,7 @@
 vazão por semana, lidas de um repositório git e de um quadro de exemplo; um teste por métrica e o ramo de falha de cada guarda."""
 import datetime
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -64,7 +65,7 @@ class Exemplo:
         (kanban / "escapes.md").write_text(ESCAPES, encoding="utf-8")
 
     def git(self, *args, data=None):
-        env = {k: v for k, v in sem_manutencao().items() if not k.startswith("GIT_") or k.startswith("GIT_CONFIG")}
+        env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_") or k.startswith("GIT_CONFIG")})
         env.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
         if data:
             env.update(GIT_AUTHOR_DATE=data[0], GIT_COMMITTER_DATE=data[1])
