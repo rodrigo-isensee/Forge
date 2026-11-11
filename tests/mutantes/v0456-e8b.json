@@ -1,0 +1,66 @@
+{
+  "pedido": "v0456-e8b",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "conflito_com (E8.2): merge-tree limpo nunca vira conflito",
+      "arquivo": "bin/forge-fechar",
+      "de": "    0) return 1 ;;\n    1) echo \"arquivos em conflito",
+      "para": "    0) return 0 ;;\n    1) echo \"arquivos em conflito",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_e8_arquivo_em_comum_sem_conflito_segue_sem_trazer_a_base"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "conflito_com (E8.2): conflito real do merge-tree nunca vira limpo",
+      "arquivo": "bin/forge-fechar",
+      "de": "awk 'NF && !visto[$0]++ {print \"  \" $0}' >&2\n       return 0 ;;",
+      "para": "awk 'NF && !visto[$0]++ {print \"  \" $0}' >&2\n       return 1 ;;",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_e8_com_conflito_para_sem_merge_sem_envio_e_sem_pr"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "conflito_com (E8.2): falha do merge-tree para, nunca vira limpo",
+      "arquivo": "bin/forge-fechar",
+      "de": "    *) die \"parou no passo $1: não consegui calcular o merge de $base em $ref",
+      "para": "    *) return 1; die \"parou no passo $1: não consegui calcular o merge de $base em $ref",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_e8_git_sem_merge_tree_ou_com_falha_para_no_2b"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "passo 2b (E8.2): conflito real com a base para antes do PR",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if conflito_com 2b \"$base_sha\" aberto; then",
+      "para": "  if ! conflito_com 2b \"$base_sha\" aberto; then",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_e8_com_conflito_para_sem_merge_sem_envio_e_sem_pr"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "passo 2b (E8.2): falha da contagem dos commits da base para",
+      "arquivo": "bin/forge-fechar",
+      "de": "--not \"$remoto_sha\")\" || die \"parou no passo 2b: não consegui contar os commits da base\"",
+      "para": "--not \"$remoto_sha\")\" || :",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_contagem_de_commits_da_base_que_falha_para_no_passo_2b"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "passo 6a (E8.2): base que andou nos checks com conflito real para sem mesclar",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if conflito_com 6a \"$srv\" mesclado; then",
+      "para": "  if false && conflito_com 6a \"$srv\" mesclado; then",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_6a_base_que_conflita_nos_checks_para_sem_mesclar"
+      ]
+    }
+  ]
+}

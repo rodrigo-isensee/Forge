@@ -110,7 +110,7 @@ class SoBranchRemota(unittest.TestCase):
         self.assertIn("rode git fetch origin melhoria/x", r.stderr)
         self.assertEqual(self.chamadas(), [])
 
-    def test_base_que_andou_com_arquivo_em_comum_para_sem_envio(self):
+    def test_base_que_andou_com_conflito_para_sem_envio_nem_branch_local(self):  # E8: o fechamento não traz a base
         self.git("switch", "-q", "develop")
         (self.proj / "b").write_text("da base\n")
         self.git("add", "b")
@@ -118,7 +118,7 @@ class SoBranchRemota(unittest.TestCase):
         self.git("push", "-q", "origin", "develop")
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn(f"git branch --no-track melhoria/x {self.sha}", r.stderr)
+        self.assertIn("parou no passo 2b: o merge de origin/develop em melhoria/x tem conflito", r.stderr)
         self.assertEqual(self.criacoes(), [])
         self.assertEqual(self.git("ls-remote", "origin", "refs/heads/melhoria/x").split()[0], self.sha)
         self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
