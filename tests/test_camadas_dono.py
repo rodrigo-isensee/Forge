@@ -52,7 +52,10 @@ class Base(unittest.TestCase):
         return hashlib.sha256(self.arq.read_bytes()).hexdigest()
 
     def anotar(self, tipo, literal, contexto=None, confere=None):
-        return fc.cmd_anotar(self.tmp, "p", tipo, literal, contexto, False, confere)
+        try:
+            return fc.cmd_anotar(self.tmp, "p", tipo, literal, contexto, False, confere)
+        except Exception as erro:  # noqa: BLE001 - recusar é sair com rc 2 e a mensagem, nunca quebrar
+            self.fail(f"anotar levantou {erro!r}")
 
     def recusa(self, tipo, literal, contexto=None, confere=None):
         """Anota esperando rc 2 com o pedido idêntico byte a byte; devolve a saída."""
@@ -245,7 +248,10 @@ class Pendencias(unittest.TestCase):  # E8: a regra que o selar aplica, linha a 
     ENTRADA = datetime.datetime(2026, 11, 12, 0, 0)
 
     def pendentes(self, *linhas):
-        return [n for n, _ in dono.pendencias_da_conferencia("\n".join(linhas), fc.e_linha_de_decisao, self.ENTRADA)]
+        try:
+            return [n for n, _ in dono.pendencias_da_conferencia("\n".join(linhas), fc.e_linha_de_decisao, self.ENTRADA)]
+        except Exception as erro:  # noqa: BLE001 - linha sem data ou fora da forma não quebra o selar
+            self.fail(f"pendencias levantou {erro!r}")
 
     def test_tabela(self):
         casos = [
@@ -320,6 +326,8 @@ class SelarConfere(Repositorio):  # E8 no `brief selar`, numa raiz de projeto co
         try:
             with contextlib.redirect_stdout(saida), unittest.mock.patch.dict(os.environ, self.env, clear=True):
                 rc = fc.cmd_brief_selar(self.proj, a)
+        except Exception as erro:  # noqa: BLE001 - sem o módulo, o selar reprova com a mensagem, sem quebrar
+            self.fail(f"selar levantou {erro!r}")
         finally:
             fc.modulo_do_dono = original
         self.assertEqual(rc, 1, saida.getvalue())

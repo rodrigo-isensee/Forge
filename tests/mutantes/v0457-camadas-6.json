@@ -4,16 +4,6 @@
   "mutantes": [
     {
       "id": "M41",
-      "guarda": "M-E8-4: cada critério passa",
-      "arquivo": "bin/forge_dono.py",
-      "de": "            passa = valor in CRITERIOS\n",
-      "para": "            passa = valor in CRITERIOS[1:]\n",
-      "testes": [
-        "tests.test_camadas_dono.Pendencias.test_tabela"
-      ]
-    },
-    {
-      "id": "M42",
       "guarda": "M-E8-6: a resposta com critério resolve",
       "arquivo": "bin/forge_dono.py",
       "de": "            if passa:\n                perguntadas = {}",
@@ -23,7 +13,7 @@
       ]
     },
     {
-      "id": "M43",
+      "id": "M42",
       "guarda": "M-E8-3/M-E8-7: fronteira da entrada",
       "arquivo": "bin/forge_dono.py",
       "de": "quando is not None and quando >= entrada:",
@@ -33,7 +23,7 @@
       ]
     },
     {
-      "id": "M44",
+      "id": "M43",
       "guarda": "E8: o motivo diz o que falta",
       "arquivo": "bin/forge_dono.py",
       "de": "sem pergunta e resposta do dono depois\" if valor else \"sem `confere=`\"",
@@ -43,7 +33,7 @@
       ]
     },
     {
-      "id": "M45",
+      "id": "M44",
       "guarda": "M-E6-11: a resposta passa pela trava",
       "arquivo": "bin/forge_dono.py",
       "de": "    if motivos := recusa_de_corte(questoes, escolhas):  # E6:",

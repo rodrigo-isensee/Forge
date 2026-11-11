@@ -172,9 +172,9 @@ def campos_de_origem(texto):
 
 
 def e_corte(texto):
-    """E6: a opção recomenda cortar: marca `[corte]` ou raiz do léxico fora dos campos de origem."""
+    """E6: a opção recomenda cortar: raiz do léxico fora dos campos de origem; a marca `[corte]` cai na raiz `cort`."""
     sem_campos = " ".join(s for s in texto.split("·") if not re.match(r"\s*(origem|procurado|seguir|nao seguir)\s*:", _sem_acento(s)))
-    return "corte" in marcas(texto) or CORTE.search(_sem_acento(sem_campos)) is not None
+    return CORTE.search(_sem_acento(sem_campos)) is not None
 
 
 def falta_de_origem(campos):
