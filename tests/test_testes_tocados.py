@@ -1410,6 +1410,12 @@ class MedidaDaVagaPesada(unittest.TestCase):
         processo = subprocess.Popen([sys.executable, "-I", str(falso)])
         self.addCleanup(processo.wait)
         self.addCleanup(processo.kill)
+        cmdline = Path("/proc") / str(processo.pid) / "cmdline"
+        fim = time.monotonic() + 30  # espera o estado (a pesada já aparece no /proc), não uma janela fixa
+        lido = lambda: cmdline.read_bytes() if cmdline.exists() else b""
+        while b"suite-paralela.py" not in lido() and time.monotonic() < fim:
+            time.sleep(0.1)
+        self.assertIn(b"suite-paralela.py", lido())
         self.rodar_com()
         self.assertGreaterEqual(int(re.search(r"outras=(\d+)", self.log()).group(1)), 1)
         self.assertNotIn("marca-a7", self.log())
