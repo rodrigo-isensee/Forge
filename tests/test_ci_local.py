@@ -897,6 +897,18 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         self.assertEqual(por_nome["bateria (passos)"]["estado"], ci.OK)
         self.assertEqual(ci.status(resultados)[0], "failure")
 
+    def test_passo_barato_vermelho_pula_a_suite_e_reprova_os_agregadores(self):
+        """A18: as partes esperam o job de passos (lint, degrau, validação, changelog, neutralidade); vermelho nele, nenhuma
+        parte roda e os dois agregadores reprovam sem esperar a suíte."""
+        resultados, chamados = self.rodar_com(self.jobs_reais(), falha="bateria (passos)")
+        self.assertEqual([c for c in chamados if c[1]], [])
+        por_nome = {r["nome"]: r for r in resultados}
+        for versao in ("3.12", "3.14"):
+            for k in (1, 2, 3):
+                self.assertEqual(por_nome[f"suíte (python {versao}, parte {k}/3)"]["estado"], ci.PULADO)
+        self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.FALHOU))
+        self.assertEqual(ci.status(resultados)[0], "failure")
+
     def test_need_sem_job_reprova_e_job_sem_always_e_pulado(self):
         texto = ("jobs:\n  a:\n    steps:\n      - run: false\n  b:\n    needs: [a]\n    steps:\n      - run: true\n"
                  "  c:\n    needs: [x]\n    steps:\n      - run: true\n")

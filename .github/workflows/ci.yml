@@ -11,7 +11,8 @@ name: CI
 # sem prova, erro de rede ou evento fora da lista, a suíte roda inteira. Os passos e os agregadores não mudam. Commit de PR que só muda
 # docs/reviews/, docs/qa/, docs/security/, docs/devops/ ou docs/ux/ (fora modelos _* e docs/security/{ameacas,aceites}/),
 # com a bateria verde no commit anterior, pula os passos pesados do job de passos (gate por passo, nunca paths-ignore: ele
-# deixaria o check exigido pendente); as partes da suíte rodam sempre.
+# deixaria o check exigido pendente); as partes da suíte rodam sempre. A18: as partes esperam o job de passos (lint, degrau,
+# validação do plugin, changelog, neutralidade; cerca de 30 s): passo vermelho pula as partes e os agregadores reprovam logo.
 on:
   pull_request:
     types: [opened, synchronize, reopened]  # rótulo e edição do PR reagem só em catraca.yml (sem a bateria pesada)
@@ -181,8 +182,8 @@ jobs:
     # Um terço da suíte inteira por job (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nos três). O
     # agregador "bateria" exige os três verdes; cada parte confere que a divisão cobre todo o discover.
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
-    # M2: a prova vem de um job só (arvore), lida igual pelas 3 partes
-    needs: [arvore]
+    # M2: a prova vem de um job só (arvore), lida igual pelas 3 partes; A18: e só rodam com os passos baratos verdes
+    needs: [arvore, bateria]
     permissions:
       contents: read
     runs-on: ubuntu-26.04
@@ -246,8 +247,8 @@ jobs:
     # Um terço da suíte inteira por job (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nos três). O
     # agregador "bateria (python 3.14)" exige os três verdes; cada parte confere que a divisão cobre todo o discover.
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
-    # M2: a prova vem de um job só (arvore), lida igual pelas 3 partes
-    needs: [arvore]
+    # M2: a prova vem de um job só (arvore), lida igual pelas 3 partes; A18: e só rodam com os passos baratos verdes
+    needs: [arvore, bateria]
     permissions:
       contents: read
     runs-on: ubuntu-26.04
@@ -484,6 +485,20 @@ jobs:
       - name: zizmor (offline, sem token; falha em severidade média ou maior)
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: zizmor --offline --no-progress --min-severity medium .github/workflows
+      # A18: os passos baratos (degrau, validação do plugin, changelog, neutralidade) logo depois do lint, e as partes da suíte
+      # esperam este job (needs). O CLI e o validate seguem antes de todo código da branch (bin/forge-changelog, tests/), que
+      # poderia pôr um `claude` falso no GITHUB_PATH (a razão do CI-ORDEM-LINT).
+      - name: Nada pula degrau
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          case "$BASE" in
+            homolog) [ "$HEAD_REF" = "develop" ] || { echo "PR para homolog só a partir da develop (veio de $HEAD_REF)."; exit 1; } ;;
+            main)    [ "$HEAD_REF" = "homolog" ] || { echo "PR para main só a partir da homolog (veio de $HEAD_REF)."; exit 1; } ;;
+          esac
+          echo "ok: $HEAD_REF -> $BASE"
       - name: Claude Code CLI (nova tentativa só na instalação, por falha de rede; confere a versão)
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: |
@@ -509,17 +524,9 @@ jobs:
           else
             python3 scripts/conferir-release.py --base "$BASE"
           fi
-      - name: Nada pula degrau
-        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
-        env:
-          BASE: ${{ github.base_ref }}
-          HEAD_REF: ${{ github.head_ref }}
-        run: |
-          case "$BASE" in
-            homolog) [ "$HEAD_REF" = "develop" ] || { echo "PR para homolog só a partir da develop (veio de $HEAD_REF)."; exit 1; } ;;
-            main)    [ "$HEAD_REF" = "homolog" ] || { echo "PR para main só a partir da homolog (veio de $HEAD_REF)."; exit 1; } ;;
-          esac
-          echo "ok: $HEAD_REF -> $BASE"
+      - name: Neutralidade (barata, antes da suíte; A18)
+        if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
+        run: python3 -m unittest tests.test_forge.Neutralidade
       - name: Segredo, .env ou caminho pessoal no diff
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         # A base é o primeiro pai do merge commit do checkout (a ponta atual da base), não o SHA do evento.

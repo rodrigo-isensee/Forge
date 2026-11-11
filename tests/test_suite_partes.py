@@ -362,7 +362,7 @@ class FiacaoDoCI(unittest.TestCase):
         for job in ("partes-doze", "partes-quatorze"):
             with self.subTest(job):
                 bloco = self.jobs[job]
-                self.assertRegex(bloco, r"(?m)^    needs: \[arvore\]$")
+                self.assertRegex(bloco, r"(?m)^    needs: \[arvore, bateria\]$")  # A18: os passos baratos antes da suíte
                 self.assertNotIn("arvore-testada", bloco)
                 self.assertNotIn("outputs:", bloco)
                 for nome in ("      - name: env com -a", "      - name: Testes do Forge (parte)\n"):
