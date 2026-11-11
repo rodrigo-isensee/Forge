@@ -16,8 +16,8 @@
       "id": "E2-M2",
       "guarda": "AV4(b): o resto do objeto tem de ser igual",
       "arquivo": "bin/forge-check",
-      "de": "    return antes is not None and antes == manifesto_sem_versao(raiz, ate, nome)",
-      "para": "    return antes is not None",
+      "de": "    return antes is not None and json.dumps(",
+      "para": "    return antes is not None or json.dumps(",
       "testes": [
         "tests.test_forge_check_versao_livre.VersaoLivre.test_versao_e_outro_campo_pedem_parecer",
         "tests.test_forge_check_versao_livre.VersaoLivre.test_outro_campo_sem_versao_pede_parecer"
