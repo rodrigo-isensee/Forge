@@ -771,10 +771,12 @@ TETO_DA_CONSULTA = 64 * 1024  # bytes de cada arquivo de `-F campo=@arq` ou `--i
 
 def textos_da_consulta(args, pasta):
     """(textos, legível) do `gh api`: os argumentos e os arquivos de `campo=@arq` e `--input arq`, relativos à pasta e
-    até `TETO_DA_CONSULTA`; `-` (entrada padrão), arquivo ausente ou acima do teto não dá para ler."""
+    até `TETO_DA_CONSULTA`; `-` (entrada padrão), arquivo ausente ou acima do teto não dá para ler. O corpo de `--input`
+    vai ao GitHub como JSON: lido decodificado (escape `\\uXXXX` no nome), e o que não é JSON não dá para ler (AR-11)."""
     textos = []
     for i, a in enumerate(args):
-        if a == "--input" or a.startswith("--input=") or "=@" in a:
+        corpo = a == "--input" or a.startswith("--input=")
+        if corpo or "=@" in a:
             arq = (args[i + 1] if i + 1 < len(args) else "-") if a == "--input" else a.split("=", 1)[1].removeprefix("@")
             if arq == "-":
                 return textos, False
@@ -786,6 +788,11 @@ def textos_da_consulta(args, pasta):
             if len(dados) > TETO_DA_CONSULTA:
                 return textos, False
             textos.append(dados.decode("utf-8", "replace"))
+            if corpo:
+                try:
+                    textos.append(json.dumps(json.loads(dados), ensure_ascii=False))
+                except (ValueError, RecursionError):
+                    return textos, False
         textos.append(a)
     return textos, True
 

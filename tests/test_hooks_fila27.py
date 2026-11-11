@@ -57,7 +57,7 @@ class Fila27(unittest.TestCase):
         self.assertIsNone(achada)
 
     def test_a2_ready_por_graphql_no_clone(self):
-        self.rodar("fila27-a2-*.json", 11)
+        self.rodar("fila27-a2-*.json", 13)
 
 
 if __name__ == "__main__":

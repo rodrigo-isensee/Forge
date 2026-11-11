@@ -6,7 +6,7 @@
       "id": "M4",
       "guarda": "FILA-27 A2: a consulta de arquivo (-F campo=@arq, --input arq) é lida, não só o inline",
       "arquivo": "hooks/parecer.py",
-      "de": "        if a == \"--input\" or a.startswith(\"--input=\") or \"=@\" in a:",
+      "de": "        if corpo or \"=@\" in a:",
       "para": "        if False:",
       "testes": [
         "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"

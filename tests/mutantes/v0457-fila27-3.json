@@ -21,6 +21,26 @@
       "testes": [
         "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
       ]
+    },
+    {
+      "id": "M13",
+      "guarda": "FILA-27 A2 (AR-11): o corpo de --input é lido decodificado como JSON (escape \\\\uXXXX no nome)",
+      "arquivo": "hooks/parecer.py",
+      "de": "            if corpo:\n                try:",
+      "para": "            if False:\n                try:",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "FILA-27 A2: corpo de --input que não é JSON não dá para ler (falha fechada)",
+      "arquivo": "hooks/parecer.py",
+      "de": "                except (ValueError, RecursionError):\n                    return textos, False",
+      "para": "                except (ValueError, RecursionError):\n                    return textos, True",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
     }
   ]
 }
