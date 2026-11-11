@@ -308,6 +308,10 @@ PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
 MARCA_DA_SUITE = re.compile(r"forge-suite-[^/]*\.(verde|dirigida)(\.novo)?|forge-suite-verde(\.\d{1,10})?")
 PROVA_DA_SUITE = ("R-VERIFY", "a prova da suíte só é gravada pelo pre-push e pela suíte (scripts/suite-paralela.py)",
                   "rode o push ou .githooks/pre-push --suite")
+# PROFUNDIDADE-BASH-C (v0457 E17.1): acima do teto de aninhamento o hook não lê a linha; recusa em toda sessão e pasta,
+# também fora de projeto (a `GuardaDaProva` a deixa passar), e não só quando ela aponta para o Forge.
+PROFUNDIDADE_EXCEDIDA = ("R-CONFORMIDADE", f"comando aninhado (bash -c, eval, $(, crase, heredoc) em mais de {PROFUNDIDADE} "
+                         "níveis: o hook não o lê", f"rode o comando direto, com no máximo {PROFUNDIDADE} níveis aninhados")
 CURINGA = re.compile(r"[*?\[]")  # o bash expande no alvo antes de gravar (A1 e A2 da segurança g1 da 0.45)
 MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
 GLOB_DE_PATHSPEC = re.compile(r"[*?\[\\]")
@@ -709,6 +713,8 @@ class Guarda:
         self.sessao_forge = False  # a raiz da sessão (`CLAUDE_PROJECT_DIR`) é um clone do Forge
         self.ambiente = {}   # GH_REPO e GIT_DIR definidos antes, na mesma linha de comando
         self.conferidas, self.conferencias = {}, 0  # orçamento da linha (`bash`)
+        self.em_curso = set()  # textos em conferência num nível de dentro (PROFUNDIDADE-BASH-C)
+        self.releituras = 0    # palavras com crase relidas na pilha: somam ao `nivel`, não à profundidade do shell
         self._repos = {}     # (raiz git, remoto) -> é o Forge
         self._regras = None  # `regras_do_forge`, lido uma vez por decisão (a raiz e o `externo` não mudam nela)
         self._raiz_home = None  # (realpath da raiz, realpath do home), uma vez por decisão
@@ -1051,12 +1057,18 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", "linha `brief selado` ou `entrega conferida` escrita pelo Bash",
                         "quem grava é a ferramenta: `forge-check brief selar` e `forge-check entrega --pedido`")
         if nivel == 0:
-            self.conferidas, self.conferencias, self.caracteres = {}, 0, 0
+            self.conferidas, self.conferencias, self.caracteres, self.em_curso, self.releituras = {}, 0, 0, set(), 0
             self.reavaliacao = None
             self.prazo = time.monotonic() + PRAZO_DA_LINHA_S
-        chave = (comando, pasta, nivel, so_substituicoes, corpo_de_heredoc, tuple(sorted(self.ambiente.items())))
+        chave = (comando, pasta, nivel, self.releituras, so_substituicoes, corpo_de_heredoc,
+                 tuple(sorted(self.ambiente.items())))
         if chave in self.conferidas:
             self.ambiente = dict(self.conferidas[chave])  # o resultado é o mesmo que a primeira conferência deixou
+            return
+        # PROFUNDIDADE-BASH-C: a palavra com crase relida dá o mesmo texto (`x=`…``), um nível abaixo; o texto já em
+        # conferência num nível de dentro decide igual (só o nível 0 tem regras próprias): sem isso, o teto o recusaria.
+        releitura = chave[:2] + chave[4:]
+        if nivel > 1 and releitura in self.em_curso:
             return
         self.conferencias += 1
         self.caracteres += len(comando)
@@ -1065,9 +1077,14 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", "linha longa demais ou com crases e substituições demais para o hook "
                                               "conferir dentro do prazo",
                         "separe em comandos menores, sem crase nem $( aninhados, e grave texto longo num arquivo")
-        self.conferir_linha(comando, pasta, nivel, so_substituicoes, corpo_de_heredoc)
-        for forma in formas_que_o_shell_le(comando, corpo_de_heredoc):  # HOOK-CONTINUACAO-LINHA: a que o bash roda
-            self.conferir_linha(forma, pasta, nivel, so_substituicoes, corpo_de_heredoc)
+        if nivel:
+            self.em_curso.add(releitura)
+        try:
+            self.conferir_linha(comando, pasta, nivel, so_substituicoes, corpo_de_heredoc)
+            for forma in formas_que_o_shell_le(comando, corpo_de_heredoc):  # HOOK-CONTINUACAO-LINHA: a que o bash roda
+                self.conferir_linha(forma, pasta, nivel, so_substituicoes, corpo_de_heredoc)
+        finally:
+            self.em_curso.discard(releitura)
         self.conferidas[chave] = dict(self.ambiente or {})
 
     def recusar_o_teto(self, comando, original, nivel):
@@ -1081,10 +1098,8 @@ class Guarda:
                                               "prazo", CONTORNO_DO_TETO)
 
     def conferir_linha(self, comando, pasta, nivel, so_substituicoes, corpo_de_heredoc=False):
-        if nivel > PROFUNDIDADE:
-            self.sem_leitura = True
-            self.ilegivel(comando, pasta)
-            return
+        if nivel - self.releituras > PROFUNDIDADE:
+            self.barrar(*PROFUNDIDADE_EXCEDIDA)
         if self.leitura and nivel:  # depois da gramática, só `$(`/crase entre aspas simples: o bash só roda por reavaliação
             self.barrar("R-CONFORMIDADE", f"substituição dentro de aspas pelo papel só de leitura ({self.papel})",
                         "escreva o nome literal em vez de $( ou crase, mesmo entre aspas (para procurar um trecho, "
@@ -1340,8 +1355,12 @@ class Guarda:
             if nome in VARIAVEIS_DA_LINHA and valor:
                 self.ambiente[nome] = valor  # vale para os comandos seguintes da linha
         for p in atribuicoes + palavras:  # substituição entre aspas: a palavra chega inteira (N1: também a atribuição)
-            if "`" in p:
-                self.bash(p, pasta, nivel + 1)
+            if "`" in p:  # a palavra relida não é um nível do shell: o corpo da crase já conta o dele (PROFUNDIDADE-BASH-C)
+                self.releituras += 1
+                try:
+                    self.bash(p, pasta, nivel + 1)
+                finally:
+                    self.releituras -= 1
             elif "$(" in p.replace(OPACO["$"], ""):
                 self.bash(p, pasta, nivel + 1, so_substituicoes=True)
         if not palavras:
@@ -2635,12 +2654,15 @@ class ForaDaProva(Exception):
 
 
 class GuardaDaProva(Guarda):
-    """S8 (C-1) com a pasta corrente fora de projeto: a Guarda lê a escrita, mas só a recusa da prova da suíte vale.
+    """S8 (C-1) com a pasta corrente fora de projeto: a Guarda lê a escrita, mas só a recusa da prova da suíte vale, e a
+    da linha que o hook não lê por passar de `PROFUNDIDADE` (PROFUNDIDADE-BASH-C).
     E16.1 (HOOK-RVERIFY-FALSO-POSITIVO): a outra recusa não para a leitura, que segue até o fim da linha; a prova é
     recusada pelo destino da escrita, resolvido pela Guarda, e não pelo texto. Só a linha que o hook não lê (teto,
     ilegível: `sem_leitura`) volta ao texto em `prova_fora_de_projeto`, falhando fechado."""
     def barrar(self, rid, o_que, corrigir, simples=None):
         if (rid, o_que, corrigir) == PROVA_DA_SUITE:
+            super().barrar(rid, o_que, corrigir)
+        if (rid, o_que, corrigir) == PROFUNDIDADE_EXCEDIDA:
             super().barrar(rid, o_que, corrigir)
         if self.sem_leitura:
             raise ForaDaProva(rid)

@@ -59,14 +59,6 @@
       "de": "                self.sem_leitura = True\n                self.barrar(",
       "para": "                self.barrar(",
       "equivalente": "sem a marca, a GuardaDaProva segue lendo a linha acima do teto e recusa a prova pelo destino; o veredito é o mesmo, muda só o custo da leitura (o teto existe pelo prazo do hook, não pela decisão)"
-    },
-    {
-      "id": "M7",
-      "guarda": "conferir_linha: o nível acima de PROFUNDIDADE marca sem_leitura",
-      "arquivo": "hooks/conformidade.py",
-      "de": "            self.sem_leitura = True\n            self.ilegivel(comando, pasta)",
-      "para": "            self.ilegivel(comando, pasta)",
-      "equivalente": "acima de PROFUNDIDADE a Guarda volta (`return`) sem ler o nível, com ou sem a marca, e o ilegivel não recusa na sessão do Forge; a escrita na prova nesse nível passa igual na develop (limite anterior, relatado)"
     }
   ]
 }

@@ -2,14 +2,14 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2314 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2328 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 71 | 38 | 33 | 26 |
-| `conformidade` | 1680 | 1238 | 442 | 86 |
+| `conformidade` | 1694 | 1248 | 446 | 87 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 25 | 10 | 15 | 12 |
 | `parecer` | 458 | 354 | 104 | 23 |
@@ -86,6 +86,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2314 fixtures) roda em `tests/test
 | `subst-*` | 16 | 14 | 2 | `R-VERIFY`, `R-MAIN` | `HEAD` | Caminho colado a $(...): o resto é conferido também a partir da raiz (na dúvida, recusa). |
 | `flag-*` | 15 | 13 | 2 | `R-VERIFY` | — | Flag proibida: git -c core.hooksPath=/dev/null push origin feature/x |
 | `protegido-*` | 15 | 11 | 4 | `R-CONTRIB` | — | .claude-plugin/plugin.json: Dev em melhoria/*: bloqueia. |
+| `profundidade-*` | 14 | 10 | 4 | `R-CONFORMIDADE`, `R-VERIFY` | `PROFUNDIDADE-BASH-C` | PROFUNDIDADE-BASH-C (v0457 E17.1): 3 níveis legítimos de bash -c no projeto seguem liberados. |
 | `ar-*` | 13 | 11 | 2 | `R-VERIFY`, `R-MAIN`, `R-REVIEW` | `AR-TRAVA-UMA-SINTAXE` | AR-TRAVA-UMA-SINTAXE: o programa pelo caminho é o mesmo |
 | `n3-*` | 12 | 9 | 3 | — | — | N3 (IMPL-FURO-HOOK-N, S1b): cp -l faz o mesmo link físico |
 | `fila22-*` | 11 | 7 | 4 | `R-CONFORMIDADE` | `FILA-22` | FILA-22 (review da 0.43.2): abrir PR pelo `gh api` segue a política `pr_criar`; o jarvis (sessão principal) não abre. |

@@ -1,0 +1,56 @@
+{
+  "pedido": "v0457-profundidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "P1",
+      "guarda": "acima de PROFUNDIDADE a linha é recusada (falha fechada), e não lida em silêncio",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if nivel - self.releituras > PROFUNDIDADE:\n            self.barrar(*PROFUNDIDADE_EXCEDIDA)",
+      "para": "        if False:\n            self.barrar(*PROFUNDIDADE_EXCEDIDA)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_profundidade"
+      ]
+    },
+    {
+      "id": "P2",
+      "guarda": "a palavra com crase relida não conta como nível do shell",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if nivel - self.releituras > PROFUNDIDADE:",
+      "para": "        if nivel > PROFUNDIDADE:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_profundidade"
+      ]
+    },
+    {
+      "id": "P3",
+      "guarda": "fora de projeto, a GuardaDaProva deixa passar a recusa da profundidade",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if (rid, o_que, corrigir) == PROFUNDIDADE_EXCEDIDA:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_profundidade"
+      ]
+    },
+    {
+      "id": "P4",
+      "guarda": "o texto já em conferência num nível de dentro não é relido (a releitura igual termina)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if nivel > 1 and releitura in self.em_curso:\n            return",
+      "para": "        if False:\n            return",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_profundidade"
+      ]
+    },
+    {
+      "id": "P5",
+      "guarda": "só o texto de um nível de dentro entra em conferência",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if nivel:\n            self.em_curso.add(releitura)",
+      "para": "        if False:\n            self.em_curso.add(releitura)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_profundidade"
+      ]
+    }
+  ]
+}
