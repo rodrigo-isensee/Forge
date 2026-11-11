@@ -68,7 +68,7 @@
       "guarda": "relatorio ausente (None) e ignorado ao juntar os caidos",
       "arquivo": "scripts/suite-paralela.py",
       "de": "sorted({str(i) for rel in relatorios if rel for i in",
-      "para": "sorted({str(i) for rel in relatorios for i in",
+      "para": "sorted({str(i) for rel in relatorios if not rel for i in",
       "testes": [
         "tests.test_suite_paralela.Logica.test_testes_que_cairam_no_resumo_tem_teto_e_id_limpo"
       ]
