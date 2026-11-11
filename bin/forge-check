@@ -589,7 +589,7 @@ def classes_do_intervalo(raiz, de, ate, nomes):
                 and not livre(nome, SEMPRE_CODIGO) and not com_frontmatter(raiz, nome, (de, ate)))
         if leve and livre(nome, TEXTO) and nome.endswith(".md"):
             classes[nome] = "texto"
-        elif seguro and modo == ("100644", "100644") and so_a_versao_muda(raiz, de, ate, nome):
+        elif seguro and so_a_versao_muda(raiz, de, ate, nome):  # `seguro`: modo 100644 e fora dos invariantes
             classes[nome] = "texto"
         elif leve and modo == ("100644", "100644") and not livre(nome, SEM_FORMA) and git(
                 raiz, "--literal-pathspecs", "diff", "--quiet", "--ignore-space-at-eol", "--no-ext-diff", "--no-textconv",

@@ -95,6 +95,13 @@ class VersaoLivre(unittest.TestCase):
         self.commit("quebrado")
         self.assertIn(f"desatualizado: {PLUGIN} mudou", self.vale() or "")
 
+    def test_json_ilegivel_dos_dois_lados_pede_parecer(self):  # ilegível não vira objeto vazio igual nos dois lados
+        self.escreve(PLUGIN, '{"name": "forge",\n')
+        self.parecer = self.commit("quebrado no parecer")
+        self.escreve(PLUGIN, '{"hooks": "./outro.json",\n')
+        self.commit("quebrado de outro jeito")
+        self.assertIn(f"desatualizado: {PLUGIN} mudou", self.vale() or "")
+
     def test_versao_que_nao_e_texto_pede_parecer(self):
         self.manifesto({**MANIFESTO, "version": 2})
         self.commit("versão número")

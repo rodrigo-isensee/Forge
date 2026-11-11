@@ -38,9 +38,9 @@
       "guarda": "AV4(b): JSON ilegível falha fechada",
       "arquivo": "bin/forge-check",
       "de": "    except ValueError:\n        return None\n    if not isinstance(objeto, dict)",
-      "para": "    except TypeError:\n        return None\n    if not isinstance(objeto, dict)",
+      "para": "    except ValueError:\n        return {}\n    if not isinstance(objeto, dict)",
       "testes": [
-        "tests.test_forge_check_versao_livre.VersaoLivre.test_json_ilegivel_pede_parecer"
+        "tests.test_forge_check_versao_livre.VersaoLivre.test_json_ilegivel_dos_dois_lados_pede_parecer"
       ]
     },
     {
@@ -57,8 +57,8 @@
       "id": "E2-M6",
       "guarda": "AV4(b): modo do plugin.json mudado é código",
       "arquivo": "bin/forge-check",
-      "de": "elif seguro and modo == (\"100644\", \"100644\") and so_a_versao_muda(",
-      "para": "elif seguro and so_a_versao_muda(",
+      "de": "elif seguro and so_a_versao_muda(",
+      "para": "elif so_a_versao_muda(",
       "testes": [
         "tests.test_forge_check_versao_livre.VersaoLivre.test_modo_do_plugin_mudado_pede_parecer"
       ]
