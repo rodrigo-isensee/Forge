@@ -2539,12 +2539,15 @@ class Hook:
     def projeto(self, inicio, clone_do_forge=False):
         """Raiz do projeto do Forge que contém `inicio`, ou None (projeto alheio ou hook desligado na config).
         `clone_do_forge`: fora de projeto, também a raiz do clone do Forge (`raiz_de_estado`). Lá a guarda não se
-        desliga: `.forge/` do clone fica fora do git e nenhum hook a protege."""
+        desliga: `.forge/` do clone fica fora do git e nenhum hook a protege. Com `clone_do_forge`, o manifesto do Forge
+        (`tem_manifesto_do_forge`) vence o `hooks_desligados` também com `.forge/versao` (FILA-27 A1): só acrescenta guarda."""
         self.raiz, self._config, self._run = raiz_do_projeto(inicio), None, None
         if self.raiz is None and clone_do_forge:
             self.raiz = raiz_de_estado(inicio)
             return self.raiz
-        if self.raiz is None or self.nome in self.config()["hooks_desligados"]:
+        if self.raiz is None:
+            return None
+        if self.nome in self.config()["hooks_desligados"] and not (clone_do_forge and tem_manifesto_do_forge(self.raiz)):
             return None
         return self.raiz
 

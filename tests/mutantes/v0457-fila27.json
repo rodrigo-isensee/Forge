@@ -1,0 +1,38 @@
+{
+  "pedido": "v0457-fila27",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "FILA-27 A1: fora de projeto e de clone, Hook.projeto devolve None antes de ler a config",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if self.raiz is None:\n            return None\n        if self.nome in",
+      "para": "        if False:\n            return None\n        if self.nome in",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a1_hook_projeto_so_o_hook_do_clone_ignora_o_desligado",
+        "tests.test_hooks_fila27.Fila27.test_a1_manifesto_vence_hooks_desligados_no_clone"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "FILA-27 A1: no clone, o manifesto do Forge vence o hooks_desligados mesmo com .forge/versao",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if self.nome in self.config()[\"hooks_desligados\"] and not (clone_do_forge and tem_manifesto_do_forge(self.raiz)):",
+      "para": "        if self.nome in self.config()[\"hooks_desligados\"]:",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a1_hook_projeto_so_o_hook_do_clone_ignora_o_desligado",
+        "tests.test_hooks_fila27.Fila27.test_a1_manifesto_vence_hooks_desligados_no_clone"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "FILA-27 A1: o manifesto só vence o hooks_desligados para o hook que age no clone (clone_do_forge)",
+      "arquivo": "hooks/_comum.py",
+      "de": "and not (clone_do_forge and tem_manifesto_do_forge(self.raiz)):",
+      "para": "and not (True and tem_manifesto_do_forge(self.raiz)):",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a1_hook_projeto_so_o_hook_do_clone_ignora_o_desligado"
+      ]
+    }
+  ]
+}
