@@ -49,7 +49,7 @@ class MERGE_DE_PR:  # noqa: N801 - o `prazo_longo` do `executar`, que espera a i
             return None
         for comando in simples:
             valores = [Path(p.valor).name if i == 0 else p.valor for i, p in enumerate(comando.palavras)]
-            if any(valores[i:i + 3] == ["gh", "pr", "merge"] for i in range(len(valores))):
+            if any(tuple(valores[i:i + 3]) == ("gh", "pr", "merge") for i in range(len(valores))):
                 return True
         return None
 CRITICO = re.compile(rf"\bpr\b.*\b(create|{MERGE}|ready)\b|\bapi\b|\b({MERGE}|pull)\b", re.S)
