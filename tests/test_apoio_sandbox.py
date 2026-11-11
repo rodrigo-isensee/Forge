@@ -19,6 +19,13 @@ MOTIVO = "falta de mentira para o teste"
 
 
 class Sondas(unittest.TestCase):
+    def sem_excecao(self, chamada, *args):
+        """Exceção vira falha (não erro): o mutante que troca o pulo por exceção morre por asserção."""
+        try:
+            return chamada(*args)
+        except Exception as erro:  # noqa: BLE001 - a falha diz qual exceção escapou
+            self.fail(f"{type(erro).__name__} escapou: {erro}")
+
     def chown(self, euid, efeito):
         with mock.patch.object(apoio_sandbox.os, "geteuid", return_value=euid), \
                 mock.patch.object(apoio_sandbox.os, "chown", side_effect=efeito) as chown:
@@ -27,7 +34,7 @@ class Sondas(unittest.TestCase):
     def test_root_com_chown_em_einval_ou_eperm_falta(self):
         for numero in (errno.EINVAL, errno.EPERM):
             with self.subTest(errno.errorcode[numero]):
-                motivo, chown = self.chown(0, OSError(numero, os.strerror(numero)))
+                motivo, chown = self.sem_excecao(self.chown, 0, OSError(numero, os.strerror(numero)))
                 self.assertIn(errno.errorcode[numero], motivo)
                 self.assertEqual(chown.call_args.args[1:], (65534, 65534))
 
@@ -49,14 +56,14 @@ class Sondas(unittest.TestCase):
             proc = Path(tmp)
             (proc / "self").symlink_to("123")
             self.assertIsNone(apoio_sandbox.falta_proc(proc, 123))
-            self.assertIn("outro namespace de pid", apoio_sandbox.falta_proc(proc, 124))
+            self.assertIn("outro namespace de pid", str(apoio_sandbox.falta_proc(proc, 124)))
 
     def test_proc_sem_self_ou_com_self_que_nao_e_link_falta(self):
         with tempfile.TemporaryDirectory() as tmp:
             proc = Path(tmp)
-            self.assertIn("sem ", apoio_sandbox.falta_proc(proc, 1))
+            self.assertIn("sem ", str(self.sem_excecao(apoio_sandbox.falta_proc, proc, 1)))
             (proc / "self").write_text("1")  # readlink num arquivo comum: EINVAL, não FileNotFoundError
-            self.assertIn("sem ", apoio_sandbox.falta_proc(proc, 1))
+            self.assertIn("sem ", str(self.sem_excecao(apoio_sandbox.falta_proc, proc, 1)))
 
 
 class Exigir(unittest.TestCase):
@@ -105,8 +112,12 @@ class Exigir(unittest.TestCase):
                 self.assertEqual(self.exigir("ok", ambiente), ("segue", 0, ""))
 
     def test_capacidade_desconhecida_recusa(self):
-        with self.assertRaises(ValueError):
+        try:
             apoio_sandbox.falta("chwon")
+        except Exception as erro:  # noqa: BLE001 - o tipo é o que se confere
+            self.assertIsInstance(erro, ValueError)
+        else:
+            self.fail("capacidade desconhecida passou")
 
     def test_sonda_roda_uma_vez_por_processo(self):
         sonda = mock.Mock(return_value=None)
