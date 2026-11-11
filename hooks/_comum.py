@@ -17,6 +17,7 @@ import os
 import re
 import shlex
 import signal
+import stat
 import sys
 import threading
 import time
@@ -2444,8 +2445,8 @@ def caminhos_extra(raiz):
     """0.45.4: (pastas, avisos) da chave opcional `caminhos_extra` do `.forge/config.json` da raiz, a mesma leitura do
     `.githooks/pre-push` do modelo de projeto: as pastas que o hook soma ao fim do PATH de quem ele roda (as ferramentas da
     stack, quando o agente abre sem o PATH do terminal). Vale a pasta absoluta, real (sem link em nenhum trecho, sem `.`/`..`),
-    sem `:` nem caractere de controle e existente; a que não passa fica de fora com aviso, e a chave que não é lista só
-    avisa. Sem o arquivo (ou com ele em link) ou sem a chave: ([], [])."""
+    sem `:` nem caractere de controle, existente e só do usuário (`so_do_usuario`, 0.45.7); a que não passa fica de fora com
+    aviso, e a chave que não é lista só avisa. Sem o arquivo (ou com ele em link) ou sem a chave: ([], [])."""
     arquivo = Path(raiz) / ".forge" / "config.json"
     if not arquivo.is_file() or arquivo.is_symlink():
         return [], []
@@ -2466,9 +2467,27 @@ def caminhos_extra(raiz):
             avisos.append(f"caminhos_extra: {nome} ignorada (link simbólico ou trecho . e ..; use o caminho real)")
         elif not os.path.isdir(pasta):
             avisos.append(f"caminhos_extra: {nome} ignorada (não existe ou não é pasta)")
+        elif not so_do_usuario(pasta):
+            avisos.append(f"caminhos_extra: {nome} ignorada (precisa ser do usuário e não gravável por outros, nem as pastas acima)")
         else:
             boas.append(pasta)
     return boas, avisos
+
+
+def so_do_usuario(pasta):
+    """E18.1 (0.45.7): a pasta é do usuário do processo e só ele a grava (sem escrita de grupo nem de outros), e cada pasta acima
+    é dele ou do root e sem escrita de grupo nem de outros, salvo com o sticky bit (o `/tmp`): quem grava a pasta ou uma de cima
+    troca o programa que o PATH acha."""
+    info = os.stat(pasta)
+    if info.st_uid != os.getuid() or info.st_mode & 0o022:
+        return False
+    for acima in Path(os.path.normpath(pasta)).parents:
+        info = os.stat(acima)
+        if info.st_uid not in (0, os.getuid()):
+            return False
+        if info.st_mode & 0o022 and not info.st_mode & stat.S_ISVTX:
+            return False
+    return True
 
 
 def gravar_json(caminho, dados):

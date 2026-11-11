@@ -2850,6 +2850,58 @@ class CaminhosExtra(unittest.TestCase):
                 self.assertEqual(len(avisos), 1)
                 self.assertTrue(avisos[0].startswith("caminhos_extra: "))
 
+    # E18.1 (0.45.7): só pasta do usuário, que ninguém mais grava, nem pelas pastas de cima.
+    def so_ela(self, pasta):
+        pasta.chmod(0o755)
+        return self.com_config(json.dumps({"caminhos_extra": [str(pasta)]}))
+
+    def test_pasta_do_usuario_sem_escrita_alheia_entra(self):
+        self.assertEqual(self.so_ela(self.pasta), ([str(self.pasta)], []))
+
+    def test_pasta_gravavel_por_grupo_ou_outros_fica_de_fora(self):
+        for modo in (0o775, 0o757):
+            with self.subTest(modo=oct(modo)):
+                self.pasta.chmod(modo)
+                boas, avisos = self.com_config(json.dumps({"caminhos_extra": [str(self.pasta)]}))
+                self.assertEqual(boas, [])
+                self.assertIn("precisa ser do usuário", avisos[0])
+
+    def test_pasta_de_outro_usuario_fica_de_fora(self):
+        self.pasta.chmod(0o755)
+        with mock.patch.object(os, "getuid", return_value=os.stat(self.pasta).st_uid + 4242):
+            boas, avisos = self.com_config(json.dumps({"caminhos_extra": [str(self.pasta)]}))
+        self.assertEqual(boas, [])
+        self.assertIn("precisa ser do usuário", avisos[0])
+
+    def test_pasta_acima_gravavel_sem_sticky_fica_de_fora_e_com_sticky_entra(self):
+        pai = self.raiz / "pai"
+        pasta = pai / "bin"
+        pasta.mkdir(parents=True)
+        self.addCleanup(pai.chmod, 0o755)
+        for modo, entra in ((0o777, False), (0o1777, True)):
+            with self.subTest(modo=oct(modo)):
+                pai.chmod(modo)
+                boas, _ = self.so_ela(pasta)
+                self.assertEqual(boas, [str(pasta)] if entra else [])
+
+    def test_pasta_acima_de_outro_usuario_fica_de_fora(self):
+        real = os.stat
+        pai = str(self.raiz)
+
+        def stat_falso(caminho, *args, **kwargs):
+            info = real(caminho, *args, **kwargs)
+            if os.fspath(caminho) != pai:
+                return info
+            campos = list(info[:10])
+            campos[4] = os.getuid() + 4242  # st_uid: nem o usuário nem o root
+            return os.stat_result(campos)
+
+        self.pasta.chmod(0o755)
+        with mock.patch.object(os, "stat", stat_falso):
+            boas, avisos = self.com_config(json.dumps({"caminhos_extra": [str(self.pasta)]}))
+        self.assertEqual(boas, [])
+        self.assertIn("nem as pastas acima", avisos[0])
+
 
 class PoolDosFixtures(unittest.TestCase):
     """O pool de threads dos fixtures e do corpus: uma fonte só (N-CI, C-1), por subprocesso (espera, não CPU)."""
