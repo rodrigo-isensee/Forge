@@ -41,6 +41,16 @@
       "testes": [
         "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
       ]
+    },
+    {
+      "id": "M15",
+      "guarda": "FILA-27 A2: --input=arq (forma colada) também é corpo JSON",
+      "arquivo": "hooks/parecer.py",
+      "de": "        corpo = a == \"--input\" or a.startswith(\"--input=\")",
+      "para": "        corpo = a == \"--input\"",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
     }
   ]
 }

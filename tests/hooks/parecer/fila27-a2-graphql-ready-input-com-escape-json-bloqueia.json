@@ -1,5 +1,5 @@
 {
-  "descricao": "FILA-27 A2 (AR-11): no clone, o nome escrito com escape JSON (\\u0077) no corpo de --input arq também barra: o gh manda o JSON e o GitHub o decodifica.",
+  "descricao": "FILA-27 A2 (AR-11): no clone, o nome escrito com escape JSON (\\u0077) no corpo de --input=arq também barra: o gh manda o JSON e o GitHub o decodifica.",
   "arquivos": {
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
@@ -27,7 +27,7 @@
     "tool_name": "Bash",
     "tool_use_id": "toolu_9",
     "tool_input": {
-      "command": "gh api graphql --input q.json"
+      "command": "gh api graphql --input=q.json"
     }
   },
   "esperado": {
