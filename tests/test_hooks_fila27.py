@@ -3,6 +3,7 @@
 A1: no clone do Forge, o manifesto vence o `hooks_desligados` mesmo com `.forge/versao` (`Hook.projeto`).
 A2: no clone do Forge, a mutação GraphQL `markPullRequestReadyForReview` conta como `gh pr ready` (`pronto_por_graphql`).
 Roda a mesma máquina do `tests/test_hooks.py`; existe à parte para os mutantes de `tests/mutantes/` rodarem rápido."""
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -57,7 +58,17 @@ class Fila27(unittest.TestCase):
         self.assertIsNone(achada)
 
     def test_a2_ready_por_graphql_no_clone(self):
-        self.rodar("fila27-a2-*.json", 13)
+        self.rodar("fila27-a2-*.json", 14)
+
+    def test_a2_fifo_em_arroba_arq_recusa_sem_esperar(self):
+        """A-F27-1: `-F query=@q` com `q` FIFO sem escritor recusa sem abrir para leitura bloqueante; aberto assim, o
+        hook esperaria até o timeout do Claude Code (10 s), que libera a ação. O prazo de 9 s do teste é esse teto."""
+        f = Fixture(FIXTURES / "parecer" / "fila27-a2-graphql-fifo-bloqueia.json")
+        raiz, entrada = f.montar(Path(self._pasta_temporaria()), None)
+        os.mkfifo(raiz / "q.graphql")
+        r = test_hooks.rodar("parecer", entrada, raiz, prazo=test_hooks.PRAZO_DO_CLAUDE_CODE_S - 1)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("tirar o rascunho pela API", r.stderr)
 
 
 if __name__ == "__main__":

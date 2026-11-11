@@ -23,6 +23,7 @@ import functools
 import json
 import os
 import re
+import stat
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -769,6 +770,16 @@ PRONTO_NO_GRAPHQL = re.compile(r"markPullRequestReadyForReview", re.I)
 TETO_DA_CONSULTA = 64 * 1024  # bytes de cada arquivo de `-F campo=@arq` ou `--input arq` (FILA-27 A2)
 
 
+def ler_regular(caminho):
+    """Até `TETO_DA_CONSULTA` + 1 bytes do arquivo regular `caminho`. Abre sem bloquear e confere o tipo no descritor: o
+    que não é arquivo regular (FIFO, dispositivo) dá `OSError` sem esperar o escritor (A-F27-1)."""
+    descritor = os.open(caminho, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0))
+    with os.fdopen(descritor, "rb") as f:
+        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+            raise OSError(f"não é arquivo regular: {caminho}")
+        return f.read(TETO_DA_CONSULTA + 1)
+
+
 def textos_da_consulta(args, pasta):
     """(textos, legível) do `gh api`: os argumentos e os arquivos de `campo=@arq` e `--input arq`, relativos à pasta e
     até `TETO_DA_CONSULTA`; `-` (entrada padrão), arquivo ausente ou acima do teto não dá para ler. O corpo de `--input`
@@ -781,8 +792,7 @@ def textos_da_consulta(args, pasta):
             if arq == "-":
                 return textos, False
             try:
-                with open(pasta / os.path.expanduser(arq), "rb") as f:
-                    dados = f.read(TETO_DA_CONSULTA + 1)
+                dados = ler_regular(pasta / os.path.expanduser(arq))
             except OSError:
                 return textos, False
             if len(dados) > TETO_DA_CONSULTA:
