@@ -8,7 +8,7 @@
       "arquivo": "bin/forge-check",
       "de": "        if arq.is_file():\n            return arq.read_text",
       "para": "        if not arq.is_file():\n            return arq.read_text",
-      "testes": ["tests.test_r_limites.CitacaoDeTrecho.test_id_de_trecho_traz_so_o_trecho"]
+      "testes": ["tests.test_r_limites.CitacaoDeTrecho.test_regra_com_arquivo_proprio_vem_do_arquivo"]
     },
     {
       "id": "M2",
@@ -24,7 +24,7 @@
       "arquivo": "bin/forge-check",
       "de": "if limites.is_file() else []",
       "para": "if True else []",
-      "testes": ["tests.test_r_limites.CitacaoDeTrecho.test_id_inexistente_segue_ausente"]
+      "testes": ["tests.test_r_limites.CitacaoDeTrecho.test_sem_r_limites_o_trecho_e_ausente"]
     }
   ]
 }
