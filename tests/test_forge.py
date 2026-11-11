@@ -2241,6 +2241,28 @@ class VerificarContribuicao(unittest.TestCase):
                 self.assertIn("n.md:1", r.stdout)
                 self.assertNotIn(linha, r.stdout + r.stderr, "o valor não pode ser impresso")
 
+    def test_dado_neutro_passa_e_caminho_pessoal_real_falha(self):  # TM-17 etapa 1
+        """O dado neutro dos fixtures e pareceres passa; o caminho de usuário real, nas formas em que aparece
+        num parecer ou fixture (crase, JSON, comando, nome com dígito, hífen ou sublinhado), continua reprovado."""
+        neutros = ["sonda: `/exemplo/Meus Projetos/docs/briefs/p-x-1.md`",
+                   '"links": {"../home/.forge-contrib/docs": "{tmp}/fora"}',
+                   '"HOME": "{tmp}/home", "file_path": "{tmp}/home/.config/gh/config.yml"']
+        for linha in neutros:
+            with self.subTest(neutro=linha):
+                r = self.verificar("n.md", linha + "\n")
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        casa = "/" + "home/"  # montado em tempo de execução: a linha deste teste não carrega caminho pessoal
+        reais = [f"sonda: `{casa}maria/Meus Projetos/docs/briefs/p-x-1.md`",
+                 f'{{"file_path": "{casa}maria/projeto/.env"}}',
+                 f"cd {casa}dev-01/app && git push",
+                 f"log em {casa}_svc/forge/run.log"]
+        for linha in reais:
+            with self.subTest(real=linha):
+                r = self.verificar("n.md", "linha neutra\n" + linha + "\n")
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn("n.md:2: caminho pessoal", r.stdout)
+                self.assertNotIn(linha, r.stdout + r.stderr, "o valor não pode ser impresso")
+
     def test_token_do_github_de_cada_prefixo_falha(self):  # verificador-gh-prefixos (0.45.1)
         for prefixo in ("ghp", "gho", "ghu", "ghs", "ghr"):
             with self.subTest(prefixo=prefixo):
