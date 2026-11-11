@@ -2195,7 +2195,7 @@ class ForgeCheckFontes(unittest.TestCase):
     # 0.45.7 E5.1 (FILA-31 F6): os ramos de falha do bin/forge_fontes.py, pelo forge-check, com Python -I
     def rodar_isolado(self, path=None, script=None, **extra):
         env = ambiente_limpo()
-        env.update(HOME=str(self.home), PATH=path or f"{self.bin_falso}:{env['PATH']}", FALSO_TOPO=self.TOPO, **extra)
+        env.update({"HOME": str(self.home), "PATH": path or f"{self.bin_falso}:{env['PATH']}", "FALSO_TOPO": self.TOPO, **extra})
         return subprocess.run([sys.executable, "-I", str(script or RAIZ / "bin/forge-check"), "fontes"], env=env,
                               capture_output=True, text=True, timeout=60)
 
@@ -2234,6 +2234,17 @@ class ForgeCheckFontes(unittest.TestCase):
                                             'printf "%s\\tHEAD\\n" "$FALSO_TOPO"\n')
         r = self.rodar_isolado(GIT_HERDADA="1")
         self.assertEqual((r.returncode, r.stdout, self.chamadas.read_text().strip()), (0, "fontes: sem novidade\n", "0"))
+
+    def test_git_que_falha_com_topo_na_saida_conta_como_falha(self):
+        self.registrar("a" * 7)
+        (self.bin_falso / "git").write_text('#!/usr/bin/env bash\nprintf "%s\\tHEAD\\n" "$FALSO_TOPO"\nexit 128\n')
+        r = self.rodar_isolado()
+        self.assertEqual((r.returncode, r.stdout), (3, ""))
+
+    def test_topo_com_hexadecimal_dentro_de_outro_texto_conta_como_falha(self):
+        self.registrar("a" * 7)
+        r = self.rodar_isolado(FALSO_TOPO="z" + self.TOPO)
+        self.assertEqual((r.returncode, r.stdout), (3, ""))
 
     def test_versao_nova_e_url_recusada_saem_nas_duas_linhas(self):
         self.gravar_registro(json.dumps({"F1": {"url": self.URL, "commit_revisado": "a" * 7},
