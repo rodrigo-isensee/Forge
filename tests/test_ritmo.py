@@ -14,6 +14,14 @@ sys.path.insert(0, str(RAIZ / "hooks"))
 import agentes  # noqa: E402
 
 
+def sem_excecao(funcao, *args, **kwargs):
+    """O resultado, ou o texto da exceção: o hook nunca pode cair por causa do ritmo, e a falha vira asserção."""
+    try:
+        return funcao(*args, **kwargs)
+    except Exception as erro:  # noqa: BLE001 - o teste compara o texto com o esperado
+        return f"exceção: {erro!r}"
+
+
 def pasta_temporaria(caso):
     pasta = Path(tempfile.mkdtemp(prefix="ritmo-"))
     caso.addCleanup(shutil.rmtree, pasta, True)
@@ -48,8 +56,8 @@ class RitmoNoHook(unittest.TestCase):
         with mock.patch.dict(os.environ, {"FORGE_NPROC": "8"}):
             for ritmo in ("equilibrado", "acelerado"):
                 with self.subTest(ritmo=ritmo):
-                    self.assertEqual(agentes.calcular_teto({}, proc, ritmo=ritmo), agentes.calcular_teto({}, proc))
-                    self.assertEqual(agentes.calcular_teto({"teto_maximo": 5}, proc, ritmo=ritmo)[0], 5)
+                    self.assertEqual(sem_excecao(agentes.calcular_teto, {}, proc, ritmo=ritmo), (8, "adaptativo: load 0.1 de 8 núcleos, 8.0 GB disponíveis"))
+                    self.assertEqual(sem_excecao(agentes.calcular_teto, {"teto_maximo": 5}, proc, ritmo=ritmo), (5, mock.ANY))
 
     def test_le_o_ritmo_do_config_sem_caixa_nem_acento(self):
         for texto, esperado in (('{"ritmo": "econômico"}', "econômico"), ('{"ritmo": " Economico "}', "econômico"),
@@ -60,7 +68,7 @@ class RitmoNoHook(unittest.TestCase):
     def test_ausente_invalido_ou_ilegivel_vale_o_padrao(self):
         for texto in (None, "{}", '{"ritmo": "turbo"}', '{"ritmo": 1}', '{"ritmo": null}', "[]", '"econômico"', "{ruim"):
             with self.subTest(texto=texto):
-                self.assertEqual(agentes.ritmo_do_projeto(self.projeto(texto)), "equilibrado")
+                self.assertEqual(sem_excecao(agentes.ritmo_do_projeto, self.projeto(texto)), "equilibrado")
         self.assertEqual(agentes.ritmo_do_projeto(None), "equilibrado")
 
 
