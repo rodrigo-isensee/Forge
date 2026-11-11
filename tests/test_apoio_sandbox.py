@@ -273,7 +273,8 @@ class ListaFechada(unittest.TestCase):
 
     def test_auxiliar_vale_so_com_todos_os_testes_que_o_chamam_na_lista(self):
         fonte = ("class C(unittest.TestCase):\n    def ajuda(self):\n        exigir(self, 'proc')\n"
-                 "    def test_a(self):\n        self.ajuda()\n    def test_b(self):\n        self.ajuda()\n")
+                 "    def test_a(self):\n        self.ajuda()\n    def test_b(self):\n        self.ajuda()\n"
+                 "    def test_c(self):\n        pass\n    def outra(self):\n        self.ajuda()\n")
         self.assertEqual(apoio_sandbox.usos_fora_da_lista(fonte, "m", {"m.C.test_a", "m.C.test_b"}), [])
         self.assertEqual([linha for linha, _ in apoio_sandbox.usos_fora_da_lista(fonte, "m", {"m.C.test_a"})], [3])
 
@@ -281,10 +282,11 @@ class ListaFechada(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             (Path(tmp) / "m.py").write_text(
                 "class Base(unittest.TestCase):\n    def ajuda(self):\n        exigir(self, 'proc')\n"
-                "class C(Base):\n    def test_a(self):\n        self.ajuda()\n    def test_b(self):\n        pass\n")
-            lista = {"m.C.test_a", "m.C.test_b", "m.C.test_sumiu", "m.X.test_a", "sumiu.C.test_a"}
+                "class C(Base):\n    def test_a(self):\n        self.ajuda()\n    def test_b(self):\n        pass\n"
+                "    def test_c(self):\n        self.outra()\n    def outra(self):\n        print()\n")
+            lista = {"m.C.test_a", "m.C.test_b", "m.C.test_c", "m.C.test_sumiu", "m.X.test_a", "sumiu.C.test_a"}
             self.assertEqual(apoio_sandbox.orfaos(lista, Path(tmp)),
-                             ["m.C.test_b", "m.C.test_sumiu", "m.X.test_a", "sumiu.C.test_a"])
+                             ["m.C.test_b", "m.C.test_c", "m.C.test_sumiu", "m.X.test_a", "sumiu.C.test_a"])
 
     def test_a_arvore_so_chama_exigir_nos_testes_da_lista(self):
         arquivos = [f for f in sorted(AQUI.rglob("*.py")) if f.name not in ("apoio_sandbox.py", Path(__file__).name)]

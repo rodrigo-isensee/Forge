@@ -76,8 +76,8 @@
       "id": "M8",
       "guarda": "E11 com CI definido a falta reprova e não pula",
       "arquivo": "tests/apoio_sandbox.py",
-      "de": "    if ci:",
-      "para": "    if False:",
+      "de": "    ci = sinais_de_ci()\n    if ci:",
+      "para": "    ci = sinais_de_ci()\n    if False:",
       "testes": [
         "tests.test_apoio_sandbox.Exigir.test_com_ci_definido_a_falta_reprova_e_nao_pula",
         "tests.test_apoio_sandbox.NoProcessoReal.test_com_ci_definido_no_ambiente_reprova_sem_pular"
