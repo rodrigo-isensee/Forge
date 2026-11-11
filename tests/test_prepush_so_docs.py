@@ -285,9 +285,8 @@ class GrupoDaEtapa(Repo):
         p.stdin.close()
         return p
 
-    def le(self, nome):
-        """Espera o arquivo ter conteúdo inteiro (a etapa anota "pid pgid", o resto um pid), não uma janela fixa."""
-        quer = 2 if nome == "etapa" else 1
+    def le(self, nome, quer=1):
+        """Espera o arquivo ter `quer` números inteiros (a etapa anota "pid pgid" só quando o grupo existe), não uma janela fixa."""
 
         def campos():
             try:
@@ -322,7 +321,7 @@ class GrupoDaEtapa(Repo):
                 self.etapa(f"exit {saida}")
                 p = self.lanca()
                 self.assertEqual(self.fim(p)[0], esperado)
-                pid, pgid = self.le("etapa")
+                pid, pgid = self.le("etapa", 2)
                 self.assertEqual(pgid, pid)
                 self.assertNotEqual(pgid, p.pid)
                 (self.dir / "etapa").unlink()
