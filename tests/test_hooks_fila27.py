@@ -50,7 +50,11 @@ class Fila27(unittest.TestCase):
                 self.assertEqual(_comum.Hook("parecer").projeto(raiz, clone_do_forge=True), raiz if manifesto else None)
                 self.assertEqual(_comum.Hook("outro").projeto(raiz), raiz)
         (tmp / "solta").mkdir()
-        self.assertIsNone(_comum.Hook("parecer").projeto(tmp / "solta"))
+        try:
+            achada = _comum.Hook("parecer").projeto(tmp / "solta")
+        except Exception as erro:  # noqa: BLE001 - ler a config sem raiz é o defeito que o teste prova
+            self.fail(f"fora de cópia de trabalho, Hook.projeto leu a config: {erro!r}")
+        self.assertIsNone(achada)
 
     def test_a2_ready_por_graphql_no_clone(self):
         self.rodar("fila27-a2-*.json", 11)
