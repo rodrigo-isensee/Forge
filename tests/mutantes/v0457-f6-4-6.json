@@ -65,7 +65,7 @@
       "guarda": "bin/forge_voltas.py:175 j < len(movimentos) and continua(movimentos[j], tipo)",
       "arquivo": "bin/forge_voltas.py",
       "de": "        while j < len(movimentos) and continua(movimentos[j], tipo):",
-      "para": "        while (not (j < len(movimentos) and continua(movimentos[j], tipo))):",
+      "para": "        while j < len(movimentos) and not continua(movimentos[j], tipo):",
       "testes": [
         "tests.test_medidas_m14b.Esperas",
         "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
