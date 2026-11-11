@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-f6-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "bin/forge_transcricao.py:112 o.get('type') == 'user'",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        elif o.get(\"type\") == \"user\":",
+      "para": "        elif (not (o.get(\"type\") == \"user\")):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "bin/forge_transcricao.py:114 isinstance(b, dict) and b.get('type') == 'tool_result' and (",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "                if isinstance(b, dict) and b.get(\"type\") == \"tool_result\" and not b.get(\"is_error\"):",
+      "para": "                if (not (isinstance(b, dict) and b.get(\"type\") == \"tool_result\" and not b.get(\"is_error\"))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "bin/forge_transcricao.py:118 reg['entregue'] or reg['texto']",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        relatorio = reg[\"entregue\"] or reg[\"texto\"]",
+      "para": "        relatorio = (not (reg[\"entregue\"] or reg[\"texto\"]))",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "bin/forge_transcricao.py:119 relatorio",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if relatorio:",
+      "para": "        if (not (relatorio)):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "bin/forge_transcricao.py:132 tem_lastro(afirmacao, saidas)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "                sem += 0 if tem_lastro(afirmacao, saidas) else 1",
+      "para": "                sem += 0 if (not (tem_lastro(afirmacao, saidas))) else 1",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "bin/forge_transcricao.py:151 not vereditos",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "            if not vereditos:",
+      "para": "            if (not (not vereditos)):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "bin/forge_transcricao.py:154 not vereditos[-1].lower().startswith('n')",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "            cumpriu = not vereditos[-1].lower().startswith(\"n\")",
+      "para": "            cumpriu = (not (not vereditos[-1].lower().startswith(\"n\")))",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "bin/forge_transcricao.py:155 cumpriu == (RE_LINHA_REPROVADA.search(relatorio) is not None",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "            contraditorios += 1 if cumpriu == (RE_LINHA_REPROVADA.search(relatorio) is not None) else 0",
+      "para": "            contraditorios += 1 if (not (cumpriu == (RE_LINHA_REPROVADA.search(relatorio) is not None))) else 0",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    }
+  ]
+}
