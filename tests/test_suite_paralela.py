@@ -69,8 +69,9 @@ class Logica(unittest.TestCase):
         linhas = self.s.testes_que_cairam(rels)
         self.assertEqual(linhas[:4], ["", "#### Testes que caíram (3)", "- `test_a.T.test_x`", "- `test_b.T.test_y`"])
         self.assertEqual(linhas[4], "- `xyz" + "a" * 195 + "`")  # cortado em 200, depois sem crase nem quebra de linha
-        muitos = self.s.testes_que_cairam([{"caidos": [f"test_m.T.test_{i:03d}" for i in range(self.s.LIMITE_CAIDOS + 7)]}])
-        self.assertEqual(len(muitos), 2 + self.s.LIMITE_CAIDOS + 1)
+        self.assertEqual(self.s.LIMITE_CAIDOS, 30)  # A2 do review: o teto literal, não o valor da própria constante
+        muitos = self.s.testes_que_cairam([{"caidos": [f"test_m.T.test_{i:03d}" for i in range(37)]}])
+        self.assertEqual(len(muitos), 2 + 30 + 1)
         self.assertEqual(muitos[-1], "- e mais 7 (a lista inteira está no log do passo)")
 
     def test_repartir_cobre_todos_e_e_determinista(self):
