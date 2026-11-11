@@ -1,5 +1,6 @@
 """AV5 (0.45.7, E1.1): R-MAIN, R-VERIFY, R-CUSTO, R-CONTRIB e R-COPIA são trechos de docs/regras/R-LIMITES.md; a citação `(R-<ID>)`
 continua achando o texto, e ID inexistente continua "regra ausente"."""
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -8,6 +9,8 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 fc = SourceFileLoader("forge_check_r_limites", str(RAIZ / "bin" / "forge-check")).load_module()
+sys.path.insert(0, str(RAIZ / "tests"))
+from apoio_regra_id import ids  # noqa: E402
 
 
 class CitacaoDeTrecho(unittest.TestCase):
@@ -44,6 +47,11 @@ class CitacaoDeTrecho(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(fc, "PLUGIN", Path(tmp)):
             (Path(tmp) / "docs" / "regras").mkdir(parents=True)
             self.assertEqual(self.ler(Path(tmp), "R-MAIN"), (None, "regra ausente"))
+
+
+class IdsDoApoio(unittest.TestCase):
+    def test_ids_aceita_arquivo_proprio_e_trecho_e_recusa_inexistente(self):
+        self.assertEqual(ids("(R-QA) (R-MAIN) (R-XYZ)"), {"R-QA", "R-MAIN"})
 
 
 if __name__ == "__main__":
