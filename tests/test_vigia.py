@@ -25,6 +25,8 @@ class FormaDoComando(unittest.TestCase):
             "/usr/bin/git push --no-verify=true": ["git push --no-verify"],
             "sudo apt-get install x": ["apt-get install"],
             "git push 'sem fim": ["git push"],
+            "git --no-pager push": ["git push"],
+            "git -C -c push": ["git push"],
         }
         for comando, esperado in casos.items():
             with self.subTest(comando=comando):
@@ -44,6 +46,8 @@ class FormaDoComando(unittest.TestCase):
                   for i, c in (("a", "git push"), ("b", "git merge x"))]
         linhas += [json.dumps({"message": {"content": [{"type": "tool_result", "tool_use_id": "a", "is_error": True,
                                                         "content": "R-MAIN: no"}]}}), "não é json"]
+        linhas += [json.dumps(r) for r in ([], {"message": "x"}, {"message": {"content": 3}}, {"message": {"content": [3]}},
+                                           {"message": {"content": [{"type": "tool_use", "name": "Bash", "input": "x"}]}})]
         linhas.append(json.dumps({"message": {"content": [{"type": "tool_use", "id": "c", "name": "Write",
                                                            "input": {"command": "git push"}}]}}))
         self.assertEqual(vigia.comandos_criticos(linhas, PACOTES), [("git push", "R-MAIN"), ("git merge", None)])

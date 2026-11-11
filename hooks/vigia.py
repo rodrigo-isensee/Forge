@@ -445,7 +445,7 @@ def verificar(hook, raiz):
             inicio = estado["transcricoes"].get(caminho, 0 if chave == "agent_transcript_path" else tamanho(caminho))
             linhas, estado["transcricoes"][caminho] = linhas_novas(caminho, inicio)
             do_agente = chave == "agent_transcript_path" or hook.campo("hook_event_name") == "Stop"
-            agente = (hook.campo("agent_type") or "") if do_agente else ""
+            agente = hook.campo("agent_type") if do_agente else ""
             medidas += [(agente, forma, regra) for forma, regra in comandos_criticos(linhas, politica.get("pacotes", {}))]
             for id_, texto in contornos(linhas, estado, raiz, hook.campo("session_id") or "", time.time(), hook.expira_s()):
                 if id_ not in estado["contornos"]:  # a identidade é o evento (id da chamada), não o texto
