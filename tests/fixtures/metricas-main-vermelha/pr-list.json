@@ -5,5 +5,8 @@
  {"headRefName":"melhoria/v0454","statusCheckRollup":[{"conclusion":"SUCCESS"}]},
  {"headRefName":"melhoria/v0454","statusCheckRollup":[]},
  {"headRefName":"melhoria/v0471","statusCheckRollup":[]},
- {"headRefName":"melhoria/v04555","statusCheckRollup":[{"conclusion":"FAILURE"}]}
+ {"headRefName":"melhoria/v04555","statusCheckRollup":[{"conclusion":"FAILURE"}]},
+ {"statusCheckRollup":[{"conclusion":"SUCCESS"}]},
+ {"headRefName":"melhoria/v0454","statusCheckRollup":null},
+ {"headRefName":"melhoria/v0454","statusCheckRollup":["x"]}
 ]

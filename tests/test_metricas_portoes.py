@@ -45,8 +45,14 @@ class FatiaPorPortao(unittest.TestCase):
         self.assertIn("metricas: fontes: ", saida)
         self.assertIn("fatia_portao=", saida)
 
+    def test_dois_pedidos_com_dado_somam_no_portao(self):
+        _, linhas, _ = metricas(None, FIXTURE / "soma")
+        self.assertIn("metricas: fatia versao 7.7.7 portao review minutos=50 voltas=0 tempo=medido", linhas)
+
     def test_json_traz_a_fatia_por_versao(self):
-        fatia = json.loads(metricas("vfix", FIXTURE, "--json")[2])["fatia_por_portao"]["9.9.9"]
+        fatias = json.loads(metricas("vfix", FIXTURE, "--json")[2]).get("fatia_por_portao") or {}
+        self.assertIn("9.9.9", fatias)
+        fatia = fatias["9.9.9"]
         self.assertEqual(set(fatia), {"review", "qa", "seguranca", "ci", "revalidacao"})
         self.assertIsNone(fatia["ci"]["tempo"])
 
