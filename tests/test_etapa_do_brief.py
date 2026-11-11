@@ -1020,7 +1020,7 @@ def etapa_cumprida(n):
 
 PEDIDO_CUMPRIDAS = ("---\nid: exemplo\n---\n# Pedido EXEMPLO\nModo: implementar\n\n## Escopo\n- E1. Fazer o recurso X · `confirmado`\n\n## Etapas\n"
                     + "\n".join(etapa_cumprida(n) for n in range(1, 21))
-                    + "\n- E2.1 (papel-x): o feito anterior do recurso X segue aberto · prazo 2026-01-03\n"
+                    + "\n- E2.1 (papel-x): o feito anterior do recurso X segue aberto · prazo 2026-01-03\n- E2.2 (): parte sem papel declarado · feito\n"
                     + '\n## Decisões do usuário (registro literal)\nDECISÃO DO DONO (2026-01-01): "A".\n')
 
 
@@ -1051,6 +1051,7 @@ class GerarComCumpridas(Base):
         for n in range(2, 20, 2):
             self.assertIn(f'\n- "E1.{n} (papel-{n}): {TEXTO_CUMPRIDA.format(n=n)} · prazo 2026-01-02" · etapa de outra delegação', fora)
         self.assertIn('- "E2.1 (papel-x): o feito anterior do recurso X segue aberto · prazo 2026-01-03"', fora)  # "feito" no meio não é a marca
+        self.assertIn("\n- E2.2 () · feito · etapa de outra delegação; continua no pedido\n", fora)  # sem papel, nunca "None"
 
     def test_o_bloco_fica_menor_que_o_de_texto_inteiro(self):
         fora = self.fora(self.gerar())

@@ -42,6 +42,16 @@
       "testes": [
         "tests.test_etapa_do_brief.GerarComCumpridas.test_pedido_sem_outra_etapa_diz_que_nao_tem"
       ]
+    },
+    {
+      "id": "M5",
+      "guarda": "AQR-2: etapa sem papel declarado sai com () e nunca com None",
+      "arquivo": "bin/forge-check",
+      "de": "({sem_controle(papel or '')})",
+      "para": "({sem_controle(papel)})",
+      "testes": [
+        "tests.test_etapa_do_brief.GerarComCumpridas.test_feita_vai_curta_e_aberta_com_o_texto_inteiro"
+      ]
     }
   ]
 }
