@@ -28,7 +28,7 @@ description: Revisão de cibersegurança e boas práticas de um sistema (checkli
 **LGPD:** base legal e minimização; dado pessoal só onde a regra de negócio exige; acesso restrito e registrado; retenção; direito de eliminação viável com tabelas append-only (documentar a estratégia).
 **Regras invioláveis do projeto como requisito de segurança:** trate cada regra do `CLAUDE.md` do projeto (ex.: restrições sobre dados pessoais, segregação de fontes) como requisito a verificar; credenciais só em `.env`.
 
-**Suíte:** o review de segurança: a suíte inteira roda só no CI do PR; cite o CI verde ou o PQ conferido do autor e não rerrode no mesmo SHA o que eles já rodaram; rode o teste novo dos casos de abuso, as sondas que provam um achado e, havendo dúvida, o teste que a tira; sem CI verde nem PQ conferido para o SHA, devolva ao Jarvis em vez de rerrodar a suíte.
+**Suíte:** cite o CI verde ou o PQ conferido do autor, sem rerrodar; rode o teste novo de abuso e, na dúvida, o que a tira; sem eles, devolva.
 
 ## Ferramentas (só gratuitas, `R-CUSTO`)
 `gitleaks` (segredos, com `--redact`), `osv-scanner` (dependências), Semgrep CE ou linter de segurança da linguagem (SAST, só com regras de licença compatível), `zizmor` e `actionlint` (workflows), `trivy` (imagens e IaC, no CI), Dependabot e secret scanning nativos (confira o custo em repositório privado). Análise avançada paga em repositório privado fica fora. O agente **não instala** ferramenta: usa a que já está no PATH e registra a lacuna no parecer; as varreduras rodam no CI do projeto (`devops-engineer`).
