@@ -146,6 +146,18 @@ class PrHookPrazo(unittest.TestCase):
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("nenhum parecer com `branch: feature/x`", r.stderr)
 
+    def test_pedidos_da_branch_malformado_nao_derruba_a_leitura(self):
+        """`pedidos_da_branch` que não é lista vale como sem pedido (recusa); o item que não é texto é ignorado."""
+        raiz = self.montar()
+        pasta, (registro,) = registros(raiz)
+        for nome, pedidos, codigo, trecho in (("nulo", None, 2, "R-REVIEW: nenhum parecer com `branch: feature/x`"),
+                                              ("item numérico", [1, "p1"], 0, "")):
+            with self.subTest(nome):
+                next(pasta.glob("*.json")).write_text(json.dumps({**registro, "pedidos_da_branch": pedidos}), encoding="utf-8")
+                r = self.hook(raiz)
+                self.assertEqual(r.returncode, codigo, r.stderr)
+                self.assertTrue(r.stderr.startswith(trecho) and (codigo or not r.stderr), r.stderr)
+
     def test_merge_segue_a_conferencia_de_sempre(self):
         """O resultado gravado só decide o `gh pr create`: o `git merge` na develop confere como antes (com a checagem proibida, 97)."""
         raiz = self.montar()
