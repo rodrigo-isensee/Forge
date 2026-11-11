@@ -69,7 +69,7 @@ class RitmoNoHook(unittest.TestCase):
         for texto in (None, "{}", '{"ritmo": "turbo"}', '{"ritmo": 1}', '{"ritmo": null}', "[]", '"econômico"', "{ruim"):
             with self.subTest(texto=texto):
                 self.assertEqual(sem_excecao(agentes.ritmo_do_projeto, self.projeto(texto)), "equilibrado")
-        self.assertEqual(agentes.ritmo_do_projeto(None), "equilibrado")
+        self.assertEqual(sem_excecao(agentes.ritmo_do_projeto, None), "equilibrado")
 
 
 class ComandoRitmo(unittest.TestCase):
