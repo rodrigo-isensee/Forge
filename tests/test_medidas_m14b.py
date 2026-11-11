@@ -441,33 +441,36 @@ class RamosDeFalhaDoModuloCorrigidos(RepositorioDeTeste):
         super().setUp()
         self.iniciar()
 
+    def rodar_limpo(self, script, *args):
+        """(rc, stdout, stderr) do `script` sobre tmp; Python com -I e ambiente limpo (só PATH e HOME)."""
+        env = {"PATH": os.environ.get("PATH", ""), "HOME": str(self.tmp / "home")}
+        r = subprocess.run([sys.executable, "-I", str(script), "--raiz", str(self.tmp), *args],
+                           capture_output=True, text=True, env=env, cwd=self.tmp)
+        return r.returncode, r.stdout, r.stderr
+
     def rodar_copia(self, arquivos, *args):
-        """O forge-check de uma cópia nova em tmp/copia só com `arquivos` de bin/; Python com -I e ambiente limpo."""
+        """O forge-check de uma cópia nova em tmp/copia só com `arquivos` de bin/."""
         copia = self.tmp / "copia"
         shutil.rmtree(copia, ignore_errors=True)
         (copia / "bin").mkdir(parents=True)
         for nome in arquivos:
             (copia / "bin" / nome).write_bytes((RAIZ / "bin" / nome).read_bytes())
-        env = {"PATH": os.environ.get("PATH", ""), "HOME": str(self.tmp / "home")}
-        r = subprocess.run([sys.executable, "-I", str(copia / "bin" / "forge-check"), "--raiz", str(self.tmp), *args],
-                           capture_output=True, text=True, env=env, cwd=self.tmp)
-        return r.returncode, r.stdout
+        return self.rodar_limpo(copia / "bin" / "forge-check", *args)[:2]
 
     def test_sem_ref_e_sem_commit_cita_a_primeira_ref_padrao(self):
         for cmd, args in (("corrigidos", ()), ("afrouxamentos", ("--prs", "1"))):
             with self.subTest(cmd):
-                cod, linhas, erro = self.rodar(cmd, *args)
-                self.assertEqual((cod, linhas, erro), (1, [f'{cmd}: ref "origin/develop" não existe ou o git falhou'], ""))
+                self.assertEqual(self.rodar_limpo(FORGE_CHECK, cmd, *args), (1, f'{cmd}: ref "origin/develop" não existe ou o git falhou\n', ""))
 
     def test_rotulados_acima_do_teto_rc_2(self):
         (self.tmp / "grande.json").write_bytes(b" " * (1024 * 1024 + 1))
-        cod, linhas, _ = self.rodar("afrouxamentos", "--rotulados", str(self.tmp / "grande.json"))
-        self.assertEqual((cod, linhas), (2, ["afrouxamentos: --rotulados passa de 1048576 bytes"]))
+        self.assertEqual(self.rodar_limpo(FORGE_CHECK, "afrouxamentos", "--rotulados", str(self.tmp / "grande.json")),
+                         (2, "afrouxamentos: --rotulados passa de 1048576 bytes\n", ""))
 
     def test_pr_no_commit_raiz_e_sem_commit(self):
         self.commitar("feat(a): raiz (#5)", {"a.py": "1\n"})
-        cod, linhas, _ = self.rodar("afrouxamentos", "--prs", "5")
-        self.assertEqual((cod, linhas[:1]), (0, ["afrouxamentos: #5 sem-commit"]))
+        cod, saida, erro = self.rodar_limpo(FORGE_CHECK, "afrouxamentos", "--prs", "5")
+        self.assertEqual((cod, saida.splitlines()[:1], erro), (0, ["afrouxamentos: #5 sem-commit"], ""))
 
     def test_falha_do_git_na_catraca_e_erro_git(self):
         self.commitar("chore: base", {"a.py": "1\n"})
