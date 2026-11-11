@@ -4,7 +4,7 @@ Propósito: índice das regras com ID (como cada uma é verificada fica no front
 
 Decisão: `docs/adr/0002-uma-fonte-por-regra.md`. Agentes, skills e modelos citam o ID com o nome curto; o texto fica só aqui (o teste `AntiDuplicacao` reprova trecho de 12 palavras copiado; exceções em `anti_duplicacao.excecoes` de `tests/config.json`). IDs nunca se reaproveitam. [`R-LIMITES`](R-LIMITES.md) junta `R-MAIN`, `R-VERIFY`, `R-CUSTO`, `R-CONTRIB` e `R-COPIA`: cada um continua sendo o ID citado, e o texto fica num arquivo só.
 
-**Validade e medida (decisão do dono, 2026-11-08):** toda regra traz `Revisar em:` e `Medida:` (o número que a justifica, ou "sem medida"); `forge-check regras` aponta as vencidas. Regra nova só com medida (`R-DECISAO`).
+**Validade e medida (decisão do dono, 2026-11-08):** toda regra traz `Revisar em:` e `Medida:` (o número que a justifica; regra sem número ganha um até 2027-01-07 ou sai, AV5); `forge-check regras` aponta as vencidas. Regra nova só com medida (`R-DECISAO`).
 
 | ID | Regra |
 |---|---|

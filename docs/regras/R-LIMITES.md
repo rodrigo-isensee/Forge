@@ -1,14 +1,14 @@
 ---
 id: R-LIMITES
 titulo: Limites do time - main, hooks, custo, contribuição e cópias
-verificada_por: hooks `conformidade` e `parecer`, hook `pre-push`, `permissions.deny` do modelo de projeto, catraca do CI, revisão (cada trecho abaixo diz a sua); invariantes em tests/config.json
+verificada_por: cada trecho abaixo diz a sua (hooks, permissões, catraca do CI, revisão); invariantes em tests/config.json
 ---
 # R-LIMITES: Limites do time
 
-Propósito: texto único das cinco regras de limite (AV5 da avaliação do AQ, 2026-11-10); os outros arquivos citam o ID do trecho (`R-MAIN`, `R-VERIFY`, `R-CUSTO`, `R-CONTRIB`, `R-COPIA`). Público: todo o time. Nenhum limite mudou: só a forma (a regra de hook `R-WIP` virou uma linha em `docs/regras/README.md`).
+Propósito: texto único de cinco regras de limite (AV5, 2026-11-10); os outros arquivos citam o ID do trecho. Público: todo o time.
 
 Revisar em: 2027-01-07
-Medida: 25 pontos de recusa no código (6 `R-MAIN`, 9 `R-VERIFY`, 2 `R-CUSTO`, 8 `R-CONTRIB`) e 0 cópias de agentes em `.claude/`; a medida de cada trecho vem abaixo
+Medida: 25 pontos de recusa no código e 0 cópias; a de cada trecho vem nele
 
 ## R-MAIN: A main é do usuário
 
