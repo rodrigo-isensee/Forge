@@ -4,14 +4,12 @@
   "mutantes": [
     {
       "id": "M1",
-      "guarda": "bin/forge-check:9611 a.cmd == 'transcricao' and a.acao in TRANSCRICAO_DO_MODULO",
+      "guarda": "bin/forge-check: lastro, vereditos, decisoes e avisos vão ao módulo",
       "arquivo": "bin/forge-check",
       "de": "    if a.cmd == \"transcricao\" and a.acao in TRANSCRICAO_DO_MODULO:",
-      "para": "    if (not (a.cmd == \"transcricao\" and a.acao in TRANSCRICAO_DO_MODULO)):",
+      "para": "    if a.cmd == \"transcricao\" and a.acao in TRANSCRICAO_DO_MODULO[1:]:",
       "testes": [
-        "tests.test_forge.MedirAlucinacao",
-        "tests.test_medidas_m14b.AvisosDosHooks",
-        "tests.test_medidas_m14b.AvisosComAcao"
+        "tests.test_forge.MedirAlucinacao"
       ]
     },
     {

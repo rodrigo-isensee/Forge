@@ -3830,6 +3830,36 @@ class MedirAlucinacao(unittest.TestCase):
         saida, _ = self.rodar("decisoes", self.subagente("A) x\nB) y", "z") + self.jarvis("ok"))
         self.assertIn("respostas=1 com_grupo=0 violacoes=0", saida)
 
+    def test_relatorio_sem_handback_e_o_ultimo_texto_da_mesma_mensagem(self):  # F6, E5.2: ramos de ler_relatorios sem teste
+        base = {"isSidechain": True, "agentId": "a1", "sessionId": "sess", "type": "assistant"}
+        texto = lambda id_, t: {**base, "message": {"id": id_, "content": [{"type": "tool_use", "id": "t"}, {"type": "text", "text": t}]}}
+        saida, _ = self.rodar("lastro", [texto("m1", "rascunho 1234abcd"), texto("m2", "commit deadbee1"), texto("m2", "fim.")])
+        self.assertIn("lastro: sessao s1: relatorios=1 afirmacoes=1 sem_lastro=1", saida)
+
+    def test_respostas_do_jarvis_por_sessao_e_opcoes_em_tabela_so_depois_de_pergunta(self):  # F6, E5.2
+        respostas = self.jarvis("Qual caminho?\n| A | copiar |\n| B | mover |\nRecomendo A.") + \
+            [{**o, "sessionId": "outra"} for o in self.jarvis("Tabela:\n| A | 1 |\n| B | 2 |\nProvas:\nA) x\nB) y")]
+        saida, _ = self.rodar("decisoes", respostas)
+        self.assertIn("decisoes: sessao s1: respostas=1 com_grupo=1 violacoes=0", saida)
+        self.assertIn("decisoes: sessao s2: respostas=1 com_grupo=0 violacoes=0", saida)
+
+    def test_caminho_inexistente_sai_com_1_e_o_caminho(self):  # F6, E5.2
+        nada = Path(tempfile.gettempdir()) / "forge-medida-nao-existe-e52"
+        r = subprocess.run([*comando_do_forge_check(), "transcricao", "lastro", str(nada)], capture_output=True, text=True)
+        self.assertEqual((r.returncode, r.stdout), (1, f"lastro: caminho inexistente: {nada}\n"))
+
+    def test_copia_avulsa_sem_o_modulo_sai_com_2_nos_quatro(self):  # F6, E5.2: a lógica mora em bin/forge_transcricao.py
+        tmp = Path(tempfile.mkdtemp(prefix="forge-avulsa-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        (tmp / "bin").mkdir()
+        shutil.copy(RAIZ / "bin/forge-check", tmp / "bin/forge-check")
+        (tmp / "s.jsonl").write_text("{}\n", encoding="utf-8")
+        for acao in ("lastro", "vereditos", "decisoes", "avisos"):
+            with self.subTest(acao=acao):
+                r = subprocess.run([sys.executable, "-I", str(tmp / "bin/forge-check"), "transcricao", acao, str(tmp / "s.jsonl")],
+                                   capture_output=True, text=True, cwd=tmp, env={"PATH": os.environ.get("PATH", ""), "HOME": str(tmp)})
+                self.assertEqual((r.returncode, r.stdout), (2, "forge-check: bin/forge_transcricao.py ausente ao lado do forge-check; nada feito\n"))
+
 
 class ConferirBrief(unittest.TestCase):
     """`forge-check brief` (C2, C4) e `brief gerar` (PA-2): forma e corte do brief por regra, sobre fixtures sintéticos."""

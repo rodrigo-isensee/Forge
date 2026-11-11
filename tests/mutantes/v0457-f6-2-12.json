@@ -34,14 +34,12 @@
     },
     {
       "id": "M92",
-      "guarda": "bin/forge_transcricao.py:372 a.acao == 'avisos'",
+      "guarda": "bin/forge_transcricao.py: só avisos vai ao cmd_transcricao_avisos",
       "arquivo": "bin/forge_transcricao.py",
       "de": "    if a.acao == \"avisos\":",
-      "para": "    if (not (a.acao == \"avisos\")):",
+      "para": "    if a.acao in (\"avisos\", \"decisoes\"):",
       "testes": [
-        "tests.test_forge.MedirAlucinacao",
-        "tests.test_medidas_m14b.AvisosDosHooks",
-        "tests.test_medidas_m14b.AvisosComAcao"
+        "tests.test_forge.MedirAlucinacao"
       ]
     }
   ]

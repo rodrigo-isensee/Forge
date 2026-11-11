@@ -646,6 +646,10 @@ class AvisosComAcao(Raiz):
         self.assertIn("avisos: com_acao=2", self.medir({"a": [aviso(DOUTOR), chamada("ls", "nada"), chamada("ls"), chamada("ls", "O Vigia avisou")],
                                                          "b": [aviso(VIGIA), chamada("ls", "vou ver o doutor")]}))
 
+    def test_um_texto_sem_vigia_nem_doutor_nao_e_acao(self):  # F6, E5.2: um bloco só, sem ação, deixa o aviso sem ação
+        texto = {"type": "assistant", "message": {"content": [{"type": "text", "text": "seguindo"}]}}
+        self.assertIn("avisos: com_acao=0", self.medir({"a": [aviso(VIGIA), texto]}))
+
     def test_amostra_da_ids_deterministicos_sem_o_texto_do_aviso(self):
         arquivos = {"a": [aviso(VIGIA), aviso(DOUTOR)], "b": [], "c": [aviso(VIGIA, "2026-10-23")]}
         amostra = [l for l in self.medir(arquivos, "--amostra", "9") if "amostra" in l]
