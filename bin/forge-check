@@ -4692,97 +4692,20 @@ def cmd_voltas(raiz, pedido=None):
     return modulo_do_bin("forge_voltas").cmd_voltas(raiz, pedido, ctx_das_voltas())
 
 
-# ---- D12 (E3a): a medida de um tópico mesclado, gravada em docs/kanban/medidas.md; aviso, nunca trava ----
-TOPICO_PEQUENO = 300  # linhas alteradas (adições mais remoções) abaixo das quais o tópico é pequeno
-CABECALHO_DE_MEDIDAS = ("| data-hora | pedido | merge | ativo_min (historico.md) | linhas (git diff) | pequeno | tokens (entregas.md) |\n"
-                        "|---|---|---|---|---|---|---|\n")
-
-
-def tempo_ativo(movimentos, fim):
-    """Minutos do primeiro movimento [(hora, de, para, motivo)] até `fim`, menos cada trecho aberto por um movimento que põe o cartão
-    na espera do dono ou traz `espera deliberada:` no motivo (o trecho vai até o movimento seguinte); None sem movimento até `fim`."""
-    antes = [m for m in movimentos if m[0] <= fim]
-    if not antes:
-        return None
-    fins = [m[0] for m in antes[1:]] + [fim]
-    parados = sum(_minutos(m[0], ate) for m, ate in zip(antes, fins)
-                  if tipo_da_espera(m[2], m[3]) == "dono" or _sem_acento(m[3]).startswith("espera deliberada:"))
-    return round(_minutos(antes[0][0], fim) - parados, 1)
-
-
-def tokens_do_pedido(raiz, pedido):
-    """A soma da coluna tokens das linhas do pedido em docs/kanban/entregas.md, ou `lacuna:<motivo>` (nunca um zero sem fonte)."""
-    arq = raiz / "docs" / "kanban" / "entregas.md"
-    linhas, aviso = _tabela_segura(arq)
-    if aviso or not arq.is_file():
-        return "lacuna:entregas.md-ilegivel" if aviso else "lacuna:sem-entregas.md"
-    valores = [c[3] for c in linhas if len(c) >= 4 and c[1].casefold() == pedido.casefold()]
-    if not valores:
-        return "lacuna:sem-linha-do-pedido"
-    if not all(re.fullmatch(r"[0-9]+", v) for v in valores):
-        return "lacuna:tokens-nao-numericos"
-    return str(sum(int(v) for v in valores))
+# ---- D12 (E3a): a medida de um tópico mesclado, gravada em docs/kanban/medidas.md; aviso, nunca trava. `medida` e `escape` moram em
+# bin/forge_medidas.py (FILA-31 F6, 0.45.7 E5.5) ----
+def ctx_das_medidas():
+    """Os nomes que `medida` e `escape` (bin/forge_medidas.py; FILA-31 F6, 0.45.7 E5.5) dividem com o resto do forge-check."""
+    return {"git": git, "_hora": _hora, "_minutos": _minutos, "_numero": _numero, "_sem_acento": _sem_acento, "_ler_tabela": _ler_tabela,
+            "_tabela_segura": _tabela_segura, "ISO8601": ISO8601, "HORA_DO_REGISTRO": HORA_DO_REGISTRO, "ID_DE_PEDIDO": ID_DE_PEDIDO,
+            "SEM_QUADRO": SEM_QUADRO, "caminho_impresso": caminho_impresso, "acrescentar_ao_arquivo": acrescentar_ao_arquivo,
+            "tipo_da_espera": tipo_da_espera, "recusa_do_campo": recusa_do_campo, "ACHADO_POR": ACHADO_POR, "GRAVIDADES": GRAVIDADES,
+            "CONTROLES_QUE_FALTARAM": CONTROLES_QUE_FALTARAM, "ORIGENS": ORIGENS, "SEM_ORIGEM": SEM_ORIGEM}
 
 
 def cmd_medida(raiz, pedido, merge):
-    """Grava em docs/kanban/medidas.md a linha do tópico (tempo ativo até a data de commit do merge, linhas de `<merge>^1..<merge>`,
-    tokens) e imprime o aviso de piora da release (E3b) ou `medida: só tabela (n=<tópicos pequenos da release atual>)`. rc 0; entrada recusada,
-    rc 2, sem gravar. O `--merge` só chega ao git como sha40 minúsculo e depois de `--end-of-options`."""
-    arq = raiz / "docs" / "kanban" / "medidas.md"
-    recusa = ("--pedido fora de [A-Za-z0-9._-]" if not ID_DE_PEDIDO.fullmatch(pedido) or not pedido.strip(".")
-              else "--merge não é um sha40 minúsculo" if not re.fullmatch(r"[0-9a-f]{40}", merge)
-              else SEM_QUADRO.format(cmd="medida", raiz=caminho_impresso(raiz)) if not (raiz / "KANBAN.md").is_file()
-              else "docs/kanban/medidas.md é link simbólico; não escrevo através dele" if arq.is_symlink() else None)
-    cod, data = git(raiz, "log", "-1", "--format=%cI", "--end-of-options", merge) if recusa is None else (1, "")
-    fim = _hora(data) if not cod and ISO8601.match(data) else None
-    if recusa or fim is None:
-        print(f"medida: {recusa or 'commit do --merge ausente no repositório'}; nada gravado", file=sys.stderr)
-        return 2
-    movimentos = sorted((h, c[2], c[3], "|".join(c[4:])) for c in _ler_tabela(raiz / "docs" / "kanban" / "historico.md")
-                        if len(c) >= 5 and c[1].casefold() == pedido.casefold() and ISO8601.match(c[0]) and (h := _hora(c[0])))
-    ativo = tempo_ativo(movimentos, fim)
-    cod, stat = git(raiz, "diff", "--shortstat", "--end-of-options", f"{merge}^1", merge)
-    linhas = None if cod else sum(int(n) for n in re.findall(r"(\d+) (?:insertion|deletion)", stat))
-    celulas = (datetime.datetime.now().astimezone().isoformat(timespec="seconds"), pedido, merge,
-               "lacuna:sem-movimento" if ativo is None else _numero(ativo), "lacuna:git-diff" if linhas is None else str(linhas),
-               "-" if linhas is None else "sim" if linhas < TOPICO_PEQUENO else "nao", tokens_do_pedido(raiz, pedido))
-    acrescentar_ao_arquivo(arq, "| " + " | ".join(celulas) + " |\n", CABECALHO_DE_MEDIDAS)
-    print("| " + " | ".join(celulas) + " |")
-    atual, anterior, tags = releases_da_medida(raiz, _ler_tabela(arq))
-    print("\n".join(piora_da_release(atual, anterior, tags)) or f"medida: só tabela (n={len(atual)})")
-    return 0
-
-
-def releases_da_medida(raiz, linhas):
-    """D12 (E3b): os tópicos pequenos de medidas.md, um por merge (vale a última medida), separados pelas tags v* (git local):
-    a release atual é o merge que nenhuma tag contém; a anterior, o que a última tag (por versão) contém e a penúltima não."""
-    tags = git(raiz, "tag", "--list", "v*", "--sort=-v:refname")[1].split()
-    atual, anterior = [], []
-    for sha, c in {c[2]: c for c in linhas if len(c) >= 7 and re.fullmatch(r"[0-9a-f]{40}", c[2])}.items():
-        cod, saida = git(raiz, "tag", "--list", "v*", f"--contains={sha}")
-        dentro = set(saida.split())
-        if cod or c[5] != "sim":
-            continue
-        if not dentro:
-            atual.append(c)
-        elif tags[0] in dentro and (len(tags) < 2 or tags[1] not in dentro):
-            anterior.append(c)
-    return atual, anterior, tags
-
-
-def piora_da_release(atual, anterior, tags):
-    """D12 (E3b, item 2): um aviso por métrica cuja mediana na release atual (3 ou mais tópicos com número) sobe mais de 20% sobre
-    a da anterior e em que pelo menos 2 tópicos passam do maior valor dela; célula `lacuna:` fica fora. Nunca trava."""
-    for col, nome in ((3, "tempo ativo (min, historico.md)"), (6, "tokens novos (entregas.md)")):
-        agora, antes = ([float(c[col]) for c in grupo if re.fullmatch(r"[0-9]+(\.[0-9]+)?", c[col])] for grupo in (atual, anterior))
-        if len(agora) < 3 or not antes:
-            continue
-        m0, m1, teto = statistics.median(antes), statistics.median(agora), max(antes)
-        acima = sum(1 for v in agora if v > teto)
-        if m1 > 1.2 * m0 and acima >= 2:
-            yield (f"medida: aviso: piora no {nome}: mediana {_numero(m0)} → {_numero(m1)} (limite +20%: {_numero(1.2 * m0)}), "
-                   f"{acima} tópicos acima do maior da anterior ({_numero(teto)}); n={len(agora)} contra {len(antes)}; "
-                   f"fonte: docs/kanban/medidas.md, release atual (sem tag v*) contra {tags[0]}")
+    """`medida` mora em bin/forge_medidas.py (FILA-31 F6, 0.45.7 E5.5)."""
+    return modulo_do_bin("forge_medidas").cmd_medida(raiz, pedido, merge, ctx_das_medidas())
 
 
 MINIMO_DO_P85 = 20  # pedidos na janela; abaixo disso, sem percentil (agile-coach.md:14)
@@ -4855,8 +4778,6 @@ DIAS_DO_CORRIGIDO = 7
 
 
 # ---- M14b: defeito escapado (bug achado depois do parecer final), registrado em docs/kanban/escapes.md ----
-CABECALHO_ESCAPES = ("| data-hora | pedido | parecer-final | achado-por | gravidade | controle-que-faltou | nota | origem |\n"
-                     "|---|---|---|---|---|---|---|---|\n")
 ACHADO_POR = ("uso", "teste", "review", "outro-pedido", "ci")
 GRAVIDADES = ("critico", "alto", "medio", "baixo")
 CONTROLES_QUE_FALTARAM = ("review", "seguranca", "qa", "conferencia", "ci", "nenhum")
@@ -4865,73 +4786,15 @@ SEM_ORIGEM = "nao-classificado"
 JANELA_DE_ESCAPES = 30  # dias
 
 
-def origem_do_escape(celulas):
-    """A origem de uma linha de `escapes.md`: a 8.ª coluna; a linha antiga (7 colunas) ou com valor fora de ORIGENS é `nao-classificado`."""
-    return celulas[7] if len(celulas) >= 8 and celulas[7] in ORIGENS else SEM_ORIGEM
-
-
 def cmd_escape_registrar(raiz, pedido, parecer_final, achado_por, gravidade, controle, nota, origem=SEM_ORIGEM):
-    """Registra um defeito escapado em docs/kanban/escapes.md: uma linha de formato fixo com a hora real `AAAA-MM-DD HH:MM`. Só acrescenta;
-    cria o arquivo com o cabeçalho se faltar. `parecer_final` é o parecer (caminho em docs/reviews, qa... ou commit) depois do qual o bug
-    apareceu; `controle` é o que deveria tê-lo achado (`nenhum` se nenhum controle existente alcançava); `origem` é a fase onde o defeito
-    nasceu (`ORIGENS`, padrão `nao-classificado`; a coluna vai depois da `nota`, para a linha antiga seguir válida). Recusa sem gravar; a recusa cita o
-    campo, nunca o valor."""
-    campos = (("--pedido", pedido), ("--parecer-final", parecer_final), ("--nota", nota))
-    for nome, valor in campos:
-        if "|" in valor or re.search(r"[\x00-\x1f\x7f]", valor) or len(valor.splitlines()) > 1:
-            return [f"escape: {nome} não pode ter `|` nem quebra de linha"]
-        motivo = recusa_do_campo(valor, nome)
-        if motivo:
-            return [f"escape: {motivo}"]
-    pedido, parecer_final, nota = pedido.strip(), parecer_final.strip(), nota.strip()
-    if not ID_DE_PEDIDO.fullmatch(pedido) or not parecer_final or not nota:
-        return ["escape: --pedido (letras, números, `.`, `_` e `-`), --parecer-final e --nota não podem ser vazios"]
-    for nome, valor, validos in (("--achado-por", achado_por, ACHADO_POR), ("--gravidade", gravidade, GRAVIDADES),
-                                 ("--controle-que-faltou", controle, CONTROLES_QUE_FALTARAM), ("--origem", origem, ORIGENS)):
-        if valor not in validos:
-            return [f"escape: {nome} deve ser um de {', '.join(validos)}"]
-    if not (raiz / "KANBAN.md").is_file():
-        return [SEM_QUADRO.format(cmd="escape", raiz=caminho_impresso(raiz))]
-    arq = raiz / "docs" / "kanban" / "escapes.md"
-    if arq.is_symlink():
-        return ["escape: docs/kanban/escapes.md é link simbólico; não escrevo através dele"]
-    arq.parent.mkdir(parents=True, exist_ok=True)
-    existe = arq.is_file() and arq.stat().st_size > 0
-    falta_quebra = False
-    if existe:
-        with arq.open("rb") as f:
-            f.seek(-1, 2)
-            falta_quebra = f.read(1) != b"\n"
-    hora = datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
-    linha = f"| {hora} | {pedido} | {parecer_final} | {achado_por} | {gravidade} | {controle} | {nota} | {origem} |\n"
-    with arq.open("a", encoding="utf-8") as f:
-        if not existe:
-            f.write(CABECALHO_ESCAPES)
-        elif falta_quebra:
-            f.write("\n")
-        f.write(linha)
-    return [linha.rstrip("\n")]
+    """`escape registrar` mora em bin/forge_medidas.py (FILA-31 F6, 0.45.7 E5.5); os valores aceitos ficam aqui, que o parser os usa."""
+    return modulo_do_bin("forge_medidas").cmd_escape_registrar(raiz, pedido, parecer_final, achado_por, gravidade, controle, nota, origem,
+                                                               ctx_das_medidas())
 
 
 def cmd_escape_resumo(raiz, dias=JANELA_DE_ESCAPES, agora=None):
-    """Conta os escapes dos últimos `dias` por gravidade e por controle que faltou, e a taxa sobre os pedidos que chegaram a "Pronto" na
-    mesma janela (`docs/kanban/historico.md`). Só leitura; sem escapes registrados a taxa é 0, e sem pedido pronto, `-`."""
-    agora = agora or datetime.datetime.now().astimezone()
-    inicio = agora - datetime.timedelta(days=dias)
-    escapes = []
-    for c in _ler_tabela(raiz / "docs" / "kanban" / "escapes.md"):
-        if len(c) >= 7 and HORA_DO_REGISTRO.fullmatch(c[0]):
-            hora = _hora(c[0].replace(" ", "T"))
-            if hora and hora >= inicio:
-                escapes.append(c)
-    prontos = {c[1].casefold() for c in _ler_tabela(raiz / "docs" / "kanban" / "historico.md")
-               if len(c) >= 5 and ISO8601.match(c[0]) and _sem_acento(c[3]) == "pronto" and (_hora(c[0]) or agora) >= inicio}
-    print("escapes: gravidade: " + " ".join(f"{g}={sum(1 for e in escapes if e[4] == g)}" for g in GRAVIDADES))
-    print("escapes: controle: " + " ".join(f"{k}={sum(1 for e in escapes if e[5] == k)}" for k in CONTROLES_QUE_FALTARAM))
-    print("escapes: origem: " + " ".join(f"{o}={sum(1 for e in escapes if origem_do_escape(e) == o)}" for o in ORIGENS))
-    taxa = f"{len(escapes) / len(prontos):.2f}" if prontos else "-"
-    print(f"escapes: total: escapes={len(escapes)} pedidos_prontos={len(prontos)} taxa={taxa} dias={dias}")
-    return 0
+    """`escape resumo` mora em bin/forge_medidas.py (FILA-31 F6, 0.45.7 E5.5)."""
+    return modulo_do_bin("forge_medidas").cmd_escape_resumo(raiz, dias, agora, ctx_das_medidas())
 
 
 # ---- M14b: a catraca carregada da cópia em uso (o `classe` e o `afrouxamentos`, em bin/forge_corrigidos.py, a usam) ----
