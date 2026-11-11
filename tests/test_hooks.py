@@ -238,13 +238,18 @@ def limpar_caches_dos_hooks():
     return zerados
 
 
-def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True):
+def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True, releituras=0, em_curso=frozenset()):
     """Composição de teste (desenho do lote, 3.3), sem função nova no hook: o caminho de leitura do `Guarda.bash` e do
     `segmento`, que devolve (palavras, destinos) de cada comando que o hook confere ou levanta `Ilegivel`. `todas`:
-    False lê só a leitura fiel do nível de fora (a base do T1)."""
+    False lê só a leitura fiel do nível de fora (a base do T1). `releituras` e `em_curso`, como no hook
+    (PROFUNDIDADE-BASH-C): a palavra com crase relida não conta como nível, e o texto já em leitura não se relê."""
     _comum, conformidade, _ = modulos_dos_hooks()
-    if nivel > conformidade.PROFUNDIDADE:
-        return []  # o hook só dá o R-CONTRIB da linha aninhada que aponta para o Forge, e não lê mais nada
+    if nivel - releituras > conformidade.PROFUNDIDADE:
+        raise Ilegivel(linha)  # o hook recusa a linha acima do teto (PROFUNDIDADE-BASH-C)
+    if nivel > 1 and (linha, so_substituicoes) in em_curso:
+        return []
+    if nivel:
+        em_curso = em_curso | {(linha, so_substituicoes)}
     try:
         linha, corpos = _comum.tirar_heredocs(linha)
     except ValueError:
@@ -259,19 +264,19 @@ def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True):
             if so_substituicoes and not sub:
                 continue
             lidos.append((palavras, destinos))
-            lidos += ler_dentro_do_comando(palavras, nivel)
+            lidos += ler_dentro_do_comando(palavras, nivel, releituras, em_curso)
     for corpo in _comum.conteudos_de_crase(linha, so_os_fechados=True):  # CRASE-SESSAO-PROJETO
-        lidos += ler_como_o_conformidade(corpo, nivel + 1)
+        lidos += ler_como_o_conformidade(corpo, nivel + 1, releituras=releituras, em_curso=em_curso)
     shell_no_dono = {}  # S-SUITE-RAPIDA: o mesmo dono (até 150 mil caracteres) volta em cada heredoc dele; a busca, uma vez por texto
     for dono, corpo in corpos:
         if dono not in shell_no_dono:
             shell_no_dono[dono] = re.search(r"\b(bash|sh|zsh|dash)\b", dono) is not None
         if shell_no_dono[dono]:
-            lidos += ler_como_o_conformidade(corpo, nivel + 1)
+            lidos += ler_como_o_conformidade(corpo, nivel + 1, releituras=releituras, em_curso=em_curso)
     return lidos
 
 
-def ler_dentro_do_comando(palavras, nivel):
+def ler_dentro_do_comando(palavras, nivel, releituras=0, em_curso=frozenset()):
     """O que o `segmento` relê de um comando simples: a palavra com substituição entre aspas e o `bash -c`/`eval`, em cada
     leitura possível do lançador (`separar_lancadores`: a recusa é a união delas, RET-LEITURA-HOOK-G)."""
     _, conformidade, _ = modulos_dos_hooks()
@@ -286,9 +291,10 @@ def ler_dentro_do_comando(palavras, nivel):
     for palavras, lancadas in possiveis:
         for p in atribuicoes + lancadas + palavras:  # N1: a atribuição também
             if "`" in p:
-                lidos += ler_como_o_conformidade(p, nivel + 1)
+                lidos += ler_como_o_conformidade(p, nivel + 1, releituras=releituras + 1, em_curso=em_curso)
             elif "$(" in p.replace(conformidade.OPACO["$"], ""):
-                lidos += ler_como_o_conformidade(p, nivel + 1, so_substituicoes=True)
+                lidos += ler_como_o_conformidade(p, nivel + 1, so_substituicoes=True, releituras=releituras,
+                                                 em_curso=em_curso)
         prog = Path(palavras[0].lstrip("`")).name if palavras else ""
         internos = []
         if prog in conformidade.SHELLS:
@@ -296,9 +302,10 @@ def ler_dentro_do_comando(palavras, nivel):
         elif prog == "eval":
             internos = [" ".join(palavras[1:])]
         for interno in internos:
-            lidos += ler_como_o_conformidade(interno, nivel + 1)
+            lidos += ler_como_o_conformidade(interno, nivel + 1, releituras=releituras, em_curso=em_curso)
             if "\\`" in interno:
-                lidos += ler_como_o_conformidade(interno.replace("\\`", "`"), nivel + 1)
+                lidos += ler_como_o_conformidade(interno.replace("\\`", "`"), nivel + 1, releituras=releituras,
+                                                 em_curso=em_curso)
     return lidos
 
 
@@ -2411,6 +2418,12 @@ class Hooks(unittest.TestCase):
     def test_fixtures_do_n1(self):  # IMPL-FURO-HOOK-N, N1 (0.45.1): alias da configuração e do gh, ~/.gitconfig
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N1 (")]
         self.assertGreaterEqual(len(lote), 21, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_da_profundidade(self):  # PROFUNDIDADE-BASH-C (v0457 E17.1): acima do teto recusa, também fora de projeto
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("PROFUNDIDADE-BASH-C (")]
+        self.assertGreaterEqual(len(lote), 14, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
     def test_fixtures_do_n3(self):  # IMPL-FURO-HOOK-N, N3 (0.45.1): link com caminho protegido
