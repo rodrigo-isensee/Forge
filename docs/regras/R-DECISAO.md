@@ -23,7 +23,7 @@ Medida: decisões aplicadas sem resposta do dono (meta 0) e espera por decisão 
 - **Decisão só vale gravada:** pedido, lista ou decisão do dono vai ao pedido ou ao quadro no mesmo turno; a fala vai literal por `forge-check pedido fala --gravar` (não amplia autorização) e é lida antes de perguntar de novo. Proposta aprovada leva a versão nomeada (`versão: X.Y`). Versão cheia passa para a seguinte com vaga.
 
 ## Complemento: "tanto faz" e ordem ampla
-- "Tanto faz" e "decidam vocês" viram item `delegado`. Esses nunca são delegáveis assim: **custo** (`R-CUSTO`), **acesso**, **exceção a regra** (`R-CONFORMIDADE`) e **ato irreversível**.
+- "Tanto faz" e "decidam vocês" viram item `delegado`. Esses nunca são delegáveis assim: custo, acesso, aceite de risco, rótulo, merge na main, exceção a regra (`R-CONFORMIDADE`) e ato irreversível.
 - **Ordem ampla não confirma:** "resolva" e "pode fazer" só cobrem o que já é `confirmado` ou `delegado`. Item `técnico` não depende de ordem. `Suposição` e `no-protótipo` seguem fora da ordem ampla.
 
 ## Complemento: melhoria vista e entrada direta

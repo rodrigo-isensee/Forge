@@ -160,7 +160,7 @@
       "def leitura_valida","REPO_APAGAR", "VISIBILIDADE_PUBLICA", "filter-branch", "filter-repo", "--mirror", "permissionDecision", "def checar_remocao", "SUGESTAO",
       "def endpoint_normalizado", "conteudos_de_crase\\(", "GRAPHQL_DE_ROTULO", "TIMEOUT_DA_CONTA", "erro interno ao conferir o rótulo afrouxa-regra",
       "def rotulo_no_argumento", "def rotulos_removidos", "sub == \"clone\""],
-    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub", "## Como perguntar", "\\*\\*Afrouxa o processo\\?\\*\\*", "\\*\\*custo de eficiência\\*\\*", "Faltam N perguntas\\.", "decidam vocês", "não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível"],
+    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub", "## Como perguntar", "\\*\\*Afrouxa o processo\\?\\*\\*", "\\*\\*custo de eficiência\\*\\*", "Faltam N perguntas\\.", "decidam vocês", "não se oferece em pergunta de custo, acesso, aceite de risco, rótulo, merge na main, exceção a regra ou ato irreversível"],
     "docs/adr/_modelo.md": [
       "## Critério de reversão",
       "## Leituras",
@@ -248,7 +248,7 @@
       "\\*\\*Integração contínua \\(D2\\):\\*\\*"
     ],
     "skills/falar-com-o-dono/SKILL.md": [
-      "que não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível",
+      "que não se oferece em pergunta de custo, acesso, aceite de risco, rótulo, merge na main, exceção a regra ou ato irreversível",
       "não contradiz o teste de bloqueante",
       "sem passar pelo teste de bloqueante",
       "Ordem ampla não confirma:\\*\\* diante de",
@@ -548,7 +548,7 @@
       "Complemento: \\\"tanto faz\\\" e ordem ampla",
       "viram item `delegado`",
       "nunca são delegáveis assim",
-      "\\*\\*custo\\*\\* \\(`R-CUSTO`\\), \\*\\*acesso\\*\\*, \\*\\*exceção a regra\\*\\* \\(`R-CONFORMIDADE`\\) e \\*\\*ato irreversível\\*\\*",
+      "custo, acesso, aceite de risco, rótulo, merge na main, exceção a regra \\(`R-CONFORMIDADE`\\) e ato irreversível",
       "Ordem ampla não confirma",
       "`confirmado` ou `delegado`",
       "Item `técnico` não depende de ordem",
