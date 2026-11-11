@@ -83,6 +83,7 @@ CHAVES_DE_USO = ("input_tokens", "output_tokens", "cache_creation_input_tokens",
 # X2 (0.44.1): o orçamento de tokens declarado no pedido (`Tokens previstos: 2.000.000`, `500k`, `3M`) e a versão dele (`Versão: X.Y.Z`)
 PREVISTO = re.compile(r"^\s*(?:[-*]\s*)?(?:\*\*)?tokens previstos:(?:\*\*)?\s*(\d[\d._]*)\s*(k|m)?\b", re.I | re.M)
 VERSAO_DO_PEDIDO = re.compile(r"^\s*(?:[-*]\s*)?(?:\*\*)?vers[aã]o:(?:\*\*)?\s*v?(\d+\.\d+\.\d+)", re.I | re.M)
+VERSAO_COMPLETA = re.compile(r"\d+\.\d+\.\d+")
 MULTIPLO = {"": 1, "k": 1000, "m": 1_000_000}
 
 
@@ -431,6 +432,55 @@ def esperas_por_portao(arquivos, janela):
     return saida
 
 
+VERMELHO_DA_EXECUCAO = ("failure", "timed_out", "startup_failure")
+VERMELHO_DO_CHECK = ("FAILURE", "TIMED_OUT", "STARTUP_FAILURE", "ERROR")
+VERSAO_DA_BRANCH = re.compile(r"melhoria/v(\d)(\d{2})(\d)\b")
+
+
+def _versao_da_branch(texto):
+    """"0.45.6" de um texto com `melhoria/v0456` (branch do PR ou título do merge na main), ou "-" se não houver."""
+    achou = VERSAO_DA_BRANCH.search(texto or "")
+    return ".".join(str(int(g)) for g in achou.groups()) if achou else "-"
+
+
+def _gh_lista(args):
+    """A lista JSON de `gh <args>`, ou None se o gh falha (sem rede, sem login) ou devolve outra forma."""
+    try:
+        r = subprocess.run(["gh", *args], capture_output=True, text=True, timeout=GH_TIMEOUT_S)
+        lista = json.loads(r.stdout) if r.returncode == 0 else None
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return None
+    return [x for x in lista if isinstance(x, dict)] if isinstance(lista, list) else None
+
+
+def main_vermelha_e_merges(versoes, usar_gh):
+    """{versão: {"main_vermelha": n, "merge_vermelho": n, "origem": medido|nao-medido}}: (a) execuções de CI da main que terminaram
+    vermelhas (`gh run list --branch main`, a versão vem do `melhoria/vNNNN` do título do merge) e (b) PRs mesclados cujos checks
+    estavam vermelhos (`statusCheckRollup`, a versão vem da branch do PR). Versão sem nenhuma execução ou PR lido, ou sem `usar_gh`
+    ou com o gh falhando, fica `nao-medido` (None): dado ausente nunca vira zero. `versoes` são as versões dos pedidos; as achadas
+    no gh entram também."""
+    execucoes = _gh_lista(["run", "list", "--branch", "main", "--limit", "100", "--json", "conclusion,displayTitle"]) if usar_gh else None
+    prs = _gh_lista(["pr", "list", "--state", "merged", "--limit", "100", "--json", "headRefName,statusCheckRollup"]) if usar_gh else None
+    a, b = {}, {}
+    for e in execucoes or []:
+        if e.get("conclusion"):
+            vezes = a.setdefault(_versao_da_branch(e.get("displayTitle")), [0, 0])
+            vezes[0] += e["conclusion"] in VERMELHO_DA_EXECUCAO
+            vezes[1] += 1
+    for pr in prs or []:
+        checks = [c for c in pr.get("statusCheckRollup") or [] if isinstance(c, dict)]
+        if checks:
+            vezes = b.setdefault(_versao_da_branch(pr.get("headRefName")), [0, 0])
+            vezes[0] += any((c.get("conclusion") or c.get("state")) in VERMELHO_DO_CHECK for c in checks)
+            vezes[1] += 1
+    saida = {}
+    for versao in sorted(set(versoes) | set(a) | set(b)):
+        saida[versao] = {"main_vermelha": a[versao][0] if versao in a else None,
+                         "merge_vermelho": b[versao][0] if versao in b else None,
+                         "origem": "medido" if versao in a or versao in b else "nao-medido"}
+    return saida
+
+
 def primeiro_pedido(arq):
     """O texto do primeiro registro `user` do transcrito (o prompt do agente) e a soma do uso de tokens das respostas, com cada
     mensagem contada uma vez (o mesmo `id` se repete nos pedaços de uma resposta). (None, 0) se o arquivo não é lido: link,
@@ -676,7 +726,8 @@ def calcular(raiz, raiz_pedidos, pedidos=None, desde=None, ate=None, por="dia", 
     avisos += [aviso] if aviso else []
     return {"fontes": FONTES, "por": por, "itens": itens, "pedidos": por_pedido, "periodos": lista_periodos,
             "espera_por_portao": portoes if arquivos else None, "orcamento": orcamento_de_tokens(por_pedido, textos),
-            "colunas": colunas, "fatia_por_portao": {v: somar_fatia(f) for v, f in por_versao.items()}}, avisos
+            "colunas": colunas, "fatia_por_portao": {v: somar_fatia(f) for v, f in por_versao.items()},
+            "main_vermelha": main_vermelha_e_merges([v for v in por_versao if VERSAO_COMPLETA.fullmatch(v)], usar_gh)}, avisos
 
 
 def _n(valor):
@@ -724,6 +775,9 @@ def linhas_de_texto(dados):
                          + ("minutos=nao-medido voltas=nao-medido tempo=nao-medido" if d is None else
                             f"minutos={_n(d['minutos']) if d['tempo'] else 'nao-medido'} voltas={d['voltas']} "
                             f"tempo={d['tempo'] or 'nao-medido'}"))
+    for versao, d in (dados.get("main_vermelha") or {}).items():
+        saida.append(f"metricas: ci versao {versao} main_vermelha={_n(d['main_vermelha'])} merge_com_check_vermelho={_n(d['merge_vermelho'])} "
+                     f"origem={d['origem']}")
     portoes = dados.get("espera_por_portao")
     if portoes is None:
         saida.append("metricas: portao - (sem recusas.log: o hook agentes ainda não recusou nada ou a fonte falta)")
