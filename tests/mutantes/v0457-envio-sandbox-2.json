@@ -1,0 +1,16 @@
+{
+  "pedido": "v0457-envio-sandbox-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E11 o CI lido por padrão é o do ambiente do processo",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    ambiente = os.environ if ambiente is None else ambiente",
+      "para": "    ambiente = {} if ambiente is None else ambiente",
+      "testes": [
+        "tests.test_apoio_sandbox.NoProcessoReal.test_com_ci_definido_no_ambiente_reprova_sem_pular"
+      ]
+    }
+  ]
+}

@@ -14,6 +14,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import sem_manutencao  # noqa: E402
+from apoio_sandbox import exigir  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -1402,6 +1403,7 @@ class MedidaDaVagaPesada(unittest.TestCase):
         self.assertEqual(len(self.log().splitlines()), 4)  # a quebra de linha no valor não abre linha nova
 
     def test_conta_a_pesada_viva_sem_gravar_a_linha_de_comando_dela(self):
+        exigir(self, "proc")
         falso = self.dir / "marca-a7" / "suite-paralela.py"
         falso.parent.mkdir()
         falso.write_text("import time\ntime.sleep(120)\n", encoding="utf-8")

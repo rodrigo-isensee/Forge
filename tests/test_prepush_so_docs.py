@@ -22,6 +22,7 @@ HOOK = RAIZ / "templates" / "projeto" / ".githooks" / "pre-push"
 ZERO = "0" * 40
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ambiente_git import sem_manutencao  # noqa: E402
+from apoio_sandbox import exigir  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
 AMBIENTE.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
 PULO = "só docs/** e .md; lint e typecheck pulados"
@@ -296,6 +297,7 @@ class GrupoDaEtapa(Repo):
             self.fail("o hook não saiu em 30 s")
 
     def interrompe(self):
+        exigir(self, "proc")
         p = self.lanca()
         etapa = self.le("etapa")[0]
         time.sleep(1)
@@ -307,6 +309,7 @@ class GrupoDaEtapa(Repo):
         return etapa
 
     def test_etapa_em_grupo_proprio_e_saida_repassada(self):
+        exigir(self, "proc")
         for saida, esperado in ((0, 0), (3, 1)):
             with self.subTest(saida):
                 self.etapa(f"exit {saida}")
@@ -411,6 +414,7 @@ class TravaDaChecagem(Repo):
         xdg = Path(tempfile.mkdtemp(dir=self.fora))
         xdg.chmod(0o700)
         if os.geteuid() == 0:
+            exigir(self, "chown")
             os.chown(xdg, 65534, 65534)
         else:
             xdg = Path("/")  # do root e sem escrita alheia: só o dono a recusa
@@ -448,6 +452,7 @@ class TravaDaChecagem(Repo):
         if os.geteuid() == 0:
             self.trava.rmdir()
             self.trava.touch()
+            exigir(self, "chown")
             os.chown(self.trava, 65534, 65534)
             self.barra(texto="não é do próprio usuário")
 
@@ -595,6 +600,7 @@ class LimiteDaEtapa(EnvioDeCodigo):
 class AncestralMorto(EnvioDeCodigo):
     """F3: kill -9 em quem pediu o envio encerra a checagem com os filhos (A3), sem sinal para quem não é dela (A5)."""
     def test_kill_9_no_agente_encerra_a_checagem_e_o_hook(self):
+        exigir(self, "proc")
         (self.dir / ".githooks" / "pre-push.local").write_text(
             '#!/usr/bin/env bash\ncd "$(dirname "$0")/.."\nsleep 300 & echo $$ $PPID $(ps -o pgid= -p $$) > etapa; sleep 300\n')
         (self.fora / "entrada").write_text("".join(self.linhas))
