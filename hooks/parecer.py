@@ -23,6 +23,7 @@ import functools
 import json
 import os
 import re
+import stat
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -765,6 +766,67 @@ def merge_por_api(hook, pasta, args):
                           "Corrigir: use gh pr merge <branch>.")
 
 
+PRONTO_NO_GRAPHQL = re.compile(r"markPullRequestReadyForReview", re.I)
+TETO_DA_CONSULTA = 64 * 1024  # bytes de cada arquivo de `-F campo=@arq` ou `--input arq` (FILA-27 A2)
+
+
+def ler_regular(caminho):
+    """Até `TETO_DA_CONSULTA` + 1 bytes do arquivo regular `caminho`. Abre sem bloquear e confere o tipo no descritor: o
+    que não é arquivo regular (FIFO, dispositivo) dá `OSError` sem esperar o escritor (A-F27-1)."""
+    descritor = os.open(caminho, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0))
+    with os.fdopen(descritor, "rb") as f:
+        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+            raise OSError(f"não é arquivo regular: {caminho}")
+        return f.read(TETO_DA_CONSULTA + 1)
+
+
+def textos_da_consulta(args, pasta):
+    """(textos, legível) do `gh api`: os argumentos e os arquivos de `campo=@arq` e `--input arq`, relativos à pasta e
+    até `TETO_DA_CONSULTA`; `-` (entrada padrão), arquivo ausente ou acima do teto, e o relativo com a pasta None
+    (desconhecida: `cd` que o hook não resolve), não dá para ler. O corpo de `--input`
+    vai ao GitHub como JSON: lido decodificado (escape `\\uXXXX` no nome), e o que não é JSON não dá para ler (AR-11)."""
+    textos = []
+    if any(map(expande, args)):  # A-F27-2: `$( )`, `$VAR` ou crase: o gh recebe outro texto, que o hook não lê
+        return textos, False
+    for i, a in enumerate(args):
+        corpo = a == "--input" or a.startswith("--input=")
+        if corpo or "=@" in a:
+            arq = (args[i + 1] if i + 1 < len(args) else "-") if a == "--input" else a.split("=", 1)[1].removeprefix("@")
+            if arq == "-":
+                return textos, False
+            arq = os.path.expanduser(arq)
+            if pasta is None and not os.path.isabs(arq):  # A-F27-3 (AR-7): o gh o lê numa pasta que o hook não sabe
+                return textos, False
+            try:
+                dados = ler_regular(os.path.join(pasta or "", arq))
+            except OSError:
+                return textos, False
+            if len(dados) > TETO_DA_CONSULTA:
+                return textos, False
+            textos.append(dados.decode("utf-8", "replace"))
+            if corpo:
+                try:
+                    textos.append(json.dumps(json.loads(dados), ensure_ascii=False))
+                except (ValueError, RecursionError):
+                    return textos, False
+        textos.append(a)
+    return textos, True
+
+
+def pronto_por_graphql(hook, pasta, args, base):
+    """FILA-27 A2: no clone do Forge, `markPullRequestReadyForReview` tira o PR do rascunho sem dizer a branch, então não
+    há parecer a conferir (`pronto_de_pr`); a consulta que não dá para ler recusa (falha fechada). `pasta`: a do `gh`
+    (`raiz_gh`); `base`: a que o hook resolveu na linha (None: desconhecida), onde se leem os arquivos relativos."""
+    if not (ENDPOINT_GRAPHQL.search(endpoint_da_api(args)) and metodo_mutante(args)):
+        return
+    if not e_clone_do_forge(hook.projeto(pasta, clone_do_forge=True)):
+        return  # nos projetos, o `conformidade` cuida do PR do Forge (R-CONTRIB)
+    textos, legivel = textos_da_consulta(desagrupa_i(args), base)
+    if not legivel or any(PRONTO_NO_GRAPHQL.search(t) for t in textos):
+        bloquear("R-CONTRIB", "tirar o rascunho pela API não informa a branch, ou a consulta não dá para ler. Corrigir: "
+                              "use gh pr ready <branch> (exige os pareceres) ou o forge-fechar.")
+
+
 def principal(hook):
     comando = hook.campo("tool_input", "command")
     if hook.campo("tool_name") != "Bash" or not isinstance(comando, str):
@@ -890,6 +952,7 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
             merge_de_pr(hook, raiz_gh, parte[1], parte[2])
         elif parte[0] == "api":
             merge_por_api(hook, raiz_gh, parte[1])
+            pronto_por_graphql(hook, raiz_gh, parte[1], pasta)
         elif parte[0] == "branch":
             onde = pasta_do_git(pasta, pastas_do_git(palavras), mexidas, desviado)
             raiz = raiz_de_estado(onde) if onde else None
