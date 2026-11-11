@@ -36,9 +36,22 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, 
 
 MERGE = r"merge(?!-base\b)"  # `git merge-base` só lê o grafo (HK3-PARECER, E2): não é merge
 PREFILTRO = re.compile(rf"\bgh\b.*\bpr\b.*\b(create|{MERGE}|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b({MERGE}|pull)\b", re.S)
-# A linha com `gh pr merge` ganha o prazo `PRAZO_DO_MERGE_S` (o `forge-check pr` leva cerca de 2 s; v0455). Sem `.*`:
-# a busca é linear, e só dá mais prazo, nunca libera; o prazo vencido segue recusando.
-MERGE_DE_PR = re.compile(r"\bgh[ \t]+pr[ \t]+merge\b")
+class MERGE_DE_PR:  # noqa: N801 - o `prazo_longo` do `executar`, que espera a interface de um regex (`.search`)
+    """A linha com `gh pr merge` como palavras de um comando ganha o prazo `PRAZO_DO_MERGE_S` (o `forge-check pr` leva
+    cerca de 2 s; v0455). A menção em comentário, string ou corpo de heredoc não ganha (A1 da segurança da 0.45.5).
+    Só dá mais prazo, nunca libera; o prazo vencido segue recusando, e a dúvida ao ler fica com os 3 s."""
+
+    @staticmethod
+    def search(texto):
+        try:
+            simples = palavras_do_texto(tirar_heredocs(texto)[0]).simples
+        except Exception:  # noqa: BLE001 - na dúvida, o prazo comum: menos tempo, nunca uma liberação
+            return None
+        for comando in simples:
+            valores = [Path(p.valor).name if i == 0 else p.valor for i, p in enumerate(comando.palavras)]
+            if any(valores[i:i + 3] == ["gh", "pr", "merge"] for i in range(len(valores))):
+                return True
+        return None
 CRITICO = re.compile(rf"\bpr\b.*\b(create|{MERGE}|ready)\b|\bapi\b|\b({MERGE}|pull)\b", re.S)
 # A palavra crítica só no texto (HK3-PARECER, E2). `sed -n <N,Mp> <arquivos>` só imprime: vale `cat <arquivos>` (só números,
 # sem metacaractere: a troca não muda o que o bash lê). `sh -c` cujo texto só usa estes programas não roda merge, pull nem gh pr.
@@ -360,7 +373,10 @@ def textos_da_linha(comando):
 def critico_ou_alias(texto):
     """A1 da segurança da 0.45.4: a linha é crítica para as travas do parecer se tem o marcador (`CRITICO`) ou se chama
     alias do gh que o parecer confere (`alias_na_linha`). Sem isso, `eval gh junta …` (junta = pr merge) escapava da
-    reavaliação, do teto, do heredoc gravado, da gramática com heredoc, da falha fechada e do prazo."""
+    reavaliação, do teto, do heredoc gravado, da gramática com heredoc, da falha fechada e do prazo.
+    O resultado depende também do ambiente do gh (os config.yml que `alias_na_linha` lê), mas o cache tem só o texto como
+    chave: vale por processo, e o hook roda um processo por chamada. Teste que mude o ambiente no mesmo processo chama
+    `critico_ou_alias.cache_clear()` antes (A4 do review da 0.45.4)."""
     return bool(CRITICO.search(texto)) or alias_na_linha(textos_da_linha(texto))
 
 
@@ -818,8 +834,9 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                              "rodá-lo. Corrigir: grave o texto pelo Write ou Edit e passe-o ao programa "
                              "noutra chamada do Bash")
     if lidas.ilegivel:  # ADR 0013, tabela 2.4: passou no PREFILTRO (gh pr, gh api, merge, pull) e o hook não a lê
-        bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull que o hook não lê (aspas sem par ou # que ele "
-                             "não prova ser comentário). Corrigir: feche as aspas, tire o comentário ou separe os comandos")
+        bloquear("R-REVIEW", "linha com gh pr, gh api, merge, pull ou alias do gh que o hook não lê (aspas sem par ou # "
+                             "que ele não prova ser comentário). Corrigir: feche as aspas, tire o comentário ou separe os "
+                             "comandos")
     internos = [(corpo, False, False) for corpo in conteudos_de_crase(comando, so_os_fechados=True)]
     internos += [(corpo, False, getattr(dono, "rodado", None) or True)  # o dono (ou o programa do texto) pode rodá-lo
                  for dono, corpo in corpos if not corpo_so_lido(dono)]
