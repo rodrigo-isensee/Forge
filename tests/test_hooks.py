@@ -2418,6 +2418,19 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 12, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_tm25(self):  # TM-25: Stryker e teste de banco da lista da stack node-react, um por vez
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("TM-25:")]
+        self.assertGreaterEqual(len(lote), 3, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+        sys.path.insert(0, str(HOOKS))
+        import pesado
+        for comando in ("pnpm stryker run", "npx stryker run", "pnpm exec stryker run", "pnpm test:db", "npm run test:db"):
+            with self.subTest(comando=comando):
+                self.assertTrue(pesado.pesado(comando, PESADOS_DA_STACK))
+        for comando in ("grep -rn stryker docs", "pnpm test", "pnpm run test:dbx", "cat stryker.conf.json"):
+            with self.subTest(comando=comando):
+                self.assertFalse(pesado.pesado(comando, PESADOS_DA_STACK))
+
     def test_fixtures_do_ar_trava(self):  # AR-TRAVA-UMA-SINTAXE (0.45.1): toda forma que o consumidor aceita
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith("AR-TRAVA-UMA-SINTAXE:")]
