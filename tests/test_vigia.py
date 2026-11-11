@@ -14,6 +14,13 @@ PACOTES = POLITICA["pacotes"]
 
 
 class FormaDoComando(unittest.TestCase):
+    def medir(self, funcao, *args):
+        """Exceção na medida é falha do teste, não erro: a medida não pode derrubar o vigia."""
+        try:
+            return funcao(*args)
+        except Exception as erro:  # noqa: BLE001
+            self.fail(f"a medida levantou {erro!r}")
+
     def test_formas_criticas(self):
         casos = {
             "git -C /x push --force origin a": ["git push --force"],
@@ -30,16 +37,16 @@ class FormaDoComando(unittest.TestCase):
         }
         for comando, esperado in casos.items():
             with self.subTest(comando=comando):
-                self.assertEqual(vigia.formas_criticas(comando, PACOTES), esperado)
+                self.assertEqual(self.medir(vigia.formas_criticas, comando, PACOTES), esperado)
 
     def test_comando_de_leitura_nao_conta(self):
         for comando in ("git status", "git log --oneline", "git -C commit status", "gh", "ls docs", "FOO=1", "npm test",
                         "pip3 list", "cat git"):
             with self.subTest(comando=comando):
-                self.assertEqual(vigia.formas_criticas(comando, PACOTES), [])
+                self.assertEqual(self.medir(vigia.formas_criticas, comando, PACOTES), [])
 
     def test_pacote_sem_verbos_na_politica_nao_conta(self):
-        self.assertEqual(vigia.formas_criticas("npm install", {"npm": "malformado"}), [])
+        self.assertEqual(self.medir(vigia.formas_criticas, "npm install", {"npm": "malformado"}), [])
 
     def test_barrado_vem_do_resultado_da_mesma_chamada(self):
         linhas = [json.dumps({"message": {"content": [{"type": "tool_use", "id": i, "name": "Bash", "input": {"command": c}}]}})
@@ -50,7 +57,7 @@ class FormaDoComando(unittest.TestCase):
                                            {"message": {"content": [{"type": "tool_use", "name": "Bash", "input": "x"}]}})]
         linhas.append(json.dumps({"message": {"content": [{"type": "tool_use", "id": "c", "name": "Write",
                                                            "input": {"command": "git push"}}]}}))
-        self.assertEqual(vigia.comandos_criticos(linhas, PACOTES), [("git push", "R-MAIN"), ("git merge", None)])
+        self.assertEqual(self.medir(vigia.comandos_criticos, linhas, PACOTES), [("git push", "R-MAIN"), ("git merge", None)])
 
     def test_papel_do_agente(self):
         self.assertEqual(vigia.papel_do_agente(POLITICA, "forge:qa-engineer"), "qa")
