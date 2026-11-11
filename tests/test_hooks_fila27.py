@@ -52,6 +52,9 @@ class Fila27(unittest.TestCase):
         (tmp / "solta").mkdir()
         self.assertIsNone(_comum.Hook("parecer").projeto(tmp / "solta"))
 
+    def test_a2_ready_por_graphql_no_clone(self):
+        self.rodar("fila27-a2-*.json", 9)
+
 
 if __name__ == "__main__":
     unittest.main()

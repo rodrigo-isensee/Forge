@@ -765,6 +765,44 @@ def merge_por_api(hook, pasta, args):
                           "Corrigir: use gh pr merge <branch>.")
 
 
+PRONTO_NO_GRAPHQL = re.compile(r"markPullRequestReadyForReview", re.I)
+TETO_DA_CONSULTA = 64 * 1024  # bytes de cada arquivo de `-F campo=@arq` ou `--input arq` (FILA-27 A2)
+
+
+def textos_da_consulta(args, pasta):
+    """(textos, legível) do `gh api`: os argumentos e os arquivos de `campo=@arq` e `--input arq`, relativos à pasta e
+    até `TETO_DA_CONSULTA`; `-` (entrada padrão), arquivo ausente ou acima do teto não dá para ler."""
+    textos = []
+    for i, a in enumerate(args):
+        if a == "--input" or a.startswith("--input=") or "=@" in a:
+            arq = (args[i + 1] if i + 1 < len(args) else "-") if a == "--input" else a.split("=", 1)[1].removeprefix("@")
+            if arq == "-":
+                return textos, False
+            try:
+                with open(pasta / os.path.expanduser(arq), "rb") as f:
+                    dados = f.read(TETO_DA_CONSULTA + 1)
+            except OSError:
+                return textos, False
+            if len(dados) > TETO_DA_CONSULTA:
+                return textos, False
+            textos.append(dados.decode("utf-8", "replace"))
+        textos.append(a)
+    return textos, True
+
+
+def pronto_por_graphql(hook, pasta, args):
+    """FILA-27 A2: no clone do Forge, `markPullRequestReadyForReview` tira o PR do rascunho sem dizer a branch, então não
+    há parecer a conferir (`pronto_de_pr`); a consulta que não dá para ler recusa (falha fechada)."""
+    if not (ENDPOINT_GRAPHQL.search(endpoint_da_api(args)) and metodo_mutante(args)):
+        return
+    if not e_clone_do_forge(hook.projeto(pasta, clone_do_forge=True)):
+        return  # nos projetos, o `conformidade` cuida do PR do Forge (R-CONTRIB)
+    textos, legivel = textos_da_consulta(desagrupa_i(args), Path(pasta))
+    if not legivel or any(PRONTO_NO_GRAPHQL.search(t) for t in textos):
+        bloquear("R-CONTRIB", "tirar o rascunho pela API não informa a branch, ou a consulta não dá para ler. Corrigir: "
+                              "use gh pr ready <branch> (exige os pareceres) ou o forge-fechar.")
+
+
 def principal(hook):
     comando = hook.campo("tool_input", "command")
     if hook.campo("tool_name") != "Bash" or not isinstance(comando, str):
@@ -890,6 +928,7 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
             merge_de_pr(hook, raiz_gh, parte[1], parte[2])
         elif parte[0] == "api":
             merge_por_api(hook, raiz_gh, parte[1])
+            pronto_por_graphql(hook, raiz_gh, parte[1])
         elif parte[0] == "branch":
             onde = pasta_do_git(pasta, pastas_do_git(palavras), mexidas, desviado)
             raiz = raiz_de_estado(onde) if onde else None
