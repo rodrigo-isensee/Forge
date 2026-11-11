@@ -1,5 +1,9 @@
 """T-1: `forge-check voltas`, rodadas de brief em `transcricao custo --entregas` e as pastas padrão de transcrições."""
+import contextlib
 import datetime
+import importlib.machinery
+import importlib.util
+import io
 import json
 import os
 import re
@@ -9,6 +13,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = str(RAIZ / "bin" / "forge-check")
@@ -249,6 +254,40 @@ class RodadasDeBrief(Raiz):
         self.assertIn("rodadas de brief: fonte=briefs", linhas[0])
         sem = self.rodar("transcricao", "custo", str(pasta), "--entregas", "--entrega", "nenhum")[1][0]
         self.assertTrue(sem.startswith("| 2026-10-17 | nenhum | jarvis (principal) | 2 | - | - |"), sem)
+
+
+class RamosDeFalhaDoModuloVoltas(Raiz):
+    """F6, E5.4: `voltas` e `esperas` moram em bin/forge_voltas.py; os ramos de falha que o script de ponta a ponta não alcança."""
+    AUSENTE = "forge-check: bin/forge_voltas.py ausente ao lado do forge-check; nada feito\n"
+
+    def carregar(self, nome, arquivo):
+        carregador = importlib.machinery.SourceFileLoader(nome, str(arquivo))
+        modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader(nome, carregador))
+        carregador.exec_module(modulo)
+        return modulo
+
+    def test_copia_avulsa_sem_o_modulo_sai_com_2_nos_dois(self):
+        copia = self.tmp / "copia" / "bin"
+        copia.mkdir(parents=True)
+        (copia / "forge-check").write_bytes(Path(FORGE_CHECK).read_bytes())
+        self.gravar("docs/kanban/historico.md", HISTORICO)
+        env = {"PATH": os.environ.get("PATH", ""), "HOME": str(self.tmp / "home")}
+        for args in (("voltas",), ("esperas",), ("voltas", "--pedido", "xpto"), ("esperas", "--pedido", "xpto")):
+            with self.subTest(args):
+                r = subprocess.run([sys.executable, "-I", str(copia / "forge-check"), "--raiz", str(self.tmp), *args],
+                                   capture_output=True, text=True, env=env, cwd=self.tmp)
+                self.assertEqual((r.returncode, r.stdout), (2, self.AUSENTE), r.stderr)
+
+    def test_historico_que_nao_le_da_rc_1_e_nada_medido(self):
+        self.gravar("docs/kanban/historico.md", HISTORICO)
+        fc = self.carregar("forge_check_e54", FORGE_CHECK)
+        fv = self.carregar("forge_voltas_e54", RAIZ / "bin" / "forge_voltas.py")
+        saida, erro = io.StringIO(), io.StringIO()
+        with mock.patch.object(Path, "read_text", side_effect=PermissionError(13, "Permission denied")), \
+                contextlib.redirect_stdout(saida), contextlib.redirect_stderr(erro):
+            cod = fv.cmd_voltas(self.tmp, "xpto", fc.ctx_das_voltas())
+        self.assertEqual((cod, saida.getvalue(), erro.getvalue()),
+                         (1, "", "voltas: docs/kanban/historico.md ilegivel (Permission denied); nada medido\n"))
 
 
 class PastasPadrao(Raiz):
