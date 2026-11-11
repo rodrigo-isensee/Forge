@@ -201,9 +201,15 @@ class GravacaoDoForgeCheck(unittest.TestCase):
         raiz = self.montar(com_resultado=False)
         fc = modulos_dos_hooks()[0].forge_check()
         fc.gravar_resultado_do_pr(raiz, "p1", None, None, [])  # aprovado no modo estrito: base_sha nulo
-        self.assertEqual(fc.resultado_gravado_do_pr(raiz, "feature/x", None, None)[0], "aprovado")
-        self.assertEqual(fc.resultado_gravado_do_pr(raiz, "feature/x", None, "refs/heads/nao-existe")[0], "ausente")
-        self.assertEqual(fc.resultado_gravado_do_pr(raiz, "feature/x", "nao-existe", None)[0], "ausente")
+
+        def estado(ref, base):  # a exceção vira valor: o ramo de falha é conferido por asserção, não por erro do teste
+            try:
+                return fc.resultado_gravado_do_pr(raiz, "feature/x", ref, base)[0]
+            except Exception as erro:  # noqa: BLE001
+                return repr(erro)
+        self.assertEqual(estado(None, None), "aprovado")
+        self.assertEqual(estado(None, "refs/heads/nao-existe"), "ausente")
+        self.assertEqual(estado("nao-existe", None), "ausente")
 
     def test_falha_ao_gravar_avisa_e_nao_muda_o_codigo(self):
         raiz = self.montar(com_resultado=False)
