@@ -153,7 +153,8 @@
       "\"so_leitura\": \\{"
     ],
     "hooks/_comum.py": [
-      "def conteudos_de_crase"
+      "def conteudos_de_crase",
+      "clone_do_forge and tem_manifesto_do_forge\\(self\\.raiz\\)"
     ],
     "hooks/conformidade.py": [
       "def checar_so_leitura",
@@ -529,7 +530,9 @@
     ],
     "hooks/parecer.py": [
       "avaliar_versao",
-      "R-CONFORMIDADE"
+      "R-CONFORMIDADE",
+      "PRONTO_NO_GRAPHQL = re\\.compile\\(r\"markPullRequestReadyForReview\"",
+      "pronto_por_graphql\\(hook, raiz_gh, parte\\[1\\], pasta\\)"
     ],
     "docs/hooks.md": [
       "a guarda só avisa"
@@ -685,6 +688,13 @@
     "scripts/jarvis-forge": 2
   },
   "invariantes_motivo_trecho": {
+    "hooks/_comum.py": {
+      "clone_do_forge and tem_manifesto_do_forge\\(self\\.raiz\\)": {"regra": "R-REVIEW", "porque": "sem o texto, um clone do Forge com .forge/versao desliga o parecer pelo hooks_desligados e o merge sem parecer passa (FILA-27 A1)"}
+    },
+    "hooks/parecer.py": {
+      "PRONTO_NO_GRAPHQL = re\\.compile\\(r\"markPullRequestReadyForReview\"": {"regra": "R-CONTRIB", "porque": "sem o texto, no clone do Forge a mutação GraphQL tira o PR do rascunho sem os pareceres (FILA-27 A2)"},
+      "pronto_por_graphql\\(hook, raiz_gh, parte\\[1\\], pasta\\)": {"regra": "R-CONTRIB", "porque": "sem a chamada, ou com a pasta da sessão no lugar da resolvida, o ready por GraphQL não é conferido ou lê o arquivo errado (FILA-27 A2, A-F27-3)"}
+    },
     "bin/forge-check": {
       "o delta não foi lido": {"regra": "R-REVIEW", "porque": "sem o texto, a falha do git no delta vira `delta: nenhum` e o parecer se revalida sem ler a mudança (FC-DELTA-GIT-FALHA)"}
     },
