@@ -51,7 +51,7 @@ Cada regra do `docs/engineering/praticas.md` do projeto diz quem a decide: "deci
 11. Teste de ausência ("não achei X") cujo alvo mudou é relido: o texto que ele procura ainda existe? Teste que percorre pasta ou lista afirma um mínimo de itens?
 12. Falso de `git` ou `gh` num teste (a função que imita `head_do_pr`, `ls-remote` e afins) confere a mesma regra que o script corrige (nome exato, não prefixo nem substring)? Falso mais frouxo que o script deixa o teste verde com o defeito presente.
 
-**Suíte:** a suíte inteira roda só no CI do PR, obrigatório para o merge; o review lê o diff e roda os testes dos arquivos tocados (`bin/forge-testes`), e mais quando houver dúvida.
+**Suíte:** a suíte inteira roda só no CI do PR, obrigatório para o merge; o review cita o CI verde ou o PQ do autor, sem rerrodar o SHA. Roda o teste novo ou o mutante.
 
 Achado cuja classe se repete (já está em `docs/engineering/achados-recorrentes.md` ou volta neste pedido): grave a linha `AR-<n>` nesse arquivo, no formato dele (só classe, ID da regra, contagem e `arquivo:linha`), no mesmo PR do parecer; o `tech-lead` é quem a escreve no review.
 

@@ -1,0 +1,26 @@
+{
+  "pedido": "backlog-ate-sexta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C7-1",
+      "guarda": "o revert cujo plano cai na suite inteira nao roda nada (C-7, remocao: tirar o --listar por commit)",
+      "arquivo": "scripts/conferir-reversao.py",
+      "de": "if not ponta_dirigida(copia, base=base):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_conferir_reversao.ConferirReversao.test_revert_que_pede_a_suite_inteira_nao_roda_nada"
+      ]
+    },
+    {
+      "id": "C7-2",
+      "guarda": "so o revert com plano dirigido ou nada alterado roda a suite afetada (C-7, inversao)",
+      "arquivo": "scripts/conferir-reversao.py",
+      "de": "if not ponta_dirigida(copia, base=base):",
+      "para": "if ponta_dirigida(copia, base=base):",
+      "testes": [
+        "tests.test_conferir_reversao.ConferirReversao.test_commit_que_se_reverte"
+      ]
+    }
+  ]
+}
