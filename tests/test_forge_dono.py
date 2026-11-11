@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho ta
 from test_voltas import FORGE_CHECK, Raiz  # noqa: E402
 
 PERGUNTA = ('# p\n\n## Decisões do usuário (registro literal)\nPERGUNTA AO DONO (2026-11-09 10:00): duas questões → '
-            '"1a) usar a fila [recomendada] [reversível] 1b) usar o banco 2a) apagar a branch velha [recomendada] [irreversível] 2b) manter"\n')
+            '"1a) usar a fila [recomendada] [reversível] 1b) usar o banco 2a) arquivar a branch velha [recomendada] [irreversível] 2b) manter"\n')
 VERSAO = json.loads((Path(FORGE_CHECK).parent.parent / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
 
 
@@ -39,11 +39,11 @@ class Resposta(Raiz):  # O4
         cod, linhas, _ = self.resposta("aprovo")
         self.assertEqual(cod, 1, linhas)
         self.assertIn("a questão 2 é irreversível", linhas[0])
-        self.assertTrue(any(l.startswith("pergunta: 2) 2a) apagar") for l in linhas), linhas)
+        self.assertTrue(any(l.startswith("pergunta: 2) 2a) arquivar") for l in linhas), linhas)
         cod, linhas, _ = self.resposta("2a, aprovo")
         self.assertEqual(cod, 0, linhas)
         self.assertEqual(linhas[:2], ["resposta: 1 -> 1a: usar a fila [recomendada] [reversível]",
-                                      "resposta: 2 -> 2a: apagar a branch velha [recomendada] [irreversível]"])
+                                      "resposta: 2 -> 2a: arquivar a branch velha [recomendada] [irreversível]"])
 
     def test_palavra_solta_so_escolhe_a_marcada_reversivel(self):
         """O4 (review da 0.44.1): a marca vale com ou sem acento e em qualquer caixa; sem marca, a palavra solta não escolhe; o código
