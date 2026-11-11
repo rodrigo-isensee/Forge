@@ -1,18 +1,18 @@
 ---
 id: R-DECISAO
-titulo: Decisões do dono em lote, com opções, recomendação e prazo
+titulo: Decisões do dono uma a uma, com opções e recomendação, sem prazo que decida
 verificada_por: `forge-check brief selar` (corte de escopo); vigia (`entrada-sem-registro`); revisão; retrospectiva (linhas `MELHORIA:`)
 ---
-# R-DECISAO: Decisões do dono em lote, com opções, recomendação e prazo
+# R-DECISAO: Decisões do dono uma a uma, com opções e recomendação, sem prazo que decida
 
 Propósito: texto único desta regra. Público: o time.
 
 Revisar em: 2027-01-07
-Medida: esperas do dono de ~10 h e ~7 h numa noite com perguntas em série (estudo 0.43.1)
+Medida: decisões aplicadas sem resposta do dono (meta 0) e espera por decisão (decisão do dono de 2026-11-11)
 
 - Vai ao usuário: produto, escopo, prioridade, regra de negócio, custo, acesso, exceção a regra, mais tokens ou tempo de entrega. Decisão técnica é do time: decide e registra.
-- **Em lote:** as decisões independentes vão numa mensagem, numeradas; cada uma com o contexto, **as opções** (prós e contra, se afrouxa o processo, o tempo e os tokens a mais ou a menos, marcados `medido`, `estimado` ou `não medido`, e se esse custo fica maior ou menor que o das outras opções) e **a recomendação** com o motivo.
-- **Prazo e padrão:** decisão reversível sem custo traz prazo; sem resposta, vale a recomendação (`delegado`). Custo, acesso, exceção, aceite de risco, rótulo, merge na main e ato irreversível esperam.
+- **Uma por vez:** uma decisão por mensagem, a de maior peso primeiro; a próxima espera a resposta. Cada uma com o contexto, **as opções** (prós e contra, se afrouxa o processo, o tempo e os tokens a mais ou a menos, marcados `medido`, `estimado` ou `não medido`, e se esse custo fica maior ou menor que o das outras opções) e **a recomendação** com o motivo.
+- **Sem prazo vencido:** nenhuma decisão do dono é aplicada por prazo; sem resposta, fica pendente.
 - **Corte de escopo é explícito:** a marca "Retira do escopo original", o trecho do pedido, o motivo, a consequência e a decisão do usuário; o pedido ganha o "Fora do escopo". Item que some sem a marca reprova (no brief, `corte: sem marca` no selo; na entrega, `pendente:` no review).
 
 ## Complemento: o que é bloqueante e de onde vem a recomendação

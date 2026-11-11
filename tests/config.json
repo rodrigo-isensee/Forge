@@ -255,7 +255,8 @@
       "Como perguntar",
       "Afrouxa o processo\\?",
       "decidam vocês",
-      "\\*\\*Perguntas em lote \\(`R-DECISAO`\\):\\*\\*"
+      "\\*\\*Perguntas uma a uma \\(`R-DECISAO`\\):\\*\\*",
+      "Sem resposta, fica pendente\\."
     ],
     "templates/projeto/docs/pedidos/_modelo.md": [
       "## Fora do escopo",
@@ -570,8 +571,10 @@
       "`comando: —` com `decisão: <pedido>`",
       "um comando, um efeito",
       "evidência no motivo",
-      "\\*\\*Em lote:\\*\\*",
-      "\\*\\*Prazo e padrão:\\*\\*",
+      "\\*\\*Uma por vez:\\*\\*",
+      "a próxima espera a resposta",
+      "\\*\\*Sem prazo vencido:\\*\\*",
+      "sem resposta, fica pendente",
       "\\*\\*não é afrouxamento\\*\\*",
       "Regra nova só com medida"
     ],
