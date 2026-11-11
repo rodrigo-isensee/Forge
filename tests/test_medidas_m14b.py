@@ -25,6 +25,14 @@ def carregar_forge_check_m14b():
     return modulo
 
 
+def carregar_forge_medidas():
+    """bin/forge_medidas.py (FILA-31 F6, 0.45.7 E5.5), onde moram `medida` e `escape`."""
+    carregador = importlib.machinery.SourceFileLoader("forge_medidas_m14b", str(Path(__file__).resolve().parent.parent / "bin" / "forge_medidas.py"))
+    modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader(carregador.name, carregador))
+    carregador.exec_module(modulo)
+    return modulo
+
+
 FORGE_CHECK_M2B = str(Path(__file__).resolve().parent.parent / "bin" / "forge-check")
 CABECALHO_HISTORICO = "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n"
 
@@ -366,10 +374,10 @@ class DefeitoEscapado(Raiz):
         self.assertEqual(cod, 0)
         self.assertIn("escapes: origem: spec=1 ux=0 arquitetura=0 codigo=2 teste=0 brief=0 nao-classificado=2", saida)
         self.assertEqual(saida[-1], "escapes: total: escapes=5 pedidos_prontos=0 taxa=- dias=30")
-        mod = carregar_forge_check_m14b()
-        self.assertEqual(mod.origem_do_escape(antiga.strip().strip("|").split("|")), "nao-classificado")
-        self.assertEqual(mod.origem_do_escape(["a"] * 7), "nao-classificado")
-        self.assertEqual(mod.origem_do_escape(["a"] * 7 + ["brief"]), "brief")
+        mod, ctx = carregar_forge_medidas(), carregar_forge_check_m14b().ctx_das_medidas()  # F6, E5.5: mora em bin/forge_medidas.py
+        self.assertEqual(mod.origem_do_escape(antiga.strip().strip("|").split("|"), ctx), "nao-classificado")
+        self.assertEqual(mod.origem_do_escape(["a"] * 7, ctx), "nao-classificado")
+        self.assertEqual(mod.origem_do_escape(["a"] * 7 + ["brief"], ctx), "brief")
 
     def test_resumo_sem_arquivo_nem_historico_zera_e_a_taxa_e_traco(self):
         cod, saida, _ = self.rodar("escape", "resumo", "--dias", "7")
