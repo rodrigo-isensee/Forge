@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "comando novo: bin/forge-<sub> casa com a regra",
       "arquivo": "bin/forge-testes",
-      "de": "    if sub:",
-      "para": "    if None:",
+      "de": "    if sub:\n        modulo = \"test_\" + sub.group(1)",
+      "para": "    if None:\n        modulo = \"test_\" + sub.group(1)",
       "testes": [
         "tests.test_testes_tocados.MapaDosNovos.test_comando_novo_leva_ao_teste_dele_ao_test_forge_e_a_quem_o_cita"
       ]
