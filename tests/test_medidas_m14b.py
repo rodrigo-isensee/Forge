@@ -1,14 +1,18 @@
 """MEDIR-M14B: as medidas que dão a linha de base do processo antes de qualquer afrouxamento (esperas, PR `fix` que corrige PR
 mesclado, defeito escapado, rótulo `afrouxa-regra` que era afrouxamento real) e o casamento do `--pedido` do custo com os cartões."""
+import contextlib
 import datetime
 import hashlib
+import io
 import importlib.machinery
 import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import types
 import unittest
 from pathlib import Path
 
@@ -214,7 +218,8 @@ class PrsFixQueCorrigemPrMesclado(RepositorioDeTeste):
         self.commitar("docs(x): texto (#12)", {"x.md": "1\n"}, "2026-10-16")
 
     def corrigidos(self, *args):
-        cod, linhas, _ = self.rodar("corrigidos", *args)
+        cod, linhas, erro = self.rodar("corrigidos", *args)
+        self.assertNotIn("Traceback", erro)  # F6, E5.3: a queda do script é falha do teste, não erro de índice
         return cod, linhas
 
     def test_fix_que_cita_pr_mesclado_antes_e_prova_escrita(self):
@@ -392,7 +397,8 @@ class RotulosAfrouxaRegraQueEramReais(RepositorioDeTeste):
         self.commitar("fix(catraca): ajuste (#22)", {"tests/catraca.py": "controle = 2\n"}, "2026-10-13")
 
     def afrouxamentos(self, *args):
-        cod, linhas, _ = self.rodar("afrouxamentos", *args)
+        cod, linhas, erro = self.rodar("afrouxamentos", *args)
+        self.assertNotIn("Traceback", erro)  # F6, E5.3: a queda do script é falha do teste, não erro de índice
         return cod, linhas
 
     def test_classifica_real_so_protegido_sem_violacao_e_sem_commit(self):
@@ -425,6 +431,76 @@ class RotulosAfrouxaRegraQueEramReais(RepositorioDeTeste):
         cod, linhas = self.afrouxamentos("--prs", "20", "--ref", "nao-existe")
         self.assertEqual(cod, 1)
         self.assertTrue(linhas[0].startswith("afrouxamentos: ref"), linhas)
+
+
+class RamosDeFalhaDoModuloCorrigidos(RepositorioDeTeste):
+    """F6, E5.3: os ramos de falha de `corrigidos` e `afrouxamentos` (bin/forge_corrigidos.py) que não tinham teste."""
+    AUSENTE = "forge-check: bin/forge_corrigidos.py ausente ao lado do forge-check; nada feito\n"
+
+    def setUp(self):
+        super().setUp()
+        self.iniciar()
+
+    def rodar_limpo(self, script, *args):
+        """(rc, stdout, stderr) do `script` sobre tmp; Python com -I e ambiente limpo (só PATH e HOME)."""
+        env = {"PATH": os.environ.get("PATH", ""), "HOME": str(self.tmp / "home")}
+        r = subprocess.run([sys.executable, "-I", str(script), "--raiz", str(self.tmp), *args],
+                           capture_output=True, text=True, env=env, cwd=self.tmp)
+        return r.returncode, r.stdout, r.stderr
+
+    def rodar_copia(self, arquivos, *args):
+        """O forge-check de uma cópia nova em tmp/copia só com `arquivos` de bin/."""
+        copia = self.tmp / "copia"
+        shutil.rmtree(copia, ignore_errors=True)
+        (copia / "bin").mkdir(parents=True)
+        for nome in arquivos:
+            (copia / "bin" / nome).write_bytes((RAIZ / "bin" / nome).read_bytes())
+        return self.rodar_limpo(copia / "bin" / "forge-check", *args)[:2]
+
+    def test_sem_ref_e_sem_commit_cita_a_primeira_ref_padrao(self):
+        for cmd, args in (("corrigidos", ()), ("afrouxamentos", ("--prs", "1"))):
+            with self.subTest(cmd):
+                self.assertEqual(self.rodar_limpo(FORGE_CHECK, cmd, *args), (1, f'{cmd}: ref "origin/develop" não existe ou o git falhou\n', ""))
+
+    def test_rotulados_acima_do_teto_rc_2(self):
+        (self.tmp / "grande.json").write_bytes(b" " * (1024 * 1024 + 1))
+        self.assertEqual(self.rodar_limpo(FORGE_CHECK, "afrouxamentos", "--rotulados", str(self.tmp / "grande.json")),
+                         (2, "afrouxamentos: --rotulados passa de 1048576 bytes\n", ""))
+
+    def test_pr_no_commit_raiz_e_sem_commit(self):
+        self.commitar("feat(a): raiz (#5)", {"a.py": "1\n"})
+        cod, saida, erro = self.rodar_limpo(FORGE_CHECK, "afrouxamentos", "--prs", "5")
+        self.assertEqual((cod, saida.splitlines()[:1], erro), (0, ["afrouxamentos: #5 sem-commit"], ""))
+
+    def test_falha_do_git_na_catraca_e_erro_git(self):
+        self.commitar("chore: base", {"a.py": "1\n"})
+        self.commitar("fix(a): ajuste (#6)", {"a.py": "2\n"})
+        carregador = importlib.machinery.SourceFileLoader("forge_corrigidos_e53", str(RAIZ / "bin" / "forge_corrigidos.py"))
+        modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader(carregador.name, carregador))
+        carregador.exec_module(modulo)
+        fc = carregar_forge_check_m14b()
+        marca = "o rótulo não libera esta violação"
+        catraca = types.SimpleNamespace(NAO_LIBERAVEL=marca, violacoes_das_regras=lambda raiz, base, head: [f"git: o diff falhou; {marca}"],
+                                        arquivo_da_violacao=lambda v: None)
+        ctx = {"git": fc.git, "sha_do_commit": fc.sha_do_commit, "nome_seguro": fc.nome_seguro, "sem_controle": fc.sem_controle,
+               "carregar_catraca": lambda: catraca}
+        saida = io.StringIO()
+        with contextlib.redirect_stdout(saida):
+            cod = modulo.cmd_afrouxamentos(self.tmp, "HEAD", "6", None, ctx)
+        linhas = saida.getvalue().splitlines()
+        self.assertEqual((cod, linhas[:1]), (0, ["afrouxamentos: #6 erro-git"]))
+        self.assertIn(" erro-git=1 ", linhas[-1])
+
+    def test_copia_sem_a_catraca_rc_1(self):
+        self.commitar("fix(a): ajuste (#6)", {"a.py": "1\n"})
+        self.assertEqual(self.rodar_copia(("forge-check", "forge_corrigidos.py"), "afrouxamentos", "--prs", "6"),
+                         (1, "afrouxamentos: não carreguei tests/catraca.py\n"))
+
+    def test_copia_avulsa_sem_o_modulo_sai_com_2_nos_dois(self):
+        self.commitar("fix(a): ajuste (#6)", {"a.py": "1\n"})
+        for args in (("corrigidos",), ("afrouxamentos", "--prs", "6")):
+            with self.subTest(args):
+                self.assertEqual(self.rodar_copia(("forge-check",), *args), (2, self.AUSENTE))
 
 
 class TextosDizemQuandoCadaMedidaRoda(unittest.TestCase):
