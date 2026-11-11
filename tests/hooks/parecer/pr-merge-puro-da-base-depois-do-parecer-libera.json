@@ -71,6 +71,10 @@
       ]
     }
   ],
+  "resultado_do_pr": {
+    "pedido": "p1",
+    "base": "develop"
+  },
   "entrada": {
     "hook_event_name": "PreToolUse",
     "tool_name": "Bash",
