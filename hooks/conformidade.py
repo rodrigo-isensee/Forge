@@ -312,6 +312,7 @@ PROVA_DA_SUITE = ("R-VERIFY", "a prova da suíte só é gravada pelo pre-push e 
 # também fora de projeto (a `GuardaDaProva` a deixa passar), e não só quando ela aponta para o Forge.
 PROFUNDIDADE_EXCEDIDA = ("R-CONFORMIDADE", f"comando aninhado (bash -c, eval, $(, crase, heredoc) em mais de {PROFUNDIDADE} "
                          "níveis: o hook não o lê", f"rode o comando direto, com no máximo {PROFUNDIDADE} níveis aninhados")
+COLCHETE_DE_DIGITO = re.compile(r"\[[0-9-]+\]")  # o bash e o glob do Python o leem igual: sem caixa, negação nem classe
 CURINGA = re.compile(r"[*?\[]")  # o bash expande no alvo antes de gravar (A1 e A2 da segurança g1 da 0.45)
 MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
 GLOB_DE_PATHSPEC = re.compile(r"[*?\[\\]")
@@ -356,6 +357,11 @@ SIMPLES = {
 # F6: o mesmo vale para enviar sugestão ao Forge (`forge sugerir`, `forge-sugerir`): só `--guardar` é do agente. A variável de
 # ambiente que o script confere some com `env -i`; por isso a defesa principal é este hook.
 GUARDAR_EXATO = re.compile(r"(?:forge sugerir|forge-sugerir|bin/forge-sugerir) --guardar (\"[^\"$`\\!]*\"|'[^']*')", re.S)
+
+
+def sem_caixa(padrao):
+    """O `nocaseglob` do bash no glob do Python: cada letra do padrão (o colchete que sobra só tem dígito) vira `[xX]`."""
+    return re.sub(r"[^\W\d_]", lambda m: f"[{m[0].lower()}{m[0].upper()}]", padrao)
 
 
 def valor_do_rev_parse(corpo):
@@ -1081,16 +1087,21 @@ class Guarda:
         """Volta 4 (A11 da segurança E20.31, A4 do QA E20.32, v046): o resto depois do `DIR_DO_GIT` com chaves
         (`conf{i,}g`) não se libera (o hook não expande chaves: falha fechada); com curinga (`c?nfig`, `hook[s]/pre-push`),
         só se nenhum nome que o glob de cada prefixo do resto expande no `.git` da raiz e no diretório comum (o de
-        `pastas_do_curinga`) cair em regra que não seja a genérica `.git/`."""
+        `pastas_do_curinga`) cair em regra que não seja a genérica `.git/`. Volta 5 (A11 da segurança E20.37, A1 do review
+        E20.36): o glob do Python não lê o colchete do bash (`[^x]`, `[[:alpha:]]`, `[[=c=]]`, `[[.c.]]`), então resto com
+        `[` também não se libera, salvo o colchete só de dígitos (`[0-9]`, que os dois leem igual); com `?` e `*`, cada letra
+        casa as duas caixas (`shopt -s nocaseglob` com `CONFI?`)."""
         resto = valor.rsplit(DIR_DO_GIT, 1)[1].lstrip("}").strip("/")
         if "{" in resto:
+            return False
+        if "[" in COLCHETE_DE_DIGITO.sub("", resto):
             return False
         if not CURINGA.search(resto):
             return True
         git = Path(os.path.realpath(self.h.raiz)) / ".git"
         topo = self.raiz_git(pasta)
-        partes = resto.split("/")
-        for base in {str(b) for b in (git, topo and diretorio_comum(topo)) if b and Path(b).is_dir()}:
+        partes = sem_caixa(resto).split("/")
+        for base in {str(b) for b in filter(None, (git, topo and diretorio_comum(topo)))}:
             for k in range(1, len(partes) + 1):
                 for n in glob.glob(f"{glob.escape(base)}/{'/'.join(partes[:k])}"):
                     x = self.caminho_barrado(Path(os.path.normpath(git / os.path.relpath(n, base))))
