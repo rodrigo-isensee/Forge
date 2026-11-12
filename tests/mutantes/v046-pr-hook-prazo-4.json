@@ -58,8 +58,8 @@
       "id": "M25",
       "guarda": "PR-HOOK-PRAZO: gravar: a violação vai no registro",
       "arquivo": "bin/forge-check",
-      "de": "[:160] if violacoes else None}",
-      "para": "[:160] if False else None}",
+      "de": "[:160] if violacoes else None, \"escritor\"",
+      "para": "[:160] if False else None, \"escritor\"",
       "testes": [
         "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_pr_grava_o_reprovado_e_o_hook_o_le"
       ]

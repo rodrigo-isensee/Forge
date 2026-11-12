@@ -108,7 +108,7 @@ SEM_AMBIENTE = Ambiente(frozenset(), bool(DESVIOS & set(os.environ)))
 # vai pelas ferramentas de arquivo, e o programa, noutra chamada
 GRAVE_E_RODE_NOUTRA = "grave pelo Write ou Edit e rode o programa noutra chamada"
 BASES = ("develop", "origin/develop", "main", "origin/main", "master", "origin/master")
-# PR-HOOK-PRAZO: o prazo vencido diz o comando que grava o resultado que o `gh pr create` só lê (cabe nos 200 caracteres)
+# PR-HOOK-PRAZO: o prazo vencido do `gh pr create` sem o resultado gravado diz o comando que o grava (cabe nos 200 caracteres)
 CONTORNO_DO_PRAZO = "rode antes forge-check pr"
 
 
@@ -560,6 +560,8 @@ def verificar(hook, raiz, branch, ref, base, dica="", gravado=False):
         return
     if estado == "reprovado":
         bloquear("R-REVIEW", f"{dica}{motivo}")
+    if motivo:  # sem o resultado gravado, o prazo vencido da conferência de hoje diz o comando que o grava (o resto: CONTORNO_DO_TETO)
+        hook.contorno_do_prazo = CONTORNO_DO_PRAZO
     pedidos = fc.pedidos_da_branch(raiz, branch, ref)
     if not pedidos:
         exigidos, classe = exigidos_sem_pedido(fc, raiz, ref, base)
@@ -1003,5 +1005,4 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
 
 
 if __name__ == "__main__":
-    executar("parecer", principal, CriticoOuAlias, clone_do_forge=True, regra_do_prazo="R-REVIEW", prazo_longo=MERGE_DE_PR,
-             contorno_do_prazo=CONTORNO_DO_PRAZO)
+    executar("parecer", principal, CriticoOuAlias, clone_do_forge=True, regra_do_prazo="R-REVIEW", prazo_longo=MERGE_DE_PR)

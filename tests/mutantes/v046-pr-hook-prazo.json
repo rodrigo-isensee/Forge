@@ -66,8 +66,8 @@
       "id": "M7",
       "guarda": "PR-HOOK-PRAZO: o resultado ilegível ao lado é pulado, sem derrubar a leitura",
       "arquivo": "bin/forge-check",
-      "de": "        except (OSError, ValueError):\n            continue\n        if isinstance(r, dict) and r.get(\"head\") == head",
-      "para": "        except OSError:\n            continue\n        if isinstance(r, dict) and r.get(\"head\") == head",
+      "de": "        except (OSError, ValueError):\n            continue\n        if isinstance(r, dict) and r.get(\"escritor\")",
+      "para": "        except OSError:\n            continue\n        if isinstance(r, dict) and r.get(\"escritor\")",
       "testes": [
         "tests.test_pr_hook_prazo.PrHookPrazo.test_ilegivel_de_outra_branch_ou_de_outro_head_nao_vale"
       ]

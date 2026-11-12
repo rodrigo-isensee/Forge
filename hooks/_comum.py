@@ -2542,6 +2542,7 @@ class Hook:
         self.marcado = None  # o texto da ação tem o marcador crítico? None: ainda não se sabe (`marcado`)
         self.prazo_s = None  # o prazo do vigia desta chamada, em s (`executar`, `estender_prazo`); None: sem vigia
         self.corpos_pendentes = 0  # corpos de heredoc tirados da linha e ainda não conferidos (`prazo_vencido`)
+        self.contorno_do_prazo = None  # o "Corrigir" do prazo vencido, se o passo em curso tem um próprio; None: CONTORNO_DO_TETO
 
     # Entrada -------------------------------------------------------------------------------
     def campo(self, *chaves):
@@ -2771,7 +2772,7 @@ def vigia_de_prazo(segundos):
         signal.signal(signal.SIGALRM, anterior)
 
 
-def prazo_vencido(hook, critico, bruto, clone_do_forge, regra, contorno=CONTORNO_DO_TETO):
+def prazo_vencido(hook, critico, bruto, clone_do_forge, regra):
     """O vigia venceu: com o marcador crítico (e `marcado` ainda desconhecido vale como marcado: a busca do próprio
     marcador passou do prazo) ou com corpo de heredoc ainda por conferir (C-4: o último corpo é o que ninguém leu),
     numa sessão vigiada e antes da ferramenta, recusa pela `regra` do hook; senão, libera, com a linha no erros.log.
@@ -2781,7 +2782,7 @@ def prazo_vencido(hook, critico, bruto, clone_do_forge, regra, contorno=CONTORNO
     if (critico is None or hook.entrada.get("hook_event_name") == "PostToolUse" or (hook.marcado is False and not hook.corpos_pendentes)
             or not sessao_vigiada(hook, clone_do_forge)):
         return
-    quem, como = (("a chamada com ação crítica", contorno) if hook.marcado is not False else
+    quem, como = (("a chamada com ação crítica", hook.contorno_do_prazo or CONTORNO_DO_TETO) if hook.marcado is not False else
                   (f"{hook.corpos_pendentes} corpo(s) de heredoc", "separe o comando em chamadas menores"))
     bloquear(regra, f"o hook não decidiu em {prazo:g} s {quem} (texto longo ou lento demais, ou um `git` "
                     f"lento): recusa, em vez de deixar o timeout liberá-la. Corrigir: {como}")
@@ -2800,13 +2801,12 @@ def estender_prazo(hook, prazo_longo, inicio):
     signal.setitimer(signal.ITIMER_REAL, max(PRAZO_DO_MERGE_S - (time.monotonic() - inicio), 0.001))
 
 
-def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None, prazo_longo=None,
-             contorno_do_prazo=CONTORNO_DO_TETO):
+def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None, prazo_longo=None):
     """Lê o JSON do stdin, chama `funcao(hook)` e sai com 0; `bloquear` sai com 2. `critico` (regex) liga a falha
     fechada seletiva (`clone_do_forge`: também no clone do Forge); `FORGE_GUARDA_ABERTA=1` no ambiente do processo
     (só o dono) abre a guarda desses hooks. `regra_do_prazo` (a regra que o hook cita ao recusar) liga o vigia de prazo:
     o marcador se calcula primeiro, e a decisão toda roda sob `PRAZO_DA_DECISAO_S`; com a linha casando `prazo_longo`
-    (regex), sob `PRAZO_DO_MERGE_S` (`estender_prazo`); `contorno_do_prazo`: o "Corrigir" da recusa do prazo vencido."""
+    (regex), sob `PRAZO_DO_MERGE_S` (`estender_prazo`)."""
     hook = Hook(nome)
     bruto = sys.stdin.read()
     if critico is not None and os.environ.get("FORGE_GUARDA_ABERTA") == "1":
@@ -2825,7 +2825,7 @@ def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=No
                     barrar_sem_versao(hook, critico, bruto)
                 funcao(hook)
     except PrazoVencido:
-        prazo_vencido(hook, critico, bruto, clone_do_forge, regra_do_prazo, contorno_do_prazo)
+        prazo_vencido(hook, critico, bruto, clone_do_forge, regra_do_prazo)
     except Exception as erro:  # noqa: BLE001 - ADR 0003: erro interno libera e fica no erros.log
         hook.registrar_erro(erro)
         falhar_fechado(hook, critico, bruto, clone_do_forge)

@@ -4,6 +4,8 @@ Sem o aprovado do mesmo head, branch e base, recusa e diz o comando a rodar ante
 
 Os testes que provam "só lê" rodam o hook com o `cmd_pr` e o `pedidos_da_branch` do `forge-check` trocados por uma saída 97: se o hook
 refizesse a checagem, sairia 97 em vez de 0 ou 2."""
+import contextlib
+import io
 import json
 import os
 import subprocess
@@ -34,6 +36,15 @@ def refez(*args, **kwargs):
 fc.cmd_pr = fc.pedidos_da_branch = refez
 destino = sys.argv[3]
 atexit.register(lambda: open(destino, "w").write(str(time.monotonic() - inicio)))
+sys.argv = [sys.argv[2]]
+runpy.run_path(sys.argv[0], run_name="__main__")
+"""
+# A1 do review (E20.11): o mesmo hook com a conferência de hoje (`cmd_pr`) lenta, para o vigia de produção vencer nela.
+LANCADOR_LENTO = """
+import runpy, sys, time
+sys.path.insert(0, sys.argv[1])
+import _comum
+_comum.forge_check().cmd_pr = lambda *args, **kwargs: time.sleep(60)
 sys.argv = [sys.argv[2]]
 runpy.run_path(sys.argv[0], run_name="__main__")
 """
@@ -77,6 +88,18 @@ class PrHookPrazo(unittest.TestCase):
             r = rodar("parecer", self.entrada, raiz, montar_proc(self._pasta_temporaria(), None), {}, producao=True)
         return r, float(tempo.read_text(encoding="utf-8")) if tempo.exists() else None
 
+    def hook_lento(self, raiz):
+        """O hook com o vigia de produção e o `cmd_pr` lento: o prazo vence na conferência de hoje."""
+        lancador = [sys.executable, "-I", "-c", LANCADOR_LENTO, str(HOOKS), str(HOOKS / "parecer.py")]
+        with mock.patch.object(test_hooks, "lancador", lambda *a: lancador):
+            return rodar("parecer", self.entrada, raiz, montar_proc(self._pasta_temporaria(), None), {}, producao=True)
+
+    def um_registro(self, raiz):
+        """(pasta, o registro do head): conta antes de desempacotar, para a base sem gravação falhar por asserção (A1 do QA, E20.11)."""
+        pasta, lista = registros(raiz)
+        self.assertEqual(len(lista), 1, "um registro gravado para o head")
+        return pasta, lista[0]
+
     def test_aprovado_do_head_libera_so_lendo_dentro_do_prazo(self):
         raiz = self.montar()
         r, segundos = self.hook_so_lendo(raiz)
@@ -119,10 +142,11 @@ class PrHookPrazo(unittest.TestCase):
 
     def test_ilegivel_de_outra_branch_ou_de_outro_head_nao_vale(self):
         raiz = self.montar()
-        pasta, (registro,) = registros(raiz)
+        pasta, registro = self.um_registro(raiz)
         aprovado = next(pasta.glob("*.json"))
         for nome, mudanca in (("outra branch", {"branch": "feature/y"}), ("outro head", {"head": "0" * 40}),
-                              ("resultado estranho", {"resultado": "sim"})):
+                              ("resultado estranho", {"resultado": "sim"}), ("outro escritor", {"escritor": "0" * 64}),
+                              ("sem escritor", {"escritor": None})):
             with self.subTest(nome):
                 aprovado.write_text(json.dumps({**registro, **mudanca}), encoding="utf-8")
                 self.assertEqual(self.hook(raiz).returncode, 2)
@@ -132,7 +156,7 @@ class PrHookPrazo(unittest.TestCase):
 
     def test_pedido_da_branch_sem_resultado_recusa(self):
         raiz = self.montar()
-        pasta, (registro,) = registros(raiz)
+        pasta, registro = self.um_registro(raiz)
         next(pasta.glob("*.json")).write_text(json.dumps({**registro, "pedidos_da_branch": ["p1", "p2"]}), encoding="utf-8")
         r = self.hook(raiz)
         self.assertEqual(r.returncode, 2, r.stderr)
@@ -140,7 +164,7 @@ class PrHookPrazo(unittest.TestCase):
 
     def test_branch_sem_pedido_gravado_recusa(self):
         raiz = self.montar()
-        pasta, (registro,) = registros(raiz)
+        pasta, registro = self.um_registro(raiz)
         next(pasta.glob("*.json")).write_text(json.dumps({**registro, "pedidos_da_branch": []}), encoding="utf-8")
         r, _ = self.hook_so_lendo(raiz)
         self.assertEqual(r.returncode, 2, r.stderr)
@@ -149,7 +173,7 @@ class PrHookPrazo(unittest.TestCase):
     def test_pedidos_da_branch_malformado_nao_derruba_a_leitura(self):
         """`pedidos_da_branch` que não é lista vale como sem pedido (recusa); o item que não é texto é ignorado."""
         raiz = self.montar()
-        pasta, (registro,) = registros(raiz)
+        pasta, registro = self.um_registro(raiz)
         for nome, pedidos, codigo, trecho in (("nulo", None, 2, "R-REVIEW: nenhum parecer com `branch: feature/x`"),
                                               ("item numérico", [1, "p1"], 0, "")):
             with self.subTest(nome):
@@ -166,23 +190,39 @@ class PrHookPrazo(unittest.TestCase):
         r, _ = self.hook_so_lendo(raiz)
         self.assertEqual(r.returncode, REFEZ, r.stderr)
 
+    def test_prazo_vencido_diz_rode_antes_so_no_pr_create_sem_resultado(self):
+        """A1 do review (E20.11): o prazo vencido na conferência de hoje do `gh pr create` sem resultado diz o comando que o grava;
+        no merge, que não lê o resultado gravado, segue o contorno de sempre."""
+        raiz = self.montar(com_resultado=False)
+        r = self.hook_lento(raiz)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("R-REVIEW: o hook não decidiu", r.stderr)
+        self.assertIn("Corrigir: rode antes forge-check pr", r.stderr)
+        self.entrada = dict(self.entrada, tool_input={"command": "git merge feature/x"})
+        git("switch", "-q", "develop", cwd=raiz)
+        r = self.hook_lento(raiz)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn(f"Corrigir: {modulos_dos_hooks()[0].CONTORNO_DO_TETO[:20]}", r.stderr)  # a recusa corta em 200 caracteres
+        self.assertNotIn("rode antes", r.stderr)
+
 
 class GravacaoDoForgeCheck(unittest.TestCase):
     _pasta_temporaria = test_hooks.Hooks._pasta_temporaria
     montar = PrHookPrazo.montar
     hook_so_lendo = PrHookPrazo.hook_so_lendo
+    um_registro = PrHookPrazo.um_registro
 
     def test_pr_grava_o_reprovado_e_o_hook_o_le(self):
         raiz = self.montar(com_resultado=False)
         r = forge_check(raiz, "pr", "p1", "--base", "develop")
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)  # sem a conferência de entrega do pedido
-        pasta, (registro,) = registros(raiz)
+        pasta, registro = self.um_registro(raiz)
         head = git("rev-parse", "HEAD", cwd=raiz).stdout.strip()
         develop = git("rev-parse", "develop", cwd=raiz).stdout.strip()
         self.assertEqual({k: registro[k] for k in ("contrato", "resultado", "pedido", "branch", "head", "base_sha", "pedidos_da_branch")},
                          {"contrato": 1, "resultado": "reprovado", "pedido": "p1", "branch": "feature/x", "head": head,
                           "base_sha": develop, "pedidos_da_branch": ["p1"]})
-        self.assertTrue(registro["violacao"].startswith("pr: conferência:"))
+        self.assertTrue(str(registro["violacao"]).startswith("pr: conferência:"), registro["violacao"])
         self.assertEqual(pasta.stat().st_mode & 0o777, 0o700)
         r, _ = self.hook_so_lendo(raiz)
         self.assertEqual(r.returncode, 2, r.stderr)
@@ -233,6 +273,38 @@ class GravacaoDoForgeCheck(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("pr: aviso: resultado não gravado para o hook", r.stderr)
         self.assertRegex(r.stderr, r"resultado não gravado para o hook \([^)\[]+\)")  # o motivo curto do sistema, sem o caminho
+        self.assertNotIn("resultados antigos", r.stderr, "sem gravar, não poda")
+
+    def test_gravar_poda_os_heads_que_nao_sao_mais_ponta(self):
+        """A3 do review (E20.11): gravar apaga a pasta do head que deixou de ser ponta de branch; ficam a gravada, a de ponta de outra
+        branch e o que não é pasta de head. Sem a lista das pontas, nada se apaga; a falha ao apagar só avisa."""
+        raiz = self.montar(com_resultado=False)
+        fc = modulos_dos_hooks()[0].forge_check()
+        fc.gravar_resultado_do_pr(raiz, "p1", None, "develop", [])
+        velha, _ = self.um_registro(raiz)
+        develop = git("rev-parse", "develop", cwd=raiz).stdout.strip()
+        orfa, ponta, alheia = velha.parent / ("0" * 40), velha.parent / develop, velha.parent / "nao-e-head"
+        for pasta in (orfa, ponta, alheia):
+            pasta.mkdir()
+            (pasta / "x.json").write_text("{}", encoding="utf-8")
+        git("commit", "-q", "--allow-empty", "-m", "outro head", cwd=raiz)
+        git_de_verdade = fc.git
+        sem_pontas = lambda r, *args, **kw: (1, "") if args[0] == "for-each-ref" else git_de_verdade(r, *args, **kw)  # noqa: E731
+        with mock.patch.object(fc, "git", sem_pontas):
+            fc.gravar_resultado_do_pr(raiz, "p1", None, "develop", [])
+        self.assertTrue(orfa.is_dir() and velha.is_dir(), "sem a lista das pontas, não apaga")
+        (orfa / "sub").mkdir()
+        erro = io.StringIO()
+        with contextlib.redirect_stderr(erro):
+            try:  # a exceção vira texto: o ramo de falha é conferido por asserção, não por erro do teste
+                fc.gravar_resultado_do_pr(raiz, "p1", None, "develop", [])
+            except OSError as e:
+                erro.write(f"exceção: {e!r}")
+        self.assertRegex(erro.getvalue(), r"pr: aviso: resultados antigos não apagados \([^)\[]+\)")  # o motivo curto, sem o caminho
+        (orfa / "sub").rmdir()
+        fc.gravar_resultado_do_pr(raiz, "p1", None, "develop", [])
+        nova, _ = self.um_registro(raiz)
+        self.assertEqual(sorted(p.name for p in velha.parent.iterdir()), sorted([nova.name, develop, "nao-e-head"]))
 
 
 if __name__ == "__main__":

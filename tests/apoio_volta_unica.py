@@ -371,8 +371,7 @@ _comum.forge_check().GIT_TIMEOUT_S = dados["prazo_git"]
 _comum.PRAZO_DA_DECISAO_S = float(dados["prazo_da_decisao"])
 EXECUCAO = {"conformidade": (conformidade, "CRITICO", {"regra_do_prazo": "R-CONFORMIDADE"}),
             "parecer": (parecer, "CriticoOuAlias", {"clone_do_forge": True, "regra_do_prazo": "R-REVIEW"})}
-PRAZO_LONGO = {"parecer": {"prazo_longo": parecer.MERGE_DE_PR,  # v0455: o regex do `gh pr merge`, que não é literal
-                          "contorno_do_prazo": parecer.CONTORNO_DO_PRAZO}}  # PR-HOOK-PRAZO: o "Corrigir" do prazo vencido
+PRAZO_LONGO = {"parecer": {"prazo_longo": parecer.MERGE_DE_PR}}  # v0455: o regex do `gh pr merge`, que não é literal
 saida = []
 for hook, texto in dados["pedidos"]:
     modulo, marcador, argumentos = EXECUCAO[hook]
