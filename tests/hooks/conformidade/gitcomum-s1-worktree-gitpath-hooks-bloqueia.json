@@ -1,0 +1,31 @@
+{
+  "descricao": "Volta 1 da E20.6 (v046, segurança E20.8 A1, S1 na worktree): `--git-path hooks/pre-push` cai no .git comum.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n",
+    "x": "x\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/wt"
+  },
+  "git": [
+    {
+      "worktree": "wt",
+      "branch": "melhoria/w"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp x \"$(git rev-parse --git-path hooks/pre-push)\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/wt"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}
