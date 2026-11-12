@@ -22,5 +22,12 @@
         "tests.test_escopo_ponto.VoltaNaMesmaBranch.test_pedido_com_id_diferente_do_nome_do_arquivo"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "m.group(1) if m else caminho.stem",
+      "motivo": "o mesmo id do pedido, movido para antes dos pareceres na forma sem ternário; o M1 desta spec o cobre"
+    }
   ]
 }
