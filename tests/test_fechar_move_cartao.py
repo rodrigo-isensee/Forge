@@ -42,7 +42,8 @@ class Teste(unittest.TestCase):
 
     def test_merge_move_o_cartao_da_coluna_do_historico_para_pronto_depois_do_merge(self):
         self.com_historico("2026-11-01T10:00:00-03:00 | K-1 | Em andamento | Code review | —",
-                           "2026-11-01T11:00:00-03:00 | K-2 | Em andamento | Pronto | —")
+                           "2026-11-01T11:00:00-03:00 | K-2 | Em andamento | Pronto | —",
+                           "lixo | K-1 | Code review | Pronto | —")  # linha sem hora ISO não é movimento (como no montar_quadro)
         r = self.fechar("p1", "--ref", "melhoria/x", "--cartao", "K-1")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         esperado = f"forge-check movimento K-1 --de Code review --para Pronto --motivo mesclado em develop: PR #7, merge 0123456 --raiz {self.quadro}"
@@ -101,6 +102,15 @@ class Teste(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual(len(self.movimentos()), 1)
         self.assertIn("--motivo mesclado em develop (forge-fechar --limpar)", self.movimentos()[0])
+
+    def test_limpar_com_movimento_que_falha_sai_com_3(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"7 MERGED develop {sha}\n")
+        (self.estado / "mov_falha").write_text("1")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar", "--cartao", "K-1")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn("aviso: não movi o cartão K-1 para Pronto", r.stderr)
+        self.assertNotIn("Limpeza de melhoria/x concluída.", r.stdout)
 
     def test_limpar_sem_prova_de_merge_nao_move_o_cartao(self):
         r = self.fechar("p1", "--ref", "melhoria/x", "--limpar", "--cartao", "K-1")
