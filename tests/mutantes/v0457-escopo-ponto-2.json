@@ -1,0 +1,26 @@
+{
+  "pedido": "v0457-escopo-ponto-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E23.17 (c): o pedido dos pareceres é o id: do pedido; o nome do arquivo só sem ele",
+      "arquivo": "bin/forge-check",
+      "de": "(re.search(r\"^id:\\s*(\\S+)\", texto, re.M) or [None, caminho.stem])[1]",
+      "para": "(None or [None, caminho.stem])[1]",
+      "testes": [
+        "tests.test_escopo_ponto.PareceresPeloPedido.test_id_do_pedido_vale_mais_que_o_nome_do_arquivo"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E23.17 (b): o mesmo pedido da união é o id: do pedido; o nome do arquivo só sem ele",
+      "arquivo": "bin/forge-check",
+      "de": "(re.search(r\"^id:\\s*(\\S+)\", texto, re.M) or [None, Path(caminho).stem])[1]",
+      "para": "(None or [None, Path(caminho).stem])[1]",
+      "testes": [
+        "tests.test_escopo_ponto.VoltaNaMesmaBranch.test_pedido_com_id_diferente_do_nome_do_arquivo"
+      ]
+    }
+  ]
+}

@@ -78,6 +78,14 @@ class VoltaNaMesmaBranch(Conferencia):
         for linha in ('escopo: ok (declarado no brief: bin/app) "bin/app"', 'escopo: ok (declarado no brief: volta.txt) "volta.txt"'):
             self.assertIn(linha, saida)
 
+    def test_pedido_com_id_diferente_do_nome_do_arquivo(self):
+        """O `Pedido:` dos briefs é o `id:` do pedido, não o nome do arquivo."""
+        self.primeira_entrega_e_volta()
+        (self.proj / "docs/pedidos/exemplo.md").rename(self.proj / "docs/pedidos/outro-nome.md")  # `id: exemplo` num arquivo de outro nome
+        rc, saida = self.rodar("entrega", "--pedido", "outro-nome", "--branch", "melhoria/x", "--etapa", "codigo", "--sem-gravar")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn('escopo: ok (declarado no brief: bin/app) "bin/app"', saida)
+
     def test_brief_de_outra_branch_nao_entra_na_uniao(self):
         self.primeira_entrega_e_volta()
         self.gravar("outra.txt", "o\n")
@@ -125,6 +133,14 @@ class PareceresPeloPedido(RepositorioDaEntrega):
 
     def test_parecer_com_o_pedido_do_brief_aprova(self):
         self.review("p1")
+        rc, saida = self.entrega(etapa="merge-integracao")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(OK_INTEGRACAO, saida)
+
+    def test_id_do_pedido_vale_mais_que_o_nome_do_arquivo(self):
+        self.gravar_pedido()
+        self.pedido.write_text("---\nid: q1\n---\n" + self.pedido.read_text(encoding="utf-8"), encoding="utf-8")
+        self.review("q1")
         rc, saida = self.entrega(etapa="merge-integracao")
         self.assertEqual(rc, 0, saida)
         self.assertIn(OK_INTEGRACAO, saida)
