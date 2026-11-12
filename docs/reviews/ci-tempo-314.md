@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0457
 branch: melhoria/ci-tempo-314
-commit: 65f402e7c65349036c36c9c769c77f6a09b0ffff
+commit: c7a397269130d4d7a58d0d91aa93b2afa91bc232
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-12
@@ -19,6 +19,9 @@ Conferido:
 - Portão: o teto de tempo não é teste nem check exigido; subir o teto não tira teste nem portão (`R-VERIFY`). Mas a catraca acusa `R-CONFORMIDADE: mudança em .github/workflows/ci.yml` (arquivo de controle): o PR só passa com o rótulo `afrouxa-regra` do dono, aplicado depois do último push. Não há invariante afrouxado, então o título não pede o destaque de afrouxamento; o corpo do PR deve dizer que o rótulo é exigido só por tocar o ci.yml.
 - Texto antigo (AR-9): nenhum outro texto vivo cita 20 min para as checagens rápidas.
 - Fora da entrega: o `forge-check pr v0457` acusa `revisao-devops: sem parecer para o pedido v0457`; docs/devops/ci-tempo-314.md está com `pedido: ci-tempo-314` no frontmatter (cabe ao devops corrigir).
+
+## Revalidação (E23.20)
+- Merge da origin/develop (47d701f7) sem conflito no head c7a39726. `forge-check parecer delta docs/reviews/ci-tempo-314.md`: intervalo 65f402e7..c7a39726, escopo sem o que veio da base, `delta: nenhum arquivo do domínio mudou`. O patch da branch contra a develop segue o mesmo (ci.yml e tests/test_catraca.py idênticos). Parecer mantido.
 
 ## Achados
 - A1 (recomendado) .github/workflows/ci.yml:37 · O comentário diz 3.12 13-20 e 3.14 17-20+ e folga de 50%; a medida dá 3.12 12,7-18 (um corte nos 20) e 3.14 16,1-16,5 até 11/11, depois mais de 20. A folga é sobre o teto antigo, não sobre a 3.14 real, desconhecida. Anotar a duração no 1º push com 30.
