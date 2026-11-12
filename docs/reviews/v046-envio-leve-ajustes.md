@@ -4,7 +4,7 @@ contrato: 1
 pedido: v046
 branch: melhoria/envio-leve-ajustes
 commit: 528abfd4ba5341152039c61113e930bad139c220
-parecer: aprovado
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-11
 ---
@@ -20,13 +20,14 @@ O diff continua sem mudar guarda (`.githooks/pre-push` fica intocado), então n�
 
 ## Achados
 - A3 (recomendado) docs/regras/R-TETO.md:16 · segue sem mudança: "o envio local não roda teste" é absoluto, mas com `FORGE_PREPUSH_SUITE=afetados` ou `=1` roda. Sugestão: "por padrão, o envio local não roda teste". Não bloqueia e não é motivo de nova volta.
+- A4 (bloqueante) bin/forge-testes:139 · defeito provado pelo CI do PR #503 (job "suíte (python 3.12, parte 2/3)", run 43225790681, e o mesmo na 3.14): `test_testes_tocados.MapaCobreOQueOsTestesLeem.test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo` falha com `modulo='test_pre_push_leve', caminho='scripts/verificar-contribuicao.sh'` (`scripts/verificar-contribuicao.sh -> ['test_forge', 'test_pre_push_afetados', 'test_pre_push_segredo', 'test_salvar_desfazer', 'test_testes_tocados']`). O `tests/test_pre_push_leve.py:47,109` lê e grava o script, mas o mapa não aponta o módulo. O defeito já estava no 73d0017a e não veio do merge. Correção do autor: incluir `test_pre_push_leve` na tupla da linha 139. Depois disso, revalidação por delta de review, QA e segurança.
 
 ## Sondas
 - S1 · pre-push:212 `segredo_no_delta || true`; test_segredo_no_delta_ainda_barra_sem_imprimir_o_valor no head 73d0017a · espera: FAILED · obtido: FAILED (failures=1, `(0, False) != (1, False)`)
 - S2 · controle: o mesmo mutante no c3e271e5 · espera: OK (mutante vivo, como na volta 0) · obtido: OK
 
 ## Parecer
-Aprovado.
+Reprovado no 528abfd4 por A4, o defeito que o CI provou. Abaixo, o que a volta 1 já tinha resolvido.
 - **A1 resolvido:** o teste prova a barreira da base. Com a guarda da linha 212 mutada, ele cai no head 73d0017a. No head anterior, o mesmo mutante sobrevive (S2), o que mostra que é a mudança do teste que mata o mutante.
 - **A2 resolvido:** o README agora diz que a exceção do `so_parecer` só vale com o opt-in, o que bate com pre-push:380 (o envio leve sai antes).
 - **A3:** continua recomendado, sem bloquear.
@@ -37,4 +38,4 @@ Execução no head (worktree destacada, ambiente limpo com `TMPDIR` mantido): `p
 ## Integração (E19.2)
 Merge da origin/develop (d3453407) em 528abfd4, sem rebase. Conflito só de texto em `docs/economia-de-tokens.md` (item 5) e `docs/regras/R-TETO.md:16`: ficou o texto da develop (TEMPO-A, exceção do `--duas-partes`) com a frase da ENVIO-LEVE inserida e "o envio local não roda teste" no lugar de "roda os afetados". Nenhum código nem teste mudou na resolução; o diff contra a develop segue nos 6 arquivos da E19.1. Rodados no merge: `test_pre_push_leve` (8 OK), `test_suite_paralela` (61 OK), `test_prepush_so_docs` (62 OK, 9 skip).
 
-Revalidação por delta no head 528abfd4: o `forge-check parecer delta` (escopo sem o que veio da develop) lista só `docs/economia-de-tokens.md` e `docs/regras/R-TETO.md`, que são a resolução descrita acima. O `.githooks/pre-push` que o `forge-check pr` aponta mudou só pelo que veio da develop, já integrado e revisado lá. Parecer mantido: aprovado no 528abfd4.
+Revalidação por delta no head 528abfd4: o `forge-check parecer delta` (escopo sem o que veio da develop) lista só `docs/economia-de-tokens.md` e `docs/regras/R-TETO.md`, que são a resolução descrita acima. O `.githooks/pre-push` que o `forge-check pr` aponta mudou só pelo que veio da develop, já integrado e revisado lá. A resolução não tem achado. O CI do PR #503, porém, provou A4, que já vinha da E19.1: o parecer passa a reprovado.
