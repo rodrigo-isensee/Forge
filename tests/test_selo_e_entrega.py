@@ -879,10 +879,20 @@ class MergeDaBaseDepoisDoBrief(Conferencia):
         self.entregar()
         adiante, = self.develop_anda("a\n")
         self.selar_copia("exemplo-node-backend-2.md", {f"Base-sha: {self.base}": f"Base-sha: {adiante}"}, selar=False)
+        self.ancorar(adiante)  # o merge-base (o Base-sha antigo) está ancorado: só a guarda do "adiante do Base-sha" o recusa
         rc, saida = self.conferir()
         self.assertEqual(rc, 1, saida)
         self.assertIn("escopo: Base-sha fora da branch", saida)
         self.assertNotIn("base: merge-base", saida)
+
+    def test_brief_selado_sem_base_sha_nao_conta_como_ancora(self):
+        """O brief selado mais novo sem `Base-sha:` legível fica fora das âncoras (sem quebrar a conferência); vale o da develop."""
+        ponto = self.entrega_e_merge()
+        self.selar_copia("exemplo-outra-3.md", {"Branch: melhoria/x": "Branch: melhoria/y", f"Base-sha: {self.base}": "Base-sha: ausente"},
+                         selar=False)
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"base: merge-base {ponto[:12]} com a", saida)
 
     def test_merge_base_sem_ancora_fica_o_base_sha(self):
         """Volta 1 (segurança A2): sem brief selado depois do da entrega, o merge-base não tem âncora do Jarvis e fica o Base-sha."""
@@ -926,6 +936,7 @@ class MergeDaBaseDepoisDoBrief(Conferencia):
         self.entrega_e_merge()
         self.git("push", "-q", "origin", "melhoria/x:develop")
         self.git("fetch", "-q", "origin")
+        self.ancorar(self.git("rev-parse", "HEAD"), "exemplo-outra-2.md")  # o head ancorado: só a guarda do "head já na base" o recusa
         _, saida = self.conferir()
         self.assertNotIn("base: merge-base", saida)
         self.assertNotIn("pendente: intervalo vazio", saida)

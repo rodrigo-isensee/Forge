@@ -11,6 +11,16 @@
       "testes": [
         "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_brief_selado_antes_do_da_entrega_nao_ancora"
       ]
+    },
+    {
+      "id": "M26",
+      "guarda": "volta 1 (segurança A2): brief selado sem Base-sha legível não é âncora",
+      "arquivo": "bin/forge-check",
+      "de": "    return [b for b in bases if b]",
+      "para": "    return bases",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_brief_selado_sem_base_sha_nao_conta_como_ancora"
+      ]
     }
   ]
 }
