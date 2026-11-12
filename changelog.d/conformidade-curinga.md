@@ -1,0 +1,2 @@
+### Corrigido
+- Hook conformidade: a origem de link vinda de `git rev-parse` com chaves (`conf{i,}g`) não se libera da regra genérica `.git/`, e com curinga (`c?nfig`, `[c]onfig`, `hook[s]/pre-push`) só se libera se nenhum nome que o glob de cada prefixo expande no `.git` cai em `.git/config`, `.git/hooks/` ou `.git/forge/`; `HEA?` segue livre (A11 da segurança E20.31, A4 do QA, volta 4 da E20.34).
