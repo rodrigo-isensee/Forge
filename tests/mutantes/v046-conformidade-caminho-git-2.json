@@ -51,6 +51,16 @@
       "testes": [
         "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
       ]
+    },
+    {
+      "id": "G14",
+      "guarda": "volta 1 (A1 e A3 da E20.8): o caminho do `--git-path` em crase entra no valor do `.git`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "m[\"sub\"] or m[\"crase\"] or \"\"",
+      "para": "m[\"sub\"] or \"\"",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
     }
   ]
 }

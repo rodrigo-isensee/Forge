@@ -22,7 +22,7 @@ class HookGitComum(unittest.TestCase):
     depende_de_pid_ou_trava = staticmethod(test_hooks.Hooks.depende_de_pid_ou_trava)
 
     def test_fixtures_gitcomum(self):
-        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / "conformidade").glob("gitcomum-*.json"))], 41,
+        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / "conformidade").glob("gitcomum-*.json"))], 42,
                           "gitcomum-*")
         lados = {f.dados["esperado"]["codigo"] for f in fixtures}
         self.assertEqual(lados, {0, 2}, "o corpus tem os dois lados: o que passa e o que barra")
