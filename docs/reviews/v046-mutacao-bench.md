@@ -3,31 +3,29 @@ tipo: review
 contrato: 1
 pedido: v046
 branch: melhoria/v046-mutacao-bench
-commit: 135b20d23a95d5ade9e358e6abb0126f63db930c
-parecer: reprovado
+commit: 203e3554785746c600bd590fddb807d930eaa7a2
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-12
 ---
-# Review: v046 (E7.10, melhoria/v046-mutacao-bench)
+# Review: v046 (E7.14, melhoria/v046-mutacao-bench)
 
-Revalidação por delta da E7.6 (aprovada no `e452582f`) depois da correção E7.9. Instância que não fez a entrega.
+Revalidação por delta da E7.10 (reprovada no `135b20d2` pelos A1 e A2) depois da volta E7.13. Instância que não fez a entrega.
 
-Delta lido: `forge-check parecer delta docs/reviews/v046-mutacao-bench.md`, intervalo `e452582f..135b20d2`, no domínio `agents/qa-engineer.md`, `agents/tech-lead.md`, `bin/forge-mutante`, `changelog.d/v046-mutacao-bench.md`, `skills/qa-testing/SKILL.md`, `tests/mutantes/v046-mutacao-bench-3.json`, `tests/mutantes/v046-mutacao-bench.json`, `tests/test_forge_mutante.py`.
+Delta lido: `forge-check parecer delta docs/reviews/v046-mutacao-bench.md`, intervalo `135b20d2..203e3554`, no domínio `agents/qa-engineer.md`, `agents/tech-lead.md`, `bin/forge-mutante`, `skills/qa-testing/SKILL.md`, `tests/mutantes/v046-mutacao-bench-3.json`, `tests/mutantes/v046-mutacao-bench.json`.
 
 ## Achados
-- A1 (bloqueante) agents/qa-engineer.md:20 · o commit 135b20d2 estoura o orçamento de instrução: `test_orcamento_instrucao` falha (qa-engineer agente_caracteres 4175 > 3962, total 22044 > 21480, marcadores 49 > 45; tech-lead, linhas 26 e 42: 8875 > 8615, 29965 > 29861, 58 > 56). Em e452582f passa. Enxugue o texto; subir o teto é afrouxar.
-- A2 (bloqueante) skills/qa-testing/SKILL.md:97 · a linha nova estoura `test_metricas_texto` (caracteres 12121 > 11761, frase_media_x10 194 > 192, linhas_longas 31 > 30); em e452582f passa. Encurte a frase ou troque por uma citação curta, sem subir a linha de base.
-- A3 (recomendado) bin/forge-mutante:829 · a variável local `apoio` em `dirigir` sombreia o módulo global `apoio` (linha 92, `forge_apoio_testes`); hoje não quebra, porque `dirigir` não usa `apoio.` depois da linha 829, mas um uso futuro quebraria. Sugestão: `apoio_mudado`.
+- A1 (recomendado) skills/qa-testing/SKILL.md:96 · o enxugamento trocou "k maior só dentro da vez da trava da suíte" por "k > 1 dentro da vez da trava da suíte": sem o "só", a restrição lê como descrição. Sugestão, numa próxima mudança de texto: "k > 1 só dentro da vez da trava".
 
 ## Parecer
-Reprovado pelos A1 e A2: o commit de texto 135b20d2 deixa vermelhos dois testes que o CI do PR roda, e o merge exige CI verde. O código da correção está certo e não volta.
+Aprovado. Os bloqueantes da E7.10 estão resolvidos e o A3 (recomendado) foi atendido.
 
-Conferido e sem achado:
-- O A4 da segurança (E7.7) está corrigido: `apoio_de_teste` (bin/forge-mutante:806) pega o arquivo de `tests/` fora de `test_*.py` e de `tests/mutantes/` e põe todos os mutantes no diff, com a linha `apoio de teste no diff:`. A sonda S2 virou `test_helper_de_tests_enfraquecido_poe_todos_os_mutantes_no_diff` (rc 1, `M1 · sobreviveu`, sem `fora do diff`), e o ramo contrário tem `test_teste_e_spec_de_outro_mutante_nao_poem_todos_no_diff`.
-- Guardas do delta: `forge-mutante --cobertura --base e452582f --rev 135b20d2` sai rc 0, com `coberta` nas linhas 810 (M18, M19, M20), 830 (M16) e 835 (M17, M5). O `de` do M5 foi atualizado, e cada `de` das três specs (M1 a M20) aparece uma vez só na fonte (AR-12). Não refaço a mutação.
-- Nenhum `tests/*.py` importa outro `test_*.py`, então a exclusão de `test_*.py` não deixa helper de fora hoje.
-- O A1 da E7.6 (citação da `--base` e do bench por versão) foi atendido no conteúdo, em skills/qa-testing/SKILL.md:97, agents/qa-engineer.md:20 e agents/tech-lead.md:26 e 42; o que falta é caber no orçamento (A1 e A2).
-- Decisão do dono de 11:06: placar e bench seguem por versão, e nada do delta entra no CI do PR. `test_forge_mutante`: 75 s antes e 70 s depois, segundo o autor; aqui deu 84 s, 110 testes, OK.
-- Testes, um por vez (R-TETO): `bin/forge-testes tests/test_forge_mutante.py` e os 27 módulos de texto que `bin/forge-testes --listar` aponta para agents/ e skills/. 26 OK; `test_metricas_texto` e `test_orcamento_instrucao` falham (A1, A2). A suíte inteira fica no CI.
-- Tamanho: o delta tem 45 linhas de código e teste (bin e tests/*.py; a spec fica fora da conta).
-- Commits do delta: dois, Conventional Commits em português, um comportamento cada.
+- A1 da E7.10 (orçamento de instrução): `bin/forge-testes tests/test_orcamento_instrucao.py` OK no 203e3554, sem teto mudado (o delta não toca `tests/`).
+- A2 da E7.10 (métricas de texto): `bin/forge-testes tests/test_metricas_texto.py` OK no 203e3554, sem linha de base mudada.
+- A3 da E7.10: `apoio` virou `apoio_mudado` em `dirigir` (bin/forge-mutante:829-835); o módulo global `apoio` (linha 92) não é mais sombreado.
+- Specs (AR-12): o `de` do M5, M16 e M17 acompanha o nome novo, e cada um casa uma vez só na fonte (`grep -cF` = 1). `forge-mutante --cobertura --base 8b5a44d5` (Base-sha) sai rc 0, com `coberta` em 830 (M16) e 835 (M17, M5). Contra `135b20d2` a saída traz `apagada · bin/forge-mutante:830(base) · apoio` (rc 1): a renomeação não é reconhecida como condição editada; a checagem que vale para o autor é contra o Base-sha. Não refaço a mutação, que é do QA.
+- Frases exigidas: comparei os literais de `tests/*.py` e `tests/config.json` contra o texto antes e depois dos três arquivos; nenhuma frase exigida saiu. A única relevante, `bin/forge-mutante tests/mutantes/<pedido>.json`, saiu só de agents/tech-lead.md, e `test_forge_mutante.TextoQueMandaUsarAFerramenta` exige-a apenas na skill e no agente de QA, onde segue (SKILL.md:92, qa-engineer.md:20); o "um mutante por linha de guarda mudada" e o "sem mutante é achado" seguem nos dois.
+- Conteúdo: a `--base <head aprovado>` da volta ficou no V2 (agents/tech-lead.md:25) e no agente e na skill de QA; placar e bench seguem por versão (tech-lead.md:41, "medidas, não portão"), fora do CI do PR, como manda a decisão do dono de 11:06.
+- Testes, um por vez (R-TETO), no 203e3554: `bin/forge-testes tests/test_forge_mutante.py` OK (122 s), `tests/test_orcamento_instrucao.py` OK, `tests/test_metricas_texto.py` OK. Os 27 módulos do `--listar` são PQ do autor; a suíte inteira fica no CI.
+- Tamanho: o delta tem 7 linhas de código e teste (bin/forge-mutante); o resto é texto e spec.
+- Commits do delta: três (22b5e4d3, c241921e, 203e3554), Conventional Commits em português, um comportamento cada.
