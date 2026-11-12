@@ -15,10 +15,10 @@
     },
     {
       "id": "M10",
-      "guarda": "E23.36 (d): só o parecer de portão da própria branch e do pedido é anexo do portão na etapa codigo",
+      "guarda": "E23.36 (d): só o parecer de portão que passa as condições é anexo do portão na etapa codigo",
       "arquivo": "bin/forge-check",
-      "de": "        elif etapa == \"codigo\" and tipo and not com_controle(nome) and parecer_de_portao_da_branch(raiz, head, nome, tipo, branch, pedido_id, slug):",
-      "para": "        elif etapa == \"codigo\" and tipo and not com_controle(nome) and True:",
+      "de": "and parecer_de_portao_da_branch(\n                raiz, de, head, nome, tipo, branch, pedido_id, slug, lambda t: revisados_selados(raiz, caminho, texto, branch, pedido_id, t)):",
+      "para": "and True:",
       "testes": [
         "tests.test_selo_e_entrega.ParecerDoPortao.test_parecer_de_outra_branch_segue_fora",
         "tests.test_selo_e_entrega.ParecerDoPortao.test_parecer_de_outro_pedido_segue_fora"
@@ -28,8 +28,8 @@
       "id": "M11",
       "guarda": "E23.36 (d): o branch: do parecer é a branch conferida",
       "arquivo": "bin/forge-check",
-      "de": "    return (not cod and fm.get(\"tipo\") == tipo and fm.get(\"parecer\") in (\"aprovado\", \"reprovado\") and fm.get(\"branch\") == branch",
-      "para": "    return (not cod and fm.get(\"tipo\") == tipo and fm.get(\"parecer\") in (\"aprovado\", \"reprovado\") and True",
+      "de": "    if fm.get(\"branch\") != branch:",
+      "para": "    if False:",
       "testes": [
         "tests.test_selo_e_entrega.ParecerDoPortao.test_parecer_de_outra_branch_segue_fora"
       ]
@@ -38,18 +38,18 @@
       "id": "M12",
       "guarda": "E23.36 (d): o pedido: do parecer é o da entrega",
       "arquivo": "bin/forge-check",
-      "de": "            and fm.get(\"pedido\") in (pedido_id, slug)",
-      "para": "            and True",
+      "de": "    if fm.get(\"pedido\") not in (pedido_id, slug):",
+      "para": "    if False:",
       "testes": [
         "tests.test_selo_e_entrega.ParecerDoPortao.test_parecer_de_outro_pedido_segue_fora"
       ]
     },
     {
       "id": "M13",
-      "guarda": "E23.36 (e): na etapa codigo, o merge-base com a base adiante do Base-sha vira o ponto de partida",
+      "guarda": "E23.36 (e): na etapa codigo, o merge-base ancorado adiante do Base-sha vira o ponto de partida",
       "arquivo": "bin/forge-check",
-      "de": "    if etapa == \"codigo\" and (ponto := ponto_da_integracao(raiz, base, base_sha, head)) != base_sha:",
-      "para": "    if False:",
+      "de": "    if etapa == \"codigo\" and (ponto := ponto_da_integracao(raiz, base, base_sha, head,",
+      "para": "    if False and (ponto := ponto_da_integracao(raiz, base, base_sha, head,",
       "testes": [
         "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_conferida_trazida_pela_develop_nao_e_desde"
       ]
@@ -76,12 +76,12 @@
     },
     {
       "id": "M16",
-      "guarda": "E23.36 (d): o commit: do parecer é um sha40 da própria branch (ancestral do head)",
+      "guarda": "volta 1 (QA A1): o tipo: do parecer é o da pasta",
       "arquivo": "bin/forge-check",
-      "de": "            and sha_do_commit(raiz, revisado) == revisado and e_ancestral(raiz, revisado, head))",
-      "para": "            and True)",
+      "de": "    if fm.get(\"tipo\") != tipo:",
+      "para": "    if False:",
       "testes": [
-        "tests.test_selo_e_entrega.ParecerDoPortao.test_parecer_sem_o_commit_revisado_na_branch_segue_fora"
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_tipo_de_outra_pasta_segue_fora"
       ]
     }
   ]

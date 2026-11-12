@@ -1,0 +1,16 @@
+{
+  "pedido": "v0457-escopo-ponto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "volta 1 (segurança A2): a âncora é só o brief selado depois do da entrega",
+      "arquivo": "bin/forge-check",
+      "de": "        if sha == sha_brief:\n            break",
+      "para": "        if False:\n            break",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_brief_selado_antes_do_da_entrega_nao_ancora"
+      ]
+    }
+  ]
+}
