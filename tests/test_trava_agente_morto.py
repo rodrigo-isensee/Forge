@@ -268,6 +268,15 @@ class C4Orcamento(Base):
         with mock.patch.object(agentes, "PRAZO_DA_LEITURA_S", -1):
             self.assertMantem()
 
+    def test_falha_da_leitura_nao_rele_o_transcript_a_cada_registro(self):
+        """Review A4: com o prazo estourado, o primeiro registro cai na exceção e os outros ficam sem nova leitura."""
+        self.escrever(notificacao(self.agora - 5))
+        liberacao = agentes.Liberacao(self.hook(), self.agora)
+        registros = [self.registro(), self.registro(descricao="E9 outro"), self.registro(descricao="E9 mais um")]
+        with mock.patch.object(agentes, "notificacoes", side_effect=TimeoutError("C4")) as lida:
+            sobra = agentes.vigentes(registros, self.agora, 7200, liberacao)
+        self.assertEqual((len(sobra), liberacao.soltos, lida.call_count), (3, [], 1))
+
     def test_transcript_que_nao_e_arquivo_regular_mantem(self):
         os.mkfifo(self.transcript)
         self.assertMantem()

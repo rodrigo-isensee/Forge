@@ -39,7 +39,6 @@ por silêncio: agente vivo sem resposta para com o TaskStop e sai pela notifica�
 trava `pesado` livre. Cada liberação vai ao `liberacoes.log` e deixa uma lápide: retomar o id (`SendMessage`) é recusado
 enquanto houver relançamento vigente na mesma branch ou com a mesma descrição.
 """
-import functools
 import hashlib
 import json
 import math
@@ -338,10 +337,16 @@ class Liberacao:
         self.hook, self.agora, self.soltos = hook, agora, []
         self.prazo = time.monotonic() + PRAZO_DA_LEITURA_S
         self.real = transcript_da_sessao(hook)
+        self._notas = None
 
-    @functools.cached_property
+    @property
     def notas(self):
-        return notificacoes(self.real, self.prazo)
+        """C4: o transcript é lido uma vez só. A falha da leitura (prazo, arquivo sumido) fica guardada como nenhuma nota:
+        o primeiro registro cai na exceção, que `vigentes` cala, e os seguintes ficam sem reler o transcript."""
+        if self._notas is None:
+            self._notas = {}
+            self._notas = notificacoes(self.real, self.prazo)
+        return self._notas
 
     def status(self, registro):
         """C2, C3 e C9: o status da notificação que prova o agente parado, ou None."""
