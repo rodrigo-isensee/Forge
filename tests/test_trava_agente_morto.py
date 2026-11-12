@@ -372,12 +372,13 @@ class C10ProjectsProtegido(Base):
         import conformidade
         politica = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))
         entradas = [c for c in politica["caminhos"] if c["caminho"].startswith("~/.claude/projects/")]
-        self.assertEqual([c["quem"] for c in entradas], [[], []])
+        self.assertEqual([c["quem"] for c in entradas], [[], [], [], []])
         tipos = [t for lista in politica["papeis"].values() for t in lista] + [None, "general-purpose"]
         self.assertGreaterEqual(len(tipos), 10)
         for tipo in tipos:
             for alvo in (f"~/.claude/projects/-p/{SESSAO}.jsonl", f"~/.claude/projects/-p/{SESSAO}/subagents/agent-{AID}.meta.json",
-                         f"~/.claude/projects/-p/{SESSAO}/subagents/agent-{AID}.jsonl"):
+                         f"~/.claude/projects/-p/{SESSAO}/subagents/agent-{AID}.jsonl",
+                         "~/.claude/projects/-p", f"~/.claude/projects/-p/{SESSAO}"):  # segurança A1: a pasta trocada forja a prova
                 with self.subTest(tipo=tipo, alvo=alvo):
                     recusa = conformidade.escrita_barrada(tipo, alvo, str(self.tmp), "melhoria/x")
                     self.assertIsNotNone(recusa)
