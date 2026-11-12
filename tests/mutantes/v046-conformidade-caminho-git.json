@@ -24,7 +24,7 @@
     },
     {
       "id": "G3",
-      "guarda": "E20.6: sem `$(…)` nem variável, nada a somar (o caminho literal segue conferido)",
+      "guarda": "E20.6: sem `$(…)` nem variável, nada a somar (o caminho literal segue conferido); sem o retorno, o resto é o caminho inteiro e `config/app.json` recusaria pela regra (QA A2)",
       "arquivo": "hooks/conformidade.py",
       "de": "        if not fins:\n            return None",
       "para": "        if False:\n            return None",
@@ -54,10 +54,10 @@
     },
     {
       "id": "G6",
-      "guarda": "E20.6 (S2): a variável (`$d`, `${d}`) marca onde começa o resto",
+      "guarda": "E20.6 (S2) e volta 1 (A2 da E20.8): a variável vai até o `}` que fecha `${…}` (`${d%/}/config`)",
       "arquivo": "hooks/conformidade.py",
-      "de": "SO_VARIAVEL = re.compile(r\"\\$\\{?\\w+\\}?|`\")",
-      "para": "SO_VARIAVEL = re.compile(r\"`\")",
+      "de": "SO_VARIAVEL = re.compile(r\"\\$\\{[^}]*\\}|\\$\\w+|`\")",
+      "para": "SO_VARIAVEL = re.compile(r\"\\$\\w+|`\")",
       "testes": [
         "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
       ]
@@ -68,6 +68,16 @@
       "arquivo": "hooks/conformidade.py",
       "de": "        comum = topo and diretorio_comum(topo)",
       "para": "        comum = topo and None",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G8",
+      "guarda": "volta 1 (A1 e A3 da E20.8): `$(git rev-parse --git-dir|--git-path x)` e a crase viram o `.git` da raiz",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            comando = REV_PARSE_DO_GIT.sub(",
+      "para": "            comando = comando if True else REV_PARSE_DO_GIT.sub(",
       "testes": [
         "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
       ]

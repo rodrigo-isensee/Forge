@@ -322,7 +322,15 @@ VARIAVEL = re.compile(r"\$\{?(\w+)\}?|\$\(|`")
 # deles pode estar no `.git` (`$(git rev-parse --git-common-dir)/forge/x`, `d=<raiz>/.git; cp x $d/config`).
 NOMES_DO_GIT = frozenset({"forge", "config", "hooks", "HEAD", "index", "refs", "objects", "logs", "info", "worktrees",
                           "commondir", "gitdir", "packed-refs", "modules"})
-SO_VARIAVEL = re.compile(r"\$\{?\w+\}?|`")
+SO_VARIAVEL = re.compile(r"\$\{[^}]*\}|\$\w+|`")  # `${d%/}` (A2 da E20.8): a variável vai até o `}` que a fecha
+# Volta 1 da E20.6 (A1 e A3 da segurança E20.8, v046): `git rev-parse --git-dir` (e `--git-common-dir`, `--absolute-git-dir`,
+# `--git-path <x>`) em `$(…)` ou crase tem valor conhecido, o `.git` da raiz: a linha troca a substituição por esta
+# variável, que `expandir` resolve (também na variável atribuída a ela), e as regras `.git/…` decidem como no literal.
+DIR_DO_GIT = "FORGE_DIR_DO_GIT"
+_REV_PARSE = (r"\s*git\s+rev-parse\s+(?:--path-format=\w+\s+)?(?:--(?:git-dir|git-common-dir|absolute-git-dir)"
+              r"|--git-path\s+(?P<{}>[\w./-]+))\s*")
+REV_PARSE_DO_GIT = re.compile(rf"\$\({_REV_PARSE.format('sub')}\)|`{_REV_PARSE.format('crase')}`")
+VARIAVEL_INTEIRA = re.compile(r"\$\{(\w+)\}|\$(\w+)")  # sem operador: `${d%/}` não é o valor de `d`
 SUBSTITUICAO = re.compile(r"[$<>]\(")
 SIMPLES = {
     "apagar": "Apagar o projeto no GitHub perde todo o trabalho, sem volta. Se quiser mesmo, faça pelo site do GitHub.",
@@ -945,6 +953,9 @@ class Guarda:
         self.curinga_na_prova(Path(caminho).name, self.pastas_do_curinga(caminho, pasta))
         for alvo in alvos:
             achado = self.caminho_barrado(alvo)
+            if achado and alvo == self.resto_no_git(caminho, pasta) != alvos[0]:  # QA A1: o falso positivo se explica
+                achado = (achado[0], f"valor de $(…), crase ou variável que o hook não sabe, lido como .git (use o caminho "
+                                     f"literal se não for): {achado[1]}", *achado[2:])
             if achado:
                 self.barrar(*achado)
         for alvo in alvos:  # o Bash recusa no fim da linha (`parecer_pelo_bash`), depois das regras específicas dela
@@ -970,7 +981,7 @@ class Guarda:
             fins.append(expandido.rfind(")") + 1)
         if not fins:
             return None
-        partes = Path(expandido[max(fins):].lstrip("/")).parts
+        partes = Path(expandido[max(fins, default=0):].lstrip("/")).parts
         if not partes or partes[0] not in self.nomes_do_git(pasta):
             return None
         return Path(os.path.realpath(self.h.raiz)) / ".git" / Path(*partes)
@@ -995,10 +1006,14 @@ class Guarda:
             self.barrar(*PROVA_DA_SUITE)
 
     def expandir(self, caminho, pasta):
-        """`$PWD`, `$CLAUDE_PROJECT_DIR` e `$HOME` (com ou sem chaves; as aspas o shlex já tirou) viram o caminho real."""
+        """`$PWD`, `$CLAUDE_PROJECT_DIR`, `$HOME` e `DIR_DO_GIT` (com ou sem chaves; as aspas o shlex já tirou; também a
+        variável da linha atribuída ao `DIR_DO_GIT`) viram o caminho real."""
         if "$" not in caminho:  # sem `$`, nada a expandir (a crase que `VARIAVEL` casa volta igual): custo por arquivo
             return caminho
-        valores = {"PWD": str(pasta), "CLAUDE_PROJECT_DIR": str(self.h.raiz), "HOME": str(Path.home())}
+        caminho = VARIAVEL_INTEIRA.sub(lambda m: v if DIR_DO_GIT in (v := self.ambiente.get(m[1] or m[2], "")) else m[0],
+                                       caminho)
+        valores = {"PWD": str(pasta), "CLAUDE_PROJECT_DIR": str(self.h.raiz), "HOME": str(Path.home()),
+                   DIR_DO_GIT: str(Path(os.path.realpath(self.h.raiz)) / ".git")}
         return VARIAVEL.sub(lambda m: valores.get(m.group(1), m.group(0)), caminho)
 
     def link_em_protegido(self, args, pasta):
@@ -1152,6 +1167,7 @@ class Guarda:
             self.recusar_o_teto(comando, original, nivel)
         else:
             comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
+            comando = REV_PARSE_DO_GIT.sub(lambda m: "${%s}/%s" % (DIR_DO_GIT, m["sub"] or m["crase"] or ""), comando)
             self.recusar_o_teto(comando, original, nivel)
             lidas = leituras(comando)
             # opção B da revalidação 9: sobre a palavra que o bash recebe, em qualquer posição; recusa no fim do nível 0.
@@ -1382,7 +1398,7 @@ class Guarda:
             [] if palavras else atribuicoes
         for a in definidas:
             nome, _, valor = a.partition("=")
-            if nome in VARIAVEIS_DA_LINHA and valor:
+            if nome in VARIAVEIS_DA_LINHA and valor or DIR_DO_GIT in valor:  # `d=$(git rev-parse --git-dir)` também
                 self.ambiente[nome] = valor  # vale para os comandos seguintes da linha
         for p in atribuicoes + palavras:  # substituição entre aspas: a palavra chega inteira (N1: também a atribuição)
             if "`" in p:  # a palavra relida não é um nível do shell: o corpo da crase já conta o dele (PROFUNDIDADE-BASH-C)
@@ -1464,7 +1480,8 @@ class Guarda:
                     if any(map(MARCA_DA_SUITE.fullmatch, nomes)):
                         self.barrar(*PROVA_DA_SUITE)
             alvo = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-t", "--target-directory")), None)
-            alvo = alvo or next((a for a in reversed(args) if not a.startswith("-")), None)
+            alvo = alvo or next((a.split("=", 1)[1] for a in args if a.startswith("--target-directory=")), None)  # A5
+            alvo = alvo or next((a for a in reversed(args) if not a.startswith("-") or "`" in a), None)  # A3: `x --y`/config
             if alvo:
                 self.checar_escrita(alvo, pasta)
             # N3: depois da escrita no destino, para a regra do papel falar primeiro
