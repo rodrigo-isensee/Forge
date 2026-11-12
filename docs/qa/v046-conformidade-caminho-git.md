@@ -4,10 +4,10 @@ contrato: 1
 pedido: v046
 branch: melhoria/conformidade-caminho-git
 commit: 3b3d7a67387c4c61bfd51692513a03bec916d492
-parecer: aprovado
+parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 0
+bugs_altos: 1
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-12
@@ -17,6 +17,7 @@ data: 2026-11-12
 Diff lido: 8b5a44d5..22187bae (hooks/conformidade.py `resto_no_git`, `nomes_do_git`, chamada em `alvos_da_escrita`; 20 fixtures `gitcomum-*`; `tests/test_hook_git_comum.py`; 7 mutantes). Regra: R-QA, R-CONFORMIDADE.
 
 ## Achados
+- A4 (bloqueante) hooks/conformidade.py:1076 · origem de link de `git rev-parse` com curinga (`ln "$(git rev-parse --git-dir)"/c?nfig h`) sai 0 e liga o `.git/config`; escapa das regras específicas (E20.32, sonda minha; igual ao A11 de segurança)
 - A1 (recomendado) hooks/conformidade.py:969 · falso positivo: `$TMPDIR/logs/a.log` e `"$(git rev-parse --show-toplevel)/hooks/novo.py"` (pasta hooks/ do próprio Forge) agora recusam (exit 2); antes passavam. Falha fechada, contorno com caminho literal; sem fixture que o fixe nem o documente.
 - A2 (recomendado) tests/mutantes/v046-conformidade-caminho-git.json:30 · G3 morre por ValueError (`max([])` em hooks/conformidade.py:973), não pela regra; o ramo `not fins` sem erro não é provado separado. Equivalente na prática (a fixture literal-forge-bloqueia não o distingue).
 
@@ -74,12 +75,14 @@ Delta lido: `_REV_PARSE` saiu; `valor_do_rev_parse` e `trocar_rev_parse` (hooks/
 - Suíte inteira: não rodei (R-TETO); vale o check-run `bateria` do sha no CI do PR.
 
 ## Revalidação por delta cddc8915..3b3d7a67 (E20.32)
-Delta lido (`forge-check parecer delta`, sem o que veio da develop): hooks/conformidade.py (`origens_do_rev_parse`, `checar_link` e `no_git` em `segmento_lido`), 6 fixtures `gitcomum-v3-*` (64 `gitcomum-*`, mínimo 64), bin/forge-testes (test_hook_git_comum no mapa FORGE_CHECK), tests/test_testes_tocados.py (78 para 79), spec `-4` (G20 a G26). Veredito: aprovado, sem achado novo.
+Delta lido (`forge-check parecer delta`, sem o que veio da develop): hooks/conformidade.py (`origens_do_rev_parse`, `checar_link` e `no_git` em `segmento_lido`), 6 fixtures `gitcomum-v3-*` (64 `gitcomum-*`, mínimo 64), bin/forge-testes (test_hook_git_comum no mapa FORGE_CHECK), tests/test_testes_tocados.py (78 para 79), spec `-4` (G20 a G26). Veredito: reprovado por um achado novo, o A4 abaixo (confirmei por sonda o A11 do parecer de segurança 0857bbb9); A1 a A3 da E20.29 resolvidos.
+- A4 (bloqueante) hooks/conformidade.py:1076 · a origem livre da regra `.git/` também escapa das específicas quando tem curinga: `ln "$(git rev-parse --git-dir)"/c?nfig h` sai 0 (era 2 no cddc8915) e o link físico grava no `.git/config`; mesma classe com `[c]onfig`, `hook[s]/…`. Nenhuma fixture o fixa; falta fixture que barre e o código que o recuse.
 - A1 (origem de `git rev-parse` livre só da regra genérica `.git/`): fixtures origem-gitdir-libera e origem-variavel-libera (saem 0); destino, `.git/config`, `.git/hooks/`, `.git/forge/` e `-S`, `-t`, opção longa, `--` seguem 2. G20 a G24 e G26 morrem.
 - A3 (variável do `.git` atrás de lançador segue na linha): fixture lancador-variavel-bloqueia (2); G25 morre.
 - A2: test_hook_git_comum no mapa; o módulo roda quando bin/forge-check muda (test_testes_tocados, 79).
 - Vermelho em 0fc55eac (árvore dele com os `tests/` do head sobrepostos, worktree minha descartável): test_hook_git_comum falha em 3 fixtures (`v3-lancador-variavel-bloqueia`, `v3-link-origem-gitdir-libera`, `v3-link-origem-variavel-libera`; as 3 `-bloqueia` restantes já passavam e fixam comportamento mantido); test_testes_tocados falha em 3 (`test_forge_check_roda_os_modulos_dele`, `test_mapa_lista_todo_modulo_que_usa_o_forge_check` e uma de `test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo`, por test_pre_push_leve, vinda do merge da develop). Passam no head.
-- Sondas minhas (18 fixtures descartáveis, não commitadas, todas como esperado). Recusam (2): `ln -s "$(git rev-parse --git-dir)/config" x`, destino `.../hooks/p`, origem livre com destino `.../hooks/p` na mesma linha, `-S`, `-t docs`, `--`, `--target-directory=docs`, só `ln <origem>` (a origem é o destino), `.git/HEAD` literal, `.../hooks/pre-push`, `.../forge/x`, `time d=$(git rev-parse --git-dir); cp x $d/config`, `&& ln x "$(…)/config"`, segundo link para `.git/hooks/q`. Liberam (0): `d=$(git rev-parse --git-dir); ln $d/HEAD h`, `ln -sf` e `ln -sn` com a origem, `ln <origem> docs/a docs/b`.
+- Sonda do A4 (fixture descartável, esperava 2): `ln "$(git rev-parse --git-dir)"/c?nfig h` -> `AssertionError: 0 != 2`. Vermelho que o autor deve fixar com fixture `gitcomum-v3-*` e corrigir em `origens_do_rev_parse` (recusar a origem com `?`, `*`, `[` ou `{`); responsável: dev da stack (autor).
+- Sondas minhas (18 fixtures descartáveis, não commitadas, todas como esperado; nenhuma usava curinga, por isso o A4 passou por mim na primeira leitura). Recusam (2): `ln -s "$(git rev-parse --git-dir)/config" x`, destino `.../hooks/p`, origem livre com destino `.../hooks/p` na mesma linha, `-S`, `-t docs`, `--`, `--target-directory=docs`, só `ln <origem>` (a origem é o destino), `.git/HEAD` literal, `.../hooks/pre-push`, `.../forge/x`, `time d=$(git rev-parse --git-dir); cp x $d/config`, `&& ln x "$(…)/config"`, segundo link para `.git/hooks/q`. Liberam (0): `d=$(git rev-parse --git-dir); ln $d/HEAD h`, `ln -sf` e `ln -sn` com a origem, `ln <origem> docs/a docs/b`.
 - CI do PR: não há PR aberto para a branch (`gh pr checks` sem resultado); a bateria completa fica para o check-run do PR. Não rodei a suíte inteira (R-TETO).
 
 ## Provas (revalidação E20.32)
