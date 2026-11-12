@@ -1,7 +1,7 @@
 ---
 tipo: qa
 contrato: 1
-pedido: v046-entrega-push-proxy
+pedido: v046
 branch: melhoria/entrega-push-proxy
 commit: 843e6b752849bf4b62fcf3d41dcc83c22a6f74e5
 parecer: aprovado
