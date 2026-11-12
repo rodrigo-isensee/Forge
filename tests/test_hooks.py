@@ -252,13 +252,18 @@ def limpar_caches_dos_hooks():
     return zerados
 
 
-def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True):
+def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True, releituras=0, em_curso=frozenset()):
     """Composição de teste (desenho do lote, 3.3), sem função nova no hook: o caminho de leitura do `Guarda.bash` e do
     `segmento`, que devolve (palavras, destinos) de cada comando que o hook confere ou levanta `Ilegivel`. `todas`:
-    False lê só a leitura fiel do nível de fora (a base do T1)."""
+    False lê só a leitura fiel do nível de fora (a base do T1). `releituras` e `em_curso`, como no hook
+    (PROFUNDIDADE-BASH-C): a palavra com crase relida não conta como nível, e o texto já em leitura não se relê."""
     _comum, conformidade, _ = modulos_dos_hooks()
-    if nivel > conformidade.PROFUNDIDADE:
-        return []  # o hook só dá o R-CONTRIB da linha aninhada que aponta para o Forge, e não lê mais nada
+    if nivel - releituras > conformidade.PROFUNDIDADE:
+        raise Ilegivel(linha)  # o hook recusa a linha acima do teto (PROFUNDIDADE-BASH-C)
+    if nivel > 1 and (linha, so_substituicoes) in em_curso:
+        return []
+    if nivel:
+        em_curso = em_curso | {(linha, so_substituicoes)}
     try:
         linha, corpos = _comum.tirar_heredocs(linha)
     except ValueError:
@@ -273,19 +278,19 @@ def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True):
             if so_substituicoes and not sub:
                 continue
             lidos.append((palavras, destinos))
-            lidos += ler_dentro_do_comando(palavras, nivel)
+            lidos += ler_dentro_do_comando(palavras, nivel, releituras, em_curso)
     for corpo in _comum.conteudos_de_crase(linha, so_os_fechados=True):  # CRASE-SESSAO-PROJETO
-        lidos += ler_como_o_conformidade(corpo, nivel + 1)
+        lidos += ler_como_o_conformidade(corpo, nivel + 1, releituras=releituras, em_curso=em_curso)
     shell_no_dono = {}  # S-SUITE-RAPIDA: o mesmo dono (até 150 mil caracteres) volta em cada heredoc dele; a busca, uma vez por texto
     for dono, corpo in corpos:
         if dono not in shell_no_dono:
             shell_no_dono[dono] = re.search(r"\b(bash|sh|zsh|dash)\b", dono) is not None
         if shell_no_dono[dono]:
-            lidos += ler_como_o_conformidade(corpo, nivel + 1)
+            lidos += ler_como_o_conformidade(corpo, nivel + 1, releituras=releituras, em_curso=em_curso)
     return lidos
 
 
-def ler_dentro_do_comando(palavras, nivel):
+def ler_dentro_do_comando(palavras, nivel, releituras=0, em_curso=frozenset()):
     """O que o `segmento` relê de um comando simples: a palavra com substituição entre aspas e o `bash -c`/`eval`, em cada
     leitura possível do lançador (`separar_lancadores`: a recusa é a união delas, RET-LEITURA-HOOK-G)."""
     _, conformidade, _ = modulos_dos_hooks()
@@ -300,9 +305,10 @@ def ler_dentro_do_comando(palavras, nivel):
     for palavras, lancadas in possiveis:
         for p in atribuicoes + lancadas + palavras:  # N1: a atribuição também
             if "`" in p:
-                lidos += ler_como_o_conformidade(p, nivel + 1)
+                lidos += ler_como_o_conformidade(p, nivel + 1, releituras=releituras + 1, em_curso=em_curso)
             elif "$(" in p.replace(conformidade.OPACO["$"], ""):
-                lidos += ler_como_o_conformidade(p, nivel + 1, so_substituicoes=True)
+                lidos += ler_como_o_conformidade(p, nivel + 1, so_substituicoes=True, releituras=releituras,
+                                                 em_curso=em_curso)
         prog = Path(palavras[0].lstrip("`")).name if palavras else ""
         internos = []
         if prog in conformidade.SHELLS:
@@ -310,9 +316,10 @@ def ler_dentro_do_comando(palavras, nivel):
         elif prog == "eval":
             internos = [" ".join(palavras[1:])]
         for interno in internos:
-            lidos += ler_como_o_conformidade(interno, nivel + 1)
+            lidos += ler_como_o_conformidade(interno, nivel + 1, releituras=releituras, em_curso=em_curso)
             if "\\`" in interno:
-                lidos += ler_como_o_conformidade(interno.replace("\\`", "`"), nivel + 1)
+                lidos += ler_como_o_conformidade(interno.replace("\\`", "`"), nivel + 1, releituras=releituras,
+                                                 em_curso=em_curso)
     return lidos
 
 
@@ -2435,6 +2442,11 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 8, "as fixtures do lote")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_da_medida_av3(self):  # v0457 E2.1: a medida dos comandos críticos por papel, para a mutação
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("AV3 etapa 1")]
+        self.assertGreaterEqual(len(lote), 2, "as fixtures da medida")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_da_trilha_034(self):  # trilha hooks/conformidade da 0.34: a descrição abre com o cartão, para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith(CARTOES_DA_TRILHA_034)]
@@ -2446,6 +2458,14 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 28, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_rverify_falso_positivo(self):  # E16.1 (v0457): a prova pelo destino, fora de projeto
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("HOOK-RVERIFY-FALSO-POSITIVO:")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 7, "os falsos positivos da noite")
+        self.assertGreaterEqual(len(lote) - len(liberam), 22, "o caso verdadeiro, em cada forma")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_do_hook_n4(self):  # HOOK-N4 (0.45.1): `"$(…)"` com aspa ou case no corpo; a descrição abre com o item
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("HOOK-N4:")]
         self.assertGreaterEqual(len(lote), 16, "as fixtures do item")
@@ -2454,6 +2474,12 @@ class Hooks(unittest.TestCase):
     def test_fixtures_do_n1(self):  # IMPL-FURO-HOOK-N, N1 (0.45.1): alias da configuração e do gh, ~/.gitconfig
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N1 (")]
         self.assertGreaterEqual(len(lote), 21, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_da_profundidade(self):  # PROFUNDIDADE-BASH-C (v0457 E17.1): acima do teto recusa, também fora de projeto
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("PROFUNDIDADE-BASH-C (")]
+        self.assertGreaterEqual(len(lote), 14, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
     def test_fixtures_do_n3(self):  # IMPL-FURO-HOOK-N, N3 (0.45.1): link com caminho protegido
@@ -2879,6 +2905,58 @@ class CaminhosExtra(unittest.TestCase):
                 self.assertEqual(boas, [])
                 self.assertEqual(len(avisos), 1)
                 self.assertTrue(avisos[0].startswith("caminhos_extra: "))
+
+    # E18.1 (0.45.7): só pasta do usuário, que ninguém mais grava, nem pelas pastas de cima.
+    def so_ela(self, pasta):
+        pasta.chmod(0o755)
+        return self.com_config(json.dumps({"caminhos_extra": [str(pasta)]}))
+
+    def test_pasta_do_usuario_sem_escrita_alheia_entra(self):
+        self.assertEqual(self.so_ela(self.pasta), ([str(self.pasta)], []))
+
+    def test_pasta_gravavel_por_grupo_ou_outros_fica_de_fora(self):
+        for modo in (0o775, 0o757):
+            with self.subTest(modo=oct(modo)):
+                self.pasta.chmod(modo)
+                boas, avisos = self.com_config(json.dumps({"caminhos_extra": [str(self.pasta)]}))
+                self.assertEqual(boas, [])
+                self.assertIn("precisa ser do usuário", avisos[0])
+
+    def test_pasta_de_outro_usuario_fica_de_fora(self):
+        self.pasta.chmod(0o755)
+        with mock.patch.object(os, "getuid", return_value=os.stat(self.pasta).st_uid + 4242):
+            boas, avisos = self.com_config(json.dumps({"caminhos_extra": [str(self.pasta)]}))
+        self.assertEqual(boas, [])
+        self.assertIn("precisa ser do usuário", avisos[0])
+
+    def test_pasta_acima_gravavel_sem_sticky_fica_de_fora_e_com_sticky_entra(self):
+        pai = self.raiz / "pai"
+        pasta = pai / "bin"
+        pasta.mkdir(parents=True)
+        self.addCleanup(pai.chmod, 0o755)
+        for modo, entra in ((0o777, False), (0o1777, True)):
+            with self.subTest(modo=oct(modo)):
+                pai.chmod(modo)
+                boas, _ = self.so_ela(pasta)
+                self.assertEqual(boas, [str(pasta)] if entra else [])
+
+    def test_pasta_acima_de_outro_usuario_fica_de_fora(self):
+        real = os.stat
+        pai = str(self.raiz)
+
+        def stat_falso(caminho, *args, **kwargs):
+            info = real(caminho, *args, **kwargs)
+            if os.fspath(caminho) != pai:
+                return info
+            campos = list(info[:10])
+            campos[4] = os.getuid() + 4242  # st_uid: nem o usuário nem o root
+            return os.stat_result(campos)
+
+        self.pasta.chmod(0o755)
+        with mock.patch.object(os, "stat", stat_falso):
+            boas, avisos = self.com_config(json.dumps({"caminhos_extra": [str(self.pasta)]}))
+        self.assertEqual(boas, [])
+        self.assertIn("nem as pastas acima", avisos[0])
 
 
 class PoolDosFixtures(unittest.TestCase):

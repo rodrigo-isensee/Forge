@@ -621,12 +621,17 @@ class AntiDuplicacao(unittest.TestCase):
     def test_regra_so_na_fonte(self):
         fontes = sorted(REGRAS.glob("R-*.md"))
         self.assertTrue(fontes, "docs/regras sem regras")
-        minimo(fontes, 13, "regras em docs/regras")
+        minimo(fontes, 12, "regras em docs/regras")
+        corpos = {p: corpo_da_regra(p) for p in fontes}
+        # AV5: a R-WIP (regra só de hook) é a linha `**`R-WIP`` do índice; só ela vale como fonte, não os títulos da tabela
+        wip = [l for l in (REGRAS / "README.md").read_text(encoding="utf-8").splitlines() if l.startswith("**`R-WIP`")]
+        self.assertEqual(len(wip), 1, "a linha da R-WIP no README das regras")
+        corpos[REGRAS / "README.md"] = wip[0]
         alvos = [p for pasta in self.pastas if (RAIZ / pasta).is_dir() for p in arquivos_de(pasta)]
         minimo(alvos, 110, "arquivos comparados pelo anti-duplicação")
         textos = {p: sequencias(p.read_text(encoding="utf-8", errors="ignore"), self.n) for p in alvos}
-        for fonte in fontes:
-            trechos = sequencias(corpo_da_regra(fonte), self.n) - self.excecoes
+        for fonte, corpo in corpos.items():
+            trechos = sequencias(corpo, self.n) - self.excecoes
             for alvo, seqs in textos.items():
                 if alvo == fonte:
                     continue
@@ -639,7 +644,7 @@ class RegrasComId(unittest.TestCase):
     """ADR 0002: toda regra citada existe e diz como é verificada; o índice lista todas."""
 
     def setUp(self):
-        self.regras = {p.stem: p for p in minimo(sorted(REGRAS.glob("R-*.md")), 13, "regras em docs/regras")}
+        self.regras = {p.stem: p for p in minimo(sorted(REGRAS.glob("R-*.md")), 12, "regras em docs/regras")}  # AV5: R-LIMITES.md junta cinco
 
     def test_frontmatter_restrito(self):
         for nome, p in self.regras.items():
@@ -662,10 +667,16 @@ class RegrasComId(unittest.TestCase):
         for pasta in ("agents", "skills", "templates"):
             origens += arquivos_de(pasta)
         minimo(origens, 45, "arquivos que citam IDs de regra")
+        # AV5: trecho de R-LIMITES.md e regra só de hook com a linha dela no README também são IDs válidos
+        limites = (REGRAS / "R-LIMITES.md").read_text(encoding="utf-8")
+        indice = (REGRAS / "README.md").read_text(encoding="utf-8")
+        validos = set(self.regras) | set(re.findall(r"^## (R-[A-Z]+): ", limites, re.M)) \
+            | set(re.findall(r"^\*\*`(R-[A-Z]+)` \(regra só de hook", indice, re.M))
+        self.assertGreaterEqual(len(validos - set(self.regras)), 6, "os cinco trechos de R-LIMITES e a R-WIP")
         for p in origens:
             for rid in set(re.findall(r"\bR-[A-Z][A-Z0-9-]*\b", p.read_text(encoding="utf-8", errors="ignore"))):
                 with self.subTest(arquivo=str(p.relative_to(RAIZ)), regra=rid):
-                    self.assertTrue(rid in self.regras, f"{rid} não existe em docs/regras/")
+                    self.assertTrue(rid in validos, f"{rid} não existe em docs/regras/")
 
 
 def ambiente_limpo():
@@ -2191,6 +2202,75 @@ class ForgeCheckFontes(unittest.TestCase):
         self.assertNotIn("\x1b", r.stdout + r.stderr)
         self.assertNotIn("versão nova", r.stdout)
         self.assertEqual(r.returncode, 3)
+
+    # 0.45.7 E5.1 (FILA-31 F6): os ramos de falha do bin/forge_fontes.py, pelo forge-check, com Python -I
+    def rodar_isolado(self, path=None, script=None, **extra):
+        env = ambiente_limpo()
+        env.update({"HOME": str(self.home), "PATH": path or f"{self.bin_falso}:{env['PATH']}", "FALSO_TOPO": self.TOPO, **extra})
+        return subprocess.run([sys.executable, "-I", str(script or RAIZ / "bin/forge-check"), "fontes"], env=env,
+                              capture_output=True, text=True, timeout=60)
+
+    def gravar_registro(self, texto):
+        pasta = self.home / ".forge-contrib/fontes"
+        pasta.mkdir(parents=True, exist_ok=True)
+        (pasta / "fontes.json").write_text(texto)
+
+    def test_registro_que_nao_e_json_sai_com_1_ilegivel(self):
+        self.gravar_registro("{nao e json")
+        r = self.rodar_isolado()
+        self.assertEqual((r.returncode, r.stdout), (1, "fontes: registro local ilegível\n"))
+        self.assertFalse(self.chamou_git())
+
+    def test_registro_que_nao_e_objeto_sai_com_1_ilegivel(self):
+        self.gravar_registro("[]")
+        r = self.rodar_isolado()
+        self.assertEqual((r.returncode, r.stdout), (1, "fontes: registro local ilegível\n"))
+
+    def test_fonte_sem_commit_revisado_e_pulada_sem_chamar_o_git(self):
+        self.gravar_registro(json.dumps({"F0": "nao e objeto", "F1": {"url": self.URL, "commit_revisado": ""}}))
+        r = self.rodar_isolado()
+        self.assertEqual((r.returncode, r.stdout), (0, "fontes: sem novidade\n"))
+        self.assertFalse(self.chamou_git())
+
+    def test_git_ausente_conta_como_fonte_que_nao_respondeu(self):
+        self.registrar("a" * 7)
+        vazia = self.tmp / "sem-git"
+        vazia.mkdir()
+        r = self.rodar_isolado(path=str(vazia))
+        self.assertEqual((r.returncode, r.stdout), (3, ""))
+
+    def test_variavel_git_herdada_nao_chega_ao_git(self):
+        self.registrar(self.TOPO[:7])
+        (self.bin_falso / "git").write_text(f'#!/usr/bin/env bash\nenv | grep -c "^GIT_HERDADA=" >> "{self.chamadas}"\n'
+                                            'printf "%s\\tHEAD\\n" "$FALSO_TOPO"\n')
+        r = self.rodar_isolado(GIT_HERDADA="1")
+        self.assertEqual((r.returncode, r.stdout, self.chamadas.read_text().strip()), (0, "fontes: sem novidade\n", "0"))
+
+    def test_git_que_falha_com_topo_na_saida_conta_como_falha(self):
+        self.registrar("a" * 7)
+        (self.bin_falso / "git").write_text('#!/usr/bin/env bash\nprintf "%s\\tHEAD\\n" "$FALSO_TOPO"\nexit 128\n')
+        r = self.rodar_isolado()
+        self.assertEqual((r.returncode, r.stdout), (3, ""))
+
+    def test_topo_com_hexadecimal_dentro_de_outro_texto_conta_como_falha(self):
+        self.registrar("a" * 7)
+        r = self.rodar_isolado(FALSO_TOPO="z" + self.TOPO)
+        self.assertEqual((r.returncode, r.stdout), (3, ""))
+
+    def test_versao_nova_e_url_recusada_saem_nas_duas_linhas(self):
+        self.gravar_registro(json.dumps({"F1": {"url": self.URL, "commit_revisado": "a" * 7},
+                                         "F2": {"url": "http://host/r.git", "commit_revisado": "a" * 7}}))
+        r = self.rodar_isolado()
+        self.assertEqual((r.returncode, r.stdout.splitlines()),
+                         (0, [f"fontes: F1 tem versão nova (aaaaaaa -> {self.TOPO[:7]}); abra o estudo comparativo",
+                              "fontes: URL recusada (só https:// é aceito) em: F2"]))
+
+    def test_copia_avulsa_do_forge_check_sai_com_2_sem_o_modulo(self):
+        avulsa = self.tmp / "avulsa" / "bin"
+        avulsa.mkdir(parents=True)
+        shutil.copy(RAIZ / "bin/forge-check", avulsa / "forge-check")
+        r = self.rodar_isolado(script=avulsa / "forge-check")
+        self.assertEqual((r.returncode, r.stdout), (2, "forge-check: bin/forge_fontes.py ausente ao lado do forge-check; nada feito\n"))
 
 
 class VerificarContribuicao(unittest.TestCase):
@@ -3880,6 +3960,36 @@ class MedirAlucinacao(unittest.TestCase):
     def test_subagente_nao_conta_como_resposta_do_jarvis(self):
         saida, _ = self.rodar("decisoes", self.subagente("A) x\nB) y", "z") + self.jarvis("ok"))
         self.assertIn("respostas=1 com_grupo=0 violacoes=0", saida)
+
+    def test_relatorio_sem_handback_e_o_ultimo_texto_da_mesma_mensagem(self):  # F6, E5.2: ramos de ler_relatorios sem teste
+        base = {"isSidechain": True, "agentId": "a1", "sessionId": "sess", "type": "assistant"}
+        texto = lambda id_, t: {**base, "message": {"id": id_, "content": [{"type": "tool_use", "id": "t"}, {"type": "text", "text": t}]}}
+        saida, _ = self.rodar("lastro", [texto("m1", "rascunho 1234abcd"), texto("m2", "commit deadbee1"), texto("m2", "fim.")])
+        self.assertIn("lastro: sessao s1: relatorios=1 afirmacoes=1 sem_lastro=1", saida)
+
+    def test_respostas_do_jarvis_por_sessao_e_opcoes_em_tabela_so_depois_de_pergunta(self):  # F6, E5.2
+        respostas = self.jarvis("Qual caminho?\n| A | copiar |\n| B | mover |\nRecomendo A.") + \
+            [{**o, "sessionId": "outra"} for o in self.jarvis("Tabela:\n| A | 1 |\n| B | 2 |\nProvas:\nA) x\nB) y")]
+        saida, _ = self.rodar("decisoes", respostas)
+        self.assertIn("decisoes: sessao s1: respostas=1 com_grupo=1 violacoes=0", saida)
+        self.assertIn("decisoes: sessao s2: respostas=1 com_grupo=0 violacoes=0", saida)
+
+    def test_caminho_inexistente_sai_com_1_e_o_caminho(self):  # F6, E5.2
+        nada = Path(tempfile.gettempdir()) / "forge-medida-nao-existe-e52"
+        r = subprocess.run([*comando_do_forge_check(), "transcricao", "lastro", str(nada)], capture_output=True, text=True)
+        self.assertEqual((r.returncode, r.stdout), (1, f"lastro: caminho inexistente: {nada}\n"))
+
+    def test_copia_avulsa_sem_o_modulo_sai_com_2_nos_quatro(self):  # F6, E5.2: a lógica mora em bin/forge_transcricao.py
+        tmp = Path(tempfile.mkdtemp(prefix="forge-avulsa-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        (tmp / "bin").mkdir()
+        shutil.copy(RAIZ / "bin/forge-check", tmp / "bin/forge-check")
+        (tmp / "s.jsonl").write_text("{}\n", encoding="utf-8")
+        for acao in ("lastro", "vereditos", "decisoes", "avisos"):
+            with self.subTest(acao=acao):
+                r = subprocess.run([sys.executable, "-I", str(tmp / "bin/forge-check"), "transcricao", acao, str(tmp / "s.jsonl")],
+                                   capture_output=True, text=True, cwd=tmp, env={"PATH": os.environ.get("PATH", ""), "HOME": str(tmp)})
+                self.assertEqual((r.returncode, r.stdout), (2, "forge-check: bin/forge_transcricao.py ausente ao lado do forge-check; nada feito\n"))
 
 
 class ConferirBrief(unittest.TestCase):

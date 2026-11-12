@@ -25,7 +25,9 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS] [--processos K
            com `git show`, nunca a árvore. Cobrir é ter o trecho `de` do mutante, único no arquivo, com a troca dentro
            do nó da condição, `de` de 8+ caracteres e, em Python, troca que muda o `ast`. A condição editada (a velha
            sai e uma nova com nome ou número em comum entra no mesmo hunk, na mesma posição) é coberta pelo mutante da
-           nova; a nova sem relação deixa a velha como `apagada`. `isentas` na spec do diff (até 8 somadas):
+           nova; a nova sem relação deixa a velha como `apagada`. A apagada cujo texto idêntico (espaços normalizados)
+           entra coberta noutro arquivo do mesmo diff sai `movida · arq:L(base) · destino:L` e não pede isenta; cada
+           coberta serve a uma apagada. `isentas` na spec do diff (até 8 somadas):
            [{"arquivo", "trecho" exato com 8+ não brancos e dentro do nó, "motivo" de 20+ caracteres}] libera a
            condição sem mutante ou apagada que cruzam, impressa `isenta · arq:L · motivo`; isenta que não cruza condição
            listada ou cujo trecho não casa uma vez é rc 2. `linha_base` (opcional, só condição apagada): a linha da base
@@ -38,16 +40,19 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS] [--processos K
 
 Para cada mutante, uma cópia nova do commit em $TMPDIR (clone local com `.git` próprio). O controle (os testes
 declarados, sem a troca) tem de passar. Aí o `de` tem de aparecer uma vez só no arquivo, a troca é aplicada e os
-testes rodam: falha por asserção = morreu; tudo passa = sobreviveu. Erro de carga, teste que não rodou, sintaxe
-quebrada, estouro de prazo ou sinal não são "morreu": são inválido ou sem veredito (saída 2). No executor `unittest`,
+testes rodam: falha por asserção = morreu; tudo passa = sobreviveu. Erro (exceção, não asserção) de um teste
+declarado sob o mutante, com o controle verde, também mata: sai `morreu · <arq>:<linha> · (erro) ...`. Erro de carga
+do módulo, erro de fixture de classe, teste que não rodou, sintaxe quebrada, estouro de prazo ou sinal não são
+"morreu": são inválido ou sem veredito (saída 2); o erro também sem o mutante é controle vermelho (saída 2). No executor `unittest`,
 a asserção que falha não monta o diff do `difflib` (o `assertEqual` de texto ou sequência grande estourava o prazo):
 só o veredito conta, e ele não depende do diff.
 
 Saída: 0 = todos morreram (ou são equivalentes declarados) e algum teste rodou; 1 = algum sobreviveu e nenhum é
 inválido; 2 = spec inválida, controle vermelho, mutante inválido, sem veredito ou nenhum teste rodou. Atenção: o 0
-aqui é "provado", o inverso do costume das ferramentas de mutação. Nunca escreve na árvore de trabalho nem muta
-arquivo de teste. Só até 16 mutantes por spec. Sem shell. Uma spec inválida barra todas antes de rodar qualquer
-mutante.
+aqui é "provado", o inverso do costume das ferramentas de mutação. A árvore de trabalho se confere a cada mutante
+pronto: na primeira mudança (`git status --porcelain`), a rodada para, lista o que mudou e sai 2, e recomeça do zero.
+Nunca escreve na árvore de trabalho nem muta arquivo de teste. Só até 16 mutantes por spec. Sem shell. Uma spec
+inválida barra todas antes de rodar qualquer mutante.
 
 A rodada é evidência do QA; `--cobertura` é a checagem do autor; nenhum hook, pre-push nem CI chama. Cobertura é
 "declarado, não provado": quem prova que o mutante morre é a rodada (`forge-mutante SPEC`).
@@ -150,10 +155,11 @@ class Registro(unittest.TestResult):
         self.por_id = {}
 
     def anotar(self, teste, res):
-        ident = teste.id().removeprefix("unittest.loader._FailedTest.")
+        bruto = teste.id()
+        ident = bruto.removeprefix("unittest.loader._FailedTest.")
         if res == "ok" and ident in self.por_id:
             return
-        self.por_id[ident] = {"id": ident, "res": res}
+        self.por_id[ident] = {"id": ident, "res": res, "carga": ident != bruto}
 
     def addSuccess(self, teste):
         self.anotar(teste, "ok")
@@ -247,14 +253,26 @@ def cobre(declarado, ident):
     return ident == declarado or ident.startswith(declarado + ".")
 
 
-def veredito(declarados, registro):
-    """('morreu'|'sobreviveu'|'inválido', motivo) a partir do registro por teste; nunca pelo código de saída."""
-    if any(e["res"] == "erro" for e in registro):
+MORREU_POR_ERRO = "(erro) o teste declarado deu erro sob o mutante e passa sem ele"
+
+
+def erro_que_mata(declarados, e):
+    """Erro de um teste declarado que rodou; o de carga do módulo e o de fixture de classe não contam."""
+    return not e.get("carga") and any(cobre(d, e["id"]) for d in declarados)
+
+
+def veredito(declarados, registro, erro_mata=False):
+    """('morreu'|'sobreviveu'|'inválido', motivo) a partir do registro por teste; nunca pelo código de saída.
+    `erro_mata`: o controle (os mesmos testes sem o mutante) passou, e o erro de um teste declarado é morte."""
+    erros = [e for e in registro if e["res"] == "erro"]
+    if any(not (erro_mata and erro_que_mata(declarados, e)) for e in erros):
         return "inválido", "erro de carga ou de execução do teste"
     for declarado in declarados:
-        if not any(cobre(declarado, e["id"]) and e["res"] in ("ok", "falha") for e in registro):
+        if not any(cobre(declarado, e["id"]) and e["res"] in ("ok", "falha", "erro") for e in registro):
             return "inválido", f"teste declarado que não rodou: {declarado}"
-    return ("morreu", "") if any(e["res"] == "falha" for e in registro) else ("sobreviveu", "")
+    if any(e["res"] == "falha" for e in registro):
+        return "morreu", ""
+    return ("morreu", MORREU_POR_ERRO) if erros else ("sobreviveu", "")
 
 
 # --- spec ----------------------------------------------------------------------------------------------------------
@@ -521,10 +539,16 @@ def parecidas(velha, nova):
 
 
 def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
+    """Linhas de saída de um arquivo (`analisar_com_textos` sem os textos)."""
+    return analisar_com_textos(arquivo, hunks, antes, depois, mutantes, isentas, usadas)[0]
+
+
+def analisar_com_textos(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
     """Linhas de saída de um arquivo: a condição nova (texto que aparece mais vezes que no merge-base, em linha nova)
     coberta, isenta ou sem mutante, e a apagada (texto que aparece menos vezes que no merge-base) isenta ou não. A
     editada (a velha sai num hunk em que entra uma nova, na mesma posição do nó e com nome ou número em comum) é coberta
-    pelo mutante da nova; a nova sem relação com a velha deixa a velha apagada."""
+    pelo mutante da nova; a nova sem relação com a velha deixa a velha apagada. Os textos: {posição na saída: (texto
+    com espaços normalizados, vezes)} da coberta (1) e da apagada (as vezes que faltam), para `movidas`."""
     novas, velhas = condicoes(depois), condicoes(antes)
     if max(len(novas), len(velhas)) > MAXIMO_DE_CONDICOES:
         raise ValueError(f"{arquivo}: mais de {MAXIMO_DE_CONDICOES} condições")
@@ -535,12 +559,14 @@ def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
         for v, n in zip([c for c in velhas if falta[c[0]] and toca(c, velho)], [c for c in mudadas if toca(c, novo)]):
             if falta[v[0]] and parecidas(v[0], n[0]):
                 falta[v[0]] -= 1
+    textos = {}
     for texto, ini, _fim, de, ate in mudadas:
         casados = [(f"{espec}:{m['id']}", "equivalente" in m) for espec, m in mutantes
                    if casa(m, arquivo, depois, de, ate)]
         cobrem = [nome for nome, equivalente in casados if not equivalente]
         motivo = None if cobrem else isenta(isentas, usadas, arquivo, depois, de, ate, None)
         if cobrem:
+            textos[len(saida)] = (" ".join(texto.split()), 1)
             saida.append(f"coberta · {arquivo}:{ini} · {', '.join(cobrem)} · declarado, não provado")
         elif motivo:
             saida.append(f"isenta · {arquivo}:{ini} · {motivo}")
@@ -551,8 +577,31 @@ def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
     for texto, ini, fim, de, ate in {c[0]: c for c in reversed(velhas) if falta[c[0]]}.values():
         motivo = (isenta(isentas, usadas, arquivo, antes, de, ate, ini) if falta[texto] == 1
                   else isenta(isentas, usadas, arquivo, antes, de, ate, None))  # 2+ apagadas: a por linha não casa
+        textos[len(saida)] = (" ".join(texto.split()), falta[texto])  # a isenta não começa com `apagada`: fica
         saida.append(f"isenta · {arquivo}:{ini}(base) · {motivo}" if motivo else
                      f"apagada · {arquivo}:{ini}(base) · {' '.join(texto.split())[:60]}")
+    return saida, textos
+
+
+def movidas(por_arquivo):
+    """Troca por `movida · arq:L(base) · destino` a apagada cujo texto (espaços normalizados) entra coberta noutro
+    arquivo do mesmo diff, uma coberta por vez apagada; a apagada sem cobertas bastantes segue `apagada`. No mesmo
+    arquivo não há o caso: o texto coberto ali aparece mais vezes que na base e o apagado, menos. `por_arquivo`:
+    [(linhas, textos)] de `analisar_com_textos`; devolve as linhas, na ordem."""
+    destinos = {}
+    for linhas, textos in por_arquivo:
+        for i, (texto, _vezes) in textos.items():
+            if linhas[i].startswith("coberta"):
+                destinos.setdefault(texto, []).append(linhas[i].split(" · ")[1])
+    saida = []
+    for linhas, textos in por_arquivo:
+        for i, linha in enumerate(linhas):
+            texto, vezes = textos.get(i, ("", 0))
+            livres = destinos.get(texto, [])
+            if linha.startswith("apagada") and len(livres) >= vezes:
+                linha = f"movida · {linha.split(' · ')[1]} · {', '.join(livres[:vezes])}"
+                del livres[:vezes]
+            saida.append(linha)
     return saida
 
 
@@ -594,7 +643,7 @@ def cobertura(base, rev):
         if len(mudadas) > MAXIMO_DE_ARQUIVOS:
             raise ValueError(f"o diff muda mais de {MAXIMO_DE_ARQUIVOS} arquivos")
         mutantes, isentas, saida = mutantes_do_diff(mudadas, sha_rev)
-        usadas = set()
+        usadas, por_arquivo = set(), []
         for arquivo, (status, hunks) in sorted(mudadas.items()):
             if TESTE.fullmatch(arquivo) or FORA_DA_COBERTURA.fullmatch(arquivo):
                 continue
@@ -602,9 +651,11 @@ def cobertura(base, rev):
             antes = b"" if status == "A" else ler_no_commit(mb, arquivo)
             exemplo = antes or depois
             if not eh_python(arquivo, exemplo):  # shell, binário e fora do UTF-8: só não coberto, por arquivo
-                saida.append(f"não coberto: {arquivo}")
+                por_arquivo.append(([f"não coberto: {arquivo}"], {}))
                 continue
-            saida += analisar(arquivo, hunks, fonte(arquivo, antes), fonte(arquivo, depois), mutantes, isentas, usadas)
+            por_arquivo.append(analisar_com_textos(arquivo, hunks, fonte(arquivo, antes), fonte(arquivo, depois),
+                                                   mutantes, isentas, usadas))
+        saida += movidas(por_arquivo)
         soltas = [f"{i['spec']}: {i['arquivo']}" for i in isentas if id(i) not in usadas]
         if soltas:
             raise ValueError(f"isenta que não cruza condição listada ou cujo trecho não casa uma vez: {'; '.join(soltas)}")
@@ -661,12 +712,21 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
     registro = rodar(copia, m["testes"], trabalho / f"mutante-{m['id']}.jsonl", prazo, trabalho / f"pyc-{m['id']}")
     if registro is None:
         return f"{m['id']} · sem veredito · {m['arquivo']}:{linha}", 2, False
-    classe, motivo = veredito(m["testes"], registro)
+    classe, motivo = veredito(m["testes"], registro, erro_mata=True)  # o controle passou: erro agora é do mutante
     if "equivalente" in m and classe != "inválido":  # o teste listado que o mata desmente o equivalente
         classe, motivo = ("equivalente", "") if classe == "sobreviveu" else (
             "inválido", "declarado equivalente, mas os testes listados o matam")
     texto = f"{m['id']} · {classe} · {m['arquivo']}:{linha}" + (f" · {motivo}" if motivo else "")
     return texto, {"inválido": 2, "sobreviveu": 1}.get(classe, 0), True
+
+
+class ArvoreMudou(Exception):
+    """A árvore de trabalho mudou durante a rodada: (id do mutante recém-pronto, quantos prontos, linhas que mudaram)."""
+
+
+def mudanca_da_arvore(antes):
+    """As linhas do `git status --porcelain` que entraram ou saíram desde `antes`; vazia se nada mudou."""
+    return sorted(set(git("status", "--porcelain").splitlines()).symmetric_difference(antes.splitlines()))
 
 
 def principal(specs, sha, prazo, processos=1):
@@ -684,15 +744,27 @@ def principal(specs, sha, prazo, processos=1):
     inicio = time.monotonic()
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(processos, len(mutantes)))) as pool:
-            futuros = [pool.submit(provar, m, sha, raiz, trabalho, prazo, controles) for m in mutantes]
-            try:
+            futuros = {pool.submit(provar, m, sha, raiz, trabalho, prazo, controles): m["id"] for m in mutantes}
+            try:  # a árvore se confere a cada mutante pronto: na primeira mudança, a rodada para (MUTANTE-ARVORE-MUDOU)
+                for prontos, f in enumerate(concurrent.futures.as_completed(futuros), 1):
+                    f.result()
+                    mudou = mudanca_da_arvore(antes)
+                    if mudou:
+                        raise ArvoreMudou(futuros[f], prontos, mudou)
                 resultados = [f.result() for f in futuros]
             except BaseException:  # um erro, SIGTERM ou Ctrl-C: nada fica rodando (C-33a)
                 encerrar_todos()
                 for f in futuros:
                     f.cancel()
                 raise
-        depois = git("status", "--porcelain")
+    except ArvoreMudou as erro:
+        ident, prontos, mudou = erro.args
+        print(f"forge-mutante: a árvore de trabalho mudou durante a rodada; parei depois do mutante {ident} "
+              f"({prontos} de {len(mutantes)} prontos) e nada foi provado. O que mudou (git status --porcelain):",
+              file=sys.stderr)
+        print("\n".join(f"  {linha}" for linha in mudou), file=sys.stderr)
+        print("forge-mutante: a rodada recomeça do zero: deixe a árvore parada e rode de novo.", file=sys.stderr)
+        return 2
     except (RuntimeError, OSError) as erro:
         print(f"forge-mutante: {erro}", file=sys.stderr)
         return 2
@@ -706,9 +778,6 @@ def principal(specs, sha, prazo, processos=1):
     if not rodou and codigo == 0:
         print("forge-mutante: nenhum teste rodou (spec só de equivalentes sem `testes`); nada provado.", file=sys.stderr)
         codigo = 2
-    if depois != antes:
-        print("forge-mutante: a árvore de trabalho mudou durante a rodada; resultado descartado.", file=sys.stderr)
-        return 2
     anotar(time.monotonic() - inicio, codigo)
     return codigo
 

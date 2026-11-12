@@ -1,0 +1,37 @@
+{
+  "descricao": "ritmo econômico (E3, 0.45.7), um ativo e teto adaptativo maior: bloqueia com o ritmo na mensagem.",
+  "config": {
+    "ritmo": "econômico"
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a1",
+          "tipo": "Plan",
+          "descricao": "Implementar a API",
+          "desde": "{agora-60}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "ritmo econômico: 1 agente por vez"
+  },
+  "proc": {
+    "loadavg": "0.1 0.1 0.1 1/100 1",
+    "mem_gb": 8,
+    "nproc": 8
+  }
+}

@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""Forge: ritmo do time no projeto (0.45.7, E3). Rode no terminal, dentro do projeto. Só biblioteca padrão.
+Uso: forge ritmo            mostra o ritmo de agora e as opções
+     forge ritmo <valor>    grava `ritmo` no .forge/config.json: econômico, equilibrado ou acelerado (sem acento também vale)
+O hook `agentes` lê o valor (econômico: um agente por vez). Tarefa pesada segue uma por vez em qualquer ritmo.
+Saída: 0 feito, 1 fora de um projeto do Forge ou config.json ilegível (nada gravado), 2 valor desconhecido.
+"""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+PADRAO = "equilibrado"
+OPCOES = {
+    "econômico": "um agente por vez e modelo mais leve para texto: gasta menos, demora mais",
+    "equilibrado": "o padrão: o time trabalha em paralelo quando a máquina deixa",
+    "acelerado": "mais trabalho em paralelo e modelo mais forte: entrega antes, gasta mais",
+}
+
+
+APELIDOS = {"economico": "econômico"}  # o mesmo do hook `agentes` (APELIDOS_DO_RITMO)
+
+
+def ritmo_valido(valor):
+    """O ritmo canônico de `valor` (caixa não conta; `economico` vale `econômico`), ou None."""
+    if not isinstance(valor, str):
+        return None
+    chave = valor.strip().lower()
+    chave = APELIDOS.get(chave, chave)
+    return chave if chave in OPCOES else None
+
+
+def falhar(codigo, texto):
+    print(f"forge ritmo: {texto}", file=sys.stderr)
+    sys.exit(codigo)
+
+
+def config_do_projeto():
+    r = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    pasta = Path(r.stdout.strip()) / ".forge" if r.returncode == 0 else None
+    if pasta is None or pasta.is_symlink() or not pasta.is_dir():
+        falhar(1, "rode dentro de um projeto do Forge (a pasta .forge/ não foi achada).")
+    arquivo = pasta / "config.json"
+    if not arquivo.exists():
+        return arquivo, {}
+    try:
+        dados = json.loads(arquivo.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as erro:
+        falhar(1, f".forge/config.json ilegível ({erro}); nada gravado.")
+    if not isinstance(dados, dict):
+        falhar(1, ".forge/config.json não é um objeto JSON; nada gravado.")
+    return arquivo, dados
+
+
+def opcoes():
+    for nome, texto in OPCOES.items():
+        print(f"  {nome}: {texto}")
+    print("Tarefa pesada (como a bateria de testes) segue uma por vez em qualquer ritmo.")
+
+
+def main(args):
+    if args[:1] in (["-h"], ["--help"]):
+        print(__doc__.strip())
+        return 0
+    if len(args) > 1:
+        falhar(2, "um valor só: forge ritmo <valor> (forge ritmo -h mostra o uso).")
+    arquivo, dados = config_do_projeto()
+    if not args:
+        atual = ritmo_valido(dados.get("ritmo")) or f"{PADRAO} (padrão)"
+        print(f"Ritmo de agora: {atual}. Mude com: forge ritmo <valor>")
+        opcoes()
+        return 0
+    novo = ritmo_valido(args[0])
+    if novo is None:
+        print(f"forge ritmo: valor desconhecido: {args[0]}", file=sys.stderr)
+        opcoes()
+        return 2
+    dados["ritmo"] = novo
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=arquivo.parent, delete=False) as tmp:
+        json.dump(dados, tmp, ensure_ascii=False, indent=2)
+        tmp.write("\n")
+    os.replace(tmp.name, arquivo)
+    print(f"Ritmo gravado: {novo} ({OPCOES[novo]}).")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

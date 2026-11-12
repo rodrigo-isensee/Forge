@@ -1,0 +1,102 @@
+{
+  "pedido": "v0457-f6-5",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "bin/forge_medidas.py:69 len(c) >= 5 and c[1].casefold() == pedido.casefold() and ISO8601.match(c[0]) and (h := _hora(c[0]))",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "                        if len(c) >= 5 and c[1].casefold() == pedido.casefold() and ISO8601.match(c[0]) and (h := _hora(c[0])))",
+      "para": "                        if (not (len(c) >= 5 and c[1].casefold() == pedido.casefold() and ISO8601.match(c[0]) and (h := _hora(c[0])))))",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "bin/forge_medidas.py:72 cod",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    linhas = None if cod else sum(int(n) for n in re.findall(r\"(\\d+) (?:insertion|deletion)\", stat))",
+      "para": "    linhas = None if (not (cod)) else sum(int(n) for n in re.findall(r\"(\\d+) (?:insertion|deletion)\", stat))",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "bin/forge_medidas.py:74 ativo is None",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "               \"lacuna:sem-movimento\" if ativo is None else _numero(ativo), \"lacuna:git-diff\" if linhas is None else str(linhas),",
+      "para": "               \"lacuna:sem-movimento\" if (not (ativo is None)) else _numero(ativo), \"lacuna:git-diff\" if linhas is None else str(linhas),",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "bin/forge_medidas.py:74 linhas is None",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "               \"lacuna:sem-movimento\" if ativo is None else _numero(ativo), \"lacuna:git-diff\" if linhas is None else str(linhas),",
+      "para": "               \"lacuna:sem-movimento\" if ativo is None else _numero(ativo), \"lacuna:git-diff\" if (not (linhas is None)) else str(linhas),",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "bin/forge_medidas.py:75 linhas is None",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "               \"-\" if linhas is None else \"sim\" if linhas < TOPICO_PEQUENO else \"nao\", tokens_do_pedido(raiz, pedido, ctx))",
+      "para": "               \"-\" if (not (linhas is None)) else \"sim\" if linhas < TOPICO_PEQUENO else \"nao\", tokens_do_pedido(raiz, pedido, ctx))",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "bin/forge_medidas.py:75 linhas < TOPICO_PEQUENO",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "               \"-\" if linhas is None else \"sim\" if linhas < TOPICO_PEQUENO else \"nao\", tokens_do_pedido(raiz, pedido, ctx))",
+      "para": "               \"-\" if linhas is None else \"sim\" if (not (linhas < TOPICO_PEQUENO)) else \"nao\", tokens_do_pedido(raiz, pedido, ctx))",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "bin/forge_medidas.py:79 '\\n'.join(piora_da_release(atual, anterior, tags, ctx)) or f'medida: só tabela (n={len(atual)})'",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    print(\"\\n\".join(piora_da_release(atual, anterior, tags, ctx)) or f\"medida: só tabela (n={len(atual)})\")",
+      "para": "    print((not (\"\\n\".join(piora_da_release(atual, anterior, tags, ctx)) or f\"medida: só tabela (n={len(atual)})\")))",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "bin/forge_medidas.py:89 len(c) >= 7 and re.fullmatch('[0-9a-f]{40}', c[2])",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    for sha, c in {c[2]: c for c in linhas if len(c) >= 7 and re.fullmatch(r\"[0-9a-f]{40}\", c[2])}.items():",
+      "para": "    for sha, c in {c[2]: c for c in linhas if (not (len(c) >= 7 and re.fullmatch(r\"[0-9a-f]{40}\", c[2])))}.items():",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    }
+  ]
+}

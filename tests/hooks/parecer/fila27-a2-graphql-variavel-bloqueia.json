@@ -1,0 +1,36 @@
+{
+  "descricao": "FILA-27 A2 (A-F27-2): -f query=\"$Q\" é texto que o hook não lê: no clone, a mutação barra.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "melhoria/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.melhoria/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh api graphql -f query=\"$Q\""
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "tirar o rascunho pela API"
+  }
+}

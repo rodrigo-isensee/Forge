@@ -2,20 +2,20 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2265 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2336 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
-| `agentes` | 68 | 36 | 32 | 25 |
-| `conformidade` | 1651 | 1216 | 435 | 85 |
+| `agentes` | 71 | 38 | 33 | 26 |
+| `conformidade` | 1694 | 1248 | 446 | 87 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 25 | 10 | 15 | 12 |
-| `parecer` | 441 | 343 | 98 | 23 |
+| `parecer` | 463 | 357 | 106 | 24 |
 | `pesado` | 24 | 9 | 15 | 19 |
 | `quadro` | 7 | 2 | 5 | 7 |
-| `vigia` | 46 | 0 | 46 | 24 |
+| `vigia` | 49 | 0 | 49 | 25 |
 
 ## `agentes`
 
@@ -31,6 +31,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2265 fixtures) roda em `tests/test
 | `load-*` | 3 | 0 | 3 | — | — | 8 núcleos, load 5 (< 6,4) e 8 GB livres: dispara. |
 | `memoria-*` | 3 | 2 | 1 | `R-TETO` | — | 16 GB no total (piso padrão 2 GB), 1,5 GB livres: bloqueia. |
 | `reserva-*` | 3 | 0 | 3 | — | `C1-5` | C1: a reserva grava pid da sessão, namespace e session_id. |
+| `ritmo-*` | 3 | 2 | 1 | — | — | ritmo acelerado com teto_maximo 1 e um ativo: bloqueia (o acelerado não passa do teto de sempre). |
 | `bloqueia-*` | 2 | 2 | 0 | — | — | Mesmo tipo e mesma descrição de um agente ativo: relançamento duplicado. |
 | `duplicado-*` | 2 | 1 | 1 | — | — | C1: o relançamento com a mesma descrição passa quando o registro é de sessão morta. |
 | `fim-*` | 2 | 0 | 2 | — | — | C1: o SubagentStop remove só o agent_id; o outro, de sessão viva, fica. |
@@ -67,6 +68,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2265 fixtures) roda em `tests/test
 | `n5-*` | 34 | 21 | 13 | `R-REVIEW` | — | N5 (L22, IMPL-FURO-HOOK-N): am na develop |
 | `nao-*` | 34 | 21 | 13 | `R-MAIN` | `ADR`, `AA2-01` | ADR 0011 (item 2): $' que o shlex lê como aspas abertas. |
 | `pn7-*` | 32 | 24 | 8 | `R-MAIN` | `PN7-DOLAR-INTERROG` | PN7-DOLAR-INTERROG (H1-1, ADR 0011): continua barrado. |
+| `rverify-*` | 29 | 22 | 7 | `R-VERIFY` | `HOOK-RVERIFY-FALSO-POSITIVO` | HOOK-RVERIFY-FALSO-POSITIVO: cat > $TMPDIR/x.py <<'EOF' com `*` e .githooks/pre-push só no corpo (dado, não destino); sessão do Forge, pasta… |
 | `n2-*` | 28 | 22 | 6 | `R-REVIEW` | — | N2 (L20b, IMPL-FURO-HOOK-N): GIT_OBJECT_DIRECTORY por declare -x |
 | `shell-*` | 28 | 20 | 8 | `R-CONFORMIDADE` | — | Contorno pelo shell: echo 9.9.9 >> .forge/versao |
 | `comentario-*` | 26 | 23 | 3 | `R-VERIFY`, `R-CONFORMIDADE`, `R-MAIN` | `HOOK-COMENTARIO-SHLEX` | Na regex do `=~` o bash não abre comentário depois de `\|`: o push seguinte é lido. |
@@ -84,6 +86,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2265 fixtures) roda em `tests/test
 | `subst-*` | 16 | 14 | 2 | `R-VERIFY`, `R-MAIN` | `HEAD` | Caminho colado a $(...): o resto é conferido também a partir da raiz (na dúvida, recusa). |
 | `flag-*` | 15 | 13 | 2 | `R-VERIFY` | — | Flag proibida: git -c core.hooksPath=/dev/null push origin feature/x |
 | `protegido-*` | 15 | 11 | 4 | `R-CONTRIB` | — | .claude-plugin/plugin.json: Dev em melhoria/*: bloqueia. |
+| `profundidade-*` | 14 | 10 | 4 | `R-CONFORMIDADE`, `R-VERIFY` | `PROFUNDIDADE-BASH-C` | PROFUNDIDADE-BASH-C (v0457 E17.1): 3 níveis legítimos de bash -c no projeto seguem liberados. |
 | `ar-*` | 13 | 11 | 2 | `R-VERIFY`, `R-MAIN`, `R-REVIEW` | `AR-TRAVA-UMA-SINTAXE` | AR-TRAVA-UMA-SINTAXE: o programa pelo caminho é o mesmo |
 | `n3-*` | 12 | 9 | 3 | — | — | N3 (IMPL-FURO-HOOK-N, S1b): cp -l faz o mesmo link físico |
 | `fila22-*` | 11 | 7 | 4 | `R-CONFORMIDADE` | `FILA-22` | FILA-22 (review da 0.43.2): abrir PR pelo `gh api` segue a política `pr_criar`; o jarvis (sessão principal) não abre. |
@@ -171,6 +174,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2265 fixtures) roda em `tests/test
 | `forge-*` | 61 | 50 | 11 | `R-REVIEW`, `R-CONTRIB` | `FURO-HOOK-A`, `HOOK-COMENTARIO-SHLEX`, `CRASE-ASPA-HOOK`, `FD1` e mais 1 | A1 do review: git commit -m com heredoc que cita merge e tem apóstrofo no corpo. |
 | `pr-*` | 45 | 31 | 14 | `R-REVIEW`, `R-CONTRIB`, `R-SEGURANCA`, `R-QA` e mais 1 | `K-164`, `PR` | K-164: base escolhida pelo autor fora de develop, homolog e main (aqui uma branch copiada da develop): não afrouxa; fica o modo estrito e o… |
 | `v0454-*` | 30 | 26 | 4 | `R-REVIEW` | `V0454-GH-ALIAS-PARECER` | V0454-GH-ALIAS-PARECER: alias `gh m` = api de merge com `$1` |
+| `fila27-*` | 22 | 14 | 8 | `R-REVIEW` | `FILA-27` | FILA-27 A1 (S7b): no clone do Forge com .forge/versao, o manifesto vence o hooks_desligados; gh pr merge sem parecer barra. |
 | `heredoc-*` | 17 | 10 | 7 | `R-REVIEW` | `HOOK-PARECER-HEREDOC-FALSO-POSITIVO` | HOOK-PARECER-HEREDOC-FALSO-POSITIVO (0.43.2): echo literal depois do corpo. |
 | `continuacao-*` | 16 | 15 | 1 | `R-REVIEW` | `HOOK-CONTINUACAO-LINHA` | HOOK-CONTINUACAO-LINHA (A4 do review, volta 4): $'…' e \ + quebra de linha na mesma linha; as formas compostas até o ponto fixo recusam. |
 | `pn7-*` | 13 | 3 | 10 | `R-REVIEW` | `PN7-DOLAR-INTERROG` | PN7-DOLAR-INTERROG (H1-1, ADR 0011): continua barrado. |
@@ -234,6 +238,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2265 fixtures) roda em `tests/test
 | `d-*` | 4 | 0 | 4 | — | — | Achado D, cadeia 3: o `mv .git .g` é barrado pelo conformidade (o `.git` fica); sem o `.forge/versao`, o vigia avisa no Stop. |
 | `bloqueio-*` | 3 | 0 | 3 | — | — | Bloqueio de outra sessão não vale nesta. |
 | `contorno-*` | 3 | 0 | 3 | — | — | O bloqueio fica no estado: a nova tentativa em outro turno (outro Stop) também é contorno. |
+| `medida-*` | 3 | 0 | 3 | — | `AV3` | AV3 etapa 1: o SubagentStop grava em comandos.jsonl a forma de cada comando crítico com o papel (do agent_type no subagente; da sessão sem a… |
 | `em-*` | 2 | 0 | 2 | — | — | Arquivo em vigor muda depois do SessionStart: aviso ao usuário e registro. |
 | `f-*` | 2 | 0 | 2 | — | — | Achado F: o `commondir` escrito fora dos hooks no clone principal, com o `.forge/versao` fora: a marca não se consulta, falha fechado e o vi… |
 | `leitura-*` | 2 | 0 | 2 | — | — | Push em main barrado (R-MAIN) e depois `git log main`: leitura, não contorno. |

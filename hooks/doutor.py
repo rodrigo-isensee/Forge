@@ -3,6 +3,7 @@
 
 SessionStart: faz o diagnóstico rápido (local, sem rede, sem `gh`) e grava em `.forge/run/doutor`
 `{"data", "problemas", "avisado"}`; nunca escreve no stdout (nele o SessionStart vira contexto do modelo, ADR 0003).
+Antes, no SessionStart, soma as pastas de `caminhos_extra` ao fim do PATH da sessão pelo `CLAUDE_ENV_FILE` (E18.1, `caminhos_na_sessao`).
 Stop: se a data do cache não é a de hoje, refaz o diagnóstico (uma vez por dia); se há problema ainda não avisado,
 imprime só `{"systemMessage": "Forge doutor: ..."}` (uma linha, para o USUÁRIO, nunca `additionalContext`) e marca
 como avisado. Também no Stop, uma vez por dia (consulta que falha não marca o dia), consulta as releases do Forge (`git ls-remote --tags`, 3 s, só https; cache em
@@ -10,10 +11,11 @@ como avisado. Também no Stop, uma vez por dia (consulta que falha não marca o 
 Erro interno: sai 0 e registra em `erros.log`. Só biblioteca padrão."""
 import json
 import os
+import shlex
 import sys
 import time
 
-from _comum import PLUGIN, executar, forge_doutor, gravar_json, ler_json
+from _comum import PLUGIN, caminhos_extra, executar, forge_doutor, gravar_json, ler_json
 
 LIMITE_LINHA = 200
 
@@ -150,6 +152,32 @@ def aviso_de_relogio(hook):
     return texto or None
 
 
+def caminhos_na_sessao(hook, raiz):
+    """E18.1 (0.45.7): as pastas de `caminhos_extra` (.forge/config.json) vão ao fim do PATH dos comandos do Bash da sessão, pelo
+    arquivo de ambiente que o Claude Code dá ao SessionStart (`CLAUDE_ENV_FILE`), com a conferência do `_comum.caminhos_extra`; a
+    pasta que não passa fica de fora, com aviso no erros.log. Sem o arquivo ou sem pasta boa, nada muda; a mesma linha não se repete
+    (resume e compact)."""
+    destino = os.environ.get("CLAUDE_ENV_FILE")
+    if not destino:
+        return
+    pastas, avisos = caminhos_extra(raiz)
+    for aviso in avisos:
+        hook.registrar_escape(aviso)
+    if not pastas:
+        return
+    texto = 'export PATH="$PATH"' + "".join(":" + shlex.quote(p) for p in pastas) + "\n"
+    try:
+        with open(destino, encoding="utf-8") as f:
+            antes = f.read()
+    except FileNotFoundError:
+        antes = ""
+    if texto in antes.splitlines(keepends=True):
+        return
+    separador = "\n" if antes and not antes.endswith("\n") else ""
+    with open(destino, "a", encoding="utf-8") as f:
+        f.write(separador + texto)
+
+
 def linha(problemas):
     n = len(problemas)
     primeiro = " ".join(problemas[0].split())
@@ -166,6 +194,7 @@ def principal(hook):
     if raiz is None:
         return
     if evento == "SessionStart":  # inclusive resume e compact: reexamina sem reabrir o aviso de hoje
+        caminhos_na_sessao(hook, raiz)
         registrar(hook, diagnosticar(raiz), avisar=False)
         return
     with hook.trava():  # cache de hoje: decide e marca "avisado" na mesma trava

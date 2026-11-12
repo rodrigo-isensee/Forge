@@ -1,0 +1,29 @@
+{
+  "descricao": "HOOK-RVERIFY-FALSO-POSITIVO: bash -c; sessão do Forge, pasta fora de projeto: grava a prova da suíte, recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    ".git/forge-suite-verde": "x\n",
+    "docs/hooks.md": "git push * x\n",
+    "bin/forge-fechar": "x\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj",
+    "XDG_RUNTIME_DIR": "{tmp}/run"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo $X git push; bash -c 'echo y > {raiz}/.git/forge-suite-verde'"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-VERIFY: a prova da suíte só é gravada pelo pre-push"
+  }
+}

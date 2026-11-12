@@ -1,0 +1,88 @@
+{
+  "pedido": "v0457-f6-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "bin/forge_corrigidos.py:78 sha",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "    nome_seguro, sem_controle = ctx[\"nome_seguro\"], ctx[\"sem_controle\"]\n    sha, nome = resolver_ref(raiz, ref, ctx)\n    commits = commits_da_ref(raiz, sha, ctx) if sha else None",
+      "para": "    nome_seguro, sem_controle = ctx[\"nome_seguro\"], ctx[\"sem_controle\"]\n    sha, nome = resolver_ref(raiz, ref, ctx)\n    commits = commits_da_ref(raiz, sha, ctx) if (not (sha)) else None",
+      "testes": [
+        "tests.test_medidas_m14b.PrsFixQueCorrigemPrMesclado"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "bin/forge_corrigidos.py:79 commits is None",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "    if commits is None:",
+      "para": "    if (not (commits is None)):",
+      "testes": [
+        "tests.test_medidas_m14b.PrsFixQueCorrigemPrMesclado"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "bin/forge_corrigidos.py:85 evidencia == 'arquivo'",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "        contagem[\"indicio\" if evidencia == \"arquivo\" else evidencia] += 1",
+      "para": "        contagem[\"indicio\" if (not (evidencia == \"arquivo\")) else evidencia] += 1",
+      "testes": [
+        "tests.test_medidas_m14b.PrsFixQueCorrigemPrMesclado"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "bin/forge_corrigidos.py:86 evidencia != 'nenhuma'",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "        if evidencia != \"nenhuma\":",
+      "para": "        if (not (evidencia != \"nenhuma\")):",
+      "testes": [
+        "tests.test_medidas_m14b.PrsFixQueCorrigemPrMesclado"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "bin/forge_corrigidos.py:89 c['pr'] is not None",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "    print(f\"corrigidos: total: prs={sum(1 for c in commits if c['pr'] is not None)} fix={len(fixes)} cita={contagem['cita']} \"",
+      "para": "    print(f\"corrigidos: total: prs={sum(1 for c in commits if (not (c['pr'] is not None)))} fix={len(fixes)} cita={contagem['cita']} \"",
+      "testes": [
+        "tests.test_medidas_m14b.PrsFixQueCorrigemPrMesclado"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "bin/forge_corrigidos.py:95 ','.join((f'#{n}' for n in numeros)) or '-'",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "    return \",\".join(f\"#{n}\" for n in numeros) or \"-\"",
+      "para": "    return (not (\",\".join(f\"#{n}\" for n in numeros) or \"-\"))",
+      "testes": [
+        "tests.test_medidas_m14b.PrsFixQueCorrigemPrMesclado"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "bin/forge_corrigidos.py:106 prs",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "    numeros = []\n    if prs:",
+      "para": "    numeros = []\n    if (not (prs)):",
+      "testes": [
+        "tests.test_medidas_m14b.RotulosAfrouxaRegraQueEramReais",
+        "tests.test_medidas_m14b.RamosDeFalhaDoModuloCorrigidos"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "bin/forge_corrigidos.py:108 not all((re.fullmatch('\\\\d{1,6}', x) for x in pedacos))",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "        if not all(re.fullmatch(r\"\\d{1,6}\", x) for x in pedacos):",
+      "para": "        if (not (not all(re.fullmatch(r\"\\d{1,6}\", x) for x in pedacos))):",
+      "testes": [
+        "tests.test_medidas_m14b.RotulosAfrouxaRegraQueEramReais",
+        "tests.test_medidas_m14b.RamosDeFalhaDoModuloCorrigidos"
+      ]
+    }
+  ]
+}
