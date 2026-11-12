@@ -76,8 +76,8 @@
       "id": "D2",
       "guarda": "o commit que a branch já tem não vira cherry-pick",
       "arquivo": "bin/forge-doutor",
-      "de": "return sha if rc == 1 else None",
-      "para": "return sha",
+      "de": "sha if rc == 1 else",
+      "para": "sha if rc in (0, 1) else",
       "testes": [
         "tests.test_doutor_branch_atrasada.BranchAtrasada.test_versao_antiga_com_o_commit_da_develop_ja_na_branch_volta_ao_conselho_de_sempre"
       ]
