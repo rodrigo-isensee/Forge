@@ -327,8 +327,10 @@ class LancadorDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
             if maior < 0.0245 and media < 0.0208:
                 break
             falhas.append(f"máximo {maior * 1000:.1f} ms (limite 24,5), média {media * 1000:.1f} ms (limite 20,8)")
-        else:
-            self.fail("o teto K gastou CPU demais nos 3 lotes de 20 decisões: " + "; ".join(falhas))
+        # Sem lote bom, o último estoura um dos limites e a asserção dele falha; com lote bom, o último é ele.
+        motivo = "o teto K gastou CPU demais nos 3 lotes de 20 decisões: " + "; ".join(falhas)
+        self.assertLess(maior, 0.0245, motivo)
+        self.assertLess(media, 0.0208, motivo)
 
     def test_guarda_mede_cpu_e_nao_relogio(self):  # PR-VERDE-D3-TEMPO
         """O tempo que `decidir_na_guarda` devolve é `process_time` (CPU da decisão): a fila da máquina não o alonga."""

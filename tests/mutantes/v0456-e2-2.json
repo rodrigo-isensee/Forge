@@ -32,7 +32,7 @@
     {
       "arquivo": "bin/forge-check",
       "trecho": "not livre(f, estritos)",
-      "linha_base": 737,
+      "linha_base": 746,
       "motivo": "condição editada, não apagada: segue na linha nova com `or f in removidos`, coberta por E2-M8 e E2-M9"
     }
   ]
