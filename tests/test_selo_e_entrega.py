@@ -704,5 +704,121 @@ class VoltaNaMesmaBranch(Conferencia):
         self.assertIn('escopo: fora do declarado no brief "bin/app"', saida)
 
 
+class ParecerDoPortao(Conferencia):
+    """E23.36 (d): na etapa codigo, o parecer de portão commitado na própria branch é anexo do portão; o de outra branch, não."""
+
+    def commitar_parecer(self, pasta, tipo, branch="melhoria/x", pedido="exemplo", revisado=None):
+        """O parecer do portão sobre o head de agora (`revisado`, o `commit:` do frontmatter), commitado na branch."""
+        rel, revisado = f"docs/{pasta}/x.md", revisado or self.git("rev-parse", "HEAD")
+        self.gravar(rel, f"---\ntipo: {tipo}\ncontrato: 1\npedido: {pedido}\nbranch: {branch}\ncommit: {revisado}\nparecer: aprovado\n---\n# parecer\n")
+        self.git("add", rel)
+        self.commit(f"docs({pasta}): parecer")
+        return rel
+
+    def entrega_com_parecer(self, **kw):
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.entregar()
+        return self.commitar_parecer("reviews", "review", **kw)
+
+    def test_parecer_da_propria_branch_e_anexo_do_portao(self):
+        self.entrega_com_parecer()
+        self.commitar_parecer("devops", "revisao-devops")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn('escopo: ok (anexo do portão: parecer de tech-lead da própria branch) "docs/reviews/x.md"', saida)
+        self.assertIn('escopo: ok (anexo do portão: parecer de devops da própria branch) "docs/devops/x.md"', saida)
+
+    def test_parecer_de_outra_branch_segue_fora(self):
+        self.entrega_com_parecer(branch="melhoria/y")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('escopo: fora do declarado no brief "docs/reviews/x.md"', saida)
+
+    def test_parecer_de_outro_pedido_segue_fora(self):
+        self.entrega_com_parecer(pedido="outro")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('escopo: fora do declarado no brief "docs/reviews/x.md"', saida)
+
+    def test_parecer_sem_o_commit_revisado_na_branch_segue_fora(self):
+        """O `commit:` que não é um sha40 da branch (parecer escrito sem revisar um head dela) não faz anexo do portão."""
+        self.entrega_com_parecer(revisado="0" * 40)
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('escopo: fora do declarado no brief "docs/reviews/x.md"', saida)
+        self.commitar_parecer("reviews", "review", revisado="HEAD")  # um nome que o git resolve, mas não o sha40 revisado
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('escopo: fora do declarado no brief "docs/reviews/x.md"', saida)
+
+
+class MergeDaBaseDepoisDoBrief(Conferencia):
+    """E23.36 (e): com a develop trazida por merge, o intervalo parte do merge-base com a origin/develop; a conferida de outra branch
+    que veio com ela não é Desde, e o que a develop mudou não é escopo."""
+
+    def develop_anda(self, *conteudos):
+        """A develop ganha um commit por conteúdo de `agents/outro.md` (outro lote) no `origin`; devolve os shas."""
+        self.git("switch", "-q", "develop")
+        shas = []
+        for texto in conteudos:
+            self.gravar("agents/outro.md", texto)
+            self.git("add", "agents/outro.md")
+            shas.append(self.commit("outro lote"))
+        self.git("push", "-q", "origin", "develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("fetch", "-q", "origin")
+        return shas
+
+    def entrega_e_merge(self):
+        """A entrega, a develop com a conferida de outra branch do mesmo pedido (o 1.o commit) e o merge dela na branch."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.entregar()
+        outra, _ = self.develop_anda("a\n", "a\nb\n")
+        (self.proj / "docs/pedidos/exemplo.md").write_text(self.pedido() + f"- 2026-01-01 10:00: entrega conferida {outra}\n", encoding="utf-8")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "-m", "merge da develop", "origin/develop")
+        return self.git("rev-parse", "refs/remotes/origin/develop")
+
+    def test_conferida_trazida_pela_develop_nao_e_desde(self):
+        ponto = self.entrega_e_merge()
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"base: merge-base {ponto[:12]} com a", saida)
+        self.assertIn(f"intervalo: {ponto}..", saida)
+        self.assertIn(f"commits: 2 em {ponto[:12]}", saida)
+        self.assertNotIn("agents/outro.md", saida)
+
+    def test_arquivo_da_develop_mudado_depois_do_merge_segue_fora(self):
+        self.entrega_e_merge()
+        self.gravar("agents/outro.md", "a\nb\nda branch\n")
+        self.git("add", "agents/outro.md")
+        self.commit("feat: muda o da develop")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('escopo: fora do declarado no brief "agents/outro.md"', saida)
+
+    def test_base_sha_fora_da_branch_segue_reprovado(self):
+        """O Base-sha adiante do merge-base (a develop andou e a branch não a trouxe) não vira o merge-base: segue fora da branch."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.entregar()
+        adiante, = self.develop_anda("a\n")
+        self.selar_copia("exemplo-node-backend-2.md", {f"Base-sha: {self.base}": f"Base-sha: {adiante}"}, selar=False)
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: Base-sha fora da branch", saida)
+        self.assertNotIn("base: merge-base", saida)
+
+    def test_head_ja_na_develop_mantem_o_base_sha(self):
+        """Com o head já na develop, o merge-base seria o próprio head (intervalo vazio): fica o Base-sha, como antes da E23.36."""
+        self.entrega_e_merge()
+        self.git("push", "-q", "origin", "melhoria/x:develop")
+        self.git("fetch", "-q", "origin")
+        _, saida = self.conferir()
+        self.assertNotIn("base: merge-base", saida)
+        self.assertNotIn("pendente: intervalo vazio", saida)
+
+
 if __name__ == "__main__":
     unittest.main()

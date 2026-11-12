@@ -2315,6 +2315,18 @@ def anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
     return None
 
 
+def parecer_de_portao_da_branch(raiz, head, nome, tipo, branch, pedido_id, slug):
+    """E23.36 (d): na etapa codigo, o parecer de portão commitado na própria branch é anexo do portão: o frontmatter no head tem o `tipo`
+    da pasta, um `parecer:` e `branch:` igual à branch conferida, o `pedido:` é o da entrega (o id ou o slug) e o `commit:` revisado é um
+    commit da própria branch (sha40 ancestral do head). Parecer de outra branch, ou sem o commit revisado na branch, não."""
+    cod, texto = git(raiz, "show", f"{head}:{nome}")
+    fm = ler_frontmatter(texto)[0] or {}
+    revisado = fm.get("commit") or ""
+    return (not cod and fm.get("tipo") == tipo and fm.get("parecer") in ("aprovado", "reprovado") and fm.get("branch") == branch
+            and fm.get("pedido") in (pedido_id, slug)
+            and sha_do_commit(raiz, revisado) == revisado and e_ancestral(raiz, revisado, head))
+
+
 def provas_do_brief(texto):
     """[(n, tipo)] das linhas `PQ-n (<tipo>[, ...])` do `Pronto quando` do brief, na ordem."""
     provas = []
@@ -2498,6 +2510,8 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
             linhas.append((f"escopo: ok (merge-integracao: branch com os pareceres aprovados no head) {mostrado}", False))
         elif rotulo := anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
             linhas.append((f"escopo: ok (anexo implícito: {rotulo}) {mostrado}", False))
+        elif etapa == "codigo" and tipo and not com_controle(nome) and parecer_de_portao_da_branch(raiz, head, nome, tipo, branch, pedido_id, slug):
+            linhas.append((f"escopo: ok (anexo do portão: parecer de {PAPEL_DO_PARECER[tipo]} da própria branch) {mostrado}", False))
         else:
             linhas.append(escopo_resolvido(declarado, nome, mostrado) or (f"escopo: confira {mostrado} +{acrescidas} -{removidas}", False))
     if briefs:
@@ -8631,6 +8645,18 @@ def estado_da_worktree(raiz, branch, head, worktree):
     return pasta, [(f"worktree: {caminho_impresso(pasta)} no head {head[:12]}, limpa", False)]
 
 
+def ponto_da_integracao(raiz, base, base_sha, head):
+    """E23.36 (e): o merge-base da `origin/<base>` com o head quando ele está adiante do Base-sha (a branch trouxe a base por merge depois
+    do brief que o gravou); senão o próprio Base-sha. Com o head já na base, ou o git que falha, fica o Base-sha (nada se afrouxa)."""
+    base_ref = ref_da_base(raiz, base)
+    if not base_ref or e_ancestral(raiz, head, base_ref):
+        return base_sha
+    cod, ponto = git(raiz, "merge-base", base_ref, head)
+    if cod or ponto == base_sha or not e_ancestral(raiz, base_sha, ponto):
+        return base_sha
+    return ponto
+
+
 def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True, so_leitura=False):
     """P2 (0.43.1): a conferência de entrega por ferramenta. Acha o brief selado da branch e da etapa, calcula Base, Base-sha e Desde
     (nada digitado), roda o escopo do `entrega` com o escopo declarado no brief, as provas e a contagem de commits; sem reprovação, grava
@@ -8668,6 +8694,9 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
         print(f"resultado: cumpriu (o head {head} já tem a linha entrega conferida)")
         print(f"gravado: já existia a linha entrega conferida {head}")
         return 0
+    if etapa == "codigo" and (ponto := ponto_da_integracao(raiz, base, base_sha, head)) != base_sha:
+        print(f"base: merge-base {ponto[:12]} com a {nome_seguro(base)} (a branch trouxe a base depois do Base-sha {base_sha[:12]})")
+        base_sha = ponto  # E23.36 (e): o que veio da base pelo merge não é escopo, e conferida de outra branch que veio com ela não é Desde
     valido = desde_valido(raiz, texto, head, base_sha)[0]
     desde = valido or (base_sha if base_sha_como_desde(raiz, texto, base_sha, head) else None)
     declarado = escopo_declarado(brief, branch)

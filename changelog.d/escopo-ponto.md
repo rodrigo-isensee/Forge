@@ -1,2 +1,3 @@
 ### Corrigido
 - forge-check entrega --pedido: o escopo declarado mantém o ponto inicial de caminho (.github/...); na etapa codigo, a volta na mesma branch herda o escopo dos briefs de codigo selados antes do mesmo pedido; na merge-integracao, os pareceres são achados pelo pedido do brief, como no forge-check pr <pedido> (E23.17)
+- forge-check entrega --pedido, etapa codigo: o parecer de portão commitado na própria branch (branch:, pedido: e commit: revisado dela) é anexo do portão, não fora do declarado; com a develop trazida por merge depois do Base-sha, o intervalo parte do merge-base com a origin/develop, e o que veio da develop (inclusive a conferida de outra branch) não é escopo (E23.36)
