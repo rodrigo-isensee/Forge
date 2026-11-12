@@ -488,7 +488,8 @@ class PrePushTrava(unittest.TestCase):
             with self.subTest(nome):
                 codigo, _, erro = self.roda("origin", "u", entrada=entrada)
                 recusa = nome == "duas"  # PREPUSH-REFS: uma remoção por envio
-                self.assertEqual((codigo, ("mais de uma remoção" if recusa else "só remove") in erro), (int(recusa), True), erro)
+                self.assertEqual(codigo, int(recusa), erro)
+                self.assertIn("mais de uma remoção" if recusa else "só remove", erro)
                 self.assertFalse((self.repo / "rodou").exists(), "a suíte rodou em push que só apaga")
                 self.assertEqual(list(self.run_dir.iterdir()), [], "push que só apaga não pega trava nem entra na fila")
 
