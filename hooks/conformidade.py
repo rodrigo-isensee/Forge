@@ -318,6 +318,12 @@ GLOB_DE_PATHSPEC = re.compile(r"[*?\[\\]")
 CHECKOUT_COM_VALOR = {"-b", "-B", "--orphan"}
 
 VARIAVEL = re.compile(r"\$\{?(\w+)\}?|\$\(|`")
+# E20.6 (A2 da segurança, v046): nomes do diretório do git. Depois de `$(…)` ou de variável, o resto que começa por um
+# deles pode estar no `.git` (`$(git rev-parse --git-common-dir)/forge/x`, `d=<raiz>/.git; cp x $d/config`).
+NOMES_DO_GIT = frozenset({"forge", "config", "hooks", "HEAD", "index", "refs", "objects", "logs", "info", "worktrees",
+                          "commondir", "gitdir", "packed-refs", "modules"})
+SO_VARIAVEL = re.compile(r"\$\{?\w+\}?|`")
+SUBSTITUICAO = re.compile(r"[$<>]\(")
 SIMPLES = {
     "apagar": "Apagar o projeto no GitHub perde todo o trabalho, sem volta. Se quiser mesmo, faça pelo site do GitHub.",
     "publico": "Deixar o projeto público faz qualquer pessoa na internet ver todo o código e o histórico. "
@@ -946,10 +952,34 @@ class Guarda:
                 self.parecer_pelo_bash = alvo
 
     def alvos_da_escrita(self, caminho, pasta):
-        """O caminho resolvido e, depois de uma substituição (`$(…)/x`), o resto resolvido a partir da raiz do projeto."""
+        """O caminho resolvido, o resto que cai no `.git` (`resto_no_git`) e, depois de uma substituição (`$(…)/x`), o resto
+        resolvido a partir da raiz do projeto."""
         alvos = [self.resolver(self.expandir(caminho, pasta), pasta)]
+        no_git = self.resto_no_git(caminho, pasta)
+        alvos = [*alvos, no_git] if no_git else alvos
         resto = caminho.rsplit(OPACO["$"], 1)[1].lstrip("/") if OPACO["$"] in caminho else ""
         return [*alvos, self.resolver(resto, Path(self.h.raiz))] if resto else alvos
+
+    def resto_no_git(self, caminho, pasta):
+        """E20.6 (A2 da segurança, v046): o hook não sabe o valor de `$(…)`, da crase nem de variável. Se o resto depois do
+        último deles começa por um nome do diretório do git (`NOMES_DO_GIT` ou o que existe no diretório comum), devolve o mesmo
+        resto dentro do `.git` da raiz, que as regras `.git/…` barram; senão None (`$(pwd)/docs/x` segue livre)."""
+        expandido = self.expandir(caminho, pasta)
+        fins = [m.end() for m in SO_VARIAVEL.finditer(expandido)]
+        if SUBSTITUICAO.search(expandido):  # `$(…)` (opaca ou, entre aspas, com o texto dentro): até o último `)`
+            fins.append(expandido.rfind(")") + 1)
+        if not fins:
+            return None
+        partes = Path(expandido[max(fins):].lstrip("/")).parts
+        if not partes or partes[0] not in self.nomes_do_git(pasta):
+            return None
+        return Path(os.path.realpath(self.h.raiz)) / ".git" / Path(*partes)
+
+    def nomes_do_git(self, pasta):
+        """`NOMES_DO_GIT` mais o que existe no diretório comum do git da pasta (lido do disco)."""
+        topo = self.raiz_git(pasta)
+        comum = topo and diretorio_comum(topo)
+        return NOMES_DO_GIT | set(os.listdir(comum)) if comum else NOMES_DO_GIT
 
     def pastas_do_curinga(self, caminho, pasta, opaco=False):
         """S8 (E5a/C-2, A1 da segurança g1-r2): onde o bash expande o curinga do nome, igual na escrita, na origem de

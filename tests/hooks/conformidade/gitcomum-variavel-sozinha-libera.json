@@ -1,0 +1,28 @@
+{
+  "descricao": "E20.6: variável sem resto (`d=docs/n.md; cp x $d`) não tem nome do diretório do git a conferir.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n",
+    "x": "x\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "d=docs/n.md; cp x $d"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -2,14 +2,14 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2336 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2356 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 71 | 38 | 33 | 26 |
-| `conformidade` | 1694 | 1248 | 446 | 87 |
+| `conformidade` | 1714 | 1258 | 456 | 88 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 25 | 10 | 15 | 12 |
 | `parecer` | 463 | 357 | 106 | 24 |
@@ -79,6 +79,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2336 fixtures) roda em `tests/test
 | `n1-*` | 21 | 16 | 5 | `R-MAIN`, `R-VERIFY` | — | N1 (IMPL-FURO-HOOK-N, C-N1-2): o alias com ponto no nome também é lido |
 | `pacote-*` | 21 | 9 | 12 | `R-CONFORMIDADE` | `QA` | Dev instala dependência nova. |
 | `pr-*` | 21 | 17 | 4 | `R-CONFORMIDADE`, `R-MAIN` | `FILA-22`, `QA` | Dev criando PR: bloqueia. |
+| `gitcomum-*` | 20 | 10 | 10 | `R-CONFORMIDADE` | `E20.6` | E20.6: a crase entre aspas (`` `git rev-parse --git-common-dir`/forge/x ``) vale como `$(…)`. |
 | `aq-*` | 18 | 13 | 5 | — | `AQ` | AQ barrado em agents/ de uma worktree fora da raiz. |
 | `autoria-*` | 17 | 0 | 17 | — | — | Redirecionamento para docs/qa/ pelo Bash também registra. |
 | `desenho-*` | 16 | 7 | 9 | — | `E5-0` | E5-0 (Q-B, PAR-P2): sonda: docs/architecture/ de projeto fica sem dono até DESENHO-PROJETO-DONO; o devops grava a seção CI/CD do plano. |
