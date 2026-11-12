@@ -6,7 +6,7 @@
       "id": "B1",
       "guarda": "B4: o comando atras de lancador com opcoes e lido",
       "arquivo": "hooks/pesado.py",
-      "de": "return [texto for comando in comandos for texto in inicios_sem_lancador(comando)]",
+      "de": "return [texto for comando in simples for texto in inicios_sem_lancador(comando)]",
       "para": "return inicios_sem_lancador(palavras)",
       "testes": [
         "tests.test_pesado_v046.B4.test_atras_de_lancador_com_opcoes"

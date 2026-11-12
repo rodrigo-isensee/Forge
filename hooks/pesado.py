@@ -4,7 +4,7 @@
 PreToolUse (Bash): se um comando simples da linha começa com um item de `pesados` (.forge/config.json) e outra
 sessão ou agente tem tarefa pesada ativa (trava com PID vivo, com menos de TRAVA_S), bloqueia; senão pega a trava.
 Vivo não é o zumbi nem o pid reaproveitado (o início do processo vai na trava); o hook que fica órfão na fila sai dela
-(PROCESSO-ORFAO). O comando se lê atrás dos lançadores do `_comum` e por caminho (`/x/bin/forge-testes`; B4).
+(PROCESSO-ORFAO). O comando se lê atrás dos lançadores do `_comum` e por caminho (`/x/bin/forge-mutante`; B4).
 PostToolUse, PostToolUseFailure e PermissionDenied (Bash) do mesmo comando soltam a trava.
 No clone do Forge (cópia principal e worktrees), que não tem `.forge/config.json`, valem também os PESADOS_DO_FORGE
 abaixo: duas suítes completas ao mesmo tempo esgotam a memória (R-TETO); os scripts de PELOS_ARGUMENTOS são
@@ -173,10 +173,10 @@ def inicios(palavras):
     os lançadores da tabela do `_comum` com as opções deles (`timeout -s KILL 60`, `nice -n 10`, `env -i -u X`), em cada
     leitura possível; a leitura que o `_comum` recusa (`LancadorDemais`, texto do `env -S` aberto) cai na leitura antiga."""
     try:
-        comandos = [comando for comando, _ in separar_lancadores(palavras)]
+        simples = [comando for comando, _ in separar_lancadores(palavras)]
     except ValueError:
-        comandos = [palavras]
-    return [texto for comando in comandos for texto in inicios_sem_lancador(comando)]
+        simples = [palavras]
+    return [texto for comando in simples for texto in inicios_sem_lancador(comando)]
 
 
 def inicios_sem_lancador(palavras):
@@ -208,7 +208,7 @@ def leve_pelos_argumentos(inicio, padrao):
 
 
 def palavra_casa(palavra, molde):
-    """B4 (v046): a palavra é a do padrão ou termina nela depois de uma pasta (`/x/bin/forge-testes`, `./.githooks/…`)."""
+    """B4 (v046): a palavra é a do padrão ou termina nela depois de uma pasta (`/x/bin/forge-mutante`, `./.githooks/…`)."""
     molde = molde.removeprefix("./")
     return palavra == molde or palavra.endswith("/" + molde)
 
