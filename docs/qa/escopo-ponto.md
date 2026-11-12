@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0457
 branch: melhoria/escopo-ponto
-commit: 0a0a7c808607535ddfe5e2eaf715a9340d7f8b8b
+commit: 22e6bce13053072c0c2d88da4e8b3ca04b4125e6
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -43,7 +43,6 @@ Diff 8b5a44d5..ba359573: bin/forge-check (cinco defeitos da conferência de entr
 - Vermelho: o do delta anterior (59 passam na base de propósito, 7 provam) segue; o delta só soma testes sobre código novo, sem teste que passe sem ele nos mutantes.
 
 ## Achados
-Nenhum aberto. A1 (antigo) resolvido no c51ecb48.
 
 ## Revalidação por delta c51ecb48..73e4848c (E23.51)
 `forge-check parecer delta` lista no domínio: bin/forge-check, changelog.d, specs 3, 4 e 5 e tests/test_selo_e_entrega.py.
@@ -59,7 +58,6 @@ Nenhum aberto. A1 (antigo) resolvido no c51ecb48.
 - Vermelho: o delta só soma testes sobre código novo; cada um dos novos negativos é morto por mutante, sem teste que passe com o mutante vivo.
 
 ## Achados (delta)
-Nenhum aberto.
 
 ## Revalidação por delta 73e4848c..0a0a7c80 (E23.55)
 `forge-check parecer delta` lista no domínio: bin/forge-check, changelog.d, specs 3 e 5 e tests/test_selo_e_entrega.py.
@@ -77,4 +75,18 @@ Nenhum aberto.
 - Vermelho: o delta soma testes sobre código novo; cada negativo novo é morto por mutante (M34, M35).
 
 ## Achados
-Nenhum aberto.
+
+## Revalidação por delta 0a0a7c80..22e6bce1 (E23.59)
+`forge-check parecer delta` lista no domínio: bin/forge-check, changelog.d, specs 2, 3 e 5 e tests/test_selo_e_entrega.py.
+- segurança A10 (S8): `parecer_de_portao_da_branch` recebe `base_sha` e repassa a `veredito_trocado` (bin/forge-check:2562-2564, :2377); a busca cobre a branch inteira. `test_s8_volta_anterior_tirou_o_reprovado_da_pasta` monta o S8 do parecer de segurança (volta 2 tira o x.md e é conferida; volta 3 cria y.md aprovado com o `commit:` revisado). M36 (volta `base_sha` para `de`) morre nele.
+- M10 e M20 mudaram só o trecho `de` (assinatura nova), mesma guarda e mesmos testes; seguem mortos.
+- Matriz `MatrizDaBuscaDoVeredito`: 3 janelas x (5 topologias + 3 pastas + 3 nomes) = 33 células, mais a S8. Conferida contra o caminho de ataque do A10 e a nota de método da segurança (linear, merge lateral e octopus nas duas ordens; pasta, subpasta e pasta parecida; outro arquivo, o mesmo e `git mv`): cobertas. Só a janela `volta_anterior_apagada` depende da correção; as outras duas são regressão. Herdar de `ParecerDoPortao` reexecuta os testes dela (por isso o módulo ficou ~90 s mais lento).
+- Vermelho: com M36 aplicado à mão numa cópia, S8 mais os 3 testes da matriz dão `FAILED (failures=11)`: S8 e 10 células `volta_anterior_apagada` (5 topologias, pastas raiz e subpasta, 3 nomes). A célula `parecida_fora` passa sem a correção por natureza (parecer fora da pasta nunca é anexo). Bate com "11 falhavam".
+- 783 linhas na branch (teto excedido): decisão do review/tech-lead, vai para a versão seguinte; não é defeito de QA.
+
+## Provas (delta E23.59, head 22e6bce1, worktree destacada)
+- `python3 -m unittest tests.test_selo_e_entrega`: 98 testes OK (409 s); `tests.test_conf_escopo`: 16 OK (um por vez); 114 no total.
+- `forge-mutante` das 5 specs `v0457-escopo-ponto*`, uma por vez: rc=0 em cada; 8+8+8+8+4 = 36 `morreu` (M1 a M36), nenhum sobrevivente nem sem veredito (M28 morre por erro do teste declarado, que passa sem o mutante, como antes).
+- `forge-mutante --cobertura --base 8b5a44d5`: todas `coberta`, nenhuma `não coberto` nem sem mutante, rc=0.
+
+## Achados
