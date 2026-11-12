@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/v046-mutacao-bench
-commit: 135b20d23a95d5ade9e358e6abb0126f63db930c
+commit: 203e3554785746c600bd590fddb807d930eaa7a2
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -55,5 +55,15 @@ O delta amplia o `--base` (spec mudada e módulo de teste mudado entram no diff)
 - `forge-testes --vermelho` não rodado (estourou o prazo antes); vale o vermelho manual e a mutação.
 - Citação da `--base` e do bench por versão em `skills/qa-testing/SKILL.md`, `agents/qa-engineer.md` e `agents/tech-lead.md` lida no diff: coerente com o `forge-mutante` (linha `base=`, head já aprovado, placar e bench nunca no PR). O `bateria` do sha fica com o portão.
 
+## Revalidação por delta 135b20d2..203e3554 (E7.16)
+`forge-check parecer delta` lista no domínio: `agents/qa-engineer.md`, `agents/tech-lead.md`, `skills/qa-testing/SKILL.md`, `bin/forge-mutante`, specs `v046-mutacao-bench.json` e `-3.json`. Mudança de código: só `apoio` virou `apoio_mudado` em `dirigir` (:829-835, renomeação sem efeito de lógica, mesmos termos); `de` de M5, M16 e M17 acompanharam. O texto dos 3 arquivos de instrução foi enxugado sem tirar obrigação (mutante por linha de guarda, `--base`, `base=`, placar e bench por versão, `AR-<n>`).
+- `python3 -m unittest tests.test_forge_mutante`: Ran 110 tests, OK (95,3 s).
+- `python3 -m unittest tests.test_orcamento_instrucao`: Ran 8 tests, OK. `python3 -m unittest tests.test_metricas_texto`: Ran 2 tests, OK.
+- `forge-mutante` das 3 specs, `--processos 4`: M1..M20 todos `morreu` (M5 :835, M16 :830, M17 :835 com os `de` novos).
+- `forge-mutante <3 specs> --base 135b20d2`: `base=135b20d23a95... rev=203e3554785746c600bd590fddb807d930eaa7a2` confere com o head aprovado; M9 e M10 `fora do diff`; M1..M8 e M11..M20 `morreu`.
+- Cobertura `--cobertura --base 8b5a44d5`: 13 linhas `coberta` (:801, :810, :819, :830, :834, :835, :837, :840, :859, :897, :899, changelog :218 e :222), nenhuma sem mutante.
+- Vermelho: o delta não traz teste nem regra nova (renomeação e texto); a prova de que o teste cai sem a lógica segue a da E7.12 (mutantes M16 e M17 mortos pelo mesmo teste).
+- Instrução: citações lidas no diff, coerentes com o `forge-mutante`; o orçamento é conferido por `tests.test_orcamento_instrucao` (OK). O `bateria` do sha fica com o portão; o delta não toca `.github/` nem `.githooks/`.
+- Formato: o `## Achados` anterior tinha prosa e saía fora do formato do `forge-check docs`; agora é bloco vazio (parecer aprovado), e a prosa dos achados fechados vai aqui: A1 da E7.4 atendido (bin/forge-mutante:859), sonda S2 da E7.7 virou teste (tests/test_forge_mutante.py:1294).
+
 ## Achados
-Nenhum achado aberto. A1 da rodada anterior foi atendido (bin/forge-mutante:859); a sonda S2 da E7.7 virou teste (tests/test_forge_mutante.py:1294).
