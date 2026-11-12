@@ -3,28 +3,35 @@ tipo: review
 contrato: 1
 pedido: v046
 branch: melhoria/conformidade-curinga
-commit: 9bd8340486854e946ad2bd810074a6dfaaf8e778
-parecer: reprovado
+commit: abfccb7e24fb7ef005e53080d81d60c3896234cc
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-12
 ---
-# Review: v046 (E20.36, volta 4 do curinga na origem de link vinda de rev-parse)
+# Review: v046 (E20.40, revalidação por delta da volta 5 do curinga na origem de link vinda de rev-parse)
 
-Diff lido: `c340c322..9bd83404` (3 commits: 3f9ed613, c46a684a, 9bd83404), numa worktree destacada do revisor. Instância que não fez a correção.
+Delta lido: `b283521c..abfccb7e` (3 commits: 15dfdc3a, f84306a6, abfccb7e), numa worktree destacada do revisor no head abfccb7e. Instância que não fez a correção. A volta 5 fecha os achados do parecer da volta 4 (E20.36, commit 9bd83404, reprovado).
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:1095 · o glob do Python não lê `[^x]` (negação no bash) nem classe POSIX `[[:alpha:]]`: casa nada e a origem se libera; no bash casam config e hooks. Sugestão: com `[` no resto, falha fechada (só `?` e `*` liberam) ou traduzir `[^`→`[!` e recusar `[:`, `[=`, `[.`; fixture para cada.
-- A2 (recomendado) docs/engineering/achados-recorrentes.md:21 · a classe "leitura do hook difere da do bash" volta neste pedido (agora no curinga); gravar a linha AR no PR que fechar o A1 (o brief desta etapa limita os arquivos ao parecer).
+Nenhum aberto.
+- A1 (volta 4, bloqueante) fechado: `hooks/conformidade.py:1097` recusa o resto com `[` que não seja colchete só de dígitos e hífen; `[^x]`, `[[:alpha:]]`, `[[=c=]]` e `[[.c.]]` têm fixture que recusa.
+- A2 (volta 4, recomendado) fechado: `docs/engineering/achados-recorrentes.md:27` grava o AR-13 no formato do arquivo.
 
 ## Sondas
-- S1 · ln "$(git rev-parse --git-dir)"/[^x]onfig h · espera: código 2 (link com caminho protegido) · obtido: código 0 (fixture gitcomum-zsonda-s1 falhou)
-- S2 · ln "$(git rev-parse --git-dir)"/[[:alpha:]]onfig h · espera: código 2 · obtido: código 0 (fixture gitcomum-zsonda-s2 falhou)
-- S3 · cp -s "$(git rev-parse --git-dir)"/hook[^x]/pre-push h · espera: código 2 · obtido: código 0 (fixture gitcomum-zsonda-s3 falhou)
-- S4 · bash -c 'echo .git/[^x]onfig .git/[[:alpha:]]onfig .git/hook[^x]/pre-push' num .git com config e hooks/pre-push · espera: os três expandem · obtido: .git/config .git/config .git/hooks/pre-push; glob.glob dos dois primeiros: [] []
+- S1 · shopt -s extglob (nova linha) ln "$(git rev-parse --git-dir)"/@(config) h · espera: código 2 · obtido: código 2 (pela regra genérica `.git/`, falha fechada)
+- S2 · shopt -s extglob (nova linha) ln "$(git rev-parse --git-dir)"/?(config) h · espera: código 2 · obtido: código 2 (regra genérica)
+- S3 · shopt -s extglob (nova linha) cp -s "$(git rev-parse --git-dir)"/+(hooks)/pre-push h · espera: código 2 · obtido: código 2 (regra genérica)
+- S4 · ln "$(git rev-parse --git-dir)"/[0-9-]onfig h · espera: código 0 (o bash não expande para nome protegido) · obtido: código 0
 
 ## Parecer
-Reprovado pelo A1. O resto da volta 4 está correto e no escopo: chaves depois do `DIR_DO_GIT` não liberam (falha fechada), o curinga só libera se o glob de cada prefixo não cair em regra específica, o `livres` passou para dentro do `try` (papel `-`) e o `caminhos[:-1]` segue cortando o destino. As 8 fixtures `gitcomum-v3` cobrem os dois lados (7 recusam, `HEA?` libera); `[!x]onfig` também recusa (sonda extra, passou). Nada além da volta 4 mudou: o G22 da spec `-4` acompanha a linha nova, o índice `docs/hooks-fixtures.md` foi regenerado e o fragmento do changelog é próprio. A spec `-5` declara G27 a G33, um por guarda nova.
+Aprovado. Fecha os dois achados da volta 4 e o delta não abre nada.
 
-O defeito do A1 é a mesma classe que esta volta fecha (o curinga escapa da regra específica), por outra porta: `origem_so_generica` decide pelo `fnmatch` do Python, que trata `^` no início do colchete como literal e não conhece `[:classe:]`, enquanto o bash nega e expande a classe. Com a sugestão de falha fechada para `[`, as fixtures `[c]onfig` e `hook[s]` seguem recusando e `HEA?` segue livre.
+A exceção do colchete de dígitos é segura. `\[[0-9-]+\]` só tira colchete sem `!`, `^`, `]` nem `[:`, que o bash e o `fnmatch` leem igual (dígito, faixa de dígitos e hífen literal; faixa invertida casa nada nos dois). Nenhum nome protegido (`config`, `hooks/`, `forge/`) tem dígito no lugar do colchete. O hífen de `pre-push` cabe em `[-]`, mas o prefixo `hooks` já cai na regra específica antes. Colchete aninhado (`[[0-9]onfig`) deixa um `[` depois da troca e recusa. O desvio do brief (abrir a exceção pelo par `forge-suite-Xverde.[0-9]` do `test_conformidade_verde`) é aceitável: o verde segue passando e a fixture `gitcomum-v3-colchete-digito-letra-bloqueia` prova que o dígito não libera a letra junto.
 
-Testes rodados (R-TETO, só os do brief): `python3 -m unittest tests.test_hook_git_comum tests.test_conformidade_verde` · 12 testes, OK, 55,6 s. As sondas S1 a S3 foram fixtures temporárias na worktree do revisor, apagadas depois.
+`sem_caixa` troca só as letras (`[^\W\d_]`) por `[xX]`, o que cobre o `nocaseglob`. Os dígitos e o colchete que sobra ficam como estão. `filter(None, …)` sem o `is_dir()` mantém o `.git` da raiz e o diretório comum: o glob sobre um caminho inexistente devolve lista vazia, e `topo and …` evita o erro sem cópia de git (fixture `fora-do-git-libera`). A spec `-6` declara G34 a G39, um mutante por linha de guarda mudada. A G38 (`${d}`) cobre a linha de `valores`, que tem fixture nova (`variavel-chaves-libera`). O índice das fixtures foi regenerado (2420) e o fragmento do changelog é desta branch.
+
+As sondas S1 a S3 mostram que o extglob, que o glob do Python também não lê, não abre porta: a origem com `(` não chega a se liberar. Elas foram fixtures temporárias, apagadas depois.
+
+O parecer antigo da mesma brecha (`docs/reviews/v046-conformidade-caminho-git.md`) já está aprovado na branch e fica como está, como o brief manda.
+
+Testes rodados um por vez (R-TETO, só os do brief), da raiz da worktree: `python3 -m unittest tests.test_hook_git_comum` · 1 teste, OK, 8,6 s; `python3 -m unittest tests.test_conformidade_verde` · 11 testes, OK, 19,2 s.
