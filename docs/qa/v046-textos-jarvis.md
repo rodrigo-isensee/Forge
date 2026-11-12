@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/v046-textos-jarvis
-commit: be5bb7ee32898578994ab389c8b257cf54ba7034
+commit: afdaa3abf9e27dd195380c1fe01ac631082b4198
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -37,3 +37,24 @@ Mudança só de texto (4 arquivos, 18 linhas a mais, 16 a menos). Não há teste
 
 ## Resultado da execução
 Aprovado no head `be5bb7ee`; achados só recomendados (viram cartão, sem devolver).
+
+## Revalidação por delta (E21.8, be5bb7ee..afdaa3ab)
+`forge-check parecer delta` listou no domínio: `changelog.d/v046-textos-jarvis.md`, `docs/regras/README.md`, `skills/trabalho-em-paralelo/SKILL.md`, `tests/test_jarvis_nucleo.py`. Head conferido: `afdaa3ab` (igual ao Revisar-sha). Sem PR aberto, não há check-run `bateria`; rodei os afetados um por vez (`R-TETO`), numa worktree destacada minha.
+
+- A1 resolvido: a classe `Diretrizes18e19` (3 testes) fixa "anda sozinho", `run_in_background`, o `until` com prazo, a skill `esperar-estado`, "nada novo é disparado", a volta a instância nova com o mesmo brief e as medidas da R-WIP.
+- A2 resolvido: a skill linha 9 voltou a dizer "depois de conferir que o anterior não roda mais".
+- Sem contradição do "se serializam": o texto agora diz que itens com arquivo em comum vão em lote ou o segundo espera.
+- Orçamento: a skill tem 3048 bytes (3006 caracteres, o brief fala 3006/3006); `agents/jarvis.md` sem mudança no delta.
+
+Vermelho à mão (base `be5bb7ee` para `skills/` e `docs/regras/README.md`, testes do head): `Ran 3 tests ... FAILED (failures=2)`: `test_a_espera_em_segundo_plano_traz_o_prazo_no_proprio_comando` e `test_uma_instancia_por_item_com_volta_e_medida` caem na base. `test_o_jarvis_anda_sozinho_e_nunca_pede_para_ser_chamado` passa na base porque guarda frases que já existiam (regressão, não correção nova; aceito, a classe falha).
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Diretriz 18 (instância por item, volta, medidas) | `Diretrizes18e19.test_uma_instancia_por_item_com_volta_e_medida` | volta sem a instância original; medida zero de vaga parada | passou (cai na base) |
+| Diretriz 19 (espera com prazo no comando, pausa) | `Diretrizes18e19.test_a_espera_em_segundo_plano_traz_o_prazo_no_proprio_comando` | prazo no próprio comando | passou (cai na base) |
+| Jarvis nunca pede "me chame" | `Diretrizes18e19.test_o_jarvis_anda_sozinho_...` | n/a | passou |
+| Orçamento e métricas de texto | `test_orcamento_instrucao` (8), `test_metricas_texto` (2) | limite do núcleo | passou |
+| Sem duplicação de regra | `test_forge.AntiDuplicacao` (2) | frase da R-WIP reescrita | passou |
+| Núcleo do Jarvis | `test_jarvis_nucleo` (17) | n/a | passou |
+
+Resultado: aprovado no head `afdaa3ab`; nenhum bug aberto; sem novos achados.
