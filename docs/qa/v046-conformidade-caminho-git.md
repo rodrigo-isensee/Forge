@@ -3,11 +3,11 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/conformidade-caminho-git
-commit: 3b3d7a67387c4c61bfd51692513a03bec916d492
-parecer: reprovado
+commit: abfccb7e24fb7ef005e53080d81d60c3896234cc
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-12
@@ -91,3 +91,21 @@ Delta lido (`forge-check parecer delta`, sem o que veio da develop): hooks/confo
 - tests.test_hooks_volta_lancador: Ran 22 tests, OK (328.9 s; `skipped=25` são subtestes que o próprio módulo pula no sandbox). tests.test_hook_git_comum: Ran 1 test, OK (15 s, 64 fixtures).
 - `bin/forge-mutante tests/mutantes/v046-conformidade-caminho-git-4.json` (rc 0, rev 3b3d7a67387c, árvore limpa): G20 a G26 `morreu` (conformidade.py:1074, 1074, 1077, 1060, 1060, 1416, 1056).
 - Um mutante por linha de guarda mudada: opção (G20, G21), origem de rev-parse (G22), regra genérica (G23, G24, G26), variável atrás do lançador (G25).
+
+A volta 5 (E20.42) fecha os achados deste parecer: A4 (curinga na origem de rev-parse) e os demais que ele deixou bloqueantes.
+
+## Revalidação por delta b283521c..abfccb7e (E20.42, volta 5)
+Delta lido (3 commits: 15dfdc3a fix, f84306a6 mutantes, abfccb7e docs): hooks/conformidade.py (`COLCHETE_DE_DIGITO`, `sem_caixa`, `origem_so_generica`), 11 fixtures `gitcomum-v3-*` novas (mínimo atualizado), spec `-6` (G34 a G39), AR-13. Veredito: aprovado.
+- A1 (mutante sobrevivente no ramo do diretório comum): fechou. Fixture `gitcomum-v3-worktree-comum-config-bloqueia`; G36 (`filter(None, (git,))`) morre em hooks/conformidade.py:1104.
+- A2 (linha de guarda sem mutante): fechou. `forge-mutante --cobertura --base c340c322` sem nenhuma `sem mutante`, `não coberto` ou `só equivalente`; 1083 (G38), 1097 (G34, G39), 1104 (G37) cobertas.
+- Delta sem achado novo. Sondei o colchete: `[[:digit:]]`, `[[=c=]]`, `[^x]`, `[0-9][a]` ficam com `[` depois de retirar o colchete de dígitos e recusam; `[0-9-]+` só admite dígito e hífen, sem letra, então o bash e o glob do Python leem igual. Desvio declarado (par `forge-suite-Xverde.[0-9]`) coberto por `gitcomum-v3-colchete-digito-libera` e G39.
+
+## Provas (revalidação E20.42)
+- PQ-1: `git log --format=%H -1 abfccb7e24fb7ef005e53080d81d60c3896234cc` -> abfccb7e24fb7ef005e53080d81d60c3896234cc
+- Vermelho: worktree destacada na base do delta (b283521c) com as fixtures novas copiadas: `python3 -m unittest tests.test_hook_git_comum` FAILED (failures=6: classe-config, equivalencia-config, negacao-config, negacao-hooks, nocaseglob-config, ordenacao-config, todas recusa que a base libera). As outras 5 passam na base por desenho (guardas de regressão; mortas pelos mutantes G36 a G39).
+- Head abfccb7e: `python3 -m unittest tests.test_hook_git_comum` Ran 1 test, OK.
+- `bin/forge-mutante tests/mutantes/v046-conformidade-caminho-git-4.json` rc 0: G20 a G26 `morreu`.
+- `bin/forge-mutante tests/mutantes/v046-conformidade-caminho-git-5.json` rc 0: G27 a G33 `morreu`.
+- `bin/forge-mutante tests/mutantes/v046-conformidade-caminho-git-6.json` rc 0: G34, G39, G35, G36, G37, G38 `morreu` (conformidade.py:1097, 1097, 1103, 1104, 1104, 1083).
+- `bin/forge-mutante --cobertura --base c340c322` rc 0, só linhas `coberta`.
+- Suíte inteira: não rodei (R-TETO); vale o check-run `bateria` do sha no CI do PR.

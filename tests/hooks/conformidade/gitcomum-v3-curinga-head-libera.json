@@ -1,0 +1,28 @@
+{
+  "descricao": "Volta 4 da E20.6 (v046, A11 da segurança E20.31, A4 do QA E20.32): o curinga que só casa o HEAD (regra genérica) segue livre, como a origem sem curinga.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n",
+    "x": "x\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ln \"$(git rev-parse --git-dir)\"/HEA? h"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
