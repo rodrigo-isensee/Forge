@@ -20,11 +20,12 @@ O diff continua sem mudar guarda (`.githooks/pre-push` fica intocado), então n�
 
 ## Achados
 - A3 (recomendado) docs/regras/R-TETO.md:16 · segue sem mudança: "o envio local não roda teste" é absoluto, mas com `FORGE_PREPUSH_SUITE=afetados` ou `=1` roda. Sugestão: "por padrão, o envio local não roda teste". Não bloqueia e não é motivo de nova volta.
-- A4 (bloqueante) bin/forge-testes:139 · defeito provado pelo CI do PR #503 (job "suíte (python 3.12, parte 2/3)", run 43225790681, e o mesmo na 3.14): `test_testes_tocados.MapaCobreOQueOsTestesLeem.test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo` falha com `modulo='test_pre_push_leve', caminho='scripts/verificar-contribuicao.sh'` (`scripts/verificar-contribuicao.sh -> ['test_forge', 'test_pre_push_afetados', 'test_pre_push_segredo', 'test_salvar_desfazer', 'test_testes_tocados']`). O `tests/test_pre_push_leve.py:47,109` lê e grava o script, mas o mapa não aponta o módulo. O defeito já estava no 73d0017a e não veio do merge. Correção do autor: incluir `test_pre_push_leve` na tupla da linha 139. Depois disso, revalidação por delta de review, QA e segurança.
+- A4 (bloqueante) bin/forge-testes:139 · o mapa não aponta `test_pre_push_leve` para `scripts/verificar-contribuicao.sh`, que o teste lê e grava (linhas 47 e 109). O CI do #503 cai em `test_testes_tocados`. O defeito já estava no 73d0017a. Correção: incluir o módulo na tupla.
 
 ## Sondas
 - S1 · pre-push:212 `segredo_no_delta || true`; test_segredo_no_delta_ainda_barra_sem_imprimir_o_valor no head 73d0017a · espera: FAILED · obtido: FAILED (failures=1, `(0, False) != (1, False)`)
 - S2 · controle: o mesmo mutante no c3e271e5 · espera: OK (mutante vivo, como na volta 0) · obtido: OK
+- S3 · CI do PR #503, run 43225790681, suíte parte 2/3 (3.12 e 3.14) · espera: OK · obtido: FAIL `test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo` (modulo='test_pre_push_leve', caminho='scripts/verificar-contribuicao.sh')
 
 ## Parecer
 Reprovado no 528abfd4 por A4, o defeito que o CI provou. Abaixo, o que a volta 1 já tinha resolvido.
