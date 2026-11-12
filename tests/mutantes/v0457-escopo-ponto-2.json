@@ -4,31 +4,14 @@
   "mutantes": [
     {
       "id": "M1",
-      "guarda": "E23.17 (c): o pedido dos pareceres é o id: do pedido; o nome do arquivo só sem ele",
+      "guarda": "E23.17 (b, c): o pedido é o id: do texto; o nome do arquivo só sem ele",
       "arquivo": "bin/forge-check",
-      "de": "(re.search(r\"^id:\\s*(\\S+)\", texto, re.M) or [None, caminho.stem])[1]",
-      "para": "(None or [None, caminho.stem])[1]",
+      "de": "    return (re.search(r\"^id:\\s*(\\S+)\", texto, re.M) or [None, Path(caminho).stem])[1]",
+      "para": "    return (None or [None, Path(caminho).stem])[1]",
       "testes": [
-        "tests.test_escopo_ponto.PareceresPeloPedido.test_id_do_pedido_vale_mais_que_o_nome_do_arquivo"
-      ]
-    },
-    {
-      "id": "M2",
-      "guarda": "E23.17 (b): o mesmo pedido da união é o id: do pedido; o nome do arquivo só sem ele",
-      "arquivo": "bin/forge-check",
-      "de": "(re.search(r\"^id:\\s*(\\S+)\", texto, re.M) or [None, Path(caminho).stem])[1]",
-      "para": "(None or [None, Path(caminho).stem])[1]",
-      "testes": [
+        "tests.test_escopo_ponto.PareceresPeloPedido.test_id_do_pedido_vale_mais_que_o_nome_do_arquivo",
         "tests.test_escopo_ponto.VoltaNaMesmaBranch.test_pedido_com_id_diferente_do_nome_do_arquivo"
       ]
-    }
-  ],
-  "isentas": [
-    {
-      "arquivo": "bin/forge-check",
-      "trecho": "m.group(1) if m else caminho.stem",
-      "motivo": "o mesmo id do pedido, movido para antes dos pareceres na forma sem ternário; o M1 desta spec o cobre",
-      "linha_base": 2453
     }
   ]
 }

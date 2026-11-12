@@ -2265,6 +2265,11 @@ def pedido_do_parecer(texto):
     return (ler_frontmatter(texto)[0] or {"pedido": None}).get("pedido")
 
 
+def id_do_pedido_no_texto(texto, caminho):
+    """O `id:` do pedido; sem ele, o nome do arquivo."""
+    return (re.search(r"^id:\s*(\S+)", texto, re.M) or [None, Path(caminho).stem])[1]
+
+
 def pedido_dos_pareceres(raiz, head, pedido_id, slug):
     """E23.17 (c): o pedido com que o `forge-check pr <pedido>` acharia os pareceres do head: o do brief, se um parecer de review do head
     o leva no `pedido:`; senão o slug da branch (os pareceres nomeados pela branch)."""
@@ -2450,8 +2455,7 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
         else:
             arquivos = do_merge
     revisados = etapa == "merge-integracao" and valido is None  # E1: com `--desde` o delta da etapa segue lido como sempre
-    pedido_id = (re.search(r"^id:\s*(\S+)", texto, re.M) or [None, caminho.stem])[1]
-    violacoes = pareceres_da_integracao(raiz, branch, head, base, pedido_id, de if integrado else None) if revisados else []
+    violacoes = pareceres_da_integracao(raiz, branch, head, base, id_do_pedido_no_texto(texto, caminho), de if integrado else None) if revisados else []
     if violacoes:  # E1: sem os pareceres aprovados no head, o escopo continua o do Entregar
         linhas.append((f"escopo: merge-integracao sem os pareceres aprovados no head: {caminho_impresso(violacoes[0])}", True))
     slug = branch_da_convencao(raiz, branch)
@@ -2460,6 +2464,8 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
         falhas.append("contagens do diff")
         contagens = {}  # só mostra "?" nas linhas; a reprovação vem de `falhas`
     registros = autorias(raiz)
+    m = re.search(r"^id:\s*(\S+)", texto, re.M)
+    pedido_id = m.group(1) if m else caminho.stem
     if falhas:  # o filtro que já rodou não esconde arquivo de quem confere, nem anuncia o que a lista não passou a ter
         arquivos, informativas = todos, [i for i in informativas if not i[0].startswith("escopo: integração da base")]
     linhas += informativas + [(f"escopo: o git falhou ({passo}); o escopo não foi lido", True) for passo in falhas]
@@ -8492,7 +8498,7 @@ def brief_selado_da_entrega(raiz, caminho_pedido, pedido_txt, branch, etapa):
 def escopo_das_voltas(raiz, caminho, texto, branch, brief, sha_brief):
     """E23.17 (b): o escopo declarado da etapa codigo numa branch com volta: o do brief mais recente unido ao de cada brief selado anterior
     de codigo da MESMA branch e do MESMO pedido (`Pedido:` do cabeçalho); a volta herda o escopo da entrega original. ([arquivos], função)."""
-    pedido_id = (re.search(r"^id:\s*(\S+)", texto, re.M) or [None, Path(caminho).stem])[1]
+    pedido_id = id_do_pedido_no_texto(texto, caminho)
     anteriores = [(a, t) for a, t, s in briefs_selados_da_entrega(raiz, caminho, texto, branch, "codigo")
                   if s != sha_brief and mesmo_pedido(grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho_do_brief(t)), pedido_id, caminho)]
     declarados = [escopo_declarado(t, branch) for t in [brief] + [t for _, t in anteriores]]
