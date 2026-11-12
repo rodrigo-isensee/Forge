@@ -1,5 +1,5 @@
 """ATUALIZAR-BRANCH-ATRASADA (decisão Q4 = A de 2026-11-03): numa branch longa, atrás da develop, o doutor explica o atraso e mostra o
-cherry-pick do commit da versão; a recusa de árvore suja do `forge-upgrade` continua.
+cherry-pick do commit da versão (`bin/forge-doutor`); a recusa de árvore suja do `forge-upgrade` continua.
 
 Reaproveita o ambiente de `test_doutor.Base` (projeto temporário com origin, `gh` falso e HOME próprio).
 """

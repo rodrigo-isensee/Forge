@@ -1,7 +1,8 @@
 """FECHAR-MOVE-CARTAO: com o merge provado, o `forge-fechar --cartao ID` move o cartão para Pronto pelo `forge-check movimento`.
 
 Reaproveita o ambiente de `test_fechar.Fechar` (repositório temporário, `gh` falso) sem herdar os testes dele. O `forge-check` falso
-anota cada chamada; com $ESTADO/mov_falha, o `movimento` falha; com $ESTADO/mov_real, o `movimento` roda o `bin/forge-check` real.
+anota cada chamada; com $ESTADO/mov_falha, o `movimento` falha. O `movimento` do `forge-check` real fica em `test_fechar_forge_check_real`
+(o módulo que o MAPA FORGE_CHECK do `forge-testes` lista).
 """
 import sys
 import unittest
@@ -10,10 +11,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 import test_fechar as base  # noqa: E402  (o módulo, não a classe: a classe seria coletada de novo aqui)
 
-CHECK = f'''#!/usr/bin/env bash
+CHECK = '''#!/usr/bin/env bash
 echo "forge-check $*" >> "$REGISTRO"
 if [ "$1" = movimento ] && [ -f "$ESTADO/mov_falha" ]; then echo "movimento: coluna fora do KANBAN.md; nada gravado"; exit 1; fi
-if [ "$1" = movimento ] && [ -f "$ESTADO/mov_real" ]; then exec "{sys.executable}" -I "{base.RAIZ / "bin" / "forge-check"}" "$@"; fi
 exit 0
 '''
 KANBAN = ("# Quadro\n\n## Em andamento (WIP 1 por agente)\n| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n"
@@ -77,7 +77,7 @@ class Teste(unittest.TestCase):
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
         self.assertIn("aviso: não movi o cartão K-1 para Pronto; rode: forge-check movimento K-1 --de Em\\ andamento --para Pronto", r.stderr)
         self.assertIn("limpeza: remota=ok worktree=ok branch=ok", r.stdout)  # a limpeza segue: o cartão não a prende
-        self.assertIn("limpeza ou cartão pendente (código 3)", r.stdout)
+        self.assertIn("Entrega p1 fechada em develop; com pendência (código 3)", r.stdout)
 
     def test_sem_cartao_nao_move_nada_nem_pede_quadro(self):
         (self.quadro / "KANBAN.md").unlink()
@@ -129,15 +129,6 @@ class Teste(unittest.TestCase):
         self.assertEqual(r.returncode, 4, r.stderr + r.stdout)
         self.assertIn(f"forge-fechar p1 --ref melhoria/x --limpar --cartao K-1 --quadro {self.quadro}", r.stdout)
         self.assertEqual(self.movimentos(), [])
-
-    def test_com_o_forge_check_real_a_linha_vai_ao_historico(self):
-        (self.estado / "mov_real").write_text("1")
-        self.com_historico("2026-11-01T10:00:00-03:00 | K-1 | Em andamento | Code review | —")
-        r = self.fechar("p1", "--ref", "melhoria/x", "--cartao", "K-1")
-        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        ultima = [c.strip() for c in self.historico.read_text(encoding="utf-8").splitlines()[-1].strip("|").split("|")]
-        self.assertEqual(ultima[1:4], ["K-1", "Code review", "Pronto"])
-        self.assertTrue(ultima[4].startswith("mesclado em develop: PR #7, merge 0123456"), ultima)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
-"""WORKTREE-PRUNE-SANDBOX: o passo 7 poda os registros órfãos também depois de uma remoção que deu certo, e os metadados que o sandbox
-prende viram registro, sem pendência para o dono.
+"""WORKTREE-PRUNE-SANDBOX: o passo 7 do `bin/forge-fechar` poda os registros órfãos também depois de uma remoção que deu certo, e os
+metadados que o sandbox prende viram registro, sem pendência para o dono.
 
 Reaproveita o ambiente de `test_fechar_orfao.Teste` (repositório temporário, `gh`, `forge-check` e `git` falsos) sem herdar os testes dele.
 """

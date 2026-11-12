@@ -1076,6 +1076,6 @@ limpar_entrega
 if [ "$pendencia" = 0 ] && [ "$cartao_pend" = 0 ]; then
   echo "Entrega $pedido fechada em $alvo."
 else
-  echo "Entrega $pedido fechada em $alvo; limpeza ou cartão pendente (código 3): rode os comandos acima ou forge-fechar $(printf '%q' "$pedido") --ref $(printf '%q' "$ref") --limpar."
+  echo "Entrega $pedido fechada em $alvo; com pendência (código 3): rode os comandos acima ou forge-fechar $(printf '%q' "$pedido") --ref $(printf '%q' "$ref") --limpar."
   exit 3
 fi
