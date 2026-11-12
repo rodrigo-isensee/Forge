@@ -376,6 +376,15 @@ class C8Lapide(Base):
                 self.assertEqual((feita["id"], feita["branches"], feita["descricao"]), (AID, esperado, "E9 tech-lead"))
 
 
+class C8Gatilho(unittest.TestCase):
+    def test_hooks_json_liga_o_sendmessage_ao_agentes(self):
+        """QA A1: sem o matcher no PreToolUse, a lápide nunca é conferida (os outros testes chamam o script direto)."""
+        config = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))
+        comandos = [h.get("args", []) for bloco in config["hooks"]["PreToolUse"]
+                    if "SendMessage" in bloco.get("matcher", "").split("|") for h in bloco.get("hooks", [])]
+        self.assertIn(["${CLAUDE_PLUGIN_ROOT}/hooks/agentes.py"], comandos)
+
+
 class C10ProjectsProtegido(Base):
     def test_nenhum_papel_escreve_no_transcript_nem_no_meta(self):
         import conformidade
