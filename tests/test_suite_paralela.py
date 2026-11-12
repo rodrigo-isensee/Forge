@@ -801,6 +801,64 @@ class T(unittest.TestCase):
         self.assertEqual(list(self.tmpdir.iterdir()), [])
 
 
+    BLOQUEADO = MARCA + '''
+import time
+class T(unittest.TestCase):
+    def test_b(self):
+        marca("b")
+        for _ in range(600):
+            if (pathlib.Path(os.environ["MARCAS"]) / "liberar").exists():
+                return
+            time.sleep(0.1)
+'''
+
+    def sobe_com_b_bloqueado(self):
+        self.modulo("b", self.BLOQUEADO)
+        p = subprocess.Popen([sys.executable, str(self.repo / "scripts" / "suite-paralela.py")], cwd=self.repo,
+                             env=self.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.addCleanup(lambda: p.poll() is None and p.kill())
+        return p
+
+    def le_ate(self, p, trecho):
+        """Lê o stderr ao vivo até a linha com `trecho`; devolve as linhas lidas (o módulo b segue bloqueado)."""
+        linhas, fim = [], time.monotonic() + 30
+        while time.monotonic() < fim:
+            linha = p.stderr.readline()
+            if not linha:
+                break
+            linhas.append(linha)
+            if trecho in linha:
+                return linhas
+        self.fail(f"sem a linha {trecho!r} antes do fim: {linhas}")
+
+    def test_linha_por_modulo_sai_antes_do_fim(self):  # E23.23
+        p = self.sobe_com_b_bloqueado()
+        linhas = self.le_ate(p, "unidade test_a ")
+        self.assertIsNone(p.poll(), "a linha do test_a tem de sair com a suíte ainda rodando (test_b bloqueado)")
+        self.assertRegex(linhas[-1], r"^suite-paralela: unidade test_a \d+\.\d s \(processo \d\)$")
+        (self.marcas / "liberar").write_text("")
+        saida, erro = p.communicate(timeout=30)
+        self.assertEqual(p.returncode, 0, saida + erro)
+        self.assertEqual(saida.strip().splitlines()[-1], "OK")  # a saída final não mudou
+        tudo = "".join(linhas) + erro
+        for nome in ("test_a", "test_b", "test_c"):
+            self.assertIn(f"suite-paralela: unidade {nome} ", tudo)
+
+    def test_sigterm_deixa_o_resumo_de_quem_rodava(self):  # E23.23
+        p = self.sobe_com_b_bloqueado()
+        self.le_ate(p, "unidade test_a ")
+        fim = time.monotonic() + 30
+        while time.monotonic() < fim and not any(n.name.startswith("b-") for n in self.marcas.iterdir()):
+            time.sleep(0.05)
+        time.sleep(0.5)  # o `inicio` de test_b já está no arquivo de tempos; dá folga para a leitura marcar um tempo > 0
+        p.send_signal(signal.SIGTERM)
+        saida, erro = p.communicate(timeout=30)
+        self.assertNotEqual(p.returncode, 0)
+        self.assertRegex(erro, r"suite-paralela: rodando test_b há \d+\.\d s \(processo \d\)")
+        self.assertNotIn("rodando test_a", erro)  # o que terminou não entra no resumo de quem rodava
+        self.assertTrue(saida.strip().splitlines()[-1].startswith("FAILED"))
+
+
 class TetoDePulados(unittest.TestCase):
     """T3 (0.43.2): no CI, mais pulados que `teto_pulados` reprova; teto ilegível reprova; fora do CI só avisa."""
 
