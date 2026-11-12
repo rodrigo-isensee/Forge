@@ -812,15 +812,24 @@ class ParecerDoPortao(Conferencia):
         self.assertFalse(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x"))
         self.assertTrue(fc.veredito_trocado(self.proj, "0" * 40, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x"))
 
-    def test_ls_tree_que_falha_conta_como_veredito_trocado(self):
-        """Volta 2 (segurança A5), falha fechada: o `ls-tree` de uma versão da pasta que falha conta como trocado."""
+    def trocado_com_git_que_falha(self, subcomando):
+        """O veredito de um parecer válido (sem troca) com o `subcomando` do git falhando e os outros reais."""
         self.entrega_com_parecer()
         revisado, git_real = self.git("rev-parse", "HEAD~1"), fc.git
 
-        def git_sem_ls_tree(raiz, *args, **kw):
-            return (128, "") if args[0] == "ls-tree" else git_real(raiz, *args, **kw)
-        with mock.patch.object(fc, "git", git_sem_ls_tree):
-            self.assertTrue(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x"))
+        def git_que_falha(raiz, *args, **kw):
+            return (128, "") if args[0] == subcomando else git_real(raiz, *args, **kw)
+        self.assertFalse(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x"))
+        with mock.patch.object(fc, "git", git_que_falha):
+            return fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x")
+
+    def test_ls_tree_que_falha_conta_como_veredito_trocado(self):
+        """Volta 2 (segurança A5), falha fechada: o `ls-tree` de uma versão da pasta que falha conta como trocado."""
+        self.assertTrue(self.trocado_com_git_que_falha("ls-tree"))
+
+    def test_rev_list_que_falha_conta_como_veredito_trocado(self):
+        """Falha fechada: o `rev-list` do intervalo que falha conta como trocado, com o `ls-tree` de `de` respondendo."""
+        self.assertTrue(self.trocado_com_git_que_falha("rev-list"))
 
     def test_veredito_trocado_em_outro_arquivo_da_pasta_segue_fora(self):
         """Volta 2 (segurança A5, S3): o review reprovado em x.md e um y.md aprovado com o mesmo `commit:` ancorado; y.md não é anexo."""

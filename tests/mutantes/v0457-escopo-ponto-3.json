@@ -60,7 +60,8 @@
       "de": "    cod, shas = git(raiz, \"rev-list\", f\"{de}..{head}\", \"--\", pasta)\n    if cod:",
       "para": "    cod, shas = git(raiz, \"rev-list\", f\"{de}..{head}\", \"--\", pasta)\n    if False:",
       "testes": [
-        "tests.test_selo_e_entrega.ParecerDoPortao.test_git_que_falha_conta_como_veredito_trocado"
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_git_que_falha_conta_como_veredito_trocado",
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_rev_list_que_falha_conta_como_veredito_trocado"
       ]
     },
     {
