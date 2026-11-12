@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/conformidade-caminho-git
-commit: cddc8915fda2dd271907323e1a2c04beebd2bd28
+commit: 3b3d7a67387c4c61bfd51692513a03bec916d492
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -72,3 +72,19 @@ Delta lido: `_REV_PARSE` saiu; `valor_do_rev_parse` e `trocar_rev_parse` (hooks/
 - `bin/forge-mutante tests/mutantes/v046-conformidade-caminho-git-3.json` (rc 0): G17, G18, G19 `morreu` (conformidade.py:374, 381, 368).
 - `bin/forge-mutante --cobertura --base 8b5a44d5ffd509c8c63d3e9f68dbef20071c7d3e`: rc 0, só linhas `coberta`.
 - Suíte inteira: não rodei (R-TETO); vale o check-run `bateria` do sha no CI do PR.
+
+## Revalidação por delta cddc8915..3b3d7a67 (E20.32)
+Delta lido (`forge-check parecer delta`, sem o que veio da develop): hooks/conformidade.py (`origens_do_rev_parse`, `checar_link` e `no_git` em `segmento_lido`), 6 fixtures `gitcomum-v3-*` (64 `gitcomum-*`, mínimo 64), bin/forge-testes (test_hook_git_comum no mapa FORGE_CHECK), tests/test_testes_tocados.py (78 para 79), spec `-4` (G20 a G26). Veredito: aprovado, sem achado novo.
+- A1 (origem de `git rev-parse` livre só da regra genérica `.git/`): fixtures origem-gitdir-libera e origem-variavel-libera (saem 0); destino, `.git/config`, `.git/hooks/`, `.git/forge/` e `-S`, `-t`, opção longa, `--` seguem 2. G20 a G24 e G26 morrem.
+- A3 (variável do `.git` atrás de lançador segue na linha): fixture lancador-variavel-bloqueia (2); G25 morre.
+- A2: test_hook_git_comum no mapa; o módulo roda quando bin/forge-check muda (test_testes_tocados, 79).
+- Vermelho em 0fc55eac (árvore dele com os `tests/` do head sobrepostos, worktree minha descartável): test_hook_git_comum falha em 3 fixtures (`v3-lancador-variavel-bloqueia`, `v3-link-origem-gitdir-libera`, `v3-link-origem-variavel-libera`; as 3 `-bloqueia` restantes já passavam e fixam comportamento mantido); test_testes_tocados falha em 3 (`test_forge_check_roda_os_modulos_dele`, `test_mapa_lista_todo_modulo_que_usa_o_forge_check` e uma de `test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo`, por test_pre_push_leve, vinda do merge da develop). Passam no head.
+- Sondas minhas (18 fixtures descartáveis, não commitadas, todas como esperado). Recusam (2): `ln -s "$(git rev-parse --git-dir)/config" x`, destino `.../hooks/p`, origem livre com destino `.../hooks/p` na mesma linha, `-S`, `-t docs`, `--`, `--target-directory=docs`, só `ln <origem>` (a origem é o destino), `.git/HEAD` literal, `.../hooks/pre-push`, `.../forge/x`, `time d=$(git rev-parse --git-dir); cp x $d/config`, `&& ln x "$(…)/config"`, segundo link para `.git/hooks/q`. Liberam (0): `d=$(git rev-parse --git-dir); ln $d/HEAD h`, `ln -sf` e `ln -sn` com a origem, `ln <origem> docs/a docs/b`.
+- CI do PR: não há PR aberto para a branch (`gh pr checks` sem resultado); a bateria completa fica para o check-run do PR. Não rodei a suíte inteira (R-TETO).
+
+## Provas (revalidação E20.32)
+- PQ-1: `git log --format=%H -1 3b3d7a67387c4c61bfd51692513a03bec916d492` -> 3b3d7a67387c4c61bfd51692513a03bec916d492
+- tests.test_conformidade_verde: Ran 11 tests, OK (32.5 s). tests.test_testes_tocados: Ran 149, OK (skipped=1, sandbox: /proc de outro namespace de pid; skip do próprio teste, não meu).
+- tests.test_hooks_volta_lancador: Ran 22 tests, OK (328.9 s; `skipped=25` são subtestes que o próprio módulo pula no sandbox). tests.test_hook_git_comum: Ran 1 test, OK (15 s, 64 fixtures).
+- `bin/forge-mutante tests/mutantes/v046-conformidade-caminho-git-4.json` (rc 0, rev 3b3d7a67387c, árvore limpa): G20 a G26 `morreu` (conformidade.py:1074, 1074, 1077, 1060, 1060, 1416, 1056).
+- Um mutante por linha de guarda mudada: opção (G20, G21), origem de rev-parse (G22), regra genérica (G23, G24, G26), variável atrás do lançador (G25).
