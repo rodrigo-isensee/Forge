@@ -44,10 +44,10 @@
     },
     {
       "id": "M5",
-      "guarda": "E23.17 (b): o escopo é a união de todos os briefs, não só o do principal",
+      "guarda": "E23.17 (b): cada nome vale pelo primeiro brief que o declara, não pelo primeiro brief da lista",
       "arquivo": "bin/forge-check",
       "de": "lambda nome: next((r for d in declarados if (r := d(nome))), None)",
-      "para": "lambda nome: next((r for d in declarados[:1] if (r := d(nome))), None)",
+      "para": "lambda nome: next((r for d in declarados if ((r := d(nome)) or True)), None)",
       "testes": [
         "tests.test_escopo_ponto.VoltaNaMesmaBranch.test_dois_briefs_da_mesma_branch_unem_o_escopo"
       ]

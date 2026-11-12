@@ -2450,8 +2450,7 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
         else:
             arquivos = do_merge
     revisados = etapa == "merge-integracao" and valido is None  # E1: com `--desde` o delta da etapa segue lido como sempre
-    m = re.search(r"^id:\s*(\S+)", texto, re.M)
-    pedido_id = m.group(1) if m else caminho.stem
+    pedido_id = (re.search(r"^id:\s*(\S+)", texto, re.M) or [None, caminho.stem])[1]
     violacoes = pareceres_da_integracao(raiz, branch, head, base, pedido_id, de if integrado else None) if revisados else []
     if violacoes:  # E1: sem os pareceres aprovados no head, o escopo continua o do Entregar
         linhas.append((f"escopo: merge-integracao sem os pareceres aprovados no head: {caminho_impresso(violacoes[0])}", True))
@@ -8493,8 +8492,7 @@ def brief_selado_da_entrega(raiz, caminho_pedido, pedido_txt, branch, etapa):
 def escopo_das_voltas(raiz, caminho, texto, branch, brief, sha_brief):
     """E23.17 (b): o escopo declarado da etapa codigo numa branch com volta: o do brief mais recente unido ao de cada brief selado anterior
     de codigo da MESMA branch e do MESMO pedido (`Pedido:` do cabeçalho); a volta herda o escopo da entrega original. ([arquivos], função)."""
-    m = re.search(r"^id:\s*(\S+)", texto, re.M)
-    pedido_id = m.group(1) if m else Path(caminho).stem
+    pedido_id = (re.search(r"^id:\s*(\S+)", texto, re.M) or [None, Path(caminho).stem])[1]
     anteriores = [(a, t) for a, t, s in briefs_selados_da_entrega(raiz, caminho, texto, branch, "codigo")
                   if s != sha_brief and mesmo_pedido(grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho_do_brief(t)), pedido_id, caminho)]
     declarados = [escopo_declarado(t, branch) for t in [brief] + [t for _, t in anteriores]]
