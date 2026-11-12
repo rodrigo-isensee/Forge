@@ -3,39 +3,41 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v046
 branch: melhoria/pr-hook-prazo
-commit: 4ae51318d06223e29c3d09913965dd081d4ddb62
+commit: c6577dbb3253de42614764090553d740bc16181b
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-12
 ---
-# Review de segurança: v046 (E20.4, PR-HOOK-PRAZO)
+# Review de segurança: v046 (E20.4, revalidado na E20.22, PR-HOOK-PRAZO)
 
-Diff revisado: `origin/develop...4ae51318` (bin/forge-check, hooks/_comum.py, hooks/parecer.py, tests/apoio_volta_unica.py, bin/forge-testes, fixtures, mutantes e tests/test_pr_hook_prazo.py). O `forge-check pr` grava o resultado por head em `<diretório comum do git>/forge/pr/<head>/` e o hook `parecer` passa a liberar o `gh pr create` lendo o aprovado do mesmo head, branch e base.
+Diff revisado: `origin/develop...4ae51318` na E20.4; revalidação por delta `4ae51318..c6577dbb` (`forge-check parecer delta`: no domínio `bin/forge-check`, `hooks/_comum.py`, `hooks/parecer.py`; fora, changelog e testes, lidos). O `forge-check pr` grava o resultado por head em `<diretório comum do git>/forge/pr/<head>/` e o hook `parecer` passa a liberar o `gh pr create` lendo o aprovado do mesmo head, branch, base e escritor.
 
 ## Gatilhos
 Controle do Forge (hook `parecer`, `R-REVIEW`) e estado lido por hook fora da árvore versionada.
 
 ## Achados
-- A1 (recomendado) bin/forge-check:1537 · o registro não diz quem o gravou: o `bin/forge-check` de uma branch em obra (no clone do Forge) grava aprovado que o hook, com o forge-check vigente, aceita; gravar o sha256 do próprio forge-check e o hook exigir o do PLUGIN
-- A2 (recomendado) hooks/conformidade.py:951 · escrita com `$(git rev-parse --git-common-dir)/forge/pr/...` ou variável da linha (`d=.../.git; cp x $d/forge/...`) passa: o resto depois de `$(…)` é resolvido na raiz da cópia, não no diretório comum; já existia, e agora forja o aprovado que libera o gh pr create
+- A2 (recomendado) hooks/conformidade.py:951 · escrita com `$(git rev-parse --git-common-dir)/forge/pr/...` ou variável da linha (`d=.../.git; cp x $d/forge/...`) passa: o resto depois de `$(…)` é resolvido na raiz da cópia, não no diretório comum; já existia, e agora forja o aprovado que libera o PR
 
 ## Sondas
 - S1 · hook conformidade, papel tech-lead, Bash `cat > "$(git rev-parse --git-common-dir)/forge/pr/a.json" < x` · espera: rc 2 (.git/forge/ protegido) · obtido: rc 0
 - S2 · hook conformidade, papel tech-lead, Bash `d=/workspaces/Forge/.git; cp x $d/forge/pr/a.json` · espera: rc 2 · obtido: rc 0
 - S3 · hook conformidade, papel tech-lead, Write em `<comum>/forge/pr/<head>/a.json` (caminho literal) · espera: rc 2 · obtido: rc 2 (R-CONFORMIDADE, marca de sessão)
+- S4 · `resultado_gravado_do_pr` com registro aprovado sem `escritor`, com `escritor` de 64 zeros e com o sha256 do forge-check carregado · espera: ausente, ausente, aprovado · obtido: ausente, ausente, aprovado
+- S5 · `podar_resultados` com irmãs SHA40 velha, link para pasta de fora, pasta com link para arquivo de fora, pasta não SHA40, ponta da develop e a gravada · espera: só a velha e a do link interno saem; alvos de fora intactos · obtido: igual
+- S6 · `podar_resultados` com irmã SHA40 que contém subpasta · espera: para com aviso, nada apagado fora · obtido: "pr: aviso: resultados antigos não apagados (Is a directory)", pasta mantida
 
 ## Detalhe dos achados
-Respostas às perguntas do brief:
-- **Fora do repositório?** Sim: `pasta_dos_resultados` (bin/forge-check:1520) usa `--git-common-dir` absoluto, dentro do `.git/` comum às worktrees, nunca na árvore versionada; o head precisa casar `SHA40` antes de virar caminho (sem travessia).
-- **Quem escreve e lê:** escreve qualquer processo que rode `forge-check pr` sem `--previo` nem `--pr` e com a ref numa branch (bin/forge-check:9444); lê só o hook no `gh pr create` (hooks/parecer.py:602). A pasta folha nasce com 0o700, os pais e o arquivo com o umask; a troca por `os.replace` é atômica. Num computador de um só usuário, informativo.
-- **Envenenamento:** head forjado não serve (a pasta é por head e o registro precisa trazer o mesmo head, a mesma branch e o mesmo `base_sha`, bin/forge-check:1568); cache de outro repositório não serve (o diretório comum é do repositório da raiz; worktrees do mesmo repositório compartilham, como devem). Registro ilegível, malformado ou de outra base vira `ausente`, que recusa. Os dois caminhos restantes são A1 e A2.
-- **O contorno do prazo libera um PR que devia ser barrado?** Não. `ausente` roda a conferência de hoje só para dar o motivo e recusa mesmo sem violação (hooks/parecer.py:578); `reprovado` recusa (hooks/parecer.py:562); o prazo vencido continua recusando a chamada crítica em sessão vigiada, só com outro "Corrigir" (hooks/_comum.py:2784). O `gh pr merge` e o `gh pr ready` seguem refazendo a conferência sem cache.
+**A1 (E20.4) resolvido no delta.** O registro grava `escritor`, o sha256 do próprio `forge-check` (bin/forge-check:1529-1532, gravado em :1562); a leitura descarta registro sem escritor ou com outro (bin/forge-check:1593-1594); o hook carrega o `forge-check` do PLUGIN (hooks/_comum.py:2420), então só o gravado pela cópia vigente libera. O de uma branch em obra ou de versão anterior vira `ausente`, que recusa (S4). Resíduo: o sha256 é público e um processo que escreve direto no `.git/forge/pr/` pode copiá-lo; esse caminho é o A2, não um achado novo.
 
-**A1** · evidência bin/forge-check:1537 (registro sem autor) e hooks/parecer.py:559 (aceita o registro) · caminho de ataque: no clone do Forge, o tech-lead que mexe em `bin/forge-check` na branch (por engano ou para destravar) roda `bin/forge-check pr <pedido> --ref <branch> --base develop` da worktree; a versão da branch grava aprovado no `.git/` comum e o hook, que antes refazia a conferência com o forge-check vigente, aceita. O mesmo vale para o registro de uma versão vigente anterior, mais frouxa. Ganho: PR fora do rascunho sem os pareceres; o merge refaz a conferência e barra · severidade baixa · correção mínima: gravar no registro `escritor: sha256(<arquivo do forge-check que grava>)` e o hook só aceitar o registro com o sha256 de `PLUGIN/bin/forge-check` · esforço P · dono tech-lead.
+**A2** (inalterado) · evidência hooks/conformidade.py:951 (`alvos_da_escrita` resolve o resto depois de `$(…)` na raiz da cópia) e hooks/conformidade.json (`.git/forge/` e `.git/`, quem: nenhum) · caminho de ataque: o agente grava o JSON aprovado (agora com o escritor copiado) com `$(git rev-parse --git-common-dir)/forge/pr/<head>/x.json` ou com uma variável definida na linha (S1, S2); o hook não reconhece o `.git/` e libera. A mesma forma alcança `.git/config` e `.git/hooks/`. Já existia antes desta branch; fora dela. Ganho: PR fora do rascunho sem os pareceres; o merge, o `gh pr ready` e o CI conferem sem cache e barram · severidade média para o hook de conformidade, baixa para esta entrega · correção mínima: com `$(…)` ou variável no caminho de escrita, somar como alvo o mesmo resto resolvido a partir do diretório comum do git (como `pastas_do_curinga` já faz) e conferir contra os protegidos `.git/forge/`, `.git/`, `.git/config`, `.git/hooks/`, `.git` · esforço P · dono tech-lead (cartão separado).
 
-**A2** · evidência hooks/conformidade.py:951 (`alvos_da_escrita` resolve o resto depois de `$(…)` na raiz da cópia) e hooks/conformidade.json (`.git/forge/` e `.git/`, quem: nenhum) · caminho de ataque: o agente grava o JSON aprovado com `$(git rev-parse --git-common-dir)/forge/pr/<head>/x.json` ou com uma variável definida na linha (S1, S2); o hook não reconhece o `.git/` e libera; a escrita não deixa rastro no git. A mesma forma alcança `.git/config` e `.git/hooks/` (sondado com rc 0; o sandbox do Bash protege o `.git/config` à parte). Já existia antes desta branch (hooks/conformidade.py igual na develop); esta entrega só torna o `.git/forge/pr/` um ponto de confiança. Ganho igual ao de A1 · severidade média para o hook de conformidade, baixa para esta entrega · correção mínima: com `$(…)` ou variável no caminho de escrita, somar como alvo o mesmo resto resolvido a partir do diretório comum do git (como `pastas_do_curinga` já faz) e conferir contra os protegidos `.git/forge/`, `.git/`, `.git/config`, `.git/hooks/`, `.git` · esforço P · dono tech-lead (cartão separado, fora desta branch).
+**Poda (bin/forge-check:1535-1549).** Só roda depois de gravar com sucesso (:1568-1571); sem a lista das pontas (`for-each-ref` falhou) não apaga nada; apaga só irmãs com nome SHA40 que não são a gravada nem ponta de `refs/heads` ou `refs/remotes`; pula link (`is_symlink`) e não segue link de arquivo (o `unlink` tira o link, não o alvo, S5); subpasta faz o `unlink` falhar e a poda parar com aviso (S6). Head de worktree destacada sem ref pode ter o resultado podado: vira `ausente`, falha fechada. Troca de pasta por link entre a conferência e o `iterdir` exige escrita no `.git/forge/pr/`, que já é o A2; informativo.
 
-Nenhum dos dois bloqueia: a decisão do dono (pedido v046, E20) aceitou o cache para o `gh pr create`; o merge, o `gh pr ready` e o CI continuam conferindo sem cache, e no clone do Forge o `gh pr create --draft` já passava sem parecer.
+**Dica do prazo (hooks/parecer.py:563-564).** `contorno_do_prazo` só recebe "rode antes forge-check pr" quando o PR em criação não tem resultado gravado (`motivo` só vem de `resultado_gravado_do_pr`, com `gravado=True`); a saída do rascunho, o merge e o texto longo seguem com `CONTORNO_DO_TETO`. Só muda o texto da recusa; a recusa por prazo continua (hooks/_comum.py:2785).
+
+**Changelog do rascunho.** Só documenta o que o código já faz nos projetos (sem dispensa do rascunho fora do clone do Forge, `pull_request` em hooks/parecer.py): endurece, não afrouxa.
+
+Conferido contra docs/engineering/achados-recorrentes.md: AR-7 (escrita e leitura pelo mesmo `--git-common-dir`); AR-3 e AR-5 sem ocorrência no delta.
 
 ## Riscos aceitos e ferramentas
-Sem risco aceito. Testes rodados: `python3 -m unittest tests.test_pr_hook_prazo` (15 testes, OK, 49 s); o resto da suíte fica com o CI do PR. Sondas S1 a S3 rodadas contra `hooks/conformidade.py` do head, com entrada JSON no stdin. Ferramentas da skill fora do PATH (lacuna): gitleaks, semgrep, zizmor, actionlint, osv-scanner; nenhuma é necessária a este diff (sem workflow, dependência nem segredo).
+Sem risco aceito. Testes rodados no head c6577dbb: `python3 -m unittest tests.test_pr_hook_prazo` (17 testes, OK); o resto da suíte fica com o CI do PR. Sondas S1 a S3 da E20.4; S4 a S6 numa sonda local (`python3 -I`) contra o `bin/forge-check` do head, num repositório temporário. Ferramentas da skill fora do PATH (lacuna): gitleaks, semgrep, zizmor, actionlint, osv-scanner; nenhuma é necessária a este diff.
