@@ -3,14 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v046
 branch: melhoria/pr-hook-prazo
-commit: c6577dbb3253de42614764090553d740bc16181b
+commit: cf1cc45d68501463ebafc8b570c13bfc6a79a057
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-12
 ---
-# Review de segurança: v046 (E20.4, revalidado na E20.22, PR-HOOK-PRAZO)
+# Review de segurança: v046 (E20.4, revalidado na E20.22 e na E20.27, PR-HOOK-PRAZO)
 
-Diff revisado: `origin/develop...4ae51318` na E20.4; revalidação por delta `4ae51318..c6577dbb` (`forge-check parecer delta`: no domínio `bin/forge-check`, `hooks/_comum.py`, `hooks/parecer.py`; fora, changelog e testes, lidos). O `forge-check pr` grava o resultado por head em `<diretório comum do git>/forge/pr/<head>/` e o hook `parecer` passa a liberar o `gh pr create` lendo o aprovado do mesmo head, branch, base e escritor.
+Diff revisado: `origin/develop...4ae51318` na E20.4; revalidação por delta `4ae51318..c6577dbb` (`forge-check parecer delta`: no domínio `bin/forge-check`, `hooks/_comum.py`, `hooks/parecer.py`; fora, changelog e testes, lidos); revalidação por delta `c6577dbb..cf1cc45d` na E20.27 (`forge-check parecer delta`: nenhum arquivo do domínio mudou; fora, `tests/test_pr_hook_prazo.py` e `tests/mutantes/v046-pr-hook-prazo-7.json`, lidos e rodados). O `forge-check pr` grava o resultado por head em `<diretório comum do git>/forge/pr/<head>/` e o hook `parecer` passa a liberar o `gh pr create` lendo o aprovado do mesmo head, branch, base e escritor.
 
 ## Gatilhos
 Controle do Forge (hook `parecer`, `R-REVIEW`) e estado lido por hook fora da árvore versionada.
@@ -25,6 +25,8 @@ Controle do Forge (hook `parecer`, `R-REVIEW`) e estado lido por hook fora da á
 - S4 · `resultado_gravado_do_pr` com registro aprovado sem `escritor`, com `escritor` de 64 zeros e com o sha256 do forge-check carregado · espera: ausente, ausente, aprovado · obtido: ausente, ausente, aprovado
 - S5 · `podar_resultados` com irmãs SHA40 velha, link para pasta de fora, pasta com link para arquivo de fora, pasta não SHA40, ponta da develop e a gravada · espera: só a velha e a do link interno saem; alvos de fora intactos · obtido: igual
 - S6 · `podar_resultados` com irmã SHA40 que contém subpasta · espera: para com aviso, nada apagado fora · obtido: "pr: aviso: resultados antigos não apagados (Is a directory)", pasta mantida
+- S7 · `gravar_resultado_do_pr` 2 vezes com link sha40 em `<comum>/forge/pr/` para pasta de fora com `alvo.json`, no head e com M42 · espera: fica; com M42 some · obtido: fica; com M42 apagado e aviso "(Not a directory)"
+- S8 · tag `rel` num commit velho e branch `rel` na ponta; `gravar_resultado_do_pr(raiz, "p", "rel", "develop", [])` no head e com M44 · espera: a pasta do head da tag fica; com M44 some · obtido: fica; com M44 apagada
 
 ## Detalhe dos achados
 **A1 (E20.4) resolvido no delta.** O registro grava `escritor`, o sha256 do próprio `forge-check` (bin/forge-check:1529-1532, gravado em :1562); a leitura descarta registro sem escritor ou com outro (bin/forge-check:1593-1594); o hook carrega o `forge-check` do PLUGIN (hooks/_comum.py:2420), então só o gravado pela cópia vigente libera. O de uma branch em obra ou de versão anterior vira `ausente`, que recusa (S4). Resíduo: o sha256 é público e um processo que escreve direto no `.git/forge/pr/` pode copiá-lo; esse caminho é o A2, não um achado novo.
@@ -33,11 +35,13 @@ Controle do Forge (hook `parecer`, `R-REVIEW`) e estado lido por hook fora da á
 
 **Poda (bin/forge-check:1535-1549).** Só roda depois de gravar com sucesso (:1568-1571); sem a lista das pontas (`for-each-ref` falhou) não apaga nada; apaga só irmãs com nome SHA40 que não são a gravada nem ponta de `refs/heads` ou `refs/remotes`; pula link (`is_symlink`) e não segue link de arquivo (o `unlink` tira o link, não o alvo, S5); subpasta faz o `unlink` falhar e a poda parar com aviso (S6). Head de worktree destacada sem ref pode ter o resultado podado: vira `ausente`, falha fechada. Troca de pasta por link entre a conferência e o `iterdir` exige escrita no `.git/forge/pr/`, que já é o A2; informativo.
 
+**Revalidação E20.27 (delta c6577dbb..cf1cc45d).** Só teste e spec, sem código de produção. `test_poda_nao_segue_link_nem_abre_arquivo_nem_apaga_a_gravada` (tests/test_pr_hook_prazo.py:309-330) prova a guarda do link: sem `not velha.is_symlink()` o `is_dir()` segue o link, o `unlink` apaga o `alvo.json` de fora e só o `rmdir` do link falha (S7); a 1ª asserção do teste cai. O M44 não é equivalente: com `--ref` de nome de tag igual ao de uma branch, `sha_do_commit` resolve a tag (precede `refs/heads` no `rev-parse`), `branch_da_ref` acha a branch e o head gravado fica fora das pontas; sem `velha != pasta` a pasta recém-gravada some (S8), vira `ausente` e recusa (falha fechada, sem ganho a atacante, mas defeito). M42, M43 e M44 morreram em bin/forge-check:1544; `forge-mutante --cobertura --base d3453407` rc 0.
+
 **Dica do prazo (hooks/parecer.py:563-564).** `contorno_do_prazo` só recebe "rode antes forge-check pr" quando o PR em criação não tem resultado gravado (`motivo` só vem de `resultado_gravado_do_pr`, com `gravado=True`); a saída do rascunho, o merge e o texto longo seguem com `CONTORNO_DO_TETO`. Só muda o texto da recusa; a recusa por prazo continua (hooks/_comum.py:2785).
 
 **Changelog do rascunho.** Só documenta o que o código já faz nos projetos (sem dispensa do rascunho fora do clone do Forge, `pull_request` em hooks/parecer.py): endurece, não afrouxa.
 
-Conferido contra docs/engineering/achados-recorrentes.md: AR-7 (escrita e leitura pelo mesmo `--git-common-dir`); AR-3 e AR-5 sem ocorrência no delta.
+Conferido contra docs/engineering/achados-recorrentes.md: AR-1 (os mutantes da poda agora declarados), AR-12 (a spec 7 casa com a linha 1544 do head), AR-7 (escrita e leitura pelo mesmo `--git-common-dir`); AR-3 e AR-5 sem ocorrência no delta.
 
 ## Riscos aceitos e ferramentas
-Sem risco aceito. Testes rodados no head c6577dbb: `python3 -m unittest tests.test_pr_hook_prazo` (17 testes, OK); o resto da suíte fica com o CI do PR. Sondas S1 a S3 da E20.4; S4 a S6 numa sonda local (`python3 -I`) contra o `bin/forge-check` do head, num repositório temporário. Ferramentas da skill fora do PATH (lacuna): gitleaks, semgrep, zizmor, actionlint, osv-scanner; nenhuma é necessária a este diff.
+Sem risco aceito. Testes rodados no head cf1cc45d: `python3 -m unittest tests.test_pr_hook_prazo` (18 testes, OK) e `forge-mutante tests/mutantes/v046-pr-hook-prazo-7.json` (M42 a M44 mortos); o resto da suíte fica com o CI do PR. Sondas S1 a S3 da E20.4; S4 a S8 numa sonda local (`python3 -I`) contra o `bin/forge-check` do head (e, em S7 e S8, com o mutante aplicado), num repositório temporário. Ferramentas da skill fora do PATH (lacuna): gitleaks, semgrep, zizmor, actionlint, osv-scanner; nenhuma é necessária a este diff.
