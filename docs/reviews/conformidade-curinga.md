@@ -13,9 +13,10 @@ data: 2026-11-12
 Delta lido: `b283521c..abfccb7e` (3 commits: 15dfdc3a, f84306a6, abfccb7e), numa worktree destacada do revisor no head abfccb7e. Instância que não fez a correção. A volta 5 fecha os achados do parecer da volta 4 (E20.36, commit 9bd83404, reprovado).
 
 ## Achados
-Nenhum aberto.
-- A1 (volta 4, bloqueante) fechado: `hooks/conformidade.py:1097` recusa o resto com `[` que não seja colchete só de dígitos e hífen; `[^x]`, `[[:alpha:]]`, `[[=c=]]` e `[[.c.]]` têm fixture que recusa.
-- A2 (volta 4, recomendado) fechado: `docs/engineering/achados-recorrentes.md:27` grava o AR-13 no formato do arquivo.
+
+## Achados da volta 4
+- A1 da volta 4 (bloqueante), fechado: `hooks/conformidade.py:1097` recusa o resto com `[` que não seja colchete só de dígitos e hífen; `[^x]`, `[[:alpha:]]`, `[[=c=]]` e `[[.c.]]` têm fixture que recusa.
+- A2 da volta 4 (recomendado), fechado: `docs/engineering/achados-recorrentes.md:27` grava o AR-13 no formato do arquivo.
 
 ## Sondas
 - S1 · shopt -s extglob (nova linha) ln "$(git rev-parse --git-dir)"/@(config) h · espera: código 2 · obtido: código 2 (pela regra genérica `.git/`, falha fechada)
