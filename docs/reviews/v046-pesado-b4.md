@@ -13,9 +13,7 @@ data: 2026-11-11
 Escopo lido: `git diff 2b896503..3e830f9b` (3 commits: e5132755, 649921be, 3e830f9b), `hooks/pesado.py`, `tests/test_pesado_v046.py`, `tests/mutantes/v046-pesado-b4*.json`, `changelog.d/pesado-b4.md`. Instância que não escreveu o código; a branch foi lida numa worktree destacada, sem escrita.
 
 ## Achados
-- A1 (recomendado, resolvido em c443050f: teste e mutante O8) hooks/pesado.py:164 · `except PermissionError: pass` troca o ramo antigo (devolvia vivo) pela leitura do /proc, sem teste do ramo nem mutante; o pid de outro usuário agora se decide pelo estado e início. Teste com os.kill que levanta PermissionError e processo falso.
 - A2 (recomendado) hooks/pesado.py:213 · palavra_casa aceita sufixo de pasta em todas as palavras do padrão, não só na primeira: `python3 -m x/unittest discover` vira pesado (sonda). Só sobra trava, não falta; restringir o sufixo à palavra do executável deixaria o B4 exato.
-- A3 (recomendado, resolvido em c443050f: TemporaryDirectory com addCleanup) tests/test_pesado_v046.py:106 · tempfile.mkdtemp em três testes (106, 114, 120) sem limpeza deixa pastas `forge-orfao-*` no TMPDIR a cada rodada; TemporaryDirectory com addCleanup.
 - A4 (recomendado) hooks/pesado.py:6 · 210 linhas de código e teste (62+14 no hook, 134 no teste) e duas classes de comportamento (B4 e PROCESSO-ORFAO) num PR em hooks/ (M14); a ordem do dono juntou as duas, então o corpo do PR leva `teto: excedido, 210 linhas, <motivo>`.
 
 ## Sondas
@@ -35,7 +33,7 @@ Delta lido: `git diff 3e830f9b c443050f` (hooks/pesado.py, tests/test_pesado_v04
 - hooks/pesado.py:182 · `inicios` soma o texto original (`[palavras] + ...`): padrão de projeto que começa por lançador (`nice make test`) volta a ser pesado, como na base. Corrige a regressão que o diferencial achou; mutante B8 morre.
 - `gravar_a_vez(hook, arquivo, dono, inicio, ...)` grava o dono e o início lidos uma vez antes do laço (`esperar_a_vez`) e no caminho direto; `test_a_vez_grava_o_dono_ja_checado` prova (pid relido seria 1). Fecha o desvio de pid relido; O6 reapontado para `inicio_de(pid)`, morre.
 - Teste diferencial `test_nada_pesado_na_base_vira_leve`: regra da base congelada no teste (`inicios_da_base`, `leve_da_base`, `casa_da_base`, `pesado_da_base`), conferida contra a develop 2b896503 (mesma lista de lançadores, mesmo `PELOS_ARGUMENTOS`/`--completa`/`--vermelho`/`--listar`); mínimo afirmado (`> 250` pesados na base), então não passa vazio.
-- A1 resolvido: `test_sem_permissao_de_sinal_decide_pelo_proc` (4 casos) e mutante O8 `morreu`. A3 resolvido: `pasta_temporaria` com `addCleanup`, sem `mkdtemp`.
+- A1 (hooks/pesado.py:164, `except PermissionError: pass` sem teste do ramo nem mutante) resolvido: `test_sem_permissao_de_sinal_decide_pelo_proc` (4 casos) e mutante O8 `morreu`. A3 (tests/test_pesado_v046.py:106, `mkdtemp` sem limpeza) resolvido: `pasta_temporaria` com `addCleanup`, sem `mkdtemp`.
 - A2 segue aberto (recomendado, só sobra trava, não devolve); A4 segue para o corpo do PR (`teto: excedido`, agora 210 + ~100 linhas de teste e spec; o motivo é a ordem do dono juntar B4 e PROCESSO-ORFAO).
 - Sem guarda nova em linha de `if`/`except` no delta além das já declaradas; B8 cobre a soma da leitura antiga.
 
