@@ -1,0 +1,2 @@
+### Adicionado
+- **Mutação dirigida e medidas por versão (v046 E7):** `forge-mutante SPEC --base SHA` roda só os mutantes cujo arquivo mudou no diff (os outros saem `fora do diff`), para a revalidação não repetir o que já foi provado; o `forge-changelog release`, no clone do Forge, imprime o comando do placar de mutação com a tag anterior e lembra o bench da versão. Placar e bench rodam uma vez por versão, nunca no PR, e o tempo do CI do PR não muda.
