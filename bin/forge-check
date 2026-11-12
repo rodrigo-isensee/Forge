@@ -2318,30 +2318,39 @@ def anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
     return None
 
 
-ETAPA_DO_PORTAO = {"review": "review", "revisao-seguranca": "seguranca", "qa": "qa", "revisao-devops": "devops"}  # a `Etapa:` do brief do portão
+ETAPA_DO_PORTAO = {"review": "review", "revisao-seguranca": "seguranca", "qa": "qa", "revisao-devops": "review"}  # a `Etapa:` do brief do portão
 
 
 def revisados_selados(raiz, caminho, texto, branch, pedido_id, tipo):
     """Volta 1 (segurança A1): os `Revisar-sha:` dos briefs selados do portão do `tipo` para a branch e o pedido, o registro do Jarvis
-    que ancora o anexo do portão (o frontmatter do parecer é texto do autor). Sem etapa de portão para o `tipo`, nenhum."""
+    que ancora o anexo do portão (o frontmatter do parecer é texto do autor). Sem etapa de portão para o `tipo`, nenhum. O devops e o
+    review têm a mesma `Etapa: review`: o `Agente destino:` do brief é o papel do `tipo` (volta 2, review A4), e um não ancora o outro."""
     revisados = set()  # tipo sem etapa: "" não casa nenhuma `Etapa:` (nunca None, que casaria o brief sem a linha)
     for _, brief, _ in briefs_selados_da_entrega(raiz, caminho, texto, branch, ETAPA_DO_PORTAO.get(tipo, "")):
         cabecalho = cabecalho_do_brief(brief)
+        if nome_do_papel(grupo(r"^\s*Agente destino:\s*(\S+)", cabecalho)) != PAPEL_DO_BRIEF_DO_PARECER[tipo]:
+            continue
         if mesmo_pedido(grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho), pedido_id, caminho):
             revisados.add(grupo(REVISAR_SHA, cabecalho))
     return revisados - {None}
 
 
-def veredito_trocado(raiz, de, head, nome, revisado, parecer):
-    """Volta 1 (segurança A1): uma versão do parecer no intervalo (em `de` ou num commit de `de..head` que o toca) tem o mesmo `commit:`
-    com outro `parecer:` (o veredito mudou sem nova revisão). O git que falha conta como trocado (falha fechada)."""
-    cod, shas = git(raiz, "rev-list", f"{de}..{head}", "--", nome)
+def veredito_trocado(raiz, de, head, nome, revisado, parecer, branch):
+    """Volta 1 (segurança A1): uma versão de parecer da pasta de `nome` no intervalo (em `de` ou num commit de `de..head` que toca a
+    pasta), de qualquer arquivo dela (volta 2, segurança A5) e com `branch:` igual, tem o mesmo `commit:` com outro `parecer:` (o veredito
+    mudou sem nova revisão). O git que falha conta como trocado (falha fechada)."""
+    pasta = f"{Path(nome).parent}/"
+    cod, shas = git(raiz, "rev-list", f"{de}..{head}", "--", pasta)
     if cod:
         return True
     for sha in [de] + shas.split():
-        fm = ler_frontmatter(git(raiz, "show", f"{sha}:{nome}")[1])[0] or {}  # a versão que não existe não tem frontmatter
-        if fm.get("commit") == revisado and fm.get("parecer") != parecer:
+        cod, nomes = git(raiz, "ls-tree", "-r", "--name-only", sha, "--", pasta)
+        if cod:
             return True
+        for versao in nomes.splitlines():
+            fm = ler_frontmatter(git(raiz, "show", f"{sha}:{versao}")[1])[0] or {}  # o arquivo sem frontmatter não é parecer
+            if fm.get("branch") == branch and fm.get("commit") == revisado and fm.get("parecer") != parecer:
+                return True
     return False
 
 
@@ -2349,7 +2358,7 @@ def parecer_de_portao_da_branch(raiz, de, head, nome, tipo, branch, pedido_id, s
     """E23.36 (d): na etapa codigo, o parecer de portão commitado na própria branch é anexo do portão: o frontmatter no head tem o `tipo`
     da pasta, um `parecer:` e `branch:` igual à branch conferida, o `pedido:` é o da entrega (o id ou o slug), e (volta 1, segurança A1
     e A4, review A2) o `commit:` é o `Revisar-sha:` de um brief selado do portão desta branch e pedido (`revisados(tipo)`, registro do
-    Jarvis) e nenhuma versão do parecer no intervalo tem o mesmo `commit:` com outro veredito. Fora disso, não."""
+    Jarvis) e nenhuma versão de parecer da pasta no intervalo (volta 2, segurança A5) tem o mesmo `commit:` com outro veredito. Fora disso, não."""
     fm = ler_frontmatter(git(raiz, "show", f"{head}:{nome}")[1])[0] or {}  # o git que falha não dá frontmatter: fica fora
     if fm.get("tipo") != tipo:
         return False
@@ -2361,7 +2370,7 @@ def parecer_de_portao_da_branch(raiz, de, head, nome, tipo, branch, pedido_id, s
         return False
     if fm.get("commit") not in revisados(tipo):
         return False
-    return not veredito_trocado(raiz, de, head, nome, fm["commit"], fm["parecer"])
+    return not veredito_trocado(raiz, de, head, nome, fm["commit"], fm["parecer"], branch)
 
 
 def provas_do_brief(texto):

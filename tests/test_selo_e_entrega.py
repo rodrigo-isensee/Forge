@@ -13,6 +13,7 @@ import sys
 import tempfile
 import unittest
 from importlib.machinery import SourceFileLoader
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
@@ -714,20 +715,22 @@ class ParecerDoPortao(Conferencia):
     """E23.36 (d): na etapa codigo, o parecer de portão commitado na própria branch é anexo do portão; o de outra branch, não. Volta 1
     (segurança A1): só com o `commit:` ancorado no `Revisar-sha:` de um brief selado do portão, e sem veredito trocado no mesmo `commit:`."""
 
-    ETAPA = {"reviews": "review", "devops": "devops", "qa": "qa", "security": "seguranca"}
+    ETAPA = {"reviews": "review", "devops": "review", "qa": "qa", "security": "seguranca"}  # o brief real do devops é `Etapa: review`
+    PAPEL = {"reviews": "tech-lead", "devops": "devops-engineer", "qa": "qa-engineer", "security": "security-engineer"}
 
-    def selar_portao(self, etapa, revisado, trocas=None):
-        """Um brief selado do portão `etapa` desta branch e pedido com `Revisar-sha: <revisado>` (o registro do Jarvis)."""
+    def selar_portao(self, etapa, revisado, trocas=None, papel="tech-lead"):
+        """Um brief selado do portão `etapa` desta branch e pedido para o `papel`, com `Revisar-sha: <revisado>` (o registro do Jarvis)."""
         self.n_portao = getattr(self, "n_portao", 10) + 1
-        self.selar_copia(f"exemplo-portao-{self.n_portao}.md", {"Etapa: codigo": f"Revisar-sha: {revisado}\nEtapa: {etapa}", **(trocas or {})},
-                         selar=False)
+        self.selar_copia(f"exemplo-portao-{self.n_portao}.md", {"Etapa: codigo": f"Revisar-sha: {revisado}\nEtapa: {etapa}",
+                                                                "Agente destino: forge:node-backend": f"Agente destino: forge:{papel}",
+                                                                **(trocas or {})}, selar=False)
 
-    def commitar_parecer(self, pasta, tipo, branch="melhoria/x", pedido="exemplo", revisado=None, parecer="aprovado", selar=True):
-        """O parecer do portão sobre o head de agora (`revisado`, o `commit:` do frontmatter), commitado na branch; com `selar`, o brief
-        selado do portão que o ancora."""
-        rel, revisado = f"docs/{pasta}/x.md", revisado or self.git("rev-parse", "HEAD")
+    def commitar_parecer(self, pasta, tipo, branch="melhoria/x", pedido="exemplo", revisado=None, parecer="aprovado", selar=True, nome="x"):
+        """O parecer do portão sobre o head de agora (`revisado`, o `commit:` do frontmatter) em docs/<pasta>/<nome>.md, commitado na
+        branch; com `selar`, o brief selado do portão que o ancora."""
+        rel, revisado = f"docs/{pasta}/{nome}.md", revisado or self.git("rev-parse", "HEAD")
         if selar:
-            self.selar_portao(self.ETAPA[pasta], revisado)
+            self.selar_portao(self.ETAPA[pasta], revisado, papel=self.PAPEL[pasta])
         self.gravar(rel, f"---\ntipo: {tipo}\ncontrato: 1\npedido: {pedido}\nbranch: {branch}\ncommit: {revisado}\nparecer: {parecer}\n---\n# parecer\n")
         self.git("add", rel)
         self.commit(f"docs({pasta}): parecer")
@@ -739,10 +742,10 @@ class ParecerDoPortao(Conferencia):
         self.entregar()
         return self.commitar_parecer("reviews", "review", **kw)
 
-    def assert_fora(self):
+    def assert_fora(self, rel="docs/reviews/x.md"):
         rc, saida = self.conferir()
         self.assertEqual(rc, 1, saida)
-        self.assertIn('escopo: fora do declarado no brief "docs/reviews/x.md"', saida)
+        self.assertIn(f'escopo: fora do declarado no brief "{rel}"', saida)
 
     def test_parecer_da_propria_branch_e_anexo_do_portao(self):
         self.entrega_com_parecer()
@@ -806,8 +809,66 @@ class ParecerDoPortao(Conferencia):
         """Falha fechada: sem o `rev-list` do intervalo (aqui, um `de` que não existe), o veredito conta como trocado."""
         self.entrega_com_parecer()
         revisado = self.git("rev-parse", "HEAD~1")
-        self.assertFalse(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado"))
-        self.assertTrue(fc.veredito_trocado(self.proj, "0" * 40, "HEAD", "docs/reviews/x.md", revisado, "aprovado"))
+        self.assertFalse(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x"))
+        self.assertTrue(fc.veredito_trocado(self.proj, "0" * 40, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x"))
+
+    def test_ls_tree_que_falha_conta_como_veredito_trocado(self):
+        """Volta 2 (segurança A5), falha fechada: o `ls-tree` de uma versão da pasta que falha conta como trocado."""
+        self.entrega_com_parecer()
+        revisado, git_real = self.git("rev-parse", "HEAD~1"), fc.git
+
+        def git_sem_ls_tree(raiz, *args, **kw):
+            return (128, "") if args[0] == "ls-tree" else git_real(raiz, *args, **kw)
+        with mock.patch.object(fc, "git", git_sem_ls_tree):
+            self.assertTrue(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x"))
+
+    def test_veredito_trocado_em_outro_arquivo_da_pasta_segue_fora(self):
+        """Volta 2 (segurança A5, S3): o review reprovado em x.md e um y.md aprovado com o mesmo `commit:` ancorado; y.md não é anexo."""
+        self.entrega_com_parecer(parecer="reprovado")
+        self.commitar_parecer("reviews", "review", revisado=self.git("rev-parse", "HEAD~1"), selar=False, nome="y")
+        self.assert_fora("docs/reviews/y.md")
+
+    def test_x_apagado_e_y_aprovado_no_mesmo_commit_segue_fora(self):
+        """Volta 2 (segurança A5): o autor apaga o x.md reprovado e cria o y.md aprovado no mesmo commit; a versão anterior conta."""
+        self.entrega_com_parecer(parecer="reprovado")
+        self.git("rm", "-q", "docs/reviews/x.md")
+        self.commitar_parecer("reviews", "review", revisado=self.git("rev-parse", "HEAD~1"), selar=False, nome="y")
+        self.assertEqual(self.git("show", "--no-renames", "--name-status", "--format=", "HEAD").split(), ["D", "docs/reviews/x.md", "A", "docs/reviews/y.md"])
+        self.assert_fora("docs/reviews/y.md")
+
+    def test_parecer_de_outra_branch_na_pasta_nao_troca_o_veredito(self):
+        """Volta 2 (segurança A5): o mesmo `commit:` com outro veredito, mas de outra branch, não é troca do parecer desta."""
+        self.entrega_com_parecer()
+        revisado = self.git("rev-parse", "HEAD~1")
+        self.commitar_parecer("reviews", "review", branch="melhoria/y", revisado=revisado, parecer="reprovado", selar=False, nome="y")
+        self.assertFalse(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x"))
+
+    def test_arquivo_sem_frontmatter_na_pasta_nao_quebra_o_veredito(self):
+        """O arquivo da pasta sem frontmatter não é parecer: não troca o veredito nem quebra a busca."""
+        self.entrega_com_parecer()
+        revisado = self.git("rev-parse", "HEAD~1")
+        self.gravar("docs/reviews/notas.md", "# notas sem frontmatter\n")
+        self.git("add", "docs/reviews/notas.md")
+        self.commit("docs(reviews): notas")
+        self.assertFalse(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x"))
+
+    def portao_de_um_papel(self, papel, pasta, tipo):
+        """O brief selado de `Etapa: review` só para o `papel` e o parecer de `pasta` com o mesmo Revisar-sha, sem brief próprio."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.entregar()
+        revisado = self.git("rev-parse", "HEAD")
+        self.selar_portao("review", revisado, papel=papel)
+        self.commitar_parecer(pasta, tipo, revisado=revisado, selar=False)
+
+    def test_brief_do_review_nao_ancora_o_devops(self):
+        """Volta 2 (review A4): review e devops têm a mesma `Etapa: review`; o `Agente destino:` separa o portão de cada um."""
+        self.portao_de_um_papel("tech-lead", "devops", "revisao-devops")
+        self.assert_fora("docs/devops/x.md")
+
+    def test_brief_do_devops_nao_ancora_o_review(self):
+        self.portao_de_um_papel("devops-engineer", "reviews", "review")
+        self.assert_fora("docs/reviews/x.md")
 
     def test_parecer_sem_frontmatter_segue_fora(self):
         self.entrega_com_parecer()
