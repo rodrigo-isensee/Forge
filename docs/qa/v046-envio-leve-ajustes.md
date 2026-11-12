@@ -17,7 +17,6 @@ data: 2026-11-12
 Revalida o parecer aprovado em c3e271e5 (sem arquivo). Delta c3e271e5..73d0017a: `README.md` (1 linha) e `tests/test_pre_push_leve.py` (+2/-1). Nenhuma linha de `.githooks/pre-push` mudou.
 
 ## Achados
-Nenhum.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
