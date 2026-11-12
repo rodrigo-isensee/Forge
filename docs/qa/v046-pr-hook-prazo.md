@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/pr-hook-prazo
-commit: c6577dbb3253de42614764090553d740bc16181b
-parecer: reprovado
+commit: cf1cc45d68501463ebafc8b570c13bfc6a79a057
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
@@ -17,8 +17,8 @@ data: 2026-11-12
 Diff: `origin/develop...b08296cd` (código do 4ae51318; depois só pareceres de segurança e review). O `forge-check pr` grava o resultado por head em `<git-common-dir>/forge/pr/<head>/` e o hook `parecer` libera a abertura do PR só lendo o aprovado do mesmo head, branch e base. Não há especificação de UX (ferramenta do Forge): as obrigações vêm da E20.1 do pedido e de `R-REVIEW`; os testes são os do autor, conferidos e rodados por mim.
 
 ## Achados
-- A2 (bloqueante) bin/forge-check:1544 · a guarda `not velha.is_symlink()` da poda (apagaria arquivos dentro de pasta apontada por link) não tem mutante nem teste: `and True and` sobrevive (meu Q3, rc 1); declare o mutante e crie link sha40 na pasta do teste
-- A3 (recomendado) bin/forge-check:1544 · `velha.is_dir()` e `velha != pasta` trocadas por `True` também sobrevivem (Q4, Q1); declare mutante, ou equivalente justificado (head recém-gravado é ponta)
+- A2 (bloqueante, resolvido em cf1cc45d) bin/forge-check:1544 · a guarda `not velha.is_symlink()` da poda (apagaria arquivos dentro de pasta apontada por link) não tem mutante nem teste: `and True and` sobrevive (meu Q3, rc 1); declare o mutante e crie link sha40 na pasta do teste
+- A3 (recomendado, resolvido em cf1cc45d) bin/forge-check:1544 · `velha.is_dir()` e `velha != pasta` trocadas por `True` também sobrevivem (Q4, Q1); declare mutante, ou equivalente justificado (head recém-gravado é ponta)
 
 ## Critério → teste → resultado
 | Obrigação (E20.1) | Teste | Fronteira protegida | Resultado |
@@ -59,3 +59,15 @@ O A1 anterior (vermelho rc 2) está resolvido em tests/test_pr_hook_prazo.py:91:
 - `forge-mutante` das 6 specs numa rodada: rc 0, 41 de 41 morreram (M25 morreu em bin/forge-check:1562). M34-M41 conferidos: um por linha de guarda nova, salvo A2 e A3. `--cobertura --base d3453407`: toda condição coberta, 2 isentas já aceitas.
 - Meus mutantes extras na poda (spec fora do repositório): Q1 `velha != pasta` sobreviveu, Q2 `SHA40.match` morreu, Q3 `not velha.is_symlink()` sobreviveu, Q4 `velha.is_dir()` sobreviveu.
 - Prova de CI: o PR ainda não existe; não citei `bateria`.
+
+## Revalidação por delta (c6577dbb..cf1cc45d, volta E20.25)
+`forge-check parecer delta` listou no domínio só tests/test_pr_hook_prazo.py e tests/mutantes/v046-pr-hook-prazo-7.json; sem código de produção (bin/forge-check intacto). Teste novo test_poda_nao_segue_link_nem_abre_arquivo_nem_apaga_a_gravada (link sha40 para pasta de fora com alvo.json, arquivo sha40, head fora das pontas).
+
+| Obrigação | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| A2: a poda não segue link com nome de sha | teste novo; M42 | link para pasta de fora | passou; M42 morreu por `o link não é seguido: nada na pasta apontada se apaga` |
+| A3: a poda não abre arquivo sha40 como pasta, nem apaga a gravada | teste novo; M43, M44 | arquivo no lugar de pasta; head gravado fora das pontas | passou; M43 morreu por `resultados antigos ... Not a directory`; M44 por `um registro gravado para o head` (0 != 1) |
+
+- `python3 -m unittest tests.test_pr_hook_prazo` (worktree destacada minha em cf1cc45d): Ran 18 tests in 44.461s, OK.
+- `bin/forge-mutante tests/mutantes/v046-pr-hook-prazo-7.json`: M42, M43 e M44 morreram, todos em bin/forge-check:1544. Reaplicados à mão um a um: cada um cai só no teste novo, pela asserção acima (motivo certo, não erro de carga). `--cobertura --base d3453407`: rc 0.
+- Os A2 e A3 estão resolvidos; nenhum achado aberto. Prova de CI: o PR ainda não existe; não citei `bateria`.
