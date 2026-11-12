@@ -1,0 +1,23 @@
+{
+  "pedido": "trava-agente-morto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "C5 e C11: a liberação se grava e vai ao log antes de qualquer recusa",
+      "arquivo": "hooks/agentes.py",
+      "de": "if liberacao.soltos:",
+      "para": "if False:",
+      "testes": ["tests.test_trava_agente_morto.PeloHook.test_c5_morto_libera_a_vaga_e_o_relancamento_passa_pelas_travas",
+                 "tests.test_trava_agente_morto.PeloHook.test_c11_liberacao_pelo_hook_vai_ao_log"]
+    },
+    {
+      "id": "M26",
+      "guarda": "C8: o SendMessage vai à conferência da lápide, não ao lançamento",
+      "arquivo": "hooks/agentes.py",
+      "de": "if evento == \"PreToolUse\" and ferramenta == RETOMADA:",
+      "para": "if evento == \"PreToolUse\" and False:",
+      "testes": ["tests.test_trava_agente_morto.PeloHook.test_c8_retomar_o_morto_com_relancamento_vigente_recusa"]
+    }
+  ]
+}

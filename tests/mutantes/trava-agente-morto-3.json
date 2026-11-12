@@ -1,0 +1,71 @@
+{
+  "pedido": "trava-agente-morto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "C8: a lápide só guarda branch que é texto",
+      "arquivo": "hooks/agentes.py",
+      "de": "if isinstance(v, str)",
+      "para": "if v is not None",
+      "testes": ["tests.test_trava_agente_morto.C8Lapide.test_lapide_so_guarda_branches_de_texto"]
+    },
+    {
+      "id": "M18",
+      "guarda": "C8: branches que não são lista não viram lista de letras",
+      "arquivo": "hooks/agentes.py",
+      "de": "if isinstance(valor, list) else []",
+      "para": "if valor else []",
+      "testes": ["tests.test_trava_agente_morto.C8Lapide.test_lapide_so_guarda_branches_de_texto"]
+    },
+    {
+      "id": "M19",
+      "guarda": "C8: lápides gravadas fora da forma de lista são ignoradas sem derrubar o hook",
+      "arquivo": "hooks/agentes.py",
+      "de": "(lista if isinstance(lista, list) else [])",
+      "para": "(lista if lista else [])",
+      "testes": ["tests.test_trava_agente_morto.C8Lapide.test_lapide_vence_com_o_prazo_do_registro"]
+    },
+    {
+      "id": "M20",
+      "guarda": "C8: a lápide vence com o prazo do registro",
+      "arquivo": "hooks/agentes.py",
+      "de": "agora - l[\"desde\"] < expira_s",
+      "para": "agora - l[\"desde\"] <= expira_s",
+      "testes": ["tests.test_trava_agente_morto.C8Lapide.test_lapide_vence_com_o_prazo_do_registro"]
+    },
+    {
+      "id": "M21",
+      "guarda": "C8: relançamento com a mesma descrição prende a retomada",
+      "arquivo": "hooks/agentes.py",
+      "de": "(morto.get(\"descricao\") and a.get(\"descricao\") == morto[\"descricao\"])",
+      "para": "(False)",
+      "testes": ["tests.test_trava_agente_morto.C8Lapide.test_retomar_com_relancamento_na_mesma_descricao_recusa"]
+    },
+    {
+      "id": "M22",
+      "guarda": "C8: só a lápide do id citado na retomada conta",
+      "arquivo": "hooks/agentes.py",
+      "de": "if l.get(\"id\") in citados and relancado",
+      "para": "if relancado",
+      "testes": ["tests.test_trava_agente_morto.C8Lapide.test_retomar_sem_relancamento_passa"]
+    },
+    {
+      "id": "M23",
+      "guarda": "C8: retomada presa é recusada (saída 2)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if presos:",
+      "para": "    if False:",
+      "testes": ["tests.test_trava_agente_morto.C8Lapide.test_retomar_com_relancamento_na_mesma_descricao_recusa",
+                 "tests.test_trava_agente_morto.C8Lapide.test_erro_na_conferencia_recusa"]
+    },
+    {
+      "id": "M24",
+      "guarda": "C8: o hook atende o PreToolUse do SendMessage",
+      "arquivo": "hooks/agentes.py",
+      "de": "ferramenta not in FERRAMENTAS | {RETOMADA}",
+      "para": "ferramenta not in FERRAMENTAS",
+      "testes": ["tests.test_trava_agente_morto.PeloHook.test_c8_retomar_o_morto_com_relancamento_vigente_recusa"]
+    }
+  ]
+}
