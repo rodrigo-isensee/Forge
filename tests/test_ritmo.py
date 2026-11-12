@@ -99,8 +99,6 @@ class RitmoNoModeloDeProjeto(unittest.TestCase):
                 preparo(raiz / ".forge/config.json")
                 self.assertEqual(sem_excecao(agentes.ritmo_do_projeto, raiz), "equilibrado")
 
-    @unittest.skip("vale depois do patch ~/.forge-contrib/patches/e3cfg.patch (decisão do dono 4a, 12/11 11:22): "
-                   "o dono aplica o campo no modelo; tire este skip no commit que leva o patch")
     def test_modelo_traz_o_ritmo_equilibrado_e_as_chaves_de_antes(self):
         dados = json.loads(self.MODELO.read_text(encoding="utf-8"))
         self.assertEqual(dados, {"pesados": [], "caminhos_extra": [], "ritmo": "equilibrado"})
