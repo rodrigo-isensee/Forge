@@ -8,8 +8,10 @@
       "arquivo": "hooks/agentes.py",
       "de": "if liberacao.soltos:",
       "para": "if False:",
-      "testes": ["tests.test_trava_agente_morto.PeloHook.test_c5_morto_libera_a_vaga_e_o_relancamento_passa_pelas_travas",
-                 "tests.test_trava_agente_morto.PeloHook.test_c11_liberacao_pelo_hook_vai_ao_log"]
+      "testes": [
+        "tests.test_trava_agente_morto.PeloHook.test_c5_morto_libera_a_vaga_e_o_relancamento_passa_pelas_travas",
+        "tests.test_trava_agente_morto.PeloHook.test_c11_liberacao_pelo_hook_vai_ao_log"
+      ]
     },
     {
       "id": "M26",
@@ -17,7 +19,49 @@
       "arquivo": "hooks/agentes.py",
       "de": "if evento == \"PreToolUse\" and ferramenta == RETOMADA:",
       "para": "if evento == \"PreToolUse\" and False:",
-      "testes": ["tests.test_trava_agente_morto.PeloHook.test_c8_retomar_o_morto_com_relancamento_vigente_recusa"]
+      "testes": [
+        "tests.test_trava_agente_morto.PeloHook.test_c8_retomar_o_morto_com_relancamento_vigente_recusa"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "C4 (review A4): a leitura do transcript, boa ou com falha, acontece uma vez só",
+      "arquivo": "hooks/agentes.py",
+      "de": "if self._notas is None:",
+      "para": "if True:",
+      "testes": [
+        "tests.test_trava_agente_morto.C4Orcamento.test_falha_da_leitura_nao_rele_o_transcript_a_cada_registro"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "C8 (QA A1): o PreToolUse do SendMessage chama o agentes.py",
+      "arquivo": "hooks/hooks.json",
+      "de": "\"matcher\": \"SendMessage\"",
+      "para": "\"matcher\": \"Nenhuma\"",
+      "testes": [
+        "tests.test_trava_agente_morto.C8Gatilho.test_hooks_json_liga_o_sendmessage_ao_agentes"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "C10 (segurança A1): a pasta do projeto em ~/.claude/projects/ não se troca nem se apaga",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"~/.claude/projects/*\", \"quem\": []",
+      "para": "\"~/.claude/projects/*\", \"quem\": [\"jarvis\"]",
+      "testes": [
+        "tests.test_trava_agente_morto.C10ProjectsProtegido.test_nenhum_papel_escreve_no_transcript_nem_no_meta"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "C10 (segurança A1): a pasta da sessão (subagents/) não se troca nem se apaga",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"~/.claude/projects/*/*\", \"quem\": []",
+      "para": "\"~/.claude/projects/*/*\", \"quem\": [\"jarvis\"]",
+      "testes": [
+        "tests.test_trava_agente_morto.C10ProjectsProtegido.test_nenhum_papel_escreve_no_transcript_nem_no_meta"
+      ]
     }
   ]
 }
