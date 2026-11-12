@@ -154,9 +154,6 @@ MAPA = [
     (r"CONTRIBUTING\.md", ("test_forge", "test_changelog")),
     (r"(CHANGELOG\.md|changelog\.d/.*)", ("test_forge", "test_changelog")),
     (r"tests/comportamento/.*", ("test_comportamento",)),
-    # TESTE-RITMO-SEM-MAPA (v046 E22.1): ninguém importa test_ritmo; roda ele e quem varre tests/ (a conferência C.2 prova)
-    (r"tests/test_ritmo\.py", ("test_ritmo", "test_ambiente_git", "test_apoio_sandbox", "test_forge", "test_hooks",
-                               "test_pre_push_trava", "test_testes_tocados")),
     (r"\.devcontainer/.*", ("test_forge",)),  # 0.43.1, frente A
 ]
 # Sem regra (de propósito), por exemplo: .github/, .githooks/, tests/config.json, tests/catraca.py e os outros
