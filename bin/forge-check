@@ -2339,8 +2339,7 @@ def veredito_trocado(raiz, de, head, nome, revisado, parecer):
     if cod:
         return True
     for sha in [de] + shas.split():
-        lido, texto = git(raiz, "show", f"{sha}:{nome}")
-        fm = {} if lido else ler_frontmatter(texto)[0] or {}
+        fm = ler_frontmatter(git(raiz, "show", f"{sha}:{nome}")[1])[0] or {}  # a versão que não existe não tem frontmatter
         if fm.get("commit") == revisado and fm.get("parecer") != parecer:
             return True
     return False

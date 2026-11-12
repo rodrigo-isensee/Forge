@@ -179,3 +179,11 @@ class PareceresPeloPedido(Repositorio):
         rc, saida = self.entrega(etapa="merge-integracao")
         self.assertEqual(rc, 0, saida)
         self.assertIn(OK_INTEGRACAO, saida)
+
+    def test_arquivo_sem_frontmatter_em_docs_reviews_nao_quebra(self):
+        """Um arquivo de docs/reviews/ sem frontmatter (lido antes do parecer, na ordem do ls-tree) não quebra a busca do pedido."""
+        self.commitar({"docs/reviews/LEIAME.md": "# pareceres\n"}, "leiame")
+        self.review("p1")
+        rc, saida = self.entrega(etapa="merge-integracao")
+        self.assertNotIn("Traceback", saida)
+        self.assertIn(OK_INTEGRACAO, saida)
