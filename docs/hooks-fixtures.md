@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2262 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2265 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -13,7 +13,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2262 fixtures) roda em `tests/test
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 25 | 10 | 15 | 12 |
 | `parecer` | 441 | 343 | 98 | 23 |
-| `pesado` | 21 | 7 | 14 | 17 |
+| `pesado` | 24 | 9 | 15 | 19 |
 | `quadro` | 7 | 2 | 5 | 7 |
 | `vigia` | 46 | 0 | 46 | 24 |
 
@@ -195,6 +195,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2262 fixtures) roda em `tests/test
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | `sem-*` | 3 | 0 | 3 | — | — | Projeto sem .forge/versao: o hook não age. |
+| `mutacao-*` | 2 | 1 | 1 | `R-TETO` | `TM-25` | TM-25: Stryker de outra sessão ativo; o teste de banco da lista da stack espera (um por vez). |
 | `outra-*` | 2 | 2 | 0 | — | `HOOK-COMENTARIO-SHLEX` | HOOK-COMENTARIO-SHLEX (ADR 0013): a linha que a leitura fiel não lê é lida pela antiga: o pesado continua visto. |
 | `pos-*` | 2 | 0 | 2 | — | — | PostToolUse de outra chamada não solta a trava alheia. |
 | `aguardando-*` | 1 | 1 | 0 | — | — | Orkastery 5: cartão da branch em "Aguardando o dono" recusa na hora, sem esperar na fila. |
@@ -210,6 +211,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2262 fixtures) roda em `tests/test
 | `outro-*` | 1 | 1 | 0 | — | — | Mesma sessão, mas a trava é de um subagente (agent_id): bloqueia. |
 | `permissao-*` | 1 | 0 | 1 | — | — | PermissionDenied (modo auto) do mesmo comando solta a trava. |
 | `pid-*` | 1 | 0 | 1 | — | — | Trava de sessão encerrada (PID morto) não vale. |
+| `teste-*` | 1 | 1 | 0 | `R-TETO` | `TM-25` | TM-25: teste de banco de outra sessão ativo; o Stryker da lista da stack espera (um por vez). |
 | `teto-*` | 1 | 1 | 0 | — | — | Orkastery 5: ocupado, espera na fila até o teto e recusa dizendo a posição. |
 
 ## `quadro`

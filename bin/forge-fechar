@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Forge: fecha uma entrega na branch de integração com os passos mecânicos do integrador (TA-5, R-FLUXO, R-CONTRIB).
 # Uso: forge-fechar <pedido> --ref <branch> [--base origin/develop] [--titulo T] [--origem T] [--muda T]
-#                  [--medir T] [--espera SEGUNDOS] [--esperar-rotulo] [--armar] [--limpar] [--sem-limpar] [--dry-run]
+#                  [--medir RUN|ARQUIVO] [--espera SEGUNDOS] [--esperar-rotulo] [--armar] [--limpar] [--sem-limpar] [--dry-run]
 # Roda em ordem e para no primeiro erro: (1) forge-check pr; (1c) a árvore do sha conferido é promovível (scripts/promover-homolog.py
 # --conferir-ref, do diretório deste script; rc diferente de 0, prazo de 300 s ou script ausente param); (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto, também o rascunho do autor, um só e com o head conferido);
 # (2b) se a base andou desde o ponto de partida: com conflito real (`git merge-tree --write-tree`) ou falha de leitura, para; sem conflito avisa e segue,
@@ -29,6 +29,8 @@
 # da limpeza). Push de código, criação de PR, `pr ready` e merge nunca se repetem sozinhos.
 # Só para a develop: a promoção develop -> homolog segue manual (R-FLUXO). Roda só no repositório do Forge (R-CONTRIB).
 # Nunca: mescla na main, aplica rótulo, usa --force ou --no-verify, apaga develop/homolog/main/master ou a branch de integração do CLAUDE.md, dispensa parecer ou check.
+# --medir RUN|ARQUIVO (FECHAR-MEDIR-DO-LOG): lê as linhas ORCAMENTO-TEMPO do log do CI (número da execução: `gh run view RUN --log`, só
+# leitura; ou o log salvo num arquivo), no formato FORMATO_DO_ORCAMENTO; vão ao "Como medir" do PR criado e à saída. Sem elas, para antes do passo 1.
 # --dry-run só imprime cada passo (e avisa se o diff toca caminho que a catraca protege); não roda forge-check, git remoto nem gh.
 # Para teste, com FORGE_FECHAR_TESTE=1: FORGE_CHECK, FORGE_GH, FORGE_PROMOVER (substituem os comandos) e FORGE_FECHAR_INTERVALO
 # (segundos entre leituras dos checks). Sem FORGE_FECHAR_TESTE=1 as três primeiras são ignoradas, com aviso.
@@ -73,7 +75,7 @@ while [ $# -gt 0 ]; do
     --titulo) titulo="${2-}"; shift 2 || die "--titulo pede o texto" ;;
     --origem) origem="${2-}"; shift 2 || die "--origem pede o texto" ;;
     --muda) muda="${2-}"; shift 2 || die "--muda pede o texto" ;;
-    --medir) medir="${2-}"; shift 2 || die "--medir pede o texto" ;;
+    --medir) medir="${2-}"; shift 2 || die "--medir pede o número da execução do CI ou o arquivo do log" ;;
     --espera) espera="${2-}"; shift 2 || die "--espera pede os segundos" ;;
     --esperar-rotulo) esperar=1; shift ;;
     --armar) armar=1; shift ;;
@@ -172,6 +174,33 @@ remoto_exato() {
   saida_remota="$("$@" git ls-remote origin "$nome")" || return 1
   printf '%s\n' "$saida_remota" | awk -v r="$nome" '$2 == r { if ((length($1) == 40 || length($1) == 64) && $1 ~ /^[0-9a-f]+$/) print $1; else ruim = 1; exit } END { exit ruim }'
 }
+# A linha que o teste do orçamento de heredocs imprime (tests/test_hooks.py, FORMATO_DO_ORCAMENTO); a mesma regex, em ERE.
+readonly FORMATO_DO_ORCAMENTO='^ORCAMENTO-TEMPO teste=([^[:space:]]+) medido=([0-9]+\.[0-9]{2})s limite=([0-9]+(\.[0-9]+)?)s medida=(cpu|parede) forma=(.+)$'
+# medir_do_log <fonte>: define `medida` com as linhas ORCAMENTO-TEMPO do log (o prefixo do `gh run view --log`, job, passo e hora, e o texto
+# do unittest -v antes da marca ficam de fora); fonte que não é execução nem arquivo, marca ausente ou linha fora do formato param.
+medir_do_log() {
+  local fonte="$1" texto linha destravar="rode o CI do PR (o teste do orçamento imprime a linha) e passe o número da execução (gh run list --branch $ref) ou o log salvo"
+  if [[ "$fonte" =~ ^[0-9]{1,20}$ ]]; then
+    if [ "$seco" = 1 ]; then medida="(lida no passo real: $gh run view $fonte --log)"; return 0; fi
+    texto="$(ler "$gh" run view "$fonte" --log)" || die "--medir: não consegui ler o log da execução $fonte do CI ($gh run view $fonte --log), e sem ele não há medida; confira o número e a credencial do gh"
+  elif [ -f "$fonte" ] && [ -r "$fonte" ]; then
+    texto="$(cat -- "$fonte")"
+  else
+    die "--medir: '$fonte' não é número de execução do CI nem arquivo legível; o --medir lê a medida do log do CI, não texto livre; $destravar"
+  fi
+  medida=""
+  while IFS= read -r linha; do
+    case "$linha" in *"ORCAMENTO-TEMPO "*) ;; *) continue ;; esac
+    linha="ORCAMENTO-TEMPO ${linha#*ORCAMENTO-TEMPO }"
+    linha="${linha%$'\r'}"
+    [[ "$linha" =~ $FORMATO_DO_ORCAMENTO ]] || die "--medir: linha ORCAMENTO-TEMPO fora do formato (FORMATO_DO_ORCAMENTO de tests/test_hooks.py): $linha; o PR sairia com medida que ninguém confere; corrija quem a imprime ou $destravar"
+    medida="${medida:+$medida
+}$linha"
+  done <<<"$texto"
+  [ -n "$medida" ] || die "--medir: o log ($fonte) não tem linha ORCAMENTO-TEMPO, e sem ela não há medida do orçamento; $destravar"
+}
+medida=""
+[ -z "$medir" ] || medir_do_log "$medir"
 [ -n "$titulo" ] || titulo="$ref"
 corpo="## Projeto de origem
 ${origem:-Forge (melhoria da fábrica, pedido $pedido)}
@@ -183,7 +212,7 @@ Pedido $pedido, branch $ref.
 ${muda:-Ver o diff e o pedido $pedido.}
 
 ## Como medir
-${medir:-Ver a seção de medição do pedido $pedido.}
+${medida:-Ver a seção de medição do pedido $pedido.}
 
 ## Checklist
 - [ ] Rótulo \`afrouxa-regra\` pedido ao dono (marque só se a mudança afrouxa regra protegida; o dono aplica o rótulo)"
@@ -284,6 +313,7 @@ trap fim EXIT
 trap 'exit 143' TERM
 trap 'exit 130' INT
 trap 'exit 129' HUP
+[ -z "$medida" ] || printf 'medida: %s\n' "${medida//$'\n'/$'\n'medida: }"
 # dormir <segundos>: o sleep roda em segundo plano e o script espera nele (`wait` volta na hora com um sinal tratado); com o sleep em primeiro
 # plano o trap de TERM/INT/HUP só correria quando ele acabasse (até o intervalo, 120 s no teto). O `fim` mata o sleep que sobrar.
 dormir() {

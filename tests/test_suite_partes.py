@@ -297,7 +297,7 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertIn("fail-fast: false", bloco)
 
     def test_agregadores_tem_o_nome_exigido_e_exigem_todas_as_partes(self):
-        casos = {"agregador": ("bateria", {"bateria", "partes-doze", "pulados-doze"}),
+        casos = {"agregador": ("bateria", {"bateria", "verificacoes", "partes-doze", "pulados-doze"}),
                  "bateria-python-tres-quatorze": ("bateria (python 3.14)",
                                                   {"partes-quatorze", "pulados-quatorze", "instalacao-quatorze"})}
         for job, (nome, necessarios) in casos.items():
@@ -362,7 +362,7 @@ class FiacaoDoCI(unittest.TestCase):
         for job in ("partes-doze", "partes-quatorze"):
             with self.subTest(job):
                 bloco = self.jobs[job]
-                self.assertRegex(bloco, r"(?m)^    needs: \[arvore\]$")
+                self.assertRegex(bloco, r"(?m)^    needs: \[arvore, bateria\]$")  # A18: os passos baratos antes da suíte
                 self.assertNotIn("arvore-testada", bloco)
                 self.assertNotIn("outputs:", bloco)
                 for nome in ("      - name: env com -a", "      - name: Testes do Forge (parte)\n"):
