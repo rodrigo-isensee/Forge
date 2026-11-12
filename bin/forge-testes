@@ -136,7 +136,7 @@ MAPA = [
                    "test_classe_risco", "test_pesado_fila", "test_meta", "test_vigia") + VOLTA_UNICA
      + EVALS_DE_FORMA),  # EST-M4: guarda C-2
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados")),
-    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer")),
+    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve")),  # v046 E19.3 (A4): o teste lê e grava o script
     (r"stacks/.*", CONTEUDO + ("test_hooks", "test_adotar", "test_stack_python") + VOLTA_UNICA),
     (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks", "test_stack_python") + VOLTA_UNICA),
     (r"templates/projeto/docs/(reviews|qa|security|devops)/_modelo\.md", PUBLICADO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),  # o teste gera parecer do modelo

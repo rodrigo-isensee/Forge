@@ -5,7 +5,8 @@ PR é o portão.
 Cada teste roda o hook de verdade num repositório descartável cujo teste, se rodasse, deixaria a marca `rodou`. Classe do
 defeito: o envio voltar a rodar teste local (marca presente, trava criada) ou o bloqueio sumir junto com os testes.
 Variantes: teste quebrado e envio verde (nada roda), trava ausente, linha de duração `plano=leve`, sintaxe quebrada barra,
-branch protegida barra (main, homolog, develop), opt-in `afetados` ainda roda, valor inválido do opt-in recusado.
+branch protegida barra (main, homolog, develop), segredo no delta barra, envio não fast-forward barra, opt-in `afetados`
+ainda roda, valor inválido do opt-in recusado.
 """
 import os
 import shutil
@@ -22,6 +23,12 @@ RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / ".githooks" / "pre-push"
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_"))})
 ZERO = "0" * 40
+TOKEN = "ghp" + "_" + "Ab3" * 8  # montado aqui para a própria varredura do Forge não achar este arquivo
+# Varredura mínima no lugar do script real (que o test_pre_push_segredo exercita): aqui só importa que o envio leve a chame
+# e barre com o que ela acusar. Recebe a base e a ponta, como o script do CI, e imprime arquivo:linha, nunca o valor.
+VARREDURA = ("# forge:ponta\nachou=0\nfor f in $(git diff --no-color --name-only \"$1\" \"$2\"); do\n"
+             "  for n in $(git show \"$2:$f\" | grep -n 'gh''p_' | cut -d: -f1); do echo \"segredo em $f:$n\"; achou=1; done\n"
+             "done\nexit \"$achou\"\n")
 TESTE_QUE_MARCA = ("import unittest, pathlib\nclass T(unittest.TestCase):\n    def test_a(self):\n"
                    "        pathlib.Path('rodou').write_text('sim')\n        self.fail('de proposito')\n")
 
@@ -36,6 +43,8 @@ class EnvioLeve(unittest.TestCase):
         self.repo = base / "repo"
         (self.repo / "tests").mkdir(parents=True)
         (self.repo / "bin").mkdir()
+        (self.repo / "scripts").mkdir()
+        (self.repo / "scripts" / "verificar-contribuicao.sh").write_text(VARREDURA)  # o hook lê o script da base
         for nome in ("forge-testes", "forge_apoio_testes.py"):  # o opt-in `afetados` precisa da ferramenta na árvore
             shutil.copy(RAIZ / "bin" / nome, self.repo / "bin" / nome)
         (self.repo / ".gitignore").write_text("rodou\n__pycache__/\n")
@@ -60,11 +69,11 @@ class EnvioLeve(unittest.TestCase):
         self.git("commit", "-q", "-m", msg)
         return self.git("rev-parse", "HEAD")
 
-    def roda(self, destino="melhoria/x", **extra):
+    def roda(self, destino="melhoria/x", remoto=ZERO, **extra):
         (self.repo / "rodou").unlink(missing_ok=True)
         sha = self.git("rev-parse", "HEAD")
         r = subprocess.run([str(HOOK), "origin", "u"], cwd=self.repo, env=dict(self.env, **extra), capture_output=True,
-                           text=True, timeout=120, input=f"refs/heads/x {sha} refs/heads/{destino} {ZERO}\n")
+                           text=True, timeout=120, input=f"refs/heads/x {sha} refs/heads/{destino} {remoto}\n")
         return r.returncode, (self.repo / "rodou").exists(), r.stderr
 
     def test_envio_sem_opt_in_nao_roda_teste_nem_toma_a_trava(self):
@@ -94,6 +103,26 @@ class EnvioLeve(unittest.TestCase):
                 self.assertEqual(codigo, 1, erro)
                 self.assertFalse(rodou)
                 self.assertNotIn("envio leve", erro)
+
+    def test_segredo_no_delta_ainda_barra_sem_imprimir_o_valor(self):
+        # A branch neutraliza o próprio script de segredo: só a varredura da base (segredo_no_delta) pode barrar.
+        self.commit("token", **{"a.md": f"t = {TOKEN}\n", "scripts/verificar-contribuicao.sh": "#!/bin/bash\nexit 0\n"})
+        codigo, rodou, erro = self.roda()
+        self.assertEqual((codigo, rodou), (1, False), erro)
+        self.assertIn("varredura de segredo", erro)
+        self.assertIn("a.md:1", erro)
+        self.assertNotIn(TOKEN, erro, "o valor não pode sair")
+        self.assertNotIn("envio leve", erro)
+
+    def test_envio_nao_fast_forward_ainda_barra(self):
+        base = self.git("rev-parse", "HEAD")
+        remoto = self.commit("no remoto", **{"bin/ferramenta": "x = 1\n"})
+        self.git("reset", "-q", "--hard", base)
+        self.commit("reescrito", **{"bin/ferramenta": "x = 2\n"})
+        codigo, rodou, erro = self.roda(remoto=remoto)
+        self.assertEqual((codigo, rodou), (1, False), erro)
+        self.assertIn("envio não fast-forward para melhoria/x", erro)
+        self.assertNotIn("envio leve", erro)
 
     def test_opt_in_afetados_ainda_roda_os_testes(self):
         self.commit("toca o teste", **{"tests/test_a.py": TESTE_QUE_MARCA + "# x\n"})
