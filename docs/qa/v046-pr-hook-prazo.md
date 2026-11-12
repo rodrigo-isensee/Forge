@@ -17,8 +17,8 @@ data: 2026-11-12
 Diff: `origin/develop...b08296cd` (código do 4ae51318; depois só pareceres de segurança e review). O `forge-check pr` grava o resultado por head em `<git-common-dir>/forge/pr/<head>/` e o hook `parecer` libera a abertura do PR só lendo o aprovado do mesmo head, branch e base. Não há especificação de UX (ferramenta do Forge): as obrigações vêm da E20.1 do pedido e de `R-REVIEW`; os testes são os do autor, conferidos e rodados por mim.
 
 ## Achados
-- A2 (bloqueante, resolvido em cf1cc45d) bin/forge-check:1544 · a guarda `not velha.is_symlink()` da poda (apagaria arquivos dentro de pasta apontada por link) não tem mutante nem teste: `and True and` sobrevive (meu Q3, rc 1); declare o mutante e crie link sha40 na pasta do teste
-- A3 (recomendado, resolvido em cf1cc45d) bin/forge-check:1544 · `velha.is_dir()` e `velha != pasta` trocadas por `True` também sobrevivem (Q4, Q1); declare mutante, ou equivalente justificado (head recém-gravado é ponta)
+- A2 (bloqueante) bin/forge-check:1544 · a guarda `not velha.is_symlink()` da poda (apagaria arquivos dentro de pasta apontada por link) não tem mutante nem teste: `and True and` sobrevive (meu Q3, rc 1); declare o mutante e crie link sha40 na pasta do teste
+- A3 (recomendado) bin/forge-check:1544 · `velha.is_dir()` e `velha != pasta` trocadas por `True` também sobrevivem (Q4, Q1); declare mutante, ou equivalente justificado (head recém-gravado é ponta)
 
 ## Critério → teste → resultado
 | Obrigação (E20.1) | Teste | Fronteira protegida | Resultado |
