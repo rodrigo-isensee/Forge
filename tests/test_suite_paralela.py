@@ -934,6 +934,8 @@ class T(unittest.TestCase):
             p.wait()
         finally:
             temporizador.cancel()
+            p.stdout.close()
+            p.stderr.close()
         return saida, erro
 
     def le_ate(self, p, trecho):
