@@ -222,6 +222,9 @@ class GravacaoDoForgeCheck(unittest.TestCase):
         self.assertEqual(estado(None, None), "aprovado")
         self.assertEqual(estado(None, "refs/heads/nao-existe"), "ausente")
         self.assertEqual(estado("nao-existe", None), "ausente")
+        motivo = fc.resultado_gravado_do_pr(raiz, "feature/x", "nao-existe", None)[1]  # sem head nem base dada: o comando sem --base
+        self.assertIn("para o head ? da branch feature/x", motivo)
+        self.assertTrue(motivo.endswith("rode antes forge-check pr <pedido> --ref feature/x"), motivo)
 
     def test_falha_ao_gravar_avisa_e_nao_muda_o_codigo(self):
         raiz = self.montar(com_resultado=False)
@@ -229,6 +232,7 @@ class GravacaoDoForgeCheck(unittest.TestCase):
         r = forge_check(raiz, "pr", "p1", "--base", "develop")
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("pr: aviso: resultado não gravado para o hook", r.stderr)
+        self.assertRegex(r.stderr, r"resultado não gravado para o hook \([^)\[]+\)")  # o motivo curto do sistema, sem o caminho
 
 
 if __name__ == "__main__":
