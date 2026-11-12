@@ -1,0 +1,66 @@
+{
+  "pedido": "v046-entrega-push-proxy",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E12.1 rede: ls-remote herda a configuração do ambiente",
+      "arquivo": "bin/forge-check",
+      "de": "    rede = bool(args) and args[0] in GIT_REDE",
+      "para": "    rede = False",
+      "testes": [
+        "tests.test_git_rede_config.GitRedeConfig.test_ls_remote_herda_a_configuracao_do_ambiente"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E12.1 comando local não herda a configuração do ambiente",
+      "arquivo": "bin/forge-check",
+      "de": "or (rede and GIT_CONFIG_DO_AMBIENTE.fullmatch(k))",
+      "para": "or GIT_CONFIG_DO_AMBIENTE.fullmatch(k)",
+      "testes": [
+        "tests.test_git_rede_config.GitRedeConfig.test_comando_local_nao_herda_a_configuracao_do_ambiente"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E12.1 GIT_CONFIG_GLOBAL e afins continuam fora no comando de rede",
+      "arquivo": "bin/forge-check",
+      "de": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_[0-9]+|VALUE_[0-9]+)\")",
+      "para": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_CONFIG_\\w+\")",
+      "testes": [
+        "tests.test_git_rede_config.GitRedeConfig.test_ls_remote_continua_sem_git_config_global"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E12.1 GIT_CONFIG_PARAMETERS é herdada no comando de rede",
+      "arquivo": "bin/forge-check",
+      "de": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_[0-9]+|VALUE_[0-9]+)\")",
+      "para": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_CONFIG_(?:COUNT|KEY_[0-9]+|VALUE_[0-9]+)\")",
+      "testes": [
+        "tests.test_git_rede_config.GitRedeConfig.test_ls_remote_herda_git_config_parameters"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E12.1 fetch é comando de rede",
+      "arquivo": "bin/forge-check",
+      "de": "GIT_REDE = frozenset({\"ls-remote\", \"fetch\"})",
+      "para": "GIT_REDE = frozenset({\"ls-remote\"})",
+      "testes": [
+        "tests.test_git_rede_config.GitRedeConfig.test_fetch_herda_a_configuracao_do_ambiente"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E12.1 GIT_DIR continua fora no comando de rede",
+      "arquivo": "bin/forge-check",
+      "de": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_[0-9]+|VALUE_[0-9]+)\")",
+      "para": "GIT_CONFIG_DO_AMBIENTE = re.compile(r\"GIT_\\w+\")",
+      "testes": [
+        "tests.test_git_rede_config.GitRedeConfig.test_ls_remote_continua_sem_git_dir"
+      ]
+    }
+  ]
+}
