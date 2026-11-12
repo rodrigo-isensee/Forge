@@ -3,36 +3,39 @@ tipo: review
 contrato: 1
 pedido: v046
 branch: melhoria/conformidade-caminho-git
-commit: 22187bae11aba23d2e8fe705b6302647d7a34134
-parecer: aprovado
+commit: c072741112e9383735cb82019aa0523acb4fa6a6
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-12
 ---
-# Review: v046 (E20.7, conformidade-caminho-git)
+# Review: v046 (E20.12, conformidade-caminho-git, revalidação por delta)
 
 ## Escopo lido
-`git diff 8b5a44d5..22187bae` (Base-sha 8b5a44d5): 2 commits (06fa3baf fix, 22187bae test), 25 arquivos. Código e teste que contam (M14): `hooks/conformidade.py` +31/-1 e `tests/test_hook_git_comum.py` +33, 65 linhas, abaixo da orientação de 150; fixtures, spec de mutantes, índice e fragmento ficam fora. Uma classe de comportamento em `hooks/` (escrita pelo Bash com prefixo opaco antes de nome do `.git`), com corpus próprio `gitcomum-*` (10 recusam, 10 liberam). Revisão de instância que não fez a entrega, numa worktree destacada minha.
+Delta lido por `forge-check parecer delta docs/reviews/v046-conformidade-caminho-git.md`: intervalo 22187bae..c0727411 (volta E20.10: 44b75270 fix, 90bea40b e c0727411 test), 28 arquivos no domínio: `hooks/conformidade.py` +23/-6, `tests/test_hook_git_comum.py` +3/-2, 22 fixtures `gitcomum-*`, a spec `tests/mutantes/v046-conformidade-caminho-git-2.json` (G9 a G14), o índice e o fragmento. M14 da branch inteira contra a base 8b5a44d5: 91 linhas de código e teste, abaixo da orientação de 150; uma classe de comportamento em `hooks/` com corpus próprio. Instância que não fez a entrega, numa worktree destacada minha; rodei só `tests/test_hook_git_comum.py` (R-TETO): 1 teste OK, 42 fixtures (27 recusam, 15 liberam), conferidas por contagem do `esperado.codigo`.
 
 ## Achados
-- A1 (recomendado) hooks/conformidade.py:974 · falso positivo provado: `echo a > "$TMPDIR/logs/run.log"`, `cp x "$R/modules/vpc/main.tf"` e `echo a > "$TMPDIR/forge/x.log"` recusam rc 2 com a mensagem de .git/; falha fechada, saída pelo caminho literal; a mensagem não diz que o prefixo opaco foi lido como .git
-- A2 (recomendado) hooks/conformidade.py:1154 · o limite declarado na entrega cita `$(pwd)/hooks/x`, mas esta linha troca `$(pwd)` por `$PWD`, que `expandir` resolve: a sonda `cp x "$(pwd)/hooks/novo.py"` sai rc 0; o caso real é `$(git rev-parse --show-toplevel)/hooks/x`; corrigir o texto do limite no PR
+- A3 (bloqueante) hooks/conformidade.py:330 · A1 da segurança segue aberto fora da forma exata da regex: `--git-path` com o argumento entre aspas, `2>/dev/null` ou `-q` dentro do `$(…)` e `git -C . rev-parse` sem resto liberam rc 0 a escrita em .git/hooks/pre-push (S1 a S5)
+- A4 (recomendado) hooks/conformidade.py:954 · A4, A6 e A7 da segurança (E20.8) deviam estar em cartão; não achei cartão no KANBAN.md nem no pedido para eles; pendente: do Jarvis, não do autor
 
 ## Sondas
+- S1 · cp x "$(git rev-parse --git-path 'hooks/pre-push')" · espera: rc 2 R-CONFORMIDADE · obtido: rc 0
+- S2 · cp x "$(git rev-parse --git-path \"hooks/pre-push\")" · espera: rc 2 R-CONFORMIDADE · obtido: rc 0
+- S3 · cp x "$(git rev-parse --git-path hooks/pre-push 2>/dev/null)" · espera: rc 2 R-CONFORMIDADE · obtido: rc 0
+- S4 · cp x "$(git rev-parse -q --git-path hooks/pre-push)" · espera: rc 2 R-CONFORMIDADE · obtido: rc 0
+- S5 · cp x "$(git -C . rev-parse --git-path hooks/pre-push)" · espera: rc 2 R-CONFORMIDADE · obtido: rc 0
 
 ## Parecer
-**Aprovado no domínio do review**, no head 22187bae. O item não entra na `develop` com este head: a segurança (E20.8, `docs/security/v046-conformidade-caminho-git.md`, fd4ad995) reprovou com A1 a A3 bloqueantes (resto vazio depois do opaco, `${d%…}`, crase sem aspas). Cito e não refaço (`R-SEGURANCA`); a volta do autor reabre este parecer por delta.
+**Reprovado** no head c0727411, pelo A3.
 
-Checklist de leitura sobre o diff:
-1. Faz o que a E20.6 pede: as sondas S1 e S2 da E20.4 viraram fixtures que recusam (`gitcomum-s1-subst-comum-forge-bloqueia`, `gitcomum-s2-variavel-forge-bloqueia`), e os comandos de git comuns seguem livres (`gitcomum-git-commit/fetch/worktree-add-libera`). Nada além do pedido.
-2. Desenho: `resto_no_git` só soma um alvo a `alvos_da_escrita`; as regras `.git/…` existentes decidem. Não cria regra nova nem afrouxa nenhuma. Na dúvida recusa, coerente com a docstring da linha 939.
-3. Legível; nomes dizem o que fazem; `NOMES_DO_GIT` comentado com a origem (E20.6).
-4. Tipos e erros: `max(fins)` só depois do `if not fins`; `os.listdir(comum)` só com `comum` resolvido.
-7. Testes: módulo próprio `tests/test_hook_git_comum.py` com mínimo de 20 itens (`minimo`) e os dois lados afirmados (item 11 do checklist). Rodei: 20 fixtures OK.
-9. Commits Conventional em português, um por mudança.
-10. Sem mecanismo novo de processo.
+O que a volta pediu e está feito (conferido por leitura e por sonda própria, fixture montada pela máquina do `tests/test_hooks.py` na minha worktree, fora do corpus):
+- A1/A3 da segurança na forma exata: `$(git rev-parse --git-dir|--git-common-dir|--absolute-git-dir)` e `--git-path <x>`, com espaços internos, `--path-format=absolute`, crase, sem aspas, sem resto e em variável da linha (`d=$(…); tee $d/config`, `cp x "$d"`) recusam; `cat "$(git rev-parse --git-dir)/config"`, `git rev-parse --git-dir` e `cp x "$(git rev-parse --git-dir)/../docs/y.md"` liberam.
+- A2: `${d%/}/config` recusa (`SO_VARIAVEL` vai até o `}`; `VARIAVEL_INTEIRA` não troca `${d%/}` pelo valor).
+- A5: `cp --target-directory=<pasta>` é conferido como `-t`.
+- Falso positivo (A1 do review anterior, A1 do QA): a mensagem agora diz que o valor foi lido como `.git` e manda usar o caminho literal (fixture `gitcomum-tmpdir-logs-recusa-limite`, `stderr` "use o caminho literal"); o limite do changelog tira `$(pwd)`, `$PWD`, `$HOME` e `$CLAUDE_PROJECT_DIR`, o que fecha o A2 do review anterior.
+- Mutantes G9 a G14 declarados um por guarda nova (linhas 956, 1013, 1401, 1483, 1484 e 1170); a execução deles é do QA, cito sem refazer.
 
-Guardas do diff e mutantes (cito, sem refazer): linhas de guarda mudadas 959, 969, 971, 974, 981, 982 e o padrão da 325; a spec `tests/mutantes/v046-conformidade-caminho-git.json` declara G1 a G7, um por linha, e o QA (E20.9) registra os 7 mortos. O QA anota que G3 morre por `ValueError` em `max([])`, não pela regra; concordo que é equivalente na prática.
+A3 · hooks/conformidade.py:330 (`_REV_PARSE`) · problema: a correção reconhece a substituição só quando o corpo dela é exatamente `git rev-parse [--path-format=x] --opção [arg sem aspas]`; qualquer outra palavra dentro do `$(…)` (aspas no argumento, redirecionamento, `-q`, `git -C <pasta>`) deixa a substituição opaca e, sem resto, nada é conferido: a escrita em `.git/hooks/pre-push` passa, que é o gatilho do A1 da segurança (instalar hook e contornar `R-VERIFY`). O `git -C <pasta> … sem resto` (S5) foi declarado na entrega (Histórico 12:30); as aspas no argumento, o `2>/dev/null` e o `-q` (S1 a S4) não. Sugestão: falhar fechado pela presença, não pela forma: substituição (`$(…)` ou crase) cujo corpo cita `rev-parse` e uma das opções `--git-dir`, `--git-common-dir`, `--absolute-git-dir` ou `--git-path` vale como `${DIR_DO_GIT}`, com o argumento do `--git-path` tirado das aspas (`shlex`) quando houver, ou, sem argumento legível, como o próprio `.git` (recusa). Fixture para S1 a S5 e um mutante por guarda nova. Severidade: bloqueia.
 
-Falso positivo declarado (pedido do brief): existe, mas é estreito e não trava fluxo comum do time. Procurei nos 3144 registros de sessão desta máquina escritas com `$TMPDIR`, `$(mktemp …)` ou `$(git rev-parse --show-toplevel)` seguidos de `logs`, `config`, `forge`, `hooks`, `info`, `index`, `refs`, `objects` ou `modules`: só aparecem nas sondas dos portões de hoje; o time grava logs em caminho literal (skill `esperar-estado`) e `$TMPDIR/hooks.out` ou `$TMPDIR/forge.log` não casam (o nome tem de ser a primeira parte inteira). `$(pwd)/…` não é afetado (A2). Nos projetos, `config/` e `modules/` na raiz são comuns, mas o falso positivo só ocorre com prefixo opaco não resolvido; Write e Edit não passam por aqui. Por isso A1 fica recomendado; com a volta da segurança, vale tirar `$TMPDIR` e `$(mktemp …)` do alcance, como a segurança sugere no A7 dela.
+A4 · recomendado, não é do autor: o brief da E20.12 dá A4, A6 e A7 da segurança como "em cartão"; não achei o cartão (busca por `E20.8`, `opaco` e `caminho-git` no KANBAN.md). Registrar antes do merge.
 
-`bin/forge-testes` e o módulo novo: `--listar --base 8b5a44d5` dá "suíte completa (tests/hooks/conformidade/gitcomum-crase-forge-bloqueia.json sem mapa)". É de propósito: o comentário de `bin/forge-testes:157-159` deixa fixtures sem regra no `MAPA` para o plano manual, e o pre-push tira fixtures e specs do plano (`TESTE_DO_DIFF`, linha 686), ficando com `hooks/conformidade.py` (regra `hooks/.*` → `test_hooks`, que roda as 20 `gitcomum-*` no corpus inteiro) e com o próprio `tests/test_hook_git_comum.py`, que roda por estar no diff. Pôr o módulo novo na regra `hooks/.*` só duplicaria as fixtures que `test_hooks` já roda; não é preciso mudar o mapa.
+Cito e não refaço (`R-SEGURANCA`): a segurança revalida o mesmo delta na E20.13 e o QA na E20.14.
