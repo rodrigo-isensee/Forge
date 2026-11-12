@@ -1,0 +1,48 @@
+---
+tipo: review
+contrato: 1
+pedido: v0457
+branch: melhoria/trava-agente-morto
+commit: f77bb51df14bee2e20a1814f622e37e45427f793
+parecer: reprovado
+revisor: forge:tech-lead
+data: 2026-11-12
+---
+# Review: v0457 (TRAVA-AGENTE-MORTO, E23.70)
+
+Diff `a1318e88..f77bb51d` (2 commits: `76bfc6ee` feat, `f77bb51d` mutantes), lido numa worktree destacada. Classe C. Instância que não fez o código.
+
+## Achados
+- A1 (bloqueante) docs/hooks.md:11 · requisito do pronto (R-REVIEW, engineering-practices "Definição de pronto"): o hook agentes passou a atender o PreToolUse do SendMessage e a liberar registro pela notificação terminal (lápide, liberacoes.log), e docs/hooks.md:11 e :70 não dizem nada disso; atualize as duas passagens na mesma entrega
+- A2 (recomendado) bin/forge-testes:131 · o mapa não lista tests.test_trava_agente_morto para hooks/agentes.py: o envio local de quem mexer no hook não roda os 49 testes (só o CI); acrescente o módulo à lista da linha 134
+- A3 (recomendado) hooks/hooks.json:19 · nenhum teste confere que o hooks.json liga o SendMessage ao agentes.py; sem esse gatilho a C8 morre calada (os testes chamam o script direto). Um teste estrutural que leia o hooks.json fecha o ramo
+- A4 (recomendado) hooks/agentes.py:343 · cached_property não guarda exceção: com transcript ausente ou prazo estourado, cada registro candidato relê até 2 MB do transcript; guarde a falha (por exemplo, notas = {} depois do primeiro erro, mantendo os registros)
+
+## Sondas
+- S1 · grep -c SendMessage docs/hooks.md (head f77bb51d) · espera: >= 1 · obtido: 0
+- S2 · grep -c 'liberacoes.log\|lapide\|lápide' docs/hooks.md (head f77bb51d) · espera: >= 1 · obtido: 0
+
+## Desenho contra C1 a C12
+- C1: `NOTIFICACAO` ancorada com `match`, lista positiva de status, nada lido depois do `<status>`; exige `type user`, `promptSource system`, `isSidechain is False` e `content` em texto (lista do tool_result cai em TypeError e é pulada). Conferi a forma contra uma notificação real do Claude Code (transcript local): cabeçalho, campos e `meta.json` com `toolUseId` batem com a regex e com `tool_use_do_meta`.
+- C2: só notas depois do `desde`; qualquer nota com tool-use-id diferente do `meta.json` mantém o registro.
+- C3: `session_id` por regex UUID, id por `a` + 16 hex, `sessao` do registro igual à do evento; transcript só do `transcript_path`, com `realpath` exigindo `~/.claude/projects/<p>/<sessao>.jsonl`; `O_NOFOLLOW`, `O_NONBLOCK` e `S_ISREG`; o meta.json recusa link no caminho.
+- C4: 2 MB do fim, a partir da primeira linha inteira, e prazo monotônico de 2 s dentro do timeout de 10 s do hook.
+- C5: a liberação é o `morto` de `vigentes()`, dentro do `hook.trava()`; o relançamento passa de novo por `lancar` (teste `test_c5_morto_libera_a_vaga_e_o_relancamento_passa_pelas_travas`).
+- C6 e C7: sem variável, argumento nem mtime; só a notificação libera (testes `test_c6_*`, `test_c7_*`).
+- C8: lápide com id, descrição e branches, vence com `expiracao_horas`, no máximo 64; `SendMessage` que cita o id com relançamento vigente sai com código 2, e o erro recusa (falha fechada). Depende do gatilho novo em `hooks/hooks.json` (A3).
+- C9: registro com escrita só sai com `pesado.json` livre (mesma pasta do `pesado`, `hook.run()`, também no clone desde a FORGE-RUN-INERTE). A parte "sem filho vivo em segundo plano" ficou como o status terminal da notificação; o mérito é do parecer de segurança.
+- C10: duas regras com `quem` vazio (`~/.claude/projects/*/*.jsonl` e `~/.claude/projects/*/*/subagents/`); o `casa` da conformidade aceita `*` por pasta. Mais estreita que a pasta inteira para não pegar a memória dos agentes, declarado pelo autor; cobre os dois arquivos que o hook lê, e o link trocado na pasta da sessão cai na conferência de `realpath` do código. Segue.
+- C11: `liberacoes.log` com hora, id, status e motivo, sem a descrição; `anexar_ao_log` é o mesmo corpo do `registrar_recusa` extraído (o `hook._run or hook.run()` antigo equivale ao `hook.run()`).
+- C12: 49 testes, uma classe por condição, mais o caminho pelo hook em subprocesso com ambiente limpo e `python3 -I` (AR-4, AR-5 conferidos).
+
+## Ferramentas (citadas, não refeitas)
+- `python3 -m unittest tests.test_trava_agente_morto`: 49 testes OK (rodado aqui, R-TETO: só este módulo).
+- Mutação: 26 de 26 mortos, saída do autor (`bin/forge-mutante` sobre as 4 specs); não refeita.
+- Suíte inteira, shellcheck e validação do plugin: CI do PR, que é o portão. As 4 fixtures de pid e sessão do test_hooks que o autor diz falharem no sandbox também na base ficam com o CI.
+
+## Pendências do PR
+- Tamanho: 773 linhas contadas (240 em hooks/agentes.py, 15 em hooks/hooks.json, 518 de teste); o corpo do PR traz `teto: excedido, 773 linhas, <motivo>` (M14). O risco é um comportamento só (liberação do agente morto) com corpus próprio; o volume é de teste.
+- Achados recorrentes (PA-7) conferidos: AR-1 e AR-2 (um mutante por guarda, ramo de falha com teste de comportamento) atendidos; AR-9 (texto antigo) é a classe do A1, sem linha nova por ser a primeira vez neste pedido.
+
+## Parecer
+Reprovado só pelo A1. O código cumpre C1 a C12 como o parecer de segurança pediu, a forma lida bate com a notificação real do Claude Code e os testes cobrem cada condição pelo ramo de falha. O gatilho novo no hooks.json é necessário para a C8 e está certo (mesmo comando e timeout do `Agent|Task`). Das pendências declaradas, a do docs/hooks.md bloqueia: o pronto pede a documentação afetada na mesma entrega, e quem tiver o SendMessage recusado ou procurar o `liberacoes.log` não acha nada no guia dos hooks. A do mapa de testes (A2) pode seguir: o CI roda a suíte inteira. A volta é só texto em docs/hooks.md, e a revalidação lê o delta.
