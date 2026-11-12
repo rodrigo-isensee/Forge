@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-suite-tempo-vivo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "linha parcial do arquivo de tempos não é tratada nem avança a posição",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "            if not completo:\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_suite_paralela.TemposAoVivoLogica.test_linha_parcial_nao_abre_unidade_nem_avanca_a_posicao"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "linha inicio abre a unidade em execução",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "                if tipo == \"inicio\":",
+      "para": "                if False:",
+      "testes": [
+        "tests.test_suite_paralela.TemposAoVivoLogica.test_inicio_abre_e_fim_fecha_e_imprime_uma_vez"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "linha fim fecha a unidade e imprime o tempo",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "                elif tipo == \"fim\":",
+      "para": "                elif False:",
+      "testes": [
+        "tests.test_suite_paralela.TemposAoVivoLogica.test_inicio_abre_e_fim_fecha_e_imprime_uma_vez"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "esperar lê os tempos a cada volta",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "        if tempos:\n            tempos.atualizar()\n        for i, p",
+      "para": "        if False:\n            tempos.atualizar()\n        for i, p",
+      "testes": [
+        "tests.test_suite_paralela.TemposAoVivoLogica.test_esperar_atualiza_no_laco_e_uma_vez_depois_de_esperar_os_filhos"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "esperar lê os tempos uma vez depois dos filhos",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    if tempos:\n        tempos.atualizar()\n    return fim",
+      "para": "    if False:\n        tempos.atualizar()\n    return fim",
+      "testes": [
+        "tests.test_suite_paralela.TemposAoVivoLogica.test_esperar_atualiza_no_laco_e_uma_vez_depois_de_esperar_os_filhos"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "a linha informada sai com flush",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "print(texto, file=sys.stderr, flush=True)",
+      "para": "print(texto, file=sys.stderr)",
+      "testes": [
+        "tests.test_suite_paralela.TemposAoVivoLogica.test_stderr_quebrado_nao_derruba_e_a_linha_sai_com_flush"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "stderr quebrado não derruba a suíte",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "        except OSError:  # stderr quebrado",
+      "para": "        except ZeroDivisionError:  # stderr quebrado",
+      "testes": [
+        "tests.test_suite_paralela.TemposAoVivoLogica.test_stderr_quebrado_nao_derruba_e_a_linha_sai_com_flush"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "a posição avança por linha tratada, depois de informar",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "                self.posicao[i] += len(bruta) + 1",
+      "para": "                self.posicao[i] += 0",
+      "testes": [
+        "tests.test_suite_paralela.TemposAoVivoLogica.test_posicao_avanca_por_linha_tratada"
+      ]
+    }
+  ]
+}

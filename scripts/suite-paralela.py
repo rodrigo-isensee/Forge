@@ -306,9 +306,10 @@ def processo(entrada, saida):
             inicio = time.monotonic()
             suite_da_unidade(unidade).run(resultado)
             duracoes[nome] = round(time.monotonic() - inicio, 1)
-            tempos.write(f"fim\t{nome}\t{time.monotonic() - inicio:.1f}\n")
+            tempos.write(f"fim\t{nome}\t{duracoes[nome]:.1f}\n")
     finally:
         resultado.stopTestRun()
+        tempos.close()
     resultado.printErrors()
     sys.stderr.write(f"\nRan {resultado.testsRun} tests\n")
     caidos = sorted({getattr(t, "test_case", t).id() for t, _ in resultado.failures + resultado.errors})
@@ -531,15 +532,22 @@ class TemposAoVivo:
             completo = novo.rpartition(b"\n")[0]
             if not completo:
                 continue
-            self.posicao[i] += len(completo) + 1
-            for linha in completo.decode("utf-8", "replace").split("\n"):
-                tipo, _, resto = linha.partition("\t")
+            for bruta in completo.split(b"\n"):  # a posição avança a cada linha tratada: um sinal no meio não a perde
+                tipo, _, resto = bruta.decode("utf-8", "replace").partition("\t")
                 nome, _, valor = resto.partition("\t")
                 if tipo == "inicio":
                     self.abertas[i][nome] = valor
                 elif tipo == "fim":
                     self.abertas[i].pop(nome, None)
-                    print(f"suite-paralela: unidade {nome} {valor} s (processo {i + 1})", file=sys.stderr, flush=True)
+                    self.informar(f"suite-paralela: unidade {nome} {valor} s (processo {i + 1})")
+                self.posicao[i] += len(bruta) + 1
+
+    @staticmethod
+    def informar(texto):
+        try:
+            print(texto, file=sys.stderr, flush=True)
+        except OSError:  # stderr quebrado (pipe fechado, sem terminal): só informa, não derruba a suíte
+            pass
 
     def rodando(self):
         agora, saida = time.time(), []
@@ -554,7 +562,7 @@ class TemposAoVivo:
     def imprimir_rodando(self):
         self.atualizar()
         for nome, segundos, i in self.rodando():
-            print(f"suite-paralela: rodando {nome} há {segundos:.1f} s (processo {i})", file=sys.stderr, flush=True)
+            self.informar(f"suite-paralela: rodando {nome} há {segundos:.1f} s (processo {i})")
 
 
 def esperar(filhos, inicio, tempos=None):
@@ -764,8 +772,8 @@ def rodar_partes(partes, plano, inicio, esperado, antes):
     except Interrompido as e:
         for s in SINAIS:
             signal.signal(s, signal.SIG_IGN)
-        tempos.imprimir_rodando()  # antes de encerrar os filhos: quem estava rodando e há quanto tempo
         encerrar(filhos)
+        tempos.imprimir_rodando()  # depois de encerrar: se o stderr quebrou, nenhum filho fica vivo; os arquivos ainda existem
         print(f"suite-paralela: interrompida pelo sinal {e.numero}; os processos da suíte foram encerrados.",
               file=sys.stderr)
         print("FAILED (interrompida)")
