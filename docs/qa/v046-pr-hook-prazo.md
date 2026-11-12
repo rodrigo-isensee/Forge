@@ -17,7 +17,6 @@ data: 2026-11-12
 Diff: `origin/develop...b08296cd` (código do 4ae51318; depois só pareceres de segurança e review). O `forge-check pr` grava o resultado por head em `<git-common-dir>/forge/pr/<head>/` e o hook `parecer` libera a abertura do PR só lendo o aprovado do mesmo head, branch e base. Não há especificação de UX (ferramenta do Forge): as obrigações vêm da E20.1 do pedido e de `R-REVIEW`; os testes são os do autor, conferidos e rodados por mim.
 
 ## Achados
-- A1 (resolvido em c6577dbb) tests/test_pr_hook_prazo.py:91 · `um_registro` conta antes de desempacotar e `str()` na leitura da violação: `forge-testes --vermelho` sai rc 0 e M25 morre por asserção
 - A2 (bloqueante) bin/forge-check:1544 · a guarda `not velha.is_symlink()` da poda (apagaria arquivos dentro de pasta apontada por link) não tem mutante nem teste: `and True and` sobrevive (meu Q3, rc 1); declare o mutante e crie link sha40 na pasta do teste
 - A3 (recomendado) bin/forge-check:1544 · `velha.is_dir()` e `velha != pasta` trocadas por `True` também sobrevivem (Q4, Q1); declare mutante, ou equivalente justificado (head recém-gravado é ponta)
 
@@ -44,6 +43,8 @@ Diff: `origin/develop...b08296cd` (código do 4ae51318; depois só pareceres de 
 - Prova de CI: a suíte inteira roda no CI do PR (check-run `bateria` do mesmo sha); o PR ainda não existe, não citei.
 
 ## Revalidação por delta (b08296cd..c6577dbb)
+O A1 anterior (vermelho rc 2) está resolvido em tests/test_pr_hook_prazo.py:91: `um_registro` conta antes de desempacotar e `str()` na leitura da violação; `forge-testes --vermelho` sai rc 0 e M25 morre por asserção.
+
 `forge-check parecer delta` listou no domínio: bin/forge-check, hooks/_comum.py, hooks/parecer.py, changelog.d, tests/apoio_volta_unica.py, test_pr_hook_prazo.py e as specs de mutante. Obrigações novas (E20.11): registro com escritor (sha256 do forge-check), poda dos heads que não são ponta, contorno "rode antes forge-check pr" só no `gh pr create` sem resultado, changelog do `--draft`.
 
 | Obrigação | Teste | Fronteira protegida | Resultado |
