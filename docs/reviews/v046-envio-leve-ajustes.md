@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v046
 branch: melhoria/envio-leve-ajustes
-commit: 528abfd4ba5341152039c61113e930bad139c220
-parecer: reprovado
+commit: 1beb0d5aee9f14ae6db5a1fd1b4053ddd581caaf
+parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-11
+data: 2026-11-12
 ---
 # Review: v046 (E19.1, recomendados do envio leve), volta 1
 
@@ -20,7 +20,7 @@ O diff continua sem mudar guarda (`.githooks/pre-push` fica intocado), então n�
 
 ## Achados
 - A3 (recomendado) docs/regras/R-TETO.md:16 · segue sem mudança: "o envio local não roda teste" é absoluto, mas com `FORGE_PREPUSH_SUITE=afetados` ou `=1` roda. Sugestão: "por padrão, o envio local não roda teste". Não bloqueia e não é motivo de nova volta.
-- A4 (bloqueante) bin/forge-testes:139 · o mapa não aponta `test_pre_push_leve` para `scripts/verificar-contribuicao.sh`, que o teste lê e grava (linhas 47 e 109). O CI do #503 cai em `test_testes_tocados`. O defeito já estava no 73d0017a. Correção: incluir o módulo na tupla.
+- A4 (bloqueante) bin/forge-testes:139 · resolvido em 1beb0d5a; o mapa não aponta `test_pre_push_leve` para `scripts/verificar-contribuicao.sh`, que o teste lê e grava (linhas 47 e 109). O CI do #503 cai em `test_testes_tocados`. O defeito já estava no 73d0017a. Correção: incluir o módulo na tupla.
 
 ## Sondas
 - S1 · pre-push:212 `segredo_no_delta || true`; test_segredo_no_delta_ainda_barra_sem_imprimir_o_valor no head 73d0017a · espera: FAILED · obtido: FAILED (failures=1, `(0, False) != (1, False)`)
@@ -40,3 +40,11 @@ Execução no head (worktree destacada, ambiente limpo com `TMPDIR` mantido): `p
 Merge da origin/develop (d3453407) em 528abfd4, sem rebase. Conflito só de texto em `docs/economia-de-tokens.md` (item 5) e `docs/regras/R-TETO.md:16`: ficou o texto da develop (TEMPO-A, exceção do `--duas-partes`) com a frase da ENVIO-LEVE inserida e "o envio local não roda teste" no lugar de "roda os afetados". Nenhum código nem teste mudou na resolução; o diff contra a develop segue nos 6 arquivos da E19.1. Rodados no merge: `test_pre_push_leve` (8 OK), `test_suite_paralela` (61 OK), `test_prepush_so_docs` (62 OK, 9 skip).
 
 Revalidação por delta no head 528abfd4: o `forge-check parecer delta` (escopo sem o que veio da develop) lista só `docs/economia-de-tokens.md` e `docs/regras/R-TETO.md`, que são a resolução descrita acima. O `.githooks/pre-push` que o `forge-check pr` aponta mudou só pelo que veio da develop, já integrado e revisado lá. A resolução não tem achado. O CI do PR #503, porém, provou A4, que já vinha da E19.1: o parecer passa a reprovado.
+
+## Revalidação por delta (E19.4), head 1beb0d5a
+Instância que não fez a volta. Delta lido: `forge-check parecer delta docs/reviews/v046-envio-leve-ajustes.md` (intervalo 528abfd4..1beb0d5a) põe no domínio só `bin/forge-testes`; `git diff 55ea12e5..1beb0d5a` é um commit, 1 arquivo, +1/-1.
+- **A4 resolvido:** bin/forge-testes:139 passa a listar `test_pre_push_leve` na tupla de `scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh`. Os cinco módulos que já estavam (`test_forge`, `test_pre_push_segredo`, `test_pre_push_afetados`, `test_testes_tocados`, `test_salvar_desfazer`) seguem lá, e a regex não mudou. O módulo vale também para os outros três scripts da linha: sobra seleção, não falta.
+- Nenhuma guarda mudou (é um dado do MAPA), então não há mutante a declarar. Os AR-1 a AR-12 de `achados-recorrentes.md` não alcançam o delta.
+- Execução: `python3 -m unittest tests.test_testes_tocados` no head deu `Ran 149 tests ... OK (skipped=1)`. A suíte inteira fica para o CI do PR #503.
+
+Veredito: **aprovado** no 1beb0d5a. A3 continua recomendado, sem bloquear.
