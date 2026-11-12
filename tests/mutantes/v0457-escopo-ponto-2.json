@@ -27,7 +27,8 @@
     {
       "arquivo": "bin/forge-check",
       "trecho": "m.group(1) if m else caminho.stem",
-      "motivo": "o mesmo id do pedido, movido para antes dos pareceres na forma sem ternário; o M1 desta spec o cobre"
+      "motivo": "o mesmo id do pedido, movido para antes dos pareceres na forma sem ternário; o M1 desta spec o cobre",
+      "linha_base": 2453
     }
   ]
 }
