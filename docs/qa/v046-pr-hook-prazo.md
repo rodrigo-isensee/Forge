@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/pr-hook-prazo
-commit: b08296cd89fe68c7b76684589312053f58adfd16
+commit: c6577dbb3253de42614764090553d740bc16181b
 parecer: reprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -17,7 +17,9 @@ data: 2026-11-12
 Diff: `origin/develop...b08296cd` (código do 4ae51318; depois só pareceres de segurança e review). O `forge-check pr` grava o resultado por head em `<git-common-dir>/forge/pr/<head>/` e o hook `parecer` libera a abertura do PR só lendo o aprovado do mesmo head, branch e base. Não há especificação de UX (ferramenta do Forge): as obrigações vêm da E20.1 do pedido e de `R-REVIEW`; os testes são os do autor, conferidos e rodados por mim.
 
 ## Achados
-- A1 (bloqueante) tests/test_pr_hook_prazo.py:179 · `forge-testes --vermelho` sai rc 2: test_pr_grava_o_reprovado_e_o_hook_o_le dá erro (ValueError ao desempacotar `registros(raiz)` vazio) na base, "sem veredito"; troque por asserção (R-QA, vermelho antes do verde)
+- A1 (resolvido em c6577dbb) tests/test_pr_hook_prazo.py:91 · `um_registro` conta antes de desempacotar e `str()` na leitura da violação: `forge-testes --vermelho` sai rc 0 e M25 morre por asserção
+- A2 (bloqueante) bin/forge-check:1544 · a guarda `not velha.is_symlink()` da poda (apagaria arquivos dentro de pasta apontada por link) não tem mutante nem teste: `and True and` sobrevive (meu Q3, rc 1); declare o mutante e crie link sha40 na pasta do teste
+- A3 (recomendado) bin/forge-check:1544 · `velha.is_dir()` e `velha != pasta` trocadas por `True` também sobrevivem (Q4, Q1); declare mutante, ou equivalente justificado (head recém-gravado é ponta)
 
 ## Critério → teste → resultado
 | Obrigação (E20.1) | Teste | Fronteira protegida | Resultado |
@@ -40,3 +42,19 @@ Diff: `origin/develop...b08296cd` (código do 4ae51318; depois só pareceres de 
 - Vermelho antes do verde (`forge-testes --vermelho d3453407 --modulos test_pr_hook_prazo`): 13 de 15 provam (3 por asserção, 10 por API ausente); test_previo_e_head_sem_branch_nao_gravam passa na base (guarda negativa, provada pelos mutantes); test_pr_grava_o_reprovado_e_o_hook_o_le sem veredito; saída rc 2 (A1).
 - Fora desta entrega: o forjamento do aprovado por escrita em `.git/forge/` (A2 da segurança, E20.6).
 - Prova de CI: a suíte inteira roda no CI do PR (check-run `bateria` do mesmo sha); o PR ainda não existe, não citei.
+
+## Revalidação por delta (b08296cd..c6577dbb)
+`forge-check parecer delta` listou no domínio: bin/forge-check, hooks/_comum.py, hooks/parecer.py, changelog.d, tests/apoio_volta_unica.py, test_pr_hook_prazo.py e as specs de mutante. Obrigações novas (E20.11): registro com escritor (sha256 do forge-check), poda dos heads que não são ponta, contorno "rode antes forge-check pr" só no `gh pr create` sem resultado, changelog do `--draft`.
+
+| Obrigação | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Registro de outro escritor ou sem escritor não vale | test_ilegivel_de_outra_branch_ou_de_outro_head_nao_vale (subtestes "outro escritor", "sem escritor"); M38 | escritor ausente/outro | passou |
+| Poda apaga só head que não é ponta; sem lista de pontas, nada; falha só avisa; falha ao gravar não poda | test_gravar_poda_os_heads_que_nao_sao_mais_ponta, test_falha_ao_gravar_avisa_e_nao_muda_o_codigo; M34-M37, M41 | ponta de branch; não-head; erro ao apagar | passou (ver A2, A3) |
+| Prazo vencido diz "rode antes" só no `gh pr create` sem resultado; merge segue o contorno de sempre | test_prazo_vencido_diz_rode_antes_so_no_pr_create_sem_resultado; M39, M40 | create x merge | passou |
+| A1 do QA: vermelho sem veredito | um_registro nos 5 testes; M25 | registro ausente na base | passou |
+
+- `python3 -m unittest tests.test_pr_hook_prazo`: Ran 17 tests in 27.215s, OK.
+- `bin/forge-testes --vermelho d3453407 --modulos test_pr_hook_prazo`: rc 0; `vermelho: base=d3453407cd9a head=c6577dbb3253`; 17 testes: prova (asserção)=5, prova (API ausente)=11, não prova (passa na base)=1 (test_previo_e_head_sem_branch_nao_gravam, guarda negativa provada por mutantes).
+- `forge-mutante` das 6 specs numa rodada: rc 0, 41 de 41 morreram (M25 morreu em bin/forge-check:1562). M34-M41 conferidos: um por linha de guarda nova, salvo A2 e A3. `--cobertura --base d3453407`: toda condição coberta, 2 isentas já aceitas.
+- Meus mutantes extras na poda (spec fora do repositório): Q1 `velha != pasta` sobreviveu, Q2 `SHA40.match` morreu, Q3 `not velha.is_symlink()` sobreviveu, Q4 `velha.is_dir()` sobreviveu.
+- Prova de CI: o PR ainda não existe; não citei `bateria`.
