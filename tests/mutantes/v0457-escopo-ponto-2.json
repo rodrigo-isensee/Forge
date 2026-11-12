@@ -17,7 +17,7 @@
       "id": "M10",
       "guarda": "E23.36 (d): só o parecer de portão que passa as condições é anexo do portão na etapa codigo",
       "arquivo": "bin/forge-check",
-      "de": "and parecer_de_portao_da_branch(\n                raiz, de, head, nome, tipo, branch, pedido_id, slug, lambda t: revisados_selados(raiz, caminho, texto, branch, pedido_id, t)):",
+      "de": "and parecer_de_portao_da_branch(\n                raiz, base_sha, head, nome, tipo, branch, pedido_id, slug, lambda t: revisados_selados(raiz, caminho, texto, branch, pedido_id, t)):",
       "para": "and True:",
       "testes": [
         "tests.test_selo_e_entrega.ParecerDoPortao.test_parecer_de_outra_branch_segue_fora",

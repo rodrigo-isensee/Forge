@@ -37,7 +37,7 @@
       "id": "M20",
       "guarda": "volta 1 (segurança A1): veredito trocado no mesmo commit: não é anexo",
       "arquivo": "bin/forge-check",
-      "de": "    return not veredito_trocado(raiz, de, head, nome, fm[\"commit\"], fm[\"parecer\"], branch, tipo)",
+      "de": "    return not veredito_trocado(raiz, base_sha, head, nome, fm[\"commit\"], fm[\"parecer\"], branch, tipo)",
       "para": "    return True",
       "testes": [
         "tests.test_selo_e_entrega.ParecerDoPortao.test_veredito_trocado_no_mesmo_commit_segue_fora"
