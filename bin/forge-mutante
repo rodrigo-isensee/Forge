@@ -16,8 +16,9 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--prazo SEGUNDOS] [
   --rev    commit a mutar (padrão HEAD)
   --base SHA  com SPEC, mutação dirigida (M-1): no diff `merge-base(SHA, REV)..REV`, roda o mutante quando mudou o `arquivo`
            dele, o arquivo da spec que o declara (spec versionada no repositório) ou o módulo de um dos seus `testes`
-           (`tests.x.Classe.teste` → `tests/x.py`); os outros saem `fora do diff: <id> · <arquivo>`, sem rodar. Helper
-           importado pelo teste não conta. Nenhum no diff, ou SHA que não é commit: saída 2. A 1.ª rodada do QA é a spec
+           (`tests.x.Classe.teste` → `tests/x.py`); os outros saem `fora do diff: <id> · <arquivo>`, sem rodar. Arquivo de
+           tests/ que não é `test_*.py` nem de tests/mutantes/ (helper importado, fixture) põe todos no diff, com a linha
+           `apoio de teste no diff: <arquivos>`. Nenhum no diff, ou SHA que não é commit: saída 2. A 1.ª rodada do QA é a spec
            inteira, sem --base; a --base serve só à revalidação, com SHA = o head que o QA já aprovou, e o parecer
            confere a linha `base=` da saída contra esse head.
   --prazo  por execução de testes, em segundos (padrão 600)
@@ -802,6 +803,15 @@ def no_diff(m, spec_mudou, mudados):
     return any(modulos_do_teste(t) & mudados for t in m.get("testes", []))
 
 
+def apoio_de_teste(mudados):
+    """Os arquivos de `tests/` no diff que não são módulo de teste (`test_*.py`) nem spec (`tests/mutantes/`): helper
+    importado, fixture, corpus. A cadeia de importação não se segue, então qualquer um deles põe todos os mutantes no
+    diff (segurança A4 da v046 E7.7)."""
+    return sorted(a for a in mudados if a.startswith("tests/")
+                  and not a.startswith("tests/mutantes/")
+                  and not (Path(a).name.startswith("test_") and a.endswith(".py")))
+
+
 def dirigir(specs, caminhos, base, sha):
     """M-1 dirigida: as specs só com os mutantes no diff `merge-base(base, sha)..sha` (`no_diff`); os outros saem
     `fora do diff`. None (saída 2) com a base que não é commit ou sem nenhum mutante no diff."""
@@ -816,10 +826,13 @@ def dirigir(specs, caminhos, base, sha):
         print(f"forge-mutante: {erro}", file=sys.stderr)
         return None
     print(f"base={sha_base} mb={mb} rev={sha}")
+    apoio = apoio_de_teste(mudados)
+    if apoio:
+        print(f"apoio de teste no diff: {', '.join(apoio)} · todos os mutantes entram")
     raiz, dirigidas = Path.cwd().resolve(), []
     for (spec_bytes, dados), caminho in zip(specs, caminhos):
         spec_mudou = caminho.is_relative_to(raiz) and caminho.relative_to(raiz).as_posix() in mudados
-        dentro = [m for m in dados["mutantes"] if no_diff(m, spec_mudou, mudados)]
+        dentro = [m for m in dados["mutantes"] if no_diff(m, spec_mudou or bool(apoio), mudados)]
         for m in dados["mutantes"]:
             if m not in dentro:
                 print(f"fora do diff: {m['id']} · {m['arquivo']}")

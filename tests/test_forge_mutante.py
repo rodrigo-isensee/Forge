@@ -1291,6 +1291,32 @@ class MutacaoDirigida(unittest.TestCase):
         self.assertIn("M1 · sobreviveu", r.stdout)
         self.assertNotIn("fora do diff", r.stdout)
 
+    def test_helper_de_tests_enfraquecido_poe_todos_os_mutantes_no_diff(self):  # sonda S2 da v046 E7.7 (A4)
+        self.gravar("tests/apoio.py", "def igual(caso, a, b):\n    caso.assertEqual(a, b)\n")
+        self.gravar("tests/test_lib.py", TESTE.replace("self.assertEqual(lib.limite(11), 2)",
+                                                       "apoio.igual(self, lib.limite(11), 2)")
+                    .replace("import lib\n", "import lib\nfrom tests import apoio\n"))
+        self.salvar()
+        base = git(self.dir, "rev-parse", "HEAD").strip()
+        self.gravar("tests/apoio.py", "def igual(caso, a, b):\n    return None\n")
+        self.gravar("outro.py", self.OUTRO + "# mudou\n")
+        self.salvar()
+        r = self.rodar(self.spec(*self.dois), "--base", base)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("apoio de teste no diff: tests/apoio.py · todos os mutantes entram", r.stdout)
+        self.assertIn("M1 · sobreviveu", r.stdout)
+        self.assertNotIn("fora do diff", r.stdout)
+
+    def test_teste_e_spec_de_outro_mutante_nao_poem_todos_no_diff(self):
+        self.gravar("tests/test_outro.py", "import unittest\n")
+        self.gravar("tests/mutantes/outra.json", "{}\n")
+        self.gravar("lib.py", LIB + "# mudou\n")
+        self.salvar()
+        r = self.rodar(self.spec(*self.dois), "--base", self.base)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("fora do diff: M2 · outro.py", r.stdout)
+        self.assertNotIn("apoio de teste", r.stdout)
+
     def test_modulos_do_teste_cobrem_o_arquivo_do_teste(self):
         self.assertIn("tests/test_lib.py", carregar().modulos_do_teste("tests.test_lib.T.test_borda"))
 
