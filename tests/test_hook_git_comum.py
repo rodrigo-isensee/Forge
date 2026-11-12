@@ -2,7 +2,8 @@
 no caminho (`$(git rev-parse --git-common-dir)/forge/pr/a.json`, `d=<raiz>/.git; cp x $d/forge/…`) recusa quando o resto
 cai num nome do diretório do git (.git/forge/, .git/config, .git/hooks/, .git/); os comandos de git comuns e as escritas
 legítimas com `$(…)` ou variável seguem livres; na volta 1 (segurança E20.8), `git rev-parse --git-dir|--git-path` sem resto,
-`${d%/}`, a crase sem aspas e `--target-directory=`; na volta 2 (E20.16), o corpo da substituição lido por palavras. As fixtures `gitcomum-*` do hook `conformidade`, sem as outras.
+`${d%/}`, a crase sem aspas e `--target-directory=`; na volta 2 (E20.16), o corpo da substituição lido por palavras; na
+volta 4 (E20.34), o curinga e as chaves na origem de link vinda de `git rev-parse`. As fixtures `gitcomum-*` do hook `conformidade`, sem as outras.
 Roda a mesma máquina do `tests/test_hooks.py`; existe à parte para os mutantes de `tests/mutantes/` rodarem rápido."""
 import sys
 import unittest
@@ -22,7 +23,7 @@ class HookGitComum(unittest.TestCase):
     depende_de_pid_ou_trava = staticmethod(test_hooks.Hooks.depende_de_pid_ou_trava)
 
     def test_fixtures_gitcomum(self):
-        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / "conformidade").glob("gitcomum-*.json"))], 64,
+        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / "conformidade").glob("gitcomum-*.json"))], 72,
                           "gitcomum-*")
         lados = {f.dados["esperado"]["codigo"] for f in fixtures}
         self.assertEqual(lados, {0, 2}, "o corpus tem os dois lados: o que passa e o que barra")
