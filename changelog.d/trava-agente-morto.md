@@ -1,0 +1,2 @@
+### Adicionado
+- Hook agentes: o registro do agente que morreu (sessão ou conta caiu) sai na hora pela notificação terminal do Claude Code no transcript da sessão-mãe, com as condições C1 a C12 do parecer de segurança (cabeçalho ancorado, task-id e tool-use-id conferidos com o meta.json, só a sessão atual, orçamento de bytes e tempo, trava pesado livre para registro de escrita, lápide contra retomar o id relançado, log em liberacoes.log); ~/.claude/projects/ protegido na conformidade (TRAVA-AGENTE-MORTO)
