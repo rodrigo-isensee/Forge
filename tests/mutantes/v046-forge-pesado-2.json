@@ -1,0 +1,93 @@
+{
+  "pedido": "v046-forge-pesado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "M12: a espera para no teto com rc 1",
+      "arquivo": "bin/forge-pesado",
+      "de": "        if resta <= 0:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_esperar_ocupada_sai_1_no_teto_com_progresso"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "M12: teto 0 é recusado",
+      "arquivo": "bin/forge-pesado",
+      "de": "not (0 < a.teto <=",
+      "para": "not (0 <= a.teto <=",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_teto_e_passo_fora_da_faixa_saem_2"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "M12: teto acima de 540 s é recusado",
+      "arquivo": "bin/forge-pesado",
+      "de": "0 < a.teto <= TETO_MAXIMO_S and",
+      "para": "0 < a.teto and",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_teto_e_passo_fora_da_faixa_saem_2"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "M12: passo 0 é recusado",
+      "arquivo": "bin/forge-pesado",
+      "de": "and a.passo > 0):",
+      "para": "and a.passo >= 0):",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_teto_e_passo_fora_da_faixa_saem_2"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "M12: a validação só vale para esperar",
+      "arquivo": "bin/forge-pesado",
+      "de": "if a.acao == \"esperar\" and not",
+      "para": "if a.acao == \"status\" and not",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_teto_e_passo_fora_da_faixa_saem_2"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "M12: fora de projeto e de clone do Forge sai 2",
+      "arquivo": "bin/forge-pesado",
+      "de": "    if raiz is None:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_fora_de_projeto_sai_2"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "M12: status não espera",
+      "arquivo": "bin/forge-pesado",
+      "de": "        if a.acao == \"status\":",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_status_livre_sem_trava"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "M12: JSON ilegível sai 2 com a mensagem",
+      "arquivo": "bin/forge-pesado",
+      "de": "except (OSError, ValueError) as erro:",
+      "para": "except OSError as erro:",
+      "testes": [
+        "tests.test_forge_pesado.ForgePesado.test_json_ilegivel_sai_2"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-pesado",
+      "trecho": "__name__ == \"__main__\"",
+      "motivo": "ponto de entrada do script: os testes o executam como programa, e a troca não muda comportamento observável"
+    }
+  ]
+}
