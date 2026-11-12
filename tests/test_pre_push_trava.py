@@ -18,6 +18,9 @@ from apoio_sandbox import exigir  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no s
 
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / ".githooks" / "pre-push"
+# PREPUSH-REFS (v0457 E9.3): com a política de refs no hook (patch aplicado pelo dono), duas branches com código ou duas
+# remoções no mesmo envio recusam; sem ela, valem os casos antigos.
+POLITICA_DE_REFS = "PREPUSH-REFS" in HOOK.read_text(encoding="utf-8")
 # FORGE_SUITE_* (processos, medição, trava) da suíte que roda estes testes não vazam para a suíte de brinquedo.
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_"))})
 
@@ -487,8 +490,8 @@ class PrePushTrava(unittest.TestCase):
         for nome, entrada in (("uma", um), ("duas", dois)):
             with self.subTest(nome):
                 codigo, _, erro = self.roda("origin", "u", entrada=entrada)
-                self.assertEqual(codigo, 0, erro)
-                self.assertIn("só remove", erro)
+                recusa = nome == "duas" and POLITICA_DE_REFS  # PREPUSH-REFS: uma remoção por envio
+                self.assertEqual((codigo, ("mais de uma remoção" if recusa else "só remove") in erro), (int(recusa), True), erro)
                 self.assertFalse((self.repo / "rodou").exists(), "a suíte rodou em push que só apaga")
                 self.assertEqual(list(self.run_dir.iterdir()), [], "push que só apaga não pega trava nem entra na fila")
 
@@ -849,7 +852,7 @@ class PrePushTrava(unittest.TestCase):
         self.suite(SUITE_RAPIDA)
         antigo = self.commit_limpo("antigo")
         atual = self.commit_limpo("atual")
-        entrada = self.refs("melhoria/a", local=atual) + self.refs("melhoria/b", local=antigo)
+        entrada = self.refs("melhoria/a", local=atual) + f"refs/tags/b {antigo} refs/tags/b {'0' * 40}\n"  # PREPUSH-REFS: tag
         codigo, _, erro = self.roda("origin", "u", entrada=entrada)
         self.assertEqual(codigo, 0, erro)
         verde = self.trava.with_suffix(".verde")

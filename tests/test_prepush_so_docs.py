@@ -27,6 +27,9 @@ AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswi
 AMBIENTE["FORGE_PREPUSH_SUITE"] = "afetados"  # ENVIO-LEVE: o padrão do hook não roda teste; estes testes exercitam o plano dos afetados
 AMBIENTE.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
 PULO = "só docs/** e .md; lint e typecheck pulados"
+# PREPUSH-REFS (v0457 E9.3): com a política de refs no hook (patch aplicado pelo dono), duas branches com código ou duas
+# remoções no mesmo envio recusam; sem ela, valem os casos antigos.
+POLITICA_DE_REFS = "PREPUSH-REFS" in HOOK.read_text(encoding="utf-8")
 
 
 def matar_se_vivo(pid):
@@ -158,6 +161,9 @@ class PrePushSoDocs(Repo):
         self.escreve("src/a.ts")
         codigo = self.commit("codigo")
         r, marca = self.envia([self.ref(so_docs, self.base, "refs/heads/a"), self.ref(codigo, self.base, "refs/heads/b")])
+        if POLITICA_DE_REFS:
+            self.assertEqual((r.returncode, "mais de uma branch" in r.stderr, marca), (1, True, False), r.stderr)
+            return
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertTrue(marca)
 
@@ -169,6 +175,9 @@ class PrePushSoDocs(Repo):
         b = self.commit("b")
         r, marca = self.envia([self.ref(a, self.base, "refs/heads/a"), self.ref(b, self.base, "refs/heads/b")])
         self.assertFalse(marca)
+        if POLITICA_DE_REFS:
+            self.assertEqual((r.returncode, "mais de uma branch" in r.stderr), (1, True), r.stderr)
+            return
         self.assertIn(PULO, r.stdout)
 
     def test_branch_nova_roda(self):
