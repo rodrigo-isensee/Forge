@@ -3,34 +3,33 @@ tipo: review
 contrato: 1
 pedido: v046
 branch: melhoria/v046-textos-jarvis
-commit: be5bb7ee32898578994ab389c8b257cf54ba7034
+commit: afdaa3abf9e27dd195380c1fe01ac631082b4198
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-12
 ---
-# Review: v046 (E21.2, textos do Jarvis)
+# Review: v046 (E21.2 e revalidação E21.6, textos do Jarvis)
 
-Diff lido: `origin/develop...be5bb7ee` (base a1318e88), 4 arquivos, 18 linhas a mais e 16 a menos, só texto (`agents/jarvis.md`, `docs/regras/README.md` no parágrafo R-WIP, `skills/trabalho-em-paralelo/SKILL.md`, fragmento `changelog.d/v046-textos-jarvis.md`). Revisor: instância que não fez a entrega (E21.1). Fontes conferidas: diretrizes 18 e 19 em `docs/diretrizes-do-dono.md` (~/.forge-contrib) e os cartões DIRETRIZ-18-PARALELO e DIRETRIZ-19-ANDA-SOZINHO.
+Revalidação por delta (E21.6), instância que não fez a entrega nem o review E21.2. Delta lido: `forge-check parecer delta docs/reviews/v046-textos-jarvis.md` deu o intervalo `be5bb7ee..afdaa3ab`, com quatro arquivos no domínio: `changelog.d/v046-textos-jarvis.md`, `docs/regras/README.md`, `skills/trabalho-em-paralelo/SKILL.md` e `tests/test_jarvis_nucleo.py`. O `agents/jarvis.md` não mudou no delta. Lido por `git diff be5bb7ee afdaa3ab` numa worktree destacada própria.
 
-Ferramentas (citadas, não refeitas): `tests.test_orcamento_instrucao` 8 testes OK; `tests.test_metricas_texto` 2 testes OK (rodados um por vez no be5bb7ee, R-TETO).
+Ferramentas (citadas, não refeitas), rodadas uma por vez no afdaa3ab (`R-TETO`): `tests.test_orcamento_instrucao` 8 testes OK; `tests.test_metricas_texto` 2 testes OK; `tests.test_jarvis_nucleo` 17 testes OK.
 
 ## Achados
-- A1 (recomendado) skills/trabalho-em-paralelo/SKILL.md:19 · a espera com run_in_background contradiz a regra 2 da skill esperar-estado (não usar run_in_background para esperar); dizer que vale para o Jarvis e que o subagente segue esperar-estado, ou ressalvar lá
-- A2 (recomendado) skills/trabalho-em-paralelo/SKILL.md:19 · a pausa por limite de uso perdeu 'nada novo é disparado', 'grave onde parou' e o retomar em segundo plano; a frase ficou sem verbo e lê como lista (mesmo ponto do A2 da segurança)
-- A3 (recomendado) skills/trabalho-em-paralelo/SKILL.md:19 · o laço until não traz o prazo no próprio comando (mesmo ponto do A1 da segurança); sugerir a forma com contador ou deadline
-- A4 (recomendado) docs/regras/README.md:29 · da diretriz 18 faltam o 'sem ela, instância nova com o mesmo brief' da volta e a medida (espera do item pronto até o portão; vagas livres com fila parada = zero)
-- A5 (recomendado) skills/trabalho-em-paralelo/SKILL.md:10 · o corte de 'na junção' deixa 'se serializam: a segunda começa já', contraditório; a diretriz 18 diz que dois autores no mesmo arquivo vão juntos ou um espera o outro; alinhar a frase
-- A6 (recomendado) skills/trabalho-em-paralelo/SKILL.md:17 · o corte de 'cerca de' e 'sem travar' faz as 150 linhas soarem como limite fixo; a decisão M14 diz orientação, não trava por volume
 
 ## Sondas
 
 ## Parecer
-**Aprovado**, com seis recomendados para a volta única já prevista depois de E21.3 e E21.4.
+**Aprovado.** Os seis recomendados do E21.2 (A1 a A6, no commit be5bb7ee) foram atendidos na volta E21.5:
 
-Diretriz 18: o parágrafo R-WIP (`docs/regras/README.md:29`) diz uma instância por item à espera do mesmo papel, ao mesmo tempo, dentro do `R-TETO`; item independente com branch própria e sem arquivo em comum; volta à instância que fez; portão usa o CI do PR quando cobre; um por vez no arquivo comum, merge na `develop`, `KANBAN.md`, pipeline e mesmo módulo, ADR, modelo de ameaças ou tela; o "nunca revisa o que escreveu" já estava (`R-REVIEW`). A skill (`SKILL.md:11`) e o `agents/jarvis.md:49` repetem o essencial. Faltam o fallback da volta e a medida (A4). O cartão aponta `docs/regras/R-WIP.md`, que não existe desde aff98b17; o brief retificado aceita o parágrafo do README.
+- A1: `SKILL.md:19` diz que a espera em segundo plano vale para o Jarvis e que o subagente segue a skill `esperar-estado`; some a contradição com a regra 2 dela.
+- A2: a pausa por limite de uso (`SKILL.md:19`) volta a dizer que nada novo é disparado, manda gravar onde parou e retomar com a cota nova; a frase tem verbo de novo.
+- A3: o laço traz o prazo no próprio comando (`fim=$((SECONDS+N))` com a saída pelo `SECONDS`), e manda conferir o estado ao vencer.
+- A4: o parágrafo `R-WIP` (`docs/regras/README.md:29`) ganha a volta a uma instância nova com o mesmo brief, quando a que fez não existe mais, e as medidas da diretriz 18 (espera até cada portão; vagas livres com fila parada igual a zero).
+- A5: `SKILL.md:10` troca o "se serializam: a segunda começa já" por: itens com arquivo em comum vão juntos no lote ou o segundo espera o primeiro; inclui "depois de conferir" no relançamento do portão.
+- A6: `SKILL.md:17` volta a "cerca de 150 linhas ... sem travar", fiel à decisão M14.
 
-Diretriz 19: `agents/jarvis.md:49` e `SKILL.md:19` dizem anda sozinho, nunca pede para ser chamado, espera hora ou estado em segundo plano com prazo, enche as vagas; ao dono só decisão, rótulo, merge na `main` e comando em arquivo travado; medida zero "me chame"/"continue". Fiel ao texto do dono; A1 e A3 são de consistência com a skill de espera.
+Cortes para caber (skill no teto, núcleo abaixo do teto, `jarvis.md` sem mudança): conferidos um a um, nenhum tirou regra. Na skill, a frase da volta à mesma instância e do CI do PR saiu porque a fonte única é o `R-WIP` do README, que a mantém; o resto é poda de estilo (descrição, "na volta ao autor", "por script" no `R-CONFORMIDADE`, "dos" e "deles"). No README, a célula da tabela perdeu o "só o hook quadro a verifica", que segue no título do parágrafo; a frase das worktrees perdeu o "dentro de R-TETO", que segue duas vezes no mesmo parágrafo (teto de agentes e o `R-TETO` inteiro); a frase do "um por vez" foi reescrita com a mesma lista de casos (arquivo comum, pipeline, quadro, merge na `develop`, mesmo módulo, ADR, tela, modelo de ameaças), só em outra ordem, por causa do `AntiDuplicacao`.
 
-Frases cortadas no `jarvis.md`: "O time de agentes faz todo o resto e aprende com os próprios erros" (descrição), "como Jarvis" (a identidade está na frase anterior), "honesto" (coberto por `R-PROVA` e pela tabela pedido × entregue), "sozinhas" (o verbo "barram" segue) e o parêntese dos lotes (o conteúdo segue na skill, linhas 15 e 16): nenhuma carregava regra. Na skill, as podas de estilo mantêm o sentido, salvo A2, A5 e A6.
+Teste novo `Diretrizes18e19` (`tests/test_jarvis_nucleo.py:156`): três testes de presença das frases que carregam as diretrizes 18 e 19 (anda sozinho, prazo no comando, subagente na `esperar-estado`, pausa, instância por item, volta, medidas, série por arquivo). É teste de texto, adequado a mudança só de texto; sem guarda de código no delta, sem mutante a declarar (AR-1, AR-2 não se aplicam). Conferidos os itens de `docs/engineering/achados-recorrentes.md`: nenhum alcança o delta (AR-9 limite antigo: as 150 linhas batem com a M14).
 
-Neutralidade (`R-NEUTRO`): nenhum nome, regra de negócio ou stack de projeto no diff. Orçamento: jarvis.md no teto (7795/7795), sem folga para A1 a A6 nele; os ajustes cabem na skill e no README.
+Neutralidade (`R-NEUTRO`): nada de projeto no delta. Fragmento de changelog atualizado com o mesmo sentido.
