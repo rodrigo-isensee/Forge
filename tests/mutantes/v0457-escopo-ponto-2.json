@@ -3,7 +3,7 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M1",
+      "id": "M9",
       "guarda": "E23.17 (b, c): o pedido é o id: do texto; o nome do arquivo só sem ele",
       "arquivo": "bin/forge-check",
       "de": "    return (re.search(r\"^id:\\s*(\\S+)\", texto, re.M) or [None, Path(caminho).stem])[1]",
