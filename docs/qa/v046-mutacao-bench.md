@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/v046-mutacao-bench
-commit: 60bba369d14f778d47f085e4f68c59707c44388f
+commit: e452582f9186c8b70a2a935d9c0e12e84ec6e48b
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -34,5 +34,15 @@ Diff 8b5a44d5..60bba369: `bin/forge-mutante` (`--base SHA` com SPEC, M-1), `bin/
 - Medida pedida pelo dono: o diff não toca `.github/` nem `.githooks/`; o CI do PR não ganha passo. Custo no teste: as 2 classes novas somam 2,1 s (7 testes), dentro dos 73 e 105 de cada módulo. O M-1 só roda a pedido (`--base`), o placar e o bench só imprimem aviso na release.
 - O que só o CI do PR prova: a bateria completa no sha (check-run `bateria`) e o tempo de relógio do job antes e depois; localmente não há como comparar o job.
 
+## Revalidação por delta 60bba369..e452582f (E7.8)
+O delta amplia o `--base` (spec mudada e módulo de teste mudado entram no diff), cita a tag do aviso com `shlex.quote` e troca A1 por parênteses. Novas obrigações: S1/S2 (teste enfraquecido entre base e rev roda o mutante), spec mudada roda os seus mutantes, tag com metacaractere sai citada.
+- `python3 -m unittest tests.test_changelog`: Ran 74 tests, OK (27,9 s).
+- `python3 -m unittest tests.test_forge_mutante`: Ran 108 tests, OK (254,8 s).
+- `forge-mutante` das 2 specs, `--processos 4`, rc 0: M1..M15 todos `morreu`; M11 :800 e M12 :800 (dois pedaços da mesma condição, cada um por um teste), M13 :802, M14 e M15 :821. Cada um morre só pelos `testes` declarados (o runner só conta esses), e cada teste exercita a ramificação do mutante: M11 e M14 pela spec mudada, M13 pelo teste enfraquecido (sobrevive M1), M12 pelo arquivo mudado, M15 pela spec fora do repositório.
+- Cobertura `--base 8b5a44d5`: 11 condições `coberta`, nenhuma sem mutante. A linha nova `shlex.quote` (:222, não é condição) não aparece; sonda minha (Q1, `shlex.quote` removido, teste de metacaractere): `morreu`.
+- A1 do parecer anterior: atendido (`or (args.base and not args.spec)`, spec M1 atualizada).
+- Vermelho dos 3 testes novos de MutacaoDirigida e do de metacaractere: a base do delta (60bba369) não tem `modulos_do_teste` nem `shlex.quote`; a morte dos mutantes M11, M13, M14 e Q1 prova que o teste falha sem a lógica. `forge-testes --vermelho` não rodado (estourou prazo na rodada anterior).
+- CI do PR: o delta não toca `.github/` nem `.githooks/`; o `bateria` do sha fica com o portão.
+
 ## Achados
-- A1 (recomendado) bin/forge-mutante:827 · a precedência `cobertura or base and not spec` funciona, mas é frágil; parênteses explícitos deixariam a intenção óbvia (sem defeito observado).
+Nenhum achado aberto. A1 da rodada anterior foi atendido (bin/forge-mutante:846).
