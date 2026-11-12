@@ -250,8 +250,11 @@ class TemposAoVivoLogica(unittest.TestCase):
 
         self.anexa("inicio\tx\t1.0\nfim\tx\t0.1\ninicio\ty\t1.0\n")
         with mock.patch.object(sys, "stderr", Quebrado()):
-            self.ao_vivo.atualizar()
-            self.ao_vivo.imprimir_rodando()  # nenhum OSError escapa
+            try:
+                self.ao_vivo.atualizar()
+                self.ao_vivo.imprimir_rodando()
+            except OSError as erro:
+                self.fail(f"stderr quebrado derrubou a suíte: {type(erro).__name__} escapou do informar")
         self.assertEqual([n for n, _, _ in self.ao_vivo.rodando()], ["y"])
 
         class Registra(io.StringIO):
