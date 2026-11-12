@@ -1,0 +1,37 @@
+---
+tipo: review
+contrato: 1
+pedido: v046
+branch: melhoria/v046-fechar-lote
+commit: 0be847950094f66ffccdca5fe1ec7c1accd5233a
+parecer: aprovado
+revisor: forge:tech-lead
+data: 2026-11-12
+---
+# Review: v046 (E6.2, melhoria/v046-fechar-lote)
+
+Diff revisado: `8b5a44d5..0be84795` (7 commits), lido por `git show` numa worktree destacada do revisor. Classe C (`forge-check pr --previo`: sensível da catraca `bin/forge-doutor`). A revisora não fez a entrega.
+
+## Achados
+- A1 (recomendado) bin/forge-testes:118 · a regra de bin/forge-doutor no MAPA não leva a test_doutor_branch_atrasada: `--listar bin/forge-doutor` dá 5 módulos sem ele (a mutação do autor usa essa lista); o `--afetados` o acha pela citação. Acrescente-o aqui e em tests/test_testes_tocados.py:55
+- A2 (recomendado) bin/forge-fechar:659 · `>/dev/null` joga fora a saída do `forge-check movimento`, que dá o motivo da recusa no stdout (coluna fora do KANBAN.md, atributo inválido): o aviso só traz o comando. Mande a saída ao stderr ou ao log com `gravar_linha`
+- A3 (recomendado) bin/forge-fechar:1047 · guarda sem mutante (AR-1) e ramo sem teste (AR-2): o motivo `head <sha7>` do PR já MERGED não tem teste com --cartao; também sem mutante as guardas `shift 2 || die` de --cartao e --quadro (:88, :89)
+- A4 (recomendado) bin/forge-fechar:538 · o `git worktree prune` do repositório inteiro agora roda em todo fechamento, não só depois da remoção que falhou: o registro de uma worktree com o diretório fora da vista desta sessão também sai. Diga isso no doc ou use `--expire`
+- A5 (recomendado) bin/forge-fechar:3 · pendente: SP1 (subida por um comando e um brief) estava no Entregar da E6.1 e não tem commit; o Histórico (12:50) diz que depende do gerador em bin/forge-check. Fica para uma etapa própria
+
+## Sondas
+
+## Parecer
+**Aprovado.** Sem defeito provado; os cinco achados são recomendados e não devolvem a entrega (`R-REVIEW`).
+
+O que mudou e confere com o pedido (E6, lote por arquivo, DECISÃO DO DONO de 12/11 11:06): um commit por item com o teste dele. 49f20c41 é CONFERENTE-PR-ABERTO-CEDO (frase em `docs/fechamento-integrador.md` com invariante e motivo em `tests/config.json`, `R-FLUXO`). e6d205d5 é WORKTREE-PRUNE-SANDBOX (`podar_orfaos` também depois da remoção que deu certo, e o registro dos metadados presos sem pendência). 6633b0b6 é FECHAR-MOVE-CARTAO (`--cartao`/`--quadro` validados antes do passo 1; o movimento roda só depois do merge provado, no passo 6 e no `--limpar`; já em Pronto não grava; falha vira código 3 com o comando escapado por `%q`). e34c25fa é ATUALIZAR-BRANCH-ATRASADA. f0c8724e, 79f8a4bd e 0be84795 trazem mutantes, testes de ramo e pesos. SP1 ficou fora (A5).
+
+**bin/forge-doutor fora da lista de arquivos do brief: cabe no item.** ATUALIZAR-BRANCH-ATRASADA é por definição um comportamento do `forge doutor` (a decisão Q4 escolheu mostrar o cherry-pick no doutor), e não há como entregar o item sem tocar o arquivo. A mudança é pequena (17+1 linhas): uma função só de leitura local (`git show`, `git log`, `merge-base --is-ancestor`, sem fetch nem rede, então vale também no `--rapido`), que falha para o lado de não adivinhar (rc diferente de 1 ou develop ilegível devolvem None e voltam ao conselho de sempre). `forge-check sobreposicao` não mostra outra branch em `bin/forge-doutor`; as sobreposições da branch são só em `tests/config.json` (com `maq-i7-ambiente` e `prepush-projeto-fila`), resolvidas na fila de integração.
+
+**Tamanho:** 429 linhas contadas (`git diff --numstat --no-renames 8b5a44d5..0be84795`, bin 105, tests/*.py 320, tests/config.json 4), quatro comportamentos. O lote por arquivo foi decisão do dono; o corpo do PR precisa trazer `teto: excedido, 429 linhas, lote por arquivo da E6 (decisão do dono de 12/11 11:06), 320 delas de teste`.
+
+**Ferramentas (citadas, não refeitas):** `shellcheck bin/forge-fechar` rc=0. `bin/forge-mutante --cobertura --base 8b5a44d5`: as três guardas Python de `bin/forge-doutor` (:141, :146, :160) estão cobertas por D1, D2 e D3; `bin/forge-fechar` (shell) fica fora da análise da catraca, e as guardas dele foram conferidas à mão contra C1 a C9 e P1 a P5 (A3 lista o que falta). São 17 mutantes ao todo, em três specs, todas abaixo de 8 por arquivo.
+
+**Testes dos arquivos tocados** (`bin/forge-testes tests/<m>.py`, um por vez): test_doutor_branch_atrasada 6 OK, test_fechar_move_cartao 12 OK, test_fechar_prune_sandbox 3 OK, test_fechar_forge_check_real 3 OK. A suíte inteira fica com o CI do PR.
+
+**Checklist de leitura:** os falsos de `git` e `forge-check` (`GIT_META_PRESA`, `CHECK`) não afrouxam a regra do script: o `git` falso chama o anterior e só recria a pasta, e o movimento real é provado em `test_fechar_forge_check_real`. O subprocesso do `forge-check` real usa `-I`. A coluna lida do histórico segue a forma que o `cmd_movimento` grava (só linha com hora ISO, `$5` = Para), e o teste com a linha "lixo" prova o filtro. O ID do cartão tem lista positiva e vai ao `awk -v` sem barra invertida. Não achei código morto nem TODO.
