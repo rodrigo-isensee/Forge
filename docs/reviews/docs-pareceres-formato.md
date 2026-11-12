@@ -31,3 +31,12 @@ Ferramentas: `forge-check docs` no head c0acddcf, rc 0; `bin/forge-testes` com o
 
 ## AR (PA-7)
 Conferi as 12 linhas de `docs/engineering/achados-recorrentes.md`: todas são de código, teste, mutante ou hook (AR-1 a AR-12); nenhuma alcança esta entrega só de texto. O A1 acima não repete classe registrada; sem linha AR nova.
+
+## Revalidação por delta (E24.6)
+Delta lido: `forge-check parecer delta docs/reviews/docs-pareceres-formato.md` sobre `c0acddcf..32aba4da`, rc 0, "delta: nenhum arquivo do domínio mudou". O intervalo tem dois commits: este parecer (122463ca) e o 32aba4da, que troca três citações em `docs/security/anti-alucinacao-portao.md`, conferidas contra o `## Método das sondas` do mesmo arquivo:
+
+- `:70` `S16 ([S7b])`: a S16 é a linha [S7b] (clone convertido em projeto, create / merge, obtido 0 / 0, ver A1). Certa.
+- `:82` `S7 ([S1]), parecer rc 0`: a S7 é a linha [S1] do `gh api graphql` com `markPullRequestReadyForReview`, obtido 0, ver A2. Certa.
+- `:85` `([S1], rc 2; o gh pr merge é a S2)`: a S2 é a linha [S1] do `gh pr merge feature/x`, obtido 2. Certa.
+
+Os hunks ficam nas linhas 67 a 88: frontmatter, veredito, severidade (baixa, cartão) e sentido dos achados A1 e A2 do parecer de segurança ficaram iguais. O A1 deste review está resolvido no 32aba4da. `forge-check docs` no 32aba4da, rc 0. Parecer mantido: aprovado.
