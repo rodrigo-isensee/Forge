@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0457
 branch: melhoria/escopo-ponto
-commit: c51ecb4847bcac295a72bf42f0dec8ab44f1538e
+commit: 73e4848c3d431b8ac2e99beff0d0b63f2d054284
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -44,3 +44,19 @@ Diff 8b5a44d5..ba359573: bin/forge-check (cinco defeitos da conferência de entr
 
 ## Achados
 Nenhum aberto. A1 (antigo) resolvido no c51ecb48.
+
+## Revalidação por delta c51ecb48..73e4848c (E23.51)
+`forge-check parecer delta` lista no domínio: bin/forge-check, changelog.d, specs 3, 4 e 5 e tests/test_selo_e_entrega.py.
+- review A4: o anexo do devops usa a etapa real `review` e o `Agente destino:` do brief é o papel do tipo; negativos `test_brief_do_review_nao_ancora_o_devops` e `test_brief_do_devops_nao_ancora_o_review` (M29, M30 morrem); a fixture `ParecerDoPortao` usa a etapa real.
+- segurança A5: `veredito_trocado` olha todos os arquivos da pasta, com `branch:` igual, na base e em cada commit; rev-list ou ls-tree que falha conta como trocado. Negativos: `test_veredito_trocado_em_outro_arquivo_da_pasta_segue_fora`, `test_x_apagado_e_y_aprovado_no_mesmo_commit_segue_fora`, `test_ls_tree_que_falha_conta_como_veredito_trocado`, `test_rev_list_que_falha_conta_como_veredito_trocado`, `test_parecer_de_outra_branch_na_pasta_nao_troca_o_veredito` (M31 a M33), `test_arquivo_sem_frontmatter_na_pasta_nao_quebra_o_veredito` (M28).
+- `forge-check pr` não mudou (fora do diff) e segue escolhendo por (data, nome); fica seguro só porque a entrega recusa o forjado. Registrado, não bloqueia.
+- 635 linhas no teste (teto excedido): decisão do review/tech-lead, não é defeito de QA.
+
+## Provas (delta E23.51, head 73e4848c, worktree destacada)
+- `python3 -m unittest tests.test_selo_e_entrega`: 70 testes OK; `tests.test_conf_escopo`: 16 OK (um por vez).
+- `forge-mutante` das 5 specs `v0457-escopo-ponto*`, uma por vez: M1 a M33 todos `morreu`, rc=0 em cada uma (M28 morre por erro do teste declarado, que passa sem o mutante).
+- `forge-mutante --cobertura --base 8b5a44d5`: 26 linhas `coberta`, nenhuma sem mutante, rc=0.
+- Vermelho: o delta só soma testes sobre código novo; cada um dos novos negativos é morto por mutante, sem teste que passe com o mutante vivo.
+
+## Achados (delta)
+Nenhum aberto.
