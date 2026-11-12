@@ -12,7 +12,7 @@ ANTES = json.loads((RAIZ / "tests" / "fixtures" / "jarvis-invariantes-b2580c6.js
 JARVIS = "agents/jarvis.md"
 SKILLS_NOVAS = ("briefs-e-conferencia", "trabalho-em-paralelo", "falar-com-o-dono")
 # 0.43.1 (decisões do dono de 2026-11-08, "Faça tudo"): o brief é selado pela ferramenta, a entrega é conferida por ela e as
-# perguntas ao dono vão em lote. Estes trechos descreviam a conferência manual pelo agente conferente (mensagem, hash, Base-sha,
+# perguntas ao dono passavam a ser juntadas numa só mensagem (revisto na 0.46, uma a uma). Estes trechos descreviam a conferência manual pelo agente conferente (mensagem, hash, Base-sha,
 # passada única, autoconferência) e a pergunta uma por vez: saem por mudança de processo, não por afrouxamento. O que eles
 # protegiam passou para a ferramenta (`forge-check brief selar`, `forge-check entrega`) e para R-BRIEF, R-PROVA e R-DECISAO.
 RETIRADOS_0431 = frozenset({
@@ -20,6 +20,9 @@ RETIRADOS_0431 = frozenset({
     "nunca a própria branch", "ele não vê o relatório", "uma pergunta por vez", "`<<<BRIEF`", "`Base-sha:`",
     "`Arquivo:` \\(o caminho do brief", "linhas>=N",
 })
+# 0.46 (decisão do dono de 2026-11-11 13:06): a lista do que não se delega por "decidam vocês" ganhou aceite de risco, rótulo e
+# merge na main; o trecho antigo foi substituído pelo novo (config.json), não removido.
+RETIRADOS_046 = frozenset({"que não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível"})
 # Um número só por trava (docs/regras/orcamento.json): o núcleo (jarvis.md + docs/regras/*.md, decisão 11 do dono) e o teto do
 # arquivo do Jarvis (o mesmo que tests/test_orcamento_instrucao.py aplica).
 ORCAMENTO = json.loads((RAIZ / "docs" / "regras" / "orcamento.json").read_text(encoding="utf-8"))
@@ -38,7 +41,7 @@ class NucleoCurtoDoJarvis(unittest.TestCase):
     def test_todo_invariante_do_jarvis_existe_no_jarvis_ou_na_skill_nova(self):
         self.assertGreaterEqual(len(ANTES), 73)
         self.assertEqual(len(RETIRADOS_0431 & set(ANTES)), len(RETIRADOS_0431), "retirado que não era invariante")
-        exigidos = {t: [] for t in ANTES if t not in RETIRADOS_0431}
+        exigidos = {t: [] for t in ANTES if t not in RETIRADOS_0431 | RETIRADOS_046}
         for rel in arquivos_do_nucleo():
             for t in CONFIG["invariantes"].get(rel, []):
                 if t in exigidos:
@@ -95,13 +98,13 @@ class OrcamentoDeInstrucao(unittest.TestCase):
     def test_jarvis_e_regras_cabem_na_metade_da_base(self):
         self.assertEqual(ORCAMENTO_0431, 75_022 // 2)  # metade da base da 0.43: subir é afrouxar
         arquivos = [RAIZ / JARVIS, *sorted((RAIZ / "docs" / "regras").glob("*.md"))]
-        self.assertGreaterEqual(len(arquivos), 18)
+        self.assertGreaterEqual(len(arquivos), 14)  # AV5: seis regras viraram trechos de R-LIMITES.md e uma linha do README
         total = sum(len(a.read_text(encoding="utf-8")) for a in arquivos)
         self.assertLessEqual(total, ORCAMENTO_0431)
 
     def test_toda_regra_tem_revisao_e_medida(self):  # decisão 10: `Revisar em:` e `Medida:` no começo da linha
         regras = sorted((RAIZ / "docs" / "regras").glob("R-*.md"))
-        self.assertGreaterEqual(len(regras), 17)
+        self.assertGreaterEqual(len(regras), 12)  # AV5: R-LIMITES.md junta cinco; R-WIP é linha do README
         for regra in regras:
             with self.subTest(regra=regra.name):
                 texto = regra.read_text(encoding="utf-8")

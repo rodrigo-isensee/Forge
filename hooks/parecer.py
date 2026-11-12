@@ -23,6 +23,7 @@ import functools
 import json
 import os
 import re
+import stat
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -36,9 +37,22 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, 
 
 MERGE = r"merge(?!-base\b)"  # `git merge-base` só lê o grafo (HK3-PARECER, E2): não é merge
 PREFILTRO = re.compile(rf"\bgh\b.*\bpr\b.*\b(create|{MERGE}|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b({MERGE}|pull)\b", re.S)
-# A linha com `gh pr merge` ganha o prazo `PRAZO_DO_MERGE_S` (o `forge-check pr` leva cerca de 2 s; v0455). Sem `.*`:
-# a busca é linear, e só dá mais prazo, nunca libera; o prazo vencido segue recusando.
-MERGE_DE_PR = re.compile(r"\bgh[ \t]+pr[ \t]+merge\b")
+class MERGE_DE_PR:  # noqa: N801 - o `prazo_longo` do `executar`, que espera a interface de um regex (`.search`)
+    """A linha com `gh pr merge` como palavras de um comando ganha o prazo `PRAZO_DO_MERGE_S` (o `forge-check pr` leva
+    cerca de 2 s; v0455). A menção em comentário, string ou corpo de heredoc não ganha (A1 da segurança da 0.45.5).
+    Só dá mais prazo, nunca libera; o prazo vencido segue recusando, e a dúvida ao ler fica com os 3 s."""
+
+    @staticmethod
+    def search(texto):
+        try:
+            simples = palavras_do_texto(tirar_heredocs(texto)[0]).simples
+        except Exception:  # noqa: BLE001 - na dúvida, o prazo comum: menos tempo, nunca uma liberação
+            return None
+        for comando in simples:
+            valores = [Path(p.valor).name if i == 0 else p.valor for i, p in enumerate(comando.palavras)]
+            if any(tuple(valores[i:i + 3]) == ("gh", "pr", "merge") for i in range(len(valores))):
+                return True
+        return None
 CRITICO = re.compile(rf"\bpr\b.*\b(create|{MERGE}|ready)\b|\bapi\b|\b({MERGE}|pull)\b", re.S)
 # A palavra crítica só no texto (HK3-PARECER, E2). `sed -n <N,Mp> <arquivos>` só imprime: vale `cat <arquivos>` (só números,
 # sem metacaractere: a troca não muda o que o bash lê). `sh -c` cujo texto só usa estes programas não roda merge, pull nem gh pr.
@@ -360,7 +374,10 @@ def textos_da_linha(comando):
 def critico_ou_alias(texto):
     """A1 da segurança da 0.45.4: a linha é crítica para as travas do parecer se tem o marcador (`CRITICO`) ou se chama
     alias do gh que o parecer confere (`alias_na_linha`). Sem isso, `eval gh junta …` (junta = pr merge) escapava da
-    reavaliação, do teto, do heredoc gravado, da gramática com heredoc, da falha fechada e do prazo."""
+    reavaliação, do teto, do heredoc gravado, da gramática com heredoc, da falha fechada e do prazo.
+    O resultado depende também do ambiente do gh (os config.yml que `alias_na_linha` lê), mas o cache tem só o texto como
+    chave: vale por processo, e o hook roda um processo por chamada. Teste que mude o ambiente no mesmo processo chama
+    `critico_ou_alias.cache_clear()` antes (A4 do review da 0.45.4)."""
     return bool(CRITICO.search(texto)) or alias_na_linha(textos_da_linha(texto))
 
 
@@ -765,6 +782,67 @@ def merge_por_api(hook, pasta, args):
                           "Corrigir: use gh pr merge <branch>.")
 
 
+PRONTO_NO_GRAPHQL = re.compile(r"markPullRequestReadyForReview", re.I)
+TETO_DA_CONSULTA = 64 * 1024  # bytes de cada arquivo de `-F campo=@arq` ou `--input arq` (FILA-27 A2)
+
+
+def ler_regular(caminho):
+    """Até `TETO_DA_CONSULTA` + 1 bytes do arquivo regular `caminho`. Abre sem bloquear e confere o tipo no descritor: o
+    que não é arquivo regular (FIFO, dispositivo) dá `OSError` sem esperar o escritor (A-F27-1)."""
+    descritor = os.open(caminho, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0))
+    with os.fdopen(descritor, "rb") as f:
+        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+            raise OSError(f"não é arquivo regular: {caminho}")
+        return f.read(TETO_DA_CONSULTA + 1)
+
+
+def textos_da_consulta(args, pasta):
+    """(textos, legível) do `gh api`: os argumentos e os arquivos de `campo=@arq` e `--input arq`, relativos à pasta e
+    até `TETO_DA_CONSULTA`; `-` (entrada padrão), arquivo ausente ou acima do teto, e o relativo com a pasta None
+    (desconhecida: `cd` que o hook não resolve), não dá para ler. O corpo de `--input`
+    vai ao GitHub como JSON: lido decodificado (escape `\\uXXXX` no nome), e o que não é JSON não dá para ler (AR-11)."""
+    textos = []
+    if any(map(expande, args)):  # A-F27-2: `$( )`, `$VAR` ou crase: o gh recebe outro texto, que o hook não lê
+        return textos, False
+    for i, a in enumerate(args):
+        corpo = a == "--input" or a.startswith("--input=")
+        if corpo or "=@" in a:
+            arq = (args[i + 1] if i + 1 < len(args) else "-") if a == "--input" else a.split("=", 1)[1].removeprefix("@")
+            if arq == "-":
+                return textos, False
+            arq = os.path.expanduser(arq)
+            if pasta is None and not os.path.isabs(arq):  # A-F27-3 (AR-7): o gh o lê numa pasta que o hook não sabe
+                return textos, False
+            try:
+                dados = ler_regular(os.path.join(pasta or "", arq))
+            except OSError:
+                return textos, False
+            if len(dados) > TETO_DA_CONSULTA:
+                return textos, False
+            textos.append(dados.decode("utf-8", "replace"))
+            if corpo:
+                try:
+                    textos.append(json.dumps(json.loads(dados), ensure_ascii=False))
+                except (ValueError, RecursionError):
+                    return textos, False
+        textos.append(a)
+    return textos, True
+
+
+def pronto_por_graphql(hook, pasta, args, base):
+    """FILA-27 A2: no clone do Forge, `markPullRequestReadyForReview` tira o PR do rascunho sem dizer a branch, então não
+    há parecer a conferir (`pronto_de_pr`); a consulta que não dá para ler recusa (falha fechada). `pasta`: a do `gh`
+    (`raiz_gh`); `base`: a que o hook resolveu na linha (None: desconhecida), onde se leem os arquivos relativos."""
+    if not (ENDPOINT_GRAPHQL.search(endpoint_da_api(args)) and metodo_mutante(args)):
+        return
+    if not e_clone_do_forge(hook.projeto(pasta, clone_do_forge=True)):
+        return  # nos projetos, o `conformidade` cuida do PR do Forge (R-CONTRIB)
+    textos, legivel = textos_da_consulta(desagrupa_i(args), base)
+    if not legivel or any(PRONTO_NO_GRAPHQL.search(t) for t in textos):
+        bloquear("R-CONTRIB", "tirar o rascunho pela API não informa a branch, ou a consulta não dá para ler. Corrigir: "
+                              "use gh pr ready <branch> (exige os pareceres) ou o forge-fechar.")
+
+
 def principal(hook):
     comando = hook.campo("tool_input", "command")
     if hook.campo("tool_name") != "Bash" or not isinstance(comando, str):
@@ -818,8 +896,9 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                              "rodá-lo. Corrigir: grave o texto pelo Write ou Edit e passe-o ao programa "
                              "noutra chamada do Bash")
     if lidas.ilegivel:  # ADR 0013, tabela 2.4: passou no PREFILTRO (gh pr, gh api, merge, pull) e o hook não a lê
-        bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull que o hook não lê (aspas sem par ou # que ele "
-                             "não prova ser comentário). Corrigir: feche as aspas, tire o comentário ou separe os comandos")
+        bloquear("R-REVIEW", "linha com gh pr, gh api, merge, pull ou alias do gh que o hook não lê (aspas sem par ou # "
+                             "que ele não prova ser comentário). Corrigir: feche as aspas, tire o comentário ou separe os "
+                             "comandos")
     internos = [(corpo, False, False) for corpo in conteudos_de_crase(comando, so_os_fechados=True)]
     internos += [(corpo, False, getattr(dono, "rodado", None) or True)  # o dono (ou o programa do texto) pode rodá-lo
                  for dono, corpo in corpos if not corpo_so_lido(dono)]
@@ -890,6 +969,7 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
             merge_de_pr(hook, raiz_gh, parte[1], parte[2])
         elif parte[0] == "api":
             merge_por_api(hook, raiz_gh, parte[1])
+            pronto_por_graphql(hook, raiz_gh, parte[1], pasta)
         elif parte[0] == "branch":
             onde = pasta_do_git(pasta, pastas_do_git(palavras), mexidas, desviado)
             raiz = raiz_de_estado(onde) if onde else None

@@ -1,0 +1,54 @@
+{
+  "pedido": "varredura-caminho-pessoal",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "P1",
+      "guarda": "nome com ponto no /home/ é caminho pessoal",
+      "arquivo": "scripts/verificar-contribuicao.sh",
+      "de": "pessoal='/(home|Users)/[[:alnum:]_][[:alnum:]_.-]*/'",
+      "para": "pessoal='/(home|Users)/[[:alnum:]_][[:alnum:]_-]*/'",
+      "testes": ["tests.test_forge.VerificarContribuicao.test_home_com_ponto_no_nome_falha"]
+    },
+    {
+      "id": "P2",
+      "guarda": "nome com maiúscula é caminho pessoal",
+      "arquivo": "scripts/verificar-contribuicao.sh",
+      "de": "pessoal='/(home|Users)/[[:alnum:]_][[:alnum:]_.-]*/'",
+      "para": "pessoal='/(home|Users)/[a-z0-9_][a-z0-9_.-]*/'",
+      "testes": ["tests.test_forge.VerificarContribuicao.test_home_com_maiuscula_no_nome_falha"]
+    },
+    {
+      "id": "P3",
+      "guarda": "nome com hífen no /home/ é caminho pessoal",
+      "arquivo": "scripts/verificar-contribuicao.sh",
+      "de": "pessoal='/(home|Users)/[[:alnum:]_][[:alnum:]_.-]*/'",
+      "para": "pessoal='/(home|Users)/[[:alnum:]_][[:alnum:]_.]*/'",
+      "testes": ["tests.test_forge.VerificarContribuicao.test_home_com_hifen_no_nome_falha"]
+    },
+    {
+      "id": "P4",
+      "guarda": "/Users/<nome>/ do Mac é caminho pessoal",
+      "arquivo": "scripts/verificar-contribuicao.sh",
+      "de": "pessoal='/(home|Users)/[[:alnum:]_][[:alnum:]_.-]*/'",
+      "para": "pessoal='/(home)/[[:alnum:]_][[:alnum:]_.-]*/'",
+      "testes": ["tests.test_forge.VerificarContribuicao.test_users_do_mac_falha"]
+    },
+    {
+      "id": "P5",
+      "guarda": "/mnt/<letra>/Users/<nome>/ do Windows é caminho pessoal",
+      "arquivo": "scripts/verificar-contribuicao.sh",
+      "de": "pessoal='/(home|Users)/[[:alnum:]_][[:alnum:]_.-]*/'",
+      "para": "pessoal='(^|[[:space:]])/(home|Users)/[[:alnum:]_][[:alnum:]_.-]*/'",
+      "testes": ["tests.test_forge.VerificarContribuicao.test_caminho_do_windows_sob_mnt_falha"]
+    },
+    {
+      "id": "P6",
+      "guarda": "pasta que começa com ponto ({tmp}/home/.config) é dado neutro e passa",
+      "arquivo": "scripts/verificar-contribuicao.sh",
+      "de": "pessoal='/(home|Users)/[[:alnum:]_][[:alnum:]_.-]*/'",
+      "para": "pessoal='/(home|Users)/[[:alnum:]_.][[:alnum:]_.-]*/'",
+      "testes": ["tests.test_forge.VerificarContribuicao.test_dados_neutros_dos_testes_passam"]
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "pedido": "v0457-f6-5",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "bin/forge_medidas.py:92 cod or c[5] != 'sim'",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "        if cod or c[5] != \"sim\":",
+      "para": "        if (not (cod or c[5] != \"sim\")):",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "bin/forge_medidas.py:94 not dentro",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "        if not dentro:",
+      "para": "        if (not (not dentro)):",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "bin/forge_medidas.py:96 tags[0] in dentro and (len(tags) < 2 or tags[1] not in dentro)",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "        elif tags[0] in dentro and (len(tags) < 2 or tags[1] not in dentro):",
+      "para": "        elif (not (tags[0] in dentro and (len(tags) < 2 or tags[1] not in dentro))):",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "bin/forge_medidas.py:106 re.fullmatch('[0-9]+(\\\\.[0-9]+)?', c[col])",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "        agora, antes = ([float(c[col]) for c in grupo if re.fullmatch(r\"[0-9]+(\\.[0-9]+)?\", c[col])] for grupo in (atual, anterior))",
+      "para": "        agora, antes = ([float(c[col]) for c in grupo if (not (re.fullmatch(r\"[0-9]+(\\.[0-9]+)?\", c[col])))] for grupo in (atual, anterior))",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "bin/forge_medidas.py:107 len(agora) < 3 or not antes",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "        if len(agora) < 3 or not antes:",
+      "para": "        if (not (len(agora) < 3 or not antes)):",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "bin/forge_medidas.py:110 v > teto",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "        acima = sum(1 for v in agora if v > teto)",
+      "para": "        acima = sum(1 for v in agora if (not (v > teto)))",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "bin/forge_medidas.py:111 m1 > 1.2 * m0 and acima >= 2",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "        if m1 > 1.2 * m0 and acima >= 2:",
+      "para": "        if (not (m1 > 1.2 * m0 and acima >= 2)):",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "bin/forge_medidas.py:125 len(celulas) >= 8 and celulas[7] in ORIGENS",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    return celulas[7] if len(celulas) >= 8 and celulas[7] in ORIGENS else SEM_ORIGEM",
+      "para": "    return celulas[7] if (not (len(celulas) >= 8 and celulas[7] in ORIGENS)) else SEM_ORIGEM",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    }
+  ]
+}

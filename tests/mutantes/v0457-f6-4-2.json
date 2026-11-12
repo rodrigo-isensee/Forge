@@ -1,0 +1,102 @@
+{
+  "pedido": "v0457-f6-4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "bin/forge_voltas.py:58 tipo",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        tipo = classificar_volta(de, para, motivo, ctx)\n        if tipo:",
+      "para": "        tipo = classificar_volta(de, para, motivo, ctx)\n        if (not (tipo)):",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "bin/forge_voltas.py:60 coluna in abertas and (abertas[coluna] is None or hora < abertas[colun",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "            if coluna in abertas and (abertas[coluna] is None or hora < abertas[coluna]):",
+      "para": "            if (not (coluna in abertas and (abertas[coluna] is None or hora < abertas[coluna]))):",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "bin/forge_voltas.py:62 _fecha_volta(coluna, d2, p, ctx)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "            volta = next((h for h, d2, p, _ in movimentos[i + 1:] if _fecha_volta(coluna, d2, p, ctx)), None)",
+      "para": "            volta = next((h for h, d2, p, _ in movimentos[i + 1:] if (not (_fecha_volta(coluna, d2, p, ctx)))), None)",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "bin/forge_voltas.py:64 volta",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "            voltas.append((tipo, hora, _minutos(hora, volta) if volta else None))",
+      "para": "            voltas.append((tipo, hora, _minutos(hora, volta) if (not (volta)) else None))",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "bin/forge_voltas.py:65 _sem_acento(p) == 'em andamento'",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    inicio = next((h for h, _, p, _ in movimentos if _sem_acento(p) == \"em andamento\"), None)",
+      "para": "    inicio = next((h for h, _, p, _ in movimentos if (not (_sem_acento(p) == \"em andamento\"))), None)",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "bin/forge_voltas.py:66 inicio and h >= inicio and (_sem_acento(d) == 'em andamento') and (_se",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    fim = next((h for h, d, p, _ in movimentos if inicio and h >= inicio and _sem_acento(d) == \"em andamento\"\n                and _sem_acento(p) == \"conferencia\"), None)",
+      "para": "    fim = next((h for h, d, p, _ in movimentos if (not (inicio and h >= inicio and _sem_acento(d) == \"em andamento\"\n                and _sem_acento(p) == \"conferencia\"))), None)",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "bin/forge_voltas.py:68 inicio and fim",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    return voltas, (_minutos(inicio, fim) if inicio and fim else None)",
+      "para": "    return voltas, (_minutos(inicio, fim) if (not (inicio and fim)) else None)",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "bin/forge_voltas.py:78 fim is None or ini >= fim",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        if fim is None or ini >= fim:",
+      "para": "        if (not (fim is None or ini >= fim)):",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    }
+  ]
+}

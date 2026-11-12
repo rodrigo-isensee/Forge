@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "guarda: a forja não vale fora do Histórico",
+      "arquivo": "bin/forge-check",
+      "de": "dono and tipo != \"historico\" and dono.recusa_da_forja(valor)",
+      "para": "dono and dono.recusa_da_forja(valor)",
+      "testes": [
+        "tests.test_forge_dono.RecomendacaoRevertida.test_marca_escrita_a_mao_e_recusada"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "guarda: sem o forge_dono, nada se grava",
+      "arquivo": "bin/forge-check",
+      "de": "    if dono is None and tipo != \"historico\":\n        return [\"anotar: bin/forge_dono.py",
+      "para": "    if False:\n        return [\"anotar: bin/forge_dono.py",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_sem_o_modulo_do_dono_nada_e_gravado"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "M-E8-1/M-E8-8: --confere fora do vocabulário é recusado",
+      "arquivo": "bin/forge-check",
+      "de": "or (confere is not None and not dono.CONFERE.fullmatch(f\"confere={confere}\"))",
+      "para": "or (confere is not None and False)",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_decisao_sem_confere_ou_com_valor_fora_do_vocabulario"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E7: a decisão é lida contra a pergunta",
+      "arquivo": "bin/forge-check",
+      "de": "dono.leitura_da_decisao(texto, literal) if tipo == \"decisao\" else",
+      "para": "dono.leitura_da_decisao(texto, literal) if tipo != \"decisao\" else",
+      "testes": [
+        "tests.test_forge_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E6: a pergunta de corte passa pela trava",
+      "arquivo": "bin/forge-check",
+      "de": "if tipo == \"pergunta\" and (motivos := dono.recusa_de_corte(",
+      "para": "if tipo != \"pergunta\" and (motivos := dono.recusa_de_corte(",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_corte_recomendado_sem_campos_e_recusado_sem_gravar"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "M-E6-4: recusa antes de gravar",
+      "arquivo": "bin/forge-check",
+      "de": "    if recusa:\n        return [f\"anotar: {recusa}; nada gravado\"], 2",
+      "para": "    if False:\n        return [f\"anotar: {recusa}; nada gravado\"], 2",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_corte_recomendado_sem_campos_e_recusado_sem_gravar"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "E8: a decisão leva a marca",
+      "arquivo": "bin/forge-check",
+      "de": "        if tipo == \"decisao\":\n            atributos = {\"confere\"",
+      "para": "        if tipo != \"decisao\":\n            atributos = {\"confere\"",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_cada_criterio_e_gravado"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "E7: forge=<versão> gravado pela ferramenta",
+      "arquivo": "bin/forge-check",
+      "de": "versao_da_propria_copia() or \"desconhecida\"",
+      "para": "versao_da_propria_copia() and \"desconhecida\"",
+      "testes": [
+        "tests.test_forge_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
+      ]
+    }
+  ]
+}

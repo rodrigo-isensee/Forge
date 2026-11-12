@@ -1,0 +1,36 @@
+{
+  "descricao": "FILA-27 A2: no clone, -F query=@arq de arquivo que não existe não dá para ler: falha fechada.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "melhoria/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.melhoria/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh api graphql -F query=@nao-existe.graphql"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "tirar o rascunho pela API"
+  }
+}

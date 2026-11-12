@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-e2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "AV3 etapa 1: a atribuição e o env antes do programa não escondem o comando",
+      "arquivo": "hooks/vigia.py",
+      "de": "    while palavras and (_ATRIBUICAO",
+      "para": "    while False and (_ATRIBUICAO",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_formas_criticas"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "AV3 etapa 1: linha só de atribuição não é comando",
+      "arquivo": "hooks/vigia.py",
+      "de": "    if not palavras:\n        return None\n    programa",
+      "para": "    if False:\n        return None\n    programa",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_comando_de_leitura_nao_conta"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "AV3 etapa 1: o valor da opção (-C dir) não é o subcomando",
+      "arquivo": "hooks/vigia.py",
+      "de": "        if pular or p.startswith(\"-\"):",
+      "para": "        if p.startswith(\"-\"):",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_formas_criticas"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "AV3 etapa 1: só a opção com valor pula a palavra seguinte",
+      "arquivo": "hooks/vigia.py",
+      "de": "            pular = not pular and p in OPCOES_COM_VALOR",
+      "para": "            pular = not pular",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_formas_criticas"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "AV3 etapa 1: programa fora do git e do gh vai aos verbos dos pacotes",
+      "arquivo": "hooks/vigia.py",
+      "de": "    if criticos is None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_formas_criticas"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "AV3 etapa 1: pacote malformado na política não derruba a medida",
+      "arquivo": "hooks/vigia.py",
+      "de": "if isinstance(pacotes.get(programa), dict) else {}",
+      "para": "if True else {}",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_pacote_sem_verbos_na_politica_nao_conta"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "AV3 etapa 1: subcomando fora da lista crítica não conta",
+      "arquivo": "hooks/vigia.py",
+      "de": "    if not resto or resto[0] not in criticos:",
+      "para": "    if not resto:",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_comando_de_leitura_nao_conta"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "AV3 etapa 1: só gh pr/release/... levam a ação; gh api fica só gh api",
+      "arquivo": "hooks/vigia.py",
+      "de": "programa == \"gh\" and resto[0] in GH_COM_ACAO",
+      "para": "programa == \"gh\"",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_formas_criticas"
+      ]
+    }
+  ]
+}

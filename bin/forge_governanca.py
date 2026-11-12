@@ -70,6 +70,8 @@ FONTES = {
     "tokens": "medida (usage dos transcritos dos subagentes com --transcritos: entrada, saída e cache; '-' sem fonte)",
     "lead": "medida (da primeira linha do item no Histórico à chegada do sha na develop e na main), com fatias: autor até a entrega "
             "conferida, portões dela à chegada, dono pela espera_dono_min, sem sobreposição",
+    "fatia_portao": "medida (Histórico do pedido: de `brief selado`/`delegad` ao `entregue`/`aprovad`/`reprovad`/`passou` do mesmo portão), "
+                    "estimada (sem o início, da linha anterior do Histórico ao fim) ou nao-medido (sem linha do portão); voltas por contagem",
     "colunas": "medida (docs/kanban/historico.md: minutos de cada cartão em cada coluna até o movimento seguinte; o aberto conta "
                "até agora, menos no Pronto)",
 }
@@ -81,6 +83,7 @@ CHAVES_DE_USO = ("input_tokens", "output_tokens", "cache_creation_input_tokens",
 # X2 (0.44.1): o orçamento de tokens declarado no pedido (`Tokens previstos: 2.000.000`, `500k`, `3M`) e a versão dele (`Versão: X.Y.Z`)
 PREVISTO = re.compile(r"^\s*(?:[-*]\s*)?(?:\*\*)?tokens previstos:(?:\*\*)?\s*(\d[\d._]*)\s*(k|m)?\b", re.I | re.M)
 VERSAO_DO_PEDIDO = re.compile(r"^\s*(?:[-*]\s*)?(?:\*\*)?vers[aã]o:(?:\*\*)?\s*v?(\d+\.\d+\.\d+)", re.I | re.M)
+VERSAO_COMPLETA = re.compile(r"\d+\.\d+\.\d+")
 MULTIPLO = {"": 1, "k": 1000, "m": 1_000_000}
 
 
@@ -429,6 +432,55 @@ def esperas_por_portao(arquivos, janela):
     return saida
 
 
+VERMELHO_DA_EXECUCAO = ("failure", "timed_out", "startup_failure")
+VERMELHO_DO_CHECK = ("FAILURE", "TIMED_OUT", "STARTUP_FAILURE", "ERROR")
+VERSAO_DA_BRANCH = re.compile(r"melhoria/v(\d)(\d{2})(\d)\b")
+
+
+def _versao_da_branch(texto):
+    """"0.45.6" de um texto com `melhoria/v0456` (branch do PR ou título do merge na main), ou "-" se não houver."""
+    achou = VERSAO_DA_BRANCH.search(texto or "")
+    return ".".join(str(int(g)) for g in achou.groups()) if achou else "-"
+
+
+def _gh_lista(args):
+    """A lista JSON de `gh <args>`, ou None se o gh falha (sem rede, sem login) ou devolve outra forma."""
+    try:
+        r = subprocess.run(["gh", *args], capture_output=True, text=True, timeout=GH_TIMEOUT_S)
+        lista = json.loads(r.stdout) if r.returncode == 0 else None
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return None
+    return [x for x in lista if isinstance(x, dict)] if isinstance(lista, list) else None
+
+
+def main_vermelha_e_merges(versoes, usar_gh):
+    """{versão: {"main_vermelha": n, "merge_vermelho": n, "origem": medido|nao-medido}}: (a) execuções de CI da main que terminaram
+    vermelhas (`gh run list --branch main`, a versão vem do `melhoria/vNNNN` do título do merge) e (b) PRs mesclados cujos checks
+    estavam vermelhos (`statusCheckRollup`, a versão vem da branch do PR). Versão sem nenhuma execução ou PR lido, ou sem `usar_gh`
+    ou com o gh falhando, fica `nao-medido` (None): dado ausente nunca vira zero. `versoes` são as versões dos pedidos; as achadas
+    no gh entram também."""
+    execucoes = _gh_lista(["run", "list", "--branch", "main", "--limit", "100", "--json", "conclusion,displayTitle"]) if usar_gh else None
+    prs = _gh_lista(["pr", "list", "--state", "merged", "--limit", "100", "--json", "headRefName,statusCheckRollup"]) if usar_gh else None
+    a, b = {}, {}
+    for e in execucoes or []:
+        if e.get("conclusion"):
+            vezes = a.setdefault(_versao_da_branch(e.get("displayTitle")), [0, 0])
+            vezes[0] += e["conclusion"] in VERMELHO_DA_EXECUCAO
+            vezes[1] += 1
+    for pr in prs or []:
+        checks = [c for c in pr.get("statusCheckRollup") or [] if isinstance(c, dict)]
+        if checks:
+            vezes = b.setdefault(_versao_da_branch(pr.get("headRefName")), [0, 0])
+            vezes[0] += any((c.get("conclusion") or c.get("state")) in VERMELHO_DO_CHECK for c in checks)
+            vezes[1] += 1
+    saida = {}
+    for versao in sorted(set(versoes) | set(a) | set(b)):
+        saida[versao] = {"main_vermelha": a[versao][0] if versao in a else None,
+                         "merge_vermelho": b[versao][0] if versao in b else None,
+                         "origem": "medido" if versao in a or versao in b else "nao-medido"}
+    return saida
+
+
 def primeiro_pedido(arq):
     """O texto do primeiro registro `user` do transcrito (o prompt do agente) e a soma do uso de tokens das respostas, com cada
     mensagem contada uma vez (o mesmo `id` se repete nos pedaços de uma resposta). (None, 0) se o arquivo não é lido: link,
@@ -571,6 +623,49 @@ def resumo(itens, conferencias):
             "tokens": sum(i["tokens"] for i in itens if i.get("tokens") is not None) if any(i.get("tokens") is not None for i in itens) else None}
 
 
+# ---- fatia por portão (0.45.6, AV4(c)): review, QA, segurança, CI e revalidação, por versão, lidos do Histórico ----
+PORTOES = {"review": re.compile(r"\breview\b|\brevisao\b"), "qa": re.compile(r"\bqa\b"),
+           "seguranca": re.compile(r"\bseguranca\b"), "ci": re.compile(r"\bci\b"), "revalidacao": REVALIDACAO}
+INICIO_DE_PORTAO = re.compile(r"brief selado|delegad")
+FIM_DE_PORTAO = re.compile(r"entregue|aprovad|reprovad|\bpassou\b|\bverde\b|vermelh|falhou")
+
+
+def fatia_do_pedido(eventos):
+    """{portão: {minutos, voltas, tempo}} de um pedido; portão sem linha no Histórico sai `None` (nunca 0 por dado ausente).
+    `tempo`: `medido` (início e fim do portão), `estimado` (sem início: da linha anterior ao fim) ou None (nada fechou)."""
+    saida = {p: None for p in PORTOES}
+    for portao, padrao in PORTOES.items():
+        aberto, anterior, d = None, None, None
+        for h, _item, s, _original in eventos:
+            if padrao.search(s):
+                d = d or {"minutos": 0.0, "voltas": 0, "tempo": None}
+                d["voltas"] += bool(VOLTA.search(s) or portao == "revalidacao")
+                if FIM_DE_PORTAO.search(s) and (aberto or anterior):
+                    d["minutos"] += _minutos(aberto or anterior, h)
+                    d["tempo"] = "medido" if aberto and d["tempo"] != "estimado" else "estimado"
+                    aberto = None
+                elif INICIO_DE_PORTAO.search(s):
+                    aberto = aberto or h
+            anterior = h
+        saida[portao] = d
+    return saida
+
+
+def somar_fatia(partes):
+    """Junta as fatias de vários pedidos da mesma versão; falta de dado fica None."""
+    saida = {p: None for p in PORTOES}
+    for parte in partes:
+        for portao, d in parte.items():
+            if d is None:
+                continue
+            s = saida[portao] = saida[portao] or {"minutos": 0.0, "voltas": 0, "tempo": None}
+            s["voltas"] += d["voltas"]
+            if d["tempo"]:
+                s["minutos"] = round(s["minutos"] + d["minutos"], 1)
+                s["tempo"] = "estimado" if "estimado" in (s["tempo"], d["tempo"]) else "medido"
+    return saida
+
+
 def calcular(raiz, raiz_pedidos, pedidos=None, desde=None, ate=None, por="dia", fuso=None, agora=None,
              develop="origin/develop", main="origin/main", usar_gh=False, transcritos=None, recusas=None):
     """O dicionário completo das métricas (o que o `--json` imprime) e a lista de avisos."""
@@ -592,7 +687,7 @@ def calcular(raiz, raiz_pedidos, pedidos=None, desde=None, ate=None, por="dia", 
     variavel = [t for t in os.environ.get("FORGE_TRANSCRITOS", "").split(os.pathsep) if t]
     pastas = [Path(t) for t in (transcritos or variavel)] or transcritos_da_raiz(raiz)
     custos = tokens_por_item(pastas, raiz_pedidos, avisos) if pastas else None
-    itens, por_pedido, textos = [], [], {}
+    itens, por_pedido, textos, por_versao = [], [], {}, {}
     for nome in nomes:
         texto = ler_texto(pasta / f"{nome}.md") if ID_DE_PEDIDO.fullmatch(nome) and nome.strip(".") else None
         if texto is None:
@@ -600,6 +695,9 @@ def calcular(raiz, raiz_pedidos, pedidos=None, desde=None, ate=None, por="dia", 
             continue
         doc = itens_do_pedido(nome, texto, fuso, chegadas, agora, usar_gh, janela)
         textos[nome] = texto
+        versao = VERSAO_DO_PEDIDO.search(texto)
+        eventos = [e for e in eventos_do_pedido(texto, fuso) if janela(e[0])]
+        por_versao.setdefault(versao.group(1) if versao else nome, []).append(fatia_do_pedido(eventos))
         for i in doc:
             custo = custos.get((nome, i["item"])) if custos is not None else None
             i["tokens"] = custo["tokens"] if custo else None
@@ -628,7 +726,8 @@ def calcular(raiz, raiz_pedidos, pedidos=None, desde=None, ate=None, por="dia", 
     avisos += [aviso] if aviso else []
     return {"fontes": FONTES, "por": por, "itens": itens, "pedidos": por_pedido, "periodos": lista_periodos,
             "espera_por_portao": portoes if arquivos else None, "orcamento": orcamento_de_tokens(por_pedido, textos),
-            "colunas": colunas}, avisos
+            "colunas": colunas, "fatia_por_portao": {v: somar_fatia(f) for v, f in por_versao.items()},
+            "main_vermelha": main_vermelha_e_merges([v for v in por_versao if VERSAO_COMPLETA.fullmatch(v)], usar_gh)}, avisos
 
 
 def _n(valor):
@@ -670,6 +769,15 @@ def linhas_de_texto(dados):
     saida += [f"metricas: alerta: {a}" for a in dados.get("orcamento", {}).get("alertas", [])]
     for coluna, d in (dados.get("colunas") or {}).items():
         saida.append(f"metricas: coluna {coluna} minutos={_n(d['minutos'])} cartoes={d['cartoes']} abertos={d['abertos']}")
+    for versao, fatia in (dados.get("fatia_por_portao") or {}).items():
+        for portao, d in fatia.items():
+            saida.append(f"metricas: fatia versao {versao} portao {portao} "
+                         + ("minutos=nao-medido voltas=nao-medido tempo=nao-medido" if d is None else
+                            f"minutos={_n(d['minutos']) if d['tempo'] else 'nao-medido'} voltas={d['voltas']} "
+                            f"tempo={d['tempo'] or 'nao-medido'}"))
+    for versao, d in (dados.get("main_vermelha") or {}).items():
+        saida.append(f"metricas: ci versao {versao} main_vermelha={_n(d['main_vermelha'])} merge_com_check_vermelho={_n(d['merge_vermelho'])} "
+                     f"origem={d['origem']}")
     portoes = dados.get("espera_por_portao")
     if portoes is None:
         saida.append("metricas: portao - (sem recusas.log: o hook agentes ainda não recusou nada ou a fonte falta)")

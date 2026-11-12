@@ -1,0 +1,116 @@
+{
+  "pedido": "v0457-e4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "piso inválido ou não positivo vale o padrão",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if isinstance(valor, bool) or not isinstance(valor, (int, float)) or not valor > 0:",
+      "para": "    if isinstance(valor, bool) or not isinstance(valor, (int, float)):",
+      "testes": [
+        "tests.test_suite_partes_paralelas.FolgaDaMaquina.test_piso_de_memoria_vem_da_config_e_invalido_vale_o_padrao"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "sem medida não há folga",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "or not nproc:",
+      "para": "or nproc:",
+      "testes": [
+        "tests.test_suite_partes_paralelas.FolgaDaMaquina.test_sem_medida_nao_ha_folga",
+        "tests.test_suite_partes_paralelas.FolgaDaMaquina.test_folga_exige_load_abaixo_dos_nucleos_e_memoria_acima_do_piso"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "load1 igual aos núcleos não é folga",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    return carga < nproc and memoria > piso",
+      "para": "    return carga <= nproc and memoria > piso",
+      "testes": [
+        "tests.test_suite_partes_paralelas.FolgaDaMaquina.test_folga_exige_load_abaixo_dos_nucleos_e_memoria_acima_do_piso"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "memória igual ao piso não é folga",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    return carga < nproc and memoria > piso",
+      "para": "    return carga < nproc and memoria >= piso",
+      "testes": [
+        "tests.test_suite_partes_paralelas.FolgaDaMaquina.test_folga_exige_load_abaixo_dos_nucleos_e_memoria_acima_do_piso"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "sem folga roda em série",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if paralelo:\n        codigos",
+      "para": "    if True:\n        codigos",
+      "testes": [
+        "tests.test_suite_partes_paralelas.DuasPartes.test_sem_folga_roda_em_serie",
+        "tests.test_suite_partes_paralelas.DuasPartes.test_sem_medida_roda_em_serie"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "em série a que falha encerra sem lançar a outra",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "            if codigos[-1]:",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_suite_partes_paralelas.DuasPartes.test_em_serie_a_primeira_que_falha_encerra_sem_lancar_a_segunda"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "verde só com as duas partes rodadas e verdes",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    return 0 if codigos and not any(codigos) and len(codigos) == 2 else 1",
+      "para": "    return 0 if codigos and not codigos[0] else 1",
+      "testes": [
+        "tests.test_suite_partes_paralelas.DuasPartes.test_parte_que_falha_reprova_em_paralelo",
+        "tests.test_suite_partes_paralelas.DuasPartes.test_em_serie_a_segunda_que_falha_reprova"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o modo só vale sem argumento extra",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if argv == [\"--duas-partes\"]:",
+      "para": "    if argv[:1] == [\"--duas-partes\"]:",
+      "testes": [
+        "tests.test_suite_partes_paralelas.DuasPartes.test_main_aceita_so_a_chamada_sem_argumento_extra"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "config que não é objeto vale o padrão",
+      "arquivo": "scripts/suite-partes.py",
+      "de": ".get(\"piso_memoria_gb\") if isinstance(config, dict) else None",
+      "para": ".get(\"piso_memoria_gb\") if True else None",
+      "testes": [
+        "tests.test_suite_partes_paralelas.FolgaDaMaquina.test_piso_de_memoria_vem_da_config_e_invalido_vale_o_padrao"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o aviso diz o modo escolhido",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "modo = (\"em série\", \"paralelo\")[paralelo]",
+      "para": "modo = (\"paralelo\", \"em série\")[paralelo]",
+      "testes": [
+        "tests.test_suite_partes_paralelas.DuasPartes.test_o_aviso_diz_o_modo_escolhido"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "scripts/suite-partes.py",
+      "trecho": "lancar or (lambda cmd: subprocess.Popen(cmd, env=filho_env))",
+      "motivo": "mutar o padrão faria os testes lançarem a suíte inteira de verdade; o padrão é exercido com Popen simulado em test_filho_roda_com_ci"
+    }
+  ]
+}

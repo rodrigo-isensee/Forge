@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-testes-mapa",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "planejar: o novo sem regra no MAPA passa pela regra E14.1",
+      "arquivo": "bin/forge-testes",
+      "de": "        casou = casou or modulos_da_convencao(caminho, raiz) or modulos_do_novo(caminho, raiz)",
+      "para": "        casou = casou or modulos_da_convencao(caminho, raiz)",
+      "testes": [
+        "tests.test_testes_tocados.MapaDosNovos.test_comando_novo_leva_ao_teste_dele_ao_test_forge_e_a_quem_o_cita"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "comando novo: bin/forge-<sub> casa com a regra",
+      "arquivo": "bin/forge-testes",
+      "de": "    if sub:\n        modulo = \"test_\" + sub.group(1)",
+      "para": "    if None:\n        modulo = \"test_\" + sub.group(1)",
+      "testes": [
+        "tests.test_testes_tocados.MapaDosNovos.test_comando_novo_leva_ao_teste_dele_ao_test_forge_e_a_quem_o_cita"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "comando novo sem tests/test_<sub>.py segue na completa",
+      "arquivo": "bin/forge-testes",
+      "de": "        if not arquivo_do_modulo(modulo, raiz).is_file():\n            return None",
+      "para": "        if False:\n            return None",
+      "testes": [
+        "tests.test_testes_tocados.MapaDosNovos.test_comando_novo_sem_o_teste_dele_segue_na_completa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "módulo novo: bin/forge_<mod>.py casa com a regra",
+      "arquivo": "bin/forge-testes",
+      "de": "    if do_bin:",
+      "para": "    if None:",
+      "testes": [
+        "tests.test_testes_tocados.MapaDosNovos.test_modulo_novo_do_bin_leva_a_quem_o_importa_e_ao_test_forge"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "spec nova: tests/mutantes/<spec>.json casa com a regra",
+      "arquivo": "bin/forge-testes",
+      "de": "    if SPEC_DE_MUTANTES.fullmatch(caminho):",
+      "para": "    if None:",
+      "testes": [
+        "tests.test_testes_tocados.MapaDosNovos.test_spec_nova_leva_aos_modulos_do_campo_testes"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "só quem cita o nome como palavra inteira entra",
+      "arquivo": "bin/forge-testes",
+      "de": "if palavra.search(texto)}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_testes_tocados.MapaDosNovos.test_modulo_novo_do_bin_leva_a_quem_o_importa_e_ao_test_forge"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "teste da spec que não é texto não casa",
+      "arquivo": "bin/forge-testes",
+      "de": "TESTE_DA_SPEC.fullmatch(t) if isinstance(t, str) else None",
+      "para": "TESTE_DA_SPEC.fullmatch(t) if True else None",
+      "testes": [
+        "tests.test_testes_tocados.MapaDosNovos.test_spec_ilegivel_sem_teste_ou_com_teste_de_fora_segue_na_completa"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "spec sem nenhum teste segue na completa",
+      "arquivo": "bin/forge-testes",
+      "de": "    if not achados or None in achados:",
+      "para": "    if None in achados:",
+      "testes": [
+        "tests.test_testes_tocados.MapaDosNovos.test_spec_ilegivel_sem_teste_ou_com_teste_de_fora_segue_na_completa"
+      ]
+    }
+  ]
+}

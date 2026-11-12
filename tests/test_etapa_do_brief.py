@@ -1006,5 +1006,71 @@ class PqDoExecutor(eb.Repo):
         self.assertIn(f"- PQ-3 (cmd, do autor): `bin/forge-mutante --cobertura --base {self.base}`", saida)
 
 
+
+# AQR-2 (E15.1): o `brief gerar` põe no `Fora do escopo` uma linha curta por etapa já feita (id, papel e a marca `· feito`) e o
+# texto inteiro só das abertas; o brief gerado, preenchido, continua aprovado no corte (R-BRIEF).
+TEXTO_CUMPRIDA = "implementação da parte {n} do recurso X, com os testes, os mutantes e a documentação afetada pela mudança"
+
+
+def etapa_cumprida(n):
+    """E1.1 a E1.20, uma por papel; as ímpares feitas (metade), a E1.20 aberta e delegada ao dev-exemplo."""
+    papel = "dev-exemplo" if n == 20 else f"papel-{n}"
+    return f"- E1.{n} ({papel}): {TEXTO_CUMPRIDA.format(n=n)}" + (" · feito" if n % 2 else " · prazo 2026-01-02")
+
+
+PEDIDO_CUMPRIDAS = ("---\nid: exemplo\n---\n# Pedido EXEMPLO\nModo: implementar\n\n## Escopo\n- E1. Fazer o recurso X · `confirmado`\n\n## Etapas\n"
+                    + "\n".join(etapa_cumprida(n) for n in range(1, 21))
+                    + "\n- E2.1 (papel-x): o feito anterior do recurso X segue aberto · prazo 2026-01-03\n- E2.2 (): parte sem papel declarado · feito\n"
+                    + '\n## Decisões do usuário (registro literal)\nDECISÃO DO DONO (2026-01-01): "A".\n')
+
+
+class GerarComCumpridas(Base):
+    def setUp(self):
+        super().setUp()
+        self.gravar("docs/pedidos/exemplo.md", PEDIDO_CUMPRIDAS)
+
+    def rodar(self, *args):  # ambiente limpo e Python isolado
+        r = subprocess.run([sys.executable, "-I", str(FORGE_CHECK), "--raiz", str(self.tmp), *map(str, args)], capture_output=True,
+                           text=True, timeout=60, env={"PATH": "/usr/bin:/bin", "HOME": str(self.tmp / "home"), "LANG": "C.UTF-8"})
+        return r.returncode, r.stdout + r.stderr
+
+    def gerar(self):
+        rc, saida = self.rodar("brief", "gerar", "--pedido", self.pedido, "--destino", "forge:dev-exemplo", "--etapa", "codigo")
+        self.assertEqual(rc, 0, saida)
+        return saida
+
+    @staticmethod
+    def fora(texto):
+        return texto.split("## Fora do escopo", 1)[1].split("\n## ", 1)[0]
+
+    def test_feita_vai_curta_e_aberta_com_o_texto_inteiro(self):
+        fora = self.fora(self.gerar())
+        for n in range(1, 20, 2):
+            self.assertIn(f"\n- E1.{n} (papel-{n}) · feito · etapa de outra delegação; continua no pedido\n", fora)
+            self.assertNotIn(TEXTO_CUMPRIDA.format(n=n) + " ", fora)
+        for n in range(2, 20, 2):
+            self.assertIn(f'\n- "E1.{n} (papel-{n}): {TEXTO_CUMPRIDA.format(n=n)} · prazo 2026-01-02" · etapa de outra delegação', fora)
+        self.assertIn('- "E2.1 (papel-x): o feito anterior do recurso X segue aberto · prazo 2026-01-03"', fora)  # "feito" no meio não é a marca
+        self.assertIn("\n- E2.2 () · feito · etapa de outra delegação; continua no pedido\n", fora)  # sem papel, nunca "None"
+
+    def test_o_bloco_fica_menor_que_o_de_texto_inteiro(self):
+        fora = self.fora(self.gerar())
+        dados = fc.ler_pedido_brief(PEDIDO_CUMPRIDAS)
+        inteiro = "".join(f'- "{t}" · etapa de outra delegação; continua no pedido\n' for e, (_, t) in dados["etapas"].items() if e != "E1.20")
+        self.assertLess(len(fora), len(inteiro) - 10 * 60, fora)  # cada uma das 10 feitas encolhe mais de 60 caracteres
+
+    def test_o_brief_gerado_e_preenchido_passa_no_corte(self):
+        texto = preencher(self.gerar()).replace("- Mesclar o commit aprovado.\n", "")
+        rc, conferido = self.rodar("brief", self.gravar("b.md", texto), "--pedido", self.pedido)
+        self.assertEqual(rc, 0, conferido)
+        self.assertNotIn("corte: sem marca", conferido)
+        for n in (1, 2, 19):
+            self.assertIn(f'corte: etapa (ok) "E1.{n}"', conferido)
+
+    def test_pedido_sem_outra_etapa_diz_que_nao_tem(self):
+        self.gravar("docs/pedidos/exemplo.md", PEDIDO_CUMPRIDAS.split("\n- E1.1 ", 1)[0] + "\n" + etapa_cumprida(20) + "\n")
+        self.assertIn("\n- (o pedido não tem outra etapa)\n", self.fora(self.gerar()))
+
+
 if __name__ == "__main__":
     unittest.main()

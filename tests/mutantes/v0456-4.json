@@ -1,0 +1,86 @@
+{
+  "pedido": "v0456",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "J9",
+      "guarda": "E5.1: PR com checks nulos não quebra a conta",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "pr.get(\"statusCheckRollup\") or []",
+      "para": "pr.get(\"statusCheckRollup\")",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_conta_main_vermelha_e_merge_com_check_vermelho_por_versao"
+      ]
+    },
+    {
+      "id": "J10",
+      "guarda": "E5.1: check que não é objeto fica fora",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "or [] if isinstance(c, dict)]",
+      "para": "or [] if True]",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_conta_main_vermelha_e_merge_com_check_vermelho_por_versao"
+      ]
+    },
+    {
+      "id": "J11",
+      "guarda": "E5.1: só o check vermelho conta como merge vermelho",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "c.get(\"state\")) in VERMELHO_DO_CHECK",
+      "para": "c.get(\"state\")) not in VERMELHO_DO_CHECK",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_conta_main_vermelha_e_merge_com_check_vermelho_por_versao"
+      ]
+    },
+    {
+      "id": "J12",
+      "guarda": "E5.1: versão sem execução lida sai nao-medido",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "a[versao][0] if versao in a else None",
+      "para": "a[versao][0] if versao not in a else None",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_conta_main_vermelha_e_merge_com_check_vermelho_por_versao"
+      ]
+    },
+    {
+      "id": "J13",
+      "guarda": "E5.1: versão sem PR lido sai nao-medido",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "b[versao][0] if versao in b else None",
+      "para": "b[versao][0] if versao not in b else None",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_conta_main_vermelha_e_merge_com_check_vermelho_por_versao"
+      ]
+    },
+    {
+      "id": "J14",
+      "guarda": "E5.1: um lado medido basta para origem medido",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "\"medido\" if versao in a or versao in b else",
+      "para": "\"medido\" if versao in a and versao in b else",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_so_um_lado_medido_deixa_o_outro_nao_medido"
+      ]
+    },
+    {
+      "id": "J15",
+      "guarda": "E1.1: só a linha do portão entra na fatia",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            if padrao.search(s):",
+      "para": "            if not padrao.search(s):",
+      "testes": [
+        "tests.test_metricas_portoes.FatiaPorPortao.test_cada_portao_tem_minutos_voltas_e_origem"
+      ]
+    },
+    {
+      "id": "J16",
+      "guarda": "E1.1: a fatia acumula, não recomeça a cada linha",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "d = d or {\"minutos\": 0.0, \"voltas\": 0, \"tempo\": None}",
+      "para": "d = {\"minutos\": 0.0, \"voltas\": 0, \"tempo\": None}",
+      "testes": [
+        "tests.test_metricas_portoes.FatiaPorPortao.test_cada_portao_tem_minutos_voltas_e_origem"
+      ]
+    }
+  ]
+}
