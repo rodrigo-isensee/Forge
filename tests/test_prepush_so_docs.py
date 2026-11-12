@@ -303,11 +303,24 @@ class GrupoDaEtapa(Repo):
         except subprocess.TimeoutExpired:
             self.fail("o hook não saiu em 30 s")
 
+    @staticmethod
+    def vigia(hook, etapa):
+        """O hook já passou da partida da etapa e dorme no laço de vigia: tem um filho `sleep` que não é a etapa."""
+        for pid in vivos():
+            try:
+                stat = Path(f"/proc/{pid}/stat").read_text()
+            except OSError:
+                continue
+            nome, resto = stat.split("(", 1)[1].rsplit(")", 1)
+            if nome == "sleep" and pid != etapa and int(resto.split()[1]) == hook:
+                return True
+        return False
+
     def interrompe(self):
         exigir(self, "proc")
         p = self.lanca()
         etapa = self.le("etapa")[0]
-        time.sleep(1)
+        self.assertTrue(ate(lambda: self.vigia(p.pid, etapa), 30), "o hook não chegou ao laço de vigia")
         p.send_signal(signal.SIGTERM)
         rc, err = self.fim(p)
         self.assertEqual(rc, 1)
