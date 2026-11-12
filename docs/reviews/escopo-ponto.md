@@ -3,34 +3,30 @@ tipo: review
 contrato: 1
 pedido: v0457
 branch: melhoria/escopo-ponto
-commit: c51ecb4847bcac295a72bf42f0dec8ab44f1538e
-parecer: reprovado
+commit: 73e4848c3d431b8ac2e99beff0d0b63f2d054284
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-12
 ---
-# Review: v0457 (E23.41, melhoria/escopo-ponto no c51ecb48)
+# Review: v0457 (E23.49, melhoria/escopo-ponto no 73e4848c)
 
-Revalidação por delta (E23.41), por instância que não fez a entrega. Delta lido: `forge-check parecer delta docs/reviews/escopo-ponto.md`, intervalo ba35957368421e2e1803e48011839eaa83454463..c51ecb4847bcac295a72bf42f0dec8ab44f1538e, no domínio bin/forge-check, changelog.d/escopo-ponto.md, tests/mutantes/v0457-escopo-ponto{,-2,-3,-4}.json, tests/test_conf_escopo.py, tests/test_selo_e_entrega.py. Testes dos arquivos tocados, um módulo por vez: `test_conf_escopo` 16 OK; `test_selo_e_entrega` 62 OK.
+Revalidação por delta (E23.49), por instância que não fez a entrega. Delta lido: `forge-check parecer delta docs/reviews/escopo-ponto.md`, intervalo c51ecb4847bcac295a72bf42f0dec8ab44f1538e..73e4848c3d431b8ac2e99beff0d0b63f2d054284, no domínio bin/forge-check, changelog.d/escopo-ponto.md, tests/mutantes/v0457-escopo-ponto-{3,4,5}.json, tests/test_selo_e_entrega.py. Testes dos arquivos tocados, um módulo por vez: `test_selo_e_entrega` 70 OK; `test_conf_escopo` 16 OK.
 
 ## Achados
-- A4 (bloqueante) bin/forge-check:2321 · revisao-devops vai à etapa `devops`, que não existe; o brief de portão real do devops é `Etapa: review` e o parecer de devops nunca ancora: regressão da E23.36 (d) (S2); a fixture em tests/test_selo_e_entrega.py:717 a esconde
-
-## Detalhe do A4
-A etapa `devops` não está em ETAPAS_DO_GERAR (o `brief selar` a recusa no vocabulário); o brief do portão de devops é `Etapa: review` com Revisar-sha (v0457-devops-engineer-2, E23.16). O teste sela à mão `Etapa: devops`, mais frouxo que a ferramenta. Correção: devops pela etapa `review` com `Agente destino: forge:devops-engineer` (e o review com `forge:tech-lead`, para um não ancorar o outro), fixture com a etapa real e mutante da distinção.
+- A6 (recomendado) bin/forge-check:2351 · veredito_trocado faz um `git show` por arquivo da pasta em cada versão (docs/reviews/ tem 310): 7,9 s medidos no próprio repositório para 4 versões; filtrar antes com `git grep -l <commit> <sha> -- <pasta>` ou `cat-file --batch`
 
 ## Sondas
-- S1 · test_conf_escopo.PareceresPeloPedido.test_parecer_de_outra_branch_com_o_id_nao_troca_o_slug (docs/reviews/x.md pedido x da melhoria/x, docs/reviews/p1.md pedido p1 da melhoria/outra), merge-integracao · espera: rc 0 e escopo ok · obtido: OK (no ba359573 dava rc 1)
-- S2 · ParecerDoPortao com brief de portão selado como o real (`Etapa: review`, Revisar-sha = head) e parecer revisao-devops em docs/devops/x.md com esse commit: · espera: escopo ok (anexo do portão), como no ba359573 · obtido: rc 1, escopo: fora do declarado no brief "docs/devops/x.md"
+- S2 · refeita: só o brief de devops selado como o real (Etapa: review, Agente destino: forge:devops-engineer, Revisar-sha = head) e docs/devops/x.md revisao-devops · espera: escopo ok (anexo do portão) · obtido: rc 0, escopo ok anexo de devops (no c51ecb48, rc 1)
+- S4 · o mesmo com o brief selado `Etapa: devops` (a etapa antiga, fora do vocabulário do brief selar) · espera: fora do declarado · obtido: fora do declarado "docs/devops/x.md"
 
 ## Revalidação dos achados anteriores
-- A1 resolvido: pedido_dos_pareceres só troca o slug pelo id com `branch:` igual (bin/forge-check:2273); teste do caso misto e M7, M8, M27.
-- A2 resolvido, mais estrito que o pedido: o `commit:` precisa ser o Revisar-sha de brief selado do portão da branch e do pedido, e veredito trocado no mesmo `commit:` recusa, com git que falha contando como troca (M19 a M23, M28).
-- A3 resolvido pelo teste do S1.
-- Conferidos sem achado: merge-base só ancorado em Base-sha de brief selado mais novo que o da entrega (M24 a M26, sonda da ref reescrita virou teste); tipo e parecer do anexo com teste e mutante (M16, M18); VV-3 com o ponto inicial (M1). Mutantes M1 a M28 com specs atualizadas (AR-12 conferido); não achei log do forge-mutante sobre o c51ecb48 em ~/.forge-contrib/wt/ (o escopo-ponto.mutante4.log é anterior à volta): fica com o QA.
-- Fora deste PR, por decisão registrada no brief: os filtros L08/G2 também confiam na `origin/develop` local; vira cartão para a versão seguinte, não achado aqui.
+- A4 resolvido: ETAPA_DO_PORTAO leva revisao-devops a `review` (bin/forge-check:2321) e revisados_selados exige o `Agente destino:` do papel do tipo (bin/forge-check:2331), com teste nos dois sentidos (review não ancora devops e o inverso) e M29, M30; a fixture sela a etapa real com o papel (tests/test_selo_e_entrega.py:718).
+- A5 (segurança) conferido sem achado de review: a busca do veredito trocado cobre todos os arquivos da pasta com `branch:` igual, na base e em cada commit do intervalo; rev-list e ls-tree que falham contam como trocado, cada um com teste por mock (M22, M32), e o S3 da segurança virou teste (M31). O mérito da âncora fica com o parecer do security-engineer.
+- Specs de mutantes (AR-12): os 33 `de` de tests/mutantes/v0457-escopo-ponto*.json casam uma vez só com o bin/forge-check do head. Não achei log do forge-mutante sobre o 73e4848c (os escopo-ponto.mutante*.log são da manhã); "M1 a M33 mortos, cobertura rc 0" é declaração do autor e fica com o QA.
+- forge-check pr (bin/forge-check:1610) escolhe o parecer vigente por (data, nome) e não detecta um parecer forjado na pasta: não é bloqueante desta branch. A linha não está no diff desde o Base-sha (o comportamento é anterior), o `forge-check pr` já cobra autoria por papel (bin/forge-check:1624) e o `parecer conferido` do Histórico (T-1), e a entrega desta branch agora recusa o forjado. Vira cartão para a versão seguinte, junto do L08/G2 da rodada anterior.
 
 ## Tamanho (M14)
-bin/forge-check (159) e tests/*.py (397): 556 linhas desde o Base-sha. O PR precisa trazer `teto: excedido, 556 linhas, <motivo>`; o motivo (consertos da mesma conferência, volume nos testes dos ramos negativos e das voltas de segurança) basta.
+bin/forge-check (168) e tests/*.py (467): 635 linhas desde o Base-sha. O PR precisa trazer `teto: excedido, 635 linhas, <motivo>`; o motivo (consertos da mesma conferência em duas voltas, volume nos testes dos ramos negativos) basta.
 
 ## Parecer
-Reprovado por A4: defeito provado (S2) introduzido no delta, que anula para o devops o anexo do portão que a E23.36 (d) entregou. A1, A2 e A3 da rodada anterior estão resolvidos. A segurança das âncoras (anexo e merge-base) fica com o parecer do security-engineer.
+Aprovado: A4 resolvido e provado pela S2 refeita; o delta não traz defeito provado. A6 é recomendado (custo, sem defeito). A segurança das âncoras e o veredito trocado ficam com o security-engineer; a mutação, com o QA.
