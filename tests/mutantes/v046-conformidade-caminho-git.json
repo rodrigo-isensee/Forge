@@ -7,7 +7,7 @@
       "guarda": "E20.6 (S1): o resto que cai no .git entra nos alvos conferidos",
       "arquivo": "hooks/conformidade.py",
       "de": "        alvos = [*alvos, no_git] if no_git else alvos",
-      "para": "        alvos = alvos",
+      "para": "        alvos = [*alvos, no_git] if None else alvos",
       "testes": [
         "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
       ]
@@ -46,8 +46,8 @@
       "id": "G5",
       "guarda": "E20.6: os nomes que existem no diretório comum também contam (description)",
       "arquivo": "hooks/conformidade.py",
-      "de": "        return NOMES_DO_GIT | set(os.listdir(comum)) if comum else NOMES_DO_GIT",
-      "para": "        return NOMES_DO_GIT",
+      "de": "set(os.listdir(comum)) if comum else NOMES_DO_GIT",
+      "para": "set(os.listdir(comum)) if None else NOMES_DO_GIT",
       "testes": [
         "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
       ]
@@ -58,6 +58,16 @@
       "arquivo": "hooks/conformidade.py",
       "de": "SO_VARIAVEL = re.compile(r\"\\$\\{?\\w+\\}?|`\")",
       "para": "SO_VARIAVEL = re.compile(r\"`\")",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G7",
+      "guarda": "E20.6: o diretório comum da cópia (lido do disco) dá os nomes que existem no .git",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        comum = topo and diretorio_comum(topo)",
+      "para": "        comum = topo and None",
       "testes": [
         "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
       ]
