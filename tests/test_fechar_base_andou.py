@@ -1,4 +1,4 @@
-"""N-FECHAR-a, A5: passo 2b de `bin/forge-fechar`, que para antes do PR quando a base andou com arquivo em comum.
+"""N-FECHAR-a, A5 e E8 (0.45.6): passos 2b e 6a de `bin/forge-fechar`: a base que andou só para com conflito real e nunca é trazida.
 
 Reaproveita o ambiente de `test_fechar.Fechar` (repositório temporário, `gh` e `forge-check` falsos) sem herdar os testes dele.
 """
@@ -12,21 +12,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 import test_fechar as base  # noqa: E402  (o módulo, não a classe: a classe seria coletada de novo aqui)
 SCRIPT = base.SCRIPT
-# comm falso: $ESTADO/comm_falha faz o `comm` da interseção do passo 2b falhar; sem o arquivo, chama o comm de verdade
-COMM_FALSO = r'''#!/usr/bin/env bash
-[ ! -f "$ESTADO/comm_falha" ] || { echo "comm: falha simulada" >&2; exit 1; }
-PATH="${PATH#*:}" exec comm "$@"
-'''
-# sort falso: $ESTADO/sort_falha_em guarda "a" ou "b"; só o sort cujo arquivo de entrada termina nessa letra (lista da base ou da branch) falha
-SORT_FALSO = r'''#!/usr/bin/env bash
-[ ! -f "$ESTADO/sort_falha_em" ] || case "${@: -1}" in */"$(cat "$ESTADO/sort_falha_em")") echo "sort: falha simulada" >&2; exit 2 ;; esac
-PATH="${PATH#*:}" exec sort "$@"
-'''
-# mktemp falso: $ESTADO/mktemp_falha faz só o `mktemp -d` da pasta temporária do passo 2b falhar (o do log segue o de verdade)
-MKTEMP_FALSO = r'''#!/usr/bin/env bash
-[ ! -f "$ESTADO/mktemp_falha" ] || [ "$*" != "-d" ] || { echo "mktemp: falha simulada" >&2; exit 1; }
-PATH="${PATH#*:}" exec mktemp "$@"
-'''
 GIT_BASE_ANDOU = r'''#!/usr/bin/env bash
 case "$1 $2" in
   "ls-remote origin")
@@ -35,29 +20,12 @@ case "$1 $2" in
     # $ESTADO/ls_ref_falha: sem resposta do servidor para a branch da entrega (passo 2); $ESTADO/ls_ref_lixo: a coluna 1 não é sha
     if [ -f "$ESTADO/ls_ref_falha" ] && [ "$3" = refs/heads/melhoria/x ]; then echo "fatal: unable to access" >&2; exit 128; fi
     if [ -f "$ESTADO/ls_ref_lixo" ] && [ "$3" = refs/heads/melhoria/x ]; then printf '%s\t%s\n' "$(cat "$ESTADO/ls_ref_lixo")" "$3"; exit 0; fi ;;
-  "push origin")
-    # $ESTADO/depois_do_envio: um script que roda depois do envio (a base anda de novo entre o merge e a cadeia seguinte)
-    "$REAL_GIT_FALSO" "$@"; rc=$?
-    if [ "$rc" = 0 ] && [ -f "$ESTADO/depois_do_envio" ]; then sh "$ESTADO/depois_do_envio" >&2; rm -f "$ESTADO/depois_do_envio"; fi
-    exit "$rc" ;;
   "merge-tree --write-tree")
     # $ESTADO/merge_tree_falha: o git não sabe `merge-tree --write-tree` (anterior ao 2.38) ou falha ao calcular
     if [ -f "$ESTADO/merge_tree_falha" ]; then echo "usage: git merge-tree" >&2; exit 129; fi ;;
-  "merge-base --all")
-    # $ESTADO/mb_falha: o merge-base sai com erro mas já imprimiu um ponto de partida (só o rc denuncia); $ESTADO/mb_vazio: rc 0 e nada na saída
-    if [ -f "$ESTADO/mb_falha" ]; then "$(dirname "$0")/git-base" "$@"; echo "fatal: simulado" >&2; exit 128; fi
-    if [ -f "$ESTADO/mb_vazio" ]; then exit 0; fi ;;
-  "diff --quiet")
-    # $ESTADO/diff_quiet_falha: o diff da base no passo 6a (código ou só texto) falha
-    if [ -f "$ESTADO/diff_quiet_falha" ]; then echo "fatal: bad object" >&2; exit 128; fi ;;
   "rev-list --count")
     # $ESTADO/revlist_falha: a contagem de commits da base (passo 2b) falha
     if [ -f "$ESTADO/revlist_falha" ]; then echo "fatal: bad object" >&2; exit 128; fi ;;
-  "diff --no-renames")
-    # $ESTADO/diff_falha: o diff da conta do passo 2b falha (objeto ausente)
-    if [ -f "$ESTADO/diff_falha" ]; then echo "fatal: bad object" >&2; exit 128; fi
-    # $ESTADO/diff_falha_em: só o diff cujo último argumento é o sha gravado ali falha (a base ou a branch, não os dois)
-    if [ -f "$ESTADO/diff_falha_em" ] && [ "${@: -1}" = "$(cat "$ESTADO/diff_falha_em")" ]; then echo "fatal: bad object" >&2; exit 128; fi ;;
 esac
 exec "$(dirname "$0")/git-base" "$@"
 '''
@@ -77,12 +45,6 @@ class Teste(unittest.TestCase):
         (bin_ / "git").rename(bin_ / "git-base")
         (bin_ / "git").write_text(GIT_BASE_ANDOU, encoding="utf-8")
         (bin_ / "git").chmod(0o755)
-        (bin_ / "comm").write_text(COMM_FALSO, encoding="utf-8")
-        (bin_ / "comm").chmod(0o755)
-        (bin_ / "sort").write_text(SORT_FALSO, encoding="utf-8")
-        (bin_ / "sort").chmod(0o755)
-        (bin_ / "mktemp").write_text(MKTEMP_FALSO, encoding="utf-8")
-        (bin_ / "mktemp").chmod(0o755)
 
     # ---- N-FECHAR-a, A5: base que andou com arquivo em comum (passo 2b) ----
     def base_anda(self, arquivos, renomear=None, ramo="develop"):
@@ -104,11 +66,11 @@ class Teste(unittest.TestCase):
         self.git("push", "-q", "origin", nome)
         self.git("switch", "-q", "develop")
 
-    def test_c5_base_que_andou_com_arquivo_em_comum_para_antes_do_pr(self):
-        self.base_anda({"b": "da base\n"})
+    def test_c5_base_que_andou_com_conflito_para_antes_do_pr(self):
+        self.base_anda({"b": "da base\n"})  # a branch também criou `b`, com outro conteúdo
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn("passo 2b", r.stderr)
+        self.assertIn("parou no passo 2b: o merge de origin/develop em melhoria/x tem conflito", r.stderr)
         self.assertIn("git merge origin/develop", r.stderr)
         self.assertEqual([l for l in r.stderr.splitlines() if l.startswith("  ")], ["  b"])
         self.assertEqual((self.criacoes(), self.merges()), ([], []))
@@ -121,19 +83,19 @@ class Teste(unittest.TestCase):
         self.assertIn("  a", r.stderr.splitlines())
         self.assertEqual(self.criacoes(), [])
 
-    def test_c5_nome_com_quebra_de_linha_em_comum_lista_o_nome_inteiro(self):
+    def test_c5_nome_com_quebra_de_linha_em_conflito_lista_o_nome_inteiro(self):
         self.ramo_que_edita("melhoria/n", "n\nx", "da branch\n")
         self.base_anda({"n\nx": "da base\n"})
         r = self.fechar("p1", "--ref", "melhoria/n")
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn("  $'n\\nx'", r.stderr.splitlines())
+        self.assertIn('  "n\\nx"', r.stderr.splitlines())
         self.assertEqual(self.criacoes(), [])
 
-    def test_c5_base_que_andou_sem_arquivo_em_comum_avisa_e_segue(self):
-        self.base_anda({"outro.md": "x\n"})  # só texto: código na base traz o merge (E4)
+    def test_c5_base_que_andou_sem_conflito_avisa_e_segue(self):
+        self.base_anda({"outro.md": "x\n"})
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertIn("a base andou 1 commit sem arquivo em comum", r.stdout)
+        self.assertIn("a base andou 1 commit sem conflito com melhoria/x; não trago a base (E8)", r.stdout)
         self.assertEqual(len(self.criacoes()), 1)
 
     def test_c5_base_local_atras_do_servidor_para_e_pede_fetch(self):
@@ -154,14 +116,6 @@ class Teste(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("não consegui ler a develop no servidor", r.stderr)
-        self.assertEqual(self.criacoes(), [])
-
-    def test_c5_diff_que_falha_nunca_segue(self):
-        self.base_anda({"outro": "x\n"})
-        (self.estado / "diff_falha").write_text("1")
-        r = self.fechar("p1", "--ref", "melhoria/x")
-        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn("git fetch origin develop", r.stderr)
         self.assertEqual(self.criacoes(), [])
 
     def test_c5_base_que_ja_esta_no_head_nao_avisa_nem_para(self):
@@ -186,7 +140,7 @@ class Teste(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("[2b]", r.stdout)
-        self.assertIn("se a base mudou código", r.stdout)  # E4
+        self.assertIn("sem conflito avisa e segue, sem trazer a base (E8)", r.stdout)
         self.assertEqual(self.chamadas(), [])
 
     # ---- LOTE-FECHAR2: guardas do passo 2b e do passo 2 que a QA mostrou sem teste ----
@@ -217,23 +171,7 @@ class Teste(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/c")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         # só o merge da base é da base; com um só ponto de partida na conta, o commit C também entraria (2 commits)
-        self.assertIn("a base andou 1 commit sem arquivo em comum", r.stdout)
-
-    def test_arquivo_em_comum_so_no_diff_do_segundo_ponto_de_partida_para_e_lista_os_dois(self):
-        self.criss_cross(arquivos=True)
-        r = self.fechar("p1", "--ref", "melhoria/c", "--trazida")  # com --trazida o merge não se repete: só a listagem que para
-        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        # so_b só entra no diff de B e so_c só no de C: o laço sobre um só ponto de partida listaria um deles
-        self.assertEqual([l for l in r.stderr.splitlines() if l.startswith("  ")], ["  so_b", "  so_c"])
-        self.assertEqual((self.criacoes(), self.merges()), ([], []))
-
-    def test_comm_que_falha_para_no_passo_2b_sem_abrir_pr(self):
-        self.base_anda({"outro": "x\n"})
-        (self.estado / "comm_falha").write_text("1")
-        r = self.fechar("p1", "--ref", "melhoria/x")
-        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn("não consegui cruzar as listas de arquivos", r.stderr)
-        self.assertEqual(self.criacoes(), [])
+        self.assertIn("a base andou 1 commit sem conflito", r.stdout)
 
     def test_ls_remote_da_branch_que_falha_para_no_passo_2_com_a_mensagem_da_leitura(self):
         (self.estado / "ls_ref_falha").write_text("1")
@@ -252,35 +190,6 @@ class Teste(unittest.TestCase):
                 self.assertIn("parou no passo 2: não consegui ler a branch melhoria/x no origin", r.stderr)
                 self.assertEqual((self.criacoes(), self.merges()), ([], []))
 
-    def _diff_que_falha_so_em(self, rev, mensagem):
-        self.base_anda({"outro": "x\n"})
-        (self.estado / "diff_falha_em").write_text(self.git("rev-parse", rev))
-        r = self.fechar("p1", "--ref", "melhoria/x")
-        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn(mensagem, r.stderr)
-        self.assertEqual((self.criacoes(), self.merges()), ([], []))
-
-    def test_diff_da_base_que_falha_sozinho_para_no_passo_2b(self):
-        self._diff_que_falha_so_em("origin/develop", "parou no passo 2b: o diff da base falhou")
-
-    def test_diff_da_branch_que_falha_sozinho_para_no_passo_2b(self):
-        self._diff_que_falha_so_em("origin/melhoria/x", "parou no passo 2b: o diff da branch falhou")
-
-    def _sort_que_falha_so_em(self, lado):
-        self.base_anda({"b": "da base\n"})  # arquivo em comum: a falha do sort não pode virar "sem arquivo em comum"
-        (self.estado / "sort_falha_em").write_text(lado)
-        r = self.fechar("p1", "--ref", "melhoria/x")
-        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn("não consegui cruzar as listas de arquivos", r.stderr)
-        self.assertNotIn("sem arquivo em comum", r.stderr + r.stdout)
-        self.assertEqual((self.criacoes(), self.merges()), ([], []))
-
-    def test_sort_da_lista_da_base_que_falha_para_no_passo_2b(self):
-        self._sort_que_falha_so_em("a")
-
-    def test_sort_da_lista_da_branch_que_falha_para_no_passo_2b(self):
-        self._sort_que_falha_so_em("b")
-
     def test_contagem_de_commits_da_base_que_falha_para_no_passo_2b(self):
         self.base_anda({"outro": "x\n"})
         (self.estado / "revlist_falha").write_text("1")
@@ -289,7 +198,7 @@ class Teste(unittest.TestCase):
         self.assertIn("não consegui contar os commits da base", r.stderr)
         self.assertEqual((self.criacoes(), self.merges()), ([], []))
 
-    # ---- L37 (D-3): a base andou e tocou arquivo da branch; com `git merge-tree` limpo o integrador faz o merge ----
+    # ---- E8 (0.45.6): a base que andou sem conflito real nunca é trazida no fechamento (passo 2b) ----
     def renomeio_limpo(self, nome="melhoria/r"):
         """A branch edita `a` e a base só o renomeia para `g`: arquivo em comum, mas o merge-tree sai limpo."""
         self.base_anda({"a": "l1\nl2\nl3\nl4\nl5\n"})
@@ -299,53 +208,34 @@ class Teste(unittest.TestCase):
     def head_remoto(self, nome):
         return self.git("ls-remote", "origin", f"refs/heads/{nome}").split()[0]
 
-    def test_l37_base_com_arquivo_em_comum_sem_conflito_faz_o_merge_e_recomeca_a_cadeia(self):
-        self.renomeio_limpo()
-        antigo = self.git("rev-parse", "melhoria/r")
-        base_sha = self.head_remoto("develop")
-        arvore = self.git("merge-tree", "--write-tree", "--no-messages", antigo, base_sha)
-        r = self.fechar("p1", "--ref", "melhoria/r", "--sem-limpar")  # a branch fica para o teste conferir o head
+    def assert_segue_sem_trazer(self, ref, antigo, r):
+        """Fechado com o head de antes: nenhum commit de merge da base, nada enviado, cadeia única e merge preso ao head antigo."""
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        novo = self.git("rev-parse", "melhoria/r")
-        self.assertNotEqual(novo, antigo)
-        self.assertEqual(self.git("rev-list", "--parents", "-n", "1", novo).split(), [novo, antigo, base_sha])  # pais: head e base
-        self.assertEqual(self.git("rev-parse", f"{novo}^{{tree}}"), arvore)  # a árvore é a do merge-tree, nada à mão
-        # a cadeia recomeçou no head novo: o forge-check leu o antigo e depois o novo; o PR e o merge ficaram presos ao novo
-        pr = [c for c in self.chamadas() if c.startswith("forge-check pr")]
-        self.assertEqual([c.split()[4] for c in pr], [antigo, novo])
+        self.assertIn(f"sem conflito com {ref}; não trago a base (E8)", r.stdout)
+        self.assertEqual((self.git("rev-parse", ref), self.head_remoto(ref)), (antigo, antigo))
+        self.assertEqual([c.split()[4] for c in self.chamadas() if c.startswith("forge-check pr")], [antigo])
         self.assertEqual(len(self.criacoes()), 1)
         self.assertEqual(len(self.merges()), 1)
-        self.assertIn(novo, self.merges()[0])
-        self.assertNotIn(antigo, self.merges()[0])
-        self.assertIn("merge limpo em melhoria/r", r.stdout)
+        self.assertIn(antigo, self.merges()[0])
 
-    def test_l37_o_merge_sobe_pelo_envio_normal_e_a_worktree_da_branch_anda_junto(self):
-        self.renomeio_limpo()
-        antigo = self.git("rev-parse", "melhoria/r")
-        arvore = self.tmp / "wt-r"
-        self.git("worktree", "add", "-q", str(arvore), "melhoria/r")
-        r = self.fechar("p1", "--ref", "melhoria/r", "--sem-limpar")
-        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)  # fechado, limpeza pendente
-        novo = self.git("rev-parse", "melhoria/r")
-        self.assertNotEqual(novo, antigo)
-        self.assertEqual(self.git("-C", str(arvore), "rev-parse", "HEAD"), novo)  # a worktree acompanhou (fast-forward)
-        self.assertEqual(self.git("-C", str(arvore), "status", "--porcelain"), "")
-        self.assertEqual(self.head_remoto("melhoria/r"), novo)
+    def _arquivo_em_comum_sem_conflito(self, ref):
+        self.renomeio_limpo(ref)
+        antigo = self.git("rev-parse", ref)
+        self.assert_segue_sem_trazer(ref, antigo, self.fechar("p1", "--ref", ref, "--sem-limpar"))
 
-    def test_l37_worktree_com_mudanca_nao_commitada_para_sem_mexer_na_branch(self):
-        self.renomeio_limpo()
-        antigo = self.git("rev-parse", "melhoria/r")
-        arvore = self.tmp / "wt-r"
-        self.git("worktree", "add", "-q", str(arvore), "melhoria/r")
-        (arvore / "rascunho").write_text("x\n")
-        self.git("add", "rascunho", cwd=arvore)
-        r = self.fechar("p1", "--ref", "melhoria/r")
-        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn("tem mudança não commitada", r.stderr)
-        self.assertEqual((self.git("rev-parse", "melhoria/r"), self.head_remoto("melhoria/r")), (antigo, antigo))
-        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+    def test_e8_arquivo_em_comum_sem_conflito_segue_sem_trazer_a_base(self):
+        self._arquivo_em_comum_sem_conflito("melhoria/r")
 
-    def test_l37_com_conflito_para_sem_merge_sem_envio_e_sem_pr(self):
+    def test_e8_fora_de_melhoria_e_o_mesmo_nenhuma_branch_recebe_o_merge(self):
+        self._arquivo_em_comum_sem_conflito("feature/z")
+
+    def test_e8_base_que_mudou_codigo_segue_sem_trazer_a_base(self):
+        antigo = self.git("rev-parse", "melhoria/x")
+        (self.proj / "bin").mkdir(exist_ok=True)
+        self.base_anda({"bin/x": "da base\n"})
+        self.assert_segue_sem_trazer("melhoria/x", antigo, self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar"))
+
+    def test_e8_com_conflito_para_sem_merge_sem_envio_e_sem_pr(self):
         self.base_anda({"b": "da base\n"})  # a branch também criou `b`, com outro conteúdo: conflito
         antigo = self.git("rev-parse", "melhoria/x")
         r = self.fechar("p1", "--ref", "melhoria/x")
@@ -356,109 +246,7 @@ class Teste(unittest.TestCase):
         self.assertEqual(self.git("rev-list", "--merges", "-n", "1", "melhoria/x"), "")
         self.assertEqual((self.criacoes(), self.merges()), ([], []))
 
-    def test_l37_branch_fora_de_melhoria_nunca_recebe_o_merge(self):  # C-37c
-        self.renomeio_limpo("feature/z")
-        antigo = self.git("rev-parse", "feature/z")
-        r = self.fechar("p1", "--ref", "feature/z")
-        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn("passo 2b", r.stderr)
-        self.assertEqual((self.git("rev-parse", "feature/z"), self.head_remoto("feature/z")), (antigo, antigo))
-        self.assertEqual((self.criacoes(), self.merges()), ([], []))
-
-    def test_l37_so_um_merge_por_cadeia_a_base_que_anda_de_novo_para(self):  # T-37b
-        self.renomeio_limpo()
-        antigo = self.git("rev-parse", "melhoria/r")
-        r = self.fechar("p1", "--ref", "melhoria/r", "--trazida")
-        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertEqual(self.git("rev-parse", "melhoria/r"), antigo)
-        self.assertEqual(self.criacoes(), [])
-
-    def test_l37_a_base_que_anda_de_novo_depois_do_merge_para_na_cadeia_seguinte(self):  # T-37b: o recomeço leva --trazida
-        self.renomeio_limpo()
-        (self.estado / "depois_do_envio").write_text(
-            f'set -e\nG="$REAL_GIT_FALSO"\nd="$(mktemp -d)"\n"$G" clone -q -b develop {self.remoto} "$d/c"\ncd "$d/c"\n'
-            'printf "l1\\nl2\\nl3\\nl4\\nmais\\n" > g\n"$G" add g\n"$G" commit -q -m "feat: base anda de novo"\n"$G" push -q origin develop\n' + f'"$G" -C {self.proj} fetch -q origin\n', encoding="utf-8")
-        r = self.fechar("p1", "--ref", "melhoria/r")
-        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn("a base andou e tocou arquivo que a branch também tocou", r.stderr)  # a listagem que para, não o pedido de fetch
-        self.assertEqual(r.stdout.count("merge limpo em melhoria/r"), 1, "um merge por cadeia")
-        self.assertEqual((self.criacoes(), self.merges()), ([], []))
-
-    def test_l37_git_sem_merge_tree_ou_com_falha_para_sem_mexer_na_branch(self):  # falha fechada
-        self.renomeio_limpo()
-        antigo = self.git("rev-parse", "melhoria/r")
-        (self.estado / "merge_tree_falha").write_text("1")
-        r = self.fechar("p1", "--ref", "melhoria/r")
-        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn("não consegui calcular o merge", r.stderr)
-        self.assertEqual((self.git("rev-parse", "melhoria/r"), self.head_remoto("melhoria/r")), (antigo, antigo))
-        self.assertEqual(self.criacoes(), [])
-
-    def test_l37_envio_recusado_para_sem_abrir_pr_e_diz_onde_o_merge_ficou(self):
-        self.renomeio_limpo()
-        antigo = self.git("rev-parse", "melhoria/r")
-        gancho = self.remoto / "hooks" / "pre-receive"
-        gancho.write_text("#!/bin/sh\necho recusado de proposito >&2\nexit 1\n", encoding="utf-8")
-        gancho.chmod(0o755)
-        r = self.fechar("p1", "--ref", "melhoria/r")
-        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn("o envio do merge foi recusado", r.stderr)
-        self.assertEqual(self.head_remoto("melhoria/r"), antigo)
-        self.assertEqual((self.criacoes(), self.merges()), ([], []))
-
-    def test_l37_nunca_usa_no_verify_nem_force_no_envio(self):  # T-37c
-        texto = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("trazer_a_base() {", texto, "o integrador traz a base")
-        corpo = texto[texto.index("trazer_a_base() {"):texto.index("# conferir_base (passo 2b")]
-        self.assertIn('git push origin "$ramo:$ramo"', corpo)
-        for proibido in ("--no-verify", "--force", " -f ", "-X ", "--allow-unrelated-histories", "+refs"):
-            self.assertNotIn(proibido, corpo)
-
-    # ---- CONFLITO-SEMANTICO-ANTES-DO-PR (0.58 E4): a base mudou código sem arquivo em comum ----
-    def base_muda_codigo(self):
-        (self.proj / "bin").mkdir(exist_ok=True)
-        self.base_anda({"bin/x": "da base\n"})
-        return self.head_remoto("develop")
-
-    def test_e4_base_que_mudou_codigo_sem_arquivo_em_comum_faz_o_merge_e_recomeca(self):
-        antigo, base_sha = self.git("rev-parse", "melhoria/x"), self.base_muda_codigo()
-        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
-        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        novo = self.git("rev-parse", "melhoria/x")
-        self.assertEqual(self.git("rev-list", "--parents", "-n", "1", novo).split(), [novo, antigo, base_sha])
-        self.assertEqual([c.split()[4] for c in self.chamadas() if c.startswith("forge-check pr")], [antigo, novo])
-        self.assertEqual(len(self.merges()), 1)
-        self.assertIn(novo, self.merges()[0])
-        self.assertIn("merge limpo em melhoria/x", r.stdout)
-
-    def test_e4_base_que_mudou_so_md_e_docs_avisa_sem_merge(self):
-        antigo = self.git("rev-parse", "melhoria/x")
-        (self.proj / "docs").mkdir()
-        self.base_anda({"nota.md": "x\n", "docs/guia.txt": "y\n"})
-        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
-        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertIn("o CI do PR confere o merge", r.stdout)
-        self.assertNotIn("merge limpo", r.stdout)
-        self.assertEqual(self.git("rev-parse", "melhoria/x"), antigo)
-
-    def _so_avisa(self, ref, *extra):
-        antigo = self.git("rev-parse", ref)
-        self.base_muda_codigo()
-        r = self.fechar("p1", "--ref", ref, "--sem-limpar", *extra)
-        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertIn("a base mudou código; o CI deste PR pode ter rodado antes dela", r.stdout)
-        self.assertNotIn("merge limpo", r.stdout)
-        self.assertEqual((self.git("rev-parse", ref), self.head_remoto(ref)), (antigo, antigo))
-        self.assertEqual(len(self.merges()), 1)
-
-    def test_e4_ref_fora_de_melhoria_so_avisa_com_o_texto_novo(self):
-        self.ramo_que_edita("feature/z", "z", "z\n")
-        self._so_avisa("feature/z")
-
-    def test_e4_com_trazida_nao_traz_a_base_de_novo(self):
-        self._so_avisa("melhoria/x", "--trazida")
-
-    def test_e4_merge_da_base_com_conflito_sem_arquivo_em_comum_para(self):
+    def test_e8_conflito_de_pasta_e_arquivo_sem_arquivo_em_comum_para(self):
         (self.proj / "d").mkdir()
         self.ramo_que_edita("melhoria/d", "d/x", "da branch\n")  # a base cria o arquivo `d`: conflito de pasta e arquivo
         antigo = self.git("rev-parse", "melhoria/d")
@@ -467,6 +255,15 @@ class Teste(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("tem conflito", r.stderr)
         self.assertEqual((self.git("rev-parse", "melhoria/d"), self.head_remoto("melhoria/d")), (antigo, antigo))
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def test_e8_git_sem_merge_tree_ou_com_falha_para_no_2b(self):  # falha fechada: nunca vira "sem conflito"
+        self.renomeio_limpo()
+        (self.estado / "merge_tree_falha").write_text("1")
+        r = self.fechar("p1", "--ref", "melhoria/r")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("parou no passo 2b: não consegui calcular o merge", r.stderr)
+        self.assertNotIn("sem conflito", r.stdout)
         self.assertEqual((self.criacoes(), self.merges()), ([], []))
 
     # ---- CONFLITO-SEMANTICO-ANTES-DO-PR (0.43.2): a base anda durante os checks (passo 6a, antes do merge) ----
@@ -487,24 +284,13 @@ class Teste(unittest.TestCase):
             f'cd "{copia}" && git switch -q develop && mkdir -p "{pasta}" && echo novo > "{arquivo}" && git add -- "{arquivo}"'
             f' && git commit -q -m "feat: outro PR" && git push -q origin develop\n', encoding="utf-8")
 
-    def test_6a_base_que_mudou_codigo_nos_checks_traz_a_base_antes_do_merge(self):
+    def test_6a_base_que_mudou_codigo_nos_checks_segue_sem_trazer_a_base(self):
         antigo = self.git("rev-parse", "melhoria/x")
         self.base_anda_nos_checks("bin/y")
         r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertIn("a base mudou código durante os checks", r.stdout)
-        novo, base_sha = self.git("rev-parse", "melhoria/x"), self.head_remoto("develop")
-        self.assertEqual(self.git("rev-list", "--parents", "-n", "1", novo).split(), [novo, antigo, base_sha])
-        self.assertEqual(len(self.merges()), 1)
-        self.assertIn(novo, self.merges()[0])
-
-    def test_6a_base_que_mudou_so_texto_nos_checks_segue_para_o_merge(self):
-        antigo = self.git("rev-parse", "melhoria/x")
-        self.base_anda_nos_checks("docs/nota.txt")
-        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
-        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertIn("a base andou durante os checks só em texto", r.stdout)
-        self.assertEqual(self.git("rev-parse", "melhoria/x"), antigo)
+        self.assertIn("a develop andou durante os checks sem conflito com melhoria/x; não trago a base (E8)", r.stdout)
+        self.assertEqual((self.git("rev-parse", "melhoria/x"), self.head_remoto("melhoria/x")), (antigo, antigo))
         self.assertEqual(len(self.merges()), 1)
         self.assertIn(antigo, self.merges()[0])
 
@@ -518,21 +304,18 @@ class Teste(unittest.TestCase):
         self.base_anda_nos_checks("docs/nota.txt", local=False)
         self.assert_parou_no_6a(self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar"), "git fetch origin develop")
 
-    def test_6a_fora_de_melhoria_e_com_trazida_para_sem_mesclar(self):
-        self.ramo_que_edita("feature/z", "z", "z\n")
-        for ref, extra, texto in (("feature/z", (), "o CI deste PR rodou antes dela"),
-                                  ("melhoria/x", ("--trazida",), "já trouxe a base uma vez")):
-            with self.subTest(ref):
-                self.registro.write_text("")
-                antigo = self.git("rev-parse", ref)
-                self.base_anda_nos_checks(f"bin/{ref.replace('/', '-')}")
-                self.assert_parou_no_6a(self.fechar("p1", "--ref", ref, "--sem-limpar", *extra), texto)
-                self.assertEqual((self.git("rev-parse", ref), self.head_remoto(ref)), (antigo, antigo))
+    def test_6a_base_que_conflita_nos_checks_para_sem_mesclar(self):
+        antigo = self.git("rev-parse", "melhoria/x")
+        self.base_anda_nos_checks("b")  # a branch criou `b` com outro conteúdo
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assert_parou_no_6a(r, "o merge dela em melhoria/x tem conflito")
+        self.assertIn("  b", r.stderr.splitlines())
+        self.assertEqual((self.git("rev-parse", "melhoria/x"), self.head_remoto("melhoria/x")), (antigo, antigo))
 
-    def test_6a_falha_do_diff_da_base_para(self):
+    def test_6a_falha_do_merge_tree_para(self):  # no 2b o head já contém a base: só o 6a chama o merge-tree
         self.base_anda_nos_checks("bin/y")
-        (self.estado / "diff_quiet_falha").write_text("")
-        self.assert_parou_no_6a(self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar"), "o diff da base falhou")
+        (self.estado / "merge_tree_falha").write_text("")
+        self.assert_parou_no_6a(self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar"), "não consegui calcular o merge")
 
     # ---- LOTE-0307-A, E1: index.lock na pasta git da worktree da branch ----
     def worktree_de_x(self):
@@ -612,32 +395,8 @@ class Teste(unittest.TestCase):
         self.base_anda({"outro2.md": "y\n"})
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertIn("a base andou 2 commits sem arquivo em comum com melhoria/x", r.stdout)
+        self.assertIn("a base andou 2 commits sem conflito com melhoria/x", r.stdout)
 
-    def test_a5_merge_base_que_sai_com_erro_para_mesmo_com_saida_parcial(self):
-        self.base_anda({"outro": "x\n"})
-        (self.estado / "mb_falha").write_text("1")
-        r = self.fechar("p1", "--ref", "melhoria/x")
-        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn("sem ponto de partida comum", r.stderr)
-        self.assertEqual((self.criacoes(), self.merges()), ([], []))
-
-    def test_a5_merge_base_sem_nenhum_ponto_de_partida_para_e_nao_segue_com_lista_vazia(self):
-        self.base_anda({"outro": "x\n"})
-        (self.estado / "mb_vazio").write_text("1")
-        r = self.fechar("p1", "--ref", "melhoria/x")
-        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn("sem ponto de partida comum", r.stderr)
-        self.assertNotIn("o diff da base falhou", r.stderr)
-        self.assertEqual((self.criacoes(), self.merges()), ([], []))
-
-    def test_a5_pasta_temporaria_do_2b_que_nao_nasce_para_com_a_mensagem_propria(self):
-        self.base_anda({"outro": "x\n"})
-        (self.estado / "mktemp_falha").write_text("1")
-        r = self.fechar("p1", "--ref", "melhoria/x")
-        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn("não consegui criar a pasta temporária", r.stderr)
-        self.assertEqual((self.criacoes(), self.merges()), ([], []))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,26 @@
+{
+  "descricao": "TM-25: teste de banco de outra sessão ativo; o Stryker da lista da stack espera (um por vez).",
+  "estado": {
+    "pesado.json": {
+      "pid": "{pid_outro}",
+      "comando": "pnpm test:db",
+      "desde": "{agora-120}",
+      "tool_use_id": "toolu_1"
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "npx stryker run --incremental --mutate server/src/a.ts"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO"
+  },
+  "env": {
+    "FORGE_PESADO_ESPERA_S": "0"
+  }
+}

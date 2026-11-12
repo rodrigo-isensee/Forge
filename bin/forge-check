@@ -20,7 +20,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban [--gerar] | pr 
      forge-check entrega <pedido> --branch B --base develop|homolog|main --base-sha SHA --etapa E [--desde SHA] [--brief <brief>]...
      forge-check delta <commit> [<fim>] | --parecer <arquivo> [<fim>] [--classe]
      forge-check classe [--base REF] [--head REF] [--json]
-     forge-check fontes
+     forge-check fontes   (bin/forge_fontes.py)
      forge-check sobreposicao [--base REF] [--ref BRANCH]
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
      forge-check voltas [--pedido ID]
@@ -35,6 +35,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban [--gerar] | pr 
      forge-check provas medida [--desde AAAA-MM-DD]
      forge-check metricas [--pedido ID]... [--desde D --ate D] [--por dia|semana] [--json] [--gh] [--log-prepush LOG]... [--transcritos PASTA]...   (0.43.1 H; bin/forge_governanca.py)
      forge-check regras [--estrito] [--hoje D] [--json]   (validade das regras: Revisar em e Medida; 0.43.1 H)
+     forge-check dora [--desde D --ate D] [--fuso ±HH:MM] [--json]   (DORA e vazão, só o que voltas, esperas e metricas não dão; 0.45.7; bin/forge_dora.py)
 `classe` (P5, rigor proporcional ao risco; só leitura, sem rede, rc 0) classifica o diff `base...head`: `C` se toca caminho de controle (PROTEGIDOS e
 SENSIVEIS de tests/catraca.py, CONTROLES_DO_FORGE, MD_DE_CONTROLE, pipeline e infraestrutura, .claude/, .mcp.json ou teste de controle), `T` se é só documentação comum, só testes ou até 20
 linhas (sem binário, link, remoção, gatilho de segurança nem arquivo novo em pasta que a base não tem), `N` no resto; git que falha dá `C`.
@@ -469,10 +470,19 @@ def cmd_kanban(raiz):
     return saida
 
 
+# Comandos de rede herdam só a configuração que o ambiente injeta (proxy, credencial, insteadOf); sem ela o
+# `ls-remote` da prova de push falha atrás do proxy. GIT_DIR, GIT_WORK_TREE, GIT_CONFIG_GLOBAL e afins saem sempre.
+GIT_REDE = frozenset({"ls-remote", "fetch"})
+GIT_CONFIG_DO_AMBIENTE = re.compile(r"GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_[0-9]+|VALUE_[0-9]+)")
+
+
 def git(raiz, *args, bruto=False):
-    """Único ponto que roda git (aqui e nos hooks): sem as variáveis GIT_* herdadas e com limite de tempo
+    """Único ponto que roda git (aqui e nos hooks): sem as variáveis GIT_* herdadas (nos comandos de `GIT_REDE`, menos
+    as de `GIT_CONFIG_DO_AMBIENTE`) e com limite de tempo
     (subprocess.TimeoutExpired sobe; nos hooks vira erro interno: libera, ou bloqueia se o comando tem marcador crítico, ADR 0009, seção 7). Devolve (código, stdout); com `bruto`, o stdout sai em bytes e sem `strip`."""
-    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    rede = bool(args) and args[0] in GIT_REDE
+    env = {k: v for k, v in os.environ.items()
+           if not k.startswith("GIT_") or (rede and GIT_CONFIG_DO_AMBIENTE.fullmatch(k))}
     r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=not bruto, env=env,
                        timeout=GIT_TIMEOUT_S)
     return r.returncode, (r.stdout if bruto else r.stdout.strip())
@@ -516,10 +526,11 @@ def desatualiza(nome, livres):
 # `texto` é lista branca (C-1, T-3) do que nenhum código, agente ou skill lê como regra (`test_reval_delta` guarda, C-2).
 # Reversão (C-9): escape com causa "delta de texto" (`forge-check escape registrar`) esvazia TEXTO e SO_TEXTO_E_FORMA.
 TEXTO = ("README.md", "CHANGELOG.md", "changelog.d/", "docs/propostas/", "docs/retrospectivas/")
-FRAGMENTOS = ("changelog.d/",)  # D4: no `pr` o fragmento que não é o do pedido nunca é leve (adendo da 0.35, opção b)
+FRAGMENTOS = ("changelog.d/",)  # D4: no `pr` o fragmento que não é o do pedido nunca é leve (adendo da 0.35, opção b); apagado (a release, AV4(b)) é leve
 SO_TEXTO_E_FORMA = (".md", ".txt")
 SEM_FORMA = ("agents/", "skills/", "templates/", "stacks/", "hooks/", "bin/", "scripts/", ".githooks/", ".github/", "tests/")  # cobre os PROTEGIDOS (C-3)
 SEMPRE_CODIGO = ("docs/regras/", "docs/adr/")  # normativos: nunca `texto` nem `forma` (C-1)
+PLUGIN_JSON = ".claude-plugin/plugin.json"  # AV4(b) (0.45.6, E2.1): só o `version` dele muda sem pedir parecer novo
 CLASSES = ("texto", "forma", "codigo")  # da mais leve à mais pesada
 
 
@@ -544,6 +555,33 @@ def com_frontmatter(raiz, nome, refs):
     return False
 
 
+def manifesto_sem_versao(raiz, ref, nome):
+    """O objeto do `nome` (JSON) em `ref` sem o campo `version`, que tem de ser texto; None se o git falha, o JSON é ilegível, tem
+    chave repetida, não é objeto ou não tem `version` texto (falha fechada: o arquivo fica `codigo`)."""
+    def sem_repetida(pares):
+        if len({k for k, _ in pares}) != len(pares):
+            raise ValueError("chave repetida")
+        return dict(pares)
+    texto = git(raiz, "show", f"{ref}:{nome}")[1]  # git que falha deixa a saída vazia: JSON ilegível, None
+    try:
+        objeto = json.loads(texto, object_pairs_hook=sem_repetida)
+    except ValueError:
+        return None
+    if not isinstance(objeto, dict) or not isinstance(objeto.get("version"), str):
+        return None
+    return {k: v for k, v in objeto.items() if k != "version"}
+
+
+def so_a_versao_muda(raiz, de, ate, nome):
+    """AV4(b) (0.45.6, E2.1): True se `nome` é o PLUGIN_JSON e de `de` para `ate` só o `version` dele muda (o resto do objeto igual,
+    a ordem das chaves e o espaço não contam); qualquer outro campo, ou leitura que falha, deixa o arquivo `codigo`."""
+    if nome != PLUGIN_JSON:
+        return False
+    antes = manifesto_sem_versao(raiz, de, nome)
+    depois = manifesto_sem_versao(raiz, ate, nome)  # pelo texto JSON: no dict do Python true == 1 == 1.0
+    return antes is not None and json.dumps(antes, sort_keys=True) == json.dumps(depois, sort_keys=True)
+
+
 def classes_do_intervalo(raiz, de, ate, nomes):
     """{arquivo: texto|forma|codigo} dos `nomes` que mudam em `de`..`ate` (EST-M4). `codigo`: invariante, `_*.md`,
     SEMPRE_CODIGO, frontmatter (nos dois ramos, C-1), modo, link ou submódulo (C-5), e o que o git não leu. `forma`: `.md`/`.txt` fora de SEM_FORMA cujo diff
@@ -556,10 +594,13 @@ def classes_do_intervalo(raiz, de, ate, nomes):
     classes = {}
     for nome in nomes:
         modo = modos.get(nome, ())
-        leve = (len(modo) == 2 and not set(modo) - {"000000", "100644"} and inv_de is not None and inv_ate is not None
-                and nome not in inv_de | inv_ate and nome.endswith(SO_TEXTO_E_FORMA) and not nome.rpartition("/")[2].startswith("_")
+        seguro = (len(modo) == 2 and not set(modo) - {"000000", "100644"} and inv_de is not None and inv_ate is not None
+                  and nome not in inv_de | inv_ate)
+        leve = (seguro and nome.endswith(SO_TEXTO_E_FORMA) and not nome.rpartition("/")[2].startswith("_")
                 and not livre(nome, SEMPRE_CODIGO) and not com_frontmatter(raiz, nome, (de, ate)))
         if leve and livre(nome, TEXTO) and nome.endswith(".md"):
+            classes[nome] = "texto"
+        elif seguro and so_a_versao_muda(raiz, de, ate, nome):  # `seguro`: modo 100644 e fora dos invariantes
             classes[nome] = "texto"
         elif leve and modo == ("100644", "100644") and not livre(nome, SEM_FORMA) and git(
                 raiz, "--literal-pathspecs", "diff", "--quiet", "--ignore-space-at-eol", "--no-ext-diff", "--no-textconv",
@@ -711,6 +752,43 @@ def testes_do_qa(raiz, pedido, branch, ate, desde):
     return q, {n for n in puros - mistos if blob_de(raiz, ate, n) == blob_de(raiz, q, n)}
 
 
+def removidos_do_intervalo(raiz, de, ate):
+    """Caminhos apagados de `de` para `ate` (AV4(b), E2.1: a release apaga os fragmentos de `changelog.d/`); vazio se o git falha
+    (falha fechada: o fragmento segue estrito; o git que falha não escreve na saída)."""
+    return set(nomes_z(git(raiz, "diff", "--name-only", "-z", "--no-renames", "--diff-filter=D", de, ate, "--", bruto=True)[1]))
+
+
+class ArvoreIlegivel(Exception):
+    """E7: o `git ls-tree` falhou; falha não é ausência (o ausente dos dois lados seria "igual")."""
+
+
+def entradas_da_arvore(raiz, commit, nomes):
+    """{nome: "modo tipo sha"} dos `nomes` na árvore de `commit` (o ausente fica fora; o registro vazio do fim vira a chave "", que
+    nenhum nome tem); ArvoreIlegivel se o git falha."""
+    cod, saida = git(raiz, "--literal-pathspecs", "ls-tree", "-z", "--full-tree", commit, "--", *nomes, bruto=True)
+    if cod:
+        raise ArvoreIlegivel(commit)
+    pares = (r.partition(b"\t") for r in saida.split(b"\0"))
+    return {nome.decode("utf-8", "surrogateescape"): meta.decode() for meta, _, nome in pares}
+
+
+def vindos_da_base(raiz, base, commit, ate, nomes):
+    """E7 (0.45.6): dos `nomes`, os que vieram da base: em `ate`, modo e conteúdo iguais aos da ponta da `base`, e no `commit` do
+    parecer iguais aos do merge-base dela com o `commit` (a branch não os mudou, antes nem depois do parecer; o que ela mudou e depois
+    desfez segue desatualizando). O igual ao merge-base já sai pelo merge simulado (`arquivos_divergentes`) e pelo escopo do delta
+    (`escopo_sem_a_base`); este pega o que chegou sem merge (cherry-pick, rebase). Vazio sem base ou com git que falha (falha fechada).
+    A `base` local (`origin/<base>`) é forjável no cliente (A1 de docs/reviews/v0455.md): a garantia é a catraca do CI, com a base do servidor."""
+    ponta = sha_do_commit(raiz, base) or ""
+    if not nomes or not ponta:  # economia: nada a ler (sem ponta, o `ls-tree` de "" falharia e nada sairia)
+        return set()
+    mb_commit = git(raiz, "merge-base", ponta, commit)[1]  # o merge-base que falha sai vazio, e o `ls-tree` dele falha
+    try:
+        no_ate, na_ponta, no_commit, no_mb = (entradas_da_arvore(raiz, c, nomes) for c in (ate, ponta, commit, mb_commit))
+    except ArvoreIlegivel:
+        return set()
+    return {n for n in nomes if no_ate.get(n) == na_ponta.get(n) and no_commit.get(n) == no_mb.get(n)}
+
+
 def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES, estritos=(), dominio=None, mais=(), dispensados=()):
     """None se o parecer vale para `ate` (padrão: o HEAD); senão o motivo.
 
@@ -732,9 +810,11 @@ def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES, estritos=(),
     fora = [f for f in nomes_z(saida) if desatualiza(f, livres)]
     no = predicado_do_dominio(raiz, dominio, commit, ate, mais) if dominio else (lambda nome: True)
     alheios = {f for f in fora if not no(f) or f in dispensados}  # fora do domínio do parecer: não o desatualizam
+    alheios |= vindos_da_base(raiz, base, commit, ate, fora) if dominio else set()  # E7: o que veio da base também não
     fora = [f for f in fora if f not in alheios]
     classes = classes_do_intervalo(raiz, commit, ate, fora) if fora else {}
-    leves = {f for f, c in classes.items() if c != "codigo" and not livre(f, estritos)}  # EST-M4: só `codigo` desatualiza
+    removidos = removidos_do_intervalo(raiz, commit, ate) if classes else set()  # AV4(b): fragmento apagado (release) é leve
+    leves = {f for f, c in classes.items() if c != "codigo" and (not livre(f, estritos) or f in removidos)}  # EST-M4: só `codigo` desatualiza
     fora = [f for f in fora if f not in leves]
     if not fora:
         return None
@@ -2695,9 +2775,12 @@ def parecer_delta(raiz, arquivo, ate, base):
     if escopo:
         print(escopo)
     nomes = [n for n in nomes if not livre(n, LIVRES)]
-    dentro = [n for n in nomes if no(n) and n not in dispensados]
+    da_base = vindos_da_base(raiz, ref_da_base(raiz, base), inicio, fim, nomes)  # E7: conteúdo igual ao da base, sem mudança da branch
+    dentro = [n for n in nomes if no(n) and n not in dispensados and n not in da_base]
     for n in nomes:
-        if n in dispensados:
+        if n in da_base:
+            print(f"da base: {nome_seguro(n)} (igual ao da base {base}; a garantia é a catraca do CI)")
+        elif n in dispensados:
             print(f"dispensado: {nome_seguro(n)} (teste do QA aprovado em {q[:7]})")
         elif n not in dentro:
             print(f"fora do dominio: {nome_seguro(n)}")
@@ -3982,14 +4065,20 @@ def propagar_decisao(raiz_pedido, pedido, nova, propagar):
     return saida, rc
 
 
-def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False):
+def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False, confere=None):
     """P4: grava no pedido a decisão, a pergunta ou a ordem do dono (no fim de `## Decisões do usuário`, criada antes de `## Histórico`
     se faltar) ou a linha do Histórico, com a hora do relógio (nunca do argumento). O `literal` é a fala do dono, entre aspas; o
-    `contexto`, a paráfrase, fica fora delas. Nenhuma linha existente muda. (linhas, rc)."""
+    `contexto`, a paráfrase, fica fora delas. Nenhuma linha existente muda. (linhas, rc). 0.45.7 (`forge_dono`): a pergunta com
+    recomendação de corte leva a origem (E6); a decisão leva `--confere` (E8) e, em códigos, a marca `revertida=` e a `origem=` (E7)."""
+    dono = modulo_do_dono()
     for nome, valor in (("--literal", literal), ("--contexto", contexto)):
-        motivo = recusa_do_campo(valor, nome)
+        motivo = recusa_do_campo(valor, nome) or (dono and tipo != "historico" and dono.recusa_da_forja(valor))
         if motivo:
-            return [f"anotar: {motivo}; nada gravado"], 2
+            return [f"anotar: {motivo} ({nome}); nada gravado"], 2
+    if dono is None and tipo != "historico":
+        return ["anotar: bin/forge_dono.py ausente ao lado do forge-check; nada gravado"], 2
+    if (tipo == "decisao") != (confere is not None) or (confere is not None and not dono.CONFERE.fullmatch(f"confere={confere}")):
+        return ["anotar: --confere rapido|seguro|barato|mede|nao-passa vai com --tipo decisao, e só com ele (E8); nada gravado"], 2
     literal, contexto = literal.strip(), (contexto or "").strip()
     if not literal:
         return ["anotar: --literal não pode ser vazio"], 2
@@ -4003,6 +4092,11 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False):
         return [f"anotar: pedido {nome_seguro(sem_controle(pedido))} ausente, fora de docs/pedidos/ ou link simbólico (use o id do "
                 "pedido); nada gravado"], 2
     texto = arq.read_text(encoding="utf-8")
+    atributos, recusa = dono.leitura_da_decisao(texto, literal) if tipo == "decisao" else ({}, None)
+    if tipo == "pergunta" and (motivos := dono.recusa_de_corte(dono.opcoes_da_pergunta(literal))):
+        recusa = "; ".join(motivos) + " (E6)"
+    if recusa:
+        return [f"anotar: {recusa}; nada gravado"], 2
     linhas = texto.split("\n")
     hora = datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
     if tipo == "historico":
@@ -4014,6 +4108,9 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False):
             linhas.insert(fim, nova)
     else:
         nova = f"{FRASES_DO_ANOTAR[tipo]} ({hora}): " + (f"{contexto} → \"{literal}\"" if contexto else f"\"{literal}\"")
+        if tipo == "decisao":
+            atributos = {"confere": confere, "forge": versao_da_propria_copia() or "desconhecida", **atributos}
+            nova += MARCA_DE_ATRIBUTOS + "; ".join(f"{k}={v}" for k, v in atributos.items())
         fim = fim_da_secao(linhas, "Decisões do usuário")
         if fim is not None:
             linhas.insert(fim, nova)
@@ -4026,7 +4123,9 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False):
                 linhas[historico:historico] = bloco
     arq.write_text("\n".join(linhas), encoding="utf-8")
     saida, rc = propagar_decisao(raiz_do_pedido(raiz, arq), pedido, nova, propagar) if tipo == "decisao" else ([], 0)
-    return [f"anotado: {caminho_impresso(arq.name)}: {nova}", *saida], rc
+    if "revertida" in atributos:
+        saida.append(f"decisao: {dono.MARCA_REVERTIDA} ({atributos['revertida']}): dono contra o time")
+    return [f"anotado: {caminho_impresso(arq.name)}: {nova}", *saida, *(dono.modelo_da_pergunta(literal, texto) if confere == "nao-passa" else [])], rc
 
 
 def avisos_da_retomada(raiz, retomada, pedido_id, pedido_txt):
@@ -4661,61 +4760,7 @@ def rodadas_de_brief(raiz, pedido):
     return {"total": 0, "por_destino": {}, "fonte": "nenhuma", "extras": []}
 
 
-RANGO_DA_COLUNA = {"em andamento": 1, "conferencia": 2, "review": 3}  # colunas em que voltar é andar para trás
-
-
-def classificar_volta(de, para, motivo):
-    """Tipo da volta de uma transição do quadro, por padrão fixo de colunas e motivo; None se não é volta;
-    `nao-classificado` se anda para trás fora do vocabulário (nunca some)."""
-    d, p, m = _sem_acento(de), _sem_acento(para), _sem_acento(motivo)
-    if d == "conferencia" and p == "review":
-        return "conferencia" if "nao cumpriu" in m else "revalidacao" if "revalida" in m else None
-    if d == "review" and "reprov" in m:
-        return "review"
-    if d == "em andamento" and p == "aguardando o dono" and ("barrad" in m or "hook" in m):
-        return "barrada"
-    if d in RANGO_DA_COLUNA and p in RANGO_DA_COLUNA and RANGO_DA_COLUNA[p] < RANGO_DA_COLUNA[d]:
-        return "nao-classificado"
-    return None
-
-
-TIPOS_DE_VOLTA = ("brief", "conferencia", "review", "revalidacao", "barrada", "nao-classificado")
-
-
-def _fecha_volta(coluna, de, para):
-    """A volta que saiu de `coluna` termina quando o cartão chega a ela; no fluxo paralelo (VV-4) o cartão sai de Em
-    andamento direto para Review e nunca passa por Conferência: aí a volta termina nessa chegada a Review, ou na
-    entrada em QA ou Integração."""
-    d, p = _sem_acento(de), _sem_acento(para)
-    if p == coluna or p in ("qa", "integracao"):
-        return True
-    return coluna == "conferencia" and p == "review" and d not in ("conferencia", "review")
-
-
-def voltas_do_cartao(movimentos):
-    """De [(hora, de, para, motivo)] em ordem de hora: ([(tipo, hora, minutos|None)], minutos de construção|None).
-    Minutos da volta: da linha dela até a próxima do cartão que volta à coluna de onde ela saiu, ou que fecha o fluxo
-    paralelo (`_fecha_volta`) (None: ainda aberta);
-    saída da mesma coluna dentro de uma volta dela ainda aberta não abre outra (a janela é uma só).
-    Construção: da primeira entrada em Em andamento até a primeira saída dele para a Conferência."""
-    voltas, abertas = [], {}  # abertas: coluna de saída -> hora em que a volta que saiu dela termina (None: aberta)
-    for i, (hora, de, para, motivo) in enumerate(movimentos):
-        tipo = classificar_volta(de, para, motivo)
-        if tipo:
-            coluna = _sem_acento(de)
-            if coluna in abertas and (abertas[coluna] is None or hora < abertas[coluna]):
-                continue  # mesma saída já contada: a janela é uma só
-            volta = next((h for h, d2, p, _ in movimentos[i + 1:] if _fecha_volta(coluna, d2, p)), None)
-            abertas[coluna] = volta
-            voltas.append((tipo, hora, _minutos(hora, volta) if volta else None))
-    inicio = next((h for h, _, p, _ in movimentos if _sem_acento(p) == "em andamento"), None)
-    fim = next((h for h, d, p, _ in movimentos if inicio and h >= inicio and _sem_acento(d) == "em andamento"
-                and _sem_acento(p) == "conferencia"), None)
-    return voltas, (_minutos(inicio, fim) if inicio and fim else None)
-
-
 COLUNAS_NA_DEVELOP = ("aguardando sua validacao", "pronto")  # a entrega chegou à develop e espera o dono (ou já passou dele)
-META_PRONTO_ATE_DEVELOP = 30  # minutos (D-4)
 
 
 def relogios_do_cartao(movimentos):
@@ -4729,181 +4774,37 @@ def relogios_do_cartao(movimentos):
     return _minutos(movimentos[0][0], fim), _minutos(pronto, fim) if pronto else None
 
 
-def _uniao_de_minutos(janelas):
-    """Minutos da união de [(inicio, fim)]: janelas que se sobrepõem contam uma vez."""
-    total, fim = 0.0, None
-    for ini, f in sorted(janelas):
-        if fim is None or ini >= fim:
-            total += (f - ini).total_seconds() / 60
-        elif f > fim:
-            total += (f - fim).total_seconds() / 60
-        fim = f if fim is None or f > fim else fim
-    return round(total, 1)
-
-
 def _numero(n):
     return f"{n:g}"
 
 
-def reversoes_do_pedido(arquivo):
-    """L11 (OK-6): quantas linhas do `## Histórico` do pedido dizem `suposição revertida`; 0 se o pedido não abre. Só leitura."""
-    try:
-        texto = Path(arquivo).read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return 0
-    return sum(1 for linha in linhas_da_secao(texto, "Histórico") if "suposicao revertida" in _sem_acento(linha))
+def ctx_das_voltas():
+    """Os nomes que `voltas` e `esperas` (bin/forge_voltas.py; FILA-31 F6, 0.45.7 E5.4) dividem com o resto do forge-check."""
+    return {"_sem_acento": _sem_acento, "_ler_tabela": _ler_tabela, "_hora": _hora, "_minutos": _minutos, "_numero": _numero,
+            "ISO8601": ISO8601, "rodadas_de_brief": rodadas_de_brief, "relogios_do_cartao": relogios_do_cartao,
+            "tipo_da_espera": tipo_da_espera, "linhas_da_secao": linhas_da_secao, "cartoes_do_pedido": cartoes_do_pedido,
+            "nome_seguro": nome_seguro, "sem_controle": sem_controle}
 
 
 def cmd_voltas(raiz, pedido=None):
-    """Imprime as voltas por pedido (linhas fixas, números e tipos). Só lê docs/kanban/historico.md, conferencias.md,
-    docs/briefs e docs/pedidos."""
-    historico = raiz / "docs" / "kanban" / "historico.md"
-    if not historico.is_file():
-        print("voltas: aviso: docs/kanban/historico.md ausente", file=sys.stderr)
-    else:
-        try:
-            historico.read_text(encoding="utf-8", errors="replace")
-        except OSError as erro:
-            print(f"voltas: docs/kanban/historico.md ilegivel ({erro.strerror or erro}); nada medido", file=sys.stderr)
-            return 1
-    por_cartao, nomes = {}, {}
-    for c in _ler_tabela(historico):
-        hora = _hora(c[0]) if len(c) >= 5 and ISO8601.match(c[0]) else None
-        if hora:
-            por_cartao.setdefault(c[1].casefold(), []).append((hora, c[2], c[3], "|".join(c[4:])))
-            nomes.setdefault(c[1].casefold(), c[1])
-    pasta = raiz / "docs" / "pedidos"
-    pedidos = {p.stem.casefold(): p.stem for p in pasta.glob("*.md")} if pasta.is_dir() else {}
-    pedidos.update(nomes)
-    if pedido and pedido.casefold() not in pedidos and not rodadas_de_brief(raiz, pedido)["total"]:
-        print(f"voltas: pedido {pedido} nao existe (nem em docs/pedidos/ nem no historico)", file=sys.stderr)
-        return 1
-    escolhidos = [pedido.casefold()] if pedido else sorted(pedidos)
-    pedidos.setdefault(pedido.casefold() if pedido else "", pedido or "")
-    soma = [0, 0, 0.0]
-    for chave in escolhidos:
-        voltas, construcao = voltas_do_cartao(sorted(por_cartao.get(chave, []), key=lambda m: m[0]))
-        rodadas = rodadas_de_brief(raiz, chave)
-        linhas = [("brief", h, m, f" ref={o}") for o, _r, h, m in rodadas["extras"]] + \
-                 [(t, h.isoformat(timespec="seconds"), m, "") for t, h, m in voltas]
-        relogios = relogios_do_cartao(sorted(por_cartao.get(chave, []), key=lambda m: m[0]))  # L49 (D-4): os dois relógios
-        if not linhas and not pedido and not relogios:
-            continue  # o pedido que andou sem volta segue na lista pelo relógio
-        nome, contagem = pedidos[chave], {t: 0 for t in TIPOS_DE_VOLTA}
-        for tipo, inicio, minutos, ref in linhas:
-            contagem[tipo] += 1
-            print(f"voltas: {nome} {tipo} inicio={inicio or 'sem-hora'} minutos="
-                  f"{_numero(minutos) if minutos is not None else 'sem-hora' if inicio is None else 'aberta'}{ref}")
-        janelas = [(_hora(h.replace(" ", "T")), m, True) for _, _, h, m in rodadas["extras"] if h and m is not None]
-        janelas += [(h, m, False) for _, h, m in voltas if m is not None]
-        total = _uniao_de_minutos([(j[0] - datetime.timedelta(minutes=j[1]), j[0]) if j[2] else (j[0], j[0] + datetime.timedelta(minutes=j[1]))
-                                   for j in janelas if j[0]])
-        razao = f"{total / construcao:.2f}" if construcao else "-"
-        print(f"voltas: {nome} resumo: " + " ".join(f"{t}={n}" for t, n in contagem.items())
-              + f" minutos={_numero(total)} construcao={_numero(construcao) if construcao is not None else '-'} razao={razao}")
-        if relogios:
-            aberto, pronto = relogios
-            dentro = "-" if pronto is None else "sim" if pronto <= META_PRONTO_ATE_DEVELOP else "nao"
-            print(f"voltas: {nome} relogios: aberto_ate_develop={_numero(aberto)} pronto_ate_develop="
-                  f"{_numero(pronto) if pronto is not None else '-'} meta={META_PRONTO_ATE_DEVELOP} dentro={dentro}")
-        if reversoes := reversoes_do_pedido(pasta / f"{nome}.md"):  # L11 (OK-6): o placar da escolha provisória revertida pelo dono
-            print(f"voltas: {nome} reversoes={reversoes}")
-        soma = [soma[0] + 1, soma[1] + len(linhas), soma[2] + total]
-    print(f"voltas: total: pedidos={soma[0]} voltas={soma[1]} minutos={_numero(soma[2])}")
-    return 0
+    """`voltas` mora em bin/forge_voltas.py (FILA-31 F6, 0.45.7 E5.4)."""
+    return modulo_do_bin("forge_voltas").cmd_voltas(raiz, pedido, ctx_das_voltas())
 
 
-# ---- D12 (E3a): a medida de um tópico mesclado, gravada em docs/kanban/medidas.md; aviso, nunca trava ----
-TOPICO_PEQUENO = 300  # linhas alteradas (adições mais remoções) abaixo das quais o tópico é pequeno
-CABECALHO_DE_MEDIDAS = ("| data-hora | pedido | merge | ativo_min (historico.md) | linhas (git diff) | pequeno | tokens (entregas.md) |\n"
-                        "|---|---|---|---|---|---|---|\n")
-
-
-def tempo_ativo(movimentos, fim):
-    """Minutos do primeiro movimento [(hora, de, para, motivo)] até `fim`, menos cada trecho aberto por um movimento que põe o cartão
-    na espera do dono ou traz `espera deliberada:` no motivo (o trecho vai até o movimento seguinte); None sem movimento até `fim`."""
-    antes = [m for m in movimentos if m[0] <= fim]
-    if not antes:
-        return None
-    fins = [m[0] for m in antes[1:]] + [fim]
-    parados = sum(_minutos(m[0], ate) for m, ate in zip(antes, fins)
-                  if tipo_da_espera(m[2], m[3]) == "dono" or _sem_acento(m[3]).startswith("espera deliberada:"))
-    return round(_minutos(antes[0][0], fim) - parados, 1)
-
-
-def tokens_do_pedido(raiz, pedido):
-    """A soma da coluna tokens das linhas do pedido em docs/kanban/entregas.md, ou `lacuna:<motivo>` (nunca um zero sem fonte)."""
-    arq = raiz / "docs" / "kanban" / "entregas.md"
-    linhas, aviso = _tabela_segura(arq)
-    if aviso or not arq.is_file():
-        return "lacuna:entregas.md-ilegivel" if aviso else "lacuna:sem-entregas.md"
-    valores = [c[3] for c in linhas if len(c) >= 4 and c[1].casefold() == pedido.casefold()]
-    if not valores:
-        return "lacuna:sem-linha-do-pedido"
-    if not all(re.fullmatch(r"[0-9]+", v) for v in valores):
-        return "lacuna:tokens-nao-numericos"
-    return str(sum(int(v) for v in valores))
+# ---- D12 (E3a): a medida de um tópico mesclado, gravada em docs/kanban/medidas.md; aviso, nunca trava. `medida` e `escape` moram em
+# bin/forge_medidas.py (FILA-31 F6, 0.45.7 E5.5) ----
+def ctx_das_medidas():
+    """Os nomes que `medida` e `escape` (bin/forge_medidas.py; FILA-31 F6, 0.45.7 E5.5) dividem com o resto do forge-check."""
+    return {"git": git, "_hora": _hora, "_minutos": _minutos, "_numero": _numero, "_sem_acento": _sem_acento, "_ler_tabela": _ler_tabela,
+            "_tabela_segura": _tabela_segura, "ISO8601": ISO8601, "HORA_DO_REGISTRO": HORA_DO_REGISTRO, "ID_DE_PEDIDO": ID_DE_PEDIDO,
+            "SEM_QUADRO": SEM_QUADRO, "caminho_impresso": caminho_impresso, "acrescentar_ao_arquivo": acrescentar_ao_arquivo,
+            "tipo_da_espera": tipo_da_espera, "recusa_do_campo": recusa_do_campo, "ACHADO_POR": ACHADO_POR, "GRAVIDADES": GRAVIDADES,
+            "CONTROLES_QUE_FALTARAM": CONTROLES_QUE_FALTARAM, "ORIGENS": ORIGENS, "SEM_ORIGEM": SEM_ORIGEM}
 
 
 def cmd_medida(raiz, pedido, merge):
-    """Grava em docs/kanban/medidas.md a linha do tópico (tempo ativo até a data de commit do merge, linhas de `<merge>^1..<merge>`,
-    tokens) e imprime o aviso de piora da release (E3b) ou `medida: só tabela (n=<tópicos pequenos da release atual>)`. rc 0; entrada recusada,
-    rc 2, sem gravar. O `--merge` só chega ao git como sha40 minúsculo e depois de `--end-of-options`."""
-    arq = raiz / "docs" / "kanban" / "medidas.md"
-    recusa = ("--pedido fora de [A-Za-z0-9._-]" if not ID_DE_PEDIDO.fullmatch(pedido) or not pedido.strip(".")
-              else "--merge não é um sha40 minúsculo" if not re.fullmatch(r"[0-9a-f]{40}", merge)
-              else SEM_QUADRO.format(cmd="medida", raiz=caminho_impresso(raiz)) if not (raiz / "KANBAN.md").is_file()
-              else "docs/kanban/medidas.md é link simbólico; não escrevo através dele" if arq.is_symlink() else None)
-    cod, data = git(raiz, "log", "-1", "--format=%cI", "--end-of-options", merge) if recusa is None else (1, "")
-    fim = _hora(data) if not cod and ISO8601.match(data) else None
-    if recusa or fim is None:
-        print(f"medida: {recusa or 'commit do --merge ausente no repositório'}; nada gravado", file=sys.stderr)
-        return 2
-    movimentos = sorted((h, c[2], c[3], "|".join(c[4:])) for c in _ler_tabela(raiz / "docs" / "kanban" / "historico.md")
-                        if len(c) >= 5 and c[1].casefold() == pedido.casefold() and ISO8601.match(c[0]) and (h := _hora(c[0])))
-    ativo = tempo_ativo(movimentos, fim)
-    cod, stat = git(raiz, "diff", "--shortstat", "--end-of-options", f"{merge}^1", merge)
-    linhas = None if cod else sum(int(n) for n in re.findall(r"(\d+) (?:insertion|deletion)", stat))
-    celulas = (datetime.datetime.now().astimezone().isoformat(timespec="seconds"), pedido, merge,
-               "lacuna:sem-movimento" if ativo is None else _numero(ativo), "lacuna:git-diff" if linhas is None else str(linhas),
-               "-" if linhas is None else "sim" if linhas < TOPICO_PEQUENO else "nao", tokens_do_pedido(raiz, pedido))
-    acrescentar_ao_arquivo(arq, "| " + " | ".join(celulas) + " |\n", CABECALHO_DE_MEDIDAS)
-    print("| " + " | ".join(celulas) + " |")
-    atual, anterior, tags = releases_da_medida(raiz, _ler_tabela(arq))
-    print("\n".join(piora_da_release(atual, anterior, tags)) or f"medida: só tabela (n={len(atual)})")
-    return 0
-
-
-def releases_da_medida(raiz, linhas):
-    """D12 (E3b): os tópicos pequenos de medidas.md, um por merge (vale a última medida), separados pelas tags v* (git local):
-    a release atual é o merge que nenhuma tag contém; a anterior, o que a última tag (por versão) contém e a penúltima não."""
-    tags = git(raiz, "tag", "--list", "v*", "--sort=-v:refname")[1].split()
-    atual, anterior = [], []
-    for sha, c in {c[2]: c for c in linhas if len(c) >= 7 and re.fullmatch(r"[0-9a-f]{40}", c[2])}.items():
-        cod, saida = git(raiz, "tag", "--list", "v*", f"--contains={sha}")
-        dentro = set(saida.split())
-        if cod or c[5] != "sim":
-            continue
-        if not dentro:
-            atual.append(c)
-        elif tags[0] in dentro and (len(tags) < 2 or tags[1] not in dentro):
-            anterior.append(c)
-    return atual, anterior, tags
-
-
-def piora_da_release(atual, anterior, tags):
-    """D12 (E3b, item 2): um aviso por métrica cuja mediana na release atual (3 ou mais tópicos com número) sobe mais de 20% sobre
-    a da anterior e em que pelo menos 2 tópicos passam do maior valor dela; célula `lacuna:` fica fora. Nunca trava."""
-    for col, nome in ((3, "tempo ativo (min, historico.md)"), (6, "tokens novos (entregas.md)")):
-        agora, antes = ([float(c[col]) for c in grupo if re.fullmatch(r"[0-9]+(\.[0-9]+)?", c[col])] for grupo in (atual, anterior))
-        if len(agora) < 3 or not antes:
-            continue
-        m0, m1, teto = statistics.median(antes), statistics.median(agora), max(antes)
-        acima = sum(1 for v in agora if v > teto)
-        if m1 > 1.2 * m0 and acima >= 2:
-            yield (f"medida: aviso: piora no {nome}: mediana {_numero(m0)} → {_numero(m1)} (limite +20%: {_numero(1.2 * m0)}), "
-                   f"{acima} tópicos acima do maior da anterior ({_numero(teto)}); n={len(agora)} contra {len(antes)}; "
-                   f"fonte: docs/kanban/medidas.md, release atual (sem tag v*) contra {tags[0]}")
+    """`medida` mora em bin/forge_medidas.py (FILA-31 F6, 0.45.7 E5.5)."""
+    return modulo_do_bin("forge_medidas").cmd_medida(raiz, pedido, merge, ctx_das_medidas())
 
 
 MINIMO_DO_P85 = 20  # pedidos na janela; abaixo disso, sem percentil (agile-coach.md:14)
@@ -4951,8 +4852,7 @@ def cmd_retro(raiz, pedido, dias=30):
     return 0
 
 
-# ---- M14b: esperas (quanto tempo um cartão ficou parado esperando o dono ou uma credencial), lidas de historico.md ----
-TIPOS_DE_ESPERA = ("dono", "credencial", "outra")
+# ---- M14b: o tipo de espera de um movimento (o `tempo_ativo` usa; `esperas` mora em bin/forge_voltas.py, FILA-31 F6, 0.45.7 E5.4) ----
 FRASES_DE_ESPERA = (("aguardando o dono", "dono"), ("sem credencial", "credencial"))
 
 
@@ -4966,144 +4866,17 @@ def tipo_da_espera(para, motivo=""):
     return "outra" if destino == "bloqueado" else None
 
 
-def esperas_do_cartao(movimentos):
-    """De [(hora, de, para, motivo)] em ordem de hora: [(tipo, hora, minutos|None)]. A espera começa no movimento que a abre e termina
-    no primeiro movimento seguinte que não a continua (None: ainda aberta). Continua a espera o movimento que sai de uma espera de um
-    tipo para outra coluna do mesmo tipo (Em andamento -> Aguardando o dono, depois Aguardando o dono -> Bloqueado com o motivo
-    "Aguardando o dono: ...") e esse movimento não abre outra."""
-    def continua(m, tipo):
-        return tipo_da_espera(m[1]) == tipo and tipo_da_espera(m[2], m[3]) == tipo
-    esperas = []
-    for i, movimento in enumerate(movimentos):
-        tipo = tipo_da_espera(movimento[2], movimento[3])
-        if tipo is None or tipo_da_espera(movimento[1]) == tipo:
-            continue
-        j = i + 1
-        while j < len(movimentos) and continua(movimentos[j], tipo):
-            j += 1
-        fim = movimentos[j][0] if j < len(movimentos) else None
-        esperas.append((tipo, movimento[0], _minutos(movimento[0], fim) if fim else None))
-    return esperas
-
-
 def cmd_esperas(raiz, pedido=None, kanban=None):
-    """Imprime as esperas por cartão (`esperas: <cartão> <tipo> inicio=<ISO> minutos=<n|aberta>`) e o total por tipo. Só lê
-    docs/kanban/historico.md. Com `--pedido`, só os cartões do pedido (o casamento de `cartoes_do_pedido`, com o motivo do movimento também) e a lista deles. rc 1 se o pedido não tem cartão."""
-    por_cartao, nomes = {}, {}
-    for c in _ler_tabela(raiz / "docs" / "kanban" / "historico.md"):
-        hora = _hora(c[0]) if len(c) >= 5 and ISO8601.match(c[0]) else None
-        if hora:
-            por_cartao.setdefault(c[1].casefold(), []).append((hora, c[2], c[3], "|".join(c[4:])))
-            nomes.setdefault(c[1].casefold(), c[1])
-    if not por_cartao:
-        print("esperas: aviso: docs/kanban/historico.md ausente ou sem movimento com hora", file=sys.stderr)
-    escolhidos = sorted(nomes.values(), key=str.casefold)
-    if pedido:
-        motivos = {n: [m[3] for m in ms] for n, ms in por_cartao.items()}
-        escolhidos = cartoes_do_pedido(raiz, pedido, escolhidos, kanban, motivos)
-        if not escolhidos:
-            print(f"esperas: pedido {nome_seguro(sem_controle(pedido))} sem cartão no histórico (cartão igual, da mesma família de nome, com o pedido na coluna Pedido do KANBAN.md ou no motivo do movimento)")
-            return 1
-        print(f"esperas: pedido {nome_seguro(sem_controle(pedido))} cartoes: " + " ".join(sem_controle(n) for n in escolhidos))
-    soma = {t: [0, 0.0] for t in TIPOS_DE_ESPERA}
-    abertas = 0
-    for nome in escolhidos:
-        for tipo, inicio, minutos in esperas_do_cartao(sorted(por_cartao[nome.casefold()], key=lambda m: m[0])):
-            print(f"esperas: {sem_controle(nome)} {tipo} inicio={inicio.isoformat(timespec='seconds')} minutos={_numero(minutos) if minutos is not None else 'aberta'}")
-            soma[tipo][0] += 1
-            soma[tipo][1] += minutos or 0
-            abertas += minutos is None
-    print("esperas: total: " + " ".join(f"{t}={soma[t][0]} minutos_{t}={_numero(soma[t][1])}" for t in TIPOS_DE_ESPERA)
-          + f" abertas={abertas} cartoes={len(escolhidos)}")
-    return 0
+    """`esperas` mora em bin/forge_voltas.py (FILA-31 F6, 0.45.7 E5.4)."""
+    return modulo_do_bin("forge_voltas").cmd_esperas(raiz, pedido, kanban, ctx_das_voltas())
 
 
-# ---- M14b: PR `fix` que corrige PR já mesclado, lido do histórico do git (só leitura, sem rede) ----
-PR_NO_ASSUNTO = re.compile(r"\(#(\d+)\)\s*$|^Merge pull request #(\d+)\b")
-TIPO_FIX = re.compile(r"^fix(\([^)]*\))?!?:")
-PR_CITADO = re.compile(r"(?<![0-9A-Za-z&])#(\d{1,6})(?!\d)")
+# ---- M14b: `corrigidos` e `afrouxamentos` moram em bin/forge_corrigidos.py (FILA-31 F6, 0.45.7 E5.3); aqui fica a janela
+# padrão do `--dias` do parser ----
 DIAS_DO_CORRIGIDO = 7
-REFS_PADRAO = ("origin/develop", "develop", "HEAD")
-
-
-def resolver_ref(raiz, ref):
-    """(sha40, nome) da `ref` pedida ou, sem ela, da primeira de `REFS_PADRAO` que existe; (None, nome) se não existe."""
-    for nome in ([ref] if ref else REFS_PADRAO):
-        sha = sha_do_commit(raiz, nome)
-        if sha:
-            return sha, nome
-    return None, ref or REFS_PADRAO[0]
-
-
-def commits_da_ref(raiz, sha):
-    """Os commits da linha principal (`--first-parent`; o merge comum conta pelo diff contra o primeiro pai) até `sha`, do mais antigo
-    ao mais novo: dicts com `sha`, `hora` (epoch), `titulo` (o assunto; no merge comum, a 1.ª linha do corpo), `texto` (assunto e corpo),
-    `arquivos` e `pr` (número do PR, ou None se o commit não é de PR); None se o git falha."""
-    cod, bruto = git(raiz, "log", "--first-parent", "-m", "--reverse", "--name-only", "-z", "--format=%x1e%H%x1f%ct%x1f%s%x1f%b%x1f",
-                     "--end-of-options", sha, bruto=True)
-    if cod:
-        return None
-    commits = []
-    for pedaco in bruto.decode("utf-8", "replace").split("\x1e")[1:]:
-        campos = pedaco.split("\x1f", 4)
-        if len(campos) < 5 or not campos[1].isdigit():
-            continue
-        assunto, corpo = campos[2], campos[3]
-        achou = PR_NO_ASSUNTO.search(assunto)
-        titulo = assunto
-        if assunto.startswith("Merge pull request"):
-            titulo = next((l.strip() for l in corpo.splitlines() if l.strip()), assunto)
-        commits.append({"sha": campos[0], "hora": int(campos[1]), "titulo": titulo, "texto": f"{assunto}\n{corpo}",
-                        "arquivos": [a for a in campos[4].lstrip("\0\n").split("\0") if a],
-                        "pr": int(achou.group(1) or achou.group(2)) if achou else None})
-    return commits
-
-
-def corrigidos_da_linha(commits, dias=DIAS_DO_CORRIGIDO):
-    """[(commit, evidência, citados, tocados)] dos PRs `fix` da linha: `cita` se o texto do PR cita (#N) um PR mesclado antes dele (prova
-    escrita); `arquivo` se não cita, mas mexe num arquivo que outro PR mesclou até `dias` antes (indício: pode ser outro assunto no mesmo
-    arquivo); `nenhuma` nos demais. A ordem é a do histórico."""
-    vistos, ultimo, saida = set(), {}, []
-    for c in commits:
-        if c["pr"] is not None and TIPO_FIX.match(c["titulo"]):
-            citados = sorted(({int(n) for n in PR_CITADO.findall(c["texto"])} & vistos) - {c["pr"]})
-            antes = (ultimo.get(a, (None, 0)) for a in c["arquivos"])
-            tocados = sorted({pr for pr, h in antes if pr is not None and pr != c["pr"] and c["hora"] - h <= dias * 86400})
-            saida.append((c, "cita" if citados else "arquivo" if tocados else "nenhuma", citados, tocados))
-        if c["pr"] is not None:
-            vistos.add(c["pr"])
-        for a in c["arquivos"]:
-            ultimo[a] = (c["pr"], c["hora"])
-    return saida
-
-
-def cmd_corrigidos(raiz, ref=None, dias=DIAS_DO_CORRIGIDO):
-    """Lista os PRs `fix` que corrigem PR já mesclado (`corrigidos: #N sha evidencia=... cita=... toca=... titulo`) e o resumo; só leitura.
-    rc 1 se a ref não existe ou o git falha."""
-    sha, nome = resolver_ref(raiz, ref)
-    commits = commits_da_ref(raiz, sha) if sha else None
-    if commits is None:
-        print(f"corrigidos: ref {nome_seguro(sem_controle(nome))} não existe ou o git falhou")
-        return 1
-    contagem = {"cita": 0, "indicio": 0, "nenhuma": 0}
-    fixes = corrigidos_da_linha(commits, dias)
-    for c, evidencia, citados, tocados in fixes:
-        contagem["indicio" if evidencia == "arquivo" else evidencia] += 1
-        if evidencia != "nenhuma":
-            print(f"corrigidos: #{c['pr']} {c['sha'][:7]} evidencia={evidencia} cita={_lista_de_prs(citados)} toca={_lista_de_prs(tocados)} "
-                  f"{sem_controle(c['titulo'])[:100]}")
-    print(f"corrigidos: total: prs={sum(1 for c in commits if c['pr'] is not None)} fix={len(fixes)} cita={contagem['cita']} "
-          f"arquivo={contagem['indicio']} nenhuma={contagem['nenhuma']} dias={dias} ref={sha[:7]}")
-    return 0
-
-
-def _lista_de_prs(numeros):
-    return ",".join(f"#{n}" for n in numeros) or "-"
 
 
 # ---- M14b: defeito escapado (bug achado depois do parecer final), registrado em docs/kanban/escapes.md ----
-CABECALHO_ESCAPES = ("| data-hora | pedido | parecer-final | achado-por | gravidade | controle-que-faltou | nota | origem |\n"
-                     "|---|---|---|---|---|---|---|---|\n")
 ACHADO_POR = ("uso", "teste", "review", "outro-pedido", "ci")
 GRAVIDADES = ("critico", "alto", "medio", "baixo")
 CONTROLES_QUE_FALTARAM = ("review", "seguranca", "qa", "conferencia", "ci", "nenhum")
@@ -5112,79 +4885,18 @@ SEM_ORIGEM = "nao-classificado"
 JANELA_DE_ESCAPES = 30  # dias
 
 
-def origem_do_escape(celulas):
-    """A origem de uma linha de `escapes.md`: a 8.ª coluna; a linha antiga (7 colunas) ou com valor fora de ORIGENS é `nao-classificado`."""
-    return celulas[7] if len(celulas) >= 8 and celulas[7] in ORIGENS else SEM_ORIGEM
-
-
 def cmd_escape_registrar(raiz, pedido, parecer_final, achado_por, gravidade, controle, nota, origem=SEM_ORIGEM):
-    """Registra um defeito escapado em docs/kanban/escapes.md: uma linha de formato fixo com a hora real `AAAA-MM-DD HH:MM`. Só acrescenta;
-    cria o arquivo com o cabeçalho se faltar. `parecer_final` é o parecer (caminho em docs/reviews, qa... ou commit) depois do qual o bug
-    apareceu; `controle` é o que deveria tê-lo achado (`nenhum` se nenhum controle existente alcançava); `origem` é a fase onde o defeito
-    nasceu (`ORIGENS`, padrão `nao-classificado`; a coluna vai depois da `nota`, para a linha antiga seguir válida). Recusa sem gravar; a recusa cita o
-    campo, nunca o valor."""
-    campos = (("--pedido", pedido), ("--parecer-final", parecer_final), ("--nota", nota))
-    for nome, valor in campos:
-        if "|" in valor or re.search(r"[\x00-\x1f\x7f]", valor) or len(valor.splitlines()) > 1:
-            return [f"escape: {nome} não pode ter `|` nem quebra de linha"]
-        motivo = recusa_do_campo(valor, nome)
-        if motivo:
-            return [f"escape: {motivo}"]
-    pedido, parecer_final, nota = pedido.strip(), parecer_final.strip(), nota.strip()
-    if not ID_DE_PEDIDO.fullmatch(pedido) or not parecer_final or not nota:
-        return ["escape: --pedido (letras, números, `.`, `_` e `-`), --parecer-final e --nota não podem ser vazios"]
-    for nome, valor, validos in (("--achado-por", achado_por, ACHADO_POR), ("--gravidade", gravidade, GRAVIDADES),
-                                 ("--controle-que-faltou", controle, CONTROLES_QUE_FALTARAM), ("--origem", origem, ORIGENS)):
-        if valor not in validos:
-            return [f"escape: {nome} deve ser um de {', '.join(validos)}"]
-    if not (raiz / "KANBAN.md").is_file():
-        return [SEM_QUADRO.format(cmd="escape", raiz=caminho_impresso(raiz))]
-    arq = raiz / "docs" / "kanban" / "escapes.md"
-    if arq.is_symlink():
-        return ["escape: docs/kanban/escapes.md é link simbólico; não escrevo através dele"]
-    arq.parent.mkdir(parents=True, exist_ok=True)
-    existe = arq.is_file() and arq.stat().st_size > 0
-    falta_quebra = False
-    if existe:
-        with arq.open("rb") as f:
-            f.seek(-1, 2)
-            falta_quebra = f.read(1) != b"\n"
-    hora = datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
-    linha = f"| {hora} | {pedido} | {parecer_final} | {achado_por} | {gravidade} | {controle} | {nota} | {origem} |\n"
-    with arq.open("a", encoding="utf-8") as f:
-        if not existe:
-            f.write(CABECALHO_ESCAPES)
-        elif falta_quebra:
-            f.write("\n")
-        f.write(linha)
-    return [linha.rstrip("\n")]
+    """`escape registrar` mora em bin/forge_medidas.py (FILA-31 F6, 0.45.7 E5.5); os valores aceitos ficam aqui, que o parser os usa."""
+    return modulo_do_bin("forge_medidas").cmd_escape_registrar(raiz, pedido, parecer_final, achado_por, gravidade, controle, nota, origem,
+                                                               ctx_das_medidas())
 
 
 def cmd_escape_resumo(raiz, dias=JANELA_DE_ESCAPES, agora=None):
-    """Conta os escapes dos últimos `dias` por gravidade e por controle que faltou, e a taxa sobre os pedidos que chegaram a "Pronto" na
-    mesma janela (`docs/kanban/historico.md`). Só leitura; sem escapes registrados a taxa é 0, e sem pedido pronto, `-`."""
-    agora = agora or datetime.datetime.now().astimezone()
-    inicio = agora - datetime.timedelta(days=dias)
-    escapes = []
-    for c in _ler_tabela(raiz / "docs" / "kanban" / "escapes.md"):
-        if len(c) >= 7 and HORA_DO_REGISTRO.fullmatch(c[0]):
-            hora = _hora(c[0].replace(" ", "T"))
-            if hora and hora >= inicio:
-                escapes.append(c)
-    prontos = {c[1].casefold() for c in _ler_tabela(raiz / "docs" / "kanban" / "historico.md")
-               if len(c) >= 5 and ISO8601.match(c[0]) and _sem_acento(c[3]) == "pronto" and (_hora(c[0]) or agora) >= inicio}
-    print("escapes: gravidade: " + " ".join(f"{g}={sum(1 for e in escapes if e[4] == g)}" for g in GRAVIDADES))
-    print("escapes: controle: " + " ".join(f"{k}={sum(1 for e in escapes if e[5] == k)}" for k in CONTROLES_QUE_FALTARAM))
-    print("escapes: origem: " + " ".join(f"{o}={sum(1 for e in escapes if origem_do_escape(e) == o)}" for o in ORIGENS))
-    taxa = f"{len(escapes) / len(prontos):.2f}" if prontos else "-"
-    print(f"escapes: total: escapes={len(escapes)} pedidos_prontos={len(prontos)} taxa={taxa} dias={dias}")
-    return 0
+    """`escape resumo` mora em bin/forge_medidas.py (FILA-31 F6, 0.45.7 E5.5)."""
+    return modulo_do_bin("forge_medidas").cmd_escape_resumo(raiz, dias, agora, ctx_das_medidas())
 
 
-# ---- M14b: dos PRs com o rótulo `afrouxa-regra`, quantos afrouxavam regra de verdade (a catraca sobre o diff de cada PR) ----
-TETO_DOS_ROTULADOS = 1024 * 1024
-
-
+# ---- M14b: a catraca carregada da cópia em uso (o `classe` e o `afrouxamentos`, em bin/forge_corrigidos.py, a usam) ----
 def carregar_catraca():
     """O módulo `tests/catraca.py` da cópia em uso do Forge (a mesma decisão do CI sobre o que o rótulo libera); None se não carrega."""
     import importlib.util
@@ -5245,70 +4957,6 @@ def cmd_provas_gerar(raiz, brief):
            "nome_seguro": nome_seguro, "sem_controle": sem_controle, "argv_do_comando": argv_do_comando,
            "espera_da_pq": espera_da_pq}
     return modulo_do_bin("forge_provas").cmd_provas_gerar(raiz, brief, ctx)
-
-
-def numeros_dos_rotulados(prs, arquivo):
-    """Números de PR de `--prs 1,2,3` e/ou de um JSON de `gh pr list --label afrouxa-regra --state all --json number` (lista de objetos com
-    `number`); levanta ValueError com o campo (nunca o valor) se algo não é número ou o arquivo não lê."""
-    numeros = []
-    if prs:
-        pedacos = [x.strip().lstrip("#") for x in prs.split(",")]
-        if not all(re.fullmatch(r"\d{1,6}", x) for x in pedacos):
-            raise ValueError("--prs deve ser uma lista de números de PR separados por vírgula")
-        numeros += [int(x) for x in pedacos]
-    if arquivo:
-        try:
-            with open(arquivo, "rb") as f:
-                dados = f.read(TETO_DOS_ROTULADOS + 1)
-            if len(dados) > TETO_DOS_ROTULADOS:
-                raise ValueError(f"--rotulados passa de {TETO_DOS_ROTULADOS} bytes")
-            itens = json.loads(dados.decode("utf-8"))
-            numeros += [i["number"] for i in itens]
-        except (OSError, UnicodeDecodeError, KeyError, TypeError):
-            raise ValueError("--rotulados deve ser um arquivo JSON legível com uma lista de objetos com `number`") from None
-        except json.JSONDecodeError:
-            raise ValueError("--rotulados não é JSON") from None
-        if not all(isinstance(n, int) and not isinstance(n, bool) and n > 0 for n in numeros):
-            raise ValueError("--rotulados: `number` deve ser inteiro positivo")
-    if not numeros:
-        raise ValueError("informe --prs ou --rotulados")
-    return list(dict.fromkeys(numeros))
-
-
-def cmd_afrouxamentos(raiz, ref, prs, arquivo):
-    """Classifica cada PR rotulado, pela catraca sobre o diff do commit dele contra o primeiro pai: `real` (alguma violação de conteúdo: regra
-    piorada, invariante removido, limite subido...), `so-protegido` (só "mudança em <arquivo protegido>": o rótulo era exigido para editar um
-    controle, sem afrouxá-lo), `sem-violacao` (o rótulo não era exigido), `sem-commit` (o PR não está na linha da ref) ou `erro-git`. Só leitura."""
-    try:
-        numeros = numeros_dos_rotulados(prs, arquivo)
-    except ValueError as erro:
-        print(f"afrouxamentos: {erro}")
-        return 2
-    sha, nome = resolver_ref(raiz, ref)
-    commits = commits_da_ref(raiz, sha) if sha else None
-    catraca = carregar_catraca()
-    if commits is None or catraca is None:
-        print(f"afrouxamentos: {'ref ' + nome_seguro(sem_controle(nome)) + ' não existe ou o git falhou' if commits is None else 'não carreguei tests/catraca.py'}")
-        return 1
-    por_pr = {c["pr"]: c for c in commits if c["pr"] is not None}
-    contagem = {"afrouxa": 0, "so-protegido": 0, "sem-violacao": 0, "sem-commit": 0, "erro-git": 0}
-    for n in numeros:
-        c = por_pr.get(n)
-        if c is None or git(raiz, "rev-parse", "--verify", "--quiet", f"{c['sha']}^")[0]:
-            veredito, regras = "sem-commit", []
-        else:
-            violacoes = catraca.violacoes_das_regras(Path(raiz), f"{c['sha']}^", c["sha"])
-            de_conteudo = [v for v in violacoes if catraca.arquivo_da_violacao(v) is None]
-            if any(catraca.NAO_LIBERAVEL in v for v in violacoes):
-                veredito = "erro-git"
-            else:
-                veredito = "real" if de_conteudo else "so-protegido" if violacoes else "sem-violacao"
-            regras = sorted({v.split(":", 1)[0] for v in de_conteudo if re.fullmatch(r"R-[A-Z]+", v.split(":", 1)[0])})
-        contagem["afrouxa" if veredito == "real" else veredito] += 1
-        print(f"afrouxamentos: #{n} {veredito}" + (f" regras={','.join(regras)}" if regras else ""))
-    print(f"afrouxamentos: total: rotulados={len(numeros)} real={contagem['afrouxa']} so-protegido={contagem['so-protegido']} "
-          f"sem-violacao={contagem['sem-violacao']} sem-commit={contagem['sem-commit']} erro-git={contagem['erro-git']} ref={sha[:7]}")
-    return 0
 
 
 def carregar_politica():
@@ -6184,82 +5832,6 @@ def cmd_transcricao_custo(alvo, entregas=False, entrega="<entrega>", raiz=None, 
     return 0
 
 
-# ---- transcricao lastro / decisoes: a linha de base da proteção contra alucinação (M1 e M3), sem IA e sem rede ----
-RE_SHA = re.compile(r"(?<![0-9A-Za-z])(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}(?![0-9A-Za-z])")
-RE_PR = re.compile(r"(?<![0-9A-Za-z&])#(\d{1,6})(?!\d)")
-RE_PUSH = re.compile(r"\bpush\b[^.\n]{0,25}\b(?:aceito|entrou|enviado|feito|realizado|passou)\b|\benviei\b[^.\n]{0,25}\b(?:branch|origin)\b", re.I)
-RE_MESCLADO = re.compile(r"\bmescl(?:ado|ada|ei|ou)\b|\bmerged\b", re.I)
-RE_TESTES = re.compile(r"\b(\d{1,6})\s+(?:testes?|tests?)\b[^.\n]{0,20}\b(?:ok|passa\w*|verdes?|passed)\b|\bok\s*\((\d{1,6})\s+tests?\)|\b(\d{1,6})\s+OK\b", re.I)
-RE_NEGACAO = re.compile(r"\b(?:n[ãa]o|sem|nunca)\b", re.I)
-# L12 (OK-5): afirmação absoluta sobre testes ou falhas; só medida, o lastro é uma saída de teste que terminou OK.
-RE_ABSOLUTA = re.compile(r"\btodos os testes (?:passa\w*|est[ãa]o verdes|ficaram verdes)\b|\btudo verde\b|\b100\s?%\s+dos testes\b|"
-                         r"\bnenhum(?:a)? (?:falha|erro|regress[ãa]o|teste (?:falha|falhou|quebr\w+))\b", re.I)
-# Saída de `git push`; a de `git fetch` tem o mesmo formato, mas o destino é `origin/...`.
-RE_SAIDA_PUSH = re.compile(r"\.\.\S+\s+\S+\s+->\s+(?!origin/)\S+|\[new (?:branch|tag)\]")
-
-
-def sem_negacao(texto, achado):
-    """Falso se a ocorrência vem negada ("não mesclei", "o push não passou") na mesma frase."""
-    inicio = max(texto.rfind(".", 0, achado.start()), texto.rfind("\n", 0, achado.start()), achado.start() - 30)
-    return RE_NEGACAO.search(texto[inicio + 1:achado.end()]) is None
-
-
-def afirmacoes_do_relatorio(texto):
-    """Afirmações verificáveis do texto: conjunto de (tipo, valor); `valor` é o que deve aparecer nas saídas.
-    Em "mesclado", `valor` são os PRs citados no relatório (separados por vírgula; vazio se nenhum)."""
-    achadas = {("sha", m.group(0)) for m in RE_SHA.finditer(texto)}
-    prs = sorted({m.group(1) for m in RE_PR.finditer(texto)}, key=int)
-    achadas |= {("pr", n) for n in prs}
-    if any(sem_negacao(texto, m) for m in RE_PUSH.finditer(texto)):
-        achadas.add(("push", ""))
-    if any(sem_negacao(texto, m) for m in RE_MESCLADO.finditer(texto)):
-        achadas.add(("mesclado", ",".join(prs)))
-    achadas |= {("testes", m.group(1) or m.group(2) or m.group(3)) for m in RE_TESTES.finditer(texto)}
-    if any(sem_negacao(texto, m) for m in RE_ABSOLUTA.finditer(texto)):
-        achadas.add(("absoluta", ""))
-    return achadas
-
-
-def merge_provado(numero, saidas):
-    """Prova positiva de merge: objeto JSON do PR com state MERGED ou mergedAt não nulo, ou a saída de `gh pr merge`.
-    `numero` vazio vale para qualquer PR. `"mergedAt": null` e "Merge pull request" de `git log` não provam."""
-    n = re.escape(numero) if numero else r"\d+"
-    for obj in re.finditer(r"\{[^{}]*\}", saidas):
-        o = obj.group(0)
-        if re.search(rf'"number": ?{n}(?!\d)', o) and re.search(r'"state": ?"MERGED"|"mergedAt": ?"\d', o):
-            return True
-    return re.search(rf"\bmerged pull request #{n}(?!\d)", saidas, re.I) is not None
-
-
-def testes_ok(numero, saidas):
-    """`Ran N tests` seguido de `OK` (sem FAILED), `OK (N tests)` ou `N passed` sem `failed` na linha."""
-    if re.search(rf"\bRan {numero} tests?\b[^\n]*\n\s*OK\b|\bOK \({numero} tests?\)", saidas):
-        return True
-    return any(re.search(rf"\b{numero} (?:passed|tests? passed)\b", l) and not re.search(r"fail", l, re.I)
-               for l in saidas.splitlines())
-
-
-def tem_lastro(afirmacao, saidas):
-    tipo, valor = afirmacao
-    if tipo == "sha":
-        return valor in saidas
-    if tipo == "pr":
-        return re.search(rf"#{valor}(?!\d)|pull/{valor}(?!\d)|\"number\": ?{valor}(?!\d)", saidas) is not None
-    if tipo == "push":
-        return RE_SAIDA_PUSH.search(saidas) is not None
-    if tipo == "mesclado":
-        return any(merge_provado(n, saidas) for n in (valor.split(",") if valor else [""]))
-    if tipo == "absoluta":
-        return testes_ok(r"\d+", saidas)
-    return testes_ok(valor, saidas)
-
-
-def textos_do_conteudo(conteudo):
-    if isinstance(conteudo, str):
-        return [conteudo]
-    return [b["text"] for b in conteudo if isinstance(b, dict) and isinstance(b.get("text"), str)] if isinstance(conteudo, list) else []
-
-
 def objetos_jsonl(arquivos, rotulo):
     """Objetos de cada `.jsonl`, linha a linha; ilegível ou malformado é pulado (aviso só com números, em stderr)."""
     ignoradas = 0
@@ -6279,76 +5851,6 @@ def objetos_jsonl(arquivos, rotulo):
             print(f"{rotulo}: aviso: arquivo ilegivel ({erro.strerror or type(erro).__name__}); pulado", file=sys.stderr)
     if ignoradas:
         print(f"{rotulo}: aviso: {ignoradas} linhas ignoradas (malformadas)", file=sys.stderr)
-
-
-def ler_relatorios(arquivos):
-    """Por subagente (sessão + agentId): o relatório final e o texto de todas as saídas de ferramenta sem erro.
-    Devolve {sessão: [(relatório, saídas)]}; nenhum texto sai daqui para a impressão."""
-    agentes, ordem = {}, {}
-    for o in objetos_jsonl(arquivos, "lastro"):
-        agente = o.get("agentId")
-        msg = o.get("message") if isinstance(o.get("message"), dict) else {}
-        if not o.get("isSidechain") or not isinstance(agente, str):
-            continue
-        sessao = o.get("sessionId") if isinstance(o.get("sessionId"), str) else ""
-        ordem.setdefault(sessao, f"s{len(ordem) + 1}")
-        reg = agentes.setdefault((sessao, agente), {"saidas": [], "texto": "", "id": None, "entregue": ""})
-        blocos = msg.get("content") if isinstance(msg.get("content"), list) else []
-        if o.get("type") == "assistant":
-            textos = [t for b in blocos if isinstance(b, dict) and b.get("type") == "text" for t in textos_do_conteudo([b])]
-            if textos:
-                reg["texto"] = (reg["texto"] + "\n" if reg["id"] == msg.get("id") else "") + "\n".join(textos)
-                reg["id"] = msg.get("id")
-            for b in blocos:
-                if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") == "SubagentHandback" \
-                        and isinstance(b.get("input"), dict) and isinstance(b["input"].get("message"), str):
-                    reg["entregue"] = b["input"]["message"]
-        elif o.get("type") == "user":
-            for b in blocos:
-                if isinstance(b, dict) and b.get("type") == "tool_result" and not b.get("is_error"):
-                    reg["saidas"] += textos_do_conteudo(b.get("content"))
-    saida = {}
-    for (sessao, _), reg in agentes.items():
-        relatorio = reg["entregue"] or reg["texto"]
-        if relatorio:
-            saida.setdefault(ordem[sessao], []).append((relatorio, "\n".join(reg["saidas"])))
-    return saida
-
-
-def medir_lastro(relatorios):
-    """{sessão: (relatórios, afirmações, sem lastro)}."""
-    medida = {}
-    for sessao, itens in relatorios.items():
-        total = sem = 0
-        for relatorio, saidas in itens:
-            for afirmacao in afirmacoes_do_relatorio(relatorio):
-                total += 1
-                sem += 0 if tem_lastro(afirmacao, saidas) else 1
-        medida[sessao] = (len(itens), total, sem)
-    return medida
-
-
-RE_VEREDITO = re.compile(r"^\s*veredito:\s*(n[ãa]o cumpriu|cumpriu)\s*$", re.I | re.M)
-# As linhas que reprovam no conferente.md: PQ não cumpriu, pendente:, escopo: que não seja ok, confira nem as que o entrega imprime sem reprovar
-# (integração da base, sem commit, união de N briefs), forma: que não seja ok.
-RE_LINHA_REPROVADA = re.compile(r"^\s*(?:PQ-\d+\s+n[ãa]o cumpriu\b|pendente:|escopo:\s*(?!ok\b|confira\b|integração da base|sem commit|união de \d+ briefs)\S|forma:\s*(?!ok\b)\S)", re.I | re.M)
-
-
-def medir_vereditos(relatorios):
-    """L13 (P7): {sessão: (relatórios com `veredito:`, os que contradizem as próprias linhas)}. `cumpriu` com linha `PQ-n não cumpriu`,
-    `pendente:`, `forma:` ou `escopo:` que reprova (não `ok`, `confira`, integração da base, sem commit nem união de N briefs), ou `não cumpriu` sem nenhuma delas, é contradição. Só mede; nada do texto sai daqui."""
-    medida = {}
-    for sessao, itens in relatorios.items():
-        total = contraditorios = 0
-        for relatorio, _ in itens:
-            vereditos = RE_VEREDITO.findall(relatorio)
-            if not vereditos:
-                continue
-            total += 1
-            cumpriu = not vereditos[-1].lower().startswith("n")
-            contraditorios += 1 if cumpriu == (RE_LINHA_REPROVADA.search(relatorio) is not None) else 0
-        medida[sessao] = (total, contraditorios)
-    return medida
 
 
 RECUSAS_DE_LINHA = (("nao_modela", re.compile(r"não modela", re.I)), ("fora_da_gramatica", re.compile(r"fora da gramática", re.I)))
@@ -6471,209 +5973,19 @@ def cmd_transcricao_trava(alvo, raiz=None):
     return 0
 
 
-HOOKS_DE_AVISO, EVENTOS_DE_AVISO = ("doutor", "vigia"), ("Stop", "SubagentStop")
-
-
-def hook_do_aviso(texto):
-    """L2: o hook pelo prefixo exato que ele imprime (`linha` de hooks/doutor.py; o fim da linha de hooks/vigia.py); None se é de outro."""
-    if texto.startswith("Forge doutor:"):
-        return "doutor"
-    if texto.startswith("Forge: ") and texto.endswith("(.forge/run/violacoes.jsonl)"):
-        return "vigia"
-    return None
-
-
-JANELA_DE_ACAO = 3
-
-
-def acao_do_bloco(b):
-    """L2 (E4b): o bloco do assistente age sobre o aviso: lê `.forge/run/violacoes.jsonl`, roda `forge doutor` ou `bin/forge-doutor`, ou cita o vigia ou o doutor."""
-    if b.get("type") == "text":
-        return any(nome in str(b.get("text")).lower() for nome in ("vigia", "doutor"))
-    entrada = json.dumps(b.get("input"), ensure_ascii=False)  # só o tool_use tem `input`
-    return any(alvo in entrada for alvo in (".forge/run/violacoes.jsonl", "forge doutor", "bin/forge-doutor"))
-
-
-def avisos_dos_hooks(arquivos):
-    """L2 (LAC-L2): ({(hook, evento, dia, hash): vezes}, [[id, hook, com ação]]) dos `hook_system_message` do `doutor` e do `vigia`. Evento fora de Stop e
-    SubagentStop vira `outro`; dia ilegível, `sem_data`. O texto só se casa e vira hash interno, que nunca sai daqui (T-14). O id `s<n>#<i>` é
-    determinístico (n: posição do arquivo na lista ordenada; i: ordem do aviso nele); a ação conta nas JANELA_DE_ACAO chamadas seguintes do arquivo (E4b)."""
-    vezes, lista, abertos, atual = {}, [], [], 0  # abertos: [aviso, chamadas que faltam na janela]
-    for n, o in ((n, o) for n, arq in enumerate(arquivos, 1) for o in objetos_jsonl([arq], "avisos")):
-        if n != atual:
-            abertos, i, atual = [], 0, n
-        msg = o.get("message") if isinstance(o.get("message"), dict) else {}
-        for b in msg.get("content") if o.get("type") == "assistant" and isinstance(msg.get("content"), list) else []:
-            b = b if isinstance(b, dict) else {}
-            acao = acao_do_bloco(b)
-            for aberto in abertos:
-                aberto[0][2] = aberto[0][2] or acao
-                aberto[1] -= b.get("type") == "tool_use"
-            abertos = [a for a in abertos if a[1] > 0]
-        anexo = o.get("attachment") if isinstance(o.get("attachment"), dict) else {}
-        texto = anexo.get("content")
-        if o.get("type") != "attachment" or anexo.get("type") != "hook_system_message" or not isinstance(texto, str):
-            continue
-        hook = hook_do_aviso(texto)
-        if hook is None:
-            continue
-        evento = anexo.get("hookEvent") if anexo.get("hookEvent") in EVENTOS_DE_AVISO else "outro"
-        dia = str(o.get("timestamp"))[:10]
-        dia = dia if re.fullmatch(r"\d{4}-\d{2}-\d{2}", dia) else "sem_data"
-        chave = (hook, evento, dia, hashlib.sha256(texto.encode("utf-8", "replace")).digest())
-        vezes[chave] = vezes.get(chave, 0) + 1
-        i += 1
-        lista.append([f"s{n}#{i}", hook, False])
-        abertos.append([lista[-1], JANELA_DE_ACAO])
-    return vezes, lista
-
-
-def cmd_transcricao_avisos(alvo, raiz=None, amostra=0):
-    """`transcricao avisos`: avisos do `doutor` e do `vigia` por hook, evento e dia, únicos e reincidência no mesmo dia. Só números."""
-    try:
-        arquivos, onde = transcricoes_do_alvo(alvo, raiz)
-    except OSError as erro:
-        print(f"avisos: caminho inexistente: {caminho_impresso(erro.filename or alvo)}")
-        return 1
-    if not arquivos:
-        print(f"avisos: nenhum arquivo .jsonl em {caminho_impresso(onde)}")
-        return 1
-    print(f"avisos: vai ler {len(arquivos)} arquivo(s) .jsonl em {caminho_impresso(onde)}; só disco local, sem rede; "
-          "a saída traz só números, nunca o texto do aviso", file=sys.stderr)
-    (vezes, lista), no_dia = avisos_dos_hooks(arquivos), {}
-    for (hook, _, dia, h), n in vezes.items():
-        no_dia[(hook, dia, h)] = no_dia.get((hook, dia, h), 0) + n
-    soma = [0, 0, 0]
-    for hook in HOOKS_DE_AVISO:
-        valores = [sum(n for k, n in vezes.items() if k[0] == hook), len({k[3] for k in vezes if k[0] == hook}),
-                   sum(n - 1 for k, n in no_dia.items() if k[0] == hook)]
-        print(f"avisos: hook {hook} avisos={valores[0]} unicos={valores[1]} reincidencia={valores[2]}")
-        soma = [a + b for a, b in zip(soma, valores)]
-    for i, rotulo in ((1, "evento"), (2, "dia")):
-        for valor in sorted({k[i] for k in vezes}):
-            print(f"avisos: {rotulo} {valor} " + " ".join(
-                f"{hook}={sum(n for k, n in vezes.items() if k[0] == hook and k[i] == valor)}" for hook in HOOKS_DE_AVISO))
-    print(f"avisos: total: avisos={soma[0]} unicos={soma[1]} reincidencia={soma[2]}")
-    print(f"avisos: com_acao={sum(1 for aviso in lista if aviso[2])}")
-    for id_, hook, _ in lista[:max(amostra, 0)]:
-        print(f"avisos: amostra {id_} {hook}")  # só id e o tipo do conjunto fechado, nunca o texto (T-14)
-    return 0
-
-
-RE_OPCAO = re.compile(r"^\s*(?:[-*+]\s+)?(\|\s*)?(?:\*\*\s*)?(Op[çc][ãa]o\s+)?([A-F])(\*\*)?\s*(?:([).:|,])(?:\*\*)?)?(?=\s|$)")
-RE_RECOMENDO = re.compile(r"recomendo|recomenda[çc][ãa]o:", re.I)
-RE_DECIDIDO = re.compile(r"^\s*(?:\*\*)?(?:Decidido|Escolhida):", re.I)
-
-
-def sem_codigo_nem_citacao(texto):
-    saida, em_codigo, em_provas = [], False, False
-    for linha in texto.splitlines():
-        if linha.lstrip().startswith("```"):
-            em_codigo = not em_codigo
-            continue
-        if em_codigo or linha.lstrip().startswith(">"):
-            continue
-        if re.match(r"^\s*Provas:\s*$", linha):
-            em_provas = True
-            continue
-        if em_provas and not linha.strip():
-            em_provas = False
-        if not em_provas:
-            saida.append(linha)
-    return saida
-
-
-def grupos_de_opcoes(texto):
-    """[(índice da linha onde começa, recomenda?)] dos grupos de opções A/B/C (>= 2 opções) fora de código e citação."""
-    linhas = sem_codigo_nem_citacao(texto)
-    opcoes, pergunta = [], False
-    for i, linha in enumerate(linhas):
-        tabela = linha.lstrip().startswith("|")
-        if not tabela and linha.strip():
-            pergunta = "?" in linha
-        m = RE_OPCAO.match(linha)
-        if m and (m.group(2) or m.group(4) or m.group(5)) and not (m.group(1) and not pergunta):
-            opcoes.append((i, m.group(3)))
-    grupos, atual = [], []
-    for i, letra in opcoes:
-        if letra == "A":
-            grupos.append(atual)
-            atual = []
-        if letra == "A" or atual:
-            atual.append((i, letra))
-    grupos.append(atual)
-    saida = []
-    for g in (g for g in grupos if len(g) >= 2):
-        if any(RE_DECIDIDO.match(l) for l in linhas[g[-1][0] + 1:g[-1][0] + 4]):
-            continue
-        saida.append((g[0][0], RE_RECOMENDO.search("\n".join(linhas[g[0][0]:])) is not None))
-    return saida
-
-
-def ler_respostas_do_jarvis(arquivos):
-    """{sessão: [texto da resposta final de cada turno]} da sessão principal (fora de subagentes)."""
-    ordem, respostas, ultimo = {}, {}, {}
-    for o in objetos_jsonl(arquivos, "decisoes"):
-        if o.get("isSidechain") or o.get("type") not in ("assistant", "user"):
-            continue
-        sessao = o.get("sessionId") if isinstance(o.get("sessionId"), str) else ""
-        rotulo = ordem.setdefault(sessao, f"s{len(ordem) + 1}")
-        respostas.setdefault(rotulo, [])
-        msg = o.get("message") if isinstance(o.get("message"), dict) else {}
-        blocos = msg.get("content")
-        if o["type"] == "assistant":
-            textos = [b["text"] for b in blocos if isinstance(b, dict) and b.get("type") == "text"
-                      and isinstance(b.get("text"), str)] if isinstance(blocos, list) else []
-            if textos:
-                antes = ultimo.get(rotulo)
-                junto = (antes[1] + "\n" if antes and antes[0] == msg.get("id") else "") + "\n".join(textos)
-                ultimo[rotulo] = (msg.get("id"), junto)
-        elif not (isinstance(blocos, list) and any(isinstance(b, dict) and b.get("type") == "tool_result" for b in blocos)):
-            if rotulo in ultimo:  # um pedido novo do usuário fecha o turno
-                respostas[rotulo].append(ultimo.pop(rotulo)[1])
-    for rotulo, texto in ultimo.items():
-        respostas[rotulo].append(texto[1])
-    return respostas
-
-
-def medir_decisoes(respostas):
-    """{sessão: (respostas, com grupo, com violação)}: violação = mais de um grupo ou grupo sem `Recomendo`."""
-    medida = {}
-    for sessao, textos in respostas.items():
-        com_grupo = violacoes = 0
-        for t in textos:
-            grupos = grupos_de_opcoes(t)
-            com_grupo += bool(grupos)
-            violacoes += len(grupos) > 1 or any(not recomenda for _, recomenda in grupos)
-        medida[sessao] = (len(textos), com_grupo, violacoes)
-    return medida
-
-
 def taxa(parte, total):
     return f"{100 * parte / total:.1f}%" if total else "n/a"
 
 
-def cmd_transcricao_medida(rotulo, alvo, ler, medir, campos, den, raiz=None):
-    """Anuncia (stderr), lê e imprime uma linha por sessão e o total, só com números. `campos`: nomes das colunas."""
-    try:
-        arquivos, onde = transcricoes_do_alvo(alvo, raiz)
-    except OSError as erro:
-        print(f"{rotulo}: caminho inexistente: {caminho_impresso(erro.filename or alvo)}")
-        return 1
-    if not arquivos:
-        print(f"{rotulo}: nenhum arquivo .jsonl em {caminho_impresso(onde)}")
-        return 1
-    print(f"{rotulo}: vai ler {len(arquivos)} arquivo(s) .jsonl em {caminho_impresso(onde)}; só disco local, sem rede; "
-          "a saída traz só números, nunca texto, nome ou caminho", file=sys.stderr)
-    medida = medir(ler(arquivos))
-    soma = [0] * len(campos)
-    for sessao, valores in sorted(medida.items(), key=lambda x: int(x[0][1:])):
-        print(f"{rotulo}: sessao {sessao}: " + " ".join(f"{c}={v}" for c, v in zip(campos, valores))
-              + f" taxa={taxa(valores[-1], valores[den])}")
-        soma = [a + b for a, b in zip(soma, valores)]
-    print(f"{rotulo}: total: sessoes={len(medida)} " + " ".join(f"{c}={v}" for c, v in zip(campos, soma))
-          + f" taxa={taxa(soma[-1], soma[den])}")
-    return 0
+TRANSCRICAO_DO_MODULO = ("lastro", "vereditos", "decisoes", "avisos")
+
+
+def cmd_transcricao_do_modulo(a, raiz):
+    """`transcricao lastro|vereditos|decisoes|avisos`: a lógica fica em bin/forge_transcricao.py (FILA-31 F6, 0.45.7 E5.2), com os nomes
+    que `custo`, `recusas`, `trava` e `escape resumo` também usam."""
+    ctx = {"objetos_jsonl": objetos_jsonl, "transcricoes_do_alvo": transcricoes_do_alvo, "caminho_impresso": caminho_impresso,
+           "taxa": taxa}
+    return modulo_do_bin("forge_transcricao").executar(a, raiz, ctx)
 
 
 # --- brief (C2, C4): forma e corte de um brief, só leitura e determinístico (R-BRIEF, R-PROVA, R-DECISAO) ---
@@ -7860,7 +7172,11 @@ def linhas_da_fonte(raiz, fonte):
     imprime a linha e a conferência responde se um trecho está nela; segredo nunca é fonte). O conteúdo nunca vai à saída."""
     if fonte.startswith("R-"):
         arq = PLUGIN / "docs" / "regras" / f"{fonte}.md"
-        return (arq.read_text(encoding="utf-8").splitlines(), None) if arq.is_file() else (None, "regra ausente")
+        if arq.is_file():
+            return arq.read_text(encoding="utf-8").splitlines(), None
+        limites = PLUGIN / "docs" / "regras" / "R-LIMITES.md"  # AV5: R-MAIN, R-VERIFY, R-CUSTO, R-CONTRIB e R-COPIA são trechos dele
+        partes = limites.read_text(encoding="utf-8").split(f"\n## {fonte}: ", 1) if limites.is_file() else []
+        return (partes[1].split("\n## ", 1)[0].splitlines(), None) if len(partes) == 2 else (None, "regra ausente")
     m = FONTE_DE_ARQUIVO.fullmatch(fonte)
     caminho, de = m.group(1), int(m.group(2))
     ate = int(m.group(3) or de)
@@ -8674,6 +7990,17 @@ LINHA_DE_PARALELO = "- paralelo na mesma branch: parecer, lê a branch sem escre
 LINHA_DO_PROXIMO = "regra que só ferramenta verifica vale pelo ID: siga o que a ferramenta disser, sem reler o texto dela"
 
 
+ETAPA_FEITA = re.compile(r"·\s*feito\s*$")  # AQR-2 (E15.1): a marca de feita no fim da etapa de `## Etapas`
+
+
+def linha_de_outra_etapa(etapa, papel, texto):
+    """AQR-2 (E15.1): no `Fora do escopo` do brief novo, a etapa com a marca de feita vai numa linha curta (id, papel e a marca), que
+    o `conferir_corte` aceita pelo id; a aberta vai com o texto inteiro. A volta não passa por aqui (`fora_do_escopo_do_pedido`)."""
+    if ETAPA_FEITA.search(texto):
+        return f"- {etapa} ({sem_controle(papel or '')}) · feito · etapa de outra delegação; continua no pedido"
+    return f"- \"{sem_controle(texto)}\" · etapa de outra delegação; continua no pedido"
+
+
 def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, cobre=None, citar=None):
     """Blocos fixos do brief a partir do pedido e da branch; o que o Jarvis ainda decide fica em `PREENCHER`. Com `volta`
     (o namespace dos argumentos, com `--volta`), o brief da volta: `gerar_volta`. `cobre` (P2) é a etapa do pedido que o brief
@@ -8755,8 +8082,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     if papel_destino is None:
         saida.append(f"- {PREENCHER}: rode com --destino forge:<nome> para listar as outras etapas do pedido")
     else:
-        etapas = [t for e, (papel, t) in dados["etapas"].items() if e != coberta and (coberta or papel != papel_destino)]
-        saida += [f"- \"{sem_controle(t)}\" · etapa de outra delegação; continua no pedido" for t in etapas] or ["- (o pedido não tem outra etapa)"]
+        etapas = [(e, papel, t) for e, (papel, t) in dados["etapas"].items() if e != coberta and (coberta or papel != papel_destino)]
+        saida += [linha_de_outra_etapa(*etapa) for etapa in etapas] or ["- (o pedido não tem outra etapa)"]
     saida += ["", f"## Marca de corte (só item de `## Escopo` retirado, `R-DECISAO`; copie uma linha por item)",
               f"- {MARCA_DE_CORTE}: \"{PREENCHER}: trecho literal do pedido\" · justificativa: {PREENCHER} · consequência: {PREENCHER} · decisão: {PREENCHER}"]
     saida += ["", "## Pronto quando: formato das provas (`R-PROVA`; numere PQ-1, PQ-2… e apague o que não usar)",
@@ -9103,6 +8430,14 @@ def cmd_brief_selar(raiz, a):
     lembrar_do_jarvis(raiz, tipo_do_brief(texto))
     _, linhas = avaliar_brief(raiz, arquivo, conteudo, texto, caminho_pedido, pedido_txt, destino, rel, None, a.ref, a.parecer)
     linhas = [(r, True) for r in reprovas] + list(linhas) + [(aviso, False) for aviso in avisos_de_suposicao(pedido_txt)]
+    dono = modulo_do_dono()  # E8 (0.45.7): delegar é cumprir; a decisão do dono cobrada passa antes pela conferência do Jarvis
+    if dono is None:
+        linhas.append(("decisões: bin/forge_dono.py ausente; a conferência das decisões (E8) não foi verificada", True))
+    fontes = decisoes_cobradas(raiz, caminho_pedido, pedido_txt)["fontes"] if dono else []  # a 1ª é o pedido; as outras, já lidas
+    for (rel, _), fonte in zip(fontes, [pedido_txt] + [ler_registro(raiz, rel)[0] for rel, _ in fontes[1:]]):
+        for n, motivo in dono.pendencias_da_conferencia(fonte, e_linha_de_decisao):
+            linhas.append((f"decisões: {caminho_impresso(rel)}:{n} {motivo}: confira com `anotar --tipo decisao --confere` e, se não passa, pergunte ao dono "
+                           "antes de cumprir (E8)", True))
     for linha, _ in linhas:
         print(linha)
     if any(r for _, r in linhas):
@@ -9352,61 +8687,6 @@ def migracao_pendente(raiz):
         return []
     return sorted((p.parent.name for p in (PLUGIN / "migrations").glob("*/migrar")
                    if versao(p.parent.name) and atual < versao(p.parent.name) <= plugin), key=versao)
-
-
-URL_FONTE = re.compile(r"https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~%+/-]*)?")
-
-
-def _imprimivel(texto):
-    """Tira caracteres de controle (o código vem de um registro que os agentes podem gravar)."""
-    return "".join(c for c in texto if c.isprintable())
-
-
-def cmd_fontes():
-    """Retorna (linhas, código): 0 consultou, 3 alguma fonte não respondeu (sem rede). Sem registro, ([], 0)."""
-    registro = Path.home() / ".forge-contrib/fontes/fontes.json"
-    if not registro.is_file():
-        return [], 0
-    try:
-        fontes = json.loads(registro.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return ["fontes: registro local ilegível"], 1
-    if not isinstance(fontes, dict):
-        return ["fontes: registro local ilegível"], 1
-    novas, recusadas, falhou = [], [], False
-    # Sem GIT_* herdado e sem configuração de usuário/sistema (insteadOf, credential.helper): só vale a linha abaixo.
-    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-    env.update(GIT_TERMINAL_PROMPT="0", GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
-    protocolos = [a for p in ("ext", "file", "ssh", "git", "http") for a in ("-c", f"protocol.{p}.allow=never")]
-    with tempfile.TemporaryDirectory() as vazia:  # fora de qualquer repositório: um .git gravável no cwd não entra
-        for codigo, f in sorted(fontes.items()):
-            url, revisado = (f.get("url"), f.get("commit_revisado")) if isinstance(f, dict) else (None, None)
-            if not isinstance(url, str) or not url or not isinstance(revisado, str) or not revisado:
-                continue
-            nome = _imprimivel(str(codigo))
-            if not URL_FONTE.fullmatch(url):
-                recusadas.append(nome)  # só https://; o registro é gravável pelos agentes e esta consulta roda fora do sandbox
-                continue
-            try:
-                r = subprocess.run(["git", "-c", "protocol.allow=never", *protocolos, "-c", "protocol.https.allow=always",
-                                    "ls-remote", "--", url, "HEAD"], capture_output=True, text=True, timeout=15, env=env,
-                                   cwd=vazia)
-            except (subprocess.TimeoutExpired, OSError):
-                falhou = True
-                continue
-            topo = r.stdout.split()[0] if r.returncode == 0 and r.stdout.strip() else ""
-            if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", topo):
-                falhou = True
-            elif not topo.startswith(revisado):
-                novas.append(f"{nome} tem versão nova ({_imprimivel(revisado)[:7]} -> {topo[:7]})")
-    linhas = []
-    if novas:
-        linhas.append("fontes: " + "; ".join(novas) + "; abra o estudo comparativo")
-    if recusadas:
-        linhas.append("fontes: URL recusada (só https:// é aceito) em: " + ", ".join(recusadas))
-    if not linhas and not falhou:
-        linhas = ["fontes: sem novidade"]
-    return linhas, 3 if falhou else 0
 
 
 # A ferramenta defasada (versão-defasada, VD-3): a conferência feita por uma cópia do forge-check atrás do repositório não vale -----
@@ -9738,6 +9018,13 @@ def main():
     es = sub.add_parser("esperas", parents=[comum], help="quanto tempo cada cartão esperou o dono ou uma credencial, lido de docs/kanban/historico.md; só leitura (M14b)")
     es.add_argument("--pedido", help="só os cartões deste pedido (cartão igual, da mesma família de nome, com o pedido na coluna Pedido do KANBAN.md ou no motivo do movimento)")
     es.add_argument("--kanban", help="com --pedido: o KANBAN.md a ler (padrão: o da raiz)")
+    do = sub.add_parser("dora", parents=[comum], help="frequência de entrega, espera da mudança, taxa de falha, recuperação e vazão por "
+                        "semana, lidas das tags do git e do quadro; abaixo de 20 valores, os brutos; só leitura (0.45.7, TM-16)")
+    do.add_argument("--desde", type=datetime.date.fromisoformat, help="AAAA-MM-DD (inclusive)")
+    do.add_argument("--ate", type=datetime.date.fromisoformat, help="AAAA-MM-DD (inclusive)")
+    do.add_argument("--fuso", type=lambda t: datetime.datetime.strptime(t, "%z").tzinfo,
+                    help="fuso das horas de escapes.md e da janela, ±HHMM ou ±HH:MM (padrão: o da máquina)")
+    do.add_argument("--json", action="store_true", help="saída em JSON")
     co = sub.add_parser("corrigidos", parents=[comum], help="PRs `fix` que corrigem PR já mesclado, lidos do histórico do git; só leitura (M14b)")
     co.add_argument("--ref", help="branch ou commit onde ler a linha de PRs (padrão: origin/develop, develop ou HEAD)")
     co.add_argument("--dias", type=int, default=DIAS_DO_CORRIGIDO, help=f"janela, em dias, do indício por arquivo em comum (padrão {DIAS_DO_CORRIGIDO})")
@@ -9811,6 +9098,7 @@ def main():
     na.add_argument("--literal", required=True, help="a fala do dono, literal (vai entre aspas); no historico, o texto da linha")
     na.add_argument("--contexto", help="a paráfrase do Jarvis, fora das aspas (decisao, pergunta, ordem)")
     na.add_argument("--propagar", action="store_true", help="só com --tipo decisao: grava o brief seguinte de cada brief em voo do pedido com a linha nova (B15)")
+    na.add_argument("--confere", help="obrigatório com --tipo decisao: rapido, seguro, barato, mede ou nao-passa (E8, critério do Jarvis)")
     cf = sub.add_parser("conferencia", help="registro das conferências do conferente (S-18)")
     csub = cf.add_subparsers(dest="acao", required=True)
     rg = csub.add_parser("registrar", parents=[comum], help="acrescenta uma conferência em docs/kanban/conferencias.md, em formato fixo, com a hora real")
@@ -9944,18 +9232,12 @@ def executar(a, raiz):
         return modulo.executar(a, raiz, {"pedido": pedido_para_anotar, "versao": versao_da_propria_copia, "seguro": sem_controle})
     if a.cmd == "transcricao" and a.acao == "custo":
         return cmd_transcricao_custo(a.alvo, a.entregas, a.entrega, raiz, a.desde, a.ate, a.pedido)
-    if a.cmd == "transcricao" and a.acao == "lastro":
-        return cmd_transcricao_medida("lastro", a.alvo, ler_relatorios, medir_lastro, ("relatorios", "afirmacoes", "sem_lastro"), 1, raiz)
+    if a.cmd == "transcricao" and a.acao in TRANSCRICAO_DO_MODULO:
+        return cmd_transcricao_do_modulo(a, raiz)
     if a.cmd == "transcricao" and a.acao == "recusas":
         return cmd_transcricao_recusas(a.alvo, raiz)
     if a.cmd == "transcricao" and a.acao == "trava":
         return cmd_transcricao_trava(a.alvo, raiz)
-    if a.cmd == "transcricao" and a.acao == "avisos":
-        return cmd_transcricao_avisos(a.alvo, raiz, a.amostra)
-    if a.cmd == "transcricao" and a.acao == "vereditos":
-        return cmd_transcricao_medida("vereditos", a.alvo, ler_relatorios, medir_vereditos, ("vereditos", "contraditorios"), 0, raiz)
-    if a.cmd == "transcricao" and a.acao == "decisoes":
-        return cmd_transcricao_medida("decisoes", a.alvo, ler_respostas_do_jarvis, medir_decisoes, ("respostas", "com_grupo", "violacoes"), 0, raiz)
     if a.cmd == "provas" and a.acao == "gerar":
         return cmd_provas_gerar(raiz, a.brief)
     if a.cmd == "parecer" and a.acao == "novo":
@@ -9978,12 +9260,14 @@ def executar(a, raiz):
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
     if a.cmd == "voltas":
         return cmd_voltas(raiz, a.pedido)
+    if a.cmd == "dora":
+        return modulo_do_bin("forge_dora").executar(a, raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz)
     if a.cmd == "medida":
         return cmd_medida(raiz, a.pedido, a.merge)
     if a.cmd == "retro":
         return cmd_retro(raiz, a.pedido, a.dias)
     if a.cmd == "anotar":
-        linhas, rc = cmd_anotar(raiz, a.pedido, a.tipo, a.literal, a.contexto, a.propagar)
+        linhas, rc = cmd_anotar(raiz, a.pedido, a.tipo, a.literal, a.contexto, a.propagar, a.confere)
         print("\n".join(linhas))
         return rc
     if a.cmd == "escape":
@@ -9993,12 +9277,12 @@ def executar(a, raiz):
         for linha in linhas:
             print(linha)
         return 1 if linhas[0].startswith("escape:") else 0
-    if a.cmd == "afrouxamentos":
-        return cmd_afrouxamentos(raiz, a.ref, a.prs, a.rotulados)
+    if a.cmd in ("afrouxamentos", "corrigidos"):  # FILA-31 F6 (0.45.7 E5.3): a lógica fica em bin/forge_corrigidos.py
+        ctx = {"git": git, "sha_do_commit": sha_do_commit, "nome_seguro": nome_seguro, "sem_controle": sem_controle,
+               "carregar_catraca": carregar_catraca}
+        return modulo_do_bin("forge_corrigidos").executar(a, raiz, ctx)
     if a.cmd == "esperas":
         return cmd_esperas(raiz, a.pedido, a.kanban)
-    if a.cmd == "corrigidos":
-        return cmd_corrigidos(raiz, a.ref, a.dias)
     if a.cmd == "kanban" and a.gerar:
         linhas, rc = cmd_kanban_gerar(raiz)
         print("\n".join(linhas))
@@ -10049,7 +9333,7 @@ def executar(a, raiz):
             print(linha)
         return 1 if linhas[0].startswith("conferencia:") else 0
     if a.cmd == "fontes":
-        linhas, codigo = cmd_fontes()
+        linhas, codigo = modulo_do_bin("forge_fontes").cmd_fontes()  # FILA-31 F6: a lógica fica em bin/forge_fontes.py
         for linha in linhas:
             print(linha)
         return codigo

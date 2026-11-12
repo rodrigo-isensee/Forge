@@ -1,0 +1,26 @@
+{
+  "pedido": "v0457-f6-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M41",
+      "guarda": "bin/forge_corrigidos.py:169 a.cmd == 'afrouxamentos'",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "    if a.cmd == \"afrouxamentos\":",
+      "para": "    if (not (a.cmd == \"afrouxamentos\")):",
+      "testes": [
+        "tests.test_medidas_m14b.PrsFixQueCorrigemPrMesclado",
+        "tests.test_medidas_m14b.RotulosAfrouxaRegraQueEramReais",
+        "tests.test_medidas_m14b.RamosDeFalhaDoModuloCorrigidos"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "a.cmd == \"corrigidos\"",
+      "motivo": "o despacho de corrigidos virou o `a.cmd in (\"afrouxamentos\", \"corrigidos\")` (M1, coberto), sem mudar comportamento",
+      "linha_base": 10082
+    }
+  ]
+}

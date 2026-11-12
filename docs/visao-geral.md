@@ -10,7 +10,7 @@ O texto das regras e o papel de cada agente ficam nas fontes: [`agents/`](../age
 
 ```mermaid
 flowchart TB
-  U([Dono]) <-->|pedido, decisões em lote, merge na main| J[Jarvis orquestrador]
+  U([Dono]) <-->|pedido, decisões uma a uma, merge na main| J[Jarvis orquestrador]
   J --> T{Triagem}
   T -->|orquestração, quadro, comunicação| F[Jarvis faz]
   T -->|todo o resto| D["1-3 Discovery e desenho: ux-designer, software-architect, tech-lead"]
@@ -37,7 +37,7 @@ Legenda: retângulo = etapa ou agente; losango = decisão; arredondado = pessoa;
 <details open>
 <summary>Alternativa em lista</summary>
 
-- Dono -> Jarvis: pedido; Jarvis -> Dono: decisões em lote, com prazo nas reversíveis (`R-DECISAO`), e o PR da `main`.
+- Dono -> Jarvis: pedido; Jarvis -> Dono: decisões uma a uma, pendentes até a resposta (`R-DECISAO`), e o PR da `main`.
 - Jarvis -> Triagem: faz sozinho (orquestração) ou passa a `forge:<agente>`, dizendo qual e por quê.
 - Discovery e desenho (`R-DISCOVERY`) -> brief gerado do pedido e selado pela ferramenta (`R-BRIEF`) -> desenvolvimento.
 - A ferramenta confere a entrega e grava a linha `entrega conferida` (`R-PROVA`); o conferente agente é opcional, só para dúvida de conteúdo.
@@ -106,4 +106,4 @@ O Jarvis do Forge roda sobre uma cópia vigente da `develop`, não sobre a cópi
 | Sandbox do Bash ([README](../README.md#sandbox-do-bash)) | Em cada comando | Escrita só nas pastas de trabalho, credenciais ilegíveis, APIs de modelo negadas |
 | Token da conta de máquina | No GitHub | Sem escopo `workflow`: workflows só o dono muda |
 
-Regras por tema: [`R-MAIN`](regras/R-MAIN.md), [`R-FLUXO`](regras/R-FLUXO.md), [`R-CONTRIB`](regras/R-CONTRIB.md), [`R-CONFORMIDADE`](regras/R-CONFORMIDADE.md), [`R-CUSTO`](regras/R-CUSTO.md), [`R-NEUTRO`](regras/R-NEUTRO.md). Decisões: [0003 hooks](adr/0003-hooks-deterministicos-e-silenciosos.md), [0006 contribuição](adr/0006-contribuicao-de-qualquer-projeto.md), [0008 governança](adr/0008-governanca-de-contribuicoes.md), [0009 conformidade](adr/0009-conformidade-dos-agentes.md).
+Regras por tema: [`R-MAIN`](regras/R-LIMITES.md), [`R-FLUXO`](regras/R-FLUXO.md), [`R-CONTRIB`](regras/R-LIMITES.md), [`R-CONFORMIDADE`](regras/R-CONFORMIDADE.md), [`R-CUSTO`](regras/R-LIMITES.md), [`R-NEUTRO`](regras/R-NEUTRO.md). Decisões: [0003 hooks](adr/0003-hooks-deterministicos-e-silenciosos.md), [0006 contribuição](adr/0006-contribuicao-de-qualquer-projeto.md), [0008 governança](adr/0008-governanca-de-contribuicoes.md), [0009 conformidade](adr/0009-conformidade-dos-agentes.md).

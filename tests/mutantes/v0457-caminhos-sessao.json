@@ -1,0 +1,68 @@
+{
+  "pedido": "v0457-caminhos-sessao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CS1",
+      "guarda": "pasta que não é só do usuário fica de fora",
+      "arquivo": "hooks/_comum.py",
+      "de": "        elif not so_do_usuario(pasta):",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_hooks.CaminhosExtra",
+        "tests.test_doutor.CaminhosNaSessao"
+      ]
+    },
+    {
+      "id": "CS2",
+      "guarda": "pasta de outro usuário fica de fora",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if info.st_uid != os.getuid() or info.st_mode & 0o022:",
+      "para": "    if info.st_mode & 0o022:",
+      "testes": [
+        "tests.test_hooks.CaminhosExtra"
+      ]
+    },
+    {
+      "id": "CS3",
+      "guarda": "pasta gravável por grupo ou outros fica de fora",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if info.st_uid != os.getuid() or info.st_mode & 0o022:",
+      "para": "    if info.st_uid != os.getuid():",
+      "testes": [
+        "tests.test_hooks.CaminhosExtra",
+        "tests.test_doutor.CaminhosNaSessao"
+      ]
+    },
+    {
+      "id": "CS4",
+      "guarda": "pasta acima de outro usuário fica de fora",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if info.st_uid not in (0, os.getuid()):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.CaminhosExtra"
+      ]
+    },
+    {
+      "id": "CS5",
+      "guarda": "pasta acima gravável sem sticky fica de fora",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if info.st_mode & 0o022 and not info.st_mode & stat.S_ISVTX:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.CaminhosExtra"
+      ]
+    },
+    {
+      "id": "CS6",
+      "guarda": "pasta acima com sticky bit (o /tmp) não recusa",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if info.st_mode & 0o022 and not info.st_mode & stat.S_ISVTX:",
+      "para": "        if info.st_mode & 0o022:",
+      "testes": [
+        "tests.test_hooks.CaminhosExtra"
+      ]
+    }
+  ]
+}

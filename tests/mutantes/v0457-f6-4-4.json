@@ -1,0 +1,102 @@
+{
+  "pedido": "v0457-f6-4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "bin/forge_voltas.py:119 pedido and pedido.casefold() not in pedidos and (not rodadas_de_brief(",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    if pedido and pedido.casefold() not in pedidos and not rodadas_de_brief(raiz, pedido)[\"total\"]:",
+      "para": "    if (not (pedido and pedido.casefold() not in pedidos and not rodadas_de_brief(raiz, pedido)[\"total\"])):",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "bin/forge_voltas.py:122 pedido",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    escolhidos = [pedido.casefold()] if pedido else sorted(pedidos)",
+      "para": "    escolhidos = [pedido.casefold()] if (not (pedido)) else sorted(pedidos)",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "bin/forge_voltas.py:123 pedido",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    pedidos.setdefault(pedido.casefold() if pedido else \"\", pedido or \"\")",
+      "para": "    pedidos.setdefault(pedido.casefold() if (not (pedido)) else \"\", pedido or \"\")",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "bin/forge_voltas.py:123 pedido or ''",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    pedidos.setdefault(pedido.casefold() if pedido else \"\", pedido or \"\")",
+      "para": "    pedidos.setdefault(pedido.casefold() if pedido else \"\", (not (pedido or \"\")))",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "bin/forge_voltas.py:131 not linhas and (not pedido) and (not relogios)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        if not linhas and not pedido and not relogios:",
+      "para": "        if (not (not linhas and not pedido and not relogios)):",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "bin/forge_voltas.py:136 inicio or 'sem-hora'",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "            print(f\"voltas: {nome} {tipo} inicio={inicio or 'sem-hora'} minutos=\"",
+      "para": "            print(f\"voltas: {nome} {tipo} inicio={(not (inicio or 'sem-hora'))} minutos=\"",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "bin/forge_voltas.py:137 minutos is not None",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "                  f\"{_numero(minutos) if minutos is not None else 'sem-hora' if inicio is None else 'aberta'}{ref}\")",
+      "para": "                  f\"{_numero(minutos) if (not (minutos is not None)) else 'sem-hora' if inicio is None else 'aberta'}{ref}\")",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "bin/forge_voltas.py:137 inicio is None",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "                  f\"{_numero(minutos) if minutos is not None else 'sem-hora' if inicio is None else 'aberta'}{ref}\")",
+      "para": "                  f\"{_numero(minutos) if minutos is not None else 'sem-hora' if (not (inicio is None)) else 'aberta'}{ref}\")",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    }
+  ]
+}

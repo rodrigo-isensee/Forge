@@ -5,10 +5,10 @@ verificada_por: hook, sandbox, permissões, vigia (ADR 0009)
 ---
 # R-CONFORMIDADE: Controles não se contornam; o que está em vigor é do usuário
 
-Propósito: texto único desta regra; os outros arquivos citam o ID. Público: todo o time, em qualquer projeto. Decisão: `docs/adr/0009-conformidade-dos-agentes.md`.
+Propósito: texto único; os outros arquivos citam o ID. Público: todo o time, em qualquer projeto. Decisão: `docs/adr/0009-conformidade-dos-agentes.md`.
 
 Revisar em: 2027-01-07
-Medida: sem medida (controle de conduta; o vigia registra as tentativas)
+Medida: 56 pontos de recusa no hook `conformidade`; o vigia registra as tentativas
 
 - **Nenhum agente desliga, enfraquece ou dribla um controle**, seja ele um hook, uma permissão, o sandbox, um teste, o CI ou uma regra, usando um desvio: shell, script, ferramenta alternativa, outro agente ou outra sessão.
 - **Bloqueio que impede trabalho legítimo não se contorna:** o agente para, explica o que foi barrado e leva ao usuário como decisão (`R-DECISAO`), com opções e recomendação.

@@ -1,0 +1,86 @@
+{
+  "pedido": "fechar-medir-do-log",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "FECHAR-MEDIR-DO-LOG: número de execução lê o log pelo gh run view",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [[ \"$fonte\" =~ ^[0-9]{1,20}$ ]]; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_fechar_medir.FecharMedir.test_numero_da_execucao_le_o_log_do_ci_e_vai_ao_corpo"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "FECHAR-MEDIR-DO-LOG: --dry-run não chama o gh",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$seco\" = 1 ]; then medida=\"(lida",
+      "para": "if false; then medida=\"(lida",
+      "testes": [
+        "tests.test_fechar_medir.FecharMedir.test_dry_run_nao_chama_o_gh"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "FECHAR-MEDIR-DO-LOG: leitura do log que falha para com o motivo",
+      "arquivo": "bin/forge-fechar",
+      "de": "texto=\"$(ler \"$gh\" run view \"$fonte\" --log)\" || die",
+      "para": "texto=\"$(ler \"$gh\" run view \"$fonte\" --log)\" || true || die",
+      "testes": [
+        "tests.test_fechar_medir.FecharMedir.test_leitura_do_log_que_falha_para_antes_do_passo_1"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "FECHAR-MEDIR-DO-LOG: arquivo legível vale como log",
+      "arquivo": "bin/forge-fechar",
+      "de": "elif [ -f \"$fonte\" ] && [ -r \"$fonte\" ]; then",
+      "para": "elif false; then",
+      "testes": [
+        "tests.test_fechar_medir.FecharMedir.test_arquivo_do_log_vale_sem_chamar_o_gh"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "FECHAR-MEDIR-DO-LOG: linha sem a marca fica de fora",
+      "arquivo": "bin/forge-fechar",
+      "de": "case \"$linha\" in *\"ORCAMENTO-TEMPO \"*) ;; *) continue ;; esac",
+      "para": "case \"$linha\" in *) ;; esac",
+      "testes": [
+        "tests.test_fechar_medir.FecharMedir.test_numero_da_execucao_le_o_log_do_ci_e_vai_ao_corpo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "FECHAR-MEDIR-DO-LOG: linha fora do FORMATO_DO_ORCAMENTO para",
+      "arquivo": "bin/forge-fechar",
+      "de": "[[ \"$linha\" =~ $FORMATO_DO_ORCAMENTO ]] || die",
+      "para": "true || die",
+      "testes": [
+        "tests.test_fechar_medir.FecharMedir.test_linha_fora_do_formato_para_antes_do_passo_1"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "FECHAR-MEDIR-DO-LOG: log sem a linha ORCAMENTO-TEMPO para",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -n \"$medida\" ] || die \"--medir: o log",
+      "para": "true || die \"--medir: o log",
+      "testes": [
+        "tests.test_fechar_medir.FecharMedir.test_linha_ausente_para_antes_do_passo_1"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "FECHAR-MEDIR-DO-LOG: --medir dado aciona a leitura do log",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -z \"$medir\" ] || medir_do_log \"$medir\"",
+      "para": "true || medir_do_log \"$medir\"",
+      "testes": [
+        "tests.test_fechar_medir.FecharMedir.test_numero_da_execucao_le_o_log_do_ci_e_vai_ao_corpo"
+      ]
+    }
+  ]
+}

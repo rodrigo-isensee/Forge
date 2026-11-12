@@ -28,6 +28,9 @@ reserva vigente escreve é recusada até o SubagentStop dela (ou o prazo). Só p
 AG-1a (E10): a reserva grava em `branches` as `Branch:` do cabeçalho dos briefs citados no prompt (só registro, sem recusa).
 RN-6 (0.43.3): cada recusa do R-TETO (memória, teto, duplicado) deixa uma linha em `recusas.log`, na pasta do estado
 (`registrar_recusa`, que o hook `pesado` também pode chamar); o `forge-check metricas` mede por ela a espera por portão.
+RITMO (0.45.7, E3): `ritmo` em .forge/config.json (`forge ritmo <valor>`). `econômico` limita o teto a 1 agente por vez;
+`equilibrado` (padrão, também para valor ausente ou inválido) e `acelerado` ficam no teto de sempre. Nenhum ritmo afrouxa
+o piso de memória, o duplicado nem a trava `pesado` (tarefa pesada segue uma por vez em qualquer ritmo).
 """
 import hashlib
 import json
@@ -110,9 +113,35 @@ def teto_adaptativo(carga, memoria, total, nproc):
     return nproc
 
 
-def calcular_teto(config, proc=None):
+RITMOS = ("econômico", "equilibrado", "acelerado")
+RITMO_PADRAO = "equilibrado"
+TETO_DO_RITMO = {"econômico": 1}  # E3 (0.45.7): só o econômico muda o teto; o acelerado não passa do teto de sempre (R-TETO)
+
+
+APELIDOS_DO_RITMO = {"economico": "econômico"}  # sem acento também vale (o `forge ritmo` aceita o mesmo)
+
+
+def ritmo_valido(valor):
+    """O ritmo canônico de `valor` (caixa não conta; `economico` vale `econômico`), ou None."""
+    if not isinstance(valor, str):
+        return None
+    chave = valor.strip().lower()
+    chave = APELIDOS_DO_RITMO.get(chave, chave)
+    return chave if chave in RITMOS else None
+
+
+def ritmo_do_projeto(raiz):
+    """`ritmo` do .forge/config.json da raiz; ausente, inválido ou ilegível, o padrão `equilibrado` (o teto de antes)."""
+    try:
+        dados = json.loads((Path(raiz) / ".forge" / "config.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return RITMO_PADRAO
+    return (ritmo_valido(dados.get("ritmo")) if isinstance(dados, dict) else None) or RITMO_PADRAO
+
+
+def calcular_teto(config, proc=None, ritmo=RITMO_PADRAO):
     """(teto, explicação para a mensagem). `teto_agentes` fixo sobrepõe o adaptativo; `teto_maximo` limita
-    os dois (hook e forge-check usam esta função)."""
+    os dois; o ritmo `econômico` limita tudo a 1 (hook e forge-check usam esta função)."""
     maximo = config.get("teto_maximo")
     if config.get("teto_agentes"):
         teto, origem = config["teto_agentes"], "fixo em .forge/config.json: teto_agentes"
@@ -125,7 +154,11 @@ def calcular_teto(config, proc=None):
     limitado = bool(maximo) and teto > maximo
     if limitado:
         teto = maximo
-    return teto, origem + (f", limitado por teto_maximo {maximo}" if limitado else "")
+    origem += f", limitado por teto_maximo {maximo}" if limitado else ""
+    if ritmo in TETO_DO_RITMO and teto > TETO_DO_RITMO[ritmo]:
+        teto = TETO_DO_RITMO[ritmo]
+        origem += f", ritmo {ritmo}: {teto} agente por vez (`forge ritmo equilibrado` muda)"
+    return teto, origem
 
 
 PID_MAX_PADRAO = 4194304  # teto do Linux de 64 bits, quando /proc/sys/kernel/pid_max não pode ser lido
@@ -597,7 +630,7 @@ def lancar(hook, agentes, agora):
             registrar_recusa(hook, "memoria", {"mem_gb": memoria, "nproc": nproc, "ativos": len(agentes)})
             bloquear("R-TETO", f"memória baixa ({memoria:.1f} GB disponíveis; piso {piso:.1f} GB, `piso_memoria_gb` em .forge/config.json): "
                                "nenhum agente novo; espere memória liberar; só o dono: FORGE_CARGA_LIVRE=1.")
-    teto, motivo = calcular_teto(hook.config())
+    teto, motivo = calcular_teto(hook.config(), ritmo=ritmo_do_projeto(hook.raiz))
     if len(agentes) >= teto:
         registrar_recusa(hook, "teto", {"mem_gb": memoria, "nproc": nproc, "ativos": len(agentes)})
         bloquear("R-TETO", f"{len(agentes)} agentes ativos, teto {teto} ({motivo}); "

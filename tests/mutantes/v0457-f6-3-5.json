@@ -1,0 +1,94 @@
+{
+  "pedido": "v0457-f6-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "bin/forge_corrigidos.py:150 c is None or git(raiz, 'rev-parse', '--verify', '--quiet', f",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "        if c is None or git(raiz, \"rev-parse\", \"--verify\", \"--quiet\", f\"{c['sha']}^\")[0]:",
+      "para": "        if (not (c is None or git(raiz, \"rev-parse\", \"--verify\", \"--quiet\", f\"{c['sha']}^\")[0])):",
+      "testes": [
+        "tests.test_medidas_m14b.RotulosAfrouxaRegraQueEramReais",
+        "tests.test_medidas_m14b.RamosDeFalhaDoModuloCorrigidos"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "bin/forge_corrigidos.py:154 catraca.arquivo_da_violacao(v) is None",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "            de_conteudo = [v for v in violacoes if catraca.arquivo_da_violacao(v) is None]",
+      "para": "            de_conteudo = [v for v in violacoes if (not (catraca.arquivo_da_violacao(v) is None))]",
+      "testes": [
+        "tests.test_medidas_m14b.RotulosAfrouxaRegraQueEramReais",
+        "tests.test_medidas_m14b.RamosDeFalhaDoModuloCorrigidos"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "bin/forge_corrigidos.py:155 any((catraca.NAO_LIBERAVEL in v for v in violacoes))",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "            if any(catraca.NAO_LIBERAVEL in v for v in violacoes):",
+      "para": "            if (not (any(catraca.NAO_LIBERAVEL in v for v in violacoes))):",
+      "testes": [
+        "tests.test_medidas_m14b.RotulosAfrouxaRegraQueEramReais",
+        "tests.test_medidas_m14b.RamosDeFalhaDoModuloCorrigidos"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "bin/forge_corrigidos.py:158 de_conteudo",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "                veredito = \"real\" if de_conteudo else \"so-protegido\" if violacoes else \"sem-violacao\"",
+      "para": "                veredito = \"real\" if (not (de_conteudo)) else \"so-protegido\" if violacoes else \"sem-violacao\"",
+      "testes": [
+        "tests.test_medidas_m14b.RotulosAfrouxaRegraQueEramReais",
+        "tests.test_medidas_m14b.RamosDeFalhaDoModuloCorrigidos"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "bin/forge_corrigidos.py:158 violacoes",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "                veredito = \"real\" if de_conteudo else \"so-protegido\" if violacoes else \"sem-violacao\"",
+      "para": "                veredito = \"real\" if de_conteudo else \"so-protegido\" if (not (violacoes)) else \"sem-violacao\"",
+      "testes": [
+        "tests.test_medidas_m14b.RotulosAfrouxaRegraQueEramReais",
+        "tests.test_medidas_m14b.RamosDeFalhaDoModuloCorrigidos"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "bin/forge_corrigidos.py:159 re.fullmatch('R-[A-Z]+', v.split(':', 1)[0])",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "            regras = sorted({v.split(\":\", 1)[0] for v in de_conteudo if re.fullmatch(r\"R-[A-Z]+\", v.split(\":\", 1)[0])})",
+      "para": "            regras = sorted({v.split(\":\", 1)[0] for v in de_conteudo if (not (re.fullmatch(r\"R-[A-Z]+\", v.split(\":\", 1)[0])))})",
+      "testes": [
+        "tests.test_medidas_m14b.RotulosAfrouxaRegraQueEramReais",
+        "tests.test_medidas_m14b.RamosDeFalhaDoModuloCorrigidos"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "bin/forge_corrigidos.py:160 veredito == 'real'",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "        contagem[\"afrouxa\" if veredito == \"real\" else veredito] += 1",
+      "para": "        contagem[\"afrouxa\" if (not (veredito == \"real\")) else veredito] += 1",
+      "testes": [
+        "tests.test_medidas_m14b.RotulosAfrouxaRegraQueEramReais",
+        "tests.test_medidas_m14b.RamosDeFalhaDoModuloCorrigidos"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "bin/forge_corrigidos.py:161 regras",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "        print(f\"afrouxamentos: #{n} {veredito}\" + (f\" regras={','.join(regras)}\" if regras else \"\"))",
+      "para": "        print(f\"afrouxamentos: #{n} {veredito}\" + (f\" regras={','.join(regras)}\" if (not (regras)) else \"\"))",
+      "testes": [
+        "tests.test_medidas_m14b.RotulosAfrouxaRegraQueEramReais",
+        "tests.test_medidas_m14b.RamosDeFalhaDoModuloCorrigidos"
+      ]
+    }
+  ]
+}

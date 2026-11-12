@@ -1,0 +1,39 @@
+{
+  "pedido": "v0457-mutante-movida",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E13.1: só a condição coberta serve de destino da movida",
+      "arquivo": "bin/forge-mutante",
+      "de": "            if linhas[i].startswith(\"coberta\"):",
+      "para": "            if True:",
+      "testes": ["tests.test_forge_mutante.Cobertura.test_movidas_consome_o_destino_e_nao_casa_texto_diferente"]
+    },
+    {
+      "id": "M2",
+      "guarda": "E13.1: só a linha apagada vira movida",
+      "arquivo": "bin/forge-mutante",
+      "de": "if linha.startswith(\"apagada\") and len(livres) >= vezes:",
+      "para": "if len(livres) >= vezes:",
+      "testes": ["tests.test_forge_mutante.Cobertura.test_movida_exige_coberta_e_uma_coberta_por_apagada"]
+    },
+    {
+      "id": "M3",
+      "guarda": "E13.1: uma coberta basta para uma apagada (limite exato)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if linha.startswith(\"apagada\") and len(livres) >= vezes:",
+      "para": "if linha.startswith(\"apagada\") and len(livres) > vezes:",
+      "testes": ["tests.test_forge_mutante.Cobertura.test_condicao_movida_coberta_noutro_arquivo_sai_movida_e_0_e_a_so_apagada_sai_1"]
+    },
+    {
+      "id": "M4",
+      "guarda": "E13.1: a apagada sem cobertas bastantes segue apagada",
+      "arquivo": "bin/forge-mutante",
+      "de": "if linha.startswith(\"apagada\") and len(livres) >= vezes:",
+      "para": "if linha.startswith(\"apagada\"):",
+      "testes": ["tests.test_forge_mutante.Cobertura.test_movida_exige_coberta_e_uma_coberta_por_apagada",
+                 "tests.test_forge_mutante.Cobertura.test_movidas_consome_o_destino_e_nao_casa_texto_diferente"]
+    }
+  ]
+}

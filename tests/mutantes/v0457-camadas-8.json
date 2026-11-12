@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M54",
+      "guarda": "guarda: --confere só com decisão (a metade do confere)",
+      "arquivo": "bin/forge-check",
+      "de": "(tipo == \"decisao\") != (confere is not None)",
+      "para": "(tipo == \"decisao\" and confere is None)",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_decisao_sem_confere_ou_com_valor_fora_do_vocabulario"
+      ]
+    },
+    {
+      "id": "M55",
+      "guarda": "_valor: a origem copiada não abre atributo",
+      "arquivo": "bin/forge_dono.py",
+      "de": "re.sub(r\"[;=·|\\x00-\\x1f\\x7f]\", \" \", texto)",
+      "para": "texto",
+      "testes": [
+        "tests.test_forge_dono.RecomendacaoRevertida.test_origem_copiada_nao_abre_atributo"
+      ]
+    },
+    {
+      "id": "M56",
+      "guarda": "alternativa: em códigos, só as questões respondidas",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if tokens and all(CODIGO.fullmatch(t) for t in tokens):\n        respondidas",
+      "para": "    if False:\n        respondidas",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_nao_passa_imprime_o_modelo_da_pergunta"
+      ]
+    },
+    {
+      "id": "M57",
+      "guarda": "alternativa: a recomendada única da questão",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        if len(recomendadas) == 1:\n            textos.append",
+      "para": "        if len(recomendadas) != 1:\n            textos.append",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_nao_passa_imprime_o_modelo_da_pergunta"
+      ]
+    },
+    {
+      "id": "M58",
+      "guarda": "alternativa: o texto da recomendada, não o marcador",
+      "arquivo": "bin/forge_dono.py",
+      "de": "texto = alternativa(pedido_txt, literal) or",
+      "para": "texto = None or",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_nao_passa_imprime_o_modelo_da_pergunta"
+      ]
+    },
+    {
+      "id": "M59",
+      "guarda": "alternativa: só as questões respondidas",
+      "arquivo": "bin/forge_dono.py",
+      "de": "questoes.items() if n in respondidas}",
+      "para": "questoes.items() if True}",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_nao_passa_imprime_o_modelo_da_pergunta"
+      ]
+    },
+    {
+      "id": "M60",
+      "guarda": "alternativa: só a opção [recomendada]",
+      "arquivo": "bin/forge_dono.py",
+      "de": "questoes[n].values() if \"recomendada\" in marcas(t)]",
+      "para": "questoes[n].values() if True]",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_nao_passa_imprime_o_modelo_da_pergunta"
+      ]
+    },
+    {
+      "id": "M61",
+      "guarda": "alternativa: sem recomendada, o marcador",
+      "arquivo": "bin/forge_dono.py",
+      "de": "\"; \".join(t for t in textos if t)[:160] or None",
+      "para": "\"; \".join(t for t in textos if t)[:160] or \"x\"",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_nao_passa_imprime_o_modelo_da_pergunta"
+      ]
+    }
+  ]
+}
