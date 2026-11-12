@@ -18,9 +18,6 @@ from apoio_sandbox import exigir  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no s
 
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / ".githooks" / "pre-push"
-# PREPUSH-REFS (v0457 E9.3): com a política de refs no hook (patch aplicado pelo dono), duas branches com código ou duas
-# remoções no mesmo envio recusam; sem ela, valem os casos antigos.
-POLITICA_DE_REFS = "PREPUSH-REFS" in HOOK.read_text(encoding="utf-8")
 # FORGE_SUITE_* (processos, medição, trava) da suíte que roda estes testes não vazam para a suíte de brinquedo.
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_"))})
 
@@ -483,14 +480,14 @@ class PrePushTrava(unittest.TestCase):
         self.assertEqual(list(self.run_dir.iterdir()), [], "sem ref a enviar, o hook não pega trava nem entra na fila")
 
     def test_push_que_so_apaga_nao_roda_a_suite(self):  # PREPUSH-DELETE (decisão do dono, 2026-10-23: opção A)
-        """Só remoções (a limpeza pós-merge do R-FLUXO): sai com 0 sem suíte, sem trava e sem fila; uma ou várias."""
+        """Só remoções (a limpeza pós-merge do R-FLUXO): sai sem suíte, sem trava e sem fila; uma passa, duas recusam (PREPUSH-REFS)."""
         self.suite(SUITE_RAPIDA)
         um = self.refs("melhoria/x", local="0" * 40, remoto="1" * 40)
         dois = um + self.refs("fix/y", local="0" * 40, remoto="2" * 40)
         for nome, entrada in (("uma", um), ("duas", dois)):
             with self.subTest(nome):
                 codigo, _, erro = self.roda("origin", "u", entrada=entrada)
-                recusa = nome == "duas" and POLITICA_DE_REFS  # PREPUSH-REFS: uma remoção por envio
+                recusa = nome == "duas"  # PREPUSH-REFS: uma remoção por envio
                 self.assertEqual((codigo, ("mais de uma remoção" if recusa else "só remove") in erro), (int(recusa), True), erro)
                 self.assertFalse((self.repo / "rodou").exists(), "a suíte rodou em push que só apaga")
                 self.assertEqual(list(self.run_dir.iterdir()), [], "push que só apaga não pega trava nem entra na fila")

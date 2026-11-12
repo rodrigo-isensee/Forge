@@ -3,8 +3,8 @@
 seja a sintaxe: ref remota fora de refs/heads/ e refs/tags/ recusa; mais de uma branch com código no mesmo envio recusa;
 mais de uma remoção no mesmo envio recusa (item 3 da D2, decisão do dono de 2026-11-10 23:45, que muda a PREPUSH-DELETE).
 
-Os hooks em vigor só mudam pelo patch que o dono aplica (decisão 4a de 2026-11-12 11:22, R-CONFORMIDADE): até lá, cada
-classe pula com o motivo, e passa a valer sozinha quando o hook ganha a marca PREPUSH-REFS.
+Os hooks em vigor só mudam pelo patch que o dono aplica (decisão 4a de 2026-11-12 11:22, R-CONFORMIDADE); o patch foi
+aplicado na E9.4 e as classes rodam sem pulo.
 """
 import os
 import subprocess
@@ -18,28 +18,14 @@ from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 HOOKS = {"forge": RAIZ / ".githooks" / "pre-push", "modelo": RAIZ / "templates" / "projeto" / ".githooks" / "pre-push"}
-MARCA = "PREPUSH-REFS"
 ZERO = "0" * 40
 REF_FORA, DUAS_BRANCHES, DUAS_REMOCOES = "não é branch (refs/heads/) nem tag", "mais de uma branch com código", "mais de uma remoção"
 RECUSAS = (REF_FORA, DUAS_BRANCHES, DUAS_REMOCOES)
 
 
-def pendente(hook):
-    """Motivo do pulo enquanto o hook não tem a política (o patch da E9.3 ainda não aplicado pelo dono)."""
-    if MARCA in hook.read_text(encoding="utf-8"):
-        return None
-    return f"{MARCA}: vale depois que o dono aplicar o patch da E9.3 do v0457 em {hook.relative_to(RAIZ)} (decisão 4a)"
-
-
 class Base:
     """Repositório descartável com remoto bare; ambiente montado do zero (nada herdado além do PATH)."""
     HOOK = None
-
-    @classmethod
-    def setUpClass(cls):
-        motivo = pendente(cls.HOOK)
-        if motivo:
-            raise unittest.SkipTest(motivo)
 
     def setUp(self):
         self.base = Path(self.enterContext(tempfile.TemporaryDirectory()))
