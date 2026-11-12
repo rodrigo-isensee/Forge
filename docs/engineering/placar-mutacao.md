@@ -5,6 +5,10 @@ Medida periódica da mutação na suíte do Forge, uma linha por release. Não �
 Como se mede (o `tech-lead`, na release, antes do `forge-changelog release`, dentro da trava da suíte, `R-TETO`):
 `scripts/placar-mutacao.py --desde <tag da release anterior> --versao <versão>`.
 
+Uma vez por versão, nunca no PR (decisão do dono, 2026-11-12): nem o CI nem o envio rodam o placar
+(`tests/test_changelog.py`, `ReleaseAvisaMedidasDaVersao`). No clone do Forge, o `forge-changelog release` imprime o
+comando já com a tag anterior e lembra o bench da versão (`bench-versoes.md` e `metricas-velocidade.md`, na área do Jarvis).
+
 - A amostra é a spec fixa `tests/mutantes/placar.json` (guardas estáveis de `bin/forge-check` e `hooks/`, copiadas de specs
   que já estavam na `develop`) mais as specs de `tests/mutantes/` adicionadas desde a tag, até 8; as demais saem
   `fora da amostra`.

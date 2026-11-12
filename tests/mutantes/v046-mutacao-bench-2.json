@@ -1,0 +1,22 @@
+{
+ "pedido": "v046-mutacao-bench",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M9",
+   "guarda": "fora do clone do Forge, a release não fala de placar nem de bench",
+   "arquivo": "bin/forge-changelog",
+   "de": "if not (raiz / \"scripts\" / \"placar-mutacao.py\").is_file():",
+   "para": "if False:",
+   "testes": ["tests.test_changelog.ReleaseAvisaMedidasDaVersao.test_fora_do_forge_nao_avisa"]
+  },
+  {
+   "id": "M10",
+   "guarda": "sem tag anterior, o comando do placar pede a tag em vez de sair vazio",
+   "arquivo": "bin/forge-changelog",
+   "de": "if tag.returncode == 0 and tag.stdout.strip() else",
+   "para": "if True else",
+   "testes": ["tests.test_changelog.ReleaseAvisaMedidasDaVersao.test_sem_tag_pede_a_tag_anterior_a_mao"]
+  }
+ ]
+}
