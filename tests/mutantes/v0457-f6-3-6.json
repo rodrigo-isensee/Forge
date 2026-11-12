@@ -20,7 +20,7 @@
       "arquivo": "bin/forge-check",
       "trecho": "a.cmd == \"corrigidos\"",
       "motivo": "o despacho de corrigidos virou o `a.cmd in (\"afrouxamentos\", \"corrigidos\")` (M1, coberto), sem mudar comportamento",
-      "linha_base": 10000
+      "linha_base": 10082
     }
   ]
 }
