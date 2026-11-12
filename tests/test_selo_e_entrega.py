@@ -809,8 +809,8 @@ class ParecerDoPortao(Conferencia):
         """Falha fechada: sem o `rev-list` do intervalo (aqui, um `de` que não existe), o veredito conta como trocado."""
         self.entrega_com_parecer()
         revisado = self.git("rev-parse", "HEAD~1")
-        self.assertFalse(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x"))
-        self.assertTrue(fc.veredito_trocado(self.proj, "0" * 40, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x"))
+        self.assertFalse(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x", "review"))
+        self.assertTrue(fc.veredito_trocado(self.proj, "0" * 40, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x", "review"))
 
     def trocado_com_git_que_falha(self, subcomando):
         """O veredito de um parecer válido (sem troca) com o `subcomando` do git falhando e os outros reais."""
@@ -819,9 +819,9 @@ class ParecerDoPortao(Conferencia):
 
         def git_que_falha(raiz, *args, **kw):
             return (128, "") if args[0] == subcomando else git_real(raiz, *args, **kw)
-        self.assertFalse(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x"))
+        self.assertFalse(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x", "review"))
         with mock.patch.object(fc, "git", git_que_falha):
-            return fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x")
+            return fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x", "review")
 
     def test_ls_tree_que_falha_conta_como_veredito_trocado(self):
         """Volta 2 (segurança A5), falha fechada: o `ls-tree` de uma versão da pasta que falha conta como trocado."""
@@ -850,7 +850,7 @@ class ParecerDoPortao(Conferencia):
         self.entrega_com_parecer()
         revisado = self.git("rev-parse", "HEAD~1")
         self.commitar_parecer("reviews", "review", branch="melhoria/y", revisado=revisado, parecer="reprovado", selar=False, nome="y")
-        self.assertFalse(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x"))
+        self.assertFalse(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x", "review"))
 
     def test_arquivo_sem_frontmatter_na_pasta_nao_quebra_o_veredito(self):
         """O arquivo da pasta sem frontmatter não é parecer: não troca o veredito nem quebra a busca."""
@@ -859,7 +859,43 @@ class ParecerDoPortao(Conferencia):
         self.gravar("docs/reviews/notas.md", "# notas sem frontmatter\n")
         self.git("add", "docs/reviews/notas.md")
         self.commit("docs(reviews): notas")
-        self.assertFalse(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x"))
+        self.assertFalse(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x", "review"))
+
+    def forjar_em_ramo_lateral(self, revisor_primeiro):
+        """Volta 3 (segurança A7, S6): o revisor commita x.md reprovado sobre o head revisado; um ramo lateral desse head traz y.md
+        aprovado com o mesmo `commit:`, e o merge --no-ff apaga o x.md. Com `revisor_primeiro`, o commit do revisor é o primeiro pai."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.entregar()
+        revisado = self.git("rev-parse", "HEAD")
+        self.commitar_parecer("reviews", "review", revisado=revisado, parecer="reprovado")
+        self.git("switch", "-q", "-c", "lado", revisado)
+        self.commitar_parecer("reviews", "review", revisado=revisado, selar=False, nome="y")
+        destino, outro = ("melhoria/x", "lado") if revisor_primeiro else ("lado", "melhoria/x")
+        self.git("switch", "-q", destino)
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-commit", "--no-ff", outro)
+        self.git("rm", "-q", "-f", "docs/reviews/x.md")
+        self.commit("merge do ramo lateral")
+        if not revisor_primeiro:
+            self.git("switch", "-q", "melhoria/x")
+            self.git("merge", "-q", "--ff-only", "lado")
+        self.assert_fora("docs/reviews/y.md")
+
+    def test_merge_de_ramo_lateral_que_apaga_o_reprovado_segue_fora(self):
+        self.forjar_em_ramo_lateral(revisor_primeiro=True)
+
+    def test_merge_com_o_ramo_lateral_como_primeiro_pai_segue_fora(self):
+        self.forjar_em_ramo_lateral(revisor_primeiro=False)
+
+    def test_parecer_em_subpasta_do_portao_com_o_reprovado_apagado_segue_fora(self):
+        """Volta 3 (segurança A8, S7): x.md reprovado apagado num commit; docs/reviews/sub/y.md aprovado com o mesmo `commit:` busca
+        o veredito na pasta do portão inteira, não só na subpasta dele."""
+        self.entrega_com_parecer(parecer="reprovado")
+        revisado = self.git("rev-parse", "HEAD~1")
+        self.git("rm", "-q", "docs/reviews/x.md")
+        self.commit("docs(reviews): apaga x")
+        self.commitar_parecer("reviews", "review", revisado=revisado, selar=False, nome="sub/y")
+        self.assert_fora("docs/reviews/sub/y.md")
 
     def portao_de_um_papel(self, papel, pasta, tipo):
         """O brief selado de `Etapa: review` só para o `papel` e o parecer de `pasta` com o mesmo Revisar-sha, sem brief próprio."""

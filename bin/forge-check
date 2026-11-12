@@ -2335,12 +2335,14 @@ def revisados_selados(raiz, caminho, texto, branch, pedido_id, tipo):
     return revisados - {None}
 
 
-def veredito_trocado(raiz, de, head, nome, revisado, parecer, branch):
-    """Volta 1 (segurança A1): uma versão de parecer da pasta de `nome` no intervalo (em `de` ou num commit de `de..head` que toca a
-    pasta), de qualquer arquivo dela (volta 2, segurança A5) e com `branch:` igual, tem o mesmo `commit:` com outro `parecer:` (o veredito
-    mudou sem nova revisão). O git que falha conta como trocado (falha fechada)."""
-    pasta = f"{Path(nome).parent}/"
-    cod, shas = git(raiz, "rev-list", f"{de}..{head}", "--", pasta)
+def veredito_trocado(raiz, de, head, nome, revisado, parecer, branch, tipo):
+    """Volta 1 (segurança A1): uma versão de parecer da pasta do portão do `tipo` no intervalo (em `de` ou num commit de `de..head` que
+    toca a pasta), de qualquer arquivo dela (volta 2, segurança A5) ou das subpastas (volta 3, segurança A8) e com `branch:` igual, tem o
+    mesmo `commit:` com outro `parecer:` (o veredito mudou sem nova revisão). O `rev-list` usa `--full-history` (volta 3, segurança A7):
+    a simplificação de história esconderia o commit do revisor atrás de um merge que apaga o parecer dele. O git que falha conta como
+    trocado (falha fechada)."""
+    pasta = f"{PASTA_E_REGRA[tipo][0]}/"
+    cod, shas = git(raiz, "rev-list", "--full-history", f"{de}..{head}", "--", pasta)
     if cod:
         return True
     for sha in [de] + shas.split():
@@ -2370,7 +2372,7 @@ def parecer_de_portao_da_branch(raiz, de, head, nome, tipo, branch, pedido_id, s
         return False
     if fm.get("commit") not in revisados(tipo):
         return False
-    return not veredito_trocado(raiz, de, head, nome, fm["commit"], fm["parecer"], branch)
+    return not veredito_trocado(raiz, de, head, nome, fm["commit"], fm["parecer"], branch, tipo)
 
 
 def provas_do_brief(texto):
