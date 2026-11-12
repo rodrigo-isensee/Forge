@@ -37,7 +37,7 @@
       "id": "M20",
       "guarda": "volta 1 (segurança A1): veredito trocado no mesmo commit: não é anexo",
       "arquivo": "bin/forge-check",
-      "de": "    return not veredito_trocado(raiz, de, head, nome, fm[\"commit\"], fm[\"parecer\"])",
+      "de": "    return not veredito_trocado(raiz, de, head, nome, fm[\"commit\"], fm[\"parecer\"], branch)",
       "para": "    return True",
       "testes": [
         "tests.test_selo_e_entrega.ParecerDoPortao.test_veredito_trocado_no_mesmo_commit_segue_fora"
@@ -57,8 +57,8 @@
       "id": "M22",
       "guarda": "volta 1 (segurança A1): o git que falha no intervalo conta como veredito trocado (falha fechada)",
       "arquivo": "bin/forge-check",
-      "de": "    cod, shas = git(raiz, \"rev-list\", f\"{de}..{head}\", \"--\", nome)\n    if cod:",
-      "para": "    cod, shas = git(raiz, \"rev-list\", f\"{de}..{head}\", \"--\", nome)\n    if False:",
+      "de": "    cod, shas = git(raiz, \"rev-list\", f\"{de}..{head}\", \"--\", pasta)\n    if cod:",
+      "para": "    cod, shas = git(raiz, \"rev-list\", f\"{de}..{head}\", \"--\", pasta)\n    if False:",
       "testes": [
         "tests.test_selo_e_entrega.ParecerDoPortao.test_git_que_falha_conta_como_veredito_trocado"
       ]
@@ -67,8 +67,8 @@
       "id": "M23",
       "guarda": "volta 1 (segurança A1): só a versão com o MESMO commit: e outro parecer: conta como troca",
       "arquivo": "bin/forge-check",
-      "de": "        if fm.get(\"commit\") == revisado and fm.get(\"parecer\") != parecer:",
-      "para": "        if fm.get(\"parecer\") != parecer:",
+      "de": "            if fm.get(\"branch\") == branch and fm.get(\"commit\") == revisado and fm.get(\"parecer\") != parecer:",
+      "para": "            if fm.get(\"branch\") == branch and fm.get(\"parecer\") != parecer:",
       "testes": [
         "tests.test_selo_e_entrega.ParecerDoPortao.test_veredito_trocado_no_mesmo_commit_segue_fora"
       ]

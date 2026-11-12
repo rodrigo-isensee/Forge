@@ -34,12 +34,54 @@
     },
     {
       "id": "M28",
-      "guarda": "volta 1 (segurança A1): a versão do parecer que não existe (no início do intervalo) não quebra a conferência do veredito",
+      "guarda": "volta 2 (segurança A5): arquivo da pasta sem frontmatter não é parecer nem quebra a conferência do veredito",
       "arquivo": "bin/forge-check",
-      "de": "        fm = ler_frontmatter(git(raiz, \"show\", f\"{sha}:{nome}\")[1])[0] or {}",
-      "para": "        fm = ler_frontmatter(git(raiz, \"show\", f\"{sha}:{nome}\")[1])[0]",
+      "de": "            fm = ler_frontmatter(git(raiz, \"show\", f\"{sha}:{versao}\")[1])[0] or {}",
+      "para": "            fm = ler_frontmatter(git(raiz, \"show\", f\"{sha}:{versao}\")[1])[0]",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_arquivo_sem_frontmatter_na_pasta_nao_quebra_o_veredito"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "volta 2 (review A4): o Agente destino do brief do portão é o papel do tipo (review e devops têm a mesma Etapa)",
+      "arquivo": "bin/forge-check",
+      "de": "        if nome_do_papel(grupo(r\"^\\s*Agente destino:\\s*(\\S+)\", cabecalho)) != PAPEL_DO_BRIEF_DO_PARECER[tipo]:\n            continue",
+      "para": "        if False:\n            continue",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_brief_do_review_nao_ancora_o_devops",
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_brief_do_devops_nao_ancora_o_review"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "volta 2 (review A4): o brief de portão do devops é Etapa: review, a etapa real do brief selar",
+      "arquivo": "bin/forge-check",
+      "de": "\"revisao-devops\": \"review\"}",
+      "para": "\"revisao-devops\": \"devops\"}",
       "testes": [
         "tests.test_selo_e_entrega.ParecerDoPortao.test_parecer_da_propria_branch_e_anexo_do_portao"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "volta 2 (segurança A5): o veredito trocado se procura em todos os arquivos da pasta, não só no mesmo nome",
+      "arquivo": "bin/forge-check",
+      "de": "        cod, nomes = git(raiz, \"ls-tree\", \"-r\", \"--name-only\", sha, \"--\", pasta)",
+      "para": "        cod, nomes = git(raiz, \"ls-tree\", \"-r\", \"--name-only\", sha, \"--\", nome)",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_veredito_trocado_em_outro_arquivo_da_pasta_segue_fora",
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_x_apagado_e_y_aprovado_no_mesmo_commit_segue_fora"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "volta 2 (segurança A5): o ls-tree que falha conta como veredito trocado (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "        if cod:\n            return True\n        for versao in",
+      "para": "        if False:\n            return True\n        for versao in",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_ls_tree_que_falha_conta_como_veredito_trocado"
       ]
     }
   ]

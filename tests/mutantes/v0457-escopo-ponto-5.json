@@ -1,0 +1,16 @@
+{
+  "pedido": "v0457-escopo-ponto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "volta 2 (segurança A5): só o parecer da mesma branch troca o veredito",
+      "arquivo": "bin/forge-check",
+      "de": "            if fm.get(\"branch\") == branch and fm.get(\"commit\") == revisado and fm.get(\"parecer\") != parecer:",
+      "para": "            if fm.get(\"commit\") == revisado and fm.get(\"parecer\") != parecer:",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_parecer_de_outra_branch_na_pasta_nao_troca_o_veredito"
+      ]
+    }
+  ]
+}
