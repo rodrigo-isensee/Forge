@@ -1,6 +1,6 @@
 {
   "name": "forge-dev",
-  "version": "0.45.5",
+  "version": "0.46.0",
   "description": "Forge, desenvolvimento da fábrica: agentes que só a sessão do Forge carrega (AQ). Não é instalado nos projetos.",
   "author": {
     "name": "Rodrigo Isensee"
