@@ -3,34 +3,41 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v046
 branch: melhoria/v046-mutacao-bench
-commit: 60bba369d14f778d47f085e4f68c59707c44388f
-parecer: reprovado
+commit: e452582f9186c8b70a2a935d9c0e12e84ec6e48b
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-12
 ---
-# Review de segurança: v046 (E7.3, melhoria/v046-mutacao-bench)
+# Review de segurança: v046 (E7.7, melhoria/v046-mutacao-bench, revalidação por delta)
 
-Diff revisado: `8b5a44d5..60bba369` (bin/forge-mutante, bin/forge-changelog, specs e testes). Nada em `.github/` nem em `.githooks/` (conferido: diff vazio nessas pastas).
+Delta revisado: `60bba369..e452582f` (`forge-check parecer delta`: no domínio só `bin/forge-mutante` e `bin/forge-changelog`; specs, testes e fragmento do changelog lidos como apoio). Nada em `.github/` nem em `.githooks/`. A rodada anterior (E7.3, `60bba369`) foi reprovada pelo A1.
 
 ## Gatilhos
 Controle do Forge (`R-SEGURANCA`): `bin/forge-mutante` produz a prova de mutação que o QA cola no parecer (portão `R-QA`); `bin/forge-changelog release` roda na promoção de versão.
 
 ## Achados
-- A1 (bloqueante) bin/forge-mutante:805 · --base escolhe o mutante só pelo `arquivo` mutado; mudança nos módulos de `testes` ou na própria spec não o põe no diff. Teste esvaziado entre rodadas deixa o mutante fora do diff, sem rodar, e a revalidação sai 0 (S1). Incluir o mutante se a spec ou um módulo de `testes` mudou.
-- A2 (recomendado) bin/forge-mutante:19 · nada liga a --base ao head já aprovado pelo QA nem diz que a 1.ª rodada do portão é a spec inteira; qa-testing e qa-engineer não citam a --base. Escrever no SKILL do QA: dirigida só na revalidação, base = head já aprovado, e conferir a linha base= no parecer.
-- A3 (recomendado) bin/forge-changelog:223 · o nome da tag entra cru num comando impresso para copiar; nome de ref aceita `$(`, `;` e `|` (git check-ref-format aceita refs/tags/v9$(id)). Citar com shlex.quote. Baixa: exige criar tag no repositório do Forge.
+- A1 (bloqueante) bin/forge-mutante:800 · resolvido em e452582f: no_diff põe o mutante no diff quando mudou a spec que o declara, o arquivo dele ou o módulo de um dos seus testes; S1 refeita (teste esvaziado) roda o mutante e sai 1; os mutantes M11 a M15 guardam a condição.
+- A2 (recomendado) bin/forge-mutante:17 · parcial: o --help liga a --base ao head já aprovado pelo QA e manda conferir a linha base=; skills/qa-testing/SKILL.md e agents/qa-engineer.md ainda não citam a --base da dirigida. Levar as mesmas duas frases ao SKILL do QA.
+- A3 (recomendado) bin/forge-changelog:222 · resolvido em e452582f: shlex.quote na tag; a tag v9$(id) sai citada entre aspas simples no comando impresso (test_tag_com_metacaractere_sai_citada_no_comando, verde).
+- A4 (recomendado) bin/forge-mutante:802 · helper importado pelo teste (tests/apoio_*.py, tests/ambiente_git.py) esvaziado entre base e rev deixa o mutante fora do diff e a dirigida sai 0 (S2); o limite está escrito no --help. Pôr todos os mutantes no diff quando mudar arquivo de tests/ que não seja test_*.py.
 
 ## Sondas
-- S1 · clone de 60bba369; commit com `# comentario` em bin/forge-mutante e `return` no início de test_fora_do_forge_nao_avisa; dirigir(specs v046-mutacao-bench*.json, base=60bba369, rev=HEAD) · espera: M9 roda (o teste que o mata mudou) · obtido: fora do diff: M9 · bin/forge-changelog; rodam M1..M8
+- S1 · fixture de MutacaoDirigida: teste do M1 enfraquecido e outro.py mudado; `forge-mutante SPEC --base <base>` · espera: M1 roda e sobrevive, rc 1 · obtido: `M1 · sobreviveu`, rc 1 (test_teste_enfraquecido_entre_base_e_rev_roda_o_mutante_e_sobrevive, verde)
+- S2 · repo em $TMPDIR: helper tests/apoio.py usado pelo teste que mata M1 (lib.py) trocado por `return None`, e outro.py (M2) mudado; `forge-mutante spec.json --base <base>` · espera: M1 roda e sobrevive · obtido: `fora do diff: M1 · lib.py`, rc 0 (sem --base: M1 sobrevive, rc 1)
+- S3 · `python3 -c "import shlex;print(shlex.quote('v9\$(id)'))"` e test_tag_com_metacaractere_sai_citada_no_comando · espera: `'v9$(id)'` · obtido: `'v9$(id)'`, teste verde
 
 ## Detalhe dos achados
-**A1** · evidência: `bin/forge-mutante:805` (`if m["arquivo"] not in mudados`) e o filtro da linha seguinte; o uso na revalidação está prescrito em `bin/forge-mutante:19`. Caminho de ataque: o autor (agente), entre a 1.ª rodada e a revalidação, enfraquece o teste listado em `testes` de um mutante cujo arquivo-alvo não muda mais (ou edita o `para` da spec), e mexe em outro arquivo da spec para a rodada não sair 2; o QA roda `--base <head revisado>` como o próprio texto da ferramenta indica; o mutante cujo teste foi esvaziado sai `fora do diff`, os demais morrem, saída 0, e o sobrevivente fica escondido no portão. Severidade: média (esvazia a prova de mutação de um controle do Forge sem nenhum erro). Correção mínima: em `dirigir`, um mutante entra quando qualquer destes caminhos está em `mudados`: o `arquivo` dele; o arquivo da spec que o declara; o arquivo de cada módulo de `testes` (o id pontuado `tests.x.Classe.metodo` vira `tests/x.py`). Com teste novo em `MutacaoDirigida` para os dois casos (só o teste mudou; só a spec mudou), e mutante na spec cobrindo a condição nova. Esforço: P. Dono: `tech-lead` (autor da E7.1).
+**A1** (resolvido) · `bin/forge-mutante:797-802` (`no_diff`) e `:821` (`spec_mudou`). Cobre os três caminhos da correção mínima da E7.3: o `arquivo`, a spec versionada (comparada pelo caminho relativo à raiz depois do `chdir` para o toplevel) e cada módulo possível do id pontuado (`modulos_do_teste` gera todos os prefixos, então `tests.test_lib.T.test_borda` inclui `tests/test_lib.py`). Spec fora do repositório (cópia em `$TMPDIR`, outra worktree) não conta como mudada; o `--help` diz "spec versionada no repositório" e o QA roda a spec da worktree do head, então não é caminho de ataque realista. Diff com `--no-renames`: renomear o teste aparece como apagado e criado, e os dois nomes entram em `mudados`.
 
-**A2** · evidência: `bin/forge-mutante:19`; `skills/qa-testing/SKILL.md:92-96` e `agents/qa-engineer.md:20` sem menção à `--base`. Caminho: com qualquer SHA posterior à última mudança de um arquivo, os mutantes dele saem do diff; a linha `base=… mb=… rev=…` mostra a base, mas ninguém é instruído a conferi-la. Severidade: baixa (a saída lista cada `fora do diff`). Correção mínima: no SKILL do QA, a 1.ª rodada é a spec inteira; `--base` só na revalidação, com a base igual ao head que o QA já aprovou, e quem lê o parecer confere a linha `base=`. Esforço: P. Dono: `tech-lead`.
+**A2** (recomendado, parcial) · `bin/forge-mutante:17-22`: a 1.ª rodada do QA é a spec inteira; `--base` só na revalidação, com SHA = head já aprovado, e o parecer confere a linha `base=`. Isso responde à pergunta do brief: a ligação está descrita e é verificável pela saída. Falta levá-la a `skills/qa-testing/SKILL.md:92` (bloco de mutação) e a `agents/qa-engineer.md:20` (que só cita a `--base` da `--cobertura`), onde o QA a lê sem abrir o `--help`. Severidade: baixa. Esforço: P. Dono: `tech-lead`.
 
-**A3** · evidência: `bin/forge-changelog:223`. Caminho: alguém com permissão de criar tag no repositório do Forge cria `v9$(…)`; o `git describe --match 'v[0-9]*'` a devolve e o tech-lead cola o comando impresso no shell. Severidade: baixa. Correção mínima: `shlex.quote(anterior)` na linha impressa. Esforço: P. Dono: `tech-lead`.
+**A3** (resolvido) · `bin/forge-changelog:222`. O marcador `<tag da release anterior>` continua sem citação, de propósito: é texto para a pessoa substituir, não valor vindo do repositório.
 
-Perguntas do brief: (1) o `--base` esvazia a prova num portão? Em parte: base sem ancestral, ilegível ou sem mutante no diff sai 2 (testes `MutacaoDirigida` verdes), mas o recorte ignora testes e spec (A1). (2) Injeção ou caminho fora do repositório? Não: a `--base` passa por `resolver` (`rev-parse --verify --end-of-options <ref>^{commit}`), e `merge-base` e `diff` recebem só SHAs, com `--` e `--literal-pathspecs`; `arquivo` só é comparado como texto, sem abrir caminho; o `git describe` tem argumentos fixos e `cwd` na raiz, e a saída só é impressa (A3 é o único resíduo). O aviso do release não muda o código de saída.
+**A4** · evidência: `bin/forge-mutante:802` (só o módulo do teste entra, não o que ele importa) e o próprio `--help` (`Helper importado pelo teste não conta`). Caminho de ataque: o autor (agente), entre o head aprovado e a revalidação, esvazia uma asserção dentro de um helper (`tests/apoio_*.py`, `tests/ambiente_git.py`, comuns na suíte do Forge) usado pelo teste que mata um mutante cujo arquivo não muda mais, e mexe em outro arquivo da spec para a rodada não sair 2; a dirigida sai 0 (S2). Por que não bloqueia: o limite está escrito na ferramenta; o helper mudado aparece no delta que review, segurança e QA leem na mesma volta (o `forge-check parecer delta` o lista); e a correção mínima da E7.3, que este parecer revalida, pedia a spec e o módulo do teste, não a cadeia de importação, que não tem fim (o próprio arquivo mutado importa outros módulos). Severidade: baixa. Correção mínima proporcional: em `dirigir`, se `mudados` tiver algum arquivo sob `tests/` que não seja `tests/test_*.py` nem `tests/mutantes/*.json`, todos os mutantes da spec entram (a rodada fica igual à 1.ª, sem custo no CI do PR, porque a mutação não roda no PR); com teste em `MutacaoDirigida` e mutante na spec. Esforço: P. Dono: `tech-lead`.
+
+Pergunta do brief "helper importado pelo teste não conta: é aceitável?": sim, como limite documentado desta entrega, com o A4 recomendado; calar o limite não seria aceitável, e ele não está calado.
+
+Conferência PA-7 (`docs/engineering/achados-recorrentes.md`): AR-5 e AR-7 não se aplicam ao delta (nenhum `python` novo em caminho que decide; o `git` roda no `cwd` que o próprio `main` fixou no toplevel); AR-12 (spec desatualizada) conferido: M11 a M15 e os ajustes em `v046-mutacao-bench.json` batem com o texto de `e452582f`.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Testes dos arquivos tocados rodados: `MutacaoDirigida` e `ReleaseAvisaMedidasDaVersao`, 7 testes, OK. Ferramentas ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, zizmor, actionlint; o diff não toca workflow nem traz segredo à leitura.
+Nenhum risco aceito. Testes dos arquivos tocados rodados em `e452582f`: `MutacaoDirigida` e `ReleaseAvisaMedidasDaVersao`, 11 testes, OK. Ferramentas ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, zizmor, actionlint; o delta não toca workflow nem traz segredo à leitura.
