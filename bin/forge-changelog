@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -218,7 +219,7 @@ def avisar_medidas(raiz, versao):
         return
     tag = subprocess.run(["git", "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*"], cwd=raiz,
                          capture_output=True, text=True)
-    anterior = tag.stdout.strip() if tag.returncode == 0 and tag.stdout.strip() else "<tag da release anterior>"
+    anterior = shlex.quote(tag.stdout.strip()) if tag.returncode == 0 and tag.stdout.strip() else "<tag da release anterior>"
     print(f"medida da versão {versao} (uma vez por versão, não é portão; R-TETO):")
     print(f"  placar: scripts/placar-mutacao.py --desde {anterior} --versao {versao} (docs/engineering/placar-mutacao.md)")
     print(f"  bench: a linha da {versao} em bench-versoes.md e metricas-velocidade.md, na área do Jarvis")

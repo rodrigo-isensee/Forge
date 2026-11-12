@@ -314,9 +314,9 @@ class ReleaseAvisaAvaliacaoDeFora(Base):
 class ReleaseAvisaMedidasDaVersao(Base):
     """v046 E7 (decisão do dono de 12/11): placar de mutação e bench uma vez por versão, na release; nunca no PR."""
 
-    def preparar(self, forge=True, tag=True):
+    def preparar(self, forge=True, tag="v0.1.0"):
         if tag:
-            git(self.dir, "tag", "v0.1.0")
+            git(self.dir, "tag", tag)
         if forge:
             (self.dir / "scripts").mkdir()
             (self.dir / "scripts" / "placar-mutacao.py").write_text("", encoding="utf-8")
@@ -332,7 +332,10 @@ class ReleaseAvisaMedidasDaVersao(Base):
         self.assertIn("bench: a linha da 0.2.0 em bench-versoes.md e metricas-velocidade.md", saida)
 
     def test_sem_tag_pede_a_tag_anterior_a_mao(self):
-        self.assertIn("--desde <tag da release anterior> --versao 0.2.0", self.preparar(tag=False))
+        self.assertIn("--desde <tag da release anterior> --versao 0.2.0", self.preparar(tag=None))
+
+    def test_tag_com_metacaractere_sai_citada_no_comando(self):  # segurança A3 da v046 E7
+        self.assertIn("--desde 'v9$(id)' --versao 0.2.0", self.preparar(tag="v9$(id)"))
 
     def test_fora_do_forge_nao_avisa(self):
         self.assertNotIn("medida da versão", self.preparar(forge=False))
