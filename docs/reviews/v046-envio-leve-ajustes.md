@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v046
 branch: melhoria/envio-leve-ajustes
-commit: 73d0017a58ce64b00ffc62817096eb55b01a1c5d
+commit: 528abfd4ba5341152039c61113e930bad139c220
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-11
@@ -36,3 +36,5 @@ Execução no head (worktree destacada, ambiente limpo com `TMPDIR` mantido): `p
 
 ## Integração (E19.2)
 Merge da origin/develop (d3453407) em 528abfd4, sem rebase. Conflito só de texto em `docs/economia-de-tokens.md` (item 5) e `docs/regras/R-TETO.md:16`: ficou o texto da develop (TEMPO-A, exceção do `--duas-partes`) com a frase da ENVIO-LEVE inserida e "o envio local não roda teste" no lugar de "roda os afetados". Nenhum código nem teste mudou na resolução; o diff contra a develop segue nos 6 arquivos da E19.1. Rodados no merge: `test_pre_push_leve` (8 OK), `test_suite_paralela` (61 OK), `test_prepush_so_docs` (62 OK, 9 skip).
+
+Revalidação por delta no head 528abfd4: o `forge-check parecer delta` (escopo sem o que veio da develop) lista só `docs/economia-de-tokens.md` e `docs/regras/R-TETO.md`, que são a resolução descrita acima. O `.githooks/pre-push` que o `forge-check pr` aponta mudou só pelo que veio da develop, já integrado e revisado lá. Parecer mantido: aprovado no 528abfd4.
