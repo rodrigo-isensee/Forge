@@ -135,3 +135,37 @@ class AnexosImplicitos(Repositorio):
         self.gravar_pedido()
         rc, saida = self.entrega(base_sha=base)
         self.assertEqual((rc, 'escopo: confira "changelog.d/x.md" +0 -1' in saida), (0, True), saida)
+
+
+class PareceresPeloPedido(Repositorio):
+    """E23.17 (v0457, c): na merge-integracao, os pareceres são achados pelo pedido (`p1`), como no `forge-check pr <pedido>`, não
+    pelo slug `x` da branch."""
+
+    def review(self, pedido):
+        texto = PARECER.format(t="review", c=self.codigo, p="aprovado", extra="revisor: forge:tech-lead\n", achados="")
+        self.commitar({"docs/reviews/x.md": texto.replace("pedido: x", f"pedido: {pedido}")}, "review")
+
+    def setUp(self):
+        super().setUp()
+        self.codigo = self.commitar({"notas.md": "a\n"}, "trabalho")
+        self.gravar_pedido()
+
+    def test_parecer_com_o_pedido_do_brief_aprova(self):
+        self.review("p1")
+        rc, saida = self.entrega(etapa="merge-integracao")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(OK_INTEGRACAO, saida)
+
+    def test_id_do_pedido_vale_mais_que_o_nome_do_arquivo(self):
+        self.gravar_pedido()
+        self.pedido.write_text("---\nid: q1\n---\n" + self.pedido.read_text(encoding="utf-8"), encoding="utf-8")
+        self.review("q1")
+        rc, saida = self.entrega(etapa="merge-integracao")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(OK_INTEGRACAO, saida)
+
+    def test_parecer_de_outro_pedido_segue_reprovando(self):
+        self.review("z")
+        rc, saida = self.entrega(etapa="merge-integracao")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(SEM_PARECER, saida)

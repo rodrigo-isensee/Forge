@@ -9,7 +9,7 @@
       "de": "        itens = [re.sub(r\"[`'\\\".;]+$\", \"\", t.lstrip(\"`'\\\"\")).removeprefix(\"./\")",
       "para": "        itens = [t.strip(\"`'\\\".;\").removeprefix(\"./\")",
       "testes": [
-        "tests.test_escopo_ponto.PontoInicial.test_caminho_com_ponto_inicial_e_pontuacao_final"
+        "tests.test_selo_e_entrega.PontoInicial.test_caminho_com_ponto_inicial_e_pontuacao_final"
       ]
     },
     {
@@ -19,7 +19,7 @@
       "de": "    if etapa == \"codigo\":  # E23.17 (b)",
       "para": "    if True:  # E23.17 (b)",
       "testes": [
-        "tests.test_escopo_ponto.VoltaNaMesmaBranch.test_outra_etapa_nao_une_os_briefs_de_codigo"
+        "tests.test_selo_e_entrega.VoltaNaMesmaBranch.test_outra_etapa_nao_une_os_briefs_de_codigo"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "de": "if s != sha_brief and mesmo_pedido(grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Pedido\"], cabecalho_do_brief(t)), pedido_id, caminho)]",
       "para": "if s != sha_brief]",
       "testes": [
-        "tests.test_escopo_ponto.VoltaNaMesmaBranch.test_brief_de_outro_pedido_nao_entra_na_uniao"
+        "tests.test_selo_e_entrega.VoltaNaMesmaBranch.test_brief_de_outro_pedido_nao_entra_na_uniao"
       ]
     },
     {
@@ -39,7 +39,7 @@
       "de": "if s != sha_brief and mesmo_pedido(",
       "para": "if mesmo_pedido(",
       "testes": [
-        "tests.test_escopo_ponto.VoltaNaMesmaBranch.test_dois_briefs_da_mesma_branch_unem_o_escopo"
+        "tests.test_selo_e_entrega.VoltaNaMesmaBranch.test_dois_briefs_da_mesma_branch_unem_o_escopo"
       ]
     },
     {
@@ -49,7 +49,7 @@
       "de": "lambda nome: next((r for d in declarados if (r := d(nome))), None)",
       "para": "lambda nome: next((r for d in declarados if ((r := d(nome)) or True)), None)",
       "testes": [
-        "tests.test_escopo_ponto.VoltaNaMesmaBranch.test_dois_briefs_da_mesma_branch_unem_o_escopo"
+        "tests.test_selo_e_entrega.VoltaNaMesmaBranch.test_dois_briefs_da_mesma_branch_unem_o_escopo"
       ]
     },
     {
@@ -59,7 +59,7 @@
       "de": "            if grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho) == branch and grupo(ETAPA_DO_CABECALHO, cabecalho) == etapa:\n                yield arquivo, texto, sha",
       "para": "            if grupo(ETAPA_DO_CABECALHO, cabecalho) == etapa:\n                yield arquivo, texto, sha",
       "testes": [
-        "tests.test_escopo_ponto.VoltaNaMesmaBranch.test_brief_de_outra_branch_nao_entra_na_uniao"
+        "tests.test_selo_e_entrega.VoltaNaMesmaBranch.test_brief_de_outra_branch_nao_entra_na_uniao"
       ]
     },
     {
@@ -69,7 +69,7 @@
       "de": "    if any(pedido_do_parecer(git(raiz, \"show\", f\"{head}:{n}\")[1]) == pedido_id for n in nomes.splitlines()):",
       "para": "    if False and any(pedido_do_parecer(git(raiz, \"show\", f\"{head}:{n}\")[1]) == pedido_id for n in nomes.splitlines()):",
       "testes": [
-        "tests.test_escopo_ponto.PareceresPeloPedido.test_parecer_com_o_pedido_do_brief_aprova"
+        "tests.test_conf_escopo.PareceresPeloPedido.test_parecer_com_o_pedido_do_brief_aprova"
       ]
     },
     {

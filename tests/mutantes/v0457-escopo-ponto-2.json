@@ -9,8 +9,8 @@
       "de": "    return (re.search(r\"^id:\\s*(\\S+)\", texto, re.M) or [None, Path(caminho).stem])[1]",
       "para": "    return (None or [None, Path(caminho).stem])[1]",
       "testes": [
-        "tests.test_escopo_ponto.PareceresPeloPedido.test_id_do_pedido_vale_mais_que_o_nome_do_arquivo",
-        "tests.test_escopo_ponto.VoltaNaMesmaBranch.test_pedido_com_id_diferente_do_nome_do_arquivo"
+        "tests.test_conf_escopo.PareceresPeloPedido.test_id_do_pedido_vale_mais_que_o_nome_do_arquivo",
+        "tests.test_selo_e_entrega.VoltaNaMesmaBranch.test_pedido_com_id_diferente_do_nome_do_arquivo"
       ]
     }
   ]
