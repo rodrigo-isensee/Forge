@@ -145,8 +145,13 @@ def processo(pid):
         return None
 
 
-def inicio_da_sessao():
-    return (processo(pid_da_sessao()) or (None, None))[1]
+def inicio_de(pid):
+    return (processo(pid) or (None, None))[1]
+
+
+def gravar_a_vez(hook, arquivo, dono, inicio, comando, agora, uso):
+    gravar_json(arquivo, {"pid": dono, "inicio": inicio, "agente": hook.campo("agent_id"),
+                          "comando": " ".join(comando.split())[:120], "desde": agora, "tool_use_id": uso})
 
 
 def pid_vivo(pid, inicio=None):
@@ -171,9 +176,10 @@ def pid_vivo(pid, inicio=None):
 def inicios(palavras):
     """Textos normalizados do comando simples a partir de cada ponto onde a ferramenta pode começar. B4 (v046): antes,
     os lançadores da tabela do `_comum` com as opções deles (`timeout -s KILL 60`, `nice -n 10`, `env -i -u X`), em cada
-    leitura possível; a leitura que o `_comum` recusa (`LancadorDemais`, texto do `env -S` aberto) cai na leitura antiga."""
+    leitura possível, somadas à leitura antiga (o padrão do projeto que começa por lançador, `nice make test`, segue
+    pesado); a leitura que o `_comum` recusa (`LancadorDemais`, texto do `env -S` aberto) fica só com a antiga."""
     try:
-        simples = [comando for comando, _ in separar_lancadores(palavras)]
+        simples = [palavras] + [comando for comando, _ in separar_lancadores(palavras)]
     except ValueError:
         simples = [palavras]
     return [texto for comando in simples for texto in inicios_sem_lancador(comando)]
@@ -297,8 +303,8 @@ def principal(hook):
             return
         agora = time.time()
         if not ocupada(hook, trava, uso, agora) and not fila_viva(hook.run() / "pesado.fila"):
-            gravar_json(arquivo, {"pid": pid_da_sessao(), "inicio": inicio_da_sessao(), "agente": hook.campo("agent_id"),
-                                  "comando": " ".join(comando.split())[:120], "desde": agora, "tool_use_id": uso})
+            dono = pid_da_sessao()
+            gravar_a_vez(hook, arquivo, dono, inicio_de(dono), comando, agora, uso)
             return
     esperar_a_vez(hook, raiz, arquivo, comando, uso)
 
@@ -321,6 +327,7 @@ def esperar_a_vez(hook, raiz, arquivo, comando, uso):
     pasta = hook.run() / "pesado.fila"
     senha, preso = entrar_na_fila(pasta, prioridade(branch))
     dono = pid_da_sessao()
+    inicio = inicio_de(dono)  # lidos uma vez: a vez grava o dono já checado, não um pid relido depois da checagem
     try:
         for _ in range(int(espera_s() / PASSO_S) + 1):
             if pid_da_sessao() != dono:  # PROCESSO-ORFAO (v046): a sessão acabou; a senha sai da fila e a vez não é pega
@@ -329,8 +336,7 @@ def esperar_a_vez(hook, raiz, arquivo, comando, uso):
                 trava, agora = ler_json(arquivo, None), time.time()
                 vivas = fila_viva(pasta)
                 if not ocupada(hook, trava, uso, agora) and vivas[:1] == [senha]:
-                    gravar_json(arquivo, {"pid": pid_da_sessao(), "inicio": inicio_da_sessao(), "agente": hook.campo("agent_id"),
-                                          "comando": " ".join(comando.split())[:120], "desde": agora, "tool_use_id": uso})
+                    gravar_a_vez(hook, arquivo, dono, inicio, comando, agora, uso)
                     return
             time.sleep(PASSO_S)
         registrar_a_recusa(hook)

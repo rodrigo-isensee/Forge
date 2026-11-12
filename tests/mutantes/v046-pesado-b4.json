@@ -71,6 +71,17 @@
       "testes": [
         "tests.test_pesado_v046.B4.test_por_caminho_absoluto_ou_relativo"
       ]
+    },
+    {
+      "id": "B8",
+      "guarda": "B4: a leitura antiga soma as sem lancador (padrao do projeto com lancador)",
+      "arquivo": "hooks/pesado.py",
+      "de": "simples = [palavras] + [comando for comando, _ in separar_lancadores(palavras)]",
+      "para": "simples = [comando for comando, _ in separar_lancadores(palavras)]",
+      "testes": [
+        "tests.test_pesado_v046.B4.test_padrao_do_projeto_que_comeca_por_lancador",
+        "tests.test_pesado_v046.B4.test_nada_pesado_na_base_vira_leve"
+      ]
     }
   ],
   "isentas": [

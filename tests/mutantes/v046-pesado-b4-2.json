@@ -56,8 +56,8 @@
       "id": "O6",
       "guarda": "PROCESSO-ORFAO: a trava grava o inicio da sessao",
       "arquivo": "hooks/pesado.py",
-      "de": "return (processo(pid_da_sessao()) or (None, None))[1]",
-      "para": "return (processo(pid_da_sessao()) and (None, None))[1]",
+      "de": "return (processo(pid) or (None, None))[1]",
+      "para": "return (processo(pid) and (None, None))[1]",
       "testes": [
         "tests.test_pesado_v046.ProcessoOrfao.test_a_vez_grava_o_inicio_da_sessao"
       ]
@@ -70,6 +70,16 @@
       "para": "if pid_da_sessao() == -1:",
       "testes": [
         "tests.test_pesado_v046.ProcessoOrfao.test_sessao_que_acabou_sai_da_fila_sem_pegar_a_vez"
+      ]
+    },
+    {
+      "id": "O8",
+      "guarda": "PROCESSO-ORFAO: sem permissao de sinal decide pelo /proc",
+      "arquivo": "hooks/pesado.py",
+      "de": "except PermissionError:\n        pass",
+      "para": "except PermissionError:\n        return True",
+      "testes": [
+        "tests.test_pesado_v046.ProcessoOrfao.test_sem_permissao_de_sinal_decide_pelo_proc"
       ]
     }
   ]
