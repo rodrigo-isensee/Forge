@@ -13,7 +13,10 @@ data: 2026-11-12
 Revalidação por delta (E23.41), por instância que não fez a entrega. Delta lido: `forge-check parecer delta docs/reviews/escopo-ponto.md`, intervalo ba35957368421e2e1803e48011839eaa83454463..c51ecb4847bcac295a72bf42f0dec8ab44f1538e, no domínio bin/forge-check, changelog.d/escopo-ponto.md, tests/mutantes/v0457-escopo-ponto{,-2,-3,-4}.json, tests/test_conf_escopo.py, tests/test_selo_e_entrega.py. Testes dos arquivos tocados, um módulo por vez: `test_conf_escopo` 16 OK; `test_selo_e_entrega` 62 OK.
 
 ## Achados
-- A4 (bloqueante) bin/forge-check:2321 · ETAPA_DO_PORTAO leva `revisao-devops` à etapa `devops`, que não existe (ETAPAS_DO_GERAR; o `brief selar` a recusa no vocabulário); o brief de portão do devops real é `Etapa: review` (v0457-devops-engineer-2, E23.16), então o parecer de devops da própria branch nunca é ancorado e volta a sair "fora do declarado" na etapa codigo, regressão da E23.36 (d) sobre o ba359573 (S2). O teste esconde o defeito: tests/test_selo_e_entrega.py:717 sela à mão `Etapa: devops`, fixture mais frouxa que a ferramenta. Correção: devops pela etapa `review` com o `Agente destino: forge:devops-engineer` (e o review com `forge:tech-lead`, para um não ancorar o outro), fixture com a etapa real e mutante da distinção.
+- A4 (bloqueante) bin/forge-check:2321 · revisao-devops vai à etapa `devops`, que não existe; o brief de portão real do devops é `Etapa: review` e o parecer de devops nunca ancora: regressão da E23.36 (d) (S2); a fixture em tests/test_selo_e_entrega.py:717 a esconde
+
+## Detalhe do A4
+A etapa `devops` não está em ETAPAS_DO_GERAR (o `brief selar` a recusa no vocabulário); o brief do portão de devops é `Etapa: review` com Revisar-sha (v0457-devops-engineer-2, E23.16). O teste sela à mão `Etapa: devops`, mais frouxo que a ferramenta. Correção: devops pela etapa `review` com `Agente destino: forge:devops-engineer` (e o review com `forge:tech-lead`, para um não ancorar o outro), fixture com a etapa real e mutante da distinção.
 
 ## Sondas
 - S1 · test_conf_escopo.PareceresPeloPedido.test_parecer_de_outra_branch_com_o_id_nao_troca_o_slug (docs/reviews/x.md pedido x da melhoria/x, docs/reviews/p1.md pedido p1 da melhoria/outra), merge-integracao · espera: rc 0 e escopo ok · obtido: OK (no ba359573 dava rc 1)
