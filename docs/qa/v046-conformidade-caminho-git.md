@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/conformidade-caminho-git
-commit: c072741112e9383735cb82019aa0523acb4fa6a6
+commit: cddc8915fda2dd271907323e1a2c04beebd2bd28
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -55,4 +55,20 @@ Delta lido: `forge-check parecer delta` lista conformidade.py, 22 fixtures novas
 - `bin/forge-mutante tests/mutantes/v046-conformidade-caminho-git.json` (rev c072741112e9): G1 a G8 todos `morreu`.
 - `bin/forge-mutante tests/mutantes/v046-conformidade-caminho-git-2.json`: G9 a G14 todos `morreu` (conformidade.py:1401, 1013, 956, 1483, 1484, 1170).
 - Um mutante por condição nova: DIR_DO_GIT na atribuição (G9), expansão (G10), mensagem (G11), `--target-directory=` (G12), crase em palavra (G13), crase em REV_PARSE (G14).
+- Suíte inteira: não rodei (R-TETO); vale o check-run `bateria` do sha no CI do PR.
+
+## Revalidação por delta c0727411..cddc8915 (E20.20)
+Delta lido: `_REV_PARSE` saiu; `valor_do_rev_parse` e `trocar_rev_parse` (hooks/conformidade.py:368-382) leem o corpo por palavras (shlex); 16 fixtures `gitcomum-v2-*` (58 `gitcomum-*`), mínimo 58, spec `-3` (G17 a G19) e G15, G16 na `-2`. Veredito: aprovado, sem achado novo.
+- G15 a G19 morrem pelo motivo certo (rodados à mão, um a um, em worktree descartável): G15 (opção do diretório) cai em s4-gitdir, v2-menos-c-gitdir, v2-quiet-gitdir; G16 (`--git-path`) em 12 fixtures de gitpath; G17 (`CAMINHO_SIMPLES`) só em v2-argumento-com-aspas; G18 (`valor is None`) em mktemp, toplevel-docs, v2-menos-c-toplevel-libera, toplevel-hooks-recusa-limite; G19 (`"rev-parse" in palavras`) em crase-generica/opcao-config e mktemp-libera.
+- Casos que liberam seguem livres (sondas minhas, fixtures descartáveis, não commitadas, saída 0): `cp x $(git rev-parse --show-toplevel)/docs/n.md`, o mesmo seguido de `&& git rev-parse --git-dir`, `"$(git -C . rev-parse --show-toplevel)/docs/n.md"`, `echo $(git rev-parse --git-dir) > docs/o.md`, `$(git rev-parse --git-dir)/../docs/n.md`; as fixtures v2-menos-c-ler-libera e v2-menos-c-toplevel-libera os fixam.
+- Casos de abuso fora das fixtures, todos recusam (exit 2, R-CONFORMIDADE): `"$(git rev-parse --git-dir)/config"`, `2>/dev/null` dentro, `-c a=b` com `--git-common-dir`, `\git -q`, `/usr/bin/git --git-path "hooks/pre-push"`, crase com `--git-dir=.git` e `--absolute-git-dir`, `--git-path $x`, `--git-path` sem argumento, `$(echo hi; git rev-parse --git-dir)`, `$(git rev-parse --git-dir | cat)`, `$(git rev-parse --git-dir; true)`.
+- A3 do QA (`$TMPDIR/config.json` libera sem fixture) e A4, A5 do mv, A6, A7, A8 seguem em cartão, fora do delta.
+
+## Provas (revalidação E20.20)
+- PQ-1: `git log --format=%H -1 cddc8915fda2dd271907323e1a2c04beebd2bd28` -> cddc8915fda2dd271907323e1a2c04beebd2bd28
+- `python3 tests/test_hook_git_comum.py`: Ran 1 test in 6.256s, OK (58 fixtures).
+- `bin/forge-mutante tests/mutantes/v046-conformidade-caminho-git.json` (rc 0, rev cddc8915fda2): G1 a G8 `morreu`.
+- `bin/forge-mutante tests/mutantes/v046-conformidade-caminho-git-2.json` (rc 0): G9 a G16 `morreu` (conformidade.py:1428, 1040, 983, 1510, 1511, 380, 370, 372).
+- `bin/forge-mutante tests/mutantes/v046-conformidade-caminho-git-3.json` (rc 0): G17, G18, G19 `morreu` (conformidade.py:374, 381, 368).
+- `bin/forge-mutante --cobertura --base 8b5a44d5ffd509c8c63d3e9f68dbef20071c7d3e`: rc 0, só linhas `coberta`.
 - Suíte inteira: não rodei (R-TETO); vale o check-run `bateria` do sha no CI do PR.
