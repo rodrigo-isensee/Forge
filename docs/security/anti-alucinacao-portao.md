@@ -67,7 +67,7 @@ Também passaram, na cópia da branch: `tests.test_hooks.Hooks.test_fixtures`, `
   - `hooks/_comum.py:44` e `hooks/_comum.py:480-490`: `Hook.projeto` tenta primeiro `raiz_do_projeto`, e o `hooks_desligados` vale sempre que existe `.forge/versao`.
   - `hooks/conformidade.py:1192-1193`: numa sessão com raiz no clone, o `conformidade` só age dentro de um projeto e não protege o `.forge/` do próprio clone. A frase de `docs/hooks.md` sobre o `.forge/` do clone, na seção "No clone do Forge", já diz isso.
 - **Sondas:**
-  - S7b: com `.forge/versao` e `.forge/config.json` contendo `hooks_desligados: ["parecer"]` no clone, `gh pr create` e `gh pr merge` saem com rc 0;
+  - S16 ([S7b]): com `.forge/versao` e `.forge/config.json` contendo `hooks_desligados: ["parecer"]` no clone, `gh pr create` e `gh pr merge` saem com rc 0;
   - C1 e C2: o `conformidade`, numa sessão com raiz no clone e `agent_type` `forge:tech-lead`, deixa gravar os dois arquivos (rc 0).
 - **Caminho de ataque:** um agente na sessão do Forge é barrado pelo `parecer`, grava os dois arquivos na cópia de trabalho (ficam fora do git) e mescla na `develop` sem parecer válido. São dois atos deliberados, que violam `R-CONFORMIDADE`.
 - **Por que baixa:** é da mesma classe dos desvios já registrados como [B] em `docs/hooks.md`, como um script gravado e executado depois. Não é regressão: antes desta fatia o hook nem agia no clone. A barreira de servidor continua sendo o job `pareceres` do CI.
@@ -79,10 +79,10 @@ Também passaram, na cópia da branch: `tests.test_hooks.Hooks.test_fixtures`, `
   - `hooks/parecer.py:309` (`merge_por_api`) só olha `pulls/<n>/merge`;
   - `hooks/conformidade.py:903-919` (`graphql_perigoso`) reconhece a mutação, mas `hooks/conformidade.py:952` só barra quando a sessão não é do clone.
   - A limitação já está registrada em `docs/hooks.md:91`.
-- **Sondas:** S1, `parecer` rc 0; C3, `conformidade` com sessão no clone, rc 0.
+- **Sondas:** S7 ([S1]), `parecer` rc 0; C3, `conformidade` com sessão no clone, rc 0.
 - **Caminho de ataque:**
   1. Um agente barrado no `gh pr ready` tira o PR do rascunho pela API GraphQL.
-  2. O agente continua sem conseguir mesclar: `gh pr merge` e `gh api .../merge` barram (S1, rc 2).
+  2. O agente continua sem conseguir mesclar: `gh pr merge` e `gh api .../merge` barram ([S1], rc 2; o `gh pr merge` é a S2).
   3. Mas o PR passa a parecer pronto, e o dono pode mesclá-lo pela interface, que é o vetor do #120.
 - **Classificação:** baixa. Exige um contorno deliberado. Com §14 = B, o dono aceitou que tirar o rascunho pela interface não é trava. O caminho do agente pela API não estava coberto por essa decisão, mas o dano depende ainda de um segundo ato do dono. **Vira cartão e não bloqueia.**
 - **Correção mínima (P):** no clone do Forge, o `parecer` trata `gh api graphql` mutante com `markPullRequestReadyForReview` como `gh pr ready` sem branch, porque o ID do PR é global, e barra com `R-CONTRIB`. A leitura do texto inline, de `-F query=@arq` e de `--input` pode reaproveitar `graphql_perigoso`, que já falha fechado no que não consegue ler. Depois, atualizar a linha de `docs/hooks.md:91`. Fixture: graphql ready no clone barra; `convertPullRequestToDraft` passa.
