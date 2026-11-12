@@ -3,12 +3,20 @@ tipo: review
 contrato: 1
 pedido: v046
 branch: melhoria/pr-hook-prazo
-commit: c6577dbb3253de42614764090553d740bc16181b
+commit: cf1cc45d68501463ebafc8b570c13bfc6a79a057
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-12
 ---
 # Review: v046 (E20.3, melhoria/pr-hook-prazo, PR-HOOK-PRAZO)
+
+## Revalidação por delta (E20.26, head cf1cc45d, volta E20.25)
+Delta lido: `forge-check parecer delta docs/reviews/v046-pr-hook-prazo.md`, intervalo c6577dbb..cf1cc45d, no domínio só `tests/mutantes/v046-pr-hook-prazo-7.json` (+36) e `tests/test_pr_hook_prazo.py` (+23); nenhum código de produção. Instância que não fez a entrega, sem reler o resto.
+- **Teste novo** `test_poda_nao_segue_link_nem_abre_arquivo_nem_apaga_a_gravada` (tests/test_pr_hook_prazo.py:309): com `for-each-ref` vazio (o head fora das pontas), o link com nome de sha para uma pasta de fora não é seguido (`alvo.json` fica), o arquivo com nome de sha não é aberto como pasta (sem o aviso) e a pasta recém-gravada fica. Roda em processo, sem subprocesso (AR-4 não se aplica); asserções de comportamento, não do texto da fonte.
+- **Mutantes M42-M44** (bin/forge-check:1544, guardas já existentes, A2 e A3 do QA): cada `de` casa uma vez só na fonte; pela leitura, M42 faz o `iterdir` seguir o link e apagar `alvo.json`, M43 abre o arquivo e cai no aviso, M44 apaga a pasta gravada; os três morrem por asserção, independentemente da ordem do `iterdir`. Mortos e cobertura rc 0 são do autor (E20.25), não refeitos aqui.
+- **Tamanho:** 484 linhas de código e teste (`git diff --numstat --no-renames d3453407...cf1cc45d`, a spec de mutantes fora); A4 atualizado.
+- **Teste rodado no head (R-TETO, só ele):** `python3 -m unittest tests.test_pr_hook_prazo` 18 OK (44 s). A suíte inteira fica no CI do PR.
+- Sem achado novo.
 
 ## Revalidação por delta (E20.21, head c6577dbb, volta E20.11)
 Delta lido: `forge-check parecer delta docs/reviews/v046-pr-hook-prazo.md`, intervalo 4ae51318..c6577dbb, no domínio: `bin/forge-check`, `changelog.d/pr-hook-prazo.md`, `hooks/_comum.py`, `hooks/parecer.py`, `tests/apoio_volta_unica.py`, `tests/mutantes/v046-pr-hook-prazo{,-4,-6}.json`, `tests/test_pr_hook_prazo.py`. Instância que não fez a entrega, sem reler o resto.
@@ -27,12 +35,12 @@ Escopo lido: `git diff origin/develop...4ae51318` (base d3453407): `bin/forge-ch
 - A1 (recomendado) hooks/parecer.py:1007 · resolvido em c6577dbb (hooks/parecer.py:563): o contorno "rode antes forge-check pr" só no gh pr create sem resultado gravado; no resto, CONTORNO_DO_TETO
 - A2 (recomendado) hooks/parecer.py:586 · resolvido em c6577dbb: o fragmento diz que nos projetos o gh pr create --draft também pede o forge-check pr antes, com a conferência de entrega (R-PROVA)
 - A3 (recomendado) bin/forge-check:1541 · resolvido em c6577dbb (podar_resultados, bin/forge-check:1535). Era: uma pasta por head em <git-common-dir>/forge/pr/ sem limpeza: cresce a cada head conferido; podar os heads que deixaram de ser ponta de branch (no forge-fechar ou ao gravar) num item próprio
-- A4 (recomendado) bin/forge-check:1529 · 461 linhas de código e teste (M14) no head c6577dbb, 311 no módulo de teste próprio; um comportamento só; o corpo do PR leva `teto: excedido, 461 linhas, <motivo>`
+- A4 (recomendado) bin/forge-check:1529 · 484 linhas de código e teste (M14) no head cf1cc45d, 334 no módulo de teste próprio; um comportamento só; o corpo do PR leva `teto: excedido, 484 linhas, <motivo>`
 
 ## Sondas
 
 ## Parecer
-**Aprovado no head c6577dbb** (revalidação E20.21: A1-A3 e os achados da segurança e do QA tratados; resta A4). Na E20.3, sobre 4ae51318: faz o que a E20 pede: o `forge-check pr` da linha de comando (fora do `--previo` e do `--pr`) grava aprovado ou reprovado por head em `<git-common-dir>/forge/pr/<head>/`, com branch, `base_sha` resolvida pela mesma `base_do_delta` do hook (K-164) e os pedidos da branch; o hook só libera o `gh pr create` com o aprovado de todos os pedidos da branch no mesmo head, branch e base, recusa com a violação gravada no reprovado e, sem registro, recusa mesmo sem violação e diz o comando. Registro ilegível, malformado, de outra branch, de outro head ou de outra base vira ausente (falha fechada). `gh pr ready`, `gh pr merge` e `git merge` seguem com a conferência de sempre (teste com a checagem trocada por saída 97). O fragmento traz medida e volta atrás (`gravado=False`, uma linha); o afrouxamento é decisão do dono (diretriz 3, item E20).
+**Aprovado no head cf1cc45d** (revalidação E20.26: só teste e spec, sem achado novo; E20.21: A1-A3 e os achados da segurança e do QA tratados; resta A4). Na E20.3, sobre 4ae51318: faz o que a E20 pede: o `forge-check pr` da linha de comando (fora do `--previo` e do `--pr`) grava aprovado ou reprovado por head em `<git-common-dir>/forge/pr/<head>/`, com branch, `base_sha` resolvida pela mesma `base_do_delta` do hook (K-164) e os pedidos da branch; o hook só libera o `gh pr create` com o aprovado de todos os pedidos da branch no mesmo head, branch e base, recusa com a violação gravada no reprovado e, sem registro, recusa mesmo sem violação e diz o comando. Registro ilegível, malformado, de outra branch, de outro head ou de outra base vira ausente (falha fechada). `gh pr ready`, `gh pr merge` e `git merge` seguem com a conferência de sempre (teste com a checagem trocada por saída 97). O fragmento traz medida e volta atrás (`gravado=False`, uma linha); o afrouxamento é decisão do dono (diretriz 3, item E20).
 
 Conferências pedidas no brief:
 - **Merge 1a8a97ec:** a resolução de `bin/forge-testes` soma `test_pr_hook_prazo` às duas listas da develop sem perder entrada; a contagem do `test_testes_tocados` 78→79 bate (o módulo passou).
