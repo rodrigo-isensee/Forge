@@ -1052,15 +1052,29 @@ class Guarda:
                     if not a.startswith("-") or a.startswith("--target-directory=")]
         alvos = [self.resolver(self.expandir(a, pasta), pasta) for a in caminhos]
         alvos += [d / Path(a).name for d in alvos if d.is_dir() for a in caminhos]
+        livres = self.origens_do_rev_parse(args, caminhos)  # índices de `caminhos`: os derivados acima nunca entram
+        generico = next((f"{e['motivo']}: {e['caminho']}" for e in self.pol["caminhos"] if e["caminho"] == ".git/"), None)
         papel, self.papel = self.papel, "-"  # nenhum papel: vale o caminho protegido para qualquer um
         try:
-            achado = next(filter(None, map(self.caminho_barrado, alvos)), None)
+            achado = next((x for i, x in enumerate(map(self.caminho_barrado, alvos))
+                           if x and not (i in livres and x[1] == generico)), None)
         finally:
             self.papel = papel
         if achado:
             motivo = achado[1].replace(" (papel: -)", "")
             self.barrar("R-CONFORMIDADE", f"link com caminho protegido ({motivo}): o link dá outro nome ao arquivo",
                         "copie o conteúdo sem link (cp sem -l nem -s) ou peça ao dono do caminho (R-DECISAO)")
+
+    def origens_do_rev_parse(self, args, caminhos):
+        """Volta 3 (A1 da E20.29, v046): os índices em `caminhos` das origens de link que vêm de `git rev-parse` (direto ou
+        pela variável da linha). Ler do `.git` para fora era livre na develop (a substituição era opaca) e segue livre só da
+        regra genérica `.git/`; as específicas (`.git/config`, `.git/hooks/`, `.git/forge/`) e o destino seguem barrando.
+        Falha fechada: com opção que não seja `-` e letras sem valor (`-S`, `-t`, as longas e `--` mudam qual palavra é o
+        destino), nenhuma; a última palavra (o destino, também a de `ln <origem>` sozinha) nunca entra."""
+        if any(a.startswith("-") and not re.fullmatch(r"-[^-St=]+", a) for a in args):
+            return set()
+        return {i for i, a in enumerate(caminhos[:-1])
+                if DIR_DO_GIT in VARIAVEL_INTEIRA.sub(lambda m: self.ambiente.get(m[1] or m[2], m[0]), a)}
 
     def checar_remocao(self, caminho, pasta):
         """`rm -rf .forge`, `rm -r .githooks`: apagar a pasta que contém um caminho protegido sem dono (a instalação) é
@@ -1397,7 +1411,11 @@ class Guarda:
             try:
                 self.leitura_do_segmento(palavras, comando, lancadas, pasta, dict(ramos), nivel)
             finally:  # o ambiente da leitura a mais se descarta; a recusa do lançador (no fim da linha) só soma
+                # volta 3 (A3 da E20.29): menos a variável do `.git` (`L -w X d=$(git rev-parse --git-dir)`), que segue
+                # na linha como no corpo sozinho: falha fechada, a leitura que a define ganha da que não define
+                no_git = {k: v for k, v in self.ambiente.items() if DIR_DO_GIT in v}
                 self.ambiente, self.lancador_recusado = ambiente_fiel, recusado_fiel or self.lancador_recusado
+                self.ambiente.update(no_git)
         return depois
 
     def leitura_do_segmento(self, escritas, palavras, lancadas, pasta, ramos, nivel):
