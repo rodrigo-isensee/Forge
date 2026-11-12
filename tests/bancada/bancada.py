@@ -180,6 +180,19 @@ def gravar(saida, registro):
     return 0
 
 
+def saida_gravavel(saida):
+    """Confere o destino de `--saida` antes da primeira chamada paga; devolve a mensagem do erro ou None. Não deixa arquivo novo."""
+    existia = saida.exists()
+    try:
+        with open(saida, "a", encoding="utf-8"):
+            pass
+    except OSError as e:
+        return f"bancada: --saida {saida} não é gravável ({type(e).__name__}: {e}); nada foi chamado"
+    if not existia:
+        saida.unlink(missing_ok=True)
+    return None
+
+
 def principal(argv=None, executar=subprocess.run):
     ap = argparse.ArgumentParser(prog="bancada", description="Compara duas versões de uma instrução sobre casos gravados.",
                                  allow_abbrev=False)
@@ -217,6 +230,11 @@ def principal(argv=None, executar=subprocess.run):
     if not args.executar:
         print("simulação: nada foi chamado; --executar roda de verdade (custa tokens; só com aprovação do dono, R-CUSTO)")
         return 0
+    if args.saida:
+        erro = saida_gravavel(args.saida)
+        if erro:
+            print(erro, file=sys.stderr)
+            return 1
     rc, registro = executar_bancada(instrucoes, casos, args.rodadas, executar, contexto)
     return max(rc, gravar(args.saida, registro)) if args.saida else rc
 

@@ -63,9 +63,9 @@ Parecer: **aprovado** ou **ajustes necessários** (arquivo:linha · problema · 
 - Um commit por mudança coerente; o projeto compila e os testes passam em cada commit.
 - Guarda nova ou mudada: mutante declarado e teste do ramo de falha (ver `qa-testing`, 'Mutantes declarados').
 - Antes de commitar: `git status` e `git diff --staged`. Nunca versionar `.env`, segredos, dependências instaladas, builds, relatórios de teste.
-- **Tamanho por risco (decisão M14, revista em 2026-11-08):** a orientação é até 150 linhas alteradas de código e teste (`git diff --numstat --no-renames origin/develop...HEAD`, adições mais remoções; fora pareceres, fragmentos de changelog, corpus, fixtures e `.md`) e um comportamento só; passou, o corpo do PR diz por que com `teto: excedido, <n> linhas, <motivo>`. Não é trava por volume: o que pesa é o risco. No Forge contam `bin/`, `hooks/`, `scripts/`, `.github/`, `.githooks/`, `tests/*.py` e `tests/config.json`, e vale uma classe de comportamento por PR em `hooks/`, com corpus próprio.
-- Para trazer a `main`: `git fetch` + `git merge origin/main` na sua branch (`R-MAIN`). `R-VERIFY` nunca `--no-verify` nem `--force`.
+- **Tamanho por risco (decisão M14):** a orientação é até 150 linhas alteradas de código e teste (`git diff --numstat --no-renames origin/develop...HEAD`, adições mais remoções; fora pareceres, fragmentos de changelog, corpus, fixtures e `.md`) e um comportamento só; passou, o corpo do PR diz por que com `teto: excedido, <n> linhas, <motivo>`. Não é trava por volume: o que pesa é o risco. No Forge contam `bin/`, `hooks/`, `scripts/`, `.github/`, `.githooks/`, `tests/*.py` e `tests/config.json`, e vale uma classe de comportamento por PR em `hooks/`, com corpus próprio.
+- A base entra uma vez, antes do pedido de merge, salvo conflito ou dependência (`R-FLUXO`): `git merge origin/<base>` na sua branch. `R-VERIFY` nunca `--no-verify` nem `--force`.
 
 ## Pull request e a main
-- `R-MAIN` a main é do usuário (hook `pre-push` em `.githooks/` incluído).
+- `R-MAIN` a main é do usuário.
 - Descrição do PR: objetivo e link do pedido · o que mudou · decisões técnicas e ADRs · como testar · parecer do QA (link) · parecer de code review (link) · riscos e pendências.

@@ -11,7 +11,7 @@ Revisar em: 2027-01-07
 Medida: 61 branches e 8 grupos de pareceres da união na versao-043 (estudo 0.43.1)
 
 ## No Forge
-- `melhoria/*` → `develop` → `homolog` → `main`. Nada pula degrau, e ninguém envia direto a essas três (CI e hook).
+- `melhoria/*` → `develop` → `homolog` → `main`. Nada pula degrau; ninguém envia direto a essas três (CI e hook).
 - **Fluxo contínuo:** item com pareceres aprovados e CI verde entra na `develop` quando pronto. Sem lote; a versão é uma tag e release sobre um commit da `develop`.
 - `develop`: a bateria completa roda no CI do PR, obrigatória para o merge; o `tech-lead` mescla com tudo verde.
 - `homolog`: o `tech-lead` promove o commit da versão por PR com merge automático. Só a `homolog`: a `main` segue só com o merge do usuário.
@@ -24,5 +24,5 @@ Medida: 61 branches e 8 grupos de pareceres da união na versao-043 (estudo 0.43
 - Branch de trabalho a partir da integração (padrão `develop`, ou a do `CLAUDE.md`); a integração chega à `main` por PR do usuário (`R-MAIN`). Mesma limpeza do Forge.
 
 ## No Forge e no projeto
-- **Atualize a branch com a integração só na hora do merge**: antes, o `forge-check pr` confere o merge simulado com a integração atual.
-- Merge da base sem conflito não invalida parecer; o conflito resolvido que muda o patch invalida os pareceres dos arquivos que ela tocou, cada um no seu domínio. Quem resolveu o conflito não decide o alcance: a ferramenta aponta e quem deu o parecer revalida pelo delta (`R-REVIEW`).
+- **Atualize a branch com a integração só na hora do merge**, salvo conflito ou dependência: antes, o `forge-check pr` confere o merge simulado.
+- Merge sem conflito não invalida parecer; o conflito resolvido que muda o patch invalida os pareceres dos arquivos que ela tocou, cada um no seu domínio. Quem resolveu o conflito não decide o alcance: a ferramenta aponta e quem deu o parecer revalida pelo delta (`R-REVIEW`).
