@@ -306,6 +306,29 @@ class GravacaoDoForgeCheck(unittest.TestCase):
         nova, _ = self.um_registro(raiz)
         self.assertEqual(sorted(p.name for p in velha.parent.iterdir()), sorted([nova.name, develop, "nao-e-head"]))
 
+    def test_poda_nao_segue_link_nem_abre_arquivo_nem_apaga_a_gravada(self):
+        """A2 e A3 do QA (E20.25): o link com nome de sha para uma pasta de fora não é seguido (nada lá se apaga), o arquivo com nome
+        de sha não é aberto como pasta (sem aviso) e a pasta recém-gravada fica mesmo com o head fora da lista das pontas."""
+        raiz = self.montar(com_resultado=False)
+        fc = modulos_dos_hooks()[0].forge_check()
+        fc.gravar_resultado_do_pr(raiz, "p1", None, "develop", [])
+        pasta, _ = self.um_registro(raiz)
+        fora = self._pasta_temporaria() / "fora"
+        fora.mkdir()
+        (fora / "alvo.json").write_text("{}", encoding="utf-8")
+        link, arquivo = pasta.parent / ("1" * 40), pasta.parent / ("2" * 40)
+        link.symlink_to(fora, target_is_directory=True)
+        arquivo.write_text("{}", encoding="utf-8")
+        git_de_verdade = fc.git
+        sem_o_head = lambda r, *args, **kw: (0, "") if args[0] == "for-each-ref" else git_de_verdade(r, *args, **kw)  # noqa: E731
+        erro = io.StringIO()
+        with mock.patch.object(fc, "git", sem_o_head), contextlib.redirect_stderr(erro):
+            fc.gravar_resultado_do_pr(raiz, "p1", None, "develop", [])
+        self.assertTrue((fora / "alvo.json").is_file(), "o link não é seguido: nada na pasta apontada se apaga")
+        self.assertTrue(link.is_symlink() and arquivo.is_file(), "o link e o arquivo ficam")
+        self.assertNotIn("resultados antigos", erro.getvalue(), "o arquivo com nome de sha não é aberto como pasta")
+        self.assertEqual(self.um_registro(raiz)[0], pasta, "a pasta recém-gravada fica, mesmo fora das pontas")
+
 
 if __name__ == "__main__":
     unittest.main()
