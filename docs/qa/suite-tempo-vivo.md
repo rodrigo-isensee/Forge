@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: v0457
 branch: melhoria/suite-tempo-vivo
-commit: fab4c482537f5fe8f71d7d693bb331806b00a0de
-parecer: reprovado
+commit: 7a27f6e6f5869460d3c47789f08345eb4b56c070
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
@@ -20,12 +20,13 @@ Diff 8b5a44d5..5c067124: `scripts/suite-paralela.py` grava `p<i>.saida.json.temp
 
 - A1 (resolvido) tests/test_suite_paralela.py:956 · instabilidade corrigida: 12 de 12 rodadas OK (causa: readline seguido de communicate perdia linha do buffer; helper `termina(p)`).
 - A2 (resolvido) tests/test_suite_paralela.py:253 · o flush da linha da unidade tem teste (M6 e M8 morreram).
-- A3 (bloqueante) tests/mutantes/v0457-suite-tempo-vivo.json:M7 · o mutante M7 (scripts/suite-paralela.py:549, `except OSError` trocado por `ZeroDivisionError`) sai `inválido · erro de carga ou de execução do teste` e a spec inteira sai rc 2: o teste cai com BrokenPipeError (erro, não falha). Fazer o teste afirmar a falha (capturar a exceção e chamar `self.fail`) ou trocar o `para`.
+- A3 (resolvido) tests/mutantes/v0457-suite-tempo-vivo.json:M7 · o mutante M7 (scripts/suite-paralela.py:549, `except OSError` trocado por `ZeroDivisionError`) saía inválido (BrokenPipeError como erro). Corrigido em 7a27f6e6: o teste captura o OSError e chama `self.fail`; M7 morre por falha.
 
 ## Revalidação por delta 5c067124..076dcc80 (E23.32)
-Código: scripts/suite-paralela.py (22 linhas), tests/test_suite_paralela.py, tests/mutantes/v0457-suite-tempo-vivo.json. Pareceres de review e segurança aprovados até fab4c482 (só docs).
-Rodadas, uma por vez (R-TETO), carga ~3: `Brinquedo.test_linha_por_modulo_sai_antes_do_fim` 12 de 12 OK (1,9 a 2,7 s); `TemposAoVivoLogica` 5 testes, OK.
-`forge-mutante tests/mutantes/v0457-suite-tempo-vivo.json` (rev=fab4c482537f): M1 a M6 e M8 morreram; M7 inválido (A3); saída rc 2.
+## Revalidação por delta fab4c482..7a27f6e6 (E23.39, volta 2)
+Delta no domínio: só `tests/test_suite_paralela.py` (test_stderr_quebrado_nao_derruba_e_a_linha_sai_com_flush captura OSError e chama `self.fail`).
+`forge-mutante tests/mutantes/v0457-suite-tempo-vivo.json` (rev=7a27f6e6f586): M1 a M8 morreram (M7 por falha), rc 0.
+`python3 -m unittest tests.test_suite_paralela.TemposAoVivoLogica`: 5 testes, OK.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
