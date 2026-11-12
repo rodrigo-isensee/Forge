@@ -1269,6 +1269,31 @@ class MutacaoDirigida(unittest.TestCase):
         self.assertIn("nenhum mutante da spec cai no diff", r.stderr)
         self.assertNotIn("morreu", r.stdout)
 
+    def test_teste_enfraquecido_entre_base_e_rev_roda_o_mutante_e_sobrevive(self):  # sondas S1 e S2 da v046 E7
+        self.gravar("tests/test_lib.py", TESTE.replace("lib.limite(11), 2", "lib.limite(11), lib.limite(11)"))
+        self.gravar("outro.py", self.OUTRO + "# mudou\n")
+        self.salvar()
+        r = self.rodar(self.spec(*self.dois), "--base", self.base)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("M1 · sobreviveu", r.stdout)
+        self.assertNotIn("fora do diff: M1", r.stdout)
+
+    def test_spec_mudada_entre_base_e_rev_roda_os_mutantes_dela(self):
+        caminho = self.dir / "tests" / "mutantes" / "x.json"
+        caminho.parent.mkdir(parents=True)
+        caminho.write_text(json.dumps({"pedido": "x", "mutantes": [mutante()]}), encoding="utf-8")
+        self.salvar()
+        base = git(self.dir, "rev-parse", "HEAD").strip()
+        caminho.write_text(json.dumps({"pedido": "x", "mutantes": [mutante(para="x >= 11")]}), encoding="utf-8")
+        self.salvar()
+        r = self.rodar(str(caminho), "--base", base)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("M1 · sobreviveu", r.stdout)
+        self.assertNotIn("fora do diff", r.stdout)
+
+    def test_modulos_do_teste_cobrem_o_arquivo_do_teste(self):
+        self.assertIn("tests/test_lib.py", carregar().modulos_do_teste("tests.test_lib.T.test_borda"))
+
     def test_base_que_nao_e_commit_ou_sem_ancestral_sai_2(self):
         git(self.dir, "switch", "-q", "--orphan", "solta")
         self.gravar("solta.txt", "x\n")

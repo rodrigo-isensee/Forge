@@ -14,9 +14,12 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--prazo SEGUNDOS] [
            como os outros: os testes passarem confirma (`<id> · equivalente`); o mutante morto por eles é inválido
            (rc 2: o equivalente declarado é falso). A spec só de equivalentes sem `testes` não prova nada: rc 2.
   --rev    commit a mutar (padrão HEAD)
-  --base SHA  com SPEC, mutação dirigida (M-1): roda só os mutantes cujo `arquivo` mudou no diff `merge-base(SHA, REV)..REV`;
-           os outros saem `fora do diff: <id> · <arquivo>`, sem rodar. Nenhum no diff, ou SHA que não é commit: saída 2.
-           Na revalidação, SHA é o commit já revisado: só o que mudou desde ele roda de novo.
+  --base SHA  com SPEC, mutação dirigida (M-1): no diff `merge-base(SHA, REV)..REV`, roda o mutante quando mudou o `arquivo`
+           dele, o arquivo da spec que o declara (spec versionada no repositório) ou o módulo de um dos seus `testes`
+           (`tests.x.Classe.teste` → `tests/x.py`); os outros saem `fora do diff: <id> · <arquivo>`, sem rodar. Helper
+           importado pelo teste não conta. Nenhum no diff, ou SHA que não é commit: saída 2. A 1.ª rodada do QA é a spec
+           inteira, sem --base; a --base serve só à revalidação, com SHA = o head que o QA já aprovou, e o parecer
+           confere a linha `base=` da saída contra esse head.
   --prazo  por execução de testes, em segundos (padrão 600)
   --processos  quantos mutantes rodam de cada vez, de 1 a 4 (padrão 1, em série); cada um na sua cópia, e o veredito é o
            mesmo em série e em paralelo. Um erro ou o sinal encerra todos e apaga as cópias; um processo que falha não conta como morto
@@ -785,8 +788,22 @@ def principal(specs, sha, prazo, processos=1):
     return codigo
 
 
-def dirigir(specs, base, sha):
-    """M-1 dirigida: as specs só com os mutantes cujo `arquivo` mudou em `merge-base(base, sha)..sha`; os outros saem
+def modulos_do_teste(ident):
+    """`tests.x.Classe.teste` → os caminhos que podem ser o módulo dele (`tests.py`, `tests/x.py`, ...)."""
+    partes = ident.split(".")
+    return {"/".join(partes[:i]) + ".py" for i in range(1, len(partes) + 1)}
+
+
+def no_diff(m, spec_mudou, mudados):
+    """O mutante entra no diff quando mudou a spec que o declara, o `arquivo` dele ou o módulo de um dos seus `testes`
+    (o teste enfraquecido entre a base e o rev roda de novo: review e segurança A1 da v046 E7)."""
+    if spec_mudou or m["arquivo"] in mudados:
+        return True
+    return any(modulos_do_teste(t) & mudados for t in m.get("testes", []))
+
+
+def dirigir(specs, caminhos, base, sha):
+    """M-1 dirigida: as specs só com os mutantes no diff `merge-base(base, sha)..sha` (`no_diff`); os outros saem
     `fora do diff`. None (saída 2) com a base que não é commit ou sem nenhum mutante no diff."""
     sha_base = resolver(base)
     if sha_base is None:
@@ -799,12 +816,14 @@ def dirigir(specs, base, sha):
         print(f"forge-mutante: {erro}", file=sys.stderr)
         return None
     print(f"base={sha_base} mb={mb} rev={sha}")
-    dirigidas = []
-    for spec_bytes, dados in specs:
+    raiz, dirigidas = Path.cwd().resolve(), []
+    for (spec_bytes, dados), caminho in zip(specs, caminhos):
+        spec_mudou = caminho.is_relative_to(raiz) and caminho.relative_to(raiz).as_posix() in mudados
+        dentro = [m for m in dados["mutantes"] if no_diff(m, spec_mudou, mudados)]
         for m in dados["mutantes"]:
-            if m["arquivo"] not in mudados:
+            if m not in dentro:
                 print(f"fora do diff: {m['id']} · {m['arquivo']}")
-        dirigidas.append((spec_bytes, {**dados, "mutantes": [m for m in dados["mutantes"] if m["arquivo"] in mudados]}))
+        dirigidas.append((spec_bytes, {**dados, "mutantes": dentro}))
     if not any(dados["mutantes"] for _, dados in dirigidas):
         print("forge-mutante: nenhum mutante da spec cai no diff da --base; nada foi executado.", file=sys.stderr)
         return None
@@ -824,7 +843,7 @@ def main(argv=None):
     args = p.parse_args(argv)
     if args.executar:
         return executar(args.executar, args.registro)
-    if args.cobertura or args.base and not args.spec:
+    if args.cobertura or (args.base and not args.spec):
         if not (args.cobertura and args.base) or args.spec:
             p.error("--cobertura e --base vêm juntos e sem SPEC (--base com SPEC: só os mutantes do diff)")
         return cobertura(args.base, args.rev)
@@ -863,7 +882,7 @@ def main(argv=None):
         print(f"forge-mutante: --rev ilegível ({args.rev!r}).", file=sys.stderr)
         return 2
     if args.base:
-        specs = dirigir(specs, args.base, sha)
+        specs = dirigir(specs, caminhos, args.base, sha)
         if specs is None:
             return 2
     return principal(specs, sha, args.prazo, args.processos)

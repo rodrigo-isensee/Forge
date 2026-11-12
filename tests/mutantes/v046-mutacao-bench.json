@@ -6,7 +6,7 @@
    "id": "M1",
    "guarda": "--base com SPEC não cai no erro de uso da --cobertura",
    "arquivo": "bin/forge-mutante",
-   "de": "or args.base and not args.spec",
+   "de": "or (args.base and not args.spec)",
    "para": "or args.base",
    "testes": [
     "tests.test_forge_mutante.MutacaoDirigida.test_so_o_mutante_do_arquivo_mudado_roda"
@@ -36,7 +36,7 @@
    "id": "M4",
    "guarda": "o mutante fora do diff é anunciado",
    "arquivo": "bin/forge-mutante",
-   "de": "if m[\"arquivo\"] not in mudados:",
+   "de": "if m not in dentro:",
    "para": "if False:",
    "testes": [
     "tests.test_forge_mutante.MutacaoDirigida.test_so_o_mutante_do_arquivo_mudado_roda"
@@ -46,7 +46,7 @@
    "id": "M5",
    "guarda": "o mutante fora do diff não roda",
    "arquivo": "bin/forge-mutante",
-   "de": "if m[\"arquivo\"] in mudados]",
+   "de": "if no_diff(m, spec_mudou, mudados)]",
    "para": "if True]",
    "testes": [
     "tests.test_forge_mutante.MutacaoDirigida.test_so_o_mutante_do_arquivo_mudado_roda"
