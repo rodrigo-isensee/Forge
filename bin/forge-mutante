@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Forge: mutantes declarados do pedido (OK-14 e M-1). Só biblioteca padrão.
 
-Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS] [--processos K]
+Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--prazo SEGUNDOS] [--processos K]
      forge-mutante --cobertura --base SHA [--rev REV]
   SPEC     arquivo JSON versionado na branch (`tests/mutantes/<pedido>.json`; pedido com mais de 16 mutantes
            divide em `tests/mutantes/<pedido>-<n>.json` e passa todas, do mesmo pedido e sem id repetido):
@@ -14,6 +14,9 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS] [--processos K
            como os outros: os testes passarem confirma (`<id> · equivalente`); o mutante morto por eles é inválido
            (rc 2: o equivalente declarado é falso). A spec só de equivalentes sem `testes` não prova nada: rc 2.
   --rev    commit a mutar (padrão HEAD)
+  --base SHA  com SPEC, mutação dirigida (M-1): roda só os mutantes cujo `arquivo` mudou no diff `merge-base(SHA, REV)..REV`;
+           os outros saem `fora do diff: <id> · <arquivo>`, sem rodar. Nenhum no diff, ou SHA que não é commit: saída 2.
+           Na revalidação, SHA é o commit já revisado: só o que mudou desde ele roda de novo.
   --prazo  por execução de testes, em segundos (padrão 600)
   --processos  quantos mutantes rodam de cada vez, de 1 a 4 (padrão 1, em série); cada um na sua cópia, e o veredito é o
            mesmo em série e em paralelo. Um erro ou o sinal encerra todos e apaga as cópias; um processo que falha não conta como morto
@@ -782,6 +785,32 @@ def principal(specs, sha, prazo, processos=1):
     return codigo
 
 
+def dirigir(specs, base, sha):
+    """M-1 dirigida: as specs só com os mutantes cujo `arquivo` mudou em `merge-base(base, sha)..sha`; os outros saem
+    `fora do diff`. None (saída 2) com a base que não é commit ou sem nenhum mutante no diff."""
+    sha_base = resolver(base)
+    if sha_base is None:
+        print(f"forge-mutante: --base ilegível ({base!r}).", file=sys.stderr)
+        return None
+    try:
+        mb = git("merge-base", sha_base, sha).strip()
+        mudados = set(git("--literal-pathspecs", "diff", "--name-only", "-z", "--no-renames", mb, sha, "--").split("\0"))
+    except RuntimeError as erro:  # sem ancestral comum
+        print(f"forge-mutante: {erro}", file=sys.stderr)
+        return None
+    print(f"base={sha_base} mb={mb} rev={sha}")
+    dirigidas = []
+    for spec_bytes, dados in specs:
+        for m in dados["mutantes"]:
+            if m["arquivo"] not in mudados:
+                print(f"fora do diff: {m['id']} · {m['arquivo']}")
+        dirigidas.append((spec_bytes, {**dados, "mutantes": [m for m in dados["mutantes"] if m["arquivo"] in mudados]}))
+    if not any(dados["mutantes"] for _, dados in dirigidas):
+        print("forge-mutante: nenhum mutante da spec cai no diff da --base; nada foi executado.", file=sys.stderr)
+        return None
+    return dirigidas
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="forge-mutante", description="Mutantes declarados do pedido (não é portão).")
     p.add_argument("spec", nargs="*")
@@ -795,9 +824,9 @@ def main(argv=None):
     args = p.parse_args(argv)
     if args.executar:
         return executar(args.executar, args.registro)
-    if args.cobertura or args.base:
+    if args.cobertura or args.base and not args.spec:
         if not (args.cobertura and args.base) or args.spec:
-            p.error("--cobertura e --base vêm juntos e sem SPEC")
+            p.error("--cobertura e --base vêm juntos e sem SPEC (--base com SPEC: só os mutantes do diff)")
         return cobertura(args.base, args.rev)
     if not args.spec:
         p.error("falta a SPEC")
@@ -833,6 +862,10 @@ def main(argv=None):
     if sha is None:
         print(f"forge-mutante: --rev ilegível ({args.rev!r}).", file=sys.stderr)
         return 2
+    if args.base:
+        specs = dirigir(specs, args.base, sha)
+        if specs is None:
+            return 2
     return principal(specs, sha, args.prazo, args.processos)
 
 

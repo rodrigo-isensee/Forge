@@ -1239,5 +1239,50 @@ class DiffDeTextoGrande(unittest.TestCase):
         self.assertEqual(list(f.DiffOmitido.ndiff([], [], linejunk=None)), [f.DiffOmitido.AVISO])
 
 
+class MutacaoDirigida(unittest.TestCase):
+    """v046 E7 (M-1): `SPEC --base SHA` roda só os mutantes cujo arquivo mudou no diff; o resto sai `fora do diff`."""
+    gravar, salvar, spec, rodar = Execucao.gravar, Execucao.salvar, Execucao.spec, Execucao.rodar
+    OUTRO = "def f(y):\n    if y > 5:\n        return 1\n    return 0\n"
+
+    def setUp(self):
+        Execucao.setUp(self)
+        self.gravar("outro.py", self.OUTRO)
+        self.salvar()
+        self.base = git(self.dir, "rev-parse", "HEAD").strip()
+        self.dois = (mutante(), mutante("M2", de="y > 5", para="y >= 50", arquivo="outro.py"))
+
+    def test_so_o_mutante_do_arquivo_mudado_roda(self):
+        self.gravar("lib.py", LIB + "# mudou\n")
+        self.salvar()
+        r = self.rodar(self.spec(*self.dois), "--base", self.base)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(f"base={self.base} mb={self.base}", r.stdout)
+        self.assertIn("M1 · morreu · lib.py:2", r.stdout)
+        self.assertIn("fora do diff: M2 · outro.py", r.stdout)
+        self.assertNotIn("M2 · ", r.stdout.replace("fora do diff: M2 · ", ""))
+
+    def test_nenhum_mutante_no_diff_sai_2_sem_rodar(self):
+        self.gravar("outro.py", self.OUTRO + "# mudou\n")
+        self.salvar()
+        r = self.rodar(self.spec(mutante()), "--base", self.base)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("nenhum mutante da spec cai no diff", r.stderr)
+        self.assertNotIn("morreu", r.stdout)
+
+    def test_base_que_nao_e_commit_ou_sem_ancestral_sai_2(self):
+        git(self.dir, "switch", "-q", "--orphan", "solta")
+        self.gravar("solta.txt", "x\n")
+        git(self.dir, "add", "solta.txt")
+        git(self.dir, "commit", "-qm", "solta")
+        solta = git(self.dir, "rev-parse", "HEAD").strip()
+        git(self.dir, "switch", "-q", "-f", "develop")
+        for base, texto in (("nao-existe", "--base ilegível"), (solta, "merge-base")):
+            with self.subTest(base):
+                r = self.rodar(self.spec(mutante()), "--base", base)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn(texto, r.stderr)
+                self.assertNotIn("Traceback", r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
