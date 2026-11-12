@@ -61,6 +61,16 @@
       "testes": [
         "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
       ]
+    },
+    {
+      "id": "G26",
+      "guarda": "volta 3 (A1): a liberação é só da regra genérica `.git/` da política, achada pelo caminho dela",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for e in self.pol[\"caminhos\"] if e[\"caminho\"] == \".git/\"), None)",
+      "para": "for e in self.pol[\"caminhos\"] if True), None)",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
     }
   ]
 }
