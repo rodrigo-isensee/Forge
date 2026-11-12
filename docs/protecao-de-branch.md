@@ -18,7 +18,7 @@ Repositório > Settings > Rules > Rulesets > New ruleset > New branch ruleset. U
 5. Marque **Restrict deletions** (bloqueio de deleção).
 6. Marque **Block force pushes** (bloqueio de force push).
 7. Marque **Require a pull request before merging**. Não marque aprovação obrigatória de revisor: a decisão é "checks verdes", e o bot não aprova o próprio PR.
-8. Marque **Require status checks to pass** e **Require branches to be up to date before merging** (branch atualizada com a base).
+8. Marque **Require status checks to pass**. Deixe **Require branches to be up to date before merging** desmarcado (decisão do dono, E8 da 0.45.6): ele obriga cada PR a trazer a `develop` de novo sempre que outro entra antes, e a branch traz a base uma vez, no fim, antes do pedido de merge (`R-FLUXO`). A garantia é o CI contra a base real: o do PR roda sobre o merge com a base, o `bin/forge-fechar` para quando o `git merge-tree` acusa conflito com a base que andou (passos 2b e 6a, `docs/fechamento-integrador.md`) e o CI de `push` em `develop`, `homolog` e `main` confere cada merge.
 9. Em "Add checks", acrescente os dois abaixo e, em cada um, deixe a fonte (Source) fixada em **GitHub Actions**. Sem a fonte fixada, um status gravado por token com o mesmo nome vale como verde.
 - Check exigido: `bateria`
 - Check exigido: `catraca`
@@ -42,6 +42,6 @@ A resposta lista as regras: `pull_request`, `required_status_checks` com os dois
 
 ## Limites
 - Repositório privado no plano gratuito: veja "Antes de começar".
-- "Branch atualizada com a base" repete a bateria quando há vários PRs na fila. Tirar essa regra afrouxa o processo e é escolha do dono (`R-DECISAO`).
+- Sem "branch atualizada com a base" (passo 8), quebra semântica sem conflito entre dois PRs só aparece no CI de `push` da `develop`, depois do merge. É o risco que o dono aceitou na E8 da 0.45.6 (`R-DECISAO`) para não repetir a bateria a cada PR da fila.
 - A interface do GitHub muda; a conferência por `gh api` não depende dela.
 - Com o ruleset ligado e sem desvio, o próprio dono espera a bateria. É o que a decisão pede.

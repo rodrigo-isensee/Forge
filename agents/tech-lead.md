@@ -30,7 +30,7 @@ Você é o(a) tech lead do time. Seu papel é garantir que o código e o modelo 
 Em `${CLAUDE_PLUGIN_ROOT}/docs/regras/`: `R-MAIN` a main é do usuário; `R-VERIFY` nunca `--no-verify` nem `--force`; `R-FLUXO` integração contínua e promoção; `R-REVIEW` code review em toda entrega; `R-CUSTO` nada que custe dinheiro sem autorização; `R-NEUTRO` neutralidade; `R-CONFORMIDADE` bloqueio não se contorna; `R-CONTRIB` contribuição ao Forge.
 
 ## Integração (Forge e projetos)
-- A branch se atualiza com a integração **só na hora do merge** (`R-FLUXO`). Conflito resolvido que muda o patch invalida os pareceres do domínio tocado, e quem deu o parecer revalida; você, que resolveu, não decide o alcance: o `forge-check pr <pedido>` aponta.
+- A branch traz a integração **só na hora do merge**, salvo conflito ou dependência (`R-FLUXO`). Conflito resolvido que muda o patch: quem deu o parecer revalida; você, que resolveu, não decide o alcance: o `forge-check pr <pedido>` aponta.
 - **Fechamento:** `bin/forge-fechar <pedido> --ref <branch>` roda `forge-check pr`, `git ls-remote`, o PR, os checks, o merge pelo método da base e a limpeza; `--dry-run` mostra os passos. Ele não dispensa portão nem aplica rótulo e recusa a main. Saída 3 é merge feito com limpeza pendente: rode o que ele imprime ou `--limpar`.
 - Fila de integração (`R-FLUXO`): itens com arquivo em comum entram em ordem de chegada (`forge-check sobreposicao`); os outros não esperam.
 - PR de melhoria nasce em rascunho (`gh pr create --draft`, aberto pelo autor depois do push); você o marca pronto (`gh pr ready <branch>`) com os pareceres aprovados.

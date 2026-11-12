@@ -1062,6 +1062,14 @@ class Hooks(unittest.TestCase):
         self.assertRegex("gh pr merge 12 --squash", parecer.MERGE_DE_PR)
         self.assertNotRegex("gh pr create --title merge", parecer.MERGE_DE_PR)
 
+    def test_merge_de_pr_na_duvida_fica_com_o_prazo_comum(self):  # v0456, A1 da segurança da 0.45.5
+        """A linha que o leitor não lê (heredoc em dúvida, `tirar_heredocs` dá ValueError) não ganha o prazo longo, nem
+        com `gh pr merge` por extenso: na dúvida, os 3 s (menos tempo, nunca uma liberação)."""
+        _, _, parecer = modulos_dos_hooks()
+        duvida = "gh pr merge feature/x <<EOF\n$(id)\nEOF"
+        self.assertIsNone(parecer.MERGE_DE_PR.search(duvida))
+        self.assertTrue(parecer.MERGE_DE_PR.search("gh pr merge feature/x <<'EOF'\nx\nEOF"))
+
     def test_timeout_de_rede_dos_hooks_abaixo_do_hooks_json(self):
         """Segurança A1: todo subprocesso de rede dos hooks (`gh`, `curl`, `git fetch`...) tem limite de tempo menor que o
         menor timeout do hooks.json; senão o Claude Code mata o hook e o comando segue (falha aberta)."""

@@ -1,0 +1,95 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "B1",
+      "guarda": "B4: o comando atras de lancador com opcoes e lido",
+      "arquivo": "hooks/pesado.py",
+      "de": "return [texto for comando in simples for texto in inicios_sem_lancador(comando)]",
+      "para": "return inicios_sem_lancador(palavras)",
+      "testes": [
+        "tests.test_pesado_v046.B4.test_atras_de_lancador_com_opcoes"
+      ]
+    },
+    {
+      "id": "B2",
+      "guarda": "B4: palavra do padrao casa depois de uma pasta",
+      "arquivo": "hooks/pesado.py",
+      "de": "return palavra == molde or palavra.endswith(\"/\" + molde)",
+      "para": "return palavra == molde",
+      "testes": [
+        "tests.test_pesado_v046.B4.test_por_caminho_absoluto_ou_relativo"
+      ]
+    },
+    {
+      "id": "B3",
+      "guarda": "B4: o comando nao casa padrao mais longo que ele",
+      "arquivo": "hooks/pesado.py",
+      "de": "return len(palavras) >= len(moldes) and all(",
+      "para": "return all(",
+      "testes": [
+        "tests.test_pesado_v046.B4.test_formas_leves_continuam_leves"
+      ]
+    },
+    {
+      "id": "B4",
+      "guarda": "MAQ-A1b: forma leve do forge-testes por caminho segue leve",
+      "arquivo": "hooks/pesado.py",
+      "de": "return comeca_com(inicio, padrao) and not leve_pelos_argumentos(inicio, padrao)",
+      "para": "return comeca_com(inicio, padrao)",
+      "testes": [
+        "tests.test_pesado_v046.B4.test_formas_leves_continuam_leves"
+      ]
+    },
+    {
+      "id": "B5",
+      "guarda": "MAQ-A1b: o forge-testes se le pelo padrao, nao pelo nome",
+      "arquivo": "hooks/pesado.py",
+      "de": "if padrao in PELOS_ARGUMENTOS[:2]:",
+      "para": "if padrao in PELOS_ARGUMENTOS[:0]:",
+      "testes": [
+        "tests.test_pesado_v046.B4.test_formas_leves_continuam_leves"
+      ]
+    },
+    {
+      "id": "B6",
+      "guarda": "B4: pre-filtro por palavra do padrao, com pasta no meio",
+      "arquivo": "hooks/pesado.py",
+      "de": "if not any(all(m in texto for m in p.split()) for p in padroes):",
+      "para": "if not any(p in texto for p in padroes):",
+      "testes": [
+        "tests.test_pesado_v046.B4.test_padrao_do_projeto_com_pasta_no_meio"
+      ]
+    },
+    {
+      "id": "B7",
+      "guarda": "B4: padrao comum casa por caminho",
+      "arquivo": "hooks/pesado.py",
+      "de": "    return comeca_com(inicio, padrao)\n\n\ndef pesado(",
+      "para": "    return inicio == padrao or inicio.startswith(padrao + \" \")\n\n\ndef pesado(",
+      "testes": [
+        "tests.test_pesado_v046.B4.test_por_caminho_absoluto_ou_relativo"
+      ]
+    },
+    {
+      "id": "B8",
+      "guarda": "B4: a leitura antiga soma as sem lancador (padrao do projeto com lancador)",
+      "arquivo": "hooks/pesado.py",
+      "de": "simples = [palavras] + [comando for comando, _ in separar_lancadores(palavras)]",
+      "para": "simples = [comando for comando, _ in separar_lancadores(palavras)]",
+      "testes": [
+        "tests.test_pesado_v046.B4.test_padrao_do_projeto_que_comeca_por_lancador",
+        "tests.test_pesado_v046.B4.test_nada_pesado_na_base_vira_leve"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/pesado.py",
+      "trecho": "inicio.startswith(padrao + \" \")",
+      "linha_base": 179,
+      "motivo": "B4: a comparação por texto virou comeca_com, coberta pelos mutantes B3 e B7"
+    }
+  ]
+}

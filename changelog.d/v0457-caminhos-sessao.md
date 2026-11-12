@@ -1,2 +1,0 @@
-### Adicionado
-- CAMINHOS-EXTRA-SESSAO (E18.1): o hook doutor, no SessionStart, soma as pastas de caminhos_extra (.forge/config.json) ao fim do PATH dos comandos do Bash da sessão dos agentes, pelo CLAUDE_ENV_FILE; os hooks passam a exigir pasta absoluta do próprio usuário, sem escrita de grupo nem de outros nela e nas pastas acima (salvo sticky bit); a que não passa fica de fora com aviso no erros.log.

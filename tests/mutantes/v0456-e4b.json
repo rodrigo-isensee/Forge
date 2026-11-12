@@ -1,0 +1,46 @@
+{
+  "pedido": "v0456-e4b",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o destino de --saida é conferido antes das chamadas",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "    if args.saida:\n        erro =",
+      "para": "    if False:\n        erro =",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_saida_nao_gravavel_recusa_antes_da_primeira_chamada"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "destino não gravável recusa a bancada",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "        if erro:\n            print(erro",
+      "para": "        if not erro:\n            print(erro",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_saida_nao_gravavel_recusa_antes_da_primeira_chamada"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o erro de gravação do destino vira a mensagem de recusa",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "    except OSError as e:\n        return f\"bancada: --saida",
+      "para": "    except OSError as e:\n        return None\n        return f\"bancada: --saida",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_saida_nao_gravavel_recusa_antes_da_primeira_chamada"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a conferência não deixa arquivo novo",
+      "arquivo": "tests/bancada/bancada.py",
+      "de": "    if not existia:",
+      "para": "    if existia:",
+      "testes": [
+        "tests.test_bancada.BancadaGravaEValida.test_saida_gravavel_nao_deixa_arquivo_antes_da_rodada"
+      ]
+    }
+  ]
+}
