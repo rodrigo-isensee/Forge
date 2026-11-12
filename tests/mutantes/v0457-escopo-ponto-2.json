@@ -1,5 +1,5 @@
 {
-  "pedido": "v0457-escopo-ponto-2",
+  "pedido": "v0457-escopo-ponto",
   "executor": "unittest",
   "mutantes": [
     {
