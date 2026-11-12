@@ -1,0 +1,22 @@
+{
+  "descricao": "TM-25: sem pesada ativa, o Stryker da lista da stack libera e grava a trava.",
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "pnpm stryker run --incremental"
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "pesado.json": {
+        "contem": [
+          "stryker",
+          "toolu_9"
+        ]
+      }
+    }
+  }
+}

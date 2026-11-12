@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-f6-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M81",
+      "guarda": "bin/forge_transcricao.py:311 isinstance(o.get('message'), dict)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        respostas.setdefault(rotulo, [])\n        msg = o.get(\"message\") if isinstance(o.get(\"message\"), dict) else {}",
+      "para": "        respostas.setdefault(rotulo, [])\n        msg = o.get(\"message\") if (not (isinstance(o.get(\"message\"), dict))) else {}",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M82",
+      "guarda": "bin/forge_transcricao.py:313 o['type'] == 'assistant'",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if o[\"type\"] == \"assistant\":",
+      "para": "        if (not (o[\"type\"] == \"assistant\")):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M83",
+      "guarda": "bin/forge_transcricao.py:314 isinstance(b, dict) and b.get('type') == 'text' and isinstan",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "            textos = [b[\"text\"] for b in blocos if isinstance(b, dict) and b.get(\"type\") == \"text\"\n                      and isinstance(b.get(\"text\"), str)] if isinstance(blocos, list) else []",
+      "para": "            textos = [b[\"text\"] for b in blocos if (not (isinstance(b, dict) and b.get(\"type\") == \"text\"\n                      and isinstance(b.get(\"text\"), str)))] if isinstance(blocos, list) else []",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M84",
+      "guarda": "bin/forge_transcricao.py:315 isinstance(blocos, list)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "                      and isinstance(b.get(\"text\"), str)] if isinstance(blocos, list) else []",
+      "para": "                      and isinstance(b.get(\"text\"), str)] if (not (isinstance(blocos, list))) else []",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M85",
+      "guarda": "bin/forge_transcricao.py:316 textos",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "                      and isinstance(b.get(\"text\"), str)] if isinstance(blocos, list) else []\n            if textos:",
+      "para": "                      and isinstance(b.get(\"text\"), str)] if isinstance(blocos, list) else []\n            if (not (textos)):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M86",
+      "guarda": "bin/forge_transcricao.py:318 antes and antes[0] == msg.get('id')",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "                junto = (antes[1] + \"\\n\" if antes and antes[0] == msg.get(\"id\") else \"\") + \"\\n\".join(textos)",
+      "para": "                junto = (antes[1] + \"\\n\" if (not (antes and antes[0] == msg.get(\"id\"))) else \"\") + \"\\n\".join(textos)",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M87",
+      "guarda": "bin/forge_transcricao.py:320 not (isinstance(blocos, list) and any((isinstance(b, dict) a",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        elif not (isinstance(blocos, list) and any(isinstance(b, dict) and b.get(\"type\") == \"tool_result\" for b in blocos)):",
+      "para": "        elif (not (not (isinstance(blocos, list) and any(isinstance(b, dict) and b.get(\"type\") == \"tool_result\" for b in blocos)))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M88",
+      "guarda": "bin/forge_transcricao.py:321 rotulo in ultimo",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "            if rotulo in ultimo:  # um pedido novo do usuário fecha o turno",
+      "para": "            if (not (rotulo in ultimo)):  # um pedido novo do usuário fecha o turno",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    }
+  ]
+}

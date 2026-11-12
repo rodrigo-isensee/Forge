@@ -1,0 +1,38 @@
+{
+  "descricao": "ritmo acelerado com teto_maximo 1 e um ativo: bloqueia (o acelerado não passa do teto de sempre).",
+  "config": {
+    "ritmo": "acelerado",
+    "teto_maximo": 1
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a1",
+          "tipo": "Plan",
+          "descricao": "Implementar a API",
+          "desde": "{agora-60}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "1 agentes ativos, teto 1"
+  },
+  "proc": {
+    "loadavg": "0.1 0.1 0.1 1/100 1",
+    "mem_gb": 8,
+    "nproc": 8
+  }
+}

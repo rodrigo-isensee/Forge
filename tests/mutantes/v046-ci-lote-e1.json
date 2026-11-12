@@ -1,0 +1,107 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "sem teste caido o resumo nao ganha secao (QA-1)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    if not caidos:\n        return []",
+      "para": "    if False:\n        return []",
+      "testes": [
+        "tests.test_suite_paralela.Logica.test_testes_que_cairam_no_resumo_tem_teto_e_id_limpo"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o teto de caidos no resumo e 30 (A2 do review)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "LIMITE_CAIDOS = 30",
+      "para": "LIMITE_CAIDOS = 31",
+      "testes": [
+        "tests.test_suite_paralela.Logica.test_testes_que_cairam_no_resumo_tem_teto_e_id_limpo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "acima do teto o resumo conta o resto",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    if len(caidos) > LIMITE_CAIDOS:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_suite_paralela.Logica.test_testes_que_cairam_no_resumo_tem_teto_e_id_limpo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "as partes esperam o job de passos baratos (A18)",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "    needs: [arvore, bateria]\n    permissions:\n      contents: read\n    runs-on: ubuntu-26.04\n    timeout-minutes: 20\n    strategy:\n      fail-fast: false\n      matrix:\n        parte: [1, 2, 3]\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n        with:\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        with:\n          python-version: \"3.12\"",
+      "para": "    needs: [arvore]\n    permissions:\n      contents: read\n    runs-on: ubuntu-26.04\n    timeout-minutes: 20\n    strategy:\n      fail-fast: false\n      matrix:\n        parte: [1, 2, 3]\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n        with:\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        with:\n          python-version: \"3.12\"",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI",
+        "tests.test_ci_local.MatrizNeedsEAgregadorTest.test_passo_barato_vermelho_pula_a_suite_e_reprova_os_agregadores"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o job de verificacoes longas espera os passos baratos (A1)",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "    needs: [bateria]\n    if: github.event_name != 'push' || github.ref != 'refs/heads/develop'\n    runs-on: ubuntu-26.04\n    timeout-minutes: 20\n    permissions:",
+      "para": "    needs: []\n    if: github.event_name != 'push' || github.ref != 'refs/heads/develop'\n    runs-on: ubuntu-26.04\n    timeout-minutes: 20\n    permissions:",
+      "testes": [
+        "tests.test_ci_local.MatrizNeedsEAgregadorTest.test_leitor_entende_matriz_e_needs_do_ci_real"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o agregador exige o job de verificacoes longas",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "    needs: [bateria, verificacoes, partes-doze, pulados-doze]",
+      "para": "    needs: [bateria, partes-doze, pulados-doze]",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_agregadores_tem_o_nome_exigido_e_exigem_todas_as_partes"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "relatorio ausente (None) e ignorado ao juntar os caidos",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "sorted({str(i) for rel in relatorios if rel for i in",
+      "para": "sorted({str(i) for rel in relatorios if rel and not rel for i in",
+      "testes": [
+        "tests.test_suite_paralela.Logica.test_testes_que_cairam_no_resumo_tem_teto_e_id_limpo"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "caidos ausente ou vazio no relatorio vira lista vazia",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "rel.get(\"caidos\", ()) or ()",
+      "para": "rel.get(\"caidos\", ()) and ()",
+      "testes": [
+        "tests.test_suite_paralela.Logica.test_testes_que_cairam_no_resumo_tem_teto_e_id_limpo"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o ID no resumo so leva caractere imprimivel",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "c.isprintable() and c != \"`\"",
+      "para": "c != \"`\"",
+      "testes": [
+        "tests.test_suite_paralela.Logica.test_testes_que_cairam_no_resumo_tem_teto_e_id_limpo"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o ID no resumo nao leva crase",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "c.isprintable() and c != \"`\"",
+      "para": "c.isprintable()",
+      "testes": [
+        "tests.test_suite_paralela.Logica.test_testes_que_cairam_no_resumo_tem_teto_e_id_limpo"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M46",
+      "guarda": "M-E6-3: tira uma raiz do léxico (desligar)",
+      "arquivo": "bin/forge_dono.py",
+      "de": "|abandon|deslig|",
+      "para": "|abandon|",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_cada_raiz_do_lexico_com_acento_e_caixa"
+      ]
+    },
+    {
+      "id": "M47",
+      "guarda": "léxico: a raiz só vale no começo da palavra",
+      "arquivo": "bin/forge_dono.py",
+      "de": "CORTE = re.compile(r\"(?<![a-z])(?:",
+      "para": "CORTE = re.compile(r\"(?:",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_o_que_nao_e_corte_passa_sem_campos"
+      ]
+    },
+    {
+      "id": "M48",
+      "guarda": "léxico: cortesia não é corte",
+      "arquivo": "bin/forge_dono.py",
+      "de": "(?:cort(?!esi)|",
+      "para": "(?:cort|",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_o_que_nao_e_corte_passa_sem_campos"
+      ]
+    },
+    {
+      "id": "M49",
+      "guarda": "léxico: deixar de lado é corte",
+      "arquivo": "bin/forge_dono.py",
+      "de": "|deix\\S*(?:\\s+\\S+){0,3}?\\s+de\\s+lado)",
+      "para": ")",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_cada_raiz_do_lexico_com_acento_e_caixa"
+      ]
+    },
+    {
+      "id": "M50",
+      "guarda": "M-E8-4: tira um valor da regex CONFERE",
+      "arquivo": "bin/forge_dono.py",
+      "de": "confere=(rapido|seguro|barato|mede|nao-passa)",
+      "para": "confere=(rapido|seguro|mede|nao-passa)",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_cada_criterio_e_gravado"
+      ]
+    },
+    {
+      "id": "M51",
+      "guarda": "M-E8-1: aceita confere= vazio",
+      "arquivo": "bin/forge_dono.py",
+      "de": "confere=(rapido|seguro|barato|mede|nao-passa)\")",
+      "para": "confere=(rapido|seguro|barato|mede|nao-passa)?\")",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_decisao_sem_confere_ou_com_valor_fora_do_vocabulario"
+      ]
+    },
+    {
+      "id": "M52",
+      "guarda": "M-E8-9: modelo sem alternativa:",
+      "arquivo": "bin/forge_dono.py",
+      "de": "pergunta: 1a) alternativa: {texto}",
+      "para": "pergunta: 1a) {texto}",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_nao_passa_imprime_o_modelo_da_pergunta"
+      ]
+    },
+    {
+      "id": "M53",
+      "guarda": "M-E8-11: confere= no contexto passa",
+      "arquivo": "bin/forge-check",
+      "de": "dono and tipo != \"historico\" and dono.recusa_da_forja(valor)",
+      "para": "dono and tipo != \"historico\" and nome == \"--literal\" and dono.recusa_da_forja(valor)",
+      "testes": [
+        "tests.test_forge_dono.RecomendacaoRevertida.test_marca_escrita_a_mao_e_recusada"
+      ]
+    }
+  ]
+}

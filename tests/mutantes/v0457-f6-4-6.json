@@ -1,0 +1,97 @@
+{
+  "pedido": "v0457-f6-4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M41",
+      "guarda": "bin/forge_voltas.py:147 pronto <= META_PRONTO_ATE_DEVELOP",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "            dentro = \"-\" if pronto is None else \"sim\" if pronto <= META_PRONTO_ATE_DEVELOP else \"nao\"",
+      "para": "            dentro = \"-\" if pronto is None else \"sim\" if (not (pronto <= META_PRONTO_ATE_DEVELOP)) else \"nao\"",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M42",
+      "guarda": "bin/forge_voltas.py:149 pronto is not None",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "                  f\"{_numero(pronto) if pronto is not None else '-'} meta={META_PRONTO_ATE_DEVELOP} dentro={dentro}\")",
+      "para": "                  f\"{_numero(pronto) if (not (pronto is not None)) else '-'} meta={META_PRONTO_ATE_DEVELOP} dentro={dentro}\")",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "bin/forge_voltas.py:150 (reversoes := reversoes_do_pedido(pasta / f'{nome}.md', ctx))",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        if reversoes := reversoes_do_pedido(pasta / f\"{nome}.md\", ctx):  # L11 (OK-6): o placar da escolha provisória revertida pelo dono",
+      "para": "        if (not (reversoes := reversoes_do_pedido(pasta / f\"{nome}.md\", ctx))):  # L11 (OK-6): o placar da escolha provisória revertida pelo dono",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "bin/forge_voltas.py:168 tipo_da_espera(m[1]) == tipo and tipo_da_espera(m[2], m[3]) == tipo",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        return tipo_da_espera(m[1]) == tipo and tipo_da_espera(m[2], m[3]) == tipo",
+      "para": "        return (not (tipo_da_espera(m[1]) == tipo and tipo_da_espera(m[2], m[3]) == tipo))",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "bin/forge_voltas.py:172 tipo is None or tipo_da_espera(movimento[1]) == tipo",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        if tipo is None or tipo_da_espera(movimento[1]) == tipo:",
+      "para": "        if (not (tipo is None or tipo_da_espera(movimento[1]) == tipo)):",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "bin/forge_voltas.py:175 j < len(movimentos) and continua(movimentos[j], tipo)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        while j < len(movimentos) and continua(movimentos[j], tipo):",
+      "para": "        while j < len(movimentos) and not continua(movimentos[j], tipo):",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M47",
+      "guarda": "bin/forge_voltas.py:177 j < len(movimentos)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        fim = movimentos[j][0] if j < len(movimentos) else None",
+      "para": "        fim = movimentos[j][0] if (not (j < len(movimentos))) else None",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M48",
+      "guarda": "bin/forge_voltas.py:178 fim",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        esperas.append((tipo, movimento[0], _minutos(movimento[0], fim) if fim else None))",
+      "para": "        esperas.append((tipo, movimento[0], _minutos(movimento[0], fim) if (not (fim)) else None))",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    }
+  ]
+}

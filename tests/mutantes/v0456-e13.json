@@ -1,0 +1,16 @@
+{
+  "pedido": "v0456-e13",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "pre-push afetados (E13.1): bin/forge_apoio_testes.py como link recusa o plano dirigido",
+      "arquivo": ".githooks/pre-push",
+      "de": " && [ ! -L bin/forge_apoio_testes.py ] || return 1\n",
+      "para": " || return 1\n",
+      "testes": [
+        "tests.test_pre_push_link_apoio.PrePushLinkApoio.test_apoio_que_e_link_recusa_o_plano_e_roda_a_suite_inteira"
+      ]
+    }
+  ]
+}

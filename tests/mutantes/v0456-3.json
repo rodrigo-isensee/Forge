@@ -1,0 +1,86 @@
+{
+  "pedido": "v0456",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "J1",
+      "guarda": "E1/E5: branch ausente no gh vira texto vazio, não erro",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "VERSAO_DA_BRANCH.search(texto or \"\")",
+      "para": "VERSAO_DA_BRANCH.search(texto)",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_conta_main_vermelha_e_merge_com_check_vermelho_por_versao"
+      ]
+    },
+    {
+      "id": "J2",
+      "guarda": "E5.1: gh que falha não tem a saída lida",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "lista = json.loads(r.stdout) if r.returncode == 0 else None",
+      "para": "lista = json.loads(r.stdout) if r.returncode != 0 else None",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_conta_main_vermelha_e_merge_com_check_vermelho_por_versao"
+      ]
+    },
+    {
+      "id": "J3",
+      "guarda": "E5.1: item da lista que não é objeto fica fora",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "for x in lista if isinstance(x, dict)]",
+      "para": "for x in lista if True]",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_conta_main_vermelha_e_merge_com_check_vermelho_por_versao"
+      ]
+    },
+    {
+      "id": "J4",
+      "guarda": "E5.1: resposta que não é lista vira None",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "if isinstance(lista, list) else None",
+      "para": "if not isinstance(lista, list) else None",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_conta_main_vermelha_e_merge_com_check_vermelho_por_versao"
+      ]
+    },
+    {
+      "id": "J5",
+      "guarda": "E5.1: sem --gh os PRs não são lidos",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "\"headRefName,statusCheckRollup\"]) if usar_gh else None",
+      "para": "\"headRefName,statusCheckRollup\"]) if True else None",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_sem_a_opcao_gh_nada_vira_zero"
+      ]
+    },
+    {
+      "id": "J6",
+      "guarda": "E5.1: sem execuções lidas o laço não quebra",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "for e in execucoes or []:",
+      "para": "for e in execucoes:",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_sem_a_opcao_gh_nada_vira_zero"
+      ]
+    },
+    {
+      "id": "J7",
+      "guarda": "E5.1: só a conclusão vermelha conta como main vermelha",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "e[\"conclusion\"] in VERMELHO_DA_EXECUCAO",
+      "para": "e[\"conclusion\"] not in VERMELHO_DA_EXECUCAO",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_conta_main_vermelha_e_merge_com_check_vermelho_por_versao"
+      ]
+    },
+    {
+      "id": "J8",
+      "guarda": "E5.1: sem PRs lidos o laço não quebra",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "for pr in prs or []:",
+      "para": "for pr in prs:",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_sem_a_opcao_gh_nada_vira_zero"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "E6: só segmento com chave é campo",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        if achado:\n            campos[achado.group(1)]",
+      "para": "        if achado and False:\n            campos[achado.group(1)]",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_corte_com_os_quatro_campos_grava_a_linha_com_a_origem"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "E6: o léxico não lê os campos de origem",
+      "arquivo": "bin/forge_dono.py",
+      "de": "texto.split(\"·\") if not re.match(",
+      "para": "texto.split(\"·\") if True or re.match(",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_recomendada_sem_corte_passa_sem_campos"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "M-E6-1/M-E6-7: o léxico (e a marca [corte]) acha o corte",
+      "arquivo": "bin/forge_dono.py",
+      "de": "return CORTE.search(_sem_acento(_sem_campos(texto))) is not None",
+      "para": "return CORTE.search(_sem_acento(_sem_campos(texto))) is None",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_marca_corte_sem_verbo_do_lexico"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "M-E6-5: valor vazio é campo ausente",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if not campos.get(chave)]",
+      "para": "if chave not in campos]",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_campo_vazio_vale_como_ausente"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "M-E6-9: cada campo que falta recusa",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if faltam:\n        return \"recomendação de corte sem \"",
+      "para": "    if False:\n        return \"recomendação de corte sem \"",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_cada_campo_faltando_e_citado"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "E6: pedaço vazio não é lugar",
+      "arquivo": "bin/forge_dono.py",
+      "de": "re.split(r\",|;|\\s+e\\s+\", campos[\"procurado\"]) if p.strip()]",
+      "para": "re.split(r\",|;|\\s+e\\s+\", campos[\"procurado\"]) if p]",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_origem_nao_achada_pede_dois_lugares"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "M-E6-2: não achada com 1 lugar",
+      "arquivo": "bin/forge_dono.py",
+      "de": "len(lugares) < LUGARES_DO_NAO_ACHADA:",
+      "para": "len(lugares) < 1:",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_origem_nao_achada_pede_dois_lugares"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "M-E6-11/PQ-A2: na resposta, só a recomendada escolhida",
+      "arquivo": "bin/forge_dono.py",
+      "de": "(escolhas is not None and escolhas.get(n) != letra)",
+      "para": "False",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_resposta_a_pergunta_antiga_de_corte_volta_como_pergunta"
+      ]
+    }
+  ]
+}

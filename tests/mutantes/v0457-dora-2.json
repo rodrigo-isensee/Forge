@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-dora",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "coluna vazia ou faltando e recusada",
+      "arquivo": "bin/forge_dora.py",
+      "de": "if motivo is None and not all(c[1:colunas]):",
+      "para": "if motivo is None and False:",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_recusa_linha_incompleta_com_o_motivo"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "linha com motivo nao entra na conta",
+      "arquivo": "bin/forge_dora.py",
+      "de": "        if motivo is None:\n            boas.append",
+      "para": "        if motivo != \"coluna vazia ou faltando\":\n            boas.append",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_recusa_linha_incompleta_com_o_motivo"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "recusado sem cartao sai com -",
+      "arquivo": "bin/forge_dora.py",
+      "de": "c[1] or \"-\"",
+      "para": "c[1] or \"\"",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_recusa_linha_incompleta_com_o_motivo"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "vazao conta o primeiro Pronto de cada cartao",
+      "arquivo": "bin/forge_dora.py",
+      "de": "and data < primeiro.get(cartao, data + datetime.timedelta(seconds=1)):",
+      "para": "and True:",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_vazao_conta_cada_cartao_uma_vez_no_primeiro_pronto"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "escape cai na ultima release ate a hora dele",
+      "arquivo": "bin/forge_dora.py",
+      "de": "if d <= data), None)",
+      "para": "if d >= data), None)",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_taxa_de_falha_conta_release_com_escape"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "escape antes da primeira release e recusado",
+      "arquivo": "bin/forge_dora.py",
+      "de": "if ultima is None:",
+      "para": "if ultima is None and False:",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_recusa_linha_incompleta_com_o_motivo"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "recuperacao vai ate a release seguinte",
+      "arquivo": "bin/forge_dora.py",
+      "de": "if d > data), None)",
+      "para": "if d < data), None)",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_recuperacao_do_escape_ate_a_release_seguinte"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "escape sem release depois fica aberto",
+      "arquivo": "bin/forge_dora.py",
+      "de": "if seguinte is None:",
+      "para": "if seguinte is None or True:",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_recuperacao_do_escape_ate_a_release_seguinte"
+      ]
+    }
+  ]
+}

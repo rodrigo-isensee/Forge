@@ -1,0 +1,45 @@
+{
+  "descricao": "AV3 etapa 1: sem comando crítico (leitura do git, ls) o vigia não cria comandos.jsonl.",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": ""
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1",
+        "transcript_path": "{tmp}/t.jsonl"
+      }
+    },
+    {
+      "gravar": {
+        "{tmp}/a.jsonl": [
+          "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"id\": \"a\", \"name\": \"Bash\", \"input\": {\"command\": \"git status; git log --oneline | head\"}}]}}",
+          "{\"type\": \"user\", \"message\": {\"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"a\", \"is_error\": false, \"content\": \"\"}]}}",
+          "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"id\": \"b\", \"name\": \"Bash\", \"input\": {\"command\": \"ls docs\"}}]}}",
+          "{\"type\": \"user\", \"message\": {\"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"b\", \"is_error\": false, \"content\": \"\"}]}}"
+        ]
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "SubagentStop",
+    "session_id": "s1",
+    "agent_type": "forge:dev",
+    "transcript_path": "{tmp}/t.jsonl",
+    "agent_transcript_path": "{tmp}/a.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_arquivo": [
+      "comandos.jsonl"
+    ]
+  }
+}

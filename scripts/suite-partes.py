@@ -4,6 +4,7 @@
 Uso: python3 scripts/suite-partes.py --modulos M[,M...]
      python3 scripts/suite-partes.py --parte K/N
      python3 scripts/suite-partes.py --somar-pulados N PASTA
+     python3 scripts/suite-partes.py --duas-partes
   --modulos M   roda só esses módulos de tests/ (os testes afetados de um envio; `evals.test_x` é o de um pacote,
                 tests/evals/test_x.py) em até 4 processos: a mesma regra de
                 N, a mesma LPT sobre tests/pesos-d4.json, os mesmos filhos (`suite-paralela.py --processo`) e a mesma
@@ -20,6 +21,9 @@ Uso: python3 scripts/suite-partes.py --modulos M[,M...]
   --somar-pulados N PASTA  (o agregador do CI) soma os pulados das N partes gravados em PASTA (`*.json`, um por parte,
                 K de 1 a N uma vez só) e compara com `teto_pulados` de tests/config.json, com a conta do suite-paralela
                 (T3). Falha fechada: parte faltando, repetida, de outro N, arquivo ilegível ou teto ilegível reprova.
+  --duas-partes (à mão, E4.1 da 0.45.7, R-TETO) a suíte inteira em 2 partes (`--parte 1/2` e `--parte 2/2`): em paralelo
+                só com folga na hora (load1 < nproc e memória disponível acima do piso, `piso_memoria_gb`, padrão 2
+                GB); sem folga, ou sem medida, uma depois da outra. Verde só com as duas verdes.
 Só biblioteca padrão. A última linha é `OK` (ou `OK (skipped=N)`) ou `FAILED (...)`, como no `unittest`.
 """
 import collections
@@ -30,6 +34,7 @@ import os
 import re
 import shutil
 import signal
+import subprocess
 import sys
 import tempfile
 import time
@@ -126,6 +131,51 @@ def dividir(sp, nomes, n):
     if len(partes) != n:
         erros.append(f"{len(nomes)} módulos não dão {n} partes não vazias")
     return partes, erros
+
+
+PISO_PADRAO_GB = 2.0  # o mesmo padrão do hook `agentes` (R-TETO)
+
+
+def piso_de_memoria(config):
+    """O piso de memória livre em GB (`piso_memoria_gb`); inválido, ausente, não positivo ou booleano vale o padrão."""
+    valor = config.get("piso_memoria_gb") if isinstance(config, dict) else None
+    if isinstance(valor, bool) or not isinstance(valor, (int, float)) or not valor > 0:
+        return PISO_PADRAO_GB
+    return float(valor)
+
+
+def ha_folga(carga, memoria, nproc, piso):
+    """R-TETO: 2 partes em paralelo só com load1 < nproc e memória livre acima do piso; sem medida, não há folga."""
+    if None in (carga, memoria, nproc) or not nproc:
+        return False
+    return carga < nproc and memoria > piso
+
+
+def por_duas_partes(sp, environ, lancar=None):
+    """A suíte inteira em 2 partes (`--parte K/2`, filhos com CI=1 como o CI): paralelas com folga, senão em série. O
+    código é 0 só com as duas verdes."""
+    try:
+        config = json.loads((sp.RAIZ / ".forge" / "config.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        config = {}
+    carga, memoria, _ = sp.medir_carga()
+    paralelo = ha_folga(carga, memoria, os.cpu_count(), piso_de_memoria(config))
+    modo = ("em série", "paralelo")[paralelo]
+    print(f"suite-partes: 2 partes {modo} (load1 {carga}, {memoria} GB livres, {os.cpu_count()} núcleos).",
+          file=sys.stderr, flush=True)
+    filho_env = {**environ, "CI": "1"}
+    filho_env.pop("FORGE_SUITE_PULADOS", None)
+    comandos = [[sys.executable, "-I", str(Path(__file__).resolve()), "--parte", f"{k}/2"] for k in (1, 2)]
+    lancar = lancar or (lambda cmd: subprocess.Popen(cmd, env=filho_env))
+    codigos = []
+    if paralelo:
+        codigos = [p.wait() for p in [lancar(c) for c in comandos]]
+    else:
+        for comando in comandos:
+            codigos.append(lancar(comando).wait())
+            if codigos[-1]:
+                break
+    return 0 if codigos and not any(codigos) and len(codigos) == 2 else 1
 
 
 def falhar(motivo, codigo=1, rotulo="divisão"):
@@ -308,6 +358,8 @@ def main(argv=None, environ=None):
     environ = os.environ if environ is None else environ
     if argv[:1] == ["--somar-pulados"] and len(argv) == 3:
         return somar_pulados(carregar_paralela(), argv[1], argv[2])
+    if argv == ["--duas-partes"]:
+        return por_duas_partes(carregar_paralela(), environ)
     if len(argv) != 2 or argv[0] not in ("--modulos", "--parte"):
         print(__doc__.strip().splitlines()[2], file=sys.stderr)
         return 2

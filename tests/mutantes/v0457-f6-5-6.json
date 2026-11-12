@@ -1,0 +1,94 @@
+{
+  "pedido": "v0457-f6-5",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M41",
+      "guarda": "bin/forge_medidas.py:162 f.read(1) != b'\\n'",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "            falta_quebra = f.read(1) != b\"\\n\"",
+      "para": "            falta_quebra = (not (f.read(1) != b\"\\n\"))",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M42",
+      "guarda": "bin/forge_medidas.py:166 not existe",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "        if not existe:",
+      "para": "        if (not (not existe)):",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "bin/forge_medidas.py:168 falta_quebra",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "        elif falta_quebra:",
+      "para": "        elif (not (falta_quebra)):",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "bin/forge_medidas.py:180 agora or datetime.datetime.now().astimezone()",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    agora = agora or datetime.datetime.now().astimezone()",
+      "para": "    agora = (not (agora or datetime.datetime.now().astimezone()))",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "bin/forge_medidas.py:184 len(c) >= 7 and HORA_DO_REGISTRO.fullmatch(c[0])",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "        if len(c) >= 7 and HORA_DO_REGISTRO.fullmatch(c[0]):",
+      "para": "        if (not (len(c) >= 7 and HORA_DO_REGISTRO.fullmatch(c[0]))):",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "bin/forge_medidas.py:186 hora and hora >= inicio",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "            if hora and hora >= inicio:",
+      "para": "            if (not (hora and hora >= inicio)):",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M47",
+      "guarda": "bin/forge_medidas.py:189 len(c) >= 5 and ISO8601.match(c[0]) and (_sem_acento(c[3]) == 'pronto') and ((_hora(c[0]) or agora) >= inicio)",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "               if len(c) >= 5 and ISO8601.match(c[0]) and _sem_acento(c[3]) == \"pronto\" and (_hora(c[0]) or agora) >= inicio}",
+      "para": "               if (not (len(c) >= 5 and ISO8601.match(c[0]) and _sem_acento(c[3]) == \"pronto\" and (_hora(c[0]) or agora) >= inicio))}",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M48",
+      "guarda": "bin/forge_medidas.py:190 e[4] == g",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    print(\"escapes: gravidade: \" + \" \".join(f\"{g}={sum(1 for e in escapes if e[4] == g)}\" for g in GRAVIDADES))",
+      "para": "    print(\"escapes: gravidade: \" + \" \".join(f\"{g}={sum(1 for e in escapes if (not (e[4] == g)))}\" for g in GRAVIDADES))",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    }
+  ]
+}

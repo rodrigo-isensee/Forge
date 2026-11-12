@@ -3,6 +3,8 @@
 
 PreToolUse (Bash): se um comando simples da linha começa com um item de `pesados` (.forge/config.json) e outra
 sessão ou agente tem tarefa pesada ativa (trava com PID vivo, com menos de TRAVA_S), bloqueia; senão pega a trava.
+Vivo não é o zumbi nem o pid reaproveitado (o início do processo vai na trava); o hook que fica órfão na fila sai dela
+(PROCESSO-ORFAO). O comando se lê atrás dos lançadores do `_comum` e por caminho (`/x/bin/forge-mutante`; B4).
 PostToolUse, PostToolUseFailure e PermissionDenied (Bash) do mesmo comando soltam a trava.
 No clone do Forge (cópia principal e worktrees), que não tem `.forge/config.json`, valem também os PESADOS_DO_FORGE
 abaixo: duas suítes completas ao mesmo tempo esgotam a memória (R-TETO); os scripts de PELOS_ARGUMENTOS são
@@ -20,7 +22,8 @@ import subprocess
 import time
 from pathlib import Path
 
-from _comum import bloquear, e_clone_do_forge, executar, gravar_json, ler_json, leituras, sem_atribuicoes
+from _comum import (bloquear, e_clone_do_forge, executar, gravar_json, ler_json, leituras, sem_atribuicoes,
+                    separar_lancadores)
 
 CASCAS = {"sh", "bash", "dash", "zsh"}
 EVENTOS = {"PreToolUse", "PostToolUse", "PostToolUseFailure", "PermissionDenied"}
@@ -105,7 +108,7 @@ def fila_viva(pasta):
 
 def ocupada(hook, trava, uso, agora):
     return isinstance(trava, dict) and trava.get("tool_use_id") != uso and not mesma_sessao(hook, trava) \
-        and pid_vivo(trava.get("pid")) and isinstance(trava.get("desde"), (int, float)) \
+        and pid_vivo(trava.get("pid"), trava.get("inicio")) and isinstance(trava.get("desde"), (int, float)) \
         and agora - trava["desde"] < min(hook.expira_s(), TRAVA_S)
 
 
@@ -130,7 +133,30 @@ def pid_da_sessao():
     return pid
 
 
-def pid_vivo(pid):
+def processo(pid):
+    """(estado, início em tiques desde o boot) do `/proc/<pid>/stat`, ou None se ele não se lê ou se o `/proc` é de outro
+    namespace de pid (o do sandbox do Bash: lá o `/proc/<pid>` é de outro processo)."""
+    try:
+        if int(Path("/proc/self/stat").read_text(encoding="utf-8").split(" ", 1)[0]) != os.getpid():
+            return None
+        campos = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").rsplit(")", 1)[1].split()
+        return campos[0], int(campos[19])
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def inicio_de(pid):
+    return (processo(pid) or (None, None))[1]
+
+
+def gravar_a_vez(hook, arquivo, dono, inicio, comando, agora, uso):
+    gravar_json(arquivo, {"pid": dono, "inicio": inicio, "agente": hook.campo("agent_id"),
+                          "comando": " ".join(comando.split())[:120], "desde": agora, "tool_use_id": uso})
+
+
+def pid_vivo(pid, inicio=None):
+    """PROCESSO-ORFAO (v046): morto também o zumbi (`Z`, `X`, que o `kill -0` ainda acha) e o pid reaproveitado por outro
+    processo depois que a sessão dona acabou (o início gravado na trava difere do atual). Sem `/proc`, como antes."""
     if not isinstance(pid, int) or pid <= 0:
         return False
     if os.name == "nt":
@@ -140,12 +166,26 @@ def pid_vivo(pid):
     except ProcessLookupError:
         return False
     except PermissionError:
-        return True
-    return True
+        pass
+    lido = processo(pid)
+    if lido and lido[0] in ("Z", "X"):
+        return False
+    return not (lido and isinstance(inicio, int) and lido[1] != inicio)
 
 
 def inicios(palavras):
-    """Textos normalizados do comando simples a partir de cada ponto onde a ferramenta pode começar."""
+    """Textos normalizados do comando simples a partir de cada ponto onde a ferramenta pode começar. B4 (v046): antes,
+    os lançadores da tabela do `_comum` com as opções deles (`timeout -s KILL 60`, `nice -n 10`, `env -i -u X`), em cada
+    leitura possível, somadas à leitura antiga (o padrão do projeto que começa por lançador, `nice make test`, segue
+    pesado); a leitura que o `_comum` recusa (`LancadorDemais`, texto do `env -S` aberto) fica só com a antiga."""
+    try:
+        simples = [palavras] + [comando for comando, _ in separar_lancadores(palavras)]
+    except ValueError:
+        simples = [palavras]
+    return [texto for comando in simples for texto in inicios_sem_lancador(comando)]
+
+
+def inicios_sem_lancador(palavras):
     palavras, saida, i = sem_atribuicoes([p.lower() for p in palavras]), [], 0
     while i < len(palavras):
         saida.append(" ".join(palavras[i:]))
@@ -164,26 +204,37 @@ def pede_opcao(argumento, opcao):
     return len(nome) > 2 and opcao.startswith(nome)
 
 
-def leve_pelos_argumentos(inicio):
+def leve_pelos_argumentos(inicio, padrao):
     """O teste dirigido (os dois primeiros de PELOS_ARGUMENTOS) sem `--completa` nem `--vermelho` em posição nenhuma; o
     mutante só com `--listar` sozinho."""
-    nome, *argumentos = inicio.split()
-    if nome in PELOS_ARGUMENTOS[:2]:
+    _, *argumentos = inicio.split()
+    if padrao in PELOS_ARGUMENTOS[:2]:
         return not any(pede_opcao(a, o) for a in argumentos for o in ("--completa", "--vermelho"))
     return argumentos == ["--listar"]
 
 
+def palavra_casa(palavra, molde):
+    """B4 (v046): a palavra é a do padrão ou termina nela depois de uma pasta (`/x/bin/forge-mutante`, `./.githooks/…`)."""
+    molde = molde.removeprefix("./")
+    return palavra == molde or palavra.endswith("/" + molde)
+
+
+def comeca_com(inicio, padrao):
+    palavras, moldes = inicio.split(), padrao.split()
+    return len(palavras) >= len(moldes) and all(map(palavra_casa, palavras, moldes))
+
+
 def casa(inicio, padrao):
     if padrao in PELOS_ARGUMENTOS:
-        return inicio.split()[:1] == [padrao] and not leve_pelos_argumentos(inicio)
-    return inicio == padrao or inicio.startswith(padrao + " ")
+        return comeca_com(inicio, padrao) and not leve_pelos_argumentos(inicio, padrao)
+    return comeca_com(inicio, padrao)
 
 
 def pesado(comando, padroes):
     """O comando tem um comando simples que começa com um dos padrões (citar a ferramenta não conta)."""
     texto = normalizar(comando)
     padroes = [normalizar(p) for p in padroes]
-    if not any(p in texto for p in padroes):
+    if not any(all(m in texto for m in p.split()) for p in padroes):
         return False  # pré-filtro barato: a maioria dos comandos para aqui
     # ADR 0013, tabela 2.4: pesado se qualquer leitura (a fiel e, se diferir, a da develop) for; se nenhuma fecha,
     # libera, como na develop (a trava de recurso fica aberta na dúvida).
@@ -252,8 +303,8 @@ def principal(hook):
             return
         agora = time.time()
         if not ocupada(hook, trava, uso, agora) and not fila_viva(hook.run() / "pesado.fila"):
-            gravar_json(arquivo, {"pid": pid_da_sessao(), "agente": hook.campo("agent_id"),
-                                  "comando": " ".join(comando.split())[:120], "desde": agora, "tool_use_id": uso})
+            dono = pid_da_sessao()
+            gravar_a_vez(hook, arquivo, dono, inicio_de(dono), comando, agora, uso)
             return
     esperar_a_vez(hook, raiz, arquivo, comando, uso)
 
@@ -275,14 +326,17 @@ def esperar_a_vez(hook, raiz, arquivo, comando, uso):
                            "enquanto ele não responde (a vez fica com quem pode andar).")
     pasta = hook.run() / "pesado.fila"
     senha, preso = entrar_na_fila(pasta, prioridade(branch))
+    dono = pid_da_sessao()
+    inicio = inicio_de(dono)  # lidos uma vez: a vez grava o dono já checado, não um pid relido depois da checagem
     try:
         for _ in range(int(espera_s() / PASSO_S) + 1):
+            if pid_da_sessao() != dono:  # PROCESSO-ORFAO (v046): a sessão acabou; a senha sai da fila e a vez não é pega
+                bloquear("R-TETO", "a sessão que pediu a tarefa pesada acabou; a vez fica com a próxima da fila.")
             with hook.trava():
                 trava, agora = ler_json(arquivo, None), time.time()
                 vivas = fila_viva(pasta)
                 if not ocupada(hook, trava, uso, agora) and vivas[:1] == [senha]:
-                    gravar_json(arquivo, {"pid": pid_da_sessao(), "agente": hook.campo("agent_id"),
-                                          "comando": " ".join(comando.split())[:120], "desde": agora, "tool_use_id": uso})
+                    gravar_a_vez(hook, arquivo, dono, inicio, comando, agora, uso)
                     return
             time.sleep(PASSO_S)
         registrar_a_recusa(hook)

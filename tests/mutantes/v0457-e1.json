@@ -1,0 +1,38 @@
+{
+  "pedido": "v0457-e1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "AV5: regra com arquivo próprio é lida do arquivo; o trecho de R-LIMITES só entra na falta dele",
+      "arquivo": "bin/forge-check",
+      "de": "        if arq.is_file():\n            return arq.read_text",
+      "para": "        if not arq.is_file():\n            return arq.read_text",
+      "testes": ["tests.test_r_limites.CitacaoDeTrecho.test_regra_com_arquivo_proprio_vem_do_arquivo"]
+    },
+    {
+      "id": "M2",
+      "guarda": "AV5: ID sem trecho em R-LIMITES é regra ausente",
+      "arquivo": "bin/forge-check",
+      "de": "if len(partes) == 2 else (None, \"regra ausente\")",
+      "para": "if len(partes) >= 1 else (None, \"regra ausente\")",
+      "testes": ["tests.test_r_limites.CitacaoDeTrecho.test_id_inexistente_segue_ausente"]
+    },
+    {
+      "id": "M3",
+      "guarda": "AV5: R-LIMITES ausente não quebra a citação",
+      "arquivo": "bin/forge-check",
+      "de": "if limites.is_file() else []",
+      "para": "if True else []",
+      "testes": ["tests.test_r_limites.CitacaoDeTrecho.test_sem_r_limites_o_trecho_e_ausente"]
+    },
+    {
+      "id": "M4",
+      "guarda": "AV5: ID de regra vale com arquivo próprio ou com trecho em R-LIMITES",
+      "arquivo": "tests/apoio_regra_id.py",
+      "de": ".is_file() or f\"## {i}:\" in limites",
+      "para": ".is_file() and f\"## {i}:\" in limites",
+      "testes": ["tests.test_r_limites.IdsDoApoio.test_ids_aceita_arquivo_proprio_e_trecho_e_recusa_inexistente"]
+    }
+  ]
+}

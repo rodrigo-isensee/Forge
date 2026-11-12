@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-f6-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "bin/forge_transcricao.py:75 RE_SAIDA_PUSH.search(saidas) is not None",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        return RE_SAIDA_PUSH.search(saidas) is not None",
+      "para": "        return (not (RE_SAIDA_PUSH.search(saidas) is not None))",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "bin/forge_transcricao.py:76 tipo == 'mesclado'",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if tipo == \"mesclado\":",
+      "para": "    if (not (tipo == \"mesclado\")):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "bin/forge_transcricao.py:77 valor",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        return any(merge_provado(n, saidas) for n in (valor.split(\",\") if valor else [\"\"]))",
+      "para": "        return any(merge_provado(n, saidas) for n in (valor.split(\",\") if (not (valor)) else [\"\"]))",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "bin/forge_transcricao.py:78 tipo == 'absoluta'",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if tipo == \"absoluta\":",
+      "para": "    if (not (tipo == \"absoluta\")):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "bin/forge_transcricao.py:84 isinstance(conteudo, str)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if isinstance(conteudo, str):",
+      "para": "    if (not (isinstance(conteudo, str))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "bin/forge_transcricao.py:86 isinstance(b, dict) and isinstance(b.get('text'), str)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    return [b[\"text\"] for b in conteudo if isinstance(b, dict) and isinstance(b.get(\"text\"), str)] if isinstance(conteudo, list) else []",
+      "para": "    return [b[\"text\"] for b in conteudo if (not (isinstance(b, dict) and isinstance(b.get(\"text\"), str)))] if isinstance(conteudo, list) else []",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "bin/forge_transcricao.py:86 isinstance(conteudo, list)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    return [b[\"text\"] for b in conteudo if isinstance(b, dict) and isinstance(b.get(\"text\"), str)] if isinstance(conteudo, list) else []",
+      "para": "    return [b[\"text\"] for b in conteudo if isinstance(b, dict) and isinstance(b.get(\"text\"), str)] if (not (isinstance(conteudo, list))) else []",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "bin/forge_transcricao.py:96 isinstance(o.get('message'), dict)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        agente = o.get(\"agentId\")\n        msg = o.get(\"message\") if isinstance(o.get(\"message\"), dict) else {}",
+      "para": "        agente = o.get(\"agentId\")\n        msg = o.get(\"message\") if (not (isinstance(o.get(\"message\"), dict))) else {}",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    }
+  ]
+}
