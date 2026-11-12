@@ -48,7 +48,6 @@ Head `9f5e7f6b` (igual ao `origin/melhoria/v0457`), leitura em worktree destacad
 - Os pareceres e os fragmentos que a develop traz (`docs/security/v046*.md`, `backlog-ate-sexta.md`) são dela e já tinham gatilho revisto; não os reabri.
 
 ## Achados
-- Nenhum.
 
 ## Sondas
 
