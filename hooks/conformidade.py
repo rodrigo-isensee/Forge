@@ -327,9 +327,13 @@ SO_VARIAVEL = re.compile(r"\$\{[^}]*\}|\$\w+|`")  # `${d%/}` (A2 da E20.8): a va
 # `--git-path <x>`) em `$(…)` ou crase tem valor conhecido, o `.git` da raiz: a linha troca a substituição por esta
 # variável, que `expandir` resolve (também na variável atribuída a ela), e as regras `.git/…` decidem como no literal.
 DIR_DO_GIT = "FORGE_DIR_DO_GIT"
-_REV_PARSE = (r"\s*git\s+rev-parse\s+(?:--path-format=\w+\s+)?(?:--(?:git-dir|git-common-dir|absolute-git-dir)"
-              r"|--git-path\s+(?P<{}>[\w./-]+))\s*")
-REV_PARSE_DO_GIT = re.compile(rf"\$\({_REV_PARSE.format('sub')}\)|`{_REV_PARSE.format('crase')}`")
+# Volta 2 (review E20.12 A3, segurança E20.13 A1): o corpo da substituição é lido por palavras (shlex), não pela grafia:
+# qualquer forma de chamar o git (`git -C <pasta>`, `-c a=b`, `\git`, `/usr/bin/git`), opções antes da do diretório
+# (`-q`, `--path-format=x`), argumento entre aspas e redirecionamento dentro (`2>/dev/null`). Falha fechada: `-C` de outro
+# repositório também vale como o `.git` da raiz, e o argumento do `--git-path` que não é caminho simples, como o próprio `.git`.
+REV_PARSE_DO_GIT = re.compile(r"\$\((?P<sub>[^()`]*)\)|`(?P<crase>[^`]*)`")
+OPCOES_DO_DIR_DO_GIT = frozenset({"--git-dir", "--git-common-dir", "--absolute-git-dir"})
+CAMINHO_SIMPLES = re.compile(r"[\w./-]+")
 VARIAVEL_INTEIRA = re.compile(r"\$\{(\w+)\}|\$(\w+)")  # sem operador: `${d%/}` não é o valor de `d`
 SUBSTITUICAO = re.compile(r"[$<>]\(")
 SIMPLES = {
@@ -352,6 +356,29 @@ SIMPLES = {
 # F6: o mesmo vale para enviar sugestão ao Forge (`forge sugerir`, `forge-sugerir`): só `--guardar` é do agente. A variável de
 # ambiente que o script confere some com `env -i`; por isso a defesa principal é este hook.
 GUARDAR_EXATO = re.compile(r"(?:forge sugerir|forge-sugerir|bin/forge-sugerir) --guardar (\"[^\"$`\\!]*\"|'[^']*')", re.S)
+
+
+def valor_do_rev_parse(corpo):
+    """O caminho dentro do `.git` que o corpo de `$(…)` ou da crase devolve ("" é o próprio `.git`), ou None se o corpo não
+    é `rev-parse` com uma das opções do diretório do git. Aspas sem par: as palavras sem as aspas."""
+    try:
+        palavras = shlex.split(corpo)
+    except ValueError:
+        palavras = re.findall(r"[^\s'\"]+", corpo)
+    depois = palavras[palavras.index("rev-parse") + 1:] if "rev-parse" in palavras else []
+    for i, palavra in enumerate(depois):
+        if palavra in OPCOES_DO_DIR_DO_GIT:
+            return ""
+        if palavra == "--git-path":  # `--git-path=x` o git não lê como opção
+            caminho = next(iter(depois[i + 1:]), "")
+            return caminho if CAMINHO_SIMPLES.fullmatch(caminho) else ""
+    return None
+
+
+def trocar_rev_parse(m):
+    """`$(…)` ou crase de `rev-parse` do diretório do git vira `${DIR_DO_GIT}/<caminho>`; as outras voltam iguais."""
+    valor = valor_do_rev_parse(m["sub"] or m["crase"] or "")
+    return m[0] if valor is None else "${%s}/%s" % (DIR_DO_GIT, valor)
 
 
 def opcoes_sem_exec(args):
@@ -1167,7 +1194,7 @@ class Guarda:
             self.recusar_o_teto(comando, original, nivel)
         else:
             comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
-            comando = REV_PARSE_DO_GIT.sub(lambda m: "${%s}/%s" % (DIR_DO_GIT, m["sub"] or m["crase"] or ""), comando)
+            comando = REV_PARSE_DO_GIT.sub(trocar_rev_parse, comando)
             self.recusar_o_teto(comando, original, nivel)
             lidas = leituras(comando)
             # opção B da revalidação 9: sobre a palavra que o bash recebe, em qualquer posição; recusa no fim do nível 0.

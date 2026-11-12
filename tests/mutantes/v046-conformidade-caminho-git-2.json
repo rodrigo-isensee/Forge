@@ -54,10 +54,30 @@
     },
     {
       "id": "G14",
-      "guarda": "volta 1 (A1 e A3 da E20.8): o caminho do `--git-path` em crase entra no valor do `.git`",
+      "guarda": "volta 1 (A1 e A3 da E20.8), lido por palavras na volta 2: o corpo da crase entra na leitura do `rev-parse`",
       "arquivo": "hooks/conformidade.py",
       "de": "m[\"sub\"] or m[\"crase\"] or \"\"",
       "para": "m[\"sub\"] or \"\"",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G15",
+      "guarda": "volta 2 (review E20.12 A3, segurança E20.13 A1): `--git-dir`, `--git-common-dir` e `--absolute-git-dir` depois de `rev-parse`, com qualquer palavra antes (`-q`, `git -C .`), valem o `.git`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if palavra in OPCOES_DO_DIR_DO_GIT:",
+      "para": "        if None:",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G16",
+      "guarda": "volta 2: `--git-path <x>` depois de `rev-parse`, com qualquer forma de chamar o git, vale `.git/<x>`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if palavra == \"--git-path\":",
+      "para": "        if None:",
       "testes": [
         "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
       ]
