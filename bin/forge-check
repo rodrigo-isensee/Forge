@@ -2321,7 +2321,7 @@ def parecer_de_portao_da_branch(raiz, head, nome, tipo, branch, pedido_id, slug)
     commit da própria branch (sha40 ancestral do head). Parecer de outra branch, ou sem o commit revisado na branch, não."""
     cod, texto = git(raiz, "show", f"{head}:{nome}")
     fm = ler_frontmatter(texto)[0] or {}
-    revisado = fm.get("commit") or ""
+    revisado = fm.get("commit", "")
     return (not cod and fm.get("tipo") == tipo and fm.get("parecer") in ("aprovado", "reprovado") and fm.get("branch") == branch
             and fm.get("pedido") in (pedido_id, slug)
             and sha_do_commit(raiz, revisado) == revisado and e_ancestral(raiz, revisado, head))

@@ -752,6 +752,15 @@ class ParecerDoPortao(Conferencia):
         self.assertEqual(rc, 1, saida)
         self.assertIn('escopo: fora do declarado no brief "docs/reviews/x.md"', saida)
 
+    def test_parecer_sem_frontmatter_segue_fora(self):
+        self.entrega_com_parecer()
+        self.gravar("docs/reviews/x.md", "# parecer sem frontmatter\n")
+        self.git("add", "docs/reviews/x.md")
+        self.commit("docs(reviews): sem frontmatter")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('escopo: fora do declarado no brief "docs/reviews/x.md"', saida)
+
 
 class MergeDaBaseDepoisDoBrief(Conferencia):
     """E23.36 (e): com a develop trazida por merge, o intervalo parte do merge-base com a origin/develop; a conferida de outra branch

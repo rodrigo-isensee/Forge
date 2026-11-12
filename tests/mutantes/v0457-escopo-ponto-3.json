@@ -1,0 +1,16 @@
+{
+  "pedido": "v0457-escopo-ponto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "E23.36 (d): parecer sem frontmatter não é anexo do portão (nem quebra a conferência)",
+      "arquivo": "bin/forge-check",
+      "de": "    fm = ler_frontmatter(texto)[0] or {}\n    revisado = fm.get(\"commit\", \"\")",
+      "para": "    fm = ler_frontmatter(texto)[0]\n    revisado = fm.get(\"commit\", \"\")",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_parecer_sem_frontmatter_segue_fora"
+      ]
+    }
+  ]
+}
