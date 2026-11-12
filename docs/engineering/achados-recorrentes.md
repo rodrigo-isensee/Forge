@@ -12,7 +12,7 @@ Uma linha por achado recorrente, no máximo 20; só classe, ID da regra, contage
 O `forge-check brief gerar` avisa em stderr a linha que não segue o formato. Quem escreve: o `tech-lead` (review), o `security-engineer` e o `qa-engineer`, no mesmo PR do parecer. Sai a linha sem ocorrência em 90 dias.
 
 ## Achados
-- AR-1 · qa · lista de mutantes incompleta · R-QA · vezes: 7 · última: tests/mutantes/fechar-esperar-rotulo.json:1
+- AR-1 · qa · lista de mutantes incompleta · R-QA · vezes: 8 · última: tests/mutantes/v046-fechar-lote.json:1
 - AR-2 · qa · ramo de falha de guarda sem teste de comportamento · R-QA · vezes: 2 · última: bin/forge-fechar:177
 - AR-3 · seguranca · lista negativa em trava de ambiente · R-SEGURANCA · vezes: 3 · última: tests/test_ci_local.py:36
 - AR-4 · review · teste herda o ambiente do CI · R-REVIEW · vezes: 2 · última: tests/test_suite_paralela.py:181
