@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0457
 branch: melhoria/escopo-ponto
-commit: 73e4848c3d431b8ac2e99beff0d0b63f2d054284
+commit: 0a0a7c808607535ddfe5e2eaf715a9340d7f8b8b
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -59,4 +59,22 @@ Nenhum aberto. A1 (antigo) resolvido no c51ecb48.
 - Vermelho: o delta só soma testes sobre código novo; cada um dos novos negativos é morto por mutante, sem teste que passe com o mutante vivo.
 
 ## Achados (delta)
+Nenhum aberto.
+
+## Revalidação por delta 73e4848c..0a0a7c80 (E23.55)
+`forge-check parecer delta` lista no domínio: bin/forge-check, changelog.d, specs 3 e 5 e tests/test_selo_e_entrega.py.
+- segurança A7 (S6): `veredito_trocado` roda `rev-list --full-history de..head -- <pasta>` (bin/forge-check:2345). Testes `test_merge_de_ramo_lateral_que_apaga_o_reprovado_segue_fora` e `test_merge_com_o_ramo_lateral_como_primeiro_pai_segue_fora` montam o S6 do parecer de segurança (x.md reprovado, y.md aprovado no ramo lateral com o mesmo `commit:`, merge --no-ff que apaga o x.md) nas duas ordens de pais e esperam `y.md` fora. M34 (tira o `--full-history`) morre nos dois.
+- segurança A8 (S7): a busca é na pasta do portão do `tipo` (`PASTA_E_REGRA[tipo][0]`, :2344) com subpastas por `ls-tree -r` (:2349), parâmetro `tipo` novo. `test_parecer_em_subpasta_do_portao_com_o_reprovado_apagado_segue_fora` é o S7 (x.md apagado em commit anterior, `sub/y.md` aprovado com o mesmo `commit:`). M35 (volta a `Path(nome).parent`) morre nele.
+- M28 (declarado, dá erro sob o mutante): conferido, o teste de arquivo sem frontmatter na pasta passa sem o mutante e morre com ele (spec 4 morreu=8).
+- M20 e M22 mudaram só o trecho `de` (assinatura nova e `--full-history`), mesma guarda; seguem mortos.
+- Fronteira nova: a busca já inclui subpasta e merge; o `forge-check pr` não mudou (cartão A9 da segurança, versão seguinte).
+- 673 linhas na branch (teto excedido): decisão do review/tech-lead, vai para a versão seguinte; não é defeito de QA.
+
+## Provas (delta E23.55, head 0a0a7c80, worktree destacada)
+- `python3 -m unittest tests.test_selo_e_entrega`: 73 testes OK; `tests.test_conf_escopo`: 16 OK (um por vez).
+- `forge-mutante` das 5 specs `v0457-escopo-ponto*`, uma por vez: rc=0 em cada; 8+8+8+8+3 = 35 `morreu` (M1 a M35), nenhum sobrevivente nem sem veredito.
+- `forge-mutante --cobertura --base 8b5a44d5`: todas `coberta`, nenhuma sem mutante, rc=0.
+- Vermelho: o delta soma testes sobre código novo; cada negativo novo é morto por mutante (M34, M35).
+
+## Achados
 Nenhum aberto.
