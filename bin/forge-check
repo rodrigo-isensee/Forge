@@ -2356,11 +2356,13 @@ def veredito_trocado(raiz, de, head, nome, revisado, parecer, branch, tipo):
     return False
 
 
-def parecer_de_portao_da_branch(raiz, de, head, nome, tipo, branch, pedido_id, slug, revisados):
+def parecer_de_portao_da_branch(raiz, base_sha, head, nome, tipo, branch, pedido_id, slug, revisados):
     """E23.36 (d): na etapa codigo, o parecer de portão commitado na própria branch é anexo do portão: o frontmatter no head tem o `tipo`
     da pasta, um `parecer:` e `branch:` igual à branch conferida, o `pedido:` é o da entrega (o id ou o slug), e (volta 1, segurança A1
     e A4, review A2) o `commit:` é o `Revisar-sha:` de um brief selado do portão desta branch e pedido (`revisados(tipo)`, registro do
-    Jarvis) e nenhuma versão de parecer da pasta no intervalo (volta 2, segurança A5) tem o mesmo `commit:` com outro veredito. Fora disso, não."""
+    Jarvis) e nenhuma versão de parecer da pasta na branch inteira (volta 2, segurança A5; volta 4, segurança A10: a busca começa no
+    Base-sha, não no Desde, que esconderia o reprovado tirado da pasta numa volta já conferida) tem o mesmo `commit:` com outro veredito.
+    Fora disso, não."""
     fm = ler_frontmatter(git(raiz, "show", f"{head}:{nome}")[1])[0] or {}  # o git que falha não dá frontmatter: fica fora
     if fm.get("tipo") != tipo:
         return False
@@ -2372,7 +2374,7 @@ def parecer_de_portao_da_branch(raiz, de, head, nome, tipo, branch, pedido_id, s
         return False
     if fm.get("commit") not in revisados(tipo):
         return False
-    return not veredito_trocado(raiz, de, head, nome, fm["commit"], fm["parecer"], branch, tipo)
+    return not veredito_trocado(raiz, base_sha, head, nome, fm["commit"], fm["parecer"], branch, tipo)
 
 
 def provas_do_brief(texto):
@@ -2559,7 +2561,7 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
         elif rotulo := anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
             linhas.append((f"escopo: ok (anexo implícito: {rotulo}) {mostrado}", False))
         elif etapa == "codigo" and tipo and not com_controle(nome) and parecer_de_portao_da_branch(
-                raiz, de, head, nome, tipo, branch, pedido_id, slug, lambda t: revisados_selados(raiz, caminho, texto, branch, pedido_id, t)):
+                raiz, base_sha, head, nome, tipo, branch, pedido_id, slug, lambda t: revisados_selados(raiz, caminho, texto, branch, pedido_id, t)):
             linhas.append((f"escopo: ok (anexo do portão: parecer de {PAPEL_DO_PARECER[tipo]} da própria branch) {mostrado}", False))
         else:
             linhas.append(escopo_resolvido(declarado, nome, mostrado) or (f"escopo: confira {mostrado} +{acrescidas} -{removidas}", False))

@@ -923,6 +923,114 @@ class ParecerDoPortao(Conferencia):
         self.assert_fora()
 
 
+class MatrizDaBuscaDoVeredito(ParecerDoPortao):
+    """Volta 4 (segurança A10, cartão AR-BUSCA-VEREDITO): A5, A7, A8 e A10 são uma busca só, a do veredito trocado, e a matriz das
+    dimensões dela fecha a família. O revisor commita docs/reviews/x.md reprovado sobre o head revisado; o autor forja um parecer
+    aprovado com o mesmo `commit:`. Dimensões: janela (Desde no Base-sha; Desde no commit do revisor; Desde depois de uma volta
+    conferida que tirou o x.md da pasta, a S8), topologia (linear; merge lateral nas duas ordens; octopus nas duas ordens), pasta (raiz
+    do portão, subpasta, pasta parecida fora) e nome (outro arquivo, o mesmo arquivo, `git mv`). Toda célula recusa o forjado. As
+    células são a janela cruzada com cada outra dimensão, com as demais no valor de partida (linear, raiz, outro arquivo)."""
+
+    JANELAS = ("base_sha", "desde_no_revisor", "volta_anterior_apagada")
+    TOPOLOGIAS = ("linear", "lateral_revisor_primeiro", "lateral_forjado_primeiro", "octopus_revisor_primeiro", "octopus_forjado_primeiro")
+    PASTAS = {"raiz": "docs/reviews/y.md", "subpasta": "docs/reviews/sub/y.md", "parecida_fora": "docs/reviewsX/y.md"}
+    NOMES = ("outro", "mesmo", "git_mv")
+
+    def aprovar(self, rel, revisado):
+        self.gravar(rel, f"---\ntipo: review\ncontrato: 1\npedido: exemplo\nbranch: melhoria/x\ncommit: {revisado}\nparecer: aprovado\n---\n# p\n")
+        self.git("add", rel)
+
+    def tirar_x(self):
+        """O x.md reprovado sai da pasta (apagado), se ainda estiver na árvore."""
+        if (self.proj / "docs/reviews/x.md").exists():
+            self.git("rm", "-q", "-f", "docs/reviews/x.md")
+
+    def janela(self, janela):
+        """O head revisado, o x.md reprovado do revisor e a janela; devolve (revisado, Desde ou None para o Base-sha)."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.entregar()
+        revisado = self.git("rev-parse", "HEAD")
+        self.commitar_parecer("reviews", "review", revisado=revisado, parecer="reprovado")
+        if janela == "base_sha":
+            return revisado, None
+        if janela == "desde_no_revisor":
+            return revisado, self.git("rev-parse", "HEAD")
+        self.git("mv", "docs/reviews/x.md", "docs/notas/x.md")  # a volta 2 tira o x.md da pasta junto com uma mudança declarada
+        self.gravar("docs/notas/b.md", "b\n")
+        self.git("add", "docs/notas/b.md")
+        return revisado, self.commit("volta 2")
+
+    def forjar(self, revisado, topologia, rel, nome):
+        if topologia == "linear":
+            if nome == "git_mv":
+                origem = "docs/reviews/x.md" if (self.proj / "docs/reviews/x.md").exists() else "docs/notas/x.md"
+                (self.proj / rel).parent.mkdir(parents=True, exist_ok=True)
+                self.git("mv", origem, rel)
+            elif nome == "outro":
+                self.tirar_x()
+            self.aprovar(rel, revisado)
+            self.commit("forja")
+            return
+        self.git("switch", "-q", "-c", "lado1", revisado)
+        self.aprovar(rel, revisado)
+        self.commit("forja no ramo lateral")
+        ramos = ["lado1"]
+        if topologia.startswith("octopus"):
+            self.git("switch", "-q", "-c", "lado2", revisado)
+            self.gravar("docs/notas/c.md", "c\n")
+            self.git("add", "docs/notas/c.md")
+            self.commit("nota")
+            ramos.append("lado2")
+        revisor_primeiro = topologia.endswith("revisor_primeiro")
+        self.git("switch", "-q", "melhoria/x" if revisor_primeiro else "lado1")
+        outros = ramos if revisor_primeiro else ramos[1:] + ["melhoria/x"]
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-commit", "--no-ff", *outros)
+        self.tirar_x()
+        self.commit("merge")
+        if not revisor_primeiro:
+            self.git("switch", "-q", "melhoria/x")
+            self.git("merge", "-q", "--ff-only", "lado1")
+
+    def celula(self, janela, topologia="linear", pasta="raiz", nome="outro"):
+        rel = "docs/reviews/x.md" if nome == "mesmo" else self.PASTAS[pasta]
+        revisado, desde = self.janela(janela)
+        self.forjar(revisado, topologia, rel, nome)
+        if desde:
+            pedido = self.proj / "docs/pedidos/exemplo.md"
+            pedido.write_text(self.pedido() + f"- 2026-01-01 12:00: entrega conferida {desde}\n", encoding="utf-8")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f'escopo: fora do declarado no brief "{rel}"', saida)
+        self.assertIn(f"intervalo: {desde or self.base}..", saida)
+
+    def test_s8_volta_anterior_tirou_o_reprovado_da_pasta(self):
+        """S8 (segurança A10): a volta 2 tira o x.md da pasta e é conferida (Desde D); a volta 3 cria o y.md aprovado com o `commit:`
+        do revisado. A busca começa no Base-sha, não no Desde."""
+        self.celula("volta_anterior_apagada")
+
+    def test_janela_por_topologia(self):
+        for janela in self.JANELAS:
+            for topologia in self.TOPOLOGIAS:
+                with self.subTest(janela=janela, topologia=topologia):
+                    self.setUp()
+                    self.celula(janela, topologia=topologia)
+
+    def test_janela_por_pasta(self):
+        for janela in self.JANELAS:
+            for pasta in self.PASTAS:
+                with self.subTest(janela=janela, pasta=pasta):
+                    self.setUp()
+                    self.celula(janela, pasta=pasta)
+
+    def test_janela_por_nome(self):
+        for janela in self.JANELAS:
+            for nome in self.NOMES:
+                with self.subTest(janela=janela, nome=nome):
+                    self.setUp()
+                    self.celula(janela, nome=nome)
+
+
 class MergeDaBaseDepoisDoBrief(Conferencia):
     """E23.36 (e): com a develop trazida por merge, o intervalo parte do merge-base com a origin/develop; a conferida de outra branch
     que veio com ela não é Desde, e o que a develop mudou não é escopo."""

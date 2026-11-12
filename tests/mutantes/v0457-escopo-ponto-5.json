@@ -32,6 +32,16 @@
       "testes": [
         "tests.test_selo_e_entrega.ParecerDoPortao.test_parecer_em_subpasta_do_portao_com_o_reprovado_apagado_segue_fora"
       ]
+    },
+    {
+      "id": "M36",
+      "guarda": "volta 4 (segurança A10): a busca do veredito trocado começa no Base-sha, não no Desde",
+      "arquivo": "bin/forge-check",
+      "de": "                raiz, base_sha, head, nome, tipo, branch, pedido_id, slug, lambda t: revisados_selados(raiz, caminho, texto, branch, pedido_id, t)):",
+      "para": "                raiz, de, head, nome, tipo, branch, pedido_id, slug, lambda t: revisados_selados(raiz, caminho, texto, branch, pedido_id, t)):",
+      "testes": [
+        "tests.test_selo_e_entrega.MatrizDaBuscaDoVeredito.test_s8_volta_anterior_tirou_o_reprovado_da_pasta"
+      ]
     }
   ]
 }
