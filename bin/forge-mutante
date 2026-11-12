@@ -826,13 +826,13 @@ def dirigir(specs, caminhos, base, sha):
         print(f"forge-mutante: {erro}", file=sys.stderr)
         return None
     print(f"base={sha_base} mb={mb} rev={sha}")
-    apoio = apoio_de_teste(mudados)
-    if apoio:
-        print(f"apoio de teste no diff: {', '.join(apoio)} · todos os mutantes entram")
+    apoio_mudado = apoio_de_teste(mudados)
+    if apoio_mudado:
+        print(f"apoio de teste no diff: {', '.join(apoio_mudado)} · todos os mutantes entram")
     raiz, dirigidas = Path.cwd().resolve(), []
     for (spec_bytes, dados), caminho in zip(specs, caminhos):
         spec_mudou = caminho.is_relative_to(raiz) and caminho.relative_to(raiz).as_posix() in mudados
-        dentro = [m for m in dados["mutantes"] if no_diff(m, spec_mudou or bool(apoio), mudados)]
+        dentro = [m for m in dados["mutantes"] if no_diff(m, spec_mudou or bool(apoio_mudado), mudados)]
         for m in dados["mutantes"]:
             if m not in dentro:
                 print(f"fora do diff: {m['id']} · {m['arquivo']}")

@@ -46,7 +46,7 @@
    "id": "M5",
    "guarda": "o mutante fora do diff não roda",
    "arquivo": "bin/forge-mutante",
-   "de": "if no_diff(m, spec_mudou or bool(apoio), mudados)]",
+   "de": "if no_diff(m, spec_mudou or bool(apoio_mudado), mudados)]",
    "para": "if True]",
    "testes": [
     "tests.test_forge_mutante.MutacaoDirigida.test_so_o_mutante_do_arquivo_mudado_roda"

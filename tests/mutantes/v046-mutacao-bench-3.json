@@ -6,7 +6,7 @@
    "id": "M16",
    "guarda": "o helper de tests/ mudado aparece na saída da dirigida",
    "arquivo": "bin/forge-mutante",
-   "de": "if apoio:",
+   "de": "if apoio_mudado:",
    "para": "if False:",
    "testes": [
     "tests.test_forge_mutante.MutacaoDirigida.test_helper_de_tests_enfraquecido_poe_todos_os_mutantes_no_diff"
@@ -16,7 +16,7 @@
    "id": "M17",
    "guarda": "helper de tests/ mudado põe todos os mutantes no diff (segurança A4 da E7.7)",
    "arquivo": "bin/forge-mutante",
-   "de": "spec_mudou or bool(apoio), mudados)",
+   "de": "spec_mudou or bool(apoio_mudado), mudados)",
    "para": "spec_mudou, mudados)",
    "testes": [
     "tests.test_forge_mutante.MutacaoDirigida.test_helper_de_tests_enfraquecido_poe_todos_os_mutantes_no_diff"
