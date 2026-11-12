@@ -169,3 +169,13 @@ class PareceresPeloPedido(Repositorio):
         rc, saida = self.entrega(etapa="merge-integracao")
         self.assertEqual(rc, 1, saida)
         self.assertIn(SEM_PARECER, saida)
+
+    def test_parecer_de_outra_branch_com_o_id_nao_troca_o_slug(self):
+        """Volta 1 (review A1, A3; sonda S1): o parecer de outra branch com o id do pedido (vindo da develop) não troca o slug pelo id; o
+        parecer da branch, pelo slug, segue valendo."""
+        texto = PARECER.format(t="review", c=self.codigo, p="aprovado", extra="revisor: forge:tech-lead\n", achados="")
+        self.commitar({"docs/reviews/x.md": texto, "docs/reviews/p1.md": texto.replace("pedido: x", "pedido: p1")
+                       .replace("branch: melhoria/x", "branch: melhoria/outra")}, "review e parecer de outra branch")
+        rc, saida = self.entrega(etapa="merge-integracao")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(OK_INTEGRACAO, saida)
