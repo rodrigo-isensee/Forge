@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/v046-mutacao-bench
-commit: e452582f9186c8b70a2a935d9c0e12e84ec6e48b
+commit: 135b20d23a95d5ade9e358e6abb0126f63db930c
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -44,5 +44,16 @@ O delta amplia o `--base` (spec mudada e módulo de teste mudado entram no diff)
 - Vermelho dos 3 testes novos de MutacaoDirigida e do de metacaractere: a base do delta (60bba369) não tem `modulos_do_teste` nem `shlex.quote`; a morte dos mutantes M11, M13, M14 e Q1 prova que o teste falha sem a lógica. `forge-testes --vermelho` não rodado (estourou prazo na rodada anterior).
 - CI do PR: o delta não toca `.github/` nem `.githooks/`; o `bateria` do sha fica com o portão.
 
+## Revalidação por delta e452582f..135b20d2 (E7.12)
+`forge-check parecer delta` lista no domínio: `bin/forge-mutante`, `tests/test_forge_mutante.py`, `tests/mutantes/v046-mutacao-bench.json` e `-3.json`, `skills/qa-testing/SKILL.md`, `agents/qa-engineer.md`, `agents/tech-lead.md`, fragmento. Obrigações novas: arquivo de `tests/` fora de `test_*.py` e de `tests/mutantes/` põe todos os mutantes no `--base` (A4 da E7.7), e `test_*.py` ou spec mudados não põem.
+- `python3 -m unittest tests.test_forge_mutante`: Ran 110 tests, OK (63,5 s; a medida do autor foi 70 s, antes 75 s). Fora do CI do PR: o delta não toca `.github/` nem `.githooks/` (diff vazio).
+- `forge-mutante` das 3 specs (`-bench`, `-2`, `-3`; não existe `-1`), `--processos 4`, rc 0, M1..M20 todos `morreu` (32 s). M16 :830 (`if apoio:`), M17 :835 (`spec_mudou or bool(apoio)`), M18 :810, M19 :811, M20 :812 (os três termos de `apoio_de_teste`); M5 com o `de` atualizado morreu em :835.
+- `forge-mutante tests/mutantes/v046-mutacao-bench-3.json --base e452582f`: linha `base=e452582f... rev=135b20d2...` confere com o head aprovado; M16..M20 `morreu`.
+- Cobertura `--cobertura --base 8b5a44d5`: 13 condições/linhas `coberta` (:801, :810, :819, :830, :834, :835, :837, :840, :859, :897, :899, changelog :218 e :222), nenhuma sem mutante; as 3 linhas novas de `apoio_de_teste` e o `if apoio` têm M16..M20.
+- Caso positivo (S2): `test_helper_de_tests_enfraquecido_poe_todos_os_mutantes_no_diff` em cópia da base e452582f com o teste do head: FAILED (falta a linha `apoio de teste no diff`), logo prova a correção; o helper enfraquecido faz M1 sobreviver (rc 1) no head.
+- Caso negativo: `test_teste_e_spec_de_outro_mutante_nao_poem_todos_no_diff` passa na base por desenho (afirma ausência); a prova dele é a morte de M18, M19 e M20, que o tornam vermelho. `test_*.py` e `tests/mutantes/*.json` mudados deixam M2 `fora do diff`.
+- `forge-testes --vermelho` não rodado (estourou o prazo antes); vale o vermelho manual e a mutação.
+- Citação da `--base` e do bench por versão em `skills/qa-testing/SKILL.md`, `agents/qa-engineer.md` e `agents/tech-lead.md` lida no diff: coerente com o `forge-mutante` (linha `base=`, head já aprovado, placar e bench nunca no PR). O `bateria` do sha fica com o portão.
+
 ## Achados
-Nenhum achado aberto. A1 da rodada anterior foi atendido (bin/forge-mutante:846).
+Nenhum achado aberto. A1 da rodada anterior foi atendido (bin/forge-mutante:859); a sonda S2 da E7.7 virou teste (tests/test_forge_mutante.py:1294).
