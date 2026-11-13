@@ -554,6 +554,9 @@ jobs:
     # CI-PARECER-NAO-BARRA-SUITE (v047 E1.4): a checagem de pareceres é job próprio. Parecer faltando reprova este job e, pelo
     # agregador "bateria" (que o tem em needs), o merge; mas ele não está em needs das partes nem do job de verificações, então a
     # suíte roda inteira mesmo assim e o autor vê o vermelho dos testes junto com o do parecer, numa rodada só.
+    # CI-PARECERES-SEM-NEEDS (v047 E1.75): sem `needs` de propósito. Com `needs: [bateria]` um vermelho barato pularia este job e o
+    # autor só veria o parecer faltando na rodada seguinte; o job custa menos de um minuto e roda em paralelo, então o ganho de
+    # esperar é nulo. O pulo não abriria o merge (o agregador reprova `skipped` em PR), mas a rodada extra é o custo que se evita.
     # Só PR (nas promoções o script não lê parecer, ADR 0008, seção 3); sem token (só contents: read).
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-26.04

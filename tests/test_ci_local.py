@@ -404,6 +404,9 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         job = {j["id"]: j for j in ci.ler_jobs(texto)}["pareceres"]
         self.assertEqual(job["se"], "github.event_name == 'pull_request'")
         self.assertEqual(job["needs"], [])
+        # CI-PARECERES-SEM-NEEDS: o motivo de não esperar o job de passos fica escrito junto do job
+        self.assertIn("CI-PARECERES-SEM-NEEDS", texto)
+        self.assertIn("a rodada extra é o custo que se evita", texto)
 
     def test_bateria_ferramenta_e_checagens_baratas_antes_dos_testes(self):
         """CI-FERRAMENTA-ANTES: o vermelho barato aparece antes da suíte; testes continuam obrigatórios."""
