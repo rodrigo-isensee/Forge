@@ -1,0 +1,86 @@
+{
+  "pedido": "trava-modelo-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "C1: lista exata pós-realpath",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not any(casa(alvo.relative_to(topo).as_posix(), padrao)",
+      "para": "if False and any(casa(alvo.relative_to(topo).as_posix(), padrao)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "C6: link dentro do clone no caminho dado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if any(p.is_symlink() and topo in",
+      "para": "if False and any(p.is_symlink() and topo in",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "C6: o arquivo é regular",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(not stat.S_ISREG(os.lstat(alvo).st_mode) or",
+      "para": "(False or",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "C6: nlink 1",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or os.lstat(alvo).st_nlink != 1):  # C6",
+      "para": "or False):  # C6",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "C3: o plugin em uso não é o clone",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if topo == Path(os.path.realpath(PLUGIN)) or",
+      "para": "if False or",
+      "testes": [
+        "tests.test_hooks.TravaModelo.test_c3_plugin_no_proprio_clone_mantem_a_trava"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "C3: core.hooksPath no modelo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or self.hooks_no_modelo(topo):  # C3",
+      "para": "or False:  # C3",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "C3: git com erro conta como modelo em vigor",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            return cod != 1\n",
+      "para": "            return False\n",
+      "testes": [
+        "tests.test_hooks.TravaModelo.test_c3_hookspath_com_erro_do_git_mantem_a_trava"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "C3: hooksPath dentro do modelo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return topo / MODELO_DE_PROJETO in {destino, *destino.parents}",
+      "para": "return False",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
+      ]
+    }
+  ]
+}

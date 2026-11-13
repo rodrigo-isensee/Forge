@@ -8,6 +8,7 @@ Formato do fixture:
   config      objeto gravado em .forge/config.json; `config_bruta` grava o texto como está
   executaveis [caminho] relativos à raiz que ganham permissão de execução (ex.: um `gh` falso, sem rede, no PATH do `env`)
   links       {caminho: alvo} links simbólicos criados depois dos arquivos ({raiz} e {tmp} valem no alvo)
+  links_fisicos {caminho: alvo} links físicos (`os.link`) para arquivos já gravados, relativos à raiz (4b: o `st_nlink`)
   env         variáveis de ambiente do processo do hook ({tmp} vale; ex.: FORGE_GUARDA_ABERTA, HOME)
   prazo_de_producao  true: o hook roda com o vigia de prazo de produção (`PRAZO_DA_DECISAO_S`, `PRAZO_DO_MERGE_S`), e não
               o largo dos testes (v0455: o prazo do `gh pr merge`)
@@ -50,6 +51,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -459,6 +461,8 @@ class Fixture:
         for rel, alvo in d.get("links", {}).items():
             (raiz / rel).parent.mkdir(parents=True, exist_ok=True)
             (raiz / rel).symlink_to(substituir(alvo, mapa, 0))
+        for rel, alvo in d.get("links_fisicos", {}).items():
+            os.link(raiz / alvo, raiz / rel)
         git("add", "-A", cwd=raiz)
         git("commit", "-q", "-m", "base", cwd=raiz)
         for passo in d.get("git", []):
@@ -2466,6 +2470,13 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote) - len(liberam), 22, "o caso verdadeiro, em cada forma")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_da_trava_modelo(self):  # 4b (v0457 E23.29): C1 a C6 do parecer E23.28; a descrição abre com o item
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("TRAVA-MODELO ")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 5, "a cópia do modelo, por Write e Edit")
+        self.assertGreaterEqual(len(lote) - len(liberam), 22, "os 22 casos de abuso do parecer")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_do_hook_n4(self):  # HOOK-N4 (0.45.1): `"$(…)"` com aspa ou case no corpo; a descrição abre com o item
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("HOOK-N4:")]
         self.assertGreaterEqual(len(lote), 16, "as fixtures do item")
@@ -3187,6 +3198,77 @@ class EscritaPublica(unittest.TestCase):
         self.assertEqual((len(no_teto.encode()), len(acima), r[acima][1:]),
                          (4096, 2736, ["caminho acima de 4096 bytes", "encurte o caminho", "não verificável"]))
         self.assertNotIn("não verificável", r[no_teto] or [])
+
+
+
+class TravaModelo(unittest.TestCase):
+    """4b (v0457 E23.29, parecer E23.28): a isenção da cópia do modelo, chamada no processo do teste, para as condições
+    que o fixture não alcança: C3 pelo PLUGIN (o fixture roda o hook deste clone, que não é o do fixture), C7 (a isenção
+    como dado validado) e o erro na conferência, que não isenta."""
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="trava-modelo-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.clone = self.tmp / "proj"
+        repositorio_vazio(self.clone, "melhoria/x")
+        for rel, texto in ((".claude-plugin/plugin.json", '{"name": "forge"}'), ("templates/projeto/.githooks/pre-push", "x\n")):
+            (self.clone / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.clone / rel).write_text(texto, encoding="utf-8")
+        (self.tmp / "home").mkdir()
+        (self.tmp / "home" / ".forge-contrib").symlink_to(self.tmp)  # o clone fica em ~/.forge-contrib, como na máquina do dono
+        self.alvo = self.clone / "templates/projeto/.githooks/pre-push"
+        self._comum, self.conformidade, _ = modulos_dos_hooks()
+        ambiente = mock.patch.dict(os.environ, {"HOME": str(self.tmp / "home")})
+        ambiente.start()
+        self.addCleanup(ambiente.stop)
+
+    def guarda(self, ferramenta="Write"):
+        hook = types.SimpleNamespace(raiz=self.clone, campo=lambda chave: ferramenta, iniciante=lambda: False,
+                                     cwd=lambda: str(self.clone))
+        pol = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))
+        return self.conformidade.Guarda(hook, pol, "tech-lead")
+
+    def test_copia_do_modelo_isenta_e_o_resto_barrado(self):
+        self.assertEqual(self.guarda().isencao_do_modelo(str(self.alvo)), Path(os.path.realpath(self.alvo)))
+        self.assertIsNone(self.guarda("MultiEdit").isencao_do_modelo(str(self.alvo)))
+
+    def test_c2_clone_fora_do_contrib_so_como_raiz_da_sessao(self):
+        sem_contrib = mock.patch.dict(os.environ, {"HOME": str(self.tmp / "outro-home")})
+        with sem_contrib:
+            self.assertEqual(self.guarda().isencao_do_modelo(str(self.alvo)), Path(os.path.realpath(self.alvo)))
+            guarda = self.guarda()
+            guarda.h.raiz = self.tmp / "home"  # a sessão é outra pasta: o clone não é o dela nem o de trabalho
+            self.assertIsNone(guarda.isencao_do_modelo(str(self.alvo)))
+
+    def test_c3_plugin_no_proprio_clone_mantem_a_trava(self):
+        with mock.patch.object(self.conformidade, "PLUGIN", self.clone):
+            self.assertIsNone(self.guarda().isencao_do_modelo(str(self.alvo)))
+
+    def test_c7_isencao_fora_da_forma_mantem_a_trava(self):
+        valida = self.conformidade.ISENCAO_DO_MODELO
+        self.assertTrue(self.conformidade.isencao_valida(valida))
+        for invalida in ({}, None, [("templates/projeto/.githooks/*", ".githooks/")],
+                         {"templates/projeto/.claude/*": ".claude/"}, {"templates/projeto/.githooks/*": ".claude/"},
+                         {"templates/.githooks/*": ".githooks/"}, {"templates/projeto/.githooks/": ".githooks/"},
+                         {**valida, "templates/projeto/.forge/versao": ".forge/config.json"}):
+            with self.subTest(invalida=invalida):
+                self.assertFalse(self.conformidade.isencao_valida(invalida))
+        with mock.patch.object(self.conformidade, "ISENCAO_DO_MODELO", {"templates/projeto/.githooks/*": ".claude/"}):
+            self.assertIsNone(self.guarda().isencao_do_modelo(str(self.alvo)))
+
+    def test_erro_na_conferencia_nao_isenta(self):
+        guarda = self.guarda()
+        with mock.patch.object(self.conformidade, "git", side_effect=subprocess.TimeoutExpired("git", 5)), \
+                mock.patch.object(self.conformidade, "bloquear", side_effect=SystemExit(2)) as bloquear:
+            with self.assertRaises(SystemExit):
+                guarda.arquivo({"file_path": str(self.alvo), "content": "x"})
+        self.assertIsNone(guarda.modelo_isento)
+        self.assertIn("arquivo em vigor (.githooks/)", bloquear.call_args.args[1])
+
+    def test_c3_hookspath_com_erro_do_git_mantem_a_trava(self):
+        with mock.patch.object(self.conformidade, "git", return_value=(128, "")):
+            self.assertTrue(self.conformidade.Guarda.hooks_no_modelo(Path(os.path.realpath(self.clone))))
+        with mock.patch.object(self.conformidade, "git", return_value=(1, "")):
+            self.assertFalse(self.conformidade.Guarda.hooks_no_modelo(Path(os.path.realpath(self.clone))))
 
 
 if __name__ == "__main__":

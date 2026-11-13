@@ -1,0 +1,33 @@
+{
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "templates/projeto/.githooks/pre-push": "#!/bin/sh\n",
+    "templates/projeto/.forge/config.json": "{}\n",
+    "templates/projeto/.forge/versao": "0.1.0\n",
+    "templates/projeto/.claude/settings.json": "{}\n"
+  },
+  "forge": false,
+  "links": {
+    "../home/.forge-contrib": "{tmp}"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "descricao": "TRAVA-MODELO C1 (4b, v0457 E23.28): .forge/config.json da raiz do clone segue travado",
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/.forge/config.json",
+      "content": "x\n"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "arquivo em vigor (.forge/config.json)"
+  }
+}

@@ -18,6 +18,7 @@ import json
 import os
 import re
 import signal
+import stat
 import tempfile
 import shlex
 import subprocess
@@ -302,6 +303,12 @@ GRAPHQL_APAGAR = re.compile(r"mutation[^}]*deleteRepository", re.I)
 VISIBILIDADE_PUBLICA = re.compile(r"\bprivate[\"']?\s*[=:]\s*[\"']?false\b|\bvisibility[\"']?\s*[=:]\s*[\"']?public\b", re.I)
 CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem em arquivos do projeto
 PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
+# 4b (v0457, parecer de segurança E23.28, C1 a C10): no clone do Forge, as cópias do modelo de projeto não valem aqui e só
+# chegam aos projetos por PR; Write e Edit as escrevem. Dado validado (C7): fora da forma, a isenção some e a trava segue.
+MODELO_DE_PROJETO = "templates/projeto/"
+ISENCAO_DO_MODELO = {MODELO_DE_PROJETO + ".githooks/*": ".githooks/", MODELO_DE_PROJETO + ".forge/config.json": ".forge/config.json"}
+REGRAS_DO_MODELO = frozenset({".githooks/", ".forge/config.json"})  # as únicas regras em vigor que a isenção alcança
+CAMINHO_COM_VARIAVEL = re.compile(r"[$`~]")  # C5: o hook não expande nada no caminho isento
 # S8: a prova da suíte (`.verde`, `.dirigida`, o `.novo` do `mv`) só o pre-push grava, fora deste hook; todo papel e pasta. Limites
 # aceitos (o hook protege contra engano; o CI é o portão): nome inteiro numa variável, script em arquivo, `curl -o`, `tar -x`.
 # N4/P3 (versao-045 E5a): também o carimbo K6 de scripts/suite-paralela.py e o temporário do `os.replace` (`.<pid>`).
@@ -771,6 +778,7 @@ class Guarda:
         self.reavaliacao = None  # a primeira reavaliação pelo shell da linha, em qualquer nível (`reavaliacao`, opção B)
         self.trecho = None  # as palavras do comando simples em conferência (`segmento`), que a recusa cita
         self.parecer_pelo_bash = None  # 0.45.3: um parecer que a linha grava; só o Bash o recusa, no fim
+        self.modelo_isento = None  # 4b: o caminho resolvido da cópia do modelo que Write ou Edit escrevem (`isencao_do_modelo`)
         self.sem_leitura = False  # E16.1: a linha que o hook não lê (teto, ilegível); a `GuardaDaProva` volta ao texto
         leitura = politica.get("so_leitura")
         self.leitura = leitura if leitura and papel in leitura["papeis"] else None  # papel só de leitura (conferente)
@@ -907,8 +915,11 @@ class Guarda:
         no_claude_do_home = relativo_ao_pai(posix, home / ".claude") is not None
         do_home = [r for t, r in [*formas, *pelo_link] if t == "home"]  # fora do laço das regras (custo por arquivo)
         do_proj = [r for t, r in formas if t == "proj"]
+        liberadas = REGRAS_DO_MODELO if caminho == self.modelo_isento else frozenset()  # 4b: só a cópia isenta
         for e in self.pol["caminhos"]:
             c = e["caminho"]
+            if c in liberadas:
+                continue
             if c.startswith("~/"):
                 achou = any(casa(r, c) for r in do_home)
             elif e.get("so_forge") and not self.regras_do_forge():
@@ -1157,10 +1168,47 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", f"escrita de arquivo pelo papel só de leitura ({self.papel})", DICA_LEITURA)
         caminho = entrada.get("file_path") or entrada.get("notebook_path")
         if isinstance(caminho, str) and caminho:
+            try:
+                self.modelo_isento = self.isencao_do_modelo(caminho)
+            except Exception:  # noqa: BLE001 - C7: erro na conferência (disco, git) não isenta; a trava decide
+                self.modelo_isento = None
             self.checar_escrita(caminho, self.h.cwd())
             if acrescenta_linha_de_portao(caminho, entrada, self.h.cwd()):
                 self.barrar("R-CONFORMIDADE", "linha `brief selado` ou `entrega conferida` escrita à mão no pedido",
                             "quem grava é a ferramenta: `forge-check brief selar` e `forge-check entrega --pedido`")
+
+    def isencao_do_modelo(self, texto):
+        """4b (E23.28): o caminho resolvido da cópia do modelo que Write ou Edit escrevem no clone do Forge, que deixa de
+        casar `.githooks/` e `.forge/config.json` (`caminho_barrado`); senão None e a trava segue. Na dúvida, None."""
+        if self.h.campo("tool_name") not in ("Write", "Edit") or not isencao_valida(ISENCAO_DO_MODELO):  # C4, C7
+            return None
+        if not os.path.isabs(texto) or CAMINHO_COM_VARIAVEL.search(texto) or os.path.normpath(texto) != texto:  # C5
+            return None
+        alvo = Path(os.path.realpath(texto))
+        topo = self.raiz_git(alvo.parent)
+        if topo is None or self.raiz_e_projeto() or not e_clone_do_forge(topo):  # C2: só o clone, nunca o projeto
+            return None
+        if not (em_contrib(topo) or topo == Path(os.path.realpath(self.h.raiz))):  # C2: o clone da sessão ou o de trabalho
+            return None
+        if not any(casa(alvo.relative_to(topo).as_posix(), padrao) for padrao in ISENCAO_DO_MODELO):  # C1: lista exata
+            return None
+        if any(p.is_symlink() and topo in {r := Path(os.path.realpath(p)), *r.parents}
+               for p in (Path(texto), *Path(texto).parents)):  # C6: nenhum link dentro do clone no caminho dado
+            return None
+        if os.path.lexists(alvo) and (not stat.S_ISREG(os.lstat(alvo).st_mode) or os.lstat(alvo).st_nlink != 1):  # C6
+            return None
+        if topo == Path(os.path.realpath(PLUGIN)) or self.hooks_no_modelo(topo):  # C3: o modelo vale aqui
+            return None
+        return alvo
+
+    @staticmethod
+    def hooks_no_modelo(topo):
+        """C3: o `core.hooksPath` do clone cai dentro do modelo (os hooks dele valem aqui); git com erro conta como sim."""
+        cod, valor = git(topo, "config", "--get", "core.hooksPath")
+        if cod:
+            return cod != 1
+        destino = Path(os.path.realpath(topo / Path(valor).expanduser()))
+        return topo / MODELO_DE_PROJETO in {destino, *destino.parents}
 
     # Bash ----------------------------------------------------------------------------------------
     def bash(self, comando, pasta, nivel=0, so_substituicoes=False, corpo_de_heredoc=False):
@@ -2626,6 +2674,13 @@ def politica_valida(pol):
             and lista_de_textos(pol.get("flags_congeladas"))
             and isinstance(caminhos, list) and all(entrada_valida(e) for e in caminhos)
             and leitura_valida(pol.get("so_leitura")) and escrita_valida(pol.get("escrita_permitida")))
+
+
+def isencao_valida(isencao):
+    """C7: cada entrada libera uma regra de `REGRAS_DO_MODELO`, só na cópia dela em `MODELO_DE_PROJETO` (`*`: um nome)."""
+    return isinstance(isencao, dict) and bool(isencao) and all(
+        regra in REGRAS_DO_MODELO and rel == MODELO_DE_PROJETO + regra + ("*" if regra.endswith("/") else "")
+        for rel, regra in isencao.items())
 
 
 def politica():

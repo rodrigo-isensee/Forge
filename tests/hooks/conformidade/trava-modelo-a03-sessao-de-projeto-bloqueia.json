@@ -1,0 +1,42 @@
+{
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "templates/projeto/.githooks/pre-push": "#!/bin/sh\n",
+    "templates/projeto/.forge/config.json": "{}\n",
+    "templates/projeto/.forge/versao": "0.1.0\n",
+    "templates/projeto/.claude/settings.json": "{}\n"
+  },
+  "forge": true,
+  "links": {
+    "../home/.forge-contrib": "{tmp}"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "repos": {
+    "clone": {
+      "arquivos": {
+        ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+        "templates/projeto/.githooks/pre-push": "#!/bin/sh\n"
+      },
+      "branch": "melhoria/x"
+    }
+  },
+  "descricao": "TRAVA-MODELO C2 (4b, v0457 E23.28): a sessão de um projeto escreve no modelo de um clone do Forge",
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/clone/templates/projeto/.githooks/pre-push",
+      "content": "x\n"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "arquivo em vigor (.githooks/)"
+  }
+}

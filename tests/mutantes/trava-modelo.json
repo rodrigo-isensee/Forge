@@ -1,0 +1,87 @@
+{
+  "pedido": "trava-modelo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "C4: só Write e Edit",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if self.h.campo(\"tool_name\") not in (\"Write\", \"Edit\") or",
+      "para": "if self.h.campo(\"tool_name\") not in (\"Write\", \"Edit\", \"MultiEdit\") or",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo",
+        "tests.test_hooks.TravaModelo.test_copia_do_modelo_isenta_e_o_resto_barrado"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "C7: isenção fora da forma não isenta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or not isencao_valida(ISENCAO_DO_MODELO):  # C4, C7",
+      "para": "or False:  # C4, C7",
+      "testes": [
+        "tests.test_hooks.TravaModelo.test_c7_isencao_fora_da_forma_mantem_a_trava"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "C5: caminho relativo não isenta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not os.path.isabs(texto) or CAMINHO_COM_VARIAVEL",
+      "para": "if False or CAMINHO_COM_VARIAVEL",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "C5: variável no caminho não isenta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or CAMINHO_COM_VARIAVEL.search(texto) or",
+      "para": "or False or",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "C5: caminho com .. ou . não isenta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or os.path.normpath(texto) != texto:  # C5",
+      "para": "or False:  # C5",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "C2: sessão de projeto não isenta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if topo is None or self.raiz_e_projeto() or",
+      "para": "if topo is None or False or",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "C2: só o clone do Forge",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or not e_clone_do_forge(topo):  # C2",
+      "para": "or False:  # C2",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "C2: o clone da sessão ou o de trabalho",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not (em_contrib(topo) or topo == Path(os.path.realpath(self.h.raiz))):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.TravaModelo.test_c2_clone_fora_do_contrib_so_como_raiz_da_sessao"
+      ]
+    }
+  ]
+}

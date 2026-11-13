@@ -1,0 +1,66 @@
+{
+  "pedido": "trava-modelo-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "só a cópia isenta tem as regras liberadas",
+      "arquivo": "hooks/conformidade.py",
+      "de": "liberadas = REGRAS_DO_MODELO if caminho == self.modelo_isento else frozenset()",
+      "para": "liberadas = REGRAS_DO_MODELO",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "a regra liberada não barra a cópia isenta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if c in liberadas:\n                continue\n",
+      "para": "            if False:\n                continue\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "C7: a isenção é um dicionário não vazio",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return isinstance(isencao, dict) and bool(isencao) and all(",
+      "para": "return isinstance(isencao, dict) and all(",
+      "testes": [
+        "tests.test_hooks.TravaModelo.test_c7_isencao_fora_da_forma_mantem_a_trava"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "C7: só as regras do modelo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        regra in REGRAS_DO_MODELO and rel ==",
+      "para": "        True and rel ==",
+      "testes": [
+        "tests.test_hooks.TravaModelo.test_c7_isencao_fora_da_forma_mantem_a_trava"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "C7: só a cópia em templates/projeto/",
+      "arquivo": "hooks/conformidade.py",
+      "de": "and rel == MODELO_DE_PROJETO + regra + (\"*\" if regra.endswith(\"/\") else \"\")",
+      "para": "and True",
+      "testes": [
+        "tests.test_hooks.TravaModelo.test_c7_isencao_fora_da_forma_mantem_a_trava"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "erro na conferência não isenta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            except Exception:  # noqa: BLE001 - C7",
+      "para": "            except OSError:  # noqa: BLE001 - C7",
+      "testes": [
+        "tests.test_hooks.TravaModelo.test_erro_na_conferencia_nao_isenta"
+      ]
+    }
+  ]
+}

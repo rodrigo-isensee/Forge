@@ -1,0 +1,34 @@
+{
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "templates/projeto/.githooks/pre-push": "#!/bin/sh\n",
+    "templates/projeto/.forge/config.json": "{}\n",
+    "templates/projeto/.forge/versao": "0.1.0\n",
+    "templates/projeto/.claude/settings.json": "{}\n"
+  },
+  "forge": false,
+  "links": {
+    "../home/.forge-contrib": "{tmp}",
+    "templates/projeto/.githooks/pre-commit": "pre-push"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "descricao": "TRAVA-MODELO C6 (4b, v0457 E23.28): o arquivo do modelo é link para outro arquivo do modelo",
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/templates/projeto/.githooks/pre-commit",
+      "content": "x\n"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "arquivo em vigor (.githooks/)"
+  }
+}
