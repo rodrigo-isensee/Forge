@@ -605,7 +605,7 @@ def sequencias(texto: str, n: int) -> set:
 
 class DiretrizesDoDonoNaRWip(unittest.TestCase):
     """v047 E4.2: as diretrizes 2 (parado não se abandona), 11 (vaga livre não espera a versão) e 16 (item pronto vai a PR
-    próprio, sem junção de frentes) valem para todos os projetos: o texto fica na linha da R-WIP, com a medida, e as skills
+    próprio, sem juntar frentes) valem para todos os projetos: o texto fica na linha da R-WIP, com a medida, e as skills
     que o Jarvis lê no passo citam o ID."""
 
     def test_a_regra_traz_as_tres_diretrizes_com_medida(self):
@@ -614,7 +614,7 @@ class DiretrizesDoDonoNaRWip(unittest.TestCase):
         for trecho in ("**Parado não se abandona:** destrave, adie com data ou divida.",
                        "**Vaga livre não espera a versão:** começar não espera, só o merge;",
                        "desenho, plano de teste e ameaças dos seguintes, item sem arquivo em comum, a próxima versão",
-                       "pronto, vai a PR próprio, sem junção de frentes (`R-FLUXO`)",
+                       "pronto, vai a PR próprio, sem juntar frentes (`R-FLUXO`)",
                        "propostas de abandono (zero); conflitos por merge;"):
             with self.subTest(trecho=trecho):
                 self.assertIn(trecho, wip[0])
