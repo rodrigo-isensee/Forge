@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-parecer-job
-commit: 5aae66f63404cf3b2caa94f84a1ae22304639498
+commit: 78ac37d334a414a590485b4dfe0525fdec0c0251
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -13,6 +13,12 @@ bugs_baixos: 0
 data: 2026-11-13
 ---
 # QA: v047 E1.4 (job de pareceres separado no CI)
+
+## Revalidação por delta (E1.64): head 78ac37d3, de 5aae66f6
+Veredito: APROVADO. Sem achado bloqueante; dois recomendados (A3, A4). Sem PR aberto: sem check-run `bateria` para citar; rodei os testes afetados.
+- Delta (`forge-check parecer delta`): só `agents/devops-engineer.md` (item 1 reescrito). ci.yml, testes e mutantes: inalterados, então o reteste de ci.yml e a mutação da E1.46 valem.
+- Tamanho: 5052 caracteres (`wc -m` 5158 bytes, a contagem de caracteres confere com o brief); `unittest tests.test_forge.Agentes RegrasInviolaveis RegrasComId Orcamento AntiDuplicacao`: 16 testes, OK (invariantes e IDs de regra do agente mantidos).
+- J11 no texto novo: (1) job próprio, no agregador, fora do `needs` da suíte: presente; (2) em PR, pulado ou cancelado falha, exige `success`: presente; (3) sem `!contains(failure)`: presente. Perdido: "`skipped` vale apenas fora de PR" (agora implícito) e o motivo "sem impedir a suíte". Nenhuma regra com ID saiu (`R-FLUXO` mantido).
 
 ## Revalidação por delta (E1.46): head 5aae66f6, de bd28180e
 Veredito: APROVADO. Sem achado novo. O delta é só a junção com a develop (#517 a #523: agents/jarvis.md, bin/forge-changelog e outros) e a correção do campo `pedido:` dos pareceres para `v047`.
@@ -35,6 +41,8 @@ Veredito: APROVADO. A1 fechado, A2 fechado. Sem PR aberto: sem check-run `bateri
 Head testado: 7ba85a05 (diff contra a base a986c292: ci.yml, devops-engineer.md, pronto.md de node-react e python, test_ci_local.py, test_catraca.py, fragmento de changelog). Sem PR aberto: sem check-run `bateria` para citar; rodei só os testes afetados e a mutação à mão.
 
 ## Achados
+- A3 (recomendado) agents/devops-engineer.md:12 · A justificativa "a lista saiu, já está na skill ci-cd" não procede: `skills/ci-cd/SKILL.md` não cita pareceres, agregador nem `!contains(failure)`. O detalhe só existe em `stacks/*/pronto.md` (python e node-react); stack sem ele perde a lista.
+- A4 (recomendado) agents/devops-engineer.md:12 · "skipped vale só fora de PR" saiu do agente e ficou só nos pronto.md; o texto diz o que falha em PR e cala sobre fora de PR. Uma frase curta restaura a condição inteira do J11.
 - A1 (bloqueante) .github/workflows/ci.yml:674 · A guarda do agregador (pareceres success; skipped só fora de PR) e o `if:` do job (:550) não têm teste de comportamento. Mutante M7 (tirar a checagem de PARECERES do agregador) e M5 (tirar o `if:`) sobrevivem com 17 testes verdes: o requisito "parecer faltando reprova o merge" não está guardado.
 - A2 (recomendado) .github/workflows/ci.yml:674 · M4 (aceitar skipped também em PR) sobrevive. Hoje o job não tem `needs`, então não pula em PR; é defesa em profundidade, e um teste da tabela-verdade da linha fecharia M4, M5 e M7 de uma vez.
 
