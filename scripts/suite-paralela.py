@@ -16,6 +16,9 @@ Chamado pelo `.githooks/pre-push` e pelo CI. Só biblioteca padrão; nada de red
   ser iguais às do `discover` da suíte inteira; processo que sai com código diferente de 0, morre por sinal, roda
   zero testes ou não deixa o relatório reprova. Também reprova se a árvore de trabalho (`git status`) ou o
   `.git/config` comum mudarem durante a suíte.
+- Tempo ao vivo: cada unidade que termina deixa no stderr, com flush, `suite-paralela: unidade <nome> <s> s (processo N)`;
+  no SIGTERM/SIGINT/SIGHUP saem `suite-paralela: rodando <nome> há <s> s (processo N)` das que não terminaram (job cortado
+  por timeout deixa evidência por módulo). Só informa: o veredito, a ordem e a saída final não mudam.
 - SIGTERM, SIGINT e SIGHUP encerram o grupo de cada processo e apagam os TMPDIR; a saída é diferente de 0.
 - Uma suíte por vez (R-TETO, SUITE-FILA-JUSTA): o pre-push chama o script já com a trava e passa o caminho dela em
   FORGE_SUITE_TRAVA; o script confere que a trava está presa e anotada pelo hook (o pid nela). Chamado à mão,
@@ -294,15 +297,19 @@ def processo(entrada, saida):
     verbosidade = 2 if os.environ.get("GITHUB_ACTIONS") == "true" else 1
     resultado = Resultado(unittest.runner._WritelnDecorator(sys.stderr), True, verbosidade)
     duracoes = {}
+    tempos = open(f"{saida}.tempos", "a", encoding="utf-8", buffering=1)  # o orquestrador lê ao vivo (tempo por unidade)
     resultado.startTestRun()
     try:
         for unidade in unidades:
+            nome = unidade if isinstance(unidade, str) else unidade["unidade"]
+            tempos.write(f"inicio\t{nome}\t{time.time():.3f}\n")
             inicio = time.monotonic()
             suite_da_unidade(unidade).run(resultado)
-            nome = unidade if isinstance(unidade, str) else unidade["unidade"]
             duracoes[nome] = round(time.monotonic() - inicio, 1)
+            tempos.write(f"fim\t{nome}\t{duracoes[nome]:.1f}\n")
     finally:
         resultado.stopTestRun()
+        tempos.close()
     resultado.printErrors()
     sys.stderr.write(f"\nRan {resultado.testsRun} tests\n")
     caidos = sorted({getattr(t, "test_case", t).id() for t, _ in resultado.failures + resultado.errors})
@@ -505,16 +512,73 @@ def lancar(partes, pasta, filhos, plano=None):
             log.close()
 
 
-def esperar(filhos, inicio):
+class TemposAoVivo:
+    """Lê `p<i>.saida.json.tempos` (escrito pelos filhos) e imprime, no stderr e com flush, uma linha por unidade que
+    termina; `rodando()` diz as que ainda não terminaram. Só informa: não entra no veredito nem na saída final."""
+
+    def __init__(self, pasta, quantos):
+        self.arquivos = [pasta / f"p{i}.saida.json.tempos" for i in range(1, quantos + 1)]
+        self.posicao = [0] * quantos
+        self.abertas = [{} for _ in range(quantos)]
+
+    def atualizar(self):
+        for i, arquivo in enumerate(self.arquivos):
+            try:
+                with arquivo.open("rb") as f:
+                    f.seek(self.posicao[i])
+                    novo = f.read()
+            except OSError:
+                continue
+            completo = novo.rpartition(b"\n")[0]
+            if not completo:
+                continue
+            for bruta in completo.split(b"\n"):  # a posição avança a cada linha tratada: um sinal no meio não a perde
+                tipo, _, resto = bruta.decode("utf-8", "replace").partition("\t")
+                nome, _, valor = resto.partition("\t")
+                if tipo == "inicio":
+                    self.abertas[i][nome] = valor
+                elif tipo == "fim":
+                    self.abertas[i].pop(nome, None)
+                    self.informar(f"suite-paralela: unidade {nome} {valor} s (processo {i + 1})")
+                self.posicao[i] += len(bruta) + 1
+
+    @staticmethod
+    def informar(texto):
+        try:
+            print(texto, file=sys.stderr, flush=True)
+        except OSError:  # stderr quebrado (pipe fechado, sem terminal): só informa, não derruba a suíte
+            pass
+
+    def rodando(self):
+        agora, saida = time.time(), []
+        for i, abertas in enumerate(self.abertas):
+            for nome, desde in abertas.items():
+                try:
+                    saida.append((nome, agora - float(desde), i + 1))
+                except ValueError:
+                    continue
+        return sorted(saida, key=lambda x: -x[1])
+
+    def imprimir_rodando(self):
+        self.atualizar()
+        for nome, segundos, i in self.rodando():
+            self.informar(f"suite-paralela: rodando {nome} há {segundos:.1f} s (processo {i})")
+
+
+def esperar(filhos, inicio, tempos=None):
     """Espera todos; devolve o tempo de parede de cada um, contado do início da suíte."""
     fim = [None] * len(filhos)
     while None in fim:
+        if tempos:
+            tempos.atualizar()
         for i, p in enumerate(filhos):
             if fim[i] is None and p.poll() is not None:
                 fim[i] = time.monotonic() - inicio
         time.sleep(0.2)
     for p in filhos:  # um a um, pelo pid: o código de saída de cada filho conta, não o do último
         p.wait()
+    if tempos:
+        tempos.atualizar()
     return fim
 
 
@@ -692,10 +756,11 @@ def rodar_partes(partes, plano, inicio, esperado, antes):
     durações). No sinal, encerra os processos, avisa e repassa o `Interrompido`."""
     pasta = Path(tempfile.mkdtemp(prefix="forge-suite-"))
     filhos = []
+    tempos = TemposAoVivo(pasta, len(partes))
     anteriores = {s: signal.signal(s, ao_sinal) for s in SINAIS}
     try:
         lancar(partes, pasta, filhos, plano)
-        duracoes = esperar(filhos, inicio)
+        duracoes = esperar(filhos, inicio, tempos)
         for s, h in anteriores.items():
             signal.signal(s, h)
         relatorios = [ler_relatorio(pasta / f"p{i}.saida.json") for i in range(1, len(filhos) + 1)]
@@ -708,6 +773,7 @@ def rodar_partes(partes, plano, inicio, esperado, antes):
         for s in SINAIS:
             signal.signal(s, signal.SIG_IGN)
         encerrar(filhos)
+        tempos.imprimir_rodando()  # depois de encerrar: se o stderr quebrou, nenhum filho fica vivo; os arquivos ainda existem
         print(f"suite-paralela: interrompida pelo sinal {e.numero}; os processos da suíte foram encerrados.",
               file=sys.stderr)
         print("FAILED (interrompida)")

@@ -96,7 +96,7 @@ FORGE_CHECK = ("test_anotar", "test_forge_check_base_igual", "test_forge_check_v
                "test_testes_tocados", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
                "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt", "test_governanca", "test_selo_e_entrega",
                "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados", "test_aq5_parecer_novo", "test_brief_gerar_custo", "test_git_rede_config",
-               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_metricas_portoes", "test_metricas_main_vermelha") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
+               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
 LEITORES_DE_TEXTO = ("test_anotar", "test_citacao", "test_clareza", "test_dependabot_modelo", "test_erros_no_brief",
@@ -136,11 +136,11 @@ MAPA = [
                    "test_classe_risco", "test_pesado_fila", "test_meta", "test_vigia") + VOLTA_UNICA
      + EVALS_DE_FORMA),  # EST-M4: guarda C-2
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados")),
-    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer")),
+    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve")),  # v046 E19.3 (A4): o teste lê e grava o script
     (r"stacks/.*", CONTEUDO + ("test_hooks", "test_adotar", "test_stack_python") + VOLTA_UNICA),
     (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks", "test_stack_python") + VOLTA_UNICA),
     (r"templates/projeto/docs/(reviews|qa|security|devops)/_modelo\.md", PUBLICADO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),  # o teste gera parecer do modelo
-    (r"templates/projeto/\.githooks/pre-push", PUBLICADO + ("test_prepush_so_docs", "test_caminhos_extra_pre_push")),
+    (r"templates/projeto/\.githooks/pre-push", PUBLICADO + ("test_prepush_so_docs", "test_caminhos_extra_pre_push", "test_prepush_refs")),
     (r"(migrations|templates)/.*", PUBLICADO),
     (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
     (r"docs/hooks-fixtures\.md", CONTEUDO + ("test_indice_fixtures",)),  # Fase C: o índice gerado confere em dia

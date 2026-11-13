@@ -1,0 +1,36 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G17",
+      "guarda": "volta 2: o argumento do `--git-path` que não é caminho simples vale o próprio `.git` e não entra cru na linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            return caminho if CAMINHO_SIMPLES.fullmatch(caminho) else \"\"",
+      "para": "            return caminho if True else \"\"",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G18",
+      "guarda": "volta 2: substituição que não é `rev-parse` do diretório do git volta igual",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return m[0] if valor is None else",
+      "para": "    return m[0] if None else",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G19",
+      "guarda": "volta 2: sem a palavra `rev-parse`, nada a ler (sem erro interno do hook)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if \"rev-parse\" in palavras else []",
+      "para": "if True else []",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    }
+  ]
+}
