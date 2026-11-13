@@ -17,8 +17,8 @@ data: 2026-11-13
 Branch `melhoria/diretrizes-decisao`, head `3a86bd38`, base `c340c322`. Diff: `docs/regras/R-DECISAO.md`, `skills/falar-com-o-dono/SKILL.md`, `changelog.d/diretrizes-decisao.md`. Sem PR aberto: rodei só o teste afetado (`R-QA`, carga alta).
 
 ## Achados
-- A1 (bloqueante) docs/regras/R-DECISAO.md:15 · cortes para caber no orçamento apagaram 5 trechos de `invariantes` em R-DECISAO.md (`a próxima espera a resposta`, `na entrega, `pendente:``, `um comando, um efeito`, `evidência no motivo`, formato `origem: <coluna>; ação: <o que o usuário faz>; comando:`) e `tests/config.json` não foi tocado; RegrasInviolaveis cai (6 subtestes).
-- A2 (bloqueante) skills/falar-com-o-dono/SKILL.md:13 · o corte removeu `Sem resposta, fica pendente.` da skill, invariante de `tests/config.json`; o texto continua em R-DECISAO, mas o teste exige o trecho neste arquivo. Restaure o trecho ou afrouxe o invariante com destaque no título do PR.
+- A1 (bloqueante) docs/regras/R-DECISAO.md:14 · cortes para caber no orçamento apagaram 5 trechos de `invariantes` em R-DECISAO.md (`a próxima espera a resposta`, `na entrega, `pendente:``, `um comando, um efeito`, `evidência no motivo`, formato `origem: <coluna>; ação: <o que o usuário faz>; comando:`) e `tests/config.json` não foi tocado; RegrasInviolaveis cai (6 subtestes).
+- A2 (bloqueante) skills/falar-com-o-dono/SKILL.md:12 · o corte removeu `Sem resposta, fica pendente.` da skill, invariante de `tests/config.json`; o texto continua em R-DECISAO, mas o teste exige o trecho neste arquivo. Restaure o trecho ou afrouxe o invariante com destaque no título do PR.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
