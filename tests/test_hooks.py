@@ -60,7 +60,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RAIZ, ambiente_limpo, git, minimo  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 from modelo_git import copiar_modelo  # noqa: E402
-from apoio_sandbox import exigir  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
+from apoio_sandbox import exigir, sinais_de_ci  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
 
 HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
@@ -553,6 +553,22 @@ def gravar_resultado_aprovado(raiz, pedido, base):
         fc.GIT_TIMEOUT_S = prazo
 
 
+# E1.90 (v047): o hook grava pid e sessão só se lê o namespace de pid do pai (`da_sessao`); no sandbox do Bash não lê
+FIXTURES_DE_PID_E_SESSAO = frozenset({
+    "agentes/inicio-sem-par-grava-pid-da-sessao", "agentes/reserva-grava-pid-e-sessao",
+    "agentes/inicio-casa-reserva-da-sessao-e-mantem-pid", "agentes/inicio-so-casa-reserva-da-mesma-sessao"})
+
+
+def sem_ns_de_pid_do_pai(ler=os.readlink, pai=None):
+    """Motivo se o namespace de pid do processo pai do hook (o da suíte) não se lê; None se lê."""
+    pai = os.getpid() if pai is None else pai
+    try:
+        ler(f"/proc/{pai}/ns/pid")
+    except (OSError, ValueError) as erro:
+        return f"/proc/{pai}/ns/pid ilegível ({erro}): o hook não grava pid nem sessão"
+    return None
+
+
 def montar_proc(tmp, proc):
     """/proc simulado em tmp/proc (FORGE_PROC); `{"ausente": true}` aponta para uma pasta sem os arquivos."""
     pasta = tmp / "proc"
@@ -680,9 +696,47 @@ class Hooks(unittest.TestCase):
         casos = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures]
         self.assertEqual(self.executar_em_lote(casos), len(self.fixtures), "todo fixture é verificado")
 
+    def test_sem_ns_de_pid_do_pai_as_fixtures_de_pid_e_sessao_saem_puladas_com_motivo(self):  # E1.90 (v047)
+        def ilegivel(_caminho):
+            raise PermissionError(errno.EACCES, "Permission denied")
+        motivo = sem_ns_de_pid_do_pai(ler=ilegivel, pai=42)
+        self.assertIn("/proc/42/ns/pid ilegível", motivo)
+        self.assertIsNone(sem_ns_de_pid_do_pai(ler=lambda _caminho: "pid:[1]", pai=42))
+        casos = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures]
+        with mock.patch.object(self, "skipTest") as pulo:
+            seguem, puladas = self.pular_sem_ns_de_pid(casos, motivo)
+        self.assertEqual(puladas, 4)
+        self.assertEqual({c[0] for c in casos} - {c[0] for c in seguem}, FIXTURES_DE_PID_E_SESSAO)
+        self.assertEqual(pulo.call_count, 4)
+        self.assertTrue(all(motivo in c.args[0] for c in pulo.call_args_list))
+        with mock.patch.object(self, "skipTest") as pulo:
+            self.assertEqual(self.pular_sem_ns_de_pid(casos, None), (casos, 0))
+        pulo.assert_not_called()
+
+    def test_com_ns_de_pid_do_pai_legivel_as_fixtures_de_pid_e_sessao_rodam_e_gravam(self):  # E1.90 (v047)
+        motivo = sem_ns_de_pid_do_pai()  # leitura real: aqui a simulação de "legível" só vale onde ela é verdadeira
+        if motivo and not sinais_de_ci():  # no CI nada pula: a leitura ilegível ali reprova pelo próprio caso
+            self.skipTest(f"sandbox, sem leitura do namespace de pid do pai: {motivo}")
+        casos = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f"{f.hook}/{f.caminho.stem}" in FIXTURES_DE_PID_E_SESSAO]
+        self.assertEqual(len(casos), 4)
+        with mock.patch(f"{__name__}.sem_ns_de_pid_do_pai", return_value=None):
+            self.assertEqual(self.executar_em_lote(casos), 4)
+
+    def pular_sem_ns_de_pid(self, casos, motivo):
+        """Tira de `casos` as fixtures de pid e sessão quando o ns de pid do pai não se lê (E1.90): cada uma sai como
+        subTest pulado, com o motivo. Devolve (casos que seguem, quantas saíram puladas)."""
+        if not motivo:
+            return casos, 0
+        puladas = [c for c in casos if c[0] in FIXTURES_DE_PID_E_SESSAO]
+        for nome, _ in puladas:
+            with self.subTest(fixture=nome):
+                self.skipTest(f"sandbox, sem leitura do namespace de pid do pai: {motivo}")
+        return [c for c in casos if c not in puladas], len(puladas)
+
     def executar_em_lote(self, casos):
         """Roda os casos (nome, Fixture) como subTest, em paralelo, menos os que dependem de PID ou da trava do `pesado`
         (um de cada vez, depois). Devolve quantos foram verificados."""
+        casos, puladas = self.pular_sem_ns_de_pid(casos, None if sinais_de_ci() else sem_ns_de_pid_do_pai())  # no CI nada pula
         outro = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"])  # outra sessão viva
         self.addCleanup(outro.wait)
         self.addCleanup(outro.kill)
@@ -715,7 +769,7 @@ class Hooks(unittest.TestCase):
             with self.subTest(fixture=nome):
                 verificados += 1
                 self.executar_fixture(f, self._pasta_temporaria(), outro.pid)
-        return verificados
+        return verificados + puladas
 
     def _pasta_temporaria(self):
         tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))

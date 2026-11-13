@@ -1,0 +1,16 @@
+{
+  "pedido": "v047-fixture-pid-sandbox",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o hook grava pid e sessao da sessao",
+      "arquivo": "hooks/agentes.py",
+      "de": "    return {\"pid\": pid, \"pidns\": ns, \"sessao\": sessao}",
+      "para": "    return {}",
+      "testes": [
+        "tests.test_hooks.Hooks.test_com_ns_de_pid_do_pai_legivel_as_fixtures_de_pid_e_sessao_rodam_e_gravam"
+      ]
+    }
+  ]
+}
