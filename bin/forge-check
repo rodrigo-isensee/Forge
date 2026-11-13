@@ -1860,7 +1860,7 @@ def isencao_do_dono(raiz, pedido_id, texto, shas, nome, base_sha, head, base_ref
         elif no_head[0] != do_dono[0]:
             motivo = "o modo mudou depois do commit do dono"
         else:
-            return (f"escopo: ok (patch do dono {commit[:7]}, DECISÃO DO DONO {pedido_id}:{numero}) {mostrado}", False), []
+            return (f"escopo: ok (patch do dono {commit[:7]}, DECISÃO DO DONO {sem_controle(pedido_id)}:{numero}) {mostrado}", False), []
     return None, [(f"patch do dono: {commit[:7]} não isenta {mostrado} ({motivo})", False)]
 
 
