@@ -3,30 +3,32 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/diretrizes-decisao
-commit: 3a86bd3853ad610cbbfa72593b9d29a79d853aca
-parecer: reprovado
-escopo: completo
+commit: 39c163cc5d2fdfd69982e1eb3e80815aea0202e6
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-13
 ---
 # QA: diretrizes 1, 8 e 9 na regra de decisão (E26.15)
 
-Branch `melhoria/diretrizes-decisao`, head `3a86bd38`, base `c340c322`. Diff: `docs/regras/R-DECISAO.md`, `skills/falar-com-o-dono/SKILL.md`, `changelog.d/diretrizes-decisao.md`. Sem PR aberto: rodei só o teste afetado (`R-QA`, carga alta).
+Branch `melhoria/diretrizes-decisao`, head `39c163cc` (antes `3a86bd38`), base `c340c322`. Diff: `docs/regras/R-DECISAO.md`, `skills/falar-com-o-dono/SKILL.md`, `changelog.d/diretrizes-decisao.md`. Sem PR aberto: rodei só o teste afetado (`R-QA`, carga alta).
 
 ## Achados
-- A1 (bloqueante) docs/regras/R-DECISAO.md:14 · cortes para caber no orçamento apagaram 5 trechos de `invariantes` em R-DECISAO.md (`a próxima espera a resposta`, `na entrega, `pendente:``, `um comando, um efeito`, `evidência no motivo`, formato `origem: <coluna>; ação: <o que o usuário faz>; comando:`) e `tests/config.json` não foi tocado; RegrasInviolaveis cai (6 subtestes).
-- A2 (bloqueante) skills/falar-com-o-dono/SKILL.md:12 · o corte removeu `Sem resposta, fica pendente.` da skill, invariante de `tests/config.json`; o texto continua em R-DECISAO, mas o teste exige o trecho neste arquivo. Restaure o trecho ou afrouxe o invariante com destaque no título do PR.
+Nenhum bloqueante. A1 e A2 (rodada anterior, head `3a86bd38`) resolvidos: a volta E26.19 restaurou os trechos protegidos.
+
+## Revalidação por delta (head `39c163cc`)
+`forge-check parecer delta` lista no domínio do QA só `docs/regras/R-DECISAO.md` e `skills/falar-com-o-dono/SKILL.md` (intervalo `3a86bd38..39c163cc`). Reteste: `python3 -m unittest test_forge.RegrasInviolaveis` em `tests/`: `Ran 3 tests ... OK` (os 6 subtestes de A1/A2 passam). Os seis trechos voltaram, formato `origem: <coluna>; ação: <o que o usuário faz>; comando:` e `(não amplia autorização)` incluídos. Custo declarado conferido: R-DECISAO perdeu `nem a do dono` e `origem` no item "Decisão ruim"; a origem segue em "Uma por vez" (`cada decisão, a origem`) e a skill mantém `decisão ruim do dono volta a ele`, então as diretrizes 8 e 9 seguem cobertas no texto. Suíte inteira não rodada local (carga alta); vale o check `bateria` do CI quando houver PR.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
 | Diretriz 1: custo em tokens e ganho de velocidade por opção | leitura do diff (R-DECISAO.md:15; SKILL.md:13 "Custo e origem") | n/a | passou |
 | Diretriz 8: origem do item em toda decisão | leitura do diff (R-DECISAO.md:15; SKILL.md:13) | n/a | passou |
-| Diretriz 9: conferir decisão ruim, também a do dono, antes de cumprir | leitura do diff (R-DECISAO.md:16) | n/a | passou |
-| Nenhuma regra com ID ou invariante some nos cortes | `test_forge.RegrasInviolaveis.test_trechos_obrigatorios` | trecho obrigatório presente | FALHOU (6 subtestes) |
+| Diretriz 9: conferir decisão ruim, também a do dono, antes de cumprir | leitura do diff (R-DECISAO.md:16; skill: "decisão ruim do dono volta a ele") | n/a | passou |
+| Nenhuma regra com ID ou invariante some nos cortes | `test_forge.RegrasInviolaveis.test_trechos_obrigatorios` | trecho obrigatório presente | passou no head `39c163cc` (falhava em `3a86bd38`) |
 
 IDs de regra citados antes e depois no diff (`R-DECISAO`, `R-CONFORMIDADE`, `R-CUSTO`) seguem presentes; o que sumiu são só invariantes de trecho.
 
