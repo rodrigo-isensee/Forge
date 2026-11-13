@@ -1,0 +1,79 @@
+{
+  "pedido": "mp1311-conformidade-destino",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "ação crítica na linha mantém o $TMPDIR como construção não modelada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if ACAO_CRITICA.search(linha) or \"TMPDIR\" in trocada:",
+      "para": "if \"TMPDIR\" in trocada:",
+      "testes": [
+        "tests.test_hook_destino.HookDestino.test_tmpdir_como_caminho",
+        "tests.test_hook_destino.HookDestino.test_tmpdir_do_ambiente_no_marcador_so_de_caminho"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "TMPDIR atribuído, lido ou sem barra na linha volta igual",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if ACAO_CRITICA.search(linha) or \"TMPDIR\" in trocada:",
+      "para": "if ACAO_CRITICA.search(linha):",
+      "testes": [
+        "tests.test_hook_destino.HookDestino.test_tmpdir_como_caminho",
+        "tests.test_hook_destino.HookDestino.test_tmpdir_do_ambiente_no_marcador_so_de_caminho"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "$TMPDIR sem barra (palavra inteira) não é começo de caminho",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(?(1)\\\"|)(?(2)|(?=/))|",
+      "para": "(?(1)\\\"|)|",
+      "testes": [
+        "tests.test_hook_destino.HookDestino.test_tmpdir_como_caminho",
+        "tests.test_hook_destino.HookDestino.test_tmpdir_do_ambiente_no_marcador_so_de_caminho"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "fora do Bash, a volta ao texto da prova vale sempre",
+      "arquivo": "hooks/conformidade.py",
+      "de": "escreve = isinstance(alvo, str) and (ferramenta != \"Bash\" or ESCREVE_A_PROVA.search(alvo))",
+      "para": "escreve = isinstance(alvo, str) and ESCREVE_A_PROVA.search(alvo)",
+      "testes": [
+        "tests.test_hook_destino.HookDestino.test_prova_da_suite_pelo_destino"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "programa que baixa (curl) conta como escrita da prova",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(?:curl|wget|git|",
+      "para": "(?:wget|git|",
+      "testes": [
+        "tests.test_hook_destino.HookDestino.test_prova_da_suite_pelo_destino"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "só a palavra absoluta deixa de expandir no .git",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if re.match(r\"[/~]\", p) and",
+      "para": "if True and",
+      "testes": [
+        "tests.test_hook_destino.HookDestino.test_prova_da_suite_pelo_destino"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "a linha opaca leva o curinga relativo ao .git",
+      "arquivo": "hooks/conformidade.py",
+      "de": "guarda.pastas_do_curinga(t, pasta, opaco and t not in absolutas)",
+      "para": "guarda.pastas_do_curinga(t, pasta, False)",
+      "testes": [
+        "tests.test_hook_destino.HookDestino.test_prova_da_suite_pelo_destino"
+      ]
+    }
+  ]
+}
