@@ -51,23 +51,27 @@ Revalidação por delta (volta 1) do parecer `a85dcfa`, sobre o head `cf6bf0a`.
 - **Item do teste.** `python3 -m unittest tests.test_hooks_parecer_pasta` deu `Ran 2 tests in 7.335s OK`, com a carga de 1 minuto em 2,67. O corpus `texto-*` tem 68 fixtures, 14 delas de passa.
 - **Changelog.** O fragmento `changelog.d/hk3-parecer-texto.md` segue presente. O `CHANGELOG.md` não foi tocado.
 
-## Sondas
+## Método das sondas
 Comparei o hook da base `d14a713` com o de `cf6bf0a` num repositório temporário na `develop`, com `melhoria/x`. Cada forma que roda o merge foi conferida no bash real, com `echo` no lugar do merge.
 
-Passam agora, onde a base recusava, e o bash executa o arquivo que o `sh -c` ou o `printf` gravou:
-- `BASH_ENV+=e.sh bash -c 'sleep 1'`;
-- `printf -v BASH_ENV e.sh; export BASH_ENV; bash -c …`;
-- `export BASH_ENV+=e.sh; bash -c …`;
-- `sh -c 'echo git merge …' > f; . ./f`, e o mesmo com `source f`.
-
-O hook recusa `read`, `mapfile` e `declare -x BASH_ENV=`.
-
-As cinco formas acima são a classe do A1 da rodada anterior. A base já deixa passar, com rc 0, as formas equivalentes sem o `sh -c`: `echo git merge … > f; . ./f`, `printf … > e.sh; sh e.sh`, `echo … | sh` e `BASH_ENV+=e.sh bash e.sh`. Por isso não há capacidade nova contra a base, e o achado fica como recomendado (A2), com o mesmo critério do A1.
+As cinco formas de S1 a S5 passam agora, onde a base recusava, e o bash executa o arquivo que o `sh -c` ou o `printf` gravou. Elas são a classe do A1 da rodada anterior. A base já deixa passar, com rc 0, as formas equivalentes sem o `sh -c` (S7). Por isso não há capacidade nova contra a base, e o achado fica como recomendado (A2), com o mesmo critério do A1.
 
 A decisão de 13:44 pede `BASH_ENV=`, e o código cumpre o texto dela. Pela limitação [B] do ADR 0009, o hook barra em regra e não garante.
 
+## Sondas
+- S1 · `BASH_ENV+=e.sh bash -c 'sleep 1'` · espera: recusa, como na base · obtido: passa; o bash executa o arquivo gravado
+- S2 · `printf -v BASH_ENV e.sh; export BASH_ENV; bash -c …` · espera: recusa, como na base · obtido: passa; o bash executa o arquivo que o `printf` gravou
+- S3 · `export BASH_ENV+=e.sh; bash -c …` · espera: recusa, como na base · obtido: passa; o bash executa o arquivo gravado
+- S4 · `sh -c 'echo git merge …' > f; . ./f` · espera: recusa, como na base · obtido: passa; o bash executa o arquivo que o `sh -c` gravou
+- S5 · `sh -c 'echo git merge …' > f; source f` · espera: recusa, como na base · obtido: passa; o bash executa o arquivo que o `sh -c` gravou
+- S6 · `read`, `mapfile` e `declare -x BASH_ENV=` · espera: recusa · obtido: recusa
+- S7 · base `d14a713` com `echo git merge … > f; . ./f`, `printf … > e.sh; sh e.sh`, `echo … | sh` e `BASH_ENV+=e.sh bash e.sh` · espera: comparar com a entrega · obtido: passa com rc 0; sem capacidade nova contra a base
+
 ## Achados
-- A2 (recomendado) hooks/parecer.py:117 · `BASH_ENV+=`, `printf -v BASH_ENV` + `export` e `export BASH_ENV+=` escapam do teste `"BASH_ENV=" in texto`. `. ./f` e `source f` depois de `sh -c '…' > f` não contam como shell (`:123`, `SHELLS_DA_REAVALIACAO`). As cinco formas rodam o merge e passam onde a base recusava. A base já deixa passar a forma sem o `sh -c`, então não há capacidade nova. Sugestão: tirar a isenção quando `BASH_ENV` aparece como palavra (`\bBASH_ENV\b`) e quando há `.` ou `source` na linha. Outra saída é registrar `source` e `+=` na limitação [B] de docs/hooks.md. Classe AR-10.
+- A2 (recomendado) hooks/parecer.py:117 · `BASH_ENV+=`, `printf -v BASH_ENV` + `export`, `export BASH_ENV+=` e `. ./f`/`source f` após `sh -c '…' > f` escapam da isenção e rodam o merge onde a base recusava; a base já deixa passar a forma sem `sh -c`, sem capacidade nova. Classe AR-10; texto inteiro no detalhe.
+
+## Detalhe dos achados
+**A2** (recomendado). Texto inteiro do achado: `BASH_ENV+=`, `printf -v BASH_ENV` + `export` e `export BASH_ENV+=` escapam do teste `"BASH_ENV=" in texto`. `. ./f` e `source f` depois de `sh -c '…' > f` não contam como shell (`:123`, `SHELLS_DA_REAVALIACAO`). As cinco formas rodam o merge e passam onde a base recusava. A base já deixa passar a forma sem o `sh -c`, então não há capacidade nova. Sugestão: tirar a isenção quando `BASH_ENV` aparece como palavra (`\bBASH_ENV\b`) e quando há `.` ou `source` na linha. Outra saída é registrar `source` e `+=` na limitação [B] de docs/hooks.md. Classe AR-10.
 
 ## AR (PA-7)
 Conferi cada linha do `docs/engineering/achados-recorrentes.md`:

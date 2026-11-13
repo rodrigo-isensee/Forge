@@ -30,36 +30,35 @@ Mudança em mecanismo de controle (o portão `R-REVIEW`/`R-QA` do hook `parecer`
   - Denial: bloqueio falso, inclusive pela falha fechada;
   - Repudiation: sem log do erro interno.
 
-## Sondas
-Feitas num diretório descartável em `$TMPDIR`, com os hooks tirados de `git archive origin/melhoria/anti-alucinacao-portao` (c365315), `HOME` isolado e repositórios git de teste. Para comparar, rodei a mesma bateria com `git archive origin/melhoria/anti-alucinacao-regras` (354ad7d, o hook anterior). O rc é a saída do hook: 2 bloqueia, 0 libera.
-
-| # | Cenário | rc (antes → agora) | Leitura |
-|---|---|---|---|
-| S1 | Clone (manifesto, sem `.forge/versao`), review reprovado: `gh pr create` sem `--draft` | 0 → **2** | PQ-1 confirmado |
-| S1 | Mesmo clone: `gh pr merge feature/x` | 0 → **2** | PQ-1 confirmado |
-| S1 | `gh pr create --draft` / `--draft=false` / `--title -d` | 0 / **2** / **2** | `bandeira` não se engana com `=false` nem com `-d` usado como valor |
-| S1 | `gh pr ready feature/x`, `gh pr ready` (branch atual) | **2**, **2** | portão do rascunho |
-| S1 | `gh pr ready 123`, `gh pr ready <URL>` | **2**, **2** | `R-CONTRIB`, sem branch |
-| S1 | `gh pr ready --undo feature/x` | 0 | volta para rascunho: correto |
-| S1 | `gh api graphql` com `markPullRequestReadyForReview` | 0 | ver A2 |
-| S2 | Clone sem parecer: `gh pr ready` / `gh pr merge` / `gh pr create` / `gh pr create -d` | 2 / 2 / 2 / 0 | PQ-2 confirmado |
-| S3 | Clone com review e QA aprovados: `gh pr ready` / `gh pr create` | 0 / 0 | sem bloqueio falso |
-| S4 | **Manifesto forjado** em pasta alheia (sem `.forge/versao`), reprovado: create / merge / ready | 0/0/0 → **2/2/2** | só ganha guarda |
-| S4 | Pasta alheia sem manifesto: create / merge | 0/0 → 0/0 | igual a antes |
-| S5 | Projeto (`.forge/versao`) com manifesto forjado: `create --draft` / `ready` | 2/0 → 2/0 | o projeto vem antes do manifesto; nada muda |
-| S6 | **Worktree fora de `~/.forge-contrib/wt/`**: create sem `--draft` / ready / create `--draft` | 2 / 2 / 0 | a raiz não depende de `em_contrib`: guarda também fora de `wt/` |
-| S6 | Worktree em `~/.forge-contrib/wt/`: `gh pr ready` sem parecer | 2 | confirmado |
-| S7 | **Clone com `.forge/config.json` e `hooks_desligados: ["parecer"]`**: create / ready | **2 / 2** | `hooks_desligados` não vale no clone |
-| S7b | Clone **convertido em projeto** (`.forge/versao` e `hooks_desligados`): create / merge | 0 / 0 | ver A1 |
-| E1, E2 | **Erro interno** (forge-check que lança exceção), no clone: `gh pr ready`, `gh pr merge` | **2**, **2** | falha fechada; o erro foi para `.forge/run/erros.log` da cópia |
-| E3 | JSON inválido, sessão (`CLAUDE_PROJECT_DIR`) no clone, pasta corrente alheia, `gh pr ready` | **2** | falha fechada pela raiz da sessão |
-| E3b / E3c | JSON inválido sem sessão / sessão no clone sem marcador crítico | 0 / 0 | seletiva, como manda a ADR 0009 |
-| E6 | Erro interno com `FORGE_GUARDA_ABERTA=1` | 0 | saída de emergência do dono, que o agente não tem como acionar |
-| S8 | **Projeto comum**: `create --draft` sem parecer / `ready` sem parecer / `merge` sem parecer / `create` com `hooks_desligados` | 2/0/2/0 → 2/0/2/0 | **nenhum projeto muda de comportamento** |
+## Método das sondas
+Feitas num diretório descartável em `$TMPDIR`, com os hooks tirados de `git archive origin/melhoria/anti-alucinacao-portao` (c365315), `HOME` isolado e repositórios git de teste. Para comparar, rodei a mesma bateria com `git archive origin/melhoria/anti-alucinacao-regras` (354ad7d, o hook anterior). O rc é a saída do hook: 2 bloqueia, 0 libera. Em `## Sondas`, o `obtido` traz o rc antes → agora (ou só o de agora) e a leitura; o rótulo entre colchetes é o cenário original (S1 a S8, E1 a E6), o mesmo que os achados citam.
 
 Também passaram, na cópia da branch: `tests.test_hooks.Hooks.test_fixtures`, `test_raiz_de_estado_no_clone_do_forge` e `tests.test_catraca` ("Ran 129 tests ... OK"). Isso inclui as fixtures de projeto de antes.
 
 `tests/catraca.py:614-620`: o laço agora junta as violações de todos os pedidos e só aprova com `pedidos and not achados`. Sem pedido, a função continua reprovando. Fecha o furo da seção 9, item 4, sem abrir caminho novo.
+
+## Sondas
+- S1 · [S1] Clone (manifesto, sem `.forge/versao`), review reprovado: `gh pr create` sem `--draft` · espera: rc 2 · obtido: 0 → **2**; PQ-1 confirmado
+- S2 · [S1] Mesmo clone: `gh pr merge feature/x` · espera: rc 2 · obtido: 0 → **2**; PQ-1 confirmado
+- S3 · [S1] `gh pr create --draft` / `--draft=false` / `--title -d` · espera: 0 / 2 / 2 · obtido: 0 / **2** / **2**; `bandeira` não se engana com `=false` nem com `-d` usado como valor
+- S4 · [S1] `gh pr ready feature/x`, `gh pr ready` (branch atual) · espera: 2, 2 · obtido: **2**, **2**; portão do rascunho
+- S5 · [S1] `gh pr ready 123`, `gh pr ready <URL>` · espera: 2, 2 · obtido: **2**, **2**; `R-CONTRIB`, sem branch
+- S6 · [S1] `gh pr ready --undo feature/x` · espera: 0 (volta para rascunho) · obtido: 0; correto
+- S7 · [S1] `gh api graphql` com `markPullRequestReadyForReview` · espera: 2 (ver A2) · obtido: 0; ver A2
+- S8 · [S2] Clone sem parecer: `gh pr ready` / `gh pr merge` / `gh pr create` / `gh pr create -d` · espera: 2 / 2 / 2 / 0 · obtido: 2 / 2 / 2 / 0; PQ-2 confirmado
+- S9 · [S3] Clone com review e QA aprovados: `gh pr ready` / `gh pr create` · espera: 0 / 0 · obtido: 0 / 0; sem bloqueio falso
+- S10 · [S4] **Manifesto forjado** em pasta alheia (sem `.forge/versao`), reprovado: create / merge / ready · espera: 2/2/2 · obtido: 0/0/0 → **2/2/2**; só ganha guarda
+- S11 · [S4] Pasta alheia sem manifesto: create / merge · espera: igual a antes · obtido: 0/0 → 0/0; igual a antes
+- S12 · [S5] Projeto (`.forge/versao`) com manifesto forjado: `create --draft` / `ready` · espera: nada muda · obtido: 2/0 → 2/0; o projeto vem antes do manifesto; nada muda
+- S13 · [S6] **Worktree fora de `~/.forge-contrib/wt/`**: create sem `--draft` / ready / create `--draft` · espera: 2 / 2 / 0 · obtido: 2 / 2 / 0; a raiz não depende de `em_contrib`: guarda também fora de `wt/`
+- S14 · [S6] Worktree em `~/.forge-contrib/wt/`: `gh pr ready` sem parecer · espera: 2 · obtido: 2; confirmado
+- S15 · [S7] **Clone com `.forge/config.json` e `hooks_desligados: ["parecer"]`**: create / ready · espera: 2 / 2 · obtido: **2 / 2**; `hooks_desligados` não vale no clone
+- S16 · [S7b] Clone **convertido em projeto** (`.forge/versao` e `hooks_desligados`): create / merge · espera: 2 / 2 (ver A1) · obtido: 0 / 0; ver A1
+- S17 · [E1, E2] **Erro interno** (forge-check que lança exceção), no clone: `gh pr ready`, `gh pr merge` · espera: 2, 2 · obtido: **2**, **2**; falha fechada; o erro foi para `.forge/run/erros.log` da cópia
+- S18 · [E3] JSON inválido, sessão (`CLAUDE_PROJECT_DIR`) no clone, pasta corrente alheia, `gh pr ready` · espera: 2 · obtido: **2**; falha fechada pela raiz da sessão
+- S19 · [E3b / E3c] JSON inválido sem sessão / sessão no clone sem marcador crítico · espera: 0 / 0 · obtido: 0 / 0; seletiva, como manda a ADR 0009
+- S20 · [E6] Erro interno com `FORGE_GUARDA_ABERTA=1` · espera: 0 · obtido: 0; saída de emergência do dono, que o agente não tem como acionar
+- S21 · [S8] **Projeto comum**: `create --draft` sem parecer / `ready` sem parecer / `merge` sem parecer / `create` com `hooks_desligados` · espera: nada muda · obtido: 2/0/2/0 → 2/0/2/0; **nenhum projeto muda de comportamento**
 
 ## Achados
 
@@ -68,7 +67,7 @@ Também passaram, na cópia da branch: `tests.test_hooks.Hooks.test_fixtures`, `
   - `hooks/_comum.py:44` e `hooks/_comum.py:480-490`: `Hook.projeto` tenta primeiro `raiz_do_projeto`, e o `hooks_desligados` vale sempre que existe `.forge/versao`.
   - `hooks/conformidade.py:1192-1193`: numa sessão com raiz no clone, o `conformidade` só age dentro de um projeto e não protege o `.forge/` do próprio clone. A frase de `docs/hooks.md` sobre o `.forge/` do clone, na seção "No clone do Forge", já diz isso.
 - **Sondas:**
-  - S7b: com `.forge/versao` e `.forge/config.json` contendo `hooks_desligados: ["parecer"]` no clone, `gh pr create` e `gh pr merge` saem com rc 0;
+  - S16 ([S7b]): com `.forge/versao` e `.forge/config.json` contendo `hooks_desligados: ["parecer"]` no clone, `gh pr create` e `gh pr merge` saem com rc 0;
   - C1 e C2: o `conformidade`, numa sessão com raiz no clone e `agent_type` `forge:tech-lead`, deixa gravar os dois arquivos (rc 0).
 - **Caminho de ataque:** um agente na sessão do Forge é barrado pelo `parecer`, grava os dois arquivos na cópia de trabalho (ficam fora do git) e mescla na `develop` sem parecer válido. São dois atos deliberados, que violam `R-CONFORMIDADE`.
 - **Por que baixa:** é da mesma classe dos desvios já registrados como [B] em `docs/hooks.md`, como um script gravado e executado depois. Não é regressão: antes desta fatia o hook nem agia no clone. A barreira de servidor continua sendo o job `pareceres` do CI.
@@ -80,10 +79,10 @@ Também passaram, na cópia da branch: `tests.test_hooks.Hooks.test_fixtures`, `
   - `hooks/parecer.py:309` (`merge_por_api`) só olha `pulls/<n>/merge`;
   - `hooks/conformidade.py:903-919` (`graphql_perigoso`) reconhece a mutação, mas `hooks/conformidade.py:952` só barra quando a sessão não é do clone.
   - A limitação já está registrada em `docs/hooks.md:91`.
-- **Sondas:** S1, `parecer` rc 0; C3, `conformidade` com sessão no clone, rc 0.
+- **Sondas:** S7 ([S1]), `parecer` rc 0; C3, `conformidade` com sessão no clone, rc 0.
 - **Caminho de ataque:**
   1. Um agente barrado no `gh pr ready` tira o PR do rascunho pela API GraphQL.
-  2. O agente continua sem conseguir mesclar: `gh pr merge` e `gh api .../merge` barram (S1, rc 2).
+  2. O agente continua sem conseguir mesclar: `gh pr merge` e `gh api .../merge` barram ([S1], rc 2; o `gh pr merge` é a S2).
   3. Mas o PR passa a parecer pronto, e o dono pode mesclá-lo pela interface, que é o vetor do #120.
 - **Classificação:** baixa. Exige um contorno deliberado. Com §14 = B, o dono aceitou que tirar o rascunho pela interface não é trava. O caminho do agente pela API não estava coberto por essa decisão, mas o dano depende ainda de um segundo ato do dono. **Vira cartão e não bloqueia.**
 - **Correção mínima (P):** no clone do Forge, o `parecer` trata `gh api graphql` mutante com `markPullRequestReadyForReview` como `gh pr ready` sem branch, porque o ID do PR é global, e barra com `R-CONTRIB`. A leitura do texto inline, de `-F query=@arq` e de `--input` pode reaproveitar `graphql_perigoso`, que já falha fechado no que não consegue ler. Depois, atualizar a linha de `docs/hooks.md:91`. Fixture: graphql ready no clone barra; `convertPullRequestToDraft` passa.
