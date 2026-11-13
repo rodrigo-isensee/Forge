@@ -1,2 +1,0 @@
-### Alterado
-- Stack node-react: a lista de tarefas pesadas (`stacks/node-react/pesados.json`) ganha o Stryker (`stryker`, `pnpm stryker`, `yarn stryker`) e o teste de banco (`test:db`, `pnpm test:db`, `yarn test:db`), que passam a rodar um por vez pelo hook `pesado` (`R-TETO`, TM-25). **Projetos já criados mantêm a lista que têm** no `.forge/config.json` (o `forge-init` só grava a da stack em config nova): para ganhar a fila, acrescente esses comandos à lista `pesados` do projeto.

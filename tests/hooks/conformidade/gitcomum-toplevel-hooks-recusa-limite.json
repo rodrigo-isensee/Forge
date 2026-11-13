@@ -1,0 +1,29 @@
+{
+  "descricao": "Volta 1 da E20.6 (v046, QA A1, limite declarado): `$(git rev-parse --show-toplevel)/hooks/x` recusa; a mensagem diz para usar o caminho literal.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n",
+    "x": "x\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp x \"$(git rev-parse --show-toplevel)/hooks/novo.py\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "use o caminho literal"
+  }
+}
