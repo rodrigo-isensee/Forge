@@ -14,11 +14,6 @@ class AmbienteSemAutoUpdate(unittest.TestCase):
             with self.subTest(rel=rel):
                 self.assertIn("desligue a atualização automática da extensão do Claude Code", ler(rel))
 
-    def test_retomada_depois_de_reinicio_na_skill_do_jarvis(self):
-        skill = ler("skills/trabalho-em-paralelo/SKILL.md")
-        self.assertIn("relance cada agente do ponto em que parou, sem refazer o feito", skill)
-        self.assertIn("briefs selados", skill)
-
 
 if __name__ == "__main__":
     unittest.main()

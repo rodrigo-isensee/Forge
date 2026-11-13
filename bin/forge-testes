@@ -101,7 +101,10 @@ FORGE_CHECK = ("test_anotar", "test_forge_check_base_igual", "test_forge_check_v
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
 LEITORES_DE_TEXTO = ("test_anotar", "test_citacao", "test_clareza", "test_dependabot_modelo", "test_erros_no_brief",
                      "test_forge_mutante", "test_jarvis_nucleo", "test_modelos_projeto", "test_stack_prereq_sistema",
-                     "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09", "test_conferente_estavel", "test_jarvis_n_jar_a", "test_reval_delta", "test_orcamento_instrucao", "test_metricas_texto", "test_aq1_texto", "test_textos_034", "test_achado_teto_doc", "test_medidas_m14b", "test_ambiente_sem_auto_update")  # EST-M4: a guarda C-2 lê agents/ e skills/
+                     "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09", "test_conferente_estavel", "test_jarvis_n_jar_a", "test_reval_delta",
+                     "test_orcamento_instrucao", "test_metricas_texto", "test_aq1_texto", "test_textos_034",
+                     "test_achado_teto_doc", "test_medidas_m14b",
+                     "test_ambiente_sem_auto_update")  # EST-M4: a guarda C-2 lê agents/ e skills/
 CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor",
             "test_modelos_citados") + LEITORES_DE_TEXTO
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
