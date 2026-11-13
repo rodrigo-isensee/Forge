@@ -1,0 +1,47 @@
+{
+  "pedido": "v0457-escopo-ponto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "volta 2 (segurança A5): só o parecer da mesma branch troca o veredito",
+      "arquivo": "bin/forge-check",
+      "de": "            if fm.get(\"branch\") == branch and fm.get(\"commit\") == revisado and fm.get(\"parecer\") != parecer:",
+      "para": "            if fm.get(\"commit\") == revisado and fm.get(\"parecer\") != parecer:",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_parecer_de_outra_branch_na_pasta_nao_troca_o_veredito"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "volta 3 (segurança A7): o rev-list da pasta usa --full-history; a simplificação esconde o commit do revisor atrás do merge",
+      "arquivo": "bin/forge-check",
+      "de": "    cod, shas = git(raiz, \"rev-list\", \"--full-history\", f\"{de}..{head}\", \"--\", pasta)",
+      "para": "    cod, shas = git(raiz, \"rev-list\", f\"{de}..{head}\", \"--\", pasta)",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_merge_de_ramo_lateral_que_apaga_o_reprovado_segue_fora",
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_merge_com_o_ramo_lateral_como_primeiro_pai_segue_fora"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "volta 3 (segurança A8): a busca do veredito é na pasta do portão do tipo, com as subpastas, não na pasta do arquivo",
+      "arquivo": "bin/forge-check",
+      "de": "    pasta = f\"{PASTA_E_REGRA[tipo][0]}/\"",
+      "para": "    pasta = f\"{Path(nome).parent}/\"",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_parecer_em_subpasta_do_portao_com_o_reprovado_apagado_segue_fora"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "volta 4 (segurança A10): a busca do veredito trocado começa no Base-sha, não no Desde",
+      "arquivo": "bin/forge-check",
+      "de": "                raiz, base_sha, head, nome, tipo, branch, pedido_id, slug, lambda t: revisados_selados(raiz, caminho, texto, branch, pedido_id, t)):",
+      "para": "                raiz, de, head, nome, tipo, branch, pedido_id, slug, lambda t: revisados_selados(raiz, caminho, texto, branch, pedido_id, t)):",
+      "testes": [
+        "tests.test_selo_e_entrega.MatrizDaBuscaDoVeredito.test_s8_volta_anterior_tirou_o_reprovado_da_pasta"
+      ]
+    }
+  ]
+}

@@ -96,7 +96,7 @@ FORGE_CHECK = ("test_anotar", "test_forge_check_base_igual", "test_forge_check_v
                "test_testes_tocados", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
                "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt", "test_governanca", "test_selo_e_entrega",
                "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados", "test_aq5_parecer_novo", "test_brief_gerar_custo", "test_git_rede_config",
-               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
+               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
 LEITORES_DE_TEXTO = ("test_anotar", "test_citacao", "test_clareza", "test_dependabot_modelo", "test_erros_no_brief",
@@ -115,7 +115,9 @@ MAPA = [
     (r"bin/forge_(governanca|decisor|run|meta|provas|dora)\.py", FORGE_CHECK),  # o forge-check importa o módulo ao montar os subcomandos (0.43.1 H)
     (r"bin/forge_medidas\.py", ("test_forge_medidas", "test_medidas_m14b", "test_forge")),  # E5.6: o módulo da medida e do escape
     (r"bin/forge-placar", ("evals.test_placar", "test_forge")),  # 0.43.1, frente I
-    (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge", "test_novo_projeto", "test_medidas_m14b")),
+    # MAPA-FORGE-DOUTOR (v046 E22.1): + os módulos que rodam o script pela base de test_doutor (test_qa_doutor_034 roda o hook)
+    (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge", "test_novo_projeto", "test_medidas_m14b",
+                           "test_doutor_custo", "test_doutor_protecao_gh", "test_doutor_relogio", "test_qa_doutor_f8")),
     (r"bin/forge-adotar", ("test_adotar", "test_stack_python", "test_forge")),  # 0.45.0: adoção de projeto existente
     (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge", "test_reval_delta", "test_salvar_desfazer", "test_adotar", "test_stack_python")),  # EST-M4: guarda C-2; GREP-UGREP
     (r"bin/(forge-atualizar|forge_versoes\.py|forge-voltar-versao)", ("test_atualizar", "test_forge", "test_doutor")),
@@ -133,7 +135,7 @@ MAPA = [
     (r"hooks/.*", ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados",
                    "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10", "test_hook_ansi_c",
                    "test_hooks_parecer_pasta", "test_esperar_estado", "test_brief_forma_aceita", "test_conformidade_verde", "test_reval_delta", "test_selo_e_entrega",
-                   "test_classe_risco", "test_pesado_fila", "test_meta", "test_vigia") + VOLTA_UNICA
+                   "test_classe_risco", "test_pesado_fila", "test_meta", "test_vigia", "test_pr_hook_prazo") + VOLTA_UNICA
      + EVALS_DE_FORMA),  # EST-M4: guarda C-2
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados")),
     (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve")),  # v046 E19.3 (A4): o teste lê e grava o script

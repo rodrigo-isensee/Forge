@@ -279,3 +279,55 @@ class PatchDoDono(ProjetoSelado):
         for passo in ("ls-tree", "rev-list"):
             with self.subTest(passo), mock.patch.object(fc, "git", lambda raiz, *a, **kw: (1, b"") if passo in a else real(raiz, *a, **kw)):
                 self.assertEqual(self.isencao(texto, self.x), ((f'escopo: o git falhou (patch do dono) "{CONFIG}"', True), []))
+
+
+class PareceresPeloPedido(Repositorio):
+    """E23.17 (v0457, c): na merge-integracao, os pareceres são achados pelo pedido (`p1`), como no `forge-check pr <pedido>`, não
+    pelo slug `x` da branch."""
+
+    def review(self, pedido):
+        texto = PARECER.format(t="review", c=self.codigo, p="aprovado", extra="revisor: forge:tech-lead\n", achados="")
+        self.commitar({"docs/reviews/x.md": texto.replace("pedido: x", f"pedido: {pedido}")}, "review")
+
+    def setUp(self):
+        super().setUp()
+        self.codigo = self.commitar({"notas.md": "a\n"}, "trabalho")
+        self.gravar_pedido()
+
+    def test_parecer_com_o_pedido_do_brief_aprova(self):
+        self.review("p1")
+        rc, saida = self.entrega(etapa="merge-integracao")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(OK_INTEGRACAO, saida)
+
+    def test_id_do_pedido_vale_mais_que_o_nome_do_arquivo(self):
+        self.gravar_pedido()
+        self.pedido.write_text("---\nid: q1\n---\n" + self.pedido.read_text(encoding="utf-8"), encoding="utf-8")
+        self.review("q1")
+        rc, saida = self.entrega(etapa="merge-integracao")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(OK_INTEGRACAO, saida)
+
+    def test_parecer_de_outro_pedido_segue_reprovando(self):
+        self.review("z")
+        rc, saida = self.entrega(etapa="merge-integracao")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(SEM_PARECER, saida)
+
+    def test_parecer_de_outra_branch_com_o_id_nao_troca_o_slug(self):
+        """Volta 1 (review A1, A3; sonda S1): o parecer de outra branch com o id do pedido (vindo da develop) não troca o slug pelo id; o
+        parecer da branch, pelo slug, segue valendo."""
+        texto = PARECER.format(t="review", c=self.codigo, p="aprovado", extra="revisor: forge:tech-lead\n", achados="")
+        self.commitar({"docs/reviews/x.md": texto, "docs/reviews/p1.md": texto.replace("pedido: x", "pedido: p1")
+                       .replace("branch: melhoria/x", "branch: melhoria/outra")}, "review e parecer de outra branch")
+        rc, saida = self.entrega(etapa="merge-integracao")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(OK_INTEGRACAO, saida)
+
+    def test_arquivo_sem_frontmatter_em_docs_reviews_nao_quebra(self):
+        """Um arquivo de docs/reviews/ sem frontmatter (lido antes do parecer, na ordem do ls-tree) não quebra a busca do pedido."""
+        self.commitar({"docs/reviews/LEIAME.md": "# pareceres\n"}, "leiame")
+        self.review("p1")
+        rc, saida = self.entrega(etapa="merge-integracao")
+        self.assertNotIn("Traceback", saida)
+        self.assertIn(OK_INTEGRACAO, saida)
