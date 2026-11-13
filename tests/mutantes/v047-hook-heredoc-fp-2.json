@@ -6,8 +6,8 @@
       "id": "M9",
       "guarda": "python que lança processo com comando de PR segue como antes",
       "arquivo": "hooks/parecer.py",
-      "de": "return [None if tipo == \"python\" and LANCA_PROCESSO.search(corpo) and COMANDO_DE_PR.search(corpo) else tipo",
-      "para": "return [tipo if tipo == \"python\" and LANCA_PROCESSO.search(corpo) and COMANDO_DE_PR.search(corpo) else tipo",
+      "de": "None if tipo == \"python\" and LANCA_PROCESSO",
+      "para": "None if False and LANCA_PROCESSO",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
       ]
@@ -26,8 +26,8 @@
       "id": "M11",
       "guarda": "lançar processo sem comando de PR em sequência é isento",
       "arquivo": "hooks/parecer.py",
-      "de": "and COMANDO_DE_PR.search(corpo) else tipo",
-      "para": "and True else tipo",
+      "de": "and COMANDO_DE_PR.search(corpo)",
+      "para": "and True",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
       ]
