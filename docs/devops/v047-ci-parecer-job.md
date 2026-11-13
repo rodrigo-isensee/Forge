@@ -3,7 +3,7 @@ tipo: revisao-devops
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-parecer-job
-commit: bd28180e9129015578029dee765abd206960bac1
+commit: 5aae66f63404cf3b2caa94f84a1ae22304639498
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-12
@@ -33,6 +33,12 @@ Instância que não fez a entrega. `forge-check parecer delta` de 7ba85a05 até 
 - Prova de guarda do yml: `forge-mutante tests/mutantes/v047-ci-parecer-job.json` rodou M1 a M6, todos mortos (ci.yml:674, 550, 552).
 - `python3 -m unittest tests.test_ci_local` 70 OK; `tests.test_catraca` OK. `actionlint` e `zizmor` ausentes (lacuna; o CI do PR os roda); `shellcheck` presente, sem script novo.
 - A1 (recomendado) segue aberto, sem mudança.
+
+## Revalidação por delta (E1.47, head 5aae66f6, branch melhoria/v047-ci-parecer-job)
+Instância que não fez a entrega. `forge-check parecer delta` de bd28180e até 5aae66f6: "delta: nenhum arquivo do domínio mudou" (escopo sem o que veio da base). O intervalo traz só a junção com a develop (#517 a #523: agents/jarvis.md, bin/forge-changelog e outros, fora do escopo da branch) e a correção do campo `pedido:` dos pareceres (E1.41 e E1.42).
+- `git diff bd28180e 5aae66f6 -- .github tests/test_ci_local.py tests/mutantes/v047-ci-parecer-job.json` vazio: o ci.yml e os testes e mutantes da branch não mudaram.
+- `python3 -I -m unittest tests.test_ci_local` OK. `actionlint` e `zizmor` seguem ausentes (lacuna; o CI do PR os roda). Sem PR, sem CI do PR para citar.
+- A1 (recomendado) segue aberto, sem mudança. Nenhum achado bloqueante.
 
 ## Custo e rollback
 Custo: um job a mais por PR (checkout, Python, script leve, no máximo 10 min, normalmente poucos segundos de execução mais ~30 s de preparo), em runner padrão gratuito; sem serviço pago (`R-CUSTO`). O trabalho sai do job de passos, então o total de minutos sobe pouco; medir no checkpoint da release. Rollback: reverter o commit 7ba85a05 devolve o passo ao job de passos e o `needs` do agregador.
