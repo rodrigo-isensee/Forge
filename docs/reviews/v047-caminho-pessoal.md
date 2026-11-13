@@ -11,7 +11,7 @@ data: 2026-11-13
 # Review: v047 (E5.4, caminho pessoal)
 
 ## Achados
-- A1 (recomendado) scripts/verificar-contribuicao.sh:55 · a troca de `/home/runner/` por `@` age em qualquer posição: `/home/home/runner/x` vira `/home@x` e `/Users/home/runner/x` vira `/Users@x`, e o usuário chamado `home` passa; ancorar a troca (início de linha ou caractere que não é de nome antes de `/home`).
+- A1 (recomendado) scripts/verificar-contribuicao.sh:55 · a troca do home do runner por `@` age em qualquer posição: um caminho cujo nome de usuário é `home`, seguido de `runner/`, perde o trecho pessoal e passa; ancorar a troca (início de linha ou caractere que não é de nome antes de `/home`).
 
 ## Sondas
 
