@@ -463,7 +463,8 @@
       "`DEVOLVIDA:`",
       "tag ausente é",
       "vira PR no repositório \\*\\*Forge\\*\\*",
-      "`R-WIP`"
+      "`R-WIP`",
+      "Triagem termina com o `KANBAN.md` atualizado; backlog ou plano dito ao dono sai da contagem do quadro, conferida com a última triagem; plano ou pedido substituído vai para `arquivo/`"
     ],
     "agents/ux-designer.md": [
       "\\*\\*A validação do usuário é o ponto de compromisso\\*\\*",
@@ -681,6 +682,9 @@
     "scripts/jarvis-forge": 2
   },
   "invariantes_motivo_trecho": {
+    "agents/agile-coach.md": {
+      "Triagem termina com o `KANBAN.md` atualizado; backlog ou plano dito ao dono sai da contagem do quadro, conferida com a última triagem; plano ou pedido substituído vai para `arquivo/`": {"regra": "R-DECISAO", "porque": "sem o texto, o agile-coach leva ao dono backlog ou plano velho e o quadro fica fora da triagem (diretriz 20)"}
+    },
     "hooks/_comum.py": {
       "clone_do_forge and tem_manifesto_do_forge\\(self\\.raiz\\)": {"regra": "R-REVIEW", "porque": "sem o texto, um clone do Forge com .forge/versao desliga o parecer pelo hooks_desligados e o merge sem parecer passa (FILA-27 A1)"}
     },

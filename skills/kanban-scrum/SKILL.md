@@ -38,9 +38,10 @@ Políticas:
 - **"Pronto: não reproduz"** (bug sem código, nada a mesclar): o cartão só entra em "Pronto" com a prova no lugar do merge, anotada no cartão ou no parecer: passos tentados, ambiente e versão (sistema, runtime, commit ou release) e a saída copiada da ferramenta. O usuário valida a prova; sem ela o cartão fica em "Aguardando sua validação". Medida: cartões em "Pronto" fora da política = 0.
 - Bloqueio e espera do dono: o cartão vai para "Bloqueado" ou para "Aguardando o dono" com a coluna de origem anotada e volta para ela.
 - Cartão devolvido no code review ou no QA volta para "Em andamento" e conta como retrabalho.
-- **Triagem** termina com o `KANBAN.md` atualizado; `forge-check kanban` recusa destino divergente.
+- **Triagem** termina com o `KANBAN.md` atualizado.
+- Até o `forge-check kanban` recusar destino divergente, o agile-coach confere com a última triagem.
 - Backlog ou plano dito ao dono sai da contagem do quadro, conferida com a última triagem.
-- Divergência se corrige antes; plano substituído vai para `arquivo/`, que não se lê ao retomar.
+- Corrija a divergência antes; plano ou pedido substituído vai para `arquivo/`, não lido ao retomar.
 
 ## Formato do cartão
 Uma linha de tabela por cartão, em cada coluna:
