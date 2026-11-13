@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: melhorias-de-projeto-1311
 branch: melhoria/mp1311-worktree-jarvis
-commit: b94e026e78bc59ad93b242eac87feff073f98bfa
+commit: c61435e6efaa446b3c73bb4504ea6e1cf60ca06c
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -32,3 +32,9 @@ Item 12 do pedido melhorias-de-projeto-1311 (E2.20): o Jarvis cria a worktree na
 - Vermelho antes do verde: com `agents/jarvis.md` e a skill da base (efe7c9e8), `python3 -m unittest tests.test_jarvis_nucleo` dá `FAILED (failures=3)` (os 3 testes novos); no head, `Ran 20 tests ... OK`. Feito por troca manual dos dois arquivos numa cópia, não por `forge-testes --vermelho`.
 - Rodado no head: `tests.test_jarvis_nucleo`, `test_jarvis_n_jar_a`, `test_invariante_gatilho`, `test_skills_v0442`, `test_pesos_teto`, `test_permissao_agentes_md`, `test_aq1_texto`: 16 + 20 OK. Suíte inteira não rodada local (carga); sem PR aberto, não há check-run `bateria`.
 - Mutação: sem ferramenta de mutação para texto de agente/skill; não aplicável (não toca `bin/`, `hooks/`, `.githooks/`).
+
+## Delta até c61435e6 (E2.24)
+- O commit c61435e6 restaura em `skills/briefs-e-conferencia/SKILL.md` a frase "Leia a skill `checagem-do-brief`" e tira ", selado como qualquer outro" do brief de volta (já dito no passo 4). Nenhuma regra com ID saiu.
+- Vermelho antes do verde: com a skill do b94e026e, `python3 -m unittest tests.test_modelos_projeto.ChecagemDoBrief` dá `Ran 7 tests ... FAILED (failures=1)`; no head, `OK`. Troca manual do arquivo numa cópia.
+- No head: `ChecagemDoBrief`, `test_jarvis_nucleo`, `test_pesos_teto`, `test_invariante_gatilho`, `test_skills_v0442`: `Ran 34 tests ... OK`. Suíte inteira não rodada local; sem check-run `bateria` consultado.
+- Mutação: texto de skill, não aplicável. A1 (recomendado) segue aberto, sem bloqueio.
