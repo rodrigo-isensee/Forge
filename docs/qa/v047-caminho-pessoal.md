@@ -17,15 +17,15 @@ data: 2026-11-13
 Branch `melhoria/v047-caminho-pessoal`, head `700913201442a8d57dd0e021ca72d3944b7fa63f`, base `9b2c6474`. Sem PR: rodei só o que é afetado (`R-QA`).
 
 ## Achados
-- A1 (recomendado) scripts/verificar-contribuicao.sh:55 · a troca de /home/runner/ por @ apaga a barra inicial: `cd /home/runner/home/<nome>/x` e `/home/runner/Users/<nome>/x` passam (rc 0, reproduzido). Troque por um marcador com barra, como `/@/`. Baixo, vira cartão.
+- A1 (recomendado) scripts/verificar-contribuicao.sh:55 · a troca do home do runner por @ apaga a barra inicial: um caminho pessoal de home ou Users aninhado depois do home do runner passa (rc 0, reproduzido). Troque por marcador com barra. Baixo, vira cartão.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| E5.4-a: home do runner do CI não reprova | `test_home_do_runner_passa_mas_nome_que_o_contem_ou_o_segue_falha` (linha `/home/runner/work/x`) | segmento exato runner/ | passou |
-| E5.4-b: nome que só começa com runner segue barrado | mesmo teste (`/home/runner2/projeto`) | logo fora do limite (runner2) | passou |
-| E5.4-c: outro caminho pessoal na mesma linha segue barrado | mesmo teste (`/home/runner/work /home/<nome>/x`) | duas ocorrências na linha | passou |
-| E5.4-d: `/Users/runner/` segue barrado | mesmo teste | outra raiz | passou |
+| E5.4-a: home do runner do CI não reprova | `test_home_do_runner_passa_mas_nome_que_o_contem_ou_o_segue_falha` (linha com o home do runner) | segmento exato runner/ | passou |
+| E5.4-b: nome que só começa com runner segue barrado | mesmo teste (runner2) | logo fora do limite | passou |
+| E5.4-c: outro caminho pessoal na mesma linha segue barrado | mesmo teste (home do runner e depois home de outro nome) | duas ocorrências na linha | passou |
+| E5.4-d: raiz de macOS com nome runner segue barrada | mesmo teste | outra raiz | passou |
 | E5.4-e: `/root/` e `$HOME` não são acusados | mesmo teste | n/a | passou |
 | E5.4-f: os 4 caminhos que a base já recusava seguem recusados | `VerificarContribuicao` inteira (15 testes) | n/a | passou |
 
