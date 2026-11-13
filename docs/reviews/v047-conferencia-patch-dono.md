@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conferencia-patch-dono
-commit: 69bd48632b1bccfb477b3f328bce8feaa8154aa5
+commit: c793d6eae3908b56c6df2756c3e8dcdaf308d9c9
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-12
@@ -29,3 +29,11 @@ Verificação (regra 5 de `docs/economia-de-tokens.md`, sem rerrodar a suíte; n
 - `bin/forge-mutante --processos 1` nas três specs (uma por vez; juntas a ferramenta recusa, "as specs são de pedidos diferentes"): 8/8, 8/8 e 7/7 `morreu`.
 - Sonda do A1: com as duas cláusulas trocadas por `or False`, `test_declaracao_que_nao_isenta` deu `OK`; arquivo restaurado, `git status` limpo.
 - Commit `69bd4863` em Conventional Commits, em português, um comportamento; fragmento `changelog.d/v047-conferencia-patch-dono.md` presente. O merge espera o escopo-ponto no mesmo `bin/forge-check` (diretriz 11 do pedido), o que é da integração, não deste review.
+
+## Revalidação por delta (E1.30, instância que não fez a entrega)
+Delta lido: `forge-check parecer delta docs/reviews/v047-conferencia-patch-dono.md`, intervalo `69bd4863..c793d6ea` (junção com #517 e #522; no domínio só `bin/forge-check` e `tests/test_conf_escopo.py`). Os achados A1 a A4 seguem recomendados, sem mudança.
+- Ordem dos ramos em `linhas_de_entrega` (`bin/forge-check:2740-2746`): parecer, merge-integração, anexo implícito, anexo do portão (`etapa == "codigo"`, #517) e, no último `else`, `isencao_do_dono` (patch do dono) antes de `escopo_resolvido`; o anexo do portão vem antes da isenção, como o brief pede, e os dois comportamentos ficam.
+- P1 a P12 (`docs/security/v047-e1-ameacas.md`): a junção não tocou `patches_do_dono` nem `isencao_do_dono`; a classe `PatchDoDono` (8 casos, que cobrem as recusas e a linha de P12) roda verde no head.
+- `python3 -m unittest test_conf_escopo` (de `tests/`, head `c793d6ea`): `Ran 24 tests … OK` (19 anteriores mais `PareceresPeloPedido` e os de #517). Sem PR nem CI; carga ~11 em 12 CPUs, só o módulo afetado.
+- Veredito mantido: **aprovado** no head `c793d6ea`.
+
