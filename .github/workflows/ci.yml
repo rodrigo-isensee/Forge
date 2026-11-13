@@ -429,6 +429,12 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      # CI-ATALHO-COMMIT-SO-PARECER (v047 E1.75, A2 do review da E1.4): o gate lê o check "bateria" (o agregador), não os jobs da
+      # suíte, e fica assim de propósito. Custo do caso que o A2 aponta: com o parecer faltando o agregador está vermelho no commit
+      # anterior, então o commit que traz o parecer roda a suíte uma vez a mais (minutos, nunca um merge indevido: o agregador do
+      # commit novo ainda exige o job de pareceres e a suíte verde). Ler os jobs da suíte pediria confiar em partes "skipped" de
+      # commits só de parecer encadeados (indistinguíveis de um pulo por falha) e atrelar o gate aos nomes da matriz; o agregador é
+      # o único check que já reúne os dois e falha fechado. O gate tem o hash do `run` fixado em tests/test_ci_local.py.
       - name: Gate (commit só de parecer, com a bateria verde no commit anterior, pula os passos pesados)
         id: gate
         env:

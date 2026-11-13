@@ -388,6 +388,16 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
             with self.subTest(var):
                 self.assertNotEqual(self.agregador("success", "pull_request", **{var: "failure"}), 0)
 
+    def test_gate_do_commit_so_de_parecer_le_o_agregador_e_registra_o_motivo(self):
+        """CI-ATALHO-COMMIT-SO-PARECER (A2 da E1.4): sem defeito, o gate segue no agregador `bateria`; o motivo fica no ci.yml."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        jobs = {j["id"]: j for j in ci.ler_jobs(texto)}
+        self.assertEqual(jobs["agregador"]["nome"], "bateria")
+        (gate,) = [p for p in jobs["bateria"]["passos"] if p["id"] == "gate"]
+        self.assertIn('select(.name == "bateria" and .app.slug == "github-actions")', gate["run"])
+        self.assertIn("CI-ATALHO-COMMIT-SO-PARECER", texto)
+        self.assertIn("o gate lê o check \"bateria\" (o agregador), não os jobs da", texto)
+
     def test_job_pareceres_so_roda_em_pr_e_sem_needs(self):
         """A guarda do job (:550): sem `if:` de PR ele rodaria em push; com needs poderia ser pulado em PR."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
