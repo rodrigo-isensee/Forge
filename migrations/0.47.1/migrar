@@ -1,15 +1,31 @@
 #!/usr/bin/env python3
 """Migração 0.47.1 (MP1311, item 9): cria docs/security/_modelo.md no projeto quando falta, porque o papel de segurança
-e a skill cyber-security citam esse modelo (o forge-init só o copia em projeto novo). Não sobrescreve o que existe.
+e a skill cyber-security citam esse modelo (o forge-init só o copia em projeto novo). Não sobrescreve o que existe e
+não segue link simbólico: docs, docs/security ou o modelo como link é recusado (saída 1), e o arquivo nasce com O_EXCL|O_NOFOLLOW.
 Uso: migrar DIRETORIO_DO_PROJETO. Idempotente."""
-import shutil
+import os
 import sys
 from pathlib import Path
 
 REL = "docs/security/_modelo.md"
 raiz_forge = Path(__file__).resolve().parents[2]
-alvo = Path(sys.argv[1]).resolve() / REL
-if not alvo.exists():
+projeto = Path(sys.argv[1]).resolve()
+alvo = projeto / REL
+
+
+def recusa(motivo):
+    print(f"recusado {REL}: {motivo}", file=sys.stderr)
+    sys.exit(1)
+
+
+for pasta in (projeto / "docs", alvo.parent):
+    if os.path.islink(pasta):
+        recusa(f"{pasta.relative_to(projeto)} é link simbólico")
+if os.path.islink(alvo):
+    recusa("o arquivo é link simbólico")
+if not os.path.lexists(alvo):
     alvo.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(raiz_forge / "templates/projeto" / REL, alvo)
+    fd = os.open(alvo, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
+    with os.fdopen(fd, "wb") as saida:
+        saida.write((raiz_forge / "templates/projeto" / REL).read_bytes())
     print(f"criado {REL}")

@@ -1207,6 +1207,28 @@ class ModeloDeSegurancaNoProjeto(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual((self.tmp / self.MODELO).read_text(encoding="utf-8"), "meu modelo de segurança\n")
 
+    def migrar(self):
+        return subprocess.run([sys.executable, "-I", str(RAIZ / "migrations/0.47.1/migrar"), str(self.tmp)],
+                              env=ambiente_limpo(), capture_output=True, text=True)
+
+    def test_link_pendurado_no_modelo_nao_cria_arquivo_fora_do_projeto(self):
+        fora = Path(tempfile.mkdtemp(prefix="forge-modelo-fora-"))
+        self.addCleanup(shutil.rmtree, fora, True)
+        (self.tmp / self.MODELO).parent.mkdir(parents=True)
+        (self.tmp / self.MODELO).symlink_to(fora / "alvo.md")
+        r = self.migrar()
+        self.assertEqual((r.returncode, (fora / "alvo.md").exists()), (1, False), r.stderr)
+        self.assertIn("o arquivo é link", r.stderr)
+
+    def test_pasta_security_como_link_para_fora_nao_cria_arquivo_fora_do_projeto(self):
+        fora = Path(tempfile.mkdtemp(prefix="forge-modelo-fora-"))
+        self.addCleanup(shutil.rmtree, fora, True)
+        (self.tmp / "docs").mkdir()
+        (self.tmp / "docs/security").symlink_to(fora, target_is_directory=True)
+        r = self.migrar()
+        self.assertEqual((r.returncode, list(fora.iterdir())), (1, []), r.stderr)
+        self.assertIn("link simbólico", r.stderr)
+
     def test_migracao_repetida_nao_muda_nada(self):
         self.projeto_existente()
         migrar = [sys.executable, str(RAIZ / "migrations/0.47.1/migrar"), str(self.tmp)]

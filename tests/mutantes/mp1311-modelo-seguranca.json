@@ -1,0 +1,57 @@
+{
+  "pedido": "mp1311-modelo-seguranca",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "docs/security (ou docs) como link e recusado",
+      "arquivo": "migrations/0.47.1/migrar",
+      "de": "if os.path.islink(pasta):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge.ModeloDeSegurancaNoProjeto.test_pasta_security_como_link_para_fora_nao_cria_arquivo_fora_do_projeto"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o modelo como link (inclusive pendurado) e recusado",
+      "arquivo": "migrations/0.47.1/migrar",
+      "de": "if os.path.islink(alvo):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge.ModeloDeSegurancaNoProjeto.test_link_pendurado_no_modelo_nao_cria_arquivo_fora_do_projeto"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "so cria quando nada existe no caminho (lexists, nao exists)",
+      "arquivo": "migrations/0.47.1/migrar",
+      "de": "if not os.path.lexists(alvo):",
+      "para": "if not os.path.exists(alvo):",
+      "testes": [
+        "tests.test_forge.ModeloDeSegurancaNoProjeto.test_link_pendurado_no_modelo_nao_cria_arquivo_fora_do_projeto"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o arquivo nasce sem seguir link (O_NOFOLLOW)",
+      "arquivo": "migrations/0.47.1/migrar",
+      "de": "os.O_EXCL | os.O_NOFOLLOW",
+      "para": "os.O_EXCL",
+      "testes": [
+        "tests.test_forge.ModeloDeSegurancaNoProjeto.test_link_pendurado_no_modelo_nao_cria_arquivo_fora_do_projeto"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a recusa sai com codigo 1",
+      "arquivo": "migrations/0.47.1/migrar",
+      "de": "sys.exit(1)",
+      "para": "sys.exit(0)",
+      "testes": [
+        "tests.test_forge.ModeloDeSegurancaNoProjeto.test_link_pendurado_no_modelo_nao_cria_arquivo_fora_do_projeto",
+        "tests.test_forge.ModeloDeSegurancaNoProjeto.test_pasta_security_como_link_para_fora_nao_cria_arquivo_fora_do_projeto"
+      ]
+    }
+  ]
+}
