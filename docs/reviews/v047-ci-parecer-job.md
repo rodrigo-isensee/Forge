@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-parecer-job
-commit: 5aae66f63404cf3b2caa94f84a1ae22304639498
+commit: 78ac37d334a414a590485b4dfe0525fdec0c0251
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-12
@@ -54,3 +54,11 @@ Delta lido: `forge-check parecer delta docs/reviews/v047-ci-parecer-job.md`, int
 
 ## Parecer (E1.44)
 Aprovado no head 5aae66f6. Nenhum achado novo; A1 segue resolvido e A2 segue recomendado, aberto.
+
+## Revalidação (E1.62, delta 5aae66f6..78ac37d3)
+Delta lido: `forge-check parecer delta docs/reviews/v047-ci-parecer-job.md`, intervalo 5aae66f6..78ac37d3; no domínio só `agents/devops-engineer.md` (1 linha, o item 1 de Responsabilidades). Sem mudança em código, ci.yml nem testes.
+- As três condições do J11 seguem no texto: pareceres em job próprio, no agregador e fora do `needs` da suíte; em PR, pulado ou cancelado falha (exige `success`, o que deixa `skipped` só para fora de PR); agregador sem `!contains(failure)`. A divisão de dono dos checks do merge (`tech-lead`, `R-FLUXO`) ficou. Saíram só a lista de itens do pipeline (permissions, SHA, concurrency, timeout, cache), que a skill `ci-cd` traz nos itens 1, 2, 5 e 6, e a frase do motivo; os `pronto.md` das stacks mantêm o motivo.
+- Orçamento: 5052 caracteres (o `wc -c` dá 5158 bytes por causa dos acentos), como o brief declara. `tests.test_orcamento_instrucao` e `tests.test_catraca.Workflows` no head, ambiente limpo: Ran 14 tests, OK. Sem PR, sem CI para citar.
+
+## Parecer (E1.62)
+Aprovado no head 78ac37d3. Nenhuma regra nem condição do J11 se perdeu; nenhum achado novo. A1 segue resolvido e A2 segue recomendado, aberto.
