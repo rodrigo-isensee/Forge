@@ -32,6 +32,8 @@ Formato do fixture:
               `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), stderr_sem ([trechos] que a recusa não pode ter), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
               sem_caminho ([caminho]: não existem; {tmp} vale)
+  resultado_do_pr  {"pedido": p, "base": b} depois dos passos: o `cmd_pr` do pedido no HEAD, sem violação (o teste falha se houver),
+              e o resultado gravado pela função do `forge-check pr` (PR-HOOK-PRAZO: o `gh pr create` só o lê)
 """
 import concurrent.futures
 import contextlib
@@ -515,6 +517,8 @@ class Fixture:
                     alvo.parent.mkdir(parents=True, exist_ok=True)
                     with open(alvo, modo, encoding="utf-8") as f:
                         f.write(substituir(texto(conteudo), self.mapa, 0))
+        if "resultado_do_pr" in self.dados:
+            gravar_resultado_aprovado(raiz, **self.dados["resultado_do_pr"])
 
     def repositorio(self, pasta, conf, mapa):
         """Outro repositório git do fixture (`repos`): arquivos, um commit e os remotos."""
@@ -532,6 +536,21 @@ class Fixture:
             p = raiz / rel
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(substituir(texto(conteudo), mapa, 0), encoding="utf-8")
+
+
+def gravar_resultado_aprovado(raiz, pedido, base):
+    """O que o `forge-check pr <pedido> --base <base>` aprovado grava no HEAD de `raiz`, com o `cmd_pr` (a conferência dos pareceres
+    que o hook fazia) sem violação; a conferência de entrega do CLI fica fora (os fixtures não têm pedido)."""
+    fc = modulos_dos_hooks()[0].forge_check()
+    prazo, fc.GIT_TIMEOUT_S = fc.GIT_TIMEOUT_S, PRAZO_GIT_NOS_TESTES
+    try:
+        resolvida = fc.base_do_delta(raiz, base)[0]
+        violacoes = fc.cmd_pr(raiz, pedido, None, resolvida)
+        if violacoes:
+            raise AssertionError(f"resultado_do_pr: o cmd_pr reprova: {violacoes[0]}")
+        fc.gravar_resultado_do_pr(raiz, pedido, None, base, violacoes)
+    finally:
+        fc.GIT_TIMEOUT_S = prazo
 
 
 def montar_proc(tmp, proc):

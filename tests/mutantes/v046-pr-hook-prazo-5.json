@@ -1,0 +1,78 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M28",
+      "guarda": "PR-HOOK-PRAZO: ler: a base dada vira base_sha",
+      "arquivo": "bin/forge-check",
+      "de": "    base_sha = sha_do_commit(raiz, base) if base else None\n    nome_da_base",
+      "para": "    base_sha = sha_do_commit(raiz, base) if not base else None\n    nome_da_base",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_pr_aprovado_grava_e_o_hook_libera_so_lendo"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "PR-HOOK-PRAZO: ler: sem base pedida, o comando sai sem --base (nome)",
+      "arquivo": "bin/forge-check",
+      "de": "(pedida or \"\")",
+      "para": "(pedida or \"x\")",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_ref_ou_base_que_nao_resolvem_sao_ausentes"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "PR-HOOK-PRAZO: ler: sem base pedida, o comando sai sem --base",
+      "arquivo": "bin/forge-check",
+      "de": "if nome_da_base else \"\"",
+      "para": "if True else \"\"",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_ref_ou_base_que_nao_resolvem_sao_ausentes"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "PR-HOOK-PRAZO: ler: head que não resolve sai como ?",
+      "arquivo": "bin/forge-check",
+      "de": "{(head or '?')[:7]} da branch",
+      "para": "{(head or '!')[:7]} da branch",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_ref_ou_base_que_nao_resolvem_sao_ausentes"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "PR-HOOK-PRAZO: ler: a pasta existente é lida",
+      "arquivo": "bin/forge-check",
+      "de": "for p in sorted(pasta.glob(\"*.json\")) if pasta.is_dir() else []",
+      "para": "for p in sorted(pasta.glob(\"*.json\")) if not pasta.is_dir() else []",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_pr_aprovado_grava_e_o_hook_libera_so_lendo"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "PR-HOOK-PRAZO: ler: pedido da branch sem registro não derruba",
+      "arquivo": "bin/forge-check",
+      "de": "r = registros.get(pedido) or {}",
+      "para": "r = registros.get(pedido)",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_pedido_da_branch_sem_resultado_recusa"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "base_sha or ''",
+      "motivo": "só compõe o nome do arquivo gravado; a leitura percorre a pasta e casa pelo conteúdo (head, branch, base_sha), então None e vazio dão o mesmo veredito"
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "'veja a saída dele'",
+      "motivo": "texto de reserva do motivo: o gravar_resultado_do_pr sempre grava a violação no reprovado, e o veredito (recusa) não muda sem ela"
+    }
+  ]
+}
