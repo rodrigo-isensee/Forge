@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v046
 branch: melhoria/v046-textos-jarvis
-commit: afdaa3abf9e27dd195380c1fe01ac631082b4198
+commit: cf172a29279f27ac29e1a4cfe843efd35057ea51
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-12
@@ -13,6 +13,12 @@ data: 2026-11-12
 Diff revisado na 1ª rodada: `origin/develop...be5bb7ee` (base a1318e88), só texto: `agents/jarvis.md`, `docs/regras/README.md` (parágrafo `R-WIP`), `skills/trabalho-em-paralelo/SKILL.md` e o fragmento `changelog.d/v046-textos-jarvis.md`. Classe C.
 
 Revalidação por delta (E21.7): `forge-check parecer delta` de `be5bb7ee..afdaa3ab` (volta E21.5). No domínio: `docs/regras/README.md` e `skills/trabalho-em-paralelo/SKILL.md`; fora: `changelog.d/v046-textos-jarvis.md` e `tests/test_jarvis_nucleo.py` (lidos mesmo assim). `agents/jarvis.md` sem mudança no delta.
+
+Revalidação por delta (E21.11): `forge-check parecer delta` de `afdaa3ab..cf172a29` (volta E21.9; escopo sem o que veio da base, que traz o merge da develop com #518 a #520). No domínio: `skills/trabalho-em-paralelo/SKILL.md`; fora: `tests/test_reval_delta.py` (lido mesmo assim).
+- SKILL.md:3 (description): "esperar hora ou estado" virou "esperar"; só metadado de descoberta, nenhuma trava.
+- SKILL.md:10: "(serializam)" devolvido; a série por arquivo, o lote por arquivo e o relançamento do portão só depois de conferir que o anterior não roda mais ficam como estavam. Nenhuma trava afrouxa.
+- `tests/test_reval_delta.py:135`: uma linha nova em `CITACOES_CONHECIDAS`, `("tests/test_jarvis_nucleo.py", "README.md"): (1, "teste-le")`; confere com `tests/test_jarvis_nucleo.py:163`, que lê a linha da `R-WIP` em `docs/regras/README.md` (1 citação, só leitura). Não amplia curinga nem afrouxa a checagem (d); `python3 -m unittest tests.test_reval_delta`: 10 testes, OK.
+Sem achado novo; head `cf172a29`.
 
 ## Gatilhos
 Texto de regra e do Jarvis que governa travas da fábrica (`R-WIP`, `R-TETO`, `R-DECISAO`, `R-MAIN`, `R-CONFORMIDADE`). Nenhum código, hook, workflow ou ferramenta mudou; as travas que barram de fato (hooks, `forge-check`, CI) ficam como estão.
