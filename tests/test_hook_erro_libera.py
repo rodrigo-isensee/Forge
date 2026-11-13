@@ -12,6 +12,7 @@ import sys
 import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RAIZ, ambiente_limpo, minimo  # noqa: E402
@@ -40,7 +41,7 @@ class HookErroLibera(unittest.TestCase):
 
     def test_fixtures_do_pedido(self):
         """E1, E2, E4 a E6, E8 e os legítimos com erro forçado: os fixtures `errointerno-*` dos dois hooks."""
-        self.lote(minimo([Fixture(p) for p in sorted(FIXTURES.glob("*/errointerno-*.json"))], 22, "fixtures errointerno-*"))
+        self.lote(minimo([Fixture(p) for p in sorted(FIXTURES.glob("*/errointerno-*.json"))], 24, "fixtures errointerno-*"))
 
     def test_fixtures_do_prazo(self):
         """E4 e o legítimo do prazo (C5): só os fixtures de prazo forçado."""
@@ -48,7 +49,7 @@ class HookErroLibera(unittest.TestCase):
 
     def test_fixtures_do_agentes(self):
         """E8 e o estado corrompido (C7): só os fixtures do `agentes`."""
-        self.lote(minimo([Fixture(p) for p in sorted(FIXTURES.glob("agentes/errointerno-*.json"))], 6, "fixtures do agentes"))
+        self.lote(minimo([Fixture(p) for p in sorted(FIXTURES.glob("agentes/errointerno-*.json"))], 7, "fixtures do agentes"))
 
     def test_cada_entrada_da_politica_com_erro_forcado_recusa(self):
         """E3 (C2): para cada entrada de `caminhos` do JSON real, `cp x <entrada>` com erro forçado em `Guarda.bash` recusa."""
@@ -72,8 +73,9 @@ class HookErroLibera(unittest.TestCase):
     def test_politica_ilegivel_ou_sem_caminhos_marca_tudo(self):
         """C2: sem os termos da política, qualquer linha conta como marcada para a falha fechada."""
         _, conformidade, _ = modulos_dos_hooks()
-        self.assertIsNone(conformidade.termos_da_politica({}))
-        self.assertIsNone(conformidade.termos_da_politica({"caminhos": [{"caminho": "/"}]}))
+        for pol in ({}, [], {"caminhos": []}, {"caminhos": ["x"]}, {"caminhos": [{"caminho": "/"}]}):
+            with self.subTest(pol=pol):
+                self.assertIsNone(conformidade.termos_da_politica(pol))
         hook = types.SimpleNamespace(entrada={"tool_name": "Bash"})
         for arquivo in (RAIZ / "nao-existe.json", HOOKS / "hooks.json"):
             with self.subTest(arquivo=arquivo.name):
@@ -83,14 +85,40 @@ class HookErroLibera(unittest.TestCase):
         self.assertFalse(marcador.marca(hook, ["git status"]))
 
     def test_write_fora_da_raiz_em_caminho_da_politica_marca(self):
-        """C4: no Write, o caminho resolvido casando a política (`~/.claude.json`, fora da raiz) marca; fora dela, não."""
+        """C4: no Write, o caminho resolvido dentro da raiz ou casando a política (`~/.claude.json`, fora da raiz) marca;
+        fora das duas, não. Sem raiz declarada, a raiz é a pasta corrente; caminho vazio marca."""
         _, conformidade, _ = modulos_dos_hooks()
         marcador = conformidade.MarcadorDaPolitica(conformidade.CRITICO, POLITICA)
         tmp = self._pasta_temporaria()
         hook = types.SimpleNamespace(entrada={"tool_name": "Write"}, cwd=lambda: tmp)
-        self.assertTrue(marcador.arquivo_marcado(hook, str(Path.home() / ".claude.json"), marcador.termos()))
-        self.assertFalse(marcador.arquivo_marcado(hook, "/nao-existe-forge/x.md", marcador.termos()))
-        self.assertTrue(marcador.arquivo_marcado(hook, "", marcador.termos()), "caminho vazio marca")
+        raiz = tmp / "raiz"
+        with mock.patch.object(conformidade, "raiz_declarada", return_value=raiz):
+            self.assertTrue(marcador.arquivo_marcado(hook, str(Path.home() / ".claude.json"), marcador.termos()))
+            self.assertTrue(marcador.arquivo_marcado(hook, str(raiz / "src" / "app.js"), marcador.termos()))
+            self.assertFalse(marcador.arquivo_marcado(hook, "/nao-existe-forge/x.md", marcador.termos()))
+            self.assertFalse(marcador.arquivo_marcado(hook, "x.md", marcador.termos()), "na pasta corrente, fora da raiz")
+            self.assertTrue(marcador.arquivo_marcado(hook, "", marcador.termos()), "caminho vazio marca")
+        with mock.patch.object(conformidade, "raiz_declarada", return_value=None):
+            self.assertTrue(marcador.arquivo_marcado(hook, "x.md", marcador.termos()), "sem raiz: a pasta corrente")
+
+    def test_marcador_que_responde_decide(self):
+        """O `marcado` usa a resposta do marcador da política (`marca`), não a busca do texto."""
+        _comum, _, _ = modulos_dos_hooks()
+        for resposta in (False, True):
+            with self.subTest(resposta=resposta):
+                hook = _comum.Hook("conformidade")
+                hook.entrada = {"tool_name": "Bash", "tool_input": {"command": "git push --force"}}
+                self.assertIs(_comum.marcado(hook, types.SimpleNamespace(marca=lambda *_a, r=resposta: r), ""), resposta)
+
+    def test_catraca_compara_o_script_sem_as_opcoes_do_interpretador(self):
+        """C6: `-s -E` antes do script não conta como hook removido; trocar o script conta."""
+        import catraca
+
+        def config(*args):
+            return json.dumps({"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [{"command": "python3", "args": list(args)}]}]}})
+        antes = catraca.chaves_de_hooks(config("${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"))
+        self.assertEqual(antes - catraca.chaves_de_hooks(config("-s", "-E", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py")), set())
+        self.assertTrue(antes - catraca.chaves_de_hooks(config("-s", "-E", "${CLAUDE_PLUGIN_ROOT}/hooks/outro.py")))
 
     def test_erro_do_marcador_marca(self):
         """O erro do próprio marcador (qualquer exceção, não só `RuntimeError`) conta como marcado: a falha fecha."""

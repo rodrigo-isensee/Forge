@@ -2834,7 +2834,7 @@ def termos_da_politica(pol):
     if not isinstance(caminhos, list) or not caminhos:
         return None
     home = os.path.expanduser("~")
-    homes = ["~", "$HOME", "${HOME}", *([home, os.path.realpath(home)] if home != "~" else [])]
+    homes = dict.fromkeys(("~", "$HOME", "${HOME}", home, os.path.realpath(home)))  # sem home, o termo a mais só marca a mais
     padroes = []
     for entrada in caminhos:
         caminho = entrada.get("caminho") if isinstance(entrada, dict) else None

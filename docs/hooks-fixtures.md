@@ -2,14 +2,14 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2446 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2448 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
-| `agentes` | 77 | 43 | 34 | 27 |
-| `conformidade` | 1798 | 1323 | 475 | 89 |
+| `agentes` | 78 | 43 | 35 | 27 |
+| `conformidade` | 1799 | 1324 | 475 | 89 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 25 | 10 | 15 | 12 |
 | `parecer` | 463 | 357 | 106 | 24 |
@@ -22,8 +22,8 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2446 fixtures) roda em `tests/test
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | `carga-*` | 7 | 5 | 2 | `R-TETO` | — | Load 5 está abaixo de 80% de 8 núcleos (6,4): um ativo libera. |
+| `errointerno-*` | 7 | 5 | 2 | `R-BRIEF` | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA (C7): erro ao fixar a pasta do estado não leva o R-BRIEF junto: o especialista sem brief segue recusado. |
 | `pid-*` | 7 | 7 | 0 | — | `C1-1` | C1-1/C1-2: pid acima do pid_max mantém o registro (falha para o lado seguro) e o hook segue barrando no teto. |
-| `errointerno-*` | 6 | 5 | 1 | `R-BRIEF` | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA (C7): erro ao fixar a pasta do estado não leva o R-BRIEF junto: o especialista sem brief segue recusado. |
 | `nproc-*` | 6 | 3 | 3 | — | — | 16 núcleos, load 3: teto 16; quinze ativos liberam (o teto segue o hardware). |
 | `inicio-*` | 5 | 0 | 5 | — | `C1-5` | C1-5: o SubagentStart da mesma sessão confirma a reserva e ela mantém o pid. |
 | `piso-*` | 5 | 3 | 2 | — | — | `piso_memoria_gb` 3 em .forge/config.json: 2,5 GB livres bloqueia. |
@@ -83,8 +83,8 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2446 fixtures) roda em `tests/test
 | `pr-*` | 21 | 17 | 4 | `R-CONFORMIDADE`, `R-MAIN` | `FILA-22`, `QA` | Dev criando PR: bloqueia. |
 | `aq-*` | 18 | 13 | 5 | — | `AQ` | AQ barrado em agents/ de uma worktree fora da raiz. |
 | `autoria-*` | 17 | 0 | 17 | — | — | Redirecionamento para docs/qa/ pelo Bash também registra. |
+| `errointerno-*` | 17 | 11 | 6 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA (E5, C3): erro interno com alvo opaco (`$(...)`) numa linha que escreve recusa, sem depender do nome do caminho. |
 | `desenho-*` | 16 | 7 | 9 | — | `E5-0` | E5-0 (Q-B, PAR-P2): sonda: docs/architecture/ de projeto fica sem dono até DESENHO-PROJETO-DONO; o devops grava a seção CI/CD do plano. |
-| `errointerno-*` | 16 | 10 | 6 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA (E5, C3): erro interno com alvo opaco (`$(...)`) numa linha que escreve recusa, sem depender do nome do caminho. |
 | `parecer-*` | 16 | 12 | 4 | `R-CONFORMIDADE` | `QA` | dev escrevendo parecer em docs/devops/: bloqueia. |
 | `subst-*` | 16 | 14 | 2 | `R-VERIFY`, `R-MAIN` | `HEAD` | Caminho colado a $(...): o resto é conferido também a partir da raiz (na dúvida, recusa). |
 | `flag-*` | 15 | 13 | 2 | `R-VERIFY` | — | Flag proibida: git -c core.hooksPath=/dev/null push origin feature/x |
