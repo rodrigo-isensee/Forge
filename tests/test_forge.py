@@ -6876,6 +6876,15 @@ class TextosAQ3Stack(unittest.TestCase):
         self.assertIn("- Contrato back-front: o esquema", self.pronto)
         self.assertNotIn("esse é o contrato que o agente", texto)
 
+    def test_vermelho_em_typescript_tem_mapa_e_veredito_explicito(self):
+        # item 10 do pedido melhorias-de-projeto-1311: o forge-testes --vermelho só mapeia Python; o TS não pode ficar sem veredito
+        secao = self.pronto.split("## Veredito do vermelho em TypeScript", 1)
+        self.assertEqual(len(secao), 2, "falta a seção do veredito do vermelho em TypeScript")
+        corpo = secao[1].split("\n## ", 1)[0]
+        for trecho in ("`<nome>.test.ts`", "`<nome>.test.tsx`", "`__tests__/<nome>.test.ts`", "`pnpm vitest run <teste>`",
+                       "veredito: não verificável", "nunca termina sem veredito"):
+            self.assertIn(trecho, corpo)
+
     def test_comando_sugerido_usa_o_gerenciador_do_monorepo(self):
         self.assertIn("Comando sugerido: `pnpm run pronto`", self.pronto)
         self.assertNotRegex(self.pronto, r"\bnpm run")
