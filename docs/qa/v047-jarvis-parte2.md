@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-jarvis-parte2
-commit: 17c66fb251218a7656412fb5f48ff591a4f7b241
+commit: cfeff5ef7c54fab62418a34e085d316623d72581
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -50,3 +50,11 @@ Qual veredito vale: o de 17c66fb2 (este, APROVADO). A aprovação anterior (1c3e
 - skills/trabalho-em-paralelo/SKILL.md:10: volta "(serializam)", só redação; kanban-scrum: volta a linha dos dois relógios (D-4, `relogios:`).
 - Execução (sem PR aberto, só afetados): `python3 -m unittest tests.test_forge.DiretrizesDoDonoNaRWip tests.test_reval_delta tests.test_metricas_texto tests.test_jarvis_nucleo tests.test_forge.RegrasInviolaveis tests.test_forge.AntiDuplicacao tests.test_forge.RegrasComId` -> `Ran 39 tests ... OK`. A suíte inteira não foi rerrodada local (carga ~11 a 14 em 12 CPUs, diretriz 15): na rodada anterior (65cf916b) o único FAIL de 583 era este teste, e o delta toca só esta asserção e duas linhas de skill; a suíte inteira vale pelo CI do PR, ainda não aberto.
 - Vermelho/mutação: sem teste novo de regra; o ajuste da asserção foi visto falhar em 65cf916b (rodadas do parecer anterior) e passar agora.
+
+## Revalidação por delta (17c66fb2..cfeff5ef, E3.33)
+Veredito: APROVADO em cfeff5ef (o head da branch, 99d8b5e1, só soma o parecer de review). Sem achado aberto.
+Domínio do delta próprio (9762de93 e cfeff5ef; o resto do intervalo é merge da develop): `docs/regras/README.md`, `skills/kanban-scrum/SKILL.md`, `tests/test_forge.py`.
+- Diretriz 25 (nenhuma regra antiga saiu nem foi resumida): README, "sem junção de frentes" virou "sem juntar frentes (`R-FLUXO`)", só redação; PR próprio e o ID seguem. kanban-scrum: duas linhas viram uma, com as mesmas duas regras (Bloqueado/Aguardando com origem anotada e `R-WIP`; devolvido volta a "Em andamento"). Nada normativo removido.
+- tests/test_forge.py: o trecho esperado da R-WIP acompanha o texto novo (4 linhas); nenhuma asserção removida ou afrouxada.
+- Execução (PR #541 aberto, bateria pendente no momento; só afetados): `DiretrizesDoDonoNaRWip` Ran 2 OK; `RegrasInviolaveis`, `AntiDuplicacao`, `RegrasComId`, `Neutralidade*` e link Ran 16 OK; `test_reval_delta`, `test_metricas_texto`, `test_jarvis_nucleo` Ran 29 OK; `forge-check regras`: 12 em dia, 0 com aviso. A suíte inteira vale pelo check-run `bateria` do PR no mesmo sha.
+- Vermelho/mutação: sem teste novo de regra; a asserção mudou só de redação e o trecho antigo não existe mais no texto.
