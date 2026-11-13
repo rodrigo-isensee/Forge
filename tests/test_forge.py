@@ -6882,7 +6882,9 @@ class TextosAQ3Stack(unittest.TestCase):
         self.assertEqual(len(secao), 2, "falta a seção do veredito do vermelho em TypeScript")
         corpo = secao[1].split("\n## ", 1)[0]
         for trecho in ("`<nome>.test.ts`", "`<nome>.test.tsx`", "`__tests__/<nome>.test.ts`", "`pnpm vitest run <teste>`",
-                       "veredito: não verificável", "nunca termina sem veredito"):
+                       "veredito: não verificável", "nunca termina sem veredito",
+                       "só se ele criar entrada", "faça sempre o `git stash pop` em seguida, falhe o teste ou não",
+                       "`veredito: sem prova`", "ao relatório do brief"):
             self.assertIn(trecho, corpo)
 
     def test_comando_sugerido_usa_o_gerenciador_do_monorepo(self):
