@@ -1,0 +1,87 @@
+{
+  "pedido": "v0457-escopo-ponto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E23.17 (a), volta 1 (segurança A3): só a pontuação final sai; o ponto inicial (.github/) fica, no escopo e no VV-3",
+      "arquivo": "bin/forge-check",
+      "de": "    return re.sub(r\"[`'\\\".;]+$\", \"\", t.lstrip(\"`'\\\"\"))",
+      "para": "    return t.strip(\"`'\\\".;\")",
+      "testes": [
+        "tests.test_selo_e_entrega.PontoInicial.test_caminho_com_ponto_inicial_e_pontuacao_final",
+        "tests.test_selo_e_entrega.PontoInicial.test_vv3_confere_o_caminho_com_o_ponto_inicial"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E23.17 (b): a união dos briefs só vale na etapa codigo",
+      "arquivo": "bin/forge-check",
+      "de": "    if etapa == \"codigo\":  # E23.17 (b)",
+      "para": "    if True:  # E23.17 (b)",
+      "testes": [
+        "tests.test_selo_e_entrega.VoltaNaMesmaBranch.test_outra_etapa_nao_une_os_briefs_de_codigo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E23.17 (b): brief anterior só do mesmo pedido (Pedido: do cabeçalho)",
+      "arquivo": "bin/forge-check",
+      "de": "if s != sha_brief and mesmo_pedido(grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Pedido\"], cabecalho_do_brief(t)), pedido_id, caminho)]",
+      "para": "if s != sha_brief]",
+      "testes": [
+        "tests.test_selo_e_entrega.VoltaNaMesmaBranch.test_brief_de_outro_pedido_nao_entra_na_uniao"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E23.17 (b): o brief principal não se repete como anterior",
+      "arquivo": "bin/forge-check",
+      "de": "if s != sha_brief and mesmo_pedido(",
+      "para": "if mesmo_pedido(",
+      "testes": [
+        "tests.test_selo_e_entrega.VoltaNaMesmaBranch.test_dois_briefs_da_mesma_branch_unem_o_escopo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E23.17 (b): cada nome vale pelo primeiro brief que o declara, não pelo primeiro brief da lista",
+      "arquivo": "bin/forge-check",
+      "de": "lambda nome: next((r for d in declarados if (r := d(nome))), None)",
+      "para": "lambda nome: next((r for d in declarados if ((r := d(nome)) or True)), None)",
+      "testes": [
+        "tests.test_selo_e_entrega.VoltaNaMesmaBranch.test_dois_briefs_da_mesma_branch_unem_o_escopo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E23.17 (b): só brief da mesma branch e etapa entra (filtro do gerador)",
+      "arquivo": "bin/forge-check",
+      "de": "        if grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho) == branch and grupo(ETAPA_DO_CABECALHO, cabecalho) == etapa:\n            yield arquivo, texto, sha",
+      "para": "        if grupo(ETAPA_DO_CABECALHO, cabecalho) == etapa:\n            yield arquivo, texto, sha",
+      "testes": [
+        "tests.test_selo_e_entrega.VoltaNaMesmaBranch.test_brief_de_outra_branch_nao_entra_na_uniao"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "E23.17 (c), volta 1 (review A1): só o parecer com branch: igual à conferida troca o slug pelo id do pedido",
+      "arquivo": "bin/forge-check",
+      "de": "        if fm.get(\"pedido\") == pedido_id and fm.get(\"branch\") == branch:",
+      "para": "        if fm.get(\"pedido\") == pedido_id:",
+      "testes": [
+        "tests.test_conf_escopo.PareceresPeloPedido.test_parecer_de_outra_branch_com_o_id_nao_troca_o_slug"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "E23.17 (c): com parecer da branch pelo id do pedido, vale o id (sem ele, o slug)",
+      "arquivo": "bin/forge-check",
+      "de": "        if fm.get(\"pedido\") == pedido_id and fm.get(\"branch\") == branch:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conf_escopo.PareceresPeloPedido.test_parecer_com_o_pedido_do_brief_aprova"
+      ]
+    }
+  ]
+}
