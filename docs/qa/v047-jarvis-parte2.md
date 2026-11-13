@@ -4,10 +4,10 @@ contrato: 1
 pedido: v047
 branch: melhoria/v047-jarvis-parte2
 commit: 65cf916b96d6bfa7e0acb7472bfe21b2c7b91551
-parecer: aprovado
+parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 0
+bugs_altos: 1
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-13
@@ -17,6 +17,7 @@ data: 2026-11-13
 branch: melhoria/v047-jarvis-parte2 · head 65cf916b96d6bfa7e0acb7472bfe21b2c7b91551 · base 9b2c6474.
 
 ## Achados
+- A0 (bloqueante) skills/trabalho-em-paralelo/SKILL.md:15 · em 65cf916b a frase "sem juntar frentes" quebra DiretrizesDoDonoNaRWip.test_as_skills_do_passo_citam_o_id (tests/test_forge.py:617): FAIL em 2 rodadas de tests.test_forge (583 testes, failures=1). O commit 17c66fb2 (E3.22) declara o conserto; precisa de novo delta.
 - A1 (recomendado) skills/kanban-scrum/SKILL.md:72 · a skill deixou de citar os dois relógios (D-4) e a linha `relogios:`; agents/agile-coach.md:17 e bin/forge_voltas.py seguem com a medida. Sem teste que a exija; confirmar que o corte é intencional.
 
 ## Critério → teste → resultado
@@ -38,7 +39,7 @@ branch: melhoria/v047-jarvis-parte2 · head 65cf916b96d6bfa7e0acb7472bfe21b2c7b9
 
 ## Revalidação por delta (head 65cf916b)
 `forge-check parecer delta`: domínio = `skills/kanban-scrum/SKILL.md`, `skills/trabalho-em-paralelo/SKILL.md`, `tests/test_reval_delta.py` (junção da develop excluída).
-- Texto das skills: cortes de redação; as cláusulas normativas (R-TETO, R-WIP, R-FLUXO, `forge-check sobreposicao|movimento|anotar|proximo`, lote por arquivo, lote de 3) seguem. A única perda de conteúdo é o A1.
+- Texto das skills: cortes de redação; as cláusulas normativas (R-TETO, R-WIP, R-FLUXO, `forge-check sobreposicao|movimento|anotar|proximo`, lote por arquivo, lote de 3) seguem. Perdas: A1 e a frase que o teste exige (A0).
 - Teste: `CITACOES_CONHECIDAS` de `tests/test_forge.py`/README.md de 14 para 15, coerente com a linha da R-WIP.
-- Execução: `python3 -m unittest tests.test_reval_delta tests.test_metricas_texto tests.test_jarvis_nucleo` -> `Ran 29 tests ... OK`. `tests.test_forge` rodou em segundo plano (carga ~13); a suíte inteira vale pelo CI do PR, que não existe ainda.
+- Execução: `python3 -m unittest tests.test_reval_delta tests.test_metricas_texto tests.test_jarvis_nucleo` -> `Ran 29 tests ... OK`. `python3 -m unittest tests.test_forge` (2 rodadas, ~820 s): `Ran 583 tests ... FAILED (failures=1)`, sempre `test_as_skills_do_passo_citam_o_id`. Defeito do delta, não do ambiente: REPROVADO em 65cf916b.
 - Vermelho/mutação: sem teste novo de regra neste delta; nada a repetir.
