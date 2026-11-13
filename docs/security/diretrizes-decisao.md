@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: diretrizes-decisao
+pedido: v046
 branch: melhoria/diretrizes-decisao
 commit: 39c163cc5d2fdfd69982e1eb3e80815aea0202e6
 parecer: aprovado
