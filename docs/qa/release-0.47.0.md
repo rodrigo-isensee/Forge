@@ -3,40 +3,36 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/release-0.47.0
-commit: 51c51139b04881506718924895678cecb0a55453
-parecer: reprovado
-escopo: completo
+commit: 72bb40084ec4b32d979dbbd8ba7379934aa5d055
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-13
 ---
-# QA: marca da release 0.47.0 (v047, E2.8)
+# QA: marca da release 0.47.0 (v047, E2.12)
 
-Head `51c51139`. Escopo: versão nos dois `plugin.json`, entrada 0.47.0 do `CHANGELOG.md` contra os 22 fragmentos, linha do placar de mutação. Sem PR aberto para a branch (`gh pr list --head` vazio): sem check-run `bateria`; rodei só os testes afetados (`tests.test_changelog`, `tests.test_conferir_release`) e os cenários abaixo.
+Head `72bb4008`. Delta desde o parecer anterior (`51c51139`, reprovado por A1): junção da `develop` (PR 540, teste-carga) com o fragmento na 0.47.0 e linha do placar regravada. Sem PR aberto para a branch: sem check-run `bateria`; rodei os testes afetados e os cenários abaixo.
 
 ## Achados
-- A1 (bloqueante) docs/engineering/placar-mutacao.md:20 · a linha 0.47.0 foi medida com --desde v0.45.5 e não com a tag anterior v0.46.0, e a spec envio-leve saiu rc=2 por carga. Com --desde v0.46.0: mortos=62 invalido=1 specs=9. Regravar a linha.
-- A2 (recomendado) tests/mutantes/v0457-escopo-ponto-2.json:1 · mutante M10 sai inválido (trecho em bin/forge-check aparece 0 vezes): spec envelhecida, guarda mudada depois sem a spec acompanhar. Atualizar o trecho ou isentar a spec.
+- A1 (bloqueante) docs/engineering/placar-mutacao.md:20 · RESOLVIDO: a linha agora traz `mortos=62 invalido=1 specs=9`, igual ao `--desde v0.46.0` reproduzido neste head, com nota do M10.
+- A2 (recomendado) tests/mutantes/v0457-escopo-ponto-2.json:1 · M10 segue inválido (trecho ausente em bin/forge-check); a nota da 0.47.0 declara e adia a spec. Atualizar o trecho ou isentar a spec na próxima versão.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| Versão 0.47.0 nos dois manifestos | `grep '"version"'` em `.claude-plugin/plugin.json` e `dev/.claude-plugin/plugin.json`; `scripts/conferir-release.py --base origin/develop` ("versão base: 0.46.0 \| versão da release: 0.47.0") | os dois manifestos iguais e acima da base | passou |
-| CHANGELOG 0.47.0 com os 22 fragmentos | `git diff --diff-filter=D origin/develop...HEAD -- changelog.d` = 22 arquivos; cada linha `- ` dos 22 (23 itens, escopo-ponto traz 2) procurada em CHANGELOG.md: nenhuma ausente; seção tem 23 itens | fragmento sem entrada; `changelog.d/` só com README | passou |
-| `changelog.d/` sem pendentes | `bin/forge-changelog conferir-release` ("ok: changelog.d/ sem fragmentos pendentes") | pasta vazia | passou |
-| Testes do changelog e da release | `python3 -m unittest tests.test_changelog tests.test_conferir_release` (91 testes, OK) | n/a | passou |
-| Linha do placar confere com o método | `scripts/placar-mutacao.py --desde v0.46.0 --versao 0.47.0` | tag anterior certa | reprovou (A1) |
-| Spec envio-leve (rc=2 sem contar) | `bin/forge-mutante tests/mutantes/envio-leve.json` isolada: M1 a M5 morreu, rc=0 | carga da máquina (~15 em 12 CPUs) | julgado: falha de ambiente, não da spec |
-
-## Cenários e resultado real
-- Placar. A linha gravada (`mortos=49 ... specs=9`) não reproduz com a tag certa. Com `--desde v0.45.5` a amostra é a de `placar.json` mais envio-leve, fechar-medir-do-log (2), maq-i9-refazer-1, mp1311, trava-agente-morto (2 a 4): 54 mortos, `specs=9`, e 54 menos os 5 de envio-leve (rc=2 no autor) dá os 49 gravados. Ou seja, o autor mediu desde v0.45.5 e perdeu envio-leve. A tag anterior da release é `v0.46.0` (existe no remoto; `git ls-remote --tags origin 'v0.46.0'` = 5f83b58d); o modelo do próprio arquivo manda usar a tag da release anterior. Com ela a amostra é a `placar.json` mais mp1311, trava-agente-morto (todas), v0457-escopo-ponto-2 e -3: 62 mortos, 0 sobreviventes, 1 inválido (A2). O placar é medida e não portão: o que reprova é a linha gravada divergir do método, não o resultado da mutação.
-- envio-leve. Nem entra na amostra certa (já estava na `v0.46.0`). Isolada, passa com rc=0 e 5 mortos, então o rc=2 foi falha de ambiente (diretriz 14: 2 tentativas, uma delas basta aqui).
-- Vermelho antes do verde e mutação no diff: n/a, a marca não altera `bin/`, `hooks/`, `.githooks/` nem `tests/catraca.py` (diff: 4 arquivos modificados, 22 fragmentos removidos).
+| Versão 0.47.0 nos dois manifestos | `grep '"version"'` nos dois `plugin.json`; `scripts/conferir-release.py --base origin/develop` | manifestos iguais e acima da base 0.46.0 | passou |
+| CHANGELOG 0.47.0 com os 23 fragmentos (24 itens) | cada linha `- ` dos fragmentos removidos (`git diff --diff-filter=D origin/develop...HEAD -- changelog.d`) procurada em CHANGELOG.md: nenhuma ausente; seção com 24 itens; inclui a linha do v047-teste-carga | fragmento sem entrada | passou |
+| `changelog.d/` sem pendentes | `bin/forge-changelog conferir-release` | pasta só com README | passou |
+| Testes do changelog e da release | `python3 -m unittest tests.test_changelog tests.test_conferir_release` (91, OK) | n/a | passou |
+| Linha do placar confere com o método | `scripts/placar-mutacao.py --desde v0.46.0 --versao 0.47.0` | tag anterior certa; invalido declarado | passou (A1 resolvido) |
+| Mutação e vermelho no diff | n/a: a marca não altera `bin/`, `hooks/`, `.githooks/` nem `tests/catraca.py`; o PR 540 já tem parecer próprio (`docs/qa/v047-teste-carga.md`) | n/a | n/a |
 
 ## Provas
-- `git rev-parse HEAD` = 51c51139b04881506718924895678cecb0a55453
-- `git diff --name-status origin/develop...HEAD`: 22 D (changelog.d) e 4 M (os dois plugin.json, CHANGELOG.md, placar-mutacao.md)
-- `scripts/placar-mutacao.py --desde v0.46.0 --versao 0.47.0`: `placar: 0.47.0 mortos=62 sobreviveu=0 equivalente=0 invalido=1 sem-veredito=0 specs=9`
-- `scripts/placar-mutacao.py --desde v0.45.5 --versao 0.47.0`: `placar: 0.47.0 mortos=54 sobreviveu=0 equivalente=0 invalido=0 sem-veredito=0 specs=9`
+- `git rev-parse HEAD` = 72bb40084ec4b32d979dbbd8ba7379934aa5d055
+- `placar: 0.47.0 mortos=62 sobreviveu=0 equivalente=0 invalido=1 sem-veredito=0 specs=9` (rc=0; spec v0457-escopo-ponto-2 rc=2 com invalido=1, as outras 8 rc=0)
+- `bin/forge-changelog conferir-release`: ok: changelog.d/ sem fragmentos pendentes
+- `scripts/conferir-release.py --base origin/develop`: versão base: 0.46.0 | versão da release: 0.47.0
+- `unittest tests.test_changelog tests.test_conferir_release`: Ran 91 tests, OK
