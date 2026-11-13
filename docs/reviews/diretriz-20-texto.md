@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v046
 branch: melhoria/diretriz-20-texto
-commit: bad4f5aaab7776ab2efaeec2c5e52c05b6ac3564
-parecer: reprovado
+commit: 29fa5da070a90c0a2b492621f73df5fc5cf271c4
+parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-12
+data: 2026-11-13
 ---
 # Review: v046 (E26.9, diretriz 20 no texto do agile-coach e da skill kanban-scrum)
 
@@ -34,3 +34,15 @@ Reprovado por A1 e A2.
 - **Ferramenta:** a partir de `bin/forge-testes --listar`, rodei os testes de texto e orçamento (test_orcamento_instrucao, test_forge, test_metricas_texto, test_textos_034, test_textos_dono_f10, test_textos_dono_f7, test_clareza, test_medidas_m14b, test_changelog, test_citacao). Resultado: 752 testes, 1 falha, `PesosDaSuite.test_no_maximo_20_por_cento_dos_modulos_sem_peso`, que vem da develop e não deste diff. Os orçamentos de texto passaram.
 - **PA-7:** nenhum AR-1 a AR-12 alcança um diff só de texto. O A1 é de uma classe nova (texto descreve como existente uma trava que ainda não existe), por isso não entra linha AR.
 - **Volta:** as correções de A1 e A2 cabem no mesmo orçamento: a do A1 troca a frase e a do A2 acrescenta "ou pedido".
+
+## Revalidação (volta E26.12, E26.23)
+
+Delta lido por `forge-check parecer delta`: `bad4f5aa..29fa5da0` (agents/agile-coach.md, skills/kanban-scrum/SKILL.md, changelog.d, tests/config.json).
+
+- A1 resolvido: skills/kanban-scrum/SKILL.md:42 passa a "Até o `forge-check kanban` recusar destino divergente, o agile-coach confere com a última triagem"; a recusa deixa de ser descrita como existente.
+- A2 resolvido: "plano ou pedido substituído vai para `arquivo/`" em skills/kanban-scrum/SKILL.md:43 e agents/agile-coach.md:12.
+- A3 (recomendado): fica como orientação; os cortes vão no relatório da volta.
+- Invariante nova em tests/config.json (agents/agile-coach.md) com `invariantes_motivo_trecho` (R-DECISAO), o trecho bate com o texto.
+- Ferramenta: `tests.test_forge.Orcamento`, `tests.test_forge.RegrasInviolaveis` e `tests.test_orcamento_instrucao`: 13 testes, OK. Suíte completa fica no CI.
+
+Parecer: aprovado no head 29fa5da0.
