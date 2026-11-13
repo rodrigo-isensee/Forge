@@ -4,7 +4,7 @@
   "mutantes": [
     {
       "id": "CP-M1",
-      "guarda": "o /home/runner/ do CI é tirado antes da varredura",
+      "guarda": "o home do runner do CI é tirado antes da varredura",
       "arquivo": "scripts/verificar-contribuicao.sh",
       "de": "  if grep -Eq -- \"$pessoal\" <<<\"${texto//\\/home\\/runner\\//@}\"; then",
       "para": "  if grep -Eq -- \"$pessoal\" <<<\"$texto\"; then",

@@ -1,2 +1,2 @@
 ### Corrigido
-- varredura de contribuição não reprova o /home/runner/ do CI; a base já pegava /mnt/c/Users, /home/<nome.sobrenome>, /home/<Maiúscula> e /Users (v047 E5.4)
+- varredura de contribuição não reprova o home do runner do CI; a base já pegava os caminhos de /mnt/c/Users, de /home com ponto ou maiúscula e de /Users (v047 E5.4)

@@ -22,7 +22,7 @@ segredos=(
   '(password|senha)[[:space:]]*[=:][[:space:]]*["'\'']?[^[:space:]"'\''$<{]{3,}'
 )
 # Caminho pessoal: /home/<nome>/ e /Users/<nome>/ (também sob /mnt/<letra>/), nome com maiúscula, ponto ou hífen;
-# nome que começa com ponto ({tmp}/home/.config) ou com '<' (marcador de modelo) passa, e o /home/runner/ do CI.
+# nome que começa com ponto ({tmp}/home/.config) ou com '<' (marcador de modelo) passa, e o home do usuário runner do CI.
 pessoal='/(home|Users)/[[:alnum:]_][[:alnum:]_.-]*/'
 
 achados=0
