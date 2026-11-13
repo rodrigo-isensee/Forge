@@ -153,5 +153,34 @@ class VoltaRetomadaEAceiteEmParalelo(unittest.TestCase):
         self.assertIn("nas classes N e C, também os testes de aceite, do pedido, num commit seu", passo2)
 
 
+class Diretrizes18e19(unittest.TestCase):
+    """0.46 (diretrizes 18 e 19 do dono, 2026-11-12): uma instância do papel por item à espera, e o Jarvis anda sozinho, esperando
+    em segundo plano com prazo no próprio comando, sem pedir para ser chamado; medida de cada uma no texto."""
+
+    def setUp(self):
+        self.skill = ler("skills/trabalho-em-paralelo/SKILL.md")
+        self.sozinho = next(l for l in self.skill.splitlines() if l.startswith("- **Anda sozinho:**"))
+        self.wip = next(l for l in ler("docs/regras/README.md").splitlines() if l.startswith("**`R-WIP`"))
+
+    def test_o_jarvis_anda_sozinho_e_nunca_pede_para_ser_chamado(self):
+        self.assertIn("Você anda sozinho e nunca pede para ser chamado", ler(JARVIS))
+        self.assertIn("nunca peça para ser chamado", self.sozinho)
+        self.assertIn('Medida: zero pedidos de "me chame" ou "continue"', self.sozinho)
+
+    def test_a_espera_em_segundo_plano_traz_o_prazo_no_proprio_comando(self):
+        self.assertIn("`run_in_background`", self.sozinho)
+        self.assertIn("`fim=$((SECONDS+N)); until <condição> || [ $SECONDS -ge $fim ]; do sleep 60; done`", self.sozinho)
+        self.assertIn("subagente segue a skill `esperar-estado`", self.sozinho)  # a regra 2 dela proíbe esperar em segundo plano
+        self.assertIn("nada novo é disparado", self.sozinho)
+        self.assertIn("grave onde parou (`forge-check pausa --gravar`)", self.sozinho)
+
+    def test_uma_instancia_por_item_com_volta_e_medida(self):
+        self.assertIn("uma instância do papel por item à espera", ler(JARVIS))
+        self.assertIn("ganham uma instância cada, ao mesmo tempo", self.wip)
+        self.assertIn("a volta vai à instância que o fez (sem ela, a uma nova com o mesmo brief)", self.wip)
+        self.assertIn("espera do item pronto até cada portão; vagas livres com fila parada (zero)", self.wip)
+        self.assertIn("Itens com arquivo em comum não andam em paralelo", self.skill)
+
+
 if __name__ == "__main__":
     unittest.main()

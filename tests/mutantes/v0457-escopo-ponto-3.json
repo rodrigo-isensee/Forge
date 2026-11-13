@@ -1,0 +1,89 @@
+{
+  "pedido": "v0457-escopo-ponto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "E23.36 (d): parecer sem frontmatter não é anexo do portão (nem quebra a conferência)",
+      "arquivo": "bin/forge-check",
+      "de": "    fm = ler_frontmatter(git(raiz, \"show\", f\"{head}:{nome}\")[1])[0] or {}",
+      "para": "    fm = ler_frontmatter(git(raiz, \"show\", f\"{head}:{nome}\")[1])[0]",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_parecer_sem_frontmatter_segue_fora"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "volta 1 (QA A1): o parecer: é aprovado ou reprovado",
+      "arquivo": "bin/forge-check",
+      "de": "    if fm.get(\"parecer\") not in (\"aprovado\", \"reprovado\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_parecer_sem_veredito_valido_segue_fora"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "volta 1 (segurança A1, A4; review A2): o commit: é o Revisar-sha de um brief selado do portão",
+      "arquivo": "bin/forge-check",
+      "de": "    if fm.get(\"commit\") not in revisados(tipo):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_commit_sem_brief_selado_do_portao_segue_fora",
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_brief_do_portao_de_outra_etapa_ou_pedido_nao_ancora"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "volta 1 (segurança A1): veredito trocado no mesmo commit: não é anexo",
+      "arquivo": "bin/forge-check",
+      "de": "    return not veredito_trocado(raiz, base_sha, head, nome, fm[\"commit\"], fm[\"parecer\"], branch, tipo)",
+      "para": "    return True",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_veredito_trocado_no_mesmo_commit_segue_fora"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "volta 1 (segurança A1): só o brief selado do portão do mesmo pedido ancora",
+      "arquivo": "bin/forge-check",
+      "de": "        if mesmo_pedido(grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Pedido\"], cabecalho), pedido_id, caminho):\n            revisados.add",
+      "para": "        if True:\n            revisados.add",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_brief_do_portao_de_outra_etapa_ou_pedido_nao_ancora"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "volta 1 (segurança A1): o git que falha no intervalo conta como veredito trocado (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "    cod, shas = git(raiz, \"rev-list\", \"--full-history\", f\"{de}..{head}\", \"--\", pasta)\n    if cod:",
+      "para": "    cod, shas = git(raiz, \"rev-list\", \"--full-history\", f\"{de}..{head}\", \"--\", pasta)\n    if False:",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_git_que_falha_conta_como_veredito_trocado",
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_rev_list_que_falha_conta_como_veredito_trocado"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "volta 1 (segurança A1): só a versão com o MESMO commit: e outro parecer: conta como troca",
+      "arquivo": "bin/forge-check",
+      "de": "            if fm.get(\"branch\") == branch and fm.get(\"commit\") == revisado and fm.get(\"parecer\") != parecer:",
+      "para": "            if fm.get(\"branch\") == branch and fm.get(\"parecer\") != parecer:",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_veredito_trocado_no_mesmo_commit_segue_fora"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "volta 1 (segurança A2): o merge-base só vale ancorado num Base-sha de brief selado mais novo",
+      "arquivo": "bin/forge-check",
+      "de": "    if not any(e_ancestral(raiz, ponto, ancora) for ancora in ancoras):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_origin_develop_reescrita_nao_move_o_intervalo",
+        "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_merge_base_sem_ancora_fica_o_base_sha"
+      ]
+    }
+  ]
+}
