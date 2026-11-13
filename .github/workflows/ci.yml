@@ -549,7 +549,7 @@ jobs:
     # Só PR (nas promoções o script não lê parecer, ADR 0008, seção 3); sem token (só contents: read).
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-26.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     permissions:
       contents: read
     steps:

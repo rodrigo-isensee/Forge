@@ -3,6 +3,7 @@ import importlib.machinery
 import hashlib
 import importlib.util
 import re
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -310,6 +311,46 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
             if outro not in ("agregador", "pareceres"):
                 self.assertNotIn("pareceres", j["needs"], outro)
         self.assertIn("PARECERES: ${{ needs.pareceres.result }}", texto)
+        # A4 (segurança): o modo pareceres roda em exatamente um job, que tem só contents: read e teto de 5 min (J3, J5, J9)
+        self.assertEqual(sum("--modo pareceres" in p["run"] for j in jobs.values() for p in j["passos"]), 1)
+        bloco = re.search(r"(?ms)^  pareceres:\n(.*?)(?=^  \S+:\n)", texto).group(1)
+        self.assertEqual(re.findall(r"(?m)^      (\S+): (\S+)$", bloco.split("    steps:")[0]), [("contents", "read")])
+        self.assertIn("\n    timeout-minutes: 5\n", bloco)
+
+    def agregador(self, pareceres, evento, **outros):
+        """Executa o `run:` do agregador de verdade (como o Actions: bash -eo pipefail); devolve o rc."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        (passo,) = {j["id"]: j for j in ci.ler_jobs(texto)}["agregador"]["passos"]
+        env = {"PATH": "/usr/bin:/bin", "PASSOS": "success", "PARECERES": pareceres, "VERIFICACOES": "success",
+               "PARTES": "success", "PULADOS": "success", "EVENTO": evento}
+        env.update(outros)
+        return subprocess.run(["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", passo["run"]],
+                              env=env, capture_output=True, text=True, timeout=30).returncode
+
+    def test_agregador_reprova_parecer_que_nao_deu_success_em_pr(self):
+        """CI-PARECER-NAO-BARRA-SUITE (J2): em PR só success passa; skipped, failure, cancelled e vazio reprovam."""
+        self.assertEqual(self.agregador("success", "pull_request"), 0)
+        for resultado in ("failure", "skipped", "cancelled", ""):
+            with self.subTest(resultado):
+                self.assertNotEqual(self.agregador(resultado, "pull_request"), 0)
+
+    def test_agregador_fora_de_pr_aceita_so_skipped_ou_success(self):
+        for evento in ("push", "workflow_dispatch"):
+            for resultado, esperado in (("skipped", 0), ("success", 0), ("failure", 1), ("cancelled", 1)):
+                with self.subTest(evento=evento, resultado=resultado):
+                    self.assertEqual(bool(self.agregador(resultado, evento)), bool(esperado))
+
+    def test_agregador_exige_os_demais_jobs_mesmo_com_pareceres_verde(self):
+        for var in ("PASSOS", "VERIFICACOES", "PARTES", "PULADOS"):
+            with self.subTest(var):
+                self.assertNotEqual(self.agregador("success", "pull_request", **{var: "failure"}), 0)
+
+    def test_job_pareceres_so_roda_em_pr_e_sem_needs(self):
+        """A guarda do job (:550): sem `if:` de PR ele rodaria em push; com needs poderia ser pulado em PR."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        job = {j["id"]: j for j in ci.ler_jobs(texto)}["pareceres"]
+        self.assertEqual(job["se"], "github.event_name == 'pull_request'")
+        self.assertEqual(job["needs"], [])
 
     def test_bateria_ferramenta_e_checagens_baratas_antes_dos_testes(self):
         """CI-FERRAMENTA-ANTES: o vermelho barato aparece antes da suíte; testes continuam obrigatórios."""
