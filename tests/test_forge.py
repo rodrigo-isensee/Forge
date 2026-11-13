@@ -1385,6 +1385,7 @@ class PreEnvioDoModelo(unittest.TestCase):
         self.projeto_com_remoto()
         self.commit("docs/reviews/p.md", "parecer\n", "parecer")
         self.commit("changelog.d/p.md", "- texto\n", "changelog")
+        self.commit("changelog.d/.gitkeep", "", "pasta")  # fora do *.md: só o changelog.d/* o cobre
         self.commit("README.md", "oi\n", "readme")
         r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
         self.assertEqual((r.returncode, chamadas), (0, []), r.stderr)
