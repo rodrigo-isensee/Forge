@@ -3,16 +3,19 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-parecer-job
-commit: bd28180e9129015578029dee765abd206960bac1
+commit: 5aae66f63404cf3b2caa94f84a1ae22304639498
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-12
+data: 2026-11-13
 ---
 # Review de segurança: v047-ci-parecer-job
 
 Pedido v047, etapa E1.21: revalidação por delta do parecer de segurança da E1.4 (job `bateria (pareceres)` no `ci.yml`) depois da volta E1.18, no head `bd28180e`. Parecer anterior: E1.12, reprovado no head `7ba85a05` (A1 a A3 bloqueantes, A4 e A5 recomendados). Controles J1 a J11 do modelo `docs/security/v047-e1-ameacas.md` (E1.5).
 
 Delta lido (`forge-check parecer delta`, `7ba85a05..bd28180e`): no domínio, `.github/workflows/ci.yml` (só `timeout-minutes` 10 → 5 em :552), `agents/devops-engineer.md`:12, `stacks/node-react/pronto.md`:55, `stacks/python/pronto.md`:30 e `tests/test_catraca.py`:3321-3322; fora do domínio, mas lidos por serem a prova da guarda, `tests/test_ci_local.py`, `tests/test_suite_partes.py`:300 e `tests/mutantes/v047-ci-parecer-job.json`. O `run:` do agregador (:674) e o resto do job `pareceres` (:545-579) não mudaram.
+
+## Revalidação E1.45 (head 5aae66f6)
+Delta `bd28180e..5aae66f6` (`forge-check parecer delta`, escopo sem o que veio da base): nenhum arquivo do domínio mudou. O head é a junção com a develop (#517 a #523, fora do escopo desta branch) mais a correção do campo `pedido:` dos pareceres (9be0d548, 4629f5ba, só docs). `git diff bd28180e 5aae66f6` em `.github/workflows/ci.yml`, `tests/test_ci_local.py`, `tests/test_catraca.py`, `tests/test_suite_partes.py`, `tests/mutantes/v047-ci-parecer-job.json`, `agents/devops-engineer.md` e os dois `pronto.md` é vazio. Testes afetados (82) verdes no head. Parecer segue aprovado; A1 segue recomendado.
 
 ## Gatilhos
 `R-SEGURANCA`: mudança em `.github/workflows/` (portão de pareceres no servidor, check exigido `bateria`) e em texto de agente que ensina o pipeline aos projetos (`agents/devops-engineer.md`, `pronto.md` das stacks).
