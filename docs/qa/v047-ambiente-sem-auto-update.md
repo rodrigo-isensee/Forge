@@ -20,10 +20,10 @@ Head 93deca84, base afba389e, delta desde bd282fa7. Sem PR aberto: rodei só os 
 - A3 (bloqueante) skills/trabalho-em-paralelo/SKILL.md:10 · a ORDEM DO DONO 13/11 17:40 veda cortar texto antigo, e 8 linhas da base afba389e foram encurtadas (ex.: "(serializam)", "e traz a `develop` uma vez", "sem travar; pesa o risco"); restaurar a base.
 - A2 (recomendado) bin/forge-testes:103 · a ordem da tupla foi corrigida (módulo no fim); sem pendência.
 
-A1 do parecer anterior (TetoPorPr) fechado: a linha "Tamanho por risco" voltou e o teste passa.
-
 ## Evidência do A3
 `git diff afba389e HEAD -- skills/trabalho-em-paralelo/SKILL.md` mostra 8 linhas da base trocadas por versões mais curtas (7 delas sem relação com a Retomada); o arquivo passou de 3044 para 3024 bytes mesmo somando a linha Retomada, ou seja, o ganho de espaço veio de texto antigo. `TetoPorPr` e os demais testes de texto só provam presença de frases-chave e passam, então não detectam o corte: o defeito é de ordem do dono, não de teste vermelho.
+
+A1 do parecer anterior (TetoPorPr) fechado: a linha "Tamanho por risco" voltou e o teste passa.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
