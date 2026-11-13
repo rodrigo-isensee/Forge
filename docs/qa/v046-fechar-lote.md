@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/v046-fechar-lote
-commit: 17ae39a39ecd28b4f3eeb791cbc34697cf56c720
+commit: 2dda228f9517b38e0720c1d65d211934099a8f5d
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-12
+data: 2026-11-13
 ---
 # QA: v046 (E6.4, fechar o lote: forge-fechar e forge doutor), head 0be84795
 
@@ -51,3 +51,10 @@ Branch: melhoria/v046-fechar-lote. Delta 0be84795..17ae39a3 pelo `forge-check pa
 - `pesos-d4.json` é JSON válido e traz os três pesos novos (`test_doutor_branch_atrasada`, `test_fechar_move_cartao`, `test_fechar_prune_sandbox`); `test_pesos_teto` e `test_suite_partes` passam.
 - Sem PR aberto: rodados só os afetados e os testes do pedido (51 testes, OK, carga ~13). Mutantes declarados (3 specs, 17 mutantes): todos morreram, rc 0, nenhum sobrevivente. A1 e A2 anteriores seguem recomendados (A2 parcialmente atendido pelas specs -2 e -3), sem bloqueio.
 - Parecer: aprovado, nenhum bug.
+
+## Revalidação por delta no head 2dda228f (E6.15)
+Branch: melhoria/v046-fechar-lote. Delta 17ae39a3..2dda228f pelo `forge-check parecer delta` (sem o que veio da base): só `bin/forge-testes` (a regra `bin/forge-doutor` do `MAPA` ganhou `test_doutor_branch_atrasada`; o `test_pr_hook_prazo` da linha do `FORGE_CHECK` é da base) e `tests/test_testes_tocados.py:55` (lista esperada do `bin/forge-doutor`, com o módulo novo). `bin/forge-fechar` e `bin/forge-doutor` não mudaram.
+- Rodados em worktree só minha (carga ~16, um módulo por vez): `tests.test_testes_tocados` 150 testes, OK (1 pulado, do próprio módulo); `tests.test_doutor_branch_atrasada` 6 testes, OK. O mapa agora roda o teste do doutor quando `bin/forge-doutor` muda.
+- CI do PR 525 no mesmo sha: `catraca`, `instalação` e `árvore já provada` passam; `bateria` falha só em "Parecer de review ... quando o PR toca código que governa os agentes" (`docs/reviews/v046-fechar-lote.md: commit: desatualizado`). É o parecer do review, fora do meu domínio, que o portão paralelo atualiza; a suíte em partes não rodou por isso, então não cito `bateria` como verde.
+- A1 e A2 anteriores seguem recomendados, sem bloqueio. Nenhum bug novo.
+- Parecer: aprovado.
