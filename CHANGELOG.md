@@ -31,6 +31,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 - forge-check entrega --pedido: o arquivo aplicado pelo dono (arquivo em vigor que nenhum agente escreve, aplicado com git apply por decisão do dono) deixa de reprovar a conferência quando o `## Histórico` declara `patch do dono aplicado <arquivo> commit <sha40>` e uma `DECISÃO DO DONO` cita o sha40 e o caminho; vale só esse arquivo, com o blob e o modo desse commit no head, e nunca em parecer, aceite, pedido ou oráculo (v047, CONFERENCIA-PATCH-DO-DONO).
 - esperar-estado: devolve a forma 'por exemplo' que o teste guarda e encurta outro trecho para caber no teto de texto
 - `forge-check entrega`: o parecer de portão commitado na própria branch e ancorado no `Revisar-sha:` de brief selado sai do escopo como anexo do portão em toda etapa de código (`codigo`, `review`, `seguranca`, `qa`), não só na `codigo`; e o `--desde` vale também no commit do autor que um portão revisou (o `Revisar-sha:` de brief selado de portão da mesma branch e pedido, ancestral do head e fora do Base-sha), com a linha `base: commit do autor revisado pelo portão` (melhorias-de-projeto-1311, item 1, com MP1103-D-8).
+- Os testes de tempo do corpus dos hooks (CPU) e do prazo do gh pendurado medem pela carga da máquina (load average por núcleo, de 1 a 2 vezes o limite) e deixam de falhar sob carga (TESTE-CPU-CORPUS, TESTE-TEMPO-CARGA).
 
 ## [0.46.0] - 2026-11-12
 ### Adicionado
