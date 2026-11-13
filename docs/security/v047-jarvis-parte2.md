@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-jarvis-parte2
-commit: 17c66fb251218a7656412fb5f48ff591a4f7b241
+commit: cfeff5ef7c54fab62418a34e085d316623d72581
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-13
@@ -34,5 +34,12 @@ Lido `forge-check parecer delta` (domínio: skills/kanban-scrum/SKILL.md e skill
 - skills/kanban-scrum/SKILL.md:73 devolve a linha dos dois relógios (D-4, `relogios:`): adição, nenhuma regra afrouxa. skills/trabalho-em-paralelo/SKILL.md:10 volta "(serializam)": só redação, a série por arquivo em comum, o lote e a espera do primeiro seguem.
 - O head da branch (442b90ed) só acrescenta docs/qa depois de 17c66fb2; fora do domínio.
 
+## Revalidação (delta 17c66fb2..cfeff5ef, E3.32)
+Lido `forge-check parecer delta` (domínio: docs/regras/README.md e skills/kanban-scrum/SKILL.md; tests/test_forge.py fora). Aprovado, sem achado novo. Diretriz 25 conferida: nenhuma regra antiga saiu nem foi resumida.
+- docs/regras/README.md (R-WIP): "sem junção de frentes" virou "sem juntar frentes (`R-FLUXO`)": só redação, PR próprio e o ID mantidos.
+- skills/kanban-scrum/SKILL.md:39: os dois bullets (bloqueio/espera do dono e devolvido no review/QA) viraram um; a coluna de origem, a volta, "nunca vira proposta de abandono (`R-WIP`)" e o retorno a "Em andamento" como retrabalho seguem. Nada afrouxou.
+- tests/test_forge.py:626 acompanha o texto novo e mantém PR próprio, CI verde e `R-FLUXO`.
+- Os outros arquivos do intervalo vieram da `develop` (merge), fora da entrega e do domínio desta branch.
+
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Rodados no head 17c66fb2: `RegrasInviolaveis`, `RegrasComId`, `TextosDoAgenteEDaRegra`, `DiretrizesDoDonoNaRWip`, `AntiDuplicacao` (13 testes, OK). Suíte inteira não rodada local (carga, diretriz 15); fica ao CI do PR, ainda não aberto. Sem ferramentas de varredura necessárias (só texto).
+Nenhum risco aceito. Rodados no head cfeff5ef (13 testes, OK): `RegrasInviolaveis`, `RegrasComId`, `TextosDoAgenteEDaRegra`, `DiretrizesDoDonoNaRWip`, `AntiDuplicacao` (13 testes, OK). Suíte inteira não rodada local (carga, diretriz 15); fica ao CI do PR, ainda não aberto. Sem ferramentas de varredura necessárias (só texto).
