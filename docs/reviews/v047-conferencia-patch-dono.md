@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conferencia-patch-dono
-commit: c793d6eae3908b56c6df2756c3e8dcdaf308d9c9
+commit: 1580490eed439198800b81d16df803f439636eaf
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-12
+data: 2026-11-13
 ---
 # Code review: a conferência aceita o arquivo aplicado pelo dono (CONFERENCIA-PATCH-DO-DONO, E1.2)
 
@@ -37,3 +37,10 @@ Delta lido: `forge-check parecer delta docs/reviews/v047-conferencia-patch-dono.
 - `python3 -m unittest test_conf_escopo` (de `tests/`, head `c793d6ea`): `Ran 24 tests … OK` (19 anteriores mais `PareceresPeloPedido` e os de #517). Sem PR nem CI; carga ~11 em 12 CPUs, só o módulo afetado.
 - Veredito mantido: **aprovado** no head `c793d6ea`.
 
+
+## Revalidação por delta (E1.37, instância que não fez a entrega)
+Delta lido: `forge-check parecer delta docs/reviews/v047-conferencia-patch-dono.md`, intervalo `c793d6ea..1580490e` (domínio: `bin/forge-check` e `tests/test_conf_escopo.py`, sem o que veio da develop #523). Os achados A1 a A4 seguem recomendados, sem mudança.
+- `bin/forge-check:1863`: o `pedido_id` da linha `escopo: ok (patch do dono …)` passa por `sem_controle` (definida em `bin/forge-check:2774`), como as outras saídas com texto vindo do pedido; mudança de uma linha, sem efeito na decisão de isenção.
+- `tests/test_conf_escopo.py:259-261` (c11): o nome sintético `templates/projeto/LEIAME.md` sai de `TEXTO`, então a asserção deixa de casar por acaso; o caso segue provando que só o arquivo declarado do commit do dono isenta.
+- `python3 -m unittest test_conf_escopo` (de `tests/`, head `1580490e`): `Ran 24 tests … OK`. CI do PR 524 neste head: `catraca`, `instalação` e `árvore já provada` verdes; `bateria` vermelha só no passo "Parecer de review … quando o PR toca código que governa os agentes", que exige os pareceres no head e fecha com este commit; não li falha de teste.
+- Veredito mantido: **aprovado** no head `1580490e`.
