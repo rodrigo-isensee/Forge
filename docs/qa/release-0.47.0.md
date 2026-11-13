@@ -17,7 +17,7 @@ data: 2026-11-13
 Head `51c51139`. Escopo: versão nos dois `plugin.json`, entrada 0.47.0 do `CHANGELOG.md` contra os 22 fragmentos, linha do placar de mutação. Sem PR aberto para a branch (`gh pr list --head` vazio): sem check-run `bateria`; rodei só os testes afetados (`tests.test_changelog`, `tests.test_conferir_release`) e os cenários abaixo.
 
 ## Achados
-- A1 (bloqueante) docs/engineering/placar-mutacao.md:17 · a linha 0.47.0 foi medida com --desde v0.45.5 e não com a tag anterior v0.46.0, e a spec envio-leve saiu rc=2 por carga. Com --desde v0.46.0: mortos=62 invalido=1 specs=9. Regravar a linha.
+- A1 (bloqueante) docs/engineering/placar-mutacao.md:20 · a linha 0.47.0 foi medida com --desde v0.45.5 e não com a tag anterior v0.46.0, e a spec envio-leve saiu rc=2 por carga. Com --desde v0.46.0: mortos=62 invalido=1 specs=9. Regravar a linha.
 - A2 (recomendado) tests/mutantes/v0457-escopo-ponto-2.json:1 · mutante M10 sai inválido (trecho em bin/forge-check aparece 0 vezes): spec envelhecida, guarda mudada depois sem a spec acompanhar. Atualizar o trecho ou isentar a spec.
 
 ## Critério → teste → resultado
