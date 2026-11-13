@@ -3,62 +3,49 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047-ci-parecer-job
 branch: melhoria/v047-ci-parecer-job
-commit: 7ba85a056b4eb332362ce5cda7b6efb193b6b017
-parecer: reprovado
+commit: bd28180e9129015578029dee765abd206960bac1
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-12
 ---
 # Review de segurança: v047-ci-parecer-job
 
-Pedido v047, etapa E1.12: parecer de segurança da E1.4 (CI-PARECER-NAO-BARRA-SUITE, job `bateria (pareceres)` no `ci.yml`) no head `7ba85a05`, contra os controles J1 a J11 do modelo de ameaças `docs/security/v047-e1-ameacas.md` (E1.5). Diff lido: `a986c292..7ba85a05` (7 arquivos). Os commits posteriores da branch (`cdfbbd0d`, `e0cc4431`, `3a1a30ff`) só trazem os pareceres de devops e de review.
+Pedido v047, etapa E1.21: revalidação por delta do parecer de segurança da E1.4 (job `bateria (pareceres)` no `ci.yml`) depois da volta E1.18, no head `bd28180e`. Parecer anterior: E1.12, reprovado no head `7ba85a05` (A1 a A3 bloqueantes, A4 e A5 recomendados). Controles J1 a J11 do modelo `docs/security/v047-e1-ameacas.md` (E1.5).
+
+Delta lido (`forge-check parecer delta`, `7ba85a05..bd28180e`): no domínio, `.github/workflows/ci.yml` (só `timeout-minutes` 10 → 5 em :552), `agents/devops-engineer.md`:12, `stacks/node-react/pronto.md`:55, `stacks/python/pronto.md`:30 e `tests/test_catraca.py`:3321-3322; fora do domínio, mas lidos por serem a prova da guarda, `tests/test_ci_local.py`, `tests/test_suite_partes.py`:300 e `tests/mutantes/v047-ci-parecer-job.json`. O `run:` do agregador (:674) e o resto do job `pareceres` (:545-579) não mudaram.
 
 ## Gatilhos
 `R-SEGURANCA`: mudança em `.github/workflows/` (portão de pareceres no servidor, check exigido `bateria`) e em texto de agente que ensina o pipeline aos projetos (`agents/devops-engineer.md`, `pronto.md` das stacks).
 
 ## Achados
-- A1 (bloqueante) tests/test_suite_partes.py:300 · O teste da fiação do agregador ficou com os `needs` antigos (sem `pareceres`) e falha no head (S1): a suíte fica vermelha e a guarda que conta um `= success ]` por job exigido, a que mata o afrouxamento do J2 (S3), não cobre o job novo.
-- A2 (bloqueante) .github/workflows/ci.yml:674 · J2/J3 e W3 a W5: a condição do agregador para `pareceres` não está presa por teste. Trocar por `skipped` aceito em qualquer evento (S2) deixa verdes os testes da branch e o de fiação já corrigido. Mesma correção do A1 do code review.
-- A3 (bloqueante) agents/devops-engineer.md:12 · J11: o texto (e o do `pronto.md` das duas stacks, :55 e :30) diz que o job é obrigatório e fora do `needs` da suíte, mas não diz que pulado ou cancelado em PR reprova; o projeto copia o agregador `!contains(failure)` e o portão some.
-- A4 (recomendado) tests/test_ci_local.py:301 · J3/J5/W6/W7: o teste novo não confere `--modo pareceres` em exatamente um job (só que saiu do de passos) nem as permissões do job; `pull-requests: write` a mais no job passa (S4).
-- A5 (recomendado) .github/workflows/ci.yml:552 · J9 pedia `timeout-minutes` 5; ficou 10. Sem custo novo (mesmo runner, ação já fixada pelo mesmo SHA), só teto maior.
+- A1 (recomendado) tests/test_ci_local.py:317 · W7/J5: a guarda das permissões do job `pareceres` não vê `env:` de job; `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` posto no job sobrevive aos testes (sonda R1). Token só leitura e script da base: sem caminho de ataque hoje; conferir que o bloco antes de `steps:` não cita `secrets.`.
 
 ## Sondas
-- S1 · `python3 -m unittest tests.test_suite_partes.FiacaoDoCI.test_agregadores_tem_o_nome_exigido_e_exigem_todas_as_partes` no head 7ba85a05 · espera: OK · obtido: FAILED, `Items in the first set but not the second: 'pareceres'`
-- S2 · ci.yml:674 com `[ "$PARECERES" = skipped ]` no lugar de `{ ... && [ "$EVENTO" != pull_request ]; }`, depois `unittest tests.test_ci_local tests.test_catraca.Workflows` · espera: FAILED · obtido: OK (72 testes)
-- S3 · ci.yml:674 com `[ "$PARECERES" != failure ]` no lugar da condição, os mesmos testes · espera: FAILED · obtido: OK (72 testes)
-- S4 · job `pareceres` com `pull-requests: write` em `permissions`, os mesmos testes · espera: FAILED · obtido: OK (72 testes)
 
 ## Detalhe dos achados
 
-### Controles J1 a J11 no head 7ba85a05
-| Controle | Situação | Evidência |
+### Situação dos achados da E1.12 no head bd28180e
+| Achado | Situação | Prova |
 |---|---|---|
-| J1 check exigido | ok | agregador `name: bateria` com `pareceres` em `needs` (ci.yml:658); nenhuma mudança de ruleset |
-| J2 pulado não é verde | ok no código, sem teste (A2) | ci.yml:674; tabela-verdade executada: success/PR rc 0; failure, skipped, cancelled e vazio em PR rc 1; skipped em push e `workflow_dispatch` rc 0; cancelled em push rc 1. Job sem `needs` e sem o gate `pesada` (:550): roda em todo commit do PR, inclusive só de parecer |
-| J3 passo único, fora do caminho da suíte | ok no código; teste parcial (A1, A4) | `--modo pareceres` só em ci.yml:579; nenhum outro job tem `pareceres` em `needs` |
-| J4 script da base | ok | ci.yml:572-579, mesmo padrão `HEAD^1` + worktree da base; mutante que usa o script do PR é morto pelos testes |
-| J5 permissões e credenciais | ok (melhorou) | `permissions: contents: read` só (:553-554), sem `GH_TOKEN` nem `secrets`; o modo `pareceres` não chama a API (`tests/catraca.py`:1714-1716); checkout pelo mesmo SHA, `persist-credentials: false`, `fetch-depth: 0` (:556-559). Antes o passo herdava `checks: read` do job de passos |
-| J6 injeção de expressão | ok | `HEAD_REF`, `PR_AUTOR`, `HEAD_REPO`, `BASE_REPO`, `BASE_REF` só por `env:`; `--ramo="$HEAD_REF"` entre aspas; nada de `${{ }}` no `run:` (:572-579) |
-| J7 gatilho | ok | `on:` sem mudança (`pull_request`, `push`, `workflow_dispatch`); job condicionado a `pull_request` |
-| J8 cancelamento | ok | agregador `always()` e só `success` em PR; `cancelled` reprova também fora de PR |
-| J9 custo | ok, com A5 | `ubuntu-26.04`, sem setup de outra linguagem, sem CLI, sem ação nova (a de setup é a mesma, mesmo SHA); timeout 10 |
-| J10 agregador 3.14 | registrado | o portão vale pelo `bateria`; nada a mudar |
-| J11 regra nos projetos | falta uma das três condições (A3) | agents/devops-engineer.md:12 e `pronto.md` das duas stacks |
+| A1 (bloqueante) fiação do agregador sem `pareceres` | resolvido | `tests/test_suite_partes.py`:300 com `pareceres` no conjunto; `FiacaoDoCI` verde no head |
+| A2 (bloqueante) condição do agregador sem teste | resolvido | `tests/test_ci_local.py`:320-347 executa o `run:` real do agregador (bash `-eo pipefail`) na tabela de J2/W3-W5; mutantes M1 a M4 mortos; S2 e S3 da E1.12 agora falham os testes |
+| A3 (bloqueante) J11 sem "pulado ou cancelado em PR reprova" | resolvido | `agents/devops-engineer.md`:12, `stacks/node-react/pronto.md`:55, `stacks/python/pronto.md`:30 trazem as três condições (no agregador, entra no check exigido; só `success` em PR, `skipped` só fora de PR, sem `!contains(failure)`; fora do `needs` da suíte) |
+| A4 (recomendado) exatamente um job, permissões | resolvido | `tests/test_ci_local.py`:314-318: `--modo pareceres` em exatamente um passo, permissões só `contents: read`; S4 da E1.12 agora falha os testes |
+| A5 (recomendado) teto de 5 min (J9) | resolvido | ci.yml:552 `timeout-minutes: 5`; `tests/test_catraca.py`:3322 e mutante M6 morto |
 
-### A1 (bloqueante, defeito provado)
-Evidência: `tests/test_suite_partes.py`:300-313 espera `needs` do agregador igual a `{bateria, verificacoes, partes-doze, pulados-doze}` e falha no head (S1). Caminho: a suíte do PR fica vermelha; e, enquanto o conjunto não tiver `pareceres`, o laço de :311 e a contagem de :313 (um `= success ]` por job exigido) não protegem o job novo. Com `pareceres` no conjunto, a contagem passa a matar S3 e a remoção da condição. Severidade: média (é a guarda do portão). Correção mínima: acrescentar `"pareceres"` ao conjunto do caso `agregador`. Esforço P. Dono: `devops-engineer`.
+Além disso: o `if:` do job (só `pull_request`) e a ausência de `needs` ficaram presos por teste (`test_job_pareceres_so_roda_em_pr_e_sem_needs`, mutante M5 morto; pôr `needs: [bateria]` no job falha os testes, sonda R2). `persist-credentials: true` no job também falha os testes (sonda R3).
 
-### A2 (bloqueante, controle J2/J3 exigido pelo modelo com teste)
-Evidência: ci.yml:674; o teste novo (`tests/test_ci_local.py`:301-312) só confere que `PARECERES: ${{ needs.pareceres.result }}` existe. Caminho de ataque: uma edição futura do `ci.yml` (do agente, num PR que o próprio portão julga) troca a condição por `skipped` aceito em qualquer evento; um `if:` ou `needs` posto no job o pula em PR, e o merge sai sem parecer. Mesmo com o A1 corrigido, S2 sobrevive (a contagem de `= success ]` não muda). Severidade: média. Correção mínima: teste que extraia o `run:` do agregador e o execute (como a tabela acima) com `PARECERES` em success, failure, skipped e cancelled e `EVENTO` em `pull_request` e `push`, exigindo rc 0 só em success/PR e skipped fora de PR (casos W3, W4, W5); e que o job `pareceres` não tenha `needs` nem `if:` além de `github.event_name == 'pull_request'`. Esforço P. Dono: `devops-engineer` (com o `qa-engineer`).
+### Controles J1 a J11 no head bd28180e
+J1, J4, J6, J7, J8 e J10 sem mudança desde a E1.12 (ok). J2 e J3 agora com teste de comportamento e mutantes. J5 ok no código (só `contents: read`, sem `GH_TOKEN` nem `secrets`, `persist-credentials: false`), com a lacuna de teste do A1 acima. J9 ok (5 min). J11 ok nos três textos.
 
-### A3 (bloqueante, controle J11)
-Evidência: agents/devops-engineer.md:12; `stacks/*/pronto.md` (node-react :55, python :30), na seção CI. O controle J11 pede as três condições: (1) o job entra no check exigido, direto ou pelo agregador; (2) pulado ou cancelado em PR reprova; (3) a suíte não espera por ele. O texto traz (1) e (3). Caminho de ataque: o `devops-engineer` de um projeto monta o agregador com o padrão comum `if: always()` + "nenhum `needs` em failure", que conta `skipped` e `cancelled` como verde; o job de pareceres com qualquer `if:` (filtro de caminho, gate) fica pulado e o PR mescla sem parecer. Severidade: média. Correção mínima: nos três textos, acrescentar que o agregador exige `success` desse job em PR (pulado ou cancelado reprova). Esforço P. Dono: `devops-engineer`.
+### A1 (recomendado)
+Evidência: `tests/test_ci_local.py`:317 lê só as linhas de 6 espaços com valor sem espaço antes de `steps:`; um `env:` de job com `${{ secrets.GITHUB_TOKEN }}` não casa e passa. Caminho de ataque: nenhum realista hoje; o job tem só `contents: read`, roda o script da base (J4) e o modo `pareceres` não chama a API. Uma edição futura que exponha o token ao passo daria leitura do repositório a um script que já o lê pelo checkout. Severidade: informativa. Correção mínima: acrescentar ao teste que o bloco do job `pareceres` não contém `secrets.` nem `GH_TOKEN`. Esforço P. Dono: `devops-engineer`.
 
-### A4 (recomendado)
-J3 pede "em exatamente um job" e W7 pede as permissões, o `persist-credentials: false` e o `uses:` por SHA do job conferidos por teste. Hoje `--modo pareceres` posto também em outro job que não o de passos passa, e S4 sobrevive. Sem caminho de ataque hoje (o token não chega aos passos sem `env:` explícito, e a CI varre com o linter de workflow e o auditor de ações). Dono: `devops-engineer`.
-
-### A5 (recomendado)
-ci.yml:552 `timeout-minutes: 10`; o J9 sugeria 5. Medida de custo, não de segurança: ajuste se o tempo medido do job ficar perto de 1 min. Dono: `devops-engineer`.
+### Sondas desta revalidação (não provam bloqueante; ficam aqui)
+- R1 · job `pareceres` com `env:` `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` antes de `steps:`, depois `unittest tests.test_ci_local tests.test_catraca.Workflows tests.test_suite_partes.FiacaoDoCI` · espera: FAILED · obtido: OK
+- R2 · job `pareceres` com `needs: [bateria]`, os mesmos testes · espera: FAILED · obtido: FAILED (2)
+- R3 · `persist-credentials: true` no job `pareceres`, os mesmos testes · espera: FAILED · obtido: FAILED (1)
+- S2, S3 e S4 da E1.12 repetidas no head bd28180e · espera: FAILED · obtido: FAILED (1, 6 e 1 falhas)
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura estática do diff, tabela-verdade do `run:` do agregador executada localmente, sondas de mutação no `ci.yml` (revertidas) contra `tests.test_ci_local`, `tests.test_catraca.Workflows` e `tests.test_suite_partes`. Lacunas: o linter de workflow e o auditor de ações não estão no PATH desta máquina; rodam no job de passos do CI, que precisa passar (J6). Sem PR aberto, sem CI a citar: rodei só os testes afetados.
+Nenhum risco aceito. Ferramentas: `forge-check parecer delta`; leitura do delta; `forge-mutante tests/mutantes/v047-ci-parecer-job.json` no head bd28180e (M1 a M6 mortos; o `--cobertura` não analisa yml); sondas de mutação no `ci.yml` (revertidas); testes afetados `tests.test_ci_local`, `tests.test_catraca.Workflows`, `tests.test_suite_partes.FiacaoDoCI` (82 testes, OK). Sem PR aberto, sem CI a citar: suíte inteira não rodada aqui (fica para o CI do PR). Lacunas: o linter de workflow e o auditor de ações não estão no PATH desta máquina; rodam no job de passos do CI.
