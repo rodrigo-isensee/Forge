@@ -58,6 +58,18 @@ class LimitesPelaCargaDaMaquina(unittest.TestCase):
         with mock.patch("os.getloadavg", side_effect=OSError):
             self.assertEqual(fator_de_carga(None, 4), 1.0)
 
+    def test_le_a_carga_de_1_minuto_e_nao_a_de_15(self):  # A1 do QA
+        with mock.patch("os.getloadavg", return_value=(6.0, 0.0, 0.0)):
+            self.assertEqual(fator_de_carga(None, 4), 1.5)
+
+    def test_sem_nucleos_dados_usa_os_do_processo(self):  # A2 do QA
+        with mock.patch("apoio_volta_unica.nucleos_do_processo", return_value=4):
+            self.assertEqual(fator_de_carga(6, None), 1.5)
+
+    def test_sem_leitura_de_nucleos_conta_um(self):
+        with mock.patch("apoio_volta_unica.nucleos_do_processo", return_value=None):
+            self.assertEqual(fator_de_carga(1.5, None), 1.5)
+
     def test_limite_do_corpus_escala_e_regressao_de_mais_do_dobro_ainda_falha(self):
         with mock.patch("os.cpu_count", return_value=8):
             base = limite_de_cpu_do_corpus()

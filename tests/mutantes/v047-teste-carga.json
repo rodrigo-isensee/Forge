@@ -41,6 +41,86 @@
       "testes": [
         "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_limite_do_corpus_escala_e_regressao_de_mais_do_dobro_ainda_falha"
       ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o teto do fator e 2",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "TETO_DO_FATOR_DE_CARGA = 2",
+      "para": "TETO_DO_FATOR_DE_CARGA = 3",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_fator_segue_a_carga_por_nucleo_entre_1_e_2"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o piso do fator e 1",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "max(1.0, carga / nucleos)",
+      "para": "max(0.5, carga / nucleos)",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_fator_segue_a_carga_por_nucleo_entre_1_e_2"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "a carga e dividida pelos nucleos",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "max(1.0, carga / nucleos)",
+      "para": "max(1.0, carga)",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_fator_segue_a_carga_por_nucleo_entre_1_e_2"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "carga ilegivel da 1.0",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "    except OSError:\n        return 1.0",
+      "para": "    except OSError:\n        return 2.0",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_carga_ilegivel_deixa_o_limite_de_sempre"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o fator e limitado por cima (min, nao max)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "return min(float(",
+      "para": "return max(float(",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_fator_segue_a_carga_por_nucleo_entre_1_e_2"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "so OSError e tratado na leitura da carga",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "    except OSError:\n        return 1.0",
+      "para": "    except ValueError:\n        return 1.0",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_carga_ilegivel_deixa_o_limite_de_sempre"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "a carga lida e a de 1 minuto",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "os.getloadavg()[0]",
+      "para": "os.getloadavg()[2]",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_le_a_carga_de_1_minuto_e_nao_a_de_15"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "sem nucleos dados valem os do processo",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "nucleos or nucleos_do_processo() or 1",
+      "para": "nucleos or 1",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_sem_nucleos_dados_usa_os_do_processo"
+      ]
     }
   ]
 }
