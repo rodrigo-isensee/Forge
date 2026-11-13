@@ -22,7 +22,7 @@ segredos=(
   '(password|senha)[[:space:]]*[=:][[:space:]]*["'\'']?[^[:space:]"'\''$<{]{3,}'
 )
 # Caminho pessoal: /home/<nome>/ e /Users/<nome>/ (também sob /mnt/<letra>/), nome com maiúscula, ponto ou hífen;
-# nome que começa com ponto ({tmp}/home/.config) ou com '<' (marcador de modelo) passa.
+# nome que começa com ponto ({tmp}/home/.config) ou com '<' (marcador de modelo) passa, e o home do usuário runner do CI.
 pessoal='/(home|Users)/[[:alnum:]_][[:alnum:]_.-]*/'
 
 achados=0
@@ -52,7 +52,7 @@ while IFS=$'\t' read -r arq n texto; do
   for p in "${segredos[@]}"; do
     if grep -Eq -- "$p" <<<"$texto"; then relatar "$arq:$n" "possível segredo"; break; fi
   done
-  if grep -Eq -- "$pessoal" <<<"$texto"; then relatar "$arq:$n" "caminho pessoal"; fi
+  if grep -Eq -- "$pessoal" <<<"${texto//\/home\/runner\//@}"; then relatar "$arq:$n" "caminho pessoal"; fi
 done <<<"$linhas"
 
 if [ "$achados" -gt 0 ]; then

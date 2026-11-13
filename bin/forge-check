@@ -97,7 +97,9 @@ obrigatório. O intervalo é o do Base-sha (branch inteira) ou, com `--desde`, s
 o `--desde` vale só se for a `conferida <sha40>` (ou a linha `- <data>[ <hora>]: base do delta fixada pelo dono <sha40>`, que abre a linha e exige uma `DECISÃO DO DONO` no pedido; saída `base: fixada pelo dono`) mais recente do `## Histórico` do pedido (lido da cópia principal, não da
 branch) que é ancestral do head e não é ancestral do Base-sha, e se nenhum commit da entrega mexeu em `docs/pedidos/`; senão
 reprova (`escopo: --desde sem conferência anterior`, `--desde gravado na própria entrega`) e volta ao Base-sha, e nas etapas
-`pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele vale igual (C1; sem `--desde`, a branch inteira). Sem linha `conferida` no
+`pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele vale igual (C1; sem `--desde`, a branch inteira). Vale também o commit do autor
+que um portão revisou (o `Revisar-sha:` de brief selado de portão da mesma branch e pedido, ancestral do head e fora do Base-sha; saída
+`base: commit do autor revisado pelo portão`, MP1311). Sem linha `conferida` no
 `## Histórico` ou com a última fora do head (branch nova depois de um squash), o `--desde` igual ao Base-sha, ancestral do head,
 vale como a branch inteira (`base: Base-sha do brief`, P-N1; `brief mensagem --entrega` emite esse `Desde:`). Intervalo vazio:
 `pendente:` na etapa `codigo`, `escopo: sem commit (nada a conferir)` nas outras. Parecer do papel certo e com autoria:
@@ -2165,20 +2167,29 @@ def ref_da_base(raiz, base):
     return sha_do_commit(raiz, f"refs/remotes/origin/{base}") or sha_do_commit(raiz, f"refs/heads/{base}")
 
 
-def veredito_do_desde(raiz, texto, desde, base_sha, head, base_ref):
+def veredito_do_desde(raiz, texto, desde, base_sha, head, base_ref, revisados=()):
     """Regra única do Desde aceito, do `entrega` e do `brief gerar --volta` (P-N6): (valido, origem, linha, reprova). O Base-sha
     que vale como Desde (`desde_e_a_base`) dá a linha `base:` e valido None; o `--desde` fora do `desde_valido` ou gravado na própria
-    entrega (`pedido_na_entrega`, A1) reprova; sem `--desde`, nada a dizer."""
+    entrega (`pedido_na_entrega`, A1) reprova; sem `--desde`, nada a dizer. MP1311: um dos `revisados` (commit do autor que um portão
+    revisou, `revisados_do_autor`), ancestral do head e fora do Base-sha, vale como o `desde_valido` (origem `revisado`)."""
     if desde_e_a_base(raiz, texto, desde, base_sha, head):  # P-N1: o intervalo é o do Base-sha, como sem `--desde`
         return None, None, "base: Base-sha do brief (sem conferida na branch)", False
     if desde is None:
         return None, None, None, False
     valido, origem = desde_valido(raiz, texto, head, base_sha)
-    if valido is None or desde != valido:  # só o sha40, igual ao da linha `conferida`
+    if desde in revisados and e_ancestral(raiz, desde, head) and not e_ancestral(raiz, desde, base_sha):
+        valido, origem = desde, "revisado"
+    if valido is None or desde != valido:  # só o sha40, igual ao da linha `conferida` ou ao `Revisar-sha:` do portão
         return None, origem, "escopo: --desde sem conferência anterior", True
     if pedido_na_entrega(raiz, valido, head, base_ref):
         return None, origem, "escopo: --desde gravado na própria entrega", True
     return valido, origem, None, False
+
+
+def revisados_do_autor(raiz, caminho, texto, branch):
+    """MP1311: os commits do autor que os portões revisaram: os `Revisar-sha:` dos briefs selados de portão desta branch e pedido."""
+    pedido_id = id_do_pedido_no_texto(texto, caminho)
+    return set().union(*(revisados_selados(raiz, caminho, texto, branch, pedido_id, t) for t in PAPEL_DO_BRIEF_DO_PARECER))
 
 
 def pedido_na_entrega(raiz, desde, head, base_ref):
@@ -2532,9 +2543,9 @@ def veredito_trocado(raiz, de, head, nome, revisado, parecer, branch, tipo):
 
 
 def parecer_de_portao_da_branch(raiz, base_sha, head, nome, tipo, branch, pedido_id, slug, revisados):
-    """E23.36 (d): na etapa codigo, o parecer de portão commitado na própria branch é anexo do portão: o frontmatter no head tem o `tipo`
-    da pasta, um `parecer:` e `branch:` igual à branch conferida, o `pedido:` é o da entrega (o id ou o slug), e (volta 1, segurança A1
-    e A4, review A2) o `commit:` é o `Revisar-sha:` de um brief selado do portão desta branch e pedido (`revisados(tipo)`, registro do
+    """E23.36 (d; MP1311: em toda etapa de código), o parecer de portão commitado na própria branch é anexo do portão: o frontmatter no
+    head tem o `tipo` da pasta, um `parecer:` e `branch:` igual à branch conferida, o `pedido:` é o da entrega (o id ou o slug), e
+    (volta 1, segurança A1 e A4, review A2) o `commit:` é o `Revisar-sha:` de um brief selado do portão desta branch e pedido (`revisados(tipo)`, registro do
     Jarvis) e nenhuma versão de parecer da pasta na branch inteira (volta 2, segurança A5; volta 4, segurança A10: a busca começa no
     Base-sha, não no Desde, que esconderia o reprovado tirado da pasta numa volta já conferida) tem o mesmo `commit:` com outro veredito.
     Fora disso, não."""
@@ -2602,6 +2613,10 @@ def entrega_ato_github(raiz, caminho, pedido_id, branch, base, base_sha, briefs)
     return linhas
 
 
+BASE_INFORMADA = {"dono": "base: fixada pelo dono (linha do Histórico)",
+                  "revisado": "base: commit do autor revisado pelo portão (Revisar-sha de brief selado)"}
+
+
 def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     """Escopo da entrega (VV-2, M9): `intervalo:` e uma linha `escopo:` por arquivo; só leitura. rc 0, 1 com reprovação, 2 entrada ilegível."""
     rc, saida = linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs)
@@ -2635,7 +2650,8 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
     if not (e_ancestral(raiz, base_sha, head) and base_ref and e_ancestral(raiz, base_sha, base_ref)):
         linhas.append(("escopo: Base-sha fora da branch", True))
     # C1: vale em todas as etapas; as checagens de ato (PR, checks, merge) não passam por aqui
-    valido, origem_da_base, linha_do_desde, reprova = veredito_do_desde(raiz, texto, desde, base_sha, head, base_ref)
+    do_autor = revisados_do_autor(raiz, caminho, texto, branch) if desde else ()
+    valido, origem_da_base, linha_do_desde, reprova = veredito_do_desde(raiz, texto, desde, base_sha, head, base_ref, do_autor)
     if linha_do_desde:
         linhas.append((linha_do_desde, reprova))
     linhas += [(f"conferida: linha fora da forma `- <data> <hora>: entrega conferida <sha40>`, não conta para o portão (EJ 29): "
@@ -2649,7 +2665,7 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
         falhas.append("diff da entrega")
         arquivos = []  # sem lista para mostrar: a reprovação vem de `falhas`, nunca de "nada a conferir"
     todos = list(arquivos)  # a lista antes de qualquer filtro: uma falha posterior a um filtro saudável mostra esta (C-3, exibição)
-    informativas = [("base: fixada pelo dono (linha do Histórico)", False)] if valido and origem_da_base == "dono" else []
+    informativas = [(BASE_INFORMADA[origem_da_base], False)] if valido and origem_da_base in BASE_INFORMADA else []
     desfeitos = desfeitos_da_entrega(raiz, base_sha, valido) if valido else set()  # o que a branch pôs e o merge devolveu à base (segurança A1, A2)
     if desfeitos is None:
         falhas.append("diff do que a branch já mudou até a conferida")
@@ -2738,7 +2754,7 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
             linhas.append((f"escopo: ok (merge-integracao: branch com os pareceres aprovados no head) {mostrado}", False))
         elif rotulo := anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
             linhas.append((f"escopo: ok (anexo implícito: {rotulo}) {mostrado}", False))
-        elif etapa == "codigo" and tipo and not com_controle(nome) and parecer_de_portao_da_branch(
+        elif etapa in ETAPAS_DE_CODIGO and tipo and not com_controle(nome) and parecer_de_portao_da_branch(  # MP1311: em toda etapa de código
                 raiz, base_sha, head, nome, tipo, branch, pedido_id, slug, lambda t: revisados_selados(raiz, caminho, texto, branch, pedido_id, t)):
             linhas.append((f"escopo: ok (anexo do portão: parecer de {PAPEL_DO_PARECER[tipo]} da própria branch) {mostrado}", False))
         else:  # CONFERENCIA-PATCH-DO-DONO: o arquivo aplicado pelo dono, declarado no pedido, sai do escopo só com o commit dele
@@ -9454,7 +9470,8 @@ def main():
                     "desatualizado, reprovado e o resto seguem violação")
     pr.add_argument("--pr", dest="numero_pr", help="PR já mesclado (squash, branch apagada): os pareceres são conferidos no head dele (headRefOid, "
                     "lido do gh e presente no clone), nunca no commit do merge; não se combina com --ref (E10, CONF-MERGE-APOS-SQUASH)")
-    en = sub.add_parser("entrega", parents=[comum], help="escopo da entrega: arquivos do intervalo da delegação (`--desde` só depois de uma conferência); só leitura")
+    en = sub.add_parser("entrega", parents=[comum], help="escopo da entrega: arquivos do intervalo da delegação (`--desde` só depois "
+                    "de uma conferência ou no commit revisado por um portão); só leitura")
     en.add_argument("pedido", nargs="?", help="arquivo do pedido ou id (docs/pedidos/<id>.md da cópia principal); forma antiga, só leitura")
     en.add_argument("--pedido", dest="pedido_conferir", metavar="PEDIDO", help="forma nova (P2, 0.43.1): confere a entrega contra o brief selado "
                     "da branch e da etapa (escopo declarado, provas, commits; Base, Base-sha e Desde calculados) e, com rc 0, grava "
