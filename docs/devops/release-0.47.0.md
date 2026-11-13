@@ -2,8 +2,8 @@
 tipo: revisao-devops
 contrato: 1
 pedido: release-0.47.0
-branch: melhoria/release-0.47.0
-commit: 72bb40084ec4b32d979dbbd8ba7379934aa5d055
+branch: melhoria/release-0.47.0-b
+commit: 0867f7157f37ca5ea76ef31824cbb159c215086f
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-13
@@ -11,25 +11,16 @@ data: 2026-11-13
 # Review de devops: release-0.47.0
 
 ## Achados
-- A1 (recomendado) scripts/verificar-contribuicao.sh:55 · a troca de /home/runner/ por @ antes da regex de caminho pessoal deixaria passar um caminho pessoal com esse prefixo; risco baixo, vale um teste que fixe o limite
-- A2 (recomendado) .github/workflows/ci.yml:566 · o comentário diz que promoções ficam fora do job pareceres, mas ele roda em todo pull_request; comportamento igual ao do passo anterior, só o texto engana
+- A1 (recomendado) .github/workflows/ci.yml:552 · o job `pareceres` repete checkout e setup-python do job `bateria`; custo de poucos segundos por PR, aceitável pelo ganho de paralelismo e sem ação nova
 
 ## Detalhes
-Aprovado. Release 0.47.0: head da branch revisado em 72bb4008 (develop em befd4cca contra main em 5f83b58d; 186 arquivos). Em `.github/` mudou só `workflows/ci.yml` (32 inserções, 8 remoções); `release.yml`, `catraca.yml`, `dependabot.yml` e `templates/projeto/.github` não mudaram. Não há `Dockerfile*`, `compose*` nem IaC no diff. Depois do Revisar-sha a branch recebeu só commits de pareceres (`docs/qa`, `docs/reviews`, `docs/security`), sem código.
-
-ci.yml:
-- CI-CHANGELOG-BASE: a base do `conferir` passa a ser `git rev-parse HEAD^1` (ponta atual da develop no merge commit do checkout), sem interpolar entrada do evento em `run:`; remove o `env: BASE` com `base.sha` velho.
-- CI-PARECER-NAO-BARRA-SUITE: o passo de pareceres virou o job `pareceres`, com `if: pull_request`, `timeout-minutes: 5`, `permissions: contents: read`, checkout com `persist-credentials: false` e as mesmas ações fixadas por SHA já usadas nos outros jobs (checkout v4.4.0, setup-python v7.1.0). Entradas não confiáveis (`head_ref`, `user.login`) chegam por `env`, nunca interpoladas no script. Roda o `catraca.py` da base, quando existe.
-- Agregador `bateria`: `needs` agora inclui `pareceres`, com `always()`. Em PR exige `success`; `skipped` só é aceito quando o evento não é `pull_request`, caso em que o job não existe. Então parecer faltando continua reprovando o check exigido, e pulo em PR não vira verde. Os demais resultados (passos, verificações, partes, pulados) seguem exigidos em `success`.
-- Efeito: `pareceres` não está em `needs` das partes nem de `verificacoes`, então a suíte roda inteira com parecer faltando e o autor vê tudo numa rodada.
-
-release.yml: inalterado; só roda em push na `main`, depois do merge do dono (R-MAIN). `plugin.json` 0.47.0 e `## [0.47.0] - 2026-11-13` no CHANGELOG batem.
-
-`scripts/verificar-contribuicao.sh`: duas linhas mudam (ver A1); shellcheck limpo.
-
-R-CUSTO: um job a mais, no mesmo runner `ubuntu-26.04`, sem cache, artefato nem serviço novos; fica dentro da franquia. R-VERIFY: nenhum `continue-on-error`, `[skip ci]` nem check desligado. R-CONFORMIDADE: nada de proteção de branch, ruleset, segredo ou environment alterado; o check exigido continua sendo o agregador "bateria", e o novo job entra por ele.
-
-Ferramentas: shellcheck rodou limpo. `actionlint` e `zizmor` não estão no PATH (lacuna; o CI os roda no job `bateria`). Leitura manual do YAML e conferência de `needs`, `permissions` e SHAs. Sem PR aberto para este head, o CI do PR não foi consultado; a suíte inteira roda só no CI.
+Aprovado no head 0867f715, contra origin/main. Único arquivo de domínio tocado: `.github/workflows/ci.yml` (PR 542, e CI-CHANGELOG-BASE; os demais PRs 541, 543 e 544 não tocam `.github/`, Dockerfile, compose nem IaC).
+- Job novo `pareceres`: `permissions: contents: read`, `timeout-minutes: 5`, ações fixadas por SHA com a tag em comentário (as mesmas já usadas no arquivo; nenhuma ação sem SHA no arquivo), `persist-credentials: false`, sem segredo e sem token. Entradas não confiáveis (head_ref, autor) passam por `env:`, não por interpolação em `run:`. Sem `pull_request_target`, sem `continue-on-error`.
+- Agregador `bateria`: `pareceres` entra em `needs`; passa com `success`, ou `skipped` só fora de `pull_request`; em PR o pulo reprova (falha fechada, `R-VERIFY`). O nome do check exigido não muda (`R-CONFORMIDADE`).
+- Passo de changelog: base passa a `git rev-parse HEAD^1` (ponta atual da develop), sem interpolar entrada externa.
+- Nenhum workflow escreve na `main` nem publica release (`R-MAIN`). Custo: runner padrão do GitHub, job de menos de 1 minuto, paralelo; sem serviço pago (`R-CUSTO`).
+- Entrada 0.47.0: versão 0.47.0 em `plugin.json` bate com `## [0.47.0]` do `CHANGELOG.md`; os quatro fragmentos dos PRs 541 a 544 foram apagados e seus textos estão na entrada; `changelog.d/` só com o README; `[Não publicado]` vazio.
+- Ferramentas: `actionlint` ausente do PATH (lacuna registrada; leitura manual do diff e `tests.test_ci_local`, 73 testes OK); `shellcheck` presente, não aplicado a blocos inline além da leitura. Sem PR aberto: sem CI do PR para citar; carga ~16 em 12 CPUs, só testes leves.
 
 ## Custo e rollback
-Sem custo novo. Volta: reverter o PR da release na `main` (revert do merge) e republicar a versão anterior; o workflow de volta é o `ci.yml` da v0.46.0, sem migração.
+Sem custo novo de dinheiro; um job leve a mais por PR. Volta: reverter o PR 542 (um arquivo) e reabrir o passo de pareceres dentro do job `bateria`; sem migração nem estado.
