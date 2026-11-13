@@ -1,0 +1,23 @@
+{
+  "pedido": "v047-hook-erro-libera",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "C7 e TRAVA C5: com recusa, recusa logo depois da liberação gravada, sem reservar",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if recusa:\n            bloquear(\"R-BRIEF\", recusa)",
+      "para": "        if False:\n            bloquear(\"R-BRIEF\", recusa)",
+      "testes": [
+        "tests.test_trava_agente_morto.PeloHook.test_c5_morto_libera_a_vaga_e_o_relancamento_passa_pelas_travas"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "tests/apoio_volta_unica.py",
+      "trecho": "dados.get(\"forcar\")",
+      "motivo": "filtro do corpus de teste: o fixture com erro forçado recusa pelo erro, não pela linha que o corpus lê"
+    }
+  ]
+}

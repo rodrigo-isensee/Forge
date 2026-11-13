@@ -76,8 +76,8 @@
       "id": "M24",
       "guarda": "C7: a retomada (SendMessage) não passa pelo R-BRIEF",
       "arquivo": "hooks/agentes.py",
-      "de": "if evento == \"PreToolUse\" and ferramenta != RETOMADA else []",
-      "para": "if evento == \"PreToolUse\" else []",
+      "de": "if evento == \"PreToolUse\" and ferramenta != RETOMADA else ([], None)",
+      "para": "if evento == \"PreToolUse\" else ([], None)",
       "testes": [
         "tests.test_trava_agente_morto.PeloHook.test_c8_retomar_o_morto_com_relancamento_vigente_recusa"
       ]
