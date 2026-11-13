@@ -13,7 +13,7 @@ data: 2026-11-13
 Diff lido: `c340c322..905edbbb` (`tests/test_prepush_so_docs.py` +14 −1, `changelog.d/flaky-prepush-grupo.md`). Testes do arquivo tocado: `python3 -m unittest tests.test_prepush_so_docs` → `Ran 62 tests ... OK (skipped=9)`; os 4 de `GrupoDaEtapa` são pulados aqui (`/proc` de outro namespace), então a prova abaixo foi feita com uma sonda que usa só PIDs lidos do `/proc`.
 
 ## Achados
-- A1 (bloqueante, resolvido em 989d49f5) tests/test_prepush_so_docs.py:315 · vigia aceita o irmão: lanca() faz `sleep 60 &` e depois exec do hook, então o irmão é filho `sleep` do PID do hook desde antes da etapa; a espera passa na hora, sem o hook no laço. Exclua o PID de `self.le("irmao")` na condição
+- A1 (bloqueante) tests/test_prepush_so_docs.py:315 · [resolvido em 989d49f5] vigia aceita o irmão: lanca() faz `sleep 60 &` e depois exec do hook, então o irmão é filho `sleep` do PID do hook desde antes da etapa; a espera passa na hora, sem o hook no laço. Exclua o PID de `self.le("irmao")` na condição
 
 ## Sondas
 - S1 · bash -c "sleep 6 >/dev/null 2>&1 & exec python3 -c 'import time; time.sleep(5)'" (lançamento de lanca(), hook sem laço) e vigia(pid do hook no /proc, -1) do 905edbbb · espera: False · obtido: True (filho sleep 13 do hook 12)
