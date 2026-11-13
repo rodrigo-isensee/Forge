@@ -1184,8 +1184,11 @@ class HookPrePush(unittest.TestCase):
         shutil.rmtree(self.tmp)
 
     def push(self, ref):
+        casa = self.tmp / "casa"  # o forge-init grava o pre-push.local, e a trava dele fica na casa do teste, não na real
+        casa.mkdir(mode=0o700, exist_ok=True)
         return subprocess.run(["git", "-C", str(self.repo), "push", "origin", ref], cwd=self.repo,
-                              env=ambiente_limpo(), capture_output=True, text=True)
+                              env={**ambiente_limpo(), "HOME": str(casa), "XDG_RUNTIME_DIR": str(casa)},
+                              capture_output=True, text=True)
 
     def test_bloqueia_main(self):
         r = self.push("HEAD:main")
