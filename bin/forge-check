@@ -2,6 +2,7 @@
 """Forge: valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos.
 
 `pr` aprovado sai com rc 0 e uma linha `pr: veredito: aprovado · <pedido> · exigidos <pareceres> · head <sha7> · base <origin/x|diff literal|estrita>`; com violação, só as violações e rc 1.
+Fora do `--previo` e do `--pr`, o `pr` grava o resultado do head em `<diretório comum do git>/forge/pr/<head>/`: o hook `parecer` só o lê no `gh pr create` (PR-HOOK-PRAZO).
 
 Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban [--gerar] | pr <pedido> [--ref REF] [--base REF]   (as duas opções também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
@@ -1512,6 +1513,100 @@ def veredito_do_pr(raiz, pedido, ref, base):
     return f"pr: veredito: aprovado · {nome_seguro(pedido)} · exigidos {', '.join(exigidos) or 'nenhum'} · head {head} · base {como}"
 
 
+# PR-HOOK-PRAZO (E20.1, v046): o `forge-check pr` grava o resultado por head em `<diretório comum do git>/forge/pr/<head>/` (fora da
+# árvore versionada; o mesmo `forge/` do hook `agentes`), e o hook `parecer` libera o `gh pr create` só lendo o aprovado do mesmo head,
+# branch e base, em vez de refazer a checagem (26 s com carga 22). Sem o aprovado do mesmo head, recusa e diz o comando (o `cmd_pr`
+# só roda para dar o motivo de hoje).
+def pasta_dos_resultados(raiz, head):
+    cod, comum = git(raiz, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    return Path(comum) / "forge" / "pr" / head if not cod and comum and SHA40.match(head or "") else None
+
+
+def arquivo_do_resultado(pedido, base_sha):
+    return hashlib.sha256(f"{pedido}\0{base_sha or ''}".encode()).hexdigest()[:20] + ".json"
+
+
+def escritor_do_resultado():
+    """sha256 deste `forge-check` (A1 da segurança, E20.11): o registro diz quem o gravou, e o hook, que carrega o do PLUGIN, só
+    aceita o gravado por ele (o `forge-check` de uma branch em obra ou de uma versão anterior não libera o PR)."""
+    return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+
+
+def podar_resultados(raiz, pasta):
+    """A3 do review (E20.11): apaga as pastas de head ao lado de `pasta` que não são mais ponta de branch local nem de origin; a
+    `pasta` recém-gravada fica. Sem a lista das pontas, não apaga nada; a falha ao apagar só avisa."""
+    cod, saida = git(raiz, "for-each-ref", "--format=%(objectname)", "refs/heads", "refs/remotes")
+    if cod:
+        return
+    pontas = set(saida.split())
+    try:
+        for velha in pasta.parent.iterdir():
+            if velha != pasta and SHA40.match(velha.name) and velha.name not in pontas and not velha.is_symlink() and velha.is_dir():
+                for p in velha.iterdir():
+                    p.unlink()
+                velha.rmdir()
+    except OSError as e:
+        print(f"pr: aviso: resultados antigos não apagados ({sem_controle(e.strerror or str(e))})", file=sys.stderr)
+
+
+def gravar_resultado_do_pr(raiz, pedido, ref, base, violacoes):
+    """Grava (aprovado ou reprovado, head, base, pedido, branch e os pedidos da branch) para o hook `parecer`; sem branch nem head, nada."""
+    head, branch = sha_do_commit(raiz, ref or "HEAD"), branch_da_ref(raiz, ref)
+    pasta = pasta_dos_resultados(raiz, head) if branch else None
+    if pasta is None:
+        return
+    resolvida = base_do_delta(raiz, base, ref)[0] if base else None
+    base_sha = sha_do_commit(raiz, resolvida) if resolvida else None
+    registro = {"contrato": 1, "resultado": "reprovado" if violacoes else "aprovado", "pedido": pedido, "branch": branch,
+                "head": head, "base_sha": base_sha, "pedidos_da_branch": pedidos_da_branch(raiz, branch, ref),
+                "violacao": sem_controle(violacoes[0])[:160] if violacoes else None, "escritor": escritor_do_resultado()}
+    try:
+        pasta.mkdir(mode=0o700, parents=True, exist_ok=True)
+        provisorio = pasta / f".{os.getpid()}.tmp"
+        provisorio.write_text(json.dumps(registro), encoding="utf-8")
+        os.replace(provisorio, pasta / arquivo_do_resultado(pedido, base_sha))
+    except OSError as e:
+        print(f"pr: aviso: resultado não gravado para o hook ({sem_controle(e.strerror or str(e))})", file=sys.stderr)
+        return
+    podar_resultados(raiz, pasta)
+
+
+def resultado_gravado_do_pr(raiz, branch, ref, base, pedida=None):
+    """(estado, motivo) do resultado que o `forge-check pr` gravou para o head de `ref`, a `branch` e a base resolvida (`base_do_delta`):
+    `aprovado` com o aprovado de cada pedido da branch; `reprovado` com algum reprovado (o motivo traz a violação gravada); senão
+    `ausente` (sem resultado, ilegível, outro head ou outra base), com o comando a rodar. `pedida`: a base como o PR a deu, só para o comando."""
+    head = sha_do_commit(raiz, ref or "HEAD")
+    pasta = pasta_dos_resultados(raiz, head)
+    base_sha = sha_do_commit(raiz, base) if base else None
+    nome_da_base = (pedida or "").removeprefix("origin/")
+    comando = f"forge-check pr <pedido> --ref {branch}" + (f" --base {nome_da_base}" if nome_da_base else "")
+    ausente = ("ausente", f"sem resultado aprovado do forge-check pr para o head {(head or '?')[:7]} da branch {branch} nesta base; "
+                          f"rode antes {comando}")
+    if pasta is None or (base and not base_sha):
+        return ausente
+    registros, escritor = {}, escritor_do_resultado()
+    for p in sorted(pasta.glob("*.json")) if pasta.is_dir() else []:
+        try:
+            r = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(r, dict) and r.get("escritor") != escritor:
+            continue  # A1 da segurança (E20.11): gravado por outro forge-check (de branch em obra ou de versão anterior)
+        if isinstance(r, dict) and r.get("head") == head and r.get("branch") == branch and r.get("base_sha") == base_sha:
+            registros[r.get("pedido")] = r
+    pedidos = sorted({p for r in registros.values() if isinstance(r.get("pedidos_da_branch"), list) for p in r["pedidos_da_branch"]
+                      if isinstance(p, str)})
+    if registros and not pedidos:
+        return "reprovado", f"nenhum parecer com `branch: {branch}`; faça o code review e os pareceres da classe antes do PR"
+    for pedido in pedidos:
+        r = registros.get(pedido) or {}
+        if r.get("resultado") == "reprovado":
+            return "reprovado", f"forge-check pr {pedido} reprovou o head {head[:7]}: {r.get('violacao') or 'veja a saída dele'}"
+    if not pedidos or any(registros.get(p, {}).get("resultado") != "aprovado" for p in pedidos):
+        return ausente
+    return "aprovado", None
+
+
 def branch_da_ref(raiz, ref=None):
     """E11: nome da branch que a `--ref` aponta (`origin/<b>`, `<b>` ou, sem ref, a do HEAD), só se existir como branch; senão None
     (um sha, uma tag e um HEAD solto ficam sem branch, e o parecer vale como antes: o mais recente do pedido)."""
@@ -2265,10 +2360,28 @@ def pedido_do_parecer(texto):
     return (ler_frontmatter(texto)[0] or {"pedido": None}).get("pedido")
 
 
-def pareceres_da_integracao(raiz, branch, head, base, pai=None):
+def id_do_pedido_no_texto(texto, caminho):
+    """O `id:` do pedido; sem ele, o nome do arquivo."""
+    return (re.search(r"^id:\s*(\S+)", texto, re.M) or [None, Path(caminho).stem])[1]
+
+
+def pedido_dos_pareceres(raiz, head, pedido_id, slug, branch):
+    """E23.17 (c): o pedido com que o `forge-check pr <pedido>` acharia os pareceres do head: o do brief, se um parecer de review do head
+    com `branch:` igual à conferida o leva no `pedido:` (o de outra branch, vindo da develop, não conta: volta 1, review A1); senão o slug
+    da branch (os pareceres nomeados pela branch)."""
+    nomes = git(raiz, "ls-tree", "-r", "--name-only", head, "--", "docs/reviews/")[1]  # o git que falha não lista nada: fica o slug
+    for n in nomes.splitlines():
+        fm = ler_frontmatter(git(raiz, "show", f"{head}:{n}")[1])[0] or {}
+        if fm.get("pedido") == pedido_id and fm.get("branch") == branch:
+            return pedido_id
+    return slug
+
+
+def pareceres_da_integracao(raiz, branch, head, base, pedido_id, pai=None):
     """E1: violações do `forge-check pr` (review, QA e segurança do diff) sobre o head da integração; [] = pareceres aprovados no head. Com `pai`
-    (o mergeCommit do squash, a ref já apagada pelo `forge-fechar`), o diff é `pai..head` e o pedido é o do parecer de review que o commit traz."""
-    pedido = branch_da_convencao(raiz, branch)
+    (o mergeCommit do squash, a ref já apagada pelo `forge-fechar`), o diff é `pai..head` e o pedido é o do parecer de review que o commit traz.
+    Na ref viva, o pedido é o do brief (`pedido_id`) quando os pareceres o levam (E23.17 c), senão o slug da branch."""
+    pedido = pedido_dos_pareceres(raiz, head, pedido_id, branch_da_convencao(raiz, branch), branch)
     if pai:
         reviews = [n for n in nomes_do_intervalo(raiz, pai, head) if n.startswith("docs/reviews/")]
         pedidos = {pedido_do_parecer(git(raiz, "show", f"{head}:{n}")[1]) for n in reviews}
@@ -2298,6 +2411,65 @@ def anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
     if tipo and not cod and valido and fm.get("pedido") == slug and trazido_por_merge(raiz, de, head, nome):
         return "parecer da própria branch trazido por merge"
     return None
+
+
+ETAPA_DO_PORTAO = {"review": "review", "revisao-seguranca": "seguranca", "qa": "qa", "revisao-devops": "review"}  # a `Etapa:` do brief do portão
+
+
+def revisados_selados(raiz, caminho, texto, branch, pedido_id, tipo):
+    """Volta 1 (segurança A1): os `Revisar-sha:` dos briefs selados do portão do `tipo` para a branch e o pedido, o registro do Jarvis
+    que ancora o anexo do portão (o frontmatter do parecer é texto do autor). Sem etapa de portão para o `tipo`, nenhum. O devops e o
+    review têm a mesma `Etapa: review`: o `Agente destino:` do brief é o papel do `tipo` (volta 2, review A4), e um não ancora o outro."""
+    revisados = set()  # tipo sem etapa: "" não casa nenhuma `Etapa:` (nunca None, que casaria o brief sem a linha)
+    for _, brief, _ in briefs_selados_da_entrega(raiz, caminho, texto, branch, ETAPA_DO_PORTAO.get(tipo, "")):
+        cabecalho = cabecalho_do_brief(brief)
+        if nome_do_papel(grupo(r"^\s*Agente destino:\s*(\S+)", cabecalho)) != PAPEL_DO_BRIEF_DO_PARECER[tipo]:
+            continue
+        if mesmo_pedido(grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho), pedido_id, caminho):
+            revisados.add(grupo(REVISAR_SHA, cabecalho))
+    return revisados - {None}
+
+
+def veredito_trocado(raiz, de, head, nome, revisado, parecer, branch, tipo):
+    """Volta 1 (segurança A1): uma versão de parecer da pasta do portão do `tipo` no intervalo (em `de` ou num commit de `de..head` que
+    toca a pasta), de qualquer arquivo dela (volta 2, segurança A5) ou das subpastas (volta 3, segurança A8) e com `branch:` igual, tem o
+    mesmo `commit:` com outro `parecer:` (o veredito mudou sem nova revisão). O `rev-list` usa `--full-history` (volta 3, segurança A7):
+    a simplificação de história esconderia o commit do revisor atrás de um merge que apaga o parecer dele. O git que falha conta como
+    trocado (falha fechada)."""
+    pasta = f"{PASTA_E_REGRA[tipo][0]}/"
+    cod, shas = git(raiz, "rev-list", "--full-history", f"{de}..{head}", "--", pasta)
+    if cod:
+        return True
+    for sha in [de] + shas.split():
+        cod, nomes = git(raiz, "ls-tree", "-r", "--name-only", sha, "--", pasta)
+        if cod:
+            return True
+        for versao in nomes.splitlines():
+            fm = ler_frontmatter(git(raiz, "show", f"{sha}:{versao}")[1])[0] or {}  # o arquivo sem frontmatter não é parecer
+            if fm.get("branch") == branch and fm.get("commit") == revisado and fm.get("parecer") != parecer:
+                return True
+    return False
+
+
+def parecer_de_portao_da_branch(raiz, base_sha, head, nome, tipo, branch, pedido_id, slug, revisados):
+    """E23.36 (d): na etapa codigo, o parecer de portão commitado na própria branch é anexo do portão: o frontmatter no head tem o `tipo`
+    da pasta, um `parecer:` e `branch:` igual à branch conferida, o `pedido:` é o da entrega (o id ou o slug), e (volta 1, segurança A1
+    e A4, review A2) o `commit:` é o `Revisar-sha:` de um brief selado do portão desta branch e pedido (`revisados(tipo)`, registro do
+    Jarvis) e nenhuma versão de parecer da pasta na branch inteira (volta 2, segurança A5; volta 4, segurança A10: a busca começa no
+    Base-sha, não no Desde, que esconderia o reprovado tirado da pasta numa volta já conferida) tem o mesmo `commit:` com outro veredito.
+    Fora disso, não."""
+    fm = ler_frontmatter(git(raiz, "show", f"{head}:{nome}")[1])[0] or {}  # o git que falha não dá frontmatter: fica fora
+    if fm.get("tipo") != tipo:
+        return False
+    if fm.get("branch") != branch:
+        return False
+    if fm.get("parecer") not in ("aprovado", "reprovado"):
+        return False
+    if fm.get("pedido") not in (pedido_id, slug):
+        return False
+    if fm.get("commit") not in revisados(tipo):
+        return False
+    return not veredito_trocado(raiz, base_sha, head, nome, fm["commit"], fm["parecer"], branch, tipo)
 
 
 def provas_do_brief(texto):
@@ -2440,7 +2612,7 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
         else:
             arquivos = do_merge
     revisados = etapa == "merge-integracao" and valido is None  # E1: com `--desde` o delta da etapa segue lido como sempre
-    violacoes = pareceres_da_integracao(raiz, branch, head, base, de if integrado else None) if revisados else []
+    violacoes = pareceres_da_integracao(raiz, branch, head, base, id_do_pedido_no_texto(texto, caminho), de if integrado else None) if revisados else []
     if violacoes:  # E1: sem os pareceres aprovados no head, o escopo continua o do Entregar
         linhas.append((f"escopo: merge-integracao sem os pareceres aprovados no head: {caminho_impresso(violacoes[0])}", True))
     slug = branch_da_convencao(raiz, branch)
@@ -2483,6 +2655,9 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
             linhas.append((f"escopo: ok (merge-integracao: branch com os pareceres aprovados no head) {mostrado}", False))
         elif rotulo := anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
             linhas.append((f"escopo: ok (anexo implícito: {rotulo}) {mostrado}", False))
+        elif etapa == "codigo" and tipo and not com_controle(nome) and parecer_de_portao_da_branch(
+                raiz, base_sha, head, nome, tipo, branch, pedido_id, slug, lambda t: revisados_selados(raiz, caminho, texto, branch, pedido_id, t)):
+            linhas.append((f"escopo: ok (anexo do portão: parecer de {PAPEL_DO_PARECER[tipo]} da própria branch) {mostrado}", False))
         else:
             linhas.append(escopo_resolvido(declarado, nome, mostrado) or (f"escopo: confira {mostrado} +{acrescidas} -{removidas}", False))
     if briefs:
@@ -7048,7 +7223,7 @@ def caminhos_do_entregar(secoes):
     entregar = secoes.get("Entregar", [])
     texto = "\n".join(entregar)
     crases = [p for t in re.findall(r"`([^`\n]+)`", texto) for p in t.split() if "/" in p]
-    declarados = [t.strip("`'\".;") for linha in entregar if (m := LINHA_DE_ARQUIVOS.match(linha)) for t in re.split(r"[,\s]+", m.group(1))]
+    declarados = [item_do_entregar(t) for linha in entregar if (m := LINHA_DE_ARQUIVOS.match(linha)) for t in re.split(r"[,\s]+", m.group(1))]
     return list(dict.fromkeys(crases + [t for t in declarados if "/" in t and PREENCHER not in t]))
 
 
@@ -8456,9 +8631,9 @@ def cmd_brief_selar(raiz, a):
     return 0
 
 
-def brief_selado_da_entrega(raiz, caminho_pedido, pedido_txt, branch, etapa):
-    """P2 (0.43.1): (arquivo, texto, sha256) do brief selado mais recente do pedido cuja `Branch:` e `Etapa:` são as da entrega e cujo
-    conteúdo ainda é o do selo; None sem nenhum. O arquivo é procurado na raiz do pedido e depois em docs/briefs/ das raízes."""
+def briefs_selados(raiz, caminho_pedido, pedido_txt):
+    """P2 (0.43.1): (arquivo, texto, sha256) de cada brief selado do pedido, do mais recente ao mais antigo, cujo conteúdo ainda é o do
+    selo. O arquivo é procurado na raiz do pedido e depois em docs/briefs/ das raízes."""
     raiz_pedido = Path(caminho_pedido).parent.parent.parent
     for rel, sha in reversed(selos_do_pedido(pedido_txt)):
         for arquivo in (dentro_da_raiz(raiz_pedido, rel, ("docs/briefs",)), caminho_de_brief(raiz, rel)[0]):
@@ -8468,11 +8643,37 @@ def brief_selado_da_entrega(raiz, caminho_pedido, pedido_txt, branch, etapa):
                 dados = None
             if dados is None or hashlib.sha256(dados).hexdigest() != sha:
                 continue
-            texto = dados.decode("utf-8", "replace")
-            cabecalho = cabecalho_do_brief(texto)
-            if grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho) == branch and grupo(ETAPA_DO_CABECALHO, cabecalho) == etapa:
-                return arquivo, texto, sha
-    return None
+            yield arquivo, dados.decode("utf-8", "replace"), sha
+            break  # um selo, um arquivo: a cópia da outra raiz não conta duas vezes
+
+
+def briefs_selados_da_entrega(raiz, caminho_pedido, pedido_txt, branch, etapa):
+    """Os `briefs_selados` cuja `Branch:` e `Etapa:` são as da entrega, do mais recente ao mais antigo."""
+    for arquivo, texto, sha in briefs_selados(raiz, caminho_pedido, pedido_txt):
+        cabecalho = cabecalho_do_brief(texto)
+        if grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho) == branch and grupo(ETAPA_DO_CABECALHO, cabecalho) == etapa:
+            yield arquivo, texto, sha
+
+
+def brief_selado_da_entrega(raiz, caminho_pedido, pedido_txt, branch, etapa):
+    """O brief selado mais recente da entrega (`briefs_selados_da_entrega`); None sem nenhum."""
+    return next(briefs_selados_da_entrega(raiz, caminho_pedido, pedido_txt, branch, etapa), None)
+
+
+def escopo_das_voltas(raiz, caminho, texto, branch, brief, sha_brief):
+    """E23.17 (b): o escopo declarado da etapa codigo numa branch com volta: o do brief mais recente unido ao de cada brief selado anterior
+    de codigo da MESMA branch e do MESMO pedido (`Pedido:` do cabeçalho); a volta herda o escopo da entrega original. ([arquivos], função)."""
+    pedido_id = id_do_pedido_no_texto(texto, caminho)
+    anteriores = [(a, t) for a, t, s in briefs_selados_da_entrega(raiz, caminho, texto, branch, "codigo")
+                  if s != sha_brief and mesmo_pedido(grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho_do_brief(t)), pedido_id, caminho)]
+    declarados = [escopo_declarado(t, branch) for t in [brief] + [t for _, t in anteriores]]
+    return [a for a, _ in anteriores], lambda nome: next((r for d in declarados if (r := d(nome))), None)
+
+
+def item_do_entregar(t):
+    """E23.17 (a): um item da linha `- arquivos:` sem as aspas do começo e a pontuação do fim; o ponto inicial (`.github/`) fica. Vale para
+    o escopo declarado e para o VV-3 (`caminhos_do_entregar`, volta 1, segurança A3)."""
+    return re.sub(r"[`'\".;]+$", "", t.lstrip("`'\""))
 
 
 def escopo_declarado(texto, branch):
@@ -8483,7 +8684,7 @@ def escopo_declarado(texto, branch):
     entregar = secoes.get("Entregar", [])
     linhas = [m.group(1) for linha in entregar if (m := LINHA_DE_ARQUIVOS.match(linha))]
     if linhas:
-        itens = [t.strip("`'\".;").removeprefix("./") for linha in linhas for t in re.split(r"[,\s]+", linha)]
+        itens = [item_do_entregar(t).removeprefix("./") for linha in linhas for t in re.split(r"[,\s]+", linha)]
         itens = [t for t in itens if t and ("/" in t or "." in t or "*" in t)]
     else:
         itens = [t.removeprefix("./") for linha in entregar for t in CAMINHO_NO_PQ.findall(linha)]
@@ -8600,6 +8801,33 @@ def estado_da_worktree(raiz, branch, head, worktree):
     return pasta, [(f"worktree: {caminho_impresso(pasta)} no head {head[:12]}, limpa", False)]
 
 
+def bases_seladas_depois(raiz, caminho, texto, sha_brief):
+    """Volta 1 (segurança A2): os `Base-sha:` dos briefs selados do pedido mais novos que o da entrega (`sha_brief`), de qualquer branch
+    e etapa: commits da base que o Jarvis gravou ao selar, a âncora do merge-base (a `origin/<base>` é ref local que o autor reescreve)."""
+    bases = []
+    for _, brief, sha in briefs_selados(raiz, caminho, texto):
+        if sha == sha_brief:
+            break
+        bases.append(grupo(CABECALHO_DE_BRIEF_CAMPOS["Base-sha"], cabecalho_do_brief(brief)))
+    return [b for b in bases if b]
+
+
+def ponto_da_integracao(raiz, base, base_sha, head, ancoras):
+    """E23.36 (e): o merge-base da `origin/<base>` com o head quando ele está adiante do Base-sha (a branch trouxe a base por merge depois
+    do brief que o gravou); senão o próprio Base-sha. Com o head já na base, ou o git que falha, fica o Base-sha (nada se afrouxa). Volta 1
+    (segurança A2): o merge-base só vale ancorado, ancestral ou igual a uma das `ancoras` (Base-sha de brief selado mais novo); sem
+    âncora, fica o Base-sha, e a ref reescrita (`git update-ref`) não move o intervalo."""
+    base_ref = ref_da_base(raiz, base)
+    if not base_ref or e_ancestral(raiz, head, base_ref):
+        return base_sha
+    cod, ponto = git(raiz, "merge-base", base_ref, head)
+    if cod or ponto == base_sha or not e_ancestral(raiz, base_sha, ponto):
+        return base_sha
+    if not any(e_ancestral(raiz, ponto, ancora) for ancora in ancoras):
+        return base_sha
+    return ponto
+
+
 def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True, so_leitura=False):
     """P2 (0.43.1): a conferência de entrega por ferramenta. Acha o brief selado da branch e da etapa, calcula Base, Base-sha e Desde
     (nada digitado), roda o escopo do `entrega` com o escopo declarado no brief, as provas e a contagem de commits; sem reprovação, grava
@@ -8637,9 +8865,18 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
         print(f"resultado: cumpriu (o head {head} já tem a linha entrega conferida)")
         print(f"gravado: já existia a linha entrega conferida {head}")
         return 0
+    if etapa == "codigo" and (ponto := ponto_da_integracao(raiz, base, base_sha, head,
+                                                            bases_seladas_depois(raiz, caminho, texto, sha_brief))) != base_sha:
+        print(f"base: merge-base {ponto[:12]} com a {nome_seguro(base)} (a branch trouxe a base depois do Base-sha {base_sha[:12]})")
+        base_sha = ponto  # E23.36 (e): o que veio da base pelo merge não é escopo, e conferida de outra branch que veio com ela não é Desde
     valido = desde_valido(raiz, texto, head, base_sha)[0]
     desde = valido or (base_sha if base_sha_como_desde(raiz, texto, base_sha, head) else None)
-    rc, linhas = linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, declarado=escopo_declarado(brief, branch))
+    declarado = escopo_declarado(brief, branch)
+    if etapa == "codigo":  # E23.17 (b): a volta na mesma branch herda o escopo dos briefs de codigo anteriores do pedido
+        anteriores, declarado = escopo_das_voltas(raiz, caminho, texto, branch, brief, sha_brief)
+        for anterior in anteriores:
+            print(f"brief: {caminho_impresso(anterior)} (selado, anterior da mesma branch: escopo unido)")
+    rc, linhas = linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, declarado=declarado)
     if rc == 2:
         for linha, _ in linhas:
             print(linha)
@@ -9373,6 +9610,8 @@ def executar(a, raiz):
                                           previo=getattr(a, "previo", False))}[a.cmd]()
     for v in violacoes:
         print(v)
+    if a.cmd == "pr" and not getattr(a, "previo", False) and branch_do_pr is None:  # PR-HOOK-PRAZO: o resultado do head, para o hook
+        gravar_resultado_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None), violacoes)
     if a.cmd == "pr" and not violacoes and not getattr(a, "previo", False):  # LOTE E1; FC-6: o prévio com parecer ausente não é veredito aprovado
         print(veredito_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None)))
     return 1 if violacoes else 0
