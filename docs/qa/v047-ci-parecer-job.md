@@ -3,16 +3,23 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-parecer-job
-commit: bd28180e9129015578029dee765abd206960bac1
+commit: 5aae66f63404cf3b2caa94f84a1ae22304639498
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-12
+data: 2026-11-13
 ---
 # QA: v047 E1.4 (job de pareceres separado no CI)
+
+## Revalidação por delta (E1.46): head 5aae66f6, de bd28180e
+Veredito: APROVADO. Sem achado novo. O delta é só a junção com a develop (#517 a #523: agents/jarvis.md, bin/forge-changelog e outros) e a correção do campo `pedido:` dos pareceres para `v047`.
+- `.github/workflows/ci.yml`, `tests/test_ci_local.py`, `test_catraca.py`, `test_suite_partes.py`, `tests/mutantes/v047-ci-parecer-job.json` e os `pronto.md`: blob igual ao de bd28180e (`git rev-parse <sha>:<arquivo>`). `forge-check parecer delta`: "nenhum arquivo do domínio mudou" (escopo sem o que veio da base).
+- Reteste: `unittest tests.test_ci_local tests.test_catraca.Workflows tests.test_suite_partes.FiacaoDoCI`: 82 testes, OK. `forge-mutante tests/mutantes/v047-ci-parecer-job.json`: M1 a M6 `morreu` (ci.yml:674, :550, :552), saída 0.
+- Sem PR aberto: sem check-run `bateria` para citar; a suíte inteira fica para o CI do PR.
+- Vermelho antes do verde: inalterado (E1.20), os testes não mudaram.
 
 ## Revalidação por delta (E1.20): head bd28180e, volta E1.18 (de 7ba85a05)
 Veredito: APROVADO. A1 fechado, A2 fechado. Sem PR aberto: sem check-run `bateria` para citar; rodei os testes afetados e a mutação.
