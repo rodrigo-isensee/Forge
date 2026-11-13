@@ -15,8 +15,7 @@ data: 2026-11-13
 # QA: flaky-prepush-grupo (E26.7)
 
 ## Achados
-Nenhum aberto. Recomendado: o CI (`bateria` do sha final) precisa mostrar os 4 testes de GrupoDaEtapa sem `skipped` e repetição sem stderr vazio; aqui o sandbox os pula.
-- A1 (resolvido em 989d49f5; histórico, rodada 905edbbb) tests/test_prepush_so_docs.py:313 · vigia() casa o `sleep 60` irmão de lanca(): ele é filho do mesmo PID (o bash -c faz exec do hook), nasce antes do arquivo `etapa` e não é a etapa, então devolve True de imediato e a espera não prova que o hook chegou ao laço; exclua o PID de `irmao`.
+- A2 (recomendado) tests/test_prepush_so_docs.py:300 · o CI (`bateria` do sha final) deve mostrar os 4 testes de GrupoDaEtapa sem `skipped` e repetição sem stderr vazio; o sandbox os pula.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
