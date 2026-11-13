@@ -36,8 +36,8 @@ Políticas:
 - Nenhuma coluna é pulada no downstream (`R-REVIEW` code review em toda entrega; `R-QA` portão de QA).
 - "Pronto" só com o merge do usuário (`R-MAIN` a main é do usuário).
 - **"Pronto: não reproduz"** (bug sem código, nada a mesclar): o cartão só entra em "Pronto" com a prova no lugar do merge, anotada no cartão ou no parecer: passos tentados, ambiente e versão (sistema, runtime, commit ou release) e a saída copiada da ferramenta. O usuário valida a prova; sem ela o cartão fica em "Aguardando sua validação". Medida: cartões em "Pronto" fora da política = 0.
-- Bloqueio e espera do dono: o cartão vai para "Bloqueado" ou para "Aguardando o dono" com a coluna de origem anotada e volta para ela.
-- Cartão devolvido no code review ou no QA volta para "Em andamento" e conta como retrabalho.
+- Bloqueio e espera do dono: o cartão vai a "Bloqueado" ou "Aguardando o dono" com a coluna de origem anotada e volta para ela; parado nunca vira proposta de abandono (`R-WIP`).
+- Devolvido no code review ou no QA: volta a "Em andamento" (retrabalho).
 
 ## Formato do cartão
 Uma linha de tabela por cartão, em cada coluna:
@@ -83,7 +83,7 @@ Calculadas por período, a partir do git (`git log`, tags de release), dos PRs (
 Mesma regra de amostra das métricas de fluxo. Taxa de falha e tempo de recuperação (estabilidade) pesam tanto quanto frequência e lead time (velocidade): velocidade que sobe com estabilidade em queda não é melhoria.
 
 ## Bugs e retrabalho
-Todo achado de code review, revisão de UX e bug do QA volta ao autor por este processo (pedido do usuário). O Jarvis cria os cartões no mesmo dia do parecer; o agile-coach audita.
+Todo achado de code review, revisão de UX e bug do QA volta ao autor por este processo. O Jarvis cria os cartões no mesmo dia do parecer; o agile-coach audita.
 
 **1. Achado vira cartão**
 - ID `K-NNN` normal, título com prefixo `[bug]` (defeito: não cumpre spec, regra ou teste) ou `[ajuste]` (melhoria pedida em revisão, sem defeito). Obs. com: `origem` (code review / QA / UX), `pai` (cartão de origem, ex. K-004), `severidade` (bloqueante, crítico, alto, médio, baixo; a maior do grupo), contagem por severidade e link do parecer (`docs/reviews/...` ou `docs/qa/...`) com os números dos achados. O texto do achado fica no parecer; o cartão não o copia.
