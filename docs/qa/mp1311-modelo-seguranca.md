@@ -1,7 +1,7 @@
 ---
 tipo: qa
 contrato: 1
-pedido: mp1311-modelo-seguranca
+pedido: melhorias-de-projeto-1311
 branch: melhoria/mp1311-modelo-seguranca
 commit: c734a22a012c8564c2c65e354e3401aa5394ae39
 parecer: aprovado
