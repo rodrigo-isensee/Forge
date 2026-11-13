@@ -1,18 +1,18 @@
 {
-  "descricao": "HOOK-CONTRIB-HEREDOC-FP, caso verdadeiro: o corpo que o sh roda passa sozinho pela gramática com heredoc; o heredoc de dentro fora dela recusa.",
+  "descricao": "HOOK-CONTRIB-HEREDOC-FP, caso verdadeiro: o corpo que o sh roda e que manda outro heredoc a outro sh não só lê nem espera: a gramática com heredoc segue valendo, recusa.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "sh <<'EOF'\ncat <<'X'\ngh pr merge 12\nX\nEOF"
+      "command": "sh <<'EOF'\ncat <<'X' | sh\necho gh pr merge 12\nX\nEOF"
     },
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9"
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "R-REVIEW: `cat (fora da lista de programas)`"
+    "stderr": "R-REVIEW: `sh (fora da lista de programas)`"
   }
 }

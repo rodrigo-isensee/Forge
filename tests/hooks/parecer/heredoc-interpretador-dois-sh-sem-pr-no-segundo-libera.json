@@ -1,5 +1,5 @@
 {
-  "descricao": "HOOK-CONTRIB-HEREDOC-FP: dois corpos que o sh roda; só o que tem gh pr, merge ou pull passa pela gramática com heredoc; o outro, só com cat, libera.",
+  "descricao": "HOOK-CONTRIB-HEREDOC-FP: dois corpos que o sh roda, um que só ecoa o gh pr merge e outro sem marca (só cat): nenhum liga a gramática com heredoc; libera.",
   "arquivos": {
     "src/app.js": "v1\n"
   },

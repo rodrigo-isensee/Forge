@@ -4,20 +4,10 @@
   "mutantes": [
     {
       "id": "M17",
-      "guarda": "o corpo que o shell roda passa sozinho pela gramática",
+      "guarda": "o corpo de shell que não só lê nem espera liga a gramática com heredoc",
       "arquivo": "hooks/parecer.py",
-      "de": "    if nivel == 0:\n        sinais +=",
-      "para": "    if False:\n        sinais +=",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
-      ]
-    },
-    {
-      "id": "M18",
-      "guarda": "só o corpo do shell com a marca passa pela gramática",
-      "arquivo": "hooks/parecer.py",
-      "de": "if leitor == \"shell\" and critico_ou_alias(corpo)]",
-      "para": "if leitor == \"shell\"]",
+      "de": "or tipo == \"shell\" and not so_le_ou_espera(corpo)",
+      "para": "or False",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
       ]

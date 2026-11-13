@@ -204,13 +204,15 @@ def interprete_do_corpo(dono):
 
 def leitores_dos_corpos(original, corpos):
     """O tipo de cada corpo de `corpos` ([(dono, corpo)]), na mesma ordem: `python`, corpo de Python sem comando de PR
-    lançado, que não é comando nem marca a chamada; `shell`, corpo que o shell roda como uma chamada, que passa sozinho
-    pela gramática com heredoc; None, o corpo como antes. Só com todo `<<` simples (`heredocs_simples`): o bash e o
-    hook cortam o corpo no mesmo ponto."""
+    lançado, que não é comando nem marca a chamada; `shell`, corpo que o shell roda e que só lê ou espera
+    (`so_le_ou_espera`, a regra do `sh -c` de texto), que segue conferido como comando e não marca a gramática com
+    heredoc; None, o corpo como antes (o `git merge` que o sh roda segue na rede D). Só com todo `<<` simples
+    (`heredocs_simples`): o bash e o hook cortam o corpo no mesmo ponto."""
     if not heredocs_simples(original):
         return [None] * len(corpos)
     tipos = [interprete_do_corpo(dono) for dono, _ in corpos]
-    return [None if tipo == "python" and LANCA_PROCESSO.search(corpo) and COMANDO_DE_PR.search(corpo) else tipo
+    return [None if tipo == "python" and LANCA_PROCESSO.search(corpo) and COMANDO_DE_PR.search(corpo)
+            or tipo == "shell" and not so_le_ou_espera(corpo) else tipo
             for tipo, (_, corpo) in zip(tipos, corpos)]
 
 
@@ -924,8 +926,9 @@ def principal(hook):
 
 
 def marcas_da_chamada(original, comando, corpos, leitores):
-    """(a chamada tem a marca crítica, `critico_ou_alias`; e fora dos corpos que o shell roda): o corpo `python` de
-    `leitores_dos_corpos` não marca, e o `shell` só marca a primeira. Sem eles, as duas são a do texto inteiro."""
+    """(a chamada tem a marca crítica, `critico_ou_alias`; e fora dos corpos de shell que só leem ou esperam): o corpo
+    `python` de `leitores_dos_corpos` não marca, e o `shell` só marca a primeira. Sem eles, as duas são a do texto
+    inteiro."""
     if not any(leitores):
         return (critico_ou_alias(original),) * 2
     def sem(tipos):
@@ -1007,14 +1010,9 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                              f"{contorno_da_reavaliacao(reavaliacoes[0])}")
     # ADR 0011, item 2 (opções D e A), depois das regras da linha e do corpo: sobre o texto do nível 0, com o `<<` que o
     # bash pode formar nele ou num nível de cima (`bash -c`, `eval`, `$(…)`; `tem_heredoc_no_texto`), haja heredoc
-    # provado ou não; o corpo que o shell roda (`leitores_dos_corpos`) passa por ela sozinho, como a chamada que ele é
-    sinais = []
+    # provado ou não; a marca só no corpo de Python ou de shell que só lê ou espera (`leitores_dos_corpos`) não a liga
     if nivel == 0 and marcado_fora_do_shell and not (SO_CAT.fullmatch(comando) and heredocs_simples(original)):
-        sinais.append(fora_da_gramatica_com_heredoc(original))
-    if nivel == 0:
-        sinais += [fora_da_gramatica_com_heredoc(corpo) for (_, corpo), leitor in zip(corpos, leitores)
-                   if leitor == "shell" and critico_ou_alias(corpo)]
-    for sinal in sinais:
+        sinal = fora_da_gramatica_com_heredoc(original)
         if sinal is not None:
             bloquear("R-REVIEW", f"`{sinal}` na chamada com heredoc e gh pr, gh api, merge ou pull: o hook não modela. "
                                  f"Corrigir: {CONTORNO_DA_GRAMATICA}")
