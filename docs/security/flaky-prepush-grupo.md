@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v046
 branch: melhoria/flaky-prepush-grupo
-commit: 989d49f5661d93c37dfff8813a905ba97490cd6c
+commit: e4cf8f83d57a73d42fdf1d12dfb581145972fcad
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-13
@@ -33,3 +33,6 @@ Nenhum risco aceito. Ferramentas: só leitura do diff e a sonda do `/proc`, que 
 ## Revalidação por delta (E26.17, 905edbbb..989d49f5)
 `forge-check parecer delta`: só `tests/test_prepush_so_docs.py` no domínio. A1 resolvido: `vigia(hook, etapa, irmao)` exclui o PID do irmão, lido de `self.le("irmao")` (espera inteiros, sem janela fixa) antes de `etapa`. Com o irmão fora, o único `sleep` filho do hook é o do laço `while lider_vivo` (`templates/projeto/.githooks/pre-push:152-158`), que só roda depois de `alvo="-$etapa"` (:147-150): o SIGTERM agora cai na janela coberta. Asserções, prazo de 30 s e o hook do modelo intactos; o irmão segue conferido por `assertIn(irmao, vivos())`. Corrida de leitura de `irmao` (arquivo vazio durante o redirect) coberta por `le`, que ignora conteúdo não inteiro.
 Execução: não provada aqui. Rodei `GrupoDaEtapa` duas vezes e os 4 testes foram pulados pelo sandbox (/proc de outro namespace de PID); não há PR com CI. A prova do teste fica com o CI do PR (R-QA); a aprovação é por leitura estática do delta.
+
+## Revalidação por delta (E26.30, 989d49f5..e4cf8f83)
+O delta é só a junção com a develop (#521 a #523: `agents/jarvis.md`, parecer, agentes). `git diff 989d49f5 e4cf8f83` em `tests/test_prepush_so_docs.py`, `templates/projeto/.githooks/pre-push` e `.githooks/pre-push` é vazio: teste e hook não mudaram, e o diff contra a origin/develop toca só o teste da etapa. Nenhum achado novo, nenhum controle do Forge afrouxado. Execução: sem PR; o CI do PR decide a prova do teste (R-QA); aprovação por leitura estática, como no parecer anterior.
