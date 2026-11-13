@@ -16,10 +16,6 @@ data: 2026-11-13
 
 Branch: melhoria/v047-teste-carga. Head revisado: 3da64e12. Sem PR e sem check-run `bateria` ainda (máquina com carga 12 a 17 em 12 CPUs); rodei só os testes afetados e leves.
 
-## Achados
-- A1 (bloqueante) tests/test_hooks.py:636 · mutante manual `os.getloadavg()[0]` -> `[2]` (carga de 15 min) sobreviveu: nenhum teste lê a carga real, só passam `carga` explícita. Um teste com `os.getloadavg` mockado em `(6.0, 0.0, 0.0)` e 4 núcleos esperando 1.5 o mata (verifiquei).
-- A2 (bloqueante) tests/test_hooks.py:639 · mutante manual `nucleos or nucleos_do_processo() or 1` -> `nucleos or 1` sobreviveu: o caminho sem `nucleos`, o que os dois testes de tempo usam, nunca roda. Mockar `nucleos_do_processo` em 4 e chamar `fator_de_carga(6, None)` esperando 1.5 o mata (verifiquei).
-
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
@@ -71,10 +67,9 @@ Os mutantes de `fator_de_carga` fiz à mão numa cópia, rodando `tests.test_med
 
 ## Revalidação por delta até 171232b9 (E5.15)
 Head revisado: 171232b97fb8f5a84b426b2fabc5f2a5f1ef5170 (delta de 3da64e12: a fórmula foi para `tests/apoio_volta_unica.py`, testes novos em `tests/test_medida_cpu.py`, 14 mutantes na spec). Sem PR nem check-run `bateria`; só testes leves e afetados (carga ~8 em 12 CPUs). Parecer: APROVADO. Os A1 e A2 anteriores estão resolvidos; nenhum achado bloqueante novo.
+Resolvidos: A1 (`test_le_a_carga_de_1_minuto_e_nao_a_de_15` mata M11) e A2 (`test_sem_nucleos_dados_usa_os_do_processo` mata M12) da rodada anterior.
 
 ## Achados
-- A1 (bloqueante, resolvido) tests/test_medida_cpu.py · `test_le_a_carga_de_1_minuto_e_nao_a_de_15` mata M11 (`getloadavg()[2]`).
-- A2 (bloqueante, resolvido) tests/test_medida_cpu.py · `test_sem_nucleos_dados_usa_os_do_processo` mata M12 (`nucleos or 1`).
 - A3 (recomendado) tests/apoio_volta_unica.py:30 · mutante manual `except OSError` -> `except ValueError` em `nucleos_do_processo` sobrevive em `test_medida_cpu`; código movido sem mudança de lógica, por isso não bloqueia. Teste com `os.sched_getaffinity` levantando OSError esperando `None` mata.
 - A4 (recomendado) tests/apoio_volta_unica.py:30 · mutante manual `else os.cpu_count()` -> `else 1` (recuo sem afinidade) sobrevive; mesmo caso de A3, código herdado.
 
