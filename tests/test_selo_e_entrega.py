@@ -923,6 +923,91 @@ class ParecerDoPortao(Conferencia):
         self.assert_fora()
 
 
+class JanelaDaEntrega(Conferencia):
+    """MP1311 (item 1, com MP1103-D-8): a janela da conferência desconta o parecer dos outros portões em toda etapa de código (o caso do
+    PR 530) e aceita `--desde` no commit do autor que os portões revisaram (o `Revisar-sha:` de brief selado do portão da branch)."""
+
+    ETAPA, PAPEL = ParecerDoPortao.ETAPA, ParecerDoPortao.PAPEL
+    selar_portao, commitar_parecer = ParecerDoPortao.selar_portao, ParecerDoPortao.commitar_parecer
+
+    def entrega_revisada(self):
+        """A entrega conferida (linha gravada) e o parecer de review sobre ela; devolve o head da entrega."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        head = self.entregar()
+        rc, saida = self.rodar("entrega", "--pedido", "exemplo", "--branch", "melhoria/x", "--etapa", "codigo")
+        self.assertEqual(rc, 0, saida)
+        self.commitar_parecer("reviews", "review", revisado=head)
+        return head
+
+    def test_parecer_de_outro_portao_na_etapa_qa_e_anexo_do_portao(self):
+        head = self.entrega_revisada()
+        self.commitar_parecer("security", "revisao-seguranca", revisado=head)
+        self.commitar_parecer("qa", "qa", revisado=head)
+        rc, saida = self.conferir("qa")
+        self.assertEqual(rc, 0, saida)
+        for papel, rel in (("tech-lead", "reviews"), ("seguranca", "security"), ("qa", "qa")):
+            self.assertIn(f'escopo: ok (anexo do portão: parecer de {papel} da própria branch) "docs/{rel}/x.md"', saida)
+
+    def conferir_desde(self, desde):
+        return self.rodar("entrega", "exemplo", "--branch", "melhoria/x", "--base", "develop", "--base-sha", self.base,
+                          "--etapa", "codigo", "--desde", desde)
+
+    def volta(self):
+        self.gravar("volta.txt", "v\n")
+        self.git("add", "volta.txt")
+        return self.commit("fix: volta")
+
+    def test_desde_no_commit_revisado_pelo_portao_vale(self):
+        head = self.entrega_revisada()
+        (self.proj / "docs/pedidos/exemplo.md").write_text(self.pedido().replace(f"entrega conferida {head}", "aberto"), encoding="utf-8")
+        self.volta()
+        rc, saida = self.conferir_desde(head)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"intervalo: {head}..", saida)
+        self.assertIn("base: commit do autor revisado pelo portão (Revisar-sha de brief selado)", saida)
+        self.assertNotIn('"bin/app"', saida)
+        self.assertNotIn("sem conferência anterior", saida)
+
+    def test_desde_em_commit_nao_revisado_segue_recusado(self):
+        self.entrega_revisada()
+        parecer = self.git("rev-parse", "HEAD")
+        self.volta()
+        rc, saida = self.conferir_desde(parecer)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: --desde sem conferência anterior", saida)
+
+    def test_desde_revisado_fora_da_branch_segue_recusado(self):
+        """O `Revisar-sha:` de um commit que não é ancestral do head (outra linha de história) não vira Desde."""
+        self.entrega_revisada()
+        self.git("switch", "-q", "-c", "melhoria/lado", "develop")
+        self.gravar("lado.txt", "l\n")
+        self.git("add", "lado.txt")
+        lado = self.commit("feat: lado")
+        self.git("switch", "-q", "melhoria/x")
+        self.selar_portao("review", lado)
+        rc, saida = self.conferir_desde(lado)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: --desde sem conferência anterior", saida)
+
+    def test_desde_revisado_na_base_segue_recusado(self):
+        """O `Revisar-sha:` que é ancestral do Base-sha (um commit da base, não do autor) não vira Desde."""
+        self.entrega_revisada()
+        self.selar_portao("review", self.base)
+        rc, saida = self.conferir_desde(self.base)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: --desde sem conferência anterior", saida)
+
+    def test_desde_revisado_com_pedido_na_entrega_segue_recusado(self):
+        head = self.entrega_revisada()
+        self.gravar("docs/pedidos/outro.md", "x\n")
+        self.git("add", "docs/pedidos/outro.md")
+        self.commit("docs: pedido na entrega")
+        rc, saida = self.conferir_desde(head)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: --desde gravado na própria entrega", saida)
+
+
 class MatrizDaBuscaDoVeredito(ParecerDoPortao):
     """Volta 4 (segurança A10, cartão AR-BUSCA-VEREDITO): A5, A7, A8 e A10 são uma busca só, a do veredito trocado, e a matriz das
     dimensões dela fecha a família. O revisor commita docs/reviews/x.md reprovado sobre o head revisado; o autor forja um parecer
