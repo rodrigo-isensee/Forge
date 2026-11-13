@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0457
 branch: melhoria/trava-agente-morto
-commit: f3c614eaabe8d2fa2e10d1743f20630c2adb2cff
+commit: d0b8e6d26ffbfd8e9112a24fdf4a0baf79453a87
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -60,4 +60,9 @@ Classe C, passada única, head f77bb51d (diff a1318e88..f77bb51d). O parecer de 
 ## Revalidação por delta 6e005f9b..f3c614ea (E23.108)
 Segunda junção com a develop (#522); conflito só em `bin/forge-testes`, com as duas entradas mantidas (`test_pr_hook_prazo` presente, sintaxe ok, sem marca de conflito). `git diff 6e005f9b f3c614ea` em `hooks/agentes.py`, `hooks/hooks.json`, `hooks/conformidade.json`, `tests/test_trava_agente_morto.py` e `tests/test_pre_push_trava.py`: vazio, a trava não mudou. O resto do delta vem da develop (igual à base).
 Provas locais: `tests/test_trava_agente_morto.py` 51 testes OK; `tests/test_pr_hook_prazo.py` 18 testes OK; `forge-mutante` nas 5 specs da trava, rc 0, M27 a M32 e os demais morreram. Suíte inteira: CI do PR.
+Veredito: aprovado. Sem bloqueante; A5 (recomendado) segue como estava.
+
+## Revalidação por delta f3c614ea..d0b8e6d2 (E23.115)
+`forge-check parecer delta` listou no domínio só `docs/hooks-fixtures.md` (índice regenerado, 3 linhas: contagem 2420 → 2424 e totais). `hooks/`, `bin/` e `tests/` sem diferença entre os dois heads; a trava não mudou. Os 4 casos a mais são os fixtures C10 já cobertos.
+Provas locais: `scripts/indice-fixtures.py --conferir` → `em dia` (rc 0; 2424 fixtures em `tests/hooks`, igual ao índice); `python3 -m unittest tests.test_indice_fixtures tests.test_trava_agente_morto` → `Ran 58 tests ... OK`. Mutantes não rerrodados: nenhuma linha de guarda mudou. Suíte inteira: check-run `bateria` do PR #523.
 Veredito: aprovado. Sem bloqueante; A5 (recomendado) segue como estava.
