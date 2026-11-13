@@ -17,7 +17,7 @@ data: 2026-11-13
 branch: melhoria/v047-jarvis-parte2 · head 17c66fb251218a7656412fb5f48ff591a4f7b241 · base 9b2c6474.
 
 ## Achados
-- Nenhum bloqueante. A0 (bloqueante, parecer em 65cf916b) resolvido em 17c66fb2; A1 (recomendado) resolvido: a linha "Dois relógios (D-4)" voltou a skills/kanban-scrum/SKILL.md:73.
+Nenhum achado aberto: A0 (bloqueante) e A1 (recomendado) do parecer em 65cf916b estão resolvidos em 17c66fb2 (a linha dos dois relógios voltou em skills/kanban-scrum/SKILL.md:73).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
