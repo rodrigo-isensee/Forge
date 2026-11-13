@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0457
 branch: melhoria/trava-agente-morto
-commit: f3c614eaabe8d2fa2e10d1743f20630c2adb2cff
+commit: d0b8e6d26ffbfd8e9112a24fdf4a0baf79453a87
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-13
@@ -73,3 +73,9 @@ Delta lido: `forge-check parecer delta docs/reviews/trava-agente-morto.md`, inte
 - Provas: `python3 -m unittest tests.test_trava_agente_morto tests.test_hook_git_comum tests.test_pr_hook_prazo` 70 testes OK; `bin/forge-mutante tests/mutantes/trava-agente-morto-5.json` M31 e M32 mortos.
 
 Parecer final: aprovado no head f3c614ea. Sem achados bloqueantes; a junção não muda o comportamento da trava.
+
+## Revalidação (E23.114, depois do índice de fixtures)
+Delta lido: `forge-check parecer delta docs/reviews/trava-agente-morto.md`, intervalo `f3c614ea..d0b8e6d2`. No domínio, só `docs/hooks-fixtures.md` (E23.113: contagem 2420 para 2424, `conformidade` 1778/1309 para 1782/1313, `home-*` 7/6 para 11/10, reordenado). Instância que não fez a entrega, worktree própria, sem PR (sem CI a citar).
+- Índice conferido: `python3 -I scripts/indice-fixtures.py --conferir` sai 0 ("em dia"); `ls tests/hooks/*/` soma 2424 `.json`, com `agentes` 71 e `conformidade` 1782, como o índice diz. Código, hooks e testes da trava não mudaram.
+
+Parecer final: aprovado no head d0b8e6d2. Sem achados bloqueantes.
