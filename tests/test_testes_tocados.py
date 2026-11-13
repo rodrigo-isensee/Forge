@@ -52,7 +52,8 @@ class Mapa(unittest.TestCase):
                                     "test_pre_push_afetados"],
             "bin/forge-placar": ["evals.test_placar", "test_forge"],  # 0.43.1, frente I
             ".devcontainer/devcontainer.json": ["test_forge"],  # 0.43.1, frente A
-            "bin/forge-doutor": ["test_atualizar", "test_doutor", "test_forge", "test_medidas_m14b", "test_novo_projeto"],
+            "bin/forge-doutor": ["test_atualizar", "test_doutor", "test_doutor_custo", "test_doutor_protecao_gh", "test_doutor_relogio",
+                                 "test_forge", "test_medidas_m14b", "test_novo_projeto", "test_qa_doutor_f8"],  # v046 E22.1
             "bin/forge-sugerir": ["test_forge", "test_sugerir"],
             "scripts/ci-local": ["test_ci_local", "test_forge", "test_testes_tocados"],
         }
@@ -81,6 +82,14 @@ class Mapa(unittest.TestCase):
                 self.assertEqual(modo, "dirigido")
                 self.assertIn("evals.test_regressao_forma", modulos)
         self.assertTrue(self.f.arquivo_do_modulo("evals.test_placar", RAIZ).is_file())
+
+    def test_modulos_que_rodam_o_forge_doutor_estao_na_regra_dele(self):  # MAPA-FORGE-DOUTOR (v046 E22.1)
+        regra = next(destino for padrao, destino in self.f.MAPA if padrao == r"bin/forge-doutor")
+        modulos = sorted(RAIZ.glob("tests/test_*doutor*.py"))
+        self.assertGreaterEqual(len(modulos), 6)  # a varredura achou os módulos do doutor
+        rodam = {p.stem for p in modulos if re.search(r"\bself\.doutor\(|\bDOUTOR\b", p.read_text(encoding="utf-8"))}
+        self.assertGreaterEqual(len(rodam), 5)
+        self.assertLessEqual(rodam, set(regra))
 
     def test_os_casos_de_comportamento_rodam_so_o_modulo_deles(self):  # L36
         self.assertEqual(self.plano("tests/comportamento/casos.json"), ("dirigido", ["test_comportamento"]))
