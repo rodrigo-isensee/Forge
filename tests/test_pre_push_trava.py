@@ -480,15 +480,16 @@ class PrePushTrava(unittest.TestCase):
         self.assertEqual(list(self.run_dir.iterdir()), [], "sem ref a enviar, o hook não pega trava nem entra na fila")
 
     def test_push_que_so_apaga_nao_roda_a_suite(self):  # PREPUSH-DELETE (decisão do dono, 2026-10-23: opção A)
-        """Só remoções (a limpeza pós-merge do R-FLUXO): sai com 0 sem suíte, sem trava e sem fila; uma ou várias."""
+        """Só remoções (a limpeza pós-merge do R-FLUXO): sai sem suíte, sem trava e sem fila; uma passa, duas recusam (PREPUSH-REFS)."""
         self.suite(SUITE_RAPIDA)
         um = self.refs("melhoria/x", local="0" * 40, remoto="1" * 40)
         dois = um + self.refs("fix/y", local="0" * 40, remoto="2" * 40)
         for nome, entrada in (("uma", um), ("duas", dois)):
             with self.subTest(nome):
                 codigo, _, erro = self.roda("origin", "u", entrada=entrada)
-                self.assertEqual(codigo, 0, erro)
-                self.assertIn("só remove", erro)
+                recusa = nome == "duas"  # PREPUSH-REFS: uma remoção por envio
+                self.assertEqual(codigo, int(recusa), erro)
+                self.assertIn("mais de uma remoção" if recusa else "só remove", erro)
                 self.assertFalse((self.repo / "rodou").exists(), "a suíte rodou em push que só apaga")
                 self.assertEqual(list(self.run_dir.iterdir()), [], "push que só apaga não pega trava nem entra na fila")
 
@@ -849,7 +850,7 @@ class PrePushTrava(unittest.TestCase):
         self.suite(SUITE_RAPIDA)
         antigo = self.commit_limpo("antigo")
         atual = self.commit_limpo("atual")
-        entrada = self.refs("melhoria/a", local=atual) + self.refs("melhoria/b", local=antigo)
+        entrada = self.refs("melhoria/a", local=atual) + f"refs/tags/b {antigo} refs/tags/b {'0' * 40}\n"  # PREPUSH-REFS: tag
         codigo, _, erro = self.roda("origin", "u", entrada=entrada)
         self.assertEqual(codigo, 0, erro)
         verde = self.trava.with_suffix(".verde")

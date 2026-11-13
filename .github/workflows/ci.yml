@@ -34,7 +34,7 @@ jobs:
     # Prova do Python 3.12 que o scripts/arvore-testada.py lê (o nome é o JOBS_DE_PROVA dele): mesmo preparo das partes.
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-26.04
-    timeout-minutes: 20
+    timeout-minutes: 30  # medido 13-20 min (3.12) e 17-20+ min (3.14, cancelado no teto em 3 runs); 30 dá folga de 50%
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -76,7 +76,7 @@ jobs:
     # Prova do Python 3.14 (SP4): sem ela, as partes do 3.14 rodariam em toda promoção.
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-26.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:

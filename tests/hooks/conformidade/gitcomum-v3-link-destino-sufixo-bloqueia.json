@@ -1,0 +1,29 @@
+{
+  "descricao": "Volta 3 da E20.6 (v046, A1 da E20.29): com `-S` a última palavra é o valor da opção e o destino no .git vem antes: falha fechada, nenhuma origem se libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n",
+    "x": "x\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ln x \"$(git rev-parse --git-dir)\"/HEAD -S bak"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "link com caminho protegido"
+  }
+}

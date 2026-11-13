@@ -97,7 +97,7 @@ class PrePushSegredo(unittest.TestCase):
         limpo = self.commit("limpo", **{"l.md": "ok\n"})
         sujo = self.commit("sujo", **{"s.md": f"{TOKEN}\n"})
         self.git("checkout", "-q", limpo)
-        self.recusa(("melhoria/x", limpo), ("melhoria/y", sujo), onde="s.md:1")
+        self.recusa(("melhoria/x", limpo), ("tags/v0", sujo), onde="s.md:1")  # PREPUSH-REFS: uma branch por envio
         self.recusa(("tags/v1", sujo), onde="s.md:1")
 
     def test_sem_a_base_local_avisa_e_segue(self):  # o CI varre
