@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0457
 branch: melhoria/trava-agente-morto
-commit: 31f2e643e22c22ceedcf927a07c4cf5676032ed4
+commit: 6e005f9beb2310dc25dd634f60636cc542232a47
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-13
@@ -57,3 +57,11 @@ Delta lido: `forge-check parecer delta docs/reviews/trava-agente-morto.md`, inte
 - Provas do delta: `python3 -m unittest tests.test_trava_agente_morto` 51 testes OK; `bin/forge-mutante` nas specs `-4` (M25 a M30) e `-5` (M31, M32): todos mortos. A suíte inteira, shellcheck e a validação do plugin ficam com o CI do PR.
 
 Parecer final: aprovado no head 31f2e643. Sem achados bloqueantes abertos; A2 a A4 (recomendados) atendidos. Pendência do PR: `teto: excedido` no corpo (M14), como já dito.
+
+## Revalidação (E23.102, junção com a develop)
+Delta lido: `forge-check parecer delta docs/reviews/trava-agente-morto.md`, intervalo `31f2e643..6e005f9b`. Instância que não fez a entrega, worktree própria, sem PR do CI a citar (o CI do PR #523 fica com a suíte e as 6 falhas locais de pid e sessão do sandbox em `tests.test_hooks`).
+- O patch da branch não mudou: o diff de `hooks/agentes.py`, `hooks/hooks.json`, `hooks/conformidade.json`, `docs/hooks.md` e `tests/test_trava_agente_morto.py` contra a base antiga (`ee608198..31f2e643`) tem as mesmas linhas de `9b2c6474..6e005f9b` (contra a develop nova). A junção só trouxe o `.githooks/pre-push` do #506 e outros itens da develop; nenhum toca o código da trava (sem `agente` nem `trava` no diff do pre-push).
+- Único arquivo do domínio na faixa: `bin/forge-testes`, e a parte da branch é só o mapa do `test_trava_agente_morto` (regra `hooks/.*` e o comentário), sem conflito com o mapa do forge-doutor do #518.
+- Provas: `python3 -m unittest tests.test_trava_agente_morto tests.test_hook_git_comum` 52 testes OK; `bin/forge-mutante` na spec `-5` (M31, M32) mortos.
+
+Parecer final: aprovado no head 6e005f9b. Sem achados bloqueantes; a junção não muda o comportamento da trava.
