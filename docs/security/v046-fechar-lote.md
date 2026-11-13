@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v046
 branch: melhoria/v046-fechar-lote
-commit: 2dda228f9517b38e0720c1d65d211934099a8f5d
+commit: 0b6e6834be6a9df4cdaf5438675b6fb82874f068
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-13
@@ -11,6 +11,9 @@ data: 2026-11-13
 # Review de segurança: v046 (fechar em lote, E6.3)
 
 Diff `8b5a44d5..0be84795` (7 commits, 4 itens: CONFERENTE-PR-ABERTO-CEDO, WORKTREE-PRUNE-SANDBOX, FECHAR-MOVE-CARTAO, ATUALIZAR-BRANCH-ATRASADA). Lido em worktree destacada própria; testes dos arquivos tocados rodados (24, verdes) e o shellcheck do `bin/forge-fechar` limpo.
+
+## Revalidação por delta (E6.19)
+Head 0b6e6834 (merge da develop b19a5a94, PRs 524, 528 e 529). `forge-check parecer delta` de 2dda228f a 0b6e6834, sem o que veio da base: no domínio só `tests/config.json`, que acrescenta o invariante do `agents/agile-coach.md` e o motivo (`R-DECISAO`); acrescenta, não afrouxa. `git diff 2dda228f 0b6e6834` em `bin/forge-fechar`, `bin/forge-doutor` e `bin/forge-testes`: vazio, nada da fechar-lote mudou. O resto veio da develop (`bin/forge-check`, agentes, skills, testes) e tem parecer próprio nos PRs 524, 528 e 529. Sem CI do PR lido nesta passada; não rodei teste, pois o delta é só texto de invariante. A1 segue recomendado, sem promoção.
 
 ## Revalidação por delta (E6.14)
 Head 2dda228f. Delta do código da fechar-lote desde 17ae39a3: só a regra do `bin/forge-doutor` no mapa de `bin/forge-testes` (acrescenta `test_doutor_branch_atrasada` à lista) e `tests/test_testes_tocados.py:55` (lista esperada). É dado de seleção de testes, sem execução de entrada, rede, gravação nem remoção; só amplia o que roda, não afrouxa guarda. O 4a2a4293 é merge da develop (domínio de outros pareceres; `forge-check parecer delta` lista a árvore trazida, nada de `bin/forge-fechar` mudou). `tests/test_testes_tocados.py` rodado: 150 testes, OK (1 pulado por /proc do sandbox). CI do PR 525 no head: catraca, árvore provada e instalação verdes; a bateria falha só no passo "Parecer de review ... quando o PR toca código que governa os agentes", que pede pareceres neste head (os de E6.12/E6.14). A1 segue recomendado, sem promoção.
