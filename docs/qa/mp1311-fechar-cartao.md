@@ -17,8 +17,8 @@ data: 2026-11-13
 Head testado: `0884fae2` (único commit de código sobre a base `efe7c9e8`; os commits seguintes da branch só somam pareceres). Sem PR aberto, sem check-run `bateria`: rodei só os módulos afetados, por prazo de máquina (carga 13 a 22 em 12 CPUs).
 
 ## Achados
-- A1 (recomendado) resolvido em `a47ef67b`: `ref_check` agora é `refs/heads/$ref` (bin/forge-fechar:827), com teste de tag homônima e mutante M4.
-- A2 (recomendado) resolvido em `a47ef67b`: mutante M5 cobre `ref_dry` (tests/mutantes/mp1311-fechar-cartao.json).
+- A1 (recomendado) bin/forge-fechar:827 · resolvido em a47ef67b: ref_check usa refs/heads/<branch>, com teste de tag homônima e mutante M4
+- A2 (recomendado) tests/mutantes/mp1311-fechar-cartao.json:1 · resolvido em a47ef67b: mutante M5 cobre a linha ref_dry
 
 ## Critério → teste → resultado
 O pedido não traz `CA-n`; a obrigação é `FECHAR-REF-POR-NOME` (item 11: o `forge-check pr` recebe o nome da branch local; o sha segue preso na cadeia).
