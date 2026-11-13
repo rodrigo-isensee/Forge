@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0457
 branch: melhoria/trava-agente-morto
-commit: 6e005f9beb2310dc25dd634f60636cc542232a47
+commit: f3c614eaabe8d2fa2e10d1743f20630c2adb2cff
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-13
@@ -65,3 +65,11 @@ Delta lido: `forge-check parecer delta docs/reviews/trava-agente-morto.md`, inte
 - Provas: `python3 -m unittest tests.test_trava_agente_morto tests.test_hook_git_comum` 52 testes OK; `bin/forge-mutante` na spec `-5` (M31, M32) mortos.
 
 Parecer final: aprovado no head 6e005f9b. Sem achados bloqueantes; a junção não muda o comportamento da trava.
+
+## Revalidação (E23.106, segunda junção com a develop)
+Delta lido: `forge-check parecer delta docs/reviews/trava-agente-morto.md`, intervalo `6e005f9b..f3c614ea` (junção com o #522; conflito só em `bin/forge-testes`). Instância que não fez a entrega, worktree própria, sem PR (sem CI a citar).
+- Nada da trava mudou: `git patch-id` do diff de `hooks/agentes.py`, `hooks/hooks.json`, `hooks/conformidade.json`, `docs/hooks.md` e `tests/test_trava_agente_morto.py` contra a develop nova (`origin/develop...HEAD`) é igual ao de `9b2c6474..6e005f9b` nos cinco arquivos; `git diff 6e005f9b..f3c614ea` neles é vazio. Os demais arquivos da faixa são do #522 (`test_pr_hook_prazo`, fixtures de parecer) e dos pareceres.
+- `bin/forge-testes`: a resolução manteve as duas entradas (`test_pr_hook_prazo` e `test_trava_agente_morto` na regra `hooks/.*`; `test_pr_hook_prazo` em FORGE_CHECK), sem perda de nenhuma.
+- Provas: `python3 -m unittest tests.test_trava_agente_morto tests.test_hook_git_comum tests.test_pr_hook_prazo` 70 testes OK; `bin/forge-mutante tests/mutantes/trava-agente-morto-5.json` M31 e M32 mortos.
+
+Parecer final: aprovado no head f3c614ea. Sem achados bloqueantes; a junção não muda o comportamento da trava.
