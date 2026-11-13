@@ -3,22 +3,27 @@ tipo: qa
 contrato: 1
 pedido: mp1311-modelo-seguranca
 branch: melhoria/mp1311-modelo-seguranca
-commit: 4b78a54b4ebb700a9c0ac78181b24aff057385e4
-parecer: reprovado
-escopo: completo
+commit: c734a22a012c8564c2c65e354e3401aa5394ae39
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-13
 ---
 # QA: mp1311-modelo-seguranca
 
-Parecer: reprovado por um bloqueante (A1); o restante da obrigação do item passa.
+Parecer: aprovado na revalidação por delta até c734a22a (A1 e A2 da primeira rodada resolvidos, bug mp1311-01 fechado). A rodada anterior (head 4b78a54b) está preservada abaixo.
 
 Item 9 do pedido melhorias-de-projeto-1311 (E1.9): a migração `migrations/0.47.1/migrar` cria `docs/security/_modelo.md` em projeto existente. Head testado 4b78a54b (o diff até a base efe7c9e8 é a migração, o LEIA, o fragmento de changelog e a classe `ModeloDeSegurancaNoProjeto`). Não há PR, então não há check-run `bateria` para citar: rodei só os meus cenários (carga da máquina alta).
 
 ## Achados
+- A1 (resolvido) migrations/0.47.1/migrar:21 · recusa link em docs, docs/security e no modelo (saída 1), arquivo criado com O_EXCL|O_NOFOLLOW; as quatro sondas deixam a pasta de fora vazia.
+- A2 (resolvido) tests/mutantes/mp1311-modelo-seguranca.json:1 · spec versionada, quatro mutantes, sem equivalentes, todos morreram.
+- A3 (recomendado) migrations/0.47.1/migrar:27 · as flags O_EXCL|O_NOFOLLOW da abertura não têm mutante (só uma corrida entre a checagem e a abertura as exerce); aceitável como defesa em profundidade, sem teste determinístico.
+
+Achados da rodada anterior (head 4b78a54b), mantidos como histórico:
 - A1 (bloqueante) migrations/0.47.1/migrar:13 · reproduzido: com docs/security como link simbólico para pasta de fora, a migração cria _modelo.md fora do projeto (R-SEGURANCA, bug em docs/qa/bugs/mp1311-01-migracao-segue-link.md); usar lstat e recusar link.
 - A2 (recomendado) tests/mutantes/mp1311-modelo-seguranca.json:1 · a spec de mutantes da migração não está versionada na branch (o review já apontou); rodei a minha, de seis mutantes, e todos morreram; vale o autor versionar a spec ou a minha.
 
@@ -47,4 +52,13 @@ vermelho (manual, base efe7c9e8): ERROR test_leia_resume_para_o_forge_upgrade; E
 head 4b78a54b: Ran 5 tests in 5.488s OK
 forge-mutante: pedido=mp1311-modelo-seguranca rev=4b78a54b4ebb spec=f321877d... M1 morreu · M2 morreu (erro) · M3 morreu · M4 morreu · M5 morreu · M6 morreu; rc=0
 sonda: migrar proj (docs/security -> link para fora) => criado docs/security/_modelo.md; ls fora => _modelo.md
+```
+
+## Revalidação por delta (c734a22a)
+`forge-check parecer delta` listou no meu domínio: `migrations/0.47.1/migrar`, `tests/mutantes/mp1311-modelo-seguranca.json` e `tests/test_forge.py`. Sondas de link reproduzidas (todas recusadas, rc 1, nada fora do projeto): docs/security como link para pasta de fora, link pendurado no `_modelo.md`, link existente para pasta de fora, docs como link. Caminhos felizes mantidos: projeto novo cria o modelo; segunda rodada rc 0 sem saída; projeto passado como link para diretório funciona (o `resolve()` o segue de propósito). Testes novos: link pendurado e pasta como link (7 testes da classe, OK). Não recebi o texto do relatório do autor com os dois desvios; julguei os que o diff mostra: (1) a spec usa um mutante (M1) para as duas pastas, porque é uma só linha de guarda (`islink(pasta)` no laço), aceito; (2) a numeração pula M4 (sem equivalente), inofensivo. Sem PR, sem check-run `bateria`: rodei só a classe afetada e os mutantes.
+
+```
+head c734a22a: Ran 7 tests in 3.517s OK
+forge-mutante: pedido=mp1311-modelo-seguranca rev=c734a22a012c spec=5997810b... M1 morreu · M2 morreu · M3 morreu · M5 morreu; rc=0
+sondas: p1/p2/p3/p4 => recusado ..., rc=1 cada; ls das pastas de fora vazio
 ```
