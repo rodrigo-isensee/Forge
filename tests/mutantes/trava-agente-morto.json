@@ -1,0 +1,83 @@
+{
+  "pedido": "trava-agente-morto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "C5: a liberação só tira o registro dentro de vigentes()",
+      "arquivo": "hooks/agentes.py",
+      "de": "if sessao_morta(a) or morto(a):",
+      "para": "if sessao_morta(a):",
+      "testes": ["tests.test_trava_agente_morto.C1NotificacaoDoClaudeCode.test_notificacao_terminal_libera"]
+    },
+    {
+      "id": "M2",
+      "guarda": "C3: só arquivo regular, conferido no descritor",
+      "arquivo": "hooks/agentes.py",
+      "de": "if not stat.S_ISREG(info.st_mode):",
+      "para": "if stat.S_ISFIFO(info.st_mode):",
+      "testes": ["tests.test_trava_agente_morto.C4Orcamento.test_descritor_que_nao_e_arquivo_regular_mantem"]
+    },
+    {
+      "id": "M3",
+      "guarda": "C4: a primeira linha só se descarta quando a leitura começa no meio do arquivo",
+      "arquivo": "hooks/agentes.py",
+      "de": "return dados.partition(b\"\\n\")[2] if inicio else dados",
+      "para": "return dados.partition(b\"\\n\")[2] if True else dados",
+      "testes": ["tests.test_trava_agente_morto.C1NotificacaoDoClaudeCode.test_notificacao_terminal_libera"]
+    },
+    {
+      "id": "M4",
+      "guarda": "C3: o session_id passa pela regex de UUID",
+      "arquivo": "hooks/agentes.py",
+      "de": "SESSAO_UUID.fullmatch(sessao) and ",
+      "para": "sessao and ",
+      "testes": ["tests.test_trava_agente_morto.C3SoDaSessaoAtual.test_sessao_fora_da_forma_nao_sai_nem_com_transcript_e_meta_do_mesmo_nome"]
+    },
+    {
+      "id": "M5",
+      "guarda": "C3: o transcript real fica direto em ~/.claude/projects/<projeto>/",
+      "arquivo": "hooks/agentes.py",
+      "de": "real.parent.parent == base and ",
+      "para": "True and ",
+      "testes": ["tests.test_trava_agente_morto.C3SoDaSessaoAtual.test_transcript_fora_de_projects_ou_de_outra_sessao_nao_vale"]
+    },
+    {
+      "id": "M6",
+      "guarda": "C1: só a entrada com promptSource system (a notificação do Claude Code, não o usuário)",
+      "arquivo": "hooks/agentes.py",
+      "de": "entrada.get(\"promptSource\") == \"system\" and ",
+      "para": "True and ",
+      "testes": ["tests.test_trava_agente_morto.C1NotificacaoDoClaudeCode.test_mensagem_do_usuario_nao_libera"]
+    },
+    {
+      "id": "M7",
+      "guarda": "C4: o prazo da leitura estourado mantém o registro",
+      "arquivo": "hooks/agentes.py",
+      "de": "if time.monotonic() > prazo:",
+      "para": "if time.monotonic() > prazo + 3600:",
+      "testes": ["tests.test_trava_agente_morto.C4Orcamento.test_prazo_estourado_mantem"]
+    },
+    {
+      "id": "M8",
+      "guarda": "C1: só a linha que traz a notificação é lida como notificação",
+      "arquivo": "hooks/agentes.py",
+      "de": "if b\"<task-notification>\" in linha:",
+      "para": "if b\"<task-notification>\" not in linha:",
+      "testes": ["tests.test_trava_agente_morto.C1NotificacaoDoClaudeCode.test_notificacao_terminal_libera"]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/agentes.py",
+      "trecho": "not depois",
+      "motivo": "atalho de desempenho: sem notificação depois do desde, depois[-1] levanta IndexError e o registro fica do mesmo jeito; o if só evita ler o meta.json"
+    },
+    {
+      "arquivo": "hooks/agentes.py",
+      "trecho": "hook._run or hook.run()",
+      "linha_base": 573,
+      "motivo": "a escrita do recusas.log foi para anexar_ao_log, que chama hook.run(); o run() devolve o _run quando já fixado, então a troca é equivalente"
+    }
+  ]
+}

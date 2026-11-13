@@ -297,7 +297,7 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertIn("fail-fast: false", bloco)
 
     def test_agregadores_tem_o_nome_exigido_e_exigem_todas_as_partes(self):
-        casos = {"agregador": ("bateria", {"bateria", "verificacoes", "partes-doze", "pulados-doze"}),
+        casos = {"agregador": ("bateria", {"bateria", "pareceres", "verificacoes", "partes-doze", "pulados-doze"}),
                  "bateria-python-tres-quatorze": ("bateria (python 3.14)",
                                                   {"partes-quatorze", "pulados-quatorze", "instalacao-quatorze"})}
         for job, (nome, necessarios) in casos.items():

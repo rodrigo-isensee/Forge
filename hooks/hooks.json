@@ -16,6 +16,19 @@
         ]
       },
       {
+        "matcher": "SendMessage",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/agentes.py"
+            ],
+            "timeout": 10
+          }
+        ]
+      },
+      {
         "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
         "hooks": [
           {
