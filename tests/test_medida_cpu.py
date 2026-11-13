@@ -62,6 +62,10 @@ class LimitesPelaCargaDaMaquina(unittest.TestCase):
         with mock.patch("os.getloadavg", return_value=(6.0, 0.0, 0.0)):
             self.assertEqual(fator_de_carga(None, 4), 1.5)
 
+    def test_carga_dada_vale_mais_que_a_lida(self):
+        with mock.patch("os.getloadavg", return_value=(0.0, 0.0, 0.0)):
+            self.assertEqual(fator_de_carga(6, 4), 1.5)
+
     def test_sem_nucleos_dados_usa_os_do_processo(self):  # A2 do QA
         with mock.patch("apoio_volta_unica.nucleos_do_processo", return_value=4):
             self.assertEqual(fator_de_carga(6, None), 1.5)

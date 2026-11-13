@@ -121,6 +121,26 @@
       "testes": [
         "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_sem_nucleos_dados_usa_os_do_processo"
       ]
+    },
+    {
+      "id": "M13",
+      "guarda": "a carga dada tem precedencia sobre a lida",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if carga is None else carga",
+      "para": "if carga is not None else carga",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_carga_dada_vale_mais_que_a_lida"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "os nucleos vem da afinidade quando existe",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if hasattr(os, \"sched_getaffinity\") else",
+      "para": "if not hasattr(os, \"sched_getaffinity\") else",
+      "testes": [
+        "tests.test_hooks.TravaPesadaEmSegundoPlano.test_pool_le_a_afinidade_e_ignora_o_forge_nproc"
+      ]
     }
   ]
 }
