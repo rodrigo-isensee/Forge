@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conferencia-patch-dono
-commit: 69bd48632b1bccfb477b3f328bce8feaa8154aa5
+commit: c793d6eae3908b56c6df2756c3e8dcdaf308d9c9
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-12
+data: 2026-11-13
 ---
 # QA: v047 · conferência aceita o patch do dono (E1.2, parecer E1.17)
 
@@ -40,3 +40,10 @@ Pedido de correção sem especificação de UX: as obrigações são a E1.2 do p
 - Mutação (`forge-mutante`, uma spec por vez, rc 0 nas três): spec 1 M1-M8 morreram; spec 2 M1-M8 morreram; spec 3 M1-M7 morreram. 23 de 23 mortos, nenhum sobrevivente, nenhum equivalente.
 - `forge-mutante --cobertura --base a986c292`: 21 condições mudadas, todas "coberta" por ao menos um mutante (1700-1765 e 2572), nenhuma `não coberta`. Linha de guarda mudada sem mutante: nenhuma.
 - Bugs abertos: nenhum. Acessibilidade e E2E: n/a (ferramenta de linha de comando).
+
+## Revalidação por delta 69bd4863..c793d6ea (E1.32, junção com a develop #517 e #522)
+- `forge-check parecer delta`: domínio `bin/forge-check` e `tests/test_conf_escopo.py` (o resto veio da base).
+- Ordem dos ramos em `linhas_de_entrega` conferida: parecer com autoria, merge-integracao, anexo implícito, anexo do portão (`etapa == "codigo"`), e por último o `else` com `isencao_do_dono`; a isenção do dono só vale quando nenhum ramo anterior resolve, e o anexo do portão continua antes dela. P1-P12 seguem guardados: `caminho_isentavel`, `decisao_do_patch`, `pedido_na_entrega`, blob e modo no head, git que falha reprova.
+- `python3 -m unittest tests.test_conf_escopo tests.test_pr_hook_prazo`: 42 testes, OK (carga ~10-12).
+- `forge-mutante` das três specs, uma a uma: todos morreram após o deslocamento de linhas (ex.: M5 em 2747, M8 em 1848), nenhum sobrevivente.
+- A1 e A2 seguem abertos como recomendados (o documento de ameaças fica fora do repositório). Sem bugs; a suíte inteira fica para o CI do PR.
