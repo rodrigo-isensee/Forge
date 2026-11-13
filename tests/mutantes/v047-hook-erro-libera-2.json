@@ -36,8 +36,8 @@
       "id": "M12",
       "guarda": "C3: linha que escreve com alvo opaco marca",
       "arquivo": "hooks/conformidade.py",
-      "de": "(termos.search(t) or ALVO_OPACO.search(t))",
-      "para": "(termos.search(t))",
+      "de": "(termos.search(t) or ALVO_OPACO.search(t) or BASE_TROCADA.search(t))",
+      "para": "(termos.search(t) or BASE_TROCADA.search(t))",
       "testes": [
         "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
       ]
@@ -46,8 +46,8 @@
       "id": "M13",
       "guarda": "C2: só a linha que escreve marca pelo termo da política",
       "arquivo": "hooks/conformidade.py",
-      "de": "any(ESCREVE_NA_LINHA.search(t) and (termos.search(t) or ALVO_OPACO.search(t))",
-      "para": "any((termos.search(t) or ALVO_OPACO.search(t))",
+      "de": "any(ESCREVE_NA_LINHA.search(t) and (termos.search(t) or ALVO_OPACO.search(t) or BASE_TROCADA.search(t))",
+      "para": "any((termos.search(t) or ALVO_OPACO.search(t) or BASE_TROCADA.search(t))",
       "testes": [
         "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
       ]
