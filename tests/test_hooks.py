@@ -675,6 +675,19 @@ def lancador(hook, producao=False, lento=False):
             "producao" if producao else str(PRAZO_DA_DECISAO_NOS_TESTES), "lento" if lento else ""]
 
 
+def pular_sem_ns_de_pid(teste, casos, motivo):
+    """Tira de `casos` as fixtures de pid e sessão quando o ns de pid do pai não se lê (E1.90): cada uma sai como
+    subTest pulado de `teste`, com o motivo. Devolve (casos que seguem, quantas saíram puladas). Função do módulo, não
+    método de `Hooks`: as classes que reaproveitam `Hooks.executar_em_lote` não herdam de `Hooks` (E1.120)."""
+    if not motivo:
+        return casos, 0
+    puladas = [c for c in casos if c[0] in FIXTURES_DE_PID_E_SESSAO]
+    for nome, _ in puladas:
+        with teste.subTest(fixture=nome):
+            teste.skipTest(f"sandbox, sem leitura do namespace de pid do pai: {motivo}")
+    return [c for c in casos if c not in puladas], len(puladas)
+
+
 class Hooks(unittest.TestCase):
     def setUp(self):
         todos = [Fixture(p) for p in sorted(FIXTURES.glob("*/*.json"))]
@@ -695,13 +708,13 @@ class Hooks(unittest.TestCase):
         self.assertIsNone(sem_ns_de_pid_do_pai(ler=lambda _caminho: "pid:[1]", pai=42))
         casos = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures]
         with mock.patch.object(self, "skipTest") as pulo:
-            seguem, puladas = self.pular_sem_ns_de_pid(casos, motivo)
+            seguem, puladas = pular_sem_ns_de_pid(self, casos, motivo)
         self.assertEqual(puladas, 4)
         self.assertEqual({c[0] for c in casos} - {c[0] for c in seguem}, FIXTURES_DE_PID_E_SESSAO)
         self.assertEqual(pulo.call_count, 4)
         self.assertTrue(all(motivo in c.args[0] for c in pulo.call_args_list))
         with mock.patch.object(self, "skipTest") as pulo:
-            self.assertEqual(self.pular_sem_ns_de_pid(casos, None), (casos, 0))
+            self.assertEqual(pular_sem_ns_de_pid(self, casos, None), (casos, 0))
         pulo.assert_not_called()
 
     def test_com_ns_de_pid_do_pai_legivel_as_fixtures_de_pid_e_sessao_rodam_e_gravam(self):  # E1.90 (v047)
@@ -713,21 +726,10 @@ class Hooks(unittest.TestCase):
         with mock.patch(f"{__name__}.sem_ns_de_pid_do_pai", return_value=None):
             self.assertEqual(self.executar_em_lote(casos), 4)
 
-    def pular_sem_ns_de_pid(self, casos, motivo):
-        """Tira de `casos` as fixtures de pid e sessão quando o ns de pid do pai não se lê (E1.90): cada uma sai como
-        subTest pulado, com o motivo. Devolve (casos que seguem, quantas saíram puladas)."""
-        if not motivo:
-            return casos, 0
-        puladas = [c for c in casos if c[0] in FIXTURES_DE_PID_E_SESSAO]
-        for nome, _ in puladas:
-            with self.subTest(fixture=nome):
-                self.skipTest(f"sandbox, sem leitura do namespace de pid do pai: {motivo}")
-        return [c for c in casos if c not in puladas], len(puladas)
-
     def executar_em_lote(self, casos):
         """Roda os casos (nome, Fixture) como subTest, em paralelo, menos os que dependem de PID ou da trava do `pesado`
         (um de cada vez, depois). Devolve quantos foram verificados."""
-        casos, puladas = self.pular_sem_ns_de_pid(casos, None if sinais_de_ci() else sem_ns_de_pid_do_pai())  # no CI nada pula
+        casos, puladas = pular_sem_ns_de_pid(self, casos, None if sinais_de_ci() else sem_ns_de_pid_do_pai())  # no CI nada pula
         outro = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"])  # outra sessão viva
         self.addCleanup(outro.wait)
         self.addCleanup(outro.kill)
