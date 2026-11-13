@@ -1,0 +1,28 @@
+{
+  "descricao": "Volta 5 da E20.6 (v046, A11 da segurança E20.37, A1 e A2 do review E20.36, A1 e A2 do QA E20.38): a variável com chaves (`${d}`) é lida como `$d`: o curinga que só casa o HEAD segue livre.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n",
+    "x": "x\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "d=$(git rev-parse --git-dir); ln -s \"${d}\"/HEA? h"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

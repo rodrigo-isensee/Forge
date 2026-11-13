@@ -1,0 +1,29 @@
+{
+  "descricao": "Volta 3 da E20.6 (v046, A3 da E20.29): atrás de lançador com opção fora da tabela (`builtin -iu X`), a variável do .git definida numa leitura segue na linha, como no corpo sozinho.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n",
+    "x": "x\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "builtin -iu X d=$(git rev-parse --git-dir); cp x $d"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

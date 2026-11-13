@@ -1,0 +1,66 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G34",
+      "guarda": "volta 5 (A11 da segurança E20.37, A1 do review E20.36): resto com `[` fora do colchete só de dígitos não se libera (o glob do Python não lê `[^x]` nem as classes do bash)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if \"[\" in COLCHETE_DE_DIGITO.sub(\"\", resto):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G39",
+      "guarda": "volta 5: o colchete só de dígitos (`[0-9]`), que o bash e o Python leem igual, segue para o glob (o par legítimo do carimbo)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if \"[\" in COLCHETE_DE_DIGITO.sub(\"\", resto):",
+      "para": "if \"[\" in resto:",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G35",
+      "guarda": "volta 5 (A11): com `?` e `*`, o glob casa as letras nas duas caixas (`nocaseglob` com `CONFI?`)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "partes = sem_caixa(resto).split(\"/\")",
+      "para": "partes = resto.split(\"/\")",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G36",
+      "guarda": "volta 5 (A1 e A2 do QA E20.38): o glob também corre no diretório comum da worktree (o `.git` da raiz é arquivo)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "filter(None, (git, topo and diretorio_comum(topo)))",
+      "para": "filter(None, (git,))",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G37",
+      "guarda": "volta 5 (A2 do QA E20.38): sem cópia de git no cwd não há diretório comum a ler (o erro interno recusaria o legítimo)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "filter(None, (git, topo and diretorio_comum(topo)))",
+      "para": "filter(None, (git, diretorio_comum(topo)))",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G38",
+      "guarda": "volta 5 (A2 do QA E20.38): a variável com chaves (`${d}`) é lida como `$d` na origem de rev-parse",
+      "arquivo": "hooks/conformidade.py",
+      "de": "valores = (VARIAVEL_INTEIRA.sub(lambda m: self.ambiente.get(m[1] or m[2], m[0]), a)",
+      "para": "valores = (VARIAVEL_INTEIRA.sub(lambda m: self.ambiente.get(m[2], m[0]), a)",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    }
+  ]
+}

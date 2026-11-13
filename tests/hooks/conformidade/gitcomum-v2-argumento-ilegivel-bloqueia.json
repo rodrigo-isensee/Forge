@@ -1,0 +1,31 @@
+{
+  "descricao": "Volta 2 da E20.6 (v046, review E20.12 A3 e segurança E20.13 A1): argumento do `--git-path` que o hook não lê vale como o próprio .git.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n",
+    "x": "x\n",
+    "config": "c\n",
+    "pre-push": "p\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp x \"$(git rev-parse --git-path \"$h\")\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}
