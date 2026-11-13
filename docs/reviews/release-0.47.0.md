@@ -13,7 +13,7 @@ data: 2026-11-13
 Head revisado 72bb4008 (classe C: CHANGELOG e placar), instância que não fez a entrega. Revisão por delta da marca 51c51139 até 72bb4008.
 
 ## Achados
-- A1 (recomendado) tests/mutantes/v0457-escopo-ponto-2.json:M10 · atualizar o M10 (guarda movida pelo PR 536) para a próxima release não repetir o inválido; segue da review anterior, não bloqueia
+- A1 (recomendado) tests/mutantes/v0457-escopo-ponto-2.json:17 · atualizar o M10 (guarda movida pelo PR 536) para a próxima release não repetir o inválido; segue da review anterior, não bloqueia
 
 ## Sondas
 
