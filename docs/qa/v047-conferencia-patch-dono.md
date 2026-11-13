@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conferencia-patch-dono
-commit: c793d6eae3908b56c6df2756c3e8dcdaf308d9c9
+commit: 1580490eed439198800b81d16df803f439636eaf
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -47,3 +47,10 @@ Pedido de correção sem especificação de UX: as obrigações são a E1.2 do p
 - `python3 -m unittest tests.test_conf_escopo tests.test_pr_hook_prazo`: 42 testes, OK (carga ~10-12).
 - `forge-mutante` das três specs, uma a uma: todos morreram após o deslocamento de linhas (ex.: M5 em 2747, M8 em 1848), nenhum sobrevivente.
 - A1 e A2 seguem abertos como recomendados (o documento de ameaças fica fora do repositório). Sem bugs; a suíte inteira fica para o CI do PR.
+
+## Revalidação por delta c793d6ea..1580490e (E1.39, correções da E1.33 e junção com a develop #523)
+- `forge-check parecer delta`: domínio `bin/forge-check` e `tests/test_conf_escopo.py`. Diff: `bin/forge-check:1863` passa `pedido_id` por `sem_controle` (definida em 2774) na mensagem `escopo: ok`; teste c11 troca o nome sintético para `templates/projeto/LEIAME.md`, fora do texto do teste. Nenhuma linha de guarda nova: a mudança é só de saída, e as condições de isenção não foram tocadas.
+- `python3 -m unittest tests.test_conf_escopo`: 24 testes, OK (carga ~10).
+- `forge-mutante` das três specs, uma a uma: todos morreram, nenhum sobrevivente (ex.: M8 em 1848, M7 em 1810), rc 0 nas três.
+- CI do PR #524: o head dele era 7f9e7bd0, não 1580490e, e as suítes (python 3.12 e 3.14) ainda rodavam; `catraca`, `bateria (passos)` e `bateria (verificações longas)` com sucesso. A bateria do sha 1580490e não é citada como prova.
+- A1 e A2 seguem abertos como recomendados (spec com `pedido` divergente; documento de ameaças fora do repositório). Sem bugs; parecer: aprovado.
