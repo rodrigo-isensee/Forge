@@ -16,7 +16,9 @@ Head revisado c734a22a; parecer anterior em 4b78a54b (reprovado, A1). Delta lido
 `R-SEGURANCA`: código que escreve no sistema de arquivos de um projeto de terceiros (migração rodada pelo `forge-upgrade`).
 
 ## Achados
-Nenhum achado bloqueante ou recomendado. O A1 do parecer anterior está corrigido (`migrations/0.47.1/migrar:23-31`).
+
+## Resolução do A1 anterior
+Corrigido em `migrations/0.47.1/migrar:23-31`; nenhum achado novo, bloqueante ou recomendado.
 
 ## Sondas de revalidação (reproduzidas no head)
 - link pendurado no modelo: recusado, rc 1, nada criado fora do projeto.
