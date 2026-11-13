@@ -957,7 +957,7 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull com um heredoc que o hook não lê (<< que ele não "
                              "prova ser heredoc, ou corpo sem aspas no delimitador com $( ou crase). Corrigir: use "
                              "<<'FIM' ou separe os comandos")
-    leitores = leitores_dos_corpos(original, corpos) if corpos else []
+    leitores = leitores_dos_corpos(original, corpos)
     marcado, marcado_fora_do_shell = marcas_da_chamada(original, comando, corpos, leitores)
     if nivel == 0 and critico_ou_alias(original):  # bloco T da revalidação 10: o orçamento da chamada, antes de ler o resto
         excesso = excede_o_teto(comando)

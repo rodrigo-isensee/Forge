@@ -1,5 +1,5 @@
 {
-  "pedido": "v047-hook-heredoc-fp-3",
+  "pedido": "v047-hook-heredoc-fp",
   "executor": "unittest",
   "mutantes": [
     {
