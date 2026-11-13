@@ -43,16 +43,6 @@
       ]
     },
     {
-      "id": "M5",
-      "guarda": "atribuição antes do interpretador tira a isenção",
-      "arquivo": "hooks/parecer.py",
-      "de": "if atribuicoes or any(lancadas or not comando",
-      "para": "if any(lancadas or not comando",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
-      ]
-    },
-    {
       "id": "M6",
       "guarda": "atribuição do lançador (env PATH=) tira a isenção",
       "arquivo": "hooks/parecer.py",

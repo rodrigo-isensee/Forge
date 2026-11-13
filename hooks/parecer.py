@@ -215,9 +215,9 @@ def interprete_do_corpo(dono):
     do mesmo tipo de `leitor_da_entrada`; senão None (o corpo segue como antes)."""
     tipos = set()
     try:
-        for programa, argumentos, atribuicoes in programas_e_atribuicoes(dono):
+        for programa, argumentos, _ in programas_e_atribuicoes(dono):  # a atribuição já saiu em `chamada_muda_o_corpo`
             lidas = separar_lancadores([programa, *argumentos])
-            if atribuicoes or any(lancadas or not comando for comando, lancadas in lidas):
+            if any(lancadas or not comando for comando, lancadas in lidas):
                 return None
             tipos.update(leitor_da_entrada(comando) for comando, _ in lidas)
     except Exception:  # noqa: BLE001 - na dúvida, o corpo segue como comando (a regra de antes)
