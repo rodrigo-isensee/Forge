@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v046
 branch: melhoria/flaky-prepush-grupo
-commit: 989d49f5661d93c37dfff8813a905ba97490cd6c
+commit: e4cf8f83d57a73d42fdf1d12dfb581145972fcad
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-13
@@ -34,4 +34,9 @@ Sonda S1 reexecutada: com o irmão excluído, a vigia fica falsa sem laço (era 
 
 Sem achado novo. Recomendado (não bloqueia): a sonda no CI sugerida (vigia falsa logo após `lanca()` com a etapa bloqueada) não foi adicionada; o commit 989d49f5 cobre a causa, não o teste da vigia.
 
-Parecer: aprovado no head 989d49f5.
+## Revalidação (E26.29, delta 989d49f5..e4cf8f83)
+Delta lido com `forge-check parecer delta docs/reviews/flaky-prepush-grupo.md`: `escopo: sem o que veio da base (develop)`, `delta: nenhum arquivo do domínio mudou`. O intervalo é só a junção com a develop (`e4cf8f83`, pais `fc012398` e `ae65a35a`: #517 a #523, `agents/jarvis.md` e outros) mais pareceres de QA e segurança. `git diff --stat 989d49f5 e4cf8f83 -- tests/test_prepush_so_docs.py .githooks/pre-push` vazio: teste e hook do pre-push não mudaram. `python3 -m unittest tests.test_prepush_so_docs` no head → `Ran 62 tests in 82.546s, OK (skipped=9)` (os de `GrupoDaEtapa` pulam neste sandbox; a prova deles fica com o CI do PR).
+
+Sem achado novo; A1 segue resolvido.
+
+Parecer: aprovado no head e4cf8f83.
