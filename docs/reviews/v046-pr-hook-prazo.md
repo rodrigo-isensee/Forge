@@ -3,12 +3,19 @@ tipo: review
 contrato: 1
 pedido: v046
 branch: melhoria/pr-hook-prazo
-commit: cf1cc45d68501463ebafc8b570c13bfc6a79a057
+commit: e8c4cd55cb291e562c454b1cb15f16f4b3a875cf
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-12
 ---
 # Review: v046 (E20.3, melhoria/pr-hook-prazo, PR-HOOK-PRAZO)
+
+## Revalidação por delta (E23.92, head e8c4cd55, merge da develop a986c292)
+Delta lido: `forge-check parecer delta docs/reviews/v046-pr-hook-prazo.md`, intervalo cf1cc45d..e8c4cd55, sem o que veio da base; no domínio só `bin/forge-testes` e `tests/test_testes_tocados.py` (resolução do conflito do mapa). Instância que não fez a entrega, sem reler o resto.
+- **Resolução do merge:** contra a develop (`git diff e8c4cd55^2 e8c4cd55`) a branch soma só `test_pr_hook_prazo` às duas listas (FORGE_CHECK e a do `hooks/`) e mantém o `test_hook_git_comum` vindo da develop; a contagem do `test_testes_tocados` vai 79→80 e o comentário cita as duas entradas. Nenhuma entrada da develop se perdeu; nenhum código de produção mudou.
+- **`.claude/CLAUDE.md`:** a mudança (ENVIO-LEVE) veio inteira da develop; o head é igual à develop nesse arquivo. Fora do domínio desta entrega.
+- **Teste rodado no head (R-TETO, só o afetado):** `python3 -m unittest tests.test_testes_tocados` 149 OK, 1 pulado (46 s). A suíte inteira fica no CI do PR.
+- Sem achado novo; A4 segue (o PR cita o teto).
 
 ## Revalidação por delta (E20.26, head cf1cc45d, volta E20.25)
 Delta lido: `forge-check parecer delta docs/reviews/v046-pr-hook-prazo.md`, intervalo c6577dbb..cf1cc45d, no domínio só `tests/mutantes/v046-pr-hook-prazo-7.json` (+36) e `tests/test_pr_hook_prazo.py` (+23); nenhum código de produção. Instância que não fez a entrega, sem reler o resto.
@@ -40,7 +47,7 @@ Escopo lido: `git diff origin/develop...4ae51318` (base d3453407): `bin/forge-ch
 ## Sondas
 
 ## Parecer
-**Aprovado no head cf1cc45d** (revalidação E20.26: só teste e spec, sem achado novo; E20.21: A1-A3 e os achados da segurança e do QA tratados; resta A4). Na E20.3, sobre 4ae51318: faz o que a E20 pede: o `forge-check pr` da linha de comando (fora do `--previo` e do `--pr`) grava aprovado ou reprovado por head em `<git-common-dir>/forge/pr/<head>/`, com branch, `base_sha` resolvida pela mesma `base_do_delta` do hook (K-164) e os pedidos da branch; o hook só libera o `gh pr create` com o aprovado de todos os pedidos da branch no mesmo head, branch e base, recusa com a violação gravada no reprovado e, sem registro, recusa mesmo sem violação e diz o comando. Registro ilegível, malformado, de outra branch, de outro head ou de outra base vira ausente (falha fechada). `gh pr ready`, `gh pr merge` e `git merge` seguem com a conferência de sempre (teste com a checagem trocada por saída 97). O fragmento traz medida e volta atrás (`gravado=False`, uma linha); o afrouxamento é decisão do dono (diretriz 3, item E20).
+**Aprovado no head e8c4cd55** (revalidação E23.92: só a resolução do mapa no merge da develop, sem achado novo; E20.26: só teste e spec, sem achado novo; E20.21: A1-A3 e os achados da segurança e do QA tratados; resta A4). Na E20.3, sobre 4ae51318: faz o que a E20 pede: o `forge-check pr` da linha de comando (fora do `--previo` e do `--pr`) grava aprovado ou reprovado por head em `<git-common-dir>/forge/pr/<head>/`, com branch, `base_sha` resolvida pela mesma `base_do_delta` do hook (K-164) e os pedidos da branch; o hook só libera o `gh pr create` com o aprovado de todos os pedidos da branch no mesmo head, branch e base, recusa com a violação gravada no reprovado e, sem registro, recusa mesmo sem violação e diz o comando. Registro ilegível, malformado, de outra branch, de outro head ou de outra base vira ausente (falha fechada). `gh pr ready`, `gh pr merge` e `git merge` seguem com a conferência de sempre (teste com a checagem trocada por saída 97). O fragmento traz medida e volta atrás (`gravado=False`, uma linha); o afrouxamento é decisão do dono (diretriz 3, item E20).
 
 Conferências pedidas no brief:
 - **Merge 1a8a97ec:** a resolução de `bin/forge-testes` soma `test_pr_hook_prazo` às duas listas da develop sem perder entrada; a contagem do `test_testes_tocados` 78→79 bate (o módulo passou).
