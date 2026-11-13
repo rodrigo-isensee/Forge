@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
       ]
+    },
+    {
+      "id": "M40",
+      "guarda": "A2 e AR-8: a aspa antes do cd pega o invólucro sh -c",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(?:^|[\\s;&|(){}'\\\"])(?:cd|pushd|popd)",
+      "para": "(?:^|[\\s;&|(){}])(?:cd|pushd|popd)",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
+      ]
     }
   ],
   "isentas": [

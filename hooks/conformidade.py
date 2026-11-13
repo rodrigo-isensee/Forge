@@ -2826,8 +2826,9 @@ ESCRITORES = (TODOS_OS_ARGUMENTOS | SO_DESTINO | REMOCAO | CAMINHOS_NO_GIT | GIT
 ESCREVE_NA_LINHA = re.compile(ESCRITA_NA_LINHA.pattern + r"|\b(?:" + "|".join(sorted(map(re.escape, ESCRITORES))) + r")\b")
 ALVO_OPACO = re.compile(r"[$`]|<\(")  # C3: substituição, crase, variável ou `<(`: o hook não sabe o destino
 # A2: a troca da pasta de base (`cd`, `pushd`, `popd`, `-C`, `--chdir`, `--git-dir`, `--work-tree`, `GIT_DIR`,
-# `GIT_WORK_TREE`) tira do texto o caminho que a política conhece: na linha que escreve, conta como alvo opaco.
-BASE_TROCADA = re.compile(r"(?:^|[\s;&|(){}])(?:cd|pushd|popd)(?=[\s;&|)]|$)|(?<!\S)(?:-C|--chdir|--git-dir|--work-tree)"
+# `GIT_WORK_TREE`) tira do texto o caminho que a política conhece: na linha que escreve, conta como alvo opaco. A aspa
+# antes do `cd` pega o invólucro (`sh -c 'cd docs && cp …'`, AR-8).
+BASE_TROCADA = re.compile(r"(?:^|[\s;&|(){}'\"])(?:cd|pushd|popd)(?=[\s;&|)]|$)|(?<!\S)(?:-C|--chdir|--git-dir|--work-tree)"
                           r"|\bGIT_(?:DIR|WORK_TREE)\b")
 
 
