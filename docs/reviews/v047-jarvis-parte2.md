@@ -1,9 +1,9 @@
 ---
 tipo: review
 contrato: 1
-pedido: v047-jarvis-parte2
+pedido: v047
 branch: melhoria/v047-jarvis-parte2
-commit: 1c3e34f2d04e2a6250615182a225c65d2ac201ad
+commit: 65cf916b96d6bfa7e0acb7472bfe21b2c7b91551
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-13
@@ -26,3 +26,11 @@ Aprovado. Diff de 5 arquivos (46 inserções, 16 remoções), sem código de con
 - Teste `DiretrizesDoDonoNaRWip` lê texto da fonte, o que cabe aqui porque o produto é o próprio texto da regra; ele pega a perda de qualquer das três frases.
 - Núcleo do Jarvis: `agents/jarvis.md` não mudou neste diff (7958 bytes); o teste de orçamento passou.
 - Execução (sem PR aberto, só os afetados): `DiretrizesDoDonoNaRWip`, `RegrasInviolaveis`, `AntiDuplicacao`, `RegrasComId`, `Orcamento`, `NeutralidadeDoNucleo`: 15 testes OK em 5 s, ambiente limpo, `python -I`.
+
+## Revalidação (delta 1c3e34f2..65cf916b, E3.19)
+Lido só `forge-check parecer delta`: `skills/kanban-scrum/SKILL.md`, `skills/trabalho-em-paralelo/SKILL.md` e `tests/test_reval_delta.py` (a junção com a develop fica fora do domínio).
+- Aprovado. Nenhuma regra saiu: o corte da kanban-scrum junta as métricas de vazão, idade do WIP e bloqueio em uma linha, e tira só o texto dos "dois relógios (D-4)"; a medida segue em `forge-check voltas` e em `tests/test_voltas.py`, sem teste nem invariante que leia essa frase da skill. A trabalho-em-paralelo perde só redação ("serializam", "gargalo", "podem"); o PR abre com pareceres aprovados (E1.34, `R-FLUXO`). O que a kanban-scrum ganha (triagem, destino divergente) é adição.
+- A2 (recomendado, E3.15) skills/trabalho-em-paralelo/SKILL.md:16 · segue o A1: skill mais curta que a regra, aceito.
+- Lista do `test_reval_delta`: `tests/test_forge.py` passa a 15 citações de `README.md` (linha da R-WIP), coerente com a regra; sem guarda nova nem mutante.
+- Campo `pedido:` corrigido para `v047` (instância que não fez a entrega).
+- Execução (sem PR, só afetados, `python -I`, ambiente limpo): `test_reval_delta` 10 OK; `test_jarvis_nucleo` 17 OK; `RegrasInviolaveis`, `AntiDuplicacao`, `Orcamento` 7 OK.
