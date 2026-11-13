@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-parecer-job
-commit: 5aae66f63404cf3b2caa94f84a1ae22304639498
+commit: 78ac37d334a414a590485b4dfe0525fdec0c0251
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-13
@@ -16,6 +16,9 @@ Delta lido (`forge-check parecer delta`, `7ba85a05..bd28180e`): no domínio, `.g
 
 ## Revalidação E1.45 (head 5aae66f6)
 Delta `bd28180e..5aae66f6` (`forge-check parecer delta`, escopo sem o que veio da base): nenhum arquivo do domínio mudou. O head é a junção com a develop (#517 a #523, fora do escopo desta branch) mais a correção do campo `pedido:` dos pareceres (9be0d548, 4629f5ba, só docs). `git diff bd28180e 5aae66f6` em `.github/workflows/ci.yml`, `tests/test_ci_local.py`, `tests/test_catraca.py`, `tests/test_suite_partes.py`, `tests/mutantes/v047-ci-parecer-job.json`, `agents/devops-engineer.md` e os dois `pronto.md` é vazio. Testes afetados (82) verdes no head. Parecer segue aprovado; A1 segue recomendado.
+
+## Revalidação E1.63 (head 78ac37d3)
+Delta `5aae66f6..78ac37d3` (`forge-check parecer delta`): no domínio só `agents/devops-engineer.md`:12 (item 1 reescrito para voltar ao teto de instrução, 5052 caracteres). Nenhum outro arquivo do domínio mudou. Conferência do J11 no texto novo: (1) o job de pareceres está no agregador ("no agregador"; o agregador é o check exigido `bateria`, e a escolha dos checks exigidos segue com o `tech-lead`, `R-FLUXO`); (2) em PR, pulado ou cancelado falha, só `success` passa, `skipped` só fora de PR ("exige `success`", com a frase "em PR, pulado ou cancelado falha"; o `skipped` fora de PR segue escrito nos dois `pronto.md` e preso pelo teste do agregador); (3) sem `!contains(failure)`; e fora do `needs` da suíte. Nenhuma regra com ID perdida (`R-FLUXO` mantida). A lista de itens do pipeline saiu do agente e está em `skills/ci-cd/SKILL.md`:21-25 (permissions, SHA, concurrency, `timeout-minutes`). Perdas só de redação, sem efeito normativo: "obrigatório para o merge" virou "no agregador" (equivalente), "testes e de build" virou "suíte", e a justificativa (parecer faltando não esconde a suíte) ficou só nos `pronto.md`. Testes afetados `tests.test_catraca.Workflows`, `tests.test_ci_local`, `tests.test_suite_partes.FiacaoDoCI` (82) e `tests.test_orcamento_instrucao` (8) verdes no head. CI do PR #527 no head: `bateria (pareceres)` falha (faltam os pareceres do próprio head, esperado até serem commitados), `bateria (passos)` falha só no passo do fragmento de changelog e `bateria (python 3.14)` em "Partes e instalação verdes"; nenhum é de segurança (logs não lidos: o host de logs está fora da rede do sandbox), ficam ao `tech-lead` e ao `devops-engineer`. Parecer segue aprovado; A1 segue recomendado.
 
 ## Gatilhos
 `R-SEGURANCA`: mudança em `.github/workflows/` (portão de pareceres no servidor, check exigido `bateria`) e em texto de agente que ensina o pipeline aos projetos (`agents/devops-engineer.md`, `pronto.md` das stacks).
