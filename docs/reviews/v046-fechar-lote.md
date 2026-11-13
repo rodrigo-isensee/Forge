@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v046
 branch: melhoria/v046-fechar-lote
-commit: 2dda228f9517b38e0720c1d65d211934099a8f5d
+commit: 0b6e6834be6a9df4cdaf5438675b6fb82874f068
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-12
@@ -41,3 +41,6 @@ Delta lido por `forge-check parecer delta docs/reviews/v046-fechar-lote.md` (int
 
 ## Revalidação por delta (head 2dda228f)
 Delta lido por `forge-check parecer delta docs/reviews/v046-fechar-lote.md` (intervalo `17ae39a3..2dda228f`, sem o que veio da base): só `bin/forge-testes` e `tests/test_testes_tocados.py`. O commit da branch é um só, 2dda228f (E6.12); o resto do intervalo vem do merge da develop `4a2a4293`. A regra de `bin/forge-doutor` no MAPA ganhou `test_doutor_branch_atrasada` e a lista esperada de `tests/test_testes_tocados.py:55` acompanha: `bin/forge-testes --listar bin/forge-doutor` agora dá `test_atualizar, test_doutor, test_doutor_branch_atrasada, test_doutor_custo, test_doutor_protecao_gh, test_doutor_relogio, test_forge, test_medidas_m14b, test_novo_projeto, test_qa_doutor_f8`. O A1 está resolvido; a nova varredura `test_modulos_que_rodam_o_forge_doutor_estao_na_regra_dele` segue válida. `forge-testes tests/test_testes_tocados.py` 150 OK (1 pulado) e `tests/test_doutor_branch_atrasada.py` 6 OK; a suíte inteira fica com o CI do PR 525. Os achados A2 a A5 (recomendados) seguem como estavam; nenhum bloqueante. Parecer mantido: aprovado.
+
+## Revalidação por delta (head 0b6e6834)
+Delta lido por `forge-check parecer delta docs/reviews/v046-fechar-lote.md` (intervalo `2dda228f..0b6e6834`, sem o que veio da base): só `tests/config.json`, vindo da junção com a develop `b19a5a94` (PRs 524, 528 e 529: o invariante e o motivo de `agents/agile-coach.md`, diretriz 20). O commit da branch no intervalo é o merge `0b6e6834` (E6.17) e os pareceres do QA e da segurança; nada de código da fechar-lote mudou: `git diff --stat 2dda228f HEAD` sobre `bin/forge-fechar`, `bin/forge-doutor`, `bin/forge-testes`, `tests/test_fechar_*.py`, `tests/test_doutor_branch_atrasada.py` e `tests/pesos-d4.json` não traz nenhum arquivo deles (só os mutantes do PR 524, vindos da base). `tests/config.json` segue JSON válido. `forge-testes tests/test_fechar_move_cartao.py tests/test_testes_tocados.py` 162 OK (1 pulado); o CI do PR 525 está verde nos checks concluídos. Os achados A2 a A5 (recomendados) seguem como estavam; nenhum bloqueante. Parecer mantido: aprovado.
