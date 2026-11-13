@@ -11,7 +11,6 @@ data: 2026-11-13
 # Review: melhorias-de-projeto-1311 (item 12, E2.18)
 
 ## Achados
-- A1 (bloqueante, resolvido em c61435e6) skills/briefs-e-conferencia/SKILL.md:12 · o corte de redação tirou a frase que tests/test_modelos_projeto.py:113 exige ("Leia a skill `checagem-do-brief` para o que a ferramenta não sabe"); o teste passa na develop e falha no head; restaure a frase ou ajuste o teste com o motivo
 - A2 (recomendado) agents/jarvis.md:40 · a regra "worktree antes de delegar" fica só no passo 4 e o teste a cobre por trecho de texto; aceitável, sem ação
 
 ## Sondas
@@ -23,3 +22,6 @@ Conferido: os cortes em `agents/jarvis.md` e na skill não tiraram regra com ID 
 
 ## Revalidação (delta b94e026e..c61435e6)
 Lido `forge-check parecer delta`: só `skills/briefs-e-conferencia/SKILL.md`. A frase "Leia a skill `checagem-do-brief` para o que a ferramenta não sabe" voltou (A1 resolvido) e saiu ", selado como qualquer outro" em 'Brief de volta', sem teste nem regra que o cite (grep). `test_modelos_projeto` passa no head (17 testes, discover). Sem PR aberto; suíte completa vale pelo CI. Aprovado; A2 segue recomendado, sem ação.
+
+Histórico dos achados resolvidos (fora do bloco `## Achados`):
+- A1 (bloqueante, resolvido em c61435e6) skills/briefs-e-conferencia/SKILL.md:12 · o corte de redação tirou a frase que tests/test_modelos_projeto.py:113 exige ("Leia a skill `checagem-do-brief` para o que a ferramenta não sabe"); o teste passa na develop e falha no head; restaure a frase ou ajuste o teste com o motivo
