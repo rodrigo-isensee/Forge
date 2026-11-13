@@ -3,22 +3,23 @@ tipo: qa
 contrato: 1
 pedido: v0457
 branch: melhoria/trava-agente-morto
-commit: f77bb51df14bee2e20a1814f622e37e45427f793
-parecer: reprovado
-escopo: completo
+commit: 31f2e643e22c22ceedcf927a07c4cf5676032ed4
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-12
+data: 2026-11-13
 ---
 # QA: TRAVA-AGENTE-MORTO (E23.72)
 
 Classe C, passada única, head f77bb51d (diff a1318e88..f77bb51d). O parecer de segurança do cartão (C1 a C12) não está no head; os critérios foram lidos do docstring de `hooks/agentes.py` e dos nomes das classes de teste (C1 a C11).
 
 ## Achados
-- A1 (bloqueante) hooks/hooks.json:18 · o gatilho `SendMessage` (a única entrada da C8) não tem teste nem mutante: removido o bloco, `tests.test_trava_agente_morto` fica OK (49) e `test_hooks` só exige `Agent|Task`. A lápide vira letra morta sem nada cair (R-QA, mutante por linha de guarda).
-- A2 (recomendado) hooks/conformidade.json:50 · a spec de mutantes só cobre Python; as duas entradas da C10 têm teste (C10 em test_trava_agente_morto:372-389), mas sem mutante declarado; um por entrada fecharia a lista.
+- A1 (resolvido, era bloqueante) hooks/hooks.json:19 · o gatilho `SendMessage` agora tem teste (`hooks.json` liga o PreToolUse do SendMessage ao agentes.py) e o mutante M28 (morreu).
+- A2 (resolvido, era recomendado) hooks/conformidade.json:50-53 · M29 a M32, um por entrada da C10 (morreram), e quatro fixtures `home-claude-projects-*`.
+- Nenhum achado bloqueante aberto. Recomendado: `--cobertura` ainda lista `hooks/conformidade.json` e `hooks/hooks.json` como `não coberto` (a ferramenta só lê Python); os mutantes M28 a M32 cobrem à mão (A5, recomendado, sem bloqueio).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -28,8 +29,8 @@ Classe C, passada única, head f77bb51d (diff a1318e88..f77bb51d). O parecer de 
 | C3 só a sessão atual, sem link | C3SoDaSessaoAtual | sessão fora da forma, link no caminho | passou |
 | C4 teto de bytes e de tempo, arquivo regular | C4Orcamento | alvo não regular, além do teto, prazo | passou |
 | C5 a C7, C9, C11 liberação, `pesado`, log | classes do mesmo módulo | trava `pesado` vigente, log por link e giro | passou |
-| C8 lápide e retomada recusada | C8Lapide (chama o hook direto) | erro na conferência recusa; branches não texto | passou; gatilho em hooks.json sem teste (A1) |
-| C10 transcripts e meta protegidos | teste em test_trava_agente_morto:372-389 | memória do projeto segue livre | passou |
+| C8 lápide e retomada recusada | C8Lapide (chama o hook direto) | erro na conferência recusa; branches não texto | passou; gatilho em hooks.json com teste e M28 |
+| C10 transcripts, meta, pastas de projeto e de sessão protegidos | teste da C10 em test_trava_agente_morto, 4 fixtures `home-claude-projects-*`, M29 a M32 | memória do projeto segue livre; mv/rm da pasta; pasta forjada | passou |
 
 ## Cenários e resultado real
 - Módulo novo no head: `python3 -m unittest tests.test_trava_agente_morto` → `Ran 49 tests ... OK`.
@@ -40,5 +41,12 @@ Classe C, passada única, head f77bb51d (diff a1318e88..f77bb51d). O parecer de 
 - `tests.test_hooks` inteiro não coube no prazo local; a bateria é do CI do PR (check-run `bateria` do mesmo sha). Falhas de pid e sessão na base, declaradas pelo autor, não reproduzidas aqui.
 - Declarações do autor: C10 mais estreita que a pasta de projetos (confirmado: `memory/` fica livre, testado); teto excedido e docs/hooks.md sem atualização ficam para o review e o tech-lead.
 
-## Para fechar o A1
-Teste (do autor, num commit de teste) que lê `hooks/hooks.json` e afirma `SendMessage` entre os matchers de PreToolUse apontando para `agentes.py`, mais um mutante que remova o bloco.
+## Revalidação por delta (E23.100), f77bb51d..31f2e643 (head da branch 6861a9de só soma o parecer do review)
+`forge-check parecer delta` listou no domínio: bin/forge-testes, docs/hooks.md, hooks/agentes.py, hooks/conformidade.json, 4 fixtures, specs de mutantes -4 e -5, tests/test_trava_agente_morto.py. Retestado:
+- `python3 -m unittest tests.test_trava_agente_morto` → `Ran 51 tests ... OK` (eram 49; +2: gatilho do hooks.json e C8Gatilho).
+- `bin/forge-mutante tests/mutantes/trava-agente-morto-4.json tests/mutantes/trava-agente-morto-5.json` → M25, M26, M27 (agentes.py:346, leitura única), M28 (hooks.json:19), M29 a M32 (conformidade.json:50-53): todos `morreu`, rc=0. Os 26 anteriores (M1 a M24 e afins) não mudaram de trecho de guarda, exceto o que o M27 cobre.
+- As 4 fixtures novas de conformidade (mv da pasta do projeto, da sessão, forjada; rm da pasta do projeto) rodadas pelo executor de `tests.test_hooks`: 4 de 4 OK.
+- Troca de `functools.cached_property` por leitura única com falha guardada (agentes.py:337-349): coberta pelo M27; o comportamento da C4 não muda.
+- docs/hooks.md: cita SendMessage, lápide e liberacoes.log (linhas 11 e 70); texto, sem teste próprio. mapa do forge-testes: `hooks/.*` inclui `test_trava_agente_morto` (alteração conferida no diff).
+- `--cobertura --base a1318e88`: só 2 `isenta` (as mesmas) e os 2 JSON `não coberto` (cobertos à mão pelos M28 a M32).
+- Suíte inteira: não rodei (carga ~14 em 12 CPUs); a bateria é do CI do PR (check-run `bateria`), sem PR aberto neste momento.
