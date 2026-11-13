@@ -307,7 +307,7 @@ PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
 MODELO_DE_PROJETO = "templates/projeto/"
 ISENCAO_DO_MODELO = {MODELO_DE_PROJETO + ".githooks/*": ".githooks/", MODELO_DE_PROJETO + ".forge/config.json": ".forge/config.json"}
 REGRAS_DO_MODELO = frozenset({".githooks/", ".forge/config.json"})  # as únicas regras em vigor que a isenção alcança
-CAMINHO_COM_VARIAVEL = re.compile(r"[$`~]")  # C5: o hook não expande nada no caminho isento
+CAMINHO_LITERAL = re.compile(r"[\w./@+-]+")  # C5: lista do que pode; sem `$`, crase, `~` nem espaço, nada a expandir
 # S8: a prova da suíte (`.verde`, `.dirigida`, o `.novo` do `mv`) só o pre-push grava, fora deste hook; todo papel e pasta. Limites
 # aceitos (o hook protege contra engano; o CI é o portão): nome inteiro numa variável, script em arquivo, `curl -o`, `tar -x`.
 # N4/P3 (versao-045 E5a): também o carimbo K6 de scripts/suite-paralela.py e o temporário do `os.replace` (`.<pid>`).
@@ -1181,7 +1181,7 @@ class Guarda:
         casar `.githooks/` e `.forge/config.json` (`caminho_barrado`); senão None e a trava segue. Na dúvida, None."""
         if self.h.campo("tool_name") not in ("Write", "Edit") or not isencao_valida(ISENCAO_DO_MODELO):  # C4, C7
             return None
-        if not os.path.isabs(texto) or CAMINHO_COM_VARIAVEL.search(texto) or os.path.normpath(texto) != texto:  # C5
+        if not os.path.isabs(texto) or not CAMINHO_LITERAL.fullmatch(texto) or os.path.normpath(texto) != texto:  # C5
             return None
         alvo = Path(os.path.realpath(texto))
         topo = self.raiz_git(alvo.parent)

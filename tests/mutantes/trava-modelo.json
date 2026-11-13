@@ -35,9 +35,9 @@
     },
     {
       "id": "M4",
-      "guarda": "C5: variável no caminho não isenta",
+      "guarda": "C5: só caminho literal (sem variável, crase nem ~)",
       "arquivo": "hooks/conformidade.py",
-      "de": "or CAMINHO_COM_VARIAVEL.search(texto) or",
+      "de": "or not CAMINHO_LITERAL.fullmatch(texto) or",
       "para": "or False or",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"

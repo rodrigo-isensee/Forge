@@ -3210,14 +3210,15 @@ class TravaModelo(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
         self.clone = self.tmp / "proj"
         repositorio_vazio(self.clone, "melhoria/x")
-        for rel, texto in ((".claude-plugin/plugin.json", '{"name": "forge"}'), ("templates/projeto/.githooks/pre-push", "x\n")):
-            (self.clone / rel).parent.mkdir(parents=True, exist_ok=True)
-            (self.clone / rel).write_text(texto, encoding="utf-8")
+        self.alvo = self.clone / "templates/projeto/.githooks" / "pre-push"  # pasta e nome à parte: o teste não lê o do Forge
+        for arquivo, texto in ((self.clone / ".claude-plugin" / "plugin.json", '{"name": "forge"}'), (self.alvo, "x\n")):
+            arquivo.parent.mkdir(parents=True, exist_ok=True)
+            arquivo.write_text(texto, encoding="utf-8")
         (self.tmp / "home").mkdir()
         (self.tmp / "home" / ".forge-contrib").symlink_to(self.tmp)  # o clone fica em ~/.forge-contrib, como na máquina do dono
-        self.alvo = self.clone / "templates/projeto/.githooks/pre-push"
         self._comum, self.conformidade, _ = modulos_dos_hooks()
-        ambiente = mock.patch.dict(os.environ, {"HOME": str(self.tmp / "home")})
+        # sem a configuração global do git de quem roda (HOME e XDG_CONFIG_HOME do teste): o core.hooksPath é só o do clone
+        ambiente = mock.patch.dict(os.environ, {"HOME": str(self.tmp / "home"), "XDG_CONFIG_HOME": str(self.tmp / "xdg")})
         ambiente.start()
         self.addCleanup(ambiente.stop)
 
