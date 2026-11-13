@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/pr-hook-prazo
-commit: cf1cc45d68501463ebafc8b570c13bfc6a79a057
+commit: e8c4cd55cb291e562c454b1cb15f16f4b3a875cf
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -71,3 +71,15 @@ O A1 anterior (vermelho rc 2) está resolvido em tests/test_pr_hook_prazo.py:91:
 - `python3 -m unittest tests.test_pr_hook_prazo` (worktree destacada minha em cf1cc45d): Ran 18 tests in 44.461s, OK.
 - `bin/forge-mutante tests/mutantes/v046-pr-hook-prazo-7.json`: M42, M43 e M44 morreram, todos em bin/forge-check:1544. Reaplicados à mão um a um: cada um cai só no teste novo, pela asserção acima (motivo certo, não erro de carga). `--cobertura --base d3453407`: rc 0.
 - Os A2 e A3 estão resolvidos; nenhum achado aberto. Prova de CI: o PR ainda não existe; não citei `bateria`.
+
+## Revalidação por delta (cf1cc45d..e8c4cd55, merge da develop)
+`forge-check parecer delta` (escopo sem o que veio da base) listou no domínio só `bin/forge-testes` (MAPA: `test_hook_git_comum` entra em FORGE_CHECK; linhas de scripts/templates vindas da develop) e `tests/test_testes_tocados.py` (contagem 79 para 80, + test_hook_git_comum). `bin/forge-check`, hooks e tests/test_pr_hook_prazo.py intactos; o `.claude/CLAUDE.md` mudado veio da base, fora do meu domínio.
+
+| Obrigação | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Mapa dirigido de `bin/forge-check` cobre os módulos, com a contagem exata | test_forge_check_roda_os_modulos_dele | contagem 80 (módulo novo do merge) | passou |
+| Hook parecer segue verde no head | test_pr_hook_prazo (18) | prazo, escritor, poda | passou |
+
+- `python3 -m unittest tests.test_testes_tocados tests.test_hook_git_comum tests.test_pr_hook_prazo`: Ran 168 tests, OK (skipped=1, ambiente: /proc de outro namespace, teste da vaga pesada, não meu).
+- Sem código de guarda novo: nenhum mutante a conferir; vermelho e mutação do cf1cc45d valem. Prova de CI: o PR ainda não existe; não citei `bateria`.
+- Nenhum achado aberto.
