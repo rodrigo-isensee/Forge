@@ -1,0 +1,26 @@
+{
+  "pedido": "trava-agente-morto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M31",
+      "guarda": "C10 (QA A2): o transcript da sessão em ~/.claude/projects/<projeto>/ é só do Claude Code",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"~/.claude/projects/*/*.jsonl\", \"quem\": []",
+      "para": "\"~/.claude/projects/*/*.jsonl\", \"quem\": [\"jarvis\"]",
+      "testes": [
+        "tests.test_trava_agente_morto.C10ProjectsProtegido.test_nenhum_papel_escreve_no_transcript_nem_no_meta"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "C10 (QA A2): o subagents/ da sessão é só do Claude Code",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"~/.claude/projects/*/*/subagents/\", \"quem\": []",
+      "para": "\"~/.claude/projects/*/*/subagents/\", \"quem\": [\"jarvis\"]",
+      "testes": [
+        "tests.test_trava_agente_morto.C10ProjectsProtegido.test_nenhum_papel_escreve_no_transcript_nem_no_meta"
+      ]
+    }
+  ]
+}

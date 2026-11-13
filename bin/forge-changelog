@@ -3,7 +3,8 @@
 
 Uso: forge-changelog novo <Adicionado|Alterado|Corrigido> "<texto>"   grava em changelog.d/<branch-sem-prefixo>.md
      forge-changelog release <versão> <data>                          junta os fragmentos em CHANGELOG.md, os apaga e grava a versão
-                                                                      nos plugin.json (raiz e dev/, se existirem)
+                                                                      nos plugin.json (raiz e dev/, se existirem); no clone
+                                                                      do Forge, imprime a medida da versão (placar e bench)
      forge-changelog conferir-release                                 gate da main: sobrou fragmento em changelog.d/?
      forge-changelog conferir --base REF [--branch=B]                 checagem do CI: o PR deixou entrada de changelog?
                                                                       Em melhoria/*, fragmento novo tem o nome da branch
@@ -15,6 +16,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -207,6 +209,20 @@ def release(args):
         a.unlink()
     print(f"[{args.versao}]: {len(arquivos)} fragmento(s) juntado(s) e apagado(s)")
     avisar_avaliacao(Path.cwd())
+    avisar_medidas(Path.cwd(), args.versao)
+
+
+def avisar_medidas(raiz, versao):
+    """v046 E7 (decisão do dono de 12/11): o placar de mutação (M-5) e o bench (BENCH-POR-RELEASE) rodam uma vez por
+    versão, aqui na release, nunca no PR. Só no clone do Forge, onde mora o placar; só avisa, nunca muda a saída."""
+    if not (raiz / "scripts" / "placar-mutacao.py").is_file():
+        return
+    tag = subprocess.run(["git", "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*"], cwd=raiz,
+                         capture_output=True, text=True)
+    anterior = shlex.quote(tag.stdout.strip()) if tag.returncode == 0 and tag.stdout.strip() else "<tag da release anterior>"
+    print(f"medida da versão {versao} (uma vez por versão, não é portão; R-TETO):")
+    print(f"  placar: scripts/placar-mutacao.py --desde {anterior} --versao {versao} (docs/engineering/placar-mutacao.md)")
+    print(f"  bench: a linha da {versao} em bench-versoes.md e metricas-velocidade.md, na área do Jarvis")
 
 
 def avisar_avaliacao(raiz):

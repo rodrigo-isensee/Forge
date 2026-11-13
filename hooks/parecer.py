@@ -16,6 +16,8 @@ PR só por número, `gh api` de merge e merge no Forge a partir de projeto são 
 No clone do Forge (`raiz_de_estado`: `~/Forge` e as worktrees de `~/.forge-contrib/wt/`) age também, sem
 `hooks_desligados`, e o PR fica em rascunho até o parecer: `gh pr create --draft` passa sem parecer e `gh pr ready`
 exige o parecer, como o merge (o GitHub não mescla PR em rascunho).
+O `gh pr create` fora do rascunho decide pelo resultado que o `forge-check pr` gravou para o mesmo head, branch e base
+(PR-HOOK-PRAZO, `verificar` com `gravado`): sem o aprovado, recusa e diz o comando a rodar antes.
 Falha fechado nas ações críticas (ADR 0009, seção 7), também no clone do Forge.
 """
 import collections
@@ -106,6 +108,8 @@ SEM_AMBIENTE = Ambiente(frozenset(), bool(DESVIOS & set(os.environ)))
 # vai pelas ferramentas de arquivo, e o programa, noutra chamada
 GRAVE_E_RODE_NOUTRA = "grave pelo Write ou Edit e rode o programa noutra chamada"
 BASES = ("develop", "origin/develop", "main", "origin/main", "master", "origin/master")
+# PR-HOOK-PRAZO: o prazo vencido do `gh pr create` sem o resultado gravado diz o comando que o grava (cabe nos 200 caracteres)
+CONTORNO_DO_PRAZO = "rode antes forge-check pr"
 
 
 def so_le_ou_espera(script):
@@ -542,12 +546,22 @@ def exigidos_sem_pedido(fc, raiz, ref, base):
     return fc.pareceres_exigidos(classe, infra, seguranca), classe
 
 
-def verificar(hook, raiz, branch, ref, base, dica=""):
+def verificar(hook, raiz, branch, ref, base, dica="", gravado=False):
     """Bloqueia se a branch não tem os pareceres exigidos aprovados e válidos. Os exigidos são os do `forge-check` (P5: a classe
-    da entrega mais os gatilhos de segurança e devops; o review vale sempre). `dica` abre o motivo."""
+    da entrega mais os gatilhos de segurança e devops; o review vale sempre). `dica` abre o motivo. `gravado` (PR-HOOK-PRAZO, só o
+    `gh pr create`): o resultado que o `forge-check pr` gravou para o mesmo head, branch e base decide sem refazer a checagem; sem
+    ele, a conferência de hoje só dá o motivo, e a recusa vem mesmo sem violação, com o comando a rodar antes."""
     fc = forge_check()
     guarda_de_versao(fc, raiz)
+    pedida = base
     base, _ = fc.base_do_delta(raiz, base, ref) if base else (None, None)  # a mesma base do `forge-check pr` (K-164)
+    estado, motivo = fc.resultado_gravado_do_pr(raiz, branch, ref, base, pedida) if gravado else (None, None)
+    if estado == "aprovado":
+        return
+    if estado == "reprovado":
+        bloquear("R-REVIEW", f"{dica}{motivo}")
+    if motivo:  # sem o resultado gravado, o prazo vencido da conferência de hoje diz o comando que o grava (o resto: CONTORNO_DO_TETO)
+        hook.contorno_do_prazo = CONTORNO_DO_PRAZO
     pedidos = fc.pedidos_da_branch(raiz, branch, ref)
     if not pedidos:
         exigidos, classe = exigidos_sem_pedido(fc, raiz, ref, base)
@@ -562,6 +576,8 @@ def verificar(hook, raiz, branch, ref, base, dica=""):
             rid, texto = separar_regra(violacoes[0], "R-REVIEW")
             extra = f" (e mais {len(violacoes) - 1})" if len(violacoes) > 1 else ""
             bloquear(rid, f"{dica}{texto}{extra}; confira com forge-check pr {pedido}.")
+    if motivo:  # PR-HOOK-PRAZO: a conferência de hoje não achou violação, mas o `gh pr create` exige o resultado gravado
+        bloquear("R-REVIEW", f"{dica}{motivo}")
 
 
 def pull_request(hook, pasta, base, head, rascunho):
@@ -585,7 +601,7 @@ def pull_request(hook, pasta, base, head, rascunho):
             return  # projeto: a branch não existe localmente, nada a conferir aqui
     candidatas = (base, f"origin/{base}") if base else (b for b in BASES if nome_da_branch(b) != branch)
     verificar(hook, raiz, branch, ref, next((b for b in candidatas if existe(raiz, b)), None),
-              "sem parecer aprovado, abra com gh pr create --draft; " if forge else "")
+              "sem parecer aprovado, abra com gh pr create --draft; " if forge else "", gravado=True)
 
 
 def pronto_de_pr(hook, pasta, alvo, desfaz):

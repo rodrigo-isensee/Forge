@@ -1,0 +1,36 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "PR-HOOK-PRAZO: só o gh pr create consulta o resultado gravado; o merge confere como antes",
+      "arquivo": "hooks/parecer.py",
+      "de": "fc.resultado_gravado_do_pr(raiz, branch, ref, base, pedida) if gravado else (None, None)",
+      "para": "fc.resultado_gravado_do_pr(raiz, branch, ref, base, pedida) if True else (None, None)",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_merge_segue_a_conferencia_de_sempre"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "PR-HOOK-PRAZO: pedidos_da_branch que não é lista vale como sem pedido",
+      "arquivo": "bin/forge-check",
+      "de": "if isinstance(r.get(\"pedidos_da_branch\"), list) for p in r[\"pedidos_da_branch\"]",
+      "para": "if True for p in r[\"pedidos_da_branch\"]",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_pedidos_da_branch_malformado_nao_derruba_a_leitura"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "PR-HOOK-PRAZO: item de pedidos_da_branch que não é texto é ignorado",
+      "arquivo": "bin/forge-check",
+      "de": "                      if isinstance(p, str)})",
+      "para": "                      if True})",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_pedidos_da_branch_malformado_nao_derruba_a_leitura"
+      ]
+    }
+  ]
+}
