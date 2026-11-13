@@ -2420,6 +2420,8 @@ class VerificarContribuicao(unittest.TestCase):
         self.caminho_pessoal_falha("cd /home/" + "runner2/projeto")
         self.caminho_pessoal_falha("cd /home/" + "runner/work /home/" + "fulano/x")
         self.caminho_pessoal_falha("cd /Users/" + "runner/projeto")
+        self.caminho_pessoal_falha("cache /home/" + "runner" + "/home/" + "fulano/x")  # v047 E5.21: pessoal colado ao home do runner
+        self.caminho_pessoal_falha("cache /home/" + "runner" + "/Users/" + "fulano/x")
 
     def test_dados_neutros_dos_testes_passam(self):
         for linha in ("cd /exemplo/projeto", "HOME=/tmp/forge-x/home/" + ".config/git", "em /home/" + "ana",

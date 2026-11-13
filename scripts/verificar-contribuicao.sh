@@ -52,7 +52,7 @@ while IFS=$'\t' read -r arq n texto; do
   for p in "${segredos[@]}"; do
     if grep -Eq -- "$p" <<<"$texto"; then relatar "$arq:$n" "possível segredo"; break; fi
   done
-  if grep -Eq -- "$pessoal" <<<"${texto//\/home\/runner\//@}"; then relatar "$arq:$n" "caminho pessoal"; fi
+  if grep -Eq -- "$pessoal" <<<"${texto//\/home\/runner\//@/}"; then relatar "$arq:$n" "caminho pessoal"; fi
 done <<<"$linhas"
 
 if [ "$achados" -gt 0 ]; then
