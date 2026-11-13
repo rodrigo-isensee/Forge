@@ -1,0 +1,22 @@
+{
+  "pedido": "melhorias-de-projeto-1311",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M8",
+      "guarda": "--texto não combina com outra opção do forge-testes",
+      "arquivo": "bin/forge-testes",
+      "de": "    if args.texto and (args.caminhos or",
+      "para": "    if False and (args.caminhos or",
+      "testes": ["tests.test_pre_envio_brief.Texto.test_texto_nao_combina_com_outra_opcao"]
+    },
+    {
+      "id": "M9",
+      "guarda": "--texto roda os testes de texto e devolve o rc deles",
+      "arquivo": "bin/forge-testes",
+      "de": "    if args.texto:\n        return texto()",
+      "para": "    if False:\n        return texto()",
+      "testes": ["tests.test_pre_envio_brief.Texto.test_roda_os_testes_de_texto_num_comando_so_com_rc_e_resumo"]
+    }
+  ]
+}
