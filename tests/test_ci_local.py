@@ -955,7 +955,7 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
                    "GIT_COMMITTER_EMAIL": "t@t", "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
 
             def git(*a):
-                return subprocess.run(["git", *a], cwd=d, env=env, check=True, capture_output=True, text=True).stdout.strip()
+                return subprocess.run(["git", *a], cwd=d, env=sem_manutencao(env), check=True, capture_output=True, text=True).stdout.strip()
             git("init", "-q", "-b", "develop")
             Path(d, "bin").mkdir()
             Path(d, "bin", "forge-changelog").write_text("import sys\nprint('BASE=' + sys.argv[sys.argv.index('--base') + 1])\n")
