@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-changelog-base
-commit: 136cf316b34434dbefc9dbe3dd41ca98c49b3fbb
+commit: b5d501257b67e9be2bce4051c26a7555d3d3f02f
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-13
@@ -23,3 +23,7 @@ Conferido:
 - Mutante M1 (guarda única do diff): morreu (`bin/forge-mutante tests/mutantes/v047-ci-changelog-base.json`).
 - Fragmento `changelog.d/v047-ci-changelog-base.md` presente. Diff de código e teste: 38 linhas, abaixo do teto.
 - Não rodei a sonda ponta a ponta de "PR sem fragmento barra" com o script real (o hook R-REVIEW recusou o merge em pasta temporária); vale a equivalência com a catraca e o CI do PR. Suíte inteira: no CI.
+
+## Revalidação (E1.67)
+Delta lido por `forge-check parecer delta` (136cf316..b5d50125, domínio: `tests/test_ci_local.py`, 1 linha): o `git()` do teste do changelog passa a usar `env=sem_manutencao(env)` (E1.66), o ponto único de `tests/ambiente_git.py` (já importado na linha 11), que preserva as chaves `GIT_CONFIG_*` do chamador e junta as de manutenção. Só o ambiente do subprocesso muda; a guarda e o comportamento testados seguem iguais, sem achado novo.
+`tests.test_ci_local` e `tests.test_ambiente_git`: 86 testes, OK (42 s). Aprovado no head b5d50125. Suíte inteira: no CI do PR.
