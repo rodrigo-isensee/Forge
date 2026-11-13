@@ -6,7 +6,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from apoio_volta_unica import MedidaDeCpu, limite_de_cpu_do_corpus  # noqa: E402
+from apoio_volta_unica import MedidaDeCpu, fator_de_carga, limite_de_cpu_do_corpus, limite_de_cpu_do_corpus_sob_carga  # noqa: E402
 
 DORME = "import time; time.sleep(1.5)"
 GASTA = "import time\nwhile time.process_time() < 0.8: pass"
@@ -44,6 +44,26 @@ class MedidaDeCpuDosTestesDeDesempenho(unittest.TestCase):
         for nucleos, trabalhadores in ((1, 1), (2, 1), (4, 2), (8, 4), (64, 4)):
             with self.subTest(nucleos=nucleos), mock.patch("os.cpu_count", return_value=nucleos):
                 self.assertEqual(limite_de_cpu_do_corpus(), 90 * trabalhadores)
+
+
+class LimitesPelaCargaDaMaquina(unittest.TestCase):
+    """TESTE-CPU-CORPUS e TESTE-TEMPO-CARGA: o limite acompanha a carga medida e não passa do dobro."""
+
+    def test_fator_segue_a_carga_por_nucleo_entre_1_e_2(self):
+        for carga, nucleos, esperado in ((0.2, 4, 1.0), (4, 4, 1.0), (6, 4, 1.5), (8, 4, 2.0), (400, 4, 2.0)):
+            with self.subTest(carga=carga, nucleos=nucleos):
+                self.assertEqual(fator_de_carga(carga, nucleos), esperado)
+
+    def test_carga_ilegivel_deixa_o_limite_de_sempre(self):
+        with mock.patch("os.getloadavg", side_effect=OSError):
+            self.assertEqual(fator_de_carga(None, 4), 1.0)
+
+    def test_limite_do_corpus_escala_e_regressao_de_mais_do_dobro_ainda_falha(self):
+        with mock.patch("os.cpu_count", return_value=8):
+            base = limite_de_cpu_do_corpus()
+            self.assertEqual(limite_de_cpu_do_corpus_sob_carga(0.5, 8), base)
+            self.assertEqual(limite_de_cpu_do_corpus_sob_carga(12, 8), base * 1.5)
+            self.assertEqual(limite_de_cpu_do_corpus_sob_carga(999, 8), base * 2)
 
 
 if __name__ == "__main__":

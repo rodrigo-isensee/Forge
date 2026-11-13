@@ -29,6 +29,7 @@ from test_hooks import (  # noqa: E402,F401  (os módulos test_hooks_volta_* imp
     PRAZO_DA_DECISAO_NOS_TESTES,
     PRAZO_DO_CLAUDE_CODE_S,
     PRAZO_GIT_NOS_TESTES,
+    fator_de_carga,
     modulos_dos_hooks,
     montar_proc,
     nucleos_do_processo,
@@ -46,6 +47,12 @@ def trabalhadores_do_limite_de_cpu():
 def limite_de_cpu_do_corpus():
     """90 s de CPU por trabalhador do lote (PROP-TEMPO-CPU, decisão do dono de 2026-10-27: cabe no runner do CI)."""
     return 90 * trabalhadores_do_limite_de_cpu()
+
+
+def limite_de_cpu_do_corpus_sob_carga(carga=None, nucleos=None):
+    """TESTE-CPU-CORPUS: o limite de CPU do corpus vezes o `fator_de_carga` (1 a 2). A CPU gasta cresce com a máquina
+    disputada (cache, SMT, CI com jobs vizinhos); o fator mede essa disputa na hora e não afrouxa além do dobro."""
+    return limite_de_cpu_do_corpus() * fator_de_carga(carga, nucleos)
 
 
 class MedidaDeCpu:

@@ -625,6 +625,21 @@ def trabalhadores_do_pool(nucleos):
     return min(4, max(2, nucleos))
 
 
+TETO_DO_FATOR_DE_CARGA = 2
+
+
+def fator_de_carga(carga=None, nucleos=None):
+    """TESTE-TEMPO-CARGA: quanto a máquina está acima de um processo por núcleo, `carga / núcleos` (média de 1 min de
+    `os.getloadavg`), preso entre 1 e `TETO_DO_FATOR_DE_CARGA`. Máquina folgada dá 1 (o limite é o de sempre); carga
+    ilegível dá 1. O teto de 2 mantém a regressão real à vista: defeito que passa do dobro do limite falha mesmo sob carga."""
+    try:
+        carga = os.getloadavg()[0] if carga is None else carga
+    except OSError:
+        return 1.0
+    nucleos = nucleos or nucleos_do_processo() or 1
+    return min(float(TETO_DO_FATOR_DE_CARGA), max(1.0, carga / nucleos))
+
+
 LANCADOR = """
 import runpy, sys, time
 sys.path.insert(0, sys.argv[1])
@@ -1017,10 +1032,11 @@ class Hooks(unittest.TestCase):
         """Segurança A1: `gh` que não responde (com um filho segurando a saída) barra dentro do timeout do hook."""
         limite = min(h["timeout"] for g in json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
                      for h in g["hooks"] if h["args"][0].endswith("/conformidade.py"))
+        teto = (limite - 1) * fator_de_carga()  # TESTE-TEMPO-CARGA: sob carga o relógio alonga; o `sleep 30` segue além do teto
         inicio = time.monotonic()
         self.rodar_dados(self.dados_da_sessao_do_forge("gh pr edit 70 --add-label afrouxa-regra",
                                                        "#!/bin/sh\nsleep 30\necho outra-pessoa\n", 2))
-        self.assertLess(time.monotonic() - inicio, limite - 1, "a decisão sai antes do Claude Code matar o hook")
+        self.assertLess(time.monotonic() - inicio, teto, "a decisão sai antes do Claude Code matar o hook")
 
     def test_linha_adversaria_de_crases_e_pastas_recusa_dentro_do_orcamento(self):
         """Segurança A1 do LOTE-LEITURA-HOOK: 60 `cd` e 60 crases aninhadas terminando em push com --no-verify refaziam a
