@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conferencia-patch-dono
-commit: c793d6eae3908b56c6df2756c3e8dcdaf308d9c9
+commit: 1580490eed439198800b81d16df803f439636eaf
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-13
@@ -27,6 +27,13 @@ Parecer anterior no `69bd4863`; junção com a `develop` (#517 escopo-ponto, #52
 - Ordem dos ramos de `linhas_de_entrega` (:1810-1840 do bloco, ramo final em :2744): `M2 fora` → parecer com autoria → `merge-integracao` → `anexo_implicito` → `anexo do portão` → `else` com `isencao_do_dono`. A isenção é só o último ramo, depois do anexo do portão; arquivo em pasta de parecer, aceite ou oráculo nem chega a ela (`tipo` ou `NUNCA_PATCH_DO_DONO`, P9).
 - Bloco `PATCH_DO_DONO` .. `isencao_do_dono` byte a byte igual ao do `69bd4863` (sha256 do trecho idêntico nos dois commits): P1 a P12 seguem como conferidos acima, sem regressão. `patches_do_dono` e a linha de aviso da forma (P3) continuam antes do laço.
 - Nenhum achado novo; A1 e A2 seguem recomendados (código e teste inalterados).
+
+## Revalidação por delta (E1.38, head 1580490e)
+Parecer anterior no `c793d6ea`. `forge-check parecer delta` (intervalo `c793d6ea..1580490e`, sem o que veio da `develop`): no domínio só `bin/forge-check`; fora, `tests/test_conf_escopo.py`. O resto do intervalo (`TRAVA-AGENTE-MORTO`, `hooks/agentes.py`, mutantes) veio da `develop` (#523), revisado lá.
+- `bin/forge-check:1863` (E1.33): o `pedido_id` do rótulo `escopo: ok (patch do dono ...)` passa por `sem_controle` (:2774; controle, bidi e U+2028/2029 viram um espaço). Muda só a saída; a decisão da isenção (P1 a P11) não é tocada. Fecha o P12 para o id do pedido, que saía cru. Nenhum achado novo.
+- `tests/test_conf_escopo.py`: o c11 troca `README.md` por `LEIAME.md` (nome sintético fora de TEXTO); não afrouxa o teste.
+- A1 e A2 seguem recomendados (código e teste da isenção inalterados).
+Suíte: `python3 -m unittest tests.test_conf_escopo.PatchDoDono` no `1580490e`: 8 testes, OK em 42,2 s. CI do PR #524 neste head (run 43438578467): `bateria (passos)` vermelha no passo "Parecer de review (e de QA para a homolog) quando o PR toca código que governa os agentes" (exige pareceres da junção com `hooks/agentes.py` da #523, fora do meu domínio); `bateria` e `bateria (python 3.14)` falham por consequência. Não vejo falha em teste da isenção. CI verde é condição do merge (R-REVIEW), do tech-lead.
 
 ## Detalhe dos achados
 **Conferência dos controles (head 69bd4863):**
