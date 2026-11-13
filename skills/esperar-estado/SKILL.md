@@ -16,7 +16,7 @@ Espere o PR, não os checks. Um check antigo pode seguir "em andamento" depois d
 6. **CI longo (uns 20 min) na sessão principal:** lance o segundo bloco de "O laço do PR", sem teto, com o `run_in_background` e siga com outro trabalho; o aviso chega quando o laço sai. O subagente não tem essa saída (regra 4): segue a regra 2 e repete a chamada de 170 s até o estado terminal.
 
 ## O laço do PR
-Troque `123` pelo número do PR e rode na pasta do repositório:
+Troque `123` pelo número do PR:
 
 ```bash
 n=123; fim=""; for i in $(seq 1 5); do e=$(gh pr view "$n" --json state --jq .state) || { fim=erro; break; }; [ "$e" = OPEN ] || { fim="$e"; break; }; gh pr checks "$n" >/dev/null 2>&1; c=$?; [ "$c" -eq 8 ] || { fim="checks:$c"; break; }; sleep 30; done; echo "fim=${fim:-teto}"; [ -n "$fim" ]
@@ -38,7 +38,7 @@ n=123; while :; do e=$(gh pr view "$n" --json state --jq .state) || { echo "fim=
 | `fim=erro` | 0 | O `gh` não leu o estado (rede, credencial, número): relate. |
 | `fim=teto` | 1 | Teto com o PR aberto e checks pendentes: repita. |
 
-Erro de cache do `gh` no sandbox: aponte `XDG_CACHE_HOME` a uma pasta gravável (`${TMPDIR:-/tmp}`).
+Cache do `gh` só de leitura: `XDG_CACHE_HOME` em pasta gravável (por exemplo, `${TMPDIR:-/tmp}`).
 
 ## O envio longo
 Lance com o `run_in_background`, trocando `<envio>` pelo comando e `<log>` pelo caminho absoluto de um log próprio (sem `$TMPDIR` nem `$?`, que a `conformidade` recusa ao lado do envio):
