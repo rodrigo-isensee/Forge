@@ -1163,6 +1163,62 @@ class Migracao070(unittest.TestCase):
         self.assertIn("teto_agentes", (RAIZ / "migrations/0.7.0/LEIA.md").read_text(encoding="utf-8").splitlines()[2])
 
 
+class ModeloDeSegurancaNoProjeto(unittest.TestCase):
+    """MP1311 item 9: o papel de segurança cita docs/security/_modelo.md; o projeto novo e o atualizado precisam tê-lo."""
+    MODELO = "docs/security/_modelo.md"
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-modelo-seg-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        git("init", "-q", "-b", "develop", cwd=self.tmp)
+        git("config", "user.name", "t", cwd=self.tmp)
+        git("config", "user.email", "t@example.com", cwd=self.tmp)
+
+    def upgrade(self):
+        return subprocess.run([str(RAIZ / "bin/forge-upgrade"), "--ate", "0.46.1", str(self.tmp)],
+                              env={**ambiente_limpo(), "FORGE_SEM_DOUTOR": "1"}, capture_output=True, text=True)
+
+    def projeto_existente(self, modelo=None):
+        (self.tmp / ".forge").mkdir()
+        (self.tmp / ".forge/versao").write_text("0.46.0\n", encoding="utf-8")
+        if modelo is not None:
+            (self.tmp / self.MODELO).parent.mkdir(parents=True)
+            (self.tmp / self.MODELO).write_text(modelo, encoding="utf-8")
+        git("add", "-A", cwd=self.tmp)
+        git("commit", "-q", "--allow-empty", "-m", "antes", cwd=self.tmp)
+
+    def test_projeto_novo_recebe_o_modelo(self):
+        forge_init("--nome", "Demo", "--pronto", "make pronto", str(self.tmp), cwd=self.tmp)
+        self.assertEqual((self.tmp / self.MODELO).read_bytes(), (RAIZ / "templates/projeto" / self.MODELO).read_bytes())
+
+    def test_projeto_existente_recebe_o_modelo_pela_atualizacao(self):
+        self.projeto_existente()
+        self.assertFalse((self.tmp / self.MODELO).exists())
+        r = self.upgrade()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual((self.tmp / self.MODELO).read_bytes(), (RAIZ / "templates/projeto" / self.MODELO).read_bytes())
+        self.assertEqual(git("log", "--format=%s", "develop..HEAD", cwd=self.tmp).stdout.splitlines()[-1],
+                         "chore(forge): migração 0.46.1")
+        self.assertEqual(git("status", "--porcelain", cwd=self.tmp).stdout, "")
+
+    def test_atualizacao_nao_sobrescreve_o_modelo_do_projeto(self):
+        self.projeto_existente("meu modelo de segurança\n")
+        r = self.upgrade()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual((self.tmp / self.MODELO).read_text(encoding="utf-8"), "meu modelo de segurança\n")
+
+    def test_migracao_repetida_nao_muda_nada(self):
+        self.projeto_existente()
+        migrar = [sys.executable, str(RAIZ / "migrations/0.46.1/migrar"), str(self.tmp)]
+        self.assertEqual(subprocess.run(migrar, capture_output=True, text=True).returncode, 0)
+        antes = (self.tmp / self.MODELO).read_bytes()
+        r = subprocess.run(migrar, capture_output=True, text=True)
+        self.assertEqual((r.returncode, r.stdout, (self.tmp / self.MODELO).read_bytes()), (0, "", antes))
+
+    def test_leia_resume_para_o_forge_upgrade(self):
+        self.assertIn("docs/security/_modelo.md", (RAIZ / "migrations/0.46.1/LEIA.md").read_text(encoding="utf-8").splitlines()[2])
+
+
 class HookPrePush(unittest.TestCase):
     """O hook do modelo de projeto bloqueia a main e respeita o pre-push.local."""
 
