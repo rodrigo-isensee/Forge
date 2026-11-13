@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-parecer-job
-commit: 7ba85a056b4eb332362ce5cda7b6efb193b6b017
-parecer: reprovado
-escopo: completo
+commit: bd28180e9129015578029dee765abd206960bac1
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -13,6 +13,17 @@ bugs_baixos: 0
 data: 2026-11-12
 ---
 # QA: v047 E1.4 (job de pareceres separado no CI)
+
+## Revalidação por delta (E1.20): head bd28180e, volta E1.18 (de 7ba85a05)
+Veredito: APROVADO. A1 fechado, A2 fechado. Sem PR aberto: sem check-run `bateria` para citar; rodei os testes afetados e a mutação.
+- Delta (`forge-check parecer delta`): ci.yml (timeout do job de pareceres 10 para 5, J9), devops-engineer.md, pronto.md de node-react e python, changelog, tests/mutantes/v047-ci-parecer-job.json, test_catraca, test_ci_local, test_suite_partes.
+- Testes afetados: `unittest tests.test_ci_local tests.test_catraca.Workflows tests.test_suite_partes.FiacaoDoCI`: 82 testes, OK.
+- Vermelho antes do verde (à mão; `forge-testes --vermelho` passou de 3 min e foi interrompido por carga, sem veredito): com o `ci.yml` da base a986c292 no lugar, os 3 testes novos do agregador e do `if:` caem (8 falhas e 1 erro, `KeyError` do job novo); com o do head, passam.
+- Mutação: `bin/forge-mutante tests/mutantes/v047-ci-parecer-job.json`: M1, M2, M3, M4 (ci.yml:674, agregador), M5 (:550, `if:`) e M6 (:552, timeout) todos `morreu`, saída 0. Linhas de guarda mudadas no ci.yml do delta: :552 (M6); as de :550 e :674 já eram do head anterior e agora têm mutante (eram M4, M5, M7 sobreviventes).
+- Agregador testado por execução real do `run:` em bash (sucesso e falha, PR e fora de PR): o comportamento deixou de ser só afirmado.
+- Texto de doc (devops-engineer.md, pronto.md): conferido no diff, coerente com o ci.yml.
+- Não executável aqui: o job em PR real (permissões, `fetch-depth: 0`); a prova é o CI do PR.
+
 
 Head testado: 7ba85a05 (diff contra a base a986c292: ci.yml, devops-engineer.md, pronto.md de node-react e python, test_ci_local.py, test_catraca.py, fragmento de changelog). Sem PR aberto: sem check-run `bateria` para citar; rodei só os testes afetados e a mutação à mão.
 
