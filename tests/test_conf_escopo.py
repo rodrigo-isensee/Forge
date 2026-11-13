@@ -1,10 +1,12 @@
 """T1-CONF-ESCOPO: `forge-check entrega` na etapa merge-integracao (E1) e os anexos implícitos por acréscimo (E2). Repositório temporário."""
 import sys
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import git  # noqa: E402
 from test_volta_por_delta import Repositorio  # noqa: E402
+from test_selo_e_entrega import Repositorio as ProjetoSelado, fc  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 PARECER = "---\ntipo: {t}\ncontrato: 1\npedido: x\nbranch: melhoria/x\ncommit: {c}\nparecer: {p}\n{extra}data: 2026-10-29\n---\n# {t}\n{achados}"
@@ -135,6 +137,148 @@ class AnexosImplicitos(Repositorio):
         self.gravar_pedido()
         rc, saida = self.entrega(base_sha=base)
         self.assertEqual((rc, 'escopo: confira "changelog.d/x.md" +0 -1' in saida), (0, True), saida)
+
+
+CONFIG = "templates/projeto/.forge/config.json"
+OUTRO = "templates/projeto/.githooks/pre-push"
+
+
+class PatchDoDono(ProjetoSelado):
+    """CONFERENCIA-PATCH-DO-DONO (v047; a 3a do v0457; ameaças P1-P12 e casos C1-C15 de docs/security/v047-e1-ameacas.md): o arquivo
+    que o dono aplicou (git apply, decisão 4a), fora da lista do brief, só não reprova com a linha `patch do dono aplicado` no
+    `## Histórico`, a `DECISÃO DO DONO` que cita o sha40 e o caminho, e o head com o blob e o modo do commit do dono."""
+
+    def setUp(self):
+        super().setUp()
+        self.brief()
+        rc, saida = self.selar()
+        self.assertEqual(rc, 0, saida)
+        self.x = self.do_dono({CONFIG: '{"ritmo": "equilibrado"}\n'})
+        self.entregar()
+        self.original = self.pedido()
+
+    def do_dono(self, arquivos):
+        for rel, texto in arquivos.items():
+            self.gravar(rel, texto)
+        self.git("add", *arquivos)
+        return self.commit("chore: patch aplicado pelo dono")
+
+    def declarar(self, nome=CONFIG, sha=None, decisao="`{nome}` {sha}", linha=None):
+        sha = sha or self.x
+        texto = self.original
+        if decisao:
+            texto = texto.replace("\n## Histórico", f"DECISÃO DO DONO (2026-11-12 11:37): aplicado {decisao.format(nome=nome, sha=sha)}\n\n## Histórico")
+        texto += f"- 2026-11-12 11:37: patch do dono aplicado `{nome}` commit {sha}\n" if linha is None else linha
+        (self.proj / "docs/pedidos/exemplo.md").write_text(texto, encoding="utf-8")
+        return texto
+
+    def conferir(self):
+        return self.rodar("entrega", "--pedido", "exemplo", "--branch", "melhoria/x", "--etapa", "codigo", "--sem-gravar")
+
+    def fora(self, nome=CONFIG, motivo=None):
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f'escopo: fora do declarado no brief "{nome}"', saida)
+        if motivo:
+            self.assertIn(motivo, saida)
+        return saida
+
+    def isencao(self, texto, sha, base_sha=None, nome=CONFIG):
+        return fc.isencao_do_dono(self.proj, "exemplo", texto, [sha], nome, base_sha or self.base, self.git("rev-parse", "HEAD"), None)
+
+    def test_c_leg_nome_commit_e_decisao_cumprem(self):
+        self.fora()  # sem a declaração, o arquivo do dono reprova (a 3a)
+        self.declarar()
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 0, saida)
+        self.assertRegex(saida, rf'escopo: ok \(patch do dono {self.x[:7]}, DECISÃO DO DONO exemplo:\d+\) "{CONFIG}"')
+
+    def test_declaracao_que_nao_isenta(self):
+        x, blob = self.x, self.git("rev-parse", f"HEAD:{CONFIG}")
+        forma = "linha fora da forma"
+        casos = {
+            "C1 fora do Histórico": dict(linha="", decisao="`{nome}` {sha}\n- 2026-11-12 11:37: patch do dono aplicado " + CONFIG + " commit {sha}"),
+            "C2 sem decisão": dict(decisao=None, motivo="sem `DECISÃO DO DONO`"),
+            "C3 decisão com outro sha": dict(decisao="`{nome}` " + "1" * 40, motivo="sem `DECISÃO DO DONO`"),
+            "C3 decisão com outro caminho": dict(decisao="`templates/projeto/.forge/` {sha}", motivo="sem `DECISÃO DO DONO`"),
+            "C3 decisão com caminho mais longo": dict(decisao="`{nome}.antigo` {sha}", motivo="sem `DECISÃO DO DONO`"),
+            "C5 sha curto": dict(sha=x[:7], decisao="`{nome}` " + x, motivo=forma),
+            "C5 sha maiúsculo": dict(sha=x.upper(), motivo=forma),
+            "C5 HEAD~1": dict(sha="HEAD~1", motivo=forma),
+            "C5 sha de blob": dict(sha=blob, motivo="o sha não é commit"),
+            "C5 sha inexistente": dict(sha="e" * 40, motivo="o sha não é commit"),
+            "C10 pasta": dict(nome="templates/projeto/.forge/"),
+            "C10 curinga": dict(nome="templates/projeto/.forge/*.json"),
+            "C10 ponto": dict(nome="./" + CONFIG),
+            "C10 barra dupla": dict(nome=CONFIG.replace("/", "//", 1)),
+        }
+        for caso, kw in casos.items():
+            with self.subTest(caso):
+                motivo = kw.pop("motivo", None)
+                self.declarar(**kw)
+                self.fora(motivo=motivo)
+
+    def test_c6_c7_conteudo_modo_ou_symlink_depois_do_commit_do_dono(self):
+        for caso, mudar, motivo in (("C6 conteúdo", lambda: self.gravar(CONFIG, "{}\n"), "o conteúdo mudou depois do commit do dono"),
+                                    ("C7 modo", lambda: (self.proj / CONFIG).chmod(0o755), "o modo mudou depois do commit do dono")):
+            with self.subTest(caso):
+                mudar()
+                self.git("add", CONFIG)
+                self.commit("o agente mexe depois do dono")
+                self.declarar()
+                self.fora(motivo=motivo)
+                self.git("reset", "-q", "--hard", "HEAD^")
+        (self.proj / "templates/link").symlink_to("projeto/.forge/config.json")
+        self.git("add", "templates/link")
+        link = self.commit("chore: symlink do dono")
+        self.declarar(nome="templates/link", sha=link)
+        self.fora(nome="templates/link", motivo="symlink, submódulo ou ausente no head")
+        self.git("update-index", "--add", "--cacheinfo", f"160000,{self.base},templates/sub")
+        sub = self.commit("chore: submódulo do dono")
+        self.declarar(nome="templates/sub", sha=sub)
+        self.fora(nome="templates/sub", motivo="symlink, submódulo ou ausente no head")
+
+    def test_c9_c14_commit_solto_ou_de_merge(self):
+        solto = self.git("-c", "user.email=a@b", "-c", "user.name=a", "commit-tree", "HEAD^{tree}", "-p", self.base, "-m", "solto")
+        self.declarar(sha=solto)
+        self.fora(motivo="commit fora da branch")
+        self.git("switch", "-q", "-c", "lado", self.base)
+        self.do_dono({OUTRO: "#!/bin/sh\n"})
+        self.git("switch", "-q", "melhoria/x")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "-m", "merge", "lado")
+        self.declarar(nome=OUTRO, sha=self.git("rev-parse", "HEAD"))
+        self.fora(nome=OUTRO, motivo="commit de merge")
+
+    def test_c8_commit_ja_na_base(self):
+        texto = self.declarar()
+        self.assertEqual(self.isencao(texto, self.x)[0][1], False)
+        self.assertEqual(self.isencao(texto, self.x, base_sha=self.x),
+                         (None, [(f'patch do dono: {self.x[:7]} não isenta "{CONFIG}" (commit fora da branch)', False)]))
+
+    def test_c11_so_o_arquivo_declarado_do_commit_do_dono(self):
+        x2 = self.do_dono({OUTRO: "#!/bin/sh\n", "templates/projeto/LEIAME.md": "r\n"})
+        self.declarar(nome=OUTRO, sha=x2)
+        saida = self.fora(nome="templates/projeto/LEIAME.md")
+        self.assertIn(f'escopo: ok (patch do dono {x2[:7]}', saida)
+        self.declarar(sha=x2)  # x2 não altera o CONFIG, ainda que o blob seja o mesmo no head
+        self.fora(motivo="o commit não altera o arquivo")
+
+    def test_c4_c13_pedido_na_entrega_e_caminhos_que_nunca_isentam(self):
+        nunca = ("docs/reviews/x.md", "docs/security/aceites/x.md", "tests/test_oraculo_x.py")
+        x3 = self.do_dono(dict.fromkeys(nunca, "r\n"))
+        for nome in nunca:
+            with self.subTest(nome):
+                self.declarar(nome=nome, sha=x3)
+                self.fora(nome=nome, motivo="caminho que nunca isenta")
+        self.do_dono({"docs/pedidos/outro.md": "p\n"})
+        self.declarar()
+        self.fora(motivo="a entrega mexe em docs/pedidos/")
+
+    def test_c15_git_que_falha_reprova(self):
+        texto, real = self.declarar(), fc.git
+        for passo in ("ls-tree", "rev-list"):
+            with self.subTest(passo), mock.patch.object(fc, "git", lambda raiz, *a, **kw: (1, b"") if passo in a else real(raiz, *a, **kw)):
+                self.assertEqual(self.isencao(texto, self.x), ((f'escopo: o git falhou (patch do dono) "{CONFIG}"', True), []))
 
 
 class PareceresPeloPedido(Repositorio):

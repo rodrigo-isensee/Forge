@@ -117,7 +117,7 @@ MAPA = [
     (r"bin/forge-placar", ("evals.test_placar", "test_forge")),  # 0.43.1, frente I
     # MAPA-FORGE-DOUTOR (v046 E22.1): + os módulos que rodam o script pela base de test_doutor (test_qa_doutor_034 roda o hook)
     (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge", "test_novo_projeto", "test_medidas_m14b",
-                           "test_doutor_custo", "test_doutor_protecao_gh", "test_doutor_relogio", "test_qa_doutor_f8")),
+                           "test_doutor_custo", "test_doutor_protecao_gh", "test_doutor_relogio", "test_qa_doutor_f8", "test_doutor_branch_atrasada")),
     (r"bin/forge-adotar", ("test_adotar", "test_stack_python", "test_forge")),  # 0.45.0: adoção de projeto existente
     (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge", "test_reval_delta", "test_salvar_desfazer", "test_adotar", "test_stack_python")),  # EST-M4: guarda C-2; GREP-UGREP
     (r"bin/(forge-atualizar|forge_versoes\.py|forge-voltar-versao)", ("test_atualizar", "test_forge", "test_doutor")),
