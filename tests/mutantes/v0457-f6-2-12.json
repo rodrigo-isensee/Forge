@@ -1,0 +1,46 @@
+{
+  "pedido": "v0457-f6-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M89",
+      "guarda": "bin/forge_transcricao.py:336 len(grupos) > 1 or any((not recomenda for _, recomenda in gr",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "            violacoes += len(grupos) > 1 or any(not recomenda for _, recomenda in grupos)",
+      "para": "            violacoes += (not (len(grupos) > 1 or any(not recomenda for _, recomenda in grupos)))",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M90",
+      "guarda": "bin/forge_transcricao.py:347 erro.filename or alvo",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        print(f\"{rotulo}: caminho inexistente: {caminho_impresso(erro.filename or alvo)}\")",
+      "para": "        print(f\"{rotulo}: caminho inexistente: {caminho_impresso((not (erro.filename or alvo)))}\")",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M91",
+      "guarda": "bin/forge_transcricao.py:349 not arquivos",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        print(f\"{rotulo}: caminho inexistente: {caminho_impresso(erro.filename or alvo)}\")\n        return 1\n    if not arquivos:",
+      "para": "        print(f\"{rotulo}: caminho inexistente: {caminho_impresso(erro.filename or alvo)}\")\n        return 1\n    if (not (not arquivos)):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M92",
+      "guarda": "bin/forge_transcricao.py: só avisos vai ao cmd_transcricao_avisos",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if a.acao == \"avisos\":",
+      "para": "    if a.acao in (\"avisos\", \"decisoes\"):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    }
+  ]
+}

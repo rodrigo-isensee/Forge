@@ -1,0 +1,94 @@
+{
+  "pedido": "v0457-f6-5",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "bin/forge_medidas.py:139 '|' in valor or re.search('[\\\\x00-\\\\x1f\\\\x7f]', valor) or len(valor.splitlines()) > 1",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "        if \"|\" in valor or re.search(r\"[\\x00-\\x1f\\x7f]\", valor) or len(valor.splitlines()) > 1:",
+      "para": "        if (not (\"|\" in valor or re.search(r\"[\\x00-\\x1f\\x7f]\", valor) or len(valor.splitlines()) > 1)):",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "bin/forge_medidas.py:142 motivo",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "        if motivo:",
+      "para": "        if (not (motivo)):",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "bin/forge_medidas.py:145 not ID_DE_PEDIDO.fullmatch(pedido) or not parecer_final or (not nota)",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    if not ID_DE_PEDIDO.fullmatch(pedido) or not parecer_final or not nota:",
+      "para": "    if (not (not ID_DE_PEDIDO.fullmatch(pedido) or not parecer_final or not nota)):",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "bin/forge_medidas.py:149 valor not in validos",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "        if valor not in validos:",
+      "para": "        if (not (valor not in validos)):",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "bin/forge_medidas.py:151 not (raiz / 'KANBAN.md').is_file()",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    if not (raiz / \"KANBAN.md\").is_file():",
+      "para": "    if (not (not (raiz / \"KANBAN.md\").is_file())):",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "bin/forge_medidas.py:154 arq.is_symlink()",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    if arq.is_symlink():",
+      "para": "    if (not (arq.is_symlink())):",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "bin/forge_medidas.py:157 arq.is_file() and arq.stat().st_size > 0",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    existe = arq.is_file() and arq.stat().st_size > 0",
+      "para": "    existe = (not (arq.is_file() and arq.stat().st_size > 0))",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "bin/forge_medidas.py:159 existe",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    if existe:",
+      "para": "    if (not (existe)):",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    }
+  ]
+}

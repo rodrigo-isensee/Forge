@@ -2,6 +2,7 @@
 import hashlib
 import importlib.machinery
 import importlib.util
+import io
 import json
 import os
 import signal
@@ -66,6 +67,41 @@ class Veredito(unittest.TestCase):
     def test_id_de_classe_ou_modulo_cobre_os_testes_dele(self):
         self.assertEqual(self.f.veredito(["tests.m"], [{"id": "tests.m.T.t", "res": "falha"}])[0], "morreu")
         self.assertEqual(self.f.veredito(["tests.m.T"], [{"id": "tests.m.TT.t", "res": "falha"}])[0], "inválido")
+
+    def test_erro_do_teste_declarado_mata_so_com_o_controle_verde(self):  # MUTANTE-ERRO-INVALIDO
+        D, erro = ["tests.m.T.t"], [{"id": "tests.m.T.t", "res": "erro", "carga": False}]
+        classe, motivo = self.f.veredito(D, erro, erro_mata=True)
+        self.assertEqual((classe, motivo), ("morreu", self.f.MORREU_POR_ERRO))
+        self.assertTrue(motivo.startswith("(erro)"))
+        self.assertEqual(self.f.veredito(D, erro)[0], "inválido")  # o controle: erro sem o mutante não é verde
+
+    def test_erro_que_nao_e_do_teste_declarado_segue_invalido(self):  # MUTANTE-ERRO-INVALIDO
+        carga = [{"id": "tests.m", "res": "erro", "carga": True}]
+        self.assertEqual(self.f.veredito(["tests.m"], carga, erro_mata=True)[0], "inválido")
+        fixture = [{"id": "tests.m.T.t", "res": "ok"}, {"id": "setUpClass (tests.m.T)", "res": "erro"}]
+        self.assertEqual(self.f.veredito(["tests.m.T.t"], fixture, erro_mata=True)[0], "inválido")
+        faltou = [{"id": "tests.m.T.t", "res": "erro"}]
+        self.assertEqual(self.f.veredito(["tests.m.T.t", "tests.m.T.u"], faltou, erro_mata=True)[0], "inválido")
+
+    def test_falha_com_erro_e_morte_por_assercao(self):  # MUTANTE-ERRO-INVALIDO
+        D = ["tests.m.T"]
+        registro = [{"id": "tests.m.T.t", "res": "erro"}, {"id": "tests.m.T.u", "res": "falha"}]
+        self.assertEqual(self.f.veredito(D, registro, erro_mata=True), ("morreu", ""))
+        self.assertEqual(self.f.veredito(D, [{"id": "tests.m.T.t", "res": "ok"}], erro_mata=True), ("sobreviveu", ""))
+
+    def test_registro_marca_o_erro_de_carga(self):  # MUTANTE-ERRO-INVALIDO
+        class Falso:
+            def __init__(self, ident):
+                self.ident = ident
+
+            def id(self):
+                return self.ident
+
+        registro = self.f.Registro()
+        registro.addError(Falso("unittest.loader._FailedTest.tests.m"), None)
+        registro.addError(Falso("tests.m.T.t"), None)
+        self.assertEqual(registro.por_id["tests.m"], {"id": "tests.m", "res": "erro", "carga": True})
+        self.assertEqual(registro.por_id["tests.m.T.t"], {"id": "tests.m.T.t", "res": "erro", "carga": False})
 
 
 class ValidacaoDaSpec(unittest.TestCase):
@@ -190,6 +226,61 @@ class Encerramento(unittest.TestCase):
         popen.assert_not_called()
 
 
+class ArvoreQueMuda(unittest.TestCase):
+    """MUTANTE-ARVORE-MUDOU: a árvore se confere a cada mutante pronto; a primeira mudança para a rodada já."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+
+    def rodada(self, sujar_depois_de):
+        """Dublês do `git status` e do `provar`: o mutante `sujar_depois_de` suja a árvore ao terminar; o M2 espera o
+        sinal de parada (no máximo 5 s) e conta se o recebeu, se chegou a sair da fila; o M3 só anota que rodou."""
+        estado, chamados, parada = {"status": ""}, [], []
+
+        def git(*args, cwd=None):
+            self.assertEqual(args, ("status", "--porcelain"))
+            return estado["status"]
+
+        def provar(m, *resto):
+            chamados.append(m["id"])
+            if m["id"] == "M2":
+                parada.append(self.f.ABORTAR.wait(5))
+                time.sleep(0.5)  # a parada cancela o M3 antes de ele sair da fila
+            if m["id"] == sujar_depois_de:
+                estado["status"] = " M lib.py\n?? novo.txt\n"
+            return f"{m['id']} · morreu · lib.py:2", 0, True
+
+        self.addCleanup(self.f.ABORTAR.clear)
+        specs = [(b"{}", {"pedido": "x", "mutantes": [mutante("M1"), mutante("M2"), mutante("M3")]})]
+        with mock.patch.object(self.f, "git", git), mock.patch.object(self.f, "provar", provar), \
+                mock.patch.object(self.f, "anotar") as anotar, \
+                mock.patch("sys.stdout", new_callable=io.StringIO) as saida, \
+                mock.patch("sys.stderr", new_callable=io.StringIO) as erro:
+            codigo = self.f.principal(specs, "a" * 40, 5)
+        return codigo, saida.getvalue(), erro.getvalue(), chamados, parada, anotar
+
+    def test_a_primeira_mudanca_para_a_rodada_no_mutante_seguinte_e_diz_o_que_mudou(self):
+        codigo, saida, erro, chamados, parada, anotar = self.rodada("M1")
+        self.assertEqual(codigo, 2, saida + erro)
+        self.assertIn("parei depois do mutante M1 (1 de 3 prontos)", erro)
+        self.assertIn("   M lib.py\n  ?? novo.txt\n", erro)
+        self.assertIn("a rodada recomeça do zero", erro)
+        self.assertTrue(all(parada), "o M2 em curso não recebeu o sinal de parada")  # ou foi cancelado na fila
+        self.assertNotIn("M3", chamados, "o mutante da fila rodou depois da mudança")
+        self.assertNotIn("morreu", saida, "resultado de rodada com a árvore mudada saiu como prova")
+        anotar.assert_not_called()
+
+    def test_arvore_parada_roda_todos_e_nao_avisa(self):
+        codigo, saida, erro, chamados, parada, anotar = self.rodada(None)
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertEqual(chamados, ["M1", "M2", "M3"])
+        self.assertEqual(parada, [False])
+        self.assertNotIn("árvore", erro)
+        for ident in ("M1", "M2", "M3"):
+            self.assertIn(f"{ident} · morreu", saida)
+
+
 class Execucao(unittest.TestCase):
     """Roda o script de verdade num repositório de brinquedo, com a spec fora dele."""
 
@@ -256,6 +347,20 @@ class Execucao(unittest.TestCase):
         r = self.rodar(self.spec(mutante(testes=["tests.test_lib.T.test_borda", "tests.test_lib.T.test_ruim"])))
         self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
         self.assertIn("controle vermelho", r.stdout)
+
+    def test_mutante_que_leva_o_teste_a_erro_morre_por_erro_e_sai_0(self):  # MUTANTE-ERRO-INVALIDO
+        r = self.rodar(self.spec(mutante(de="return 2", para="return None + 2")))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("M1 · morreu · lib.py:3 · (erro)", r.stdout)
+
+    def test_teste_que_da_erro_tambem_sem_o_mutante_sai_2_e_nunca_morreu(self):  # MUTANTE-ERRO-INVALIDO
+        self.gravar("tests/test_lib.py", TESTE + "\n    def test_quebrado(self):\n        raise KeyError('x')\n")
+        self.salvar()
+        r = self.rodar(self.spec(mutante(de="return 2", para="return None + 2",
+                                         testes=["tests.test_lib.T.test_quebrado"])))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("controle vermelho", r.stdout)
+        self.assertNotIn("morreu", r.stdout)
 
     def test_teste_inexistente_sai_2_e_nunca_morreu(self):  # CA-11
         r = self.rodar(self.spec(mutante(testes=["tests.test_lib.T.test_nao_existe"])))
@@ -650,6 +755,41 @@ class Cobertura(unittest.TestCase):
                          "declarado, não provado"]))
         self.salvar({"lib.py": "x = 1\nif x >= 100:\n    x = 2\n"})
         self.assertEqual(self.cobertura().stdout.splitlines()[2:], ["apagada · lib.py:1(base) · y"])
+
+    # MUTANTE-CONDICAO-MOVIDA (v0457 E13.1): a condição que sai de um arquivo e entra coberta noutro é movida.
+    MOVIDA = "def f(x, y):\n    if x > 100 and y:\n        return 1\n    return 0\n"
+
+    def test_condicao_movida_coberta_noutro_arquivo_sai_movida_e_0_e_a_so_apagada_sai_1(self):
+        self.salvar({"lib.py": "x = 1\n" + self.MOVIDA + "if z < 3:\n    pass\n"}, base=True)
+        novo = self.MOVIDA.replace("x > 100 and y", "(x  >  100) and y")  # espaços e parênteses: o mesmo texto
+        self.salvar({"lib.py": "x = 1\n", "mod.py": novo, **self.spec("(x  >  100) and y", "(x  >  101) and y",
+                                                                       arquivo="mod.py")})
+        r = self.cobertura()
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (1, [
+            "apagada · lib.py:6(base) · z < 3", "movida · lib.py:3(base) · mod.py:2",
+            "coberta · mod.py:2 · tests/mutantes/x.json:M1 · declarado, não provado"]), r.stderr)
+        self.salvar({"lib.py": "x = 1\nif z < 3:\n    pass\n"})
+        r = self.cobertura()
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:3]), (0, [
+            "movida · lib.py:3(base) · mod.py:2", "coberta · mod.py:2 · tests/mutantes/x.json:M1 · declarado, não provado"]))
+
+    def test_movida_exige_coberta_e_uma_coberta_por_apagada(self):
+        dupla = self.MOVIDA + self.MOVIDA.replace("def f", "def g")
+        self.salvar({"lib.py": "x = 1\n" + dupla}, base=True)
+        self.salvar({"lib.py": "x = 1\n", "mod.py": self.MOVIDA})  # sem mutante: segue apagada
+        r = self.cobertura()
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (1, [
+            "apagada · lib.py:3(base) · x > 100 and y", "sem mutante · mod.py:2 · x > 100 and y"]))
+        self.salvar(self.spec("if x > 100 and y:", "if x > 101 and y:", arquivo="mod.py"))  # 1 coberta, 2 apagadas
+        r = self.cobertura()
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1]), (1, "apagada · lib.py:3(base) · x > 100 and y"))
+
+    def test_movidas_consome_o_destino_e_nao_casa_texto_diferente(self):
+        cob = ["coberta · b.py:2 · s:M1 · declarado, não provado"]
+        apag = ["apagada · a.py:1(base) · p", "apagada · c.py:1(base) · p", "apagada · d.py:1(base) · q"]
+        saida = self.f.movidas([(apag, {0: ("p", 1), 1: ("p", 1), 2: ("q", 1)}), (cob, {0: ("p", 1)})])
+        self.assertEqual(saida[:3], ["movida · a.py:1(base) · b.py:2", "apagada · c.py:1(base) · p",
+                                     "apagada · d.py:1(base) · q"])
 
     def test_binario_e_fora_do_utf8_so_param_no_python_e_o_cr_solto_e_2(self):  # A1 do review, A2 da segurança
         for nome, dados, rc in (("tests/fixtures/a.txt", b"caf\xe9", 0), ("logo.png", b"\x89PNG\0\xff", 0),

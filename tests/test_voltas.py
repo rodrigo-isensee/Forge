@@ -1,5 +1,9 @@
 """T-1: `forge-check voltas`, rodadas de brief em `transcricao custo --entregas` e as pastas padrão de transcrições."""
+import contextlib
 import datetime
+import importlib.machinery
+import importlib.util
+import io
 import json
 import os
 import re
@@ -9,6 +13,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = str(RAIZ / "bin" / "forge-check")
@@ -64,7 +69,15 @@ class Raiz(unittest.TestCase):
         return r.returncode, r.stdout.splitlines(), r.stderr
 
 
-class Voltas(Raiz):
+class SemQueda:
+    """F6, E5.4: a queda do script (Traceback) é falha do teste, não erro de índice adiante (o forge-mutante conta erro como inválido)."""
+    def rodar(self, *args, **kwargs):
+        cod, linhas, erro = super().rodar(*args, **kwargs)
+        self.assertNotIn("Traceback", erro)
+        return cod, linhas, erro
+
+
+class Voltas(SemQueda, Raiz):
     def setUp(self):
         super().setUp()
         self.gravar("docs/kanban/historico.md", HISTORICO)
@@ -129,7 +142,8 @@ class Voltas(Raiz):
     def test_pedido_sem_voltas_so_aparece_com_pedido_explicito(self):
         _, todos, _ = self.rodar("voltas")
         self.assertFalse(any("OUTRO" in l for l in todos), todos)
-        _, um, _ = self.rodar("voltas", "--pedido", "outro")
+        cod, um, _ = self.rodar("voltas", "--pedido", "outro")
+        self.assertEqual((cod, len(um)), (0, 2), um)  # F6, E5.4: rc e linhas antes do índice (falha, não erro)
         self.assertEqual(um[0], "voltas: OUTRO resumo: brief=0 conferencia=0 review=0 revalidacao=0 barrada=0 "
                                 "nao-classificado=0 minutos=0 construcao=- razao=-")
 
@@ -144,13 +158,15 @@ class Voltas(Raiz):
         self.assertIn("voltas: XPTO nao-classificado inicio=2026-10-17T10:50:00-03:00 minutos=8", linhas)
 
     def test_classificacao_por_coluna_e_motivo(self):
-        carga = subprocess.run([sys.executable, "-c", (
+        carga = subprocess.run([sys.executable, "-I", "-c", (
             "import importlib.machinery as m, importlib.util as u, sys\n"
             f"l = m.SourceFileLoader('fc', {FORGE_CHECK!r}); s = u.spec_from_loader('fc', l); mod = u.module_from_spec(s); l.exec_module(mod)\n"
-            "c = mod.classificar_volta\n"
+            f"l2 = m.SourceFileLoader('fv', {str(RAIZ / 'bin' / 'forge_voltas.py')!r}); s2 = u.spec_from_loader('fv', l2)\n"
+            "fv = u.module_from_spec(s2); l2.exec_module(fv); ctx = mod.ctx_das_voltas()\n"
+            "c = lambda de, para, motivo: fv.classificar_volta(de, para, motivo, ctx)\n"
             "print(c('Conferência', 'Review', 'não cumpriu'), c('Conferência', 'Review', 'conferido'), c('Review', 'Review', 'reprovou'),"
             " c('Em andamento', 'Aguardando o dono', 'barrada'), c('Review', 'Em andamento', 'x'), c('Em andamento', 'Conferência', 'x'))")],
-            capture_output=True, text=True)
+            capture_output=True, text=True, env={"PATH": os.environ.get("PATH", ""), "HOME": str(self.tmp / "home")})
         self.assertEqual(carga.stdout.split(), ["conferencia", "None", "review", "barrada", "nao-classificado", "None"], carga.stderr)
 
     def test_sem_historico_avisa_e_nao_quebra(self):
@@ -165,21 +181,31 @@ class Voltas(Raiz):
         self.assertEqual((self.tmp / "docs/kanban/historico.md").read_text(encoding="utf-8"), antes)
 
 
-class RodadasDeBrief(Raiz):
+class RodadasDeBrief(SemQueda, Raiz):
     def test_conferencias_manda_quando_ha_linhas_e_so_conta_modo_brief(self):
         self.gravar("docs/kanban/conferencias.md", CONFERENCIAS)
         self.gravar("docs/briefs/xpto-tech-lead-1.md")
         self.gravar("docs/briefs/xpto-tech-lead-2.md")
         self.gravar("docs/kanban/historico.md", "")
-        _, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        cod, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        self.assertEqual((cod, len(linhas)), (0, 3), linhas)  # F6, E5.4: rc e linhas antes do índice (falha, não erro)
         self.assertEqual(linhas[0], "voltas: xpto brief inicio=2026-10-15 21:07 minutos=7 ref=xpto-tech-lead-1")
         self.assertIn("brief=1 ", linhas[1])
+        self.assertIn(" minutos=7 construcao=- ", linhas[1])  # F6, E5.4: os minutos da rodada extra entram no resumo
+
+    def test_pedido_so_em_docs_pedidos_existe_sem_historico(self):  # F6, E5.4
+        self.gravar("docs/pedidos/P1.md", "# p\n")
+        self.gravar("docs/kanban/historico.md", "")
+        self.assertEqual(self.rodar("voltas", "--pedido", "p1")[:2], (0, [
+            "voltas: P1 resumo: brief=0 conferencia=0 review=0 revalidacao=0 barrada=0 nao-classificado=0 minutos=0 construcao=- razao=-",
+            "voltas: total: pedidos=1 voltas=0 minutos=0"]))
 
     def test_sem_conferencias_vale_o_disco_dos_briefs_por_destino(self):
         for nome in ("xpto-tech-lead-1", "xpto-tech-lead-2", "xpto-tech-lead-3", "xpto-qa-engineer-1", "xptoz-tech-lead-1", "xpto-2-tech-lead-1"):
             self.gravar(f"docs/briefs/{nome}.md")
         self.gravar("docs/kanban/historico.md", "")
-        _, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        cod, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        self.assertEqual((cod, len(linhas)), (0, 2), linhas)  # F6, E5.4: rc e linhas antes do índice (falha, não erro)
         self.assertFalse([l for l in linhas if " brief inicio=" in l], linhas)  # delegações não são voltas
         self.assertIn("brief=0 ", linhas[0])
         self.assertTrue(linhas[0].startswith("voltas: xpto resumo:"), linhas)
@@ -247,6 +273,40 @@ class RodadasDeBrief(Raiz):
         self.assertIn("rodadas de brief: fonte=briefs", linhas[0])
         sem = self.rodar("transcricao", "custo", str(pasta), "--entregas", "--entrega", "nenhum")[1][0]
         self.assertTrue(sem.startswith("| 2026-10-17 | nenhum | jarvis (principal) | 2 | - | - |"), sem)
+
+
+class RamosDeFalhaDoModuloVoltas(Raiz):
+    """F6, E5.4: `voltas` e `esperas` moram em bin/forge_voltas.py; os ramos de falha que o script de ponta a ponta não alcança."""
+    AUSENTE = "forge-check: bin/forge_voltas.py ausente ao lado do forge-check; nada feito\n"
+
+    def carregar(self, nome, arquivo):
+        carregador = importlib.machinery.SourceFileLoader(nome, str(arquivo))
+        modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader(nome, carregador))
+        carregador.exec_module(modulo)
+        return modulo
+
+    def test_copia_avulsa_sem_o_modulo_sai_com_2_nos_dois(self):
+        copia = self.tmp / "copia" / "bin"
+        copia.mkdir(parents=True)
+        (copia / "forge-check").write_bytes(Path(FORGE_CHECK).read_bytes())
+        self.gravar("docs/kanban/historico.md", HISTORICO)
+        env = {"PATH": os.environ.get("PATH", ""), "HOME": str(self.tmp / "home")}
+        for args in (("voltas",), ("esperas",), ("voltas", "--pedido", "xpto"), ("esperas", "--pedido", "xpto")):
+            with self.subTest(args):
+                r = subprocess.run([sys.executable, "-I", str(copia / "forge-check"), "--raiz", str(self.tmp), *args],
+                                   capture_output=True, text=True, env=env, cwd=self.tmp)
+                self.assertEqual((r.returncode, r.stdout), (2, self.AUSENTE), r.stderr)
+
+    def test_historico_que_nao_le_da_rc_1_e_nada_medido(self):
+        self.gravar("docs/kanban/historico.md", HISTORICO)
+        fc = self.carregar("forge_check_e54", FORGE_CHECK)
+        fv = self.carregar("forge_voltas_e54", RAIZ / "bin" / "forge_voltas.py")
+        saida, erro = io.StringIO(), io.StringIO()
+        with mock.patch.object(Path, "read_text", side_effect=PermissionError(13, "Permission denied")), \
+                contextlib.redirect_stdout(saida), contextlib.redirect_stderr(erro):
+            cod = fv.cmd_voltas(self.tmp, "xpto", fc.ctx_das_voltas())
+        self.assertEqual((cod, saida.getvalue(), erro.getvalue()),
+                         (1, "", "voltas: docs/kanban/historico.md ilegivel (Permission denied); nada medido\n"))
 
 
 class PastasPadrao(Raiz):

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-f6-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "bin/forge_transcricao.py:57 re.search(f'\\\\bmerged pull request #{n}(?!\\\\d)', saidas, re.",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    return re.search(rf\"\\bmerged pull request #{n}(?!\\d)\", saidas, re.I) is not None",
+      "para": "    return (not (re.search(rf\"\\bmerged pull request #{n}(?!\\d)\", saidas, re.I) is not None))",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "bin/forge_transcricao.py:62 re.search(f'\\\\bRan {numero} tests?\\\\b[^\\\\n]*\\\\n\\\\s*OK\\\\b|\\\\b",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if re.search(rf\"\\bRan {numero} tests?\\b[^\\n]*\\n\\s*OK\\b|\\bOK \\({numero} tests?\\)\", saidas):",
+      "para": "    if (not (re.search(rf\"\\bRan {numero} tests?\\b[^\\n]*\\n\\s*OK\\b|\\bOK \\({numero} tests?\\)\", saidas))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "bin/forge_transcricao.py:64 re.search(f'\\\\b{numero} (?:passed|tests? passed)\\\\b', l) and",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    return any(re.search(rf\"\\b{numero} (?:passed|tests? passed)\\b\", l) and not re.search(r\"fail\", l, re.I)",
+      "para": "    return any((not (re.search(rf\"\\b{numero} (?:passed|tests? passed)\\b\", l) and not re.search(r\"fail\", l, re.I)))",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "bin/forge_transcricao.py:70 tipo == 'sha'",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if tipo == \"sha\":",
+      "para": "    if (not (tipo == \"sha\")):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "bin/forge_transcricao.py:71 valor in saidas",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        return valor in saidas",
+      "para": "        return (not (valor in saidas))",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "bin/forge_transcricao.py:72 tipo == 'pr'",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if tipo == \"pr\":",
+      "para": "    if (not (tipo == \"pr\")):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "bin/forge_transcricao.py:73 re.search(f'#{valor}(?!\\\\d)|pull/{valor}(?!\\\\d)|\\\\\"number\\\\\"",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        return re.search(rf\"#{valor}(?!\\d)|pull/{valor}(?!\\d)|\\\"number\\\": ?{valor}(?!\\d)\", saidas) is not None",
+      "para": "        return (not (re.search(rf\"#{valor}(?!\\d)|pull/{valor}(?!\\d)|\\\"number\\\": ?{valor}(?!\\d)\", saidas) is not None))",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "bin/forge_transcricao.py:74 tipo == 'push'",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if tipo == \"push\":",
+      "para": "    if (not (tipo == \"push\")):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    }
+  ]
+}

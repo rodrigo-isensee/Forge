@@ -1,0 +1,76 @@
+{
+  "pedido": "v0457-e2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "AV3 etapa 1: sem agent_type é a sessão principal",
+      "arquivo": "hooks/vigia.py",
+      "de": "    if not agente:\n        return politica.get(\"sem_agent_type\"",
+      "para": "    if False:\n        return politica.get(\"sem_agent_type\"",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_papel_do_agente"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "AV3 etapa 1: o papel é o da lista que contém o agent_type",
+      "arquivo": "hooks/vigia.py",
+      "de": "if agente in tipos), politica",
+      "para": "if agente == tipos), politica",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_papel_do_agente"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "AV3 etapa 1: a transcrição do subagente é do agent_type",
+      "arquivo": "hooks/vigia.py",
+      "de": "do_agente = chave == \"agent_transcript_path\" or ",
+      "para": "do_agente = ",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_medida_av3"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "AV3 etapa 1: no Stop a transcrição principal é do agent_type da sessão",
+      "arquivo": "hooks/vigia.py",
+      "de": "or hook.campo(\"hook_event_name\") == \"Stop\"\n",
+      "para": "or hook.campo(\"hook_event_name\") == \"Parar\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_medida_av3"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "AV3 etapa 1: fora disso a transcrição principal é da sessão sem agent_type",
+      "arquivo": "hooks/vigia.py",
+      "de": "agente = hook.campo(\"agent_type\") if do_agente else \"\"",
+      "para": "agente = hook.campo(\"agent_type\") if True else \"\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_medida_av3"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "AV3 etapa 1: sem medida não se cria comandos.jsonl",
+      "arquivo": "hooks/vigia.py",
+      "de": "        if medidas:\n            rotacionar",
+      "para": "        if True:\n            rotacionar",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_medida_av3"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "AV3 etapa 1: aspa sem par ainda se mede pelas palavras",
+      "arquivo": "hooks/vigia.py",
+      "de": "        except ValueError:\n            palavras = trecho.split()",
+      "para": "        except KeyError:\n            palavras = trecho.split()",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_formas_criticas"
+      ]
+    }
+  ]
+}

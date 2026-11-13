@@ -1,0 +1,53 @@
+{
+  "pedido": "v0457-f6-5",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M49",
+      "guarda": "bin/forge_medidas.py:191 e[5] == k",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    print(\"escapes: controle: \" + \" \".join(f\"{k}={sum(1 for e in escapes if e[5] == k)}\" for k in CONTROLES_QUE_FALTARAM))",
+      "para": "    print(\"escapes: controle: \" + \" \".join(f\"{k}={sum(1 for e in escapes if (not (e[5] == k)))}\" for k in CONTROLES_QUE_FALTARAM))",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M50",
+      "guarda": "bin/forge_medidas.py:192 origem_do_escape(e, ctx) == o",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    print(\"escapes: origem: \" + \" \".join(f\"{o}={sum(1 for e in escapes if origem_do_escape(e, ctx) == o)}\" for o in ORIGENS))",
+      "para": "    print(\"escapes: origem: \" + \" \".join(f\"{o}={sum(1 for e in escapes if (not (origem_do_escape(e, ctx) == o)))}\" for o in ORIGENS))",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M51",
+      "guarda": "bin/forge_medidas.py:193 prontos",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    taxa = f\"{len(escapes) / len(prontos):.2f}\" if prontos else \"-\"",
+      "para": "    taxa = f\"{len(escapes) / len(prontos):.2f}\" if (not (prontos)) else \"-\"",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado",
+        "tests.test_forge_medidas"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "\"\\n\".join(piora_da_release(atual, anterior, tags))",
+      "motivo": "movida igual para bin/forge_medidas.py:79, só com o ctx no argumento (M23 a cobre), sem mudar comportamento",
+      "linha_base": 4955
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "origem_do_escape(e) == o",
+      "motivo": "movida igual para bin/forge_medidas.py:192, só com o ctx no argumento (M50 a cobre), sem mudar comportamento",
+      "linha_base": 5260
+    }
+  ]
+}

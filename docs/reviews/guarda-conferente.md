@@ -28,7 +28,7 @@ Veredito sobre `b050d63`: **REPROVADO**, 1 achado bloqueante e 3 recomendados. V
 - Fragmento `changelog.d/guarda-conferente.md` corresponde à branch; docstring do hook atualizada; nada específico de projeto (R-NEUTRO); nada com custo (R-CUSTO); endurece, sem afrouxar regra.
 
 ## Rodada inicial: achado, hoje corrigido
-- A1 (corrigido na volta 1) hooks/agentes.py:103 · `\S*docs/briefs/\S+` recusa Arquivo absoluto com espaço (sonda: `/mnt/c/Users/R/Meus Projetos/docs/briefs/p-x-1.md`), saída real do `brief mensagem` nesse caso: conferente inalcançável. Aceitar o caminho com espaço e testar.
+- A1 (corrigido na volta 1) hooks/agentes.py:103 · `\S*docs/briefs/\S+` recusa Arquivo absoluto com espaço (sonda: `/exemplo/Meus Projetos/docs/briefs/p-x-1.md`), saída real do `brief mensagem` nesse caso: conferente inalcançável. Aceitar o caminho com espaço e testar.
 
 ## Recomendações (fora do bloco de achados)
 1. `tests/test_guarda_conferente.py:74` · O teste da saída real usa um diretório temporário sem espaço, por isso o A1 não apareceu. Junto da correção, um caso com a raiz do cenário num diretório com espaço (ou o caminho absoluto com espaço substituído na saída real), como pede a regra de teste novo para bug corrigido.

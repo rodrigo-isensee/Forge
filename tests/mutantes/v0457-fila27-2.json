@@ -1,0 +1,76 @@
+{
+  "pedido": "v0457-fila27",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M4",
+      "guarda": "FILA-27 A2: a consulta de arquivo (-F campo=@arq, --input arq) é lida, não só o inline",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if corpo or \"=@\" in a:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "FILA-27 A2: --input - (entrada padrão) não dá para ler, mesmo com um arquivo chamado - na pasta",
+      "arquivo": "hooks/parecer.py",
+      "de": "            if arq == \"-\":\n                return textos, False",
+      "para": "            if False:\n                return textos, False",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "FILA-27 A2: arquivo da consulta que não abre recusa com a mensagem do R-CONTRIB",
+      "arquivo": "hooks/parecer.py",
+      "de": "            except OSError:\n                return textos, False\n            if len(dados)",
+      "para": "            except OSError:\n                return textos, True\n            if len(dados)",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "FILA-27 A2: arquivo acima de 64 KiB não é lido (falha fechada)",
+      "arquivo": "hooks/parecer.py",
+      "de": "            if len(dados) > TETO_DA_CONSULTA:",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "FILA-27 A2: só o endpoint GraphQL é conferido (REST que cita o nome passa)",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if not (ENDPOINT_GRAPHQL.search(endpoint_da_api(args)) and metodo_mutante(args)):\n        return\n    if not e_clone_do_forge(",
+      "para": "    if not metodo_mutante(args):\n        return\n    if not e_clone_do_forge(",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "FILA-27 A2: nos projetos o parecer não confere a mutação (o conformidade cuida, R-CONTRIB)",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if not e_clone_do_forge(hook.projeto(pasta, clone_do_forge=True)):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "FILA-27 A2: consulta ilegível recusa (não é tratada como livre)",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if not legivel or any(PRONTO_NO_GRAPHQL.search(t) for t in textos):",
+      "para": "    if any(PRONTO_NO_GRAPHQL.search(t) for t in textos):",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    }
+  ]
+}

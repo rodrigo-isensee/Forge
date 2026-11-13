@@ -2058,6 +2058,7 @@ class ParecerReprovadoBarraSempre(Base):
     def test_workflow_declara_head_repo_e_base_repo_no_passo_de_pareceres(self):
         texto = (AQUI.parent / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         (passo,) = [p for p in re.split(r"\n      - name: ", texto) if "--modo pareceres" in p]
+        passo = re.split(r"\n\n  [a-z-]+:\n", passo, maxsplit=1)[0]  # o passo é o último do job: o corte evita ler o job seguinte
         env = passo.split("        env:\n", 1)[1].split("        run:", 1)[0]
         self.assertIn("HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}", env)
         self.assertIn("BASE_REPO: ${{ github.repository }}", env)
@@ -3315,10 +3316,10 @@ class Workflows(unittest.TestCase):
         self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/develop'", ci)
         self.assertRegex(ci, r"(?m)^  bateria:")
         self.assertIn("docs/(reviews|qa|security|devops|ux)/", ci)
-        # Teto de tempo (ci-suite-no-teto; SUITE-NO-CI): as duas checagens rápidas (3.12 e 3.14, SP4) 20 min; cada parte da suíte (3.12 e 3.14) 20 min;
-        # instalação no 3.14 15 min; o teto de pulados de cada versão (T3, 0.43.2) 5 min; passos da bateria 20 min; os dois agregadores 5 min;
+        # Teto de tempo (ci-suite-no-teto; SUITE-NO-CI): as duas checagens rápidas (3.12 e 3.14, SP4) 30 min (CI-TEMPO-314: medido 13-20 min, a 3.14 batia nos 20); cada parte da suíte (3.12 e 3.14) 20 min;
+        # instalação no 3.14 15 min; o teto de pulados de cada versão (T3, 0.43.2) 5 min; passos da bateria 20 min; verificações longas (shellcheck, Provas, e2e; #493) 20 min; os dois agregadores 5 min;
         # o job prévio da árvore (M2, 0.43.4), antes das partes, 5 min.
-        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["20", "20", "45", "5", "20", "20", "15", "5", "5", "5", "20", "5"])
+        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["30", "30", "45", "5", "20", "20", "15", "5", "5", "5", "20", "20", "5"])
 
     def test_gate_do_ci_nao_deixa_codigo_escapar_nem_forjar_o_verde(self):
         """Review independente: renomeação, testes de pareceres, check forjado, cancelamento e promoção."""

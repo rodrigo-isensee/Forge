@@ -11,7 +11,9 @@ name: CI
 # sem prova, erro de rede ou evento fora da lista, a suíte roda inteira. Os passos e os agregadores não mudam. Commit de PR que só muda
 # docs/reviews/, docs/qa/, docs/security/, docs/devops/ ou docs/ux/ (fora modelos _* e docs/security/{ameacas,aceites}/),
 # com a bateria verde no commit anterior, pula os passos pesados do job de passos (gate por passo, nunca paths-ignore: ele
-# deixaria o check exigido pendente); as partes da suíte rodam sempre.
+# deixaria o check exigido pendente); as partes da suíte rodam sempre. A18: as partes esperam o job de passos baratos (lint,
+# degrau, validação do plugin, changelog; sem medida do vermelho ainda): passo vermelho pula as partes e o job de verificações
+# longas (Provas, shellcheck, e2e), e os agregadores reprovam sem esperar a suíte.
 on:
   pull_request:
     types: [opened, synchronize, reopened]  # rótulo e edição do PR reagem só em catraca.yml (sem a bateria pesada)
@@ -32,7 +34,7 @@ jobs:
     # Prova do Python 3.12 que o scripts/arvore-testada.py lê (o nome é o JOBS_DE_PROVA dele): mesmo preparo das partes.
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-26.04
-    timeout-minutes: 20
+    timeout-minutes: 30  # medido 13-20 min (3.12) e 17-20+ min (3.14, cancelado no teto em 3 runs); 30 dá folga de 50%
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -74,7 +76,7 @@ jobs:
     # Prova do Python 3.14 (SP4): sem ela, as partes do 3.14 rodariam em toda promoção.
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-26.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -181,8 +183,8 @@ jobs:
     # Um terço da suíte inteira por job (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nos três). O
     # agregador "bateria" exige os três verdes; cada parte confere que a divisão cobre todo o discover.
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
-    # M2: a prova vem de um job só (arvore), lida igual pelas 3 partes
-    needs: [arvore]
+    # M2: a prova vem de um job só (arvore), lida igual pelas 3 partes; A18: e só rodam com os passos baratos verdes (job bateria)
+    needs: [arvore, bateria]
     permissions:
       contents: read
     runs-on: ubuntu-26.04
@@ -246,8 +248,8 @@ jobs:
     # Um terço da suíte inteira por job (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nos três). O
     # agregador "bateria (python 3.14)" exige os três verdes; cada parte confere que a divisão cobre todo o discover.
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
-    # M2: a prova vem de um job só (arvore), lida igual pelas 3 partes
-    needs: [arvore]
+    # M2: a prova vem de um job só (arvore), lida igual pelas 3 partes; A18: e só rodam com os passos baratos verdes (job bateria)
+    needs: [arvore, bateria]
     permissions:
       contents: read
     runs-on: ubuntu-26.04
@@ -407,13 +409,16 @@ jobs:
 
   bateria:
     name: bateria (passos)
-    # Tudo da bateria menos a suíte, que roda em partes-doze; o agregador "bateria" exige este job e as partes.
+    # Só os passos baratos (gate, lint, degrau, CLI, validate, changelog, segredo, parecer): as partes, o job de verificações
+    # longas e o agregador "bateria" esperam este job (A18), de modo que um vermelho aqui pula o resto.
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
       contents: read
       checks: read  # o gate lê o resultado da bateria no commit anterior do PR
+    outputs:
+      pesada: ${{ steps.gate.outputs.pesada }}
     env:
       ACTIONLINT_VERSAO: "1.7.12"
       ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
@@ -484,6 +489,21 @@ jobs:
       - name: zizmor (offline, sem token; falha em severidade média ou maior)
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: zizmor --offline --no-progress --min-severity medium .github/workflows
+      # A18: os passos baratos (degrau, validação do plugin, changelog) logo depois do lint, e as partes da suíte e o job de
+      # verificações longas esperam este job (needs).
+      # A Neutralidade roda uma vez só, nas partes (tests.test_forge). O CLI e o validate seguem antes de todo código da branch
+      # (bin/forge-changelog, tests/), que poderia pôr um `claude` falso no GITHUB_PATH (a razão do CI-ORDEM-LINT).
+      - name: Nada pula degrau
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          case "$BASE" in
+            homolog) [ "$HEAD_REF" = "develop" ] || { echo "PR para homolog só a partir da develop (veio de $HEAD_REF)."; exit 1; } ;;
+            main)    [ "$HEAD_REF" = "homolog" ] || { echo "PR para main só a partir da homolog (veio de $HEAD_REF)."; exit 1; } ;;
+          esac
+          echo "ok: $HEAD_REF -> $BASE"
       - name: Claude Code CLI (nova tentativa só na instalação, por falha de rede; confere a versão)
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: |
@@ -509,17 +529,6 @@ jobs:
           else
             python3 scripts/conferir-release.py --base "$BASE"
           fi
-      - name: Nada pula degrau
-        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
-        env:
-          BASE: ${{ github.base_ref }}
-          HEAD_REF: ${{ github.head_ref }}
-        run: |
-          case "$BASE" in
-            homolog) [ "$HEAD_REF" = "develop" ] || { echo "PR para homolog só a partir da develop (veio de $HEAD_REF)."; exit 1; } ;;
-            main)    [ "$HEAD_REF" = "homolog" ] || { echo "PR para main só a partir da homolog (veio de $HEAD_REF)."; exit 1; } ;;
-          esac
-          echo "ok: $HEAD_REF -> $BASE"
       - name: Segredo, .env ou caminho pessoal no diff
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         # A base é o primeiro pai do merge commit do checkout (a ponta atual da base), não o SHA do evento.
@@ -549,6 +558,38 @@ jobs:
             script="$RUNNER_TEMP/base/tests/catraca.py"
           fi
           python3 "$script" --modo pareceres --base "$BASE" --head "$HEAD_SHA" --ramo="$HEAD_REF" --base-ref "$BASE_REF"
+
+  verificacoes:
+    name: bateria (verificações longas)
+    # A18: Provas, shellcheck e e2e de instalação esperam o job de passos baratos (needs): um vermelho barato pula este job, as
+    # partes e os agregadores. Roda em paralelo às partes da suíte. O gate (pesada) vem do job de passos, que o calcula;
+    # `!= 'false'` (e não `== 'true'`) para o ci-local, que não leva a saída de job entre jobs, rodar os passos.
+    needs: [bateria]
+    if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        if: needs.bateria.outputs.pesada != 'false'
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: ${{ !cancelled() && needs.bateria.outputs.pesada != 'false' }}
+        with:
+          node-version: "24"
+      # O CLI antes de qualquer código da branch (a razão do CI-ORDEM-LINT): ele não pode pôr um `claude` falso no GITHUB_PATH.
+      - name: Claude Code CLI (nova tentativa só na instalação, por falha de rede; confere a versão)
+        if: ${{ !cancelled() && needs.bateria.outputs.pesada != 'false' }}
+        run: |
+          instalar() { npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296; }
+          instalar || { echo "instalação falhou (rede); uma segunda tentativa"; sleep 5; instalar; }
+          claude --version
       - name: Provas cmd do arquivo de provas, reexecutadas no sha do PR (R-PROVA)
         if: ${{ !cancelled() && github.event_name == 'pull_request' && github.base_ref == 'develop' }}
         # Roda o script da base (a introdução usa o do PR) sobre docs/provas/*.md da branch, numa cópia limpa do sha do PR.
@@ -572,7 +613,7 @@ jobs:
           fi
           python3 "$script" --raiz "$RUNNER_TEMP/pr" "${provas[@]}"
       - name: shellcheck (scripts e hooks)
-        if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
+        if: ${{ !cancelled() && needs.bateria.outputs.pesada != 'false' }}
         # COBERTURA-P6: os arquivos vêm do shebang (a mesma regra do tipo_de_script do .githooks/pre-push), não de uma lista
         # fixa: script novo em shell entra sozinho. `*.sh`, ou primeira linha `#!` com bash ou sh; link e `*.py` ficam fora.
         run: |
@@ -587,7 +628,7 @@ jobs:
           echo "shellcheck: ${lista[*]}"
           shellcheck -- "${lista[@]}"
       - name: Instala o Forge num projeto vazio e inicializa
-        if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
+        if: ${{ !cancelled() && needs.bateria.outputs.pesada != 'false' }}
         run: bash tests/e2e-instalacao.sh
 
   agregador:
@@ -595,7 +636,7 @@ jobs:
     # Agregador do check exigido: só passa com os passos, as 3 partes da suíte no 3.12 e o teto de pulados em success.
     # always(): falha,
     # cancelamento ou pulo de um job necessário reprova este (um job pulado contaria como verde para a regra de proteção).
-    needs: [bateria, partes-doze, pulados-doze]
+    needs: [bateria, verificacoes, partes-doze, pulados-doze]
     if: always() && (github.event_name != 'push' || github.ref != 'refs/heads/develop')
     runs-on: ubuntu-26.04
     timeout-minutes: 5
@@ -603,8 +644,9 @@ jobs:
       - name: Passos e partes verdes
         env:
           PASSOS: ${{ needs.bateria.result }}
+          VERIFICACOES: ${{ needs.verificacoes.result }}
           PARTES: ${{ needs.partes-doze.result }}
           PULADOS: ${{ needs.pulados-doze.result }}
         run: |
-          echo "passos: $PASSOS; partes: $PARTES; pulados: $PULADOS"
-          [ "$PASSOS" = success ] && [ "$PARTES" = success ] && [ "$PULADOS" = success ]
+          echo "passos: $PASSOS; verificações: $VERIFICACOES; partes: $PARTES; pulados: $PULADOS"
+          [ "$PASSOS" = success ] && [ "$VERIFICACOES" = success ] && [ "$PARTES" = success ] && [ "$PULADOS" = success ]

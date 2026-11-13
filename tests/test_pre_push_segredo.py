@@ -14,6 +14,7 @@ from ambiente_git import sem_manutencao  # noqa: E402
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / ".githooks" / "pre-push"
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_"))})
+AMBIENTE["FORGE_PREPUSH_SUITE"] = "afetados"  # ENVIO-LEVE: o padrão do hook não roda teste; estes testes exercitam o plano dos afetados
 TOKEN = "ghp" + "_" + "Ab3" * 8  # montado aqui para a própria varredura do Forge não achar este arquivo
 SUITE = "import unittest, pathlib\nclass T(unittest.TestCase):\n    def test_roda(self):\n        pathlib.Path('rodou').write_text('sim')\n"
 
@@ -96,7 +97,7 @@ class PrePushSegredo(unittest.TestCase):
         limpo = self.commit("limpo", **{"l.md": "ok\n"})
         sujo = self.commit("sujo", **{"s.md": f"{TOKEN}\n"})
         self.git("checkout", "-q", limpo)
-        self.recusa(("melhoria/x", limpo), ("melhoria/y", sujo), onde="s.md:1")
+        self.recusa(("melhoria/x", limpo), ("tags/v0", sujo), onde="s.md:1")  # PREPUSH-REFS: uma branch por envio
         self.recusa(("tags/v1", sujo), onde="s.md:1")
 
     def test_sem_a_base_local_avisa_e_segue(self):  # o CI varre

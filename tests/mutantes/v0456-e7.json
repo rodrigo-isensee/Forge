@@ -1,0 +1,80 @@
+{
+  "pedido": "v0456",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "E7-M1",
+      "guarda": "E7: ls-tree que falha levanta ArvoreIlegivel, não vira árvore vazia (falha não é ausência)",
+      "arquivo": "bin/forge-check",
+      "de": "bruto=True)\n    if cod:\n        raise ArvoreIlegivel(commit)",
+      "para": "bruto=True)\n    if False:\n        raise ArvoreIlegivel(commit)",
+      "testes": [
+        "tests.test_forge_check_base_igual.BaseIgual.test_git_que_falha_nao_tira_nada",
+        "tests.test_forge_check_base_igual.BaseIgual.test_merge_base_que_falha_nao_e_ausencia"
+      ]
+    },
+    {
+      "id": "E7-M2",
+      "guarda": "E7: o head tem de ser igual à ponta da base",
+      "arquivo": "bin/forge-check",
+      "de": "if no_ate.get(n) == na_ponta.get(n) and no_commit",
+      "para": "if True and no_commit",
+      "testes": [
+        "tests.test_forge_check_base_igual.BaseIgual.test_mudado_pela_branch_desatualiza",
+        "tests.test_forge_check_base_igual.BaseIgual.test_igual_a_base_com_outro_modo_desatualiza"
+      ]
+    },
+    {
+      "id": "E7-M3",
+      "guarda": "E7: o que a branch mudou no parecer (e desfez) segue desatualizando",
+      "arquivo": "bin/forge-check",
+      "de": "and no_commit.get(n) == no_mb.get(n)}",
+      "para": "and True}",
+      "testes": [
+        "tests.test_forge_check_base_igual.BaseIgual.test_desfeito_pela_branch_desatualiza"
+      ]
+    },
+    {
+      "id": "E7-M4",
+      "guarda": "E7: só no parecer com domínio (o `cmd_pr`); a conferência de entrega segue estrita",
+      "arquivo": "bin/forge-check",
+      "de": "vindos_da_base(raiz, base, commit, ate, fora) if dominio else set()",
+      "para": "vindos_da_base(raiz, base, commit, ate, fora) if True else set()",
+      "testes": [
+        "tests.test_forge_check_base_igual.BaseIgual.test_sem_dominio_segue_estrito"
+      ]
+    },
+    {
+      "id": "E7-M5",
+      "guarda": "E7: o que veio da base sai do domínio no parecer delta",
+      "arquivo": "bin/forge-check",
+      "de": "n not in dispensados and n not in da_base]",
+      "para": "n not in dispensados]",
+      "testes": [
+        "tests.test_forge_check_base_igual.BaseIgual.test_parecer_delta_separa_o_que_veio_da_base"
+      ]
+    },
+    {
+      "id": "E7-M6",
+      "guarda": "E7: o parecer delta diz o que veio da base",
+      "arquivo": "bin/forge-check",
+      "de": "        if n in da_base:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_forge_check_base_igual.BaseIgual.test_parecer_delta_separa_o_que_veio_da_base"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "not nomes or not ponta",
+      "motivo": "economia, não guarda: sem nomes a compreensão dá vazio, e sem ponta o ls-tree de \"\" levanta ArvoreIlegivel e devolve o mesmo vazio; mutante equivalente"
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "sha_do_commit(raiz, base) or \"\"",
+      "motivo": "normalização, não guarda: sem o `or \"\"` a ponta ausente é None e o `not ponta` da linha seguinte devolve o mesmo vazio; mutante equivalente"
+    }
+  ]
+}

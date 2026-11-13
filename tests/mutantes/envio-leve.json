@@ -1,0 +1,56 @@
+{
+  "pedido": "envio-leve",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "ENVIO-LEVE: sem opt-in o envio termina nas baratas",
+      "arquivo": ".githooks/pre-push",
+      "de": "if [ \"$modo_suite\" -eq 0 ] && [ \"$suite_local\" = 0 ]; then",
+      "para": "if [ \"$modo_suite\" -eq 0 ] && [ \"$suite_local\" = 9 ]; then",
+      "testes": [
+        "tests.test_pre_push_leve.EnvioLeve.test_envio_sem_opt_in_nao_roda_teste_nem_toma_a_trava"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "ENVIO-LEVE: o modo --suite (à mão) não sai como envio leve",
+      "arquivo": ".githooks/pre-push",
+      "de": "if [ \"$modo_suite\" -eq 0 ] && [ \"$suite_local\" = 0 ]; then",
+      "para": "if [ \"$suite_local\" = 0 ]; then",
+      "testes": [
+        "tests.test_pre_push_leve.EnvioLeve.test_modo_suite_a_mao_roda_a_suite_mesmo_sem_opt_in"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "ENVIO-LEVE: o valor afetados do opt-in é aceito",
+      "arquivo": ".githooks/pre-push",
+      "de": "case \"$suite_local\" in 0|1|afetados) ;;",
+      "para": "case \"$suite_local\" in 0|1) ;;",
+      "testes": [
+        "tests.test_pre_push_leve.EnvioLeve.test_opt_in_afetados_ainda_roda_os_testes"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "ENVIO-LEVE: valor inválido do opt-in é recusado",
+      "arquivo": ".githooks/pre-push",
+      "de": "case \"$suite_local\" in 0|1|afetados) ;; *)",
+      "para": "case \"$suite_local\" in 0|1|afetados|*) ;; *)",
+      "testes": [
+        "tests.test_pre_push_leve.EnvioLeve.test_valor_invalido_do_opt_in_e_recusado"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "ENVIO-LEVE: o plano dos afetados só vale com o opt-in afetados",
+      "arquivo": ".githooks/pre-push",
+      "de": "[ \"$suite_local\" = afetados ] && [ \"$sem_caminhos\" = 0 ]",
+      "para": "[ \"$suite_local\" = 0 ] && [ \"$sem_caminhos\" = 0 ]",
+      "testes": [
+        "tests.test_pre_push_leve.EnvioLeve.test_opt_in_afetados_ainda_roda_os_testes"
+      ]
+    }
+  ]
+}

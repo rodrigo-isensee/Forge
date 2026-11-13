@@ -19,6 +19,7 @@ HOOK = RAIZ / ".githooks" / "pre-push"
 # FORGE_SUITE_* (processos, medição, trava) e o GITHUB_ACTIONS do runner (teto de pulados, T3) não vazam para o brinquedo.
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items()
                            if not k.startswith(("GIT_", "FORGE_SUITE_")) and k != "GITHUB_ACTIONS"})
+AMBIENTE["FORGE_PREPUSH_SUITE"] = "afetados"  # ENVIO-LEVE: o padrão do hook não roda teste; estes testes exercitam o plano dos afetados
 ZERO = "0" * 40
 
 SUITE = '''import unittest, pathlib
@@ -300,8 +301,8 @@ class PrePushSoParecer(unittest.TestCase):
         self.verde()
         novo = self.commit_parecer()
         self.limpa_marcas()
-        entrada = (f"refs/heads/x {novo} refs/heads/a {self.codigo}\n"
-                   f"refs/heads/x {novo} refs/heads/b {self.codigo}\n")
+        entrada = (f"refs/heads/x {novo} refs/heads/a {self.codigo}\n"  # PREPUSH-REFS: uma branch por envio; a outra ref é tag
+                   f"refs/tags/t {novo} refs/tags/t {'0' * 40}\n")
         r = subprocess.run([str(HOOK), "origin", "u"], cwd=self.repo, env=self.env, input=entrada,
                            capture_output=True, text=True, timeout=120)
         self.assertEqual(r.returncode, 0, r.stderr)

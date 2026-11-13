@@ -1,0 +1,66 @@
+{
+  "pedido": "v0456",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E1.1: junção das fatias pula o portão sem dado (nunca zero por ausência)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            if d is None:\n                continue",
+      "para": "            if d is None:\n                d = {\"minutos\": 0.0, \"voltas\": 0, \"tempo\": \"medido\"}",
+      "testes": [
+        "tests.test_metricas_portoes.FatiaPorPortao.test_cada_portao_tem_minutos_voltas_e_origem"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E1.1: só soma minutos e origem quando algum intervalo fechou",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "            if d[\"tempo\"]:\n                s[\"minutos\"]",
+      "para": "            if True:\n                s[\"minutos\"]",
+      "testes": [
+        "tests.test_metricas_portoes.FatiaPorPortao.test_cada_portao_tem_minutos_voltas_e_origem"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E1.1: fim sem início estima da linha anterior",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "if FIM_DE_PORTAO.search(s) and (aberto or anterior):",
+      "para": "if FIM_DE_PORTAO.search(s) and aberto:",
+      "testes": [
+        "tests.test_metricas_portoes.FatiaPorPortao.test_cada_portao_tem_minutos_voltas_e_origem"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E1.1: o início do portão abre o intervalo",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "                elif INICIO_DE_PORTAO.search(s):",
+      "para": "                elif False:",
+      "testes": [
+        "tests.test_metricas_portoes.FatiaPorPortao.test_cada_portao_tem_minutos_voltas_e_origem"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E1.1: sem início o tempo é estimado, não medido",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "\"medido\" if aberto and d[\"tempo\"] != \"estimado\" else",
+      "para": "\"medido\" if d[\"tempo\"] != \"estimado\" else",
+      "testes": [
+        "tests.test_metricas_portoes.FatiaPorPortao.test_cada_portao_tem_minutos_voltas_e_origem"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E1.1: texto de portão sem linha no Histórico sai nao-medido",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "if d is None else\n",
+      "para": "if d is not None else\n",
+      "testes": [
+        "tests.test_metricas_portoes.FatiaPorPortao.test_sem_dado_nao_vira_zero"
+      ]
+    }
+  ]
+}

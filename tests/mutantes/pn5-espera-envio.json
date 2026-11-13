@@ -20,10 +20,10 @@
     },
     {
       "id": "M3",
-      "guarda": "o laço do log tem 17 voltas de 30 s (540 s), abaixo do teto de 600 s do Bash",
+      "guarda": "o laço do log tem 5 voltas de 30 s (150 s), abaixo dos 180 s em que o Bash passa a chamada para segundo plano",
       "arquivo": "skills/esperar-estado/SKILL.md",
-      "de": "seq 1 17); do fim=$(grep",
-      "para": "seq 1 18); do fim=$(grep",
+      "de": "seq 1 5); do fim=$(grep",
+      "para": "seq 1 6); do fim=$(grep",
       "testes": ["tests.test_esperar_estado.LacoDoLog"]
     },
     {

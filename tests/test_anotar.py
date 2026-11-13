@@ -35,6 +35,7 @@ DECISÃO DO DONO (2026-01-01 10:00): "A".
 ## Histórico
 - 2026-01-01 09:00: pedido aberto.
 """
+MARCA = f" · atributos: confere=mede; forge={fc.versao_da_propria_copia() or 'desconhecida'}"  # E8: a decisão leva --confere
 SEM_SECAO = COM_SECAO.replace('## Decisões do usuário (registro literal)\nDECISÃO DO DONO (2026-01-01 10:00): "A".\n\n', "")
 
 
@@ -59,7 +60,7 @@ class Base(unittest.TestCase):
         original = fc.datetime
         fc.datetime = RelogioFixo
         try:
-            return fc.cmd_anotar(self.tmp, "exemplo", tipo, literal, contexto)
+            return fc.cmd_anotar(self.tmp, "exemplo", tipo, literal, contexto, confere="mede" if tipo == "decisao" else None)
         finally:
             fc.datetime = original
 
@@ -67,7 +68,7 @@ class Base(unittest.TestCase):
         original = fc.datetime
         fc.datetime = RelogioFixo
         try:
-            return fc.cmd_anotar(self.tmp, str(pedido), "decisao", "forjada")
+            return fc.cmd_anotar(self.tmp, str(pedido), "decisao", "forjada", confere="mede")
         finally:
             fc.datetime = original
 
@@ -83,7 +84,7 @@ class Anotar(Base):
         linhas, rc = self.anotar("decisao", "B", "P1 do estudo")
         self.assertEqual(rc, 0, linhas)
         texto = self.pedido.read_text(encoding="utf-8")
-        nova = 'DECISÃO DO DONO (2030-05-06 07:08): P1 do estudo → "B"'
+        nova = 'DECISÃO DO DONO (2030-05-06 07:08): P1 do estudo → "B"' + MARCA
         self.assertIn('DECISÃO DO DONO (2026-01-01 10:00): "A".\n' + nova + "\n\n## Histórico", texto)
         self.assertTrue(fc.e_linha_de_decisao(nova))
         self.assertEqual(texto.replace(nova + "\n", ""), COM_SECAO)  # nenhuma linha existente muda
@@ -94,7 +95,7 @@ class Anotar(Base):
         _, rc = self.anotar("decisao", "sim")
         self.assertEqual(rc, 0)
         texto = self.pedido.read_text(encoding="utf-8")
-        self.assertIn('## Decisões do usuário (registro literal)\nDECISÃO DO DONO (2030-05-06 07:08): "sim"\n\n## Histórico', texto)
+        self.assertIn('## Decisões do usuário (registro literal)\nDECISÃO DO DONO (2030-05-06 07:08): "sim"' + MARCA + '\n\n## Histórico', texto)
 
     def test_pergunta_e_ordem_tem_frase_propria(self):
         self.com(COM_SECAO)
@@ -144,7 +145,7 @@ class Anotar(Base):
         for arq in alvos.values():
             self.assertEqual(arq.read_text(encoding="utf-8"), "# original\n")
         self.assertEqual(self.pedido.read_text(encoding="utf-8"), COM_SECAO)
-        rc, saida, _ = self.rodar("anotar", "--pedido", alvos["docs/regras/R-X.md"], "--tipo", "decisao", "--literal", "C")
+        rc, saida, _ = self.rodar("anotar", "--pedido", alvos["docs/regras/R-X.md"], "--tipo", "decisao", "--confere", "mede", "--literal", "C")
         self.assertEqual(rc, 2, saida)
         self.assertEqual(alvos["docs/regras/R-X.md"].read_text(encoding="utf-8"), "# original\n")
 
@@ -160,10 +161,10 @@ class Anotar(Base):
 
     def test_pela_linha_de_comando_sem_opcao_de_hora(self):
         self.com(COM_SECAO)
-        rc, saida, _ = self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--literal", "C")
+        rc, saida, _ = self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--confere", "mede", "--literal", "C")
         self.assertEqual(rc, 0, saida)
-        self.assertRegex(saida, r'^anotado: exemplo\.md: DECISÃO DO DONO \(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\): "C"\n$')
-        rc, _, _ = self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--literal", "C", "--hora", "2020-01-01 00:00")
+        self.assertRegex(saida, r'^anotado: exemplo\.md: DECISÃO DO DONO \(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\): "C" · atributos: confere=mede; forge=\S+\n$')
+        rc, _, _ = self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--confere", "mede", "--literal", "C", "--hora", "2020-01-01 00:00")
         self.assertEqual(rc, 2)
 
     def test_o_gerar_seguinte_cita_o_bloco_com_a_decisao_gravada(self):
@@ -171,7 +172,7 @@ class Anotar(Base):
         self.com(COM_SECAO)
         rc, antes, _ = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo")
         self.assertEqual(rc, 0, antes)
-        self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--literal", "D", "--contexto", "item novo")
+        self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--confere", "mede", "--literal", "D", "--contexto", "item novo")
         rc, saida, _ = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo")
         self.assertEqual(rc, 0, saida)
         referencia = re.compile(r"^- decisões: pedido exemplo até ([0-9a-f]{64}) \((\d+) linhas", re.M)
@@ -211,7 +212,7 @@ class Propagar(Base):
         original = fc.datetime
         fc.datetime = RelogioFixo
         try:
-            return fc.cmd_anotar(self.tmp, "exemplo", tipo, "B", None, propagar)
+            return fc.cmd_anotar(self.tmp, "exemplo", tipo, "B", None, propagar, "mede" if tipo == "decisao" else None)
         finally:
             fc.datetime = original
 
@@ -243,7 +244,7 @@ class Propagar(Base):
         self.assertEqual(rc, 0, linhas)  # o novo vai antes da linha em branco e do `### `
         self.assertEqual([l.split()[:3] for l in linhas[1:]], [["brief", "gravado:", f"docs/briefs/exemplo-{n}.md"] for n in ("dev-7", "qa-5", "tech-lead-3")])
         for nome, novo in (("exemplo-dev-1", "exemplo-dev-7"), ("exemplo-qa-4", "exemplo-qa-5"), ("exemplo-tech-lead-2", "exemplo-tech-lead-3")):
-            esperado = antes[f"{nome}.md"].decode().replace('"A".\n', '"A".\n- DECISÃO DO DONO (2030-05-06 07:08): "B"\n', 1)
+            esperado = antes[f"{nome}.md"].decode().replace('"A".\n', '"A".\n- DECISÃO DO DONO (2030-05-06 07:08): "B"' + MARCA + '\n', 1)
             self.assertEqual((pasta / f"{novo}.md").read_text(encoding="utf-8"), esperado)
         for nome, conteudo in antes.items():
             self.assertEqual((pasta / nome).read_bytes(), conteudo)
@@ -282,7 +283,7 @@ class Propagar(Base):
         self.assertEqual((rc, len(linhas)), (0, 1), linhas)
         rc, saida, _ = self.rodar("anotar", "--pedido", "exemplo", "--tipo", "historico", "--literal", "x", "--propagar")
         self.assertEqual(rc, 2, saida)
-        rc, saida, _ = self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--literal", "C", "--propagar")
+        rc, saida, _ = self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--confere", "mede", "--literal", "C", "--propagar")
         self.assertEqual(rc, 0, saida)
         self.assertIn("brief gravado: docs/briefs/exemplo-dev-7.md ", saida)
 

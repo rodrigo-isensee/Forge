@@ -1,0 +1,87 @@
+{
+  "pedido": "v0457-envio-sandbox",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E11 quem não é root nem tenta o chown",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    if os.geteuid() != 0:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_apoio_sandbox.Sondas.test_quem_nao_e_root_nem_tenta_o_chown"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E11 só EINVAL é falta do chown (EPERM é outro caso)",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "            if erro.errno != errno.EINVAL:",
+      "para": "            if erro.errno not in (errno.EINVAL, errno.EPERM):",
+      "testes": [
+        "tests.test_apoio_sandbox.Sondas.test_outro_erro_do_chown_sobe_em_vez_de_virar_pulo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E11 erro do chown fora de EINVAL sobe, não vira pulo",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "            if erro.errno != errno.EINVAL:",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_apoio_sandbox.Sondas.test_outro_erro_do_chown_sobe_em_vez_de_virar_pulo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E11 /proc/self ilegível por qualquer OSError é falta",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    except OSError as erro:\n        return f\"sem",
+      "para": "    except FileNotFoundError as erro:\n        return f\"sem",
+      "testes": [
+        "tests.test_apoio_sandbox.Sondas.test_proc_sem_self_ou_com_self_que_nao_e_link_falta"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E11 /proc/self diferente do pid é falta",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    if visto != str(pid):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_apoio_sandbox.Sondas.test_proc_do_proprio_namespace_nao_falta_e_o_de_outro_falta"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E11 capacidade desconhecida recusa",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    if capacidade not in SONDAS:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_apoio_sandbox.Exigir.test_capacidade_desconhecida_recusa"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "E11 com a capacidade, segue sem pular",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    if motivo is None:\n        return",
+      "para": "    if False:\n        return",
+      "testes": [
+        "tests.test_apoio_sandbox.Exigir.test_com_a_capacidade_segue_com_ou_sem_ci"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "E11 com CI definido a falta reprova e não pula",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    ci = sinais_de_ci()\n    if ci:",
+      "para": "    ci = sinais_de_ci()\n    if False:",
+      "testes": [
+        "tests.test_apoio_sandbox.Exigir.test_com_ci_definido_a_falta_reprova_e_nao_pula",
+        "tests.test_apoio_sandbox.NoProcessoReal.test_com_ci_definido_no_ambiente_reprova_sem_pular"
+      ]
+    }
+  ]
+}

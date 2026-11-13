@@ -18,6 +18,8 @@ from test_hooks import Fixture  # noqa: E402
 RAIZ = Path(__file__).resolve().parent.parent
 SKILL = RAIZ / "skills" / "esperar-estado" / "SKILL.md"
 TECH_LEAD = RAIZ / "agents" / "tech-lead.md"
+# Aos 180 s a ferramenta Bash passa a chamada para segundo plano (ESPERAR-ESTADO-180S): cada laço cabe em 170 s.
+TETO_S, VOLTAS = 170, 5
 BLOCOS = re.findall(r"```bash\n(.*?)```", SKILL.read_text(encoding="utf-8"), re.S)
 
 # `gh` falso: `pr view` devolve a linha N de `estados` na N-ésima leitura (a última se repete) e anota a leitura;
@@ -85,11 +87,11 @@ class LacoDoPr(unittest.TestCase):
                 r, vistas = self.rodar(["OPEN"], checks=codigo)
                 self.assertEqual((r.stdout, r.returncode, vistas), (f"fim=checks:{codigo}\n", 0, 1))
 
-    def test_pendente_o_tempo_todo_sai_no_teto_depois_de_17_leituras(self):
+    def test_pendente_o_tempo_todo_sai_no_teto_depois_de_5_leituras(self):
         r, vistas = self.rodar(["OPEN"], checks=8)
         self.assertEqual(r.stdout, "fim=teto\n")
         self.assertNotEqual(r.returncode, 0)
-        self.assertEqual(vistas, 17)
+        self.assertEqual(vistas, VOLTAS)
 
     def test_gh_que_falha_sai_com_erro(self):
         r, vistas = self.rodar(["OPEN"], falha=True)
@@ -123,14 +125,14 @@ class LacoDoLog(unittest.TestCase):
         r, sonos = self.rodar(1)
         self.assertEqual((r.stdout, r.returncode, sonos), ("fim=rc=1\n", 0, 0))
 
-    def test_log_sem_rc_sai_no_teto_depois_de_17_voltas(self):
+    def test_log_sem_rc_sai_no_teto_depois_de_5_voltas(self):
         r, sonos = self.rodar()
-        self.assertEqual((r.stdout, r.returncode, sonos), ("fim=teto\n", 1, 17))
+        self.assertEqual((r.stdout, r.returncode, sonos), ("fim=teto\n", 1, VOLTAS))
 
     def test_laco_do_log_dentro_do_teto(self):
         voltas = int(re.search(r"seq 1 (\d+)", laco_do_log()).group(1))
         intervalo = int(re.search(r"sleep (\d+)", laco_do_log()).group(1))
-        self.assertLessEqual(voltas * intervalo, 540)
+        self.assertLessEqual(voltas * intervalo, TETO_S)
 
 
 class TextoDaSkill(unittest.TestCase):
@@ -147,7 +149,7 @@ class TextoDaSkill(unittest.TestCase):
                     self.assertNotIn(proibido, bloco)
         voltas = int(re.search(r"seq 1 (\d+)", laco()).group(1))
         intervalo = int(re.search(r"sleep (\d+)", laco()).group(1))
-        self.assertLessEqual(voltas * intervalo, 540)
+        self.assertLessEqual(voltas * intervalo, TETO_S)
 
     def test_skill_sem_palavra_de_marcador_dos_hooks(self):
         marcador = re.compile(r"\b(merge|push|pull|create|ready|review|edit|close|label|api)\b", re.I)

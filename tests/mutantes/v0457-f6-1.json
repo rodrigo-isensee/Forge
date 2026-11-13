@@ -1,0 +1,87 @@
+{
+  "pedido": "v0457-f6-1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "sem registro: silêncio e rc 0",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "    if not registro.is_file():\n        return [], 0",
+      "para": "    if registro.is_file():\n        return [], 0",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_sem_registro_fica_em_silencio",
+        "tests.test_forge.ForgeCheckFontes.test_versao_nova"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "registro que não é JSON: ilegível com rc 1",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "    except (OSError, ValueError):\n        return [\"fontes: registro local ilegível\"], 1",
+      "para": "    except (OSError,):\n        return [\"fontes: registro local ilegível\"], 1",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_registro_que_nao_e_json_sai_com_1_ilegivel"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "registro que não é objeto: ilegível com rc 1",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "    if not isinstance(fontes, dict):\n        return",
+      "para": "    if False:\n        return",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_registro_que_nao_e_objeto_sai_com_1_ilegivel"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "GIT_* herdado não chega ao git",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "if not k.startswith(\"GIT_\")}",
+      "para": "if not k.startswith(\"GIT_X\")}",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_variavel_git_herdada_nao_chega_ao_git"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "entrada que não é objeto é pulada",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "if isinstance(f, dict) else (None, None)",
+      "para": "if True else (None, None)",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_fonte_sem_commit_revisado_e_pulada_sem_chamar_o_git"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "fonte sem url ou sem commit revisado é pulada",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "            if not isinstance(url, str) or not url or not isinstance(revisado, str) or not revisado:",
+      "para": "            if not isinstance(url, str) or not url or not isinstance(revisado, str):",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_fonte_sem_commit_revisado_e_pulada_sem_chamar_o_git"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "só https:// chega ao git",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "            if not URL_FONTE.fullmatch(url):",
+      "para": "            if not URL_FONTE.match(url):",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_url_que_nao_e_https_e_recusada_sem_chamar_o_git"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "git ausente conta como fonte que não respondeu",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "            except (subprocess.TimeoutExpired, OSError):",
+      "para": "            except (subprocess.TimeoutExpired,):",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_git_ausente_conta_como_fonte_que_nao_respondeu"
+      ]
+    }
+  ]
+}

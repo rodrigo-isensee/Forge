@@ -1,0 +1,77 @@
+{
+  "pedido": "v0456",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E5.1: sem --gh a execução de CI não é lida (nada vira zero)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "\"--json\", \"conclusion,displayTitle\"]) if usar_gh else None",
+      "para": "\"--json\", \"conclusion,displayTitle\"]) if True else None",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_sem_a_opcao_gh_nada_vira_zero"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E5.1: execução ainda sem conclusão não conta",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        if e.get(\"conclusion\"):",
+      "para": "        if True:",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_conta_main_vermelha_e_merge_com_check_vermelho_por_versao"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E5.1: PR sem nenhum check não entra na conta de merges",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "        if checks:",
+      "para": "        if True:",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_conta_main_vermelha_e_merge_com_check_vermelho_por_versao"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E5.1: branch sem versão cai em \"-\"",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "for g in achou.groups()) if achou else \"-\"",
+      "para": "for g in achou.groups()) if True else \"-\"",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_conta_main_vermelha_e_merge_com_check_vermelho_por_versao"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E5.1: lado sem dado lido fica nao-medido (main)",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "saida[versao] = {\"main_vermelha\": a[versao][0] if versao in a else None,",
+      "para": "saida[versao] = {\"main_vermelha\": a[versao][0] if versao in a else 0,",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_so_um_lado_medido_deixa_o_outro_nao_medido",
+        "tests.test_metricas_main_vermelha.MainVermelha.test_sem_a_opcao_gh_nada_vira_zero"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E5.1: origem só é medido quando algum lado foi lido",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "\"medido\" if versao in a or versao in b else \"nao-medido\"",
+      "para": "\"medido\"",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_sem_a_opcao_gh_nada_vira_zero"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "E5.1: resposta do gh que não é lista não é lida",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "[x for x in lista if isinstance(x, dict)] if isinstance(lista, list) else None",
+      "para": "lista",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_resposta_de_forma_errada_nao_vira_zero"
+      ]
+    }
+  ]
+}

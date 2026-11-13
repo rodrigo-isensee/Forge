@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Forge: fecha uma entrega na branch de integração com os passos mecânicos do integrador (TA-5, R-FLUXO, R-CONTRIB).
 # Uso: forge-fechar <pedido> --ref <branch> [--base origin/develop] [--titulo T] [--origem T] [--muda T]
-#                  [--medir T] [--espera SEGUNDOS] [--esperar-rotulo] [--armar] [--limpar] [--sem-limpar] [--dry-run]
+#                  [--medir RUN|ARQUIVO] [--espera SEGUNDOS] [--esperar-rotulo] [--armar] [--limpar] [--sem-limpar] [--dry-run]
 # Roda em ordem e para no primeiro erro: (1) forge-check pr; (1c) a árvore do sha conferido é promovível (scripts/promover-homolog.py
 # --conferir-ref, do diretório deste script; rc diferente de 0, prazo de 300 s ou script ausente param); (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto, também o rascunho do autor, um só e com o head conferido);
-# (2b) se a base andou desde o ponto de partida e tocou arquivo que a branch também tocou: em `melhoria/*`, com `git merge-tree --write-tree` limpo, faz o merge
-# da base (árvore do merge-tree, `git push origin <branch>` de sempre) e recomeça a cadeia no head novo; com conflito, em outra branch ou com falha de leitura, para;
+# (2b) se a base andou desde o ponto de partida: com conflito real (`git merge-tree --write-tree`) ou falha de leitura, para; sem conflito avisa e segue,
+# sem trazer a base (E8: a base entra uma vez, pelo autor, antes do pedido de merge; o CI do PR confere o merge com ela);
 # (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido; (7) limpeza.
 # R7 / MERGE-LIBERADO (0.43.3): o passo 6 usa o auto-merge do GitHub (`gh pr merge --auto`, preso ao head): quem mescla é o GitHub, só com os
 # checks obrigatórios do ruleset verdes; com eles já verdes, o gh mescla na hora. Depois o script espera o MERGED até o fim de --espera.
@@ -22,13 +22,15 @@
 # espera o check `catraca` vermelho conta como pendente (é ele que pede o rótulo); qualquer outro check vermelho para. O head do PR
 # mudar durante a espera para. Prazo esgotado para como sem a opção. O script nunca aplica rótulo nem marca item do checklist.
 # Sem a branch local, --ref vale com a branch só no origin (FECHAR-BRANCH-LOCAL): o sha conferido vem do servidor (ls-remote), o commit
-# tem de existir aqui (senão pede git fetch origin <branch>) e trazer a base (passos 2b e 6a) para, pedindo a branch local.
-# Antes do merge (6a), a base é relida: se andou durante os checks e mudou código, em melhoria/* é trazida e a cadeia recomeça; senão para.
+# tem de existir aqui (senão pede git fetch origin <branch>).
+# Antes do merge (6a), a base é relida: se andou durante os checks, para só com conflito real; sem ele segue (E8).
 # Idempotente: head já mesclado na base ou PR já MERGED com este head não abre PR nem mescla de novo (vai direto à limpeza).
 # Erro passageiro do GitHub (502): só as operações que não mudam o PR repetem, até 3 vezes (leituras de estado, de PR e de checks; `push --delete`
 # da limpeza). Push de código, criação de PR, `pr ready` e merge nunca se repetem sozinhos.
 # Só para a develop: a promoção develop -> homolog segue manual (R-FLUXO). Roda só no repositório do Forge (R-CONTRIB).
 # Nunca: mescla na main, aplica rótulo, usa --force ou --no-verify, apaga develop/homolog/main/master ou a branch de integração do CLAUDE.md, dispensa parecer ou check.
+# --medir RUN|ARQUIVO (FECHAR-MEDIR-DO-LOG): lê as linhas ORCAMENTO-TEMPO do log do CI (número da execução: `gh run view RUN --log`, só
+# leitura; ou o log salvo num arquivo), no formato FORMATO_DO_ORCAMENTO; vão ao "Como medir" do PR criado e à saída. Sem elas, para antes do passo 1.
 # --dry-run só imprime cada passo (e avisa se o diff toca caminho que a catraca protege); não roda forge-check, git remoto nem gh.
 # Para teste, com FORGE_FECHAR_TESTE=1: FORGE_CHECK, FORGE_GH, FORGE_PROMOVER (substituem os comandos) e FORGE_FECHAR_INTERVALO
 # (segundos entre leituras dos checks). Sem FORGE_FECHAR_TESTE=1 as três primeiras são ignoradas, com aviso.
@@ -64,9 +66,8 @@ subida_fecha() {
 readonly CHECKS_EXIGIDOS=("CI/bateria" "CI/bateria (python 3.14)" "Catraca/catraca")
 [ "${#CHECKS_EXIGIDOS[@]}" -gt 0 ] || die "CHECKS_EXIGIDOS vazia: o merge sem check exigido é recusado (I4)"
 
-pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 trazida=0 so_remota=0 base_2b="" tmp2b="" dorme_pid="" promover_teste="" subida_n="" subida_ini="" subida_extra=""  # nascem vazios: o fim (rm -rf, kill) nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
+pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 so_remota=0 base_2b="" dorme_pid="" promover_teste="" subida_n="" subida_ini="" subida_extra=""  # nascem vazios: o fim nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
 armar=0 estado_lido=0  # --armar (R7): arma o auto-merge sem esperar os checks
-args_originais=("$@")  # o recomeço da cadeia depois do merge da base (passo 2b) roda o mesmo comando com `--trazida`
 while [ $# -gt 0 ]; do
   case "$1" in
     --ref) ref="${2-}"; shift 2 || die "--ref pede a branch" ;;
@@ -74,13 +75,12 @@ while [ $# -gt 0 ]; do
     --titulo) titulo="${2-}"; shift 2 || die "--titulo pede o texto" ;;
     --origem) origem="${2-}"; shift 2 || die "--origem pede o texto" ;;
     --muda) muda="${2-}"; shift 2 || die "--muda pede o texto" ;;
-    --medir) medir="${2-}"; shift 2 || die "--medir pede o texto" ;;
+    --medir) medir="${2-}"; shift 2 || die "--medir pede o número da execução do CI ou o arquivo do log" ;;
     --espera) espera="${2-}"; shift 2 || die "--espera pede os segundos" ;;
     --esperar-rotulo) esperar=1; shift ;;
     --armar) armar=1; shift ;;
     --limpar) limpar=1; shift ;;
     --sem-limpar) sem_limpar=1; shift ;;
-    --trazida) trazida=1; shift ;;  # interno: esta cadeia já trouxe a base uma vez (passo 2b)
     --dry-run) seco=1; shift ;;
     -*) die "opção desconhecida: $1" ;;
     *) [ -z "$pedido" ] || die "pedido repetido: $1"; pedido="$1"; shift ;;
@@ -174,6 +174,33 @@ remoto_exato() {
   saida_remota="$("$@" git ls-remote origin "$nome")" || return 1
   printf '%s\n' "$saida_remota" | awk -v r="$nome" '$2 == r { if ((length($1) == 40 || length($1) == 64) && $1 ~ /^[0-9a-f]+$/) print $1; else ruim = 1; exit } END { exit ruim }'
 }
+# A linha que o teste do orçamento de heredocs imprime (tests/test_hooks.py, FORMATO_DO_ORCAMENTO); a mesma regex, em ERE.
+readonly FORMATO_DO_ORCAMENTO='^ORCAMENTO-TEMPO teste=([^[:space:]]+) medido=([0-9]+\.[0-9]{2})s limite=([0-9]+(\.[0-9]+)?)s medida=(cpu|parede) forma=(.+)$'
+# medir_do_log <fonte>: define `medida` com as linhas ORCAMENTO-TEMPO do log (o prefixo do `gh run view --log`, job, passo e hora, e o texto
+# do unittest -v antes da marca ficam de fora); fonte que não é execução nem arquivo, marca ausente ou linha fora do formato param.
+medir_do_log() {
+  local fonte="$1" texto linha destravar="rode o CI do PR (o teste do orçamento imprime a linha) e passe o número da execução (gh run list --branch $ref) ou o log salvo"
+  if [[ "$fonte" =~ ^[0-9]{1,20}$ ]]; then
+    if [ "$seco" = 1 ]; then medida="(lida no passo real: $gh run view $fonte --log)"; return 0; fi
+    texto="$(ler "$gh" run view "$fonte" --log)" || die "--medir: não consegui ler o log da execução $fonte do CI ($gh run view $fonte --log), e sem ele não há medida; confira o número e a credencial do gh"
+  elif [ -f "$fonte" ] && [ -r "$fonte" ]; then
+    texto="$(cat -- "$fonte")"
+  else
+    die "--medir: '$fonte' não é número de execução do CI nem arquivo legível; o --medir lê a medida do log do CI, não texto livre; $destravar"
+  fi
+  medida=""
+  while IFS= read -r linha; do
+    case "$linha" in *"ORCAMENTO-TEMPO "*) ;; *) continue ;; esac
+    linha="ORCAMENTO-TEMPO ${linha#*ORCAMENTO-TEMPO }"
+    linha="${linha%$'\r'}"
+    [[ "$linha" =~ $FORMATO_DO_ORCAMENTO ]] || die "--medir: linha ORCAMENTO-TEMPO fora do formato (FORMATO_DO_ORCAMENTO de tests/test_hooks.py): $linha; o PR sairia com medida que ninguém confere; corrija quem a imprime ou $destravar"
+    medida="${medida:+$medida
+}$linha"
+  done <<<"$texto"
+  [ -n "$medida" ] || die "--medir: o log ($fonte) não tem linha ORCAMENTO-TEMPO, e sem ela não há medida do orçamento; $destravar"
+}
+medida=""
+[ -z "$medir" ] || medir_do_log "$medir"
 [ -n "$titulo" ] || titulo="$ref"
 corpo="## Projeto de origem
 ${origem:-Forge (melhoria da fábrica, pedido $pedido)}
@@ -185,7 +212,7 @@ Pedido $pedido, branch $ref.
 ${muda:-Ver o diff e o pedido $pedido.}
 
 ## Como medir
-${medir:-Ver a seção de medição do pedido $pedido.}
+${medida:-Ver a seção de medição do pedido $pedido.}
 
 ## Checklist
 - [ ] Rótulo \`afrouxa-regra\` pedido ao dono (marque só se a mudança afrouxa regra protegida; o dono aplica o rótulo)"
@@ -274,7 +301,6 @@ fim() {
   [ -z "${dorme_pid:-}" ] || kill "$dorme_pid" 2>/dev/null || true
   exec 2>&-
   wait "$pid_err" 2>/dev/null || true
-  [ -z "${tmp2b:-}" ] || rm -rf -- "$tmp2b"
   subida_fecha "rc $rc"
   echo "fim: código $rc"
   exec >&-
@@ -287,6 +313,7 @@ trap fim EXIT
 trap 'exit 143' TERM
 trap 'exit 130' INT
 trap 'exit 129' HUP
+[ -z "$medida" ] || printf 'medida: %s\n' "${medida//$'\n'/$'\n'medida: }"
 # dormir <segundos>: o sleep roda em segundo plano e o script espera nele (`wait` volta na hora com um sinal tratado); com o sleep em primeiro
 # plano o trap de TERM/INT/HUP só correria quando ele acabasse (até o intervalo, 120 s no teto). O `fim` mata o sleep que sobrar.
 dormir() {
@@ -620,48 +647,26 @@ esperar_o_merged() {
   done
 }
 
-# trazer_a_base <sha da base> (passo 2b, D-3): a base andou e tocou arquivo da branch ou mudou código (E4). Só em `melhoria/*` e só com `git merge-tree --write-tree`
-# limpo (C-37a, C-37c): o commit de merge é o resultado dele (árvore igual à do merge-tree, pais = o head conferido e a base lida do servidor),
-# sem nada editado à mão; a branch local avança por fast-forward, o envio é o `git push origin <branch>` de sempre (pre-push; nunca --no-verify
-# nem --force) e a cadeia recomeça no head novo (passo 1, passo 2, checks e merge presos a ele: o sha_conferido antigo nunca é reusado, T-37b).
-# Com conflito volta a quem chamou, que para e lista os arquivos; falha de leitura, de escrita ou do envio para aqui mesmo (falha fechada).
-trazer_a_base() {
-  local base_srv="$1" arvore novo st ramo
-  # FECHAR-BRANCH-LOCAL: o merge da base avança e envia a branch local; sem ela, para em vez de improvisar (falha fechada).
-  [ "$so_remota" = 0 ] || die "parou: a base andou e precisa entrar em $ref, mas não há a branch local; crie-a com git branch --no-track $ref $sha_conferido e rode de novo (nada foi enviado nem mesclado)"
-  if arvore="$(git merge-tree --write-tree --no-messages "$sha_conferido" "$base_srv")"; then st=0; else st=$?; fi
+# conflito_com <passo> <sha da base> <o que não foi feito>: rc 0 quando o merge da base no head conferido tem conflito real (`git merge-tree
+# --write-tree`, git 2.38 ou mais), com os arquivos em conflito no stderr; rc 1 quando sai limpo. Falha do merge-tree para: nunca vira "limpo".
+# E8 (0.45.6): o fechamento não traz a base; só o conflito real para, e quem atualiza a branch é o autor, uma vez, antes do pedido de merge.
+conflito_com() {
+  local saida st=0
+  saida="$(git merge-tree --write-tree --name-only --no-messages "$remoto_sha" "$2")" || st=$?
   case "$st" in
-    0) ;;
-    1) echo "o merge de $base em $ref tem conflito (git merge-tree): volta ao autor." >&2; return 0 ;;
-    *) die "parou no passo 2b: não consegui calcular o merge de $base em $ref (git merge-tree --write-tree, git 2.38 ou mais); nada foi aberto" ;;
+    0) return 1 ;;
+    1) echo "arquivos em conflito entre $base e $ref:" >&2
+       printf '%s\n' "$saida" | sed '1d' | awk 'NF && !visto[$0]++ {print "  " $0}' >&2
+       return 0 ;;
+    *) die "parou no passo $1: não consegui calcular o merge de $base em $ref (git merge-tree --write-tree, git 2.38 ou mais); nada foi $3" ;;
   esac
-  [[ "$arvore" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] || die "parou no passo 2b: o merge-tree não devolveu uma árvore; nada foi aberto"
-  novo="$(git commit-tree "$arvore" -p "$sha_conferido" -p "$base_srv" -m "Merge $base em $ref (forge-fechar, merge-tree limpo)")" \
-    || die "parou no passo 2b: não consegui criar o commit de merge; nada foi aberto"
-  [ "$(git rev-parse --verify -q "$novo^{tree}")" = "$arvore" ] || die "parou no passo 2b: a árvore do commit de merge difere da do merge-tree; nada foi aberto"
-  ramo="refs/heads/$ref"
-  if [ -n "$arvore_lock" ] && [ -d "$arvore_lock" ]; then  # a branch está numa worktree: ela anda junto (fast-forward, árvore limpa)
-    [ -z "$(git -C "$arvore_lock" status --porcelain)" ] || die "parou no passo 2b: a worktree de $ref ($arvore_lock) tem mudança não commitada; commite ou guarde e rode de novo"
-    git -C "$arvore_lock" merge --ff-only --quiet "$novo" || die "parou no passo 2b: não consegui avançar $ref para o merge; nada foi aberto"
-  else
-    git update-ref -m "forge-fechar: merge de $base" "$ramo" "$novo" "$sha_conferido" || die "parou no passo 2b: não consegui avançar $ref para o merge; nada foi aberto"
-  fi
-  [ "$(git rev-parse --verify -q "$ramo^{commit}")" = "$novo" ] || die "parou no passo 2b: $ref não ficou no commit de merge; confira"
-  echo "a base andou; merge limpo em $ref: $novo (árvore do merge-tree); envio com o pre-push de sempre."
-  git push origin "$ramo:$ramo" || die "parou no passo 2b: o envio do merge foi recusado; ele ficou só na $ref local ($novo): confira e envie com git push origin $ref (nada foi aberto)"
-  echo "recomeço a cadeia no head novo $novo."
-  bash "${BASH_SOURCE[0]}" "${args_originais[@]}" --trazida
-  exit $?
 }
 
 # conferir_base (passo 2b, só leitura): a base andou depois do ponto de partida da branch? Falha de leitura PARA (nada de `|| true` aqui):
-# só o caso "tudo certo" segue. Sem arquivo em comum: base que só mudou *.md ou docs/ avisa e segue; base que mudou código traz a base
-# em melhoria/* (como com arquivo em comum) e fora dela avisa. Com arquivo em comum, traz a base em melhoria/* ou para.
-# `--no-renames` e `-z` nos dois lados (renomeio esconderia o arquivo em comum; nome com quebra de linha sai inteiro) e a interseção vem de
-# `sort -z` e `comm -z`. Não faz fetch nem escreve em refs/: só pede `git fetch origin <base>` quando a base local está velha.
+# só o caso "tudo certo" segue. Com conflito real (merge-tree) para e lista os arquivos; sem conflito avisa e segue, sem trazer a base (E8):
+# o CI do PR confere o merge com ela. Não faz fetch nem escreve em refs/: só pede `git fetch origin <base>` quando a base local está velha.
 conferir_base() {
-  local srv base_sha mbs mb n f msg cod
-  local -a lista_mb
+  local srv base_sha n
   srv="$(remoto_exato "$alvo")" || die "parou no passo 2b: não consegui ler a $alvo no servidor (nada foi aberto)"
   [ -n "$srv" ] || die "parou no passo 2b: não consegui ler a $alvo no servidor (resposta vazia; nada foi aberto)"
   base_sha="$(git rev-parse --verify --quiet "$base^{commit}")" || die "parou no passo 2b: a base $base não existe aqui; rode: git fetch origin $alvo"
@@ -670,49 +675,16 @@ conferir_base() {
   if git merge-base --is-ancestor "$base_sha" "$remoto_sha"; then return 0; else
     [ $? = 1 ] || die "parou no passo 2b: não consegui comparar $base com o head; rode: git fetch origin $alvo"
   fi
-  mbs="$(git merge-base --all "$base_sha" "$remoto_sha")" || die "parou no passo 2b: sem ponto de partida comum com $base; rode: git fetch origin $alvo"
-  [ -n "$mbs" ] || die "parou no passo 2b: sem ponto de partida comum com $base; rode: git fetch origin $alvo"
-  mapfile -t lista_mb <<< "$mbs"  # um sha por linha (pode haver mais de um ponto de partida)
-  tmp2b="$(mktemp -d)" || die "parou no passo 2b: não consegui criar a pasta temporária"
-  : > "$tmp2b/a"; : > "$tmp2b/b"
-  for mb in "${lista_mb[@]}"; do
-    git diff --no-renames --name-only -z "$mb" "$base_sha" >> "$tmp2b/a" || die "parou no passo 2b: o diff da base falhou; rode: git fetch origin $alvo"
-    git diff --no-renames --name-only -z "$mb" "$remoto_sha" >> "$tmp2b/b" || die "parou no passo 2b: o diff da branch falhou; rode: git fetch origin $alvo"
-  done
-  if ! { sort -zu "$tmp2b/a" > "$tmp2b/a.s" && sort -zu "$tmp2b/b" > "$tmp2b/b.s" && comm -z -12 "$tmp2b/a.s" "$tmp2b/b.s" > "$tmp2b/comuns"; }; then
-    die "parou no passo 2b: não consegui cruzar as listas de arquivos"
+  if conflito_com 2b "$base_sha" aberto; then
+    die "parou no passo 2b: o merge de $base em $ref tem conflito (nenhum PR foi aberto); atualize a branch (git merge $base), rode a suíte no push e rode de novo"
   fi
-  if [ -s "$tmp2b/comuns" ]; then
-    case "$ref" in melhoria/*) [ "$trazida" = 1 ] || trazer_a_base "$base_sha" ;; esac  # só volta daqui com conflito (C-37a, C-37c)
-    echo "arquivos que a $alvo e $ref mudaram depois do ponto de partida:" >&2
-    while IFS= read -r -d '' f; do printf '  %q\n' "$f" >&2; done < "$tmp2b/comuns"
-    die "parou no passo 2b: a base andou e tocou arquivo que a branch também tocou (nenhum PR foi aberto); atualize a branch (git merge $base), rode a suíte no push e rode de novo"
-  fi
-  n="$(git rev-list --count "$base_sha" --not "${lista_mb[@]}")" || die "parou no passo 2b: não consegui contar os commits da base"
-  msg="a base andou $n commit$([ "$n" = 1 ] || echo s) sem arquivo em comum com $ref"
-  cod=0  # E4: a base mudou código (arquivo fora de *.md e de docs/)? O CI do PR pode ter rodado antes dela (CONFLITO-SEMANTICO-ANTES-DO-PR)
-  while IFS= read -r -d '' f; do case "$f" in *.md|docs/*) ;; *) cod=1 ;; esac; done < "$tmp2b/a.s"
-  [ "$cod" = 1 ] || { echo "$msg; o CI do PR confere o merge."; return 0; }
-  case "$ref" in melhoria/*) [ "$trazida" = 1 ] || { trazer_a_base "$base_sha"; die "parou no passo 2b: o merge de $base em $ref tem conflito (nenhum PR foi aberto); atualize a branch (git merge $base), rode a suíte no push e rode de novo"; } ;; esac
-  echo "$msg; a base mudou código; o CI deste PR pode ter rodado antes dela."
-}
-
-# mudou_codigo <de> <até>: rc 0 se `de..até` muda algum arquivo fora de *.md e de docs/ (o mesmo corte do passo 2b), 1 se só texto;
-# falha do git (rc acima de 1) para: nunca vira "só texto".
-mudou_codigo() {
-  local st=0
-  git diff --quiet --no-renames --no-ext-diff "$1" "$2" -- . ':(exclude,glob)**/*.md' ':(exclude)docs/' || st=$?
-  case "$st" in
-    0) return 1 ;;
-    1) return 0 ;;
-    *) die "parou no passo 6a: o diff da base falhou; nada foi mesclado; rode: git fetch origin $alvo, e rode de novo" ;;
-  esac
+  n="$(git rev-list --count "$base_sha" --not "$remoto_sha")" || die "parou no passo 2b: não consegui contar os commits da base"
+  echo "a base andou $n commit$([ "$n" = 1 ] || echo s) sem conflito com $ref; não trago a base (E8): o CI do PR confere o merge com ela."
 }
 
 # conferir_base_no_merge (passo 6a, CONFLITO-SEMANTICO-ANTES-DO-PR): com o ruleset sem "exigir branch atualizada" (strict=false), outro PR
-# pode entrar na base enquanto os checks deste rodam, e o merge juntaria o CI de uma base velha com código novo sem conflito de texto. Antes
-# do merge, relê a base no servidor; se andou desde o passo 2b e mudou código, em melhoria/* traz a base (o mesmo merge-tree limpo, envio e
-# recomeço: o CI roda de novo sobre a base atual) e, com --trazida ou fora de melhoria/*, para sem mesclar. Base só de texto segue.
+# pode entrar na base enquanto os checks deste rodam. Antes do merge, relê a base no servidor; se andou desde o passo 2b, para só com conflito
+# real (o GitHub não mesclaria); sem conflito segue sem trazer a base (E8): o CI da base, no push do merge, confere o resultado.
 # Falha de leitura para (nada é mesclado sem a base conferida).
 conferir_base_no_merge() {
   local srv local_base
@@ -722,19 +694,12 @@ conferir_base_no_merge() {
   [ "$srv" != "$base_2b" ] || return 0
   local_base="$(git rev-parse --verify --quiet "$base^{commit}")" || local_base=""
   if [ "$local_base" != "$srv" ] || ! git merge-base --is-ancestor "$base_2b" "$srv" 2>/dev/null; then
-    die "parou no passo 6a: a $alvo andou durante os checks ($base_2b -> $srv) e $base não a tem; nada foi mesclado; rode: git fetch origin $alvo, e rode de novo (o passo 2b traz a base)"
+    die "parou no passo 6a: a $alvo andou durante os checks ($base_2b -> $srv) e $base não a tem; nada foi mesclado; rode: git fetch origin $alvo, e rode de novo"
   fi
-  if ! mudou_codigo "$base_2b" "$srv"; then
-    echo "a base andou durante os checks só em texto (*.md, docs/); sigo para o merge."
-    return 0
+  if conflito_com 6a "$srv" mesclado; then
+    die "parou no passo 6a: a $alvo andou durante os checks ($base_2b -> $srv) e o merge dela em $ref tem conflito; nada foi mesclado; atualize a branch (git merge $base), rode a suíte no push e rode de novo"
   fi
-  case "$ref" in melhoria/*)
-    [ "$trazida" = 1 ] && die "parou no passo 6a: a $alvo mudou código durante os checks e esta cadeia já trouxe a base uma vez; nada foi mesclado; rode de novo (sem --trazida) para trazer a base e rodar o CI sobre ela"
-    echo "a base mudou código durante os checks ($base_2b -> $srv): trago a base antes do merge."
-    trazer_a_base "$srv"
-    die "parou no passo 6a: o merge de $base em $ref tem conflito; nada foi mesclado; atualize a branch (git merge $base), rode a suíte no push e rode de novo" ;;
-  esac
-  die "parou no passo 6a: a $alvo mudou código durante os checks ($base_2b -> $srv) e o CI deste PR rodou antes dela; nada foi mesclado; atualize $ref com a base e rode de novo"
+  echo "a $alvo andou durante os checks sem conflito com $ref; não trago a base (E8); sigo para o merge."
 }
 
 # promovivel <sha> (passo 1c, FF-1, SP4): a árvore do sha conferido passa no promover-homolog --conferir-ref (só leitura). Script ausente,
@@ -754,11 +719,11 @@ if [ "$seco" = 1 ]; then
   passo 1 "$check pr $pedido --ref $sha_dry --base $base"
   passo "1c" "python3 -I $promover --conferir-ref $sha_dry (a árvore que entra na $alvo é promovível; rc diferente de 0, prazo de 300 s ou script ausente param)"
   passo 2 "git ls-remote origin refs/heads/$ref (igual ao head local de $ref)"
-  passo "2b" "git ls-remote origin refs/heads/$alvo (igual a $base; senão, git fetch origin $alvo); se a base andou, git diff --no-renames -z dos dois lados: arquivo em comum: em melhoria/*, com git merge-tree --write-tree limpo, faz o merge da base, envia a branch e recomeça a cadeia, com conflito para; sem arquivo em comum avisa, e se a base mudou código (fora de *.md e de docs/) faz o mesmo merge em melhoria/* (só leitura até aqui; não roda quando o head já está em $base ou o PR já está MERGED)"
+  passo "2b" "git ls-remote origin refs/heads/$alvo (igual a $base; senão, git fetch origin $alvo); se a base andou, git merge-tree --write-tree do head com ela: com conflito para e lista os arquivos; sem conflito avisa e segue, sem trazer a base (E8) (só leitura; não roda quando o head já está em $base ou o PR já está MERGED)"
   passo 3 "$gh pr create --base $alvo --head $ref --title '$titulo' (se não houver PR aberto; não abre se o head já está em $base ou já tem PR MERGED)"
   passo 4 "$gh pr checks <número do PR, lido no passo 3> (espera até ${espera}s; por JSON; os exigidos, pelo par workflow/nome (${CHECKS_EXIGIDOS[*]}), só passam em pass, os demais em pass ou skipping)"
   passo 5 "$gh pr view <número do PR, lido no passo 3> --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
-  passo "6a" "git ls-remote origin refs/heads/$alvo (a base que o passo 2b leu? se andou durante os checks e mudou código, fora de *.md e de docs/: em melhoria/* traz a base como no 2b e recomeça a cadeia; com --trazida ou fora de melhoria/* para sem mesclar; base local velha pede git fetch)"
+  passo "6a" "git ls-remote origin refs/heads/$alvo (a base que o passo 2b leu? se andou durante os checks: com conflito no git merge-tree --write-tree para sem mesclar; sem conflito segue, sem trazer a base (E8); base local velha pede git fetch)"
   passo 6 "$gh pr merge $ref --auto $metodo --match-head-commit <head conferido> (auto-merge do GitHub com os checks obrigatórios; base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge; espera o MERGED até --espera; com --armar sai com código 4 se ainda não mesclou)"
   [ "$sem_limpar" = 0 ] || echo "--sem-limpar: o passo 7 é pulado; imprime os comandos da limpeza e sai com código 3 depois do merge."
   passo 7 "git worktree remove <worktree de $ref> (prune se o diretório já sumiu); git branch -D $ref (só com o sha mesclado); git push origin --delete $ref (até 3 tentativas, por último); sai com código 3 se algo ficar pendente"

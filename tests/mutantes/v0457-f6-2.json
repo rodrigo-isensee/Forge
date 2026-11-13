@@ -1,0 +1,106 @@
+{
+  "pedido": "v0457-f6-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "bin/forge-check: lastro, vereditos, decisoes e avisos vão ao módulo",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"transcricao\" and a.acao in TRANSCRICAO_DO_MODULO:",
+      "para": "    if a.cmd == \"transcricao\" and a.acao in TRANSCRICAO_DO_MODULO[1:]:",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "bin/forge_transcricao.py:30 RE_NEGACAO.search(texto[inicio + 1:achado.end()]) is None",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    return RE_NEGACAO.search(texto[inicio + 1:achado.end()]) is None",
+      "para": "    return (not (RE_NEGACAO.search(texto[inicio + 1:achado.end()]) is None))",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "bin/forge_transcricao.py:39 any((sem_negacao(texto, m) for m in RE_PUSH.finditer(texto))",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if any(sem_negacao(texto, m) for m in RE_PUSH.finditer(texto)):",
+      "para": "    if (not (any(sem_negacao(texto, m) for m in RE_PUSH.finditer(texto)))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "bin/forge_transcricao.py:41 any((sem_negacao(texto, m) for m in RE_MESCLADO.finditer(tex",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if any(sem_negacao(texto, m) for m in RE_MESCLADO.finditer(texto)):",
+      "para": "    if (not (any(sem_negacao(texto, m) for m in RE_MESCLADO.finditer(texto)))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "bin/forge_transcricao.py:43 m.group(1) or m.group(2) or m.group(3)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    achadas |= {(\"testes\", m.group(1) or m.group(2) or m.group(3)) for m in RE_TESTES.finditer(texto)}",
+      "para": "    achadas |= {(\"testes\", (not (m.group(1) or m.group(2) or m.group(3)))) for m in RE_TESTES.finditer(texto)}",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "bin/forge_transcricao.py:44 any((sem_negacao(texto, m) for m in RE_ABSOLUTA.finditer(tex",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if any(sem_negacao(texto, m) for m in RE_ABSOLUTA.finditer(texto)):",
+      "para": "    if (not (any(sem_negacao(texto, m) for m in RE_ABSOLUTA.finditer(texto)))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "bin/forge_transcricao.py:52 numero",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    n = re.escape(numero) if numero else r\"\\d+\"",
+      "para": "    n = re.escape(numero) if (not (numero)) else r\"\\d+\"",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "bin/forge_transcricao.py:55 re.search(f'\"number\": ?{n}(?!\\\\d)', o) and re.search('\"state",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if re.search(rf'\"number\": ?{n}(?!\\d)', o) and re.search(r'\"state\": ?\"MERGED\"|\"mergedAt\": ?\"\\d', o):",
+      "para": "        if (not (re.search(rf'\"number\": ?{n}(?!\\d)', o) and re.search(r'\"state\": ?\"MERGED\"|\"mergedAt\": ?\"\\d', o))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "a.acao == \"avisos\"",
+      "motivo": "o despacho de avisos virou o `a.acao in TRANSCRICAO_DO_MODULO` (M1, coberto), sem mudar comportamento",
+      "linha_base": 10035
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "a.acao == \"vereditos\"",
+      "motivo": "o despacho de vereditos virou o `a.acao in TRANSCRICAO_DO_MODULO` (M1, coberto), sem mudar comportamento",
+      "linha_base": 10037
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "a.acao == \"decisoes\"",
+      "motivo": "o despacho de decisoes virou o `a.acao in TRANSCRICAO_DO_MODULO` (M1, coberto), sem mudar comportamento",
+      "linha_base": 10039
+    }
+  ]
+}

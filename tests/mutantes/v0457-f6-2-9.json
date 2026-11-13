@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-f6-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M65",
+      "guarda": "bin/forge_transcricao.py:259 linha.lstrip().startswith('```')",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if linha.lstrip().startswith(\"```\"):",
+      "para": "        if (not (linha.lstrip().startswith(\"```\"))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M66",
+      "guarda": "bin/forge_transcricao.py:260 not em_codigo",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "            em_codigo = not em_codigo",
+      "para": "            em_codigo = (not (not em_codigo))",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M67",
+      "guarda": "bin/forge_transcricao.py:262 em_codigo or linha.lstrip().startswith('>')",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if em_codigo or linha.lstrip().startswith(\">\"):",
+      "para": "        if (not (em_codigo or linha.lstrip().startswith(\">\"))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M68",
+      "guarda": "bin/forge_transcricao.py:264 re.match('^\\\\s*Provas:\\\\s*$', linha)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if re.match(r\"^\\s*Provas:\\s*$\", linha):",
+      "para": "        if (not (re.match(r\"^\\s*Provas:\\s*$\", linha))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M69",
+      "guarda": "bin/forge_transcricao.py:267 em_provas and (not linha.strip())",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if em_provas and not linha.strip():",
+      "para": "        if (not (em_provas and not linha.strip())):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M70",
+      "guarda": "bin/forge_transcricao.py:269 not em_provas",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if not em_provas:",
+      "para": "        if (not (not em_provas)):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M71",
+      "guarda": "bin/forge_transcricao.py:280 not tabela and linha.strip()",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if not tabela and linha.strip():",
+      "para": "        if (not (not tabela and linha.strip())):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M72",
+      "guarda": "bin/forge_transcricao.py:281 '?' in linha",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "            pergunta = \"?\" in linha",
+      "para": "            pergunta = (not (\"?\" in linha))",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    }
+  ]
+}

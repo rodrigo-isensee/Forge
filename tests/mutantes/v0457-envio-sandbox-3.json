@@ -1,0 +1,87 @@
+{
+  "pedido": "v0457-envio-sandbox",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "E11 exigir com outro nome é acusado",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "        if isinstance(no, ast.alias) and no.name == \"exigir\" and no.asname not in (None, \"exigir\"):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_apoio_sandbox.ListaFechada.test_brinquedo_acusa_cada_uso_fora_da_lista"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "E11 exigir por nome em texto é acusado",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "        if isinstance(no, ast.Constant) and no.value == \"exigir\":",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_apoio_sandbox.ListaFechada.test_brinquedo_acusa_cada_uso_fora_da_lista"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "E11 só a chamada exigir(self, ...) como comando vale",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "        if not (isinstance(chamada, ast.Call) and chamada.func is no and isinstance(comando, ast.Expr)",
+      "para": "        if False and (isinstance(chamada, ast.Call) and chamada.func is no and isinstance(comando, ast.Expr)",
+      "testes": [
+        "tests.test_apoio_sandbox.ListaFechada.test_brinquedo_acusa_cada_uso_fora_da_lista"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "E11 exigir dentro de if ainda é do método",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "        while isinstance(funcao, ast.If):",
+      "para": "        while False:",
+      "testes": [
+        "tests.test_apoio_sandbox.ListaFechada.test_brinquedo_acusa_cada_uso_fora_da_lista"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "E11 só em método de classe do próprio módulo (não aninhada, não try, não função solta)",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "        if not (isinstance(funcao, ast.FunctionDef) and isinstance(classe, ast.ClassDef)\n                and isinstance(pai.get(classe), ast.Module)):",
+      "para": "        if not isinstance(classe, ast.ClassDef):",
+      "testes": [
+        "tests.test_apoio_sandbox.ListaFechada.test_brinquedo_acusa_cada_uso_fora_da_lista"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "E11 auxiliar sem teste que o chame é acusado (mixin)",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "        if fora or not ids:",
+      "para": "        if fora:",
+      "testes": [
+        "tests.test_apoio_sandbox.ListaFechada.test_brinquedo_acusa_cada_uso_fora_da_lista"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "E11 teste fora da lista é acusado",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "        if fora or not ids:",
+      "para": "        if not ids:",
+      "testes": [
+        "tests.test_apoio_sandbox.ListaFechada.test_brinquedo_acusa_cada_uso_fora_da_lista",
+        "tests.test_apoio_sandbox.ListaFechada.test_auxiliar_vale_so_com_todos_os_testes_que_o_chamam_na_lista"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "E11 ID da lista que não chama exigir é órfão",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "        if alvo is None or not (metodo in chamam or any(_chama_self(alvo, h) for h in chamam)):",
+      "para": "        if alvo is None:",
+      "testes": [
+        "tests.test_apoio_sandbox.ListaFechada.test_orfao_acusado"
+      ]
+    }
+  ]
+}

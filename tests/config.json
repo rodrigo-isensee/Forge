@@ -153,14 +153,15 @@
       "\"so_leitura\": \\{"
     ],
     "hooks/_comum.py": [
-      "def conteudos_de_crase"
+      "def conteudos_de_crase",
+      "clone_do_forge and tem_manifesto_do_forge\\(self\\.raiz\\)"
     ],
     "hooks/conformidade.py": [
       "def checar_so_leitura",
       "def leitura_valida","REPO_APAGAR", "VISIBILIDADE_PUBLICA", "filter-branch", "filter-repo", "--mirror", "permissionDecision", "def checar_remocao", "SUGESTAO",
       "def endpoint_normalizado", "conteudos_de_crase\\(", "GRAPHQL_DE_ROTULO", "TIMEOUT_DA_CONTA", "erro interno ao conferir o rótulo afrouxa-regra",
       "def rotulo_no_argumento", "def rotulos_removidos", "sub == \"clone\""],
-    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub", "## Como perguntar", "\\*\\*Afrouxa o processo\\?\\*\\*", "\\*\\*custo de eficiência\\*\\*", "Faltam N perguntas\\.", "decidam vocês", "não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível"],
+    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub", "## Como perguntar", "\\*\\*Afrouxa o processo\\?\\*\\*", "\\*\\*custo de eficiência\\*\\*", "Faltam N perguntas\\.", "decidam vocês", "não se oferece nas perguntas que `R-DECISAO` não deixa delegar"],
     "docs/adr/_modelo.md": [
       "## Critério de reversão",
       "## Leituras",
@@ -248,14 +249,15 @@
       "\\*\\*Integração contínua \\(D2\\):\\*\\*"
     ],
     "skills/falar-com-o-dono/SKILL.md": [
-      "que não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível",
+      "que não se oferece nas perguntas que `R-DECISAO` não deixa delegar",
       "não contradiz o teste de bloqueante",
       "sem passar pelo teste de bloqueante",
       "Ordem ampla não confirma:\\*\\* diante de",
       "Como perguntar",
       "Afrouxa o processo\\?",
       "decidam vocês",
-      "\\*\\*Perguntas em lote \\(`R-DECISAO`\\):\\*\\*"
+      "\\*\\*Perguntas uma a uma \\(`R-DECISAO`\\):\\*\\*",
+      "Sem resposta, fica pendente\\."
     ],
     "templates/projeto/docs/pedidos/_modelo.md": [
       "## Fora do escopo",
@@ -361,16 +363,29 @@
       "`riscos-aceitos` só vale com o \\*\\*aceite do usuário\\*\\* em `docs/security/aceites/<pedido>.md`",
       "na mesma passada do review e do QA, em qualquer classe"
     ],
-    "docs/regras/R-MAIN.md": [
-      "\ntitulo: A main é do usuário\n",
+    "docs/regras/R-LIMITES.md": [
+      "R-MAIN: A main é do usuário",
       "\\*\\*`main` é do usuário\\*\\*",
       "nenhum agente faz commit, merge, rebase, reset, cherry-pick ou push nela, nem com `--force`",
       "a `main` do Forge e a de cada projeto só mudam com o PR validado e mesclado pelo usuário",
-      "O hook `.githooks/pre-push` recusa envio para a `main`"
-    ],
-    "docs/regras/R-VERIFY.md": [
+      "O hook `.githooks/pre-push` recusa envio para a `main`",
       "Nunca `--no-verify` nem `--force`",
-      "`--no-verify` é proibido"
+      "`--no-verify` é proibido",
+      "Nunca copie agentes ou skills do Forge",
+      "Nada no Forge \\(CI, testes, scripts, fluxo\\) consome API paga ou serviço cobrado",
+      "sem autorização expressa do usuário",
+      "projeto abre PR para a `develop` do Forge e nunca o mescla",
+      "Nenhum portão tem exceção, nem para o dono",
+      "`gh pr checks`",
+      "Sessão de outro projeto só propõe",
+      "criar \\*\\*uma\\*\\* branch própria `melhoria/<projeto>-<tema>`",
+      "resolver conflitos nem revalidar pareceres de PR alheio",
+      "fechar ou editar PR alheio; aplicar rótulos",
+      "O rótulo `afrouxa-regra` é só do dono do Forge",
+      "só cria ou renomeia um rótulo com esse nome",
+      "aplicar ou delegar esse rótulo a um agente é \\*\\*proibido\\*\\*",
+      "avisa o usuário e \\*\\*para\\*\\*",
+      "push sem arquivo protegido não o derruba"
     ],
     "docs/regras/R-QA.md": [
       "\ntitulo: Portão de QA\n",
@@ -384,7 +399,9 @@
       "o único limite é a memória livre",
       "nunca relaxa as regras abaixo",
       "\\*\\*tarefas pesadas uma de cada vez\\*\\*",
-      "A suíte inteira segue serial"
+      "A suíte inteira roda uma por vez\\.",
+      "`suite-partes\\.py --duas-partes` junta as 2 partes só com load1 < nproc e memória sobre o piso",
+      "Reverter se passar de 21 FLAKY em 7 dias"
     ],
     "docs/regras/R-DISCOVERY.md": [
       "\\*\\*Todo pedido começa com discovery\\.\\*\\*"
@@ -417,17 +434,10 @@
       "\\*\\*Fluxo contínuo:\\*\\*",
       "a versão é uma tag e release sobre um commit da `develop`"
     ],
-    "docs/regras/R-COPIA.md": [
-      "Nunca copie agentes ou skills do Forge"
-    ],
-    "docs/regras/R-CUSTO.md": [
-      "Nada no Forge \\(CI, testes, scripts, fluxo\\) consome API paga ou serviço cobrado",
-      "sem autorização expressa do usuário"
-    ],
     "docs/regras/R-NEUTRO.md": [
       "nada específico de um projeto entra em agentes, skills, docs ou modelos"
     ],
-    "docs/regras/R-WIP.md": [
+    "docs/regras/README.md": [
       "sem folga no teto, a fila espera",
       "respeitando o `R-TETO` inteiro: o teto de agentes, as worktrees \\(uma por instância, com disco livre\\), as tarefas pesadas uma por vez",
       "são no máximo o teto de agentes de `R-TETO`",
@@ -529,7 +539,9 @@
     ],
     "hooks/parecer.py": [
       "avaliar_versao",
-      "R-CONFORMIDADE"
+      "R-CONFORMIDADE",
+      "PRONTO_NO_GRAPHQL = re\\.compile\\(r\"markPullRequestReadyForReview\"",
+      "pronto_por_graphql\\(hook, raiz_gh, parte\\[1\\], pasta\\)"
     ],
     "docs/hooks.md": [
       "a guarda só avisa"
@@ -547,7 +559,7 @@
       "Complemento: \\\"tanto faz\\\" e ordem ampla",
       "viram item `delegado`",
       "nunca são delegáveis assim",
-      "\\*\\*custo\\*\\* \\(`R-CUSTO`\\), \\*\\*acesso\\*\\*, \\*\\*exceção a regra\\*\\* \\(`R-CONFORMIDADE`\\) e \\*\\*ato irreversível\\*\\*",
+      "custo, acesso, aceite de risco, rótulo, merge na main, exceção a regra \\(`R-CONFORMIDADE`\\) e ato irreversível",
       "Ordem ampla não confirma",
       "`confirmado` ou `delegado`",
       "Item `técnico` não depende de ordem",
@@ -570,8 +582,10 @@
       "`comando: —` com `decisão: <pedido>`",
       "um comando, um efeito",
       "evidência no motivo",
-      "\\*\\*Em lote:\\*\\*",
-      "\\*\\*Prazo e padrão:\\*\\*",
+      "\\*\\*Uma por vez:\\*\\*",
+      "a próxima espera a resposta",
+      "\\*\\*Sem prazo vencido:\\*\\*",
+      "sem resposta, fica pendente",
       "\\*\\*não é afrouxamento\\*\\*",
       "Regra nova só com medida"
     ],
@@ -609,40 +623,22 @@
       "\\*\\*Nenhum agente desliga, enfraquece ou dribla um controle\\*\\*",
       "\\*\\*Arquivos em vigor\\*\\*"
     ],
-    "skills/esperar-estado/SKILL.md": ["nunca por `kill -0` no pid gravado"],
-    "docs/regras/R-CONTRIB.md": [
-      "projeto abre PR para a `develop` do Forge e nunca o mescla",
-      "Nenhum portão tem exceção, nem para o dono",
-      "`gh pr checks`",
-      "Sessão de outro projeto só propõe",
-      "criar \\*\\*uma\\*\\* branch própria `melhoria/<projeto>-<tema>`",
-      "resolver conflitos nem revalidar pareceres de PR alheio",
-      "fechar ou editar PR alheio; aplicar rótulos",
-      "O rótulo `afrouxa-regra` é só do dono do Forge",
-      "só cria ou renomeia um rótulo com esse nome",
-      "aplicar ou delegar esse rótulo a um agente é \\*\\*proibido\\*\\*",
-      "avisa o usuário e \\*\\*para\\*\\*",
-      "push sem arquivo protegido não o derruba"
-    ]
+    "skills/esperar-estado/SKILL.md": ["nunca por `kill -0` no pid gravado"]
   },
   "invariantes_motivo": {
     "docs/regras/R-SEGURANCA.md": {"regra": "R-SEGURANCA", "porque": "sem o texto, a mudança com gatilho de segurança segue sem o parecer do security-engineer"},
-    "docs/regras/R-MAIN.md": {"regra": "R-MAIN", "porque": "sem o texto, o agente poderia enviar ou mesclar na main, que é do usuário"},
-    "docs/regras/R-VERIFY.md": {"regra": "R-VERIFY", "porque": "sem o texto, o agente poderia pular os hooks com --no-verify ou reescrever histórico com --force"},
+    "docs/regras/R-LIMITES.md": {"regra": "R-LIMITES", "porque": "sem o texto, o agente poderia enviar ou mesclar na main, pular os hooks com --no-verify ou --force, ligar API paga sem autorização, mesclar no Forge a partir de um projeto ou copiar agentes e skills para o projeto"},
+    "docs/regras/README.md": {"regra": "R-TETO", "porque": "sem a linha da R-WIP, o agente acumula cartões, passa do teto de instâncias e os limites de coluna do quadro deixam de valer"},
     "docs/regras/R-QA.md": {"regra": "R-QA", "porque": "sem o texto, a entrega segue para o usuário sem o parecer do QA aprovado"},
     "docs/regras/R-TETO.md": {"regra": "R-TETO", "porque": "sem o texto, tarefas pesadas rodam em paralelo e passam do teto de recursos da máquina"},
     "docs/regras/R-DISCOVERY.md": {"regra": "R-DISCOVERY", "porque": "sem o texto, o pedido pula o discovery e começa a implementar sem o problema entendido"},
     "docs/regras/R-REVIEW.md": {"regra": "R-REVIEW", "porque": "sem o texto, a entrega segue para o QA sem o code review aprovado"},
     "docs/regras/R-FLUXO.md": {"regra": "R-FLUXO", "porque": "sem o texto, as branches pulam degrau e a promoção até a main deixa de ser conferida pelo CI"},
-    "docs/regras/R-COPIA.md": {"regra": "R-COPIA", "porque": "sem o texto, agentes e skills são copiados para o projeto e deixam de acompanhar a versão vigente do plugin"},
-    "docs/regras/R-CUSTO.md": {"regra": "R-CUSTO", "porque": "sem o texto, um agente poderia ligar serviço ou API paga sem autorização expressa do dono"},
     "docs/regras/R-NEUTRO.md": {"regra": "R-NEUTRO", "porque": "sem o texto, nome, regra de negócio ou stack de um projeto entra na fábrica que serve todos"},
-    "docs/regras/R-WIP.md": {"regra": "R-WIP", "porque": "sem o texto, o agente acumula cartões e os limites de coluna do quadro deixam de valer"},
     "docs/regras/R-DECISAO.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis volta a empilhar perguntas ao usuário em vez de uma decisão por vez, com opções e recomendação"},
     "docs/regras/R-PROVA.md": {"regra": "R-PROVA", "porque": "sem o texto, o agente afirma pronto sem a prova do brief e o Jarvis não tem como conferir"},
     "docs/regras/R-BRIEF.md": {"regra": "R-BRIEF", "porque": "sem o texto, o agente delega sem brief conferido e o orquestrador perde o ponto de verificação da entrega"},
     "docs/regras/R-CONFORMIDADE.md": {"regra": "R-CONFORMIDADE", "porque": "sem o texto, um bloqueio de hook ou de regra pode ser contornado pelo agente, e o que está em vigor deixa de ser do usuário"},
-    "docs/regras/R-CONTRIB.md": {"regra": "R-CONTRIB", "porque": "sem o texto, o projeto mescla no Forge por conta própria em vez de abrir PR para o tech-lead"},
     "skills/briefs-e-conferencia/SKILL.md": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis delega sem brief gravado e aceita a entrega sem a conferência do conferente"},
     "skills/trabalho-em-paralelo/SKILL.md": {"regra": "R-TETO", "porque": "sem o texto, o Jarvis dispara tarefas pesadas em paralelo sem a série por arquivo e sem o quadro com hora real"},
     "skills/esperar-estado/SKILL.md": {"regra": "R-TETO", "porque": "sem o texto, o agente espera a trava pesada por kill -0 num pid de outro namespace e solta a espera antes da hora"},
@@ -685,11 +681,18 @@
     "scripts/jarvis-forge": 2
   },
   "invariantes_motivo_trecho": {
+    "hooks/_comum.py": {
+      "clone_do_forge and tem_manifesto_do_forge\\(self\\.raiz\\)": {"regra": "R-REVIEW", "porque": "sem o texto, um clone do Forge com .forge/versao desliga o parecer pelo hooks_desligados e o merge sem parecer passa (FILA-27 A1)"}
+    },
+    "hooks/parecer.py": {
+      "PRONTO_NO_GRAPHQL = re\\.compile\\(r\"markPullRequestReadyForReview\"": {"regra": "R-LIMITES", "porque": "sem o texto, no clone do Forge a mutação GraphQL tira o PR do rascunho sem os pareceres (FILA-27 A2)"},
+      "pronto_por_graphql\\(hook, raiz_gh, parte\\[1\\], pasta\\)": {"regra": "R-LIMITES", "porque": "sem a chamada, ou com a pasta da sessão no lugar da resolvida, o ready por GraphQL não é conferido ou lê o arquivo errado (FILA-27 A2, A-F27-3)"}
+    },
     "bin/forge-check": {
       "o delta não foi lido": {"regra": "R-REVIEW", "porque": "sem o texto, a falha do git no delta vira `delta: nenhum` e o parecer se revalida sem ler a mudança (FC-DELTA-GIT-FALHA)"}
     },
     "templates/projeto/.githooks/pre-push": {
-      "checagem interrompida; o envio foi barrado\\.\" >&2; exit 1' INT TERM HUP": {"regra": "R-VERIFY", "porque": "sem o texto, um Ctrl-C, TERM ou HUP na checagem do projeto deixa o envio seguir sem ela ou filhos órfãos rodando"},
+      "checagem interrompida; o envio foi barrado\\.\" >&2; exit 1' INT TERM HUP": {"regra": "R-LIMITES", "porque": "sem o texto, um Ctrl-C, TERM ou HUP na checagem do projeto deixa o envio seguir sem ela ou filhos órfãos rodando"},
       "flock -w \"\\$espera\" 9": {"regra": "R-TETO", "porque": "sem a espera limitada na trava, duas checagens pesadas do projeto rodam juntas ou um envio espera para sempre"}
     },
     "skills/engineering-practices/SKILL.md": {

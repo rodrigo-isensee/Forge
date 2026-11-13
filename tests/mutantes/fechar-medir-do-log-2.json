@@ -1,0 +1,26 @@
+{
+  "pedido": "fechar-medir-do-log-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "FECHAR-MEDIR-DO-LOG: a medida lida vai à saída (e ao log do forge-fechar)",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -z \"$medida\" ] || printf 'medida:",
+      "para": "true || printf 'medida:",
+      "testes": [
+        "tests.test_fechar_medir.FecharMedir.test_numero_da_execucao_le_o_log_do_ci_e_vai_ao_corpo"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "FECHAR-MEDIR-DO-LOG: texto livre no --medir é recusado com o motivo",
+      "arquivo": "bin/forge-fechar",
+      "de": "die \"--medir: '$fonte' não é número",
+      "para": "return 0; die \"--medir: '$fonte' não é número",
+      "testes": [
+        "tests.test_fechar_medir.FecharMedir.test_texto_livre_e_recusado_com_o_motivo"
+      ]
+    }
+  ]
+}

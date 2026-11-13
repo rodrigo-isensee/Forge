@@ -1,0 +1,94 @@
+{
+  "pedido": "v0457-f6-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M57",
+      "guarda": "bin/forge_transcricao.py:209 re.fullmatch('\\\\d{4}-\\\\d{2}-\\\\d{2}', dia)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        dia = dia if re.fullmatch(r\"\\d{4}-\\d{2}-\\d{2}\", dia) else \"sem_data\"",
+      "para": "        dia = dia if (not (re.fullmatch(r\"\\d{4}-\\d{2}-\\d{2}\", dia))) else \"sem_data\"",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M58",
+      "guarda": "bin/forge_transcricao.py:224 erro.filename or alvo",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        print(f\"avisos: caminho inexistente: {caminho_impresso(erro.filename or alvo)}\")",
+      "para": "        print(f\"avisos: caminho inexistente: {caminho_impresso((not (erro.filename or alvo)))}\")",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M59",
+      "guarda": "bin/forge_transcricao.py:226 not arquivos",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        print(f\"avisos: caminho inexistente: {caminho_impresso(erro.filename or alvo)}\")\n        return 1\n    if not arquivos:",
+      "para": "        print(f\"avisos: caminho inexistente: {caminho_impresso(erro.filename or alvo)}\")\n        return 1\n    if (not (not arquivos)):",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M60",
+      "guarda": "bin/forge_transcricao.py:236 k[0] == hook",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        valores = [sum(n for k, n in vezes.items() if k[0] == hook), len({k[3] for k in vezes if k[0] == hook}),",
+      "para": "        valores = [sum(n for k, n in vezes.items() if (not (k[0] == hook))), len({k[3] for k in vezes if k[0] == hook}),",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M61",
+      "guarda": "bin/forge_transcricao.py:236 k[0] == hook",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        valores = [sum(n for k, n in vezes.items() if k[0] == hook), len({k[3] for k in vezes if k[0] == hook}),",
+      "para": "        valores = [sum(n for k, n in vezes.items() if k[0] == hook), len({k[3] for k in vezes if (not (k[0] == hook))}),",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M62",
+      "guarda": "bin/forge_transcricao.py:237 k[0] == hook",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "                   sum(n - 1 for k, n in no_dia.items() if k[0] == hook)]",
+      "para": "                   sum(n - 1 for k, n in no_dia.items() if (not (k[0] == hook)))]",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M63",
+      "guarda": "bin/forge_transcricao.py:243 k[0] == hook and k[i] == valor",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "                f\"{hook}={sum(n for k, n in vezes.items() if k[0] == hook and k[i] == valor)}\" for hook in HOOKS_DE_AVISO))",
+      "para": "                f\"{hook}={sum(n for k, n in vezes.items() if (not (k[0] == hook and k[i] == valor)))}\" for hook in HOOKS_DE_AVISO))",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M64",
+      "guarda": "bin/forge_transcricao.py:245 aviso[2]",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    print(f\"avisos: com_acao={sum(1 for aviso in lista if aviso[2])}\")",
+      "para": "    print(f\"avisos: com_acao={sum(1 for aviso in lista if (not (aviso[2])))}\")",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    }
+  ]
+}

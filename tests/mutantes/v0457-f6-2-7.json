@@ -1,0 +1,94 @@
+{
+  "pedido": "v0457-f6-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M49",
+      "guarda": "bin/forge_transcricao.py:194 isinstance(b, dict)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "            b = b if isinstance(b, dict) else {}",
+      "para": "            b = b if (not (isinstance(b, dict))) else {}",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M50",
+      "guarda": "bin/forge_transcricao.py:197 aberto[0][2] or acao",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "                aberto[0][2] = aberto[0][2] or acao",
+      "para": "                aberto[0][2] = (not (aberto[0][2] or acao))",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M51",
+      "guarda": "bin/forge_transcricao.py:198 b.get('type') == 'tool_use'",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "                aberto[1] -= b.get(\"type\") == \"tool_use\"",
+      "para": "                aberto[1] -= (not (b.get(\"type\") == \"tool_use\"))",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M52",
+      "guarda": "bin/forge_transcricao.py:199 a[1] > 0",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "            abertos = [a for a in abertos if a[1] > 0]",
+      "para": "            abertos = [a for a in abertos if (not (a[1] > 0))]",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M53",
+      "guarda": "bin/forge_transcricao.py:200 isinstance(o.get('attachment'), dict)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        anexo = o.get(\"attachment\") if isinstance(o.get(\"attachment\"), dict) else {}",
+      "para": "        anexo = o.get(\"attachment\") if (not (isinstance(o.get(\"attachment\"), dict))) else {}",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M54",
+      "guarda": "bin/forge_transcricao.py:202 o.get('type') != 'attachment' or anexo.get('type') != 'hook_",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if o.get(\"type\") != \"attachment\" or anexo.get(\"type\") != \"hook_system_message\" or not isinstance(texto, str):",
+      "para": "        if (not (o.get(\"type\") != \"attachment\" or anexo.get(\"type\") != \"hook_system_message\" or not isinstance(texto, str))):",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M55",
+      "guarda": "bin/forge_transcricao.py:205 hook is None",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if hook is None:",
+      "para": "        if (not (hook is None)):",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M56",
+      "guarda": "bin/forge_transcricao.py:207 anexo.get('hookEvent') in EVENTOS_DE_AVISO",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        evento = anexo.get(\"hookEvent\") if anexo.get(\"hookEvent\") in EVENTOS_DE_AVISO else \"outro\"",
+      "para": "        evento = anexo.get(\"hookEvent\") if (not (anexo.get(\"hookEvent\") in EVENTOS_DE_AVISO)) else \"outro\"",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    }
+  ]
+}

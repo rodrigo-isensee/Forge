@@ -1,0 +1,87 @@
+{
+  "pedido": "v0456",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "E2-M1",
+      "guarda": "AV4(b): só o caminho exato do plugin.json da raiz",
+      "arquivo": "bin/forge-check",
+      "de": "    if nome != PLUGIN_JSON:\n        return False",
+      "para": "    if False:\n        return False",
+      "testes": [
+        "tests.test_forge_check_versao_livre.VersaoLivre.test_outro_json_so_com_versao_pede_parecer"
+      ]
+    },
+    {
+      "id": "E2-M2",
+      "guarda": "AV4(b): o resto do objeto tem de ser igual",
+      "arquivo": "bin/forge-check",
+      "de": "    return antes is not None and json.dumps(",
+      "para": "    return antes is not None or json.dumps(",
+      "testes": [
+        "tests.test_forge_check_versao_livre.VersaoLivre.test_versao_e_outro_campo_pedem_parecer",
+        "tests.test_forge_check_versao_livre.VersaoLivre.test_outro_campo_sem_versao_pede_parecer"
+      ]
+    },
+    {
+      "id": "E2-M3",
+      "guarda": "AV4(b): chave repetida falha fechada",
+      "arquivo": "bin/forge-check",
+      "de": "        if len({k for k, _ in pares}) != len(pares):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_check_versao_livre.VersaoLivre.test_chave_repetida_pede_parecer"
+      ]
+    },
+    {
+      "id": "E2-M4",
+      "guarda": "AV4(b): JSON ilegível falha fechada",
+      "arquivo": "bin/forge-check",
+      "de": "    except ValueError:\n        return None\n    if not isinstance(objeto, dict)",
+      "para": "    except ValueError:\n        return {}\n    if not isinstance(objeto, dict)",
+      "testes": [
+        "tests.test_forge_check_versao_livre.VersaoLivre.test_json_ilegivel_dos_dois_lados_pede_parecer"
+      ]
+    },
+    {
+      "id": "E2-M5",
+      "guarda": "AV4(b): version tem de ser texto",
+      "arquivo": "bin/forge-check",
+      "de": "or not isinstance(objeto.get(\"version\"), str):",
+      "para": ":",
+      "testes": [
+        "tests.test_forge_check_versao_livre.VersaoLivre.test_versao_que_nao_e_texto_pede_parecer"
+      ]
+    },
+    {
+      "id": "E2-M6",
+      "guarda": "AV4(b): modo do plugin.json mudado é código",
+      "arquivo": "bin/forge-check",
+      "de": "elif seguro and so_a_versao_muda(",
+      "para": "elif so_a_versao_muda(",
+      "testes": [
+        "tests.test_forge_check_versao_livre.VersaoLivre.test_modo_do_plugin_mudado_pede_parecer"
+      ]
+    },
+    {
+      "id": "E2-M7",
+      "guarda": "AV4(b): invariante nunca é leve",
+      "arquivo": "bin/forge-check",
+      "de": "                  and nome not in inv_de | inv_ate)",
+      "para": "                  )",
+      "testes": [
+        "tests.test_forge_check_versao_livre.VersaoLivre.test_plugin_invariante_pede_parecer"
+      ]
+    },
+    {
+      "id": "E2-M8",
+      "guarda": "AV4(b): fragmento apagado pela release é leve",
+      "arquivo": "bin/forge-check",
+      "de": "removidos_do_intervalo(raiz, commit, ate) if classes else set()",
+      "para": "removidos_do_intervalo(raiz, commit, ate) if not classes else set()",
+      "testes": [
+        "tests.test_forge_check_versao_livre.VersaoLivre.test_release_versao_changelog_e_fragmento_apagado_no_pr"
+      ]
+    }
+  ]
+}

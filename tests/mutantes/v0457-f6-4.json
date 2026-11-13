@@ -1,0 +1,102 @@
+{
+  "pedido": "v0457-f6-4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "bin/forge_voltas.py:23 d == 'conferencia' and p == 'review'",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    if d == \"conferencia\" and p == \"review\":",
+      "para": "    if (not (d == \"conferencia\" and p == \"review\")):",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "bin/forge_voltas.py:24 'nao cumpriu' in m",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        return \"conferencia\" if \"nao cumpriu\" in m else \"revalidacao\" if \"revalida\" in m else None",
+      "para": "        return \"conferencia\" if (not (\"nao cumpriu\" in m)) else \"revalidacao\" if \"revalida\" in m else None",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "bin/forge_voltas.py:24 'revalida' in m",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        return \"conferencia\" if \"nao cumpriu\" in m else \"revalidacao\" if \"revalida\" in m else None",
+      "para": "        return \"conferencia\" if \"nao cumpriu\" in m else \"revalidacao\" if (not (\"revalida\" in m)) else None",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "bin/forge_voltas.py:25 d == 'review' and 'reprov' in m",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    if d == \"review\" and \"reprov\" in m:",
+      "para": "    if (not (d == \"review\" and \"reprov\" in m)):",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "bin/forge_voltas.py:27 d == 'em andamento' and p == 'aguardando o dono' and ('barrad' in m or",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    if d == \"em andamento\" and p == \"aguardando o dono\" and (\"barrad\" in m or \"hook\" in m):",
+      "para": "    if (not (d == \"em andamento\" and p == \"aguardando o dono\" and (\"barrad\" in m or \"hook\" in m))):",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "bin/forge_voltas.py:29 d in RANGO_DA_COLUNA and p in RANGO_DA_COLUNA and (RANGO_DA_COLUNA[p] ",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    if d in RANGO_DA_COLUNA and p in RANGO_DA_COLUNA and RANGO_DA_COLUNA[p] < RANGO_DA_COLUNA[d]:",
+      "para": "    if (not (d in RANGO_DA_COLUNA and p in RANGO_DA_COLUNA and RANGO_DA_COLUNA[p] < RANGO_DA_COLUNA[d])):",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "bin/forge_voltas.py:43 p == coluna or p in ('qa', 'integracao')",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    if p == coluna or p in (\"qa\", \"integracao\"):",
+      "para": "    if (not (p == coluna or p in (\"qa\", \"integracao\"))):",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "bin/forge_voltas.py:45 coluna == 'conferencia' and p == 'review' and (d not in ('conferencia'",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    return coluna == \"conferencia\" and p == \"review\" and d not in (\"conferencia\", \"review\")",
+      "para": "    return (not (coluna == \"conferencia\" and p == \"review\" and d not in (\"conferencia\", \"review\")))",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    }
+  ]
+}

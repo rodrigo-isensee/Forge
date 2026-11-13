@@ -1,0 +1,57 @@
+{
+  "pedido": "v0457-aqr2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "AQR-2: etapa com a marca de feita vai na linha curta (sem a guarda, volta o texto inteiro)",
+      "arquivo": "bin/forge-check",
+      "de": "    if ETAPA_FEITA.search(texto):",
+      "para": "    if False and ETAPA_FEITA.search(texto):",
+      "testes": [
+        "tests.test_etapa_do_brief.GerarComCumpridas.test_feita_vai_curta_e_aberta_com_o_texto_inteiro",
+        "tests.test_etapa_do_brief.GerarComCumpridas.test_o_bloco_fica_menor_que_o_de_texto_inteiro"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "AQR-2: etapa aberta (sem a marca no fim) nunca vira linha curta",
+      "arquivo": "bin/forge-check",
+      "de": "    if ETAPA_FEITA.search(texto):",
+      "para": "    if True or ETAPA_FEITA.search(texto):",
+      "testes": [
+        "tests.test_etapa_do_brief.GerarComCumpridas.test_feita_vai_curta_e_aberta_com_o_texto_inteiro"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "AQR-2: a marca vale só no fim do texto da etapa, não \"feito\" no meio",
+      "arquivo": "bin/forge-check",
+      "de": "ETAPA_FEITA = re.compile(r\"·\\s*feito\\s*$\")",
+      "para": "ETAPA_FEITA = re.compile(r\"feito\")",
+      "testes": [
+        "tests.test_etapa_do_brief.GerarComCumpridas.test_feita_vai_curta_e_aberta_com_o_texto_inteiro"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "pedido sem outra etapa diz que não tem (o fallback do `or` na linha mudada)",
+      "arquivo": "bin/forge-check",
+      "de": "saida += [linha_de_outra_etapa(*etapa) for etapa in etapas] or [\"- (o pedido não tem outra etapa)\"]",
+      "para": "saida += [linha_de_outra_etapa(*etapa) for etapa in etapas] or []",
+      "testes": [
+        "tests.test_etapa_do_brief.GerarComCumpridas.test_pedido_sem_outra_etapa_diz_que_nao_tem"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "AQR-2: etapa sem papel declarado sai com () e nunca com None",
+      "arquivo": "bin/forge-check",
+      "de": "({sem_controle(papel or '')})",
+      "para": "({sem_controle(papel)})",
+      "testes": [
+        "tests.test_etapa_do_brief.GerarComCumpridas.test_feita_vai_curta_e_aberta_com_o_texto_inteiro"
+      ]
+    }
+  ]
+}

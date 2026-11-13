@@ -1,1 +1,1 @@
-["playwright", "docker compose up"]
+["playwright", "docker compose up", "stryker", "pnpm stryker", "yarn stryker", "test:db", "pnpm test:db", "yarn test:db"]

@@ -1,0 +1,37 @@
+{
+  "descricao": "ritmo econômico sem ativos: libera e reserva a vaga.",
+  "config": {
+    "ritmo": "econômico"
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": []
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "Explore",
+          "Validar a entrega"
+        ]
+      }
+    }
+  },
+  "proc": {
+    "loadavg": "0.1 0.1 0.1 1/100 1",
+    "mem_gb": 8,
+    "nproc": 8
+  }
+}

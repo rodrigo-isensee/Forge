@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "E7: a saída diz a recomendação revertida",
+      "arquivo": "bin/forge-check",
+      "de": "    if \"revertida\" in atributos:\n        saida.append",
+      "para": "    if False:\n        saida.append",
+      "testes": [
+        "tests.test_forge_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "M-E8-9: nao-passa imprime o modelo",
+      "arquivo": "bin/forge-check",
+      "de": "if confere == \"nao-passa\" else []",
+      "para": "if confere != \"nao-passa\" else []",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_nao_passa_imprime_o_modelo_da_pergunta"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "E8: sem o forge_dono, o selar reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    if dono is None:\n        linhas.append((\"decisões: bin/forge_dono.py",
+      "para": "    if False:\n        linhas.append((\"decisões: bin/forge_dono.py",
+      "testes": [
+        "tests.test_forge_dono.SelarConfere.test_sem_o_modulo_do_dono_o_selar_reprova"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "M-E8-2: o selar confere as fontes (sem o módulo, nenhuma)",
+      "arquivo": "bin/forge-check",
+      "de": "[\"fontes\"] if dono else []",
+      "para": "[\"fontes\"] if True else []",
+      "testes": [
+        "tests.test_forge_dono.SelarConfere.test_sem_o_modulo_do_dono_o_selar_reprova"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "M-E6-10: sem acento",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if not unicodedata.combining(c)).casefold()",
+      "para": "if True).casefold()",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_corte_com_os_quatro_campos_grava_a_linha_com_a_origem"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "PQ-A4: a forja ignora o invisível",
+      "arquivo": "bin/forge_dono.py",
+      "de": "unicodedata.normalize(\"NFKC\", texto or \"\") if unicodedata.category(c) != \"Cf\"",
+      "para": "unicodedata.normalize(\"NFKC\", texto or \"\") if unicodedata.category(c) != \"Zz\"",
+      "testes": [
+        "tests.test_forge_dono.RecomendacaoRevertida.test_marca_escrita_a_mao_e_recusada"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "E7: sem --contexto, a forja lê o vazio",
+      "arquivo": "bin/forge_dono.py",
+      "de": "unicodedata.normalize(\"NFKC\", texto or \"\")",
+      "para": "unicodedata.normalize(\"NFKC\", texto)",
+      "testes": [
+        "tests.test_forge_dono.ConfereNoAnotar.test_cada_criterio_e_gravado"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "M-E7-3/M-E8-11: a marca à mão é recusada",
+      "arquivo": "bin/forge_dono.py",
+      "de": "só a ferramenta grava\" if FORJA.search(normal) else None",
+      "para": "só a ferramenta grava\" if False else None",
+      "testes": [
+        "tests.test_forge_dono.RecomendacaoRevertida.test_marca_escrita_a_mao_e_recusada"
+      ]
+    }
+  ]
+}

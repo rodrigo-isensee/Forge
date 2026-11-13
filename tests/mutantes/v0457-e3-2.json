@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-e3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "R1",
+      "guarda": "fora de projeto do Forge (sem .forge/ ou .forge arquivo) sai 1 sem gravar",
+      "arquivo": "bin/forge-ritmo",
+      "de": "    if pasta is None or pasta.is_symlink() or not pasta.is_dir():",
+      "para": "    if pasta is None:",
+      "testes": [
+        "tests.test_ritmo.ComandoRitmo.test_fora_de_projeto_do_forge_sai_1"
+      ]
+    },
+    {
+      "id": "R2",
+      "guarda": "config.json ausente vale objeto vazio",
+      "arquivo": "bin/forge-ritmo",
+      "de": "    if not arquivo.exists():",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_ritmo.ComandoRitmo.test_sem_valor_mostra_o_padrao_e_as_tres_opcoes"
+      ]
+    },
+    {
+      "id": "R3",
+      "guarda": "config.json ilegível sai 1 sem gravar",
+      "arquivo": "bin/forge-ritmo",
+      "de": "    except (OSError, ValueError) as erro:",
+      "para": "    except OSError as erro:",
+      "testes": [
+        "tests.test_ritmo.ComandoRitmo.test_config_ilegivel_ou_nao_objeto_sai_1_sem_gravar"
+      ]
+    },
+    {
+      "id": "R4",
+      "guarda": "config.json que não é objeto sai 1 sem gravar",
+      "arquivo": "bin/forge-ritmo",
+      "de": "    if not isinstance(dados, dict):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_ritmo.ComandoRitmo.test_config_ilegivel_ou_nao_objeto_sai_1_sem_gravar"
+      ]
+    },
+    {
+      "id": "R5",
+      "guarda": "mais de um argumento sai 2",
+      "arquivo": "bin/forge-ritmo",
+      "de": "    if len(args) > 1:",
+      "para": "    if len(args) > 2:",
+      "testes": [
+        "tests.test_ritmo.ComandoRitmo.test_valor_desconhecido_sai_2_sem_gravar"
+      ]
+    },
+    {
+      "id": "R6",
+      "guarda": "--help sai 0 com o uso",
+      "arquivo": "bin/forge-ritmo",
+      "de": "    if args[:1] in ([\"-h\"], [\"--help\"]):",
+      "para": "    if args[:1] in ([\"-h\"],):",
+      "testes": [
+        "tests.test_ritmo.ComandoRitmo.test_ajuda_sai_0_e_mostra_o_uso"
+      ]
+    },
+    {
+      "id": "R7",
+      "guarda": "ritmo gravado que não é texto mostra o padrão",
+      "arquivo": "bin/forge-ritmo",
+      "de": "    if not isinstance(valor, str):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_ritmo.ComandoRitmo.test_ritmo_gravado_que_nao_e_texto_mostra_o_padrao"
+      ]
+    },
+    {
+      "id": "R8",
+      "guarda": "valor desconhecido sai 2 sem gravar",
+      "arquivo": "bin/forge-ritmo",
+      "de": "    if novo is None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_ritmo.ComandoRitmo.test_valor_desconhecido_sai_2_sem_gravar"
+      ]
+    }
+  ]
+}

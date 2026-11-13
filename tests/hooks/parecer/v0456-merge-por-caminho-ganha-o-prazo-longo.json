@@ -1,0 +1,80 @@
+{
+  "descricao": "gh pr merge chamado pelo caminho (`/usr/bin/gh`) com o git lento de 4 s: o nome do programa vale pelo fim do caminho; segue com o prazo longo de 8 s e libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "lento/git": [
+      "#!/bin/sh",
+      "[ -e \"{tmp}/git-ja-dormiu\" ] || { : > \"{tmp}/git-ja-dormiu\"; sleep 4; }",
+      "PATH=\"${PATH#*:}\" exec git \"$@\""
+    ]
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "arquivos": {
+        "docs/reviews/p1-1.md": [
+          "---",
+          "tipo: review",
+          "contrato: 1",
+          "pedido: p1",
+          "branch: feature/x",
+          "commit: {HEAD}",
+          "parecer: aprovado",
+          "revisor: forge:tech-lead",
+          "data: 2026-10-12",
+          "---",
+          "# x"
+        ],
+        "docs/qa/p1.md": [
+          "---",
+          "tipo: qa",
+          "contrato: 1",
+          "pedido: p1",
+          "branch: feature/x",
+          "commit: {HEAD}",
+          "parecer: aprovado",
+          "escopo: completo",
+          "bugs_criticos: 0",
+          "bugs_altos: 0",
+          "bugs_medios: 0",
+          "bugs_baixos: 0",
+          "data: 2026-10-12",
+          "---",
+          "# x"
+        ]
+      },
+      "commit": "docs: pareceres"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "/usr/bin/gh pr merge feature/x --squash"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "executaveis": [
+    "lento/git"
+  ],
+  "env": {
+    "PATH": "{tmp}/proj/lento:/usr/local/bin:/usr/bin:/bin"
+  },
+  "prazo_de_producao": true
+}

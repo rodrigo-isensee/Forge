@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-f6-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M73",
+      "guarda": "bin/forge_transcricao.py:283 m and (m.group(2) or m.group(4) or m.group(5)) and (not (m.g",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if m and (m.group(2) or m.group(4) or m.group(5)) and not (m.group(1) and not pergunta):",
+      "para": "        if (not (m and (m.group(2) or m.group(4) or m.group(5)) and not (m.group(1) and not pergunta))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M74",
+      "guarda": "bin/forge_transcricao.py:287 letra == 'A'",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if letra == \"A\":",
+      "para": "        if (not (letra == \"A\")):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M75",
+      "guarda": "bin/forge_transcricao.py:290 letra == 'A' or atual",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if letra == \"A\" or atual:",
+      "para": "        if (not (letra == \"A\" or atual)):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M76",
+      "guarda": "bin/forge_transcricao.py:294 len(g) >= 2",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    for g in (g for g in grupos if len(g) >= 2):",
+      "para": "    for g in (g for g in grupos if (not (len(g) >= 2))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M77",
+      "guarda": "bin/forge_transcricao.py:295 any((RE_DECIDIDO.match(l) for l in linhas[g[-1][0] + 1:g[-1]",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if any(RE_DECIDIDO.match(l) for l in linhas[g[-1][0] + 1:g[-1][0] + 4]):",
+      "para": "        if (not (any(RE_DECIDIDO.match(l) for l in linhas[g[-1][0] + 1:g[-1][0] + 4]))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M78",
+      "guarda": "bin/forge_transcricao.py:297 RE_RECOMENDO.search('\\n'.join(linhas[g[0][0]:])) is not None",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        saida.append((g[0][0], RE_RECOMENDO.search(\"\\n\".join(linhas[g[0][0]:])) is not None))",
+      "para": "        saida.append((g[0][0], (not (RE_RECOMENDO.search(\"\\n\".join(linhas[g[0][0]:])) is not None))))",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M79",
+      "guarda": "bin/forge_transcricao.py:306 o.get('isSidechain') or o.get('type') not in ('assistant', '",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if o.get(\"isSidechain\") or o.get(\"type\") not in (\"assistant\", \"user\"):",
+      "para": "        if (not (o.get(\"isSidechain\") or o.get(\"type\") not in (\"assistant\", \"user\"))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M80",
+      "guarda": "bin/forge_transcricao.py:308 isinstance(o.get('sessionId'), str)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if o.get(\"isSidechain\") or o.get(\"type\") not in (\"assistant\", \"user\"):\n            continue\n        sessao = o.get(\"sessionId\") if isinstance(o.get(\"sessionId\"), str) else \"\"",
+      "para": "        if o.get(\"isSidechain\") or o.get(\"type\") not in (\"assistant\", \"user\"):\n            continue\n        sessao = o.get(\"sessionId\") if (not (isinstance(o.get(\"sessionId\"), str))) else \"\"",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    }
+  ]
+}

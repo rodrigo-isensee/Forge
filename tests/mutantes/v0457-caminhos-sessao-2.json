@@ -1,0 +1,46 @@
+{
+  "pedido": "v0457-caminhos-sessao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CS7",
+      "guarda": "sem CLAUDE_ENV_FILE nada se grava e o diagnóstico segue",
+      "arquivo": "hooks/doutor.py",
+      "de": "    if not destino:\n        return\n    pastas, avisos",
+      "para": "    if False:\n        return\n    pastas, avisos",
+      "testes": [
+        "tests.test_doutor.CaminhosNaSessao"
+      ]
+    },
+    {
+      "id": "CS8",
+      "guarda": "sem pasta boa o arquivo de ambiente não muda",
+      "arquivo": "hooks/doutor.py",
+      "de": "    if not pastas:\n        return\n    texto",
+      "para": "    if False:\n        return\n    texto",
+      "testes": [
+        "tests.test_doutor.CaminhosNaSessao"
+      ]
+    },
+    {
+      "id": "CS9",
+      "guarda": "a mesma linha não se repete no resume e no compact",
+      "arquivo": "hooks/doutor.py",
+      "de": "    if texto in antes.splitlines(keepends=True):\n        return",
+      "para": "    if False:\n        return",
+      "testes": [
+        "tests.test_doutor.CaminhosNaSessao"
+      ]
+    },
+    {
+      "id": "CS10",
+      "guarda": "arquivo sem quebra no fim: a linha nova fica numa linha própria",
+      "arquivo": "hooks/doutor.py",
+      "de": "    separador = \"\\n\" if antes and not antes.endswith(\"\\n\") else \"\"",
+      "para": "    separador = \"\\n\" if False else \"\"",
+      "testes": [
+        "tests.test_doutor.CaminhosNaSessao"
+      ]
+    }
+  ]
+}

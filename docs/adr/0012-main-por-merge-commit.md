@@ -31,3 +31,6 @@ Se a `main` ou a `develop` voltar a divergir uma da outra depois de uma release 
 | 2026-10-16 | PRs de sincronização por release (antes: 1 a 2) | pendente |
 
 Conferência do dono antes da próxima release (fora do repositório): o método de merge permitido na `main` (merge commit habilitado) e a regra "branch atualizada com a base" do ruleset `portoes` são configuração do servidor, que o diff não versiona. Conferir que o merge commit é permitido para a `main`, que o ruleset `main-do-dono` e o `portoes` seguem sem ator de bypass além do aprovado, e que o PR `homolog` → `main` não fica bloqueado por "desatualizada" por causa do último commit de merge da `main`. Registrar o resultado na primeira leitura acima.
+
+## Atualização (2026-11-11, E8 da 0.45.6)
+Nota datada; a decisão acima não muda. Desde a E8 (decisão do dono de 2026-11-10, `R-FLUXO`), a regra "branch atualizada com a base" deixa de ser a garantia dos PRs para a `develop`: a branch traz a base uma vez, no fim, antes do pedido de merge, e não a cada PR que entra antes. A garantia é o CI contra a base real: o do PR roda sobre o merge com a base, o `bin/forge-fechar` para quando o `git merge-tree` acusa conflito com a base que andou e o CI de `push` confere cada merge (`docs/protecao-de-branch.md`). A conferência do dono acima vale para o PR `homolog` → `main`, que segue sendo um só, conferido.

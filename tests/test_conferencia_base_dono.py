@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import ambiente_limpo, git  # noqa: E402
-from test_volta_por_delta import Repositorio, SHA_FALSO  # noqa: E402
+from test_volta_por_delta import Repositorio, SHA_FALSO, carregar_forge_check  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 
@@ -103,6 +103,20 @@ class IntegracaoNaBranch(Repositorio):
         else:
             git("merge", "-q", "--no-edit", "develop", cwd=self.repo)
         self.m = self.head()
+
+    def test_branch_atras_da_base_nao_pede_o_merge_antes_do_fim(self):  # E8 da v0456: a base entra só antes do pedido de merge
+        c1 = self.commitar({"a.txt": "1\n"}, "trabalho da branch")
+        git("switch", "-q", "develop", cwd=self.repo)
+        git("update-ref", "refs/remotes/origin/develop", self.commitar({"d.py": "x = 1\n"}, "develop andou com código"), cwd=self.repo)
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        self.gravar_pedido()
+        for etapa in ("codigo", "review", "pr"):
+            with self.subTest(etapa=etapa):
+                rc, saida = self.entrega(etapa=etapa)
+                self.assertEqual(rc, 0, saida)
+                self.assertIn(f"intervalo: {self.base}..{c1}", saida)
+                self.assertNotIn("d.py", saida)
+        self.assertEqual(carregar_forge_check().base_sha_real(self.repo, "develop", "melhoria/x"), self.base)  # o brief não vence
 
     def test_integracao_limpa_nao_tem_escopo_proprio(self):
         self.integrar()

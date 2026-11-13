@@ -22,7 +22,9 @@ HOOK = RAIZ / "templates" / "projeto" / ".githooks" / "pre-push"
 ZERO = "0" * 40
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ambiente_git import sem_manutencao  # noqa: E402
+from apoio_sandbox import exigir  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+AMBIENTE["FORGE_PREPUSH_SUITE"] = "afetados"  # ENVIO-LEVE: o padrão do hook não roda teste; estes testes exercitam o plano dos afetados
 AMBIENTE.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
 PULO = "só docs/** e .md; lint e typecheck pulados"
 
@@ -156,8 +158,8 @@ class PrePushSoDocs(Repo):
         self.escreve("src/a.ts")
         codigo = self.commit("codigo")
         r, marca = self.envia([self.ref(so_docs, self.base, "refs/heads/a"), self.ref(codigo, self.base, "refs/heads/b")])
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertTrue(marca)
+        # PREPUSH-REFS (v0457): duas branches no mesmo envio recusam antes do plano
+        self.assertEqual((r.returncode, "mais de uma branch" in r.stderr, marca), (1, True, False), r.stderr)
 
     def test_duas_refs_so_docs_pulam(self):
         self.escreve("docs/a.md")
@@ -167,7 +169,7 @@ class PrePushSoDocs(Repo):
         b = self.commit("b")
         r, marca = self.envia([self.ref(a, self.base, "refs/heads/a"), self.ref(b, self.base, "refs/heads/b")])
         self.assertFalse(marca)
-        self.assertIn(PULO, r.stdout)
+        self.assertEqual((r.returncode, "mais de uma branch" in r.stderr), (1, True), r.stderr)  # PREPUSH-REFS
 
     def test_branch_nova_roda(self):
         self.escreve("docs/a.md")
@@ -284,10 +286,16 @@ class GrupoDaEtapa(Repo):
         p.stdin.close()
         return p
 
-    def le(self, nome):
-        self.assertTrue(ate((self.dir / nome).exists), nome)
-        time.sleep(0.2)
-        return [int(x) for x in (self.dir / nome).read_text().split()]
+    def le(self, nome, quer=1):
+        """Espera o arquivo ter `quer` números inteiros (a etapa anota "pid pgid" só quando o grupo existe), não uma janela fixa."""
+
+        def campos():
+            try:
+                return [int(x) for x in (self.dir / nome).read_text().split()]
+            except (OSError, ValueError):
+                return []
+        self.assertTrue(ate(lambda: len(campos()) >= quer, 30), nome)
+        return campos()[:quer]
 
     def fim(self, p):
         try:
@@ -296,6 +304,7 @@ class GrupoDaEtapa(Repo):
             self.fail("o hook não saiu em 30 s")
 
     def interrompe(self):
+        exigir(self, "proc")
         p = self.lanca()
         etapa = self.le("etapa")[0]
         time.sleep(1)
@@ -307,12 +316,13 @@ class GrupoDaEtapa(Repo):
         return etapa
 
     def test_etapa_em_grupo_proprio_e_saida_repassada(self):
+        exigir(self, "proc")
         for saida, esperado in ((0, 0), (3, 1)):
             with self.subTest(saida):
                 self.etapa(f"exit {saida}")
                 p = self.lanca()
                 self.assertEqual(self.fim(p)[0], esperado)
-                pid, pgid = self.le("etapa")
+                pid, pgid = self.le("etapa", 2)
                 self.assertEqual(pgid, pid)
                 self.assertNotEqual(pgid, p.pid)
                 (self.dir / "etapa").unlink()
@@ -326,7 +336,7 @@ class GrupoDaEtapa(Repo):
         self.etapa('sleep 60 & echo $! > "$(dirname "$0")/../filho"')
         self.assertEqual(self.fim(self.lanca())[0], 0)
         filho = self.le("filho")[0]
-        self.assertTrue(ate(lambda: filho not in vivos()))
+        self.assertTrue(ate(lambda: filho not in vivos(), 30))
 
     def test_grupo_nao_criado_ou_pgid_ilegivel_sinaliza_so_a_etapa(self):
         falso = self.dir / "falso"
@@ -411,6 +421,7 @@ class TravaDaChecagem(Repo):
         xdg = Path(tempfile.mkdtemp(dir=self.fora))
         xdg.chmod(0o700)
         if os.geteuid() == 0:
+            exigir(self, "chown")
             os.chown(xdg, 65534, 65534)
         else:
             xdg = Path("/")  # do root e sem escrita alheia: só o dono a recusa
@@ -448,6 +459,7 @@ class TravaDaChecagem(Repo):
         if os.geteuid() == 0:
             self.trava.rmdir()
             self.trava.touch()
+            exigir(self, "chown")
             os.chown(self.trava, 65534, 65534)
             self.barra(texto="não é do próprio usuário")
 
@@ -570,6 +582,7 @@ class LimiteDaEtapa(EnvioDeCodigo):
         (self.dir / ".githooks" / "pre-push.local").write_text(f'#!/usr/bin/env bash\ncd "$(dirname "$0")/.."\n{corpo}\n')
 
     def test_estouro_encerra_com_os_filhos_e_barra(self):
+        exigir(self, "proc")
         self.local("sleep 300 & echo $! > filho; sleep 300")
         rc, err, _ = self.fim(self.lanca(dict(self.amb, FORGE_PREPUSH_TIMEOUT="2")))
         self.assertEqual(rc, 1)
@@ -595,6 +608,7 @@ class LimiteDaEtapa(EnvioDeCodigo):
 class AncestralMorto(EnvioDeCodigo):
     """F3: kill -9 em quem pediu o envio encerra a checagem com os filhos (A3), sem sinal para quem não é dela (A5)."""
     def test_kill_9_no_agente_encerra_a_checagem_e_o_hook(self):
+        exigir(self, "proc")
         (self.dir / ".githooks" / "pre-push.local").write_text(
             '#!/usr/bin/env bash\ncd "$(dirname "$0")/.."\nsleep 300 & echo $$ $PPID $(ps -o pgid= -p $$) > etapa; sleep 300\n')
         (self.fora / "entrada").write_text("".join(self.linhas))
@@ -616,6 +630,7 @@ class AncestralMorto(EnvioDeCodigo):
         self.assertIsNone(irmao.poll())
 
     def test_pid_reusado_conta_como_ancestral_morto(self):
+        exigir(self, "proc")
         funcoes = subprocess.run(["sed", "-n", "/^inicio_de() {/,/^}/p;/^ancestral_morto() {/,/^}/p", str(HOOK)],
                                  capture_output=True, text=True, check=True).stdout
         roteiro = funcoes + 'inicio_de $$; ancestrais=("$$ $st_inicio"); ancestral_morto && echo morto || echo vivo\n' \

@@ -11,12 +11,12 @@ Em conflito: `CLAUDE.md` do projeto > ADR > `praticas.md` do projeto > política
 
 ## Com a pessoa
 - **Entender em linguagem simples.** **Recibo antes de acionar o time**, em todo pedido: "vou fazer: ...; não vou fazer: ...; é isso?"; palavra que inverte o sentido ("sem", "só", "não") ou erro de ditado vai como frase literal entre aspas com as duas leituras.
-- **Perguntar só o que é dela:** produto, escopo, custo e risco, e só o que passa no teste de bloqueante (`R-DECISAO`); o resto o time decide e registra. Leia `${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/SKILL.md` antes de perguntar ou diante de ordem ampla: as perguntas vão em lote, cada uma com uma recomendação e, nas reversíveis, um prazo. Perfil `iniciante` em `.forge/perfil`: skill `forge:modo-iniciante`; sem `.forge/versao`: skill `forge:novo-projeto`.
-- **Contar o andamento sem jargão**, curto, ao fim de cada etapa, honesto sobre falhas: estado em uma linha, o que precisa dela, suposições, o que foi feito, riscos. Na entrega, a tabela **pedido × entregue** (a prova, ou "Retira do escopo original" e a decisão). **A pessoa valida e faz o merge na `main`.**
-- Pedido, lista ou decisão do dono só vale gravada no pedido ou no quadro, no mesmo turno (`forge-check anotar`); o scratchpad é temporário. Telegram (se ativo): `reply` curto, sem segredo; nunca altere a allowlist.
+- **Perguntar só o que é dela:** produto, escopo, custo e risco, e só o que passa no teste de bloqueante (`R-DECISAO`); o resto o time decide e registra. Leia `${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/SKILL.md` antes de perguntar ou diante de ordem ampla: as perguntas vão uma a uma, a de maior peso primeiro, com a recomendação; sem resposta, ficam pendentes. Perfil `iniciante` em `.forge/perfil`: skill `forge:modo-iniciante`; sem `.forge/versao`: skill `forge:novo-projeto`.
+- **Contar o andamento sem jargão**, curto, ao fim de cada etapa, honesto: estado em uma linha, o que precisa dela, suposições, o que foi feito, riscos. Na entrega, a tabela **pedido × entregue** (a prova, ou "Retira do escopo original" e a decisão). **A pessoa valida e faz o merge na `main`.**
+- Pedido, lista ou decisão do dono só vale gravada no pedido ou no quadro, no mesmo turno (`forge-check anotar`). Telegram, se ativo: `reply` curto, sem segredo; não mude a allowlist.
 
 ## Time
-No Agent tool, use `subagent_type: "forge:<nome>"`. O técnico (desenho, portões, integração, versão) é do `tech-lead`; o aprendizado com os erros, do `agile-coach`.
+Use `subagent_type: "forge:<nome>"`. O técnico (desenho, portões, integração, versão) é do `tech-lead`; o aprendizado com os erros, do `agile-coach`.
 
 | Agente | Quando acionar |
 |---|---|
@@ -43,6 +43,8 @@ No Agent tool, use `subagent_type: "forge:<nome>"`. O técnico (desenho, portõe
 7. **Revisão de UX** só se a entrega muda interface (`R-REVIEW`).
 8. **Integração:** com os portões e o CI verdes, o `tech-lead` integra o item na `develop` quando fica pronto (`R-FLUXO`). Branch com `forge-check vazio --ref <branch>` = `vazio: sim` encerra sem PR: só `vazio: sim` encerra, e `não verificável` não encerra (nem `não`); grave a linha inteira no `## Histórico`; a branch e a worktree ficam até a limpeza normal (`R-VERIFY`).
 9. **Retrospectiva** com o `agile-coach` ao fim de todo pedido; o pedido só fecha com ela gravada. Aprender com os erros é do time (placar, eval, manter ou reverter: `R-DECISAO`), não da pessoa: seus `ERRO-JARVIS` e as `Melhoria vista:` entram nela só como dado e candidatas, sem regra nova na linha, e à pessoa você repassa a linha `resumo:` do `forge-placar` como está.
+
+**Economia** (`docs/economia-de-tokens.md`, 9 a 11): conversa curta, modelo certo, 2 tentativas.
 
 **Regra do dono: você toca sempre o máximo de itens ao mesmo tempo**, dentro de `R-TETO` e `R-WIP`. Antes de disparar em paralelo ou mover cartão, leia `${CLAUDE_PLUGIN_ROOT}/skills/trabalho-em-paralelo/SKILL.md` (lote por arquivo e lote de até 3 tópicos sem arquivo em comum) e `${CLAUDE_PLUGIN_ROOT}/skills/kanban-scrum/SKILL.md`.
 

@@ -1,0 +1,25 @@
+{
+  "descricao": "PROFUNDIDADE-BASH-C (v0457 E17.1): crase em atribuição dentro de 2 níveis de bash -c são 3 níveis na sessão do Forge (pasta fora de projeto): a palavra relida não conta como nível, e a linha libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "XDG_RUNTIME_DIR": "{tmp}/run",
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "bash -c 'bash -c '\"'\"'x=`date`; ls'\"'\"''"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

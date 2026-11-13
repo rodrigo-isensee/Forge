@@ -74,6 +74,7 @@ class Base(unittest.TestCase):
         self.env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.gitconfig),
                         PATH=f"{self.bin}:{os.environ['PATH']}", FORGE_HOJE=HOJE, FORGE_VERIFICAR_VERSAO="0")
         self.env.pop("XDG_STATE_HOME", None)
+        self.env.pop("CLAUDE_ENV_FILE", None)  # E18.1: o arquivo de ambiente da sessão de quem roda os testes nunca é tocado
         self.env = sem_manutencao(self.env)
         self.remoto = self.tmp / "remoto.git"
         self.proj = self.tmp / "proj"
@@ -605,6 +606,74 @@ class HookDoutor(Base):
             comandos = {h["args"][0].rsplit("/", 1)[-1] for g in d["hooks"][evento] for h in g["hooks"]}
             self.assertIn("doutor.py", comandos, evento)
         self.assertNotIn("UserPromptSubmit", d["hooks"], "o stdout dele viraria contexto (ADR 0003)")
+
+
+class CaminhosNaSessao(Base):
+    """E18.1 (0.45.7): no SessionStart o doutor põe as pastas de `caminhos_extra` no fim do PATH da sessão (`CLAUDE_ENV_FILE`)."""
+
+    def setUp(self):
+        super().setUp()
+        self.arquivo_env = self.tmp / "sessao.env"
+        self.pasta = self.tmp / "fer ra'mentas"  # espaço e aspa: a linha precisa sair citada
+        self.pasta.mkdir()
+        self.pasta.chmod(0o755)
+        self.cache = self.proj / ".forge" / "run" / "doutor"
+
+    def config(self, *pastas):
+        self.escrever(".forge/config.json", json.dumps({"caminhos_extra": [str(p) for p in pastas]}))
+
+    def abrir(self, com_arquivo=True):
+        env = dict(self.env, **({"CLAUDE_ENV_FILE": str(self.arquivo_env)} if com_arquivo else {}))
+        entrada = {"hook_event_name": "SessionStart", "session_id": "s1", "cwd": str(self.proj), "source": "startup"}
+        r = subprocess.run([sys.executable, str(HOOK)], input=json.dumps(entrada), env=env, cwd=self.proj,
+                           capture_output=True, text=True, timeout=30)
+        self.assertEqual((r.returncode, r.stdout), (0, ""), r.stderr)
+
+    def erros(self):
+        log = self.proj / ".forge" / "run" / "erros.log"
+        return log.read_text(encoding="utf-8") if log.exists() else ""
+
+    def path_da_sessao(self):
+        r = subprocess.run(["bash", "--noprofile", "--norc", "-c", '. "$1"; printf %s "$PATH"', "_", str(self.arquivo_env)],
+                           env={"PATH": "/usr/bin:/bin"}, capture_output=True, text=True, timeout=10)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout
+
+    def test_pasta_boa_vai_ao_fim_do_path(self):
+        self.config(self.pasta)
+        self.abrir()
+        self.assertEqual(self.path_da_sessao(), f"/usr/bin:/bin:{self.pasta}")
+        self.assertTrue(self.cache.exists(), "o diagnóstico segue depois")
+
+    def test_pasta_que_nao_passa_fica_de_fora_com_aviso_e_nada_se_grava(self):
+        aberta = self.tmp / "aberta"
+        aberta.mkdir()
+        aberta.chmod(0o777)
+        self.config(aberta, "relativa")
+        self.abrir()
+        self.assertFalse(self.arquivo_env.exists(), "sem pasta boa, o arquivo de ambiente não muda")
+        self.assertIn("ignorada (precisa ser do usuário", self.erros())
+        self.assertIn("ignorada (precisa ser caminho absoluto", self.erros())
+
+    def test_sem_arquivo_de_ambiente_nada_muda_e_o_diagnostico_segue(self):
+        self.config(self.pasta)
+        self.abrir(com_arquivo=False)
+        self.assertEqual(self.erros(), "")
+        self.assertTrue(self.cache.exists())
+
+    def test_resume_e_compact_nao_repetem_a_linha(self):
+        self.config(self.pasta)
+        for _ in range(3):
+            self.abrir()
+        self.assertEqual(len(self.arquivo_env.read_text(encoding="utf-8").splitlines()), 1)
+
+    def test_arquivo_sem_quebra_no_fim_ganha_linha_propria(self):
+        self.arquivo_env.write_text("export A=1", encoding="utf-8")
+        self.config(self.pasta)
+        self.abrir()
+        linhas = self.arquivo_env.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(linhas[0], "export A=1")
+        self.assertEqual(self.path_da_sessao(), f"/usr/bin:/bin:{self.pasta}")
 
 
 class Frequencia(Base):

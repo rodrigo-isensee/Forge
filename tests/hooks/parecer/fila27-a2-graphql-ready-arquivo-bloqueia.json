@@ -1,0 +1,37 @@
+{
+  "descricao": "FILA-27 A2: no clone, a mutação lida de -F query=@arq também barra.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "q.graphql": "mutation { markPullRequestReadyForReview(input: {pullRequestId: \"PR_1\"}) { clientMutationId } }\n"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "melhoria/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.melhoria/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh api graphql -F query=@q.graphql"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "tirar o rascunho pela API"
+  }
+}

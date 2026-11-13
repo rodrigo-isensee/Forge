@@ -15,6 +15,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -62,6 +63,17 @@ class Logica(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.s = carregar()
+
+    def test_testes_que_cairam_no_resumo_tem_teto_e_id_limpo(self):  # QA-1
+        self.assertEqual(self.s.testes_que_cairam([None, {"caidos": []}, {}]), [])
+        rels = [{"caidos": ["test_b.T.test_y", "test_a.T.test_x"]}, None, {"caidos": ["test_a.T.test_x", "x`y\nz" + "a" * 300]}]
+        linhas = self.s.testes_que_cairam(rels)
+        self.assertEqual(linhas[:4], ["", "#### Testes que caíram (3)", "- `test_a.T.test_x`", "- `test_b.T.test_y`"])
+        self.assertEqual(linhas[4], "- `xyz" + "a" * 195 + "`")  # cortado em 200, depois sem crase nem quebra de linha
+        self.assertEqual(self.s.LIMITE_CAIDOS, 30)  # A2 do review: o teto literal, não o valor da própria constante
+        muitos = self.s.testes_que_cairam([{"caidos": [f"test_m.T.test_{i:03d}" for i in range(37)]}])
+        self.assertEqual(len(muitos), 2 + 30 + 1)
+        self.assertEqual(muitos[-1], "- e mais 7 (a lista inteira está no log do passo)")
 
     def test_repartir_cobre_todos_e_e_determinista(self):
         nomes = [f"test_{i}" for i in range(9)]
@@ -173,6 +185,113 @@ class CausaTipada(unittest.TestCase):
                          self.s.TETO_DO_VALOR)
 
 
+class TemposAoVivoLogica(unittest.TestCase):
+    """O leitor do arquivo de tempos e o `esperar` (E23.27), sem subprocesso e sem depender de temporização."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.s = carregar()
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.pasta = Path(self._tmp.name)
+        self.arquivo = self.pasta / "p1.saida.json.tempos"
+        self.ao_vivo = self.s.TemposAoVivo(self.pasta, 1)
+
+    def anexa(self, texto):
+        with self.arquivo.open("a", encoding="utf-8") as f:
+            f.write(texto)
+
+    def atualiza(self):
+        with mock.patch.object(sys, "stderr", io.StringIO()) as erro:
+            self.ao_vivo.atualizar()
+        return erro.getvalue()
+
+    def test_linha_parcial_nao_abre_unidade_nem_avanca_a_posicao(self):
+        self.anexa("inicio\tx\t1")  # sem \n: o filho ainda está escrevendo
+        self.assertEqual(self.atualiza(), "")
+        self.assertEqual((self.ao_vivo.posicao, self.ao_vivo.rodando()), ([0], []))
+        self.anexa("00.5\n")
+        self.atualiza()
+        self.assertEqual([n for n, _, _ in self.ao_vivo.rodando()], ["x"])
+
+    def test_inicio_abre_e_fim_fecha_e_imprime_uma_vez(self):
+        self.anexa("inicio\tx\t100.5\n")
+        self.assertEqual(self.atualiza(), "")
+        self.assertEqual([(n, i) for n, _, i in self.ao_vivo.rodando()], [("x", 1)])
+        self.anexa("fim\tx\t2.5\n")
+        self.assertEqual(self.atualiza(), "suite-paralela: unidade x 2.5 s (processo 1)\n")
+        self.assertEqual(self.ao_vivo.rodando(), [])
+        self.assertEqual(self.atualiza(), "")  # nada novo: não repete a linha
+
+    def test_posicao_avanca_por_linha_tratada(self):
+        self.anexa("inicio\tx\t1.0\nfim\tx\t0.1\ninicio\ty\t2.0\n")
+        impressas = []
+        original = self.s.TemposAoVivo.informar
+        def interrompe(texto):
+            impressas.append(texto)
+            raise KeyboardInterrupt  # o sinal chega no meio do laço, na impressão da primeira linha `fim`
+        with mock.patch.object(self.s.TemposAoVivo, "informar", staticmethod(interrompe)):
+            with self.assertRaises(KeyboardInterrupt):
+                self.ao_vivo.atualizar()
+        self.assertEqual(self.ao_vivo.posicao, [len("inicio\tx\t1.0\n")])  # a linha `fim` ainda não foi tratada até o fim
+        with mock.patch.object(self.s.TemposAoVivo, "informar", staticmethod(original)):
+            self.atualiza()
+        self.assertEqual(self.ao_vivo.posicao, [len("inicio\tx\t1.0\nfim\tx\t0.1\ninicio\ty\t2.0\n")])
+        self.assertEqual([n for n, _, _ in self.ao_vivo.rodando()], ["y"])
+
+    def test_stderr_quebrado_nao_derruba_e_a_linha_sai_com_flush(self):
+        class Quebrado:
+            def write(self, _):
+                raise BrokenPipeError
+
+            flush = write
+
+        self.anexa("inicio\tx\t1.0\nfim\tx\t0.1\ninicio\ty\t1.0\n")
+        with mock.patch.object(sys, "stderr", Quebrado()):
+            try:
+                self.ao_vivo.atualizar()
+                self.ao_vivo.imprimir_rodando()
+            except OSError as erro:
+                self.fail(f"stderr quebrado derrubou a suíte: {type(erro).__name__} escapou do informar")
+        self.assertEqual([n for n, _, _ in self.ao_vivo.rodando()], ["y"])
+
+        class Registra(io.StringIO):
+            descargas = 0
+
+            def flush(self):
+                type(self).descargas += 1
+                super().flush()
+
+        with mock.patch.object(sys, "stderr", Registra()):
+            self.s.TemposAoVivo.informar("a")
+            self.s.TemposAoVivo.informar("b")
+        self.assertEqual(Registra.descargas, 2)  # o flush de cada linha informada (QA A2)
+
+    def test_esperar_atualiza_no_laco_e_uma_vez_depois_de_esperar_os_filhos(self):
+        class Filho:
+            def __init__(self):
+                self.estados = [None, 0]
+
+            def poll(self):
+                return self.estados.pop(0) if len(self.estados) > 1 else self.estados[0]
+
+            def wait(self):
+                return 0
+
+        class Leitor:
+            chamadas = 0
+
+            def atualizar(self):
+                type(self).chamadas += 1
+
+        with mock.patch.object(self.s.time, "sleep"):
+            self.assertEqual(len(self.s.esperar([Filho()], self.s.time.monotonic(), Leitor())), 1)
+            self.assertEqual(Leitor.chamadas, 3)  # a volta em que o filho ainda roda, a em que termina e a final
+            self.assertEqual(len(self.s.esperar([Filho()], self.s.time.monotonic())), 1)  # sem leitor, sem erro
+
+
 class Brinquedo(unittest.TestCase):
     """O script de verdade num repositório de brinquedo."""
 
@@ -201,7 +320,7 @@ class Brinquedo(unittest.TestCase):
         self.git("init", "-q")
         self.git("add", "-A")
         self.git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "x")
-        self.env = dict(AMBIENTE, MARCAS=str(self.marcas), TMPDIR=str(self.tmpdir), FORGE_SUITE_PROCS="3",
+        self.env = dict(AMBIENTE, MARCAS=str(self.marcas), TMPDIR=str(self.tmpdir), FORGE_SUITE_PROCS="3", FORGE_PREPUSH_SUITE="afetados",  # ENVIO-LEVE: o padrão do hook não roda teste
                         XDG_RUNTIME_DIR=str(self.run_dir), HOME=str(base / "home"), FORGE_TRAVA_ESPERA="20")
         self.env.pop("FORGE_SUITE_TRAVA", None)
         self.env.pop("CI", None)
@@ -352,6 +471,9 @@ class Brinquedo(unittest.TestCase):
         self.assertIn("execução reprovada: não vale para o orçamento", resumo)
         for linha in ("unidades mais lentas", "soma das unidades", "maior unidade", "desequilíbrio"):
             self.assertNotIn(linha, resumo)  # C-7: a medida da c2 só existe no resumo verde
+        # QA-1: o resumo vermelho lista os testes que caíram, sem a mensagem da falha
+        self.assertIn("#### Testes que caíram (1)\n- `test_b.T.test_b`\n", resumo)
+        self.assertNotIn("de propósito", resumo)
 
     def test_resumo_com_processo_morto_nao_quebra_o_veredito(self):  # AB-1, C-8
         self.modulo("b", modulo_de_teste("b", "os.kill(os.getpid(), signal.SIGKILL)", "import signal\n"))
@@ -778,13 +900,85 @@ class T(unittest.TestCase):
         (marca,) = [n for n in self.marcas.iterdir() if n.name.startswith("b-")]
         pid = int(marca.name.rsplit("-", 1)[1])
         p.send_signal(signal.SIGTERM)
-        saida, erro = p.communicate(timeout=30)
+        saida, erro = self.termina(p)
         self.assertNotEqual(p.returncode, 0)
         self.assertIn("interrompida", erro)
         self.assertTrue(saida.strip().splitlines()[-1].startswith("FAILED"))
         with self.assertRaises(ProcessLookupError):
             os.kill(pid, 0)
         self.assertEqual(list(self.tmpdir.iterdir()), [])
+
+
+    BLOQUEADO = MARCA + '''
+import time
+class T(unittest.TestCase):
+    def test_b(self):
+        marca("b")
+        for _ in range(600):
+            if (pathlib.Path(os.environ["MARCAS"]) / "liberar").exists():
+                return
+            time.sleep(0.1)
+'''
+
+    def sobe_com_b_bloqueado(self):
+        self.modulo("b", self.BLOQUEADO)
+        p = subprocess.Popen([sys.executable, str(self.repo / "scripts" / "suite-paralela.py")], cwd=self.repo,
+                             env=self.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.addCleanup(lambda: p.poll() is None and p.kill())
+        return p
+
+    def termina(self, p):
+        """O que falta de stdout e stderr, lido dos próprios objetos: o `communicate` lê do descritor e perde o que o
+        `readline` do `le_ate` já puxou para o buffer (a linha de test_c vinha junto da de test_a sob carga)."""
+        temporizador = threading.Timer(30, p.kill)
+        temporizador.start()
+        try:
+            saida, erro = p.stdout.read(), p.stderr.read()
+            p.wait()
+        finally:
+            temporizador.cancel()
+            p.stdout.close()
+            p.stderr.close()
+        return saida, erro
+
+    def le_ate(self, p, trecho):
+        """Lê o stderr ao vivo até a linha com `trecho`; devolve as linhas lidas (o módulo b segue bloqueado)."""
+        linhas, fim = [], time.monotonic() + 30
+        while time.monotonic() < fim:
+            linha = p.stderr.readline()
+            if not linha:
+                break
+            linhas.append(linha)
+            if trecho in linha:
+                return linhas
+        self.fail(f"sem a linha {trecho!r} antes do fim: {linhas}")
+
+    def test_linha_por_modulo_sai_antes_do_fim(self):  # E23.23
+        p = self.sobe_com_b_bloqueado()
+        linhas = self.le_ate(p, "unidade test_a ")
+        self.assertIsNone(p.poll(), "a linha do test_a tem de sair com a suíte ainda rodando (test_b bloqueado)")
+        self.assertRegex(linhas[-1], r"^suite-paralela: unidade test_a \d+\.\d s \(processo \d\)$")
+        (self.marcas / "liberar").write_text("")
+        saida, erro = self.termina(p)
+        self.assertEqual(p.returncode, 0, saida + erro)
+        self.assertEqual(saida.strip().splitlines()[-1], "OK")  # a saída final não mudou
+        tudo = "".join(linhas) + erro
+        for nome in ("test_a", "test_b", "test_c"):
+            self.assertIn(f"suite-paralela: unidade {nome} ", tudo)
+
+    def test_sigterm_deixa_o_resumo_de_quem_rodava(self):  # E23.23
+        p = self.sobe_com_b_bloqueado()
+        self.le_ate(p, "unidade test_a ")
+        fim = time.monotonic() + 30
+        while time.monotonic() < fim and not any(n.name.startswith("b-") for n in self.marcas.iterdir()):
+            time.sleep(0.05)
+        time.sleep(0.5)  # o `inicio` de test_b já está no arquivo de tempos; dá folga para a leitura marcar um tempo > 0
+        p.send_signal(signal.SIGTERM)
+        saida, erro = self.termina(p)
+        self.assertNotEqual(p.returncode, 0)
+        self.assertRegex(erro, r"suite-paralela: rodando test_b há \d+\.\d s \(processo \d\)")
+        self.assertNotIn("rodando test_a", erro)  # o que terminou não entra no resumo de quem rodava
+        self.assertTrue(saida.strip().splitlines()[-1].startswith("FAILED"))
 
 
 class TetoDePulados(unittest.TestCase):

@@ -1,0 +1,76 @@
+{
+  "pedido": "v0457-fila27",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M16",
+      "guarda": "FILA-27 A-F27-1: o arquivo da consulta abre sem bloquear (FIFO sem escritor não trava o hook)",
+      "arquivo": "hooks/parecer.py",
+      "de": "    descritor = os.open(caminho, os.O_RDONLY | getattr(os, \"O_NONBLOCK\", 0))",
+      "para": "    descritor = os.open(caminho, os.O_RDONLY)",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_fifo_em_arroba_arq_recusa_sem_esperar"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "FILA-27 A-F27-1: o que não é arquivo regular (conferido no descritor) não dá para ler",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):\n            raise OSError",
+      "para": "        if False:\n            raise OSError",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_fifo_em_arroba_arq_recusa_sem_esperar"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "FILA-27 A-F27-2: argumento com $( ), $VAR ou crase torna a consulta ilegível",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if any(map(expande, args)):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "FILA-27 A-F27-3: relativo com a pasta desconhecida (cd não resolvido) não dá para ler",
+      "arquivo": "hooks/parecer.py",
+      "de": "            if pasta is None and not os.path.isabs(arq):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "FILA-27 A-F27-3: o absoluto continua lido com a pasta desconhecida",
+      "arquivo": "hooks/parecer.py",
+      "de": "            if pasta is None and not os.path.isabs(arq):",
+      "para": "            if pasta is None:",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "FILA-27 A-F27-3: os arquivos relativos se leem na pasta que o hook resolveu (None depois de cd não resolvido), não na do gh",
+      "arquivo": "hooks/parecer.py",
+      "de": "            pronto_por_graphql(hook, raiz_gh, parte[1], pasta)",
+      "para": "            pronto_por_graphql(hook, raiz_gh, parte[1], raiz_gh)",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "FILA-27 A-F27-3: com a pasta desconhecida, o absoluto se lê sem pasta de base (sem erro interno)",
+      "arquivo": "hooks/parecer.py",
+      "de": "ler_regular(os.path.join(pasta or \"\", arq))",
+      "para": "ler_regular(os.path.join(pasta, arq))",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    }
+  ]
+}

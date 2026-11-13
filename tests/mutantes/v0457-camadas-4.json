@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "E6: o motivo vira recusa",
+      "arquivo": "bin/forge_dono.py",
+      "de": "            if motivo := falta_de_origem(campos_de_origem(texto)):",
+      "para": "            if (motivo := falta_de_origem(campos_de_origem(texto))) and False:",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_corte_recomendado_sem_campos_e_recusado_sem_gravar"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "M-E7-8: a recomendada é a marcada, não a primeira",
+      "arquivo": "bin/forge_dono.py",
+      "de": "questoes.get(n, {}).items() if \"recomendada\" in marcas(texto)]",
+      "para": "questoes.get(n, {}).items() if True]",
+      "testes": [
+        "tests.test_forge_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "M-E7-8: recomendada única",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if len(recomendadas) == 1 and recomendadas[0] != letra:",
+      "para": "if len(recomendadas) >= 1 and recomendadas[0] != letra:",
+      "testes": [
+        "tests.test_forge_dono.RecomendacaoRevertida.test_prosa_e_recomendada_ambigua_ficam_sem_marca"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "E7: sem pergunta, nada a ler",
+      "arquivo": "bin/forge_dono.py",
+      "de": "return opcoes_da_pergunta(perguntas[-1][1]) if perguntas else {}",
+      "para": "return opcoes_da_pergunta(perguntas[-1][1]) if perguntas and False else {}",
+      "testes": [
+        "tests.test_forge_dono.RecomendacaoRevertida.test_escolha_contra_a_recomendada_leva_a_marca"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "M-E7-2: prosa não é lida",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if not tokens or not all(CODIGO.fullmatch(t) for t in tokens):",
+      "para": "if not tokens:",
+      "testes": [
+        "tests.test_forge_dono.RecomendacaoRevertida.test_prosa_e_recomendada_ambigua_ficam_sem_marca"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "E7: o pedido sem pergunta diz o motivo",
+      "arquivo": "bin/forge_dono.py",
+      "de": "ler_resposta(questoes, literal) if questoes else",
+      "para": "ler_resposta(questoes, literal) if True else",
+      "testes": [
+        "tests.test_forge_dono.RecomendacaoRevertida.test_codigos_que_nao_se_leem_sao_recusados"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "E7: código que não se lê é recusado",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if ambiguas or not escolhas:\n        return {}, f\"o literal em códigos",
+      "para": "    if not escolhas:\n        return {}, f\"o literal em códigos",
+      "testes": [
+        "tests.test_forge_dono.RecomendacaoRevertida.test_codigos_que_nao_se_leem_sao_recusados"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "E6: a decisão de corte sem origem é recusada",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if motivos := recusa_de_corte(questoes, escolhas):\n        return {}, \"; \".join(motivos)",
+      "para": "    if (motivos := recusa_de_corte(questoes, escolhas)) and False:\n        return {}, \"; \".join(motivos)",
+      "testes": [
+        "tests.test_forge_dono.TravaDeOrigem.test_resposta_a_pergunta_antiga_de_corte_volta_como_pergunta"
+      ]
+    }
+  ]
+}

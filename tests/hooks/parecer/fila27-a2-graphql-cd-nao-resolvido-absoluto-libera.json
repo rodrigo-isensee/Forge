@@ -1,0 +1,37 @@
+{
+  "descricao": "FILA-27 A2 (A-F27-3): depois de um cd que o hook não resolve, -F query=@arq absoluto continua lido, e a consulta de lá não tira o rascunho.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "q.graphql": "mutation { markPullRequestReadyForReview(input: {pullRequestId: \"PR_1\"}) { clientMutationId } }\n",
+    "wt/q.graphql": "query { viewer { login } }\n"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "melhoria/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.melhoria/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cd \"$WT\" && gh api graphql -F query=@{raiz}/wt/q.graphql"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -14,6 +14,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import sem_manutencao  # noqa: E402
+from apoio_sandbox import exigir  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -51,7 +52,7 @@ class Mapa(unittest.TestCase):
                                     "test_pre_push_afetados"],
             "bin/forge-placar": ["evals.test_placar", "test_forge"],  # 0.43.1, frente I
             ".devcontainer/devcontainer.json": ["test_forge"],  # 0.43.1, frente A
-            "bin/forge-doutor": ["test_atualizar", "test_doutor", "test_forge", "test_novo_projeto"],
+            "bin/forge-doutor": ["test_atualizar", "test_doutor", "test_forge", "test_medidas_m14b", "test_novo_projeto"],
             "bin/forge-sugerir": ["test_forge", "test_sugerir"],
             "scripts/ci-local": ["test_ci_local", "test_forge", "test_testes_tocados"],
         }
@@ -62,9 +63,9 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 68)  # 0.44.2: + test_decisor (orkastery 3), test_forge_run (S5), test_meta (S4), test_pesado_fila (orkastery 5), test_aq1_texto e test_textos_034 (troca dos testes de frase). 0.44.1: + test_v0441_review (review), test_acao_da_reprovacao (O1) e test_forge_dono (O4, S2, S8, X1). 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
+        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 79)  # v046 E20.29: + test_hook_git_comum. 0.45.7: + test_r_limites (AV5), test_forge_medidas (F6, E5.6), test_forge_dora (TM-16) e test_hooks_fila27 (FILA-27). v046 E12.1: + test_git_rede_config. 0.45.6: + test_forge_check_base_igual, test_forge_check_versao_livre e test_pre_push_link_apoio (junção), test_metricas_portoes (E1.1) e test_metricas_main_vermelha (E5.1). 0.44.2: + test_decisor (orkastery 3), test_forge_run (S5), test_meta (S4), test_pesado_fila (orkastery 5), test_aq1_texto e test_textos_034 (troca dos testes de frase). 0.44.1: + test_v0441_review (review), test_acao_da_reprovacao (O1) e test_forge_dono (O4, S2, S8, X1). 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
         for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
-                       "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_medida_cpu", "test_hook_ansi_c"):
+                       "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_forge_medidas", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
 
     def test_modulos_do_forge_check_rodam_os_testes_dele(self):  # FILA-31 F6: bin/forge_provas.py entra com os outros módulos
@@ -215,6 +216,68 @@ class Convencao(unittest.TestCase):
             with self.subTest(caminho):
                 self.assertFalse(any(re.fullmatch(p, caminho) for p, _ in self.f.MAPA))
                 self.assertEqual(self.f.planejar([caminho], RAIZ)[0], "dirigido")
+
+
+class MapaDosNovos(unittest.TestCase):
+    """E14.1 (FORGE-TESTES-MAPA): comando, módulo do bin/ e spec de mutantes novos, sem regra no MAPA nem teste pela
+    convenção O2, levam aos testes deles em vez de cair na suíte completa; o que não se resolve segue na completa."""
+
+    SPEC_REAL = ('{"pedido": "varredura-caminho-pessoal", "executor": "unittest", "mutantes": ['
+                 '{"id": "P1", "testes": ["tests.test_forge.VerificarContribuicao.test_home_com_ponto_no_nome_falha"]},'
+                 '{"id": "P2", "testes": ["tests.evals.test_placar.Placar.test_x"]}]}')
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+
+    def brinquedo(self, **arquivos):
+        t = tempfile.TemporaryDirectory()
+        self.addCleanup(t.cleanup)
+        raiz = Path(t.name)
+        base = {"tests/test_forge.py": "x = 1\n", "tests/evals/__init__.py": "", "tests/evals/test_placar.py": "x = 1\n"}
+        for rel, texto in {**base, **arquivos}.items():
+            (raiz / rel).parent.mkdir(parents=True, exist_ok=True)
+            (raiz / rel).write_text(texto, encoding="utf-8")
+        return raiz
+
+    def test_comando_novo_leva_ao_teste_dele_ao_test_forge_e_a_quem_o_cita(self):
+        raiz = self.brinquedo(**{"tests/test_ritmo.py": "x = 1\n", "tests/test_cita.py": "RAIZ / 'bin/forge-ritmo'\n",
+                                 "tests/test_outro.py": "'forge-ritmo-x' 'meu-forge-ritmo' 'forge-ritmox'\n"})
+        self.assertEqual(self.f.planejar(["bin/forge-ritmo"], raiz), ("dirigido", ["test_cita", "test_forge", "test_ritmo"]))
+        self.assertIn("test_ritmo", self.f.planejar_afetados(["bin/forge-ritmo"], raiz)[0])
+
+    def test_comando_novo_sem_o_teste_dele_segue_na_completa(self):
+        raiz = self.brinquedo(**{"tests/test_cita.py": "'bin/forge-ritmo'\n"})
+        self.assertEqual(self.f.planejar(["bin/forge-ritmo"], raiz), ("completo", ["bin/forge-ritmo sem mapa"]))
+
+    def test_modulo_novo_do_bin_leva_a_quem_o_importa_e_ao_test_forge(self):
+        raiz = self.brinquedo(**{"tests/test_leitor.py": "import forge_fontes\n",
+                                 "tests/test_outro.py": "'forge_fontes_x' 'o_forge_fontes'\n"})
+        self.assertEqual(self.f.planejar(["bin/forge_fontes.py"], raiz), ("dirigido", ["test_forge", "test_leitor"]))
+        self.assertEqual(self.f.planejar(["bin/forge_outro.py"], raiz), ("dirigido", ["test_forge"]))
+
+    def test_spec_nova_leva_aos_modulos_do_campo_testes(self):
+        raiz = self.brinquedo(**{"tests/mutantes/varredura-caminho-pessoal.json": self.SPEC_REAL})
+        caminho = "tests/mutantes/varredura-caminho-pessoal.json"
+        self.assertEqual(self.f.planejar([caminho], raiz), ("dirigido", ["evals.test_placar", "test_forge"]))
+        self.assertIn("evals.test_placar", self.f.planejar_afetados([caminho], raiz)[0])
+
+    def test_spec_ilegivel_sem_teste_ou_com_teste_de_fora_segue_na_completa(self):
+        casos = {"quebrada": "{", "nula": '{"mutantes": null}', "vazia": '{"mutantes": []}',
+                 "fora": '{"mutantes": [{"testes": ["test_forge.X.y"]}]}', "numero": '{"mutantes": [{"testes": [1]}]}',
+                 "uma-fora": '{"mutantes": [{"testes": ["tests.test_forge.X.y", "outro.test_x"]}]}'}
+        raiz = self.brinquedo(**{f"tests/mutantes/{nome}.json": texto for nome, texto in casos.items()})
+        for nome in (*casos, "ausente"):
+            caminho = f"tests/mutantes/{nome}.json"
+            with self.subTest(nome):
+                try:
+                    plano = self.f.planejar([caminho], raiz)
+                except Exception as e:  # noqa: BLE001  levantar é falha do caso, não erro do teste
+                    plano = f"levantou {type(e).__name__}"
+                self.assertEqual(plano, ("completo", [f"{caminho} sem mapa"]))
+
+    def test_o_modulo_comum_do_bin_segue_com_os_testes_do_forge_mutante(self):
+        self.assertIn("test_forge_mutante", self.f.planejar(["bin/forge_apoio_testes.py"], RAIZ)[1])
 
 
 class MapaCobreOQueOsTestesLeem(unittest.TestCase):
@@ -1402,12 +1465,19 @@ class MedidaDaVagaPesada(unittest.TestCase):
         self.assertEqual(len(self.log().splitlines()), 4)  # a quebra de linha no valor não abre linha nova
 
     def test_conta_a_pesada_viva_sem_gravar_a_linha_de_comando_dela(self):
+        exigir(self, "proc")
         falso = self.dir / "marca-a7" / "suite-paralela.py"
         falso.parent.mkdir()
         falso.write_text("import time\ntime.sleep(120)\n", encoding="utf-8")
         processo = subprocess.Popen([sys.executable, "-I", str(falso)])
         self.addCleanup(processo.wait)
         self.addCleanup(processo.kill)
+        cmdline = Path("/proc") / str(processo.pid) / "cmdline"
+        fim = time.monotonic() + 30  # espera o estado (a pesada já aparece no /proc), não uma janela fixa
+        lido = lambda: cmdline.read_bytes() if cmdline.exists() else b""
+        while b"suite-paralela.py" not in lido() and time.monotonic() < fim:
+            time.sleep(0.1)
+        self.assertIn(b"suite-paralela.py", lido())
         self.rodar_com()
         self.assertGreaterEqual(int(re.search(r"outras=(\d+)", self.log()).group(1)), 1)
         self.assertNotIn("marca-a7", self.log())

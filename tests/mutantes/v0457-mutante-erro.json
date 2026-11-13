@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-mutante-erro",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "erro só mata com o controle verde (erro_mata)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if any(not (erro_mata and erro_que_mata(declarados, e)) for e in erros):",
+      "para": "if any(not erro_que_mata(declarados, e) for e in erros):",
+      "testes": [
+        "tests.test_forge_mutante.Veredito.test_erro_do_teste_declarado_mata_so_com_o_controle_verde"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "erro só mata se for do teste declarado",
+      "arquivo": "bin/forge-mutante",
+      "de": "if any(not (erro_mata and erro_que_mata(declarados, e)) for e in erros):",
+      "para": "if any(not erro_mata for e in erros):",
+      "testes": [
+        "tests.test_forge_mutante.Veredito.test_erro_que_nao_e_do_teste_declarado_segue_invalido"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "erro de carga do módulo não mata",
+      "arquivo": "bin/forge-mutante",
+      "de": "return not e.get(\"carga\") and any(cobre(d, e[\"id\"]) for d in declarados)",
+      "para": "return any(cobre(d, e[\"id\"]) for d in declarados)",
+      "testes": [
+        "tests.test_forge_mutante.Veredito.test_erro_que_nao_e_do_teste_declarado_segue_invalido"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "erro fora dos testes declarados (fixture) não mata",
+      "arquivo": "bin/forge-mutante",
+      "de": "return not e.get(\"carga\") and any(cobre(d, e[\"id\"]) for d in declarados)",
+      "para": "return not e.get(\"carga\")",
+      "testes": [
+        "tests.test_forge_mutante.Veredito.test_erro_que_nao_e_do_teste_declarado_segue_invalido"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "teste declarado com erro conta como rodado",
+      "arquivo": "bin/forge-mutante",
+      "de": "e[\"res\"] in (\"ok\", \"falha\", \"erro\") for e in registro",
+      "para": "e[\"res\"] in (\"ok\", \"falha\") for e in registro",
+      "testes": [
+        "tests.test_forge_mutante.Veredito.test_erro_do_teste_declarado_mata_so_com_o_controle_verde"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "falha por asserção vem antes do erro",
+      "arquivo": "bin/forge-mutante",
+      "de": "    if any(e[\"res\"] == \"falha\" for e in registro):\n        return \"morreu\", \"\"",
+      "para": "    if False:\n        return \"morreu\", \"\"",
+      "testes": [
+        "tests.test_forge_mutante.Veredito.test_falha_com_erro_e_morte_por_assercao"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "só erro restante é morte por erro; sem erro sobrevive",
+      "arquivo": "bin/forge-mutante",
+      "de": "return (\"morreu\", MORREU_POR_ERRO) if erros else (\"sobreviveu\", \"\")",
+      "para": "return (\"morreu\", MORREU_POR_ERRO) if False else (\"sobreviveu\", \"\")",
+      "testes": [
+        "tests.test_forge_mutante.Veredito.test_erro_do_teste_declarado_mata_so_com_o_controle_verde"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "registro marca o erro de carga",
+      "arquivo": "bin/forge-mutante",
+      "de": "\"carga\": ident != bruto}",
+      "para": "\"carga\": False}",
+      "testes": [
+        "tests.test_forge_mutante.Veredito.test_registro_marca_o_erro_de_carga"
+      ]
+    }
+  ]
+}

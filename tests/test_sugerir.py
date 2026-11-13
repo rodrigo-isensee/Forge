@@ -349,7 +349,7 @@ class Higiene(Base):
                     ("SISTEMA-AÇÃO", "AÇÃO")])
 
     def test_caminhos_windows_e_unc(self):
-        self.casos([("C:\\Users\\bob\\app", "bob"), ("C:/Users/bob/app", "bob"), ("\\\\servidor\\share\\dir", "servidor")])
+        self.casos([("C:\\Users\\bob\\app", "bob"), ("C:/" + "Users/bob/app", "bob"), ("\\\\servidor\\share\\dir", "servidor")])
 
     def test_aviso_nao_afirma_que_o_texto_esta_limpo(self):
         _, saida = self.rodar(TEXTO, respostas=["n"])

@@ -21,7 +21,9 @@ Os módulos do plano dirigido rodam em paralelo por `scripts/suite-partes.py` (o
                 1 = sem prova ou com falha no HEAD; 2 = uso inválido, erro do git ou sem veredito.
 
 Convenção (O2, 0.44.1): sem regra no mapa, bin/forge-x leva a tests/test_forge_x.py, hooks/x.py e scripts/x.py a
-tests/test_x.py (se o arquivo existe); o mapa fica para as exceções.
+tests/test_x.py (se o arquivo existe); o mapa fica para as exceções. Sem as duas (E14.1): bin/forge-x leva a tests/test_x.py,
+test_forge e quem cita forge-x; bin/forge_x.py, a quem cita forge_x e test_forge; tests/mutantes/<spec>.json, aos módulos
+do campo `testes` da spec.
 Falha fechada: qualquer caminho sem entrada no mapa nem teste pela convenção, `tests/config.json`, este script (que contém o mapa),
 um módulo mapeado que não existe, um erro ao ler o git e todo módulo de teste no diff (alterado, novo ou apagado:
 ele pode importar outro, ler todos os de tests/ ou carregá-los pelo nome) fazem rodar a suíte completa. O `--vermelho`
@@ -87,19 +89,19 @@ NOME_DE_MODULO = re.compile(r"test_[a-z0-9_]+")
 # Os módulos que saíram de `test_hooks` (HOOKS-CORPUS-RAPIDO) rodam onde `test_hooks` roda e executam o `bin/forge-check`
 # pelo apoio `tests/apoio_volta_unica.py` (`test_doutor_relogio` o copia pelo apoio `tests/apoio_versao_defasada.py`).
 VOLTA_UNICA = ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades")
-FORGE_CHECK = ("test_anotar", "test_v0441_review", "test_brief_forma_aceita", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio", "test_qa_doutor_034",
+FORGE_CHECK = ("test_anotar", "test_forge_check_base_igual", "test_forge_check_versao_livre", "test_pre_push_link_apoio", "test_v0441_review", "test_brief_forma_aceita", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio", "test_qa_doutor_034",
                "test_conf_escopo", "test_conferencia_registrar", "test_decisao_aprovacao", "test_decisao_aprovacao_raiz", "test_erros_no_brief", "test_hook_ansi_c", "test_citacao_p2",
                "test_entrega_git_falha", "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks", "test_hooks_parecer_pasta",
-               "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_mensagem_conferente", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
+               "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_forge_medidas", "test_mensagem_conferente", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
                "test_testes_tocados", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
                "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt", "test_governanca", "test_selo_e_entrega",
-               "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados", "test_aq5_parecer_novo", "test_brief_gerar_custo",
-               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
+               "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados", "test_aq5_parecer_novo", "test_brief_gerar_custo", "test_git_rede_config",
+               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
 LEITORES_DE_TEXTO = ("test_anotar", "test_citacao", "test_clareza", "test_dependabot_modelo", "test_erros_no_brief",
                      "test_forge_mutante", "test_jarvis_nucleo", "test_modelos_projeto", "test_stack_prereq_sistema",
-                     "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09", "test_conferente_estavel", "test_jarvis_n_jar_a", "test_reval_delta", "test_orcamento_instrucao", "test_metricas_texto", "test_aq1_texto", "test_textos_034", "test_achado_teto_doc")  # EST-M4: a guarda C-2 lê agents/ e skills/
+                     "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09", "test_conferente_estavel", "test_jarvis_n_jar_a", "test_reval_delta", "test_orcamento_instrucao", "test_metricas_texto", "test_aq1_texto", "test_textos_034", "test_achado_teto_doc", "test_medidas_m14b")  # EST-M4: a guarda C-2 lê agents/ e skills/
 CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor",
             "test_modelos_citados") + LEITORES_DE_TEXTO
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
@@ -110,9 +112,10 @@ EVALS_DE_FORMA = ("evals.test_regressao_forma", "evals.test_erros_por_papel")  #
 MAPA = [
     (r"bin/forge-changelog", ("test_changelog", "test_conferir_release", "test_forge", "test_pre_push_afetados") + EVALS_DE_FORMA),  # PREPUSH-BARATAS
     (r"bin/forge-check", FORGE_CHECK + EVALS_DE_FORMA),
-    (r"bin/forge_(governanca|decisor|run|meta|provas)\.py", FORGE_CHECK),  # o forge-check importa o módulo ao montar os subcomandos (0.43.1 H)
+    (r"bin/forge_(governanca|decisor|run|meta|provas|dora)\.py", FORGE_CHECK),  # o forge-check importa o módulo ao montar os subcomandos (0.43.1 H)
+    (r"bin/forge_medidas\.py", ("test_forge_medidas", "test_medidas_m14b", "test_forge")),  # E5.6: o módulo da medida e do escape
     (r"bin/forge-placar", ("evals.test_placar", "test_forge")),  # 0.43.1, frente I
-    (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge", "test_novo_projeto")),
+    (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge", "test_novo_projeto", "test_medidas_m14b")),
     (r"bin/forge-adotar", ("test_adotar", "test_stack_python", "test_forge")),  # 0.45.0: adoção de projeto existente
     (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge", "test_reval_delta", "test_salvar_desfazer", "test_adotar", "test_stack_python")),  # EST-M4: guarda C-2; GREP-UGREP
     (r"bin/(forge-atualizar|forge_versoes\.py|forge-voltar-versao)", ("test_atualizar", "test_forge", "test_doutor")),
@@ -120,6 +123,9 @@ MAPA = [
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
     (r"bin/forge-sugerir", ("test_sugerir", "test_forge")),
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
+    # E14.1: o módulo comum é carregado pelo forge-testes e pelo forge-mutante, e os testes do forge-mutante não o citam
+    (r"bin/forge_apoio_testes\.py", ("test_testes_tocados", "test_forge_mutante", "test_pre_push_afetados",
+                                     "test_pre_push_parecer_curto", "test_forge", "test_pre_push_link_apoio")),
     (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge", "test_atualizar")),
     (r"hooks/doutor\.py", ("test_atualizar", "test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor") + VOLTA_UNICA),
     # hooks/agentes.py e hooks/_comum.py: o teto de agentes (R-TETO) e o hash do brief (R-BRIEF) rodam o script nos testes abaixo;
@@ -127,14 +133,14 @@ MAPA = [
     (r"hooks/.*", ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados",
                    "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10", "test_hook_ansi_c",
                    "test_hooks_parecer_pasta", "test_esperar_estado", "test_brief_forma_aceita", "test_conformidade_verde", "test_reval_delta", "test_selo_e_entrega",
-                   "test_classe_risco", "test_pesado_fila", "test_meta") + VOLTA_UNICA
+                   "test_classe_risco", "test_pesado_fila", "test_meta", "test_vigia") + VOLTA_UNICA
      + EVALS_DE_FORMA),  # EST-M4: guarda C-2
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados")),
-    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer")),
+    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve")),  # v046 E19.3 (A4): o teste lê e grava o script
     (r"stacks/.*", CONTEUDO + ("test_hooks", "test_adotar", "test_stack_python") + VOLTA_UNICA),
     (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks", "test_stack_python") + VOLTA_UNICA),
     (r"templates/projeto/docs/(reviews|qa|security|devops)/_modelo\.md", PUBLICADO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),  # o teste gera parecer do modelo
-    (r"templates/projeto/\.githooks/pre-push", PUBLICADO + ("test_prepush_so_docs",)),
+    (r"templates/projeto/\.githooks/pre-push", PUBLICADO + ("test_prepush_so_docs", "test_caminhos_extra_pre_push", "test_prepush_refs")),
     (r"(migrations|templates)/.*", PUBLICADO),
     (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
     (r"docs/hooks-fixtures\.md", CONTEUDO + ("test_indice_fixtures",)),  # Fase C: o índice gerado confere em dia
@@ -184,6 +190,11 @@ MINIMO_DA_AGULHA = 5  # nome de arquivo mais curto que isto (ex.: `x.py`) casari
 MODULO_DE_TESTE = re.compile(r"tests/(test_[a-z0-9_]+)\.py")
 SUBMODULO_DE_TESTE = re.compile(r"tests/((?:[a-z0-9_]+/)*test_[a-z0-9_]+)\.py")  # o da raiz ou o de um pacote de tests/
 ORACULO = re.compile(r"test_oraculo_[a-z0-9_]+")
+# E14.1 (FORGE-TESTES-MAPA): o que entra novo sem regra no MAPA nem teste pela convenção O2 deixa de cair na suíte completa.
+SUBCOMANDO = re.compile(r"bin/forge-([a-z][a-z0-9-]*)")  # bin/forge-x -> tests/test_x.py, test_forge e quem cita forge-x
+MODULO_DO_BIN = re.compile(r"bin/(forge_[a-z][a-z0-9_]*)\.py")  # bin/forge_x.py -> quem cita forge_x (o importa), e test_forge
+SPEC_DE_MUTANTES = re.compile(r"tests/mutantes/[a-z0-9][a-z0-9_.-]*\.json")  # -> os módulos do campo `testes` da spec
+TESTE_DA_SPEC = re.compile(r"tests\.((?:[a-z0-9_]+\.)*?test_[a-z0-9_]+)(?:\.[A-Za-z0-9_]+)*")
 
 
 def git(*args):
@@ -225,7 +236,7 @@ def planejar(caminhos, raiz=Path(".")):
             if re.fullmatch(padrao, caminho):
                 casou = destino
                 break
-        casou = casou or modulos_da_convencao(caminho, raiz)
+        casou = casou or modulos_da_convencao(caminho, raiz) or modulos_do_novo(caminho, raiz)
         if casou is None:
             return "completo", [f"{caminho} sem mapa"]
         modulos.update(casou)
@@ -247,6 +258,41 @@ def modulos_da_convencao(caminho, raiz=Path(".")):
     if not arquivo_do_modulo(modulo, raiz).is_file():
         return None
     return (modulo,) + VARREM_A_PASTA[achado.group(1)]
+
+
+def modulos_do_novo(caminho, raiz=Path(".")):
+    """E14.1: os módulos de um subcomando, módulo do bin/ ou spec de mutantes sem regra no MAPA, ou None (suíte completa).
+    O subcomando sem tests/test_<sub>.py e a spec ilegível, sem teste ou com teste fora de tests.test_* seguem na completa."""
+    sub = SUBCOMANDO.fullmatch(caminho)
+    if sub:
+        modulo = "test_" + sub.group(1).replace("-", "_")
+        if not arquivo_do_modulo(modulo, raiz).is_file():
+            return None
+        return tuple(sorted({modulo, "test_forge"} | leitores(f"forge-{sub.group(1)}", raiz)))
+    do_bin = MODULO_DO_BIN.fullmatch(caminho)
+    if do_bin:
+        return tuple(sorted({"test_forge"} | leitores(do_bin.group(1), raiz)))
+    if SPEC_DE_MUTANTES.fullmatch(caminho):
+        return modulos_da_spec(raiz / caminho)
+    return None
+
+
+def leitores(nome, raiz=Path(".")):
+    """Módulos de teste que citam `nome` como palavra inteira (forge-x não casa com forge-xy nem com o_forge-x)."""
+    palavra = re.compile(rf"(?<![\w-]){re.escape(nome)}(?![\w-])")
+    return {m for m, texto in textos_dos_testes(raiz).items() if palavra.search(texto)}
+
+
+def modulos_da_spec(arquivo):
+    """Os módulos citados no campo `testes` de cada mutante da spec, ou None (falha fechada)."""
+    try:
+        ids = [t for m in json.loads(arquivo.read_text(encoding="utf-8"))["mutantes"] for t in m["testes"]]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    achados = [TESTE_DA_SPEC.fullmatch(t) if isinstance(t, str) else None for t in ids]
+    if not achados or None in achados:
+        return None
+    return tuple(sorted({a.group(1) for a in achados}))
 
 
 def arquivo_do_modulo(modulo, raiz=Path(".")):
@@ -300,7 +346,8 @@ def planejar_afetados(caminhos, raiz=Path(".")):
     modulos, notas = set(), []
     for caminho in caminhos:
         achados = set(citam(textos, {caminho}))
-        regra = next((destino for padrao, destino in MAPA if re.fullmatch(padrao, caminho)), None) or modulos_da_convencao(caminho, raiz)
+        regra = (next((destino for padrao, destino in MAPA if re.fullmatch(padrao, caminho)), None)
+                 or modulos_da_convencao(caminho, raiz) or modulos_do_novo(caminho, raiz))
         achados.update(regra or ())
         for padrao, agulhas in EXERCITAM:
             if re.fullmatch(padrao, caminho):
