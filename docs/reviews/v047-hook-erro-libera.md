@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-hook-erro-libera
-commit: 9e3f57c66510ceff571fd59e3153b145b8d58e6b
+commit: 4c350b2f78a2f5fc5753f74be8d5fb760c8bebbc
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-13
@@ -32,3 +32,22 @@ Aprovado. Condições conferidas no código e nos testes:
 Teto M14: 432 linhas de código e teste (`git diff --numstat --no-renames origin/develop...HEAD` nos caminhos que contam), acima das 150; uma classe só (falha fechada do hook por erro e prazo), com corpus próprio. O corpo do PR precisa de `teto: excedido, 432 linhas, <motivo>`.
 
 Provas rodadas por mim: `tests/test_hook_erro_libera.py` com 11 testes, OK (35 s); `bin/forge-mutante` nas 5 specs (`v047-hook-erro-libera.json` e `-2` a `-5`): todos os mutantes morreram, nenhum sobrevivente (M3, M4, M15, M20 e M23 morrem por erro do teste declarado, não por asserção). Sem PR aberto, não há CI a citar; a suíte inteira fica para o CI do PR.
+
+## Revalidação (E3.35) · delta 9e3f57c6..4c350b2f
+
+Lido `forge-check parecer delta`: intervalo 9e3f57c6..4c350b2f, domínio de código e testes (hooks/conformidade.py, hooks/_comum.py, bin/forge-testes, 14 fixtures `errointerno-*` novos, specs `-2` e `-5`, `test_hook_erro_libera.py`, `test_testes_tocados.py`). Instância que não fez a entrega.
+
+- `ESCRITORES` agora inclui `CAMINHOS_NO_GIT` (rm, mv, checkout, restore) e `GIT_GRAVA_ARQUIVO` (apply, am), reaproveitando as listas da guarda normal, sem lista paralela.
+- `BASE_TROCADA` (cd, pushd, popd, -C, --chdir, --git-dir, --work-tree, GIT_DIR, GIT_WORK_TREE) marca a linha que escreve; a aspa antes do `cd` pega `sh -c '...'` e `bash -c "..."`. Sondei à mão: `cd docs && cp`, `sh -c 'cd ..'`, `git -Cdocs checkout`, `env -C`, `command cd` marcam; `cdrom=1 cp` não casa `cd`; `cd build && ls` libera (fixture legítimo).
+- Os 14 fixtures cobrem o ramo de falha de cada verbo e o legítimo (`git-checkout-de-branch-libera`, `cd-e-ls-libera`); os mínimos do teste subiram (39 e 7).
+- Achados A1 a A3 da passada anterior seguem recomendados e não bloqueiam.
+
+## Achados da revalidação
+- A4 (recomendado) hooks/conformidade.py:2831 · `git -c core.worktree=<fora> checkout -- a` (relativo, sem termo da política) não marca no erro interno: `BASE_TROCADA` não vê `-c core.worktree`. Gatilho remoto (exige erro interno do hook no mesmo comando) e a guarda normal já trata; somar `core\.worktree` na próxima passada.
+
+## Parecer da revalidação
+Aprovado no 4c350b2f. Sem bloqueante: nenhum defeito provado nem requisito ou segurança com gatilho.
+
+Teto M14: 445 linhas de código e teste, acima das 150; uma classe só (falha fechada do hook por erro e prazo), com corpus próprio. O corpo do PR precisa de `teto: excedido, 445 linhas, <motivo>`.
+
+Provas rodadas por mim: `python3 -m unittest -q tests.test_hook_erro_libera tests.test_testes_tocados` 161 testes, OK (1 pulado por /proc do sandbox, alheio ao diff). `bin/forge-mutante` nas specs `v047-hook-erro-libera.json`, `-2` e `-5`: todos os mutantes morreram, nenhum sobrevivente (inclui M12, M13 e M34 a M40). Sem PR aberto, não há CI a citar; a suíte inteira fica para o CI do PR.
