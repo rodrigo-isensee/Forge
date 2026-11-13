@@ -11,6 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import sem_manutencao  # noqa: E402
+from apoio_forge_check_rapido import comando_do_forge_check  # noqa: E402
 from test_voltas import FORGE_CHECK, Raiz  # noqa: E402
 from test_forge import ambiente_limpo  # noqa: E402
 
@@ -34,6 +35,14 @@ class Fora(Raiz):
         self.pedido.write_text(PEDIDO, encoding="utf-8")
         self.brief = self.fora / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-1.md"
         self.brief.write_text(BRIEF, encoding="utf-8")
+
+    def rodar_em(self, cwd, *args):
+        """Como `rodar`, mas com `cwd` controlado: o caminho relativo do brief não depende de onde o clone está."""
+        env = dict(os.environ, HOME=str(self.tmp / "home"))
+        inicio = [sys.executable, FORGE_CHECK] if self.SCRIPT_DIRETO else comando_do_forge_check()
+        r = subprocess.run([*inicio, "--raiz", str(self.tmp), *args],
+                           capture_output=True, text=True, env=env, cwd=cwd)
+        return r.returncode, r.stdout.splitlines()
 
     def test_pedido_e_brief_na_raiz_de_brief_sao_lidos_com_origem(self):
         rc, saida, _ = self.rodar("brief", "docs/briefs/pedido-sintetico-dev-exemplo-1.md", "--pedido", "pedido-sintetico")
@@ -71,9 +80,16 @@ class Fora(Raiz):
                 self.assertFalse([l for l in saida if l.startswith("origem:")], saida)
         (self.fora / "docs" / "briefs" / "elo.md").symlink_to(alvo)
         (self.fora / "docs" / "outro.md").write_text(BRIEF, encoding="utf-8")
+        (self.tmp / "x.md").write_text(BRIEF, encoding="utf-8")  # o alvo de ../../x.md se ele fosse resolvido de docs/briefs/ da raiz falsa; do cwd abaixo, o arquivo não existe
+        cwd = self.tmp / "c1" / "c2" / "c3"  # de c1/c2/c3, ../../x.md é c1/x.md, que não existe: a recusa é a leitura falha, nunca o conteúdo plantado
+        cwd.mkdir(parents=True)
         for arquivo in ("docs/briefs/elo.md", "docs/outro.md", "../../x.md"):
             with self.subTest(arquivo):
-                self.assertEqual(self.rodar("brief", arquivo, "--pedido", "pedido-sintetico")[0], 2)
+                rc, saida = self.rodar_em(cwd, "brief", arquivo, "--pedido", "pedido-sintetico")
+                self.assertEqual(rc, 2, saida)
+                self.assertFalse([l for l in saida if l.startswith(("origem:", "conferencia-brief-regra:"))], saida)
+                if arquivo == "../../x.md":
+                    self.assertTrue([l for l in saida if l.startswith("brief: não consegui ler")], saida)
 
     def test_mesmo_nome_nas_duas_raizes_a_raiz_do_repositorio_vence(self):
         (self.tmp / "docs" / "pedidos").mkdir(parents=True)

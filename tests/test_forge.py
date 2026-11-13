@@ -1338,12 +1338,31 @@ class PrepararEstacao(unittest.TestCase):
                 falso = bin_falso / nome
                 falso.write_text(f'#!/bin/sh\necho "{nome} $*" >> "{registro}"\nexit 1\n')
                 falso.chmod(0o755)
-            env = ambiente_limpo()
-            env.update(HOME=str(home), PATH=f"{bin_falso}:{env['PATH']}")
+            # leitura do estado do sistema: o falso (log à parte) diz "não instalado", sem consultar o dpkg real
+            falso = bin_falso / "dpkg-query"
+            falso.write_text("#!/bin/sh\nexit 1\n")
+            falso.chmod(0o755)
+            # R-CUSTO: a CLI real faria `plugin list` pela rede; o falso (log à parte) sai 1, como um plugin ausente
+            claude_log = Path(tmp) / "claude-chamadas"
+            falso = bin_falso / "claude"
+            falso.write_text(f'#!/bin/sh\necho "$*" >> "{claude_log}"\nexit 1\n')
+            falso.chmod(0o755)
+            # sentinela: um NVM_DIR herdado de fora do clone, com um nvm.sh que deixa marca se for carregado
+            alheio = Path(tmp) / "alheio-nvm"
+            alheio.mkdir()
+            marca = Path(tmp) / "nvm-alheio-carregado"
+            (alheio / "nvm.sh").write_text(f'touch "{marca}"\n')
+            with mock.patch.dict(os.environ, {"NVM_DIR": str(alheio)}):
+                env = ambiente_limpo()
+            self.assertEqual(env["NVM_DIR"], str(alheio))  # o ambiente do teste está contaminado de propósito
+            env.update(HOME=str(home), NVM_DIR=str(home / ".nvm"), PATH=f"{bin_falso}:{env['PATH']}")
             r = subprocess.run(["bash", str(RAIZ / "scripts/preparar-estacao.sh"), "--simular"],
                                env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL)
             self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertFalse(marca.exists(), "carregou o nvm.sh de fora do clone")
             self.assertIn("[simular]", r.stdout)
+            self.assertEqual(claude_log.read_text().splitlines(), ["plugin list"])
+            self.assertIn("[simular] claude plugin install forge@forge --scope user", r.stdout)
             self.assertFalse(registro.exists(), "chamou comando que altera o sistema")
             for criado in (".nvm", "Forge", ".local/bin/jarvis", ".local/bin/jarvis-forge"):
                 self.assertFalse((home / criado).exists(), f"criou {criado} no HOME")
@@ -1382,7 +1401,7 @@ class PrepararEstacao(unittest.TestCase):
         env = ambiente_limpo()
         for chave in ("XDG_DATA_HOME", "GH_CONFIG_DIR"):
             env.pop(chave, None)
-        env.update(HOME=str(home), PATH=f"{bin_falso}:{env['PATH']}", FORGE_PERSISTENTE=str(persist))
+        env.update(HOME=str(home), NVM_DIR=str(home / ".nvm"), PATH=f"{bin_falso}:{env['PATH']}", FORGE_PERSISTENTE=str(persist))
         r = subprocess.run(["bash", str(RAIZ / "scripts/preparar-estacao.sh"), "--container", *args],
                            env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL)
         chamadas = registro.read_text() if registro.exists() else ""

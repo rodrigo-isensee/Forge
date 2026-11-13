@@ -1,0 +1,86 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G1",
+      "guarda": "E20.6 (S1): o resto que cai no .git entra nos alvos conferidos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        alvos = [*alvos, no_git] if no_git else alvos",
+      "para": "        alvos = [*alvos, no_git] if None else alvos",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G2",
+      "guarda": "E20.6 (S1): `$(…)` entre aspas ou opaca conta até o último `)`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if SUBSTITUICAO.search(expandido):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G3",
+      "guarda": "E20.6: sem `$(…)` nem variável, nada a somar (o caminho literal segue conferido); sem o retorno, o resto é o caminho inteiro e `config/app.json` recusaria pela regra (QA A2)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not fins:\n            return None",
+      "para": "        if False:\n            return None",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G4",
+      "guarda": "E20.6 (sem falso positivo): só o resto que começa por nome do diretório do git vai para o .git",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not partes or partes[0] not in self.nomes_do_git(pasta):",
+      "para": "        if not partes:",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G5",
+      "guarda": "E20.6: os nomes que existem no diretório comum também contam (description)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "set(os.listdir(comum)) if comum else NOMES_DO_GIT",
+      "para": "set(os.listdir(comum)) if None else NOMES_DO_GIT",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G6",
+      "guarda": "E20.6 (S2) e volta 1 (A2 da E20.8): a variável vai até o `}` que fecha `${…}` (`${d%/}/config`)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "SO_VARIAVEL = re.compile(r\"\\$\\{[^}]*\\}|\\$\\w+|`\")",
+      "para": "SO_VARIAVEL = re.compile(r\"\\$\\w+|`\")",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G7",
+      "guarda": "E20.6: o diretório comum da cópia (lido do disco) dá os nomes que existem no .git",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        comum = topo and diretorio_comum(topo)",
+      "para": "        comum = topo and None",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G8",
+      "guarda": "volta 1 (A1 e A3 da E20.8): `$(git rev-parse --git-dir|--git-path x)` e a crase viram o `.git` da raiz",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            comando = REV_PARSE_DO_GIT.sub(",
+      "para": "            comando = comando if True else REV_PARSE_DO_GIT.sub(",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    }
+  ]
+}
