@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v047-ci-changelog-base
+pedido: v047
 branch: melhoria/v047-ci-changelog-base
 commit: 136cf316b34434dbefc9dbe3dd41ca98c49b3fbb
 parecer: aprovado
