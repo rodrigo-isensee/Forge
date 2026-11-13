@@ -19,13 +19,12 @@ Parecer: aprovado na revalidação por delta até c734a22a (A1 e A2 da primeira 
 Item 9 do pedido melhorias-de-projeto-1311 (E1.9): a migração `migrations/0.47.1/migrar` cria `docs/security/_modelo.md` em projeto existente. Head testado 4b78a54b (o diff até a base efe7c9e8 é a migração, o LEIA, o fragmento de changelog e a classe `ModeloDeSegurancaNoProjeto`). Não há PR, então não há check-run `bateria` para citar: rodei só os meus cenários (carga da máquina alta).
 
 ## Achados
-- A1 (resolvido) migrations/0.47.1/migrar:21 · recusa link em docs, docs/security e no modelo (saída 1), arquivo criado com O_EXCL|O_NOFOLLOW; as quatro sondas deixam a pasta de fora vazia.
-- A2 (resolvido) tests/mutantes/mp1311-modelo-seguranca.json:1 · spec versionada, quatro mutantes, sem equivalentes, todos morreram.
 - A3 (recomendado) migrations/0.47.1/migrar:27 · as flags O_EXCL|O_NOFOLLOW da abertura não têm mutante (só uma corrida entre a checagem e a abertura as exerce); aceitável como defesa em profundidade, sem teste determinístico.
 
-Achados da rodada anterior (head 4b78a54b), mantidos como histórico:
-- A1 (bloqueante) migrations/0.47.1/migrar:13 · reproduzido: com docs/security como link simbólico para pasta de fora, a migração cria _modelo.md fora do projeto (R-SEGURANCA, bug em docs/qa/bugs/mp1311-01-migracao-segue-link.md); usar lstat e recusar link.
-- A2 (recomendado) tests/mutantes/mp1311-modelo-seguranca.json:1 · a spec de mutantes da migração não está versionada na branch (o review já apontou); rodei a minha, de seis mutantes, e todos morreram; vale o autor versionar a spec ou a minha.
+
+## Rodada anterior (histórico)
+- A1 da rodada anterior (bloqueante, resolvido): migrations/0.47.1/migrar:13 · reproduzido: com docs/security como link simbólico para pasta de fora, a migração cria _modelo.md fora do projeto (R-SEGURANCA, bug em docs/qa/bugs/mp1311-01-migracao-segue-link.md); usar lstat e recusar link.
+- A2 da rodada anterior (recomendado, resolvido): tests/mutantes/mp1311-modelo-seguranca.json:1 · a spec de mutantes da migração não está versionada na branch (o review já apontou); rodei a minha, de seis mutantes, e todos morreram; vale o autor versionar a spec ou a minha.
 
 ## Critério → teste → resultado
 O pedido não traz `CA-n` numerados para o item 9; as obrigações vêm do escopo do item: o modelo chega ao projeto novo e ao existente, sem sobrescrever e idempotente.
