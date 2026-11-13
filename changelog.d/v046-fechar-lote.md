@@ -1,0 +1,2 @@
+### Adicionado
+- forge-fechar: --cartao ID move o cartão para Pronto pelo forge-check movimento quando o merge está provado (também no --limpar); o passo 7 poda os registros órfãos de worktree também depois de uma remoção que deu certo e diz quando o sandbox prende os metadados; forge doutor, numa branch atrás da develop, mostra o cherry-pick do commit da versão; docs/fechamento-integrador.md: não abra PR só para ver o CI (FECHAR-MOVE-CARTAO, WORKTREE-PRUNE-SANDBOX, ATUALIZAR-BRANCH-ATRASADA, CONFERENTE-PR-ABERTO-CEDO).

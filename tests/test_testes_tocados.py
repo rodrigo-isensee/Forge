@@ -52,7 +52,7 @@ class Mapa(unittest.TestCase):
                                     "test_pre_push_afetados"],
             "bin/forge-placar": ["evals.test_placar", "test_forge"],  # 0.43.1, frente I
             ".devcontainer/devcontainer.json": ["test_forge"],  # 0.43.1, frente A
-            "bin/forge-doutor": ["test_atualizar", "test_doutor", "test_doutor_custo", "test_doutor_protecao_gh", "test_doutor_relogio",
+            "bin/forge-doutor": ["test_atualizar", "test_doutor", "test_doutor_branch_atrasada", "test_doutor_custo", "test_doutor_protecao_gh", "test_doutor_relogio",
                                  "test_forge", "test_medidas_m14b", "test_novo_projeto", "test_qa_doutor_f8"],  # v046 E22.1
             "bin/forge-sugerir": ["test_forge", "test_sugerir"],
             "scripts/ci-local": ["test_ci_local", "test_forge", "test_testes_tocados"],

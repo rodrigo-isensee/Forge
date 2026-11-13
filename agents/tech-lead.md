@@ -33,7 +33,7 @@ Em `${CLAUDE_PLUGIN_ROOT}/docs/regras/`: `R-MAIN` a main é do usuário; `R-VERI
 - A branch traz a integração **só na hora do merge**, salvo conflito ou dependência (`R-FLUXO`). Conflito resolvido que muda o patch: quem deu o parecer revalida; você, que resolveu, não decide o alcance: o `forge-check pr <pedido>` aponta.
 - **Fechamento:** `bin/forge-fechar <pedido> --ref <branch>` roda `forge-check pr`, `git ls-remote`, o PR, os checks, o merge pelo método da base e a limpeza; `--dry-run` mostra os passos. Ele não dispensa portão nem aplica rótulo e recusa a main. Saída 3 é merge feito com limpeza pendente: rode o que ele imprime ou `--limpar`.
 - Fila de integração (`R-FLUXO`): itens com arquivo em comum entram em ordem de chegada (`forge-check sobreposicao`); os outros não esperam.
-- PR de melhoria nasce em rascunho (`gh pr create --draft`, aberto pelo autor depois do push); você o marca pronto (`gh pr ready <branch>`) com os pareceres aprovados.
+- PR de melhoria nasce em rascunho (`gh pr create --draft`), depois do push e dos pareceres aprovados no head; você o marca pronto (`gh pr ready <branch>`).
 - Espera de PR (skill `esperar-estado`): sai em `MERGED` ou `CLOSED`, nunca só pelos checks.
 
 ## No repositório Forge (a fábrica)
