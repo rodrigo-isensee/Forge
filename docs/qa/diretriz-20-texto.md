@@ -17,8 +17,8 @@ data: 2026-11-13
 Entrega só de texto (agents/agile-coach.md, skills/kanban-scrum/SKILL.md, fragmento do changelog). Obrigação: diretriz 20 (1 triagem aplica no quadro, 2 número de backlog só da ferramenta, 3 plano substituído em `arquivo/`). Sem UX nem API.
 
 ## Achados
-- A1 (bloqueante, resolvido) skills/kanban-scrum/SKILL.md:41-42 · agora diz "Até o `forge-check kanban` recusar destino divergente, o agile-coach confere com a última triagem": não afirma controle inexistente (`cmd_kanban`, bin/forge-check:420, segue sem a recusa; é a E25.3).
-- A2 (recomendado, resolvido) tests/config.json · invariante nova da frase do agile-coach:9 com motivo `R-DECISAO` em `invariantes_motivo_trecho`; cobre também "plano ou pedido substituído".
+- A1 (bloqueante) skills/kanban-scrum/SKILL.md:42 · resolvido: diz "Até o `forge-check kanban` recusar", sem afirmar controle inexistente (E25.3 pendente).
+- A2 (recomendado) tests/config.json:467 · resolvido: invariante nova da frase do agile-coach:9, com motivo R-DECISAO.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
