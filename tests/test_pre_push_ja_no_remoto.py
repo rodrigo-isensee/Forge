@@ -8,8 +8,11 @@ from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 HOOK = Path(__file__).resolve().parent.parent / ".githooks" / "pre-push"
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_"))
                            and k.lower() not in ("ssh_askpass", "http_proxy", "https_proxy", "all_proxy")})
+AMBIENTE["FORGE_PREPUSH_SUITE"] = "afetados"  # ENVIO-LEVE: o padrão do hook não roda teste; estes testes exercitam o plano dos afetados
 SUITE_FALHA = "import unittest\nclass T(unittest.TestCase):\n    def test_f(self):\n        self.fail('rodou')\n"
 ZERO, RODOU, PULOU = "0" * 40, "AssertionError: rodou", "o remoto já tem o que seria enviado"
+# PREPUSH-REFS (v0457): duas branches com código no mesmo envio recusam antes do pulo.
+DUAS_BRANCHES = "mais de uma branch com código"
 
 
 class PrePushJaNoRemoto(unittest.TestCase):
@@ -71,7 +74,7 @@ class PrePushJaNoRemoto(unittest.TestCase):
         casos = {  # os que pulam vêm antes: nenhum pode deixar trava, fila ou prova na pasta
             "igual": (p, (), f"{PULOU} (p em {self.c2[:7]})"),
             "ancestral": (self.linha("p", self.c1), (), f"{PULOU} (p em {self.c2[:7]})"),
-            "duas refs enviadas": (p + self.linha("q", self.c2), (), f"{PULOU} (p em {self.c2[:7]}, q em"),
+            "duas refs enviadas": (p + self.linha("q", self.c2), (), DUAS_BRANCHES),
             "sha diferente, local não ancestral": (self.linha("melhoria/x", self.c2), (), RODOU),
             "destino inexistente": (x1, ("origin", str(self.base / "nada.git")), RODOU),
             "destino que parece opção": (x1, ("origin", "-x"), RODOU),
@@ -81,7 +84,7 @@ class PrePushJaNoRemoto(unittest.TestCase):
             "casamento pela cauda": (self.linha("melhoria/z", self.c2), (), RODOU),
             "ref nova com sha de outra ref": (self.linha("nova", self.c2), (), RODOU),
             "objeto remoto ausente aqui": (self.linha("w", self.c2), (), RODOU),
-            "uma enviada e uma nova": (ok + self.linha("nova", self.c2), (), RODOU),
+            "uma enviada e uma nova": (ok + self.linha("nova", self.c2), (), DUAS_BRANCHES),
             "uma enviada e uma tag": (ok + self.linha("refs/tags/t1", self.c2), (), RODOU),
             "uma enviada e uma remoção": (ok + self.linha("melhoria/x", ZERO, self.c1), (), RODOU),
             "--suite": (ok, ("--suite",), RODOU),

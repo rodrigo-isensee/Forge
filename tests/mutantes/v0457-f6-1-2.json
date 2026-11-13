@@ -1,0 +1,93 @@
+{
+  "pedido": "v0457-f6-1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "git que falhou não tem topo",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "if r.returncode == 0 and r.stdout.strip() else \"\"",
+      "para": "if r.stdout.strip() else \"\"",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_git_que_falha_com_topo_na_saida_conta_como_falha",
+        "tests.test_forge.ForgeCheckFontes.test_fonte_inalcancavel_sai_com_3_sem_barulho"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "topo que não é hexadecimal é falha",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "            if not re.fullmatch(r\"[0-9a-f]{40}|[0-9a-f]{64}\", topo):",
+      "para": "            if not re.search(r\"[0-9a-f]{40}|[0-9a-f]{64}\", topo):",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_topo_com_hexadecimal_dentro_de_outro_texto_conta_como_falha",
+        "tests.test_forge.ForgeCheckFontes.test_topo_que_nao_e_hexadecimal_e_tratado_como_falha"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "topo igual ao revisado não é versão nova",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "            elif not topo.startswith(revisado):",
+      "para": "            elif topo.startswith(revisado):",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_versao_nova",
+        "tests.test_forge.ForgeCheckFontes.test_sem_novidade"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "versão nova sai numa linha",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "    if novas:\n",
+      "para": "    if not novas:\n",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_versao_nova",
+        "tests.test_forge.ForgeCheckFontes.test_versao_nova_e_url_recusada_saem_nas_duas_linhas"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "URL recusada sai numa linha",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "    if recusadas:\n",
+      "para": "    if not recusadas:\n",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_url_que_nao_e_https_e_recusada_sem_chamar_o_git",
+        "tests.test_forge.ForgeCheckFontes.test_versao_nova_e_url_recusada_saem_nas_duas_linhas"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "sem novidade só sem linha e sem falha",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "    if not linhas and not falhou:",
+      "para": "    if not linhas:",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_fonte_inalcancavel_sai_com_3_sem_barulho",
+        "tests.test_forge.ForgeCheckFontes.test_git_ausente_conta_como_fonte_que_nao_respondeu"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "falha de alguma fonte sai com 3",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "    return linhas, 3 if falhou else 0",
+      "para": "    return linhas, 3 if not falhou else 0",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_fonte_inalcancavel_sai_com_3_sem_barulho",
+        "tests.test_forge.ForgeCheckFontes.test_git_ausente_conta_como_fonte_que_nao_respondeu"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "controle do registro não chega à saída",
+      "arquivo": "bin/forge_fontes.py",
+      "de": "if c.isprintable())",
+      "para": "if c)",
+      "testes": [
+        "tests.test_forge.ForgeCheckFontes.test_controle_na_saida_e_filtrado"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "pedido": "v0457-f6-4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "bin/forge_voltas.py:80 f > fim",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        elif f > fim:",
+      "para": "        elif (not (f > fim)):",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "bin/forge_voltas.py:82 fim is None or f > fim",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        fim = f if fim is None or f > fim else fim",
+      "para": "        fim = f if (not (fim is None or f > fim)) else fim",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "bin/forge_voltas.py:93 'suposicao revertida' in _sem_acento(linha)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    return sum(1 for linha in linhas_da_secao(texto, \"Histórico\") if \"suposicao revertida\" in _sem_acento(linha))",
+      "para": "    return sum(1 for linha in linhas_da_secao(texto, \"Histórico\") if (not (\"suposicao revertida\" in _sem_acento(linha))))",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "bin/forge_voltas.py:102 not historico.is_file()",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    if not historico.is_file():",
+      "para": "    if (not (not historico.is_file())):",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "bin/forge_voltas.py:108 erro.strerror or erro",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "            print(f\"voltas: docs/kanban/historico.md ilegivel ({erro.strerror or erro}); nada medido\", file=sys.stderr)",
+      "para": "            print(f\"voltas: docs/kanban/historico.md ilegivel ({(not (erro.strerror or erro))}); nada medido\", file=sys.stderr)",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "bin/forge_voltas.py:112 len(c) >= 5 and ISO8601.match(c[0])",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    for c in _ler_tabela(historico):\n        hora = _hora(c[0]) if len(c) >= 5 and ISO8601.match(c[0]) else None",
+      "para": "    for c in _ler_tabela(historico):\n        hora = _hora(c[0]) if (not (len(c) >= 5 and ISO8601.match(c[0]))) else None",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "bin/forge_voltas.py:113 hora",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    for c in _ler_tabela(historico):\n        hora = _hora(c[0]) if len(c) >= 5 and ISO8601.match(c[0]) else None\n        if hora:",
+      "para": "    for c in _ler_tabela(historico):\n        hora = _hora(c[0]) if len(c) >= 5 and ISO8601.match(c[0]) else None\n        if (not (hora)):",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "bin/forge_voltas.py:117 pasta.is_dir()",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    pedidos = {p.stem.casefold(): p.stem for p in pasta.glob(\"*.md\")} if pasta.is_dir() else {}",
+      "para": "    pedidos = {p.stem.casefold(): p.stem for p in pasta.glob(\"*.md\")} if (not (pasta.is_dir())) else {}",
+      "testes": [
+        "tests.test_voltas.Voltas",
+        "tests.test_voltas.RodadasDeBrief",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    }
+  ]
+}

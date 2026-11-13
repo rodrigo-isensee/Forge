@@ -1,0 +1,46 @@
+{
+  "pedido": "v0457-testes-mapa",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "spec com um teste fora de tests.test_* segue na completa",
+      "arquivo": "bin/forge-testes",
+      "de": "    if not achados or None in achados:",
+      "para": "    if not achados:",
+      "testes": [
+        "tests.test_testes_tocados.MapaDosNovos.test_spec_ilegivel_sem_teste_ou_com_teste_de_fora_segue_na_completa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "afetados: o novo sem regra no MAPA passa pela regra E14.1",
+      "arquivo": "bin/forge-testes",
+      "de": "                 or modulos_da_convencao(caminho, raiz) or modulos_do_novo(caminho, raiz))",
+      "para": "                 or modulos_da_convencao(caminho, raiz))",
+      "testes": [
+        "tests.test_testes_tocados.MapaDosNovos.test_spec_nova_leva_aos_modulos_do_campo_testes"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "spec com campo de tipo errado segue na completa sem levantar",
+      "arquivo": "bin/forge-testes",
+      "de": "    except (OSError, ValueError, KeyError, TypeError):",
+      "para": "    except (OSError, ValueError, KeyError):",
+      "testes": [
+        "tests.test_testes_tocados.MapaDosNovos.test_spec_ilegivel_sem_teste_ou_com_teste_de_fora_segue_na_completa"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "o nome colado a outra palavra antes dele não conta como citação",
+      "arquivo": "bin/forge-testes",
+      "de": "rf\"(?<![\\w-]){re.escape(nome)}(?![\\w-])\"",
+      "para": "rf\"{re.escape(nome)}(?![\\w-])\"",
+      "testes": [
+        "tests.test_testes_tocados.MapaDosNovos.test_modulo_novo_do_bin_leva_a_quem_o_importa_e_ao_test_forge"
+      ]
+    }
+  ]
+}

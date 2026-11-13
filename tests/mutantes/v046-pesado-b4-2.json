@@ -1,0 +1,86 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O1",
+      "guarda": "PROCESSO-ORFAO: /proc de outro namespace nao decide",
+      "arquivo": "hooks/pesado.py",
+      "de": "split(\" \", 1)[0]) != os.getpid():",
+      "para": "split(\" \", 1)[0]) == os.getpid():",
+      "testes": [
+        "tests.test_pesado_v046.ProcessoOrfao.test_proc_de_outro_namespace_nao_se_le"
+      ]
+    },
+    {
+      "id": "O2",
+      "guarda": "PROCESSO-ORFAO: zumbi nao e vivo",
+      "arquivo": "hooks/pesado.py",
+      "de": "if lido and lido[0] in (\"Z\", \"X\"):",
+      "para": "if lido and lido[0] in (\"X\",):",
+      "testes": [
+        "tests.test_pesado_v046.ProcessoOrfao.test_zumbi_nao_e_vivo"
+      ]
+    },
+    {
+      "id": "O3",
+      "guarda": "PROCESSO-ORFAO: pid reaproveitado nao e vivo",
+      "arquivo": "hooks/pesado.py",
+      "de": "return not (lido and isinstance(inicio, int) and lido[1] != inicio)",
+      "para": "return not (lido and isinstance(inicio, int) and lido[1] == -1)",
+      "testes": [
+        "tests.test_pesado_v046.ProcessoOrfao.test_pid_reaproveitado_nao_e_vivo"
+      ]
+    },
+    {
+      "id": "O4",
+      "guarda": "PROCESSO-ORFAO: trava sem inicio, como antes",
+      "arquivo": "hooks/pesado.py",
+      "de": "return not (lido and isinstance(inicio, int) and lido[1] != inicio)",
+      "para": "return not (lido and lido[1] != inicio)",
+      "testes": [
+        "tests.test_pesado_v046.ProcessoOrfao.test_pid_reaproveitado_nao_e_vivo"
+      ]
+    },
+    {
+      "id": "O5",
+      "guarda": "PROCESSO-ORFAO: a trava compara o inicio gravado",
+      "arquivo": "hooks/pesado.py",
+      "de": "pid_vivo(trava.get(\"pid\"), trava.get(\"inicio\"))",
+      "para": "pid_vivo(trava.get(\"pid\"))",
+      "testes": [
+        "tests.test_pesado_v046.ProcessoOrfao.test_trava_de_pid_reaproveitado_nao_ocupa"
+      ]
+    },
+    {
+      "id": "O6",
+      "guarda": "PROCESSO-ORFAO: a trava grava o inicio da sessao",
+      "arquivo": "hooks/pesado.py",
+      "de": "return (processo(pid) or (None, None))[1]",
+      "para": "return (processo(pid) and (None, None))[1]",
+      "testes": [
+        "tests.test_pesado_v046.ProcessoOrfao.test_a_vez_grava_o_inicio_da_sessao"
+      ]
+    },
+    {
+      "id": "O7",
+      "guarda": "PROCESSO-ORFAO: sessao que acabou sai da fila sem pegar a vez",
+      "arquivo": "hooks/pesado.py",
+      "de": "if pid_da_sessao() != dono:",
+      "para": "if pid_da_sessao() == -1:",
+      "testes": [
+        "tests.test_pesado_v046.ProcessoOrfao.test_sessao_que_acabou_sai_da_fila_sem_pegar_a_vez"
+      ]
+    },
+    {
+      "id": "O8",
+      "guarda": "PROCESSO-ORFAO: sem permissao de sinal decide pelo /proc",
+      "arquivo": "hooks/pesado.py",
+      "de": "except PermissionError:\n        pass",
+      "para": "except PermissionError:\n        return True",
+      "testes": [
+        "tests.test_pesado_v046.ProcessoOrfao.test_sem_permissao_de_sinal_decide_pelo_proc"
+      ]
+    }
+  ]
+}

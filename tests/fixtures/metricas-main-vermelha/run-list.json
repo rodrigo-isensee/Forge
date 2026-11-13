@@ -1,0 +1,12 @@
+[
+ {"conclusion":"success","displayTitle":"Merge pull request #485 from rodrigo-isensee/melhoria/v0455"},
+ {"conclusion":"failure","displayTitle":"Merge pull request #484 from rodrigo-isensee/melhoria/v0455"},
+ {"conclusion":"timed_out","displayTitle":"Merge pull request #483 from rodrigo-isensee/melhoria/v0455-e2"},
+ {"conclusion":"cancelled","displayTitle":"Merge pull request #482 from rodrigo-isensee/melhoria/v0455"},
+ {"conclusion":"","displayTitle":"Merge pull request #481 from rodrigo-isensee/melhoria/v0455"},
+ {"conclusion":"","displayTitle":"Merge pull request #487 from rodrigo-isensee/melhoria/v0470"},
+ {"conclusion":"success","displayTitle":"Merge pull request #480 from rodrigo-isensee/melhoria/v0454"},
+ {"conclusion":"failure","displayTitle":"Merge pull request #486 from rodrigo-isensee/main"},
+ {"conclusion":"success"},
+ "lixo"
+]

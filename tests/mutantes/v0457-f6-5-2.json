@@ -1,0 +1,102 @@
+{
+  "pedido": "v0457-f6-5",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "bin/forge_medidas.py:59 not ID_DE_PEDIDO.fullmatch(pedido) or not pedido.strip('.')",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    recusa = (\"--pedido fora de [A-Za-z0-9._-]\" if not ID_DE_PEDIDO.fullmatch(pedido) or not pedido.strip(\".\")",
+      "para": "    recusa = (\"--pedido fora de [A-Za-z0-9._-]\" if (not (not ID_DE_PEDIDO.fullmatch(pedido) or not pedido.strip(\".\")))",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "bin/forge_medidas.py:60 not re.fullmatch('[0-9a-f]{40}', merge)",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "              else \"--merge não é um sha40 minúsculo\" if not re.fullmatch(r\"[0-9a-f]{40}\", merge)",
+      "para": "              else \"--merge não é um sha40 minúsculo\" if (not (not re.fullmatch(r\"[0-9a-f]{40}\", merge)))",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "bin/forge_medidas.py:61 not (raiz / 'KANBAN.md').is_file()",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "              else SEM_QUADRO.format(cmd=\"medida\", raiz=caminho_impresso(raiz)) if not (raiz / \"KANBAN.md\").is_file()",
+      "para": "              else SEM_QUADRO.format(cmd=\"medida\", raiz=caminho_impresso(raiz)) if (not (not (raiz / \"KANBAN.md\").is_file()))",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "bin/forge_medidas.py:62 arq.is_symlink()",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "              else \"docs/kanban/medidas.md é link simbólico; não escrevo através dele\" if arq.is_symlink() else None)",
+      "para": "              else \"docs/kanban/medidas.md é link simbólico; não escrevo através dele\" if (not (arq.is_symlink())) else None)",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "bin/forge_medidas.py:63 recusa is None",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    cod, data = git(raiz, \"log\", \"-1\", \"--format=%cI\", \"--end-of-options\", merge) if recusa is None else (1, \"\")",
+      "para": "    cod, data = git(raiz, \"log\", \"-1\", \"--format=%cI\", \"--end-of-options\", merge) if (not (recusa is None)) else (1, \"\")",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "bin/forge_medidas.py:64 not cod and ISO8601.match(data)",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    fim = _hora(data) if not cod and ISO8601.match(data) else None",
+      "para": "    fim = _hora(data) if (not (not cod and ISO8601.match(data))) else None",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "bin/forge_medidas.py:65 recusa or fim is None",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    if recusa or fim is None:",
+      "para": "    if (not (recusa or fim is None)):",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "bin/forge_medidas.py:66 recusa or 'commit do --merge ausente no repositório'",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "        print(f\"medida: {recusa or 'commit do --merge ausente no repositório'}; nada gravado\", file=sys.stderr)",
+      "para": "        print(f\"medida: {(not (recusa or 'commit do --merge ausente no repositório'))}; nada gravado\", file=sys.stderr)",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-e2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "AV3 etapa 1: trecho sem forma crítica não entra na lista",
+      "arquivo": "hooks/vigia.py",
+      "de": "        if forma:\n            formas.append(forma)",
+      "para": "        if True:\n            formas.append(forma)",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_comando_de_leitura_nao_conta"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "AV3 etapa 1: linha JSON que não é objeto fica de fora",
+      "arquivo": "hooks/vigia.py",
+      "de": "        mensagem = registro.get(\"message\") if isinstance(registro, dict) else None\n        blocos = mensagem.get(\"content\") if isinstance(mensagem, dict) else None\n        for bloco in blocos if isinstance(blocos, list) else []:\n            if not isinstance(bloco, dict):\n                continue\n            entrada = bloco.get(\"input\")",
+      "para": "        mensagem = registro.get(\"message\") if True else None\n        blocos = mensagem.get(\"content\") if isinstance(mensagem, dict) else None\n        for bloco in blocos if isinstance(blocos, list) else []:\n            if not isinstance(bloco, dict):\n                continue\n            entrada = bloco.get(\"input\")",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_barrado_vem_do_resultado_da_mesma_chamada"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "AV3 etapa 1: message que não é objeto fica de fora",
+      "arquivo": "hooks/vigia.py",
+      "de": "        blocos = mensagem.get(\"content\") if isinstance(mensagem, dict) else None\n        for bloco in blocos if isinstance(blocos, list) else []:\n            if not isinstance(bloco, dict):\n                continue\n            entrada = bloco.get(\"input\")",
+      "para": "        blocos = mensagem.get(\"content\") if True else None\n        for bloco in blocos if isinstance(blocos, list) else []:\n            if not isinstance(bloco, dict):\n                continue\n            entrada = bloco.get(\"input\")",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_barrado_vem_do_resultado_da_mesma_chamada"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "AV3 etapa 1: content que não é lista fica de fora",
+      "arquivo": "hooks/vigia.py",
+      "de": "        for bloco in blocos if isinstance(blocos, list) else []:\n            if not isinstance(bloco, dict):\n                continue\n            entrada = bloco.get(\"input\")",
+      "para": "        for bloco in blocos if True else []:\n            if not isinstance(bloco, dict):\n                continue\n            entrada = bloco.get(\"input\")",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_barrado_vem_do_resultado_da_mesma_chamada"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "AV3 etapa 1: bloco que não é objeto fica de fora",
+      "arquivo": "hooks/vigia.py",
+      "de": "\n            if not isinstance(bloco, dict):\n                continue\n            entrada = bloco.get(\"input\")",
+      "para": "\n            if False:\n                continue\n            entrada = bloco.get(\"input\")",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_barrado_vem_do_resultado_da_mesma_chamada"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "AV3 etapa 1: input que não é objeto vira vazio",
+      "arquivo": "hooks/vigia.py",
+      "de": "if isinstance(bloco.get(\"input\"), dict) else {}\n            if bloco.get(\"type\") == \"tool_use\" and bloco.get(\"name\") == \"Bash\"",
+      "para": "if True else {}\n            if bloco.get(\"type\") == \"tool_use\" and bloco.get(\"name\") == \"Bash\"",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_barrado_vem_do_resultado_da_mesma_chamada"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "AV3 etapa 1: só o Bash conta, não o Write com campo command",
+      "arquivo": "hooks/vigia.py",
+      "de": "bloco.get(\"type\") == \"tool_use\" and bloco.get(\"name\") == \"Bash\" and isinstance(entrada",
+      "para": "bloco.get(\"type\") == \"tool_use\" and isinstance(entrada",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_barrado_vem_do_resultado_da_mesma_chamada"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "AV3 etapa 1: o barrado vem do tool_result da chamada",
+      "arquivo": "hooks/vigia.py",
+      "de": "            elif bloco.get(\"type\") == \"tool_result\":\n                barrados",
+      "para": "            elif False:\n                barrados",
+      "testes": [
+        "tests.test_vigia.FormaDoComando.test_barrado_vem_do_resultado_da_mesma_chamada"
+      ]
+    }
+  ]
+}

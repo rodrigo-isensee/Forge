@@ -136,6 +136,7 @@ linha_de_duracao() {
 }
 modo_suite=0
 if [ "$#" -eq 1 ] && [ "$1" = "--suite" ]; then modo_suite=1; exec </dev/null; fi
+refs_branches=0; refs_remocoes=0  # PREPUSH-REFS: contadores do laço (nunca herdados do ambiente)
 n_refs=0; n_envios=0; unico_local=""; unico_remoto=""; unico_ref=""; envio_sha=(); envio_ref=(); envios=()
 while read -r _ local_sha remote_ref remote_sha; do
   n_refs=$((n_refs + 1)); case "$local_sha" in *[!0]*) n_envios=$((n_envios + 1)); envios+=("$local_sha $remote_sha $remote_ref") ;; esac; unico_local="$local_sha"; unico_remoto="$remote_sha"; unico_ref="$remote_ref"
@@ -164,6 +165,27 @@ while read -r _ local_sha remote_ref remote_sha; do
       echo "pre-push: envio direto para ${remote_ref#refs/heads/} bloqueado. Abra um pull request (fluxo: branch -> develop -> homolog -> main)." >&2
       exit 1 ;;
   esac
+  # PREPUSH-REFS (v0457, D2 de docs/security/ameacas/v0457-hook-shell-pipe.md): a política vale para as refs reais do
+  # envio, qualquer que seja a sintaxe (--branches, -c remote.*.mirror, refspec com curinga, --prune, pipe para o shell).
+  case "$remote_ref" in
+    refs/heads/?*|refs/tags/?*) ;;
+    *) echo "pre-push: R-FLUXO: a ref remota '${remote_ref}' não é branch (refs/heads/) nem tag (refs/tags/); envio bloqueado (o envio espelho leva refs/remotes/, refs/notes/ e afins)." >&2
+       exit 1 ;;
+  esac
+  case "$local_sha" in
+    *[!0]*) case "$remote_ref" in refs/heads/*) refs_branches=$((refs_branches + 1)) ;; esac ;;
+    *) refs_remocoes=$((refs_remocoes + 1)) ;;
+  esac
+  if [ "$refs_branches" -gt 1 ]; then
+    echo "pre-push: R-FLUXO: mais de uma branch com código no mesmo envio bloqueado; envie uma branch por vez (git push origin <branch>)." >&2
+    exit 1
+  fi
+  # PREPUSH-DELETE (decisão do dono, 2026-10-23; item 3 da D2 em 2026-11-10 23:45): a limpeza pós-merge apaga uma ref
+  # por envio; mais de uma remoção no mesmo envio (espelho, --prune, curinga) é bloqueada.
+  if [ "$refs_remocoes" -gt 1 ]; then
+    echo "pre-push: R-FLUXO: mais de uma remoção de branch ou tag no mesmo envio bloqueada; apague uma por envio (git push origin --delete <ref>)." >&2
+    exit 1
+  fi
 done
 # PREPUSH-JA-NO-REMOTO: sem nenhuma ref a enviar (a branch já é igual à remota, o git chama o hook com o stdin vazio)
 # não há o que testar. Só este caso: o push que apaga ref traz uma linha e segue rodando a suíte; o modo --suite
@@ -240,8 +262,11 @@ if [ "$modo_suite" -eq 0 ] && ja_no_remoto "${2:-}"; then exit 0; fi
 # SUITE-NO-CI (decisão do dono, 2026-11-08, "Faça tudo"): a suíte inteira roda uma vez, no CI do PR; o envio local roda
 # as checagens baratas (em segundos, antes da trava) e depois só os testes afetados pelo diff (`bin/forge-testes
 # --afetados`), para qualquer branch e para envio de várias refs. A suíte inteira local é opt-in: FORGE_PREPUSH_SUITE=1.
+# ENVIO-LEVE (decisão do dono, 2026-11-11, que substitui a SUITE-NO-CI no envio; diretriz 15): o padrão é o envio leve, só as
+# checagens baratas e os bloqueios, sem teste nenhum; o CI do PR é o portão. Opt-in à mão: FORGE_PREPUSH_SUITE=afetados (o plano
+# do `bin/forge-testes --afetados`) ou =1 (a suíte inteira local).
 suite_local="${FORGE_PREPUSH_SUITE:-0}"
-case "$suite_local" in 0|1) ;; *) echo "pre-push: FORGE_PREPUSH_SUITE vale 0 (só os afetados, o padrão) ou 1 (a suíte inteira local); veio '${suite_local}'." >&2; exit 1 ;; esac
+case "$suite_local" in 0|1|afetados) ;; *) echo "pre-push: FORGE_PREPUSH_SUITE vale 0 (envio leve, sem testes, o padrão), afetados (os testes afetados) ou 1 (a suíte inteira local); veio '${suite_local}'." >&2; exit 1 ;; esac
 # A base é `refs/remotes/origin/develop`, resolvida uma vez só para um sha: plano, checagens e execução leem a mesma base,
 # e a ref curta `origin/develop` poderia ser uma branch local de mesmo nome.
 base_dev="$(git rev-parse --verify -q 'refs/remotes/origin/develop^{commit}' 2>/dev/null || true)"
@@ -372,6 +397,12 @@ if [ "$modo_suite" -eq 0 ]; then
   checagens_baratas || { echo "pre-push: checagens baratas reprovadas em $(( $(date +%s) - inicio_baratas ))s; a suíte nem entrou na fila. Nunca --no-verify." >&2; linha_de_duracao baratas 1; exit 1; }
   [ "$n_baratas" -eq 0 ] || echo "pre-push: checagens baratas ok em $(( $(date +%s) - inicio_baratas ))s (${n_baratas} arquivos)" >&2
 fi
+# ENVIO-LEVE: sem opt-in, o envio termina aqui: nenhum teste, nem trava nem fila (nada pesado a esperar). O CI do PR roda a bateria.
+if [ "$modo_suite" -eq 0 ] && [ "$suite_local" = 0 ]; then
+  echo "pre-push: envio leve: sem testes locais; a bateria completa roda no CI do PR (opt-in: FORGE_PREPUSH_SUITE=afetados ou 1)." >&2
+  linha_de_duracao leve 0
+  exit 0
+fi
 espera="${FORGE_TRAVA_ESPERA:-1200}"
 case "$espera" in ''|*[!0-9]*) echo "pre-push: FORGE_TRAVA_ESPERA deve ser um número de segundos inteiro (veio '${espera}')." >&2; exit 1 ;; esac
 trava="$(trava_arquivo criar)" || exit 1
@@ -494,8 +525,8 @@ completa=1
 nada=0
 afetados() {
   local plano
-  [ "$suite_local" = 0 ] && [ "$sem_caminhos" = 0 ] && [ -n "$base_dev" ] || return 1
-  [ -f bin/forge-testes ] && [ ! -L bin/forge-testes ] || return 1
+  [ "$suite_local" = afetados ] && [ "$sem_caminhos" = 0 ] && [ -n "$base_dev" ] || return 1
+  [ -f bin/forge-testes ] && [ ! -L bin/forge-testes ] && [ ! -L bin/forge_apoio_testes.py ] || return 1
   if [ "${#alterados[@]}" -eq 0 ]; then nada=1; return 0; fi
   plano="$(python3 -I bin/forge-testes --afetados --listar -- "${alterados[@]}" 2>/dev/null)" || return 1
   case "$plano" in

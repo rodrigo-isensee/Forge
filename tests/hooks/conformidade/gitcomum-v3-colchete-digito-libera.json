@@ -1,0 +1,28 @@
+{
+  "descricao": "Volta 5 da E20.6 (v046, A11 da segurança E20.37, A1 e A2 do review E20.36, A1 e A2 do QA E20.38): o colchete só de dígitos (`[0-9]`) o bash e o glob do Python leem igual: a origem que não cai em regra específica segue livre.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n",
+    "x": "x\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ln \"$(git rev-parse --git-dir)\"/HEAD[0-9] h"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

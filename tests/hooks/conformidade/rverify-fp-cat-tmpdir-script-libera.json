@@ -1,0 +1,28 @@
+{
+  "descricao": "HOOK-RVERIFY-FALSO-POSITIVO: cat > $TMPDIR/x.py <<'EOF' com `*` e .githooks/pre-push só no corpo (dado, não destino); sessão do Forge, pasta fora de projeto: só cita, não grava a prova, libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    ".git/forge-suite-verde": "x\n",
+    "docs/hooks.md": "git push * x\n",
+    "bin/forge-fechar": "x\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj",
+    "XDG_RUNTIME_DIR": "{tmp}/run"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat > $TMPDIR/x.py <<'EOF'\nimport glob\nfor f in glob.glob('*'):\n    print(f, '.githooks/pre-push')\nEOF"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

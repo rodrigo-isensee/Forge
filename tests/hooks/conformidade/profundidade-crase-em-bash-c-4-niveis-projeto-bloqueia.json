@@ -1,0 +1,22 @@
+{
+  "descricao": "PROFUNDIDADE-BASH-C (v0457 E17.1): crase dentro de 3 níveis de bash -c é o quarto nível no projeto: recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "XDG_RUNTIME_DIR": "{tmp}/run"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "bash -c 'bash -c '\"'\"'bash -c '\"'\"'\"'\"'\"'\"'\"'\"'echo `date`'\"'\"'\"'\"'\"'\"'\"'\"''\"'\"''"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: comando aninhado (bash -c, eval, $(, crase, heredoc) em mais de 3 níveis"
+  }
+}

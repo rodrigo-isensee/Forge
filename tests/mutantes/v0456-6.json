@@ -1,0 +1,59 @@
+{
+  "pedido": "v0456",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "J25",
+      "guarda": "E5.1: só versão completa vai ao gh",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "for v in por_versao if VERSAO_COMPLETA.fullmatch(v)]",
+      "para": "for v in por_versao if not VERSAO_COMPLETA.fullmatch(v)]",
+      "testes": [
+        "tests.test_metricas_main_vermelha.MainVermelha.test_sem_a_opcao_gh_nada_vira_zero"
+      ]
+    },
+    {
+      "id": "J26",
+      "guarda": "E1.1: portão sem tempo sai minutos nao-medido",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "_n(d['minutos']) if d['tempo'] else 'nao-medido'",
+      "para": "_n(d['minutos']) if not d['tempo'] else 'nao-medido'",
+      "testes": [
+        "tests.test_metricas_portoes.FatiaPorPortao.test_cada_portao_tem_minutos_voltas_e_origem"
+      ]
+    },
+    {
+      "id": "J27",
+      "guarda": "E1.1: tempo ausente sai nao-medido",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "tempo={d['tempo'] or 'nao-medido'}",
+      "para": "tempo={d['tempo']}",
+      "testes": [
+        "tests.test_metricas_portoes.FatiaPorPortao.test_cada_portao_tem_minutos_voltas_e_origem"
+      ]
+    },
+    {
+      "id": "J28",
+      "guarda": "segurança A1: o manifesto se compara pelo texto JSON (true não é 1, 1 não é 1.0)",
+      "arquivo": "bin/forge-check",
+      "de": "json.dumps(antes, sort_keys=True) == json.dumps(depois, sort_keys=True)",
+      "para": "antes == depois",
+      "testes": [
+        "tests.test_forge_check_versao_livre.VersaoLivre.test_booleano_trocado_por_numero_pede_parecer",
+        "tests.test_forge_check_versao_livre.VersaoLivre.test_so_a_versao_do_plugin_nao_pede_parecer"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge_governanca.py",
+      "trecho": "dados.get(\"fatia_por_portao\") or {}",
+      "motivo": "defensivo: linhas_de_texto só recebe o dicionário de calcular, que sempre traz a chave fatia_por_portao"
+    },
+    {
+      "arquivo": "bin/forge_governanca.py",
+      "trecho": "dados.get(\"main_vermelha\") or {}",
+      "motivo": "defensivo: linhas_de_texto só recebe o dicionário de calcular, que sempre traz a chave main_vermelha"
+    }
+  ]
+}

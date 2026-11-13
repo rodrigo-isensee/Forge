@@ -1,0 +1,76 @@
+{
+  "pedido": "v0457-dora",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "abaixo de 20 valores, so os brutos",
+      "arquivo": "bin/forge_dora.py",
+      "de": "if len(valores) < MINIMO_PARA_RESUMO:",
+      "para": "if len(valores) <= MINIMO_PARA_RESUMO:",
+      "testes": [
+        "tests.test_forge_dora.Brutos.test_abaixo_de_20_so_os_brutos_e_com_20_os_percentis"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "media por semana so com 20",
+      "arquivo": "bin/forge_dora.py",
+      "de": "if r[\"n\"] >= MINIMO_PARA_RESUMO:",
+      "para": "if r[\"n\"] > MINIMO_PARA_RESUMO:",
+      "testes": [
+        "tests.test_forge_dora.Brutos.test_media_por_semana_so_com_20"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "fuso dado vence o da maquina",
+      "arquivo": "bin/forge_dora.py",
+      "de": "fuso = fuso or datetime.datetime.now()",
+      "para": "fuso = None or datetime.datetime.now()",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_recuperacao_do_escape_ate_a_release_seguinte"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "janela inclusiva nas duas pontas",
+      "arquivo": "bin/forge_dora.py",
+      "de": "(desde is None or dia >= desde)",
+      "para": "(desde is None or dia > desde)",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_janela_inclusiva_corta_release_escape_e_cartao"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "frequencia so das releases da janela",
+      "arquivo": "bin/forge_dora.py",
+      "de": "for _, d in lista if janela(d)]",
+      "para": "for _, d in lista if True]",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_janela_inclusiva_corta_release_escape_e_cartao"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "taxa so com 20 releases",
+      "arquivo": "bin/forge_dora.py",
+      "de": "if len(na_janela) >= MINIMO_PARA_RESUMO:",
+      "para": "if len(na_janela) > MINIMO_PARA_RESUMO:",
+      "testes": [
+        "tests.test_forge_dora.Brutos.test_taxa_pct_so_com_20_releases"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "--json escolhe a saida em JSON",
+      "arquivo": "bin/forge_dora.py",
+      "de": "indent=1) if a.json else",
+      "para": "indent=1) if not a.json else",
+      "testes": [
+        "tests.test_forge_dora.Comando.test_json"
+      ]
+    }
+  ]
+}

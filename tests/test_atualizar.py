@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho ta
 from ambiente_git import SINAIS_DE_CUSTO, remoto_sem_manutencao, sem_manutencao  # noqa: E402
 from sem_claude_ancestral import comando  # noqa: E402
 from modelo_git import copiar_modelo  # noqa: E402
+from apoio_sandbox import exigir  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
 
 RAIZ = Path(__file__).resolve().parent.parent
 ATUALIZAR = RAIZ / "bin" / "forge-atualizar"
@@ -700,6 +701,7 @@ class Dentro(Base):
                     self.recusa(script, {**self.env, nome: "1"})
 
     def test_ancestral_chamado_claude_recusa_mesmo_com_pty_e_sem_variavel(self):
+        exigir(self, "proc")
         self.publicar("9.9.0")
         for script in (ATUALIZAR, VOLTAR):
             with self.subTest(script=script.name):
@@ -717,6 +719,7 @@ class Dentro(Base):
 
     def test_o_lancador_dos_testes_nao_esconde_um_claude_abaixo_do_teste(self):
         """TESTES-SEM-CLAUDE-ANCESTRAL: o lançador só ignora o que está acima do processo do teste; um `claude` no meio recusa."""
+        exigir(self, "proc")
         self.publicar("9.9.0")
         for script in (ATUALIZAR, VOLTAR):
             with self.subTest(script=script.name):
@@ -1230,6 +1233,7 @@ class AtualizarSemPergunta(Base):
         self.assertIn("forge/upgrade-9.9.0", self.ramos())
 
     def test_claude_ancestral_com_sim_recusa(self):
+        exigir(self, "proc")
         self.publicar("9.9.0")
         claude = self.tmp / "ancestral" / "claude"
         claude.parent.mkdir()

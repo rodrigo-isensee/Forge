@@ -1,0 +1,68 @@
+{
+  "pedido": "v0456-e4a",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "E4A-1",
+      "guarda": "a dúvida ao ler fica com o prazo comum",
+      "arquivo": "hooks/parecer.py",
+      "de": "        except Exception:  # noqa: BLE001 - na dúvida, o prazo comum: menos tempo, nunca uma liberação\n            return None",
+      "para": "        except Exception:  # noqa: BLE001 - na dúvida, o prazo comum: menos tempo, nunca uma liberação\n            return True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_merge_de_pr_na_duvida_fica_com_o_prazo_comum"
+      ]
+    },
+    {
+      "id": "E4A-2",
+      "guarda": "o programa vale pelo nome no fim do caminho",
+      "arquivo": "hooks/parecer.py",
+      "de": "valores = [Path(p.valor).name if i == 0 else p.valor",
+      "para": "valores = [p.valor if i == 0 else p.valor",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge"
+      ]
+    },
+    {
+      "id": "E4A-6",
+      "guarda": "só a 1.a palavra (o programa) vale pelo fim do caminho",
+      "arquivo": "hooks/parecer.py",
+      "de": "Path(p.valor).name if i == 0 else p.valor",
+      "para": "Path(p.valor).name if not (i == 0) else p.valor",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge"
+      ]
+    },
+    {
+      "id": "E4A-3",
+      "guarda": "só as palavras gh pr merge de um comando ganham o prazo longo",
+      "arquivo": "hooks/parecer.py",
+      "de": "            if any(tuple(valores[i:i + 3]) == (\"gh\", \"pr\", \"merge\") for i in range(len(valores))):",
+      "para": "            if not (any(tuple(valores[i:i + 3]) == (\"gh\", \"pr\", \"merge\") for i in range(len(valores)))):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge",
+        "tests.test_hooks.Hooks.test_merge_de_pr_na_duvida_fica_com_o_prazo_comum"
+      ]
+    },
+    {
+      "id": "E4A-4",
+      "guarda": "gh pr merge em qualquer posição do comando (depois de env)",
+      "arquivo": "hooks/parecer.py",
+      "de": "for i in range(len(valores))):",
+      "para": "for i in range(1)):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge"
+      ]
+    },
+    {
+      "id": "E4A-5",
+      "guarda": "o merge achado devolve o casamento",
+      "arquivo": "hooks/parecer.py",
+      "de": "\"merge\") for i in range(len(valores))):\n                return True",
+      "para": "\"merge\") for i in range(len(valores))):\n                return None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_do_merge",
+        "tests.test_hooks.Hooks.test_merge_de_pr_na_duvida_fica_com_o_prazo_comum"
+      ]
+    }
+  ]
+}

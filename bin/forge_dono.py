@@ -2,6 +2,8 @@
 
 Importado pelo `bin/forge-check` só quando um destes roda:
 - `decisoes --pedido P --resposta "1a 2c"` (O4): a resposta curta do dono lida contra a última `PERGUNTA AO DONO` do pedido.
+- `anotar` e `brief selar` (0.45.7, E6 a E8): a gramática da origem da recomendação de corte, a marca de recomendação revertida e a
+  conferência da decisão do dono (`confere=`), lidas aqui e chamadas pelo forge-check.
   Opções `1a)`, `1b)`...; `[recomendada]` e `[reversível]` ou `[irreversível]` no texto da opção (com ou sem acento, qualquer
   caixa). Vocabulário fechado: os códigos da pergunta e as palavras de PALAVRAS (aprova a recomendada marcada `[reversível]` de
   cada questão sem código). O ambíguo volta como pergunta (rc 1); a palavra solta nunca vale para opção irreversível nem sem marca. Só lê: o Jarvis grava a decisão com `forge-check anotar`.
@@ -132,6 +134,182 @@ def ler_resposta(questoes, resposta):
     return escolhas, ambiguas
 
 
+# ---- E6, E7 e E8 (0.45.7): origem da recomendação de corte, recomendação revertida e conferência da decisão ----
+
+CAMPOS_DE_ORIGEM = {"origem": "origem", "procurado": "procurado", "seguir": "seguir", "nao seguir": "não seguir"}
+CORTE = re.compile(r"(?<![a-z])(?:cort(?!esi)|descart|afrouxa|retir|remov|apag|aposent|abandon|deslig|deix\S*(?:\s+\S+){0,3}?\s+de\s+lado)")
+# sobre o texto sem acento, em casefold; `cortesia` não é corte; `deixar (o teste) de lado` e `desligar` são
+LUGARES_DO_NAO_ACHADA = 2  # `origem: não achada` só vale com `procurado:` de 2 lugares ou mais
+MARCA_REVERTIDA = "recomendação revertida"
+CRITERIOS = ("rapido", "seguro", "barato", "mede")
+CONFERE = re.compile(r"confere=(rapido|seguro|barato|mede|nao-passa)")
+ENTRADA_DA_CONFERENCIA = datetime.datetime(2026, 11, 12, 0, 0)  # PQ-A3: decisão do dono antes disto nunca trava o selar
+FORJA = re.compile(r"atributos\s*:|(?:revertida|confere|origem|forge)\s*=")  # sobre o texto em NFKC, sem `Cf`, em casefold
+DATA_DA_LINHA = re.compile(r"(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}:\d{2}))?")
+FRASE_DA_DECISAO = "DECISÃO DO DONO"
+FRASE_DA_PERGUNTA = "PERGUNTA AO DONO ("
+MARCA_DE_ATRIBUTOS = " · atributos: "  # a mesma do forge-check
+
+
+def _sem_acento(texto):
+    return "".join(c for c in unicodedata.normalize("NFKD", texto) if not unicodedata.combining(c)).casefold()
+
+
+def recusa_da_forja(texto):
+    """E7 e E8 (PQ-A4): motivo para recusar o literal ou o contexto que escreve `atributos:`, `revertida=`, `confere=`, `origem=` ou
+    `forge=` (a marca só nasce da ferramenta), ou None."""
+    normal = "".join(c for c in unicodedata.normalize("NFKC", texto or "") if unicodedata.category(c) != "Cf").casefold()
+    return "a marca `atributos:` e as chaves `revertida=`, `confere=`, `origem=` e `forge=` só a ferramenta grava" if FORJA.search(normal) else None
+
+
+def campos_de_origem(texto):
+    """E6: {campo: valor} dos campos `origem:`, `procurado:`, `seguir:` e `não seguir:` do texto da opção, separados por ` · `."""
+    campos = {}
+    for segmento in texto.split("·"):
+        achado = re.match(r"\s*(origem|procurado|seguir|nao seguir)\s*:", _sem_acento(segmento))
+        if achado:
+            campos[achado.group(1)] = segmento.partition(":")[2].strip()
+    return campos
+
+
+def _sem_campos(texto):
+    return " ".join(s for s in texto.split("·") if not re.match(r"\s*(origem|procurado|seguir|nao seguir)\s*:", _sem_acento(s)))
+
+
+def e_corte(texto):
+    """E6: a opção recomenda cortar: raiz do léxico fora dos campos de origem; a marca `[corte]` cai na raiz `cort`."""
+    return CORTE.search(_sem_acento(_sem_campos(texto))) is not None
+
+
+def falta_de_origem(campos):
+    """E6: o que falta aos campos de origem, ou None."""
+    faltam = [nome for chave, nome in CAMPOS_DE_ORIGEM.items() if not campos.get(chave)]
+    if faltam:
+        return "recomendação de corte sem " + ", ".join(f"`{nome}:`" for nome in faltam)
+    lugares = [p for p in re.split(r",|;|\s+e\s+", campos["procurado"]) if p.strip()]
+    if _sem_acento(campos["origem"]).strip(" .") == "nao achada" and len(lugares) < LUGARES_DO_NAO_ACHADA:
+        return f"`origem: não achada` pede `procurado:` com {LUGARES_DO_NAO_ACHADA} lugares ou mais"
+    return None
+
+
+def recusa_de_corte(questoes, escolhas=None):
+    """E6: [motivo] de cada opção `[recomendada]` de corte sem a origem completa; com `escolhas`, só a recomendada escolhida
+    (PQ-A2: a opção de corte que o dono escolhe sem ser a recomendada é dele e leva a marca da E7)."""
+    motivos = []
+    for n in sorted(questoes):
+        for letra, texto in questoes[n].items():
+            if "recomendada" not in marcas(texto) or (escolhas is not None and escolhas.get(n) != letra) or not e_corte(texto):
+                continue
+            if motivo := falta_de_origem(campos_de_origem(texto)):
+                motivos.append(f"{n}{letra}: {motivo}")
+    return motivos
+
+
+def divergencia(questoes, escolhas):
+    """E7: {questão: (recomendada, escolhida)} onde o dono escolheu outra que a única `[recomendada]` da questão."""
+    saida = {}
+    for n, letra in escolhas.items():
+        recomendadas = [l for l, texto in questoes.get(n, {}).items() if "recomendada" in marcas(texto)]
+        if len(recomendadas) == 1 and recomendadas[0] != letra:
+            saida[n] = (recomendadas[0], letra)
+    return saida
+
+
+def _valor(texto):
+    return " ".join(re.sub(r"[;=·|\x00-\x1f\x7f]", " ", texto).split())[:160]
+
+
+def ultima_pergunta(texto):
+    perguntas = PERGUNTA.findall(texto)
+    return opcoes_da_pergunta(perguntas[-1][1]) if perguntas else {}
+
+
+def leitura_da_decisao(pedido_txt, literal):
+    """E6 e E7: (atributos {revertida, origem}, recusa ou None) da decisão cujo literal é só códigos (`1b 2a`), lida contra a
+    última `PERGUNTA AO DONO`; em prosa, ({}, None) e a decisão conta como não lida."""
+    tokens = list(filter(None, re.split(r"[\s,;.]+", literal.lower())))
+    if not tokens or not all(CODIGO.fullmatch(t) for t in tokens):
+        return {}, None
+    questoes = ultima_pergunta(pedido_txt)
+    escolhas, ambiguas = ler_resposta(questoes, literal) if questoes else ({}, ["o pedido não tem `PERGUNTA AO DONO` com opções `1a)`"])
+    if ambiguas or not escolhas:
+        return {}, f"o literal em códigos não se lê contra a última pergunta ({'; '.join(ambiguas)}); leia com `decisoes --resposta`"
+    if motivos := recusa_de_corte(questoes, escolhas):
+        return {}, "; ".join(motivos) + "; volta ao dono como pergunta com a origem"
+    atributos = {}
+    if diverge := divergencia(questoes, escolhas):
+        atributos["revertida"] = ",".join(f"{n}{e}-contra-{n}{r}" for n, (r, e) in sorted(diverge.items()))
+    origens = [o for n, l in sorted(escolhas.items()) if (o := campos_de_origem(questoes[n][l]).get("origem"))]
+    if origens:
+        atributos["origem"] = _valor(", ".join(origens))
+    return atributos, None
+
+
+def alternativa(pedido_txt, literal):
+    """E8: o texto (sem marcas nem campos de origem) da `[recomendada]` única de cada questão da última `PERGUNTA AO DONO`; com o
+    literal em códigos, só das questões que ele responde. None sem recomendada."""
+    questoes = ultima_pergunta(pedido_txt)
+    tokens = list(filter(None, re.split(r"[\s,;.]+", literal.lower())))
+    if tokens and all(CODIGO.fullmatch(t) for t in tokens):
+        respondidas = {int(CODIGO.fullmatch(t).group(1)) for t in tokens}
+        questoes = {n: q for n, q in questoes.items() if n in respondidas}
+    textos = []
+    for n in sorted(questoes):
+        recomendadas = [t for t in questoes[n].values() if "recomendada" in marcas(t)]
+        if len(recomendadas) == 1:
+            textos.append(" ".join(re.sub(r"\[[^\[\]]{1,40}\]", " ", _sem_campos(recomendadas[0])).split()).strip(" ·"))
+    return "; ".join(t for t in textos if t)[:160] or None
+
+
+def modelo_da_pergunta(literal, pedido_txt=""):
+    """E8: as linhas do modelo da `PERGUNTA AO DONO` para a decisão que não passa no critério (`confere=nao-passa`); a alternativa é
+    o texto da `[recomendada]` da última pergunta (sem ela, o Jarvis escreve a dele no lugar indicado)."""
+    texto = alternativa(pedido_txt, literal) or "<a do Jarvis: a última pergunta não tem [recomendada]>"
+    return ["decisao: confere=nao-passa: antes de cumprir, pergunte ao dono com `forge-check anotar --tipo pergunta`; modelo:",
+            f"pergunta: 1a) alternativa: {texto} [recomendada] · origem: <ref> · procurado: <onde> · seguir: <custo> · "
+            f"não seguir: <custo> · 1b) seguir a decisão \"{literal[:120]}\""]
+
+
+def atributos_da_linha(linha):
+    """{chave: valor} da marca ` · atributos: ` no fim da linha (só o último segmento)."""
+    _, marca, resto = linha.rstrip().rpartition(MARCA_DE_ATRIBUTOS)
+    if not marca:
+        return {}
+    return {k.strip(): v.strip() for k, _, v in (p.partition("=") for p in resto.split(";"))}
+
+
+def data_da_linha(linha):
+    """O instante da decisão (prefixo `AAAA-MM-DD[ HH:MM]:` ou `(AAAA-MM-DD HH:MM)` logo depois da frase), ou None sem data."""
+    achado = DATA_DA_LINHA.search(linha[:linha.find(FRASE_DA_DECISAO) + len(FRASE_DA_DECISAO) + 19])  # só linha de decisão chega aqui
+    if achado is None:
+        return None
+    return datetime.datetime.fromisoformat(f"{achado.group(1)} {achado.group(2) or '00:00'}")
+
+
+def pendencias_da_conferencia(texto, e_decisao, entrada=ENTRADA_DA_CONFERENCIA):
+    """E8: [(linha, motivo)] das decisões do dono a partir de `entrada` sem `confere=` de critério (ausente, vazio, fora do vocabulário
+    ou `nao-passa`) que não têm, depois delas, uma `PERGUNTA AO DONO` e, depois dela, uma decisão com `confere=` de critério."""
+    abertas, perguntadas = {}, {}
+    for n, linha in enumerate(texto.split("\n"), 1):
+        if linha.strip().lstrip("-*> ").startswith(FRASE_DA_PERGUNTA):
+            perguntadas.update(abertas)
+            abertas = {}
+        elif e_decisao(linha):
+            valor = atributos_da_linha(linha).get("confere", "")
+            passa = valor in CRITERIOS
+            if passa:
+                perguntadas = {}
+            quando = data_da_linha(linha)
+            if not passa and quando is not None and quando >= entrada:
+                abertas[n] = f"`confere={valor}` sem pergunta e resposta do dono depois" if valor else "sem `confere=`"
+    return sorted({**abertas, **perguntadas}.items())
+
+
+def _devolver(questoes, ctx):
+    for n in sorted(questoes):
+        print(f"pergunta: {n}) " + " · ".join(f"{n}{l}) {ctx['seguro'](t)[:120]}" for l, t in questoes[n].items()))
+
+
 def cmd_resposta(raiz, pedido, resposta, ctx):
     arq = ctx["pedido"](raiz, pedido)
     if arq is None:
@@ -145,15 +323,20 @@ def cmd_resposta(raiz, pedido, resposta, ctx):
     escolhas, ambiguas = ler_resposta(questoes, resposta)
     if ambiguas or not escolhas:
         print(f"decisoes: resposta ambígua ({'; '.join(ambiguas) or 'nenhuma questão respondida'}); volta ao dono como pergunta:")
-        for n in sorted(questoes):
-            print(f"pergunta: {n}) " + " · ".join(f"{n}{l}) {ctx['seguro'](t)[:120]}" for l, t in questoes[n].items()))
+        _devolver(questoes, ctx)
+        return 1
+    if motivos := recusa_de_corte(questoes, escolhas):  # E6: a pergunta gravada antes da trava não vira decisão de corte sem origem
+        print(f"decisoes: {'; '.join(motivos)}; volta ao dono como pergunta, com a origem:")
+        _devolver(questoes, ctx)
         return 1
     for n in sorted(questoes):
         if n in escolhas:
             print(f"resposta: {n} -> {n}{escolhas[n]}: {ctx['seguro'](questoes[n][escolhas[n]])[:160]}")
         else:
             print(f"resposta: {n} -> sem resposta: segue pendente")
-    print(f"decisoes: grave com `forge-check anotar --pedido {pedido} --tipo decisao --literal <a resposta>` (a pergunta de "
+    for n, (r, e) in sorted(divergencia(questoes, escolhas).items()):
+        print(f"resposta: {MARCA_REVERTIDA} na questão {n} ({n}{e} contra {n}{r}): dono contra o time")
+    print(f"decisoes: grave com `forge-check anotar --pedido {pedido} --tipo decisao --confere <critério> --literal <a resposta>` (a pergunta de "
           f"{perguntas[-1][0]})")
     return 0
 

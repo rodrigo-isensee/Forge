@@ -23,34 +23,10 @@
   "descricao": 0,
   "sinonimos": 0
  },
- "docs/regras/R-CONTRIB.md": {
-  "caracteres": 1921,
-  "frase_max": 47,
-  "frase_media_x10": 191,
-  "linhas_longas": 5,
-  "descricao": 0,
-  "sinonimos": 0
- },
- "docs/regras/R-COPIA.md": {
-  "caracteres": 825,
-  "frase_max": 32,
-  "frase_media_x10": 141,
-  "linhas_longas": 3,
-  "descricao": 0,
-  "sinonimos": 0
- },
- "docs/regras/R-CUSTO.md": {
-  "caracteres": 622,
-  "frase_max": 19,
-  "frase_media_x10": 113,
-  "linhas_longas": 1,
-  "descricao": 0,
-  "sinonimos": 0
- },
  "docs/regras/R-DECISAO.md": {
   "caracteres": 4472,
   "frase_max": 58,
-  "frase_media_x10": 174,
+  "frase_media_x10": 168,
   "linhas_longas": 15,
   "descricao": 0,
   "sinonimos": 0
@@ -64,18 +40,18 @@
   "sinonimos": 0
  },
  "docs/regras/R-FLUXO.md": {
-  "caracteres": 2660,
+  "caracteres": 2656,
   "frase_max": 45,
-  "frase_media_x10": 151,
+  "frase_media_x10": 145,
   "linhas_longas": 11,
   "descricao": 0,
   "sinonimos": 0
  },
- "docs/regras/R-MAIN.md": {
-  "caracteres": 1077,
-  "frase_max": 26,
-  "frase_media_x10": 146,
-  "linhas_longas": 3,
+ "docs/regras/R-LIMITES.md": {
+  "caracteres": 5787,
+  "frase_max": 47,
+  "frase_media_x10": 169,
+  "linhas_longas": 24,
   "descricao": 0,
   "sinonimos": 0
  },
@@ -123,22 +99,6 @@
   "caracteres": 1285,
   "frase_max": 29,
   "frase_media_x10": 152,
-  "linhas_longas": 4,
-  "descricao": 0,
-  "sinonimos": 0
- },
- "docs/regras/R-VERIFY.md": {
-  "caracteres": 957,
-  "frase_max": 20,
-  "frase_media_x10": 110,
-  "linhas_longas": 2,
-  "descricao": 0,
-  "sinonimos": 0
- },
- "docs/regras/R-WIP.md": {
-  "caracteres": 1649,
-  "frase_max": 53,
-  "frase_media_x10": 202,
   "linhas_longas": 4,
   "descricao": 0,
   "sinonimos": 0
@@ -216,9 +176,9 @@
   "sinonimos": 0
  },
  "skills/iniciar-projeto/SKILL.md": {
-  "caracteres": 2175,
+  "caracteres": 2163,
   "frase_max": 38,
-  "frase_media_x10": 191,
+  "frase_media_x10": 188,
   "linhas_longas": 7,
   "descricao": 348,
   "sinonimos": 0
@@ -240,17 +200,17 @@
   "sinonimos": 0
  },
  "skills/novo-projeto/SKILL.md": {
-  "caracteres": 5583,
+  "caracteres": 5581,
   "frase_max": 55,
-  "frase_media_x10": 162,
+  "frase_media_x10": 158,
   "linhas_longas": 17,
   "descricao": 442,
   "sinonimos": 0
  },
  "skills/observabilidade-incidentes/SKILL.md": {
-  "caracteres": 1710,
+  "caracteres": 1665,
   "frase_max": 22,
-  "frase_media_x10": 129,
+  "frase_media_x10": 120,
   "linhas_longas": 6,
   "descricao": 170,
   "sinonimos": 0

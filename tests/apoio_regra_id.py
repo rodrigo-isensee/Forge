@@ -13,8 +13,12 @@ def ler(rel):
 
 
 def ids(texto):
-    """Os IDs de regra citados no texto que existem em docs/regras/."""
-    return {i for i in ID.findall(texto) if (RAIZ / "docs" / "regras" / f"{i}.md").is_file()}
+    """Os IDs de regra citados no texto que existem em docs/regras/ (arquivo próprio, trecho de R-LIMITES.md ou, como o
+    `R-WIP` desde a E1 da 0.45.7, linha sem link na tabela do README: regra só de hook, com o texto no próprio índice)."""
+    limites = ler("docs/regras/R-LIMITES.md")
+    indice = ler("docs/regras/README.md")
+    return {i for i in ID.findall(texto)
+            if (RAIZ / "docs" / "regras" / f"{i}.md").is_file() or f"## {i}:" in limites or f"| `{i}` |" in indice}
 
 
 def linha(rel, ancora):

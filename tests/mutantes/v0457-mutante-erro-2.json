@@ -1,0 +1,26 @@
+{
+  "pedido": "v0457-mutante-erro",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "o mutante roda com erro_mata (controle já verde)",
+      "arquivo": "bin/forge-mutante",
+      "de": "veredito(m[\"testes\"], registro, erro_mata=True)",
+      "para": "veredito(m[\"testes\"], registro, erro_mata=False)",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_mutante_que_leva_o_teste_a_erro_morre_por_erro_e_sai_0"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "só o resultado erro entra na morte por erro",
+      "arquivo": "bin/forge-mutante",
+      "de": "erros = [e for e in registro if e[\"res\"] == \"erro\"]",
+      "para": "erros = [e for e in registro if e[\"res\"] == \"falha\"]",
+      "testes": [
+        "tests.test_forge_mutante.Veredito.test_erro_do_teste_declarado_mata_so_com_o_controle_verde"
+      ]
+    }
+  ]
+}

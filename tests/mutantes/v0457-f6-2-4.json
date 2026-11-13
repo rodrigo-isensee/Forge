@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-f6-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "bin/forge_transcricao.py:97 not o.get('isSidechain') or not isinstance(agente, str)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if not o.get(\"isSidechain\") or not isinstance(agente, str):",
+      "para": "        if (not (not o.get(\"isSidechain\") or not isinstance(agente, str))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "bin/forge_transcricao.py:99 isinstance(o.get('sessionId'), str)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if not o.get(\"isSidechain\") or not isinstance(agente, str):\n            continue\n        sessao = o.get(\"sessionId\") if isinstance(o.get(\"sessionId\"), str) else \"\"",
+      "para": "        if not o.get(\"isSidechain\") or not isinstance(agente, str):\n            continue\n        sessao = o.get(\"sessionId\") if (not (isinstance(o.get(\"sessionId\"), str))) else \"\"",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "bin/forge_transcricao.py:102 isinstance(msg.get('content'), list)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        blocos = msg.get(\"content\") if isinstance(msg.get(\"content\"), list) else []",
+      "para": "        blocos = msg.get(\"content\") if (not (isinstance(msg.get(\"content\"), list))) else []",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "bin/forge_transcricao.py:103 o.get('type') == 'assistant'",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if o.get(\"type\") == \"assistant\":",
+      "para": "        if (not (o.get(\"type\") == \"assistant\")):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "bin/forge_transcricao.py:104 isinstance(b, dict) and b.get('type') == 'text'",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "            textos = [t for b in blocos if isinstance(b, dict) and b.get(\"type\") == \"text\" for t in textos_do_conteudo([b])]",
+      "para": "            textos = [t for b in blocos if (not (isinstance(b, dict) and b.get(\"type\") == \"text\")) for t in textos_do_conteudo([b])]",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "bin/forge_transcricao.py:105 textos",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "            textos = [t for b in blocos if isinstance(b, dict) and b.get(\"type\") == \"text\" for t in textos_do_conteudo([b])]\n            if textos:",
+      "para": "            textos = [t for b in blocos if isinstance(b, dict) and b.get(\"type\") == \"text\" for t in textos_do_conteudo([b])]\n            if (not (textos)):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "bin/forge_transcricao.py:106 reg['id'] == msg.get('id')",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "                reg[\"texto\"] = (reg[\"texto\"] + \"\\n\" if reg[\"id\"] == msg.get(\"id\") else \"\") + \"\\n\".join(textos)",
+      "para": "                reg[\"texto\"] = (reg[\"texto\"] + \"\\n\" if (not (reg[\"id\"] == msg.get(\"id\"))) else \"\") + \"\\n\".join(textos)",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "bin/forge_transcricao.py:109 isinstance(b, dict) and b.get('type') == 'tool_use' and (b.g",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "                if isinstance(b, dict) and b.get(\"type\") == \"tool_use\" and b.get(\"name\") == \"SubagentHandback\" \\\n                        and isinstance(b.get(\"input\"), dict) and isinstance(b[\"input\"].get(\"message\"), str):",
+      "para": "                if (not (isinstance(b, dict) and b.get(\"type\") == \"tool_use\" and b.get(\"name\") == \"SubagentHandback\" \\\n                        and isinstance(b.get(\"input\"), dict) and isinstance(b[\"input\"].get(\"message\"), str))):",
+      "testes": [
+        "tests.test_forge.MedirAlucinacao"
+      ]
+    }
+  ]
+}

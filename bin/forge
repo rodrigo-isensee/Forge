@@ -8,6 +8,7 @@
 #   forge atualizar      atualiza o Forge do projeto, com ponto de retorno
 #   forge voltar-versao  volta para a versão de antes da última atualização
 #   forge sugerir        sugere uma melhoria ao Forge, sem dados do projeto
+#   forge ritmo          mostra ou muda o ritmo do time: econômico, equilibrado ou acelerado
 set -euo pipefail
 
 dir="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"

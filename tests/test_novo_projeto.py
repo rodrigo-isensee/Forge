@@ -497,7 +497,7 @@ class PerfilEJarvis(unittest.TestCase):
     def test_primeira_abertura_pergunta_so_produto_cobre_adotado_e_diz_quando_chama(self):  # ONBOARDING-1 mínimo (0.44.0)
         texto = (RAIZ / "skills/novo-projeto/SKILL.md").read_text(encoding="utf-8")
         perguntas = texto.split("## 3.")[1].split("\n## ")[0]
-        self.assertEqual(re.findall(r"(?m)^\d+\. \*\*([^:*]+)", perguntas), ["Objetivo", "Quem usa", "O que não pode quebrar"])
+        self.assertEqual(re.findall(r"(?m)^\d+\. \*\*([^:*]+)", perguntas), ["Objetivo", "Quem usa", "O que não pode quebrar", "Ritmo"])
         for tecnico in ("Qual stack", "Como saber que está pronto", "Você já programa?"):
             self.assertNotIn(tecnico, texto)
         self.assertIn("o time decide e registra", perguntas)

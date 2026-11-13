@@ -58,6 +58,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RAIZ, ambiente_limpo, git, minimo  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 from modelo_git import copiar_modelo  # noqa: E402
+from apoio_sandbox import exigir  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
 
 HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
@@ -75,6 +76,19 @@ def _cpu_dos_filhos():
         return None
     r = resource.getrusage(resource.RUSAGE_CHILDREN)
     return r.ru_utime + r.ru_stime
+
+
+# ORCAMENTO-TEMPO-NO-LOG (E1.10): a linha de formato fixo que o teste do orçamento de heredocs põe no stderr, passe ou
+# falhe, para o log do CI dizer o tempo medido e o limite (o `--medir` do `forge-fechar` se cumpre por ela). A forma vai
+# por último porque tem espaços; `medida` diz se o número é CPU ou parede.
+FORMATO_DO_ORCAMENTO = re.compile(
+    r"^ORCAMENTO-TEMPO teste=(\S+) medido=(\d+\.\d{2})s limite=(\d+(?:\.\d+)?)s medida=(cpu|parede) forma=(.+)$")
+
+
+def registrar_orcamento(teste, medido, limite, medida, forma):
+    """Escreve no stderr, numa linha só, o tempo medido, o limite e o nome do teste (`FORMATO_DO_ORCAMENTO`)."""
+    print(f"ORCAMENTO-TEMPO teste={teste} medido={medido:.2f}s limite={limite:g}s medida={medida} forma={forma}",
+          file=sys.stderr, flush=True)
 
 
 def pid_morto():
@@ -238,13 +252,18 @@ def limpar_caches_dos_hooks():
     return zerados
 
 
-def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True):
+def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True, releituras=0, em_curso=frozenset()):
     """Composição de teste (desenho do lote, 3.3), sem função nova no hook: o caminho de leitura do `Guarda.bash` e do
     `segmento`, que devolve (palavras, destinos) de cada comando que o hook confere ou levanta `Ilegivel`. `todas`:
-    False lê só a leitura fiel do nível de fora (a base do T1)."""
+    False lê só a leitura fiel do nível de fora (a base do T1). `releituras` e `em_curso`, como no hook
+    (PROFUNDIDADE-BASH-C): a palavra com crase relida não conta como nível, e o texto já em leitura não se relê."""
     _comum, conformidade, _ = modulos_dos_hooks()
-    if nivel > conformidade.PROFUNDIDADE:
-        return []  # o hook só dá o R-CONTRIB da linha aninhada que aponta para o Forge, e não lê mais nada
+    if nivel - releituras > conformidade.PROFUNDIDADE:
+        raise Ilegivel(linha)  # o hook recusa a linha acima do teto (PROFUNDIDADE-BASH-C)
+    if nivel > 1 and (linha, so_substituicoes) in em_curso:
+        return []
+    if nivel:
+        em_curso = em_curso | {(linha, so_substituicoes)}
     try:
         linha, corpos = _comum.tirar_heredocs(linha)
     except ValueError:
@@ -259,19 +278,19 @@ def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True):
             if so_substituicoes and not sub:
                 continue
             lidos.append((palavras, destinos))
-            lidos += ler_dentro_do_comando(palavras, nivel)
+            lidos += ler_dentro_do_comando(palavras, nivel, releituras, em_curso)
     for corpo in _comum.conteudos_de_crase(linha, so_os_fechados=True):  # CRASE-SESSAO-PROJETO
-        lidos += ler_como_o_conformidade(corpo, nivel + 1)
+        lidos += ler_como_o_conformidade(corpo, nivel + 1, releituras=releituras, em_curso=em_curso)
     shell_no_dono = {}  # S-SUITE-RAPIDA: o mesmo dono (até 150 mil caracteres) volta em cada heredoc dele; a busca, uma vez por texto
     for dono, corpo in corpos:
         if dono not in shell_no_dono:
             shell_no_dono[dono] = re.search(r"\b(bash|sh|zsh|dash)\b", dono) is not None
         if shell_no_dono[dono]:
-            lidos += ler_como_o_conformidade(corpo, nivel + 1)
+            lidos += ler_como_o_conformidade(corpo, nivel + 1, releituras=releituras, em_curso=em_curso)
     return lidos
 
 
-def ler_dentro_do_comando(palavras, nivel):
+def ler_dentro_do_comando(palavras, nivel, releituras=0, em_curso=frozenset()):
     """O que o `segmento` relê de um comando simples: a palavra com substituição entre aspas e o `bash -c`/`eval`, em cada
     leitura possível do lançador (`separar_lancadores`: a recusa é a união delas, RET-LEITURA-HOOK-G)."""
     _, conformidade, _ = modulos_dos_hooks()
@@ -286,9 +305,10 @@ def ler_dentro_do_comando(palavras, nivel):
     for palavras, lancadas in possiveis:
         for p in atribuicoes + lancadas + palavras:  # N1: a atribuição também
             if "`" in p:
-                lidos += ler_como_o_conformidade(p, nivel + 1)
+                lidos += ler_como_o_conformidade(p, nivel + 1, releituras=releituras + 1, em_curso=em_curso)
             elif "$(" in p.replace(conformidade.OPACO["$"], ""):
-                lidos += ler_como_o_conformidade(p, nivel + 1, so_substituicoes=True)
+                lidos += ler_como_o_conformidade(p, nivel + 1, so_substituicoes=True, releituras=releituras,
+                                                 em_curso=em_curso)
         prog = Path(palavras[0].lstrip("`")).name if palavras else ""
         internos = []
         if prog in conformidade.SHELLS:
@@ -296,9 +316,10 @@ def ler_dentro_do_comando(palavras, nivel):
         elif prog == "eval":
             internos = [" ".join(palavras[1:])]
         for interno in internos:
-            lidos += ler_como_o_conformidade(interno, nivel + 1)
+            lidos += ler_como_o_conformidade(interno, nivel + 1, releituras=releituras, em_curso=em_curso)
             if "\\`" in interno:
-                lidos += ler_como_o_conformidade(interno.replace("\\`", "`"), nivel + 1)
+                lidos += ler_como_o_conformidade(interno.replace("\\`", "`"), nivel + 1, releituras=releituras,
+                                                 em_curso=em_curso)
     return lidos
 
 
@@ -1041,6 +1062,14 @@ class Hooks(unittest.TestCase):
         self.assertRegex("gh pr merge 12 --squash", parecer.MERGE_DE_PR)
         self.assertNotRegex("gh pr create --title merge", parecer.MERGE_DE_PR)
 
+    def test_merge_de_pr_na_duvida_fica_com_o_prazo_comum(self):  # v0456, A1 da segurança da 0.45.5
+        """A linha que o leitor não lê (heredoc em dúvida, `tirar_heredocs` dá ValueError) não ganha o prazo longo, nem
+        com `gh pr merge` por extenso: na dúvida, os 3 s (menos tempo, nunca uma liberação)."""
+        _, _, parecer = modulos_dos_hooks()
+        duvida = "gh pr merge feature/x <<EOF\n$(id)\nEOF"
+        self.assertIsNone(parecer.MERGE_DE_PR.search(duvida))
+        self.assertTrue(parecer.MERGE_DE_PR.search("gh pr merge feature/x <<'EOF'\nx\nEOF"))
+
     def test_timeout_de_rede_dos_hooks_abaixo_do_hooks_json(self):
         """Segurança A1: todo subprocesso de rede dos hooks (`gh`, `curl`, `git fetch`...) tem limite de tempo menor que o
         menor timeout do hooks.json; senão o Claude Code mata o hook e o comando segue (falha aberta)."""
@@ -1273,6 +1302,7 @@ class Hooks(unittest.TestCase):
         self.assertEqual(agentes.vigentes(registros, agora, 7200), registros[4:5])
         hook = mock.Mock()
         hook.campo.return_value = "s1"
+        exigir(self, "proc")
         with mock.patch.object(agentes, "pid_da_sessao", return_value=os.getpid()):
             self.assertEqual(agentes.da_sessao(hook), {"pid": os.getpid(), "pidns": ns, "sessao": "s1"})
         with mock.patch.object(agentes, "pid_da_sessao", return_value=morto):  # pid que já morreu
@@ -1961,6 +1991,20 @@ class Hooks(unittest.TestCase):
                 # M2 da volta única: com o texto gravando (`cat > f`), o `git` do texto faz de todo corpo comando
                 self.assertEqual(set(lidos), {forma in ("pipeline", "mesma linha")})
 
+    def test_orcamento_sai_numa_linha_de_formato_fixo(self):  # ORCAMENTO-TEMPO-NO-LOG (E1.10)
+        """A linha do orçamento sai no stderr, uma só, com o nome do teste, o tempo medido e o limite, e casa com o
+        `FORMATO_DO_ORCAMENTO` que o `--medir` lê; nada vai ao stdout."""
+        saida, erro = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(saida), contextlib.redirect_stderr(erro):
+            registrar_orcamento("tests.test_hooks.Hooks.t", 1.234, 3.0, "cpu", "um por linha")
+        self.assertEqual(saida.getvalue(), "")
+        self.assertEqual(erro.getvalue(), "ORCAMENTO-TEMPO teste=tests.test_hooks.Hooks.t medido=1.23s limite=3s "
+                                          "medida=cpu forma=um por linha\n")
+        achado = FORMATO_DO_ORCAMENTO.match(erro.getvalue().rstrip("\n"))
+        self.assertIsNotNone(achado)
+        self.assertEqual(achado.groups(), ("tests.test_hooks.Hooks.t", "1.23", "3", "cpu", "um por linha"))
+        self.assertIsNone(FORMATO_DO_ORCAMENTO.match("ORCAMENTO-TEMPO teste=t medido=nan limite=3s medida=cpu forma=x"))
+
     def test_muitos_heredocs_recusam_dentro_do_orcamento(self):  # LOTE-LEITURA-HOOK, A1 do review, volta 5
         """Pelo hook real: 3000 heredocs com `git push origin main` no fim recusam (R-MAIN) bem antes do timeout do
         `hooks.json` (26,9 s antes, e o Claude Code libera o comando que o hook não decidiu a tempo).
@@ -1996,6 +2040,7 @@ class Hooks(unittest.TestCase):
         for dono, m in itertools.product(("./x{i}", "sh -s a{i}", "python3 -", "python3 - a{i}"), (1000, 3000)):
             formas[f"{dono} x{m}"] = ("".join(f"{dono.format(i=i)} <<'E'\nx\nE\n" for i in range(m))
                                      + "bash <<'Z'\necho x > .github/workflows/ci.yml\nZ", None, base)
+        medidas = []  # ORCAMENTO-TEMPO-NO-LOG: (valor, forma) de cada forma medida; o pior vai ao log
         for forma, (texto, recusa, *outra) in formas.items():
             with self.subTest(forma=forma):
                 caso = json.loads(json.dumps(*outra or [dados]))
@@ -2016,11 +2061,16 @@ class Hooks(unittest.TestCase):
                 medida = f"{parede:.2f} s de parede, {cpu or 0:.2f} s de CPU"
                 if outra:
                     print(f"HEREDOC-DONOS {forma}: {medida} (limite {conformidade.PRAZO_DA_LINHA_S:g} s de CPU)")
+                medidas.append((parede if cpu is None else cpu, forma))
                 if cpu is None:  # sem `resource` (Windows) só vale a parede
                     self.assertLess(parede, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
                 else:
                     self.assertLess(cpu, conformidade.PRAZO_DA_LINHA_S,
                                     f"o custo do hook cabe no prazo da linha, sem depender da carga ({medida})")
+        pior, forma = max(medidas, default=(float("nan"), "nenhuma"))
+        sem_cpu = _cpu_dos_filhos() is None
+        registrar_orcamento(self.id(), pior, limite / 2 if sem_cpu else conformidade.PRAZO_DA_LINHA_S,
+                            "parede" if sem_cpu else "cpu", forma)
 
     @staticmethod
     def _donos_da_base(_comum, texto):
@@ -2392,6 +2442,11 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 8, "as fixtures do lote")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_da_medida_av3(self):  # v0457 E2.1: a medida dos comandos críticos por papel, para a mutação
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("AV3 etapa 1")]
+        self.assertGreaterEqual(len(lote), 2, "as fixtures da medida")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_da_trilha_034(self):  # trilha hooks/conformidade da 0.34: a descrição abre com o cartão, para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith(CARTOES_DA_TRILHA_034)]
@@ -2401,6 +2456,14 @@ class Hooks(unittest.TestCase):
     def test_fixtures_do_n2(self):  # IMPL-FURO-HOOK-N, N2: a descrição abre com o item, para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N2 (")]
         self.assertGreaterEqual(len(lote), 28, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_do_rverify_falso_positivo(self):  # E16.1 (v0457): a prova pelo destino, fora de projeto
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("HOOK-RVERIFY-FALSO-POSITIVO:")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 7, "os falsos positivos da noite")
+        self.assertGreaterEqual(len(lote) - len(liberam), 22, "o caso verdadeiro, em cada forma")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
     def test_fixtures_do_hook_n4(self):  # HOOK-N4 (0.45.1): `"$(…)"` com aspa ou case no corpo; a descrição abre com o item
@@ -2413,10 +2476,29 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 21, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_da_profundidade(self):  # PROFUNDIDADE-BASH-C (v0457 E17.1): acima do teto recusa, também fora de projeto
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("PROFUNDIDADE-BASH-C (")]
+        self.assertGreaterEqual(len(lote), 14, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_do_n3(self):  # IMPL-FURO-HOOK-N, N3 (0.45.1): link com caminho protegido
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N3 (")]
         self.assertGreaterEqual(len(lote), 12, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_do_tm25(self):  # TM-25: Stryker e teste de banco da lista da stack node-react, um por vez
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("TM-25:")]
+        self.assertGreaterEqual(len(lote), 3, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+        sys.path.insert(0, str(HOOKS))
+        import pesado
+        for comando in ("pnpm stryker run", "npx stryker run", "pnpm exec stryker run", "pnpm test:db", "npm run test:db"):
+            with self.subTest(comando=comando):
+                self.assertTrue(pesado.pesado(comando, PESADOS_DA_STACK))
+        for comando in ("grep -rn stryker docs", "pnpm test", "pnpm run test:dbx", "cat stryker.conf.json"):
+            with self.subTest(comando=comando):
+                self.assertFalse(pesado.pesado(comando, PESADOS_DA_STACK))
 
     def test_fixtures_do_ar_trava(self):  # AR-TRAVA-UMA-SINTAXE (0.45.1): toda forma que o consumidor aceita
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
@@ -2824,6 +2906,58 @@ class CaminhosExtra(unittest.TestCase):
                 self.assertEqual(len(avisos), 1)
                 self.assertTrue(avisos[0].startswith("caminhos_extra: "))
 
+    # E18.1 (0.45.7): só pasta do usuário, que ninguém mais grava, nem pelas pastas de cima.
+    def so_ela(self, pasta):
+        pasta.chmod(0o755)
+        return self.com_config(json.dumps({"caminhos_extra": [str(pasta)]}))
+
+    def test_pasta_do_usuario_sem_escrita_alheia_entra(self):
+        self.assertEqual(self.so_ela(self.pasta), ([str(self.pasta)], []))
+
+    def test_pasta_gravavel_por_grupo_ou_outros_fica_de_fora(self):
+        for modo in (0o775, 0o757):
+            with self.subTest(modo=oct(modo)):
+                self.pasta.chmod(modo)
+                boas, avisos = self.com_config(json.dumps({"caminhos_extra": [str(self.pasta)]}))
+                self.assertEqual(boas, [])
+                self.assertIn("precisa ser do usuário", avisos[0])
+
+    def test_pasta_de_outro_usuario_fica_de_fora(self):
+        self.pasta.chmod(0o755)
+        with mock.patch.object(os, "getuid", return_value=os.stat(self.pasta).st_uid + 4242):
+            boas, avisos = self.com_config(json.dumps({"caminhos_extra": [str(self.pasta)]}))
+        self.assertEqual(boas, [])
+        self.assertIn("precisa ser do usuário", avisos[0])
+
+    def test_pasta_acima_gravavel_sem_sticky_fica_de_fora_e_com_sticky_entra(self):
+        pai = self.raiz / "pai"
+        pasta = pai / "bin"
+        pasta.mkdir(parents=True)
+        self.addCleanup(pai.chmod, 0o755)
+        for modo, entra in ((0o777, False), (0o1777, True)):
+            with self.subTest(modo=oct(modo)):
+                pai.chmod(modo)
+                boas, _ = self.so_ela(pasta)
+                self.assertEqual(boas, [str(pasta)] if entra else [])
+
+    def test_pasta_acima_de_outro_usuario_fica_de_fora(self):
+        real = os.stat
+        pai = str(self.raiz)
+
+        def stat_falso(caminho, *args, **kwargs):
+            info = real(caminho, *args, **kwargs)
+            if os.fspath(caminho) != pai:
+                return info
+            campos = list(info[:10])
+            campos[4] = os.getuid() + 4242  # st_uid: nem o usuário nem o root
+            return os.stat_result(campos)
+
+        self.pasta.chmod(0o755)
+        with mock.patch.object(os, "stat", stat_falso):
+            boas, avisos = self.com_config(json.dumps({"caminhos_extra": [str(self.pasta)]}))
+        self.assertEqual(boas, [])
+        self.assertIn("nem as pastas acima", avisos[0])
+
 
 class PoolDosFixtures(unittest.TestCase):
     """O pool de threads dos fixtures e do corpus: uma fonte só (N-CI, C-1), por subprocesso (espera, não CPU)."""
@@ -2865,6 +2999,7 @@ class TravaPesadaEmSegundoPlano(unittest.TestCase):
 
     def lancar(self, argv, marca, **kw):
         """Processo real, de ambiente limpo, esperado até o `cmdline` começar por `marca` (o exec já aconteceu)."""
+        exigir(self, "proc")
         processo = subprocess.Popen(argv, env=ambiente_limpo(), stdout=subprocess.DEVNULL, **kw)
         self.addCleanup(processo.wait)
         self.addCleanup(processo.kill)

@@ -1,0 +1,102 @@
+{
+  "pedido": "v0457-f6-5",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "bin/forge_medidas.py:27 m[0] <= fim",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    antes = [m for m in movimentos if m[0] <= fim]",
+      "para": "    antes = [m for m in movimentos if (not (m[0] <= fim))]",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "bin/forge_medidas.py:28 not antes",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    if not antes:",
+      "para": "    if (not (not antes)):",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "bin/forge_medidas.py:32 tipo_da_espera(m[2], m[3]) == 'dono' or _sem_acento(m[3]).startswith('espera deliberada:')",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "                  if tipo_da_espera(m[2], m[3]) == \"dono\" or _sem_acento(m[3]).startswith(\"espera deliberada:\"))",
+      "para": "                  if (not (tipo_da_espera(m[2], m[3]) == \"dono\" or _sem_acento(m[3]).startswith(\"espera deliberada:\"))))",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "bin/forge_medidas.py:41 aviso or not arq.is_file()",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    if aviso or not arq.is_file():",
+      "para": "    if (not (aviso or not arq.is_file())):",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "bin/forge_medidas.py:42 aviso",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "        return \"lacuna:entregas.md-ilegivel\" if aviso else \"lacuna:sem-entregas.md\"",
+      "para": "        return \"lacuna:entregas.md-ilegivel\" if (not (aviso)) else \"lacuna:sem-entregas.md\"",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "bin/forge_medidas.py:43 len(c) >= 4 and c[1].casefold() == pedido.casefold()",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    valores = [c[3] for c in linhas if len(c) >= 4 and c[1].casefold() == pedido.casefold()]",
+      "para": "    valores = [c[3] for c in linhas if (not (len(c) >= 4 and c[1].casefold() == pedido.casefold()))]",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "bin/forge_medidas.py:44 not valores",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    if not valores:",
+      "para": "    if (not (not valores)):",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "bin/forge_medidas.py:46 not all((re.fullmatch('[0-9]+', v) for v in valores))",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "    if not all(re.fullmatch(r\"[0-9]+\", v) for v in valores):",
+      "para": "    if (not (not all(re.fullmatch(r\"[0-9]+\", v) for v in valores))):",
+      "testes": [
+        "tests.test_voltas.MedidaDoTopico",
+        "tests.test_voltas.MedidaDaRelease",
+        "tests.test_forge_medidas"
+      ]
+    }
+  ]
+}

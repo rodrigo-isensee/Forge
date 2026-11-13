@@ -205,7 +205,7 @@ class Selar(Repositorio):
 
     def test_referencia_desatualizada_e_corrigida_pela_decisao_nova(self):
         arq = self.brief()
-        self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--literal", "outra regra geral")
+        self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--confere", "mede", "--literal", "outra regra geral")
         rc, saida = self.rodar("brief", str(arq), "--pedido", "exemplo")
         self.assertIn("difere do bloco atual", saida)  # informativo: a decisão nova vale pela referência
         rc, saida = self.selar()
@@ -266,7 +266,7 @@ class Selar(Repositorio):
         arq = self.brief()
         arq.chmod(0o444)  # em voo: aprovado
         self.addCleanup(arq.chmod, 0o644)
-        rc, saida = self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--literal", "nova", "--propagar")
+        rc, saida = self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--confere", "mede", "--literal", "nova", "--propagar")
         self.assertEqual(rc, 0, saida)
         self.assertIn("decisões por referência; nada a propagar", saida)
         self.assertFalse((arq.parent / "exemplo-node-backend-2.md").exists())
@@ -554,7 +554,7 @@ class Hook(Repositorio):
         r = self.lancar(prompt)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertNotIn("vencido", r.stderr + r.stdout)
-        self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--literal", "outra regra geral")
+        self.rodar("anotar", "--pedido", "exemplo", "--tipo", "decisao", "--confere", "mede", "--literal", "outra regra geral")
         r = self.lancar(prompt)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("R-BRIEF: aviso: brief vencido", r.stderr)

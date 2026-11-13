@@ -1,0 +1,64 @@
+{
+  "pedido": "v0457",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "GuardaDaProva.barrar: a recusa da prova da suíte vale fora de projeto (caso verdadeiro)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if (rid, o_que, corrigir) == PROVA_DA_SUITE:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_rverify_falso_positivo"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "GuardaDaProva.barrar: na linha que o hook não lê, a outra recusa volta ao texto (falha fechado)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if self.sem_leitura:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_rverify_falso_positivo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "GuardaDaProva.barrar: a outra recusa na linha lida não vale e a leitura segue (o falso positivo)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if self.sem_leitura:",
+      "para": "if True:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_rverify_falso_positivo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "GuardaDaProva.barrar: a linha que o hook não lê para a leitura com ForaDaProva",
+      "arquivo": "hooks/conformidade.py",
+      "de": "raise ForaDaProva(rid)",
+      "para": "pass",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_rverify_falso_positivo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "conferir_linha: a linha ilegível marca sem_leitura antes das recusas dela",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            self.sem_leitura = True\n            if nivel:",
+      "para": "            if nivel:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_rverify_falso_positivo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "recusar_o_teto: a linha acima do teto marca sem_leitura antes da recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                self.sem_leitura = True\n                self.barrar(",
+      "para": "                self.barrar(",
+      "equivalente": "sem a marca, a GuardaDaProva segue lendo a linha acima do teto e recusa a prova pelo destino; o veredito é o mesmo, muda só o custo da leitura (o teto existe pelo prazo do hook, não pela decisão)"
+    }
+  ]
+}

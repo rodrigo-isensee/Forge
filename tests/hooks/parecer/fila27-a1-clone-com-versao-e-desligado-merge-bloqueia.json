@@ -1,0 +1,40 @@
+{
+  "descricao": "FILA-27 A1 (S7b): no clone do Forge com .forge/versao, o manifesto vence o hooks_desligados; gh pr merge sem parecer barra.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "config": {
+    "hooks_desligados": [
+      "parecer"
+    ]
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.melhoria/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh pr merge melhoria/x"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW"
+  }
+}

@@ -1,0 +1,12 @@
+[
+ {"headRefName":"melhoria/v0455","statusCheckRollup":[{"conclusion":"SUCCESS"},{"conclusion":"FAILURE"}]},
+ {"headRefName":"melhoria/v0455-e2","statusCheckRollup":[{"conclusion":"SUCCESS"},{"state":"ERROR"}]},
+ {"headRefName":"melhoria/v0455","statusCheckRollup":[{"conclusion":"SUCCESS"}]},
+ {"headRefName":"melhoria/v0454","statusCheckRollup":[{"conclusion":"SUCCESS"}]},
+ {"headRefName":"melhoria/v0454","statusCheckRollup":[]},
+ {"headRefName":"melhoria/v0471","statusCheckRollup":[]},
+ {"headRefName":"melhoria/v04555","statusCheckRollup":[{"conclusion":"FAILURE"}]},
+ {"statusCheckRollup":[{"conclusion":"SUCCESS"}]},
+ {"headRefName":"melhoria/v0454","statusCheckRollup":null},
+ {"headRefName":"melhoria/v0454","statusCheckRollup":["x"]}
+]

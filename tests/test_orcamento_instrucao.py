@@ -41,15 +41,24 @@ def skills_obrigatorias(texto):
     return sorted(nomes | set(SKILL_LIDA.findall(texto)))
 
 
+def texto_da_regra(raiz, rid):
+    """O texto de docs/regras/<rid>.md ou, sem o arquivo, o trecho `## <rid>: ` de R-LIMITES.md (AV5); None se não há."""
+    arq = raiz / "docs" / "regras" / f"{rid}.md"
+    if arq.is_file():
+        return arq.read_text(encoding="utf-8")
+    limites = raiz / "docs" / "regras" / "R-LIMITES.md"
+    partes = limites.read_text(encoding="utf-8").split(f"\n## {rid}: ", 1) if limites.is_file() else []
+    return partes[1].split("\n## ", 1)[0] if len(partes) == 2 else None
+
+
 def medir(raiz, agente):
     """{dimensão: valor, "skills": [...], "regras": [...]} do que o agente carrega na árvore `raiz`."""
     texto = (raiz / "agents" / f"{agente}.md").read_text(encoding="utf-8")
     skills = skills_obrigatorias(texto)
     textos = [texto] + [(raiz / "skills" / s / "SKILL.md").read_text(encoding="utf-8") for s in skills]
     ids = sorted({i for t in textos for i in ID_DE_REGRA.findall(t)})
-    regras = [i for i in ids if (raiz / "docs" / "regras" / f"{i}.md").is_file()
-              and not so_ferramenta((raiz / "docs" / "regras" / f"{i}.md").read_text(encoding="utf-8"))]
-    todos = textos + [(raiz / "docs" / "regras" / f"{i}.md").read_text(encoding="utf-8") for i in regras]
+    regras = [i for i in ids if texto_da_regra(raiz, i) is not None and not so_ferramenta(texto_da_regra(raiz, i))]
+    todos = textos + [texto_da_regra(raiz, i) for i in regras]
     return {"agente_caracteres": len(texto), "total_caracteres": sum(len(t) for t in todos),
             "marcadores": sum(len(MARCADOR.findall(t)) for t in todos), "skills": skills, "regras": regras}
 

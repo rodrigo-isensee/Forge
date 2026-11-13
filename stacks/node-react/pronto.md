@@ -27,6 +27,7 @@ Ele precisa rodar, e falhar se algo falhar: lint (ESLint) e formatação (Pretti
 ## Vermelho antes do verde, mutação e contrato
 - Vermelho: `git stash push -- <arquivos de produção>` e `pnpm vitest run <teste>` precisa falhar; depois `git stash pop`.
 - Mutação (Stryker, gratuito): só nos arquivos do diff, `pnpm stryker run --incremental --mutate "$(git diff --name-only origin/develop -- '*.ts' '*.tsx' | grep -v '\.test\.' | paste -sd,)"`; a meta fica em `docs/engineering/praticas.md`, começa pela pontuação da primeira rodada e só sobe.
+- Fila de pesadas (`R-TETO`): o Stryker e o teste de banco (script `test:db` do `package.json`, repositório e migrações contra um banco descartável local) estão no `pesados.json` da stack e rodam um por vez; projeto criado antes disso mantém a lista dele e acrescenta esses comandos à lista `pesados` do `.forge/config.json`.
 - Contrato back-front: o esquema (zod em `packages/shared`, ou o OpenAPI gerado dele) é a fonte única; um teste no `server/` valida as respostas reais da rota contra ele e outro no `web/` valida os mocks do MSW contra o mesmo esquema. Sem serviço pago: Pact só com os arquivos de contrato versionados no repositório, sem broker.
 
 ## Playwright

@@ -1,0 +1,28 @@
+{
+  "descricao": "HOOK-RVERIFY-FALSO-POSITIVO: python3 - <<'EOF' que edita bin/forge-fechar e cita gh pr merge, com `2 * 3` no corpo; sessão do Forge, pasta fora de projeto: só cita, não grava a prova, libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    ".git/forge-suite-verde": "x\n",
+    "docs/hooks.md": "git push * x\n",
+    "bin/forge-fechar": "x\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj",
+    "XDG_RUNTIME_DIR": "{tmp}/run"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 - \"$PWD/bin/forge-fechar\" <<'EOF'\nimport sys\nfrom pathlib import Path\np = Path(sys.argv[1])\ns = p.read_text()\ns = s.replace('gh pr merge \"$n\"', 'gh pr merge \"$n\" --squash')\nprint(2 * 3)\np.write_text(s)\nEOF"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

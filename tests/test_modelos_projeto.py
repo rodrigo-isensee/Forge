@@ -13,7 +13,7 @@ CONTROLES = {
     "fonte do check fixada": "GitHub Actions",
     "force push": "force push",
     "deleção": "deleção",
-    "branch atualizada": "branch atualizada com a base",
+    "branch atualizada (a decisão dita; no modelo, desmarcada desde a E8 da 0.45.6)": "Require branches to be up to date before merging",
     "conferência de leitura": "gh api repos/",
     "custo do repositório privado": "decisão do dono",
     "dono configura": "`R-CONFORMIDADE`",
@@ -51,6 +51,11 @@ class TestPassoAPassoDaProtecao(unittest.TestCase):
         portoes = texto.split("## Ruleset `portoes`", 1)[1].split("\n## ", 1)[0]
         self.assertIn("sem ator de bypass", portoes)
         self.assertNotRegex(portoes, r"(?i)bypass (para|do) (administrador|dono|bot)")
+
+    def test_modelo_deixa_branch_atualizada_desmarcada_com_o_motivo(self):  # E8 (0.45.6): a base entra uma vez, no fim
+        passo = next(l for l in ler(MODELO).splitlines() if "Require branches to be up to date before merging" in l)
+        self.assertIn("Deixe **Require branches to be up to date before merging** desmarcado", passo)
+        self.assertIn("CI contra a base real", passo)
 
     def test_modelo_de_projeto_e_neutro_e_nao_manda_escrever_na_api(self):
         texto = ler(MODELO)

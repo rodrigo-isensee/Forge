@@ -1,0 +1,39 @@
+{
+  "pedido": "v0456",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "E2-M9",
+      "guarda": "D4 com AV4(b): só o apagado sai do estrito",
+      "arquivo": "bin/forge-check",
+      "de": "(not livre(f, estritos) or f in removidos)",
+      "para": "(not livre(f, estritos) or True)",
+      "testes": [
+        "tests.test_forge_check_versao_livre.VersaoLivre.test_fragmento_de_outro_pedido_mudado_pede_parecer_no_pr"
+      ]
+    },
+    {
+      "id": "E2-M10",
+      "guarda": "AV4(b): só o campo `version` sai da comparação",
+      "arquivo": "bin/forge-check",
+      "de": "for k, v in objeto.items() if k != \"version\"}",
+      "para": "for k, v in objeto.items() if k != \"versao\"}",
+      "testes": [
+        "tests.test_forge_check_versao_livre.VersaoLivre.test_so_a_versao_do_plugin_nao_pede_parecer"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "seguro and nome.endswith(SO_TEXTO_E_FORMA)",
+      "motivo": "refatoração: a condição da base só passou a reusar `seguro`; o comportamento de `leve` é o de antes, guardado pelos testes de EST-M4 (test_reval_delta)"
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "not livre(f, estritos)",
+      "linha_base": 746,
+      "motivo": "condição editada, não apagada: segue na linha nova com `or f in removidos`, coberta por E2-M8 e E2-M9"
+    }
+  ]
+}

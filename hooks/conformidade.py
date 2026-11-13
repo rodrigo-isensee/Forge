@@ -308,12 +308,35 @@ PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
 MARCA_DA_SUITE = re.compile(r"forge-suite-[^/]*\.(verde|dirigida)(\.novo)?|forge-suite-verde(\.\d{1,10})?")
 PROVA_DA_SUITE = ("R-VERIFY", "a prova da suíte só é gravada pelo pre-push e pela suíte (scripts/suite-paralela.py)",
                   "rode o push ou .githooks/pre-push --suite")
+# PROFUNDIDADE-BASH-C (v0457 E17.1): acima do teto de aninhamento o hook não lê a linha; recusa em toda sessão e pasta,
+# também fora de projeto (a `GuardaDaProva` a deixa passar), e não só quando ela aponta para o Forge.
+PROFUNDIDADE_EXCEDIDA = ("R-CONFORMIDADE", f"comando aninhado (bash -c, eval, $(, crase, heredoc) em mais de {PROFUNDIDADE} "
+                         "níveis: o hook não o lê", f"rode o comando direto, com no máximo {PROFUNDIDADE} níveis aninhados")
+COLCHETE_DE_DIGITO = re.compile(r"\[[0-9-]+\]")  # o bash e o glob do Python o leem igual: sem caixa, negação nem classe
 CURINGA = re.compile(r"[*?\[]")  # o bash expande no alvo antes de gravar (A1 e A2 da segurança g1 da 0.45)
 MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
 GLOB_DE_PATHSPEC = re.compile(r"[*?\[\\]")
 CHECKOUT_COM_VALOR = {"-b", "-B", "--orphan"}
 
 VARIAVEL = re.compile(r"\$\{?(\w+)\}?|\$\(|`")
+# E20.6 (A2 da segurança, v046): nomes do diretório do git. Depois de `$(…)` ou de variável, o resto que começa por um
+# deles pode estar no `.git` (`$(git rev-parse --git-common-dir)/forge/x`, `d=<raiz>/.git; cp x $d/config`).
+NOMES_DO_GIT = frozenset({"forge", "config", "hooks", "HEAD", "index", "refs", "objects", "logs", "info", "worktrees",
+                          "commondir", "gitdir", "packed-refs", "modules"})
+SO_VARIAVEL = re.compile(r"\$\{[^}]*\}|\$\w+|`")  # `${d%/}` (A2 da E20.8): a variável vai até o `}` que a fecha
+# Volta 1 da E20.6 (A1 e A3 da segurança E20.8, v046): `git rev-parse --git-dir` (e `--git-common-dir`, `--absolute-git-dir`,
+# `--git-path <x>`) em `$(…)` ou crase tem valor conhecido, o `.git` da raiz: a linha troca a substituição por esta
+# variável, que `expandir` resolve (também na variável atribuída a ela), e as regras `.git/…` decidem como no literal.
+DIR_DO_GIT = "FORGE_DIR_DO_GIT"
+# Volta 2 (review E20.12 A3, segurança E20.13 A1): o corpo da substituição é lido por palavras (shlex), não pela grafia:
+# qualquer forma de chamar o git (`git -C <pasta>`, `-c a=b`, `\git`, `/usr/bin/git`), opções antes da do diretório
+# (`-q`, `--path-format=x`), argumento entre aspas e redirecionamento dentro (`2>/dev/null`). Falha fechada: `-C` de outro
+# repositório também vale como o `.git` da raiz, e o argumento do `--git-path` que não é caminho simples, como o próprio `.git`.
+REV_PARSE_DO_GIT = re.compile(r"\$\((?P<sub>[^()`]*)\)|`(?P<crase>[^`]*)`")
+OPCOES_DO_DIR_DO_GIT = frozenset({"--git-dir", "--git-common-dir", "--absolute-git-dir"})
+CAMINHO_SIMPLES = re.compile(r"[\w./-]+")
+VARIAVEL_INTEIRA = re.compile(r"\$\{(\w+)\}|\$(\w+)")  # sem operador: `${d%/}` não é o valor de `d`
+SUBSTITUICAO = re.compile(r"[$<>]\(")
 SIMPLES = {
     "apagar": "Apagar o projeto no GitHub perde todo o trabalho, sem volta. Se quiser mesmo, faça pelo site do GitHub.",
     "publico": "Deixar o projeto público faz qualquer pessoa na internet ver todo o código e o histórico. "
@@ -334,6 +357,34 @@ SIMPLES = {
 # F6: o mesmo vale para enviar sugestão ao Forge (`forge sugerir`, `forge-sugerir`): só `--guardar` é do agente. A variável de
 # ambiente que o script confere some com `env -i`; por isso a defesa principal é este hook.
 GUARDAR_EXATO = re.compile(r"(?:forge sugerir|forge-sugerir|bin/forge-sugerir) --guardar (\"[^\"$`\\!]*\"|'[^']*')", re.S)
+
+
+def sem_caixa(padrao):
+    """O `nocaseglob` do bash no glob do Python: cada letra do padrão (o colchete que sobra só tem dígito) vira `[xX]`."""
+    return re.sub(r"[^\W\d_]", lambda m: f"[{m[0].lower()}{m[0].upper()}]", padrao)
+
+
+def valor_do_rev_parse(corpo):
+    """O caminho dentro do `.git` que o corpo de `$(…)` ou da crase devolve ("" é o próprio `.git`), ou None se o corpo não
+    é `rev-parse` com uma das opções do diretório do git. Aspas sem par: as palavras sem as aspas."""
+    try:
+        palavras = shlex.split(corpo)
+    except ValueError:
+        palavras = re.findall(r"[^\s'\"]+", corpo)
+    depois = palavras[palavras.index("rev-parse") + 1:] if "rev-parse" in palavras else []
+    for i, palavra in enumerate(depois):
+        if palavra in OPCOES_DO_DIR_DO_GIT:
+            return ""
+        if palavra == "--git-path":  # `--git-path=x` o git não lê como opção
+            caminho = next(iter(depois[i + 1:]), "")
+            return caminho if CAMINHO_SIMPLES.fullmatch(caminho) else ""
+    return None
+
+
+def trocar_rev_parse(m):
+    """`$(…)` ou crase de `rev-parse` do diretório do git vira `${DIR_DO_GIT}/<caminho>`; as outras voltam iguais."""
+    valor = valor_do_rev_parse(m["sub"] or m["crase"] or "")
+    return m[0] if valor is None else "${%s}/%s" % (DIR_DO_GIT, valor)
 
 
 def opcoes_sem_exec(args):
@@ -709,6 +760,8 @@ class Guarda:
         self.sessao_forge = False  # a raiz da sessão (`CLAUDE_PROJECT_DIR`) é um clone do Forge
         self.ambiente = {}   # GH_REPO e GIT_DIR definidos antes, na mesma linha de comando
         self.conferidas, self.conferencias = {}, 0  # orçamento da linha (`bash`)
+        self.em_curso = set()  # textos em conferência num nível de dentro (PROFUNDIDADE-BASH-C)
+        self.releituras = 0    # palavras com crase relidas na pilha: somam ao `nivel`, não à profundidade do shell
         self._repos = {}     # (raiz git, remoto) -> é o Forge
         self._regras = None  # `regras_do_forge`, lido uma vez por decisão (a raiz e o `externo` não mudam nela)
         self._raiz_home = None  # (realpath da raiz, realpath do home), uma vez por decisão
@@ -718,6 +771,7 @@ class Guarda:
         self.reavaliacao = None  # a primeira reavaliação pelo shell da linha, em qualquer nível (`reavaliacao`, opção B)
         self.trecho = None  # as palavras do comando simples em conferência (`segmento`), que a recusa cita
         self.parecer_pelo_bash = None  # 0.45.3: um parecer que a linha grava; só o Bash o recusa, no fim
+        self.sem_leitura = False  # E16.1: a linha que o hook não lê (teto, ilegível); a `GuardaDaProva` volta ao texto
         leitura = politica.get("so_leitura")
         self.leitura = leitura if leitura and papel in leitura["papeis"] else None  # papel só de leitura (conferente)
         # 0.45.3: o aq tem a lista própria de comandos e grava pelas ferramentas de arquivo, só em `escrita_permitida`
@@ -932,6 +986,9 @@ class Guarda:
         self.curinga_na_prova(Path(caminho).name, self.pastas_do_curinga(caminho, pasta))
         for alvo in alvos:
             achado = self.caminho_barrado(alvo)
+            if achado and alvo == self.resto_no_git(caminho, pasta) != alvos[0]:  # QA A1: o falso positivo se explica
+                achado = (achado[0], f"valor de $(…), crase ou variável que o hook não sabe, lido como .git (use o caminho "
+                                     f"literal se não for): {achado[1]}", *achado[2:])
             if achado:
                 self.barrar(*achado)
         for alvo in alvos:  # o Bash recusa no fim da linha (`parecer_pelo_bash`), depois das regras específicas dela
@@ -939,10 +996,34 @@ class Guarda:
                 self.parecer_pelo_bash = alvo
 
     def alvos_da_escrita(self, caminho, pasta):
-        """O caminho resolvido e, depois de uma substituição (`$(…)/x`), o resto resolvido a partir da raiz do projeto."""
+        """O caminho resolvido, o resto que cai no `.git` (`resto_no_git`) e, depois de uma substituição (`$(…)/x`), o resto
+        resolvido a partir da raiz do projeto."""
         alvos = [self.resolver(self.expandir(caminho, pasta), pasta)]
+        no_git = self.resto_no_git(caminho, pasta)
+        alvos = [*alvos, no_git] if no_git else alvos
         resto = caminho.rsplit(OPACO["$"], 1)[1].lstrip("/") if OPACO["$"] in caminho else ""
         return [*alvos, self.resolver(resto, Path(self.h.raiz))] if resto else alvos
+
+    def resto_no_git(self, caminho, pasta):
+        """E20.6 (A2 da segurança, v046): o hook não sabe o valor de `$(…)`, da crase nem de variável. Se o resto depois do
+        último deles começa por um nome do diretório do git (`NOMES_DO_GIT` ou o que existe no diretório comum), devolve o mesmo
+        resto dentro do `.git` da raiz, que as regras `.git/…` barram; senão None (`$(pwd)/docs/x` segue livre)."""
+        expandido = self.expandir(caminho, pasta)
+        fins = [m.end() for m in SO_VARIAVEL.finditer(expandido)]
+        if SUBSTITUICAO.search(expandido):  # `$(…)` (opaca ou, entre aspas, com o texto dentro): até o último `)`
+            fins.append(expandido.rfind(")") + 1)
+        if not fins:
+            return None
+        partes = Path(expandido[max(fins, default=0):].lstrip("/")).parts
+        if not partes or partes[0] not in self.nomes_do_git(pasta):
+            return None
+        return Path(os.path.realpath(self.h.raiz)) / ".git" / Path(*partes)
+
+    def nomes_do_git(self, pasta):
+        """`NOMES_DO_GIT` mais o que existe no diretório comum do git da pasta (lido do disco)."""
+        topo = self.raiz_git(pasta)
+        comum = topo and diretorio_comum(topo)
+        return NOMES_DO_GIT | set(os.listdir(comum)) if comum else NOMES_DO_GIT
 
     def pastas_do_curinga(self, caminho, pasta, opaco=False):
         """S8 (E5a/C-2, A1 da segurança g1-r2): onde o bash expande o curinga do nome, igual na escrita, na origem de
@@ -958,10 +1039,14 @@ class Guarda:
             self.barrar(*PROVA_DA_SUITE)
 
     def expandir(self, caminho, pasta):
-        """`$PWD`, `$CLAUDE_PROJECT_DIR` e `$HOME` (com ou sem chaves; as aspas o shlex já tirou) viram o caminho real."""
+        """`$PWD`, `$CLAUDE_PROJECT_DIR`, `$HOME` e `DIR_DO_GIT` (com ou sem chaves; as aspas o shlex já tirou; também a
+        variável da linha atribuída ao `DIR_DO_GIT`) viram o caminho real."""
         if "$" not in caminho:  # sem `$`, nada a expandir (a crase que `VARIAVEL` casa volta igual): custo por arquivo
             return caminho
-        valores = {"PWD": str(pasta), "CLAUDE_PROJECT_DIR": str(self.h.raiz), "HOME": str(Path.home())}
+        caminho = VARIAVEL_INTEIRA.sub(lambda m: v if DIR_DO_GIT in (v := self.ambiente.get(m[1] or m[2], "")) else m[0],
+                                       caminho)
+        valores = {"PWD": str(pasta), "CLAUDE_PROJECT_DIR": str(self.h.raiz), "HOME": str(Path.home()),
+                   DIR_DO_GIT: str(Path(os.path.realpath(self.h.raiz)) / ".git")}
         return VARIAVEL.sub(lambda m: valores.get(m.group(1), m.group(0)), caminho)
 
     def link_em_protegido(self, args, pasta):
@@ -973,15 +1058,56 @@ class Guarda:
                     if not a.startswith("-") or a.startswith("--target-directory=")]
         alvos = [self.resolver(self.expandir(a, pasta), pasta) for a in caminhos]
         alvos += [d / Path(a).name for d in alvos if d.is_dir() for a in caminhos]
+        generico = next((f"{e['motivo']}: {e['caminho']}" for e in self.pol["caminhos"] if e["caminho"] == ".git/"), None)
         papel, self.papel = self.papel, "-"  # nenhum papel: vale o caminho protegido para qualquer um
         try:
-            achado = next(filter(None, map(self.caminho_barrado, alvos)), None)
+            livres = self.origens_do_rev_parse(args, caminhos, pasta, generico)  # os derivados acima nunca entram
+            achado = next((x for i, x in enumerate(map(self.caminho_barrado, alvos))
+                           if x and not (i in livres and x[1] == generico)), None)
         finally:
             self.papel = papel
         if achado:
             motivo = achado[1].replace(" (papel: -)", "")
             self.barrar("R-CONFORMIDADE", f"link com caminho protegido ({motivo}): o link dá outro nome ao arquivo",
                         "copie o conteúdo sem link (cp sem -l nem -s) ou peça ao dono do caminho (R-DECISAO)")
+
+    def origens_do_rev_parse(self, args, caminhos, pasta, generico):
+        """Volta 3 (A1 da E20.29, v046): os índices em `caminhos` das origens de link que vêm de `git rev-parse` (direto ou
+        pela variável da linha). Ler do `.git` para fora era livre na develop (a substituição era opaca) e segue livre só da
+        regra genérica `.git/`; as específicas (`.git/config`, `.git/hooks/`, `.git/forge/`) e o destino seguem barrando.
+        Falha fechada: com opção que não seja `-` e letras sem valor (`-S`, `-t`, as longas e `--` mudam qual palavra é o
+        destino), nenhuma; a última palavra (o destino, também a de `ln <origem>` sozinha) nunca entra; nem a origem cujo
+        curinga ou chaves alcança uma regra específica (`origem_so_generica`)."""
+        if any(a.startswith("-") and not re.fullmatch(r"-[^-St=]+", a) for a in args):
+            return set()
+        valores = (VARIAVEL_INTEIRA.sub(lambda m: self.ambiente.get(m[1] or m[2], m[0]), a) for a in caminhos[:-1])
+        return {i for i, v in enumerate(valores) if DIR_DO_GIT in v and self.origem_so_generica(v, pasta, generico)}
+
+    def origem_so_generica(self, valor, pasta, generico):
+        """Volta 4 (A11 da segurança E20.31, A4 do QA E20.32, v046): o resto depois do `DIR_DO_GIT` com chaves
+        (`conf{i,}g`) não se libera (o hook não expande chaves: falha fechada); com curinga (`c?nfig`, `hook[s]/pre-push`),
+        só se nenhum nome que o glob de cada prefixo do resto expande no `.git` da raiz e no diretório comum (o de
+        `pastas_do_curinga`) cair em regra que não seja a genérica `.git/`. Volta 5 (A11 da segurança E20.37, A1 do review
+        E20.36): o glob do Python não lê o colchete do bash (`[^x]`, `[[:alpha:]]`, `[[=c=]]`, `[[.c.]]`), então resto com
+        `[` também não se libera, salvo o colchete só de dígitos (`[0-9]`, que os dois leem igual); com `?` e `*`, cada letra
+        casa as duas caixas (`shopt -s nocaseglob` com `CONFI?`)."""
+        resto = valor.rsplit(DIR_DO_GIT, 1)[1].lstrip("}").strip("/")
+        if "{" in resto:
+            return False
+        if "[" in COLCHETE_DE_DIGITO.sub("", resto):
+            return False
+        if not CURINGA.search(resto):
+            return True
+        git = Path(os.path.realpath(self.h.raiz)) / ".git"
+        topo = self.raiz_git(pasta)
+        partes = sem_caixa(resto).split("/")
+        for base in {str(b) for b in filter(None, (git, topo and diretorio_comum(topo)))}:
+            for k in range(1, len(partes) + 1):
+                for n in glob.glob(f"{glob.escape(base)}/{'/'.join(partes[:k])}"):
+                    x = self.caminho_barrado(Path(os.path.normpath(git / os.path.relpath(n, base))))
+                    if x and x[1] != generico:
+                        return False
+        return True
 
     def checar_remocao(self, caminho, pasta):
         """`rm -rf .forge`, `rm -r .githooks`: apagar a pasta que contém um caminho protegido sem dono (a instalação) é
@@ -1050,12 +1176,18 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", "linha `brief selado` ou `entrega conferida` escrita pelo Bash",
                         "quem grava é a ferramenta: `forge-check brief selar` e `forge-check entrega --pedido`")
         if nivel == 0:
-            self.conferidas, self.conferencias, self.caracteres = {}, 0, 0
+            self.conferidas, self.conferencias, self.caracteres, self.em_curso, self.releituras = {}, 0, 0, set(), 0
             self.reavaliacao = None
             self.prazo = time.monotonic() + PRAZO_DA_LINHA_S
-        chave = (comando, pasta, nivel, so_substituicoes, corpo_de_heredoc, tuple(sorted(self.ambiente.items())))
+        chave = (comando, pasta, nivel, self.releituras, so_substituicoes, corpo_de_heredoc,
+                 tuple(sorted(self.ambiente.items())))
         if chave in self.conferidas:
             self.ambiente = dict(self.conferidas[chave])  # o resultado é o mesmo que a primeira conferência deixou
+            return
+        # PROFUNDIDADE-BASH-C: a palavra com crase relida dá o mesmo texto (`x=`…``), um nível abaixo; o texto já em
+        # conferência num nível de dentro decide igual (só o nível 0 tem regras próprias): sem isso, o teto o recusaria.
+        releitura = chave[:2] + chave[4:]
+        if nivel > 1 and releitura in self.em_curso:
             return
         self.conferencias += 1
         self.caracteres += len(comando)
@@ -1064,9 +1196,14 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", "linha longa demais ou com crases e substituições demais para o hook "
                                               "conferir dentro do prazo",
                         "separe em comandos menores, sem crase nem $( aninhados, e grave texto longo num arquivo")
-        self.conferir_linha(comando, pasta, nivel, so_substituicoes, corpo_de_heredoc)
-        for forma in formas_que_o_shell_le(comando, corpo_de_heredoc):  # HOOK-CONTINUACAO-LINHA: a que o bash roda
-            self.conferir_linha(forma, pasta, nivel, so_substituicoes, corpo_de_heredoc)
+        if nivel:
+            self.em_curso.add(releitura)
+        try:
+            self.conferir_linha(comando, pasta, nivel, so_substituicoes, corpo_de_heredoc)
+            for forma in formas_que_o_shell_le(comando, corpo_de_heredoc):  # HOOK-CONTINUACAO-LINHA: a que o bash roda
+                self.conferir_linha(forma, pasta, nivel, so_substituicoes, corpo_de_heredoc)
+        finally:
+            self.em_curso.discard(releitura)
         self.conferidas[chave] = dict(self.ambiente or {})
 
     def recusar_o_teto(self, comando, original, nivel):
@@ -1075,13 +1212,13 @@ class Guarda:
         if nivel == 0 and not self.leitura and CRITICO.search(original):
             excesso = excede_o_teto(comando)
             if excesso:
+                self.sem_leitura = True
                 self.barrar("R-CONFORMIDADE", f"chamada com ação crítica e {excesso}: o hook não a decide dentro do "
                                               "prazo", CONTORNO_DO_TETO)
 
     def conferir_linha(self, comando, pasta, nivel, so_substituicoes, corpo_de_heredoc=False):
-        if nivel > PROFUNDIDADE:
-            self.ilegivel(comando, pasta)
-            return
+        if nivel - self.releituras > PROFUNDIDADE:
+            self.barrar(*PROFUNDIDADE_EXCEDIDA)
         if self.leitura and nivel:  # depois da gramática, só `$(`/crase entre aspas simples: o bash só roda por reavaliação
             self.barrar("R-CONFORMIDADE", f"substituição dentro de aspas pelo papel só de leitura ({self.papel})",
                         "escreva o nome literal em vez de $( ou crase, mesmo entre aspas (para procurar um trecho, "
@@ -1104,6 +1241,7 @@ class Guarda:
             self.recusar_o_teto(comando, original, nivel)
         else:
             comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
+            comando = REV_PARSE_DO_GIT.sub(trocar_rev_parse, comando)
             self.recusar_o_teto(comando, original, nivel)
             lidas = leituras(comando)
             # opção B da revalidação 9: sobre a palavra que o bash recebe, em qualquer posição; recusa no fim do nível 0.
@@ -1112,6 +1250,7 @@ class Guarda:
                 self.reavaliacao = self.reavaliacao or reavaliacao(comando)
         self.h.corpos_pendentes += len(corpos) - provisorios  # C-4: descontado depois do corpo conferido, no laço
         if lidas is None or lidas.ilegivel:
+            self.sem_leitura = True
             if nivel:
                 self.ilegivel(comando, pasta)
             self.nao_modelada(achado)
@@ -1305,7 +1444,11 @@ class Guarda:
             try:
                 self.leitura_do_segmento(palavras, comando, lancadas, pasta, dict(ramos), nivel)
             finally:  # o ambiente da leitura a mais se descarta; a recusa do lançador (no fim da linha) só soma
+                # volta 3 (A3 da E20.29): menos a variável do `.git` (`L -w X d=$(git rev-parse --git-dir)`), que segue
+                # na linha como no corpo sozinho: falha fechada, a leitura que a define ganha da que não define
+                no_git = {k: v for k, v in self.ambiente.items() if DIR_DO_GIT in v}
                 self.ambiente, self.lancador_recusado = ambiente_fiel, recusado_fiel or self.lancador_recusado
+                self.ambiente.update(no_git)
         return depois
 
     def leitura_do_segmento(self, escritas, palavras, lancadas, pasta, ramos, nivel):
@@ -1333,11 +1476,15 @@ class Guarda:
             [] if palavras else atribuicoes
         for a in definidas:
             nome, _, valor = a.partition("=")
-            if nome in VARIAVEIS_DA_LINHA and valor:
+            if nome in VARIAVEIS_DA_LINHA and valor or DIR_DO_GIT in valor:  # `d=$(git rev-parse --git-dir)` também
                 self.ambiente[nome] = valor  # vale para os comandos seguintes da linha
         for p in atribuicoes + palavras:  # substituição entre aspas: a palavra chega inteira (N1: também a atribuição)
-            if "`" in p:
-                self.bash(p, pasta, nivel + 1)
+            if "`" in p:  # a palavra relida não é um nível do shell: o corpo da crase já conta o dele (PROFUNDIDADE-BASH-C)
+                self.releituras += 1
+                try:
+                    self.bash(p, pasta, nivel + 1)
+                finally:
+                    self.releituras -= 1
             elif "$(" in p.replace(OPACO["$"], ""):
                 self.bash(p, pasta, nivel + 1, so_substituicoes=True)
         if not palavras:
@@ -1411,7 +1558,8 @@ class Guarda:
                     if any(map(MARCA_DA_SUITE.fullmatch, nomes)):
                         self.barrar(*PROVA_DA_SUITE)
             alvo = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-t", "--target-directory")), None)
-            alvo = alvo or next((a for a in reversed(args) if not a.startswith("-")), None)
+            alvo = alvo or next((a.split("=", 1)[1] for a in args if a.startswith("--target-directory=")), None)  # A5
+            alvo = alvo or next((a for a in reversed(args) if not a.startswith("-") or "`" in a), None)  # A3: `x --y`/config
             if alvo:
                 self.checar_escrita(alvo, pasta)
             # N3: depois da escrita no destino, para a regra do papel falar primeiro
@@ -2631,11 +2779,18 @@ class ForaDaProva(Exception):
 
 
 class GuardaDaProva(Guarda):
-    """S8 (C-1) com a pasta corrente fora de projeto: a Guarda lê a escrita, mas só a recusa da prova da suíte vale."""
+    """S8 (C-1) com a pasta corrente fora de projeto: a Guarda lê a escrita, mas só a recusa da prova da suíte vale, e a
+    da linha que o hook não lê por passar de `PROFUNDIDADE` (PROFUNDIDADE-BASH-C).
+    E16.1 (HOOK-RVERIFY-FALSO-POSITIVO): a outra recusa não para a leitura, que segue até o fim da linha; a prova é
+    recusada pelo destino da escrita, resolvido pela Guarda, e não pelo texto. Só a linha que o hook não lê (teto,
+    ilegível: `sem_leitura`) volta ao texto em `prova_fora_de_projeto`, falhando fechado."""
     def barrar(self, rid, o_que, corrigir, simples=None):
-        if (rid, o_que, corrigir) != PROVA_DA_SUITE:
+        if (rid, o_que, corrigir) == PROVA_DA_SUITE:
+            super().barrar(rid, o_que, corrigir)
+        if (rid, o_que, corrigir) == PROFUNDIDADE_EXCEDIDA:
+            super().barrar(rid, o_que, corrigir)
+        if self.sem_leitura:
             raise ForaDaProva(rid)
-        super().barrar(rid, o_que, corrigir)
 
     def perguntar(self, texto):
         """Fora de projeto não há confirmação a pedir."""
@@ -2643,7 +2798,8 @@ class GuardaDaProva(Guarda):
 
 def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
     """S8 (C-1, A2 da segurança g3): a prova da suíte é por uid, então vale também fora de projeto, em toda sessão e
-    para todo papel. Outra recusa ou erro interno: falha fechado só se o alvo cita o nome da prova."""
+    para todo papel. A outra recusa não vale e a leitura segue (`GuardaDaProva`); linha que o hook não lê ou erro
+    interno: falha fechado só se o alvo cita o nome da prova."""
     if hook.campo("hook_event_name") == "PostToolUse":
         return
     hook.raiz = raiz or Path(hook.cwd())

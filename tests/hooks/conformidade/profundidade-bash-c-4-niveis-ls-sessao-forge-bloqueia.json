@@ -1,0 +1,26 @@
+{
+  "descricao": "PROFUNDIDADE-BASH-C (v0457 E17.1): o limite: 4 níveis de bash -c recusam na sessão do Forge (pasta fora de projeto) mesmo com comando inócuo (falha fechada).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "XDG_RUNTIME_DIR": "{tmp}/run",
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "bash -c 'bash -c '\"'\"'bash -c '\"'\"'\"'\"'\"'\"'\"'\"'bash -c '\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'ls -l'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"''\"'\"'\"'\"'\"'\"'\"'\"''\"'\"''"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: comando aninhado (bash -c, eval, $(, crase, heredoc) em mais de 3 níveis"
+  }
+}

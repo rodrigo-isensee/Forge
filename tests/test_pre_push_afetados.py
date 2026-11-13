@@ -29,6 +29,7 @@ from ambiente_git import sem_manutencao  # noqa: E402
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / ".githooks" / "pre-push"
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_"))})
+AMBIENTE["FORGE_PREPUSH_SUITE"] = "afetados"  # ENVIO-LEVE: o padrão do hook não roda teste; estes testes exercitam o plano dos afetados
 ZERO = "0" * 40
 BOA = "import unittest, pathlib\nclass T(unittest.TestCase):\n    def test_a(self):\n        pathlib.Path('rodou-{}').write_text('sim')\n"
 RUIM = BOA + "        self.fail('de proposito')\n"
@@ -228,7 +229,7 @@ class PrePushAfetados(Base):
         self.git("switch", "-q", "-c", "y", self.base)
         dois = self.commit("leitor", tests__test_a_py=BOA.format("a") + "# y\n")
         self.git("switch", "-q", "melhoria/x")
-        entrada = (f"refs/heads/x {um} refs/heads/melhoria/x {ZERO}\nrefs/heads/y {dois} refs/heads/melhoria/y {ZERO}\n")
+        entrada = (f"refs/heads/x {um} refs/heads/melhoria/x {ZERO}\nrefs/tags/y {dois} refs/tags/y {ZERO}\n")  # PREPUSH-REFS: uma branch por envio
         codigo, marcas, erro = self.roda(entrada=entrada)
         self.assertEqual(codigo, 0, erro)
         self.assertEqual(marcas, TODAS, "a união: o mapa da ferramenta e o módulo de teste mudado na outra ref")

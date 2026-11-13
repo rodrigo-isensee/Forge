@@ -1,0 +1,108 @@
+{
+  "pedido": "v0457-f6-4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M49",
+      "guarda": "bin/forge_voltas.py:189 len(c) >= 5 and ISO8601.match(c[0])",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    for c in _ler_tabela(raiz / \"docs\" / \"kanban\" / \"historico.md\"):\n        hora = _hora(c[0]) if len(c) >= 5 and ISO8601.match(c[0]) else None",
+      "para": "    for c in _ler_tabela(raiz / \"docs\" / \"kanban\" / \"historico.md\"):\n        hora = _hora(c[0]) if (not (len(c) >= 5 and ISO8601.match(c[0]))) else None",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M50",
+      "guarda": "bin/forge_voltas.py:190 hora",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    for c in _ler_tabela(raiz / \"docs\" / \"kanban\" / \"historico.md\"):\n        hora = _hora(c[0]) if len(c) >= 5 and ISO8601.match(c[0]) else None\n        if hora:",
+      "para": "    for c in _ler_tabela(raiz / \"docs\" / \"kanban\" / \"historico.md\"):\n        hora = _hora(c[0]) if len(c) >= 5 and ISO8601.match(c[0]) else None\n        if (not (hora)):",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M51",
+      "guarda": "bin/forge_voltas.py:193 not por_cartao",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    if not por_cartao:",
+      "para": "    if (not (not por_cartao)):",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M52",
+      "guarda": "bin/forge_voltas.py:196 pedido",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "    if pedido:",
+      "para": "    if (not (pedido)):",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M53",
+      "guarda": "bin/forge_voltas.py:199 not escolhidos",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        if not escolhidos:",
+      "para": "        if (not (not escolhidos)):",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M54",
+      "guarda": "bin/forge_voltas.py:207 minutos is not None",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "            print(f\"esperas: {sem_controle(nome)} {tipo} inicio={inicio.isoformat(timespec='seconds')} minutos={_numero(minutos) if minutos is not None else 'aberta'}\")",
+      "para": "            print(f\"esperas: {sem_controle(nome)} {tipo} inicio={inicio.isoformat(timespec='seconds')} minutos={_numero(minutos) if (not (minutos is not None)) else 'aberta'}\")",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M55",
+      "guarda": "bin/forge_voltas.py:209 minutos or 0",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "            soma[tipo][1] += minutos or 0",
+      "para": "            soma[tipo][1] += (not (minutos or 0))",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    },
+    {
+      "id": "M56",
+      "guarda": "bin/forge_voltas.py:210 minutos is None",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "            abertas += minutos is None",
+      "para": "            abertas += (not (minutos is None))",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas",
+        "tests.test_voltas.RamosDeFalhaDoModuloVoltas"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "reversoes_do_pedido(pasta / f\"{nome}.md\")",
+      "motivo": "movida igual para bin/forge_voltas.py:150, só com o ctx no argumento (M43 a cobre), sem mudar comportamento",
+      "linha_base": 4891
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "_fecha_volta(coluna, d2, p)",
+      "motivo": "movida igual para bin/forge_voltas.py:62, só com o ctx no argumento (M11 a cobre), sem mudar comportamento",
+      "linha_base": 4790
+    }
+  ]
+}

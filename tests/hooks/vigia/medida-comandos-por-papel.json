@@ -1,0 +1,61 @@
+{
+  "descricao": "AV3 etapa 1: o SubagentStop grava em comandos.jsonl a forma de cada comando crítico com o papel (do agent_type no subagente; da sessão sem agent_type na transcrição principal) e a regra que o barrou; só mede: nada é recusado nem avisado, e o comando inteiro não vai ao registro.",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": ""
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1",
+        "transcript_path": "{tmp}/t.jsonl"
+      }
+    },
+    {
+      "anexar": {
+        "{tmp}/t.jsonl": "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"id\": \"m1\", \"name\": \"Bash\", \"input\": {\"command\": \"git commit -m segredo-do-texto\"}}]}}\n{\"type\": \"user\", \"message\": {\"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"m1\", \"is_error\": false, \"content\": \"\"}]}}\n"
+      }
+    },
+    {
+      "gravar": {
+        "{tmp}/a.jsonl": [
+          "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"id\": \"a\", \"name\": \"Bash\", \"input\": {\"command\": \"git -C /x push --force origin x-alvo\"}}]}}",
+          "{\"type\": \"user\", \"message\": {\"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"a\", \"is_error\": true, \"content\": \"R-VERIFY: no\"}]}}",
+          "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"id\": \"b\", \"name\": \"Bash\", \"input\": {\"command\": \"git status && gh pr merge 3 --admin\"}}]}}",
+          "{\"type\": \"user\", \"message\": {\"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"b\", \"is_error\": false, \"content\": \"\"}]}}"
+        ]
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "SubagentStop",
+    "session_id": "s1",
+    "agent_type": "forge:tech-lead",
+    "transcript_path": "{tmp}/t.jsonl",
+    "agent_transcript_path": "{tmp}/a.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "comandos.jsonl": {
+        "contem": [
+          "\"agente\": \"forge:tech-lead\", \"papel\": \"tech-lead\", \"forma\": \"git push --force\", \"barrado\": \"R-VERIFY\"",
+          "\"papel\": \"tech-lead\", \"forma\": \"gh pr merge --admin\", \"barrado\": null",
+          "\"agente\": \"\", \"papel\": \"jarvis\", \"forma\": \"git commit\", \"barrado\": null"
+        ],
+        "ausente": [
+          "x-alvo",
+          "segredo-do-texto",
+          "git status"
+        ]
+      }
+    }
+  }
+}

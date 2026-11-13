@@ -21,7 +21,9 @@ segredos=(
   '-{5}BEGIN [A-Z ]*PRIVATE KEY'
   '(password|senha)[[:space:]]*[=:][[:space:]]*["'\'']?[^[:space:]"'\''$<{]{3,}'
 )
-pessoal='/home/[a-z_][a-z0-9_-]*/'
+# Caminho pessoal: /home/<nome>/ e /Users/<nome>/ (também sob /mnt/<letra>/), nome com maiúscula, ponto ou hífen;
+# nome que começa com ponto ({tmp}/home/.config) ou com '<' (marcador de modelo) passa.
+pessoal='/(home|Users)/[[:alnum:]_][[:alnum:]_.-]*/'
 
 achados=0
 relatar() { echo "  $1: $2"; achados=$((achados + 1)); }

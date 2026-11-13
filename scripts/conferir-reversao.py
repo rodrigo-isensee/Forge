@@ -8,7 +8,8 @@ Uso: conferir-reversao.py BASE BRANCH
   rodam; o plano que cai na suíte inteira não classifica nada, porque a suíte inteira só roda na trava (R-TETO) e no CI.
   Depois roda a suíte afetada na ponta: se já falha, avisa e não classifica (a falha não seria do commit).
   Imprime uma linha por commit: `<sha7> reverte`, `<sha7> nao-reverte: <motivo>` ou `<sha7> sem-veredito: <motivo>`
-  (o `forge-testes` saiu 2: não conseguiu dar veredito, e isso não é falha do commit).
+  (o `forge-testes` saiu 2: não conseguiu dar veredito, e isso não é falha do commit; ou o plano do revert, pedido
+  com o mesmo `--listar` da ponta, cai na suíte inteira: nada roda para esse commit).
 
 É aviso, não portão: sai com 0 sempre que conseguiu conferir (inclusive com `nao-reverte`) e com 2 em erro de
 uso ou repositório inválido. Só lê o repositório real: nada é escrito nele nem no `.git` dele.
@@ -75,6 +76,8 @@ def conferir_commit(copia, base, commit):
     r = git(copia, "revert", "--no-commit", commit)
     if r.returncode:
         return "nao-reverte: conflito ao reverter"
+    if not ponta_dirigida(copia, base=base):  # C-7: plano do revert; base= mantém único o trecho do I9a0-1
+        return "sem-veredito: o revert pede a suíte inteira (R-TETO)"
     if (codigo := suite_afetada(copia, base)) == 2:
         return "sem-veredito: o forge-testes saiu 2 sem o commit"
     if codigo:

@@ -250,7 +250,7 @@ def regras_de_config(b, h):
     perm_b = {(a, p) for a, ps in b.get("custo_permitido", {}).items() for p in ps}
     for a, p in sorted({(a, p) for a, ps in h.get("custo_permitido", {}).items() for p in ps} - perm_b):
         v.append(msg("R-CUSTO", f"permissão nova de custo em {a}: {p}", "a lista de permissão abre brecha para gasto",
-                     "remova o item ou peça o rótulo ao dono", "docs/regras/R-CUSTO.md"))
+                     "remova o item ou peça o rótulo ao dono", "docs/regras/R-LIMITES.md"))
     return v
 
 
@@ -762,7 +762,7 @@ def regra_custo(raiz, ref, permitido):
                 linha = texto.count("\n", 0, m.start()) + 1
                 v.append(msg("R-CUSTO", f"{nome} em {arq}:{linha}", "nada no Forge pode consumir API paga ou segredo",
                              f"remova o uso, ou inclua `{nome}` para o arquivo em `custo_permitido` com autorização do usuário",
-                             "docs/regras/R-CUSTO.md"))
+                             "docs/regras/R-LIMITES.md"))
     return v
 
 

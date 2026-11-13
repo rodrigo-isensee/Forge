@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+"""Forge: quem tem a vez da bateria pesada e a espera pela vez com teto (M12, R-TETO). Só biblioteca padrão.
+
+Uso: forge-pesado status
+     forge-pesado esperar --teto SEGUNDOS [--passo SEGUNDOS]
+Lê o estado que o hook `pesado` grava (`pesado.json` e a fila `pesado.fila/` na pasta `Hook.run()` da cópia principal),
+sem escrever nele nem limpar a fila. A trava vale até `desde` mais o teto dela (o menor entre `expiracao_horas` e o
+TRAVA_S do hook); o pid gravado só se mostra, nunca decide: o de outro namespace não aparece (skill `esperar-estado`,
+regra 5).
+  status    livre ou ocupada; quem tem a vez (agente e comando), desde quando, se o pid gravado está vivo e quantos
+            esperam na fila. Saída 0.
+  esperar   relê o estado a cada passo (padrão 30 s), com uma linha de progresso por volta; sai 0 (`fim=livre`) com a
+            trava fora de vigor e a fila vazia, 1 (`fim=teto`) no teto. O teto vai até 540 s, uma chamada do Bash;
+            passou dele, repita a chamada, que relê o estado do zero.
+Saída 2: uso errado, fora de projeto e de clone do Forge ou estado ilegível.
+"""
+import argparse
+import datetime
+import fcntl
+import itertools
+import json
+import sys
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "hooks"))
+import _comum  # noqa: E402
+import pesado  # noqa: E402
+
+TETO_MAXIMO_S = 540
+PASSO_PADRAO_S = 30
+
+
+def esperando(pasta):
+    """Quantas senhas da fila têm o flock preso (processo vivo). Só testa o flock: a senha morta fica, quem a limpa é o hook."""
+    vivas = 0
+    for senha in pasta.glob("[0-9]*"):
+        if senha.is_symlink():
+            continue
+        try:
+            with open(senha, encoding="utf-8") as f:
+                fcntl.flock(f, fcntl.LOCK_SH | fcntl.LOCK_NB)
+        except BlockingIOError:
+            vivas += 1
+        except OSError:
+            continue
+    return vivas
+
+
+def estado(run, validade):
+    """(a trava em vigor ou None, quantos esperam na fila)."""
+    trava = _comum.ler_json(run / "pesado.json", None)
+    desde = trava.get("desde") if isinstance(trava, dict) else None
+    if not isinstance(desde, (int, float)) or time.time() - desde >= validade:
+        trava = None
+    return trava, esperando(run / "pesado.fila")
+
+
+def descrever(trava, fila):
+    if trava is None:
+        return f"pesado: livre · fila: {fila}"
+    desde = datetime.datetime.fromtimestamp(trava["desde"]).astimezone().isoformat(timespec="seconds")
+    vivo = "vivo" if pesado.pid_vivo(trava.get("pid")) else "não visto (morto ou de outro namespace)"
+    # json.dumps escapa o caractere de controle: o texto gravado não mexe no terminal.
+    return (f"pesado: ocupada · agente: {json.dumps(trava.get('agente'), ensure_ascii=False)} · "
+            f"comando: {json.dumps(str(trava.get('comando'))[:80], ensure_ascii=False)} · desde: {desde} "
+            f"(há {int(time.time() - trava['desde'])} s) · pid {json.dumps(trava.get('pid'))}: {vivo} · fila: {fila}")
+
+
+def esperar(run, validade, teto, passo):
+    fim = time.monotonic() + teto
+    for volta in itertools.count(1):
+        trava, fila = estado(run, validade)
+        print(f"volta {volta}: {descrever(trava, fila)}", flush=True)
+        if trava is None and fila == 0:
+            print("fim=livre")
+            return 0
+        resta = fim - time.monotonic()
+        if resta <= 0:
+            print(f"fim=teto ({teto:g} s); repita a chamada")
+            return 1
+        time.sleep(min(passo, resta))
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(prog="forge-pesado", description="Quem tem a vez da bateria pesada (R-TETO).")
+    sub = p.add_subparsers(dest="acao", required=True)
+    sub.add_parser("status", help="mostra quem tem a vez, desde quando e a fila")
+    e = sub.add_parser("esperar", help="espera a vez com teto")
+    e.add_argument("--teto", type=float, required=True, help=f"segundos, de mais de 0 a {TETO_MAXIMO_S}")
+    e.add_argument("--passo", type=float, default=PASSO_PADRAO_S, help="segundos entre as voltas (padrão 30)")
+    a = p.parse_args(argv)
+    if a.acao == "esperar" and not (0 < a.teto <= TETO_MAXIMO_S and a.passo > 0):
+        p.error(f"--teto vai de mais de 0 a {TETO_MAXIMO_S} s e --passo é maior que 0")
+    raiz = _comum.raiz_de_estado(Path.cwd())
+    if raiz is None:
+        print("forge-pesado: fora de projeto do Forge e de clone do Forge; não há estado a ler", file=sys.stderr)
+        return 2
+    hook = _comum.Hook("pesado")
+    hook.raiz = raiz
+    try:
+        run, validade = hook.run(), min(hook.expira_s(), pesado.TRAVA_S)
+        if a.acao == "status":
+            print(descrever(*estado(run, validade)))
+            return 0
+        return esperar(run, validade, a.teto, a.passo)
+    except (OSError, ValueError) as erro:
+        print(f"forge-pesado: estado ilegível: {erro}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

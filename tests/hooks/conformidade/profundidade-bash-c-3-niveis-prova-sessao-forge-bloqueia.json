@@ -1,0 +1,26 @@
+{
+  "descricao": "PROFUNDIDADE-BASH-C (v0457 E17.1): no teto (3 níveis de bash -c) o hook ainda lê a linha na sessão do Forge (pasta fora de projeto): a gravação da prova recusa pela regra dela.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "XDG_RUNTIME_DIR": "{tmp}/run",
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "bash -c 'bash -c '\"'\"'bash -c '\"'\"'\"'\"'\"'\"'\"'\"'echo x > {tmp}/run/forge-suite-1000.verde'\"'\"'\"'\"'\"'\"'\"'\"''\"'\"''"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-VERIFY: a prova da suíte só é gravada pelo pre-push"
+  }
+}

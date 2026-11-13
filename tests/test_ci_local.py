@@ -269,10 +269,13 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
     def test_bateria_consolidada_mantem_os_passos_que_eram_jobs(self):
         (bateria,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
                       if j["id"] == "bateria"]
-        comandos = "\n".join(p["run"] for p in bateria["passos"])
+        (longas,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+                     if j["id"] == "verificacoes"]  # A18: Provas, shellcheck e e2e moram no job que espera os passos baratos
+        comandos = "\n".join(p["run"] for p in bateria["passos"] + longas["passos"])
+        nomes_dos_passos = "\n".join(p["nome"] for p in bateria["passos"] + longas["passos"])
         for trecho in ("shellcheck", "actionlint", "zizmor", "claude plugin validate", "e2e-instalacao",
                        "scripts/conferir-release.py", "Nada pula degrau", "verificar-contribuicao"):
-            self.assertIn(trecho, comandos + "\n".join(p["nome"] for p in bateria["passos"]))
+            self.assertIn(trecho, comandos + nomes_dos_passos)
 
     def test_rapida_e_bateria_rodam_a_suite_pelo_script_dividido(self):
         """D4: os dois passos "Testes do Forge" chamam o mesmo script do pre-push (guarda de completude nos dois);
@@ -830,7 +833,7 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         def rodar(job, ctx, raiz, base, tmp):
             # o teto de pulados (T3) soma o que as partes publicam; aqui as partes não rodam, então ele também é pronto; as partes
             # dependem do job prévio da árvore (M2) e também viram resultado pronto
-            if (job.get("needs") and not job["id"].startswith(("pulados-", "partes-"))) or not ci.avaliar_se(job["se"], ctx):
+            if (job.get("needs") and not job["id"].startswith(("pulados-", "partes-")) and job["id"] != "verificacoes") or not ci.avaliar_se(job["se"], ctx):
                 return ci.rodar_job(job, ctx, self.tmp, base, self.tmp)
             chamados.append((job["nome"], ctx.get("matrix.parte")))
             if ctx.get("matrix.parte"):  # a parte verde deixa os pulados no RUNNER_TEMP dela, para o upload (T3)
@@ -845,7 +848,8 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         jobs = {j["id"]: j for j in self.jobs_reais()}
         self.assertEqual(jobs["partes-doze"]["matriz"], {"parte": ["1", "2", "3"]})
         self.assertEqual(jobs["partes-quatorze"]["matriz"], {"parte": ["1", "2", "3"]})
-        self.assertEqual(jobs["agregador"]["needs"], ["bateria", "partes-doze", "pulados-doze"])
+        self.assertEqual(jobs["agregador"]["needs"], ["bateria", "verificacoes", "partes-doze", "pulados-doze"])
+        self.assertEqual(jobs["verificacoes"]["needs"], ["bateria"])  # A18: Provas, shellcheck e e2e esperam os passos baratos
         self.assertEqual(jobs["bateria-python-tres-quatorze"]["needs"],
                          ["partes-quatorze", "pulados-quatorze", "instalacao-quatorze"])
         (upload,) = [p for p in jobs["partes-doze"]["passos"] if p["uses"].startswith("actions/upload-artifact@")]
@@ -886,7 +890,7 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         for k in (1, 2, 3):
             self.assertIn("reaproveitado", por_nome[f"suíte (python 3.14, parte {k}/3)"]["motivo"])
         self.assertEqual(ci.status(resultados)[0], "success")
-        self.assertIn("resumo de bateria: success, partes-doze: success", por_nome["bateria"]["motivo"])
+        self.assertIn("resumo de bateria: success, verificacoes: success, partes-doze: success", por_nome["bateria"]["motivo"])
         self.assertEqual(por_nome["bateria (python 3.14)"]["estado"], ci.OK)
         self.assertEqual(por_nome["checagem rápida (push na develop)"]["estado"], ci.PULADO)
 
@@ -895,6 +899,19 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         por_nome = {r["nome"]: r for r in resultados}
         self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.FALHOU))
         self.assertEqual(por_nome["bateria (passos)"]["estado"], ci.OK)
+        self.assertEqual(ci.status(resultados)[0], "failure")
+
+    def test_passo_barato_vermelho_pula_a_suite_e_reprova_os_agregadores(self):
+        """A18: as partes esperam o job de passos (lint, degrau, validação, changelog, neutralidade); vermelho nele, nenhuma
+        parte roda e os dois agregadores reprovam sem esperar a suíte."""
+        resultados, chamados = self.rodar_com(self.jobs_reais(), falha="bateria (passos)")
+        self.assertEqual([c for c in chamados if c[1]], [])
+        por_nome = {r["nome"]: r for r in resultados}
+        for versao in ("3.12", "3.14"):
+            for k in (1, 2, 3):
+                self.assertEqual(por_nome[f"suíte (python {versao}, parte {k}/3)"]["estado"], ci.PULADO)
+        self.assertEqual(por_nome["bateria (verificações longas)"]["estado"], ci.PULADO)  # A1: o vermelho barato pula o job longo
+        self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.FALHOU))
         self.assertEqual(ci.status(resultados)[0], "failure")
 
     def test_need_sem_job_reprova_e_job_sem_always_e_pulado(self):

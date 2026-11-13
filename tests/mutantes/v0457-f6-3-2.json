@@ -1,0 +1,86 @@
+{
+  "pedido": "v0457-f6-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "bin/forge_corrigidos.py:50 a",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "                        \"arquivos\": [a for a in campos[4].lstrip(\"\\0\\n\").split(\"\\0\") if a],",
+      "para": "                        \"arquivos\": [a for a in campos[4].lstrip(\"\\0\\n\").split(\"\\0\") if (not (a))],",
+      "testes": [
+        "tests.test_medidas_m14b.PrsFixQueCorrigemPrMesclado"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "bin/forge_corrigidos.py:51 achou.group(1) or achou.group(2)",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "                        \"pr\": int(achou.group(1) or achou.group(2)) if achou else None})",
+      "para": "                        \"pr\": int((not (achou.group(1) or achou.group(2)))) if achou else None})",
+      "testes": [
+        "tests.test_medidas_m14b.PrsFixQueCorrigemPrMesclado"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "bin/forge_corrigidos.py:51 achou",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "                        \"pr\": int(achou.group(1) or achou.group(2)) if achou else None})",
+      "para": "                        \"pr\": int(achou.group(1) or achou.group(2)) if (not (achou)) else None})",
+      "testes": [
+        "tests.test_medidas_m14b.PrsFixQueCorrigemPrMesclado"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "bin/forge_corrigidos.py:61 c['pr'] is not None and TIPO_FIX.match(c['titulo'])",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "        if c[\"pr\"] is not None and TIPO_FIX.match(c[\"titulo\"]):",
+      "para": "        if (not (c[\"pr\"] is not None and TIPO_FIX.match(c[\"titulo\"]))):",
+      "testes": [
+        "tests.test_medidas_m14b.PrsFixQueCorrigemPrMesclado"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "bin/forge_corrigidos.py:64 pr is not None and pr != c['pr'] and (c['hora'] - h <= dias ",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "            tocados = sorted({pr for pr, h in antes if pr is not None and pr != c[\"pr\"] and c[\"hora\"] - h <= dias * 86400})",
+      "para": "            tocados = sorted({pr for pr, h in antes if (not (pr is not None and pr != c[\"pr\"] and c[\"hora\"] - h <= dias * 86400))})",
+      "testes": [
+        "tests.test_medidas_m14b.PrsFixQueCorrigemPrMesclado"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "bin/forge_corrigidos.py:65 citados",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "            saida.append((c, \"cita\" if citados else \"arquivo\" if tocados else \"nenhuma\", citados, tocados))",
+      "para": "            saida.append((c, \"cita\" if (not (citados)) else \"arquivo\" if tocados else \"nenhuma\", citados, tocados))",
+      "testes": [
+        "tests.test_medidas_m14b.PrsFixQueCorrigemPrMesclado"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "bin/forge_corrigidos.py:65 tocados",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "            saida.append((c, \"cita\" if citados else \"arquivo\" if tocados else \"nenhuma\", citados, tocados))",
+      "para": "            saida.append((c, \"cita\" if citados else \"arquivo\" if (not (tocados)) else \"nenhuma\", citados, tocados))",
+      "testes": [
+        "tests.test_medidas_m14b.PrsFixQueCorrigemPrMesclado"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "bin/forge_corrigidos.py:66 c['pr'] is not None",
+      "arquivo": "bin/forge_corrigidos.py",
+      "de": "        if c[\"pr\"] is not None:",
+      "para": "        if (not (c[\"pr\"] is not None)):",
+      "testes": [
+        "tests.test_medidas_m14b.PrsFixQueCorrigemPrMesclado"
+      ]
+    }
+  ]
+}

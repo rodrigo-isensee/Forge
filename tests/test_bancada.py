@@ -177,6 +177,19 @@ class BancadaGravaEValida(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertNotIn("respostas gravadas", saida)
 
+    def test_saida_nao_gravavel_recusa_antes_da_primeira_chamada(self):
+        chamadas = []
+        arq = Path(self.tmp.name) / "nao-existe" / "respostas.json"
+        rc, saida = self.rodar("--executar", "--saida", str(arq), executar=falso("Recomendo", chamadas=chamadas))
+        self.assertEqual(rc, 1)
+        self.assertEqual(chamadas, [])
+        self.assertNotIn("antes c1", saida)
+
+    def test_saida_gravavel_nao_deixa_arquivo_antes_da_rodada(self):
+        arq = Path(self.tmp.name) / "r.json"
+        self.assertIsNone(b.saida_gravavel(arq))
+        self.assertFalse(arq.exists())
+
     def test_saida_sem_executar_e_erro_de_uso(self):
         with self.assertRaises(SystemExit) as e, contextlib.redirect_stderr(io.StringIO()):
             self.rodar("--saida", str(Path(self.tmp.name) / "r.json"))

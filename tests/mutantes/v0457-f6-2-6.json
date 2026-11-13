@@ -1,0 +1,94 @@
+{
+  "pedido": "v0457-f6-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M41",
+      "guarda": "bin/forge_transcricao.py:165 texto.startswith('Forge doutor:')",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if texto.startswith(\"Forge doutor:\"):",
+      "para": "    if (not (texto.startswith(\"Forge doutor:\"))):",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M42",
+      "guarda": "bin/forge_transcricao.py:167 texto.startswith('Forge: ') and texto.endswith('(.forge/run/",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if texto.startswith(\"Forge: \") and texto.endswith(\"(.forge/run/violacoes.jsonl)\"):",
+      "para": "    if (not (texto.startswith(\"Forge: \") and texto.endswith(\"(.forge/run/violacoes.jsonl)\"))):",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "bin/forge_transcricao.py:177 b.get('type') == 'text'",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if b.get(\"type\") == \"text\":",
+      "para": "    if (not (b.get(\"type\") == \"text\")):",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "bin/forge_transcricao.py:178 nome in str(b.get('text')).lower()",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        return any(nome in str(b.get(\"text\")).lower() for nome in (\"vigia\", \"doutor\"))",
+      "para": "        return any((not (nome in str(b.get(\"text\")).lower())) for nome in (\"vigia\", \"doutor\"))",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "bin/forge_transcricao.py:180 alvo in entrada",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    return any(alvo in entrada for alvo in (\".forge/run/violacoes.jsonl\", \"forge doutor\", \"bin/forge-doutor\"))",
+      "para": "    return any((not (alvo in entrada)) for alvo in (\".forge/run/violacoes.jsonl\", \"forge doutor\", \"bin/forge-doutor\"))",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "bin/forge_transcricao.py:190 n != atual",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if n != atual:",
+      "para": "        if (not (n != atual)):",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M47",
+      "guarda": "bin/forge_transcricao.py:192 isinstance(o.get('message'), dict)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "            abertos, i, atual = [], 0, n\n        msg = o.get(\"message\") if isinstance(o.get(\"message\"), dict) else {}",
+      "para": "            abertos, i, atual = [], 0, n\n        msg = o.get(\"message\") if (not (isinstance(o.get(\"message\"), dict))) else {}",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    },
+    {
+      "id": "M48",
+      "guarda": "bin/forge_transcricao.py:193 o.get('type') == 'assistant' and isinstance(msg.get('content",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        for b in msg.get(\"content\") if o.get(\"type\") == \"assistant\" and isinstance(msg.get(\"content\"), list) else []:",
+      "para": "        for b in msg.get(\"content\") if (not (o.get(\"type\") == \"assistant\" and isinstance(msg.get(\"content\"), list))) else []:",
+      "testes": [
+        "tests.test_medidas_m14b.AvisosDosHooks",
+        "tests.test_medidas_m14b.AvisosComAcao"
+      ]
+    }
+  ]
+}
