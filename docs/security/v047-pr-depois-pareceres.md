@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v047-pr-depois-pareceres
+pedido: v047
 branch: melhoria/v047-pr-depois-pareceres
 commit: 2530ab495a98a9521c170aad2a5121d15891f8da
 parecer: aprovado
