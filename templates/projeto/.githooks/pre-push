@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Forge: bloqueia envio para a main — ela só muda por pull request validado e mesclado pelo usuário.
 # Só a main é protegida aqui; o hook do Forge protege também develop e homolog (fluxo próprio da fábrica).
+refs_branches=0; refs_remocoes=0  # PREPUSH-REFS: contadores do laço (nunca herdados do ambiente)
 refs_enviadas=()
 while read -r _ local_sha remote_ref remote_sha; do
   refs_enviadas+=("$local_sha $remote_ref $remote_sha")
@@ -25,6 +26,27 @@ while read -r _ local_sha remote_ref remote_sha; do
   esac
   if [ "$remote_ref" = "refs/heads/main" ]; then
     echo "pre-push: envio para a main bloqueado. Abra um pull request; o usuário valida e faz o merge." >&2
+    exit 1
+  fi
+  # PREPUSH-REFS (v0457, D2 de docs/security/ameacas/v0457-hook-shell-pipe.md): a política vale para as refs reais do
+  # envio, qualquer que seja a sintaxe (--branches, -c remote.*.mirror, refspec com curinga, --prune, pipe para o shell).
+  case "$remote_ref" in
+    refs/heads/?*|refs/tags/?*) ;;
+    *) echo "pre-push: R-FLUXO: a ref remota '${remote_ref}' não é branch (refs/heads/) nem tag (refs/tags/); envio bloqueado (o envio espelho leva refs/remotes/, refs/notes/ e afins)." >&2
+       exit 1 ;;
+  esac
+  case "$local_sha" in
+    *[!0]*) case "$remote_ref" in refs/heads/*) refs_branches=$((refs_branches + 1)) ;; esac ;;
+    *) refs_remocoes=$((refs_remocoes + 1)) ;;
+  esac
+  if [ "$refs_branches" -gt 1 ]; then
+    echo "pre-push: R-FLUXO: mais de uma branch com código no mesmo envio bloqueado; envie uma branch por vez (git push origin <branch>)." >&2
+    exit 1
+  fi
+  # PREPUSH-DELETE (decisão do dono, 2026-10-23; item 3 da D2 em 2026-11-10 23:45): a limpeza pós-merge apaga uma ref
+  # por envio; mais de uma remoção no mesmo envio (espelho, --prune, curinga) é bloqueada.
+  if [ "$refs_remocoes" -gt 1 ]; then
+    echo "pre-push: R-FLUXO: mais de uma remoção de branch ou tag no mesmo envio bloqueada; apague uma por envio (git push origin --delete <ref>)." >&2
     exit 1
   fi
 done

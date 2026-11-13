@@ -1,0 +1,76 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G20",
+      "guarda": "volta 3 (A1): opção que muda qual palavra é o destino (`-S`, `-t`, longa, `--`) não libera origem nenhuma",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if any(a.startswith(\"-\") and not re.fullmatch(r\"-[^-St=]+\", a) for a in args):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G21",
+      "guarda": "volta 3 (A1): `-S` e `-t` agrupados com outras letras também fecham a liberação",
+      "arquivo": "hooks/conformidade.py",
+      "de": "re.fullmatch(r\"-[^-St=]+\", a)",
+      "para": "re.fullmatch(r\"-[^-=]+\", a)",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G22",
+      "guarda": "volta 3 (A1): só a origem que vem de `git rev-parse` se libera; a literal `.git/…` segue barrada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if DIR_DO_GIT in v and self.origem_so_generica(v, pasta, generico)}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G23",
+      "guarda": "volta 3 (A1): a origem livre só escapa da regra genérica `.git/`; `.git/config` segue barrando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if x and not (i in livres and x[1] == generico)), None)",
+      "para": "if x and not (i in livres)), None)",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G24",
+      "guarda": "volta 3 (A1): só os índices das origens livres escapam; os outros alvos seguem barrando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if x and not (i in livres and x[1] == generico)), None)",
+      "para": "if x and not (True and x[1] == generico)), None)",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G25",
+      "guarda": "volta 3 (A3): a variável do `.git` de uma leitura a mais do lançador segue na linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "no_git = {k: v for k, v in self.ambiente.items() if DIR_DO_GIT in v}",
+      "para": "no_git = {k: v for k, v in self.ambiente.items() if False}",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G26",
+      "guarda": "volta 3 (A1): a liberação é só da regra genérica `.git/` da política, achada pelo caminho dela",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for e in self.pol[\"caminhos\"] if e[\"caminho\"] == \".git/\"), None)",
+      "para": "for e in self.pol[\"caminhos\"] if True), None)",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    }
+  ]
+}

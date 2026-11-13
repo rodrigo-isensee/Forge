@@ -1,0 +1,86 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G9",
+      "guarda": "volta 1 (A1, S5 da E20.8): a variável atribuída ao `.git` (`d=$(git rev-parse --git-dir)`) vale nos comandos seguintes",
+      "arquivo": "hooks/conformidade.py",
+      "de": "and valor or DIR_DO_GIT in valor:",
+      "para": "and valor or False:",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G10",
+      "guarda": "volta 1 (A1, S5): `expandir` troca `$d`/`${d}` pelo valor do `.git` guardado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "lambda m: v if DIR_DO_GIT in (v :=",
+      "para": "lambda m: v if None and DIR_DO_GIT in (v :=",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G11",
+      "guarda": "volta 1 (QA A1, review A1): a recusa pelo resto lido como `.git` diz para usar o caminho literal",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if achado and alvo == self.resto_no_git(caminho, pasta) != alvos[0]:",
+      "para": "            if None:",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G12",
+      "guarda": "volta 1 (A5 da E20.8): `--target-directory=<pasta>` é o destino, como `-t <pasta>`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "alvo = alvo or next((a.split(\"=\", 1)[1] for a in args if a.startswith(\"--target-directory=\")), None)",
+      "para": "alvo = alvo or None",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G13",
+      "guarda": "volta 1 (A3 da E20.8): a palavra com crase não é opção (`` `x --y`/config ``)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not a.startswith(\"-\") or \"`\" in a), None)",
+      "para": "if not a.startswith(\"-\") or False), None)",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G14",
+      "guarda": "volta 1 (A1 e A3 da E20.8), lido por palavras na volta 2: o corpo da crase entra na leitura do `rev-parse`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "m[\"sub\"] or m[\"crase\"] or \"\"",
+      "para": "m[\"sub\"] or \"\"",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G15",
+      "guarda": "volta 2 (review E20.12 A3, segurança E20.13 A1): `--git-dir`, `--git-common-dir` e `--absolute-git-dir` depois de `rev-parse`, com qualquer palavra antes (`-q`, `git -C .`), valem o `.git`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if palavra in OPCOES_DO_DIR_DO_GIT:",
+      "para": "        if None:",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G16",
+      "guarda": "volta 2: `--git-path <x>` depois de `rev-parse`, com qualquer forma de chamar o git, vale `.git/<x>`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if palavra == \"--git-path\":",
+      "para": "        if None:",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    }
+  ]
+}
