@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v046
 branch: melhoria/v046-fechar-lote
-commit: 0be847950094f66ffccdca5fe1ec7c1accd5233a
+commit: 17ae39a39ecd28b4f3eeb791cbc34697cf56c720
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-12
@@ -35,3 +35,6 @@ O que mudou e confere com o pedido (E6, lote por arquivo, DECISÃO DO DONO de 12
 **Testes dos arquivos tocados** (`bin/forge-testes tests/<m>.py`, um por vez): test_doutor_branch_atrasada 6 OK, test_fechar_move_cartao 12 OK, test_fechar_prune_sandbox 3 OK, test_fechar_forge_check_real 3 OK. A suíte inteira fica com o CI do PR.
 
 **Checklist de leitura:** os falsos de `git` e `forge-check` (`GIT_META_PRESA`, `CHECK`) não afrouxam a regra do script: o `git` falso chama o anterior e só recria a pasta, e o movimento real é provado em `test_fechar_forge_check_real`. O subprocesso do `forge-check` real usa `-I`. A coluna lida do histórico segue a forma que o `cmd_movimento` grava (só linha com hora ISO, `$5` = Para), e o teste com a linha "lixo" prova o filtro. O ID do cartão tem lista positiva e vai ao `awk -v` sem barra invertida. Não achei código morto nem TODO.
+
+## Revalidação por delta (head 17ae39a3)
+Delta lido por `forge-check parecer delta docs/reviews/v046-fechar-lote.md` (intervalo `0be84795..17ae39a3`, sem o que veio da base): só `tests/pesos-d4.json` (e a linha AR-13 de `docs/engineering/achados-recorrentes.md`, vinda da develop). O merge da develop `a986c292` teve um conflito, em `tests/pesos-d4.json`. A resolução confere: `git diff a986c292 HEAD -- tests/pesos-d4.json` traz só as três chaves da branch (`test_doutor_branch_atrasada` 5.0, `test_fechar_move_cartao` 16.0, `test_fechar_prune_sandbox` 7.2); o JSON é válido, ordenado, e todo módulo `tests/test_*.py` tem peso. `forge-testes tests/test_pesos_teto.py` e `tests/test_suite_partes.py` OK. Nenhum código de `bin/` mudou, então os achados A1 a A5 (recomendados) seguem como estavam; nenhum bloqueante. Parecer mantido: aprovado.
