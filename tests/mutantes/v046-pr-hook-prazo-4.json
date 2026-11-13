@@ -1,0 +1,88 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M20",
+      "guarda": "PR-HOOK-PRAZO: gravar: sem ref, o head é o HEAD",
+      "arquivo": "bin/forge-check",
+      "de": "head, branch = sha_do_commit(raiz, ref or \"HEAD\"), branch_da_ref",
+      "para": "head, branch = sha_do_commit(raiz, ref or \"HEAD~1\"), branch_da_ref",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_ref_ou_base_que_nao_resolvem_sao_ausentes"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "PR-HOOK-PRAZO: gravar: sem branch, sem pasta",
+      "arquivo": "bin/forge-check",
+      "de": "    pasta = pasta_dos_resultados(raiz, head) if branch else None\n",
+      "para": "    pasta = pasta_dos_resultados(raiz, head) if True else None\n",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_previo_e_head_sem_branch_nao_gravam"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "PR-HOOK-PRAZO: gravar: a base dada é resolvida",
+      "arquivo": "bin/forge-check",
+      "de": "resolvida = base_do_delta(raiz, base, ref)[0] if base else None",
+      "para": "resolvida = base_do_delta(raiz, base, ref)[0] if not base else None",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_pr_grava_o_reprovado_e_o_hook_o_le",
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_pr_aprovado_grava_e_o_hook_libera_so_lendo"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "PR-HOOK-PRAZO: gravar: base_sha da base resolvida",
+      "arquivo": "bin/forge-check",
+      "de": "sha_do_commit(raiz, resolvida) if resolvida else None",
+      "para": "sha_do_commit(raiz, resolvida) if not resolvida else None",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_pr_grava_o_reprovado_e_o_hook_o_le",
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_pr_aprovado_grava_e_o_hook_libera_so_lendo"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "PR-HOOK-PRAZO: gravar: com violação, reprovado",
+      "arquivo": "bin/forge-check",
+      "de": "\"resultado\": \"reprovado\" if violacoes else \"aprovado\"",
+      "para": "\"resultado\": \"reprovado\" if False else \"aprovado\"",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_pr_grava_o_reprovado_e_o_hook_o_le"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "PR-HOOK-PRAZO: gravar: a violação vai no registro",
+      "arquivo": "bin/forge-check",
+      "de": "[:160] if violacoes else None, \"escritor\"",
+      "para": "[:160] if False else None, \"escritor\"",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_pr_grava_o_reprovado_e_o_hook_o_le"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "PR-HOOK-PRAZO: gravar: o aviso traz o motivo curto do sistema",
+      "arquivo": "bin/forge-check",
+      "de": "resultado não gravado para o hook ({sem_controle(e.strerror or str(e))})",
+      "para": "resultado não gravado para o hook ({sem_controle(e.strerror and str(e))})",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_falha_ao_gravar_avisa_e_nao_muda_o_codigo"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "PR-HOOK-PRAZO: ler: sem ref, o head é o HEAD",
+      "arquivo": "bin/forge-check",
+      "de": "    head = sha_do_commit(raiz, ref or \"HEAD\")\n    pasta = pasta_dos_resultados(raiz, head)\n",
+      "para": "    head = sha_do_commit(raiz, ref or \"HEAD~1\")\n    pasta = pasta_dos_resultados(raiz, head)\n",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_ref_ou_base_que_nao_resolvem_sao_ausentes"
+      ]
+    }
+  ]
+}
