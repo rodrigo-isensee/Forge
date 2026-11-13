@@ -13,12 +13,19 @@ Quem espera um PR espera o PR, não os checks. Um check antigo da branch pode se
 3. **PR:** a cada volta, leia primeiro o estado (`gh pr view <n> --json state --jq .state`); fora de `OPEN`, saia. Em `OPEN`, leia `gh pr checks <n>`: o código 8 quer dizer checks pendentes (conferido em `gh pr checks --help`, "Additional exit codes"); qualquer outro código encerra a espera com ele.
 4. **Envio longo (ou qualquer comando de mais de 170 s) num subagente:** o segundo plano morre quando o turno do subagente acaba. Lance o comando com o `run_in_background` da ferramenta, gravando num log de caminho literal que termina com a linha `rc=`; no mesmo turno, espere com o laço da regra 2 sobre `grep -q '^rc=' <log>`. **Nunca encerre o turno nem devolva o relatório com um processo em segundo plano pendente.**
 5. **Trava `pesado` (R-TETO):** espere pelo sumiço de `.forge/run/pesado.json` ou pelo `desde` gravado nele mais o teto da trava, lendo o arquivo (só leitura); nunca por `kill -0` no pid gravado (o pid de outro namespace não aparece e a espera acaba antes da hora).
+6. **CI longo (e2e de uns 20 min) na sessão principal:** lance o laço do PR sem teto, o segundo bloco de "O laço do PR", com o `run_in_background` da ferramenta e siga com outro trabalho; o aviso de término chega quando o laço sai (`fim=MERGED`, `fim=CLOSED`, `fim=checks:<código>` ou `fim=erro`), sem prazo de 170 s e sem repetir chamadas. O subagente não tem essa saída (regra 4): segue a regra 2 e repete a chamada de 170 s até o estado terminal.
 
 ## O laço do PR
 Troque `123` pelo número do PR e rode da pasta do repositório dele:
 
 ```bash
 n=123; fim=""; for i in $(seq 1 5); do e=$(gh pr view "$n" --json state --jq .state) || { fim=erro; break; }; [ "$e" = OPEN ] || { fim="$e"; break; }; gh pr checks "$n" >/dev/null 2>&1; c=$?; [ "$c" -eq 8 ] || { fim="checks:$c"; break; }; sleep 30; done; echo "fim=${fim:-teto}"; [ -n "$fim" ]
+```
+
+Sem teto, só para o segundo plano da sessão principal (regra 6); a saída é a mesma, sem `fim=teto`:
+
+```bash
+n=123; while :; do e=$(gh pr view "$n" --json state --jq .state) || { echo "fim=erro"; break; }; [ "$e" = OPEN ] || { echo "fim=$e"; break; }; gh pr checks "$n" >/dev/null 2>&1; c=$?; [ "$c" -eq 8 ] || { echo "fim=checks:$c"; break; }; sleep 30; done
 ```
 
 ## O que a saída quer dizer
