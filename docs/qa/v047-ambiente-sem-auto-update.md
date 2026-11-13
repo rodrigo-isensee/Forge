@@ -17,8 +17,8 @@ data: 2026-11-13
 Head baf1bee6, base afba389e, delta desde 93deca84. Sem PR aberto: rodei só os testes afetados, em série (máquina com carga).
 
 ## Achados
-- A3 (recomendado) skills/trabalho-em-paralelo/SKILL.md · fechado: `git diff afba389e HEAD` e `git diff origin/develop HEAD` do arquivo saem vazios; texto da base restaurado.
-- A4 (recomendado) README.md · o README manda ver a skill `trabalho-em-paralelo` para a retomada dos agentes, mas a skill já não traz esse passo (cortado na E1.103); ajustar a frase ou voltar a retomada à skill.
+- A3 (recomendado) skills/trabalho-em-paralelo/SKILL.md:10 · fechado: `git diff afba389e HEAD` e `git diff origin/develop HEAD` do arquivo saem vazios; texto da base restaurado.
+- A4 (recomendado) README.md:1 · o README manda ver a skill `trabalho-em-paralelo` para a retomada dos agentes, mas a skill já não traz esse passo (cortado na E1.103); ajustar a frase ou voltar a retomada à skill.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
