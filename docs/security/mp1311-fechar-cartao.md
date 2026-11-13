@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: melhorias-de-projeto-1311
 branch: melhoria/mp1311-fechar-cartao
-commit: 0884fae230d784f90d6cb0108dfa414ee91707e0
+commit: a47ef67b708027498f825765c764fec9bf14dae0
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-13
@@ -14,7 +14,7 @@ data: 2026-11-13
 Controle de fechamento e merge (conferência de pareceres antes do merge, `R-SEGURANCA`, `R-VERIFY`): o `forge-fechar` passa a dar ao `forge-check pr` o nome da branch local em vez do sha.
 
 ## Achados
-- A1 (recomendado) bin/forge-fechar:854 · nome sem prefixo resolve pelo git na ordem sha, tag, branch: tag de mesmo nome da branch faz o forge-check ler outro commit que o sha conferido; passe refs/heads/$ref (aceito por branch_da_ref); o CI e o merge preso ao sha cobrem.
+- A1 (recomendado) bin/forge-fechar:826 · RESOLVIDO em a47ef67b: ref_check e ref_dry passam a refs/heads/$ref, e o teste test_tag_de_mesmo_nome_nao_desvia_a_conferencia cobre a tag homônima.
 
 ## Sondas
 
@@ -25,3 +25,6 @@ Controle de fechamento e merge (conferência de pareceres antes do merge, `R-SEG
 
 ## Riscos aceitos e ferramentas
 Sem risco aceito. Sem PR aberto para o head: rodei `tests.test_fechar_ref_por_nome` (4 OK), `tests.test_fechar_sha_conferido` (9 OK) e `tests.test_fechar_base_andou` (30 OK) numa cópia limpa do head; a suíte inteira fica para o CI do PR. Varredura de dependências não se aplica (sem dependência nova).
+
+## Revalidação por delta (head a47ef67b)
+Delta do domínio desde 0884fae2: `bin/forge-fechar` (duas linhas: `ref_check="refs/heads/$ref"` e `ref_dry="refs/heads/$ref"`, mais comentário) e testes. Cumpre a correção mínima do A1. O `forge-check` aceita o prefixo (`removeprefix("refs/heads/")` em `bin/forge-check:1616` e `:1649`; resolução por `rev-parse ... ^{commit}` com `--end-of-options`), logo os pareceres seguem lidos da branch. Sem superfície nova: `$ref` segue validado por `git check-ref-format --branch` (`bin/forge-fechar:111`); o sha conferido e o `--match-head-commit` não mudaram; sem branch local o caminho segue pelo sha do servidor. Os mutantes M4 e M5 (`tests/mutantes/mp1311-fechar-cartao.json`) são teste, fora do domínio de segurança; não os reexecutei. Rodei `tests.test_fechar_ref_por_nome` e `tests.test_fechar` (104 testes, OK, 123 s); a suíte inteira fica para o CI do PR. Sem achado novo.
