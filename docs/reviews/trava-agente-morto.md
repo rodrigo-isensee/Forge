@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v0457
 branch: melhoria/trava-agente-morto
-commit: f77bb51df14bee2e20a1814f622e37e45427f793
-parecer: reprovado
+commit: 31f2e643e22c22ceedcf927a07c4cf5676032ed4
+parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-12
+data: 2026-11-13
 ---
 # Review: v0457 (TRAVA-AGENTE-MORTO, E23.70)
 
@@ -46,3 +46,14 @@ Diff `a1318e88..f77bb51d` (2 commits: `76bfc6ee` feat, `f77bb51d` mutantes), lid
 
 ## Parecer
 Reprovado só pelo A1. O código cumpre C1 a C12 como o parecer de segurança pediu, a forma lida bate com a notificação real do Claude Code e os testes cobrem cada condição pelo ramo de falha. O gatilho novo no hooks.json é necessário para a C8 e está certo (mesmo comando e timeout do `Agent|Task`). Das pendências declaradas, a do docs/hooks.md bloqueia: o pronto pede a documentação afetada na mesma entrega, e quem tiver o SendMessage recusado ou procurar o `liberacoes.log` não acha nada no guia dos hooks. A do mapa de testes (A2) pode seguir: o CI roda a suíte inteira. A volta é só texto em docs/hooks.md, e a revalidação lê o delta.
+
+## Revalidação (E23.98, volta E23.74)
+Delta lido: `forge-check parecer delta docs/reviews/trava-agente-morto.md`, intervalo `f77bb51d..31f2e643` (código e testes: docs/hooks.md, hooks/agentes.py, hooks/conformidade.json, 4 fixtures de C10, bin/forge-testes, testes e mutantes 4 e 5). Instância que não fez a entrega, worktree própria, sem PR (sem CI para citar).
+- A1 resolvido: docs/hooks.md:11 traz o `SendMessage` no gatilho e a recusa pela lápide; :70 traz a notificação terminal, `liberacoes.log`, a lápide e a proteção de `~/.claude/projects/`. S1 e S2 repetidas no head: ambas passam de 0 para >= 1.
+- A2 resolvido: `test_trava_agente_morto` na regra `hooks/.*` do mapa (bin/forge-testes).
+- A3 resolvido: `C8Gatilho.test_hooks_json_liga_o_sendmessage_ao_agentes`; o mutante M28 (hooks/hooks.json:19) morre.
+- A4 resolvido: `Liberacao.notas` guarda a falha (`_notas = {}` antes da leitura); `test_falha_da_leitura_nao_rele_o_transcript_a_cada_registro` afirma 1 leitura para 3 registros; M27 morre.
+- C10 ampliada (segurança S1 a S4): regras `~/.claude/projects/*` e `~/.claude/projects/*/*`. Sonda: `escrita_barrada` devolve None para `projects/-p/memory/x.md` e `memory/MEMORY.md` (a memória segue livre, como o texto diz) e recusa a pasta do projeto, a da sessão, o transcript e o meta. O efeito colateral (outros arquivos soltos na pasta do projeto também barrados) é aceitável e não bloqueia.
+- Provas do delta: `python3 -m unittest tests.test_trava_agente_morto` 51 testes OK; `bin/forge-mutante` nas specs `-4` (M25 a M30) e `-5` (M31, M32): todos mortos. A suíte inteira, shellcheck e a validação do plugin ficam com o CI do PR.
+
+Parecer final: aprovado no head 31f2e643. Sem achados bloqueantes abertos; A2 a A4 (recomendados) atendidos. Pendência do PR: `teto: excedido` no corpo (M14), como já dito.
