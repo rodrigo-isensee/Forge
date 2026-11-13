@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v046
 branch: melhoria/v046-textos-jarvis
-commit: afdaa3abf9e27dd195380c1fe01ac631082b4198
+commit: cf172a29279f27ac29e1a4cfe843efd35057ea51
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-12
@@ -33,3 +33,12 @@ Cortes para caber (skill no teto, núcleo abaixo do teto, `jarvis.md` sem mudan�
 Teste novo `Diretrizes18e19` (`tests/test_jarvis_nucleo.py:156`): três testes de presença das frases que carregam as diretrizes 18 e 19 (anda sozinho, prazo no comando, subagente na `esperar-estado`, pausa, instância por item, volta, medidas, série por arquivo). É teste de texto, adequado a mudança só de texto; sem guarda de código no delta, sem mutante a declarar (AR-1, AR-2 não se aplicam). Conferidos os itens de `docs/engineering/achados-recorrentes.md`: nenhum alcança o delta (AR-9 limite antigo: as 150 linhas batem com a M14).
 
 Neutralidade (`R-NEUTRO`): nada de projeto no delta. Fragmento de changelog atualizado com o mesmo sentido.
+
+## Revalidação E21.10 (volta E21.9)
+Delta lido: `forge-check parecer delta docs/reviews/v046-textos-jarvis.md`, intervalo `afdaa3ab..cf172a29` (sem o que veio da `develop` com #518 a #520), dois arquivos no domínio:
+- `skills/trabalho-em-paralelo/SKILL.md`: a descrição perde "hora ou estado" e o texto devolve "(serializam)" na série por arquivo. Só texto; nenhuma regra sai, e a volta é fiel ao A5 (itens com arquivo em comum vão juntos ou o segundo espera).
+- `tests/test_reval_delta.py:135`: registra a citação `tests/test_jarvis_nucleo.py` -> `README.md` (motivo `teste-le`, 1) em `CITACOES_CONHECIDAS`; coerente com o comentário da R-WIP logo acima e com o teste que lê `docs/regras/README.md`.
+
+Testes afetados rodados no cf172a29, um por vez: `test_reval_delta` 10 OK, `test_orcamento_instrucao` 8 OK, `test_jarvis_nucleo` 17 OK. A suíte inteira fica no CI do PR. Sem guarda de código no delta: sem mutante a declarar. Sem achados novos; `agents/jarvis.md` sem mudança.
+
+**Aprovado** no head cf172a29.
