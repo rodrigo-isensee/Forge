@@ -1,0 +1,56 @@
+{
+ "pedido": "v046-mutacao-bench",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M16",
+   "guarda": "o helper de tests/ mudado aparece na saída da dirigida",
+   "arquivo": "bin/forge-mutante",
+   "de": "if apoio_mudado:",
+   "para": "if False:",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_helper_de_tests_enfraquecido_poe_todos_os_mutantes_no_diff"
+   ]
+  },
+  {
+   "id": "M17",
+   "guarda": "helper de tests/ mudado põe todos os mutantes no diff (segurança A4 da E7.7)",
+   "arquivo": "bin/forge-mutante",
+   "de": "spec_mudou or bool(apoio_mudado), mudados)",
+   "para": "spec_mudou, mudados)",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_helper_de_tests_enfraquecido_poe_todos_os_mutantes_no_diff"
+   ]
+  },
+  {
+   "id": "M18",
+   "guarda": "só arquivo de tests/ conta como apoio de teste",
+   "arquivo": "bin/forge-mutante",
+   "de": "if a.startswith(\"tests/\")",
+   "para": "if True",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_teste_e_spec_de_outro_mutante_nao_poem_todos_no_diff"
+   ]
+  },
+  {
+   "id": "M19",
+   "guarda": "spec de tests/mutantes/ não é apoio de teste",
+   "arquivo": "bin/forge-mutante",
+   "de": "and not a.startswith(\"tests/mutantes/\")",
+   "para": "and True",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_teste_e_spec_de_outro_mutante_nao_poem_todos_no_diff"
+   ]
+  },
+  {
+   "id": "M20",
+   "guarda": "módulo test_*.py não é apoio de teste",
+   "arquivo": "bin/forge-mutante",
+   "de": "and not (Path(a).name.startswith(\"test_\") and a.endswith(\".py\"))",
+   "para": "and True",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_teste_e_spec_de_outro_mutante_nao_poem_todos_no_diff"
+   ]
+  }
+ ]
+}

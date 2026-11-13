@@ -1,0 +1,29 @@
+{
+  "descricao": "Volta 4 da E20.6 (v046, review A5 da E20.30): a última palavra de `caminhos` nunca se libera, nem vinda de rev-parse. Aqui o destino da escrita é a palavra com crase que começa por `-` (fora de `caminhos`), e a origem de rev-parse fica como a última: o corte `caminhos[:-1]` a mantém barrada pela regra genérica.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n",
+    "x": "x\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ln \"$(git rev-parse --git-dir)\"/HEAD -`echo`"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "link com caminho protegido"
+  }
+}

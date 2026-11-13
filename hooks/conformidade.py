@@ -312,6 +312,7 @@ PROVA_DA_SUITE = ("R-VERIFY", "a prova da suíte só é gravada pelo pre-push e 
 # também fora de projeto (a `GuardaDaProva` a deixa passar), e não só quando ela aponta para o Forge.
 PROFUNDIDADE_EXCEDIDA = ("R-CONFORMIDADE", f"comando aninhado (bash -c, eval, $(, crase, heredoc) em mais de {PROFUNDIDADE} "
                          "níveis: o hook não o lê", f"rode o comando direto, com no máximo {PROFUNDIDADE} níveis aninhados")
+COLCHETE_DE_DIGITO = re.compile(r"\[[0-9-]+\]")  # o bash e o glob do Python o leem igual: sem caixa, negação nem classe
 CURINGA = re.compile(r"[*?\[]")  # o bash expande no alvo antes de gravar (A1 e A2 da segurança g1 da 0.45)
 MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
 GLOB_DE_PATHSPEC = re.compile(r"[*?\[\\]")
@@ -356,6 +357,11 @@ SIMPLES = {
 # F6: o mesmo vale para enviar sugestão ao Forge (`forge sugerir`, `forge-sugerir`): só `--guardar` é do agente. A variável de
 # ambiente que o script confere some com `env -i`; por isso a defesa principal é este hook.
 GUARDAR_EXATO = re.compile(r"(?:forge sugerir|forge-sugerir|bin/forge-sugerir) --guardar (\"[^\"$`\\!]*\"|'[^']*')", re.S)
+
+
+def sem_caixa(padrao):
+    """O `nocaseglob` do bash no glob do Python: cada letra do padrão (o colchete que sobra só tem dígito) vira `[xX]`."""
+    return re.sub(r"[^\W\d_]", lambda m: f"[{m[0].lower()}{m[0].upper()}]", padrao)
 
 
 def valor_do_rev_parse(corpo):
@@ -1052,10 +1058,10 @@ class Guarda:
                     if not a.startswith("-") or a.startswith("--target-directory=")]
         alvos = [self.resolver(self.expandir(a, pasta), pasta) for a in caminhos]
         alvos += [d / Path(a).name for d in alvos if d.is_dir() for a in caminhos]
-        livres = self.origens_do_rev_parse(args, caminhos)  # índices de `caminhos`: os derivados acima nunca entram
         generico = next((f"{e['motivo']}: {e['caminho']}" for e in self.pol["caminhos"] if e["caminho"] == ".git/"), None)
         papel, self.papel = self.papel, "-"  # nenhum papel: vale o caminho protegido para qualquer um
         try:
+            livres = self.origens_do_rev_parse(args, caminhos, pasta, generico)  # os derivados acima nunca entram
             achado = next((x for i, x in enumerate(map(self.caminho_barrado, alvos))
                            if x and not (i in livres and x[1] == generico)), None)
         finally:
@@ -1065,16 +1071,43 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", f"link com caminho protegido ({motivo}): o link dá outro nome ao arquivo",
                         "copie o conteúdo sem link (cp sem -l nem -s) ou peça ao dono do caminho (R-DECISAO)")
 
-    def origens_do_rev_parse(self, args, caminhos):
+    def origens_do_rev_parse(self, args, caminhos, pasta, generico):
         """Volta 3 (A1 da E20.29, v046): os índices em `caminhos` das origens de link que vêm de `git rev-parse` (direto ou
         pela variável da linha). Ler do `.git` para fora era livre na develop (a substituição era opaca) e segue livre só da
         regra genérica `.git/`; as específicas (`.git/config`, `.git/hooks/`, `.git/forge/`) e o destino seguem barrando.
         Falha fechada: com opção que não seja `-` e letras sem valor (`-S`, `-t`, as longas e `--` mudam qual palavra é o
-        destino), nenhuma; a última palavra (o destino, também a de `ln <origem>` sozinha) nunca entra."""
+        destino), nenhuma; a última palavra (o destino, também a de `ln <origem>` sozinha) nunca entra; nem a origem cujo
+        curinga ou chaves alcança uma regra específica (`origem_so_generica`)."""
         if any(a.startswith("-") and not re.fullmatch(r"-[^-St=]+", a) for a in args):
             return set()
-        return {i for i, a in enumerate(caminhos[:-1])
-                if DIR_DO_GIT in VARIAVEL_INTEIRA.sub(lambda m: self.ambiente.get(m[1] or m[2], m[0]), a)}
+        valores = (VARIAVEL_INTEIRA.sub(lambda m: self.ambiente.get(m[1] or m[2], m[0]), a) for a in caminhos[:-1])
+        return {i for i, v in enumerate(valores) if DIR_DO_GIT in v and self.origem_so_generica(v, pasta, generico)}
+
+    def origem_so_generica(self, valor, pasta, generico):
+        """Volta 4 (A11 da segurança E20.31, A4 do QA E20.32, v046): o resto depois do `DIR_DO_GIT` com chaves
+        (`conf{i,}g`) não se libera (o hook não expande chaves: falha fechada); com curinga (`c?nfig`, `hook[s]/pre-push`),
+        só se nenhum nome que o glob de cada prefixo do resto expande no `.git` da raiz e no diretório comum (o de
+        `pastas_do_curinga`) cair em regra que não seja a genérica `.git/`. Volta 5 (A11 da segurança E20.37, A1 do review
+        E20.36): o glob do Python não lê o colchete do bash (`[^x]`, `[[:alpha:]]`, `[[=c=]]`, `[[.c.]]`), então resto com
+        `[` também não se libera, salvo o colchete só de dígitos (`[0-9]`, que os dois leem igual); com `?` e `*`, cada letra
+        casa as duas caixas (`shopt -s nocaseglob` com `CONFI?`)."""
+        resto = valor.rsplit(DIR_DO_GIT, 1)[1].lstrip("}").strip("/")
+        if "{" in resto:
+            return False
+        if "[" in COLCHETE_DE_DIGITO.sub("", resto):
+            return False
+        if not CURINGA.search(resto):
+            return True
+        git = Path(os.path.realpath(self.h.raiz)) / ".git"
+        topo = self.raiz_git(pasta)
+        partes = sem_caixa(resto).split("/")
+        for base in {str(b) for b in filter(None, (git, topo and diretorio_comum(topo)))}:
+            for k in range(1, len(partes) + 1):
+                for n in glob.glob(f"{glob.escape(base)}/{'/'.join(partes[:k])}"):
+                    x = self.caminho_barrado(Path(os.path.normpath(git / os.path.relpath(n, base))))
+                    if x and x[1] != generico:
+                        return False
+        return True
 
     def checar_remocao(self, caminho, pasta):
         """`rm -rf .forge`, `rm -r .githooks`: apagar a pasta que contém um caminho protegido sem dono (a instalação) é

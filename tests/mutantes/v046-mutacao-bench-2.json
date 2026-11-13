@@ -1,0 +1,76 @@
+{
+ "pedido": "v046-mutacao-bench",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M9",
+   "guarda": "fora do clone do Forge, a release não fala de placar nem de bench",
+   "arquivo": "bin/forge-changelog",
+   "de": "if not (raiz / \"scripts\" / \"placar-mutacao.py\").is_file():",
+   "para": "if False:",
+   "testes": [
+    "tests.test_changelog.ReleaseAvisaMedidasDaVersao.test_fora_do_forge_nao_avisa"
+   ]
+  },
+  {
+   "id": "M10",
+   "guarda": "sem tag anterior, o comando do placar pede a tag em vez de sair vazio",
+   "arquivo": "bin/forge-changelog",
+   "de": "if tag.returncode == 0 and tag.stdout.strip() else",
+   "para": "if True else",
+   "testes": [
+    "tests.test_changelog.ReleaseAvisaMedidasDaVersao.test_sem_tag_pede_a_tag_anterior_a_mao"
+   ]
+  },
+  {
+   "id": "M11",
+   "guarda": "a spec mudada entre base e rev põe os mutantes dela no diff",
+   "arquivo": "bin/forge-mutante",
+   "de": "if spec_mudou or m[\"arquivo\"] in mudados:",
+   "para": "if m[\"arquivo\"] in mudados:",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_spec_mudada_entre_base_e_rev_roda_os_mutantes_dela"
+   ]
+  },
+  {
+   "id": "M12",
+   "guarda": "o arquivo mutado que mudou põe o mutante no diff",
+   "arquivo": "bin/forge-mutante",
+   "de": "or m[\"arquivo\"] in mudados:",
+   "para": "or False:",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_so_o_mutante_do_arquivo_mudado_roda"
+   ]
+  },
+  {
+   "id": "M13",
+   "guarda": "o módulo de teste mudado entre base e rev põe o mutante no diff",
+   "arquivo": "bin/forge-mutante",
+   "de": "return any(modulos_do_teste(t) & mudados for t in m.get(\"testes\", []))",
+   "para": "return False",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_teste_enfraquecido_entre_base_e_rev_roda_o_mutante_e_sobrevive"
+   ]
+  },
+  {
+   "id": "M14",
+   "guarda": "a spec versionada que mudou conta como mudada",
+   "arquivo": "bin/forge-mutante",
+   "de": "and caminho.relative_to(raiz).as_posix() in mudados",
+   "para": "and False",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_spec_mudada_entre_base_e_rev_roda_os_mutantes_dela"
+   ]
+  },
+  {
+   "id": "M15",
+   "guarda": "a spec fora do repositório não derruba a rodada dirigida",
+   "arquivo": "bin/forge-mutante",
+   "de": "spec_mudou = caminho.is_relative_to(raiz) and",
+   "para": "spec_mudou = True and",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_so_o_mutante_do_arquivo_mudado_roda"
+   ]
+  }
+ ]
+}
