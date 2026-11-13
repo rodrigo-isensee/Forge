@@ -1,7 +1,7 @@
 ---
 tipo: review
 contrato: 1
-pedido: v047-teste-carga
+pedido: v047
 branch: melhoria/v047-teste-carga
 commit: 171232b97fb8f5a84b426b2fabc5f2a5f1ef5170
 parecer: aprovado
@@ -33,3 +33,6 @@ Li `forge-check parecer delta` (3da64e12..171232b9; domínio: `tests/apoio_volta
 - Rodei `bin/forge-mutante tests/mutantes/v047-teste-carga.json`: M1 a M14 mortos. M10 morre por erro (o `OSError` do mock escapa sob `ValueError`), o que é morte válida. Uma guarda por mutante: `except OSError`, `min`/`max`, `is None`, `or`, `hasattr`.
 - Tamanho: 95 linhas de código e teste contáveis, abaixo do teto de 150, um comportamento só.
 - A suíte inteira fica no CI (sem PR aberto ainda).
+
+## Revalidação (delta até 80d80a7f, E5.18)
+Li `forge-check parecer delta` (171232b9..80d80a7f): nenhum arquivo do domínio mudou; só pareceres do QA, da segurança e este. O aprovado em 171232b9 segue valendo. Campo `pedido:` corrigido para `v047`, por instância que não fez a entrega.
