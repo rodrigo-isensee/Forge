@@ -5,15 +5,15 @@ description: Brief selado e entrega conferida pela ferramenta (R-BRIEF, R-PROVA)
 
 # Brief selado e entrega conferida
 
-Texto do Jarvis lido no passo (L51). A forma é da ferramenta: o que ela confere não se repete aqui.
+Texto do Jarvis (L51). A forma é da ferramenta; não se repete aqui.
 
 ## Antes de delegar (`R-BRIEF`)
-1. `forge-check brief gerar --pedido <p> --destino forge:<nome> --branch <b> --gravar` monta o brief a partir do pedido e do desenho, com base, `Desde:` e etapa calculados e as decisões do dono por referência. Nunca parta de outro brief nem de um molde copiado.
-2. Preencha só o que é da tarefa (Objetivo, Ler, Entregar, Pronto quando); mantenha o brief curto (até 10.000 caracteres; acima, o selo reprova). Leia a skill `checagem-do-brief` para o que a ferramenta não sabe (estado do remoto, credencial, efeito fora da worktree).
+1. `forge-check brief gerar --pedido <p> --destino forge:<nome> --branch <b> --gravar` monta o brief a partir do pedido e do desenho, com base, `Desde:` e etapa calculados e as decisões do dono por referência. Nunca parta de outro brief.
+2. Preencha só o que é da tarefa (Objetivo, Ler, Entregar, Pronto quando); mantenha o brief curto (até 10.000 caracteres; acima, o selo reprova). Skill `checagem-do-brief`: o que a ferramenta não sabe. A worktree de outra sessão é só leitura no sandbox: crie a sua antes de delegar ou o brief avisa e oferece `update-branch` pelo GitHub. Worktree não gravável (Claude Code novo): trabalhe num clone local, `git clone -q <repo> ~/.forge-contrib/wt/<nome>-c`, com `origin` apontado ao GitHub e a branch nascida da `origin/develop`.
 3. `forge-check brief selar --arquivo <brief> --pedido <p>`: reprovado, corrija o que ele aponta e rode de novo; aprovado, ele grava o selo e imprime o hash.
 4. Delegue citando no prompt o caminho do brief e o hash do selo. O hook `agentes` recusa brief sem selo ou com hash diferente em todo tipo que escreve (fora conferente e `Explore`). Brief editado pede selo novo. Uma delegação de escrita por branch (Z10); o parecer (`paralelo na mesma branch: parecer`) roda junto.
 
-O `forge:conferente` é opcional: chame-o só com uma dúvida de conteúdo que a ferramenta não decide (o Entregar é fiel ao pedido? contradiz uma decisão?), com a mensagem de `forge-check brief mensagem`. Ele não confere forma.
+O `forge:conferente` é opcional: chame-o só com uma dúvida de conteúdo que a ferramenta não decide (o Entregar é fiel ao pedido? contradiz uma decisão?), com a mensagem de `forge-check brief mensagem`.
 
 ## Ao receber a entrega (`R-PROVA`)
 - `forge-check entrega --pedido <p> --branch <b> --etapa <etapa>`: confere o estado real, roda os PQ que sabe conferir e grava a linha `entrega conferida <sha40>` no `## Histórico`. Nunca escreva essa linha à mão; `--sem-gravar` só confere (o PQ do autor), `--so-leitura` sem PQ `cmd` (o conferente).
