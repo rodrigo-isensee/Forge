@@ -31,6 +31,13 @@ RN-6 (0.43.3): cada recusa do R-TETO (memória, teto, duplicado) deixa uma linha
 RITMO (0.45.7, E3): `ritmo` em .forge/config.json (`forge ritmo <valor>`). `econômico` limita o teto a 1 agente por vez;
 `equilibrado` (padrão, também para valor ausente ou inválido) e `acelerado` ficam no teto de sempre. Nenhum ritmo afrouxa
 o piso de memória, o duplicado nem a trava `pesado` (tarefa pesada segue uma por vez em qualquer ritmo).
+TRAVA-AGENTE-MORTO (0.45.7, E23.60; parecer de segurança da E23.46, C1 a C12): o registro da sessão atual sai na hora, sem o
+prazo, só com a notificação terminal do próprio Claude Code no transcript da sessão-mãe (`Liberacao`): cabeçalho lido por
+regex ancorada (task-id, tool-use-id igual ao `toolUseId` do `subagents/agent-<id>.meta.json`, status failed, completed ou
+killed, carimbo depois do `desde`), do fim do transcript com teto de bytes e de tempo. Não há liberação manual, por mtime nem
+por silêncio: agente vivo sem resposta para com o TaskStop e sai pela notificação `killed`. O registro de escrita só sai com a
+trava `pesado` livre. Cada liberação vai ao `liberacoes.log` e deixa uma lápide: retomar o id (`SendMessage`) é recusado
+enquanto houver relançamento vigente na mesma branch ou com a mesma descrição.
 """
 import hashlib
 import json
@@ -41,13 +48,15 @@ import stat
 import sys
 import time
 import unicodedata
+from datetime import datetime, timezone
 from pathlib import Path
 
 from _comum import (LIMITE_LOG, RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check,
                     gravar_json, ler_json, mensagem)
-from pesado import CASCAS, pid_da_sessao, pid_vivo
+from pesado import CASCAS, TRAVA_S, pid_da_sessao, pid_vivo
 
 FERRAMENTAS = {"Agent", "Task"}
+RETOMADA = "SendMessage"  # C8: retomar um agente pelo id
 EVENTOS = {"PreToolUse", "SubagentStart", "SubagentStop"}
 RESERVA_S = 300  # a reserva sem SubagentStart (lançamento negado ou falho) não prende a vaga por horas
 
@@ -213,21 +222,193 @@ def da_sessao(hook):
     return {"pid": pid, "pidns": ns, "sessao": sessao}
 
 
-def vigentes(agentes, agora, expira_s):
+def nenhum_morto(_registro):
+    return False
+
+
+def vigentes(agentes, agora, expira_s, morto=nenhum_morto):
     """Registros dentro do prazo e de sessão que não está provadamente morta. Cada registro é avaliado à parte: o erro
-    num deles mantém o registro e nunca derruba o hook (a exceção liberaria o lançamento sem reserva)."""
+    num deles mantém o registro e nunca derruba o hook (a exceção liberaria o lançamento sem reserva). `morto` (C5,
+    `Liberacao`) tira o registro cujo agente a notificação terminal prova parado; o forge-check conta sem ele."""
     saida = []
     for a in agentes:
         try:
             if not (isinstance(a, dict) and isinstance(a.get("desde"), (int, float))
                     and agora - a["desde"] < (expira_s if a.get("id") else min(RESERVA_S, expira_s))):
                 continue
-            if sessao_morta(a):
+            if sessao_morta(a) or morto(a):
                 continue
         except Exception:  # noqa: BLE001 - dúvida mantém o registro (falha para o lado seguro)
             pass
         saida.append(a)
     return saida
+
+
+# TRAVA-AGENTE-MORTO (E23.60): a notificação terminal do Claude Code no transcript da sessão-mãe (C1 a C4, C9).
+ID_DE_AGENTE = re.compile(r"a[0-9a-f]{16}")
+ID_CITADO = re.compile(r"(?<![0-9A-Za-z])a[0-9a-f]{16}(?![0-9A-Za-z])")
+SESSAO_UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+# C1: só o cabeçalho, do início; nada depois do status (o `<result>` traz texto do agente).
+NOTIFICACAO = re.compile(r"<task-notification>\n<task-id>(a[0-9a-f]{16})</task-id>\n<tool-use-id>(toolu_[0-9A-Za-z]{1,64})"
+                         r"</tool-use-id>\n(?:<output-file>[^<>\n]{1,4096}</output-file>\n)?<status>(failed|completed|killed)</status>\n")
+CARIMBO = re.compile(r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3}(?:\d{3})?)?)Z")
+LIMITE_DO_TRANSCRIPT = 2 * 1024 * 1024  # C4: bytes lidos do fim do transcript
+PRAZO_DA_LEITURA_S = 2.0  # C4: tempo da leitura; estourou, o registro fica
+LIMITE_DO_META = 64 * 1024
+LAPIDES_MAX = 64
+
+
+def ler_o_fim(caminho, limite):
+    """C3 e C4: os últimos `limite` bytes do arquivo regular `caminho`, a partir da primeira linha inteira, aberto sem seguir
+    link nem esperar FIFO. Outro tipo de arquivo levanta OSError: a dúvida mantém o registro (`vigentes`)."""
+    fd = os.open(caminho, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, "rb") as arquivo:
+        info = os.fstat(arquivo.fileno())
+        if not stat.S_ISREG(info.st_mode):
+            raise OSError(f"{caminho}: não é arquivo regular")
+        inicio = max(0, info.st_size - limite)
+        arquivo.seek(inicio)
+        dados = arquivo.read(limite)
+    return dados.partition(b"\n")[2] if inicio else dados
+
+
+def transcript_da_sessao(hook):
+    """C3: o transcript da sessão do evento, real, em `~/.claude/projects/<projeto>/<session_id>.jsonl`; None fora disso. Sai do
+    `transcript_path` do evento, nunca de campo do registro."""
+    sessao, caminho = hook.campo("session_id"), hook.campo("transcript_path")
+    if not (isinstance(sessao, str) and SESSAO_UUID.fullmatch(sessao) and isinstance(caminho, str) and os.path.isabs(caminho)):
+        return None
+    real = Path(os.path.realpath(caminho))
+    base = Path(os.path.realpath(Path.home() / ".claude" / "projects"))
+    return real if real.parent.parent == base and real.name == f"{sessao}.jsonl" else None
+
+
+def notificacao_terminal(entrada):
+    """C1: (task-id, tool-use-id, carimbo em segundos, status) da entrada do transcript que é a notificação do próprio Claude
+    Code (type user, promptSource system, fora de sidechain); None para o resto. O content que não é texto (o tool_result é
+    lista), o cabeçalho ou o carimbo que não casam (None.group) e a entrada fora da forma levantam TypeError, KeyError ou
+    AttributeError, que `notificacoes` pula."""
+    if not (entrada.get("type") == "user" and entrada.get("promptSource") == "system" and entrada.get("isSidechain") is False):
+        return None
+    cabecalho, quando = NOTIFICACAO.match(entrada["message"]["content"]), CARIMBO.fullmatch(entrada["timestamp"])
+    segundos = datetime.fromisoformat(quando.group(1)).replace(tzinfo=timezone.utc).timestamp()
+    return cabecalho.group(1), cabecalho.group(2), segundos, cabecalho.group(3)
+
+
+def notificacoes(real, prazo):
+    """C1 e C4: {task-id: [(tool-use-id, carimbo, status)]} das notificações terminais do fim do transcript. Passou do `prazo`
+    (monotônico), levanta TimeoutError: o registro fica."""
+    achadas = {}
+    for linha in ler_o_fim(real, LIMITE_DO_TRANSCRIPT).split(b"\n"):
+        if time.monotonic() > prazo:
+            raise TimeoutError("C4: a leitura do transcript passou do prazo")
+        if b"<task-notification>" in linha:
+            try:
+                nota = notificacao_terminal(json.loads(linha))
+            except (ValueError, TypeError, KeyError, AttributeError):
+                continue
+            if nota is not None:
+                achadas.setdefault(nota[0], []).append(nota[1:])
+    return achadas
+
+
+def tool_use_do_meta(real, aid):
+    """C2: o `toolUseId` de `<sessão>/subagents/agent-<aid>.meta.json`, ao lado do transcript; link no caminho, arquivo ausente
+    ou fora da forma levantam (o registro fica)."""
+    meta = real.with_suffix("") / "subagents" / f"agent-{aid}.meta.json"
+    if os.path.realpath(meta) != str(meta):
+        raise OSError(f"{meta}: link no caminho")
+    return json.loads(ler_o_fim(meta, LIMITE_DO_META))["toolUseId"]
+
+
+def pesado_livre(hook, agora):
+    """C9: a trava `pesado` da pasta do estado está livre: sem arquivo, ou com dono morto ou vencido (o critério do `pesado`).
+    Trava que não é objeto levanta AttributeError (`.get`): o registro fica."""
+    trava = ler_json(hook.run() / "pesado.json", {})
+    desde = trava.get("desde")
+    return not (isinstance(desde, (int, float)) and agora - desde < TRAVA_S and pid_vivo(trava.get("pid"), trava.get("inicio")))
+
+
+class Liberacao:
+    """C5: o `morto` de `vigentes`. Lê o transcript uma vez, só com registro candidato; qualquer dúvida (inclusive exceção,
+    que `vigentes` cala) mantém o registro. Os liberados ficam em `soltos` (registro, status), para a lápide (C8) e o log (C11)."""
+
+    def __init__(self, hook, agora):
+        self.hook, self.agora, self.soltos = hook, agora, []
+        self.prazo = time.monotonic() + PRAZO_DA_LEITURA_S
+        self.real = transcript_da_sessao(hook)
+        self._notas = None
+
+    @property
+    def notas(self):
+        """C4: o transcript é lido uma vez só. A falha da leitura (prazo, arquivo sumido) fica guardada como nenhuma nota:
+        o primeiro registro cai na exceção, que `vigentes` cala, e os seguintes ficam sem reler o transcript."""
+        if self._notas is None:
+            self._notas = {}
+            self._notas = notificacoes(self.real, self.prazo)
+        return self._notas
+
+    def status(self, registro):
+        """C2, C3 e C9: o status da notificação que prova o agente parado, ou None."""
+        aid, desde = registro.get("id"), registro.get("desde")
+        if not (self.real and isinstance(aid, str) and ID_DE_AGENTE.fullmatch(aid)
+                and registro.get("sessao") == self.hook.campo("session_id")):
+            return None
+        depois = [nota for nota in self.notas.get(aid, []) if nota[1] > desde]
+        if not depois:
+            return None
+        uso = tool_use_do_meta(self.real, aid)
+        if any(nota[0] != uso for nota in depois):
+            return None
+        if escritas_do_registro(registro) and not pesado_livre(self.hook, self.agora):
+            return None
+        return depois[-1][2]
+
+    def __call__(self, registro):
+        status = self.status(registro)
+        if status:
+            self.soltos.append((registro, status))
+        return bool(status)
+
+
+def textos(valor):
+    """Os textos de uma lista; o resto fica de fora."""
+    return [v for v in valor if isinstance(v, str)] if isinstance(valor, list) else []
+
+
+def lapide(registro, agora):
+    """C8: o que fica do registro liberado: id, hora, descrição e `branches` (que contêm as de escrita), para achar o relançamento."""
+    return {"id": registro["id"], "desde": agora, "descricao": registro.get("descricao"),
+            "branches": sorted(set(textos(registro.get("branches"))))}
+
+
+def lapides_vigentes(estado, agora, expira_s):
+    """C8: as lápides gravadas, dentro do prazo do registro (expiracao_horas)."""
+    lista = estado.get("lapides")
+    return [l for l in (lista if isinstance(lista, list) else [])
+            if isinstance(l, dict) and isinstance(l.get("desde"), (int, float)) and agora - l["desde"] < expira_s]
+
+
+def relancado(morto, agentes):
+    """C8: há registro vigente, de outro id, com a descrição da lápide `morto` ou numa branch dela."""
+    ramos = set(textos(morto.get("branches")))
+    return any(a.get("id") != morto.get("id") and ((morto.get("descricao") and a.get("descricao") == morto["descricao"])
+                                                  or ramos & set(textos(a.get("branches"))))
+               for a in agentes)
+
+
+def recusar_retomada(hook, agentes, lapides):
+    """C8: recusa retomar (SendMessage) o id liberado enquanto houver relançamento dele. Vale qualquer id citado em qualquer
+    campo da entrada; erro recusa (falha fechada)."""
+    try:
+        citados = set(ID_CITADO.findall(json.dumps(hook.campo("tool_input"))))
+        presos = [l["id"] for l in lapides if l.get("id") in citados and relancado(l, agentes)]
+    except Exception as erro:  # noqa: BLE001 - C8: sem prova, a retomada não sai
+        hook.registrar_erro(erro)
+        presos = ["?"]
+    if presos:
+        bloquear("R-TETO", f"o agente {presos[0]} foi liberado como morto e tem relançamento vigente (mesma branch ou "
+                           "descrição); não o retome: espere o relançamento terminar.")
 
 
 def pasta_de_estado_do_clone(raiz):
@@ -561,6 +742,31 @@ def numero_da_recusa(valor, forma):
     return forma % valor
 
 
+def anexar_ao_log(hook, nome, linha):
+    """Uma linha ASCII em `nome`, na pasta do estado, sem seguir link nem esperar FIFO, girando em `<nome>.1` no limite do
+    `erros.log`. Quem chama cala a falha."""
+    pasta = hook.run()
+    log = pasta / nome
+    estado = os.lstat(log) if os.path.lexists(log) else None
+    if estado and stat.S_ISREG(estado.st_mode) and estado.st_size > LIMITE_LOG:
+        os.replace(log, pasta / f"{nome}.1")
+    fd = os.open(log, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+    try:
+        if stat.S_ISREG(os.fstat(fd).st_mode):
+            os.write(fd, linha.encode("ascii"))
+    finally:
+        os.close(fd)
+
+
+def registrar_liberacao(hook, aid, status):
+    """C11: a liberação vira uma linha em `liberacoes.log`: hora, id, status e motivo, nunca a descrição. Cala a falha."""
+    try:
+        anexar_ao_log(hook, "liberacoes.log", f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {hook.nome} R-TETO id={aid} "
+                                              f"status={status} motivo=notificacao\n")
+    except Exception:  # noqa: BLE001 - o log nunca devolve o registro nem barra o hook
+        pass
+
+
 def registrar_recusa(hook, motivo, campos=None):
     """RN-6: a recusa do R-TETO vira uma linha em `recusas.log` da pasta do estado (`hook._run` do clone ou `.forge/run/`):
     hora, hook, regra, números (`mem_gb=`, `nproc=`, `ativos=`) e o motivo de `MOTIVOS_DA_RECUSA`, nunca a descrição nem o
@@ -570,20 +776,9 @@ def registrar_recusa(hook, motivo, campos=None):
         if motivo not in MOTIVOS_DA_RECUSA:
             return
         campos = campos or {}
-        pasta = hook._run or hook.run()
-        log = pasta / "recusas.log"
-        estado = os.lstat(log) if os.path.lexists(log) else None
-        if estado and stat.S_ISREG(estado.st_mode) and estado.st_size > LIMITE_LOG:
-            os.replace(log, pasta / "recusas.log.1")
         numeros = " ".join(f"{chave}={numero_da_recusa(campos.get(chave), forma)}"
                            for chave, forma in (("mem_gb", "%.2f"), ("nproc", "%d"), ("ativos", "%d")))
-        linha = f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {hook.nome} R-TETO {numeros} motivo={motivo}\n"
-        fd = os.open(log, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
-        try:
-            if stat.S_ISREG(os.fstat(fd).st_mode):
-                os.write(fd, linha.encode("ascii"))
-        finally:
-            os.close(fd)
+        anexar_ao_log(hook, "recusas.log", f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {hook.nome} R-TETO {numeros} motivo={motivo}\n")
     except Exception:  # noqa: BLE001 - registrar a recusa nunca a troca por liberação
         pass
 
@@ -670,8 +865,8 @@ def iniciar(hook, agentes, agora):
 
 
 def principal(hook):
-    evento = hook.campo("hook_event_name")
-    if evento not in EVENTOS or (evento == "PreToolUse" and hook.campo("tool_name") not in FERRAMENTAS):
+    evento, ferramenta = hook.campo("hook_event_name"), hook.campo("tool_name")
+    if evento not in EVENTOS or (evento == "PreToolUse" and ferramenta not in FERRAMENTAS | {RETOMADA}):
         return
     raiz = hook.projeto(hook.cwd(), clone_do_forge=True)
     if raiz is None or (e_clone_do_forge(raiz) and not fixar_estado_do_clone(hook, raiz)):
@@ -680,15 +875,23 @@ def principal(hook):
         arquivo = hook.run() / "agentes.json"
         agora = time.time()
         estado = ler_json(arquivo, {"agentes": []})
-        agentes = vigentes(estado.get("agentes", []), agora, hook.expira_s())
-        if evento == "PreToolUse":
+        liberacao = Liberacao(hook, agora)
+        agentes = vigentes(estado.get("agentes", []), agora, hook.expira_s(), liberacao)
+        lapides = (lapides_vigentes(estado, agora, hook.expira_s()) + [lapide(r, agora) for r, _ in liberacao.soltos])[-LAPIDES_MAX:]
+        if liberacao.soltos:  # C5: a liberação se grava antes de qualquer recusa abaixo
+            gravar_json(arquivo, {"agentes": agentes, "lapides": lapides})
+            for registro, status in liberacao.soltos:
+                registrar_liberacao(hook, registro["id"], status)
+        if evento == "PreToolUse" and ferramenta == RETOMADA:
+            recusar_retomada(hook, agentes, lapides)
+        elif evento == "PreToolUse":
             lancar(hook, agentes, agora)
         elif evento == "SubagentStart":
             iniciar(hook, agentes, agora)
         else:
             aid = hook.campo("agent_id")
             agentes = [a for a in agentes if not aid or a.get("id") != aid]
-        gravar_json(arquivo, {"agentes": agentes})
+        gravar_json(arquivo, {"agentes": agentes, "lapides": lapides})
 
 
 if __name__ == "__main__":

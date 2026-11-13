@@ -2,14 +2,14 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2420 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2424 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 71 | 38 | 33 | 26 |
-| `conformidade` | 1778 | 1309 | 469 | 88 |
+| `conformidade` | 1782 | 1313 | 469 | 88 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 25 | 10 | 15 | 12 |
 | `parecer` | 463 | 357 | 106 | 24 |
@@ -91,10 +91,10 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2420 fixtures) roda em `tests/test
 | `ar-*` | 13 | 11 | 2 | `R-VERIFY`, `R-MAIN`, `R-REVIEW` | `AR-TRAVA-UMA-SINTAXE` | AR-TRAVA-UMA-SINTAXE: o programa pelo caminho é o mesmo |
 | `n3-*` | 12 | 9 | 3 | — | — | N3 (IMPL-FURO-HOOK-N, S1b): cp -l faz o mesmo link físico |
 | `fila22-*` | 11 | 7 | 4 | `R-CONFORMIDADE` | `FILA-22` | FILA-22 (review da 0.43.2): abrir PR pelo `gh api` segue a política `pr_criar`; o jarvis (sessão principal) não abre. |
+| `home-*` | 11 | 10 | 1 | — | `HOME` | ~/.claude.json é do usuário. |
 | `m1-*` | 10 | 7 | 3 | — | — | M1 (review da 0.43.2): a linha de selo ou de conferência é da ferramenta; `cd docs/pedidos && cat >> p1.md <<'FIM'` com a conferência no cor… |
 | `crase-*` | 9 | 7 | 2 | `R-CONFORMIDADE` | `CRASE-ASPA-HOOK`, `CRASE-SESSAO-PROJETO` | Orçamento: 60 cd e 60 crases aninhadas terminando em push com --no-verify: o hook recusa sem estourar o timeout (a base recusava em 0,34 s). |
 | `erro-*` | 7 | 2 | 5 | — | — | Config corrompida e comando sem marcador: libera e registra. |
-| `home-*` | 7 | 6 | 1 | — | `HOME` | ~/.claude.json é do usuário. |
 | `pedido-*` | 6 | 4 | 2 | — | `VV-2` | VV-2, A1: o dev não grava no pedido. |
 | `push-*` | 6 | 4 | 2 | `R-CONFORMIDADE`, `R-MAIN`, `R-VERIFY` | `AGENTE-NAO-EMENDA-ENVIADO` | git push -u origin <branch de trabalho>: livre. |
 | `api-*` | 5 | 3 | 2 | — | — | Comentário em PR por gh api: não é crítico. |
