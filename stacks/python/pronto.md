@@ -27,7 +27,7 @@ Ele precisa rodar, e falhar se algo falhar: lint e formatação (ruff) · tipos 
 - Mutação (gratuita): `forge-mutante` com o executor `unittest` quando os testes são unittest; com pytest, `mutmut` só nos arquivos do diff. A meta fica em `docs/engineering/praticas.md` e só sobe.
 
 ## CI
-Insumos da skill `ci-cd` para o `devops-engineer`: Python da versão do `requires-python`; cache derivado do lockfile; instalação travada (com hash); jobs na ordem lint e tipos, testes, build do pacote ou da imagem; imagem base `python` fixada por digest, em multi-stage, com usuário não root.
+Insumos da skill `ci-cd` para o `devops-engineer`: Python da versão do `requires-python`; cache derivado do lockfile; instalação travada (com hash); jobs na ordem lint e tipos, testes, build do pacote ou da imagem; a checagem de pareceres (`forge-check pr`) em job próprio, obrigatório para o merge e fora do `needs` dos jobs de testes, para o parecer faltando não esconder o resultado da suíte; no agregador, o job de pareceres pulado ou cancelado em PR reprova (só `success` passa; `skipped` vale fora de PR), sem `!contains(failure)`; imagem base `python` fixada por digest, em multi-stage, com usuário não root.
 
 ### Dependabot (ecossistema de pacotes)
 Copie para o fim de `updates:` do `.github/dependabot.yml` do projeto; horário, `cooldown` e grupos seguem o modelo em `templates/projeto/.github/dependabot.yml`:

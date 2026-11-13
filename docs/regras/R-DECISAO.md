@@ -8,18 +8,19 @@ verificada_por: `forge-check brief selar` (corte de escopo); vigia (`entrada-sem
 Propósito: texto único desta regra. Público: o time.
 
 Revisar em: 2027-01-07
-Medida: decisões aplicadas sem resposta do dono (meta 0) e espera por decisão (decisão do dono de 2026-11-11)
+Medida: decisões aplicadas sem resposta do dono (meta 0) e espera por decisão
 
-- Vai ao usuário: produto, escopo, prioridade, regra de negócio, custo, acesso, exceção a regra, mais tokens ou tempo de entrega. Decisão técnica é do time: decide e registra.
-- **Uma por vez:** uma decisão por mensagem, a de maior peso primeiro; a próxima espera a resposta. Cada uma com o contexto, **as opções** (prós e contra, se afrouxa o processo, o tempo e os tokens a mais ou a menos, marcados `medido`, `estimado` ou `não medido`, e se esse custo fica maior ou menor que o das outras opções) e **a recomendação** com o motivo.
+- Vai ao usuário: produto, escopo, prioridade, regra de negócio, custo, acesso, exceção a regra, mais tokens ou tempo de entrega. Decisão técnica é do time.
+- **Uma por vez:** uma decisão por mensagem, a de maior peso primeiro; a próxima espera a resposta. Cada uma com o contexto, **as opções** (prós e contra, se afrouxa o processo, o tempo e os tokens a mais ou a menos, marcados `medido`, `estimado` ou `não medido`, e se esse custo fica maior ou menor que o das outras opções) e **a recomendação** com o motivo. Cada opção traz tokens e velocidade; cada decisão, a origem.
+- **Decisão ruim não passa calada:** antes de cumprir, veja se deixa o Forge mais rápido, seguro ou barato, ou mede algo; senão, ou se soma regra sem ganho medido, leve ao dono com evidência, custos e alternativa. Confirmada, cumpra e registre "decisão contra a recomendação".
 - **Sem prazo vencido:** nenhuma decisão do dono é aplicada por prazo; sem resposta, fica pendente.
-- **Corte de escopo é explícito:** a marca "Retira do escopo original", o trecho do pedido, o motivo, a consequência e a decisão do usuário; o pedido ganha o "Fora do escopo". Item que some sem a marca reprova (no brief, `corte: sem marca` no selo; na entrega, `pendente:` no review).
+- **Corte de escopo é explícito:** a marca "Retira do escopo original", o trecho do pedido, o motivo, a consequência e a decisão do usuário; o pedido ganha "Fora do escopo". Item que some sem a marca reprova (no brief, `corte: sem marca` no selo; na entrega, `pendente:` no review).
 
 ## Complemento: o que é bloqueante e de onde vem a recomendação
-- **Teste de bloqueante:** vai ao usuário só a dúvida com leituras de resultado bem distinto, que o projeto não resolve e que custa caro desfazer. Senão, vira "Suposições" com a base, `muda com` e `custo de reverter`.
+- **Teste de bloqueante:** vai ao usuário só a dúvida com leituras de resultado bem distinto, que o projeto não resolve e que custa caro desfazer. Senão, vira "Suposições" (base, `muda com`, `custo de reverter`).
 - **Decisão óbvia:** `forge-check decisoes registrar`; `decidido: <porta> — <critério> — <fato>`.
 - **O teste não se aplica** a custo, acesso, exceção a regra nem a fato de negócio declarado.
-- **Escada da recomendação:** o que o usuário disse, fato do projeto, regra ou ADR, prática da fábrica, preferência do time (marcada em escopo, prioridade ou custo).
+- **Escada da recomendação:** o que o usuário disse, fato do projeto, regra ou ADR, prática da fábrica, preferência do time.
 - **Decisão só vale gravada:** pedido, lista ou decisão do dono vai ao pedido ou ao quadro no mesmo turno; a fala vai literal por `forge-check pedido fala --gravar` (não amplia autorização) e é lida antes de perguntar de novo. Proposta aprovada leva a versão nomeada (`versão: X.Y`). Versão cheia passa para a seguinte com vaga.
 
 ## Complemento: "tanto faz" e ordem ampla
@@ -27,11 +28,11 @@ Medida: decisões aplicadas sem resposta do dono (meta 0) e espera por decisão 
 - **Ordem ampla não confirma:** "resolva" e "pode fazer" só cobrem o que já é `confirmado` ou `delegado`. Item `técnico` não depende de ordem. `Suposição` e `no-protótipo` seguem fora da ordem ampla.
 
 ## Complemento: melhoria vista e entrada direta
-- **(a)** Todo relatório termina com `Melhoria vista:` (problema, evidência, mudança) ou `nenhuma`; não se inventa melhoria para preenchê-la. Remover regra, passo ou trava também é melhoria.
-- **(b)** O Jarvis a grava como `MELHORIA:` no pedido e a retro a classifica (`cartão`, `ao usuário`, `descartada`).
+- **(a)** Todo relatório termina com `Melhoria vista:` (problema, evidência, mudança) ou `nenhuma`; não se inventa melhoria para preenchê-la.
+- **(b)** O Jarvis a grava como `MELHORIA:` no pedido e a retro a classifica.
 - **(c) Entrada direta**, sem perguntar: não custa dinheiro real, sem exceção; não é afrouxamento; não é decisão de produto; não aumenta tokens nem tempo de entrega.
-- **(d) Afrouxamento** é a mudança que faz a qualidade medida cair ou tira controle sem medida. Simplificar o processo quando a qualidade medida (escapes, falhas de CI, achados reais) não cai **não é afrouxamento**.
-- **(e) Evoluir sem piorar:** a retrospectiva escolhe no máximo 1 causa nova pelo `forge-placar` (uma proposta aberta por vez) e a corrige de preferência em código ou eval de regressão; texto só para julgamento. Toda mudança declara a métrica e a data de revisão, quando `forge-placar comparar` decide manter ou reverter. Regra nova só com medida (é proibido acrescentar regra sem ela) e diz qual sai no lugar dela.
+- **(d) Afrouxamento** é a mudança que faz a qualidade medida cair ou tira controle sem medida. Simplificar sem queda da qualidade medida **não é afrouxamento**.
+- **(e) Evoluir sem piorar:** a retrospectiva escolhe no máximo 1 causa nova pelo `forge-placar` e a corrige de preferência em código ou eval; texto só para julgamento. Toda mudança declara a métrica e a data de revisão (`forge-placar comparar` mantém ou reverte). Regra nova só com medida e diz qual sai no lugar dela.
 
 ## Complemento: painel "Aguardando o dono"
 - Cartão cuja próxima ação é do usuário vai a `## Aguardando o dono` do `KANBAN.md` por `forge-check movimento`, com a Obs. `origem: <coluna>; ação: <o que o usuário faz>; comando: <literal ou —>; destrava: <itens>`. O comando é um comando, um efeito, sem segredo; decisão, rótulo e aceite levam `comando: —` com `decisão: <pedido>`. Na saída, a evidência no motivo. O Jarvis lista o painel ao fim de cada lote.
