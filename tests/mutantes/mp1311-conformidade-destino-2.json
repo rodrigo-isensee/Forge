@@ -1,0 +1,26 @@
+{
+  "pedido": "mp1311-conformidade-destino-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M8",
+      "guarda": "o nome da variável que recebe o $TMPDIR e o resto do caminho voltam na troca",
+      "arquivo": "hooks/conformidade.py",
+      "de": "lambda m: (m[3] or \"\") + \"/tmp\" + (m[2] or \"\")",
+      "para": "lambda m: \"/tmp\"",
+      "testes": [
+        "tests.test_hook_destino.HookDestino.test_tmpdir_como_caminho"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "a linha que só lê não volta ao texto da prova",
+      "arquivo": "hooks/conformidade.py",
+      "de": "palavras = re.split(r\"[\\s'\\\"(),;=<>|&]+\", alvo) if escreve else []",
+      "para": "palavras = re.split(r\"[\\s'\\\"(),;=<>|&]+\", alvo) if isinstance(alvo, str) else []",
+      "testes": [
+        "tests.test_hook_destino.HookDestino.test_prova_da_suite_pelo_destino"
+      ]
+    }
+  ]
+}
