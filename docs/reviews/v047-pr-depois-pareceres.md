@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-pr-depois-pareceres
-commit: 2530ab495a98a9521c170aad2a5121d15891f8da
+commit: dc0f9de88d63b1c9b3b4c1a60b7fe3ebd006a7c7
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-13
@@ -34,3 +34,9 @@ Delta lido por `forge-check parecer delta`: agents/tech-lead.md (linhas 36 e 37 
 - A3 corrigido (fusão das linhas).
 - A4 (recomendado): frase em R-FLUXO não coube nos tetos e foi revertida; segue como recomendado, não bloqueia.
 Aprovado no head 2530ab49. Prova: os mesmos 10 módulos afetados, `Ran 112 tests`, `OK` (o CI do PR, quando houver, é a suíte inteira).
+
+## Revalidação (E1.48, delta 2530ab49..dc0f9de8)
+Delta lido por `forge-check parecer delta` (escopo sem o que veio da base): agents/tech-lead.md (linha 36 enxugada, 8637 para 8615) e skills/trabalho-em-paralelo/SKILL.md (linha D2, 3035 para 3006); o resto do intervalo é a junção com a `develop`, sem marcadores de conflito (a linha D2 da skill ficou a da branch sobre a base da develop).
+- Nada se perdeu: a regra segue com `--draft`, depois do push e dos pareceres aprovados no head, e `gh pr ready` pelo tech-lead; D2 mantém "o PR abre com os pareceres aprovados no head" e CI verde para entrar na `develop` (`R-FLUXO`). Cortaram-se só "da classe" (a ferramenta `forge-check classe` decide o alcance) e "O CI roda uma vez"; `TetoPorPr` (150 linhas, uma classe por PR) e `RegrasInviolaveis` seguem verdes.
+- A4 (recomendado) segue aberto, não bloqueia.
+Aprovado no head dc0f9de8. Prova: `python3 -m unittest tests.test_forge.RegrasInviolaveis tests.test_forge.TetoPorPr tests.test_orcamento_instrucao tests.test_forge.Neutralidade`: `Ran 17 tests`, `OK`. CI do PR 528: suíte 3/3 e 2/3 de 3.12, 2/3 de 3.14, bateria, catraca e instalação verdes; partes restantes pendentes na leitura.
