@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-conferencia-patch-dono",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P4: o blob do head é o do commit do dono",
+      "arquivo": "bin/forge-check",
+      "de": "        elif no_head[1] != do_dono[1]:",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c6_c7_conteudo_modo_ou_symlink_depois_do_commit_do_dono"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P4: o modo do head é o do commit do dono",
+      "arquivo": "bin/forge-check",
+      "de": "        elif no_head[0] != do_dono[0]:",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c6_c7_conteudo_modo_ou_symlink_depois_do_commit_do_dono"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P5: o commit do dono é ancestral do head",
+      "arquivo": "bin/forge-check",
+      "de": "    elif not e_ancestral(raiz, commit, head) or e_ancestral(raiz, commit, base_sha):",
+      "para": "    elif e_ancestral(raiz, commit, base_sha):",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c9_c14_commit_solto_ou_de_merge"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P5: o commit do dono não é ancestral do Base-sha",
+      "arquivo": "bin/forge-check",
+      "de": "    elif not e_ancestral(raiz, commit, head) or e_ancestral(raiz, commit, base_sha):",
+      "para": "    elif not e_ancestral(raiz, commit, head):",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c8_commit_ja_na_base"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P1: exige a DECISÃO DO DONO que cita sha e caminho",
+      "arquivo": "bin/forge-check",
+      "de": "    elif (numero := decisao_do_patch(texto, nome, commit)) is None:",
+      "para": "    elif (numero := 0) is None:",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_declaracao_que_nao_isenta"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P3: só o sha40",
+      "arquivo": "bin/forge-check",
+      "de": "commit ([0-9a-f]{40})(?![0-9A-Za-z])\")",
+      "para": "commit ([0-9a-f]{7,40})(?![0-9A-Za-z])\")",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_declaracao_que_nao_isenta"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P6: o caminho da decisão é exato (sem prefixo)",
+      "arquivo": "bin/forge-check",
+      "de": "    caminho = rf\"(?<![^\\s`\\\"'(]){re.escape(nome)}(?=$|[\\s`\\\"'),;:]|\\.(?:\\s|$))\"  # o ponto só fecha a frase",
+      "para": "    caminho = rf\"(?<![^\\s`\\\"'(]){re.escape(nome)}\"",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_declaracao_que_nao_isenta"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P2: a entrega que mexe em docs/pedidos/ não isenta",
+      "arquivo": "bin/forge-check",
+      "de": "    elif pedido_na_entrega(raiz, base_sha, head, base_ref):",
+      "para": "    elif False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c4_c13_pedido_na_entrega_e_caminhos_que_nunca_isentam"
+      ]
+    }
+  ]
+}

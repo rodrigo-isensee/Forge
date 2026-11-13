@@ -515,9 +515,11 @@ jobs:
         run: claude plugin validate . --strict
       - name: develop - mudança na fábrica exige fragmento em changelog.d
         if: ${{ !cancelled() && github.event_name == 'pull_request' && github.base_ref == 'develop' }}
-        env:
-          BASE: ${{ github.event.pull_request.base.sha }}
-        run: python3 bin/forge-changelog conferir --base "$BASE"
+        # A base é o primeiro pai do merge commit do checkout (a ponta atual da develop), não o SHA do evento, que fica velho
+        # quando a develop anda e acusa fragmento de outro PR (CI-CHANGELOG-BASE); a catraca e o passo de pareceres fazem igual.
+        run: |
+          BASE=$(git rev-parse HEAD^1)
+          python3 bin/forge-changelog conferir --base "$BASE"
       - name: release exige versão nova e changelog fechado (main sempre; homolog só se a versão subiu)
         if: ${{ !cancelled() && github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'homolog') }}
         env:

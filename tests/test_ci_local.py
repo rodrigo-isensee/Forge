@@ -997,6 +997,41 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
     def test_apt_get_e_preparo_do_runner(self):
         self.assertTrue(ci.PASSO_DE_PREPARO.search("sudo apt-get install -y x\n"))
 
+    def test_changelog_compara_com_o_pai_do_commit_de_juncao_e_nao_com_a_base_do_evento(self):
+        """CI-CHANGELOG-BASE: com a develop andando, o passo recebe o pai da junção (HEAD^1), nunca o base.sha velho do evento."""
+        import os
+        import subprocess
+        import tempfile
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text()
+        (passo,) = [p for p in passos_da_bateria(texto) if p["nome"].startswith("develop - mudança na fábrica exige fragmento")]
+        with tempfile.TemporaryDirectory() as d:
+            env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
+                   "GIT_COMMITTER_EMAIL": "t@t", "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
+
+            def git(*a):
+                return subprocess.run(["git", *a], cwd=d, env=sem_manutencao(env), check=True, capture_output=True, text=True).stdout.strip()
+            git("init", "-q", "-b", "develop")
+            Path(d, "bin").mkdir()
+            Path(d, "bin", "forge-changelog").write_text("import sys\nprint('BASE=' + sys.argv[sys.argv.index('--base') + 1])\n")
+            git("add", ".")
+            git("commit", "-qm", "a")
+            velha = git("rev-parse", "HEAD")
+            git("switch", "-qc", "pr")
+            Path(d, "x").write_text("x")
+            git("add", ".")
+            git("commit", "-qm", "pr")
+            git("switch", "-q", "develop")
+            Path(d, "y").write_text("y")
+            git("add", ".")
+            git("commit", "-qm", "outro pr")
+            nova = git("rev-parse", "HEAD")
+            git("merge", "-q", "--no-ff", "-m", "juncao", "pr")
+            self.assertEqual(git("rev-parse", "HEAD^1"), nova)
+            r = subprocess.run(["bash", "-e", "-c", passo["run"]], cwd=d, env={**env, "BASE": velha},
+                               capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), "BASE=" + nova)
+
 
 if __name__ == "__main__":
     unittest.main()
