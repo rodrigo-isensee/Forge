@@ -3,12 +3,12 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ambiente-sem-auto-update
-commit: bd282fa7f5cfaf04f4c6b1bfe035e35853dc5a55
+commit: 93deca84eea3d06142d5f31fb7d26db3361d3cd2
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-13
 ---
-# Review de segurança: v047 AMBIENTE-SEM-AUTO-UPDATE (E1.93)
+# Review de segurança: v047 AMBIENTE-SEM-AUTO-UPDATE (E1.93, revalidada por delta na E1.97)
 
 ## Gatilhos
 Nenhum gatilho da `R-SEGURANCA` tocado: só texto (README, modelo de projeto, skill `trabalho-em-paralelo`), um teste de texto e a lista `LEITORES_DE_TEXTO` em `bin/forge-testes`. Sem hook, guarda, workflow, segredo, permissão ou código de produção. Parecer dado por precaução, a pedido do brief.
@@ -23,6 +23,9 @@ Nenhum bloqueante e nenhum recomendado.
 - Retomada (`skills/trabalho-em-paralelo/SKILL.md:17`): relança agentes a partir de briefs já selados e do estado da branch; não cria autoridade nova, não pula portão, não toca `R-MAIN`. Sem caminho de ataque.
 - Linha "Tamanho por risco" removida da skill: nenhuma regra se perdeu. O texto integral (150 linhas, um comportamento, `teto: excedido`, uma classe de comportamento por PR em `hooks/` com corpus próprio, e a lista do que conta no Forge) segue em `agents/tech-lead.md:21`, dono da regra (M14).
 - `bin/forge-testes:103`: o novo módulo entra em `LEITORES_DE_TEXTO`, coerente com o que o teste lê; a linha ficou comprida, só estilo (vai ao `tech-lead`, se quiser).
+
+## Revalidação por delta (E1.97, head 93deca84)
+`forge-check parecer delta` desde bd282fa7: `bin/forge-testes` (só reordena `test_ambiente_sem_auto_update` dentro de `LEITORES_DE_TEXTO`, mesma lista, sem controle afrouxado) e `skills/trabalho-em-paralelo/SKILL.md` (cortes de redação; `R-CONFORMIDADE`, `R-TETO`, `R-WIP`, `R-FLUXO` e a recusa sem contornar seguem citados; a linha "Tamanho por risco" volta ao texto do Jarvis, sem perder a regra). README fora do domínio. Nenhum gatilho novo, nenhum achado. `tests.test_ambiente_sem_auto_update` rerrodado: 2 testes, OK. Sem PR, suíte inteira não citada (CI).
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Teste novo rodado: `python3 -m unittest tests.test_ambiente_sem_auto_update` (2 testes, OK). A suíte inteira roda no CI; não havia PR, então não foi citada. Ferramentas de varredura não aplicáveis a texto.
