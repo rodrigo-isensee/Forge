@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-jarvis-parte2
-commit: 65cf916b96d6bfa7e0acb7472bfe21b2c7b91551
+commit: 17c66fb251218a7656412fb5f48ff591a4f7b241
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-13
@@ -34,3 +34,9 @@ Lido só `forge-check parecer delta`: `skills/kanban-scrum/SKILL.md`, `skills/tr
 - Lista do `test_reval_delta`: `tests/test_forge.py` passa a 15 citações de `README.md` (linha da R-WIP), coerente com a regra; sem guarda nova nem mutante.
 - Campo `pedido:` corrigido para `v047` (instância que não fez a entrega).
 - Execução (sem PR, só afetados, `python -I`, ambiente limpo): `test_reval_delta` 10 OK; `test_jarvis_nucleo` 17 OK; `RegrasInviolaveis`, `AntiDuplicacao`, `Orcamento` 7 OK.
+
+## Revalidação (delta 65cf916b..17c66fb2, E3.23 / volta E3.22)
+Lido só `forge-check parecer delta` (domínio: `skills/kanban-scrum/SKILL.md`, `skills/trabalho-em-paralelo/SKILL.md`, `tests/test_forge.py`; o commit 442b90ed é parecer de QA e fica fora). Instância que não fez a entrega.
+- Aprovado. A asserção da D2 em `tests/test_forge.py:626` passou a procurar "com CI verde, entra na `develop` por PR próprio, sem juntar frentes (`R-FLUXO`)", frase que existe uma vez na skill `trabalho-em-paralelo`; o QA A0 (falha em `DiretrizesDoDonoNaRWip`) fica resolvido, sem guarda nova nem mutante.
+- A medida dos dois relógios voltou à `kanban-scrum` numa linha (fecha o A1 do QA); o par `relogios:` segue em `bin/forge_voltas.py`. A skill `trabalho-em-paralelo` ganhou "(serializam)", só redação.
+- Execução (sem PR, só afetados, ambiente limpo): `DiretrizesDoDonoNaRWip`, `RegrasInviolaveis`, `AntiDuplicacao`, `test_jarvis_nucleo` 24 OK em 5 s. Suíte inteira no CI do PR.
