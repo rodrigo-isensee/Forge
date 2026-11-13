@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-changelog-base
-commit: 136cf316b34434dbefc9dbe3dd41ca98c49b3fbb
+commit: b5d501257b67e9be2bce4051c26a7555d3d3f02f
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -34,3 +34,8 @@ Head revisado: 136cf316 (branch `melhoria/v047-ci-changelog-base`, base 028ac55b
 - Cenário manual, repo temporário: develop adiantada com fragmento alheio, PR sem fragmento: `Registre a mudança num fragmento novo...` rc=1; PR com fragmento: `ok: 1 fragmento(s) novo(s)` rc=0.
 - Prova de CI: sem PR aberto, o check-run `bateria` não foi consultado.
 - Limite: o commit de junção real do Actions não foi exercitado, só simulado em repositório temporário.
+
+## Revalidação por delta (E1.68) até b5d50125
+- `forge-check parecer delta` lista no domínio só `tests/test_ci_local.py`: uma linha em `MatrizNeedsEAgregadorTest`, em que o `git` do teste passa a usar `env=sem_manutencao(env)` (helper já importado e usado no mesmo arquivo com env próprio, linha 760). Nenhum `CA-n` nem guarda mudou; o mutante M1 e a tabela acima seguem valendo.
+- `python3 -m unittest tests.test_ci_local tests.test_ambiente_git`: 86 testes, OK.
+- Parecer: aprovado, sem achados bloqueantes nem recomendados.
