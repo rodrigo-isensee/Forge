@@ -17,7 +17,6 @@ data: 2026-11-13
 branch: melhoria/v047-jarvis-parte2 · head 17c66fb251218a7656412fb5f48ff591a4f7b241 · base 9b2c6474.
 
 ## Achados
-Nenhum achado aberto: A0 (bloqueante) e A1 (recomendado) do parecer em 65cf916b estão resolvidos em 17c66fb2 (a linha dos dois relógios voltou em skills/kanban-scrum/SKILL.md:73).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -44,6 +43,7 @@ Nenhum achado aberto: A0 (bloqueante) e A1 (recomendado) do parecer em 65cf916b 
 - Vermelho/mutação: sem teste novo de regra neste delta; nada a repetir.
 
 ## Revalidação por delta (65cf916b..17c66fb2, E3.25)
+Achados do parecer em 65cf916b: A0 (bloqueante) e A1 (recomendado) resolvidos em 17c66fb2; nenhum aberto.
 Qual veredito vale: o de 17c66fb2 (este, APROVADO). A aprovação anterior (1c3e34f2) e a reprovação do 442b90ed valiam cada uma para o seu head (1c3e34f2 e 65cf916b); a reprovação não foi revogada por opinião, foi superada pelo conserto. O 442b90ed só altera este parecer, então o código de 442b90ed é o de 17c66fb2.
 `forge-check parecer delta`: domínio = `skills/kanban-scrum/SKILL.md`, `skills/trabalho-em-paralelo/SKILL.md`, `tests/test_forge.py`.
 - tests/test_forge.py:626: a asserção passa a exigir `com CI verde, entra na `develop` por PR próprio, sem juntar frentes (`R-FLUXO`)`, que é literal em skills/trabalho-em-paralelo/SKILL.md:14; PR próprio e o ID R-FLUXO continuam exigidos, nada foi removido do teste.
