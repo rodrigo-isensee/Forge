@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-hook-erro-libera",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "C1: sem expanduser de Path no destino de cd/-C",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return pasta / expandir_home(os.path.expandvars(texto))",
+      "para": "return pasta / Path(os.path.expandvars(texto)).expanduser()",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_nenhum_expanduser_de_path_nos_hooks"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "C1: sem expanduser de Path ao resolver o alvo da escrita (E1, E2)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "p = Path(expandir_home(caminho))",
+      "para": "p = Path(caminho).expanduser()",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "marcado usa a resposta do marcador da política",
+      "arquivo": "hooks/_comum.py",
+      "de": "bool(marca(hook, formas)) if marca else any(",
+      "para": "bool(marca(hook, formas)) if not marca else any(",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_marcador_que_responde_decide"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "erro de qualquer tipo no marcador marca",
+      "arquivo": "hooks/_comum.py",
+      "de": "except Exception:  # noqa: BLE001 - formas demais ou erro do marcador",
+      "para": "except RuntimeError:  # noqa: BLE001 - formas demais ou erro do marcador",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_erro_do_marcador_marca"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "C7: tipo sem selo sai sem a conferência do selo",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if not exige_selo(tipo):\n            return lidos",
+      "para": "        if False:\n            return lidos",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_agentes"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "C7: sem projeto, o agentes não age (nem o R-BRIEF)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if raiz is None:\n        return\n    try:",
+      "para": "    if False:\n        return\n    try:",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_agentes"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "C7: no clone, o estado fica no diretório comum",
+      "arquivo": "hooks/agentes.py",
+      "de": "sem_estado = e_clone_do_forge(raiz) and not fixar_estado_do_clone(hook, raiz)",
+      "para": "sem_estado = e_clone_do_forge(raiz)",
+      "testes": [
+        "tests.test_agentes_clone.RegistroNoClone.test_abaixo_do_teto_grava_a_reserva_no_diretorio_comum"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "C7: a retomada (SendMessage) não passa pelo R-BRIEF",
+      "arquivo": "hooks/agentes.py",
+      "de": "if evento == \"PreToolUse\" and ferramenta != RETOMADA else []",
+      "para": "if evento == \"PreToolUse\" else []",
+      "testes": [
+        "tests.test_trava_agente_morto.PeloHook.test_c8_retomar_o_morto_com_relancamento_vigente_recusa"
+      ]
+    }
+  ]
+}

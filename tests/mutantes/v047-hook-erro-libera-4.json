@@ -1,0 +1,66 @@
+{
+  "pedido": "v047-hook-erro-libera",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "C7: sem a pasta do estado, não lê nem grava o estado",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if sem_estado:\n        return",
+      "para": "    if False:\n        return",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_agentes"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "C7: erro na forma ou no hash da mensagem ao conferente recusa",
+      "arquivo": "hooks/agentes.py",
+      "de": "except Exception as erro:  # noqa: BLE001 - C7: sem prova da forma ou do hash",
+      "para": "except ZeroDivisionError as erro:  # noqa: BLE001 - C7: sem prova da forma ou do hash",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_agentes"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "C7: disparo sem tool_input vale como objeto vazio",
+      "arquivo": "hooks/agentes.py",
+      "de": "entrada = hook.campo(\"tool_input\") or {}\n    return entrada",
+      "para": "entrada = hook.campo(\"tool_input\")\n    return entrada",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_agentes"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "C6: a catraca compara o script, sem as opções do interpretador",
+      "arquivo": "tests/catraca.py",
+      "de": "if not a.startswith(\"-\")]",
+      "para": "if not a.startswith(\"--\")]",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_catraca_compara_o_script_sem_as_opcoes_do_interpretador"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "C6: -s em toda entrada do hooks.json",
+      "arquivo": "hooks/hooks.json",
+      "de": "\"-s\",\n              \"-E\",\n              \"${CLAUDE_PLUGIN_ROOT}/hooks/meta.py\"",
+      "para": "\"-E\",\n              \"${CLAUDE_PLUGIN_ROOT}/hooks/meta.py\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_hooks_json"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "C6: -E em toda entrada do hooks.json (sem as PYTHON* do ambiente)",
+      "arquivo": "hooks/hooks.json",
+      "de": "\"-s\",\n              \"-E\",\n              \"${CLAUDE_PLUGIN_ROOT}/hooks/quadro.py\"",
+      "para": "\"-s\",\n              \"${CLAUDE_PLUGIN_ROOT}/hooks/quadro.py\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_hooks_json"
+      ]
+    }
+  ]
+}

@@ -783,13 +783,18 @@ def registrar_recusa(hook, motivo, campos=None):
         pass
 
 
+def entrada_e_tipo(hook):
+    """A entrada do disparo (objeto vazio sem ela) e o tipo do agente (`general-purpose` sem ele)."""
+    entrada = hook.campo("tool_input") or {}
+    return entrada, str(entrada.get("subagent_type") or "general-purpose")
+
+
 def conferir_brief(hook):
     """R-BRIEF do disparo (forma e hash da mensagem ao conferente, selo do especialista): os briefs selados lidos, ou recusa.
     HOOK-ERRO-LIBERA (C7): roda antes da leitura do estado e não depende dela; qualquer exceção aqui recusa."""
     lidos = []
     try:
-        entrada = hook.campo("tool_input") or {}
-        tipo = str(entrada.get("subagent_type") or "general-purpose")
+        entrada, tipo = entrada_e_tipo(hook)
         faltas = mensagem_sem_forma(entrada.get("prompt")) if tipo == CONFERENTE else None
         if faltas:
             bloquear("R-BRIEF", "gere a mensagem ao conferente com `forge-check brief mensagem` e envie-a (cabeçalho, caminho e hash); "
@@ -814,8 +819,7 @@ def conferir_brief(hook):
 
 
 def lancar(hook, agentes, agora, lidos):
-    entrada = hook.campo("tool_input") or {}
-    tipo = str(entrada.get("subagent_type") or "general-purpose")
+    entrada, tipo = entrada_e_tipo(hook)
     vencido = avisos_de_brief_vencido(hook, lidos) if exige_selo(tipo) else []
     descricao = " ".join(str(entrada.get("description") or "").split())
     for a in agentes:

@@ -41,7 +41,7 @@ class HookErroLibera(unittest.TestCase):
 
     def test_fixtures_do_pedido(self):
         """E1, E2, E4 a E6, E8 e os legítimos com erro forçado: os fixtures `errointerno-*` dos dois hooks."""
-        self.lote(minimo([Fixture(p) for p in sorted(FIXTURES.glob("*/errointerno-*.json"))], 24, "fixtures errointerno-*"))
+        self.lote(minimo([Fixture(p) for p in sorted(FIXTURES.glob("*/errointerno-*.json"))], 25, "fixtures errointerno-*"))
 
     def test_fixtures_do_prazo(self):
         """E4 e o legítimo do prazo (C5): só os fixtures de prazo forçado."""
@@ -49,7 +49,7 @@ class HookErroLibera(unittest.TestCase):
 
     def test_fixtures_do_agentes(self):
         """E8 e o estado corrompido (C7): só os fixtures do `agentes`."""
-        self.lote(minimo([Fixture(p) for p in sorted(FIXTURES.glob("agentes/errointerno-*.json"))], 7, "fixtures do agentes"))
+        self.lote(minimo([Fixture(p) for p in sorted(FIXTURES.glob("agentes/errointerno-*.json"))], 8, "fixtures do agentes"))
 
     def test_cada_entrada_da_politica_com_erro_forcado_recusa(self):
         """E3 (C2): para cada entrada de `caminhos` do JSON real, `cp x <entrada>` com erro forçado em `Guarda.bash` recusa."""
