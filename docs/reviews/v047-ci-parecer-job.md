@@ -3,14 +3,14 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-parecer-job
-commit: bd28180e9129015578029dee765abd206960bac1
+commit: 5aae66f63404cf3b2caa94f84a1ae22304639498
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-12
 ---
-# Review: v047 (E1.10 e E1.19, code review da E1.4, CI-PARECER-NAO-BARRA-SUITE)
+# Review: v047 (E1.10, E1.19 e E1.44, code review da E1.4, CI-PARECER-NAO-BARRA-SUITE)
 
-Head revisado 7ba85a05 (E1.10), revalidado por delta em bd28180e (E1.19), base a986c292. Diff: 55 linhas que contam (ci.yml 27+/5-, testes 17+/4-), um comportamento só, dentro da orientação M14.
+Head revisado 7ba85a05 (E1.10), revalidado por delta em bd28180e (E1.19) e em 5aae66f6 (E1.44), base a986c292. Diff: 55 linhas que contam (ci.yml 27+/5-, testes 17+/4-), um comportamento só, dentro da orientação M14.
 
 ## O que está certo
 - O passo de parecer saiu do job `bateria (passos)` e virou o job `pareceres` (nome `bateria (pareceres)`), sem token (`contents: read`), checkout com `persist-credentials: false`, ações no mesmo SHA dos outros jobs, `timeout-minutes: 10`. O corpo do passo é o mesmo de antes (script da base, ADR 0008, seção 3).
@@ -44,3 +44,13 @@ Delta lido: `forge-check parecer delta docs/reviews/v047-ci-parecer-job.md`, int
 
 ## Parecer (E1.19)
 Aprovado no head bd28180e. A1 resolvido com mutantes declarados que morrem e teste de comportamento do agregador; nenhum achado novo no delta. A2 segue recomendado.
+
+## Revalidação (E1.44, delta bd28180e..5aae66f6)
+Delta lido: `forge-check parecer delta docs/reviews/v047-ci-parecer-job.md`, intervalo bd28180e..0d268e7b (o head da branch já traz pareceres de outros portões sobre o 5aae66f6): `delta: nenhum arquivo do domínio mudou` (escopo sem o que veio da base).
+- O 5aae66f6 é a junção com a develop (#517 a #523: `agents/jarvis.md`, `bin/forge-changelog` e outros) mais a correção do campo `pedido:` dos pareceres de segurança e devops (9be0d548, 4629f5ba), só texto de parecer.
+- `git diff bd28180e origin/melhoria/v047-ci-parecer-job` sobre `.github/workflows/ci.yml`, `tests/test_ci_local.py`, `tests/test_catraca.py`, `tests/test_suite_partes.py`, `tests/mutantes/v047-ci-parecer-job.json`, `agents/devops-engineer.md`, `stacks/` e o fragmento de changelog: vazio. O ci.yml e os testes da branch não mudaram.
+- Contra a develop atual o diff que conta segue em 89 linhas (ci.yml 27+/5-, test_catraca 2+/2-, test_ci_local 57+/3-, test_suite_partes 1+/1-), um comportamento, dentro da orientação M14.
+- CI do PR 527 no head 5aae66f6: `bateria (pareceres)`, `bateria (passos)`, `bateria (verificações longas)`, instalação e árvore já provada: pass; partes da suíte pendentes na leitura. `catraca` falha só por R-CONFORMIDADE (mudança em `.github/workflows/ci.yml` pede o rótulo `afrouxa-regra` do dono, depois do último push): é o gate de dono previsto, não defeito do código. Não rerrodei a suíte.
+
+## Parecer (E1.44)
+Aprovado no head 5aae66f6. Nenhum achado novo; A1 segue resolvido e A2 segue recomendado, aberto.
