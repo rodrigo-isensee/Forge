@@ -17,3 +17,4 @@ comando já com a tag anterior e lembra o bench da versão (`bench-versoes.md` e
 
 | Release | Linha `placar:` |
 |---|---|
+| 0.47.0 | `placar: 0.47.0 mortos=49 sobreviveu=0 equivalente=0 invalido=0 sem-veredito=0 specs=9` |
