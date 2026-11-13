@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v046
 branch: melhoria/v046-fechar-lote
-commit: 17ae39a39ecd28b4f3eeb791cbc34697cf56c720
+commit: 2dda228f9517b38e0720c1d65d211934099a8f5d
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-12
@@ -13,7 +13,7 @@ data: 2026-11-12
 Diff revisado: `8b5a44d5..0be84795` (7 commits), lido por `git show` numa worktree destacada do revisor. Classe C (`forge-check pr --previo`: sensível da catraca `bin/forge-doutor`). A revisora não fez a entrega.
 
 ## Achados
-- A1 (recomendado) bin/forge-testes:118 · a regra de bin/forge-doutor no MAPA não leva a test_doutor_branch_atrasada: `--listar bin/forge-doutor` dá 5 módulos sem ele (a mutação do autor usa essa lista); o `--afetados` o acha pela citação. Acrescente-o aqui e em tests/test_testes_tocados.py:55
+- A1 (recomendado) bin/forge-testes:118 · a regra de bin/forge-doutor no MAPA não leva a test_doutor_branch_atrasada: `--listar bin/forge-doutor` dá 5 módulos sem ele (a mutação do autor usa essa lista); o `--afetados` o acha pela citação. Acrescente-o aqui e em tests/test_testes_tocados.py:55 (resolvido em 2dda228f, ver a revalidação seguinte)
 - A2 (recomendado) bin/forge-fechar:659 · `>/dev/null` joga fora a saída do `forge-check movimento`, que dá o motivo da recusa no stdout (coluna fora do KANBAN.md, atributo inválido): o aviso só traz o comando. Mande a saída ao stderr ou ao log com `gravar_linha`
 - A3 (recomendado) bin/forge-fechar:1047 · guarda sem mutante (AR-1) e ramo sem teste (AR-2): o motivo `head <sha7>` do PR já MERGED não tem teste com --cartao; também sem mutante as guardas `shift 2 || die` de --cartao e --quadro (:88, :89)
 - A4 (recomendado) bin/forge-fechar:538 · o `git worktree prune` do repositório inteiro agora roda em todo fechamento, não só depois da remoção que falhou: o registro de uma worktree com o diretório fora da vista desta sessão também sai. Diga isso no doc ou use `--expire`
@@ -38,3 +38,6 @@ O que mudou e confere com o pedido (E6, lote por arquivo, DECISÃO DO DONO de 12
 
 ## Revalidação por delta (head 17ae39a3)
 Delta lido por `forge-check parecer delta docs/reviews/v046-fechar-lote.md` (intervalo `0be84795..17ae39a3`, sem o que veio da base): só `tests/pesos-d4.json` (e a linha AR-13 de `docs/engineering/achados-recorrentes.md`, vinda da develop). O merge da develop `a986c292` teve um conflito, em `tests/pesos-d4.json`. A resolução confere: `git diff a986c292 HEAD -- tests/pesos-d4.json` traz só as três chaves da branch (`test_doutor_branch_atrasada` 5.0, `test_fechar_move_cartao` 16.0, `test_fechar_prune_sandbox` 7.2); o JSON é válido, ordenado, e todo módulo `tests/test_*.py` tem peso. `forge-testes tests/test_pesos_teto.py` e `tests/test_suite_partes.py` OK. Nenhum código de `bin/` mudou, então os achados A1 a A5 (recomendados) seguem como estavam; nenhum bloqueante. Parecer mantido: aprovado.
+
+## Revalidação por delta (head 2dda228f)
+Delta lido por `forge-check parecer delta docs/reviews/v046-fechar-lote.md` (intervalo `17ae39a3..2dda228f`, sem o que veio da base): só `bin/forge-testes` e `tests/test_testes_tocados.py`. O commit da branch é um só, 2dda228f (E6.12); o resto do intervalo vem do merge da develop `4a2a4293`. A regra de `bin/forge-doutor` no MAPA ganhou `test_doutor_branch_atrasada` e a lista esperada de `tests/test_testes_tocados.py:55` acompanha: `bin/forge-testes --listar bin/forge-doutor` agora dá `test_atualizar, test_doutor, test_doutor_branch_atrasada, test_doutor_custo, test_doutor_protecao_gh, test_doutor_relogio, test_forge, test_medidas_m14b, test_novo_projeto, test_qa_doutor_f8`. O A1 está resolvido; a nova varredura `test_modulos_que_rodam_o_forge_doutor_estao_na_regra_dele` segue válida. `forge-testes tests/test_testes_tocados.py` 150 OK (1 pulado) e `tests/test_doutor_branch_atrasada.py` 6 OK; a suíte inteira fica com o CI do PR 525. Os achados A2 a A5 (recomendados) seguem como estavam; nenhum bloqueante. Parecer mantido: aprovado.
