@@ -158,8 +158,8 @@ class PrePushSoDocs(Repo):
         self.escreve("src/a.ts")
         codigo = self.commit("codigo")
         r, marca = self.envia([self.ref(so_docs, self.base, "refs/heads/a"), self.ref(codigo, self.base, "refs/heads/b")])
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertTrue(marca)
+        # PREPUSH-REFS (v0457): duas branches no mesmo envio recusam antes do plano
+        self.assertEqual((r.returncode, "mais de uma branch" in r.stderr, marca), (1, True, False), r.stderr)
 
     def test_duas_refs_so_docs_pulam(self):
         self.escreve("docs/a.md")
@@ -169,7 +169,7 @@ class PrePushSoDocs(Repo):
         b = self.commit("b")
         r, marca = self.envia([self.ref(a, self.base, "refs/heads/a"), self.ref(b, self.base, "refs/heads/b")])
         self.assertFalse(marca)
-        self.assertIn(PULO, r.stdout)
+        self.assertEqual((r.returncode, "mais de uma branch" in r.stderr), (1, True), r.stderr)  # PREPUSH-REFS
 
     def test_branch_nova_roda(self):
         self.escreve("docs/a.md")

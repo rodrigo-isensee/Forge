@@ -1,0 +1,28 @@
+{
+  "descricao": "Volta 3 da E20.6 (v046, A1 da E20.29): link com origem `$(git rev-parse --git-common-dir)/HEAD` e destino livre: ler do .git para fora segue livre da regra genérica .git/.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n",
+    "x": "x\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ln \"$(git rev-parse --git-common-dir)\"/HEAD h"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
