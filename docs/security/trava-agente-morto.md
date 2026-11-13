@@ -29,7 +29,7 @@ Hook de controle (R-TETO) que decide liberar vaga a partir de entrada lida do di
 - S3 · revalidada: `mv {tmp}/home/.claude/projects/x/<sessão> {tmp}/home/.claude/projects/x/old` · espera: código 2 (C10) · obtido: código 2
 - S4 · revalidada: `rm -rf {tmp}/home/.claude/projects/x` · espera: código 2 (C10) · obtido: código 2
 
-- S5 · revalidada em 6e005f9b (junção): as fixtures C10 `home-claude-projects-mv-pasta-do-projeto`, `-mv-pasta-da-sessao`, `-mv-pasta-forjada` e `-rm-pasta-do-projeto` (todas `bloqueia`) e `home-claude-memoria-libera`, pelo harness do tests/test_hooks.py · espera: código 2 nas quatro e 0 na da memória · obtido: OK (5 verificadas)
+- S5 · fixtures C10 (mv da pasta do projeto, da sessão e forjada, rm da pasta; memoria-libera) no harness de tests/test_hooks.py em 6e005f9b · espera: código 2 nas quatro, 0 na memória · obtido: OK (5 verificadas)
 - S6 · `python3 -m unittest tests.test_trava_agente_morto` em 6e005f9b · espera: OK · obtido: 51 testes, OK em 3,0 s
 
 ## Detalhe dos achados
