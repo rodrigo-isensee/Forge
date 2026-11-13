@@ -2647,6 +2647,15 @@ class VerificarContribuicao(unittest.TestCase):
     def test_users_do_mac_falha(self):
         self.caminho_pessoal_falha("cd /Users/" + "fulano/projeto")
 
+    def test_home_do_runner_passa_mas_nome_que_o_contem_ou_o_segue_falha(self):  # v047 E5.4
+        for linha in ("cache em /home/" + "runner/work/x", "cd /root/x", "cd $HOME/x"):
+            with self.subTest(linha=linha):
+                r = self.verificar("n.md", linha + "\n")
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.caminho_pessoal_falha("cd /home/" + "runner2/projeto")
+        self.caminho_pessoal_falha("cd /home/" + "runner/work /home/" + "fulano/x")
+        self.caminho_pessoal_falha("cd /Users/" + "runner/projeto")
+
     def test_dados_neutros_dos_testes_passam(self):
         for linha in ("cd /exemplo/projeto", "HOME=/tmp/forge-x/home/" + ".config/git", "em /home/" + "ana",
                       "modelo /Users/<nome>/projeto", "modelo /mnt/c/Users/<nome>/projeto"):
@@ -7138,6 +7147,17 @@ class TextosAQ3Stack(unittest.TestCase):
         self.assertIn("defina o contrato no esquema compartilhado (a fonte única, `pronto.md`, \"contrato back-front\")", texto)
         self.assertIn("- Contrato back-front: o esquema", self.pronto)
         self.assertNotIn("esse é o contrato que o agente", texto)
+
+    def test_vermelho_em_typescript_tem_mapa_e_veredito_explicito(self):
+        # item 10 do pedido melhorias-de-projeto-1311: o forge-testes --vermelho só mapeia Python; o TS não pode ficar sem veredito
+        secao = self.pronto.split("## Veredito do vermelho em TypeScript", 1)
+        self.assertEqual(len(secao), 2, "falta a seção do veredito do vermelho em TypeScript")
+        corpo = secao[1].split("\n## ", 1)[0]
+        for trecho in ("`<nome>.test.ts`", "`<nome>.test.tsx`", "`__tests__/<nome>.test.ts`", "`pnpm vitest run <teste>`",
+                       "veredito: não verificável", "nunca termina sem veredito",
+                       "só se ele criar entrada", "faça sempre o `git stash pop` em seguida, falhe o teste ou não",
+                       "`veredito: sem prova`", "ao relatório do brief"):
+            self.assertIn(trecho, corpo)
 
     def test_comando_sugerido_usa_o_gerenciador_do_monorepo(self):
         self.assertIn("Comando sugerido: `pnpm run pronto`", self.pronto)

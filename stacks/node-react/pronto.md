@@ -34,6 +34,12 @@ Ele precisa rodar, e falhar se algo falhar: lint (ESLint) e formatação (Pretti
 - Fila de pesadas (`R-TETO`): o Stryker e o teste de banco (script `test:db` do `package.json`, repositório e migrações contra um banco descartável local) estão no `pesados.json` da stack e rodam um por vez; projeto criado antes disso mantém a lista dele e acrescenta esses comandos à lista `pesados` do `.forge/config.json`.
 - Contrato back-front: o esquema (zod em `packages/shared`, ou o OpenAPI gerado dele) é a fonte única; um teste no `server/` valida as respostas reais da rota contra ele e outro no `web/` valida os mocks do MSW contra o mesmo esquema. Sem serviço pago: Pact só com os arquivos de contrato versionados no repositório, sem broker.
 
+## Veredito do vermelho em TypeScript
+O `forge-testes --vermelho` do Forge só mapeia Python; em arquivo `.ts`/`.tsx` ele não dá veredito. Aqui o mapa e o veredito são os desta stack, e o uso nunca termina sem veredito:
+- Mapa: `<nome>.ts` ou `<nome>.tsx` leva a `<nome>.test.ts`, `<nome>.test.tsx` ou `__tests__/<nome>.test.ts` na mesma pasta; o teste novo ou alterado no diff vale por si.
+- Prova: com a árvore limpa, rode `git stash push -- <arquivos de produção>`; só se ele criar entrada (`git stash list` ganhou uma linha; sem mudança o push sai 0 sem criar nada), rode `pnpm vitest run <teste>`, que precisa falhar, e faça sempre o `git stash pop` em seguida, falhe o teste ou não, para não deixar a produção no stash nem aplicar stash alheio; com o pop feito, o teste precisa passar.
+- Veredito: `veredito: provado` (falhou sem a produção, passou com ela), `veredito: sem prova` (passou nos dois) ou `veredito: não verificável` com o motivo (sem teste no mapa, teste que não roda isolado, produção que só existe no diff). O `não verificável` e o `sem prova` vão ao parecer (ou, sem parecer, ao relatório do brief) como pendência, não como aprovação.
+
 ## Playwright
 - Seletores por papel e texto acessível (`getByRole`, `getByLabel`); `data-testid` só em último caso.
 - Nada de `waitForTimeout`; use as esperas automáticas e `expect(...).toBeVisible()`.
