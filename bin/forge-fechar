@@ -12,7 +12,10 @@
 # checks obrigatórios do ruleset verdes; com eles já verdes, o gh mescla na hora. Depois o script espera o MERGED até o fim de --espera.
 # --armar: pula a espera do passo 4, arma o auto-merge logo depois do passo 5 e sai com código 4 se o PR ainda não mesclou (o tech-lead
 # não fica esperando o CI; a limpeza vem depois com --limpar, que só age com prova de MERGED).
-# Código de saída: 0 fechado e limpo; 1 parou; 3 fechado (o merge ocorreu) com limpeza pendente (o resumo "limpeza: ..." lista o comando de cada parte);
+# (6c) depois do merge, espera o CI do push na base verde (FECHAR-ESPERA-CI-DEVELOP): segue o run do head atual da base (ls-remote a cada leitura),
+# não o do sha do merge, que a concorrência do CI cancela quando outro push chega; cancelado com a base adiante, segue o run do head novo.
+# Um item por vez: o próximo merge só depois deste CI verde (R-FLUXO). Vermelho, cancelado sem run mais novo ou sem fim até --espera: código 5.
+# Código de saída: 0 fechado e limpo; 1 parou; 5 mesclado com o CI do push na base vermelho ou sem resultado (limpeza não feita); 3 fechado (o merge ocorreu) com limpeza pendente (o resumo "limpeza: ..." lista o comando de cada parte);
 # 4 (só com --armar) auto-merge armado, o PR mescla quando os checks obrigatórios passarem; se a base andar antes, rode de novo (M3).
 # --limpar: roda só o passo 7, sem forge-check nem merge, e só com prova de PR MERGED na develop para a branch; cada parte é "se existe" (repete sem
 # efeito colateral). Rodado de dentro da worktree da própria branch, sai dela para a principal antes de remover. Só apaga a branch (local e remota) se o sha é o do PR mesclado ou já está na base; nunca usa a opção que força.
@@ -674,6 +677,37 @@ estado_do_pr() {
   read -r pr_estado pr_head pr_base pr_merge <<<"$linha"
 }
 
+# ci_parou <motivo>: o merge foi feito e o CI do push na base não ficou verde; sai com código 5 e diz o que fazer (passo 6c).
+ci_parou() {
+  echo "forge-fechar: parou no passo 6c: $1; o merge em $alvo já foi feito: develop vermelha é prioridade máxima (R-FLUXO), nenhum outro item entra antes dela verde; a limpeza fica para depois (forge-fechar $(printf '%q' "$pedido") --ref $(printf '%q' "$ref") --limpar)" >&2
+  exit 5
+}
+# esperar_ci_base (passo 6c): a cada leitura, o head atual da base no origin e o run mais novo do CI (push) desse head; verde sai, vermelho para.
+# Cancelado: com a base adiante (push mais novo, que cancelou este run), segue o head novo; sem ela adiante, para.
+esperar_ci_base() {
+  local ini=$SECONDS cab novo linha run_id="" run_st run_fim
+  while :; do
+    cab="$(remoto_exato "$alvo")" || ci_parou "não consegui ler o head de $alvo no origin"
+    [ -n "$cab" ] || ci_parou "a branch $alvo não existe no origin"
+    linha="$(ler "$gh" run list --branch "$alvo" --event push --workflow ci.yml --commit "$cab" --limit 1 --json databaseId,status,conclusion \
+      --jq '.[] | "\(.databaseId) \(.status) \(.conclusion)"')" || ci_parou "não consegui ler o CI do push em $alvo (gh run list)"
+    run_id="" run_st="" run_fim=""
+    read -r run_id run_st run_fim <<<"$linha"
+    if [ "$run_st" = completed ]; then
+      case "$run_fim" in
+        success) echo "CI do push em $alvo verde: run $run_id (head ${cab:0:7})"; return 0 ;;
+        cancelled)
+          novo="$(remoto_exato "$alvo")" || ci_parou "não consegui reler o head de $alvo depois do run $run_id cancelado"
+          if [ -n "$novo" ] && [ "$novo" != "$cab" ]; then echo "run $run_id do head ${cab:0:7} cancelado: $alvo andou para ${novo:0:7}; sigo o run dele"; continue; fi
+          ci_parou "o run $run_id do CI (head ${cab:0:7}) foi cancelado sem run mais novo; rode gh run rerun $run_id e acompanhe o CI de $alvo" ;;
+        *) ci_parou "CI do push em $alvo vermelho (run $run_id, ${run_fim:-sem conclusão}, head ${cab:0:7}); leia gh run view $run_id --log-failed e corrija por fix antes do próximo merge" ;;
+      esac
+    fi
+    [ $((SECONDS - ini)) -lt "$espera" ] || ci_parou "o CI do push em $alvo (head ${cab:0:7}, run ${run_id:-ainda não criado}) não terminou em ${espera}s; acompanhe-o em segundo plano (gh run list --branch $alvo --event push) e só mescle outro item com ele verde"
+    dormir "$intervalo"
+  done
+}
+
 # esperar_o_merged (passo 6, R7): depois do `gh pr merge --auto`, relê o estado até MERGED; o GitHub mescla quando os checks obrigatórios
 # passam. Com --armar, o PR ainda aberto sai com código 4 (auto-merge armado); sem ele, espera até o fim de --espera e para. A leitura
 # que falha deixa o estado vazio e sai da espera: a conferência do MERGED, logo depois, usa esta leitura (não relê) e para.
@@ -776,6 +810,7 @@ if [ "$seco" = 1 ]; then
   passo 5 "$gh pr view <número do PR, lido no passo 3> --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
   passo "6a" "git ls-remote origin refs/heads/$alvo (a base que o passo 2b leu? se andou durante os checks: com conflito no git merge-tree --write-tree para sem mesclar; sem conflito segue, sem trazer a base (E8); base local velha pede git fetch)"
   passo 6 "$gh pr merge $ref --auto $metodo --match-head-commit <head conferido> (auto-merge do GitHub com os checks obrigatórios; base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge; espera o MERGED até --espera; com --armar sai com código 4 se ainda não mesclou)"
+  passo "6c" "git ls-remote origin refs/heads/$alvo e $gh run list --branch $alvo --event push --workflow ci.yml --commit <head atual> (espera o CI do push verde, seguindo o head atual de $alvo; vermelho, cancelado sem run mais novo ou sem fim até ${espera}s saem com código 5)"
   for c in "${cartoes[@]}"; do echo "cartão $c: depois do merge, forge-check movimento $c --de $(coluna_do_cartao "$c") --para Pronto --raiz $quadro"; done
   [ "$sem_limpar" = 0 ] || echo "--sem-limpar: o passo 7 é pulado; imprime os comandos da limpeza e sai com código 3 depois do merge."
   passo 7 "git worktree remove <worktree de $ref> (prune se o diretório já sumiu); git branch -D $ref (só com o sha mesclado); git push origin --delete $ref (até 3 tentativas, por último); sai com código 3 se algo ficar pendente"
@@ -1047,6 +1082,8 @@ if [ "$ja_mesclado" = 0 ]; then
   if ! { [ -n "$pr_merge" ] && [ "$pr_merge" != "-" ]; }; then die "parou no passo 6: o PR #$pr_n consta MERGED sem commit de merge; confira no GitHub"; fi
   echo "merge: $pr_merge"
   subida_extra="MERGED ${pr_merge:0:7} ${remoto_sha:0:7}"
+  passo "6c" "CI do push em $alvo (um item por vez: o próximo só com ele verde)"
+  esperar_ci_base
 fi
 
 if [ "$ja_mesclado" = 0 ]; then motivo_cartao="mesclado em $alvo: PR #$pr_n, merge ${pr_merge:0:7}"; else motivo_cartao="mesclado em $alvo: head ${remoto_sha:0:7}"; fi

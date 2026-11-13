@@ -1,0 +1,2 @@
+### Alterado
+- Integração um merge por vez (FECHAR-ESPERA-CI-DEVELOP, INTEGRACAO-ESPERA-CI): o `bin/forge-fechar` espera, depois do merge, o CI do push na `develop` verde, seguindo o run do head atual da `develop` (o do sha do merge pode sair cancelado pela concorrência); vermelho, cancelado sem run mais novo ou sem fim até `--espera` saem com código 5 (passo 6c). A `R-FLUXO`, o `tech-lead` e o modelo de projeto dizem o mesmo: o próximo merge espera esse CI verde, acompanhado em segundo plano, e integração vermelha é prioridade máxima.

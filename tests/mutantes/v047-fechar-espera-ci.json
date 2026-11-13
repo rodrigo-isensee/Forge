@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-fechar-espera-ci",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "6c: leitura do head da base que falha para",
+      "arquivo": "bin/forge-fechar",
+      "de": "cab=\"$(remoto_exato \"$alvo\")\" || ci_parou",
+      "para": "cab=\"$(remoto_exato \"$alvo\")\" || true; : ci_parou",
+      "testes": [
+        "tests.test_fechar_espera_ci.FecharEsperaCi.test_remoto_ilegivel_sai_com_5"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "6c: base ausente no origin para",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -n \"$cab\" ] || ci_parou",
+      "para": "[ -n \"x\" ] || ci_parou",
+      "testes": [
+        "tests.test_fechar_espera_ci.FecharEsperaCi.test_develop_que_some_sai_com_5"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "6c: leitura do gh run list que falha para",
+      "arquivo": "bin/forge-fechar",
+      "de": "--jq '.[] | \"\\(.databaseId) \\(.status) \\(.conclusion)\"')\" || ci_parou",
+      "para": "--jq '.[] | \"\\(.databaseId) \\(.status) \\(.conclusion)\"')\" || true; : ci_parou",
+      "testes": [
+        "tests.test_fechar_espera_ci.FecharEsperaCi.test_leitura_do_ci_que_falha_sai_com_5"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "6c: run nao terminado espera, nao decide",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$run_st\" = completed ]; then",
+      "para": "if true; then",
+      "testes": [
+        "tests.test_fechar_espera_ci.FecharEsperaCi.test_pendente_espera_e_segue_verde"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "6c: so success e verde",
+      "arquivo": "bin/forge-fechar",
+      "de": "success) echo \"CI do push",
+      "para": "success-x) echo \"CI do push",
+      "testes": [
+        "tests.test_fechar_espera_ci.FecharEsperaCi.test_verde_segue_o_head_atual_da_develop_e_limpa"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "6c: cancelado tem ramo proprio (segue o head novo)",
+      "arquivo": "bin/forge-fechar",
+      "de": "        cancelled)",
+      "para": "        cancelled-x)",
+      "testes": [
+        "tests.test_fechar_espera_ci.FecharEsperaCi.test_cancelado_com_run_mais_novo_segue_o_head_novo"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "6c: releitura do head depois do cancelado que falha para",
+      "arquivo": "bin/forge-fechar",
+      "de": "novo=\"$(remoto_exato \"$alvo\")\" || ci_parou",
+      "para": "novo=\"$(remoto_exato \"$alvo\")\" || true; : ci_parou",
+      "testes": [
+        "tests.test_fechar_espera_ci.FecharEsperaCi.test_remoto_ilegivel_depois_do_cancelado_sai_com_5"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "6c: cancelado sem a base adiante para",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -n \"$novo\" ] && [ \"$novo\" != \"$cab\" ]; then",
+      "para": "if [ -n \"$novo\" ]; then",
+      "testes": [
+        "tests.test_fechar_espera_ci.FecharEsperaCi.test_cancelado_sem_run_mais_novo_sai_com_5"
+      ]
+    }
+  ]
+}

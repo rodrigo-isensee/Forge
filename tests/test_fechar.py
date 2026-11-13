@@ -75,6 +75,22 @@ case "$1 $2" in
     if [ -f "$ESTADO/saida_create" ]; then cat "$ESTADO/saida_create"; else echo "https://github.com/o/r/pull/$n"; fi
     exit 0 ;;
   "pr ready") exit 0 ;;
+  "run list")
+    # CI do push na develop (6c): cada leitura consome a 1.ª linha de $ESTADO/runs ("id status conclusão [ação]"; a última fica; "falha"
+    # é leitura que falha); sem o arquivo, verde. Ação no remoto depois da leitura: "avanca" (um push mais novo chega à develop, o que
+    # cancelou este run), "apaga" (a develop some), "quebra" (o remoto fica ilegível).
+    [ -f "$ESTADO/runs" ] || { echo "1 completed success"; exit 0; }
+    linha="$(head -n 1 "$ESTADO/runs")"
+    [ "$(wc -l < "$ESTADO/runs")" -le 1 ] || sed -i 1d "$ESTADO/runs"
+    [ "$linha" != falha ] || exit 1
+    rem="$(git remote get-url origin)"
+    case "$linha" in
+      *" avanca") t="$(git -C "$rem" rev-parse 'develop^{tree}')"
+        git -C "$rem" update-ref refs/heads/develop "$(git -C "$rem" commit-tree "$t" -p develop -m novo)" ;;
+      *" apaga") git -C "$rem" update-ref -d refs/heads/develop ;;
+      *" quebra") mv "$rem" "$rem.quebrado" ;;
+    esac
+    echo "$linha" | awk '{print $1, $2, $3}'; exit 0 ;;
   "pr checks")
     # como o script pede (C-6): só a leitura por JSON; cada linha do arquivo (nome, estado, tempo, link e o workflow opcional) sai como o `--jq` dele
     # a monta: nome, estado, workflow e link; sem a 5.ª coluna, o workflow é o do repositório (catraca na Catraca, o resto no CI)
