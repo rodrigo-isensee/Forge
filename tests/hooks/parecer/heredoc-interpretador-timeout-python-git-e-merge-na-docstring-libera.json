@@ -1,0 +1,17 @@
+{
+  "descricao": "HOOK-REVIEW-HEREDOC-TIMEOUT: timeout com python3 que roda git log e cita merge numa docstring: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "timeout 120 python3 - <<'EOF'\nimport subprocess\nsubprocess.run(['git', 'log', '--oneline'])\n\"\"\"Depois, conta os merge da develop.\"\"\"\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

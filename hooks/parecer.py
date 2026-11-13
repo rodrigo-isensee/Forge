@@ -34,7 +34,7 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, 
                     contorno_da_reavaliacao, conteudos_de_crase, formas_que_o_shell_le, corpo_so_lido, depois_das_atribuicoes, e_clone_do_forge,
                     excede_o_teto, executar,
                     fora_da_gramatica_com_heredoc, forge_check, git, nome_da_branch, leituras, motivo_da_reavaliacao,
-                    palavras_do_texto, raiz_de_estado, reavaliacao, reavaliacao_das_palavras, reduzida, sem_atribuicoes,
+                    palavras_do_texto, programas_e_atribuicoes, raiz_de_estado, reavaliacao, reavaliacao_das_palavras, reduzida, sem_atribuicoes,
                     separar_lancadores, separar_regra, tirar_heredocs)
 
 MERGE = r"merge(?!-base\b)"  # `git merge-base` só lê o grafo (HK3-PARECER, E2): não é merge
@@ -158,6 +158,60 @@ def e_shell_c_de_texto(texto):
                 or not OPCAO_DE_REAVALIACAO.fullmatch(resto[0]) or not so_le_ou_espera(resto[1])):
             return False
     return True
+
+
+# HOOK-CONTRIB-HEREDOC-FP e HOOK-REVIEW-HEREDOC-TIMEOUT: o heredoc que só um interpretador lê da entrada (`python3 -`,
+# `timeout 60 python3`, `sh`, `bash -e`), pelo nome puro, sem caminho nem atribuição (também a do lançador, `env PATH=…`).
+PYTHON_DA_ENTRADA = re.compile(r"python3?(?:\.\d+)?")
+OPCAO_DO_PYTHON = re.compile(r"-[IuBEsSqO]+")
+SHELLS_DA_ENTRADA = frozenset({"sh", "bash", "dash"})
+OPCAO_DO_SHELL = re.compile(r"-[euxv]+")
+# O corpo de Python que lança processo (`subprocess`, `os.system`, `exec(`…) e escreve um comando de PR em sequência
+# (`["gh", "pr", "merge", "12"]`, `"git pull origin x"`) segue como antes: é o caso verdadeiro. É reforço, não
+# fronteira: o `python3 -c '…'` o hook já não lê, e o corpo de Python é tão opaco quanto ele.
+LANCA_PROCESSO = re.compile(r"\b(?:subprocess|pty|ctypes|importlib|runpy|__import__|system|popen|spawn\w*|exec[lv]\w*|"
+                            r"fork\w*)\b|\b(?:exec|eval)\s*\(")
+_SEP = r"[\s'\",]+"
+COMANDO_DE_PR = re.compile(rf"\bgh(?:{_SEP}[\w./=~-]+){{0,4}}?{_SEP}(?:pr{_SEP}(?:create|{MERGE}|ready)|api)\b"
+                           rf"|\bgit(?:{_SEP}[\w./=~-]+){{0,4}}?{_SEP}(?:{MERGE}|pull)\b")
+
+
+def leitor_da_entrada(comando):
+    """`python` ou `shell` se o comando (palavras, sem lançador) só lê o programa da entrada; senão None."""
+    nome, args = comando[0], comando[1:]
+    if PYTHON_DA_ENTRADA.fullmatch(nome) and all(OPCAO_DO_PYTHON.fullmatch(a) or (a == "-" and k == len(args) - 1)
+                                                 for k, a in enumerate(args)):
+        return "python"
+    if nome in SHELLS_DA_ENTRADA and all(OPCAO_DO_SHELL.fullmatch(a) for a in args):
+        return "shell"
+    return None
+
+
+def interprete_do_corpo(dono):
+    """`python` ou `shell` se todo programa do dono do heredoc (`DonosDosHeredocs`), em toda leitura dos lançadores, é
+    do mesmo tipo de `leitor_da_entrada`; senão None (o corpo segue como antes)."""
+    tipos = set()
+    try:
+        for programa, argumentos, atribuicoes in programas_e_atribuicoes(dono):
+            lidas = separar_lancadores([programa, *argumentos])
+            if atribuicoes or any(lancadas or not comando for comando, lancadas in lidas):
+                return None
+            tipos.update(leitor_da_entrada(comando) for comando, _ in lidas)
+    except Exception:  # noqa: BLE001 - na dúvida, o corpo segue como comando (a regra de antes)
+        return None
+    return next(iter(tipos)) if len(tipos) == 1 else None
+
+
+def leitores_dos_corpos(original, corpos):
+    """O tipo de cada corpo de `corpos` ([(dono, corpo)]), na mesma ordem: `python`, corpo de Python sem comando de PR
+    lançado, que não é comando nem marca a chamada; `shell`, corpo que o shell roda como uma chamada, que passa sozinho
+    pela gramática com heredoc; None, o corpo como antes. Só com todo `<<` simples (`heredocs_simples`): o bash e o
+    hook cortam o corpo no mesmo ponto."""
+    if not heredocs_simples(original):
+        return [None] * len(corpos)
+    tipos = [interprete_do_corpo(dono) for dono, _ in corpos]
+    return [None if tipo == "python" and LANCA_PROCESSO.search(corpo) and COMANDO_DE_PR.search(corpo) else tipo
+            for tipo, (_, corpo) in zip(tipos, corpos)]
 
 
 def opcao(args, longa, curta):
@@ -869,6 +923,16 @@ def principal(hook):
     conferir_linha(hook, SED_LE.sub(r"cat\2", comando), [(hook.cwd(), {}, SEM_AMBIENTE)])
 
 
+def marcas_da_chamada(original, comando, corpos, leitores):
+    """(a chamada tem a marca crítica, `critico_ou_alias`; e fora dos corpos que o shell roda): o corpo `python` de
+    `leitores_dos_corpos` não marca, e o `shell` só marca a primeira. Sem eles, as duas são a do texto inteiro."""
+    if not any(leitores):
+        return (critico_ou_alias(original),) * 2
+    def sem(tipos):
+        return critico_ou_alias("\n".join([comando, *(c for (_, c), t in zip(corpos, leitores) if t not in tipos)]))
+    return sem({"python"}), sem({"python", "shell"})
+
+
 def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corpo_de_heredoc=False, reavaliacoes=None):
     """Confere a linha a partir de cada estado (pasta, branches) e, depois, o que ela roda dentro de uma palavra só: o
     corpo de cada crase (P4: `` echo `gh pr merge …` ``) e a palavra com `$(…)` entre aspas (N2: `echo "$(gh pr merge
@@ -893,6 +957,8 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull com um heredoc que o hook não lê (<< que ele não "
                              "prova ser heredoc, ou corpo sem aspas no delimitador com $( ou crase). Corrigir: use "
                              "<<'FIM' ou separe os comandos")
+    leitores = leitores_dos_corpos(original, corpos) if corpos else []
+    marcado, marcado_fora_do_shell = marcas_da_chamada(original, comando, corpos, leitores)
     if nivel == 0 and critico_ou_alias(original):  # bloco T da revalidação 10: o orçamento da chamada, antes de ler o resto
         excesso = excede_o_teto(comando)
         if excesso:
@@ -917,7 +983,7 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                              "comandos")
     internos = [(corpo, False, False) for corpo in conteudos_de_crase(comando, so_os_fechados=True)]
     internos += [(corpo, False, getattr(dono, "rodado", None) or True)  # o dono (ou o programa do texto) pode rodá-lo
-                 for dono, corpo in corpos if not corpo_so_lido(dono)]
+                 for (dono, corpo), leitor in zip(corpos, leitores) if leitor != "python" and not corpo_so_lido(dono)]
     vistos = {}
     for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
         partes = [(analise_do_comando(palavras), palavras, solto)
@@ -930,7 +996,7 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                      if "$(" in p.replace(OPACO["$"], "")]
     for texto, so, de_heredoc in dict.fromkeys(internos):
         conferir_linha(hook, texto, list(vistos.values()), nivel + 1, so, de_heredoc, reavaliacoes)
-    if gravado and critico_ou_alias(original):  # M3 (ADR 0011, item 2), depois das regras da linha e do corpo
+    if gravado and marcado:  # M3 (ADR 0011, item 2), depois das regras da linha e do corpo
         bloquear("R-REVIEW", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`), com gh pr, gh "
                              f"api, merge ou pull. Corrigir: {GRAVE_E_RODE_NOUTRA}")
     # ADR 0011, item 2 (opção B da revalidação 8), depois das regras da linha e do corpo: com o marcador no nível 0, a
@@ -941,9 +1007,14 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                              f"{contorno_da_reavaliacao(reavaliacoes[0])}")
     # ADR 0011, item 2 (opções D e A), depois das regras da linha e do corpo: sobre o texto do nível 0, com o `<<` que o
     # bash pode formar nele ou num nível de cima (`bash -c`, `eval`, `$(…)`; `tem_heredoc_no_texto`), haja heredoc
-    # provado ou não
-    if nivel == 0 and critico_ou_alias(original) and not (SO_CAT.fullmatch(comando) and heredocs_simples(original)):
-        sinal = fora_da_gramatica_com_heredoc(original)
+    # provado ou não; o corpo que o shell roda (`leitores_dos_corpos`) passa por ela sozinho, como a chamada que ele é
+    sinais = []
+    if nivel == 0 and marcado_fora_do_shell and not (SO_CAT.fullmatch(comando) and heredocs_simples(original)):
+        sinais.append(fora_da_gramatica_com_heredoc(original))
+    if nivel == 0:
+        sinais += [fora_da_gramatica_com_heredoc(corpo) for (_, corpo), leitor in zip(corpos, leitores)
+                   if leitor == "shell" and critico_ou_alias(corpo)]
+    for sinal in sinais:
         if sinal is not None:
             bloquear("R-REVIEW", f"`{sinal}` na chamada com heredoc e gh pr, gh api, merge ou pull: o hook não modela. "
                                  f"Corrigir: {CONTORNO_DA_GRAMATICA}")

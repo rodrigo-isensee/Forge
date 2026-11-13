@@ -1,0 +1,17 @@
+{
+  "descricao": "HOOK-CONTRIB-HEREDOC-FP: docstring de Python que cita gh pr ready e gh pr merge por número (o apóstrofo desloca a leitura de shell e punha o gh pr merge 512 como comando): o corpo é Python, não comando; libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 - <<'EOF'\n'''Passos (don't skip):\n    gh pr ready 512\n    gh pr merge 512 --squash\nsee lines 40-52; it's done\n'''\nprint(1)\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
