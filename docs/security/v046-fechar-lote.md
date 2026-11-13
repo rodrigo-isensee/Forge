@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v046
 branch: melhoria/v046-fechar-lote
-commit: 0be847950094f66ffccdca5fe1ec7c1accd5233a
+commit: 17ae39a39ecd28b4f3eeb791cbc34697cf56c720
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-12
@@ -11,6 +11,9 @@ data: 2026-11-12
 # Review de segurança: v046 (fechar em lote, E6.3)
 
 Diff `8b5a44d5..0be84795` (7 commits, 4 itens: CONFERENTE-PR-ABERTO-CEDO, WORKTREE-PRUNE-SANDBOX, FECHAR-MOVE-CARTAO, ATUALIZAR-BRANCH-ATRASADA). Lido em worktree destacada própria; testes dos arquivos tocados rodados (24, verdes) e o shellcheck do `bin/forge-fechar` limpo.
+
+## Revalidação por delta (E6.6)
+Head 17ae39a3 (merge da develop a986c292). `forge-check parecer delta` de 0be84795 a 17ae39a3: nenhum arquivo do domínio mudou; só `docs/engineering/achados-recorrentes.md` e `tests/pesos-d4.json` (fora do domínio; este último segue JSON válido). Parecer anterior vale; A1 segue recomendado, sem promoção.
 
 ## Gatilhos
 `R-SEGURANCA`: controle do Forge que apaga (poda de registros de worktree no passo 7) e grava estado (movimento do quadro) a partir de entrada do autor (`--cartao`, `--quadro`).
