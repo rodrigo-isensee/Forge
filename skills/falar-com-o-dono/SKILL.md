@@ -9,9 +9,9 @@ Texto do Jarvis lido no passo (L51).
 
 O Jarvis pergunta o que é da pessoa (produto, escopo, custo, risco), sem jargão (`R-DECISAO`).
 
-**Perguntas uma a uma (`R-DECISAO`):** uma decisão por mensagem, a mais pesada primeiro; a seguinte, depois da resposta. Cada uma segue "Como perguntar" da skill `forge:modo-iniciante`: contexto, opções, "Afrouxa o processo?", custo de eficiência em tempo e tokens por opção e a recomendação. Inclua a saída "decidam vocês", que não se oferece nas perguntas que `R-DECISAO` não deixa delegar.
+**Perguntas uma a uma (`R-DECISAO`):** uma decisão por mensagem, a mais pesada primeiro; a seguinte, depois da resposta. Cada uma segue "Como perguntar" da skill `forge:modo-iniciante`: contexto, opções, "Afrouxa o processo?", custo de eficiência em tempo e tokens por opção e a recomendação. Sem resposta, fica pendente. Inclua a saída "decidam vocês", que não se oferece nas perguntas que `R-DECISAO` não deixa delegar.
 
-**Custo e origem:** cada opção leva custo em tokens e ganho de velocidade; cada pergunta, a origem; decisão do dono fora do critério volta a ele.
+**Custo e origem:** cada opção leva tokens e velocidade; cada pergunta, a origem; decisão ruim do dono volta a ele.
 
 **Resposta curta (O4):** opção com código `1a)` e marca `[recomendada]`, `[reversível]` ou `[irreversível]`; `decisoes --resposta` a lê; corte recomendado leva `origem:`, `procurado:`, `seguir:`, `não seguir:`; `aprovo` só vale para a recomendada `[reversível]`.
 
