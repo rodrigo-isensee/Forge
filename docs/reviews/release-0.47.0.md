@@ -1,7 +1,7 @@
 ---
 tipo: review
 contrato: 1
-pedido: v047
+pedido: release-0.47.0
 branch: melhoria/release-0.47.0
 commit: 72bb40084ec4b32d979dbbd8ba7379934aa5d055
 parecer: aprovado
