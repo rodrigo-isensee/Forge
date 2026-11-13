@@ -19,7 +19,8 @@ Revalidação E4.14 por delta `58312004..0eee1453` (volta E4.11), sobre o parece
 ## Achados
 - A1 (recomendado) hooks/parecer.py:176 · Aceito e documentado (docs/hooks.md:103, ADR 0011 emenda v047), não bloqueia: corpo de Python com lançador e comando sem constante de texto que o traga (chr, base64, f-string, reverso, rot13, "g"+"h" em item de lista, arquivo) passa rc 0; a base barrava.
 
-Resolvidos da volta anterior: A1 bloqueante (as cinco sondas agora rc 2, fixtures `*-bloqueia` somadas), A2 bloqueante (M7 morre; fixture `dono-misto-python-e-sh-bloqueia`) e A3 (doc e ADR dizem que a barreira é lista de nomes e o que não cobre).
+## Resolvidos da volta anterior
+A1 bloqueante (as cinco sondas agora rc 2, fixtures `*-bloqueia` somadas), A2 bloqueante (M7 morre; fixture `dono-misto-python-e-sh-bloqueia`) e A3 (doc e ADR dizem que a barreira é lista de nomes e o que não cobre).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -42,14 +43,14 @@ Mutantes: `bin/forge-mutante tests/mutantes/v047-hook-heredoc-fp{,-2,-3,-4}.json
 Vermelho antes do verde: `forge-testes --vermelho` não rodado nesta janela (carga ~21 em 12 CPUs), sem veredito. A prova vale pelas sondas, que falhavam em `58312004`, e pela mutação de cada guarda nova.
 
 ## Sondas
-- S1 asyncio.create_subprocess_exec gh pr merge · espera: rc 2 · obtido: rc 2 (antes, em 58312004: rc 0)
-- S2 asyncio.create_subprocess_shell gh pr merge · espera: rc 2 · obtido: rc 2 (antes: rc 0)
-- S3 os.posix_spawnp gh pr merge · espera: rc 2 · obtido: rc 2 (antes: rc 0)
-- S4 getattr(os,"sy"+"stem") gh pr merge · espera: rc 2 · obtido: rc 2 (antes: rc 0)
-- S5 asyncio.create_subprocess_exec git pull · espera: rc 2 · obtido: rc 2 (antes: rc 0)
-- X bytes.decode, join, sys.modules, __import__ montado, __dict__, from os import system, gh api, pty.spawn, os.execvp, Popen importado · espera: rc 2 · obtido: rc 2 em todos
-- X chr, base64, f-string, reverso, rot13, "g"+"h", "p"+"r" em itens, arquivo, lançador mais docstring · espera: rc 2 (como a base) · obtido: rc 0 (A1 recomendado, limitação documentada)
-- C print("gh pr merge 5") e docstring · espera: rc 0 (a correção) · obtido: rc 0
+- S1 · S1 asyncio.create_subprocess_exec gh pr merge · espera: rc 2 · obtido: rc 2 (antes, em 58312004: rc 0)
+- S2 · S2 asyncio.create_subprocess_shell gh pr merge · espera: rc 2 · obtido: rc 2 (antes: rc 0)
+- S3 · S3 os.posix_spawnp gh pr merge · espera: rc 2 · obtido: rc 2 (antes: rc 0)
+- S4 · S4 getattr(os,"sy"+"stem") gh pr merge · espera: rc 2 · obtido: rc 2 (antes: rc 0)
+- S5 · S5 asyncio.create_subprocess_exec git pull · espera: rc 2 · obtido: rc 2 (antes: rc 0)
+- S6 · X bytes.decode, join, sys.modules, __import__ montado, __dict__, from os import system, gh api, pty.spawn, os.execvp, Popen importado · espera: rc 2 · obtido: rc 2 em todos
+- S7 · X chr, base64, f-string, reverso, rot13, "g"+"h", "p"+"r" em itens, arquivo, lançador mais docstring · espera: rc 2 (como a base) · obtido: rc 0 (A1 recomendado, limitação documentada)
+- S8 · C print("gh pr merge 5") e docstring · espera: rc 0 (a correção) · obtido: rc 0
 
 ## Revalidação
 `forge-check parecer delta docs/qa/v047-hook-heredoc-fp.md` lista o resto do delta; a UX não mudou.
