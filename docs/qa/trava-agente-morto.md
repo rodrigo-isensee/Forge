@@ -17,9 +17,7 @@ data: 2026-11-13
 Classe C, passada única, head f77bb51d (diff a1318e88..f77bb51d). O parecer de segurança do cartão (C1 a C12) não está no head; os critérios foram lidos do docstring de `hooks/agentes.py` e dos nomes das classes de teste (C1 a C11).
 
 ## Achados
-- A1 (resolvido, era bloqueante) hooks/hooks.json:19 · o gatilho `SendMessage` agora tem teste (`hooks.json` liga o PreToolUse do SendMessage ao agentes.py) e o mutante M28 (morreu).
-- A2 (resolvido, era recomendado) hooks/conformidade.json:50-53 · M29 a M32, um por entrada da C10 (morreram), e quatro fixtures `home-claude-projects-*`.
-- Nenhum achado bloqueante aberto. Recomendado: `--cobertura` ainda lista `hooks/conformidade.json` e `hooks/hooks.json` como `não coberto` (a ferramenta só lê Python); os mutantes M28 a M32 cobrem à mão (A5, recomendado, sem bloqueio).
+- A5 (recomendado) hooks/hooks.json:19 · a checagem --cobertura do forge-mutante lista hooks.json e conformidade.json como não coberto (só lê Python); M28 a M32 cobrem à mão. Resolvidos: A1 e A2 anteriores. Nenhum bloqueante aberto.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
