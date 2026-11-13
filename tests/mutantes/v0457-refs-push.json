@@ -1,0 +1,92 @@
+{
+  "pedido": "v0457-refs-push",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": ".githooks/pre-push: contadores começam do zero, nunca do ambiente (o envio não zera nem negativa a conta)",
+      "arquivo": ".githooks/pre-push",
+      "de": "refs_branches=0; refs_remocoes=0  # PREPUSH-REFS",
+      "para": "refs_branches=${refs_branches:-0}; refs_remocoes=${refs_remocoes:-0}  # PREPUSH-REFS",
+      "testes": [
+        "tests.test_prepush_refs.PoliticaForge.test_contadores_nao_vem_do_ambiente"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": ".githooks/pre-push: ref remota fora de refs/heads/ e refs/tags/ recusa (espelho leva refs/remotes/, refs/notes/)",
+      "arquivo": ".githooks/pre-push",
+      "de": "    refs/heads/?*|refs/tags/?*) ;;",
+      "para": "    refs/*|?*) ;;",
+      "testes": [
+        "tests.test_prepush_refs.PoliticaForge.test_ref_remota_fora_de_heads_e_tags_recusa",
+        "tests.test_prepush_refs.EnvioDeVerdadeForge.test_ref_de_notas_recusa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": ".githooks/pre-push: a recusa da ref fora de heads e tags sai com erro (ramo de falha)",
+      "arquivo": ".githooks/pre-push",
+      "de": "e afins).\" >&2\n       exit 1 ;;",
+      "para": "e afins).\" >&2\n       ;;",
+      "testes": [
+        "tests.test_prepush_refs.PoliticaForge.test_ref_remota_fora_de_heads_e_tags_recusa",
+        "tests.test_prepush_refs.EnvioDeVerdadeForge.test_ref_de_notas_recusa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": ".githooks/pre-push: só branch com código conta para o limite (tag não conta)",
+      "arquivo": ".githooks/pre-push",
+      "de": "refs/heads/*) refs_branches=$((refs_branches + 1))",
+      "para": "refs/*) refs_branches=$((refs_branches + 1))",
+      "testes": [
+        "tests.test_prepush_refs.PoliticaForge.test_branch_com_tags_e_uma_remocao_nao_recusa_pela_politica"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": ".githooks/pre-push: mais de uma branch com código no mesmo envio recusa",
+      "arquivo": ".githooks/pre-push",
+      "de": "if [ \"$refs_branches\" -gt 1 ]; then",
+      "para": "if [ \"$refs_branches\" -gt 2 ]; then",
+      "testes": [
+        "tests.test_prepush_refs.PoliticaForge.test_duas_branches_com_codigo_recusa",
+        "tests.test_prepush_refs.EnvioDeVerdadeForge.test_branches_e_mirror_recusam_sem_mudar_o_remoto"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": ".githooks/pre-push: a recusa de duas branches sai com erro (ramo de falha)",
+      "arquivo": ".githooks/pre-push",
+      "de": "(git push origin <branch>).\" >&2\n    exit 1",
+      "para": "(git push origin <branch>).\" >&2\n    true",
+      "testes": [
+        "tests.test_prepush_refs.PoliticaForge.test_duas_branches_com_codigo_recusa",
+        "tests.test_prepush_refs.EnvioDeVerdadeForge.test_branches_e_mirror_recusam_sem_mudar_o_remoto"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": ".githooks/pre-push: mais de uma remoção no mesmo envio recusa (item 3 da D2, PREPUSH-DELETE)",
+      "arquivo": ".githooks/pre-push",
+      "de": "if [ \"$refs_remocoes\" -gt 1 ]; then",
+      "para": "if [ \"$refs_remocoes\" -gt 2 ]; then",
+      "testes": [
+        "tests.test_prepush_refs.PoliticaForge.test_duas_remocoes_recusa",
+        "tests.test_prepush_refs.EnvioDeVerdadeForge.test_prune_com_curinga_nao_apaga_em_massa"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": ".githooks/pre-push: a recusa de duas remoções sai com erro (ramo de falha)",
+      "arquivo": ".githooks/pre-push",
+      "de": "(git push origin --delete <ref>).\" >&2\n    exit 1",
+      "para": "(git push origin --delete <ref>).\" >&2\n    true",
+      "testes": [
+        "tests.test_prepush_refs.PoliticaForge.test_duas_remocoes_recusa",
+        "tests.test_prepush_refs.EnvioDeVerdadeForge.test_prune_com_curinga_nao_apaga_em_massa"
+      ]
+    }
+  ]
+}
