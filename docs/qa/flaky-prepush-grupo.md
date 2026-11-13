@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/flaky-prepush-grupo
-commit: 989d49f5661d93c37dfff8813a905ba97490cd6c
+commit: e4cf8f83d57a73d42fdf1d12dfb581145972fcad
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -36,3 +36,9 @@ data: 2026-11-13
 - Confirmei no hook (templates/projeto/.githooks/pre-push:150-158) que o único `sleep` filho direto do hook é o `sleep 1` do laço `while lider_vivo`, alcançado depois do `alvo=` e do `ps` do pgid; logo a condição só fica verdadeira com o hook no laço. Outros sleeps das etapas (`sleep 60 &`, `exec sleep 60`) são a etapa (excluída) ou netos (ppid = etapa).
 - Execução: GrupoDaEtapa roda 4 testes e pula os 4 no sandbox (/proc de outro namespace); não consegui rodá-lo fora do sandbox, então a prova de execução e de repetição é só do CI. Não há PR aberto (gh sem runs): sem check-run `bateria` a citar.
 - Sem mutação nem forge-mutante: só teste, sem bin/, hooks/ nem .githooks/ do Forge.
+
+## Revalidação por delta (E26.31, 989d49f5..e4cf8f83)
+- e4cf8f83 é a junção com a develop (ae65a35a: #521 a #523, `agents/jarvis.md` e outros). `git diff 989d49f5 e4cf8f83 -- tests/test_prepush_so_docs.py templates/projeto/.githooks/pre-push .githooks/pre-push` vazio: o teste e o hook do pre-push não mudaram. `git diff ae65a35a e4cf8f83` toca só o teste e os pareceres da branch.
+- Execução local: `python3 -m unittest tests.test_prepush_so_docs` no head: 62 testes, OK, skipped=9 (GrupoDaEtapa pula no sandbox, /proc de outro namespace). A1 segue resolvido.
+- PR #526: `bateria` (passos, verificações longas), `catraca` e `instalação` passam; as partes da `suíte` estavam pendentes na leitura. A2 (recomendado) continua: conferir no check-run final os 4 testes de GrupoDaEtapa sem `skipped`.
+- Sem mutação nem forge-mutante: só teste.
