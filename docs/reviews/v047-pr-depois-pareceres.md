@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-pr-depois-pareceres
-commit: a8e80f2e1944aeee27126b3361afde4cb8345b5d
-parecer: reprovado
+commit: 2530ab495a98a9521c170aad2a5121d15891f8da
+parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-12
+data: 2026-11-13
 ---
-# Review: v047 (E1.6, code review da E1.3, classe C)
+# Review: v047 (E1.6 e E1.23, code review da E1.3, classe C)
 
 Diff revisado: `a986c292...a8e80f2e` (agents/tech-lead.md +2/-1, skills/trabalho-em-paralelo/SKILL.md +2/-2, fragmento em changelog.d/). Sem PR aberto, logo sem CI: rodei só os módulos afetados (`forge-testes --listar`) a partir da raiz da worktree, e os mesmos módulos na árvore da base (`git archive a986c292`), que passam (11 testes, OK).
 
@@ -26,3 +26,11 @@ Reprovado. A intenção da E1.3 está atendida e a regra cita `R-REVIEW` e `R-FL
 Provas (comando e saída):
 - Módulos afetados no head (`python3 -m unittest tests.test_forge.TetoPorPr tests.test_forge.Neutralidade tests.test_forge.Referencias tests.test_forge.AntiDuplicacao tests.test_jarvis_nucleo tests.test_jarvis_n_jar_a tests.test_textos_034 tests.test_permissao_agentes_md tests.test_orcamento_instrucao tests.test_changelog`): `Ran 112 tests`, `FAILED (failures=3)`: TetoPorPr (arquivo='agents/jarvis.md', frase='150 linhas alteradas de código e teste'), idem frase 'uma classe de comportamento', Orcamento.test_nenhum_agente_passa_do_teto.
 - `python3 -m unittest tests.test_forge.TetoPorPr tests.test_orcamento_instrucao` na base a986c292: `Ran 11 tests`, `OK`.
+
+## Revalidação (E1.23, delta a8e80f2e..2530ab49, volta E1.9)
+Delta lido por `forge-check parecer delta`: agents/tech-lead.md (linhas 36 e 37 fundidas numa só), skills/trabalho-em-paralelo/SKILL.md (linhas 14 e 17), fragmento do changelog.
+- A1 corrigido: a regra e o rascunho cabem numa linha (`--draft`, depois do push e dos pareceres no head, `forge-check classe`, marcar pronto); orçamento verde.
+- A2 corrigido: voltaram "150 linhas alteradas de código e teste" e "uma classe de comportamento por PR" ao texto do Jarvis; TetoPorPr verde.
+- A3 corrigido (fusão das linhas).
+- A4 (recomendado): frase em R-FLUXO não coube nos tetos e foi revertida; segue como recomendado, não bloqueia.
+Aprovado no head 2530ab49. Prova: os mesmos 10 módulos afetados, `Ran 112 tests`, `OK` (o CI do PR, quando houver, é a suíte inteira).
