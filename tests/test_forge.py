@@ -1175,7 +1175,7 @@ class ModeloDeSegurancaNoProjeto(unittest.TestCase):
         git("config", "user.email", "t@example.com", cwd=self.tmp)
 
     def upgrade(self):
-        return subprocess.run([str(RAIZ / "bin/forge-upgrade"), "--ate", "0.46.1", str(self.tmp)],
+        return subprocess.run([str(RAIZ / "bin/forge-upgrade"), "--ate", "0.47.1", str(self.tmp)],
                               env={**ambiente_limpo(), "FORGE_SEM_DOUTOR": "1"}, capture_output=True, text=True)
 
     def projeto_existente(self, modelo=None):
@@ -1198,7 +1198,7 @@ class ModeloDeSegurancaNoProjeto(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual((self.tmp / self.MODELO).read_bytes(), (RAIZ / "templates/projeto" / self.MODELO).read_bytes())
         self.assertEqual(git("log", "--format=%s", "develop..HEAD", cwd=self.tmp).stdout.splitlines()[-1],
-                         "chore(forge): migração 0.46.1")
+                         "chore(forge): migração 0.47.1")
         self.assertEqual(git("status", "--porcelain", cwd=self.tmp).stdout, "")
 
     def test_atualizacao_nao_sobrescreve_o_modelo_do_projeto(self):
@@ -1209,14 +1209,14 @@ class ModeloDeSegurancaNoProjeto(unittest.TestCase):
 
     def test_migracao_repetida_nao_muda_nada(self):
         self.projeto_existente()
-        migrar = [sys.executable, str(RAIZ / "migrations/0.46.1/migrar"), str(self.tmp)]
+        migrar = [sys.executable, str(RAIZ / "migrations/0.47.1/migrar"), str(self.tmp)]
         self.assertEqual(subprocess.run(migrar, capture_output=True, text=True).returncode, 0)
         antes = (self.tmp / self.MODELO).read_bytes()
         r = subprocess.run(migrar, capture_output=True, text=True)
         self.assertEqual((r.returncode, r.stdout, (self.tmp / self.MODELO).read_bytes()), (0, "", antes))
 
     def test_leia_resume_para_o_forge_upgrade(self):
-        self.assertIn("docs/security/_modelo.md", (RAIZ / "migrations/0.46.1/LEIA.md").read_text(encoding="utf-8").splitlines()[2])
+        self.assertIn("docs/security/_modelo.md", (RAIZ / "migrations/0.47.1/LEIA.md").read_text(encoding="utf-8").splitlines()[2])
 
 
 class HookPrePush(unittest.TestCase):
