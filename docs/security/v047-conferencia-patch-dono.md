@@ -3,10 +3,10 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conferencia-patch-dono
-commit: 69bd48632b1bccfb477b3f328bce8feaa8154aa5
+commit: c793d6eae3908b56c6df2756c3e8dcdaf308d9c9
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-12
+data: 2026-11-13
 ---
 # Review de segurança: v047 E1.2 (CONFERENCIA-PATCH-DO-DONO)
 
@@ -16,11 +16,17 @@ E1.16. Head revisado `69bd48632b1bccfb477b3f328bce8feaa8154aa5` (base `a986c292`
 `R-SEGURANCA`: controle do Forge (`bin/forge-check`, em PROTEGIDOS) que abre uma isenção no portão de escopo da conferência de entrega.
 
 ## Achados
-- A1 (recomendado) bin/forge-check:1745 · P11 incompleto: `e_ancestral(commit, base_sha)` que falha no git (rc 128) vira "não é ancestral" e o commit já na base isenta (sonda S1); separar rc 1 de rc>1 e reprovar com `escopo: o git falhou (patch do dono)`, com teste no C15.
-- A2 (recomendado) tests/test_conf_escopo.py:266 · C12 sem teste (arquivo isento segue em classe, gatilhos e parecer) e C13 sem `docs/pedidos/<x>.md` nem `.forge/run/autoria.jsonl`; o código cumpre (P8 por construção, P9 pela sonda S2), falta a trava contra regressão.
+- A1 (recomendado) bin/forge-check:1840 · P11 incompleto: `e_ancestral(commit, base_sha)` que falha no git (rc 128) vira "não é ancestral" e o commit já na base isenta (sonda S1); separar rc 1 de rc>1 e reprovar com `escopo: o git falhou (patch do dono)`, com teste no C15.
+- A2 (recomendado) tests/test_conf_escopo.py:267 · C12 sem teste (arquivo isento segue em classe, gatilhos e parecer) e C13 sem `docs/pedidos/<x>.md` nem `.forge/run/autoria.jsonl`; o código cumpre (P8 por construção, P9 pela sonda S2), falta a trava contra regressão.
 
 ## Sondas
 - S1 · isencao_do_dono com git mockado: `merge-base --is-ancestor <X> <Base-sha=X>` devolve rc 128 · espera: `escopo: o git falhou (patch do dono)` ou recusa · obtido: `escopo: ok (patch do dono 730a02b, DECISÃO DO DONO exemplo:16)`
+
+## Revalidação por delta (E1.31, head c793d6ea)
+Parecer anterior no `69bd4863`; junção com a `develop` (#517 escopo-ponto, #522 pr-hook-prazo) em `c793d6ea`. `forge-check parecer delta` aponta `bin/forge-check` no domínio; o resto do diff do intervalo (`PR-HOOK-PRAZO`, `anexo_implicito`, brief selado, `pedido_dos_pareceres`) veio da `develop`, já revisado lá, e não toca a isenção. O conflito em `bin/forge-check` e `tests/test_conf_escopo.py` foi lido contra `9b2c6474` (diff só da branch: +91 −3 em `bin/forge-check`).
+- Ordem dos ramos de `linhas_de_entrega` (:1810-1840 do bloco, ramo final em :2744): `M2 fora` → parecer com autoria → `merge-integracao` → `anexo_implicito` → `anexo do portão` → `else` com `isencao_do_dono`. A isenção é só o último ramo, depois do anexo do portão; arquivo em pasta de parecer, aceite ou oráculo nem chega a ela (`tipo` ou `NUNCA_PATCH_DO_DONO`, P9).
+- Bloco `PATCH_DO_DONO` .. `isencao_do_dono` byte a byte igual ao do `69bd4863` (sha256 do trecho idêntico nos dois commits): P1 a P12 seguem como conferidos acima, sem regressão. `patches_do_dono` e a linha de aviso da forma (P3) continuam antes do laço.
+- Nenhum achado novo; A1 e A2 seguem recomendados (código e teste inalterados).
 
 ## Detalhe dos achados
 **Conferência dos controles (head 69bd4863):**
@@ -44,4 +50,4 @@ E1.16. Head revisado `69bd48632b1bccfb477b3f328bce8feaa8154aa5` (base `a986c292`
 ## Riscos aceitos e ferramentas
 Residual já registrado no modelo de ameaças (não muda aqui): a linha `DECISÃO DO DONO` é transcrita pelo Jarvis, não assinada pelo dono; a defesa real é P4 somado a P8. Nenhum risco novo pede aceite.
 
-Suíte: sem PR, sem CI; rodados só os testes afetados, `python3 -m unittest tests.test_conf_escopo.PatchDoDono` (8 testes, OK em 21,7 s), e as sondas S1 e S2 na mesma estrutura de teste (arquivo temporário, fora da branch). Mutantes declarados (23) lidos contra a lista do modelo de ameaças: todos os da lista estão presentes; não os executei (carga da máquina, diretriz 15), o CI do PR os roda. Ferramentas de varredura de segredo e SAST fora do PATH: lacuna registrada; o diff não traz segredo nem dependência.
+Suíte (revalidação): `python3 -m unittest tests.test_conf_escopo.PatchDoDono` no `c793d6ea`: 8 testes, OK em 70,8 s (carga ~13). O PR #524 (rascunho) mostra `bateria`, `bateria (passos)`, `bateria (python 3.14)` e `catraca` vermelhos neste head; não consegui ler o log (cache do `gh` somente leitura), então não afirmo a causa: o CI verde é condição do merge (R-REVIEW) e fica ao tech-lead. Da rodada anterior: sem PR, sem CI; rodados só os testes afetados, `python3 -m unittest tests.test_conf_escopo.PatchDoDono` (8 testes, OK em 21,7 s), e as sondas S1 e S2 na mesma estrutura de teste (arquivo temporário, fora da branch). Mutantes declarados (23) lidos contra a lista do modelo de ameaças: todos os da lista estão presentes; não os executei (carga da máquina, diretriz 15), o CI do PR os roda. Ferramentas de varredura de segredo e SAST fora do PATH: lacuna registrada; o diff não traz segredo nem dependência.
