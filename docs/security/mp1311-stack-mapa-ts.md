@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: mp1311-stack-mapa-ts
+pedido: melhorias-de-projeto-1311
 branch: melhoria/mp1311-stack-mapa-ts
 commit: 803c07bf4154f3cb6e5e5315e5bd98509b0d8ba8
 parecer: aprovado
