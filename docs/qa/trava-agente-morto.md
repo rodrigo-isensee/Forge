@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0457
 branch: melhoria/trava-agente-morto
-commit: 6e005f9beb2310dc25dd634f60636cc542232a47
+commit: f3c614eaabe8d2fa2e10d1743f20630c2adb2cff
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -56,3 +56,8 @@ Classe C, passada única, head f77bb51d (diff a1318e88..f77bb51d). O parecer de 
 - 4 fixtures `home-claude-projects-*` pelo executor de `tests.test_hooks` sobre o `conformidade.py` mesclado: 4 de 4 OK.
 - `python3 -m unittest tests.test_hook_git_comum` → `Ran 1 test ... OK`.
 - Conclusão: a junção não muda o comportamento da trava. As 6 falhas locais de `tests.test_hooks` (pid e sessão do sandbox) e a suíte inteira ficam com a bateria do CI do PR #523; não rodei a suíte (carga ~12 em 12 CPUs).
+
+## Revalidação por delta 6e005f9b..f3c614ea (E23.108)
+Segunda junção com a develop (#522); conflito só em `bin/forge-testes`, com as duas entradas mantidas (`test_pr_hook_prazo` presente, sintaxe ok, sem marca de conflito). `git diff 6e005f9b f3c614ea` em `hooks/agentes.py`, `hooks/hooks.json`, `hooks/conformidade.json`, `tests/test_trava_agente_morto.py` e `tests/test_pre_push_trava.py`: vazio, a trava não mudou. O resto do delta vem da develop (igual à base).
+Provas locais: `tests/test_trava_agente_morto.py` 51 testes OK; `tests/test_pr_hook_prazo.py` 18 testes OK; `forge-mutante` nas 5 specs da trava, rc 0, M27 a M32 e os demais morreram. Suíte inteira: CI do PR.
+Veredito: aprovado. Sem bloqueante; A5 (recomendado) segue como estava.
