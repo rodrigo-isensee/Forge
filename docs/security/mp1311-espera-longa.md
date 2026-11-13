@@ -3,14 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: melhorias-de-projeto-1311
 branch: melhoria/mp1311-espera-longa
-commit: af4bd16fe62731013d82e9e59f0ebcd64e6ea289
+commit: b51d34bc0ae398f75f1a4fa571ab2abd3f459f80
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-13
 ---
 # Review de segurança: mp1311-espera-longa
 
-Head revisado: af4bd16f (diff contra efe7c9e8: `skills/esperar-estado/SKILL.md`, teste e fragmento de changelog).
+Head revisado: b51d34bc, revalidado por delta de af4bd16f (diff contra efe7c9e8: `skills/esperar-estado/SKILL.md`, teste e fragmento de changelog).
 
 ## Gatilhos
 Nenhum gatilho direto da `R-SEGURANCA`: a entrega só muda texto de skill e um bloco de comando de leitura; não altera hook, guarda, permissão, segredo nem pipeline. Revisão feita a pedido, pelo risco de laço sem teto.
@@ -28,6 +28,9 @@ Conferências feitas (estáticas, mais o teste da skill):
 - Teste: `python3 -m unittest tests.test_esperar_estado` com 13 testes, OK (inclui o laço longo que sai em `MERGED` após 13 leituras e a regra 6).
 
 A1: recomendação, sem caminho de ataque. Correção mínima: acrescentar um teto largo (por exemplo `seq 1 480`, 4 horas) ou dizer na skill que se pára o segundo plano quando o CI passa do esperado. Esforço P. Dono: tech-lead (skill).
+
+## Revalidação por delta (af4bd16f..b51d34bc)
+O `forge-check parecer delta` mostrou só `skills/esperar-estado/SKILL.md` (texto enxugado). Conferido que nenhuma trava saiu: teto de 170 s e `fim=teto` com código 1; saída em `MERGED` e `CLOSED`; código 8 como único pendente e outro código encerra; `run_in_background` só na regra 6 (a regra 2 agora diz "salvo a regra 6"); "nunca encerre o turno com processo em segundo plano pendente"; trava `pesado` lida do arquivo, sem `kill -0`; os dois blocos de comando e o aviso sobre `$TMPDIR` e `$?` ao lado do envio, inalterados. Nenhum bloqueio novo; A1 segue recomendado, sem mudança. Teste `tests.test_esperar_estado`: 15 testes, OK.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. As ferramentas de segredo e de workflow não rodaram: a entrega não toca segredo nem workflow. Sem PR aberto para a branch (consulta ao `gh` devolveu lista vazia), então sem CI do PR; só o teste afetado.
