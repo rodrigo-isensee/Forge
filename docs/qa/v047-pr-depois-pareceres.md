@@ -17,7 +17,6 @@ data: 2026-11-13
 Head testado: `2530ab49` (revalidação por delta `a8e80f2e..2530ab49`, volta E1.9; E1.25). Histórico: no head `a8e80f2e` o parecer reprovou por A1. Diff contra a base `a986c292`: `agents/tech-lead.md`, `skills/trabalho-em-paralelo/SKILL.md`, `changelog.d/v047-pr-depois-pareceres.md`. Sem PR ainda (a regra é essa): só os testes afetados rodaram local.
 
 ## Achados
-Nenhum achado aberto. O A1 do head a8e80f2e (SKILL.md:17) está corrigido: frases do teto restauradas em 2530ab49; `TetoPorPr` passa.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -30,4 +29,5 @@ Nenhum achado aberto. O A1 do head a8e80f2e (SKILL.md:17) está corrigido: frase
 - `forge-check parecer delta`: domínio do QA mudou em `agents/tech-lead.md`, `changelog.d/v047-pr-depois-pareceres.md` e `skills/trabalho-em-paralelo/SKILL.md`. O A4 do review foi revertido: o diff de `tech-lead.md` tira a linha "PR depois dos pareceres" e deixa a do rascunho, com `forge-check classe` e `gh pr ready`.
 - `python3 -m unittest tests.test_forge.TetoPorPr` no head: `Ran 3 tests ... OK` (antes: failures=2).
 - `python3 -m unittest` em Agentes, Neutralidade, NeutralidadeDoNucleo, RegrasInviolaveis, RegrasComId, Orcamento, TextosDoAgenteEDaRegra: `Ran 23 tests ... OK`.
+- Sem achado aberto: o A1 do head a8e80f2e (SKILL.md:17) foi corrigido em 2530ab49.
 - Suíte inteira não rodada local (sem PR; a prova é o CI do PR). Vermelho antes do verde e mutação: n/a (só texto de regra, sem teste novo).
