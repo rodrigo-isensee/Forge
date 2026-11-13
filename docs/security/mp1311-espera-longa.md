@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: mp1311-espera-longa
+pedido: melhorias-de-projeto-1311
 branch: melhoria/mp1311-espera-longa
 commit: af4bd16fe62731013d82e9e59f0ebcd64e6ea289
 parecer: aprovado
