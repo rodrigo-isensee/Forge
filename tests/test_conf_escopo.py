@@ -256,9 +256,9 @@ class PatchDoDono(ProjetoSelado):
                          (None, [(f'patch do dono: {self.x[:7]} não isenta "{CONFIG}" (commit fora da branch)', False)]))
 
     def test_c11_so_o_arquivo_declarado_do_commit_do_dono(self):
-        x2 = self.do_dono({OUTRO: "#!/bin/sh\n", "templates/projeto/README.md": "r\n"})
+        x2 = self.do_dono({OUTRO: "#!/bin/sh\n", "templates/projeto/LEIAME.md": "r\n"})
         self.declarar(nome=OUTRO, sha=x2)
-        saida = self.fora(nome="templates/projeto/README.md")
+        saida = self.fora(nome="templates/projeto/LEIAME.md")
         self.assertIn(f'escopo: ok (patch do dono {x2[:7]}', saida)
         self.declarar(sha=x2)  # x2 não altera o CONFIG, ainda que o blob seja o mesmo no head
         self.fora(motivo="o commit não altera o arquivo")
