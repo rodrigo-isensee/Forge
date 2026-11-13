@@ -3,7 +3,7 @@ tipo: revisao-devops
 contrato: 1
 pedido: v047-ci-parecer-job
 branch: melhoria/v047-ci-parecer-job
-commit: 7ba85a056b4eb332362ce5cda7b6efb193b6b017
+commit: bd28180e9129015578029dee765abd206960bac1
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-12
@@ -25,6 +25,14 @@ Checklist da skill `ci-cd`:
 - `R-VERIFY`: nenhum `continue-on-error`, `[skip ci]` ou check desligado.
 
 Ferramentas: rodei `python3 -m unittest tests.test_ci_local` (66 OK), `tests.test_catraca.Workflows` (6 OK) e `tests.test_catraca -k ci` (35 OK, inclui a lista de `timeout-minutes` com o 10 novo). Faltaram no ambiente: `actionlint` e `zizmor` (não instalo; o job `bateria (passos)` do CI os roda); `shellcheck` presente mas não há script novo. Sem PR aberto, não há CI do PR para citar; a bateria completa fica para o CI do PR.
+
+## Revalidação por delta (E1.22, head bd28180e, volta E1.18)
+Instância que não fez a entrega. `forge-check parecer delta` de 7ba85a05 até bd28180e: único arquivo no domínio é `.github/workflows/ci.yml`, e a mudança é `timeout-minutes: 10` para `5` no job `pareceres` (ci.yml:552). Os demais arquivos do intervalo ficam fora do domínio (testes, mutantes, `pronto.md`, changelog, pareceres).
+- Teto de 5 min cobre o job (checkout, Python, script leve de poucos segundos, ~30 s de preparo); igual aos outros jobs leves do arquivo (linhas 153, 344, 372, 399, 661). Nenhum defeito.
+- Permissões, SHAs, `env`, `needs` do agregador e `R-VERIFY` inalterados; sem `continue-on-error` novo.
+- Prova de guarda do yml: `forge-mutante tests/mutantes/v047-ci-parecer-job.json` rodou M1 a M6, todos mortos (ci.yml:674, 550, 552).
+- `python3 -m unittest tests.test_ci_local` 70 OK; `tests.test_catraca` OK. `actionlint` e `zizmor` ausentes (lacuna; o CI do PR os roda); `shellcheck` presente, sem script novo.
+- A1 (recomendado) segue aberto, sem mudança.
 
 ## Custo e rollback
 Custo: um job a mais por PR (checkout, Python, script leve, no máximo 10 min, normalmente poucos segundos de execução mais ~30 s de preparo), em runner padrão gratuito; sem serviço pago (`R-CUSTO`). O trabalho sai do job de passos, então o total de minutos sobe pouco; medir no checkpoint da release. Rollback: reverter o commit 7ba85a05 devolve o passo ao job de passos e o `needs` do agregador.
