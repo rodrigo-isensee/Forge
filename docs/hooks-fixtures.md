@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2444 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2455 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -12,7 +12,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2444 fixtures) roda em `tests/test
 | `conformidade` | 1778 | 1309 | 469 | 88 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 25 | 10 | 15 | 12 |
-| `parecer` | 487 | 375 | 112 | 24 |
+| `parecer` | 498 | 386 | 112 | 24 |
 | `pesado` | 24 | 9 | 15 | 19 |
 | `quadro` | 7 | 2 | 5 | 7 |
 | `vigia` | 49 | 0 | 49 | 25 |
@@ -173,8 +173,8 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2444 fixtures) roda em `tests/test
 | `pasta-*` | 140 | 123 | 17 | `R-REVIEW` | `HK3-PARECER` | HK3-PARECER, PR A, volta 1: a pasta do git é a do bash e a do git; a partir de a integração, barra. |
 | `texto-*` | 73 | 58 | 15 | `R-REVIEW` | `HK3-PARECER`, `PARECER-HOOK-DICA-EDIT` | HK3-PARECER, PR B (E2): o eval continua recusado, até com texto inofensivo. |
 | `forge-*` | 61 | 50 | 11 | `R-REVIEW`, `R-CONTRIB` | `FURO-HOOK-A`, `HOOK-COMENTARIO-SHLEX`, `CRASE-ASPA-HOOK`, `FD1` e mais 1 | A1 do review: git commit -m com heredoc que cita merge e tem apóstrofo no corpo. |
+| `heredoc-*` | 52 | 39 | 13 | `R-REVIEW`, `R-CONTRIB` | `HOOK-CONTRIB-HEREDOC-FP`, `HOOK-PARECER-HEREDOC-FALSO-POSITIVO`, `HOOK-REVIEW-HEREDOC-TIMEOUT` | HOOK-CONTRIB-HEREDOC-FP, caso verdadeiro: o git merge que o bash roda não só lê nem espera; a gramática com heredoc segue valendo (como em t… |
 | `pr-*` | 45 | 31 | 14 | `R-REVIEW`, `R-CONTRIB`, `R-SEGURANCA`, `R-QA` e mais 1 | `K-164`, `PR` | K-164: base escolhida pelo autor fora de develop, homolog e main (aqui uma branch copiada da develop): não afrouxa; fica o modo estrito e o… |
-| `heredoc-*` | 41 | 28 | 13 | `R-REVIEW`, `R-CONTRIB` | `HOOK-CONTRIB-HEREDOC-FP`, `HOOK-PARECER-HEREDOC-FALSO-POSITIVO`, `HOOK-REVIEW-HEREDOC-TIMEOUT` | HOOK-CONTRIB-HEREDOC-FP, caso verdadeiro: o git merge que o bash roda não só lê nem espera; a gramática com heredoc segue valendo (como em t… |
 | `v0454-*` | 30 | 26 | 4 | `R-REVIEW` | `V0454-GH-ALIAS-PARECER` | V0454-GH-ALIAS-PARECER: alias `gh m` = api de merge com `$1` |
 | `fila27-*` | 22 | 14 | 8 | `R-REVIEW` | `FILA-27` | FILA-27 A1 (S7b): no clone do Forge com .forge/versao, o manifesto vence o hooks_desligados; gh pr merge sem parecer barra. |
 | `continuacao-*` | 16 | 15 | 1 | `R-REVIEW` | `HOOK-CONTINUACAO-LINHA` | HOOK-CONTINUACAO-LINHA (A4 do review, volta 4): $'…' e \ + quebra de linha na mesma linha; as formas compostas até o ponto fixo recusam. |

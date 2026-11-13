@@ -20,6 +20,7 @@ O `gh pr create` fora do rascunho decide pelo resultado que o `forge-check pr` g
 (PR-HOOK-PRAZO, `verificar` com `gravado`): sem o aprovado, recusa e diz o comando a rodar antes.
 Falha fechado nas ações críticas (ADR 0009, seção 7), também no clone do Forge.
 """
+import ast
 import collections
 import functools
 import json
@@ -33,7 +34,7 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, 
                     PROFUNDIDADE, SHELLS_DA_REAVALIACAO, LancadorDemais, TextoDivididoAberto, bloquear,
                     contorno_da_reavaliacao, conteudos_de_crase, formas_que_o_shell_le, corpo_so_lido, depois_das_atribuicoes, e_clone_do_forge,
                     excede_o_teto, executar,
-                    fora_da_gramatica_com_heredoc, forge_check, git, nome_da_branch, leituras, motivo_da_reavaliacao,
+                    fora_da_gramatica_com_heredoc, forge_check, git, nome_da_branch, nome_do_caminho, leituras, motivo_da_reavaliacao,
                     palavras_do_texto, programas_e_atribuicoes, raiz_de_estado, reavaliacao, reavaliacao_das_palavras, reduzida, sem_atribuicoes,
                     separar_lancadores, separar_regra, tirar_heredocs)
 
@@ -166,14 +167,36 @@ PYTHON_DA_ENTRADA = re.compile(r"python3?(?:\.\d+)?")
 OPCAO_DO_PYTHON = re.compile(r"-[IuBEsSqO]+")
 SHELLS_DA_ENTRADA = frozenset({"sh", "bash", "dash"})
 OPCAO_DO_SHELL = re.compile(r"-[euxv]+")
-# O corpo de Python que lança processo (`subprocess`, `os.system`, `exec(`…) e escreve um comando de PR em sequência
-# (`["gh", "pr", "merge", "12"]`, `"git pull origin x"`) segue como antes: é o caso verdadeiro. É reforço, não
-# fronteira: o `python3 -c '…'` o hook já não lê, e o corpo de Python é tão opaco quanto ele.
-LANCA_PROCESSO = re.compile(r"\b(?:subprocess|pty|ctypes|importlib|runpy|__import__|system|popen|spawn\w*|exec[lv]\w*|"
-                            r"fork\w*)\b|\b(?:exec|eval)\s*\(")
-_SEP = r"[\s'\",]+"
-COMANDO_DE_PR = re.compile(rf"\bgh(?:{_SEP}[\w./=~-]+){{0,4}}?{_SEP}(?:pr{_SEP}(?:create|{MERGE}|ready)|api)\b"
-                           rf"|\bgit(?:{_SEP}[\w./=~-]+){{0,4}}?{_SEP}(?:{MERGE}|pull)\b")
+# O corpo de Python que lança processo e tem um comando de PR no texto que ele monta segue como antes: é o caso
+# verdadeiro. A barreira é uma lista de nomes, não fronteira (o `python3 -c '…'` o hook já não lê): na dúvida, o corpo
+# segue conferido. Lançador é qualquer nome da lista, também depois de `_` (`create_subprocess_exec`, `posix_spawnp`), e
+# o que acha função pelo nome montado (`getattr`, `globals`, `vars`, `__import__`, `sys.modules`); o comando é o
+# marcador crítico no texto junto de todas as constantes de texto do corpo, menos as soltas (docstring), o que pega a
+# lista montada em várias linhas e a concatenação (`"gh " + "pr merge"`).
+LANCA_PROCESSO = re.compile(r"(?<![A-Za-z0-9])(?:subprocess|pty|ctypes|importlib|runpy|system|popen|spawn|exec|eval|"
+                            r"fork|getattr|globals|vars|builtins|__import__|__dict__|modules|webbrowser|compile)")
+ATRIBUICAO_SOLTA = re.compile(r"[A-Za-z_]\w*\+?=")
+
+
+def comando_de_pr_no_python(corpo):
+    """O corpo de Python, junto das constantes de texto dele (sem as soltas, que não rodam), tem o marcador crítico;
+    corpo que o `ast` não lê conta como tendo."""
+    try:
+        arvore = ast.parse(corpo)
+        soltas = {id(n.value) for n in ast.walk(arvore) if isinstance(n, ast.Expr)}
+        textos = [n.value if isinstance(n.value, str) else n.value.decode("latin-1") for n in ast.walk(arvore)
+                  if isinstance(n, ast.Constant) and isinstance(n.value, (str, bytes)) and id(n) not in soltas]
+    except Exception:  # noqa: BLE001 - SyntaxError, RecursionError…: na dúvida, o corpo segue conferido
+        return True
+    return critico_ou_alias(" ".join(textos))
+
+
+def chamada_muda_o_corpo(comando):
+    """A2 e A3 da segurança da E4.4: a chamada, fora dos corpos, tem atribuição (`PATH=<pasta>` antes de `python3 -`
+    muda o programa que lê o corpo) ou um `git` (o arquivo que o corpo grava fica no disco e o `git` roda ganchos e
+    `core.fsmonitor`): o corpo segue como antes."""
+    return any(ATRIBUICAO_SOLTA.match(p.cru) or nome_do_caminho(p.valor) == "git"
+               for simples in palavras_do_texto(comando).simples for p in simples.palavras)
 
 
 def leitor_da_entrada(comando):
@@ -202,16 +225,17 @@ def interprete_do_corpo(dono):
     return next(iter(tipos)) if len(tipos) == 1 else None
 
 
-def leitores_dos_corpos(original, corpos):
+def leitores_dos_corpos(original, comando, corpos):
     """O tipo de cada corpo de `corpos` ([(dono, corpo)]), na mesma ordem: `python`, corpo de Python sem comando de PR
     lançado, que não é comando nem marca a chamada; `shell`, corpo que o shell roda e que só lê ou espera
     (`so_le_ou_espera`, a regra do `sh -c` de texto), que segue conferido como comando e não marca a gramática com
     heredoc; None, o corpo como antes (o `git merge` que o sh roda segue na rede D). Só com todo `<<` simples
-    (`heredocs_simples`): o bash e o hook cortam o corpo no mesmo ponto."""
-    if not heredocs_simples(original):
+    (`heredocs_simples`): o bash e o hook cortam o corpo no mesmo ponto; e sem atribuição nem `git` na chamada
+    (`chamada_muda_o_corpo`)."""
+    if not heredocs_simples(original) or chamada_muda_o_corpo(comando):
         return [None] * len(corpos)
     tipos = [interprete_do_corpo(dono) for dono, _ in corpos]
-    return [None if tipo == "python" and LANCA_PROCESSO.search(corpo) and COMANDO_DE_PR.search(corpo)
+    return [None if tipo == "python" and LANCA_PROCESSO.search(corpo) and comando_de_pr_no_python(corpo)
             or tipo == "shell" and not so_le_ou_espera(corpo) else tipo
             for tipo, (_, corpo) in zip(tipos, corpos)]
 
@@ -960,7 +984,7 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull com um heredoc que o hook não lê (<< que ele não "
                              "prova ser heredoc, ou corpo sem aspas no delimitador com $( ou crase). Corrigir: use "
                              "<<'FIM' ou separe os comandos")
-    leitores = leitores_dos_corpos(original, corpos)
+    leitores = leitores_dos_corpos(original, comando, corpos)
     marcado, marcado_fora_do_shell = marcas_da_chamada(original, comando, corpos, leitores)
     if nivel == 0 and critico_ou_alias(original):  # bloco T da revalidação 10: o orçamento da chamada, antes de ler o resto
         excesso = excede_o_teto(comando)

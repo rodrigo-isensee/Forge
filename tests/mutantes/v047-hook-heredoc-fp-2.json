@@ -24,10 +24,10 @@
     },
     {
       "id": "M11",
-      "guarda": "lançar processo sem comando de PR em sequência é isento",
+      "guarda": "o corpo de Python com lançador só segue como antes com comando de PR no texto",
       "arquivo": "hooks/parecer.py",
-      "de": "and COMANDO_DE_PR.search(corpo)",
-      "para": "and True",
+      "de": "and comando_de_pr_no_python(corpo)",
+      "para": "and False",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
       ]

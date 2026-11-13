@@ -76,8 +76,8 @@
       "id": "M8",
       "guarda": "sem todo << simples, nenhum corpo é isento",
       "arquivo": "hooks/parecer.py",
-      "de": "if not heredocs_simples(original):\n        return [None] * len(corpos)",
-      "para": "if False:\n        return [None] * len(corpos)",
+      "de": "if not heredocs_simples(original) or chamada",
+      "para": "if False or chamada",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
       ]

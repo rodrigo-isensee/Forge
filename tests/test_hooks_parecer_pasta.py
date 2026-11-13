@@ -51,7 +51,7 @@ class PastaDoGit(unittest.TestCase):
         """HOOK-CONTRIB-HEREDOC-FP e HOOK-REVIEW-HEREDOC-TIMEOUT: o corpo de heredoc que só o Python lê, sem comando de PR
         lançado, não é comando nem marca a chamada, e o que o sh roda passa sozinho pela gramática; o gh pr, o merge e o
         pull executados seguem recusados (`heredoc-interpretador-*`)."""
-        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / "parecer").glob("heredoc-interpretador-*.json"))], 24,
+        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / "parecer").glob("heredoc-interpretador-*.json"))], 35,
                           "heredoc-interpretador-*")
         lados = {(f.caminho.stem.rsplit("-", 1)[1], f.dados["esperado"]["codigo"]) for f in fixtures}
         self.assertEqual(lados, {("libera", 0), ("bloqueia", 2)}, "os dois lados, e o nome diz o esperado")
