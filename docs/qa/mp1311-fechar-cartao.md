@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: melhorias-de-projeto-1311
 branch: melhoria/mp1311-fechar-cartao
-commit: 0884fae230d784f90d6cb0108dfa414ee91707e0
+commit: a47ef67b708027498f825765c764fec9bf14dae0
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -17,8 +17,8 @@ data: 2026-11-13
 Head testado: `0884fae2` (único commit de código sobre a base `efe7c9e8`; os commits seguintes da branch só somam pareceres). Sem PR aberto, sem check-run `bateria`: rodei só os módulos afetados, por prazo de máquina (carga 13 a 22 em 12 CPUs).
 
 ## Achados
-- A1 (recomendado) bin/forge-fechar:827 · `ref_check` é o nome nu: tag de mesmo nome da branch faz o git resolver a tag primeiro (ambiguidade) no `forge-check pr`; só a leitura de branch é por `refs/heads`. Não reproduzi; vale um teste com tag homônima (a segurança já apontou).
-- A2 (recomendado) tests/mutantes/mp1311-fechar-cartao.json:1 · a linha `ref_dry="$ref"` (dry-run com branch local) não tem mutante declarado; mutante manual (sha no lugar do nome) morreu em `test_dry_run_descreve_o_nome`, então só a spec fica curta.
+- A1 (recomendado) resolvido em `a47ef67b`: `ref_check` agora é `refs/heads/$ref` (bin/forge-fechar:827), com teste de tag homônima e mutante M4.
+- A2 (recomendado) resolvido em `a47ef67b`: mutante M5 cobre `ref_dry` (tests/mutantes/mp1311-fechar-cartao.json).
 
 ## Critério → teste → resultado
 O pedido não traz `CA-n`; a obrigação é `FECHAR-REF-POR-NOME` (item 11: o `forge-check pr` recebe o nome da branch local; o sha segue preso na cadeia).
@@ -32,7 +32,13 @@ O pedido não traz `CA-n`; a obrigação é `FECHAR-REF-POR-NOME` (item 11: o `f
 | Dry-run sem branch local marca o sha como não lido | `test_fechar.test_dry_run_sem_branch_local_marca_o_sha_como_nao_lido` | branch ausente | passou |
 | Caso real (PR 525): worktree de portão no mesmo head | reprodução abaixo | duas branches no mesmo sha | passou |
 
-## Cenários e resultado real
+## Revalidação por delta até `a47ef67b`
+Delta (`forge-check parecer delta`): `bin/forge-fechar`, spec de mutantes, `test_fechar`, `test_fechar_ref_por_nome`, `test_fechar_sha_conferido`. Mudança: `ref_check` e `ref_dry` passam a `refs/heads/<branch>`; asserções atualizadas; novo `test_tag_de_mesmo_nome_nao_desvia_a_conferencia` (tag aponta outro commit; confere `forge-check` com `refs/heads/` e `--match-head-commit` do sha da branch).
+- `python3 -m unittest tests.test_fechar_ref_por_nome tests.test_fechar`: 104 testes, OK.
+- `bin/forge-mutante tests/mutantes/mp1311-fechar-cartao.json` (`rev=a47ef67b7080`): M1 a M5 morreram (M4 em :826, M5 em :768), rc=0. M4 prova o teste da tag; M5 prova o dry-run.
+- Suíte completa: do CI do PR (sem PR ainda).
+
+## Cenários e resultado real (head anterior `0884fae2`)
 - Módulos afetados no head: `test_fechar_ref_por_nome`, `test_fechar_sha_conferido`, `test_fechar_base_andou`: 43 testes, OK; `test_fechar`: 99 testes, OK.
 - Vermelho na base (`forge-testes --vermelho efe7c9e8`, em duas levas por prazo; cabeçalho `vermelho: base=efe7c9e83ec2 head=0884fae230d7`): `test_fechar_ref_por_nome` prova 2 (asserção: `test_com_branch_local_o_forge_check_recebe_o_nome`, `test_dry_run_descreve_o_nome`), 2 passam na base por serem regressão; `test_fechar_sha_conferido`, `test_fechar_base_andou` e `test_fechar`: 7 provam (asserção), 131 não provam (já existiam e passam na base); rc=0 nas duas levas, nenhum teste cai no HEAD.
 - Mutantes: `bin/forge-mutante tests/mutantes/mp1311-fechar-cartao.json` (`rev=0884fae230d7`): `M1 · morreu · bin/forge-fechar:826`, `M2 · morreu · bin/forge-fechar:832`, `M3 · morreu · bin/forge-fechar:769`, rc=0. Mutante manual extra (dry-run local com sha) morreu.
