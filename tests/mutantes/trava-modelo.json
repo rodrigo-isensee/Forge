@@ -27,8 +27,8 @@
       "id": "M3",
       "guarda": "C5: caminho relativo não isenta",
       "arquivo": "hooks/conformidade.py",
-      "de": "if not os.path.isabs(texto) or CAMINHO_COM_VARIAVEL",
-      "para": "if False or CAMINHO_COM_VARIAVEL",
+      "de": "if not os.path.isabs(texto) or not CAMINHO_LITERAL",
+      "para": "if False or not CAMINHO_LITERAL",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
       ]
