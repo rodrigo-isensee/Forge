@@ -16,7 +16,7 @@ Espere o PR, não os checks. Um check antigo pode seguir "em andamento" depois d
 6. **CI longo (uns 20 min) na sessão principal:** lance o segundo bloco de "O laço do PR", sem teto, com o `run_in_background` e siga com outro trabalho; o aviso chega quando o laço sai. O subagente não tem essa saída (regra 4): segue a regra 2 e repete a chamada de 170 s até o estado terminal.
 
 ## O laço do PR
-Troque `123` pelo número do PR:
+Troque `123` pelo número do PR e rode na pasta do repositório:
 
 ```bash
 n=123; fim=""; for i in $(seq 1 5); do e=$(gh pr view "$n" --json state --jq .state) || { fim=erro; break; }; [ "$e" = OPEN ] || { fim="$e"; break; }; gh pr checks "$n" >/dev/null 2>&1; c=$?; [ "$c" -eq 8 ] || { fim="checks:$c"; break; }; sleep 30; done; echo "fim=${fim:-teto}"; [ -n "$fim" ]
