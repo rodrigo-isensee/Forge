@@ -37,7 +37,7 @@ Instância que não fez a entrega. `forge-check parecer delta` de 7ba85a05 até 
 ## Revalidação por delta (E1.47, head 5aae66f6, branch melhoria/v047-ci-parecer-job)
 Instância que não fez a entrega. `forge-check parecer delta` de bd28180e até 5aae66f6: "delta: nenhum arquivo do domínio mudou" (escopo sem o que veio da base). O intervalo traz só a junção com a develop (#517 a #523: agents/jarvis.md, bin/forge-changelog e outros, fora do escopo da branch) e a correção do campo `pedido:` dos pareceres (E1.41 e E1.42).
 - `git diff bd28180e 5aae66f6 -- .github tests/test_ci_local.py tests/mutantes/v047-ci-parecer-job.json` vazio: o ci.yml e os testes e mutantes da branch não mudaram.
-- `python3 -I -m unittest tests.test_ci_local` OK. `actionlint` e `zizmor` seguem ausentes (lacuna; o CI do PR os roda). Sem PR, sem CI do PR para citar.
+- `python3 -m unittest tests.test_ci_local` 70 OK. `actionlint` e `zizmor` seguem ausentes (lacuna; o CI do PR os roda). Sem PR, sem CI do PR para citar.
 - A1 (recomendado) segue aberto, sem mudança. Nenhum achado bloqueante.
 
 ## Custo e rollback
