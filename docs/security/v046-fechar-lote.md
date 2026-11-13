@@ -3,14 +3,17 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v046
 branch: melhoria/v046-fechar-lote
-commit: 17ae39a39ecd28b4f3eeb791cbc34697cf56c720
+commit: 2dda228f9517b38e0720c1d65d211934099a8f5d
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-12
+data: 2026-11-13
 ---
 # Review de segurança: v046 (fechar em lote, E6.3)
 
 Diff `8b5a44d5..0be84795` (7 commits, 4 itens: CONFERENTE-PR-ABERTO-CEDO, WORKTREE-PRUNE-SANDBOX, FECHAR-MOVE-CARTAO, ATUALIZAR-BRANCH-ATRASADA). Lido em worktree destacada própria; testes dos arquivos tocados rodados (24, verdes) e o shellcheck do `bin/forge-fechar` limpo.
+
+## Revalidação por delta (E6.14)
+Head 2dda228f. Delta do código da fechar-lote desde 17ae39a3: só a regra do `bin/forge-doutor` no mapa de `bin/forge-testes` (acrescenta `test_doutor_branch_atrasada` à lista) e `tests/test_testes_tocados.py:55` (lista esperada). É dado de seleção de testes, sem execução de entrada, rede, gravação nem remoção; só amplia o que roda, não afrouxa guarda. O 4a2a4293 é merge da develop (domínio de outros pareceres; `forge-check parecer delta` lista a árvore trazida, nada de `bin/forge-fechar` mudou). `tests/test_testes_tocados.py` rodado: 150 testes, OK (1 pulado por /proc do sandbox). CI do PR 525 no head: catraca, árvore provada e instalação verdes; a bateria falha só no passo "Parecer de review ... quando o PR toca código que governa os agentes", que pede pareceres neste head (os de E6.12/E6.14). A1 segue recomendado, sem promoção.
 
 ## Revalidação por delta (E6.6)
 Head 17ae39a3 (merge da develop a986c292). `forge-check parecer delta` de 0be84795 a 17ae39a3: nenhum arquivo do domínio mudou; só `docs/engineering/achados-recorrentes.md` e `tests/pesos-d4.json` (fora do domínio; este último segue JSON válido). Parecer anterior vale; A1 segue recomendado, sem promoção.
