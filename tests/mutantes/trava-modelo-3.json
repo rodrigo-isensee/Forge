@@ -4,16 +4,6 @@
   "mutantes": [
     {
       "id": "M17",
-      "guarda": "só a cópia isenta tem as regras liberadas",
-      "arquivo": "hooks/conformidade.py",
-      "de": "liberadas = REGRAS_DO_MODELO if caminho == self.modelo_isento else frozenset()",
-      "para": "liberadas = REGRAS_DO_MODELO",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
-      ]
-    },
-    {
-      "id": "M18",
       "guarda": "a regra liberada não barra a cópia isenta",
       "arquivo": "hooks/conformidade.py",
       "de": "            if c in liberadas:\n                continue\n",
@@ -23,7 +13,7 @@
       ]
     },
     {
-      "id": "M19",
+      "id": "M18",
       "guarda": "C7: a isenção é um dicionário não vazio",
       "arquivo": "hooks/conformidade.py",
       "de": "return isinstance(isencao, dict) and bool(isencao) and all(",
@@ -33,7 +23,7 @@
       ]
     },
     {
-      "id": "M20",
+      "id": "M19",
       "guarda": "C7: só as regras do modelo",
       "arquivo": "hooks/conformidade.py",
       "de": "        regra in REGRAS_DO_MODELO and rel ==",
@@ -43,7 +33,7 @@
       ]
     },
     {
-      "id": "M21",
+      "id": "M20",
       "guarda": "C7: só a cópia em templates/projeto/",
       "arquivo": "hooks/conformidade.py",
       "de": "and rel == MODELO_DE_PROJETO + regra + (\"*\" if regra.endswith(\"/\") else \"\")",
@@ -53,7 +43,7 @@
       ]
     },
     {
-      "id": "M22",
+      "id": "M21",
       "guarda": "erro na conferência não isenta",
       "arquivo": "hooks/conformidade.py",
       "de": "            except Exception:  # noqa: BLE001 - C7",

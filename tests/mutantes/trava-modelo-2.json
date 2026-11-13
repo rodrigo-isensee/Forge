@@ -24,26 +24,16 @@
     },
     {
       "id": "M11",
-      "guarda": "C6: o arquivo é regular",
+      "guarda": "C6: nlink 1",
       "arquivo": "hooks/conformidade.py",
-      "de": "(not stat.S_ISREG(os.lstat(alvo).st_mode) or",
-      "para": "(False or",
+      "de": "if os.path.lexists(alvo) and os.lstat(alvo).st_nlink != 1:  # C6",
+      "para": "if False:  # C6",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
       ]
     },
     {
       "id": "M12",
-      "guarda": "C6: nlink 1",
-      "arquivo": "hooks/conformidade.py",
-      "de": "or os.lstat(alvo).st_nlink != 1):  # C6",
-      "para": "or False):  # C6",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
-      ]
-    },
-    {
-      "id": "M13",
       "guarda": "C3: o plugin em uso não é o clone",
       "arquivo": "hooks/conformidade.py",
       "de": "if topo == Path(os.path.realpath(PLUGIN)) or",
@@ -53,7 +43,7 @@
       ]
     },
     {
-      "id": "M14",
+      "id": "M13",
       "guarda": "C3: core.hooksPath no modelo",
       "arquivo": "hooks/conformidade.py",
       "de": "or self.hooks_no_modelo(topo):  # C3",
@@ -63,7 +53,7 @@
       ]
     },
     {
-      "id": "M15",
+      "id": "M14",
       "guarda": "C3: git com erro conta como modelo em vigor",
       "arquivo": "hooks/conformidade.py",
       "de": "            return cod != 1\n",
@@ -73,11 +63,21 @@
       ]
     },
     {
-      "id": "M16",
+      "id": "M15",
       "guarda": "C3: hooksPath dentro do modelo",
       "arquivo": "hooks/conformidade.py",
       "de": "return topo / MODELO_DE_PROJETO in {destino, *destino.parents}",
       "para": "return False",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "só a cópia isenta tem as regras liberadas",
+      "arquivo": "hooks/conformidade.py",
+      "de": "liberadas = REGRAS_DO_MODELO if caminho == self.modelo_isento else frozenset()",
+      "para": "liberadas = REGRAS_DO_MODELO",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
       ]

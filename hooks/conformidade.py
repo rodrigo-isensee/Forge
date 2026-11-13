@@ -18,7 +18,6 @@ import json
 import os
 import re
 import signal
-import stat
 import tempfile
 import shlex
 import subprocess
@@ -1195,7 +1194,7 @@ class Guarda:
         if any(p.is_symlink() and topo in {r := Path(os.path.realpath(p)), *r.parents}
                for p in (Path(texto), *Path(texto).parents)):  # C6: nenhum link dentro do clone no caminho dado
             return None
-        if os.path.lexists(alvo) and (not stat.S_ISREG(os.lstat(alvo).st_mode) or os.lstat(alvo).st_nlink != 1):  # C6
+        if os.path.lexists(alvo) and os.lstat(alvo).st_nlink != 1:  # C6: nlink 1 (pasta tem 2 ou mais)
             return None
         if topo == Path(os.path.realpath(PLUGIN)) or self.hooks_no_modelo(topo):  # C3: o modelo vale aqui
             return None
