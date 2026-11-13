@@ -3,10 +3,10 @@ tipo: revisao-devops
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-parecer-job
-commit: 5aae66f63404cf3b2caa94f84a1ae22304639498
+commit: 78ac37d334a414a590485b4dfe0525fdec0c0251
 parecer: aprovado
 revisor: forge:devops-engineer
-data: 2026-11-12
+data: 2026-11-13
 ---
 # Review de devops: v047-ci-parecer-job
 
@@ -39,6 +39,13 @@ Instância que não fez a entrega. `forge-check parecer delta` de bd28180e até 
 - `git diff bd28180e 5aae66f6 -- .github tests/test_ci_local.py tests/mutantes/v047-ci-parecer-job.json` vazio: o ci.yml e os testes e mutantes da branch não mudaram.
 - `python3 -m unittest tests.test_ci_local` 70 OK. `actionlint` e `zizmor` seguem ausentes (lacuna; o CI do PR os roda). Sem PR, sem CI do PR para citar.
 - A1 (recomendado) segue aberto, sem mudança. Nenhum achado bloqueante.
+
+## Revalidação por delta (E1.65, head 78ac37d3, branch melhoria/v047-ci-parecer-job)
+Instância que não fez a entrega. `forge-check parecer delta` de 5aae66f6 até 78ac37d3: "delta: nenhum arquivo do domínio mudou" (`agents/devops-engineer.md` fica fora do domínio de devops). A mudança do intervalo é o item 1 de `agents/devops-engineer.md`, reescrito para voltar ao teto (5052 caracteres, o do teto de instrução).
+- Condições do J11 mantidas: (1) job próprio de pareceres, no agregador, fora do `needs` da suíte; (2) em PR, pulado ou cancelado falha (exige `success`); (3) o agregador não usa `!contains(failure)`. Nenhuma regra perdida: a delegação ao `tech-lead` (`R-FLUXO`) e a referência à skill `ci-cd` seguem; a lista de itens (gatilhos, `concurrency`, cache, `timeout-minutes`, `permissions:`, SHA) saiu do agente e está na skill `ci-cd` (itens 1, 2, 5 e 6 do checklist). Os `R-*` e os trechos de `invariantes` do agente continuam presentes.
+- Folga: a frase "`skipped` vale apenas fora de PR" saiu do texto do agente; o comportamento está no `ci.yml` e nos testes do agregador (`tests.test_ci_local`), sem perda de proteção.
+- `ci.yml`, testes e mutantes sem mudança no intervalo; `python3 -m unittest tests.test_ci_local` 70 OK. `actionlint` e `zizmor` ausentes (lacuna; o CI do PR os roda). Sem PR, sem CI do PR para citar.
+- A1 (recomendado) segue aberto. Nenhum achado bloqueante.
 
 ## Custo e rollback
 Custo: um job a mais por PR (checkout, Python, script leve, no máximo 10 min, normalmente poucos segundos de execução mais ~30 s de preparo), em runner padrão gratuito; sem serviço pago (`R-CUSTO`). O trabalho sai do job de passos, então o total de minutos sobe pouco; medir no checkpoint da release. Rollback: reverter o commit 7ba85a05 devolve o passo ao job de passos e o `needs` do agregador.
