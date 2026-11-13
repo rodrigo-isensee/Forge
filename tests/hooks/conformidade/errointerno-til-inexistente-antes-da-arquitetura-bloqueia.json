@@ -1,0 +1,16 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (E2, S2): a escrita em `~zz/a` não derruba o hook, e a escrita seguinte em docs/arquitetura/ é recusada (C1).",
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo a > ~zz/a; echo b > docs/arquitetura/a.md"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "docs/arquitetura/"
+  }
+}

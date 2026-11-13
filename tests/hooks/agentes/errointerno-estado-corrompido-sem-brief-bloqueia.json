@@ -1,0 +1,20 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (C7): com o agentes.json corrompido, o disparo de especialista sem brief ainda é recusado (R-BRIEF antes da leitura do estado).",
+  "estado": {
+    "agentes.json": "{corrompido"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:tech-lead",
+      "description": "Conferir",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-BRIEF: o prompt não cita o brief"
+  }
+}

@@ -783,29 +783,40 @@ def registrar_recusa(hook, motivo, campos=None):
         pass
 
 
-def lancar(hook, agentes, agora):
-    entrada = hook.campo("tool_input") or {}
-    tipo = str(entrada.get("subagent_type") or "general-purpose")
-    faltas = mensagem_sem_forma(entrada.get("prompt")) if tipo == CONFERENTE else None
-    if faltas:
-        bloquear("R-BRIEF", "gere a mensagem ao conferente com `forge-check brief mensagem` e envie-a (cabeçalho, caminho e hash); "
-                            f"faltou: {faltas}.")
-    divergencia = hash_do_brief_diverge(hook, entrada.get("prompt")) if tipo == CONFERENTE else None
-    if divergencia:
-        bloquear("R-BRIEF", f"{divergencia}; gere de novo com `forge-check brief mensagem` e envie-a.")
+def conferir_brief(hook):
+    """R-BRIEF do disparo (forma e hash da mensagem ao conferente, selo do especialista): os briefs selados lidos, ou recusa.
+    HOOK-ERRO-LIBERA (C7): roda antes da leitura do estado e não depende dela; qualquer exceção aqui recusa."""
     lidos = []
-    if exige_selo(tipo):
+    try:
+        entrada = hook.campo("tool_input") or {}
+        tipo = str(entrada.get("subagent_type") or "general-purpose")
+        faltas = mensagem_sem_forma(entrada.get("prompt")) if tipo == CONFERENTE else None
+        if faltas:
+            bloquear("R-BRIEF", "gere a mensagem ao conferente com `forge-check brief mensagem` e envie-a (cabeçalho, caminho e hash); "
+                                f"faltou: {faltas}.")
+        divergencia = hash_do_brief_diverge(hook, entrada.get("prompt")) if tipo == CONFERENTE else None
+        if divergencia:
+            bloquear("R-BRIEF", f"{divergencia}; gere de novo com `forge-check brief mensagem` e envie-a.")
+        if not exige_selo(tipo):
+            return lidos
         try:
             sem_selo = selo_ausente(hook, entrada.get("prompt"), tipo, lidos)
         except Exception as erro:  # noqa: BLE001 - falha fechada: sem prova do selo, o especialista não sai
             hook.registrar_erro(erro)
             sem_selo = "erro ao conferir o selo (registrado no erros.log)"
-        if sem_selo:
-            bloquear("R-BRIEF", f"{sem_selo}; sele o brief com `forge-check brief selar --arquivo <brief> --pedido <id>` e cite o "
-                                "caminho dele no prompt (o selo vale para o sha256 de agora).")
-        vencido = avisos_de_brief_vencido(hook, lidos)
-    else:
-        vencido = []
+    except Exception as erro:  # noqa: BLE001 - C7: sem prova da forma ou do hash, o disparo não sai
+        hook.registrar_erro(erro)
+        sem_selo = "erro ao conferir o brief do disparo (registrado no erros.log)"
+    if sem_selo:
+        bloquear("R-BRIEF", f"{sem_selo}; sele o brief com `forge-check brief selar --arquivo <brief> --pedido <id>` e cite o "
+                            "caminho dele no prompt (o selo vale para o sha256 de agora).")
+    return lidos
+
+
+def lancar(hook, agentes, agora, lidos):
+    entrada = hook.campo("tool_input") or {}
+    tipo = str(entrada.get("subagent_type") or "general-purpose")
+    vencido = avisos_de_brief_vencido(hook, lidos) if exige_selo(tipo) else []
     descricao = " ".join(str(entrada.get("description") or "").split())
     for a in agentes:
         if descricao and a.get("tipo") == tipo and a.get("descricao") == descricao:
@@ -869,7 +880,15 @@ def principal(hook):
     if evento not in EVENTOS or (evento == "PreToolUse" and ferramenta not in FERRAMENTAS | {RETOMADA}):
         return
     raiz = hook.projeto(hook.cwd(), clone_do_forge=True)
-    if raiz is None or (e_clone_do_forge(raiz) and not fixar_estado_do_clone(hook, raiz)):
+    if raiz is None:
+        return
+    try:  # a pasta do estado do clone (só o erros.log dela vale aqui): o erro dela não leva o R-BRIEF junto (C7)
+        sem_estado = e_clone_do_forge(raiz) and not fixar_estado_do_clone(hook, raiz)
+    except Exception as erro:  # noqa: BLE001 - registra; o disparo ainda passa pelo R-BRIEF
+        hook.registrar_erro(erro)
+        sem_estado = True
+    lidos = conferir_brief(hook) if evento == "PreToolUse" and ferramenta != RETOMADA else []  # C7: antes do estado
+    if sem_estado:
         return
     with hook.trava():
         arquivo = hook.run() / "agentes.json"
@@ -885,7 +904,7 @@ def principal(hook):
         if evento == "PreToolUse" and ferramenta == RETOMADA:
             recusar_retomada(hook, agentes, lapides)
         elif evento == "PreToolUse":
-            lancar(hook, agentes, agora)
+            lancar(hook, agentes, agora, lidos)
         elif evento == "SubagentStart":
             iniciar(hook, agentes, agora)
         else:

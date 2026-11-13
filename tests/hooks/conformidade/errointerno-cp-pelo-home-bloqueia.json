@@ -1,0 +1,21 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (E3, C2): erro interno em `cp` para `$HOME/.gitconfig` recusa (o `~/` da política também como `$HOME/`).",
+  "forcar": {
+    "onde": "Guarda.bash",
+    "como": "erro"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp x $HOME/.gitconfig"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "erro interno do hook conformidade",
+    "erros_log": "erro forcado"
+  }
+}
