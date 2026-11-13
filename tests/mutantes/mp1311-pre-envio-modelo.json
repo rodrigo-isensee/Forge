@@ -57,7 +57,7 @@
       "guarda": "migração: CLAUDE.md sem a linha da stack vale node-react",
       "arquivo": "migrations/0.47.1/migrar-pre-envio",
       "de": "    return achado.group(1) if achado else \"node-react\"",
-      "para": "    return achado.group(1)",
+      "para": "    return achado.group(1) if True else \"node-react\"",
       "testes": [
         "tests.test_forge.PreEnvioDoModelo.test_claude_md_sem_a_linha_da_stack_vale_node_react"
       ]

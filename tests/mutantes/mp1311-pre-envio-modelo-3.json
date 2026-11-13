@@ -17,7 +17,7 @@
       "guarda": "forge-upgrade: passo sem LEIA mostra resumo vazio e segue",
       "arquivo": "bin/forge-upgrade",
       "de": "resumo = leia.read_text(encoding=\"utf-8\").splitlines()[2:3] if leia.is_file() else []",
-      "para": "resumo = leia.read_text(encoding=\"utf-8\").splitlines()[2:3]",
+      "para": "resumo = leia.read_text(encoding=\"utf-8\").splitlines()[2:3] if True else []",
       "testes": [
         "tests.test_forge.PreEnvioDoModelo.test_forge_upgrade_roda_os_passos_da_versao_em_ordem_um_commit_cada"
       ]
@@ -27,7 +27,7 @@
       "guarda": "forge-upgrade: o `migrar` leva o rótulo só da versão",
       "arquivo": "bin/forge-upgrade",
       "de": "rotulo = migrar.parent.name + (f\" ({nome})\" if nome else \"\")",
-      "para": "rotulo = migrar.parent.name + f\" ({nome})\"",
+      "para": "rotulo = migrar.parent.name + (f\" ({nome})\" if True else \"\")",
       "testes": [
         "tests.test_forge.PreEnvioDoModelo.test_forge_upgrade_roda_os_passos_da_versao_em_ordem_um_commit_cada"
       ]
@@ -37,7 +37,7 @@
       "guarda": "forge-upgrade: o `migrar` lê o LEIA.md, o passo lê o LEIA-<passo>.md",
       "arquivo": "bin/forge-upgrade",
       "de": "return rotulo, migrar.parent / (f\"LEIA-{nome}.md\" if nome else \"LEIA.md\")",
-      "para": "return rotulo, migrar.parent / f\"LEIA-{nome}.md\"",
+      "para": "return rotulo, migrar.parent / (f\"LEIA-{nome}.md\" if True else \"LEIA.md\")",
       "testes": [
         "tests.test_forge.PreEnvioDoModelo.test_forge_upgrade_roda_os_passos_da_versao_em_ordem_um_commit_cada"
       ]

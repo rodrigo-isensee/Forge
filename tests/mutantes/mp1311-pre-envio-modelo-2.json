@@ -7,7 +7,7 @@
       "guarda": "migração: stack sem 'Detecção:' gera o pre-push.local que pula",
       "arquivo": "migrations/0.47.1/migrar-pre-envio",
       "de": "    arquivos = \" \".join(re.findall(r\"`([^`]+)`\", deteccao.group(1))) if deteccao else \"\"",
-      "para": "    arquivos = \" \".join(re.findall(r\"`([^`]+)`\", deteccao.group(1)))",
+      "para": "    arquivos = \" \".join(re.findall(r\"`([^`]+)`\", deteccao.group(1))) if True else \"\"",
       "testes": [
         "tests.test_forge.PreEnvioDoModelo.test_stack_sem_deteccao_gera_o_pre_push_local_que_pula"
       ]
