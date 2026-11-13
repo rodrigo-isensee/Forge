@@ -129,7 +129,7 @@ CITACOES_CONHECIDAS = {**{(a, "README.md"): (n, "nome") for a, n in _NOME.items(
                        ("hooks/conformidade.py", "README.md"): (1, "prosa"),  # 0.43.1 T: o jarvis.md não cita mais o README.md
                        ("skills/novo-projeto/SKILL.md", "docs/propostas/"): (1, "prosa"),
                        ("tests/apoio_volta_unica.py", "docs/propostas/"): (1, "prosa"),
-                       ("tests/test_forge.py", "README.md"): (14, "teste-le"), ("tests/test_conferir_reversao.py", "README.md"): (14, "teste-le"), ("tests/test_doutor.py", "README.md"): (1, "teste-le"),
+                       ("tests/test_forge.py", "README.md"): (15, "teste-le"), ("tests/test_conferir_reversao.py", "README.md"): (14, "teste-le"), ("tests/test_doutor.py", "README.md"): (1, "teste-le"),
                        ("tests/test_forge.py", "docs/propostas/"): (2, "teste-le"),
                        # 0.45.7 E1: o texto da R-WIP mora em docs/regras/README.md; o invariante, o teste e o apoio o leem
                        ("tests/test_jarvis_nucleo.py", "README.md"): (1, "teste-le"),  # lê a linha da R-WIP em docs/regras/README.md
