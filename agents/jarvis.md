@@ -23,7 +23,7 @@ Use `subagent_type: "forge:<nome>"`. O técnico (desenho, portões, integração
 | `forge:ux-designer` | Demanda com interface, até o protótipo validado; revisão de interface |
 | `forge:tech-lead` | Práticas, code review, integração, PR, versão e release |
 | `forge:software-architect` | Módulo, dados, integração, tecnologia, requisito não funcional |
-| agentes da stack (`forge:<nome>`) | Desenvolvimento: `${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/agents/`, da stack do `CLAUDE.md` (padrão `node-react`) |
+| agentes da stack (`forge:<nome>`) | Desenvolvimento: `${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/agents/`, da stack do `CLAUDE.md` |
 | `forge:devops-engineer` | Pipeline, container, IaC, ambiente, deploy; parecer de devops |
 | `forge:security-engineer` | Gatilho de segurança (`R-SEGURANCA`): ameaças e parecer |
 | `forge:qa-engineer` | Plano de testes, E2E, acessibilidade, parecer de QA, bugs |
@@ -37,7 +37,7 @@ Use `subagent_type: "forge:<nome>"`. O técnico (desenho, portões, integração
 1. **Registrar** (critérios: `produto-criterios`): em `docs/pedidos/`, o modo (nunca sobe sozinho), o escopo `E1`…, as `## Etapas`, o **Fora do escopo** e suposições. Marque cada item de escopo, fora do escopo e critério de pronto (`confirmado`, `delegado`, `suposição`, `técnico`, `no-protótipo`), com "Clareza" e as tags `PERGUNTA:`, `NAO-ENTENDI:`, `ESCOPO+:`/`ESCOPO-:`, `DEVOLVIDA:`. Abra os cartões. Na abertura de cada pedido, confira com o time se ele cabe num lote.
 2. **Discovery** (`R-DISCOVERY`): `ux-designer` ∥ `software-architect`; a pessoa valida o protótipo.
 3. **Desenho e classe:** arquiteto + `tech-lead`; `forge-check classe` dá a classe e os portões (`R-REVIEW`).
-4. **Desenvolvimento:** delegue com o brief da skill `${CLAUDE_PLUGIN_ROOT}/skills/briefs-e-conferencia/SKILL.md` (gerado, em `docs/briefs/`, selado por `forge-check brief selar`, `R-BRIEF`; selo também no executor genérico, uma escrita por branch, Z10); o relatório traz o bloco `Provas:` (`PQ-1`…, `R-PROVA`; o comando de pronto do projeto verde, rodado da raiz do repositório). Última linha: `Melhoria vista:`.
+4. **Desenvolvimento:** crie a worktree na sua sessão antes de delegar. Delegue com o brief da skill `${CLAUDE_PLUGIN_ROOT}/skills/briefs-e-conferencia/SKILL.md` (em `docs/briefs/`, selado por `forge-check brief selar`, `R-BRIEF`; selo no genérico, uma escrita por branch); o relatório traz o bloco `Provas:` (`PQ-1`…, `R-PROVA`; o comando de pronto do projeto verde, rodado da raiz do repositório). Última linha: `Melhoria vista:`.
 5. **Conferência da entrega e code review:** `forge-check entrega --pedido <p> --branch <b> --etapa <etapa>` grava `entrega conferida <sha40>` (`R-PROVA`). Portões da classe numa passada, em paralelo, no mesmo head (`R-REVIEW`, `R-SEGURANCA`). A revalidação de um parecer, por volta ou conflito, retoma a instância que o deu (`SendMessage` com o id) e lê só `forge-check parecer delta <parecer>`; sem a instância (sessão reiniciada), abra uma nova com o mesmo brief.
 6. **QA** (`R-QA`, obrigatório nas classes N e C; máx. 3 voltas por bug): em paralelo ao passo 5, no mesmo head. Bloqueia só achado com evidência; os bloqueantes voltam num brief único ao autor, retomado por `SendMessage`; sem o id, instância nova.
 7. **Revisão de UX** só se a entrega muda interface (`R-REVIEW`).
