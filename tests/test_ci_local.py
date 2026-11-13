@@ -3,6 +3,7 @@ import importlib.machinery
 import hashlib
 import importlib.util
 import re
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -17,6 +18,33 @@ _loader.exec_module(ci)
 
 PR = {"number": 7, "headRefOid": "a" * 40, "headRefName": "melhoria/x", "baseRefName": "develop",
       "body": "texto", "author": {"login": "dona"}}
+
+def permissoes_e_env_do_job(bloco):
+    """(permissions, chaves do env) declarados no cabeçalho do job (antes de `steps:`), lidos linha a linha."""
+    permissoes, env, secao = {}, set(), ""
+    for linha in bloco.split("    steps:")[0].splitlines():
+        if not linha.strip() or linha.lstrip().startswith("#"):
+            continue
+        recuo = len(linha) - len(linha.lstrip())
+        chave, _, valor = linha.strip().partition(":")
+        if recuo == 4:
+            secao = chave
+        elif recuo == 6 and secao == "permissions":
+            permissoes[chave] = valor.strip()
+        elif recuo == 6 and secao == "env":
+            env.add(chave)
+    return permissoes, env
+
+
+def token_sem_permissao(texto):
+    """Jobs com GH_TOKEN/GITHUB_TOKEN (no env do job ou de um passo) sem `permissions:` próprio: herdam o do topo."""
+    acusados = []
+    for m in re.finditer(r"(?ms)^  (\S+):\n(.*?)(?=^  \S+:\n|\Z)", texto.split("\njobs:\n", 1)[-1]):
+        bloco = m.group(2)
+        permissoes, _ = permissoes_e_env_do_job(bloco)
+        if re.search(r"(?m)^\s+(GH_TOKEN|GITHUB_TOKEN):", bloco) and not permissoes:
+            acusados.append(m.group(1))
+    return acusados
 
 
 # CI-LINT-LISTA-ABERTA: lista fechada do que pode rodar antes do actionlint e do zizmor na bateria.
@@ -298,6 +326,88 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertIn("python3 scripts/suite-paralela.py", release)
         self.assertNotIn("unittest discover", release)
 
+    def test_pareceres_e_job_proprio_obrigatorio_e_fora_do_caminho_da_suite(self):
+        """CI-PARECER-NAO-BARRA-SUITE: o parecer faltando reprova o merge (agregador) sem pular a suíte nem as verificações."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        jobs = {j["id"]: j for j in ci.ler_jobs(texto)}
+        self.assertEqual(jobs["pareceres"]["nome"], "bateria (pareceres)")
+        self.assertIn("--modo pareceres", "".join(p["run"] for p in jobs["pareceres"]["passos"]))
+        self.assertFalse([p for p in jobs["bateria"]["passos"] if "--modo pareceres" in p["run"]], "o parecer saiu do job de passos")
+        self.assertIn("pareceres", jobs["agregador"]["needs"])
+        for outro, j in jobs.items():
+            if outro not in ("agregador", "pareceres"):
+                self.assertNotIn("pareceres", j["needs"], outro)
+        self.assertIn("PARECERES: ${{ needs.pareceres.result }}", texto)
+        # A4 (segurança): o modo pareceres roda em exatamente um job, que tem só contents: read e teto de 5 min (J3, J5, J9)
+        self.assertEqual(sum("--modo pareceres" in p["run"] for j in jobs.values() for p in j["passos"]), 1)
+        bloco = re.search(r"(?ms)^  pareceres:\n(.*?)(?=^  \S+:\n)", texto).group(1)
+        self.assertEqual(permissoes_e_env_do_job(bloco), ({"contents": "read"}, set()))  # CI-GUARDA-PERMISSOES-ENV: sem env: no job
+        self.assertEqual(token_sem_permissao(texto), [])
+        self.assertIn("\n    timeout-minutes: 5\n", bloco)
+
+    def test_guarda_de_permissoes_ve_env_do_job_e_token_sem_permissao(self):
+        """CI-GUARDA-PERMISSOES-ENV: a regex antiga (`\\S+$`) não via `GH_TOKEN: ${{ github.token }}` (valor com espaço)."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        bloco = re.search(r"(?ms)^  pareceres:\n(.*?)(?=^  \S+:\n)", texto).group(1)
+        com_env = bloco.replace("    steps:", "    env:\n      GH_TOKEN: ${{ github.token }}\n    steps:", 1)
+        antiga = re.findall(r"(?m)^      (\S+): (\S+)$", com_env.split("    steps:")[0])
+        self.assertEqual(antiga, [("contents", "read")], "a guarda antiga deixava passar o env do job")
+        self.assertEqual(permissoes_e_env_do_job(com_env), ({"contents": "read"}, {"GH_TOKEN"}))
+        sem_permissao = com_env.replace("    permissions:\n      contents: read\n", "")
+        self.assertEqual(token_sem_permissao("\njobs:\n  pareceres:\n" + sem_permissao), ["pareceres"])
+        no_passo = bloco.replace("    permissions:\n      contents: read\n", "").replace(
+            "          HEAD_SHA:", "          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          HEAD_SHA:", 1)
+        self.assertEqual(token_sem_permissao("\njobs:\n  pareceres:\n" + no_passo), ["pareceres"])
+        self.assertEqual(token_sem_permissao("\njobs:\n  pareceres:\n" + com_env), [])  # permissions declarada: não acusa
+
+    def agregador(self, pareceres, evento, **outros):
+        """Executa o `run:` do agregador de verdade (como o Actions: bash -eo pipefail); devolve o rc."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        (passo,) = {j["id"]: j for j in ci.ler_jobs(texto)}["agregador"]["passos"]
+        env = {"PATH": "/usr/bin:/bin", "PASSOS": "success", "PARECERES": pareceres, "VERIFICACOES": "success",
+               "PARTES": "success", "PULADOS": "success", "EVENTO": evento}
+        env.update(outros)
+        return subprocess.run(["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", passo["run"]],
+                              env=env, capture_output=True, text=True, timeout=30).returncode
+
+    def test_agregador_reprova_parecer_que_nao_deu_success_em_pr(self):
+        """CI-PARECER-NAO-BARRA-SUITE (J2): em PR só success passa; skipped, failure, cancelled e vazio reprovam."""
+        self.assertEqual(self.agregador("success", "pull_request"), 0)
+        for resultado in ("failure", "skipped", "cancelled", ""):
+            with self.subTest(resultado):
+                self.assertNotEqual(self.agregador(resultado, "pull_request"), 0)
+
+    def test_agregador_fora_de_pr_aceita_so_skipped_ou_success(self):
+        for evento in ("push", "workflow_dispatch"):
+            for resultado, esperado in (("skipped", 0), ("success", 0), ("failure", 1), ("cancelled", 1)):
+                with self.subTest(evento=evento, resultado=resultado):
+                    self.assertEqual(bool(self.agregador(resultado, evento)), bool(esperado))
+
+    def test_agregador_exige_os_demais_jobs_mesmo_com_pareceres_verde(self):
+        for var in ("PASSOS", "VERIFICACOES", "PARTES", "PULADOS"):
+            with self.subTest(var):
+                self.assertNotEqual(self.agregador("success", "pull_request", **{var: "failure"}), 0)
+
+    def test_gate_do_commit_so_de_parecer_le_o_agregador_e_registra_o_motivo(self):
+        """CI-ATALHO-COMMIT-SO-PARECER (A2 da E1.4): sem defeito, o gate segue no agregador `bateria`; o motivo fica no ci.yml."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        jobs = {j["id"]: j for j in ci.ler_jobs(texto)}
+        self.assertEqual(jobs["agregador"]["nome"], "bateria")
+        (gate,) = [p for p in jobs["bateria"]["passos"] if p["id"] == "gate"]
+        self.assertIn('select(.name == "bateria" and .app.slug == "github-actions")', gate["run"])
+        self.assertIn("CI-ATALHO-COMMIT-SO-PARECER", texto)
+        self.assertIn("o gate lê o check \"bateria\" (o agregador), não os jobs da", texto)
+
+    def test_job_pareceres_so_roda_em_pr_e_sem_needs(self):
+        """A guarda do job (:550): sem `if:` de PR ele rodaria em push; com needs poderia ser pulado em PR."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        job = {j["id"]: j for j in ci.ler_jobs(texto)}["pareceres"]
+        self.assertEqual(job["se"], "github.event_name == 'pull_request'")
+        self.assertEqual(job["needs"], [])
+        # CI-PARECERES-SEM-NEEDS: o motivo de não esperar o job de passos fica escrito junto do job
+        self.assertIn("CI-PARECERES-SEM-NEEDS", texto)
+        self.assertIn("a rodada extra é o custo que se evita", texto)
+
     def test_bateria_ferramenta_e_checagens_baratas_antes_dos_testes(self):
         """CI-FERRAMENTA-ANTES: o vermelho barato aparece antes da suíte; testes continuam obrigatórios."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
@@ -310,7 +420,7 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertFalse([n for n in nomes if n.startswith("Testes do Forge")], "a suíte roda nas partes, não nos passos")
         testes = len(nomes)  # SUITE-NO-CI: os passos baratos continuam no job de passos, que não espera a suíte
         for trecho in ("Claude Code CLI", "claude plugin validate", "Nada pula degrau", "changelog.d",
-                       "release exige versão", "Segredo, .env", "Parecer de review"):
+                       "release exige versão", "Segredo, .env"):
             self.assertLess(pos(trecho), testes, trecho)
         self.assertLess(pos("Claude Code CLI"), pos("claude plugin validate"))
         passo = [p for p in bateria["passos"] if "Claude Code CLI" in p["nome"]][0]["run"]
@@ -848,7 +958,7 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         jobs = {j["id"]: j for j in self.jobs_reais()}
         self.assertEqual(jobs["partes-doze"]["matriz"], {"parte": ["1", "2", "3"]})
         self.assertEqual(jobs["partes-quatorze"]["matriz"], {"parte": ["1", "2", "3"]})
-        self.assertEqual(jobs["agregador"]["needs"], ["bateria", "verificacoes", "partes-doze", "pulados-doze"])
+        self.assertEqual(jobs["agregador"]["needs"], ["bateria", "pareceres", "verificacoes", "partes-doze", "pulados-doze"])
         self.assertEqual(jobs["verificacoes"]["needs"], ["bateria"])  # A18: Provas, shellcheck e e2e esperam os passos baratos
         self.assertEqual(jobs["bateria-python-tres-quatorze"]["needs"],
                          ["partes-quatorze", "pulados-quatorze", "instalacao-quatorze"])
@@ -890,7 +1000,7 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         for k in (1, 2, 3):
             self.assertIn("reaproveitado", por_nome[f"suíte (python 3.14, parte {k}/3)"]["motivo"])
         self.assertEqual(ci.status(resultados)[0], "success")
-        self.assertIn("resumo de bateria: success, verificacoes: success, partes-doze: success", por_nome["bateria"]["motivo"])
+        self.assertIn("resumo de bateria: success, pareceres: success, verificacoes: success, partes-doze: success", por_nome["bateria"]["motivo"])
         self.assertEqual(por_nome["bateria (python 3.14)"]["estado"], ci.OK)
         self.assertEqual(por_nome["checagem rápida (push na develop)"]["estado"], ci.PULADO)
 

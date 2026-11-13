@@ -182,5 +182,21 @@ class Diretrizes18e19(unittest.TestCase):
         self.assertIn("Itens com arquivo em comum não andam em paralelo", self.skill)
 
 
+class WorktreeAntesDeDelegar(unittest.TestCase):
+    """MP1311 item 12: subagente não fica parado sem escrita na worktree; o Jarvis a cria na própria sessão ou o brief avisa."""
+
+    def test_o_jarvis_cria_a_worktree_antes_de_delegar(self):
+        passo4 = next(l for l in ler(JARVIS).splitlines() if l.startswith("4. **Desenvolvimento:**"))
+        self.assertIn("crie a worktree na sua sessão antes de delegar", passo4)
+
+    def test_a_skill_manda_avisar_no_brief_e_oferece_o_caminho_pelo_github(self):
+        skill = ler("skills/briefs-e-conferencia/SKILL.md")
+        self.assertRegex(skill, r"(?s)worktree de outra sessão.*só leitura.*update-branch")
+
+    def test_a_skill_da_o_clone_local_como_saida_quando_a_worktree_nao_grava(self):
+        skill = ler("skills/briefs-e-conferencia/SKILL.md")
+        self.assertRegex(skill, r"(?s)não gravável.*clone local.*~/\.forge-contrib/wt/<nome>-c.*origin/develop")
+
+
 if __name__ == "__main__":
     unittest.main()
