@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v047-teste-carga
+pedido: v047
 branch: melhoria/v047-teste-carga
 commit: 171232b97fb8f5a84b426b2fabc5f2a5f1ef5170
 parecer: aprovado
@@ -36,6 +36,10 @@ Conferido por leitura e execução:
 - `forge-mutante tests/mutantes/v047-teste-carga.json`: M1 a M14 morreram (M10 com a observação de erro do teste sob o mutante, que passa sem ele; o mutante morre do mesmo jeito). Conferi à mão M13 e M14: o teste declarado falha sob o mutante.
 - Testes rodados: `test_medida_cpu` (12 OK) e `PoolDosFixtures` (3 OK). Suíte inteira só no CI; sem PR (conferir no PR). Carga ~7,6 em 12 CPUs.
 - A1 e A2 seguem recomendados (sem promoção); nenhum achado novo.
+
+## Revalidação por delta (E5.19, até o head da branch)
+- `forge-check parecer delta` (171232b9..80d80a7f): nenhum arquivo do domínio mudou; os três arquivos novos são pareceres de QA, review e segurança. Os arquivos citados no brief (`tests/apoio_volta_unica.py`, `tests/test_hooks.py`) já estão cobertos pelo delta da E5.16 (171232b9), sem mudança depois.
+- Campo `pedido:` corrigido para `v047`. A1 e A2 seguem recomendados; nenhum achado novo.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Ferramentas: só leitura e testes locais; gitleaks e demais varreduras não se aplicam (sem segredo nem dependência no diff).
