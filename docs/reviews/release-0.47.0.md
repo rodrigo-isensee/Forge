@@ -2,26 +2,23 @@
 tipo: review
 contrato: 1
 pedido: release-0.47.0
-branch: melhoria/release-0.47.0
-commit: 72bb40084ec4b32d979dbbd8ba7379934aa5d055
+branch: melhoria/release-0.47.0-b
+commit: 0867f7157f37ca5ea76ef31824cbb159c215086f
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-13
 ---
-# Review: release 0.47.0 (v047, E2.10)
+# Review: release-0.47.0
 
-Head revisado 72bb4008 (classe C: CHANGELOG e placar), instância que não fez a entrega. Revisão por delta da marca 51c51139 até 72bb4008.
+Marca refeita da 0.47.0 no head 0867f715 (E2.21): os PRs 541, 544, 542 e 543 entraram na develop depois da release e seus quatro fragmentos foram para a entrada 0.47.0.
 
 ## Achados
-- A1 (recomendado) tests/mutantes/v0457-escopo-ponto-2.json:17 · atualizar o M10 (guarda movida pelo PR 536) para a próxima release não repetir o inválido; segue da review anterior, não bloqueia
 
 ## Sondas
 
 ## Parecer
-Aprovado. O achado A1 bloqueante da review anterior (placar) está resolvido.
+Aprovado. O commit 0867f715 só toca `CHANGELOG.md` (4 linhas) e apaga os quatro fragmentos de `changelog.d/` (mp1311-worktree-jarvis, v047-ci-serie, v047-jarvis-parte2, v047-caminho-runner). Cada fragmento aparece uma vez na entrada 0.47.0, na seção do seu tipo (três em Alterado, um em Corrigido), com o texto idêntico ao do fragmento.
 
-- Delta lido (`forge-check parecer delta`): CHANGELOG.md, docs/engineering/placar-mutacao.md e o fragmento `changelog.d/v047-teste-carga.md` (junção do PR 540 vinda da develop).
-- Placar: a linha gravada é `placar: 0.47.0 mortos=62 sobreviveu=0 equivalente=0 invalido=1 sem-veredito=0 specs=9`, igual à que a review anterior mediu no head (62 mortos, 1 inválido, 9 specs), com a nota do M10 explicando o inválido (spec `v0457-escopo-ponto-2`, guarda movida pelo PR 536). Medida, não portão.
-- CHANGELOG: o fragmento apagado (2 linhas, 1 entrada) aparece uma vez em `## [0.47.0]` / `### Corrigido`; `changelog.d/` fica só com o README; sem perda.
-- Versão e plugin.json: sem mudança no delta (já 0.47.0 na review anterior).
-- Testes: `tests.test_changelog` OK (74 testes); `forge-check docs` sem erro. A suíte inteira fica no CI; máquina com carga 24, só o afetado rodou.
+Versão: `plugin.json` e `dev/.claude-plugin/plugin.json` seguem em 0.47.0 e batem com o título da entrada; `[Não publicado]` fica vazio e `changelog.d/` só traz o README (`forge-changelog conferir-release`: ok). `tests/test_changelog.py`: 74 testes, OK. `forge-check docs`: sem erro. O CI do PR não existe (branch sem PR), por isso só os testes leves.
+
+Domínio contra a main: o diff é a release inteira (202 arquivos, de `bin/`, `hooks/`, `agents/`, `skills/`, `stacks/` e `.github/`), revisada nos PRs de origem; o delta deste head é só changelog, sem código novo. Sem achado bloqueante nem recomendado.
