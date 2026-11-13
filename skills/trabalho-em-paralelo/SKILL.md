@@ -11,7 +11,7 @@ L51: texto do Jarvis lido no passo.
 - `R-TETO` e `R-WIP` sempre: teto adaptativo, pesado um por vez, 1 cartão por agente. Fila atrás de um papel (gargalo): suba mais instâncias iguais dele, uma por item independente, cada uma com worktree e cartão (`worktree: <nome>` na Obs.), enquanto couber no teto.
 - **Quadro com hora real:** cada mudança de cartão vai por `forge-check movimento <cartão> --de <coluna> --para <coluna> [--motivo <texto>]` (motivo `volta <n>` ao autor; `Aguardando o dono` na ida e na volta). Linhas do `## Histórico` e decisões do dono, por `forge-check anotar`. Espera do usuário: `R-DECISAO` painel "Aguardando o dono". Onde um pedido está: `forge-check proximo <pedido>`.
 - **Delegação que edita `agents/*.md`:** sem permissão para `agents/**`, o modo auto recusa: avise o dono antes e diga no brief; o recusado relata e para, sem contornar (`R-CONFORMIDADE`).
-- **Integração contínua (D2):** o PR abre com os pareceres da classe aprovados no head. O CI roda uma vez; verde, o item entra na `develop` (`R-FLUXO`).
+- **Integração contínua (D2):** o PR abre com os pareceres aprovados no head; CI verde, entra na `develop` (`R-FLUXO`).
 - **Lote por arquivo:** itens decididos no mesmo arquivo podem ir numa branch, um commit por item com seus testes, portões uma vez e um PR que cita os itens; item com defeito sai por revert do commit; item à espera do dono não entra; nenhum portão cai.
 - **Lote de até 3 tópicos (D3):** pequenos, sem arquivo em comum, com as regras do lote por arquivo.
 - **Tamanho por risco:** cerca de 150 linhas alteradas de código e teste por PR orientam, sem travar; pesa o risco. Vale uma classe de comportamento por PR em `hooks/`, com corpus próprio.
