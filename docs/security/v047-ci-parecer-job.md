@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v047-ci-parecer-job
+pedido: v047
 branch: melhoria/v047-ci-parecer-job
 commit: bd28180e9129015578029dee765abd206960bac1
 parecer: aprovado
