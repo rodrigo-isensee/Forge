@@ -3,22 +3,21 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-jarvis-parte2
-commit: 65cf916b96d6bfa7e0acb7472bfe21b2c7b91551
-parecer: reprovado
+commit: 17c66fb251218a7656412fb5f48ff591a4f7b241
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-13
 ---
 # QA: v047 E4.2 (diretrizes 2, 11 e 16 na R-WIP e nas skills)
 
-branch: melhoria/v047-jarvis-parte2 · head 65cf916b96d6bfa7e0acb7472bfe21b2c7b91551 · base 9b2c6474.
+branch: melhoria/v047-jarvis-parte2 · head 17c66fb251218a7656412fb5f48ff591a4f7b241 · base 9b2c6474.
 
 ## Achados
-- A0 (bloqueante) skills/trabalho-em-paralelo/SKILL.md:15 · em 65cf916b a frase "sem juntar frentes" quebra DiretrizesDoDonoNaRWip.test_as_skills_do_passo_citam_o_id (tests/test_forge.py:617): FAIL em 2 rodadas de tests.test_forge (583 testes, failures=1). O commit 17c66fb2 (E3.22) declara o conserto; precisa de novo delta.
-- A1 (recomendado) skills/kanban-scrum/SKILL.md:72 · a skill deixou de citar os dois relógios (D-4) e a linha `relogios:`; agents/agile-coach.md:17 e bin/forge_voltas.py seguem com a medida. Sem teste que a exija; confirmar que o corte é intencional.
+- Nenhum bloqueante. A0 (bloqueante, parecer em 65cf916b) resolvido em 17c66fb2; A1 (recomendado) resolvido: a linha "Dois relógios (D-4)" voltou a skills/kanban-scrum/SKILL.md:73.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -43,3 +42,11 @@ branch: melhoria/v047-jarvis-parte2 · head 65cf916b96d6bfa7e0acb7472bfe21b2c7b9
 - Teste: `CITACOES_CONHECIDAS` de `tests/test_forge.py`/README.md de 14 para 15, coerente com a linha da R-WIP.
 - Execução: `python3 -m unittest tests.test_reval_delta tests.test_metricas_texto tests.test_jarvis_nucleo` -> `Ran 29 tests ... OK`. `python3 -m unittest tests.test_forge` (2 rodadas, ~820 s): `Ran 583 tests ... FAILED (failures=1)`, sempre `test_as_skills_do_passo_citam_o_id`. Defeito do delta, não do ambiente: REPROVADO em 65cf916b.
 - Vermelho/mutação: sem teste novo de regra neste delta; nada a repetir.
+
+## Revalidação por delta (65cf916b..17c66fb2, E3.25)
+Qual veredito vale: o de 17c66fb2 (este, APROVADO). A aprovação anterior (1c3e34f2) e a reprovação do 442b90ed valiam cada uma para o seu head (1c3e34f2 e 65cf916b); a reprovação não foi revogada por opinião, foi superada pelo conserto. O 442b90ed só altera este parecer, então o código de 442b90ed é o de 17c66fb2.
+`forge-check parecer delta`: domínio = `skills/kanban-scrum/SKILL.md`, `skills/trabalho-em-paralelo/SKILL.md`, `tests/test_forge.py`.
+- tests/test_forge.py:626: a asserção passa a exigir `com CI verde, entra na `develop` por PR próprio, sem juntar frentes (`R-FLUXO`)`, que é literal em skills/trabalho-em-paralelo/SKILL.md:14; PR próprio e o ID R-FLUXO continuam exigidos, nada foi removido do teste.
+- skills/trabalho-em-paralelo/SKILL.md:10: volta "(serializam)", só redação; kanban-scrum: volta a linha dos dois relógios (D-4, `relogios:`).
+- Execução (sem PR aberto, só afetados): `python3 -m unittest tests.test_forge.DiretrizesDoDonoNaRWip tests.test_reval_delta tests.test_metricas_texto tests.test_jarvis_nucleo tests.test_forge.RegrasInviolaveis tests.test_forge.AntiDuplicacao tests.test_forge.RegrasComId` -> `Ran 39 tests ... OK`. A suíte inteira não foi rerrodada local (carga ~11 a 14 em 12 CPUs, diretriz 15): na rodada anterior (65cf916b) o único FAIL de 583 era este teste, e o delta toca só esta asserção e duas linhas de skill; a suíte inteira vale pelo CI do PR, ainda não aberto.
+- Vermelho/mutação: sem teste novo de regra; o ajuste da asserção foi visto falhar em 65cf916b (rodadas do parecer anterior) e passar agora.
