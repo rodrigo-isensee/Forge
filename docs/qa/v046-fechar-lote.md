@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/v046-fechar-lote
-commit: 0be847950094f66ffccdca5fe1ec7c1accd5233a
+commit: 17ae39a39ecd28b4f3eeb791cbc34697cf56c720
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -45,3 +45,9 @@ Vermelho antes do verde: os testes novos são do autor e os 17 mutantes provam q
 
 ## Provas
 O verde do pedido vale pelo check-run `bateria` do mesmo sha no PR; local rodei só os afetados, como acima.
+
+## Revalidação por delta no head 17ae39a3 (E6.7)
+Branch: melhoria/v046-fechar-lote. Delta 0be84795..17ae39a3 pelo `forge-check parecer delta` (sem o que veio da base): só `tests/pesos-d4.json` (a junção da develop a986c292 resolveu esse arquivo) e `docs/engineering/achados-recorrentes.md` (AR-1 e AR-13). `bin/forge-fechar` e `bin/forge-doutor` não mudaram no delta; o commit c378a396 sobre o head só toca `docs/security/`.
+- `pesos-d4.json` é JSON válido e traz os três pesos novos (`test_doutor_branch_atrasada`, `test_fechar_move_cartao`, `test_fechar_prune_sandbox`); `test_pesos_teto` e `test_suite_partes` passam.
+- Sem PR aberto: rodados só os afetados e os testes do pedido (51 testes, OK, carga ~13). Mutantes declarados (3 specs, 17 mutantes): todos morreram, rc 0, nenhum sobrevivente. A1 e A2 anteriores seguem recomendados (A2 parcialmente atendido pelas specs -2 e -3), sem bloqueio.
+- Parecer: aprovado, nenhum bug.
