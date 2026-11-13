@@ -26,8 +26,8 @@
       "id": "G22",
       "guarda": "volta 3 (A1): só a origem que vem de `git rev-parse` se libera; a literal `.git/…` segue barrada",
       "arquivo": "hooks/conformidade.py",
-      "de": "                if DIR_DO_GIT in VARIAVEL_INTEIRA.sub(lambda m: self.ambiente.get(m[1] or m[2], m[0]), a)}",
-      "para": "                if True}",
+      "de": "if DIR_DO_GIT in v and self.origem_so_generica(v, pasta, generico)}",
+      "para": "if True}",
       "testes": [
         "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
       ]

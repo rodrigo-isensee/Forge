@@ -1,0 +1,86 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "PR-HOOK-PRAZO: sem head (ref que não resolve), não há pasta de resultado",
+      "arquivo": "bin/forge-check",
+      "de": "if not cod and comum and SHA40.match(head or \"\") else None",
+      "para": "if not cod and comum else None",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_ref_ou_base_que_nao_resolvem_sao_ausentes"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "PR-HOOK-PRAZO: sem branch (HEAD solto), o forge-check pr não grava",
+      "arquivo": "bin/forge-check",
+      "de": "    pasta = pasta_dos_resultados(raiz, head) if branch else None\n",
+      "para": "    pasta = pasta_dos_resultados(raiz, head)\n",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_previo_e_head_sem_branch_nao_gravam"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "PR-HOOK-PRAZO: sem pasta, a gravação para antes de escrever",
+      "arquivo": "bin/forge-check",
+      "de": "    if pasta is None:\n        return\n    resolvida = base_do_delta(raiz, base, ref)[0] if base else None",
+      "para": "    if False:\n        return\n    resolvida = base_do_delta(raiz, base, ref)[0] if base else None",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_previo_e_head_sem_branch_nao_gravam"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "PR-HOOK-PRAZO: com violação, o resultado gravado é reprovado",
+      "arquivo": "bin/forge-check",
+      "de": "\"resultado\": \"reprovado\" if violacoes else \"aprovado\"",
+      "para": "\"resultado\": \"aprovado\"",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_pr_grava_o_reprovado_e_o_hook_o_le"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "PR-HOOK-PRAZO: a falha ao gravar avisa e não muda o código do forge-check pr",
+      "arquivo": "bin/forge-check",
+      "de": "    except OSError as e:\n        print(f\"pr: aviso: resultado não gravado",
+      "para": "    except ValueError as e:\n        print(f\"pr: aviso: resultado não gravado",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_falha_ao_gravar_avisa_e_nao_muda_o_codigo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "PR-HOOK-PRAZO: a base dada que não resolve não casa com o resultado do modo estrito",
+      "arquivo": "bin/forge-check",
+      "de": "    if pasta is None or (base and not base_sha):\n        return ausente",
+      "para": "    if pasta is None:\n        return ausente",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_ref_ou_base_que_nao_resolvem_sao_ausentes"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "PR-HOOK-PRAZO: o resultado ilegível ao lado é pulado, sem derrubar a leitura",
+      "arquivo": "bin/forge-check",
+      "de": "        except (OSError, ValueError):\n            continue\n        if isinstance(r, dict) and r.get(\"escritor\")",
+      "para": "        except OSError:\n            continue\n        if isinstance(r, dict) and r.get(\"escritor\")",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_ilegivel_de_outra_branch_ou_de_outro_head_nao_vale"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "PR-HOOK-PRAZO: só vale o resultado da mesma branch",
+      "arquivo": "bin/forge-check",
+      "de": "r.get(\"head\") == head and r.get(\"branch\") == branch and r.get(\"base_sha\") == base_sha:",
+      "para": "r.get(\"head\") == head and r.get(\"base_sha\") == base_sha:",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_ilegivel_de_outra_branch_ou_de_outro_head_nao_vale"
+      ]
+    }
+  ]
+}

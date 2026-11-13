@@ -74,6 +74,37 @@ class RitmoNoHook(unittest.TestCase):
         self.assertEqual(sem_excecao(agentes.ritmo_do_projeto, None), "equilibrado")
 
 
+class RitmoNoModeloDeProjeto(unittest.TestCase):
+    """E3.2/E3.3 (decisão do dono 3a, 12/11 11:06): projeto de hoje sem o campo funciona como `equilibrado`, sem mexer em nada."""
+
+    MODELO = RAIZ / "templates/projeto/.forge/config.json"
+
+    def projeto(self):
+        raiz = pasta_temporaria(self)
+        (raiz / ".forge").mkdir()
+        return raiz
+
+    def test_projeto_existente_sem_o_campo_vale_equilibrado_e_o_teto_de_antes(self):
+        raiz = self.projeto()
+        (raiz / ".forge/config.json").write_text('{\n  "pesados": ["make test"],\n  "caminhos_extra": [],\n  "teto_agentes": 3\n}\n', encoding="utf-8")
+        ritmo = agentes.ritmo_do_projeto(raiz)
+        self.assertEqual(ritmo, "equilibrado")
+        self.assertEqual(agentes.calcular_teto({"teto_agentes": 3}, ritmo=ritmo)[0], 3)
+
+    def test_config_que_nao_se_le_vale_equilibrado(self):
+        casos = {"pasta no lugar do arquivo": lambda c: c.mkdir(), "bytes fora do UTF-8": lambda c: c.write_bytes(b'{"ritmo": "\xff"}')}
+        for nome, preparo in casos.items():
+            with self.subTest(caso=nome):
+                raiz = self.projeto()
+                preparo(raiz / ".forge/config.json")
+                self.assertEqual(sem_excecao(agentes.ritmo_do_projeto, raiz), "equilibrado")
+
+    def test_modelo_traz_o_ritmo_equilibrado_e_as_chaves_de_antes(self):
+        dados = json.loads(self.MODELO.read_text(encoding="utf-8"))
+        self.assertEqual(dados, {"pesados": [], "caminhos_extra": [], "ritmo": "equilibrado"})
+        self.assertEqual(agentes.ritmo_valido(dados["ritmo"]), "equilibrado")
+
+
 class ComandoRitmo(unittest.TestCase):
     def setUp(self):
         self.raiz = pasta_temporaria(self)

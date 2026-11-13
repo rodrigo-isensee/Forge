@@ -2,9 +2,9 @@
 tipo: revisao-seguranca
 contrato: 1
 pedido: v046
-branch: melhoria/conformidade-caminho-git
-commit: 3b3d7a67387c4c61bfd51692513a03bec916d492
-parecer: reprovado
+branch: melhoria/conformidade-curinga
+commit: abfccb7e24fb7ef005e53080d81d60c3896234cc
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-12
 ---
@@ -14,11 +14,12 @@ Delta revisado: `cddc8915..3b3d7a67` (volta 3, E20.29), lido por `forge-check pa
 
 Veredito: **reprovado**. A3 e A2 estão certos, e a liberação nova cumpre o que promete na grafia comum: `-S`, `-t`, `--symbolic` e `--` fecham, destino protegido (também por link para `.git`) recusa, e `cp -s`/`cp -l` com destino protegido recusam. Mas a origem com curinga ou chaves (`"$(git rev-parse --git-dir)"/c?nfig`) passa a escapar das regras específicas (`.git/config`, `.git/hooks/`, `.git/forge/`): o hook confere o nome literal `c?nfig`, que só casa a regra genérica, e a regra genérica agora se libera. Recusava no `cddc8915` e passa no head (A11, bloqueante). É contra o requisito da própria entrega ("as específicas seguem barrando", `hooks/conformidade.py:1070`) e a correção é pequena. A develop também deixa passar (lá a substituição é opaca), mas esta branch existe para fechar essa família. Os outros resíduos da liberação só tocam a regra genérica (A12) ou já existiam (A13): ficam em cartão.
 
+Atualização (E20.41, DECISÃO DO DONO de 12/11 18:20, opção A): **aprovado** no head `abfccb7e` da branch `melhoria/conformidade-curinga`. A volta 5 fecha o A11 deste parecer: as sondas S6 a S9 e as grafias da volta 4 (S10 a S14, colchete, negação, classe e `nocaseglob`) recusam com rc 2; o detalhe está em `docs/security/conformidade-curinga.md`. Os recomendados (A12, A13, A4 a A10) seguem como cartões. O texto abaixo é o da E20.31 e fica como histórico.
+
 ## Gatilhos
 `R-SEGURANCA`: controle do Forge (hook `conformidade`, guarda de escrita e de link em `.git/`), analisador de comando.
 
 ## Achados
-- A11 (bloqueante) hooks/conformidade.py:1076 · origem de link vinda de rev-parse com curinga ou chaves escapa das regras específicas: `ln "$(git rev-parse --git-dir)"/c?nfig h` dá rc 0 (rc 2 no cddc8915) e o link físico grava no .git/config; também `[c]onfig`, `hook[s]/pre-push`, `forg?/x`, `conf{i,}g`, `cp -l` e worktree
 - A12 (recomendado) hooks/conformidade.py:1076 · a liberação também cobre `commondir`, `worktrees/<n>/gitdir` e `config.worktree`, a sentinela FORGE_DIR_DO_GIT atribuída na linha e a variável redefinida depois do rev-parse (`d=$(…); d=.git`); só a regra genérica; cartão
 - A13 (recomendado) hooks/conformidade.py:1046 · já existia (develop e cddc8915): `d=.git; ln "$d"/config h` passa rc 0; a escrita recusa a variável lida como .git (`d=.git; cp x "$d"/config` rc 2), o link não; cartão com prioridade
 - A4 (recomendado) hooks/conformidade.py:1001 · cd para o opaco segue passando rc 0 (`cd "$(git rev-parse --git-dir)/hooks" && cp ../../x pre-push`); já existia (AR-7); cartão de segurança
@@ -29,10 +30,6 @@ Veredito: **reprovado**. A3 e A2 estão certos, e a liberação nova cumpre o qu
 - A10 (recomendado) hooks/conformidade.py:365 · resíduo da leitura por palavras: operador colado (`--git-dir;`, `--git-dir&&:`, `--git-dir|cat`), `eval '…'`, `sh -c '…'`, `$'--git-dir'` e `$(…)` aninhado sem aspas, sem resto, passam rc 0; cartão com prioridade
 
 ## Sondas
-- S6 · ln "$(git rev-parse --git-dir)"/c?nfig h · espera: rc 2 R-CONFORMIDADE (.git/config) · obtido: rc 0, stderr vazio (head 3b3d7a67); rc 2 no cddc8915
-- S7 · ln "$(git rev-parse --git-common-dir)"/hook[s]/pre-push h (worktree) · espera: rc 2 R-CONFORMIDADE (.git/hooks/) · obtido: rc 0, stderr vazio (head); rc 2 no cddc8915
-- S8 · d=$(git rev-parse --git-dir); ln "$d"/c?nfig h · espera: rc 2 R-CONFORMIDADE (.git/config) · obtido: rc 0, stderr vazio (head); o mesmo com `[c]onfig`, `forg?/x`, `conf{i,}g`, `ln -f`, `cp -l` e `cp -s` com `--absolute-git-dir`
-- S9 · git init; ln "$(git rev-parse --git-dir)"/c?nfig h; printf '[forge "sonda"]\n\tx = 1\n' >> h; git config --get forge.sonda.x · espera: o link físico grava no .git/config · obtido: `1`, mesmo inode (`stat -c '%h %i'`: 2 924483583 nos dois)
 
 ## Detalhe dos achados
 Método: o montador de `tests/test_hooks.py` (`Fixture.montar`, `rodar`), papel `forge:tech-lead`, projeto em `melhoria/x` (e worktree em `melhoria/w`), com `x`, `config` e `pre-push` na raiz; só repositórios temporários. Comparei três árvores (`git archive`): o head `3b3d7a67`, o `cddc8915` e a develop `a1318e88`. Abusos pedidos pelo brief, 87 casos:
