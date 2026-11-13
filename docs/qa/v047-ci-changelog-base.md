@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-changelog-base
-commit: 136cf316b34434debefc9dbe3dd41ca98c49b3fbb
+commit: 136cf316b34434dbefc9dbe3dd41ca98c49b3fbb
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
