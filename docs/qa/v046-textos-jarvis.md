@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/v046-textos-jarvis
-commit: afdaa3abf9e27dd195380c1fe01ac631082b4198
+commit: cf172a29279f27ac29e1a4cfe843efd35057ea51
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -58,3 +58,18 @@ Vermelho à mão (base `be5bb7ee` para `skills/` e `docs/regras/README.md`, test
 | Núcleo do Jarvis | `test_jarvis_nucleo` (17) | n/a | passou |
 
 Resultado: aprovado no head `afdaa3ab`; nenhum bug aberto; sem novos achados.
+
+## Revalidação por delta (E21.12, afdaa3ab..cf172a29)
+`forge-check parecer delta` listou no domínio: `skills/trabalho-em-paralelo/SKILL.md` e `tests/test_reval_delta.py` (o resto veio da develop, #518 a #520, fora do escopo do delta). Head conferido: `cf172a29` (igual ao Revisar-sha e à origin). Sem PR, sem check-run `bateria`; rodei os afetados um por vez (`R-TETO`), em worktree minha.
+
+- Skill: a descrição perdeu "hora ou estado" e a linha 9 ganhou "(serializam)"; "depois de conferir que o anterior não roda mais" segue lá (A2 continua resolvido). Texto só, sem regra de código: vermelho e mutante n/a (`R-QA`).
+- Teste: `test_reval_delta.py` ganhou a citação `("tests/test_jarvis_nucleo.py", "README.md")` motivo `teste-le`; coerente, o `test_jarvis_nucleo` lê a linha da R-WIP em `docs/regras/README.md`. Entrada de lista de exceções, sem afrouxar guarda.
+- Rodei: `test_reval_delta` 10, `test_jarvis_nucleo` 17, `test_orcamento_instrucao` 8, `test_skills_v0442` 4, `test_citacao` 10, `test_metricas_texto`, `test_clareza`: todos OK.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Diretrizes 18 e 19 seguem fixadas | `test_jarvis_nucleo` (17, com `Diretrizes18e19`) | frases da R-WIP e da espera | passou |
+| Skill dentro do orçamento | `test_orcamento_instrucao` (8) | limite de caracteres | passou |
+| Citação do README declarada | `test_reval_delta` (10), `test_citacao` (10) | `CITACOES_CONHECIDAS` | passou |
+
+Resultado: aprovado no head `cf172a29`; nenhum bug aberto; sem novos achados.
