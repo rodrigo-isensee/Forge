@@ -62,7 +62,7 @@ fi
 # shellcheck disable=SC2016  # as crases são literais da expressão
 rapido="$(sed -n 's/^Pronto rápido: `\(.*\)`.*/\1/p' "$raiz_forge/stacks/$stack/pronto.md" | head -n1)"
 # shellcheck disable=SC2016
-deteccao="$(sed -n 's/^Detecção: //p' "$raiz_forge/stacks/$stack/pronto.md" | head -n1 | grep -o '`[^`]*`' | tr -d '`' | paste -sd' ' -)" || true
+deteccao="$(sed -n 's/^Detecção: //p' "$raiz_forge/stacks/$stack/pronto.md" | head -n1 | command grep -o '`[^`]*`' | tr -d '`' | paste -sd' ' -)" || true
 
 escapar() { printf '%s' "$1" | sed -e 's/[\/&|]/\\&/g'; }
 n_esc="$(escapar "$nome")"; d_esc="$(escapar "$descricao")"; p_esc="$(escapar "$pronto")"; s_esc="$(escapar "$stack")"

@@ -41,6 +41,16 @@
       "testes": [
         "tests.test_forge.PreEnvioDoModelo.test_forge_upgrade_roda_os_passos_da_versao_em_ordem_um_commit_cada"
       ]
+    },
+    {
+      "id": "M21",
+      "guarda": "pre-push.local: o pronto rápido vermelho barra o envio, com a orientação",
+      "arquivo": "templates/projeto/.githooks/pre-push.local",
+      "de": "bash -c \"$rapido\" || { echo",
+      "para": "bash -c \"$rapido\" || true || { echo",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_projeto_atualizado_ganha_os_dois_e_o_envio_roda_o_pronto_rapido"
+      ]
     }
   ]
 }

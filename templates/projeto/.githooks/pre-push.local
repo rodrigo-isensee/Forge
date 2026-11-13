@@ -16,4 +16,4 @@ if [ "$tem_codigo" -eq 0 ]; then
   exit 0
 fi
 echo "pre-push.local: pronto rápido: ${rapido}"
-bash -c "$rapido"
+bash -c "$rapido" || { echo "pre-push.local: o pronto rápido reprovou (ou falta a ferramenta no PATH); corrija e envie de novo, ou ajuste \`rapido\` neste arquivo se o projeto usa outras ferramentas" >&2; exit 1; }

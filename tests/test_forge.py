@@ -1363,6 +1363,7 @@ class PreEnvioDoModelo(unittest.TestCase):
         self.commit("src/p.py", "x = 1\n", "codigo")
         r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
         self.assertNotEqual(r.returncode, 0, "lint vermelho precisa barrar o envio")
+        self.assertIn("pronto rápido reprovou", r.stderr)
         self.assertEqual(chamadas, ["ruff check ."])
         git("reset", "-q", "--hard", "origin/feature/base", cwd=self.repo)  # só docs: o pronto rápido não roda
         self.commit("docs/nota.md", "nota\n", "docs")
