@@ -22,7 +22,7 @@ Revisado: `git diff c340c322..3a86bd38` (R-DECISAO.md, falar-com-o-dono/SKILL.md
 Delta 3a86bd38..39c163cc (`forge-check parecer delta`): só R-DECISAO.md e falar-com-o-dono/SKILL.md, texto. A1 (6 trechos de `invariantes` removidos) corrigido: `python3 -m unittest tests.test_forge.RegrasInviolaveis` OK (3 testes) no head. A2 corrigido: "(não amplia autorização)" voltou em R-DECISAO.md:24. O formato `decidido: <porta> — <critério> — <fato>` é só descritivo. O texto novo encurtado não afrouxa controle: a escolha provisória segue vetada para custo, acesso, aceite de risco, rótulo, merge na main, exceção a regra e ato irreversível. Custo declarado (diretriz 8 sem "nem a do dono" e sem "origem" em R-DECISAO) sem caminho de ataque realista: vira recomendado A3, não bloqueante. A1 e A2 do parecer anterior ficam fechados.
 
 ## Sondas
-Nenhuma sonda de bloqueante nesta rodada (S1 do parecer anterior passa a OK no head).
+- S1 · python3 -m unittest tests.test_forge.RegrasInviolaveis (head 39c163cc) · espera: OK, sem trecho invariante ausente · obtido: OK (3 testes)
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. As diretrizes 1, 8 e 9 (custo em tokens e ganho por opção, origem do item, conferência de decisão ruim, também a do dono) não afrouxam controle: o texto manda levar ao dono, e a escolha provisória segue vetada para aceite de risco, custo, rótulo, merge na main e ato destrutivo. Suíte inteira: só no CI (sem PR aberto agora); rodado só o teste de invariantes (OK). Sem lacuna de ferramenta (revisão de texto).
