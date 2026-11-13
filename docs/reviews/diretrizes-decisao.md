@@ -19,9 +19,9 @@ Restauração sugerida (sem aumentar o orçamento além do necessário): devolve
 Recomendados: o formato `decidido: <porta> — <critério> — <fato>` saiu do texto da "Decisão óbvia"; nenhum teste o protege, mas confira com `forge-check decisoes registrar` se a ferramenta o imprime (ela vale pelo ID). "(não amplia autorização)" saiu da regra, mas segue testado em `bin/forge_dono.py`.
 
 ## Achados
-- A1 (bloqueante, resolvido em 39c163cc) docs/regras/R-DECISAO.md:17 · invariantes de tests/config.json sumiram: `na entrega, `pendente:``, `a próxima espera a resposta`, `origem: <coluna>; ação: <o que o usuário faz>; comando:`, `um comando, um efeito`, `evidência no motivo`; test_trechos_obrigatorios falha (R-DECISAO)
-- A2 (bloqueante, resolvido em 39c163cc) skills/falar-com-o-dono/SKILL.md:13 · invariante `Sem resposta, fica pendente.` removido da skill (o corte moveu a frase); test_trechos_obrigatorios falha (R-DECISAO)
-- A3 (recomendado, resolvido em 39c163cc) docs/regras/R-DECISAO.md:24 · formato `decidido: <porta> — <critério> — <fato>` saiu da decisão óbvia sem teste que o proteja; confirme que `forge-check decisoes registrar` o descreve
+- A1 (bloqueante) docs/regras/R-DECISAO.md:17 · invariantes de tests/config.json sumiram: `na entrega, `pendente:``, `a próxima espera a resposta`, `origem: <coluna>; ação: <o que o usuário faz>; comando:`, `um comando, um efeito`, `evidência no motivo`; test_trechos_obrigatorios falha (R-DECISAO) · resolvido em 39c163cc
+- A2 (bloqueante) skills/falar-com-o-dono/SKILL.md:13 · invariante `Sem resposta, fica pendente.` removido da skill (o corte moveu a frase); test_trechos_obrigatorios falha (R-DECISAO) · resolvido em 39c163cc
+- A3 (recomendado) docs/regras/R-DECISAO.md:24 · formato `decidido: <porta> — <critério> — <fato>` saiu da decisão óbvia sem teste que o proteja; confirme que `forge-check decisoes registrar` o descreve
 
 ## Sondas
 
