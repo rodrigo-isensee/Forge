@@ -789,21 +789,26 @@ def entrada_e_tipo(hook):
     return entrada, str(entrada.get("subagent_type") or "general-purpose")
 
 
+COMO_SELAR = ("sele o brief com `forge-check brief selar --arquivo <brief> --pedido <id>` e cite o caminho dele no prompt (o selo "
+              "vale para o sha256 de agora).")
+
+
 def conferir_brief(hook):
-    """R-BRIEF do disparo (forma e hash da mensagem ao conferente, selo do especialista): os briefs selados lidos, ou recusa.
-    HOOK-ERRO-LIBERA (C7): roda antes da leitura do estado e não depende dela; qualquer exceção aqui recusa."""
+    """R-BRIEF do disparo (forma e hash da mensagem ao conferente, selo do especialista): (briefs selados lidos, texto da recusa
+    ou None). HOOK-ERRO-LIBERA (C7): roda antes da leitura do estado e não depende dela; qualquer exceção aqui é recusa. Quem
+    chama recusa depois de gravar a liberação de agente morto (TRAVA-AGENTE-MORTO, C5), e recusa mesmo se o estado falhar."""
     lidos = []
     try:
         entrada, tipo = entrada_e_tipo(hook)
         faltas = mensagem_sem_forma(entrada.get("prompt")) if tipo == CONFERENTE else None
         if faltas:
-            bloquear("R-BRIEF", "gere a mensagem ao conferente com `forge-check brief mensagem` e envie-a (cabeçalho, caminho e hash); "
-                                f"faltou: {faltas}.")
+            return lidos, ("gere a mensagem ao conferente com `forge-check brief mensagem` e envie-a (cabeçalho, caminho e hash); "
+                           f"faltou: {faltas}.")
         divergencia = hash_do_brief_diverge(hook, entrada.get("prompt")) if tipo == CONFERENTE else None
         if divergencia:
-            bloquear("R-BRIEF", f"{divergencia}; gere de novo com `forge-check brief mensagem` e envie-a.")
+            return lidos, f"{divergencia}; gere de novo com `forge-check brief mensagem` e envie-a."
         if not exige_selo(tipo):
-            return lidos
+            return lidos, None
         try:
             sem_selo = selo_ausente(hook, entrada.get("prompt"), tipo, lidos)
         except Exception as erro:  # noqa: BLE001 - falha fechada: sem prova do selo, o especialista não sai
@@ -812,10 +817,7 @@ def conferir_brief(hook):
     except Exception as erro:  # noqa: BLE001 - C7: sem prova da forma ou do hash, o disparo não sai
         hook.registrar_erro(erro)
         sem_selo = "erro ao conferir o brief do disparo (registrado no erros.log)"
-    if sem_selo:
-        bloquear("R-BRIEF", f"{sem_selo}; sele o brief com `forge-check brief selar --arquivo <brief> --pedido <id>` e cite o "
-                            "caminho dele no prompt (o selo vale para o sha256 de agora).")
-    return lidos
+    return lidos, (f"{sem_selo}; {COMO_SELAR}" if sem_selo else None)
 
 
 def lancar(hook, agentes, agora, lidos):
@@ -891,9 +893,23 @@ def principal(hook):
     except Exception as erro:  # noqa: BLE001 - registra; o disparo ainda passa pelo R-BRIEF
         hook.registrar_erro(erro)
         sem_estado = True
-    lidos = conferir_brief(hook) if evento == "PreToolUse" and ferramenta != RETOMADA else []  # C7: antes do estado
+    lidos, recusa = conferir_brief(hook) if evento == "PreToolUse" and ferramenta != RETOMADA else ([], None)  # C7: antes do estado
     if sem_estado:
+        recusa and bloquear("R-BRIEF", recusa)
         return
+    if recusa is None:
+        atualizar_estado(hook, evento, ferramenta, lidos)
+        return
+    try:  # C7: a recusa não depende do estado; a liberação de agente morto se grava antes dela (TRAVA-AGENTE-MORTO, C5)
+        atualizar_estado(hook, evento, ferramenta, lidos, recusa)
+    except Exception as erro:  # noqa: BLE001 - o estado que falha não leva o R-BRIEF junto
+        hook.registrar_erro(erro)
+    bloquear("R-BRIEF", recusa)
+
+
+def atualizar_estado(hook, evento, ferramenta, lidos, recusa=None):
+    """Lê o agentes.json, grava a liberação de agente morto e decide o evento; com `recusa` (R-BRIEF), recusa logo depois da
+    liberação gravada."""
     with hook.trava():
         arquivo = hook.run() / "agentes.json"
         agora = time.time()
@@ -905,6 +921,8 @@ def principal(hook):
             gravar_json(arquivo, {"agentes": agentes, "lapides": lapides})
             for registro, status in liberacao.soltos:
                 registrar_liberacao(hook, registro["id"], status)
+        if recusa:
+            bloquear("R-BRIEF", recusa)
         if evento == "PreToolUse" and ferramenta == RETOMADA:
             recusar_retomada(hook, agentes, lapides)
         elif evento == "PreToolUse":
@@ -915,7 +933,6 @@ def principal(hook):
             aid = hook.campo("agent_id")
             agentes = [a for a in agentes if not aid or a.get("id") != aid]
         gravar_json(arquivo, {"agentes": agentes, "lapides": lapides})
-
 
 if __name__ == "__main__":
     executar("agentes", principal)
