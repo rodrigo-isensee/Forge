@@ -2384,6 +2384,15 @@ class VerificarContribuicao(unittest.TestCase):
     def test_users_do_mac_falha(self):
         self.caminho_pessoal_falha("cd /Users/" + "fulano/projeto")
 
+    def test_home_do_runner_passa_mas_nome_que_o_contem_ou_o_segue_falha(self):  # v047 E5.4
+        for linha in ("cache em /home/" + "runner/work/x", "cd /root/x", "cd $HOME/x"):
+            with self.subTest(linha=linha):
+                r = self.verificar("n.md", linha + "\n")
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.caminho_pessoal_falha("cd /home/" + "runner2/projeto")
+        self.caminho_pessoal_falha("cd /home/" + "runner/work /home/" + "fulano/x")
+        self.caminho_pessoal_falha("cd /Users/" + "runner/projeto")
+
     def test_dados_neutros_dos_testes_passam(self):
         for linha in ("cd /exemplo/projeto", "HOME=/tmp/forge-x/home/" + ".config/git", "em /home/" + "ana",
                       "modelo /Users/<nome>/projeto", "modelo /mnt/c/Users/<nome>/projeto"):
