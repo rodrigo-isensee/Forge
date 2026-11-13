@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0457
 branch: melhoria/trava-agente-morto
-commit: 31f2e643e22c22ceedcf927a07c4cf5676032ed4
+commit: 6e005f9beb2310dc25dd634f60636cc542232a47
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -48,3 +48,11 @@ Classe C, passada única, head f77bb51d (diff a1318e88..f77bb51d). O parecer de 
 - docs/hooks.md: cita SendMessage, lápide e liberacoes.log (linhas 11 e 70); texto, sem teste próprio. mapa do forge-testes: `hooks/.*` inclui `test_trava_agente_morto` (alteração conferida no diff).
 - `--cobertura --base a1318e88`: só 2 `isenta` (as mesmas) e os 2 JSON `não coberto` (cobertos à mão pelos M28 a M32).
 - Suíte inteira: não rodei (carga ~14 em 12 CPUs); a bateria é do CI do PR (check-run `bateria`), sem PR aberto neste momento.
+
+## Revalidação por delta (E23.104), 31f2e643..6e005f9b (junção com a develop)
+`forge-check parecer delta` (escopo: sem o que veio da base) listou no domínio só `bin/forge-testes` (linha do mapa de `test_hook_git_comum`, vinda da develop). `hooks/agentes.py`, `hooks/hooks.json`, `hooks/conformidade.json` e `tests/test_trava_agente_morto.py` não mudaram entre os dois heads (`git diff --stat` vazio por arquivo). A develop mexeu em `hooks/conformidade.py` (+131 linhas, caminho git), arquivo que roda os 4 fixtures C10 da trava; reteste:
+- `python3 -m unittest tests.test_trava_agente_morto` → `Ran 51 tests ... OK`.
+- `bin/forge-mutante` nas 5 specs (-, -2 a -5) no head 6e005f9b: 32 `morreu`, rc=0, nenhum sobrevivente.
+- 4 fixtures `home-claude-projects-*` pelo executor de `tests.test_hooks` sobre o `conformidade.py` mesclado: 4 de 4 OK.
+- `python3 -m unittest tests.test_hook_git_comum` → `Ran 1 test ... OK`.
+- Conclusão: a junção não muda o comportamento da trava. As 6 falhas locais de `tests.test_hooks` (pid e sessão do sandbox) e a suíte inteira ficam com a bateria do CI do PR #523; não rodei a suíte (carga ~12 em 12 CPUs).
