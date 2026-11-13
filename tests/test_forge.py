@@ -623,7 +623,7 @@ class DiretrizesDoDonoNaRWip(unittest.TestCase):
         paralelo = (RAIZ / "skills" / "trabalho-em-paralelo" / "SKILL.md").read_text(encoding="utf-8")
         kanban = (RAIZ / "skills" / "kanban-scrum" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("e encha as vagas sem esperar a versão (`R-WIP`)", paralelo)
-        self.assertIn("entra na `develop` por PR próprio, com CI verde, sem junção de frentes (`R-FLUXO`)", paralelo)
+        self.assertIn("com CI verde, entra na `develop` por PR próprio, sem juntar frentes (`R-FLUXO`)", paralelo)
         self.assertIn("parado nunca vira proposta de abandono (`R-WIP`)", kanban)
         jarvis = (RAIZ / "agents" / "jarvis.md").read_text(encoding="utf-8")
         for skill in ("skills/trabalho-em-paralelo/SKILL.md", "skills/kanban-scrum/SKILL.md"):

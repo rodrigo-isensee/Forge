@@ -70,6 +70,7 @@ A linha não se escreve à mão: a cada mudança de estado, inclusive "Aguardand
 ## Métricas de fluxo do time
 - **Lead time:** entrada no Backlog → Pronto. **Cycle time:** entrada em "Em andamento" → Pronto.
 - **Vazão:** Pronto por semana. **Idade do WIP:** desde "Em andamento". **Bloqueio:** tempo e motivos.
+- **Dois relógios (D-4):** pedido aberto → develop; pronto para fazer → develop (`relogios:`).
 - **Retrabalho:** % de cartões que voltaram de Code review, QA ou UX para "Em andamento" (ver "Bugs e retrabalho").
 - **Escape:** bugs encontrados depois do parecer do QA.
 - Percentis P50/P85 só com 20+ itens; abaixo disso, mostrar os valores individuais. Nunca média sozinha.
