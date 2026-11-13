@@ -934,5 +934,6 @@ def atualizar_estado(hook, evento, ferramenta, lidos, recusa=None):
             agentes = [a for a in agentes if not aid or a.get("id") != aid]
         gravar_json(arquivo, {"agentes": agentes, "lapides": lapides})
 
+
 if __name__ == "__main__":
     executar("agentes", principal)
