@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-jarvis-parte2
-commit: 17c66fb251218a7656412fb5f48ff591a4f7b241
+commit: cfeff5ef7c54fab62418a34e085d316623d72581
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-13
@@ -40,3 +40,9 @@ Lido só `forge-check parecer delta` (domínio: `skills/kanban-scrum/SKILL.md`, 
 - Aprovado. A asserção da D2 em `tests/test_forge.py:626` passou a procurar "com CI verde, entra na `develop` por PR próprio, sem juntar frentes (`R-FLUXO`)", frase que existe uma vez na skill `trabalho-em-paralelo`; o QA A0 (falha em `DiretrizesDoDonoNaRWip`) fica resolvido, sem guarda nova nem mutante.
 - A medida dos dois relógios voltou à `kanban-scrum` numa linha (fecha o A1 do QA); o par `relogios:` segue em `bin/forge_voltas.py`. A skill `trabalho-em-paralelo` ganhou "(serializam)", só redação.
 - Execução (sem PR, só afetados, ambiente limpo): `DiretrizesDoDonoNaRWip`, `RegrasInviolaveis`, `AntiDuplicacao`, `test_jarvis_nucleo` 24 OK em 5 s. Suíte inteira no CI do PR.
+
+## Revalidação (delta 17c66fb2..cfeff5ef, E3.31)
+Lido só `forge-check parecer delta` (domínio: `docs/regras/README.md`, `skills/kanban-scrum/SKILL.md`, `tests/test_forge.py`). Instância que não fez a entrega; sem PR, só os afetados.
+- Aprovado pela diretriz 25: nenhuma regra antiga saiu nem foi resumida. As duas frases encurtadas eram da própria branch: "sem junção de frentes" não existe na base `afba389e` (só em fragmento e pareceres da branch) e passou a "sem juntar frentes", mesmo sentido; a linha "Devolvido no code review ou no QA" também não existe na base e só foi unida à linha do bloqueio, com o texto igual. A frase de bloqueio e espera do dono da base ("volta para ela") segue inteira.
+- O teste da R-WIP (`tests/test_forge.py`, trecho e docstring) acompanha o texto novo; o mesmo trecho existe uma vez na linha da R-WIP. Sem guarda nova nem mutante.
+- Execução (sem PR, só afetados, `python -I`): `DiretrizesDoDonoNaRWip`, `RegrasInviolaveis`, `AntiDuplicacao`, `Orcamento`, `RegrasComId` e `test_jarvis_nucleo` verdes (saída nas Provas do relatório). Suíte inteira no CI do PR.
