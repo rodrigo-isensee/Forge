@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: melhorias-de-projeto-1311
 branch: melhoria/mp1311-fechar-cartao
-commit: 0884fae230d784f90d6cb0108dfa414ee91707e0
+commit: a47ef67b708027498f825765c764fec9bf14dae0
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-13
@@ -23,3 +23,11 @@ Aprovado. Classe C, head 0884fae2, instância que não fez a entrega.
 - Guardas do diff: 3 linhas mudadas, 3 mutantes declarados (M1, M2, M3), todos mortos (`bin/forge-mutante tests/mutantes/mp1311-fechar-cartao.json`). Cada ramo tem teste de comportamento.
 - Testes rodados aqui (sem PR, só os afetados): test_fechar 99 OK, test_fechar_ref_por_nome 4 OK, test_fechar_sha_conferido 9 OK, test_fechar_base_andou 30 OK. `shellcheck bin/forge-fechar` sem saída.
 - Tamanho: bin/forge-fechar 19 linhas e testes dentro da orientação de 150; um comportamento só. Fragmento em `changelog.d/` presente.
+
+## Revalidação (delta 0884fae2..a47ef67b)
+Aprovado no head a47ef67b, instância que não fez a entrega. Delta lido por `forge-check parecer delta`: `bin/forge-fechar`, `tests/mutantes/mp1311-fechar-cartao.json`, `tests/test_fechar.py`, `tests/test_fechar_ref_por_nome.py`, `tests/test_fechar_sha_conferido.py`.
+- `ref_check` e `ref_dry` passam a `refs/heads/$ref` (linhas 768 e 826): a tag de mesmo nome não desvia a conferência. O `sha_conferido` já era lido por `refs/heads/$ref`, então a cadeia do `--match-head-commit` não muda.
+- Teste novo `test_tag_de_mesmo_nome_nao_desvia_a_conferencia` cria a tag em outro sha, prova que o nome curto a casa e confere a chamada e o `--match-head-commit` com o sha da branch.
+- Mutantes: M1 a M5 mortos (`bin/forge-mutante tests/mutantes/mp1311-fechar-cartao.json`); M4 e M5 cobrem as duas linhas mudadas.
+- Testes rodados aqui: `tests.test_fechar_ref_por_nome` e `tests.test_fechar`, 104 OK. `shellcheck bin/forge-fechar` sem saída.
+- A1 (recomendado) segue como estava; sem achado novo.
