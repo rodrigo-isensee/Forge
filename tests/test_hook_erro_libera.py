@@ -41,11 +41,11 @@ class HookErroLibera(unittest.TestCase):
 
     def test_fixtures_do_pedido(self):
         """E1, E2, E4 a E6, E8 e os legítimos com erro forçado: os fixtures `errointerno-*` dos dois hooks."""
-        self.lote(minimo([Fixture(p) for p in sorted(FIXTURES.glob("*/errointerno-*.json"))], 25, "fixtures errointerno-*"))
+        self.lote(minimo([Fixture(p) for p in sorted(FIXTURES.glob("*/errointerno-*.json"))], 38, "fixtures errointerno-*"))
 
     def test_fixtures_do_prazo(self):
         """E4 e o legítimo do prazo (C5): só os fixtures de prazo forçado."""
-        self.lote(minimo([Fixture(p) for p in sorted(FIXTURES.glob("conformidade/errointerno-prazo-*.json"))], 4, "fixtures de prazo"))
+        self.lote(minimo([Fixture(p) for p in sorted(FIXTURES.glob("conformidade/errointerno-prazo-*.json"))], 7, "fixtures de prazo"))
 
     def test_fixtures_do_agentes(self):
         """E8 e o estado corrompido (C7): só os fixtures do `agentes`."""

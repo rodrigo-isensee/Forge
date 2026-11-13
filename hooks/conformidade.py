@@ -30,7 +30,7 @@ from pathlib import Path
 
 import parecer
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TETO, CORPO_DE_LACO, INTEGRACAO,
-                    LancadorDemais, OPACO, TextoAbertoComLeituras, TextoDivididoAberto,
+                    GIT_GRAVA_ARQUIVO, LancadorDemais, OPACO, TextoAbertoComLeituras, TextoDivididoAberto,
                     LIMITE_MENSAGEM, PLUGIN, PROFUNDIDADE, bloquear, comentarios,
                     construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, formas_que_o_shell_le, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, expandir_home, fora_da_gramatica_com_heredoc,
@@ -2820,10 +2820,15 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
 
 
 # HOOK-ERRO-LIBERA (C2, C3): a linha que escreve, para o marcador da falha fechada. Lê a mais de propósito: só pesa em erro
-# interno ou prazo vencido, e aí a dúvida recusa.
-ESCRITORES = TODOS_OS_ARGUMENTOS | SO_DESTINO | REMOCAO | {"ln", "chmod", "truncate", "touch", "unlink", "shred", "rmdir"}
+# interno ou prazo vencido, e aí a dúvida recusa. Os verbos do git que gravam arquivo vêm das listas da guarda normal (A1).
+ESCRITORES = (TODOS_OS_ARGUMENTOS | SO_DESTINO | REMOCAO | CAMINHOS_NO_GIT | GIT_GRAVA_ARQUIVO
+              | {"ln", "chmod", "truncate", "touch", "unlink", "shred", "rmdir"})
 ESCREVE_NA_LINHA = re.compile(ESCRITA_NA_LINHA.pattern + r"|\b(?:" + "|".join(sorted(map(re.escape, ESCRITORES))) + r")\b")
 ALVO_OPACO = re.compile(r"[$`]|<\(")  # C3: substituição, crase, variável ou `<(`: o hook não sabe o destino
+# A2: a troca da pasta de base (`cd`, `pushd`, `popd`, `-C`, `--chdir`, `--git-dir`, `--work-tree`, `GIT_DIR`,
+# `GIT_WORK_TREE`) tira do texto o caminho que a política conhece: na linha que escreve, conta como alvo opaco.
+BASE_TROCADA = re.compile(r"(?:^|[\s;&|(){}])(?:cd|pushd|popd)(?=[\s;&|)]|$)|(?<!\S)(?:-C|--chdir|--git-dir|--work-tree)"
+                          r"|\bGIT_(?:DIR|WORK_TREE)\b")
 
 
 def termos_da_politica(pol):
@@ -2848,9 +2853,9 @@ def termos_da_politica(pol):
 
 class MarcadorDaPolitica:
     """HOOK-ERRO-LIBERA: o marcador que o `executar` usa no erro interno e no prazo vencido (`_comum.marcado`). Marca o
-    `CRITICO` ou a linha que escreve (`ESCREVE_NA_LINHA`) e cita um caminho da política (C2) ou tem alvo opaco (C3); no
-    Write, Edit, MultiEdit e NotebookEdit, o caminho resolvido dentro da raiz da sessão ou casando a política (C4). A
-    política ilegível marca tudo. Os termos se montam na 1.ª busca, do JSON real: entrada nova já nasce coberta."""
+    `CRITICO` ou a linha que escreve (`ESCREVE_NA_LINHA`) e cita um caminho da política (C2), tem alvo opaco (C3) ou
+    troca a pasta de base (A2); no Write, Edit, MultiEdit e NotebookEdit, o caminho resolvido dentro da raiz da sessão
+    ou casando a política (C4). A política ilegível marca tudo. Os termos se montam na 1.ª busca, do JSON real: entrada nova já nasce coberta."""
 
     def __init__(self, critico, arquivo):
         self.critico, self.arquivo, self._termos = critico, arquivo, None
@@ -2869,7 +2874,8 @@ class MarcadorDaPolitica:
             return True
         if hook.entrada.get("tool_name") in FERRAMENTAS_DE_ARQUIVO:
             return self.arquivo_marcado(hook, formas[0], termos)
-        return any(ESCREVE_NA_LINHA.search(t) and (termos.search(t) or ALVO_OPACO.search(t)) for t in formas)
+        return any(ESCREVE_NA_LINHA.search(t) and (termos.search(t) or ALVO_OPACO.search(t) or BASE_TROCADA.search(t))
+                   for t in formas)
 
     @staticmethod
     def arquivo_marcado(hook, caminho, termos):
