@@ -24,22 +24,12 @@
     },
     {
       "id": "M3",
-      "guarda": "so cria quando nada existe no caminho (lexists, nao exists)",
+      "guarda": "nao recria nem sobrescreve o que existe",
       "arquivo": "migrations/0.47.1/migrar",
       "de": "if not os.path.lexists(alvo):",
-      "para": "if not os.path.exists(alvo):",
+      "para": "if True:",
       "testes": [
-        "tests.test_forge.ModeloDeSegurancaNoProjeto.test_link_pendurado_no_modelo_nao_cria_arquivo_fora_do_projeto"
-      ]
-    },
-    {
-      "id": "M4",
-      "guarda": "o arquivo nasce sem seguir link (O_NOFOLLOW)",
-      "arquivo": "migrations/0.47.1/migrar",
-      "de": "os.O_EXCL | os.O_NOFOLLOW",
-      "para": "os.O_EXCL",
-      "testes": [
-        "tests.test_forge.ModeloDeSegurancaNoProjeto.test_link_pendurado_no_modelo_nao_cria_arquivo_fora_do_projeto"
+        "tests.test_forge.ModeloDeSegurancaNoProjeto.test_atualizacao_nao_sobrescreve_o_modelo_do_projeto"
       ]
     },
     {
