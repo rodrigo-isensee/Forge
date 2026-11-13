@@ -2,6 +2,7 @@
 """Forge: valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos.
 
 `pr` aprovado sai com rc 0 e uma linha `pr: veredito: aprovado · <pedido> · exigidos <pareceres> · head <sha7> · base <origin/x|diff literal|estrita>`; com violação, só as violações e rc 1.
+Fora do `--previo` e do `--pr`, o `pr` grava o resultado do head em `<diretório comum do git>/forge/pr/<head>/`: o hook `parecer` só o lê no `gh pr create` (PR-HOOK-PRAZO).
 
 Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban [--gerar] | pr <pedido> [--ref REF] [--base REF]   (as duas opções também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
@@ -101,7 +102,7 @@ reprova (`escopo: --desde sem conferência anterior`, `--desde gravado na própr
 vale como a branch inteira (`base: Base-sha do brief`, P-N1; `brief mensagem --entrega` emite esse `Desde:`). Intervalo vazio:
 `pendente:` na etapa `codigo`, `escopo: sem commit (nada a conferir)` nas outras. Parecer do papel certo e com autoria:
 `escopo: ok (parecer de <papel>)`; o resto: `escopo: confira "<arquivo>" +a -r`, para a leitura contra o Entregar.
-`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Com o blob do último `parecer conferido` do Histórico que o altera, ancestral do head, sai `escopo: ok (parecer trazido <sha7> de <papel>)`, mesmo com remoção. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`).
+`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Com o blob do último `parecer conferido` do Histórico que o altera, ancestral do head, sai `escopo: ok (parecer trazido <sha7> de <papel>)`, mesmo com remoção. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`). O arquivo aplicado pelo dono, declarado no `## Histórico` por `- <data> <hora>: patch do dono aplicado <arquivo> commit <sha40>` e citado (sha40 e caminho) por uma `DECISÃO DO DONO`, sai `escopo: ok (patch do dono <sha7>, DECISÃO DO DONO <pedido>:<linha>)` só com o blob e o modo desse commit no head.
 `delta` (VV-2, M12; só leitura, nunca reprova) imprime `delta: <arquivo> +a -r` e `delta: <arquivo>:<ini>-<fim>` (lado novo
 de cada trecho de `git diff -U0`) do que mudou entre o commit (ou o `commit:` do parecer de `--parecer`) e o fim (padrão HEAD),
 fora de docs/reviews, qa, devops, security e do quadro; `delta: nenhum` sem mudança. Com `--classe` (EST-M4), também
@@ -1512,6 +1513,100 @@ def veredito_do_pr(raiz, pedido, ref, base):
     return f"pr: veredito: aprovado · {nome_seguro(pedido)} · exigidos {', '.join(exigidos) or 'nenhum'} · head {head} · base {como}"
 
 
+# PR-HOOK-PRAZO (E20.1, v046): o `forge-check pr` grava o resultado por head em `<diretório comum do git>/forge/pr/<head>/` (fora da
+# árvore versionada; o mesmo `forge/` do hook `agentes`), e o hook `parecer` libera o `gh pr create` só lendo o aprovado do mesmo head,
+# branch e base, em vez de refazer a checagem (26 s com carga 22). Sem o aprovado do mesmo head, recusa e diz o comando (o `cmd_pr`
+# só roda para dar o motivo de hoje).
+def pasta_dos_resultados(raiz, head):
+    cod, comum = git(raiz, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    return Path(comum) / "forge" / "pr" / head if not cod and comum and SHA40.match(head or "") else None
+
+
+def arquivo_do_resultado(pedido, base_sha):
+    return hashlib.sha256(f"{pedido}\0{base_sha or ''}".encode()).hexdigest()[:20] + ".json"
+
+
+def escritor_do_resultado():
+    """sha256 deste `forge-check` (A1 da segurança, E20.11): o registro diz quem o gravou, e o hook, que carrega o do PLUGIN, só
+    aceita o gravado por ele (o `forge-check` de uma branch em obra ou de uma versão anterior não libera o PR)."""
+    return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+
+
+def podar_resultados(raiz, pasta):
+    """A3 do review (E20.11): apaga as pastas de head ao lado de `pasta` que não são mais ponta de branch local nem de origin; a
+    `pasta` recém-gravada fica. Sem a lista das pontas, não apaga nada; a falha ao apagar só avisa."""
+    cod, saida = git(raiz, "for-each-ref", "--format=%(objectname)", "refs/heads", "refs/remotes")
+    if cod:
+        return
+    pontas = set(saida.split())
+    try:
+        for velha in pasta.parent.iterdir():
+            if velha != pasta and SHA40.match(velha.name) and velha.name not in pontas and not velha.is_symlink() and velha.is_dir():
+                for p in velha.iterdir():
+                    p.unlink()
+                velha.rmdir()
+    except OSError as e:
+        print(f"pr: aviso: resultados antigos não apagados ({sem_controle(e.strerror or str(e))})", file=sys.stderr)
+
+
+def gravar_resultado_do_pr(raiz, pedido, ref, base, violacoes):
+    """Grava (aprovado ou reprovado, head, base, pedido, branch e os pedidos da branch) para o hook `parecer`; sem branch nem head, nada."""
+    head, branch = sha_do_commit(raiz, ref or "HEAD"), branch_da_ref(raiz, ref)
+    pasta = pasta_dos_resultados(raiz, head) if branch else None
+    if pasta is None:
+        return
+    resolvida = base_do_delta(raiz, base, ref)[0] if base else None
+    base_sha = sha_do_commit(raiz, resolvida) if resolvida else None
+    registro = {"contrato": 1, "resultado": "reprovado" if violacoes else "aprovado", "pedido": pedido, "branch": branch,
+                "head": head, "base_sha": base_sha, "pedidos_da_branch": pedidos_da_branch(raiz, branch, ref),
+                "violacao": sem_controle(violacoes[0])[:160] if violacoes else None, "escritor": escritor_do_resultado()}
+    try:
+        pasta.mkdir(mode=0o700, parents=True, exist_ok=True)
+        provisorio = pasta / f".{os.getpid()}.tmp"
+        provisorio.write_text(json.dumps(registro), encoding="utf-8")
+        os.replace(provisorio, pasta / arquivo_do_resultado(pedido, base_sha))
+    except OSError as e:
+        print(f"pr: aviso: resultado não gravado para o hook ({sem_controle(e.strerror or str(e))})", file=sys.stderr)
+        return
+    podar_resultados(raiz, pasta)
+
+
+def resultado_gravado_do_pr(raiz, branch, ref, base, pedida=None):
+    """(estado, motivo) do resultado que o `forge-check pr` gravou para o head de `ref`, a `branch` e a base resolvida (`base_do_delta`):
+    `aprovado` com o aprovado de cada pedido da branch; `reprovado` com algum reprovado (o motivo traz a violação gravada); senão
+    `ausente` (sem resultado, ilegível, outro head ou outra base), com o comando a rodar. `pedida`: a base como o PR a deu, só para o comando."""
+    head = sha_do_commit(raiz, ref or "HEAD")
+    pasta = pasta_dos_resultados(raiz, head)
+    base_sha = sha_do_commit(raiz, base) if base else None
+    nome_da_base = (pedida or "").removeprefix("origin/")
+    comando = f"forge-check pr <pedido> --ref {branch}" + (f" --base {nome_da_base}" if nome_da_base else "")
+    ausente = ("ausente", f"sem resultado aprovado do forge-check pr para o head {(head or '?')[:7]} da branch {branch} nesta base; "
+                          f"rode antes {comando}")
+    if pasta is None or (base and not base_sha):
+        return ausente
+    registros, escritor = {}, escritor_do_resultado()
+    for p in sorted(pasta.glob("*.json")) if pasta.is_dir() else []:
+        try:
+            r = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(r, dict) and r.get("escritor") != escritor:
+            continue  # A1 da segurança (E20.11): gravado por outro forge-check (de branch em obra ou de versão anterior)
+        if isinstance(r, dict) and r.get("head") == head and r.get("branch") == branch and r.get("base_sha") == base_sha:
+            registros[r.get("pedido")] = r
+    pedidos = sorted({p for r in registros.values() if isinstance(r.get("pedidos_da_branch"), list) for p in r["pedidos_da_branch"]
+                      if isinstance(p, str)})
+    if registros and not pedidos:
+        return "reprovado", f"nenhum parecer com `branch: {branch}`; faça o code review e os pareceres da classe antes do PR"
+    for pedido in pedidos:
+        r = registros.get(pedido) or {}
+        if r.get("resultado") == "reprovado":
+            return "reprovado", f"forge-check pr {pedido} reprovou o head {head[:7]}: {r.get('violacao') or 'veja a saída dele'}"
+    if not pedidos or any(registros.get(p, {}).get("resultado") != "aprovado" for p in pedidos):
+        return ausente
+    return "aprovado", None
+
+
 def branch_da_ref(raiz, ref=None):
     """E11: nome da branch que a `--ref` aponta (`origin/<b>`, `<b>` ou, sem ref, a do HEAD), só se existir como branch; senão None
     (um sha, uma tag e um HEAD solto ficam sem branch, e o parecer vale como antes: o mais recente do pedido)."""
@@ -1687,6 +1782,86 @@ CONFERIDA = re.compile(r"^\s*-\s.*\bconferida ([0-9a-f]{40})\b")  # registro do 
 PARECER_CONFERIDO = re.compile(r"^\s*-\s.*\bparecer conferido ([0-9a-f]{40})\b")  # VOLTAS-REVISOR-WT (M5): não casa `conferida`
 BASE_DO_DONO = re.compile(r"^-\s+\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?: base do delta fixada pelo dono ([0-9a-f]{40})\b")  # forma exata, abre a linha do `## Histórico` (CONF-BASE-DONO)
 PASTAS_DE_PARECER = tuple(pasta for pasta, _ in PASTA_E_REGRA.values())
+# CONFERENCIA-PATCH-DO-DONO (v047; ameaças P1-P12 em docs/security/v047-e1-ameacas.md): forma exata, abre a linha do `## Histórico`
+PATCH_DO_DONO = re.compile(r"^-\s+\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?: patch do dono aplicado `?([^\s`]+)`? commit ([0-9a-f]{40})(?![0-9A-Za-z])")
+NUNCA_PATCH_DO_DONO = (*(p + "/" for p in PASTAS_DE_PARECER), *ACEITES_DO_USUARIO, "docs/pedidos/", "tests/test_oraculo_",
+                       ".forge/run/autoria.jsonl")  # P9: parecer, aceite, pedido, oráculo e autoria têm prova própria
+
+
+def patches_do_dono(texto):
+    """({arquivo: [sha40 do commit do dono]}, [linhas que citam `patch do dono` fora da forma]) do `## Histórico` (P1, P3)."""
+    patches, fora = {}, []
+    for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", []):
+        if m := PATCH_DO_DONO.match(linha):
+            patches.setdefault(m.group(1), []).append(m.group(2))
+        elif "patch do dono" in linha:
+            fora.append(linha)
+    return patches, fora
+
+
+def caminho_isentavel(nome):
+    """P6, P9: caminho exato de arquivo, fora da lista que nunca isenta, sem curinga, controle, `.`, `..` nem barra sobrando."""
+    return not (nome.startswith(NUNCA_PATCH_DO_DONO) or com_controle(nome) or re.search(r"[*?\[\]\\]", nome)
+                or any(parte in ("", ".", "..") for parte in nome.split("/")))
+
+
+def decisao_do_patch(texto, nome, commit):
+    """P1: o número da linha `DECISÃO DO DONO` que cita o sha40 do commit e o caminho como palavras inteiras; None sem ela."""
+    caminho = rf"(?<![^\s`\"'(]){re.escape(nome)}(?=$|[\s`\"'),;:]|\.(?:\s|$))"  # o ponto só fecha a frase
+    for numero, linha in linhas_de_decisao(texto):
+        if re.search(rf"(?<![0-9a-f]){commit}(?![0-9a-f])", linha) and re.search(caminho, linha):
+            return numero
+    return None
+
+
+def entrada_na_arvore(raiz, commit, nome):
+    """(modo, blob) de `nome` em `commit`; () sem o arquivo (ou não é blob); None se o git falha (P11)."""
+    cod, saida = git(raiz, "--literal-pathspecs", "ls-tree", "-z", "--full-tree", commit, "--", nome, bruto=True)
+    if cod:
+        return None
+    campos = saida.split(b"\t", 1)[0].split()
+    return (campos[0], campos[2]) if len(campos) == 3 and campos[1] == b"blob" else ()
+
+
+def isencao_do_dono(raiz, pedido_id, texto, shas, nome, base_sha, head, base_ref):
+    """(linha `escopo:` ou None, [avisos]) do arquivo `nome` declarado como patch do dono. Isenta só com o commit do dono de um pai,
+    da branch (ancestral do head, fora do Base-sha), que altera o arquivo, citado por `DECISÃO DO DONO`, e o head com o mesmo blob e
+    modo (P4, P5, P10); a entrega não mexe em `docs/pedidos/` (P2). Muda só a linha `escopo:` (P8); o git que falha reprova (P11)."""
+    if not shas:
+        return None, []
+    commit, mostrado = shas[-1], nome_seguro(nome)
+    falhou = (f"escopo: o git falhou (patch do dono) {mostrado}", True)
+    cod, pais = git(raiz, "rev-list", "--parents", "-n", "1", commit)
+    cod_d, alterados = git(raiz, "diff", "--name-only", "-z", "--no-renames", f"{commit}^1", commit, "--", bruto=True)
+    if not caminho_isentavel(nome):
+        motivo = "caminho que nunca isenta"
+    elif sha_do_commit(raiz, commit) != commit:
+        motivo = "o sha não é commit"
+    elif not e_ancestral(raiz, commit, head) or e_ancestral(raiz, commit, base_sha):
+        motivo = "commit fora da branch"
+    elif cod or cod_d:
+        return falhou, []
+    elif len(pais.split()) != 2:
+        motivo = "commit de merge"
+    elif nome not in nomes_z(alterados):
+        motivo = "o commit não altera o arquivo"
+    elif pedido_na_entrega(raiz, base_sha, head, base_ref):
+        motivo = "a entrega mexe em docs/pedidos/"
+    elif (numero := decisao_do_patch(texto, nome, commit)) is None:
+        motivo = "sem `DECISÃO DO DONO` que cite o sha40 e o caminho"
+    else:
+        no_head, do_dono = entrada_na_arvore(raiz, head, nome), entrada_na_arvore(raiz, commit, nome)
+        if no_head is None or do_dono is None:
+            return falhou, []
+        if not no_head or no_head[0] == b"120000":
+            motivo = "symlink, submódulo ou ausente no head"
+        elif no_head[1] != do_dono[1]:
+            motivo = "o conteúdo mudou depois do commit do dono"
+        elif no_head[0] != do_dono[0]:
+            motivo = "o modo mudou depois do commit do dono"
+        else:
+            return (f"escopo: ok (patch do dono {commit[:7]}, DECISÃO DO DONO {sem_controle(pedido_id)}:{numero}) {mostrado}", False), []
+    return None, [(f"patch do dono: {commit[:7]} não isenta {mostrado} ({motivo})", False)]
 
 
 def sha_do_commit(raiz, ref):
@@ -2534,6 +2709,9 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
     recusas, shas = merges_nao_conferidos(raiz, texto, de, head, base_ref) if etapa in ("qa", "codigo") else ([], set())
     linhas += recusas
     ultimos = pareceres_conferidos(raiz, pedido, branch)[0]  # E6a-4: o "trazido" vale em qualquer etapa; o M2, só em qa/codigo
+    do_dono, fora_da_forma = patches_do_dono(texto)
+    linhas += [(f"patch do dono: linha fora da forma `- <data> <hora>: patch do dono aplicado <arquivo> commit <sha40>`, ignorada (P3): "
+                f"{linha_legivel(linha.strip())[:160]}", False) for linha in fora_da_forma]
     if not arquivos and not falhas:
         vazio = ("pendente: a entrega é só a integração da base (o merge não traz trabalho próprio); todo item do \"Entregar\" está sem commit"
                  if dos_dois_pais else "pendente: intervalo vazio na etapa codigo (nenhum commit novo); todo item do \"Entregar\" está sem commit")
@@ -2563,8 +2741,10 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
         elif etapa == "codigo" and tipo and not com_controle(nome) and parecer_de_portao_da_branch(
                 raiz, base_sha, head, nome, tipo, branch, pedido_id, slug, lambda t: revisados_selados(raiz, caminho, texto, branch, pedido_id, t)):
             linhas.append((f"escopo: ok (anexo do portão: parecer de {PAPEL_DO_PARECER[tipo]} da própria branch) {mostrado}", False))
-        else:
-            linhas.append(escopo_resolvido(declarado, nome, mostrado) or (f"escopo: confira {mostrado} +{acrescidas} -{removidas}", False))
+        else:  # CONFERENCIA-PATCH-DO-DONO: o arquivo aplicado pelo dono, declarado no pedido, sai do escopo só com o commit dele
+            isencao, avisos = isencao_do_dono(raiz, pedido_id, texto, do_dono.get(nome), nome, base_sha, head, base_ref)
+            linhas += avisos
+            linhas.append(isencao or escopo_resolvido(declarado, nome, mostrado) or (f"escopo: confira {mostrado} +{acrescidas} -{removidas}", False))
     if briefs:
         linhas = uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs, caminho) + sondas_no_corpus(raiz, head, briefs) + linhas
     saida += [(f"intervalo: {de}..{head}", False)] + linhas
@@ -9515,6 +9695,8 @@ def executar(a, raiz):
                                           previo=getattr(a, "previo", False))}[a.cmd]()
     for v in violacoes:
         print(v)
+    if a.cmd == "pr" and not getattr(a, "previo", False) and branch_do_pr is None:  # PR-HOOK-PRAZO: o resultado do head, para o hook
+        gravar_resultado_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None), violacoes)
     if a.cmd == "pr" and not violacoes and not getattr(a, "previo", False):  # LOTE E1; FC-6: o prévio com parecer ausente não é veredito aprovado
         print(veredito_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None)))
     return 1 if violacoes else 0

@@ -3318,8 +3318,8 @@ class Workflows(unittest.TestCase):
         self.assertIn("docs/(reviews|qa|security|devops|ux)/", ci)
         # Teto de tempo (ci-suite-no-teto; SUITE-NO-CI): as duas checagens rápidas (3.12 e 3.14, SP4) 30 min (CI-TEMPO-314: medido 13-20 min, a 3.14 batia nos 20); cada parte da suíte (3.12 e 3.14) 20 min;
         # instalação no 3.14 15 min; o teto de pulados de cada versão (T3, 0.43.2) 5 min; passos da bateria 20 min; verificações longas (shellcheck, Provas, e2e; #493) 20 min; os dois agregadores 5 min;
-        # o job prévio da árvore (M2, 0.43.4), antes das partes, 5 min.
-        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["30", "30", "45", "5", "20", "20", "15", "5", "5", "5", "20", "20", "5"])
+        # o job de pareceres (v047 E1.18, J9) 5 min; o job prévio da árvore (M2, 0.43.4), antes das partes, 5 min.
+        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["30", "30", "45", "5", "20", "20", "15", "5", "5", "5", "20", "5", "20", "5"])
 
     def test_gate_do_ci_nao_deixa_codigo_escapar_nem_forjar_o_verde(self):
         """Review independente: renomeação, testes de pareceres, check forjado, cancelamento e promoção."""

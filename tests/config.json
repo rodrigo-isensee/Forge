@@ -114,6 +114,9 @@
     "excecoes": []
   },
   "invariantes": {
+    "docs/fechamento-integrador.md": [
+      "Não abra PR para ver o CI"
+    ],
     "skills/kanban-scrum/SKILL.md": [
       "forge-check movimento",
       "Sem credencial",
@@ -463,7 +466,8 @@
       "`DEVOLVIDA:`",
       "tag ausente é",
       "vira PR no repositório \\*\\*Forge\\*\\*",
-      "`R-WIP`"
+      "`R-WIP`",
+      "Triagem termina com o `KANBAN.md` atualizado; backlog ou plano dito ao dono sai da contagem do quadro, conferida com a última triagem; plano ou pedido substituído vai para `arquivo/`"
     ],
     "agents/ux-designer.md": [
       "\\*\\*A validação do usuário é o ponto de compromisso\\*\\*",
@@ -626,6 +630,7 @@
     "skills/esperar-estado/SKILL.md": ["nunca por `kill -0` no pid gravado"]
   },
   "invariantes_motivo": {
+    "docs/fechamento-integrador.md": {"regra": "R-FLUXO", "porque": "sem o texto, o autor abre PR só para rodar o CI e o PR acaba fechado e reaberto, uma rodada a mais (decisão Q9 do dono)"},
     "docs/regras/R-SEGURANCA.md": {"regra": "R-SEGURANCA", "porque": "sem o texto, a mudança com gatilho de segurança segue sem o parecer do security-engineer"},
     "docs/regras/R-LIMITES.md": {"regra": "R-LIMITES", "porque": "sem o texto, o agente poderia enviar ou mesclar na main, pular os hooks com --no-verify ou --force, ligar API paga sem autorização, mesclar no Forge a partir de um projeto ou copiar agentes e skills para o projeto"},
     "docs/regras/README.md": {"regra": "R-TETO", "porque": "sem a linha da R-WIP, o agente acumula cartões, passa do teto de instâncias e os limites de coluna do quadro deixam de valer"},
@@ -681,6 +686,9 @@
     "scripts/jarvis-forge": 2
   },
   "invariantes_motivo_trecho": {
+    "agents/agile-coach.md": {
+      "Triagem termina com o `KANBAN.md` atualizado; backlog ou plano dito ao dono sai da contagem do quadro, conferida com a última triagem; plano ou pedido substituído vai para `arquivo/`": {"regra": "R-DECISAO", "porque": "sem o texto, o agile-coach leva ao dono backlog ou plano velho e o quadro fica fora da triagem (diretriz 20)"}
+    },
     "hooks/_comum.py": {
       "clone_do_forge and tem_manifesto_do_forge\\(self\\.raiz\\)": {"regra": "R-REVIEW", "porque": "sem o texto, um clone do Forge com .forge/versao desliga o parecer pelo hooks_desligados e o merge sem parecer passa (FILA-27 A1)"}
     },
