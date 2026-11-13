@@ -139,7 +139,7 @@
       "de": "if hasattr(os, \"sched_getaffinity\") else",
       "para": "if not hasattr(os, \"sched_getaffinity\") else",
       "testes": [
-        "tests.test_hooks.TravaPesadaEmSegundoPlano.test_pool_le_a_afinidade_e_ignora_o_forge_nproc"
+        "tests.test_hooks.PoolDosFixtures.test_pool_le_a_afinidade_e_ignora_o_forge_nproc"
       ]
     }
   ]
