@@ -1,0 +1,87 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "PR-HOOK-PRAZO: resultado gravado sem pedido da branch recusa (nenhum parecer)",
+      "arquivo": "bin/forge-check",
+      "de": "    if registros and not pedidos:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_branch_sem_pedido_gravado_recusa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "PR-HOOK-PRAZO: o reprovado gravado recusa só lendo",
+      "arquivo": "bin/forge-check",
+      "de": "        if r.get(\"resultado\") == \"reprovado\":\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_reprovado_do_head_recusa_so_lendo"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "PR-HOOK-PRAZO: cada pedido da branch precisa do aprovado gravado",
+      "arquivo": "bin/forge-check",
+      "de": "    if not pedidos or any(registros.get(p, {}).get(\"resultado\") != \"aprovado\" for p in pedidos):\n",
+      "para": "    if not pedidos:\n",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_pedido_da_branch_sem_resultado_recusa",
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_ilegivel_de_outra_branch_ou_de_outro_head_nao_vale"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "PR-HOOK-PRAZO: o pré-voo (--previo) não grava resultado",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"pr\" and not getattr(a, \"previo\", False) and branch_do_pr is None:",
+      "para": "    if a.cmd == \"pr\" and branch_do_pr is None:",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_previo_e_head_sem_branch_nao_gravam"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "PR-HOOK-PRAZO: o aprovado gravado libera sem refazer a checagem",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if estado == \"aprovado\":\n        return\n",
+      "para": "    if False:\n        return\n",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_aprovado_do_head_libera_so_lendo_dentro_do_prazo"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "PR-HOOK-PRAZO: o reprovado gravado recusa antes da checagem",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if estado == \"reprovado\":\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_reprovado_do_head_recusa_so_lendo"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "PR-HOOK-PRAZO: sem o aprovado gravado, recusa mesmo sem violação",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if motivo:  # PR-HOOK-PRAZO",
+      "para": "    if False:  # PR-HOOK-PRAZO",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_sem_resultado_recusa_mesmo_sem_violacao"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "PR-HOOK-PRAZO: o gh pr create exige o resultado gravado",
+      "arquivo": "hooks/parecer.py",
+      "de": "if forge else \"\", gravado=True)",
+      "para": "if forge else \"\", gravado=False)",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_sem_resultado_recusa_mesmo_sem_violacao"
+      ]
+    }
+  ]
+}
