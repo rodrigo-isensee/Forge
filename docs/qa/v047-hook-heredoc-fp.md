@@ -3,11 +3,11 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-hook-heredoc-fp
-commit: 58312004dfd8940079d5232a98e1d2936e51e108
-parecer: reprovado
-escopo: completo
+commit: 0eee14533b579e8a7117666faad15f421fe4b17b
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-13
@@ -71,3 +71,33 @@ Rede de segurança de conferência: A2 e A1 voltam ao autor da stack (`tech-lead
 
 ## Revalidação
 Voltando o autor: rerodar as sondas de A1 (somar três delas como fixtures `*-bloqueia`), a fixture de dono misto de A2 e `forge-mutante` das 3 specs (M7 deve morrer); `forge-check parecer delta docs/qa/v047-hook-heredoc-fp.md` lista o resto.
+
+
+---
+
+# Revalidação E4.14 (delta 58312004..0eee1453, volta E4.11)
+
+Head `0eee14533b57`. Sem PR: só testes leves e os afetados, local; a bateria completa fica para o CI do PR. Parecer: **aprovado**.
+
+## Achados
+- A1 (resolvido) A1 do parecer anterior: as cinco sondas (asyncio exec e shell, `posix_spawnp`, `getattr(os,"sy"+"stem")`, `asyncio` com `git pull`) saem rc 2 no head; fixtures `*-bloqueia` somadas.
+- A2 (resolvido) M7 morre; fixture `dono-misto-python-e-sh-bloqueia` somada.
+- A3 (resolvido) docs/hooks.md:103 diz que a barreira é lista de nomes e o que não cobre; emenda v047 na ADR 0011.
+- A4 (recomendado) hooks/parecer.py:176 · Aceito e documentado, não bloqueia: corpo de Python com lançador e comando montado sem constante de texto que o traga (`chr`, base64, f-string com variável, `[::-1]`, rot13, `"g"+"h"` em item da lista, comando lido de arquivo) passa rc 0; a base barrava (rc 2). A doc e a ADR assumem a limitação.
+
+## Revalidação por critério
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| E4.4-d: nenhum caminho real afrouxado | sondas S1-S5 rerodadas (abaixo) + fixtures novas | lançador depois de `_`, `getattr` | passou |
+| E4.4-e: dono misto (python e sh) fica como antes | `heredoc-interpretador-dono-misto-python-e-sh-bloqueia`, M7 | tipos diferentes | passou |
+| E4.4-f: `PATH=`, `env -S PATH`, PATH solto e `git` na chamada voltam à regra de antes | fixtures `env-s-path`, `path-solto`, `grava-fsmonitor-e-git`, M18-M20, M24 | atribuição, git | passou |
+| E4.4-g: corpo ilegível ao `ast` e lista em duas linhas seguem conferidos (falha fechado) | `python-ilegivel`, `lista-em-duas-linhas`, `concatenacao` | `ast`, constantes | passou |
+
+## Sondas
+Corpo em `python3 - <<'EOF'` e o hook direto, esperado rc 2. Head: S1 `create_subprocess_exec` rc 2; S2 `create_subprocess_shell` rc 2; S3 `posix_spawnp` rc 2; S4 `getattr` com concatenação rc 2; S5 `create_subprocess_exec` com `git pull` rc 2 (antes, em 58312004, rc 0). Extras com lançador visível e comando em texto: `bytes.decode`, `" ".join`, `sys.modules`, `__import__` montado, `__dict__`, `from os import system as s`, `gh api`, `pty.spawn`, `os.execvp`, `Popen` importado: todos rc 2. Controles `print("gh pr merge 5")` e docstring: rc 0 (a correção pretendida). Passam em rc 0 (A4, recomendado): `chr`, base64, f-string, reverso, rot13, `"g"+"h"` em item da lista, `"p"+"r"`, arquivo, e lançador mais docstring que cita o comando.
+
+## Provas
+- `python3 -m unittest tests.test_hooks_parecer_pasta`: `Ran 4 tests in 51.888s · OK` (36 fixtures `heredoc-interpretador-*`, mínimo do teste 36).
+- `bin/forge-mutante` das 4 specs, `--processos 3`: M1-M4 e M6-M26 todos `morreu` (25 mutantes; M7 agora morre), nenhum sobrevivente.
+- `forge-mutante --cobertura --base 9b2c6474`: toda condição mudada `coberta`, nenhuma `não coberta` ou `só equivalente`.
+- Vermelho antes do verde: `forge-testes --vermelho` não rodado nesta janela (carga ~21 em 12 CPUs); sem veredito, não vale. A prova de mutação cobre cada guarda nova e as sondas S1-S5 falhavam em 58312004.
