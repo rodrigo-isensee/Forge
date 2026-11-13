@@ -76,8 +76,8 @@
       "id": "M16",
       "guarda": "só a cópia isenta tem as regras liberadas",
       "arquivo": "hooks/conformidade.py",
-      "de": "liberadas = REGRAS_DO_MODELO if caminho == self.modelo_isento else frozenset()",
-      "para": "liberadas = REGRAS_DO_MODELO",
+      "de": "if caminho == self.modelo_isento else frozenset()",
+      "para": "if True else frozenset()",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_trava_modelo"
       ]

@@ -51,6 +51,16 @@
       "testes": [
         "tests.test_hooks.TravaModelo.test_erro_na_conferencia_nao_isenta"
       ]
+    },
+    {
+      "id": "M22",
+      "guarda": "C3: git sem sucesso não segue para a leitura do valor",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if cod:\n            return cod != 1\n",
+      "para": "        if False:\n            return cod != 1\n",
+      "testes": [
+        "tests.test_hooks.TravaModelo.test_c3_hookspath_com_erro_do_git_mantem_a_trava"
+      ]
     }
   ]
 }
