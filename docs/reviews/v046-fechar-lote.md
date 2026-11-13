@@ -13,7 +13,7 @@ data: 2026-11-12
 Diff revisado: `8b5a44d5..0be84795` (7 commits), lido por `git show` numa worktree destacada do revisor. Classe C (`forge-check pr --previo`: sensível da catraca `bin/forge-doutor`). A revisora não fez a entrega.
 
 ## Achados
-- A1 (recomendado) bin/forge-testes:118 · a regra de bin/forge-doutor no MAPA não leva a test_doutor_branch_atrasada: `--listar bin/forge-doutor` dá 5 módulos sem ele (a mutação do autor usa essa lista); o `--afetados` o acha pela citação. Acrescente-o aqui e em tests/test_testes_tocados.py:55 (resolvido em 2dda228f, ver a revalidação seguinte)
+- A1 (recomendado) bin/forge-testes:118 · a regra de bin/forge-doutor no MAPA não leva a test_doutor_branch_atrasada: `--listar bin/forge-doutor` dá 5 módulos sem ele (a mutação do autor usa essa lista); o `--afetados` o acha pela citação. Acrescente-o aqui e em tests/test_testes_tocados.py:55 (resolvido)
 - A2 (recomendado) bin/forge-fechar:659 · `>/dev/null` joga fora a saída do `forge-check movimento`, que dá o motivo da recusa no stdout (coluna fora do KANBAN.md, atributo inválido): o aviso só traz o comando. Mande a saída ao stderr ou ao log com `gravar_linha`
 - A3 (recomendado) bin/forge-fechar:1047 · guarda sem mutante (AR-1) e ramo sem teste (AR-2): o motivo `head <sha7>` do PR já MERGED não tem teste com --cartao; também sem mutante as guardas `shift 2 || die` de --cartao e --quadro (:88, :89)
 - A4 (recomendado) bin/forge-fechar:538 · o `git worktree prune` do repositório inteiro agora roda em todo fechamento, não só depois da remoção que falhou: o registro de uma worktree com o diretório fora da vista desta sessão também sai. Diga isso no doc ou use `--expire`
