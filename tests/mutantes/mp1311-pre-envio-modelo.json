@@ -1,0 +1,86 @@
+{
+  "pedido": "mp1311-pre-envio-modelo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "forge-init: stack sem 'Pronto rápido' não ganha o pre-push.local",
+      "arquivo": "bin/forge-init",
+      "de": "if [ \"$rel\" = \".githooks/pre-push.local\" ] && [ -z \"$rapido\" ]; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_stack_sem_pronto_rapido_nao_ganha_o_pre_push_local"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "forge-init: pronto.md sem 'Detecção:' não derruba o forge-init (grep sem achado sob pipefail)",
+      "arquivo": "bin/forge-init",
+      "de": "| paste -sd' ' -)\" || true",
+      "para": "| paste -sd' ' -)\"",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_stack_sem_deteccao_gera_o_pre_push_local_que_pula"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "pre-push.local: com o arquivo da stack na raiz, o pronto rápido roda",
+      "arquivo": "templates/projeto/.githooks/pre-push.local",
+      "de": "if [ -e \"$arquivo\" ]; then tem_codigo=1; fi",
+      "para": "if false; then tem_codigo=1; fi",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_projeto_atualizado_ganha_os_dois_e_o_envio_roda_o_pronto_rapido"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "pre-push.local: sem código da stack, pula com aviso em vez de falhar",
+      "arquivo": "templates/projeto/.githooks/pre-push.local",
+      "de": "if [ \"$tem_codigo\" -eq 0 ]; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_sem_codigo_da_stack_o_pronto_rapido_pula_com_aviso"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "migração: CLAUDE.md ausente vale node-react, sem exceção",
+      "arquivo": "migrations/0.47.1/migrar-pre-envio",
+      "de": "        achado = None",
+      "para": "        raise",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_claude_md_sem_a_linha_da_stack_vale_node_react"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "migração: CLAUDE.md sem a linha da stack vale node-react",
+      "arquivo": "migrations/0.47.1/migrar-pre-envio",
+      "de": "    return achado.group(1) if achado else \"node-react\"",
+      "para": "    return achado.group(1)",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_claude_md_sem_a_linha_da_stack_vale_node_react"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "migração: nome de stack fora da forma (caminho) é recusado mesmo com pronto.md existente",
+      "arquivo": "migrations/0.47.1/migrar-pre-envio",
+      "de": "    if not re.fullmatch(r\"[a-z0-9-]+\", stack) or not pronto.is_file():",
+      "para": "    if not pronto.is_file():",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_stack_fora_da_forma_ou_inexistente_nao_gera"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "migração: stack sem 'Pronto rápido' não ganha o pre-push.local",
+      "arquivo": "migrations/0.47.1/migrar-pre-envio",
+      "de": "    if not rapido:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_stack_sem_pronto_rapido_nao_ganha_o_pre_push_local"
+      ]
+    }
+  ]
+}

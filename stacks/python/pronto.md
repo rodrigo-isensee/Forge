@@ -4,6 +4,10 @@ O `forge-init` usa o comando abaixo como padrão do "pronto" do projeto (`--pron
 
 Comando sugerido: `ruff check . && ruff format --check . && mypy src && python -m pytest`
 
+Pronto rápido: `ruff check . && ruff format --check . && mypy src`
+
+Pronto completo: o comando sugerido, que o autor roda antes de entregar e o CI roda em todo PR. O rápido (lint, formatação e tipos) é o que o `forge-init` grava no `.githooks/pre-push.local`, e o pre-push o roda antes de cada envio que não seja só de docs.
+
 Detecção: `pyproject.toml`, `requirements.txt`, `setup.py`, `setup.cfg`
 
 Pronto existente: `tox.ini` com `[tox]` → `tox`; `pyproject.toml` com `[tool.pytest` → `python -m pytest`; `pytest.ini` com `[pytest]` → `python -m pytest`

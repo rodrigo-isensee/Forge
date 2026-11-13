@@ -260,7 +260,8 @@ print(":".join(boas))
   return 0
 }
 
-# Checagem própria do projeto (opcional): crie .githooks/pre-push.local executável (ex.: lint + typecheck).
+# Checagem própria do projeto: .githooks/pre-push.local executável; o forge-init (e a migração 0.47.1) o cria com o pronto
+# rápido da stack (lint, formatação e tipos, de stacks/<stack>/pronto.md), e o projeto o ajusta.
 local_hook="$(dirname "$0")/pre-push.local"
 if [ -x "$local_hook" ]; then
   if so_docs; then
