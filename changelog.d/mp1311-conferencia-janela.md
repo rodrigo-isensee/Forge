@@ -1,2 +1,0 @@
-### Corrigido
-- `forge-check entrega`: o parecer de portão commitado na própria branch e ancorado no `Revisar-sha:` de brief selado sai do escopo como anexo do portão em toda etapa de código (`codigo`, `review`, `seguranca`, `qa`), não só na `codigo`; e o `--desde` vale também no commit do autor que um portão revisou (o `Revisar-sha:` de brief selado de portão da mesma branch e pedido, ancestral do head e fora do Base-sha), com a linha `base: commit do autor revisado pelo portão` (melhorias-de-projeto-1311, item 1, com MP1103-D-8).

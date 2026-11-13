@@ -17,3 +17,6 @@ comando já com a tag anterior e lembra o bench da versão (`bench-versoes.md` e
 
 | Release | Linha `placar:` |
 |---|---|
+| 0.47.0 | `placar: 0.47.0 mortos=62 sobreviveu=0 equivalente=0 invalido=1 sem-veredito=0 specs=9` |
+
+Nota da 0.47.0: o mutante inválido é da spec `v0457-escopo-ponto-2` (M10), cuja guarda foi movida pelo PR 536; a spec não muda nesta versão.
