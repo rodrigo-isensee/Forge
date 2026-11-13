@@ -17,7 +17,9 @@ data: 2026-11-13
 Branch `melhoria/diretrizes-decisao`, head `39c163cc` (antes `3a86bd38`), base `c340c322`. Diff: `docs/regras/R-DECISAO.md`, `skills/falar-com-o-dono/SKILL.md`, `changelog.d/diretrizes-decisao.md`. Sem PR aberto: rodei só o teste afetado (`R-QA`, carga alta).
 
 ## Achados
-Nenhum bloqueante. A1 e A2 (rodada anterior, head `3a86bd38`) resolvidos: a volta E26.19 restaurou os trechos protegidos.
+- nenhum
+
+A1 e A2 da rodada anterior (head `3a86bd38`) foram resolvidos: a volta E26.19 restaurou os trechos protegidos.
 
 ## Revalidação por delta (head `39c163cc`)
 `forge-check parecer delta` lista no domínio do QA só `docs/regras/R-DECISAO.md` e `skills/falar-com-o-dono/SKILL.md` (intervalo `3a86bd38..39c163cc`). Reteste: `python3 -m unittest test_forge.RegrasInviolaveis` em `tests/`: `Ran 3 tests ... OK` (os 6 subtestes de A1/A2 passam). Os seis trechos voltaram, formato `origem: <coluna>; ação: <o que o usuário faz>; comando:` e `(não amplia autorização)` incluídos. Custo declarado conferido: R-DECISAO perdeu `nem a do dono` e `origem` no item "Decisão ruim"; a origem segue em "Uma por vez" (`cada decisão, a origem`) e a skill mantém `decisão ruim do dono volta a ele`, então as diretrizes 8 e 9 seguem cobertas no texto. Suíte inteira não rodada local (carga alta); vale o check `bateria` do CI quando houver PR.
