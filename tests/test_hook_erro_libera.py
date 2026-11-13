@@ -143,7 +143,7 @@ class HookErroLibera(unittest.TestCase):
         env = ambiente_limpo()
         env.pop("FORGE_GUARDA_ABERTA", None)
         env.update(HOME=str(tmp / "home"), CLAUDE_PROJECT_DIR=str(raiz), PYTHONPATH=str(tmp / "pp"))
-        site = subprocess.run([sys.executable, "-c", "import site; print(site.getusersitepackages())"], env=env,
+        site = subprocess.run([sys.executable, "-I", "-c", "import site; print(site.getusersitepackages())"], env=env,
                               capture_output=True, text=True, check=True).stdout.strip()
         for pasta, nome in ((Path(site), "usercustomize.py"), (tmp / "pp", "sitecustomize.py")):
             with self.subTest(nome=nome):
