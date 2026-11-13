@@ -2,6 +2,7 @@
 """Forge: valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos.
 
 `pr` aprovado sai com rc 0 e uma linha `pr: veredito: aprovado · <pedido> · exigidos <pareceres> · head <sha7> · base <origin/x|diff literal|estrita>`; com violação, só as violações e rc 1.
+Fora do `--previo` e do `--pr`, o `pr` grava o resultado do head em `<diretório comum do git>/forge/pr/<head>/`: o hook `parecer` só o lê no `gh pr create` (PR-HOOK-PRAZO).
 
 Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban [--gerar] | pr <pedido> [--ref REF] [--base REF]   (as duas opções também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
@@ -1510,6 +1511,100 @@ def veredito_do_pr(raiz, pedido, ref, base):
     head = (sha_do_commit(raiz, ref or "HEAD") or "?")[:7]
     como = "estrita" if not base else resolvida.removeprefix("refs/remotes/").removeprefix("refs/heads/") if resolvida else "diff literal"
     return f"pr: veredito: aprovado · {nome_seguro(pedido)} · exigidos {', '.join(exigidos) or 'nenhum'} · head {head} · base {como}"
+
+
+# PR-HOOK-PRAZO (E20.1, v046): o `forge-check pr` grava o resultado por head em `<diretório comum do git>/forge/pr/<head>/` (fora da
+# árvore versionada; o mesmo `forge/` do hook `agentes`), e o hook `parecer` libera o `gh pr create` só lendo o aprovado do mesmo head,
+# branch e base, em vez de refazer a checagem (26 s com carga 22). Sem o aprovado do mesmo head, recusa e diz o comando (o `cmd_pr`
+# só roda para dar o motivo de hoje).
+def pasta_dos_resultados(raiz, head):
+    cod, comum = git(raiz, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    return Path(comum) / "forge" / "pr" / head if not cod and comum and SHA40.match(head or "") else None
+
+
+def arquivo_do_resultado(pedido, base_sha):
+    return hashlib.sha256(f"{pedido}\0{base_sha or ''}".encode()).hexdigest()[:20] + ".json"
+
+
+def escritor_do_resultado():
+    """sha256 deste `forge-check` (A1 da segurança, E20.11): o registro diz quem o gravou, e o hook, que carrega o do PLUGIN, só
+    aceita o gravado por ele (o `forge-check` de uma branch em obra ou de uma versão anterior não libera o PR)."""
+    return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+
+
+def podar_resultados(raiz, pasta):
+    """A3 do review (E20.11): apaga as pastas de head ao lado de `pasta` que não são mais ponta de branch local nem de origin; a
+    `pasta` recém-gravada fica. Sem a lista das pontas, não apaga nada; a falha ao apagar só avisa."""
+    cod, saida = git(raiz, "for-each-ref", "--format=%(objectname)", "refs/heads", "refs/remotes")
+    if cod:
+        return
+    pontas = set(saida.split())
+    try:
+        for velha in pasta.parent.iterdir():
+            if velha != pasta and SHA40.match(velha.name) and velha.name not in pontas and not velha.is_symlink() and velha.is_dir():
+                for p in velha.iterdir():
+                    p.unlink()
+                velha.rmdir()
+    except OSError as e:
+        print(f"pr: aviso: resultados antigos não apagados ({sem_controle(e.strerror or str(e))})", file=sys.stderr)
+
+
+def gravar_resultado_do_pr(raiz, pedido, ref, base, violacoes):
+    """Grava (aprovado ou reprovado, head, base, pedido, branch e os pedidos da branch) para o hook `parecer`; sem branch nem head, nada."""
+    head, branch = sha_do_commit(raiz, ref or "HEAD"), branch_da_ref(raiz, ref)
+    pasta = pasta_dos_resultados(raiz, head) if branch else None
+    if pasta is None:
+        return
+    resolvida = base_do_delta(raiz, base, ref)[0] if base else None
+    base_sha = sha_do_commit(raiz, resolvida) if resolvida else None
+    registro = {"contrato": 1, "resultado": "reprovado" if violacoes else "aprovado", "pedido": pedido, "branch": branch,
+                "head": head, "base_sha": base_sha, "pedidos_da_branch": pedidos_da_branch(raiz, branch, ref),
+                "violacao": sem_controle(violacoes[0])[:160] if violacoes else None, "escritor": escritor_do_resultado()}
+    try:
+        pasta.mkdir(mode=0o700, parents=True, exist_ok=True)
+        provisorio = pasta / f".{os.getpid()}.tmp"
+        provisorio.write_text(json.dumps(registro), encoding="utf-8")
+        os.replace(provisorio, pasta / arquivo_do_resultado(pedido, base_sha))
+    except OSError as e:
+        print(f"pr: aviso: resultado não gravado para o hook ({sem_controle(e.strerror or str(e))})", file=sys.stderr)
+        return
+    podar_resultados(raiz, pasta)
+
+
+def resultado_gravado_do_pr(raiz, branch, ref, base, pedida=None):
+    """(estado, motivo) do resultado que o `forge-check pr` gravou para o head de `ref`, a `branch` e a base resolvida (`base_do_delta`):
+    `aprovado` com o aprovado de cada pedido da branch; `reprovado` com algum reprovado (o motivo traz a violação gravada); senão
+    `ausente` (sem resultado, ilegível, outro head ou outra base), com o comando a rodar. `pedida`: a base como o PR a deu, só para o comando."""
+    head = sha_do_commit(raiz, ref or "HEAD")
+    pasta = pasta_dos_resultados(raiz, head)
+    base_sha = sha_do_commit(raiz, base) if base else None
+    nome_da_base = (pedida or "").removeprefix("origin/")
+    comando = f"forge-check pr <pedido> --ref {branch}" + (f" --base {nome_da_base}" if nome_da_base else "")
+    ausente = ("ausente", f"sem resultado aprovado do forge-check pr para o head {(head or '?')[:7]} da branch {branch} nesta base; "
+                          f"rode antes {comando}")
+    if pasta is None or (base and not base_sha):
+        return ausente
+    registros, escritor = {}, escritor_do_resultado()
+    for p in sorted(pasta.glob("*.json")) if pasta.is_dir() else []:
+        try:
+            r = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(r, dict) and r.get("escritor") != escritor:
+            continue  # A1 da segurança (E20.11): gravado por outro forge-check (de branch em obra ou de versão anterior)
+        if isinstance(r, dict) and r.get("head") == head and r.get("branch") == branch and r.get("base_sha") == base_sha:
+            registros[r.get("pedido")] = r
+    pedidos = sorted({p for r in registros.values() if isinstance(r.get("pedidos_da_branch"), list) for p in r["pedidos_da_branch"]
+                      if isinstance(p, str)})
+    if registros and not pedidos:
+        return "reprovado", f"nenhum parecer com `branch: {branch}`; faça o code review e os pareceres da classe antes do PR"
+    for pedido in pedidos:
+        r = registros.get(pedido) or {}
+        if r.get("resultado") == "reprovado":
+            return "reprovado", f"forge-check pr {pedido} reprovou o head {head[:7]}: {r.get('violacao') or 'veja a saída dele'}"
+    if not pedidos or any(registros.get(p, {}).get("resultado") != "aprovado" for p in pedidos):
+        return ausente
+    return "aprovado", None
 
 
 def branch_da_ref(raiz, ref=None):
@@ -9515,6 +9610,8 @@ def executar(a, raiz):
                                           previo=getattr(a, "previo", False))}[a.cmd]()
     for v in violacoes:
         print(v)
+    if a.cmd == "pr" and not getattr(a, "previo", False) and branch_do_pr is None:  # PR-HOOK-PRAZO: o resultado do head, para o hook
+        gravar_resultado_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None), violacoes)
     if a.cmd == "pr" and not violacoes and not getattr(a, "previo", False):  # LOTE E1; FC-6: o prévio com parecer ausente não é veredito aprovado
         print(veredito_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None)))
     return 1 if violacoes else 0

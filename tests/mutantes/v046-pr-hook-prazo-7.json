@@ -1,0 +1,36 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M42",
+      "guarda": "E20.25 (A2 do QA): a poda não segue o link com nome de sha (nada na pasta apontada se apaga)",
+      "arquivo": "bin/forge-check",
+      "de": "and not velha.is_symlink() and",
+      "para": "and True and",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_poda_nao_segue_link_nem_abre_arquivo_nem_apaga_a_gravada"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "E20.25 (A3 do QA): a poda não abre como pasta o arquivo com nome de sha",
+      "arquivo": "bin/forge-check",
+      "de": "and velha.is_dir():\n                for p in velha.iterdir():",
+      "para": "and True:\n                for p in velha.iterdir():",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_poda_nao_segue_link_nem_abre_arquivo_nem_apaga_a_gravada"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "E20.25 (A3 do QA): a pasta recém-gravada fica, mesmo com o head fora da lista das pontas",
+      "arquivo": "bin/forge-check",
+      "de": "            if velha != pasta and SHA40.match(velha.name)",
+      "para": "            if True and SHA40.match(velha.name)",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_poda_nao_segue_link_nem_abre_arquivo_nem_apaga_a_gravada"
+      ]
+    }
+  ]
+}

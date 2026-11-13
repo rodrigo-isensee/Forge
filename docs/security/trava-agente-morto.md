@@ -3,12 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0457
 branch: melhoria/trava-agente-morto
-commit: 31f2e643e22c22ceedcf927a07c4cf5676032ed4
+commit: 6e005f9beb2310dc25dd634f60636cc542232a47
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-13
 ---
-# Review de segurança: v0457 (TRAVA-AGENTE-MORTO, E23.71 e revalidação E23.99)
+# Review de segurança: v0457 (TRAVA-AGENTE-MORTO, E23.71, E23.99 e E23.103)
+
+Revalidação E23.103 (por delta 31f2e643..6e005f9b, a junção com a develop): **aprovado**. `forge-check parecer delta` mostra no domínio só `bin/forge-testes` (o mapa de testes soma `test_hook_git_comum`, `test_prepush_refs` e módulos do doutor; sem efeito na trava). `hooks/agentes.py`, `hooks/conformidade.json` e `hooks/hooks.json` não mudaram em relação ao parecer. Mudou da develop o `hooks/conformidade.py` (rev-parse do .git, curinga e colchete na origem de link, #512 e anteriores), que toca o casamento da C10: conferido que o resultado dela não mudou (sondas abaixo). Os achados A2 e A3 seguem recomendados, sem promoção.
 
 Revalidação E23.99 (por delta f77bb51d..31f2e643, volta E23.74): **aprovado**. O A1 (C10 pela pasta) está fechado; ficam só recomendações (A2 mantido, A3 novo). Primeira rodada (E23.71, f77bb51d): reprovado só pelo A1.
 
@@ -26,6 +28,9 @@ Hook de controle (R-TETO) que decide liberar vaga a partir de entrada lida do di
 - S2 · revalidada: `mv {tmp}/falsa {tmp}/home/.claude/projects/x` · espera: código 2 (C10) · obtido: código 2
 - S3 · revalidada: `mv {tmp}/home/.claude/projects/x/<sessão> {tmp}/home/.claude/projects/x/old` · espera: código 2 (C10) · obtido: código 2
 - S4 · revalidada: `rm -rf {tmp}/home/.claude/projects/x` · espera: código 2 (C10) · obtido: código 2
+
+- S5 · fixtures C10 (mv da pasta do projeto, da sessão e forjada, rm da pasta; memoria-libera) no harness de tests/test_hooks.py em 6e005f9b · espera: código 2 nas quatro, 0 na memória · obtido: OK (5 verificadas)
+- S6 · `python3 -m unittest tests.test_trava_agente_morto` em 6e005f9b · espera: OK · obtido: 51 testes, OK em 3,0 s
 
 ## Detalhe dos achados
 
