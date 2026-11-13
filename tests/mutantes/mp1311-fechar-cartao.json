@@ -1,0 +1,36 @@
+{
+  "pedido": "mp1311-fechar-cartao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "FECHAR-REF-POR-NOME: com a branch local o forge-check pr recebe o nome, nao o sha",
+      "arquivo": "bin/forge-fechar",
+      "de": "then ref_check=\"$ref\"; else",
+      "para": "then ref_check=\"$sha_conferido\"; else",
+      "testes": [
+        "tests.test_fechar_ref_por_nome.FecharRefPorNome.test_com_branch_local_o_forge_check_recebe_o_nome"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "FECHAR-REF-POR-NOME: sem a branch local o forge-check segue pelo sha do servidor",
+      "arquivo": "bin/forge-fechar",
+      "de": "  ref_check=\"$sha_conferido\"\nfi",
+      "para": "  ref_check=\"$ref\"\nfi",
+      "testes": [
+        "tests.test_fechar_ref_por_nome.FecharRefPorNome.test_sem_branch_local_segue_pelo_sha_do_servidor"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "FECHAR-REF-POR-NOME: o dry-run sem branch local mostra o sha nao lido, nao o nome",
+      "arquivo": "bin/forge-fechar",
+      "de": "ref_dry=\"$sha_dry\"; }",
+      "para": "ref_dry=\"$ref\"; }",
+      "testes": [
+        "tests.test_fechar.Fechar.test_dry_run_sem_branch_local_marca_o_sha_como_nao_lido"
+      ]
+    }
+  ]
+}
