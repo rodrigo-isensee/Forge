@@ -298,6 +298,19 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertIn("python3 scripts/suite-paralela.py", release)
         self.assertNotIn("unittest discover", release)
 
+    def test_pareceres_e_job_proprio_obrigatorio_e_fora_do_caminho_da_suite(self):
+        """CI-PARECER-NAO-BARRA-SUITE: o parecer faltando reprova o merge (agregador) sem pular a suíte nem as verificações."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        jobs = {j["id"]: j for j in ci.ler_jobs(texto)}
+        self.assertEqual(jobs["pareceres"]["nome"], "bateria (pareceres)")
+        self.assertIn("--modo pareceres", "".join(p["run"] for p in jobs["pareceres"]["passos"]))
+        self.assertFalse([p for p in jobs["bateria"]["passos"] if "--modo pareceres" in p["run"]], "o parecer saiu do job de passos")
+        self.assertIn("pareceres", jobs["agregador"]["needs"])
+        for outro, j in jobs.items():
+            if outro not in ("agregador", "pareceres"):
+                self.assertNotIn("pareceres", j["needs"], outro)
+        self.assertIn("PARECERES: ${{ needs.pareceres.result }}", texto)
+
     def test_bateria_ferramenta_e_checagens_baratas_antes_dos_testes(self):
         """CI-FERRAMENTA-ANTES: o vermelho barato aparece antes da suíte; testes continuam obrigatórios."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
@@ -310,7 +323,7 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertFalse([n for n in nomes if n.startswith("Testes do Forge")], "a suíte roda nas partes, não nos passos")
         testes = len(nomes)  # SUITE-NO-CI: os passos baratos continuam no job de passos, que não espera a suíte
         for trecho in ("Claude Code CLI", "claude plugin validate", "Nada pula degrau", "changelog.d",
-                       "release exige versão", "Segredo, .env", "Parecer de review"):
+                       "release exige versão", "Segredo, .env"):
             self.assertLess(pos(trecho), testes, trecho)
         self.assertLess(pos("Claude Code CLI"), pos("claude plugin validate"))
         passo = [p for p in bateria["passos"] if "Claude Code CLI" in p["nome"]][0]["run"]
@@ -848,7 +861,7 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         jobs = {j["id"]: j for j in self.jobs_reais()}
         self.assertEqual(jobs["partes-doze"]["matriz"], {"parte": ["1", "2", "3"]})
         self.assertEqual(jobs["partes-quatorze"]["matriz"], {"parte": ["1", "2", "3"]})
-        self.assertEqual(jobs["agregador"]["needs"], ["bateria", "verificacoes", "partes-doze", "pulados-doze"])
+        self.assertEqual(jobs["agregador"]["needs"], ["bateria", "pareceres", "verificacoes", "partes-doze", "pulados-doze"])
         self.assertEqual(jobs["verificacoes"]["needs"], ["bateria"])  # A18: Provas, shellcheck e e2e esperam os passos baratos
         self.assertEqual(jobs["bateria-python-tres-quatorze"]["needs"],
                          ["partes-quatorze", "pulados-quatorze", "instalacao-quatorze"])
@@ -890,7 +903,7 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         for k in (1, 2, 3):
             self.assertIn("reaproveitado", por_nome[f"suíte (python 3.14, parte {k}/3)"]["motivo"])
         self.assertEqual(ci.status(resultados)[0], "success")
-        self.assertIn("resumo de bateria: success, verificacoes: success, partes-doze: success", por_nome["bateria"]["motivo"])
+        self.assertIn("resumo de bateria: success, pareceres: success, verificacoes: success, partes-doze: success", por_nome["bateria"]["motivo"])
         self.assertEqual(por_nome["bateria (python 3.14)"]["estado"], ci.OK)
         self.assertEqual(por_nome["checagem rápida (push na develop)"]["estado"], ci.PULADO)
 
