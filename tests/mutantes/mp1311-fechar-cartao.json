@@ -6,7 +6,7 @@
       "id": "M1",
       "guarda": "FECHAR-REF-POR-NOME: com a branch local o forge-check pr recebe o nome, nao o sha",
       "arquivo": "bin/forge-fechar",
-      "de": "then ref_check=\"$ref\"; else",
+      "de": "then ref_check=\"refs/heads/$ref\"; else",
       "para": "then ref_check=\"$sha_conferido\"; else",
       "testes": [
         "tests.test_fechar_ref_por_nome.FecharRefPorNome.test_com_branch_local_o_forge_check_recebe_o_nome"
@@ -30,6 +30,26 @@
       "para": "ref_dry=\"$ref\"; }",
       "testes": [
         "tests.test_fechar.Fechar.test_dry_run_sem_branch_local_marca_o_sha_como_nao_lido"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "FECHAR-REF-POR-NOME: ref_check por refs/heads/<branch>, nao pelo nome curto (tag de mesmo nome)",
+      "arquivo": "bin/forge-fechar",
+      "de": "then ref_check=\"refs/heads/$ref\"; else",
+      "para": "then ref_check=\"$ref\"; else",
+      "testes": [
+        "tests.test_fechar_ref_por_nome.FecharRefPorNome.test_tag_de_mesmo_nome_nao_desvia_a_conferencia"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "FECHAR-REF-POR-NOME: o dry-run com a branch local mostra refs/heads/<branch>",
+      "arquivo": "bin/forge-fechar",
+      "de": "  ref_dry=\"refs/heads/$ref\"\n",
+      "para": "  ref_dry=\"$ref\"\n",
+      "testes": [
+        "tests.test_fechar_ref_por_nome.FecharRefPorNome.test_dry_run_descreve_o_nome"
       ]
     }
   ]

@@ -16,13 +16,24 @@ class FecharRefPorNome(unittest.TestCase):
         sha = self.git("rev-parse", "melhoria/x")
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.chamadas()[0], "forge-check pr p1 --ref melhoria/x --base origin/develop")
+        self.assertEqual(self.chamadas()[0], "forge-check pr p1 --ref refs/heads/melhoria/x --base origin/develop")
         self.assertIn(f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha}", self.chamadas())
+
+    def test_tag_de_mesmo_nome_nao_desvia_a_conferencia(self):
+        sha_branch = self.git("rev-parse", "refs/heads/melhoria/x")
+        tag_sha = self.git("rev-parse", "develop")
+        self.git("tag", "melhoria/x", tag_sha)
+        self.assertEqual(self.git("rev-parse", "melhoria/x"), tag_sha)  # o nome curto já casa a tag
+        self.assertNotEqual(sha_branch, tag_sha)
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.chamadas()[0], "forge-check pr p1 --ref refs/heads/melhoria/x --base origin/develop")
+        self.assertIn(f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha_branch}", self.chamadas())
 
     def test_dry_run_descreve_o_nome(self):
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn("pr p1 --ref melhoria/x --base", r.stdout)
+        self.assertIn("pr p1 --ref refs/heads/melhoria/x --base", r.stdout)
 
     def test_head_que_anda_durante_a_conferencia_ainda_para(self):
         r = self.fechar("p1", "--ref", "melhoria/x", CHECK_ANTES=self.commit_na_branch(True))

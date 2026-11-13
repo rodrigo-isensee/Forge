@@ -765,7 +765,7 @@ com release na develop ainda não promovida, promova-a (scripts/promover-homolog
 if [ "$seco" = 1 ]; then
   echo "forge-fechar --dry-run: nada será executado."
   # Só leitura local: o passo 1 real passa o nome da branch local (FECHAR-REF-POR-NOME), o número do PR só existe depois do passo 3 (o --dry-run não chama gh nem o servidor).
-  ref_dry="$ref"
+  ref_dry="refs/heads/$ref"
   sha_dry="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)" || { sha_dry="<sha não lido: a branch local não existe>"; ref_dry="$sha_dry"; }
   passo 1 "$check pr $pedido --ref $ref_dry --base $base"
   passo "1c" "python3 -I $promover --conferir-ref $sha_dry (a árvore que entra na $alvo é promovível; rc diferente de 0, prazo de 300 s ou script ausente param)"
@@ -820,10 +820,10 @@ fi
 # lido antes do passo 1; o sha local é relido depois do passo 1 e de novo no passo 2.
 # FECHAR-BRANCH-LOCAL: sem a branch local (worktree já removida, branch de outra instância), o modo só remota lê o sha do servidor
 # (ls-remote, nunca a refs/remotes/origin, que pode estar velha), exige o commit aqui e relê o servidor onde leria a branch local.
-# FECHAR-REF-POR-NOME: com a branch local, o forge-check recebe o NOME (lê os pareceres da branch, não do primeiro nome que casa com o sha:
+# FECHAR-REF-POR-NOME: com a branch local, o forge-check recebe refs/heads/<branch>, sem ambiguidade com tag de mesmo nome (lê os pareceres da branch, não do primeiro nome que casa com o sha:
 # uma worktree de portão no mesmo head reprovava a conferência); sem a local, o sha do servidor, que não tem nome para ler.
 ref_check=""
-if sha_conferido="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)"; then ref_check="$ref"; else
+if sha_conferido="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)"; then ref_check="refs/heads/$ref"; else
   so_remota=1
   sha_conferido="$(remoto_exato "$ref")" || die "parou no passo 1: sem a branch local $ref e sem leitura dela no origin (nada foi aberto)"
   [ -n "$sha_conferido" ] || die "parou no passo 1: a branch $ref não existe aqui nem no origin"
