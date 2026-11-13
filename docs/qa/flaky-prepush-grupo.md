@@ -3,19 +3,20 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/flaky-prepush-grupo
-commit: 905edbbb3bb529646fcfa4dbdac0f724ec0f23f5
-parecer: reprovado
-escopo: completo
+commit: 989d49f5661d93c37dfff8813a905ba97490cd6c
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-12
+data: 2026-11-13
 ---
 # QA: flaky-prepush-grupo (E26.7)
 
 ## Achados
-- A1 (bloqueante) tests/test_prepush_so_docs.py:313 · vigia() casa o `sleep 60` irmão de lanca(): ele é filho do mesmo PID (o bash -c faz exec do hook), nasce antes do arquivo `etapa` e não é a etapa, então devolve True de imediato e a espera não prova que o hook chegou ao laço; exclua o PID de `irmao`.
+Nenhum aberto. Recomendado: o CI (`bateria` do sha final) precisa mostrar os 4 testes de GrupoDaEtapa sem `skipped` e repetição sem stderr vazio; aqui o sandbox os pula.
+- A1 (resolvido em 989d49f5; histórico, rodada 905edbbb) tests/test_prepush_so_docs.py:313 · vigia() casa o `sleep 60` irmão de lanca(): ele é filho do mesmo PID (o bash -c faz exec do hook), nasce antes do arquivo `etapa` e não é a etapa, então devolve True de imediato e a espera não prova que o hook chegou ao laço; exclua o PID de `irmao`.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -29,3 +30,10 @@ data: 2026-11-12
 - Sandbox: GrupoDaEtapa roda 4 testes e pula todos (/proc de outro namespace); não consegui executar a vigia nem reproduzir. O achado A1 vem de leitura, com a premissa de exec preservar o PID, que é semântica do bash. Não houve vermelho/verde possível aqui.
 - O que o CI precisa mostrar para dar a instabilidade por resolvida: (1) os 4 testes de GrupoDaEtapa executados, sem `skipped`, no check-run `bateria` do sha final; (2) vigia ligada ao laço (teste mostrando que a espera aguarda de fato, por exemplo ao menos um `sleep` filho do hook que não seja etapa nem irmão); (3) repetição sob carga: o job do PR e re-runs em série, sem repetir o stderr vazio (uma execução verde não prova nada, a falha original era intermitente).
 - Sem plano antecipado, mutação nem forge-mutante: não toca bin/, hooks/ nem .githooks/; só teste.
+
+## Revalidação por delta (E26.18, 905edbbb..989d49f5)
+`forge-check parecer delta` lista só tests/test_prepush_so_docs.py (domínio do QA); docs de parecer mudaram sem tocar o código.
+- A1 resolvido: `vigia(hook, etapa, irmao)` exclui `pid not in (etapa, irmao)`; `interrompe()` lê `irmao` antes e reusa o valor na asserção final (mesma semântica de antes).
+- Confirmei no hook (templates/projeto/.githooks/pre-push:150-158) que o único `sleep` filho direto do hook é o `sleep 1` do laço `while lider_vivo`, alcançado depois do `alvo=` e do `ps` do pgid; logo a condição só fica verdadeira com o hook no laço. Outros sleeps das etapas (`sleep 60 &`, `exec sleep 60`) são a etapa (excluída) ou netos (ppid = etapa).
+- Execução: GrupoDaEtapa roda 4 testes e pula os 4 no sandbox (/proc de outro namespace); não consegui rodá-lo fora do sandbox, então a prova de execução e de repetição é só do CI. Não há PR aberto (gh sem runs): sem check-run `bateria` a citar.
+- Sem mutação nem forge-mutante: só teste, sem bin/, hooks/ nem .githooks/ do Forge.
