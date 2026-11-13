@@ -807,7 +807,7 @@ print(json.dumps(saida))
         for caminho in sorted((FIXTURES / "conformidade").glob("*-bloqueia.json")):
             dados = json.loads(caminho.read_text(encoding="utf-8"))
             comando = dados.get("entrada", {}).get("tool_input", {}).get("command")
-            if (dados.get("passos") or not isinstance(comando, str) or "\n" in comando
+            if (dados.get("passos") or dados.get("forcar") or not isinstance(comando, str) or "\n" in comando
                     or any(marca in comando for marca in self.NO_FIXTURE_DE_OUTRO_DIA)
                     or any(marca in comando for marca in self.TROCA_A_BRANCH_NA_LINHA)
                     or conformidade.CRITICO.search(comando)

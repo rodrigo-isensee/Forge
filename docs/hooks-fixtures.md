@@ -9,7 +9,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2449 fixtures) roda em `tests/test
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 79 | 44 | 35 | 27 |
-| `conformidade` | 1799 | 1324 | 475 | 89 |
+| `conformidade` | 1799 | 1327 | 472 | 89 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 25 | 10 | 15 | 12 |
 | `parecer` | 463 | 357 | 106 | 24 |
@@ -96,7 +96,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2449 fixtures) roda em `tests/test
 | `home-*` | 11 | 10 | 1 | — | `HOME` | ~/.claude.json é do usuário. |
 | `m1-*` | 10 | 7 | 3 | — | — | M1 (review da 0.43.2): a linha de selo ou de conferência é da ferramenta; `cd docs/pedidos && cat >> p1.md <<'FIM'` com a conferência no cor… |
 | `crase-*` | 9 | 7 | 2 | `R-CONFORMIDADE` | `CRASE-ASPA-HOOK`, `CRASE-SESSAO-PROJETO` | Orçamento: 60 cd e 60 crases aninhadas terminando em push com --no-verify: o hook recusa sem estourar o timeout (a base recusava em 0,34 s). |
-| `erro-*` | 7 | 2 | 5 | — | — | Config corrompida e comando sem marcador: libera e registra. |
+| `erro-*` | 7 | 5 | 2 | — | — | Config corrompida e comando sem marcador: libera e registra. |
 | `pedido-*` | 6 | 4 | 2 | — | `VV-2` | VV-2, A1: o dev não grava no pedido. |
 | `push-*` | 6 | 4 | 2 | `R-CONFORMIDADE`, `R-MAIN`, `R-VERIFY` | `AGENTE-NAO-EMENDA-ENVIADO` | git push -u origin <branch de trabalho>: livre. |
 | `api-*` | 5 | 3 | 2 | — | — | Comentário em PR por gh api: não é crítico. |

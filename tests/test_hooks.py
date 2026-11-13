@@ -2360,7 +2360,8 @@ class Hooks(unittest.TestCase):
         if not _CORPUS:
             todas = [f for f in self.fixtures if f.hook in ("conformidade", "parecer", "pesado")
                      and f.dados["esperado"].get("codigo") == 2 and f.dados["entrada"].get("tool_name") == "Bash"
-                     and f.caminho.stem != FIXTURE_DE_ORCAMENTO]  # a linha adversária de tempo recusa pelo teto, não pelo corpus
+                     and f.caminho.stem != FIXTURE_DE_ORCAMENTO  # a linha adversária de tempo recusa pelo teto, não pelo corpus
+                     and "forcar" not in f.dados]  # HOOK-ERRO-LIBERA: a recusa vem do erro forçado, não da leitura
             fora = [f.caminho.stem for f in todas if "erros_log" in f.dados["esperado"]
                     or not bash_aceita(f.dados["entrada"]["tool_input"]["command"])]
             # 10: as duas sondas de extglob do PN7-DOLAR-INTERROG; o `bash -n` não roda o `shopt -s extglob` da 1ª linha
