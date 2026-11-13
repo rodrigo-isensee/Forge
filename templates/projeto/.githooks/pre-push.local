@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Pronto rápido da stack {{STACK}} (lint, formatação e tipos), gerado pelo Forge a partir de stacks/{{STACK}}/pronto.md.
-# O .githooks/pre-push o roda antes de cada envio, menos no envio só de docs/** e .md; o pronto completo (testes e build)
-# fica com o autor antes de entregar e com o CI. O arquivo é do projeto: ajuste `rapido`; o Forge não o sobrescreve.
+# O .githooks/pre-push o roda antes de cada envio que muda código; envio só de texto, parecer ou junção com a develop passa
+# sem ele. O pronto completo (testes e build) fica com o autor antes de entregar e com o CI. O arquivo é do projeto: ajuste `rapido`.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 rapido='{{PRONTO_RAPIDO}}'
 deteccao='{{DETECCAO}}'  # arquivos da raiz que dizem que já há código da stack para checar
 read -ra arquivos <<<"$deteccao"
 tem_codigo=0
-for arquivo in "${arquivos[@]}"; do
+for arquivo in ${arquivos[@]+"${arquivos[@]}"}; do
   if [ -e "$arquivo" ]; then tem_codigo=1; fi
 done
 if [ "$tem_codigo" -eq 0 ]; then

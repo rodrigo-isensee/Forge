@@ -1369,7 +1369,65 @@ class PreEnvioDoModelo(unittest.TestCase):
         self.commit("docs/nota.md", "nota\n", "docs")
         r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
         self.assertEqual((r.returncode, chamadas), (0, []), r.stderr)
-        self.assertIn("só docs/** e .md", r.stdout + r.stderr)
+        self.assertIn("só texto (docs/**, .md", r.stdout + r.stderr)
+
+    def projeto_com_remoto(self):
+        """Projeto atualizado, com remoto e a base `feature/base` enviada (o pronto rápido da primeira vez já rodou)."""
+        self.projeto_existente()
+        self.assertEqual(self.upgrade().returncode, 0)
+        git("init", "-q", "--bare", str(self.remoto), cwd=self.tmp)
+        remoto_sem_manutencao(self.remoto)
+        git("remote", "add", "origin", str(self.remoto), cwd=self.repo)
+        self.assertEqual(self.push("HEAD:feature/base")[0].returncode, 0)
+
+    def test_envio_so_de_texto_nao_roda_o_pronto_rapido(self):
+        """Decisão do dono (13/11 17:31): docs, .md, parecer e fragmento de changelog passam sem o pronto rápido."""
+        self.projeto_com_remoto()
+        self.commit("docs/reviews/p.md", "parecer\n", "parecer")
+        self.commit("changelog.d/p.md", "- texto\n", "changelog")
+        self.commit("README.md", "oi\n", "readme")
+        r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
+        self.assertEqual((r.returncode, chamadas), (0, []), r.stderr)
+        self.assertIn("só texto", r.stdout + r.stderr)
+
+    def test_envio_com_codigo_ou_misto_roda_o_pronto_rapido(self):
+        self.projeto_com_remoto()
+        for texto_junto in (None, "changelog.d/x.md"):
+            with self.subTest(texto_junto=texto_junto):
+                self.commit("src/p.py", "x = 1\n", "codigo")
+                if texto_junto:
+                    self.commit(texto_junto, "- texto\n", "texto junto")  # misto: texto e código no mesmo envio
+                r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
+                self.assertNotEqual(r.returncode, 0, "o envio com código precisa rodar o pronto rápido")
+                self.assertEqual(chamadas, ["ruff check ."])
+                git("reset", "-q", "--hard", "origin/feature/base", cwd=self.repo)
+
+    def test_envio_que_apaga_codigo_roda_o_pronto_rapido(self):
+        self.projeto_com_remoto()
+        self.commit("src/p.py", "x = 1\n", "codigo")
+        self.assertEqual(self.push("HEAD:feature/base")[0].returncode, 0)
+        git("rm", "-q", "src/p.py", cwd=self.repo)
+        git("commit", "-q", "-m", "apaga", cwd=self.repo)
+        r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
+        self.assertNotEqual(r.returncode, 0, "apagar código também precisa rodar o pronto rápido")
+        self.assertEqual(chamadas, ["ruff check ."])
+
+    def test_juncao_com_a_develop_sem_codigo_novo_nao_roda_o_pronto_rapido(self):
+        self.projeto_com_remoto()
+        git("switch", "-q", "--no-track", "-c", "rama", cwd=self.repo)
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commit("src/d.py", "y = 1\n", "codigo da develop")
+        self.assertEqual(self.push("HEAD:develop")[0].returncode, 0)
+        git("switch", "-q", "rama", cwd=self.repo)
+        self.commit("docs/nota.md", "nota\n", "nota")
+        git("merge", "-q", "--no-edit", "origin/develop", cwd=self.repo)
+        r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
+        self.assertEqual((r.returncode, chamadas), (0, []), r.stderr)
+        self.assertIn("junção", r.stdout + r.stderr)
+        self.commit("src/d.py", "y = 2\n", "mexe no codigo depois da junção")
+        r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
+        self.assertNotEqual(r.returncode, 0, "código mexido depois da junção precisa rodar o pronto rápido")
+        self.assertEqual(chamadas, ["ruff check ."])
 
     def test_atualizacao_nao_sobrescreve_o_pre_push_local_do_projeto(self):
         self.projeto_existente()

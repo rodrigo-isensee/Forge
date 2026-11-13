@@ -6,7 +6,7 @@ Comando sugerido: `pnpm run pronto`
 
 Pronto rápido: `pnpm exec eslint . && pnpm exec prettier --check . && pnpm exec tsc --noEmit`
 
-Pronto completo: o comando sugerido, que o autor roda antes de entregar e o CI roda em todo PR. O rápido (lint, formatação e tipos) é o que o `forge-init` grava no `.githooks/pre-push.local`, e o pre-push o roda antes de cada envio que não seja só de docs.
+Pronto completo: o comando sugerido, que o autor roda antes de entregar e o CI roda em todo PR. O rápido (lint, formatação e tipos) é o que o `forge-init` grava no `.githooks/pre-push.local`, e o pre-push o roda antes de cada envio que muda código (envio só de texto, parecer ou junção com a develop passa sem ele).
 
 Detecção: `package.json`
 
