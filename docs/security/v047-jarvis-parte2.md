@@ -3,8 +3,8 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-jarvis-parte2
-commit: 65cf916b96d6bfa7e0acb7472bfe21b2c7b91551
-parecer: reprovado
+commit: 17c66fb251218a7656412fb5f48ff591a4f7b241
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-13
 ---
@@ -14,11 +14,10 @@ data: 2026-11-13
 Regra de processo em `docs/regras/README.md` e em duas skills (`R-WIP`, `R-FLUXO`, `R-REVIEW`): nenhum código de produção, hook, workflow, segredo nem permissão tocados. Revisão por segurança do que a edição poderia afrouxar.
 
 ## Achados
-- A2 (bloqueante) tests/test_forge.py:626 · o enxugamento da E3.15 reescreveu a linha Integração contínua (D2) de skills/trabalho-em-paralelo/SKILL.md:16 e o teste da diretriz 16 ainda exige a frase antiga: DiretrizesDoDonoNaRWip falha no head (CI vermelho); ver S1.
 - A1 (recomendado) docs/regras/README.md:10 · âncoras das 5 regras de R-LIMITES.md removidas dos links: a navegação cai no topo do arquivo, sem perda de regra; opcional restaurar o link do R-MAIN.
 
 ## Sondas
-- S1 · `python3 -I -m unittest tests.test_forge.DiretrizesDoDonoNaRWip.test_as_skills_do_passo_citam_o_id` · espera: OK · obtido: FAIL, AssertionError: frase `entra na develop por PR próprio, com CI verde, sem junção de frentes (R-FLUXO)` não encontrada (tests/test_forge.py:626)
+- S1 · `python3 -I -m unittest discover -s tests -p test_forge.py -k DiretrizesDoDonoNaRWip -k RegrasInviolaveis -k RegrasComId -k TextosDoAgenteEDaRegra -k AntiDuplicacao` (head 17c66fb2) · espera: OK · obtido: Ran 13 tests OK (o FAIL de 65cf916b em tests/test_forge.py:626 está resolvido)
 
 ## Detalhe dos achados
 - A1: informativa, esforço P, dono tech-lead. Os 5 links apontam para `R-LIMITES.md` (existe); o texto de cada regra segue em `R-LIMITES.md`, só a âncora saiu.
@@ -29,5 +28,11 @@ Lido só `forge-check parecer delta`: skills/kanban-scrum/SKILL.md e skills/trab
 - A2: defeito provado, esforço P, dono tech-lead (teste) ou autor da skill. Correção mínima: alinhar a asserção de tests/test_forge.py:626 à frase nova da skill, isto é, exigir `entra na `develop` por PR próprio, sem juntar frentes (`R-FLUXO`)` (ou a frase inteira "o PR abre com os pareceres da classe aprovados no head e a entrega conferida; com CI verde, entra na `develop` por PR próprio, sem juntar frentes (`R-FLUXO`)"), mantendo a exigência de PR próprio e do ID `R-FLUXO`, sem remover a asserção. Rodar `DiretrizesDoDonoNaRWip`.
 - Os outros 12 testes do conjunto afetado (`RegrasInviolaveis`, `RegrasComId`, `TextosDoAgenteEDaRegra`, `AntiDuplicacao` e o resto de `DiretrizesDoDonoNaRWip`) passam. Suíte inteira não rodada (carga, diretriz 15); sem PR aberto.
 
+## Revalidação (delta 65cf916b..17c66fb2, E3.24)
+Lido `forge-check parecer delta` (domínio: skills/kanban-scrum/SKILL.md e skills/trabalho-em-paralelo/SKILL.md; tests/test_forge.py fora). Aprovado, sem achado novo.
+- A2 resolvido: tests/test_forge.py:626 agora exige `com CI verde, entra na `develop` por PR próprio, sem juntar frentes (`R-FLUXO`)`, mantendo PR próprio, CI verde e o ID `R-FLUXO`; asserção não removida nem afrouxada.
+- skills/kanban-scrum/SKILL.md:73 devolve a linha dos dois relógios (D-4, `relogios:`): adição, nenhuma regra afrouxa. skills/trabalho-em-paralelo/SKILL.md:10 volta "(serializam)": só redação, a série por arquivo em comum, o lote e a espera do primeiro seguem.
+- O head da branch (442b90ed) só acrescenta docs/qa depois de 17c66fb2; fora do domínio.
+
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Rodados no head: `RegrasInviolaveis`, `RegrasComId`, `TextosDoAgenteEDaRegra`, `DiretrizesDoDonoNaRWip`, `AntiDuplicacao` (13 testes, OK); todos os links relativos de `docs/regras/README.md` resolvem; 10 recusas `(R-WIP)` em `bin/forge-check`, como a medida diz. Suíte inteira não rodada local (carga da máquina, diretriz 15); fica ao CI do PR, ainda não aberto. Sem ferramentas de varredura necessárias (só texto).
+Nenhum risco aceito. Rodados no head 17c66fb2: `RegrasInviolaveis`, `RegrasComId`, `TextosDoAgenteEDaRegra`, `DiretrizesDoDonoNaRWip`, `AntiDuplicacao` (13 testes, OK). Suíte inteira não rodada local (carga, diretriz 15); fica ao CI do PR, ainda não aberto. Sem ferramentas de varredura necessárias (só texto).
