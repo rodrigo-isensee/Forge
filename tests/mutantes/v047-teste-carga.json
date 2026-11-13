@@ -1,0 +1,87 @@
+{
+  "pedido": "v047-teste-carga",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "teto de 2x do fator",
+      "arquivo": "tests/test_hooks.py",
+      "de": "TETO_DO_FATOR_DE_CARGA = 2",
+      "para": "TETO_DO_FATOR_DE_CARGA = 3",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_fator_segue_a_carga_por_nucleo_entre_1_e_2"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "piso de 1: maquina folgada nao aperta o limite",
+      "arquivo": "tests/test_hooks.py",
+      "de": "max(1.0, carga / nucleos)",
+      "para": "max(0.5, carga / nucleos)",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_fator_segue_a_carga_por_nucleo_entre_1_e_2"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "carga medida por nucleo, nao total",
+      "arquivo": "tests/test_hooks.py",
+      "de": "max(1.0, carga / nucleos)",
+      "para": "max(1.0, carga)",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_fator_segue_a_carga_por_nucleo_entre_1_e_2"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "carga ilegivel devolve 1 (limite de sempre)",
+      "arquivo": "tests/test_hooks.py",
+      "de": "    except OSError:\n        return 1.0\n    nucleos",
+      "para": "    except OSError:\n        return 2.0\n    nucleos",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_carga_ilegivel_deixa_o_limite_de_sempre"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "teto aplicado por min, nao max",
+      "arquivo": "tests/test_hooks.py",
+      "de": "return min(float(TETO_DO_FATOR_DE_CARGA)",
+      "para": "return max(float(TETO_DO_FATOR_DE_CARGA)",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_fator_segue_a_carga_por_nucleo_entre_1_e_2"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o fator multiplica o limite do corpus",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "limite_de_cpu_do_corpus() * fator_de_carga(carga, nucleos)",
+      "para": "limite_de_cpu_do_corpus() + fator_de_carga(carga, nucleos)",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_limite_do_corpus_escala_e_regressao_de_mais_do_dobro_ainda_falha"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "a leitura e a media de 1 min",
+      "arquivo": "tests/test_hooks.py",
+      "de": "os.getloadavg()[0] if carga is None",
+      "para": "os.getloadavg()[2] if carga is None",
+      "testes": [
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_fator_segue_a_carga_por_nucleo_entre_1_e_2",
+        "tests.test_medida_cpu.LimitesPelaCargaDaMaquina.test_carga_ilegivel_deixa_o_limite_de_sempre"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o fator multiplica o prazo do gh pendurado",
+      "arquivo": "tests/test_hooks.py",
+      "de": "(limite - 1) * fator_de_carga()",
+      "para": "(limite - 1) * 0",
+      "testes": [
+        "tests.test_hooks.Hooks.test_rotulo_so_dono_gh_pendurado_decide_antes_do_timeout_do_hook"
+      ]
+    }
+  ]
+}
