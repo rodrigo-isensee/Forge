@@ -46,8 +46,8 @@
       "id": "M5",
       "guarda": "MP1311: o commit revisado só entra com --desde (sem ele, nenhum Revisar-sha é lido)",
       "arquivo": "bin/forge-check",
-      "de": "    do_autor = revisados_do_autor(raiz, caminho, texto, branch) if desde else ()",
-      "para": "    do_autor = ()",
+      "de": "revisados_do_autor(raiz, caminho, texto, branch) if desde else ()",
+      "para": "revisados_do_autor(raiz, caminho, texto, branch) if not desde else ()",
       "testes": [
         "tests.test_selo_e_entrega.JanelaDaEntrega.test_desde_no_commit_revisado_pelo_portao_vale"
       ]
