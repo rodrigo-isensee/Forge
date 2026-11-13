@@ -3,12 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0457
 branch: melhoria/trava-agente-morto
-commit: 6e005f9beb2310dc25dd634f60636cc542232a47
+commit: f3c614eaabe8d2fa2e10d1743f20630c2adb2cff
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-13
 ---
-# Review de segurança: v0457 (TRAVA-AGENTE-MORTO, E23.71, E23.99 e E23.103)
+# Review de segurança: v0457 (TRAVA-AGENTE-MORTO, E23.71, E23.99, E23.103 e E23.107)
+
+Revalidação E23.107 (por delta 6e005f9b..f3c614ea, segunda junção com a develop, #522): **aprovado**. `forge-check parecer delta` mostra no domínio só `bin/forge-testes` (o mapa soma `test_pr_hook_prazo`; conflito resolvido com as duas entradas, sem efeito na trava). `hooks/agentes.py`, `hooks/conformidade.json`, `hooks/conformidade.py`, `hooks/hooks.json` e `tests/test_trava_agente_morto.py` sem diferença no intervalo; `hooks/_comum.py` e `hooks/parecer.py` vieram da develop (prazo do hook de PR, campo `contorno_do_prazo`, sem toque na liberação de vaga). `python3 -m unittest tests.test_trava_agente_morto`: 51 testes, OK. A2 e A3 seguem recomendados, sem promoção.
 
 Revalidação E23.103 (por delta 31f2e643..6e005f9b, a junção com a develop): **aprovado**. `forge-check parecer delta` mostra no domínio só `bin/forge-testes` (o mapa de testes soma `test_hook_git_comum`, `test_prepush_refs` e módulos do doutor; sem efeito na trava). `hooks/agentes.py`, `hooks/conformidade.json` e `hooks/hooks.json` não mudaram em relação ao parecer. Mudou da develop o `hooks/conformidade.py` (rev-parse do .git, curinga e colchete na origem de link, #512 e anteriores), que toca o casamento da C10: conferido que o resultado dela não mudou (sondas abaixo). Os achados A2 e A3 seguem recomendados, sem promoção.
 
