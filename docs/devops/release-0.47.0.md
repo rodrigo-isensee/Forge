@@ -11,8 +11,8 @@ data: 2026-11-13
 # Review de devops: release-0.47.0
 
 ## Achados
-- A1 (recomendado) scripts/verificar-contribuicao.sh · a troca `${texto//\/home\/runner\//@}` apaga todo `/home/runner/` antes da regex de caminho pessoal, então um caminho pessoal literal com esse prefixo passaria; o risco é baixo (o usuário real de um projeto não se chama runner), mas vale um teste que fixe o limite.
-- A2 (recomendado) .github/workflows/ci.yml (job `pareceres`) · o comentário diz "promoções ficam fora do job", mas o job roda em todo `pull_request`, inclusive `homolog` e `main`; o comportamento é o mesmo do passo anterior (o script trata a promoção por `--base-ref`), só o texto engana.
+- A1 (recomendado) scripts/verificar-contribuicao.sh:55 · a troca de /home/runner/ por @ antes da regex de caminho pessoal deixaria passar um caminho pessoal com esse prefixo; risco baixo, vale um teste que fixe o limite
+- A2 (recomendado) .github/workflows/ci.yml:566 · o comentário diz que promoções ficam fora do job pareceres, mas ele roda em todo pull_request; comportamento igual ao do passo anterior, só o texto engana
 
 ## Detalhes
 Aprovado. Release 0.47.0: head da branch revisado em 72bb4008 (develop em befd4cca contra main em 5f83b58d; 186 arquivos). Em `.github/` mudou só `workflows/ci.yml` (32 inserções, 8 remoções); `release.yml`, `catraca.yml`, `dependabot.yml` e `templates/projeto/.github` não mudaram. Não há `Dockerfile*`, `compose*` nem IaC no diff. Depois do Revisar-sha a branch recebeu só commits de pareceres (`docs/qa`, `docs/reviews`, `docs/security`), sem código.
