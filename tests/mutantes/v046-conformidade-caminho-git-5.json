@@ -1,0 +1,76 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G27",
+      "guarda": "review A5 da E20.30: a última palavra de `caminhos` (o destino) nunca se libera",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for a in caminhos[:-1])",
+      "para": "for a in caminhos)",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G28",
+      "guarda": "volta 4 (A11, A4 do QA): a origem de rev-parse só se libera se o curinga e as chaves não alcançam regra específica",
+      "arquivo": "hooks/conformidade.py",
+      "de": " and self.origem_so_generica(v, pasta, generico)}",
+      "para": "}",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G29",
+      "guarda": "volta 4 (A11): origem com chaves não se libera (falha fechada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if \"{\" in resto:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G30",
+      "guarda": "volta 4 (A11): origem com curinga passa pelo glob no .git antes de se liberar",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not CURINGA.search(resto):",
+      "para": "if True:",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G31",
+      "guarda": "volta 4 (A11): nome do glob que cai em regra específica recusa a liberação",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if x and x[1] != generico:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G32",
+      "guarda": "volta 4 (A11): nome do glob que só cai na regra genérica (`HEA?`) segue livre",
+      "arquivo": "hooks/conformidade.py",
+      "de": "x[1] != generico",
+      "para": "True",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    },
+    {
+      "id": "G33",
+      "guarda": "volta 4 (A11): cada prefixo do resto entra no glob (`hook[s]/…` cai no .git/hooks/ sem o arquivo existir)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "range(1, len(partes) + 1)",
+      "para": "range(len(partes), len(partes) + 1)",
+      "testes": [
+        "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
+      ]
+    }
+  ]
+}

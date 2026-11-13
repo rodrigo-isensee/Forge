@@ -158,8 +158,8 @@ class PrePushSoDocs(Repo):
         self.escreve("src/a.ts")
         codigo = self.commit("codigo")
         r, marca = self.envia([self.ref(so_docs, self.base, "refs/heads/a"), self.ref(codigo, self.base, "refs/heads/b")])
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertTrue(marca)
+        # PREPUSH-REFS (v0457): duas branches no mesmo envio recusam antes do plano
+        self.assertEqual((r.returncode, "mais de uma branch" in r.stderr, marca), (1, True, False), r.stderr)
 
     def test_duas_refs_so_docs_pulam(self):
         self.escreve("docs/a.md")
@@ -169,7 +169,7 @@ class PrePushSoDocs(Repo):
         b = self.commit("b")
         r, marca = self.envia([self.ref(a, self.base, "refs/heads/a"), self.ref(b, self.base, "refs/heads/b")])
         self.assertFalse(marca)
-        self.assertIn(PULO, r.stdout)
+        self.assertEqual((r.returncode, "mais de uma branch" in r.stderr), (1, True), r.stderr)  # PREPUSH-REFS
 
     def test_branch_nova_roda(self):
         self.escreve("docs/a.md")
@@ -303,16 +303,30 @@ class GrupoDaEtapa(Repo):
         except subprocess.TimeoutExpired:
             self.fail("o hook não saiu em 30 s")
 
+    @staticmethod
+    def vigia(hook, etapa, irmao):
+        """O hook já passou da partida da etapa e dorme no laço de vigia: tem um filho `sleep` que não é a etapa nem o irmão (o irmão também vira filho do hook após o exec)."""
+        for pid in vivos():
+            try:
+                stat = Path(f"/proc/{pid}/stat").read_text()
+            except OSError:
+                continue
+            nome, resto = stat.split("(", 1)[1].rsplit(")", 1)
+            if nome == "sleep" and pid not in (etapa, irmao) and int(resto.split()[1]) == hook:
+                return True
+        return False
+
     def interrompe(self):
         exigir(self, "proc")
         p = self.lanca()
+        irmao = self.le("irmao")[0]
         etapa = self.le("etapa")[0]
-        time.sleep(1)
+        self.assertTrue(ate(lambda: self.vigia(p.pid, etapa, irmao), 30), "o hook não chegou ao laço de vigia")
         p.send_signal(signal.SIGTERM)
         rc, err = self.fim(p)
         self.assertEqual(rc, 1)
         self.assertIn("checagem interrompida; o envio foi barrado", err)
-        self.assertIn(self.le("irmao")[0], vivos())
+        self.assertIn(irmao, vivos())
         return etapa
 
     def test_etapa_em_grupo_proprio_e_saida_repassada(self):

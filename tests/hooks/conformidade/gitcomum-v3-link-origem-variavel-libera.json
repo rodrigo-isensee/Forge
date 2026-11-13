@@ -1,0 +1,28 @@
+{
+  "descricao": "Volta 3 da E20.6 (v046, A1 da E20.29): a origem pela variável da linha (`d=$(git rev-parse --git-dir)`) segue livre da regra genérica .git/.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n",
+    "x": "x\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "d=$(git rev-parse --git-dir); ln -s \"$d\"/HEAD h"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -229,7 +229,7 @@ class PrePushAfetados(Base):
         self.git("switch", "-q", "-c", "y", self.base)
         dois = self.commit("leitor", tests__test_a_py=BOA.format("a") + "# y\n")
         self.git("switch", "-q", "melhoria/x")
-        entrada = (f"refs/heads/x {um} refs/heads/melhoria/x {ZERO}\nrefs/heads/y {dois} refs/heads/melhoria/y {ZERO}\n")
+        entrada = (f"refs/heads/x {um} refs/heads/melhoria/x {ZERO}\nrefs/tags/y {dois} refs/tags/y {ZERO}\n")  # PREPUSH-REFS: uma branch por envio
         codigo, marcas, erro = self.roda(entrada=entrada)
         self.assertEqual(codigo, 0, erro)
         self.assertEqual(marcas, TODAS, "a união: o mapa da ferramenta e o módulo de teste mudado na outra ref")

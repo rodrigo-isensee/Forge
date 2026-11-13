@@ -1,0 +1,86 @@
+{
+  "pedido": "v046",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M34",
+      "guarda": "E20.11 (A3 do review): sem a lista das pontas, a poda não apaga nada",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod:\n        return\n    pontas = set(saida.split())",
+      "para": "    if False:\n        return\n    pontas = set(saida.split())",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_gravar_poda_os_heads_que_nao_sao_mais_ponta"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "E20.11 (A3 do review): a pasta do head que ainda é ponta de branch fica",
+      "arquivo": "bin/forge-check",
+      "de": "and velha.name not in pontas and",
+      "para": "and True and",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_gravar_poda_os_heads_que_nao_sao_mais_ponta"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "E20.11 (A3 do review): a falha ao apagar só avisa",
+      "arquivo": "bin/forge-check",
+      "de": "    except OSError as e:\n        print(f\"pr: aviso: resultados antigos",
+      "para": "    except ValueError as e:\n        print(f\"pr: aviso: resultados antigos",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_gravar_poda_os_heads_que_nao_sao_mais_ponta"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "E20.11 (A3 do review): sem gravar, não poda",
+      "arquivo": "bin/forge-check",
+      "de": "file=sys.stderr)\n        return\n    podar_resultados(raiz, pasta)",
+      "para": "file=sys.stderr)\n    podar_resultados(raiz, pasta)",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_falha_ao_gravar_avisa_e_nao_muda_o_codigo"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "E20.11 (A1 da segurança): o registro gravado por outro forge-check não vale",
+      "arquivo": "bin/forge-check",
+      "de": "        if isinstance(r, dict) and r.get(\"escritor\") != escritor:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_ilegivel_de_outra_branch_ou_de_outro_head_nao_vale"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "E20.11 (A1 do review): só o gh pr create sem resultado gravado troca o contorno do prazo",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if motivo:  # sem o resultado gravado, o prazo vencido",
+      "para": "    if False:  # sem o resultado gravado, o prazo vencido",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_prazo_vencido_diz_rode_antes_so_no_pr_create_sem_resultado"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "E20.11 (A1 do review): o prazo vencido usa o contorno do passo em curso, senão o de sempre",
+      "arquivo": "hooks/_comum.py",
+      "de": "hook.contorno_do_prazo or CONTORNO_DO_TETO",
+      "para": "CONTORNO_DO_TETO or hook.contorno_do_prazo",
+      "testes": [
+        "tests.test_pr_hook_prazo.PrHookPrazo.test_prazo_vencido_diz_rode_antes_so_no_pr_create_sem_resultado"
+      ]
+    },
+    {
+      "id": "M41",
+      "guarda": "E20.11 (A3 do review): o aviso da poda traz o motivo curto do sistema",
+      "arquivo": "bin/forge-check",
+      "de": "resultados antigos não apagados ({sem_controle(e.strerror or str(e))})",
+      "para": "resultados antigos não apagados ({sem_controle(e.strerror and str(e))})",
+      "testes": [
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_gravar_poda_os_heads_que_nao_sao_mais_ponta"
+      ]
+    }
+  ]
+}

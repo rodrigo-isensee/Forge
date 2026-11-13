@@ -311,6 +311,43 @@ class ReleaseAvisaAvaliacaoDeFora(Base):
         self.assertNotIn("aviso:", r.stdout)
 
 
+class ReleaseAvisaMedidasDaVersao(Base):
+    """v046 E7 (decisão do dono de 12/11): placar de mutação e bench uma vez por versão, na release; nunca no PR."""
+
+    def preparar(self, forge=True, tag="v0.1.0"):
+        if tag:
+            git(self.dir, "tag", tag)
+        if forge:
+            (self.dir / "scripts").mkdir()
+            (self.dir / "scripts" / "placar-mutacao.py").write_text("", encoding="utf-8")
+        (self.dir / "changelog.d").mkdir()
+        (self.dir / "changelog.d" / "x.md").write_text("### Alterado\n- Nova\n", encoding="utf-8")
+        r = forge_changelog(self.dir, "release", "0.2.0", "2026-02-02")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout
+
+    def test_no_forge_imprime_o_placar_desde_a_tag_anterior_e_o_bench(self):
+        saida = self.preparar()
+        self.assertIn("placar: scripts/placar-mutacao.py --desde v0.1.0 --versao 0.2.0", saida)
+        self.assertIn("bench: a linha da 0.2.0 em bench-versoes.md e metricas-velocidade.md", saida)
+
+    def test_sem_tag_pede_a_tag_anterior_a_mao(self):
+        self.assertIn("--desde <tag da release anterior> --versao 0.2.0", self.preparar(tag=None))
+
+    def test_tag_com_metacaractere_sai_citada_no_comando(self):  # segurança A3 da v046 E7
+        self.assertIn("--desde 'v9$(id)' --versao 0.2.0", self.preparar(tag="v9$(id)"))
+
+    def test_fora_do_forge_nao_avisa(self):
+        self.assertNotIn("medida da versão", self.preparar(forge=False))
+
+    def test_nem_o_ci_nem_o_envio_rodam_o_placar(self):
+        fontes = [*(RAIZ / ".github" / "workflows").glob("*.yml"), *(RAIZ / ".githooks").iterdir()]
+        self.assertGreaterEqual(len(fontes), 3)
+        for fonte in fontes:
+            with self.subTest(fonte.name):
+                self.assertNotIn("placar-mutacao", fonte.read_text(encoding="utf-8"))
+
+
 class ConferirNoCI(Base):
     def conferir(self):
         return forge_changelog(self.dir, "conferir", "--base", "develop")

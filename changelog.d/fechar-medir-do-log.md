@@ -1,2 +1,0 @@
-### Alterado
-- **forge-fechar --medir lê a medida do log do CI:** o `--medir` passa a receber o número da execução do CI (`gh run view <n> --log`, só leitura) ou o log salvo, e leva ao "Como medir" do PR e à saída as linhas `ORCAMENTO-TEMPO` no formato `FORMATO_DO_ORCAMENTO`; texto livre, linha ausente ou fora do formato param antes do passo 1, com o motivo e como destravar (quem passava texto no `--medir` passa a fonte do log).
