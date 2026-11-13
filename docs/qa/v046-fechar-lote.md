@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v046
 branch: melhoria/v046-fechar-lote
-commit: 2dda228f9517b38e0720c1d65d211934099a8f5d
+commit: 0b6e6834be6a9df4cdaf5438675b6fb82874f068
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -56,5 +56,12 @@ Branch: melhoria/v046-fechar-lote. Delta 0be84795..17ae39a3 pelo `forge-check pa
 Branch: melhoria/v046-fechar-lote. Delta 17ae39a3..2dda228f pelo `forge-check parecer delta` (sem o que veio da base): só `bin/forge-testes` (a regra `bin/forge-doutor` do `MAPA` ganhou `test_doutor_branch_atrasada`; o `test_pr_hook_prazo` da linha do `FORGE_CHECK` é da base) e `tests/test_testes_tocados.py:55` (lista esperada do `bin/forge-doutor`, com o módulo novo). `bin/forge-fechar` e `bin/forge-doutor` não mudaram.
 - Rodados em worktree só minha (carga ~16, um módulo por vez): `tests.test_testes_tocados` 150 testes, OK (1 pulado, do próprio módulo); `tests.test_doutor_branch_atrasada` 6 testes, OK. O mapa agora roda o teste do doutor quando `bin/forge-doutor` muda.
 - CI do PR 525 no mesmo sha: `catraca`, `instalação` e `árvore já provada` passam; `bateria` falha só em "Parecer de review ... quando o PR toca código que governa os agentes" (`docs/reviews/v046-fechar-lote.md: commit: desatualizado`). É o parecer do review, fora do meu domínio, que o portão paralelo atualiza; a suíte em partes não rodou por isso, então não cito `bateria` como verde.
+- A1 e A2 anteriores seguem recomendados, sem bloqueio. Nenhum bug novo.
+- Parecer: aprovado.
+
+## Revalidação por delta no head 0b6e6834 (E6.20)
+Branch: melhoria/v046-fechar-lote. Delta 2dda228f..0b6e6834 é só a junção com a develop b19a5a94 (PRs 524, 528, 529): `agents/agile-coach.md`, `agents/tech-lead.md`, `bin/forge-check`, `tests/config.json` (invariantes), `tests/test_conf_escopo.py`, `tests/test_prepush_so_docs.py`, skills, changelog.d e pareceres de outros pedidos. `git diff 2dda228f 0b6e6834` em `bin/forge-fechar`, `bin/forge-doutor`, `bin/forge-testes`, `tests/pesos-d4.json`, `tests/test_testes_tocados.py` e `tests/mutantes/v046-fechar-lote*.json` sai vazio: nada da fechar-lote mudou. O commit 92b59dfb sobre o head só toca `docs/security/`.
+- Local (worktree só minha, módulo por vez): test_doutor_branch_atrasada 6 OK; test_fechar_move_cartao 12 OK; test_fechar_prune_sandbox 3 OK; test_fechar_forge_check_real 3 OK. Mutantes das 3 specs: 17 de 17 `morreu`, rc 0.
+- CI do PR 525, check-runs do sha 0b6e6834: `bateria` success, `bateria (python 3.14)` success, suítes 3.12 e 3.14 partes 1 a 3 success, `teto de pulados` success.
 - A1 e A2 anteriores seguem recomendados, sem bloqueio. Nenhum bug novo.
 - Parecer: aprovado.
