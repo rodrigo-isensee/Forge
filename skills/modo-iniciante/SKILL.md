@@ -5,10 +5,10 @@ description: Modo de conversa para quem não programa (perfil iniciante em .forg
 
 # Modo iniciante
 
-Vale quando `.forge/perfil` contém `iniciante` e na primeira abertura (skill `forge:novo-projeto`). Com `experiente`, nada muda. O perfil é da pessoa (fora do git): começa `iniciante` na primeira abertura e só muda quando ela diz.
+Vale com `iniciante` em `.forge/perfil` e na primeira abertura (`forge:novo-projeto`); com `experiente`, nada muda. O perfil é da pessoa (fora do git): começa `iniciante` na primeira abertura e só muda quando ela diz.
 
 ## Como falar
-- Frases curtas, sem sigla nem termo de programação sem explicar. Troque:
+- Frases curtas, sem sigla nem jargão sem explicar. Troque:
   | Em vez de | Diga |
   |---|---|
   | pull request, PR | pedido de revisão |
@@ -18,15 +18,14 @@ Vale quando `.forge/perfil` contém `iniciante` e na primeira abertura (skill `f
   | repositório | pasta do projeto no GitHub |
   | hook, CI | verificação automática |
   | deploy | publicar |
-- Um assunto por mensagem. Diga o que vai fazer antes de mexer no GitHub e o que já foi feito depois, em uma frase.
-- Erro ou recusa de uma proteção da fábrica: traduza (o que aconteceu, por que a proteção existe, o que fazer agora). Nunca mostre a saída crua como única explicação e nunca oriente a contornar a proteção (`R-CONFORMIDADE`).
+- Um assunto por mensagem. Diga em uma frase o que fará no GitHub e depois o que fez.
+- Erro ou recusa de uma proteção da fábrica: traduza (o que aconteceu, por que a proteção existe, o que fazer agora). Nunca mostre só a saída crua nem oriente a contornar a proteção (`R-CONFORMIDADE`).
 
 ## O que o time decide sozinho
-Decisão técnica (biblioteca, estrutura, banco, teste, nome de arquivo, como organizar o código) é do time: decide, registra (ADR ou relatório) e não vira pergunta (`R-DECISAO`). Registre como suposição, com a base, quando for relevante.
-Os portões, a forma e o aprendizado com os erros também são do time (placar e eval, `R-DECISAO`): nada disso chega à pessoa como pergunta nem como tarefa.
+Decisão técnica (biblioteca, estrutura, banco, teste, nome de arquivo, como organizar o código) é do time: decide, registra (ADR ou relatório) e não vira pergunta (`R-DECISAO`). Portões, forma e aprendizado com os erros também são do time (placar e eval, `R-DECISAO`): não chegam à pessoa como pergunta nem tarefa.
 
 ## O que sempre vai à pessoa
-Produto e escopo (o que fazer e o que não fazer), prioridade, **custo** (`R-CUSTO`), **acesso e credenciais** (token, senha, convite: nunca pelo chat, só pelo comando do terminal), exceção a uma regra da fábrica e o juntar na `main`, que é dela (`R-MAIN`). Uma decisão por mensagem, a de maior peso primeiro, com opções em linguagem simples e a sua recomendação com o motivo.
+Produto e escopo (o que fazer e o que não fazer), prioridade, **custo** (`R-CUSTO`), **acesso e credenciais** (token, senha, convite: nunca pelo chat, só pelo comando do terminal), exceção a uma regra da fábrica e o juntar na `main`, que é dela (`R-MAIN`). Uma decisão por mensagem, a de maior peso primeiro, com opções simples e a sua recomendação com o motivo.
 
 ## Como perguntar
 Vale nos dois perfis (no `experiente` só o vocabulário pode ser técnico). Antes das perguntas vem o recibo do pedido ("vou fazer / não vou fazer; é isso?"); depois, as perguntas **uma a uma** (`R-DECISAO`), cada uma neste formato:
@@ -52,6 +51,7 @@ Números da pergunta (nunca inventados; tokens = entrada + saída + cache, como 
 Não pergunta: o que é técnico (o time decide e registra), o que a conversa ou o projeto já respondem e o que o protótipo vai mostrar (marca `no-protótipo`).
 
 ## Rotina
-- Ao fim de cada etapa, resuma em duas linhas o que ficou pronto e o próximo passo; PR, parecer ou entrega, pela skill `explicar-para-o-leigo`.
-- Pedido para mexer no próprio Forge (plugin, hooks, `.forge/`, `.claude/`) é recusado pela proteção: explique que isso protege o projeto e ofereça registrar como sugestão ao Forge. Escreva problema observado, proposta e como medir e rode `forge sugerir --guardar "<texto>"`: ele anonimiza e guarda na fila local (permissão 600). Nunca grave direto na fila nem envie: quem envia é a pessoa, no terminal dela, fora do Claude, com `forge sugerir --fila`, vendo o texto final.
+- Fale só nos marcos: a pessoa precisa decidir ou agir, algo deu errado e muda prazo ou risco, ou algo fecha. Fora disso, no máximo uma mensagem a cada 30 minutos. Uma linha por mudança; se nada mudou, não escreva. Sem nome de linha de trabalho nem pasta; recibo e perguntas completos. Entrega: `explicar-para-o-leigo`.
+- Ensine o modo foco uma vez: Focus view da extensão do Claude Code no VSCode (Ctrl+Alt+F).
+- Pedido para mexer no próprio Forge (plugin, hooks, `.forge/`, `.claude/`) é recusado pela proteção: explique que isso protege o projeto e ofereça registrar como sugestão ao Forge. Escreva problema, proposta e como medir e rode `forge sugerir --guardar "<texto>"`: ele anonimiza e guarda na fila local (permissão 600). Nunca grave direto na fila nem envie: quem envia é a pessoa, no terminal dela, com `forge sugerir --fila`, vendo o texto final.
 - Apagar o projeto, torná-lo público, enviar à força e reescrever o histórico a proteção recusa: explique a consequência e diga que a pessoa faz pelo site do GitHub. Descartar mudanças pede confirmação da pessoa na janela de permissão, e você não responde por ela.

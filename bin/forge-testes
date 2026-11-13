@@ -101,7 +101,7 @@ FORGE_CHECK = ("test_anotar", "test_forge_check_base_igual", "test_forge_check_v
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
 LEITORES_DE_TEXTO = ("test_anotar", "test_citacao", "test_clareza", "test_dependabot_modelo", "test_erros_no_brief",
                      "test_forge_mutante", "test_jarvis_nucleo", "test_modelos_projeto", "test_stack_prereq_sistema",
-                     "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09", "test_conferente_estavel", "test_jarvis_n_jar_a", "test_reval_delta", "test_orcamento_instrucao", "test_metricas_texto", "test_aq1_texto", "test_textos_034", "test_achado_teto_doc", "test_medidas_m14b")  # EST-M4: a guarda C-2 lê agents/ e skills/
+                     "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09", "test_conferente_estavel", "test_jarvis_n_jar_a", "test_reval_delta", "test_orcamento_instrucao", "test_metricas_texto", "test_aq1_texto", "test_textos_034", "test_achado_teto_doc", "test_medidas_m14b", "test_fala_so_no_marco")  # EST-M4: a guarda C-2 lê agents/ e skills/
 CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor",
             "test_modelos_citados") + LEITORES_DE_TEXTO
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
@@ -119,7 +119,7 @@ MAPA = [
     (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge", "test_novo_projeto", "test_medidas_m14b",
                            "test_doutor_custo", "test_doutor_protecao_gh", "test_doutor_relogio", "test_qa_doutor_f8", "test_doutor_branch_atrasada")),
     (r"bin/forge-adotar", ("test_adotar", "test_stack_python", "test_forge")),  # 0.45.0: adoção de projeto existente
-    (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge", "test_reval_delta", "test_salvar_desfazer", "test_adotar", "test_stack_python")),  # EST-M4: guarda C-2; GREP-UGREP
+    (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge", "test_reval_delta", "test_salvar_desfazer", "test_adotar", "test_stack_python", "test_fala_so_no_marco")),  # EST-M4: guarda C-2; GREP-UGREP
     (r"bin/(forge-atualizar|forge_versoes\.py|forge-voltar-versao)", ("test_atualizar", "test_forge", "test_doutor")),
     (r"bin/forge-upgrade", ("test_atualizar", "test_forge", "test_doutor")),
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),

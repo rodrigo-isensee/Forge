@@ -248,4 +248,5 @@ if [ "$sandbox_oferta" -eq 1 ] && [ "$sem_sandbox" -eq 0 ]; then
   echo "           1) instale bubblewrap e socat (scripts/preparar-estacao.sh); 2) ponha o GH_TOKEN do bot no env do ~/.claude/settings.json;"
   echo "           3) rode scripts/configurar-ambiente-local.sh (GIT_CONFIG_* no .claude/settings.local.json); 4) forge-upgrade --ligar-sandbox $destino"
 fi
+echo "  foco     no VSCode, ligue o modo foco (Focus view) da extensão do Claude Code: Ctrl+Alt+F ou a configuração focusView"
 echo "forge-init: $criados criado(s), $mantidos mantido(s) em $destino"
