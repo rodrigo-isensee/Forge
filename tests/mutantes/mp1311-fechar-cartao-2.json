@@ -1,0 +1,36 @@
+{
+  "pedido": "mp1311-fechar-cartao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M6",
+      "guarda": "FECHAR-REF-POR-NOME: com a branch local e uma gemea no mesmo sha, o forge-check real recebe o nome e a conferencia nao para",
+      "arquivo": "bin/forge-fechar",
+      "de": "then ref_check=\"refs/heads/$ref\"; else",
+      "para": "then ref_check=\"$sha_conferido\"; else",
+      "testes": [
+        "tests.test_qa_lote_l08.QaE7FecharReal.test_com_a_branch_local_a_gemea_no_mesmo_sha_nao_confunde_a_conferencia"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "FECHAR-REF-POR-NOME: sem a branch local o forge-check real recebe o sha e duas branches no mesmo sha param no passo 1",
+      "arquivo": "bin/forge-fechar",
+      "de": "  ref_check=\"$sha_conferido\"\nfi",
+      "para": "  ref_check=\"refs/heads/$ref\"\nfi",
+      "testes": [
+        "tests.test_qa_lote_l08.QaE7FecharReal.test_duas_branches_no_mesmo_sha_param_no_passo_1_sem_a_branch_local"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "FECHAR-REF-POR-NOME: a cadeia do E8 conferiu o parecer pelo refs/heads/<branch>, nao pelo sha",
+      "arquivo": "bin/forge-fechar",
+      "de": "then ref_check=\"refs/heads/$ref\"; else",
+      "para": "then ref_check=\"$sha_conferido\"; else",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_e8_base_que_mudou_codigo_segue_sem_trazer_a_base"
+      ]
+    }
+  ]
+}
