@@ -20,6 +20,32 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+
+# As duas funções vêm antes do import de `test_hooks`, que as importa de volta no fim (ciclo resolvido nas duas ordens).
+def nucleos_do_processo():
+    """Os núcleos do processo, pela afinidade (respeita cpuset) com recuo para `os.cpu_count()`; `None` se não der.
+    Não lê `FORGE_NPROC`: essa variável é dos fixtures e não dimensiona o portão (N-CI, C-1)."""
+    try:
+        return len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+    except OSError:
+        return None
+
+
+TETO_DO_FATOR_DE_CARGA = 2
+
+
+def fator_de_carga(carga=None, nucleos=None):
+    """TESTE-TEMPO-CARGA: quanto a máquina está acima de um processo por núcleo, `carga / núcleos` (média de 1 min de
+    `os.getloadavg`), preso entre 1 e `TETO_DO_FATOR_DE_CARGA`. Máquina folgada dá 1 (o limite é o de sempre); carga
+    ilegível dá 1. O teto de 2 mantém a regressão real à vista: defeito que passa do dobro do limite falha mesmo sob carga."""
+    try:
+        carga = os.getloadavg()[0] if carga is None else carga
+    except OSError:
+        return 1.0
+    nucleos = nucleos or nucleos_do_processo() or 1
+    return min(float(TETO_DO_FATOR_DE_CARGA), max(1.0, carga / nucleos))
+
 from test_forge import RAIZ, ambiente_limpo  # noqa: E402
 from test_hooks import (  # noqa: E402,F401  (os módulos test_hooks_volta_* importam daqui)
     FIXTURES,
@@ -31,7 +57,6 @@ from test_hooks import (  # noqa: E402,F401  (os módulos test_hooks_volta_* imp
     PRAZO_GIT_NOS_TESTES,
     modulos_dos_hooks,
     montar_proc,
-    nucleos_do_processo,
     rodar,
     texto,
     trabalhadores_do_pool)
@@ -46,6 +71,12 @@ def trabalhadores_do_limite_de_cpu():
 def limite_de_cpu_do_corpus():
     """90 s de CPU por trabalhador do lote (PROP-TEMPO-CPU, decisão do dono de 2026-10-27: cabe no runner do CI)."""
     return 90 * trabalhadores_do_limite_de_cpu()
+
+
+def limite_de_cpu_do_corpus_sob_carga(carga=None, nucleos=None):
+    """TESTE-CPU-CORPUS: o limite de CPU do corpus vezes o `fator_de_carga` (1 a 2). A CPU gasta cresce com a máquina
+    disputada (cache, SMT, CI com jobs vizinhos); o fator mede essa disputa na hora e não afrouxa além do dobro."""
+    return limite_de_cpu_do_corpus() * fator_de_carga(carga, nucleos)
 
 
 class MedidaDeCpu:

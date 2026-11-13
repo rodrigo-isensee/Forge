@@ -611,15 +611,6 @@ def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_co
 # do processo do teste, sem tocar os hooks): o segundo `Hook.campo`, o primeiro que o hook lê depois do marcador.
 PRAZO_GIT_NOS_TESTES = 120
 PRAZO_DA_DECISAO_NOS_TESTES = 120
-def nucleos_do_processo():
-    """Os núcleos do processo, pela afinidade (respeita cpuset) com recuo para `os.cpu_count()`; `None` se não der.
-    Não lê `FORGE_NPROC`: essa variável é dos fixtures e não dimensiona o portão (N-CI, C-1)."""
-    try:
-        return len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
-    except OSError:
-        return None
-
-
 def trabalhadores_do_pool(nucleos):
     """As threads dos pools de testes: cada uma espera um subprocesso (não usa CPU), então o número acompanha os
     núcleos, entre 2 e 4 (`R-TETO`); `None`, zero, negativo ou valor inválido dão 2 (N-CI, C-1)."""
@@ -1034,10 +1025,11 @@ class Hooks(unittest.TestCase):
         """Segurança A1: `gh` que não responde (com um filho segurando a saída) barra dentro do timeout do hook."""
         limite = min(h["timeout"] for g in json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
                      for h in g["hooks"] if h["args"][-1].endswith("/conformidade.py"))
+        teto = (limite - 1) * fator_de_carga()  # TESTE-TEMPO-CARGA: sob carga o relógio alonga; o `sleep 30` segue além do teto
         inicio = time.monotonic()
         self.rodar_dados(self.dados_da_sessao_do_forge("gh pr edit 70 --add-label afrouxa-regra",
                                                        "#!/bin/sh\nsleep 30\necho outra-pessoa\n", 2))
-        self.assertLess(time.monotonic() - inicio, limite - 1, "a decisão sai antes do Claude Code matar o hook")
+        self.assertLess(time.monotonic() - inicio, teto, "a decisão sai antes do Claude Code matar o hook")
 
     def test_linha_adversaria_de_crases_e_pastas_recusa_dentro_do_orcamento(self):
         """Segurança A1 do LOTE-LEITURA-HOOK: 60 `cd` e 60 crases aninhadas terminando em push com --no-verify refaziam a
@@ -3225,6 +3217,11 @@ class EscritaPublica(unittest.TestCase):
         self.assertEqual((len(no_teto.encode()), len(acima), r[acima][1:]),
                          (4096, 2736, ["caminho acima de 4096 bytes", "encurte o caminho", "não verificável"]))
         self.assertNotIn("não verificável", r[no_teto] or [])
+
+
+# Fica no fim por causa do ciclo: o apoio importa deste módulo e define as duas funções antes de importá-lo, para que o
+# import valha nas duas ordens (o forge-mutante só muta arquivo que não é de teste, por isso a fórmula mora no apoio).
+from apoio_volta_unica import fator_de_carga, nucleos_do_processo  # noqa: E402
 
 
 if __name__ == "__main__":

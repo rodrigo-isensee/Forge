@@ -19,6 +19,33 @@ _loader.exec_module(ci)
 PR = {"number": 7, "headRefOid": "a" * 40, "headRefName": "melhoria/x", "baseRefName": "develop",
       "body": "texto", "author": {"login": "dona"}}
 
+def permissoes_e_env_do_job(bloco):
+    """(permissions, chaves do env) declarados no cabeçalho do job (antes de `steps:`), lidos linha a linha."""
+    permissoes, env, secao = {}, set(), ""
+    for linha in bloco.split("    steps:")[0].splitlines():
+        if not linha.strip() or linha.lstrip().startswith("#"):
+            continue
+        recuo = len(linha) - len(linha.lstrip())
+        chave, _, valor = linha.strip().partition(":")
+        if recuo == 4:
+            secao = chave
+        elif recuo == 6 and secao == "permissions":
+            permissoes[chave] = valor.strip()
+        elif recuo == 6 and secao == "env":
+            env.add(chave)
+    return permissoes, env
+
+
+def token_sem_permissao(texto):
+    """Jobs com GH_TOKEN/GITHUB_TOKEN (no env do job ou de um passo) sem `permissions:` próprio: herdam o do topo."""
+    acusados = []
+    for m in re.finditer(r"(?ms)^  (\S+):\n(.*?)(?=^  \S+:\n|\Z)", texto.split("\njobs:\n", 1)[-1]):
+        bloco = m.group(2)
+        permissoes, _ = permissoes_e_env_do_job(bloco)
+        if re.search(r"(?m)^\s+(GH_TOKEN|GITHUB_TOKEN):", bloco) and not permissoes:
+            acusados.append(m.group(1))
+    return acusados
+
 
 # CI-LINT-LISTA-ABERTA: lista fechada do que pode rodar antes do actionlint e do zizmor na bateria.
 ACOES_ANTES_DO_LINT = {"actions/checkout", "actions/setup-python", "actions/setup-node"}
@@ -314,8 +341,24 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         # A4 (segurança): o modo pareceres roda em exatamente um job, que tem só contents: read e teto de 5 min (J3, J5, J9)
         self.assertEqual(sum("--modo pareceres" in p["run"] for j in jobs.values() for p in j["passos"]), 1)
         bloco = re.search(r"(?ms)^  pareceres:\n(.*?)(?=^  \S+:\n)", texto).group(1)
-        self.assertEqual(re.findall(r"(?m)^      (\S+): (\S+)$", bloco.split("    steps:")[0]), [("contents", "read")])
+        self.assertEqual(permissoes_e_env_do_job(bloco), ({"contents": "read"}, set()))  # CI-GUARDA-PERMISSOES-ENV: sem env: no job
+        self.assertEqual(token_sem_permissao(texto), [])
         self.assertIn("\n    timeout-minutes: 5\n", bloco)
+
+    def test_guarda_de_permissoes_ve_env_do_job_e_token_sem_permissao(self):
+        """CI-GUARDA-PERMISSOES-ENV: a regex antiga (`\\S+$`) não via `GH_TOKEN: ${{ github.token }}` (valor com espaço)."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        bloco = re.search(r"(?ms)^  pareceres:\n(.*?)(?=^  \S+:\n)", texto).group(1)
+        com_env = bloco.replace("    steps:", "    env:\n      GH_TOKEN: ${{ github.token }}\n    steps:", 1)
+        antiga = re.findall(r"(?m)^      (\S+): (\S+)$", com_env.split("    steps:")[0])
+        self.assertEqual(antiga, [("contents", "read")], "a guarda antiga deixava passar o env do job")
+        self.assertEqual(permissoes_e_env_do_job(com_env), ({"contents": "read"}, {"GH_TOKEN"}))
+        sem_permissao = com_env.replace("    permissions:\n      contents: read\n", "")
+        self.assertEqual(token_sem_permissao("\njobs:\n  pareceres:\n" + sem_permissao), ["pareceres"])
+        no_passo = bloco.replace("    permissions:\n      contents: read\n", "").replace(
+            "          HEAD_SHA:", "          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          HEAD_SHA:", 1)
+        self.assertEqual(token_sem_permissao("\njobs:\n  pareceres:\n" + no_passo), ["pareceres"])
+        self.assertEqual(token_sem_permissao("\njobs:\n  pareceres:\n" + com_env), [])  # permissions declarada: não acusa
 
     def agregador(self, pareceres, evento, **outros):
         """Executa o `run:` do agregador de verdade (como o Actions: bash -eo pipefail); devolve o rc."""
@@ -345,12 +388,25 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
             with self.subTest(var):
                 self.assertNotEqual(self.agregador("success", "pull_request", **{var: "failure"}), 0)
 
+    def test_gate_do_commit_so_de_parecer_le_o_agregador_e_registra_o_motivo(self):
+        """CI-ATALHO-COMMIT-SO-PARECER (A2 da E1.4): sem defeito, o gate segue no agregador `bateria`; o motivo fica no ci.yml."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        jobs = {j["id"]: j for j in ci.ler_jobs(texto)}
+        self.assertEqual(jobs["agregador"]["nome"], "bateria")
+        (gate,) = [p for p in jobs["bateria"]["passos"] if p["id"] == "gate"]
+        self.assertIn('select(.name == "bateria" and .app.slug == "github-actions")', gate["run"])
+        self.assertIn("CI-ATALHO-COMMIT-SO-PARECER", texto)
+        self.assertIn("o gate lê o check \"bateria\" (o agregador), não os jobs da", texto)
+
     def test_job_pareceres_so_roda_em_pr_e_sem_needs(self):
         """A guarda do job (:550): sem `if:` de PR ele rodaria em push; com needs poderia ser pulado em PR."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         job = {j["id"]: j for j in ci.ler_jobs(texto)}["pareceres"]
         self.assertEqual(job["se"], "github.event_name == 'pull_request'")
         self.assertEqual(job["needs"], [])
+        # CI-PARECERES-SEM-NEEDS: o motivo de não esperar o job de passos fica escrito junto do job
+        self.assertIn("CI-PARECERES-SEM-NEEDS", texto)
+        self.assertIn("a rodada extra é o custo que se evita", texto)
 
     def test_bateria_ferramenta_e_checagens_baratas_antes_dos_testes(self):
         """CI-FERRAMENTA-ANTES: o vermelho barato aparece antes da suíte; testes continuam obrigatórios."""
