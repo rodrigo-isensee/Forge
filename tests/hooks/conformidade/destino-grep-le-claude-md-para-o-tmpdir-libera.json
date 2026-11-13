@@ -1,0 +1,24 @@
+{
+  "descricao": "mp1311 item 2: grep que lê CLAUDE.md e grava a saída em ${TMPDIR:-/tmp}: a leitura não é escrita, libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/qa/p.md": "parecer\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "grep -n R-MAIN CLAUDE.md > \"${TMPDIR:-/tmp}/g.txt\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -1,0 +1,2 @@
+### Corrigido
+- hook conformidade recusa pelo destino da escrita, não pelo texto que só cita um caminho protegido: o `$TMPDIR` do ambiente como começo de caminho deixa de contar como construção não modelada quando a linha só cita CLAUDE.md, .forge/versao ou docs/qa (sem ação crítica); a volta ao texto da prova da suíte (R-VERIFY) só vale na linha que grava, e o curinga em caminho absoluto não expande no .git (CONFORMIDADE-PROVA-VARIAVEL-FP; mp1311 item 2)

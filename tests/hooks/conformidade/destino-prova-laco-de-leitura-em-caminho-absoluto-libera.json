@@ -1,0 +1,35 @@
+{
+  "descricao": "CONFORMIDADE-PROVA-VARIAVEL-FP: laço que só lê ~/.claude/projects/p/*, com erro interno na sessão do Forge: o curinga absoluto expande só na pasta dele, não no .git; libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    ".git/forge-suite-verde": "x\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "forcar": {
+    "onde": "Guarda.bash",
+    "como": "erro"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "for f in ~/.claude/projects/p/*; do grep -c tool_use \"$f\" 2>/dev/null; done"
+    },
+    "agent_type": "forge:security-engineer",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "erro forcado"
+  }
+}

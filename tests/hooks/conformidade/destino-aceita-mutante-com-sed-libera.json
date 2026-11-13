@@ -1,0 +1,24 @@
+{
+  "descricao": "mp1311 item 2 (regressão; já liberava na base): mutante com sed -i no código do projeto, rodado e desfeito: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".forge/versao": "0.46.0\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp src/app.js \"$TMPDIR/app.bak\" && sed -i 's/v1/v2/' src/app.js && python3 -m unittest; cp \"$TMPDIR/app.bak\" src/app.js"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

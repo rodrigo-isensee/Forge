@@ -1,0 +1,24 @@
+{
+  "descricao": "mp1311 item 2: gh pr checks com XDG_CACHE_HOME=\"$TMPDIR\" (skill esperar-estado) e leitura de docs/qa: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/qa/p.md": "parecer\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "XDG_CACHE_HOME=\"$TMPDIR\" gh pr checks 12 > \"$TMPDIR/checks.txt\" 2>&1; cat docs/qa/p.md"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

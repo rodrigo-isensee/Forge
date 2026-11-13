@@ -1,0 +1,25 @@
+{
+  "descricao": "mp1311 item 2: $TMPDIR sozinho como argumento (não começo de caminho) e citação de .forge/: recusa como antes.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/qa/p.md": "parecer\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp .forge/versao \"$TMPDIR\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "`$TMPDIR` com ação crítica: o hook não modela"
+  }
+}

@@ -57,10 +57,31 @@ FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CITA_PORTAO = re.compile(r"brief selado\s+\S*docs/briefs/\S+\s+[0-9a-f]{64}|entrega conferida\s+[0-9a-f]{40}")
 ESCRITA_NA_LINHA = re.compile(r">|<<|\b(?:tee|sed|dd|cp|mv|install|python\w*|perl\w*|ruby\w*|node|awk|gawk|nawk|printf)\b")
 LINHA_DE_PORTAO = re.compile(r"(?m)^-\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}: (?:brief selado docs/briefs/\S+ [0-9a-f]{64}|entrega conferida [0-9a-f]{40})")
+ACAO_CRITICA = re.compile(
+    r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force",
+    re.I)
 CRITICO = re.compile(
-    r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
+    ACAO_CRITICA.pattern + r"|"
     r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|docs/devops|docs/security|CLAUDE\.md|\.git/|commondir|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
     re.I)
+# mp1311 item 2 (destino real): o `$TMPDIR` do ambiente, que a linha não atribui, como começo de caminho (`"$TMPDIR/x"`,
+# `${TMPDIR:-/tmp}/x`) ou valor inteiro de outra variável (`XDG_CACHE_HOME="$TMPDIR"`) não leva à escrita o caminho que a
+# linha só cita: sem ação crítica na linha, ele não conta como construção não modelada (`construcao_nao_modelada`) nem
+# sai da gramática da chamada com heredoc (a palavra `"$TMPDIR/x"` inteira vira `/tmp/x`, sem as aspas).
+TMPDIR_DO_AMBIENTE = re.compile(r"(\")?\$(?:TMPDIR|\{TMPDIR(?::-/tmp)?\})(/[\w.@%+,:/-]*)?(?(1)\"|)(?(2)|(?=/))|"
+                                r"(\b[A-Za-z_]\w*=)(\"?)\$TMPDIR\4(?=\s)")
+
+
+def tmpdir_como_caminho(linha):
+    """A linha com o `$TMPDIR` das formas de `TMPDIR_DO_AMBIENTE` trocado por `/tmp`, só para a lista das construções não
+    modeladas e a gramática do heredoc; com ação crítica na linha ou outra menção a TMPDIR (atribuição, `read`, `for`), a
+    linha volta igual."""
+    trocada = TMPDIR_DO_AMBIENTE.sub(lambda m: (m[3] or "") + "/tmp" + (m[2] or ""), linha)
+    if ACAO_CRITICA.search(linha) or "TMPDIR" in trocada:
+        return linha
+    return trocada
+
+
 # Variáveis definidas antes na linha que os comandos seguintes herdam; as `GIT_*_PATHSPECS` são as opções `--*-pathspecs`.
 PATHSPECS_NO_AMBIENTE = {"GIT_GLOB_PATHSPECS": "--glob-pathspecs", "GIT_NOGLOB_PATHSPECS": "--noglob-pathspecs",
                          "GIT_LITERAL_PATHSPECS": "--literal-pathspecs", "GIT_ICASE_PATHSPECS": "--icase-pathspecs"}
@@ -1229,7 +1250,7 @@ class Guarda:
         self.h.corpos_pendentes += provisorios
         # ADR 0011, item 2: linha com marcador crítico e construção não modelada recusa; a recusa vem depois das
         # checagens da linha, para que a regra mais específica (R-MAIN, R-VERIFY...) fale primeiro.
-        achado = None if self.leitura or not CRITICO.search(comando) else construcao_nao_modelada(comando)
+        achado = None if self.leitura or not CRITICO.search(comando) else construcao_nao_modelada(tmpdir_como_caminho(comando))
         original = comando
         if nivel == 0 and self.h.raiz and self.raiz_e_projeto() and CITA_A_MARCA.search(comando):
             self.barrar("R-CONFORMIDADE", "a linha cita a marca da sessão (.git/forge): só o usuário mexe nela",
@@ -1318,7 +1339,7 @@ class Guarda:
         # ADR 0011, item 2 (opções D e A), por último: sobre o texto do nível 0, com o `<<` que o bash pode formar nele
         # ou num nível de cima (`tem_heredoc_no_texto`)
         if nivel == 0 and not self.leitura and CRITICO.search(original):
-            sinal = fora_da_gramatica_com_heredoc(original)
+            sinal = fora_da_gramatica_com_heredoc(tmpdir_como_caminho(original))
             if sinal is not None:
                 self.barrar("R-CONFORMIDADE", f"`{sinal}` na chamada com heredoc e ação crítica: o hook não modela",
                             CONTORNO_DA_GRAMATICA)
@@ -2808,13 +2829,18 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
         decidir(hook, guarda, ferramenta, entrada)
     except Exception as erro:  # noqa: BLE001 - ForaDaProva ou erro interno; a decisão vem do texto do alvo
         alvo = entrada.get("command") or entrada.get("file_path") or entrada.get("notebook_path")
-        palavras = re.split(r"[\s'\"(),;=<>|&]+", alvo) if isinstance(alvo, str) else []
+        # mp1311 item 2 (R-VERIFY de quem só lê): a linha do Bash sem programa nem sinal que grave não volta ao texto
+        escreve = isinstance(alvo, str) and (ferramenta != "Bash" or ESCREVE_A_PROVA.search(alvo))
+        palavras = re.split(r"[\s'\"(),;=<>|&]+", alvo) if escreve else []
         if any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in palavras):
             Guarda.barrar(guarda, *PROVA_DA_SUITE)
         pasta = Path(hook.cwd())
         opaco = bool(palavras and VARIAVEL.search(alvo))  # S3: `$(…)` ou variável no alvo
+        # CONFORMIDADE-PROVA-VARIAVEL-FP: a palavra do shell que já é caminho absoluto (`/`, `~`), sem aspa, expansão nem
+        # parêntese, expande só na pasta dela; a pasta corrente opaca não a leva ao .git
+        absolutas = {p for p in re.split(r"[\s;&|<>]+", alvo) if re.match(r"[/~]", p) and not re.search(r"[$`'\"\\(){}]", p)} if escreve else set()
         for t in filter(CURINGA.search, palavras):  # A1 da segurança g1: o curinga que o bash expande no alvo
-            guarda.curinga_na_prova(Path(t).name, guarda.pastas_do_curinga(t, pasta, opaco))
+            guarda.curinga_na_prova(Path(t).name, guarda.pastas_do_curinga(t, pasta, opaco and t not in absolutas))
         if not isinstance(erro, ForaDaProva):
             hook.registrar_erro(erro)
 
@@ -2824,6 +2850,11 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
 ESCRITORES = TODOS_OS_ARGUMENTOS | SO_DESTINO | REMOCAO | {"ln", "chmod", "truncate", "touch", "unlink", "shred", "rmdir"}
 ESCREVE_NA_LINHA = re.compile(ESCRITA_NA_LINHA.pattern + r"|\b(?:" + "|".join(sorted(map(re.escape, ESCRITORES))) + r")\b")
 ALVO_OPACO = re.compile(r"[$`]|<\(")  # C3: substituição, crase, variável ou `<(`: o hook não sabe o destino
+# mp1311 item 2: a volta ao texto da prova da suíte só na linha que grava; além da de cima, o programa que baixa, extrai,
+# aplica ou roda outro texto (`curl -o`, `tar`, `git`, `bash`, `xargs`, `.`). Lê a mais de propósito, como a de cima.
+ESCREVE_A_PROVA = re.compile(ESCREVE_NA_LINHA.pattern + r"|(?<![\w./-])(?:curl|wget|git|gh|tar|unzip|bsdtar|cpio|zip|patch|ed|"
+                             r"ex|vim?|bash|sh|zsh|dash|ksh|eval|source|exec|xargs|find|env|nohup|timeout|make)(?![\w./-])|"
+                             r"(?:^|[\s;&|(])\.\s")
 
 
 def termos_da_politica(pol):

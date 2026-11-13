@@ -1,0 +1,24 @@
+{
+  "descricao": "mp1311 item 2 (regressão; já liberava na base): o laço do PR da skill esperar-estado com XDG_CACHE_HOME no $TMPDIR: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".forge/versao": "0.46.0\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "n=12; fim=\"\"; for i in $(seq 1 5); do e=$(XDG_CACHE_HOME=\"$TMPDIR\" gh pr view \"$n\" --json state --jq .state) || { fim=erro; break; }; [ \"$e\" = OPEN ] || { fim=\"$e\"; break; }; XDG_CACHE_HOME=\"$TMPDIR\" gh pr checks \"$n\" >/dev/null 2>&1; c=$?; [ \"$c\" -eq 8 ] || { fim=\"checks:$c\"; break; }; sleep 30; done; echo \"fim=${fim:-teto}\"; [ -n \"$fim\" ]"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

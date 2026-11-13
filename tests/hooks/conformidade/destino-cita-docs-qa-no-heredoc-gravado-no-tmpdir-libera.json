@@ -1,0 +1,24 @@
+{
+  "descricao": "mp1311 item 2: o corpo do heredoc só cita docs/qa e CLAUDE.md; o destino é o $TMPDIR, que a linha não atribui: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/qa/p.md": "parecer\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat > \"$TMPDIR/b.md\" <<'FIM'\nParecer em docs/qa/p.md e CLAUDE.md\nFIM"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
