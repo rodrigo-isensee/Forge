@@ -1,0 +1,26 @@
+{
+  "pedido": "v047-hook-heredoc-fp-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "o corpo que o shell roda passa sozinho pela gramática",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if nivel == 0:\n        sinais +=",
+      "para": "    if False:\n        sinais +=",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "só o corpo do shell com a marca passa pela gramática",
+      "arquivo": "hooks/parecer.py",
+      "de": "if leitor == \"shell\" and critico_ou_alias(corpo)]",
+      "para": "if leitor == \"shell\"]",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    }
+  ]
+}

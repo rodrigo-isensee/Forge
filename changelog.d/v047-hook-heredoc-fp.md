@@ -1,0 +1,2 @@
+### Corrigido
+- Hook parecer: o corpo de heredoc que só o Python lê da entrada (python3 -, também atrás de timeout) deixa de contar como comando de PR e de marcar a chamada, e o corpo que o sh roda passa sozinho pela gramática com heredoc; a docstring que cita os comandos de PR por número e o script com git e a palavra merge num texto passam (HOOK-CONTRIB-HEREDOC-FP, HOOK-REVIEW-HEREDOC-TIMEOUT). O comando de PR lançado pelo Python, o executado pelo sh e os donos com caminho, atribuição, script ou pipe seguem recusados.
