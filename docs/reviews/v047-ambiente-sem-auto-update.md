@@ -3,21 +3,32 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ambiente-sem-auto-update
-commit: bd282fa7f5cfaf04f4c6b1bfe035e35853dc5a55
+commit: 93deca84eea3d06142d5f31fb7d26db3361d3cd2
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-13
 ---
-# Review: v047 (AMBIENTE-SEM-AUTO-UPDATE, E1.92)
+# Review: v047 (AMBIENTE-SEM-AUTO-UPDATE, E1.92 e E1.96)
 
 ## Achados
-- A1 (bloqueante) skills/trabalho-em-paralelo/SKILL.md:17 · a linha "Tamanho por risco" saiu e a regra do teto (150 linhas, uma classe por PR em hooks/) deixou de existir no texto do Jarvis; TetoPorPr falha 2 subtestes em agents/jarvis.md (passa em afba389e); R-REVIEW
-- A2 (recomendado) bin/forge-testes:103 · o módulo novo entrou no meio da tupla LEITORES_DE_TEXTO, que ficou com a linha mais longa; melhor no fim, ou em linha própria, para o diff ficar legível
-- A3 (recomendado) README.md:51 · o parágrafo novo traz cinco ideias numa linha só (motivo, data, nome da opção, atualizar de propósito, retomada); a mesma orientação já está curta no modelo de projeto, dá para encurtar
+- A1 (bloqueante) skills/trabalho-em-paralelo/SKILL.md:10 · o corte tirou "(serializam)": test_sobreposicao_quadro.RegrasEmTexto.test_jarvis_serializa_antes_de_disparar_e_registra_o_quadro falha no head (passa em afba389e); devolver a palavra; R-REVIEW
+- A2 (bloqueante) skills/trabalho-em-paralelo/SKILL.md:10 · o corte tirou "e traz a `develop` uma vez" da série por arquivo: instrução que existia e a regra do dono de 13/11 proíbe apagar; devolver a frase
+- A3 (recomendado) skills/trabalho-em-paralelo/SKILL.md:12 · saiu "Onde um pedido está: `forge-check proximo <pedido>`": a pista segue no título de agents/jarvis.md, mas era texto existente; devolver
+- A4 (recomendado) skills/trabalho-em-paralelo/SKILL.md:13 · "avise o dono antes" virou "avise o dono": o "antes" fixa quando avisar; devolver
+- A5 (recomendado) bin/forge-testes:104 · o módulo novo foi para o fim da tupla (A2 anterior resolvido), mas a linha ficou longa; opcional quebrar
 
 ## Sondas
 
 ## Parecer
-Reprovado por um bloqueante. A orientação ao dono (README e modelo do projeto) e a retomada na skill estão corretas e cobertas pelo teste novo (2 testes, passam). Mas o commit remove a linha "Tamanho por risco" da skill trabalho-em-paralelo sem mover a regra: agents/jarvis.md a lê dessa skill (texto_do_jarvis), e o teste TetoPorPr.test_orientacao_e_classe_unica_no_jarvis_no_tech_lead_e_na_skill exige "150 linhas alteradas de código e teste" e "uma classe de comportamento por PR em `hooks/`, com corpus próprio" no texto do Jarvis. Rodado no head: FAILED (failures=2); no Base-sha: OK. Perda de regra real: o tech-lead e engineering-practices ainda a guardam, mas o Jarvis, que orienta o autor, não. Correção: devolver a linha (encurtada) em outro ponto do texto do Jarvis ou ajustar o teste com o dono do teto, sem afrouxar. O CI do PR cobriria o mesmo; não há PR aberto.
+Reprovado por dois bloqueantes, ambos na redação da skill, no head 93deca84. Delta lido: bd282fa7..93deca84 (README, bin/forge-testes, skills/trabalho-em-paralelo/SKILL.md); depois dele, a branch só ganhou pareceres de segurança e QA.
 
-Dentro do alcance: sem mudança de guarda em código (só tupla de módulos), sem mutante a declarar. Tamanho: bin/forge-testes e tests/*.py somam 26 linhas, dentro da orientação. Itens do Entregar conferidos contra o commit bd282fa7: orientação ao dono e retomada presentes.
+Resolvido: o A1 da volta anterior (teto). A linha "Tamanho por risco" voltou à skill com 150 linhas e a classe única em `hooks/`; `TetoPorPr` passa (3 testes) e `test_ambiente_sem_auto_update` passa. README encurtado (A3 anterior) e módulo no fim da tupla (A2 anterior).
+
+Cortes de redação, julgados um a um contra a regra do dono (texto existente não se apaga nem se resume):
+- "(serializam)": tirou regra de teste; A1.
+- "e traz a `develop` uma vez": tirou instrução; A2. O R-FLUXO a guarda em geral, mas a skill a dizia ao Jarvis neste ponto.
+- Ponteiro do `forge-check proximo`: pista existente, sobra no título do Jarvis; A3, recomendado.
+- "avise o dono antes": A4, recomendado.
+- Sem perda de regra: "(gargalo)", "enquanto couber no teto" para "no teto", "modo auto" para "auto", "não roda mais" para "parou", "revert do commit", "e encha as vagas", "com as regras" para "nas regras". Nenhum teste lê essas formas.
+
+Provas rodadas aqui (sem PR, só afetados): test_sobreposicao_quadro 61 testes, 1 falha (A1); TetoPorPr OK; test_ambiente_sem_auto_update OK; test_achado_teto_doc e test_medidas_m14b OK. Sem guarda de código mudada: sem mutante a declarar. Tamanho: 5 linhas de código e teste no delta.
