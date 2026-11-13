@@ -114,6 +114,9 @@
     "excecoes": []
   },
   "invariantes": {
+    "docs/fechamento-integrador.md": [
+      "Não abra PR para ver o CI"
+    ],
     "skills/kanban-scrum/SKILL.md": [
       "forge-check movimento",
       "Sem credencial",
@@ -627,6 +630,7 @@
     "skills/esperar-estado/SKILL.md": ["nunca por `kill -0` no pid gravado"]
   },
   "invariantes_motivo": {
+    "docs/fechamento-integrador.md": {"regra": "R-FLUXO", "porque": "sem o texto, o autor abre PR só para rodar o CI e o PR acaba fechado e reaberto, uma rodada a mais (decisão Q9 do dono)"},
     "docs/regras/R-SEGURANCA.md": {"regra": "R-SEGURANCA", "porque": "sem o texto, a mudança com gatilho de segurança segue sem o parecer do security-engineer"},
     "docs/regras/R-LIMITES.md": {"regra": "R-LIMITES", "porque": "sem o texto, o agente poderia enviar ou mesclar na main, pular os hooks com --no-verify ou --force, ligar API paga sem autorização, mesclar no Forge a partir de um projeto ou copiar agentes e skills para o projeto"},
     "docs/regras/README.md": {"regra": "R-TETO", "porque": "sem a linha da R-WIP, o agente acumula cartões, passa do teto de instâncias e os limites de coluna do quadro deixam de valer"},

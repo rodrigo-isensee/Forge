@@ -1,0 +1,16 @@
+{
+  "pedido": "v046-fechar-lote",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D3",
+      "guarda": "branch atrás da develop mostra o cherry-pick",
+      "arquivo": "bin/forge-doutor",
+      "de": "if a < b and (sha := commit_da_versao_na_develop(raiz, a)):",
+      "para": "if a < b and False and (sha := commit_da_versao_na_develop(raiz, a)):",
+      "testes": [
+        "tests.test_doutor_branch_atrasada.BranchAtrasada.test_branch_atras_da_develop_mostra_o_cherry_pick_do_commit_da_versao"
+      ]
+    }
+  ]
+}
