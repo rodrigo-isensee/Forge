@@ -6,7 +6,7 @@
       "id": "CP-M1",
       "guarda": "o home do runner do CI é tirado antes da varredura",
       "arquivo": "scripts/verificar-contribuicao.sh",
-      "de": "  if grep -Eq -- \"$pessoal\" <<<\"${texto//\\/home\\/runner\\//@}\"; then",
+      "de": "  if grep -Eq -- \"$pessoal\" <<<\"${texto//\\/home\\/runner\\//@/}\"; then",
       "para": "  if grep -Eq -- \"$pessoal\" <<<\"$texto\"; then",
       "testes": [
         "tests.test_forge.VerificarContribuicao.test_home_do_runner_passa_mas_nome_que_o_contem_ou_o_segue_falha"
@@ -16,8 +16,8 @@
       "id": "CP-M2",
       "guarda": "só o segmento exato runner/ é tirado",
       "arquivo": "scripts/verificar-contribuicao.sh",
-      "de": "  if grep -Eq -- \"$pessoal\" <<<\"${texto//\\/home\\/runner\\//@}\"; then",
-      "para": "  if grep -Eq -- \"$pessoal\" <<<\"${texto//\\/home\\/runner/@}\"; then",
+      "de": "  if grep -Eq -- \"$pessoal\" <<<\"${texto//\\/home\\/runner\\//@/}\"; then",
+      "para": "  if grep -Eq -- \"$pessoal\" <<<\"${texto//\\/home\\/runner/@/}\"; then",
       "testes": [
         "tests.test_forge.VerificarContribuicao.test_home_do_runner_passa_mas_nome_que_o_contem_ou_o_segue_falha"
       ]
@@ -26,8 +26,8 @@
       "id": "CP-M3",
       "guarda": "achado de caminho pessoal reprova (não inverte)",
       "arquivo": "scripts/verificar-contribuicao.sh",
-      "de": "  if grep -Eq -- \"$pessoal\" <<<\"${texto//\\/home\\/runner\\//@}\"; then",
-      "para": "  if ! grep -Eq -- \"$pessoal\" <<<\"${texto//\\/home\\/runner\\//@}\"; then",
+      "de": "  if grep -Eq -- \"$pessoal\" <<<\"${texto//\\/home\\/runner\\//@/}\"; then",
+      "para": "  if ! grep -Eq -- \"$pessoal\" <<<\"${texto//\\/home\\/runner\\//@/}\"; then",
       "testes": [
         "tests.test_forge.VerificarContribuicao.test_home_do_runner_passa_mas_nome_que_o_contem_ou_o_segue_falha"
       ]
