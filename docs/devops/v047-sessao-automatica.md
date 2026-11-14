@@ -1,9 +1,9 @@
 ---
 tipo: revisao-devops
 contrato: 1
-pedido: v047-sessao-automatica
+pedido: v047
 branch: melhoria/v047-sessao-automatica
-commit: 5f0547cc0864a1830cd32f51f6695b35fc772703
+commit: cd7bd9f833b4f8abec6cb95138889ae51f2fdc8d
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-14
@@ -20,6 +20,9 @@ Aprovado. Intervalo origin/develop...5f0547cc, classe C (SESSAO-AUTOMATICA, GH-V
 - forge-fechar passo 1: confere gh >= 2.47 antes de abrir ou mesclar qualquer coisa (`R-MAIN` intacto), usa `$gh` (FORGE_GH só em teste), busca `origin/homolog` somente leitura e sem `--force` (`R-VERIFY`). A falha da busca vira aviso; o forge-check decide.
 - templates/projeto/CLAUDE.md: seção Sessão, sem termo de projeto (`R-NEUTRO`).
 Ferramentas: shellcheck sobre os quatro scripts, rc=0; `bash -n` ok; `forge-check docs` rc=0; tests/test_sessao_automatica.py (10 testes) e tests/test_fechar_gh_versao.py (9 testes) OK. `actionlint` não consultado (sem mudança em workflow). A suíte completa roda só no CI.
+
+## Delta 5f0547cc..cd7bd9f8 (E1.236)
+Revalidado só o domínio: scripts/jarvis ganhou `sandbox_ligado` (python3 -I, JSON lido de `$PWD/.claude/settings*.json`, caminhos por argv, sem interpolação) e um aviso no stderr quando o sandbox está desligado; o modo automático segue (`R-VERIFY` intacto, nada desligado). Falha de leitura conta como desligado, o lado seguro. Sem custo (`R-CUSTO`). shellcheck rc=0, `bash -n` ok, tests/test_sessao_automatica.py 13 testes OK (mutante da guarda de origin/homolog incluso, fora do domínio). Sem novo achado; A1 segue recomendado.
 
 ## Custo e rollback
 Sem minutos de CI novos nem recurso pago. Volta: reverter o commit 5f0547cc; a estação que já atualizou o gh segue com a versão nova, sem efeito colateral.
