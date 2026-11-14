@@ -567,6 +567,21 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertEqual(passo["se"], "github.base_ref == 'main'")
 
 
+class InstalacaoDoCliTest(unittest.TestCase):
+    """v047 E1.134: o gerenciador de pacotes do runner não roda mais o postinstall do CLI; o instalador do binário roda depois."""
+
+    def test_toda_instalacao_global_do_cli_roda_o_instalador_do_binario_em_seguida(self):
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        linhas = [l.strip() for l in texto.splitlines() if "npm install -g" in l and "@anthropic-ai/claude-code@" in l]
+        self.assertEqual(len(linhas), 3, "as três instalações do CLI (e2e, validação do plugin, portão das provas)")
+        for linha in linhas:
+            instalar, _, resto = linha.partition("npm install -g")
+            self.assertIn("&& node \"$(npm root -g)/@anthropic-ai/claude-code/install.cjs\"", resto, linha)
+            self.assertLess(resto.index("claude-code@"), resto.index("install.cjs"), linha)
+            self.assertRegex(instalar, r"^instalar\(\) \{ $", linha)
+            self.assertTrue(linha.endswith("; }"), linha)
+
+
 class AvisosTest(unittest.TestCase):
     def test_chaves_ignoradas_geram_aviso(self):
         texto = ("env:\n  A: 1\ndefaults:\n  run:\n    shell: sh\njobs:\n  j:\n    env:\n      X: 1\n    steps:\n"
