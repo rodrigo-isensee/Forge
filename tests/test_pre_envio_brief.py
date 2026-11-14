@@ -120,7 +120,10 @@ class Texto(unittest.TestCase):
         return rc, run, saida.getvalue()
 
     def test_roda_os_testes_de_texto_num_comando_so_com_rc_e_resumo(self):
-        rc, run, saida = self.rodar("--texto", codigo=1)
+        try:
+            rc, run, saida = self.rodar("--texto", codigo=1)
+        except SystemExit as erro:  # sem a opção, o argparse sai; o teste falha por asserção, não por erro (R-QA)
+            self.fail(f"--texto não existe: o argparse saiu com {erro.code}")
         self.assertEqual(rc, 1)
         run.assert_called_once_with([sys.executable, "-m", "unittest", "-q", "tests.test_testes_tocados", "tests.test_forge.Orcamento",
                                      "tests.test_jarvis_nucleo", "tests.test_metricas_texto", "tests.test_orcamento_instrucao"])
@@ -128,11 +131,13 @@ class Texto(unittest.TestCase):
         self.assertRegex(saida, r"^forge-testes: texto rc=1 em \d+ s \(tests\.test_testes_tocados, ")
 
     def test_texto_nao_combina_com_outra_opcao(self):
-        for extra in (["--completa"], ["--afetados"], ["--listar"], ["bin/forge-check"], ["-k", "x"]):
+        for extra in (["--completa"], ["--afetados"], ["--listar"], ["bin/forge-check"], ["-k", "x"], ["--vermelho"], ["--modulos", "test_x"],
+                      ["--prazo", "5"]):
             with self.subTest(extra=extra):
-                with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as erro:
+                with redirect_stderr(io.StringIO()) as err, self.assertRaises(SystemExit) as erro:
                     self.rodar("--texto", *extra)
                 self.assertEqual(erro.exception.code, 2)
+                self.assertIn("--texto não combina com outras opções", err.getvalue())  # a guarda do --texto, não outra recusa do parser
 
 
 if __name__ == "__main__":

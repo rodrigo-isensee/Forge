@@ -8,7 +8,9 @@
       "arquivo": "bin/forge-testes",
       "de": "    if args.texto and (args.caminhos or",
       "para": "    if False and (args.caminhos or",
-      "testes": ["tests.test_pre_envio_brief.Texto.test_texto_nao_combina_com_outra_opcao"]
+      "testes": [
+        "tests.test_pre_envio_brief.Texto.test_texto_nao_combina_com_outra_opcao"
+      ]
     },
     {
       "id": "M9",
@@ -16,7 +18,39 @@
       "arquivo": "bin/forge-testes",
       "de": "    if args.texto:\n        return texto()",
       "para": "    if False:\n        return texto()",
-      "testes": ["tests.test_pre_envio_brief.Texto.test_roda_os_testes_de_texto_num_comando_so_com_rc_e_resumo"]
+      "testes": [
+        "tests.test_pre_envio_brief.Texto.test_roda_os_testes_de_texto_num_comando_so_com_rc_e_resumo"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "--texto não combina com --vermelho",
+      "arquivo": "bin/forge-testes",
+      "de": "args.vermelho is not None\n                       or args.modulos",
+      "para": "False\n                       or args.modulos",
+      "testes": [
+        "tests.test_pre_envio_brief.Texto.test_texto_nao_combina_com_outra_opcao"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "--texto não combina com --modulos",
+      "arquivo": "bin/forge-testes",
+      "de": "or args.modulos is not None or args.prazo",
+      "para": "or False or args.prazo",
+      "testes": [
+        "tests.test_pre_envio_brief.Texto.test_texto_nao_combina_com_outra_opcao"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "--texto não combina com --prazo",
+      "arquivo": "bin/forge-testes",
+      "de": "or args.prazo is not None):\n        p.error(\"--texto",
+      "para": "or False):\n        p.error(\"--texto",
+      "testes": [
+        "tests.test_pre_envio_brief.Texto.test_texto_nao_combina_com_outra_opcao"
+      ]
     }
   ]
 }
