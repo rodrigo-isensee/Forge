@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-fixture-pid-sandbox
-commit: b47610cc2b843b1873c09489abc80bde29cad89d
+commit: b645e83c35c7dc51a125ccdca2401b5d73800bb9
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -33,3 +33,21 @@ Head testado: b47610cc. Diff contra a base afba389e: `tests/test_hooks.py`, `tes
 - `test_fixtures` completo (com e sem CI): não concluiu em 550 s por causa da carga; fica para o CI do PR.
 - `forge-testes --vermelho afba389e`: estourou o prazo (rc 124), sem veredito; a base não tem os helpers nem os dois testes, então eles falham por ausência (vermelho por inspeção, não por saída da ferramenta).
 - `forge-mutante`: rc 2, `M1 · controle vermelho · hooks/agentes.py` (sem veredito, nunca "morreu"). Há um mutante para a única guarda de código ligada ao diff (o hook não mudou).
+
+## Delta E1.124 (QA por delta até b645e83c, E1.120)
+Head da branch: dc39fbd5 (só soma o parecer de segurança sobre b645e83c). Delta desde e812e844: `bin/forge-testes` (`REAPROVEITAM_O_LOTE`, `JUNTO_DO_MODULO`, `modulos_sem_mapa`), `tests/test_hooks.py` (`pular_sem_ns_de_pid` vira função do módulo), `tests/test_testes_tocados.py` (teste novo), mutante M2. Carga ~13 em 12 CPUs; o PR #547 (rascunho) tinha a suíte do CI pendente na hora do parecer.
+
+### Achados
+- A2 (recomendado) docs/qa/v047-fixture-pid-sandbox.md:1 · a suíte inteira só roda no CI do PR #547; cite o check-run `bateria` do mesmo sha antes de integrar. Aqui valeu a execução local dos módulos afetados.
+
+### Critério → teste → resultado
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Os módulos que reaproveitam `executar_em_lote` rodam sem AttributeError | test_esperar_estado, test_hook_ansi_c, test_hook_git_comum, test_hooks_fila27, test_hooks_parecer_pasta, test_hooks_volta_{corpus,lancador,propriedades} | quem não herda de `Hooks` (a função saiu do método) | 8 módulos OK, 0 AttributeError (lancador: 25 puladas, sandbox sem CI) |
+| Pulo só sem /proc legível e nunca com CI | test_sem_ns_..._puladas_com_motivo e test_com_ns_..._rodam_e_gravam | ns ilegível x legível; CI definido | 2 testes, OK (1 skipped esperado, sem CI) |
+| O mapa lista esses módulos ao pedir tests/test_hooks.py | CaminhoFiltroEAviso.test_test_hooks_pelo_caminho_roda_quem_reaproveita_o_lote_dele | mínimo de 8 reaproveitadores (guarda de suíte vazia); outro módulo não leva extra | OK |
+
+### Mutação
+`forge-mutante tests/mutantes/v047-fixture-pid-sandbox.json`: M1 controle vermelho (sem veredito local, só no CI; A1 anterior), M2 morreu em `bin/forge-testes:104`. A guarda de código mudada (`JUNTO_DO_MODULO`) tem o M2; `modulos_sem_mapa` é coberta pelo mesmo teste.
+
+Vermelho antes do verde: não rodei `forge-testes --vermelho` (carga); o M2 morto prova que o teste novo cai sem o mapa.
