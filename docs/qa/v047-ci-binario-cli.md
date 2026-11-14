@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047-ci-binario-cli
 branch: melhoria/v047-ci-binario-cli
-commit: 114fd11b894f4100f7e1bd7e153b74ce7e2f5517
+commit: 4baade0eb738f0b40b0bc331a14a341f0fe6da69
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
