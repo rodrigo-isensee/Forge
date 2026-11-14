@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: melhorias-de-projeto-1311
 branch: melhoria/mp1311-pre-envio-modelo
-commit: 27c401073885775dff35b8c15d29f2595f3c2d85
+commit: 2b5fbd83fb4776c16dd6668448b0accb9d0a9657
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-13
+data: 2026-11-14
 ---
 # QA: pré-envio no modelo de projeto (E1.35, diretriz 23, partes b, c e e)
 
@@ -39,6 +39,21 @@ O pedido não tem especificação de UX; as obrigações são as da entrega (E1.
 - Vermelho antes do verde: `forge-testes --vermelho c5aa70e1 --modulos test_forge,test_adotar` estourou o prazo com a máquina carregada (rc 124), sem veredito, que não vale como vermelho. Recuo manual: cópia em `$TMPDIR` no head com `bin/`, `templates/`, `stacks/` e `migrations/` da base, sem os arquivos novos: `Ran 14 tests ... FAILED (failures=15, errors=5)`, os 14 testes novos caem.
 - `bin/forge-mutante` das três specs (21 mutantes): todos `morreu` (M1 a M21). `forge-mutante --cobertura --base c5aa70e1`: toda condição Python mudada em `bin/forge-upgrade` e na migração está `coberta`; `pre-push.local` (shell, `não coberto` pela ferramenta) tem M3, M4 e M21; a mudança no `pre-push` é só comentário.
 - `bin/forge-check docs`: sem erro.
+
+## Revalidação por delta 27c40107..2b5fbd83 (E1.58, head 2b5fbd83)
+Delta: pre-push do modelo (só texto: `docs/**`, `*.md`, `changelog.d/**` e junção com a origin/develop pulam o pronto rápido; apagar ou criar código roda), `pre-push.local` (`${arquivos[@]+...}` contra array vazio), textos de stacks e migração, seção de veredito do vermelho em TypeScript, testes e spec de mutantes `-4`.
+| Critério (decisão do dono 13/11 17:31) | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Texto, parecer e fragmento passam sem o rápido | test_envio_so_de_texto_nao_roda_o_pronto_rapido | `changelog.d/.gitkeep` (fora de `*.md`) | passou |
+| Código ou misto roda | test_envio_com_codigo_ou_misto_roda_o_pronto_rapido | texto + código no mesmo envio | passou |
+| Apagar código roda | test_envio_que_apaga_codigo_roda_o_pronto_rapido | arquivo ausente na origin/develop | passou |
+| Junção sem código novo pula; código mexido depois roda | test_juncao_com_a_develop_sem_codigo_novo_nao_roda_o_pronto_rapido | blob igual ao da develop x diferente | passou |
+| TS tem mapa e veredito explícito | test_vermelho_em_typescript_tem_mapa_e_veredito_explicito | `não verificável`, pop sempre | passou |
+- Rodados no head: `PreEnvioDoModelo`, `TextosAQ3Stack`, `VerificarContribuicao` (37 testes, OK); `tests.test_prepush_so_docs` (62 testes, OK, 9 pulados pelo sandbox: não exercitam o delta aqui, o CI os roda).
+- Vermelho: `forge-testes --vermelho 27c40107` não terminou no prazo (carga ~13), sem veredito; vale o recuo manual: cópia do head com `pre-push` e `node-react/pronto.md` da base, 3 testes novos: `FAILED (failures=3)` (só_texto, junção, TS). Apagar e misto são guardas de regressão (passam na base), mortos pelos mutantes M31 e M32.
+- `bin/forge-mutante tests/mutantes/mp1311-pre-envio-modelo-4.json`: M30, M31 e M32 `morreu` (pre-push:78, 80, 81), rc 0. Linhas de guarda mudadas no diff: as três têm mutante.
+- Sem PR/check-run `bateria` do head citável por mim; a suíte inteira fica com o CI.
+- A1 segue recomendado, sem mudança.
 
 ## Evidência de bugs
 Nenhum bug aberto.
