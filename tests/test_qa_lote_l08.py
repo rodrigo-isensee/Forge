@@ -281,10 +281,20 @@ class QaE7FecharReal(FecharComOForgeCheckReal):
         self.pedido.write_text("# real\n", encoding="utf-8")
         self.assertIn("conferência:", self.parou_no_passo_1())
 
-    def test_duas_branches_no_mesmo_sha_param_no_passo_1(self):
+    def test_duas_branches_no_mesmo_sha_param_no_passo_1_sem_a_branch_local(self):
+        """Sem a branch local o `forge-check` recebe o sha (FECHAR-REF-POR-NOME) e o sha com duas branches segue ambíguo."""
         self.pedido.write_text(f"# real\n\n## Histórico\n- 2026-11-04 09:00: entrega conferida {self.entrega}\n", encoding="utf-8")
         self.git("branch", "melhoria/gemea", "melhoria/x")
+        self.git("branch", "-q", "-D", "melhoria/x")
         self.assertIn("conferência:", self.parou_no_passo_1())
+
+    def test_com_a_branch_local_a_gemea_no_mesmo_sha_nao_confunde_a_conferencia(self):
+        """Com a branch local o `forge-check` recebe `refs/heads/<branch>`: o nome decide, a gêmea não para o passo 1."""
+        self.pedido.write_text(f"# real\n\n## Histórico\n- 2026-11-04 09:00: entrega conferida {self.entrega}\n", encoding="utf-8")
+        self.git("branch", "melhoria/gemea", "melhoria/x")
+        r = self.fechar("x", "--ref", "melhoria/x")
+        self.assertNotIn("conferência:", r.stdout + r.stderr)
+        self.assertIn("pr x --ref refs/heads/melhoria/x", r.stdout + r.stderr)
 
 
 class QaA9Promocao(Promover):

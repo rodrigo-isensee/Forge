@@ -603,6 +603,34 @@ def sequencias(texto: str, n: int) -> set:
     return {" ".join(p[i:i + n]) for i in range(len(p) - n + 1)}
 
 
+class DiretrizesDoDonoNaRWip(unittest.TestCase):
+    """v047 E4.2: as diretrizes 2 (parado não se abandona), 11 (vaga livre não espera a versão) e 16 (item pronto vai a PR
+    próprio, sem juntar frentes) valem para todos os projetos: o texto fica na linha da R-WIP, com a medida, e as skills
+    que o Jarvis lê no passo citam o ID."""
+
+    def test_a_regra_traz_as_tres_diretrizes_com_medida(self):
+        wip = [l for l in (REGRAS / "README.md").read_text(encoding="utf-8").splitlines() if l.startswith("**`R-WIP`")]
+        self.assertEqual(len(wip), 1, "a linha da R-WIP no README das regras")
+        for trecho in ("**Parado não se abandona:** destrave, adie com data ou divida.",
+                       "**Vaga livre não espera a versão:** começar não espera, só o merge;",
+                       "desenho, plano de teste e ameaças dos seguintes, item sem arquivo em comum, a próxima versão",
+                       "pronto, vai a PR próprio, sem juntar frentes (`R-FLUXO`)",
+                       "propostas de abandono (zero); conflitos por merge;"):
+            with self.subTest(trecho=trecho):
+                self.assertIn(trecho, wip[0])
+
+    def test_as_skills_do_passo_citam_o_id(self):
+        paralelo = (RAIZ / "skills" / "trabalho-em-paralelo" / "SKILL.md").read_text(encoding="utf-8")
+        kanban = (RAIZ / "skills" / "kanban-scrum" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("e encha as vagas sem esperar a versão (`R-WIP`)", paralelo)
+        self.assertIn("com CI verde, entra na `develop` por PR próprio, sem juntar frentes (`R-FLUXO`)", paralelo)
+        self.assertIn("parado nunca vira proposta de abandono (`R-WIP`)", kanban)
+        jarvis = (RAIZ / "agents" / "jarvis.md").read_text(encoding="utf-8")
+        for skill in ("skills/trabalho-em-paralelo/SKILL.md", "skills/kanban-scrum/SKILL.md"):
+            with self.subTest(skill=skill):
+                self.assertIn(skill, jarvis)  # o ponteiro do Jarvis às skills do passo; nenhum texto novo no agente
+
+
 class AntiDuplicacao(unittest.TestCase):
     """ADR 0002: o texto de cada regra vive só em docs/regras/R-<ID>.md; os outros arquivos citam o ID."""
 
@@ -1161,6 +1189,84 @@ class Migracao070(unittest.TestCase):
 
     def test_leia_resume_para_o_forge_upgrade(self):
         self.assertIn("teto_agentes", (RAIZ / "migrations/0.7.0/LEIA.md").read_text(encoding="utf-8").splitlines()[2])
+
+
+class ModeloDeSegurancaNoProjeto(unittest.TestCase):
+    """MP1311 item 9: o papel de segurança cita docs/security/_modelo.md; o projeto novo e o atualizado precisam tê-lo."""
+    MODELO = "docs/security/_modelo.md"
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-modelo-seg-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        git("init", "-q", "-b", "develop", cwd=self.tmp)
+        git("config", "user.name", "t", cwd=self.tmp)
+        git("config", "user.email", "t@example.com", cwd=self.tmp)
+
+    def upgrade(self):
+        return subprocess.run([str(RAIZ / "bin/forge-upgrade"), "--ate", "0.47.1", str(self.tmp)],
+                              env={**ambiente_limpo(), "FORGE_SEM_DOUTOR": "1"}, capture_output=True, text=True)
+
+    def projeto_existente(self, modelo=None):
+        (self.tmp / ".forge").mkdir()
+        (self.tmp / ".forge/versao").write_text("0.46.0\n", encoding="utf-8")
+        if modelo is not None:
+            (self.tmp / self.MODELO).parent.mkdir(parents=True)
+            (self.tmp / self.MODELO).write_text(modelo, encoding="utf-8")
+        git("add", "-A", cwd=self.tmp)
+        git("commit", "-q", "--allow-empty", "-m", "antes", cwd=self.tmp)
+
+    def test_projeto_novo_recebe_o_modelo(self):
+        forge_init("--nome", "Demo", "--pronto", "make pronto", str(self.tmp), cwd=self.tmp)
+        self.assertEqual((self.tmp / self.MODELO).read_bytes(), (RAIZ / "templates/projeto" / self.MODELO).read_bytes())
+
+    def test_projeto_existente_recebe_o_modelo_pela_atualizacao(self):
+        self.projeto_existente()
+        self.assertFalse((self.tmp / self.MODELO).exists())
+        r = self.upgrade()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual((self.tmp / self.MODELO).read_bytes(), (RAIZ / "templates/projeto" / self.MODELO).read_bytes())
+        self.assertEqual(git("log", "--format=%s", "develop..HEAD", cwd=self.tmp).stdout.splitlines()[-1],
+                         "chore(forge): migração 0.47.1")
+        self.assertEqual(git("status", "--porcelain", cwd=self.tmp).stdout, "")
+
+    def test_atualizacao_nao_sobrescreve_o_modelo_do_projeto(self):
+        self.projeto_existente("meu modelo de segurança\n")
+        r = self.upgrade()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual((self.tmp / self.MODELO).read_text(encoding="utf-8"), "meu modelo de segurança\n")
+
+    def migrar(self):
+        return subprocess.run([sys.executable, "-I", str(RAIZ / "migrations/0.47.1/migrar"), str(self.tmp)],
+                              env=ambiente_limpo(), capture_output=True, text=True)
+
+    def test_link_pendurado_no_modelo_nao_cria_arquivo_fora_do_projeto(self):
+        fora = Path(tempfile.mkdtemp(prefix="forge-modelo-fora-"))
+        self.addCleanup(shutil.rmtree, fora, True)
+        (self.tmp / self.MODELO).parent.mkdir(parents=True)
+        (self.tmp / self.MODELO).symlink_to(fora / "alvo.md")
+        r = self.migrar()
+        self.assertEqual((r.returncode, (fora / "alvo.md").exists()), (1, False), r.stderr)
+        self.assertIn("o arquivo é link", r.stderr)
+
+    def test_pasta_security_como_link_para_fora_nao_cria_arquivo_fora_do_projeto(self):
+        fora = Path(tempfile.mkdtemp(prefix="forge-modelo-fora-"))
+        self.addCleanup(shutil.rmtree, fora, True)
+        (self.tmp / "docs").mkdir()
+        (self.tmp / "docs/security").symlink_to(fora, target_is_directory=True)
+        r = self.migrar()
+        self.assertEqual((r.returncode, list(fora.iterdir())), (1, []), r.stderr)
+        self.assertIn("link simbólico", r.stderr)
+
+    def test_migracao_repetida_nao_muda_nada(self):
+        self.projeto_existente()
+        migrar = [sys.executable, str(RAIZ / "migrations/0.47.1/migrar"), str(self.tmp)]
+        self.assertEqual(subprocess.run(migrar, capture_output=True, text=True).returncode, 0)
+        antes = (self.tmp / self.MODELO).read_bytes()
+        r = subprocess.run(migrar, capture_output=True, text=True)
+        self.assertEqual((r.returncode, r.stdout, (self.tmp / self.MODELO).read_bytes()), (0, "", antes))
+
+    def test_leia_resume_para_o_forge_upgrade(self):
+        self.assertIn("docs/security/_modelo.md", (RAIZ / "migrations/0.47.1/LEIA.md").read_text(encoding="utf-8").splitlines()[2])
 
 
 class HookPrePush(unittest.TestCase):
@@ -2392,6 +2498,8 @@ class VerificarContribuicao(unittest.TestCase):
         self.caminho_pessoal_falha("cd /home/" + "runner2/projeto")
         self.caminho_pessoal_falha("cd /home/" + "runner/work /home/" + "fulano/x")
         self.caminho_pessoal_falha("cd /Users/" + "runner/projeto")
+        self.caminho_pessoal_falha("cache /home/" + "runner" + "/home/" + "fulano/x")  # v047 E5.21: pessoal colado ao home do runner
+        self.caminho_pessoal_falha("cache /home/" + "runner" + "/Users/" + "fulano/x")
 
     def test_dados_neutros_dos_testes_passam(self):
         for linha in ("cd /exemplo/projeto", "HOME=/tmp/forge-x/home/" + ".config/git", "em /home/" + "ana",
