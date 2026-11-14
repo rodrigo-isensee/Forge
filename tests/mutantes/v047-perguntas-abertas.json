@@ -6,19 +6,20 @@
       "id": "PA-M1",
       "guarda": "a linha do registro com prefixo `- data:` entra",
       "arquivo": "bin/forge_dono.py",
-      "de": "if (m := LINHA_DO_REGISTRO.match(linha))]",
-      "para": "if (m := LINHA_DO_REGISTRO.match(linha)) and not linha.startswith(\"-\")]",
+      "de": "if (m := LINHA_DO_REGISTRO.match(linha))),",
+      "para": "if (m := LINHA_DO_REGISTRO.match(linha)) and not linha.startswith(\"-\")),",
       "testes": [
         "tests.test_forge_dono.PerguntasAbertas.test_formas_do_registro_com_prefixo_aspas_e_sem_parenteses"
       ]
     },
     {
       "id": "PA-M2",
-      "guarda": "só a DECISÃO DO DONO fecha pergunta",
+      "guarda": "só a DECISÃO DO DONO fecha pergunta (ORDEM DO DONO não)",
       "arquivo": "bin/forge_dono.py",
-      "de": "for m, n in registro if m.group(4) == FRASE_DA_DECISAO), default",
-      "para": "for m, n in registro if False), default",
+      "de": "        elif frase == FRASE_DA_DECISAO and (fechada :=",
+      "para": "        elif (fechada :=",
       "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_decisao_sobre_outro_assunto_nao_fecha_a_pergunta",
         "tests.test_forge_dono.PerguntasAbertas.test_respondida_sai_e_decisao_anterior_nao_responde"
       ]
     },
@@ -26,20 +27,20 @@
       "id": "PA-M3",
       "guarda": "a data depois da frase vale sobre a do prefixo",
       "arquivo": "bin/forge_dono.py",
-      "de": "    return g[4:7] if g[4] else g[0:3]",
-      "para": "    return g[4:7] if False else g[0:3]",
+      "de": "    s = \"1\" if achado[\"dia1\"] else \"0\"",
+      "para": "    s = \"0\"",
       "testes": [
         "tests.test_forge_dono.PerguntasAbertas.test_respondida_sai_e_decisao_anterior_nao_responde"
       ]
     },
     {
       "id": "PA-M4",
-      "guarda": "decisão anterior à pergunta não a responde",
+      "guarda": "decisão sem citação com outra fala do dono no meio não fecha a pergunta",
       "arquivo": "bin/forge_dono.py",
-      "de": "if m.group(4) != FRASE_DA_DECISAO and (_instante(m), n) > ultima]",
-      "para": "if m.group(4) != FRASE_DA_DECISAO]",
+      "de": "    if abertas and not any(abertas[-1][0] < outro < instante for outro in instantes):",
+      "para": "    if abertas:",
       "testes": [
-        "tests.test_forge_dono.PerguntasAbertas.test_respondida_sai_e_decisao_anterior_nao_responde"
+        "tests.test_forge_dono.PerguntasAbertas.test_decisao_sobre_outro_assunto_nao_fecha_a_pergunta"
       ]
     },
     {
