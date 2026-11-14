@@ -21,6 +21,16 @@
       "testes": [
         "tests.test_forge_mutante.Conferir.test_de_no_lugar_sai_0_e_de_que_sumiu_depois_da_spec_sai_1_com_a_spec_e_o_trecho"
       ]
+    },
+    {
+      "id": "CF11",
+      "guarda": "E1.140 (candidata 8): o log que não se grava vira aviso, sem cair",
+      "arquivo": "bin/forge-mutante",
+      "de": "    except OSError as erro:  # candidata 8 da retro 0.45.6",
+      "para": "    except ValueError as erro:  # candidata 8 da retro 0.45.6",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_log_que_nao_se_grava_vira_aviso_e_o_veredito_fica"
+      ]
     }
   ]
 }

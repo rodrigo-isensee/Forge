@@ -734,10 +734,14 @@ def cobertura(base, rev):
 
 
 def anotar(segundos, codigo):
-    LOG.parent.mkdir(parents=True, exist_ok=True)
+    """Uma linha no `.forge/run/testes.log`; o log que não se grava (só leitura, pasta no lugar) é aviso: o veredito já saiu."""
     agora = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    with LOG.open("a", encoding="utf-8") as f:
-        f.write(f"{agora} modo=mutante modulos=- duracao={segundos:.1f}s saida={codigo}{contexto()}\n")
+    try:
+        LOG.parent.mkdir(parents=True, exist_ok=True)
+        with LOG.open("a", encoding="utf-8") as f:
+            f.write(f"{agora} modo=mutante modulos=- duracao={segundos:.1f}s saida={codigo}{contexto()}\n")
+    except OSError as erro:  # candidata 8 da retro 0.45.6
+        print(f"forge-mutante: aviso: não gravei {LOG} ({erro}); o veredito acima vale.", file=sys.stderr)
 
 
 class Controles:

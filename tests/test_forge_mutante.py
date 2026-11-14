@@ -348,6 +348,14 @@ class Execucao(unittest.TestCase):
         self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
         self.assertIn("controle vermelho", r.stdout)
 
+    def test_log_que_nao_se_grava_vira_aviso_e_o_veredito_fica(self):  # candidata 8 da retro 0.45.6
+        (self.dir / ".forge" / "run" / "testes.log").mkdir(parents=True)  # o root grava em arquivo só leitura; a pasta, não
+        r = self.rodar(self.spec(mutante()))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("M1 · morreu · lib.py:2", r.stdout)
+        self.assertIn("forge-mutante: aviso: não gravei .forge/run/testes.log", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
     def test_mutante_que_leva_o_teste_a_erro_morre_por_erro_e_sai_0(self):  # MUTANTE-ERRO-INVALIDO
         r = self.rodar(self.spec(mutante(de="return 2", para="return None + 2")))
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
