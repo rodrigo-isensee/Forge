@@ -29,7 +29,7 @@
       "de": "        if raiz is not None:\n            hook.config()",
       "para": "        if False:\n            hook.config()",
       "testes": [
-        "tests.test_estado_ilegivel.PeloHook.test_fixtures_do_pedido"
+        "tests.test_agentes_clone.RegistroNoClone.test_config_ilegivel_no_clone_recusa_sem_gravar"
       ]
     },
     {
