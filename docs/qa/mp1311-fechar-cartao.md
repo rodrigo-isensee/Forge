@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: melhorias-de-projeto-1311
 branch: melhoria/mp1311-fechar-cartao
-commit: a47ef67b708027498f825765c764fec9bf14dae0
+commit: 497d35697715ff0672f69b05ddf3c9d763c61332
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-13
+data: 2026-11-14
 ---
 # QA: melhorias-de-projeto-1311 (item 11, fechamento confere o PR pelo nome da branch)
 
@@ -31,6 +31,13 @@ O pedido não traz `CA-n`; a obrigação é `FECHAR-REF-POR-NOME` (item 11: o `f
 | Sha conferido continua preso (head que anda para; `--match-head-commit`) | `test_fechar_ref_por_nome.test_head_que_anda_durante_a_conferencia_ainda_para`, `test_com_branch_local_o_forge_check_recebe_o_nome` (merge com sha) | head mudou durante o passo 1 | passou (regressão: passa na base) |
 | Dry-run sem branch local marca o sha como não lido | `test_fechar.test_dry_run_sem_branch_local_marca_o_sha_como_nao_lido` | branch ausente | passou |
 | Caso real (PR 525): worktree de portão no mesmo head | reprodução abaixo | duas branches no mesmo sha | passou |
+
+## Revalidação por delta até `497d3569`
+Delta (`forge-check parecer delta`, intervalo `a47ef67b..497d3569`): `bin/forge-testes`, `tests/mutantes/mp1311-fechar-cartao-2.json`, `tests/test_fechar_base_andou.py`, `tests/test_qa_lote_l08.py`. Mudança: o mapa do `forge-testes` ganha a linha `bin/forge-fechar` (todos os `test_fechar_*` e módulos que rodam o script) e `templates/projeto/.forge/config.json`; testes passam a esperar `refs/heads/<branch>` na conferência; novo `test_com_a_branch_local_a_gemea_no_mesmo_sha_nao_confunde_a_conferencia` e o teste das gêmeas passa a valer sem a branch local; spec `-2` com M6 e M8 (M7 retirado pelo autor por ficar vivo na cadeia do origin, sem equivalente aceito necessário: a guarda é a mesma linha 826, coberta por M4, M6 e M8).
+- `python3 -m unittest tests.test_qa_lote_l08 tests.test_fechar_base_andou tests.test_fechar_ref_por_nome tests.test_testes_tocados`: 217 testes, OK (1 pulado pelo sandbox, `/proc` de outro namespace; teste do `forge-testes`, fora do delta de regra).
+- `bin/forge-mutante tests/mutantes/mp1311-fechar-cartao.json tests/mutantes/mp1311-fechar-cartao-2.json` (`rev=497d35697715`): M1 a M6 e M8 morreram, sem sobrevivente (`M6 · morreu · bin/forge-fechar:826`, `M8 · morreu · bin/forge-fechar:826`).
+- Vermelho: `forge-testes --vermelho a47ef67b` estourou o prazo (580 s, carga alta; rc 143, sem veredito, não vale como vermelho). Feito à mão: cópia em `$TMPDIR` do head com o `bin/forge-fechar` de `afba389e` (base); `test_com_a_branch_local_a_gemea_no_mesmo_sha_nao_confunde_a_conferencia` e `test_e8_base_que_mudou_codigo_segue_sem_trazer_a_base` falham (`FAILED (failures=2)`: `conferência:` aparece com `--ref <sha>`; `['4af42e83...'] != ['refs/heads/melhoria/x']`). Verdes no head.
+- Suíte completa: do check-run `bateria` do CI do PR 539 neste sha (a vermelha era a de pareceres, por este parecer defasado do head).
 
 ## Revalidação por delta até `a47ef67b`
 Delta (`forge-check parecer delta`): `bin/forge-fechar`, spec de mutantes, `test_fechar`, `test_fechar_ref_por_nome`, `test_fechar_sha_conferido`. Mudança: `ref_check` e `ref_dry` passam a `refs/heads/<branch>`; asserções atualizadas; novo `test_tag_de_mesmo_nome_nao_desvia_a_conferencia` (tag aponta outro commit; confere `forge-check` com `refs/heads/` e `--match-head-commit` do sha da branch).
