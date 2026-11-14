@@ -3,15 +3,16 @@ tipo: review
 contrato: 1
 pedido: melhorias-de-projeto-1311
 branch: melhoria/mp1311-fechar-cartao
-commit: a47ef67b708027498f825765c764fec9bf14dae0
+commit: ccb7613465a8be32a8fecf2070b9ad630836f364
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-13
+data: 2026-11-14
 ---
 # Review: melhorias-de-projeto-1311 (fechamento: FECHAR-REF-POR-NOME)
 
 ## Achados
 - A1 (recomendado) tests/test_fechar_ref_por_nome.py:20 · test_dry_run_descreve_o_nome duplica a asserção de tests/test_fechar.py; o M3 só é morto pelo teste de test_fechar.py. Inofensivo.
+- A2 (recomendado) tests/mutantes/mp1311-fechar-cartao-2.json:7 · M6 e M8 declaram a mesma troca (`de` e `para` iguais) na linha 826 de bin/forge-fechar; um mutante com os dois testes bastaria. Inofensivo.
 
 ## Sondas
 
@@ -31,3 +32,11 @@ Aprovado no head a47ef67b, instância que não fez a entrega. Delta lido por `fo
 - Mutantes: M1 a M5 mortos (`bin/forge-mutante tests/mutantes/mp1311-fechar-cartao.json`); M4 e M5 cobrem as duas linhas mudadas.
 - Testes rodados aqui: `tests.test_fechar_ref_por_nome` e `tests.test_fechar`, 104 OK. `shellcheck bin/forge-fechar` sem saída.
 - A1 (recomendado) segue como estava; sem achado novo.
+
+## Revalidação (delta a47ef67b..ccb76134)
+Aprovado no head ccb76134, instância que não fez a entrega. Delta lido por `forge-check parecer delta` (sem o que veio da develop): `bin/forge-testes`, `tests/mutantes/mp1311-fechar-cartao-2.json`, `tests/test_fechar_base_andou.py`, `tests/test_qa_lote_l08.py`.
+- `bin/forge-testes`: regra MAPA-FORGE-FECHAR com todos os 25 `tests/test_fechar_*.py` (conferido contra `ls tests/test_fechar*.py`) e todo módulo de `tests/` que cita `forge-fechar`; nenhum módulo listado inexiste. `bin/forge-testes --listar bin/forge-fechar` devolve os 33 módulos. A linha `test_ritmo` do diff veio da develop (2b454e7e).
+- Testes: a asserção do E8 passa a esperar `refs/heads/<branch>`, coerente com o `ref_check` já aprovado no delta anterior; o teste do QA de duas branches no mesmo sha é dividido em sem a branch local (sha ambíguo para) e com ela (o nome decide). O teste do QA mudou: a revalidação dele é do QA.
+- Mutantes: M6 e M8 mortos (`bin/forge-mutante --processos 1 tests/mutantes/mp1311-fechar-cartao-2.json`, rev ccb7613465a8); a âncora `then ref_check="refs/heads/$ref"; else` ocorre uma vez (linha 826).
+- Testes rodados aqui: `tests.test_fechar_base_andou` e `tests.test_qa_lote_l08`, 62 OK. A suíte inteira fica no CI do PR 539; o e2e de instalação vermelho é infraestrutura do runner (npm), tratado em outra etapa.
+- A1 segue; A2 (recomendado) novo; sem bloqueante.
