@@ -41,6 +41,22 @@
       "de": "if falhas else \"\"",
       "para": "if True else \"\"",
       "testes": ["tests.test_forge_mutante.PlacarDaRelease.test_uma_rodada_por_spec_soma_as_classes_e_sai_0_com_sobrevivente"]
+    },
+    {
+      "id": "M6",
+      "guarda": "E1.101: com tag anterior, a maior conta; sem nenhuma, não há aviso de tag diferente",
+      "arquivo": "scripts/placar-mutacao.py",
+      "de": "    anterior = versoes[max(versoes)] if versoes else None",
+      "para": "    anterior = versoes[max(versoes)] if False else None",
+      "testes": ["tests.test_forge_mutante.PlacarDaRelease.test_desde_que_nao_e_a_tag_anterior_ou_nao_e_tag_avisa_sem_mudar_o_rc"]
+    },
+    {
+      "id": "M7",
+      "guarda": "E1.101: o aviso do --desde é impresso",
+      "arquivo": "scripts/placar-mutacao.py",
+      "de": "    if aviso := aviso_do_desde(raiz, a.desde, a.versao):",
+      "para": "    if (aviso := aviso_do_desde(raiz, a.desde, a.versao)) and False:",
+      "testes": ["tests.test_forge_mutante.PlacarDaRelease.test_desde_que_nao_e_a_tag_anterior_ou_nao_e_tag_avisa_sem_mudar_o_rc"]
     }
   ]
 }
