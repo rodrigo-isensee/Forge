@@ -12,7 +12,7 @@ Pipeline, containers, IaC e releases seguem a skill `ci-cd` do Forge; segurança
 
 ## Commits e branches
 Padrão da fábrica: Conventional Commits em português; `R-FLUXO` branches e promoção; `R-MAIN` a main é do usuário.
-Integração (skill `trabalho-em-paralelo` do Forge): um item por vez com o CI do push na integração verde antes do próximo, ou lote de até 3 PRs verdes sem arquivo em comum com um CI só, o do último merge, acompanhado até o fim; vermelho reverte o lote e volta ao um por vez. A promoção leva o commit da marca, não o topo da integração; marca, versão, changelog e pareceres num PR só.
+Integração (`R-FLUXO` e "Lote, CI da develop e promoção pela marca" no fechamento do integrador do Forge): um item por vez com o CI do push na integração verde antes do próximo, ou lote de até 3 PRs verdes sem arquivo em comum com um CI só, o do último merge, acompanhado até o fim; vermelho reverte o lote e volta ao um por vez. A promoção leva o commit da marca, não o topo da integração; marca, versão, changelog e pareceres num PR só.
 <!-- exceções deste projeto -->
 
 ## Regras e quem as decide
