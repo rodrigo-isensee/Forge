@@ -1,2 +1,0 @@
-### Adicionado
-- Pré-envio no brief da fábrica (mp1311, diretriz 23): o brief gerado de autor no Forge traz as PQs da descrição do PR pela catraca e do mapa de testes com os testes de tamanho de texto, mais os testes afetados quando o Entregar cita código; o brief de parecer só aprova com o CI do head todo verde e, sem PR, deixa a suíte ao CI. O `bin/forge-testes --texto` roda esses testes de texto num comando só, com o rc e uma linha de resumo.
