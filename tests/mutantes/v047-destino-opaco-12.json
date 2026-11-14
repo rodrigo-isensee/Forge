@@ -61,29 +61,19 @@
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]
+    },
+    {
+      "id": "O80",
+      "guarda": "U4: profundidade de função que chama a si mesma",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not palavras or fundo > 4:",
+      "para": "    if not palavras:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
     }
   ],
   "isentas": [
-    {
-      "arquivo": "hooks/conformidade.py",
-      "trecho": "    return None if aspa else palavras + [atual] if atual else palavras",
-      "motivo": "aspa sem par no corpo: a leitura da linha (`comandos`) já recusa a linha com aspa sem par antes do U4, então o mutante é equivalente"
-    },
-    {
-      "arquivo": "hooks/conformidade.py",
-      "trecho": "    if not palavras or fundo > 4:",
-      "motivo": "corpo vazio ou recursão de função que chama a si mesma: sem a guarda, IndexError ou RecursionError, e a falha fechada do marcador (alvo opaco) recusa igual (seção 7 da ADR 0009): mutante equivalente"
-    },
-    {
-      "arquivo": "hooks/conformidade.py",
-      "trecho": "if definicao is not None and len(palavras) == 1 else None",
-      "motivo": "sem a guarda, o corpo None dá AttributeError e a função com argumentos dá o mesmo valor do corpo; a falha fechada recusa igual (seção 7 da ADR 0009): mutante equivalente"
-    },
-    {
-      "arquivo": "hooks/conformidade.py",
-      "trecho": "    if fundo > 4 or SEM_VALOR in palavra:",
-      "motivo": "recursão (`a=$a`) vira RecursionError, que a falha fechada recusa; o NUL não chega ao bash numa palavra: mutante equivalente"
-    },
     {
       "arquivo": "hooks/conformidade.py",
       "trecho": "        return None if sem_substituicao or not inteira else",
@@ -93,16 +83,6 @@
       "arquivo": "hooks/conformidade.py",
       "trecho": "            valores = None if fim < 0 else valores_do_corpo(",
       "motivo": "`$(` sem `)` na palavra: a leitura da linha recusa a substituição sem par antes do U4: mutante equivalente"
-    },
-    {
-      "arquivo": "hooks/conformidade.py",
-      "trecho": "        if valores is None:\n            return None\n        partes.append(valores)",
-      "motivo": "sem a guarda, o None entra em `juntar` e dá TypeError, que a falha fechada recusa igual (seção 7 da ADR 0009): mutante equivalente"
-    },
-    {
-      "arquivo": "hooks/conformidade.py",
-      "trecho": "        if valores is None:\n            return None\n        partes += ",
-      "motivo": "sem a guarda, o None entra em `juntar` e dá TypeError, que a falha fechada recusa igual (seção 7 da ADR 0009): mutante equivalente"
     }
   ]
 }

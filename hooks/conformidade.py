@@ -514,7 +514,7 @@ def dividir_corpo(corpo):
             palavras, atual = palavras + [atual] if atual else palavras, ""
             continue
         atual += c
-    return None if aspa else palavras + [atual] if atual else palavras
+    return palavras + [atual] if atual else palavras  # aspa sem par: a palavra a leva, e `valores_da_palavra` recusa
 
 
 def corpo_da_funcao(nome, linha):

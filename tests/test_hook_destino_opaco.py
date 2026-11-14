@@ -39,7 +39,7 @@ class HookDestinoOpaco(unittest.TestCase):
         self.rodar_prefixo("opaco-d2b", 11)
 
     def test_fixtures_opaco_u4(self):  # E1.232: lista positiva, sondas da segurança E1.206 e do review E1.205
-        self.rodar_prefixo("opaco-u4", 48)
+        self.rodar_prefixo("opaco-u4", 50)
 
 
 if __name__ == "__main__":
