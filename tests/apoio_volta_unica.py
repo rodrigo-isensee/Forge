@@ -400,7 +400,7 @@ sys.path.insert(0, dados["hooks"])
 import _comum, conformidade, parecer
 _comum.forge_check().GIT_TIMEOUT_S = dados["prazo_git"]
 _comum.PRAZO_DA_DECISAO_S = float(dados["prazo_da_decisao"])
-EXECUCAO = {"conformidade": (conformidade, "CRITICO", {"regra_do_prazo": "R-CONFORMIDADE"}),
+EXECUCAO = {"conformidade": (conformidade, "MARCADOR", {"regra_do_prazo": "R-CONFORMIDADE"}),
             "parecer": (parecer, "CriticoOuAlias", {"clone_do_forge": True, "regra_do_prazo": "R-REVIEW"})}
 PRAZO_LONGO = {"parecer": {"prazo_longo": parecer.MERGE_DE_PR}}  # v0455: o regex do `gh pr merge`, que não é literal
 saida = []

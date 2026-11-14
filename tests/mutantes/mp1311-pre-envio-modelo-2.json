@@ -1,0 +1,87 @@
+{
+  "pedido": "mp1311-pre-envio-modelo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "migração: stack sem 'Detecção:' gera o pre-push.local que pula",
+      "arquivo": "migrations/0.47.1/migrar-pre-envio",
+      "de": "    arquivos = \" \".join(re.findall(r\"`([^`]+)`\", deteccao.group(1))) if deteccao else \"\"",
+      "para": "    arquivos = \" \".join(re.findall(r\"`([^`]+)`\", deteccao.group(1))) if True else \"\"",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_stack_sem_deteccao_gera_o_pre_push_local_que_pula"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "migração: o modelo de PR do projeto não é sobrescrito",
+      "arquivo": "migrations/0.47.1/migrar-pre-envio",
+      "de": "if not alvo.exists() and not alvo.is_symlink():\n    alvo.parent.mkdir(parents=True, exist_ok=True)\n    alvo.write_bytes(",
+      "para": "if True:\n    alvo.parent.mkdir(parents=True, exist_ok=True)\n    alvo.write_bytes(",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_modelo_de_pr_do_projeto_fica"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "migração: o pre-push.local do projeto não é sobrescrito",
+      "arquivo": "migrations/0.47.1/migrar-pre-envio",
+      "de": "if not alvo.exists() and not alvo.is_symlink():\n    conteudo",
+      "para": "if True:\n    conteudo",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_atualizacao_nao_sobrescreve_o_pre_push_local_do_projeto"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "migração: sem conteúdo (stack desconhecida) nada é gravado",
+      "arquivo": "migrations/0.47.1/migrar-pre-envio",
+      "de": "    if conteudo is not None:",
+      "para": "    if True:",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_stack_fora_da_forma_ou_inexistente_nao_gera"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "migração: só com arquivos_do_forge_no_git false os criados vão ao exclude",
+      "arquivo": "migrations/0.47.1/migrar-pre-envio",
+      "de": "if criados and fora_do_git():",
+      "para": "if criados:",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_sem_versionar_os_criados_vao_para_o_exclude",
+        "tests.test_forge.PreEnvioDoModelo.test_projeto_atualizado_ganha_os_dois_e_o_envio_roda_o_pronto_rapido"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "migração: só o false explícito é sem-versionar (chave ausente versiona)",
+      "arquivo": "migrations/0.47.1/migrar-pre-envio",
+      "de": "    return isinstance(config, dict) and config.get(\"arquivos_do_forge_no_git\") is False",
+      "para": "    return isinstance(config, dict) and not config.get(\"arquivos_do_forge_no_git\")",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_projeto_atualizado_ganha_os_dois_e_o_envio_roda_o_pronto_rapido"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "migração: config ilegível vale versionado, sem exceção",
+      "arquivo": "migrations/0.47.1/migrar-pre-envio",
+      "de": "    except (OSError, ValueError):\n        return False",
+      "para": "    except (OSError, ValueError):\n        raise",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_sem_versionar_os_criados_vao_para_o_exclude"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "migração: sem o caminho do exclude, nada é escrito",
+      "arquivo": "migrations/0.47.1/migrar-pre-envio",
+      "de": "    if caminho:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_sem_versionar_os_criados_vao_para_o_exclude"
+      ]
+    }
+  ]
+}

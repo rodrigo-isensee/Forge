@@ -20,6 +20,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 - CI: a checagem de pareceres vira o job próprio `bateria (pareceres)`, no agregador `bateria` (o check exigido não muda de nome) e fora do `needs` das partes: parecer faltando reprova o merge sem pular a suíte. Regra para os projetos em `agents/devops-engineer.md` e no `pronto.md` das stacks node-react e python; o job pulado ou cancelado em PR reprova, provado por teste de comportamento do agregador e mutantes (CI-PARECER-NAO-BARRA-SUITE, v047 E1.4 e E1.18)
 - Economia de tokens: a regra 2 passa a pôr desenho e hooks no modelo mais forte, coerente com a regra 10 (diretriz 13 do dono), e a regra 9 lista os passos mecânicos que vão ao agile-coach.
 - PR de melhoria só abre com os pareceres da classe aprovados no head e o CI roda uma vez: regra no `tech-lead` e na skill `trabalho-em-paralelo`, para o Forge e os projetos (`R-REVIEW`, `R-FLUXO`).
+- Jarvis cria a worktree na própria sessão antes de delegar; o brief avisa e oferece o caminho pelo GitHub quando não dá (MP1311 item 12)
+- CI: a guarda de permissões do job de pareceres passa a ver o env: do job e acusa GH_TOKEN sem permissions; o gate do commit só de parecer e o job de pareceres sem needs ficam como estão, com o motivo registrado no ci.yml (v047 E1.75)
+- Diretrizes 2, 11 e 16 do dono valem para todos os projetos: a `R-WIP` traz parado não se abandona (destravar, adiar com data ou dividir), vaga livre não espera a versão (começar não espera, só o merge) e item pronto em PR próprio sem junção de frentes, com as medidas; as skills `trabalho-em-paralelo` e `kanban-scrum` citam o ID; o núcleo do Jarvis segue no teto (v047 E4.2).
 ### Corrigido
 - Pareceres antigos de segurança guarda-conferente, v046-forge-pesado-m12 e anti-alucinacao-portao, e o parecer de review hk3-parecer-texto, no formato que o forge-check docs confere (## Sondas em linhas S<n>, achado A1 em até 300 caracteres), sem mudar veredito nem achado.
 - forge-check entrega --pedido: o escopo declarado mantém o ponto inicial de caminho (.github/...); na etapa codigo, a volta na mesma branch herda o escopo dos briefs de codigo selados antes do mesmo pedido; na merge-integracao, os pareceres são achados pelo pedido do brief quando um parecer de review da própria branch o leva, como no forge-check pr <pedido>; o VV-3 do brief selar também mantém o ponto inicial (E23.17, E23.40)
@@ -32,6 +35,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 - esperar-estado: devolve a forma 'por exemplo' que o teste guarda e encurta outro trecho para caber no teto de texto
 - `forge-check entrega`: o parecer de portão commitado na própria branch e ancorado no `Revisar-sha:` de brief selado sai do escopo como anexo do portão em toda etapa de código (`codigo`, `review`, `seguranca`, `qa`), não só na `codigo`; e o `--desde` vale também no commit do autor que um portão revisou (o `Revisar-sha:` de brief selado de portão da mesma branch e pedido, ancestral do head e fora do Base-sha), com a linha `base: commit do autor revisado pelo portão` (melhorias-de-projeto-1311, item 1, com MP1103-D-8).
 - Os testes de tempo do corpus dos hooks (CPU) e do prazo do gh pendurado medem pela carga da máquina (load average por núcleo, de 1 a 2 vezes o limite) e deixam de falhar sob carga (TESTE-CPU-CORPUS, TESTE-TEMPO-CARGA).
+- verificar-contribuicao.sh acusa caminho pessoal colado ao home do runner do CI (CAMINHO-PESSOAL-BARRA-RUNNER)
 
 ## [0.46.0] - 2026-11-12
 ### Adicionado
