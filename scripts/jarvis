@@ -24,7 +24,8 @@ if [ "$sem_tmux" = 0 ] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1;
   eu="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
   exec tmux new-session -A -s "$sessao" -c "$PWD" "$(printf '%q ' "$eu" "${posicionais[@]}")"
 fi
-args=(--continue --remote-control "Jarvis - $projeto")
+# SESSAO-AUTOMATICA (diretriz 28): a sessão abre sempre em --permission-mode auto; o Jarvis confere o sandbox no primeiro comando.
+args=(--continue --permission-mode auto --remote-control "Jarvis - $projeto")
 if claude plugin list 2>/dev/null | grep -q 'telegram@claude-plugins-official'; then
   if pgrep -f "bun server.ts" >/dev/null; then
     echo "jarvis: outra sessão já usa o bot do Telegram; abrindo sem o canal." >&2

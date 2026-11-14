@@ -1,0 +1,81 @@
+{
+  "pedido": "v047-sessao-automatica",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S1",
+      "guarda": "o jarvis do projeto abre em --permission-mode auto",
+      "arquivo": "scripts/jarvis",
+      "de": "args=(--continue --permission-mode auto --remote-control",
+      "para": "args=(--continue --remote-control",
+      "testes": ["tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_jarvis_do_projeto_abre_em_automatico"]
+    },
+    {
+      "id": "S2",
+      "guarda": "o jarvis-forge abre em --permission-mode auto",
+      "arquivo": "scripts/jarvis-forge",
+      "de": "--agent forge:jarvis --permission-mode auto --remote-control",
+      "para": "--agent forge:jarvis --remote-control",
+      "testes": ["tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_jarvis_forge_abre_em_automatico",
+                 "tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_jarvis_forge_dev_e_retomada_tambem"]
+    },
+    {
+      "id": "S3",
+      "guarda": "o modelo de projeto manda conferir o sandbox",
+      "arquivo": "templates/projeto/CLAUDE.md",
+      "de": "confere o sandbox do Bash",
+      "para": "olha o Bash",
+      "testes": ["tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_modelo_de_projeto_manda_conferir_o_sandbox"]
+    },
+    {
+      "id": "G1",
+      "guarda": "o gh 2.45 do apt do Ubuntu não passa na estação (comparação do menor)",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "{ [ \"$maior\" -eq \"${GH_MINIMO%%.*}\" ] && [ \"$menor\" -ge \"${GH_MINIMO#*.}\" ]; }",
+      "para": "{ [ \"$maior\" -eq \"${GH_MINIMO%%.*}\" ] && [ \"$menor\" -ge 0 ]; }",
+      "testes": ["tests.test_sessao_automatica.EstacaoExigeGh.test_gh_2_45_do_apt_do_ubuntu_manda_instalar_pelo_repositorio_oficial",
+                 "tests.test_sessao_automatica.EstacaoExigeGh.test_gh_logo_abaixo_do_minimo_tambem"]
+    },
+    {
+      "id": "G2",
+      "guarda": "o gh do apt comum não entra na lista de pacotes (o do Ubuntu seria aceito)",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "python3 shellcheck jq bubblewrap socat; do",
+      "para": "python3 shellcheck jq gh bubblewrap socat; do",
+      "testes": ["tests.test_sessao_automatica.EstacaoExigeGh.test_o_apt_comum_nao_trata_o_gh_do_ubuntu"]
+    },
+    {
+      "id": "G3",
+      "guarda": "versão ilegível do gh conta como antiga",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "[[ \"$v\" =~ ^[0-9]+\\.[0-9]+$ ]] || return 1",
+      "para": "[[ \"$v\" =~ ^[0-9]+\\.[0-9]+$ ]] || return 0",
+      "testes": ["tests.test_sessao_automatica.EstacaoExigeGh.test_versao_ilegivel_conta_como_antiga"]
+    },
+    {
+      "id": "F1",
+      "guarda": "o passo 1 do forge-fechar para com o gh abaixo do mínimo (comparação do menor)",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"${gh_versao#*.}\" -lt \"${gh_minima#*.}\" ]; }",
+      "para": "[ \"${gh_versao#*.}\" -lt 0 ]; }",
+      "testes": ["tests.test_fechar_gh_versao.FecharGhVersao.test_gh_2_45_do_apt_para_no_passo_1_sem_abrir_nada",
+                 "tests.test_fechar_gh_versao.FecharGhVersao.test_gh_logo_abaixo_do_minimo_para"]
+    },
+    {
+      "id": "F2",
+      "guarda": "o passo 1 do forge-fechar para com versão do gh ilegível",
+      "arquivo": "bin/forge-fechar",
+      "de": "[[ \"$gh_versao\" =~ ^[0-9]+\\.[0-9]+$ ]] || die",
+      "para": "[[ \"$gh_versao\" =~ ^[0-9]+\\.[0-9]+$ ]] || true; : #",
+      "testes": ["tests.test_fechar_gh_versao.FecharGhVersao.test_versao_ilegivel_para"]
+    },
+    {
+      "id": "F3",
+      "guarda": "o passo 1 busca a origin/homolog quando falta no clone",
+      "arquivo": "bin/forge-fechar",
+      "de": "git fetch -q origin homolog >/dev/null 2>&1 ||",
+      "para": "true ||",
+      "testes": ["tests.test_fechar_gh_versao.FecharGhVersao.test_busca_origin_homolog_quando_falta"]
+    }
+  ]
+}

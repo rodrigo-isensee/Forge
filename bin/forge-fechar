@@ -851,6 +851,17 @@ if [ -n "$arvore_lock" ] && [ -d "$arvore_lock" ]; then  # pasta já apagada (re
 fi
 
 passo 1 "pareceres: $check pr $pedido --ref $ref_check --base $base"
+# GH-VERSAO-MINIMA: o gh antigo (2.45 do apt do Ubuntu) não tem `gh pr checks --json`, e a espera do passo 4 dependeria dele; para aqui, antes de
+# abrir qualquer coisa. Sem origin/homolog no clone, busca-a (só leitura); falha na busca é aviso, o forge-check diz se precisa dela.
+gh_minima="2.47"
+gh_versao="$("$gh" --version 2>/dev/null | sed -n '1s/^gh version \([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p')"
+[[ "$gh_versao" =~ ^[0-9]+\.[0-9]+$ ]] || die "parou no passo 1: não consegui ler a versão do gh (gh --version); preciso do $gh_minima ou mais (nada foi aberto nem mesclado); rode scripts/preparar-estacao.sh"
+if [ "${gh_versao%%.*}" -lt "${gh_minima%%.*}" ] || { [ "${gh_versao%%.*}" -eq "${gh_minima%%.*}" ] && [ "${gh_versao#*.}" -lt "${gh_minima#*.}" ]; }; then
+  die "parou no passo 1: o gh $gh_versao é anterior ao $gh_minima (sem gh pr checks --json); nada foi aberto nem mesclado; rode scripts/preparar-estacao.sh, que instala o gh pelo repositório oficial"
+fi
+if ! git rev-parse -q --verify refs/remotes/origin/homolog >/dev/null 2>&1; then
+  git fetch -q origin homolog >/dev/null 2>&1 || echo "aviso: sem origin/homolog neste clone e a busca falhou; sigo para o forge-check pr." >&2
+fi
 "$check" pr "$pedido" --ref "$ref_check" --base "$base" || die "parou no passo 1: forge-check pr acusou violação (nada foi aberto nem mesclado)"
 local_sha="$(head_atual || true)"
 [ "$local_sha" = "$sha_conferido" ] || die "parou no passo 1: o head de $ref mudou durante a conferência dos pareceres (conferido $sha_conferido, agora ${local_sha:-ausente}); os pareceres valem para o sha conferido; confira e rode de novo"
