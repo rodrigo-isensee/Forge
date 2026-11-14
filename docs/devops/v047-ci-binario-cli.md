@@ -3,7 +3,7 @@ tipo: revisao-devops
 contrato: 1
 pedido: v047-ci-binario-cli
 branch: melhoria/v047-ci-binario-cli
-commit: 2e131dc23d0ed607856d4faaa215cdf5bc53d686
+commit: 49a8aab32d26d08930c0bacb34c738b89214bd2f
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-14
