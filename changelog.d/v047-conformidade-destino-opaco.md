@@ -1,0 +1,2 @@
+### Corrigido
+- Destino opaco sem resto no hook conformidade (CONFORMIDADE-A9-DESTINO-OPACO e CONFORMIDADE-A10-OPERADOR-COLADO, v047): `cp config "$(echo .git)"`, `${GITD:-.git}`, função ou variável da linha e as sete grafias de operador colado no `rev-parse` passam a recusar pela regra única (texto que cita o diretório do git, corpo ilegível, origem com nome do git fora da lista positiva, teto de 64 por linha); rev-parse de mais de um comando não ganha a liberação de origem de link do #512.
