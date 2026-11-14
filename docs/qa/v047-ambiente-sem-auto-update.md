@@ -3,39 +3,35 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ambiente-sem-auto-update
-commit: 4baba3c520cd6de5aed906fa3c03b72ed8ec2a9f
-parecer: reprovado
+commit: 413a922444228ca83ac7842f1cdcab8db66bf75c
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-13
+data: 2026-11-14
 ---
-# QA: v047 AMBIENTE-SEM-AUTO-UPDATE (E1.113, por delta)
+# QA: v047 AMBIENTE-SEM-AUTO-UPDATE (E1.154, por delta)
 
-Código testado 4baba3c5 (o head da branch, 5e6e245e, só soma dois pareceres sobre ele), base befd4cca, delta desde baf1bee6: a retomada dos agentes sai do README e do modelo, mais a junção da develop. O CI do PR 545 está vermelho nas partes 3/3 (3.12 e 3.14); reproduzi a parte 3/3 inteira local e a falha vem desta branch, não da develop.
+Código testado 413a9224, base befd4cca, delta desde 4baba3c5 (parecer anterior, reprovado): só `tests/test_reval_delta.py`, que registra a citação nova em `CITACOES_CONHECIDAS`. Os demais commits do intervalo são pareceres e junções.
 
 ## Achados
-- A4 (recomendado) README.md:51 · fechado: a frase que mandava à skill `trabalho-em-paralelo` saiu do README e do modelo; `grep -c trabalho-em-paralelo README.md` dá 0.
-- A5 (bloqueante) tests/test_ambiente_sem_auto_update.py:17 · o teste novo cita README.md e o `test_reval_delta.Guarda.test_caminho_de_texto_so_e_citado_como_a_lista_conhece` reprova ("README.md: 1 linhas, a lista diz 0"); registre a citação em `CITACOES_CONHECIDAS` ou tire o caminho do teste. Reproduzido; derruba a parte 3/3.
+- A5 (bloqueante) tests/test_ambiente_sem_auto_update.py:17 · fechado: `CITACOES_CONHECIDAS` ganhou `("tests/test_ambiente_sem_auto_update.py", "README.md"): (1, "teste-le")`; `test_reval_delta` passa e as partes 3/3 do CI estão verdes no head.
+- A4 (recomendado) README.md:51 · segue fechado (sem `trabalho-em-paralelo` no README).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
 | Orientação ao dono no README e no modelo | `AmbienteSemAutoUpdate.test_orientacao_ao_dono_no_readme_e_no_modelo` | frase exata nos 2 arquivos | passou |
-| Retomada fora do README e do modelo (A4) | `grep` por `trabalho-em-paralelo` e `retoma` | n/a | passou |
 | Nenhuma regra perdida | `tests.test_forge.TetoPorPr` | frase do teto | passou |
-| Citação de caminho de texto só como a lista conhece | `test_reval_delta.Guarda.test_caminho_de_texto_so_e_citado_como_a_lista_conhece` | citação nova em teste | **falhou** (A5) |
-| Teste novo lido pelo filtro do pre-push | `MapaCobreOQueOsTestesLeem` (`test_testes_tocados`) | módulo na lista | passou |
+| Citação de caminho de texto só como a lista conhece (A5) | `test_reval_delta.Guarda.test_caminho_de_texto_so_e_citado_como_a_lista_conhece` | citação nova em teste | passou |
+| Modelo de projeto íntegro | `tests.test_modelos_projeto` | n/a | passou |
 
 ## Cenários e resultado real
-- Origem da falha da parte 3/3: 1430 testes, 11 falhas. Dez são do ambiente desta máquina (`proc` e `chown` indisponíveis no sandbox com `CI=1` forçado, `tests/apoio_sandbox.py:104`; `test_prepush_so_docs`, `test_testes_tocados.MedidaDaVagaPesada`): no CI não ocorrem e a develop (befd4cca) está verde. A única falha de conteúdo é a A5, determinística, e só existe porque a branch criou o teste.
-- Vermelho antes do verde: o teste só confere presença de frase em 2 arquivos; não rodei `forge-testes --vermelho` (carga ~20 em 12 núcleos). A5 é o oposto: teste existente que cai com o diff.
-- Mutação não se aplica (sem lógica nova; o delta em `bin/forge-testes` é só quebra de linha).
+- Vermelho antes do verde: o único teste novo só confere presença de frase; o vermelho do A5 foi provado no parecer anterior (falha determinística no head 5e6e245e) e some com o delta. Mutação não se aplica (sem lógica nova).
+- `bateria (pareceres)` falhava no run 43589234529 por causa do parecer anterior reprovado; este parecer o substitui.
 
 ## Provas
-- `CI=1 python3 scripts/suite-partes.py --parte 3/3` (no head 5e6e245e) -> `Ran 1430 tests in 1837.711s (2 processos, parte 3/3)`, `FAILED (failures=11, skipped=26, guarda=2)`; a falha `test_reval_delta ... AssertionError: ['(a) tests/test_ambiente_sem_auto_update.py · README.md: 1 linhas, a lista diz 0']`.
-- `python3 -m unittest tests.test_ambiente_sem_auto_update tests.test_forge.TetoPorPr tests.test_modelos_projeto` -> Ran 21 tests, OK
-- `python3 -m unittest tests.test_testes_tocados tests.test_governanca tests.test_aq1_texto tests.test_medidas_m14b` -> Ran 268 tests, OK (skipped=1)
-- CI do PR 545: jobs `suíte (python 3.12, parte 3/3)` e `suíte (python 3.14, parte 3/3)` com falha nos runs 43512356348 (4baba3c5) e 43514511264 (5e6e245e); CI push da develop befd4cca (run 43499703356) verde.
+- `python3 -m unittest tests.test_reval_delta tests.test_ambiente_sem_auto_update tests.test_forge.TetoPorPr tests.test_modelos_projeto` -> Ran 31 tests, OK
+- CI do PR 545, run 43589234529 (413a9224): `suíte (python 3.12 e 3.14, partes 1/3 a 3/3)` success; só `bateria (pareceres)` falhou, pelo parecer anterior.
