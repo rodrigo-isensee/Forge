@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "IL-M41",
+      "guarda": "PR MERGED com a marca é retomado",
+      "arquivo": "bin/forge-fechar",
+      "de": "$2 == \"MERGED\" && $3 == \"homolog\" && $4 == s {print $1; exit}",
+      "para": "$2 == \"MERGED\" && $3 == \"x\" && $4 == s {print $1; exit}",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_retomada_com_o_pr_ja_mesclado_nao_cria_nem_mescla"
+      ]
+    },
+    {
+      "id": "IL-M42",
+      "guarda": "dois PRs abertos param",
+      "arquivo": "bin/forge-fechar",
+      "de": "{n++} END {print n + 0}')\" -le 1 ] || die",
+      "para": "{n++} END {print n + 0}')\" -le 9 ] || die",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_dois_prs_abertos_param"
+      ]
+    },
+    {
+      "id": "IL-M43",
+      "guarda": "PR aberto com outra base para",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! { [ \"$ab_base\" = homolog ] && [ \"$ab_head\" = \"$sha\" ]; }; then die",
+      "para": "if false; then die",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_pr_aberto_com_outra_base_para"
+      ]
+    },
+    {
+      "id": "IL-M44",
+      "guarda": "PR aberto é reusado",
+      "arquivo": "bin/forge-fechar",
+      "de": "    if [ -n \"$pr_n\" ]; then\n      if ! {",
+      "para": "    if false; then\n      if ! {",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_retomada_com_o_pr_aberto_reusa"
+      ]
+    },
+    {
+      "id": "IL-M45",
+      "guarda": "número do PR criado é lido",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -n \"$pr_n\" ] || die \"parou no passo P5: o PR foi criado",
+      "para": "true || die \"parou no passo P5: o PR foi criado",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_item_mesclado_depois_da_marca_nao_entra_na_promocao"
+      ]
+    },
+    {
+      "id": "IL-M46",
+      "guarda": "sucesso exige MERGED na homolog",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$pr_estado\" = MERGED ] && [ \"$pr_head\" = \"$sha\" ] && [ \"$pr_base\" = homolog ]; }; then",
+      "para": "[ \"$pr_estado\" = MERGED ] && [ \"$pr_head\" = \"$sha\" ]; }; then",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_merge_em_outra_base_nao_e_sucesso"
+      ]
+    },
+    {
+      "id": "IL-M47",
+      "guarda": "PR que não mescla no prazo para",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$pr_estado\" = MERGED ] && [ \"$pr_head\" = \"$sha\" ] && [ \"$pr_base\" = homolog ]; }; then",
+      "para": "[ \"$pr_head\" = \"$sha\" ] && [ \"$pr_base\" = homolog ]; }; then",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_pr_que_nao_mescla_no_prazo_para_para_retomar"
+      ]
+    },
+    {
+      "id": "IL-M48",
+      "guarda": "ramo não apagado dá código 3",
+      "arquivo": "bin/forge-fechar",
+      "de": "if repetir com_teto \"$teto_delete\" git push origin --delete \"refs/heads/$ramo\"; then exit 0; fi",
+      "para": "if true; then exit 0; fi",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_item_mesclado_depois_da_marca_nao_entra_na_promocao"
+      ]
+    }
+  ]
+}

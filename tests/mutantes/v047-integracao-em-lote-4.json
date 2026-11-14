@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "IL-M25",
+      "guarda": "arquivo em comum para o lote",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -z \"$comuns\" ] || die \"parou no passo L1",
+      "para": "true || die \"parou no passo L1",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_arquivo_em_comum_para_sem_mesclar_nenhum"
+      ]
+    },
+    {
+      "id": "IL-M26",
+      "guarda": "arquivo em comum é o mesmo caminho em branches diferentes",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ((k in d) && d[k] != $1)",
+      "para": "if ((k in d) && d[k] == $1)",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_arquivo_em_comum_para_sem_mesclar_nenhum"
+      ]
+    },
+    {
+      "id": "IL-M27",
+      "guarda": "só a linha merge: com sha conta",
+      "arquivo": "bin/forge-fechar",
+      "de": "$1 == \"merge:\" && $2 ~ /^[0-9a-f]+$/",
+      "para": "$1 == \"merge:x\" && $2 ~ /^[0-9a-f]+$/",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_sem_arquivo_em_comum_fecha_em_ordem_e_espera_um_ci_so"
+      ]
+    },
+    {
+      "id": "IL-M28",
+      "guarda": "item que para encerra o lote",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$rc_it\" != 0 ] && [ \"$rc_it\" != 3 ]; then parou=",
+      "para": "if false; then parou=",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_item_que_para_encerra_o_lote_e_o_ci_dos_mesclados_e_acompanhado"
+      ]
+    },
+    {
+      "id": "IL-M29",
+      "guarda": "limpeza pendente de item dá 3 ao lote",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$rc_it\" = 0 ] || rc_lote=3",
+      "para": "[ \"$rc_it\" = 0 ] || true",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_item_com_limpeza_pendente_da_codigo_3_ao_lote"
+      ]
+    },
+    {
+      "id": "IL-M30",
+      "guarda": "o CI acompanhado é o do último merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "ci_no_merge \"${mesclados[${#mesclados[@]}-1]}\"",
+      "para": "ci_no_merge \"${mesclados[0]}\"",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_sem_arquivo_em_comum_fecha_em_ordem_e_espera_um_ci_so"
+      ]
+    },
+    {
+      "id": "IL-M31",
+      "guarda": "lote com CI não verde sai com 5",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ \"$ci_falhou\" = 1 ]; then\n    [ \"$ci_st\" != vermelho ] || echo \"lote vermelho",
+      "para": "  if false; then\n    [ \"$ci_st\" != vermelho ] || echo \"lote vermelho",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_lote_vermelho_imprime_a_reversao_do_lote_inteiro_e_sai_com_5"
+      ]
+    },
+    {
+      "id": "IL-M32",
+      "guarda": "lote cancelado não manda reverter",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$ci_st\" != vermelho ] || echo \"lote vermelho",
+      "para": "false || echo \"lote vermelho",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_lote_cancelado_sai_com_5_sem_reversao"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "IL-M17",
+      "guarda": "prazo da espera do CI acaba em pendente",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ $((SECONDS - t0)) -ge \"$3\" ]; then ci_st=pendente",
+      "para": "if [ $((SECONDS - t0)) -ge 99999 ]; then ci_st=pendente",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_sem_execucao_no_prazo_para_sem_mesclar"
+      ]
+    },
+    {
+      "id": "IL-M18",
+      "guarda": "topo da develop ilegível para",
+      "arquivo": "bin/forge-fechar",
+      "de": "topo=\"$(remoto_exato \"$alvo\")\" || die",
+      "para": "topo=\"$(remoto_exato \"$alvo\")\" || true",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_topo_ilegivel_no_servidor_para"
+      ]
+    },
+    {
+      "id": "IL-M19",
+      "guarda": "topo vazio para",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -n \"$topo\" ] || die",
+      "para": "true || die",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_topo_ilegivel_no_servidor_para"
+      ]
+    },
+    {
+      "id": "IL-M20",
+      "guarda": "CI do topo não verde para o merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$ci_st\" = verde ] || die \"parou no passo $1",
+      "para": "true || die \"parou no passo $1",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_develop_vermelha_antes_do_merge_para_sem_mesclar"
+      ]
+    },
+    {
+      "id": "IL-M21",
+      "guarda": "CI do merge não verde liga a falha",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$ci_st\" = verde ]; then echo \"CI do push na $alvo verde no ${1:0:7}.\"; return 0; fi",
+      "para": "if true; then echo \"CI do push na $alvo verde no ${1:0:7}.\"; return 0; fi",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_ci_vermelho_no_merge_sai_com_5_e_imprime_a_reversao"
+      ]
+    },
+    {
+      "id": "IL-M22",
+      "guarda": "só o vermelho imprime a reversão",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$ci_st\" != vermelho ] || echo \"para reverter",
+      "para": "false || echo \"para reverter",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_ci_cancelado_no_merge_sai_com_5_sem_reversao"
+      ]
+    },
+    {
+      "id": "IL-M23",
+      "guarda": "branch ausente para no L1",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! { [ -n \"$sha\" ] && git cat-file -e \"$sha^{commit}\" 2>/dev/null; }; then die \"parou no passo L1",
+      "para": "if ! { [ -n \"$sha\" ] || git cat-file -e \"$sha^{commit}\" 2>/dev/null; }; then die \"parou no passo L1",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_branch_ausente_para_no_l1"
+      ]
+    },
+    {
+      "id": "IL-M24",
+      "guarda": "diff ilegível para no L1",
+      "arquivo": "bin/forge-fechar",
+      "de": "arqs=\"$(git diff --name-only --no-renames \"$base...$sha\")\" || die",
+      "para": "arqs=\"$(git diff --name-only --no-renames \"$base...$sha\")\" || true",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_diff_ilegivel_para_no_l1"
+      ]
+    }
+  ]
+}

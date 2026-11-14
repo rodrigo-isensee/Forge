@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "IL-M49",
+      "guarda": "item de lote não espera o CI do merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$ja_mesclado\" = 0 ] && [ \"$item_de_lote\" = 0 ]; then ci_no_merge",
+      "para": "if [ \"$ja_mesclado\" = 0 ]; then ci_no_merge",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_item_de_lote_nao_espera_o_ci_da_develop"
+      ]
+    },
+    {
+      "id": "IL-M50",
+      "guarda": "head já na base não espera o CI do merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$ja_mesclado\" = 0 ] && [ \"$item_de_lote\" = 0 ]; then ci_no_merge",
+      "para": "if [ \"$item_de_lote\" = 0 ]; then ci_no_merge",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_head_ja_na_base_nao_espera_ci_de_merge"
+      ]
+    },
+    {
+      "id": "IL-M51",
+      "guarda": "item de lote não espera o CI do topo",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ \"$item_de_lote\" = 0 ]; then\n    passo \"6b\"",
+      "para": "  if true; then\n    passo \"6b\"",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_item_de_lote_nao_espera_o_ci_da_develop"
+      ]
+    },
+    {
+      "id": "IL-M52",
+      "guarda": "--sem-limpar com CI vermelho sai com 5",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$ci_falhou\" = 0 ] || { echo \"O CI do push",
+      "para": "true || { echo \"O CI do push",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_sem_limpar_com_ci_vermelho_no_merge_sai_com_5"
+      ]
+    },
+    {
+      "id": "IL-M53",
+      "guarda": "fechamento com CI não verde sai com 5",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$ci_falhou\" = 1 ]; then\n  echo \"Entrega",
+      "para": "if false; then\n  echo \"Entrega",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_ci_vermelho_no_merge_sai_com_5_e_imprime_a_reversao"
+      ]
+    },
+    {
+      "id": "IL-M54",
+      "guarda": "lote real roda fechar_lote",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$seco\" = 0 ] && [ \"$lote\" = 1 ]; then fechar_lote; fi",
+      "para": "if false; then fechar_lote; fi",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_sem_arquivo_em_comum_fecha_em_ordem_e_espera_um_ci_so"
+      ]
+    },
+    {
+      "id": "IL-M55",
+      "guarda": "dry-run do lote não executa",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$seco\" = 1 ] && [ \"$lote\" = 1 ]; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_dry_run_do_lote"
+      ]
+    },
+    {
+      "id": "IL-M56",
+      "guarda": "dry-run da promoção não executa",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$seco\" = 1 ] && [ -n \"$promover_sha\" ]; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_dry_run_da_promocao"
+      ]
+    }
+  ]
+}

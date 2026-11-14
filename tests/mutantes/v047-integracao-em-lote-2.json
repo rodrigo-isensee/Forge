@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "IL-M9",
+      "guarda": "pedido repetido fora do lote",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"${#posicionais[@]}\" -le 1 ] || die \"pedido repetido",
+      "para": "[ \"${#posicionais[@]}\" -le 2 ] || die \"pedido repetido",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_opcao_sem_valor_e_pedido_repetido_param_antes_do_passo_1"
+      ]
+    },
+    {
+      "id": "IL-M10",
+      "guarda": "--promover recusa opção de item",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -n \"$ref$titulo$origem$muda$medir\" ] || [ \"$limpar$sem_limpar$armar$esperar$item_de_lote\" != 00000 ] || [ \"${#cartoes[@]}\" != 0 ]; then\n    die \"--promover recebe",
+      "para": "[ -n \"$titulo$origem$muda$medir\" ] || [ \"$limpar$sem_limpar$armar$esperar$item_de_lote\" != 00000 ] || [ \"${#cartoes[@]}\" != 0 ]; then\n    die \"--promover recebe",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_promover_recusa_opcao_de_item"
+      ]
+    },
+    {
+      "id": "IL-M11",
+      "guarda": "sha da marca com 40 hex minúsculos",
+      "arquivo": "bin/forge-fechar",
+      "de": "[[ \"$promover_sha\" =~ ^[0-9a-f]{40}$ ]]",
+      "para": "[[ \"$promover_sha\" =~ ^[0-9a-fA-F]{3,40}$ ]]",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_sha_fora_da_forma_para_antes_de_tudo"
+      ]
+    },
+    {
+      "id": "IL-M12",
+      "guarda": "leitura do CI que falha não vira verde",
+      "arquivo": "bin/forge-fechar",
+      "de": "then ci_st=ilegivel; return 0; fi",
+      "para": "then ci_st=verde; return 0; fi",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_leitura_do_ci_que_falha_para_sem_mesclar"
+      ]
+    },
+    {
+      "id": "IL-M13",
+      "guarda": "só success, skipped e neutral passam",
+      "arquivo": "bin/forge-fechar",
+      "de": "$3 !~ /^(success|skipped|neutral)$/",
+      "para": "$3 !~ /^(success|skipped|neutral|failure)$/",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_develop_vermelha_antes_do_merge_para_sem_mesclar"
+      ]
+    },
+    {
+      "id": "IL-M14",
+      "guarda": "execução ruim para a espera",
+      "arquivo": "bin/forge-fechar",
+      "de": "    if [ -n \"$ci_ruins\" ]; then\n",
+      "para": "    if false; then\n",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_develop_vermelha_antes_do_merge_para_sem_mesclar"
+      ]
+    },
+    {
+      "id": "IL-M15",
+      "guarda": "vermelho e cancelado juntos contam como vermelho",
+      "arquivo": "bin/forge-fechar",
+      "de": "grep -qv ' cancelled$'; then ci_st=vermelho",
+      "para": "grep -q ' cancelled$'; then ci_st=vermelho",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_vermelho_e_cancelado_juntos_contam_como_vermelho"
+      ]
+    },
+    {
+      "id": "IL-M16",
+      "guarda": "sem execução não é verde",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -n \"$linhas\" ] && printf",
+      "para": "if true && printf",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_sem_execucao_no_prazo_para_sem_mesclar"
+      ]
+    }
+  ]
+}

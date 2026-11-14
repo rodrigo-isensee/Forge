@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "IL-M33",
+      "guarda": "item parado faz o lote parar",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -z \"$parou\" ] || die \"parou no lote",
+      "para": "true || die \"parou no lote",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_item_que_para_encerra_o_lote_e_o_ci_dos_mesclados_e_acompanhado"
+      ]
+    },
+    {
+      "id": "IL-M34",
+      "guarda": "develop ilegível no P1 para",
+      "arquivo": "bin/forge-fechar",
+      "de": "dev=\"$(remoto_exato develop)\" || die",
+      "para": "dev=\"$(remoto_exato develop)\" || true",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_marca_que_nao_existe_aqui_para"
+      ]
+    },
+    {
+      "id": "IL-M35",
+      "guarda": "marca ausente aqui para no P1",
+      "arquivo": "bin/forge-fechar",
+      "de": "git cat-file -e \"$dev^{commit}\" 2>/dev/null && git cat-file -e \"$sha^{commit}\" 2>/dev/null; }; then",
+      "para": "git cat-file -e \"$dev^{commit}\" 2>/dev/null; }; then",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_marca_que_nao_existe_aqui_para"
+      ]
+    },
+    {
+      "id": "IL-M36",
+      "guarda": "marca fora da develop para",
+      "arquivo": "bin/forge-fechar",
+      "de": "git merge-base --is-ancestor \"$sha\" \"$dev\" 2>/dev/null || die",
+      "para": "true || die",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_marca_fora_da_develop_para"
+      ]
+    },
+    {
+      "id": "IL-M37",
+      "guarda": "marca sem versão para",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -n \"$versao\" ] || die \"parou no passo P1",
+      "para": "true || die \"parou no passo P1",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_marca_sem_versao_para"
+      ]
+    },
+    {
+      "id": "IL-M38",
+      "guarda": "CI vermelho na marca para",
+      "arquivo": "bin/forge-fechar",
+      "de": "*) die \"parou no passo P3",
+      "para": "*) echo \"parou no passo P3",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_ci_vermelho_na_marca_para_e_cancelado_segue"
+      ]
+    },
+    {
+      "id": "IL-M39",
+      "guarda": "ramo existente com outro commit para",
+      "arquivo": "bin/forge-fechar",
+      "de": "  elif [ \"$r\" != \"$sha\" ]; then\n",
+      "para": "  elif false; then\n",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_ramo_com_outro_commit_para"
+      ]
+    },
+    {
+      "id": "IL-M40",
+      "guarda": "ramo da promoção nasce no sha da marca",
+      "arquivo": "bin/forge-fechar",
+      "de": "git push origin \"$sha:refs/heads/$ramo\"",
+      "para": "git push origin \"$dev:refs/heads/$ramo\"",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_item_mesclado_depois_da_marca_nao_entra_na_promocao"
+      ]
+    }
+  ]
+}
