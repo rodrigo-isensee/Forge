@@ -3,12 +3,12 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-folga-jarvis
-commit: ebeb9161070e947fe03a1a6d8de630cee47be833
-parecer: reprovado
-escopo: completo
+commit: 8a223677c7320a968c0984ac538892ed403c6540
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 1
+bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-14
 ---
@@ -39,3 +39,17 @@ Código testado: ebeb9161 (o remoto c4351c3e só soma pareceres de review e segu
 - Sem rede de proteção alternativa provada por mim: o review nota que o invariante de `tests/config.json` ainda cobre o bloco do Jarvis; não reavaliei isso, e a decisão de 13/11 pede o teste novo como prova.
 - Nota para o portão (domínio da segurança, A2 dela): as diretrizes 26 a 28 entram como pendentes (`MAX_PENDENTES = 7`) além das 2, 11, 23 e 24 da decisão; não bloqueio por isso, vai ao dono pelo Jarvis (`R-DECISAO`).
 - Bug médio: A1 (controle de guarda vazio). Cartão no quadro pelo tech-lead; correção mínima: procurar o ID só em `agents/jarvis.md` e `skills/*/SKILL.md`. Dono da correção: tech-lead (autor da E1.137).
+
+## Revalidação por delta (E1.184): ebeb9161..8a223677, volta de A1 e A2
+
+`forge-check parecer delta` listou no meu domínio `tests/apoio_jarvis.py`, `tests/mutantes/v047-folga-jarvis.json` e `tests/test_jarvis_nucleo.py`. O remoto avançou só com pareceres (75b459ee), trazido por merge; o código segue em 8a223677.
+
+- A1 resolvido: `problemas_das_regras` filtra o conjunto por `TEXTO_DO_JARVIS` (`agents/jarvis.md` e `skills/*/SKILL.md`), sem o índice. Sonda em cópia do head, árvore real: [] (esperado); `R-MAIN` trocado em Jarvis e skills: `['R-MAIN: não aparece no Jarvis nem nas skills citadas']` (antes: []).
+- A2 resolvido: `test_id_que_some_do_jarvis_reprova_com_o_indice_no_conjunto` põe o índice no conjunto e exige a reprovação de `R-UM`, depois a aprovação com `R-UM` numa skill.
+- Vermelho antes do verde (manual, em cópia: `apoio_jarvis.py` do ebeb9161 com o teste novo): `FAILED (failures=1)`, `- [] + ['R-UM: não aparece no Jarvis nem nas skills citadas']`. Com o head: `Ran 40 tests ... OK (skipped=1)` em `tests.test_jarvis_nucleo`; o skip é o pré-existente da linha 246 (arquivo do dono fora do git). `forge-testes --vermelho` não terminou no prazo nesta sessão (sem veredito, não conta como prova).
+- Mutantes (`forge-mutante tests/mutantes/v047-folga-jarvis.json`, rc 0): `M1 · morreu · tests/apoio_jarvis.py:84`, `M2 · morreu · tests/apoio_jarvis.py:20`, `M3 · morreu · tests/apoio_jarvis.py:84`. Os 3 mutantes cobrem as 2 linhas de guarda mudadas (a regex e o filtro); sem sobrevivente.
+- A suíte inteira fica no CI do PR; sem PR aberto neste head, não cito check-run `bateria`.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Decisão do dono 13/11: regra com ID presente no Jarvis ou nas skills | `test_cada_regra_com_id_aparece_e_tem_texto`, `test_id_que_some_do_jarvis_reprova_com_o_indice_no_conjunto` | ID só no índice | passou, agora prova |
