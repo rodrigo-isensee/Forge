@@ -107,7 +107,7 @@ FORGE_CHECK = ("test_anotar", "test_forge_check_base_igual", "test_forge_check_v
 # E1.120 (v047): quem reaproveita `Hooks.executar_em_lote` sem herdar de `Hooks` (git grep; os VOLTA_UNICA pela base de
 # `tests/apoio_volta_unica.py`) quebra quando o test_hooks muda o lote; pedir tests/test_hooks.py pelo caminho os roda junto.
 REAPROVEITAM_O_LOTE = ("test_esperar_estado", "test_hook_ansi_c", "test_hook_git_comum", "test_hooks_fila27",
-                       "test_hooks_parecer_pasta") + VOLTA_UNICA
+                       "test_hooks_parecer_pasta", "test_hook_erro_libera") + VOLTA_UNICA
 JUNTO_DO_MODULO = {"test_hooks": REAPROVEITAM_O_LOTE}
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
