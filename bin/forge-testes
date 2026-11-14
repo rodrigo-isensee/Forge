@@ -3,6 +3,7 @@
 
 Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO ...] [CAMINHO ...]
      forge-testes --vermelho [BASE] [--modulos M[,M...]] [--prazo SEGUNDOS]   (M: test_<nome> ou tests.test_<nome>)
+     forge-testes --texto
   (sem opção)   lê o que mudou desde o ancestral comum com REF (padrão origin/develop), mais os arquivos
                 não commitados e os novos, e roda só os módulos de teste que cobrem esses caminhos
   CAMINHO       planeja só para estes caminhos (relativos ao diretório atual ou absolutos, dentro do repositório) e
@@ -13,6 +14,8 @@ Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO .
   --completa    roda a suíte inteira, sem consultar o mapa
   --afetados    o plano do pre-push: os testes afetados (mapa, mais todo teste que cita o caminho, mais os que exercitam
                 os arquivos de controle), nunca a suíte completa; o que nenhum teste lê fica para o CI, com aviso
+  --texto      o pré-envio de texto (PRE-ENVIO-RAPIDO, mp1311): o mapa de testes e os testes de tamanho de texto
+                (`TESTES_DE_TEXTO`), num `unittest` só, com o código de saída dele e uma linha de resumo; não combina com nada
 Os módulos do plano dirigido rodam em paralelo por `scripts/suite-partes.py` (o mecanismo do `suite-paralela`, em até
 4 processos, com a guarda de completude); com `-k`, ou sem os dois scripts, em série no `unittest`.
   --vermelho    prova que algum teste do diff derruba o defeito: roda os módulos em duas cópias commitadas em
@@ -68,6 +71,10 @@ BASE_PADRAO = "origin/develop"
 LOG = Path(".forge/run/testes.log")
 SUITE_COMPLETA = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-q"]
 PRAZO_PADRAO = 600
+# PRE-ENVIO-RAPIDO (mp1311, ORDEM DO DONO 13/11 17:38): o mapa de testes e os quatro testes de tamanho de texto, que o CI
+# derruba quando o envio esquece; o `brief gerar` do Forge cobra a mesma lista (`TESTES_DE_TEXTO` do forge-check) do brief de autor.
+TESTES_DE_TEXTO = ("tests.test_testes_tocados", "tests.test_forge.Orcamento", "tests.test_jarvis_nucleo",
+                   "tests.test_metricas_texto", "tests.test_orcamento_instrucao")
 PRAZO_MAXIMO = 3600
 # O que o `--vermelho` mantém no HEAD nas duas cópias: módulos de teste e dados de teste. Falha fechada: todo o
 # resto (inclusive `tests/catraca.py`, `tests/neutralidade.py` e os apoios de `tests/`) é produção e volta à base.
@@ -93,14 +100,14 @@ FORGE_CHECK = ("test_anotar", "test_forge_check_base_igual", "test_forge_check_v
                "test_conf_escopo", "test_conferencia_registrar", "test_decisao_aprovacao", "test_decisao_aprovacao_raiz", "test_erros_no_brief", "test_hook_ansi_c", "test_citacao_p2",
                "test_entrega_git_falha", "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks", "test_hook_erro_libera", "test_estado_ilegivel", "test_hooks_parecer_pasta",
                "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_forge_medidas", "test_mensagem_conferente", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
-               "test_testes_tocados", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
+               "test_testes_tocados", "test_pre_envio_brief", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
                "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt", "test_governanca", "test_selo_e_entrega",
                "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados", "test_aq5_parecer_novo", "test_brief_gerar_custo", "test_git_rede_config",
                "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
 # E1.120 (v047): quem reaproveita `Hooks.executar_em_lote` sem herdar de `Hooks` (git grep; os VOLTA_UNICA pela base de
 # `tests/apoio_volta_unica.py`) quebra quando o test_hooks muda o lote; pedir tests/test_hooks.py pelo caminho os roda junto.
 REAPROVEITAM_O_LOTE = ("test_esperar_estado", "test_hook_ansi_c", "test_hook_git_comum", "test_hooks_fila27",
-                       "test_hooks_parecer_pasta") + VOLTA_UNICA
+                       "test_hooks_parecer_pasta", "test_hook_erro_libera") + VOLTA_UNICA
 JUNTO_DO_MODULO = {"test_hooks": REAPROVEITAM_O_LOTE}
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
@@ -772,6 +779,16 @@ def vermelho(base_pedida, modulos_pedidos, prazo):
     return codigo
 
 
+def texto():
+    """`--texto`: os `TESTES_DE_TEXTO` num `unittest` só, da raiz; devolve o código dele, com uma linha de resumo."""
+    inicio = time.monotonic()
+    codigo = subprocess.run([sys.executable, "-m", "unittest", "-q", *TESTES_DE_TEXTO]).returncode
+    segundos = time.monotonic() - inicio
+    anotar("texto", list(TESTES_DE_TEXTO), segundos, codigo)
+    print(f"forge-testes: texto rc={codigo} em {segundos:.0f} s ({', '.join(TESTES_DE_TEXTO)})")
+    return codigo
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="forge-testes", description="Teste dirigido: iteração do autor e filtro do pre-push do envio de código (nunca portão de CI).")
     p.add_argument("caminhos", nargs="*", metavar="CAMINHO")
@@ -783,6 +800,7 @@ def main(argv=None):
     p.add_argument("-k", dest="filtros", action="append", default=[], metavar="PADRAO",
                    help="só os testes cujo nome contém PADRAO (como `unittest -k`; repita para somar)")
     p.add_argument("--vermelho", nargs="?", const=True, default=None, metavar="BASE")
+    p.add_argument("--texto", action="store_true", help="o mapa de testes e os testes de tamanho de texto (pré-envio)")
     p.add_argument("--modulos", metavar="M[,M...]")
     p.add_argument("--prazo", type=int, metavar="SEGUNDOS", help=f"por módulo, em segundos (padrão {PRAZO_PADRAO})")
     p.add_argument("--executar", help=argparse.SUPPRESS)  # interno: o executor por teste do `--vermelho`
@@ -790,6 +808,9 @@ def main(argv=None):
     args = p.parse_args(argv)
     if args.executar:
         return executar(args.executar, args.registro)
+    if args.texto and (args.caminhos or args.completa or args.listar or args.afetados or args.filtros or args.vermelho is not None
+                       or args.modulos is not None or args.prazo is not None):
+        p.error("--texto não combina com outras opções")
     if args.vermelho is None and args.modulos is not None:
         p.error("--modulos só vale com --vermelho")
     if args.vermelho is not None and (args.completa or args.listar or args.afetados):
@@ -819,6 +840,8 @@ def main(argv=None):
         os.chdir(raiz)
     except RuntimeError as erro:
         sys.exit(f"forge-testes: fora de um repositório git ({erro})")
+    if args.texto:
+        return texto()
     try:
         oraculos()
         pedidos = caminhos_pedidos(args.caminhos, origem, raiz) if args.caminhos else []
