@@ -130,6 +130,15 @@ MAPA = [
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
     (r"bin/forge-sugerir", ("test_sugerir", "test_forge")),
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
+    # MAPA-FORGE-FECHAR (mp1311 E1.38): todos os test_fechar_* (a convenção só achava os que citam forge-fechar pelo nome; ficavam de fora
+    # sha_conferido, ref_por_nome, log_check, aviso_rotulo, corrida_rotulo, espera_catraca, pr_numero, tmp e vars_vazias) e os outros módulos que rodam o script
+    (r"bin/forge-fechar", ("test_fechar", "test_fechar_auto_merge", "test_fechar_base_andou", "test_fechar_checks_exigidos", "test_fechar_config",
+                           "test_fechar_faixas", "test_fechar_forge_check_real", "test_fechar_log_check", "test_fechar_longas", "test_fechar_medir",
+                           "test_fechar_move_cartao", "test_fechar_orfao", "test_fechar_prune_sandbox", "test_fechar_r1_worktree",
+                           "test_fechar_rascunho", "test_fechar_ref_por_nome", "test_fechar_sha_arvore", "test_fechar_sha_conferido",
+                           "test_fechar_sinal", "test_fechar_aviso_rotulo", "test_fechar_corrida_rotulo", "test_fechar_espera_catraca",
+                           "test_fechar_pr_numero", "test_fechar_tmp", "test_fechar_vars_vazias", "test_conf_escopo", "test_entrega_git_falha", "test_erros_no_brief", "test_forge", "test_hooks",
+                           "test_pre_push_afetados", "test_qa_lote_l08", "test_revisor_wt")),
     # E14.1: o módulo comum é carregado pelo forge-testes e pelo forge-mutante, e os testes do forge-mutante não o citam
     (r"bin/forge_apoio_testes\.py", ("test_testes_tocados", "test_forge_mutante", "test_pre_push_afetados",
                                      "test_pre_push_parecer_curto", "test_forge", "test_pre_push_link_apoio")),

@@ -201,7 +201,7 @@ class Fechar(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         chamadas = self.chamadas()
-        self.assertEqual(chamadas[0], f"forge-check pr p1 --ref {sha} --base origin/develop")  # B5: o parecer é conferido no sha
+        self.assertEqual(chamadas[0], "forge-check pr p1 --ref refs/heads/melhoria/x --base origin/develop")  # B5: o parecer é conferido no sha
         self.assertTrue(any(c.startswith("gh pr create --base develop --head melhoria/x") for c in chamadas))
         self.assertIn(f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha}", chamadas)
         self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
@@ -292,11 +292,10 @@ class Fechar(unittest.TestCase):
         self.assertEqual(self.estado_do_repo(), antes)
 
     def test_para_no_primeiro_erro_forge_check(self):
-        sha = self.git("rev-parse", "melhoria/x")
         r = self.fechar("p1", "--ref", "melhoria/x", CHECK_RC="1")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("passo 1", r.stderr)
-        self.assertEqual(self.chamadas(), [f"forge-check pr p1 --ref {sha} --base origin/develop"])
+        self.assertEqual(self.chamadas(), ["forge-check pr p1 --ref refs/heads/melhoria/x --base origin/develop"])
 
     def test_para_se_head_remoto_difere_do_local(self):
         self.git("switch", "-q", "melhoria/x")
@@ -502,16 +501,14 @@ class Fechar(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("não consegui conferir", r.stdout)
 
-    def test_dry_run_descreve_o_sha_e_o_numero_do_pr_que_os_passos_usam(self):
-        sha = self.git("rev-parse", "melhoria/x")
+    def test_dry_run_descreve_o_nome_e_o_numero_do_pr_que_os_passos_usam(self):
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn(f"pr p1 --ref {sha} --base", r.stdout)
+        self.assertIn("pr p1 --ref refs/heads/melhoria/x --base", r.stdout)
         self.assertIn("gh pr checks <número do PR", r.stdout)
         self.assertIn("gh pr view <número do PR", r.stdout)
         self.assertNotIn("pr checks melhoria/x", r.stdout)
         self.assertNotIn("pr view melhoria/x", r.stdout)
-        self.assertNotIn("--ref melhoria/x --base", r.stdout)
         self.assertIn("gh pr merge melhoria/x", r.stdout)  # o passo 6 roda por nome
         self.assertEqual(self.chamadas(), [])
 
