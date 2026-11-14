@@ -1,0 +1,22 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (C7): erro ao fixar a pasta do estado não leva o R-BRIEF junto: o especialista sem brief segue recusado.",
+  "forcar": {
+    "onde": "e_clone_do_forge",
+    "como": "erro"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:tech-lead",
+      "description": "Conferir",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-BRIEF: o prompt não cita o brief",
+    "erros_log": "erro forcado"
+  }
+}

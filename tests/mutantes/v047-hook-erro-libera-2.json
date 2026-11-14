@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-hook-erro-libera",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "C2: o CRITICO segue marcando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if termos is False or any(self.critico.search(t) for t in formas):",
+      "para": "if termos is False:",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "C2: política ilegível marca tudo, antes do resto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if termos is False or any(self.critico.search(t) for t in formas):",
+      "para": "if any(self.critico.search(t) for t in formas):",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_politica_ilegivel_ou_sem_caminhos_marca_tudo"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "C4: Write e Edit marcam pelo caminho resolvido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if hook.entrada.get(\"tool_name\") in FERRAMENTAS_DE_ARQUIVO:",
+      "para": "if hook.entrada.get(\"tool_name\") in ():",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "C3: linha que escreve com alvo opaco marca",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(termos.search(t) or ALVO_OPACO.search(t) or BASE_TROCADA.search(t))",
+      "para": "(termos.search(t) or BASE_TROCADA.search(t))",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "C2: só a linha que escreve marca pelo termo da política",
+      "arquivo": "hooks/conformidade.py",
+      "de": "any(ESCREVE_NA_LINHA.search(t) and (termos.search(t) or ALVO_OPACO.search(t) or BASE_TROCADA.search(t))",
+      "para": "any((termos.search(t) or ALVO_OPACO.search(t) or BASE_TROCADA.search(t))",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "C4: caminho vazio marca",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not caminho:\n            return True\n        pasta = os.path.realpath(hook.cwd())",
+      "para": "        if False:\n            return True\n        pasta = os.path.realpath(hook.cwd())",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_write_fora_da_raiz_em_caminho_da_politica_marca"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "C4: sem raiz declarada, a raiz é a pasta corrente",
+      "arquivo": "hooks/conformidade.py",
+      "de": "raiz = os.path.realpath(raiz_declarada() or pasta)",
+      "para": "raiz = os.path.realpath(raiz_declarada())",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_write_fora_da_raiz_em_caminho_da_politica_marca"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "C4: alvo dentro da raiz marca",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return alvo == raiz or alvo.startswith(raiz.rstrip(os.sep) + os.sep) or bool(termos.search(alvo))",
+      "para": "return alvo == raiz or bool(termos.search(alvo))",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_write_fora_da_raiz_em_caminho_da_politica_marca"
+      ]
+    }
+  ]
+}

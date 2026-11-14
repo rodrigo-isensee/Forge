@@ -1,0 +1,24 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (C7): erro ao fixar a pasta do estado com disparo sem selo (Explore): libera sem ler nem gravar o estado.",
+  "forcar": {
+    "onde": "e_clone_do_forge",
+    "como": "erro"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Conferir",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "erro forcado",
+    "sem_arquivo": [
+      "agentes.json"
+    ]
+  }
+}

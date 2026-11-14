@@ -1,5 +1,5 @@
 {
-  "descricao": "Config corrompida e escrita em arquivo comum (sem marcador): libera e registra.",
+  "descricao": "Config corrompida e escrita em arquivo comum da raiz: recusa e registra (HOOK-ERRO-LIBERA, C4: erro interno com alvo dentro da raiz).",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -14,7 +14,8 @@
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0,
+    "codigo": 2,
+    "stderr": "erro interno do hook conformidade",
     "erros_log": "conformidade JSONDecodeError"
   }
 }
