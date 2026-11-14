@@ -3,17 +3,21 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-fixture-pid-sandbox
-commit: b47610cc2b843b1873c09489abc80bde29cad89d
+commit: b645e83c35c7dc51a125ccdca2401b5d73800bb9
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-13
 ---
-# Review de segurança: v047 · fixtures de pid puladas fora do CI (E1.109)
+# Review de segurança: v047 · fixtures de pid puladas fora do CI (E1.109, delta E1.123)
 
 ## Gatilhos
 Toca guarda de teste (R-SEGURANCA): um pulo novo de teste que pode enfraquecer a prova do registro de pid e sessão do hook. O hook (`hooks/agentes.py`) não muda; só `tests/test_hooks.py`, o mutante `tests/mutantes/v047-fixture-pid-sandbox.json` e o fragmento de changelog.
 
 Conclusão: o pulo só vale com o namespace de pid do pai ilegível E sem `CI` nem `GITHUB_ACTIONS` (`tests/test_hooks.py:739` e `:718`, via `sinais_de_ci()`, que junta o ambiente da carga e o de agora). No CI o motivo vira `None` e as 4 fixtures rodam; num CI com leitura quebrada elas reprovam, não pulam. O pulo é conservador: sonda legível com hook ilegível reprova, nunca pula. Os pulos reais saem como `subTest` com motivo, sem `exigir`, e por isso não inflam o contador do `teto_pulados`, que só vale para o CI, onde nada pula.
+
+## Delta E1.123 (b47610cc..b645e83c)
+Domínio: `bin/forge-testes` e `tests/test_hooks.py`. (1) O pulo virou função do módulo `pular_sem_ns_de_pid(teste, casos, motivo)` (`tests/test_hooks.py:678`), mesmo corpo; a chamada em `executar_em_lote` mantém `None if sinais_de_ci() else sem_ns_de_pid_do_pai()`, então o pulo continua só com ns ilegível e nunca com CI; sem motivo nada pula. Nenhuma outra referência a `self.pular_sem_ns_de_pid` resta. (2) `JUNTO_DO_MODULO` (`bin/forge-testes`) só amplia a lista de módulos que rodam ao pedir `tests/test_hooks.py` (mais testes, nunca menos); as demais entradas seguem `sorted` do próprio módulo; sem entrada de entrada externa em shell nem caminho novo de execução. Nenhum afrouxamento de guarda. A1 e A2 seguem recomendados e inalterados (o delta não os agrava).
+Rodados: os 2 testes novos (OK, skipped=1 pela sonda ilegível do sandbox); suíte inteira no CI do PR 547 (rascunho).
 
 ## Achados
 - A1 (recomendado) tests/test_hooks.py:739 · nenhum teste distingue o ramo de CI do pulo: com sonda ilegível e CI definido, `test_fixtures` pula 4 no mutante e reprova no original, mas só num ambiente ilegível, que o CI não é; num CI legível o mutante é equivalente.
