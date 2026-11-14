@@ -1117,8 +1117,8 @@ class Guarda:
                 nomes.add(nome)
                 precisos += [valor_atribuido(linha, m.end()) for m in re.finditer(rf"(?<![\w$]){nome}\+?=", linha)]
                 largo |= bool(re.search(rf"(?<![\w${{]){nome}(?![\w+=])", linha))
-        funcoes = re.findall(r"function\s+([\w.-]+)|(?<![\w$-])([\w.-]+)\s*\(\s*\)", linha)  # D2b: `function f {`
-        funcoes = [a or b for a, b in funcoes]
+        funcoes = (re.findall(r"(?<![\w$-])([\w.-]+)\s*\(\s*\)", linha)
+                   + re.findall(r"(?<![\w$.-])function\s+([\w.-]+)", linha))  # D2b: `function f {` sem `()`
         largo |= any(re.search(rf"(?<![\w.-]){re.escape(f)}(?![\w.-])", t) for f in funcoes for t in precisos)
         return precisos, precisos + [linha] if largo else precisos
 
