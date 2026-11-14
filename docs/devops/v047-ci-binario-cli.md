@@ -1,14 +1,14 @@
 ---
 tipo: revisao-devops
 contrato: 1
-pedido: v047-ci-npm-binario
-branch: melhoria/v047-ci-npm-binario
+pedido: v047-ci-binario-cli
+branch: melhoria/v047-ci-binario-cli
 commit: 2e131dc23d0ed607856d4faaa215cdf5bc53d686
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-14
 ---
-# Review de devops: v047-ci-npm-binario
+# Review de devops: v047-ci-binario-cli
 
 ## Achados
 
