@@ -78,11 +78,6 @@
       "arquivo": "hooks/conformidade.py",
       "trecho": "sem_substituicao or not inteira",
       "motivo": "crase partida dentro de argumento do `echo` já recusa pelo U2 (corpo aninhado) antes do U4: mutante equivalente"
-    },
-    {
-      "arquivo": "hooks/conformidade.py",
-      "trecho": "fim < 0",
-      "motivo": "`$(` sem `)` na palavra: a leitura da linha recusa a substituição sem par antes do U4: mutante equivalente"
     }
   ]
 }

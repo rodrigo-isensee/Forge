@@ -576,13 +576,13 @@ def valores_da_variavel(m, linha, fundo):
 
 
 def fim_do_parentese(texto, inicio):
-    """A posição do `)` que fecha o `$(` aberto antes de `inicio`, ou -1."""
+    """A posição do `)` que fecha o `$(` aberto antes de `inicio`, ou o fim do texto (sobra corpo, nunca falta)."""
     fundo = 1
     for j in range(inicio, len(texto)):
         fundo += {"(": 1, ")": -1}.get(texto[j], 0)
         if not fundo:
             return j
-    return -1
+    return len(texto)
 
 
 def valores_da_palavra(palavra, linha, fundo=0, sem_substituicao=False):
@@ -609,8 +609,7 @@ def valores_da_palavra(palavra, linha, fundo=0, sem_substituicao=False):
             i += len(OPACO["$"])
         elif (palavra.startswith("$(", i) or c == "`") and not sem_substituicao:
             fim = palavra.find("`", i + 1) if c == "`" else fim_do_parentese(palavra, i + 2)
-            valores = None if fim < 0 else valores_do_corpo(palavra[i + (1 if c == "`" else 2):fim], linha, fundo + 1)
-            i = fim + 1 if fim >= 0 else len(palavra)
+            valores, i = valores_do_corpo(palavra[i + (1 if c == "`" else 2):fim], linha, fundo + 1), fim + 1
         elif c == "$" and (m := VARIAVEL_DO_VALOR.match(palavra, i)):
             valores, i = valores_da_variavel(m, linha, fundo + 1), m.end()
         elif LITERAL.fullmatch(c):
