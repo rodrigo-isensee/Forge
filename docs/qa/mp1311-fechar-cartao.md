@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: melhorias-de-projeto-1311
 branch: melhoria/mp1311-fechar-cartao
-commit: 497d35697715ff0672f69b05ddf3c9d763c61332
+commit: ccb7613465a8be32a8fecf2070b9ad630836f364
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -51,3 +51,6 @@ Delta (`forge-check parecer delta`): `bin/forge-fechar`, spec de mutantes, `test
 - Mutantes: `bin/forge-mutante tests/mutantes/mp1311-fechar-cartao.json` (`rev=0884fae230d7`): `M1 · morreu · bin/forge-fechar:826`, `M2 · morreu · bin/forge-fechar:832`, `M3 · morreu · bin/forge-fechar:769`, rc=0. Mutante manual extra (dry-run local com sha) morreu.
 - Caso real do PR 525: clone no head `0884fae2` com mais duas branches locais no mesmo sha (`portao-qa`, `aaa-outro`). `forge-check pr mp1311-fechar-cartao --ref <sha>` acusa `pr: conferência: sem o pedido ... branch da ref, que não foi achada` (o defeito de antes: `branch_do_sha` devolve None com mais de um nome); com `--ref melhoria/mp1311-fechar-cartao` essa violação some (restam só os pareceres ainda por gravar). O `forge-fechar` agora passa o nome, que é o segundo comando.
 - Não rodei a suíte completa: ela é do CI do PR (sem PR ainda). Um `forge-testes` com prazo de 450 s morreu por carga e foi refeito por módulos (diretriz 14: 2 tentativas).
+
+## Correção do campo commit (E1.53)
+O `commit:` gravava `497d3569` (merge só de pareceres); agora é o `Revisar-sha` `ccb76134` (head de código). Delta `497d3569..768896fc`: nenhum arquivo do domínio mudou; veredito inalterado.
