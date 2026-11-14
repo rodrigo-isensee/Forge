@@ -32,6 +32,13 @@ def carregar():
     return modulo
 
 
+def sem_oraculos(plano):
+    """O plano sem os testes-oráculo do portão (EXT-1): eles entram em todo plano dirigido enquanto existem na árvore, e a
+    lista exata do mapa não depende de haver um."""
+    modo, modulos = plano
+    return modo, [m for m in modulos if not m.startswith("test_oraculo_")]
+
+
 def git(cwd, *args):
     return subprocess.run(["git", *args], cwd=cwd, env=AMBIENTE, capture_output=True, text=True, check=True).stdout
 
@@ -59,7 +66,7 @@ class Mapa(unittest.TestCase):
         }
         for caminho, esperado in casos.items():
             with self.subTest(caminho):
-                self.assertEqual(self.plano(caminho), ("dirigido", esperado))
+                self.assertEqual(sem_oraculos(self.plano(caminho)), ("dirigido", esperado))
 
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
@@ -92,7 +99,7 @@ class Mapa(unittest.TestCase):
         self.assertLessEqual(rodam, set(regra))
 
     def test_os_casos_de_comportamento_rodam_so_o_modulo_deles(self):  # L36
-        self.assertEqual(self.plano("tests/comportamento/casos.json"), ("dirigido", ["test_comportamento"]))
+        self.assertEqual(sem_oraculos(self.plano("tests/comportamento/casos.json")), ("dirigido", ["test_comportamento"]))
 
     def test_modulos_da_volta_unica_rodam_onde_o_test_hooks_roda(self):  # HOOKS-CORPUS-RAPIDO
         volta = {"test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades"}
@@ -411,11 +418,12 @@ class MapaCobreOQueOsTestesLeem(unittest.TestCase):
         self.assertEqual(modulos, self.f.planejar([".claude-plugin/plugin.json"], RAIZ)[1])
 
     def test_conferir_reversao_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):  # REVERSAO-MAPA (A5)
-        self.assertEqual(self.f.planejar(["scripts/conferir-reversao.py"], RAIZ),
+        self.assertEqual(sem_oraculos(self.f.planejar(["scripts/conferir-reversao.py"], RAIZ)),
                          ("dirigido", ["test_conferir_reversao", "test_forge", "test_testes_tocados"]))
 
     def test_forge_mutante_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):
-        self.assertEqual(self.f.planejar(["bin/forge-mutante"], RAIZ), ("dirigido", ["test_forge", "test_forge_mutante"]))
+        self.assertEqual(sem_oraculos(self.f.planejar(["bin/forge-mutante"], RAIZ)),
+                         ("dirigido", ["test_forge", "test_forge_mutante"]))
 
 
 class Execucao(unittest.TestCase):
