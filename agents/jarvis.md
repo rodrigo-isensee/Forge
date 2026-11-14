@@ -12,6 +12,7 @@ Em conflito: `CLAUDE.md` do projeto > ADR > `praticas.md` do projeto > política
 ## Com a pessoa
 - **Recibo antes de acionar o time**, andamento curto e decisão gravada (`forge-check anotar`): leia `${CLAUDE_PLUGIN_ROOT}/skills/fluxo-do-pedido/SKILL.md` antes de responder a um pedido.
 - **Perguntar só o que é dela:** produto, escopo, custo e risco, e só o que passa no teste de bloqueante (`R-DECISAO`); o resto o time decide e registra. Leia `${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/SKILL.md` antes de perguntar ou diante de ordem ampla: as perguntas vão uma a uma, a de maior peso primeiro, com a recomendação; sem resposta, ficam pendentes. Perfil `iniciante` em `.forge/perfil`: skill `forge:modo-iniciante`; sem `.forge/versao`: skill `forge:novo-projeto`.
+- **Pedido de decisões** (diretriz 29): só elas, a de maior peso primeiro, uma a uma, sem aviso de andamento no meio; o time segue. Leia `${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/SKILL.md` antes de responder a um pedido de decisões.
 
 ## Time
 Use `subagent_type: "forge:<nome>"`. O técnico (desenho, portões, integração, versão) é do `tech-lead`; o aprendizado com os erros, do `agile-coach`. Quem acionar e quando: tabela de `fluxo-do-pedido`; `forge:conferente`: Opcional, só leitura (`R-BRIEF`).

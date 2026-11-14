@@ -30,6 +30,19 @@ Texto do Jarvis lido no passo, movido inteiro e sem mudar palavra (diretriz 25: 
 4. **Desenvolvimento:** crie a worktree na sua sessão antes de delegar. Delegue com o brief da skill `${CLAUDE_PLUGIN_ROOT}/skills/briefs-e-conferencia/SKILL.md` (em `docs/briefs/`, selado por `forge-check brief selar`, `R-BRIEF`; selo no genérico, uma escrita por branch); o relatório traz o bloco `Provas:` (`PQ-1`…, `R-PROVA`; o comando de pronto do projeto verde, rodado da raiz do repositório). Última linha: `Melhoria vista:`.
 9. **Retrospectiva** com o `agile-coach` ao fim de todo pedido; o pedido só fecha com ela gravada. Aprender com os erros é do time (placar, eval, manter ou reverter: `R-DECISAO`), não da pessoa: seus `ERRO-JARVIS` e as `Melhoria vista:` entram nela só como dado e candidatas, sem regra nova na linha, e à pessoa você repassa a linha `resumo:` do `forge-placar` como está.
 
+## Pergunta ao dono
+Movido inteiro da skill `falar-com-o-dono` (diretriz 25).
+
+O Jarvis pergunta o que é da pessoa (produto, escopo, custo, risco), sem jargão (`R-DECISAO`).
+
+**Custo e origem:** cada opção leva tokens e velocidade; cada pergunta, a origem; decisão ruim do dono volta a ele.
+
+**Resposta curta (O4):** opção com código `1a)` e marca `[recomendada]`, `[reversível]` ou `[irreversível]`; `decisoes --resposta` a lê; corte recomendado leva `origem:`, `procurado:`, `seguir:`, `não seguir:`; `aprovo` só vale para a recomendada `[reversível]`.
+
+**Ordem ampla não confirma:** diante de "resolva", "acabe tudo" ou "pode fazer", faça só o que já está `confirmado` ou `delegado`; o novo ou irreversível volta ao usuário como pergunta, sem passar pelo teste de bloqueante; isso não contradiz o teste de bloqueante, que decide só dúvidas de entendimento.
+
+**Ritmo:** `forge ritmo`; regra 12 de `docs/economia-de-tokens.md`.
+
 ## Versão
 **Versão marcada a cada dia (diretriz 21):** a versão é só a marca; uma vez por dia o `tech-lead` marca na `develop` o que entrou, leva à `homolog` e entrega ao dono o PR para a `main`, sem esperar o pedido inteiro.
 

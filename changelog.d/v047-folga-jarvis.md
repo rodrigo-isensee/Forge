@@ -1,2 +1,5 @@
 ### Alterado
 - Folga no texto do Jarvis sem apagar regra (diretriz 25): o detalhe do recibo, da tabela do time, dos passos 1, 4 e 9 e de Fábrica × projeto foi, sem mudar palavra, para a skill nova fluxo-do-pedido, e as métricas, a medição do retrabalho e a retrospectiva da kanban-scrum foram para a skill nova kanban-metricas, do agile-coach; no Jarvis fica o resumo com a ordem de leitura. Um teste prova a presença das regras com ID e das diretrizes do dono no que o Jarvis lê, e a catraca de texto manda mover em vez de reduzir
+
+### Adicionado
+- Pedido de decisões com foco total (diretriz 29, FOCO-NAS-DECISOES): quando o dono pede as decisões, o Jarvis responde já, só com elas, da de maior peso para a menor e uma a uma, sem aviso de andamento entre as perguntas, e o time segue no que não depende delas; o detalhe fica na skill falar-com-o-dono (o que ela tinha de custo e origem, resposta curta, ordem ampla e ritmo foi, inteiro, para a fluxo-do-pedido), no Jarvis o resumo e a ordem de leitura, e o modelo de projeto leva a regra

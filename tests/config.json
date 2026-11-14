@@ -238,7 +238,10 @@
       "docs/briefs/",
       "`## Etapas`",
       "vale para o Forge e para todos os projetos que o usam",
-      "Na abertura de cada pedido, confira com o time se ele cabe num lote"
+      "Na abertura de cada pedido, confira com o time se ele cabe num lote",
+      "não contradiz o teste de bloqueante",
+      "sem passar pelo teste de bloqueante",
+      "Ordem ampla não confirma:\\*\\* diante de"
     ],
     "skills/briefs-e-conferencia/SKILL.md": [
       "forge-check brief selar --arquivo <brief> --pedido <p>",
@@ -256,9 +259,8 @@
     ],
     "skills/falar-com-o-dono/SKILL.md": [
       "que não se oferece nas perguntas que `R-DECISAO` não deixa delegar",
-      "não contradiz o teste de bloqueante",
-      "sem passar pelo teste de bloqueante",
-      "Ordem ampla não confirma:\\*\\* diante de",
+      "\\*\\*Pedido de decisões \\(diretriz 29\\):\\*\\*",
+      "Não há decisão sua pendente",
       "Como perguntar",
       "Afrouxa o processo\\?",
       "decidam vocês",

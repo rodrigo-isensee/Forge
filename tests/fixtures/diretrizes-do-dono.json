@@ -177,11 +177,12 @@
    "cartao": "SESSAO-AUTOMATICA"
   },
   "29": {
-   "onde": "pendente",
+   "onde": "fabrica",
    "resumo": "quando o dono pede as decisões, o Jarvis faz só isso",
-   "cartao": "FOCO-NAS-DECISOES",
    "trechos": [
-    "a lista curta de todas as decisões pendentes, da de maior peso para a menor"
+    "a lista curta de todas as decisões pendentes, da de maior peso para a menor",
+    "Não há decisão sua pendente",
+    "Leia `\\$\\{CLAUDE_PLUGIN_ROOT\\}/skills/falar-com-o-dono/SKILL\\.md` antes de responder a um pedido de decisões"
    ]
   }
  }

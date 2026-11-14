@@ -22,8 +22,9 @@ SKILLS_L51 = ("briefs-e-conferencia", "trabalho-em-paralelo", "falar-com-o-dono"
 # Folga do texto do Jarvis (v047, P2): o ponteiro pelo caminho também é invariante para a skill nova `fluxo-do-pedido`.
 SKILLS_COM_PONTEIRO = SKILLS_L51 + ("fluxo-do-pedido",)
 DIRETRIZES = json.loads((RAIZ / "tests" / "fixtures" / "diretrizes-do-dono.json").read_text(encoding="utf-8"))["diretrizes"]
-# P4 (decisões do dono de 14/11 08:16 e 08:38): pendentes 2, 11, 23, 24, 26, 27, 28 e 29, cada uma com o seu cartão; só desce.
-MAX_PENDENTES = 8
+# P4 (decisões do dono de 14/11 08:16 e 08:38): pendentes 2, 11, 23, 24, 26, 27 e 28, cada uma com o seu cartão; só desce.
+# A 29 virou de fábrica com o FOCO-NAS-DECISOES.
+MAX_PENDENTES = 7
 # P3: a mensagem do núcleo manda mover, não reduzir (diretriz 25).
 MOVA = ("não apague nem resuma regra (diretriz 25): mova o detalhe para uma skill que o Jarvis manda ler e deixe o resumo; "
         "não suba o teto")
@@ -247,6 +248,36 @@ class PresencaDasRegrasEDasDiretrizes(unittest.TestCase):
         self.assertTrue(numeros, "nenhum número no arquivo do dono")
         self.assertEqual(problemas_das_diretrizes(DIRETRIZES, conjunto_do_jarvis(), MAX_PENDENTES, numeros), [])
 
+
+class FocoNasDecisoes(unittest.TestCase):
+    """FOCO-NAS-DECISOES (diretriz 29 do dono, com a correção de 14/11): o detalhe na skill falar-com-o-dono, no Jarvis o resumo e
+    a ordem de leitura (diretriz 25), e o modelo de projeto leva a regra a todo projeto novo."""
+
+    def test_o_jarvis_traz_o_resumo_e_manda_ler_a_skill_antes_de_responder(self):
+        linha = next(l for l in ler(JARVIS).splitlines() if l.startswith("- **Pedido de decisões** (diretriz 29):"))
+        for trecho in ("uma a uma", "sem aviso de andamento no meio", "o time segue",
+                       "Leia `${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/SKILL.md` antes de responder a um pedido de decisões"):
+            with self.subTest(trecho=trecho):
+                self.assertIn(trecho, linha)
+
+    def test_a_skill_traz_o_detalhe_inteiro(self):
+        paragrafo = next(l for l in ler("skills/falar-com-o-dono/SKILL.md").splitlines()
+                         if l.startswith("**Pedido de decisões (diretriz 29):**"))
+        for trecho in ('"me traga as decisões", "o que precisa de mim" ou "quais as pendências"', "faça só isso",
+                       "sem disparo, cartão, registro, conferência nem andamento antes",
+                       'Leia só as perguntas abertas (`PERGUNTA:` e "precisa de você", nos pedidos e no quadro, numa consulta)',
+                       "Responda já: a lista curta de todas as decisões pendentes, da de maior peso para a menor",
+                       "a primeira pergunta completa (contexto simples, opções, recomendação, o que acontece sem decisão)",
+                       "Uma a uma, cada resposta por `forge-check anotar` e a próxima logo", "O time não para",
+                       "sem aviso ao dono entre as perguntas (resumo no fim)", "o que depende de uma decisão espera só ela",
+                       'Sem pendência: "Não há decisão sua pendente", numa linha'):
+            with self.subTest(trecho=trecho):
+                self.assertIn(trecho, paragrafo)
+
+    def test_o_modelo_de_projeto_leva_a_regra(self):
+        modelo = next(l for l in ler("templates/projeto/CLAUDE.md").splitlines() if l.startswith("- `R-DECISAO`"))
+        self.assertIn("Pedido de decisões do usuário: o Jarvis responde já, só com elas, por peso e uma a uma (skill `falar-com-o-dono`)",
+                      modelo)
 
 class MutantesDaPresenca(unittest.TestCase):
     """P4, item 7: cada mutante numa árvore sintética reprova (lista completa, AR-1)."""
