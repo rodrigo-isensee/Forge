@@ -16,6 +16,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 - CI: o e2e de instalação voltou a passar com o gerenciador de pacotes 11.19.1 do runner; o binário nativo do Claude Code é instalado de forma determinística (postinstall rodado explicitamente nas três instalações do ci.yml).
 - As 4 fixtures agentes/* de pid e sessão (tests/test_hooks.py) saem puladas com motivo quando o namespace de pid do pai não é legível (sandbox dos subagentes), para a prova de pré-envio da diretriz 23 poder passar; onde é legível seguem valendo e o hook não muda (E1.90, v047, 0.47.1).
 - Erro interno e prazo vencido do hook conformidade passam a recusar a escrita protegida (HOOK-ERRO-LIBERA, v047): marcador da falha fechada montado da política (caminhos, alvo opaco, caminho resolvido no Write/Edit), sem expanduser de Path nos hooks, python3 -s -E em todo o hooks.json e R-BRIEF do hook agentes antes da leitura do estado.
+- O mapa do `bin/forge-testes` roda o `test_hook_erro_libera` junto quando o `tests/test_hooks.py` muda: ele reaproveita o lote de `Hooks.executar_em_lote` e faltava em `REAPROVEITAM_O_LOTE`, o que deixava a develop vermelha (E1.204, v047, PR #558).
 - placar-mutacao.py sinaliza na linha `placar:` a spec com rc diferente de zero e avisa quando `--desde` não é a tag da release anterior; M10 da spec v0457-escopo-ponto-2 aponta o trecho atual da guarda.
 
 ## [0.47.0] - 2026-11-13
