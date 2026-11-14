@@ -1,7 +1,9 @@
 """A9 (E1.139, v047, CONFORMIDADE-A9-DESTINO-OPACO): as fixtures `opaco-semresto-*` do hook `conformidade`, sem as
 outras: destino opaco sem resto (`cp config "$(echo .git)"`) recusa quando o texto que produz o valor cita o diretório do
 git (U1), quando o hook não o lê (U2) e com origem de nome do git fora da lista positiva (U3); os legítimos seguem livres.
-Roda a mesma máquina do `tests/test_hooks.py`; existe à parte para os mutantes de `tests/mutantes/` rodarem rápido."""
+A10 (CONFORMIDADE-A10-OPERADOR-COLADO): as `opaco-colado-*`, operador colado no corpo do rev-parse e a liberação de link
+do #512 só com corpo de um comando. Roda a mesma máquina do `tests/test_hooks.py`; existe à parte para os mutantes de
+`tests/mutantes/` rodarem rápido."""
 import sys
 import unittest
 from pathlib import Path
@@ -29,6 +31,9 @@ class HookDestinoOpaco(unittest.TestCase):
 
     def test_fixtures_opaco_sem_resto(self):
         self.rodar_prefixo("opaco-semresto", 48)
+
+    def test_fixtures_opaco_colado(self):
+        self.rodar_prefixo("opaco-colado", 14)
 
 
 if __name__ == "__main__":

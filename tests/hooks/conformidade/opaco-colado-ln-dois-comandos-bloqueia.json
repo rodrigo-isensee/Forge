@@ -1,0 +1,32 @@
+{
+  "descricao": "CONFORMIDADE-A10-OPERADOR-COLADO (E1.139, v047): Lido como `.git/pre-push`, mas o bash dá `.git/hooks/pre-push`: corpo de mais de um comando não libera a origem (regra de um comando só).",
+  "arquivos": {
+    "x": "x\n",
+    "config": "c\n",
+    "pre-push": "p\n",
+    "lugar.txt": "docs\n",
+    "docs/a.md": "a\n",
+    "hooks/pre-push": "p\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ln \"$(git rev-parse --git-dir >/dev/null; echo .git/hooks)\"/pre-push h"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "link com caminho protegido"
+  }
+}

@@ -387,6 +387,17 @@ def trocar_rev_parse(m):
     return m[0] if valor is None else "${%s}/%s" % (DIR_DO_GIT, valor)
 
 
+# A10 (E1.139, v047): só o corpo que é um comando simples dá à origem de link a liberação do #512. Com `;`, `&&`, `|`, `&`
+# ou parênteses (`$(git rev-parse --git-dir >/dev/null; echo .git/hooks)`), o valor que o hook lê não é o do bash.
+SEPARADOR_DE_COMANDO = re.compile(r"[;|()`]|&&|(?<![>&])&(?![>&])")
+
+
+def rev_parse_de_varios_comandos(texto):
+    """True se algum corpo de `rev-parse` do diretório do git no texto tem mais de um comando."""
+    return any(valor_do_rev_parse(c) is not None and SEPARADOR_DE_COMANDO.search(c)
+               for m in REV_PARSE_DO_GIT.finditer(texto) for c in [m["sub"] or m["crase"] or ""])
+
+
 # A9 (E1.139, v047): destino opaco sem resto (`cp config "$(echo .git)"`), pelo plano de segurança da E1.133. U1: o texto
 # que produz o valor cita o diretório do git; U2: o hook não lê esse texto; U3: origem com nome do git (C18 da v2) e
 # corpo fora da lista positiva. Listas fechadas e positivas (AR-3).
@@ -833,6 +844,7 @@ class Guarda:
         self.linha = ""      # a linha de comando inteira, como veio (nível 0)
         self.texto_da_linha = None  # A9: o texto do nível em conferência, sem heredocs e com o rev-parse lido (só Bash)
         self.opacos = 0  # A9: destinos opacos sem resto da linha (`TETO_DE_OPACOS`)
+        self.rev_parse_misto = False  # A10: a linha tem rev-parse do .git em corpo de mais de um comando
         self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
         self.lancador_recusado = None  # lançador da linha que o hook não modela (`LANCADORES_RECUSADOS`), recusado no fim
         self.reavaliacao = None  # a primeira reavaliação pelo shell da linha, em qualquer nível (`reavaliacao`, opção B)
@@ -1218,6 +1230,9 @@ class Guarda:
                            if x and not (i in livres and x[1] == generico)), None)
         finally:
             self.papel = papel
+        if not achado and any(self.fim_do_opaco(a, pasta) and any(map(cita_o_dir_do_git, self.textos_do_valor(a)[1]))
+                              for a in caminhos):  # A10: opaco (com ou sem resto) que cita o diretório do git
+            achado = ("R-CONFORMIDADE", "valor de $(…), crase ou variável que o hook não lê e que cita o diretório do git")
         if achado:
             motivo = achado[1].replace(" (papel: -)", "")
             self.barrar("R-CONFORMIDADE", f"link com caminho protegido ({motivo}): o link dá outro nome ao arquivo",
@@ -1230,8 +1245,8 @@ class Guarda:
         Falha fechada: com opção que não seja `-` e letras sem valor (`-S`, `-t`, as longas e `--` mudam qual palavra é o
         destino), nenhuma; a última palavra (o destino, também a de `ln <origem>` sozinha) nunca entra; nem a origem cujo
         curinga ou chaves alcança uma regra específica (`origem_so_generica`)."""
-        if any(a.startswith("-") and not re.fullmatch(r"-[^-St=]+", a) for a in args):
-            return set()
+        if self.rev_parse_misto or any(a.startswith("-") and not re.fullmatch(r"-[^-St=]+", a) for a in args):
+            return set()  # A10: com rev-parse de mais de um comando na linha, nenhuma
         valores = (VARIAVEL_INTEIRA.sub(lambda m: self.ambiente.get(m[1] or m[2], m[0]), a) for a in caminhos[:-1])
         return {i for i, v in enumerate(valores) if DIR_DO_GIT in v and self.origem_so_generica(v, pasta, generico)}
 
@@ -1331,7 +1346,7 @@ class Guarda:
             self.conferidas, self.conferencias, self.caracteres, self.em_curso, self.releituras = {}, 0, 0, set(), 0
             self.reavaliacao = None
             self.prazo = time.monotonic() + PRAZO_DA_LINHA_S
-            self.opacos = 0
+            self.opacos, self.rev_parse_misto = 0, rev_parse_de_varios_comandos(comando)
         chave = (comando, pasta, nivel, self.releituras, so_substituicoes, corpo_de_heredoc,
                  tuple(sorted(self.ambiente.items())))
         if chave in self.conferidas:
