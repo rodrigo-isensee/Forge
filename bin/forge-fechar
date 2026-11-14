@@ -46,11 +46,13 @@
 # (--espera-ci, padrão 3600, 0 a 7200). Não verde sai com código 5 (develop vermelha é prioridade máxima) e, se vermelho, o comando de reversão.
 # --lote <pedido>:<branch> ... (INTEGRACAO-EM-LOTE, diretriz 26): 2 ou 3 itens sem arquivo em comum (diff de cada um contra a base), com o
 # CI da develop verde antes; cada item roda este script com --item-de-lote (sem as duas esperas do CI), em ordem; depois, um só CI, o do
-# último merge, é acompanhado até o fim. Vermelho imprime a reversão do lote inteiro e sai com 5; item que para encerra o lote (os de antes
-# ficam, e o CI deles é acompanhado). --item-de-lote é só do --lote.
+# topo da develop no servidor depois do último item, é acompanhado até o fim (sem a leitura, o do último merge). Vermelho imprime a reversão do
+# lote inteiro e sai com 5; item que para encerra o lote (os de antes ficam, e o CI deles é acompanhado). --item-de-lote é só do --lote: sem a
+# marca FORGE_FECHAR_LOTE_PAI igual ao processo pai, que só o lote põe no ambiente do filho, é recusado.
 # --promover <sha> (RELEASE-EM-1H, diretriz 27; o <pedido> é release-<versão>): promove para a homolog exatamente o commit da marca, nunca o
 # topo da develop: o sha está na develop do servidor, é promovível (1c), o CI do push nele é verde (a prova da develop, reaproveitada); o ramo
-# promocao/<versão> nasce nesse sha e o PR para a homolog mescla com --auto --merge preso a ele. Rodar de novo retoma (ramo, PR e MERGED
+# promocao/<versão> nasce nesse sha (o par promocao/<versão> -> homolog tem de estar em PROMOCOES de tests/catraca.py, a tabela do CI) e o PR
+# para a homolog (só os do próprio repositório; o de fork não conta) mescla com --auto --merge preso a ele. Rodar de novo retoma (ramo, PR e MERGED
 # reusados). Item mesclado depois da marca fica para a versão seguinte. Nunca toca a main: imprime o PR homolog -> main para o tech-lead.
 # FORGE_FECHAR_PAUSA (segundos, padrão 3) é a espera entre as tentativas de leitura repetida.
 # Faixas (recusadas antes do passo 1, com a faixa na mensagem): FORGE_FECHAR_PAUSA 1 a 30; FORGE_FECHAR_INTERVALO 5 a 120 (o piso cai
@@ -138,6 +140,9 @@ if [ -n "$promover_sha" ]; then
   fi
   [[ "$promover_sha" =~ ^[0-9a-f]{40}$ ]] || die "--promover pede o sha de 40 hex do commit da marca (recebi: $promover_sha)"
   ref="promocao"  # só para as checagens de nome abaixo; o ramo de verdade é promocao/<versão>, lido do commit
+fi
+if [ "$item_de_lote" = 1 ] && [ "${FORGE_FECHAR_LOTE_PAI:-}" != "$PPID" ]; then
+  die "--item-de-lote é só do --lote (pula as esperas do CI da develop); feche o item sem ele (FECHAR-ESPERA-CI-DEVELOP)"
 fi
 [ "$lote" = 1 ] || [ -n "$ref" ] || die "informe --ref <branch>"
 if [ "$lote" = 1 ]; then ref="lote"; fi  # só para as checagens de nome abaixo
@@ -878,7 +883,7 @@ ci_no_merge() {
 # fechar_lote (INTEGRACAO-EM-LOTE, diretriz 26): recusa arquivo em comum, exige o CI da base verde, fecha cada item com --item-de-lote e
 # acompanha um só CI, o do último merge. Não volta: sai com 0 (3 com limpeza pendente), 5 (CI não verde) ou 1 (parou).
 fechar_lote() {
-  local item br sha arqs tabela="" comuns saida_it rc_it m parou="" rc_lote=0
+  local item br sha arqs tabela="" comuns saida_it rc_it m parou="" rc_lote=0 topo_lote
   local -a mesclados=()
   passo L1 "arquivos em comum (diff de cada item contra $base)"
   for item in "${posicionais[@]}"; do
@@ -898,14 +903,23 @@ $comuns"
   for item in "${posicionais[@]}"; do
     br="${item#*:}" rc_it=0
     echo "item ${item%%:*} ($br):"
-    saida_it="$("$item_cmd" "${item%%:*}" --ref "$br" --base "$base" --espera "$espera" --item-de-lote 2>&1)" || rc_it=$?
+    # exec: o filho é o próprio processo da substituição, e o pai dele, este script (a marca FORGE_FECHAR_LOTE_PAI confere o $PPID)
+    saida_it="$(FORGE_FECHAR_LOTE_PAI=$$ exec "$item_cmd" "${item%%:*}" --ref "$br" --base "$base" --espera "$espera" --item-de-lote 2>&1)" || rc_it=$?
     printf '%s\n' "$saida_it"
     m="$(printf '%s\n' "$saida_it" | awk '$1 == "merge:" && $2 ~ /^[0-9a-f]+$/ && (length($2) == 40 || length($2) == 64) {s = $2} END {print s}')"
     [ -z "$m" ] || mesclados+=("$m")
     if [ "$rc_it" != 0 ] && [ "$rc_it" != 3 ]; then parou="${item%%:*} ($br) parou com código $rc_it"; break; fi
     [ "$rc_it" = 0 ] || rc_lote=3
   done
-  [ "${#mesclados[@]}" = 0 ] || ci_no_merge "${mesclados[${#mesclados[@]}-1]}" "${mesclados[@]}"
+  if [ "${#mesclados[@]}" != 0 ]; then
+    # O CI acompanhado é o do topo da develop no servidor: o "merge:" de um item já MERGED antes do lote é antigo (A3 do review).
+    topo_lote="$(remoto_exato "$alvo")" || topo_lote=""
+    if [ -z "$topo_lote" ]; then
+      topo_lote="${mesclados[${#mesclados[@]}-1]}"
+      echo "aviso: não li a $alvo no servidor depois do lote; acompanho o CI do último merge lido (${topo_lote:0:7})." >&2
+    fi
+    ci_no_merge "$topo_lote" "${mesclados[@]}"
+  fi
   if [ "$ci_falhou" = 1 ]; then
     [ "$ci_st" != vermelho ] || echo "lote vermelho: reverta o lote inteiro (acima), ache o culpado e volte ao um por vez até a $alvo ficar verde (diretriz 26)." >&2
     echo "Lote: ${#mesclados[@]} merge(s) na $alvo; o CI do push não ficou verde (código 5)."
@@ -914,6 +928,17 @@ $comuns"
   [ -z "$parou" ] || die "parou no lote: o item $parou; os ${#mesclados[@]} merge(s) antes dele ficam na $alvo, com o CI do push verde"
   echo "Lote fechado em $alvo: ${#mesclados[@]} merge(s), CI do push verde no último."
   exit "$rc_lote"
+}
+
+# par_de_promocao <head> <base>: rc 0 só se o par está em PROMOCOES de tests/catraca.py, a tabela única do CI, da catraca e do arvore-testada.
+par_de_promocao() {
+  python3 -I - "$catraca" "$1" "$2" 2>/dev/null <<'PY'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("catraca", sys.argv[1])
+c = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(c)
+sys.exit(0 if c.linha_de_promocao(sys.argv[2], sys.argv[3]) else 1)
+PY
 }
 
 # promover_marca (RELEASE-EM-1H, diretriz 27): a homolog recebe exatamente o commit da marca, nunca o topo da develop, pelo ramo
@@ -928,8 +953,9 @@ promover_marca() {
     die "parou no passo P1: sem o commit da marca ou o topo da develop aqui; rode git fetch origin develop homolog (nada foi promovido)"
   fi
   git merge-base --is-ancestor "$sha" "$dev" 2>/dev/null || die "parou no passo P1: o commit $sha não está na develop do servidor; a promoção leva um commit da develop (R-FLUXO)"
-  versao="$(git show "$sha:.claude-plugin/plugin.json" 2>/dev/null | sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([0-9]\{1,4\}\.[0-9]\{1,4\}\.[0-9]\{1,4\}\)".*/\1/p' | head -n 1)" || versao=""
+  versao="$(git show "$sha:.claude-plugin/plugin.json" 2>/dev/null | sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([0-9A-Za-z.-]\{1,40\}\)".*/\1/p' | head -n 1)" || versao=""
   [ -n "$versao" ] || die "parou no passo P1: não li a versão X.Y.Z do .claude-plugin/plugin.json no commit $sha (nada foi promovido)"
+  par_de_promocao "promocao/$versao" homolog || die "parou no passo P1: promocao/$versao -> homolog não está na tabela de promoções (PROMOCOES em tests/catraca.py, a do CI); a versão $versao não é X.Y.Z (nada foi promovido)"
   echo "marca $sha, versão $versao; a develop tem $(git rev-list --count "$sha..$dev") commit(s) depois dela, que ficam para a versão seguinte."
   passo P2 "a marca é promovível: $promover --conferir-ref $sha"
   promovivel "$sha"
@@ -951,8 +977,10 @@ promover_marca() {
     echo "$ramo já está no origin com o commit da marca; retomo."
   fi
   passo P5 "PR $ramo -> homolog"
-  lista="$(ler "$gh" pr list --head "$ramo" --state all --limit 30 --json number,state,baseRefName,headRefOid \
-    --jq '.[] | "\(.number) \(.state) \(.baseRefName) \(.headRefOid)"')" || die "parou no passo P5: não consegui ler os PRs de $ramo"
+  # Só os PRs do próprio repositório: um de fork com o mesmo nome de ramo não conta como aberto nem é retomado (A2 da segurança).
+  lista="$(ler "$gh" pr list --head "$ramo" --state all --limit 30 --json number,state,baseRefName,headRefOid,isCrossRepository \
+    --jq '.[] | "\(.number) \(.state) \(.baseRefName) \(.headRefOid) \(.isCrossRepository)"')" || die "parou no passo P5: não consegui ler os PRs de $ramo"
+  lista="$(printf '%s\n' "$lista" | awk '$5 == "false"')"
   pr_n="$(printf '%s\n' "$lista" | awk -v s="$sha" '$2 == "MERGED" && $3 == "homolog" && $4 == s {print $1; exit}')"
   if [ -n "$pr_n" ]; then
     echo "PR #$pr_n já MERGED na homolog com o commit da marca; retomo."

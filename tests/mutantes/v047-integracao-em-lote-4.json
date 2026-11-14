@@ -54,12 +54,12 @@
     },
     {
       "id": "IL-M30",
-      "guarda": "o CI acompanhado é o do último merge",
+      "guarda": "o CI acompanhado é o do topo da develop depois do lote (A3 do review)",
       "arquivo": "bin/forge-fechar",
-      "de": "ci_no_merge \"${mesclados[${#mesclados[@]}-1]}\"",
-      "para": "ci_no_merge \"${mesclados[0]}\"",
+      "de": "ci_no_merge \"$topo_lote\" \"${mesclados[@]}\"",
+      "para": "ci_no_merge \"${mesclados[${#mesclados[@]}-1]}\" \"${mesclados[@]}\"",
       "testes": [
-        "tests.test_fechar_lote.Lote.test_sem_arquivo_em_comum_fecha_em_ordem_e_espera_um_ci_so"
+        "tests.test_fechar_lote.Lote.test_ci_acompanhado_e_o_do_topo_da_develop_e_nao_o_merge_antigo"
       ]
     },
     {

@@ -5,6 +5,8 @@ diretriz 27).
 Reaproveita o ambiente de `test_fechar.Fechar` (repositório temporário, `gh`, `git` e `forge-check` falsos) sem herdar os testes dele.
 """
 import hashlib
+import os
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -13,11 +15,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho ta
 import test_fechar as base  # noqa: E402  (o módulo, não a classe: a classe seria coletada de novo aqui)
 
 MERGE_PADRAO = "0123456789abcdef0123456789abcdef01234567"  # o mergeCommit que o gh falso devolve
-# Item falso do lote: anota os argumentos, imprime `merge: <sha>` (sha1 do nome da branch) e sai com o código de $ESTADO/item_<branch>.rc.
+# Item falso do lote: anota os argumentos e a marca do pai, imprime `merge: <sha>` (sha1 do nome da branch), que vira o topo da develop no
+# servidor (o git falso lê $ESTADO/develop_no_servidor), e sai com o código de $ESTADO/item_<branch>.rc. Com item_<branch>.antigo, o item já
+# estava MERGED antes do lote: imprime esse merge antigo e o topo não anda.
 ITEM_FALSO = r'''#!/usr/bin/env bash
 echo "item $*" >> "$REGISTRO"
+echo "marca do pai: ${FORGE_FECHAR_LOTE_PAI:-} ppid: $PPID" >> "$ESTADO/marcas"
 f="$ESTADO/item_$(printf '%s' "$3" | tr '/' '_')"
-[ -f "$f.sem_merge" ] || echo "merge: $(printf '%s' "$3" | sha1sum | cut -c1-40)"
+if [ -f "$f.antigo" ]; then echo "merge: $(cat "$f.antigo")"
+elif [ ! -f "$f.sem_merge" ]; then m="$(printf '%s' "$3" | sha1sum | cut -c1-40)"; echo "$m" > "$ESTADO/develop_no_servidor"; echo "merge: $m"; fi
 exit "$(cat "$f.rc" 2>/dev/null || echo 0)"
 '''
 
@@ -141,10 +147,20 @@ class EsperaCiDevelop(Ambiente):
 
     def test_item_de_lote_nao_espera_o_ci_da_develop(self):
         (self.estado / "runs").write_text("91\tcompleted\tfailure\n")
-        r = self.fechar("p1", "--ref", "melhoria/x", "--item-de-lote")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--item-de-lote", FORGE_FECHAR_LOTE_PAI=str(os.getpid()))
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual(self.runs(), [])
         self.assertIn(f"merge: {MERGE_PADRAO}", r.stdout)
+
+    def test_item_de_lote_fora_do_lote_e_recusado(self):
+        """Security A3: sem a marca do lote igual ao pai, --item-de-lote (que pula o 6b e o 8) para antes do passo 1."""
+        for marca in (None, "", "1"):
+            with self.subTest(marca=marca):
+                extra = {} if marca is None else {"FORGE_FECHAR_LOTE_PAI": marca}
+                r = self.fechar("p1", "--ref", "melhoria/x", "--item-de-lote", **extra)
+                self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+                self.assertIn("--item-de-lote é só do --lote", r.stderr)
+                self.assertEqual(self.chamadas(), [])
 
     def test_head_ja_na_base_nao_espera_ci_de_merge(self):
         self.git("merge", "-q", "--ff-only", "melhoria/x")
@@ -206,6 +222,29 @@ class Lote(Ambiente):
         commits = [c.split("--commit ")[1].split()[0] for c in self.runs()]
         self.assertEqual(commits, [self.topo(), merge_de("melhoria/z")])  # o topo antes do lote e só o último merge depois
         self.assertIn("Lote fechado em develop: 3 merge(s)", r.stdout)
+
+    def test_filho_recebe_a_marca_do_pai(self):
+        r = self.fechar("--lote", "p1:melhoria/x", "p2:melhoria/y")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        for linha in (self.estado / "marcas").read_text().splitlines():
+            marca, ppid = linha.removeprefix("marca do pai: ").split(" ppid: ")
+            self.assertEqual(marca, ppid)  # o filho é exec da substituição: o pai dele é o próprio lote
+
+    def test_ci_acompanhado_e_o_do_topo_da_develop_e_nao_o_merge_antigo(self):
+        """Review A3: item já MERGED antes do lote traz um merge antigo; o CI acompanhado é o do topo da develop no servidor."""
+        antigo = "a" * 40
+        (self.estado / "item_melhoria_y.antigo").write_text(antigo)
+        r = self.fechar("--lote", "p1:melhoria/x", "p2:melhoria/y")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn(f"--commit {merge_de('melhoria/x')}", self.runs()[-1])
+        self.assertFalse([c for c in self.runs() if antigo in c])
+
+    def test_topo_ilegivel_depois_do_lote_acompanha_o_ultimo_merge_com_aviso(self):
+        (self.estado / "lsremote_develop_ok").write_text("1")  # a leitura do L2 passa; a de depois do lote falha
+        r = self.fechar("--lote", "p1:melhoria/x", "p2:melhoria/y")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("não li a develop no servidor depois do lote", r.stderr)
+        self.assertIn(f"--commit {merge_de('melhoria/y')}", self.runs()[-1])
 
     def test_arquivo_em_comum_para_sem_mesclar_nenhum(self):
         self.git("switch", "-q", "melhoria/y")
@@ -375,6 +414,45 @@ class Promover(Ambiente):
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("parou no passo P5: o PR aberto #7", r.stderr)
         self.assertEqual(self.merges(), [])
+
+    def test_pr_de_fork_com_o_mesmo_ramo_nao_conta(self):
+        """Security A2: o P5 descarta o PR de fork (isCrossRepository); nem conta como segundo aberto nem é retomado."""
+        self.git("push", "-q", "origin", f"{self.marca}:refs/heads/promocao/0.9.0")
+        (self.estado / "aberto").write_text("7 homolog")
+        (self.estado / "lista_extra").write_text(f"9 OPEN homolog {self.marca} true\n6 MERGED homolog {self.marca} true\n")
+        r = self.promover()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("PR #7 já aberto; retomo.", r.stdout)
+        self.assertNotIn("PR #6", r.stdout)
+        self.assertIn("isCrossRepository", next(c for c in self.chamadas() if c.startswith("gh pr list")))
+
+    def test_versao_fora_da_tabela_de_promocoes_para_no_p1(self):
+        """A1: o ramo promocao/<versão> só nasce se o par está em PROMOCOES (a tabela do CI); 0.9.0-rc1 não está."""
+        (self.proj / ".claude-plugin" / "plugin.json").write_text('{\n  "name": "forge",\n  "version": "0.9.0-rc1"\n}\n')
+        self.git("commit", "-q", "-am", "chore(release): rc")
+        self.git("push", "-q", "origin", "develop")
+        r = self.fechar("release-0.9.0", "--promover", self.git("rev-parse", "HEAD"))
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("promocao/0.9.0-rc1 -> homolog não está na tabela de promoções", r.stderr)
+        self.assertEqual(self.git("ls-remote", "origin", "refs/heads/promocao/*"), "")
+
+    def test_gh_falso_recusa_o_par_que_o_ci_recusa(self):
+        """Review A2: o gh falso cruza o par head/base com o modo `degrau` da catraca, como o CI; o par da promoção passa."""
+        gh = str(self.tmp / "gh")
+        casos = (("melhoria/x", "homolog", 1), ("develop", "main", 1), ("melhoria/x", "main", 1), ("develop", "homolog", 0),
+                 ("melhoria/x", "develop", 0))
+        for head, base_ref, rc in casos:
+            with self.subTest(head=head, base=base_ref):
+                r = subprocess.run([gh, "pr", "create", "--base", base_ref, "--head", head, "--title", "t"], cwd=self.proj,
+                                   env=self.env, capture_output=True, text=True, timeout=60)
+                self.assertEqual(r.returncode, rc, r.stderr)
+        self.git("push", "-q", "origin", f"{self.marca}:refs/heads/promocao/0.9.0")
+        self.git("push", "-q", "origin", "melhoria/x:refs/heads/promocao/0.9.1")  # fora da develop: o CI recusa
+        for head, rc in (("promocao/0.9.0", 0), ("promocao/0.9.1", 1)):
+            with self.subTest(head=head):
+                r = subprocess.run([gh, "pr", "create", "--base", "homolog", "--head", head, "--title", "t"], cwd=self.proj,
+                                   env=self.env, capture_output=True, text=True, timeout=60)
+                self.assertEqual(r.returncode, rc, r.stderr)
 
     def test_dois_prs_abertos_param(self):
         self.git("push", "-q", "origin", f"{self.marca}:refs/heads/promocao/0.9.0")
