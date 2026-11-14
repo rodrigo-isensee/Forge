@@ -2,14 +2,14 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2449 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2511 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 79 | 44 | 35 | 27 |
-| `conformidade` | 1799 | 1327 | 472 | 89 |
+| `conformidade` | 1861 | 1368 | 493 | 90 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 25 | 10 | 15 | 12 |
 | `parecer` | 463 | 357 | 106 | 24 |
@@ -61,6 +61,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2449 fixtures) roda em `tests/test
 | `gitcomum-*` | 84 | 61 | 23 | `R-CONFORMIDADE` | `E20.6` | Volta 1 da E20.6 (v046, segurança E20.8 A5, sem falso positivo): `--target-directory=docs` segue livre. |
 | `v0453-*` | 81 | 57 | 24 | `R-FLUXO`, `R-CONFORMIDADE` | `V0453-GH-ALIAS`, `V0453-AQ-LEITURA`, `V0453-PARECER-BASH`, `V0453-PUSH-TODAS` | V0453-AQ-LEITURA: aq não prepara commit |
 | `heredoc-*` | 68 | 59 | 9 | `R-CONFORMIDADE`, `R-MAIN`, `R-REVIEW`, `R-VERIFY` | `HEREDOC-FURO-HOOK`, `C-8`, `HEREDOC-COMENTARIO`, `HEREDOC-DONOS` e mais 1 | A1 do review (volta 3): o mkdir e o cd antes do && não leem o corpo: o dono é o cat > n.md, que só o grava. |
+| `opaco-*` | 48 | 29 | 19 | — | `CONFORMIDADE-A9-DESTINO-OPACO` | CONFORMIDADE-A9-DESTINO-OPACO (E1.139, v047): Aninhado: o hook não lê o corpo (U2), mesmo sem `.git` no texto. |
 | `merge-*` | 47 | 40 | 7 | `R-CONFORMIDADE`, `R-REVIEW`, `R-MAIN`, `R-DECISAO` | `FURO-HOOK-A`, `FILA-22`, `QA` | git merge main numa branch de trabalho (atualização): qualquer papel. |
 | `lancador-*` | 40 | 36 | 4 | `R-CONFORMIDADE`, `R-VERIFY` | — | Prefixo desembrulhado antes de classificar: command git commit --no-verify -m x |
 | `rotulo-*` | 40 | 31 | 9 | `R-CONTRIB` | `FURO-HOOK-A`, `ROTULO-VARIAVEL`, `HOOK-COMENTARIO-SHLEX` | Sessão do Forge: gh api em issues/N/labels, conta do dono. |
@@ -70,6 +71,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2449 fixtures) roda em `tests/test
 | `n5-*` | 34 | 21 | 13 | `R-REVIEW` | — | N5 (L22, IMPL-FURO-HOOK-N): am na develop |
 | `nao-*` | 34 | 21 | 13 | `R-MAIN` | `ADR`, `AA2-01` | ADR 0011 (item 2): $' que o shlex lê como aspas abertas. |
 | `pn7-*` | 32 | 24 | 8 | `R-MAIN` | `PN7-DOLAR-INTERROG` | PN7-DOLAR-INTERROG (H1-1, ADR 0011): continua barrado. |
+| `errointerno-*` | 31 | 23 | 8 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA (E5, C3): erro interno com alvo opaco (`$(...)`) numa linha que escreve recusa, sem depender do nome do caminho. |
 | `rverify-*` | 29 | 22 | 7 | `R-VERIFY` | `HOOK-RVERIFY-FALSO-POSITIVO` | HOOK-RVERIFY-FALSO-POSITIVO: cat > $TMPDIR/x.py <<'EOF' com `*` e .githooks/pre-push só no corpo (dado, não destino); sessão do Forge, pasta… |
 | `n2-*` | 28 | 22 | 6 | `R-REVIEW` | — | N2 (L20b, IMPL-FURO-HOOK-N): GIT_OBJECT_DIRECTORY por declare -x |
 | `shell-*` | 28 | 20 | 8 | `R-CONFORMIDADE` | — | Contorno pelo shell: echo 9.9.9 >> .forge/versao |
@@ -83,7 +85,6 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2449 fixtures) roda em `tests/test
 | `pr-*` | 21 | 17 | 4 | `R-CONFORMIDADE`, `R-MAIN` | `FILA-22`, `QA` | Dev criando PR: bloqueia. |
 | `aq-*` | 18 | 13 | 5 | — | `AQ` | AQ barrado em agents/ de uma worktree fora da raiz. |
 | `autoria-*` | 17 | 0 | 17 | — | — | Redirecionamento para docs/qa/ pelo Bash também registra. |
-| `errointerno-*` | 17 | 11 | 6 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA (E5, C3): erro interno com alvo opaco (`$(...)`) numa linha que escreve recusa, sem depender do nome do caminho. |
 | `desenho-*` | 16 | 7 | 9 | — | `E5-0` | E5-0 (Q-B, PAR-P2): sonda: docs/architecture/ de projeto fica sem dono até DESENHO-PROJETO-DONO; o devops grava a seção CI/CD do plano. |
 | `parecer-*` | 16 | 12 | 4 | `R-CONFORMIDADE` | `QA` | dev escrevendo parecer em docs/devops/: bloqueia. |
 | `subst-*` | 16 | 14 | 2 | `R-VERIFY`, `R-MAIN` | `HEAD` | Caminho colado a $(...): o resto é conferido também a partir da raiz (na dúvida, recusa). |

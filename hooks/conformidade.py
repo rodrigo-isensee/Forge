@@ -387,6 +387,71 @@ def trocar_rev_parse(m):
     return m[0] if valor is None else "${%s}/%s" % (DIR_DO_GIT, valor)
 
 
+# A9 (E1.139, v047): destino opaco sem resto (`cp config "$(echo .git)"`), pelo plano de segurança da E1.133. U1: o texto
+# que produz o valor cita o diretório do git; U2: o hook não lê esse texto; U3: origem com nome do git (C18 da v2) e
+# corpo fora da lista positiva. Listas fechadas e positivas (AR-3).
+CITA_DIR_DO_GIT = re.compile(r"(?<![\w.])\.git(?![\w.-])|--(?:git-dir|git-common-dir|absolute-git-dir|git-path)(?![\w-])"
+                             rf"|GIT_DIR|{DIR_DO_GIT}")
+CORPO_ILEGIVEL = re.compile(r"(?<![\w-])(?:eval|bash|sh|zsh|dash|ksh)(?![\w-])|\$'|\\")
+PALAVRA_COM_CURINGA = re.compile(r"[^\s/\"'`()=;|&{}:]*[*?\[][^\s/\"'`()=;|&{}:]*")
+COLCHETE = re.compile(r"\[!?\]?[^\]]*\]")  # o colchete do bash casa um caractere: vira `?` (sobra, nunca falta)
+NOMES_DA_C18 = frozenset("""config config.worktree HEAD ORIG_HEAD FETCH_HEAD MERGE_HEAD index packed-refs commondir gitdir
+    hooks forge refs objects info logs modules worktrees shallow applypatch-msg pre-applypatch post-applypatch pre-commit
+    pre-merge-commit prepare-commit-msg commit-msg post-commit pre-rebase post-checkout post-merge pre-push pre-receive
+    update proc-receive post-receive post-update reference-transaction push-to-checkout pre-auto-gc post-rewrite
+    sendemail-validate fsmonitor-watchman p4-changelist p4-prepare-changelist p4-post-changelist p4-pre-submit
+    post-index-change""".split())
+CORPO_POSITIVO = re.compile(r"mktemp(?:\s+(?:-[duqt]+|-p\s+[\w./-]+|--tmpdir(?:=[\w./-]+)?|[\w.-]*XXX[\w.-]*))*"
+                            r"|date(?:\s+[-+%\w:.,]+)*|pwd(?:\s+-[LP])?|git\s+rev-parse\s+--show-toplevel")
+UNIDADE_OPACA = re.compile(r"\$\((?P<sub>.*)\)|`(?P<crase>[^`]*)`|\$\{?(?P<nome>\w+)\}?", re.S)
+TETO_DE_OPACOS = 64  # C21 da v2: acima disso, na mesma linha, o hook não lê
+
+
+def corpos_de_substituicao(texto):
+    """O corpo de cada `$(…)` de fora (com o de dentro) e de cada crase, por profundidade de parênteses e sem olhar
+    aspas: sobra texto, nunca falta (a sobra só recusa mais)."""
+    corpos, i = [m[1] for m in re.finditer(r"`([^`]*)`", texto)], texto.find("$(")
+    while i >= 0:
+        fundo, j = 1, i + 2
+        while j < len(texto) and fundo:
+            fundo += {"(": 1, ")": -1}.get(texto[j], 0)
+            j += 1
+        corpos.append(texto[i + 2:j - (not fundo)])
+        i = texto.find("$(", j)
+    return corpos
+
+
+def valor_atribuido(texto, inicio):
+    """O valor da atribuição que começa em `inicio`, até o espaço ou separador fora de aspas e de parênteses."""
+    fundo, aspa, j = 0, None, inicio
+    while j < len(texto) and (aspa or fundo or not (texto[j].isspace() or texto[j] in ";&|)")):
+        c = texto[j]
+        if aspa:
+            aspa = None if c == aspa else aspa
+        elif c in "\"'":
+            aspa = c
+        else:
+            fundo += {"(": 1, ")": -1}.get(c, 0)
+        j += 1
+    return texto[inicio:j]
+
+
+def glob_casa(padrao, nome):
+    """O curinga do bash com `nocaseglob`, cada colchete lido como `?` (sobre-aproxima)."""
+    regex = "".join(".*" if c == "*" else "." if c == "?" else re.escape(c) for c in COLCHETE.sub("?", padrao))
+    return re.fullmatch(regex, nome, re.I) is not None
+
+
+def cita_o_dir_do_git(texto):
+    """U1: `.git` como palavra ou componente, opção do diretório do git, `GIT_DIR` ou curinga que casa `.git`."""
+    return bool(CITA_DIR_DO_GIT.search(texto)) or any(glob_casa(p, ".git") for p in PALAVRA_COM_CURINGA.findall(texto))
+
+
+def nome_da_c18(nome):
+    """U3: o nome está nas listas fechadas da C18 (git e githooks(5)), também por curinga."""
+    return nome in NOMES_DA_C18 or bool(CURINGA.search(nome)) and any(glob_casa(nome, n) for n in NOMES_DA_C18)
+
+
 def opcoes_sem_exec(args):
     """Todas as opções são de leitura pura: curta só com letras de `CURTAS_SEM_EXEC`, longa só pelo nome exato em
     `LONGAS_SEM_EXEC`; `+comando` (less) e qualquer outra forma recusam. Depois de `--` tudo é argumento."""
@@ -766,6 +831,8 @@ class Guarda:
         self._regras = None  # `regras_do_forge`, lido uma vez por decisão (a raiz e o `externo` não mudam nela)
         self._raiz_home = None  # (realpath da raiz, realpath do home), uma vez por decisão
         self.linha = ""      # a linha de comando inteira, como veio (nível 0)
+        self.texto_da_linha = None  # A9: o texto do nível em conferência, sem heredocs e com o rev-parse lido (só Bash)
+        self.opacos = 0  # A9: destinos opacos sem resto da linha (`TETO_DE_OPACOS`)
         self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
         self.lancador_recusado = None  # lançador da linha que o hook não modela (`LANCADORES_RECUSADOS`), recusado no fim
         self.reavaliacao = None  # a primeira reavaliação pelo shell da linha, em qualquer nível (`reavaliacao`, opção B)
@@ -991,9 +1058,94 @@ class Guarda:
                                      f"literal se não for): {achado[1]}", *achado[2:])
             if achado:
                 self.barrar(*achado)
+        self.destino_opaco(caminho, pasta)  # A9: depois das regras do caminho, que falam primeiro
         for alvo in alvos:  # o Bash recusa no fim da linha (`parecer_pelo_bash`), depois das regras específicas dela
             if parecer_conta and e_parecer(alvo):
                 self.parecer_pelo_bash = alvo
+
+    def fim_do_opaco(self, caminho, pasta):
+        """A9: (expandido, fim da última parte opaca) se o valor do caminho, no Bash, depende de `$(…)`, crase ou variável
+        que o hook não resolve (U0: `expandir`); senão None. Write e Edit não entram: lá o caminho é literal."""
+        if self.texto_da_linha is None:
+            return None
+        expandido = self.expandir(caminho, pasta)
+        fins = [m.end() for m in SO_VARIAVEL.finditer(expandido)]
+        if "$(" in expandido:
+            fins.append(expandido.rfind(")") + 1)
+        return (expandido, max(fins)) if fins else None
+
+    def opaco_sem_resto(self, caminho, pasta):
+        """A9: o caminho é opaco e nada vem depois da última parte opaca além de `/`."""
+        opaco = self.fim_do_opaco(caminho, pasta)
+        return bool(opaco) and not opaco[0][opaco[1]:].strip("/")
+
+    def textos_do_valor(self, palavra):
+        """(precisos, largos): o texto que produz o valor da palavra. Precisos: a palavra, os corpos de substituição da
+        linha quando ela os perdeu (`$(…)` sem aspas, crase partida) e o valor de cada `nome=` da linha que ela usa.
+        Largos: mais a linha inteira se a variável nasce de outro jeito (`for d in`, `read d`) ou se o texto chama uma
+        função definida na linha (U0 e U1)."""
+        linha, palavra = self.texto_da_linha.replace("\\\n", ""), palavra.replace("\\\n", "")  # continuação de linha
+        precisos, nomes, largo = [palavra], set(), False
+        if OPACO["$"] in palavra or palavra.count("`") % 2:
+            precisos += [f"$({c})" for c in corpos_de_substituicao(linha)]  # inteiras: o aninhado segue à vista
+        for texto in precisos:  # cresce enquanto o valor de uma variável usa outra
+            for nome in set(re.findall(r"\$\{?(\w+)", texto)) - nomes:
+                nomes.add(nome)
+                precisos += [valor_atribuido(linha, m.end()) for m in re.finditer(rf"(?<![\w$]){nome}\+?=", linha)]
+                largo |= bool(re.search(rf"(?<![\w${{]){nome}(?![\w+=])", linha))
+        funcoes = re.findall(r"(?:function\s+|(?<![\w$-]))([\w.-]+)\s*\(\s*\)", linha)
+        largo |= any(re.search(rf"(?<![\w.-]){re.escape(f)}(?![\w.-])", t) for f in funcoes for t in precisos)
+        return precisos, precisos + [linha] if largo else precisos
+
+    def destino_opaco(self, caminho, pasta):
+        """A9 (E1.139, v047): o destino opaco sem resto recusa quando o texto que produz o valor cita o diretório do git
+        (U1) ou quando o hook não o lê (U2: aninhado, `eval`, `sh -c`, `$'…'`, barra invertida). Acima de
+        `TETO_DE_OPACOS` por linha, recusa como ilegível (C21)."""
+        if not self.opaco_sem_resto(caminho, pasta):
+            return
+        self.opacos += 1
+        if self.opacos > TETO_DE_OPACOS:
+            self.barrar("R-CONFORMIDADE", f"mais de {TETO_DE_OPACOS} destinos de $(…), crase ou variável na linha: o hook "
+                                          "não os lê", "separe em comandos menores, com o caminho literal")
+        precisos, largos = self.textos_do_valor(caminho)
+        if any(cita_o_dir_do_git(t) for t in largos):
+            motivo = "o texto que produz o valor cita o diretório do git (.git)"
+        elif any(CORPO_ILEGIVEL.search(t) for t in precisos) or any(
+                "$(" in c or "`" in c for t in precisos for c in corpos_de_substituicao(t)):
+            motivo = "o hook não lê o texto que produz o valor (aninhado, eval, sh -c, $'…' ou barra invertida)"
+        else:
+            return
+        self.barrar("R-CONFORMIDADE", f"destino de $(…), crase ou variável sem nada depois: {motivo}",
+                    "escreva o caminho literal do destino")
+
+    def origem_do_git_no_opaco(self, args, pasta):
+        """A9, U3: `cp`, `mv`, `install` e `ln` com destino opaco sem resto e origem com nome do git ou de hook (C18)
+        recusam, salvo quando o corpo é um da lista positiva (`CORPO_POSITIVO`: `mktemp`, `date`, `pwd`,
+        `git rev-parse --show-toplevel`)."""
+        alvo = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-t", "--target-directory")), None)
+        alvo = alvo or next((a.split("=", 1)[1] for a in args if a.startswith("--target-directory=")), None)
+        alvo = alvo or next((a for a in reversed(args) if not a.startswith("-") or "`" in a), None)
+        if not alvo or not self.opaco_sem_resto(alvo, pasta) or self.corpo_positivo(alvo):
+            return
+        nomes = [Path(a.rstrip("/")).name for a in args if not a.startswith("-") and a != alvo]
+        achado = next((n for n in nomes if nome_da_c18(n)), None)
+        if achado:
+            self.barrar("R-CONFORMIDADE", f"origem `{achado}` (nome do git ou de hook) para destino de $(…), crase ou "
+                                          "variável que o hook não lê", "escreva o caminho literal do destino")
+
+    def corpo_positivo(self, palavra):
+        """U3: a palavra é uma substituição só (direta ou pela única atribuição da variável na linha) cujo corpo está na
+        lista positiva; a substituição sem aspas vale se todos os corpos da linha estiverem."""
+        linha, m = self.texto_da_linha, UNIDADE_OPACA.fullmatch(palavra.rstrip("/"))
+        if m and m["nome"]:
+            valores = [valor_atribuido(linha, a.end()) for a in re.finditer(rf"(?<![\w$]){m['nome']}=", linha)]
+            outro = re.search(rf"(?<![\w${{]){m['nome']}(?![\w=])", linha)
+            m = UNIDADE_OPACA.fullmatch(valores[0].strip("\"'")) if len(valores) == 1 and not outro else None
+        if not m or m["nome"]:
+            return False
+        corpo = m["sub"] if m["sub"] is not None else m["crase"]
+        corpos = corpos_de_substituicao(linha) if corpo == "…" else [corpo]
+        return bool(corpos) and all(CORPO_POSITIVO.fullmatch(c.strip()) for c in corpos)
 
     def alvos_da_escrita(self, caminho, pasta):
         """O caminho resolvido, o resto que cai no `.git` (`resto_no_git`) e, depois de uma substituição (`$(…)/x`), o resto
@@ -1179,6 +1331,7 @@ class Guarda:
             self.conferidas, self.conferencias, self.caracteres, self.em_curso, self.releituras = {}, 0, 0, set(), 0
             self.reavaliacao = None
             self.prazo = time.monotonic() + PRAZO_DA_LINHA_S
+            self.opacos = 0
         chave = (comando, pasta, nivel, self.releituras, so_substituicoes, corpo_de_heredoc,
                  tuple(sorted(self.ambiente.items())))
         if chave in self.conferidas:
@@ -1198,12 +1351,14 @@ class Guarda:
                         "separe em comandos menores, sem crase nem $( aninhados, e grave texto longo num arquivo")
         if nivel:
             self.em_curso.add(releitura)
+        texto_de_fora = self.texto_da_linha
         try:
             self.conferir_linha(comando, pasta, nivel, so_substituicoes, corpo_de_heredoc)
             for forma in formas_que_o_shell_le(comando, corpo_de_heredoc):  # HOOK-CONTINUACAO-LINHA: a que o bash roda
                 self.conferir_linha(forma, pasta, nivel, so_substituicoes, corpo_de_heredoc)
         finally:
             self.em_curso.discard(releitura)
+            self.texto_da_linha = texto_de_fora
         self.conferidas[chave] = dict(self.ambiente or {})
 
     def recusar_o_teto(self, comando, original, nivel):
@@ -1242,6 +1397,7 @@ class Guarda:
         else:
             comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
             comando = REV_PARSE_DO_GIT.sub(trocar_rev_parse, comando)
+            self.texto_da_linha = comando
             self.recusar_o_teto(comando, original, nivel)
             lidas = leituras(comando)
             # opção B da revalidação 9: sobre a palavra que o bash recebe, em qualquer posição; recusa no fim do nível 0.
@@ -1571,6 +1727,8 @@ class Guarda:
                     self.checar_escrita(a[3:], pasta)
         elif prog in self.pol["pacotes"]:
             self.pacote(prog, args)
+        if prog in ("cp", "mv", "install", "ln"):  # A9, U3: depois das regras do destino e do link
+            self.origem_do_git_no_opaco(args, pasta)
         if prog == "sed":  # `w arquivo` no script escreve, com ou sem `-i`
             for a in args:
                 for destino in SED_ESCREVE.findall(script_do_sed(a)):
