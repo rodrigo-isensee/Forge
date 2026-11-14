@@ -19,7 +19,7 @@
       "de": "dev=\"$(remoto_exato develop)\" || die",
       "para": "dev=\"$(remoto_exato develop)\" || true",
       "testes": [
-        "tests.test_fechar_lote.Promover.test_marca_que_nao_existe_aqui_para"
+        "tests.test_fechar_lote.Promover.test_develop_ilegivel_no_servidor_para_no_p1"
       ]
     },
     {

@@ -19,7 +19,7 @@
       "de": "topo=\"$(remoto_exato \"$alvo\")\" || die",
       "para": "topo=\"$(remoto_exato \"$alvo\")\" || true",
       "testes": [
-        "tests.test_fechar_lote.EsperaCiDevelop.test_topo_ilegivel_no_servidor_para"
+        "tests.test_fechar_lote.EsperaCiDevelop.test_topo_ilegivel_ou_vazio_no_6b_para_sem_mesclar"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "de": "[ -n \"$topo\" ] || die",
       "para": "true || die",
       "testes": [
-        "tests.test_fechar_lote.EsperaCiDevelop.test_topo_ilegivel_no_servidor_para"
+        "tests.test_fechar_lote.EsperaCiDevelop.test_topo_ilegivel_ou_vazio_no_6b_para_sem_mesclar"
       ]
     },
     {
@@ -67,7 +67,7 @@
       "guarda": "branch ausente para no L1",
       "arquivo": "bin/forge-fechar",
       "de": "if ! { [ -n \"$sha\" ] && git cat-file -e \"$sha^{commit}\" 2>/dev/null; }; then die \"parou no passo L1",
-      "para": "if ! { [ -n \"$sha\" ] || git cat-file -e \"$sha^{commit}\" 2>/dev/null; }; then die \"parou no passo L1",
+      "para": "if false; then die \"parou no passo L1",
       "testes": [
         "tests.test_fechar_lote.Lote.test_branch_ausente_para_no_l1"
       ]

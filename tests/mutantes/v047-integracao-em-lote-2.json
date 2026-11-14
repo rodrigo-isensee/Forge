@@ -69,15 +69,15 @@
       "de": "grep -qv ' cancelled$'; then ci_st=vermelho",
       "para": "grep -q ' cancelled$'; then ci_st=vermelho",
       "testes": [
-        "tests.test_fechar_lote.EsperaCiDevelop.test_vermelho_e_cancelado_juntos_contam_como_vermelho"
+        "tests.test_fechar_lote.EsperaCiDevelop.test_develop_vermelha_antes_do_merge_para_sem_mesclar"
       ]
     },
     {
       "id": "IL-M16",
-      "guarda": "sem execução não é verde",
+      "guarda": "sem execução ou execução em andamento não é verde",
       "arquivo": "bin/forge-fechar",
-      "de": "if [ -n \"$linhas\" ] && printf",
-      "para": "if true && printf",
+      "de": "'$2 != \"completed\" {f = 1} END {exit f}'",
+      "para": "'$2 == \"x\" {f = 1} END {exit f}'",
       "testes": [
         "tests.test_fechar_lote.EsperaCiDevelop.test_sem_execucao_no_prazo_para_sem_mesclar"
       ]

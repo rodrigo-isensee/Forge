@@ -831,7 +831,8 @@ esperar_ci() {
       if printf '%s\n' "$ci_ruins" | grep -qv ' cancelled$'; then ci_st=vermelho; else ci_st=cancelado; fi
       return 0
     fi
-    if [ -n "$linhas" ] && printf '%s\n' "$linhas" | awk -F'\t' '$2 != "completed" {f = 1} END {exit f}'; then ci_st=verde; return 0; fi
+    # Sem execução registrada, a linha vazia não está "completed": não é verde.
+    if printf '%s\n' "$linhas" | awk -F'\t' '$2 != "completed" {f = 1} END {exit f}'; then ci_st=verde; return 0; fi
     if [ $((SECONDS - t0)) -ge "$3" ]; then ci_st=pendente; return 0; fi
     dormir "$intervalo"
   done

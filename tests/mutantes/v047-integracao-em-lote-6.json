@@ -49,7 +49,7 @@
       "de": "[ -n \"$pr_n\" ] || die \"parou no passo P5: o PR foi criado",
       "para": "true || die \"parou no passo P5: o PR foi criado",
       "testes": [
-        "tests.test_fechar_lote.Promover.test_item_mesclado_depois_da_marca_nao_entra_na_promocao"
+        "tests.test_fechar_lote.Promover.test_pr_criado_sem_numero_na_saida_para_para_retomar"
       ]
     },
     {

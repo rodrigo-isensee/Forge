@@ -105,12 +105,16 @@ class EsperaCiDevelop(Ambiente):
         self.assertIn("parou no passo 6b: não consegui ler o CI do push na develop", r.stderr)
         self.assertEqual(self.merges(), [])
 
-    def test_topo_ilegivel_no_servidor_para(self):
-        self.git("push", "-q", "origin", "--delete", "develop")
-        self.git("push", "-q", "origin", "melhoria/x:refs/heads/outra")
-        r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "0")
-        self.assertNotEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.merges(), [])
+    def test_topo_ilegivel_ou_vazio_no_6b_para_sem_mesclar(self):
+        # o 2b e o 6a leem a develop no servidor antes; a terceira leitura, a do 6b, falha ou volta sem a ref
+        for modo, msg in (("falha", "não consegui ler a develop no servidor; nada"), ("vazio", "(resposta vazia)")):
+            with self.subTest(modo=modo):
+                (self.estado / "lsremote_develop_ok").write_text("2")
+                (self.estado / "lsremote_develop_modo").write_text(modo)
+                r = self.fechar("p1", "--ref", "melhoria/x")
+                self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+                self.assertIn("parou no passo 6b: " + msg if modo == "falha" else msg, r.stderr)
+                self.assertEqual(self.merges(), [])
 
     def test_ci_vermelho_no_merge_sai_com_5_e_imprime_a_reversao(self):
         (self.estado / f"runs_{MERGE_PADRAO}").write_text("93\tcompleted\tfailure\n")
@@ -221,9 +225,10 @@ class Lote(Ambiente):
         self.assertEqual(self.itens(), [])
 
     def test_diff_ilegivel_para_no_l1(self):
-        r = self.fechar("--lote", "--base", "origin/develop", "p1:melhoria/x", "p2:melhoria/y",
-                        GIT_DIR=str(self.proj / ".git"), GIT_WORK_TREE=str(self.proj), GIT_OBJECT_DIRECTORY=str(self.tmp / "vazio"))
-        self.assertNotEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.git("update-ref", "-d", "refs/remotes/origin/develop")  # a base local some: o diff contra ela falha
+        r = self.fechar("--lote", "p1:melhoria/x", "p2:melhoria/y")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("parou no passo L1: não consegui ler o diff de melhoria/x", r.stderr)
         self.assertEqual(self.itens(), [])
 
     def test_lote_vermelho_imprime_a_reversao_do_lote_inteiro_e_sai_com_5(self):
@@ -273,6 +278,7 @@ class Lote(Ambiente):
         casos = ((("p1:melhoria/x",), "pede 2 ou 3 itens"),
                  (("p1:melhoria/x", "p2:melhoria/y", "p3:melhoria/z", "p4:melhoria/w"), "pede 2 ou 3 itens"),
                  (("p1:melhoria/x", "melhoria/y"), "item fora da forma"),
+                 (("p1:melhoria/x", "p2"), "item fora da forma"),
                  (("p1:melhoria/x", "p 2:melhoria/y"), "item fora da forma"),
                  (("p1:melhoria/x", "p2:melhoria..y"), "branch inválida"),
                  (("p1:melhoria/x", "p2:develop"), "não pode ser develop"),
@@ -396,6 +402,20 @@ class Promover(Ambiente):
         r = self.fechar("release-0.9.0", "--promover", "f" * 40)
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("parou no passo P1: sem o commit da marca", r.stderr)
+
+    def test_develop_ilegivel_no_servidor_para_no_p1(self):
+        (self.estado / "lsremote_develop_ok").write_text("0")
+        r = self.promover()
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("parou no passo P1: não consegui ler a develop no servidor", r.stderr)
+        self.assertEqual(self.ramo(), "")
+
+    def test_pr_criado_sem_numero_na_saida_para_para_retomar(self):
+        (self.estado / "saida_create").write_text("PR criado\n")
+        r = self.promover()
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("parou no passo P5: o PR foi criado, mas o número não foi lido", r.stderr)
+        self.assertEqual(self.merges(), [])
 
     def test_sha_fora_da_forma_para_antes_de_tudo(self):
         for sha in ("abc", "G" * 40, self.marca.upper()):

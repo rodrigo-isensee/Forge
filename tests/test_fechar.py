@@ -119,6 +119,13 @@ if [ "$1 $2" = "push origin" ] && [ "$3" = "--delete" ]; then
   # $ESTADO/delete_apaga_e_falha: o servidor apaga a ref, mas a resposta se perde (o comando sai com erro)
   if [ -f "$ESTADO/delete_apaga_e_falha" ]; then "$REAL_GIT_FALSO" "$@" >/dev/null 2>&1; exit 1; fi
 fi
+# $ESTADO/lsremote_develop_ok N: as N primeiras leituras da develop no servidor passam; depois falham ("vazio" em lsremote_develop_modo: sem a ref)
+if [ "$1 $2 $3" = "ls-remote origin refs/heads/develop" ] && [ -f "$ESTADO/lsremote_develop_ok" ]; then
+  n="$(cat "$ESTADO/lsremote_develop_ok")"
+  if [ "$n" -gt 0 ]; then echo $((n - 1)) > "$ESTADO/lsremote_develop_ok"
+  elif [ "$(cat "$ESTADO/lsremote_develop_modo" 2>/dev/null)" = vazio ]; then exit 0
+  else echo "HTTP 502" >&2; exit 1; fi
+fi
 case "$1 $2" in
   "worktree remove")
     echo "git $*" >> "$REGISTRO"
