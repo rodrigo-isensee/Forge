@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v047-heredocs-orcamento
+pedido: v047
 branch: melhoria/v047-heredocs-orcamento
 commit: ec8997a6bfb365a9061316ea7905d12e8d5279a7
 parecer: aprovado
