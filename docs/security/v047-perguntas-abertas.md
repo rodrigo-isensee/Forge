@@ -3,48 +3,38 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-perguntas-abertas
-commit: 2511f48b990a871fd4700a67ddd00942174edcba
+commit: 3da5f24a4bb8aacb7fbf314e12f48ff955b93aba
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-14
 ---
-# Review de segurança: v047 (E1.146, perguntas-abertas, FOCO-NAS-DECISOES)
+# Review de segurança: v047 (E1.165, perguntas-abertas, volta 1 da E1.135, por delta)
 
-Intervalo revisado: `origin/develop` (`e60183d0`) até `2511f48b`, em 2 commits (`ca4acfb6` e `2511f48b`). No domínio: `bin/forge_dono.py` (`cmd_abertas`, `perguntas_do_pedido`, `pendencias_do_quadro`, `_limpo`, `peso`, `recomendada`, `LINHA_DO_REGISTRO`) e a classe `PerguntasAbertas` de `tests/test_forge_dono.py`. As specs de mutantes e o fragmento do changelog não pedem leitura de segurança.
+Intervalo revisado: `2511f48b..3da5f24a` (`4b945876`, `a7beb9b6`, `3da5f24a`; os demais são pareceres e merges). Lido pelo `forge-check parecer delta`: no domínio, só `bin/forge_dono.py`. As specs de mutantes e `tests/test_forge_dono.py` ficam fora do domínio. O parecer anterior (E1.146, head `2511f48b`, aprovado) está no histórico do git.
 
-Veredito: **aprovado**, com três recomendações. A função só lê e não escreve nada. Hoje ela não tem entrada pela linha de comando: o registro em `forge-check decisoes --abertas` vem em outra entrega. Também não abre fronteira de confiança nova. Ela lê, com o mesmo usuário, arquivos do repositório que esse usuário já lê, e a saída vai só para ele. Nenhum dos achados dá ganho a quem escreve no repositório, porque essa pessoa já controla o texto de `docs/pedidos/` e do `KANBAN.md`. Mesmo assim, o A1 desmente a docstring ("link simbólico não é lido"), e o A1 e o A2 devem ser fechados antes do registro na CLI.
+Veredito: **aprovado**. A1 e A2 foram corrigidos e as sondas confirmam. O A3 continua aberto e recomendado, porque não fazia parte desta volta. A mudança de regra (cada decisão fecha no máximo uma pergunta) é mais estreita que a anterior, em que a última decisão fechava todas. Ela erra para o lado de mostrar mais, e por isso não esconde pergunta. Surgiu um custo quadrático novo em `_respondida` (A4). Ele é recomendado, pelo mesmo motivo do A2: só nega o serviço de uma ferramenta local, e só com milhares de perguntas abertas num mesmo pedido.
 
 ## Gatilhos
-`R-SEGURANCA`: leitura de arquivos do projeto por ferramenta do Forge, com estes pontos a conferir: link simbólico, arquivo ilegível e caminho fora da raiz. Não há segredo, rede, workflow nem escrita.
+`R-SEGURANCA`: a ferramenta do Forge lê arquivos do projeto. Pontos conferidos: pasta por link simbólico (A1), regex sobre texto livre (A2 e as regex novas `DATA_DO_CORPO`, `CITACAO` e `RESPONDIDA_NA_LINHA`) e arquivo ilegível (`KANBAN.md`). Não há segredo, rede, workflow nem escrita.
 
 ## Achados
-- A1 (recomendado) bin/forge_dono.py:545 · `docs/pedidos` ou `docs` como link simbólico de pasta é seguido: os `*.md` do alvo, fora da raiz, entram na lista (S1, S2), contra a docstring; recusar como `_gravar_novo` (:56) ou exigir `resolve()` dentro da raiz real
-- A2 (recomendado) bin/forge_dono.py:473 · `LINHA_DO_REGISTRO` é quadrática: linha `PERGUNTA AO DONO (2026-11-03` seguida de 32 mil espaços leva 31 s, e 8 mil levam 1,8 s; limitar `[^):\n]*` (ex.: `{0,80}`) ou pular linha acima de um teto antes do `match`
-- A3 (recomendado) bin/forge_dono.py:486 · `_limpo` tira C0, DEL e `|`, mas deixa passar C1 (U+0080 a U+009F, ex.: U+009B, o CSI de 8 bits) e formato Cf (U+202E); filtrar pela categoria Cc e Cf, como `recusa_da_forja` já faz com Cf
+- A3 (recomendado) bin/forge_dono.py:501 · `_limpo` tira C0, DEL e `|`, mas deixa passar C1 (U+0080 a U+009F, ex.: U+009B, o CSI de 8 bits) e formato Cf (U+202E); filtrar pela categoria Cc e Cf, como `recusa_da_forja` já faz com Cf
+- A4 (recomendado) bin/forge_dono.py:541 · `_respondida` varre todos os instantes a cada decisão (`any(...)`) e `abertas.remove` é linear: 8 mil perguntas e 8 mil decisões num pedido levam 30 s (4 mil: 6,6 s); usar `bisect` sobre `instantes`, que já está ordenado
 
 ## Sondas
 
 ## Detalhe dos achados
-Método: as sondas importaram o `bin/forge_dono.py` do head `2511f48b` (`python3 -I`, raízes temporárias) e chamaram `cmd_abertas` e `perguntas_do_pedido`. Rodei também `tests.test_forge_dono` no head: 73 testes, OK. Contra a raiz real de pedidos, `cmd_abertas` levou 0,2 s e listou 4 perguntas. A suíte inteira roda no CI do PR; a branch ainda não tem PR (a regra da E1.3 abre o PR depois dos pareceres). A entrega foi conferida às 08:46 (Histórico do pedido, 14/11 08:49).
+Método: as sondas importaram o `bin/forge_dono.py` do head `3da5f24a` (`python3 -I`, raízes temporárias). Também rodei `python3 -m unittest tests.test_forge_dono` no head: 79 testes, OK. A suíte inteira roda no CI do PR, que a branch ainda não tem (a E1.3 abre o PR depois dos pareceres).
 
-Pontos pedidos pela etapa:
-- **Link de arquivo:** `docs/pedidos/<x>.md` e `KANBAN.md` como link ficam fora da lista. O teste `test_link_e_arquivo_ilegivel_ficam_fora` cobre os dois casos.
-- **Arquivo ilegível:** `ruim.md`, que não é UTF-8, e uma pasta chamada `d.md` (sonda: `IsADirectoryError`) viram aviso e o comando segue. O `KANBAN.md` usa `errors="replace"`. O `OSError` na leitura do `KANBAN.md` (`:555`) fica com o parecer de QA (E1.147). Rodando como root, não consegui provocá-lo por permissão, e o defeito é de robustez, não de segurança.
-- **Caminho fora da raiz:** é o A1.
+**A1 (fechado).** `:583` recusa `docs/pedidos` ou `docs` como link, seguindo a convenção de `_gravar_novo` (`:56`). Sonda com cada um dos dois links apontando para uma pasta fora da raiz que tem `y.md`: `cmd_abertas` devolveu `(['abertas: erro: docs/pedidos ou docs é link simbólico; recusado'], 1)`, e o texto de fora não apareceu. O caso do FIFO local continua apenas teórico: o git não guarda FIFO.
 
-**A1.** Evidência: em `:545-547`, `Path(raiz)/"docs"/"pedidos"` é varrido por `glob`, e só o link do próprio arquivo é recusado (`arq.is_symlink()`). Sondas: com `docs/pedidos -> <pasta fora>`, `cmd_abertas` devolveu `aberta: outro | x | 2026-11-03 10:00 | segredo de fora`. Com `docs -> <pasta fora>` (que tem `pedidos/y.md`), o resultado foi o mesmo. O git guarda link simbólico, então um commit pode trazer esse link. Caminho de ataque: quem escreve um link desses na branch faz a ferramenta ler arquivos que o próprio dono já pode ler e mostrá-los a ele. Não há ganho de privilégio nem vazamento para terceiros. O link pode, porém, mostrar como pergunta pendente um texto que não está no repositório. Na mesma linha, um FIFO local chamado `*.md` em `docs/pedidos/` travaria o `read_text`. O git não guarda FIFO, então esse caso só nasce na máquina. Severidade: baixa. Correção mínima: no começo de `cmd_abertas`, recusar com aviso quando `pasta.is_symlink() or pasta.parent.is_symlink()`, que é a convenção do módulo em `_gravar_novo` (`:56`) e `_gravar_seguro` (`:74`). Alternativa: comparar `arq.resolve()` com `Path(raiz).resolve()` e exigir `arq.is_file()`, o que também afasta o FIFO. Somar dois casos ao teste: pasta `docs/pedidos` como link e pasta `docs` como link. Esforço P. Dono: `tech-lead`, na entrega do registro na CLI ou antes dela.
+**A2 (fechado).** O trecho depois da data agora é `[^):\n]{0,80}`. Tempos de `LINHA_DO_REGISTRO.match` na linha `PERGUNTA AO DONO (2026-11-03` seguida de n espaços: 8 mil em 0,04 s (antes 1,8 s), 32 mil em 0,16 s (antes 31 s), 128 mil em 0,56 s e 1 milhão em 4,5 s, ou seja, linear. As regex novas também ficaram lineares até 8 mil repetições: `DATA_DO_CORPO` (`(dono, 2026-11-03` e espaços), `CITACAO` (`pergunta ` repetido e `pergunta ao dono 1a de` e espaços), `RESPONDIDA_NA_LINHA` (`resposta ` repetido) e a alternativa `[A-Z…]{2,20} DO DONO` (`AB DO DONO` repetido). Todas ficaram em até 5 ms.
 
-**A2.** Evidência: em `:473`, `(?:\(?{_DATA}[^):\n]*\)?)?` vem seguido de `(?:\s*[:,]\s*|\s+(?=\x22))`. Numa sequência longa de espaços sem `)`, `:` nem `,`, o retrocesso é O(n²). Tempos medidos em `perguntas_do_pedido` e em `LINHA_DO_REGISTRO.match`:
+**KANBAN.md ilegível.** O `OSError` agora vira aviso (`:594-597`). Rodando como root, não consegui provocar o erro por permissão. O ponto é de robustez e fica com o QA.
 
-| espaços | tempo |
-|---|---|
-| 2 mil | 0,10 s |
-| 8 mil | 1,8 s |
-| 32 mil | 31 s |
+**A4.** Evidência: `:541` faz `any(abertas[-1][0] < outro < instante for outro in instantes)` para cada decisão enquanto há pergunta aberta, e `:556` faz `abertas.remove(fechada)`, que é O(n). Tempos com n perguntas abertas (`PERGUNTA AO DONO (2026-11-03 10:MM): q`) seguidas de n `DECISÃO DO DONO (2026-11-04 10:00): d`: 1 mil em 0,26 s, 2 mil em 1,2 s, 4 mil em 6,6 s e 8 mil em 30 s. Com uma pergunta só e milhares de decisões, o custo é desprezível (4 mil em 0,07 s), porque a lista esvazia logo. O maior pedido real tem 933 linhas e 93 falas do dono. Caminho de ataque: texto colado num pedido, vindo de fonte externa ou de um agente induzido, com milhares de pares pergunta e decisão, trava `abertas` para quem o roda. O efeito se limita a negar o serviço de uma ferramenta local. Severidade: baixa. Correção mínima: com `instantes` já ordenado, trocar o `any` por `bisect.bisect_right(instantes, abertas[-1][0]) < bisect.bisect_left(instantes, instante)` e somar um teste de orçamento de tempo. Esforço P. Dono: `tech-lead`.
 
-Uma linha `PERGUNTA AO DONO (2026-11-03 10:00): ` seguida de `→"` repetido 32 mil vezes também levou 36 s. A maior linha real de pedido tem 1075 caracteres e roda em tempo desprezível. Caminho de ataque: um texto colado no pedido, vindo de conteúdo externo ou de um agente induzido, trava o comando de quem o roda. O efeito se limita a negar o serviço de uma ferramenta local. Severidade: baixa. Correção mínima: limitar o trecho ambíguo (`[^):\n]{0,80}`) ou ignorar, com aviso, linha acima de um teto (ex.: 8 KiB) antes do `match`. Somar um teste de orçamento de tempo. Esforço P. Dono: `tech-lead`.
-
-**A3.** Evidência: `:486` troca `[\x00-\x1f\x7f|]` por espaço. Sonda: o texto `a\u009b31mVERMELHO ‮abc \x1b[2J` saiu como `a\x9b31mVERMELHO ‮abc [2J`: o ESC caiu, mas U+009B e U+202E passaram. Caminho de ataque: um terminal que interpreta C1 em UTF-8, ou a inversão bidi, desfigura a linha mostrada ao dono e pode trocar a ordem visual de "recomendada". O efeito depende do terminal e não executa nada. Severidade: informativa a baixa. Correção mínima: substituir por espaço todo caractere com `unicodedata.category(c) in ("Cc", "Cf")`, e não só a faixa ASCII. Esforço P. Dono: `tech-lead`.
+**A3.** Continua como estava no parecer da E1.146: `_limpo` (`:501`) troca só `[\x00-\x1f\x7f|]`. Correção mínima: trocar por espaço todo caractere com `unicodedata.category(c) in ("Cc", "Cf")`. Severidade: informativa a baixa. Esforço P. Dono: `tech-lead`.
 
 ## Riscos aceitos e ferramentas
 Sem riscos aceitos. As sondas foram locais e passivas, com a biblioteca padrão. Varredura de segredos e SAST não se aplicam a este delta: não há segredo, dependência nem workflow novos. Nenhuma ferramenta foi instalada.
