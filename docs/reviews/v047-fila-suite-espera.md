@@ -1,7 +1,7 @@
 ---
 tipo: review
 contrato: 1
-pedido: v047-fila-suite-espera
+pedido: v047
 branch: melhoria/v047-fila-suite-espera
 commit: 1e04c56fe51c0165e112a1fcd5aab23ea52cc666
 parecer: aprovado
