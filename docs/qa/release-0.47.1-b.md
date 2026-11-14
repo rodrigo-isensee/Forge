@@ -16,9 +16,6 @@ data: 2026-11-14
 
 Head `5b10ba81`, base `067b2a9f` (origin/develop). O intervalo só junta ao `CHANGELOG.md` os 2 fragmentos pendentes (PR 562) e apaga os fragmentos; nenhum código muda. Suíte inteira: check-run `bateria` e as suítes 3.12 e 3.14 do PR 562, todos pass no mesmo sha (headRefOid = Revisar-sha).
 
-## Achados
-Nenhum.
-
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
