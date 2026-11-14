@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Migração 0.47.1, passo pre-envio (MP1311 E1.16, diretriz 23): leva ao projeto existente o modelo de PR
+(.github/pull_request_template.md) e o .githooks/pre-push.local com o pronto rápido da stack, como o forge-init faz no
+projeto novo. Não sobrescreve o que existe. A stack vem do CLAUDE.md (`Pacote do Forge: `<stack>``; sem a linha,
+node-react); stack desconhecida ou sem pronto rápido não ganha o pre-push.local. Com `arquivos_do_forge_no_git` false,
+o que criar vai para o .git/info/exclude, como no forge-init --sem-versionar.
+Uso: migrar-pre-envio DIRETORIO_DO_PROJETO. Idempotente."""
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+FORGE = Path(__file__).resolve().parents[2]
+MODELO = FORGE / "templates/projeto"
+PR, LOCAL = ".github/pull_request_template.md", ".githooks/pre-push.local"
+projeto = Path(sys.argv[1]).resolve()
+
+
+def stack_do_projeto():
+    try:
+        achado = re.search(r"Pacote do Forge: `([^`]*)`", (projeto / "CLAUDE.md").read_text(encoding="utf-8"))
+    except OSError:
+        achado = None
+    return achado.group(1) if achado else "node-react"
+
+
+def pre_push_local():
+    """O pre-push.local do modelo com os marcadores da stack, ou None (com o motivo impresso)."""
+    stack = stack_do_projeto()
+    pronto = FORGE / "stacks" / stack / "pronto.md"
+    if not re.fullmatch(r"[a-z0-9-]+", stack) or not pronto.is_file():
+        print(f"aviso: stack {stack!r} do CLAUDE.md desconhecida; {LOCAL} não criado (copie-o à mão do modelo)")
+        return None
+    texto = pronto.read_text(encoding="utf-8")
+    rapido = re.search(r"(?m)^Pronto rápido: `([^`]+)`", texto)
+    if not rapido:
+        print(f"aviso: stacks/{stack}/pronto.md sem 'Pronto rápido'; {LOCAL} não criado")
+        return None
+    deteccao = re.search(r"(?m)^Detecção: (.*)$", texto)
+    arquivos = " ".join(re.findall(r"`([^`]+)`", deteccao.group(1))) if deteccao else ""
+    modelo = (MODELO / LOCAL).read_text(encoding="utf-8")
+    return modelo.replace("{{STACK}}", stack).replace("{{DETECCAO}}", arquivos).replace("{{PRONTO_RAPIDO}}", rapido.group(1))
+
+
+def fora_do_git():
+    try:
+        config = json.loads((projeto / ".forge/config.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(config, dict) and config.get("arquivos_do_forge_no_git") is False
+
+
+criados = []
+alvo = projeto / PR
+if not alvo.exists() and not alvo.is_symlink():
+    alvo.parent.mkdir(parents=True, exist_ok=True)
+    alvo.write_bytes((MODELO / PR).read_bytes())
+    criados.append(PR)
+alvo = projeto / LOCAL
+if not alvo.exists() and not alvo.is_symlink():
+    conteudo = pre_push_local()
+    if conteudo is not None:
+        alvo.parent.mkdir(parents=True, exist_ok=True)
+        alvo.write_text(conteudo, encoding="utf-8")
+        alvo.chmod(0o755)
+        criados.append(LOCAL)
+if criados and fora_do_git():
+    caminho = subprocess.run(["git", "-C", str(projeto), "rev-parse", "--path-format=absolute", "--git-path", "info/exclude"],
+                             capture_output=True, text=True).stdout.strip()
+    prefixo = subprocess.run(["git", "-C", str(projeto), "rev-parse", "--show-prefix"], capture_output=True, text=True).stdout.strip()
+    if caminho:
+        exclude = Path(caminho)
+        exclude.parent.mkdir(parents=True, exist_ok=True)
+        with exclude.open("a", encoding="utf-8") as f:
+            f.writelines(f"/{prefixo}{rel}\n" for rel in criados)
+for rel in criados:
+    print(f"criado {rel}")

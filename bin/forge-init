@@ -2,7 +2,7 @@
 # Forge: prepara um projeto para ser desenvolvido pela fábrica.
 # Uso: forge-init [--nome NOME] [--descricao TEXTO] [--stack NOME] [--pronto COMANDO] [--forcar] [--sem-versionar] [--sem-sandbox] [DIRETORIO]
 # Copia templates/projeto para o diretório sem sobrescrever o que já existe (salvo --forcar),
-# substitui os marcadores {{PROJETO}}, {{DESCRICAO}}, {{STACK}} e {{COMANDO_PRONTO}} e ativa o hook de git
+# substitui os marcadores {{PROJETO}}, {{DESCRICAO}}, {{STACK}}, {{COMANDO_PRONTO}}, {{PRONTO_RAPIDO}} e {{DETECCAO}} e ativa o hook de git
 # (nunca troca um core.hooksPath de outra ferramenta nem desliga hooks ativos em .git/hooks).
 # --sem-versionar (FILA-24, D1 = B): no git ficam só .forge/versao, .forge/config.json e as chaves enabledPlugins e
 # extraKnownMarketplaces do .claude/settings.json; o resto vai para .claude/settings.local.json e .git/info/exclude.
@@ -57,8 +57,16 @@ if [ -z "$pronto" ]; then
   [ -n "$pronto" ] || pronto="a definir"
 fi
 
+# Pronto rápido da stack ("Pronto rápido: `...`" em stacks/<stack>/pronto.md), gravado no .githooks/pre-push.local, e os
+# arquivos de "Detecção:" que dizem se já há código da stack para checar. Stack sem pronto rápido: o pre-push.local não é criado.
+# shellcheck disable=SC2016  # as crases são literais da expressão
+rapido="$(sed -n 's/^Pronto rápido: `\(.*\)`.*/\1/p' "$raiz_forge/stacks/$stack/pronto.md" | head -n1)"
+# shellcheck disable=SC2016
+deteccao="$(sed -n 's/^Detecção: //p' "$raiz_forge/stacks/$stack/pronto.md" | head -n1 | command grep -o '`[^`]*`' | tr -d '`' | paste -sd' ' -)" || true
+
 escapar() { printf '%s' "$1" | sed -e 's/[\/&|]/\\&/g'; }
 n_esc="$(escapar "$nome")"; d_esc="$(escapar "$descricao")"; p_esc="$(escapar "$pronto")"; s_esc="$(escapar "$stack")"
+r_esc="$(escapar "$rapido")"; t_esc="$(escapar "$deteccao")"
 
 # .claude/settings.json existente (o próprio `claude plugin install --scope project` cria um): mescla em vez de pular.
 # Une as chaves do modelo ao arquivo (dicionário por chave, lista sem repetir, valor do projeto fica); não apaga nada.
@@ -145,11 +153,15 @@ while IFS= read -r -d '' arq; do
     mesclar_settings "$arq" "$alvo" tudo "$sandbox_novo"
     echo "  mesclado $rel"; continue
   fi
+  if [ "$rel" = ".githooks/pre-push.local" ] && [ -z "$rapido" ]; then
+    echo "  pulado   $rel (stacks/$stack/pronto.md sem 'Pronto rápido')"; continue
+  fi
   if [ -e "$alvo" ] && [ "$forcar" -eq 0 ]; then
     echo "  mantido  $rel"; mantidos=$((mantidos + 1)); continue
   fi
   mkdir -p "$(dirname "$alvo")"
-  sed -e "s|{{PROJETO}}|$n_esc|g" -e "s|{{DESCRICAO}}|$d_esc|g" -e "s|{{STACK}}|$s_esc|g" -e "s|{{COMANDO_PRONTO}}|$p_esc|g" "$arq" > "$alvo"
+  sed -e "s|{{PROJETO}}|$n_esc|g" -e "s|{{DESCRICAO}}|$d_esc|g" -e "s|{{STACK}}|$s_esc|g" -e "s|{{COMANDO_PRONTO}}|$p_esc|g" \
+    -e "s|{{PRONTO_RAPIDO}}|$r_esc|g" -e "s|{{DETECCAO}}|$t_esc|g" "$arq" > "$alvo"
   [ -x "$arq" ] && chmod +x "$alvo"
   if [ "$rel" = ".claude/settings.json" ] && [ "$sandbox_ok" -eq 0 ]; then  # B3: sem bwrap ou credencial, o modelo sai sem sandbox
     sandbox_oferta=1
