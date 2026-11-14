@@ -6,8 +6,8 @@
       "id": "O9",
       "guarda": "A9: o destino com resto não entra na regra do opaco sem resto",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if not self.opaco_sem_resto(caminho, pasta):\n            return",
-      "para": "        if False:\n            return",
+      "de": "        if not self.opaco_sem_resto(caminho, pasta):\n            self.resto_colado(caminho, pasta)\n            return",
+      "para": "        if False:\n            self.resto_colado(caminho, pasta)\n            return",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
       ]

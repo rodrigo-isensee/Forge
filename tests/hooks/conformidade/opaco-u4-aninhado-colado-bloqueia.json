@@ -20,7 +20,7 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "echo a > \"$(echo $(echo do))cs\""
+      "command": "echo a > \"$(echo $(true)do)\"cs"
     },
     "agent_type": "forge:tech-lead",
     "hook_event_name": "PreToolUse",

@@ -1,5 +1,5 @@
 {
-  "descricao": "CONFORMIDADE-A9-DESTINO-OPACO (E1.139, v047): U3: `$(…)` sem aspas vale pela lista positiva só se todos os corpos da linha estão nela; volta da E1.232: o U4 (lista positiva) recusa antes do U3.",
+  "descricao": "CONFORMIDADE-A9-DESTINO-OPACO (E1.139, v047): U3: `$(…)` sem aspas vale pela lista positiva só se todos os corpos da linha estão nela; volta da E1.232: o outro corpo é `echo docs`, que o U4 libera, para o U3 decidir sozinho.",
   "arquivos": {
     "x": "x\n",
     "config": "c\n",
@@ -19,7 +19,7 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "x=$(cat lugar.txt); cp config $(mktemp -d)"
+      "command": "x=$(echo docs); cp config $(mktemp -d)"
     },
     "agent_type": "forge:tech-lead",
     "hook_event_name": "PreToolUse",
@@ -27,6 +27,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "o hook só libera o valor que calcula"
+    "stderr": "nome do git ou de hook"
   }
 }

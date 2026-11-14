@@ -507,7 +507,7 @@ def dividir_corpo(corpo):
     palavras, atual, aspa = [], "", None
     for c in corpo:
         if aspa:
-            aspa = None if c == aspa else aspa
+            aspa = aspa if c != aspa else None
         elif c in ("'", '"'):
             aspa = c
         elif c.isspace():
