@@ -271,7 +271,8 @@ class EstadoIlegivel(Exception):
 def ler_estado(arquivo):
     """O registro de `arquivo`, ou `{"agentes": []}` se ele não existe (o começo legítimo). Lança `EstadoIlegivel` se não é arquivo
     regular (aberto sem seguir link nem esperar FIFO), não abre, passa de LIMITE_DO_ESTADO, não é JSON, a raiz não é objeto ou
-    `agentes` ou `lapides` (quando existem) não são listas. Nunca devolve estado vazio no lugar do ilegível."""
+    `agentes` ou `lapides` (quando existem) não são listas, ou se o leitor falha de qualquer outro jeito (o RecursionError do JSON
+    aninhado fundo). Nunca devolve estado vazio no lugar do ilegível."""
     if not os.path.lexists(arquivo):
         return {"agentes": []}
     try:
@@ -283,7 +284,9 @@ def ler_estado(arquivo):
         if len(dados) > LIMITE_DO_ESTADO:
             raise EstadoIlegivel(f"{arquivo}: passa de {LIMITE_DO_ESTADO} bytes")
         estado = json.loads(dados)
-    except (OSError, ValueError) as erro:
+    except EstadoIlegivel:
+        raise
+    except Exception as erro:  # noqa: BLE001 - qualquer erro do leitor (OSError, JSON inválido, RecursionError do aninhado) é ilegível
         raise EstadoIlegivel(f"{arquivo}: {type(erro).__name__}: {erro}") from erro
     if not isinstance(estado, dict):
         raise EstadoIlegivel(f"{arquivo}: a raiz não é objeto")
@@ -826,7 +829,8 @@ def entrada_e_tipo(hook):
 
 
 ESTADO_ILEGIVEL = "registro de agentes ilegível (agentes.json da pasta do estado)"
-CONFIG_ILEGIVEL = "configuração ilegível (.forge/config.json)"
+# o try da A3 cobre o `hook.projeto` e o `hook.config()`: a mensagem cita os dois, sem dizer qual falhou (o erros.log diz)
+CONFIG_ILEGIVEL = "configuração ilegível ou projeto não localizado (.forge/config.json ou a raiz; erro no erros.log)"
 
 
 def recusar_ilegivel(evento, onde):

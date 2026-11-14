@@ -4,7 +4,7 @@ erro ao fixar a pasta do estado do clone e o `.forge/config.json` ilegível recu
 
 Os casos de ponta a ponta são os fixtures de tests/hooks/agentes/ (o hook roda como o Claude Code o roda); aqui, a leitura estrita
 `ler_estado` nos ramos que o fixture não alcança para qualquer usuário: FIFO com JSON válido (o `S_ISREG`), o teto de tamanho e o
-`PermissionError` (forçado no módulo, porque `chmod 000` não vale como root, AR-4)."""
+`PermissionError` (forçado no módulo, porque `chmod 000` não vale como root, AR-4) e o JSON aninhado fundo (RecursionError)."""
 import json
 import os
 import shutil
@@ -66,7 +66,7 @@ class LerEstado(unittest.TestCase):
         os.close(leitor)  # o dado fica no cano enquanto o escritor segue aberto
         with self.assertRaises(agentes.EstadoIlegivel) as erro:
             agentes.ler_estado(self.arquivo)
-        self.assertIn("não é arquivo regular", str(erro.exception))
+        self.assertEqual(str(erro.exception), f"{self.arquivo}: não é arquivo regular", "o EstadoIlegivel de dentro sai como está")
 
     def test_acima_do_teto_de_tamanho_e_ilegivel(self):
         """O teto de tamanho: JSON válido de LIMITE_DO_ESTADO + 1 bytes recusa; no teto, passa."""
@@ -78,6 +78,15 @@ class LerEstado(unittest.TestCase):
         with self.assertRaises(agentes.EstadoIlegivel) as erro:
             agentes.ler_estado(self.arquivo)
         self.assertIn("passa de", str(erro.exception))
+
+    def test_json_aninhado_fundo_e_ilegivel(self):
+        """Volta do A1 (sondas S1 e S2): o `[` aninhado fundo, abaixo do teto, lança RecursionError no `json.loads`; é ilegível."""
+        for corpo in ("[" * 200000, '{"agentes":' + "[" * 200000):
+            with self.subTest(inicio=corpo[:12]):
+                self.arquivo.write_text(corpo, encoding="utf-8")
+                with self.assertRaises(agentes.EstadoIlegivel) as erro:
+                    agentes.ler_estado(self.arquivo)
+                self.assertIn("RecursionError", str(erro.exception))
 
     def test_erro_de_permissao_e_ilegivel(self):
         """O `OSError` da abertura (modo 000 de outro usuário) é ilegível, forçado no módulo (AR-4)."""

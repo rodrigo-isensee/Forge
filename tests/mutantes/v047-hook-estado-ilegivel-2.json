@@ -71,6 +71,17 @@
       "testes": [
         "tests.test_estado_ilegivel.PeloHook.test_fixtures_do_pedido"
       ]
+    },
+    {
+      "id": "M16",
+      "guarda": "Volta do A1 (S1, S2): o RecursionError do JSON aninhado fundo é ilegível, nunca escapa e libera",
+      "arquivo": "hooks/agentes.py",
+      "de": "    except Exception as erro:  # noqa: BLE001 - qualquer erro do leitor",
+      "para": "    except (OSError, ValueError) as erro:  # noqa: BLE001 - qualquer erro do leitor",
+      "testes": [
+        "tests.test_estado_ilegivel.LerEstado.test_json_aninhado_fundo_e_ilegivel",
+        "tests.test_estado_ilegivel.PeloHook.test_fixtures_do_pedido"
+      ]
     }
   ]
 }

@@ -46,8 +46,8 @@
       "id": "M5",
       "guarda": "R1: JSON inválido ou vazio é ilegível",
       "arquivo": "hooks/agentes.py",
-      "de": "    except (OSError, ValueError) as erro:\n        raise EstadoIlegivel",
-      "para": "    except (OSError,) as erro:\n        raise EstadoIlegivel",
+      "de": "    except Exception as erro:  # noqa: BLE001 - qualquer erro do leitor",
+      "para": "    except (OSError, RecursionError) as erro:  # noqa: BLE001 - qualquer erro do leitor",
       "testes": [
         "tests.test_estado_ilegivel.PeloHook.test_fixtures_do_pedido"
       ]
