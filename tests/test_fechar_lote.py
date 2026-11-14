@@ -162,7 +162,8 @@ class EsperaCiDevelop(Ambiente):
     def test_opcao_sem_valor_e_pedido_repetido_param_antes_do_passo_1(self):
         casos = ((("p1", "--ref", "melhoria/x", "--espera-ci"), "--espera-ci pede os segundos"),
                  (("release-0.9.0", "--promover"), "--promover pede o sha do commit da marca"),
-                 (("p1", "p2", "--ref", "melhoria/x"), "pedido repetido: p2"))
+                 (("p1", "p2", "--ref", "melhoria/x"), "pedido repetido: p2"),
+                 (("p1",), "informe --ref <branch>"))
         for args, msg in casos:
             with self.subTest(args=args):
                 r = self.fechar(*args)
@@ -453,6 +454,14 @@ class Promover(Ambiente):
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("parou no passo P6", r.stderr)
         self.assertIn("rode o mesmo comando para retomar", r.stderr)
+
+    def test_auto_merge_armado_espera_o_merged_e_fecha(self):
+        (self.estado / "auto_arma").write_text("")
+        (self.estado / "mescla_apos").write_text("3")
+        r = self.promover()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("promovida: a homolog recebeu o commit da marca", r.stdout)
+        self.assertEqual(len(self.merges()), 1, "o merge não se repete na espera")
 
     def test_merge_em_outra_base_nao_e_sucesso(self):
         (self.estado / "base_final").write_text("develop")
