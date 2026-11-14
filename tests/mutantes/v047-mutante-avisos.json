@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CF1",
+      "guarda": "E1.140: base ou rev que não resolvem saem 2",
+      "arquivo": "bin/forge-mutante",
+      "de": "    if sha_base is None or sha_rev is None:\n        raise ValueError(\"--base e --rev precisam",
+      "para": "    if False:\n        raise ValueError(\"--base e --rev precisam",
+      "testes": [
+        "tests.test_forge_mutante.Conferir.test_sem_spec_no_diff_sai_0_e_spec_invalida_ou_base_ilegivel_saem_2"
+      ]
+    },
+    {
+      "id": "CF2",
+      "guarda": "E1.140: arquivo vigiado ausente no rev conta 0 vezes, sem cair",
+      "arquivo": "bin/forge-mutante",
+      "de": "    except ValueError:  # ausente, ilegível ou fora do UTF-8",
+      "para": "    except KeyError:  # ausente, ilegível ou fora do UTF-8",
+      "testes": [
+        "tests.test_forge_mutante.Conferir.test_arquivo_vigiado_que_sumiu_sai_1_sem_cair"
+      ]
+    },
+    {
+      "id": "CF3",
+      "guarda": "E1.140: isenta em arquivo sem parse Python não bate",
+      "arquivo": "bin/forge-mutante",
+      "de": "    except (ValueError, SyntaxError):\n        return False",
+      "para": "    except ValueError:\n        return False",
+      "testes": [
+        "tests.test_forge_mutante.Conferir.test_isenta_em_arquivo_sem_parse_nao_bate"
+      ]
+    },
+    {
+      "id": "CF4",
+      "guarda": "E1.140: a linha_base é a linha da condição na base",
+      "arquivo": "bin/forge-mutante",
+      "de": "c[1] == isenta_[\"linha_base\"] and",
+      "para": "True and",
+      "testes": [
+        "tests.test_forge_mutante.Conferir.test_linha_base_que_bate_sai_0_e_a_deslocada_sai_1"
+      ]
+    },
+    {
+      "id": "CF5",
+      "guarda": "E1.140: o de precisa aparecer uma vez (zero é desencontro)",
+      "arquivo": "bin/forge-mutante",
+      "de": "(n := vezes_no_commit(rev, m[\"arquivo\"], m[\"de\"])) != 1]",
+      "para": "(n := vezes_no_commit(rev, m[\"arquivo\"], m[\"de\"])) > 1]",
+      "testes": [
+        "tests.test_forge_mutante.Conferir.test_de_no_lugar_sai_0_e_de_que_sumiu_depois_da_spec_sai_1_com_a_spec_e_o_trecho"
+      ]
+    },
+    {
+      "id": "CF6",
+      "guarda": "E1.140: só a isenta cuja linha_base não bate é desencontro",
+      "arquivo": "bin/forge-mutante",
+      "de": "if \"linha_base\" in i and not linha_base_bate(i, mb)]",
+      "para": "if \"linha_base\" in i and linha_base_bate(i, mb)]",
+      "testes": [
+        "tests.test_forge_mutante.Conferir.test_linha_base_que_bate_sai_0_e_a_deslocada_sai_1"
+      ]
+    },
+    {
+      "id": "CF7",
+      "guarda": "E1.140: spec inválida no diff sai 2",
+      "arquivo": "bin/forge-mutante",
+      "de": "            if problemas:\n                raise ValueError(f\"{spec}: spec inválida",
+      "para": "            if False:\n                raise ValueError(f\"{spec}: spec inválida",
+      "testes": [
+        "tests.test_forge_mutante.Conferir.test_sem_spec_no_diff_sai_0_e_spec_invalida_ou_base_ilegivel_saem_2"
+      ]
+    },
+    {
+      "id": "CF8",
+      "guarda": "E1.140: desencontro sai 1",
+      "arquivo": "bin/forge-mutante",
+      "de": "    return 1 if saida else 0",
+      "para": "    return 0 if saida else 0",
+      "testes": [
+        "tests.test_forge_mutante.Conferir.test_de_no_lugar_sai_0_e_de_que_sumiu_depois_da_spec_sai_1_com_a_spec_e_o_trecho"
+      ]
+    }
+  ]
+}

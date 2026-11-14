@@ -1,0 +1,26 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CF9",
+      "guarda": "E1.140: --conferir sem --base, com SPEC ou com --cobertura é erro de uso",
+      "arquivo": "bin/forge-mutante",
+      "de": "        if not args.base or args.spec or args.cobertura:",
+      "para": "        if not args.base:",
+      "testes": [
+        "tests.test_forge_mutante.Conferir.test_conferir_exige_base_e_recusa_spec_e_cobertura"
+      ]
+    },
+    {
+      "id": "CF10",
+      "guarda": "E1.140: --conferir roda o modo próprio, não a cobertura",
+      "arquivo": "bin/forge-mutante",
+      "de": "    if args.conferir:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_mutante.Conferir.test_de_no_lugar_sai_0_e_de_que_sumiu_depois_da_spec_sai_1_com_a_spec_e_o_trecho"
+      ]
+    }
+  ]
+}

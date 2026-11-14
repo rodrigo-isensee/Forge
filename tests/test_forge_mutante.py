@@ -1106,6 +1106,86 @@ class Cobertura(unittest.TestCase):
         self.assertIn("mais de 8 isentas somadas", r.stderr)
 
 
+
+class Conferir(unittest.TestCase):
+    """`--conferir --base` (E1.140 da v047): o `de` e a `linha_base` das specs do diff no lugar, sem rodar teste."""
+    MOTIVO = "condição apagada de propósito no teste"
+
+    def setUp(self):
+        self._t = tempfile.TemporaryDirectory()
+        self.addCleanup(self._t.cleanup)
+        self.dir = Path(self._t.name)
+        git(self.dir, "init", "-q", "-b", "develop")
+        self.salvar({"lib.py": "x = 1\nif x > 100000:\n    x = 2\n"})
+        self.base = git(self.dir, "rev-parse", "HEAD").strip()
+
+    def salvar(self, arquivos):
+        for nome, texto in arquivos.items():
+            (self.dir / nome).parent.mkdir(parents=True, exist_ok=True)
+            (self.dir / nome).write_text(texto, encoding="utf-8")
+        git(self.dir, "add", "-A")
+        git(self.dir, "commit", "-qm", "c")
+
+    def conferir(self, *args):
+        return subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--conferir", *args], cwd=self.dir, env=AMBIENTE,
+                              capture_output=True, text=True)
+
+    def spec(self, isentas=(), de="if x > 100000:"):
+        dados = {"pedido": "x", "mutantes": [mutante(de=de, para="if x > 1000:")], "isentas": list(isentas)}
+        return {"tests/mutantes/x.json": json.dumps(dados)}
+
+    def test_de_no_lugar_sai_0_e_de_que_sumiu_depois_da_spec_sai_1_com_a_spec_e_o_trecho(self):
+        self.salvar(self.spec())
+        r = self.conferir("--base", self.base)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.salvar({"lib.py": "x = 1\nif x > 100001:\n    x = 2\n"})  # a spec não muda; a linha vigiada, sim
+        r = self.conferir("--base", self.base)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("tests/mutantes/x.json: M1 · o trecho aparece 0 vezes em lib.py (precisa de uma) · 'if x > 100000:'",
+                      r.stdout)
+
+    def test_arquivo_vigiado_que_sumiu_sai_1_sem_cair(self):
+        self.salvar({"tests/mutantes/x.json": json.dumps({"pedido": "x", "mutantes": [mutante(arquivo="sumiu.py")]})})
+        r = self.conferir("--base", self.base)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("M1 · o trecho aparece 0 vezes em sumiu.py", r.stdout)
+
+    def test_linha_base_que_bate_sai_0_e_a_deslocada_sai_1(self):
+        isenta = {"arquivo": "lib.py", "trecho": "x > 100000", "motivo": self.MOTIVO, "linha_base": 2}
+        self.salvar({"lib.py": "x = 1\nif x > 200:\n    x = 2\n", **self.spec([isenta], de="if x > 200:")})
+        r = self.conferir("--base", self.base)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.salvar(self.spec([{**isenta, "linha_base": 3}], de="if x > 200:"))
+        r = self.conferir("--base", self.base)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("tests/mutantes/x.json: isenta 1 · linha_base 3 de lib.py sem condição com o trecho na base", r.stdout)
+
+    def test_isenta_em_arquivo_sem_parse_nao_bate(self):
+        isenta = {"arquivo": "run.sh", "trecho": "[ -f /etc/x ]", "motivo": self.MOTIVO, "linha_base": 1}
+        self.salvar({"run.sh": "if [ -f /etc/x ]; then :; fi\n"})
+        self.base = git(self.dir, "rev-parse", "HEAD").strip()
+        self.salvar(self.spec([isenta]))
+        r = self.conferir("--base", self.base)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("isenta 1 · linha_base 1 de run.sh", r.stdout)
+
+    def test_sem_spec_no_diff_sai_0_e_spec_invalida_ou_base_ilegivel_saem_2(self):
+        self.salvar({"lib.py": "x = 2\n"})
+        self.assertEqual(self.conferir("--base", self.base).returncode, 0)
+        self.salvar({"tests/mutantes/x.json": json.dumps({"pedido": "x", "mutantes": []})})
+        r = self.conferir("--base", self.base)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("tests/mutantes/x.json: spec inválida", r.stderr)
+        self.assertEqual(self.conferir("--base", "nao-existe").returncode, 2)
+
+    def test_conferir_exige_base_e_recusa_spec_e_cobertura(self):
+        for args in ((), ("--base", "HEAD", "spec.json"), ("--base", "HEAD", "--cobertura")):
+            with self.subTest(args):
+                r = self.conferir(*args)
+                self.assertEqual(r.returncode, 2)
+                self.assertIn("--conferir vem com --base", r.stderr)
+
+
 PLACAR = RAIZ / "scripts" / "placar-mutacao.py"
 # `forge-mutante` falso: anota a chamada, recusa sem `--` e pedido misto (como o de verdade) e imprime uma linha por classe.
 FALSO = ("import json, sys\na = sys.argv[1:]\nopen('.git/chamadas', 'a').write(json.dumps(a) + '\\n')\n"
