@@ -1386,7 +1386,7 @@ class PreEnvioDoModelo(unittest.TestCase):
         self.commit("docs/reviews/p.md", "parecer\n", "parecer")
         self.commit("changelog.d/p.md", "- texto\n", "changelog")
         self.commit("changelog.d/.gitkeep", "", "pasta")  # fora do *.md: só o changelog.d/* o cobre
-        self.commit("README.md", "oi\n", "readme")
+        self.commit("NOTAS.md", "oi\n", "notas")
         r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
         self.assertEqual((r.returncode, chamadas), (0, []), r.stderr)
         self.assertIn("só texto", r.stdout + r.stderr)
@@ -1557,7 +1557,7 @@ class PreEnvioDoModelo(unittest.TestCase):
                                       encoding="utf-8")
         for nome in ("LEIA.md", "LEIA-a.md", "LEIA-b.md"):
             (pasta / nome).write_text(f"# t\n\nresumo {nome}. resto\n", encoding="utf-8")
-        self.commit("README.md", "x\n", "inicio")
+        self.commit("NOTAS.md", "x\n", "inicio")
         (self.repo / ".forge").mkdir()
         self.commit(".forge/versao", "9.9.8\n", "versao")
         r = subprocess.run([str(plugin / "bin/forge-upgrade"), "--ate", "9.9.9", str(self.repo)],
