@@ -40,3 +40,6 @@ Aprovado no head ccb76134, instância que não fez a entrega. Delta lido por `fo
 - Mutantes: M6 e M8 mortos (`bin/forge-mutante --processos 1 tests/mutantes/mp1311-fechar-cartao-2.json`, rev ccb7613465a8); a âncora `then ref_check="refs/heads/$ref"; else` ocorre uma vez (linha 826).
 - Testes rodados aqui: `tests.test_fechar_base_andou` e `tests.test_qa_lote_l08`, 62 OK. A suíte inteira fica no CI do PR 539; o e2e de instalação vermelho é infraestrutura do runner (npm), tratado em outra etapa.
 - A1 segue; A2 (recomendado) novo; sem bloqueante.
+
+## Revalidação (delta ccb76134..768896fc)
+Aprovado; commit segue ccb76134 (head de código, Revisar-sha do brief da E1.52), instância que não fez a entrega. Delta lido por `forge-check parecer delta`: "nenhum arquivo do domínio mudou"; de ccb76134 até 768896fc só mudaram os pareceres (`docs/qa/`, `docs/reviews/`, `docs/security/`) e o merge 497d3569. A1 e A2 (recomendados) seguem; sem achado novo.
