@@ -1,7 +1,7 @@
 ---
 tipo: revisao-devops
 contrato: 1
-pedido: v047-ci-binario-cli
+pedido: v047
 branch: melhoria/v047-ci-binario-cli
 commit: 4baade0eb738f0b40b0bc331a14a341f0fe6da69
 parecer: aprovado
