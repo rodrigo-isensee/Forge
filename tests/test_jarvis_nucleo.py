@@ -336,6 +336,14 @@ class MutantesDaPresenca(unittest.TestCase):
         self.assertEqual(problemas_das_regras(self.tmp, conjunto_do_jarvis(self.tmp)),
                          ["R-DOIS: não aparece no Jarvis nem nas skills citadas"])
 
+    def test_id_que_some_do_jarvis_reprova_com_o_indice_no_conjunto(self):  # A1 e A2 do QA e da segurança (v047)
+        self.escrever("agents/jarvis.md", "Leia `${CLAUDE_PLUGIN_ROOT}/skills/s1/SKILL.md` antes de agir; `R-DOIS`.\n")
+        self.assertIn(INDICE_DAS_REGRAS, conjunto_do_jarvis(self.tmp))
+        self.assertEqual(problemas_das_regras(self.tmp, conjunto_do_jarvis(self.tmp)),
+                         ["R-UM: não aparece no Jarvis nem nas skills citadas"])
+        self.escrever("skills/s2/SKILL.md", "Cada pergunta ao dono traz a origem do item; `R-UM`.\n")
+        self.assertEqual(problemas_das_regras(self.tmp, conjunto_do_jarvis(self.tmp)), [])
+
     def test_numero_do_arquivo_do_dono_sem_entrada_reprova(self):
         self.assertEqual(self.diretrizes(numeros=[1, 2, 3, 4]), ["diretriz 4 do arquivo do dono sem entrada"])
 

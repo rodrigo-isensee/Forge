@@ -17,6 +17,7 @@ ID_ENTRE_CRASES = re.compile(r"`(R-[A-Z]+)`")
 ID_DA_TABELA = re.compile(r"^\| \[?`(R-[A-Z]+)`", re.M)
 DOC_CITADO = re.compile(r"\bdocs/[a-z0-9-]+\.md\b")
 INDICE_DAS_REGRAS = "docs/regras/README.md"  # a tabela dos IDs e a linha da R-WIP (regra só de hook)
+TEXTO_DO_JARVIS = re.compile(r"agents/jarvis\.md|skills/[a-z0-9-]+/SKILL\.md")  # onde a presença de um ID conta
 ORDEM_DE_LEITURA = re.compile(r"\bleia\b|\bantes de\b", re.I)
 TRECHO_MINIMO = 20
 
@@ -78,8 +79,9 @@ def ids_da_tabela(raiz=RAIZ):
 
 
 def problemas_das_regras(raiz, conjunto):
-    """Cada ID da tabela do índice das regras aparece entre crases no conjunto e tem texto em docs/regras/."""
-    juntos = "\n".join(conjunto.values())
+    """Cada ID da tabela do índice das regras aparece entre crases em agents/jarvis.md ou numa skills/*/SKILL.md do conjunto
+    e tem texto em docs/regras/. O que vem de docs/ não conta para a presença: o índice cita todo ID na tabela."""
+    juntos = "\n".join(texto for rel, texto in conjunto.items() if TEXTO_DO_JARVIS.fullmatch(rel))
     problemas = []
     for rid in ids_da_tabela(raiz):
         if f"`{rid}`" not in juntos:
