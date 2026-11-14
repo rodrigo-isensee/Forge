@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-hook-erro-libera
-commit: 4c350b2f78a2f5fc5753f74be8d5fb760c8bebbc
+commit: 9666b6bf53214ef46d9069cd1a38b5809b88c72a
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-13
@@ -51,3 +51,18 @@ Aprovado no 4c350b2f. Sem bloqueante: nenhum defeito provado nem requisito ou se
 Teto M14: 445 linhas de código e teste, acima das 150; uma classe só (falha fechada do hook por erro e prazo), com corpus próprio. O corpo do PR precisa de `teto: excedido, 445 linhas, <motivo>`.
 
 Provas rodadas por mim: `python3 -m unittest -q tests.test_hook_erro_libera tests.test_testes_tocados` 161 testes, OK (1 pulado por /proc do sandbox, alheio ao diff). `bin/forge-mutante` nas specs `v047-hook-erro-libera.json`, `-2` e `-5`: todos os mutantes morreram, nenhum sobrevivente (inclui M12, M13 e M34 a M40). Sem PR aberto, não há CI a citar; a suíte inteira fica para o CI do PR.
+
+## Revalidação (E3.39) · delta 4c350b2f..9666b6bf (junção da develop)
+
+Lido `forge-check parecer delta`: domínio de código e testes, escopo sem o que veio da base. Instância que não fez a entrega. Entram `bin/forge-testes` (linha do mapa para `templates/projeto/.forge/config.json`, da develop), `tests/apoio_volta_unica.py` e `tests/test_hooks.py`.
+
+- Conflito em `tests/test_hooks.py` (`test_rotulo_so_dono_gh_pendurado_decide_antes_do_timeout_do_hook`): a resolução manteve os dois lados, `h["args"][-1]` (desta branch, igual aos demais usos do arquivo e de `test_doutor.py`) e `teto = (limite - 1) * fator_de_carga()` (da develop). O `sleep 30` do falso `gh` segue acima do teto máximo (`limite - 1` vezes 2 no pior caso), então o teste ainda pega o `gh` pendurado.
+- `nucleos_do_processo` e `fator_de_carga` migraram para o apoio, antes do import de `test_hooks`, e `test_hooks` as importa de volta no fim do módulo. Importei nas duas ordens (apoio primeiro e `test_hooks` primeiro) sem erro; `fator_de_carga(4, 2)` dá 2.0 (teto) e `fator_de_carga(1, 4)` dá 1.0.
+- Nenhuma guarda do hook mudou neste delta; os mutantes anteriores seguem valendo.
+
+Achados da revalidação: nenhum novo. A4 (recomendado, passada anterior) segue aberto e não bloqueia.
+
+## Parecer da revalidação (E3.39)
+Aprovado no 9666b6bf. Sem bloqueante.
+
+Provas rodadas por mim: o teste do `gh` pendurado, OK (6 s); `tests.test_hook_erro_libera` 11 testes, OK; `tests.test_testes_tocados` 150 testes, OK (1 pulado, /proc do sandbox, alheio ao diff). Sem PR aberto, não há CI a citar; a suíte inteira fica para o CI do PR.
