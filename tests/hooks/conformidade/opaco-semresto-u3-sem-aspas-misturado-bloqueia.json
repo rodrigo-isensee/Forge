@@ -1,5 +1,5 @@
 {
-  "descricao": "CONFORMIDADE-A9-DESTINO-OPACO (E1.139, v047): U3: `$(…)` sem aspas vale pela lista positiva só se todos os corpos da linha estão nela.",
+  "descricao": "CONFORMIDADE-A9-DESTINO-OPACO (E1.139, v047): U3: `$(…)` sem aspas vale pela lista positiva só se todos os corpos da linha estão nela; volta da E1.232: o U4 (lista positiva) recusa antes do U3.",
   "arquivos": {
     "x": "x\n",
     "config": "c\n",
@@ -27,6 +27,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "nome do git ou de hook"
+    "stderr": "o hook só libera o valor que calcula"
   }
 }

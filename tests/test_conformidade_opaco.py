@@ -28,7 +28,8 @@ MECANISMOS = (  # D1: (nome, modelo, o destino que é pasta recebe o nome da ori
 LEGIVEIS = (  # D2 que o hook lê: (nome, prefixo da linha, destino); `{v}` é o valor e `{g}` o valor com curinga
     ("echo", "", '"$(echo {v})"'), ("printf", "", '"$(printf %s {v})"'), ("crase", "", "`echo {v}`"),
     ("funcao", "f(){{ echo {v}; }}; ", '"$(f)"'), ("variavel", "d=$(echo {v}); ", '"$d"'),
-    ("padrao", "", '"${{GITD:-{v}}}"'), ("curinga", "", '"$(echo {g})"'))
+    ("padrao", "", '"${{GITD:-{v}}}"'), ("curinga", "", '"$(echo {g})"'),
+    ("duas-coladas", "", '"$(echo {a})$(echo {b})"'))  # E1.232: duas partes opacas que juntam o valor (A1 do review)
 ILEGIVEIS = (  # D2 que o hook não lê (U2) ou de operador colado (A10): só com valor no `.git`
     ("aninhado", "", "$(echo $(echo {v}))"), ("eval", "", '"$(eval echo {v})"'), ("sh-c", "", "\"$(sh -c 'echo {v}')\""),
     ("ansi-c", "", "\"$(echo $'{v}')\""), ("colado", "", '"$(git rev-parse --git-dir;)"'))
@@ -54,7 +55,7 @@ def casos():
         gerados.append((mec, modelo, forma, prefixo, destino, FORA[i % 2], "x"))
     saida = []
     for n, (mec, modelo, forma, prefixo, destino, valor, origem) in enumerate(gerados):
-        destino = destino.format(v=valor, g=com_curinga(valor))
+        destino = destino.format(v=valor, g=com_curinga(valor), a=valor[:2], b=valor[2:])
         prefixo = prefixo.format(v=valor)
         linha = POSICOES[n % len(POSICOES)](prefixo + modelo.format(o=origem, d=destino))
         no_git = valor in NO_GIT

@@ -413,7 +413,8 @@ NOMES_DA_C18 = frozenset("""config config.worktree HEAD ORIG_HEAD FETCH_HEAD MER
     sendemail-validate fsmonitor-watchman p4-changelist p4-prepare-changelist p4-post-changelist p4-pre-submit
     post-index-change""".split())
 CORPO_POSITIVO = re.compile(r"mktemp(?:\s+(?:-[duqt]+|-p\s+[\w./-]+|--tmpdir(?:=[\w./-]+)?|[\w.-]*XXX[\w.-]*))*"
-                            r"|date(?:\s+[-+%\w:.,]+)*|pwd(?:\s+-[LP])?|git\s+rev-parse\s+--show-toplevel")
+                            r"|date(?:\s+[-+%\w:.,]+)*|pwd(?:\s+-[LP])?|git\s+rev-parse\s+--show-toplevel"
+                            r"|git\s+rev-parse\s+(?:--short(?:=\d+)?|--abbrev-ref)(?:\s+[\w./@^~-]+)?|true|false|:")
 UNIDADE_OPACA = re.compile(r"\$\((?P<sub>.*)\)|`(?P<crase>[^`]*)`|\$\{?(?P<nome>\w+)\}?", re.S)
 TETO_DE_OPACOS = 64  # C21 da v2: acima disso, na mesma linha, o hook não lê
 
@@ -473,6 +474,158 @@ def palavra_juntada(texto):
 def nome_da_c18(nome):
     """U3: o nome está nas listas fechadas da C18 (git e githooks(5)), também por curinga."""
     return nome in NOMES_DA_C18 or bool(CURINGA.search(nome)) and any(glob_casa(nome, n) for n in NOMES_DA_C18)
+
+
+# Volta da E1.232 (A1 e A2 da segurança E1.206, A1 do review E1.205): U4, lista positiva. O destino opaco sem resto ou
+# com resto colado (`"$(echo .g)it/config"`) libera só o valor que o hook calcula: corpo da lista positiva
+# (`na_lista_positiva`), ou `echo` e `printf %s` de palavras literais, direto, por função ou por variável da linha.
+# `printf` com formato, `tr`, `sed`, `rev`, `base64`, `cat` e todo o resto recusam (AR-3).
+SEM_VALOR = "\0"  # a saída de um corpo da lista positiva ou a variável do ambiente: o hook não a sabe
+LITERAL = re.compile(r"[\w.,:@%+=/*?\[\]~ -]*")
+VARIAVEL_DO_VALOR = re.compile(r"\$(?:\{(?P<chave>[A-Za-z_]\w*)(?:(?P<op>:?[-=])(?P<padrao>[^}]*))?\}"
+                               r"|(?P<nome>[A-Za-z_]\w*))")
+TETO_DE_VALORES = 64  # combinações de valores de uma palavra; acima, o hook não calcula
+
+
+def na_lista_positiva(corpo):
+    """O corpo está em `CORPO_POSITIVO` e não cita o `.git` (A3 da segurança E1.206: `mktemp -p .git`)."""
+    return bool(CORPO_POSITIVO.fullmatch(corpo)) and not cita_o_dir_do_git(corpo)
+
+
+def juntar(partes):
+    """Cada combinação das alternativas das partes, na ordem; None acima de `TETO_DE_VALORES`."""
+    valores = [""]
+    for alternativas in partes:
+        valores = [v + a for v in valores for a in alternativas]
+        if len(valores) > TETO_DE_VALORES:
+            return None
+    return valores
+
+
+def dividir_corpo(corpo):
+    """As palavras do corpo, cortadas no espaço fora de aspas e com as aspas; None com aspa sem par."""
+    palavras, atual, aspa = [], "", None
+    for c in corpo:
+        if aspa:
+            aspa = None if c == aspa else aspa
+        elif c in ("'", '"'):
+            aspa = c
+        elif c.isspace():
+            palavras, atual = palavras + [atual] if atual else palavras, ""
+            continue
+        atual += c
+    return None if aspa else palavras + [atual] if atual else palavras
+
+
+def corpo_da_funcao(nome, linha):
+    """(definida, corpo): se a linha define a função `nome` e o corpo da definição única (`f(){ …; }`, `f() ( … )`,
+    `function f { …; }`), sem o `;` do fim; corpo None se o hook não o lê."""
+    nome = re.escape(nome)
+    if not re.search(rf"(?<![\w$.-]){nome}\s*\(\s*\)|(?<![\w$.-])function\s+{nome}(?![\w.-])", linha):
+        return False, None
+    definicoes = list(re.finditer(rf"(?:(?<![\w$.-])function\s+{nome}(?:\s*\(\s*\))?|(?<![\w$.-]){nome}\s*\(\s*\))\s*"
+                                  r"(?:\{(?P<chaves>[^{}]*)\}|\((?P<parenteses>[^()]*)\))", linha))
+    if len(definicoes) != 1:
+        return True, None
+    corpo = definicoes[0]["chaves"] if definicoes[0]["chaves"] is not None else definicoes[0]["parenteses"]
+    return True, re.sub(r"\s*;\s*$", "", corpo.strip())
+
+
+def valores_do_corpo(corpo, linha, fundo):
+    """U4: os valores da saída do corpo de `$(…)` ou da crase, ou None fora da lista positiva."""
+    corpo = corpo.strip()
+    if na_lista_positiva(corpo):
+        return [SEM_VALOR]
+    palavras = dividir_corpo(corpo)
+    if not palavras or fundo > 4:
+        return None
+    definida, definicao = corpo_da_funcao(palavras[0], linha)
+    if definida:  # a função da linha vale pelo corpo dela, também a que se chama `echo`
+        return valores_do_corpo(definicao, linha, fundo + 1) if definicao is not None and len(palavras) == 1 else None
+    if palavras[0] == "echo" and not any(p.startswith("-") for p in palavras[1:]):
+        args, separador = palavras[1:], " "
+    elif palavras[0] == "printf" and palavras[1:2] in (["%s"], ["'%s'"], ['"%s"']):
+        args, separador = palavras[2:], ""
+    else:
+        return None
+    partes = []
+    for n, arg in enumerate(args):
+        valores = valores_da_palavra(arg, linha, fundo + 1, sem_substituicao=True)
+        if valores is None:
+            return None
+        partes += [[separador], valores] if n else [valores]
+    return juntar(partes)
+
+
+def valores_da_variavel(m, linha, fundo):
+    """U4: os valores de `$x`, `${x}` e `${x:-v}`: o da única atribuição na linha ou, sem ela, o do ambiente
+    (`SEM_VALOR`), mais o padrão literal; None se a variável nasce de outro jeito (`for`, `read`, `+=`)."""
+    nome = m["chave"] or m["nome"]
+    if nome.startswith("GIT_") or re.search(rf"(?<![\w${{]){nome}(?![\w=])", linha):
+        return None
+    atribuicoes = [valor_atribuido(linha, a.end()) for a in re.finditer(rf"(?<![\w$]){nome}=", linha)]
+    if len(atribuicoes) > 1:
+        return None
+    if not atribuicoes and any(re.search(rf"(?<![\w${{]){nome[:k]}(?![\w])", linha) for k in range(1, len(nome))):
+        return None  # `d=.gi; cp x "$d"t` chega sem aspas como `$dt`: o prefixo nascido na linha não é do ambiente
+    valores = valores_da_palavra(atribuicoes[0], linha, fundo + 1) if atribuicoes else [SEM_VALOR]
+    if m["op"] and valores is not None:
+        padrao = valores_da_palavra(m["padrao"], linha, fundo + 1, sem_substituicao=True)
+        valores = None if padrao is None else valores + padrao
+    return valores
+
+
+def fim_do_parentese(texto, inicio):
+    """A posição do `)` que fecha o `$(` aberto antes de `inicio`, ou -1."""
+    fundo = 1
+    for j in range(inicio, len(texto)):
+        fundo += {"(": 1, ")": -1}.get(texto[j], 0)
+        if not fundo:
+            return j
+    return -1
+
+
+def valores_da_palavra(palavra, linha, fundo=0, sem_substituicao=False):
+    """U4: os valores que o bash pode dar à palavra, com `SEM_VALOR` no lugar do que o hook não sabe, ou None quando
+    ele não os calcula. `$(…)` sem aspas vale por cada corpo da linha; crase partida, só como único corpo e palavra."""
+    if fundo > 4 or SEM_VALOR in palavra:
+        return None
+    if palavra.count("`") % 2:
+        corpos = corpos_de_substituicao(linha)
+        inteira = len(corpos) == 1 and re.search(rf"(?:^|[\s;&|(])`{re.escape(corpos[0])}`(?:$|[\s;&|)])", linha)
+        return None if sem_substituicao or not inteira else valores_do_corpo(corpos[0], linha, fundo + 1)
+    partes, i, aspas = [], 0, False
+    while i < len(palavra):
+        c, valores = palavra[i], None
+        if c == '"':
+            aspas, i = not aspas, i + 1
+            continue
+        if c == "'" and not aspas:
+            j = palavra.find("'", i + 1)
+            valores, i = ([palavra[i + 1:j]] if j > i and LITERAL.fullmatch(palavra[i + 1:j]) else None), j + 1
+        elif palavra.startswith(OPACO["$"], i) and not sem_substituicao:
+            corpos = [valores_do_corpo(corpo, linha, fundo + 1) for corpo in corpos_de_substituicao(linha)]
+            valores = None if not corpos or None in corpos else [v for vs in corpos for v in vs]
+            i += len(OPACO["$"])
+        elif (palavra.startswith("$(", i) or c == "`") and not sem_substituicao:
+            fim = palavra.find("`", i + 1) if c == "`" else fim_do_parentese(palavra, i + 2)
+            valores = None if fim < 0 else valores_do_corpo(palavra[i + (1 if c == "`" else 2):fim], linha, fundo + 1)
+            i = fim + 1 if fim >= 0 else len(palavra)
+        elif c == "$" and (m := VARIAVEL_DO_VALOR.match(palavra, i)):
+            valores, i = valores_da_variavel(m, linha, fundo + 1), m.end()
+        elif LITERAL.fullmatch(c):
+            valores, i = [c], i + 1
+        if valores is None:
+            return None
+        partes.append(valores)
+    return juntar(partes)
+
+
+def valor_no_git(valores):
+    """U4: algum valor cai no `.git` pelo U1. O que o hook não sabe vale como curinga (`*`), salvo sozinho num
+    componente (`"$(mktemp -d)"`, `"$TMPDIR"/`): a saída da lista positiva sozinha nunca é o `.git`."""
+    return any(cita_o_dir_do_git("/".join("_" if c == SEM_VALOR else c.replace(SEM_VALOR, "*") for c in v.split("/")))
+               for v in valores)
 
 
 def opcoes_sem_exec(args):
@@ -1127,6 +1280,7 @@ class Guarda:
         (U1) ou quando o hook não o lê (U2: aninhado, `eval`, `sh -c`, `$'…'`, barra invertida). Acima de
         `TETO_DE_OPACOS` por linha, recusa como ilegível (C21)."""
         if not self.opaco_sem_resto(caminho, pasta):
+            self.resto_colado(caminho, pasta)
             return
         self.opacos += 1
         if self.opacos > TETO_DE_OPACOS:
@@ -1139,8 +1293,26 @@ class Guarda:
                 "$(" in c or "`" in c for t in precisos for c in corpos_de_substituicao(t)):
             motivo = "o hook não lê o texto que produz o valor (aninhado, eval, sh -c, $'…' ou barra invertida)"
         else:
-            return
+            return self.valor_calculado(self.expandir(caminho, pasta))
         self.barrar("R-CONFORMIDADE", f"destino de $(…), crase ou variável sem nada depois: {motivo}",
+                    "escreva o caminho literal do destino")
+
+    def resto_colado(self, caminho, pasta):
+        """A2 (volta da E1.232): o resto colado sem barra (`"$(echo .g)it/config"`, `"${X:-.g}it"`) vale pelo U4; o U1
+        da linha não (`"$(echo .git)x"` é `.gitx`), e o resto com barra é do `resto_no_git`."""
+        expandido, fim = self.fim_do_opaco(caminho, pasta) or ("", 0)
+        if expandido[fim:fim + 1] not in ("", "/"):
+            self.valor_calculado(expandido)
+
+    def valor_calculado(self, palavra):
+        """U4 (volta da E1.232): libera só o valor que o hook calcula (`valores_da_palavra`) e que não cai no `.git`."""
+        valores = valores_da_palavra(palavra, self.texto_da_linha.replace("\\\n", ""))
+        if valores is not None and not valor_no_git(valores):
+            return
+        motivo = ("o valor que o hook calcula cai no diretório do git (.git)" if valores else "o hook só libera o "
+                  "valor que calcula (mktemp, date, pwd, true, git rev-parse --show-toplevel, --short ou "
+                  "--abbrev-ref, echo ou printf %s de palavras literais)")
+        self.barrar("R-CONFORMIDADE", f"destino de $(…), crase ou variável: {motivo}",
                     "escreva o caminho literal do destino")
 
     def origem_do_git_no_opaco(self, args, pasta):
@@ -1170,7 +1342,7 @@ class Guarda:
             return False
         corpo = m["sub"] if m["sub"] is not None else m["crase"]
         corpos = corpos_de_substituicao(linha) if corpo == "…" else [corpo]
-        return bool(corpos) and all(CORPO_POSITIVO.fullmatch(c.strip()) for c in corpos)
+        return bool(corpos) and all(na_lista_positiva(c.strip()) for c in corpos)
 
     def alvos_da_escrita(self, caminho, pasta):
         """O caminho resolvido, o resto que cai no `.git` (`resto_no_git`) e, depois de uma substituição (`$(…)/x`), o resto

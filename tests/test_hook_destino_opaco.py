@@ -2,8 +2,8 @@
 outras: destino opaco sem resto (`cp config "$(echo .git)"`) recusa quando o texto que produz o valor cita o diretório do
 git (U1), quando o hook não o lê (U2) e com origem de nome do git fora da lista positiva (U3); os legítimos seguem livres.
 A10 (CONFORMIDADE-A10-OPERADOR-COLADO): as `opaco-colado-*`, operador colado no corpo do rev-parse e a liberação de link
-do #512 só com corpo de um comando. Roda a mesma máquina do `tests/test_hooks.py`; existe à parte para os mutantes de
-`tests/mutantes/` rodarem rápido."""
+do #512 só com corpo de um comando. U4 (volta da E1.232): as `opaco-u4-*`, a lista positiva do valor calculado. Roda a
+mesma máquina do `tests/test_hooks.py`; existe à parte para os mutantes de `tests/mutantes/` rodarem rápido."""
 import sys
 import unittest
 from pathlib import Path
@@ -37,6 +37,9 @@ class HookDestinoOpaco(unittest.TestCase):
 
     def test_fixtures_opaco_d2b(self):  # E1.175: aspas e variável colada no corpo, `function f {` sem `()`
         self.rodar_prefixo("opaco-d2b", 11)
+
+    def test_fixtures_opaco_u4(self):  # E1.232: lista positiva, sondas da segurança E1.206 e do review E1.205
+        self.rodar_prefixo("opaco-u4", 48)
 
 
 if __name__ == "__main__":

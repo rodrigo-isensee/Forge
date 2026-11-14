@@ -16,8 +16,8 @@
       "id": "O45",
       "guarda": "A9, U3: todos os corpos na lista positiva, não um deles",
       "arquivo": "hooks/conformidade.py",
-      "de": "        return bool(corpos) and all(CORPO_POSITIVO.fullmatch(c.strip()) for c in corpos)",
-      "para": "        return bool(corpos) and any(CORPO_POSITIVO.fullmatch(c.strip()) for c in corpos)",
+      "de": "        return bool(corpos) and all(na_lista_positiva(c.strip()) for c in corpos)",
+      "para": "        return bool(corpos) and any(na_lista_positiva(c.strip()) for c in corpos)",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
       ]
