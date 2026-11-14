@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-folga-jarvis
-commit: 8a223677c7320a968c0984ac538892ed403c6540
+commit: 16b7ca7443c01eb8a8e532d82ac0ea69948e4722
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-14
@@ -59,3 +59,10 @@ Delta lido: `forge-check parecer delta docs/reviews/v047-folga-jarvis.md` (rc=0)
 - Mutantes declarados (`tests/mutantes/v047-folga-jarvis.json`, uma guarda por linha mudada: o filtro, a regex e a presença do filtro): `bin/forge-mutante` deu M1, M2 e M3 `morreu`. `tests.test_jarvis_nucleo`: 40 testes OK, 1 pulado (arquivo do dono). A suíte inteira fica para o CI do PR.
 
 Os achados A1 a A4 acima seguem `recomendado` e não mudam. Parecer: **aprovado** no head `8a223677`.
+
+## Revalidação por delta (head `16b7ca74`, E1.191)
+Delta lido: `forge-check parecer delta docs/reviews/v047-folga-jarvis.md` (rc=0), intervalo `8a223677..16b7ca74`, sem o que veio da base. No domínio: `templates/projeto/CLAUDE.md`, `tests/test_forge.py` e `tests/test_reval_delta.py`. É um commit de merge da `develop` (`f4b0c2ae`), em Conventional Commits, com conflito em `tests/test_reval_delta.py`, que o integrador resolveu.
+
+- **Conflito:** `CITACOES_CONHECIDAS` mantém as duas entradas, a da branch (`tests/apoio_jarvis.py`, P4) e a da develop (`tests/test_ambiente_sem_auto_update.py`). Contra a develop, o diff do arquivo é só o da branch: `kanban-metricas` (P1) e `apoio_jarvis.py` (P4). Nada se perdeu e nenhuma contagem afrouxou: resolvido certo.
+- **`templates/projeto/CLAUDE.md` e `tests/test_forge.py`:** o delta é só o que veio da develop (linha "Ambiente", `HookPrePush.push` com casa própria, classe `PreEnvioDoModelo`). O que a branch muda nos dois arquivos continua igual ao head aprovado: a frase da diretriz 29 em `R-DECISAO`, `test_time_do_jarvis_existe`, `LEGADO_TRECHOS_MAXIMO = 225` e `kanban-metricas`. O merge não reverte nada.
+- Rodados (o teste do conflito e os vizinhos): `test_reval_delta` (10 OK), `test_ambiente_sem_auto_update` (1 OK), `test_jarvis_nucleo` (40 OK, 1 pulado), `test_forge` `HookPrePush`, `PreEnvioDoModelo` e `test_time_do_jarvis_existe` (28 OK) e `test_forge` `RegrasInviolaveis`, `Agentes` e `PraticasDeEspecificacao` (13 OK). A suíte inteira fica para o CI do PR. Este delta não traz achado novo; A1 a A4 continuam recomendações.
