@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-sessao-automatica
-commit: 5f0547cc0864a1830cd32f51f6695b35fc772703
+commit: cd7bd9f833b4f8abec6cb95138889ae51f2fdc8d
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-14
 ---
-# Review: v047 (SESSAO-AUTOMATICA e GH-VERSAO-MINIMA, E1.215)
+# Review: v047 (SESSAO-AUTOMATICA e GH-VERSAO-MINIMA, E1.215; revalidação E1.233 no cd7bd9f8)
 
 Intervalo `origin/develop..5f0547cc` (merge-base f4b0c2ae, o Base-sha do brief): um commit, 12 arquivos. Classe C (o passo 1 do `bin/forge-fechar` é código de controle). Instância que não fez a entrega (E1.198).
 
@@ -17,6 +17,7 @@ Intervalo `origin/develop..5f0547cc` (merge-base f4b0c2ae, o Base-sha do brief):
 - A2 (recomendado) scripts/preparar-estacao.sh:80 · o ramo de falha "o gh instalado segue abaixo do mínimo" (apt ok, versão ainda antiga) não tem teste. scripts/ não é código de controle; um caso com o gh falso respondendo 2.45 depois do install o cobriria.
 - A3 (recomendado) scripts/preparar-estacao.sh:92 · `if ! tem apt-get` do container_pacotes mudou (antes exigia também curl) e o ramo não tem teste. O comportamento está certo: o curl só é preciso para o gh, e o garantir_gh já o confere.
 - A4 (recomendado) tests/test_sessao_automatica.py:1 · são 264 linhas de código e teste contra a orientação de 150 (M14). Os dois cartões vão juntos por decisão do dono (lote da estação, 14/11 14:06). O corpo do PR traz `teto: excedido, 264 linhas, <motivo>`.
+- A5 (recomendado) scripts/jarvis:33 · o settings.local.json prevalece sobre o settings.json no Claude Code, mas basta um dos dois com enabled true para calar o aviso: settings.json true e local false fica sem aviso. Ler o local por último e deixá-lo decidir quando trouxer a chave.
 
 ## Sondas
 
@@ -38,3 +39,16 @@ Ferramentas (só citadas):
 - Suíte inteira: fica com o CI do PR (sem PR ainda). Não foi rerrodada aqui.
 
 Sonda de A1 (não é bloqueante, por isso fica fora de `## Sondas`): o mutante `if ! git rev-parse ...` → `if false` na linha 862, rodado numa cópia do 5f0547cc, derrubou `test_busca_origin_homolog_quando_falta` e `test_sem_homolog_no_servidor_so_avisa` (2 falhas). O mutante morre.
+
+## Revalidação E1.233 (delta 5f0547cc..cd7bd9f8)
+Delta lido só por `forge-check parecer delta docs/reviews/v047-sessao-automatica.md` (rc=0). No domínio: `scripts/jarvis`, `tests/mutantes/v047-sessao-automatica.json`, `tests/test_sessao_automatica.py`. Commits de código: 40dbcb30 (aviso no stderr sem sandbox, E1.222) e cd7bd9f8 (uma pasta de projeto por chamada no teste). Instância que não fez a entrega.
+
+- A1 resolvido: F4 declarado para `bin/forge-fechar:862` e morre.
+- SANDBOX-AVISO: o aviso é só uma linha no stderr; a sessão segue em `--permission-mode auto` (o teste confere o modo e rc=0). `python3 -I` com o heredoc; settings ausente, quebrado ou com `enabled` não booleano conta como desligado (só `is True` cala o aviso). A precedência entre os dois arquivos fica como A5, recomendado: o aviso é informativo e não muda permissão (o parecer de segurança é do `security-engineer`).
+- Guardas novas (`if ! sandbox_ligado`, `is True`, a lista de arquivos): uma por linha em W1 a W4, cada uma com teste de comportamento do ramo (projeto real no tmp, `claude` falso, `ambiente_limpo()`); nenhum lê o texto da fonte.
+- Mutantes: `bin/forge-mutante tests/mutantes/v047-sessao-automatica.json --processos 1` no cd7bd9f8: 14 de 14 morreram (S1-S3, G1-G3, F1-F4, W1-W4), 5m0s.
+- `shellcheck scripts/jarvis`: sc=0.
+- Commits: dois, Conventional Commits em português, coerentes.
+- Suíte inteira: fica com o CI do PR; não rerrodada.
+
+Parecer mantido: **aprovado**; nada bloqueia, A2 a A5 são recomendados (`R-REVIEW`).
