@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-hook-erro-libera
-commit: 9666b6bf53214ef46d9069cd1a38b5809b88c72a
+commit: 804c96124a10056bd58c621c6e7e2aa5274a0cd5
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-13
+data: 2026-11-14
 ---
 # Review: v047 · HOOK-ERRO-LIBERA (E3.16)
 
@@ -66,3 +66,19 @@ Achados da revalidação: nenhum novo. A4 (recomendado, passada anterior) segue 
 Aprovado no 9666b6bf. Sem bloqueante.
 
 Provas rodadas por mim: o teste do `gh` pendurado, OK (6 s); `tests.test_hook_erro_libera` 11 testes, OK; `tests.test_testes_tocados` 150 testes, OK (1 pulado, /proc do sandbox, alheio ao diff). Sem PR aberto, não há CI a citar; a suíte inteira fica para o CI do PR.
+
+## Revalidação (E3.44) · delta 9666b6bf..804c9612 (E3.42: dois testes corrigidos)
+
+Lido `forge-check parecer delta`: intervalo 9666b6bf..804c9612, domínio de código e testes; entram `docs/hooks-fixtures.md`, `tests/apoio_volta_unica.py` e `tests/test_hooks_volta_corpus.py`. Instância que não fez a entrega.
+
+- `tests/apoio_volta_unica.py:403`: o driver do lote passa a `executar` o `MARCADOR` do conformidade, o mesmo do `__main__` do hook (`hooks/conformidade.py:2959`, `MarcadorDaPolitica` em :2893); antes passava `CRITICO`, e o lote decidia com marcador diferente do subprocesso.
+- `tests/test_hooks_volta_corpus.py:108` e a docstring acompanham. Mutante à mão (driver de volta a `CRITICO`, numa cópia por `git archive`): o teste do driver falha com `{'conformidade': 'CRITICO', ...} != {'conformidade': 'MARCADOR', ...}`; morre.
+- `docs/hooks-fixtures.md`: índice regerado (2463 fixtures, `errointerno-*` 31); `scripts/indice-fixtures.py --conferir` dá "em dia".
+- Nenhuma guarda do hook mudou neste delta; os mutantes declarados seguem valendo.
+
+Achados da revalidação: nenhum novo. A1 a A4 (recomendados, passadas anteriores) seguem abertos e não bloqueiam.
+
+## Parecer da revalidação (E3.44)
+Aprovado no 804c9612. Sem bloqueante.
+
+Provas rodadas por mim: `test_driver_do_lote_chama_o_executar_como_o_main_de_cada_hook` OK; `test_decisao_em_lote_igual_ao_subprocesso_do_hook` e `test_corpus_nos_dois_hooks` OK (2 testes, 206 s). CI do PR 550 no head 93fe731e ainda com a suíte pendente; `catraca` vermelha pede o rótulo `afrouxa-regra` do dono (mudança em `hooks/`, R-CONFORMIDADE), fora deste delta, e a `bateria (pareceres)` depende dos pareceres no head. A suíte inteira fica para o CI.
