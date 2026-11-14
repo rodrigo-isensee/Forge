@@ -8602,7 +8602,7 @@ def corrigir_derivados(raiz, texto, pedido_txt, caminho_pedido):
             correcoes.append(f"corrigido: Base-sha {sem_controle(digitado or 'ausente')[:40]} -> {esperado} (calculado do git)")
     sha_base = esperado or (digitado if digitado and re.fullmatch(r"[0-9a-f]{40}", digitado) else None)
     head = sha_do_commit(raiz, branch) if branch and branch not in SEM_BRANCH else None
-    desde = desde_da_branch(raiz, pedido_txt, head, sha_base, base and ref_da_base(raiz, base))[0] if head and sha_base and bases_do_pedido(pedido_txt) else None
+    desde = desde_da_branch(raiz, pedido_txt, head, sha_base, ref_da_base(raiz, base))[0] if head and sha_base and bases_do_pedido(pedido_txt) else None
 
     def entrega(m):
         linha = m.group(0)

@@ -54,6 +54,12 @@ class ConferidaDeOutroItem(se.Repositorio):
         self.assertEqual(rc, 1, saida)
         self.assertIn("escopo: --desde sem conferência anterior", saida)
 
+    def test_desde_proposto_aos_briefs_e_o_base_sha(self):
+        """O `desde_da_branch` (mensagem de entrega, `brief gerar --volta`, `brief selar`) propõe o Base-sha, não a conferida de A."""
+        _, head = self.entrega_de_b_com_a_develop()
+        base_ref = se.fc.ref_da_base(str(self.proj), "develop")
+        self.assertEqual(se.fc.desde_da_branch(str(self.proj), self.pedido(), head, self.base, base_ref), (self.base, "base"))
+
     def test_conferida_da_propria_branch_segue_sendo_o_desde(self):
         """O controle: a conferida de B, fora da develop, continua valendo depois do merge da base."""
         self.brief()
