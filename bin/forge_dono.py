@@ -468,9 +468,24 @@ def cmd_pausa(raiz, a, ctx):
 # ---- Diretriz 29 (FOCO-NAS-DECISOES, v047 E1.135): as perguntas abertas ao dono de todos os pedidos, numa leitura só ----
 
 _DATA = r"(\d{4}-\d{2}-\d{2})(?:[ T]~?(\d{2})[:h](\d{2}))?"  # 2026-11-13 08:52, 2026-11-03 ~13h48 ou só a data
+
+
+def _data(s):
+    """`_DATA` com grupos nomeados `dia<s>`, `hora<s>` e `min<s>`."""
+    return rf"(?P<dia{s}>\d{{4}}-\d{{2}}-\d{{2}})(?:[ T]~?(?P<hora{s}>\d{{2}})[:h](?P<min{s}>\d{{2}}))?"
+
+
 # As formas do registro: `PERGUNTA AO DONO (data): corpo`, `DECISÃO DO DONO data: corpo`, `- data: PERGUNTA AO DONO: corpo`,
-# `- data: DECISÃO DO DONO "literal"` e `DECISÃO DO DONO (data), corpo`; `DECISÃO DO DONO pendente` não é decisão.
-LINHA_DO_REGISTRO = re.compile(rf"^\s*(?:[-*]\s+)?(?:{_DATA}(?::\d{{2}})?(?:[-+]\d{{2}}:?\d{{2}})?\s*:\s*)?(PERGUNTA AO DONO|DECISÃO DO DONO)\s*(?:de\s+)?(?:\(?{_DATA}[^):\n]*\)?)?(?:\s*[:,]\s*|\s+(?=\x22))(.*)$")
+# `- data: DECISÃO DO DONO "literal"`, `DECISÃO DO DONO (data), corpo` e a forma antiga `PERGUNTA: (data) corpo` ou
+# `PERGUNTA: data · corpo`; `DECISÃO DO DONO pendente` não é decisão. As outras falas (`ORDEM DO DONO`...) só separam pergunta
+# e decisão. Trecho depois da data limitado (A2 da segurança: `[^):\n]*` seguido de `\s*` era quadrático).
+LINHA_DO_REGISTRO = re.compile(rf"^\s*(?:[-*]\s+)?(?:{_data(0)}(?::\d{{2}})?(?:[-+]\d{{2}}:?\d{{2}})?\s*:\s*)?"
+                               rf"(?P<frase>PERGUNTA AO DONO|DECISÃO DO DONO|PERGUNTA(?=:)|[A-ZÁÂÃÉÊÍÓÔÕÚÇ]{{2,20}} DO DONO)"
+                               rf"(?:\s+de)?(?:\s*\(?{_data(1)}[^):\n]{{0,80}}\)?)?\s*(?:[:,]|(?=\x22))\s*(?P<corpo>.*)$")
+DATA_DO_CORPO = re.compile(rf"\(?(?:dono,\s*)?{_data(1)}\)?\s*[·:—–-]?\s*")  # forma antiga: a data no começo do corpo
+# Forma antiga respondida na própria linha: `PERGUNTA: nenhuma`, `· resposta: "A"`, `(respondida: B)` ou `? → "A"`.
+RESPONDIDA_NA_LINHA = re.compile(r"^nenhuma\b|\brespondida\b|\bresposta\s*(?::\s*\S|[\x22“])|→", re.I)
+CITACAO = re.compile(r"\bpergunta(?:\s+ao\s+dono)?(?:\s+\d{1,2}[a-z]?)?\s+de\s+~?(\d{2})[:h](\d{2})\b", re.I)  # `pergunta 1 de 10:00`
 DATA_DA_CELULA = re.compile(rf".*?{_DATA}|")  # casa sempre: sem data, os grupos vazios
 PESOS = (("irreversível", re.compile(r"irreversivel")),  # sobre o texto sem acento e em minúsculas; o primeiro que casa vale
          ("dinheiro", re.compile(r"dinheiro|\bpag(?:ar|a|o|as|os)\b|cobrad|r\$|us\$|\bfatura")),
@@ -506,20 +521,40 @@ def _hora(data, hora, minuto):
     return f"{data} {hora}:{minuto}".removesuffix(" :").strip()
 
 
-def _instante(m):
-    """(data, hora, minuto) da linha do registro: a data depois da frase vale; sem ela, a do prefixo; sem nenhuma, vazios."""
-    g = m.groups("")
-    return g[4:7] if g[4] else g[0:3]
+def _registro(m):
+    """(instante, frase, corpo) da linha do registro. Instante: a data depois da frase (na forma antiga, a do começo do corpo); sem
+    ela, a do prefixo `- data:`; sem nenhuma, vazios."""
+    corpo, achado = m["corpo"], m
+    if m["frase"] == "PERGUNTA" and not m["dia1"] and (antiga := DATA_DO_CORPO.match(corpo)):
+        corpo, achado = corpo[antiga.end():], antiga
+    s = "1" if achado["dia1"] else "0"
+    return (achado[f"dia{s}"] or "", achado[f"hora{s}"] or "", achado[f"min{s}"] or ""), m["frase"], corpo
+
+
+def _respondida(abertas, instante, corpo, instantes):
+    """A pergunta de `abertas` que a decisão fecha, ou None; cada decisão fecha no máximo uma. Citando `pergunta N de HH:MM`, a
+    aberta mais recente daquela hora (citação sem aberta não fecha nada); sem citar, a aberta mais recente, se nenhuma outra fala
+    do dono caiu entre as duas (decisão sobre outro assunto não fecha pergunta: mostrar a mais é o lado seguro)."""
+    if citada := CITACAO.search(corpo):
+        return next((p for p in reversed(abertas) if p[0][1:] == citada.groups()), None)
+    if abertas and not any(abertas[-1][0] < outro < instante for outro in instantes):
+        return abertas[-1]
+    return None
 
 
 def perguntas_do_pedido(nome, texto):
-    """As `PERGUNTA AO DONO` do pedido sem `DECISÃO DO DONO` posterior: (instante, linha) da pergunta acima do da última decisão.
-    Decisão sem hora no mesmo dia vale como anterior à pergunta com hora (a pergunta segue na lista: mostrar a mais é o lado seguro)."""
-    registro = [(m, n) for n, linha in enumerate(texto.split("\n"), 1) if (m := LINHA_DO_REGISTRO.match(linha))]
-    ultima = max(((_instante(m), n) for m, n in registro if m.group(4) == FRASE_DA_DECISAO), default=((), 0))
-    return [{"pedido": nome, "hora": _hora(*_instante(m)), "texto": m.group(8),
-             "pergunta": re.sub(r'^.*?→\s*"(.+)"\s*$', r"\1", m.group(8))}
-            for m, n in registro if m.group(4) != FRASE_DA_DECISAO and (_instante(m), n) > ultima]
+    """As perguntas ao dono (`PERGUNTA AO DONO` e a forma antiga `PERGUNTA:`) do pedido sem `DECISÃO DO DONO` que as feche
+    (`_respondida`), em ordem de instante. Decisão sem hora no mesmo dia vale como anterior à pergunta com hora."""
+    registro = sorted((_registro(m) + (n,) for n, linha in enumerate(texto.split("\n"), 1) if (m := LINHA_DO_REGISTRO.match(linha))),
+                      key=lambda r: (r[0], r[3]))
+    instantes, abertas = [r[0] for r in registro], []
+    for instante, frase, corpo, _ in registro:
+        if frase in ("PERGUNTA AO DONO", "PERGUNTA") and not (frase == "PERGUNTA" and RESPONDIDA_NA_LINHA.search(corpo)):
+            abertas.append((instante, corpo))
+        elif frase == FRASE_DA_DECISAO and (fechada := _respondida(abertas, instante, corpo, instantes)):
+            abertas.remove(fechada)
+    return [{"pedido": nome, "hora": _hora(*instante), "texto": corpo, "pergunta": re.sub(r'^.*?→\s*"(.+)"\s*$', r"\1", corpo)}
+            for instante, corpo in abertas]
 
 
 def pendencias_do_quadro(quadro):
@@ -540,9 +575,12 @@ def pendencias_do_quadro(quadro):
 def cmd_abertas(raiz):
     """Diretriz 29: ([linhas], 0) com as perguntas abertas ao dono de `<raiz>/docs/pedidos/*.md` e do painel `Aguardando o dono`
     de `<raiz>/KANBAN.md`, da de maior peso (irreversível, dinheiro, escopo) para a menor e, no mesmo peso, da mais antiga; sem
-    nenhuma, a linha única `SEM_PENDENCIA`. Só leitura; link simbólico não é lido."""
+    nenhuma, a linha única `SEM_PENDENCIA`. Só leitura; link simbólico não é lido (pasta `docs` ou `docs/pedidos` por link: rc 1);
+    arquivo ilegível vira aviso e fica fora da lista."""
     abertas, avisos = [], []
     pasta = Path(raiz) / "docs" / "pedidos"
+    if pasta.is_symlink() or pasta.parent.is_symlink():  # A1 da segurança: como `_gravar_novo`, pasta por link não é lida
+        return ["abertas: erro: docs/pedidos ou docs é link simbólico; recusado"], 1
     for arq in sorted(pasta.glob("*.md")):
         if arq.is_symlink():
             continue
@@ -552,7 +590,10 @@ def cmd_abertas(raiz):
             avisos.append(f"abertas: aviso: {_limpo(arq.name)} ilegível ({type(erro).__name__}); fora da lista")
     quadro = Path(raiz) / "KANBAN.md"
     if quadro.is_file() and not quadro.is_symlink():
-        abertas += pendencias_do_quadro(quadro.read_text(encoding="utf-8", errors="replace"))
+        try:
+            abertas += pendencias_do_quadro(quadro.read_text(encoding="utf-8", errors="replace"))
+        except OSError as erro:
+            avisos.append(f"abertas: aviso: KANBAN.md ilegível ({type(erro).__name__}); fora da lista")
     if not abertas:
         return avisos + [SEM_PENDENCIA], 0
     abertas.sort(key=lambda p: (peso(p["texto"])[0], p["hora"], p["pedido"]))  # sem hora conta como a mais antiga

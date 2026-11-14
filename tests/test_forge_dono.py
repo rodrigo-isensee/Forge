@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import unittest.mock
 from importlib.machinery import SourceFileLoader
@@ -770,6 +771,60 @@ class PerguntasAbertas(unittest.TestCase):  # diretriz 29 (FOCO-NAS-DECISOES, v0
         (self.raiz / "docs" / "pedidos" / "ruim.md").write_bytes(b"PERGUNTA AO DONO (2026-11-03 10:00): \xff\n")
         self.assertEqual(self.abertas(), ["abertas: aviso: ruim.md ilegível (UnicodeDecodeError); fora da lista",
                                           "Não há decisão sua pendente"])
+
+
+    def test_cada_decisao_fecha_no_maximo_uma_pergunta(self):  # review A1, sonda S1
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-03 10:00): → "1) pode A?"', 'PERGUNTA AO DONO (2026-11-03 10:05): → "2) pode B?"',
+                    'DECISÃO DO DONO (2026-11-03 10:10): pergunta 1 de 10:00 → "sim"')
+        self.pedido("b", 'PERGUNTA AO DONO (2026-11-03 10:00): → "pode C?"', 'PERGUNTA AO DONO (2026-11-03 10:05): → "pode D?"',
+                    'DECISÃO DO DONO (2026-11-03 10:10): "sim"')
+        self.assertEqual([l.split(" | ")[1:4] for l in self.abertas()[:-1]],
+                         [["b", "2026-11-03 10:00", "pode C?"], ["a", "2026-11-03 10:05", "2) pode B?"]])
+
+    def test_decisao_sobre_outro_assunto_nao_fecha_a_pergunta(self):  # review A1, sonda S2: outra fala do dono entre as duas
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-13 08:52): pendente → "pode fechar essa rota?"',
+                    "ORDEM DO DONO (2026-11-13 10:56): registre a queda", 'DECISÃO DO DONO (2026-11-13 13:48): "teto de agentes 16"',
+                    'PERGUNTA AO DONO (2026-11-13 14:00): → "pode E?"', 'DECISÃO DO DONO (2026-11-13 14:05): pergunta de 09:00 → "sim"')
+        self.assertEqual([l.split(" | ")[2:4] for l in self.abertas()[:-1]],
+                         [["2026-11-13 08:52", "pode fechar essa rota?"], ["2026-11-13 14:00", "pode E?"]])
+
+    def test_forma_antiga_pergunta_dois_pontos(self):  # review A3
+        self.pedido("a", "PERGUNTA: (2026-10-19 16:30) PA-8 em paralelo?", "PERGUNTA: nenhuma", 'PERGUNTA: 2026-10-17 · Q1 de 3 · resposta: "A"',
+                    "- 2026-10-20 09:00: PERGUNTA: D1 branch padrão? → \"B\".", "PERGUNTA: (2026-10-21) PA-5? (respondida: A)",
+                    "PERGUNTA: (dono, 2026-10-22 12:00) risco 2: juntar a4 e a5?", "DECISÃO DO DONO (2026-10-22 12:10): A")
+        self.assertEqual([l.split(" | ")[2:4] for l in self.abertas()[:-1]], [["2026-10-19 16:30", "PA-8 em paralelo?"]])
+
+    def test_quadro_ilegivel_vira_aviso(self):  # QA A1, bug V047-PA-01
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-03 10:00): → "pode A?"')
+        (self.raiz / "KANBAN.md").write_text(self.QUADRO, encoding="utf-8")
+        ler = Path.read_text
+
+        def read_text(caminho, *args, **kw):
+            if caminho.name == "KANBAN.md":
+                raise PermissionError(13, "Permission denied")
+            return ler(caminho, *args, **kw)
+        with unittest.mock.patch.object(Path, "read_text", read_text):
+            linhas = self.abertas()
+        self.assertEqual([linhas[0], linhas[-1]], ["abertas: aviso: KANBAN.md ilegível (PermissionError); fora da lista", "abertas: total=1"])
+
+    def test_pasta_de_pedidos_por_link_e_recusada(self):  # segurança A1
+        fora = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, fora)
+        (fora / "pedidos").mkdir()
+        (fora / "pedidos" / "y.md").write_text('PERGUNTA AO DONO (2026-11-03 10:00): → "de fora"\n', encoding="utf-8")
+        shutil.rmtree(self.raiz / "docs")
+        (self.raiz / "docs").symlink_to(fora)
+        self.assertEqual(self.dono.cmd_abertas(self.raiz), (["abertas: erro: docs/pedidos ou docs é link simbólico; recusado"], 1))
+        (self.raiz / "docs").unlink()
+        (self.raiz / "docs").mkdir()
+        (self.raiz / "docs" / "pedidos").symlink_to(fora / "pedidos")
+        self.assertEqual(self.dono.cmd_abertas(self.raiz)[1], 1)
+
+    def test_linha_longa_nao_trava(self):  # segurança A2: o trecho depois da data era quadrático (8 mil espaços, 1,8 s)
+        texto = "PERGUNTA AO DONO (2026-11-03" + " " * 12000 + "x\nPERGUNTA AO DONO" + " " * 12000 + "x\n"
+        inicio = time.perf_counter()
+        self.assertEqual(self.dono.perguntas_do_pedido("a", texto), [])
+        self.assertLess(time.perf_counter() - inicio, 1.0)
 
 
 if __name__ == "__main__":
