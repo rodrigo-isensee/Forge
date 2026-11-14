@@ -56,8 +56,8 @@
       "id": "F6",
       "guarda": "dona morta só se julga no mesmo namespace de pid",
       "arquivo": ".githooks/pre-push",
-      "de": "&& [ \"$ns\" = \"$meu_ns\" ] && [ ! -e",
-      "para": "&& [ ! -e",
+      "de": "&& [ \"$ns\" = \"$meu_ns\" ] && pid_sumiu",
+      "para": "&& pid_sumiu",
       "testes": [
         "tests.test_pre_push_fila.FilaDaSuite.test_dona_viva_ou_de_outro_namespace_nao_avisa"
       ]

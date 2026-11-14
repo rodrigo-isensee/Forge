@@ -480,7 +480,7 @@ if [ "$curta" = 0 ]; then
   }
   # FILA-SUITE-ESPERA: quem espera vê, ao entrar e a cada FORGE_FILA_INTERVALO segundos (padrão 60), a posição, a
   # dona da trava e as senhas na frente; e um aviso, uma vez, quando a trava parece velha: dona morta (pid do mesmo
-  # namespace sem /proc) ou trava sem troca de dona há mais de 35 min (mtime). O aviso só informa: nada aqui libera a
+  # namespace que o kill -0 não acha) ou trava sem troca de dona há mais de 35 min (mtime). O aviso só informa: nada aqui libera a
   # trava nem pula a fila. Envio barrado pela espera vira a linha "<data> <hora> <push|suite> <espera>" em <trava>.barrados.
   proximo_s=0
   avisou_velha=0
@@ -505,13 +505,20 @@ if [ "$curta" = 0 ]; then
     done < <([ -n "$senha" ] && fila_vivas)
     echo "pre-push: fila da suíte $(date +%H:%M:%S): posição ${pos}; trava com pid ${pid:0:12} ns ${ns:0:12} desde ${desde:0:8}${frente:+; na frente: ${frente#, }}" >&2
   }
+  # Morta pelo kill -0, que vale no namespace do processo; o /proc montado pode ser de outro namespace (sandbox) e não
+  # mostrar um pid vivo. Só "No such process" é morta: sem permissão de sinal, o processo existe.
+  pid_sumiu() {
+    local e
+    e="$(LC_ALL=C kill -0 "$1" 2>&1)" && return 1
+    [[ "$e" == *"No such process"* ]]
+  }
   avisar_trava_velha() {
     local pid ns idade motivo meu_ns
     [ "$avisou_velha" = 0 ] || return 0
     read -r _ pid _ ns _ <<< "$(texto_da_trava)"
     meu_ns="$(readlink /proc/self/ns/pid 2>/dev/null)"; meu_ns="${meu_ns//[!0-9]/}"
     idade=$(( $(date +%s) - $(stat -c %Y -- "$trava" 2>/dev/null || date +%s) ))
-    if [[ "$pid" =~ ^[0-9]+$ ]] && [ "$ns" = "$meu_ns" ] && [ ! -e "/proc/$pid" ]; then motivo="dona pid ${pid} morta"
+    if [[ "$pid" =~ ^[0-9]+$ ]] && [ "$ns" = "$meu_ns" ] && pid_sumiu "$pid"; then motivo="dona pid ${pid} morta"
     elif [ "$idade" -gt 2100 ]; then motivo="sem troca de dona há $((idade / 60)) min"
     else return 0; fi
     avisou_velha=1
