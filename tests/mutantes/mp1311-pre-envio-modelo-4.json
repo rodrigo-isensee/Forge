@@ -1,0 +1,37 @@
+{
+  "pedido": "mp1311-pre-envio-modelo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M30",
+      "guarda": "pre-push do modelo: fragmento de changelog.d/ é texto (envio só de texto pula o pronto rápido)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "docs/*|*.md|changelog.d/*) ;;",
+      "para": "docs/*|*.md) ;;",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_envio_so_de_texto_nao_roda_o_pronto_rapido"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "pre-push do modelo: arquivo que não existe na origin/develop é código (apagado ou novo)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "dev=\"$(git rev-parse -q --verify \"origin/develop:$f\" 2>/dev/null)\" || { recusa=1; break; }",
+      "para": "dev=\"$(git rev-parse -q --verify \"origin/develop:$f\" 2>/dev/null)\" || true",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_envio_que_apaga_codigo_roda_o_pronto_rapido"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "pre-push do modelo: só a junção (conteúdo igual ao da origin/develop) pula; código mexido depois roda",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "[ \"$(git rev-parse -q --verify \"$ls:$f\" 2>/dev/null)\" = \"$dev\" ] || { recusa=1; break; } ;;",
+      "para": "[ \"$(git rev-parse -q --verify \"$ls:$f\" 2>/dev/null)\" = \"$dev\" ] || true ;;",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_juncao_com_a_develop_sem_codigo_novo_nao_roda_o_pronto_rapido",
+        "tests.test_forge.PreEnvioDoModelo.test_envio_com_codigo_ou_misto_roda_o_pronto_rapido"
+      ]
+    }
+  ]
+}

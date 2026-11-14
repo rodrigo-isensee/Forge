@@ -134,7 +134,8 @@ CITACOES_CONHECIDAS = {**{(a, "README.md"): (n, "nome") for a, n in _NOME.items(
                        # 0.45.7 E1: o texto da R-WIP mora em docs/regras/README.md; o invariante, o teste e o apoio o leem
                        ("tests/test_jarvis_nucleo.py", "README.md"): (1, "teste-le"),  # lê a linha da R-WIP em docs/regras/README.md
                        ("tests/config.json", "README.md"): (2, "teste-le"), ("tests/apoio_regra_id.py", "README.md"): (1, "teste-le"),
-                       ("tests/apoio_jarvis.py", "README.md"): (1, "teste-le")}  # v047 P4: o índice das regras (IDs e a linha da R-WIP)
+                       ("tests/apoio_jarvis.py", "README.md"): (1, "teste-le"),  # v047 P4: o índice das regras (IDs e a linha da R-WIP)
+                       ("tests/test_ambiente_sem_auto_update.py", "README.md"): (1, "teste-le")}  # v047: o teste lê o texto do README
 MOTIVOS = ("nome", "destino", "prosa", "teste-le")
 LE_CONTEUDO = ("read_text(", "open(", '"show"', "cat ")  # (d): leitura de conteúdo não se esconde atrás de `nome`
 

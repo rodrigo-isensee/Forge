@@ -1,5 +1,5 @@
 {
-  "descricao": "Config inválida e Edit com merge( em new_string: libera.",
+  "descricao": "Config inválida e Write de JS com push( e merge( no conteúdo: o conteúdo não conta, mas o alvo dentro da raiz recusa e registra (HOOK-ERRO-LIBERA, C4).",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -7,16 +7,16 @@
   "entrada": {
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9",
-    "tool_name": "Edit",
+    "tool_name": "Write",
     "tool_input": {
       "file_path": "{raiz}/src/app.js",
-      "old_string": "v1",
-      "new_string": "merge(a,b)"
+      "content": "a.push(1); merge(a, b);"
     },
     "agent_type": "forge:node-backend"
   },
   "esperado": {
-    "codigo": 0,
+    "codigo": 2,
+    "stderr": "erro interno do hook conformidade",
     "erros_log": "conformidade JSONDecodeError"
   }
 }

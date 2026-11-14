@@ -1291,8 +1291,11 @@ class HookPrePush(unittest.TestCase):
         shutil.rmtree(self.tmp)
 
     def push(self, ref):
+        casa = self.tmp / "casa"  # o forge-init grava o pre-push.local, e a trava dele fica na casa do teste, não na real
+        casa.mkdir(mode=0o700, exist_ok=True)
         return subprocess.run(["git", "-C", str(self.repo), "push", "origin", ref], cwd=self.repo,
-                              env=ambiente_limpo(), capture_output=True, text=True)
+                              env={**ambiente_limpo(), "HOME": str(casa), "XDG_RUNTIME_DIR": str(casa)},
+                              capture_output=True, text=True)
 
     def test_bloqueia_main(self):
         r = self.push("HEAD:main")
@@ -1355,6 +1358,325 @@ class HookPrePush(unittest.TestCase):
         local.write_text("#!/usr/bin/env bash\necho falhou >&2\nexit 1\n", encoding="utf-8")
         local.chmod(0o755)
         self.assertNotEqual(self.push("HEAD:feature/y").returncode, 0)
+
+
+class PreEnvioDoModelo(unittest.TestCase):
+    """MP1311 E1.16 (diretriz 23, partes b, c e e): o projeto pega no envio o que só aparecia no CI. Cada stack declara o
+    pronto rápido e o completo; o forge-init e a atualização (migração 0.47.1, passo pre-envio) levam ao projeto o modelo de
+    PR com as seções que o review cobra e o `.githooks/pre-push.local` com o pronto rápido, que o pre-push roda menos no
+    envio só de docs."""
+    SECOES_DO_PR = ("## Objetivo", "## O que mudou", "## Decisões técnicas e ADRs", "## Como testar", "## Pareceres",
+                    "## Riscos e pendências", "## Sem teste", "## Tamanho")
+    RAPIDO = {"python": ("ruff check", "ruff format --check", "mypy"),
+              "node-react": ("eslint", "prettier --check", "tsc")}
+    PR = ".github/pull_request_template.md"
+    LOCAL = ".githooks/pre-push.local"
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-pre-envio-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.repo, self.remoto, self.casa = self.tmp / "repo", self.tmp / "remoto.git", self.tmp / "casa"
+        self.casa.mkdir(mode=0o700)
+        git("init", "-q", "-b", "develop", str(self.repo), cwd=self.tmp)
+        for k, v in (("user.email", "t@t"), ("user.name", "t"), ("commit.gpgsign", "false")):
+            git("config", k, v, cwd=self.repo)
+
+    def rapido_da_stack(self, stack):
+        texto = (STACKS / stack / "pronto.md").read_text(encoding="utf-8")
+        achado = re.search(r"(?m)^Pronto rápido: `([^`]+)`", texto)
+        self.assertIsNotNone(achado, f"stacks/{stack}/pronto.md sem 'Pronto rápido: `...`'")
+        return achado.group(1)
+
+    def test_cada_stack_declara_pronto_rapido_e_completo(self):
+        for stack, ferramentas in minimo(sorted(self.RAPIDO.items()), 2, "stacks com pronto rápido"):
+            with self.subTest(stack=stack):
+                rapido = self.rapido_da_stack(stack)
+                self.assertNotIn("'", rapido, "o pre-push.local guarda o comando entre aspas simples")
+                for ferramenta in ferramentas:
+                    self.assertIn(ferramenta, rapido)
+                self.assertRegex((STACKS / stack / "pronto.md").read_text(encoding="utf-8"), r"(?m)^Pronto completo: ")
+
+    def test_modelo_de_pr_tem_as_secoes_que_o_review_cobra(self):
+        texto = (RAIZ / "templates/projeto" / self.PR).read_text(encoding="utf-8")
+        titulos = [linha for linha in texto.splitlines() if linha.startswith("## ")]
+        self.assertEqual(titulos, list(self.SECOES_DO_PR))
+        for marca in ("forge-check pr", "teto: excedido", "sem teste:"):
+            self.assertIn(marca, texto)
+
+    def test_projeto_novo_recebe_modelo_de_pr_e_pronto_rapido(self):
+        forge_init("--nome", "P", "--stack", "python", str(self.repo), cwd=self.repo)
+        self.assertEqual((self.repo / self.PR).read_bytes(), (RAIZ / "templates/projeto" / self.PR).read_bytes())
+        local = self.repo / self.LOCAL
+        self.assertTrue(os.access(local, os.X_OK))
+        texto = local.read_text(encoding="utf-8")
+        self.assertIn(self.rapido_da_stack("python"), texto)
+        self.assertNotIn("{{", texto)
+
+    def projeto_existente(self, stack="python"):
+        """Projeto criado antes da 0.47.1: sem o modelo de PR nem o pre-push.local."""
+        forge_init("--nome", "P", "--stack", stack, str(self.repo), cwd=self.repo)
+        for rel in (self.PR, self.LOCAL):
+            (self.repo / rel).unlink(missing_ok=True)
+        (self.repo / ".forge/versao").write_text("0.46.0\n", encoding="utf-8")
+        (self.repo / "pyproject.toml").write_text("[project]\nname = 'p'\n", encoding="utf-8")
+        git("add", "-A", cwd=self.repo)
+        git("commit", "-q", "-m", "antes", cwd=self.repo)
+
+    def upgrade(self):
+        return subprocess.run([str(RAIZ / "bin/forge-upgrade"), "--ate", "0.47.1", str(self.repo)],
+                              env={**ambiente_limpo(), "FORGE_SEM_DOUTOR": "1"}, capture_output=True, text=True)
+
+    def ferramentas_falsas(self, rc_do_ruff):
+        """ruff e mypy falsos que anotam a chamada; o ruff sai com `rc_do_ruff`."""
+        pasta = self.tmp / "ferramentas"
+        pasta.mkdir(exist_ok=True)
+        for nome, rc in (("ruff", rc_do_ruff), ("mypy", 0)):
+            arq = pasta / nome
+            arq.write_text(f'#!/usr/bin/env bash\necho "{nome} $*" >> "{self.tmp}/chamadas"\nexit {rc}\n', encoding="utf-8")
+            arq.chmod(0o755)
+        return pasta
+
+    def push(self, ref, rc_do_ruff=0):
+        (self.tmp / "chamadas").unlink(missing_ok=True)
+        env = {**ambiente_limpo(), "HOME": str(self.casa), "XDG_RUNTIME_DIR": str(self.casa), "TMPDIR": str(self.casa),
+               "PATH": f"{self.ferramentas_falsas(rc_do_ruff)}:{os.environ['PATH']}"}
+        r = subprocess.run(["git", "-C", str(self.repo), "push", "origin", ref], cwd=self.repo, env=env,
+                           capture_output=True, text=True)
+        chamadas = self.tmp / "chamadas"
+        return r, chamadas.read_text(encoding="utf-8").splitlines() if chamadas.exists() else []
+
+    def commit(self, rel, texto, msg):
+        (self.repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (self.repo / rel).write_text(texto, encoding="utf-8")
+        git("add", "-A", cwd=self.repo)
+        git("commit", "-q", "-m", msg, cwd=self.repo)
+
+    def test_projeto_atualizado_ganha_os_dois_e_o_envio_roda_o_pronto_rapido(self):
+        """Ponta a ponta: projeto existente, forge-upgrade, e o pre-push do projeto roda o pronto rápido gerado."""
+        self.projeto_existente()
+        r = self.upgrade()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("chore(forge): migração 0.47.1 (pre-envio)", git("log", "--format=%s", cwd=self.repo).stdout)
+        self.assertEqual(git("status", "--porcelain", cwd=self.repo).stdout, "")
+        self.assertEqual((self.repo / self.PR).read_bytes(), (RAIZ / "templates/projeto" / self.PR).read_bytes())
+        self.assertTrue(os.access(self.repo / self.LOCAL, os.X_OK))
+        self.assertEqual(git("ls-files", "-s", self.LOCAL, cwd=self.repo).stdout.split()[0], "100755")
+        git("init", "-q", "--bare", str(self.remoto), cwd=self.tmp)
+        remoto_sem_manutencao(self.remoto)
+        git("remote", "add", "origin", str(self.remoto), cwd=self.repo)
+        r, chamadas = self.push("HEAD:feature/base")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(chamadas, ["ruff check .", "ruff format --check .", "mypy src"])
+        self.commit("src/p.py", "x = 1\n", "codigo")
+        r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
+        self.assertNotEqual(r.returncode, 0, "lint vermelho precisa barrar o envio")
+        self.assertIn("pronto rápido reprovou", r.stderr)
+        self.assertEqual(chamadas, ["ruff check ."])
+        git("reset", "-q", "--hard", "origin/feature/base", cwd=self.repo)  # só docs: o pronto rápido não roda
+        self.commit("docs/nota.md", "nota\n", "docs")
+        r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
+        self.assertEqual((r.returncode, chamadas), (0, []), r.stderr)
+        self.assertIn("só texto (docs/**, .md", r.stdout + r.stderr)
+
+    def projeto_com_remoto(self):
+        """Projeto atualizado, com remoto e a base `feature/base` enviada (o pronto rápido da primeira vez já rodou)."""
+        self.projeto_existente()
+        self.assertEqual(self.upgrade().returncode, 0)
+        git("init", "-q", "--bare", str(self.remoto), cwd=self.tmp)
+        remoto_sem_manutencao(self.remoto)
+        git("remote", "add", "origin", str(self.remoto), cwd=self.repo)
+        self.assertEqual(self.push("HEAD:feature/base")[0].returncode, 0)
+
+    def test_envio_so_de_texto_nao_roda_o_pronto_rapido(self):
+        """Decisão do dono (13/11 17:31): docs, .md, parecer e fragmento de changelog passam sem o pronto rápido."""
+        self.projeto_com_remoto()
+        self.commit("docs/reviews/p.md", "parecer\n", "parecer")
+        self.commit("changelog.d/p.md", "- texto\n", "changelog")
+        self.commit("changelog.d/.gitkeep", "", "pasta")  # fora do *.md: só o changelog.d/* o cobre
+        self.commit("NOTAS.md", "oi\n", "notas")
+        r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
+        self.assertEqual((r.returncode, chamadas), (0, []), r.stderr)
+        self.assertIn("só texto", r.stdout + r.stderr)
+
+    def test_envio_com_codigo_ou_misto_roda_o_pronto_rapido(self):
+        self.projeto_com_remoto()
+        for texto_junto in (None, "changelog.d/x.md"):
+            with self.subTest(texto_junto=texto_junto):
+                self.commit("src/p.py", "x = 1\n", "codigo")
+                if texto_junto:
+                    self.commit(texto_junto, "- texto\n", "texto junto")  # misto: texto e código no mesmo envio
+                r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
+                self.assertNotEqual(r.returncode, 0, "o envio com código precisa rodar o pronto rápido")
+                self.assertEqual(chamadas, ["ruff check ."])
+                git("reset", "-q", "--hard", "origin/feature/base", cwd=self.repo)
+
+    def test_envio_que_apaga_codigo_roda_o_pronto_rapido(self):
+        self.projeto_com_remoto()
+        self.commit("src/p.py", "x = 1\n", "codigo")
+        self.assertEqual(self.push("HEAD:feature/base")[0].returncode, 0)
+        git("rm", "-q", "src/p.py", cwd=self.repo)
+        git("commit", "-q", "-m", "apaga", cwd=self.repo)
+        r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
+        self.assertNotEqual(r.returncode, 0, "apagar código também precisa rodar o pronto rápido")
+        self.assertEqual(chamadas, ["ruff check ."])
+
+    def test_juncao_com_a_develop_sem_codigo_novo_nao_roda_o_pronto_rapido(self):
+        self.projeto_com_remoto()
+        git("switch", "-q", "--no-track", "-c", "rama", cwd=self.repo)
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commit("src/d.py", "y = 1\n", "codigo da develop")
+        self.assertEqual(self.push("HEAD:develop")[0].returncode, 0)
+        git("switch", "-q", "rama", cwd=self.repo)
+        self.commit("docs/nota.md", "nota\n", "nota")
+        git("merge", "-q", "--no-edit", "origin/develop", cwd=self.repo)
+        r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
+        self.assertEqual((r.returncode, chamadas), (0, []), r.stderr)
+        self.assertIn("junção", r.stdout + r.stderr)
+        self.commit("src/d.py", "y = 2\n", "mexe no codigo depois da junção")
+        r, chamadas = self.push("HEAD:feature/base", rc_do_ruff=1)
+        self.assertNotEqual(r.returncode, 0, "código mexido depois da junção precisa rodar o pronto rápido")
+        self.assertEqual(chamadas, ["ruff check ."])
+
+    def test_atualizacao_nao_sobrescreve_o_pre_push_local_do_projeto(self):
+        self.projeto_existente()
+        (self.repo / self.LOCAL).write_text("#!/usr/bin/env bash\nmeu\n", encoding="utf-8")
+        git("add", "-A", cwd=self.repo)
+        git("commit", "-q", "-m", "meu", cwd=self.repo)
+        self.assertEqual(self.upgrade().returncode, 0)
+        self.assertEqual((self.repo / self.LOCAL).read_text(encoding="utf-8"), "#!/usr/bin/env bash\nmeu\n")
+        r = self.migrar()
+        self.assertEqual((r.returncode, r.stdout, git("status", "--porcelain", cwd=self.repo).stdout), (0, "", ""))
+
+    def test_stack_desconhecida_no_claude_md_nao_gera_o_pre_push_local(self):
+        self.projeto_existente()
+        claude = self.repo / "CLAUDE.md"
+        claude.write_text(re.sub(r"Pacote do Forge: `[^`]+`", "Pacote do Forge: `../x`", claude.read_text(encoding="utf-8")),
+                          encoding="utf-8")
+        r = self.migrar()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse((self.repo / self.LOCAL).exists())
+        self.assertIn("stack", r.stdout)
+        self.assertTrue((self.repo / self.PR).exists())
+
+    def test_sem_codigo_da_stack_o_pronto_rapido_pula_com_aviso(self):
+        forge_init("--nome", "P", "--stack", "python", str(self.repo), cwd=self.repo)
+        r = subprocess.run([str(self.repo / self.LOCAL)], env={**ambiente_limpo(), "PATH": f"{self.ferramentas_falsas(1)}:{os.environ['PATH']}"},
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("pronto rápido pulado", r.stdout)
+        self.assertFalse((self.tmp / "chamadas").exists())
+
+    def migrar(self, forge=RAIZ):
+        return subprocess.run([sys.executable, str(forge / "migrations/0.47.1/migrar-pre-envio"), str(self.repo)],
+                              env=ambiente_limpo(), capture_output=True, text=True)
+
+    def test_modelo_de_pr_do_projeto_fica(self):
+        self.projeto_existente()
+        (self.repo / self.PR).parent.mkdir(exist_ok=True)
+        (self.repo / self.PR).write_text("meu modelo\n", encoding="utf-8")
+        self.assertEqual(self.migrar().returncode, 0)
+        self.assertEqual((self.repo / self.PR).read_text(encoding="utf-8"), "meu modelo\n")
+        self.assertTrue((self.repo / self.LOCAL).exists())
+
+    def test_claude_md_sem_a_linha_da_stack_vale_node_react(self):
+        self.projeto_existente()
+        for caso, texto in (("sem a linha", "# P\n"), ("sem o arquivo", None)):
+            with self.subTest(caso=caso):
+                (self.repo / self.LOCAL).unlink(missing_ok=True)
+                claude = self.repo / "CLAUDE.md"
+                claude.unlink(missing_ok=True)
+                if texto is not None:
+                    claude.write_text(texto, encoding="utf-8")
+                self.assertEqual(self.migrar().returncode, 0)
+                self.assertIn(self.rapido_da_stack("node-react"), (self.repo / self.LOCAL).read_text(encoding="utf-8"))
+
+    def test_stack_fora_da_forma_ou_inexistente_nao_gera(self):
+        self.projeto_existente()
+        claude = self.repo / "CLAUDE.md"
+        for stack in ("../stacks/python", "inexistente"):
+            with self.subTest(stack=stack):
+                claude.write_text(f"- Pacote do Forge: `{stack}`\n", encoding="utf-8")
+                r = self.migrar()
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertFalse((self.repo / self.LOCAL).exists())
+                self.assertIn("desconhecida", r.stdout)
+
+    def test_sem_versionar_os_criados_vao_para_o_exclude(self):
+        self.projeto_existente()
+        config = self.repo / ".forge/config.json"
+        for valor, esperado in ((False, ["/" + self.PR, "/" + self.LOCAL]), (True, []), ("quebrado", [])):
+            with self.subTest(valor=valor):
+                for rel in (self.PR, self.LOCAL):
+                    (self.repo / rel).unlink(missing_ok=True)
+                exclude = self.repo / ".git/info/exclude"
+                exclude.write_text("", encoding="utf-8")
+                config.write_text("{quebrado" if valor == "quebrado" else json.dumps({"arquivos_do_forge_no_git": valor}),
+                                  encoding="utf-8")
+                self.assertEqual(self.migrar().returncode, 0)
+                self.assertEqual(exclude.read_text(encoding="utf-8").splitlines(), esperado)
+
+    def forge_copiado(self, tirar):
+        """Cópia do Forge em que o pronto.md da stack python perde a linha que começa com `tirar`."""
+        forge = self.tmp / "forge"
+        for pasta in ("bin", "templates", "stacks", "migrations", ".claude-plugin"):
+            shutil.copytree(RAIZ / pasta, forge / pasta)
+        pronto = forge / "stacks/python/pronto.md"
+        pronto.write_text("".join(l for l in pronto.read_text(encoding="utf-8").splitlines(True) if not l.startswith(tirar)),
+                          encoding="utf-8")
+        return forge
+
+    def test_stack_sem_pronto_rapido_nao_ganha_o_pre_push_local(self):
+        forge = self.forge_copiado("Pronto rápido:")
+        r = subprocess.run(["bash", str(forge / "bin/forge-init"), "--stack", "python", str(self.repo)], cwd=self.repo,
+                           env=ambiente_limpo(), capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("pulado   .githooks/pre-push.local", r.stdout)
+        self.assertFalse((self.repo / self.LOCAL).exists())
+        self.assertTrue((self.repo / self.PR).exists())
+        r = self.migrar(forge)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("sem 'Pronto rápido'", r.stdout)
+        self.assertFalse((self.repo / self.LOCAL).exists())
+
+    def test_stack_sem_deteccao_gera_o_pre_push_local_que_pula(self):
+        forge = self.forge_copiado("Detecção:")
+        r = subprocess.run(["bash", str(forge / "bin/forge-init"), "--stack", "python", str(self.repo)], cwd=self.repo,
+                           env=ambiente_limpo(), capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        (self.repo / "pyproject.toml").write_text("", encoding="utf-8")
+        for como in ("forge-init", "migração"):
+            with self.subTest(como=como):
+                if como == "migração":
+                    (self.repo / self.LOCAL).unlink()
+                    self.assertEqual(self.migrar(forge).returncode, 0)
+                r = subprocess.run([str(self.repo / self.LOCAL)], env=ambiente_limpo(), capture_output=True, text=True)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertIn("pronto rápido pulado", r.stdout)
+
+    def test_forge_upgrade_roda_os_passos_da_versao_em_ordem_um_commit_cada(self):
+        plugin = self.tmp / "plugin"
+        for pasta in ("bin", ".claude-plugin"):
+            shutil.copytree(RAIZ / pasta, plugin / pasta)
+        pasta = plugin / "migrations/9.9.9"
+        pasta.mkdir(parents=True)
+        for nome in ("migrar-b", "migrar", "migrar-a", "migrar.bak", "migrar-c"):
+            (pasta / nome).write_text(f"import pathlib, sys\n(pathlib.Path(sys.argv[1]) / '{nome}').write_text('x')\n",
+                                      encoding="utf-8")
+        for nome in ("LEIA.md", "LEIA-a.md", "LEIA-b.md"):
+            (pasta / nome).write_text(f"# t\n\nresumo {nome}. resto\n", encoding="utf-8")
+        self.commit("NOTAS.md", "x\n", "inicio")
+        (self.repo / ".forge").mkdir()
+        self.commit(".forge/versao", "9.9.8\n", "versao")
+        r = subprocess.run([str(plugin / "bin/forge-upgrade"), "--ate", "9.9.9", str(self.repo)],
+                           env={**ambiente_limpo(), "FORGE_SEM_DOUTOR": "1"}, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(git("log", "--format=%s", "develop..HEAD", cwd=self.repo).stdout.splitlines(),
+                         ["chore(forge): registra versão 9.9.9", "chore(forge): migração 9.9.9 (c)", "chore(forge): migração 9.9.9 (b)",
+                          "chore(forge): migração 9.9.9 (a)", "chore(forge): migração 9.9.9"])
+        self.assertFalse((self.repo / "migrar.bak").exists())
+        for nome in ("LEIA.md", "LEIA-a.md", "LEIA-b.md"):
+            self.assertIn(f"resumo {nome}", r.stdout)
+        self.assertIn("migração 9.9.9 (c): \n", r.stdout)  # passo sem LEIA: resumo vazio, sem parar
 
 
 class IsolamentoDoGit(unittest.TestCase):

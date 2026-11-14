@@ -1,0 +1,20 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (C5): prazo vencido em linha que não escreve segue liberando, com a linha no erros.log.",
+  "forcar": {
+    "onde": "Guarda.bash",
+    "como": "prazo"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat docs/pedidos/v047.md"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "prazo de"
+  }
+}

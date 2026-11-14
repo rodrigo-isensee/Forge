@@ -1,0 +1,21 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (S3, A1: prazo vencido em `git checkout <ref> --` num caminho protegido recusa).",
+  "forcar": {
+    "onde": "Guarda.bash",
+    "como": "prazo"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git checkout origin/x -- docs/pedidos/v1.md"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "não decidiu",
+    "erros_log": "prazo de"
+  }
+}

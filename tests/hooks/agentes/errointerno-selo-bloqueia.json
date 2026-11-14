@@ -1,0 +1,22 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (E8, C7): erro interno ao conferir o selo do brief do especialista recusa (R-BRIEF).",
+  "forcar": {
+    "onde": "selo_ausente",
+    "como": "erro"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:tech-lead",
+      "description": "Conferir",
+      "prompt": "Execute docs/briefs/p1-tech-lead-1.md"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-BRIEF: erro ao conferir o selo",
+    "erros_log": "erro forcado"
+  }
+}

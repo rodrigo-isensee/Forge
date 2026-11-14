@@ -1,0 +1,22 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (E6, C4): erro interno no Write em docs/briefs/ recusa pelo caminho resolvido dentro da raiz.",
+  "forcar": {
+    "onde": "Guarda.arquivo",
+    "como": "erro"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "docs/briefs/x.md",
+      "content": "x\n"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "erro interno do hook conformidade",
+    "erros_log": "erro forcado"
+  }
+}

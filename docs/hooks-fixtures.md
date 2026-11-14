@@ -2,14 +2,14 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2424 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2463 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
-| `agentes` | 71 | 38 | 33 | 26 |
-| `conformidade` | 1782 | 1313 | 469 | 88 |
+| `agentes` | 79 | 44 | 35 | 27 |
+| `conformidade` | 1813 | 1339 | 474 | 89 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 25 | 10 | 15 | 12 |
 | `parecer` | 463 | 357 | 106 | 24 |
@@ -21,6 +21,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2424 fixtures) roda em `tests/test
 
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
+| `errointerno-*` | 8 | 6 | 2 | `R-BRIEF` | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA (C7): erro ao fixar a pasta do estado não leva o R-BRIEF junto: o especialista sem brief segue recusado. |
 | `carga-*` | 7 | 5 | 2 | `R-TETO` | — | Load 5 está abaixo de 80% de 8 núcleos (6,4): um ativo libera. |
 | `pid-*` | 7 | 7 | 0 | — | `C1-1` | C1-1/C1-2: pid acima do pid_max mantém o registro (falha para o lado seguro) e o hook segue barrando no teto. |
 | `nproc-*` | 6 | 3 | 3 | — | — | 16 núcleos, load 3: teto 16; quinze ativos liberam (o teto segue o hardware). |
@@ -69,6 +70,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2424 fixtures) roda em `tests/test
 | `n5-*` | 34 | 21 | 13 | `R-REVIEW` | — | N5 (L22, IMPL-FURO-HOOK-N): am na develop |
 | `nao-*` | 34 | 21 | 13 | `R-MAIN` | `ADR`, `AA2-01` | ADR 0011 (item 2): $' que o shlex lê como aspas abertas. |
 | `pn7-*` | 32 | 24 | 8 | `R-MAIN` | `PN7-DOLAR-INTERROG` | PN7-DOLAR-INTERROG (H1-1, ADR 0011): continua barrado. |
+| `errointerno-*` | 31 | 23 | 8 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA (E5, C3): erro interno com alvo opaco (`$(...)`) numa linha que escreve recusa, sem depender do nome do caminho. |
 | `rverify-*` | 29 | 22 | 7 | `R-VERIFY` | `HOOK-RVERIFY-FALSO-POSITIVO` | HOOK-RVERIFY-FALSO-POSITIVO: cat > $TMPDIR/x.py <<'EOF' com `*` e .githooks/pre-push só no corpo (dado, não destino); sessão do Forge, pasta… |
 | `n2-*` | 28 | 22 | 6 | `R-REVIEW` | — | N2 (L20b, IMPL-FURO-HOOK-N): GIT_OBJECT_DIRECTORY por declare -x |
 | `shell-*` | 28 | 20 | 8 | `R-CONFORMIDADE` | — | Contorno pelo shell: echo 9.9.9 >> .forge/versao |
@@ -94,7 +96,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2424 fixtures) roda em `tests/test
 | `home-*` | 11 | 10 | 1 | — | `HOME` | ~/.claude.json é do usuário. |
 | `m1-*` | 10 | 7 | 3 | — | — | M1 (review da 0.43.2): a linha de selo ou de conferência é da ferramenta; `cd docs/pedidos && cat >> p1.md <<'FIM'` com a conferência no cor… |
 | `crase-*` | 9 | 7 | 2 | `R-CONFORMIDADE` | `CRASE-ASPA-HOOK`, `CRASE-SESSAO-PROJETO` | Orçamento: 60 cd e 60 crases aninhadas terminando em push com --no-verify: o hook recusa sem estourar o timeout (a base recusava em 0,34 s). |
-| `erro-*` | 7 | 2 | 5 | — | — | Config corrompida e comando sem marcador: libera e registra. |
+| `erro-*` | 7 | 5 | 2 | — | — | Config corrompida e comando sem marcador: libera e registra. |
 | `pedido-*` | 6 | 4 | 2 | — | `VV-2` | VV-2, A1: o dev não grava no pedido. |
 | `push-*` | 6 | 4 | 2 | `R-CONFORMIDADE`, `R-MAIN`, `R-VERIFY` | `AGENTE-NAO-EMENDA-ENVIADO` | git push -u origin <branch de trabalho>: livre. |
 | `api-*` | 5 | 3 | 2 | — | — | Comentário em PR por gh api: não é crítico. |

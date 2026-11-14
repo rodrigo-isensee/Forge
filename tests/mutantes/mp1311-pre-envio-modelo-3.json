@@ -1,0 +1,56 @@
+{
+  "pedido": "mp1311-pre-envio-modelo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "forge-upgrade: só `migrar` e `migrar-<passo>` rodam (nada de migrar.bak)",
+      "arquivo": "bin/forge-upgrade",
+      "de": "if p.name == \"migrar\" or p.name.startswith(\"migrar-\")",
+      "para": "if p.name.startswith(\"migrar\")",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_forge_upgrade_roda_os_passos_da_versao_em_ordem_um_commit_cada"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "forge-upgrade: passo sem LEIA mostra resumo vazio e segue",
+      "arquivo": "bin/forge-upgrade",
+      "de": "resumo = leia.read_text(encoding=\"utf-8\").splitlines()[2:3] if leia.is_file() else []",
+      "para": "resumo = leia.read_text(encoding=\"utf-8\").splitlines()[2:3] if True else []",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_forge_upgrade_roda_os_passos_da_versao_em_ordem_um_commit_cada"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "forge-upgrade: o `migrar` leva o rótulo só da versão",
+      "arquivo": "bin/forge-upgrade",
+      "de": "rotulo = migrar.parent.name + (f\" ({nome})\" if nome else \"\")",
+      "para": "rotulo = migrar.parent.name + (f\" ({nome})\" if True else \"\")",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_forge_upgrade_roda_os_passos_da_versao_em_ordem_um_commit_cada"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "forge-upgrade: o `migrar` lê o LEIA.md, o passo lê o LEIA-<passo>.md",
+      "arquivo": "bin/forge-upgrade",
+      "de": "return rotulo, migrar.parent / (f\"LEIA-{nome}.md\" if nome else \"LEIA.md\")",
+      "para": "return rotulo, migrar.parent / (f\"LEIA-{nome}.md\" if True else \"LEIA.md\")",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_forge_upgrade_roda_os_passos_da_versao_em_ordem_um_commit_cada"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "pre-push.local: o pronto rápido vermelho barra o envio, com a orientação",
+      "arquivo": "templates/projeto/.githooks/pre-push.local",
+      "de": "bash -c \"$rapido\" || { echo",
+      "para": "bash -c \"$rapido\" || true || { echo",
+      "testes": [
+        "tests.test_forge.PreEnvioDoModelo.test_projeto_atualizado_ganha_os_dois_e_o_envio_roda_o_pronto_rapido"
+      ]
+    }
+  ]
+}

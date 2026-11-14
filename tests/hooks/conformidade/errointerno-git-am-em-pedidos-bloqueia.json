@@ -1,0 +1,21 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (A1: erro interno em `git am` que cita caminho protegido recusa (am em ESCRITORES)).",
+  "forcar": {
+    "onde": "Guarda.bash",
+    "como": "erro"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git am --directory=docs/pedidos x.mbox"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "erro interno do hook conformidade",
+    "erros_log": "erro forcado"
+  }
+}

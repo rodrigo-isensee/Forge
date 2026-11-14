@@ -603,7 +603,7 @@ class HookDoutor(Base):
     def test_hooks_json_registra_o_doutor_so_em_sessionstart_e_stop(self):
         d = json.loads((RAIZ / "hooks/hooks.json").read_text(encoding="utf-8"))
         for evento in ("SessionStart", "Stop"):
-            comandos = {h["args"][0].rsplit("/", 1)[-1] for g in d["hooks"][evento] for h in g["hooks"]}
+            comandos = {h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"][evento] for h in g["hooks"]}
             self.assertIn("doutor.py", comandos, evento)
         self.assertNotIn("UserPromptSubmit", d["hooks"], "o stdout dele viraria contexto (ADR 0003)")
 
