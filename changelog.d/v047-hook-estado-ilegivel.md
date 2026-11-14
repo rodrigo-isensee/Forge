@@ -1,0 +1,2 @@
+### Corrigido
+- HOOK-ESTADO-ILEGIVEL-LIBERA (v047): no hook `agentes`, o `agentes.json` ilegível (não JSON, vazio, raiz que não é objeto, `agentes` ou `lapides` que não é lista, link, pasta, FIFO, mais de 1 MiB), o erro ao fixar a pasta do estado do clone e o `.forge/config.json` ilegível recusam o disparo e a retomada com R-TETO, em vez de liberar sem teto; `SubagentStart` e `SubagentStop` saem com 0 e nenhum evento regrava o arquivo ilegível. Para voltar a disparar, o dono confere o arquivo no terminal.
