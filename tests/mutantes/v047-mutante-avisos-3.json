@@ -1,0 +1,36 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CF17",
+      "guarda": "E1.140: sem desencontro, a saída diz que conferiu",
+      "arquivo": "bin/forge-mutante",
+      "de": "\"\\n\".join(saida) or \"conferidas:",
+      "para": "\"\\n\".join(saida) and \"conferidas:",
+      "testes": [
+        "tests.test_forge_mutante.Conferir.test_de_no_lugar_sai_0_e_de_que_sumiu_depois_da_spec_sai_1_com_a_spec_e_o_trecho"
+      ]
+    },
+    {
+      "id": "CF18",
+      "guarda": "E1.140: só o teste ausente do commit entra no aviso",
+      "arquivo": "bin/forge-mutante",
+      "de": "if not teste_no_commit(sha, t)]",
+      "para": "if teste_no_commit(sha, t)]",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_controle_vermelho_por_teste_fora_do_commit_diz_qual_teste_falta_commitar"
+      ]
+    },
+    {
+      "id": "CF19",
+      "guarda": "E1.140: o controle vermelho segue rotulado vermelho, com o aviso ao fim",
+      "arquivo": "bin/forge-mutante",
+      "de": "if estado == 'vermelho' else 'sem veredito'} · {m['arquivo']}{aviso}",
+      "para": "if estado != 'vermelho' else 'sem veredito'} · {m['arquivo']}{aviso}",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_controle_vermelho_sai_2"
+      ]
+    }
+  ]
+}

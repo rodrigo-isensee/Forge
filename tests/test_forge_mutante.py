@@ -1158,6 +1158,7 @@ class Conferir(unittest.TestCase):
         self.salvar(self.spec())
         r = self.conferir("--base", self.base)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("conferidas: o trecho de cada spec do diff está no lugar", r.stdout)
         self.salvar({"lib.py": "x = 1\nif x > 100001:\n    x = 2\n"})  # a spec não muda; a linha vigiada, sim
         r = self.conferir("--base", self.base)
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)

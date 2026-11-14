@@ -77,7 +77,7 @@
       "guarda": "E1.140: desencontro sai 1",
       "arquivo": "bin/forge-mutante",
       "de": "    return 1 if saida else 0",
-      "para": "    return 0 if saida else 0",
+      "para": "    return 1 if len(saida) > 1 else 0",
       "testes": [
         "tests.test_forge_mutante.Conferir.test_de_no_lugar_sai_0_e_de_que_sumiu_depois_da_spec_sai_1_com_a_spec_e_o_trecho"
       ]
