@@ -347,6 +347,18 @@ class Execucao(unittest.TestCase):
         r = self.rodar(self.spec(mutante(testes=["tests.test_lib.T.test_borda", "tests.test_lib.T.test_ruim"])))
         self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
         self.assertIn("controle vermelho", r.stdout)
+        self.assertNotIn("fora do commit", r.stdout)  # o teste está no commit e falha de verdade
+
+    def test_controle_vermelho_por_teste_fora_do_commit_diz_qual_teste_falta_commitar(self):
+        self.gravar("tests/test_lib.py", TESTE + "\n    def test_novo(self):\n        self.assertTrue(lib.limite(11))\n")
+        self.gravar("tests/test_outro.py", TESTE)  # nem o módulo está no commit
+        sha = git(self.dir, "rev-parse", "HEAD")[:12]
+        for teste in ("tests.test_lib.T.test_novo", "tests.test_outro.T.test_borda"):
+            with self.subTest(teste):
+                r = self.rodar(self.spec(mutante(testes=["tests.test_lib.T.test_borda", teste])))
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn(f"M1 · controle vermelho · lib.py · teste fora do commit {sha}: {teste} (commite o teste",
+                              r.stdout)
 
     def test_log_que_nao_se_grava_vira_aviso_e_o_veredito_fica(self):  # candidata 8 da retro 0.45.6
         (self.dir / ".forge" / "run" / "testes.log").mkdir(parents=True)  # o root grava em arquivo só leitura; a pasta, não

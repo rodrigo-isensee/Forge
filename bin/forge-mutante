@@ -760,6 +760,20 @@ class Controles:
             return self.estados[chave]
 
 
+def teste_no_commit(sha, teste):
+    """O commit `sha` tem o teste `tests.x[.Classe[.teste]]`: o módulo dele e, abaixo do módulo, o `def` ou a `class` do
+    último nome. O controle vermelho mais comum é o teste só na árvore de trabalho, e a cópia é do commit."""
+    partes = teste.split(".")
+    for fim in range(2, len(partes) + 1):
+        try:
+            texto = ler_no_commit(sha, "/".join(partes[:fim]) + ".py").decode("utf-8", "replace")
+        except ValueError:
+            continue
+        if fim == len(partes) or re.search(rf"\b(def|class)\s+{re.escape(partes[-1])}\b", texto):
+            return True
+    return False
+
+
 def provar(m, sha, raiz, trabalho, prazo, controles):
     """Um mutante de ponta a ponta, na cópia só dele (L33, C-33a): (linha, código 0, 1 ou 2, se algum teste rodou)."""
     if "equivalente" in m and "testes" not in m:
@@ -776,7 +790,9 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
 
     estado = controles.obter(tuple(m["testes"]), controle)
     if estado != "ok":
-        return f"{m['id']} · {'controle vermelho' if estado == 'vermelho' else 'sem veredito'} · {m['arquivo']}", 2, False
+        fora = [t for t in m["testes"] if not teste_no_commit(sha, t)] if estado == "vermelho" else []
+        aviso = f" · teste fora do commit {sha[:12]}: {', '.join(fora)} (commite o teste e rode de novo)" if fora else ""
+        return f"{m['id']} · {'controle vermelho' if estado == 'vermelho' else 'sem veredito'} · {m['arquivo']}{aviso}", 2, False
     linha, motivo = mutar(copia, m)
     if motivo:
         return f"{m['id']} · inválido · {m['arquivo']} · {motivo}", 2, False
