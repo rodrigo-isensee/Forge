@@ -26,7 +26,7 @@
       "id": "O11",
       "guarda": "A9, U1: o texto que cita o diretório do git recusa",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if any(cita_o_dir_do_git(t) for t in largos):",
+      "de": "        if any(cita_o_dir_do_git(t) or cita_o_dir_do_git(palavra_juntada(t)) for t in largos):",
       "para": "        if False:",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"

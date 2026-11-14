@@ -1,0 +1,46 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O46",
+      "guarda": "A9, D2b (E1.175): o U1 também lê a palavra como o bash a junta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if any(cita_o_dir_do_git(t) or cita_o_dir_do_git(palavra_juntada(t)) for t in largos):",
+      "para": "        if any(cita_o_dir_do_git(t) for t in largos):",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_d2b"
+      ]
+    },
+    {
+      "id": "O47",
+      "guarda": "A9, D2b (E1.175): as aspas somem da palavra juntada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    sem_aspas = re.sub(r\"[\\\"']\", \"\", texto)",
+      "para": "    sem_aspas = texto",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_d2b"
+      ]
+    },
+    {
+      "id": "O48",
+      "guarda": "A9, D2b (E1.175): a variável sozinha no componente fica como está (o valor vem do `nome=`)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "lambda m: m[0] if REF_DE_VARIAVEL.fullmatch(m[0]) else",
+      "para": "lambda m: m[0] if False else",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_d2b"
+      ]
+    },
+    {
+      "id": "O49",
+      "guarda": "A9, D2b (E1.175): `function f {` sem `()` também define função",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        funcoes = [a or b for a, b in funcoes]",
+      "para": "        funcoes = [b for a, b in funcoes]",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_d2b"
+      ]
+    }
+  ]
+}
