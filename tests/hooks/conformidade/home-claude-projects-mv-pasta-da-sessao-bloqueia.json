@@ -1,0 +1,31 @@
+{
+  "descricao": "C10 (seguranca S3): mv da pasta da sessão (a do subagents/) em ~/.claude/projects/<projeto>/.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/home/.claude/projects/x/11111111-2222-3333-4444-555555555555.jsonl": "{}\n",
+        "{tmp}/home/.claude/projects/x/11111111-2222-3333-4444-555555555555/subagents/agent-0123456789abcdef.meta.json": "{}\n",
+        "{tmp}/falsa/README": "x\n"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "mv {tmp}/home/.claude/projects/x/11111111-2222-3333-4444-555555555555 {tmp}/home/.claude/projects/x/old"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "~/.claude/projects/"
+  }
+}

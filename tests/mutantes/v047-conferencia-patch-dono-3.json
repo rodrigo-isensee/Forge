@@ -1,0 +1,76 @@
+{
+  "pedido": "v047-conferencia-patch-dono-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P11: ls-tree que falha não vira ausente",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod:\n        return None\n    campos = saida.split",
+      "para": "    if False:\n        return None\n    campos = saida.split",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c15_git_que_falha_reprova"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P1: só a linha na forma declara",
+      "arquivo": "bin/forge-check",
+      "de": "        if m := PATCH_DO_DONO.match(linha):",
+      "para": "        if (m := PATCH_DO_DONO.match(linha)) and False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c_leg_nome_commit_e_decisao_cumprem"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P1: a decisão cita o mesmo sha40",
+      "arquivo": "bin/forge-check",
+      "de": "        if re.search(rf\"(?<![0-9a-f]){commit}(?![0-9a-f])\", linha) and re.search(caminho, linha):",
+      "para": "        if re.search(caminho, linha):",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_declaracao_que_nao_isenta"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P6, P9: caminho que nunca isenta",
+      "arquivo": "bin/forge-check",
+      "de": "    if not caminho_isentavel(nome):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c4_c13_pedido_na_entrega_e_caminhos_que_nunca_isentam"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO a isenção vale na linha do escopo",
+      "arquivo": "bin/forge-check",
+      "de": "            linhas.append(isencao or escopo_resolvido(",
+      "para": "            linhas.append(None or escopo_resolvido(",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c_leg_nome_commit_e_decisao_cumprem"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO sem declaração, nada a isentar",
+      "arquivo": "bin/forge-check",
+      "de": "    if not shas:\n        return None, []",
+      "para": "    if False:\n        return None, []",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c_leg_nome_commit_e_decisao_cumprem"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P6: só blob isenta (submódulo não)",
+      "arquivo": "bin/forge-check",
+      "de": " if len(campos) == 3 and campos[1] == b\"blob\" else ()",
+      "para": " if len(campos) == 3 else ()",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c6_c7_conteudo_modo_ou_symlink_depois_do_commit_do_dono"
+      ]
+    }
+  ]
+}

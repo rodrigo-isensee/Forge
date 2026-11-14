@@ -1,0 +1,86 @@
+{
+ "pedido": "v046-mutacao-bench",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M1",
+   "guarda": "--base com SPEC não cai no erro de uso da --cobertura",
+   "arquivo": "bin/forge-mutante",
+   "de": "or (args.base and not args.spec)",
+   "para": "or args.base",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_so_o_mutante_do_arquivo_mudado_roda"
+   ]
+  },
+  {
+   "id": "M2",
+   "guarda": "--base com SPEC dirige a rodada ao diff",
+   "arquivo": "bin/forge-mutante",
+   "de": "if args.base:",
+   "para": "if not args.base:",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_so_o_mutante_do_arquivo_mudado_roda"
+   ]
+  },
+  {
+   "id": "M3",
+   "guarda": "base que não é commit sai 2 com a mensagem",
+   "arquivo": "bin/forge-mutante",
+   "de": "if sha_base is None:",
+   "para": "if False:",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_base_que_nao_e_commit_ou_sem_ancestral_sai_2"
+   ]
+  },
+  {
+   "id": "M4",
+   "guarda": "o mutante fora do diff é anunciado",
+   "arquivo": "bin/forge-mutante",
+   "de": "if m not in dentro:",
+   "para": "if False:",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_so_o_mutante_do_arquivo_mudado_roda"
+   ]
+  },
+  {
+   "id": "M5",
+   "guarda": "o mutante fora do diff não roda",
+   "arquivo": "bin/forge-mutante",
+   "de": "if no_diff(m, spec_mudou or bool(apoio_mudado), mudados)]",
+   "para": "if True]",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_so_o_mutante_do_arquivo_mudado_roda"
+   ]
+  },
+  {
+   "id": "M6",
+   "guarda": "nenhum mutante no diff sai 2 sem rodar",
+   "arquivo": "bin/forge-mutante",
+   "de": "if not any(dados[\"mutantes\"] for _, dados in dirigidas):",
+   "para": "if False:",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_nenhum_mutante_no_diff_sai_2_sem_rodar"
+   ]
+  },
+  {
+   "id": "M7",
+   "guarda": "base sem ancestral comum sai 2 sem traceback",
+   "arquivo": "bin/forge-mutante",
+   "de": "except RuntimeError as erro:  # sem ancestral comum",
+   "para": "except ZeroDivisionError as erro:  # sem ancestral comum",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_base_que_nao_e_commit_ou_sem_ancestral_sai_2"
+   ]
+  },
+  {
+   "id": "M8",
+   "guarda": "sem mutante no diff, main sai 2 em vez de rodar nada",
+   "arquivo": "bin/forge-mutante",
+   "de": "if specs is None:",
+   "para": "if False:",
+   "testes": [
+    "tests.test_forge_mutante.MutacaoDirigida.test_nenhum_mutante_no_diff_sai_2_sem_rodar"
+   ]
+  }
+ ]
+}
