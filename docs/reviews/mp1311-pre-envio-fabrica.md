@@ -3,20 +3,25 @@ tipo: review
 contrato: 1
 pedido: melhorias-de-projeto-1311
 branch: melhoria/mp1311-pre-envio-fabrica
-commit: f30ac8d2f3edb92ef9b6b0bd81299c1b6b746ce0
-parecer: aprovado
+commit: 48bf85e84376c7be335f50742b2afebaa4875769
+parecer: reprovado
 revisor: forge:tech-lead
-data: 2026-11-13
+data: 2026-11-14
 ---
 # Review: mp1311-pre-envio-fabrica
 
 ## Achados
-- A1 (recomendado) tests/test_pre_envio_brief.py:131 · o teste de `--texto` não combina cobre 5 das 9 opções barradas em bin/forge-testes:792; `--vermelho`, `--modulos` e `--prazo` não têm caso, e tirar um desses termos do `or` não derruba nenhum mutante. Acrescente os três ao laço.
 - A2 (recomendado) bin/forge-check:8283 · `TESTES_DE_TEXTO` está duplicada em bin/forge-check e bin/forge-testes; o teste `test_a_lista_do_brief_e_a_do_modo_de_texto` as mantém iguais, então a duplicação é consciente (o teste proíbe o forge-check citar o forge-testes). Sem ação agora.
+- A3 (bloqueante) tests/mutantes/mp1311-pre-envio-fabrica-2.json:26 · o id M10 já existe em tests/mutantes/mp1311-pre-envio-fabrica.json:76; o forge-mutante recusa as duas specs do pedido juntas (rc=2, 'id de mutante repetido entre as specs: M10', nada roda), contra o contrato de bin/forge-mutante:7. Renumere (ex.: M13).
 
 ## Sondas
+- S1 · bin/forge-mutante tests/mutantes/mp1311-pre-envio-fabrica.json tests/mutantes/mp1311-pre-envio-fabrica-2.json · espera: os 13 mutantes rodam · obtido: rc=2, spec inválida, id de mutante repetido entre as specs: M10
 
 ## Parecer
-Aprovado, head f30ac8d2 (classe C). Atende ao E1.17 e à DECISÃO DO DONO de 13/11 17:31: o brief de autor (`codigo` e `pr`) traz a PQ da descrição do PR (catraca `pr-texto`) e a PQ de texto sempre; a PQ dos testes afetados só no `codigo` com caminho de código no Entregar; parecer fica sem elas; fora do Forge nada disso é cobrado. Os briefs de parecer exigem `gh pr checks <n>` quando há PR e, sem PR, dizem que a suíte fica para o CI. `forge-testes --texto` roda os cinco alvos num `unittest` só e devolve o rc.
+Reprovado, head 48bf85e8 (classe C), revalidação por delta. Delta lido (`forge-check parecer delta`, rc=0): f30ac8d2..48bf85e8, no domínio só tests/mutantes/mp1311-pre-envio-fabrica-2.json e tests/test_pre_envio_brief.py.
 
-Rodado: `tests.test_pre_envio_brief` e `tests.test_testes_tocados` (161 testes, OK, 1 pulado por /proc do sandbox); `bin/forge-testes --texto` (179 testes, rc=0). Mutação: `bin/forge-mutante` nas duas specs, 10 de 10 mortos (M1 a M7 e M10; M8 e M9). Guardas do diff cobertas, um mutante por linha. `shellcheck` não se aplica (Python). Suíte inteira: CI do PR; sem PR ainda. Tamanho: 204 linhas de código e teste (bin 63, teste 141), acima das 150; o PR precisa levar `teto: excedido, 204 linhas, <motivo>` (comportamento único: pré-envio do brief e comando de texto). O parecer de segurança está em docs/security/mp1311-pre-envio-fabrica.md e não foi refeito.
+A1 da rodada anterior está resolvido: o laço de `test_texto_nao_combina_com_outra_opcao` cobre `--vermelho`, `--modulos` e `--prazo` e confere a mensagem da guarda do `--texto` (não outra recusa do parser); o teste do `--texto` falha por asserção, não por erro, sem a opção. Os mutantes M10 a M12 novos casam uma vez cada em bin/forge-testes:792-793 e morrem: `bin/forge-mutante tests/mutantes/mp1311-pre-envio-fabrica-2.json` deu M8 a M12 mortos, rc=0. `bin/forge-mutante --cobertura --base befd4cca` rc=0. `tests.test_pre_envio_brief` com ambiente limpo: 11 testes, OK.
+
+Bloqueia o A3: o novo M10 da spec 2 colide com o M10 da spec 1, e o conjunto do pedido fica inválido (S1). A correção é trocar o id na spec 2; não muda código. A2 segue recomendado, sem ação.
+
+CI do PR 554 no head 48bf85e8: suíte (3 partes), passos, verificações longas e instalação verdes; `catraca` falha por R-CONFORMIDADE (bin/forge-check tocado, falta o rótulo `afrouxa-regra` do dono) e `bateria (pareceres)` falha por parecer pendente, ambos fora do código. Tamanho: o delta não muda o teto já registrado (o PR precisa de `teto: excedido`). Parecer de segurança em docs/security/mp1311-pre-envio-fabrica.md, não refeito.
