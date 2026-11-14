@@ -1,0 +1,2 @@
+### Adicionado
+- bin/forge-fechar integra um item por vez com o CI do push na develop verde antes do merge e acompanhado até o fim depois (código 5 e reversão impressa no vermelho; --espera-ci), em lote de até 3 PRs sem arquivo em comum com um CI só, o do último merge (--lote, diretriz 26), e promove para a homolog exatamente o commit da marca, com retomada depois de queda (--promover, diretriz 27); R-FLUXO, tech-lead, trabalho-em-paralelo, fechamento-integrador e o modelo de projeto trazem o texto.
