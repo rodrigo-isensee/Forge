@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-sessao-automatica
-commit: 5f0547cc0864a1830cd32f51f6695b35fc772703
+commit: cd7bd9f833b4f8abec6cb95138889ae51f2fdc8d
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -49,3 +49,31 @@ F3 · morreu · bin/forge-fechar:863
 
 ## Bugs
 Nenhum aberto.
+
+## Revalidação por delta 5f0547cc..cd7bd9f8 (E1.235, volta E1.222)
+Domínio do QA no delta: `scripts/jarvis` (aviso no stderr sem sandbox), `tests/test_sessao_automatica.py` (3 testes novos) e `tests/mutantes/v047-sessao-automatica.json` (mutantes F4, W1 a W4; o resto é só reformatação). Escopo dos CA-1 a CA-4 não mudou; o aviso é obrigação nova do E1.222 (CA-5: projeto sem `sandbox.enabled: true` em `settings.json` ou `settings.local.json` recebe uma linha no stderr e a sessão segue no automático).
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| CA-5 sem settings: avisa e segue no automático | `test_projeto_sem_settings_avisa_sem_sandbox_e_segue_no_automatico` | arquivo ausente | passou; W1 morreu |
+| CA-5 `enabled` false, `{}`, JSON quebrado, string `"true"` avisam | `test_sandbox_desligado_ou_settings_quebrado_tambem_avisa` | tipo não booleano, JSON inválido | passou; W3 morreu |
+| CA-5 sandbox ligado em `settings.json` ou só em `settings.local.json` não avisa | `test_sandbox_ligado_nao_avisa` | as duas fontes | passou; W2 e W4 morreram |
+| CA-4 busca de `origin/homolog` só quando falta | `test_busca_origin_homolog_quando_falta`, `test_sem_homolog_no_servidor_so_avisa` | com e sem a ref | passou; F4 morreu |
+
+- Local: `python3 -m unittest tests.test_sessao_automatica tests.test_fechar_gh_versao` -> `Ran 22 tests ... OK`.
+- Vermelho antes do verde (à mão, `scripts/jarvis` voltado ao 5f0547cc em cópia no `$TMPDIR`): `Ran 13 tests ... FAILED (failures=5)`; caem os 2 testes de aviso (5 casos); `test_sandbox_ligado_nao_avisa` passa na base por natureza (a base nunca avisa), e o W2 o prova.
+- Mutação do delta (`bin/forge-mutante tests/mutantes/v047-sessao-automatica.json --base 5f0547cc`, rc 0, 14 mutantes, todos mortos):
+```
+base=5f0547cc0864a1830cd32f51f6695b35fc772703 mb=5f0547cc0864a1830cd32f51f6695b35fc772703 rev=cd7bd9f833b4f8abec6cb95138889ae51f2fdc8d
+S1 S2 S3 G1 G2 G3 F1 F2 F3 · morreu
+F4 · morreu · bin/forge-fechar:862
+W1 · morreu · scripts/jarvis:44
+W2 · morreu · scripts/jarvis:44
+W3 · morreu · scripts/jarvis:37
+W4 · morreu · scripts/jarvis:31
+```
+- Guardas do `scripts/jarvis` conferidas contra o diff: `if ! sandbox_ligado`, `is True`, as duas fontes de settings; cada uma tem mutante. A falha do python (exit 1 por exceção) cai em "avisa", caminho coberto pelo JSON quebrado.
+- Suíte inteira: no CI do PR (ainda sem PR); aqui só os cenários.
+
+## Achados (revalidação)
+Nenhum. Bugs: nenhum aberto.
