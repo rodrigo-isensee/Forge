@@ -98,7 +98,7 @@ case "$1 $2" in
     echo MERGED > "$ESTADO/estado"; exit 0 ;;
   "run list")
     # FECHAR-ESPERA-CI-DEVELOP: só a forma que o script pede (evento push, commit e o --jq dele); a saída é a do --jq: id, status e conclusão.
-    [[ "$*" =~ ^run\ list\ --branch\ [a-z]+\ --event\ push\ --commit\ ([0-9a-f]{40})\ --json\ databaseId,status,conclusion\ --jq\ (.*)$ ]] || exit 64
+    [[ "$*" =~ ^run\ list\ --branch\ [a-z]+\ --event\ push\ --commit\ ([0-9a-f]{7,64})\ --json\ databaseId,status,conclusion\ --jq\ (.*)$ ]] || exit 64
     [ "${BASH_REMATCH[2]}" = '.[] | [.databaseId, .status, .conclusion] | @tsv' ] || exit 64
     falha_n falha_runs && { echo "HTTP 502" >&2; exit 1; }
     # runs_pendentes N: as N primeiras leituras saem em andamento; depois runs_<sha>, senão runs, senão uma execução verde

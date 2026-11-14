@@ -715,6 +715,10 @@ mover_cartoes() {
   done
 }
 
+# mesclar_auto <método> <head>: o único `gh pr merge` do script (passo 6 e P6), por nome de branch ($ref, que o hook `parecer` exige),
+# com --auto e preso ao head.
+mesclar_auto() { "$gh" pr merge "$ref" --auto "$1" --match-head-commit "$2"; }
+
 # estado_do_pr: lê o PR de número pr_n (leitura, com repetição) e define pr_estado, pr_head, pr_base e pr_merge ("-" sem commit de merge); vazios se a leitura falhar.
 estado_do_pr() {
   local linha
@@ -979,10 +983,15 @@ Tempo do commit da marca até o PR para a main pronto, por versão (diretriz 27,
       echo "PR #$pr_n aberto: $url"
     fi
     passo P6 "merge automático preso ao commit da marca (até ${espera}s)"
-    "$gh" pr merge "$ramo" --auto --merge --match-head-commit "$sha" || echo "aviso: o gh pr merge devolveu erro; confiro o estado do PR." >&2
+    ref="$ramo"
+    if ! mesclar_auto --merge "$sha"; then echo "aviso: o gh pr merge devolveu erro; confiro o estado do PR." >&2; fi
     inicio=$SECONDS
     estado_do_pr || true
-    while [ "$pr_estado" = OPEN ] && [ $((SECONDS - inicio)) -lt "$espera" ]; do dormir "$intervalo"; estado_do_pr || true; done
+    while [ "$pr_estado" = OPEN ]; do
+      [ $((SECONDS - inicio)) -lt "$espera" ] || break
+      dormir "$intervalo"
+      estado_do_pr || true
+    done
   fi
   estado_do_pr || true
   if ! { [ "$pr_estado" = MERGED ] && [ "$pr_head" = "$sha" ] && [ "$pr_base" = homolog ]; }; then
@@ -1295,7 +1304,7 @@ if [ "$ja_mesclado" = 0 ]; then
     fi
     # O merge muda o PR: não se repete sozinho. Se falhou, só se lê o estado: um 502 após o merge feito já deixou o PR MERGED.
     # R7: `--auto` entrega o merge ao GitHub, que só mescla com os checks obrigatórios verdes (nunca --admin; o hook o recusa).
-    if ! "$gh" pr merge "$ref" --auto "$metodo" --match-head-commit "$remoto_sha"; then
+    if ! mesclar_auto "$metodo" "$remoto_sha"; then
       estado_do_pr || true
       [ "$pr_estado" = MERGED ] || die "parou no passo 6: o merge falhou (ou o head do PR mudou desde o passo 2)"
       echo "o merge devolveu erro, mas o PR consta como MERGED; confiro o head, a base e o commit de merge abaixo."

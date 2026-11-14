@@ -101,7 +101,8 @@ class Teste(unittest.TestCase):
         self.assertNotIn("orfa-", r.stdout + r.stderr)
         linhas = r.stdout.splitlines()
         i = linhas.index("limpeza: remota=ok worktree=ok branch=ok")
-        self.assertEqual(linhas[i + 1:], ["Entrega p1 fechada em develop.", "fim: código 0"])
+        fim = [l for l in linhas[i + 1:] if not l.startswith(("[8] ", "CI do push na develop verde"))]  # o passo 8 vem depois da limpeza
+        self.assertEqual(fim, ["Entrega p1 fechada em develop.", "fim: código 0"])
         self.assertIn("registro: prune tirou 301 registro(s) de worktree órfã", linhas[:i])
         log = self.log_de(r).read_text()
         self.assertEqual(log.count("[prune] Removing worktrees/orfa-"), 300)
