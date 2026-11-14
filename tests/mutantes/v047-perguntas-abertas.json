@@ -27,8 +27,8 @@
       "id": "PA-M3",
       "guarda": "a data depois da frase vale sobre a do prefixo",
       "arquivo": "bin/forge_dono.py",
-      "de": "    s = \"1\" if achado[\"dia1\"] else \"0\"",
-      "para": "    s = \"0\"",
+      "de": "    s = \"1\" if g[\"dia1\"] else \"0\"",
+      "para": "    s = \"1\" if None else \"0\"",
       "testes": [
         "tests.test_forge_dono.PerguntasAbertas.test_respondida_sai_e_decisao_anterior_nao_responde"
       ]

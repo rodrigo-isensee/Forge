@@ -527,8 +527,9 @@ def _registro(m):
     corpo, achado = m["corpo"], m
     if m["frase"] == "PERGUNTA" and not m["dia1"] and (antiga := DATA_DO_CORPO.match(corpo)):
         corpo, achado = corpo[antiga.end():], antiga
-    s = "1" if achado["dia1"] else "0"
-    return (achado[f"dia{s}"] or "", achado[f"hora{s}"] or "", achado[f"min{s}"] or ""), m["frase"], corpo
+    g = achado.groupdict("")
+    s = "1" if g["dia1"] else "0"
+    return (g[f"dia{s}"], g[f"hora{s}"], g[f"min{s}"]), m["frase"], corpo
 
 
 def _respondida(abertas, instante, corpo, instantes):
