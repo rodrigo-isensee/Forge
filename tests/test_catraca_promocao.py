@@ -92,7 +92,9 @@ class Degrau(Repo):
         self.assertTrue(self.degrau("promocao/0.9.0", "homolog", ""))
         self.assertTrue(self.degrau("promocao/0.9.0", "homolog", self.na_develop, repo_head="fork/forge"))
         self.assertTrue(self.degrau("develop", "homolog", self.na_develop, repo_head="fork/forge"))
-        self.assertTrue(self.degrau("develop", "homolog", self.na_develop, repo_head="", repo_base=""))
+        sem_repo = self.degrau("develop", "homolog", self.na_develop, repo_head="", repo_base="")
+        self.assertEqual(len(sem_repo), 1)
+        self.assertIn("(repositório desconhecido)", sem_repo[0])
 
     def test_sem_a_develop_do_servidor_o_ramo_da_marca_e_recusado(self):
         self.git("update-ref", "-d", "refs/remotes/origin/develop")
