@@ -1,0 +1,87 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CB-M1",
+      "guarda": "a conferida ancestral da origin/<base> está na base",
+      "arquivo": "bin/forge-check",
+      "de": "    return e_ancestral(raiz, sha, base_sha) or bool(base_ref) and e_ancestral(raiz, sha, base_ref)",
+      "para": "    return e_ancestral(raiz, sha, base_sha)",
+      "testes": [
+        "tests.test_conferida_por_branch.ConferidaDeOutroItem.test_conferida_de_a_na_base_nao_e_o_desde_de_b",
+        "tests.test_conferida_por_branch.ConferidaDeOutroItem.test_forma_antiga_recusa_a_conferida_de_a_como_desde"
+      ]
+    },
+    {
+      "id": "CB-M2",
+      "guarda": "o desde_valido descarta a conferida já na base",
+      "arquivo": "bin/forge-check",
+      "de": "                  if sha_do_commit(raiz, c) == c and e_ancestral(raiz, c, head) and not ja_na_base(raiz, c, base_sha, base_ref)",
+      "para": "                  if sha_do_commit(raiz, c) == c and e_ancestral(raiz, c, head) and not ja_na_base(raiz, c, base_sha)",
+      "testes": [
+        "tests.test_conferida_por_branch.ConferidaDeOutroItem.test_conferida_de_a_na_base_nao_e_o_desde_de_b"
+      ]
+    },
+    {
+      "id": "CB-M3",
+      "guarda": "o Base-sha vale como Desde quando a única conferida está na base",
+      "arquivo": "bin/forge-check",
+      "de": "                 if o == \"conferida\" and e_ancestral(raiz, c, head) and not ja_na_base(raiz, c, base_sha, base_ref)]",
+      "para": "                 if o == \"conferida\" and e_ancestral(raiz, c, head) and not ja_na_base(raiz, c, base_sha)]",
+      "testes": [
+        "tests.test_conferida_por_branch.ConferidaDeOutroItem.test_conferida_de_a_na_base_nao_e_o_desde_de_b"
+      ]
+    },
+    {
+      "id": "CB-M4",
+      "guarda": "o Base-sha como Desde confere com a origin/<base>",
+      "arquivo": "bin/forge-check",
+      "de": "    return desde == base_sha and base_sha_como_desde(raiz, texto, base_sha, head, base_ref)",
+      "para": "    return desde == base_sha and base_sha_como_desde(raiz, texto, base_sha, head)",
+      "testes": [
+        "tests.test_conferida_por_branch.ConferidaDeOutroItem.test_conferida_de_a_na_base_nao_e_o_desde_de_b"
+      ]
+    },
+    {
+      "id": "CB-M5",
+      "guarda": "o --desde da forma antiga recusa a conferida já na base",
+      "arquivo": "bin/forge-check",
+      "de": "    valido, origem = desde_valido(raiz, texto, head, base_sha, base_ref)\n    if desde in revisados",
+      "para": "    valido, origem = desde_valido(raiz, texto, head, base_sha)\n    if desde in revisados",
+      "testes": [
+        "tests.test_conferida_por_branch.ConferidaDeOutroItem.test_forma_antiga_recusa_a_conferida_de_a_como_desde"
+      ]
+    },
+    {
+      "id": "CB-M6",
+      "guarda": "o entrega --pedido calcula o Desde com a origin/<base>",
+      "arquivo": "bin/forge-check",
+      "de": "    valido = desde_valido(raiz, texto, head, base_sha, base_ref)[0]",
+      "para": "    valido = desde_valido(raiz, texto, head, base_sha)[0]",
+      "testes": [
+        "tests.test_conferida_por_branch.ConferidaDeOutroItem.test_conferida_de_a_na_base_nao_e_o_desde_de_b"
+      ]
+    },
+    {
+      "id": "CB-M7",
+      "guarda": "o entrega --pedido cai no Base-sha sem conferida da própria branch",
+      "arquivo": "bin/forge-check",
+      "de": "    desde = valido or (base_sha if base_sha_como_desde(raiz, texto, base_sha, head, base_ref) else None)",
+      "para": "    desde = valido or (base_sha if base_sha_como_desde(raiz, texto, base_sha, head) else None)",
+      "testes": [
+        "tests.test_conferida_por_branch.ConferidaDeOutroItem.test_conferida_de_a_na_base_nao_e_o_desde_de_b"
+      ]
+    },
+    {
+      "id": "CB-M8",
+      "guarda": "a conferida da própria branch, fora da origin/<base>, segue sendo o Desde",
+      "arquivo": "bin/forge-check",
+      "de": "    return e_ancestral(raiz, sha, base_sha) or bool(base_ref) and e_ancestral(raiz, sha, base_ref)",
+      "para": "    return e_ancestral(raiz, sha, base_sha) or bool(base_ref)",
+      "testes": [
+        "tests.test_conferida_por_branch.ConferidaDeOutroItem.test_conferida_da_propria_branch_segue_sendo_o_desde"
+      ]
+    }
+  ]
+}

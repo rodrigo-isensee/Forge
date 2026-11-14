@@ -2123,43 +2123,49 @@ def bases_do_pedido(texto):
     return achadas
 
 
-def desde_valido(raiz, texto, head, base_sha):
+def ja_na_base(raiz, sha, base_sha, base_ref=None):
+    """O commit já está na base: ancestral do Base-sha ou, com `base_ref`, da `origin/<base>` (CONFERIDA-POR-BRANCH: a conferida de
+    outro item que o merge da base trouxe ao head não é trabalho da branch). A ref reescrita só tira candidatas: o intervalo cresce."""
+    return e_ancestral(raiz, sha, base_sha) or bool(base_ref) and e_ancestral(raiz, sha, base_ref)
+
+
+def desde_valido(raiz, texto, head, base_sha, base_ref=None):
     """O único `--desde` aceito: (sha40, origem) da linha mais recente do pedido (`conferida` ou base fixada pelo dono) que é
-    ancestral do head e trabalho da branch (não é ancestral do Base-sha: o Base-sha regravado depois de um merge da base fica
+    ancestral do head e trabalho da branch (não está na base, `ja_na_base`: o Base-sha regravado depois de um merge da base fica
     adiante de uma entrega conferida antes dele); (None, None) se nenhuma serve."""
     candidatas = [(c, o) for c, o in bases_do_pedido(texto)
-                  if sha_do_commit(raiz, c) == c and e_ancestral(raiz, c, head) and not e_ancestral(raiz, c, base_sha)
+                  if sha_do_commit(raiz, c) == c and e_ancestral(raiz, c, head) and not ja_na_base(raiz, c, base_sha, base_ref)
                   and not (o == "dono" and c == head)]  # base do dono igual ao head zeraria o delta sem aviso
     return candidatas[-1] if candidatas else (None, None)
 
 
-def base_sha_como_desde(raiz, texto, base_sha, head):
+def base_sha_como_desde(raiz, texto, base_sha, head, base_ref=None):
     """P-N1: o Base-sha do brief vale como Desde com a branch nascida dele (ancestral do head) e sem conferida na branch: o
     `## Histórico` sem linha `conferida` ou com a última fora do head (branch nova depois de um squash). A última `conferida`
     ancestral do head segue sendo o Desde; a branch que não nasce do Base-sha segue recusada (R-PROVA). Regra única do
     `entrega` (`desde_e_a_base`) e da mensagem de entrega (`mensagem_de_entrega`)."""
     da_branch = [c for c, o in bases_do_pedido(texto)  # E12: só a conferida da própria branch conta; a de outra branch do pedido, não
-                 if o == "conferida" and e_ancestral(raiz, c, head) and not e_ancestral(raiz, c, base_sha)]
+                 if o == "conferida" and e_ancestral(raiz, c, head) and not ja_na_base(raiz, c, base_sha, base_ref)]
     return not da_branch and e_ancestral(raiz, base_sha, head)
 
 
-def desde_da_branch(raiz, texto, head, base_sha):
+def desde_da_branch(raiz, texto, head, base_sha, base_ref=None):
     """E12 (CONFERIDA-DESDE-POR-BRANCH): o `Desde` que a mensagem de entrega e o `gerar --volta` propõem, (sha, origem): a base mais
     recente do pedido que é da própria branch (`desde_valido`: ancestral do head, fora do Base-sha), nunca a última do pedido inteiro,
     que pode ser de outra branch; sem ela, o Base-sha (origem `base`) quando ele vale como Desde (`base_sha_como_desde`); senão a última
     do pedido, que o `entrega` recusa e volta ao Base-sha (falha fechada). (None, None) sem base no `## Histórico`."""
-    valido, origem = desde_valido(raiz, texto, head, base_sha)
+    valido, origem = desde_valido(raiz, texto, head, base_sha, base_ref)
     if valido:
         return valido, origem
-    if base_sha_como_desde(raiz, texto, base_sha, head):
+    if base_sha_como_desde(raiz, texto, base_sha, head, base_ref):
         return base_sha, "base"
     bases = bases_do_pedido(texto)
     return bases[-1] if bases else (None, None)
 
 
-def desde_e_a_base(raiz, texto, desde, base_sha, head):
+def desde_e_a_base(raiz, texto, desde, base_sha, head, base_ref=None):
     """O `--desde` do `entrega` é o Base-sha do brief e ele vale como Desde (`base_sha_como_desde`)."""
-    return desde == base_sha and base_sha_como_desde(raiz, texto, base_sha, head)
+    return desde == base_sha and base_sha_como_desde(raiz, texto, base_sha, head, base_ref)
 
 
 def ref_da_base(raiz, base):
@@ -2172,11 +2178,11 @@ def veredito_do_desde(raiz, texto, desde, base_sha, head, base_ref, revisados=()
     que vale como Desde (`desde_e_a_base`) dá a linha `base:` e valido None; o `--desde` fora do `desde_valido` ou gravado na própria
     entrega (`pedido_na_entrega`, A1) reprova; sem `--desde`, nada a dizer. MP1311: um dos `revisados` (commit do autor que um portão
     revisou, `revisados_do_autor`), ancestral do head e fora do Base-sha, vale como o `desde_valido` (origem `revisado`)."""
-    if desde_e_a_base(raiz, texto, desde, base_sha, head):  # P-N1: o intervalo é o do Base-sha, como sem `--desde`
+    if desde_e_a_base(raiz, texto, desde, base_sha, head, base_ref):  # P-N1: o intervalo é o do Base-sha, como sem `--desde`
         return None, None, "base: Base-sha do brief (sem conferida na branch)", False
     if desde is None:
         return None, None, None, False
-    valido, origem = desde_valido(raiz, texto, head, base_sha)
+    valido, origem = desde_valido(raiz, texto, head, base_sha, base_ref)
     if desde in revisados and e_ancestral(raiz, desde, head) and not e_ancestral(raiz, desde, base_sha):
         valido, origem = desde, "revisado"
     if valido is None or desde != valido:  # só o sha40, igual ao da linha `conferida` ou ao `Revisar-sha:` do portão
@@ -3470,7 +3476,7 @@ def recusa_do_desde(raiz, pedido_txt, ref, base_sha, base):
     bases = bases_do_pedido(pedido_txt)
     if not bases:
         return None
-    desde, origem = desde_da_branch(raiz, pedido_txt, ref, base_sha)  # E12: a da própria branch, não a última do pedido
+    desde, origem = desde_da_branch(raiz, pedido_txt, ref, base_sha, ref_da_base(raiz, base))  # E12: a da própria branch
     linha, reprova = veredito_do_desde(raiz, pedido_txt, desde, base_sha, ref, ref_da_base(raiz, base))[2:]
     if not reprova:
         return None
@@ -3604,7 +3610,7 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     proximo = max([int(x) for x in re.findall(r"\bPQ-(\d+)", "".join(blocos.get("Pronto quando", [])))] or [0]) + 1
     seguro = interpolacao_segura(pedido=pedido_id, branch=branch, base=a.base, sha=sha_base)  # G-5: a Branch do anterior é `\S+`
     pronto = [f"- PQ-{proximo} (cmd, do autor): `forge-check entrega {caminho_impresso(pedido_id)} --branch {caminho_impresso(branch)} --base {caminho_impresso(a.base)} --base-sha {sha_base} "
-              f"--etapa codigo --desde {desde_da_branch(raiz, pedido_txt, ref, sha_base)[0] if bases else PREENCHER}` · espera: rc=0"] if seguro else []
+              f"--etapa codigo --desde {desde_da_branch(raiz, pedido_txt, ref, sha_base, ref_da_base(raiz, a.base))[0] if bases else PREENCHER}` · espera: rc=0"] if seguro else []
     if a.etapa in ETAPAS_DE_MERGE:
         pronto.append(pq_de_merge(a.base).replace("PQ-N", f"PQ-{proximo + len(pronto)}"))
     pronto.append(f"- PQ-{proximo + len(pronto)} (cmd, do autor): `bin/forge-mutante --cobertura --base {sha_base}` · espera: rc=0")
@@ -7978,7 +7984,8 @@ def mensagem_de_entrega(raiz, a, conteudo, texto, destino, etapa, arquivo, recus
     bases = bases_do_pedido(texto_do_pedido)
     # E12: o Desde é a base mais recente da própria branch (`desde_da_branch`); sem ela (branch nova, squash, só bases de outra
     # branch), o Base-sha que vale como Desde (P-N1)
-    escolhido = desde_da_branch(a.worktree, texto_do_pedido, sha_do_commit(a.worktree, "HEAD") or "HEAD", base_sha) if bases else (None, None)
+    escolhido = desde_da_branch(a.worktree, texto_do_pedido, sha_do_commit(a.worktree, "HEAD") or "HEAD", base_sha,
+                               ref_da_base(a.worktree, base)) if bases else (None, None)
     squash, bases = escolhido[1] == "base", [escolhido] if bases else bases
     linhas = ["modo: entrega", f"Pedido: {caminho_impresso(caminho_pedido.stem)}", f"Agente conferido: {destino}",
               f"Arquivo: {caminho_impresso(arquivo)}", f"Worktree: {a.worktree}", f"Branch: {branch}", f"Base: {base}", f"Base-sha: {base_sha}"]
@@ -8595,7 +8602,7 @@ def corrigir_derivados(raiz, texto, pedido_txt, caminho_pedido):
             correcoes.append(f"corrigido: Base-sha {sem_controle(digitado or 'ausente')[:40]} -> {esperado} (calculado do git)")
     sha_base = esperado or (digitado if digitado and re.fullmatch(r"[0-9a-f]{40}", digitado) else None)
     head = sha_do_commit(raiz, branch) if branch and branch not in SEM_BRANCH else None
-    desde = desde_da_branch(raiz, pedido_txt, head, sha_base)[0] if head and sha_base and bases_do_pedido(pedido_txt) else None
+    desde = desde_da_branch(raiz, pedido_txt, head, sha_base, base and ref_da_base(raiz, base))[0] if head and sha_base and bases_do_pedido(pedido_txt) else None
 
     def entrega(m):
         linha = m.group(0)
@@ -8970,8 +8977,9 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
                                                             bases_seladas_depois(raiz, caminho, texto, sha_brief))) != base_sha:
         print(f"base: merge-base {ponto[:12]} com a {nome_seguro(base)} (a branch trouxe a base depois do Base-sha {base_sha[:12]})")
         base_sha = ponto  # E23.36 (e): o que veio da base pelo merge não é escopo, e conferida de outra branch que veio com ela não é Desde
-    valido = desde_valido(raiz, texto, head, base_sha)[0]
-    desde = valido or (base_sha if base_sha_como_desde(raiz, texto, base_sha, head) else None)
+    base_ref = ref_da_base(raiz, base)  # CONFERIDA-POR-BRANCH: a conferida de outro item já na base não é o Desde desta branch
+    valido = desde_valido(raiz, texto, head, base_sha, base_ref)[0]
+    desde = valido or (base_sha if base_sha_como_desde(raiz, texto, base_sha, head, base_ref) else None)
     declarado = escopo_declarado(brief, branch)
     if etapa == "codigo":  # E23.17 (b): a volta na mesma branch herda o escopo dos briefs de codigo anteriores do pedido
         anteriores, declarado = escopo_das_voltas(raiz, caminho, texto, branch, brief, sha_brief)
