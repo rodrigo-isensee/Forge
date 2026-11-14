@@ -116,13 +116,16 @@ class FilaDaSuite(unittest.TestCase):
         self.assertFalse((self.repo / "rodou").exists())
 
     def test_dona_viva_ou_de_outro_namespace_nao_avisa(self):
-        for pid, ns in ((os.getpid(), MEU_NS), (self.morto(), "1"), ("x1", MEU_NS)):
+        # "-99999" não é pid: o kill -0 o leria como grupo e diria "No such process"; só o pid numérico é julgado.
+        for pid, ns in ((os.getpid(), MEU_NS), (self.morto(), "1"), ("x1", MEU_NS), ("-99999", MEU_NS)):
             with self.subTest(pid=pid, ns=ns):
                 dona = self.dona(pid, ns)
-                _, erro, _ = self.roda()
-                self.assertNotIn("parece velha", erro)
-                dona.kill()
-                dona.wait()
+                try:
+                    _, erro, _ = self.roda()
+                    self.assertNotIn("parece velha", erro)
+                finally:  # o subteste que falha solta a trava: o próximo não espera a dona anterior
+                    dona.kill()
+                    dona.wait()
 
     def test_trava_sem_troca_de_dona_ha_mais_de_35_min_avisa(self):
         self.dona(os.getpid(), idade=36 * 60)
