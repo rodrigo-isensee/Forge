@@ -1,6 +1,7 @@
 """SESSAO-AUTOMATICA (diretriz 28, v047 E1.198): todo atalho e instrução de abrir ou retomar o Jarvis usa --permission-mode auto;
 GH-VERSAO-MINIMA: o preparar-estacao.sh exige gh >= 2.47 e instala pelo repositório oficial."""
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -46,6 +47,36 @@ class AtalhosAbremNoAutomatico(unittest.TestCase):
         linha = self.claude()
         self.assertIn("--continue", linha)
         self.assertIn(f"{MODO} ", linha + " ")
+
+    def abrir_projeto(self, settings=None, local=None):
+        projeto = self.home / "meu-projeto"
+        projeto.mkdir()
+        (projeto / ".claude").mkdir()
+        for nome, corpo in (("settings.json", settings), ("settings.local.json", local)):
+            if corpo is not None:
+                (projeto / ".claude" / nome).write_text(corpo, encoding="utf-8")
+        return subprocess.run(["bash", str(RAIZ / "scripts/jarvis"), "--sem-tmux"], cwd=projeto, env={**self.env}, capture_output=True,
+                              text=True, stdin=subprocess.DEVNULL)
+
+    def test_projeto_sem_settings_avisa_sem_sandbox_e_segue_no_automatico(self):
+        r = self.abrir_projeto()  # sonda S1 do parecer de segurança
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("sandbox desligado neste projeto", r.stderr)
+        self.assertIn(f"{MODO} ", self.claude() + " ")
+
+    def test_sandbox_desligado_ou_settings_quebrado_tambem_avisa(self):
+        for corpo in ('{"sandbox": {"enabled": false}}', '{"sandbox": {}}', "{isso nao e json", '{"sandbox": {"enabled": "true"}}'):
+            with self.subTest(corpo=corpo):
+                self.assertIn("sandbox desligado", self.abrir_projeto(settings=corpo).stderr)
+                shutil.rmtree(self.home / "meu-projeto")
+
+    def test_sandbox_ligado_nao_avisa(self):
+        for kw in ({"settings": '{"sandbox": {"enabled": true}}'}, {"local": '{"sandbox": {"enabled": true}}'}):
+            with self.subTest(kw=kw):
+                r = self.abrir_projeto(**kw)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertNotIn("sandbox desligado", r.stderr)
+                shutil.rmtree(self.home / "meu-projeto")
 
     def test_nenhuma_instrucao_manda_abrir_o_claude_sem_o_modo(self):
         """Linha de código com o `claude` solto (não subcomando) tem de trazer o modo; vale para README, modelo e preparar-estacao."""

@@ -26,6 +26,24 @@ if [ "$sem_tmux" = 0 ] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1;
 fi
 # SESSAO-AUTOMATICA (diretriz 28): a sessão abre sempre em --permission-mode auto; o Jarvis confere o sandbox no primeiro comando.
 args=(--continue --permission-mode auto --remote-control "Jarvis - $projeto")
+# SANDBOX-AVISO (v047 E1.222): o modo automático segue, mas sem sandbox ligado no projeto o classificador é a única barreira; avisa numa linha.
+sandbox_ligado() {
+  python3 -I - "$PWD/.claude/settings.json" "$PWD/.claude/settings.local.json" <<'PY' 2>/dev/null
+import json, sys
+for caminho in sys.argv[1:]:
+    try:
+        with open(caminho, encoding="utf-8") as f:
+            dado = json.load(f)
+        if dado["sandbox"]["enabled"] is True:
+            sys.exit(0)
+    except Exception:
+        pass
+sys.exit(1)
+PY
+}
+if ! sandbox_ligado; then
+  echo "jarvis: sandbox desligado neste projeto: a sessão automática roda sem sandbox; rode 'forge adotar' para ligá-lo." >&2
+fi
 if claude plugin list 2>/dev/null | grep -q 'telegram@claude-plugins-official'; then
   if pgrep -f "bun server.ts" >/dev/null; then
     echo "jarvis: outra sessão já usa o bot do Telegram; abrindo sem o canal." >&2

@@ -8,7 +8,9 @@
       "arquivo": "scripts/jarvis",
       "de": "args=(--continue --permission-mode auto --remote-control",
       "para": "args=(--continue --remote-control",
-      "testes": ["tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_jarvis_do_projeto_abre_em_automatico"]
+      "testes": [
+        "tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_jarvis_do_projeto_abre_em_automatico"
+      ]
     },
     {
       "id": "S2",
@@ -16,8 +18,10 @@
       "arquivo": "scripts/jarvis-forge",
       "de": "--agent forge:jarvis --permission-mode auto --remote-control",
       "para": "--agent forge:jarvis --remote-control",
-      "testes": ["tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_jarvis_forge_abre_em_automatico",
-                 "tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_jarvis_forge_dev_e_retomada_tambem"]
+      "testes": [
+        "tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_jarvis_forge_abre_em_automatico",
+        "tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_jarvis_forge_dev_e_retomada_tambem"
+      ]
     },
     {
       "id": "S3",
@@ -25,7 +29,9 @@
       "arquivo": "templates/projeto/CLAUDE.md",
       "de": "confere o sandbox do Bash",
       "para": "olha o Bash",
-      "testes": ["tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_modelo_de_projeto_manda_conferir_o_sandbox"]
+      "testes": [
+        "tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_modelo_de_projeto_manda_conferir_o_sandbox"
+      ]
     },
     {
       "id": "G1",
@@ -33,8 +39,10 @@
       "arquivo": "scripts/preparar-estacao.sh",
       "de": "{ [ \"$maior\" -eq \"${GH_MINIMO%%.*}\" ] && [ \"$menor\" -ge \"${GH_MINIMO#*.}\" ]; }",
       "para": "{ [ \"$maior\" -eq \"${GH_MINIMO%%.*}\" ] && [ \"$menor\" -ge 0 ]; }",
-      "testes": ["tests.test_sessao_automatica.EstacaoExigeGh.test_gh_2_45_do_apt_do_ubuntu_manda_instalar_pelo_repositorio_oficial",
-                 "tests.test_sessao_automatica.EstacaoExigeGh.test_gh_logo_abaixo_do_minimo_tambem"]
+      "testes": [
+        "tests.test_sessao_automatica.EstacaoExigeGh.test_gh_2_45_do_apt_do_ubuntu_manda_instalar_pelo_repositorio_oficial",
+        "tests.test_sessao_automatica.EstacaoExigeGh.test_gh_logo_abaixo_do_minimo_tambem"
+      ]
     },
     {
       "id": "G2",
@@ -42,7 +50,9 @@
       "arquivo": "scripts/preparar-estacao.sh",
       "de": "python3 shellcheck jq bubblewrap socat; do",
       "para": "python3 shellcheck jq gh bubblewrap socat; do",
-      "testes": ["tests.test_sessao_automatica.EstacaoExigeGh.test_o_apt_comum_nao_trata_o_gh_do_ubuntu"]
+      "testes": [
+        "tests.test_sessao_automatica.EstacaoExigeGh.test_o_apt_comum_nao_trata_o_gh_do_ubuntu"
+      ]
     },
     {
       "id": "G3",
@@ -50,7 +60,9 @@
       "arquivo": "scripts/preparar-estacao.sh",
       "de": "[[ \"$v\" =~ ^[0-9]+\\.[0-9]+$ ]] || return 1",
       "para": "[[ \"$v\" =~ ^[0-9]+\\.[0-9]+$ ]] || return 0",
-      "testes": ["tests.test_sessao_automatica.EstacaoExigeGh.test_versao_ilegivel_conta_como_antiga"]
+      "testes": [
+        "tests.test_sessao_automatica.EstacaoExigeGh.test_versao_ilegivel_conta_como_antiga"
+      ]
     },
     {
       "id": "F1",
@@ -58,8 +70,10 @@
       "arquivo": "bin/forge-fechar",
       "de": "[ \"${gh_versao#*.}\" -lt \"${gh_minima#*.}\" ]; }",
       "para": "[ \"${gh_versao#*.}\" -lt 0 ]; }",
-      "testes": ["tests.test_fechar_gh_versao.FecharGhVersao.test_gh_2_45_do_apt_para_no_passo_1_sem_abrir_nada",
-                 "tests.test_fechar_gh_versao.FecharGhVersao.test_gh_logo_abaixo_do_minimo_para"]
+      "testes": [
+        "tests.test_fechar_gh_versao.FecharGhVersao.test_gh_2_45_do_apt_para_no_passo_1_sem_abrir_nada",
+        "tests.test_fechar_gh_versao.FecharGhVersao.test_gh_logo_abaixo_do_minimo_para"
+      ]
     },
     {
       "id": "F2",
@@ -67,7 +81,9 @@
       "arquivo": "bin/forge-fechar",
       "de": "[[ \"$gh_versao\" =~ ^[0-9]+\\.[0-9]+$ ]] || die",
       "para": "[[ \"$gh_versao\" =~ ^[0-9]+\\.[0-9]+$ ]] || true; : #",
-      "testes": ["tests.test_fechar_gh_versao.FecharGhVersao.test_versao_ilegivel_para"]
+      "testes": [
+        "tests.test_fechar_gh_versao.FecharGhVersao.test_versao_ilegivel_para"
+      ]
     },
     {
       "id": "F3",
@@ -75,7 +91,61 @@
       "arquivo": "bin/forge-fechar",
       "de": "git fetch -q origin homolog >/dev/null 2>&1 ||",
       "para": "true ||",
-      "testes": ["tests.test_fechar_gh_versao.FecharGhVersao.test_busca_origin_homolog_quando_falta"]
+      "testes": [
+        "tests.test_fechar_gh_versao.FecharGhVersao.test_busca_origin_homolog_quando_falta"
+      ]
+    },
+    {
+      "id": "F4",
+      "guarda": "o passo 1 do forge-fechar só busca a origin/homolog quando ela falta no clone",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! git rev-parse -q --verify refs/remotes/origin/homolog >/dev/null 2>&1; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_fechar_gh_versao.FecharGhVersao.test_busca_origin_homolog_quando_falta",
+        "tests.test_fechar_gh_versao.FecharGhVersao.test_sem_homolog_no_servidor_so_avisa"
+      ]
+    },
+    {
+      "id": "W1",
+      "guarda": "o jarvis avisa quando o projeto não tem sandbox ligado (sem settings)",
+      "arquivo": "scripts/jarvis",
+      "de": "if ! sandbox_ligado; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_projeto_sem_settings_avisa_sem_sandbox_e_segue_no_automatico",
+        "tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_sandbox_desligado_ou_settings_quebrado_tambem_avisa"
+      ]
+    },
+    {
+      "id": "W2",
+      "guarda": "sandbox ligado no projeto não gera aviso",
+      "arquivo": "scripts/jarvis",
+      "de": "if ! sandbox_ligado; then",
+      "para": "if true; then",
+      "testes": [
+        "tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_sandbox_ligado_nao_avisa"
+      ]
+    },
+    {
+      "id": "W3",
+      "guarda": "só enabled true (booleano) conta como sandbox ligado",
+      "arquivo": "scripts/jarvis",
+      "de": "if dado[\"sandbox\"][\"enabled\"] is True:",
+      "para": "if dado[\"sandbox\"][\"enabled\"]:",
+      "testes": [
+        "tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_sandbox_desligado_ou_settings_quebrado_tambem_avisa"
+      ]
+    },
+    {
+      "id": "W4",
+      "guarda": "o settings.local.json também vale como fonte do sandbox",
+      "arquivo": "scripts/jarvis",
+      "de": "\"$PWD/.claude/settings.json\" \"$PWD/.claude/settings.local.json\" <<",
+      "para": "\"$PWD/.claude/settings.json\" <<",
+      "testes": [
+        "tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_sandbox_ligado_nao_avisa"
+      ]
     }
   ]
 }
