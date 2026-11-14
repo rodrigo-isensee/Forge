@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O9",
+      "guarda": "A9: o destino com resto não entra na regra do opaco sem resto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not self.opaco_sem_resto(caminho, pasta):\n            return",
+      "para": "        if False:\n            return",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O10",
+      "guarda": "A9, C21: teto de 64 destinos opacos por linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self.opacos > TETO_DE_OPACOS:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O11",
+      "guarda": "A9, U1: o texto que cita o diretório do git recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if any(cita_o_dir_do_git(t) for t in largos):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O12",
+      "guarda": "A9, U2: eval, sh -c, $'…' e barra invertida no corpo recusam",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif any(CORPO_ILEGIVEL.search(t) for t in precisos) or any(",
+      "para": "        elif False or any(",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O13",
+      "guarda": "A9, U2: o corpo aninhado recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                \"$(\" in c or \"`\" in c for t in precisos for c in corpos_de_substituicao(t)):",
+      "para": "                False for t in precisos for c in corpos_de_substituicao(t)):",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O14",
+      "guarda": "A9, U3: o corpo da lista positiva libera a origem com nome do git",
+      "arquivo": "hooks/conformidade.py",
+      "de": " or self.corpo_positivo(alvo):",
+      "para": " or False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O15",
+      "guarda": "A9, U3: origem com nome do git ou de hook recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if achado:\n            self.barrar(\"R-CONFORMIDADE\", f\"origem `{achado}`",
+      "para": "        if None:\n            self.barrar(\"R-CONFORMIDADE\", f\"origem `{achado}`",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O16",
+      "guarda": "A9, U3: origem com curinga que casa um nome da C18",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return nome in NOMES_DA_C18 or bool(CURINGA.search(nome)) and any(",
+      "para": "    return nome in NOMES_DA_C18 or False and any(",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O25",
+      "guarda": "A10: com rev-parse do .git em corpo de mais de um comando na linha, nenhuma origem de link se libera",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self.rev_parse_misto or any(",
+      "para": "        if any(",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_colado"
+      ]
+    },
+    {
+      "id": "O26",
+      "guarda": "A10: só o corpo com separador de comando é de mais de um comando (a liberação do #512 segue com um só)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return any(valor_do_rev_parse(c) is not None and SEPARADOR_DE_COMANDO.search(c)",
+      "para": "    return any(valor_do_rev_parse(c) is not None",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_colado"
+      ]
+    },
+    {
+      "id": "O27",
+      "guarda": "A10: origem de link opaca que cita o diretório do git recusa, com ou sem resto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not achado and any(self.fim_do_opaco(a, pasta)",
+      "para": "        if False and any(self.fim_do_opaco(a, pasta)",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_colado"
+      ]
+    }
+  ]
+}
