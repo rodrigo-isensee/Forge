@@ -2,7 +2,7 @@
 
 Propósito: desenhar o subcomando que gera e sela os briefs dos portões (review, segurança, QA, devops) a partir do pedido e do head, e a fila que o Jarvis dispara quando uma vaga abre (cartão BRIEF-NAO-SEGURA-VAGAS, ORDEM DO DONO de 14/11 15:53, pedido v047, etapa E1.224). Público: dono do Forge, Jarvis, `tech-lead`, `security-engineer`, `software-architect`. Revisão: 2026-11-14.
 
-Estado: proposta, só desenho, para o parecer de segurança antes de qualquer código. Marcas: **[COD]** confirmado no código da `develop` 7fff73e4; **[INF]** decisão de desenho a verificar na implementação.
+Estado: proposta, só desenho, volta do parecer de segurança `docs/security/v047-brief-portoes.md` (E1.228: A1 na seção 3.4, A2 na 3.3, A3 na 4, A4 e A5 na 3, A6 na 3.2), antes de qualquer código. Marcas: **[COD]** confirmado no código da `develop` 7fff73e4; **[INF]** decisão de desenho a verificar na implementação.
 
 ## 1. Problema e evidência
 
@@ -32,7 +32,7 @@ O mecanismo novo reaproveita `montar_brief`, `sha_a_revisar`, `cmd_classe`, `par
 forge-check brief portoes --pedido P --branch B [--head H] [--classe auto|T|N|C] [--so-mostrar] [--sem-selar]
 ```
 
-- `--head` padrão: `origin/B` (o que foi enviado, nunca a árvore local). Recusa (rc 1, nada gravado) se `origin/B` não existe ou se o head local da branch não é igual ao remoto.
+- `--head` padrão: o head do remoto **de agora** (A5). Antes de gerar, uma só função, `head_enviado(raiz, B)`, lê `git ls-remote origin refs/heads/B` e exige que ele seja igual a `origin/B` e ao head local da branch (se existir); se diverge, se falta o ref ou se a rede falha, recusa (rc 1, nada gravado). Dois refs igualmente velhos não passam, porque o `ls-remote` é a leitura de agora. A mesma função dá o head ao `selar` dos briefs com `Gerado-por:` (seção 4, A3).
 - Pré-condição: a última linha `entrega conferida <sha40>` do `## Histórico` do pedido para a branch `B` tem o sha igual ao `Revisar-sha` calculado. Sem entrega conferida nesse código, recusa: portão não roda sobre entrega não conferida (`R-PROVA`).
 - `--classe auto` (padrão): a mesma função do `forge-check classe` (`classe_da_entrega`, `gatilhos_do_diff`, `pareceres_exigidos`) sobre `base...head`. `--classe T|N|C` só pode **subir** a classe (T < N < C); pedir classe abaixo da calculada recusa. Catraca que não carrega dá C (falha fechada, já é assim em `catraca_da_classe`).
 - Portões e destinos, tirados de `pareceres_exigidos` somados ao que o plano técnico do pedido marca (a mesma soma do `forge-check pr`, uma só fonte):
@@ -43,6 +43,9 @@ forge-check brief portoes --pedido P --branch B [--head H] [--classe auto|T|N|C]
 | `qa` | `forge:qa-engineer` | `qa` | `docs/qa/` |
 | `revisao-seguranca` | `forge:security-engineer` | `seguranca` | `docs/security/` |
 | `revisao-devops` | `forge:devops-engineer` | `devops` (nova) | `docs/devops/` |
+
+- `ETAPAS_DE_PARECER` com uma fonte só (A4): hoje há três cópias (`bin/forge-check:2216` e `:8261`, `hooks/agentes.py:574`). As duas do `forge-check` viram uma constante; o hook `agentes` deixa a cópia dele e lê `forge_check().ETAPAS_DE_PARECER` (ele já carrega o módulo quando lê um brief, `hooks/agentes.py:618`). O `devops` entra nessa constante e em nenhum outro lugar. Teste: o hook `agentes` não tem literal da tupla, e o brief `Etapa: devops` é tratado como parecer (Z10) pelo hook e pelo gerador.
+- O Entregar do portão de devops limita a escrita a `docs/devops/<pedido>.md` (linha `arquivos:` do modelo, um caminho só): a mesma fronteira dos outros portões, que gravam só o próprio parecer; workflow e infra ficam com o autor.
 
 - Portão já feito no mesmo código (parecer na `origin/B` com `commit:` igual ao `Revisar-sha`) não gera brief: sai a linha `portão em dia: <tipo> <arquivo>`.
 - Saída: uma linha por brief, `brief na fila: docs/briefs/<pedido>-<papel>-<n>.md sha256 <hash> · <tipo> · <novo|revalidação> · Revisar-sha <sha12>`, e uma linha de resumo. `--so-mostrar` imprime os briefs sem gravar nem selar (para o review do gerador e para depuração). rc 0 com todos selados; 1 com qualquer recusa (nenhum arquivo fica gravado sem selo: o que reprova é apagado na mesma execução, porque foi aberto com `x` por ela); 2 erro de uso.
@@ -67,21 +70,49 @@ O Entregar é um modelo fixo por tipo, no código (constante versionada `MODELO_
 
 ### 3.2 Fora do escopo compacto
 
-Hoje cada outra etapa leva o trecho literal (`R-BRIEF`). Proposta: as outras etapas vão por faixa de id, `- E1.1–E1.223, E2.1–E2.30 · outras etapas do pedido, sem a marca; continuam no pedido`. O `conferir_corte` passa a expandir a faixa contra `## Etapas` (cada id da faixa existe no pedido; faixa com buraco ou id inexistente reprova). Isso muda o texto de `R-BRIEF` ("com o trecho literal" → "por id ou faixa de ids"), e por isso vai num PR próprio, antes do subcomando, com destaque no título por mexer numa regra protegida. Enquanto não entra, o gerador usa a forma de hoje.
+Hoje cada outra etapa leva o trecho literal (`R-BRIEF`). Proposta: as outras etapas vão por faixa de id, `- E1.1–E1.223, E2.1–E2.30 · outras etapas do pedido, sem a marca; continuam no pedido`. Semântica exata da expansão no `conferir_corte` (A6): seja `F` o conjunto dos ids que as faixas cobrem, intersectado com os ids de `## Etapas`; o corte passa só se `F` é igual aos ids do pedido menos o `Cobre:`, nem mais, nem menos. Id da faixa que o pedido não tem é ignorado (o v047 não tem `E1.102`: buraco no pedido não reprova); id do pedido fora de toda faixa reprova (etapa nova acrescentada no meio aparece); faixa cujo intervalo contém o `Cobre:` reprova, mesmo que ele saia de `F` (a etapa delegada nunca vai ao Fora do escopo). O gerador monta as faixas pela mesma função, então o que ele escreve é o que o corte aceita. Isso muda o texto de `R-BRIEF` ("com o trecho literal" → "por id ou faixa de ids"), e por isso vai num PR próprio, antes do subcomando, com destaque no título por mexer numa regra protegida. Enquanto não entra, o gerador usa a forma de hoje.
 
 ### 3.3 Etapa no pedido
 
 O selo exige `Cobre:` de uma etapa do pedido do papel do destino. Duas saídas:
 - (a) o Jarvis abre a etapa do portão no pedido e o subcomando só a acha (recusa sem ela, com a linha pronta para colar);
-- (b) o subcomando grava a etapa com texto fixo, `- E<n>.<m> (<papel>): [branch B] parecer de <tipo> no código <sha12> (gerado)`, sob a mesma trava de arquivo do `gravar_no_historico`.
+- (b) o subcomando grava a etapa com texto fixo, `- E<n>.<m> (<papel>): [branch B] parecer de <tipo> no código <sha12> (gerado)`.
 
-Recomendo (b): sem ela a vaga continua esperando o Jarvis escrever uma linha. O texto é fixo e só leva valores calculados. Ponto para a segurança: é a ferramenta escrevendo em `## Etapas`, que hoje só o Jarvis escreve (ameaça T4).
+Decisão: (b), aceita pela segurança (A2) com três condições, que entram no desenho como guardas:
+1. **Id dentro da trava.** Uma função nova, `gravar_etapas_geradas(arq, pedidas)`, abre o pedido com `fcntl.flock(LOCK_EX)` (a trava do `gravar_no_historico`, `bin/forge-check:8510`) e, sob ela, lê `## Etapas`, calcula cada id e grava as linhas; nada da numeração é lido antes da trava. `n` é o grupo da última etapa de `## Etapas` que cita `[branch B]` (sem nenhuma, recusa: o portão não abre etapa de branch que o pedido não conhece); `m` é o maior `m` do grupo `n` mais 1, um por linha nova. Idempotência pela chave natural (branch, tipo, sha12): linha `(gerado)` igual já presente é reaproveitada, não duplicada, e a execução seguinte a uma recusa não abre id novo.
+2. **Linha por expressão fechada.** Antes de gravar, cada linha passa por `^- E\d+\.\d+ \((tech-lead|qa-engineer|security-engineer|devops-engineer)\): \[branch <B>\] parecer de (review|qa|seguranca|devops) no código [0-9a-f]{12} \(gerado\)$`, com `<B>` já validado por `NOME_SEGURO_DE_BRIEF` e `git check-ref-format` e escapado com `re.escape`; o par papel e tipo tem de ser o da tabela da seção 3. Falhou uma: recusa sem gravar nenhuma.
+3. **Todas as etapas antes do primeiro brief.** Numa execução com vários portões, `gravar_etapas_geradas` grava todas de uma vez (uma trava, uma escrita) e só depois o gerador relê o pedido e monta os briefs; assim o `Fora do escopo` de cada brief já lista as irmãs. Brief que reprova no selo é apagado (seção 3); a etapa gravada fica (o pedido é append-only) e é reaproveitada pela chave natural na próxima execução.
+
+O texto é fixo e só leva valores calculados; só o dono do pedido roda o subcomando (seção 3.4), então a escrita em `## Etapas` continua do papel que já a escreve (ameaça T4).
+
+### 3.4 Fronteira no hook `conformidade` (A1)
+
+Hoje o hook só vê escrita do `brief` em `selar` e em `gerar --gravar` (`grava_no_pedido`, `hooks/conformidade.py:669`; `FORGE_CHECK_ESCRITAS`, `:480` e `:1601`), e a lista dos papéis só de leitura libera `forge-check brief` e `forge-check entrega` inteiros (`hooks/conformidade.json:111`). A sonda S1 da segurança e as desta volta (abaixo) mostram que `brief portoes` passaria em qualquer papel. Regra nova, falha fechada, no mesmo PR do subcomando (seção 10, parte 3):
+
+- **Ações do `brief` numa fonte.** O `bin/forge-check` ganha `BRIEF_ACOES = ("gerar", "selar", "mensagem", "portoes", "fila")`, usada pelo despacho do `brief`; `alvo` fora dela sem `/` e sem terminar em `.md` sai com rc 2 (palavra solta não vira conferência de arquivo, então ação nova nunca se disfarça de leitura).
+- **No hook, toda ação do `brief` grava, menos a lista fechada de leitura.** `BRIEF_NO_HOOK = {"fila": "le", "mensagem": "le", "gerar": "grava com --gravar", "selar": "grava", "portoes": "grava salvo --so-mostrar"}`; a conferência de arquivo (`alvo` com `/` ou `.md`) lê. O hook procura as ações em **todas** as palavras livres depois de `brief` (como o `"selar" in livres[1:]` de hoje), porque `livres_do_forge_check` também devolve o valor das opções: em `brief --pedido fila portoes` a ação é `portoes`, e basta uma palavra de escrita para a linha gravar. O inverso (`brief fila --pedido portoes`) é recusado ao papel sem escrita: falso positivo aceito, na dúvida recusa.
+- **`--so-mostrar` pela leitura do argparse.** Conta como leitura só `abreviacao_de(a, ("--so-mostrar",))`, sem `=valor` e antes de um `--` (depois dele é posicional e o argparse recusa a linha). Abreviação que o argparse não aceita (`--s`, ambígua com `--sem-selar`) é escrita.
+- **`entrega --portoes` grava** no pedido e em `docs/briefs/`, com qualquer `--sem-gravar` ou `--so-leitura` na linha: o hook ignora as duas quando `--portoes` (ou a abreviação aceita, `--po` em diante) está presente, e o argparse recusa a combinação (rc 2), para as duas leituras baterem.
+- **Destinos.** `brief portoes` (sem `--so-mostrar`) e `entrega --portoes` passam pela política de caminhos em `docs/pedidos/` **e** `docs/briefs/` (`forge_check_grava`, nas duas raízes), então só o papel dono dessas pastas (`jarvis`, `hooks/conformidade.json:56-64`) os roda; papel de autor e papel só de leitura são recusados (`checar_so_leitura` já chama `forge_check_grava_no_pedido`, que passa a ver as formas novas).
+- **Programa opaco e interpretador.** `args_do_forge_check` hoje só reconhece `$(command -v forge-check)` com `anotar` ou `--gravar`; a sonda S2 abaixo mostra que `$(command -v forge-check) brief selar` passa no papel de autor já na `develop`. O critério do opaco passa a ser o mesmo predicado da escrita (`brief` com ação de escrita, `entrega --pedido` ou `--portoes`), não uma lista à parte.
+
+Sondas desta volta (hook `conformidade` em `beb017bd`, papel pelo `agent_type`, subprocesso com `python3 -I` e ambiente limpo; só leitura):
+- S2 · `$(command -v forge-check) brief selar --pedido v047 --arquivo docs/briefs/x.md`, papel de autor de stack · espera: recusa · obtido: rc 0 (a forma direta dá rc 2). Defeito já na `develop`, independente do subcomando: vai como correção própria (seção 10, parte 0).
+- S3 · `forge-check brief portoes --pedido v047 --branch melhoria/x`, papel de autor de stack e `forge:conferente` · espera: recusa · obtido: rc 0 nos dois (confirma A1).
+- S4 · `forge-check brief --pedido fila portoes --branch melhoria/x`, papel `forge:conferente` · espera: recusa · obtido: rc 0; `livres_do_forge_check` devolve `['brief', 'fila', 'portoes', 'melhoria/x']`, por isso a regra olha todas as palavras livres.
+- S5 · `grava_no_pedido` com `entrega --pedido v047 ... --portoes --so-leitura` · espera: True · obtido: False (daí a regra de `--portoes` acima).
+
+Testes do hook (`tests/test_conformidade_brief_portoes.py`, subprocesso com ambiente limpo e `python3 -I`, `AR-4`, `AR-5`):
+- **Cruzamento com o argparse** (`AR-11`, a leitura do hook igual à da ferramenta): carrega o `bin/forge-check` como módulo e exige `set(BRIEF_ACOES) == set(BRIEF_NO_HOOK)`, uma classificação por ação; ação nova sem classificação no hook reprova o CI. Do parser do `brief` e do `entrega` (`_option_string_actions`), gera todas as abreviações de `--so-mostrar` e `--portoes` e exige que o hook trate como leitura exatamente as que o argparse resolve para `--so-mostrar`, e como escrita todas as que resolve para `--portoes`; as que o argparse recusa por ambiguidade ficam como escrita.
+- **Formas**, cada uma com o rc esperado: `portoes`; `portoes --so-mostrar`, `--so`, `--so-m`, `--so-mostrar=1`, `-- --so-mostrar`; `--pedido fila portoes`; `$(command -v forge-check) brief portoes` e `brief selar`; `python3 -I "$(command -v forge-check)" brief portoes`; `entrega --pedido ... --portoes`, `--po`, `--portoes --so-leitura`, `--portoes --sem-gravar`; `--raiz` e `--raiz-pedidos` antes e depois do subcomando.
+- **Papéis**: `forge:conferente`, `forge:leitura` e um papel de autor recusam todas as formas de escrita; a sessão principal (`jarvis`) passa; `brief fila`, `brief mensagem`, `brief <arquivo>` e `portoes --so-mostrar` passam no `conferente`.
 
 ## 4. O selo continua obrigatório
 
 - O subcomando chama o `cmd_brief_selar` de hoje, com todas as checagens (`avaliar_brief`, decisões E8, teto, caractere disfarçado, corte, PQ). Não existe selo novo nem atalho: a linha `brief selado docs/briefs/<x>.md <sha256>` e o hook `agentes` ficam como estão.
 - Linha nova no cabeçalho do brief, dentro do conteúdo selado: `Gerado-por: forge-check brief portoes modelo 1`.
 - **Selo de reprodução** [INF]: brief com `Gerado-por:` só é selado se o `selar` o regenera com as mesmas entradas (pedido, branch, `Revisar-sha`, classe) e obtém os mesmos bytes. Brief gerado e depois editado à mão perde o `Gerado-por:` ou não sela. Assim o que o Jarvis não leu é exatamente o que o modelo revisado em PR produz.
+- **Uma fonte do head e nada de rede nos bytes (A3).** Para brief com `Gerado-por:`, o `selar` não usa `corrigir_revisar_sha` nem `corrigir_derivados` (que leem a branch local, `bin/forge-check:8663`): o head vem de `head_enviado(raiz, B)` (seção 3), a mesma função do gerador. O modelo não chama `linha_do_ci_do_parecer` nem outra leitura do `gh`: o PQ do CI sai de texto fixo com a branch e o `Revisar-sha` (o agente do portão lê o CI na hora). Os bytes reproduzidos dependem só do pedido, do git depois do `ls-remote` e do `MODELO_PORTOES`; reprodução que falha recusa (falha fechada) e devolve a vaga ao Jarvis com o motivo.
 - Pendência de decisão do dono (E8) reprova como hoje: o gerador não decide nada que o dono não decidiu.
 - `--sem-selar` grava sem selo, para o Jarvis ler e selar à mão (o caminho de hoje), e é o caminho de reversão.
 
@@ -113,10 +144,11 @@ Recomendo (b): sem ela a vaga continua esperando o Jarvis escrever uma linha. O 
 | T1 | Brief gerado sem leitura humana | Modelo fixo no código, revisado por PR (classe C: `bin/`); só valores calculados; selo de reprodução; `MODELO_PORTOES` versionado | Defeito no modelo vale para todos os briefs até a correção; mitigado pelo teste de ouro (seção 9) |
 | T2 | Injeção pelo texto do pedido | Só a linha da etapa coberta entra, entre aspas, com `sem_controle` e `caractere_disfarcado`; ids e branch passam por `NOME_SEGURO_DE_BRIEF` e `interpolacao_segura`; nada do pedido fora das aspas | Texto entre aspas ainda chega ao modelo do agente; o agente lê o pedido de qualquer forma hoje |
 | T3 | Selo de brief que o Jarvis não leu | O selo deixa de valer "o Jarvis leu" e passa a valer "a ferramenta reproduz byte a byte"; o Jarvis vê a linha de resumo de cada brief na fila; decisão E8 pendente ainda reprova | Quem confia no selo como prova de leitura humana perde essa garantia; o dono decide se aceita (está na ordem de 15:53) |
-| T4 | Ferramenta escrevendo em `## Etapas` (opção 3.3 b) | Texto fixo, trava de arquivo, uma linha por portão, só valores calculados | Erro de numeração de etapa; recusa se o id já existe |
+| T4 | Ferramenta escrevendo em `## Etapas` (opção 3.3 b) | Só o dono do pedido roda o subcomando (seção 3.4); id calculado e linha gravada sob a mesma trava; expressão fechada; todas as etapas antes do primeiro brief; chave natural (branch, tipo, sha12) | Nenhum conhecido |
 | T5 | Brief de portão sobre código que mudou depois | Pré-condição de entrega conferida no mesmo sha; fila tira o vencido; hook já avisa `brief_vencido` | Push entre a fila e o disparo: o parecer grava `commit:` do brief, e o `forge-check pr` aponta o delta |
 | T6 | `--classe` para baixo | Só sobe; pedir abaixo recusa | Nenhum conhecido |
-| T7 | Branch ou head forjado | `--head` padrão no remoto; local diferente do remoto recusa | Credencial do remoto fora do escopo |
+| T7 | Branch ou head forjado ou velho | `ls-remote` de agora igual a `origin/B` e ao local, senão recusa; sem rede recusa (A5) | Credencial do remoto fora do escopo |
+| T8 | Papel sem escrita no pedido roda `brief portoes` ou `entrega --portoes` (A1) | Hook em falha fechada: toda ação do `brief` grava salvo a lista fechada de leitura; `--portoes` grava sempre; opaco e interpretador pelo mesmo predicado; teste cruzado com o argparse (seção 3.4) | Ação nova do `brief` sem classificação no hook: o teste cruzado reprova o CI |
 
 ## 9. Testes e mutantes previstos
 
@@ -126,16 +158,26 @@ Testes de comportamento (subprocesso com ambiente limpo e `python3 -I`, `AR-4`, 
 - recusas: sem entrega conferida; local diferente do remoto; `--classe` abaixo; pedido com caractere disfarçado na etapa; decisão E8 pendente (nada gravado, nenhum arquivo sobra).
 - selo de reprodução: brief gerado e editado em um byte não sela.
 - fila: ordem de chegada; brief vencido não sai como pronto; brief disparado some; vagas zero não lista.
-- `conferir_corte` com faixa: faixa com id inexistente reprova (PR da seção 3.2).
+- `conferir_corte` com faixa (PR da seção 3.2): id do pedido fora das faixas reprova; faixa que contém o `Cobre:` reprova; buraco no pedido (id da faixa que ele não tem) passa.
+- etapas geradas (3.3): duas execuções em paralelo sobre o mesmo pedido, de branches diferentes, não repetem id; linha fora da expressão (papel fora da tabela, branch que o `check-ref-format` recusa) recusa sem gravar; com review e QA na mesma execução, o `Fora do escopo` de cada brief lista a etapa do outro; a segunda execução reaproveita a linha `(gerado)`.
+- head (A5, A3): `ls-remote` diferente de `origin/B` recusa; remoto inacessível recusa; o `selar` de brief gerado, com a branch local atrasada, usa o head do remoto.
+- `ETAPAS_DE_PARECER` (A4): uma fonte; `Etapa: devops` é parecer para o hook `agentes` e para o gerador.
+- hook (seção 3.4): o cruzamento com o argparse e as formas e papéis listados lá.
 
-Mutantes declarados, um por guarda (`tests/mutantes/v047-brief-portoes.json`, AR-1): entrega conferida no sha; local igual ao remoto; classe só sobe; portão em dia; `commit:` ancestral; caractere disfarçado; reprodução no selo; vencido na fila; apagar o que reprovou. São 9 guardas: abre também `v047-brief-portoes-2.json`.
+Mutantes declarados, um por linha de guarda, por PR da seção 10 (`tests/mutantes/<pedido>.json`, AR-1; passou de 8, abre `-2.json`):
+- parte 0 (opaco): opaco reconhece a escrita do `brief`; opaco reconhece `entrega --pedido`.
+- parte 1 (corte): id do pedido fora das faixas; faixa que contém o `Cobre:`.
+- parte 2 (Z10): `devops` na constante única.
+- parte 3 (subcomando e hook): entrega conferida no sha; `ls-remote` igual a `origin/B`; local igual ao remoto; classe só sobe; portão em dia; `commit:` ancestral; caractere disfarçado; reprodução no selo; apagar o que reprovou; expressão fechada da etapa; etapa da branch existe; chave natural da etapa; `alvo` solto recusa; ação do `brief` grava salvo leitura; `--so-mostrar` lê; destino `docs/briefs/` do `portoes`.
+- parte 4 (fila e `--portoes`): vencido na fila; `--portoes` grava com `--so-leitura`; argparse recusa `--portoes` com `--sem-gravar` ou `--so-leitura`.
 
 ## 10. Entrega em partes (M14, um comportamento por PR)
 
+0. Correção já na `develop` (sonda S2): o programa opaco do `forge-check` com `brief selar` e `entrega --pedido` passa a ser visto como escrita (`fix`, classe C, `hooks/`, corpus próprio). Não depende do resto e entra primeiro.
 1. `conferir_corte` com faixa e o texto de `R-BRIEF` (destaque no título: muda regra protegida).
-2. Etapa `devops` em `ETAPAS_DE_PARECER` e o `brief` no registro do hook `agentes` (classe C, `hooks/`, corpus próprio).
-3. `brief portoes` com selo de reprodução.
-4. `brief fila` e o `--portoes` do `entrega`; linha do Jarvis e da skill.
+2. `ETAPAS_DE_PARECER` com fonte única, a etapa `devops` nela e o `brief` no registro do hook `agentes` (classe C, `hooks/`, corpus próprio).
+3. `brief portoes` com selo de reprodução e `gravar_etapas_geradas` e, no mesmo PR, a regra do hook `conformidade` da seção 3.4 com o teste cruzado (o subcomando não chega à `develop` invisível ao hook).
+4. `brief fila` e o `--portoes` do `entrega`, com a regra do hook para `--portoes` no mesmo PR; linha do Jarvis e da skill.
 
 ## 11. Medida, reversão e o que sai
 
