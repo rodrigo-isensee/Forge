@@ -38,6 +38,11 @@ killed, carimbo depois do `desde`), do fim do transcript com teto de bytes e de 
 por silêncio: agente vivo sem resposta para com o TaskStop e sai pela notificação `killed`. O registro de escrita só sai com a
 trava `pesado` livre. Cada liberação vai ao `liberacoes.log` e deixa uma lápide: retomar o id (`SendMessage`) é recusado
 enquanto houver relançamento vigente na mesma branch ou com a mesma descrição.
+HOOK-ESTADO-ILEGIVEL-LIBERA (v047, E1.138): estado ilegível nunca vira lista vazia. O `agentes.json` que existe e não é o registro
+(`ler_estado`: JSON inválido ou vazio, raiz que não é objeto, `agentes` ou `lapides` que não é lista, link, pasta ou outro tipo,
+erro de leitura, mais de 1 MiB), o erro ao fixar a pasta do estado do clone e o `.forge/config.json` ilegível recusam o disparo
+e a retomada com R-TETO; `SubagentStart` e `SubagentStop` saem com 0. Nenhum evento regrava o arquivo ilegível; o erro vai ao
+erros.log. O R-BRIEF segue antes e independente.
 """
 import hashlib
 import json
@@ -256,6 +261,37 @@ LIMITE_DO_TRANSCRIPT = 2 * 1024 * 1024  # C4: bytes lidos do fim do transcript
 PRAZO_DA_LEITURA_S = 2.0  # C4: tempo da leitura; estourou, o registro fica
 LIMITE_DO_META = 64 * 1024
 LAPIDES_MAX = 64
+LIMITE_DO_ESTADO = 1024 * 1024  # HOOK-ESTADO-ILEGIVEL-LIBERA: o agentes.json real tem poucos KB
+
+
+class EstadoIlegivel(Exception):
+    """HOOK-ESTADO-ILEGIVEL-LIBERA (R-TETO): o `agentes.json` existe e não é o registro; quem lê recusa, nunca usa lista vazia."""
+
+
+def ler_estado(arquivo):
+    """O registro de `arquivo`, ou `{"agentes": []}` se ele não existe (o começo legítimo). Lança `EstadoIlegivel` se não é arquivo
+    regular (aberto sem seguir link nem esperar FIFO), não abre, passa de LIMITE_DO_ESTADO, não é JSON, a raiz não é objeto ou
+    `agentes` ou `lapides` (quando existem) não são listas. Nunca devolve estado vazio no lugar do ilegível."""
+    if not os.path.lexists(arquivo):
+        return {"agentes": []}
+    try:
+        fd = os.open(arquivo, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, "rb") as entrada:
+            if not stat.S_ISREG(os.fstat(entrada.fileno()).st_mode):
+                raise EstadoIlegivel(f"{arquivo}: não é arquivo regular")
+            dados = entrada.read(LIMITE_DO_ESTADO + 1)
+        if len(dados) > LIMITE_DO_ESTADO:
+            raise EstadoIlegivel(f"{arquivo}: passa de {LIMITE_DO_ESTADO} bytes")
+        estado = json.loads(dados)
+    except (OSError, ValueError) as erro:
+        raise EstadoIlegivel(f"{arquivo}: {type(erro).__name__}: {erro}") from erro
+    if not isinstance(estado, dict):
+        raise EstadoIlegivel(f"{arquivo}: a raiz não é objeto")
+    if not isinstance(estado.get("agentes", []), list):
+        raise EstadoIlegivel(f"{arquivo}: `agentes` não é lista")
+    if not isinstance(estado.get("lapides", []), list):
+        raise EstadoIlegivel(f"{arquivo}: `lapides` não é lista")
+    return estado
 
 
 def ler_o_fim(caminho, limite):
@@ -789,6 +825,17 @@ def entrada_e_tipo(hook):
     return entrada, str(entrada.get("subagent_type") or "general-purpose")
 
 
+ESTADO_ILEGIVEL = "registro de agentes ilegível (agentes.json da pasta do estado)"
+CONFIG_ILEGIVEL = "configuração ilegível (.forge/config.json)"
+
+
+def recusar_ilegivel(evento, onde):
+    """HOOK-ESTADO-ILEGIVEL-LIBERA: no PreToolUse (disparo e retomada), recusa com R-TETO, sem o conteúdo do arquivo; no
+    SubagentStart e no SubagentStop, volta (saída 0, não há o que impedir), sem gravar nada. Quem chama já registrou o erro."""
+    if evento == "PreToolUse":
+        bloquear("R-TETO", f"{onde}; nenhum disparo até o dono conferir o arquivo no terminal (R-DECISAO).")
+
+
 COMO_SELAR = ("sele o brief com `forge-check brief selar --arquivo <brief> --pedido <id>` e cite o caminho dele no prompt (o selo "
               "vale para o sha256 de agora).")
 
@@ -885,20 +932,34 @@ def principal(hook):
     evento, ferramenta = hook.campo("hook_event_name"), hook.campo("tool_name")
     if evento not in EVENTOS or (evento == "PreToolUse" and ferramenta not in FERRAMENTAS | {RETOMADA}):
         return
-    raiz = hook.projeto(hook.cwd(), clone_do_forge=True)
+    try:  # A3 (R5): a configuração ilegível (o `hooks_desligados` e o teto saem dela) não desliga o teto
+        raiz = hook.projeto(hook.cwd(), clone_do_forge=True)
+        if raiz is not None:
+            hook.config()
+    except Exception as erro:  # noqa: BLE001 - HOOK-ESTADO-ILEGIVEL-LIBERA: sem a configuração, o disparo não sai
+        hook.registrar_erro(erro)
+        recusar_ilegivel(evento, CONFIG_ILEGIVEL)
+        return
     if raiz is None:
         return
-    try:  # a pasta do estado do clone (só o erros.log dela vale aqui): o erro dela não leva o R-BRIEF junto (C7)
+    pasta_ilegivel = False
+    try:  # a pasta do estado do clone: o erro dela não leva o R-BRIEF junto (C7)
         sem_estado = e_clone_do_forge(raiz) and not fixar_estado_do_clone(hook, raiz)
-    except Exception as erro:  # noqa: BLE001 - registra; o disparo ainda passa pelo R-BRIEF
+    except Exception as erro:  # noqa: BLE001 - A2 (R4): a pasta que não se fixa é estado ilegível, depois do R-BRIEF
         hook.registrar_erro(erro)
-        sem_estado = True
+        sem_estado = pasta_ilegivel = True
     lidos, recusa = conferir_brief(hook) if evento == "PreToolUse" and ferramenta != RETOMADA else ([], None)  # C7: antes do estado
     if sem_estado:
         recusa and bloquear("R-BRIEF", recusa)
+        if pasta_ilegivel:
+            recusar_ilegivel(evento, ESTADO_ILEGIVEL)
         return
     if recusa is None:
-        atualizar_estado(hook, evento, ferramenta, lidos)
+        try:
+            atualizar_estado(hook, evento, ferramenta, lidos)
+        except EstadoIlegivel as erro:  # A1: nenhum evento regrava o arquivo ilegível; o disparo recusa
+            hook.registrar_erro(erro)
+            recusar_ilegivel(evento, ESTADO_ILEGIVEL)
         return
     try:  # C7: a recusa não depende do estado; a liberação de agente morto se grava antes dela (TRAVA-AGENTE-MORTO, C5)
         atualizar_estado(hook, evento, ferramenta, lidos, recusa)
@@ -913,7 +974,7 @@ def atualizar_estado(hook, evento, ferramenta, lidos, recusa=None):
     with hook.trava():
         arquivo = hook.run() / "agentes.json"
         agora = time.time()
-        estado = ler_json(arquivo, {"agentes": []})
+        estado = ler_estado(arquivo)  # HOOK-ESTADO-ILEGIVEL-LIBERA: o ilegível lança, nunca vira lista vazia
         liberacao = Liberacao(hook, agora)
         agentes = vigentes(estado.get("agentes", []), agora, hook.expira_s(), liberacao)
         lapides = (lapides_vigentes(estado, agora, hook.expira_s()) + [lapide(r, agora) for r, _ in liberacao.soltos])[-LAPIDES_MAX:]

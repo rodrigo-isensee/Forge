@@ -1,5 +1,5 @@
 {
-  "descricao": "HOOK-ERRO-LIBERA (C7): erro ao fixar a pasta do estado com disparo sem selo (Explore): libera sem ler nem gravar o estado.",
+  "descricao": "HOOK-ESTADO-ILEGIVEL-LIBERA (A2, R4): erro ao fixar a pasta do estado com disparo sem selo (Explore) recusa com R-TETO (antes liberava), sem ler nem gravar o estado.",
   "forcar": {
     "onde": "e_clone_do_forge",
     "como": "erro"
@@ -15,7 +15,8 @@
     }
   },
   "esperado": {
-    "codigo": 0,
+    "codigo": 2,
+    "stderr": "R-TETO: registro de agentes ilegível",
     "erros_log": "erro forcado",
     "sem_arquivo": [
       "agentes.json"

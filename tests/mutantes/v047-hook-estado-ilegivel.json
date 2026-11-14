@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-hook-estado-ilegivel",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "R1: só o arquivo ausente vale o registro vazio",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if not os.path.lexists(arquivo):\n        return {\"agentes\": []}",
+      "para": "    if True:\n        return {\"agentes\": []}",
+      "testes": [
+        "tests.test_estado_ilegivel.LerEstado.test_registro_valido_volta_inteiro"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "R1: O_NOFOLLOW, o link não é seguido",
+      "arquivo": "hooks/agentes.py",
+      "de": "os.open(arquivo, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)",
+      "para": "os.open(arquivo, os.O_RDONLY | os.O_NONBLOCK)",
+      "testes": [
+        "tests.test_estado_ilegivel.LerEstado.test_link_para_json_valido_e_ilegivel"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "R1: S_ISREG, só arquivo regular",
+      "arquivo": "hooks/agentes.py",
+      "de": "            if not stat.S_ISREG(os.fstat(entrada.fileno()).st_mode):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_estado_ilegivel.LerEstado.test_fifo_com_json_valido_e_ilegivel"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "R1: teto de tamanho",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if len(dados) > LIMITE_DO_ESTADO:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_estado_ilegivel.LerEstado.test_acima_do_teto_de_tamanho_e_ilegivel"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "R1: JSON inválido ou vazio é ilegível",
+      "arquivo": "hooks/agentes.py",
+      "de": "    except (OSError, ValueError) as erro:\n        raise EstadoIlegivel",
+      "para": "    except (OSError,) as erro:\n        raise EstadoIlegivel",
+      "testes": [
+        "tests.test_estado_ilegivel.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "R1: raiz que não é objeto",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if not isinstance(estado, dict):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_estado_ilegivel.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "R1: agentes que não é lista",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if not isinstance(estado.get(\"agentes\", []), list):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_estado_ilegivel.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "R1: lapides que não é lista",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if not isinstance(estado.get(\"lapides\", []), list):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_estado_ilegivel.PeloHook.test_fixtures_do_pedido"
+      ]
+    }
+  ]
+}

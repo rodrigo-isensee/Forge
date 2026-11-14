@@ -1,0 +1,26 @@
+{
+  "descricao": "HOOK-ESTADO-ILEGIVEL-LIBERA (A1, R-TETO): SubagentStart com o estado ilegível sai com 0 e não regrava o arquivo.",
+  "estado": {
+    "agentes.json": "x"
+  },
+  "entrada": {
+    "hook_event_name": "SubagentStart",
+    "agent_id": "a1",
+    "agent_type": "Explore"
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "agentes EstadoIlegivel",
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "x"
+        ],
+        "ausente": [
+          "agentes",
+          "a1"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "pedido": "v047-hook-estado-ilegivel",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "R2: o PreToolUse (disparo e retomada) recusa com R-TETO",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if evento == \"PreToolUse\":\n        bloquear(\"R-TETO\", f\"{onde}",
+      "para": "    if False:\n        bloquear(\"R-TETO\", f\"{onde}",
+      "testes": [
+        "tests.test_estado_ilegivel.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "R5 (A3): a configuração ilegível recusa",
+      "arquivo": "hooks/agentes.py",
+      "de": "        hook.registrar_erro(erro)\n        recusar_ilegivel(evento, CONFIG_ILEGIVEL)",
+      "para": "        hook.registrar_erro(erro)",
+      "testes": [
+        "tests.test_estado_ilegivel.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "R5 (A3): a configuração se lê antes do estado",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if raiz is not None:\n            hook.config()",
+      "para": "        if False:\n            hook.config()",
+      "testes": [
+        "tests.test_estado_ilegivel.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "R4 (A2): o erro ao fixar a pasta do estado do clone recusa",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if pasta_ilegivel:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_estado_ilegivel.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "R2 (A1): o estado ilegível recusa o disparo",
+      "arquivo": "hooks/agentes.py",
+      "de": "            hook.registrar_erro(erro)\n            recusar_ilegivel(evento, ESTADO_ILEGIVEL)",
+      "para": "            hook.registrar_erro(erro)",
+      "testes": [
+        "tests.test_estado_ilegivel.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "R3: SubagentStart e SubagentStop nunca consertam o ilegível para vazio",
+      "arquivo": "hooks/agentes.py",
+      "de": "            hook.registrar_erro(erro)\n            recusar_ilegivel(evento, ESTADO_ILEGIVEL)",
+      "para": "            gravar_json(hook.run() / \"agentes.json\", {\"agentes\": []})\n            recusar_ilegivel(evento, ESTADO_ILEGIVEL)",
+      "testes": [
+        "tests.test_estado_ilegivel.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "R1: a leitura do estado é a estrita, nunca o ler_json com lista vazia",
+      "arquivo": "hooks/agentes.py",
+      "de": "        estado = ler_estado(arquivo)",
+      "para": "        estado = ler_json(arquivo, {\"agentes\": []})",
+      "testes": [
+        "tests.test_estado_ilegivel.PeloHook.test_fixtures_do_pedido"
+      ]
+    }
+  ]
+}

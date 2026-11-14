@@ -1,0 +1,19 @@
+{
+  "descricao": "HOOK-ESTADO-ILEGIVEL-LIBERA (A3, R5): .forge/config.json que não é JSON recusa o disparo com R-TETO.",
+  "config_bruta": "x",
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO: configuração ilegível",
+    "erros_log": "agentes JSONDecodeError"
+  }
+}

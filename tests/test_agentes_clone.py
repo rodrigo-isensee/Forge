@@ -164,13 +164,16 @@ class RegistroNoClone(ClonePronto):
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertEqual(alvo.read_text(encoding="utf-8"), "")
 
-    def test_erro_interno_no_clone_deixa_linha_no_erros_log(self):
+    def test_estado_ilegivel_no_clone_recusa_e_deixa_linha_no_erros_log(self):
+        """HOOK-ESTADO-ILEGIVEL-LIBERA (A1): no clone, o agentes.json ilegível recusa com R-TETO e fica como estava."""
         self.comum.mkdir(parents=True)
         self.estado.write_text("{truncado", encoding="utf-8")
         r = self.lancar(self.clone)
-        self.assertEqual(r.returncode, 0, r.stderr)  # erro interno libera (ADR 0003), sem `critico`
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("R-TETO: registro de agentes ilegível", r.stderr)
+        self.assertEqual(self.estado.read_text(encoding="utf-8"), "{truncado")
         log = (self.comum / "erros.log").read_text(encoding="utf-8")
-        self.assertIn("agentes JSONDecodeError", log)
+        self.assertIn("agentes EstadoIlegivel", log)
 
     def test_guarda_aberta_nao_abre_o_teto(self):
         """A15: o `agentes` segue sem `critico`; `FORGE_GUARDA_ABERTA=1` não libera o teto cheio."""

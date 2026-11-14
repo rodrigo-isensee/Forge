@@ -1,0 +1,31 @@
+{
+  "descricao": "HOOK-ESTADO-ILEGIVEL-LIBERA (A1, R-TETO): agentes.json que não é JSON recusa o disparo e fica intacto.",
+  "estado": {
+    "agentes.json": "x"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO: registro de agentes ilegível",
+    "erros_log": "agentes EstadoIlegivel",
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "x"
+        ],
+        "ausente": [
+          "Explore"
+        ]
+      }
+    }
+  }
+}

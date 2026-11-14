@@ -1,0 +1,21 @@
+{
+  "descricao": "HOOK-ESTADO-ILEGIVEL-LIBERA (A1, R-TETO): agentes.json que é pasta recusa o disparo.",
+  "arquivos": {
+    ".forge/run/agentes.json/x": "x"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO: registro de agentes ilegível",
+    "erros_log": "agentes EstadoIlegivel"
+  }
+}

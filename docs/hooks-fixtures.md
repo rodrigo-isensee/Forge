@@ -2,14 +2,14 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2449 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2479 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
-| `agentes` | 79 | 44 | 35 | 27 |
-| `conformidade` | 1799 | 1327 | 472 | 89 |
+| `agentes` | 95 | 58 | 37 | 29 |
+| `conformidade` | 1813 | 1339 | 474 | 89 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 25 | 10 | 15 | 12 |
 | `parecer` | 463 | 357 | 106 | 24 |
@@ -21,7 +21,8 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2449 fixtures) roda em `tests/test
 
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
-| `errointerno-*` | 8 | 6 | 2 | `R-BRIEF` | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA (C7): erro ao fixar a pasta do estado não leva o R-BRIEF junto: o especialista sem brief segue recusado. |
+| `estado-*` | 13 | 10 | 3 | `R-TETO` | `HOOK-ESTADO-ILEGIVEL-LIBERA` | HOOK-ESTADO-ILEGIVEL-LIBERA (A1, R-TETO): `agentes` que não é lista (número) recusa o disparo. |
+| `errointerno-*` | 8 | 7 | 1 | `R-BRIEF`, `R-TETO` | `HOOK-ERRO-LIBERA`, `HOOK-ESTADO-ILEGIVEL-LIBERA` | HOOK-ERRO-LIBERA (C7): erro ao fixar a pasta do estado não leva o R-BRIEF junto: o especialista sem brief segue recusado. |
 | `carga-*` | 7 | 5 | 2 | `R-TETO` | — | Load 5 está abaixo de 80% de 8 núcleos (6,4): um ativo libera. |
 | `pid-*` | 7 | 7 | 0 | — | `C1-1` | C1-1/C1-2: pid acima do pid_max mantém o registro (falha para o lado seguro) e o hook segue barrando no teto. |
 | `nproc-*` | 6 | 3 | 3 | — | — | 16 núcleos, load 3: teto 16; quinze ativos liberam (o teto segue o hardware). |
@@ -29,6 +30,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2449 fixtures) roda em `tests/test
 | `piso-*` | 5 | 3 | 2 | — | — | `piso_memoria_gb` 3 em .forge/config.json: 2,5 GB livres bloqueia. |
 | `sem-*` | 5 | 3 | 2 | — | `C1-3` | Projeto sem .forge/versao: o hook não age nem cria estado. |
 | `teto-*` | 5 | 4 | 1 | — | — | teto_agentes 1 no .forge/config.json, um ativo: bloqueia. |
+| `config-*` | 3 | 2 | 1 | `R-TETO` | `HOOK-ESTADO-ILEGIVEL-LIBERA` | HOOK-ESTADO-ILEGIVEL-LIBERA (A3, R5): .forge/config.json que não é JSON recusa o disparo com R-TETO. |
 | `load-*` | 3 | 0 | 3 | — | — | 8 núcleos, load 5 (< 6,4) e 8 GB livres: dispara. |
 | `memoria-*` | 3 | 2 | 1 | `R-TETO` | — | 16 GB no total (piso padrão 2 GB), 1,5 GB livres: bloqueia. |
 | `reserva-*` | 3 | 0 | 3 | — | `C1-5` | C1: a reserva grava pid da sessão, namespace e session_id. |
@@ -38,7 +40,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2449 fixtures) roda em `tests/test
 | `fim-*` | 2 | 0 | 2 | — | — | C1: o SubagentStop remove só o agent_id; o outro, de sessão viva, fica. |
 | `sessao-*` | 2 | 1 | 1 | — | — | C1: registro cujo pid de sessão não existe mais (mesmo namespace) sai na hora; o lançamento passa no teto. |
 | `desligado-*` | 1 | 0 | 1 | — | — | hooks_desligados na config desliga só este hook. |
-| `erro-*` | 1 | 0 | 1 | — | — | Estado corrompido: libera (saída 0) e registra em erros.log. |
+| `erro-*` | 1 | 1 | 0 | `R-TETO` | — | Estado corrompido (HOOK-ESTADO-ILEGIVEL-LIBERA, A1): recusa o disparo com R-TETO (antes liberava) e registra em erros.log; o nome fica, porq… |
 | `expirado-*` | 1 | 0 | 1 | — | — | Registros com mais de 2 h expiram (SubagentStop perdido não trava o teto). |
 | `ferramenta-*` | 1 | 1 | 0 | — | — | Nome antigo da ferramenta de agentes (Task) também conta. |
 | `lanca-*` | 1 | 0 | 1 | — | — | Dois agentes ativos, teto 3: libera e reserva a vaga. |
@@ -70,6 +72,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2449 fixtures) roda em `tests/test
 | `n5-*` | 34 | 21 | 13 | `R-REVIEW` | — | N5 (L22, IMPL-FURO-HOOK-N): am na develop |
 | `nao-*` | 34 | 21 | 13 | `R-MAIN` | `ADR`, `AA2-01` | ADR 0011 (item 2): $' que o shlex lê como aspas abertas. |
 | `pn7-*` | 32 | 24 | 8 | `R-MAIN` | `PN7-DOLAR-INTERROG` | PN7-DOLAR-INTERROG (H1-1, ADR 0011): continua barrado. |
+| `errointerno-*` | 31 | 23 | 8 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA (E5, C3): erro interno com alvo opaco (`$(...)`) numa linha que escreve recusa, sem depender do nome do caminho. |
 | `rverify-*` | 29 | 22 | 7 | `R-VERIFY` | `HOOK-RVERIFY-FALSO-POSITIVO` | HOOK-RVERIFY-FALSO-POSITIVO: cat > $TMPDIR/x.py <<'EOF' com `*` e .githooks/pre-push só no corpo (dado, não destino); sessão do Forge, pasta… |
 | `n2-*` | 28 | 22 | 6 | `R-REVIEW` | — | N2 (L20b, IMPL-FURO-HOOK-N): GIT_OBJECT_DIRECTORY por declare -x |
 | `shell-*` | 28 | 20 | 8 | `R-CONFORMIDADE` | — | Contorno pelo shell: echo 9.9.9 >> .forge/versao |
@@ -83,7 +86,6 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2449 fixtures) roda em `tests/test
 | `pr-*` | 21 | 17 | 4 | `R-CONFORMIDADE`, `R-MAIN` | `FILA-22`, `QA` | Dev criando PR: bloqueia. |
 | `aq-*` | 18 | 13 | 5 | — | `AQ` | AQ barrado em agents/ de uma worktree fora da raiz. |
 | `autoria-*` | 17 | 0 | 17 | — | — | Redirecionamento para docs/qa/ pelo Bash também registra. |
-| `errointerno-*` | 17 | 11 | 6 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA (E5, C3): erro interno com alvo opaco (`$(...)`) numa linha que escreve recusa, sem depender do nome do caminho. |
 | `desenho-*` | 16 | 7 | 9 | — | `E5-0` | E5-0 (Q-B, PAR-P2): sonda: docs/architecture/ de projeto fica sem dono até DESENHO-PROJETO-DONO; o devops grava a seção CI/CD do plano. |
 | `parecer-*` | 16 | 12 | 4 | `R-CONFORMIDADE` | `QA` | dev escrevendo parecer em docs/devops/: bloqueia. |
 | `subst-*` | 16 | 14 | 2 | `R-VERIFY`, `R-MAIN` | `HEAD` | Caminho colado a $(...): o resto é conferido também a partir da raiz (na dúvida, recusa). |
