@@ -3,10 +3,10 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: melhorias-de-projeto-1311
 branch: melhoria/mp1311-fechar-cartao
-commit: a47ef67b708027498f825765c764fec9bf14dae0
+commit: ccb7613465a8be32a8fecf2070b9ad630836f364
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-13
+data: 2026-11-14
 ---
 # Review de segurança: melhorias-de-projeto-1311 (item 11, bin/forge-fechar)
 
@@ -28,3 +28,6 @@ Sem risco aceito. Sem PR aberto para o head: rodei `tests.test_fechar_ref_por_no
 
 ## Revalidação por delta (head a47ef67b)
 Delta do domínio desde 0884fae2: `bin/forge-fechar` (duas linhas: `ref_check="refs/heads/$ref"` e `ref_dry="refs/heads/$ref"`, mais comentário) e testes. Cumpre a correção mínima do A1. O `forge-check` aceita o prefixo (`removeprefix("refs/heads/")` em `bin/forge-check:1616` e `:1649`; resolução por `rev-parse ... ^{commit}` com `--end-of-options`), logo os pareceres seguem lidos da branch. Sem superfície nova: `$ref` segue validado por `git check-ref-format --branch` (`bin/forge-fechar:111`); o sha conferido e o `--match-head-commit` não mudaram; sem branch local o caminho segue pelo sha do servidor. Os mutantes M4 e M5 (`tests/mutantes/mp1311-fechar-cartao.json`) são teste, fora do domínio de segurança; não os reexecutei. Rodei `tests.test_fechar_ref_por_nome` e `tests.test_fechar` (104 testes, OK, 123 s); a suíte inteira fica para o CI do PR. Sem achado novo.
+
+## Revalidação por delta (head ccb76134)
+Delta do domínio desde a47ef67b (`forge-check parecer delta`, sem o que veio da develop): `bin/forge-testes` e `tests/test_fechar_base_andou.py`. No `bin/forge-testes`, duas entradas novas no `MAPA` (regex `bin/forge-fechar` e `templates/projeto/.forge/config.json` para a lista de módulos de teste); o mapa só escolhe quais testes rodam no envio local (`FORGE_PREPUSH_SUITE=afetados`) e a suíte inteira segue no CI do PR, então não há caminho de ataque: a mudança amplia a seleção, não a reduz. Conferi que os 34 módulos citados existem em `tests/` (nenhum nome errado que deixaria um teste de fora). No teste, a asserção passa a esperar `refs/heads/<branch>` no `forge-check pr`, o mesmo comportamento já aprovado do A1 (`bin/forge-fechar:854`, sem mudança no delta); o teste fica mais estrito. `bin/forge-fechar` e `bin/forge-check` não mudaram. Rodei `tests.test_fechar_base_andou` e `tests.test_testes_tocados` (180 testes, OK, 1 skip) no head; a suíte inteira fica para o CI do PR 539 (em execução no envio deste parecer). Sem achado novo; `R-SEGURANCA` cumprido no head ccb76134.
