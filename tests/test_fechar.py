@@ -940,7 +940,10 @@ class Fechar(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", CHECK_RC="1")
         self.assertNotEqual(r.returncode, 0)
         linhas = self.log_de(r).read_text().splitlines()
-        self.assertTrue(any("parou no passo 1" in x for x in linhas[-3:]), linhas)
+        # stdout e stderr têm registradores próprios, sem ordem entre si (contrato do registrar): a parada é a última linha [err],
+        # não uma das três últimas (CI do PR 547, Python 3.14, parte 2/3: o "[1] pareceres" do stdout gravado depois do [err])
+        erros = [x for x in linhas[:-1] if " [err] " in x]
+        self.assertTrue(erros and "parou no passo 1" in erros[-1], linhas)
         self.assertTrue(linhas[-1].endswith(" fim: código 1"), linhas)
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
         self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))

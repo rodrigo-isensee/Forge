@@ -7,6 +7,7 @@ Cada teste roda o hook de verdade num repositório descartável, num grupo novo 
 import fcntl
 import json
 import os
+import select
 import shutil
 import stat
 import subprocess
@@ -516,17 +517,29 @@ class FilaDaChecagem(Repo):
         self.assertEqual((rc, marca), (0, True), err)
         return err
 
+    def primeiro_aviso(self, p):
+        """Lê o stderr do hook (pelo descritor, como o communicate) até a linha inteira do primeiro aviso de espera, com teto de 20 s.
+        A senha na pasta não basta: o hook a cria antes de contar quem está na frente, e soltar a trava nesse intervalo deixa o
+        primeiro da fila sair antes da contagem do último (CI do PR 547, Python 3.14, parte 2/3: '1 na frente' no lugar de '2')."""
+        lido, limite, fd = b"", time.monotonic() + 20, p.stderr.fileno()
+        while (i := lido.find(b"aguardando a vez")) < 0 or b"\n" not in lido[i:]:
+            resta = limite - time.monotonic()
+            pedaco = os.read(fd, 65536) if resta > 0 and select.select([fd], [], [], resta)[0] else b""
+            if not pedaco:
+                os.killpg(p.pid, 9)
+                p.communicate()
+                self.fail(f"o hook não avisou a espera em 20 s: {lido!r}")
+            lido += pedaco
+        return lido.decode()
+
     def test_tres_esperam_em_ordem_de_chegada_contando_quem_esta_na_frente(self):
-        ps = []
+        ps, lidos = [], []
         with open(self.trava, "w") as t:
             fcntl.flock(t, fcntl.LOCK_EX)
             for k in range(3):
                 ps.append(self.lanca(dict(self.amb, ORDEM=str(k), DORME="2")))
-                for _ in range(100):
-                    if len(list(self.fila.glob("[0-9]*-[0-9]*"))) > k:
-                        break
-                    time.sleep(0.1)
-        fins = [self.fim(p) for p in ps]
+                lidos.append(self.primeiro_aviso(ps[-1]))
+        fins = [(rc, lido + err, marca) for lido, (rc, err, marca) in zip(lidos, map(self.fim, ps))]
         self.assertEqual([f[0] for f in fins], [0] * 3, fins)
         self.assertEqual((self.dir / "marca").read_text().split(), ["0", "1", "2"])
         avisos = [[linha.split("(")[1].split(")")[0] for linha in f[1].splitlines() if "aguardando a vez" in linha] for f in fins]
