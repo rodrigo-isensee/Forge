@@ -2542,6 +2542,7 @@ class Hook:
         self.marcado = None  # o texto da ação tem o marcador crítico? None: ainda não se sabe (`marcado`)
         self.prazo_s = None  # o prazo do vigia desta chamada, em s (`executar`, `estender_prazo`); None: sem vigia
         self.corpos_pendentes = 0  # corpos de heredoc tirados da linha e ainda não conferidos (`prazo_vencido`)
+        self.contorno_do_prazo = None  # o "Corrigir" do prazo vencido, se o passo em curso tem um próprio; None: CONTORNO_DO_TETO
 
     # Entrada -------------------------------------------------------------------------------
     def campo(self, *chaves):
@@ -2743,7 +2744,8 @@ def barrar_sem_versao(hook, critico, bruto):
 PRAZO_DA_DECISAO_S = 3.0
 # O `gh pr merge` decide pelo `forge-check pr` (cerca de 2 s; mais com a máquina carregada): com 3 s ele caía no prazo com
 # o git respondendo rápido. A linha com `gh pr merge` ganha este prazo, abaixo do `timeout` do parecer no hooks.json (10 s)
-# com folga; estourado, recusa como o de 3 s. Sem cache de veredito: seria um arquivo que o agente escreve (v0455).
+# com folga; estourado, recusa como o de 3 s. Sem cache de veredito no merge: seria um arquivo que o agente escreve (v0455); o
+# `gh pr create` lê o resultado gravado pelo `forge-check pr` (PR-HOOK-PRAZO, decisão do dono na v046).
 PRAZO_DO_MERGE_S = 8.0
 
 
@@ -2780,7 +2782,7 @@ def prazo_vencido(hook, critico, bruto, clone_do_forge, regra):
     if (critico is None or hook.entrada.get("hook_event_name") == "PostToolUse" or (hook.marcado is False and not hook.corpos_pendentes)
             or not sessao_vigiada(hook, clone_do_forge)):
         return
-    quem, como = (("a chamada com ação crítica", CONTORNO_DO_TETO) if hook.marcado is not False else
+    quem, como = (("a chamada com ação crítica", hook.contorno_do_prazo or CONTORNO_DO_TETO) if hook.marcado is not False else
                   (f"{hook.corpos_pendentes} corpo(s) de heredoc", "separe o comando em chamadas menores"))
     bloquear(regra, f"o hook não decidiu em {prazo:g} s {quem} (texto longo ou lento demais, ou um `git` "
                     f"lento): recusa, em vez de deixar o timeout liberá-la. Corrigir: {como}")

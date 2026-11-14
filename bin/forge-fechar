@@ -2,6 +2,7 @@
 # Forge: fecha uma entrega na branch de integração com os passos mecânicos do integrador (TA-5, R-FLUXO, R-CONTRIB).
 # Uso: forge-fechar <pedido> --ref <branch> [--base origin/develop] [--titulo T] [--origem T] [--muda T]
 #                  [--medir RUN|ARQUIVO] [--espera SEGUNDOS] [--esperar-rotulo] [--armar] [--limpar] [--sem-limpar] [--dry-run]
+#                  [--cartao ID ...] [--quadro PASTA]
 # Roda em ordem e para no primeiro erro: (1) forge-check pr; (1c) a árvore do sha conferido é promovível (scripts/promover-homolog.py
 # --conferir-ref, do diretório deste script; rc diferente de 0, prazo de 300 s ou script ausente param); (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto, também o rascunho do autor, um só e com o head conferido);
 # (2b) se a base andou desde o ponto de partida: com conflito real (`git merge-tree --write-tree`) ou falha de leitura, para; sem conflito avisa e segue,
@@ -31,6 +32,10 @@
 # Nunca: mescla na main, aplica rótulo, usa --force ou --no-verify, apaga develop/homolog/main/master ou a branch de integração do CLAUDE.md, dispensa parecer ou check.
 # --medir RUN|ARQUIVO (FECHAR-MEDIR-DO-LOG): lê as linhas ORCAMENTO-TEMPO do log do CI (número da execução: `gh run view RUN --log`, só
 # leitura; ou o log salvo num arquivo), no formato FORMATO_DO_ORCAMENTO; vão ao "Como medir" do PR criado e à saída. Sem elas, para antes do passo 1.
+# --cartao ID (repetível; FECHAR-MOVE-CARTAO): com o merge provado (passo 6, PR já MERGED ou --limpar), move o cartão para Pronto por
+# `forge-check movimento ID --de <coluna atual> --para Pronto` no quadro de --quadro (padrão ~/.forge-contrib, o do Forge); a coluna atual é o
+# `Para` da última linha do cartão em docs/kanban/historico.md, senão a seção dele no KANBAN.md, senão `—`. Já em Pronto, nada grava;
+# o movimento que falha vira pendência (código 3) com o comando. ID fora de [A-Za-z0-9._-] ou quadro sem KANBAN.md param antes do passo 1.
 # --dry-run só imprime cada passo (e avisa se o diff toca caminho que a catraca protege); não roda forge-check, git remoto nem gh.
 # Para teste, com FORGE_FECHAR_TESTE=1: FORGE_CHECK, FORGE_GH, FORGE_PROMOVER (substituem os comandos) e FORGE_FECHAR_INTERVALO
 # (segundos entre leituras dos checks). Sem FORGE_FECHAR_TESTE=1 as três primeiras são ignoradas, com aviso.
@@ -68,6 +73,7 @@ readonly CHECKS_EXIGIDOS=("CI/bateria" "CI/bateria (python 3.14)" "Catraca/catra
 
 pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 so_remota=0 base_2b="" dorme_pid="" promover_teste="" subida_n="" subida_ini="" subida_extra=""  # nascem vazios: o fim nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
 armar=0 estado_lido=0  # --armar (R7): arma o auto-merge sem esperar os checks
+cartoes=() quadro="${HOME:-}/.forge-contrib" motivo_cartao="" cartao_pend=0  # FECHAR-MOVE-CARTAO
 while [ $# -gt 0 ]; do
   case "$1" in
     --ref) ref="${2-}"; shift 2 || die "--ref pede a branch" ;;
@@ -79,6 +85,8 @@ while [ $# -gt 0 ]; do
     --espera) espera="${2-}"; shift 2 || die "--espera pede os segundos" ;;
     --esperar-rotulo) esperar=1; shift ;;
     --armar) armar=1; shift ;;
+    --cartao) cartoes+=("${2-}"); shift 2 || die "--cartao pede o ID do cartão" ;;
+    --quadro) quadro="${2-}"; shift 2 || die "--quadro pede a pasta do KANBAN.md" ;;
     --limpar) limpar=1; shift ;;
     --sem-limpar) sem_limpar=1; shift ;;
     --dry-run) seco=1; shift ;;
@@ -115,6 +123,10 @@ faixa() {
   { [ "$v" -ge "$min" ] && [ "$v" -le "$max" ]; } || die "$nome fora da faixa: pede de $min a $max segundos (recebi: $v)"
   faixa_valor="$v"
 }
+for c in "${cartoes[@]}"; do
+  [[ "$c" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]] || die "--cartao fora da forma (letras, números, ponto, _ e -; até 80): $c"
+done
+if [ "${#cartoes[@]}" -gt 0 ] && [ ! -f "$quadro/KANBAN.md" ]; then die "--cartao pede o quadro: não há KANBAN.md em $quadro (use --quadro)"; fi
 faixa --espera "$espera" 0 7200 5
 espera="$faixa_valor"
 
@@ -465,6 +477,16 @@ leitura_sem_merge() {
   printf '# confira; só apague depois de decidir\ngit log --oneline %q..%q' "$base" "$1"
 }
 
+# podar_orfaos: `git worktree prune -v` do repositório todo (só tira registro de diretório ausente); a lista vai só ao log e a tela recebe a
+# contagem, para centenas de registros órfãos não enterrarem a linha `limpeza:` (WORKTREE-ORFAS). LC_ALL=C: a contagem lê o "Removing" sem
+# tradução. No sandbox o prune pode ser negado: avisa com o código e o log, e quem decide a pendência é o registro relido depois.
+podar_orfaos() {
+  local prune_saida prune_rc=0 prune_linha
+  prune_saida="$(LC_ALL=C git worktree prune -v 2>&1)" || prune_rc=$?
+  while IFS= read -r prune_linha; do gravar_linha "[prune] " "$prune_linha"; done <<< "$prune_saida"
+  echo "registro: prune tirou $(grep -c '^Removing ' <<< "$prune_saida") registro(s) de worktree órfã"
+  [ "$prune_rc" = 0 ] || echo "aviso: o prune saiu com código $prune_rc; a saída dele está no log: $log" >&2
+}
 # limpar_entrega: a limpeza do passo 7 e do --limpar, só depois da prova de merge (merged_heads). Cada parte é "se existe", então repete sem efeito
 # colateral. Ordem: worktree, branch local, e por último a remota (o pre-push reconhece o push só de remoção, não roda suíte nem espera a fila da trava; PREPUSH-DELETE). Nunca força: worktree suja e branch com commit
 # novo ficam pendentes. Resumo sempre gravado; define `pendencia` (0 ou 1) e deixa a decisão do código de saída a quem chama.
@@ -479,7 +501,7 @@ limpar_entrega() {
   atual="$(pwd -P)"
   # O caminho é a linha inteira depois de "worktree " (pode ter espaço); o nome da branch não tem.
   arvore="$(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=substr($0,10)} $1=="branch" && $2==b {print w}')"
-  local orfao=0 principal
+  local orfao=0 principal meta=""
   if [ -n "$arvore" ]; then
     if [ -d "$arvore" ] && [ "$(cd "$arvore" && pwd -P)" = "$atual" ]; then
       # Rodado de dentro da worktree da própria branch: sai dela para a worktree principal (a primeira de `worktree list`) antes de remover.
@@ -500,17 +522,9 @@ limpar_entrega() {
     elif [ -n "$sha_local" ] && ! sha_confere "$sha_local"; then
       echo "aviso: a branch local $ref ($sha_local) tem commit que não foi mesclado; não removi a worktree $(printf '%q' "$arvore") (arquivos ignorados dela se perderiam)." >&2
       arv_st=pendente
-    elif ! git worktree remove "$arvore"; then
-      # "Device or resource busy": o diretório pode já ter sumido com o registro administrativo para trás; prune só tira entrada de diretório
-      # ausente (de todas as worktrees do repositório, por isso -v: a lista vai só ao log e a tela recebe a contagem, para centenas de registros
-      # órfãos não enterrarem a linha `limpeza:`; WORKTREE-ORFAS). LC_ALL=C: a contagem lê o "Removing" sem tradução. No sandbox o prune pode ser negado.
-      if [ ! -d "$arvore" ]; then
-        local prune_saida prune_rc=0 prune_linha
-        prune_saida="$(LC_ALL=C git worktree prune -v 2>&1)" || prune_rc=$?
-        while IFS= read -r prune_linha; do gravar_linha "[prune] " "$prune_linha"; done <<< "$prune_saida"
-        echo "registro: prune tirou $(grep -c '^Removing ' <<< "$prune_saida") registro(s) de worktree órfã"
-        [ "$prune_rc" = 0 ] || echo "aviso: o prune saiu com código $prune_rc; a saída dele está no log: $log" >&2
-      fi
+    elif meta="$(git -C "$arvore" rev-parse --absolute-git-dir 2>/dev/null || true)"; ! git worktree remove "$arvore"; then
+      # "Device or resource busy": o diretório pode já ter sumido com o registro administrativo para trás; prune só tira entrada de diretório ausente.
+      if [ ! -d "$arvore" ]; then podar_orfaos; fi
       if git worktree list --porcelain | awk -v w="$arvore" '$1=="worktree" && substr($0,10)==w {f=1} END {exit !f}'; then
         if [ -d "$arvore" ]; then
           echo "aviso: não removi a worktree $arvore (suja ou ocupada); se o diretório persistir com a worktree limpa, rode o comando fora do sandbox." >&2
@@ -520,6 +534,13 @@ limpar_entrega() {
         fi
         arv_st=pendente
       fi
+    else
+      podar_orfaos  # WORKTREE-PRUNE-SANDBOX: os registros que outra sessão do sandbox deixou presos saem aqui, sem esperar o dono
+    fi
+    # O sandbox prende os metadados (.git/worktrees/<id>) da worktree que já existia quando a sessão abriu: o git não lista mais o registro
+    # sem o gitdir, e o prune de um fechamento de outra sessão os tira. Só registro: nada fica para o dono rodar.
+    if [ "$arv_st" = ok ] && [ -n "${meta:-}" ] && [ -d "$meta" ]; then
+      echo "registro: os metadados da worktree ficaram em $meta (o sandbox os prende nesta sessão); o prune do próximo fechamento os tira"
     fi
     if [ "$arv_st" != ok ]; then
       if [ "$orfao" = 1 ]; then pend_cmds="$pend_cmds
@@ -618,6 +639,32 @@ git push origin --delete $(printf '%q' "refs/heads/$ref")"
   fi
 }
 
+# coluna_do_cartao <id>: a coluna atual do cartão no quadro: o `Para` da última linha dele no histórico, senão a seção do KANBAN.md
+# (o título `## ` cortado no primeiro ` (`), senão `—` (cartão sem registro). Só leitura.
+coluna_do_cartao() {
+  local col
+  col="$(awk -F'|' -v id="$1" '{ for (i = 2; i <= 5; i++) gsub(/^[ \t]+|[ \t]+$/, "", $i) } $3 == id && $2 ~ /^[0-9][0-9][0-9][0-9]-/ { p = $5 } END { print p }' \
+    "$quadro/docs/kanban/historico.md" 2>/dev/null || true)"
+  [ -n "$col" ] || col="$(awk -v id="$1" '/^## / { s = substr($0, 4); sub(/ +\(.*/, "", s) } /^\|/ { split($0, c, "|"); gsub(/^[ \t]+|[ \t]+$/, "", c[2]); if (c[2] == id) { print s; exit } }' \
+    "$quadro/KANBAN.md" 2>/dev/null || true)"
+  printf '%s' "${col:-—}"
+}
+# mover_cartoes: só depois do merge provado; cada --cartao vai a Pronto pelo `forge-check movimento` (a hora real, o custo e a forma do
+# histórico ficam com ele). Já em Pronto não grava de novo (repetir não duplica). Falha não desfaz nada: vira `cartao_pend=1` e o comando.
+mover_cartoes() {
+  local id de
+  for id in "${cartoes[@]}"; do
+    de="$(coluna_do_cartao "$id")"
+    if [ "$de" = Pronto ]; then echo "cartão $id: já em Pronto; nada gravado"; continue; fi
+    if "$check" movimento "$id" --de "$de" --para Pronto --motivo "$motivo_cartao" --raiz "$quadro" >/dev/null; then
+      echo "cartão $id: $de -> Pronto ($motivo_cartao)"
+    else
+      echo "aviso: não movi o cartão $id para Pronto; rode: forge-check movimento $(printf '%q' "$id") --de $(printf '%q' "$de") --para Pronto --motivo $(printf '%q' "$motivo_cartao") --raiz $(printf '%q' "$quadro")" >&2
+      cartao_pend=1
+    fi
+  done
+}
+
 # estado_do_pr: lê o PR de número pr_n (leitura, com repetição) e define pr_estado, pr_head, pr_base e pr_merge ("-" sem commit de merge); vazios se a leitura falhar.
 estado_do_pr() {
   local linha
@@ -638,7 +685,10 @@ esperar_o_merged() {
       subida_extra="ARMADO ${remoto_sha:0:7}"
       echo "auto-merge armado no PR #$pr_n (head ${remoto_sha:0:7}): o GitHub mescla em $alvo quando os checks obrigatórios passarem."
       echo "a base foi conferida agora, antes dos checks: se a $alvo andar antes do merge (outro PR mesclado), este PR não mescla sozinho; rode o forge-fechar com --armar de novo."
-      printf 'depois do merge, rode: forge-fechar %q --ref %q --limpar\n' "$pedido" "$ref"
+      printf 'depois do merge, rode: forge-fechar %q --ref %q --limpar' "$pedido" "$ref"
+      for c in "${cartoes[@]}"; do printf ' --cartao %q' "$c"; done
+      [ "${#cartoes[@]}" = 0 ] || printf ' --quadro %q' "$quadro"
+      printf '\n'
       exit 4
     fi
     [ $((SECONDS - inicio)) -lt "$espera" ] || die "parou no passo 6: o auto-merge está armado, mas o PR #$pr_n não mesclou após ${espera}s; confira os checks obrigatórios e rode de novo (ou --limpar depois do merge)"
@@ -725,6 +775,7 @@ if [ "$seco" = 1 ]; then
   passo 5 "$gh pr view <número do PR, lido no passo 3> --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
   passo "6a" "git ls-remote origin refs/heads/$alvo (a base que o passo 2b leu? se andou durante os checks: com conflito no git merge-tree --write-tree para sem mesclar; sem conflito segue, sem trazer a base (E8); base local velha pede git fetch)"
   passo 6 "$gh pr merge $ref --auto $metodo --match-head-commit <head conferido> (auto-merge do GitHub com os checks obrigatórios; base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge; espera o MERGED até --espera; com --armar sai com código 4 se ainda não mesclou)"
+  for c in "${cartoes[@]}"; do echo "cartão $c: depois do merge, forge-check movimento $c --de $(coluna_do_cartao "$c") --para Pronto --raiz $quadro"; done
   [ "$sem_limpar" = 0 ] || echo "--sem-limpar: o passo 7 é pulado; imprime os comandos da limpeza e sai com código 3 depois do merge."
   passo 7 "git worktree remove <worktree de $ref> (prune se o diretório já sumiu); git branch -D $ref (só com o sha mesclado); git push origin --delete $ref (até 3 tentativas, por último); sai com código 3 se algo ficar pendente"
   [ "$limpar" = 0 ] || echo "--limpar: só o passo 7, com prova de PR MERGED em $alvo ($gh pr list --head $ref); sem prova, recusa."
@@ -757,8 +808,10 @@ if [ "$limpar" = 1 ]; then
     --jq '.[] | "\(.number) \(.state) \(.baseRefName) \(.headRefOid)"')" || die "parou no --limpar: não consegui ler os PRs de $ref (nada foi apagado)"
   merged_heads="$(printf '%s\n' "$lista" | awk -v b="$alvo" '$2=="MERGED" && $3==b {print $4}')"
   [ -n "$merged_heads" ] || die "parou no --limpar: sem prova de merge: nenhum PR MERGED em $alvo para $ref; nada foi apagado"
+  motivo_cartao="mesclado em $alvo (forge-fechar --limpar)"
+  mover_cartoes
   limpar_entrega
-  if [ "$pendencia" = 0 ]; then echo "Limpeza de $ref concluída."; else exit 3; fi
+  if [ "$pendencia" = 0 ] && [ "$cartao_pend" = 0 ]; then echo "Limpeza de $ref concluída."; else exit 3; fi
   exit 0
 fi
 
@@ -991,6 +1044,8 @@ if [ "$ja_mesclado" = 0 ]; then
   subida_extra="MERGED ${pr_merge:0:7} ${remoto_sha:0:7}"
 fi
 
+if [ "$ja_mesclado" = 0 ]; then motivo_cartao="mesclado em $alvo: PR #$pr_n, merge ${pr_merge:0:7}"; else motivo_cartao="mesclado em $alvo: head ${remoto_sha:0:7}"; fi
+mover_cartoes
 passo 7 "limpeza (R-FLUXO, Depois do merge)"
 merged_heads="$remoto_sha"
 if [ "$sem_limpar" = 1 ]; then
@@ -1018,9 +1073,9 @@ if [ "$sem_limpar" = 1 ]; then
   exit 3
 fi
 limpar_entrega
-if [ "$pendencia" = 0 ]; then
+if [ "$pendencia" = 0 ] && [ "$cartao_pend" = 0 ]; then
   echo "Entrega $pedido fechada em $alvo."
 else
-  echo "Entrega $pedido fechada em $alvo; limpeza pendente (código 3): rode os comandos acima ou forge-fechar $(printf '%q' "$pedido") --ref $(printf '%q' "$ref") --limpar."
+  echo "Entrega $pedido fechada em $alvo; com pendência (código 3): rode os comandos acima ou forge-fechar $(printf '%q' "$pedido") --ref $(printf '%q' "$ref") --limpar."
   exit 3
 fi

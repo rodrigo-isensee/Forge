@@ -35,8 +35,15 @@ exit "$(cat "$d/checks")"
 
 
 def laco():
-    blocos = [b for b in BLOCOS if "gh pr view" in b]
-    assert len(blocos) == 1, "a skill tem um laço do PR só"
+    blocos = [b for b in BLOCOS if "gh pr view" in b and "seq 1" in b]
+    assert len(blocos) == 1, "a skill tem um laço do PR com teto só"
+    return blocos[0]
+
+
+def laco_longo():
+    """ESPERA-CI-LONGA: o laço do PR sem teto, para o segundo plano da sessão principal."""
+    blocos = [b for b in BLOCOS if "gh pr view" in b and "seq 1" not in b]
+    assert len(blocos) == 1, "a skill tem um laço do PR sem teto só"
     return blocos[0]
 
 
@@ -97,6 +104,20 @@ class LacoDoPr(unittest.TestCase):
         r, vistas = self.rodar(["OPEN"], falha=True)
         self.assertEqual((r.stdout, r.returncode, vistas), ("fim=erro\n", 0, 0))
 
+    def test_laco_longo_espera_alem_de_5_leituras_e_sai_no_estado(self):  # CI de ~20 min: sem o teto de 170 s
+        estados = ["OPEN"] * 12 + ["MERGED"]
+        pasta = pasta_com_gh(GH)
+        (pasta / "estados").write_text("\n".join(estados) + "\n", encoding="utf-8")
+        (pasta / "checks").write_text("8\n", encoding="utf-8")
+        sleep = pasta / "sleep"
+        sleep.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        sleep.chmod(0o755)
+        env = dict(os.environ, PATH=f"{pasta}{os.pathsep}{os.environ.get('PATH', '')}")
+        r = subprocess.run(["bash", "--norc", "--noprofile", "-c", laco_longo()], env=env, capture_output=True,
+                           text=True, timeout=60)
+        vistas = len((pasta / "vistas").read_text(encoding="utf-8").splitlines())
+        self.assertEqual((r.stdout, r.returncode, vistas), ("fim=MERGED\n", 0, 13))
+
 
 class LacoDoLog(unittest.TestCase):
     """BG-MORRE-TURNO: a linha de lançamento da skill, com `git` falso, grava `rc=` no log; o laço sai nele ou no teto."""
@@ -150,6 +171,14 @@ class TextoDaSkill(unittest.TestCase):
         voltas = int(re.search(r"seq 1 (\d+)", laco()).group(1))
         intervalo = int(re.search(r"sleep (\d+)", laco()).group(1))
         self.assertLessEqual(voltas * intervalo, TETO_S)
+
+    def test_espera_longa_vai_para_segundo_plano_na_sessao_principal(self):
+        texto = SKILL.read_text(encoding="utf-8")
+        regra = re.search(r"(?m)^6\. \*\*CI longo.*$", texto)
+        self.assertIsNotNone(regra, "a skill tem a regra 6 de CI longo")
+        self.assertIn("run_in_background", regra.group(0))
+        self.assertIn("sessão principal", regra.group(0))
+        self.assertIn("subagente", regra.group(0))
 
     def test_skill_sem_palavra_de_marcador_dos_hooks(self):
         marcador = re.compile(r"\b(merge|push|pull|create|ready|review|edit|close|label|api)\b", re.I)

@@ -1,0 +1,16 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CR-M1",
+      "guarda": "o home do runner vira marcador com barra, o caminho colado depois dele é acusado",
+      "arquivo": "scripts/verificar-contribuicao.sh",
+      "de": "  if grep -Eq -- \"$pessoal\" <<<\"${texto//\\/home\\/runner\\//@/}\"; then",
+      "para": "  if grep -Eq -- \"$pessoal\" <<<\"${texto//\\/home\\/runner\\//@}\"; then",
+      "testes": [
+        "tests.test_forge.VerificarContribuicao.test_home_do_runner_passa_mas_nome_que_o_contem_ou_o_segue_falha"
+      ]
+    }
+  ]
+}

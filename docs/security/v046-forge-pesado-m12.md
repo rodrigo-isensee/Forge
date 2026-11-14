@@ -16,14 +16,14 @@ Escopo: `git show cdfafd25` (1 commit, 5 arquivos): `bin/forge-pesado` (113 linh
 Comando novo que lê o estado de um controle (hook `pesado`, trava e fila) e imprime texto vindo de arquivo gravado por outro processo. `R-SEGURANCA`.
 
 ## Achados
-- A1 (recomendado) bin/forge-pesado:62 · `desde` não finito ou enorme em `pesado.json` (JSON aceita `Infinity` e inteiro gigante) dá `OverflowError` em `fromtimestamp` (e em `estado`, linha 56, com inteiro gigante), fora do `except (OSError, ValueError)` da linha 106: traceback e rc 1, que no `esperar` é o código de `fim=teto`, e no `status` não é o 2 documentado de estado ilegível.
+- A1 (recomendado) bin/forge-pesado:62 · `desde` não finito ou enorme em `pesado.json` dá `OverflowError` fora do `except (OSError, ValueError)` da linha 106: traceback e rc 1 (no `esperar`, o código de `fim=teto`; no `status`, não o 2 de estado ilegível); texto inteiro no detalhe.
 - A2 (recomendado) bin/forge-pesado:98 · o cabeçalho promete leitura sem escrever, mas `Hook.run()` (hooks/_comum.py:2592) cria `.forge/run/` e o `.gitignore` dele quando faltam; efeito pequeno e idempotente, só documentar ou ler o caminho sem `run()`.
 
 ## Sondas
 - S1 · `pesado.json` com `{"desde": Infinity, "agente":"x","comando":"y","pid":1}` em `.forge/run/` da cópia extraída, `python3 bin/forge-pesado status` · espera: rc 2 com mensagem de estado ilegível · obtido: `OverflowError: timestamp out of range for platform time_t`, rc 1
 
 ## Detalhe dos achados
-**A1** (baixa, dono tech-lead, esforço P). Caminho de ataque: só quem já escreve em `.forge/run/` do próprio usuário (mesmo UID, pasta ignorada pelo git), ou o hook com bug; não ganha execução nem escalada, ganha um falso `fim=teto` ou queda do comando. Correção mínima: incluir `OverflowError` no `except` da linha 106 e exigir em `estado` que `desde` seja finito (`math.isfinite`) e `desde <= time.time()` mais folga; teste com `Infinity` e `10**400`. `pid_vivo` (hooks/pesado.py:133) tem o mesmo defeito para pid gigante (`os.kill` com `OverflowError`); o `forge-pesado` só o chama com `pid` do JSON, então a mesma correção cobre.
+**A1** (baixa, dono tech-lead, esforço P). Texto inteiro do achado: `desde` não finito ou enorme em `pesado.json` (JSON aceita `Infinity` e inteiro gigante) dá `OverflowError` em `fromtimestamp` (e em `estado`, linha 56, com inteiro gigante), fora do `except (OSError, ValueError)` da linha 106: traceback e rc 1, que no `esperar` é o código de `fim=teto`, e no `status` não é o 2 documentado de estado ilegível. Caminho de ataque: só quem já escreve em `.forge/run/` do próprio usuário (mesmo UID, pasta ignorada pelo git), ou o hook com bug; não ganha execução nem escalada, ganha um falso `fim=teto` ou queda do comando. Correção mínima: incluir `OverflowError` no `except` da linha 106 e exigir em `estado` que `desde` seja finito (`math.isfinite`) e `desde <= time.time()` mais folga; teste com `Infinity` e `10**400`. `pid_vivo` (hooks/pesado.py:133) tem o mesmo defeito para pid gigante (`os.kill` com `OverflowError`); o `forge-pesado` só o chama com `pid` do JSON, então a mesma correção cobre.
 
 **A2** (informativa, dono tech-lead, esforço P). Não há escrita do estado da trava nem limpeza da fila; a única escrita é a criação da pasta de estado.
 

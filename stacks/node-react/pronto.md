@@ -30,6 +30,12 @@ Ele precisa rodar, e falhar se algo falhar: lint (ESLint) e formatação (Pretti
 - Fila de pesadas (`R-TETO`): o Stryker e o teste de banco (script `test:db` do `package.json`, repositório e migrações contra um banco descartável local) estão no `pesados.json` da stack e rodam um por vez; projeto criado antes disso mantém a lista dele e acrescenta esses comandos à lista `pesados` do `.forge/config.json`.
 - Contrato back-front: o esquema (zod em `packages/shared`, ou o OpenAPI gerado dele) é a fonte única; um teste no `server/` valida as respostas reais da rota contra ele e outro no `web/` valida os mocks do MSW contra o mesmo esquema. Sem serviço pago: Pact só com os arquivos de contrato versionados no repositório, sem broker.
 
+## Veredito do vermelho em TypeScript
+O `forge-testes --vermelho` do Forge só mapeia Python; em arquivo `.ts`/`.tsx` ele não dá veredito. Aqui o mapa e o veredito são os desta stack, e o uso nunca termina sem veredito:
+- Mapa: `<nome>.ts` ou `<nome>.tsx` leva a `<nome>.test.ts`, `<nome>.test.tsx` ou `__tests__/<nome>.test.ts` na mesma pasta; o teste novo ou alterado no diff vale por si.
+- Prova: com a árvore limpa, rode `git stash push -- <arquivos de produção>`; só se ele criar entrada (`git stash list` ganhou uma linha; sem mudança o push sai 0 sem criar nada), rode `pnpm vitest run <teste>`, que precisa falhar, e faça sempre o `git stash pop` em seguida, falhe o teste ou não, para não deixar a produção no stash nem aplicar stash alheio; com o pop feito, o teste precisa passar.
+- Veredito: `veredito: provado` (falhou sem a produção, passou com ela), `veredito: sem prova` (passou nos dois) ou `veredito: não verificável` com o motivo (sem teste no mapa, teste que não roda isolado, produção que só existe no diff). O `não verificável` e o `sem prova` vão ao parecer (ou, sem parecer, ao relatório do brief) como pendência, não como aprovação.
+
 ## Playwright
 - Seletores por papel e texto acessível (`getByRole`, `getByLabel`); `data-testid` só em último caso.
 - Nada de `waitForTimeout`; use as esperas automáticas e `expect(...).toBeVisible()`.
@@ -52,7 +58,7 @@ O Chromium do Playwright precisa de bibliotecas do sistema (por exemplo `libnspr
 - Aplicação no Mermaid do `overview.md`: `Web SPA - React` → `API - Node.js` → banco.
 
 ## CI
-Insumos da skill `ci-cd` para o `devops-engineer`: toolchain Node da versão do `engines`/`.nvmrc`, com `pnpm` pela versão do `packageManager`; chave do cache de pacotes derivada do `pnpm-lock.yaml`; instalação congelada (`pnpm install --frozen-lockfile`); jobs na ordem lint e type-check, testes unitários e de integração, build, E2E (Chromium por padrão; Firefox e WebKit só no CI); imagem base `node` fixada por digest, em multi-stage, com usuário não root.
+Insumos da skill `ci-cd` para o `devops-engineer`: toolchain Node da versão do `engines`/`.nvmrc`, com `pnpm` pela versão do `packageManager`; chave do cache de pacotes derivada do `pnpm-lock.yaml`; instalação congelada (`pnpm install --frozen-lockfile`); jobs na ordem lint e type-check, testes unitários e de integração, build, E2E (Chromium por padrão; Firefox e WebKit só no CI); a checagem de pareceres (`forge-check pr`) em job próprio, obrigatório para o merge e fora do `needs` dos jobs de testes, para o parecer faltando não esconder o resultado da suíte; no agregador, o job de pareceres pulado ou cancelado em PR reprova (só `success` passa; `skipped` vale fora de PR), sem `!contains(failure)`; imagem base `node` fixada por digest, em multi-stage, com usuário não root.
 
 ### Dependabot (ecossistema de pacotes)
 Copie o bloco para o fim de `updates:` do `.github/dependabot.yml` do projeto (modelo em `templates/projeto/.github/dependabot.yml`). Diário às 06:00 (ajuste ao fuso do time); `cooldown` de 1 dia para minor e patch e de 7 para major; rotina só com minor e patch, e o grupo `maiores` à parte, que vira cartão de migração. `ignore` só versionado, por pacote, com o cartão no comentário.

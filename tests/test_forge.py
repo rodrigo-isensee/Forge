@@ -603,6 +603,34 @@ def sequencias(texto: str, n: int) -> set:
     return {" ".join(p[i:i + n]) for i in range(len(p) - n + 1)}
 
 
+class DiretrizesDoDonoNaRWip(unittest.TestCase):
+    """v047 E4.2: as diretrizes 2 (parado não se abandona), 11 (vaga livre não espera a versão) e 16 (item pronto vai a PR
+    próprio, sem juntar frentes) valem para todos os projetos: o texto fica na linha da R-WIP, com a medida, e as skills
+    que o Jarvis lê no passo citam o ID."""
+
+    def test_a_regra_traz_as_tres_diretrizes_com_medida(self):
+        wip = [l for l in (REGRAS / "README.md").read_text(encoding="utf-8").splitlines() if l.startswith("**`R-WIP`")]
+        self.assertEqual(len(wip), 1, "a linha da R-WIP no README das regras")
+        for trecho in ("**Parado não se abandona:** destrave, adie com data ou divida.",
+                       "**Vaga livre não espera a versão:** começar não espera, só o merge;",
+                       "desenho, plano de teste e ameaças dos seguintes, item sem arquivo em comum, a próxima versão",
+                       "pronto, vai a PR próprio, sem juntar frentes (`R-FLUXO`)",
+                       "propostas de abandono (zero); conflitos por merge;"):
+            with self.subTest(trecho=trecho):
+                self.assertIn(trecho, wip[0])
+
+    def test_as_skills_do_passo_citam_o_id(self):
+        paralelo = (RAIZ / "skills" / "trabalho-em-paralelo" / "SKILL.md").read_text(encoding="utf-8")
+        kanban = (RAIZ / "skills" / "kanban-scrum" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("e encha as vagas sem esperar a versão (`R-WIP`)", paralelo)
+        self.assertIn("com CI verde, entra na `develop` por PR próprio, sem juntar frentes (`R-FLUXO`)", paralelo)
+        self.assertIn("parado nunca vira proposta de abandono (`R-WIP`)", kanban)
+        jarvis = (RAIZ / "agents" / "jarvis.md").read_text(encoding="utf-8")
+        for skill in ("skills/trabalho-em-paralelo/SKILL.md", "skills/kanban-scrum/SKILL.md"):
+            with self.subTest(skill=skill):
+                self.assertIn(skill, jarvis)  # o ponteiro do Jarvis às skills do passo; nenhum texto novo no agente
+
+
 class AntiDuplicacao(unittest.TestCase):
     """ADR 0002: o texto de cada regra vive só em docs/regras/R-<ID>.md; os outros arquivos citam o ID."""
 
@@ -2383,6 +2411,17 @@ class VerificarContribuicao(unittest.TestCase):
 
     def test_users_do_mac_falha(self):
         self.caminho_pessoal_falha("cd /Users/" + "fulano/projeto")
+
+    def test_home_do_runner_passa_mas_nome_que_o_contem_ou_o_segue_falha(self):  # v047 E5.4
+        for linha in ("cache em /home/" + "runner/work/x", "cd /root/x", "cd $HOME/x"):
+            with self.subTest(linha=linha):
+                r = self.verificar("n.md", linha + "\n")
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.caminho_pessoal_falha("cd /home/" + "runner2/projeto")
+        self.caminho_pessoal_falha("cd /home/" + "runner/work /home/" + "fulano/x")
+        self.caminho_pessoal_falha("cd /Users/" + "runner/projeto")
+        self.caminho_pessoal_falha("cache /home/" + "runner" + "/home/" + "fulano/x")  # v047 E5.21: pessoal colado ao home do runner
+        self.caminho_pessoal_falha("cache /home/" + "runner" + "/Users/" + "fulano/x")
 
     def test_dados_neutros_dos_testes_passam(self):
         for linha in ("cd /exemplo/projeto", "HOME=/tmp/forge-x/home/" + ".config/git", "em /home/" + "ana",
@@ -6875,6 +6914,17 @@ class TextosAQ3Stack(unittest.TestCase):
         self.assertIn("defina o contrato no esquema compartilhado (a fonte única, `pronto.md`, \"contrato back-front\")", texto)
         self.assertIn("- Contrato back-front: o esquema", self.pronto)
         self.assertNotIn("esse é o contrato que o agente", texto)
+
+    def test_vermelho_em_typescript_tem_mapa_e_veredito_explicito(self):
+        # item 10 do pedido melhorias-de-projeto-1311: o forge-testes --vermelho só mapeia Python; o TS não pode ficar sem veredito
+        secao = self.pronto.split("## Veredito do vermelho em TypeScript", 1)
+        self.assertEqual(len(secao), 2, "falta a seção do veredito do vermelho em TypeScript")
+        corpo = secao[1].split("\n## ", 1)[0]
+        for trecho in ("`<nome>.test.ts`", "`<nome>.test.tsx`", "`__tests__/<nome>.test.ts`", "`pnpm vitest run <teste>`",
+                       "veredito: não verificável", "nunca termina sem veredito",
+                       "só se ele criar entrada", "faça sempre o `git stash pop` em seguida, falhe o teste ou não",
+                       "`veredito: sem prova`", "ao relatório do brief"):
+            self.assertIn(trecho, corpo)
 
     def test_comando_sugerido_usa_o_gerenciador_do_monorepo(self):
         self.assertIn("Comando sugerido: `pnpm run pronto`", self.pronto)

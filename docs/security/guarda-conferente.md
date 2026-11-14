@@ -23,22 +23,21 @@ Controle do Forge: hook de bloqueio novo no `PreToolUse` de `Agent|Task` (`hooks
 - **STRIDE:** Tampering/Elevation (mensagem fora da forma que passa pela guarda); Denial (recusa falsa de mensagem legítima, que travaria a conferência); efeito colateral em outros agentes (reserva de vaga, duplicado, teto).
 - **Defesa em profundidade:** o contorno da guarda não abre caminho novo, porque o conferente continua recusando a mensagem sem forma (`forma: modo ausente`, `aviso: mensagem sem Brief-sha256`) e confere arquivo e hash no disco. A guarda só antecipa a recusa.
 
-## Sondas
+## Método das sondas
 Funções tiradas com `git show b050d63:hooks/agentes.py` para um diretório em `$TMPDIR` (Python `-I`), sem tocar o HEAD da worktree; e `python3 -m unittest tests.test_guarda_conferente` na worktree (14 testes, OK).
 
-| Cenário | Resultado | Leitura |
-|---|---|---|
-| Cabeçalho correto, Arquivo relativo e absoluto, vários blocos, CRLF | passa | conforme E1 |
-| `Modo: brief`, espaço antes de `modo:`, BOM, linha antes do modo | recusa | mais estrito que o conferente; seguro |
-| Hash em maiúsculas, 63 ou 65 hex, não hex | recusa | `(?![0-9A-Za-z])` fecha o 65 |
-| `Arquivo:` e `Brief-sha256:` só dentro do corpo do brief | passa | só forma (decisão do dono); o conferente pega |
-| `Arquivo: /tmp/xdocs/briefs/a` | passa | só forma; o conferente confere o caminho |
-| Caminho absoluto com espaço (`.../Usuário Padrão/.../docs/briefs/x.md`) | **recusa** | ver R1 |
-| `prompt` ausente ou não texto | recusa | `str(prompt or "")` não levanta exceção |
-| Linha de 2 MB e 200 mil linhas `Arquivo:` | 0,04 s e 0,08 s | sem ReDoS; o regex é ancorado por linha |
-| Outro `subagent_type` sem cabeçalho | passa | sem efeito em outros agentes |
-
 Leitura do fluxo: a recusa (`hooks/agentes.py:124-127`) roda antes do duplicado, da carga e do teto e antes do `append` da reserva; `bloquear` sai por `SystemExit`, que o `executar` não engole (pega só `Exception`) e que libera a trava ao sair do `with`. Recusa não prende vaga nem grava `agentes.json`.
+
+## Sondas
+- S1 · Cabeçalho correto, Arquivo relativo e absoluto, vários blocos, CRLF · espera: passa · obtido: passa; conforme E1
+- S2 · `Modo: brief`, espaço antes de `modo:`, BOM, linha antes do modo · espera: recusa · obtido: recusa; mais estrito que o conferente; seguro
+- S3 · Hash em maiúsculas, 63 ou 65 hex, não hex · espera: recusa · obtido: recusa; `(?![0-9A-Za-z])` fecha o 65
+- S4 · `Arquivo:` e `Brief-sha256:` só dentro do corpo do brief · espera: passa, só forma (decisão do dono) · obtido: passa; o conferente pega
+- S5 · `Arquivo: /tmp/xdocs/briefs/a` · espera: passa, só forma · obtido: passa; o conferente confere o caminho
+- S6 · Caminho absoluto com espaço (`.../Usuário Padrão/.../docs/briefs/x.md`) · espera: passa (ver R1) · obtido: **recusa**; ver R1
+- S7 · `prompt` ausente ou não texto · espera: recusa · obtido: recusa; `str(prompt or "")` não levanta exceção
+- S8 · Linha de 2 MB e 200 mil linhas `Arquivo:` · espera: sem ReDoS · obtido: 0,04 s e 0,08 s; sem ReDoS; o regex é ancorado por linha
+- S9 · Outro `subagent_type` sem cabeçalho · espera: passa · obtido: passa; sem efeito em outros agentes
 
 ## Achados
 

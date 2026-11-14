@@ -1239,5 +1239,101 @@ class DiffDeTextoGrande(unittest.TestCase):
         self.assertEqual(list(f.DiffOmitido.ndiff([], [], linejunk=None)), [f.DiffOmitido.AVISO])
 
 
+class MutacaoDirigida(unittest.TestCase):
+    """v046 E7 (M-1): `SPEC --base SHA` roda só os mutantes cujo arquivo mudou no diff; o resto sai `fora do diff`."""
+    gravar, salvar, spec, rodar = Execucao.gravar, Execucao.salvar, Execucao.spec, Execucao.rodar
+    OUTRO = "def f(y):\n    if y > 5:\n        return 1\n    return 0\n"
+
+    def setUp(self):
+        Execucao.setUp(self)
+        self.gravar("outro.py", self.OUTRO)
+        self.salvar()
+        self.base = git(self.dir, "rev-parse", "HEAD").strip()
+        self.dois = (mutante(), mutante("M2", de="y > 5", para="y >= 50", arquivo="outro.py"))
+
+    def test_so_o_mutante_do_arquivo_mudado_roda(self):
+        self.gravar("lib.py", LIB + "# mudou\n")
+        self.salvar()
+        r = self.rodar(self.spec(*self.dois), "--base", self.base)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(f"base={self.base} mb={self.base}", r.stdout)
+        self.assertIn("M1 · morreu · lib.py:2", r.stdout)
+        self.assertIn("fora do diff: M2 · outro.py", r.stdout)
+        self.assertNotIn("M2 · ", r.stdout.replace("fora do diff: M2 · ", ""))
+
+    def test_nenhum_mutante_no_diff_sai_2_sem_rodar(self):
+        self.gravar("outro.py", self.OUTRO + "# mudou\n")
+        self.salvar()
+        r = self.rodar(self.spec(mutante()), "--base", self.base)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("nenhum mutante da spec cai no diff", r.stderr)
+        self.assertNotIn("morreu", r.stdout)
+
+    def test_teste_enfraquecido_entre_base_e_rev_roda_o_mutante_e_sobrevive(self):  # sondas S1 e S2 da v046 E7
+        self.gravar("tests/test_lib.py", TESTE.replace("lib.limite(11), 2", "lib.limite(11), lib.limite(11)"))
+        self.gravar("outro.py", self.OUTRO + "# mudou\n")
+        self.salvar()
+        r = self.rodar(self.spec(*self.dois), "--base", self.base)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("M1 · sobreviveu", r.stdout)
+        self.assertNotIn("fora do diff: M1", r.stdout)
+
+    def test_spec_mudada_entre_base_e_rev_roda_os_mutantes_dela(self):
+        caminho = self.dir / "tests" / "mutantes" / "x.json"
+        caminho.parent.mkdir(parents=True)
+        caminho.write_text(json.dumps({"pedido": "x", "mutantes": [mutante()]}), encoding="utf-8")
+        self.salvar()
+        base = git(self.dir, "rev-parse", "HEAD").strip()
+        caminho.write_text(json.dumps({"pedido": "x", "mutantes": [mutante(para="x >= 11")]}), encoding="utf-8")
+        self.salvar()
+        r = self.rodar(str(caminho), "--base", base)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("M1 · sobreviveu", r.stdout)
+        self.assertNotIn("fora do diff", r.stdout)
+
+    def test_helper_de_tests_enfraquecido_poe_todos_os_mutantes_no_diff(self):  # sonda S2 da v046 E7.7 (A4)
+        self.gravar("tests/apoio.py", "def igual(caso, a, b):\n    caso.assertEqual(a, b)\n")
+        self.gravar("tests/test_lib.py", TESTE.replace("self.assertEqual(lib.limite(11), 2)",
+                                                       "apoio.igual(self, lib.limite(11), 2)")
+                    .replace("import lib\n", "import lib\nfrom tests import apoio\n"))
+        self.salvar()
+        base = git(self.dir, "rev-parse", "HEAD").strip()
+        self.gravar("tests/apoio.py", "def igual(caso, a, b):\n    return None\n")
+        self.gravar("outro.py", self.OUTRO + "# mudou\n")
+        self.salvar()
+        r = self.rodar(self.spec(*self.dois), "--base", base)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("apoio de teste no diff: tests/apoio.py · todos os mutantes entram", r.stdout)
+        self.assertIn("M1 · sobreviveu", r.stdout)
+        self.assertNotIn("fora do diff", r.stdout)
+
+    def test_teste_e_spec_de_outro_mutante_nao_poem_todos_no_diff(self):
+        self.gravar("tests/test_outro.py", "import unittest\n")
+        self.gravar("tests/mutantes/outra.json", "{}\n")
+        self.gravar("lib.py", LIB + "# mudou\n")
+        self.salvar()
+        r = self.rodar(self.spec(*self.dois), "--base", self.base)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("fora do diff: M2 · outro.py", r.stdout)
+        self.assertNotIn("apoio de teste", r.stdout)
+
+    def test_modulos_do_teste_cobrem_o_arquivo_do_teste(self):
+        self.assertIn("tests/test_lib.py", carregar().modulos_do_teste("tests.test_lib.T.test_borda"))
+
+    def test_base_que_nao_e_commit_ou_sem_ancestral_sai_2(self):
+        git(self.dir, "switch", "-q", "--orphan", "solta")
+        self.gravar("solta.txt", "x\n")
+        git(self.dir, "add", "solta.txt")
+        git(self.dir, "commit", "-qm", "solta")
+        solta = git(self.dir, "rev-parse", "HEAD").strip()
+        git(self.dir, "switch", "-q", "-f", "develop")
+        for base, texto in (("nao-existe", "--base ilegível"), (solta, "merge-base")):
+            with self.subTest(base):
+                r = self.rodar(self.spec(mutante()), "--base", base)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn(texto, r.stderr)
+                self.assertNotIn("Traceback", r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
