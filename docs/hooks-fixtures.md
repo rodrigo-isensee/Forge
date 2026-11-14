@@ -2,14 +2,14 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2529 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2537 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 79 | 44 | 35 | 27 |
-| `conformidade` | 1879 | 1382 | 497 | 90 |
+| `conformidade` | 1887 | 1387 | 500 | 90 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 25 | 10 | 15 | 12 |
 | `parecer` | 463 | 357 | 106 | 24 |
@@ -60,8 +60,8 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2529 fixtures) roda em `tests/test
 | `continuacao-*` | 98 | 85 | 13 | `R-CONFORMIDADE`, `R-CONTRIB`, `R-MAIN`, `R-VERIFY` | `HOOK-CONTINUACAO-LINHA` | HOOK-CONTINUACAO-LINHA: o bash junta \ + quebra de linha; a forma juntada recusa como a escrita direta. |
 | `gitcomum-*` | 84 | 61 | 23 | `R-CONFORMIDADE` | `E20.6` | Volta 1 da E20.6 (v046, segurança E20.8 A5, sem falso positivo): `--target-directory=docs` segue livre. |
 | `v0453-*` | 81 | 57 | 24 | `R-FLUXO`, `R-CONFORMIDADE` | `V0453-GH-ALIAS`, `V0453-AQ-LEITURA`, `V0453-PARECER-BASH`, `V0453-PUSH-TODAS` | V0453-AQ-LEITURA: aq não prepara commit |
+| `opaco-*` | 74 | 48 | 26 | — | `CONFORMIDADE-A9-DESTINO-OPACO`, `CONFORMIDADE-A10-OPERADOR-COLADO` | CONFORMIDADE-A10-OPERADOR-COLADO (E1.139, v047): Leitura com `;` colado segue livre. |
 | `heredoc-*` | 68 | 59 | 9 | `R-CONFORMIDADE`, `R-MAIN`, `R-REVIEW`, `R-VERIFY` | `HEREDOC-FURO-HOOK`, `C-8`, `HEREDOC-COMENTARIO`, `HEREDOC-DONOS` e mais 1 | A1 do review (volta 3): o mkdir e o cd antes do && não leem o corpo: o dono é o cat > n.md, que só o grava. |
-| `opaco-*` | 66 | 43 | 23 | — | `CONFORMIDADE-A9-DESTINO-OPACO`, `CONFORMIDADE-A10-OPERADOR-COLADO` | CONFORMIDADE-A10-OPERADOR-COLADO (E1.139, v047): Leitura com `;` colado segue livre. |
 | `merge-*` | 47 | 40 | 7 | `R-CONFORMIDADE`, `R-REVIEW`, `R-MAIN`, `R-DECISAO` | `FURO-HOOK-A`, `FILA-22`, `QA` | git merge main numa branch de trabalho (atualização): qualquer papel. |
 | `lancador-*` | 40 | 36 | 4 | `R-CONFORMIDADE`, `R-VERIFY` | — | Prefixo desembrulhado antes de classificar: command git commit --no-verify -m x |
 | `rotulo-*` | 40 | 31 | 9 | `R-CONTRIB` | `FURO-HOOK-A`, `ROTULO-VARIAVEL`, `HOOK-COMENTARIO-SHLEX` | Sessão do Forge: gh api em issues/N/labels, conta do dono. |

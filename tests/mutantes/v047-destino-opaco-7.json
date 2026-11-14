@@ -1,0 +1,43 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O44",
+      "guarda": "A9, U3: `$(…)` sem aspas vale pelos corpos da linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        corpos = corpos_de_substituicao(linha) if corpo == \"…\" else [corpo]",
+      "para": "        corpos = corpos_de_substituicao(linha) if corpo is None else [corpo]",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O45",
+      "guarda": "A9, U3: todos os corpos na lista positiva, não um deles",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return bool(corpos) and all(CORPO_POSITIVO.fullmatch(c.strip()) for c in corpos)",
+      "para": "        return bool(corpos) and any(CORPO_POSITIVO.fullmatch(c.strip()) for c in corpos)",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "c in \"\\\"'\"",
+      "motivo": "aspa dentro do valor da atribuição: sem ela o valor só encurta no primeiro espaço entre aspas, o que nenhum valor que cai no .git tem sem citar o .git antes do espaço (o caso vira falso positivo, nunca brecha)"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "not a.startswith(\"-\") and a != alvo",
+      "motivo": "tirar o destino da lista de origens: o nome dele é opaco (`$(…)`, `$x`) e nunca é um nome da C18, então o mutante é equivalente"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "not m or m[\"nome\"]",
+      "motivo": "sem a guarda, o valor que não é substituição dá corpo None e erro interno, que a falha fechada do marcador (alvo opaco) recusa igual: mutante equivalente pela seção 7 da ADR 0009"
+    }
+  ]
+}

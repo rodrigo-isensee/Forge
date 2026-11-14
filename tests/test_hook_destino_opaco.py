@@ -30,10 +30,10 @@ class HookDestinoOpaco(unittest.TestCase):
         self.assertEqual(self.executar_em_lote(casos), len(fixtures), "toda fixture é verificada")
 
     def test_fixtures_opaco_sem_resto(self):
-        self.rodar_prefixo("opaco-semresto", 52)
+        self.rodar_prefixo("opaco-semresto", 59)
 
     def test_fixtures_opaco_colado(self):
-        self.rodar_prefixo("opaco-colado", 14)
+        self.rodar_prefixo("opaco-colado", 15)
 
 
 if __name__ == "__main__":
