@@ -4,6 +4,21 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.47.1] - 2026-11-14
+### Adicionado
+- **Pré-envio no modelo de projeto (MP1311 E1.16, diretriz 23):** o modelo traz `.github/pull_request_template.md` com as seções que o review e o `forge-check pr` cobram (objetivo, o que mudou, decisões, como testar, pareceres, riscos, `## Sem teste` e `## Tamanho`) e o `.githooks/pre-push.local` com o pronto rápido da stack (lint, formatação e tipos), que o pre-push roda antes de cada envio que não seja só de docs e que pula com aviso enquanto não há código da stack na raiz. Cada `stacks/*/pronto.md` declara `Pronto rápido` (python: ruff check, ruff format --check e mypy; node-react: ESLint, Prettier e tsc) e `Pronto completo` (o comando sugerido). O `forge-init` grava os dois no projeto novo; a migração `0.47.1` (passo `migrar-pre-envio`) os leva ao projeto existente sem sobrescrever o dele. O `forge-upgrade` passa a rodar vários passos por versão (`migrar` e depois `migrar-<passo>`, um commit cada, resumo no `LEIA-<passo>.md`). Medida: PRs de projeto com o primeiro CI vermelho por descrição, lint, formatação, tipos, mapa ou tamanho de texto (linha de base 13/11: 4 de 4).
+### Alterado
+- Ambiente: orientação ao dono para desligar a atualização automática da extensão durante o trabalho (README e modelo de projeto).
+- FILA-SUITE-ESPERA (v047 E1.131): quem espera a suíte no `.githooks/pre-push` vê a posição na fila, a dona da trava e quem está na frente, ao entrar e a cada minuto (`FORGE_FILA_INTERVALO`); trava de dona morta (mesmo namespace) ou sem troca de dona há mais de 35 min vira aviso com os comandos de conferir, sem liberar a trava nem pular a fila; cada envio barrado pela espera grava `<data> <hora> <push|suite> <espera>` em `<trava>.barrados` (a medida de envios barrados por dia).
+### Corrigido
+- forge-fechar passa o nome da branch local ao forge-check pr (FECHAR-REF-POR-NOME): uma worktree de portão no mesmo head não faz mais a conferência reprovar; o movimento do cartão no merge já estava na develop (FECHAR-MOVE-CARTAO, #525)
+- O modelo docs/security/_modelo.md chega ao projeto já existente pela atualização (migração 0.47.1, requer migração): o papel de segurança citava um arquivo que o projeto não tinha (MP1311, item 9)
+- CI: o e2e de instalação voltou a passar com o gerenciador de pacotes 11.19.1 do runner; o binário nativo do Claude Code é instalado de forma determinística (postinstall rodado explicitamente nas três instalações do ci.yml).
+- As 4 fixtures agentes/* de pid e sessão (tests/test_hooks.py) saem puladas com motivo quando o namespace de pid do pai não é legível (sandbox dos subagentes), para a prova de pré-envio da diretriz 23 poder passar; onde é legível seguem valendo e o hook não muda (E1.90, v047, 0.47.1).
+- Erro interno e prazo vencido do hook conformidade passam a recusar a escrita protegida (HOOK-ERRO-LIBERA, v047): marcador da falha fechada montado da política (caminhos, alvo opaco, caminho resolvido no Write/Edit), sem expanduser de Path nos hooks, python3 -s -E em todo o hooks.json e R-BRIEF do hook agentes antes da leitura do estado.
+- O mapa do `bin/forge-testes` roda o `test_hook_erro_libera` junto quando o `tests/test_hooks.py` muda: ele reaproveita o lote de `Hooks.executar_em_lote` e faltava em `REAPROVEITAM_O_LOTE`, o que deixava a develop vermelha (E1.204, v047, PR #558).
+- placar-mutacao.py sinaliza na linha `placar:` a spec com rc diferente de zero e avisa quando `--desde` não é a tag da release anterior; M10 da spec v0457-escopo-ponto-2 aponta o trecho atual da guarda.
+
 ## [0.47.0] - 2026-11-13
 ### Adicionado
 - stack node-react: seção do veredito do vermelho em TypeScript (mapa .ts/.tsx e veredito explícito, inclusive não verificável)
