@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-folga-jarvis
-commit: ebeb9161070e947fe03a1a6d8de630cee47be833
+commit: 8a223677c7320a968c0984ac538892ed403c6540
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-14
@@ -50,3 +50,12 @@ Também rodei um mutante: com "uma vez por dia" trocado por "uma vez por semana"
 **Pendências para o PR (não são do código):**
 - Tamanho (M14): 390 linhas de `tests/*.py` e `tests/config.json`. O corpo do PR precisa trazer `teto: excedido, 390 linhas, <motivo>`; o motivo é o lote que o dono decidiu (P1 a P4 num PR), quase todo teste de presença e invariante movido de chave.
 - Este parecer cobre o review. Segurança (gatilho `tests/config.json`) e QA são portões à parte (E1.168 e E1.169).
+
+## Revalidação por delta (head `8a223677`, E1.182)
+Delta lido: `forge-check parecer delta docs/reviews/v047-folga-jarvis.md` (rc=0), intervalo `ebeb9161..8a223677`, domínio código e testes: `tests/apoio_jarvis.py`, `tests/mutantes/v047-folga-jarvis.json`, `tests/test_jarvis_nucleo.py`. Um commit (`fix(testes)`, Conventional Commits), na volta da E1.176, sobre o A1 (bloqueante) e o A2 do QA e da segurança.
+
+- **A1 (presença passava sempre):** `problemas_das_regras` agora junta só `agents/jarvis.md` e `skills/*/SKILL.md` do conjunto (`TEXTO_DO_JARVIS.fullmatch`); o índice `docs/regras/README.md` e os textos das regras deixam de contar. Aperta e não afrouxa: um ID citado só em `docs/` passa a reprovar. Sonda na árvore real (cópia por `git archive`): sem as crases de `R-MAIN` no Jarvis e nas skills dá `['R-MAIN: não aparece no Jarvis nem nas skills citadas']`; no head intacto dá `[]`. Resolvido.
+- **A2 (mutante que não pegava A1):** `test_id_que_some_do_jarvis_reprova_com_o_indice_no_conjunto` afirma que o índice está no conjunto, reprova `R-UM` e volta a passar com o ID numa skill do nível 2. Resolvido.
+- Mutantes declarados (`tests/mutantes/v047-folga-jarvis.json`, uma guarda por linha mudada: o filtro, a regex e a presença do filtro): `bin/forge-mutante` deu M1, M2 e M3 `morreu`. `tests.test_jarvis_nucleo`: 40 testes OK, 1 pulado (arquivo do dono). A suíte inteira fica para o CI do PR.
+
+Os achados A1 a A4 acima seguem `recomendado` e não mudam. Parecer: **aprovado** no head `8a223677`.
