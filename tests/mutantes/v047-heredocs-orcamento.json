@@ -1,0 +1,46 @@
+{
+  "pedido": "v047-heredocs-orcamento",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "medida abaixo do limite para na primeira",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "        if melhor[0] < limite:\n            break\n",
+      "para": "        if False:\n            break\n",
+      "testes": [
+        "tests.test_medida_cpu.MenorCustoDasMedidas.test_abaixo_do_limite_mede_uma_vez"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "medida no limite repete (o limite e estrito, como o assertLess)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "        if melhor[0] < limite:\n",
+      "para": "        if melhor[0] <= limite:\n",
+      "testes": [
+        "tests.test_medida_cpu.MenorCustoDasMedidas.test_no_limite_ou_acima_mede_de_novo_e_vale_a_menor"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "vale a menor medida, e nao a ultima nem a maior",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "        melhor = min(melhor, medir())\n",
+      "para": "        melhor = max(melhor, medir())\n",
+      "testes": [
+        "tests.test_medida_cpu.MenorCustoDasMedidas.test_no_limite_ou_acima_mede_de_novo_e_vale_a_menor"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "no maximo vezes medidas: a regressao para na terceira",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "    for _ in range(vezes - 1):\n",
+      "para": "    for _ in range(vezes):\n",
+      "testes": [
+        "tests.test_medida_cpu.MenorCustoDasMedidas.test_regressao_passa_do_limite_nas_tres_e_para_na_terceira"
+      ]
+    }
+  ]
+}
