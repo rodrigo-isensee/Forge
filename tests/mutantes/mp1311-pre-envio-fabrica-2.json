@@ -23,7 +23,7 @@
       ]
     },
     {
-      "id": "M10",
+      "id": "M13",
       "guarda": "--texto não combina com --vermelho",
       "arquivo": "bin/forge-testes",
       "de": "args.vermelho is not None\n                       or args.modulos",
