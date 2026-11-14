@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-folga-jarvis
-commit: 8a223677c7320a968c0984ac538892ed403c6540
+commit: 16b7ca7443c01eb8a8e532d82ac0ea69948e4722
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -53,3 +53,19 @@ Código testado: ebeb9161 (o remoto c4351c3e só soma pareceres de review e segu
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
 | Decisão do dono 13/11: regra com ID presente no Jarvis ou nas skills | `test_cada_regra_com_id_aparece_e_tem_texto`, `test_id_que_some_do_jarvis_reprova_com_o_indice_no_conjunto` | ID só no índice | passou, agora prova |
+
+## Revalidação por delta (E1.193): 8a223677..16b7ca74, merge da develop
+
+`forge-check parecer delta` listou no meu domínio `templates/projeto/CLAUDE.md`, `tests/test_forge.py` e `tests/test_reval_delta.py`, sem o que veio da base. O conflito em `tests/test_reval_delta.py` foi resolvido mantendo as duas entradas de `CITACOES_CONHECIDAS` (a do `apoio_jarvis.py` e a de `test_ambiente_sem_auto_update.py`), conferido no diff; o código de guarda do pedido (`tests/apoio_jarvis.py`) não mudou, então os mutantes de 8a223677 seguem valendo.
+
+- Execução local: `tests.test_reval_delta` e `tests.test_ambiente_sem_auto_update`: `Ran 11 tests ... OK`; `tests.test_forge.PreEnvioDoModelo` e `HookPrePush`: `Ran 27 tests ... OK`. O `push` do `HookPrePush` agora isola HOME e XDG_RUNTIME_DIR numa casa de teste, o que evita a trava real; coerente com o pre-push.local.
+- A linha `Ambiente:` do modelo de projeto traz o aviso da atualização automática e a lê o teste `test_ambiente_sem_auto_update`, que passou.
+- Sem teste novo de regra neste delta, então não há vermelho antes do verde a repetir. A suíte inteira fica no CI do PR; sem PR aberto neste head, não cito check-run `bateria`.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Aviso de atualização automática no modelo de projeto | `tests.test_ambiente_sem_auto_update` | n/a | passou |
+| Citações conhecidas após o merge | `tests.test_reval_delta` | entrada duplicada ou perdida | passou |
+| Pre-push isolado da casa real | `HookPrePush`, `PreEnvioDoModelo` | trava na casa do teste | passou |
+
+Parecer: aprovado, sem achados novos.
