@@ -1,0 +1,36 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "PA-M9",
+      "guarda": "quadro por link simbólico não é lido",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if quadro.is_file() and not quadro.is_symlink():",
+      "para": "    if quadro.is_file():",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_link_e_arquivo_ilegivel_ficam_fora"
+      ]
+    },
+    {
+      "id": "PA-M10",
+      "guarda": "sem pendência, uma linha só",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if not abertas:\n        return avisos + [SEM_PENDENCIA], 0",
+      "para": "    if False:\n        return avisos + [SEM_PENDENCIA], 0",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_sem_pendencia_uma_linha"
+      ]
+    },
+    {
+      "id": "PA-M11",
+      "guarda": "sem data, a hora sai `—`",
+      "arquivo": "bin/forge_dono.py",
+      "de": "| {p['hora'] or '—'} |",
+      "para": "| {p['hora']} |",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_cartao_sem_data_sai_com_traco"
+      ]
+    }
+  ]
+}

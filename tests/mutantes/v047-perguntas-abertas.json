@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "PA-M1",
+      "guarda": "a linha do registro com prefixo `- data:` entra",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if (m := LINHA_DO_REGISTRO.match(linha))]",
+      "para": "if (m := LINHA_DO_REGISTRO.match(linha)) and not linha.startswith(\"-\")]",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_formas_do_registro_com_prefixo_aspas_e_sem_parenteses"
+      ]
+    },
+    {
+      "id": "PA-M2",
+      "guarda": "só a DECISÃO DO DONO fecha pergunta",
+      "arquivo": "bin/forge_dono.py",
+      "de": "for m, n in registro if m.group(4) == FRASE_DA_DECISAO), default",
+      "para": "for m, n in registro if False), default",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_respondida_sai_e_decisao_anterior_nao_responde"
+      ]
+    },
+    {
+      "id": "PA-M3",
+      "guarda": "a data depois da frase vale sobre a do prefixo",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    return g[4:7] if g[4] else g[0:3]",
+      "para": "    return g[4:7] if False else g[0:3]",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_respondida_sai_e_decisao_anterior_nao_responde"
+      ]
+    },
+    {
+      "id": "PA-M4",
+      "guarda": "decisão anterior à pergunta não a responde",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if m.group(4) != FRASE_DA_DECISAO and (_instante(m), n) > ultima]",
+      "para": "if m.group(4) != FRASE_DA_DECISAO]",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_respondida_sai_e_decisao_anterior_nao_responde"
+      ]
+    },
+    {
+      "id": "PA-M5",
+      "guarda": "o título `## ` troca de painel",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        if linha.startswith(\"## \"):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_painel_do_quadro_entra_e_o_resto_do_quadro_nao"
+      ]
+    },
+    {
+      "id": "PA-M6",
+      "guarda": "só o painel Aguardando o dono entra",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        if not no_painel or not linha.startswith",
+      "para": "        if not linha.startswith",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_painel_do_quadro_entra_e_o_resto_do_quadro_nao"
+      ]
+    },
+    {
+      "id": "PA-M7",
+      "guarda": "pedido por link simbólico não é lido",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        if arq.is_symlink():\n            continue",
+      "para": "        if False:\n            continue",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_link_e_arquivo_ilegivel_ficam_fora"
+      ]
+    },
+    {
+      "id": "PA-M8",
+      "guarda": "pedido ilegível vira aviso, não erro",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        except (OSError, UnicodeDecodeError) as erro:",
+      "para": "        except OSError as erro:",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_link_e_arquivo_ilegivel_ficam_fora"
+      ]
+    }
+  ]
+}
