@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-fixture-pid-sandbox
-commit: b645e83c35c7dc51a125ccdca2401b5d73800bb9
+commit: 32f1628aae7bffa63a590a218b88c18ed4c73738
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-13
+data: 2026-11-14
 ---
 # QA: v047 (fixtures de pid puladas fora do CI, E1.90 / E1.110)
 
@@ -51,3 +51,22 @@ Head da branch: dc39fbd5 (só soma o parecer de segurança sobre b645e83c). Delt
 `forge-mutante tests/mutantes/v047-fixture-pid-sandbox.json`: M1 controle vermelho (sem veredito local, só no CI; A1 anterior), M2 morreu em `bin/forge-testes:104`. A guarda de código mudada (`JUNTO_DO_MODULO`) tem o M2; `modulos_sem_mapa` é coberta pelo mesmo teste.
 
 Vermelho antes do verde: não rodei `forge-testes --vermelho` (carga); o M2 morto prova que o teste novo cai sem o mapa.
+
+## Delta E1.153 (QA por delta b645e83c..edac705c)
+`forge-check parecer delta` lista só `tests/test_fechar.py` e `tests/test_prepush_so_docs.py` (commit de código 32f1628a; edac705c só soma pareceres). Nenhum código de produção mudou; os dois são ajustes de teste contra corrida (CI do PR 547, Python 3.14, parte 2/3).
+- `test_fechar`: a parada passa a ser lida pela última linha `[err]` (stdout e stderr não têm ordem entre si). Fronteira mantida: `erros` vazio ou parada ausente falha, e a última linha ainda é `fim: código 1`.
+- `FilaDaChecagem.primeiro_aviso`: espera a linha inteira "aguardando a vez" com teto de 20 s; se estourar, mata o grupo (`killpg`) e falha com mensagem. Sem espera fixa nem corrida entre senha e contagem. Os avisos lidos entram em `fins`, então a conferência de ordem e de "quem está na frente" segue intacta.
+
+Execução local (carga 9 a 14 em 12 CPUs): `python3 -m unittest tests.test_prepush_so_docs.FilaDaChecagem tests.test_fechar` · Ran 106 tests in 343.971s · OK (uma rodada; as seguintes interrompidas por tempo). No PR 547 as partes da suíte 3.14 (1/3, 2/3, 3/3) e 3.12 (2/3, 3/3) estavam `pass` na consulta; 3.12 parte 1/3 pendente, e o head do PR era c5e635c5, não edac705c.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| A fila conta quem está na frente em ordem de chegada | test_tres_esperam_em_ordem_de_chegada_contando_quem_esta_na_frente | linha de aviso inteira lida antes de lançar o próximo; teto de 20 s | OK |
+| O fechamento para no passo que falhou e registra o código | test_fechar, parada no passo 1 | stderr sem ordem com stdout; sem `[err]` falha | OK |
+
+Vermelho antes do verde: não se aplica (estabilidade de teste existente, sem regra nova; a falha anterior é a do CI citado). Mutação: sem arquivo de produção no delta.
+
+### Achados
+- A3 (recomendado) tests/test_prepush_so_docs.py:520 · a suíte inteira só vale pelo check-run `suíte` do mesmo sha; cite-o antes do merge (3.12 parte 1/3 pendente e head do PR diferente do revisado).
+
+Parecer do delta: aprovado, sem bug aberto.
