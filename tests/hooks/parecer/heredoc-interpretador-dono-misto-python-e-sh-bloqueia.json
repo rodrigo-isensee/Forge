@@ -1,0 +1,18 @@
+{
+  "descricao": "HOOK-CONTRIB-HEREDOC-FP, volta 1 da E4.4, caso verdadeiro: A2 do QA (M7): o dono do heredoc tem python3 e sh; o corpo, que os dois leriam como inofensivo, segue como antes.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 - <<'EOF' | sh\necho gh pr merge 5\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: "
+  }
+}

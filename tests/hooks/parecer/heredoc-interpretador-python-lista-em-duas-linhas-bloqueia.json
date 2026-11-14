@@ -1,0 +1,18 @@
+{
+  "descricao": "HOOK-CONTRIB-HEREDOC-FP, volta 1 da E4.4, caso verdadeiro: A1 do QA e da segurança: a lista do comando montada em duas linhas.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 - <<'EOF'\nimport subprocess as s\nc = [\"gh\", \"pr\"]\nc += [\"merge\", \"5\"]\ns.run(c)\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: "
+  }
+}

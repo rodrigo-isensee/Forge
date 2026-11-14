@@ -1,0 +1,76 @@
+{
+  "pedido": "v047-contrib-heredoc-fp",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "só o python pelo nome puro lê o programa da entrada",
+      "arquivo": "hooks/parecer.py",
+      "de": "if PYTHON_DA_ENTRADA.fullmatch(nome) and all(",
+      "para": "if True and all(",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o python com script ou -c não é leitor da entrada",
+      "arquivo": "hooks/parecer.py",
+      "de": "OPCAO_DO_PYTHON.fullmatch(a) or (a == \"-\" and k == len(args) - 1)",
+      "para": "True",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o shell com script ou -c não é leitor da entrada",
+      "arquivo": "hooks/parecer.py",
+      "de": "if nome in SHELLS_DA_ENTRADA and all(OPCAO_DO_SHELL.fullmatch(a) for a in args):",
+      "para": "if nome in SHELLS_DA_ENTRADA:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "só sh, bash e dash são o shell da entrada",
+      "arquivo": "hooks/parecer.py",
+      "de": "if nome in SHELLS_DA_ENTRADA and all(",
+      "para": "if True and all(",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "atribuição do lançador (env PATH=) tira a isenção",
+      "arquivo": "hooks/parecer.py",
+      "de": "any(lancadas or not comando for comando, lancadas in lidas)",
+      "para": "any(not comando for comando, lancadas in lidas)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "dono com programas de tipos diferentes não é isento",
+      "arquivo": "hooks/parecer.py",
+      "de": "return next(iter(tipos)) if len(tipos) == 1 else None",
+      "para": "return next(iter(tipos)) if tipos else None",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "sem todo << simples, nenhum corpo é isento",
+      "arquivo": "hooks/parecer.py",
+      "de": "if not heredocs_simples(original) or chamada",
+      "para": "if False or chamada",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    }
+  ]
+}

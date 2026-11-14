@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-contrib-heredoc-fp",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "o corpo de shell que não só lê nem espera liga a gramática com heredoc",
+      "arquivo": "hooks/parecer.py",
+      "de": "or tipo == \"shell\" and not so_le_ou_espera(corpo)",
+      "para": "or False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "a chamada com atribuição ou git fora dos corpos devolve o corpo à regra de antes",
+      "arquivo": "hooks/parecer.py",
+      "de": "or chamada_muda_o_corpo(comando):",
+      "para": "or False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "atribuição solta na chamada (PATH=<pasta>) conta",
+      "arquivo": "hooks/parecer.py",
+      "de": "return any(ATRIBUICAO_SOLTA.match(p.cru) or nome_do_caminho",
+      "para": "return any(False or nome_do_caminho",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "git na chamada conta",
+      "arquivo": "hooks/parecer.py",
+      "de": "or nome_do_caminho(p.valor) == \"git\"",
+      "para": "or False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "corpo de Python que o ast não lê segue conferido",
+      "arquivo": "hooks/parecer.py",
+      "de": "segue conferido\n        return True",
+      "para": "segue conferido\n        return False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "a constante solta (docstring) não conta como comando",
+      "arquivo": "hooks/parecer.py",
+      "de": "and id(n) not in soltas]",
+      "para": "]",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "só o marcador crítico nas constantes de texto conta",
+      "arquivo": "hooks/parecer.py",
+      "de": "return critico_ou_alias(\" \".join(textos))",
+      "para": "return True",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "o lançador depois de _ (create_subprocess_exec, posix_spawnp) conta",
+      "arquivo": "hooks/parecer.py",
+      "de": "re.compile(r\"(?<![A-Za-z0-9])(?:subprocess",
+      "para": "re.compile(r\"\\b(?:subprocess",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    }
+  ]
+}

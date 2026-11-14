@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-contrib-heredoc-fp",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "python que lança processo com comando de PR segue como antes",
+      "arquivo": "hooks/parecer.py",
+      "de": "None if tipo == \"python\" and LANCA_PROCESSO",
+      "para": "None if False and LANCA_PROCESSO",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "sem lançar processo, o texto de PR no python é isento",
+      "arquivo": "hooks/parecer.py",
+      "de": "and LANCA_PROCESSO.search(corpo) and",
+      "para": "and True and",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o corpo de Python com lançador só segue como antes com comando de PR no texto",
+      "arquivo": "hooks/parecer.py",
+      "de": "and comando_de_pr_no_python(corpo)",
+      "para": "and False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "sem corpo isento, a marca é a do texto inteiro",
+      "arquivo": "hooks/parecer.py",
+      "de": "if not any(leitores):",
+      "para": "if True:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "o corpo isento sai da marca",
+      "arquivo": "hooks/parecer.py",
+      "de": "zip(corpos, leitores) if t not in tipos)",
+      "para": "zip(corpos, leitores) if True)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "o corpo python isento não é conferido como comando",
+      "arquivo": "hooks/parecer.py",
+      "de": "if leitor != \"python\" and not corpo_so_lido(dono)]",
+      "para": "if not corpo_so_lido(dono)]",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "heredoc gravado só recusa com a marca fora do corpo python",
+      "arquivo": "hooks/parecer.py",
+      "de": "if gravado and marcado:",
+      "para": "if gravado and critico_ou_alias(original):",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "a gramática da chamada sai a marca fora dos corpos que o shell roda",
+      "arquivo": "hooks/parecer.py",
+      "de": "if nivel == 0 and marcado_fora_do_shell and not",
+      "para": "if nivel == 0 and marcado and not",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    }
+  ]
+}

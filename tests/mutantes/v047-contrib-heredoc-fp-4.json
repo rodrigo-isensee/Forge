@@ -1,0 +1,26 @@
+{
+  "pedido": "v047-contrib-heredoc-fp",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "a expressão solta (docstring) sai das constantes de texto",
+      "arquivo": "hooks/parecer.py",
+      "de": "if isinstance(n, ast.Expr)}",
+      "para": "if False}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "a constante de texto str entra sem decodificar",
+      "arquivo": "hooks/parecer.py",
+      "de": "n.value if isinstance(n.value, str) else",
+      "para": "n.value if False else",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
+      ]
+    }
+  ]
+}
