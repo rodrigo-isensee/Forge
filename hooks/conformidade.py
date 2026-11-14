@@ -458,6 +458,18 @@ def cita_o_dir_do_git(texto):
     return bool(CITA_DIR_DO_GIT.search(texto)) or any(glob_casa(p, ".git") for p in PALAVRA_COM_CURINGA.findall(texto))
 
 
+REF_DE_VARIAVEL = re.compile(r"\$(?:\{[^}]*\}|\w+)")
+
+
+def palavra_juntada(texto):
+    """D2b (E1.175, v047): o texto como o bash junta a palavra: sem aspas (`.g'i't`, `.g""it`) e com cada variável colada
+    a outro texto lida como `*` (`${a}it`, `.gi${z}t`, `$a$b`), que `cita_o_dir_do_git` casa pelo curinga. A variável
+    sozinha no componente segue como está: o valor dela vem do `nome=` da linha (`textos_do_valor`)."""
+    sem_aspas = re.sub(r"[\"']", "", texto)
+    return re.sub(r"[^\s/;|&()`]+", lambda m: m[0] if REF_DE_VARIAVEL.fullmatch(m[0]) else REF_DE_VARIAVEL.sub("*", m[0]),
+                  sem_aspas)
+
+
 def nome_da_c18(nome):
     """U3: o nome está nas listas fechadas da C18 (git e githooks(5)), também por curinga."""
     return nome in NOMES_DA_C18 or bool(CURINGA.search(nome)) and any(glob_casa(nome, n) for n in NOMES_DA_C18)
@@ -1105,7 +1117,8 @@ class Guarda:
                 nomes.add(nome)
                 precisos += [valor_atribuido(linha, m.end()) for m in re.finditer(rf"(?<![\w$]){nome}\+?=", linha)]
                 largo |= bool(re.search(rf"(?<![\w${{]){nome}(?![\w+=])", linha))
-        funcoes = re.findall(r"(?:function\s+|(?<![\w$-]))([\w.-]+)\s*\(\s*\)", linha)
+        funcoes = re.findall(r"function\s+([\w.-]+)|(?<![\w$-])([\w.-]+)\s*\(\s*\)", linha)  # D2b: `function f {`
+        funcoes = [a or b for a, b in funcoes]
         largo |= any(re.search(rf"(?<![\w.-]){re.escape(f)}(?![\w.-])", t) for f in funcoes for t in precisos)
         return precisos, precisos + [linha] if largo else precisos
 
@@ -1120,7 +1133,7 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", f"mais de {TETO_DE_OPACOS} destinos de $(…), crase ou variável na linha: o hook "
                                           "não os lê", "separe em comandos menores, com o caminho literal")
         precisos, largos = self.textos_do_valor(caminho)
-        if any(cita_o_dir_do_git(t) for t in largos):
+        if any(cita_o_dir_do_git(t) or cita_o_dir_do_git(palavra_juntada(t)) for t in largos):
             motivo = "o texto que produz o valor cita o diretório do git (.git)"
         elif any(CORPO_ILEGIVEL.search(t) for t in precisos) or any(
                 "$(" in c or "`" in c for t in precisos for c in corpos_de_substituicao(t)):

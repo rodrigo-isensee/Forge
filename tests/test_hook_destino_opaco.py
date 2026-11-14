@@ -35,6 +35,9 @@ class HookDestinoOpaco(unittest.TestCase):
     def test_fixtures_opaco_colado(self):
         self.rodar_prefixo("opaco-colado", 15)
 
+    def test_fixtures_opaco_d2b(self):  # E1.175: aspas e variável colada no corpo, `function f {` sem `()`
+        self.rodar_prefixo("opaco-d2b", 11)
+
 
 if __name__ == "__main__":
     unittest.main()
