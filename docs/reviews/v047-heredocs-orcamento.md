@@ -1,7 +1,7 @@
 ---
 tipo: review
 contrato: 1
-pedido: v047-heredocs-orcamento
+pedido: v047
 branch: melhoria/v047-heredocs-orcamento
 commit: ec8997a6bfb365a9061316ea7905d12e8d5279a7
 parecer: aprovado
@@ -43,3 +43,6 @@ Linhas de guarda mudadas: `apoio_volta_unica.py:55` (`range(vezes - 1)`), `:56` 
 
 ## Parecer
 Aprovado no head `ec8997a6`. A troca de relógio por CPU e o menor de três medidas deixam o orçamento estável sob carga sem afrouxar limite, e um custo de código acima do orçamento continua reprovando nas três medidas. A1 e A2 são recomendados e não devolvem (R-REVIEW).
+
+## Revalidação
+E1.219: delta lido por `forge-check parecer delta` em `ec8997a6..596e9946`: nenhum arquivo do domínio mudou. Só o campo `pedido:` do frontmatter foi corrigido para `v047`; veredito e `commit:` iguais.
