@@ -1198,7 +1198,11 @@ class MergeDaBaseDepoisDoBrief(Conferencia):
         self.entrega_e_merge(ancorar=False)
         rc, saida = self.conferir()
         self.assertNotIn("base: merge-base", saida)
-        self.assertEqual(rc, 1, saida)  # o comportamento de antes da E23.36: a conferida trazida vira Desde e a develop aparece
+        # v047 E1.185 (CONFERIDA-POR-BRANCH): a conferida trazida, já na develop, não vira Desde; o intervalo é o do Base-sha
+        self.assertIn(f"intervalo: {self.base}..", saida)
+        self.assertIn("base: Base-sha do brief (sem conferida na branch)", saida)
+        self.assertNotIn("agents/outro.md", saida)
+        self.assertEqual(rc, 0, saida)
 
     def test_brief_selado_antes_do_da_entrega_nao_ancora(self):
         """A âncora é o Base-sha de brief selado MAIS NOVO que o da entrega; o selado antes dele, mesmo com a develop adiante, não vale."""
@@ -1238,7 +1242,7 @@ class MergeDaBaseDepoisDoBrief(Conferencia):
         self.ancorar(self.git("rev-parse", "HEAD"), "exemplo-outra-2.md")  # o head ancorado: só a guarda do "head já na base" o recusa
         _, saida = self.conferir()
         self.assertNotIn("base: merge-base", saida)
-        self.assertNotIn("pendente: intervalo vazio", saida)
+        self.assertIn(f"intervalo: {self.base}..", saida)  # o Desde é o Base-sha, nunca o head (v047 E1.185: a conferida da develop não vale)
 
 
 if __name__ == "__main__":

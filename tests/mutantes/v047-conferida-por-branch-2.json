@@ -1,0 +1,26 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CB-M9",
+      "guarda": "o desde_da_branch propõe o Base-sha quando a única conferida está na base",
+      "arquivo": "bin/forge-check",
+      "de": "    if base_sha_como_desde(raiz, texto, base_sha, head, base_ref):\n        return base_sha, \"base\"",
+      "para": "    if base_sha_como_desde(raiz, texto, base_sha, head):\n        return base_sha, \"base\"",
+      "testes": [
+        "tests.test_conferida_por_branch.ConferidaDeOutroItem.test_desde_proposto_aos_briefs_e_o_base_sha"
+      ]
+    },
+    {
+      "id": "CB-M10",
+      "guarda": "o veredito do Desde aceita o Base-sha quando a única conferida está na base",
+      "arquivo": "bin/forge-check",
+      "de": "    if desde_e_a_base(raiz, texto, desde, base_sha, head, base_ref):  # P-N1",
+      "para": "    if desde_e_a_base(raiz, texto, desde, base_sha, head):  # P-N1",
+      "testes": [
+        "tests.test_conferida_por_branch.ConferidaDeOutroItem.test_conferida_de_a_na_base_nao_e_o_desde_de_b"
+      ]
+    }
+  ]
+}
