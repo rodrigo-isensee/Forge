@@ -66,21 +66,8 @@ Append-only, uma linha por movimento — é a fonte das métricas:
 
 A linha não se escreve à mão: a cada mudança de estado, inclusive "Aguardando o dono" e "Sem credencial", rode `forge-check movimento <cartão> --de <coluna> --para <coluna> [--motivo <texto>]`. Ele grava a hora real (ISO 8601, com fuso) e cria o arquivo se faltar. Coluna que não está no `KANBAN.md` (fora "Sem credencial", "Conferência" e "Review"; `—` só no `--de`) sai com rc 1 e nada é gravado. Ao parar o cartão ("Aguardando o dono", "Sem credencial", "Bloqueado", "Aguardando sua validação"), o motivo ganha `custo do trecho: <N> tokens` (lido das transcrições locais, do último movimento até agora) e, no "Pronto", `custo total`; sem transcrição na janela sai `lacuna`, nunca 0.
 
-## Métricas de fluxo do time
-- **Lead time:** entrada no Backlog → Pronto. **Cycle time:** entrada em "Em andamento" → Pronto.
-- **Vazão:** Pronto por semana. **Idade do WIP:** desde "Em andamento". **Bloqueio:** tempo e motivos.
-- **Dois relógios (D-4):** pedido aberto → develop; pronto para fazer → develop (`relogios:`).
-- **Retrabalho:** % de cartões que voltaram de Code review, QA ou UX para "Em andamento" (ver "Bugs e retrabalho").
-- **Escape:** bugs encontrados depois do parecer do QA.
-- Percentis P50/P85 só com 20+ itens; abaixo disso, mostrar os valores individuais. Nunca média sozinha.
-
-## Métricas DORA (sem serviço pago)
-Calculadas por período, a partir do git (`git log`, tags de release), dos PRs (`gh pr list --state merged`) e de `docs/kanban/historico.md`:
-- **Frequência de entrega:** PRs mesclados na branch de integração (ou releases) por semana.
-- **Lead time de mudança:** do primeiro commit da branch até o merge.
-- **Taxa de falha:** % das entregas que exigiram correção, reversão ou hotfix (cartões `[bug]` ligados a um pai já em Pronto, `revert`, `fix` urgente).
-- **Tempo de recuperação:** da detecção da falha (cartão `[bug]` ou issue) até a correção mesclada.
-Mesma regra de amostra das métricas de fluxo. Taxa de falha e tempo de recuperação (estabilidade) pesam tanto quanto frequência e lead time (velocidade): velocidade que sobe com estabilidade em queda não é melhoria.
+## Métricas e retrospectiva
+Métricas de fluxo e DORA, medição do retrabalho e retrospectiva: skill `kanban-metricas`, do `agile-coach`.
 
 ## Bugs e retrabalho
 Todo achado de code review, revisão de UX e bug do QA volta ao autor por este processo. O Jarvis cria os cartões no mesmo dia do parecer; o agile-coach audita.
@@ -105,29 +92,9 @@ Um cartão por (origem, área, faixa de severidade), revisável de uma vez: bloq
 - Cartões de retrabalho do mesmo autor: exceção de `R-WIP`; o agente trabalha em ordem de severidade.
 - Quais severidades podem seguir abertas numa entrega: `R-QA` portão de QA.
 
-**5. Medição** (a partir de `historico.md`, sempre do processo, nunca de pessoa ou agente)
-- Taxa de retrabalho: pais devolvidos / cartões que chegaram ao Code review.
-- Voltas por bug: reaberturas por cartão de bug; alvo <= 1, alarme em 3.
-- Escape: bugs achados no QA ou depois, que o code review deveria ter pegado, e bugs achados após o parecer do QA.
-- Achados por parecer e por severidade, para ver a tendência rodada a rodada. Poucos itens: mostrar os valores brutos.
-
 **6. A cada rodada de review/QA, o Jarvis**
 1. Confere que o parecer tem contagem por severidade e links com número de achado.
 2. Cria os cartões de bug/ajuste agrupados, lança o movimento no histórico (hora real) e move o pai para Bloqueado.
 3. Encaminha ao autor e puxa os bugs antes de trabalho novo.
 4. Ao receber a correção: Code review, QA, UX; só fecha o pai com todos os bloqueantes, críticos e altos fechados.
 5. Pede ao agile-coach a auditoria do quadro e inclui as métricas de retrabalho na retrospectiva.
-
-## Retrospectiva (`docs/retrospectivas/AAAA-MM-DD-<pedido>.md`)
-1. Dados do pedido: lead time, cycle time, vazão, retrabalho, bloqueios e as quatro métricas DORA, lendo velocidade e estabilidade juntas.
-2. O que funcionou.
-3. O que atrapalhou (fatos, não pessoas).
-4. **No máximo 1 causa nova**, escolhida por `forge-placar` e `forge-placar propostas` (o checklist: métrica, `Mudança: código:` ou `Mudança: texto:`, critério de reversão, Início e Revisão de 1 a 30 dias; uma proposta aberta por vez), mais a tabela das linhas `MELHORIA:` (`R-DECISAO`), que são só candidatas. O ciclo é do `agile-coach` com o `tech-lead`, sem a pessoa.
-5. Revisão das propostas vencidas: `forge-placar comparar --antes <data> --depois <data> --metrica <m>` (rc 0 manter, rc 1 reverter a mudança inteira, rc 3 inconclusivo), com o resultado gravado. `ERRO-JARVIS:` entra como dado, com `Prevenção: eval/trava: <caso>` ou `sem trava possível`. Proibido: regra, lembrete ou checklist em texto sem métrica e prazo; trava sem eval; segunda proposta aberta. À pessoa, só a linha `resumo:` do `forge-placar`.
-
-## Experimentos de melhoria (`docs/kanban/melhorias.md`)
-| ID | Hipótese | Mudança | Métrica | Critério de reversão | Início | Revisão | Resultado |
-Uma mudança por vez em cada parte do processo, para saber o que causou o efeito.
-
-## Elementos de Scrum usados
-O time trabalha em fluxo contínuo (Kanban), aproveitando de Scrum: **objetivo claro por pedido** (como meta de sprint), **revisão** com o usuário ao fim de cada pedido, **retrospectiva** com ações concretas e **definição de pronto** compartilhada. Não há sprints de duração fixa nem pontos de estória.

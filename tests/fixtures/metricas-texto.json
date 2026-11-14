@@ -175,12 +175,28 @@
   "descricao": 233,
   "sinonimos": 0
  },
+ "skills/fluxo-do-pedido/SKILL.md": {
+  "caracteres": 4294,
+  "frase_max": 46,
+  "frase_media_x10": 238,
+  "linhas_longas": 9,
+  "descricao": 299,
+  "sinonimos": 0
+ },
  "skills/iniciar-projeto/SKILL.md": {
   "caracteres": 2163,
   "frase_max": 38,
   "frase_media_x10": 188,
   "linhas_longas": 7,
   "descricao": 348,
+  "sinonimos": 0
+ },
+ "skills/kanban-metricas/SKILL.md": {
+  "caracteres": 4295,
+  "frase_max": 46,
+  "frase_media_x10": 148,
+  "linhas_longas": 14,
+  "descricao": 250,
   "sinonimos": 0
  },
  "skills/kanban-scrum/SKILL.md": {

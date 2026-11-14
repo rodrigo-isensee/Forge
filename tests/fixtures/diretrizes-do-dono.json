@@ -1,0 +1,188 @@
+{
+ "_leia": "Diretrizes do dono do Forge (v047, P4 da folga do texto do Jarvis; diretriz 25). Tabela neutra: o arquivo do dono fica fora do git. Uma entrada por número, de 1 a N sem buraco. `fabrica`: cada trecho (regex, re.S, 20+ caracteres) aparece no Jarvis ou numa skill, regra ou documento que ele manda ler (tests/apoio_jarvis.py, conjunto_do_jarvis). `sessao`: vale só na sessão do Forge; `motivo` diz por quê. `pendente`: falta levar à fábrica; `cartao` do quadro; trecho já presente reprova (passe a fabrica). Lida por tests/test_jarvis_nucleo.py; com FORGE_DIRETRIZES_DONO apontando o arquivo do dono, cada número dele precisa de entrada.",
+ "diretrizes": {
+  "1": {
+   "onde": "fabrica",
+   "resumo": "toda pergunta ao dono traz o custo em tokens e o ganho de velocidade de cada opção",
+   "trechos": [
+    "Cada opção traz tokens e velocidade"
+   ]
+  },
+  "2": {
+   "onde": "pendente",
+   "resumo": "nunca propor abandonar trabalho parado",
+   "cartao": "DIRETRIZ-2-SEM-ABANDONO"
+  },
+  "3": {
+   "onde": "sessao",
+   "resumo": "autorização ampla para afrouxar o que trava o Forge, com exceções",
+   "motivo": "autorização do dono da sessão do Forge; não vai aos projetos (decisão do dono de 14/11)"
+  },
+  "4": {
+   "onde": "sessao",
+   "resumo": "nunca mexer num repositório do dono",
+   "motivo": "nome de um repositório do dono; vale só na máquina dele"
+  },
+  "5": {
+   "onde": "sessao",
+   "resumo": "a área de trabalho do Jarvis vai ao GitHub no máximo de hora em hora",
+   "motivo": "área de trabalho do Jarvis na sessão do Forge, fora do git do plugin"
+  },
+  "6": {
+   "onde": "fabrica",
+   "resumo": "decisões ao dono uma a uma, a de maior peso primeiro",
+   "trechos": [
+    "uma decisão por mensagem, a mais pesada primeiro"
+   ]
+  },
+  "7": {
+   "onde": "fabrica",
+   "resumo": "nenhuma decisão do dono é aplicada por prazo vencido",
+   "trechos": [
+    "Sem resposta, fica pendente"
+   ]
+  },
+  "8": {
+   "onde": "fabrica",
+   "resumo": "cada decisão traz a origem do item",
+   "trechos": [
+    "cada pergunta, a origem"
+   ]
+  },
+  "9": {
+   "onde": "fabrica",
+   "resumo": "nenhuma decisão ruim passa calada, nem as do dono",
+   "trechos": [
+    "Decisão ruim não passa calada",
+    "decisão contra a recomendação"
+   ]
+  },
+  "10": {
+   "onde": "fabrica",
+   "resumo": "teto de agentes adaptativo pela memória livre",
+   "trechos": [
+    "teto de agentes adaptativo"
+   ]
+  },
+  "11": {
+   "onde": "pendente",
+   "resumo": "vaga livre nunca fica parada à espera da versão atual",
+   "cartao": "DIRETRIZ-11-VAGA-NAO-ESPERA"
+  },
+  "12": {
+   "onde": "fabrica",
+   "resumo": "conversa principal curta, recomeçada a cada marco",
+   "trechos": [
+    "Conversa principal curta"
+   ]
+  },
+  "13": {
+   "onde": "fabrica",
+   "resumo": "modelo certo por tarefa",
+   "trechos": [
+    "Modelo certo por disparo"
+   ]
+  },
+  "14": {
+   "onde": "fabrica",
+   "resumo": "falhar rápido em erro de ambiente",
+   "trechos": [
+    "no máximo 2 tentativas; repetida igual, o agente para"
+   ]
+  },
+  "15": {
+   "onde": "fabrica",
+   "resumo": "envio leve, CI como portão",
+   "trechos": [
+    "o pre-push de qualquer branch roda as checagens baratas"
+   ]
+  },
+  "16": {
+   "onde": "fabrica",
+   "resumo": "item na develop assim que fica pronto",
+   "trechos": [
+    "item com pareceres aprovados e CI verde entra na `develop` quando pronto"
+   ]
+  },
+  "17": {
+   "onde": "fabrica",
+   "resumo": "piso de memória livre em 2 GB",
+   "trechos": [
+    "`piso_memoria_gb` em `\\.forge/config\\.json`, padrão 2 GB"
+   ]
+  },
+  "18": {
+   "onde": "fabrica",
+   "resumo": "vários do mesmo papel em paralelo, uma instância por item",
+   "trechos": [
+    "uma instância do papel por item à espera"
+   ]
+  },
+  "19": {
+   "onde": "fabrica",
+   "resumo": "o Jarvis anda sozinho e nunca pede para ser chamado",
+   "trechos": [
+    "Você anda sozinho e nunca pede para ser chamado"
+   ]
+  },
+  "20": {
+   "onde": "fabrica",
+   "resumo": "backlog e plano só da fonte atual",
+   "trechos": [
+    "Triagem\\*\\* termina com o `KANBAN\\.md` atualizado"
+   ]
+  },
+  "21": {
+   "onde": "fabrica",
+   "resumo": "versão marcada a cada dia, sem esperar o pedido inteiro",
+   "trechos": [
+    "uma vez por dia o `tech-lead` marca na `develop` o que entrou"
+   ]
+  },
+  "22": {
+   "onde": "sessao",
+   "resumo": "teto de 16 agentes nesta máquina",
+   "motivo": "vale só para a sessão do Forge nesta máquina; o modelo dos projetos não muda"
+  },
+  "23": {
+   "onde": "pendente",
+   "resumo": "envio leve, mas não às cegas: checagens rápidas antes de cada envio",
+   "cartao": "PRE-ENVIO-RAPIDO"
+  },
+  "24": {
+   "onde": "pendente",
+   "resumo": "o Jarvis fala pouco: só decisão, ação, problema que muda prazo ou risco e marco",
+   "cartao": "FALA-SO-NO-MARCO"
+  },
+  "25": {
+   "onde": "fabrica",
+   "resumo": "nenhuma regra sai do texto do Jarvis nem das skills: o detalhe vai para skill citada",
+   "trechos": [
+    "nenhuma regra sai; para caber, mova o detalhe para skill citada"
+   ]
+  },
+  "26": {
+   "onde": "pendente",
+   "resumo": "integração na develop em lotes de até 3",
+   "cartao": "INTEGRACAO-EM-LOTE"
+  },
+  "27": {
+   "onde": "pendente",
+   "resumo": "subir versão o mais rápido possível, 1 hora da marca ao PR para a main",
+   "cartao": "RELEASE-EM-1H"
+  },
+  "28": {
+   "onde": "pendente",
+   "resumo": "sessão sempre no modo automático e com o sandbox conferido",
+   "cartao": "SESSAO-AUTOMATICA"
+  },
+  "29": {
+   "onde": "pendente",
+   "resumo": "quando o dono pede as decisões, o Jarvis faz só isso",
+   "cartao": "FOCO-NAS-DECISOES",
+   "trechos": [
+    "a lista curta de todas as decisões pendentes, da de maior peso para a menor"
+   ]
+  }
+ }
+}

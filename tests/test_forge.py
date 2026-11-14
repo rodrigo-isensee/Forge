@@ -302,8 +302,9 @@ class Agentes(unittest.TestCase):
                 with self.subTest(agente=p.name, skill=s):
                     self.assertIn(s.removeprefix("forge:"), self.skills)
 
-    def test_time_do_jarvis_existe(self):
-        texto = (AGENTES / "jarvis.md").read_text(encoding="utf-8")
+    def test_time_do_jarvis_existe(self):  # folga do texto do Jarvis (v047, P2): a tabela foi para a skill fluxo-do-pedido
+        self.assertIn("tabela de `fluxo-do-pedido`", (AGENTES / "jarvis.md").read_text(encoding="utf-8"))
+        texto = (SKILLS / "fluxo-do-pedido" / "SKILL.md").read_text(encoding="utf-8")
         tabela = re.search(r"## Time\n(.*?)\n## ", texto, re.S).group(1)
         citados = set(re.findall(r"^\| `(?:forge:)?([a-z-]+)` \|", tabela, re.M))
         # Os agentes de stack não ficam na tabela (o núcleo não os cita): o Jarvis os lê de stacks/<stack>/agents/.
@@ -552,7 +553,7 @@ class RegrasInviolaveis(unittest.TestCase):
 LEGADO_SEM_MOTIVO_MAXIMO = 34  # L35 (OK-11): os invariantes de antes do campo; a lista só encolhe, e o novo já nasce com regra e porque
 
 
-LEGADO_TRECHOS_MAXIMO = 284  # L35 (A9 do QA): a soma dos trechos do legado, igual à real de hoje; só encolhe
+LEGADO_TRECHOS_MAXIMO = 225  # L35 (A9 do QA): a soma dos trechos do legado, igual à real de hoje; só encolhe
 
 
 def problemas_de_motivo(config, regras):
@@ -4438,7 +4439,7 @@ class PraticasDeEspecificacao(unittest.TestCase):
         self.assertIn("constituicao.md", self.texto("templates/projeto/CLAUDE.md"))
 
     def test_dora_na_skill_e_no_agile_coach(self):
-        for rel in ("skills/kanban-scrum/SKILL.md", "agents/agile-coach.md"):
+        for rel in ("skills/kanban-metricas/SKILL.md", "agents/agile-coach.md"):  # v047 P1: DORA saiu da kanban-scrum
             t = self.texto(rel)
             for m in ("DORA", "lead time de mudança", "taxa de falha", "recuperação"):
                 self.assertIn(m, t.lower() if m.islower() else t, rel)

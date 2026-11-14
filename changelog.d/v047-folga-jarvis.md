@@ -1,0 +1,2 @@
+### Alterado
+- Folga no texto do Jarvis sem apagar regra (diretriz 25): o detalhe do recibo, da tabela do time, dos passos 1, 4 e 9 e de Fábrica × projeto foi, sem mudar palavra, para a skill nova fluxo-do-pedido, e as métricas, a medição do retrabalho e a retrospectiva da kanban-scrum foram para a skill nova kanban-metricas, do agile-coach; no Jarvis fica o resumo com a ordem de leitura. Um teste prova a presença das regras com ID e das diretrizes do dono no que o Jarvis lê, e a catraca de texto manda mover em vez de reduzir

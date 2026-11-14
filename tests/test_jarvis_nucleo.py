@@ -2,15 +2,31 @@
 sumiu (T-51a): cada trecho que o `tests/config.json` exigia do Jarvis na base b2580c6 segue exigido, no Jarvis ou na skill
 para onde foi, e o texto de cada um existe lá; o núcleo manda ler cada skill nova."""
 import json
+import os
 import re
+import shutil
+import sys
+import tempfile
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from apoio_jarvis import (INDICE_DAS_REGRAS, conjunto_do_jarvis, ids_da_tabela, problemas_das_diretrizes, problemas_das_regras,  # noqa: E402
+                          skills_citadas, skills_sem_ordem_de_leitura)
 
 RAIZ = Path(__file__).resolve().parent.parent
 CONFIG = json.loads((RAIZ / "tests" / "config.json").read_text(encoding="utf-8"))
 ANTES = json.loads((RAIZ / "tests" / "fixtures" / "jarvis-invariantes-b2580c6.json").read_text(encoding="utf-8"))
 JARVIS = "agents/jarvis.md"
-SKILLS_NOVAS = ("briefs-e-conferencia", "trabalho-em-paralelo", "falar-com-o-dono")
+SKILLS_L51 = ("briefs-e-conferencia", "trabalho-em-paralelo", "falar-com-o-dono")
+# Folga do texto do Jarvis (v047, P2): o ponteiro pelo caminho também é invariante para a skill nova `fluxo-do-pedido`.
+SKILLS_COM_PONTEIRO = SKILLS_L51 + ("fluxo-do-pedido",)
+DIRETRIZES = json.loads((RAIZ / "tests" / "fixtures" / "diretrizes-do-dono.json").read_text(encoding="utf-8"))["diretrizes"]
+# P4 (decisões do dono de 14/11 08:16 e 08:38): pendentes 2, 11, 23, 24, 26, 27, 28 e 29, cada uma com o seu cartão; só desce.
+MAX_PENDENTES = 8
+# P3: a mensagem do núcleo manda mover, não reduzir (diretriz 25).
+MOVA = ("não apague nem resuma regra (diretriz 25): mova o detalhe para uma skill que o Jarvis manda ler e deixe o resumo; "
+        "não suba o teto")
 # 0.43.1 (decisões do dono de 2026-11-08, "Faça tudo"): o brief é selado pela ferramenta, a entrega é conferida por ela e as
 # perguntas ao dono passavam a ser juntadas numa só mensagem (revisto na 0.46, uma a uma). Estes trechos descreviam a conferência manual pelo agente conferente (mensagem, hash, Base-sha,
 # passada única, autoconferência) e a pergunta uma por vez: saem por mudança de processo, não por afrouxamento. O que eles
@@ -34,7 +50,7 @@ def ler(rel):
 
 
 def arquivos_do_nucleo():
-    return [JARVIS] + [f"skills/{nome}/SKILL.md" for nome in SKILLS_NOVAS]
+    return list(conjunto_do_jarvis())
 
 
 class NucleoCurtoDoJarvis(unittest.TestCase):
@@ -53,14 +69,14 @@ class NucleoCurtoDoJarvis(unittest.TestCase):
 
     def test_o_nucleo_manda_ler_cada_skill_no_passo_dela(self):
         nucleo = ler(JARVIS)
-        for nome in SKILLS_NOVAS:
+        for nome in SKILLS_COM_PONTEIRO:
             with self.subTest(skill=nome):
                 self.assertIn(f"skills/{nome}/SKILL.md", nucleo)
                 self.assertIn(f"skills/{nome}/SKILL\\.md", CONFIG["invariantes"][JARVIS])  # o ponteiro também é invariante
 
     def test_o_nucleo_ficou_curto_e_as_skills_tem_o_texto_que_saiu(self):
         self.assertLess(len(ler(JARVIS)), 24000)  # 29.092 bytes na base
-        for nome in SKILLS_NOVAS:
+        for nome in SKILLS_L51:
             with self.subTest(skill=nome):
                 texto = ler(f"skills/{nome}/SKILL.md")
                 self.assertGreater(len(texto), 1000)
@@ -100,7 +116,7 @@ class OrcamentoDeInstrucao(unittest.TestCase):
         arquivos = [RAIZ / JARVIS, *sorted((RAIZ / "docs" / "regras").glob("*.md"))]
         self.assertGreaterEqual(len(arquivos), 14)  # AV5: seis regras viraram trechos de R-LIMITES.md e uma linha do README
         total = sum(len(a.read_text(encoding="utf-8")) for a in arquivos)
-        self.assertLessEqual(total, ORCAMENTO_0431)
+        self.assertLessEqual(total, ORCAMENTO_0431, f"núcleo: passa do teto em {total - ORCAMENTO_0431}; {MOVA}")
 
     def test_toda_regra_tem_revisao_e_medida(self):  # decisão 10: `Revisar em:` e `Medida:` no começo da linha
         regras = sorted((RAIZ / "docs" / "regras").glob("R-*.md"))
@@ -129,8 +145,8 @@ class RevalidaMesmaInstancia(unittest.TestCase):
         self.assertIn("sem a instância (sessão reiniciada), abra uma nova com o mesmo brief", passo5)
 
     def test_o_nucleo_segue_no_teto(self):
-        nucleo = ler(JARVIS)
-        self.assertLessEqual(len(nucleo), ORCAMENTO["agentes"]["jarvis"]["teto"]["agente_caracteres"])
+        nucleo, teto = ler(JARVIS), ORCAMENTO["agentes"]["jarvis"]["teto"]["agente_caracteres"]
+        self.assertLessEqual(len(nucleo), teto, f"{JARVIS}: passa do teto em {len(nucleo) - teto}; {MOVA}")
         self.assertLessEqual(len(nucleo.splitlines()), 110)
 
 
@@ -196,6 +212,121 @@ class WorktreeAntesDeDelegar(unittest.TestCase):
     def test_a_skill_da_o_clone_local_como_saida_quando_a_worktree_nao_grava(self):
         skill = ler("skills/briefs-e-conferencia/SKILL.md")
         self.assertRegex(skill, r"(?s)não gravável.*clone local.*~/\.forge-contrib/wt/<nome>-c.*origin/develop")
+
+
+class PresencaDasRegrasEDasDiretrizes(unittest.TestCase):
+    """Folga do texto do Jarvis (v047, P4; diretriz 25): cada regra com ID e cada diretriz de fábrica seguem presentes no Jarvis
+    ou no que ele manda ler; cada skill que o Jarvis cita vem com a ordem de leitura ("leia" ou "antes de"). Falta reprova e diz
+    onde procurar; o teste não corrige sozinho."""
+
+    def test_o_conjunto_e_calculado_e_traz_as_skills_novas(self):
+        conjunto = conjunto_do_jarvis()
+        self.assertGreaterEqual(len(conjunto), 20)
+        for rel in ("skills/fluxo-do-pedido/SKILL.md", "skills/kanban-metricas/SKILL.md", "docs/regras/R-DECISAO.md",
+                    INDICE_DAS_REGRAS, "docs/economia-de-tokens.md"):
+            with self.subTest(arquivo=rel):
+                self.assertIn(rel, conjunto)
+
+    def test_cada_skill_citada_pelo_jarvis_traz_a_ordem_de_leitura(self):
+        self.assertGreaterEqual(len(skills_citadas(ler(JARVIS))), 8)
+        self.assertEqual(skills_sem_ordem_de_leitura(), [])
+
+    def test_cada_regra_com_id_aparece_e_tem_texto(self):
+        self.assertGreaterEqual(len(ids_da_tabela()), 17)
+        self.assertEqual(problemas_das_regras(RAIZ, conjunto_do_jarvis()), [])
+
+    def test_cada_diretriz_tem_entrada_e_a_de_fabrica_aparece(self):
+        self.assertGreaterEqual(len(DIRETRIZES), 29)
+        self.assertEqual(problemas_das_diretrizes(DIRETRIZES, conjunto_do_jarvis(), MAX_PENDENTES), [])
+
+    def test_cada_numero_do_arquivo_do_dono_tem_entrada(self):
+        arquivo = os.environ.get("FORGE_DIRETRIZES_DONO", "")
+        if not arquivo or not Path(arquivo).is_file():
+            self.skipTest("FORGE_DIRETRIZES_DONO sem o arquivo do dono (fora do git; no CI, a tabela neutra basta)")
+        numeros = [int(n) for n in re.findall(r"^(\d+)\. ", Path(arquivo).read_text(encoding="utf-8"), re.M)]
+        self.assertTrue(numeros, "nenhum número no arquivo do dono")
+        self.assertEqual(problemas_das_diretrizes(DIRETRIZES, conjunto_do_jarvis(), MAX_PENDENTES, numeros), [])
+
+
+class MutantesDaPresenca(unittest.TestCase):
+    """P4, item 7: cada mutante numa árvore sintética reprova (lista completa, AR-1)."""
+
+    JARVIS_OK = "Leia `${CLAUDE_PLUGIN_ROOT}/skills/s1/SKILL.md` antes de agir; `R-UM` e `R-DOIS`.\n"
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-presenca-"))
+        self.escrever("agents/jarvis.md", self.JARVIS_OK)
+        self.escrever("skills/s1/SKILL.md", "Detalhe da skill: veja também a skill `s2`.\n")
+        self.escrever("skills/s2/SKILL.md", "Cada pergunta ao dono traz a origem do item.\n")
+        self.escrever("docs/regras/R-UM.md", "Texto da regra um.\n")
+        self.escrever(INDICE_DAS_REGRAS, "| ID | Regra |\n|---|---|\n| [`R-UM`](R-UM.md) | Um |\n| `R-DOIS` | Dois |\n\n"
+                      "**`R-DOIS` (regra só de hook):** texto da regra dois.\n")
+        self.tabela = {"1": {"onde": "fabrica", "trechos": ["traz a origem do item"]},
+                       "2": {"onde": "sessao", "motivo": "vale só na sessão do Forge"},
+                       "3": {"onde": "pendente", "cartao": "CARTAO-3", "trechos": ["texto que ainda não entrou na fábrica"]}}
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def escrever(self, rel, texto):
+        (self.tmp / rel).parent.mkdir(parents=True, exist_ok=True)
+        (self.tmp / rel).write_text(texto, encoding="utf-8")
+
+    def diretrizes(self, tabela=None, numeros=()):
+        return problemas_das_diretrizes(tabela or self.tabela, conjunto_do_jarvis(self.tmp), 1, numeros)
+
+    def test_a_arvore_sintetica_passa(self):
+        self.assertEqual(sorted(conjunto_do_jarvis(self.tmp)), ["agents/jarvis.md", "docs/regras/R-UM.md", INDICE_DAS_REGRAS,
+                                                                "skills/s1/SKILL.md", "skills/s2/SKILL.md"])
+        self.assertEqual((self.diretrizes(numeros=[1, 2, 3]), skills_sem_ordem_de_leitura(self.tmp)), ([], []))
+        self.assertEqual(problemas_das_regras(self.tmp, conjunto_do_jarvis(self.tmp)), [])
+
+    def test_apagar_o_trecho_reprova_e_diz_onde_procurar(self):
+        self.escrever("skills/s2/SKILL.md", "Outro texto.\n")
+        erro = self.diretrizes()
+        self.assertEqual(len(erro), 1)
+        self.assertIn("diretriz 1: 'traz a origem do item' não está em agents/jarvis.md nem nas skills que ele manda ler", erro[0])
+        self.assertIn("não apague (diretriz 25)", erro[0])
+
+    def test_tirar_a_citacao_da_skill_reprova(self):
+        self.escrever("skills/s1/SKILL.md", "Detalhe da skill, sem citar outra.\n")
+        self.assertIn("diretriz 1: 'traz a origem do item' não está", self.diretrizes()[0])
+
+    def test_citar_sem_leia_nem_antes_de_reprova(self):
+        self.escrever("agents/jarvis.md", "Veja `${CLAUDE_PLUGIN_ROOT}/skills/s1/SKILL.md`; `R-UM` e `R-DOIS`.\n")
+        self.assertEqual(skills_sem_ordem_de_leitura(self.tmp), ["s1"])
+
+    def test_id_no_readme_sem_texto_reprova(self):
+        self.escrever(INDICE_DAS_REGRAS, "| [`R-UM`](R-UM.md) | Um |\n| `R-DOIS` | Dois |\n")
+        self.assertEqual(problemas_das_regras(self.tmp, conjunto_do_jarvis(self.tmp)), ["R-DOIS: sem texto em docs/regras/"])
+
+    def test_id_fora_do_conjunto_reprova(self):
+        self.escrever("agents/jarvis.md", "Leia `${CLAUDE_PLUGIN_ROOT}/skills/s1/SKILL.md` antes de agir; `R-UM`.\n")
+        self.assertEqual(problemas_das_regras(self.tmp, conjunto_do_jarvis(self.tmp)),
+                         ["R-DOIS: não aparece no Jarvis nem nas skills citadas"])
+
+    def test_numero_do_arquivo_do_dono_sem_entrada_reprova(self):
+        self.assertEqual(self.diretrizes(numeros=[1, 2, 3, 4]), ["diretriz 4 do arquivo do dono sem entrada"])
+
+    def test_buraco_na_numeracao_reprova(self):
+        tabela = dict(self.tabela)
+        del tabela["2"]
+        self.assertEqual(self.diretrizes(tabela), ["diretriz 2: buraco na numeração"])
+
+    def test_pendente_que_ja_aparece_reprova(self):
+        tabela = dict(self.tabela, **{"3": {"onde": "pendente", "cartao": "CARTAO-3", "trechos": ["traz a origem do item"]}})
+        self.assertEqual(self.diretrizes(tabela), ["diretriz 3: pendente com o trecho 'traz a origem do item' já presente; passe a fabrica"])
+
+    def test_trecho_curto_reprova(self):
+        tabela = dict(self.tabela, **{"1": {"onde": "fabrica", "trechos": ["a origem do item"]}})
+        self.assertEqual(self.diretrizes(tabela), ["diretriz 1: trecho com menos de 20 caracteres: 'a origem do item'"])
+
+    def test_pendente_acima_do_maximo_sem_cartao_ou_onde_desconhecido_reprova(self):
+        tabela = dict(self.tabela, **{"2": {"onde": "pendente", "cartao": ""}, "4": {"onde": "talvez"},
+                                      "5": {"onde": "fabrica"}, "6": {"onde": "sessao", "motivo": "curto"}})
+        self.assertEqual(self.diretrizes(tabela), ["diretriz 2: pendente sem cartão", "diretriz 4: onde = 'talvez', esperava fabrica, "
+                                                   "sessao ou pendente", "diretriz 5: de fábrica sem trecho", "diretriz 6: de sessão sem motivo",
+                                                   "2 diretrizes pendentes, máximo 1: pendente só desce"])
 
 
 if __name__ == "__main__":

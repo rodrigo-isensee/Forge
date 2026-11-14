@@ -601,7 +601,9 @@ class MedidaM2b(Raiz):
         self.assertEqual((r.returncode, r.stdout), (2, "provas: não verificável (scripts/reexecutar-provas.py ausente)\n"))
 
     def test_agile_coach_leva_a_medida_ao_cartao_na_retrospectiva_da_042(self):
-        coach = (Path(FORGE_CHECK_M2B).parent.parent / "agents" / "agile-coach.md").read_text(encoding="utf-8")
+        raiz = Path(FORGE_CHECK_M2B).parent.parent  # v047 P1: a linha foi, inteira, para a skill kanban-metricas do agile-coach
+        coach = "\n".join((raiz / rel).read_text(encoding="utf-8") for rel in ("agents/agile-coach.md", "skills/kanban-metricas/SKILL.md"))
+        self.assertIn("kanban-metricas", (raiz / "agents" / "agile-coach.md").read_text(encoding="utf-8"))
         self.assertIn("forge-check provas medida --desde <abertura da 0.41>", coach)
         self.assertIn("EST-M2B-REAVALIAR", coach)
 
