@@ -1,0 +1,46 @@
+{
+  "pedido": "v047-fila-suite-espera",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "F9",
+      "guarda": "o registro do barrado diz se veio do --suite",
+      "arquivo": ".githooks/pre-push",
+      "de": "[ \"$modo_suite\" = 1 ] && modo=suite",
+      "para": "[ \"$modo_suite\" = 1 ] && modo=push",
+      "testes": [
+        "tests.test_pre_push_fila.FilaDaSuite.test_barrado_registra_uma_linha_por_envio"
+      ]
+    },
+    {
+      "id": "F10",
+      "guarda": "o registro dos barrados não segue link",
+      "arquivo": ".githooks/pre-push",
+      "de": "[ ! -L \"$arq\" ] && { [ ! -e \"$arq\" ] || [ -O \"$arq\" ]; } || return 0\n    { (umask 077; printf",
+      "para": "{ [ ! -e \"$arq\" ] || [ -O \"$arq\" ]; } || return 0\n    { (umask 077; printf",
+      "testes": [
+        "tests.test_pre_push_fila.FilaDaSuite.test_registro_que_e_link_nao_e_seguido"
+      ]
+    },
+    {
+      "id": "F11",
+      "guarda": "a espera pela trava (depois da vez na fila) é laço que confere a trava",
+      "arquivo": ".githooks/pre-push",
+      "de": "  while ! flock -n 9; do",
+      "para": "  while false; do",
+      "testes": [
+        "tests.test_pre_push_fila.FilaDaSuite.test_dona_morta_avisa_uma_vez_e_nao_libera"
+      ]
+    },
+    {
+      "id": "F12",
+      "guarda": "a espera pela trava respeita o FORGE_TRAVA_ESPERA",
+      "arquivo": ".githooks/pre-push",
+      "de": "\n    [ \"$(date +%s%N)\" -lt \"$limite_ns\" ] || barrar",
+      "para": "\n    [ \"$(date +%s%N)\" -lt \"$((limite_ns + 30000000000))\" ] || barrar",
+      "testes": [
+        "tests.test_pre_push_fila.FilaDaSuite.test_barrado_registra_uma_linha_por_envio"
+      ]
+    }
+  ]
+}

@@ -405,6 +405,8 @@ if [ "$modo_suite" -eq 0 ] && [ "$suite_local" = 0 ]; then
 fi
 espera="${FORGE_TRAVA_ESPERA:-1200}"
 case "$espera" in ''|*[!0-9]*) echo "pre-push: FORGE_TRAVA_ESPERA deve ser um número de segundos inteiro (veio '${espera}')." >&2; exit 1 ;; esac
+intervalo="${FORGE_FILA_INTERVALO:-60}"
+case "$intervalo" in ''|*[!0-9]*) echo "pre-push: FORGE_FILA_INTERVALO deve ser um número de segundos inteiro (veio '${intervalo}')." >&2; exit 1 ;; esac
 trava="$(trava_arquivo criar)" || exit 1
 if [ -L "$trava" ]; then
   echo "pre-push: ${trava} é link simbólico ou não é do próprio usuário; recusado. Apague-o e tente de novo." >&2
@@ -468,12 +470,58 @@ if [ "$curta" = 0 ]; then
   avisar() {
     [ "$avisou" = 1 ] && return 0
     avisou=1
-    echo "pre-push: outra suíte do Forge está rodando ou na fila antes desta ($(texto_da_trava)); esperando a vez por até ${espera} s (R-TETO)." >&2
+    echo "pre-push: outra suíte do Forge está rodando ou na fila antes desta (a linha da posição diz quem); esperando a vez por até ${espera} s (R-TETO)." >&2
   }
   barrar() {
+    registrar_barrado
     fila_sair
     echo "pre-push: a vez não chegou em ${espera} s; a suíte não rodou e o envio foi barrado. Veja '.githooks/pre-push --status' e tente de novo." >&2
     exit 1
+  }
+  # FILA-SUITE-ESPERA: quem espera vê, ao entrar e a cada FORGE_FILA_INTERVALO segundos (padrão 60), a posição, a
+  # dona da trava e as senhas na frente; e um aviso, uma vez, quando a trava parece velha: dona morta (pid do mesmo
+  # namespace sem /proc) ou trava sem troca de dona há mais de 35 min (mtime). O aviso só informa: nada aqui libera a
+  # trava nem pula a fila. Envio barrado pela espera vira a linha "<data> <hora> <push|suite> <espera>" em <trava>.barrados.
+  proximo_s=0
+  avisou_velha=0
+  a_cada_intervalo() {
+    [ "$(date +%s)" -ge "$proximo_s" ] || return 0
+    proximo_s=$(( $(date +%s) + intervalo ))
+    mostrar_fila
+    avisar_trava_velha
+  }
+  # A senha <ns>-<pid> vira "pid <pid> desde <hora da chegada>".
+  quem_na_fila() {
+    local n="${1##*/}" s
+    n="${n//[!0-9-]/}"; s="${n%%-*}"; s="${s%?????????}"
+    printf 'pid %s desde %s' "${n#*-}" "$(date -d "@${s:-0}" +%H:%M:%S 2>/dev/null || echo '?')"
+  }
+  mostrar_fila() {
+    local f frente="" pos=1 pid ns desde
+    read -r _ pid _ ns _ desde _ <<< "$(texto_da_trava)"
+    while IFS= read -r f; do
+      [ "$f" = "$senha" ] && break
+      pos=$((pos + 1)); frente="${frente}, $(quem_na_fila "$f")"
+    done < <([ -n "$senha" ] && fila_vivas)
+    echo "pre-push: fila da suíte $(date +%H:%M:%S): posição ${pos}; trava com pid ${pid:0:12} ns ${ns:0:12} desde ${desde:0:8}${frente:+; na frente: ${frente#, }}" >&2
+  }
+  avisar_trava_velha() {
+    local pid ns idade motivo meu_ns
+    [ "$avisou_velha" = 0 ] || return 0
+    read -r _ pid _ ns _ <<< "$(texto_da_trava)"
+    meu_ns="$(readlink /proc/self/ns/pid 2>/dev/null)"; meu_ns="${meu_ns//[!0-9]/}"
+    idade=$(( $(date +%s) - $(stat -c %Y -- "$trava" 2>/dev/null || date +%s) ))
+    if [[ "$pid" =~ ^[0-9]+$ ]] && [ "$ns" = "$meu_ns" ] && [ ! -e "/proc/$pid" ]; then motivo="dona pid ${pid} morta"
+    elif [ "$idade" -gt 2100 ]; then motivo="sem troca de dona há $((idade / 60)) min"
+    else return 0; fi
+    avisou_velha=1
+    echo "pre-push: aviso: a trava da suíte parece velha (${motivo}); nada é liberado e a fila não é pulada. Confira: .githooks/pre-push --status; ps -o pid,etime,args -p ${pid:-<pid>}; fuser -v ${trava}" >&2
+  }
+  registrar_barrado() {
+    local arq="${trava%.lock}.barrados" modo=push
+    [ "$modo_suite" = 1 ] && modo=suite
+    [ ! -L "$arq" ] && { [ ! -e "$arq" ] || [ -O "$arq" ]; } || return 0
+    { (umask 077; printf '%s %s %s\n' "$(date '+%F %T')" "$modo" "$espera" >> "$arq"); } 2>/dev/null || true
   }
   fila="${trava%.lock}.fila"
   # PREPUSH-RELOGIO: entrou, vez e fim vão ao stderr, só com a hora e campos fixos (a medida da espera e da suíte).
@@ -481,16 +529,17 @@ if [ "$curta" = 0 ]; then
   if fila_entrar; then
     while [ "$(fila_vivas limpar | head -n 1)" != "$senha" ]; do
       avisar
+      a_cada_intervalo
       [ "$(date +%s%N)" -lt "$limite_ns" ] || barrar
       sleep 0.2
     done
   fi
-  if ! flock -n 9; then
+  while ! flock -n 9; do
     avisar
-    resta_ns=$(( limite_ns - $(date +%s%N) ))
-    [ "$resta_ns" -gt 0 ] || resta_ns=0
-    flock -w "$((resta_ns / 1000000000)).$(printf '%03d' $(( resta_ns / 1000000 % 1000 )))" 9 || barrar
-  fi
+    a_cada_intervalo
+    [ "$(date +%s%N)" -lt "$limite_ns" ] || barrar
+    sleep 0.2
+  done
   echo "pre-push: vez $(date +%H:%M:%S)" >&2
   fila_sair
   # PUSH-PARECER-JA-NO-REMOTO: o remoto pode ter recebido o mesmo commit durante a espera; a senha já saiu e a trava solta no exit.
