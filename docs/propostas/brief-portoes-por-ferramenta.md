@@ -2,7 +2,7 @@
 
 Propósito: desenhar o subcomando que gera e sela os briefs dos portões (review, segurança, QA, devops) a partir do pedido e do head, e a fila que o Jarvis dispara quando uma vaga abre (cartão BRIEF-NAO-SEGURA-VAGAS, ORDEM DO DONO de 14/11 15:53, pedido v047, etapa E1.224). Público: dono do Forge, Jarvis, `tech-lead`, `security-engineer`, `software-architect`. Revisão: 2026-11-14.
 
-Estado: proposta, só desenho, volta do parecer de segurança `docs/security/v047-brief-portoes.md` (E1.228: A1 na seção 3.4, A2 na 3.3, A3 na 4, A4 e A5 na 3, A6 na 3.2), antes de qualquer código. Marcas: **[COD]** confirmado no código da `develop` 7fff73e4; **[INF]** decisão de desenho a verificar na implementação.
+Estado: proposta, só desenho, volta do parecer de segurança `docs/security/v047-brief-portoes.md` (E1.228: A1 na seção 3.4, A2 na 3.3, A3 na 4, A4 e A5 na 3, A6 na 3.2) e da revalidação E1.241 (A7 na 3.4, item do opaco, nos mutantes e na parte 0 da seção 10, volta E1.244), antes de qualquer código. Marcas: **[COD]** confirmado no código da `develop` 7fff73e4; **[INF]** decisão de desenho a verificar na implementação.
 
 ## 1. Problema e evidência
 
@@ -94,13 +94,34 @@ Hoje o hook só vê escrita do `brief` em `selar` e em `gerar --gravar` (`grava_
 - **`--so-mostrar` pela leitura do argparse.** Conta como leitura só `abreviacao_de(a, ("--so-mostrar",))`, sem `=valor` e antes de um `--` (depois dele é posicional e o argparse recusa a linha). Abreviação que o argparse não aceita (`--s`, ambígua com `--sem-selar`) é escrita.
 - **`entrega --portoes` grava** no pedido e em `docs/briefs/`, com qualquer `--sem-gravar` ou `--so-leitura` na linha: o hook ignora as duas quando `--portoes` (ou a abreviação aceita, `--po` em diante) está presente, e o argparse recusa a combinação (rc 2), para as duas leituras baterem.
 - **Destinos.** `brief portoes` (sem `--so-mostrar`) e `entrega --portoes` passam pela política de caminhos em `docs/pedidos/` **e** `docs/briefs/` (`forge_check_grava`, nas duas raízes), então só o papel dono dessas pastas (`jarvis`, `hooks/conformidade.json:56-64`) os roda; papel de autor e papel só de leitura são recusados (`checar_so_leitura` já chama `forge_check_grava_no_pedido`, que passa a ver as formas novas).
-- **Programa opaco e interpretador.** `args_do_forge_check` hoje só reconhece `$(command -v forge-check)` com `anotar` ou `--gravar`; a sonda S2 abaixo mostra que `$(command -v forge-check) brief selar` passa no papel de autor já na `develop`. O critério do opaco passa a ser o mesmo predicado da escrita (`brief` com ação de escrita, `entrega --pedido` ou `--portoes`), não uma lista à parte.
+- **Programa opaco e interpretador (A7, parte 0 da seção 10).** `args_do_forge_check` (`hooks/conformidade.py:97-108`) hoje só devolve os argumentos do programa opaco quando a linha tem `anotar --tipo` ou `--gravar`, e no interpretador só acha o script pelo nome literal `forge-check`; fora disso o `forge_check_grava` (`:1590`) não roda, e as sondas S2 e S6 a S11 mostram `brief selar`, `pausa` e `recado` passando no papel de autor pelo opaco, pela crase, pela variável e pelo interpretador [COD]. Regra nova, falha fechada, **sem lista de subcomandos no critério do opaco**:
+  - programa opaco é o nome com `$` ou crase (`$(command -v forge-check)`, `"$(which forge-check)"`, `` `command -v forge-check` ``, `"$f"`); `args_do_forge_check` devolve **sempre** os argumentos dele, sem olhar o subcomando;
+  - no interpretador (`INTERPRETES`), além do nome literal, **cada** palavra opaca devolve os argumentos que vêm depois dela e o hook confere cada fatia: a opção com valor (`-W ignore`, `-X "$v"`) não esconde o script opaco que vem depois, e a fatia que começa num script comum do usuário não casa subcomando e não grava nada;
+  - quem decide é a política de destinos inteira do `forge_check_grava`: ela só confere destino quando o subcomando é de escrita (`grava_no_pedido`, `pausa` sem `--retomar`, `FORGE_CHECK_ESCRITAS`, `recado` sem `--confirmar`, `transcricao anonimizar`), então a leitura pelo opaco passa como hoje e o subcomando de escrita novo (o `brief portoes` e o `entrega --portoes` das partes 3 e 4) entra no opaco no mesmo dia em que entra no `forge_check_grava`, sem segunda lista a manter (`AR-3`). A condição `anotar --tipo` / `--gravar` de hoje sai, coberta pela regra geral;
+  - envolvedor (`env`, `command`, `timeout`, `xargs`), `bash -c` e `eval` já chegam ao `args_do_forge_check` com o programa desembrulhado ou o texto reanalisado (sonda S11: `env forge-check pausa` dá rc 2), então valem pela mesma regra sem código próprio (`AR-8`, `AR-10`);
+  - falso positivo aceito: outro programa opaco cujo primeiro argumento livre coincide com um subcomando de escrita (`"$editor" pausa`) é conferido como `forge-check` e recusado fora da política do papel; na dúvida, recusa.
 
 Sondas desta volta (hook `conformidade` em `beb017bd`, papel pelo `agent_type`, subprocesso com `python3 -I` e ambiente limpo; só leitura):
 - S2 · `$(command -v forge-check) brief selar --pedido v047 --arquivo docs/briefs/x.md`, papel de autor de stack · espera: recusa · obtido: rc 0 (a forma direta dá rc 2). Defeito já na `develop`, independente do subcomando: vai como correção própria (seção 10, parte 0).
 - S3 · `forge-check brief portoes --pedido v047 --branch melhoria/x`, papel de autor de stack e `forge:conferente` · espera: recusa · obtido: rc 0 nos dois (confirma A1).
 - S4 · `forge-check brief --pedido fila portoes --branch melhoria/x`, papel `forge:conferente` · espera: recusa · obtido: rc 0; `livres_do_forge_check` devolve `['brief', 'fila', 'portoes', 'melhoria/x']`, por isso a regra olha todas as palavras livres.
 - S5 · `grava_no_pedido` com `entrega --pedido v047 ... --portoes --so-leitura` · espera: True · obtido: False (daí a regra de `--portoes` acima).
+
+Sondas do parecer de segurança (A7, hook em `c8861f24`) e desta volta (hook em `0979cb63`, papel de autor de stack pelo `agent_type`, repositório temporário, ambiente limpo; só leitura):
+- S6 · `$(command -v forge-check) pausa` · espera: rc 2 · obtido: rc 0 (a forma direta dá rc 2).
+- S7 · `$(command -v forge-check) recado --para . oi` · espera: rc 2 · obtido: rc 0.
+- S8 · `python3 -I "$(command -v forge-check)" pausa` · espera: rc 2 · obtido: rc 0.
+- S9 · `f=$(command -v forge-check); "$f" pausa` e `` `command -v forge-check` recado --para . oi `` · espera: rc 2 · obtido: rc 0 nas duas.
+- S10 · `python3 -W ignore "$(command -v forge-check)" pausa` · espera: rc 2 · obtido: rc 0 (opção com valor antes do script opaco; daí "cada palavra opaca").
+- S11 · `env`, `command`, `timeout 5` e `xargs` antes de `"$(command -v forge-check)" pausa`, `bash -c '"$(command -v forge-check)" pausa'` e `eval "$(command -v forge-check) pausa"` · espera: rc 2 · obtido: rc 0 em todas; `env forge-check pausa` e `command forge-check pausa` dão rc 2 (o envolvedor já é desembrulhado; o furo é só o opaco).
+- S12 · leituras pelo opaco: `pausa --retomar`, `recado --confirmar`, `pedido --ler v047`, `brief fila`, `entrega v047` · espera: rc 0 · obtido: rc 0 (têm de continuar assim depois da parte 0).
+
+Corpus da parte 0 (`tests/hooks/conformidade/`, papel de autor de stack, e `forge:conferente` nas leituras; teste em subprocesso com ambiente limpo e `python3 -I`, `AR-4`, `AR-5`):
+- **Recusa (rc 2)**: o produto das escritas pelas formas. Escritas: `brief selar --pedido v047 --arquivo docs/briefs/x.md`, `brief gerar ... --gravar`, `entrega --pedido v047`, `pausa`, `recado --para . oi`, `pedido` sem `--ler`, `rodar`, `meta`, `medida`, `anotar --tipo nota`, `transcricao anonimizar a.txt docs/pedidos/b.md`. Formas: `$(command -v forge-check)`, `"$(which forge-check)"`, crase, `f=$(command -v forge-check); "$f"`, `python3 "$(command -v forge-check)"`, `python3 -I "$(command -v forge-check)"`, `python3 -W ignore "$(command -v forge-check)"`, `env "$(command -v forge-check)"` e `eval "$(command -v forge-check) ..."`. O teste gera o produto (11 × 9) das duas listas, afirma o mínimo de 99 casos (checklist 11) e exige rc 2 em cada um.
+- **Passa (rc 0)**: as leituras nas mesmas formas (`brief fila`, `brief mensagem`, `brief docs/briefs/x.md`, `entrega v047` pela forma antiga, `entrega --pedido v047 --so-leitura`, `pausa --retomar`, `recado --confirmar`, `pedido --ler v047`) e um programa opaco com subcomando que não é do `forge-check` (`"$f" --version`, `"$f" status`).
+- **Sessão principal** (`jarvis`): as escritas pelo opaco passam, como a forma direta.
+
+Limite registrado, fora da parte 0 (não é opaco, é outra classe): a cópia renomeada (`cp "$(command -v forge-check)" fc; ./fc pausa` e `python3 fc pausa`) dá rc 0 na sonda desta volta. O hook não modela binário da fábrica copiado para nome livre; vai como sugestão própria ao Forge, não neste PR (um comportamento por PR em `hooks/`).
 
 Testes do hook (`tests/test_conformidade_brief_portoes.py`, subprocesso com ambiente limpo e `python3 -I`, `AR-4`, `AR-5`):
 - **Cruzamento com o argparse** (`AR-11`, a leitura do hook igual à da ferramenta): carrega o `bin/forge-check` como módulo e exige `set(BRIEF_ACOES) == set(BRIEF_NO_HOOK)`, uma classificação por ação; ação nova sem classificação no hook reprova o CI. Do parser do `brief` e do `entrega` (`_option_string_actions`), gera todas as abreviações de `--so-mostrar` e `--portoes` e exige que o hook trate como leitura exatamente as que o argparse resolve para `--so-mostrar`, e como escrita todas as que resolve para `--portoes`; as que o argparse recusa por ambiguidade ficam como escrita.
@@ -165,7 +186,7 @@ Testes de comportamento (subprocesso com ambiente limpo e `python3 -I`, `AR-4`, 
 - hook (seção 3.4): o cruzamento com o argparse e as formas e papéis listados lá.
 
 Mutantes declarados, um por linha de guarda, por PR da seção 10 (`tests/mutantes/<pedido>.json`, AR-1; passou de 8, abre `-2.json`):
-- parte 0 (opaco): opaco reconhece a escrita do `brief`; opaco reconhece `entrega --pedido`.
+- parte 0 (opaco, A7): opaco passa pela política inteira (devolver `None` no ramo do opaco reprova o corpus de recusa); interpretador acha o script opaco (sem o ramo, S8 reprova); cada palavra opaca do interpretador, não só a primeira (só a primeira, S10 reprova).
 - parte 1 (corte): id do pedido fora das faixas; faixa que contém o `Cobre:`.
 - parte 2 (Z10): `devops` na constante única.
 - parte 3 (subcomando e hook): entrega conferida no sha; `ls-remote` igual a `origin/B`; local igual ao remoto; classe só sobe; portão em dia; `commit:` ancestral; caractere disfarçado; reprodução no selo; apagar o que reprovou; expressão fechada da etapa; etapa da branch existe; chave natural da etapa; `alvo` solto recusa; ação do `brief` grava salvo leitura; `--so-mostrar` lê; destino `docs/briefs/` do `portoes`.
@@ -173,7 +194,7 @@ Mutantes declarados, um por linha de guarda, por PR da seção 10 (`tests/mutant
 
 ## 10. Entrega em partes (M14, um comportamento por PR)
 
-0. Correção já na `develop` (sonda S2): o programa opaco do `forge-check` com `brief selar` e `entrega --pedido` passa a ser visto como escrita (`fix`, classe C, `hooks/`, corpus próprio). Não depende do resto e entra primeiro.
+0. Correção já na `develop` (sondas S2 e S6 a S11, A7): o programa opaco do `forge-check` e o interpretador com script opaco passam sempre pela política de destinos inteira do `forge_check_grava`, sem lista de subcomandos à parte (seção 3.4, item do opaco), com o corpus de recusa e de leitura de lá (`fix`, classe C, `hooks/`, corpus próprio). Não depende do resto e entra primeiro; o `brief portoes` e o `entrega --portoes` das partes 3 e 4 entram no opaco sem linha nova, pela regra do `forge_check_grava`.
 1. `conferir_corte` com faixa e o texto de `R-BRIEF` (destaque no título: muda regra protegida).
 2. `ETAPAS_DE_PARECER` com fonte única, a etapa `devops` nela e o `brief` no registro do hook `agentes` (classe C, `hooks/`, corpus próprio).
 3. `brief portoes` com selo de reprodução e `gravar_etapas_geradas` e, no mesmo PR, a regra do hook `conformidade` da seção 3.4 com o teste cruzado (o subcomando não chega à `develop` invisível ao hook).
