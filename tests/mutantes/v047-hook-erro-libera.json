@@ -1,0 +1,93 @@
+{
+  "pedido": "v047-hook-erro-libera",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "C2/C5: o executar usa o marcador da política, não só o CRITICO",
+      "arquivo": "hooks/conformidade.py",
+      "de": "executar(\"conformidade\", principal, MARCADOR, regra_do_prazo=\"R-CONFORMIDADE\")",
+      "para": "executar(\"conformidade\", principal, CRITICO, regra_do_prazo=\"R-CONFORMIDADE\")",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "C2: política sem caminhos (lista vazia) marca tudo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not isinstance(caminhos, list) or not caminhos:",
+      "para": "if not isinstance(caminhos, list):",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_politica_ilegivel_ou_sem_caminhos_marca_tudo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "C2: política que não é objeto marca tudo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "pol.get(\"caminhos\") if isinstance(pol, dict) else None",
+      "para": "pol.get(\"caminhos\") if True else None",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_politica_ilegivel_ou_sem_caminhos_marca_tudo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "C2: entrada de caminhos que não é objeto marca tudo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "entrada.get(\"caminho\") if isinstance(entrada, dict) else None",
+      "para": "entrada.get(\"caminho\") if True else None",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_politica_ilegivel_ou_sem_caminhos_marca_tudo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "C2: entrada de caminho vazio ou só barra marca tudo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not isinstance(caminho, str) or not caminho.rstrip(\"/\"):",
+      "para": "if not isinstance(caminho, str):",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_politica_ilegivel_ou_sem_caminhos_marca_tudo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "C2: o termo ~/ também como $HOME/, ${HOME}/ e o home real",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if caminho.startswith(\"~/\") else [caminho]",
+      "para": "if caminho.startswith(\"~/x\") else [caminho]",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "C2: os termos se montam uma vez, na 1.ª busca",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self._termos is None:",
+      "para": "        if self._termos is not None:",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_politica_ilegivel_ou_sem_caminhos_marca_tudo"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "C2: política ilegível (sem caminhos) marca tudo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self.arquivo.read_text(encoding=\"utf-8\"))) or False",
+      "para": "self.arquivo.read_text(encoding=\"utf-8\"))) or re.compile(\"(?!)\")",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_politica_ilegivel_ou_sem_caminhos_marca_tudo"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "VISIBILIDADE_PUBLICA.search(Path(expandir_home(",
+      "motivo": "troca mecânica do expanduser de Path por expandir_home (C1); a condição da visibilidade pública não muda"
+    }
+  ]
+}

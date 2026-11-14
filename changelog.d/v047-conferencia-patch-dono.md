@@ -1,2 +1,0 @@
-### Corrigido
-- forge-check entrega --pedido: o arquivo aplicado pelo dono (arquivo em vigor que nenhum agente escreve, aplicado com git apply por decisão do dono) deixa de reprovar a conferência quando o `## Histórico` declara `patch do dono aplicado <arquivo> commit <sha40>` e uma `DECISÃO DO DONO` cita o sha40 e o caminho; vale só esse arquivo, com o blob e o modo desse commit no head, e nunca em parecer, aceite, pedido ou oráculo (v047, CONFERENCIA-PATCH-DO-DONO).

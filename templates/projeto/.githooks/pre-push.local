@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Pronto rápido da stack {{STACK}} (lint, formatação e tipos), gerado pelo Forge a partir de stacks/{{STACK}}/pronto.md.
+# O .githooks/pre-push o roda antes de cada envio que muda código; envio só de texto, parecer ou junção com a develop passa
+# sem ele. O pronto completo (testes e build) fica com o autor antes de entregar e com o CI. O arquivo é do projeto: ajuste `rapido`.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+rapido='{{PRONTO_RAPIDO}}'
+deteccao='{{DETECCAO}}'  # arquivos da raiz que dizem que já há código da stack para checar
+read -ra arquivos <<<"$deteccao"
+tem_codigo=0
+for arquivo in ${arquivos[@]+"${arquivos[@]}"}; do
+  if [ -e "$arquivo" ]; then tem_codigo=1; fi
+done
+if [ "$tem_codigo" -eq 0 ]; then
+  echo "pre-push.local: nenhum de ${deteccao} na raiz ainda; pronto rápido pulado"
+  exit 0
+fi
+echo "pre-push.local: pronto rápido: ${rapido}"
+bash -c "$rapido" || { echo "pre-push.local: o pronto rápido reprovou (ou falta a ferramenta no PATH); corrija e envie de novo, ou ajuste \`rapido\` neste arquivo se o projeto usa outras ferramentas" >&2; exit 1; }

@@ -1,0 +1,12 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (C7): disparo sem `tool_input` vale como `general-purpose` sem prompt: o R-BRIEF recusa pela falta do brief, não por erro interno.",
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-BRIEF: o prompt não cita o brief"
+  }
+}

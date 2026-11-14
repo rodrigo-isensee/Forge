@@ -1,0 +1,20 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (A1, legítimo: erro interno em `git checkout` sem caminho protegido nem troca de base libera).",
+  "forcar": {
+    "onde": "Guarda.bash",
+    "como": "erro"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git checkout develop"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "erro forcado"
+  }
+}

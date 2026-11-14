@@ -64,7 +64,7 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 81)  # mp1311 E1.17: + test_pre_envio_brief. v046: + test_pr_hook_prazo (PR-HOOK-PRAZO). v046 E20.29: + test_hook_git_comum. 0.45.7: + test_r_limites (AV5), test_forge_medidas (F6, E5.6), test_forge_dora (TM-16) e test_hooks_fila27 (FILA-27). v046 E12.1: + test_git_rede_config. 0.45.6: + test_forge_check_base_igual, test_forge_check_versao_livre e test_pre_push_link_apoio (junção), test_metricas_portoes (E1.1) e test_metricas_main_vermelha (E5.1). 0.44.2: + test_decisor (orkastery 3), test_forge_run (S5), test_meta (S4), test_pesado_fila (orkastery 5), test_aq1_texto e test_textos_034 (troca dos testes de frase). 0.44.1: + test_v0441_review (review), test_acao_da_reprovacao (O1) e test_forge_dono (O4, S2, S8, X1). 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
+        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 82)  # mp1311 E1.17: + test_pre_envio_brief. v047: + test_hook_erro_libera (HOOK-ERRO-LIBERA). v046: + test_pr_hook_prazo (PR-HOOK-PRAZO). v046 E20.29: + test_hook_git_comum. 0.45.7: + test_r_limites (AV5), test_forge_medidas (F6, E5.6), test_forge_dora (TM-16) e test_hooks_fila27 (FILA-27). v046 E12.1: + test_git_rede_config. 0.45.6: + test_forge_check_base_igual, test_forge_check_versao_livre e test_pre_push_link_apoio (junção), test_metricas_portoes (E1.1) e test_metricas_main_vermelha (E5.1). 0.44.2: + test_decisor (orkastery 3), test_forge_run (S5), test_meta (S4), test_pesado_fila (orkastery 5), test_aq1_texto e test_textos_034 (troca dos testes de frase). 0.44.1: + test_v0441_review (review), test_acao_da_reprovacao (O1) e test_forge_dono (O4, S2, S8, X1). 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
         for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
                        "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_forge_medidas", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
@@ -1408,6 +1408,18 @@ class CaminhoFiltroEAviso(unittest.TestCase):
         self.assertIn("dirigido (test_novo)", r.stdout)
         self.assertNotIn("suíte completa", r.stdout)
         self.assertIn("modulos=test_novo ", (self.dir / ".forge" / "run" / "testes.log").read_text(encoding="utf-8"))
+
+    def test_test_hooks_pelo_caminho_roda_quem_reaproveita_o_lote_dele(self):  # E1.120 (v047)
+        f = carregar()
+        reaproveitam = set()
+        for p in sorted((RAIZ / "tests").glob("test_*.py")):
+            texto = p.read_text(encoding="utf-8")
+            if re.search(r"^ +executar_em_lote = (?:test_hooks\.)?Hooks\.executar_em_lote$|^class \w+\(BaseVoltaUnica\b", texto, re.M):
+                reaproveitam.add(p.stem)
+        self.assertGreaterEqual(len(reaproveitam), 8)
+        modulos = set(f.modulos_sem_mapa(["tests/test_hooks.py"], RAIZ))
+        self.assertLessEqual(reaproveitam | {"test_hooks"}, modulos)
+        self.assertEqual(f.modulos_sem_mapa(["tests/test_testes_tocados.py"], RAIZ), ["test_testes_tocados"])
 
     def test_caminho_de_modulo_inexistente_ou_misturado_com_outro_arquivo_segue_o_mapa(self):
         self.assertIn("suíte completa", self.rodar("tests/test_nao_existe.py").stdout)

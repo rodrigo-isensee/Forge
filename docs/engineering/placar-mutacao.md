@@ -14,6 +14,10 @@ comando já com a tag anterior e lembra o bench da versão (`bench-versoes.md` e
   `fora da amostra`.
 - O script roda `bin/forge-mutante` uma vez por spec e soma as classes. Um mutante `inválido` por trecho que sumiu
   (spec envelhecida) é dado do placar: mostra guarda que mudou sem a spec acompanhar.
+- O placar avisa (`aviso:`) quando `--desde` não é tag neste clone ou não é a tag da release imediatamente anterior, e a linha `placar:` ganha `falhas=<n> (<spec>)` quando uma spec sai com rc diferente de zero.
 
 | Release | Linha `placar:` |
 |---|---|
+| 0.47.0 | `placar: 0.47.0 mortos=62 sobreviveu=0 equivalente=0 invalido=1 sem-veredito=0 specs=9` |
+
+Nota da 0.47.0: o mutante inválido é da spec `v0457-escopo-ponto-2` (M10), cuja guarda foi movida pelo PR 536; a spec não muda nesta versão.

@@ -2,7 +2,8 @@
 """Forge: traz um projeto para a versão atual do plugin (ADR 0005). Rode NO projeto, quando quiser.
 Uso: forge-upgrade [--simular] [--ate VERSAO] [--apagar-mesclada] [DIRETORIO]
      forge-upgrade --ligar-sandbox [DIRETORIO]
-Cria a branch forge/upgrade-<versão>, aplica as migrações pendentes (um commit cada) e sugere o PR.
+Cria a branch forge/upgrade-<versão>, aplica as migrações pendentes (um commit cada) e sugere o PR. Uma versão pode ter vários
+passos: `migrar` (resumo no LEIA.md) e depois `migrar-<passo>` (resumo no LEIA-<passo>.md), em ordem de nome.
 Nunca faz push nem merge. D1 (0.44.0): com o sandbox do Bash desligado no .claude/settings.json do projeto, só OFERECE o comando
 `--ligar-sandbox`, que grava o bloco `sandbox` do modelo (templates/projeto) sem commitar; nunca o liga sozinho."""
 import argparse
@@ -24,6 +25,21 @@ def git(projeto, *args, check=True):
     if check and r.returncode:
         sair(f"git {' '.join(args)}: {r.stderr.strip()}")
     return r.stdout.strip()
+
+
+def passo(migrar):
+    """(rótulo, LEIA) de um passo de migração: `migrar` usa o LEIA.md; `migrar-<passo>`, o LEIA-<passo>.md."""
+    nome = migrar.name.removeprefix("migrar").removeprefix("-")
+    rotulo = migrar.parent.name + (f" ({nome})" if nome else "")
+    return rotulo, migrar.parent / (f"LEIA-{nome}.md" if nome else "LEIA.md")
+
+
+def migracoes_pendentes(atual, alvo):
+    """Os passos das versões acima de `atual` e até `alvo`: por versão, o `migrar` e depois os `migrar-<passo>` em ordem de
+    nome (uma versão pode ter vários passos, de entregas diferentes, sem que um edite o arquivo do outro)."""
+    passos = (p for p in (RAIZ / "migrations").glob("*/migrar*") if p.name == "migrar" or p.name.startswith("migrar-"))
+    return sorted((p for p in passos if versao(atual) < versao(p.parent.name) <= versao(alvo)),
+                  key=lambda p: (versao(p.parent.name), p.name))  # "migrar" vem antes de "migrar-<passo>"
 
 
 def sair(msg, codigo=1):
@@ -138,9 +154,7 @@ def main():
     alvo = a.ate or json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
     arq_versao = projeto / ".forge/versao"
     atual = arq_versao.read_text(encoding="utf-8").strip() if arq_versao.exists() else "0.0.0"
-    pendentes = sorted(
-        (p for p in (RAIZ / "migrations").glob("*/migrar") if versao(atual) < versao(p.parent.name) <= versao(alvo)),
-        key=lambda p: versao(p.parent.name))
+    pendentes = migracoes_pendentes(atual, alvo)
     if not pendentes and versao(atual) >= versao(alvo):
         print(f"forge-upgrade: projeto já está na versão {atual}; nada a fazer.")
         oferecer_sandbox(projeto)
@@ -156,21 +170,23 @@ def main():
 
     print(f"Projeto {projeto}\n  versão atual {atual} -> {alvo}; branch {nova} a partir de {base}")
     for p in pendentes:
-        resumo = (p.parent / "LEIA.md").read_text(encoding="utf-8").splitlines()[2:3]
-        print(f"  migração {p.parent.name}: {resumo[0].split('. ')[0] if resumo else ''}")
+        rotulo, leia = passo(p)
+        resumo = leia.read_text(encoding="utf-8").splitlines()[2:3] if leia.is_file() else []
+        print(f"  migração {rotulo}: {resumo[0].split('. ')[0] if resumo else ''}")
     if a.simular:
         print("(--simular: nada foi gravado)")
         return
 
     git(projeto, "switch", "-c", nova, base)
     for p in pendentes:
+        rotulo = passo(p)[0]
         r = subprocess.run([sys.executable, str(p), str(projeto)], capture_output=True, text=True)
         if r.returncode:
-            sair(f"a migração {p.parent.name} parou:\n{r.stdout}{r.stderr}\nResolva à mão na branch {nova}.")
+            sair(f"a migração {rotulo} parou:\n{r.stdout}{r.stderr}\nResolva à mão na branch {nova}.")
         git(projeto, "add", "-A")
         if git(projeto, "status", "--porcelain"):
-            git(projeto, "commit", "-q", "-m", f"chore(forge): migração {p.parent.name}")
-            print(f"  commit   migração {p.parent.name}")
+            git(projeto, "commit", "-q", "-m", f"chore(forge): migração {rotulo}")
+            print(f"  commit   migração {rotulo}")
     arq_versao.parent.mkdir(exist_ok=True)
     arq_versao.write_text(alvo + "\n", encoding="utf-8")
     git(projeto, "add", ".forge/versao")

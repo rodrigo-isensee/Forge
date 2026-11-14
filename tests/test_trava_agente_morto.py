@@ -382,7 +382,7 @@ class C8Gatilho(unittest.TestCase):
         config = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))
         comandos = [h.get("args", []) for bloco in config["hooks"]["PreToolUse"]
                     if "SendMessage" in bloco.get("matcher", "").split("|") for h in bloco.get("hooks", [])]
-        self.assertIn(["${CLAUDE_PLUGIN_ROOT}/hooks/agentes.py"], comandos)
+        self.assertIn(["-s", "-E", "${CLAUDE_PLUGIN_ROOT}/hooks/agentes.py"], comandos)
 
 
 class C10ProjectsProtegido(Base):
