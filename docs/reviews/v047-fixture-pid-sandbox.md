@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-fixture-pid-sandbox
-commit: b645e83c35c7dc51a125ccdca2401b5d73800bb9
+commit: 32f1628aae7bffa63a590a218b88c18ed4c73738
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-13
+data: 2026-11-14
 ---
 # Review: v047 (E1.108, fixture-pid-sandbox)
 
@@ -33,3 +33,9 @@ Delta lido por `forge-check parecer delta`: `bin/forge-testes`, `tests/mutantes/
 - Mapa: `JUNTO_DO_MODULO` leva `REAPROVEITAM_O_LOTE` quando `tests/test_hooks.py` é pedido pelo caminho; o teste novo varre os módulos reais com mínimo de 8. Passa; com o M2 aplicado (`JUNTO_DO_MODULO = {}`) reprova (mutante morto).
 - Mudanças de passagem: `nucleos_do_processo` e `fator_de_carga` vêm de `apoio_volta_unica` (import no fim por causa do ciclo) e o teto do teste do `gh` pendurado escala com a carga; sem guarda nova.
 - Suíte inteira: CI do PR (não há PR; sem rerrodar o SHA).
+
+## Revalidação (E1.148, delta b645e83c..32f1628a)
+Delta lido por `forge-check parecer delta` (sem o que veio da develop): `tests/test_fechar.py`, `tests/test_prepush_so_docs.py`. Aprovado, sem achado novo; A1 e A2 seguem recomendados. Só teste muda, sem guarda nova no código.
+- `test_l5`: a parada passa a ser a última linha `[err]` do log, não uma das três últimas; confere o contrato do `registrar` (`bin/forge-fechar:283`, sem ordem entre stdout e stderr). Passa; com o `die` mandado ao stdout (`bin/forge-fechar:54`, sem `>&2`) reprova (mutante morto), o que a versão antiga não pegava.
+- `primeiro_aviso`: lê o stderr pelo descritor até a linha inteira do primeiro aviso, teto de 20 s, mata o grupo e reprova se não vier; o `communicate` do `fim` lê pelo mesmo descritor, e o lido entra antes do `err`. Fecha a corrida da senha criada antes da contagem. Passou 4 vezes seguidas.
+- Suíte inteira: CI do PR 547 verde (sem rerrodar o SHA).
