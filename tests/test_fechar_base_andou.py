@@ -213,7 +213,7 @@ class Teste(unittest.TestCase):
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
         self.assertIn(f"sem conflito com {ref}; não trago a base (E8)", r.stdout)
         self.assertEqual((self.git("rev-parse", ref), self.head_remoto(ref)), (antigo, antigo))
-        self.assertEqual([c.split()[4] for c in self.chamadas() if c.startswith("forge-check pr")], [antigo])
+        self.assertEqual([c.split()[4] for c in self.chamadas() if c.startswith("forge-check pr")], [f"refs/heads/{ref}"])
         self.assertEqual(len(self.criacoes()), 1)
         self.assertEqual(len(self.merges()), 1)
         self.assertIn(antigo, self.merges()[0])

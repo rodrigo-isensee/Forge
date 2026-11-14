@@ -3,18 +3,18 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-hook-erro-libera
-commit: 9666b6bf53214ef46d9069cd1a38b5809b88c72a
+commit: 804c96124a10056bd58c621c6e7e2aa5274a0cd5
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-13
+data: 2026-11-14
 ---
 # QA: v047-hook-erro-libera
 
-Pedido v047, etapa E3.41: QA por delta até `9666b6bf` (junção da `develop` em `4c350b2f`, conflito resolvido em `tests/test_hooks.py`). O parecer anterior (E3.37, `4c350b2f`, aprovado) vale para o código do pedido, que a junção não tocou (`hooks/conformidade.py` e os fixtures `errointerno-*` não entram no delta).
+Pedido v047, etapa E3.46: QA por delta `9666b6bf..804c9612` (índice de fixtures e corpus mudaram depois do parecer E3.41). O código de produção do pedido não mudou; o delta é só de teste e índice. Review e segurança já revalidados.
 
 ## Achados
 - A4 (recomendado) agents/tech-lead.md:21 · M14 segue acima da orientação (445 linhas contáveis contra 150); o corpo do PR precisa de `teto: excedido, <linhas>, <motivo>` (herdado da E3.37, não bloqueia).
@@ -22,17 +22,16 @@ Pedido v047, etapa E3.41: QA por delta até `9666b6bf` (junção da `develop` em
 ## Critério → teste → resultado (delta)
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| Conflito: gh pendurado segue pegando o sleep | `Hooks.test_rotulo_so_dono_gh_pendurado_decide_antes_do_timeout_do_hook` | teto `(limite-1)*fator`, com `limite=10` (hooks.json) e fator preso em 2: 18 s contra `sleep 30` | passou; aritmética conferida, a fronteira fica 12 s abaixo do sleep mesmo com carga alta |
-| Ciclo de import `apoio_volta_unica` ↔ `test_hooks` | `import` isolado de cada módulo | ordem dos imports | os dois importam sem erro |
-| `forge-testes` MAPA (`templates/projeto/.forge/config.json` → `test_ritmo`) | `tests.test_ritmo` | n/a | passou |
-| C1 a C8 do pedido | `tests.test_hook_erro_libera` (11) | ver E3.37 | passou |
+| Driver do lote passa ao `executar` o mesmo marcador do `__main__` (`R-CONFORMIDADE`) | `CorpusDaVoltaUnica.test_driver_do_lote_chama_o_executar_como_o_main_de_cada_hook` | marcador `MARCADOR` (conformidade) e `CriticoOuAlias` (parecer); não `None` | passou; `hooks/conformidade.py:2959` chama `executar(..., MARCADOR, ...)`, igual ao driver |
+| Índice de fixtures bate com o corpus | `scripts/indice-fixtures.py` regerado | 2463 fixtures, `errointerno-*` = 31 (23 recusa, 8 libera) | regerar não muda `docs/hooks-fixtures.md`; contagem em disco 2463 |
+| C1 a C8 do pedido | `tests.test_hook_erro_libera` | ver E3.37 | sem mudança no código; não rerrodado |
 
 ## Provas
 
-**Delta** (`forge-check parecer delta`): intervalo `4c350b2f..9666b6bf`, sem o que veio da base; no domínio só `bin/forge-testes` (uma linha de MAPA), `tests/apoio_volta_unica.py` (`nucleos_do_processo`, `fator_de_carga`) e `tests/test_hooks.py` (resolução do conflito: `nucleos_do_processo` movida ao apoio, import de volta no fim do módulo, teto do teste do gh).
+**Delta** (`forge-check parecer delta`): rc 0; intervalo `9666b6bf..` ao head; no domínio só `docs/hooks-fixtures.md`, `tests/apoio_volta_unica.py` (`CRITICO` por `MARCADOR` no driver) e `tests/test_hooks_volta_corpus.py` (mesma troca e docstring).
 
-**Testes afetados** (`python3 -m unittest tests.test_hooks.Hooks.test_rotulo_so_dono_gh_pendurado_decide_antes_do_timeout_do_hook tests.test_hook_erro_libera tests.test_ritmo`): `Ran 26 tests in 20.955s`, `OK`. Sonda: `fator_de_carga(100,12)=2.0`, teto 18.0 < 30.
+**Testes afetados** (`python3 -m unittest tests.test_hooks_volta_corpus`): `Ran 16 tests in 403.372s`, `OK`.
 
-**Vermelho e mutação:** sem mudança no código de produção do pedido desde a E3.37 (40 de 40 mutantes mortos, vermelho rc 0 no `4c350b2f`); a junção não reabre. Não rerrodado.
+**Vermelho e mutação:** o delta não toca produção; 40 de 40 mutantes mortos e vermelho rc 0 da E3.37 valem. Não rerrodado.
 
-**Suíte e CI:** PR 550 aberto; checks do head `52cce202` ainda `pending` no momento (`bateria` sem resultado); a suíte inteira fica para o check-run `bateria` do CI. Carga ~14 em 12 núcleos. Acessibilidade e E2E: n/a.
+**CI do PR 550** (head `909417fd`, só pareceres além do `804c9612`): `bateria (pareceres/passos/verificações longas)`, `instalação`, `suíte 3.12 partes 2 e 3` e `3.14 parte 2` passam; suítes restantes `pending` na leitura. `catraca` falha por `R-CONFORMIDADE`: mudança em `hooks/conformidade.py`, `hooks/_comum.py`, `tests/catraca.py` exige o rótulo `afrouxa-regra` do dono depois do último push (ADR 0008); não é defeito de teste e vira decisão do dono (`R-DECISAO`). Acessibilidade e E2E: n/a.

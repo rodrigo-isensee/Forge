@@ -1409,6 +1409,18 @@ class CaminhoFiltroEAviso(unittest.TestCase):
         self.assertNotIn("suíte completa", r.stdout)
         self.assertIn("modulos=test_novo ", (self.dir / ".forge" / "run" / "testes.log").read_text(encoding="utf-8"))
 
+    def test_test_hooks_pelo_caminho_roda_quem_reaproveita_o_lote_dele(self):  # E1.120 (v047)
+        f = carregar()
+        reaproveitam = set()
+        for p in sorted((RAIZ / "tests").glob("test_*.py")):
+            texto = p.read_text(encoding="utf-8")
+            if re.search(r"^ +executar_em_lote = (?:test_hooks\.)?Hooks\.executar_em_lote$|^class \w+\(BaseVoltaUnica\b", texto, re.M):
+                reaproveitam.add(p.stem)
+        self.assertGreaterEqual(len(reaproveitam), 8)
+        modulos = set(f.modulos_sem_mapa(["tests/test_hooks.py"], RAIZ))
+        self.assertLessEqual(reaproveitam | {"test_hooks"}, modulos)
+        self.assertEqual(f.modulos_sem_mapa(["tests/test_testes_tocados.py"], RAIZ), ["test_testes_tocados"])
+
     def test_caminho_de_modulo_inexistente_ou_misturado_com_outro_arquivo_segue_o_mapa(self):
         self.assertIn("suíte completa", self.rodar("tests/test_nao_existe.py").stdout)
         self.assertIn("suíte completa", self.rodar("tests/test_novo.py", "docs/sem-regra.txt").stdout)

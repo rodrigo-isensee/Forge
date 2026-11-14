@@ -1,0 +1,2 @@
+### Alterado
+- FILA-SUITE-ESPERA (v047 E1.131): quem espera a suíte no `.githooks/pre-push` vê a posição na fila, a dona da trava e quem está na frente, ao entrar e a cada minuto (`FORGE_FILA_INTERVALO`); trava de dona morta (mesmo namespace) ou sem troca de dona há mais de 35 min vira aviso com os comandos de conferir, sem liberar a trava nem pular a fila; cada envio barrado pela espera grava `<data> <hora> <push|suite> <espera>` em `<trava>.barrados` (a medida de envios barrados por dia).

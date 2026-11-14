@@ -36,7 +36,7 @@ class FecharShaConferido(unittest.TestCase):
         sha = self.git("rev-parse", "melhoria/x")
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.chamadas()[0], f"forge-check pr p1 --ref {sha} --base origin/develop")
+        self.assertEqual(self.chamadas()[0], "forge-check pr p1 --ref refs/heads/melhoria/x --base origin/develop")
 
     def test_commit_local_empurrado_durante_o_passo_1_para_sem_abrir_pr(self):
         r = self.fechar("p1", "--ref", "melhoria/x", CHECK_ANTES=self.commit_na_branch(True))

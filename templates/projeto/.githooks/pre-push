@@ -55,9 +55,10 @@ done
 # limpa para que nada rodado aqui escreva em outro repositório.
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
 
-# Só docs: o pre-push.local (lint e typecheck) é pulado apenas quando cada arquivo mudado por cada ref
-# enviada é de docs/** ou termina em .md (minúsculas). Sem base clara, ou qualquer dúvida, roda tudo;
-# o CI do projeto segue com a bateria completa. Sem variável nem opção que pule.
+# Só texto (decisão do dono, 13/11 17:31): o pre-push.local (pronto rápido da stack) só roda quando o envio muda código. Cada
+# arquivo mudado por cada ref enviada precisa ser docs/**, *.md (minúsculas), changelog.d/** ou, na junção, igual ao da
+# origin/develop (já validado lá). Sem base clara, ou qualquer dúvida, roda tudo; o CI do projeto segue com a bateria
+# completa. Sem variável nem opção que pule.
 so_docs() {
   local par ls rr rs lista f achou recusa
   [ "${#refs_enviadas[@]}" -gt 0 ] || return 1
@@ -72,7 +73,13 @@ so_docs() {
     recusa=0
     while IFS= read -r -d '' f; do
       achou=1
-      case "$f" in .github/*) recusa=1; break ;; docs/*|*.md) ;; *) recusa=1; break ;; esac
+      case "$f" in
+        .github/*) recusa=1; break ;;
+        docs/*|*.md|changelog.d/*) ;;
+        *) # junção: o arquivo ficou igual ao da origin/develop (já validado lá); qualquer outro caso é código
+           dev="$(git rev-parse -q --verify "origin/develop:$f" 2>/dev/null)" || { recusa=1; break; }
+           [ "$(git rev-parse -q --verify "$ls:$f" 2>/dev/null)" = "$dev" ] || { recusa=1; break; } ;;
+      esac
     done <"$lista"
     if [ "$recusa" -eq 1 ] || [ "$achou" -eq 0 ]; then rm -f "$lista"; return 1; fi
   done
@@ -260,11 +267,12 @@ print(":".join(boas))
   return 0
 }
 
-# Checagem própria do projeto (opcional): crie .githooks/pre-push.local executável (ex.: lint + typecheck).
+# Checagem própria do projeto: .githooks/pre-push.local executável; o forge-init (e a migração 0.47.1) o cria com o pronto
+# rápido da stack (lint, formatação e tipos, de stacks/<stack>/pronto.md), e o projeto o ajusta.
 local_hook="$(dirname "$0")/pre-push.local"
 if [ -x "$local_hook" ]; then
   if so_docs; then
-    echo "pre-push: só docs/** e .md; lint e typecheck pulados (o CI roda tudo)"
+    echo "pre-push: só texto (docs/**, .md, changelog.d/**) ou junção com a develop, sem código novo; lint e typecheck pulados (o CI roda tudo)"
   else
     espera="${FORGE_PREPUSH_ESPERA-1200}"  # inteiro de 1 a 999999 s, conferido só por case (nunca em aritmética)
     case "$espera" in ''|*[!0-9]*|0*|???????*) echo "pre-push: FORGE_PREPUSH_ESPERA precisa ser um inteiro de 1 a 999999 (segundos); envio barrado." >&2; exit 1 ;; esac
