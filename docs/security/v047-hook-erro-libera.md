@@ -3,20 +3,19 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-hook-erro-libera
-commit: 9666b6bf53214ef46d9069cd1a38b5809b88c72a
+commit: 804c96124a10056bd58c621c6e7e2aa5274a0cd5
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-13
+data: 2026-11-14
 ---
 # Review de segurança: v047-hook-erro-libera
 
-Pedido v047, etapa E3.40: segurança por delta `4c350b2f..9666b6bf` (junção da develop com conflito resolvido em `tests/test_hooks.py`), sobre o parecer aprovado da E3.36. Lido: `forge-check parecer delta` (no domínio: `bin/forge-testes` e `tests/test_hooks.py`; `tests/apoio_volta_unica.py` fora do domínio) e `git diff 4c350b2f HEAD -- hooks` (vazio: `hooks/conformidade.py`, `_comum.py`, `agentes.py` e `hooks.json` idênticos aos do parecer anterior). Rodado no head: `tests.test_hook_erro_libera` (11 testes, verdes). Sem PR, sem CI do head: suíte inteira não rodada (carga da máquina, diretriz 15).
+Pedido v047, etapa E3.45: segurança por delta `9666b6bf..804c9612` (E3.42, dois testes vermelhos corrigidos), sobre o parecer aprovado da E3.40. Lido: `forge-check parecer delta` (no domínio: `tests/test_hooks_volta_corpus.py`; fora: `docs/hooks-fixtures.md` e `tests/apoio_volta_unica.py`, lidos mesmo assim) e `git diff 9666b6bf 804c9612 -- hooks bin scripts .githooks .github` (vazio). Rodado no head: `test_driver_do_lote_chama_o_executar_como_o_main_de_cada_hook` (verde). CI do head 804c9612 (run 43597198892): suíte nas 6 partes (3.12 e 3.14), verificações longas, instalação e teto de pulados verdes; vermelhos só `bateria (pareceres)` (pareceres desatualizados, que este parecer e o da E3.44 renovam) e `catraca` (mudança em controle, exige o rótulo `afrouxa-regra` do dono; já sabida, `hooks/` igual ao da E3.40).
 
 ## Delta
-- Nenhum controle de segurança mudou: o código do hook é byte a byte o da E3.36, então A1 e A2 seguem fechados e C1 a C8 seguem cumpridos.
-- `tests/test_hooks.py`: `nucleos_do_processo` passa a morar em `tests/apoio_volta_unica.py` e volta por import no fim do módulo (ciclo resolvido; importado e chamado no head, devolve 12). A resolução do conflito não perdeu a função nem o teste de segurança do `gh` que não responde.
-- `test_hooks.py` (teste do `gh` pendurado): o teto passa a `(limite-1) * fator_de_carga()`, com fator preso em 2. Timeout do hook é 10, teto máximo 18 s, abaixo do `sleep 30` do teste: uma regressão que prenda o hook ainda falha, então o teste não perde poder de detecção.
-- `bin/forge-testes`: uma linha de mapa (`templates/projeto/.forge/config.json` roda `test_ritmo`); só seleciona teste, não afrouxa controle.
+- Nenhum controle mudou: `hooks/`, `bin/`, `scripts/`, `.githooks/` e `.github/` byte a byte iguais aos da E3.40; A1 e A2 seguem fechados, C1 a C8 seguem cumpridos.
+- `tests/apoio_volta_unica.py` e `tests/test_hooks_volta_corpus.py`: o driver do lote passa ao `_comum.executar` o `MARCADOR` do conformidade (`MarcadorDaPolitica(CRITICO, conformidade.json)`, hooks/conformidade.py:2893), o mesmo do `__main__` (hooks/conformidade.py:2959), em vez do `CRITICO` cru. O teste do A2 da segurança volta a provar a igualdade driver = produção; o corpus passa a rodar com o marcador real, então a prova fica mais fiel, não mais frouxa.
+- `docs/hooks-fixtures.md`: índice regerado (2449 para 2463 fixtures; `errointerno-*` 17 para 31). Só documentação gerada; nenhuma fixture removida.
 
 Sem bloqueante neste delta, sem sonda nova: as S1 a S10 da E3.36 valem, pois `hooks/` não mudou.
 
