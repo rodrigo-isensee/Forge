@@ -17,7 +17,6 @@ data: 2026-11-14
 Pedido v047, etapa E1.210: intervalo `origin/develop (f4b0c2ae)..0137e932`. O diff é uma linha em `REAPROVEITAM_O_LOTE` de `bin/forge-testes` (`test_hook_erro_libera`) e o fragmento `changelog.d/v047-develop-vermelho.md`. Sem especificação de UX nem contrato de API; sem gatilho de segurança. Acessibilidade e E2E: n/a.
 
 ## Achados
-Nenhum.
 
 ## Critério → teste → resultado
 | Obrigação | Teste | Fronteira protegida | Resultado |
