@@ -36,8 +36,8 @@
       "id": "O49",
       "guarda": "A9, D2b (E1.175): `function f {` sem `()` também define função",
       "arquivo": "hooks/conformidade.py",
-      "de": "        funcoes = [a or b for a, b in funcoes]",
-      "para": "        funcoes = [b for a, b in funcoes]",
+      "de": "                   + re.findall(r\"(?<![\\w$.-])function\\s+([\\w.-]+)\", linha))  # D2b: `function f {` sem `()`",
+      "para": "                   )",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_d2b"
       ]
