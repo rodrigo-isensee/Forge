@@ -10,14 +10,18 @@ Uso: python3 scripts/suite-partes.py --modulos M[,M...]
                 N, a mesma LPT sobre tests/pesos-d4.json, os mesmos filhos (`suite-paralela.py --processo`) e a mesma
                 guarda de completude, aqui contra o discover desses módulos. Não pega a trava: quem chama (o pre-push)
                 já a tem.
-  --parte K/N   (só no CI, com CI definido) a parte K de N da suíte inteira. Os módulos de tests/ são divididos em N
-                partes por LPT sobre os pesos (a mesma árvore dá a mesma divisão em todos os jobs); entram também os
-                módulos dos pacotes de tests/, que o discover acha e o suite-paralela ainda não divide. Falha fechada: a
-                divisão cobre todo módulo uma vez só, todo teste do discover da suíte inteira cai num módulo da
-                divisão e a parte roda exatamente os IDs do discover que são dela. Com as N partes verdes, a suíte
-                inteira passou; o job agregador do CI (`bateria`, `bateria (python 3.14)`) exige as N. Com
+  --parte K/N   (só no CI, com CI definido) a parte K de N da suíte inteira. As UNIDADES da suíte (as do
+                `suite-paralela.planejar`: `módulo`, `módulo.Classe` ou `módulo.Classe.teste`, conforme as chaves de
+                tests/pesos-d4.json) são divididas em N partes por LPT sobre os pesos (a mesma árvore dá a mesma divisão
+                em todos os jobs); entram também os módulos dos pacotes de tests/, que o discover acha e o
+                suite-paralela ainda não divide. Falha fechada (CI-RAPIDO, S9): a divisão cobre toda unidade uma vez só,
+                todo teste do discover da suíte inteira cai numa unidade da divisão (por ID) e a parte roda exatamente
+                os IDs do discover que são dela. Com as N partes verdes, a suíte inteira passou; o job agregador do CI
+                (`bateria`, `bateria (python 3.14)`, `checagem rápida (push na develop...)`) exige as N. Com
                 FORGE_SUITE_PULADOS=<arquivo>, a parte verde grava nele os pulados dela (T3: `{"parte": "K/N",
-                "pulados": n, "pulados_ids": [...]}`).
+                "pulados": n, "pulados_ids": [...]}`). Com GITHUB_ACTIONS=true, a parte verde grava o tempo de cada
+                unidade em anotação do check run (`::notice title=forge-tempos K/N ...`, só nomes de unidade e
+                segundos), que `scripts/pesos-do-ci.py` lê pela API.
   --somar-pulados N PASTA  (o agregador do CI) soma os pulados das N partes gravados em PASTA (`*.json`, um por parte,
                 K de 1 a N uma vez só) e compara com `teto_pulados` de tests/config.json, com a conta do suite-paralela
                 (T3). Falha fechada: parte faltando, repetida, de outro N, arquivo ilegível ou teto ilegível reprova.
@@ -30,6 +34,7 @@ import collections
 import importlib.machinery
 import importlib.util
 import json
+import math
 import os
 import re
 import shutil
@@ -43,6 +48,9 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 PARALELA = RAIZ / "scripts" / "suite-paralela.py"
 PARTE = re.compile(r"([1-9][0-9]?)/([1-9][0-9]?)")
+UNIDADE_SEGURA = re.compile(r"[A-Za-z0-9_.]{1,200}")  # S6: só isto sai em anotação (nada de `::`, quebra de linha, `%`)
+LIMITE_DA_ANOTACAO = 12000  # caracteres da mensagem de cada anotação (o GitHub aceita 64 KB)
+MAXIMO_DE_ANOTACOES = 8  # o GitHub guarda 10 por passo
 NOME_DE_MODULO = re.compile(r"(?:[a-z0-9_]+\.)*test[a-z0-9_]*")  # `evals.test_x` é tests/evals/test_x.py (pacote)
 
 
@@ -133,6 +141,97 @@ def dividir(sp, nomes, n):
     return partes, erros
 
 
+def unidade_do_id(sp, ident, nomes, pesos, chaves=None):
+    """A unidade do plano dona do ID (`módulo`, `módulo.Classe` ou `módulo.Classe.teste`), pela mesma regra do
+    `suite-paralela.planejar`; None se nenhum módulo da divisão é dono dele."""
+    modulo = modulo_do_id(ident, nomes)
+    if modulo is None:
+        return None
+    chaves = {} if chaves is None else chaves
+    if modulo not in chaves:
+        chaves[modulo] = sp.separadas(modulo, pesos)
+    return sp.unidade_do_teste(ident, chaves[modulo], modulo) if chaves[modulo] else modulo
+
+
+def esperado_por_unidade(sp, total, nomes, pesos):
+    """{unidade: multiconjunto de IDs do discover inteiro que são dela}; a guarda de completude por ID da divisão por
+    unidade (CI-RAPIDO, S9). O ID sem módulo na divisão fica fora (`fora_da_divisao` o aponta)."""
+    nomes = set(nomes)
+    chaves, saida = {}, collections.defaultdict(collections.Counter)
+    for ident, quantos in total.items():
+        unidade = unidade_do_id(sp, ident, nomes, pesos, chaves)
+        if unidade is not None:
+            saida[unidade][ident] += quantos
+    return dict(saida)
+
+
+def dividir_por_unidade(sp, nomes, n):
+    """(partes, plano, erros): as unidades do plano (as do suite-paralela, pelos pesos) em `n` partes pela LPT, conferidas
+    como partição. `plano` é {unidade: (módulo, posições)}; `partes`, listas de unidades."""
+    pesos = sp.ler_pesos()
+    plano = sp.planejar(nomes, pesos, lambda nome: [t.id() for t in sp.achatar(sp.suite_do_modulo(nome))])
+    unidades = sorted(plano)
+    partes = sp.repartir(unidades, pesos, n)
+    erros = sp.conferir_particao(unidades, partes)
+    if len(partes) != n:
+        erros.append(f"{len(unidades)} unidades não dão {n} partes não vazias")
+    return partes, plano, erros
+
+
+def completude_da_divisao(sp, total, nomes, plano, partes, pesos=None):
+    """Erros da guarda por ID: todo ID do discover cai numa unidade do plano, toda unidade do plano tem testes no discover
+    e as partes juntas cobrem exatamente as unidades do plano uma vez (a soma dos esperados é o discover inteiro). `pesos` são
+    os que definem as unidades (padrão: os do arquivo)."""
+    por_unidade = esperado_por_unidade(sp, total, nomes, sp.ler_pesos() if pesos is None else pesos)
+    erros = []
+    sem_plano = sorted(set(por_unidade) - set(plano))
+    if sem_plano:
+        erros.append(f"{len(sem_plano)} unidade(s) do discover fora do plano: {', '.join(sem_plano[:5])}")
+    sem_teste = sorted(set(plano) - set(por_unidade))
+    if sem_teste:
+        erros.append(f"{len(sem_teste)} unidade(s) do plano sem teste no discover: {', '.join(sem_teste[:5])}")
+    cobertas = collections.Counter()
+    for parte in partes:
+        for unidade in parte:
+            cobertas += por_unidade.get(unidade, collections.Counter())
+    if cobertas != total:
+        erros.append("as partes não cobrem os IDs do discover uma vez cada")
+    return erros, por_unidade
+
+
+def escapar_dado(texto):
+    """O escape do dado de um comando de workflow (`%`, CR e LF), por segurança: a mensagem já só tem o alfabeto seguro."""
+    return texto.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def anotacoes_de_tempos(parte, python, duracoes):
+    """As linhas `::notice` com o tempo de cada unidade da parte (JSON de uma linha por bloco; sem `::` possível, porque o nome só tem `[A-Za-z0-9_.]`). Só entram nome de unidade
+    no alfabeto seguro e segundos finitos e não negativos; o resto é descartado (S6). Sem unidade válida ou com mais
+    blocos que o limite de anotações do passo, devolve []."""
+    itens = sorted((k, round(float(v), 1)) for k, v in (duracoes or {}).items()
+                   if isinstance(k, str) and UNIDADE_SEGURA.fullmatch(k) and type(v) in (int, float)
+                   and math.isfinite(v) and v >= 0)
+    blocos, atual, tamanho = [], {}, 0
+    for nome, seg in itens:
+        custo = len(nome) + len(str(seg)) + 6
+        if atual and tamanho + custo > LIMITE_DA_ANOTACAO:
+            blocos.append(atual)
+            atual, tamanho = {}, 0
+        atual[nome] = seg
+        tamanho += custo
+    if atual:
+        blocos.append(atual)
+    if not blocos or len(blocos) > MAXIMO_DE_ANOTACOES or not re.fullmatch(r"[0-9]{1,2}/[0-9]{1,2}", parte) \
+            or not re.fullmatch(r"3\.[0-9]{1,2}", python):
+        return []
+    linhas = []
+    for i, bloco in enumerate(blocos, 1):
+        mensagem = json.dumps({"v": 1, "parte": parte, "python": python, "bloco": [i, len(blocos)], "t": bloco},
+                              separators=(",", ":"))
+        linhas.append(f"::notice title=forge-tempos {parte} bloco {i}/{len(blocos)}::{escapar_dado(mensagem)}")
+    return linhas
+
+
 PISO_PADRAO_GB = 2.0  # o mesmo padrão do hook `agentes` (R-TETO)
 
 
@@ -198,9 +297,10 @@ def veredito(relatorios, erros):
     return (f"OK (skipped={pulados})" if pulados else "OK"), 0
 
 
-def rodar(sp, nomes, esperado, rotulo, todos=None, publicar=None):
+def rodar(sp, nomes, esperado, rotulo, todos=None, publicar=None, plano=None, anotar=None):
     """Roda `nomes` em processos (a regra de N do suite-paralela) e confere a completude contra `esperado`; verde, chama
-    `publicar(relatorios)` (os pulados da parte, T3)."""
+    `publicar(relatorios)` (os pulados da parte, T3) e `anotar(relatorios)` (os tempos por unidade). Com `plano` ({unidade:
+    (módulo, posições)}), as unidades são as dele; sem, as de `planejar(nomes)`."""
     os.chdir(sp.RAIZ)
     inicio = time.monotonic()
     carga, memoria, total_gb = sp.medir_carga()
@@ -210,7 +310,8 @@ def rodar(sp, nomes, esperado, rotulo, todos=None, publicar=None):
         return falhar(str(e), rotulo="configuração")
     pesos = sp.ler_pesos()
     # A3 (0.43.2): as unidades separadas nos pesos (`módulo.Classe`) vão a processos próprios, como no suite-paralela
-    plano = sp.planejar(nomes, pesos, lambda nome: [t.id() for t in sp.achatar(sp.suite_do_modulo(nome))])
+    if plano is None:
+        plano = sp.planejar(nomes, pesos, lambda nome: [t.id() for t in sp.achatar(sp.suite_do_modulo(nome))])
     unidades = sorted(plano)
     partes = sp.repartir(unidades, pesos, min(n, len(unidades)))
     erros = sp.conferir_particao(unidades, partes)
@@ -254,6 +355,8 @@ def rodar(sp, nomes, esperado, rotulo, todos=None, publicar=None):
     sp.imprimir_causas(filhos, relatorios)  # O7 (0.44.1): a causa tipada também no plano dirigido do pre-push
     if not codigo and publicar:
         publicar(relatorios)
+    if not codigo and anotar:
+        anotar(relatorios)
     print(linha)
     sp.publicar_no_ci(linha, linhas, partes, relatorios, duracoes, pesos, rodados, segundos)
     return codigo
@@ -283,18 +386,31 @@ def por_parte(sp, texto, environ):
         return falhar(str(e), 2, "uso")
     os.chdir(sp.RAIZ)
     nomes = todos_os_modulos(sp)
-    partes, erros = dividir(sp, nomes, n)
+    partes, plano, erros = dividir_por_unidade(sp, nomes, n)
     total = sp.ids(sp.descobrir())
     fora = fora_da_divisao(total, nomes)
     if fora:
         erros.append(f"{len(fora)} teste(s) do discover fora dos módulos da divisão: {', '.join(fora[:5])}")
+    faltas, por_unidade = completude_da_divisao(sp, total, nomes, plano, partes)
+    erros += faltas
     if erros:
         return falhar("; ".join(erros))
     parte = partes[k - 1]
     print(f"suite-partes: parte {k}/{n}: {', '.join(parte)}", file=sys.stderr, flush=True)
     destino = environ.get("FORGE_SUITE_PULADOS")
     publicar = (lambda relatorios: gravar_pulados(sp, destino, k, n, relatorios)) if destino else None
-    return rodar(sp, parte, esperado_da_parte(total, parte), f"parte {k}/{n}", nomes, publicar)
+    anotar = (lambda relatorios: anotar_tempos(k, n, relatorios)) if environ.get("GITHUB_ACTIONS") == "true" else None
+    esperado = sum((por_unidade[u] for u in parte), collections.Counter())
+    modulos_da_parte = sorted({plano[u][0] for u in parte})
+    return rodar(sp, modulos_da_parte, esperado, f"parte {k}/{n}", nomes, publicar, {u: plano[u] for u in parte}, anotar)
+
+
+def anotar_tempos(k, n, relatorios):
+    """Os tempos por unidade da parte K/N em anotação do check run (a fonte de `scripts/pesos-do-ci.py`)."""
+    versao = f"{sys.version_info.major}.{sys.version_info.minor}"
+    duracoes = {u: v for rel in relatorios if rel for u, v in rel.get("duracoes", {}).items()}
+    for linha in anotacoes_de_tempos(f"{k}/{n}", versao, duracoes):
+        print(linha, flush=True)
 
 
 def gravar_pulados(sp, destino, k, n, relatorios):
