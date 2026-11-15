@@ -254,19 +254,27 @@ def regras_de_config(b, h):
     return v
 
 
+SUFIXOS_DE_SCRIPT = (".py", ".sh", ".js", ".mjs", ".cjs", ".ts", ".rb", ".pl")
+
+
+def script_do_hook(hk):
+    """O script que o hook roda: o primeiro termo do comando ou dos argumentos que não é opção e termina num sufixo de
+    script. Interpretador, opções (`-s -E`) e argumentos do script ficam fora (PR 565); sem script, a linha inteira."""
+    termos = str(hk.get("command", "")).split() + [str(a) for a in hk.get("args", [])]
+    for termo in termos:
+        if not termo.startswith("-") and termo.endswith(SUFIXOS_DE_SCRIPT):
+            return termo
+    return " ".join(termos)
+
+
 def chaves_de_hooks(texto):
+    """Cada hook como (evento, matcher, script): mudar só o interpretador ou os argumentos não o remove."""
     try:
         dados = json.loads(texto) if texto else {}
     except ValueError:
         return set()
-    chaves = set()
-    for evento, grupos in (dados.get("hooks") or {}).items():
-        for g in grupos:
-            for hk in g.get("hooks", []):
-                # o hook é o script: as opções do interpretador antes dele (`-s -E`, C6 da HOOK-ERRO-LIBERA) não o removem
-                args = [a for a in hk.get("args", []) if not a.startswith("-")]
-                chaves.add((evento, g.get("matcher", ""), hk.get("command", ""), " ".join(args)))
-    return chaves
+    return {(evento, g.get("matcher", ""), script_do_hook(hk))
+            for evento, grupos in (dados.get("hooks") or {}).items() for g in grupos for hk in g.get("hooks", [])}
 
 
 def regra_hooks(raiz, b, h):
@@ -274,10 +282,10 @@ def regra_hooks(raiz, b, h):
     if antes is None:
         return []
     depois = ler(raiz, h, "hooks/hooks.json") or ""
-    return [msg("R-CONFORMIDADE", f"hook removido de hooks/hooks.json: {ev} {mt or '*'} {ar or cm}",
+    return [msg("R-CONFORMIDADE", f"hook removido de hooks/hooks.json: {ev} {mt or '*'} {sc}",
                 "hook é o que faz a regra valer sem depender de memória", "restaure o hook ou peça o rótulo ao dono",
                 "docs/regras/R-CONFORMIDADE.md")
-            for ev, mt, cm, ar in sorted(chaves_de_hooks(antes) - chaves_de_hooks(depois))]
+            for ev, mt, sc in sorted(chaves_de_hooks(antes) - chaves_de_hooks(depois))]
 
 
 POLITICA = "hooks/conformidade.json"

@@ -319,6 +319,33 @@ class Hooks(Base):
         self.repo.escreve("hooks/hooks.json", json.dumps(antigo))
         self.barra("b.py", "R-CONFORMIDADE")
 
+    def test_mudar_interpretador_opcoes_ou_argumentos_passa(self):
+        """PR 565: só acrescentar `-s -E` acusou todos os hooks; o hook é evento, matcher e script."""
+        novo = copy.deepcopy(HOOKS)
+        a, b = novo["hooks"]["PreToolUse"][0]["hooks"]
+        a.update(command="/usr/bin/env python3", args=["-s", "-E", "-X", "utf8", "a.py", "--modo", "x"])
+        b.update(command="python3 -I b.py", args=[])
+        self.repo.escreve("hooks/hooks.json", json.dumps(novo))
+        self.passa()
+
+    def test_script_trocado_barra(self):
+        novo = copy.deepcopy(HOOKS)
+        novo["hooks"]["PreToolUse"][0]["hooks"][0]["args"] = ["-s", "-E", "outro.py"]
+        self.repo.escreve("hooks/hooks.json", json.dumps(novo))
+        self.barra("hook removido de hooks/hooks.json: PreToolUse Bash a.py", "R-CONFORMIDADE")
+
+    def test_matcher_mudado_barra(self):
+        novo = copy.deepcopy(HOOKS)
+        novo["hooks"]["PreToolUse"][0]["matcher"] = "Write"
+        self.repo.escreve("hooks/hooks.json", json.dumps(novo))
+        self.barra("hook removido de hooks/hooks.json: PreToolUse Bash b.py", "R-CONFORMIDADE")
+
+    def test_hook_sem_script_compara_a_linha_inteira(self):
+        def chaves(comando):
+            return catraca.chaves_de_hooks(json.dumps({"hooks": {"Stop": [{"hooks": [{"command": comando}]}]}}))
+        self.assertEqual(chaves("echo fim"), {("Stop", "", "echo fim")})
+        self.assertTrue(chaves("echo fim") - chaves("echo outro"))
+
     def test_arquivo_de_hooks_apagado_barra(self):
         (self.repo.dir / "hooks/hooks.json").unlink()
         self.barra("hook removido")

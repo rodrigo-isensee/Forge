@@ -1,0 +1,16 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CH-M1",
+      "guarda": "o script é o termo com sufixo de script, não o primeiro termo que não é opção (o interpretador)",
+      "arquivo": "tests/catraca.py",
+      "de": "        if not termo.startswith(\"-\") and termo.endswith(SUFIXOS_DE_SCRIPT):",
+      "para": "        if not termo.startswith(\"-\"):",
+      "testes": [
+        "tests.test_catraca.Hooks.test_script_trocado_barra"
+      ]
+    }
+  ]
+}
