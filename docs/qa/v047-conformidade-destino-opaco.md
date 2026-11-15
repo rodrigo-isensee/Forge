@@ -4,10 +4,10 @@ contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
 commit: 74b42c69d7c1fd98980986104f7e3733dbbbdd5b
-parecer: aprovado
+parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 0
+bugs_altos: 1
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-15
@@ -93,6 +93,7 @@ Parecer reprovado no 19df94ed: A3 bloqueante (bug alto). A2 fechado, sem mutante
 Fecha o A3 da rodada anterior (aritmética e barra e quebra), resolvido em `000cd0c8` (`R-CONFORMIDADE`).
 
 ## Achados
+- A16 (bloqueante) hooks/conformidade.py:693 · `${nome:=v}` não conta como nascimento do prefixo colado: `: ${d:=.gi}; cp -rT ev "$d"t` e `echo a > "$d"t` dão rc 0 no 74b42c69 e escrevem em .git/config; `d=.gi` recusa (A15 da segurança; R-CONFORMIDADE)
 
 
 ## Sondas do delta (aspas simples no shell; cada uma com `echo a > "$(date)"` no fim e `date` benigno)
@@ -135,4 +136,6 @@ Domínio lido por `forge-check parecer delta`: `hooks/conformidade.py` (`corpos_
 - Falso positivo medido, não é regressão (igual na base): `cat <<E`⏎`plain ${x:-1}`⏎`E`⏎`echo a > "$(mktemp)"` recusa com "`${` com ação crítica" (guarda anterior ao delta, recusa na dúvida). Sem achado.
 - CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local. A13 e A14 fechados.
 
-Parecer aprovado no 74b42c69 (`R-QA`): nenhum bug aberto, sem mutante sobrevivente, sem achado.
+- Sonda de abuso da classe vizinha (confirma a A15 da segurança, fora da lista de sondas acima): `: ${d:=.gi}; cp -rT ev "$d"t` e `: ${d:=.gi}; echo a > "$d"t` saem rc 0 no head (esperado 2); `d=.gi; cp -rT ev "$d"t` recusa; `d=docs; echo a > "$d"` libera. O A14 fechou só a forma direta `"$d"`; a forma com resto colado sem barra segue aberta. Bug alto (escrita em `.git/config` sem recusa), responsável: dev da stack do hook. Falta fixture `opaco-u4-*` e mutante para a linha `:693`.
+
+Parecer reprovado no 74b42c69 (`R-QA`): A13 e A14 fechados, sem mutante sobrevivente, mas A16 bloqueante aberto (mesma classe, forma com resto colado).
