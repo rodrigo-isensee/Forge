@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-fala-e-decisoes
-commit: a4a476617e6aae4b418e2a97df2839f84500942a
+commit: fd0a0172774f2744dbfbba81ca10064d4f98ec41
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-14
+data: 2026-11-15
 ---
 # QA: v047 · fala só no marco e foco nas decisões (E1.282)
 
@@ -47,6 +47,13 @@ Intervalo `origin/develop..05797223` (base c5c3a449): `agents/jarvis.md`, `skill
 - **Diretriz 25 (nada apagado nem resumido):** o diff dos 3 `SKILL.md` só troca o trecho movido por ponteiro; o texto movido existe nos arquivos novos (numeros.md: 3 itens medido/estimado/não medido idênticos; experimentos.md: tabela e regra idênticas). A única reescrita de conteúdo é a linha C do exemplo ("custo, não dá para dizer se é maior ou menor"), que é o A4 do review. O técnico do `tech-lead` e o `agile-coach` entraram na `kanban-scrum`.
 - **Invariantes:** 44 padrões de `invariantes` dos 6 arquivos tocados casam (0 sem casar); `tests.test_forge -k nvariante -k Neutral -k Regra`: 15 OK. Os 3 arquivos novos têm invariante e motivo `R-DECISAO`.
 - `forge-check docs`: rc=0. A suíte inteira roda no CI do PR (sem PR ainda, sem check-run `bateria`). Vermelho e mutação não se aplicam (texto).
+
+## Revalidação 2 (delta a4a47661..fd0a0172, decisão 2 do dono de 15/11, `escopo: completo` mantido)
+`forge-check parecer delta` listou 4 arquivos de domínio: `agents/jarvis.md`, `changelog.d/v047-fala-e-decisoes.md`, `tests/config.json`, `tests/test_jarvis_nucleo.py`. Só texto, invariante e lista de retirados; sem código executável, sem mutante, vermelho-antes-do-verde não se aplica.
+- **CT-05 resolvido:** o trecho "diga sempre ao usuário para qual agente passou" saiu de `agents/jarvis.md` (0 ocorrências) e entrou "diga qual agente faz o quê só nos marcos, num resumo" (1 ocorrência no texto, 1 em `invariantes`), com entrada em `invariantes_motivo_trecho` (`R-DECISAO` e porquê). Contagem de `agents/jarvis.md` no teto 49 para 48, coerente com a troca.
+- **Afrouxamento declarado:** `RETIRADOS_047` em `tests/test_jarvis_nucleo.py` lista só o trecho trocado (decisão do dono, referenciada no comentário e no fragmento de changelog); os demais invariantes seguem exigidos.
+- **Testes locais:** `tests.test_jarvis_nucleo` 20 OK; `tests.test_invariante_gatilho` + `tests.test_modelos_projeto` + `tests.test_textos_dono_f10` 21 OK; `tests.test_forge -k nvariante -k Neutral -k Regra` 15 OK. A suíte inteira roda no CI do PR (sem PR, sem check-run `bateria`).
+- Sem bug novo; achados abertos: nenhum.
 
 ## Bugs
 Nenhum aberto.
