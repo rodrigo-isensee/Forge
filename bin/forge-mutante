@@ -17,7 +17,8 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--prazo SEGUNDOS] [
   --base SHA  com SPEC, mutação dirigida (M-1): no diff `merge-base(SHA, REV)..REV`, roda o mutante quando mudou o `arquivo`
            dele, o arquivo da spec que o declara (spec versionada no repositório) ou o módulo de um dos seus `testes`
            (`tests.x.Classe.teste` → `tests/x.py`); os outros saem `fora do diff: <id> · <arquivo>`, sem rodar. Arquivo de
-           tests/ que não é `test_*.py` nem de tests/mutantes/ (helper importado, fixture) põe todos no diff, com a linha
+           tests/ que não é spec (`.json` de tests/mutantes/) nem `test_*.py` que nenhum outro teste importa (helper,
+           fixture, `.py` de tests/mutantes/, `test_*.py` importado por outro teste) põe todos no diff, com a linha
            `apoio de teste no diff: <arquivos>`. Nenhum no diff, ou SHA que não é commit: saída 2. A 1.ª rodada do QA é a spec
            inteira, sem --base; a --base serve só à revalidação, com SHA = o head que o QA já aprovou, e o parecer
            confere a linha `base=` da saída contra esse head.
@@ -803,13 +804,30 @@ def no_diff(m, spec_mudou, mudados):
     return any(modulos_do_teste(t) & mudados for t in m.get("testes", []))
 
 
-def apoio_de_teste(mudados):
-    """Os arquivos de `tests/` no diff que não são módulo de teste (`test_*.py`) nem spec (`tests/mutantes/`): helper
-    importado, fixture, corpus. A cadeia de importação não se segue, então qualquer um deles põe todos os mutantes no
-    diff (segurança A4 da v046 E7.7)."""
-    return sorted(a for a in mudados if a.startswith("tests/")
-                  and not a.startswith("tests/mutantes/")
-                  and not (Path(a).name.startswith("test_") and a.endswith(".py")))
+def importado_por_teste(arquivo, sha):
+    """Algum `.py` de `tests/` no `sha` tem linha `import`/`from` com o nome do módulo de `arquivo` (`test_x`,
+    `tests.test_x`, `from tests import test_x`): o `test_*.py` é também helper de outro teste."""
+    nome = re.escape(Path(arquivo).stem)
+    padrao = rf"^[[:space:]]*(from|import)[[:space:]](.*[^A-Za-z0-9_])?{nome}([^A-Za-z0-9_]|$)"
+    r = subprocess.run(["git", "grep", "-l", "-E", "-e", padrao, sha, "--", "tests/*.py"],
+                       capture_output=True, text=True, errors="replace")
+    if r.returncode > 1:  # 1 é "nada achado"
+        raise RuntimeError(f"git grep {sha}: {r.stderr.strip()}")
+    return bool(r.stdout.strip())
+
+
+def apoio_de_teste(mudados, sha):
+    """Os arquivos de `tests/` no diff que não são spec (`.json` de `tests/mutantes/`) nem módulo de teste
+    (`test_*.py`) que nenhum outro teste importa: helper, fixture, corpus, `.py` de `tests/mutantes/` e o `test_*.py`
+    importado por outro teste. A cadeia de importação não se segue, então qualquer um deles põe todos os mutantes no
+    diff (segurança A4 da v046 E7.7; A5 da E7.11, sondas S5 e S6)."""
+    def apoio(a):
+        if a.startswith("tests/mutantes/"):
+            return not a.endswith(".json")
+        if Path(a).name.startswith("test_") and a.endswith(".py"):
+            return importado_por_teste(a, sha)
+        return True
+    return sorted(a for a in mudados if a.startswith("tests/") and apoio(a))
 
 
 def dirigir(specs, caminhos, base, sha):
@@ -822,11 +840,11 @@ def dirigir(specs, caminhos, base, sha):
     try:
         mb = git("merge-base", sha_base, sha).strip()
         mudados = set(git("--literal-pathspecs", "diff", "--name-only", "-z", "--no-renames", mb, sha, "--").split("\0"))
+        apoio_mudado = apoio_de_teste(mudados, sha)
     except RuntimeError as erro:  # sem ancestral comum
         print(f"forge-mutante: {erro}", file=sys.stderr)
         return None
     print(f"base={sha_base} mb={mb} rev={sha}")
-    apoio_mudado = apoio_de_teste(mudados)
     if apoio_mudado:
         print(f"apoio de teste no diff: {', '.join(apoio_mudado)} · todos os mutantes entram")
     raiz, dirigidas = Path.cwd().resolve(), []
