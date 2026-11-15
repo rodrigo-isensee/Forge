@@ -171,6 +171,7 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
           HEAD_REF: ${{ github.head_ref }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           REF: ${{ github.ref }}
         run: |
           provada=false
@@ -499,15 +500,22 @@ jobs:
       # verificações longas esperam este job (needs).
       # A Neutralidade roda uma vez só, nas partes (tests.test_forge). O CLI e o validate seguem antes de todo código da branch
       # (bin/forge-changelog, tests/), que poderia pôr um `claude` falso no GITHUB_PATH (a razão do CI-ORDEM-LINT).
+      # R-FLUXO: o par head/base vem da tabela única PROMOCOES (tests/catraca.py, modo `degrau`), lida da develop do servidor e
+      # nunca do PR (o head é do autor): develop ou promocao/X.Y.Z (head do próprio repositório, ancestral da develop) -> homolog,
+      # homolog -> main. A develop é a branch protegida: o código dela não é o da branch do PR (CI-ORDEM-LINT).
       - name: Nada pula degrau
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         env:
           BASE: ${{ github.base_ref }}
           HEAD_REF: ${{ github.head_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
         run: |
           case "$BASE" in
-            homolog) [ "$HEAD_REF" = "develop" ] || { echo "PR para homolog só a partir da develop (veio de $HEAD_REF)."; exit 1; } ;;
-            main)    [ "$HEAD_REF" = "homolog" ] || { echo "PR para main só a partir da homolog (veio de $HEAD_REF)."; exit 1; } ;;
+            homolog|main)
+              git worktree add --detach "$RUNNER_TEMP/degrau" refs/remotes/origin/develop
+              python3 -I "$RUNNER_TEMP/degrau/tests/catraca.py" --modo degrau --ramo "$HEAD_REF" --base-ref "$BASE" --head "$HEAD_SHA" ;;
           esac
           echo "ok: $HEAD_REF -> $BASE"
       - name: Claude Code CLI (nova tentativa só na instalação, por falha de rede; confere a versão)
