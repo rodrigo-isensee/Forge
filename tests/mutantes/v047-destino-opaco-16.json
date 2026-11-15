@@ -16,8 +16,8 @@
       "id": "O100",
       "guarda": "A1 do review E1.279: `$(pwd)` só vira `$PWD` se a linha não redefine `pwd` como função",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if not corpo_da_funcao(\"pwd\", comando)[0]:",
-      "para": "            if True:",
+      "de": "            if not corpo_da_funcao(\"pwd\", comando)[0] and",
+      "para": "            if True and",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]

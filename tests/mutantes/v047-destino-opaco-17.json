@@ -1,0 +1,46 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O105",
+      "guarda": "A6 da segurança E1.304: a linha que troca a resolução do comando tira a lista positiva (U4 e U3)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if RESOLUCAO_TROCADA.search(linha):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O106",
+      "guarda": "A6 da segurança E1.304: `$(pwd)` não vira `$PWD` se a linha troca a resolução do comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "[0] and not RESOLUCAO_TROCADA.search(comando):",
+      "para": "[0]:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O107",
+      "guarda": "A6 da segurança E1.304: `source` está na lista da resolução trocada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(?:\\.|source|hash|",
+      "para": "(?:\\.|hash|",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O108",
+      "guarda": "A6 da segurança E1.304: `PATH` está na lista da resolução trocada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(?<![\\w$.{-])(?:PATH|BASH_ENV",
+      "para": "(?<![\\w$.{-])(?:BASH_ENV",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}

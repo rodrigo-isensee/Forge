@@ -490,11 +490,20 @@ VARIAVEIS_DO_BASH = frozenset("_ REPLY MAPFILE BASH_REMATCH OPTARG OPTIND PWD OL
                               "READLINE_POINT READLINE_MARK COMP_WORDS COMP_CWORD COMP_LINE COMP_POINT COMPREPLY "
                               "BASH_EXECUTION_STRING EPOCHREALTIME EPOCHSECONDS RANDOM SRANDOM LINENO SECONDS".split())
 TETO_DE_VALORES = 64  # combinações de valores de uma palavra; acima, o hook não calcula
+# A6 da segurança E1.304: o nome do comando já não diz o que roda quando a linha muda a resolução dele sem definir função
+# (`. ./f.sh`, `source`, `hash -p`, `alias`, `PATH=`, `GIT_WORK_TREE=` no `rev-parse`). Lista fechada, como palavra em
+# qualquer posição (sobra recusa, nunca falta); com ela, nada da lista positiva vale e `$(pwd)` não vira `$PWD`.
+RESOLUCAO_TROCADA = re.compile(r"(?<![^\s;&|(){}])(?:\.|source|hash|alias|shopt|enable|builtin|command)(?![^\s;&|()])"
+                               r"|(?<![\w$.{-])(?:PATH|BASH_ENV|ENV|TMPDIR|GIT_\w*)(?!\w)|\$\{(?:PATH|BASH_ENV|ENV|TMPDIR"
+                               r"|GIT_\w*):?=")
 
 
 def na_lista_positiva(corpo, linha):
     """O corpo está em `CORPO_POSITIVO`, não cita o `.git` (A3 da segurança E1.206: `mktemp -p .git`) e a linha não
-    redefine o comando como função (A1 do review E1.279: `date(){ printf .gi%s t/config; }`), no U4 e no U3."""
+    redefine o comando como função (A1 do review E1.279: `date(){ printf .gi%s t/config; }`) nem troca a resolução dele
+    (`RESOLUCAO_TROCADA`, A6 da segurança E1.304), no U4 e no U3."""
+    if RESOLUCAO_TROCADA.search(linha):
+        return False
     if corpo_da_funcao(corpo.split()[0] if corpo.split() else corpo, linha)[0]:
         return False
     return bool(CORPO_POSITIVO.fullmatch(corpo)) and not cita_o_dir_do_git(corpo)
@@ -1594,7 +1603,7 @@ class Guarda:
             lidas, corpos, gravado = None, [], None
             self.recusar_o_teto(comando, original, nivel)
         else:
-            if not corpo_da_funcao("pwd", comando)[0]:  # A1 do review E1.279: `pwd(){ …; }` não é o `$PWD`
+            if not corpo_da_funcao("pwd", comando)[0] and not RESOLUCAO_TROCADA.search(comando):  # A1 (E1.279) e A6 (E1.304)
                 comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
             comando = REV_PARSE_DO_GIT.sub(trocar_rev_parse, comando)
             self.texto_da_linha = comando
