@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: 74b42c69d7c1fd98980986104f7e3733dbbbdd5b
+commit: c3cde09fdec39e3d8bed6b8d0e0113216189a7ca
 parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
@@ -93,7 +93,7 @@ Parecer reprovado no 19df94ed: A3 bloqueante (bug alto). A2 fechado, sem mutante
 Fecha o A3 da rodada anterior (aritmética e barra e quebra), resolvido em `000cd0c8` (`R-CONFORMIDADE`).
 
 ## Achados
-- A16 (bloqueante) hooks/conformidade.py:693 · `${nome:=v}` não conta como nascimento do prefixo colado: `: ${d:=.gi}; cp -rT ev "$d"t` e `echo a > "$d"t` dão rc 0 no 74b42c69 e escrevem em .git/config; `d=.gi` recusa (A15 da segurança; R-CONFORMIDADE)
+- A17 (bloqueante) hooks/conformidade.py:698 · prefixo colado de variável do bash não é barrado: `: .gi; cp -rT ev "$_"t` e `: .gi; echo a > "$_"t` dão rc 0 no c3cde09f e escrevem em .git/config; `"$_"` sozinho recusa (mesma classe do A16 da segurança; R-CONFORMIDADE)
 
 
 ## Sondas do delta (aspas simples no shell; cada uma com `echo a > "$(date)"` no fim e `date` benigno)
@@ -133,9 +133,19 @@ Domínio lido por `forge-check parecer delta`: `hooks/conformidade.py` (`corpos_
 - Vermelho: `bin/forge-testes --vermelho e34924b4e6d1 --modulos test_hook_destino_opaco,test_oraculo_v047 --prazo 500`, rc 0: `vermelho: base=e34924b4e6d1 head=74b42c69d7c1`; `test_fixtures_opaco_u4 · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=6; prova (asserção)=1` (os demais são regressão, esperado).
 - Mutação do delta: `bin/forge-mutante --processos 4 tests/mutantes/v047-destino-opaco-22.json tests/mutantes/v047-destino-opaco-23.json`, `pedido=v047 rev=74b42c69d7c1`: O149 a O154 `morreu` (O153 em `conformidade.py:556`, O154 em `:688`), nenhum sobrevivente, rc 0. `--cobertura --base e34924b4…` (`base=` e `mb=` iguais): condições 556 e 688 `coberta`, a spec 22 `editada` (O150 reescrito para o novo trecho, ainda mata).
 - Sondas (aspas simples; hook real pela máquina do `test_hook_destino_opaco`, em cópia em `$TMPDIR`, 17 fixtures `opaco-zz` descartáveis, destino `"$d"`, `"$(date)"` ou `"$(mktemp)"`): head recusa (rc 2) `a=.g; : ${d:=${a}it/config}`, `${d:=.git/config}`, `${d=.git/config}`, `${d[0]:=.git/config}`, `${d:=docs}` (atribuição na linha, recusa na dúvida), `${d:=${a:=.g}it/config}`, `${d:=.g}; … "${d}it/config"`, heredoc sem aspas com `${d:=…}`, `${d=…}`, `${D:=…}` e `<<-E` com tab. Libera (rc 0): `d=docs`, `${d:-docs}`, `<<'E'` literal, `"$(mktemp)"`. Na base e34924b4 as mesmas sondas `${d:=…}` na linha (01, 05, 15) saem rc 0, ou seja, o delta fecha a classe.
-- Falso positivo medido, não é regressão (igual na base): `cat <<E`⏎`plain ${x:-1}`⏎`E`⏎`echo a > "$(mktemp)"` recusa com "`${` com ação crítica" (guarda anterior ao delta, recusa na dúvida). Sem achado.
+- Falso positivo medido, não é regressão (igual na base): `cat <<E`⏎`plain ${x:-1}`⏎`E`⏎`echo a > "$(mktemp)"` recusa com "`${` com ação crítica" (guarda anterior ao delta, recusa na dúvida). Sonda de abuso fora da lista, da classe vizinha (confirma o A16 da segurança E1.340): `: .gi; cp -rT ev "$_"t`, `: .gi; echo a > "$_"t` e `echo a > "$_"t` saem rc 0 (esperado 2; no shell `: .gi; echo "$_"t` imprime `.git`); `"$_"` sozinho recusa. Bug alto, responsável: dev da stack do hook; falta fixture `opaco-u4-*` e mutante para a linha :698.
 - CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local. A13 e A14 fechados.
 
 - Sonda de abuso da classe vizinha (confirma a A15 da segurança, fora da lista de sondas acima): `: ${d:=.gi}; cp -rT ev "$d"t` e `: ${d:=.gi}; echo a > "$d"t` saem rc 0 no head (esperado 2); `d=.gi; cp -rT ev "$d"t` recusa; `d=docs; echo a > "$d"` libera. O A14 fechou só a forma direta `"$d"`; a forma com resto colado sem barra segue aberta. Bug alto (escrita em `.git/config` sem recusa), responsável: dev da stack do hook. Falta fixture `opaco-u4-*` e mutante para a linha `:693`.
 
 Parecer reprovado no 74b42c69 (`R-QA`): A13 e A14 fechados, sem mutante sobrevivente, mas A16 bloqueante aberto (mesma classe, forma com resto colado).
+
+## Revalidação por delta 74b42c69..c3cde09f (E1.341, volta A15; instância que não fez a entrega)
+Domínio lido por `forge-check parecer delta`, rc 0: `hooks/conformidade.py` (`atribui_por_expansao` extraída; a guarda do prefixo colado em `valores_da_variavel` também a consulta), `docs/hooks.md`, 7 fixtures `opaco-u4-*` novas (S44 a S47 e 3 de prefixo), `tests/test_hook_destino_opaco.py` (piso 181 para 188) e a spec `v047-destino-opaco-23` (O154 reescrito, O155 e O156 novos). Escopo do plano inalterado (`R-CONFORMIDADE`). O A16 do parecer anterior está fechado: as duas sondas dele recusam (abaixo); abre o A17.
+- Oráculo: o delta não toca `tests/test_oraculo_v047.py`; blob `535134e9…` igual ao gravado; o módulo roda no vermelho abaixo.
+- Vermelho: `bin/forge-testes --vermelho 74b42c69d7c1fd98980986104f7e3733dbbbdd5b --modulos test_hook_destino_opaco,test_oraculo_v047 --prazo 500`, rc 0: `vermelho: base=74b42c69d7c1 head=c3cde09fdec3`; `test_fixtures_opaco_u4 · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=6; prova (asserção)=1` (os demais são regressão, esperado).
+- Mutação: `bin/forge-mutante --processos 4 tests/mutantes/v047-destino-opaco-23.json`, rc 0, `pedido=v047 rev=c3cde09fdec3`: O153 (:556), O154 (:693), O155 (:698), O156 (:682) `morreu`, nenhum sobrevivente. `--cobertura --base 74b42c69…` (`base=` e `mb=` iguais): condições 682, 693 e 698 `coberta`, a spec 23 `editada`; nenhuma sem mutante.
+- Sondas (aspas simples; hook real pela máquina do `test_hook_destino_opaco`, fixture S44 com o comando trocado, em `$TMPDIR`): recusam (rc 2) `: ${d:=.gi}; cp -rT ev "$d"t`, `: ${d:=.gi}; echo a > "$d"t`, `: ${d=.gi}; echo a > "$d"t`, `: ${d[0]:=.gi}; echo a > "$d"t`, `: ${abc:=.gi}; echo a > "$ab"ct` (prefixo de nome longo), `: ${D:=.gi}; echo a > "$D"t`, `: <<< ${d:=.gi}; cp -rT ev "$d"t`, `: ${d:=.gi}; cp -rT ev "${d}t"`, `echo ${d:=.gi} >/dev/null; echo a > "$d"t`. Liberam (rc 0, esperado): `d=docs; echo a > "$d"`, `echo a > "$(mktemp)"`, `: ${d:-docs}; cp x "$(mktemp)"`. Sem achado.
+- CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local. `forge-check docs`: ver Provas do relatório.
+
+Parecer reprovado no c3cde09f (`R-QA`): o A16 do parecer anterior (`${d:=v}` com resto colado) está fechado e sem mutante sobrevivente, mas o A17 (`"$_"t`) bloqueia.
