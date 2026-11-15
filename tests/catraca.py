@@ -255,25 +255,46 @@ def regras_de_config(b, h):
 
 
 SUFIXOS_DE_SCRIPT = (".py", ".sh", ".js", ".mjs", ".cjs", ".ts", ".rb", ".pl")
+OPCOES_INOCUAS_DO_PYTHON = set("bBdEIOPqsSuv")  # não executam outro código nem tiram o script do lugar (`-c`, `-m`, `-` tiram)
+OPCOES_COM_VALOR_DO_PYTHON = ("-X", "-W")
+
+
+def _ultimo_trecho(termo):
+    return termo.rsplit("/", 1)[-1]
+
+
+def _opcao_inocua(interp, op):
+    """Opção do Python que deixa o script no lugar e não roda outro código; em outro interpretador, nenhuma (falha fechada)."""
+    return (interp.startswith("python")
+            and len(op) > 1
+            and (op[:2] in OPCOES_COM_VALOR_DO_PYTHON or set(op[1:]) <= OPCOES_INOCUAS_DO_PYTHON))
 
 
 def script_do_hook(hk):
-    """O script que o hook roda: o primeiro termo do comando ou dos argumentos que não é opção e termina num sufixo de
-    script. Interpretador, opções (`-s -E`) e argumentos do script ficam fora (PR 565); sem script, a linha inteira."""
+    """O hook como (tipo, interpretador, script). Interpretador: último trecho do caminho do 1º termo, pulando `env`. Script: o 1º
+    termo depois dele que não é opção e tem sufixo de script; só opções inócuas do Python ficam fora (PR 565). Qualquer outra
+    coisa antes do script (`-c`, `-m`, `/dev/null`) ou sem script: a linha inteira, sem interpretador (falha fechada)."""
     termos = str(hk.get("command", "")).split() + [str(a) for a in hk.get("args", [])]
-    for termo in termos:
-        if not termo.startswith("-") and termo.endswith(SUFIXOS_DE_SCRIPT):
-            return termo
-    return " ".join(termos)
+    tipo = str(hk.get("type", "command"))
+    resto = termos[1:] if termos and _ultimo_trecho(termos[0]) == "env" else termos
+    interp, *depois = resto or [""]
+    interp, j = _ultimo_trecho(interp), 0
+    while j < len(depois) and depois[j].startswith("-"):
+        if not _opcao_inocua(interp, depois[j]):
+            return tipo, "", " ".join(termos)
+        j += 2 if depois[j] in OPCOES_COM_VALOR_DO_PYTHON else 1
+    if j < len(depois) and depois[j].endswith(SUFIXOS_DE_SCRIPT):
+        return tipo, interp, depois[j]
+    return tipo, "", " ".join(termos)
 
 
 def chaves_de_hooks(texto):
-    """Cada hook como (evento, matcher, script): mudar só o interpretador ou os argumentos não o remove."""
+    """Cada hook como (evento, matcher, tipo, interpretador, script): mudar só opções inócuas ou argumentos não o remove."""
     try:
         dados = json.loads(texto) if texto else {}
     except ValueError:
         return set()
-    return {(evento, g.get("matcher", ""), script_do_hook(hk))
+    return {(evento, g.get("matcher", ""), *script_do_hook(hk))
             for evento, grupos in (dados.get("hooks") or {}).items() for g in grupos for hk in g.get("hooks", [])}
 
 
@@ -282,10 +303,10 @@ def regra_hooks(raiz, b, h):
     if antes is None:
         return []
     depois = ler(raiz, h, "hooks/hooks.json") or ""
-    return [msg("R-CONFORMIDADE", f"hook removido de hooks/hooks.json: {ev} {mt or '*'} {sc}",
+    return [msg("R-CONFORMIDADE", f"hook removido de hooks/hooks.json: {ev} {mt or '*'} {tp} {' '.join(filter(None, (ip, sc)))}",
                 "hook é o que faz a regra valer sem depender de memória", "restaure o hook ou peça o rótulo ao dono",
                 "docs/regras/R-CONFORMIDADE.md")
-            for ev, mt, sc in sorted(chaves_de_hooks(antes) - chaves_de_hooks(depois))]
+            for ev, mt, tp, ip, sc in sorted(chaves_de_hooks(antes) - chaves_de_hooks(depois))]
 
 
 POLITICA = "hooks/conformidade.json"

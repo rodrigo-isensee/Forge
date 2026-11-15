@@ -332,19 +332,35 @@ class Hooks(Base):
         novo = copy.deepcopy(HOOKS)
         novo["hooks"]["PreToolUse"][0]["hooks"][0]["args"] = ["-s", "-E", "outro.py"]
         self.repo.escreve("hooks/hooks.json", json.dumps(novo))
-        self.barra("hook removido de hooks/hooks.json: PreToolUse Bash a.py", "R-CONFORMIDADE")
+        self.barra("hook removido de hooks/hooks.json: PreToolUse Bash command python3 a.py", "R-CONFORMIDADE")
 
     def test_matcher_mudado_barra(self):
         novo = copy.deepcopy(HOOKS)
         novo["hooks"]["PreToolUse"][0]["matcher"] = "Write"
         self.repo.escreve("hooks/hooks.json", json.dumps(novo))
-        self.barra("hook removido de hooks/hooks.json: PreToolUse Bash b.py", "R-CONFORMIDADE")
+        self.barra("hook removido de hooks/hooks.json: PreToolUse Bash command python3 b.py", "R-CONFORMIDADE")
+
+    @staticmethod
+    def chaves(**hk):
+        return catraca.chaves_de_hooks(json.dumps({"hooks": {"Stop": [{"hooks": [hk]}]}}))
 
     def test_hook_sem_script_compara_a_linha_inteira(self):
-        def chaves(comando):
-            return catraca.chaves_de_hooks(json.dumps({"hooks": {"Stop": [{"hooks": [{"command": comando}]}]}}))
-        self.assertEqual(chaves("echo fim"), {("Stop", "", "echo fim")})
-        self.assertTrue(chaves("echo fim") - chaves("echo outro"))
+        self.assertEqual(self.chaves(command="echo fim"), {("Stop", "", "command", "", "echo fim")})
+        self.assertTrue(self.chaves(command="echo fim") - self.chaves(command="echo outro"))
+        self.assertEqual(self.chaves(type="prompt", prompt="x"), {("Stop", "", "prompt", "", "")})
+
+    def test_hook_neutralizado_sem_tirar_o_script_barra(self):
+        """Volta 1 (A1 a A3 da segurança): o hook que não roda mais o script, ou roda outro código antes, é hook removido."""
+        casos = {"python3 -s -E a.py": [dict(args=["-c", "a.py"]), dict(args=["-m", "a.py"]), dict(args=["-", "a.py"]),
+                                        dict(args=["-sc", "a.py"]), dict(args=["/dev/null", "a.py"]), dict(command="true"),
+                                        dict(command="echo", args=["a.py"]), dict(type="prompt")],
+                 "perl a.pl": [dict(command="perl -E", args=["a.pl"])]}
+        for antes, trocas in casos.items():
+            comando, *args = antes.split()
+            base = dict(type="command", command=comando, args=args)
+            for troca in trocas:
+                with self.subTest(antes=antes, troca=troca):
+                    self.assertTrue(self.chaves(**base) - self.chaves(**{**base, **troca}))
 
     def test_arquivo_de_hooks_apagado_barra(self):
         (self.repo.dir / "hooks/hooks.json").unlink()
@@ -1265,6 +1281,26 @@ class Protegidos(Base):
         self.repo.escreve("tests/catraca.py", "x = 'nova'\n")
         self.repo.escreve(".github/workflows/ci.yml", "name: CI com catraca\n")
         self.passa()
+
+
+class CorpusDasSondasDeHook(unittest.TestCase):
+    """Sondas S1 a S4 e A3 do parecer de segurança da v047 (catraca por script) sobre o hooks.json real: cada troca no hook de
+    conformidade do PreToolUse acusa um hook removido, e a do PR 565 (só `env`, opções e argumentos) nenhum."""
+
+    def test_cada_sonda_acusa_o_esperado(self):
+        corpus = json.loads((AQUI / "fixtures" / "catraca-hooks" / "sondas.json").read_text(encoding="utf-8"))
+        antes = json.loads((AQUI.parent / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+        alvos = [(g, i) for g in antes["hooks"][corpus["evento"]] for i, hk in enumerate(g["hooks"])
+                 if corpus["script"] in hk.get("args", [])]
+        self.assertEqual(len(alvos), 1)
+        self.assertGreaterEqual(len(corpus["sondas"]), 6)
+        for sonda in corpus["sondas"]:
+            with self.subTest(sonda=sonda["id"]):
+                depois = copy.deepcopy(antes)
+                grupo = depois["hooks"][corpus["evento"]][antes["hooks"][corpus["evento"]].index(alvos[0][0])]
+                grupo["hooks"][alvos[0][1]].update(sonda["troca"])
+                removidos = catraca.chaves_de_hooks(json.dumps(antes)) - catraca.chaves_de_hooks(json.dumps(depois))
+                self.assertEqual(len(removidos), sonda["removidos"], removidos)
 
 
 class CorpusDosAfrouxamentosReais(unittest.TestCase):

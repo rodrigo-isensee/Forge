@@ -1,0 +1,23 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CH-M9",
+      "guarda": "só as letras inócuas do Python passam; -c e -m, sozinhas ou juntas (-sc), acusam (A1, S1)",
+      "arquivo": "tests/catraca.py",
+      "de": "set(op[1:]) <= OPCOES_INOCUAS_DO_PYTHON))",
+      "para": "True))",
+      "testes": ["tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra",
+                 "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"]
+    },
+    {
+      "id": "CH-M10",
+      "guarda": "-X e -W com valor são inócuas (PR 565)",
+      "arquivo": "tests/catraca.py",
+      "de": "op[:2] in OPCOES_COM_VALOR_DO_PYTHON or",
+      "para": "False or",
+      "testes": ["tests.test_catraca.Hooks.test_mudar_interpretador_opcoes_ou_argumentos_passa"]
+    }
+  ]
+}

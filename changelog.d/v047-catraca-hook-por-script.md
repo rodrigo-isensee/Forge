@@ -1,2 +1,2 @@
 ### Corrigido
-- Catraca: hooks/hooks.json compara cada hook por evento, matcher e script; mudar só o interpretador, as opções ou os argumentos não acusa mais "hook removido" (falso positivo do PR 565, v047 E2.53).
+- Catraca: hooks/hooks.json compara cada hook por evento, matcher, tipo, interpretador e script; mudar só as opções inócuas do Python (`-s -E`, `-I`, `-X utf8`), o `env` na frente ou os argumentos não acusa mais "hook removido" (falso positivo do PR 565, v047 E2.53), e neutralizar o hook (`-c`, `-m`, um termo antes do script, `command` trocado, `type` trocado) segue acusando (v047 E2.67).

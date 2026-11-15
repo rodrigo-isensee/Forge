@@ -1,0 +1,13 @@
+{
+  "fonte": "hooks/hooks.json real; parecer docs/security/v047-catraca-hook-por-script.md (e8499ce), sondas S1 a S4 e A3",
+  "evento": "PreToolUse",
+  "script": "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py",
+  "sondas": [
+    {"id": "S1", "troca": {"args": ["-c", "pass", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"]}, "removidos": 1},
+    {"id": "S2", "troca": {"args": ["-s", "-E", "/dev/null", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"]}, "removidos": 1},
+    {"id": "S3", "troca": {"command": "true"}, "removidos": 1},
+    {"id": "S4", "troca": {"command": "echo", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"]}, "removidos": 1},
+    {"id": "A3", "troca": {"type": "prompt"}, "removidos": 1},
+    {"id": "PR565", "troca": {"command": "/usr/bin/env python3", "args": ["-I", "-X", "utf8", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py", "--modo", "x"]}, "removidos": 0}
+  ]
+}
