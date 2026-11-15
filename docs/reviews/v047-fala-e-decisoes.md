@@ -3,24 +3,49 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-fala-e-decisoes
-commit: 05797223ac8b884b8d44874803878cfb356eedbc
-parecer: reprovado
+commit: a4a476617e6aae4b418e2a97df2839f84500942a
+parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-14
+data: 2026-11-15
 ---
 # Review: v047-fala-e-decisoes
 
 Code review da E1.282 (E1.292) no head 05797223, intervalo `origin/develop..05797223` (base c5c3a449): diretriz 24 (falar só no marco) em `agents/jarvis.md` e `skills/modo-iniciante/SKILL.md`, diretriz 29 (pedido das decisões) em `skills/falar-com-o-dono/SKILL.md`, 15 invariantes novos em `tests/config.json`.
 
+Revalidação (E1.306) no head a4a47661, depois da volta E1.302. A primeira passada (E1.292, head 05797223) segue no fim, em "Passada anterior".
+
+## Delta lido
+`bin/forge-check parecer delta docs/reviews/v047-fala-e-decisoes.md` → rc 0, intervalo `05797223ac8b884b8d44874803878cfb356eedbc..a4a476617e6aae4b418e2a97df2839f84500942a`, no domínio: `changelog.d/v047-fala-e-decisoes.md`, `skills/falar-com-o-dono/SKILL.md`, `skills/falar-com-o-dono/resposta-curta.md` (novo), `skills/kanban-scrum/SKILL.md`, `skills/kanban-scrum/experimentos.md` (novo), `skills/modo-iniciante/SKILL.md`, `skills/modo-iniciante/numeros.md` (novo), `tests/config.json`. Já lido (passada anterior, não relido): `agents/jarvis.md` e o resto da branch.
+
+## Achados anteriores
+- **A1 (resolvido):** `resposta-curta.md`:7 traz a linha O4 idêntica, caractere a caractere, à da develop (`c5c3a449`, `skills/falar-com-o-dono/SKILL.md`:16), com `decisoes --resposta` e `origem:`, `procurado:`, `seguir:`, `não seguir:`. A skill aponta o arquivo (SKILL.md:18-19).
+- **A2 (resolvido):** a frase do técnico do `tech-lead` e do aprendizado com os erros do `agile-coach` está inteira em `skills/kanban-scrum/SKILL.md`:132, skill que o Jarvis manda ler (jarvis.md:49).
+- **A3 (resolvido):** a skill volta a "regra 12 de `docs/economia-de-tokens.md`" (SKILL.md:25), igual à develop.
+- **A4 (resolvido):** o exemplo C devolve "não dá para dizer se é maior ou menor" (modo-iniciante SKILL.md:44).
+
+## Diretriz 25 (nada apagado nem resumido)
+- `experimentos.md` e `numeros.md` levam o texto movido sem mudança (a tabela de colunas e "Uma mudança por vez..."; as três marcas `medido`, `estimado`, `não medido` com a regra inteira). O que fica na SKILL.md é ponteiro e o resumo de uma linha, sem perder regra: o texto completo está no arquivo apontado.
+- Os três arquivos novos têm o cabeçalho que diz que valem como a skill (`R-DECISAO`) e o porquê da mudança de arquivo, e entram em `invariantes` com motivo; os ponteiros também são invariantes. Nada foi apagado no delta.
+
+## Saída das ferramentas (sem refazer)
+- `bin/forge-testes --listar` → suíte completa (`tests/config.json` muda): fica para o CI do PR.
+- Afetados, ambiente limpo e `python3 -I`: `test_forge` (RegrasInviolaveis, Orcamento, Neutralidade) 11 OK; `test_orcamento_instrucao` 8 OK; `test_skills*` 4 OK; `test_jarvis*` 22 OK.
+- Mutantes numa cópia do head (`git archive`): "corte recomendado leva" → "corte leva" em `resposta-curta.md` e "Uma mudança por vez em cada parte" → "Uma mudança por vez" em `experimentos.md`; `RegrasInviolaveis.test_trechos_obrigatorios` falhou nos dois (mortos).
+- Tamanho (M14): só `tests/config.json` conta (59 linhas na branch), abaixo de 150; sem guarda de código, sem mutante a declarar.
+
 ## Achados
-- A1 (bloqueante) skills/falar-com-o-dono/SKILL.md:18 · o corte tirou "`decisoes --resposta` a lê; corte recomendado leva `origem:`, `procurado:`, `seguir:`, `não seguir:`", regra que só estava aqui (grep em agents/, skills/ e docs/regras/ vazio); a diretriz 25 (DECISÃO DO DONO 13/11 19:37) proíbe apagar ou resumir regra: devolva o trecho.
-- A2 (recomendado) agents/jarvis.md:19 · saiu "O técnico (desenho, portões, integração, versão) é do `tech-lead`; o aprendizado com os erros, do `agile-coach`"; quase tudo segue na tabela (L24, L30) e nos passos 3 e 9, mas pela diretriz 25 o caminho é mover para skill citada, não cortar.
-- A3 (recomendado) skills/falar-com-o-dono/SKILL.md:24 · "(economia, regra 12)" e jarvis.md:47 "(política, regras 9 a 11)" perderam o caminho `docs/economia-de-tokens.md`; no Jarvis ele segue no L9, na skill não: devolva o caminho na skill.
-- A4 (recomendado) skills/modo-iniciante/SKILL.md:44 · o exemplo C perdeu "não dá para dizer se é maior ou menor", que mostra o item 4 do "Como perguntar" (custo maior ou menor, em palavras) no caso `não medido`.
 
 ## Sondas
 
 ## Parecer
+Aprovado. A1 a A4 resolvidos, sem achado novo; a diretriz 25 foi cumprida: o que não coube no teto mudou para arquivo ao lado com ponteiro e invariante. Commit a4a47661 em Conventional Commits em português; o fragmento do changelog registra os três arquivos novos.
+
+## Passada anterior (E1.292, head 05797223, reprovado por A1)
+- A1 (bloqueante) skills/falar-com-o-dono/SKILL.md:18 · o corte tirou o formato do corte recomendado e `decisoes --resposta`; diretriz 25.
+- A2 (recomendado) agents/jarvis.md:19 · frase do técnico e do aprendizado cortada em vez de movida.
+- A3 (recomendado) skills/falar-com-o-dono/SKILL.md:24 · perdeu o caminho `docs/economia-de-tokens.md`.
+- A4 (recomendado) skills/modo-iniciante/SKILL.md:44 · exemplo C perdeu "não dá para dizer se é maior ou menor".
+
 Reprovado por A1. Diff de 5 arquivos (52 inserções, 26 remoções), só texto e `tests/config.json`; nenhuma guarda de código, sem mutante a declarar.
 
 - **Diretriz 24:** o "Falar só no marco" do Jarvis cobre os três gatilhos (decidir ou agir, problema que muda prazo ou risco, marco fechado), o resumo de no máximo 30 min com uma linha por item que mudou, sem nome de branch ou pasta, "nada mudou, nada a dizer", relatório de agente ao histórico e recibo e perguntas completos. O "à pessoa, só decisão, rótulo, merge na `main` e comando em arquivo travado" foi absorvido nos parênteses do gatilho, sem perda. No modo iniciante, "e o que já foi feito depois" sai por decisão do dono (diretriz 24), não é corte de regra. O modo foco entra só no caminho do perfil iniciante; o resto do cartão FALA-SO-NO-MARCO (forge-init, novo-projeto, README, métrica de mensagens) o autor declarou fora: o cartão fica aberto.
