@@ -16,8 +16,8 @@
       "id": "O142",
       "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): valor calculado só da linha que o hook junta",
       "arquivo": "hooks/conformidade.py",
-      "de": "        valores = None if linha is None else valores_da_palavra(palavra, linha)",
-      "para": "        valores = valores_da_palavra(palavra, linha or \"\")",
+      "de": "valores = None if linha is None else valores_da_palavra(palavra, linha)",
+      "para": "valores = None if False else valores_da_palavra(palavra, linha)",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]
