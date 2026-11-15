@@ -813,12 +813,26 @@ conferir_base_no_merge() {
 
 # promovivel <sha> (passo 1c, FF-1, SP4): a árvore do sha conferido passa no promover-homolog --conferir-ref (só leitura). Script ausente,
 # rc diferente de 0 e o 124 do prazo param (C-1); o recomeço do 2b roda o script de novo, e o 1c com ele, sobre o head novo (C-3).
+# FECHAR-SEM-HOMOLOG-LOCAL: o --conferir-ref lê a origin/homolog local, sem fetch; sem ela no clone, busca só essa ref. Busca que falha só
+# avisa: sem a ref, o --conferir-ref sai com 1 e o 1c para.
 promovivel() {
   local saida_1c rc_1c=0
   [ -f "$promover" ] || die "parou no passo 1c: não achei $promover (nada foi aberto nem mesclado)"
+  if ! git rev-parse -q --verify "refs/remotes/origin/homolog^{commit}" >/dev/null 2>&1; then
+    git fetch -q origin "+refs/heads/homolog:refs/remotes/origin/homolog" || echo "aviso: sem origin/homolog neste clone e a busca falhou (git fetch origin homolog); o promover-homolog decide." >&2
+  fi
   saida_1c="$(timeout 300 python3 -I "$promover" --conferir-ref "$1" 2>&1)" || rc_1c=$?
   [ "$rc_1c" = 0 ] || die "parou no passo 1c: a árvore que entra na $alvo não é promovível (rc $rc_1c; nada foi aberto nem mesclado): $saida_1c
 com release na develop ainda não promovida, promova-a (scripts/promover-homolog.py) antes de mesclar outra branch (R-FLUXO)"
+}
+
+# ja_no_alvo <sha> (FECHAR-SEM-HOMOLOG-LOCAL): o sha já está na base local ou num PR MERGED em $alvo do próprio repositório (o GitHub
+# apaga a branch depois do merge; pedir push aí seria errado). Leitura que falha conta como não mesclado: o passo 2 segue parando.
+ja_no_alvo() {
+  git merge-base --is-ancestor "$1" "$base" 2>/dev/null && return 0
+  ler "$gh" pr list --head "$ref" --state all --limit 30 --json number,state,baseRefName,headRefOid,isCrossRepository \
+    --jq '.[] | "\(.number) \(.state) \(.baseRefName) \(.headRefOid) \(.isCrossRepository)"' |
+    awk -v s="$1" -v b="$alvo" '$2 == "MERGED" && $3 == b && $4 == s && $5 != "true" {f = 1} END {exit !f}'
 }
 
 # esperar_ci <branch> <sha> <segundos> (FECHAR-ESPERA-CI-DEVELOP): relê as execuções do evento push na <branch> para o commit até todas
@@ -1063,8 +1077,8 @@ if [ "$seco" = 1 ]; then
   ref_dry="refs/heads/$ref"
   sha_dry="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)" || { sha_dry="<sha não lido: a branch local não existe>"; ref_dry="$sha_dry"; }
   passo 1 "$check pr $pedido --ref $ref_dry --base $base"
-  passo "1c" "python3 -I $promover --conferir-ref $sha_dry (a árvore que entra na $alvo é promovível; rc diferente de 0, prazo de 300 s ou script ausente param)"
-  passo 2 "git ls-remote origin refs/heads/$ref (igual ao head local de $ref)"
+  passo "1c" "python3 -I $promover --conferir-ref $sha_dry (a árvore que entra na $alvo é promovível; rc diferente de 0, prazo de 300 s ou script ausente param; sem origin/homolog no clone, antes busca só ela)"
+  passo 2 "git ls-remote origin refs/heads/$ref (igual ao head local de $ref; ausente com o head já em $alvo, PR MERGED ou na base, segue sem pedir push)"
   passo "2b" "git ls-remote origin refs/heads/$alvo (igual a $base; senão, git fetch origin $alvo); se a base andou, git merge-tree --write-tree do head com ela: com conflito para e lista os arquivos; sem conflito avisa e segue, sem trazer a base (E8) (só leitura; não roda quando o head já está em $base ou o PR já está MERGED)"
   passo 3 "$gh pr create --base $alvo --head $ref --title '$titulo' (se não houver PR aberto; não abre se o head já está em $base ou já tem PR MERGED)"
   passo 4 "$gh pr checks <número do PR, lido no passo 3> (espera até ${espera}s; por JSON; os exigidos, pelo par workflow/nome (${CHECKS_EXIGIDOS[*]}), só passam em pass, os demais em pass ou skipping)"
@@ -1158,6 +1172,10 @@ passo 2 "head no servidor"
 local_sha="$(head_atual)" || die "parou no passo 2: a branch $ref não existe ou não foi lida (local ou, no modo só remota, no origin)"
 [ "$local_sha" = "$sha_conferido" ] || die "parou no passo 2: o head de $ref mudou depois da conferência dos pareceres (conferido $sha_conferido, agora $local_sha); confira e rode de novo"
 remoto_sha="$(remoto_exato "$ref")" || die "parou no passo 2: não consegui ler a branch $ref no origin"
+if [ -z "$remoto_sha" ] && ja_no_alvo "$sha_conferido"; then
+  echo "a branch $ref já não está no origin e o head conferido já está em $alvo; não peço push, sigo para a limpeza."
+  remoto_sha="$sha_conferido"
+fi
 [ -n "$remoto_sha" ] || die "parou no passo 2: $ref não está no origin (git push origin $ref, sem -u)"
 [ "$remoto_sha" = "$sha_conferido" ] || die "parou no passo 2: o head local ($sha_conferido) difere do remoto ($remoto_sha); envie a branch"
 
