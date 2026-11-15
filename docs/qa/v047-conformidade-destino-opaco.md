@@ -3,11 +3,11 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: 000cd0c8a7f69497fd41b5f64c786ed9df5f5274
-parecer: reprovado
+commit: e34924b4e6d18a37f1454420d1bfc759c787576d
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-15
@@ -94,8 +94,7 @@ Fecha o A3 da rodada anterior (aritmética e barra e quebra), resolvido em `000c
 
 ## Achados
 
-- A5 (bloqueante) hooks/conformidade.py:1706 · corpo de heredoc sem aspas não passa por `CONTEXTO_ARITMETICO`: `: <<E`⏎`$[PATH=5]`⏎`E`⏎`echo a > "$(date)"` libera (rc 0) e o bash avalia a atribuição; com `<<'E'` também libera (esperado, literal). Confirma A12 da segurança (R-CONFORMIDADE).
-- A4 (recomendado) hooks/conformidade.py:1367 · `textos_do_valor` ainda junta com `replace("\\\n", "")`, fora de `linha_juntada`: `\\`+quebra vira uma barra só. Só sobre-aproxima (sondas recusam, nenhuma libera); alinhar quando a função for tocada.
+Sem achado aberto. O A5 (bloqueante, corpo de heredoc sem aspas) e o A4 (recomendado, `textos_do_valor` com `replace`) das rodadas anteriores estão fechados em `e34924b4` (ver a revalidação abaixo).
 
 ## Sondas do delta (aspas simples no shell; cada uma com `echo a > "$(date)"` no fim e `date` benigno)
 Montadas sobre a fixture `opaco-u4-v-qa-barra-dupla-quebra-bloqueia` (hook real, `f.sh` redefine `date`). 77 sondas:
@@ -115,3 +114,15 @@ Fora das posições acima a classe fecha, mas o corpo de heredoc sem aspas (sond
 Todos os critérios da tabela anterior seguem como estavam; o delta só acrescenta a classe aritmética e barra e quebra, coberta pelas fixtures `opaco-u4-v-*` e pelos mutantes acima.
 
 - Sonda do A5: `: <<E`⏎`$[PATH=5]`⏎`E`⏎`echo a > "$(date)"` rc 0 (deveria recusar); `: <<E`⏎`plain`⏎`E` rc 0 (certo). Responsável: dev da stack do hook.
+
+## Revalidação por delta 000cd0c8..e34924b4 (E1.333, instância que não fez a entrega)
+Domínio lido por `forge-check parecer delta`: `hooks/conformidade.py` (`expansao_conhecida`, `corpos_conhecidos`, `corpo_desconhecido`, `valor_calculado`, `textos_do_valor` com `juntar_continuacoes`), `docs/hooks.md`, o fragmento do changelog, 14 fixtures `opaco-u4-h-*`, `tests/test_hook_destino_opaco.py` (piso 159 para 173) e a spec `v047-destino-opaco-22` (O149 a O152). Escopo do plano inalterado; o delta fecha o A5 (A12 da segurança E1.328, A5 do review E1.327) e o A4.
+- Oráculo: prova de não edição refeita (commit 730843a9 ancestral; `git rev-parse HEAD:tests/test_oraculo_v047.py` = `535134e9…` igual ao blob; `git log --format=%H 730843a9..HEAD -- tests/test_oraculo_v047.py` vazio); o módulo `test_oraculo_v047` roda no vermelho abaixo.
+- Vermelho: `bin/forge-testes --vermelho 000cd0c8a7f69497fd41b5f64c786ed9df5f5274 --modulos test_hook_destino_opaco,test_oraculo_v047 --prazo 500`, rc 0: `vermelho: base=000cd0c8a7f6 head=e34924b4e6d1`; `test_fixtures_opaco_u4 · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=6; prova (asserção)=1` (os demais são regressão, esperado).
+- Mutação do delta: `bin/forge-mutante --processos 4 tests/mutantes/v047-destino-opaco-22.json`, `pedido=v047 rev=e34924b4e6d1`: O149, O150, O151 e O152 `morreu`, nenhum sobrevivente, rc 0. `bin/forge-mutante --cobertura --base 000cd0c8…`: as 4 condições mudadas (555, 564, 1431, 1721) `coberta`, nenhuma sem mutante.
+- Sondas de abuso (aspas simples no shell; hook real por `Fixture`/`rodar` de `tests/test_hooks.py`, fixture s15 com o comando trocado, cada uma terminando em `echo a > "$(date)"` com `date` redefinido): 24 sondas com corpo de heredoc sem aspas que atribui recusam (rc 2): `$[PATH=5]`, `$((PATH=5))`, `${PATH:=/x}`, `${a[PATH=5]}`, `${!n}`, `${n@P}`, `<<-E` com tab, `$`+barra+quebra+`[PATH=5]`, dois heredocs na linha (o atribuidor é o segundo), destino na própria linha do heredoc, heredoc dentro de `$(…)`, `{ …; }`, função, pipe, `&&` na linha seguinte, `${PA`+barra+quebra+`TH:=5}`, crase e `$(echo $[PATH=5])` no corpo. Liberam (rc 0, esperado): `<<'E'`, `<<"E"`, `<<\E` (literais), corpo sem expansão, corpo com `$HOME ${x:-1} ${#y}`, `cp config "$(mktemp)"` depois de heredoc simples.
+- Falso positivo medido, aceito e coberto pela regra do próprio hook (recusa na dúvida): `\$[PATH=5]` escapado no corpo, `$((1+1))` e `$(date)` no corpo sem aspas recusam. Custo baixo; contorno `<<'E'`. Sem achado.
+- A5 e A4 anteriores: fechados (sonda do A5 recusa; `textos_do_valor` usa `juntar_continuacoes`). Classe repetida (AR-14, contexto aritmético na linha inteira) já registrada em `docs/engineering/achados-recorrentes.md`; não gravei linha nova.
+- CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local. `forge-check docs` rc 0.
+
+Parecer aprovado no e34924b4 (`R-QA`): nenhum bug aberto, sem mutante sobrevivente, sem achado.
