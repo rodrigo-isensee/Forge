@@ -3,32 +3,24 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: e25f079b9834ba470ac8ccda65e5ad678a426aaa
-parecer: reprovado
+commit: 85043cc4008c8d1395412674e3aef71d77c2153e
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-14
 ---
-# Review: v047 · CONFORMIDADE-A9-DESTINO-OPACO e CONFORMIDADE-A10-OPERADOR-COLADO (E1.279)
+# Review: v047 · CONFORMIDADE-A9-DESTINO-OPACO e CONFORMIDADE-A10-OPERADOR-COLADO (E1.303)
 
-Revalidação por delta do head e25f079b (volta da E1.232: U4, lista positiva do valor calculado; palavras do corpo por regex, crase depois do `of=` do dd, mutantes O83 a O98, A3 recomendados). Instância que não fez a entrega.
+Revalidação por delta do head 85043cc4 (volta do lote B, E1.288: lista positiva só sem redefinição do comando como função no U4 e no U3, `$(pwd)` redefinido não vira `$PWD`, `VARIAVEIS_DO_BASH` devolve None, O18 morto; mutantes O99 a O104, O45 e O55 realinhados). Instância que não fez a entrega.
 
-Delta lido: `forge-check parecer delta docs/reviews/v047-conformidade-destino-opaco.md`, intervalo `e8c459de..e25f079b`, domínio código e testes: `hooks/conformidade.py` (+164/-3), `tests/test_conformidade_opaco.py`, `tests/test_hook_destino_opaco.py`, `docs/hooks.md`, `docs/hooks-fixtures.md`, 54 fixtures `opaco-u4-*` e `opaco-semresto-*`, mutantes `tests/mutantes/v047-destino-opaco-2,7,9..15.json`.
+Delta lido: `forge-check parecer delta docs/reviews/v047-conformidade-destino-opaco.md`, intervalo `e25f079b..85043cc4`, domínio código e testes: `hooks/conformidade.py` (`na_lista_positiva(corpo, linha)` :495, `VARIAVEIS_DO_BASH` :488 e :562, U3 :1344, troca do `$(pwd)` :1597), `tests/test_hook_destino_opaco.py` (pisos 60 e 73), 20 fixtures `opaco-u4-rev2-*`, `opaco-u4-seg2-*` e `opaco-semresto-u3-mv-target-duas-vezes-bloqueia`, mutantes `tests/mutantes/v047-destino-opaco-16.json` (novo), `-7.json` e `-9.json`, `docs/hooks.md` e `docs/hooks-fixtures.md`.
+
+Verificadores: `tests.test_hook_destino_opaco` no head, 4 testes OK (31 s); `bin/forge-mutante --processos 1` com as specs 16, 7 e 9 no rev 85043cc4: 14 de 14 morreram (O99 a O104, O45, O55 entre eles). Suíte completa: fica com o CI do PR (sem PR aberto ainda).
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:530 · `valores_do_corpo` aceita a lista positiva antes de ver a função da linha: `date(){ printf .gi%s t/config; }; echo a > "$(date)"` dá rc 0 e o bash grava `.git/config` (S1, S2); o U3 (:1334) libera igual com `cp config` (S3). Conferir a redefinição antes da lista (R-CONFORMIDADE).
 
 ## Sondas
-- S1 · Bash `date(){ printf .gi%s t/config; }; echo a > "$(date)"` no hook do head e25f079b · espera: rc 2 · obtido: rc 0; no bash, a linha `[core] x = 1` gravada em `.git/config`
-- S2 · Bash `mktemp(){ printf .gi%s t/hooks/pre-push; }; cp x "$(mktemp)"` (também `pwd(){…}` e `true(){…}`) · espera: rc 2 · obtido: rc 0
-- S3 · Bash `date(){ printf .gi%s t; }; cp config "$(date)"` (U3, origem de nome do git) · espera: rc 2 · obtido: rc 0
 
 ## Parecer
-Reprovado no e25f079b por A1. O resto da volta fecha o que foi pedido: o A1 do review E1.205 (duas substituições coladas) recusa e entrou no gerador (`duas-coladas`); o A1 e o A2 da segurança E1.206 (corpo que calcula, resto colado) recusam pelo U4, e as sondas S1 e S12 da segurança dão rc 2 no head; o A3 da segurança entrou em `na_lista_positiva`, e o A3 deste review ficou como falso positivo aceito no `docs/hooks.md`. O desenho do U4 é bom: lista positiva (AR-3), teto de 64 combinações, variável com nome citado de outro jeito na linha recusa, `SEM_VALOR` sozinho no componente.
+Aprovado no 85043cc4. O A1 deste review (E1.279) fecha: a lista positiva só vale quando a linha não define o comando como função, no U4 (:538) e no U3 (:1344), e o `$(pwd)` só vira `$PWD` sem `pwd` redefinido. Rodei 24 sondas pelo harness do corpus, todas com o código esperado: S1 a S3 do parecer anterior e as variantes `date () {`, `function date {`, `function date() {`, `:(){`, `true`, `false`, `mktemp -d`, `$( date )`, crase, `pwd -P` com resto `/config` e `X=$(date)` recusam; `"$(date +%F).log"`, `"$(mktemp)"`, `"$(pwd)/x"` e `"$HOME/x"` seguem livres; `read`/`$REPLY` e `mapfile`/`${MAPFILE[0]}` recusam pela lista nova. O código segue o desenho do U4 (lista positiva, AR-3) e os mutantes cobrem cada guarda nova com teste de comportamento.
 
-- hooks/conformidade.py:530 e :1334 · problema: `na_lista_positiva` confia no nome do comando (`date`, `mktemp`, `pwd`, `true`, `false`, `:`, `git`), mas a linha pode redefini-lo como função; o `corpo_da_funcao` só é consultado depois, e o U3 nem o consulta. `git(){…}` já recusa por outra trava (chaves com ação crítica), os demais não · sugestão: só valer a lista positiva quando `corpo_da_funcao(primeira palavra, linha)` diz não definida (no U4 e no U3), com fixtures `opaco-u4-*` de bloqueio para S1 a S3 e um mutante na guarda nova · severidade: bloqueia.
-
-Fora do achado, para o mesmo ajuste ou cartão: `PATH=.:$PATH` com um `date` executável no projeto tem o mesmo efeito, mas exige gravar o executável antes e é da codificação arbitrária (residual R1).
-
-Provas rodadas por mim: `python3 -m unittest tests.test_hook_destino_opaco`, 4 testes, OK (20 s), com as 54 fixtures `opaco-u4`. Sondas pelo `tests/test_oraculo_v047.py` como biblioteca (`rodar_hook`, papel `forge:tech-lead`, projeto em `melhoria/x`), sem editá-lo; o efeito no bash conferido num repositório temporário. Mutantes: 15 specs; não rerrodei, cito o PQ do autor. Sem PR aberto, não há CI a citar.
-
-Teto M14: 962 linhas de código e teste (`git diff --numstat --no-renames origin/develop...HEAD` nos caminhos que contam), acima das 150; uma classe só (destino opaco do Bash), com corpus próprio (`opaco-*`, 139 fixtures). O corpo do PR precisa de `teto: excedido, <n> linhas, <motivo>`.
+Fora deste review: a segurança reprovou o mesmo head pelo A6 (`docs/security/v047-conformidade-destino-opaco.md`, E1.304), em que o nome do comando é trocado sem definir função (`. ./f.sh`, `source`, `hash -p`, `PATH=./bin`, alias, `GIT_WORK_TREE`). É a porta que este review deixou como residual R1 no parecer anterior; cito e não refaço (R-SEGURANCA). A classe só fecha com os dois pareceres aprovados.
