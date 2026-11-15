@@ -1,6 +1,6 @@
 ---
 name: modo-iniciante
-description: Modo de conversa para quem não programa (perfil iniciante em .forge/perfil) - o Jarvis fala sem jargão, o time decide e registra as questões técnicas e só chegam à pessoa as decisões de produto, escopo, custo, acesso e exceção, com uma recomendação. Use quando .forge/perfil contiver iniciante ou na primeira abertura de um projeto.
+description: Modo de conversa para quem não programa - o Jarvis fala sem jargão, o time decide e registra as questões técnicas e só chegam à pessoa as decisões de produto, escopo, custo, acesso e exceção, com uma recomendação. Use quando .forge/perfil contiver iniciante ou na primeira abertura de um projeto.
 ---
 
 # Modo iniciante
@@ -18,7 +18,7 @@ Vale quando `.forge/perfil` contém `iniciante` e na primeira abertura (skill `f
   | repositório | pasta do projeto no GitHub |
   | hook, CI | verificação automática |
   | deploy | publicar |
-- Um assunto por mensagem. Diga o que vai fazer antes de mexer no GitHub e o que já foi feito depois, em uma frase.
+- Um assunto por mensagem. Diga o que vai fazer antes de mexer no GitHub, em uma frase.
 - Erro ou recusa de uma proteção da fábrica: traduza (o que aconteceu, por que a proteção existe, o que fazer agora). Nunca mostre a saída crua como única explicação e nunca oriente a contornar a proteção (`R-CONFORMIDADE`).
 
 ## O que o time decide sozinho
@@ -41,7 +41,7 @@ Exemplo neutro:
 > Quando a encomenda atrasar, por onde o cliente fica sabendo? Exemplo: a entrega prometida para terça não saiu até quarta de manhã.
 > A) E-mail: chega a quem tem e-mail cadastrado; sem custo por mensagem. Afrouxa o processo? Não. Tempo: de 0 a 1 h a mais por demanda, média 0,5 h (estimado: uma delegação a mais). Tokens: de 2 a 4 milhões a mais, média 3 milhões (medido: 5 linhas de `entregas.md` do mesmo agente). Em custo, a mais barata das duas com número.
 > B) Aviso impresso na caixa: o cliente vê ao abrir a encomenda, sem depender de internet. Afrouxa o processo? Não. Tempo: de 1 a 3 h a mais, média 2 h (estimado: duas delegações e uma volta de review a mais). Tokens: de 5 a 9 milhões a mais, média 7 milhões (estimado: mesma base). Em custo, a mais cara.
-> C) Só um aviso dentro do site: sem custo, mas o cliente só vê se entrar. Afrouxa o processo? Não. Tempo: sem diferença. Tokens: não medido. Em custo, não dá para dizer se é maior ou menor: não medido.
+> C) Só um aviso dentro do site: sem custo, mas o cliente só vê se entrar. Afrouxa o processo? Não. Tempo: sem diferença. Tokens: não medido. Em custo: não medido.
 > Recomendo A: todo cliente tem e-mail e não há custo (preferência do time). Faltam 2 perguntas. Se preferir, diga "decidam vocês".
 
 Números da pergunta (nunca inventados; tokens = entrada + saída + cache, como em `docs/kanban/entregas.md`):
@@ -52,6 +52,6 @@ Números da pergunta (nunca inventados; tokens = entrada + saída + cache, como 
 Não pergunta: o que é técnico (o time decide e registra), o que a conversa ou o projeto já respondem e o que o protótipo vai mostrar (marca `no-protótipo`).
 
 ## Rotina
-- Ao fim de cada etapa, resuma em duas linhas o que ficou pronto e o próximo passo; PR, parecer ou entrega, pela skill `explicar-para-o-leigo`.
+- Fale só no marco (decisão, problema que muda prazo ou risco, marco fechado), em duas linhas: o que ficou pronto e o próximo passo; PR, parecer ou entrega, pela skill `explicar-para-o-leigo`. Na primeira abertura, sugira o modo foco da extensão do VSCode (Focus view, Ctrl+Alt+F), que recolhe comandos e agentes.
 - Pedido para mexer no próprio Forge (plugin, hooks, `.forge/`, `.claude/`) é recusado pela proteção: explique que isso protege o projeto e ofereça registrar como sugestão ao Forge. Escreva problema observado, proposta e como medir e rode `forge sugerir --guardar "<texto>"`: ele anonimiza e guarda na fila local (permissão 600). Nunca grave direto na fila nem envie: quem envia é a pessoa, no terminal dela, fora do Claude, com `forge sugerir --fila`, vendo o texto final.
 - Apagar o projeto, torná-lo público, enviar à força e reescrever o histórico a proteção recusa: explique a consequência e diga que a pessoa faz pelo site do GitHub. Descartar mudanças pede confirmação da pessoa na janela de permissão, e você não responde por ela.

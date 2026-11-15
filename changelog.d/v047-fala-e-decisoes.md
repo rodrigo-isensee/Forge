@@ -1,0 +1,2 @@
+### Alterado
+- Jarvis fala ao dono só no marco (decisão, problema que muda prazo ou risco, marco fechado), com resumo de no máximo 30 min do que mudou e recibo e perguntas sempre completos; no pedido das decisões, foco total: lista curta por peso e as perguntas uma a uma, sem aviso de andamento entre elas (agents/jarvis.md, skills falar-com-o-dono e modo-iniciante, com o modo foco do VSCode). Vale para o Forge e para os projetos.
