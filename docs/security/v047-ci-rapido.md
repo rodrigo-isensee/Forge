@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-rapido
-commit: 88fe9ff40c95a8cae5565c6ea7105117f0a8f4dc
+commit: 5b632a48bbced4ce0a095539e11895b8d61b47c5
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-14
@@ -14,6 +14,9 @@ Intervalo revisado: `067b2a9f..88fe9ff4` (a base do brief; o `origin/develop` an
 
 ## Gatilhos
 `R-SEGURANCA`: CI e pipeline (permissões, matriz, agregador de nome fixo lido como prova da promoção por `scripts/arvore-testada.py`, artefatos entre jobs, emissão de comando de workflow em anotação, script que lê a API com token). Checks exigidos da proteção: `R-CONFORMIDADE`.
+
+## Revalidação por delta (`88fe9ff4..5b632a48`, E1.299)
+Lido o `forge-check parecer delta` (rc 0). No domínio: `scripts/suite-partes.py` só remove `esperado_da_parte`, `pesos_por_modulo` e `dividir`, sem chamador no repositório (o `dividir` restante é o de `scripts/suite-paralela.py:742`, outro módulo); `collections` continua em uso; emissor da anotação, `completude_da_divisao` e `--somar-pulados` intactos. `skills/ci-cd/SKILL.md` e os `pronto.md` das stacks só ganham texto que reforça A1 e A3 (agregador com `always()`, só `needs.*.result`, perna pulada ou cancelada reprova; o mesmo N nos três lugares; ferramenta gratuita, `R-CUSTO`), neutro (`R-NEUTRO`). Fora do domínio, conferido por não afrouxar guarda: `tests/test_suite_partes.py` e `tests/test_ci_local.py` trocam KeyError e AttributeError por asserção (o teste do N igual, A3, e o dos needs dos agregadores, A1, mantêm as mesmas comparações); os testes retirados eram das funções removidas. `.github/workflows/ci.yml` e `scripts/pesos-do-ci.py` não mudaram. `python3 -m unittest tests.test_suite_partes`: 41 testes, OK. Sem achado novo; a conclusão abaixo vale para este head.
 
 ## Conclusão
 Aprovado, sem achado. Os seis requisitos do desenho estão no código e testados:
