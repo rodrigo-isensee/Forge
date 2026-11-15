@@ -41,13 +41,11 @@ Exemplo neutro:
 > Quando a encomenda atrasar, por onde o cliente fica sabendo? Exemplo: a entrega prometida para terça não saiu até quarta de manhã.
 > A) E-mail: chega a quem tem e-mail cadastrado; sem custo por mensagem. Afrouxa o processo? Não. Tempo: de 0 a 1 h a mais por demanda, média 0,5 h (estimado: uma delegação a mais). Tokens: de 2 a 4 milhões a mais, média 3 milhões (medido: 5 linhas de `entregas.md` do mesmo agente). Em custo, a mais barata das duas com número.
 > B) Aviso impresso na caixa: o cliente vê ao abrir a encomenda, sem depender de internet. Afrouxa o processo? Não. Tempo: de 1 a 3 h a mais, média 2 h (estimado: duas delegações e uma volta de review a mais). Tokens: de 5 a 9 milhões a mais, média 7 milhões (estimado: mesma base). Em custo, a mais cara.
-> C) Só um aviso dentro do site: sem custo, mas o cliente só vê se entrar. Afrouxa o processo? Não. Tempo: sem diferença. Tokens: não medido. Em custo: não medido.
+> C) Só um aviso dentro do site: sem custo, mas o cliente só vê se entrar. Afrouxa o processo? Não. Tempo: sem diferença. Tokens: não medido. Em custo, não dá para dizer se é maior ou menor: não medido.
 > Recomendo A: todo cliente tem e-mail e não há custo (preferência do time). Faltam 2 perguntas. Se preferir, diga "decidam vocês".
 
-Números da pergunta (nunca inventados; tokens = entrada + saída + cache, como em `docs/kanban/entregas.md`):
-- `medido`: há linha em `docs/kanban/entregas.md` do mesmo tipo de trabalho; use a faixa e a média e cite a fonte. Tempo: a janela do pedido comparável em `docs/kanban/historico.md`.
-- `estimado`: some por componente: cada delegação a mais vale a média do agente em `entregas.md`, cada volta de review a média do revisor, texto lido a cada delegação os caracteres ÷ 4 × delegações por pedido. Diga a base.
-- `não medido`: sem linha nem componente medido; não se escreve número. `forge-check transcricao custo --entregas` atualiza as linhas (só disco local, sem custo, `R-CUSTO`).
+Números da pergunta (nunca inventados; tokens = entrada + saída + cache, como em `docs/kanban/entregas.md`): marcas `medido`, `estimado` e `não medido`.
+Detalhe em `${CLAUDE_PLUGIN_ROOT}/skills/modo-iniciante/numeros.md`.
 
 Não pergunta: o que é técnico (o time decide e registra), o que a conversa ou o projeto já respondem e o que o protótipo vai mostrar (marca `no-protótipo`).
 

@@ -122,7 +122,9 @@
       "Sem credencial",
       "\\*\\*Aguardando o dono\\*\\* \\(topo do quadro\\)",
       "decisão ou ação do usuário vai para \"Aguardando o dono\"",
-      "aguardando o dono: N \\(o mais antigo desde"
+      "aguardando o dono: N \\(o mais antigo desde",
+      "O técnico \\(desenho, portões, integração, versão\\) é do `tech-lead`",
+      "skills/kanban-scrum/experimentos\\.md"
     ],
     "agents/conferente.md": [
       "origin/<Base>",
@@ -164,7 +166,7 @@
       "def leitura_valida","REPO_APAGAR", "VISIBILIDADE_PUBLICA", "filter-branch", "filter-repo", "--mirror", "permissionDecision", "def checar_remocao", "SUGESTAO",
       "def endpoint_normalizado", "conteudos_de_crase\\(", "GRAPHQL_DE_ROTULO", "TIMEOUT_DA_CONTA", "erro interno ao conferir o rótulo afrouxa-regra",
       "def rotulo_no_argumento", "def rotulos_removidos", "sub == \"clone\""],
-    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub", "## Como perguntar", "\\*\\*Afrouxa o processo\\?\\*\\*", "\\*\\*custo de eficiência\\*\\*", "Faltam N perguntas\\.", "decidam vocês", "não se oferece nas perguntas que `R-DECISAO` não deixa delegar", "Fale só no marco", "modo foco da extensão do VSCode \\(Focus view"],
+    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub", "## Como perguntar", "\\*\\*Afrouxa o processo\\?\\*\\*", "\\*\\*custo de eficiência\\*\\*", "Faltam N perguntas\\.", "decidam vocês", "não se oferece nas perguntas que `R-DECISAO` não deixa delegar", "Fale só no marco", "modo foco da extensão do VSCode \\(Focus view", "não dá para dizer se é maior ou menor", "skills/modo-iniciante/numeros\\.md"],
     "docs/adr/_modelo.md": [
       "## Critério de reversão",
       "## Leituras",
@@ -273,7 +275,21 @@
       "`forge-check anotar`",
       "O time segue no que não depende delas",
       "entre as perguntas, nenhum aviso",
-      "Não há decisão sua pendente\\."
+      "Não há decisão sua pendente\\.",
+      "skills/falar-com-o-dono/resposta-curta\\.md",
+      "regra 12 de `docs/economia-de-tokens\\.md`"
+    ],
+    "skills/falar-com-o-dono/resposta-curta.md": [
+      "`decisoes --resposta` a lê; corte recomendado leva `origem:`, `procurado:`, `seguir:`, `não seguir:`",
+      "`aprovo` só vale para a recomendada `\\[reversível\\]`"
+    ],
+    "skills/modo-iniciante/numeros.md": [
+      "`estimado`: some por componente",
+      "`não medido`: sem linha nem componente medido; não se escreve número"
+    ],
+    "skills/kanban-scrum/experimentos.md": [
+      "Critério de reversão",
+      "Uma mudança por vez em cada parte do processo"
     ],
     "templates/projeto/docs/pedidos/_modelo.md": [
       "## Fora do escopo",
@@ -660,7 +676,10 @@
     "skills/briefs-e-conferencia/SKILL.md": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis delega sem brief gravado e aceita a entrega sem a conferência do conferente"},
     "skills/trabalho-em-paralelo/SKILL.md": {"regra": "R-TETO", "porque": "sem o texto, o Jarvis dispara tarefas pesadas em paralelo sem a série por arquivo e sem o quadro com hora real"},
     "skills/esperar-estado/SKILL.md": {"regra": "R-TETO", "porque": "sem o texto, o agente espera a trava pesada por kill -0 num pid de outro namespace e solta a espera antes da hora"},
-    "skills/falar-com-o-dono/SKILL.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis pergunta ao dono fora do formato e trata ordem ampla como confirmação"}
+    "skills/falar-com-o-dono/SKILL.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis pergunta ao dono fora do formato e trata ordem ampla como confirmação"},
+    "skills/falar-com-o-dono/resposta-curta.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis oferece corte recomendado sem origem, procurado, seguir e não seguir, e a resposta curta deixa de ser lida por decisoes --resposta (diretriz 25)"},
+    "skills/modo-iniciante/numeros.md": {"regra": "R-DECISAO", "porque": "sem o texto, o custo de cada opção da pergunta ao dono sai sem a regra de medido, estimado e não medido, e o número pode ser inventado (diretriz 25)"},
+    "skills/kanban-scrum/experimentos.md": {"regra": "R-DECISAO", "porque": "sem o texto, o experimento de melhoria entra sem métrica nem critério de reversão e mais de uma mudança por vez (diretriz 25)"}
   },
   "invariantes_sem_motivo": {
     "skills/kanban-scrum/SKILL.md": 5,
@@ -735,7 +754,13 @@
     },
     "skills/modo-iniciante/SKILL.md": {
       "Fale só no marco": {"regra": "R-DECISAO", "porque": "sem o texto, o modo iniciante manda resumir cada etapa ao dono, contra a fala só no marco do Jarvis (diretriz 24)"},
-      "modo foco da extensão do VSCode \\(Focus view": {"regra": "R-DECISAO", "porque": "sem o texto, o dono iniciante não fica sabendo do modo foco, que recolhe comandos e agentes em linhas fechadas (diretriz 24)"}
+      "modo foco da extensão do VSCode \\(Focus view": {"regra": "R-DECISAO", "porque": "sem o texto, o dono iniciante não fica sabendo do modo foco, que recolhe comandos e agentes em linhas fechadas (diretriz 24)"},
+      "não dá para dizer se é maior ou menor": {"regra": "R-DECISAO", "porque": "sem o texto, o exemplo deixa de mostrar o custo em palavras (maior ou menor) quando a opção não foi medida (A4 do review, diretriz 25)"},
+      "skills/modo-iniciante/numeros\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, a skill perde o caminho dos números da pergunta, movidos pelo teto de caracteres (diretriz 25)"}
+    },
+    "skills/kanban-scrum/SKILL.md": {
+      "O técnico \\(desenho, portões, integração, versão\\) é do `tech-lead`": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis perde quem decide o técnico e quem cuida do aprendizado com os erros, frase movida do Jarvis pelo teto (A2 do review, diretriz 25)"},
+      "skills/kanban-scrum/experimentos\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, a skill perde o caminho do formato dos experimentos de melhoria, movido pelo teto de caracteres (diretriz 25)"}
     },
     "agents/tech-lead.md": {
       "suíte inteira roda só no CI": {"regra": "R-QA", "porque": "sem o texto, review, segurança e QA voltam a rodar a suíte inteira na máquina e a fila local cresce sem ganho; ela roda uma vez no CI do PR"},

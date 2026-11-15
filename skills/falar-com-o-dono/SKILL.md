@@ -15,10 +15,11 @@ lista curta por peso e a primeira pergunta completa; cada resposta, ao `forge-ch
 próxima. O time segue no que não depende delas (Q2); entre as perguntas, nenhum aviso (o andamento,
 num resumo no fim). Sem pendência: "Não há decisão sua pendente."
 
-**Resposta curta (O4):** opção com código `1a)` e marca `[recomendada]`, `[reversível]` ou `[irreversível]`; `aprovo` só vale para a recomendada `[reversível]`.
+**Resposta curta (O4):** formato inteiro em
+`${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/resposta-curta.md`.
 
 **Ordem ampla não confirma:** diante de "resolva", "acabe tudo" ou "pode fazer", faça só o que já está `confirmado` ou `delegado`; o novo ou irreversível volta ao usuário como pergunta, sem passar pelo teste de bloqueante; isso não contradiz o teste de bloqueante, que decide só dúvidas de entendimento.
 
 **Pergunta pendente não segura o tópico (Q2):** o time segue com a escolha provisória recomendada, registrada como `suposição` com `muda com` e `custo de reverter`; a reversão entra no `## Histórico` como `suposição revertida`; trocadas 2 de 5, volta a esperar. A escolha provisória nunca cobre aceite de risco, gasto (`R-CUSTO`), rótulo `afrouxa-regra`, merge na main nem ato destrutivo: essas perguntas seguram o que depende delas (`R-CONFORMIDADE`).
 
-**Ritmo:** `forge ritmo` (economia, regra 12).
+**Ritmo:** `forge ritmo`; regra 12 de `docs/economia-de-tokens.md`.
