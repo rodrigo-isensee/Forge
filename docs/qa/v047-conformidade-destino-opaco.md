@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: e25f079b9834ba470ac8ccda65e5ad678a426aaa
-parecer: reprovado
+commit: 85043cc4008c8d1395412674e3aef71d77c2153e
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-14
+data: 2026-11-15
 ---
 # QA: v047 conformidade, destino opaco sem resto (A9, A10)
 
@@ -21,7 +21,6 @@ oraculo: tests/test_oraculo_v047.py commit 730843a99366f49e7560b32dbd413c15346f8
 Prova de não edição do oráculo (conferida): `git merge-base --is-ancestor 730843a9 HEAD` ok; `git rev-parse HEAD:tests/test_oraculo_v047.py` = `535134e940b2af9a3cf9941b7a4d54b661b57c4a` (igual ao blob); `git log --format=%H 730843a9..HEAD -- tests/test_oraculo_v047.py` vazio. Rodou `python3 -m unittest tests.test_oraculo_v047`: 3 testes, OK, 178 s (os 9 casos D2b e os `plano` da A10 recusados; leituras legítimas liberam).
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:1329 · mutante O18 (tests/mutantes/v047-destino-opaco-3.json) sobrevive no e25f079b: o U4 recusa a variável de 2 atribuições antes do U3. Declare `equivalente` com justificativa ou mate-o.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -48,4 +47,13 @@ Domínio lido por `forge-check parecer delta`: `hooks/conformidade.py`, `docs/ho
 - Fronteiras novas do U4 protegidas: crase partida no `of=` do dd (bloqueia e libera), `printf` com e sem `%s`, função recursiva ou redefinida, variável duas vezes ou do `read`, teto de 64 valores, `$(` sem par.
 - CI: sem PR e sem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local.
 
-Parecer reprovado só por A1 (mutante sobrevivente é bloqueante, `R-QA`). Sem bug de produto: nada para `docs/qa/bugs/`. Reteste do delta quando o autor declarar ou matar o O18.
+## Revalidação por delta e25f079b..85043cc4 (E1.305)
+Domínio lido por `forge-check parecer delta`: `hooks/conformidade.py`, `docs/hooks.md`, `docs/hooks-fixtures.md`, 20 fixtures `opaco-u4-*` e `opaco-semresto-u3-*`, `tests/test_hook_destino_opaco.py` (contagens 60 e 73) e as specs de mutantes `-7`, `-9` e `-16` (O99 a O104; O45 e O55 realinhados à assinatura nova). Mudança: `na_lista_positiva(corpo, linha)` recusa o comando que a linha redefine como função (U4, U3 e `$(pwd)`); `VARIAVEIS_DO_BASH` devolve None; O18 morto por fixture. O escopo do plano (A9, A10, D2b, U4) não mudou.
+- Oráculo: prova de não edição refeita (commit 730843a9 ancestral; blob 535134e9 igual; log vazio); `python3 -m unittest tests.test_oraculo_v047`: 3 testes, OK, 29,8 s.
+- Vermelho: `bin/forge-testes --vermelho e25f079b9834ba470ac8ccda65e5ad678a426aaa --modulos test_oraculo_v047,test_conformidade_opaco,test_hook_destino_opaco --prazo 1500`, rc=0: `vermelho: base=e25f079b9834 head=85043cc4008c`; `test_fixtures_opaco_u4 · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=8; prova (asserção)=1`. O `opaco_sem_resto` não prova na base: as contagens e a fixture do O18 só passam no HEAD, mas o O18 tem mutante que a cobre (abaixo); o resto é regressão.
+- Mutação do delta: `bin/forge-mutante --processos 4 --base e25f079b9834ba470ac8ccda65e5ad678a426aaa tests/mutantes/v047-destino-opaco*.json`, cabeçalho `base=e25f079b9834… mb=e25f079b9834… rev=85043cc4008c`, 16 specs; nenhuma linha `sobreviveu` nem `sem veredito` (só `morreu`), incluindo O18 e O99 a O104.
+- Cobertura: `bin/forge-mutante --cobertura --base f4b0c2aeb42b…` rc=0, `rev=85043cc4008c`; todas as condições `coberta` (as 3 novas: redefinição por função, `VARIAVEIS_DO_BASH`, guarda do `pwd`); 4 `isenta` com motivo lido (443, 596, 1326, 1340), aceitas como no parecer anterior.
+- Fronteiras novas protegidas: `date`, `mktemp`, `pwd`, `true` redefinidos por função (bloqueia) e `date` redefinido com saída literal (libera); `REPLY`, `MAPFILE`, `BASH_REMATCH`, `OPTARG`, `OLDPWD` recusam; `HOME` e variável definida na linha liberam.
+- CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local.
+
+Parecer aprovado: nenhum achado aberto; o A1 da rodada anterior (mutante O18) morreu no 85043cc4 pela fixture `opaco-semresto-u3-mv-target-duas-vezes-bloqueia`; A1 resolvido, sem mutante sobrevivente, sem bug de produto (nada em `docs/qa/bugs/`).
