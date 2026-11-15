@@ -8,7 +8,9 @@
       "arquivo": "tests/catraca.py",
       "de": "if termos and _ultimo_trecho(termos[0]) == \"env\" else",
       "para": "if False else",
-      "testes": ["tests.test_catraca.Hooks.test_mudar_interpretador_opcoes_ou_argumentos_passa"]
+      "testes": [
+        "tests.test_catraca.Hooks.test_mudar_interpretador_opcoes_ou_argumentos_passa"
+      ]
     },
     {
       "id": "CH-M2",
@@ -16,7 +18,9 @@
       "arquivo": "tests/catraca.py",
       "de": "interp, *depois = resto or [\"\"]",
       "para": "interp, *depois = resto",
-      "testes": ["tests.test_catraca.Hooks.test_hook_sem_script_compara_a_linha_inteira"]
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_sem_script_compara_a_linha_inteira"
+      ]
     },
     {
       "id": "CH-M3",
@@ -24,7 +28,9 @@
       "arquivo": "tests/catraca.py",
       "de": "while j < len(depois) and depois[j].startswith(\"-\"):",
       "para": "while False:",
-      "testes": ["tests.test_catraca.Hooks.test_mudar_interpretador_opcoes_ou_argumentos_passa"]
+      "testes": [
+        "tests.test_catraca.Hooks.test_mudar_interpretador_opcoes_ou_argumentos_passa"
+      ]
     },
     {
       "id": "CH-M4",
@@ -32,16 +38,20 @@
       "arquivo": "tests/catraca.py",
       "de": "        if not _opcao_inocua(interp, depois[j]):",
       "para": "        if False:",
-      "testes": ["tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra",
-                 "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"]
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra",
+        "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"
+      ]
     },
     {
       "id": "CH-M5",
       "guarda": "-X e -W levam o valor junto (-X utf8)",
       "arquivo": "tests/catraca.py",
       "de": "j += 2 if depois[j] in OPCOES_COM_VALOR_DO_PYTHON else 1",
-      "para": "j += 1 if depois[j] in OPCOES_COM_VALOR_DO_PYTHON else 1",
-      "testes": ["tests.test_catraca.Hooks.test_mudar_interpretador_opcoes_ou_argumentos_passa"]
+      "para": "j += 2 if False else 1",
+      "testes": [
+        "tests.test_catraca.Hooks.test_mudar_interpretador_opcoes_ou_argumentos_passa"
+      ]
     },
     {
       "id": "CH-M6",
@@ -49,7 +59,9 @@
       "arquivo": "tests/catraca.py",
       "de": "if j < len(depois) and depois[j].endswith(SUFIXOS_DE_SCRIPT):",
       "para": "if j < len(depois):",
-      "testes": ["tests.test_catraca.Hooks.test_hook_sem_script_compara_a_linha_inteira"]
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_sem_script_compara_a_linha_inteira"
+      ]
     },
     {
       "id": "CH-M7",
@@ -57,7 +69,9 @@
       "arquivo": "tests/catraca.py",
       "de": "return (interp.startswith(\"python\")",
       "para": "return (True",
-      "testes": ["tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra"]
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra"
+      ]
     },
     {
       "id": "CH-M8",
@@ -65,7 +79,9 @@
       "arquivo": "tests/catraca.py",
       "de": "            and len(op) > 1",
       "para": "            and True",
-      "testes": ["tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra"]
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra"
+      ]
     }
   ]
 }

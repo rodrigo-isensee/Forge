@@ -8,8 +8,10 @@
       "arquivo": "tests/catraca.py",
       "de": "set(op[1:]) <= OPCOES_INOCUAS_DO_PYTHON))",
       "para": "True))",
-      "testes": ["tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra",
-                 "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"]
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra",
+        "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"
+      ]
     },
     {
       "id": "CH-M10",
@@ -17,7 +19,17 @@
       "arquivo": "tests/catraca.py",
       "de": "op[:2] in OPCOES_COM_VALOR_DO_PYTHON or",
       "para": "False or",
-      "testes": ["tests.test_catraca.Hooks.test_mudar_interpretador_opcoes_ou_argumentos_passa"]
+      "testes": [
+        "tests.test_catraca.Hooks.test_mudar_interpretador_opcoes_ou_argumentos_passa"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "tests/catraca.py",
+      "trecho": "not a.startswith(\"-\")",
+      "linha_base": 267,
+      "motivo": "o filtro de opções virou _opcao_inocua e o laço de script_do_hook, cobertos por CH-M3, CH-M4 e CH-M7 a CH-M10"
     }
   ]
 }
