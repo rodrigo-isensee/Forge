@@ -3,10 +3,10 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-rapido
-commit: 5b632a48bbced4ce0a095539e11895b8d61b47c5
+commit: 0237a1bcdad85dca462d34aa0426a328f6af78c0
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-14
+data: 2026-11-15
 ---
 # Review de segurança: v047 (CI-RAPIDO, implementação)
 
@@ -14,6 +14,9 @@ Intervalo revisado: `067b2a9f..88fe9ff4` (a base do brief; o `origin/develop` an
 
 ## Gatilhos
 `R-SEGURANCA`: CI e pipeline (permissões, matriz, agregador de nome fixo lido como prova da promoção por `scripts/arvore-testada.py`, artefatos entre jobs, emissão de comando de workflow em anotação, script que lê a API com token). Checks exigidos da proteção: `R-CONFORMIDADE`.
+
+## Revalidação por delta (`5b632a48..0237a1bc`, E1.312)
+Lido o `forge-check parecer delta` (rc 0). No domínio, só texto: `stacks/node-react/pronto.md` corrige o `vitest --shard` (divide por arquivo, sem pesos; quebrar arquivo grande e conferir a parte contra T) e mantém o mesmo N nos três lugares, o agregador com o nome do check exigido e a perna pulada ou cancelada reprovando (A1, A3), e a ferramenta gratuita (`R-CUSTO`); `skills/ci-cd/SKILL.md` troca a medida do Forge por "meça o do seu projeto" (`R-NEUTRO`), sem tocar a guarda de completude nem o agregador. Fora do domínio, conferido por não afrouxar guarda: `tests/test_suite_partes.py` muda só a docstring (3 para 5 partes; as asserções iguais); `docs/engineering/achados-recorrentes.md` é texto. `.github/workflows/ci.yml` e `scripts/` não mudaram. Sem achado novo; a conclusão abaixo vale para este head.
 
 ## Revalidação por delta (`88fe9ff4..5b632a48`, E1.299)
 Lido o `forge-check parecer delta` (rc 0). No domínio: `scripts/suite-partes.py` só remove `esperado_da_parte`, `pesos_por_modulo` e `dividir`, sem chamador no repositório (o `dividir` restante é o de `scripts/suite-paralela.py:742`, outro módulo); `collections` continua em uso; emissor da anotação, `completude_da_divisao` e `--somar-pulados` intactos. `skills/ci-cd/SKILL.md` e os `pronto.md` das stacks só ganham texto que reforça A1 e A3 (agregador com `always()`, só `needs.*.result`, perna pulada ou cancelada reprova; o mesmo N nos três lugares; ferramenta gratuita, `R-CUSTO`), neutro (`R-NEUTRO`). Fora do domínio, conferido por não afrouxar guarda: `tests/test_suite_partes.py` e `tests/test_ci_local.py` trocam KeyError e AttributeError por asserção (o teste do N igual, A3, e o dos needs dos agregadores, A1, mantêm as mesmas comparações); os testes retirados eram das funções removidas. `.github/workflows/ci.yml` e `scripts/pesos-do-ci.py` não mudaram. `python3 -m unittest tests.test_suite_partes`: 41 testes, OK. Sem achado novo; a conclusão abaixo vale para este head.
