@@ -15,6 +15,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 import test_selo_e_entrega as base  # noqa: E402
+from ambiente_git import sem_manutencao  # noqa: E402
 
 fc = base.fc
 LIMPO = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_"))}
@@ -26,8 +27,8 @@ class PedidoDaConferencia(unittest.TestCase):
     def setUp(self):
         self.raiz = Path(tempfile.mkdtemp(prefix="forge-dois-")).resolve()
         self.addCleanup(shutil.rmtree, self.raiz, True)
-        subprocess.run(["git", "init", "-q", str(self.raiz)], check=True, env=LIMPO | {"GIT_CONFIG_NOSYSTEM": "1",
-                                                                                       "GIT_CONFIG_GLOBAL": os.devnull})
+        subprocess.run(["git", "init", "-q", str(self.raiz)], check=True,
+                       env=sem_manutencao(LIMPO | {"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}))
         for pedido in ("a", "b"):
             self.gravar(f"docs/pedidos/{pedido}.md", f"---\nid: {pedido}\n---\n# {pedido}\n\n## Histórico\n- 2026-01-01 09:00: aberto\n")
         self.n = 0
