@@ -3,30 +3,36 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-catraca-hook-por-script
-commit: 9811ca977485b35c7c85f6882097a96c8e834141
+commit: 40faab231edc2a7a4a74e3e60841b10770de18a1
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-15
 ---
-# Review: v047 (CATRACA-HOOK-POR-SCRIPT, E2.53; review E2.61)
+# Review: v047 (CATRACA-HOOK-POR-SCRIPT, E2.53; review E2.61; revalidação E2.82)
 
-Intervalo `origin/develop..9811ca97` (base cb45a962), um commit, 4 arquivos; código e teste: 55 linhas (`tests/catraca.py` 18+10, `tests/test_catraca.py` 27+0), dentro do teto M14. Revisor: instância que não fez a entrega.
+Revalidação por delta da volta E2.67, instância que não fez a entrega. Delta lido: `forge-check parecer delta` deste parecer, intervalo `9811ca97..40faab23` (bd62b9e5, 40faab23 e o merge e8499ceb), domínio: `changelog.d/v047-catraca-hook-por-script.md`, `tests/catraca.py`, `tests/fixtures/catraca-hooks/sondas.json`, `tests/mutantes/v047-catraca-hook-por-script.json`, `tests/mutantes/v047-catraca-hook-por-script-2.json` e `tests/test_catraca.py`. Código e teste contra a base cb45a962: 112 linhas (`tests/catraca.py` 39+10, `tests/test_catraca.py` 63+0), dentro do teto M14; um comportamento (a chave do hook).
 
 ## Achados
-- A1 (recomendado) tests/catraca.py:276 · A chave é um conjunto (evento, matcher, script): dois hooks com o mesmo script e argumentos diferentes no mesmo grupo viram uma chave, e remover um passa calado (sonda: x.sh --modo a/b, tirar o b dá diferença vazia). Sem gatilho no hooks.json do Forge; em projeto, pode contar as chaves (Counter).
-- A2 (recomendado) tests/catraca.py:263 · Caminho do script entre aspas no command (`python3 "${CLAUDE_PLUGIN_ROOT}/hooks/x.py"`) não casa o sufixo e cai na linha inteira: trocar o interpretador volta a acusar hook removido. Sem gatilho no Forge; tirar aspas do termo antes do teste do sufixo.
+- A1 (recomendado) tests/catraca.py:297 · A chave segue um conjunto: dois hooks iguais em evento, matcher, tipo, interpretador e script, com argumentos diferentes, viram uma chave, e remover um passa calado. Sem gatilho no hooks.json do Forge; contar as chaves (Counter).
+- A2 (recomendado) tests/catraca.py:286 · Script entre aspas no command (`python3 "x.py"`) não casa o sufixo e cai na linha inteira: acrescentar `-s -E` volta a acusar (falso positivo, falha fechada). Sem gatilho no Forge; tirar as aspas do termo antes do sufixo.
+- A3 (recomendado) tests/mutantes/v047-catraca-hook-por-script-2.json:27 · `forge-mutante --cobertura --base cb45a962` sai rc=1: `apagada · tests/catraca.py:277(base) · ar or cm` sem isenta (o `or` da mensagem antiga). A catraca não barra (tests/ fora da classe C); acrescentar a isenta com `linha_base` 277.
 
 ## Sondas
 
 ## Parecer
-**Aprovado.** Atende à ordem do dono (pedido v047, 2026-11-15 07:18): a catraca compara cada hook por evento e script, e o matcher entra na chave, o que é correto (mudar o matcher muda a cobertura; `test_matcher_mudado_barra`). O falso positivo do PR 565 (só `-s -E`) deixa de acusar (`test_mudar_interpretador_opcoes_ou_argumentos_passa`), a troca de script segue barrando (`test_script_trocado_barra`) e o hook sem script compara a linha inteira (`test_hook_sem_script_compara_a_linha_inteira`). A mensagem de `regra_hooks` cita o script, com o ID `R-CONFORMIDADE`.
+**Aprovado** no domínio do code review. O delta responde aos bloqueantes A1 e A2 e ao A3 da segurança (E2.62): `script_do_hook` devolve (tipo, interpretador, script), só pula opções da lista inócua do Python e volta à linha inteira, sem interpretador, em qualquer outro caso (`-c`, `-m`, `-`, termo antes do script, interpretador que não é Python): falha fechada. A ordem do dono do PR 565 segue atendida (`test_mudar_interpretador_opcoes_ou_argumentos_passa`, sonda `PR565` da fixture).
 
-Leitura: função pequena e nomeada, docstring com o motivo (PR 565), sem código morto; o comentário antigo sobre `-s -E` saiu junto com o filtro que ele explicava. JSON inválido segue devolvendo conjunto vazio (inalterado). Conferido contra o `hooks/hooks.json` atual: os 18 hooks têm script `.py` nos argumentos e nenhum repete script no mesmo evento e matcher, então A1 e A2 não disparam aqui.
+Leitura: funções pequenas (`_ultimo_trecho`, `_opcao_inocua`) com docstring do motivo; constantes nomeadas; a mensagem de `regra_hooks` mostra tipo, interpretador e script com o ID `R-CONFORMIDADE`. Testes: `test_hook_neutralizado_sem_tirar_o_script_barra` cobre o ramo de falha de cada guarda nova por comportamento (subTest por troca), e `CorpusDasSondasDeHook` roda S1 a S4 e A3 sobre o `hooks/hooks.json` real, com mínimo de 6 sondas e alvo único afirmados (checklist 11). Sem subprocesso no teste novo.
 
-Guardas: uma linha de guarda mudada (`tests/catraca.py:265`), um mutante declarado (CH-M1), com teste de comportamento do ramo de falha.
+Guardas: 10 linhas de guarda mudadas, um mutante por linha (CH-M1 a CH-M10, duas specs, a 2ª passado o 8º); a condição apagada da base na linha 267 tem isenta. Resta o A3.
 
-Verificadores citados, sem refazer a suíte (roda no CI do PR; o item ainda não tem PR):
-- `bin/forge-mutante tests/mutantes/v047-catraca-hook-por-script.json`: `CH-M1 · morreu · tests/catraca.py:265` (rev 9811ca977485).
-- `python3 -m unittest tests.test_catraca.Hooks`: `Ran 6 tests ... OK`.
+Segurança fora do meu domínio, citada sem refazer: o parecer `docs/security/v047-catraca-hook-por-script.md` no mesmo head (29192417, E2.83) está **reprovado** com A4 (`-I`/`-P` na lista inócua), A5 (valor livre de `-X`/`-W`) e A6 (interpretador só pelo último trecho); a classe não fecha até a volta. A correção desses itens muda `tests/catraca.py` e pede nova revalidação por delta.
 
-Commits: um commit Conventional Commits em português, com o ID do cartão e a etapa; fragmento em `changelog.d/` (seção Corrigido).
+Verificadores citados (rodados aqui no head 40faab23; a suíte inteira fica no CI do PR, que o item ainda não tem):
+- `bin/forge-mutante tests/mutantes/v047-catraca-hook-por-script.json`: CH-M1 a CH-M8 `morreu` (CH-M2 por erro do teste sob o mutante).
+- `bin/forge-mutante tests/mutantes/v047-catraca-hook-por-script-2.json`: CH-M9 e CH-M10 `morreu`.
+- `bin/forge-mutante --cobertura --base cb45a962`: rc=1, só a apagada do A3 fora; as demais `coberta` ou `isenta`.
+- `catraca.regra_guardas_dos_hooks` (MUTANTES-SPEC-HOOKS) sobre cb45a962..40faab23: `[]`.
+- `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook`: `Ran 8 tests ... OK`.
+
+Commits: bd62b9e5 (fix) e 40faab23 (test), Conventional Commits em português com a etapa; o fragmento em `changelog.d/` descreve a chave nova (seção Corrigido).
