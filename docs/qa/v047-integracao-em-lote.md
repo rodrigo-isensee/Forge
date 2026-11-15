@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-integracao-em-lote
-commit: c6b0b788c2815bbdf130a43d2a47eb2bbe6818ed
+commit: 13cb874d23ef51f505f3dfcb3248c78c6ffea22c
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -41,3 +41,19 @@ Head `c6b0b788` na `melhoria/v047-integracao-em-lote`, base `f4b0c2ae`. Diff de 
 - Mutação: `bin/forge-mutante --processos 4` nas 8 specs (`tests/mutantes/v047-integracao-em-lote*.json`, 64 mutantes, `pedido=v047`, `rev=c6b0b788c281`): 64 `morreu`, nenhum sobrevivente, nenhum equivalente, rc=0.
 - `forge-mutante --cobertura --base f4b0c2ae`: `não coberto: bin/forge-fechar` (shell não é lido pela ferramenta). Conferi à mão a lista contra o diff: cada guarda nova (L1 a L3, P1 a P6, 6b, passo 8, faixa, recusa de opção, `mesclar_auto`, `ci_do_item`) tem mutante nas specs.
 - Segurança e review já commitados na branch depois do head testado (`41d7667a`, só docs); não alteram o código revisado.
+
+## Revalidação no head 13cb874d (delta c6b0b788..13cb874d)
+Delta lido por `forge-check parecer delta`: `ci.yml` (degrau pela catraca), `bin/forge-fechar` (`FORGE_FECHAR_LOTE_PAI`, topo do lote lido no servidor, `par_de_promocao`, P5 só sem fork), `tests/catraca.py` (tabela única `PROMOCOES`, modo `degrau`), `scripts/arvore-testada.py`, 4 specs de mutantes e testes. Cobre o A1 do review e do devops (promocao/X.Y.Z -> homolog) e o A2 da segurança; o A1 do parecer anterior segue recomendado (fora do escopo). Sem PR aberto: sem check-run `bateria` para citar.
+
+| Critério (R-FLUXO) | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| promocao/X.Y.Z -> homolog aceito só com head na develop do servidor | tests.test_catraca_promocao | sha fora da develop, sha não texto, subclasse de str, versão fora de X.Y.Z | passou |
+| `degrau` recusa fork e par fora da tabela (melhoria/x -> main) | tests.test_catraca_promocao, `catraca.py --modo degrau` à mão | repositório do head diferente | passou (recusa com R-FLUXO) |
+| arvore-testada usa a mesma tabela | tests.test_arvore_testada | par do PR | passou |
+| `--item-de-lote` só no `--lote`; topo do lote; P5 sem fork | tests.test_fechar_lote | marca do pai ausente, PR de fork | passou |
+
+- `python3 -m unittest tests.test_catraca_promocao tests.test_arvore_testada`: Ran 32, OK. `tests.test_fechar_lote`: Ran 57, OK (77 s). `tests.test_fechar`: Ran 99, OK.
+- Vermelho antes do verde, à mão (`forge-testes --vermelho` estourou 590 s, sem veredito, não vale): `bin/forge-fechar`, `tests/catraca.py` e `scripts/arvore-testada.py` de `c6b0b788` sob os testes do head: test_catraca_promocao+test_arvore_testada Ran 32, FAILED (failures=1, errors=27); test_fechar_lote Ran 57, FAILED (failures=31).
+- Mutação: `forge-mutante --processos 4` nas specs `-9`, `-10`, `-11`, `-4` (`pedido=v047`, `rev=13cb874d23ef`): todos `morreu`, nenhum sobrevivente, rc=0. `est-m7-verificador-decisao.json` (pedido versao-040, editada no diff): M1 a M8 `morreu`, rc=0.
+- `forge-mutante --cobertura --base c6b0b788`: `ci.yml` e `bin/forge-fechar` `não coberto` (não Python); conferi à mão: cada guarda nova do delta (`FORGE_FECHAR_LOTE_PAI`, `topo_lote`, `par_de_promocao`, filtro `isCrossRepository`) tem mutante (IL-M65 a M71); as condições Python de `catraca.py` e `arvore-testada.py` saem `coberta`.
+- Remoto avançou em `2d4c90f5` (só `docs/devops`); trazido por merge, sem efeito no código.
