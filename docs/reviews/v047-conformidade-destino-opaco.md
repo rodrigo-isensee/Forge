@@ -3,32 +3,24 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: 000cd0c8a7f69497fd41b5f64c786ed9df5f5274
-parecer: reprovado
+commit: e34924b4e6d18a37f1454420d1bfc759c787576d
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-15
 ---
-# Review: v047 · CONFORMIDADE-A9-DESTINO-OPACO e CONFORMIDADE-A10-OPERADOR-COLADO (E1.327)
+# Review: v047 · CONFORMIDADE-A9-DESTINO-OPACO e CONFORMIDADE-A10-OPERADOR-COLADO (E1.331)
 
-Revalidação por delta do head 000cd0c8, a volta da E1.326 sobre o A4 do review E1.323. Quem revisou foi uma instância que não fez a entrega.
+Revalidação por delta do head e34924b4, a volta da E1.330 sobre o A5 do review E1.327 (o corpo de heredoc), o A12 da segurança E1.328 e o A5 do QA E1.329. Revisou uma instância que não fez a entrega.
 
-Delta lido: `forge-check parecer delta docs/reviews/v047-conformidade-destino-opaco.md` (rc 0), intervalo `19df94ed..000cd0c8`, no domínio de código e testes. O delta traz em `hooks/conformidade.py` o `CONTEXTO_ARITMETICO` (:513), o `LE_INDICE`, o `INDICE_LITERAL` e a `linha_juntada` (:528), além de `linha_conhecida` (:543, mais a leitura de `f ( )` e do índice da atribuição) e de `valor_calculado` (:1412). Também traz o piso do `opaco-u4` (131 → 159) em `tests/test_hook_destino_opaco.py`, 28 fixtures `opaco-u4-v-*`, os mutantes `tests/mutantes/v047-destino-opaco-20.json` e `-21.json` (O133 a O148), `docs/hooks.md`, `docs/hooks-fixtures.md` e o fragmento do changelog.
+Delta lido: `forge-check parecer delta docs/reviews/v047-conformidade-destino-opaco.md` (rc 0), intervalo `000cd0c8..e34924b4`, domínio de código e testes. Em `hooks/conformidade.py`, o delta traz a `expansao_conhecida` (:537), com as três buscas de texto que saíram da `linha_conhecida` (`CONTEXTO_ARITMETICO`, `PADRAO_QUE_ATRIBUI` com `NOME_INOFENSIVO` e `EXPANSAO_QUE_ESCONDE`), e a `corpos_conhecidos` (:551), que aplica essas buscas ao corpo expandido (`expandir_heredoc`) de todo heredoc sem `h.literal`. Traz também a marca `corpo_desconhecido` (:1131), gravada em `conferir_linha` (:1721) e salva e restaurada por nível (:1677), e o `valor_calculado` (:1431), que não libera com a marca. Fora disso: a `textos_do_valor` passa a usar `juntar_continuacoes` (:1385, A4 do QA E1.329, que também resolve o A6 recomendado do E1.327), 14 fixtures `opaco-u4-h-*`, o piso do `opaco-u4` sobe de 159 para 173, a spec `tests/mutantes/v047-destino-opaco-22.json` (O149 a O152), `docs/hooks.md` e o fragmento do changelog.
 
-Verificadores: rodei `tests/test_hook_destino_opaco.py HookDestinoOpaco.test_fixtures_opaco_u4` no 000cd0c8 e deu OK (159 fixtures). A mutação das specs 20 e 21 fica com o PQ do autor, e a suíte completa com o CI do PR (ainda não há PR aberto).
+Verificadores: `tests/test_hook_destino_opaco.py HookDestinoOpaco.test_fixtures_opaco_u4` dá OK no e34924b4, com 173 fixtures. `bin/forge-mutante --processos 1 tests/mutantes/v047-destino-opaco-22.json`: O149, O150, O151 e O152 morreram. `bin/forge-mutante --cobertura --base 000cd0c8` mostra as quatro guardas novas cobertas (:555, :564, :1431, :1721). A suíte completa fica com o CI do PR, que ainda não foi aberto.
 
-O A4 fecha para a linha. As sondas S10 a S12 viraram as fixtures `-v-s10` a `-v-s12`, que recusam. Também recusam pela `linha_conhecida`, sondadas aqui, estas grafias: `${a[@]:PATH=5}`, `${#a[PATH=5]}`, `${x:-${y:PATH=5}}`, `x[PATH=5]+=1`, `a=(…)`, `{a[PATH=5]}>f`, `test -v a\[PATH=5\]`, `[[ … ]]` (fora da lista) e `$\`+quebra+`((…))`. A junção pela `juntar_continuacoes` segue o bash: a aspa simples e o `#` falham fechados, e o heredoc sai antes da leitura. O `test 1 -eq PATH=5` do bash não avalia aritmética (conferido). Os livres seguem livres: `${x:0:1}`, `${x: -1}`, `${a[1]}`, `a[1]=b` e `f  (  )  { echo; }`.
+O A5 do E1.327 fecha. As sondas S14 a S16 do parecer anterior viraram as fixtures `-h-s14`, `-h-s15`, `-h-s16-dois-pontos` e `-h-s16-tab`, que recusam, e a S17 segue recusando. Pela mesma máquina do `tests/test_hooks.py`, sondei também 14 entradas. Recusam, como esperado: `cp config "$(date)"` e `cp config "$(mktemp)"` depois de um corpo com `$[PATH=5]` (o caminho do U3); o heredoc dentro de um `$(…)` (`x=$(cat <<E … E); echo a > "$(date)"`); o segundo de dois heredocs (`<<A <<B`); o heredoc dentro de `{ … }`; e, no corpo, `${PATH=5}` sem dois-pontos, `${x@P}`, `${a[$((PATH=5))]}`, `${#a[PATH=5]}` e `$[ PATH=5 ]` com `"$(date +%F)"`. Passam: `<<E""` e `<<\E`, cujo corpo o bash não expande; `"$(pwd)/x"`, que tem resto e cujo `pwd` é builtin; e o heredoc sem fim e sem destino opaco. A marca é restaurada por nível como o `texto_da_linha`. O falso positivo novo (corpo sem aspas que atribui, junto de um destino opaco) falha fechado e está em `docs/hooks.md`.
 
 ## Achados
-- A5 (bloqueante) hooks/conformidade.py:543 · O corpo de heredoc sem aspas no delimitador é expandido pelo bash, mas o `CONTEXTO_ARITMETICO` só olha a linha sem heredocs. `$[…]` e `${a[…]}` no corpo atribuem `PATH` antes do `"$(date)"`, o hook dá rc 0 e o bash grava .git/config (S14, S15; R-CONFORMIDADE)
-- A6 (recomendado) hooks/conformidade.py:1367 · `textos_do_valor` ainda junta com `.replace("\\\n", "")`, e não com a função comum. Não abre furo, porque quem libera é o U4, que usa a `linha_juntada`; troque pela função comum para a junção ter um só lugar
 
 ## Sondas
-- S14 · `cat <<E > "$(date)"\n${a[PATH=5]}\nE` (quebras reais; 5/date imprime .git/config) · espera: hook rc 2 · obtido: hook rc 0; bash --norc grava .git/config
-- S15 · `cat <<E > "$(date)"\n$[PATH=5]\nE` (quebras reais) · espera: hook rc 2 · obtido: hook rc 0; bash --norc grava .git/config
-- S16 · `: <<E > "$(date)"\n${a[PATH=5]}\nE` e `cat <<-E` com tab · espera: hook rc 2 · obtido: hook rc 0 nas duas
-- S17 · `cat <<E > "$(date)"\n$((PATH=5))\nE` · espera: hook rc 2 · obtido: hook rc 2, controle
 
 ## Parecer
-Reprovado no 000cd0c8. A volta fecha o contexto aritmético na linha que o hook lê, e a junção de barra e quebra pela função comum está certa. A classe, porém, não fecha: o corpo de heredoc com delimitador sem aspas também é palavra que o bash expande, com `$[`, `${…[…]}` e `${…:…}`, e a `linha_conhecida` não o vê. As sondas S14 a S16 rodaram pela máquina do `tests/test_hooks.py` (`executar_em_lote`), com a montagem da fixture `opaco-u4-v-s10-aritmetica-virgula-bloqueia` e só o comando trocado. O efeito de S14 e S15 foi conferido com `bash --norc -c` num repositório de teste: o `.git/config` muda. O `$((…))` recusa no corpo por outra guarda (S17), o que mostra que só as grafias novas ficaram de fora.
-
-Sugestão (o desenho é do autor e da segurança): mantenha a falha fechada. Com destino opaco na linha, a `linha_conhecida` também passa o `CONTEXTO_ARITMETICO` no corpo de todo heredoc cujo delimitador não tem aspas (ou em todos, o que é mais simples e mais estrito). Cada sonda S14 a S16 vira fixture `-bloqueia`, com mutante da guarda nova.
+Aprovado no e34924b4. A volta aplica ao corpo de heredoc sem aspas no delimitador as mesmas três buscas da linha, pela função extraída, sem duplicar código. O corpo literal (`<<'E'`, `<<"E"`, `<<\E`, `<<E""`) fica de fora, como no bash. Cada guarda nova tem fixture do ramo de falha e mutante que morre. Não há achado novo.
