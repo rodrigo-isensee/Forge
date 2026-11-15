@@ -3,10 +3,10 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conferencia-dois-pedidos
-commit: a7872bf5094a4f84d48a802a1fcf810b0d1e1fb3
+commit: 4865f8f27d29281f5886261a607ba44efcf0385b
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-14
+data: 2026-11-15
 ---
 # Review de segurança: v047 (E1.290, conferência com briefs de dois pedidos)
 
@@ -28,6 +28,10 @@ Intervalo `origin/develop..a7872bf5` (Base-sha `c5c3a449`, um commit, E1.277): `
 2. `parecer_mandado_pelo_portao` (bin/forge-check:2579-2604). Só decide se um parecer de portão commitado na branch está **no escopo** da entrega de código; não o torna parecer válido do portão (a validade segue com `forge-check pr`/`R-REVIEW`). Mantém todas as travas do `parecer_de_portao_da_branch`: `tipo` da pasta, `branch:` igual, veredito `aprovado|reprovado`, arquivo sem controle (`com_controle`), nenhum veredito trocado no mesmo `commit:` desde o Base-sha (`veredito_trocado`). O que relaxa: o `pedido:` pode ser o de outro pedido cujos briefs citam a branch, e o `commit:` pode ser um `commit: <sha40>` do Entregar. Os dois vêm do texto **selado** do brief (sha256 no `docs/pedidos/<outro>.md`), do papel certo (`Agente destino:`), do mesmo pedido (`mesmo_pedido`), da etapa do portão do tipo e que declara o arquivo no Entregar. A lista de `outro` sai de briefs não selados, mas cada um só ancora pelo selo; brief sem selo e selo no pedido errado ficam fora (testes `test_brief_do_outro_pedido_sem_selo_nao_ancora`, `test_brief_selado_no_pedido_errado_nao_ancora`). O frontmatter forjado pelo autor com os campos do brief já passava no caminho antigo; o que barra a autoria alheia é o hook `conformidade` (escrita exclusiva da pasta pelo papel), inalterado.
 3. Entrada não confiável na saída: o nome dos pedidos na mensagem passa por `nome_seguro` (bin/forge-check:1388); a leitura de brief ilegível é pulada (`OSError`, `UnicodeDecodeError`), sem derrubar a conferência.
 4. Custo: `etapas_dos_briefs_da_branch` lê todos os briefs das raízes uma vez por parecer que cai no ramo novo (depois dos outros ramos falharem); sem risco de segurança, só tempo.
+
+## Revalidação no head 4865f8f2 (E2.65, delta 4cc74cb3..4865f8f2)
+`forge-check parecer delta` (intervalo a7872bf5..4865f8f2, sem o que veio da develop): no domínio só `bin/forge-testes`, que põe `test_conferencia_dois_pedidos` no mapa `FORGE_CHECK` (o teste passa a rodar quando o `bin/forge-check` muda); sem efeito em controle, só amplia a seleção. Fora do domínio: o teste e `tests/mutantes/v047-conferencia-dois-pedidos-2.json`.
+A isenção de mutante da guarda `len(ids) > 1` da base (bin/forge-check:1378 na develop) é correta: a guarda foi reescrita em `if len(ids) != 1 and etapas:` (bin/forge-check:1386), e a falha fechada segue coberta. Sondas locais na cópia do head (`tests.test_conferencia_dois_pedidos`, 19 testes, OK sem mutação): trocar a condição por `False` (1 falha, 1 erro), por `len(ids) > 1 and etapas` (erro em `test_dois_pedidos_sem_codigo_falha_fechado`) e por `len(ids) != 1` (2 falhas): os três mutantes morrem. A1 segue `recomendado`, sem mudança de critério. Parecer mantido: aprovado.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Suíte: o PR ainda não existe (a integração espera a decisão do dono sobre a 0.47.1), então não há CI no head; a suíte inteira roda no CI do PR antes do merge (`R-REVIEW`). Rodei local, no head `a7872bf5`, `tests.test_conferencia_dois_pedidos` (19 testes, OK) e `tests.test_selo_e_entrega` (104 testes, OK; o módulo das conferências de entrega e anexos de portão). Revisão estática por leitura do diff e dos chamadores (`briefs_selados`, `caminho_do_pedido`, `raizes_de_pedidos`, `veredito_trocado`, `escopo_declarado`). Sem segredo no diff. Ferramentas de varredura de segredo e SAST não estão no PATH deste ambiente (lacuna; rodam no CI).
