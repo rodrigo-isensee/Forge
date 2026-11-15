@@ -17,8 +17,8 @@
       "id": "M2",
       "guarda": "catraca e neutralidade seguem na suíte completa mesmo citadas",
       "arquivo": "bin/forge-testes",
-      "de": "    if not (hook or apoio) or caminho in APOIO_NA_COMPLETA:\n",
-      "para": "    if not (hook or apoio):\n",
+      "de": "    if not achado or caminho in APOIO_NA_COMPLETA:\n",
+      "para": "    if not achado:\n",
       "testes": [
         "tests.test_testes_tocados.QuemImporta.test_apoio_sem_leitor_catraca_e_neutralidade_seguem_na_completa"
       ]
@@ -27,8 +27,8 @@
       "id": "M3",
       "guarda": "o hook vai pelo import e o apoio pela palavra",
       "arquivo": "bin/forge-testes",
-      "de": "    if hook:\n        importa",
-      "para": "    if not hook:\n        importa",
+      "de": "    if achado.lastgroup == \"hook\":\n",
+      "para": "    if achado.lastgroup != \"hook\":\n",
       "testes": [
         "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita",
         "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_no_plano_e_nos_afetados"
@@ -38,8 +38,8 @@
       "id": "M4",
       "guarda": "só o arquivo da raiz de tests/ entra como apoio, não a pasta",
       "arquivo": "bin/forge-testes",
-      "de": "if APOIO_DE_TESTES.fullmatch(f\"tests/{p.name}\") and p.is_file()}",
-      "para": "if APOIO_DE_TESTES.fullmatch(f\"tests/{p.name}\")}",
+      "de": "if IMPORTAVEL.fullmatch(f\"tests/{p.name}\") and p.is_file()}",
+      "para": "if IMPORTAVEL.fullmatch(f\"tests/{p.name}\")}",
       "testes": [
         "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita"
       ]
@@ -66,20 +66,20 @@
     },
     {
       "id": "M7",
-      "guarda": "a palavra inteira: prefixo ou sufixo não citam o apoio",
+      "guarda": "a regra do MAPA segue no plano junto de quem importa",
       "arquivo": "bin/forge-testes",
-      "de": "        palavra = re.compile(rf\"(?<![\\w-]){re.escape(nome)}(?![\\w-])\")\n",
-      "para": "        palavra = re.compile(rf\"{re.escape(nome)}\")\n",
+      "de": "        modulos.update(casou or (), importam)\n",
+      "para": "        modulos.update(() or (), importam)\n",
       "testes": [
-        "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita"
+        "tests.test_testes_tocados.QuemImporta.test_no_repositorio_os_apoios_e_o_test_ritmo_saem_da_suite_completa"
       ]
     },
     {
       "id": "M8",
       "guarda": "o apoio citado por outro apoio leva aos leitores deste",
       "arquivo": "bin/forge-testes",
-      "de": "        fila += [outro for outro, texto in apoios.items() if palavra.search(texto)]\n",
-      "para": "        fila += []\n",
+      "de": "apoios.items() if palavra.search(texto)]",
+      "para": "apoios.items() if palavra.search(\"\")]",
       "testes": [
         "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita"
       ]

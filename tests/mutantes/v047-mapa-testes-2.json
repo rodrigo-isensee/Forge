@@ -4,6 +4,46 @@
   "mutantes": [
     {
       "id": "M9",
+      "guarda": "só quem importa o hook entra",
+      "arquivo": "bin/forge-testes",
+      "de": "textos.items() if importa.search(texto)}",
+      "para": "textos.items() if not importa.search(texto)}",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_no_plano_e_nos_afetados"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "a fila de apoios é percorrida",
+      "arquivo": "bin/forge-testes",
+      "de": "    while fila:\n",
+      "para": "    while fila and False:\n",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "só quem cita o apoio entra",
+      "arquivo": "bin/forge-testes",
+      "de": "        modulos |= {m for m, texto in textos.items() if palavra.search(texto)}\n",
+      "para": "        modulos |= {m for m, texto in textos.items() if not palavra.search(texto)}\n",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a palavra inteira: prefixo ou sufixo não citam o apoio",
+      "arquivo": "bin/forge-testes",
+      "de": "        palavra = re.compile(rf\"(?<![\\w-]){re.escape(nome)}(?![\\w-])\")\n",
+      "para": "        palavra = re.compile(rf\"{re.escape(nome)}\")\n",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita"
+      ]
+    },
+    {
+      "id": "M13",
       "guarda": "import de outro módulo com o nome como prefixo não conta",
       "arquivo": "bin/forge-testes",
       "de": "import\\s+{re.escape(nome)}\\b)",
@@ -13,10 +53,10 @@
       ]
     },
     {
-      "id": "M10",
+      "id": "M14",
       "guarda": "os afetados do pre-push levam quem importa o hook",
       "arquivo": "bin/forge-testes",
-      "de": "        achados |= quem_importa(caminho, raiz, textos)\n",
+      "de": "        achados |= quem_importa(caminho, raiz)\n",
       "para": "        achados |= set()\n",
       "testes": [
         "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_no_plano_e_nos_afetados"

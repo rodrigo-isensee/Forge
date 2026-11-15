@@ -228,8 +228,7 @@ SPEC_DE_MUTANTES = re.compile(r"tests/mutantes/[a-z0-9][a-z0-9_.-]*\.json")  # -
 TESTE_DA_SPEC = re.compile(r"tests\.((?:[a-z0-9_]+\.)*?test_[a-z0-9_]+)(?:\.[A-Za-z0-9_]+)*")
 # E1.253 (v047, TESTE-RITMO-SEM-MAPA): quem importa um hook ou um apoio de tests/ sai do texto dos testes (`quem_importa`),
 # sem lista à mão. A catraca e a neutralidade são portões do CI sobre a árvore inteira: seguem na suíte completa.
-MODULO_DE_HOOK = re.compile(r"hooks/([a-z_][a-z0-9_]*)\.py")
-APOIO_DE_TESTES = re.compile(r"tests/((?!test_)[a-z][a-z0-9_]*)\.py")
+IMPORTAVEL = re.compile(r"hooks/(?P<hook>[a-z_][a-z0-9_]*)\.py|tests/(?P<apoio>(?!test_)[a-z][a-z0-9_]*)\.py")
 APOIO_NA_COMPLETA = frozenset({"tests/catraca.py", "tests/neutralidade.py"})
 # Quem varre a pasta tests/ (`AQUI`, `Path(__file__).resolve().parent` ou `(RAIZ / "tests")`) lê o apoio sem importá-lo.
 VARRE_TESTS = re.compile(r"""(?:\bAQUI|__file__\)\.resolve\(\)\.parent|["']tests["']\))\.r?glob\(\s*["']([^"']+)["']""")
@@ -316,21 +315,20 @@ def modulos_do_novo(caminho, raiz=Path(".")):
     return None
 
 
-def quem_importa(caminho, raiz=Path("."), textos=None):
+def quem_importa(caminho, raiz=Path(".")):
     """E1.253 (v047): módulos de teste que importam o arquivo, lidos do texto como o git grep do REAPROVEITAM_O_LOTE.
     hooks/x.py: quem tem `import x` ou `from x import`. tests/<apoio>.py: quem cita o nome como palavra (import,
     mock.patch, caminho), também pelo apoio que o cita, e quem varre tests/ com um glob que o casa. Vazio para o
     resto e para a catraca e a neutralidade."""
-    hook, apoio = MODULO_DE_HOOK.fullmatch(caminho), APOIO_DE_TESTES.fullmatch(caminho)
-    if not (hook or apoio) or caminho in APOIO_NA_COMPLETA:
+    achado = IMPORTAVEL.fullmatch(caminho)
+    if not achado or caminho in APOIO_NA_COMPLETA:
         return set()
-    textos = textos_dos_testes(raiz) if textos is None else textos
-    nome = (hook or apoio).group(1)
-    if hook:
+    textos, nome = textos_dos_testes(raiz), achado[achado.lastgroup]
+    if achado.lastgroup == "hook":
         importa = re.compile(rf"^\s*(?:from\s+{re.escape(nome)}\s+import|import\s+{re.escape(nome)}\b)", re.M)
         return {m for m, texto in textos.items() if importa.search(texto)}
     apoios = {p.stem: p.read_text(encoding="utf-8", errors="replace") for p in sorted((raiz / "tests").glob("*.py"))
-              if APOIO_DE_TESTES.fullmatch(f"tests/{p.name}") and p.is_file()}
+              if IMPORTAVEL.fullmatch(f"tests/{p.name}") and p.is_file()}
     modulos = {m for m, texto in textos.items() if any(fnmatch.fnmatch(f"{nome}.py", p) for p in VARRE_TESTS.findall(texto))}
     vistos, fila = set(), [nome]
     while fila:
@@ -416,7 +414,7 @@ def planejar_afetados(caminhos, raiz=Path(".")):
         regra = (next((destino for padrao, destino in MAPA if re.fullmatch(padrao, caminho)), None)
                  or modulos_da_convencao(caminho, raiz) or modulos_do_novo(caminho, raiz))
         achados.update(regra or ())
-        achados |= quem_importa(caminho, raiz, textos)
+        achados |= quem_importa(caminho, raiz)
         for padrao, agulhas in EXERCITAM:
             if re.fullmatch(padrao, caminho):
                 achados |= citam(textos, agulhas)

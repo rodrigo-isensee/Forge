@@ -347,7 +347,8 @@ class QuemImporta(unittest.TestCase):
     def test_no_repositorio_os_apoios_e_o_test_ritmo_saem_da_suite_completa(self):
         casos = {"tests/apoio_jarvis.py": {"test_anotar", "test_clareza", "test_forge"},
                  "tests/apoio_volta_unica.py": {"test_hooks", "test_medida_cpu"} | set(self.f.VOLTA_UNICA),
-                 "tests/ambiente_git.py": {"test_ritmo", "test_testes_tocados"}, "hooks/agentes.py": {"test_ritmo"}}
+                 "tests/ambiente_git.py": {"test_ritmo", "test_testes_tocados"},
+                 "hooks/agentes.py": {"test_ritmo", "test_sugerir", "test_catraca"}}  # quem importa, mais a regra do MAPA
         for caminho, esperado in casos.items():
             with self.subTest(caminho):
                 modo, modulos = self.f.planejar([caminho], RAIZ)
