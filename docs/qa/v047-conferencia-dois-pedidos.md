@@ -17,7 +17,6 @@ data: 2026-11-14
 Pedido de correção sem especificação de UX: as obrigações são a E1.277 do pedido (pedido único pelo brief de codigo; parecer mandado por brief selado do portão conta como anexo) e `R-PROVA` (não afrouxar a conferência).
 
 ## Achados
-Nenhum.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
