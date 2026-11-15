@@ -3,73 +3,59 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: e8c459de79e98bd22a65892b4605c97a7583de58
+commit: e25f079b9834ba470ac8ccda65e5ad678a426aaa
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-11-14
 ---
-# Review de segurança: v047 (lote B, destino opaco sem resto, A9 e A10)
+# Review de segurança: v047 (lote B, destino opaco, revalidação da volta U4)
 
-Intervalo `origin/develop..e8c459de` (13 commits; a develop entrou pelo merge `e8c459de`): `hooks/conformidade.py` (+190: U1, U2, U3, teto de 64, `palavra_juntada` do D2b, A10 por `rev_parse_de_varios_comandos`), 88 fixtures `opaco-*`, oito arquivos de mutantes, `tests/test_hook_destino_opaco.py`, `tests/test_conformidade_opaco.py`, o mapa de `bin/forge-testes`, `docs/hooks.md`, o índice de fixtures e o fragmento do changelog. Etapa E1.206, instância que não fez a entrega. Primeira rodada de segurança do analisador: varri a família inteira contra o corpus de legítimos, e os achados vão juntos.
+Revalidação por delta (`forge-check parecer delta`), intervalo `e8c459de..e25f079b`. No domínio: `hooks/conformidade.py` (+164/-3: U4, `valores_da_palavra`, `valores_do_corpo`, `valores_da_variavel`, `corpo_da_funcao`, `resto_colado`, `valor_calculado`, `na_lista_positiva`, `CORPO_POSITIVO` com `--short`, `--abbrev-ref`, `true`, `false` e `:`), `docs/hooks.md` e as fixtures `opaco-*`. Fora do domínio: mutantes O83 a O98, `tests/test_hook_destino_opaco.py` e o índice de fixtures. Etapa E1.280, instância que não fez a entrega. Parecer anterior: `e8c459de`, reprovado (A1 e A2 bloqueantes, A3 recomendado).
 
 ## Gatilhos
 `R-SEGURANCA`: hook de guarda (`conformidade`) que analisa entrada livre (linha de Bash) para proteger o `.git` (`config`, `hooks/`, marca da sessão). Bloqueio por `R-CONFORMIDADE`.
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:1141 · Destino opaco sem resto cujo corpo calcula o .git sem citá-lo (printf %s%s .g it, tr, sed, rev, base64 -d, cat de arquivo) libera com rc 0 e grava .git/config ou .git/hooks/pre-push: U1 é lista negativa de citação, e A9 segue aberta (R-CONFORMIDADE)
-- A2 (bloqueante) hooks/conformidade.py:1104 · Resto colado sem barra ("$(echo .g)it/config", "${X:-.g}it/config", "$(echo .gi)"t/hooks/pre-push) não conta como opaco nem cai no resto_no_git: grava .git/config com rc 0. Dimensão D3 nova: resto colado (R-CONFORMIDADE)
-- A3 (recomendado) hooks/conformidade.py:415 · CORPO_POSITIVO aceita mktemp -p e --tmpdir com qualquer literal, inclusive .git; hoje o U1 recusa antes, mas a lista positiva do plano diz literal fora do .git (AR-3): excluir o .git na própria lista
+- A4 (bloqueante) hooks/conformidade.py:561 · U4 trata a variável sem nome= na linha como do ambiente, mas o bash a grava: read < arq e "$REPLY", mapfile -t e "$MAPFILE", [[ =~ ]] e "$BASH_REMATCH", getopts e "$OPTARG" gravam .git/config com rc 0. Resto da A1 (R-CONFORMIDADE)
+- A5 (recomendado) hooks/conformidade.py:1345 · Resto com barra que sobe (/../config) depois de opaco dentro do .git libera: "$(mktemp -u -p .git)"/../config e TMPDIR=.git com "$(mktemp -u)"/../config gravam .git/config. Já na develop f4b0c2ae; fora do texto da A9 (sem resto): cartão novo
 
 ## Sondas
-- S1 · echo a > "$(printf %s%s .g it/config)" (projeto, tech-lead) · espera: 2 · obtido: 0
-- S2 · cp x "$(printf %s%s .g it/config)" · espera: 2 · obtido: 0
-- S3 · install -m 755 x "$(printf %s%s .g it/hooks/pre-push)" · espera: 2 · obtido: 0
-- S4 · echo a | tee "$(printf %s%s .g it/config)" · espera: 2 · obtido: 0
-- S5 · dd of="$(printf %s%s .g it/config)" if=x · espera: 2 · obtido: 0
-- S6 · echo a > "$(echo .hit/config | tr h g)" · espera: 2 · obtido: 0
-- S7 · echo a > "$(echo .hit/config | sed s/h/g/)" · espera: 2 · obtido: 0
-- S8 · echo a > "$(rev <<< gifnoc/tig.)" · espera: 2 · obtido: 0
-- S9 · echo a > "$(echo LmdpdC9jb25maWc= | base64 -d)" · espera: 2 · obtido: 0
-- S10 · echo a > "$(cat lugar2.txt)" com lugar2.txt = .git/config · espera: 2 · obtido: 0
-- S11 · echo a > "$(printf %s%s .g it/config)" (worktree do projeto) · espera: 2 · obtido: 0
-- S12 · echo a > "$(echo .g)it/config" · espera: 2 · obtido: 0
-- S13 · echo a > "$(echo .gi)"t/hooks/pre-push · espera: 2 · obtido: 0
-- S14 · echo a > "${X:-.g}it/config" · espera: 2 · obtido: 0
-- S15 · cp x "${X:-.gi}t"/config · espera: 2 · obtido: 0
+- S1 · read < l2; echo a > "$REPLY" (l2 contém .git/config; projeto, tech-lead) · espera: 2 · obtido: 0
+- S2 · read < l2; cp x "$REPLY" · espera: 2 · obtido: 0
+- S3 · read < l2; echo a | tee "$REPLY" · espera: 2 · obtido: 0
+- S4 · read < l3; install -m 755 x "$REPLY" (l3 contém .git/hooks/pre-push) · espera: 2 · obtido: 0
+- S5 · read < l2; echo a > "${REPLY}" · espera: 2 · obtido: 0
+- S6 · mapfile -t < l2; echo a > "$MAPFILE" · espera: 2 · obtido: 0
+- S7 · [[ $(cat l2) =~ .+ ]]; echo a > "$BASH_REMATCH" · espera: 2 · obtido: 0
+- S8 · getopts a: o -a .g""it/config; echo a > "$OPTARG" · espera: 2 · obtido: 0
+- S9 · read < l2; echo a > "$REPLY" (worktree do projeto) · espera: 2 · obtido: 0
 
 ## Detalhe dos achados
-Como as sondas rodaram: o próprio `tests/test_oraculo_v047.py` como biblioteca (`montar`, `rodar_hook`, `esperado_pelo_bash`), sem editá-lo, num script no meu rascunho. O "espera" é o do bash: no repositório temporário, `printf %s <destino>` resolve o caminho e o caso espera 2 se ele cai no `.git`. O "obtido" é o rc do hook no head `e8c459de`, papel `forge:tech-lead`, projeto em `melhoria/x`. Na develop (`f4b0c2ae`), S1, S2, S6 e S14 também dão 0: o furo é anterior, mas é exatamente o que a A9 promete fechar.
+Como as sondas rodaram: `tests/test_oraculo_v047.py` como biblioteca (`C`, `executar`, `em_paralelo`), sem editá-lo, num script no meu rascunho, com dois arquivos a mais no repositório do caso (`l2` com `.git/config`, `l3` com `.git/hooks/pre-push`). O "espera" é o do bash (`printf %s <destino>` depois do prefixo da linha, no repositório temporário); o "obtido" é o rc do hook no head `e25f079b`, papel `forge:tech-lead`, projeto em `melhoria/x`. S1 a S9 dão 0 também em `e8c459de` e na develop `f4b0c2ae`: o furo é anterior, mas é o que a A9 e a correção da A1 prometem fechar. No clone do Forge com papel de lista (`aq`), S1 recusa pela gramática de leitura.
 
-**A1 · corpo que calcula o valor (dimensão D2c nova).**
-- Evidência: `hooks/conformidade.py:1136-1141`. O destino opaco sem resto só recusa se algum texto do valor cita a família do `.git` (U1, `cita_o_dir_do_git`, também depois de `palavra_juntada`) ou se é ilegível (U2: `eval`, `sh`, `$'`, barra invertida, aninhado). Fora isso, `else: return` libera. O U3 (`:1146`) só olha `cp`, `mv`, `install` e `ln` com origem de nome do git, e o destino como arquivo (origem `x`, valor `.git/config`) não passa por ele. Redireção, `tee` e `dd` nunca passam.
-- Caminho de ataque: um agente com o papel de qualquer projeto, levado por injeção num arquivo ou numa saída de ferramenta, roda `echo '[core] hooksPath = /tmp/h' > "$(printf %s%s .g it/config)"` ou `install -m 755 x "$(printf %s%s .g it/hooks/pre-push)"`. O primeiro cala o pre-push (`R-VERIFY`); o segundo roda código na próxima operação do git, e `core.fsmonitor` roda código em todo `git status`. É o mesmo ativo e o mesmo ganho do A4 do plano (`v047-serie-hooks-pos-550.md`, seção 2), que foi bloqueante.
-- Por que é bloqueante: requisito do plano provado como não cumprido (`R-REVIEW`). O texto de "O que fecha" da A9 é a escrita em `.git/config` e `.git/hooks/<hook>` por destino opaco sem resto. A regra U1 do plano cobre só o corpo que **cita** o `.git`. Fica a lista negativa que a AR-3 proíbe: cada forma de calcular (`printf` com formato, `tr`, `sed`, `rev`, `base64`, `cut`, `awk`, `cat` de arquivo que o Write gravou antes) é mais uma porta. O furo é do plano, que eu escrevi; registro aqui como dimensão nova da matriz, sem correção pontual.
-- Correção mínima (inverte a decisão do U1/U2 para lista positiva, como o U3 já faz): o destino opaco sem resto (e o de resto colado, A2) **libera só** quando o hook sabe o valor. Isso vale em dois casos.
-  - (a) O corpo está em `CORPO_POSITIVO`, ampliado com `git rev-parse --short [<ref>]` e `git rev-parse --abbrev-ref <ref>`, para manter os legítimos `leg-short-head` e `leg-short-head-sufixo`.
-  - (b) O corpo é só `echo` ou `printf %s` de palavras literais (sem `%` além do `%s` único, sem `-e`), ou uma função ou variável da linha que se reduz a isso, e o valor juntado (`palavra_juntada`) não cai no `.git` pelo U1.
-  Todo o resto recusa com a mensagem do U2 ("escreva o caminho literal"). O corpus de legítimos do oráculo segue passando: `echo docs`, função `echo docs`, `date`, `mktemp`, `pwd`, `--show-toplevel`, `--short HEAD`, `${OUT:-docs}` e variável de `mktemp -d`. O falso positivo novo é `> "$(cat nome.txt)"`, que já recusa com origem do git pelo U3. Fixtures que bloqueiam: S1 a S11. Mutantes: (a) sem o `--short` e (b) aceitando `printf` com formato. Esforço: M. Dono: tech-lead (autor do lote B).
+**A4 · variável que o próprio bash grava (dimensão D2d nova; resto da A1).**
+- Evidência: `hooks/conformidade.py:550-561`. `valores_da_variavel` só recusa a variável que aparece solta na linha (`for d`, `read d`) ou que tem mais de uma atribuição; sem `nome=` na linha, ela vale `SEM_VALOR` (ambiente), e `valor_no_git` (`:613`) troca `SEM_VALOR` sozinho num componente por `_`, que nunca é o `.git`. O bash grava variáveis sem que o nome apareça: `read` sem nome grava `REPLY`; `mapfile` e `readarray` sem nome, `MAPFILE`; `[[ … =~ … ]]`, `BASH_REMATCH`; `getopts`, `OPTARG`; `select`, `REPLY`; `cd`, `pushd` e `popd`, `PWD`, `OLDPWD` e `DIRSTACK`; e todo comando, `_` (este já recusa por `construcao_nao_modelada`).
+- Caminho de ataque: o da A1. Um agente de qualquer papel, levado por injeção num arquivo ou numa saída de ferramenta, grava `.git/config` (a `R-VERIFY` cai com `core.hooksPath`; `core.fsmonitor` roda código em todo `git status`) ou `.git/hooks/pre-push` com o caminho num arquivo comum (o Write grava `l2` sem restrição) e `read < l2; echo '…' > "$REPLY"`. É o `cat` de arquivo da A1 (S10 do parecer anterior), em forma de variável.
+- Por que é bloqueante: requisito do plano provado como não cumprido (`R-REVIEW`). A correção da A1 pede que o destino opaco libere só quando o hook sabe o valor, e o próprio texto da U4 em `docs/hooks.md` diz que o destino só passa com o valor que o hook calcula. O valor de `REPLY` vem do arquivo, que o hook não lê. Não é critério novo: é a mesma porta da A1 por outro caminho.
+- Correção mínima (lista positiva, sem tocar no resto da U4): a variável sem `nome=` na linha vale `SEM_VALOR` só se o nome **não** for dos que o bash grava. Lista inteira dos que o bash grava durante a execução (manual do bash, "Shell Variables"): `_`, `REPLY`, `MAPFILE`, `BASH_REMATCH`, `OPTARG`, `OPTIND`, `PWD`, `OLDPWD`, `DIRSTACK`, `COPROC`, `BASH_ARGV`, `BASH_ARGV0`, `BASH_ARGC`, `BASH_COMMAND`, `BASH_SOURCE`, `BASH_LINENO`, `FUNCNAME`, `PIPESTATUS`, `READLINE_LINE`, `READLINE_POINT`, `READLINE_MARK`, `COMP_WORDS`, `COMP_CWORD`, `COMP_LINE`, `COMP_POINT`, `COMPREPLY`, `BASH_EXECUTION_STRING`, `EPOCHREALTIME`, `EPOCHSECONDS`, `RANDOM`, `SRANDOM`, `LINENO`, `SECONDS`. Com esses nomes, `valores_da_variavel` devolve `None` (recusa com a mensagem da U4). O nome que aparece como argumento de `read`, `mapfile`, `readarray`, `getopts`, `select` ou `printf -v` já recusa pela busca solta. Fixtures que bloqueiam: S1 a S9. Mutante: `REPLY` fora da lista. Legítimos que seguem: `"$TMPDIR"/x`, `"$HOME"/x`, `d=docs; echo a > "$d"/n.md`. Esforço: P. Dono: tech-lead (autor do lote B).
 
-**A2 · resto colado sem barra (dimensão D3 nova).**
-- Evidência: `hooks/conformidade.py:1101-1104`. `opaco_sem_resto` só vale se o que vem depois da última parte opaca é vazio ou `/`. Com resto colado (`it/config`), não é "sem resto", e o `resto_no_git` (regra antiga) só vê resto que começa em `/`. O plano afirmou "com resto, `resto_no_git` já recusa (S7)", e isso só vale para o resto com barra.
-- Caminho de ataque: o do A1, com `> "$(echo .g)it/config"` ou `> "${X:-.g}it/config"`. O segundo nem tem substituição: é o S6 do plano com o sufixo colado.
-- Correção mínima: em `opaco_sem_resto` (ou num irmão chamado pelo `destino_opaco`), o resto que não começa em `/` entra na mesma decisão do sem resto. Para o U0, o valor padrão de `${x:-v}` e os corpos são juntados ao resto antes do U1. `palavra_juntada` já faz isso: `${X:-.g}it/config` vira `*it/config`, que o curinga casa com `.git`. Os legítimos `"$(date +%F)".log`, `"$(git rev-parse --short HEAD).txt"` e `"$(echo docs)"x.md` seguem livres pela lista positiva do A1. Fixtures que bloqueiam: S12 a S15. Mutante: o resto colado tratado como resto com barra. Esforço: P. Dono: tech-lead.
-
-**A3 · lista positiva do `mktemp` aberta ao `.git` (recomendado).**
-- Evidência: `hooks/conformidade.py:415-416`. `-p\s+[\w./-]+` e `--tmpdir(?:=[\w./-]+)?` aceitam `-p .git` e `--tmpdir=.git/hooks`.
-- Por que não bloqueia: o U1 do `destino_opaco` roda antes do U3 (`checar_escrita` vem antes de `origem_do_git_no_opaco`) e recusa pela citação. Sem caminho de ataque hoje, mas a lista positiva do plano diz "literal fora de `.git`". Com a correção do A1, ela passa a ser a única porta e não deve depender da ordem.
-- Correção mínima: no `corpo_positivo`, recusar o valor de `-p` ou de `--tmpdir` que cite o `.git` (`cita_o_dir_do_git`). Esforço: P. Dono: tech-lead.
+**A5 · resto com barra que sobe (recomendado; dimensão D4 nova, fora do lote).**
+- Evidência: `hooks/conformidade.py:1345` (`resto_no_git`). O resto `/../config` depois de uma parte opaca não é lido como saída do diretório do opaco. Sondas (todas rc 0, esperado 2 pelo bash): `echo a > "$(mktemp -u -p .git)"/../config`; `export TMPDIR=.git; echo a > "$(mktemp -u)"/../config`; o mesmo com `cp x`, com `install -m 755 x …/../hooks/pre-push`, com `TMPDIR=.g''it` e com `TMPDIR=.git/hooks`. Controles livres e corretos: `"$(pwd)"/../x`, `"$(mktemp -u)"/../x`.
+- Por que não bloqueia este lote: dá 0 igual em `e8c459de` e na develop `f4b0c2ae` (sem regressão), e o texto da A9 é o destino opaco **sem resto**. O resto com barra é da regra antiga, que `docs/hooks.md` declara cobrir ("com resto depois de `/`, vale o `resto_no_git`"), e a sonda mostra que não cobre o `..`. O caminho de ataque é o da A4, com a citação do `.git` à vista na linha.
+- Correção mínima (cartão novo, levado ao usuário pelo Jarvis para decidir se entra neste pedido, `R-DECISAO`): no `resto_no_git`, o resto com componente `..` depois de uma parte opaca recusa, salvo quando o opaco é da lista positiva que não depende do ambiente (`git rev-parse --show-toplevel`, `pwd` sem `cd` na linha). `mktemp` com `-p`, `--tmpdir` ou `TMPDIR` atribuído na linha não entra na exceção. Esforço: P. Dono: tech-lead.
 
 ### O que foi conferido e está correto
-- **Oráculo (EXT-1):** `tests/test_oraculo_v047.py` só tem o commit `730843a9` (`git log -- tests/test_oraculo_v047.py`), sem edição pelo autor. Local: `python3 -m unittest tests.test_oraculo_v047 tests.test_hook_destino_opaco tests.test_conformidade_opaco` deu 8 testes OK em 373 s. Os 9 casos D2b recusam, e os legítimos e as leituras liberam.
-- **D2b além do oráculo:** `cp x "$(echo .g""it)"`, `d=.g; echo a > "$(echo "$d"it/config)"`, `printf '\056git/config'`, `printf '%b' '\x2egit/config'` e `printf -v d %s .git` recusam. `${HOME:+.git/config}` recusa por `${` com ação crítica.
-- **A10:** `rev_parse_de_varios_comandos` olha a linha inteira no nível 0, e `origens_livres` (`:1261`) zera a liberação do #512 com qualquer corpo misto na linha. Isso só restringe. A liberação de `ln -s "$(git rev-parse --git-dir)"/HEAD h` segue intacta (`leg-link-512`).
-- **Orçamento e negação de serviço:** linhas de 140 mil caracteres, 64 funções opacas com 20 mil palavras e 20 mil palavras com curinga estouram o prazo e recusam (rc 2, falha fechada). Na develop, as mesmas três também recusam por prazo, em tempo da mesma ordem (develop 12,9 s, 7,4 s e 6,5 s; head 7,0 s, 8,3 s e 6,8 s). Não há regressão nem caminho que libere por lentidão. `glob_casa` monta o padrão a partir de palavra da linha, mas casa só com `.git` (4 caracteres) e fica barata.
-- **Falsos positivos vistos (do lado seguro, anteriores à entrega):** `"$(echo .gi{t,})/config"` e `"$(ls -d .gi*)/config"` recusam pela regra antiga "lido como `.git`".
-- **Sem afrouxar:** o diff não remove recusa. `origens_livres` ganhou só a condição que zera, e os fixtures `gitcomum*` seguem na suíte do autor.
+- **A1 (U4), fora o resto da A4:** a lista positiva fecha o que o parecer anterior provou. `printf` com formato, `tr`, `sed`, `rev`, `base64`, `cat` e o aninhado recusam; `printf "%s" .g it`, `printf %s .g'i't`, `echo "$d"t` com `d=.gi`, função `f(){ echo .g; }` com resto colado, `echo` redefinido como função e `"$(echo "$(echo .git)")"` recusam. `"$(date +.git)"`, `"$(git rev-parse --short --git-dir)"` e `--abbrev-ref --git-common-dir` recusam (a citação vence a lista positiva, `na_lista_positiva`). `: ${d:=.git}; … "$d"/config` recusa.
+- **A2 (resto colado):** `"$(echo .g)""$(echo it/config)"`, `"$(echo .g)$(echo it)"/config` e `"$(f)it/config"` recusam. `resto_colado` passa o caminho inteiro pela U4.
+- **A3:** `na_lista_positiva` exclui o `mktemp -p .git` e o `--tmpdir=.git…` da lista positiva, também no U3 (`origem_do_git_no_opaco`).
+- **Orçamento:** `TETO_DE_VALORES` (64 combinações) e a profundidade 4 de `valores_da_palavra` e `valores_do_corpo` devolvem `None`, que recusa (falha fechada). As regex novas (`PALAVRA_DO_CORPO`, `LITERAL`, `VARIAVEL_DO_VALOR`) não dependem de falha com alternância ambígua; `corpo_da_funcao` usa `[^{}]*` e `[^()]*`.
+- **Falsos positivos vistos (do lado seguro):** `"$(echo .g*)"/config` recusa pela regra antiga "lido como `.git`"; `"$(true)"/../.git/config` recusa (o bash daria `/.git/config`, fora do repositório).
+- **Sem afrouxar:** o diff não remove recusa; `CORPO_POSITIVO` ganhou `--short`, `--abbrev-ref`, `true`, `false` e `:`, cuja saída não é o `.git` sem citação, e a citação no corpo recusa antes.
+- **Oráculo (EXT-1):** `tests/test_oraculo_v047.py` sem commit no intervalo (`git log e8c459de..e25f079b -- tests/test_oraculo_v047.py` vazio). Local: `python3 -m unittest tests.test_oraculo_v047 tests.test_hook_destino_opaco tests.test_conformidade_opaco` deu 9 testes OK em 236 s.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito.
 
-Suíte inteira: **sem CI no head**. `gh api .../actions/runs?head_sha=e8c459de…` e `.../check-runs` devolvem `total_count` 0, porque a branch não tem PR (o brief diz "sem PR"). Rodei só os módulos da entrega e o oráculo, citados acima. Quando houver PR, o portão pede o CI verde no head da revalidação.
+Suíte inteira: **sem CI no head**. `gh api …/commits/e25f079b…/check-runs` devolve `total_count` 0 e a branch não tem PR (o brief diz "sem PR"). Rodei só o oráculo e os módulos da entrega, citados acima. Quando houver PR, o portão pede o CI verde no head da revalidação.
 
-Faltaram no ambiente: gitleaks, Semgrep, osv-scanner, zizmor e actionlint (`R-CUSTO`, não instalo). A entrega não traz segredo, dependência nem workflow, e a análise foi manual e por sonda.
+Faltaram no ambiente: gitleaks, Semgrep, osv-scanner, zizmor e actionlint (`R-CUSTO`, não instalo). A entrega não traz segredo, dependência nem workflow; a análise foi manual e por sonda.
