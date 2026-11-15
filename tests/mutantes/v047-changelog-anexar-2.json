@@ -17,7 +17,7 @@
       "guarda": "secao nova entra antes do tipo seguinte na ordem",
       "arquivo": "bin/forge-changelog",
       "de": "            pos = depois[0] if depois else len(linhas)\n",
-      "para": "            pos = len(linhas)\n",
+      "para": "            pos = depois[0] if not depois else len(linhas)\n",
       "testes": [
         "tests.test_changelog.ReleaseAnexar.test_junta_na_secao_de_cada_tipo_cria_a_que_falta_e_apaga"
       ]
@@ -77,7 +77,7 @@
       "guarda": "entrada vazia nao ganha linha em branco",
       "arquivo": "bin/forge-changelog",
       "de": "split(\"\\n\") if corpo.strip() else [], agrupado)",
-      "para": "split(\"\\n\"), agrupado)",
+      "para": "split(\"\\n\") if True else [], agrupado)",
       "testes": [
         "tests.test_changelog.ReleaseAnexar.test_entrada_vazia_recebe_a_secao"
       ]
