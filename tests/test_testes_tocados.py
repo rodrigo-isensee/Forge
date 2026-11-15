@@ -162,8 +162,8 @@ class Mapa(unittest.TestCase):
                 self.assertEqual(modo, "dirigido")
                 self.assertLessEqual(guardas, set(modulos))
 
-    def test_promover_e_portoes_de_tests_seguem_na_completa(self):  # MP-1: adendo 2, ponto 3 (decisão 7 do dono); E1.253
-        for caminho in ("scripts/promover-homolog.py", "tests/catraca.py", "tests/neutralidade.py"):
+    def test_promover_e_apoio_seguem_na_completa(self):  # MP-1: adendo 2, ponto 3 (decisão 7 do dono)
+        for caminho in ("scripts/promover-homolog.py", "tests/apoio_volta_unica.py"):
             with self.subTest(caminho):
                 self.assertEqual(self.plano(caminho), ("completo", [f"{caminho} sem mapa"]))
 
@@ -290,8 +290,8 @@ class MapaDosNovos(unittest.TestCase):
 
 
 class QuemImporta(unittest.TestCase):
-    """E1.253 (v047, TESTE-RITMO-SEM-MAPA): o apoio da raiz de tests/ e o hook levam a quem os importa, lido do texto dos
-    testes; o apoio sem leitor, a catraca e a neutralidade seguem na suíte completa."""
+    """E1.253 (v047, TESTE-RITMO-SEM-MAPA): o hook leva a quem o importa, lido do texto, pelo fecho (hook, apoio e módulo
+    de teste que importa outro); o apoio de tests/ no diff segue na suíte completa (decisão 7 do dono)."""
 
     brinquedo = MapaDosNovos.brinquedo
 
@@ -299,62 +299,65 @@ class QuemImporta(unittest.TestCase):
     def setUpClass(cls):
         cls.f = carregar()
 
-    def test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita(self):
-        raiz = self.brinquedo(**{"tests/apoio_a.py": "x = 1\n", "tests/apoio_b.py": "from apoio_a import x\n",
-                                 "tests/test_um.py": "from apoio_a import x\n", "tests/test_dois.py": "import apoio_b\n",
-                                 "tests/test_outro.py": "'apoio_ab' 'meu_apoio_a' 'apoio_a-x'\n"})
-        (raiz / "tests" / "apoio_pasta.py").mkdir()  # pasta com nome de módulo: não é apoio
+    def test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados(self):
+        raiz = self.brinquedo(**{
+            "hooks/agentes.py": "", "hooks/pesado.py": "def f():\n    from agentes import g\n",
+            "tests/apoio_a.py": "import pesado\n", "tests/test_um.py": "import agentes  # noqa\n",
+            "tests/test_dois.py": "from agentes import f\n", "tests/test_tres.py": "import apoio_a\n",
+            "tests/test_filho.py": "import test_tres as base\n", "tests/test_lista.py": "import json, test_um as u\n",
+            "tests/test_sub.py": "codigo = 'import sys; import agentes; agentes.f()'\n", "tests/test_hooks.py": "x = 1\n",
+            "tests/test_do_lote.py": "from test_hooks import Lote\n",
+            "tests/test_outro.py": "import agentes_x\nimport json as agentes\n'agentes'\nreimport agentes\n"})
+        (raiz / "hooks" / "pasta.py").mkdir()  # pasta com nome de módulo: não é lida
+        esperado = {"test_um", "test_dois", "test_tres", "test_filho", "test_lista", "test_sub"}
         try:
-            plano = self.f.planejar(["tests/apoio_a.py"], raiz)
+            achados = self.f.quem_importa("hooks/agentes.py", raiz)
         except Exception as e:  # noqa: BLE001  levantar é falha do caso, não erro do teste
-            plano = f"levantou {type(e).__name__}"
-        self.assertEqual(plano, ("dirigido", ["test_dois", "test_um"]))
-        self.assertEqual(self.f.planejar(["tests/apoio_b.py"], raiz), ("dirigido", ["test_dois"]))
+            achados = f"levantou {type(e).__name__}"
+        self.assertEqual(achados, esperado)
+        self.assertEqual(self.f.quem_importa("hooks/agentes.py", raiz, ("test_hooks",)),
+                         esperado | {"test_hooks", "test_do_lote"})
+        self.assertLessEqual(esperado | {"test_do_lote"}, set(self.f.planejar_afetados(["hooks/agentes.py"], raiz)[0]))
 
-    def test_apoios_que_se_citam_em_ciclo_terminam(self):
-        raiz = self.brinquedo(**{"tests/apoio_a.py": "import apoio_b\n", "tests/apoio_b.py": "import apoio_a\n",
-                                 "tests/test_um.py": "import apoio_b\n"})
+    def test_hooks_que_se_importam_em_ciclo_terminam(self):
+        raiz = self.brinquedo(**{"hooks/a.py": "import b\n", "hooks/b.py": "import a\n", "tests/test_um.py": "import b\n"})
         codigo = ("import importlib.machinery as m, importlib.util as u, sys; c = m.SourceFileLoader('f', sys.argv[1]); "
                   "f = u.module_from_spec(u.spec_from_loader('f', c)); c.exec_module(f); "
-                  "print(f.planejar(['tests/apoio_a.py'], __import__('pathlib').Path(sys.argv[2])))")
+                  "print(sorted(f.quem_importa('hooks/a.py', __import__('pathlib').Path(sys.argv[2]))))")
         try:  # num processo à parte: o ciclo sem a guarda não termina, e o prazo o derruba
             saida = subprocess.run([sys.executable, "-I", "-c", codigo, str(FERRAMENTA), str(raiz)], env={"PATH": os.defpath},
                                    capture_output=True, text=True, timeout=30)
         except subprocess.TimeoutExpired:
-            self.fail("o ciclo entre apoios não terminou")
-        self.assertEqual(saida.stdout.strip(), "('dirigido', ['test_um'])", saida.stderr)
+            self.fail("o ciclo entre hooks não terminou")
+        self.assertEqual(saida.stdout.strip(), "['test_um']", saida.stderr)
 
-    def test_quem_varre_tests_com_glob_que_casa_o_apoio_entra(self):
-        raiz = self.brinquedo(**{"tests/apoio_a.py": "x = 1\n", "tests/test_um.py": "import apoio_a\n",
-                                 "tests/test_varre.py": "(RAIZ / \"tests\").glob(\"apoio_*.py\")\n",
-                                 "tests/test_so_testes.py": "AQUI.glob(\"test_*.py\")\n"})
-        self.assertEqual(self.f.planejar(["tests/apoio_a.py"], raiz), ("dirigido", ["test_um", "test_varre"]))
+    def test_apoio_de_tests_importado_segue_na_completa(self):  # decisão 7 do dono (M8, opção C)
+        raiz = self.brinquedo(**{"tests/apoio_a.py": "x = 1\n", "tests/test_um.py": "import apoio_a\n"})
+        self.assertEqual(self.f.quem_importa("tests/apoio_a.py", raiz), set())
+        self.assertEqual(self.f.planejar(["tests/apoio_a.py"], raiz), ("completo", ["tests/apoio_a.py sem mapa"]))
 
-    def test_apoio_sem_leitor_catraca_e_neutralidade_seguem_na_completa(self):
-        raiz = self.brinquedo(**{"tests/apoio_a.py": "x = 1\n", "tests/catraca.py": "", "tests/neutralidade.py": "",
-                                 "tests/test_um.py": "import catraca\nimport neutralidade\n"})
-        for caminho in ("tests/apoio_a.py", "tests/catraca.py", "tests/neutralidade.py"):
-            with self.subTest(caminho):
-                self.assertEqual(self.f.planejar([caminho], raiz), ("completo", [f"{caminho} sem mapa"]))
-
-    def test_hook_leva_a_quem_o_importa_no_plano_e_nos_afetados(self):
-        raiz = self.brinquedo(**{"hooks/agentes.py": "", "tests/test_hooks.py": "x = 1\n", "tests/test_catraca.py": "",
-                                 "tests/test_um.py": "import agentes  # noqa\n", "tests/test_dois.py": "from agentes import f\n",
-                                 "tests/test_outro.py": "import agentes_x\n'agentes'\n"})
-        self.assertEqual(self.f.quem_importa("hooks/agentes.py", raiz), {"test_um", "test_dois"})
-        self.assertLessEqual({"test_um", "test_dois"}, set(self.f.planejar_afetados(["hooks/agentes.py"], raiz)[0]))
-
-    def test_no_repositorio_os_apoios_e_o_test_ritmo_saem_da_suite_completa(self):
-        casos = {"tests/apoio_jarvis.py": {"test_anotar", "test_clareza", "test_forge"},
-                 "tests/apoio_volta_unica.py": {"test_hooks", "test_medida_cpu"} | set(self.f.VOLTA_UNICA),
-                 "tests/ambiente_git.py": {"test_ritmo", "test_testes_tocados"},
-                 "hooks/agentes.py": {"test_ritmo", "test_sugerir", "test_catraca"}}  # quem importa, mais a regra do MAPA
-        for caminho, esperado in casos.items():
-            with self.subTest(caminho):
-                modo, modulos = self.f.planejar([caminho], RAIZ)
+    def test_no_repositorio_o_plano_do_hook_traz_todo_teste_que_importa_um_modulo_do_plano(self):
+        """A sonda do A2 do review (v047): para cada hook, nenhum tests/test_*.py que importa (pela árvore sintática, não
+        pela expressão do script) o hook ou um módulo do plano fica de fora."""
+        grafo = {}
+        for p in sorted((RAIZ / "tests").glob("test_*.py")):
+            nomes = set()
+            for no in ast.walk(ast.parse(p.read_text(encoding="utf-8"))):
+                if isinstance(no, ast.Import):
+                    nomes |= {a.name for a in no.names}
+                elif isinstance(no, ast.ImportFrom) and no.module and not no.level:
+                    nomes.add(no.module)
+            grafo[p.stem] = nomes
+        hooks = sorted((RAIZ / "hooks").glob("*.py"))
+        self.assertGreaterEqual(len(hooks), 9)
+        for hook in hooks:
+            with self.subTest(hook.name):
+                modo, plano = self.f.planejar([f"hooks/{hook.name}"], RAIZ)
                 self.assertEqual(modo, "dirigido")
-                self.assertLessEqual(esperado, set(modulos))
-        saida = subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--listar", "tests/apoio_jarvis.py"], cwd=RAIZ,
+                alvo = set(plano) | {hook.stem}
+                self.assertEqual(sorted(t for t, nomes in grafo.items() if nomes & alvo and t not in plano), [])
+        self.assertIn("test_ritmo", self.f.planejar(["hooks/agentes.py"], RAIZ)[1])
+        saida = subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--listar", "hooks/agentes.py"], cwd=RAIZ,
                                env={"PATH": os.defpath, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null"},
                                capture_output=True, text=True)
         self.assertEqual(saida.returncode, 0, saida.stderr)

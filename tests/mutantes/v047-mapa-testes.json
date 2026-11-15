@@ -4,84 +4,83 @@
   "mutantes": [
     {
       "id": "M1",
-      "guarda": "o caminho que só quem importa cobre não cai na suíte completa",
+      "guarda": "só o hook entra no fecho; o apoio de tests/ segue na completa",
       "arquivo": "bin/forge-testes",
-      "de": "        if casou is None and not importam:\n",
-      "para": "        if casou is None:\n",
+      "de": "achado = HOOK.fullmatch(caminho)\n    if not achado:\n",
+      "para": "achado = HOOK.fullmatch(caminho) or re.fullmatch(r\"tests/([a-z_]+)\\.py\", caminho)\n    if not achado:\n",
       "testes": [
-        "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita",
-        "tests.test_testes_tocados.QuemImporta.test_no_repositorio_os_apoios_e_o_test_ritmo_saem_da_suite_completa"
+        "tests.test_testes_tocados.QuemImporta.test_apoio_de_tests_importado_segue_na_completa"
       ]
     },
     {
       "id": "M2",
-      "guarda": "catraca e neutralidade seguem na suíte completa mesmo citadas",
+      "guarda": "`from x import` dá x; `import a, b` dá a e b",
       "arquivo": "bin/forge-testes",
-      "de": "    if not achado or caminho in APOIO_NA_COMPLETA:\n",
-      "para": "    if not achado:\n",
+      "de": "{de} if de else",
+      "para": "{de} if not de else",
       "testes": [
-        "tests.test_testes_tocados.QuemImporta.test_apoio_sem_leitor_catraca_e_neutralidade_seguem_na_completa"
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados"
       ]
     },
     {
       "id": "M3",
-      "guarda": "o hook vai pelo import e o apoio pela palavra",
+      "guarda": "a fila do fecho é percorrida",
       "arquivo": "bin/forge-testes",
-      "de": "    if achado.lastgroup == \"hook\":\n",
-      "para": "    if achado.lastgroup != \"hook\":\n",
+      "de": "    while fila:\n",
+      "para": "    while fila and False:\n",
       "testes": [
-        "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita",
-        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_no_plano_e_nos_afetados"
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados",
+        "tests.test_testes_tocados.QuemImporta.test_no_repositorio_o_plano_do_hook_traz_todo_teste_que_importa_um_modulo_do_plano"
       ]
     },
     {
       "id": "M4",
-      "guarda": "só o arquivo da raiz de tests/ entra como apoio, não a pasta",
-      "arquivo": "bin/forge-testes",
-      "de": "if IMPORTAVEL.fullmatch(f\"tests/{p.name}\") and p.is_file()}",
-      "para": "if IMPORTAVEL.fullmatch(f\"tests/{p.name}\")}",
-      "testes": [
-        "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita"
-      ]
-    },
-    {
-      "id": "M5",
-      "guarda": "quem varre tests/ entra só se o glob casa o apoio",
-      "arquivo": "bin/forge-testes",
-      "de": "any(fnmatch.fnmatch(f\"{nome}.py\", p) for p in",
-      "para": "any(True for p in",
-      "testes": [
-        "tests.test_testes_tocados.QuemImporta.test_quem_varre_tests_com_glob_que_casa_o_apoio_entra"
-      ]
-    },
-    {
-      "id": "M6",
-      "guarda": "o ciclo entre apoios termina",
+      "guarda": "o ciclo entre hooks termina",
       "arquivo": "bin/forge-testes",
       "de": "        if nome in vistos:\n",
       "para": "        if False:\n",
       "testes": [
-        "tests.test_testes_tocados.QuemImporta.test_apoios_que_se_citam_em_ciclo_terminam"
+        "tests.test_testes_tocados.QuemImporta.test_hooks_que_se_importam_em_ciclo_terminam"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "só quem importa o nome entra no fecho",
+      "arquivo": "bin/forge-testes",
+      "de": "if nome in nomes]",
+      "para": "if nome not in nomes]",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "pasta com nome de módulo não é lida",
+      "arquivo": "bin/forge-testes",
+      "de": "if p.is_file()}",
+      "para": "}",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados"
       ]
     },
     {
       "id": "M7",
-      "guarda": "a regra do MAPA segue no plano junto de quem importa",
+      "guarda": "`reimport x` não é import",
       "arquivo": "bin/forge-testes",
-      "de": "        modulos.update(casou or (), importam)\n",
-      "para": "        modulos.update(() or (), importam)\n",
+      "de": "(?<![\\w.])(?:from",
+      "para": "(?:from",
       "testes": [
-        "tests.test_testes_tocados.QuemImporta.test_no_repositorio_os_apoios_e_o_test_ritmo_saem_da_suite_completa"
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados"
       ]
     },
     {
       "id": "M8",
-      "guarda": "o apoio citado por outro apoio leva aos leitores deste",
+      "guarda": "o plano do hook leva o fecho de quem o importa",
       "arquivo": "bin/forge-testes",
-      "de": "apoios.items() if palavra.search(texto)]",
-      "para": "apoios.items() if palavra.search(\"\")]",
+      "de": "modulos.update(casou, quem_importa(caminho, raiz, casou))",
+      "para": "modulos.update(casou)",
       "testes": [
-        "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita"
+        "tests.test_testes_tocados.QuemImporta.test_no_repositorio_o_plano_do_hook_traz_todo_teste_que_importa_um_modulo_do_plano"
       ]
     }
   ]
