@@ -12,7 +12,7 @@
      "de": "    if primeira > ultima:\n", "para": "    if False:\n",
      "testes": ["tests.test_forge_mutante.Cobertura.test_sem_mutante_diz_por_que_o_mutante_que_toca_o_no_nao_cobre"]},
     {"id": "MD12", "guarda": "a linha por quê só sai com motivo", "arquivo": "bin/forge-mutante",
-     "de": "if (motivo := por_que_nao_cobre(", "para": "if not (motivo := por_que_nao_cobre(",
+     "de": "por_que_nao_cobre(m, arquivo, depois, de, ate))", "para": "por_que_nao_cobre(m, arquivo, depois, de, ate) or 'sem motivo')",
      "testes": ["tests.test_forge_mutante.Cobertura.test_sem_mutante_diz_por_que_o_mutante_que_toca_o_no_nao_cobre"]},
     {"id": "MD13", "guarda": "specs de pedidos diferentes saem 2", "arquivo": "bin/forge-mutante",
      "de": "    if len(por_pedido) > 1:", "para": "    if len(por_pedido) > 2:",

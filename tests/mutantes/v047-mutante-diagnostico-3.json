@@ -10,6 +10,13 @@
      "testes": ["tests.test_forge_mutante.Execucao.test_arvore_suja_com_spec_diferente_da_do_commit_recusa_antes_de_rodar"]},
     {"id": "MD19", "guarda": "casa só sem motivo de não cobrir", "arquivo": "bin/forge-mutante",
      "de": "    if por_que_nao_cobre(m, arquivo, depois, ini, fim) is not None:", "para": "    if False:",
-     "testes": ["tests.test_forge_mutante.Cobertura.test_sem_mutante_diz_por_que_o_mutante_que_toca_o_no_nao_cobre"]}
+     "testes": ["tests.test_forge_mutante.Cobertura.test_sem_mutante_diz_por_que_o_mutante_que_toca_o_no_nao_cobre"]},
+    {"id": "MD20", "guarda": "spec igual à do commit não recusa", "arquivo": "bin/forge-mutante",
+     "de": "ler_no_commit(sha, relativo) == spec_bytes", "para": "ler_no_commit(sha, relativo) != spec_bytes",
+     "testes": ["tests.test_forge_mutante.Execucao.test_arvore_suja_com_spec_diferente_da_do_commit_recusa_antes_de_rodar"]}
+  ],
+  "isentas": [
+    {"arquivo": "bin/forge-mutante", "trecho": "i[\"arquivo\"] == arquivo and dados.count(trecho) == 1",
+     "motivo": "dividida em `if i[\"arquivo\"] != arquivo` (MD1) e `return dados.count(trecho) == 1 and ...` (MD5), ambas cobertas"}
   ]
 }
