@@ -326,6 +326,20 @@ class ReleaseAnexar(Base):
         self.assertEqual(forge_changelog(self.dir, "release", "--anexar", "0.2.0").returncode, 0)
         self.assertIn("### Adicionado\n- A0\n- A1\n\n### Corrigido\n- C0\n", self.texto())
 
+    def test_cabecalho_com_espaco_no_fim_e_tipo_fora_da_lista_sao_respeitados(self):
+        (self.dir / "CHANGELOG.md").write_text(self.ENTRADA.replace("### Corrigido\n", "### Segurança\n- S0\n### Corrigido \n"),
+                                               encoding="utf-8")
+        (self.pasta / "a.md").write_text("### Corrigido\n- C1\n\n### Alterado\n- M1\n", encoding="utf-8")
+        self.assertEqual(forge_changelog(self.dir, "release", "--anexar", "0.2.0").returncode, 0)
+        self.assertIn("### Adicionado\n- A0\n### Segurança\n- S0\n### Alterado\n- M1\n### Corrigido \n- C0\n- C1\n\n",
+                      self.texto())
+
+    def test_entrada_vazia_recebe_a_secao(self):
+        (self.dir / "CHANGELOG.md").write_text("## [0.2.0] - 2026-02-02\n## [0.1.0] - 2026-01-01\n", encoding="utf-8")
+        (self.pasta / "a.md").write_text("### Adicionado\n- A1\n", encoding="utf-8")
+        self.assertEqual(forge_changelog(self.dir, "release", "--anexar", "0.2.0").returncode, 0)
+        self.assertEqual(self.texto(), "## [0.2.0] - 2026-02-02\n### Adicionado\n- A1\n## [0.1.0] - 2026-01-01\n")
+
     def test_entrada_mais_antiga_tambem_recebe(self):
         (self.pasta / "a.md").write_text("### Adicionado\n- A1\n", encoding="utf-8")
         self.assertEqual(forge_changelog(self.dir, "release", "--anexar", "0.1.0").returncode, 0)
