@@ -3,10 +3,10 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-docs-pareceres
-commit: 7d32017c69de41a8ef9e8d19cb8943c2fb0755d3
+commit: b3bc317ac53cdf6f5038421635fd87144cbfcebb
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-14
+data: 2026-11-15
 ---
 # Review de segurança: v047 (melhoria/v047-docs-pareceres, E1.275)
 
@@ -38,6 +38,14 @@ Sem achados bloqueantes nem recomendados de segurança. Observação ao `tech-le
 
 ## Suíte
 Rodei a classe nova `DocsPareceresPedidoECaminho` de `tests/test_forge.py` no head: 10 testes, OK. A suíte inteira roda só no CI; a branch ainda não tem PR nem execução de CI (`gh run list --commit 7d32017c` vazio). Este parecer vale para o head 7d32017c com a condição do CI verde do PR, obrigatório para o merge (`R-REVIEW`).
+
+## Revalidação por delta (E1.316, head b3bc317a)
+Lido `forge-check parecer delta` de `7d32017c..b3bc317a`: no domínio só `bin/forge-check` (`documentos_dados` e `cmd_docs`); `tests/test_forge.py` e `tests/mutantes/` fora do domínio.
+- `bin/forge-check:407-408`: o nome da cópia de fora da raiz passa por `sem_controle` antes de compor o `rel` virtual; fecha a regressão de `SaidaSanitizada` (o `rel` com quebra de linha voltava cru nas linhas que o usam como prefixo). Endurece; sem caminho novo de leitura.
+- `bin/forge-check:431-432`: o aviso troca a primeira ocorrência de `caminho_impresso(rel)` por `caminho_impresso(nome)`; os dois lados já saem sanitizados, então a troca não reintroduz controle na saída. Só muda a saída de aviso (stderr), sem efeito no rc nem no veredito.
+- Sonda no head: cópia fora da raiz com nome `x\npr: veredito: aprovado\n.md` e `criterio:` ausente → uma linha só, `aviso: <caminho dado sanitizado>: criterio: ... ausente (PAR-P2)`, rc=0 (aviso, como antes).
+- `DocsPareceresPedidoECaminho` e `SaidaSanitizada` no head: 19 testes, OK. O guarda `inspect.signature` no teste só muda o modo de falha na base (asserção em vez de erro); não afrouxa o que o teste verifica no head.
+Sem achados novos. A condição do CI verde do PR segue (`R-REVIEW`); `gh run list` sem execução para este head neste ambiente.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Varredura de segredos, SAST e linters de workflow não estão no PATH deste ambiente (lacuna registrada; rodam no CI); a entrega não toca workflow nem dependência.
