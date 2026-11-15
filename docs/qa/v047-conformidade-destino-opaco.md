@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: e8c459de79e98bd22a65892b4605c97a7583de58
-parecer: aprovado
-escopo: completo
+commit: e25f079b9834ba470ac8ccda65e5ad678a426aaa
+parecer: reprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -21,6 +21,7 @@ oraculo: tests/test_oraculo_v047.py commit 730843a99366f49e7560b32dbd413c15346f8
 Prova de não edição do oráculo (conferida): `git merge-base --is-ancestor 730843a9 HEAD` ok; `git rev-parse HEAD:tests/test_oraculo_v047.py` = `535134e940b2af9a3cf9941b7a4d54b661b57c4a` (igual ao blob); `git log --format=%H 730843a9..HEAD -- tests/test_oraculo_v047.py` vazio. Rodou `python3 -m unittest tests.test_oraculo_v047`: 3 testes, OK, 178 s (os 9 casos D2b e os `plano` da A10 recusados; leituras legítimas liberam).
 
 ## Achados
+- A1 (bloqueante) hooks/conformidade.py:1329 · mutante O18 (tests/mutantes/v047-destino-opaco-3.json) sobrevive no e25f079b: o U4 recusa a variável de 2 atribuições antes do U3. Declare `equivalente` com justificativa ou mate-o.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -37,3 +38,14 @@ Prova de não edição do oráculo (conferida): `git merge-base --is-ancestor 73
 - Cobertura de guardas: `bin/forge-mutante --cobertura --base f4b0c2aeb42b2c08d0d9a1386e77939504b790e8` rc=0, `base=f4b0c2aeb42b... mb=... rev=e8c459de...`; todas as condições mudadas `coberta`, 3 `isenta` com motivo lido (equivalentes pela seção 7 da ADR 0009 ou nome opaco da C18): aceitas.
 - Diff conferido: o `test_testes_tocados` e o mapa de `bin/forge-testes` incluem os 2 módulos novos e descontam oráculos nas listas exatas (83); coerente com o oráculo ser incluído em todo plano dirigido.
 - CI: `gh` não achou PR nem check-run `bateria` para `e8c459de` (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local.
+
+## Revalidação por delta e8c459de..e25f079b (E1.281)
+Domínio lido por `forge-check parecer delta`: `hooks/conformidade.py`, `docs/hooks.md`, `docs/hooks-fixtures.md`, fixtures `opaco-u4-*` e `opaco-semresto-u3-*`, `tests/test_hook_destino_opaco.py`, `tests/test_conformidade_opaco.py` e os mutantes O83 a O98 (specs `v047-destino-opaco-9` a `-15`). Mudança: U4 (lista positiva do valor calculado: palavras do corpo por regex, crase depois do `of=` do dd). Escopo do plano inalterado (A9, A10, D2b); o delta soma o U4 como obrigação (A1 da segurança E1.206, A1 do review E1.205).
+- Oráculo: prova de não edição refeita (ancestral ok; blob `535134e9…` igual; `git log 730843a9..HEAD -- tests/test_oraculo_v047.py` vazio); `python3 -m unittest tests.test_oraculo_v047`: 3 testes, OK.
+- Vermelho: `bin/forge-testes --vermelho e8c459de79e98bd22a65892b4605c97a7583de58 --modulos test_oraculo_v047,test_conformidade_opaco,test_hook_destino_opaco --prazo 1500`, saída 0: `vermelho: base=e8c459de79e9 head=e25f079b9834`, `revertidos à base: docs/hooks-fixtures.md, docs/hooks.md, …, hooks/conformidade.py`; `test_fixtures_opaco_u4 · H=ok · B=falha · prova (asserção)`, `test_fixtures_opaco_sem_resto` e `test_hook_concorda_com_o_bash` também provam; `contagem: não prova (passa na base)=6; prova (asserção)=3` (regressão e guardas de orçamento, esperado).
+- Mutação do delta: `bin/forge-mutante --processos 4 --base e8c459de79e98bd22a65892b4605c97a7583de58 tests/mutantes/v047-destino-opaco*.json`, cabeçalho `base=e8c459de79e9… mb=e8c459de79e9… rev=e25f079b9834`: 94 `morreu`, 1 `sobreviveu`: `O18 · sobreviveu · hooks/conformidade.py:1329`, rc=1. O mutante passava no e8c459de (49 de 49); o U4 do delta passou a recusar antes dele. Reproduzido à mão numa cópia: `test_fixtures_opaco_sem_resto` e `test_fixtures_opaco_u4` seguem OK com o mutante. A descrição da fixture `opaco-semresto-u3-variavel-duas-vezes-bloqueia` já diz que o U4 recusa antes do U3. Probável equivalente, mas o autor não o declarou (A1).
+- Cobertura: `bin/forge-mutante --cobertura --base f4b0c2aeb42b…` rc=0, todas as condições `coberta`; 4 `isenta` com motivo lido (443, 586, 1316, 1330): aceitas, equivalentes pela seção 7 da ADR 0009 ou pelo U2.
+- Fronteiras novas do U4 protegidas: crase partida no `of=` do dd (bloqueia e libera), `printf` com e sem `%s`, função recursiva ou redefinida, variável duas vezes ou do `read`, teto de 64 valores, `$(` sem par.
+- CI: sem PR e sem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local.
+
+Parecer reprovado só por A1 (mutante sobrevivente é bloqueante, `R-QA`). Sem bug de produto: nada para `docs/qa/bugs/`. Reteste do delta quando o autor declarar ou matar o O18.
