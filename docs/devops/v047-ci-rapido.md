@@ -3,12 +3,12 @@ tipo: revisao-devops
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-rapido
-commit: 88fe9ff40c95a8cae5565c6ea7105117f0a8f4dc
+commit: 5b632a48bbced4ce0a095539e11895b8d61b47c5
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-14
 ---
-# Review de devops: v047 (CI-RAPIDO, implementação)
+# Review de devops: v047 (CI-RAPIDO, volta no head 5b632a48)
 
 ## Achados
 
@@ -25,6 +25,9 @@ Aprovado. Intervalo `origin/develop...88fe9ff4` (base 067b2a9f), foco em `.githu
 - Verificação: `python3 -m unittest tests.test_pesos_do_ci tests.test_suite_partes` rodou 60 testes, OK. A suíte inteira roda só no CI; cite o CI verde do head no merge.
 - Lacunas: `actionlint`, `zizmor` e `gitleaks` ausentes do PATH (não instalo); o módulo `yaml` também falta, então o YAML foi lido por inspeção e pelos testes de matriz de `tests/test_suite_partes.py`. O job de passos do CI roda `actionlint` e `zizmor` no head. Ruleset dos checks exigidos não relido pela API (credencial do `gh` fora do sandbox).
 - Observação, sem achado: `pesos-d4.json` sem recalibrar, por desenho do pedido; a recalibração vem depois do primeiro lote de anotações da develop.
+
+## Revalidação por delta (88fe9ff4..5b632a48)
+Aprovado, sem achado. `forge-check parecer delta` aponta um único arquivo no domínio: `scripts/suite-partes.py`, que só perde `esperado_da_parte`, `pesos_por_modulo` e `dividir` (sem chamador em `scripts/`, `.github/` nem `tests/`; o `dividir` que resta é o de `scripts/suite-paralela.py`, outro módulo). O arquivo compila. `.github/`, `Dockerfile*`, `compose*` e IaC não mudam no intervalo: a análise do `ci.yml` acima segue valendo (permissões, SHAs, agregadores, nomes dos checks exigidos). Fora do domínio, conferi por leitura os textos de `skills/ci-cd/SKILL.md` (orçamento de tempo e agregador com `always()` exigindo `success`, coerentes com o `ci.yml`). `python3 -m unittest tests.test_suite_partes tests.test_ci_local`: 115 testes, OK. A suíte inteira roda só no CI; cite o CI verde do head no merge. Lacunas inalteradas: `actionlint`, `zizmor`, `gitleaks` fora do PATH.
 
 ## Custo e rollback
 Sem custo novo de dinheiro (`R-CUSTO`): runners e artefatos da franquia gratuita, retenção de 1 dia. Minutos: a develop passa de 2 jobs de 13 a 20 min para 10 pernas de 2:30 a 5:00 mais 4 jobs curtos, ou seja, o tempo de relógio cai e os minutos somados ficam na mesma ordem; medir por `gh run list` no checkpoint da release. Rollback: reverter o commit do `ci.yml` (volta ao formato 3 partes e aos jobs únicos da develop); os nomes dos checks exigidos não mudam, então não há ajuste de proteção.
