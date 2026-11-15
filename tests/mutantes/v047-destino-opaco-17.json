@@ -3,41 +3,81 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "O105",
-      "guarda": "A6 da segurança E1.304: a linha que troca a resolução do comando tira a lista positiva (U4 e U3)",
+      "id": "O109",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): `${NOME:=v}` com nome maiúsculo recusa",
       "arquivo": "hooks/conformidade.py",
-      "de": "    if RESOLUCAO_TROCADA.search(linha):",
+      "de": "    if any(not NOME_INOFENSIVO.fullmatch(m[\"nome\"]) for m in PADRAO_QUE_ATRIBUI.finditer(texto)):",
       "para": "    if False:",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]
     },
     {
-      "id": "O106",
-      "guarda": "A6 da segurança E1.304: `$(pwd)` não vira `$PWD` se a linha troca a resolução do comando",
+      "id": "O110",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): `${!x:=v}` e `${x@P}` recusam",
       "arquivo": "hooks/conformidade.py",
-      "de": "[0] and not RESOLUCAO_TROCADA.search(comando):",
-      "para": "[0]:",
+      "de": "    if EXPANSAO_QUE_ESCONDE.search(texto):",
+      "para": "    if False:",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]
     },
     {
-      "id": "O107",
-      "guarda": "A6 da segurança E1.304: `source` está na lista da resolução trocada",
+      "id": "O111",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): o texto que o `shlex` não lê recusa",
       "arquivo": "hooks/conformidade.py",
-      "de": "(?:\\.|source|hash|",
-      "para": "(?:\\.|hash|",
+      "de": "# aspa sem par\n        return False",
+      "para": "# aspa sem par\n        palavras = []",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]
     },
     {
-      "id": "O108",
-      "guarda": "A6 da segurança E1.304: `PATH` está na lista da resolução trocada",
+      "id": "O112",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): o nome depois de `function` não fecha a posição de comando",
       "arquivo": "hooks/conformidade.py",
-      "de": "(?<![\\w$.{-])(?:PATH|BASH_ENV",
-      "para": "(?<![\\w$.{-])(?:BASH_ENV",
+      "de": "        if alvo or funcao:",
+      "para": "        if alvo:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O113",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): operador do bash devolve a posição de comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif p and all(c in lexico.punctuation_chars for c in p):",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O114",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): o operador que não é redireção devolve a posição de comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if not alvo:",
+      "para": "            if True:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O115",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): fora da posição de comando a palavra é argumento",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif not inicio:",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O116",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): `printf -v` recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if comando == \"printf\" and p.startswith(\"-v\"):",
+      "para": "            if False:",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]

@@ -1,0 +1,56 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O125",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): o `echo`/`printf %s` calculado só com a linha conhecida (A2 do review E1.319, A7 da segurança E1.320)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not linha_conhecida(linha):  # A2 do review",
+      "para": "    if False:  # A2 do review",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O126",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): a lista positiva só com a linha conhecida (U3 e U4)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not linha_conhecida(linha):\n        return False",
+      "para": "    if False:\n        return False",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O127",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): `$(pwd)` só vira `$PWD` com a linha conhecida",
+      "arquivo": "hooks/conformidade.py",
+      "de": "[0] and linha_conhecida(comando):",
+      "para": "[0]:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O128",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): nome de função só com letras, dígitos, `_` e `-`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if NOME_DE_FUNCAO.fullmatch(f) and (",
+      "para": "if True and (",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O129",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): embutido fora da lista não vale como função",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        f not in EMBUTIDOS_DO_BASH or f in COMANDOS_INOFENSIVOS)}",
+      "para": "        True)}",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}

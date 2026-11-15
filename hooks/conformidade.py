@@ -490,19 +490,84 @@ VARIAVEIS_DO_BASH = frozenset("_ REPLY MAPFILE BASH_REMATCH OPTARG OPTIND PWD OL
                               "READLINE_POINT READLINE_MARK COMP_WORDS COMP_CWORD COMP_LINE COMP_POINT COMPREPLY "
                               "BASH_EXECUTION_STRING EPOCHREALTIME EPOCHSECONDS RANDOM SRANDOM LINENO SECONDS".split())
 TETO_DE_VALORES = 64  # combinações de valores de uma palavra; acima, o hook não calcula
-# A6 da segurança E1.304: o nome do comando já não diz o que roda quando a linha muda a resolução dele sem definir função
-# (`. ./f.sh`, `source`, `hash -p`, `alias`, `PATH=`, `GIT_WORK_TREE=` no `rev-parse`). Lista fechada, como palavra em
-# qualquer posição (sobra recusa, nunca falta); com ela, nada da lista positiva vale e `$(pwd)` não vira `$PWD`.
-RESOLUCAO_TROCADA = re.compile(r"(?<![^\s;&|(){}])(?:\.|source|hash|alias|shopt|enable|builtin|command)(?![^\s;&|()])"
-                               r"|(?<![\w$.{-])(?:PATH|BASH_ENV|ENV|TMPDIR|GIT_\w*)(?!\w)|\$\{(?:PATH|BASH_ENV|ENV|TMPDIR"
-                               r"|GIT_\w*):?=")
+# Redesenho da E1.322 (A1 a A3 do review E1.319, A7 a A9 da segurança E1.320, A2 do QA E1.321): a lista positiva, o
+# `echo`/`printf %s` calculado e a troca de `$(pwd)` por `$PWD` valem só quando todos os comandos da linha, lidos como o
+# bash os lê depois de tirar aspas e barras (`shlex`), estão numa lista fechada de comandos que não trocam a resolução
+# nem a saída de outro comando. O que o hook não reconhece recusa (falha fechada; sobra recusa, nunca falta).
+COMANDOS_INOFENSIVOS = frozenset("echo printf cat tee cp mv ln install dd mkdir touch rm rmdir ls find git date mktemp "
+                                 "pwd true false : test [ head tail wc sort uniq grep cut basename dirname realpath "
+                                 "readlink stat diff".split())
+PALAVRAS_DA_GRAMATICA = frozenset("{ ! if then elif else do while until time".split())  # a posição de comando segue
+FIM_DA_GRAMATICA = frozenset("} fi done".split())
+ATRIBUICAO = re.compile(r"(?P<nome>[A-Za-z_]\w*)(?:\[[^]]*\])?\+?=")
+NOME_INOFENSIVO = re.compile(r"[a-z_][a-z0-9_]*")  # o bash não lê nome minúsculo (PATH, TMPDIR, GIT_*, BASH_* são maiúsculos)
+PADRAO_QUE_ATRIBUI = re.compile(r"\$\{#?(?P<nome>\w+)(?:\[[^]]*\])?:?=")
+# `${!x:=v}` atribui ao nome guardado em `x` e `${x@P}` expande o valor como prompt (com `${T:=v}` dentro)
+EXPANSAO_QUE_ESCONDE = re.compile(r"\$\{(?:!|[^}]*@[A-Za-z])")
+REDIRECAO = re.compile(r"&?[<>]+[&|]?")
+# Embutidos e palavras reservadas do bash 5 (`compgen -b`, `compgen -k`): função com esse nome fora da lista não vale,
+# porque o hook acha a definição pelas palavras sem aspas (`"function" source` não define nada e o `source` seguinte é o
+# embutido); com nome de programa, o engano só libera um programa, que não troca a resolução do shell.
+EMBUTIDOS_DO_BASH = frozenset(""". : [ alias bg bind break builtin caller cd command compgen complete compopt continue
+    declare dirs disown echo enable eval exec exit export false fc fg getopts hash help history jobs kill let local logout
+    mapfile popd printf pushd pwd read readarray readonly return set shift shopt source suspend test times trap true type
+    typeset ulimit umask unalias unset wait if then else elif fi case esac for select while until do done in function
+    time { } ! [[ ]] coproc""".split())
+NOME_DE_FUNCAO = re.compile(r"[A-Za-z_][\w-]*")
+
+
+@lru_cache(maxsize=256)
+def linha_conhecida(linha, funcoes=frozenset()):
+    """Todos os comandos da linha, e os de cada `$(…)` e crase dela, estão em `COMANDOS_INOFENSIVOS` ou são funções
+    definidas na linha (o corpo delas é lido como o resto); a atribuição e o `${x:=v}` só com nome minúsculo;
+    `printf -v` recusa."""
+    texto = linha.replace("\\\n", "").replace("\n", ";")
+    if any(not NOME_INOFENSIVO.fullmatch(m["nome"]) for m in PADRAO_QUE_ATRIBUI.finditer(texto)):
+        return False
+    if EXPANSAO_QUE_ESCONDE.search(texto):
+        return False
+    lexico = shlex.shlex(texto, posix=True, punctuation_chars=True)
+    lexico.whitespace_split, lexico.commenters = True, ""
+    try:
+        palavras = list(lexico)
+    except ValueError:  # aspa sem par
+        return False
+    definidas = {p for i, p in enumerate(palavras[1:]) if palavras[i] == "function"} | {
+        p for i, p in enumerate(palavras[:-1]) if palavras[i + 1] == "()"}
+    funcoes = funcoes | {f for f in definidas if NOME_DE_FUNCAO.fullmatch(f) and (
+        f not in EMBUTIDOS_DO_BASH or f in COMANDOS_INOFENSIVOS)}
+    inicio, alvo, funcao, comando = True, False, False, None
+    for p in palavras:
+        if alvo or funcao:
+            alvo, funcao = False, False
+        elif p and all(c in lexico.punctuation_chars for c in p):
+            alvo = bool(REDIRECAO.fullmatch(p))
+            if not alvo:
+                inicio, comando = p != ")", None
+        elif not inicio:
+            if comando == "printf" and p.startswith("-v"):
+                return False
+        elif p in PALAVRAS_DA_GRAMATICA:
+            continue
+        elif p in FIM_DA_GRAMATICA:
+            inicio, comando = False, None
+        elif p == "function":
+            funcao = True  # o nome que vem depois dele não fecha a posição de comando: o corpo `{ …; }` é lido
+        elif m := ATRIBUICAO.match(p):
+            if not NOME_INOFENSIVO.fullmatch(m["nome"]):
+                return False
+        elif p in COMANDOS_INOFENSIVOS or p in funcoes:
+            inicio, comando = False, p
+        else:
+            return False
+    return all(linha_conhecida(corpo, funcoes) for corpo in corpos_de_substituicao(texto))
 
 
 def na_lista_positiva(corpo, linha):
-    """O corpo está em `CORPO_POSITIVO`, não cita o `.git` (A3 da segurança E1.206: `mktemp -p .git`) e a linha não
-    redefine o comando como função (A1 do review E1.279: `date(){ printf .gi%s t/config; }`) nem troca a resolução dele
-    (`RESOLUCAO_TROCADA`, A6 da segurança E1.304), no U4 e no U3."""
-    if RESOLUCAO_TROCADA.search(linha):
+    """O corpo está em `CORPO_POSITIVO`, não cita o `.git` (A3 da segurança E1.206: `mktemp -p .git`), a linha não
+    redefine o comando como função (A1 do review E1.279: `date(){ printf .gi%s t/config; }`) e todos os comandos dela
+    estão na lista fechada (`linha_conhecida`, E1.322), no U4 e no U3."""
+    if not linha_conhecida(linha):
         return False
     if corpo_da_funcao(corpo.split()[0] if corpo.split() else corpo, linha)[0]:
         return False
@@ -544,6 +609,8 @@ def corpo_da_funcao(nome, linha):
 def valores_do_corpo(corpo, linha, fundo):
     """U4: os valores da saída do corpo de `$(…)` ou da crase, ou None fora da lista positiva."""
     corpo = corpo.strip()
+    if not linha_conhecida(linha):  # A2 do review E1.319, A7 da segurança E1.320: também o `echo` e o `printf %s`
+        return None
     if na_lista_positiva(corpo, linha):
         return [SEM_VALOR]
     palavras = dividir_corpo(corpo)
@@ -1603,7 +1670,7 @@ class Guarda:
             lidas, corpos, gravado = None, [], None
             self.recusar_o_teto(comando, original, nivel)
         else:
-            if not corpo_da_funcao("pwd", comando)[0] and not RESOLUCAO_TROCADA.search(comando):  # A1 (E1.279) e A6 (E1.304)
+            if not corpo_da_funcao("pwd", comando)[0] and linha_conhecida(comando):  # A1 (E1.279) e E1.322
                 comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
             comando = REV_PARSE_DO_GIT.sub(trocar_rev_parse, comando)
             self.texto_da_linha = comando
