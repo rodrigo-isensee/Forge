@@ -288,6 +288,103 @@ class Release(Base):
         self.assertNotEqual(forge_changelog(self.dir, "release", "0.1.0", "2026-02-02").returncode, 0)
 
 
+class ReleaseAnexar(Base):
+    """E1.256 (v047): `release --anexar <versão>` junta os fragmentos à entrada que já está no CHANGELOG.md."""
+    ENTRADA = ("# Changelog\n\n## [Não publicado]\n\n## [0.2.0] - 2026-02-02\n### Adicionado\n- A0\n"
+               "### Corrigido\n- C0\n\n## [0.1.0] - 2026-01-01\n### Adicionado\n- **Antigo:** x\n")
+
+    def setUp(self):
+        super().setUp()
+        (self.dir / "CHANGELOG.md").write_text(self.ENTRADA, encoding="utf-8")
+        self.pasta = self.dir / "changelog.d"
+        self.pasta.mkdir()
+        self.manifesto = (self.dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+
+    def texto(self):
+        return (self.dir / "CHANGELOG.md").read_text(encoding="utf-8")
+
+    def test_junta_na_secao_de_cada_tipo_cria_a_que_falta_e_apaga(self):
+        (self.pasta / "a.md").write_text("### Corrigido\n- C1\n\n### Alterado\n- M1\n", encoding="utf-8")
+        (self.pasta / "b.md").write_text("### Adicionado\n- A1\n", encoding="utf-8")
+        r = forge_changelog(self.dir, "release", "--anexar", "0.2.0")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.texto(), "# Changelog\n\n## [Não publicado]\n\n## [0.2.0] - 2026-02-02\n### Adicionado\n"
+                         "- A0\n- A1\n### Alterado\n- M1\n### Corrigido\n- C0\n- C1\n\n## [0.1.0] - 2026-01-01\n"
+                         "### Adicionado\n- **Antigo:** x\n")
+        self.assertEqual(list(self.pasta.glob("*.md")), [])
+        self.assertEqual((self.dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"), self.manifesto)
+
+    def test_tipo_que_vem_depois_de_todos_entra_no_fim_da_entrada(self):
+        (self.dir / "CHANGELOG.md").write_text(self.ENTRADA.replace("### Corrigido\n- C0\n", ""), encoding="utf-8")
+        (self.pasta / "a.md").write_text("### Corrigido\n- C1\n", encoding="utf-8")
+        self.assertEqual(forge_changelog(self.dir, "release", "--anexar", "0.2.0").returncode, 0)
+        self.assertIn("## [0.2.0] - 2026-02-02\n### Adicionado\n- A0\n### Corrigido\n- C1\n\n## [0.1.0]", self.texto())
+
+    def test_linha_em_branco_entre_secoes_fica_depois_da_linha_anexada(self):
+        (self.dir / "CHANGELOG.md").write_text(self.ENTRADA.replace("- A0\n", "- A0\n\n"), encoding="utf-8")
+        (self.pasta / "a.md").write_text("### Adicionado\n- A1\n", encoding="utf-8")
+        self.assertEqual(forge_changelog(self.dir, "release", "--anexar", "0.2.0").returncode, 0)
+        self.assertIn("### Adicionado\n- A0\n- A1\n\n### Corrigido\n- C0\n", self.texto())
+
+    def test_entrada_mais_antiga_tambem_recebe(self):
+        (self.pasta / "a.md").write_text("### Adicionado\n- A1\n", encoding="utf-8")
+        self.assertEqual(forge_changelog(self.dir, "release", "--anexar", "0.1.0").returncode, 0)
+        self.assertTrue(self.texto().endswith("## [0.1.0] - 2026-01-01\n### Adicionado\n- **Antigo:** x\n- A1\n"))
+
+    def test_versao_que_nao_existe_e_recusada_sem_mexer(self):
+        (self.pasta / "a.md").write_text("### Adicionado\n- A1\n", encoding="utf-8")
+        r = forge_changelog(self.dir, "release", "--anexar", "0.3.0")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("não tem a versão 0.3.0", r.stderr)
+        self.assertEqual(self.texto(), self.ENTRADA)
+        self.assertTrue((self.pasta / "a.md").exists())
+
+    def test_versao_prefixo_de_outra_e_recusada(self):
+        (self.pasta / "a.md").write_text("### Adicionado\n- A1\n", encoding="utf-8")
+        r = forge_changelog(self.dir, "release", "--anexar", "0.2")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("Versão no formato X.Y.Z.", r.stderr)
+        self.assertEqual(self.texto(), self.ENTRADA)
+
+    def test_sem_fragmento_e_recusado_sem_mexer(self):
+        r = forge_changelog(self.dir, "release", "--anexar", "0.2.0")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("Nada a anexar", r.stderr)
+        self.assertEqual(self.texto(), self.ENTRADA)
+
+    def test_fragmento_malformado_falha_sem_apagar(self):
+        (self.pasta / "a.md").write_text("sem titulo\n", encoding="utf-8")
+        self.assertEqual(forge_changelog(self.dir, "release", "--anexar", "0.2.0").returncode, 1)
+        self.assertEqual(self.texto(), self.ENTRADA)
+        self.assertTrue((self.pasta / "a.md").exists())
+
+    def test_changelog_link_simbolico_e_recusado(self):
+        fora = tempfile.TemporaryDirectory()
+        self.addCleanup(fora.cleanup)
+        alvo = Path(fora.name) / "CHANGELOG.md"
+        alvo.write_text(self.ENTRADA, encoding="utf-8")
+        (self.dir / "CHANGELOG.md").unlink()
+        (self.dir / "CHANGELOG.md").symlink_to(alvo)
+        (self.pasta / "a.md").write_text("### Adicionado\n- A1\n", encoding="utf-8")
+        r = forge_changelog(self.dir, "release", "--anexar", "0.2.0")
+        self.assertEqual(r.returncode, 1)
+        self.assertEqual(alvo.read_text(encoding="utf-8"), self.ENTRADA)
+
+    def test_anexar_com_versao_ou_data_posicional_e_recusado(self):
+        (self.pasta / "a.md").write_text("### Adicionado\n- A1\n", encoding="utf-8")
+        r = forge_changelog(self.dir, "release", "0.2.0", "--anexar", "0.2.0")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("só a versão", r.stderr)
+        self.assertEqual(self.texto(), self.ENTRADA)
+
+    def test_release_sem_data_e_recusada(self):
+        (self.pasta / "a.md").write_text("### Adicionado\n- A1\n", encoding="utf-8")
+        r = forge_changelog(self.dir, "release", "0.3.0")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("Uso: forge-changelog release", r.stderr)
+        self.assertEqual(self.texto(), self.ENTRADA)
+
+
 class ReleaseAvisaAvaliacaoDeFora(Base):
     """0.45.3: o fim da release avisa a avaliação de fora pendente (5 versões desde a última docs/avaliacoes/*.md); só avisa."""
 

@@ -1,0 +1,26 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "linha anexada fica antes das linhas em branco do fim da secao",
+      "arquivo": "bin/forge-changelog",
+      "de": "            while fim > mesmo[0] + 1 and not linhas[fim - 1].strip():\n",
+      "para": "            while False:\n",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_linha_em_branco_entre_secoes_fica_depois_da_linha_anexada"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "secao nova entra antes do tipo seguinte na ordem",
+      "arquivo": "bin/forge-changelog",
+      "de": "            pos = depois[0] if depois else len(linhas)\n",
+      "para": "            pos = len(linhas)\n",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_junta_na_secao_de_cada_tipo_cria_a_que_falta_e_apaga"
+      ]
+    }
+  ]
+}
