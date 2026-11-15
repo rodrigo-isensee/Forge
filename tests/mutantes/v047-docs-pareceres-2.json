@@ -41,6 +41,16 @@
       "testes": [
         "tests.test_forge.DocsPareceresPedidoECaminho.test_copia_fora_da_raiz_tem_o_criterio_da_pasta_do_tipo_e_sai_com_o_nome_dado"
       ]
+    },
+    {
+      "id": "M13",
+      "guarda": "v047 E1.252: fora da raiz, arquivo sem frontmatter é recusado, sem exceção",
+      "arquivo": "bin/forge-check",
+      "de": "tipo = (ler_frontmatter(texto)[0] or {}).get(\"tipo\")",
+      "para": "tipo = ler_frontmatter(texto)[0].get(\"tipo\")",
+      "testes": [
+        "tests.test_forge.DocsPareceresPedidoECaminho.test_dentro_da_raiz_a_pasta_errada_segue_recusada_e_tipo_desconhecido_fora_tambem"
+      ]
     }
   ]
 }

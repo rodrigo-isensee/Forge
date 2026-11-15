@@ -7556,6 +7556,8 @@ class DocsPareceresPedidoECaminho(unittest.TestCase):
         self.assertEqual(self.docs(arq)[0], [f"{arq}: tipo: `review` pertence a docs/reviews/ (R-REVIEW)"])
         arq = self.gravar(self.fora, "r.md", self.parecer(tipo="outro"))
         self.assertIn("tipo: esperado um de", self.docs(arq)[0][0])
+        arq = self.gravar(self.fora, "nota.md", "# sem frontmatter\n")
+        self.assertEqual(self.docs(arq)[0], [f"{arq}: frontmatter: sem frontmatter no topo (ADR-0004)"])
 
     def test_arquivo_ausente_ou_que_nao_e_md_e_recusado(self):
         txt = self.gravar(self.fora, "r.txt", self.parecer())
