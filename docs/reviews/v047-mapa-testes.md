@@ -3,34 +3,36 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-mapa-testes
-commit: 477dbefe80ed35a590dc2f689eea32cd39177fcd
-parecer: reprovado
+commit: 2263bc0d9d032d4d79d42c4e57641b073108f4dc
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-14
 ---
-# Review: v047 (E1.271, melhoria/v047-mapa-testes)
+# Review: v047 (E1.284, melhoria/v047-mapa-testes)
 
-Code review (`R-REVIEW`) do intervalo `origin/develop` (`c5c3a449`) até `477dbefe`, 3 commits da E1.253: `quem_importa` em `bin/forge-testes`, testes em `tests/test_testes_tocados.py` (classe `QuemImporta`), duas specs de mutantes e o fragmento do changelog. Feito por uma instância que não fez a entrega.
+Revalidação do code review (`R-REVIEW`) por delta, feita por uma instância que não fez a entrega. Rodada anterior (E1.271, head `477dbefe`): reprovado por A1 (o ramo dos apoios afrouxava a opção C da M8 sem decisão do dono) e A2 (o fecho não seguia teste que importa teste). A3 e A4 eram recomendados.
 
 ## Achados
-- A1 (bloqueante) bin/forge-testes:278 · Requisito (R-DECISAO): apoio de tests/ sai da suíte completa para o dirigido. A decisão 7 do estudo-custo-suite (21:21) e o adendo 2 da 075 (linha 71) dizem que isso afrouxa a opção C da M8 e só reabre pelo fato da A13. Tire o ramo apoio ou leve ao dono.
-- A2 (bloqueante) bin/forge-testes:341 · Defeito provado (S1, S2): o fecho segue apoio que cita apoio, mas não teste que importa teste. Mudar tests/ambiente_git.py deixa fora os 20 test_fechar_*, cujo setUp é base.Fechar.setUp (chama sem_manutencao). É a variante V1t da M8.
-- A3 (recomendado) tests/test_testes_tocados.py:165 · O caso apoio_volta_unica completo (oráculo MP-1-fechado do adendo 2) saiu do teste da decisão 7. Se o dono reabrir, o PR leva o afrouxamento no título com o motivo (CLAUDE.md); se não, o caso volta.
-- A4 (recomendado) bin/forge-testes:327 · O ramo hook só alarga: nos 9 hooks/*.py o plano novo contém o antigo (agentes 27 para 29, _comum 27 para 30, pesado 27 para 28). Ele fecha o TESTE-RITMO-SEM-MAPA sozinho e pode entrar num PR à parte, sem o ramo apoio.
+- A1 (recomendado) bin/forge-testes:328 · M1 morre por erro (TypeError em achado[1] com `if False`), não por asserção. Vale como morto, mas um caso com caminho fora de hooks/ que o mutante deixe passar sem erro tornaria a morte explícita.
+- A2 (recomendado) bin/forge-testes:333 · `{**lidos, **textos}` junta por stem hooks/ e tests/: um hook e um apoio com o mesmo nome se sobrescrevem e o fecho perde os imports de um deles. Hoje não há colisão (conferido); vale uma nota ou chave por pasta.
 
 ## Sondas
-- S1 · brinquedo: tests/apoio_a.py; test_base.py faz `from apoio_a import f`; test_filho.py faz `import test_base` e usa Base.setUp; planejar(["tests/apoio_a.py"]) · espera: test_filho no plano ou "completo" · obtido: ('dirigido', ['test_base'])
-- S2 · no repo, planejar(["tests/ambiente_git.py"]) contra os imports test_* -> test_* · espera: todo módulo que importa um do plano está no plano · obtido: dirigido com 99 módulos, faltam 35, entre eles test_fechar_auto_merge e os outros 19 test_fechar_*
 
 ## Parecer
-**Reprovado** por A1 e A2.
+**Aprovado** no head `2263bc0d`.
 
-A1. O ponto que o brief pede para o review: a opção C da M8 (2026-10-24) manda todo módulo de teste do diff para a suíte completa, e a decisão 7 do estudo-custo-suite (2026-11-07 21:21, "Não, por ora") recusou até a opção A. Essa opção levava o módulo de teste ao dirigido e mesmo assim mantinha "apoios e fixtures no caminho inteiro". O adendo 2 da 075 (`docs/arquitetura/versao-075-desenho-adendo-2.md:5,71,84,136`) diz que mapear apoio para quem o importa afrouxa a opção C. Diz também que a decisão já é do dono e reabre só pelo fato registrado no estudo: mais de 2 suítes inteiras por dia cujo único gatilho foi módulo de teste, medido no log da A13. O cartão TESTE-RITMO-SEM-MAPA e a E1.253 não trazem decisão nova do dono, e o pedido v047 não tem nenhuma linha DECISÃO DO DONO sobre apoios. Ler o apoio como "não é módulo de teste" não fecha o ponto, porque a própria decisão o separou e o manteve na completa. Sugestão: tire o ramo `apoio` de `IMPORTAVEL` (`bin/forge-testes:231`) e devolva `tests/apoio_volta_unica.py` ao caso `completo` (`tests/test_testes_tocados.py:166`). Se o dono quiser reabrir, ele recebe o pedido com a medida da A13.
+Delta lido: `forge-check parecer delta docs/reviews/v047-mapa-testes.md` (rc=0), intervalo `477dbefe..2263bc0d`, commits `c808c573`, `e71680ab`, `2263bc0d`; no domínio `bin/forge-testes`, `changelog.d/v047-mapa-testes.md`, as duas specs em `tests/mutantes/` e `tests/test_testes_tocados.py`. Já lido e não relido: o restante da branch, no parecer da rodada anterior.
 
-A2. Mesmo com decisão do dono, o fecho está incompleto. O argumento da opção C foi exatamente este: a importação entre testes é direta, transitiva ou dinâmica, e o mapa não acompanha. O `quem_importa` cobre a importação direta, a varredura por glob e a cadeia apoio → apoio. Fica de fora a cadeia apoio → teste → teste: `test_fechar` importa `ambiente_git`, e os 20 `test_fechar_*` importam `test_fechar` e rodam o `setUp` dele. Contra o grafo de imports do repositório, `ambiente_git` deixa 35 módulos fora do plano, `apoio_jarvis` e `modelo_git` 24 cada, `apoio_volta_unica` 10 e `guarda_git` 5. A conferência `MapaCobreOQueOsTestesLeem` não pega o caso porque não olha imports de apoio.
+Achados da rodada anterior:
+- A1 resolvido. O ramo `apoio` saiu (`IMPORTAVEL`, `APOIO_NA_COMPLETA`, `VARRE_TESTS` e o `fnmatch` foram apagados); `quem_importa` devolve vazio fora de `hooks/` e o `if casou is None` volta ao texto da `develop` (`c5c3a449`, linha 268). No repositório, `tests/ambiente_git.py` e `tests/apoio_jarvis.py` dão `completo`. Fica a decisão 7 do dono intacta.
+- A2 resolvido no que restou (o hook). O fecho agora parte do hook e dos módulos da regra (`junto`) e segue hook, apoio e módulo de teste que importa um deles. O teste permanente `test_no_repositorio_o_plano_do_hook_traz_todo_teste_que_importa_um_modulo_do_plano` refaz a sonda S2 pela árvore sintática, independente da expressão do script, nos 9 hooks (mínimo afirmado: 9).
+- A3 resolvido: `tests/apoio_volta_unica.py` voltou ao caso `completo` (`tests/test_testes_tocados.py:165`), e `test_apoio_de_tests_importado_segue_na_completa` (linha 334) trava o ramo de falha.
+- A4 atendido: o PR ficou só com o hook.
 
-Hooks (A4): comparei `planejar` da `origin/develop` com o do head nos 9 hooks. Nenhum perde módulo, então essa parte endurece e está correta. O critério de import (`^\s*import x\b` ou `from x import`) está coberto pelos casos `agentes_x` e `'agentes'` do teste.
+Efeito medido: o plano de cada hook cresceu de 27-30 para 46-65 módulos (`_comum` 65, `agentes` e `pesado` 64, `doutor` 46, os outros 61), porque o fecho agora traz quem importa os módulos da regra (`test_hooks` e afins). É o lado seguro (só alarga) e continua dirigido; registro como medida, não como achado.
 
-Checklist de leitura: legível, sem código morto, guardas com mutantes declarados em duas specs (o autor relata 14 mortos). O teste do ciclo roda em subprocesso com `-I`, ambiente limpo e prazo. Tamanho: 126 linhas de código e teste (`bin/` 50, `tests/test_testes_tocados.py` 76), abaixo da orientação de 150 (M14). Commits em Conventional Commits, em português.
+Checklist de leitura sobre o delta: `importados` e `quem_importa` são curtos e legíveis; o regex `IMPORTA` lê import também em texto que vai ao subprocesso e em comentário, o que só alarga. O ajuste do `test_oraculo_entra_no_plano_sem_mudar_a_contagem` copia os textos reais para o brinquedo, necessário porque o fecho lê os imports. Teste do ciclo em subprocesso com `-I`, ambiente limpo e prazo. Fragmento do changelog atualizado e coerente com a decisão 7. Commits em Conventional Commits, em português. Tamanho contra a base: `bin/forge-testes` 43 e `tests/test_testes_tocados.py` 81, 124 linhas, abaixo dos 150 (M14).
 
-Suíte: o brief não abriu PR, então não há CI para citar. O autor relata 157 testes verdes (log do pedido, 21:56). Rodei só os testes novos e os vizinhos: `python3 -m unittest tests.test_testes_tocados.QuemImporta tests.test_testes_tocados.Mapa` deu 24 testes OK. Os testes passam, e A2 mostra que o defeito fica fora do que eles medem.
+Mutantes (rodados por mim, 1 processo): `bin/forge-mutante tests/mutantes/v047-mapa-testes.json` M1 a M8 morreram (M1 por erro, ver A1); `tests/mutantes/v047-mapa-testes-2.json` M9 a M13 morreram. `bin/forge-mutante --cobertura --base 477dbefe` aponta só `sem mutante · bin/forge-testes:274 · casou is None`, que é a linha da `develop` restaurada, sem mudança contra a base do pedido.
+
+Suíte: sem PR aberto, não há CI para citar. Rodei os vizinhos: `python3 -m unittest tests.test_testes_tocados.QuemImporta tests.test_testes_tocados.Mapa tests.test_testes_tocados.Oraculos` deu 26 testes OK.
