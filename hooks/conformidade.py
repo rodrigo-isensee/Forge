@@ -677,6 +677,11 @@ def valores_do_corpo(corpo, linha, fundo):
     return juntar([parte for v in valores for parte in ([separador], v)][1:])
 
 
+def atribui_por_expansao(nome, linha):
+    """`${nome:=v}` ou `${nome=v}` (também com índice) atribui na própria linha."""
+    return re.search(rf"\$\{{#?{nome}(\[[^]]*\])?:?=", linha) is not None
+
+
 def valores_da_variavel(m, linha, fundo):
     """U4: os valores de `$x`, `${x}` e `${x:-v}`: o da única atribuição na linha ou, sem ela, o do ambiente
     (`SEM_VALOR`), mais o padrão literal; None se a variável nasce de outro jeito (`for`, `read`, `+=`)."""
@@ -685,12 +690,13 @@ def valores_da_variavel(m, linha, fundo):
         return None
     if nome.startswith("GIT_") or re.search(rf"(?<![\w${{]){nome}(?![\w=])", linha):
         return None
-    if re.search(rf"\$\{{#?{nome}(\[[^]]*\])?:?=", linha):  # A14 (E1.332): `${d:=v}` atribui na linha
+    if atribui_por_expansao(nome, linha):  # A14 (E1.332): `${d:=v}` atribui na linha
         return None
     atribuicoes = [valor_atribuido(linha, a.end()) for a in re.finditer(rf"(?<![\w$]){nome}=", linha)]
     if len(atribuicoes) > 1:
         return None
-    if not atribuicoes and any(re.search(rf"(?<![\w${{]){nome[:k]}(?![\w])", linha) for k in range(1, len(nome))):
+    if not atribuicoes and any(re.search(rf"(?<![\w${{]){nome[:k]}(?![\w])", linha) or atribui_por_expansao(nome[:k], linha)
+                               for k in range(1, len(nome))):  # A15 (E1.336): também `: ${d:=.gi}; cp x "$d"t`
         return None  # `d=.gi; cp x "$d"t` chega sem aspas como `$dt`: o prefixo nascido na linha não é do ambiente
     valores = valores_da_palavra(atribuicoes[0], linha, fundo + 1) if atribuicoes else [SEM_VALOR]
     if m["op"] and valores is not None:

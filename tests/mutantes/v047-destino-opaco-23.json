@@ -16,8 +16,18 @@
       "id": "O154",
       "guarda": "E1.334, volta do lote B (A14 da segurança E1.332): `${d:=v}` na linha não deixa `$d` valer como do ambiente",
       "arquivo": "hooks/conformidade.py",
-      "de": "    if re.search(rf\"\\$\\{{#?{nome}(\\[[^]]*\\])?:?=\", linha):",
+      "de": "    if atribui_por_expansao(nome, linha):  # A14 (E1.332): `${d:=v}` atribui na linha",
       "para": "    if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O155",
+      "guarda": "E1.338, volta do lote B (A15 da segurança E1.336): `${d:=v}` ou `${d=v}` faz o prefixo nascer na linha; `\"$d\"t` não vale como do ambiente",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not atribuicoes and any(re.search(rf\"(?<![\\w${{]){nome[:k]}(?![\\w])\", linha) or atribui_por_expansao(nome[:k], linha)",
+      "para": "    if not atribuicoes and any(re.search(rf\"(?<![\\w${{]){nome[:k]}(?![\\w])\", linha)",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]
