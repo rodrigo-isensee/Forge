@@ -31,6 +31,16 @@
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]
+    },
+    {
+      "id": "O156",
+      "guarda": "E1.338, volta do lote B (A15 da segurança E1.336): `atribui_por_expansao` reconhece `${d:=v}` e `${d=v}` (com índice), para o nome e para o prefixo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return re.search(rf\"\\$\\{{#?{nome}(\\[[^]]*\\])?:?=\", linha) is not None",
+      "para": "    return False",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
     }
   ]
 }
