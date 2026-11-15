@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-rapido
-commit: 5b632a48bbced4ce0a095539e11895b8d61b47c5
-parecer: reprovado
+commit: 0237a1bcdad85dca462d34aa0426a328f6af78c0
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
@@ -19,8 +19,8 @@ Instância que não fez a entrega. Intervalo `origin/develop..88fe9ff4` (o remot
 ## Achados
 - A1 (bloqueante) tests/test_suite_partes.py:499 · R-QA: resolvido: antes sem veredito na base; agora os testes falham por asserção (`self.job`/`self.casar`). Vermelho rc=0, sem `sem veredito` (ver Cenários).
 - A2 (recomendado) tests/mutantes/v047-ci-rapido-2.json:84 · resolvido: M20 declarado `equivalente` com justificativa; `forge-mutante` o lista `equivalente`, rc=0.
-- A3 (bloqueante) stacks/node-react/pronto.md:65 · R-QA: manda dividir "por unidade de teste, não por arquivo" com `vitest --shard K/N`, mas o Vitest divide por arquivo (sem pesos); contradiz a regra de `skills/ci-cd`. Corrigir o texto ou a ferramenta. (`devops-engineer`/dev da stack)
-- A4 (recomendado) tests/test_suite_partes.py:609 · docstring ainda diz "as 3 partes de cada versão"; são 5 (AR-9, limite antigo no texto, 4ª vez); a linha AR-9 sobe no PR do review.
+- A3 (bloqueante) stacks/node-react/pronto.md:65 · R-QA: resolvido em 0237a1bc: o texto agora diz que o `--shard` divide por arquivo, sem pesos, e manda quebrar o arquivo grande.
+- A4 (recomendado) tests/test_suite_partes.py:609 · resolvido em 0237a1bc (docstring com 5 partes; AR-9 com vezes 4). Antes dizia "as 3 partes de cada versão"; são 5 (AR-9, limite antigo no texto, 4ª vez); a linha AR-9 sobe no PR do review.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -56,3 +56,10 @@ Instância que não fez a entrega. Intervalo `origin/develop..88fe9ff4` (o remot
 - Suíte dirigida local (`test_suite_partes`, `test_pesos_do_ci`, `test_ci_local`) no head: `Ran 131 tests ... OK` (os 134 antes menos os 3 testes das funções removidas). Suíte inteira e check-run `bateria`: CI do PR (sem PR ainda; I5).
 - Merge com o remoto (pareceres de review e segurança, `1f1214be`) sem conflito.
 - `forge-check docs`: rc=0.
+
+## Revalidação por delta 5b632a48..0237a1bc (`forge-check parecer delta`, rc=0)
+- Domínio lido: só textos. `stacks/node-react/pronto.md` (A3: `vitest --shard` por arquivo, sem pesos; consistente com a skill), `skills/ci-cd/SKILL.md` (overhead medido pelo projeto, sem número do Forge: neutro), docstring de `tests/test_suite_partes.py:609` ("5 partes", igual à matriz `parte: [1..5]` do `ci.yml`), `docs/engineering/achados-recorrentes.md` (AR-9 vezes 4).
+- Nenhuma linha de guarda mudada: a mutação do delta não se aplica (a mudança de código é uma docstring); M1 a M34 seguem os da rodada anterior.
+- Suíte dirigida local (`test_suite_partes`, `test_pesos_do_ci`, `test_ci_local`) no head: `Ran 131 tests ... OK`. Vermelho: sem teste novo no delta. Suíte inteira e `bateria`: CI do PR (sem PR ainda; I5).
+- Remoto avançou (`79eae902`, só `docs/security/v047-ci-rapido.md`), trazido por fast-forward.
+- Bugs abertos: nenhum. Aprovado.
