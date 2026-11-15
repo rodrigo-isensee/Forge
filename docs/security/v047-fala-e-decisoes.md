@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-fala-e-decisoes
-commit: 05797223ac8b884b8d44874803878cfb356eedbc
+commit: a4a476617e6aae4b418e2a97df2839f84500942a
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-14
@@ -11,6 +11,15 @@ data: 2026-11-14
 # Review de segurança: v047 (fala só no marco e pedido das decisões)
 
 Intervalo revisado: `origin/develop` (c5c3a449) até 05797223, um commit (E1.282): `agents/jarvis.md`, `skills/falar-com-o-dono/SKILL.md`, `skills/modo-iniciante/SKILL.md`, `tests/config.json` e o fragmento `changelog.d/v047-fala-e-decisoes.md`.
+
+## Revalidação por delta (05797223..a4a47661, E1.302)
+Lido por `forge-check parecer delta`: `skills/falar-com-o-dono/SKILL.md`, `skills/kanban-scrum/SKILL.md`, `skills/modo-iniciante/SKILL.md`, três arquivos novos ao lado das skills (`resposta-curta.md`, `experimentos.md`, `numeros.md`) e `tests/config.json`; fora do domínio, o fragmento do changelog.
+
+**Nada apagado nem resumido (diretriz 25), conferido por script contra a base c5c3a449:** a linha "Resposta curta (O4)" da base volta idêntica em `resposta-curta.md`, com `decisoes --resposta` e os campos `origem:`, `procurado:`, `seguir:`, `não seguir:` do corte recomendado; o "Ritmo" volta à forma da base. A tabela e a frase dos experimentos e os três itens de "Números da pergunta" mudaram de arquivo sem alteração de texto. A frase de Scrum só ganhou o trecho do `tech-lead` e do `agile-coach`. As demais linhas da base ausentes no head são as do commit anterior, já revisadas acima (A2).
+
+**Invariantes:** o delta só acrescenta: 7 padrões em listas existentes e 3 listas novas para os arquivos novos, todos com `regra` e `porque` (R-DECISAO); nenhuma linha de proteção removida nem afrouxada, sem rótulo `afrouxa-regra`. Os arquivos novos não são lidos por hook nem por ferramenta (`hooks/`, `bin/` sem referência), então mover o texto não muda nenhuma barreira técnica; continuam protegidos pelos invariantes novos.
+
+O A1 e o A2 abaixo (recomendados) não foram tocados no delta e seguem abertos, sem bloquear.
 
 ## Gatilhos
 Controles do Forge (`R-SEGURANCA`): `tests/config.json` (invariantes). Os demais arquivos são texto de agente e skill, sem autenticação, segredo, dependência, CI, hook nem `docs/regras/`.
@@ -37,6 +46,8 @@ Neutralidade (`R-NEUTRO`): a extensão citada é um editor genérico, não um pr
 
 ## Riscos aceitos e ferramentas
 Sem riscos aceitos.
+
+Conferido no head a4a47661: `tests.test_forge.Neutralidade`, `NeutralidadeDoNucleo` e `RegrasInviolaveis` OK (9 testes); testes de invariantes OK (2 testes).
 
 Conferido no head 05797223:
 - Os padrões de `invariantes` dos três arquivos casam com o texto (script local, sem falta).
