@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conferencia-dois-pedidos
-commit: a7872bf5094a4f84d48a802a1fcf810b0d1e1fb3
+commit: 4865f8f27d29281f5886261a607ba44efcf0385b
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-14
+data: 2026-11-15
 ---
 # QA: v047 · conferência com briefs de dois pedidos (E1.277, parecer E1.291)
 
@@ -40,3 +40,10 @@ Pedido de correção sem especificação de UX: as obrigações são a E1.277 do
 - Cobertura (`forge-mutante --cobertura --base c5c3a449`): toda condição mudada em bin/forge-check (1386, 1387, 2585, 2586, 2596, 2601, 2603, 2801) tem mutante declarado; só a linha apagada da base (1378, `len(ids) > 1`) sai "apagada", coberta por M3/M4.
 - Análise de afrouxamento (R-PROVA): a nova isenção exige tipo, branch e veredito válidos no frontmatter, brief de papel do portão do tipo, pedido do brief, arquivo no escopo declarado do brief, `pedido:` e `commit:` iguais aos do brief e nenhum veredito trocado no mesmo commit. Pedido ambíguo (0 ou 2+ com codigo) segue falha fechada. Não vi caminho que aceite mais do que o brief selado mandou.
 - Suíte inteira: fica para o check-run `bateria` do CI do PR (ainda não existe; sem PR neste pedido).
+
+## Revalidação do delta 4cc74cb3..4865f8f2 (volta do 564, instância que não fez a entrega)
+- Delta no domínio do QA: `bin/forge-testes` (módulo novo na lista FORGE_CHECK), `tests/test_conferencia_dois_pedidos.py` (`sem_manutencao` no `git init`, isola o teste da manutenção do git) e a spec de mutantes (isenta da linha apagada 1378, `len(ids) > 1`).
+- `python3 -m unittest tests.test_conferencia_dois_pedidos`: 19 testes, OK.
+- `bin/forge-mutante --base 4cc74cb3 tests/mutantes/v047-conferencia-dois-pedidos-2.json`, rc 0: base=4cc74cb321eb mb=4cc74cb321eb rev=4865f8f27d29; M9-M16 morreram, sem sobrevivente.
+- Isenção da linha 1378: aceita; a condição foi editada, não apagada, e a falha fechada com dois pedidos está coberta por M5 e pelo filtro de M4/M15. Sem afrouxamento (R-PROVA).
+- Suíte inteira: check-run `bateria` do CI do PR (sem PR neste pedido).
