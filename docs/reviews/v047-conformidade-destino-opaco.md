@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: c3cde09fdec39e3d8bed6b8d0e0113216189a7ca
-parecer: reprovado
+commit: c22624c5b274546685d4db04ab44236bfafe6f31
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-15
 ---
-# Review: v047 · CONFORMIDADE-A9-DESTINO-OPACO e CONFORMIDADE-A10-OPERADOR-COLADO (E1.335, E1.339)
+# Review: v047 · CONFORMIDADE-A9-DESTINO-OPACO e CONFORMIDADE-A10-OPERADOR-COLADO (E1.335, E1.339, E1.343)
 
 ## Rodada no 74b42c69 (E1.335, reprovado)
 Revalidação por delta do head 74b42c69, a volta da E1.334 sobre a A13 e a A14 da segurança E1.332 (lote B). Revisou uma instância que não fez a entrega.
@@ -38,12 +38,30 @@ A1 (A15 da segurança, A16 do QA): fechado em 384d16ef, com fixtures e mutantes 
 
 Achado da rodada no 74b42c69, agora fechado: A1 (bloqueante) hooks/conformidade.py:693 · A A14 fechou só a busca de :688; a do prefixo nascido na linha ainda pula `${d:=v}` (S1: `: ${d:=.gi}; cp x "$d"t`, S2: `: ${d:=.gi}; cp -rT ev "$d"t`, rc 0). Fechado acima.
 
+Achado e sondas da rodada no c3cde09f (fechados na E1.343, abaixo):
+A2 (bloqueante, fechado) hooks/conformidade.py:698 · O laço de prefixos não confere `VARIAVEIS_DO_BASH`: `: .gi; cp x "$_"t` dá rc 0 (`$_t`, prefixo `_` gravado pelo bash). Recuse o prefixo da lista, com fixture e mutante (A16 da segurança E1.340, A17 do QA; R-CONFORMIDADE)
+
+S3 (da rodada) · : .gi; cp x "$_"t · espera: 2 · obtido: 0
+S4 (da rodada) · : .gi; cp -rT ev "$_"t · espera: 2 · obtido: 0
+
+Veredito da rodada: reprovado no c3cde09f (R-REVIEW). A volta fecha a A15 (e o A1 deste parecer) na busca do prefixo, com função única para o nome e o prefixo, fixtures dos dois ramos, mutante por guarda que morre e cobertura sem lacuna. Mas o mesmo laço de :698 deixa passar o prefixo que o bash grava (A2, a A16 da segurança). A volta aplica ao prefixo a recusa de `VARIAVEIS_DO_BASH` que :690 já aplica ao nome inteiro (o `GIT_` não precisa: prefixo com `GIT_` faz o nome inteiro começar com `GIT_`), com fixtures S48 a S51 da segurança e mutante.
+
+## Revalidação por delta c3cde09f..c22624c5 (E1.343, volta da A16; instância que não fez a entrega)
+Delta lido: `forge-check parecer delta docs/reviews/v047-conformidade-destino-opaco.md` (rc 0), intervalo `c3cde09f..c22624c5`, domínio de código e testes: `hooks/conformidade.py`, 5 fixtures `opaco-u4-*` novas (S48 a S51 da segurança, que recusam, e `"$HOME"t`, que libera), `tests/test_hook_destino_opaco.py` (piso 188 para 193), a spec `-23` (`de` do O154 e do O155 ajustados) e a spec nova `-24` (O157 e O158). Os merges `0d8c4051`, `c626bb21` e `0012f436` e o `491fb745` só trazem pareceres.
+
+A correção é a mínima que o A2 pediu e reusa o existente: as três recusas do nome inteiro (lista do bash, `GIT_` ou nome solto na linha, `${nome:=v}`) viram a função `nasce_fora_do_ambiente` (:685), chamada pelo nome (:699) e por cada prefixo (:704); o prefixo atribuído (`d=`) segue numa busca própria. Só acrescenta recusa (R-CONFORMIDADE): a lookahead do prefixo passa de `(?![\w])` para `(?![\w=])` com a busca `(?<![\w$])d=` ao lado, o que cobre o mesmo conjunto e mais `${d=`.
+
+Verificadores: `tests/test_hook_destino_opaco.py HookDestinoOpaco.test_fixtures_opaco_u4` OK (193 fixtures, 15 s). `bin/forge-mutante --processos 1`: na `-24`, O157 (:699) e O158 (:704) `morreu`; na `-23`, O153 (:556), O154 (:692), O155 (:704) e O156 (:682) `morreu`. `bin/forge-mutante --cobertura --base c3cde09f`: 699 e 704 `coberta`, nenhuma sem mutante; rc 0. A suíte completa fica com o CI do PR, que ainda não existe (brief sem PR).
+
+Sondas (aspas simples; hook real pela máquina do `tests/test_hooks.py`, fixture S51 com o comando trocado). As da A16 e do A17 do QA recusam com rc 2: `': .gi; cp x "$_"t'`, `': .gi; cp -rT ev "$_"t'`, `': .gi; echo a > "$_"t'`. Formas rebuscadas da mesma família também recusam: `"$_"'t'`, `"$_""t"`, `"$_"\t`, `"${_}"t`, `"$_${e:-t}"`, `e=t; … "$_$e"`, `': .g; cp x "$_"i"t"'`, `"$_"$'t'`, `` "$_"`echo t` ``, `"$_"t/../.git/config`, `read <<< .gi; cp x "$REPLY"t`, `[[ .gi =~ .* ]]; cp x "$BASH_REMATCH"t`, `set -- .gi; cp x "$1"t`, `x=(.gi); cp x "${x[0]}"t`, e as da A15 (`: ${d:=.gi}; cp x "$d"t`, `d=.gi; cp x "$d"t`). Sem regressão no lado livre, rc 0: `echo a > "$HOME"t`, `echo a > "$HOME"`, `echo a > "$TMPDIR"/x`, `cp x "$PWD"/y`.
+
+Pareceres irmãos no remoto, lidos antes do veredito: segurança E1.340 ainda no c3cde09f; QA E1.345 (50725bfd) aprovado no c22624c5, com o bloco Achados vazio (chegou no primeiro envio, que voltou com o remoto à frente). A16 da segurança e A17 do QA são a mesma falha deste A2 e fecham pelas sondas acima; A11 e A5 da segurança seguem recomendados e fora do delta.
+
+A2 (A16 da segurança, A17 do QA): fechado em c22624c5; S3 e S4 davam rc 0 no c3cde09f e dão rc 2 agora. Achados das rodadas anteriores deste parecer (A1, A2) todos fechados; nenhuma fuga nova achada.
+
 ## Achados
-- A2 (bloqueante) hooks/conformidade.py:698 · O laço de prefixos não confere `VARIAVEIS_DO_BASH`: `: .gi; cp x "$_"t` dá rc 0 (`$_t`, prefixo `_` gravado pelo bash). Recuse o prefixo da lista, com fixture e mutante (A16 da segurança E1.340, A17 do QA; R-CONFORMIDADE)
 
 ## Sondas
-- S3 · : .gi; cp x "$_"t · espera: 2 · obtido: 0
-- S4 · : .gi; cp -rT ev "$_"t · espera: 2 · obtido: 0
 
 ## Parecer
-Reprovado no c3cde09f (R-REVIEW). A volta fecha a A15 (e o A1 deste parecer) na busca do prefixo, com função única para o nome e o prefixo, fixtures dos dois ramos, mutante por guarda que morre e cobertura sem lacuna. Mas o mesmo laço de :698 deixa passar o prefixo que o bash grava (A2, a A16 da segurança). A volta aplica ao prefixo a recusa de `VARIAVEIS_DO_BASH` que :690 já aplica ao nome inteiro (o `GIT_` não precisa: prefixo com `GIT_` faz o nome inteiro começar com `GIT_`), com fixtures S48 a S51 da segurança e mutante.
+Aprovado no c22624c5 (R-REVIEW). A volta fecha a A16 (o A2 deste parecer e o A17 do QA) juntando numa função as recusas do nome e do prefixo, sem duplicar busca; fixtures dos dois ramos, mutante por guarda que morre, cobertura sem lacuna e nenhuma fuga nova nas sondas rebuscadas. A suíte completa fica com o CI do PR.
