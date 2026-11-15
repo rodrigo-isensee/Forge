@@ -2,7 +2,7 @@
 tipo: review
 contrato: 1
 pedido: melhorias-de-projeto-1311
-branch: melhoria/mp1311-pre-envio-fabrica
+branch: melhoria/mp1311-554-revalidacao
 commit: 7b3604a19b06273ea09e2692c8474b6d6cb4dc18
 parecer: aprovado
 revisor: forge:tech-lead
