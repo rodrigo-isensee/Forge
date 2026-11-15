@@ -1,0 +1,2 @@
+### Alterado
+- forge-testes: os apoios da raiz de tests/ (apoio_jarvis, apoio_volta_unica, ambiente_git e os outros, menos catraca e neutralidade) levam aos módulos que os citam ou varrem tests/, e os hooks também a quem os importa (test_ritmo com hooks/agentes.py), derivados do texto dos testes; o --listar e o --vermelho deixam de cair na suíte completa por eles (TESTE-RITMO-SEM-MAPA, v047 E1.253)
