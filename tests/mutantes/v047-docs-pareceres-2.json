@@ -47,7 +47,7 @@
       "guarda": "v047 E1.252: fora da raiz, arquivo sem frontmatter é recusado, sem exceção",
       "arquivo": "bin/forge-check",
       "de": "tipo = (ler_frontmatter(texto)[0] or {}).get(\"tipo\")",
-      "para": "tipo = ler_frontmatter(texto)[0].get(\"tipo\")",
+      "para": "tipo = (ler_frontmatter(texto)[0] and {}).get(\"tipo\")",
       "testes": [
         "tests.test_forge.DocsPareceresPedidoECaminho.test_dentro_da_raiz_a_pasta_errada_segue_recusada_e_tipo_desconhecido_fora_tambem"
       ]
