@@ -39,8 +39,8 @@ class HookDestinoOpaco(unittest.TestCase):
         self.rodar_prefixo("opaco-d2b", 11)
 
     def test_fixtures_opaco_u4(self):  # E1.232: lista positiva; E1.326: aritmética e barra e quebra (`-v-`)
-        # E1.330: corpo de heredoc sem aspas que atribui (`-h-`)
-        self.rodar_prefixo("opaco-u4", 173)
+        # E1.330: corpo de heredoc sem aspas que atribui (`-h-`); E1.334: `${d:=v}` de nome minúsculo
+        self.rodar_prefixo("opaco-u4", 181)
 
 
 if __name__ == "__main__":

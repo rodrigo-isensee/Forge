@@ -1,0 +1,26 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O153",
+      "guarda": "E1.334, volta do lote B (A13 da segurança E1.332): o corpo de heredoc sem aspas que atribui a nome minúsculo marca a linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return all(expansao_conhecida(corpo) and not PADRAO_QUE_ATRIBUI.search(corpo) for corpo in corpos)",
+      "para": "    return all(expansao_conhecida(corpo) for corpo in corpos)",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O154",
+      "guarda": "E1.334, volta do lote B (A14 da segurança E1.332): `${d:=v}` na linha não deixa `$d` valer como do ambiente",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if re.search(rf\"\\$\\{{#?{nome}(\\[[^]]*\\])?:?=\", linha):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}

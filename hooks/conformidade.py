@@ -550,9 +550,10 @@ def expansao_conhecida(linha):
 
 def corpos_conhecidos(comando):
     """A12 da segurança E1.328: todo corpo de heredoc que o bash expande (delimitador sem aspas nem `\\`), como ele o
-    entrega, passa nas buscas de `expansao_conhecida`; o corpo de `<<'E'` é literal e não conta."""
-    return all(expansao_conhecida(expandir_heredoc(comando[h.corpo[0]:h.corpo[1]]))
-               for h in heredocs(comando)[0] if not h.literal)
+    entrega, passa nas buscas de `expansao_conhecida`; o corpo de `<<'E'` é literal e não conta. A13 (E1.332): o corpo
+    não atribui, nem a nome minúsculo (`${d:=v}`), porque `valores_da_variavel` não o lê."""
+    corpos = [expandir_heredoc(comando[h.corpo[0]:h.corpo[1]]) for h in heredocs(comando)[0] if not h.literal]
+    return all(expansao_conhecida(corpo) and not PADRAO_QUE_ATRIBUI.search(corpo) for corpo in corpos)
 
 
 @lru_cache(maxsize=256)
@@ -683,6 +684,8 @@ def valores_da_variavel(m, linha, fundo):
     if nome in VARIAVEIS_DO_BASH:  # A4 da segurança E1.280: o bash a grava (`read`, `mapfile`, `=~`), não é do ambiente
         return None
     if nome.startswith("GIT_") or re.search(rf"(?<![\w${{]){nome}(?![\w=])", linha):
+        return None
+    if re.search(rf"\$\{{#?{nome}(\[[^]]*\])?:?=", linha):  # A14 (E1.332): `${d:=v}` atribui na linha
         return None
     atribuicoes = [valor_atribuido(linha, a.end()) for a in re.finditer(rf"(?<![\w$]){nome}=", linha)]
     if len(atribuicoes) > 1:
