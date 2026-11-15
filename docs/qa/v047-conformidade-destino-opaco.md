@@ -4,10 +4,10 @@ contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
 commit: 000cd0c8a7f69497fd41b5f64c786ed9df5f5274
-parecer: aprovado
+parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 0
+bugs_altos: 1
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-15
@@ -94,6 +94,7 @@ Fecha o A3 da rodada anterior (aritmética e barra e quebra), resolvido em `000c
 
 ## Achados
 
+- A5 (bloqueante) hooks/conformidade.py:1706 · corpo de heredoc sem aspas não passa por `CONTEXTO_ARITMETICO`: `: <<E`⏎`$[PATH=5]`⏎`E`⏎`echo a > "$(date)"` libera (rc 0) e o bash avalia a atribuição; com `<<'E'` também libera (esperado, literal). Confirma A12 da segurança (R-CONFORMIDADE).
 - A4 (recomendado) hooks/conformidade.py:1367 · `textos_do_valor` ainda junta com `replace("\\\n", "")`, fora de `linha_juntada`: `\\`+quebra vira uma barra só. Só sobre-aproxima (sondas recusam, nenhuma libera); alinhar quando a função for tocada.
 
 ## Sondas do delta (aspas simples no shell; cada uma com `echo a > "$(date)"` no fim e `date` benigno)
@@ -103,7 +104,7 @@ Montadas sobre a fixture `opaco-u4-v-qa-barra-dupla-quebra-bloqueia` (hook real,
 - liberam (rc 0, esperado): `${x: 1: 2}`, `${x: -1}`, `${x:-1}`, `${x[@]}`, `${x[*]}`, `${y[3]}`, `"${x[1]}"`, `${#y[0]}`, `x[0]=1 y[12]=2 echo ok`, `echo a \`+quebra+`;`.
 - função `f ( )`, `function f ( )`, `f(`+`\`+quebra+`)` e `f( ){` com `date` redefinido recusam.
 - 9 sondas de `.git` por variável e barra dupla e quebra (`d=.git\\`, `$(echo .gi\\`+quebra+`t)`): todas recusam.
-Classe fecha: nenhuma sonda libera o que o bash executa diferente.
+Fora das posições acima a classe fecha, mas o corpo de heredoc sem aspas (sonda `: <<E`, `$[PATH=5]`, `E`) libera e o bash o expande: A5, bug alto.
 
 ## Execução no head 000cd0c8
 - `forge-check parecer delta docs/qa/v047-conformidade-destino-opaco.md`, rc 0: domínio = hook, docs, changelog, 1 teste de módulo (`tests/test_hook_destino_opaco.py`, 2 linhas) e as fixtures `opaco-u4-v-*` novas.
@@ -112,3 +113,5 @@ Classe fecha: nenhuma sonda libera o que o bash executa diferente.
 - Suíte inteira: sem PR nem check-run `bateria` para o sha; fica para o CI do PR. `forge-check docs` rc 0.
 
 Todos os critérios da tabela anterior seguem como estavam; o delta só acrescenta a classe aritmética e barra e quebra, coberta pelas fixtures `opaco-u4-v-*` e pelos mutantes acima.
+
+- Sonda do A5: `: <<E`⏎`$[PATH=5]`⏎`E`⏎`echo a > "$(date)"` rc 0 (deveria recusar); `: <<E`⏎`plain`⏎`E` rc 0 (certo). Responsável: dev da stack do hook.
