@@ -606,7 +606,7 @@ class FiacaoDoCI(unittest.TestCase):
                     self.assertEqual(n, 5)
 
     def test_partes_pulam_a_suite_so_com_a_arvore_provada(self):
-        """SP4 e M2: um job prévio único tira a prova (só com a dos dois Pythons); as 3 partes de cada versão dependem dele e o
+        """SP4 e M2: um job prévio único tira a prova (só com a dos dois Pythons); as 5 partes de cada versão dependem dele e o
         preparo e a suíte só rodam sem a prova (falha fechada). A prova no passo de cada perna dava o `outputs` da última perna."""
         arvore = self.job("arvore")
         passo = arvore[arvore.index("        id: arvore\n"):]
