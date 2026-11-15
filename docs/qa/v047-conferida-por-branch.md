@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conferida-por-branch
-commit: 7c91b13d795b743b129ef41f55ab755b5eee4ad2
+commit: 8b9fa8df4b12a8822d5cb58ddc256cb003fc35cf
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-14
+data: 2026-11-15
 ---
 # QA: v047 (conferida por branch, E1.185; QA E1.196)
 
@@ -38,3 +38,11 @@ Os dois testes mudados: o rc=1 antigo fixava o defeito (a conferida trazida vira
 - Review A1 (ramo `revisados` sem `ja_na_base`, `bin/forge-check:2186`): confirmo na leitura do diff; é recomendado, fora do escopo do item, sem teste que o exponha.
 - Bordas: `base_ref` ausente (`None`) mantém o comportamento antigo (só Base-sha); a ref reescrita só tira candidatas (falha fechada, segundo o review).
 - Permissões e acessibilidade: n/a (ferramenta de linha de comando).
+
+## Revalidação incremental: ef371633..8b9fa8df (E2.55, mapa FORGE_CHECK; E2.58)
+Instância que não fez a entrega. Domínio do delta (`git diff ef371633 8b9fa8df`): `bin/forge-testes` e `tests/test_testes_tocados.py`, 1 linha cada. O `forge-check parecer delta` listou também o que o merge da develop (ef371633) trouxe; isso é da base e fica fora do escopo do item.
+- Obrigação: o módulo `test_conferida_por_branch` (CA-1 a CA-4) roda quando `bin/forge-check` muda (R-QA, mapa lido pelo pre-push). Fronteira: contagem do mapa, 83.
+- Prova: `bin/forge-testes --listar bin/forge-check` inclui `test_conferida_por_branch` (1 ocorrência); `python3 -m unittest tests.test_testes_tocados`: `Ran 151 tests in 89.151s` `OK (skipped=1)` (o skip já existia no arquivo); `python3 -m unittest tests.test_conferida_por_branch`: `Ran 4 tests in 15.479s` `OK`.
+- `test_pre_envio_brief` e `test_hook_erro_libera`, que o merge da base trouxe ao mapa, existem em `tests/` e entram na contagem 83 que o teste confere.
+- Mutação e vermelho do parecer anterior seguem válidos: nenhum código de produção do item mudou neste delta. A1 (recomendado) segue aberto.
+- Suíte inteira: não rerrodada; fica para o check `bateria` do CI do PR (sem PR ainda).
