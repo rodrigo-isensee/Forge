@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-fala-e-decisoes
-commit: 05797223ac8b884b8d44874803878cfb356eedbc
+commit: a4a476617e6aae4b418e2a97df2839f84500942a
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -17,7 +17,7 @@ data: 2026-11-14
 Intervalo `origin/develop..05797223` (base c5c3a449): `agents/jarvis.md`, `skills/falar-com-o-dono/SKILL.md`, `skills/modo-iniciante/SKILL.md`, `tests/config.json`, fragmento de changelog. Só texto e invariantes; nenhum código executável mudou, então não há mutante de `forge-mutante` nem pedido de controle. Os critérios vêm das diretrizes 24 e 29 (`docs/diretrizes-do-dono.md`) e do item E1.282 do pedido.
 
 ## Achados
-- A1 (recomendado) skills/falar-com-o-dono/SKILL.md:18 · a Resposta curta perdeu o apontamento a `decisoes --resposta` e aos campos de corte; a ferramenta ainda os exige (64 testes verdes), mas quem lê só a skill deixa de saber deles (R-DECISAO).
+- A1 (recomendado, resolvido em a4a47661) skills/falar-com-o-dono/SKILL.md:18 · a Resposta curta perdeu o apontamento a `decisoes --resposta` e aos campos de corte; a ferramenta ainda os exige (64 testes verdes), mas quem lê só a skill deixa de saber deles (R-DECISAO).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -40,6 +40,13 @@ Intervalo `origin/develop..05797223` (base c5c3a449): `agents/jarvis.md`, `skill
 - **CT-04 conteúdo retirado:** saíram da skill a linha "Custo e origem" e os detalhes do formato curto (`decisoes --resposta`, campos `origem:`/`procurado:`/`seguir:`/`não seguir:`). A ferramenta segue impondo os campos (`tests/test_forge_dono.py:325,488`, 64 testes verdes), então o comportamento não regrediu; só o texto da skill ficou mais enxuto. Registrado como recomendação.
 - **CT-05 conflito já conhecido:** o invariante "diga sempre ao usuário para qual agente passou" (`agents/jarvis.md:34`) segue no texto e contradiz em parte a diretriz 24; o autor registrou a pergunta ao dono (pedido, 14/11 23:14), sem bloqueio. Não é defeito desta entrega.
 - **Não executado:** a suíte inteira (roda no CI do PR; a branch ainda não tem PR, então não há check-run `bateria` para citar); vermelho-antes-do-verde e mutação não se aplicam (sem código nem teste novo, só invariantes de texto).
+
+## Revalidação (delta 05797223..a4a47661, `escopo: completo` mantido)
+`forge-check parecer delta` listou 8 arquivos de domínio: 3 arquivos novos (`skills/falar-com-o-dono/resposta-curta.md`, `skills/modo-iniciante/numeros.md`, `skills/kanban-scrum/experimentos.md`), 3 `SKILL.md` com ponteiro, `tests/config.json` e o fragmento de changelog. Só texto e invariantes; sem código, sem mutante.
+- **A1 resolvido:** `resposta-curta.md` traz inteiro o texto antigo mais `decisoes --resposta` e `origem:`, `procurado:`, `seguir:`, `não seguir:`; a skill aponta por `${CLAUDE_PLUGIN_ROOT}`.
+- **Diretriz 25 (nada apagado nem resumido):** o diff dos 3 `SKILL.md` só troca o trecho movido por ponteiro; o texto movido existe nos arquivos novos (numeros.md: 3 itens medido/estimado/não medido idênticos; experimentos.md: tabela e regra idênticas). A única reescrita de conteúdo é a linha C do exemplo ("custo, não dá para dizer se é maior ou menor"), que é o A4 do review. O técnico do `tech-lead` e o `agile-coach` entraram na `kanban-scrum`.
+- **Invariantes:** 44 padrões de `invariantes` dos 6 arquivos tocados casam (0 sem casar); `tests.test_forge -k nvariante -k Neutral -k Regra`: 15 OK. Os 3 arquivos novos têm invariante e motivo `R-DECISAO`.
+- `forge-check docs`: rc=0. A suíte inteira roda no CI do PR (sem PR ainda, sem check-run `bateria`). Vermelho e mutação não se aplicam (texto).
 
 ## Bugs
 Nenhum aberto.
