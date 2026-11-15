@@ -499,11 +499,20 @@ COMANDOS_INOFENSIVOS = frozenset("echo printf cat tee cp mv ln install dd mkdir 
                                  "readlink stat diff".split())
 PALAVRAS_DA_GRAMATICA = frozenset("{ ! if then elif else do while until time".split())  # a posição de comando segue
 FIM_DA_GRAMATICA = frozenset("} fi done".split())
-ATRIBUICAO = re.compile(r"(?P<nome>[A-Za-z_]\w*)(?:\[[^]]*\])?\+?=")
+ATRIBUICAO = re.compile(r"(?P<nome>[A-Za-z_]\w*)(?:\[(?P<indice>[^]]*)\])?\+?=")
+INDICE_LITERAL = re.compile(r"[0-9]+")  # o índice de vetor é aritmética: só o número não atribui
 NOME_INOFENSIVO = re.compile(r"[a-z_][a-z0-9_]*")  # o bash não lê nome minúsculo (PATH, TMPDIR, GIT_*, BASH_* são maiúsculos)
 PADRAO_QUE_ATRIBUI = re.compile(r"\$\{#?(?P<nome>\w+)(?:\[[^]]*\])?:?=")
 # `${!x:=v}` atribui ao nome guardado em `x` e `${x@P}` expande o valor como prompt (com `${T:=v}` dentro)
 EXPANSAO_QUE_ESCONDE = re.compile(r"\$\{(?:!|[^}]*@[A-Za-z])")
+# Volta da E1.326 (A4 do review E1.323, A10 da segurança E1.324): o bash avalia aritmética em qualquer palavra, também
+# argumento, e ela atribui (`PATH=5`, `BASH_CMDS[date]=7`); o índice de nome avalia o valor da variável como expressão
+# (`i=PATH=5; : ${a[i]}`). Recusa no texto: `$[`, `((` (também `$((`), vetor composto `=(`, `${…[…]}` com índice que não
+# é número, `@` nem `*`, `${…:…}` de deslocamento que não é só número e o descritor nomeado `{nome}>f`, que grava o
+# número no nome. `test`/`[` (`-v` avalia o índice) e o índice da atribuição são lidos na palavra, em `linha_conhecida`.
+CONTEXTO_ARITMETICO = re.compile(r"\$\[|\(\(|=\(|\$\{[^}\[]*\[(?![0-9]+\]|[@*]\])|\$\{[^}:]*:(?![-=+?]|[0-9\s:-]*\})"
+                                 r"|(?<!\$)\{[^{}\s]*\}[<>]")
+LE_INDICE = frozenset("test [".split())  # `test -v 'x[i]'` avalia o índice; o nome pode vir de `$`, crase ou curinga
 REDIRECAO = re.compile(r"&?[<>]+[&|]?")
 # Embutidos e palavras reservadas do bash 5 (`compgen -b`, `compgen -k`): função com esse nome fora da lista não vale,
 # porque o hook acha a definição pelas palavras sem aspas (`"function" source` não define nada e o `source` seguinte é o
@@ -516,12 +525,27 @@ EMBUTIDOS_DO_BASH = frozenset(""". : [ alias bg bind break builtin caller cd com
 NOME_DE_FUNCAO = re.compile(r"[A-Za-z_][\w-]*")
 
 
+def linha_juntada(linha):
+    """A3 do QA E1.325: a linha com cada `\\` + quebra tirado como o bash tira (`juntar_continuacoes`: a barra escapada
+    antes não conta), ou None se o hook não sabe onde o bash junta: com aspa simples ou `#` (na aspa e no comentário
+    a barra do fim não continua a linha) ou se sobra barra e quebra (`\\\\` + quebra é barra e separador)."""
+    if "\\\n" not in linha:
+        return linha
+    if "'" in linha or "#" in linha:
+        return None
+    linha = juntar_continuacoes(linha)
+    return None if "\\\n" in linha else linha
+
+
 @lru_cache(maxsize=256)
 def linha_conhecida(linha, funcoes=frozenset()):
     """Todos os comandos da linha, e os de cada `$(…)` e crase dela, estão em `COMANDOS_INOFENSIVOS` ou são funções
     definidas na linha (o corpo delas é lido como o resto); a atribuição e o `${x:=v}` só com nome minúsculo;
     `printf -v` recusa."""
-    texto = linha.replace("\\\n", "").replace("\n", ";")
+    linha = linha_juntada(linha)
+    if linha is None or CONTEXTO_ARITMETICO.search(linha):
+        return False
+    texto = linha.replace("\n", ";")
     if any(not NOME_INOFENSIVO.fullmatch(m["nome"]) for m in PADRAO_QUE_ATRIBUI.finditer(texto)):
         return False
     if EXPANSAO_QUE_ESCONDE.search(texto):
@@ -532,6 +556,9 @@ def linha_conhecida(linha, funcoes=frozenset()):
         palavras = list(lexico)
     except ValueError:  # aspa sem par
         return False
+    for i in range(len(palavras) - 1, 0, -1):  # `f ( )` define a função como `f()`
+        if palavras[i - 1:i + 1] == ["(", ")"]:
+            palavras[i - 1:i + 1] = ["()"]
     definidas = {p for i, p in enumerate(palavras[1:]) if palavras[i] == "function"} | {
         p for i, p in enumerate(palavras[:-1]) if palavras[i + 1] == "()"}
     funcoes = funcoes | {f for f in definidas if NOME_DE_FUNCAO.fullmatch(f) and (
@@ -547,6 +574,8 @@ def linha_conhecida(linha, funcoes=frozenset()):
         elif not inicio:
             if comando == "printf" and p.startswith("-v"):
                 return False
+            if comando in LE_INDICE and any(c in p for c in "[$`*?"):
+                return False
         elif p in PALAVRAS_DA_GRAMATICA:
             continue
         elif p in FIM_DA_GRAMATICA:
@@ -555,6 +584,8 @@ def linha_conhecida(linha, funcoes=frozenset()):
             funcao = True  # o nome que vem depois dele não fecha a posição de comando: o corpo `{ …; }` é lido
         elif m := ATRIBUICAO.match(p):
             if not NOME_INOFENSIVO.fullmatch(m["nome"]):
+                return False
+            if m["indice"] is not None and not INDICE_LITERAL.fullmatch(m["indice"]):
                 return False
         elif p in COMANDOS_INOFENSIVOS or p in funcoes:
             inicio, comando = False, p
@@ -1381,7 +1412,8 @@ class Guarda:
 
     def valor_calculado(self, palavra):
         """U4 (volta da E1.232): libera só o valor que o hook calcula (`valores_da_palavra`) e que não cai no `.git`."""
-        valores = valores_da_palavra(palavra, self.texto_da_linha.replace("\\\n", ""))
+        linha = linha_juntada(self.texto_da_linha)  # A3 do QA E1.325: o `replace` juntava `\\` + quebra
+        valores = None if linha is None else valores_da_palavra(palavra, linha)
         if valores is not None and not valor_no_git(valores):
             return
         motivo = ("o valor que o hook calcula cai no diretório do git (.git)" if valores else "o hook só libera o "
