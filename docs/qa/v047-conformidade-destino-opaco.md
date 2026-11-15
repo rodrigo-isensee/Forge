@@ -94,7 +94,6 @@ Fecha o A3 da rodada anterior (aritmética e barra e quebra), resolvido em `000c
 
 ## Achados
 
-Sem achado aberto. O A5 (bloqueante, corpo de heredoc sem aspas) e o A4 (recomendado, `textos_do_valor` com `replace`) das rodadas anteriores estão fechados em `e34924b4` (ver a revalidação abaixo).
 
 ## Sondas do delta (aspas simples no shell; cada uma com `echo a > "$(date)"` no fim e `date` benigno)
 Montadas sobre a fixture `opaco-u4-v-qa-barra-dupla-quebra-bloqueia` (hook real, `f.sh` redefine `date`). 77 sondas:
@@ -125,4 +124,4 @@ Domínio lido por `forge-check parecer delta`: `hooks/conformidade.py` (`expansa
 - A5 e A4 anteriores: fechados (sonda do A5 recusa; `textos_do_valor` usa `juntar_continuacoes`). Classe repetida (AR-14, contexto aritmético na linha inteira) já registrada em `docs/engineering/achados-recorrentes.md`; não gravei linha nova.
 - CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local. `forge-check docs` rc 0.
 
-Parecer aprovado no e34924b4 (`R-QA`): nenhum bug aberto, sem mutante sobrevivente, sem achado.
+Os fechados: A5 (bloqueante, corpo de heredoc sem aspas) e A4 (recomendado, `textos_do_valor`). Parecer aprovado no e34924b4 (`R-QA`): nenhum bug aberto, sem mutante sobrevivente, sem achado.
