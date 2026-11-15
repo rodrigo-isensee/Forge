@@ -3,24 +3,23 @@ tipo: revisao-devops
 contrato: 1
 pedido: v047
 branch: melhoria/v047-integracao-em-lote
-commit: c6b0b788c2815bbdf130a43d2a47eb2bbe6818ed
-parecer: reprovado
+commit: 13cb874d23ef51f505f3dfcb3248c78c6ffea22c
+parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-14
 ---
-# Review de devops: v047 (integracao-em-lote, E1.240)
+# Review de devops: v047 (integracao-em-lote, E1.266)
 
 ## Achados
-- A1 (bloqueante) bin/forge-fechar:980 · --promover abre PR promocao/<versão> -> homolog; o job 'Nada pula degrau' (ci.yml:508-511) só aceita head develop e falha, e a catraca (PROMOCOES) não o reconhece: o PR não fica verde (R-FLUXO).
+Nenhum achado bloqueante. O A1 do review anterior (commit c6b0b788) está resolvido.
 
 ## Detalhes
-Reprovado por A1, defeito provado no pipeline: com BASE=homolog e HEAD_REF=promocao/0.47.1 o passo de ci.yml:508-511 imprime 'PR para homolog só a partir da develop' e sai com rc=1; confirmado também no review do tech-lead (S1, S2). Correção: o PR de promoção sair de ramo aceito pelo CI e pela catraca, ou o degrau novo entrar em ci.yml e PROMOCOES por mudança do dono (afrouxa-regra). O resto, sem defeito: O intervalo origin/develop...c6b0b788 não toca `.github/`, `Dockerfile*`, `compose*` nem IaC; o parecer cobre a mecânica de entrega em `bin/forge-fechar` (espera do CI da develop, `--lote`, `--promover`).
-- R-MAIN: `--promover` fixa a base em `homolog` e o merge automático (`--auto --merge --match-head-commit`) só vale para o PR da homolog; a `main` segue só com o dono. A mensagem final apenas imprime o comando do tech-lead.
-- R-VERIFY: nenhum `--force`, `--no-verify` nem check ignorado; CI cancelado ou vermelho para o fluxo (código 5), exceto o cancelado na promoção, que avisa e deixa o CI do PR decidir.
-- R-CONFORMIDADE: nada altera proteção de branch, rulesets ou segredos; só `gh pr merge`, `gh run list` e push/delete de `promocao/<versão>`.
-- R-CUSTO: sem runner, serviço ou artefato novos; a espera usa `gh run list` (leituras), sem minutos de CI adicionais.
-- Reversão do lote impressa com os merges em ordem inversa; a lista termina em espaço, então `&&` fica separado.
-- Ferramentas: `shellcheck bin/forge-fechar` rc=0. `actionlint` ausente do PATH (sem workflow no intervalo, sem efeito).
+- A1 resolvido (R-FLUXO): o passo "Nada pula degrau" (ci.yml:508-519) chama `tests/catraca.py --modo degrau`, da cópia da develop do servidor, com a tabela única PROMOCOES. Simulado: promocao/0.47.1 -> homolog com head na develop rc=0; develop -> homolog e homolog -> main rc=0; feature/x -> homolog, develop -> main, promocao/1.2.3-rc -> homolog e head de fork rc=1.
+- Workflow: entradas do PR (HEAD_REF, HEAD_SHA, HEAD_REPO) vão por `env`, nunca interpoladas em `run:`; o código executado é o da develop (não o do autor); o job tem `contents: read` e `fetch-depth: 0`, então `origin/develop` existe. Em arvore-testada, o par do PR vem da mesma tabela e o job continua em falha fechada.
+- bin/forge-fechar: `--item-de-lote` só com FORGE_FECHAR_LOTE_PAI igual ao `$PPID`; o CI acompanhado no lote é o do topo da develop no servidor, com aviso se a leitura falha; P5 descarta PR de fork (`isCrossRepository`); `par_de_promocao` consulta a tabela antes de criar o ramo.
+- R-MAIN: nada escreve na main. R-VERIFY: sem `--force`, `--no-verify` nem check pulado. R-CONFORMIDADE: nenhuma proteção, ruleset ou segredo alterado. R-CUSTO: nenhum runner, serviço ou artefato novo.
+- Ferramentas: `shellcheck bin/forge-fechar` rc=0; `python3 -m py_compile scripts/arvore-testada.py` ok. `actionlint` ausente do PATH (lacuna; o CI roda actionlint e zizmor no job bateria).
+- Aviso ao tech-lead: `.github/workflows/ci.yml` é arquivo protegido; o PR pede o rótulo `afrouxa-regra` do dono se a catraca o exigir. O token do bot não tem o escopo `workflow`: o envio do ci.yml é do dono.
 
 ## Custo e rollback
-Sem minutos de CI nem recursos novos (`R-CUSTO`). Volta: reverter os commits da branch na `develop` (`git revert`); o script não cria estado fora do ramo `promocao/<versão>`, apagado ao fim.
+Sem minutos de CI nem recursos novos (`R-CUSTO`); um `git worktree add` a mais por PR de promoção. Volta: `git revert` dos commits na develop; a tabela PROMOCOES volta junto.
