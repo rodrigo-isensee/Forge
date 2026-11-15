@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: 041c671bbcca2cb1fdee5b9d65304151bbf649a5
+commit: 19df94ed5619ae0bb77dbdf5c9abde7d50f04635
 parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
@@ -22,7 +22,7 @@ Prova de não edição do oráculo (conferida): `git merge-base --is-ancestor 73
 
 ## Achados
 
-- A2 (bloqueante) hooks/conformidade.py:496 · `RESOLUCAO_TROCADA` casa só o nome puro: `so""urce`, `\.`, `"."`, `s=sour""ce; $s`, `export PA""TH=`, `printf -v "${a}TH"` liberam (rc 0) e gravam em `.git/config` no bash real; a classe A6 não fecha. Bug v047-resolucao-trocada-nome-citado.
+- A3 (bloqueante) hooks/conformidade.py:521 · `linha_conhecida` junta `\`+quebra antes do shlex: `echo \\`⏎`source ./f.sh`⏎`echo a > "$(date)"` e `echo a # \`⏎`source …` liberam (rc 0) e gravam `.git/config`; `x[PATH=0]=1`, `$[PATH=0]` e `${x[PATH=0]}` trocam o PATH e liberam. Classe aberta.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -72,4 +72,21 @@ Domínio lido por `forge-check parecer delta`: `hooks/conformidade.py` (`RESOLUC
   Causa: a regex testa o texto cru; aspa, barra invertida e `$` dentro da palavra de comando ou do nome atribuído escapam. As fixtures s10 a s16 só têm a forma literal.
 - Cobertura de guardas e CI: não rerrodei a `--cobertura`; o diff muda a regex e dois `if` e as specs 16 e 17 os cobrem pelos mutantes acima. Sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local.
 
-Parecer reprovado: A2 bloqueante (bug alto, `docs/qa/bugs/v047-resolucao-trocada-nome-citado.md`; responsável o dev do hook). O A1 anterior segue resolvido. Fecha com: palavra de comando ou nome atribuído com aspa, barra invertida ou `$` desliga a lista positiva, mais uma fixture por forma (`so""urce`, `\.`, `"."`, `PA""TH`, nome montado).
+Parecer reprovado no 041c671b: A2 bloqueante (bug alto, `docs/qa/bugs/v047-resolucao-trocada-nome-citado.md`; responsável o dev do hook). O A1 anterior segue resolvido. Fecha com: palavra de comando ou nome atribuído com aspa, barra invertida ou `$` desliga a lista positiva, mais uma fixture por forma (`so""urce`, `\.`, `"."`, `PA""TH`, nome montado).
+
+## Revalidação por delta 041c671b..19df94ed (E1.325)
+Domínio lido por `forge-check parecer delta`: `hooks/conformidade.py` (`linha_conhecida`, `COMANDOS_INOFENSIVOS`, `na_lista_positiva`, `valores_do_corpo`, guarda do `$(pwd)`), `docs/hooks.md`, `docs/hooks-fixtures.md`, `docs/engineering/achados-recorrentes.md` (AR-14), o fragmento do changelog, 49 fixtures `opaco-u4-*` (g, r, s, q, red) e as specs de mutantes `-17`, `-18` e `-19` (O109 a O126). Mudança: a lista negativa `RESOLUCAO_TROCADA` sai; a lista positiva, o `echo`/`printf %s` e a troca de `$(pwd)` valem só se todos os comandos da linha, lidos por `shlex`, estão numa lista fechada (falha fechada). Escopo do plano (A9, A10, D2b, U4, A6) inalterado.
+- Oráculo: prova de não edição refeita (commit 730843a9 ancestral; `git rev-parse HEAD:tests/test_oraculo_v047.py` = `535134e9…` igual ao blob; `git log --format=%H 730843a9..HEAD -- tests/test_oraculo_v047.py` vazio); o módulo `test_oraculo_v047` roda no plano abaixo.
+- Vermelho: `bin/forge-testes --vermelho 041c671bbcca2cb1fdee5b9d65304151bbf649a5 --modulos test_oraculo_v047,test_conformidade_opaco,test_hook_destino_opaco --prazo 1500`, rc=0: `vermelho: base=041c671bbcca head=19df94ed5619`; `test_fixtures_opaco_u4 · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=8; prova (asserção)=1` (regressão e guardas, esperado).
+- Mutação do delta: `bin/forge-mutante --processos 4 --base 041c671bbcca2cb1fdee5b9d65304151bbf649a5 tests/mutantes/v047-destino-opaco-17.json …-18.json …-19.json`, cabeçalho `base=041c671bbcca… mb=041c671bbcca… rev=19df94ed5619`: 23 `morreu`, `O126 · equivalente · hooks/conformidade.py:570` (declarado, justificativa lida: o U4 recusa antes pela mesma checagem; aceito), nenhum `sobreviveu`, rc=0.
+- Cobertura: `bin/forge-mutante --cobertura --base f4b0c2aeb42b…` rc=0, `rev=19df94ed5619`; todas as condições `coberta`, 5 `isenta` com motivo lido (443, 570, 672, 1402, 1416), aceitas.
+- A2 anterior: fechado. As sondas do bug v047-resolucao-trocada-nome-citado (`so""urce`, `\.`, `"."`, `s=sour""ce; $s`, `export PA""TH=`, `printf -v "${a}TH"`, `read -r PA""TH`, `echo(){…}`, `function echo {…}`) recusam (rc 2) no 19df94ed. Também recusam: `{ source … }`, `case`, `for`, `if`, `!`, `time`, `$'source'`, `x=1 source`, redireção antes do comando, `<(source …)`, `${x:-$(source …)}`.
+- Sondas novas de abuso (hook por `Fixture`/`rodar` de `tests/test_hooks.py` sobre a fixture s10 com o comando trocado; bash real em cópia descartável com `.git/config` e `f.sh` com `date(){ echo .git/config; }`):
+  - A3, libera (rc 0) e grava `.git/config`: `echo \\⏎source ./f.sh⏎echo a > "$(date)"`; `echo "a" \\⏎. ./f.sh⏎echo a > "$(date)"`; `echo a # \⏎source ./f.sh⏎echo a > "$(date)"`. Causa: `linha.replace("\\\n", "")` (linha 523) tira a barra e a quebra de `\\`+quebra, que no bash é uma barra escapada e um separador; o comando da linha seguinte vira argumento do `echo`. No comentário, a barra no fim não continua a linha no bash.
+  - A3, libera e troca o PATH (`mkdir 0; install -m755 evil 0/date; <troca>; echo a > "$(date)"`, `evil` imprime `.git/config`; o `echo` redireciona, não precisa de `cp`): `x[PATH=0]=1`, `$[PATH=0]`, `${x[PATH=0]}` gravam `.git/config` com rc 0 do hook. `ATRIBUICAO` aceita qualquer subscrito `[…]` de nome minúsculo e `$[…]` e `${x[…]}` não passam por `EXPANSAO_QUE_ESCONDE`. Recusam: `$((PATH=0))`, `((PATH=0))`, `[ $((PATH=0)) ]`, `test $((PATH=0))`, `${x:(PATH=0)}`.
+  - Os 3 liberam também no 041c671b (herdados), mas o pedido é fechar a classe da linha inteira (AR-14, `R-CONFORMIDADE`) e ela não fecha.
+- Falso positivo: aceito e documentado em `docs/hooks.md` (comando fora da lista na mesma linha do destino opaco). Medido: recusam `cd /tmp && cat x > "$(mktemp)"`, `npm test > "$(mktemp)"`, `python3 -c 1; cp config "$(mktemp)"`, `curl … | tee "$(mktemp)"`, `awk 1 x > "$(mktemp)"`, `export FOO=1; …`, `FOO=1 cp config "$(mktemp)"`, `for … do echo a > "$(mktemp)"; done`, `echo $((1+1)) > "$(mktemp)"`; liberam `cp config "$(mktemp -u)"`, `echo a > "$(date +%s).log"`, `ls | grep a | tee "$(mktemp)"`, `find . -name x > "$(mktemp)"`, `cd docs && cp ../config "$(pwd)/out"`, `if [ -f x ]; then cp config "$(mktemp)"; fi`. Custo real (sem `cd`, `for`, interpretador na linha), conforme a decisão; sem achado, só o contorno da documentação.
+- Bug alto v047-resolucao-lista-fechada-junta-linha (resumo aqui, sem arquivo de bug por ordem do brief, que limita o commit ao parecer; responsável: dev do hook): passos e sondas acima; esperado rc 2; obtido rc 0 com gravação em `.git/config`. Fecha com: o `shlex` ler o texto sem a junção de `\`+quebra (ou recusar `\` seguido de quebra e `#` com `\` no fim da linha), `ATRIBUICAO` recusar subscrito com `=`, `$[` e `${…[…=…]}` entrarem no `EXPANSAO_QUE_ESCONDE`, e uma fixture por forma.
+- CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local.
+
+Parecer reprovado no 19df94ed: A3 bloqueante (bug alto). A2 fechado, sem mutante sobrevivente. A lista fechada resolve os nomes citados e montados, mas a classe da linha inteira ainda tem duas fugas (junção de barra+quebra pelo `replace` e subscrito aritmético de nome minúsculo).
