@@ -38,8 +38,9 @@ class HookDestinoOpaco(unittest.TestCase):
     def test_fixtures_opaco_d2b(self):  # E1.175: aspas e variável colada no corpo, `function f {` sem `()`
         self.rodar_prefixo("opaco-d2b", 11)
 
-    def test_fixtures_opaco_u4(self):  # E1.232: lista positiva; E1.326: contexto aritmético e barra e quebra (`-v-`)
-        self.rodar_prefixo("opaco-u4", 159)
+    def test_fixtures_opaco_u4(self):  # E1.232: lista positiva; E1.326: aritmética e barra e quebra (`-v-`)
+        # E1.330: corpo de heredoc sem aspas que atribui (`-h-`)
+        self.rodar_prefixo("opaco-u4", 173)
 
 
 if __name__ == "__main__":

@@ -34,7 +34,7 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TET
                     LIMITE_MENSAGEM, PLUGIN, PROFUNDIDADE, bloquear, comentarios,
                     construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, formas_que_o_shell_le, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, expandir_home, fora_da_gramatica_com_heredoc,
-                    fora_da_gramatica_de_leitura, motivo_da_reavaliacao,
+                    expandir_heredoc, fora_da_gramatica_de_leitura, heredocs, motivo_da_reavaliacao,
                     forge_check, git, leituras, mensagem, nome_da_branch, nome_do_caminho, raiz_declarada, raiz_do_projeto, reavaliacao,
                     sem_atribuicoes, separar_lancadores, SHELLS, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
@@ -534,12 +534,10 @@ def linha_juntada(linha):
     return None if "'" in linha or "#" in linha else juntar_continuacoes(linha)
 
 
-@lru_cache(maxsize=256)
-def linha_conhecida(linha, funcoes=frozenset()):
-    """Todos os comandos da linha, e os de cada `$(…)` e crase dela, estão em `COMANDOS_INOFENSIVOS` ou são funções
-    definidas na linha (o corpo delas é lido como o resto); a atribuição e o `${x:=v}` só com nome minúsculo;
-    `printf -v` recusa."""
-    linha = linha_juntada(linha)
+def expansao_conhecida(linha):
+    """As buscas de texto de `linha_conhecida`: sem contexto aritmético, sem `${NOME:=v}` de nome que o bash lê e sem
+    expansão que esconde o nome. Vale também para o corpo de heredoc sem aspas no delimitador (A12 da segurança
+    E1.328, A5 do review E1.327), que o bash expande no próprio processo."""
     if linha is None or CONTEXTO_ARITMETICO.search(linha):
         return False
     texto = linha.replace("\n", ";")
@@ -547,6 +545,25 @@ def linha_conhecida(linha, funcoes=frozenset()):
         return False
     if EXPANSAO_QUE_ESCONDE.search(texto):
         return False
+    return True
+
+
+def corpos_conhecidos(comando):
+    """A12 da segurança E1.328: todo corpo de heredoc que o bash expande (delimitador sem aspas nem `\\`), como ele o
+    entrega, passa nas buscas de `expansao_conhecida`; o corpo de `<<'E'` é literal e não conta."""
+    return all(expansao_conhecida(expandir_heredoc(comando[h.corpo[0]:h.corpo[1]]))
+               for h in heredocs(comando)[0] if not h.literal)
+
+
+@lru_cache(maxsize=256)
+def linha_conhecida(linha, funcoes=frozenset()):
+    """Todos os comandos da linha, e os de cada `$(…)` e crase dela, estão em `COMANDOS_INOFENSIVOS` ou são funções
+    definidas na linha (o corpo delas é lido como o resto); a atribuição e o `${x:=v}` só com nome minúsculo;
+    `printf -v` recusa."""
+    linha = linha_juntada(linha)
+    if not expansao_conhecida(linha):
+        return False
+    texto = linha.replace("\n", ";")
     lexico = shlex.shlex(texto, posix=True, punctuation_chars=True)
     lexico.whitespace_split, lexico.commenters = True, ""
     try:
@@ -1111,6 +1128,7 @@ class Guarda:
         self._raiz_home = None  # (realpath da raiz, realpath do home), uma vez por decisão
         self.linha = ""      # a linha de comando inteira, como veio (nível 0)
         self.texto_da_linha = None  # A9: o texto do nível em conferência, sem heredocs e com o rev-parse lido (só Bash)
+        self.corpo_desconhecido = False  # A12 (E1.328): heredoc sem aspas do nível ou de fora com corpo que atribui
         self.opacos = 0  # A9: destinos opacos sem resto da linha (`TETO_DE_OPACOS`)
         self.rev_parse_misto = False  # A10: a linha tem rev-parse do .git em corpo de mais de um comando
         self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
@@ -1364,7 +1382,7 @@ class Guarda:
         linha quando ela os perdeu (`$(…)` sem aspas, crase partida) e o valor de cada `nome=` da linha que ela usa.
         Largos: mais a linha inteira se a variável nasce de outro jeito (`for d in`, `read d`) ou se o texto chama uma
         função definida na linha (U0 e U1)."""
-        linha, palavra = self.texto_da_linha.replace("\\\n", ""), palavra.replace("\\\n", "")  # continuação de linha
+        linha, palavra = juntar_continuacoes(self.texto_da_linha), juntar_continuacoes(palavra)  # A4 do QA E1.329
         precisos, nomes, largo = [palavra], set(), False
         if OPACO["$"] in palavra or palavra.count("`") % 2:
             precisos += [f"$({c})" for c in corpos_de_substituicao(linha)]  # inteiras: o aninhado segue à vista
@@ -1409,7 +1427,8 @@ class Guarda:
 
     def valor_calculado(self, palavra):
         """U4 (volta da E1.232): libera só o valor que o hook calcula (`valores_da_palavra`) e que não cai no `.git`."""
-        linha = linha_juntada(self.texto_da_linha)  # A3 do QA E1.325: o `replace` juntava `\\` + quebra
+        # A3 do QA E1.325: o `replace` juntava `\\` + quebra; A12 (E1.328): corpo de heredoc que atribui
+        linha = None if self.corpo_desconhecido else linha_juntada(self.texto_da_linha)
         valores = None if linha is None else valores_da_palavra(palavra, linha)
         if valores is not None and not valor_no_git(valores):
             return
@@ -1655,14 +1674,14 @@ class Guarda:
                         "separe em comandos menores, sem crase nem $( aninhados, e grave texto longo num arquivo")
         if nivel:
             self.em_curso.add(releitura)
-        texto_de_fora = self.texto_da_linha
+        texto_de_fora, corpo_de_fora = self.texto_da_linha, self.corpo_desconhecido
         try:
             self.conferir_linha(comando, pasta, nivel, so_substituicoes, corpo_de_heredoc)
             for forma in formas_que_o_shell_le(comando, corpo_de_heredoc):  # HOOK-CONTINUACAO-LINHA: a que o bash roda
                 self.conferir_linha(forma, pasta, nivel, so_substituicoes, corpo_de_heredoc)
         finally:
             self.em_curso.discard(releitura)
-            self.texto_da_linha = texto_de_fora
+            self.texto_da_linha, self.corpo_desconhecido = texto_de_fora, corpo_de_fora
         self.conferidas[chave] = dict(self.ambiente or {})
 
     def recusar_o_teto(self, comando, original, nivel):
@@ -1699,6 +1718,8 @@ class Guarda:
             lidas, corpos, gravado = None, [], None
             self.recusar_o_teto(comando, original, nivel)
         else:
+            if corpos and not corpos_conhecidos(original):  # A12 (E1.328): o bash expande o corpo e atribui
+                self.corpo_desconhecido = True
             if not corpo_da_funcao("pwd", comando)[0] and linha_conhecida(comando):  # A1 (E1.279) e E1.322
                 comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
             comando = REV_PARSE_DO_GIT.sub(trocar_rev_parse, comando)
