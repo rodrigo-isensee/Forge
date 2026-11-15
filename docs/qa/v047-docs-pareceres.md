@@ -3,22 +3,28 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-docs-pareceres
-commit: 7d32017c69de41a8ef9e8d19cb8943c2fb0755d3
-parecer: reprovado
-escopo: completo
+commit: b3bc317ac53cdf6f5038421635fd87144cbfcebb
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-14
+data: 2026-11-15
 ---
-# QA: v047 docs-pareceres (E1.276)
+# QA: v047 docs-pareceres (E1.276, revalidação E1.317)
 
 Intervalo `origin/develop..7d32017c`. Sem especificação de UX: as obrigações são as da etapa E1.252 do pedido v047 (o `pedido:` do parecer é id de `docs/pedidos/` ou `release-X.Y.Z`; `forge-check docs <arquivo>`; mensagem do bloco Achados vazio; modelo do review). Bug em `docs/qa/bugs/` não aberto: o defeito é um teste do repositório que cai no head.
 
+## Revalidação por delta 7d32017c..b3bc317a (E1.317)
+`forge-check parecer delta` lista no domínio `bin/forge-check`, `tests/mutantes/v047-docs-pareceres.json` e `tests/test_forge.py`. Aprovado: A1 e A2 do parecer anterior resolvidos, sem achado novo.
+- A1 resolvido: `documentos_dados` passa `real.name` por `sem_controle` (`nome`); `python3 -m unittest tests.test_forge.SaidaSanitizada` · 8 testes, OK.
+- A2 resolvido: o helper `docs` devolve veredito por asserção quando `cmd_docs` não recebe `arquivos`. Vermelho refeito à mão, porque `forge-testes --vermelho` com a suíte inteira estoura o prazo neste ambiente e `-k` não combina com ele: cópia do head com `bin/forge-check` e `_modelo.md` da base c5c3a449; classe nova, 11 testes, todos `FAIL` por asserção, nenhum `ERROR` (antes, 8 de 10 em TypeError). O teste novo `test_aviso_do_criterio_na_copia_de_fora_aponta_o_arquivo_dado` cai na base e passa no head (CA-3).
+- Classe nova + SaidaSanitizada no head: 19 testes, OK. A suíte inteira roda só no CI do PR; sem PR ainda, sem check-run `bateria` do sha.
+- Mutantes (`bin/forge-mutante tests/mutantes/v047-docs-pareceres.json tests/mutantes/v047-docs-pareceres-2.json --processos 3`), rc=0, M1..M13 `morreu` (M6, M8, M13 por erro do teste declarado sob o mutante). O delta mexe em duas linhas de guarda (408 e o aviso em 431); M8 cobre a primeira e o teste novo, a segunda.
+- Remoto avançou só com pareceres de review e segurança; head local igual a c059048d antes deste commit.
+
 ## Achados
-- A1 (bloqueante) bin/forge-check:407 · SaidaSanitizada.test_todo_valor_de_caminho_numa_fstring_passa_pelo_sanitizador cai no head (verde na base): f'{CONTRATOS[tipo][0]}/{real.name}' é interpolação crua de caminho; use sem_controle/nome_seguro (R-QA)
-- A2 (recomendado) tests/test_forge.py:7485 · 8 dos 10 testes novos dão TypeError na base (cmd_docs sem o 2º argumento), então o vermelho sai rc 2 (sem veredito); só 2 provam por asserção. Chamar por forma que a base aceite dá veredito por teste (R-QA)
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
