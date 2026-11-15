@@ -57,7 +57,7 @@
       "guarda": "U4: padrão que o hook não calcula recusa",
       "arquivo": "hooks/conformidade.py",
       "de": "        valores = None if padrao is None else valores + padrao",
-      "para": "        valores = valores + (padrao or [])",
+      "para": "        valores = None if False else valores + padrao",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]

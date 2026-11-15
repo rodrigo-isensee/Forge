@@ -46,8 +46,8 @@
       "id": "O70",
       "guarda": "U4: `$(…)` sem aspas recusa se algum corpo da linha está fora da lista",
       "arquivo": "hooks/conformidade.py",
-      "de": "            valores = None if not corpos or None in corpos else [v for vs in corpos for v in vs]",
-      "para": "            valores = [v for vs in corpos if vs for v in vs]",
+      "de": "            valores = None if not corpos or None in corpos else",
+      "para": "            valores = None if not corpos else",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]

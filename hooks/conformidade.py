@@ -582,7 +582,7 @@ def valores_da_palavra(palavra, linha, fundo=0, sem_substituicao=False):
         return None
     if palavra.count("`") % 2:
         corpos = corpos_de_substituicao(linha)
-        inteira = len(corpos) == 1 and re.search(rf"(?:^|[\s;&|(])`{re.escape(corpos[0])}`(?:$|[\s;&|)])", linha)
+        inteira = len(corpos) == 1 and re.search(rf"(?:^|[\s;&|(]|\sof=)`{re.escape(corpos[0])}`(?:$|[\s;&|)])", linha)
         return None if sem_substituicao or not inteira else valores_do_corpo(corpos[0], linha, fundo + 1)
     partes, i, aspas = [], 0, False
     while i < len(palavra):
