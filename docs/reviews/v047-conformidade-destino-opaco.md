@@ -4,7 +4,7 @@ contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
 commit: c3cde09fdec39e3d8bed6b8d0e0113216189a7ca
-parecer: aprovado
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-15
 ---
@@ -32,15 +32,18 @@ Verificadores: `bin/forge-mutante --processos 1 tests/mutantes/v047-destino-opac
 
 Sondas (aspas simples; hook real pela máquina do `tests/test_hooks.py`, fixture `opaco-u4-prefixo-dois-pontos-igual-cp-simples-bloqueia` com o comando trocado): recusam com rc 2 `: ${d:=.gi}; cp x "$d"t`, `: ${d=.gi}; echo a > "$d"t`, `: ${d[0]=.gi}; echo a > "$d"t`, `: "${d:=.gi}"; echo a > "$d"t`, `: ${d:=.g}; echo a > "$d"it`, `: ${do:=.gi}; echo a > "$do"t`, `: ${d:=.gi}; echo a > "${d}t"`, `: ${d:=.gi} ${e:=t}; echo a > "$d$e"` e `true ${d:=.gi} && cp -rT ev "$d"t`. Liberam com rc 0, sem atribuir: `: ${d:-docs}; echo a > "$d"t`, `: ${d:+.gi}; …`, `: ${d:?.gi}; …` e `echo a > "$HOME"t`.
 
-Pareceres irmãos no remoto, lidos antes do veredito: segurança e QA ainda no 74b42c69 (A15 e A16 bloqueantes, a mesma classe que este delta fecha; A11 e A5 recomendados, fora do delta). A revalidação deles no c3cde09f corre em paralelo; não os refaço.
+Pareceres irmãos no remoto, lidos antes do veredito (a primeira tentativa de envio voltou com o remoto à frente): segurança E1.340 (915fa1a7) e QA E1.341 (c0266d0f), os dois no c3cde09f e reprovados. A15 e A16 do QA anterior fechados; abrem a A16 da segurança e o A17 do QA, a mesma falha: o prefixo colado que o próprio bash grava (`"$_"t` lido `$_t`) não passa por `VARIAVEIS_DO_BASH` no laço de :698. Refiz na mesma máquina: `: .gi; cp x "$_"t` e `: .gi; cp -rT ev "$_"t` dão rc 0 no c3cde09f. Minha varredura de sondas não testou variável do bash como prefixo; o achado A2 cita a A16 sem refazer a análise. A11 e A5 da segurança seguem recomendados e fora do delta.
 
 A1 (A15 da segurança, A16 do QA): fechado em 384d16ef, com fixtures e mutantes O155 e O156 em 0378772f; S1 e S2 abaixo davam rc 0 no 74b42c69 e dão rc 2 no c3cde09f.
 
 Achado da rodada no 74b42c69, agora fechado: A1 (bloqueante) hooks/conformidade.py:693 · A A14 fechou só a busca de :688; a do prefixo nascido na linha ainda pula `${d:=v}` (S1: `: ${d:=.gi}; cp x "$d"t`, S2: `: ${d:=.gi}; cp -rT ev "$d"t`, rc 0). Fechado acima.
 
 ## Achados
+- A2 (bloqueante) hooks/conformidade.py:698 · O laço de prefixos não confere `VARIAVEIS_DO_BASH`: `: .gi; cp x "$_"t` dá rc 0 (`$_t`, prefixo `_` gravado pelo bash). Recuse o prefixo da lista, com fixture e mutante (A16 da segurança E1.340, A17 do QA; R-CONFORMIDADE)
 
 ## Sondas
+- S3 · : .gi; cp x "$_"t · espera: 2 · obtido: 0
+- S4 · : .gi; cp -rT ev "$_"t · espera: 2 · obtido: 0
 
 ## Parecer
-Aprovado no c3cde09f (R-REVIEW). A volta fecha a A15 (e o A1 deste parecer) na busca do prefixo, com função única para o nome e o prefixo, fixtures dos dois ramos, mutante por guarda que morre e cobertura sem lacuna. Nenhum achado aberto no delta; a suíte inteira fica com o CI do PR.
+Reprovado no c3cde09f (R-REVIEW). A volta fecha a A15 (e o A1 deste parecer) na busca do prefixo, com função única para o nome e o prefixo, fixtures dos dois ramos, mutante por guarda que morre e cobertura sem lacuna. Mas o mesmo laço de :698 deixa passar o prefixo que o bash grava (A2, a A16 da segurança). A volta aplica ao prefixo a recusa de `VARIAVEIS_DO_BASH` que :690 já aplica ao nome inteiro (o `GIT_` não precisa: prefixo com `GIT_` faz o nome inteiro começar com `GIT_`), com fixtures S48 a S51 da segurança e mutante.
