@@ -11,9 +11,9 @@ data: 2026-11-14
 # Review de devops: v047 (integracao-em-lote, E1.266)
 
 ## Achados
-Nenhum achado bloqueante. O A1 do review anterior (commit c6b0b788) está resolvido.
 
 ## Detalhes
+Sem achados. O A1 do review anterior (commit c6b0b788) está resolvido.
 - A1 resolvido (R-FLUXO): o passo "Nada pula degrau" (ci.yml:508-519) chama `tests/catraca.py --modo degrau`, da cópia da develop do servidor, com a tabela única PROMOCOES. Simulado: promocao/0.47.1 -> homolog com head na develop rc=0; develop -> homolog e homolog -> main rc=0; feature/x -> homolog, develop -> main, promocao/1.2.3-rc -> homolog e head de fork rc=1.
 - Workflow: entradas do PR (HEAD_REF, HEAD_SHA, HEAD_REPO) vão por `env`, nunca interpoladas em `run:`; o código executado é o da develop (não o do autor); o job tem `contents: read` e `fetch-depth: 0`, então `origin/develop` existe. Em arvore-testada, o par do PR vem da mesma tabela e o job continua em falha fechada.
 - bin/forge-fechar: `--item-de-lote` só com FORGE_FECHAR_LOTE_PAI igual ao `$PPID`; o CI acompanhado no lote é o do topo da develop no servidor, com aviso se a leitura falha; P5 descarta PR de fork (`isCrossRepository`); `par_de_promocao` consulta a tabela antes de criar o ramo.
