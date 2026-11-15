@@ -41,6 +41,26 @@
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]
+    },
+    {
+      "id": "O103",
+      "guarda": "A1 do review E1.279: o U4 consulta a lista positiva com a linha, que pode redefinir o comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if na_lista_positiva(corpo, linha):",
+      "para": "    if na_lista_positiva(corpo, \"\"):",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O104",
+      "guarda": "A1 do review E1.279: o U3 consulta a lista positiva com a linha, que pode redefinir o comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "all(na_lista_positiva(c.strip(), linha) for c in corpos)",
+      "para": "all(na_lista_positiva(c.strip(), \"\") for c in corpos)",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
     }
   ]
 }
