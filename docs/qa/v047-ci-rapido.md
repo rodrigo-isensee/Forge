@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-rapido
-commit: 88fe9ff40c95a8cae5565c6ea7105117f0a8f4dc
+commit: 5b632a48bbced4ce0a095539e11895b8d61b47c5
 parecer: reprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -17,8 +17,10 @@ data: 2026-11-14
 Instância que não fez a entrega. Intervalo `origin/develop..88fe9ff4` (o remoto trouxe depois só `docs/devops/v047-ci-rapido.md`, trazido por merge sem conflito; o código testado é o do `commit:`). Sem especificação de UX: os critérios vêm de `docs/propostas/ci-rapido.md` (decisão do dono de 2026-11-14, leitura b; ameaças S1 a S12) e do brief; CA-1 a CA-8 abaixo são essa leitura. A develop avançou (`c5c3a449`); `git merge-tree` de `HEAD` com `origin/develop` sai limpo.
 
 ## Achados
-- A1 (bloqueante) tests/test_suite_partes.py:499 · R-QA: `forge-testes --vermelho` sai 2: 7 testes novos dão `B=erro · sem veredito` na base (4 em FiacaoDoCI, 2 em LeituraDosWorkflowsTest, 1 em MatrizNeedsEAgregadorTest); sem veredito não vale como vermelho. Fazer a base falhar por asserção e repetir.
-- A2 (recomendado) tests/mutantes/v047-ci-rapido-1.json:1 · R-QA: M20 (`pesos-do-ci.py:85`, tirar `math.isfinite`) sobreviveu; é equivalente (NaN e inf já caem em `0 <= seg <= TETO_S` com TETO_S finito, conferido). Declare no campo `equivalente` com a justificativa.
+- A1 (bloqueante) tests/test_suite_partes.py:499 · R-QA: resolvido: antes sem veredito na base; agora os testes falham por asserção (`self.job`/`self.casar`). Vermelho rc=0, sem `sem veredito` (ver Cenários).
+- A2 (recomendado) tests/mutantes/v047-ci-rapido-2.json:84 · resolvido: M20 declarado `equivalente` com justificativa; `forge-mutante` o lista `equivalente`, rc=0.
+- A3 (bloqueante) stacks/node-react/pronto.md:65 · R-QA: manda dividir "por unidade de teste, não por arquivo" com `vitest --shard K/N`, mas o Vitest divide por arquivo (sem pesos); contradiz a regra de `skills/ci-cd`. Corrigir o texto ou a ferramenta. (`devops-engineer`/dev da stack)
+- A4 (recomendado) tests/test_suite_partes.py:609 · docstring ainda diz "as 3 partes de cada versão"; são 5 (AR-9, limite antigo no texto, 4ª vez); a linha AR-9 sobe no PR do review.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -43,3 +45,14 @@ Instância que não fez a entrega. Intervalo `origin/develop..88fe9ff4` (o remot
 - `forge-check docs`: rc=0 antes deste arquivo.
 - Fora do alcance local: tempo real das 5 partes (meta de 5 e 8 min) e `pesos-d4` sem recalibrar, por desenho; a medida pós-merge é do `devops-engineer`.
 - Acessibilidade e permissão de usuário: não se aplicam (mudança de CI, sem interface).
+
+## Revalidação por delta 88fe9ff4..5b632a48 (`forge-check parecer delta`)
+- Domínio lido: `docs/economia-de-tokens.md`, `scripts/suite-partes.py` (3 funções sem uso removidas: `esperado_da_parte`, `pesos_por_modulo`, `dividir`; o teste que as cobria saiu junto, sem perda de obrigação: o fora-da-divisão e o módulo-do-ID seguem testados), `skills/ci-cd/SKILL.md`, `pronto.md` (node-react, python), spec de mutantes, `test_ci_local.py`, `test_forge.py:335` (3 para 5 partes; a base 067b2a9f tem "3 partes" no README, então falha por asserção lá, conferido), `test_suite_partes.py`.
+- Vermelho (`forge-testes --vermelho 067b2a9f8d287ef24a2ee878f6c56db2d6a71d66 --modulos test_suite_partes,test_pesos_do_ci,test_ci_local`), rc=0:
+  `vermelho: base=067b2a9f8d28 head=5b632a48bbce módulos=test_suite_partes,test_pesos_do_ci,test_ci_local (restrito por --modulos)`
+  `contagem: não prova (passa na base)=87; prova (API ausente)=27; prova (asserção)=17` (antes: 7 sem veredito; agora 0).
+  Com `test_forge` no `--modulos` o módulo inteiro estoura o prazo (`sem veredito`, rc 2 por tamanho do módulo); o teste de `test_forge:335` foi provado à parte (passa no head, README da base diz "3 partes").
+- Mutação do delta: `bin/forge-mutante tests/mutantes/v047-ci-rapido-{1,2,3}.json --base 88fe9ff40c95a8cae5565c6ea7105117f0a8f4dc --processos 4`: `base=88fe9ff40c95… rev=5b632a48bbce`; M1 a M34 `morreu`, M20 `equivalente`; nenhum sobrevivente.
+- Suíte dirigida local (`test_suite_partes`, `test_pesos_do_ci`, `test_ci_local`) no head: `Ran 131 tests ... OK` (os 134 antes menos os 3 testes das funções removidas). Suíte inteira e check-run `bateria`: CI do PR (sem PR ainda; I5).
+- Merge com o remoto (pareceres de review e segurança, `1f1214be`) sem conflito.
+- `forge-check docs`: rc=0.
