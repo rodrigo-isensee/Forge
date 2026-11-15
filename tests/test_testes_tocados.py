@@ -976,11 +976,15 @@ class Oraculos(unittest.TestCase):
 
     def test_oraculo_entra_no_plano_sem_mudar_a_contagem(self):
         self.gravar("test_oraculo_x.py")
+        for p in [*(RAIZ / "hooks").glob("*.py"), *(RAIZ / "tests").glob("*.py")]:  # o fecho de imports do hook (E1.278)
+            if not p.name.startswith("test_"):
+                (self.dir / p.parent.name).mkdir(exist_ok=True)
+                (self.dir / p.parent.name / p.name).write_text(p.read_text(encoding="utf-8"), encoding="utf-8")
         for caminho in ("bin/forge-check", "hooks/conformidade.py"):
             with self.subTest(caminho):
                 _, real = self.f.planejar([caminho], RAIZ)
                 for m in real:
-                    self.gravar(m.replace(".", "/") + ".py")
+                    self.gravar(m.replace(".", "/") + ".py", self.f.arquivo_do_modulo(m, RAIZ).read_text(encoding="utf-8"))
                 modo, modulos = self.f.planejar([caminho], self.dir)
                 self.assertEqual(modo, "dirigido")
                 self.assertIn("test_oraculo_x", modulos)
