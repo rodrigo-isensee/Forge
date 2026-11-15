@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: e34924b4e6d18a37f1454420d1bfc759c787576d
+commit: 74b42c69d7c1fd98980986104f7e3733dbbbdd5b
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -125,3 +125,14 @@ Domínio lido por `forge-check parecer delta`: `hooks/conformidade.py` (`expansa
 - CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local. `forge-check docs` rc 0.
 
 Os fechados: A5 (bloqueante, corpo de heredoc sem aspas) e A4 (recomendado, `textos_do_valor`). Parecer aprovado no e34924b4 (`R-QA`): nenhum bug aberto, sem mutante sobrevivente, sem achado.
+
+## Revalidação por delta e34924b4..74b42c69 (E1.337, volta do lote B: A13 e A14, instância que não fez a entrega)
+Domínio lido por `forge-check parecer delta`: `hooks/conformidade.py` (`corpos_conhecidos` recusa corpo de heredoc sem aspas que atribui, A13; `valores_da_variavel` recusa `$d` quando a linha tem `${d:=v}`, `${d=v}` ou `${d[i]:=v}`, A14), `docs/hooks.md`, o fragmento do changelog, 8 fixtures `opaco-u4-*` novas, `tests/test_hook_destino_opaco.py` (piso 173 para 181) e as specs `v047-destino-opaco-22` (O150 reescrito) e `-23` (O153, O154). Escopo do plano inalterado (`R-CONFORMIDADE`).
+- Oráculo: `tests/test_oraculo_v047.py` não editado (o delta não o toca; blob `535134e9…` igual ao gravado acima); o módulo roda no vermelho abaixo.
+- Vermelho: `bin/forge-testes --vermelho e34924b4e6d1 --modulos test_hook_destino_opaco,test_oraculo_v047 --prazo 500`, rc 0: `vermelho: base=e34924b4e6d1 head=74b42c69d7c1`; `test_fixtures_opaco_u4 · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=6; prova (asserção)=1` (os demais são regressão, esperado).
+- Mutação do delta: `bin/forge-mutante --processos 4 tests/mutantes/v047-destino-opaco-22.json tests/mutantes/v047-destino-opaco-23.json`, `pedido=v047 rev=74b42c69d7c1`: O149 a O154 `morreu` (O153 em `conformidade.py:556`, O154 em `:688`), nenhum sobrevivente, rc 0. `--cobertura --base e34924b4…` (`base=` e `mb=` iguais): condições 556 e 688 `coberta`, a spec 22 `editada` (O150 reescrito para o novo trecho, ainda mata).
+- Sondas (aspas simples; hook real pela máquina do `test_hook_destino_opaco`, em cópia em `$TMPDIR`, 17 fixtures `opaco-zz` descartáveis, destino `"$d"`, `"$(date)"` ou `"$(mktemp)"`): head recusa (rc 2) `a=.g; : ${d:=${a}it/config}`, `${d:=.git/config}`, `${d=.git/config}`, `${d[0]:=.git/config}`, `${d:=docs}` (atribuição na linha, recusa na dúvida), `${d:=${a:=.g}it/config}`, `${d:=.g}; … "${d}it/config"`, heredoc sem aspas com `${d:=…}`, `${d=…}`, `${D:=…}` e `<<-E` com tab. Libera (rc 0): `d=docs`, `${d:-docs}`, `<<'E'` literal, `"$(mktemp)"`. Na base e34924b4 as mesmas sondas `${d:=…}` na linha (01, 05, 15) saem rc 0, ou seja, o delta fecha a classe.
+- Falso positivo medido, não é regressão (igual na base): `cat <<E`⏎`plain ${x:-1}`⏎`E`⏎`echo a > "$(mktemp)"` recusa com "`${` com ação crítica" (guarda anterior ao delta, recusa na dúvida). Sem achado.
+- CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local. A13 e A14 fechados.
+
+Parecer aprovado no 74b42c69 (`R-QA`): nenhum bug aberto, sem mutante sobrevivente, sem achado.
