@@ -3,14 +3,23 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-fala-e-decisoes
-commit: a4a476617e6aae4b418e2a97df2839f84500942a
+commit: fd0a0172774f2744dbfbba81ca10064d4f98ec41
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-14
+data: 2026-11-15
 ---
 # Review de segurança: v047 (fala só no marco e pedido das decisões)
 
 Intervalo revisado: `origin/develop` (c5c3a449) até 05797223, um commit (E1.282): `agents/jarvis.md`, `skills/falar-com-o-dono/SKILL.md`, `skills/modo-iniciante/SKILL.md`, `tests/config.json` e o fragmento `changelog.d/v047-fala-e-decisoes.md`.
+
+## Revalidação por delta (a4a47661..fd0a0172, E1.348)
+Lido por `forge-check parecer delta`: no domínio, `agents/jarvis.md` (uma linha da triagem) e `tests/config.json`; fora, o fragmento do changelog e `tests/test_jarvis_nucleo.py`.
+
+**Afrouxamento pedido pelo dono (decisão 2 de 2026-11-15 06:34, `docs/pedidos/v047.md:593`):** sai o invariante "diga sempre ao usuário para qual agente passou" e entra "diga qual agente faz o quê só nos marcos, num resumo", com `regra` (R-DECISAO) e `porque`; a contagem de `agents/jarvis.md` cai de 49 para 48 (troca de um padrão protegido por um conjunto à parte). O teste do núcleo registra a retirada em `RETIRADOS_047`. A catraca, rodada local contra a4a47661, acusa a remoção e pede o rótulo `afrouxa-regra` (R-CONFORMIDADE): o portão técnico continua, e o rótulo é do dono no PR, não deste parecer.
+
+**Impacto de segurança:** nenhum na barreira técnica. O aviso por agente era só fala; a janela de permissão, o hook `conformidade` e as decisões que saem na hora (aceite de risco de `R-SEGURANCA`, problema que muda prazo ou risco) não mudam. O efeito é de auditoria, já coberto por A2: quem fez o quê passa a chegar ao dono no marco. Sem achado novo.
+
+Conferido no head fd0a0172: `tests.test_jarvis_nucleo`, `tests.test_forge.RegrasInviolaveis` e `tests.test_forge.Neutralidade` OK (26 testes); `tests.test_invariante_gatilho` OK.
 
 ## Revalidação por delta (05797223..a4a47661, E1.302)
 Lido por `forge-check parecer delta`: `skills/falar-com-o-dono/SKILL.md`, `skills/kanban-scrum/SKILL.md`, `skills/modo-iniciante/SKILL.md`, três arquivos novos ao lado das skills (`resposta-curta.md`, `experimentos.md`, `numeros.md`) e `tests/config.json`; fora do domínio, o fragmento do changelog.
