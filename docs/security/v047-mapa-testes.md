@@ -3,40 +3,35 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-mapa-testes
-commit: 477dbefe80ed35a590dc2f689eea32cd39177fcd
+commit: 2263bc0d9d032d4d79d42c4e57641b073108f4dc
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-14
 ---
-# Review de segurança: v047 (mapa de testes, E1.253)
+# Review de segurança: v047 (mapa de testes, E1.253), revalidação por delta
 
-Intervalo `origin/develop` (c5c3a449) `..477dbefe`: `bin/forge-testes` (`quem_importa`, `IMPORTAVEL`, `APOIO_NA_COMPLETA`, `VARRE_TESTS`), `tests/test_testes_tocados.py` (classe `QuemImporta`), duas specs de mutantes e o fragmento do changelog. Parecer aprovado, com duas recomendações.
+Revalidação por delta (E1.285) do parecer anterior (aprovado em 477dbefe). O delta é `477dbefe..2263bc0d`, lido por `forge-check parecer delta`. No domínio está só `bin/forge-testes`. Ficam fora `tests/test_testes_tocados.py`, as duas specs de mutantes e o fragmento do changelog. Mudou o seguinte: `quem_importa` vale só para `hooks/` e passa a seguir o fecho de imports (hook, apoio e teste que importa teste), e o apoio da raiz de `tests/` volta à suíte completa (decisão 7 do dono). Parecer aprovado, sem achado novo.
 
 ## Gatilhos
-`R-SEGURANCA`: a entrega mexe na escolha de testes do envio local, vizinha dos controles do Forge (`R-VERIFY`, M8). Não há analisador de entrada não confiável nem hook novo: a entrada de `quem_importa` é o texto dos próprios módulos de `tests/`, escrito por quem já tem escrita na branch.
+`R-SEGURANCA`: a entrega mexe na escolha de testes do envio local, vizinha dos controles do Forge (`R-VERIFY`, M8). Não há analisador de entrada não confiável. A entrada de `quem_importa` é o texto versionado de `hooks/` e `tests/`, escrito por quem já tem escrita na branch.
 
 ## Achados
-- A1 (recomendado) bin/forge-testes:232 · APOIO_NA_COMPLETA deixa tests/guarda_git.py ir ao dirigido, mas bin/forge-check:1138 (CODIGO_EM_TESTS) o lista como código de portão junto da catraca e da neutralidade; alinhar as duas listas numa fonte só ou acrescentá-lo aqui
-- A2 (recomendado) bin/forge-testes:229 · o desenho do adendo 2 (fora do repo) registrou tests/apoio_*.py sem regra pela decisão 7 do dono; a leitura literal se mantém (módulo de teste no diff segue na completa), mas a mudança vira essa leitura: citar no PR e avisar o dono pelo Jarvis (R-DECISAO)
 
 ## Sondas
 
 ## Detalhe dos achados
-**Ponto pedido pelo brief (opção C da M8, decisão 7 do dono).** A decisão M8 do dono (2026-10-24) diz que o envio de `melhoria/*` roda só os testes afetados, que caminho sem regra cai na suíte completa e que a bateria completa segue no CI de todo PR para `develop`, `homolog` e `main`. A opção C acrescenta que todo **módulo de teste** no diff roda a suíte inteira. A decisão 7 do estudo-custo-suite (2026-11-07 21:21, "Não, por ora") recusou a F3: levar módulo de teste no diff ao dirigido. Conferido no head:
-- módulo de teste no diff segue na completa: `IMPORTAVEL` exclui `test_` (`bin/forge-testes:231`), e `planejar(["tests/test_hooks.py"])` devolve `("completo", ["tests/test_hooks.py sem mapa"])`;
-- o próprio script já trata os apoios da raiz de `tests/` como produção, e não como teste (`bin/forge-testes:82`, no `--vermelho`), e `TESTE_DO_DIFF` (`bin/forge-testes:84`) não os inclui;
-- o efeito é só local: o envio leve não roda teste (`.githooks/pre-push:402`), o `afetados` é opt-in (`.githooks/pre-push:584`), e `scripts/conferir-reversao.py` usa o plano como aviso, não como portão (docstring, linha 14). Nenhum workflow do CI chama o `forge-testes` para escolher testes; a suíte inteira no CI do PR continua obrigatória para o merge.
+**Achados do parecer anterior, fechados pelo delta.**
+- A1 (`tests/guarda_git.py` no dirigido): fechado. `IMPORTAVEL` e `APOIO_NA_COMPLETA` saíram, e o apoio fica sem regra. Sondado no head: `planejar` devolve `completo` para os 15 arquivos da raiz de `tests/` que não são `test_*`, entre eles `guarda_git`, `catraca` e `neutralidade`.
+- A2 (governança da decisão 7): fechado. O apoio de `tests/` no diff voltou à suíte completa, como diz o registro do dono (`bin/forge-testes:185-188` e a docstring de `quem_importa`). O teste `test_promover_e_apoio_seguem_na_completa` voltou, e `test_apoio_de_tests_importado_segue_na_completa` ficou como teste permanente.
 
-Do lado da segurança, não há caminho de ataque: quem enfraquece um apoio para escapar de teste local ainda passa pela suíte inteira no CI, e nenhum portão usa o plano dirigido. O que muda é governança, e por isso o A2 não bloqueia. O texto do desenho do adendo 2 (seção 3) diz que mapear apoio "afrouxa a opção C da M8" e que "isso é do dono". A leitura do código (apoio é produção; a opção C fala de módulo de teste) sustenta a entrega, mas contraria o registro. O teste que guardava essa leitura (`test_promover_e_apoio_seguem_na_completa`, com `tests/apoio_volta_unica.py`) foi trocado por `test_promover_e_portoes_de_tests_seguem_na_completa` (`tests/test_testes_tocados.py:165`). Correção mínima: o PR cita o argumento da E1.253 e esta leitura, e o Jarvis registra a mudança ao dono, sem pergunta nova se ele já a tiver como técnica. Esforço P. Dono: `tech-lead` (PR) e Jarvis (registro).
+**Dimensões conferidas no delta, sem achado.**
+- Hooks, comparação entre a base (477dbefe) e o head para todo `hooks/*.py` (`_comum`, `agentes`, `conformidade`, `doutor`, `meta`, `parecer`, `pesado`, `quadro`, `vigia`). Nenhum plano encolhe e nenhum hook passa de completo a dirigido: os nove ficam dirigidos e o conjunto de módulos só cresce. Hook sem `tests/test_<nome>.py` agora cai na completa (`planejar`, `if casou is None`). Antes ele podia ir ao dirigido só por quem o importava, então a mudança é mais estrita.
+- `IMPORTA` e `importados`: a expressão casa em qualquer ponto do texto, e não só no começo da linha. Isso inclui docstring e código mandado a subprocesso, o que só pode acrescentar módulos. Ela também cobre `import a, x as b`, que o padrão antigo perdia. As repetições exigem vírgula entre os itens e não têm retrocesso catastrófico: entradas de 20 mil itens e de 50 mil níveis com ponto levaram 0,09 s.
+- Fecho: termina pelo conjunto `vistos` (há teste de ciclo entre hooks) e devolve só módulos de teste (`vistos & set(textos)`). Os nomes de `hooks/*.py` e `tests/*.py` não colidem no head, então o dicionário `lidos` não tem chave sobrescrita.
+- `--afetados` (opt-in `FORGE_PREPUSH_SUITE=afetados`, `.githooks/pre-push:584`): o apoio deixa de passar por `quem_importa` e fica com `citam` e `EXERCITAM`, que já são conservadores. Esse modo nunca pede a suíte completa, por desenho, e o CI do PR continua sendo o portão.
+- Limitação herdada: um hook carregado por `importlib` com nome montado em tempo de execução escapa do plano local. É a mesma limitação aceita no parecer anterior, e o CI a cobre.
 
-**A1.** Evidência: `bin/forge-testes:232` lista só `tests/catraca.py` e `tests/neutralidade.py`; `bin/forge-check:1138` define `CODIGO_EM_TESTS = (tests/catraca.py, tests/neutralidade.py, tests/guarda_git.py)` como "código do portão que mora em tests/". O `guarda_git` protege o `.git/config` comum do clone real contra mudança durante os testes (identidade e configuração; ver a docstring dele). Sondado: `planejar(["tests/guarda_git.py"])` dá dirigido com 48 módulos, entre eles `test_guarda_git` e `test_suite_paralela`, que o exercitam. Por isso não é defeito provado: um enfraquecimento dele cai no teste dele mesmo, e o CI roda tudo. Caminho de ataque: nenhum realista além do que o CI já cobre. Severidade: baixa (consistência entre duas listas do mesmo conceito). Correção mínima: acrescentar `tests/guarda_git.py` a `APOIO_NA_COMPLETA` ou derivar as duas de uma fonte só. A lista completa a cobrir é: `tests/catraca.py`, `tests/neutralidade.py` e `tests/guarda_git.py`. Esforço P. Dono: `tech-lead`.
-
-**Outras dimensões conferidas, sem achado.**
-- Hooks: `quem_importa` só acrescenta módulos ao plano dos hooks. Comparando base e head para todo `hooks/*.py`, o plano só cresce (`_comum`, `agentes`, `pesado`), e nenhum hook passa de completo para dirigido.
-- Apoios: os 12 apoios da raiz (`ambiente_git`, `apoio_conferida`, `apoio_forge_check_rapido`, `apoio_jarvis`, `apoio_regra_id`, `apoio_sandbox`, `apoio_versao_defasada`, `apoio_volta_unica`, `gh_falso`, `guarda_git`, `modelo_git`, `sem_claude_ancestral`) passam de completo para dirigido. O `ambiente_git` alcança os módulos de `tests/evals/`, que é pacote.
-- Terminação e custo: o ciclo entre apoios termina (há o conjunto `vistos` e um teste em processo à parte com prazo). As expressões regulares não têm retrocesso catastrófico, e os nomes passam por escape. O `fnmatch` recebe padrões vindos de arquivos versionados.
-- Leitura: `textos_dos_testes` exclui link simbólico; o dicionário `apoios` lê `tests/*.py` sem a mesma exclusão, mas só afeta o plano local (informativo).
-- Detecção por texto: um apoio carregado por nome montado em tempo de execução escapa do plano local. É a mesma limitação aceita para o resto do mapa, e o CI a cobre.
+Não há caminho de ataque: o plano dirigido só vale no envio local, que é opt-in. Nenhum workflow o usa como portão, e a suíte inteira no CI do PR segue obrigatória para o merge.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Rodado no clone, no head 477dbefe: `tests/test_testes_tocados.py` inteiro, 157 testes OK (1 pulado pelo sandbox: /proc de outro namespace); planos de base e de head comparados para cada `hooks/*.py` e cada apoio da raiz de `tests/`. A suíte inteira roda no CI do PR, que ainda não existe ("sem PR" no brief); o merge depende dela. Ferramentas da skill (varredura de segredos, SAST, auditoria de workflow) não rodadas: a entrega não toca segredo, dependência nem workflow.
+Nenhum risco aceito. Rodado no clone, no head 2263bc0d: `python3 -m unittest tests.test_testes_tocados`, 155 testes OK (1 pulado pelo sandbox). Também rodaram os planos de base e de head para cada `hooks/*.py`, o plano de cada arquivo de apoio da raiz de `tests/` e o tempo de `importados` com entrada grande. A suíte inteira roda no CI do PR, que ainda não existe ("sem PR" no brief), e o merge depende dela. As ferramentas da skill (segredos, SAST, auditoria de workflow) não rodaram: o delta não toca segredo, dependência nem workflow.
