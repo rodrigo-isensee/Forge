@@ -326,7 +326,7 @@ jobs:
           node-version: "24"
       - name: Claude Code CLI (nova tentativa só na instalação, por falha de rede; confere a versão)
         run: |
-          instalar() { npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296; }
+          instalar() { npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296 && node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"; }
           instalar || { echo "instalação falhou (rede); uma segunda tentativa"; sleep 5; instalar; }
           claude --version
       - name: Instala o Forge num projeto vazio e inicializa (Python 3.14)
@@ -513,7 +513,7 @@ jobs:
       - name: Claude Code CLI (nova tentativa só na instalação, por falha de rede; confere a versão)
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: |
-          instalar() { npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296; }
+          instalar() { npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296 && node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"; }
           instalar || { echo "instalação falhou (rede); uma segunda tentativa"; sleep 5; instalar; }
           claude --version
       - name: claude plugin validate --strict
@@ -617,7 +617,7 @@ jobs:
       - name: Claude Code CLI (nova tentativa só na instalação, por falha de rede; confere a versão)
         if: ${{ !cancelled() && needs.bateria.outputs.pesada != 'false' }}
         run: |
-          instalar() { npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296; }
+          instalar() { npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296 && node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"; }
           instalar || { echo "instalação falhou (rede); uma segunda tentativa"; sleep 5; instalar; }
           claude --version
       - name: Provas cmd do arquivo de provas, reexecutadas no sha do PR (R-PROVA)

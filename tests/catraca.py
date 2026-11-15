@@ -263,7 +263,9 @@ def chaves_de_hooks(texto):
     for evento, grupos in (dados.get("hooks") or {}).items():
         for g in grupos:
             for hk in g.get("hooks", []):
-                chaves.add((evento, g.get("matcher", ""), hk.get("command", ""), " ".join(hk.get("args", []))))
+                # o hook é o script: as opções do interpretador antes dele (`-s -E`, C6 da HOOK-ERRO-LIBERA) não o removem
+                args = [a for a in hk.get("args", []) if not a.startswith("-")]
+                chaves.add((evento, g.get("matcher", ""), hk.get("command", ""), " ".join(args)))
     return chaves
 
 

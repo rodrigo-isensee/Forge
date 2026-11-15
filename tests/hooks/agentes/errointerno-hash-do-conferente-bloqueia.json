@@ -1,0 +1,22 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (E8, C7): erro interno ao conferir o hash do brief do conferente recusa (R-BRIEF).",
+  "forcar": {
+    "onde": "hash_do_brief_diverge",
+    "como": "erro"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:conferente",
+      "description": "Conferir",
+      "prompt": "modo: brief\nArquivo: docs/briefs/p1-tech-lead-1.md\nBrief-sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-BRIEF: erro ao conferir o brief do disparo",
+    "erros_log": "erro forcado"
+  }
+}

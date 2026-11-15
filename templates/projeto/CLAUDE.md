@@ -21,6 +21,8 @@ Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, http
 - **Testes rápidos**: <!-- comando de testes da stack -->
 - **Linha de status (opcional)**: `forge-status` mostra uma linha por pedido em curso; para ligar, ponha `"statusLine": {"type": "command", "command": "forge-status"}` em `.claude/settings.local.json`.
 
+- **Ambiente:** durante o trabalho, desligue a atualização automática da extensão do Claude Code (ela reinicia a sessão e leva os agentes em curso); o nome da opção muda entre versões, procure por atualização automática nas configurações da extensão.
+
 ## Exceções locais às regras da fábrica
 <!-- Só o que diverge do Forge, com o motivo. Ex.: teto de recursos diferente, outro banco, outra branch de integração. -->
 - Nenhuma.
