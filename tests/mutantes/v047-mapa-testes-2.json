@@ -1,0 +1,26 @@
+{
+  "pedido": "v047-mapa-testes",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "import de outro módulo com o nome como prefixo não conta",
+      "arquivo": "bin/forge-testes",
+      "de": "import\\s+{re.escape(nome)}\\b)",
+      "para": "import\\s+{re.escape(nome)})",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_no_plano_e_nos_afetados"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "os afetados do pre-push levam quem importa o hook",
+      "arquivo": "bin/forge-testes",
+      "de": "        achados |= quem_importa(caminho, raiz, textos)\n",
+      "para": "        achados |= set()\n",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_no_plano_e_nos_afetados"
+      ]
+    }
+  ]
+}

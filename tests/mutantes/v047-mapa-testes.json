@@ -1,0 +1,88 @@
+{
+  "pedido": "v047-mapa-testes",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o caminho que só quem importa cobre não cai na suíte completa",
+      "arquivo": "bin/forge-testes",
+      "de": "        if casou is None and not importam:\n",
+      "para": "        if casou is None:\n",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita",
+        "tests.test_testes_tocados.QuemImporta.test_no_repositorio_os_apoios_e_o_test_ritmo_saem_da_suite_completa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "catraca e neutralidade seguem na suíte completa mesmo citadas",
+      "arquivo": "bin/forge-testes",
+      "de": "    if not (hook or apoio) or caminho in APOIO_NA_COMPLETA:\n",
+      "para": "    if not (hook or apoio):\n",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_apoio_sem_leitor_catraca_e_neutralidade_seguem_na_completa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o hook vai pelo import e o apoio pela palavra",
+      "arquivo": "bin/forge-testes",
+      "de": "    if hook:\n        importa",
+      "para": "    if not hook:\n        importa",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita",
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_no_plano_e_nos_afetados"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "só o arquivo da raiz de tests/ entra como apoio, não a pasta",
+      "arquivo": "bin/forge-testes",
+      "de": "if APOIO_DE_TESTES.fullmatch(f\"tests/{p.name}\") and p.is_file()}",
+      "para": "if APOIO_DE_TESTES.fullmatch(f\"tests/{p.name}\")}",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "quem varre tests/ entra só se o glob casa o apoio",
+      "arquivo": "bin/forge-testes",
+      "de": "any(fnmatch.fnmatch(f\"{nome}.py\", p) for p in",
+      "para": "any(True for p in",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_quem_varre_tests_com_glob_que_casa_o_apoio_entra"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o ciclo entre apoios termina",
+      "arquivo": "bin/forge-testes",
+      "de": "        if nome in vistos:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_apoios_que_se_citam_em_ciclo_terminam"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "a palavra inteira: prefixo ou sufixo não citam o apoio",
+      "arquivo": "bin/forge-testes",
+      "de": "        palavra = re.compile(rf\"(?<![\\w-]){re.escape(nome)}(?![\\w-])\")\n",
+      "para": "        palavra = re.compile(rf\"{re.escape(nome)}\")\n",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o apoio citado por outro apoio leva aos leitores deste",
+      "arquivo": "bin/forge-testes",
+      "de": "        fila += [outro for outro, texto in apoios.items() if palavra.search(texto)]\n",
+      "para": "        fila += []\n",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita"
+      ]
+    }
+  ]
+}

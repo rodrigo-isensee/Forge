@@ -162,8 +162,8 @@ class Mapa(unittest.TestCase):
                 self.assertEqual(modo, "dirigido")
                 self.assertLessEqual(guardas, set(modulos))
 
-    def test_promover_e_apoio_seguem_na_completa(self):  # MP-1: adendo 2, ponto 3 (decisão 7 do dono)
-        for caminho in ("scripts/promover-homolog.py", "tests/apoio_volta_unica.py"):
+    def test_promover_e_portoes_de_tests_seguem_na_completa(self):  # MP-1: adendo 2, ponto 3 (decisão 7 do dono); E1.253
+        for caminho in ("scripts/promover-homolog.py", "tests/catraca.py", "tests/neutralidade.py"):
             with self.subTest(caminho):
                 self.assertEqual(self.plano(caminho), ("completo", [f"{caminho} sem mapa"]))
 
@@ -287,6 +287,77 @@ class MapaDosNovos(unittest.TestCase):
 
     def test_o_modulo_comum_do_bin_segue_com_os_testes_do_forge_mutante(self):
         self.assertIn("test_forge_mutante", self.f.planejar(["bin/forge_apoio_testes.py"], RAIZ)[1])
+
+
+class QuemImporta(unittest.TestCase):
+    """E1.253 (v047, TESTE-RITMO-SEM-MAPA): o apoio da raiz de tests/ e o hook levam a quem os importa, lido do texto dos
+    testes; o apoio sem leitor, a catraca e a neutralidade seguem na suíte completa."""
+
+    brinquedo = MapaDosNovos.brinquedo
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+
+    def test_apoio_leva_a_quem_o_cita_pela_palavra_e_pelo_apoio_que_o_cita(self):
+        raiz = self.brinquedo(**{"tests/apoio_a.py": "x = 1\n", "tests/apoio_b.py": "from apoio_a import x\n",
+                                 "tests/test_um.py": "from apoio_a import x\n", "tests/test_dois.py": "import apoio_b\n",
+                                 "tests/test_outro.py": "'apoio_ab' 'meu_apoio_a' 'apoio_a-x'\n"})
+        (raiz / "tests" / "apoio_pasta.py").mkdir()  # pasta com nome de módulo: não é apoio
+        try:
+            plano = self.f.planejar(["tests/apoio_a.py"], raiz)
+        except Exception as e:  # noqa: BLE001  levantar é falha do caso, não erro do teste
+            plano = f"levantou {type(e).__name__}"
+        self.assertEqual(plano, ("dirigido", ["test_dois", "test_um"]))
+        self.assertEqual(self.f.planejar(["tests/apoio_b.py"], raiz), ("dirigido", ["test_dois"]))
+
+    def test_apoios_que_se_citam_em_ciclo_terminam(self):
+        raiz = self.brinquedo(**{"tests/apoio_a.py": "import apoio_b\n", "tests/apoio_b.py": "import apoio_a\n",
+                                 "tests/test_um.py": "import apoio_b\n"})
+        codigo = ("import importlib.machinery as m, importlib.util as u, sys; c = m.SourceFileLoader('f', sys.argv[1]); "
+                  "f = u.module_from_spec(u.spec_from_loader('f', c)); c.exec_module(f); "
+                  "print(f.planejar(['tests/apoio_a.py'], __import__('pathlib').Path(sys.argv[2])))")
+        try:  # num processo à parte: o ciclo sem a guarda não termina, e o prazo o derruba
+            saida = subprocess.run([sys.executable, "-I", "-c", codigo, str(FERRAMENTA), str(raiz)], env={"PATH": os.defpath},
+                                   capture_output=True, text=True, timeout=30)
+        except subprocess.TimeoutExpired:
+            self.fail("o ciclo entre apoios não terminou")
+        self.assertEqual(saida.stdout.strip(), "('dirigido', ['test_um'])", saida.stderr)
+
+    def test_quem_varre_tests_com_glob_que_casa_o_apoio_entra(self):
+        raiz = self.brinquedo(**{"tests/apoio_a.py": "x = 1\n", "tests/test_um.py": "import apoio_a\n",
+                                 "tests/test_varre.py": "(RAIZ / \"tests\").glob(\"apoio_*.py\")\n",
+                                 "tests/test_so_testes.py": "AQUI.glob(\"test_*.py\")\n"})
+        self.assertEqual(self.f.planejar(["tests/apoio_a.py"], raiz), ("dirigido", ["test_um", "test_varre"]))
+
+    def test_apoio_sem_leitor_catraca_e_neutralidade_seguem_na_completa(self):
+        raiz = self.brinquedo(**{"tests/apoio_a.py": "x = 1\n", "tests/catraca.py": "", "tests/neutralidade.py": "",
+                                 "tests/test_um.py": "import catraca\nimport neutralidade\n"})
+        for caminho in ("tests/apoio_a.py", "tests/catraca.py", "tests/neutralidade.py"):
+            with self.subTest(caminho):
+                self.assertEqual(self.f.planejar([caminho], raiz), ("completo", [f"{caminho} sem mapa"]))
+
+    def test_hook_leva_a_quem_o_importa_no_plano_e_nos_afetados(self):
+        raiz = self.brinquedo(**{"hooks/agentes.py": "", "tests/test_hooks.py": "x = 1\n", "tests/test_catraca.py": "",
+                                 "tests/test_um.py": "import agentes  # noqa\n", "tests/test_dois.py": "from agentes import f\n",
+                                 "tests/test_outro.py": "import agentes_x\n'agentes'\n"})
+        self.assertEqual(self.f.quem_importa("hooks/agentes.py", raiz), {"test_um", "test_dois"})
+        self.assertLessEqual({"test_um", "test_dois"}, set(self.f.planejar_afetados(["hooks/agentes.py"], raiz)[0]))
+
+    def test_no_repositorio_os_apoios_e_o_test_ritmo_saem_da_suite_completa(self):
+        casos = {"tests/apoio_jarvis.py": {"test_anotar", "test_clareza", "test_forge"},
+                 "tests/apoio_volta_unica.py": {"test_hooks", "test_medida_cpu"} | set(self.f.VOLTA_UNICA),
+                 "tests/ambiente_git.py": {"test_ritmo", "test_testes_tocados"}, "hooks/agentes.py": {"test_ritmo"}}
+        for caminho, esperado in casos.items():
+            with self.subTest(caminho):
+                modo, modulos = self.f.planejar([caminho], RAIZ)
+                self.assertEqual(modo, "dirigido")
+                self.assertLessEqual(esperado, set(modulos))
+        saida = subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--listar", "tests/apoio_jarvis.py"], cwd=RAIZ,
+                               env={"PATH": os.defpath, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null"},
+                               capture_output=True, text=True)
+        self.assertEqual(saida.returncode, 0, saida.stderr)
+        self.assertTrue(saida.stdout.startswith("forge-testes: dirigido ("), saida.stdout)
 
 
 class MapaCobreOQueOsTestesLeem(unittest.TestCase):

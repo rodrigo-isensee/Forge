@@ -26,7 +26,8 @@ Os módulos do plano dirigido rodam em paralelo por `scripts/suite-partes.py` (o
 Convenção (O2, 0.44.1): sem regra no mapa, bin/forge-x leva a tests/test_forge_x.py, hooks/x.py e scripts/x.py a
 tests/test_x.py (se o arquivo existe); o mapa fica para as exceções. Sem as duas (E14.1): bin/forge-x leva a tests/test_x.py,
 test_forge e quem cita forge-x; bin/forge_x.py, a quem cita forge_x e test_forge; tests/mutantes/<spec>.json, aos módulos
-do campo `testes` da spec.
+do campo `testes` da spec. O apoio da raiz de tests/ (menos catraca e neutralidade) leva a quem o cita ou varre tests/,
+e o hook, também a quem o importa (E1.253).
 Falha fechada: qualquer caminho sem entrada no mapa nem teste pela convenção, `tests/config.json`, este script (que contém o mapa),
 um módulo mapeado que não existe, um erro ao ler o git e todo módulo de teste no diff (alterado, novo ou apagado:
 ele pode importar outro, ler todos os de tests/ ou carregá-los pelo nome) fazem rodar a suíte completa. O `--vermelho`
@@ -45,6 +46,7 @@ script, `--vermelho` incluído: ele é evidência que o autor e o QA colam no pa
 """
 import argparse
 import ast
+import fnmatch
 import functools
 import importlib.util
 import json
@@ -182,9 +184,10 @@ MAPA = [
     (r"tests/comportamento/.*", ("test_comportamento",)),
     (r"\.devcontainer/.*", ("test_forge",)),  # 0.43.1, frente A
 ]
-# Sem regra (de propósito), por exemplo: .github/, .githooks/, tests/config.json, tests/catraca.py e os outros
-# arquivos de apoio de tests/ (inclui tests/hooks/, tests/migracoes/, tests/transcricoes/ e fixtures), LICENSE,
-# CLAUDE.md, .claude/ e .gitignore. Tudo o que não casa com uma regra acima cai na suíte completa.
+# Sem regra (de propósito), por exemplo: .github/, .githooks/, tests/config.json, tests/catraca.py, tests/neutralidade.py,
+# as subpastas de tests/ (tests/hooks/, tests/migracoes/, tests/transcricoes/ e fixtures), LICENSE, CLAUDE.md, .claude/ e
+# .gitignore. Tudo o que não casa com uma regra acima cai na suíte completa. Os apoios da raiz de tests/ e os hooks
+# levam também a quem os importa (`quem_importa`, E1.253).
 # O próprio script entra na suíte completa: ver ALTERA_O_MAPA.
 # Módulo de teste no diff não tem regra: cai na suíte completa (M8, opção C). Um teste pode importar outro, ler todos os
 # de tests/ ou carregá-los pelo nome; o mapa não tenta saber como, e por isso não há grafo de importação para divergir.
@@ -223,6 +226,13 @@ SUBCOMANDO = re.compile(r"bin/forge-([a-z][a-z0-9-]*)")  # bin/forge-x -> tests/
 MODULO_DO_BIN = re.compile(r"bin/(forge_[a-z][a-z0-9_]*)\.py")  # bin/forge_x.py -> quem cita forge_x (o importa), e test_forge
 SPEC_DE_MUTANTES = re.compile(r"tests/mutantes/[a-z0-9][a-z0-9_.-]*\.json")  # -> os módulos do campo `testes` da spec
 TESTE_DA_SPEC = re.compile(r"tests\.((?:[a-z0-9_]+\.)*?test_[a-z0-9_]+)(?:\.[A-Za-z0-9_]+)*")
+# E1.253 (v047, TESTE-RITMO-SEM-MAPA): quem importa um hook ou um apoio de tests/ sai do texto dos testes (`quem_importa`),
+# sem lista à mão. A catraca e a neutralidade são portões do CI sobre a árvore inteira: seguem na suíte completa.
+MODULO_DE_HOOK = re.compile(r"hooks/([a-z_][a-z0-9_]*)\.py")
+APOIO_DE_TESTES = re.compile(r"tests/((?!test_)[a-z][a-z0-9_]*)\.py")
+APOIO_NA_COMPLETA = frozenset({"tests/catraca.py", "tests/neutralidade.py"})
+# Quem varre a pasta tests/ (`AQUI`, `Path(__file__).resolve().parent` ou `(RAIZ / "tests")`) lê o apoio sem importá-lo.
+VARRE_TESTS = re.compile(r"""(?:\bAQUI|__file__\)\.resolve\(\)\.parent|["']tests["']\))\.r?glob\(\s*["']([^"']+)["']""")
 
 
 def git(*args):
@@ -265,9 +275,10 @@ def planejar(caminhos, raiz=Path(".")):
                 casou = destino
                 break
         casou = casou or modulos_da_convencao(caminho, raiz) or modulos_do_novo(caminho, raiz)
-        if casou is None:
+        importam = quem_importa(caminho, raiz)
+        if casou is None and not importam:
             return "completo", [f"{caminho} sem mapa"]
-        modulos.update(casou)
+        modulos.update(casou or (), importam)
     ausentes = sorted(m for m in modulos if not arquivo_do_modulo(m, raiz).is_file())
     if ausentes:
         return "completo", [f"módulo sem arquivo: {', '.join(ausentes)}"]
@@ -303,6 +314,34 @@ def modulos_do_novo(caminho, raiz=Path(".")):
     if SPEC_DE_MUTANTES.fullmatch(caminho):
         return modulos_da_spec(raiz / caminho)
     return None
+
+
+def quem_importa(caminho, raiz=Path("."), textos=None):
+    """E1.253 (v047): módulos de teste que importam o arquivo, lidos do texto como o git grep do REAPROVEITAM_O_LOTE.
+    hooks/x.py: quem tem `import x` ou `from x import`. tests/<apoio>.py: quem cita o nome como palavra (import,
+    mock.patch, caminho), também pelo apoio que o cita, e quem varre tests/ com um glob que o casa. Vazio para o
+    resto e para a catraca e a neutralidade."""
+    hook, apoio = MODULO_DE_HOOK.fullmatch(caminho), APOIO_DE_TESTES.fullmatch(caminho)
+    if not (hook or apoio) or caminho in APOIO_NA_COMPLETA:
+        return set()
+    textos = textos_dos_testes(raiz) if textos is None else textos
+    nome = (hook or apoio).group(1)
+    if hook:
+        importa = re.compile(rf"^\s*(?:from\s+{re.escape(nome)}\s+import|import\s+{re.escape(nome)}\b)", re.M)
+        return {m for m, texto in textos.items() if importa.search(texto)}
+    apoios = {p.stem: p.read_text(encoding="utf-8", errors="replace") for p in sorted((raiz / "tests").glob("*.py"))
+              if APOIO_DE_TESTES.fullmatch(f"tests/{p.name}") and p.is_file()}
+    modulos = {m for m, texto in textos.items() if any(fnmatch.fnmatch(f"{nome}.py", p) for p in VARRE_TESTS.findall(texto))}
+    vistos, fila = set(), [nome]
+    while fila:
+        nome = fila.pop()
+        if nome in vistos:
+            continue
+        vistos.add(nome)
+        palavra = re.compile(rf"(?<![\w-]){re.escape(nome)}(?![\w-])")
+        modulos |= {m for m, texto in textos.items() if palavra.search(texto)}
+        fila += [outro for outro, texto in apoios.items() if palavra.search(texto)]
+    return modulos
 
 
 def leitores(nome, raiz=Path(".")):
@@ -377,6 +416,7 @@ def planejar_afetados(caminhos, raiz=Path(".")):
         regra = (next((destino for padrao, destino in MAPA if re.fullmatch(padrao, caminho)), None)
                  or modulos_da_convencao(caminho, raiz) or modulos_do_novo(caminho, raiz))
         achados.update(regra or ())
+        achados |= quem_importa(caminho, raiz, textos)
         for padrao, agulhas in EXERCITAM:
             if re.fullmatch(padrao, caminho):
                 achados |= citam(textos, agulhas)
