@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conferida-por-branch
-commit: 7c91b13d795b743b129ef41f55ab755b5eee4ad2
+commit: 8b9fa8df4b12a8822d5cb58ddc256cb003fc35cf
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-14
+data: 2026-11-15
 ---
-# Review: v047 (conferida por branch, E1.185; review E1.194)
+# Review: v047 (conferida por branch, E1.185; review E1.194; revalidação E2.56)
 
 ## Achados
 - A1 (recomendado) bin/forge-check:2186 · o ramo `revisados` (MP1311) ainda testa só `e_ancestral(desde, base_sha)`, sem `ja_na_base`; um Revisar-sha desta branch que já entrou na develop seguiria aceito como Desde. Usar `ja_na_base(raiz, desde, base_sha, base_ref)` deixa a regra única (R-PROVA).
@@ -16,6 +16,9 @@ data: 2026-11-14
 ## Sondas
 
 ## Parecer
+Revalidação (E2.56), por delta: `forge-check parecer delta docs/reviews/v047-conferida-por-branch.md` leu o intervalo `7c91b13d..8b9fa8df`, sem o que veio da base, no domínio `bin/forge-check`, `bin/forge-testes` e `tests/test_testes_tocados.py`. Os trechos de `pqs_de_pre_envio`, `linha_do_ci_do_parecer`, `--texto` e `test_hook_erro_libera` vieram da develop pelo merge `ef371633` (pais c496f36e e cb45a962, o Base-sha), limpo: `git show --cc ef371633` sem hunk de resolução. O commit próprio do delta é `8b9fa8df` (2+2 linhas): põe `test_conferida_por_branch` em `FORGE_CHECK` de `bin/forge-testes` e sobe a contagem de 82 a 83 em `tests/test_testes_tocados.py:67`, com o comentário da origem. Correto: o teste novo exercita o `bin/forge-check` e, sem o mapa, o pre-push dirigido não o rodaria quando o `forge-check` muda. `bin/forge-testes --listar bin/forge-check` agora o lista; `Mapa.test_forge_check_roda_os_modulos_dele` e `tests.test_conferida_por_branch` rodados aqui: 5 testes OK. Sem guarda nova no delta, sem mutante a declarar. A1 segue recomendado e aberto (`bin/forge-check:2186`, mesma linha). Suíte inteira: fica para o CI do PR, ainda sem PR; não rerrodada. Aprovado no head 8b9fa8df.
+
+Review anterior (7c91b13d):
 Aprovado. Intervalo `origin/develop..7c91b13d` (merge-base 6517ff14, igual ao Base-sha), 3 commits em Conventional Commits.
 
 O que muda: `ja_na_base` junta o Base-sha e a `origin/<base>` (`ref_da_base`) e substitui o `e_ancestral(c, base_sha)` em `desde_valido` e `base_sha_como_desde`; `base_ref` desce a todos os chamadores (`recusa_do_desde`, `gerar_volta`, `mensagem_de_entrega`, `corrigir_derivados`, `cmd_entrega_conferir`, `veredito_do_desde`). Com isso, a conferida de outro item que o merge da develop trouxe ao head deixa de ser o Desde, e o intervalo volta ao Base-sha. A ref só tira candidatas, então o intervalo só cresce: uma `origin/develop` reescrita não esconde código (falha fechada). O filtro de commit já na base continua sendo o de antes, sem mudança neste diff.
