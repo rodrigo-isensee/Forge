@@ -484,11 +484,19 @@ SEM_VALOR = "\0"  # a saída de um corpo da lista positiva ou a variável do amb
 LITERAL = re.compile(r"[\w.,:@%+=/*?\[\]~ -]*")
 VARIAVEL_DO_VALOR = re.compile(r"\$(?:\{(?P<chave>[A-Za-z_]\w*)(?:(?P<op>:?[-=])(?P<padrao>[^}]*))?\}"
                                r"|(?P<nome>[A-Za-z_]\w*))")
+# Shell Variables do manual do bash que o próprio bash grava durante a execução (A4 da segurança E1.280)
+VARIAVEIS_DO_BASH = frozenset("_ REPLY MAPFILE BASH_REMATCH OPTARG OPTIND PWD OLDPWD DIRSTACK COPROC BASH_ARGV BASH_ARGV0 "
+                              "BASH_ARGC BASH_COMMAND BASH_SOURCE BASH_LINENO FUNCNAME PIPESTATUS READLINE_LINE "
+                              "READLINE_POINT READLINE_MARK COMP_WORDS COMP_CWORD COMP_LINE COMP_POINT COMPREPLY "
+                              "BASH_EXECUTION_STRING EPOCHREALTIME EPOCHSECONDS RANDOM SRANDOM LINENO SECONDS".split())
 TETO_DE_VALORES = 64  # combinações de valores de uma palavra; acima, o hook não calcula
 
 
-def na_lista_positiva(corpo):
-    """O corpo está em `CORPO_POSITIVO` e não cita o `.git` (A3 da segurança E1.206: `mktemp -p .git`)."""
+def na_lista_positiva(corpo, linha):
+    """O corpo está em `CORPO_POSITIVO`, não cita o `.git` (A3 da segurança E1.206: `mktemp -p .git`) e a linha não
+    redefine o comando como função (A1 do review E1.279: `date(){ printf .gi%s t/config; }`), no U4 e no U3."""
+    if corpo_da_funcao(corpo.split()[0] if corpo.split() else corpo, linha)[0]:
+        return False
     return bool(CORPO_POSITIVO.fullmatch(corpo)) and not cita_o_dir_do_git(corpo)
 
 
@@ -527,7 +535,7 @@ def corpo_da_funcao(nome, linha):
 def valores_do_corpo(corpo, linha, fundo):
     """U4: os valores da saída do corpo de `$(…)` ou da crase, ou None fora da lista positiva."""
     corpo = corpo.strip()
-    if na_lista_positiva(corpo):
+    if na_lista_positiva(corpo, linha):
         return [SEM_VALOR]
     palavras = dividir_corpo(corpo)
     if not palavras or fundo > 4:
@@ -551,6 +559,8 @@ def valores_da_variavel(m, linha, fundo):
     """U4: os valores de `$x`, `${x}` e `${x:-v}`: o da única atribuição na linha ou, sem ela, o do ambiente
     (`SEM_VALOR`), mais o padrão literal; None se a variável nasce de outro jeito (`for`, `read`, `+=`)."""
     nome = m["chave"] or m["nome"]
+    if nome in VARIAVEIS_DO_BASH:  # A4 da segurança E1.280: o bash a grava (`read`, `mapfile`, `=~`), não é do ambiente
+        return None
     if nome.startswith("GIT_") or re.search(rf"(?<![\w${{]){nome}(?![\w=])", linha):
         return None
     atribuicoes = [valor_atribuido(linha, a.end()) for a in re.finditer(rf"(?<![\w$]){nome}=", linha)]
@@ -1331,7 +1341,7 @@ class Guarda:
             return False
         corpo = m["sub"] if m["sub"] is not None else m["crase"]
         corpos = corpos_de_substituicao(linha) if corpo == "…" else [corpo]
-        return bool(corpos) and all(na_lista_positiva(c.strip()) for c in corpos)
+        return bool(corpos) and all(na_lista_positiva(c.strip(), linha) for c in corpos)
 
     def alvos_da_escrita(self, caminho, pasta):
         """O caminho resolvido, o resto que cai no `.git` (`resto_no_git`) e, depois de uma substituição (`$(…)/x`), o resto
@@ -1584,7 +1594,8 @@ class Guarda:
             lidas, corpos, gravado = None, [], None
             self.recusar_o_teto(comando, original, nivel)
         else:
-            comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
+            if not corpo_da_funcao("pwd", comando)[0]:  # A1 do review E1.279: `pwd(){ …; }` não é o `$PWD`
+                comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
             comando = REV_PARSE_DO_GIT.sub(trocar_rev_parse, comando)
             self.texto_da_linha = comando
             self.recusar_o_teto(comando, original, nivel)

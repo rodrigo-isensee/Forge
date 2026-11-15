@@ -30,7 +30,7 @@ class HookDestinoOpaco(unittest.TestCase):
         self.assertEqual(self.executar_em_lote(casos), len(fixtures), "toda fixture é verificada")
 
     def test_fixtures_opaco_sem_resto(self):
-        self.rodar_prefixo("opaco-semresto", 59)
+        self.rodar_prefixo("opaco-semresto", 60)
 
     def test_fixtures_opaco_colado(self):
         self.rodar_prefixo("opaco-colado", 15)
@@ -39,7 +39,7 @@ class HookDestinoOpaco(unittest.TestCase):
         self.rodar_prefixo("opaco-d2b", 11)
 
     def test_fixtures_opaco_u4(self):  # E1.232: lista positiva, sondas da segurança E1.206 e do review E1.205
-        self.rodar_prefixo("opaco-u4", 54)
+        self.rodar_prefixo("opaco-u4", 73)
 
 
 if __name__ == "__main__":
