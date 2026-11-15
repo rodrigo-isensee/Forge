@@ -6896,8 +6896,17 @@ VERBO_DE_INICIO = re.compile(r"\b(?:delegad[ao]s?|iniciad[ao]s?|despachad[ao]s?|
 
 def etapas_conferidas(raiz, caminho, historico):
     """A4 (0.43.2): as etapas do `Cobre:` de cada brief selado que uma linha `entrega conferida <sha40>` posterior do `## Histórico`
-    cobre: o commit existe e está na `Branch:` do brief (o head local ou do origin). Brief ilegível ou sem `Cobre:` não conta."""
-    pendentes, conferidas, raiz_pedido = [], set(), raiz_do_pedido(raiz, caminho)
+    cobre: o commit existe e está na `Branch:` do brief (o head local ou do origin). Brief ilegível ou sem `Cobre:` não conta.
+    FORGE-CHECK-PROXIMO-LENTO: os commits de cada branch saem de um `rev-list` só, lido uma vez por branch (antes, dois `rev-parse`
+    e um `merge-base` por par de conferida e brief: 25 mil processos no v047)."""
+    pendentes, conferidas, raiz_pedido, alcance = [], set(), raiz_do_pedido(raiz, caminho), {}
+
+    def contem(branch, sha):
+        if branch not in alcance:
+            head = sha_do_commit(raiz, f"refs/heads/{branch}") or sha_do_commit(raiz, f"refs/remotes/origin/{branch}")
+            alcance[branch] = frozenset(git(raiz, "rev-list", head)[1].split()) if head else frozenset()
+        return sha in alcance[branch]
+
     for linha in historico:
         if (m := BRIEF_SELADO.match(linha)):
             try:
@@ -6907,20 +6916,20 @@ def etapas_conferidas(raiz, caminho, historico):
             cobre, branch = grupo(r"\bCobre:\s*(\S+)", cabecalho), grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho)
             if cobre and branch:
                 pendentes.append((cobre, branch))
-        elif (m := ENTREGA_CONFERIDA.match(linha)) and sha_do_commit(raiz, m.group(1)) == m.group(1):
-            for cobre, branch in pendentes:
-                head = sha_do_commit(raiz, f"refs/heads/{branch}") or sha_do_commit(raiz, f"refs/remotes/origin/{branch}")
-                if head and e_ancestral(raiz, m.group(1), head):
-                    conferidas.add(cobre)
+        elif (m := ENTREGA_CONFERIDA.match(linha)):
+            conferidas.update(cobre for cobre, branch in pendentes if contem(branch, m.group(1)))
     return conferidas
 
 
 def etapas_do_proximo(pedido_txt, historico, conferidas=frozenset()):
     """[(id, papel, texto, estado)] das etapas do pedido; o estado vem só do `## Histórico` (`entregue`, pela linha que cita a etapa ou
     pela `entrega conferida` do brief selado que a cobre, A4; `em curso` só com verbo de início na linha; senão `não verificável`)."""
-    saida = []
+    saida, por_termo = [], {}
+    for linha in historico:  # FORGE-CHECK-PROXIMO-LENTO: um índice por termo `[\w.]+` em vez de uma busca por etapa em cada linha
+        for termo in set(re.findall(r"[\w.]+", linha)):
+            por_termo.setdefault(termo, []).append(linha)
     for etapa, (papel, texto) in ler_pedido_brief(pedido_txt)["etapas"].items():
-        citam = [l for l in historico if re.search(rf"(?<![\w.]){re.escape(etapa)}(?![\w.])", l)]
+        citam = por_termo.get(etapa, [])  # o id (`E1.3b`, ETAPA_DO_PEDIDO) é um termo inteiro: nem `E1.30` nem `E1.3.1` o citam
         estado = "entregue" if etapa in conferidas or any("entregue" in l.casefold() for l in citam) \
             else "em curso" if any(VERBO_DE_INICIO.search(l) for l in citam) else NAO_VERIFICAVEL
         saida.append((etapa, papel, texto, estado))

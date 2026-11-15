@@ -238,6 +238,42 @@ class ProximoDoItem(unittest.TestCase):
         self.assertFalse([l for l in linhas if l.startswith(("proximo: item", "proximo: passo-item", "proximo: comando-item"))], linhas)
 
 
+class ProximoRapido(unittest.TestCase):
+    """FORGE-CHECK-PROXIMO-LENTO: o `proximo` lê os commits de cada branch uma vez, não um `rev-parse` e um `merge-base` por par de
+    conferida e brief selado (o v047, com 526 selos e 72 conferidas, passava de 120 s)."""
+    setUp, git, gravar, pedido, commitar, proximo = Proximo.setUp, Proximo.git, Proximo.gravar, Proximo.pedido, Proximo.commitar, Proximo.proximo
+
+    def test_git_por_branch_nao_por_par_de_selo_e_conferida(self):
+        self.git("switch", "-q", "-c", "melhoria/p1")
+        head = self.commitar("entrega")
+        selos = []
+        for n in range(1, 31):
+            self.gravar(f"docs/briefs/p1-dev-exemplo-{n}.md", "Agente destino: forge:dev-exemplo\nPedido: p1\nBranch: melhoria/p1   Base: develop\n"
+                        f"Etapa: codigo   Cobre: E1.{n % 2 + 1}\n\n## Objetivo\nx\n")
+            selos.append(f" 2026-10-19 11:00: brief selado docs/briefs/p1-dev-exemplo-{n}.md {'a' * 64}")
+        self.pedido(" 2026-10-19 10:00: aberto", *selos, *[f" 2026-10-19 12:{m:02d}: entrega conferida {head}" for m in range(10)])
+        falso = self.tmp / "falso"
+        falso.mkdir()
+        contador = self.tmp / "chamadas"
+        (falso / "git").write_text(f"#!/bin/sh\necho x >> '{contador}'\nexec '{shutil.which('git')}' \"$@\"\n", encoding="utf-8")
+        (falso / "git").chmod(0o755)
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.tmp), "proximo", "p1"], capture_output=True, text=True,
+                           env=dict(AMBIENTE, HOME=str(self.tmp / "home"), PATH=f"{falso}{os.pathsep}{AMBIENTE['PATH']}"))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("proximo: etapa E1.2 (tech-lead) · entregue · review", r.stdout.splitlines())
+        self.assertLess(len(contador.read_text(encoding="utf-8").splitlines()), 40)  # na base: mais de 300 (3 por par de selo e conferida)
+
+    def test_selo_de_branch_sem_ref_nao_entrega_e_nao_quebra(self):
+        head = self.commitar("entrega")
+        self.gravar("docs/briefs/p1-dev-exemplo-1.md", "Agente destino: forge:dev-exemplo\nPedido: p1\nBranch: melhoria/sumiu   Base: develop\n"
+                    "Etapa: codigo   Cobre: E1.1\n\n## Objetivo\nx\n")
+        self.pedido(" 2026-10-19 10:00: aberto", f" 2026-10-19 11:00: brief selado docs/briefs/p1-dev-exemplo-1.md {'a' * 64}",
+                    f" 2026-10-19 12:00: entrega conferida {head}")
+        rc, linhas = self.proximo()
+        self.assertEqual(rc, 0, linhas)
+        self.assertIn("proximo: etapa E1.1 (dev-exemplo) · não verificável · implementar o recurso", linhas)
+
+
 NV = "não verificável"
 IMPLEMENTAR = "proximo: passo-item implementar · dono coordenador (nenhum brief de implementação do item)"
 GERAR = "proximo: comando-item: forge-check brief gerar --pedido p1 --destino forge:<agente> --cobre <etapa> --etapa codigo --gravar"
