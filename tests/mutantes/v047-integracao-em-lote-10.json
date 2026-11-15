@@ -29,7 +29,8 @@
       "de": "    if type(head_sha) is not str:\n        return False",
       "para": "    if False:\n        return False",
       "testes": [
-        "tests.test_catraca_promocao.Degrau.test_ramo_da_marca_fora_da_develop_ou_de_fork_e_recusado"
+        "tests.test_catraca_promocao.Degrau.test_ramo_da_marca_fora_da_develop_ou_de_fork_e_recusado",
+        "tests.test_catraca_promocao.Degrau.test_sha_que_nao_e_texto_nao_e_promocao"
       ]
     },
     {

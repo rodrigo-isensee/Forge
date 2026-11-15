@@ -96,6 +96,13 @@ class Degrau(Repo):
         self.assertEqual(len(sem_repo), 1)
         self.assertIn("(repositório desconhecido)", sem_repo[0])
 
+    def test_sha_que_nao_e_texto_nao_e_promocao(self):
+        for sha in (None, 7, b"x"):
+            with self.subTest(sha=sha):
+                self.assertFalse(catraca.promocao_aceita(self.tmp, "promocao/0.9.0", "homolog", sha))
+        pr = {"head": {"ref": "promocao/0.9.0", "repo": {"full_name": REPO}}, "base": {"ref": "homolog", "repo": {"full_name": REPO}}}
+        self.assertFalse(catraca.eh_promocao(pr, REPO, self.tmp))  # PR sem head.sha
+
     def test_sem_a_develop_do_servidor_o_ramo_da_marca_e_recusado(self):
         self.git("update-ref", "-d", "refs/remotes/origin/develop")
         self.assertTrue(self.degrau("promocao/0.9.0", "homolog", self.na_develop))
