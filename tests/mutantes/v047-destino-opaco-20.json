@@ -16,8 +16,8 @@
       "id": "O134",
       "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): barra e quebra com aspa simples recusa",
       "arquivo": "hooks/conformidade.py",
-      "de": "if \"'\" in linha or \"#\" in linha:",
-      "para": "if \"#\" in linha:",
+      "de": "return None if \"'\" in linha or \"#\" in linha else",
+      "para": "return None if \"#\" in linha else",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]
@@ -26,18 +26,8 @@
       "id": "O135",
       "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): barra e quebra com `#` recusa (comentário)",
       "arquivo": "hooks/conformidade.py",
-      "de": "if \"'\" in linha or \"#\" in linha:",
-      "para": "if \"'\" in linha:",
-      "testes": [
-        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
-      ]
-    },
-    {
-      "id": "O136",
-      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): sobra barra e quebra depois de juntar (`\\\\` + quebra) recusa",
-      "arquivo": "hooks/conformidade.py",
-      "de": "    return None if \"\\\\\\n\" in linha else linha",
-      "para": "    return linha",
+      "de": "return None if \"'\" in linha or \"#\" in linha else",
+      "para": "return None if \"'\" in linha else",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]

@@ -527,14 +527,11 @@ NOME_DE_FUNCAO = re.compile(r"[A-Za-z_][\w-]*")
 
 def linha_juntada(linha):
     """A3 do QA E1.325: a linha com cada `\\` + quebra tirado como o bash tira (`juntar_continuacoes`: a barra escapada
-    antes não conta), ou None se o hook não sabe onde o bash junta: com aspa simples ou `#` (na aspa e no comentário
-    a barra do fim não continua a linha) ou se sobra barra e quebra (`\\\\` + quebra é barra e separador)."""
+    antes não conta, e `\\\\` + quebra fica, barra e separador, como o `shlex` o lê), ou None se o hook não sabe onde o
+    bash junta: com aspa simples ou `#` na linha (na aspa e no comentário a barra do fim não continua a linha)."""
     if "\\\n" not in linha:
         return linha
-    if "'" in linha or "#" in linha:
-        return None
-    linha = juntar_continuacoes(linha)
-    return None if "\\\n" in linha else linha
+    return None if "'" in linha or "#" in linha else juntar_continuacoes(linha)
 
 
 @lru_cache(maxsize=256)
