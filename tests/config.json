@@ -220,7 +220,7 @@
       "estado em uma linha",
       "só vale gravada",
       "## Triagem de cada pedido",
-      "diga sempre ao usuário para qual agente passou",
+      "diga qual agente faz o quê só nos marcos, num resumo",
       "que são do `tech-lead`",
       "`R-PROVA`",
       "`R-BRIEF`",
@@ -692,7 +692,7 @@
     "templates/projeto/docs/architecture/adr/_modelo.md": 3,
     "skills/engineering-practices/SKILL.md": 5,
     "docs/melhoria-continua.md": 2,
-    "agents/jarvis.md": 49,
+    "agents/jarvis.md": 48,
     "templates/projeto/docs/pedidos/_modelo.md": 16,
     "docs/protecao-de-branch.md": 3,
     "templates/projeto/docs/engineering/protecao-de-branch.md": 3,
@@ -750,7 +750,8 @@
       "quando algo dá errado e muda prazo ou risco": {"regra": "R-DECISAO", "porque": "sem o texto, o problema que muda prazo ou risco fica no resumo de 30 min em vez de chegar ao dono na hora (diretriz 24)"},
       "no máximo um resumo a cada 30 min": {"regra": "R-DECISAO", "porque": "sem o texto, o andamento sem marco volta a chegar ao dono a cada etapa, e não num resumo só do que mudou (diretriz 24)"},
       "recibo e perguntas, sempre completos": {"regra": "R-DECISAO", "porque": "sem o texto, o corte do andamento encolhe também o recibo e as perguntas, que o dono quer completos (diretriz 24)"},
-      "ou ao pedido das decisões": {"regra": "R-DECISAO", "porque": "sem o apontamento, o Jarvis atende ao pedido das decisões sem ler a skill do foco total e responde depois de outras tarefas (diretriz 29)"}
+      "ou ao pedido das decisões": {"regra": "R-DECISAO", "porque": "sem o apontamento, o Jarvis atende ao pedido das decisões sem ler a skill do foco total e responde depois de outras tarefas (diretriz 29)"},
+      "diga qual agente faz o quê só nos marcos, num resumo": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis volta a avisar o dono a cada agente acionado, ou deixa de dizer quem fez o quê no marco (decisão 2 do dono de 15/11)"}
     },
     "skills/modo-iniciante/SKILL.md": {
       "Fale só no marco": {"regra": "R-DECISAO", "porque": "sem o texto, o modo iniciante manda resumir cada etapa ao dono, contra a fala só no marco do Jarvis (diretriz 24)"},

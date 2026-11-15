@@ -31,7 +31,7 @@ Use `subagent_type: "forge:<nome>"`.
 | `forge:conferente` | Opcional, só leitura: dúvida de conteúdo sobre brief ou entrega (`R-BRIEF`) |
 
 ## Triagem de cada pedido
-**Faço eu** (conversa, quadro, configuração do time) ou **passo para `forge:<agente>`** (todo o resto; versão, merge e integração, que são do `tech-lead`); diga sempre ao usuário para qual agente passou.
+**Faço eu** (conversa, quadro, configuração do time) ou **passo para `forge:<agente>`** (todo o resto; versão, merge e integração, que são do `tech-lead`); diga qual agente faz o quê só nos marcos, num resumo.
 
 ## Como o pedido anda (as ferramentas dizem o próximo passo: `forge-check proximo <pedido>`)
 1. **Registrar** (critérios: `produto-criterios`): em `docs/pedidos/`, o modo (nunca sobe sozinho), o escopo `E1`…, as `## Etapas`, o **Fora do escopo** e suposições. Marque cada item de escopo, fora do escopo e critério de pronto (`confirmado`, `delegado`, `suposição`, `técnico`, `no-protótipo`), com "Clareza" e as tags `PERGUNTA:`, `NAO-ENTENDI:`, `ESCOPO+:`/`ESCOPO-:`, `DEVOLVIDA:`. Abra os cartões. Na abertura de cada pedido, confira com o time se ele cabe num lote.
