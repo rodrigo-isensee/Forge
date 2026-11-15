@@ -30,10 +30,10 @@ from pathlib import Path
 
 import parecer
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TETO, CORPO_DE_LACO, INTEGRACAO,
-                    LancadorDemais, OPACO, TextoAbertoComLeituras, TextoDivididoAberto,
+                    GIT_GRAVA_ARQUIVO, LancadorDemais, OPACO, TextoAbertoComLeituras, TextoDivididoAberto,
                     LIMITE_MENSAGEM, PLUGIN, PROFUNDIDADE, bloquear, comentarios,
                     construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, formas_que_o_shell_le, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
-                    e_clone_do_forge, em_contrib, excede_o_teto, executar, fora_da_gramatica_com_heredoc,
+                    e_clone_do_forge, em_contrib, excede_o_teto, executar, expandir_home, fora_da_gramatica_com_heredoc,
                     fora_da_gramatica_de_leitura, motivo_da_reavaliacao,
                     forge_check, git, leituras, mensagem, nome_da_branch, nome_do_caminho, raiz_declarada, raiz_do_projeto, reavaliacao,
                     sem_atribuicoes, separar_lancadores, SHELLS, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
@@ -878,7 +878,7 @@ class Guarda:
     @staticmethod
     def caminho(pasta, texto):
         """Destino de `cd`/`-C`/`--git-dir`: expande `~` e variáveis de ambiente, como o shell faria."""
-        return pasta / Path(os.path.expandvars(texto)).expanduser()
+        return pasta / expandir_home(os.path.expandvars(texto))
 
     def alvo_do_forge(self, pasta, repo=None, remoto=None):
         """R-CONTRIB: o comando da sessão de OUTRO projeto (raiz que não é o Forge) atinge o repositório do Forge:
@@ -973,7 +973,7 @@ class Guarda:
         return (Path(self.h.raiz) / ".forge" / "versao").is_file()
 
     def resolver(self, caminho, pasta):
-        p = Path(caminho).expanduser()
+        p = Path(expandir_home(caminho))
         return Path(realpath_pela_pasta(str(p if p.is_absolute() else pasta / p)))
 
     def checar_escrita(self, caminho, pasta, parecer_conta=True):
@@ -2118,7 +2118,7 @@ class Guarda:
                     a in ("-F", "--field") and i + 1 < len(args) and "=@" in args[i + 1]):
                 arq = valor if a.startswith("--input") else (args[i + 1] if a in ("-F", "--field") else a).split("=@", 1)[-1]
                 try:
-                    textos.append((pasta / os.path.expandvars(arq)).expanduser().read_text(encoding="utf-8"))
+                    textos.append(Path(expandir_home(str(pasta / os.path.expandvars(arq)))).read_text(encoding="utf-8"))
                 except (OSError, ValueError):
                     return textos, True
             else:
@@ -2373,7 +2373,7 @@ class Guarda:
                 continue
             arq = a.split("=", 1)[1] if "=" in a else (args[i + 1] if i + 1 < len(args) else "")
             try:
-                if VISIBILIDADE_PUBLICA.search((pasta / os.path.expandvars(arq)).expanduser().read_text(encoding="utf-8")):
+                if VISIBILIDADE_PUBLICA.search(Path(expandir_home(str(pasta / os.path.expandvars(arq)))).read_text(encoding="utf-8")):
                     return True
             except (OSError, ValueError):
                 metodo = (parecer.opcao(args, "--method", "-X") or "").upper()
@@ -2819,6 +2819,80 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
             hook.registrar_erro(erro)
 
 
+# HOOK-ERRO-LIBERA (C2, C3): a linha que escreve, para o marcador da falha fechada. Lê a mais de propósito: só pesa em erro
+# interno ou prazo vencido, e aí a dúvida recusa. Os verbos do git que gravam arquivo vêm das listas da guarda normal (A1).
+ESCRITORES = (TODOS_OS_ARGUMENTOS | SO_DESTINO | REMOCAO | CAMINHOS_NO_GIT | GIT_GRAVA_ARQUIVO
+              | {"ln", "chmod", "truncate", "touch", "unlink", "shred", "rmdir"})
+ESCREVE_NA_LINHA = re.compile(ESCRITA_NA_LINHA.pattern + r"|\b(?:" + "|".join(sorted(map(re.escape, ESCRITORES))) + r")\b")
+ALVO_OPACO = re.compile(r"[$`]|<\(")  # C3: substituição, crase, variável ou `<(`: o hook não sabe o destino
+# A2: a troca da pasta de base (`cd`, `pushd`, `popd`, `-C`, `--chdir`, `--git-dir`, `--work-tree`, `GIT_DIR`,
+# `GIT_WORK_TREE`) tira do texto o caminho que a política conhece: na linha que escreve, conta como alvo opaco. A aspa
+# antes do `cd` pega o invólucro (`sh -c 'cd docs && cp …'`, AR-8).
+BASE_TROCADA = re.compile(r"(?:^|[\s;&|(){}'\"])(?:cd|pushd|popd)(?=[\s;&|)]|$)|(?<!\S)(?:-C|--chdir|--git-dir|--work-tree)"
+                          r"|\bGIT_(?:DIR|WORK_TREE)\b")
+
+
+def termos_da_politica(pol):
+    """C2: a regex dos caminhos de `pol["caminhos"]`, um termo por entrada, sem a barra final; `~/` também como `$HOME/`,
+    `${HOME}/` e o home real; `*` como um trecho sem barra nem espaço. Política sem `caminhos` ou com entrada ilegível:
+    None (marca tudo)."""
+    caminhos = pol.get("caminhos") if isinstance(pol, dict) else None
+    if not isinstance(caminhos, list) or not caminhos:
+        return None
+    home = os.path.expanduser("~")
+    homes = dict.fromkeys(("~", "$HOME", "${HOME}", home, os.path.realpath(home)))  # sem home, o termo a mais só marca a mais
+    padroes = []
+    for entrada in caminhos:
+        caminho = entrada.get("caminho") if isinstance(entrada, dict) else None
+        if not isinstance(caminho, str) or not caminho.rstrip("/"):
+            return None
+        caminho = caminho.rstrip("/")
+        variantes = [h + caminho[1:] for h in homes] if caminho.startswith("~/") else [caminho]
+        padroes += [re.escape(v).replace(r"\*", r"[^/\s]*") for v in variantes]
+    return re.compile("|".join(dict.fromkeys(padroes)), re.I)
+
+
+class MarcadorDaPolitica:
+    """HOOK-ERRO-LIBERA: o marcador que o `executar` usa no erro interno e no prazo vencido (`_comum.marcado`). Marca o
+    `CRITICO` ou a linha que escreve (`ESCREVE_NA_LINHA`) e cita um caminho da política (C2), tem alvo opaco (C3) ou
+    troca a pasta de base (A2); no Write, Edit, MultiEdit e NotebookEdit, o caminho resolvido dentro da raiz da sessão
+    ou casando a política (C4). A política ilegível marca tudo. Os termos se montam na 1.ª busca, do JSON real: entrada nova já nasce coberta."""
+
+    def __init__(self, critico, arquivo):
+        self.critico, self.arquivo, self._termos = critico, arquivo, None
+
+    def termos(self):
+        if self._termos is None:
+            try:
+                self._termos = termos_da_politica(json.loads(self.arquivo.read_text(encoding="utf-8"))) or False
+            except (OSError, ValueError):
+                self._termos = False
+        return self._termos
+
+    def marca(self, hook, formas):
+        termos = self.termos()
+        if termos is False or any(self.critico.search(t) for t in formas):
+            return True
+        if hook.entrada.get("tool_name") in FERRAMENTAS_DE_ARQUIVO:
+            return self.arquivo_marcado(hook, formas[0], termos)
+        return any(ESCREVE_NA_LINHA.search(t) and (termos.search(t) or ALVO_OPACO.search(t) or BASE_TROCADA.search(t))
+                   for t in formas)
+
+    @staticmethod
+    def arquivo_marcado(hook, caminho, termos):
+        """C4: o caminho resolvido (link, `..`, `~`) dentro da raiz da sessão (ou da pasta corrente, sem raiz) ou casando a
+        política. Caminho vazio marca."""
+        if not caminho:
+            return True
+        pasta = os.path.realpath(hook.cwd())
+        alvo = os.path.realpath(os.path.join(pasta, expandir_home(caminho)))
+        raiz = os.path.realpath(raiz_declarada() or pasta)
+        return alvo == raiz or alvo.startswith(raiz.rstrip(os.sep) + os.sep) or bool(termos.search(alvo))
+
+
+MARCADOR = MarcadorDaPolitica(CRITICO, PLUGIN / "hooks" / "conformidade.json")
+
+
 def principal(hook):
     ferramenta = hook.campo("tool_name")
     entrada = hook.campo("tool_input")
@@ -2882,4 +2956,4 @@ def decidir(hook, guarda, ferramenta, entrada):
 
 
 if __name__ == "__main__":
-    executar("conformidade", principal, CRITICO, regra_do_prazo="R-CONFORMIDADE")
+    executar("conformidade", principal, MARCADOR, regra_do_prazo="R-CONFORMIDADE")

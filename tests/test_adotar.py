@@ -236,6 +236,11 @@ class Aplicar(Base):
         self.assertTrue(texto.endswith(original.split("\n", 1)[1]), "o hook do projeto continua inteiro")
         sha = self.git("rev-parse", "HEAD")
         zero = "0" * 40
+        falsos = self.tmp / "falsos"  # MP1311 E1.16: o pre-push.local gerado roda o pronto rápido da stack (pnpm exec ...)
+        falsos.mkdir()
+        (falsos / "pnpm").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        (falsos / "pnpm").chmod(0o755)
+        self.env["PATH"] = f"{falsos}:{self.env['PATH']}"
         rodar = lambda linha: subprocess.run(["sh", str(pasta / "pre-push"), "origin", "x"], cwd=self.proj, env=self.env,  # noqa: E731
                                              input=linha, capture_output=True, text=True)
         r = rodar(f"refs/heads/main {sha} refs/heads/main {zero}\n")

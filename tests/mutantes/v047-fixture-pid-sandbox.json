@@ -1,0 +1,26 @@
+{
+  "pedido": "v047-fixture-pid-sandbox",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o hook grava pid e sessao da sessao",
+      "arquivo": "hooks/agentes.py",
+      "de": "    return {\"pid\": pid, \"pidns\": ns, \"sessao\": sessao}",
+      "para": "    return {}",
+      "testes": [
+        "tests.test_hooks.Hooks.test_com_ns_de_pid_do_pai_legivel_as_fixtures_de_pid_e_sessao_rodam_e_gravam"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o test_hooks pedido pelo caminho leva quem reaproveita o lote dele (E1.120)",
+      "arquivo": "bin/forge-testes",
+      "de": "JUNTO_DO_MODULO = {\"test_hooks\": REAPROVEITAM_O_LOTE}",
+      "para": "JUNTO_DO_MODULO = {}",
+      "testes": [
+        "tests.test_testes_tocados.CaminhoFiltroEAviso.test_test_hooks_pelo_caminho_roda_quem_reaproveita_o_lote_dele"
+      ]
+    }
+  ]
+}

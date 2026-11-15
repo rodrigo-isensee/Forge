@@ -6,7 +6,8 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from apoio_volta_unica import MedidaDeCpu, fator_de_carga, limite_de_cpu_do_corpus, limite_de_cpu_do_corpus_sob_carga  # noqa: E402
+from apoio_volta_unica import (  # noqa: E402
+    MedidaDeCpu, fator_de_carga, limite_de_cpu_do_corpus, limite_de_cpu_do_corpus_sob_carga, menor_custo)
 
 DORME = "import time; time.sleep(1.5)"
 GASTA = "import time\nwhile time.process_time() < 0.8: pass"
@@ -80,6 +81,37 @@ class LimitesPelaCargaDaMaquina(unittest.TestCase):
             self.assertEqual(limite_de_cpu_do_corpus_sob_carga(0.5, 8), base)
             self.assertEqual(limite_de_cpu_do_corpus_sob_carga(12, 8), base * 1.5)
             self.assertEqual(limite_de_cpu_do_corpus_sob_carga(999, 8), base * 2)
+
+
+
+class MenorCustoDasMedidas(unittest.TestCase):
+    """TESTE-HEREDOCS-ORCAMENTO-ESTAVEL: só a medida acima do limite se repete, até 3 vezes, e vale a menor."""
+
+    @staticmethod
+    def medidas(*custos):
+        fila, chamadas = iter(custos), []
+
+        def medir():
+            chamadas.append(next(fila))
+            return chamadas[-1], f"m{len(chamadas)}"
+        return medir, chamadas
+
+    def test_abaixo_do_limite_mede_uma_vez(self):
+        medir, chamadas = self.medidas(2.9, 0.1, 0.1)
+        self.assertEqual(menor_custo(medir, 3.0), (2.9, "m1"))
+        self.assertEqual(chamadas, [2.9])
+
+    def test_no_limite_ou_acima_mede_de_novo_e_vale_a_menor(self):
+        for custos, esperado in (((3.0, 2.0, 0.1), (2.0, "m2")), ((4.0, 3.5, 3.2), (3.2, "m3")),
+                                 ((3.5, 4.0, 3.9), (3.5, "m1"))):
+            with self.subTest(custos=custos):
+                medir, _ = self.medidas(*custos, 0.0)
+                self.assertEqual(menor_custo(medir, 3.0), esperado)
+
+    def test_regressao_passa_do_limite_nas_tres_e_para_na_terceira(self):
+        medir, chamadas = self.medidas(9.0, 12.0, 10.0, 0.1)
+        self.assertEqual(menor_custo(medir, 3.0), (9.0, "m1"))
+        self.assertEqual(chamadas, [9.0, 12.0, 10.0])
 
 
 if __name__ == "__main__":

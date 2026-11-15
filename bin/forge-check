@@ -8277,6 +8277,41 @@ def linha_de_outra_etapa(etapa, papel, texto):
     return f"- \"{sem_controle(texto)}\" · etapa de outra delegação; continua no pedido"
 
 
+# PRE-ENVIO-RAPIDO (mp1311, diretriz 23 com a DECISÃO DO DONO de 13/11 17:31): caminho de código no Entregar, que pede os testes afetados
+CAMINHO_DE_CODIGO = re.compile(r"(?<![\w./-])(?:bin|hooks|scripts|tests)/[\w.*-]")
+# O mapa de testes e os quatro testes de tamanho de texto (ORDEM DO DONO 13/11 17:38), num `unittest` só; a mesma lista do modo de
+# texto do teste dirigido do autor, que o portão não chama (tests/test_pre_envio_brief.py confere que as duas batem)
+TESTES_DE_TEXTO = ("tests.test_testes_tocados", "tests.test_forge.Orcamento", "tests.test_jarvis_nucleo",
+                   "tests.test_metricas_texto", "tests.test_orcamento_instrucao")
+
+
+def pqs_de_pre_envio(raiz, etapa, entregar):
+    """PRE-ENVIO-RAPIDO (mp1311, diretriz 23, parte a): as PQs que o autor roda antes do push, no Forge, nos briefs de autor (`codigo`
+    e `pr`): a descrição do PR pela catraca e os `TESTES_DE_TEXTO` sempre; os testes afetados só no `codigo` cujo Entregar declara
+    caminho de código (bin/, hooks/, scripts/, tests/). Envio só de texto, parecer ou junção (`pr`) fica sem eles. [] fora do Forge."""
+    if (etapa or "codigo") not in ("codigo", "pr") or not e_o_forge(Path(raiz)):
+        return []
+    linhas = [f"- PQ-N (cmd, do autor): `PR_BODY=\"$(cat <corpo do PR>)\" python3 tests/catraca.py --modo pr-texto` · espera: rc=0 · "
+              f"{PREENCHER}: o arquivo com o corpo do PR que vai ao `gh pr create --body-file`",
+              f"- PQ-N (cmd, do autor): `python3 -m unittest {' '.join(TESTES_DE_TEXTO)}` · espera: rc=0 · mapa de testes e tamanho de texto"]
+    if (etapa or "codigo") == "codigo" and CAMINHO_DE_CODIGO.search(entregar):
+        linhas.append("- PQ-N (cmd, do autor): `FORGE_PREPUSH_SUITE=afetados .githooks/pre-push` · espera: rc=0 · testes afetados, com as refs "
+                      "do envio no stdin e em segundo plano, com log que termina em `rc=` (skill esperar-estado)")
+    return linhas
+
+
+def linha_do_ci_do_parecer(raiz, branch):
+    """PRE-ENVIO-RAPIDO (mp1311, diretriz 23, parte d; item 3): o parecer só aprova com o CI do head todo verde, e2e incluso, quando há PR;
+    sem PR, a suíte fica para o CI do PR. Sem `gh` ou sem rede, a regra vale e o número fica para o revisor achar."""
+    pr, _ = pr_da_branch(raiz, branch)
+    if pr:
+        return (f"- PQ-N (cmd): `gh pr checks {pr['number']}` · espera: rc=0 · aprova só com o CI do head todo verde, e2e incluso; "
+                "check pendente ou vermelho não aprova")
+    if pr == {}:
+        return "- sem PR para a branch: a suíte inteira fica para o CI do PR; o parecer cita o PQ do autor e não afirma CI verde"
+    return "- aprova só com o CI do head todo verde, e2e incluso (`gh pr checks <n>`), quando houver PR; sem PR, a suíte fica para o CI do PR"
+
+
 def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, cobre=None, citar=None):
     """Blocos fixos do brief a partir do pedido e da branch; o que o Jarvis ainda decide fica em `PREENCHER`. Com `volta`
     (o namespace dos argumentos, com `--volta`), o brief da volta: `gerar_volta`. `cobre` (P2) é a etapa do pedido que o brief
@@ -8367,6 +8402,9 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
               f"- PQ-N (arquivo): `test -e <caminho>` · {PREENCHER}"]
     if branch:
         saida.append(f"- PQ-N (push): `git ls-remote origin refs/heads/{branch}` igual ao head local · {PREENCHER}")
+    saida += pqs_de_pre_envio(raiz, etapa, dados["etapas"][coberta][1] if coberta else "")
+    if branch and etapa in ETAPAS_DE_PARECER:
+        saida.append(linha_do_ci_do_parecer(raiz, branch))
     if etapa == "codigo" and not branch:  # B1 (E2, versao-075): sem a branch não há o que o executor confira
         print("brief gerar: aviso: sem --branch, o brief sai sem o PQ do executor (forge-check entrega); passe --branch (B1)", file=sys.stderr)
     elif etapa == "codigo":  # B1 e E14: a mesma linha que o conferente roda, rodada antes pelo executor, só com valores seguros (G-5)
