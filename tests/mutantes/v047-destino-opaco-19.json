@@ -20,7 +20,8 @@
       "para": "    if False:\n        return False",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
-      ]
+      ],
+      "equivalente": "o U3 só olha o destino opaco sem resto, o mesmo que o U4 calcula antes pelo valores_do_corpo com a mesma checagem (O125): a guarda fica como defesa do U3 se o U4 mudar"
     },
     {
       "id": "O127",
