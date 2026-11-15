@@ -4,7 +4,7 @@ contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
 commit: 74b42c69d7c1fd98980986104f7e3733dbbbdd5b
-parecer: aprovado
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-15
 ---
@@ -16,11 +16,16 @@ Delta lido: `forge-check parecer delta docs/reviews/v047-conformidade-destino-op
 
 Verificadores: `tests/test_hook_destino_opaco.py HookDestinoOpaco.test_fixtures_opaco_u4` dá OK no 74b42c69, com 181 fixtures. `bin/forge-mutante --processos 1 tests/mutantes/v047-destino-opaco-23.json`: O153 (:556) e O154 (:688) morreram. A `-22` rodou de novo pelo `de` que mudou: O149 a O152 morreram. A suíte completa fica com o CI do PR, que ainda não foi aberto.
 
-A A13 e a A14 fecham. A correção segue a mínima que a segurança propôs: reusa a `PADRAO_QUE_ATRIBUI` no corpo, sem duplicar a busca. Pela mesma máquina do `tests/test_hooks.py`, sondei 12 entradas. Recusam com rc 2: `$\`+quebra+`{d:=…}` na linha e no corpo, `"${d:=…}"` entre aspas, `${x:-${d:=…}}` aninhado, `<<-E` com tab, `cp x "$d"` depois do corpo, heredoc dentro de `x=$(…)`, `&&` no lugar de `;` e `${d:=.g""it}` com resto `/config`. Liberam com rc 0: `echo a > "$d"` sem atribuição (variável do ambiente, como antes), `cat <<E⏎${HOME}⏎E` com `"$(mktemp)"` e `: ${x:-a}; echo a > "$x"`. O falso positivo novo (corpo de heredoc sem aspas com `${x:=v}` junto de um destino opaco) falha fechado e está em `docs/hooks.md`.
+A A13 fecha, e a A14 fecha na forma direta. A correção segue a mínima que a segurança propôs: reusa a `PADRAO_QUE_ATRIBUI` no corpo, sem duplicar a busca. Pela mesma máquina do `tests/test_hooks.py`, sondei 12 entradas. Recusam com rc 2: `$\`+quebra+`{d:=…}` na linha e no corpo, `"${d:=…}"` entre aspas, `${x:-${d:=…}}` aninhado, `<<-E` com tab, `cp x "$d"` depois do corpo, heredoc dentro de `x=$(…)`, `&&` no lugar de `;` e `${d:=.g""it}` com resto `/config`. Liberam com rc 0: `echo a > "$d"` sem atribuição (variável do ambiente, como antes), `cat <<E⏎${HOME}⏎E` com `"$(mktemp)"` e `: ${x:-a}; echo a > "$x"`. O falso positivo novo (corpo de heredoc sem aspas com `${x:=v}` junto de um destino opaco) falha fechado e está em `docs/hooks.md`.
+
+Antes do envio, o remoto trouxe a revalidação da segurança E1.336 no mesmo 74b42c69 (merge só de parecer, código igual), com a A15: a busca do prefixo nascido na linha (:693), na mesma função da A14, não conta `${d:=v}`. Refiz a S44 na mesma máquina e ela dá rc 0; `d=.gi; cp x "$d"t` dá rc 2. A A14 fechou só na forma direta; o achado A1 cita a A15 sem refazê-la.
 
 ## Achados
+- A1 (bloqueante) hooks/conformidade.py:693 · A A14 fechou só a busca de :688; a do prefixo nascido na linha ainda pula `${d:=v}`, e `: ${d:=.gi}; cp x "$d"t` dá rc 0 (A15 da segurança E1.336, S44). Conte `${prefixo:=` e `${prefixo=` como nascimento, com fixture e mutante (R-CONFORMIDADE)
 
 ## Sondas
+- S1 · : ${d:=.gi}; cp x "$d"t · espera: 2 · obtido: 0
+- S2 · : ${d:=.gi}; cp -rT ev "$d"t · espera: 2 · obtido: 0
 
 ## Parecer
-Aprovado no 74b42c69. As duas guardas novas fecham os caminhos S42 e S43 da segurança. Cada uma tem fixture do ramo de falha e mutante que morre. As formas vizinhas que sondei também recusam: continuação de linha, aspas, aninhamento e índice. O delta é pequeno, uma classe de comportamento só. Não há achado novo.
+Reprovado no 74b42c69. As duas guardas da volta fecham as formas diretas da A13 (S42) e da A14 (S43), cada uma com fixture do ramo de falha e mutante que morre. Mas a mesma atribuição por expansão ainda escapa pela busca vizinha do prefixo (A1, a A15 da segurança). A volta corrige :693 e varre as outras buscas por nome da função.
