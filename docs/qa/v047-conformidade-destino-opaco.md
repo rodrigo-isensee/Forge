@@ -3,11 +3,11 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: c3cde09fdec39e3d8bed6b8d0e0113216189a7ca
-parecer: reprovado
+commit: c22624c5b274546685d4db04ab44236bfafe6f31
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-15
@@ -93,7 +93,6 @@ Parecer reprovado no 19df94ed: A3 bloqueante (bug alto). A2 fechado, sem mutante
 Fecha o A3 da rodada anterior (aritmética e barra e quebra), resolvido em `000cd0c8` (`R-CONFORMIDADE`).
 
 ## Achados
-- A17 (bloqueante) hooks/conformidade.py:698 · prefixo colado de variável do bash não é barrado: `: .gi; cp -rT ev "$_"t` e `: .gi; echo a > "$_"t` dão rc 0 no c3cde09f e escrevem em .git/config; `"$_"` sozinho recusa (mesma classe do A16 da segurança; R-CONFORMIDADE)
 
 
 ## Sondas do delta (aspas simples no shell; cada uma com `echo a > "$(date)"` no fim e `date` benigno)
@@ -149,3 +148,13 @@ Domínio lido por `forge-check parecer delta`, rc 0: `hooks/conformidade.py` (`a
 - CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local. `forge-check docs`: ver Provas do relatório.
 
 Parecer reprovado no c3cde09f (`R-QA`): o A16 do parecer anterior (`${d:=v}` com resto colado) está fechado e sem mutante sobrevivente, mas o A17 (`"$_"t`) bloqueia.
+
+## Revalidação por delta c3cde09f..c22624c5 (E1.345, volta A17; instância que não fez a entrega)
+Domínio lido por `forge-check parecer delta`, rc 0: `hooks/conformidade.py` (`nasce_fora_do_ambiente` extraída; o nome inteiro e cada prefixo passam por ela, o que inclui `VARIAVEIS_DO_BASH`), 5 fixtures `opaco-u4-*` novas (S48 a S51 e `"$HOME"t` libera), `tests/test_hook_destino_opaco.py` (piso 193), mutantes O154/O155 ajustados e `-24` (O157, O158). Regra: `R-CONFORMIDADE`; ordem do dono de 15/11 (bugs já achados fechados; fuga rara nova vira recomendado).
+- Vermelho: `bin/forge-testes --vermelho c3cde09fdec39e3d8bed6b8d0e0113216189a7ca --modulos test_hook_destino_opaco --prazo 500`, rc 0: `vermelho: base=c3cde09fdec3 head=c22624c5b274`; `test_fixtures_opaco_u4 · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=3; prova (asserção)=1`.
+- Mutação: `bin/forge-mutante tests/mutantes/v047-destino-opaco-23.json tests/mutantes/v047-destino-opaco-24.json --base c3cde09f…`, rc 0, `rev=c22624c5b274`: O153, O154, O155, O156, O157, O158 `morreu`, nenhum sobrevivente. `--cobertura --base c3cde09f…`: `coberta` em :699 (O157) e :704 (O155, O158), rc 0.
+- Sondas (aspas simples; hook real pela máquina de `tests/test_hooks.py`, fixture S51 com o comando trocado): recusam (rc 2) `: .gi; cp x "$_"t`, `: .gi; echo a > "$_"t`, `: .gi; cp x "${_}"t`, `: .gi; cp x "$_"`, `: .g; cp x "$_"it`, `d=.gi; cp x "$d"t`, `echo .gi >/dev/null; cp x "$_"t`, `: .gi; cp x "$__"t`, `: .gi; cp x "$_x"t`, `cp x "$OLDPWD"t`, `cp x "$PWD"t`, `cp x "$RANDOM"t`, `cp x "$REPLY"t`, `cp x "$BASH_COMMAND"t`. Liberam (esperado): `cp -rT ev "$HOME"t`, `cp x "$PPID"t` (número).
+- Oráculo: o delta não toca `tests/test_oraculo_v047.py` (blob `535134e9…` igual ao gravado). `python3 -m unittest tests.test_hook_destino_opaco`: 4 testes, OK.
+- CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local.
+
+Parecer aprovado no c22624c5 (`R-QA`): A17 fechado (as sondas do bug, `: .gi; cp -rT ev "$_"t` e `: .gi; echo a > "$_"t`, recusam), sem regressão, sem mutante sobrevivente, nenhum bug aberto, sem achado novo.
