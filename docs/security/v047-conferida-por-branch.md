@@ -3,10 +3,10 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conferida-por-branch
-commit: 7c91b13d795b743b129ef41f55ab755b5eee4ad2
+commit: 8b9fa8df4b12a8822d5cb58ddc256cb003fc35cf
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-14
+data: 2026-11-15
 ---
 # Review de segurança: v047 (conferida por branch, E1.185)
 
@@ -36,6 +36,9 @@ Controle do Forge (`forge-check entrega`, o portão da conferência de entrega):
 **A1** · evidência `bin/forge-check:2186` · caminho: um `Revisar-sha` de portão da própria branch que depois entrou na develop seria aceito como `--desde`; exige a forma antiga com `--desde` explícito e um commit que já passou por portão, e o resultado é um intervalo menor que o da regra nova, não um arquivo escondido do que é desta branch depois dele · severidade baixa · correção mínima: trocar `not e_ancestral(raiz, desde, base_sha)` por `not ja_na_base(raiz, desde, base_sha, base_ref)` nessa linha, com um teste · esforço P · dono: o autor do `bin/forge-check` (classe C).
 
 **Suíte.** Não há PR nem CI para o head ainda (o brief manda não abrir PR); vale o PQ conferido: `docs/pedidos/v047.md` traz `entrega conferida 7c91b13d795b743b129ef41f55ab755b5eee4ad2`. Rodei aqui `tests.test_conferida_por_branch` e `tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief`: 12 testes, OK. A bateria completa fica no CI do PR, obrigatório para o merge.
+
+## Revalidação por delta (E2.57, head 8b9fa8df)
+`forge-check parecer delta` de 7c91b13d a 8b9fa8df: o merge da develop (ef371633, pais c496f36e e cb45a962) e o commit 8b9fa8df. O diff de `bin/forge-check` contra a nova base cb45a962 é linha a linha igual ao revisado contra 6517ff14 (conferido com `diff`); o bloco PRE-ENVIO-RAPIDO e o `--texto` do `bin/forge-testes` que o delta mostra vieram da develop (#563), já revisados lá, sem resolução de conflito no merge. O commit próprio 8b9fa8df só põe `test_conferida_por_branch` no mapa `FORGE_CHECK` e sobe a contagem em `tests/test_testes_tocados.py` para 83: alarga o plano dirigido, não afrouxa controle. A1 continua em `bin/forge-check:2186`, recomendado, sem mudança de critério. Rodei `tests.test_testes_tocados`: 151 testes, OK. CI do PR #559 no head ee28dfb5 (8b9fa8df mais o parecer de QA): suíte pendente; a `catraca` pede o rótulo `afrouxa-regra` do dono por tocar `bin/forge-check` (`R-CONFORMIDADE`), decisão dele e não achado deste delta. Aprovo sem afirmar CI verde; o merge segue preso ao CI todo verde.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Ferramentas: leitura do diff, git e as sondas acima; varredura de segredos e SAST locais não estavam no PATH (lacuna registrada; o diff não toca credencial nem rede).
