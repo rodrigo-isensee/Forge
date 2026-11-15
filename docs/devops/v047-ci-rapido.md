@@ -3,12 +3,12 @@ tipo: revisao-devops
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-rapido
-commit: 5b632a48bbced4ce0a095539e11895b8d61b47c5
+commit: 0237a1bcdad85dca462d34aa0426a328f6af78c0
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-14
 ---
-# Review de devops: v047 (CI-RAPIDO, volta no head 5b632a48)
+# Review de devops: v047 (CI-RAPIDO, volta no head 0237a1bc)
 
 ## Achados
 
@@ -28,6 +28,9 @@ Aprovado. Intervalo `origin/develop...88fe9ff4` (base 067b2a9f), foco em `.githu
 
 ## Revalidação por delta (88fe9ff4..5b632a48)
 Aprovado, sem achado. `forge-check parecer delta` aponta um único arquivo no domínio: `scripts/suite-partes.py`, que só perde `esperado_da_parte`, `pesos_por_modulo` e `dividir` (sem chamador em `scripts/`, `.github/` nem `tests/`; o `dividir` que resta é o de `scripts/suite-paralela.py`, outro módulo). O arquivo compila. `.github/`, `Dockerfile*`, `compose*` e IaC não mudam no intervalo: a análise do `ci.yml` acima segue valendo (permissões, SHAs, agregadores, nomes dos checks exigidos). Fora do domínio, conferi por leitura os textos de `skills/ci-cd/SKILL.md` (orçamento de tempo e agregador com `always()` exigindo `success`, coerentes com o `ci.yml`). `python3 -m unittest tests.test_suite_partes tests.test_ci_local`: 115 testes, OK. A suíte inteira roda só no CI; cite o CI verde do head no merge. Lacunas inalteradas: `actionlint`, `zizmor`, `gitleaks` fora do PATH.
+
+## Revalidação por delta (5b632a48..0237a1bc)
+Aprovado, sem achado. `forge-check parecer delta`: nenhum arquivo do domínio mudou (`.github/`, `scripts/`, `bin/`, `.githooks/`, `tests/config.json` intactos). Fora do domínio, só textos: `stacks/node-react/pronto.md` (`vitest --shard` por arquivo, sem pesos), `skills/ci-cd/SKILL.md` (sem medida do Forge, neutro, `R-NEUTRO`), docstring de `tests/test_suite_partes.py` (5 partes) e AR-9. Coerentes com o `ci.yml` já revisado. `tests.test_suite_partes tests.test_ci_local`: testes OK. A suíte inteira roda só no CI. Lacunas inalteradas: `actionlint`, `zizmor`, `gitleaks` fora do PATH.
 
 ## Custo e rollback
 Sem custo novo de dinheiro (`R-CUSTO`): runners e artefatos da franquia gratuita, retenção de 1 dia. Minutos: a develop passa de 2 jobs de 13 a 20 min para 10 pernas de 2:30 a 5:00 mais 4 jobs curtos, ou seja, o tempo de relógio cai e os minutos somados ficam na mesma ordem; medir por `gh run list` no checkpoint da release. Rollback: reverter o commit do `ci.yml` (volta ao formato 3 partes e aos jobs únicos da develop); os nomes dos checks exigidos não mudam, então não há ajuste de proteção.
