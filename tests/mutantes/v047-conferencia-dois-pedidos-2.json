@@ -82,5 +82,13 @@
         "tests.test_conferencia_dois_pedidos.ParecerMandadoPeloPortao.test_parecer_sem_frontmatter_segue_fora"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "len(ids) > 1",
+      "linha_base": 1378,
+      "motivo": "condição editada, não apagada: a falha fechada com dois pedidos segue em `len(ids) != 1 and etapas` (linha nova), coberta por M5 (dois pedidos com e sem codigo) e pelo filtro de M4/M15"
+    }
   ]
 }
