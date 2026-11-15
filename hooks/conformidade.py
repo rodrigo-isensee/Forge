@@ -682,21 +682,27 @@ def atribui_por_expansao(nome, linha):
     return re.search(rf"\$\{{#?{nome}(\[[^]]*\])?:?=", linha) is not None
 
 
+def nasce_fora_do_ambiente(nome, linha):
+    """U4: o nome não vale como do ambiente: o bash o grava, é do git ou nasce na linha de outro jeito que `nome=v`
+    (`for`, `read`, `${nome:=v}`). Vale para o nome inteiro e para cada prefixo de `$dt` (A16 da segurança E1.340)."""
+    if nome in VARIAVEIS_DO_BASH:  # A4 da segurança E1.280: o bash a grava (`read`, `mapfile`, `=~`), não é do ambiente
+        return True
+    if nome.startswith("GIT_") or re.search(rf"(?<![\w${{]){nome}(?![\w=])", linha):
+        return True
+    return atribui_por_expansao(nome, linha)  # A14 (E1.332): `${d:=v}` atribui na linha
+
+
 def valores_da_variavel(m, linha, fundo):
     """U4: os valores de `$x`, `${x}` e `${x:-v}`: o da única atribuição na linha ou, sem ela, o do ambiente
     (`SEM_VALOR`), mais o padrão literal; None se a variável nasce de outro jeito (`for`, `read`, `+=`)."""
     nome = m["chave"] or m["nome"]
-    if nome in VARIAVEIS_DO_BASH:  # A4 da segurança E1.280: o bash a grava (`read`, `mapfile`, `=~`), não é do ambiente
-        return None
-    if nome.startswith("GIT_") or re.search(rf"(?<![\w${{]){nome}(?![\w=])", linha):
-        return None
-    if atribui_por_expansao(nome, linha):  # A14 (E1.332): `${d:=v}` atribui na linha
+    if nasce_fora_do_ambiente(nome, linha):
         return None
     atribuicoes = [valor_atribuido(linha, a.end()) for a in re.finditer(rf"(?<![\w$]){nome}=", linha)]
     if len(atribuicoes) > 1:
         return None
-    if not atribuicoes and any(re.search(rf"(?<![\w${{]){nome[:k]}(?![\w])", linha) or atribui_por_expansao(nome[:k], linha)
-                               for k in range(1, len(nome))):  # A15 (E1.336): também `: ${d:=.gi}; cp x "$d"t`
+    if not atribuicoes and any(nasce_fora_do_ambiente(nome[:k], linha) or re.search(rf"(?<![\w$]){nome[:k]}=", linha)
+                               for k in range(1, len(nome))):  # A15 (E1.336), A16 (E1.340): `"$d"t` e `"$_"t`
         return None  # `d=.gi; cp x "$d"t` chega sem aspas como `$dt`: o prefixo nascido na linha não é do ambiente
     valores = valores_da_palavra(atribuicoes[0], linha, fundo + 1) if atribuicoes else [SEM_VALOR]
     if m["op"] and valores is not None:
