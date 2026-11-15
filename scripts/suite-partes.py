@@ -87,12 +87,6 @@ def fora_da_divisao(total, nomes):
     return sorted(i for i in total if modulo_do_id(i, conjunto) is None)
 
 
-def esperado_da_parte(total, parte):
-    """O multiconjunto de IDs do discover inteiro que pertence aos módulos da parte."""
-    conjunto = set(parte)
-    return collections.Counter({i: c for i, c in total.items() if modulo_do_id(i, conjunto) is not None})
-
-
 def todos_os_modulos(sp):
     """Os módulos da raiz de tests/ (os do suite-paralela) mais os dos pacotes de tests/ (pasta com __init__.py, que o
     discover também acha), estes pelo nome com ponto."""
@@ -118,27 +112,6 @@ def para_o_filho(nomes, todos):
 
 def arquivo_do_modulo(sp, nome):
     return sp.RAIZ / sp.TESTES / (nome.replace(".", "/") + ".py")
-
-
-def pesos_por_modulo(pesos, nomes):
-    """A3 (0.43.2): o peso de cada módulo é o dele mais o das unidades separadas (`módulo.Classe`, `módulo.Classe.teste`);
-    o módulo sem peso nenhum fica de fora (a LPT dá a mediana)."""
-    saida = {}
-    for nome in nomes:
-        partes = [v for k, v in pesos.items() if k == nome or k.startswith(nome + ".")]
-        if partes:
-            saida[nome] = sum(partes)
-    return saida
-
-
-def dividir(sp, nomes, n):
-    """(partes, erros): os módulos em `n` partes pela LPT do suite-paralela, pesados com as unidades separadas,
-    conferidas como partição."""
-    partes = sp.repartir(nomes, pesos_por_modulo(sp.ler_pesos(), nomes), n)
-    erros = sp.conferir_particao(nomes, partes)
-    if len(partes) != n:
-        erros.append(f"{len(nomes)} módulos não dão {n} partes não vazias")
-    return partes, erros
 
 
 def unidade_do_id(sp, ident, nomes, pesos, chaves=None):

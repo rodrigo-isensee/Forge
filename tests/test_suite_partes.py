@@ -56,24 +56,11 @@ class Logica(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     self.f.ler_parte(ruim)
 
-    def test_esperado_e_fora_da_divisao_pelo_modulo_do_id(self):
+    def test_fora_da_divisao_e_modulo_do_id(self):
         total = collections.Counter({"test_a.T.test_x": 1, "test_b.T.test_y": 2, "unittest.loader._FailedTest.test_c": 1})
-        self.assertEqual(self.f.esperado_da_parte(total, ["test_b"]), collections.Counter({"test_b.T.test_y": 2}))
         self.assertEqual(self.f.fora_da_divisao(total, ["test_a", "test_b"]), ["unittest.loader._FailedTest.test_c"])
-        pacote = collections.Counter({"evals.test_p.T.x": 1, "test_a.T.y": 1})
-        self.assertEqual(self.f.esperado_da_parte(pacote, ["evals.test_p"]), collections.Counter({"evals.test_p.T.x": 1}))
         self.assertEqual(self.f.modulo_do_id("evals.test_p.T.x", {"evals.test_p", "test_p"}), "evals.test_p")
 
-    def test_tres_partes_dos_modulos_reais_cobrem_tudo_uma_vez(self):
-        nomes = self.sp.modulos()
-        partes, erros = self.f.dividir(self.sp, nomes, 3)
-        self.assertEqual(erros, [])
-        self.assertEqual(len(partes), 3)
-        self.assertEqual(sorted(m for p in partes for m in p), sorted(nomes))
-        self.assertEqual(partes, self.f.dividir(self.sp, nomes, 3)[0], "a mesma árvore dá a mesma divisão")
-
-    def test_menos_modulos_que_partes_reprova(self):
-        self.assertTrue(self.f.dividir(self.sp, ["test_a"], 3)[1])
 
 
 class Brinquedo(unittest.TestCase):
@@ -190,12 +177,6 @@ class UnidadesSeparadas(unittest.TestCase):
     processos próprios, como o suite-paralela, e a divisão do CI pesa o módulo com as unidades dele."""
 
     setUp, git, modulo, roda = Brinquedo.setUp, Brinquedo.git, Brinquedo.modulo, Brinquedo.roda
-
-    def test_pesos_por_modulo_somam_as_unidades(self):
-        partes = carregar()
-        pesos = {"test_a": 1.0, "test_a.T": 5.0, "test_a.T.test_x": 2.0, "test_ab": 3.0, "evals.test_c.K": 4.0}
-        self.assertEqual(partes.pesos_por_modulo(pesos, ["test_a", "test_ab", "evals.test_c", "test_z"]),
-                         {"test_a": 8.0, "test_ab": 3.0, "evals.test_c": 4.0})
 
     def test_unidade_separada_vai_a_outro_processo_sem_perder_teste(self):
         (self.dir / "tests" / "test_z.py").write_text(
@@ -493,14 +474,25 @@ class FiacaoDoCI(unittest.TestCase):
             if achado:
                 cls.jobs[achado.group(1)] = bloco
 
+    def job(self, nome):
+        """O bloco do job; job ausente reprova por asserção (e não por KeyError), para o vermelho na base ter veredito."""
+        self.assertIn(nome, self.jobs, f"o ci.yml não tem o job {nome}")
+        return self.jobs[nome]
+
+    def casar(self, padrao, bloco):
+        """O trecho do bloco; sem ele a asserção reprova (e não o AttributeError de None.group)."""
+        achado = re.search(padrao, bloco)
+        self.assertIsNotNone(achado, f"sem {padrao!r} no bloco")
+        return achado
+
     def nome(self, job):
-        return re.search(r"(?m)^    name: (.*)$", self.jobs[job]).group(1)
+        return self.casar(r"(?m)^    name: (.*)$", self.job(job)).group(1)
 
     def test_partes_por_versao_rodam_o_script_em_cinco(self):  # CI-RAPIDO: 5 partes por unidade (eram 3 por módulo)
         for job, versao in (("partes-doze", "3.12"), ("partes-quatorze", "3.14"),
                             ("rapida-partes-doze", "3.12"), ("rapida-partes-quatorze", "3.14")):
             with self.subTest(job):
-                bloco = self.jobs[job]
+                bloco = self.job(job)
                 self.assertIn("parte: [1, 2, 3, 4, 5]", bloco)
                 self.assertIn(f'python-version: "{versao}"', bloco)
                 self.assertIn('python3 scripts/suite-partes.py --parte "$PARTE/5"', bloco)
@@ -512,9 +504,9 @@ class FiacaoDoCI(unittest.TestCase):
                                                   {"partes-quatorze", "pulados-quatorze", "instalacao-quatorze"})}
         for job, (nome, necessarios) in casos.items():
             with self.subTest(job):
-                bloco = self.jobs[job]
+                bloco = self.job(job)
                 self.assertEqual(self.nome(job), nome)
-                needs = re.search(r"(?m)^    needs: \[(.*)\]$", bloco).group(1)
+                needs = self.casar(r"(?m)^    needs: \[(.*)\]$", bloco).group(1)
                 self.assertEqual({n.strip() for n in needs.split(",")}, necessarios)
                 # always(): necessário cancelado, pulado ou vermelho reprova o agregador (um pulado contaria como verde)
                 self.assertRegex(bloco, r"(?m)^    if: always\(\) && ")
@@ -529,11 +521,11 @@ class FiacaoDoCI(unittest.TestCase):
     def test_cada_parte_publica_os_pulados_e_um_job_soma_contra_o_teto(self):  # T3
         for versao in ("doze", "quatorze"):
             with self.subTest(versao):
-                parte = self.jobs[f"partes-{versao}"]
+                parte = self.job(f"partes-{versao}")
                 self.assertIn('FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json"', parte)
                 self.assertIn(f"name: pulados-{versao}-${{{{ matrix.parte }}}}", parte)
                 self.assertIn("if-no-files-found: error", parte)
-                soma = self.jobs[f"pulados-{versao}"]
+                soma = self.job(f"pulados-{versao}")
                 self.assertRegex(soma, rf"(?m)^    needs: \[partes-{versao}, arvore\]$")
                 self.assertNotIn(f"needs.partes-{versao}.outputs", soma)  # M2: a saída de job em matriz fica com a última perna
                 self.assertIn(f"pattern: pulados-{versao}-*", soma)
@@ -556,14 +548,14 @@ class FiacaoDoCI(unittest.TestCase):
                                          ("rapida-quatorze", "rapida-partes-quatorze", "rapida-pulados-quatorze", "3.14")):
             with self.subTest(job):
                 self.assertEqual(self.nome(job), nomes[versao])
-                bloco = self.jobs[perna]
+                bloco = self.job(perna)
                 self.assertIn(f'python-version: "{versao}"', bloco)
                 self.assertIn("fetch-depth: 0", bloco)
                 self.assertIn("env -a x true", bloco)
                 for j in (job, perna, teto):
                     self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/develop'"
                                   if j != job else "github.event_name == 'push' && github.ref == 'refs/heads/develop'",
-                                  self.jobs[j])
+                                  self.job(j))
                 self.assertNotEqual(self.nome(perna), nomes[versao])  # o nome do agregador é só dele (len(com_nome) == 1)
                 self.assertIn("parte ${{ matrix.parte }}/5", self.nome(perna))
 
@@ -571,8 +563,8 @@ class FiacaoDoCI(unittest.TestCase):
         for job, perna, teto in (("rapida", "rapida-partes-doze", "rapida-pulados-doze"),
                                  ("rapida-quatorze", "rapida-partes-quatorze", "rapida-pulados-quatorze")):
             with self.subTest(job):
-                bloco = self.jobs[job]
-                needs = re.search(r"(?m)^    needs: \[(.*)\]$", bloco).group(1)
+                bloco = self.job(job)
+                needs = self.casar(r"(?m)^    needs: \[(.*)\]$", bloco).group(1)
                 self.assertEqual({n.strip() for n in needs.split(",")}, {perna, teto})
                 self.assertRegex(bloco, r"(?m)^    if: always\(\) && github.event_name == 'push' && "
                                         r"github.ref == 'refs/heads/develop'$")
@@ -582,14 +574,14 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertNotIn("uses:", bloco)  # A1: o agregador só lê needs.*.result
                 self.assertNotIn("scripts/", "\n".join(l for l in bloco.splitlines() if not l.lstrip().startswith("#")))
                 self.assertIn("permissions:\n      contents: read", bloco)
-                self.assertRegex(self.jobs[teto], rf"(?m)^    needs: \[{perna}\]$")  # o teto só roda com as 5 pernas verdes
-                self.assertIn('python3 scripts/suite-partes.py --somar-pulados 5 "$RUNNER_TEMP/pulados"', self.jobs[teto])
-                self.assertIn("pattern: pulados-rapida-", self.jobs[teto])
+                self.assertRegex(self.job(teto), rf"(?m)^    needs: \[{perna}\]$")  # o teto só roda com as 5 pernas verdes
+                self.assertIn('python3 scripts/suite-partes.py --somar-pulados 5 "$RUNNER_TEMP/pulados"', self.job(teto))
+                self.assertIn("pattern: pulados-rapida-", self.job(teto))
 
     def test_pernas_da_develop_publicam_os_pulados_e_o_download_so_le_o_run_corrente(self):  # S5, A4
         for versao in ("doze", "quatorze"):
             with self.subTest(versao):
-                perna, teto = self.jobs[f"rapida-partes-{versao}"], self.jobs[f"rapida-pulados-{versao}"]
+                perna, teto = self.job(f"rapida-partes-{versao}"), self.job(f"rapida-pulados-{versao}")
                 self.assertIn('FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json"', perna)
                 self.assertIn(f"name: pulados-rapida-{versao}-${{{{ matrix.parte }}}}", perna)
                 self.assertIn("if-no-files-found: error", perna)
@@ -605,18 +597,18 @@ class FiacaoDoCI(unittest.TestCase):
             for matriz, soma in ((f"partes-{versao}", f"pulados-{versao}"),
                                  (f"rapida-partes-{versao}", f"rapida-pulados-{versao}")):
                 with self.subTest(matriz):
-                    lista = re.search(r"(?m)^        parte: \[(.*)\]$", self.jobs[matriz]).group(1)
+                    lista = self.casar(r"(?m)^        parte: \[(.*)\]$", self.job(matriz)).group(1)
                     n = len(lista.split(","))
                     self.assertEqual([int(x) for x in lista.split(",")], list(range(1, n + 1)))
-                    self.assertEqual(re.findall(r'--parte "\$PARTE/(\d+)"', self.jobs[matriz]), [str(n)])
-                    self.assertEqual(re.findall(r"--somar-pulados (\d+) ", self.jobs[soma]), [str(n)])
+                    self.assertEqual(re.findall(r'--parte "\$PARTE/(\d+)"', self.job(matriz)), [str(n)])
+                    self.assertEqual(re.findall(r"--somar-pulados (\d+) ", self.job(soma)), [str(n)])
                     self.assertIn(f"/{n})", self.nome(matriz))
                     self.assertEqual(n, 5)
 
     def test_partes_pulam_a_suite_so_com_a_arvore_provada(self):
         """SP4 e M2: um job prévio único tira a prova (só com a dos dois Pythons); as 3 partes de cada versão dependem dele e o
         preparo e a suíte só rodam sem a prova (falha fechada). A prova no passo de cada perna dava o `outputs` da última perna."""
-        arvore = self.jobs["arvore"]
+        arvore = self.job("arvore")
         passo = arvore[arvore.index("        id: arvore\n"):]
         self.assertIn("          provada=false\n          if python3 scripts/arvore-testada.py --python 3.12 && "
                       "python3 scripts/arvore-testada.py --python 3.14; then provada=true; fi\n", passo)
@@ -625,7 +617,7 @@ class FiacaoDoCI(unittest.TestCase):
         self.assertEqual(arvore.count("GH_TOKEN"), 1)
         for job in ("partes-doze", "partes-quatorze"):
             with self.subTest(job):
-                bloco = self.jobs[job]
+                bloco = self.job(job)
                 self.assertRegex(bloco, r"(?m)^    needs: \[arvore, bateria\]$")  # A18: os passos baratos antes da suíte
                 self.assertNotIn("arvore-testada", bloco)
                 self.assertNotIn("outputs:", bloco)

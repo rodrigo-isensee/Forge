@@ -292,7 +292,9 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertNotIn("só a checagem rápida", topo)
         self.assertIn("scripts/suite-paralela.py", topo)
         # CI-RAPIDO: a rápida é o agregador; a suíte roda nas 5 pernas dela (suite-partes, o mecanismo do suite-paralela)
-        (perna,) = [j for j in ci.ler_jobs(texto) if j["id"] == "rapida-partes-doze"]
+        pernas = [j for j in ci.ler_jobs(texto) if j["id"] == "rapida-partes-doze"]
+        self.assertEqual(len(pernas), 1, "o ci.yml não tem o job rapida-partes-doze")
+        (perna,) = pernas
         self.assertTrue(any("scripts/suite-partes.py" in p["run"] for p in perna["passos"]))
 
     def test_bateria_consolidada_mantem_os_passos_que_eram_jobs(self):
@@ -430,7 +432,9 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertNotIn("continue-on-error", texto)
         self.assertNotIn("skip ci", texto)
         for job in ("partes-doze", "partes-quatorze", "rapida-partes-doze", "rapida-partes-quatorze"):
-            (teste,) = [p for j in ci.ler_jobs(texto) if j["id"] == job for p in j["passos"] if p["nome"] == "Testes do Forge (parte)"]
+            testes = [p for j in ci.ler_jobs(texto) if j["id"] == job for p in j["passos"] if p["nome"] == "Testes do Forge (parte)"]
+            self.assertEqual(len(testes), 1, f"o job {job} não tem um passo 'Testes do Forge (parte)'")
+            (teste,) = testes
             self.assertNotIn("for ", teste["run"])
             self.assertNotIn("||", teste["run"])
 
@@ -1037,7 +1041,9 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         por_nome = {r["nome"]: r for r in resultados}
         for versao in ("3.12", "3.14"):
             for k in (1, 2, 3, 4, 5):
-                self.assertEqual(por_nome[f"suíte (python {versao}, parte {k}/5)"]["estado"], ci.PULADO)
+                nome = f"suíte (python {versao}, parte {k}/5)"
+                self.assertIn(nome, por_nome)
+                self.assertEqual(por_nome[nome]["estado"], ci.PULADO)
         self.assertEqual(por_nome["bateria (verificações longas)"]["estado"], ci.PULADO)  # A1: o vermelho barato pula o job longo
         self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.FALHOU))
         self.assertEqual(ci.status(resultados)[0], "failure")

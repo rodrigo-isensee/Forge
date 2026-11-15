@@ -54,6 +54,8 @@ Nunca use um clone sem as refs remotas (por exemplo `git clone --no-tags --singl
 
 ## Tempo e dependências
 - Meça a duração por workflow e os minutos usados (`gh run list`); um checkpoint por release. Subiu mais de 20% ou passou de 80% da franquia gratuita: abra cartão de melhoria.
+- Orçamento de tempo: fixe o alvo do PR e o da integração e divida o trabalho em partes iguais por **unidade de teste**, não por arquivo (um arquivo grande desequilibra a divisão). A conta é T = alvo menos overhead do job (medido: 36 s no PR, 20 s na integração); o tempo de cada parte tem de caber em T. Guarda de completude: o agregador (ou o job de soma que ele exige) confere que a soma dos testes executados nas N partes é a dos coletados e que o N da matriz, o do argumento da parte e o da soma são o mesmo (um teste lê o YAML e compara).
+- Agregador com o nome do check exigido (o dono o lista); as pernas da matriz têm nome livre ("parte K/N") e não entram na proteção. O agregador roda com `always()`, só lê `needs.*.result` e exige `success` de cada perna: pulada ou cancelada reprova.
 - Dependabot para ações, imagens e pacotes, com agrupamento e janela; a triagem separa o bump sem quebra (mecânico) do que exige correção de código (dev da stack).
 - Modelo do projeto: `templates/projeto/.github/dependabot.yml` (ações, neutro) e o bloco do ecossistema de pacotes em `stacks/<stack>/pronto.md`, seção "CI". Grupos de rotina só com minor e patch; major em grupo à parte, que vira cartão de migração.
 - A configuração do Dependabot só vale na branch padrão (`main`), e o alerta de segurança abre contra a branch padrão, não contra o `target-branch`; o conserto segue pela branch de integração.

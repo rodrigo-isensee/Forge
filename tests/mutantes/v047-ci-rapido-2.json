@@ -80,7 +80,8 @@
       "para": "and 0 <= seg <= TETO_S",
       "testes": [
         "tests.test_pesos_do_ci.Leitura.test_anotacao_fora_do_formato_e_descartada_inteira"
-      ]
+      ],
+      "equivalente": "inf e NaN ja falham a comparacao 0 <= seg <= TETO_S com TETO_S finito (NaN falha toda comparacao, inf passa de TETO_S); o isfinite so deixa a guarda explicita"
     },
     {
       "id": "M21",
