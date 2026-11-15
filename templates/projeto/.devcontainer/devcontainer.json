@@ -1,0 +1,18 @@
+// Modelo de projeto (E2.54): o container recriado volta pronto sozinho. Só /workspaces e ~/.claude sobrevivem à recriação;
+// a cada início o postStartCommand refaz gh, login pelo GH_TOKEN do ambiente, o link ~/.forge-contrib para
+// /workspaces/.forge-contrib e o core.hooksPath (idempotente, nunca apaga dados). Roda como root e fora do sandbox,
+// então NÃO executa o script do work tree (o agente o edita): lê a cópia da origin/main (código já mesclado pelo dono).
+// Antes do primeiro merge do script na main, rode uma vez `bash .devcontainer/preparar-ambiente.sh`. Nenhum segredo aqui:
+// o GH_TOKEN vem do ambiente da máquina que abre o container (localEnv). Ajuste a imagem à stack do projeto.
+{
+  "name": "{{PROJETO}}",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "remoteUser": "root",
+  "remoteEnv": {
+    "GH_TOKEN": "${localEnv:GH_TOKEN}"
+  },
+  "mounts": [
+    "source=forge-claude,target=/root/.claude,type=volume"
+  ],
+  "postStartCommand": "f=$(mktemp) && git -C \"${containerWorkspaceFolder}\" show refs/remotes/origin/main:.devcontainer/preparar-ambiente.sh > \"$f\" && FORGE_PROJETO=\"${containerWorkspaceFolder}\" bash \"$f\" < /dev/null; rm -f \"$f\"; true"
+}
