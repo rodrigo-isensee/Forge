@@ -17,7 +17,7 @@
       "guarda": "E1.330, volta do lote B (A12 da segurança E1.328): o corpo de `<<'E'` e `<<\"E\"` é literal e não conta",
       "arquivo": "hooks/conformidade.py",
       "de": "               for h in heredocs(comando)[0] if not h.literal)",
-      "para": "               for h in heredocs(comando)[0])",
+      "para": "               for h in heredocs(comando)[0] if True)",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]
