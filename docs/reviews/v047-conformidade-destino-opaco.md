@@ -17,7 +17,8 @@ Delta lido: `forge-check parecer delta docs/reviews/v047-conformidade-destino-op
 Verificadores: `tests.test_hook_destino_opaco` no head, 4 testes OK (31 s); `bin/forge-mutante --processos 1` com as specs 16, 7 e 9 no rev 85043cc4: 14 de 14 morreram (O99 a O104, O45, O55 entre eles). Suíte completa: fica com o CI do PR (sem PR aberto ainda).
 
 ## Achados
-Nenhum.
+
+## Sondas
 
 ## Parecer
 Aprovado no 85043cc4. O A1 deste review (E1.279) fecha: a lista positiva só vale quando a linha não define o comando como função, no U4 (:538) e no U3 (:1344), e o `$(pwd)` só vira `$PWD` sem `pwd` redefinido. Rodei 24 sondas pelo harness do corpus, todas com o código esperado: S1 a S3 do parecer anterior e as variantes `date () {`, `function date {`, `function date() {`, `:(){`, `true`, `false`, `mktemp -d`, `$( date )`, crase, `pwd -P` com resto `/config` e `X=$(date)` recusam; `"$(date +%F).log"`, `"$(mktemp)"`, `"$(pwd)/x"` e `"$HOME/x"` seguem livres; `read`/`$REPLY` e `mapfile`/`${MAPFILE[0]}` recusam pela lista nova. O código segue o desenho do U4 (lista positiva, AR-3) e os mutantes cobrem cada guarda nova com teste de comportamento.
