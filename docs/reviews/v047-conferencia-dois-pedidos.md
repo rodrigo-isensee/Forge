@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conferencia-dois-pedidos
-commit: a7872bf5094a4f84d48a802a1fcf810b0d1e1fb3
+commit: 4865f8f27d29281f5886261a607ba44efcf0385b
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-14
+data: 2026-11-15
 ---
 # Code review: conferência com briefs de dois pedidos na branch (CONFERENCIA-DOIS-PEDIDOS, E1.277)
 
@@ -16,6 +16,15 @@ Escopo: pedido v047, etapa E1.289 (`R-REVIEW`), classe C, sobre o head `a7872bf5
 - A1 (recomendado) bin/forge-check:2576 · `COMMIT_NO_ENTREGAR` e `PEDIDO_NO_ENTREGAR` (2575) casam em todo o Entregar, não só no item do parecer: um brief selado que cite um commit antigo também o ancora; efeito só de escopo; sugestão: ler só o item que declara o `nome`
 - A2 (recomendado) bin/forge-check:2588 · `etapas_dos_briefs_da_branch` relê todos os `docs/briefs/` das raízes a cada parecer conferido (centenas de briefs no v047); sugestão: calcular uma vez por conferência e passar o resultado
 - A3 (recomendado) bin/forge-check:1359 · o diff tem 280 linhas contadas (M14, acima de 150); o corpo do PR precisa de `teto: excedido, 280 linhas, <motivo>` quando o PR for aberto
+
+## Revalidação (E2.64, head 4865f8f2)
+Delta lido: `forge-check parecer delta docs/reviews/v047-conferencia-dois-pedidos.md` (rc=0), intervalo `a7872bf5..4865f8f2`, sem o que veio da develop; no domínio: `bin/forge-testes`, `tests/mutantes/v047-conferencia-dois-pedidos-2.json`, `tests/test_conferencia_dois_pedidos.py`. Instância que não fez a entrega.
+- `bin/forge-testes`: `test_conferencia_dois_pedidos` entra no mapa `FORGE_CHECK`; `--listar` com `bin/forge-check` agora o aponta. Correto.
+- `tests/test_conferencia_dois_pedidos.py`: o `git init` do `setUp` passa por `ambiente_git.sem_manutencao`, mantendo o ambiente limpo (`LIMPO`, sem config global nem de sistema). Sem mudança de asserção.
+- `tests/mutantes/v047-conferencia-dois-pedidos-2.json`: `isentas` para o `len(ids) > 1` da base (bin/forge-check:1378 na base). Conferi: a condição foi editada para `len(ids) != 1 and etapas` (bin/forge-check:1387), coberta por M5; a isenção é verdadeira e não afrouxa a guarda.
+- `bin/forge-mutante --cobertura --base cb45a962…`: todas as guardas `coberta`, a da base `isenta`, nenhuma `apagada`.
+- `python3 -m unittest tests.test_conferencia_dois_pedidos` no head: `Ran 19 tests` `OK`. Suíte completa fica com o CI do PR.
+Nenhum achado novo; A1 a A3 seguem recomendados. Parecer mantido: aprovado no head 4865f8f2.
 
 ## Sondas
 
