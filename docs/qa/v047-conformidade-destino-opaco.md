@@ -3,11 +3,11 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: 19df94ed5619ae0bb77dbdf5c9abde7d50f04635
-parecer: reprovado
+commit: 000cd0c8a7f69497fd41b5f64c786ed9df5f5274
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-15
@@ -19,10 +19,6 @@ Lote B, classe C, `hooks/conformidade.py` (R-CONFORMIDADE), intervalo `origin/de
 oraculo: tests/test_oraculo_v047.py commit 730843a99366f49e7560b32dbd413c15346f8614 blob 535134e940b2af9a3cf9941b7a4d54b661b57c4a
 
 Prova de não edição do oráculo (conferida): `git merge-base --is-ancestor 730843a9 HEAD` ok; `git rev-parse HEAD:tests/test_oraculo_v047.py` = `535134e940b2af9a3cf9941b7a4d54b661b57c4a` (igual ao blob); `git log --format=%H 730843a9..HEAD -- tests/test_oraculo_v047.py` vazio. Rodou `python3 -m unittest tests.test_oraculo_v047`: 3 testes, OK, 178 s (os 9 casos D2b e os `plano` da A10 recusados; leituras legítimas liberam).
-
-## Achados
-
-- A3 (bloqueante) hooks/conformidade.py:521 · `linha_conhecida` junta `\`+quebra antes do shlex: `echo \\`⏎`source ./f.sh`⏎`echo a > "$(date)"` e `echo a # \`⏎`source …` liberam (rc 0) e gravam `.git/config`; `x[PATH=0]=1`, `$[PATH=0]` e `${x[PATH=0]}` trocam o PATH e liberam. Classe aberta.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -90,3 +86,29 @@ Domínio lido por `forge-check parecer delta`: `hooks/conformidade.py` (`linha_c
 - CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local.
 
 Parecer reprovado no 19df94ed: A3 bloqueante (bug alto). A2 fechado, sem mutante sobrevivente. A lista fechada resolve os nomes citados e montados, mas a classe da linha inteira ainda tem duas fugas (junção de barra+quebra pelo `replace` e subscrito aritmético de nome minúsculo).
+
+
+## Revalidação por delta 19df94ed..000cd0c8 (E1.329, instância que não fez a entrega)
+
+Fecha o A3 da rodada anterior (aritmética e barra e quebra), resolvido em `000cd0c8` (`R-CONFORMIDADE`).
+
+## Achados
+
+- A4 (recomendado) hooks/conformidade.py:1367 · `textos_do_valor` ainda junta com `replace("\\\n", "")`, fora de `linha_juntada`: `\\`+quebra vira uma barra só. Só sobre-aproxima (sondas recusam, nenhuma libera); alinhar quando a função for tocada.
+
+## Sondas do delta (aspas simples no shell; cada uma com `echo a > "$(date)"` no fim e `date` benigno)
+Montadas sobre a fixture `opaco-u4-v-qa-barra-dupla-quebra-bloqueia` (hook real, `f.sh` redefine `date`). 77 sondas:
+- barra e quebra: 1, 2, 3, 4 e 5 barras antes da quebra, dupla continuação, linha vazia, `\r`+LF, dentro de `$(…)`, após `;` e `&&`: libera exatamente quando o bash junta (1, 3 e 5 barras, dupla continuação) e recusa quando a quebra separa (2, 4, 6+, `\r`); aspa simples e `#` com continuação recusam.
+- aritmética: `$[PATH=0]`, `$((PATH=5))`, `x[PATH=0]=1`, `x[1+PATH=2]=1`, `${x[PATH=0]}`, `${x:PATH=5}`, `${x:1:PATH=5}`, `${x:i}`, `${x:$i}`, `${x:1:$[…]}`, `a=(PATH=5)`, `let`, `[[ 1 -eq PATH=5 ]]`, `unset 'x[…]'`, `test -v 'x[PATH=5]'`, `[ -v x[…] ]`, `{fd}>f`, `{PATH}>f`, `$\`+quebra+`[`, `x\`+quebra+`[PATH=5]=1`: todas recusam (rc 2).
+- liberam (rc 0, esperado): `${x: 1: 2}`, `${x: -1}`, `${x:-1}`, `${x[@]}`, `${x[*]}`, `${y[3]}`, `"${x[1]}"`, `${#y[0]}`, `x[0]=1 y[12]=2 echo ok`, `echo a \`+quebra+`;`.
+- função `f ( )`, `function f ( )`, `f(`+`\`+quebra+`)` e `f( ){` com `date` redefinido recusam.
+- 9 sondas de `.git` por variável e barra dupla e quebra (`d=.git\\`, `$(echo .gi\\`+quebra+`t)`): todas recusam.
+Classe fecha: nenhuma sonda libera o que o bash executa diferente.
+
+## Execução no head 000cd0c8
+- `forge-check parecer delta docs/qa/v047-conformidade-destino-opaco.md`, rc 0: domínio = hook, docs, changelog, 1 teste de módulo (`tests/test_hook_destino_opaco.py`, 2 linhas) e as fixtures `opaco-u4-v-*` novas.
+- Vermelho: `bin/forge-testes --vermelho 19df94ed5619ae0bb77dbdf5c9abde7d50f04635 --modulos test_hook_destino_opaco --prazo 500`, rc 0: `vermelho: base=19df94ed5619 head=000cd0c8a7f6`; `test_fixtures_opaco_u4 · H=ok · B=falha · prova (asserção)`; os outros 3 passam na base (regressão, esperado); `contagem: não prova=3; prova=1`.
+- Mutação do delta: `bin/forge-mutante --processos 4 tests/mutantes/v047-destino-opaco-20.json tests/mutantes/v047-destino-opaco-21.json`, rc 0, `pedido=v047 rev=000cd0c8a7f6`: 15 `morreu` (O133 a O148), nenhum sobrevivente. `--cobertura --base 19df94ed…`: as 7 condições mudadas `coberta` (532, 534, 543, 557, 574, 585, 1413), nenhuma sem mutante. Uma rodada com as 21 specs e `--base` não terminou neste ambiente (processo morto sem saída, sem veredito); vale a rodada das duas specs do delta.
+- Suíte inteira: sem PR nem check-run `bateria` para o sha; fica para o CI do PR. `forge-check docs` rc 0.
+
+Todos os critérios da tabela anterior seguem como estavam; o delta só acrescenta a classe aritmética e barra e quebra, coberta pelas fixtures `opaco-u4-v-*` e pelos mutantes acima.
