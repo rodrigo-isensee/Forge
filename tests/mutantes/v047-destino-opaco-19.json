@@ -16,8 +16,8 @@
       "id": "O126",
       "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): a lista positiva só com a linha conhecida (U3 e U4)",
       "arquivo": "hooks/conformidade.py",
-      "de": "    if not linha_conhecida(linha):\n        return False",
-      "para": "    if False:\n        return False",
+      "de": "    if not linha_conhecida(linha, frozenset()):",
+      "para": "    if False:",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ],
@@ -87,7 +87,7 @@
   "isentas": [
     {
       "arquivo": "hooks/conformidade.py",
-      "trecho": "not linha_conhecida(linha)",
+      "trecho": "not linha_conhecida(linha, frozenset())",
       "motivo": "O126 equivalente: o U3 só olha o destino opaco sem resto, que o U4 recusa antes pela mesma checagem em valores_do_corpo (O125); defesa do U3"
     }
   ]

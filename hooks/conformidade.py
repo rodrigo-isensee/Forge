@@ -567,7 +567,7 @@ def na_lista_positiva(corpo, linha):
     """O corpo está em `CORPO_POSITIVO`, não cita o `.git` (A3 da segurança E1.206: `mktemp -p .git`), a linha não
     redefine o comando como função (A1 do review E1.279: `date(){ printf .gi%s t/config; }`) e todos os comandos dela
     estão na lista fechada (`linha_conhecida`, E1.322), no U4 e no U3."""
-    if not linha_conhecida(linha):
+    if not linha_conhecida(linha, frozenset()):  # defesa do U3; no U4, `valores_do_corpo` recusa antes
         return False
     if corpo_da_funcao(corpo.split()[0] if corpo.split() else corpo, linha)[0]:
         return False
