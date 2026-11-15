@@ -3,32 +3,28 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-docs-pareceres
-commit: 7d32017c69de41a8ef9e8d19cb8943c2fb0755d3
+commit: b3bc317ac53cdf6f5038421635fd87144cbfcebb
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-14
+data: 2026-11-15
 ---
-# Review: v047 (melhoria/v047-docs-pareceres, E1.274)
+# Review: v047 (melhoria/v047-docs-pareceres, E1.315)
 
 ## Parecer
-Aprovado. O intervalo `origin/develop..7d32017c` (3 commits) entrega o que E1.252 pede: `forge-check docs` recusa no parecer o `pedido:` que não é id de `docs/pedidos/` (local ou na raiz de pedidos) nem `release-X.Y.Z`, e diz quando é o nome da branch, inteiro ou sem prefixo (PARECER-CAMPO-PEDIDO, PARECER-PEDIDO-NOME-DA-BRANCH); `forge-check docs <arquivo>` valida só os dados, todos no modo estrito, e a cópia fora da raiz com o critério da pasta do `tipo:` (FC-DOCS-CAMINHO); a mensagem da linha fora do formato no `## Achados` diz para omitir o bloco; o modelo de review diz o id do pedido e o parecer sem achados.
+Aprovado no b3bc317a. A volta (E1.309) corrige o que o lote de pareceres apontou: o nome da cópia de fora da raiz passa por `sem_controle` antes de virar o `rel` virtual (a regressão que o teste de AST da `SaidaSanitizada`, abuso 18, pegava), os avisos de `conferir_criterio` saem com o caminho dado como as violações (fecha o A1 do parecer anterior), os testes novos falham por asserção na base sem `FC-DOCS-CAMINHO` (o `docs()` do teste devolve uma violação, não `TypeError`) e o M8 segue o texto novo da linha.
 
-## Escopo lido
-- `bin/forge-check`: `problema_do_pedido`, `documentos_dados`, `cmd_docs`, a mensagem em `achados_do_parecer`, o argumento `arquivos` do subcomando `docs`.
-- `tests/test_forge.py` (classe `DocsPareceresPedidoECaminho`), `tests/mutantes/v047-docs-pareceres.json` e `-2.json` (M1 a M13), `templates/projeto/docs/reviews/_modelo.md`, `changelog.d/v047-docs-pareceres.md`.
+## Delta lido
+`forge-check parecer delta docs/reviews/v047-docs-pareceres.md` (rc=0): intervalo `7d32017c..b3bc317a`; no domínio `bin/forge-check` (+3 −2), `tests/mutantes/v047-docs-pareceres.json` (M8 realinhado) e `tests/test_forge.py` (+10). Os commits entre os dois heads fora disso são só pareceres (QA, segurança, este review) e merges.
 
-## Checklist (regras de leitura que alcançam o diff)
-- Faz o que o pedido manda, sem mais: sim. O pedido só é conferido no estrito (fora do delta, pareceres antigos passam: M11), e sem `docs/pedidos/` em nenhuma raiz não há o que conferir (M2), o que mantém o CI do Forge, sem a raiz de pedidos, como antes.
-- Travessia: o id só procura `docs/pedidos/<id>.md` se casa `[A-Za-z0-9._-]+` (sem barra; M3, sonda `../pedidos/p1` no teste); `arquivo_existe` trata nome longo e NUL. Caminhos impressos passam por `caminho_impresso` (E7).
-- Arquivo dado: só `.md` regular e legível; o resto vira violação, nunca exceção (M5, M6, M13). Dentro da raiz vale o caminho real e a pasta errada segue recusada (M7).
-- Guardas: uma linha de guarda, um mutante (13, em dois arquivos de até 8). Teste de subprocesso limpa o ambiente e chama Python com `-I`.
-- Commits limpos, Conventional Commits em português.
+## Checklist (regras de leitura que alcançam o delta)
+- Faz o que a volta pede, sem mais: sim; três linhas de código, nenhuma guarda nova (o `if tipo in CONTRATOS` só trocou `real.name` por `nome`, e o M8 acompanha).
+- Saída sanitizada (E7): o `rel` da cópia de fora nasce sanitizado; o `replace` do aviso troca a primeira ocorrência de `caminho_impresso(rel)`, que é o prefixo `aviso: <rel>:`, por `caminho_impresso(nome)`; dentro da raiz o efeito é o mesmo das violações (o teste novo cobre os dois casos e confere o stderr inteiro).
+- Teste de comportamento, não de texto da fonte; commits em Conventional Commits em português.
 
 ## Verificadores
-- Suíte: sem PR ainda (o brief manda não abrir); o CI do PR decide. Vale o PQ do autor (E1.252: 13 mutantes mortos).
-- Rodados aqui no 7d32017c: `python3 -m unittest tests.test_forge.DocsPareceresPedidoECaminho` → `Ran 10 tests ... OK`; `bin/forge-mutante --processos 1 tests/mutantes/v047-docs-pareceres-2.json` → M9, M10, M11, M12, M13 `morreu`.
-- Tamanho (M14): `bin/forge-check` 67+11 e `tests/test_forge.py` 104 somam 182 linhas, acima da orientação de 150; um comportamento só (o `docs` e o seu campo `pedido:`), sem `hooks/`.
+- Suíte: sem PR (o brief manda não abrir); o CI do PR decide.
+- Rodados aqui no b3bc317a: `python3 -m unittest tests.test_forge.DocsPareceresPedidoECaminho tests.test_forge.SaidaSanitizada` → `Ran 19 tests ... OK`; `bin/forge-mutante --processos 1 tests/mutantes/v047-docs-pareceres.json` → M1 a M8 `morreu` (M6 e M8 por erro do próprio mutante, não do teste).
+- Tamanho (M14): `git diff --numstat --no-renames origin/develop...b3bc317a` dá `bin/forge-check` 70+13 e `tests/test_forge.py` 114, 197 linhas; um comportamento só, sem `hooks/`.
 
 ## Achados
-- A1 (recomendado) bin/forge-check:430 · Os avisos de `conferir_criterio` saem com o `rel` virtual (`docs/reviews/<nome>`) e não com o caminho dado, ao contrário das violações reescritas na linha 429; para a cópia fora da raiz, o aviso aponta um arquivo que não existe. Reescrever o prefixo também nos avisos.
-- A2 (recomendado) bin/forge-check:412 · 182 linhas de código e teste passam do teto de 150 (M14): o corpo do PR precisa de `teto: excedido, 182 linhas, <motivo>`.
+- A1 (recomendado) bin/forge-check:407 · 197 linhas de código e teste passam do teto de 150 (M14): o corpo do PR precisa de `teto: excedido, 197 linhas, <motivo>`.
