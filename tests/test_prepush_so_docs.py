@@ -27,7 +27,7 @@ from apoio_sandbox import exigir  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no s
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
 AMBIENTE["FORGE_PREPUSH_SUITE"] = "afetados"  # ENVIO-LEVE: o padrão do hook não roda teste; estes testes exercitam o plano dos afetados
 AMBIENTE.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
-PULO = "só docs/** e .md; lint e typecheck pulados"
+PULO = "só texto (docs/**, .md, changelog.d/**) ou junção com a develop, sem código novo; lint e typecheck pulados"
 
 
 def matar_se_vivo(pid):

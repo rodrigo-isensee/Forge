@@ -1,0 +1,21 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (E3, C2): erro interno em `cp` para docs/pedidos/ (entrada da política fora do CRITICO) recusa.",
+  "forcar": {
+    "onde": "Guarda.bash",
+    "como": "erro"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp x docs/pedidos/v1.md"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "erro interno do hook conformidade",
+    "erros_log": "erro forcado"
+  }
+}

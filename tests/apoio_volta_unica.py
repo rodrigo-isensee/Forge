@@ -22,7 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
-# As duas funções vêm antes do import de `test_hooks`, que as importa de volta no fim (ciclo resolvido nas duas ordens).
+# As funções até o import de `test_hooks` vêm antes dele, que as importa de volta no fim (ciclo resolvido nas duas ordens).
 def nucleos_do_processo():
     """Os núcleos do processo, pela afinidade (respeita cpuset) com recuo para `os.cpu_count()`; `None` se não der.
     Não lê `FORGE_NPROC`: essa variável é dos fixtures e não dimensiona o portão (N-CI, C-1)."""
@@ -45,6 +45,18 @@ def fator_de_carga(carga=None, nucleos=None):
         return 1.0
     nucleos = nucleos or nucleos_do_processo() or 1
     return min(float(TETO_DO_FATOR_DE_CARGA), max(1.0, carga / nucleos))
+
+
+def menor_custo(medir, limite, vezes=3):
+    """TESTE-HEREDOCS-ORCAMENTO-ESTAVEL: a menor de até `vezes` medidas de `medir()` (tuplas que começam pelo custo), parando
+    na primeira abaixo do `limite`. A máquina carregada só soma ao custo medido (troca de contexto, cache e SMT disputados),
+    nunca tira: a menor medida é a do código, e o limite segue o mesmo. Código acima do orçamento passa dele em toda vez."""
+    melhor = medir()
+    for _ in range(vezes - 1):
+        if melhor[0] < limite:
+            break
+        melhor = min(melhor, medir())
+    return melhor
 
 from test_forge import RAIZ, ambiente_limpo  # noqa: E402
 from test_hooks import (  # noqa: E402,F401  (os módulos test_hooks_volta_* importam daqui)
@@ -400,7 +412,7 @@ sys.path.insert(0, dados["hooks"])
 import _comum, conformidade, parecer
 _comum.forge_check().GIT_TIMEOUT_S = dados["prazo_git"]
 _comum.PRAZO_DA_DECISAO_S = float(dados["prazo_da_decisao"])
-EXECUCAO = {"conformidade": (conformidade, "CRITICO", {"regra_do_prazo": "R-CONFORMIDADE"}),
+EXECUCAO = {"conformidade": (conformidade, "MARCADOR", {"regra_do_prazo": "R-CONFORMIDADE"}),
             "parecer": (parecer, "CriticoOuAlias", {"clone_do_forge": True, "regra_do_prazo": "R-REVIEW"})}
 PRAZO_LONGO = {"parecer": {"prazo_longo": parecer.MERGE_DE_PR}}  # v0455: o regex do `gh pr merge`, que não é literal
 saida = []
@@ -838,7 +850,7 @@ print(json.dumps(saida))
         for caminho in sorted((FIXTURES / "conformidade").glob("*-bloqueia.json")):
             dados = json.loads(caminho.read_text(encoding="utf-8"))
             comando = dados.get("entrada", {}).get("tool_input", {}).get("command")
-            if (dados.get("passos") or not isinstance(comando, str) or "\n" in comando
+            if (dados.get("passos") or dados.get("forcar") or not isinstance(comando, str) or "\n" in comando
                     or any(marca in comando for marca in self.NO_FIXTURE_DE_OUTRO_DIA)
                     or any(marca in comando for marca in self.TROCA_A_BRANCH_NA_LINHA)
                     or conformidade.CRITICO.search(comando)

@@ -73,7 +73,10 @@ O papel vem de `hooks/conformidade.json` (dado, não código): `jarvis` (`forge:
 
 ### 7. Falha fechada × falha aberta (emenda ao item 4 da ADR 0003)
 - **Falham fechado, de forma seletiva:** `conformidade` e `parecer` nas ações de merge, PR e push. Em erro interno, o script olha só o comando do Bash e o caminho do arquivo (nunca o conteúdo gravado) e bloqueia só se houver marcador crítico (`git`/`gh` com `merge` ou `push`, `pr create`, `--no-verify`, `hooksPath`, `--force` ou prefixo de caminho protegido); sem marcador, sai com 0.
-- **Continuam falhando aberto:** `agentes`, `pesado`, `quadro` (processo, não segurança).
+  - **`conformidade` (HOOK-ERRO-LIBERA, v047):** o marcador é o crítico acima **ou** a linha que escreve (redireção, `cp`, `mv`, `rm`, `ln`, `tee`, interpretador...) e cita um caminho de `caminhos` de `hooks/conformidade.json` (montado do JSON na partida: `~/` também como `$HOME/`, `${HOME}/` e o home real) **ou** tem alvo opaco (`$(`, crase, variável, `<(`). No Write, Edit, MultiEdit e NotebookEdit, marca o caminho resolvido dentro da raiz da sessão ou casando a política. Política ilegível marca tudo. O prazo vencido (vigia de 3 s) recusa com o mesmo marcador; sem ele, libera e registra.
+- **`agentes`:** a conferência do R-BRIEF (forma e hash da mensagem ao conferente, selo do brief) roda antes da leitura do estado e recusa em qualquer erro interno; o resto do hook (teto, reserva) segue falhando aberto.
+- **Continuam falhando aberto:** o resto do `agentes`, `pesado`, `quadro` (processo, não segurança).
+- **Interpretador limpo:** toda entrada de `hooks/hooks.json` roda `python3 -s -E`, sem o site do usuário (`usercustomize`, `.pth`) nem as variáveis `PYTHON*`, que rodariam código antes do hook.
 - Saída de emergência só do dono: `FORGE_GUARDA_ABERTA=1` no ambiente do processo do Claude Code (definido no `env` de `~/.claude/settings.json`, protegido pelo sandbox).
 - Limite aceito: sem `python3` ou com estouro de tempo, o Claude Code não bloqueia; a mitigação é o sandbox.
 

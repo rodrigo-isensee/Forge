@@ -91,6 +91,13 @@ def raiz_de_estado(inicio):
     return copia if e_clone_do_forge(copia) else None
 
 
+def expandir_home(texto):
+    """C1 (HOOK-ERRO-LIBERA): o `~` e o `~usuario` do começo do texto, como o shell; o usuário que não existe deixa o texto
+    igual, sem exceção (o `expanduser` de `Path` lança `RuntimeError`, e o erro interno liberava a escrita). Fonte única dos
+    hooks: nenhum `expanduser` de `Path` fora daqui."""
+    return os.path.expanduser(texto)
+
+
 def raiz_declarada():
     """`CLAUDE_PROJECT_DIR`: a raiz da sessão, que o Claude Code define no processo do hook (também para os
     subagentes). O Bash roda em outro processo: `export` ou `VAR=...` na linha de comando não a mudam."""
@@ -2662,7 +2669,8 @@ class Hook:
             yield
 
     def registrar_erro(self, erro):
-        """Falha interna não bloqueia (ADR 0003, item 4): registra numa linha e libera."""
+        """Registra a falha interna numa linha do erros.log; quem decide é quem chama (ADR 0003, item 4, emendado pela ADR 0009,
+        seção 7): o `executar` libera, menos onde a falha fecha (`falhar_fechado` e `prazo_vencido`, pelo marcador do hook)."""
         try:
             raiz = self.raiz or raiz_do_projeto(self.cwd())
             if raiz is None:
@@ -2702,10 +2710,12 @@ def marcado(hook, critico, bruto):
     """O texto da ação tem o marcador crítico? Calculado uma vez e guardado em `hook.marcado`: é o primeiro passo da
     decisão, sob o vigia de prazo, e o prazo vencido só recusa com o marcador (`prazo_vencido`)."""
     if hook.marcado is None:
-        texto = texto_da_acao(hook, bruto)  # HOOK-CONTINUACAO-LINHA: também a forma juntada
         try:
-            hook.marcado = any(critico.search(t) is not None for t in [texto, *formas_que_o_shell_le(texto)])
-        except RuntimeError:  # formas demais: marca, e o erro que volta na decisão falha fechado
+            texto = texto_da_acao(hook, bruto)  # HOOK-CONTINUACAO-LINHA: também a forma juntada
+            formas = [texto, *formas_que_o_shell_le(texto)]
+            marca = getattr(critico, "marca", None)  # HOOK-ERRO-LIBERA: o marcador montado da política (conformidade)
+            hook.marcado = bool(marca(hook, formas)) if marca else any(critico.search(t) is not None for t in formas)
+        except Exception:  # noqa: BLE001 - formas demais ou erro do marcador: marca, e a falha fecha
             hook.marcado = True
     return hook.marcado
 

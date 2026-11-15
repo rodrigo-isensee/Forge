@@ -1113,7 +1113,8 @@ FALSO = ("import json, sys\na = sys.argv[1:]\nopen('.git/chamadas', 'a').write(j
          "if len({s['pedido'] for s in specs}) != 1:\n    sys.exit(2)\n"
          "for n, c in enumerate([c for s in specs for c in s['classes']]):\n"
          "    print(f'equivalente: M{n} · razão' if c == 'equivalente' else f'M{n} · {c} · x.py:1')\n"
-         "print('M99 · morreu')\n")
+         "print('M99 · morreu')\n"
+         "sys.exit(1 if any('falha' in s['pedido'] for s in specs) else 0)\n")
 
 
 class PlacarDaRelease(unittest.TestCase):
@@ -1176,6 +1177,29 @@ class PlacarDaRelease(unittest.TestCase):
                 r, chamadas = self.placar(f"--desde={desde}")
                 self.assertEqual((r.returncode, chamadas), (2, []))
                 self.assertIn("não é commit", r.stderr)
+
+    def test_spec_com_rc_diferente_de_zero_aparece_na_linha_placar(self):
+        self.commit({self.m + "falha-b.json": ["morreu"]})
+        r, _ = self.placar("--desde", "v1")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(f"spec: {self.m}falha-b.json rc=1 ", r.stdout)
+        self.assertTrue(r.stdout.splitlines()[-1].endswith(f" specs=4 falhas=1 ({self.m}falha-b.json)"), r.stdout)
+
+    def test_desde_que_nao_e_a_tag_anterior_ou_nao_e_tag_avisa_sem_mudar_o_rc(self):
+        git(self.dir, "tag", "v0.1.0", "HEAD~1")
+        git(self.dir, "tag", "v0.2.0")
+        git(self.dir, "branch", "ramo", "HEAD~1")
+        casos = (("v0.1.0", "0.3.0", "não é a tag da release anterior (v0.2.0)"),
+                 ("v0.2.0", "0.3.0", None), ("v0.1.0", "0.2.0", None),
+                 ("ramo", "0.3.0", "não é tag neste clone"))
+        for desde, versao, esperado in casos:
+            with self.subTest(desde=desde, versao=versao):
+                r, _ = self.placar("--desde", desde, "--versao", versao)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                avisos = [x for x in r.stdout.splitlines() if x.startswith("aviso:")]
+                self.assertEqual(len(avisos), 1 if esperado else 0, r.stdout)
+                if esperado:
+                    self.assertIn(esperado, avisos[0])
 
 
 class MedidaDaVagaPesada(unittest.TestCase):
