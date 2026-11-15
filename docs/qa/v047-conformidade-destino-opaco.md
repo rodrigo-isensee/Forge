@@ -3,11 +3,11 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: 85043cc4008c8d1395412674e3aef71d77c2153e
-parecer: aprovado
+commit: 041c671bbcca2cb1fdee5b9d65304151bbf649a5
+parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 0
+bugs_altos: 1
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-15
@@ -21,6 +21,8 @@ oraculo: tests/test_oraculo_v047.py commit 730843a99366f49e7560b32dbd413c15346f8
 Prova de não edição do oráculo (conferida): `git merge-base --is-ancestor 730843a9 HEAD` ok; `git rev-parse HEAD:tests/test_oraculo_v047.py` = `535134e940b2af9a3cf9941b7a4d54b661b57c4a` (igual ao blob); `git log --format=%H 730843a9..HEAD -- tests/test_oraculo_v047.py` vazio. Rodou `python3 -m unittest tests.test_oraculo_v047`: 3 testes, OK, 178 s (os 9 casos D2b e os `plano` da A10 recusados; leituras legítimas liberam).
 
 ## Achados
+
+- A2 (bloqueante) hooks/conformidade.py:496 · `RESOLUCAO_TROCADA` casa só o nome puro: `so""urce`, `\.`, `"."`, `s=sour""ce; $s`, `export PA""TH=`, `printf -v "${a}TH"` liberam (rc 0) e gravam em `.git/config` no bash real; a classe A6 não fecha. Bug v047-resolucao-trocada-nome-citado.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -57,3 +59,17 @@ Domínio lido por `forge-check parecer delta`: `hooks/conformidade.py`, `docs/ho
 - CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local.
 
 Parecer aprovado: nenhum achado aberto; o A1 da rodada anterior (mutante O18) morreu no 85043cc4 pela fixture `opaco-semresto-u3-mv-target-duas-vezes-bloqueia`; A1 resolvido, sem mutante sobrevivente, sem bug de produto (nada em `docs/qa/bugs/`).
+
+## Revalidação por delta 85043cc4..041c671b (E1.321)
+Domínio lido por `forge-check parecer delta`: `hooks/conformidade.py` (`RESOLUCAO_TROCADA`, `na_lista_positiva`, guarda do `$(pwd)`), `docs/hooks.md`, `docs/hooks-fixtures.md`, 9 fixtures `opaco-u4-seg3-*` (s10 a s16, pwd-carregado, source-destino-literal-libera), `tests/test_hook_destino_opaco.py` e as specs `v047-destino-opaco-16` e `-17` (O105 a O108). Escopo do plano inalterado; o delta soma a obrigação A6 da segurança E1.304.
+- Oráculo: prova de não edição refeita (commit 730843a9 ancestral; blob 535134e9; log vazio), 3 testes do oráculo.
+- Vermelho: `bin/forge-testes --vermelho 85043cc4008c8d1395412674e3aef71d77c2153e --modulos test_oraculo_v047,test_conformidade_opaco,test_hook_destino_opaco --prazo 1500`, rc=0: `vermelho: base=85043cc4008c head=041c671bbcca`; `test_fixtures_opaco_u4 · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=8; prova (asserção)=1` (regressão e guardas, esperado).
+- Mutação do delta: `bin/forge-mutante --processos 4 --base 85043cc4008c8d1395412674e3aef71d77c2153e tests/mutantes/v047-destino-opaco-16.json tests/mutantes/v047-destino-opaco-17.json`, cabeçalho `base=85043cc4008c… mb=85043cc4008c… rev=041c671bbcca`: O99 a O108 todos `morreu`, rc=0. A rodada de todas as specs estourou o prazo de 590 s sob carga (rc=124, sem veredito, não conta).
+- Sondas de abuso (Fixture e `rodar` de `tests/test_hooks.py`, fixture s10 com o comando trocado), conferidas no bash real em cópia descartável:
+  - libera (rc 0) e grava `.git/config`: `so""urce ./f.sh; echo a > "$(date)"`, `\. ./f.sh; …`, `"." ./f.sh; …`, `export PA""TH=./bin:$PATH; …`, `a=PA; printf -v "${a}TH" ./bin:$PATH; …`.
+  - libera sem prova de gravação: `s=sour""ce; $s ./f.sh; …` (gravou), `n=TMP; declare "${n}DIR=.git"; cp config "$(mktemp -u)"`, `read -r PA""TH <<< ./bin; …`.
+  - recusa (rc 2): `. ./f.sh`, `builtin . ./f.sh`, `export "GIT_WORK_TREE=.git"`, `GIT_""WORK_TREE=…`, `n=GIT_WORK_TREE; export "$n=.git"`, `e=exp""ort; $e PATH=./bin` (estes por outra regra, não pela A6).
+  Causa: a regex testa o texto cru; aspa, barra invertida e `$` dentro da palavra de comando ou do nome atribuído escapam. As fixtures s10 a s16 só têm a forma literal.
+- Cobertura de guardas e CI: não rerrodei a `--cobertura`; o diff muda a regex e dois `if` e as specs 16 e 17 os cobrem pelos mutantes acima. Sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local.
+
+Parecer reprovado: A2 bloqueante (bug alto, `docs/qa/bugs/v047-resolucao-trocada-nome-citado.md`; responsável o dev do hook). O A1 anterior segue resolvido. Fecha com: palavra de comando ou nome atribuído com aspa, barra invertida ou `$` desliga a lista positiva, mais uma fixture por forma (`so""urce`, `\.`, `"."`, `PA""TH`, nome montado).
