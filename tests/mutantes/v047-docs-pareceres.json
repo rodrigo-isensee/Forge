@@ -76,8 +76,8 @@
       "id": "M8",
       "guarda": "v047 E1.252: fora da raiz, tipo desconhecido fica com o nome (sem pasta)",
       "arquivo": "bin/forge-check",
-      "de": "if tipo in CONTRATOS else real.name",
-      "para": "if True else real.name",
+      "de": "if tipo in CONTRATOS else nome",
+      "para": "if True else nome",
       "testes": [
         "tests.test_forge.DocsPareceresPedidoECaminho.test_dentro_da_raiz_a_pasta_errada_segue_recusada_e_tipo_desconhecido_fora_tambem"
       ]

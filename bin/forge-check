@@ -404,7 +404,8 @@ def documentos_dados(raiz, arquivos):
             rel = real.relative_to(base).as_posix()
         else:
             tipo = (ler_frontmatter(texto)[0] or {}).get("tipo")
-            rel = f"{CONTRATOS[tipo][0]}/{real.name}" if tipo in CONTRATOS else real.name
+            nome = sem_controle(real.name)
+            rel = f"{CONTRATOS[tipo][0]}/{nome}" if tipo in CONTRATOS else nome
         lidos.append((rel, texto, arquivo))
     return lidos, saida
 
@@ -427,8 +428,8 @@ def cmd_docs(raiz, arquivos=()):
             extra.append(f"{caminho_impresso(rel)}: pedido: {problema} ({CONTRATOS[campos['tipo']][1]})")
         prefixo = f"{caminho_impresso(rel)}:"
         saida += [f"{caminho_impresso(nome)}:{v[len(prefixo):]}" if v.startswith(prefixo) else v for v in violacoes + extra]
-        for aviso in avisos:
-            print(aviso, file=sys.stderr)
+        for aviso in avisos:  # o aviso aponta o arquivo dado, não o `rel` virtual da cópia de fora
+            print(aviso.replace(caminho_impresso(rel), caminho_impresso(nome), 1), file=sys.stderr)
     return saida
 
 

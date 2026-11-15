@@ -7500,6 +7500,9 @@ class DocsPareceresPedidoECaminho(unittest.TestCase):
                 f"revisor: forge:tech-lead\ndata: 2026-11-14\n---\n# R\n\n{corpo}")
 
     def docs(self, *arquivos, delta=None):
+        import inspect
+        if "arquivos" not in inspect.signature(self.fc.cmd_docs).parameters:  # base sem FC-DOCS-CAMINHO: veredito por asserção
+            return ["cmd_docs não recebe arquivos (FC-DOCS-CAMINHO)"], ""
         err = io.StringIO()
         with contextlib.redirect_stderr(err), mock.patch.object(self.fc, "documentos_do_delta", return_value=delta):
             return self.fc.cmd_docs(self.raiz, [str(a) for a in arquivos]), err.getvalue()
@@ -7564,6 +7567,13 @@ class DocsPareceresPedidoECaminho(unittest.TestCase):
         for arq in (self.fora / "falta.md", txt, self.fora):
             with self.subTest(arq=arq.name):
                 self.assertEqual(self.docs(arq)[0], [f"{arq}: arquivo: não lido; dê um .md legível (ADR-0004)"])
+
+    def test_aviso_do_criterio_na_copia_de_fora_aponta_o_arquivo_dado(self):
+        (self.raiz / "docs/arquitetura").mkdir()
+        texto = self.parecer().replace("data: 2026-11-14\n", "data: 2026-11-14\ncriterio: docs/arquitetura/p1-falta.md\n")
+        for arq in (self.gravar(self.fora, "copia.md", texto), self.gravar(self.raiz, "docs/reviews/r.md", texto)):
+            with self.subTest(arq=arq.name):  # como as violações: o caminho dado, não o `rel` virtual (docs/reviews/copia.md)
+                self.assertEqual(self.docs(arq), ([], f"aviso: {arq}: criterio: docs/arquitetura/p1-falta.md: ausente (PAR-P2)\n"))
 
     def test_parecer_aprovado_sem_o_bloco_achados_passa(self):
         self.assertEqual(self.docs(self.gravar(self.fora, "r.md", self.parecer(corpo="## Parecer\nAprovado, sem achados.\n"))), ([], ""))
