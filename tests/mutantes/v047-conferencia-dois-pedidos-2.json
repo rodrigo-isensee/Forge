@@ -1,0 +1,94 @@
+{
+  "pedido": "v047-conferencia-dois-pedidos",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "o brief é do pedido em que foi selado",
+      "arquivo": "bin/forge-check",
+      "de": "or not mesmo_pedido(grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Pedido\"], cabecalho), outro, caminho) \\",
+      "para": "or False \\",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.ParecerMandadoPeloPortao.test_brief_selado_no_pedido_errado_nao_ancora"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o brief declara o arquivo do parecer",
+      "arquivo": "bin/forge-check",
+      "de": "or not escopo_declarado(brief, branch)(nome):\n                continue",
+      "para": "or False:\n                continue",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.ParecerMandadoPeloPortao.test_arquivo_nao_declarado_pelo_portao_segue_fora"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o pedido: do parecer é o que o brief mandou",
+      "arquivo": "bin/forge-check",
+      "de": "if fm.get(\"pedido\") in {outro, *PEDIDO_NO_ENTREGAR.findall(entregar)} \\",
+      "para": "if True \\",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.ParecerMandadoPeloPortao.test_pedido_que_o_portao_nao_mandou_segue_fora"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "o commit: do parecer é o que o brief mandou",
+      "arquivo": "bin/forge-check",
+      "de": "and fm.get(\"commit\") in {grupo(REVISAR_SHA, cabecalho), *COMMIT_NO_ENTREGAR.findall(entregar)} - {None}:",
+      "para": "and True:",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.ParecerMandadoPeloPortao.test_commit_que_o_portao_nao_mandou_segue_fora"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "veredito trocado no mesmo commit não é anexo",
+      "arquivo": "bin/forge-check",
+      "de": "return not veredito_trocado(raiz, base_sha, head, nome, fm[\"commit\"], fm[\"parecer\"], branch, tipo)\n    return False",
+      "para": "return True\n    return False",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.ParecerMandadoPeloPortao.test_veredito_trocado_no_mesmo_commit_segue_fora"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "o anexo vale só nas etapas de código",
+      "arquivo": "bin/forge-check",
+      "de": "elif etapa in ETAPAS_DE_CODIGO and tipo and not com_controle(nome) and parecer_mandado_pelo_portao(",
+      "para": "elif tipo and not com_controle(nome) and parecer_mandado_pelo_portao(",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.ParecerMandadoPeloPortao.test_fora_da_etapa_de_codigo_nao_e_anexo"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "um pedido só vale sem filtro de codigo (o filtro é só com dois)",
+      "arquivo": "bin/forge-check",
+      "de": "if \"codigo\" in e} if len(etapas) > 1 else set(etapas)",
+      "para": "if \"codigo\" in e} if len(etapas) > 0 else set(etapas)",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.PedidoDaConferencia.test_um_pedido_sem_codigo_segue_valendo"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "parecer sem frontmatter não ancora nem derruba a conferência",
+      "arquivo": "bin/forge-check",
+      "de": "fm = ler_frontmatter(git(raiz, \"show\", f\"{head}:{nome}\")[1])[0] or {}\n    if fm.get(\"tipo\") != tipo or fm.get(\"branch\") != branch or fm.get(\"parecer\") not in (\"aprovado\", \"reprovado\"):\n        return False\n    for outro",
+      "para": "fm = ler_frontmatter(git(raiz, \"show\", f\"{head}:{nome}\")[1])[0]\n    if fm.get(\"tipo\") != tipo or fm.get(\"branch\") != branch or fm.get(\"parecer\") not in (\"aprovado\", \"reprovado\"):\n        return False\n    for outro",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.ParecerMandadoPeloPortao.test_parecer_sem_frontmatter_segue_fora"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "len(ids) > 1",
+      "linha_base": 1378,
+      "motivo": "condição editada, não apagada: a falha fechada com dois pedidos segue em `len(ids) != 1 and etapas` (linha nova), coberta por M5 (dois pedidos com e sem codigo) e pelo filtro de M4/M15"
+    }
+  ]
+}
