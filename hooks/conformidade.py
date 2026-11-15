@@ -502,19 +502,12 @@ def juntar(partes):
     return valores
 
 
+PALAVRA_DO_CORPO = re.compile(r"""(?:[^\s'"]+|'[^']*'|"[^"]*"|['"])+""")  # a aspa sem par fica na palavra (U4 recusa)
+
+
 def dividir_corpo(corpo):
-    """As palavras do corpo, cortadas no espaço fora de aspas e com as aspas; None com aspa sem par."""
-    palavras, atual, aspa = [], "", None
-    for c in corpo:
-        if aspa:
-            aspa = aspa if c != aspa else None
-        elif c in ("'", '"'):
-            aspa = c
-        elif c.isspace():
-            palavras, atual = palavras + [atual] if atual else palavras, ""
-            continue
-        atual += c
-    return palavras + [atual] if atual else palavras  # aspa sem par: a palavra a leva, e `valores_da_palavra` recusa
+    """As palavras do corpo, cortadas no espaço fora de aspas e com as aspas."""
+    return PALAVRA_DO_CORPO.findall(corpo)
 
 
 def corpo_da_funcao(nome, linha):
@@ -548,13 +541,10 @@ def valores_do_corpo(corpo, linha, fundo):
         args, separador = palavras[2:], ""
     else:
         return None
-    partes = []
-    for n, arg in enumerate(args):
-        valores = valores_da_palavra(arg, linha, fundo + 1, sem_substituicao=True)
-        if valores is None:
-            return None
-        partes += [[separador], valores] if n else [valores]
-    return juntar(partes)
+    valores = [valores_da_palavra(arg, linha, fundo + 1, sem_substituicao=True) for arg in args]
+    if None in valores:
+        return None
+    return juntar([parte for v in valores for parte in ([separador], v)][1:])
 
 
 def valores_da_variavel(m, linha, fundo):

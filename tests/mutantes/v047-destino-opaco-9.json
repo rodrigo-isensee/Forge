@@ -23,26 +23,6 @@
       ]
     },
     {
-      "id": "O52",
-      "guarda": "U4: a aspa abre a citação no corpo (o espaço entre aspas fica na palavra)",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        elif c in (\"'\", '\"'):",
-      "para": "        elif False:",
-      "testes": [
-        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
-      ]
-    },
-    {
-      "id": "O53",
-      "guarda": "U4: o espaço fora de aspas separa as palavras do corpo",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        elif c.isspace():",
-      "para": "        elif False:",
-      "testes": [
-        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
-      ]
-    },
-    {
       "id": "O54",
       "guarda": "U4: a função definida duas vezes na linha não tem corpo que o hook escolha",
       "arquivo": "hooks/conformidade.py",
@@ -66,8 +46,8 @@
       "id": "O56",
       "guarda": "U4: a função da linha (também a chamada `echo`) vale pelo corpo dela",
       "arquivo": "hooks/conformidade.py",
-      "de": "    if definida:  # a função da linha vale pelo corpo dela, também a que se chama `echo`",
-      "para": "    if False:",
+      "de": "    if definida:  # a função da linha",
+      "para": "    if False:  # a função da linha",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]
