@@ -36,7 +36,7 @@
       "id": "O55",
       "guarda": "U4: o corpo da lista positiva vale como saída que o hook não sabe, mas que sozinha nunca é o .git",
       "arquivo": "hooks/conformidade.py",
-      "de": "    if na_lista_positiva(corpo):",
+      "de": "    if na_lista_positiva(corpo, linha):",
       "para": "    if False:",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
