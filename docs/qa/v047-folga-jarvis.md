@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-folga-jarvis
-commit: 16b7ca7443c01eb8a8e532d82ac0ea69948e4722
+commit: cd79a259580c71ebf22631bcf8c8c8c8516ea50f
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-14
+data: 2026-11-16
 ---
 # QA: v047 (E1.169, folga do texto do Jarvis P1 a P4 e FOCO-NAS-DECISOES)
 
@@ -68,4 +68,16 @@ Código testado: ebeb9161 (o remoto c4351c3e só soma pareceres de review e segu
 | Citações conhecidas após o merge | `tests.test_reval_delta` | entrada duplicada ou perdida | passou |
 | Pre-push isolado da casa real | `HookPrePush`, `PreEnvioDoModelo` | trava na casa do teste | passou |
 
+## Revalidação por delta (E2.293): 16b7ca74..cd79a259, junção da develop
+
+`forge-check parecer delta` listou `templates/projeto/CLAUDE.md`, `tests/test_forge.py` e `tests/test_reval_delta.py`. Os dois primeiros vieram da base (#573, #581: seção Sessão do modelo e gh falso com `--version`), fora do escopo deste pedido; li o diff e não mexem em guarda do pedido. A linha própria da junção: em `CITACOES_CONHECIDAS` entrou `("tests/test_sessao_automatica.py", "README.md"): (1, "teste-le")`, e as três entradas anteriores seguem (conferido no diff). O `tests/apoio_jarvis.py` não mudou, então os mutantes de 8a223677 seguem valendo.
+
+- Execução local: `python3 -m unittest tests.test_reval_delta tests.test_sessao_automatica`: `Ran 23 tests ... OK`. O teste novo da base lê o README (linha 81), o que a entrada declara.
+- Sem teste novo de regra neste delta: não há vermelho antes do verde a repetir. A suíte inteira fica no CI do PR; sem PR aberto neste head, não cito check-run `bateria`.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Citações conhecidas após a junção | `tests.test_reval_delta` | entrada perdida ou citação desconhecida | passou |
+
 Parecer: aprovado, sem achados novos.
+
