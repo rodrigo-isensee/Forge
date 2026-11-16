@@ -72,6 +72,13 @@ case "$1 $2" in
       *state*) falha_n falha_estado && exit 1; cat "$ESTADO/estado" 2>/dev/null || echo OPEN; exit 0 ;;
     esac ;;
   "pr create")
+    # como o CI real (passo "Nada pula degrau", review A2): o par head/base passa pelo modo `degrau` da catraca, com a tabela PROMOCOES
+    # e o head do servidor; recusado, o PR não nasce (no GitHub, nasceria vermelho e nunca mesclaria)
+    todos="$*"; b="${todos#*--base }"; b="${b%% *}"; h="${todos#*--head }"; h="${h%% *}"
+    s="$(git ls-remote origin "refs/heads/$h" | awk -v r="refs/heads/$h" '$2 == r {print $1}')"
+    if ! env -u GITHUB_STEP_SUMMARY HEAD_REPO=o/r BASE_REPO=o/r python3 -I "$CATRACA_REAL" --modo degrau --ramo "$h" --base-ref "$b" --head "${s:-sem-head}" >/dev/null 2>&1; then
+      echo "degrau recusado: $h -> $b" >> "$REGISTRO"; echo "pull request create failed: $h -> $b fora da tabela de promoções" >&2; exit 1
+    fi
     n="$(cat "$ESTADO/numero_criado" 2>/dev/null || echo 7)"
     echo "$n develop" > "$ESTADO/aberto"
     if [ -f "$ESTADO/saida_create" ]; then cat "$ESTADO/saida_create"; else echo "https://github.com/o/r/pull/$n"; fi
@@ -98,6 +105,15 @@ case "$1 $2" in
     # R7: com "auto_arma", o --auto só arma (checks obrigatórios pendentes); "mescla_apos" N: o GitHub mescla na N-ésima leitura do estado
     if [ -f "$ESTADO/auto_arma" ] && [[ "$*" == *" --auto "* ]]; then : > "$ESTADO/armado"; exit 0; fi
     echo MERGED > "$ESTADO/estado"; exit 0 ;;
+  "run list")
+    # FECHAR-ESPERA-CI-DEVELOP: só a forma que o script pede (evento push, commit e o --jq dele); a saída é a do --jq: id, status e conclusão.
+    [[ "$*" =~ ^run\ list\ --branch\ [a-z]+\ --event\ push\ --commit\ ([0-9a-f]{7,64})\ --json\ databaseId,status,conclusion\ --jq\ (.*)$ ]] || exit 64
+    [ "${BASH_REMATCH[2]}" = '.[] | [.databaseId, .status, .conclusion] | @tsv' ] || exit 64
+    falha_n falha_runs && { echo "HTTP 502" >&2; exit 1; }
+    # runs_pendentes N: as N primeiras leituras saem em andamento; depois runs_<sha>, senão runs, senão uma execução verde
+    falha_n runs_pendentes && { printf '1\tin_progress\t\n'; exit 0; }
+    cat "$ESTADO/runs_${BASH_REMATCH[1]}" 2>/dev/null || cat "$ESTADO/runs" 2>/dev/null || printf '1\tcompleted\tsuccess\n'
+    exit 0 ;;
 esac
 exit 64
 '''
@@ -111,6 +127,17 @@ if [ "$1 $2" = "push origin" ] && [ "$3" = "--delete" ]; then
   if [ "$n" -gt 0 ]; then echo $((n - 1)) > "$ESTADO/falha_delete"; echo "HTTP 502" >&2; exit 1; fi
   # $ESTADO/delete_apaga_e_falha: o servidor apaga a ref, mas a resposta se perde (o comando sai com erro)
   if [ -f "$ESTADO/delete_apaga_e_falha" ]; then "$REAL_GIT_FALSO" "$@" >/dev/null 2>&1; exit 1; fi
+fi
+# $ESTADO/lsremote_develop_ok N: as N primeiras leituras da develop no servidor passam; depois falham ("vazio" em lsremote_develop_modo: sem a ref)
+if [ "$1 $2 $3" = "ls-remote origin refs/heads/develop" ] && [ -f "$ESTADO/lsremote_develop_ok" ]; then
+  n="$(cat "$ESTADO/lsremote_develop_ok")"
+  if [ "$n" -gt 0 ]; then echo $((n - 1)) > "$ESTADO/lsremote_develop_ok"
+  elif [ "$(cat "$ESTADO/lsremote_develop_modo" 2>/dev/null)" = vazio ]; then exit 0
+  else echo "HTTP 502" >&2; exit 1; fi
+fi
+# $ESTADO/develop_no_servidor: o topo da develop que o servidor devolve (o item falso do lote o move ao "mesclar")
+if [ "$1 $2 $3" = "ls-remote origin refs/heads/develop" ] && [ -f "$ESTADO/develop_no_servidor" ]; then
+  printf '%s\trefs/heads/develop\n' "$(cat "$ESTADO/develop_no_servidor")"; exit 0
 fi
 case "$1 $2" in
   "worktree remove")
@@ -153,7 +180,7 @@ class Fechar(unittest.TestCase):
         self.env.update(HOME=str(self.tmp), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.tmp / "gitconfig"),
                         FORGE_GH=str(self.tmp / "gh"), FORGE_CHECK=str(self.tmp / "check"),
                         REGISTRO=str(self.registro), ESTADO=str(self.estado), FORGE_FECHAR_INTERVALO="0",
-                        FORGE_FECHAR_TESTE="1", FORGE_FECHAR_LOG_DIR=str(self.tmp / "logs"),
+                        FORGE_FECHAR_TESTE="1", FORGE_FECHAR_LOG_DIR=str(self.tmp / "logs"), CATRACA_REAL=str(RAIZ / "tests" / "catraca.py"),
                         FORGE_PROMOVER=promover_falso(self.tmp / "promover.py", "promover"))
         (self.tmp / "bin").mkdir()
         (self.tmp / "bin" / "git").write_text(GIT_FALSO, encoding="utf-8")
