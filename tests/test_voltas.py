@@ -181,6 +181,23 @@ class Voltas(SemQueda, Raiz):
         self.assertEqual((self.tmp / "docs/kanban/historico.md").read_text(encoding="utf-8"), antes)
 
 
+class VoltasComRaizDePedidos(SemQueda, Raiz):
+    """RAIZ-PEDIDOS-PERDE-DADOS: o quadro e os pedidos moram na pasta do Jarvis fora do clone; `voltas --raiz-pedidos` lê dali."""
+    def test_historico_e_pedido_vem_do_raiz_pedidos(self):
+        contrib = self.tmp / "home" / ".forge-contrib"
+        self.gravar("home/.forge-contrib/docs/kanban/historico.md", HISTORICO)
+        self.gravar("home/.forge-contrib/docs/pedidos/XPTO.md", "# p\n\n## Histórico\n- 2026-10-17 11:00: suposição revertida: a fila\n")
+        (self.tmp / "clone").mkdir()
+        env = {"PATH": os.environ.get("PATH", ""), "HOME": str(self.tmp / "home")}
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.tmp / "clone"), "voltas", "--pedido", "xpto",
+                            "--raiz-pedidos", str(contrib)], capture_output=True, text=True, env=env, cwd=self.tmp / "clone")
+        linhas = r.stdout.splitlines()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("voltas: XPTO resumo: brief=0 conferencia=1 review=1 revalidacao=1 barrada=1 nao-classificado=1 "
+                      "minutos=66 construcao=10 razao=6.60", linhas)
+        self.assertIn("voltas: XPTO reversoes=1", linhas)
+
+
 class RodadasDeBrief(SemQueda, Raiz):
     def test_conferencias_manda_quando_ha_linhas_e_so_conta_modo_brief(self):
         self.gravar("docs/kanban/conferencias.md", CONFERENCIAS)
