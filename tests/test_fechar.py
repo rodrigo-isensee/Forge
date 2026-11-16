@@ -311,6 +311,99 @@ class Fechar(unittest.TestCase):
         self.assertNotEqual(self.fechar("p1", "--ref", "melhoria/x", "--base", "origin/homolog").returncode, 0)
         self.assertFalse((self.estado / "promover").exists())
 
+    # ---- FECHAR-SEM-HOMOLOG-LOCAL ----
+    def homolog_no_servidor(self, rev):
+        """A homolog no servidor em <rev>, e a origin/homolog deste clone apagada (o clone que nunca a buscou)."""
+        self.git("push", "-q", "origin", f"{rev}:refs/heads/homolog")
+        self.git("update-ref", "-d", "refs/remotes/origin/homolog")
+        return self.git("rev-parse", rev)
+
+    def homolog_local(self):
+        return subprocess.run(["git", "rev-parse", "-q", "--verify", "refs/remotes/origin/homolog"], cwd=self.proj, env=self.env,
+                              capture_output=True, text=True).stdout.strip()
+
+    def test_1c_sem_origin_homolog_no_clone_busca_so_ela_antes_do_promover(self):
+        sha_h = self.homolog_no_servidor("develop")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.homolog_local(), sha_h)
+        self.assertNotIn("aviso: sem origin/homolog", r.stderr)
+
+    def test_1c_com_origin_homolog_no_clone_nao_busca(self):
+        velho = self.homolog_no_servidor("develop")
+        self.git("push", "-q", "origin", "melhoria/x:refs/heads/homolog")
+        self.git("update-ref", "refs/remotes/origin/homolog", velho)
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.homolog_local(), velho)  # o 1c só lê: com a ref no clone, não busca
+
+    def test_1c_busca_da_homolog_que_falha_avisa_e_o_promover_decide(self):
+        for rc in ("1", "0"):  # o 1 primeiro: o 0 mescla e limpa a branch
+            with self.subTest(rc=rc):
+                self.registro.write_text("")
+                r = self.fechar("p1", "--ref", "melhoria/x", PROMOVER_RC=rc)  # o servidor do setUp não tem homolog
+                self.assertIn("aviso: sem origin/homolog neste clone e a busca falhou", r.stderr)
+                self.assertEqual(self.homolog_local(), "")
+                if rc == "1":
+                    self.assert_parou_no_1c(r)
+                else:
+                    self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+
+    def remota_apagada_depois_do_merge(self, lista_extra):
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(lista_extra.format(sha=sha))
+        self.git("push", "-q", "origin", "--delete", "melhoria/x")  # o GitHub apaga a branch depois do merge
+        return sha
+
+    def test_2_remota_apagada_com_pr_merged_no_head_nao_pede_push_e_limpa(self):
+        self.remota_apagada_depois_do_merge("234 MERGED develop {sha} false\n")
+        (self.estado / "estado").write_text("MERGED")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("não peço push", r.stdout)
+        self.assertNotIn("git push origin melhoria/x", r.stderr)
+        self.assertEqual(self.criacoes(), [])
+        self.assertEqual(self.merges(), [])
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
+
+    def test_2_remota_apagada_com_o_head_ja_na_base_nao_pede_push(self):
+        self.git("merge", "-q", "--no-ff", "melhoria/x", "-m", "merge x")
+        self.git("push", "-q", "origin", "develop")
+        self.remota_apagada_depois_do_merge("")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("não peço push", r.stdout)
+        self.assertEqual(self.criacoes(), [])
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
+
+    def test_2_remota_apagada_sem_merge_do_head_no_alvo_continua_pedindo_push(self):
+        casos = {"sem PR": "", "PR aberto": "234 OPEN develop {sha} false\n", "PR de fork": "234 MERGED develop {sha} true\n",
+                 "outra base": "234 MERGED homolog {sha} false\n", "outro head": "234 MERGED develop " + "0" * 40 + " false\n"}
+        for nome, lista in casos.items():
+            with self.subTest(caso=nome):
+                self.registro.write_text("")
+                self.git("push", "-q", "origin", "melhoria/x")
+                self.remota_apagada_depois_do_merge(lista)
+                r = self.fechar("p1", "--ref", "melhoria/x")
+                self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+                self.assertIn("parou no passo 2: melhoria/x não está no origin (git push origin melhoria/x", r.stderr)
+                self.assertEqual(self.merges(), [])
+
+    def test_2_remota_com_outro_head_e_o_conferido_mesclado_continua_parando(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha} false\n")
+        self.git("switch", "-q", "melhoria/x")
+        (self.proj / "c").write_text("3\n")
+        self.git("add", "c")
+        self.git("commit", "-q", "-m", "feat: c")
+        self.git("push", "-q", "origin", "melhoria/x")
+        self.git("reset", "-q", "--hard", sha)  # o clone ficou no head mesclado; o servidor tem um commit além dele
+        self.git("switch", "-q", "develop")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("parou no passo 2: o head local", r.stderr)
+        self.assertNotEqual(self.git("ls-remote", "origin", "refs/heads/melhoria/x"), "")
+
     def test_dry_run_nao_altera_nada_nem_chama_gh_ou_check(self):
         antes = self.estado_do_repo()
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")

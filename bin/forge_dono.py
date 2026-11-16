@@ -13,6 +13,8 @@ Importado pelo `bin/forge-check` só quando um destes roda:
   cabeçalho (raiz de destino, versão do plugin, sha256); a sessão de outra raiz ou de outra versão recusa.
 - `pausa --gravar --retoma-em H --onde T` e `pausa --retomar [--esperar]` (X1): onde parou na pausa por limite de uso (Q1), em
   .forge/pausa.json, e a retomada quando a cota renova. Não contorna limite nem troca de conta: só espera o horário dado.
+- `cmd_abertas` (diretriz 29, v047 E1.135): as perguntas abertas ao dono de todos os pedidos e do painel `Aguardando o dono` do
+  KANBAN.md, por peso; só leitura. O registro no forge-check (`decisoes --abertas`) vem depois, em outra entrega.
 """
 import datetime
 import hashlib
@@ -461,6 +463,144 @@ def cmd_pausa(raiz, a, ctx):
     if dados.get("pedido"):
         print(f"pausa: próximo passo: `forge-check proximo {ctx['seguro'](dados['pedido'])}`")
     return 0
+
+
+# ---- Diretriz 29 (FOCO-NAS-DECISOES, v047 E1.135): as perguntas abertas ao dono de todos os pedidos, numa leitura só ----
+
+_DATA = r"(\d{4}-\d{2}-\d{2})(?:[ T]~?(\d{2})[:h](\d{2}))?"  # 2026-11-13 08:52, 2026-11-03 ~13h48 ou só a data
+
+
+def _data(s):
+    """`_DATA` com grupos nomeados `dia<s>`, `hora<s>` e `min<s>`."""
+    return rf"(?P<dia{s}>\d{{4}}-\d{{2}}-\d{{2}})(?:[ T]~?(?P<hora{s}>\d{{2}})[:h](?P<min{s}>\d{{2}}))?"
+
+
+# As formas do registro: `PERGUNTA AO DONO (data): corpo`, `DECISÃO DO DONO data: corpo`, `- data: PERGUNTA AO DONO: corpo`,
+# `- data: DECISÃO DO DONO "literal"`, `DECISÃO DO DONO (data), corpo` e a forma antiga `PERGUNTA: (data) corpo` ou
+# `PERGUNTA: data · corpo`; `DECISÃO DO DONO pendente` não é decisão. As outras falas (`ORDEM DO DONO`...) só separam pergunta
+# e decisão. Trecho depois da data limitado (A2 da segurança: `[^):\n]*` seguido de `\s*` era quadrático).
+LINHA_DO_REGISTRO = re.compile(rf"^\s*(?:[-*]\s+)?(?:{_data(0)}(?::\d{{2}})?(?:[-+]\d{{2}}:?\d{{2}})?\s*:\s*)?"
+                               rf"(?P<frase>PERGUNTA AO DONO|DECISÃO DO DONO|PERGUNTA(?=:)|[A-ZÁÂÃÉÊÍÓÔÕÚÇ]{{2,20}} DO DONO)"
+                               rf"(?:\s+de)?(?:\s*\(?{_data(1)}[^):\n]{{0,80}}\)?)?\s*(?:[:,]|(?=\x22))\s*(?P<corpo>.*)$")
+DATA_DO_CORPO = re.compile(rf"\(?(?:dono,\s*)?{_data(1)}\)?\s*[·:—–-]?\s*")  # forma antiga: a data no começo do corpo
+# Forma antiga respondida na própria linha: `PERGUNTA: nenhuma`, `· resposta: "A"`, `(respondida: B)` ou `? → "A"`.
+RESPONDIDA_NA_LINHA = re.compile(r"^nenhuma\b|\brespondida\b|\bresposta\s*(?::\s*\S|[\x22“])|→", re.I)
+CITACAO = re.compile(r"\bpergunta(?:\s+ao\s+dono)?(?:\s+\d{1,2}[a-z]?)?\s+de\s+~?(\d{2})[:h](\d{2})\b", re.I)  # `pergunta 1 de 10:00`
+DATA_DA_CELULA = re.compile(rf".*?{_DATA}|")  # casa sempre: sem data, os grupos vazios
+PESOS = (("irreversível", re.compile(r"irreversivel")),  # sobre o texto sem acento e em minúsculas; o primeiro que casa vale
+         ("dinheiro", re.compile(r"dinheiro|\bpag(?:ar|a|o|as|os)\b|cobrad|r\$|us\$|\bfatura")),
+         ("escopo", re.compile(r"\bescopo\b")))
+OUTRO_PESO = "outro"
+RECOMENDACAO = re.compile(r"\brecomend(?:ação|acao|ado|ada|o)\b\s*:?\s*([^;.·\"]{1,160})", re.I)
+SEM_PENDENCIA = "Não há decisão sua pendente"
+LARGURA_DA_PERGUNTA = 200
+
+
+def _limpo(texto, largura=160):
+    """O texto numa linha: sem caractere de controle nem `|` (o separador da saída), cortado em `largura` com `…`."""
+    texto = " ".join(re.sub(r"[\x00-\x1f\x7f|]", " ", texto).split())
+    return texto if len(texto) <= largura else texto[:largura - 1] + "…"
+
+
+def peso(texto):
+    """(posição, nome) do peso da pergunta: irreversível, dinheiro, escopo; sem nenhum, `outro`, por último."""
+    plano = _sem_acento(texto)
+    return next(((n, nome) for n, (nome, regra) in enumerate(PESOS) if regra.search(plano)), (len(PESOS), OUTRO_PESO))
+
+
+def recomendada(texto):
+    """A opção `[recomendada]` da pergunta (`1a) texto`) ou o que segue `recomendação:` no texto; `—` sem nenhuma."""
+    opcoes = [f"{n}{letra}) {re.sub(r'\[[^\[\]]{1,40}\]', ' ', t)}" for n, q in sorted(opcoes_da_pergunta(texto).items())
+              for letra, t in sorted(q.items()) if "recomendada" in marcas(t)]
+    achado = RECOMENDACAO.search(texto)
+    return _limpo("; ".join(opcoes) or (achado.group(1) if achado else "")) or "—"
+
+
+def _hora(data, hora, minuto):
+    """`AAAA-MM-DD HH:MM`, `AAAA-MM-DD` sem hora, vazio sem data."""
+    return f"{data} {hora}:{minuto}".removesuffix(" :").strip()
+
+
+def _registro(m):
+    """(instante, frase, corpo) da linha do registro. Instante: a data depois da frase (na forma antiga, a do começo do corpo); sem
+    ela, a do prefixo `- data:`; sem nenhuma, vazios."""
+    corpo, achado = m["corpo"], m
+    if m["frase"] == "PERGUNTA" and not m["dia1"] and (antiga := DATA_DO_CORPO.match(corpo)):
+        corpo, achado = corpo[antiga.end():], antiga
+    g = achado.groupdict("")
+    s = "1" if g["dia1"] else "0"
+    return (g[f"dia{s}"], g[f"hora{s}"], g[f"min{s}"]), m["frase"], corpo
+
+
+def _respondida(abertas, instante, corpo, instantes):
+    """A pergunta de `abertas` que a decisão fecha, ou None; cada decisão fecha no máximo uma. Citando `pergunta N de HH:MM`, a
+    aberta mais recente daquela hora (citação sem aberta não fecha nada); sem citar, a aberta mais recente, se nenhuma outra fala
+    do dono caiu entre as duas (decisão sobre outro assunto não fecha pergunta: mostrar a mais é o lado seguro)."""
+    if citada := CITACAO.search(corpo):
+        return next((p for p in reversed(abertas) if p[0][1:] == citada.groups()), None)
+    if abertas and not any(abertas[-1][0] < outro < instante for outro in instantes):
+        return abertas[-1]
+    return None
+
+
+def perguntas_do_pedido(nome, texto):
+    """As perguntas ao dono (`PERGUNTA AO DONO` e a forma antiga `PERGUNTA:`) do pedido sem `DECISÃO DO DONO` que as feche
+    (`_respondida`), em ordem de instante. Decisão sem hora no mesmo dia vale como anterior à pergunta com hora."""
+    registro = sorted((_registro(m) + (n,) for n, linha in enumerate(texto.split("\n"), 1) if (m := LINHA_DO_REGISTRO.match(linha))),
+                      key=lambda r: (r[0], r[3]))
+    instantes, abertas = [r[0] for r in registro], []
+    for instante, frase, corpo, _ in registro:
+        if frase in ("PERGUNTA AO DONO", "PERGUNTA") and not (frase == "PERGUNTA" and RESPONDIDA_NA_LINHA.search(corpo)):
+            abertas.append((instante, corpo))
+        elif frase == FRASE_DA_DECISAO and (fechada := _respondida(abertas, instante, corpo, instantes)):
+            abertas.remove(fechada)
+    return [{"pedido": nome, "hora": _hora(*instante), "texto": corpo, "pergunta": re.sub(r'^.*?→\s*"(.+)"\s*$', r"\1", corpo)}
+            for instante, corpo in abertas]
+
+
+def pendencias_do_quadro(quadro):
+    """Os cartões do painel `Aguardando o dono` do KANBAN.md: `ID: cartão`, pedido, `desde` (coluna 6) e a recomendação."""
+    abertas, no_painel = [], False
+    for linha in quadro.split("\n"):
+        if linha.startswith("## "):
+            no_painel = _sem_acento(linha[3:]).startswith("aguardando o dono")
+            continue
+        celulas = [c.strip() for c in linha.strip().strip("|").split("|")]
+        if not no_painel or not linha.startswith("|") or len(celulas) < 6 or celulas[0] == "ID" or set(celulas[0]) <= set(":-"):
+            continue
+        abertas.append({"pedido": re.sub(r"^.*/|\.md$", "", celulas[2]), "hora": _hora(*DATA_DA_CELULA.match(celulas[5]).groups("")),
+                        "texto": " · ".join(celulas[1:2] + celulas[6:]), "pergunta": f"{celulas[0]}: {celulas[1]}"})
+    return abertas
+
+
+def cmd_abertas(raiz):
+    """Diretriz 29: ([linhas], 0) com as perguntas abertas ao dono de `<raiz>/docs/pedidos/*.md` e do painel `Aguardando o dono`
+    de `<raiz>/KANBAN.md`, da de maior peso (irreversível, dinheiro, escopo) para a menor e, no mesmo peso, da mais antiga; sem
+    nenhuma, a linha única `SEM_PENDENCIA`. Só leitura; link simbólico não é lido (pasta `docs` ou `docs/pedidos` por link: rc 1);
+    arquivo ilegível vira aviso e fica fora da lista."""
+    abertas, avisos = [], []
+    pasta = Path(raiz) / "docs" / "pedidos"
+    if pasta.is_symlink() or pasta.parent.is_symlink():  # A1 da segurança: como `_gravar_novo`, pasta por link não é lida
+        return ["abertas: erro: docs/pedidos ou docs é link simbólico; recusado"], 1
+    for arq in sorted(pasta.glob("*.md")):
+        if arq.is_symlink():
+            continue
+        try:
+            abertas += perguntas_do_pedido(arq.stem, arq.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError) as erro:
+            avisos.append(f"abertas: aviso: {_limpo(arq.name)} ilegível ({type(erro).__name__}); fora da lista")
+    quadro = Path(raiz) / "KANBAN.md"
+    if quadro.is_file() and not quadro.is_symlink():
+        try:
+            abertas += pendencias_do_quadro(quadro.read_text(encoding="utf-8", errors="replace"))
+        except OSError as erro:
+            avisos.append(f"abertas: aviso: KANBAN.md ilegível ({type(erro).__name__}); fora da lista")
+    if not abertas:
+        return avisos + [SEM_PENDENCIA], 0
+    abertas.sort(key=lambda p: (peso(p["texto"])[0], p["hora"], p["pedido"]))  # sem hora conta como a mais antiga
+    linhas = [f"aberta: {peso(p['texto'])[1]} | {_limpo(p['pedido'], 60)} | {p['hora'] or '—'} | "
+              f"{_limpo(p['pergunta'], LARGURA_DA_PERGUNTA)} | recomendada: {recomendada(p['texto'])}" for p in abertas]
+    return avisos + linhas + [f"abertas: total={len(abertas)}"], 0
 
 
 def executar(a, raiz, ctx):

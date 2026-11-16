@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Pós-release num comando só (POS-RELEASE-SCRIPT-UNICO).
+# Uso: scripts/pos-release ensaio|real [ARQUIVO_DE_PASSOS]
+#   ensaio  roda os passos num alvo provado descartável (ensaio-aceita).
+#   real    roda os passos no alvo de verdade (real-aceita).
+# Os passos e as regras do alvo ficam no arquivo do projeto (padrão: docs/devops/pos-release.passos,
+# ou a variável POS_RELEASE_PASSOS). O script confere o alvo ANTES do primeiro comando, recusa o valor
+# padrão, para no primeiro erro e termina com uma linha de resumo "pos-release: ...".
+# Saída: 0 tudo certo; 1 um passo falhou; 2 recusado antes de rodar qualquer coisa (nenhum comando rodou).
+set -u -o pipefail
+
+raiz="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+inicio=$SECONDS
+
+recusar() {
+  echo "pos-release: RECUSADO · $1 · nenhum comando rodou" >&2
+  exit 2
+}
+
+modo="${1:-}"
+case "$modo" in
+  ensaio|real) ;;
+  *) recusar "uso: scripts/pos-release ensaio|real [arquivo]; escolha o modo (ensaio ou real)" ;;
+esac
+arquivo="${2:-${POS_RELEASE_PASSOS:-$raiz/docs/devops/pos-release.passos}}"
+[ -f "$arquivo" ] || recusar "arquivo de passos não encontrado: $arquivo"
+
+variavel=""; padroes=(); ensaio_aceita=(); real_aceita=(); rotulos=(); comandos=()
+while IFS= read -r linha || [ -n "$linha" ]; do
+  linha="${linha%$'\r'}"
+  [[ "$linha" =~ ^[[:space:]]*(#|$) ]] && continue  # só linha vazia ou que começa por # é ignorada
+  [[ "$linha" =~ ^([a-z-]+):[[:space:]]*(.*)$ ]] || recusar "linha que não entendo em $arquivo: $linha"
+  chave="${BASH_REMATCH[1]}"; valor="${BASH_REMATCH[2]}"
+  case "$chave" in
+    alvo-variavel) variavel="$valor" ;;
+    padrao) padroes+=("$valor") ;;
+    ensaio-aceita) ensaio_aceita+=("$valor") ;;
+    real-aceita) real_aceita+=("$valor") ;;
+    passo)
+      case "$valor" in *' :: '*) ;; *) recusar "passo sem ' :: ' entre o nome e o comando: $valor" ;; esac
+      rotulo="${valor%% :: *}"; comando="${valor#* :: }"
+      if [ -z "${rotulo//[[:space:]]/}" ] || [ -z "${comando//[[:space:]]/}" ]; then recusar "passo com nome ou comando vazio: $valor"; fi
+      rotulos+=("$rotulo"); comandos+=("$comando") ;;
+    *) recusar "chave desconhecida em $arquivo: $chave" ;;
+  esac
+done < "$arquivo"
+
+[[ "$variavel" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || recusar "alvo-variavel ausente ou inválida em $arquivo"
+[ "${#rotulos[@]}" -gt 0 ] || recusar "nenhum passo em $arquivo"
+[ "${#ensaio_aceita[@]}" -gt 0 ] || recusar "ensaio-aceita ausente em $arquivo (sem ele não há como provar um alvo descartável)"
+[ "${#real_aceita[@]}" -gt 0 ] || recusar "real-aceita ausente em $arquivo"
+
+alvo="${!variavel:-}"
+[ -n "$alvo" ] || recusar "a variável $variavel está vazia; informe o alvo de forma explícita, sem valor de reserva"
+# máscara: tudo até o último @ (senha com @ ou /) e o valor de password/senha/token em consulta ou chave=valor
+mascarado="$(printf '%s' "$alvo" | sed -E 's#(://).*@#\1***@#; s#((password|passwd|senha|pwd|token|secret)=)[^\&;[:space:]]*#\1***#Ig')"
+
+for p in "${padroes[@]}"; do
+  [ "$alvo" != "$p" ] || recusar "o alvo ($mascarado) é o valor padrão do projeto"
+done
+casa() { # casa VALOR GLOB...: 0 se algum glob aceita o valor
+  local v="$1" g; shift
+  for g in "$@"; do
+    # shellcheck disable=SC2254  # o glob vem do arquivo de passos, de propósito
+    case "$v" in $g) return 0 ;; esac
+  done
+  return 1
+}
+if casa "$alvo" "${ensaio_aceita[@]}" && casa "$alvo" "${real_aceita[@]}"; then
+  recusar "o alvo ($mascarado) casa com ensaio-aceita e com real-aceita; regras ambíguas"
+fi
+if [ "$modo" = ensaio ]; then
+  casa "$alvo" "${ensaio_aceita[@]}" || recusar "ensaio só em alvo descartável: o alvo ($mascarado) não casa com ensaio-aceita"
+else
+  casa "$alvo" "${real_aceita[@]}" || recusar "modo real: o alvo ($mascarado) não casa com real-aceita"
+fi
+
+total="${#rotulos[@]}"
+cd "$raiz" || recusar "não consegui entrar em $raiz"
+for i in "${!rotulos[@]}"; do
+  n=$((i + 1))
+  echo "==> passo $n de $total: ${rotulos[$i]}"
+  bash -c "${comandos[$i]}" < /dev/null
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    echo "pos-release: FALHOU · passo $n de $total \"${rotulos[$i]}\" saiu com rc=$rc · $((total - n)) passos não rodaram · modo $modo · alvo $mascarado · $((SECONDS - inicio))s" >&2
+    exit 1
+  fi
+done
+echo "pos-release: OK · $total de $total passos · modo $modo · alvo $mascarado · $((SECONDS - inicio))s"
