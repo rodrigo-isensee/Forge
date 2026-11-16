@@ -10,6 +10,8 @@ tests/mutantes/hk3-parecer-pasta-14.json: M103
 tests/mutantes/hk3-parecer-pasta-14.json: M104
 tests/mutantes/hk3-parecer-pasta-14.json: M105
 tests/mutantes/hk3-parecer-pasta-15.json: M106
+tests/mutantes/hooks-corpus-rapido.json: M2
+tests/mutantes/hooks-corpus-rapido.json: M5
 tests/mutantes/lote-fc-seguranca-1.json: M5
 tests/mutantes/lote-l08-e19.json: M49
 tests/mutantes/lote-m8-hook.json: M6
@@ -33,20 +35,3 @@ tests/mutantes/z075-prepush-relogio.json: M2
 tests/mutantes/z075-uma-delegacao-por-branch.json: M3
 tests/mutantes/z075-uma-delegacao-por-branch.json: M6
 tests/mutantes/z075-uma-delegacao-por-branch.json: M7
-#
-# Specs da melhoria/v047-mutantes-velhos (E2.196): saem quando ela entrar na develop.
-tests/mutantes/hooks-corpus-rapido.json: M2
-tests/mutantes/hooks-corpus-rapido.json: M3
-tests/mutantes/hooks-corpus-rapido.json: M4
-tests/mutantes/hooks-corpus-rapido.json: M5
-tests/mutantes/hooks-corpus-rapido.json: M6
-tests/mutantes/lote-m8-mapa.json: M2
-tests/mutantes/lote-unico-032-l36.json: M7
-tests/mutantes/maq-a7-medida.json: M1
-tests/mutantes/maq-a7-medida.json: M2
-tests/mutantes/maq-a7-medida.json: M3
-tests/mutantes/maq-a7-medida.json: M4
-tests/mutantes/maq-a7-medida.json: M5
-tests/mutantes/maq-a7-medida.json: M6
-tests/mutantes/maq-a7-medida.json: M15
-tests/mutantes/v0441-o2-convencao.json: M5
