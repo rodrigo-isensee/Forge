@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-pos-release
-commit: 0eb2dfeb214bbfb4bd5ed6bc0e3d774aa94807fc
+commit: ddc16953b247ade5bb8a1b33a0ade9096fc04f20
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -53,3 +53,9 @@ Item E2.223 (POS-RELEASE-SCRIPT-UNICO, Q5): `scripts/pos-release` no modelo de p
 - Fixture: a sonda da chave `password` passou a literal em duas partes, que o Python concatena; o valor testado é idêntico, só a varredura de segredo do CI deixa de casar. Changelog: texto da máscara reescrito sem chave e valor literais, mesmo comportamento.
 - `python3 -m unittest tests.test_pos_release`: 20 testes, OK. Mutantes (`bin/forge-mutante` nas 3 specs): todos morreram, inclusive PR22 e PR23 (máscara, linha 56), que exercem a fixture reescrita.
 - Sem achado novo; A1 e A2 seguem resolvidos. Suíte inteira: CI do PR; ainda sem PR para este sha, não cito `run`.
+
+## Revalidação (volta 3, delta 0eb2dfeb..ddc16953, E2.402)
+`forge-check parecer delta` listou só `bin/forge-testes` (uma linha no `MAPA`; o resto veio da develop pela junção). O mapa agora aponta `templates/projeto/(docs/devops/pos-release.(md|passos)|scripts/pos-release)` para `PUBLICADO + test_pos_release`, antes só `PUBLICADO` (regra genérica `templates/.*`).
+- Conferi o `MAPA` carregando o módulo: os três arquivos (`pos-release.md`, `pos-release.passos`, `scripts/pos-release`) casam e trazem `test_pos_release`; a regra não pega `scripts/pos-release.sh` (fullmatch), que não existe, e a ordem põe a regra antes de `templates/.*`.
+- `python3 -m unittest tests.test_pos_release`: 20 testes, OK. Código do script e do teste não mudaram: mutantes e vermelho da volta 2 seguem valendo.
+- Sem achado novo; A1 e A2 resolvidos. Suíte inteira: CI do PR; sem PR para este sha, não cito `run`. AR-1 conferido (nenhuma guarda nova sem mutante).
