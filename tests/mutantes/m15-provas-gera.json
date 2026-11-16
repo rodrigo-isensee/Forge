@@ -66,8 +66,8 @@
       "id": "M7",
       "guarda": "PQ cmd sem comando entre crases sai fora, não quebra",
       "arquivo": "bin/forge-check",
-      "de": "        comando = re.search(r\"`([^`]+)`\", resto)\n        try:\n            argv = shlex.split(comando.group(1)) if comando else []",
-      "para": "        comando = re.search(r\"`([^`]+)`\", resto)\n        try:\n            argv = shlex.split(comando.group(1)) if True else []",
+      "de": "    return shlex.split(comando.group(1)) if comando else []",
+      "para": "    return shlex.split(comando.group(1)) if True else []",
       "testes": [
         "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
       ]

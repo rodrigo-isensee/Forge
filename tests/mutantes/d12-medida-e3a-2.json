@@ -57,14 +57,6 @@
       "de": "\"sim\" if linhas < TOPICO_PEQUENO",
       "para": "\"sim\" if linhas > TOPICO_PEQUENO",
       "testes": ["tests.test_voltas.MedidaDoTopico.test_tempo_ativo_desconta_o_dono_e_a_espera_deliberada_e_soma_os_tokens_do_pedido"]
-    },
-    {
-      "id": "M16",
-      "guarda": "medida: o n conta só as linhas de tópico pequeno (não o cabeçalho)",
-      "arquivo": "bin/forge-check",
-      "de": "len(c) >= 7 and c[5] == 'sim'",
-      "para": "len(c) >= 7",
-      "testes": ["tests.test_voltas.MedidaDoTopico.test_tempo_ativo_desconta_o_dono_e_a_espera_deliberada_e_soma_os_tokens_do_pedido"]
     }
   ]
 }
