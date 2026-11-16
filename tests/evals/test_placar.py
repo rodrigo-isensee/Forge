@@ -103,6 +103,19 @@ class Medir(Placar):
         atual = dados["atual"]
         self.assertEqual((atual["erros_jarvis_n"], atual["ci_vermelha_n"], atual["reversoes_n"], atual["taxa_escape"]), (1, 1, 1, 1.0))
 
+    def test_raiz_pedidos_fora_do_clone_vale_sobre_o_raiz(self):  # RAIZ-PEDIDOS-PERDE-DADOS: o dado do pedido fora do clone não some
+        contrib = self.raiz / "contrib"
+        (contrib / "docs" / "kanban").mkdir(parents=True)
+        (contrib / "docs" / "kanban" / "conferencias.md").write_text(CAB_CONF + semana("2026-11-10", 3, 1), encoding="utf-8")
+        clone = self.raiz / "clone"
+        clone.mkdir()
+        env = {"PATH": os.environ.get("PATH", ""), "HOME": str(self.raiz / "home")}
+        r = subprocess.run([sys.executable, "-I", str(PLACAR), "--raiz", str(clone), "--raiz-pedidos", str(contrib), "--ate", "2026-11-14",
+                            "--json"], capture_output=True, text=True, env=env, cwd=clone, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        atual = json.loads(r.stdout)["atual"]
+        self.assertEqual((atual["vereditos"], atual["delegacoes"], atual["negativos"]), (4, 3, 1))
+
     def test_uso_errado_sai_com_2(self):
         for args in (("--ate", "ontem"), ("--dias", "0"), ("comparar", "--antes", "2026-11-10"),
                      ("comparar", "--antes", "2026-11-10", "--depois", "2026-11-01"),
