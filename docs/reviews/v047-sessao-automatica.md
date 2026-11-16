@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-sessao-automatica
-commit: cd7bd9f833b4f8abec6cb95138889ae51f2fdc8d
+commit: 48501baf6b5fc3238f80b32a9d8cb7f507ea0eed
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-14
+data: 2026-11-16
 ---
 # Review: v047 (SESSAO-AUTOMATICA e GH-VERSAO-MINIMA, E1.215; revalidação E1.233 no cd7bd9f8)
 
@@ -52,3 +52,17 @@ Delta lido só por `forge-check parecer delta docs/reviews/v047-sessao-automatic
 - Suíte inteira: fica com o CI do PR; não rerrodada.
 
 Parecer mantido: **aprovado**; nada bloqueia, A2 a A5 são recomendados (`R-REVIEW`).
+
+## Revalidação E2.241 (delta cd7bd9f8..48501baf)
+Delta lido só por `forge-check parecer delta docs/reviews/v047-sessao-automatica.md` (intervalo cd7bd9f8..48501baf, rc=0). No domínio: `bin/forge-fechar`, `bin/forge-testes`, `tests/test_fechar.py`, `tests/test_reval_delta.py`, `tests/test_testes_tocados.py`. Commits da branch: bcf5ee1a (mapa do forge-testes) e 48501baf (junção da develop, PR 573). Instância que não fez a entrega.
+
+- Junção: o patch próprio da branch em `bin/forge-fechar` (passo 1, GH-VERSAO-MINIMA), `tests/test_fechar.py` e nos demais arquivos de código e teste já revisados é igual linha a linha ao revisado no cd7bd9f8 (`git diff f4b0c2ae cd7bd9f8` contra `git diff 9d10894f 48501baf`, por arquivo). O resto do diff de `bin/forge-fechar` e `tests/test_fechar.py` que o delta mostra veio da develop.
+- `bin/forge-testes:106,119,166-167`: `test_sessao_automatica` entra em FORGE_CHECK (o `test_mapa_lista_todo_modulo_que_usa_o_forge_check` decide quem entra), em LEITORES_DE_TEXTO (lê o README e o modelo) e nas linhas de `scripts/jarvis*` e `scripts/preparar-estacao.sh`. Correto: o teste roda quando o script que ele exercita muda.
+- `tests/test_testes_tocados.py:67`: contagem de 85 para 86, com a origem no comentário.
+- `tests/test_reval_delta.py:138`: `(test_sessao_automatica.py, README.md)` em CITACOES_CONHECIDAS como `teste-le`, o motivo certo (o teste lê o README em `tests/test_sessao_automatica.py:81`).
+- Sem guarda nova no delta próprio; a spec de mutantes não muda.
+- Testes do delta rodados neste review: `python3 -m unittest tests.test_testes_tocados tests.test_reval_delta`, 161 testes OK (1 pulado) em 112,9 s. `shellcheck bin/forge-fechar`: sc=0.
+- Commits: Conventional Commits em português; a junção traz a develop por merge (`R-FLUXO`).
+- Suíte inteira: fica com o CI do PR; não rerrodada. Nenhuma linha nova em `achados-recorrentes.md`.
+
+Parecer mantido: **aprovado**; nada bloqueia, A2 a A5 seguem recomendados (`R-REVIEW`).
