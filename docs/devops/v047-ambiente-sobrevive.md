@@ -3,23 +3,22 @@ tipo: revisao-devops
 contrato: 1
 pedido: v047-ambiente-sobrevive
 branch: melhoria/v047-ambiente-sobrevive
-commit: 680725756d94129c230f52c6401d697463f6e88d
-parecer: reprovado
+commit: 584b2239f8debe47126d1b4fee8a24f6996cab9f
+parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-15
 ---
 # Review de devops: v047-ambiente-sobrevive
 
 ## Achados
-- A1 (bloqueante) .devcontainer/devcontainer.json:23 · R-SEGURANCA: o postStartCommand lê scripts/preparar-estacao.sh da origin/main, que ainda não tem FORGE_PREPARO_ESSENCIAL (grep=0); até a release roda o --container inteiro como root, com jarvis-forge do work tree (B2 reaberto). Exija a marca no arquivo lido.
-- A2 (recomendado) .devcontainer/devcontainer.json:18 · remoteEnv repassa o GH_TOKEN da máquina do dono; se tiver o escopo workflow, o agente o ganha no container. Documente o escopo mínimo (repo) e que o token do bot não leva workflow (R-CONFORMIDADE).
+- A1 (resolvido) .devcontainer/devcontainer.json:23 · R-SEGURANCA: o comando faz clone raso novo da main (URL do .git/config) e só roda se o script traz `FORGE_PREPARO_ESSENCIAL:-0`; a main atual não traz (0), então pula e não executa o work tree como root.
+- A2 (resolvido) .devcontainer/devcontainer.json:18 · R-CONFORMIDADE: o `remoteEnv` com GH_TOKEN saiu; o comentário documenta login do dono com escopo repo e workflow e que o token do bot não leva workflow.
+- A3 (recomendado) .devcontainer/devcontainer.json:23: em repositório privado, sem `gh` nem login o clone falha e o gh nunca é instalado; o 1º preparo é manual (`bash scripts/preparar-estacao.sh --container`). Documente no cartão.
 
 ## Detalhes
-Reprovado por A1. Defeito provado: `git show origin/main:scripts/preparar-estacao.sh | grep -c ESSENCIAL` dá 0, então o script antigo ignora a variável e executa `container_vigente` (`bash $origem/scripts/jarvis-forge --atualizar-vigente`) e o dev-marketplace, código do work tree que o agente edita, com o comando em root fora do sandbox. É o risco que o próprio comentário do arquivo diz evitar. Correção mínima: antes de rodar, `grep -q FORGE_PREPARO_ESSENCIAL "$f" &&` (sem a marca, pula e deixa o comando manual). O modelo de projeto não tem a janela: `git show` falha enquanto o script não está na main e o `&&` encerra; o `; true` mantém o container subindo.
+Revalidado por delta 680725756d94..584b2239f8de (domínio: os dois devcontainer.json, scripts/preparar-estacao.sh, o modelo preparar-ambiente.sh). Novo no delta: chave apt do gh conferida por impressão digital, com falha fechada e mensagem `falta:`, nos dois scripts. `GH_CONFIG_DIR` e credential helper só no clone, sem segredo gravado. Falha ou falta de rede termina em `; true`, e o container sobe. PA-7: AR-5 e AR-12 tocam hook e mutante, fora do domínio; o `hooks.json` usa `-s -E` como os demais hooks.
 
-Conferido sem achado: sem segredo gravado (só localEnv); falha do preparo não derruba o container; scripts idempotentes e sem apagar dado; hooksPath de outra ferramenta preservado; --verificar não altera nada e traz o comando exato; gh via apt oficial com chave em keyrings; sem Dockerfile, compose nem workflow tocados; sem custo (R-CUSTO). PA-7: nenhum AR aplicável (sem python, sem hook, sem mutante).
-
-Ferramentas: shellcheck nos dois scripts, rc=0; 9 testes do item (devcontainer, essencial, hookspath, verificar, modelo_de_projeto) OK. actionlint e docker build não aplicáveis. Suíte completa fica para o CI. Remoto da branch não avançou (mesmo sha).
+Ferramentas: shellcheck nos dois scripts rc=0; JSON dos dois devcontainer válido sem comentários; testes test_ambiente_hook (6) e do item em test_forge (6) OK. actionlint e docker build não se aplicam. Suíte completa fica para o CI. O remoto da branch está no mesmo sha, e o merge deu "Already up to date".
 
 ## Custo e rollback
-Sem minutos de CI nem recurso novo. Volta: reverter o commit; o container volta ao preparo manual (`bash /workspaces/Forge/scripts/preparar-estacao.sh --container`).
+Sem minutos de CI nem recurso novo (R-CUSTO). Volta: reverter o commit; o preparo manual segue valendo.
