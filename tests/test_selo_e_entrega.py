@@ -923,6 +923,18 @@ class ParecerDoPortao(Conferencia):
         self.assert_fora()
 
 
+class VocabularioDaEtapaDoPortao(unittest.TestCase):
+    """FIXTURE-ETAPA-FORA-VOCABULARIO: a `Etapa:` que o fixture sela para cada pasta de parecer é a do `ETAPA_DO_PORTAO` para o tipo
+    daquela pasta. Um fixture com etapa fora do vocabulário (`Etapa: devops` à mão) mascarou a regressão A4 da E23.36."""
+
+    def test_fixture_sela_a_etapa_do_vocabulario(self):
+        tipo_da_pasta = {pasta.removeprefix("docs/"): tipo for tipo, (pasta, _) in fc.PASTA_E_REGRA.items()}
+        self.assertEqual(set(ParecerDoPortao.ETAPA), set(tipo_da_pasta))
+        for pasta, etapa in ParecerDoPortao.ETAPA.items():
+            with self.subTest(pasta=pasta):
+                self.assertEqual(etapa, fc.ETAPA_DO_PORTAO[tipo_da_pasta[pasta]])
+
+
 class JanelaDaEntrega(Conferencia):
     """MP1311 (item 1, com MP1103-D-8): a janela da conferência desconta o parecer dos outros portões em toda etapa de código (o caso do
     PR 530) e aceita `--desde` no commit do autor que os portões revisaram (o `Revisar-sha:` de brief selado do portão da branch)."""
@@ -1198,7 +1210,11 @@ class MergeDaBaseDepoisDoBrief(Conferencia):
         self.entrega_e_merge(ancorar=False)
         rc, saida = self.conferir()
         self.assertNotIn("base: merge-base", saida)
-        self.assertEqual(rc, 1, saida)  # o comportamento de antes da E23.36: a conferida trazida vira Desde e a develop aparece
+        # v047 E1.185 (CONFERIDA-POR-BRANCH): a conferida trazida, já na develop, não vira Desde; o intervalo é o do Base-sha
+        self.assertIn(f"intervalo: {self.base}..", saida)
+        self.assertIn("base: Base-sha do brief (sem conferida na branch)", saida)
+        self.assertNotIn("agents/outro.md", saida)
+        self.assertEqual(rc, 0, saida)
 
     def test_brief_selado_antes_do_da_entrega_nao_ancora(self):
         """A âncora é o Base-sha de brief selado MAIS NOVO que o da entrega; o selado antes dele, mesmo com a develop adiante, não vale."""
@@ -1238,7 +1254,7 @@ class MergeDaBaseDepoisDoBrief(Conferencia):
         self.ancorar(self.git("rev-parse", "HEAD"), "exemplo-outra-2.md")  # o head ancorado: só a guarda do "head já na base" o recusa
         _, saida = self.conferir()
         self.assertNotIn("base: merge-base", saida)
-        self.assertNotIn("pendente: intervalo vazio", saida)
+        self.assertIn(f"intervalo: {self.base}..", saida)  # o Desde é o Base-sha, nunca o head (v047 E1.185: a conferida da develop não vale)
 
 
 if __name__ == "__main__":

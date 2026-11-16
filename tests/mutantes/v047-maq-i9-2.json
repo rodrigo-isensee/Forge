@@ -1,0 +1,16 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "a completa por plano com a suíte rodando sai 2, não 0",
+      "arquivo": "bin/forge-testes",
+      "de": "`.githooks/pre-push --suite`.\", file=sys.stderr)\n        return 2",
+      "para": "`.githooks/pre-push --suite`.\", file=sys.stderr)\n        return 0",
+      "testes": [
+        "tests.test_testes_tocados.TravaDoForgeTestes.test_completo_por_plano_so_roda_com_o_status_livre"
+      ]
+    }
+  ]
+}
