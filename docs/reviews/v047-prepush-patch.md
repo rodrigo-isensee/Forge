@@ -3,12 +3,17 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-prepush-patch
-commit: 5016852d85c156bd54df21a3f6f30529463d6011
+commit: 455f2597c17f088c3250ba1336ed23e265f22529
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
 ---
-# Review: v047 (melhoria/v047-prepush-patch, E2.325; revalidação E2.367)
+# Review: v047 (melhoria/v047-prepush-patch, E2.325; revalidações E2.367 e E2.428)
+
+## Revalidação (E2.428, head 455f2597)
+Delta lido: `forge-check parecer delta docs/reviews/v047-prepush-patch.md`, intervalo 5016852d..455f2597, no domínio só `docs/engineering/achados-recorrentes.md` (AR-2 de 2 para 3 vezes, última `docs/devops/pp1-pre-push.patch:32`, gravada com o A5 deste parecer em d1bcbc1f). O resto do intervalo são os pareceres de QA e segurança e merges da própria branch; `git diff 5016852d 455f2597` fora de `docs/reviews`, `docs/qa` e `docs/security` muda só essa linha. Patch, teste, `bin/forge-mutante` e fragmento iguais aos aprovados.
+
+Ferramentas no head 455f2597: `python3 -m unittest tests.test_pre_push_patch` na raiz do clone, 12 testes, OK (60 s). Suíte completa: sem PR, fica para o CI do PR. Sem achado novo; A4 e A5 seguem recomendados; sem recorrência nova para `achados-recorrentes.md`.
 
 ## Revalidação (E2.367, head 5016852d)
 Delta lido: `forge-check parecer delta docs/reviews/v047-prepush-patch.md`, intervalo 805a0a10..5016852d, no domínio `bin/forge-mutante` (docstring), `changelog.d/v047-prepush-patch.md` e `tests/test_pre_push_patch.py`. O delta não listou `docs/devops/pp1-pre-push.patch` (+50/-17), que é o código do item; li o diff dele no mesmo intervalo.
@@ -35,7 +40,9 @@ Parecer completo (não havia parecer anterior) do head 805a0a10 contra a base 1b
 - S2 · mesmo repo, tests/catraca.py `if a` -> `if a and b` com hooks/h.py sem condição, sem spec · espera: pre-push rc=0, como a catraca ([]) · obtido: pre-push rc=1 "sem mutante · tests/catraca.py:2"; catraca []
 
 ## Parecer
-Aprovado no head 5016852d: A1 resolvido, sem bloqueante aberto; A4 e A5 recomendados.
+Aprovado no head 455f2597 (E2.428): delta sem código, sem bloqueante aberto; A4 e A5 recomendados.
+
+Parecer no head 5016852d: aprovado, A1 resolvido, sem bloqueante aberto; A4 e A5 recomendados.
 
 Parecer anterior (head 805a0a10): reprovado por A1. Os três consertos fazem o que o item pede e o teste prova cada um contra o original (o original é o mutante): leitura da trava pelo fd 9 (conferi à parte que `/proc/self/fd/9` lê também o fd aberto com `9>>`, como no hook real, linha 466), `FORGE_FILA_INTERVALO` 0/00/000 recusado antes da fila, e o envio leve reprovando condição mudada em `hooks/*.py` sem mutante. O patch aplica limpo no `.githooks/pre-push` da base (`git apply --check`, blob f9443600), `bash -n` ok, modo executável mantido; o teste limpa `GIT_*`/`FORGE_*` do ambiente (AR-4) e chama o `forge-mutante` com `-I` (AR-5).
 
