@@ -28,8 +28,8 @@
       "id": "M3",
       "guarda": "SHELLCHECK-FECHAR: bin/forge-fechar na lista do shellcheck do CI",
       "arquivo": ".github/workflows/ci.yml",
-      "de": "run: shellcheck bin/forge-init bin/forge-fechar scripts/jarvis",
-      "para": "run: shellcheck bin/forge-init scripts/jarvis",
+      "de": "'#!'*bash*|'#!'*/sh|'#!'*' sh') lista+=(\"$f\")",
+      "para": "'#!'*/sh|'#!'*' sh') lista+=(\"$f\")",
       "testes": [
         "tests.test_fechar.Fechar.test_shellcheck_fechar_esta_na_lista_do_ci"
       ]
