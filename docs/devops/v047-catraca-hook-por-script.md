@@ -3,10 +3,10 @@ tipo: revisao-devops
 contrato: 1
 pedido: v047-catraca-hook-por-script
 branch: melhoria/v047-catraca-hook-por-script
-commit: 230dfb01ddde3b7e84d47fdad161c8dbfc93ffc5
+commit: 24256248b7d1503b354d8369b040651499e8b3df
 parecer: aprovado
 revisor: forge:devops-engineer
-data: 2026-11-15
+data: 2026-11-16
 ---
 # Review de devops: v047-catraca-hook-por-script
 
@@ -26,3 +26,5 @@ Revalidado no head ee91a8f0 (delta 66a3a9a4..ee91a8f0, volta 3): `forge-check pa
 Sem minutos de CI novos além da suíte já existente (os testes novos somam cerca de 7 s) e sem recurso pago (`R-CUSTO`). Rollback: reverter o commit do merge; a catraca volta à chave anterior, sem estado nem migração.
 
 Revalidado no head 230dfb01 (volta 4, delta ee91a8f0..230dfb01 sem arquivo do domínio; `forge-check parecer delta` diz "nenhum arquivo do domínio mudou"; mudaram `tests/catraca.py`, testes, corpus, mutantes e fragmento do item). A10 (hooks.json fora do esquema: lista fechada de eventos e tipos, falha fechada) e as sondas S12 a S16 e `real` do corpus: `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook` com 14 testes OK. Nada novo em workflow, permissão, segredo, cache ou ação de terceiros. A1 segue recomendado. A classe inteira passa de 120 s local; fica ao CI.
+
+Revalidado no head 24256248 (voltas 5 e 6, delta 230dfb01..24256248): `forge-check parecer delta` diz "nenhum arquivo do domínio mudou"; mudaram `tests/catraca.py`, testes, corpus, mutantes, `achados-recorrentes.md` e fragmento. Timeout finito maior que 0 (A12, S17) e lista de 31 eventos conferida com o binário do Claude Code 2.1.224 (A6, S18): `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook` com 14 testes OK em 3,9 s. Nada novo em workflow, permissão, segredo, cache ou ação de terceiros. A1 segue recomendado. O parecer segue aprovado.
