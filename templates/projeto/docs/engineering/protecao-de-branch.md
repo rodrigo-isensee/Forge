@@ -10,13 +10,6 @@ Por que existe: o hook `pre-push` local é pulado por `--no-verify` e pelo envio
 - O gatilho dos workflows exigidos fica sem filtro de caminho: com filtro, o PR que não toca o caminho deixa o check pendente para sempre, e a pressão leva ao desvio. Para pular trabalho, pule o passo dentro do job.
 - O PR roda a versão do workflow da própria branch. Mudança em `.github/` passa pelo parecer do `devops-engineer` e do `security-engineer` (`R-REVIEW`, `R-SEGURANCA`) antes do merge.
 
-## Suíte dividida em partes: o check exigido é o agregador
-Quando o `devops-engineer` divide a suíte em partes (matriz de jobs) para o PR e a integração ficarem rápidos, valem estas regras, que a proteção acima pressupõe:
-- **O check exigido é o job agregador**, com o nome que o dono listou no passo 9. As pernas da matriz têm nome livre ("parte K/N") e **não** entram na lista de exigidos: renomear, somar ou tirar uma perna não mexe na proteção. Renomear o agregador mexe, e é do dono (`R-CONFORMIDADE`).
-- **O agregador só passa com todas as N pernas em `success`.** Perna vermelha, pulada ou cancelada reprova (job pulado conta como verde para a regra de proteção; por isso o agregador roda com `always()` e exige `success` de cada necessário, nunca `!contains(failure)`). Ele só lê o resultado dos jobs necessários e não executa código da branch; o teto de testes pulados, quando existe, é um job próprio listado nos necessários dele.
-- **Guarda de completude.** A divisão por fatia das ferramentas da stack (por exemplo `pytest-split` ou `vitest --shard K/N`) não prova sozinha que a suíte inteira rodou. O agregador (ou o job de soma que ele exige) confere que a quantidade de testes executados somada nas N pernas é igual à de testes coletados, que nenhuma perna coletou zero, e que o N da matriz, o do `--shard K/N` e o da soma são o mesmo número (um teste do CI lê o YAML e compara). O plugin de divisão entra com versão fixa no lockfile, licença permissiva e sem custo (`R-CUSTO`).
-- **Tempo por teste sai por anotação, não por log**: a perna verde grava os tempos em anotação de check run (só nome de teste e segundos), lida pela API; nenhum workflow grava de volta no repositório (`R-MAIN`). O que fundir para ganhar tempo (por exemplo, o teto no agregador) vale só para a integração, nunca para o agregador exigido do PR, que continua sem rodar código da branch.
-
 ## Ruleset dos portões
 Repositório > Settings > Rules > Rulesets > New ruleset > New branch ruleset. Um passo por linha:
 1. Name: `portoes`.
