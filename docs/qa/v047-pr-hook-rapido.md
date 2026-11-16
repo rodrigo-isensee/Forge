@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-pr-hook-rapido
-commit: 6f3f4e7042bf32734c23ae04f1141a7a6e117162
+commit: a8c0a07423e5f9fec23c06d123b4555044e75f89
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-15
+data: 2026-11-16
 ---
 # QA: v047 · hook R-REVIEW rápido (E2.117 / E2.143)
 
@@ -47,6 +47,12 @@ Só os testes do item (`tests/test_pr_hook_rapido.py`, `tests/test_pr_hook_prazo
 - Vermelho (à mão: o `forge-testes --vermelho` passa do prazo neste pedido): árvore de `5f3f9d69` mais os testes e fixtures novos → `Ran 15 tests · FAILED (failures=5)`: forjado S3, refaz a conferência, sonda S2, falha do git (128) e corpo truncado.
 - Mutantes: `bin/forge-mutante tests/mutantes/v047-pr-hook-rapido-2.json --base 8eebc2a5` → `PHR9, PHR10, PHR11, PHR12 · morreu` (4 de 4). `--cobertura --base 5f3f9d69`: `coberta` em forge-check:355, :365 e parecer.py:567; conformidade.py:76 é regex, coberto por PHR12.
 - PA-7 conferido: AR-1 (uma lista por linha de guarda mudada), AR-2 e AR-12 sem ocorrência nova.
+
+## Revalidação da volta 2 (6f3f4e70..a8c0a074)
+- Delta (`forge-check parecer delta`): spec PHR6 (`cod, lote = git(`), junção em `tests/test_testes_tocados.py` (85 módulos, comentário) e AR-12 em `docs/engineering/achados-recorrentes.md`.
+- `python3 -m unittest tests.test_testes_tocados tests.test_pr_hook_rapido` → `Ran 166 tests · OK (skipped=1)`; o skip é preexistente (sandbox sem /proc), fora do item.
+- Mutantes: `bin/forge-mutante --base 6f3f4e70 tests/mutantes/v047-pr-hook-rapido.json` → `base=6f3f4e70… rev=a8c0a074…` e `PHR1..PHR8 · morreu` (PHR6 morreu com o trecho novo, que casa com o código).
+- PA-7: AR-12 passa a 3 ocorrências (spec de mutante desatualizada, `v047-pr-hook-rapido.json:59`), linha já gravada; AR-1 e AR-2 sem ocorrência nova.
 
 ## Pendências
 Nenhuma bloqueante. Médios e baixos: nenhum.
