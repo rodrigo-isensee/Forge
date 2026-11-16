@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v047-prova-tmpdir
+pedido: v047
 branch: melhoria/v047-prova-tmpdir
 commit: a1eb19effa881e7e3decd3253252e7c1df560594
 parecer: aprovado
