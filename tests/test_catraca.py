@@ -384,7 +384,7 @@ class Hooks(Base):
                                         dict(args=["a.py", "$(true)"]),
                                         # volta 3 (review A4): `-bb` faz do BytesWarning exceção
                                         dict(args=["-bb", "a.py"]), dict(args=["-b", "a.py"])],
-                 "perl a.pl": [dict(command="perl -E", args=["a.pl"])]}
+                 "perl a.pl": [dict(command="perl -E", args=["a.pl"]), dict(args=["-E", "a.pl"])]}  # 2º: opção em `args` (CH-M7)
         for antes, trocas in casos.items():
             comando, *args = antes.split()
             base = dict(type="command", command=comando, args=args)
