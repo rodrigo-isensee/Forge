@@ -1,0 +1,30 @@
+{
+  "descricao": "HOOK-TEXTO-COM-MERGE: o python3 - que roda git merge segue barrado.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "python3 - <<'EOF'\nimport os\nos.system('git merge develop')\nEOF"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: `python3"
+  }
+}
