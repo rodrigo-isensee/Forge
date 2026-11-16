@@ -1764,7 +1764,9 @@ class PrepararEstacao(unittest.TestCase):
             registro = Path(tmp) / "chamadas"
             for nome in ("sudo", "curl", "apt-get", "gh"):
                 falso = bin_falso / nome
-                falso.write_text(f'#!/bin/sh\necho "{nome} $*" >> "{registro}"\nexit 1\n')
+                # GH-VERSAO-MINIMA: ler a versão do gh não altera nada; fica fora do registro (o gh falso antigo cairia no apt oficial)
+                leitura = 'case "$1" in --version) echo "gh version 2.104.0 (2026-11-12)"; exit 0 ;; esac\n' if nome == "gh" else ""
+                falso.write_text(f'#!/bin/sh\n{leitura}echo "{nome} $*" >> "{registro}"\nexit 1\n')
                 falso.chmod(0o755)
             # leitura do estado do sistema: o falso (log à parte) diz "não instalado", sem consultar o dpkg real
             falso = bin_falso / "dpkg-query"
@@ -1828,7 +1830,8 @@ class PrepararEstacao(unittest.TestCase):
             '#!/bin/sh\nd="$HOME/.local/share/forge/vigente/dev/agents"\nmkdir -p "$d" && echo aq > "$d/aq.md"\n')
         mostrar_escopos = f"echo \"  - Token scopes: {escopos}\"; " if escopos else ""
         falsos = {
-            "gh": f'echo "gh $*" >> "{registro}"\n'
+            "gh": 'case "$1" in --version) echo "gh version 2.104.0 (2026-11-12)"; exit 0 ;; esac\n'
+                  f'echo "gh $*" >> "{registro}"\n'
                   'case "$1 $2" in\n'
                   f'  "auth status") {mostrar_escopos}exit {0 if logado else 1} ;;\n'
                   '  "repo clone") mkdir -p "$4" && echo clonado > "$4/marca" ;;\n'
@@ -7205,9 +7208,10 @@ class TesteEParecerSeparados(RepoComOrigem):
         junto = self.commitar(self.repo, {"tests/test_x.py": "# teste do QA\n", "docs/qa/p1.md": self.QA.format(c=self.c1)}, "teste e parecer juntos")
         rc, saida, _ = self.pr()
         self.assertEqual(rc, 1, saida)
-        self.assertIn("docs/qa/p1.md: commit: desatualizado: tests/test_x.py mudou depois do parecer; peça novo parecer; "
-                      f"o parecer foi commitado junto com tests/test_x.py ({junto[:7]}), depois do commit que ele cita: "
-                      "teste e parecer vão em commits separados", saida)
+        linha = next((l for l in saida.splitlines() if l.startswith("docs/qa/p1.md: commit: ")), "")
+        self.assertIn("desatualizado: tests/test_x.py mudou depois do parecer; peça novo parecer (base origin/develop ", linha)  # E2.201
+        self.assertIn(f"; o parecer foi commitado junto com tests/test_x.py ({junto[:7]}), depois do commit que ele cita: "
+                      "teste e parecer vão em commits separados", linha)
 
     def test_commit_inexistente_nao_ganha_a_explicacao(self):  # o motivo é outro: o commit citado não existe
         self.commitar(self.repo, {"tests/test_x.py": "# teste do QA\n", "docs/qa/p1.md": self.QA.format(c="1" * 40)}, "teste e parecer juntos")

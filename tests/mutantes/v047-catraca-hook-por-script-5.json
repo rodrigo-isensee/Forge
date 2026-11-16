@@ -1,0 +1,18 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {"id": "CH-M39", "guarda": "`timeout` 0, negativo ou infinito acusa (A12, S17)", "arquivo": "tests/catraca.py",
+     "de": "    elif \"timeout\" in hk and not (math.isfinite(hk[\"timeout\"]) and hk[\"timeout\"] > 0):", "para": "    elif False:",
+     "testes": ["tests.test_catraca.Hooks.test_cada_campo_fora_do_esquema_acusa", "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"]},
+    {"id": "CH-M40", "guarda": "`timeout` 0 acusa: a carga exige maior que 0 (A12, S17)", "arquivo": "tests/catraca.py",
+     "de": "and hk[\"timeout\"] > 0):", "para": "and hk[\"timeout\"] >= 0):",
+     "testes": ["tests.test_catraca.Hooks.test_cada_campo_fora_do_esquema_acusa", "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"]},
+    {"id": "CH-M41", "guarda": "`timeout` 1e400 (lido como infinito) acusa (A12, S17)", "arquivo": "tests/catraca.py",
+     "de": "not (math.isfinite(hk[\"timeout\"]) and", "para": "not (True and",
+     "testes": ["tests.test_catraca.Hooks.test_cada_campo_fora_do_esquema_acusa", "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"]},
+    {"id": "CH-M42", "guarda": "evento fora da lista do binário (PreModelSwitch) acusa (A6 do review, S18)", "arquivo": "tests/catraca.py",
+     "de": "    \"MessageDisplay\"))", "para": "    \"MessageDisplay\", \"PreModelSwitch\"))",
+     "testes": ["tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"]}
+  ]
+}

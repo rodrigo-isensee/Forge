@@ -1,0 +1,36 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AF-M1",
+      "guarda": "a conferência do head aceita os achados recorrentes depois da entrega conferida",
+      "arquivo": "bin/forge-check",
+      "de": "    livres = LIVRES + ANEXOS_DO_PORTAO + (f\"changelog.d/{pedido}.md\", f\"{ACEITES_DO_USUARIO[0]}{pedido}.md\")  # E1g; E2.252",
+      "para": "    livres = LIVRES + (f\"changelog.d/{pedido}.md\", f\"{ACEITES_DO_USUARIO[0]}{pedido}.md\")  # E1g; E2.252",
+      "testes": [
+        "tests.test_parecer_conteudo.AchadosRecorrentesForaDoDominio.test_achados_depois_da_entrega_conferida_nao_tira_a_cobertura"
+      ]
+    },
+    {
+      "id": "AF-M2",
+      "guarda": "os achados recorrentes não vencem o parecer no pr",
+      "arquivo": "bin/forge-check",
+      "de": "            livres = LIVRES + ANEXOS_DO_PORTAO + (f\"changelog.d/{pedido}.md\", f\"{ACEITES_DO_USUARIO[0]}{pedido}.md\")  # D4; E1g; E2.252",
+      "para": "            livres = LIVRES + (f\"changelog.d/{pedido}.md\", f\"{ACEITES_DO_USUARIO[0]}{pedido}.md\")  # D4; E1g; E2.252",
+      "testes": [
+        "tests.test_parecer_conteudo.AchadosRecorrentesForaDoDominio.test_parecer_no_mesmo_commit_dos_achados_vale"
+      ]
+    },
+    {
+      "id": "AF-M3",
+      "guarda": "o parecer delta deixa os achados recorrentes fora do domínio",
+      "arquivo": "bin/forge-check",
+      "de": "    nomes = [n for n in nomes if not livre(n, LIVRES + ANEXOS_DO_PORTAO)]",
+      "para": "    nomes = [n for n in nomes if not livre(n, LIVRES)]",
+      "testes": [
+        "tests.test_parecer_conteudo.AchadosRecorrentesForaDoDominio.test_parecer_delta_nao_le_os_achados"
+      ]
+    }
+  ]
+}
