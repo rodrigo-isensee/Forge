@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-visao-de-foco
-commit: 6e99cc41f2cc1b7156ab90110fe4748400395fa2
+commit: 7bbd973804f4813b47f47b43a894b4e18e9447dc
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
@@ -13,6 +13,9 @@ data: 2026-11-16
 Intervalo revisado: `1b88640e..6e99cc41` (Base-sha do brief = merge-base), 1 commit, 1 arquivo: `docs/arquitetura/visao-de-foco.md`, 178 linhas `.md`. Código e teste contados (M14): 0 linhas. Sem guarda nova nem mudada; sem mutante a declarar. Sem módulo de teste do item: a suíte fica no CI do PR; `forge-check docs` rc=0 no clone.
 
 Conferido contra o código da base que o desenho cita (`4138445e`, ancestral do head): `scripts/jarvis:20,42`, `scripts/jarvis-forge:203-216`, `bin/forge-init:71-100`, `bin/forge-upgrade:111-122`, `hooks/meta.py:102-141`, `bin/forge_transcricao.py:301-367`, teto do núcleo 37.511 em `docs/regras/orcamento.json`: as referências batem. Escopo E7 e E7.1 cobertos (nome da opção, onde liga, onde não dá, texto do Jarvis, checagem de jargão). Checklist da fábrica: critério de reversão presente (seção final); "Por que o existente não basta" com evidência (5.1); não afrouxa controle (`R-CONFORMIDADE`), sem custo (`R-CUSTO`), nada de projeto (`R-NEUTRO`).
+
+## Revalidação no head 7bbd9738 (E2.391)
+Delta lido: `forge-check parecer delta docs/reviews/v047-visao-de-foco.md`, intervalo `6e99cc41..7bbd9738`; no domínio só `changelog.d/v047-visao-de-foco.md` (novo, 2 linhas, `### Adicionado`, E2.386). `bin/forge-changelog conferir --base origin/develop --branch melhoria/v047-visao-de-foco`: "ok: 1 fragmento(s) novo(s)", rc=0. O texto descreve o desenho entregue, sem código nem guarda; achados anteriores seguem como estavam. Achados recorrentes (PA-7) conferidos: nenhum alcança o delta.
 
 ## Achados
 - A1 (recomendado) docs/arquitetura/visao-de-foco.md:60 · 2.2 e a tabela da seção 3 não preveem que o selo `.claude/` de hooks/conformidade.json:30 barra ao time o templates/projeto/.claude/settings.json (a E7.3 parou nisso). Falta a linha em "Onde não dá" com a saída: comando ao dono, sem contornar (R-CONFORMIDADE).
