@@ -36,6 +36,11 @@ def git(cwd, *args):
     return subprocess.run(["git", *args], cwd=cwd, env=AMBIENTE, capture_output=True, text=True, check=True).stdout
 
 
+def com_oraculos(f, modulos):
+    """EXT-1: o oráculo do portão entra em todo plano dirigido; o esperado o soma, sem afrouxar a igualdade."""
+    return ("dirigido", sorted(set(modulos) | set(f.oraculos(RAIZ))))
+
+
 class Mapa(unittest.TestCase):
     """O mapa de caminhos conhecidos e a falha fechada."""
 
@@ -59,7 +64,7 @@ class Mapa(unittest.TestCase):
         }
         for caminho, esperado in casos.items():
             with self.subTest(caminho):
-                self.assertEqual(self.plano(caminho), ("dirigido", esperado))
+                self.assertEqual(self.plano(caminho), com_oraculos(self.f, esperado))
 
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
@@ -92,7 +97,7 @@ class Mapa(unittest.TestCase):
         self.assertLessEqual(rodam, set(regra))
 
     def test_os_casos_de_comportamento_rodam_so_o_modulo_deles(self):  # L36
-        self.assertEqual(self.plano("tests/comportamento/casos.json"), ("dirigido", ["test_comportamento"]))
+        self.assertEqual(self.plano("tests/comportamento/casos.json"), com_oraculos(self.f, ["test_comportamento"]))
 
     def test_modulos_da_volta_unica_rodam_onde_o_test_hooks_roda(self):  # HOOKS-CORPUS-RAPIDO
         volta = {"test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades"}
@@ -412,10 +417,10 @@ class MapaCobreOQueOsTestesLeem(unittest.TestCase):
 
     def test_conferir_reversao_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):  # REVERSAO-MAPA (A5)
         self.assertEqual(self.f.planejar(["scripts/conferir-reversao.py"], RAIZ),
-                         ("dirigido", ["test_conferir_reversao", "test_forge", "test_testes_tocados"]))
+                         com_oraculos(self.f, ["test_conferir_reversao", "test_forge", "test_testes_tocados"]))
 
     def test_forge_mutante_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):
-        self.assertEqual(self.f.planejar(["bin/forge-mutante"], RAIZ), ("dirigido", ["test_forge", "test_forge_mutante"]))
+        self.assertEqual(self.f.planejar(["bin/forge-mutante"], RAIZ), com_oraculos(self.f, ["test_forge", "test_forge_mutante"]))
 
 
 class Execucao(unittest.TestCase):
