@@ -291,11 +291,8 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         topo = texto.split("\non:\n", 1)[0]
         self.assertNotIn("só a checagem rápida", topo)
         self.assertIn("scripts/suite-paralela.py", topo)
-        # CI-RAPIDO: a rápida é o agregador; a suíte roda nas 5 pernas dela (suite-partes, o mecanismo do suite-paralela)
-        pernas = [j for j in ci.ler_jobs(texto) if j["id"] == "rapida-partes-doze"]
-        self.assertEqual(len(pernas), 1, "o ci.yml não tem o job rapida-partes-doze")
-        (perna,) = pernas
-        self.assertTrue(any("scripts/suite-partes.py" in p["run"] for p in perna["passos"]))
+        (rapida,) = [j for j in ci.ler_jobs(texto) if j["id"] == "rapida"]
+        self.assertTrue(any("scripts/suite-paralela.py" in p["run"] for p in rapida["passos"]))
 
     def test_bateria_consolidada_mantem_os_passos_que_eram_jobs(self):
         (bateria,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
@@ -312,13 +309,13 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         """D4: os dois passos "Testes do Forge" chamam o mesmo script do pre-push (guarda de completude nos dois);
         o passo curto dos pareceres continua como está; a release também roda em paralelo (RELEASE-SUITE-PARALELA)."""
         jobs = {j["id"]: j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))}
-        # SUITE-NO-CI e CI-RAPIDO: no PR e na develop a suíte roda em 5 partes por versão (scripts/suite-partes.py, o mecanismo do
-        # suite-paralela); o agregador da develop não roda a suíte.
-        for nome in ("partes-doze", "partes-quatorze", "rapida-partes-doze", "rapida-partes-quatorze"):
+        (passo,) = [p for p in jobs["rapida"]["passos"] if p["nome"] == "Testes do Forge"]
+        self.assertEqual(passo["run"].strip(), "python3 scripts/suite-paralela.py")
+        # SUITE-NO-CI: no PR, a suíte roda em 3 partes por versão (scripts/suite-partes.py, o mecanismo do suite-paralela).
+        for nome in ("partes-doze", "partes-quatorze"):
             with self.subTest(job=nome):
                 (passo,) = [p for p in jobs[nome]["passos"] if p["nome"] == "Testes do Forge (parte)"]
-                self.assertIn('python3 scripts/suite-partes.py --parte "$PARTE/5"', passo["run"])
-        self.assertEqual([p for p in jobs["rapida"]["passos"] if "scripts/" in p["run"]], [])
+                self.assertIn('python3 scripts/suite-partes.py --parte "$PARTE/3"', passo["run"])
         for nome in jobs:
             with self.subTest(job=nome):
                 self.assertFalse([p["nome"] for p in jobs[nome]["passos"] if "unittest discover" in p["run"]])
@@ -431,10 +428,8 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertIn("npm install", passo)
         self.assertNotIn("continue-on-error", texto)
         self.assertNotIn("skip ci", texto)
-        for job in ("partes-doze", "partes-quatorze", "rapida-partes-doze", "rapida-partes-quatorze"):
-            testes = [p for j in ci.ler_jobs(texto) if j["id"] == job for p in j["passos"] if p["nome"] == "Testes do Forge (parte)"]
-            self.assertEqual(len(testes), 1, f"o job {job} não tem um passo 'Testes do Forge (parte)'")
-            (teste,) = testes
+        for job in ("partes-doze", "partes-quatorze"):
+            (teste,) = [p for j in ci.ler_jobs(texto) if j["id"] == job for p in j["passos"] if p["nome"] == "Testes do Forge (parte)"]
             self.assertNotIn("for ", teste["run"])
             self.assertNotIn("||", teste["run"])
 
@@ -976,10 +971,8 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
 
     def test_leitor_entende_matriz_e_needs_do_ci_real(self):
         jobs = {j["id"]: j for j in self.jobs_reais()}
-        for job in ("partes-doze", "partes-quatorze", "rapida-partes-doze", "rapida-partes-quatorze"):
-            self.assertEqual(jobs[job]["matriz"], {"parte": ["1", "2", "3", "4", "5"]})
-        self.assertEqual(jobs["rapida"]["needs"], ["rapida-partes-doze", "rapida-pulados-doze"])
-        self.assertEqual(jobs["rapida-quatorze"]["needs"], ["rapida-partes-quatorze", "rapida-pulados-quatorze"])
+        self.assertEqual(jobs["partes-doze"]["matriz"], {"parte": ["1", "2", "3"]})
+        self.assertEqual(jobs["partes-quatorze"]["matriz"], {"parte": ["1", "2", "3"]})
         self.assertEqual(jobs["agregador"]["needs"], ["bateria", "pareceres", "verificacoes", "partes-doze", "pulados-doze"])
         self.assertEqual(jobs["verificacoes"]["needs"], ["bateria"])  # A18: Provas, shellcheck e e2e esperam os passos baratos
         self.assertEqual(jobs["bateria-python-tres-quatorze"]["needs"],
@@ -1017,17 +1010,17 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
     def test_cada_perna_roda_uma_vez_e_a_igual_reaproveita(self):
         resultados, chamados = self.rodar_com(self.jobs_reais())
         partes = [c for c in chamados if c[1]]
-        self.assertEqual(partes, [(f"suíte (python 3.12, parte {k}/5)", str(k)) for k in (1, 2, 3, 4, 5)])
+        self.assertEqual(partes, [(f"suíte (python 3.12, parte {k}/3)", str(k)) for k in (1, 2, 3)])
         por_nome = {r["nome"]: r for r in resultados}
-        for k in (1, 2, 3, 4, 5):
-            self.assertIn("reaproveitado", por_nome[f"suíte (python 3.14, parte {k}/5)"]["motivo"])
+        for k in (1, 2, 3):
+            self.assertIn("reaproveitado", por_nome[f"suíte (python 3.14, parte {k}/3)"]["motivo"])
         self.assertEqual(ci.status(resultados)[0], "success")
         self.assertIn("resumo de bateria: success, pareceres: success, verificacoes: success, partes-doze: success", por_nome["bateria"]["motivo"])
         self.assertEqual(por_nome["bateria (python 3.14)"]["estado"], ci.OK)
         self.assertEqual(por_nome["checagem rápida (push na develop)"]["estado"], ci.PULADO)
 
     def test_agregador_reprova_com_uma_perna_vermelha(self):
-        resultados, _ = self.rodar_com(self.jobs_reais(), falha="suíte (python 3.12, parte 2/5)")
+        resultados, _ = self.rodar_com(self.jobs_reais(), falha="suíte (python 3.12, parte 2/3)")
         por_nome = {r["nome"]: r for r in resultados}
         self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.FALHOU))
         self.assertEqual(por_nome["bateria (passos)"]["estado"], ci.OK)
@@ -1040,10 +1033,8 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         self.assertEqual([c for c in chamados if c[1]], [])
         por_nome = {r["nome"]: r for r in resultados}
         for versao in ("3.12", "3.14"):
-            for k in (1, 2, 3, 4, 5):
-                nome = f"suíte (python {versao}, parte {k}/5)"
-                self.assertIn(nome, por_nome)
-                self.assertEqual(por_nome[nome]["estado"], ci.PULADO)
+            for k in (1, 2, 3):
+                self.assertEqual(por_nome[f"suíte (python {versao}, parte {k}/3)"]["estado"], ci.PULADO)
         self.assertEqual(por_nome["bateria (verificações longas)"]["estado"], ci.PULADO)  # A1: o vermelho barato pula o job longo
         self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.FALHOU))
         self.assertEqual(ci.status(resultados)[0], "failure")

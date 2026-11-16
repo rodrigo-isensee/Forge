@@ -244,7 +244,8 @@ class MapaDosNovos(unittest.TestCase):
         t = tempfile.TemporaryDirectory()
         self.addCleanup(t.cleanup)
         raiz = Path(t.name)
-        base = {"tests/test_forge.py": "x = 1\n", "tests/evals/__init__.py": "", "tests/evals/test_placar.py": "x = 1\n"}
+        base = {"tests/test_forge.py": "x = 1\n", "tests/evals/__init__.py": "", "tests/evals/test_placar.py": "x = 1\n",
+                "tests/test_forge_mutante.py": "x = 1\n"}
         for rel, texto in {**base, **arquivos}.items():
             (raiz / rel).parent.mkdir(parents=True, exist_ok=True)
             (raiz / rel).write_text(texto, encoding="utf-8")
@@ -266,10 +267,10 @@ class MapaDosNovos(unittest.TestCase):
         self.assertEqual(self.f.planejar(["bin/forge_fontes.py"], raiz), ("dirigido", ["test_forge", "test_leitor"]))
         self.assertEqual(self.f.planejar(["bin/forge_outro.py"], raiz), ("dirigido", ["test_forge"]))
 
-    def test_spec_nova_leva_aos_modulos_do_campo_testes(self):
+    def test_spec_nova_leva_aos_modulos_do_campo_testes_e_ao_test_forge_mutante(self):  # que varre toda spec (--todas)
         raiz = self.brinquedo(**{"tests/mutantes/varredura-caminho-pessoal.json": self.SPEC_REAL})
         caminho = "tests/mutantes/varredura-caminho-pessoal.json"
-        self.assertEqual(self.f.planejar([caminho], raiz), ("dirigido", ["evals.test_placar", "test_forge"]))
+        self.assertEqual(self.f.planejar([caminho], raiz), ("dirigido", ["evals.test_placar", "test_forge", "test_forge_mutante"]))
         self.assertIn("evals.test_placar", self.f.planejar_afetados([caminho], raiz)[0])
 
     def test_spec_ilegivel_sem_teste_ou_com_teste_de_fora_segue_na_completa(self):
