@@ -11,7 +11,8 @@ Sem objetivo armado, nada muda. S6: em todo Stop, só MEDE (nunca bloqueia) a ú
 last_assistant_message do evento; sem ele, o transcrito): caracteres contra TETO_DA_MENSAGEM, as palavras da tabela "Em vez de"
 de skills/modo-iniciante/SKILL.md e, por classe de CLASSES_DE_JARGAO (diretriz 31), quantos termos sem explicação há fora de
 bloco de código e de citação; grava uma linha em .forge/run/mensagens.jsonl (só contagens e as palavras da tabela, nunca o
-texto nem o termo achado das classes). Erro interno: libera e vai ao erros.log.
+texto nem o termo achado das classes). A medida roda depois da decisão do objetivo e lê só TETO_DA_MEDIDA caracteres
+(`cortado` na linha): o tempo dela não cresce com a mensagem. Erro interno: libera e vai ao erros.log.
 """
 import datetime
 import json
