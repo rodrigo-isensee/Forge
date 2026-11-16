@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-brief-vagas
-commit: 0e45c3a809098be4635f472c38b72887eec8758c
+commit: 126b903b79e75737551b263384acf23783e91f62
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
@@ -36,3 +36,9 @@ Delta lido: `forge-check parecer delta docs/reviews/v047-brief-vagas.md`, interv
 - A4 resolvido: o passo 7 diz que as etapas do passo 6 ficam no pedido e são reaproveitadas pela chave da seção 5.2.
 
 Achados novos no delta: nenhum. Sem classe repetida para `docs/engineering/achados-recorrentes.md`. Parecer: aprovado no head 0e45c3a8 (`R-REVIEW`).
+
+## Revalidação (E2.392, head 126b903b)
+Delta lido: `forge-check parecer delta docs/reviews/v047-brief-vagas.md`, intervalo `0e45c3a8..126b903b`, no domínio só `changelog.d/v047-brief-vagas.md` (novo, commit 126b903b, E2.387).
+- Fragmento conforme ADR 0006: nome igual à branch sem prefixo, seção `### Adicionado`, uma entrada com o pedido e o arquivo do desenho, sem editar o `CHANGELOG.md`; `R-NEUTRO` respeitado. `python3 -m unittest tests.test_changelog` na raiz do clone: `Ran 74 tests`, `OK`.
+
+Achados novos no delta: nenhum. Sem classe repetida para `docs/engineering/achados-recorrentes.md`. Parecer: aprovado no head 126b903b (`R-REVIEW`).
