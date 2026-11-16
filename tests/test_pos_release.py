@@ -107,6 +107,28 @@ class PosRelease(unittest.TestCase):
         self.recusado(self.rodar("ensaio", REGRAS + f"passo: so-comando echo oi >> {self.marca}\n"), "passo sem")
         self.recusado(self.rodar("ensaio", REGRAS + "passo: nome ::    \n"), "vazio")
 
+    def test_linha_recuada_ou_com_comentario_no_fim_nao_e_pulada(self):
+        # só linha vazia ou que começa por # é ignorada: recuada, com # no fim ou sem chave é recusada e nada roda
+        passo = self.passo("um")
+        for linha in (f"  passo: dois :: echo dois >> {self.marca} # nota\n", f"  passo: dois :: echo dois >> {self.marca}\n",
+                      "  padrao: db://h/descartavel-1 # nota\n", "  ensaio-aceita: * # nota\n", "texto solto sem chave\n"):
+            self.recusado(self.rodar("ensaio", REGRAS + passo + linha), "linha que não entendo")
+        r = self.rodar("ensaio", REGRAS + "\n   \n# c\n   # recuado\n\t# tab\n" + passo)
+        self.assertEqual((r.returncode, self.feito()), (0, ["um"]), r.stderr)
+
+    def test_passo_com_nome_vazio_e_recusado(self):
+        self.recusado(self.rodar("ensaio", REGRAS + f"passo:  :: echo oi >> {self.marca}\n"), "passo sem")
+        self.recusado(self.rodar("ensaio", REGRAS + "passo: ::\n"), "passo sem")
+
+    def test_mascara_senha_com_arroba_barra_e_consulta(self):
+        for alvo, segredo in (("db://u:p@ss@h/descartavel-3", "ss@"), ("db://u:a/bXYZ@h/descartavel-3", "bXYZ"),
+                              ("db://h/descartavel-3?password=XYZ123&x=1", "XYZ123"), ("db://h/descartavel-3?SENHA=XYZ123", "XYZ123"),
+                              ("db://h/descartavel-3?token=XYZ123", "XYZ123")):
+            for passo in (self.passo("um"), self.passo("quebra", "exit 3")):
+                r = self.rodar("ensaio", REGRAS + passo, alvo)
+                self.assertNotIn(segredo, r.stdout + r.stderr, alvo)
+                self.assertIn("***", self.resumo(r), alvo)
+
     def test_recusa_arquivo_sem_passo_sem_regra_de_ensaio_ou_sem_variavel(self):
         self.recusado(self.rodar("ensaio", REGRAS), "nenhum passo")
         self.recusado(self.rodar("ensaio", REGRAS.replace("ensaio-aceita: db://*/descartavel-*\n", "") + self.passo("um")), "ensaio-aceita ausente")

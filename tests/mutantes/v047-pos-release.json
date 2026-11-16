@@ -146,10 +146,11 @@
       "id": "PR15",
       "guarda": "E2.223: a credencial do alvo sai mascarada",
       "arquivo": "templates/projeto/scripts/pos-release",
-      "de": "sed -E 's#(://)[^/@]*@#\\1***@#'",
-      "para": "cat",
+      "de": "sed -E 's#(://).*@#\\1***@#;",
+      "para": "sed -E 's#(://)ZZ@#\\1***@#;",
       "testes": [
-        "tests.test_pos_release.PosRelease.test_mascara_a_credencial_do_alvo_no_resumo_e_no_erro"
+        "tests.test_pos_release.PosRelease.test_mascara_a_credencial_do_alvo_no_resumo_e_no_erro",
+        "tests.test_pos_release.PosRelease.test_mascara_senha_com_arroba_barra_e_consulta"
       ]
     }
   ]
