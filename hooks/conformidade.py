@@ -323,7 +323,9 @@ VARIAVEL = re.compile(r"\$\{?(\w+)\}?|\$\(|`")
 # deles pode estar no `.git` (`$(git rev-parse --git-common-dir)/forge/x`, `d=<raiz>/.git; cp x $d/config`).
 NOMES_DO_GIT = frozenset({"forge", "config", "hooks", "HEAD", "index", "refs", "objects", "logs", "info", "worktrees",
                           "commondir", "gitdir", "packed-refs", "modules"})
-SO_VARIAVEL = re.compile(r"\$\{[^}]*\}|\$\w+|`")  # `${d%/}` (A2 da E20.8): a variável vai até o `}` que a fecha
+SO_VARIAVEL = re.compile(r"\$\{[^}]*\}|\$\w+|\$[@*]|`")  # `${d%/}` (A2 da E20.8): a variável vai até o `}` que a fecha
+# CONFORMIDADE-SET-POSICIONAL (A18): `$@` e `$*` (o que `set --` grava) são opacos como `$1`; `$$`, `$!`, `$#`, `$?` e
+# `$-` seguem literais: dígitos e letras de opção nunca completam o nome `.git`
 # Volta 1 da E20.6 (A1 e A3 da segurança E20.8, v046): `git rev-parse --git-dir` (e `--git-common-dir`, `--absolute-git-dir`,
 # `--git-path <x>`) em `$(…)` ou crase tem valor conhecido, o `.git` da raiz: a linha troca a substituição por esta
 # variável, que `expandir` resolve (também na variável atribuída a ela), e as regras `.git/…` decidem como no literal.

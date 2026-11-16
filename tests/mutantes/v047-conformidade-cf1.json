@@ -12,6 +12,16 @@
         "tests.test_conformidade_verde.OraculoCf1.test_redirecao_com_numero",
         "tests.test_conformidade_verde.OraculoCf1.test_numero_antes_do_git_nao_o_esconde"
       ]
+    },
+    {
+      "id": "CF1-S1",
+      "guarda": "E2.179, CONFORMIDADE-SET-POSICIONAL (A18 da segurança E1.344): `$@` e `$*` são parte opaca do destino (`set -- .git; cp -rT ev \"$@\"`)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "SO_VARIAVEL = re.compile(r\"\\$\\{[^}]*\\}|\\$\\w+|\\$[@*]|`\")  # `${d%/}` (A2 da E20.8): a variável vai até o `}` que a fecha",
+      "para": "SO_VARIAVEL = re.compile(r\"\\$\\{[^}]*\\}|\\$\\w+|`\")  # `${d%/}` (A2 da E20.8): a variável vai até o `}` que a fecha",
+      "testes": [
+        "tests.test_conformidade_verde.OraculoCf1.test_set_posicional"
+      ]
     }
   ]
 }

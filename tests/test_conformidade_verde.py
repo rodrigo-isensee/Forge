@@ -235,6 +235,9 @@ class OraculoCf1(unittest.TestCase):
     def test_redirecao_com_numero(self):  # CONFORMIDADE-REDIRECAO-NUMERO (A17, S52 a S54)
         self.rodar_cartao("redirecao", 13)
 
+    def test_set_posicional(self):  # CONFORMIDADE-SET-POSICIONAL (A18, S55): `$@` e `$*` de `set --`
+        self.rodar_cartao("set", 8)
+
     def test_numero_antes_do_git_nao_o_esconde(self):  # A17: `2>/dev/null git push --force`
         fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / "conformidade").glob("trava-cf1-*.json"))], 1,
                           "trava-cf1-*")
