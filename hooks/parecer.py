@@ -42,8 +42,8 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, 
 MERGE = r"merge(?!-base\b)"  # `git merge-base` só lê o grafo (HK3-PARECER, E2): não é merge
 PREFILTRO = re.compile(rf"\bgh\b.*\bpr\b.*\b(create|{MERGE}|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b({MERGE}|pull)\b", re.S)
 class MERGE_DE_PR:  # noqa: N801 - o `prazo_longo` do `executar`, que espera a interface de um regex (`.search`)
-    """A linha com `gh pr merge` como palavras de um comando ganha o prazo `PRAZO_DO_MERGE_S` (o `forge-check pr` leva
-    cerca de 2 s; v0455). A menção em comentário, string ou corpo de heredoc não ganha (A1 da segurança da 0.45.5).
+    """A linha com `gh pr merge` como palavras de um comando ganha o prazo `PRAZO_DO_MERGE_S` (v0455; com a máquina carregada,
+    o `forge-check pr` passa dele, e o resultado gravado do mesmo head decide antes: E2.117). A menção em comentário, string ou corpo de heredoc não ganha (A1 da segurança da 0.45.5).
     Só dá mais prazo, nunca libera; o prazo vencido segue recusando, e a dúvida ao ler fica com os 3 s."""
 
     @staticmethod
