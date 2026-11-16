@@ -47,5 +47,31 @@ class PermissaoAgentesMd(unittest.TestCase):
         self.assertIn("R-CONFORMIDADE", ids(linha("skills/trabalho-em-paralelo/SKILL.md", "- **Delegação que edita `agents/*.md`:**")))
 
 
+class E8TextoAntigo(unittest.TestCase):
+    """E8-TEXTO-ANTIGO (v047 E2.74): desde a E8 da 0.45.6 o `portoes` deixa desmarcada a regra "branch atualizada com a
+    base"; a conferência do dono na ADR 0012 pede a regra desmarcada, não a trata como ligada."""
+    def test_conferencia_da_0012_pede_a_regra_desmarcada(self):
+        conf = linha("docs/adr/0012-main-por-merge-commit.md", "Conferência do dono antes da próxima release")
+        self.assertIn("deixa desmarcada", conf)
+        self.assertIn("docs/protecao-de-branch.md", conf)
+        self.assertNotIn('a regra "branch atualizada com a base" do ruleset `portoes` são configuração', conf)
+
+
+class CorrecaoAntesDosPortoes(unittest.TestCase):
+    """CORRECAO-ANTES-DOS-PORTOES (v047 E2.74, retro da 0.47.0 C5): correção que muda arquivo da branch, achado
+    `recomendado` incluso, entra antes dos portões; a regra fica na skill e o tech-lead aponta para ela."""
+    ANCORA = "- **Correção antes dos portões:**"
+
+    def test_skill_tem_a_regra_com_o_id(self):
+        regra = linha("skills/trabalho-em-paralelo/SKILL.md", self.ANCORA)
+        self.assertIn("R-REVIEW", ids(regra))
+        self.assertIn("`recomendado`", regra)
+
+    def test_tech_lead_aponta_para_a_skill(self):
+        ponteiro = linha("agents/tech-lead.md", self.ANCORA)
+        self.assertIn("trabalho-em-paralelo", ponteiro)
+        self.assertIn("R-REVIEW", ids(ponteiro))
+
+
 if __name__ == "__main__":
     unittest.main()

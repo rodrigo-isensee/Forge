@@ -1,0 +1,76 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "PE-M14",
+      "guarda": "sem origin/develop, a develop local vale",
+      "arquivo": "bin/forge-check",
+      "de": "or sha_do_commit(raiz, \"refs/heads/develop\")\n    if not develop:",
+      "para": "or None\n    if not develop:",
+      "testes": [
+        "tests.test_proximo.ProximoBranchMesclada.test_merge_commit_e_parecer_na_develop_poem_a_etapa_como_feita"
+      ]
+    },
+    {
+      "id": "PE-M15",
+      "guarda": "sem develop, nada sai feito e nada quebra",
+      "arquivo": "bin/forge-check",
+      "de": "    if not develop:\n        return frozenset()",
+      "para": "    if False:\n        return frozenset()",
+      "testes": [
+        "tests.test_proximo.ProximoBranchMesclada.test_sem_develop_nada_sai_feito_e_nao_quebra"
+      ]
+    },
+    {
+      "id": "PE-M16",
+      "guarda": "o nome da branch do merge vem depois do dono, inteiro",
+      "arquivo": "bin/forge-check",
+      "de": "(m := re.fullmatch(r\"Merge pull request #\\d+ from [^/\\s]+/(\\S+)\", a))",
+      "para": "(m := re.fullmatch(r\"Merge pull request #\\d+ from (\\S+)\", a))",
+      "testes": [
+        "tests.test_proximo.ProximoBranchMesclada.test_merge_commit_e_parecer_na_develop_poem_a_etapa_como_feita"
+      ]
+    },
+    {
+      "id": "PE-M17",
+      "guarda": "só as pastas de parecer com `branch:` entram no grep",
+      "arquivo": "bin/forge-check",
+      "de": "if \"branch\" in campos]",
+      "para": "if \"branch\" not in campos]",
+      "testes": [
+        "tests.test_proximo.ProximoBranchMesclada.test_merge_commit_e_parecer_na_develop_poem_a_etapa_como_feita"
+      ]
+    },
+    {
+      "id": "PE-M18",
+      "guarda": "o `branch:` dos pareceres da develop entra quando o grep acha",
+      "arquivo": "bin/forge-check",
+      "de": "for l in saida.splitlines()} if not cod else set()",
+      "para": "for l in saida.splitlines()} if cod else set()",
+      "testes": [
+        "tests.test_proximo.ProximoBranchMesclada.test_merge_commit_e_parecer_na_develop_poem_a_etapa_como_feita"
+      ]
+    },
+    {
+      "id": "PE-M19",
+      "guarda": "etapa entregue segue entregue com a branch mesclada",
+      "arquivo": "bin/forge-check",
+      "de": "FEITA if estado != \"entregue\" and (m := BRANCH_DA_ETAPA",
+      "para": "FEITA if True and (m := BRANCH_DA_ETAPA",
+      "testes": [
+        "tests.test_proximo.ProximoBranchMesclada.test_nome_parecido_nao_conta_e_entregue_segue_entregue"
+      ]
+    },
+    {
+      "id": "PE-M20",
+      "guarda": "o passo pula a etapa feita",
+      "arquivo": "bin/forge-check",
+      "de": "for e, papel, texto, estado in etapas if estado not in FECHADAS), None)",
+      "para": "for e, papel, texto, estado in etapas if estado != \"entregue\"), None)",
+      "testes": [
+        "tests.test_proximo.ProximoBranchMesclada.test_merge_commit_e_parecer_na_develop_poem_a_etapa_como_feita"
+      ]
+    }
+  ]
+}
