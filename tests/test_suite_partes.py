@@ -9,6 +9,7 @@ e a fiação do ci.yml (partes por versão e agregadores com o nome do check exi
 """
 import collections
 import importlib.util
+import io
 import json
 import os
 import re
@@ -358,6 +359,30 @@ class Brinquedo5(unittest.TestCase):
             self.assertEqual((r.returncode, rodaram), (1, set()), r.stdout + r.stderr)
             self.assertIn("não dão 6 partes", r.stderr)
 
+    def test_parte_vermelha_anota_o_teste_que_caiu_e_a_verde_nao(self):  # a causa legível nas anotações do check run
+        self.modulo("a", "self.fail('de propósito')")
+        com_ci = {"GITHUB_ACTIONS": "true"}
+        erros = {}
+        with unittest.mock.patch.dict(AMBIENTE, com_ci):
+            for k in (1, 2, 3, 4, 5):
+                r, _ = self.roda("--parte", f"{k}/5", ci=True)
+                erros[k] = (r.returncode, [l for l in r.stdout.splitlines() if l.startswith("::error")])
+        vermelhas = [k for k, (rc, _) in erros.items() if rc == 1]
+        self.assertEqual(len(vermelhas), 1, erros)
+        (linha,) = erros[vermelhas[0]][1]
+        self.assertTrue(linha.startswith(f"::error title=forge-suite parte {vermelhas[0]}/5::"), linha)
+        self.assertRegex(linha, r"assercao test_a\.T\.test_a ")
+        self.assertEqual([k for k, (rc, notas) in erros.items() if rc == 0 and notas], [])
+        r, _ = self.roda("--parte", f"{vermelhas[0]}/5", ci=True)  # fora do Actions, só o log
+        self.assertNotIn("::error", r.stdout)
+
+    def test_parte_que_nao_divide_anota_o_erro_da_guarda(self):
+        with unittest.mock.patch.dict(AMBIENTE, {"GITHUB_ACTIONS": "true"}):
+            r, _ = self.roda("--parte", "1/6", ci=True)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        (linha,) = [l for l in r.stdout.splitlines() if l.startswith("::error")]
+        self.assertIn("não dão 6 partes", linha)
+
     def test_erro_da_guarda_de_completude_reprova_a_parte_antes_de_rodar(self):  # a fiação da guarda por ID em por_parte
         codigo = ("import importlib.util, sys\n"
                   "spec = importlib.util.spec_from_file_location('sp', 'scripts/suite-partes.py')\n"
@@ -435,6 +460,58 @@ class AnotacaoDeTempos(unittest.TestCase):
 
     def test_escapar_dado(self):
         self.assertEqual(self.f.escapar_dado("a%b\r\nc"), "a%25b%0D%0Ac")
+
+
+class AnotacaoDeFalha(unittest.TestCase):
+    """A parte vermelha diz a causa nas anotações do check run (`::error`), sem depender do log: o tipo, o ID e o local de cada
+    teste que caiu e os erros da guarda; só no Actions, uma linha só e nunca na parte verde."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+
+    CAUSA = {"id": "test_a.T.test_x", "local": "tests/test_a.py:7", "tipo": "assercao", "obtido": "1", "esperado": "2"}
+
+    def test_causa_vira_tipo_id_local_e_esperado_obtido(self):
+        self.assertEqual(self.f.descricao_da_causa(self.CAUSA), "assercao test_a.T.test_x tests/test_a.py:7 (esperado 2, obtido 1)")
+        self.assertEqual(self.f.descricao_da_causa({"id": "processo-1", "tipo": "sinal", "sinal": 9}), "sinal processo-1")
+        self.assertEqual(self.f.descricao_da_causa({"tipo": "erro", "id": "t.T.x", "local": ""}), "erro t.T.x")
+
+    def test_uma_linha_error_com_causas_e_erros_da_guarda(self):
+        (linha,) = self.f.anotacao_de_falha("parte 1/5", [self.CAUSA], ["processo 2 saiu com 1"])
+        self.assertTrue(linha.startswith("::error title=forge-suite parte 1/5::"), linha)
+        self.assertIn("test_a.T.test_x", linha)
+        self.assertIn("; processo 2 saiu com 1", linha)
+        self.assertEqual(self.f.anotacao_de_falha("parte 1/5", None, ["so a guarda"])[0].split("::", 2)[2], "so a guarda")
+        self.assertEqual(self.f.anotacao_de_falha("parte 1/5", [self.CAUSA], None)[0].count("::"), 2)
+
+    def test_sem_causa_nem_erro_nao_anota(self):
+        self.assertEqual(self.f.anotacao_de_falha("parte 1/5", [], []), [])
+        self.assertEqual(self.f.anotacao_de_falha("parte 1/5", None, None), [])
+
+    def test_titulo_fora_do_alfabeto_e_quebra_de_linha_nao_saem_no_comando(self):
+        (linha,) = self.f.anotacao_de_falha("x::y\nz", [{"id": "a\nb::c%d", "tipo": "erro"}], [])
+        self.assertNotIn("\n", linha)
+        self.assertTrue(linha.startswith("::error title=forge-suite suite::"), linha)
+        self.assertIn("a%0Ab::c%25d", linha)
+        (linha,) = self.f.anotacao_de_falha(None, [self.CAUSA], [])
+        self.assertTrue(linha.startswith("::error title=forge-suite suite::"), linha)
+
+    def test_limites_de_causas_e_de_tamanho(self):
+        causas = [{"id": f"test_m.T.test_{i:03d}", "tipo": "assercao"} for i in range(self.f.LIMITE_DE_CAUSAS + 10)]
+        (linha,) = self.f.anotacao_de_falha("parte 1/5", causas, [])
+        self.assertIn(f"test_{self.f.LIMITE_DE_CAUSAS - 1:03d}", linha)
+        self.assertNotIn(f"test_{self.f.LIMITE_DE_CAUSAS:03d}", linha)
+        (linha,) = self.f.anotacao_de_falha("parte 1/5", [], ["x" * (self.f.LIMITE_DA_ANOTACAO * 2)])
+        self.assertLessEqual(len(linha.split("::", 2)[2]), self.f.LIMITE_DA_ANOTACAO)
+
+    def test_emitir_so_no_actions(self):
+        for ambiente, saiu in (({"GITHUB_ACTIONS": "true"}, True), ({}, False), ({"GITHUB_ACTIONS": "false"}, False),
+                               ({"GITHUB_ACTIONS": "1"}, False)):
+            with self.subTest(ambiente):
+                with unittest.mock.patch.object(self.f.sys, "stdout", new_callable=io.StringIO) as saida:
+                    self.f.emitir_falha(ambiente, "parte 1/5", [self.CAUSA], [])
+                self.assertEqual(saida.getvalue().startswith("::error"), saiu)
 
 
 class SomaDasCinco(unittest.TestCase):

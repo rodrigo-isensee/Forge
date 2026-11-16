@@ -22,6 +22,9 @@ Uso: python3 scripts/suite-partes.py --modulos M[,M...]
                 "pulados": n, "pulados_ids": [...]}`). Com GITHUB_ACTIONS=true, a parte verde grava o tempo de cada
                 unidade em anotação do check run (`::notice title=forge-tempos K/N ...`, só nomes de unidade e
                 segundos), que `scripts/pesos-do-ci.py` lê pela API.
+                Com GITHUB_ACTIONS=true, a parte vermelha imprime uma anotação `::error title=forge-suite parte K/N::...`
+                com o tipo, o ID e o local de cada teste que caiu (as causas tipadas do suite-paralela) e os erros da
+                guarda: a causa fica legível nas anotações do check run, sem abrir o log.
   --somar-pulados N PASTA  (o agregador do CI) soma os pulados das N partes gravados em PASTA (`*.json`, um por parte,
                 K de 1 a N uma vez só) e compara com `teto_pulados` de tests/config.json, com a conta do suite-paralela
                 (T3). Falha fechada: parte faltando, repetida, de outro N, arquivo ilegível ou teto ilegível reprova.
@@ -51,6 +54,8 @@ PARTE = re.compile(r"([1-9][0-9]?)/([1-9][0-9]?)")
 UNIDADE_SEGURA = re.compile(r"[A-Za-z0-9_.]{1,200}")  # S6: só isto sai em anotação (nada de `::`, quebra de linha, `%`)
 LIMITE_DA_ANOTACAO = 12000  # caracteres da mensagem de cada anotação (o GitHub aceita 64 KB)
 MAXIMO_DE_ANOTACOES = 8  # o GitHub guarda 10 por passo
+LIMITE_DE_CAUSAS = 30  # as causas que entram na anotação de falha (o resto fica no log)
+TITULO_SEGURO = re.compile(r"[A-Za-z0-9 /_.-]{1,40}")  # o título de um comando de workflow não leva `:` nem `,`
 NOME_DE_MODULO = re.compile(r"(?:[a-z0-9_]+\.)*test[a-z0-9_]*")  # `evals.test_x` é tests/evals/test_x.py (pacote)
 
 
@@ -205,6 +210,30 @@ def anotacoes_de_tempos(parte, python, duracoes):
     return linhas
 
 
+def descricao_da_causa(causa):
+    """`tipo id local` (e o esperado e o obtido, já cortados e redigidos pelo suite-paralela) de uma causa tipada."""
+    texto = " ".join(str(causa[c]) for c in ("tipo", "id", "local") if causa.get(c))
+    return texto + (f" (esperado {causa['esperado']}, obtido {causa.get('obtido')})" if "esperado" in causa else "")
+
+
+def anotacao_de_falha(rotulo, causas, erros):
+    """A linha `::error` da parte vermelha, com os testes que caíram (tipo, ID e local de cada causa tipada do
+    suite-paralela) e os erros da guarda, para a causa ficar legível nas anotações do check run (o log pode não estar ao
+    alcance). `[]` sem causa nem erro. Uma linha só (quebra e `%` escapados, `escapar_dado`)."""
+    itens = [descricao_da_causa(c) for c in list(causas or ())[:LIMITE_DE_CAUSAS]] + [str(e) for e in erros or ()]
+    if not itens:
+        return []
+    titulo = rotulo if TITULO_SEGURO.fullmatch(rotulo or "") else "suite"
+    return [f"::error title=forge-suite {titulo}::{escapar_dado('; '.join(itens))[:LIMITE_DA_ANOTACAO]}"]
+
+
+def emitir_falha(environ, rotulo, causas, erros):
+    """No Actions (GITHUB_ACTIONS=true), imprime a anotação de falha da parte; fora dele não imprime nada."""
+    if environ.get("GITHUB_ACTIONS") == "true":
+        for linha in anotacao_de_falha(rotulo, causas, erros):
+            print(linha, flush=True)
+
+
 PISO_PADRAO_GB = 2.0  # o mesmo padrão do hook `agentes` (R-TETO)
 
 
@@ -270,9 +299,9 @@ def veredito(relatorios, erros):
     return (f"OK (skipped={pulados})" if pulados else "OK"), 0
 
 
-def rodar(sp, nomes, esperado, rotulo, todos=None, publicar=None, plano=None, anotar=None):
+def rodar(sp, nomes, esperado, rotulo, todos=None, publicar=None, plano=None, anotar=None, falhou=None):
     """Roda `nomes` em processos (a regra de N do suite-paralela) e confere a completude contra `esperado`; verde, chama
-    `publicar(relatorios)` (os pulados da parte, T3) e `anotar(relatorios)` (os tempos por unidade). Com `plano` ({unidade:
+    `publicar(relatorios)` (os pulados da parte, T3) e `anotar(relatorios)` (os tempos por unidade); vermelha, `falhou(causas, erros)` (a anotação `::error` com os testes que caíram). Com `plano` ({unidade:
     (módulo, posições)}), as unidades são as dele; sem, as de `planejar(nomes)`."""
     os.chdir(sp.RAIZ)
     inicio = time.monotonic()
@@ -325,7 +354,9 @@ def rodar(sp, nomes, esperado, rotulo, todos=None, publicar=None, plano=None, an
     rodados = sum(rel["rodados"] for rel in relatorios if rel)
     print(f"\nRan {rodados} tests in {segundos:.3f}s ({len(partes)} processos, {rotulo})\n")
     linha, codigo = veredito(relatorios, erros)
-    sp.imprimir_causas(filhos, relatorios)  # O7 (0.44.1): a causa tipada também no plano dirigido do pre-push
+    causas = sp.imprimir_causas(filhos, relatorios)  # O7 (0.44.1): a causa tipada também no plano dirigido do pre-push
+    if codigo and falhou:
+        falhou(causas, erros)
     if not codigo and publicar:
         publicar(relatorios)
     if not codigo and anotar:
@@ -367,15 +398,18 @@ def por_parte(sp, texto, environ):
     faltas, por_unidade = completude_da_divisao(sp, total, nomes, plano, partes)
     erros += faltas
     if erros:
+        emitir_falha(environ, f"parte {k}/{n}", [], erros)
         return falhar("; ".join(erros))
     parte = partes[k - 1]
     print(f"suite-partes: parte {k}/{n}: {', '.join(parte)}", file=sys.stderr, flush=True)
     destino = environ.get("FORGE_SUITE_PULADOS")
     publicar = (lambda relatorios: gravar_pulados(sp, destino, k, n, relatorios)) if destino else None
     anotar = (lambda relatorios: anotar_tempos(k, n, relatorios)) if environ.get("GITHUB_ACTIONS") == "true" else None
+    falhou = lambda causas, erros: emitir_falha(environ, f"parte {k}/{n}", causas, erros)  # noqa: E731
     esperado = sum((por_unidade[u] for u in parte), collections.Counter())
     modulos_da_parte = sorted({plano[u][0] for u in parte})
-    return rodar(sp, modulos_da_parte, esperado, f"parte {k}/{n}", nomes, publicar, {u: plano[u] for u in parte}, anotar)
+    return rodar(sp, modulos_da_parte, esperado, f"parte {k}/{n}", nomes, publicar, {u: plano[u] for u in parte}, anotar,
+                 falhou)
 
 
 def anotar_tempos(k, n, relatorios):
