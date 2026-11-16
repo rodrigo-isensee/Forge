@@ -119,7 +119,7 @@ class JargaoPorClasse(unittest.TestCase):
     """E7.4 (v047): S6 conta por classe os termos sem explicação (diretriz 31); um caso que conta e um que passa por classe."""
 
     CASOS = {"etapa": ("Terminei a E7.4 hoje.", "Subi a versão 0.47.1 hoje."),
-             "commit": ("Está no e13aed85 agora.", "Uma decade inteira."),
+             "commit": ("Está no e13aed85 agora.", "Uma decade defaced inteira."),
              "regra": ("Vale a R-MAIN aqui.", "Vale o R-2 aqui."),
              "cartao": ("O VISAO-DE-FOCO andou.", "A Visão-de-foco andou."),
              "ferramenta": ("Rode forge-check e git push e gh pr.", "O forge vai bem e o git é seu."),
@@ -165,7 +165,9 @@ class JargaoPorClasse(unittest.TestCase):
             entrada["last_assistant_message"] = ""
             self.meta.medir_mensagem(Hook())
             gravado = (Path(pasta) / "mensagens.jsonl").read_text(encoding="utf-8")
-        primeira, segunda = (json.loads(l) for l in gravado.splitlines())
+        linhas = [json.loads(l) for l in gravado.splitlines()]
+        self.assertEqual(len(linhas), 2, "a mensagem do evento vazia cai para o transcrito e é medida")
+        primeira, segunda = linhas
         self.assertEqual(primeira["classes"], {"etapa": 1, "commit": 1})
         self.assertEqual(segunda["classes"], {"regra": 1}, "sem a mensagem do evento, cai para o transcrito")
         for termo in ("E7.4", "e13aed85", "R-MAIN"):
