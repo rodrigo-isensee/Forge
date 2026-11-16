@@ -56,8 +56,8 @@
       "id": "PHR6",
       "guarda": "DOC-LOTE: pasta sem .md não roda o cat-file",
       "arquivo": "bin/forge-check",
-      "de": "    if not blobs:\n        return {}\n    lote = git(",
-      "para": "    if False:\n        return {}\n    lote = git(",
+      "de": "    if not blobs:\n        return {}\n    cod, lote = git(",
+      "para": "    if False:\n        return {}\n    cod, lote = git(",
       "testes": [
         "tests.test_pr_hook_rapido.DocumentosEmLote.test_chamadas_git_por_pasta"
       ]
