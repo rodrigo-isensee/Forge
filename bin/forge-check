@@ -9710,6 +9710,7 @@ def main():
     cu.add_argument("--entrega", default="<entrega>", help="nome da entrega na linha gerada por --entregas (sem `|`, quebra de linha nem controle)")
     cu.add_argument("--desde", help="só as mensagens a partir desta hora (ISO 8601); a linha sem `timestamp` ou fora da janela vai para `fora_da_janela`")
     cu.add_argument("--ate", help="só as mensagens até esta hora (ISO 8601)")
+    cu.add_argument("--media-por-agente", action="store_true", help="faixa (min, max) e média de tokens por agente lidas de docs/kanban/entregas.md (da --raiz-pedidos, se dada), só disco local; não se combina com alvo, --entregas, --pedido, --desde nem --ate")
     cu.add_argument("--pedido", help="a janela do pedido (id de docs/pedidos/<id>.md que existe): do primeiro ao último movimento dos cartões do pedido em docs/kanban/historico.md (cartão igual, da mesma família de nome ou com o pedido na coluna Pedido do KANBAN.md)")
     for nome, ajuda in (("lastro", "afirmações dos relatórios de subagente sem lastro nas saídas de ferramenta (M1)"),
                         ("decisoes", "respostas do Jarvis com mais de uma decisão ou sem recomendação (M3)"),
@@ -9779,6 +9780,8 @@ def executar(a, raiz):
             print(f"{a.cmd}: bin/forge_dono.py ausente ao lado do forge-check; nada feito")
             return 2
         return modulo.executar(a, raiz, {"pedido": pedido_para_anotar, "versao": versao_da_propria_copia, "seguro": sem_controle})
+    if a.cmd == "transcricao" and a.acao == "custo" and a.media_por_agente:  # CUSTO-MEDIA-POR-AGENTE: em bin/forge_transcricao.py
+        return cmd_transcricao_do_modulo(a, raiz)
     if a.cmd == "transcricao" and a.acao == "custo":
         return cmd_transcricao_custo(a.alvo, a.entregas, a.entrega, raiz, a.desde, a.ate, a.pedido)
     if a.cmd == "transcricao" and a.acao in TRANSCRICAO_DO_MODULO:
