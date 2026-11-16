@@ -48,7 +48,7 @@ def principal(hook):
         return
     linhas = faltas(raiz)
     if linhas:
-        print("Forge, ambiente do container incompleto: dê ao usuário, na 1ª mensagem, o comando exato de cada linha.")
+        print("Forge, ambiente do container incompleto. Jarvis: dê ao dono, na 1ª mensagem, o comando exato de cada linha `falta:`.")
         print("\n".join(linhas))
 
 

@@ -66,6 +66,7 @@ class AmbienteNoSessionStart(unittest.TestCase):
         saida = self.rodar(self.forge)
         preparo = f"bash {self.forge}/scripts/preparar-estacao.sh --container"
         self.assertTrue(saida.startswith("Forge, ambiente do container incompleto"), saida)
+        self.assertIn("Jarvis: dê ao dono, na 1ª mensagem, o comando exato", saida)
         self.assertIn("falta: gh sem login", saida)
         self.assertIn(f"falta: link {self.home}/.forge-contrib -> {self.persist}/.forge-contrib ausente ou sem destino: rode {preparo}", saida)
         self.assertIn(f"falta: core.hooksPath de {self.forge} não é .githooks: rode {preparo}", saida)
