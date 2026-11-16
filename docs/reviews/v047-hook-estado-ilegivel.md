@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-hook-estado-ilegivel
-commit: c3f86d7ac652408171ad3f356f4582161e6d9805
+commit: b09916f74ca84dea220e316c36a0a960440a93ce
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-14
+data: 2026-11-15
 ---
 # Review: v047 · HOOK-ESTADO-ILEGIVEL-LIBERA (E1.229)
 
@@ -25,8 +25,13 @@ Delta lido: `forge-check parecer delta docs/reviews/v047-hook-estado-ilegivel.md
 - Mutantes: M5 reescrito para a nova linha, M16 (volta a `(OSError, ValueError)`) e M17 (tira o `raise` do `EstadoIlegivel`), um por guarda mudada.
 - Provas rodadas por mim: `python3 -m unittest tests.test_estado_ilegivel`, 9 testes, OK; `bin/forge-mutante --processos 1 --base bc129c11` nas três specs: M1 a M17 morreram, nenhum sobrevivente; `--cobertura --base bc129c11`: só "spec editada", sem condição mudada fora das declaradas. Sem PR aberto, não há CI a citar; a suíte inteira fica para o CI do PR.
 
+## Revalidação (E2.132)
+Delta lido: `forge-check parecer delta docs/reviews/v047-hook-estado-ilegivel.md`, intervalo `c3f86d7a..b09916f7` (junção da `origin/develop` bf475209, lote A), sem o que veio da base. Instância que não fez a entrega.
+- Domínio: `bin/forge-testes` e `tests/test_selo_e_entrega.py` chegam iguais à develop; contra bf475209 o único delta próprio é `tests/test_testes_tocados.py:67`, a contagem de 83 para 85 e o comentário com `test_conferencia_dois_pedidos` (E1.277) e `test_estado_ilegivel`. Sem guarda mudada; as specs de mutante não mudaram.
+- Prova rodada por mim: `python3 -m unittest tests.test_testes_tocados`, 151 testes, OK (skipped=1). Sem PR aberto, não há CI a citar; a suíte inteira fica para o CI do PR.
+
 ## Parecer
-Aprovado no head c3f86d7a. Do review anterior (bc129c11): Requisitos do plano conferidos no código e nos testes:
+Aprovado no head b09916f7. Na revalidação anterior: Aprovado no head c3f86d7a. Do review anterior (bc129c11): Requisitos do plano conferidos no código e nos testes:
 - R1: `ler_estado` (`hooks/agentes.py:271-294`) abre com `O_NOFOLLOW | O_NONBLOCK`, confere `S_ISREG` pelo `fstat`, lê até `LIMITE_DO_ESTADO + 1` (1 MiB), e lança `EstadoIlegivel` em JSON inválido ou vazio, raiz que não é objeto, `agentes` ou `lapides` que não é lista e `OSError`. Ausente segue `{"agentes": []}`; `{}` libera (fixture `estado-sem-chave-agentes-libera`). Fica em `agentes.py`, como o plano pede.
 - R2: `recusar_ilegivel` (`:832-836`) recusa só no `PreToolUse`, disparo e retomada, com R-TETO numa linha sem conteúdo do arquivo; o erro vai ao `erros.log`. O R-BRIEF segue antes e independente (`errointerno-estado-corrompido-sem-brief-bloqueia`; selo em dia com estado ilegível recusa por R-TETO em `tests/test_selo_e_entrega.py`).
 - R3: com `EstadoIlegivel`, nenhum evento regrava; `SubagentStart` e `SubagentStop` saem com 0 e o arquivo fica intacto (`contem` nos fixtures, inclusive nos de rc 2).
