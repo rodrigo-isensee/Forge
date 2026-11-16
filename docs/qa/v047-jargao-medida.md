@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-jargao-medida
-commit: b8d4cda82594978d6edd6f309721a742848a3b81
+commit: 95e7a6ad678839d3a2f5fe2a734e129a79401d68
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -51,3 +51,24 @@ Nenhum sobrevivente, nenhum equivalente.
 
 ## Achados recorrentes (PA-7)
 Conferidos AR-1 (lista de mutantes completa: sim), AR-2 (ramos de falha: o que cai para o transcrito tem teste), AR-12 (specs batem com o código do head: as 17 morreram). Nenhuma classe repetida; sem linha nova.
+
+## Revalidação por delta até 95e7a6ad (E2.246)
+Delta `b8d4cda8..95e7a6ad` (`forge-check parecer delta`): `hooks/meta.py`, `tests/test_meta.py`, fixture nova `meta/jargao-mensagem-de-200-kb-decide-e-mede-no-teto`, `docs/hooks-fixtures.md`, três specs de mutante, fragmento de changelog. O A1 do parecer anterior (custo quadrático em `explicado`) está fechado: janela de `JANELA_DA_FRASE` e leitura de `TETO_DA_MEDIDA` caracteres (`cortado` na linha); a medida roda depois da decisão do Stop (`finally`), e o exit 2 continua saindo. Escopo da E7.4 inalterado: o plano vale. Sem check-run `bateria` citado; a prova é local.
+
+- `python3 -m unittest tests.test_meta`: 15 testes, OK (6,5 s); `tests.test_indice_fixtures`: 7 testes, OK.
+- Vermelho (cópia do head com `hooks/meta.py` da base `b8d4cda8`): `forge-testes --vermelho b8d4cda8` estourou o prazo (rc=124, sem veredito, não vale). Manual: os testes de etapa com ponto final, `~~~`, "o que é" longe e corte da medida caem (3 FAIL, 1 ERROR); o teste da mensagem adversária de 200 KB passa de 150 s na base (prazo), contra menos de 5 s no head. `test_stop_bloqueado_ainda_mede_e_sai_com_2` passa também na base: não distingue a ordem; quem a guarda é o teste da ordem em `Jargao` e os mutantes M25 a M28.
+- Mutação, `forge-mutante --base b8d4cda8` com as 3 specs: `base=b8d4cda82594978d6edd6f309721a742848a3b81 mb=b8d4cda82594978d6edd6f309721a742848a3b81 rev=95e7a6ad678839d3a2f5fe2a734e129a79401d68`; M1 a M8 e M17 a M28 `morreu`, rc=0; sem sobrevivente nem equivalente.
+- `forge-check docs`: rc=0.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Etapa no fim da frase conta; versão de 3 números não | `test_etapa_no_fim_da_frase_conta` | ponto final, `E7.4.1` | passou |
+| Cerca `~~~` abre bloco e só ela fecha | `test_cerca_de_til_e_fechada_pela_mesma_cerca` | cerca mista | passou |
+| "o que é" só vale na janela | `test_o_que_e_longe_do_termo_nao_explica` | 200 caracteres | passou |
+| Medida lê só o teto e marca `cortado` | `test_medida_le_so_o_teto_e_marca_cortado` | TETO_DA_MEDIDA | passou |
+| Mensagem de 200 KB mede em tempo limitado | `test_mensagem_adversaria_de_200_kb_mede_em_tempo_limitado` e a fixture nova | 5 s de CPU | passou |
+| Decisão do Stop antes da medida; falha da medida não escapa | `Jargao` (ordem) e `test_stop_bloqueado_ainda_mede_e_sai_com_2` | exit 2 | passou |
+
+PA-7: AR-1 (um mutante por guarda mudada: sim), AR-2, AR-12 (specs batem com o head: 28 de 28 morrem): nenhuma classe repetida, sem linha nova.
+
+Parecer: aprovado. Nenhum achado aberto.
