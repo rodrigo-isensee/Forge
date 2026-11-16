@@ -40,7 +40,8 @@ fi
 if [ "$2 $3" = "marketplace remove" ] && [[ "$*" != *"--scope user"* ]] && [ -f "$PWD/.claude/settings.json" ]; then
   echo '{}' > "$PWD/.claude/settings.json"
 fi
-if [ -f "$FAKE_DIR/suja-projeto" ] && [ "$2 $3" = "marketplace remove" ]; then
+# (E6.5: o forge não chama mais `marketplace remove`; o defeito é imitado no `add`, que é a troca de hoje)
+if [ -f "$FAKE_DIR/suja-projeto" ] && [ "$2 $3" = "marketplace add" ]; then
   echo '{"agent": "outro"}' > "$(cat "$FAKE_DIR/suja-projeto")/.claude/settings.json"
 fi
 # Imita o Ctrl-C do terminal no meio da troca: o `add` da tag manda SIGINT ao `forge` (o pai) e demora a terminar
