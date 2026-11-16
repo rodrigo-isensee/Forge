@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-contrib-heredoc-fp
-commit: 70db7c6a9b7b151db4a4e1ae406136b3cfca00a6
+commit: b6ea479744fbc8da8382a4cd871af23e517da687
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -37,3 +37,10 @@ Item E2.106 (cartões HOOK-CONTRIB-HEREDOC-FP e HOOK-REVIEW-HEREDOC-TIMEOUT): o 
 
 ## Revalidação por delta até 70db7c6a
 `forge-check parecer delta`: intervalo f7e12a87..70db7c6a, "nenhum arquivo do domínio mudou" (só pareceres de review e segurança e este). Código, testes e mutantes iguais aos do head aprovado: vermelho, mutação e cobertura acima valem sem rerrodar. Pedido renomeado para `v047` no frontmatter.
+
+## Revalidação por delta até b6ea4797
+`forge-check parecer delta`: intervalo 70db7c6a..b6ea4797 lista `hooks/parecer.py`, `docs/hooks.md` e `docs/hooks-fixtures.md`, mas todos vieram do merge da develop (PR-HOOK-RAPIDO/E2.117: `ATALHO`, `EXIGE`, `gravado`); `git diff 9d10894f HEAD -- hooks/parecer.py | grep -c ATALHO` = 0, ou seja, o diff do item (base 9d10894f) não os toca. O índice de fixtures só foi regenerado (2501 fixtures).
+- `python3 -m unittest tests.test_hooks_parecer_pasta tests.test_indice_fixtures`: 11 testes, OK (77 s), índice coerente no head.
+- `forge-mutante --processos 3 --base 70db7c6a` das 4 specs: `base=70db7c6a... rev=b6ea479744fb`, 25 mutantes (M1 a M26, sem M5), todos `morreu`, rc=0, nenhum sobrevivente.
+- `forge-mutante --cobertura --base 9d10894f`: todas as linhas saem `coberta`, nenhuma sem mutante.
+- Suíte inteira: check-run `bateria` do mesmo sha no CI do PR; não rerrodada aqui. Sem achados novos; AR-1 e AR-2 conferidos de novo (lista completa, ramo de falha com fixture).
