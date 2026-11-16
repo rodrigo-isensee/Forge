@@ -152,6 +152,8 @@ MAPA = [
     # E14.1: o módulo comum é carregado pelo forge-testes e pelo forge-mutante, e os testes do forge-mutante não o citam
     (r"bin/forge_apoio_testes\.py", ("test_testes_tocados", "test_forge_mutante", "test_pre_push_afetados",
                                      "test_pre_push_parecer_curto", "test_forge", "test_pre_push_link_apoio")),
+    # v047 E6.4: o núcleo do FORGE-SEMPRE-ATUAL; o oráculo do QA o roda como processo e lê o código dele (RD11)
+    (r"bin/(forge-sempre-atual|forge_sempre_atual\.py)", ("test_sempre_atual", "test_oraculo_sempre_atual", "test_forge")),
     (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge", "test_atualizar")),
     (r"hooks/doutor\.py", ("test_atualizar", "test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor") + VOLTA_UNICA),
     # hooks/agentes.py e hooks/_comum.py: o teto de agentes (R-TETO), o hash do brief (R-BRIEF) e a liberação do agente morto

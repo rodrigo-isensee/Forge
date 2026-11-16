@@ -1,0 +1,674 @@
+"""Testes do núcleo do FORGE-SEMPRE-ATUAL (v047, E6.4): o que o oráculo do QA (`test_oraculo_sempre_atual`) não cobre e o que ele só
+cobre com um `/proc` de verdade. A rodada roda dentro do processo do teste (`Rodada.executar`) com HOME, PATH e TMPDIR de um mundo
+temporário (os dublês do oráculo) e com `processos_de_interesse` trocado por um dublê: assim a ocupação se prova também onde o
+`/proc` é de outro namespace de pid (o sandbox do Bash), sem processo `claude` de verdade.
+Rodar: python3 -m unittest tests.test_sempre_atual
+"""
+import contextlib
+import io
+import json
+import os
+import shutil
+import sys
+import tempfile
+import time
+import unittest
+from pathlib import Path
+from unittest import mock
+
+TESTES = Path(__file__).resolve().parent
+RAIZ = TESTES.parent
+sys.path.insert(0, str(TESTES))
+sys.path.insert(0, str(RAIZ / "bin"))
+import forge_sempre_atual as fsa  # noqa: E402
+from test_oraculo_sempre_atual import CLAUDE_FALSO, URL, Mundo  # noqa: E402
+
+LIVRE = {"claude": [], "fechar": [], "duvida": False}
+
+
+class Dentro(Mundo):
+    """Mundo do oráculo com a rodada dentro do processo."""
+
+    def rodar_dentro(self, projeto=None, gatilho="atalho", orcamento=60, procs=None, executar=True):
+        saida = io.StringIO()
+        procs = procs if procs is not None else LIVRE
+        with mock.patch.dict(os.environ, self.env(), clear=True), mock.patch.object(fsa, "processos_de_interesse", lambda: procs), \
+                contextlib.redirect_stdout(saida), contextlib.redirect_stderr(io.StringIO()):
+            rodada = fsa.Rodada(gatilho, str(projeto) if projeto else None, orcamento)
+            rc = rodada.executar() if executar else 0
+        self.rodada, self.saida = rodada, saida.getvalue()
+        return rc
+
+    def claude_vivo(self, pasta):
+        return {"claude": [str(pasta)], "fechar": [], "duvida": False}
+
+
+class Funcoes(unittest.TestCase):
+    def test_maior_tag_e_numerica_e_ignora_o_que_nao_e_versao(self):
+        """maior_tag: 0.10.0 > 0.9.0; rc, nome solto e tag sem v não contam"""
+        saida = "\n".join(f"{'a' * 40}\trefs/tags/{t}" for t in ("v0.9.0", "v0.10.0", "v9.9.9-rc1", "latest", "vfoo", "0.99.0", "v1.0"))
+        self.assertEqual(fsa.maior_tag(saida), (0, 10, 0))
+        self.assertIsNone(fsa.maior_tag("lixo\n"))
+
+    def test_resumo_tira_credencial_token_e_controle(self):
+        """SEG-3 · o registro nunca guarda credencial de URL nem token de forma conhecida, e cabe em 160 caracteres"""
+        texto = "fatal: https://usuario:senha@host/x e ghp_abcdefghijk123 \x1b[31m\n" + "x" * 400
+        saida = fsa.resumo(texto)
+        self.assertNotIn("senha", saida)
+        self.assertNotIn("ghp_abcdefghijk123", saida)
+        self.assertNotIn("\x1b", saida)
+        self.assertNotIn("\n", saida)
+        self.assertLessEqual(len(saida), 160)
+
+    def test_ambiente_dos_filhos_e_lista_positiva(self):
+        """SEG-3 · só PATH, HOME e o que a rede e a língua pedem passam; GH_TOKEN, segredo qualquer e GIT_* não, nem nome novo"""
+        sujo = {"GH_TOKEN": "a", "GITHUB_TOKEN": "b", "MEU_API_KEY": "c", "DB_PASSWORD": "d", "GIT_DIR": "e", "SEGREDO_NOVO": "f",
+                "PATH": "/bin", "HOME": "/h", "LC_ALL": "C", "XDG_STATE_HOME": "/s", "HTTPS_PROXY": "p"}
+        with mock.patch.dict(os.environ, sujo, clear=True):
+            env = fsa.ambiente_dos_filhos()
+        self.assertEqual(sorted(env), ["GIT_TERMINAL_PROMPT", "HOME", "HTTPS_PROXY", "LC_ALL", "PATH", "XDG_STATE_HOME"])
+
+    def test_dentro_nao_confunde_pasta_irma(self):
+        """dentro: /a/b não contém /a/bc"""
+        self.assertTrue(fsa.dentro("/tmp/a/b/c", "/tmp/a/b"))
+        self.assertFalse(fsa.dentro("/tmp/a/bc", "/tmp/a/b"))
+
+
+class ProcFalso(unittest.TestCase):
+    """`processos_de_interesse` lendo uma árvore /proc de mentira."""
+
+    def setUp(self):
+        self.proc = Path(tempfile.mkdtemp(prefix="proc-falso-"))
+        self.addCleanup(shutil.rmtree, self.proc, ignore_errors=True)
+        os.symlink(str(os.getpid()), self.proc / "self")
+        (self.proc / str(os.getpid())).mkdir()
+        (self.proc / str(os.getpid()) / "comm").write_text("python3\n")
+        patcher = mock.patch.object(fsa, "PROC", str(self.proc))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def processo(self, pid, comm, cwd, cmdline=""):
+        pasta = self.proc / str(pid)
+        pasta.mkdir()
+        (pasta / "comm").write_text(comm + "\n")
+        (pasta / "cmdline").write_bytes(cmdline.replace(" ", "\0").encode())
+        if cwd is None:
+            (pasta / "cwd").mkdir()  # readlink de pasta: erro que não é "sumiu"
+        else:
+            os.symlink(cwd, pasta / "cwd")
+
+    def test_coerente_le_claude_fechar_e_gh_de_merge(self):
+        """S2/S6 · claude, forge-fechar e gh pr merge entram; gh de outro subcomando e outros nomes não"""
+        self.processo(10, "claude", "/p/a")
+        self.processo(11, "forge-fechar", "/p/b")
+        self.processo(12, "gh", "/p/c", "gh pr merge 3")
+        self.processo(13, "gh", "/p/d", "gh pr list")
+        self.processo(14, "vim", "/p/e")
+        achados = fsa.processos_de_interesse()
+        self.assertEqual((achados["claude"], sorted(achados["fechar"]), achados["duvida"]), (["/p/a"], ["/p/b", "/p/c"], False))
+
+    def test_proc_incoerente_e_duvida(self):
+        """decisão do Jarvis · /proc de outro namespace (self que não é o nosso pid) conta como dúvida"""
+        (self.proc / "self").unlink()
+        os.symlink("999999", self.proc / "self")
+        self.assertTrue(fsa.processos_de_interesse()["duvida"])
+
+    def test_proc_sem_o_nosso_comm_e_duvida(self):
+        """decisão do Jarvis · o /proc que não lê o `comm` do próprio processo é incoerente"""
+        (self.proc / str(os.getpid()) / "comm").unlink()
+        self.assertTrue(fsa.processos_de_interesse()["duvida"])
+
+    def test_cwd_ilegivel_de_claude_e_duvida_e_processo_que_sumiu_nao(self):
+        """decisão do Jarvis · claude cujo cwd não se lê é dúvida; o que sumiu entre a listagem e a leitura é ignorado"""
+        self.processo(20, "claude", None)
+        self.assertTrue(fsa.processos_de_interesse()["duvida"])
+        shutil.rmtree(self.proc / "20")
+        self.processo(21, "claude", "/p/a")
+        shutil.rmtree(self.proc / "21" / "cwd") if (self.proc / "21" / "cwd").is_dir() else (self.proc / "21" / "cwd").unlink()
+        achados = fsa.processos_de_interesse()
+        self.assertFalse(achados["duvida"])
+        self.assertEqual(achados["claude"], [])
+
+
+class Ocupacao(Dentro):
+    def projeto_a_atualizar(self):
+        return self.cenario_atualiza()
+
+    def adiado(self, p, motivo):
+        self.assertEqual(self.atualizacoes(), [], "atualizou com trabalho em curso")
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.0")
+        self.assertIn(f"adiado:{motivo}", self.resultados("project"))
+
+    def test_proc_incoerente_adia_mesmo_sem_claude_visivel(self):
+        """decisão do Jarvis · /proc incoerente: nada se atualiza e o registro diz adiado:duvida:proc"""
+        p = self.projeto_a_atualizar()
+        self.rodar_dentro(p, procs={"claude": [], "fechar": [], "duvida": True})
+        self.adiado(p, "duvida:proc")
+
+    def test_agente_vigente_com_claude_vivo_adia(self):
+        """RD4/S2+S3 · claude vivo no projeto e agente vigente: adia (o oráculo faz o mesmo com processo de verdade)"""
+        p = self.projeto_a_atualizar()
+        self.agentes(p, 2)
+        self.rodar_dentro(p, procs=self.claude_vivo(p))
+        self.adiado(p, "agentes")
+
+    def test_claude_vivo_sem_trabalho_nao_adia_e_sem_claude_o_registro_velho_tambem_nao(self):
+        """RD4 · fronteira: claude vivo sem agente, trava, suíte nem integração atualiza; agentes.json sem claude vivo também"""
+        p = self.projeto_a_atualizar()
+        self.agentes(p, 3)
+        self.rodar_dentro(p)
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.2")
+        m = self.outro()
+        q = m.cenario_atualiza()
+        m.rodar_dentro(q, procs=m.claude_vivo(q))
+        self.assertEqual(m.versoes()[("project", str(q))], "0.47.2")
+
+    def test_agentes_ilegivel_com_claude_vivo_e_duvida(self):
+        """RD4/seção 3 · agentes.json ilegível com claude vivo conta como ocupado"""
+        p = self.projeto_a_atualizar()
+        (p / ".forge" / "run").mkdir(parents=True)
+        (p / ".forge" / "run" / "agentes.json").write_text("{ nao e json")
+        self.rodar_dentro(p, procs=self.claude_vivo(p))
+        self.adiado(p, "duvida:leitura-dos-agentes")
+
+    def test_trava_pesado_viva_adia(self):
+        """RD4/S4 · trava pesado de dono vivo com claude vivo adia; trava de dono morto não"""
+        p = self.projeto_a_atualizar()
+        (p / ".forge" / "run").mkdir(parents=True)
+        (p / ".forge" / "run" / "pesado.json").write_text(json.dumps({"desde": time.time(), "pid": os.getpid()}))
+        self.rodar_dentro(p, procs=self.claude_vivo(p))
+        self.adiado(p, "pesado")
+        (p / ".forge" / "run" / "pesado.json").write_text(json.dumps({"desde": time.time(), "pid": 2 ** 22 + 12345}))
+        self.rodar_dentro(p, procs=self.claude_vivo(p))
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.2")
+
+    def test_suite_rodando_adia_e_status_ilegivel_e_duvida(self):
+        """RD4/S5 · pre-push --status rc 0 adia; rc fora de 0 e 1 é dúvida e também adia; rc 1 e hook ausente não"""
+        gancho = lambda p: p / ".githooks" / "pre-push"
+        casos = (('echo rodando; exit 0', "suite"), ('exit 2', "duvida:suite"))
+        for corpo, motivo in casos:
+            with self.subTest(motivo=motivo):
+                m = self.outro()
+                p = m.cenario_atualiza()
+                gancho(p).write_text(f'#!/bin/sh\n[ "$1" = "--status" ] && {{ {corpo}; }}\nexit 0\n')
+                m.rodar_dentro(p, procs=m.claude_vivo(p))
+                m.adiado(p, motivo)
+        m = self.outro()
+        p = m.cenario_atualiza()
+        gancho(p).unlink()
+        m.rodar_dentro(p, procs=m.claude_vivo(p))
+        self.assertEqual(m.versoes()[("project", str(p))], "0.47.2")
+
+    def test_integracao_em_curso_adia_sem_claude(self):
+        """RD4/S6 · forge-fechar com cwd no projeto adia sozinho; em outra pasta não"""
+        p = self.projeto_a_atualizar()
+        self.rodar_dentro(p, procs={"claude": [], "fechar": [str(p / ".forge")], "duvida": False})
+        self.adiado(p, "integracao")
+        m = self.outro()
+        q = m.cenario_atualiza()
+        m.rodar_dentro(q, procs={"claude": [], "fechar": [str(q) + "-irmao"], "duvida": False})
+        self.assertEqual(m.versoes()[("project", str(q))], "0.47.2")
+
+    def test_usuario_cobre_a_raiz_com_claude_que_nao_tem_instalacao_propria(self):
+        """RD4/seção 3 · escopo de usuário adia por agente em outra raiz; raiz com instalação de projeto não o adia"""
+        outra = self.projeto("outra")
+        self.instalar("0.47.0", "user")
+        self.publicar("0.47.0")
+        self.publicar("0.47.2")
+        self.definir_ref("v0.47.0")
+        self.agentes(outra, 1)
+        self.rodar_dentro(procs=self.claude_vivo(outra))
+        self.assertEqual(self.atualizacoes(), [])
+        self.assertIn("adiado:agentes", self.resultados("user"))
+        m = self.outro()
+        o2 = m.projeto("outra")
+        m.instalar("0.47.0", "user")
+        m.instalar("0.47.0", "project", o2)
+        m.publicar("0.47.0")
+        m.publicar("0.47.2")
+        m.definir_ref("v0.47.0")
+        m.agentes(o2, 1)
+        m.rodar_dentro(procs=m.claude_vivo(o2))
+        self.assertEqual(m.versoes()[("user", "")], "0.47.2", "a raiz com instalação própria é do escopo de projeto dela")
+        self.assertIn("adiado:agentes", m.resultados("project"))
+
+    def test_tmux_em_duvida_adia_o_escopo_que_cobre_o_projeto(self):
+        """RD4/S1 · tmux que não responde no prazo é dúvida e adia; sessão aberta adia só o escopo que cobre o projeto aberto"""
+        p = self.projeto_a_atualizar()
+        outro = self.projeto("outro")
+        self.instalar("0.47.0", "project", outro)
+        self.ctl(tmux=["jarvis-p"])
+        self.rodar_dentro(p)
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.0")
+        self.assertEqual(self.versoes()[("project", str(outro))], "0.47.2", "o escopo de outro projeto não é coberto pela sessão de p")
+        m = self.outro()
+        q = m.cenario_atualiza()
+        with mock.patch.object(fsa.Rodada, "sessao_tmux", lambda self: None):
+            m.rodar_dentro(q)
+        self.assertIn("adiado:duvida:tmux", m.resultados("project"))
+
+    def test_adiamento_conta_e_zera_quando_deixa_de_adiar(self):
+        """RD4/seção 3 · o contador sobe a cada adiamento seguido, guarda a data do primeiro e some quando o escopo atualiza"""
+        p = self.projeto_a_atualizar()
+        self.agentes(p, 1)
+        for _ in range(2):
+            self.rodar_dentro(p, procs=self.claude_vivo(p))
+        contagem = self.estado()["adiamentos"]["project"]
+        self.assertEqual(contagem["n"], 2)
+        self.assertRegex(contagem["desde"], r"^\d{4}-\d\d-\d\d$")
+        (p / ".forge" / "run" / "agentes.json").unlink()
+        self.rodar_dentro(p, procs=self.claude_vivo(p))
+        self.assertNotIn("project", self.estado()["adiamentos"])
+
+
+class Ancora(Dentro):
+    def test_instalacao_so_aceita_pasta_do_cache_nao_orfa(self):
+        """SEG-1 · installPath órfão, fora do cache ou inexistente não vale como âncora nem como código a executar"""
+        ativo = self.instalar("0.47.1", "user")
+        with mock.patch.dict(os.environ, self.env(), clear=True):
+            r = fsa.Rodada("atalho")
+            self.assertEqual(r.instalacao(str(ativo)), str(ativo))
+            (ativo / ".orphaned_at").write_text("1\n")
+            self.assertIsNone(r.instalacao(str(ativo)))
+            (ativo / ".orphaned_at").unlink()
+            fora = self.tmp / "fora" / "0.47.1"
+            self._construir(fora, "0.47.1")
+            self.assertIsNone(r.instalacao(str(fora)))
+            self.assertIsNone(r.instalacao(str(self.cache / "9.9.9")))
+            self.assertIsNone(r.instalacao("relativo/0.47.1"))
+            link = self.cache / "0.47.2"
+            os.symlink(fora, link)
+            self.assertIsNone(r.instalacao(str(link)))
+
+    def test_url_vem_da_ancora_do_usuario_e_nao_da_de_projeto(self):
+        """SEG-5 · com escopo de usuário, a URL é a do plugin.json dele, mesmo que o de projeto diga outra"""
+        p = self.projeto("p")
+        self.instalar("0.47.0", "user")
+        self.instalar("0.47.1", "project", p, repository="https://example.test/outro.git")
+        self.publicar("0.47.0")
+        self.publicar("0.47.2")
+        self.definir_ref("v0.47.0")
+        self.rodar_dentro(p)
+        self.assertTrue(self.adds())
+        self.assertEqual({c["args"][3].partition("#")[0] for c in self.adds()}, {URL})
+
+    def test_estado_e_a_pasta_fixa_do_forge_forge(self):
+        """SEG-4 · o estado vai para plugins/data/forge-forge/forge/sempre-atual, nunca derivado de variável de ambiente"""
+        p = self.cenario_atualiza()
+        with mock.patch.dict(os.environ, {"CLAUDE_PLUGIN_DATA": str(self.tmp / "outro-lugar")}):
+            self.rodar_dentro(p)
+        self.assertTrue((self.estado_dir / "registro.log").is_file())
+        self.assertFalse((self.tmp / "outro-lugar").exists())
+
+
+class Estado(Dentro):
+    def test_registro_tem_sete_colunas_e_guarda_so_as_ultimas_500(self):
+        """seção 5.1 · linha TSV carimbo/gatilho/escopo/projeto/antes/depois/resultado; o arquivo fica com 500 linhas"""
+        p = self.cenario_atualiza()
+        self.estado_dir.mkdir(parents=True, mode=0o700)
+        (self.estado_dir / "registro.log").write_text("".join(f"antigo{i}\tatalho\tuser\t-\t1\t1\tem_dia\n" for i in range(600)))
+        self.rodar_dentro(p)
+        linhas = (self.estado_dir / "registro.log").read_text().splitlines()
+        self.assertEqual(len(linhas), 500)
+        ultima = linhas[-1].split("\t")
+        self.assertEqual((len(ultima), ultima[1:3], ultima[3], ultima[4:]), (7, ["atalho", "project"], str(p), ["0.47.0", "0.47.2", "atualizado"]))
+        self.assertEqual((self.estado_dir / "registro.log").stat().st_mode & 0o077, 0)
+
+    def test_estado_json_privado_e_sem_sobra_de_gravacao(self):
+        """SEG-4 · estado.json 0600, gravado por troca atômica (nenhum temporário sobra)"""
+        self.rodar_dentro(self.cenario_atualiza())
+        self.assertEqual((self.estado_dir / "estado.json").stat().st_mode & 0o777, 0o600)
+        self.assertEqual(sorted(f.name for f in self.estado_dir.iterdir() if f.name.startswith(".estado")), [])
+        self.assertEqual(self.estado_dir.stat().st_mode & 0o777, 0o700)
+
+    def test_rodada_em_andamento_barra_a_segunda(self):
+        """a trava de arquivo: com outra rodada viva a segunda sai sem mudar nada e sem registrar"""
+        p = self.cenario_atualiza()
+        self.estado_dir.mkdir(parents=True, mode=0o700)
+        import fcntl
+        with open(self.estado_dir / ".trava", "w") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            self.assertEqual(self.rodar_dentro(p), 0)
+        self.assertEqual(self.mutacoes(), [])
+        self.assertFalse((self.estado_dir / "registro.log").exists())
+
+    def test_estado_corrompido_vira_estado_vazio(self):
+        """estado.json que não é JSON de objeto não derruba a rodada: segue como sem estado"""
+        p = self.cenario_atualiza()
+        self.estado_dir.mkdir(parents=True, mode=0o700)
+        (self.estado_dir / "estado.json").write_text("[1, 2")
+        self.rodar_dentro(p)
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.2")
+
+    def test_sem_pasta_de_plugins_nao_faz_nada(self):
+        """sem ~/.claude/plugins nada a manter: sai 0, em silêncio, e não cria a pasta"""
+        shutil.rmtree(self.plug)
+        self.assertEqual(self.rodar_dentro(), 0)
+        self.assertFalse(self.plug.exists())
+        self.assertEqual(self.saida, "")
+
+
+class Alvo(Dentro):
+    def test_instalada_mais_nova_que_a_publicada_nao_desce_sem_fixacao(self):
+        """seção 2 · versão instalada acima da maior tag (build local) não é rebaixada pelo avanço automático"""
+        p = self.projeto("p")
+        self.instalar("0.48.0", "project", p)
+        self.publicar("0.47.2")
+        self.definir_ref("v0.47.2")
+        self.rodar_dentro(p)
+        self.assertEqual(self.mutacoes(), [])
+        self.assertEqual(self.versoes()[("project", str(p))], "0.48.0")
+        self.assertIn("adiado:instalada-mais-nova-que-a-publicada", self.resultados())
+
+    def test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada(self):
+        """seção 5.3 · fixação da volta segura o alvo na boa; só uma versão maior que a quebrada a solta"""
+        p = self.projeto("p")
+        self.instalar("0.47.1", "project", p)
+        self.publicar("0.47.1")
+        self.publicar("0.47.2")
+        self.definir_ref("v0.47.1")
+        self.semear_estado(fixacao={"motivo": "volta-automatica", "de": "0.47.2", "para": "0.47.1", "desde": "2026-11-15"},
+                           bom=self.bom("0.47.1", "project", str(p)))
+        self.rodar_dentro(p)
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.1", "a quebrada voltou")
+        self.assertEqual(self.estado()["fixacao"]["para"], "0.47.1")
+        self.publicar("0.47.3")
+        self.rodar_dentro(p)
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.3")
+        self.assertNotIn("fixacao", self.estado())
+
+    def test_fixacao_malformada_e_descartada(self):
+        """seção 5.3 · fixação sem versão válida não segura o alvo: cai fora e a rodada atualiza"""
+        p = self.cenario_atualiza()
+        self.semear_estado(fixacao={"motivo": "dono", "para": "nao-e-versao"})
+        self.rodar_dentro(p)
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.2")
+        self.assertNotIn("fixacao", self.estado())
+
+    def test_fixacao_do_dono_avisa_uma_vez_por_versao_nova(self):
+        """seção 5.3 · fixação do dono: um aviso por versão nova, sem repetir na rodada seguinte"""
+        p = self.cenario_atualiza()
+        self.semear_estado(fixacao={"motivo": "dono", "de": "0.47.0", "para": "0.47.0", "desde": "2026-11-01"})
+        self.rodar_dentro(p)
+        aviso = self.estado()["aviso"]["texto"]
+        self.assertIn("0.47.2", aviso)
+        self.assertIn("fixada", aviso)
+        est = self.estado()
+        est["aviso"]["avisado"] = True
+        self.semear_estado(**est)
+        self.rodar_dentro(p)
+        self.assertTrue(self.estado()["aviso"]["avisado"], "avisou de novo a mesma versão")
+
+    def test_fixacao_legada_so_com_o_log_do_forge_atualizar(self):
+        """seção 5.3 · catálogo com ref, sem estado e com versoes.log em que o ref não é plugin_depois: fixação do dono; sem log, passagem"""
+        p = self.cenario_atualiza()
+        log = self.home / ".local" / "state" / "forge"
+        log.mkdir(parents=True)
+        (log / "versoes.log").write_text("2026-11-01T10:00:00\toutro\t0.44.0\t0.45.0\n")
+        self.rodar_dentro(p)
+        self.assertEqual(self.estado()["fixacao"]["motivo"], "dono")
+        self.assertEqual(self.mutacoes(), [], "a fixação do dono segura a atualização")
+        m = self.outro()
+        q = m.cenario_atualiza()
+        (m.home / ".local" / "state" / "forge").mkdir(parents=True)
+        (m.home / ".local" / "state" / "forge" / "versoes.log").write_text("2026-11-01T10:00:00\tq\t0.46.0\t0.47.0\n")
+        m.rodar_dentro(q)
+        self.assertEqual(m.versoes()[("project", str(q))], "0.47.2", "o ref é um plugin_depois registrado: foi só passagem")
+
+    def test_sem_tag_publicada_registra_e_nao_mexe(self):
+        """seção 2 · catálogo sem nenhuma tag vX.Y.Z: falhou:sem-tag, nada muda"""
+        p = self.cenario_atualiza()
+        self.ctl(tags=[])
+        self.rodar_dentro(p)
+        self.assertEqual(self.mutacoes(), [])
+        self.assertIn("falhou:sem-tag", self.resultados())
+
+
+class Catalogo(Dentro):
+    def test_update_so_depois_de_o_ref_lido_ser_o_alvo(self):
+        """catalogo/seção 11 · add que sai 0 sem mudar o ref (interrompido) não libera update e registra falhou:catalogo"""
+        p = self.cenario_atualiza()
+        self.ctl(add_sem_efeito=True)
+        self.rodar_dentro(p)
+        self.assertEqual(self.atualizacoes(), [])
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.0")
+        self.assertTrue(any(r.startswith("falhou:catalogo") for r in self.resultados()), self.resultados())
+
+    def test_branch_padrao_que_nao_e_main_nao_atualiza(self):
+        """seção 2 · HEAD do remoto que não é refs/heads/main: nada muda e o registro diz falhou:branch-padrao"""
+        p = self.cenario_atualiza()
+        self.ctl(branch_padrao="develop")
+        self.rodar_dentro(p)
+        self.assertEqual(self.mutacoes(), [])
+        self.assertTrue(any(r.startswith("falhou:branch-padrao") for r in self.resultados()), self.resultados())
+
+    def test_update_de_projeto_roda_no_projectpath_e_o_de_usuario_em_pasta_neutra(self):
+        """RD3 · cada update roda onde a CLI o entende (F5): projeto/local no projectPath, usuário em pasta neutra"""
+        p, q = self.projeto("p"), self.projeto("q")
+        self.instalar("0.47.0", "user")
+        self.instalar("0.47.0", "project", p)
+        self.instalar("0.47.0", "local", q)
+        self.publicar("0.47.0")
+        self.publicar("0.47.2")
+        self.definir_ref("v0.47.0")
+        self.rodar_dentro(p)
+        onde = {c["args"][c["args"].index("--scope") + 1]: os.path.realpath(c["cwd"]) for c in self.atualizacoes()}
+        self.assertEqual((onde["project"], onde["local"]), (os.path.realpath(p), os.path.realpath(q)))
+        self.assertNotIn(onde["user"], (os.path.realpath(p), os.path.realpath(q), str(RAIZ)))
+
+
+class Falhas(Dentro):
+    def test_erro_interno_vira_registro_e_nao_vaza_traceback(self):
+        """RD5 · exceção inesperada: falhou:interno no registro, rc 0 e uma linha no máximo"""
+        p = self.cenario_atualiza()
+        with mock.patch.object(fsa.Rodada, "ocupacao", side_effect=RuntimeError("quebrei")):
+            rc = self.rodar_dentro(p)
+        self.assertEqual(rc, 0)
+        self.assertTrue(any(r.startswith("falhou:interno:RuntimeError") for r in self.resultados()), self.resultados())
+        self.assertNotIn("Traceback", self.saida)
+        self.assertLessEqual(len(self.saida.strip().splitlines()), 1)
+
+    def test_prazo_do_passo_nao_derruba_a_rodada_e_o_geral_sim(self):
+        """RD5 · passo que estoura o próprio prazo devolve rc None sem Prazo; o orçamento geral esgotado levanta Prazo"""
+        with mock.patch.dict(os.environ, self.env(), clear=True):
+            r = fsa.Rodada("atalho", None, 60)
+            r.neutro = str(self.neutro)
+            self.assertEqual(r.rodar([str(self.fbin / "claude"), "--dormir"], self.neutro, 0.3)[0], None)
+            r.fim = time.monotonic() - 1
+            with self.assertRaises(fsa.Prazo):
+                r.rodar(["true"], self.neutro, 5)
+            r.fim = time.monotonic() + 0.3
+            with self.assertRaises(fsa.Prazo):
+                r.rodar([str(self.fbin / "claude"), "--dormir"], self.neutro, 30)
+
+    def test_rodar_distingue_nao_iniciou_de_prazo(self):
+        """RD5 · programa que não existe devolve rc -1 (tmux ausente não é dúvida); não levanta"""
+        with mock.patch.dict(os.environ, self.env(), clear=True):
+            r = fsa.Rodada("atalho")
+            self.assertEqual(r.rodar([str(self.tmp / "nao-existe")], self.neutro, 5)[0], -1)
+
+    def test_lista_que_nao_e_json_registra_falhou_lista(self):
+        """RD5 · `plugin list --json` com saída que não é lista: falhou:lista, sem escopo, sem update"""
+        p = self.cenario_atualiza()
+        self._script(self.fbin / "claude", CLAUDE_FALSO.replace('print(json.dumps(saida, indent=2))', 'print("nao e json")'))
+        self.rodar_dentro(p)
+        self.assertTrue(any(r.startswith("falhou:lista") for r in self.resultados()), self.resultados())
+        self.assertEqual(self.atualizacoes(), [])
+
+
+class Checagem(Dentro):
+    def test_prazo_da_checagem_nao_volta_nem_grava_como_boa(self):
+        """seção 4 · checagem sem conclusão (prazo) não é reprovação: sem volta, sem última boa nova, resultado falhou:checagem"""
+        p = self.projeto("p")
+        self.instalar("0.47.1", "user")
+        self.publicar("0.47.1")
+        self.publicar("0.47.2")
+        self.definir_ref("v0.47.1")
+        self.semear_estado(bom=self.bom("0.47.1"))
+        original = fsa.Rodada.claude
+
+        def claude(self, args, cwd=None, cap=60):
+            return (None, "prazo do passo") if args[:2] == ["plugin", "validate"] else original(self, args, cwd, cap)
+
+        with mock.patch.object(fsa.Rodada, "claude", claude):
+            self.rodar_dentro(p)
+        self.assertEqual(self.versoes()[("user", "")], "0.47.2")
+        self.assertEqual(self.estado()["bom"]["user|"]["versao"], "0.47.1")
+        self.assertTrue(any(r.startswith("falhou:checagem") for r in self.resultados()), self.resultados())
+        self.assertNotIn("voltou", self.resultados())
+
+    def test_adocao_sem_ultima_boa_so_confere_o_local(self):
+        """seção 5.1 · sem última boa não há com o que comparar: nenhum validate nem doutor, só manifesto, compilação e shell"""
+        p = self.projeto("p")
+        self.instalar("0.47.1", "user")
+        self.publicar("0.47.1")
+        self.definir_ref("v0.47.1")
+        self.rodar_dentro(p)
+        self.assertEqual([c for c in self.chamadas() if c["args"][:2] == ["plugin", "validate"]], [])
+        self.assertEqual(self.execs(), [])
+        self.assertEqual(self.estado()["bom"]["user|"]["versao"], "0.47.1")
+
+    def test_script_ausente_na_versao_nao_reprova(self):
+        """seção 4 · versão antiga sem scripts/jarvis-forge: só erro de sintaxe reprova, arquivo ausente não"""
+        p = self.projeto("p")
+        ativo = self.instalar("0.45.2", "user")
+        (ativo / "scripts" / "jarvis-forge").unlink()
+        self.publicar("0.45.2")
+        self.definir_ref("v0.45.2")
+        self.rodar_dentro(p)
+        self.assertEqual(self.estado()["bom"]["user|"]["versao"], "0.45.2")
+
+    def test_fixacao_gravada_antes_de_mexer_no_catalogo(self):
+        """seção 5.2 · a fixação automática vai para o disco antes do `add` da volta: se o processo morrer no meio, a abertura seguinte a vê"""
+        p = self.projeto("p")
+        self.instalar("0.47.1", "user")
+        self.publicar("0.47.1")
+        self.publicar("0.47.2", py_quebrado=True)
+        self.definir_ref("v0.47.1")
+        self.semear_estado(bom=self.bom("0.47.1"))
+        original = fsa.Rodada.catalogo
+
+        def catalogo(self, tag, escopos):
+            if tag == "v0.47.1":
+                raise KeyboardInterrupt
+            return original(self, tag, escopos)
+
+        with mock.patch.object(fsa.Rodada, "catalogo", catalogo), self.assertRaises(KeyboardInterrupt):
+            self.rodar_dentro(p)
+        fixacao = self.estado().get("fixacao") or {}
+        self.assertEqual((fixacao.get("motivo"), fixacao.get("de"), fixacao.get("para")), ("volta-automatica", "0.47.2", "0.47.1"))
+
+    def test_volta_so_de_quem_tem_ultima_boa(self):
+        """seção 5.2 · dois escopos reprovam, só um tem última boa: esse volta; o outro registra sem-ultima-boa e fica"""
+        p, q = self.projeto("p"), self.projeto("q")
+        self.instalar("0.47.1", "project", p)
+        self.instalar("0.47.1", "project", q)
+        self.publicar("0.47.1")
+        self.publicar("0.47.2", py_quebrado=True)
+        self.definir_ref("v0.47.1")
+        self.semear_estado(bom=self.bom("0.47.1", "project", str(p)))
+        self.rodar_dentro(p)
+        v = self.versoes()
+        self.assertEqual(v[("project", str(p))], "0.47.1")
+        self.assertIn("voltou", self.resultados("project"))
+        self.assertTrue(any("sem-ultima-boa" in r for r in self.resultados("project")), self.resultados())
+
+    def test_volta_escolhe_a_maior_ultima_boa_entre_os_reprovados(self):
+        """seção 5.2 · o catálogo é um só: a volta vai para a maior última boa entre os escopos reprovados"""
+        p, q = self.projeto("p"), self.projeto("q")
+        self.instalar("0.47.0", "project", p)
+        self.instalar("0.47.1", "project", q)
+        for v in ("0.47.0", "0.47.1"):
+            self.publicar(v)
+        self.publicar("0.47.2", py_quebrado=True)
+        self.definir_ref("v0.47.1")
+        self.semear_estado(bom={**self.bom("0.47.0", "project", str(p)), **self.bom("0.47.1", "project", str(q))})
+        self.rodar_dentro(p)
+        self.assertEqual(self.ref(), "v0.47.1")
+        self.assertEqual(self.estado()["fixacao"]["para"], "0.47.1")
+
+
+class Modelo(Dentro):
+    def test_escopo_de_usuario_sem_subida_nao_prepara_branch(self):
+        """RD7 · plugin do usuário já em dia: abrir uma pasta qualquer não roda forge-upgrade nem toca o projeto"""
+        p = self.projeto("p")
+        self.instalar("0.47.1", "user")
+        self.publicar("0.47.1")
+        self.definir_ref("v0.47.1")
+        self.semear_estado(bom=self.bom("0.47.1"))
+        self.rodar_dentro(p)
+        self.assertEqual(self.upgrades(), [])
+
+    def test_escopo_de_usuario_que_subiu_prepara_a_branch(self):
+        """RD7 · plugin do usuário que subiu nesta rodada, projeto com modelo atrás: prepara forge/upgrade-<v> local"""
+        p = self.projeto("p")
+        self.instalar("0.47.0", "user")
+        self.publicar("0.47.0")
+        self.publicar("0.47.2")
+        self.definir_ref("v0.47.0")
+        self.rodar_dentro(p)
+        self.assertEqual(len(self.upgrades()), 1)
+
+    def test_poststart_nunca_prepara_branch(self):
+        """RD7 · o gatilho poststart não tem projeto aberto: nada de branch, mesmo com --projeto"""
+        p = self.cenario_atualiza()
+        self.rodar_dentro(p, gatilho="poststart")
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.2")
+        self.assertEqual(self.upgrades(), [])
+
+    def test_forge_upgrade_que_falha_nao_deixa_branch_pela_metade(self):
+        """RD7/seção 6 · forge-upgrade que cria a branch e falha: a branch some, para a abertura seguinte tentar de novo"""
+        p = self.projeto("p")
+        self.instalar("0.47.0", "project", p)
+        self.publicar("0.47.0")
+        self.publicar("0.47.2")
+        self.definir_ref("v0.47.0")
+        upgrade = self.fake / "publicadas" / "0.47.2" / "bin" / "forge-upgrade"
+        upgrade.write_text('#!/usr/bin/env bash\ncd "$1" && git checkout -q -b forge/upgrade-0.47.2\nexit 1\n')
+        self.rodar_dentro(p)
+        from test_oraculo_sempre_atual import git_real
+        self.assertEqual(git_real("rev-parse", "--verify", "-q", "refs/heads/forge/upgrade-0.47.2", cwd=p, check=False), "")
+        self.assertTrue(any(r.startswith("falhou:modelo") for r in self.resultados()))
+
+    def test_fetch_que_falha_registra_falhou_modelo_e_nao_cria_branch(self):
+        """RD7 · sem acesso ao remoto do projeto: falhou:modelo, nada criado, plugin atualizado do mesmo jeito"""
+        p = self.cenario_atualiza()
+        from test_oraculo_sempre_atual import git_real
+        git_real("remote", "set-url", "origin", str(self.tmp / "nao-existe.git"), cwd=p)
+        self.rodar_dentro(p)
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.2")
+        self.assertTrue(any(r.startswith("falhou:modelo:fetch") for r in self.resultados()), self.resultados())
+        self.assertEqual(self.upgrades(), [])
+
+
+class Entrada(unittest.TestCase):
+    def test_dentro_do_claude_recusa_sem_rodar_nada(self):
+        """D30b · main recusa com rc 2 quando chamada de dentro do Claude e não cria Rodada"""
+        with mock.patch.object(fsa.fv, "dentro_do_claude", return_value=True), mock.patch.object(fsa, "Rodada") as rodada, \
+                contextlib.redirect_stderr(io.StringIO()) as erro:
+            self.assertEqual(fsa.main(["--gatilho", "atalho"]), 2)
+        rodada.assert_not_called()
+        self.assertIn("nunca de dentro do Claude", erro.getvalue())
+
+    def test_gatilho_so_atalho_ou_poststart_e_orcamento_numerico(self):
+        """interface · --gatilho obrigatório e restrito; --orcamento numérico (padrão 60)"""
+        for ruim in ([], ["--gatilho", "hook"], ["--gatilho", "atalho", "--orcamento", "muito"]):
+            with self.subTest(args=ruim), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as r:
+                fsa.main(ruim)
+            self.assertEqual(r.exception.code, 2)
+        with mock.patch.object(fsa.fv, "dentro_do_claude", return_value=False), mock.patch.object(fsa, "Rodada") as rodada:
+            rodada.return_value.executar.return_value = 0
+            fsa.main(["--gatilho", "poststart"])
+        rodada.assert_called_once_with("poststart", None, 60)
+
+    def test_o_codigo_nao_le_variavel_que_mude_o_que_faz(self):
+        """SEG-2 · só HOME, PATH e TMPDIR (e as do Claude Code na recusa): nenhuma FORGE_* nem porta dos fundos no caminho"""
+        import ast
+        for arq in (RAIZ / "bin" / "forge_sempre_atual.py", RAIZ / "bin" / "forge-sempre-atual"):
+            for no in ast.walk(ast.parse(arq.read_text(encoding="utf-8"))):
+                if isinstance(no, ast.Constant) and isinstance(no.value, str):
+                    self.assertNotRegex(no.value, r"^FORGE_[A-Z_]+$", f"{arq.name}:{no.lineno}: variável FORGE_* lida em produção")
+
+
+if __name__ == "__main__":
+    unittest.main()
