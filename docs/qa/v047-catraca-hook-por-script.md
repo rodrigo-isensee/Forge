@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-catraca-hook-por-script
-commit: 3bf731721590d03d93c0daaf715ed2f23b423c9a
-parecer: reprovado
+commit: d896a0c2e5def6f47841e5cc1397b63bd6b92cff
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
@@ -17,7 +17,6 @@ data: 2026-11-16
 Escopo: `tests/catraca.py` (`script_do_hook`, `chaves_de_hooks`, `regra_hooks`), `tests/test_catraca.py`, corpus `tests/fixtures/catraca-hooks/sondas.json`, specs de mutantes. Sem especificação de UX nem API; as obrigações são o PR 565 (mudar interpretador, opções ou argumentos não remove o hook) e `R-CONFORMIDADE` (hook neutralizado segue acusado, A1 a A3 e S1 a S4 da segurança).
 
 ## Achados
-- A1 (bloqueante) tests/test_catraca.py:452 · CH-M30 (`_constante_fora_do_json` devolve 0) sobrevive: o A12 (`timeout` > 0) passou a acusar o NaN como zero e mascarou o teste. Falta teste de NaN ou Infinity em campo sem validação (`{"hooks": {}, "x": NaN}`, `"foo": NaN`).
 
 
 ## Critério → teste → resultado
@@ -114,3 +113,15 @@ CH-M1 a CH-M10 · morreu (CH-M2 por erro do teste declarado sob o mutante, que p
 |---|---|---|---|
 | `R-CONFORMIDADE`: NaN e Infinity no hooks.json acusam (A10) | `Hooks.test_hooks_json_fora_do_esquema_barra`, CH-M30 | NaN em campo sem validação de tipo | reprovou (mutante sobrevive) |
 | Demais critérios das voltas 1 a 6 | testes e specs já citados | os já citados | passou, sem mudança no domínio |
+
+## Revalidação por delta 3bf73172..d896a0c2 (E2.217, A1: CH-M30)
+- A1 (CH-M30) fechado em d896a0c2; bloco `## Achados` vazio. `forge-check parecer delta`: domínio só `tests/test_catraca.py` (+6 linhas, `Hooks.test_cada_campo_fora_do_esquema_acusa`): para `NaN`, `Infinity` e `-Infinity`, em `{"hooks": {}, "x": C}` e em `"foo": C` dentro de um hook, exige `["JSON ilegível (C não é JSON)"]`. Só a guarda da constante produz essa mensagem (o `timeout` já recusa 0). Código de produção não mudou.
+- `python3 -m unittest tests.test_catraca` no head: OK.
+- Mutação: `bin/forge-mutante --base 3bf731721590d03d93c0daaf715ed2f23b423c9a --processos 4 tests/mutantes/v047-catraca-hook-por-script-4.json` (rev=d896a0c2e5de): rc=0, 16 `morreu`, `CH-M30 · morreu · tests/catraca.py:351`.
+- Bateria completa: check-run `bateria` do mesmo sha no CI do PR (I5); não rodada aqui.
+
+## Critério → teste → resultado (E2.217)
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| `R-CONFORMIDADE`: NaN e Infinity no hooks.json acusam (A10) | `Hooks.test_cada_campo_fora_do_esquema_acusa`, CH-M30 | NaN, Infinity e -Infinity em campo sem validação de tipo | passou (mutante morre) |
+| Demais critérios das voltas 1 a 6 | testes e specs já citados | os já citados | passou, sem mudança |
