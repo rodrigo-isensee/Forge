@@ -76,8 +76,8 @@
       "id": "M16",
       "guarda": "E7.4: só as classes achadas vão ao disco",
       "arquivo": "hooks/meta.py",
-      "de": "    return {nome: n for nome, n in contagem.items() if n}",
-      "para": "    return contagem",
+      "de": "contagem.items() if n}",
+      "para": "contagem.items() if True}",
       "testes": [
         "tests.test_meta.JargaoPorClasse.test_cada_classe_conta_o_termo_e_deixa_passar_o_parecido"
       ]

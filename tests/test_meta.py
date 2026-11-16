@@ -142,6 +142,7 @@ class JargaoPorClasse(unittest.TestCase):
     def test_bloco_de_codigo_e_citacao_nao_contam_e_crase_conta(self):
         cerca = "`" * 3
         self.assertEqual(self.meta.classes_de_jargao(f"{cerca}\ngit push origin x\n{cerca}\n> A E1.2 citada."), {})
+        self.assertEqual(self.meta.classes_de_jargao(f"{cerca}\ngit x\n{cerca}\nA E1.2 depois do bloco."), {"etapa": 1})
         self.assertEqual(self.meta.classes_de_jargao("Rode `forge doutor` agora."), {"ferramenta": 1})
 
     def test_mensagem_do_evento_vence_o_transcrito_e_o_termo_nao_vai_ao_disco(self):
