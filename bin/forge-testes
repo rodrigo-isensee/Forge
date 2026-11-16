@@ -121,7 +121,8 @@ LEITORES_DE_TEXTO = ("test_anotar", "test_citacao", "test_clareza", "test_depend
                      "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09", "test_conferente_estavel", "test_jarvis_n_jar_a", "test_reval_delta",
                      "test_orcamento_instrucao", "test_metricas_texto", "test_aq1_texto", "test_textos_034",
                      "test_achado_teto_doc", "test_medidas_m14b",
-                     "test_ambiente_sem_auto_update", "test_sessao_automatica")  # EST-M4: a guarda C-2 lê agents/ e skills/
+                     "test_ambiente_sem_auto_update", "test_sessao_automatica",
+                     "test_frontmatter_agentes")  # EST-M4: a guarda C-2 lê agents/ e skills/; E2.363: agents/ e stacks/*/agents/
 CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor",
             "test_modelos_citados") + LEITORES_DE_TEXTO
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
