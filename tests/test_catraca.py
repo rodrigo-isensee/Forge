@@ -417,6 +417,41 @@ class Hooks(Base):
                 self.assertTrue(self.chaves(**base) - self.chaves(**base, **{campo: valor}))
         self.assertEqual(self.chaves(**base), self.chaves(**base, statusMessage="x", once=True))
 
+    def test_hooks_json_fora_do_esquema_barra(self):
+        """Volta 4 (A10 da segurança): uma entrada fora do esquema faz a carga descartar todos os hooks; a catraca acusa."""
+        novo = copy.deepcopy(HOOKS)
+        del novo["hooks"]["PreToolUse"][0]["hooks"][0]["type"]
+        self.repo.escreve("hooks/hooks.json", json.dumps(novo))
+        self.barra("hooks.json fora do esquema: a carga descarta todos os hooks (PreToolUse.0.hooks.0.type", "R-CONFORMIDADE")
+
+    def test_cada_campo_fora_do_esquema_acusa(self):
+        """Volta 4 (A10): lista fechada de eventos e dos tipos de cada campo; o legítimo não acusa (falha fechada)."""
+        hk = dict(type="command", command="python3", args=["x.py"], timeout=10, statusMessage="x", once=True, shell="bash",
+                  onFailure="block", **{"if": "Bash(*)", "async": False, "asyncRewake": False})
+        bom = {"hooks": {"Stop": [{"hooks": [hk]}], "PreToolUse": [{"matcher": "Bash", "hooks": [hk]}]}}
+        self.assertEqual(catraca.erros_de_forma(json.dumps(bom)), [])
+        self.assertEqual(catraca.erros_de_forma((AQUI.parent / "hooks" / "hooks.json").read_text(encoding="utf-8")), [])
+        ruins = {"type": dict(type="prompt"), "sem command": dict(command=None), "if": {"if": 1},
+                 "statusMessage": dict(statusMessage=None), "async": {"async": "true"}, "asyncRewake": dict(asyncRewake=0),
+                 "once": dict(once="sim"), "args": dict(args=["x.py", None]), "args objeto": dict(args={"x.py": 0}),
+                 "timeout texto": dict(timeout="10"), "timeout booleano": dict(timeout=True), "shell": dict(shell="zsh"),
+                 "onFailure": dict(onFailure="ignore")}
+        for nome, troca in ruins.items():
+            with self.subTest(campo=nome):
+                self.assertTrue(catraca.erros_de_forma(json.dumps({"hooks": {"Stop": [{"hooks": [{**hk, **troca}]}]}})))
+        sem_tipo = {k: v for k, v in hk.items() if k != "type"}
+        arquivos = {"sem type": {"hooks": {"Stop": [{"hooks": [sem_tipo]}]}}, "evento": {"hooks": {"PreToolUsee": [{"hooks": [hk]}]}},
+                    "evento não lista": {"hooks": {"Stop": {"hooks": [hk]}}}, "grupo sem hooks": {"hooks": {"Stop": [{"matcher": "x"}]}},
+                    "grupo não objeto": {"hooks": {"Stop": [[hk]]}}, "matcher": {"hooks": {"Stop": [{"matcher": 1, "hooks": [hk]}]}},
+                    "hook não objeto": {"hooks": {"Stop": [{"hooks": ["true"]}]}}, "hooks não objeto": {"hooks": []}, "raiz": [],
+                    "evento texto": {"hooks": {"Stop": ""}}, "sem command": {"hooks": {"Stop": [{"hooks": [dict(type="command")]}]}}}
+        for nome, dados in arquivos.items():
+            with self.subTest(arquivo=nome):
+                self.assertTrue(catraca.erros_de_forma(json.dumps(dados)))
+        for texto in ("{", '{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "x", "timeout": NaN}]}]}}'):
+            with self.subTest(texto=texto):
+                self.assertTrue(catraca.erros_de_forma(texto))
+
     def test_arquivo_de_hooks_apagado_barra(self):
         (self.repo.dir / "hooks/hooks.json").unlink()
         self.barra("hook removido")
@@ -1339,7 +1374,7 @@ class Protegidos(Base):
 
 
 class CorpusDasSondasDeHook(unittest.TestCase):
-    """Sondas S1 a S11, A3 e A7 do parecer de segurança da v047 (catraca por script) sobre o hooks.json real: cada troca no hook de
+    """Sondas S1 a S16, A3 e A7 do parecer de segurança da v047 (catraca por script) sobre o hooks.json real: cada troca no hook de
     conformidade do PreToolUse acusa um hook removido, e a do PR 565 (só `env`, opções e argumentos) nenhum."""
 
     def test_cada_sonda_acusa_o_esperado(self):
@@ -1348,7 +1383,7 @@ class CorpusDasSondasDeHook(unittest.TestCase):
         alvos = [(g, i) for g in antes["hooks"][corpus["evento"]] for i, hk in enumerate(g["hooks"])
                  if corpus["script"] in hk.get("args", [])]
         self.assertEqual(len(alvos), 1)
-        self.assertGreaterEqual(len(corpus["sondas"]), 27)
+        self.assertGreaterEqual(len(corpus["sondas"]), 36)
         for sonda in corpus["sondas"]:
             with self.subTest(sonda=sonda["id"]):
                 depois = copy.deepcopy(antes)
@@ -1356,8 +1391,11 @@ class CorpusDasSondasDeHook(unittest.TestCase):
                 grupo["hooks"][alvos[0][1]].update(sonda["troca"])
                 for campo in sonda.get("tira", []):
                     del grupo["hooks"][alvos[0][1]][campo]
+                if "acrescenta" in sonda:  # volta 4 (A10): grupo ou evento novo fora do esquema
+                    depois["hooks"].setdefault(sonda["acrescenta"]["evento"], []).append(sonda["acrescenta"]["grupo"])
                 removidos = catraca.chaves_de_hooks(json.dumps(antes)) - catraca.chaves_de_hooks(json.dumps(depois))
                 self.assertEqual(len(removidos), sonda["removidos"], removidos)
+                self.assertEqual(bool(catraca.erros_de_forma(json.dumps(depois))), sonda.get("fora_do_esquema", False))
 
 
 class CorpusDosAfrouxamentosReais(unittest.TestCase):

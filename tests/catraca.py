@@ -336,11 +336,76 @@ def chaves_de_hooks(texto):
     return set(hooks_contados(texto))
 
 
+EVENTOS_DO_HOOK = frozenset((
+    "PreToolUse", "PostToolUse", "PostToolUseFailure", "PostToolBatch", "PermissionDenied", "Notification", "UserPromptSubmit",
+    "UserPromptExpansion", "SessionStart", "SessionEnd", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "PreCompact",
+    "PostCompact", "PermissionRequest", "Setup", "TeammateIdle", "TaskCreated", "TaskCompleted", "Elicitation", "ElicitationResult",
+    "ConfigChange", "WorktreeCreate", "WorktreeRemove", "InstructionsLoaded", "CwdChanged", "FileChanged", "DirectoryAdded",
+    "MessageDisplay", "PreModelSwitch", "PostModelSwitch"))  # A10: lista fechada do esquema do Claude Code 2.1.224
+TIPOS_DOS_CAMPOS_DO_HOOK = {"command": str, "if": str, "statusMessage": str, "async": bool, "asyncRewake": bool, "once": bool}
+VALORES_DOS_CAMPOS_DO_HOOK = {"shell": ("bash", "powershell"), "onFailure": ("continue", "block")}
+
+
+def _constante_fora_do_json(nome):
+    raise ValueError(f"{nome} não é JSON")  # o `json` do Python aceita NaN e Infinity; a carga do Claude Code, não
+
+
+def erros_do_hook(onde, hk):
+    """A forma de um hook pelo esquema da carga; o Forge só aceita `type` "command" (outro tipo pede o rótulo do dono)."""
+    if not isinstance(hk, dict):
+        return [f"{onde}: hook não é objeto"]
+    erros = [] if hk.get("type") == "command" else [f"{onde}.type: {json.dumps(hk.get('type'))} no lugar de \"command\""]
+    for campo, tipo in TIPOS_DOS_CAMPOS_DO_HOOK.items():
+        if (campo in hk or campo == "command") and not isinstance(hk.get(campo), tipo):
+            erros.append(f"{onde}.{campo}: {type(hk.get(campo)).__name__} no lugar de {tipo.__name__}")
+    if "args" in hk and not (isinstance(hk["args"], list) and all(isinstance(a, str) for a in hk["args"])):
+        erros.append(f"{onde}.args: não é lista de textos")
+    if "timeout" in hk and (isinstance(hk["timeout"], bool) or not isinstance(hk["timeout"], (int, float))):
+        erros.append(f"{onde}.timeout: {type(hk['timeout']).__name__} no lugar de número")
+    for campo, valores in VALORES_DOS_CAMPOS_DO_HOOK.items():
+        if campo in hk and not any(hk[campo] == v for v in valores):
+            erros.append(f"{onde}.{campo}: {json.dumps(hk[campo])} fora de {', '.join(valores)}")
+    return erros
+
+
+def erros_de_forma(texto):
+    """A10 da segurança: a carga do plugin valida o hooks.json inteiro, e uma entrada fora do esquema descarta todos os hooks.
+    Lista fechada de eventos e dos tipos de cada campo; o que não reconheço é erro (falha fechada)."""
+    try:
+        dados = json.loads(texto, parse_constant=_constante_fora_do_json)
+    except ValueError as e:
+        return [f"JSON ilegível ({e})"]
+    if not isinstance(dados, dict) or not isinstance(dados.get("hooks"), dict):
+        return ["`hooks` não é objeto"]
+    eventos = dados["hooks"]
+    erros = []
+    for evento, grupos in eventos.items():
+        if evento not in EVENTOS_DO_HOOK:
+            erros.append(f"evento {evento} fora da lista do Claude Code")
+        if not isinstance(grupos, list):
+            erros.append(f"{evento}: não é lista")
+            continue
+        for i, g in enumerate(grupos):
+            if not isinstance(g, dict) or not isinstance(g.get("hooks"), list):
+                erros.append(f"{evento}.{i}: grupo sem `hooks` em lista")
+                continue
+            if "matcher" in g and not isinstance(g["matcher"], str):
+                erros.append(f"{evento}.{i}.matcher: {type(g['matcher']).__name__} no lugar de str")
+            for j, hk in enumerate(g["hooks"]):
+                erros += erros_do_hook(f"{evento}.{i}.hooks.{j}", hk)
+    return erros
+
+
 def regra_hooks(raiz, b, h):
     antes = ler(raiz, b, "hooks/hooks.json")
     if antes is None:
         return []
     depois = ler(raiz, h, "hooks/hooks.json") or ""
+    erros = erros_de_forma(depois) if depois else []
+    if erros:
+        return [msg("R-CONFORMIDADE", f"hooks.json fora do esquema: a carga descarta todos os hooks ({'; '.join(erros[:5])})",
+                    "uma entrada fora do esquema faz o Claude Code não registrar nenhum hook do plugin",
+                    "corrija a forma do hooks/hooks.json ou peça o rótulo ao dono", "docs/regras/R-CONFORMIDADE.md")]
     return [msg("R-CONFORMIDADE", f"hook removido de hooks/hooks.json: {ev} {mt or '*'} {tp} "
                 f"{' '.join(filter(None, (ip, sc, f'(timeout {tm})', ex)))}",
                 "hook é o que faz a regra valer sem depender de memória", "restaure o hook ou peça o rótulo ao dono",
