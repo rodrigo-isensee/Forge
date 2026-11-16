@@ -17,7 +17,6 @@ data: 2026-11-16
 Escopo: `bin/forge-testes` (a suíte completa sem `-k` só roda por `.githooks/pre-push --suite` da própria cópia; R-TETO), testes em `tests/test_testes_tocados.py`, specs `tests/mutantes/v047-maq-i9.json` e `-2.json`. Sem especificação de UX nem contrato de API (ferramenta interna); as obrigações são as de C-1, C-4, C-5 e T-2 do desenho citados nos testes e no changelog.
 
 ## Achados
-- A1 (bloqueante, corrigido em ca301780) tests/test_testes_tocados.py:1674 · `unlink(missing_ok=True)` aplicado; o vermelho agora dá veredito (rc 0).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -40,6 +39,7 @@ Escopo: `bin/forge-testes` (a suíte completa sem `-k` só roda por `.githooks/p
 - Achados recorrentes (PA-7): AR-1 conferido (lista cobre o diff); AR-4 conferido (`LIMPO` tira `CI`, `FORGE_*`, `GIT_*` do ambiente dos testes novos); AR-5 conferido (`python -I` nos testes novos); sem classe repetida nova, sem linha `AR-<n>` a gravar.
 
 ## Revalidação (delta 029b6456..ca301780)
+- A1 do parecer anterior (unlink sem missing_ok, tests/test_testes_tocados.py:1674) corrigido em ca301780.
 - `forge-check parecer delta`: só `tests/test_testes_tocados.py` (uma linha: `self.registro.unlink(missing_ok=True)`); sem mudança em `bin/`, logo mutantes e demais resultados anteriores seguem valendo.
 - `bin/forge-testes --vermelho 4138445e --modulos test_testes_tocados`: `contagem: não prova (passa na base)=148; prova (asserção)=8; pulado=1`, sem veredito=0, nada cai no HEAD, rc=0 (antes: prova=7, sem veredito=1, rc=2).
 - `python3 -m unittest tests.test_testes_tocados.TravaDoForgeTestes`: `Ran 6 tests`, `OK`.
