@@ -1320,7 +1320,13 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
     base que já contém o head não rescinde nada: o parecer vale só pelo diff literal. A biblioteca (`cmd_pr`) segue aceitando
     qualquer ref para a catraca do CI, que recebe a base do próprio evento do PR. `conferir=False` (só o escopo da `entrega` na
     merge-integracao, como o caminho do squash pelo `cmd_pr`) lê só os pareceres: a conferência do head é portão do `pr` e do `forge-fechar`.
-    `previo` (FC-6, só do `--previo` do argparse do `pr`, o pré-voo do pre-push): o parecer ausente vira aviso; o resto segue violação."""
+    `previo` (FC-6, só do `--previo` do argparse do `pr`, o pré-voo do pre-push): o parecer ausente vira aviso; o resto segue violação.
+    E2.201 (v047): sem `--base`, numa branch de trabalho, a base é a `develop` (R-FLUXO), como no `forge-fechar` e no `parecer delta`:
+    trazer a develop não vence parecer por arquivo que a branch não mudou (E7). Sem develop, ou com o head já nela, segue o diff literal."""
+    if base is None:
+        branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))
+        if branch and branch not in BASES_DO_FLUXO and base_do_delta(raiz, "develop", ref)[0]:
+            base = "develop"
     if conferir:  # T1: código sem teste sinalizado (a classe T isenta), antes do veredito
         aviso_t1_do_pr(raiz, ref, None if base is None else base.removeprefix("origin/"))
     if base is None:
@@ -9555,7 +9561,7 @@ def main():
     pr = sub.add_parser("pr", parents=[comum], help="pareceres de review e QA de um pedido; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD")
     pr.add_argument("pedido")
     pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD)")
-    pr.add_argument("--base", help="branch de destino: merge dela depois do parecer não o invalida (diff efetivo)")
+    pr.add_argument("--base", help="branch de destino: merge dela depois do parecer não o invalida (diff efetivo); padrão numa branch de trabalho: develop")
     pr.add_argument("--previo", action="store_true", help="só o pré-voo do pre-push (FC-6): parecer ausente vira aviso e não conta para o rc; "
                     "desatualizado, reprovado e o resto seguem violação")
     pr.add_argument("--pr", dest="numero_pr", help="PR já mesclado (squash, branch apagada): os pareceres são conferidos no head dele (headRefOid, "

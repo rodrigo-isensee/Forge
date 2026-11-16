@@ -6969,9 +6969,10 @@ class TesteEParecerSeparados(RepoComOrigem):
         junto = self.commitar(self.repo, {"tests/test_x.py": "# teste do QA\n", "docs/qa/p1.md": self.QA.format(c=self.c1)}, "teste e parecer juntos")
         rc, saida, _ = self.pr()
         self.assertEqual(rc, 1, saida)
-        self.assertIn("docs/qa/p1.md: commit: desatualizado: tests/test_x.py mudou depois do parecer; peça novo parecer; "
-                      f"o parecer foi commitado junto com tests/test_x.py ({junto[:7]}), depois do commit que ele cita: "
-                      "teste e parecer vão em commits separados", saida)
+        linha = next((l for l in saida.splitlines() if l.startswith("docs/qa/p1.md: commit: ")), "")
+        self.assertIn("desatualizado: tests/test_x.py mudou depois do parecer; peça novo parecer (base origin/develop ", linha)  # E2.201
+        self.assertIn(f"; o parecer foi commitado junto com tests/test_x.py ({junto[:7]}), depois do commit que ele cita: "
+                      "teste e parecer vão em commits separados", linha)
 
     def test_commit_inexistente_nao_ganha_a_explicacao(self):  # o motivo é outro: o commit citado não existe
         self.commitar(self.repo, {"tests/test_x.py": "# teste do QA\n", "docs/qa/p1.md": self.QA.format(c="1" * 40)}, "teste e parecer juntos")
