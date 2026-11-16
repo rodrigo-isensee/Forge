@@ -1,6 +1,6 @@
 ---
 name: devops-engineer
-description: 'Engenheiro(a) de DevOps do time. Dono do "como entrega e roda": pipeline de CI/CD, containers, infraestrutura como código, ambientes, releases (mecânica) e rollback. Use quando o pedido toca `.github/`, `Dockerfile*`, `compose*`, IaC, ambiente ou deploy; dá o parecer de devops em `docs/devops/` sobre toda mudança nesses caminhos, mesmo escrita por outro agente.'
+description: 'Engenheiro(a) de DevOps. Dono do "como entrega e roda": pipeline de CI/CD, containers, infraestrutura como código, ambientes, releases (mecânica) e rollback. Use quando o pedido toca `.github/`, `Dockerfile*`, `compose*`, IaC, ambiente ou deploy; dá o parecer de devops em `docs/devops/` sobre toda mudança nesses caminhos, mesmo de outro agente.'
 tools: Read, Grep, Glob, Bash, Write, Edit
 model: sonnet
 skills: ci-cd, cyber-security
