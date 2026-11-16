@@ -129,7 +129,7 @@ class CustoMediaPorAgente(Raiz):
                                   "custo: media-por-agente: agentes=2 linhas=4 ignoradas=1"])
 
     def test_linha_de_tabela_sem_cabecalho_de_agente_e_tokens_nao_conta(self):
-        self.gravar("docs/kanban/entregas.md", self.FORGE + "\nfim da tabela\n| x | forge:qa-engineer | 999 |\n"
+        self.gravar("docs/kanban/entregas.md", self.FORGE + "\nfim da tabela\n| x | y | forge:qa-engineer | 999 |\n"
                     "\n| Cartão | Agente | Valor |\n|---|---|---|\n| y | forge:qa-engineer | 7 |\n")
         cod, linhas = self.media()
         self.assertEqual(cod, 0, linhas)
