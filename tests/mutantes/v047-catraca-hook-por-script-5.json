@@ -10,6 +10,9 @@
      "testes": ["tests.test_catraca.Hooks.test_cada_campo_fora_do_esquema_acusa", "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"]},
     {"id": "CH-M41", "guarda": "`timeout` 1e400 (lido como infinito) acusa (A12, S17)", "arquivo": "tests/catraca.py",
      "de": "not (math.isfinite(hk[\"timeout\"]) and", "para": "not (True and",
-     "testes": ["tests.test_catraca.Hooks.test_cada_campo_fora_do_esquema_acusa", "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"]}
+     "testes": ["tests.test_catraca.Hooks.test_cada_campo_fora_do_esquema_acusa", "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"]},
+    {"id": "CH-M42", "guarda": "evento fora da lista do binário (PreModelSwitch) acusa (A6 do review, S18)", "arquivo": "tests/catraca.py",
+     "de": "    \"MessageDisplay\"))", "para": "    \"MessageDisplay\", \"PreModelSwitch\"))",
+     "testes": ["tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"]}
   ]
 }

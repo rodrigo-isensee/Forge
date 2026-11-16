@@ -1386,7 +1386,7 @@ class CorpusDasSondasDeHook(unittest.TestCase):
                  if corpus["script"] in hk.get("args", [])]
         self.assertEqual(len(alvos), 1)
         self.assertNotIn("Infinity", json.dumps(antes))
-        self.assertGreaterEqual(len(corpus["sondas"]), 39)
+        self.assertGreaterEqual(len(corpus["sondas"]), 40)
         for sonda in corpus["sondas"]:
             with self.subTest(sonda=sonda["id"]):
                 depois = copy.deepcopy(antes)

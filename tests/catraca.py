@@ -342,7 +342,7 @@ EVENTOS_DO_HOOK = frozenset((
     "UserPromptExpansion", "SessionStart", "SessionEnd", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "PreCompact",
     "PostCompact", "PermissionRequest", "Setup", "TeammateIdle", "TaskCreated", "TaskCompleted", "Elicitation", "ElicitationResult",
     "ConfigChange", "WorktreeCreate", "WorktreeRemove", "InstructionsLoaded", "CwdChanged", "FileChanged", "DirectoryAdded",
-    "MessageDisplay", "PreModelSwitch", "PostModelSwitch"))  # A10: lista fechada do esquema do Claude Code 2.1.224
+    "MessageDisplay"))  # A10, A6 do review: os 31 eventos do binário do Claude Code 2.1.224 (sem PreModelSwitch nem PostModelSwitch)
 TIPOS_DOS_CAMPOS_DO_HOOK = {"command": str, "if": str, "statusMessage": str, "async": bool, "asyncRewake": bool, "once": bool}
 VALORES_DOS_CAMPOS_DO_HOOK = {"shell": ("bash", "powershell"), "onFailure": ("continue", "block")}
 
