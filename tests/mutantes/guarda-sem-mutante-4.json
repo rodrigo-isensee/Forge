@@ -6,7 +6,7 @@
       "id": "M25",
       "guarda": "so --cobertura ou so --base e recusado com a mensagem",
       "arquivo": "bin/forge-mutante",
-      "de": "if args.cobertura or args.base:",
+      "de": "if args.cobertura or (args.base and not args.spec):",
       "para": "if args.cobertura:",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_cobertura_e_base_vem_juntos_e_sem_spec"
@@ -66,8 +66,8 @@
       "id": "M31",
       "guarda": "troca antes do no nao cobre",
       "arquivo": "bin/forge-mutante",
-      "de": "and ini <= inicio + prefixo",
-      "para": "and True",
+      "de": "primeira = max(comum - sufixo, ini - inicio)",
+      "para": "primeira = comum - sufixo",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_casamento_pelo_intervalo_do_no_e_as_travas_do_de"
       ]
@@ -76,8 +76,8 @@
       "id": "M32",
       "guarda": "troca depois do no nao cobre",
       "arquivo": "bin/forge-mutante",
-      "de": "inicio + len(de) - sufixo <= fim",
-      "para": "True",
+      "de": "ultima = min(prefixo, fim - inicio - (len(de) - comum))",
+      "para": "ultima = prefixo",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_casamento_pelo_intervalo_do_no_e_as_travas_do_de"
       ]

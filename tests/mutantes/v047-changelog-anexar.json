@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "--anexar recusa versao ou data posicional",
+      "arquivo": "bin/forge-changelog",
+      "de": "        if args.versao or args.data:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_anexar_com_versao_ou_data_posicional_e_recusado"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "release sem versao ou sem data da o uso",
+      "arquivo": "bin/forge-changelog",
+      "de": "    if not args.versao or not args.data:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_release_sem_data_e_recusada"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "--anexar recusa versao fora de X.Y.Z",
+      "arquivo": "bin/forge-changelog",
+      "de": "    if not re.fullmatch(r\"\\d+\\.\\d+\\.\\d+\", versao):\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_versao_prefixo_de_outra_e_recusada"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "--anexar recusa CHANGELOG link simbolico",
+      "arquivo": "bin/forge-changelog",
+      "de": "    conferir_caminho(caminho, \"CHANGELOG.md\", Path.cwd().resolve())\n    texto = caminho.read_text(encoding=\"utf-8\")\n    m = re.search(rf\"^## \\[{re.escape(versao)}",
+      "para": "    texto = caminho.read_text(encoding=\"utf-8\")\n    m = re.search(rf\"^## \\[{re.escape(versao)}",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_changelog_link_simbolico_e_recusado"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "--anexar recusa versao que nao esta no CHANGELOG",
+      "arquivo": "bin/forge-changelog",
+      "de": "    if not m:\n        sys.exit(f\"CHANGELOG.md não tem a versão",
+      "para": "    if False:\n        sys.exit(f\"CHANGELOG.md não tem a versão",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_versao_que_nao_existe_e_recusada_sem_mexer"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "--anexar recusa sem fragmento",
+      "arquivo": "bin/forge-changelog",
+      "de": "    if not arquivos:\n        sys.exit(f\"Nada a anexar",
+      "para": "    if False:\n        sys.exit(f\"Nada a anexar",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_sem_fragmento_e_recusado_sem_mexer"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "tipo sem linha nao cria secao vazia",
+      "arquivo": "bin/forge-changelog",
+      "de": "        if not agrupado[tipo]:\n            continue\n",
+      "para": "        if False:\n            continue\n",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_tipo_que_vem_depois_de_todos_entra_no_fim_da_entrada"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "tipo que ja tem secao recebe as linhas nela",
+      "arquivo": "bin/forge-changelog",
+      "de": "        if mesmo:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_junta_na_secao_de_cada_tipo_cria_a_que_falta_e_apaga"
+      ]
+    }
+  ]
+}
