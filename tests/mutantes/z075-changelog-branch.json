@@ -57,8 +57,8 @@
       "id": "M6",
       "guarda": "so branch melhoria/* aplica a regra",
       "arquivo": "bin/forge-changelog",
-      "de": "if branch.startswith(\"melhoria/\") and (errados",
-      "para": "if branch and (errados",
+      "de": "if branch.startswith(\"melhoria/\") and (\n            errados",
+      "para": "if branch and (\n            errados",
       "testes": [
         "tests.test_changelog.ConferirNomeDaBranch.test_branch_fora_de_melhoria_nao_aplica_a_regra"
       ]
@@ -67,8 +67,8 @@
       "id": "M7",
       "guarda": "fragmento com outro nome reprova",
       "arquivo": "bin/forge-changelog",
-      "de": "and (errados := fragmentos_com_outro_nome(branch, novos))",
-      "para": "and (errados := [])",
+      "de": "errados := [n for n in fragmentos_com_outro_nome(branch, novos) if not de_branch_abaixo(n)]",
+      "para": "errados := []",
       "testes": [
         "tests.test_changelog.ConferirNomeDaBranch.test_branch_explicita_nome_errado_reprova_e_nome_certo_passa"
       ]
