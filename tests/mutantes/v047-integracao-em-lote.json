@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "IL-M1",
+      "guarda": "--promover sem valor para",
+      "arquivo": "bin/forge-fechar",
+      "de": "shift 2 || die \"--promover pede o sha do commit da marca\"",
+      "para": "shift 2 || shift",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_opcao_sem_valor_e_pedido_repetido_param_antes_do_passo_1"
+      ]
+    },
+    {
+      "id": "IL-M2",
+      "guarda": "--espera-ci sem valor para",
+      "arquivo": "bin/forge-fechar",
+      "de": "shift 2 || die \"--espera-ci pede os segundos\"",
+      "para": "shift 2 || shift",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_opcao_sem_valor_e_pedido_repetido_param_antes_do_passo_1"
+      ]
+    },
+    {
+      "id": "IL-M3",
+      "guarda": "--lote recusa opção de item",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$limpar$sem_limpar$armar$esperar$item_de_lote\" != 00000 ] || [ \"${#cartoes[@]}\" != 0 ]; then\n    die \"--lote recebe",
+      "para": "[ \"$limpar$sem_limpar$armar$esperar$item_de_lote\" = x ] || [ \"${#cartoes[@]}\" != 0 ]; then\n    die \"--lote recebe",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_lote_recusa_opcao_de_item"
+      ]
+    },
+    {
+      "id": "IL-M4",
+      "guarda": "--lote pede 2 ou 3 itens",
+      "arquivo": "bin/forge-fechar",
+      "de": "{ [ \"${#posicionais[@]}\" -ge 2 ] && [ \"${#posicionais[@]}\" -le 3 ]; }",
+      "para": "{ [ \"${#posicionais[@]}\" -ge 1 ] && [ \"${#posicionais[@]}\" -le 4 ]; }",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_quantidade_e_forma_dos_itens"
+      ]
+    },
+    {
+      "id": "IL-M5",
+      "guarda": "item fora da forma <pedido>:<branch>",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$ped_it\" = \"$item\" ] || ! [[ \"$ped_it\"",
+      "para": "if [ \"$ped_it\" = x ] || ! [[ \"$ped_it\"",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_quantidade_e_forma_dos_itens"
+      ]
+    },
+    {
+      "id": "IL-M6",
+      "guarda": "branch inválida no item",
+      "arquivo": "bin/forge-fechar",
+      "de": "git check-ref-format --branch \"$br_it\" >/dev/null 2>&1 || die",
+      "para": "true || die",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_quantidade_e_forma_dos_itens"
+      ]
+    },
+    {
+      "id": "IL-M7",
+      "guarda": "branch protegida no item",
+      "arquivo": "bin/forge-fechar",
+      "de": "case \"$br_it\" in main|master|develop|homolog) die",
+      "para": "case \"$br_it\" in main|master|homolog) die",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_quantidade_e_forma_dos_itens"
+      ]
+    },
+    {
+      "id": "IL-M8",
+      "guarda": "branch repetida no lote",
+      "arquivo": "bin/forge-fechar",
+      "de": "case \"$vistas\" in *\" $br_it \"*) die",
+      "para": "case \"$vistas\" in *\" x$br_it \"*) die",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_quantidade_e_forma_dos_itens"
+      ]
+    }
+  ]
+}

@@ -11,7 +11,7 @@ Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO .
   --base REF    base da comparação (padrão origin/develop); sem efeito quando há CAMINHO
   -k PADRAO     filtra por classe ou nome de teste (`unittest -k`; repetível); para rodar uma parte de módulo grande
   --listar      mostra o plano (modo e módulos) e não roda nada
-  --completa    roda a suíte inteira, sem consultar o mapa
+  --completa    roda a suíte inteira, sem consultar o mapa, pela trava e pela fila do `.githooks/pre-push --suite`
   --afetados    o plano do pre-push: os testes afetados (mapa, mais todo teste que cita o caminho, mais os que exercitam
                 os arquivos de controle), nunca a suíte completa; o que nenhum teste lê fica para o CI, com aviso
   --texto      o pré-envio de texto (PRE-ENVIO-RAPIDO, mp1311): o mapa de testes e os testes de tamanho de texto
@@ -32,7 +32,10 @@ um módulo mapeado que não existe, um erro ao ler o git e todo módulo de teste
 ele pode importar outro, ler todos os de tests/ ou carregá-los pelo nome) fazem rodar a suíte completa. O `--vermelho`
 sem `--modulos` é a exceção: usa os módulos de teste do diff mais o plano dos outros caminhos, sem os dados de teste
 (tests/mutantes/, fixtures, corpus); quando esse plano é a suíte completa, diz o motivo numa linha e roda todos.
-Cada execução (dirigida ou completa) anota uma linha em `.forge/run/testes.log` (ignorado pelo git):
+A suíte completa sem `-k` (pedida ou vinda do plano) só roda pelo `.githooks/pre-push --suite` da cópia deste script
+(trava e fila, R-TETO; MAQ-I9): de outra cópia, ou sem o pre-push executável, sai 2, sem recuo para o `discover`; a
+que vem do plano sai 2 na hora com a suíte rodando (só a saída 1 do `--status` é livre).
+Cada execução dirigida, ou completa com `-k`, anota uma linha em `.forge/run/testes.log` (ignorado pelo git):
 data UTC, modo, módulos, duração e código de saída.
 
 Decisão do dono de 2026-11-08 ("Faça tudo"): a suíte inteira roda uma vez, no CI; o envio local roda só os testes
@@ -70,6 +73,8 @@ ENTRADA, PESADA, contexto, outras = apoio.ENTRADA, apoio.PESADA, apoio.contexto,
 BASE_PADRAO = "origin/develop"
 LOG = Path(".forge/run/testes.log")
 SUITE_COMPLETA = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-q"]
+# MAQ-I9 (R-TETO): a suíte completa sem `-k` só roda pelo pre-push da cópia deste script (trava e fila), nunca pelo do cwd.
+PRE_PUSH = Path(__file__).resolve().parent.parent / ".githooks" / "pre-push"
 PRAZO_PADRAO = 600
 # PRE-ENVIO-RAPIDO (mp1311, ORDEM DO DONO 13/11 17:38): o mapa de testes e os quatro testes de tamanho de texto, que o CI
 # derruba quando o envio esquece; o `brief gerar` do Forge cobra a mesma lista (`TESTES_DE_TEXTO` do forge-check) do brief de autor.
@@ -96,14 +101,14 @@ NOME_DE_MODULO = re.compile(r"test_[a-z0-9_]+")
 # Os módulos que saíram de `test_hooks` (HOOKS-CORPUS-RAPIDO) rodam onde `test_hooks` roda e executam o `bin/forge-check`
 # pelo apoio `tests/apoio_volta_unica.py` (`test_doutor_relogio` o copia pelo apoio `tests/apoio_versao_defasada.py`).
 VOLTA_UNICA = ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades")
-FORGE_CHECK = ("test_anotar", "test_forge_check_base_igual", "test_forge_check_versao_livre", "test_pre_push_link_apoio", "test_v0441_review", "test_brief_forma_aceita", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio", "test_qa_doutor_034",
+FORGE_CHECK = ("test_anotar", "test_conferida_por_branch", "test_forge_check_base_igual", "test_forge_check_versao_livre", "test_pre_push_link_apoio", "test_v0441_review", "test_brief_forma_aceita", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio", "test_qa_doutor_034",
                "test_conf_escopo", "test_conferencia_registrar", "test_decisao_aprovacao", "test_decisao_aprovacao_raiz", "test_erros_no_brief", "test_hook_ansi_c", "test_citacao_p2",
                "test_entrega_git_falha", "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks", "test_hook_erro_libera", "test_hooks_parecer_pasta",
                "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_forge_medidas", "test_mensagem_conferente", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
                "test_testes_tocados", "test_pre_envio_brief", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
                "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt", "test_governanca", "test_selo_e_entrega",
                "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados", "test_aq5_parecer_novo", "test_brief_gerar_custo", "test_git_rede_config",
-               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
+               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo", "test_conferencia_dois_pedidos", "test_pr_hook_rapido", "test_sessao_automatica") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
 # E1.120 (v047): quem reaproveita `Hooks.executar_em_lote` sem herdar de `Hooks` (git grep; os VOLTA_UNICA pela base de
 # `tests/apoio_volta_unica.py`) quebra quando o test_hooks muda o lote; pedir tests/test_hooks.py pelo caminho os roda junto.
 REAPROVEITAM_O_LOTE = ("test_esperar_estado", "test_hook_ansi_c", "test_hook_git_comum", "test_hooks_fila27",
@@ -116,7 +121,7 @@ LEITORES_DE_TEXTO = ("test_anotar", "test_citacao", "test_clareza", "test_depend
                      "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09", "test_conferente_estavel", "test_jarvis_n_jar_a", "test_reval_delta",
                      "test_orcamento_instrucao", "test_metricas_texto", "test_aq1_texto", "test_textos_034",
                      "test_achado_teto_doc", "test_medidas_m14b",
-                     "test_ambiente_sem_auto_update")  # EST-M4: a guarda C-2 lê agents/ e skills/
+                     "test_ambiente_sem_auto_update", "test_sessao_automatica")  # EST-M4: a guarda C-2 lê agents/ e skills/
 CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor",
             "test_modelos_citados") + LEITORES_DE_TEXTO
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
@@ -160,10 +165,11 @@ MAPA = [
     (r"hooks/.*", ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados",
                    "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10", "test_hook_ansi_c",
                    "test_hooks_parecer_pasta", "test_esperar_estado", "test_brief_forma_aceita", "test_conformidade_verde", "test_reval_delta", "test_selo_e_entrega",
-                   "test_classe_risco", "test_pesado_fila", "test_meta", "test_vigia", "test_trava_agente_morto", "test_pr_hook_prazo") + VOLTA_UNICA
+                   "test_classe_risco", "test_pesado_fila", "test_meta", "test_vigia", "test_trava_agente_morto", "test_pr_hook_prazo",
+                   "test_pr_hook_rapido") + VOLTA_UNICA
      + EVALS_DE_FORMA),  # EST-M4: guarda C-2
-    (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados")),
-    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve")),  # v046 E19.3 (A4): o teste lê e grava o script
+    (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados", "test_sessao_automatica")),
+    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve", "test_sessao_automatica")),  # v046 E19.3 (A4): o teste lê e grava o script
     (r"stacks/.*", CONTEUDO + ("test_hooks", "test_adotar", "test_stack_python") + VOLTA_UNICA),
     (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks", "test_stack_python") + VOLTA_UNICA),
     (r"templates/projeto/docs/(reviews|qa|security|devops)/_modelo\.md", PUBLICADO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),  # o teste gera parecer do modelo
@@ -788,6 +794,26 @@ def texto():
     return codigo
 
 
+def suite_na_trava(raiz, pedida):
+    """`execv` de `pre-push --suite`; sem recuo para o `discover`. A completa que vem do plano só com o `--status` em 1
+    (livre): com a suíte rodando, sai 2 na hora em vez de entrar na fila; a pedida (`--completa`) entra na fila."""
+    if PRE_PUSH.parent.parent != Path(raiz).resolve():
+        print(f"forge-testes: {PRE_PUSH.parent.parent} não é a raiz do repositório ({raiz}); use o bin/forge-testes dele.",
+              file=sys.stderr)
+        return 2
+    if not os.access(PRE_PUSH, os.X_OK):
+        print(f"forge-testes: sem {PRE_PUSH} executável para pegar a trava da suíte (R-TETO).", file=sys.stderr)
+        return 2
+    # Só a saída 1 do `--status` é livre: 0 (rodando), 2 (não conferiu), outro código ou sinal valem ocupado.
+    if not pedida and subprocess.run([str(PRE_PUSH), "--status"], stdin=subprocess.DEVNULL,
+                                     capture_output=True).returncode != 1:
+        print("forge-testes: o plano pediu a suíte inteira com a suíte rodando; use `bin/forge-testes --completa` ou "
+              "`.githooks/pre-push --suite`.", file=sys.stderr)
+        return 2
+    sys.stdout.flush()
+    os.execv(str(PRE_PUSH), [str(PRE_PUSH), "--suite"])
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="forge-testes", description="Teste dirigido: iteração do autor e filtro do pre-push do envio de código (nunca portão de CI).")
     p.add_argument("caminhos", nargs="*", metavar="CAMINHO")
@@ -897,6 +923,8 @@ def main(argv=None):
             comando += ["-k", filtro]
     if args.listar:
         return 0
+    if modo == "completo" and not args.filtros:
+        return suite_na_trava(raiz, args.completa)
     inicio = time.monotonic()
     codigo = subprocess.run(comando).returncode
     anotar(modo, modulos, time.monotonic() - inicio, codigo)
