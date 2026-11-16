@@ -1,16 +1,16 @@
 ---
 tipo: qa
 contrato: 1
-pedido: v047-contrib-heredoc-fp
+pedido: v047
 branch: melhoria/v047-contrib-heredoc-fp
-commit: f7e12a87a474a2e61ea2a0e621e9847c988d9ca0
+commit: 70db7c6a9b7b151db4a4e1ae406136b3cfca00a6
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-15
+data: 2026-11-16
 ---
 # QA: v047-contrib-heredoc-fp
 
@@ -34,3 +34,6 @@ Item E2.106 (cartões HOOK-CONTRIB-HEREDOC-FP e HOOK-REVIEW-HEREDOC-TIMEOUT): o 
 - Cobertura: `forge-mutante --cobertura --base f4b0c2ae`: toda condição mudada de `hooks/parecer.py` (linhas 176 a 1038) tem mutante declarado; nenhuma sem mutante.
 - Diff conferido: só `hooks/parecer.py`, fixtures, teste do corpus, mutantes, ADR, docs e changelog. Achados recorrentes (AR-1 lista de mutantes incompleta, AR-2 ramo de falha sem teste) conferidos: lista completa contra o diff e o ramo de falha do `ast` tem a fixture `ilegivel-bloqueia`.
 - Suíte inteira: roda no CI do PR (check-run `bateria` do mesmo sha); não rerrodada aqui.
+
+## Revalidação por delta até 70db7c6a
+`forge-check parecer delta`: intervalo f7e12a87..70db7c6a, "nenhum arquivo do domínio mudou" (só pareceres de review e segurança e este). Código, testes e mutantes iguais aos do head aprovado: vermelho, mutação e cobertura acima valem sem rerrodar. Pedido renomeado para `v047` no frontmatter.
