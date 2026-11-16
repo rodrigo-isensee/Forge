@@ -215,8 +215,9 @@ class Fiacao(unittest.TestCase):
         cls.jobs = {m.group(1): m.group(0) for m in re.finditer(r"(?ms)^  ([a-z][\w-]*):\n.*?(?=^  [a-z][\w-]*:\n|\Z)", texto)}
 
     def test_jobs_que_rodam_a_suite_chamam_o_leitor_depois_do_teste(self):
-        casos = {"rapida": "Testes do Forge", "rapida-quatorze": "Testes do Forge",
-                 "partes-doze": "Testes do Forge (parte)", "partes-quatorze": "Testes do Forge (parte)"}
+        # CI-RAPIDO (#576): na develop e no PR a suíte roda em 5 partes por versão; os agregadores não rodam a suíte
+        casos = {j: "Testes do Forge (parte)" for j in ("rapida-partes-doze", "rapida-partes-quatorze", "partes-doze",
+                                                         "partes-quatorze")}
         for job, passo in casos.items():
             with self.subTest(job):
                 bloco = self.jobs[job]
