@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "a cópia antiga da ref vence o último P fora dela",
       "arquivo": "bin/forge-check",
-      "de": "textos[rel] = (git(raiz, \"cat-file\", \"blob\", f\"{p}:{rel}\", bruto=True)[1].decode(\"utf-8\", \"replace\"), p)",
-      "para": "textos.setdefault(rel, (git(raiz, \"cat-file\", \"blob\", f\"{p}:{rel}\", bruto=True)[1].decode(\"utf-8\", \"replace\"), p))",
+      "de": "textos[rel] = (git(raiz, \"cat-file\", \"blob\", \":\".join((p, rel)), bruto=True)[1].decode(\"utf-8\", \"replace\"), p)",
+      "para": "textos.setdefault(rel, (git(raiz, \"cat-file\", \"blob\", \":\".join((p, rel)), bruto=True)[1].decode(\"utf-8\", \"replace\"), p))",
       "testes": [
         "tests.test_revisor_wt.VoltaLeParecerConferido.test_o_ultimo_p_fora_da_ref_vence_a_ref_e_o_de_dentro_nao"
       ]

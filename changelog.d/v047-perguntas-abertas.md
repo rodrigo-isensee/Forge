@@ -1,0 +1,2 @@
+### Adicionado
+- Diretriz 29 (FOCO-NAS-DECISOES): `bin/forge_dono.py` ganha `cmd_abertas`, que lista numa leitura só as perguntas abertas ao dono de todos os pedidos (`PERGUNTA AO DONO` sem `DECISÃO DO DONO` posterior) e do painel "Aguardando o dono" do KANBAN.md, por peso (irreversível, dinheiro, escopo; depois a mais antiga), com pedido, hora, pergunta e recomendada; sem pendência, "Não há decisão sua pendente". Só leitura; o registro no forge-check vem depois.

@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: forge-check: só o --media-por-agente vai ao módulo",
+      "arquivo": "bin/forge-check",
+      "de": "if a.cmd == \"transcricao\" and a.acao == \"custo\" and a.media_por_agente:",
+      "para": "if a.cmd == \"transcricao\" and a.acao == \"custo\":",
+      "testes": [
+        "tests.test_medidas_m14b.CustoCasaOPedidoComOsCartoes.test_cartao_da_mesma_familia_de_nome_casa_com_o_pedido"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: forge-check: o --media-por-agente não cai no custo das transcrições",
+      "arquivo": "bin/forge-check",
+      "de": "if a.cmd == \"transcricao\" and a.acao == \"custo\" and a.media_por_agente:",
+      "para": "if a.cmd == \"transcricao\" and a.acao == \"custo\" and False:",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_faixa_e_media_por_agente_nas_duas_formas_de_tabela"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: módulo: custo vai à média por agente",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if a.acao == \"custo\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_faixa_e_media_por_agente_nas_duas_formas_de_tabela"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: link simbólico não é lido",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if arquivo.is_symlink() or not arquivo.is_file()",
+      "para": "    if not arquivo.is_file()",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_link_simbolico_sai_1"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: arquivo ausente sai 1 sem queda",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "or not arquivo.is_file() or arquivo.stat()",
+      "para": "or arquivo.stat()",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_sem_arquivo_sai_1_sem_medida"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: teto de 2 MB (limite)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "arquivo.stat().st_size > TETO_ENTREGAS:",
+      "para": "arquivo.stat().st_size >= TETO_ENTREGAS:",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_maior_que_o_teto_sai_1_e_no_teto_le"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: teto de 2 MB (acima)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "arquivo.stat().st_size > TETO_ENTREGAS:",
+      "para": "arquivo.stat().st_size > TETO_ENTREGAS + 1:",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_maior_que_o_teto_sai_1_e_no_teto_le"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: linha fora de tabela fecha a tabela",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "            colunas = None\n            continue",
+      "para": "            continue",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_linha_de_tabela_sem_cabecalho_de_agente_e_tokens_nao_conta"
+      ]
+    }
+  ]
+}

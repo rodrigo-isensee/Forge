@@ -66,8 +66,8 @@
       "id": "M40",
       "guarda": "A5: o texto é lido até o fim",
       "arquivo": "hooks/_comum.py",
-      "de": "    while i < len(texto):\n        c = texto[i]\n        if aspas",
-      "para": "    while i < len(texto) - 1:\n        c = texto[i]\n        if aspas",
+      "de": "    while i < len(texto):\n        if (m := _COMUNS_DO_ANSI_C",
+      "para": "    while i < len(texto) - 1:\n        if (m := _COMUNS_DO_ANSI_C",
       "testes": [
         "tests.test_hooks.Hooks.test_ansi_c_decodificado_no_texto"
       ]

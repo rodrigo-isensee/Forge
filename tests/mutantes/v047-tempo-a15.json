@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-tempo-a15",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "filtro da linha de registro (parada, nota) que nao e movimento de coluna (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "_sem_acento(m[2]).strip() not in NAO_MOVIMENTO]",
+      "para": "_sem_acento(m[2]).strip() not in ()]",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_fases_do_historico_real_com_parada_fora_e_ultima_coluna_aberta"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "espera do dono vira a fase dono, fora do processo (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "fase = \"dono\" if tipo_da_espera(para, motivo) == \"dono\" else",
+      "para": "fase = \"dono\" if tipo_da_espera(para, motivo) == \"credencial\" else",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_espera_do_dono_na_mesma_linha_e_fora_do_processo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o trecho so fecha quando ha movimento seguinte; o penultimo nao vira aberto (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "if i + 1 < len(movimentos):",
+      "para": "if i + 1 < len(movimentos) - 1:",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_fases_do_historico_real_com_parada_fora_e_ultima_coluna_aberta"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "fase aberta ou sem trecho sai nao-medido, nunca numero parcial (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "NAO_MEDIDO if f in abertas or f not in segundos",
+      "para": "NAO_MEDIDO if f in abertas and f not in segundos",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_fase_ainda_aberta_e_nao_medido_e_a_razao_tambem"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "brief sem conferencias.md sai nao-medido, nao zero (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "if rodadas[\"fonte\"] != \"conferencias\" or any(",
+      "para": "if any(",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_fases_do_historico_real_com_parada_fora_e_ultima_coluna_aberta"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "rodada extra sem hora deixa o brief nao-medido (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": " or any(m is None for *_, m in rodadas[\"extras\"]):\n        return NAO_MEDIDO",
+      "para": ":\n        return NAO_MEDIDO",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_rodadas_de_brief_medidas_e_rodada_sem_hora"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "autor zero nao divide a razao (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "if tempo[\"autor\"] == NAO_MEDIDO or not tempo[\"autor\"] or not medidas:",
+      "para": "if tempo[\"autor\"] == NAO_MEDIDO or not medidas:",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_so_autor_sem_processo_e_autor_zero_nao_dao_razao"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "sem fase de processo medida, processo e razao nao-medido (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "if tempo[\"autor\"] == NAO_MEDIDO or not tempo[\"autor\"] or not medidas:",
+      "para": "if tempo[\"autor\"] == NAO_MEDIDO or not tempo[\"autor\"]:",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_so_autor_sem_processo_e_autor_zero_nao_dao_razao"
+      ]
+    }
+  ]
+}
