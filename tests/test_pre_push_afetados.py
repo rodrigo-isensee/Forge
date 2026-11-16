@@ -282,7 +282,7 @@ class ChecagensBaratasAntesDaTrava(Base):
 
     def segura_a_trava(self):
         self.trava.touch()
-        segurador = subprocess.Popen(["flock", str(self.trava), "sleep", "60"])
+        segurador = self.segurador = subprocess.Popen(["flock", str(self.trava), "sleep", "60"])
         self.addCleanup(segurador.wait)
         self.addCleanup(segurador.terminate)
         for _ in range(100):
@@ -293,13 +293,13 @@ class ChecagensBaratasAntesDaTrava(Base):
 
     def reprova_sem_esperar(self, trecho):
         self.segura_a_trava()
-        inicio = time.monotonic()
         codigo, marcas, erro = self.roda()
         self.assertEqual((codigo, marcas), (1, set()), erro)
         self.assertIn(trecho, erro)
         self.assertIn("checagens baratas reprovadas", erro)
         self.assertNotIn("pre-push: entrou", erro, "a checagem barata não pode esperar a trava")
-        self.assertLess(time.monotonic() - inicio, 15)
+        # sem relógio: o hook voltou enquanto o flock de fora ainda segurava a trava (60 s); se esperasse, só voltaria depois dele
+        self.assertIsNone(self.segurador.poll(), "o hook só voltou depois de a trava soltar: esperou a fila")
 
     def test_sintaxe_python_reprova_antes_da_trava(self):
         self.commit("quebra", bin__forge_sugerir="x = 2\n", bin__util_py="def f(:\n")
