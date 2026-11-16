@@ -17,8 +17,8 @@
       "id": "M18",
       "guarda": "E2.237: só a mesma cerca fecha o bloco; linha comum dentro dele não fecha",
       "arquivo": "hooks/meta.py",
-      "de": "            cerca = None if inicio == cerca else cerca",
-      "para": "            cerca = None",
+      "de": "inicio == cerca",
+      "para": "inicio != cerca",
       "testes": [
         "tests.test_meta.JargaoPorClasse.test_bloco_de_codigo_e_citacao_nao_contam_e_crase_conta"
       ]

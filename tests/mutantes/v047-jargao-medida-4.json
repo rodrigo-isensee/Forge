@@ -32,6 +32,30 @@
       "testes": [
         "tests.test_meta.Jargao.test_stop_bloqueado_ainda_mede_e_sai_com_2"
       ]
+    },
+    {
+      "id": "M28",
+      "guarda": "E2.237 (segurança A4): a tabela Em vez de também procura só no teto",
+      "arquivo": "hooks/meta.py",
+      "de": ", medido, re.I)",
+      "para": ", texto, re.I)",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_medida_le_so_o_teto_e_marca_cortado"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/meta.py",
+      "trecho": "linha.lstrip().startswith(\"```\")",
+      "motivo": "E2.237: a cerca de um tipo só deu lugar à cerca ``` ou ~~~; as condições novas da função têm os mutantes M1, M2, M3 e M17 a M20",
+      "linha_base": 153
+    },
+    {
+      "arquivo": "hooks/meta.py",
+      "trecho": "not em_codigo and not linha.lstrip().startswith(\">\")",
+      "motivo": "E2.237: a cerca de um tipo só deu lugar à cerca ``` ou ~~~; as condições novas da função têm os mutantes M1, M2, M3 e M17 a M20",
+      "linha_base": 155
     }
   ]
 }
