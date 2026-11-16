@@ -17,7 +17,7 @@ data: 2026-11-16
 Intervalo `origin/develop..05797223` (base c5c3a449): `agents/jarvis.md`, `skills/falar-com-o-dono/SKILL.md`, `skills/modo-iniciante/SKILL.md`, `tests/config.json`, fragmento de changelog. Só texto e invariantes; nenhum código executável mudou, então não há mutante de `forge-mutante` nem pedido de controle. Os critérios vêm das diretrizes 24 e 29 (`docs/diretrizes-do-dono.md`) e do item E1.282 do pedido.
 
 ## Achados
-- A2 (resolvido, era bloqueante) tests/config.json:696 · `invariantes_sem_motivo` de `agents/jarvis.md` segue 48, mas o invariante "diga sempre ao usuário…" voltou: 58 padrões - 9 com motivo = 49; `tests.test_forge -k nvariante` falha. Subir para 49.
+- A2 (bloqueante) tests/config.json:696 · RESOLVIDO em 1c330fe6: `invariantes_sem_motivo` de `agents/jarvis.md` segue 48, mas o invariante "diga sempre ao usuário…" voltou: 58 padrões - 9 com motivo = 49; `tests.test_forge -k nvariante` falha. Subir para 49.
 - A1 (recomendado) skills/falar-com-o-dono/SKILL.md:18 · a Resposta curta perdeu o apontamento a `decisoes --resposta` e aos campos de corte; a ferramenta ainda os exige (64 testes verdes), mas quem lê só a skill deixa de saber deles (R-DECISAO).
 
 ## Critério → teste → resultado
