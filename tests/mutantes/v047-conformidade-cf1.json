@@ -1,0 +1,17 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CF1-R1",
+      "guarda": "E2.179, CONFORMIDADE-REDIRECAO-NUMERO (A17 da segurança E1.344): o número colado ao `>`/`<` é o descritor da redireção, não palavra (`cp a .git/config 2>/dev/null`, `2>x git push`)",
+      "arquivo": "hooks/_comum.py",
+      "de": "                if colado and DESCRITOR_DA_REDIRECAO.fullmatch(estado[\"palavra\"]):",
+      "para": "                if False:",
+      "testes": [
+        "tests.test_conformidade_verde.OraculoCf1.test_redirecao_com_numero",
+        "tests.test_conformidade_verde.OraculoCf1.test_numero_antes_do_git_nao_o_esconde"
+      ]
+    }
+  ]
+}
