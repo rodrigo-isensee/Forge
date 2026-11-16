@@ -2,7 +2,7 @@
 """Forge: valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos.
 
 `pr` aprovado sai com rc 0 e uma linha `pr: veredito: aprovado · <pedido> · exigidos <pareceres> · head <sha7> · base <origin/x|diff literal|estrita>`; com violação, só as violações e rc 1.
-Fora do `--previo` e do `--pr`, o `pr` grava o resultado do head em `<diretório comum do git>/forge/pr/<head>/`: o hook `parecer` só o lê no `gh pr create` (PR-HOOK-PRAZO).
+Fora do `--previo` e do `--pr`, o `pr` grava o resultado do head em `<diretório comum do git>/forge/pr/<head>/`: o hook `parecer` o lê no `gh pr create` (PR-HOOK-PRAZO) e, como atalho, no `gh pr ready` e no `gh pr merge` (PR-HOOK-RAPIDO: o reprovado recusa; o aprovado libera só no clone do Forge).
 
 Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban [--gerar] | pr <pedido> [--ref REF] [--base REF]   (as duas opções também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
@@ -160,6 +160,7 @@ import difflib
 import errno
 import fcntl
 import fnmatch
+import functools
 import hashlib
 import json
 import os
@@ -335,8 +336,42 @@ def validar_documento(rel, texto, estrito=False):
     return campos, saida
 
 
+@functools.lru_cache(maxsize=64)
+def textos_da_arvore(raiz, arvore):
+    """{nome: texto} dos `.md` (blobs) da `arvore`, como o `git show <ref>:<pasta>/<nome>` os dava (DOC-LOTE, E2.117): um
+    `ls-tree` e um `cat-file --batch` com todos, no lugar de um `git show` por arquivo (o `forge-check pr` fazia uns 3000 e
+    levava 40 a 59 s com a máquina carregada). O id da árvore fixa o conteúdo: o cache por ele não envelhece. O texto sai como o do `git` em modo texto: UTF-8, fim de linha universal e sem espaço nas pontas. O `ls-tree`
+    que falha não lista nada (saída vazia); a resposta do lote fora do pedido devolve {} (nada lido, falha fechada)."""
+    saida = git(raiz, "ls-tree", "-z", arvore, bruto=True)[1]
+    blobs = {}
+    for entrada in nomes_z(saida):
+        meta, _, nome = entrada.partition("\t")
+        partes = meta.split()
+        if len(partes) == 3 and partes[1] == "blob" and nome.endswith(".md"):
+            blobs[nome] = partes[2]
+    if not blobs:
+        return {}
+    cod, lote = git(raiz, "cat-file", "--batch", bruto=True, entrada="".join(f"{b}\n" for b in blobs.values()).encode())
+    if cod:
+        return {}  # o lote que falhou (o git morto no meio) não é lido
+    textos, pos = {}, 0
+    for nome, blob in blobs.items():
+        fim = lote.find(b"\n", pos)
+        cabecalho = lote[pos:fim].split() if fim >= 0 else []
+        if len(cabecalho) != 3 or cabecalho[0].decode() != blob:
+            return {}  # resposta fora do pedido (objeto ausente ou saída truncada): nada lido
+        tamanho = int(cabecalho[2])
+        corpo = lote[fim + 1:fim + 1 + tamanho]
+        if len(corpo) != tamanho:
+            return {}  # corpo truncado depois de um cabeçalho inteiro: nada lido, nunca um texto parcial
+        pos = fim + 1 + tamanho + 1
+        textos[nome] = corpo.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n").strip()
+    return textos
+
+
 def documentos(raiz, tipo=None, ref=None):
-    """Gera (caminho relativo, texto) dos documentos do contrato: do disco, ou da `ref` do git se dada."""
+    """Gera (caminho relativo, texto) dos documentos do contrato: do disco, ou da `ref` do git se dada (a árvore da pasta por um
+    `rev-parse`, e os textos em lote por `textos_da_arvore`)."""
     for t, (pasta, _, _) in CONTRATOS.items():
         if tipo and t != tipo:
             continue
@@ -344,13 +379,14 @@ def documentos(raiz, tipo=None, ref=None):
             base = raiz / pasta
             nomes = sorted(p.name for p in base.glob("*.md")) if base.is_dir() else []
         else:
-            cod, saida = git(raiz, "ls-tree", "--name-only", ref, pasta + "/")
-            nomes = sorted(Path(n).name for n in saida.splitlines() if n.endswith(".md")) if not cod else []
+            cod, arvore = git(raiz, "rev-parse", "--verify", "--quiet", f"{ref}:{pasta}")  # DOC-LOTE: pasta ausente, sem outra chamada
+            textos = textos_da_arvore(str(raiz), arvore) if not cod else {}
+            nomes = sorted(textos)
         for nome in nomes:
             if nome == "README.md" or nome.startswith("_"):
                 continue
             rel = f"{pasta}/{nome}"
-            texto = (raiz / rel).read_text(encoding="utf-8") if ref is None else git(raiz, "show", f"{ref}:{rel}")[1]
+            texto = (raiz / rel).read_text(encoding="utf-8") if ref is None else textos[nome]
             if t in PASTAS_LIVRES and not texto.startswith("---"):
                 continue
             yield rel, texto
@@ -479,15 +515,16 @@ GIT_REDE = frozenset({"ls-remote", "fetch"})
 GIT_CONFIG_DO_AMBIENTE = re.compile(r"GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_[0-9]+|VALUE_[0-9]+)")
 
 
-def git(raiz, *args, bruto=False):
+def git(raiz, *args, bruto=False, entrada=None):
     """Único ponto que roda git (aqui e nos hooks): sem as variáveis GIT_* herdadas (nos comandos de `GIT_REDE`, menos
     as de `GIT_CONFIG_DO_AMBIENTE`) e com limite de tempo
-    (subprocess.TimeoutExpired sobe; nos hooks vira erro interno: libera, ou bloqueia se o comando tem marcador crítico, ADR 0009, seção 7). Devolve (código, stdout); com `bruto`, o stdout sai em bytes e sem `strip`."""
+    (subprocess.TimeoutExpired sobe; nos hooks vira erro interno: libera, ou bloqueia se o comando tem marcador crítico, ADR 0009, seção 7). Devolve (código, stdout); com `bruto`, o stdout sai em bytes e sem `strip`.
+    `entrada`: o stdin do git (bytes com `bruto`), como o `cat-file --batch` de `textos_da_arvore`."""
     rede = bool(args) and args[0] in GIT_REDE
     env = {k: v for k, v in os.environ.items()
            if not k.startswith("GIT_") or (rede and GIT_CONFIG_DO_AMBIENTE.fullmatch(k))}
     r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=not bruto, env=env,
-                       timeout=GIT_TIMEOUT_S)
+                       timeout=GIT_TIMEOUT_S, input=entrada)
     return r.returncode, (r.stdout if bruto else r.stdout.strip())
 
 
@@ -1527,7 +1564,8 @@ def veredito_do_pr(raiz, pedido, ref, base):
 # PR-HOOK-PRAZO (E20.1, v046): o `forge-check pr` grava o resultado por head em `<diretório comum do git>/forge/pr/<head>/` (fora da
 # árvore versionada; o mesmo `forge/` do hook `agentes`), e o hook `parecer` libera o `gh pr create` só lendo o aprovado do mesmo head,
 # branch e base, em vez de refazer a checagem (26 s com carga 22). Sem o aprovado do mesmo head, recusa e diz o comando (o `cmd_pr`
-# só roda para dar o motivo de hoje).
+# só roda para dar o motivo de hoje). No `gh pr ready` e no `gh pr merge` (PR-HOOK-RAPIDO, E2.117) o reprovado recusa e o aprovado
+# libera só no clone do Forge (o CI de pareceres é o segundo portão); no projeto, o aprovado gravado não libera e a conferência roda.
 def pasta_dos_resultados(raiz, head):
     cod, comum = git(raiz, "rev-parse", "--path-format=absolute", "--git-common-dir")
     return Path(comum) / "forge" / "pr" / head if not cod and comum and SHA40.match(head or "") else None
