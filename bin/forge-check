@@ -9687,8 +9687,8 @@ def executar(a, raiz):
         return cmd_entrega_conferir(raiz, a.pedido_conferir, a.branch, a.etapa, a.worktree, not (a.sem_gravar or a.so_leitura), a.so_leitura)
     if a.cmd == "entrega":
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
-    if a.cmd == "voltas":
-        return cmd_voltas(raiz, a.pedido)
+    if a.cmd == "voltas":  # RAIZ-PEDIDOS-PERDE-DADOS: o quadro, os briefs e os pedidos vêm do --raiz-pedidos, como no dora
+        return cmd_voltas(Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz, a.pedido)
     if a.cmd == "dora":
         return modulo_do_bin("forge_dora").executar(a, raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz)
     if a.cmd == "medida":
