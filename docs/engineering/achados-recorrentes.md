@@ -20,7 +20,7 @@ O `forge-check brief gerar` avisa em stderr a linha que não segue o formato. Qu
 - AR-6 · review · mascara-do-shell-esconde-codigo · R-REVIEW · vezes: 5 · última: bin/forge-mutante:404
 - AR-7 · seguranca · pasta-do-git-diferente-do-bash · R-REVIEW · vezes: 3 · última: hooks/parecer.py:587
 - AR-8 · review · cd-escondido-por-involucro · R-REVIEW · vezes: 3 · última: hooks/parecer.py:224
-- AR-9 · review · limite-antigo-no-texto · R-REVIEW · vezes: 4 · última: tests/test_suite_partes.py:609
+- AR-9 · review · limite-antigo-no-texto · R-REVIEW · vezes: 2 · última: skills/qa-testing/SKILL.md:85
 - AR-10 · review · texto-isento-executado-por-outro-caminho · R-REVIEW · vezes: 2 · última: hooks/parecer.py:117
 - AR-11 · seguranca · leitura-de-opcao-do-gh-api-difere-da-do-gh · R-MAIN · vezes: 5 · última: hooks/parecer.py:537
 - AR-12 · review · spec-de-mutante-desatualizada-pelo-commit-que-muda-a-linha · R-REVIEW · vezes: 3 · última: tests/mutantes/v047-pr-hook-rapido.json:59
