@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047-catraca-hook-por-script
 branch: melhoria/v047-catraca-hook-por-script
-commit: 230dfb01ddde3b7e84d47fdad161c8dbfc93ffc5
+commit: 24256248b7d1503b354d8369b040651499e8b3df
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-15
+data: 2026-11-16
 ---
 # QA: catraca, hook por script (v047, E2.84)
 
@@ -85,3 +85,18 @@ CH-M1 a CH-M10 · morreu (CH-M2 por erro do teste declarado sob o mutante, que p
 |---|---|---|---|
 | `R-CONFORMIDADE`: hooks.json fora do esquema acusa (A10) | `Hooks.test_hooks_json_fora_do_esquema_barra`, `test_cada_campo_fora_do_esquema_acusa`, CH-M23 a CH-M38 | evento fora da lista, tipo errado, NaN, JSON ilegível | passou |
 | Corpus S12 a S16 acusa e `real` não | `CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado` | `type` ausente, `timeout` texto, `args` não texto, evento e `matcher` inválidos | passou |
+
+## Revalidação por delta 230dfb01..24256248 (E2.175, voltas 5 e 6: A12, S17, A6, S18)
+- Sem achados abertos. `timeout` só número finito maior que 0 (`tests/catraca.py:366`) e lista fechada de 31 eventos sem `PreModelSwitch` nem `PostModelSwitch` (`tests/catraca.py:340-345`) fecham A12 e A6.
+- `forge-check parecer delta`: domínio com `tests/catraca.py`, `tests/test_catraca.py`, sondas, spec `-5`, changelog e `achados-recorrentes.md` (AR-14, 4 para 6 vezes, formato certo). Remoto igual ao head, nada a trazer.
+- `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook`: `Ran 14 tests`, OK; o corpus passa a 40 sondas (S17-zero, S17-negativo, S17-infinito, S18).
+- Vermelho antes do verde (manual, cópia em `$TMPDIR`, `tests/catraca.py` de 230dfb01 e testes do head): `Ran 14 tests`, `FAILED (failures=8)`; caem `timeout zero`, `zero real`, `negativo`, o texto `1e400`, S17-zero, S17-negativo, S17-infinito e S18. Nenhum cai no head.
+- Mutação (`--base 230dfb01 --processos 4`, spec `-5`): `base=230dfb01ddde... rev=24256248b7d1`, CH-M39 a CH-M42 todos `morreu`; rc=0, nenhum sobrevivente. `--cobertura --base 230dfb01`, rc=0: linha 366 `coberta` (CH-M39 a M41); a lista de eventos não é condição, e o CH-M42 a mata.
+- Sondas manuais em `erros_de_forma`: 31 eventos na lista; `timeout` 0.0001, 1 e 3600 passam; -0.0, NaN, -1e400 acusam. Sem bug.
+- Bateria completa: a prova é o check-run `bateria` do mesmo sha no CI do PR (I5); não rodada aqui.
+
+## Critério → teste → resultado (voltas 5 e 6)
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| `R-CONFORMIDADE`: `timeout` 0, negativo ou infinito acusa (A12, S17) | `Hooks.test_cada_campo_fora_do_esquema_acusa`, `test_hooks_json_fora_do_esquema_barra`, corpus S17, CH-M39 a CH-M41 | zero, negativo, 1e400 (limite >0 e finito) | passou |
+| `R-CONFORMIDADE`: evento fora dos 31 do binário acusa (A6, S18) | corpus S18, CH-M42 | `PreModelSwitch` | passou |
