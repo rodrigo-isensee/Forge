@@ -37,8 +37,8 @@
       "id": "PE-M9",
       "guarda": "sem --etapa, a etapa entregue sai da lista",
       "arquivo": "bin/forge-check",
-      "de": "if x[3] != \"entregue\"]",
-      "para": "if x[3] != \"entregue\" or True]",
+      "de": "if x[3] not in FECHADAS]",
+      "para": "if x[3] not in FECHADAS or True]",
       "testes": [
         "tests.test_proximo.Proximo.test_etapa_entregue_branch_e_ultimo_veredito_aprovado"
       ]

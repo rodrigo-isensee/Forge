@@ -81,7 +81,7 @@ class Proximo(unittest.TestCase):
         rc, linhas = self.proximo()
         self.assertEqual(rc, 0, linhas)
         self.assertFalse([l for l in linhas if l.startswith("proximo: etapa E1.1")], linhas)  # PROXIMO-POR-ETAPA: só as abertas
-        self.assertIn("proximo: etapas: 1 com registro de entrega fora da lista (`--etapa <id>` mostra uma)", linhas)
+        self.assertIn("proximo: etapas: 1 entregues ou com PR mesclado fora da lista (`--etapa <id>` mostra uma)", linhas)
         self.assertIn("proximo: etapa E1.2 (tech-lead) · não verificável · review", linhas)
         self.assertIn("proximo: etapa E1.1 (dev-exemplo) · entregue · implementar o recurso", self.proximo("p1", "--etapa", "E1.1")[1])
         self.assertIn(f"proximo: branch melhoria/p1 · head {self.git('rev-parse', '--short=7', 'HEAD')}", linhas)
@@ -268,10 +268,76 @@ class ProximoPorEtapa(unittest.TestCase):
         self.pedido(" 2026-10-19 10:00: aberto", " 2026-10-19 12:00: E1.1, E1.2 e E1.3 entregues")
         linhas = self.proximo()[1]
         self.assertFalse([l for l in linhas if "não tem `## Etapas`" in l or l.startswith("proximo: etapa ")], linhas)
-        self.assertIn("proximo: etapas: 3 com registro de entrega fora da lista (`--etapa <id>` mostra uma)", linhas)
+        self.assertIn("proximo: etapas: 3 entregues ou com PR mesclado fora da lista (`--etapa <id>` mostra uma)", linhas)
         self.assertIn("proximo: passo: todas as etapas têm registro de entrega; confira o critério de pronto", linhas)
         self.gravar("docs/pedidos/p1.md", "# Pedido p1\n\n## Histórico\n- aberto\n")
         self.assertIn("proximo: etapas: não verificável (o pedido não tem `## Etapas`)", self.proximo()[1])
+
+
+PEDIDO_COM_BRANCH = """# Pedido p1
+
+## Etapas
+- E1.1 (forge:tech-lead): [branch melhoria/um] primeira
+- E1.2 (forge:tech-lead): [branch melhoria/dois, nascida da develop] segunda
+- E1.3 (forge:tech-lead): [branch melhoria/u] terceira
+- E1.4 (forge:tech-lead): [branch melhoria/tres] quarta
+
+## Histórico
+- 2026-10-19 10:00: E1.1, E1.2, E1.3 e E1.4 delegadas
+"""
+
+
+class ProximoBranchMesclada(unittest.TestCase):
+    """PROXIMO-BRANCH-PR-MESCLADO: a etapa cuja `[branch …]` tem PR mesclado na develop sai feita, não em curso; sem rede, pelo nome
+    exato no assunto do merge ou no `branch:` de um parecer da árvore da develop (o squash leva o parecer)."""
+    setUp, git, gravar, pedido, commitar, proximo = Proximo.setUp, Proximo.git, Proximo.gravar, Proximo.pedido, Proximo.commitar, Proximo.proximo
+
+    def estados(self):
+        rc, linhas = self.proximo("p1", "--etapa", "E1.1")
+        self.assertEqual(rc, 0, linhas)
+        return {e: self.proximo("p1", "--etapa", e)[1][1].split(" · ")[1] for e in ("E1.1", "E1.2", "E1.3", "E1.4")}
+
+    def test_merge_commit_e_parecer_na_develop_poem_a_etapa_como_feita(self):
+        self.gravar("docs/pedidos/p1.md", PEDIDO_COM_BRANCH)
+        self.commitar("pedido")
+        self.assertEqual(set(self.estados().values()), {"em curso"})
+        self.git("switch", "-q", "-c", "melhoria/um")
+        self.gravar("um.txt", "um\n")
+        self.commitar("um")
+        self.git("switch", "-q", "develop")
+        self.git("merge", "-q", "--no-ff", "-m", "Merge pull request #7 from dono/melhoria/um", "melhoria/um")
+        self.git("branch", "-q", "-D", "melhoria/um")
+        self.git("switch", "-q", "-c", "melhoria/tres")
+        self.gravar("docs/reviews/p1-tres.md", PARECER.format(c="abc1234", p="aprovado", corpo="").replace("melhoria/p1", "melhoria/tres"))
+        self.commitar("parecer só na branch")
+        self.git("switch", "-q", "develop")
+        self.gravar("docs/reviews/p1-dois.md", PARECER.format(c="abc1234", p="aprovado", corpo="").replace("melhoria/p1", "melhoria/dois"))
+        self.commitar("squash da melhoria/dois (#8)")
+        self.assertEqual(self.estados(), {"E1.1": "feita (PR mesclado)", "E1.2": "feita (PR mesclado)", "E1.3": "em curso", "E1.4": "em curso"})
+        rc, linhas = self.proximo()
+        self.assertIn("proximo: etapas: 2 entregues ou com PR mesclado fora da lista (`--etapa <id>` mostra uma)", linhas)
+        self.assertEqual([l.split(" · ")[0] for l in linhas if l.startswith("proximo: etapa ")], ["proximo: etapa E1.3 (tech-lead)", "proximo: etapa E1.4 (tech-lead)"])
+        self.assertIn("proximo: passo: E1.3 (tech-lead) · [branch melhoria/u] terceira", linhas)
+
+    def test_nome_parecido_nao_conta_e_entregue_segue_entregue(self):
+        self.gravar("docs/pedidos/p1.md", PEDIDO_COM_BRANCH.replace("E1.4 delegadas", "E1.4 delegadas\n- 2026-10-19 11:00: E1.2 entregue"))
+        self.commitar("pedido")
+        self.git("switch", "-q", "-c", "melhoria/um-dois")
+        self.gravar("um.txt", "um\n")
+        self.commitar("um-dois")
+        self.git("switch", "-q", "develop")
+        self.git("merge", "-q", "--no-ff", "-m", "Merge pull request #9 from dono/melhoria/um-dois", "melhoria/um-dois")
+        self.gravar("docs/reviews/p1-x.md", PARECER.format(c="abc1234", p="aprovado", corpo="").replace("melhoria/p1", "melhoria/tres-b"))
+        self.gravar("docs/reviews/p1-y.md", PARECER.format(c="abc1234", p="aprovado", corpo="").replace("melhoria/p1", "melhoria/dois"))
+        self.commitar("parecer de outra branch")
+        self.assertEqual(self.estados(), {"E1.1": "em curso", "E1.2": "entregue", "E1.3": "em curso", "E1.4": "em curso"})
+
+    def test_sem_develop_nada_sai_feito_e_nao_quebra(self):
+        self.gravar("docs/pedidos/p1.md", PEDIDO_COM_BRANCH)
+        self.gravar("docs/reviews/p1-um.md", PARECER.format(c="abc1234", p="aprovado", corpo="").replace("melhoria/p1", "melhoria/um"))
+        self.commitar("pedido")
+        self.git("branch", "-m", "develop", "main")
+        self.assertEqual(set(self.estados().values()), {"em curso"})
 
 
 class ProximoRapido(unittest.TestCase):

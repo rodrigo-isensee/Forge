@@ -6936,6 +6936,32 @@ def etapas_do_proximo(pedido_txt, historico, conferidas=frozenset()):
     return saida
 
 
+BRANCH_DA_ETAPA = re.compile(r"\[branch (melhoria/[a-z0-9][a-z0-9._-]{0,80})(?![a-z0-9._-])")  # `[branch melhoria/x…` do texto da etapa
+FEITA = "feita (PR mesclado)"
+FECHADAS = ("entregue", FEITA)
+
+
+def mescladas_na_develop(raiz):
+    """PROXIMO-BRANCH-PR-MESCLADO, sem rede: as branches com PR mesclado na develop (`origin/develop`, senão a local), pelo nome exato,
+    de duas fontes lidas uma vez: o assunto `Merge pull request #N from <dono>/<branch>` das merges e o `branch:` dos pareceres que
+    estão na árvore da develop (o parecer é commitado na branch revisada, R-REVIEW, e só chega à develop com o merge, squash ou não)."""
+    develop = sha_do_commit(raiz, "refs/remotes/origin/develop") or sha_do_commit(raiz, "refs/heads/develop")
+    if not develop:
+        return frozenset()
+    assuntos = git(raiz, "log", "--merges", "--format=%s", develop)[1].splitlines()
+    nomes = {m.group(1) for a in assuntos if (m := re.fullmatch(r"Merge pull request #\d+ from [^/\s]+/(\S+)", a))}
+    pastas = [pasta for pasta, _, campos in CONTRATOS.values() if "branch" in campos]
+    cod, saida = git(raiz, "grep", "-h", "-E", "^branch: *[^ ]+ *$", develop, "--", *pastas)
+    return frozenset(nomes | ({l.split(":", 1)[1].strip() for l in saida.splitlines()} if not cod else set()))
+
+
+def com_branch_mesclada(raiz, etapas):
+    """As etapas sem registro de entrega cuja `[branch …]` tem PR mesclado na develop saem `FEITA`, não `em curso`."""
+    mescladas = mescladas_na_develop(raiz)
+    return [(e, papel, texto, FEITA if estado != "entregue" and (m := BRANCH_DA_ETAPA.search(texto)) and m.group(1) in mescladas else estado)
+            for e, papel, texto, estado in etapas]
+
+
 def branch_do_proximo(raiz, pedido):
     """(branch, head sha7 ou None) pela linha `Branch:` dos briefs do pedido, se for uma só; senão (None, None)."""
     branches = set()
@@ -7080,14 +7106,14 @@ def cmd_proximo(raiz, pedido, item=None, etapa=None):
     pedido_id = (re.search(r"^id:\s*(\S+)", pedido_txt, re.M) or [None, caminho.stem])[1]
     historico = [l for l in secoes_por(pedido_txt, CABECALHO_PEDIDO).get("Histórico", []) if l.strip()]
     cabeca = [f"proximo: pedido {caminho_impresso(pedido_id)}"] + (linhas_do_item(raiz, caminho, item) if item is not None else [])
-    etapas = etapas_do_proximo(pedido_txt, historico, etapas_conferidas(raiz, caminho, historico))
-    listadas = [x for x in etapas if x[0] == etapa] if etapa is not None else [x for x in etapas if x[3] != "entregue"]
+    etapas = com_branch_mesclada(raiz, etapas_do_proximo(pedido_txt, historico, etapas_conferidas(raiz, caminho, historico)))
+    listadas = [x for x in etapas if x[0] == etapa] if etapa is not None else [x for x in etapas if x[3] not in FECHADAS]
     if etapa is not None and not listadas:
         return cabeca + [f"proximo: etapa {etapa}: {NAO_VERIFICAVEL} (fora do `## Etapas` do pedido)"], 2
     lista = [f"proximo: etapa {e} ({papel}) · {estado} · {texto_da_etapa(texto)}" for e, papel, texto, estado in listadas] \
         or ([] if etapas else [f"proximo: etapas: {NAO_VERIFICAVEL} (o pedido não tem `## Etapas`)"])
     if etapa is None and len(etapas) > len(listadas):
-        cabeca.append(f"proximo: etapas: {len(etapas) - len(listadas)} com registro de entrega fora da lista (`--etapa <id>` mostra uma)")
+        cabeca.append(f"proximo: etapas: {len(etapas) - len(listadas)} entregues ou com PR mesclado fora da lista (`--etapa <id>` mostra uma)")
     linhas = []
     branch, head = branch_do_proximo(raiz, pedido_id)
     linhas.append(f"proximo: branch {branch}" + (f" · head {head}" if head else "") if branch else f"proximo: branch: {NAO_VERIFICAVEL} (nenhum brief do pedido com `Branch:` único)")
@@ -7102,7 +7128,7 @@ def cmd_proximo(raiz, pedido, item=None, etapa=None):
             linhas.append(f"proximo: último veredito {tipo}: {NAO_VERIFICAVEL} ({caminho_impresso(rel)} fora do commit)")
     if not vereditos:
         linhas.append(f"proximo: último veredito: {NAO_VERIFICAVEL} (nenhum parecer do pedido em docs/)")
-    falta = next(((e, papel, texto) for e, papel, texto, estado in etapas if estado != "entregue"), None)
+    falta = next(((e, papel, texto) for e, papel, texto, estado in etapas if estado not in FECHADAS), None)
     passos = [f"proximo: passo: volta ao autor, parecer {tipo} não aprovado" for tipo in reprovados]
     passos.append(f"proximo: passo: {falta[0]} ({falta[1]}) · {texto_da_etapa(falta[2])}" if falta else
                   "proximo: passo: todas as etapas têm registro de entrega; confira o critério de pronto" if etapas else f"proximo: passo: {NAO_VERIFICAVEL}")
