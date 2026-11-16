@@ -147,7 +147,7 @@
       "guarda": "HEAD do remoto que não é a main não atualiza",
       "arquivo": "bin/forge_sempre_atual.py",
       "de": "achou.group(1) != \"refs/heads/main\"",
-      "para": "achou.group(1) != \"refs/heads/zzz\"",
+      "para": "achou.group(1) != \"refs/heads/develop\"",
       "testes": [
         "tests.test_sempre_atual.Catalogo.test_branch_padrao_que_nao_e_main_nao_atualiza"
       ]
