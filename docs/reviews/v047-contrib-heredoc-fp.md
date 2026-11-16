@@ -1,16 +1,19 @@
 ---
 tipo: review
 contrato: 1
-pedido: v047-contrib-heredoc-fp
+pedido: v047
 branch: melhoria/v047-contrib-heredoc-fp
-commit: f7e12a87a474a2e61ea2a0e621e9847c988d9ca0
+commit: 70db7c6a9b7b151db4a4e1ae406136b3cfca00a6
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-15
+data: 2026-11-16
 ---
 # Review: v047-contrib-heredoc-fp
 
 Code review da E2.104 (classe C) no head f7e12a87, por instância que não fez a entrega. Sem parecer anterior nesta branch: parecer completo.
+
+## Revalidação (E2.208)
+Delta lido: `forge-check parecer delta` de f7e12a87 a 70db7c6a, domínio código e testes: "nenhum arquivo do domínio mudou" (só os pareceres de segurança e QA e merges da própria branch). Parecer mantido aprovado e movido para o head 70db7c6a; `pedido:` passa a `v047`, o pedido que a integração enxerga.
 
 ## Achados
 
