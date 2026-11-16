@@ -77,8 +77,8 @@
       "id": "M34",
       "guarda": "sem arquivo e com falha não é nada a conferir",
       "arquivo": "bin/forge-check",
-      "de": "    if not arquivos and not falhas:",
-      "para": "    if not arquivos:",
+      "de": "    elif not arquivos and not falhas:",
+      "para": "    elif not arquivos:",
       "testes": [
         "tests.test_entrega_git_falha.FalhaDoGit.test_sem_commit_so_com_todos_os_git_em_zero",
         "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_caminho_simples_em_toda_etapa"
