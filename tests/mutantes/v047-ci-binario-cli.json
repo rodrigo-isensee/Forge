@@ -1,0 +1,38 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a instalação do e2e roda o instalador do binário (sem ele, o claude sai sem o binário nativo)",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "@anthropic-ai/claude-code@2.1.296 && node \"$(npm root -g)/@anthropic-ai/claude-code/install.cjs\"; }\n          instalar || { echo \"instalação falhou (rede); uma segunda tentativa\"; sleep 5; instalar; }\n          claude --version\n      - name: Instala o Forge",
+      "para": "@anthropic-ai/claude-code@2.1.296; }\n          instalar || { echo \"instalação falhou (rede); uma segunda tentativa\"; sleep 5; instalar; }\n          claude --version\n      - name: Instala o Forge",
+      "testes": ["tests.test_ci_local.InstalacaoDoCliTest.test_toda_instalacao_global_do_cli_roda_o_instalador_do_binario_em_seguida"]
+    },
+    {
+      "id": "M2",
+      "guarda": "a instalação da validação do plugin roda o instalador do binário",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "@anthropic-ai/claude-code@2.1.296 && node \"$(npm root -g)/@anthropic-ai/claude-code/install.cjs\"; }\n          instalar || { echo \"instalação falhou (rede); uma segunda tentativa\"; sleep 5; instalar; }\n          claude --version\n      - name: claude plugin validate",
+      "para": "@anthropic-ai/claude-code@2.1.296; }\n          instalar || { echo \"instalação falhou (rede); uma segunda tentativa\"; sleep 5; instalar; }\n          claude --version\n      - name: claude plugin validate",
+      "testes": ["tests.test_ci_local.InstalacaoDoCliTest.test_toda_instalacao_global_do_cli_roda_o_instalador_do_binario_em_seguida"]
+    },
+    {
+      "id": "M3",
+      "guarda": "a instalação do portão das provas roda o instalador do binário",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "@anthropic-ai/claude-code@2.1.296 && node \"$(npm root -g)/@anthropic-ai/claude-code/install.cjs\"; }\n          instalar || { echo \"instalação falhou (rede); uma segunda tentativa\"; sleep 5; instalar; }\n          claude --version\n      - name: Provas cmd",
+      "para": "@anthropic-ai/claude-code@2.1.296; }\n          instalar || { echo \"instalação falhou (rede); uma segunda tentativa\"; sleep 5; instalar; }\n          claude --version\n      - name: Provas cmd",
+      "testes": ["tests.test_ci_local.InstalacaoDoCliTest.test_toda_instalacao_global_do_cli_roda_o_instalador_do_binario_em_seguida"]
+    },
+    {
+      "id": "M4",
+      "guarda": "o instalador roda depois da instalação do pacote, não antes",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "instalar() { npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296 && node \"$(npm root -g)/@anthropic-ai/claude-code/install.cjs\"; }\n          instalar || { echo \"instalação falhou (rede); uma segunda tentativa\"; sleep 5; instalar; }\n          claude --version\n      - name: claude plugin validate",
+      "para": "instalar() { node \"$(npm root -g)/@anthropic-ai/claude-code/install.cjs\" && npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296; }\n          instalar || { echo \"instalação falhou (rede); uma segunda tentativa\"; sleep 5; instalar; }\n          claude --version\n      - name: claude plugin validate",
+      "testes": ["tests.test_ci_local.InstalacaoDoCliTest.test_toda_instalacao_global_do_cli_roda_o_instalador_do_binario_em_seguida"]
+    }
+  ]
+}

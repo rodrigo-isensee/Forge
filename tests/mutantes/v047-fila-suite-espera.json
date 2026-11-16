@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-fila-suite-espera",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "F1",
+      "guarda": "FORGE_FILA_INTERVALO que não é inteiro recusa antes da fila",
+      "arquivo": ".githooks/pre-push",
+      "de": "'${intervalo}').\" >&2; exit 1 ;; esac",
+      "para": "'${intervalo}').\" >&2 ;; esac",
+      "testes": [
+        "tests.test_pre_push_fila.FilaDaSuite.test_atualiza_a_cada_intervalo_e_intervalo_invalido_e_recusado"
+      ]
+    },
+    {
+      "id": "F2",
+      "guarda": "a linha da posição só sai a cada intervalo",
+      "arquivo": ".githooks/pre-push",
+      "de": "[ \"$(date +%s)\" -ge \"$proximo_s\" ] || return 0",
+      "para": "[ \"$(date +%s)\" -ge \"$proximo_s\" ] || :",
+      "testes": [
+        "tests.test_pre_push_fila.FilaDaSuite.test_posicao_e_quem_esta_na_frente_ao_entrar"
+      ]
+    },
+    {
+      "id": "F3",
+      "guarda": "a contagem da posição para na própria senha (quem está atrás não conta)",
+      "arquivo": ".githooks/pre-push",
+      "de": "[ \"$f\" = \"$senha\" ] && break",
+      "para": "[ \"$f\" = \"$senha\" ] && :",
+      "testes": [
+        "tests.test_pre_push_fila.FilaDaSuite.test_posicao_e_quem_esta_na_frente_ao_entrar"
+      ]
+    },
+    {
+      "id": "F4",
+      "guarda": "sem senha própria (fila recusada) a pasta da fila não é listada",
+      "arquivo": ".githooks/pre-push",
+      "de": "done < <([ -n \"$senha\" ] && fila_vivas)",
+      "para": "done < <(fila_vivas)",
+      "testes": [
+        "tests.test_pre_push_fila.FilaDaSuite.test_fila_que_e_link_nao_e_listada"
+      ]
+    },
+    {
+      "id": "F5",
+      "guarda": "o aviso de trava velha sai uma vez só",
+      "arquivo": ".githooks/pre-push",
+      "de": "[ \"$avisou_velha\" = 0 ] || return 0",
+      "para": "[ \"$avisou_velha\" = 0 ] || :",
+      "testes": [
+        "tests.test_pre_push_fila.FilaDaSuite.test_dona_morta_avisa_uma_vez_e_nao_libera"
+      ]
+    },
+    {
+      "id": "F6",
+      "guarda": "dona morta só se julga no mesmo namespace de pid",
+      "arquivo": ".githooks/pre-push",
+      "de": "&& [ \"$ns\" = \"$meu_ns\" ] && pid_sumiu",
+      "para": "&& pid_sumiu",
+      "testes": [
+        "tests.test_pre_push_fila.FilaDaSuite.test_dona_viva_ou_de_outro_namespace_nao_avisa"
+      ]
+    },
+    {
+      "id": "F7",
+      "guarda": "dona morta só com pid numérico",
+      "arquivo": ".githooks/pre-push",
+      "de": "if [[ \"$pid\" =~ ^[0-9]+$ ]] && [ \"$ns\"",
+      "para": "if [ \"$ns\"",
+      "testes": [
+        "tests.test_pre_push_fila.FilaDaSuite.test_dona_viva_ou_de_outro_namespace_nao_avisa"
+      ]
+    },
+    {
+      "id": "F8",
+      "guarda": "trava sem troca de dona há mais de 35 min avisa",
+      "arquivo": ".githooks/pre-push",
+      "de": "elif [ \"$idade\" -gt 2100 ]",
+      "para": "elif [ \"$idade\" -gt 999999 ]",
+      "testes": [
+        "tests.test_pre_push_fila.FilaDaSuite.test_trava_sem_troca_de_dona_ha_mais_de_35_min_avisa"
+      ]
+    }
+  ]
+}

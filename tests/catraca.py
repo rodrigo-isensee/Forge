@@ -3,7 +3,7 @@
 
 Só biblioteca padrão. Lê a base com `git show <base>:<arquivo>` (a base efetiva é o merge-base com o HEAD).
 Exceção estreita: PR de `dependabot[bot]` que só troca SHA de `uses:` em workflows passa sem rótulo e sem parecer.
-Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY) e `pareceres`.
+Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY), `pareceres` e `degrau` (o "Nada pula degrau" do CI).
 Exceção única das regras (menos `R-CUSTO`, que só tem `custo_permitido`): rótulo `afrouxa-regra` aplicado pelo `dono` (de tests/config.json da base) depois do
 último push, ou cujos arquivos protegidos (VIGIADOS_DO_ROTULO e forma compilada: mesmo blob e modo) e a piora dos testes não
 mudaram desde o rótulo (P9), ou cujo diff efetivo (merge-base, fora dos pareceres dos pedidos desta branch) não mudou desde ele, e
@@ -263,7 +263,9 @@ def chaves_de_hooks(texto):
     for evento, grupos in (dados.get("hooks") or {}).items():
         for g in grupos:
             for hk in g.get("hooks", []):
-                chaves.add((evento, g.get("matcher", ""), hk.get("command", ""), " ".join(hk.get("args", []))))
+                # o hook é o script: as opções do interpretador antes dele (`-s -E`, C6 da HOOK-ERRO-LIBERA) não o removem
+                args = [a for a in hk.get("args", []) if not a.startswith("-")]
+                chaves.add((evento, g.get("matcher", ""), hk.get("command", ""), " ".join(args)))
     return chaves
 
 
@@ -1231,12 +1233,12 @@ def _repo_de(lado):
     return ((lado or {}).get("repo") or {}).get("full_name")
 
 
-def eh_promocao(pr, repo):
-    """PR de promoção (PROMOCOES) com as duas pontas no próprio repositório (branch `develop` de um fork não conta)."""
+def eh_promocao(pr, repo, raiz="."):
+    """PR de promoção (`promocao_aceita`) com as duas pontas no próprio repositório (branch `develop` de um fork não conta)."""
     if not isinstance(pr, dict) or not repo:
         return False
     head, base = pr.get("head") or {}, pr.get("base") or {}
-    return (head.get("ref"), base.get("ref")) in PROMOCOES and _repo_de(head) == repo and _repo_de(base) == repo
+    return _repo_de(head) == repo and _repo_de(base) == repo and promocao_aceita(raiz, head.get("ref"), base.get("ref"), head.get("sha"))
 
 
 def entrada_da_arvore(raiz, ref, caminho):
@@ -1453,7 +1455,7 @@ def liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono, motivos=None):
     if not arquivos:
         return None
     pr = fonte.pr_atual()
-    if not eh_promocao(pr, fonte.repo):  # sem o PR não se sabe se é promoção: a falha da API já tem o seu aviso
+    if not eh_promocao(pr, fonte.repo, raiz):  # sem o PR não se sabe se é promoção: a falha da API já tem o seu aviso
         return None
     if None in arquivos:
         return sem(motivos, "há violação que não é \"mudança em <arquivo>\" (só essa o PR mesclado cobre)")
@@ -1522,7 +1524,49 @@ def forge_check():
     return modulo
 
 
-PROMOCOES = {("develop", "homolog"), ("homolog", "main")}  # o parecer é exigido na entrada de cada PR na develop
+# R-FLUXO: a tabela única dos pares de promoção (head, base, head na develop do servidor), lida aqui, pelo passo "Nada pula degrau"
+# do CI (o modo `degrau`, da cópia da develop), pelo scripts/arvore-testada.py e pelo bin/forge-fechar. O head casa por inteiro.
+# Nela o parecer não é exigido: ele já foi na entrada de cada PR na develop. promocao/X.Y.Z é o ramo do `forge-fechar --promover`.
+PROMOCOES = (("develop", "homolog", False),
+             (r"promocao/[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}", "homolog", True),
+             ("homolog", "main", False))
+DEVELOP_DO_SERVIDOR = "refs/remotes/origin/develop"
+
+
+def linha_de_promocao(head_ref, base_ref):
+    """A linha de PROMOCOES do par (head, base), ou None; só `str` exata."""
+    if type(head_ref) is not str or type(base_ref) is not str:
+        return None
+    return next((linha for linha in PROMOCOES if linha[1] == base_ref and re.fullmatch(linha[0], head_ref)), None)
+
+
+def promocao_aceita(raiz, head_ref, base_ref, head_sha):
+    """True se (head, base) está em PROMOCOES e, na linha que o pede, `head_sha` é ancestral da develop do servidor
+    (DEVELOP_DO_SERVIDOR). Erro do git ou sha que não é texto é False (falha fechada: não é promoção)."""
+    linha = linha_de_promocao(head_ref, base_ref)
+    if linha is None:
+        return False
+    if not linha[2]:
+        return True
+    if type(head_sha) is not str:
+        return False
+    try:
+        return git(raiz, "merge-base", "--is-ancestor", "--end-of-options", head_sha, DEVELOP_DO_SERVIDOR)[0] == 0
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+
+
+def violacoes_do_degrau(raiz, ramo, base_ref, head, repo_head, repo_base):
+    """"Nada pula degrau" (R-FLUXO): PR para uma base de PROMOCOES (homolog, main) só de um par dela, com o head do próprio
+    repositório; as outras bases não são degrau. O CI roda este modo da develop do servidor, nunca do PR."""
+    if base_ref not in {linha[1] for linha in PROMOCOES}:
+        return []
+    if repo_base and repo_head == repo_base and promocao_aceita(raiz, ramo, base_ref, head):
+        return []
+    return [msg("R-FLUXO", f"PR para {base_ref} de `{ramo}` ({repo_head or 'repositório desconhecido'}) fora da tabela de promoções",
+                "nada pula degrau: a homolog recebe só a develop ou o ramo promocao/X.Y.Z num commit da develop, e a main só a homolog",
+                "abra o PR a partir do degrau anterior, do próprio repositório (PROMOCOES em tests/catraca.py)",
+                "docs/regras/R-FLUXO.md")]
 DEPENDABOT = "dependabot[bot]"
 USO_DE_ACAO = re.compile(r"^(\s*(?:-\s*)?uses:\s*[\w./-]+@)[0-9a-f]{40}(\s+#.*)?$")
 
@@ -1591,7 +1635,7 @@ def pareceres_que_nao_aprovam(raiz, fc, pedidos, head, ramo=None):
 
 
 def _violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
-    if (ramo, base_ref) in PROMOCOES:
+    if promocao_aceita(raiz, ramo, base_ref, head):
         return []
     b = base_efetiva(raiz, base, head)
     tocados = [a for a in alterados(raiz, b, head) if a.startswith(SENSIVEIS)]
@@ -1630,7 +1674,7 @@ def resumo(titulo, linhas):
 def lista_de_rotulados(a, fonte):
     """As linhas `rotulados:` do PR de promoção (ACELERA-P3 (c)), nenhuma fora dela; PRAZO esgotado, sem reiniciar: `incompleta (prazo)` (C-2)."""
     raiz = Path(a.raiz).resolve()
-    if not eh_promocao(fonte.pr_atual() if fonte else None, getattr(fonte, "repo", None)):
+    if not eh_promocao(fonte.pr_atual() if fonte else None, getattr(fonte, "repo", None), raiz):
         return ["rotulados: incompleta (prazo)"] if PRAZO.avisou else []
     cfg = json_de(raiz, base_efetiva(raiz, a.base, a.head), "tests/config.json")  # o dono da base: o head é do autor
     linhas = rotulados_da_leva(raiz, a.base, a.head, fonte, cfg.get("dono") if isinstance(cfg, dict) else None)
@@ -1661,7 +1705,7 @@ def modo_rotulados(a):
         print("rotulados: o modo local pede GITHUB_TOKEN, GITHUB_REPOSITORY=<dono>/<repositório> e --pr <número>")
         return 2
     if not mostrar_rotulados(a, lambda: fonte_json(a) if a.mesclados else FonteGithub(token, repo, a.pr)):
-        print("rotulados: o PR não é promoção (develop -> homolog ou homolog -> main) no próprio repositório")
+        print("rotulados: o PR não é promoção (PROMOCOES: develop ou promocao/X.Y.Z -> homolog, homolog -> main) no próprio repositório")
     return 0
 
 
@@ -1688,7 +1732,7 @@ def main(argv=None):
 
 def argumentos(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--modo", choices=("regras", "pr-texto", "pareceres", "rotulados"), default="regras")
+    ap.add_argument("--modo", choices=("regras", "pr-texto", "pareceres", "rotulados", "degrau"), default="regras")
     ap.add_argument("--base", default=os.environ.get("BASE", "origin/develop"))
     ap.add_argument("--head", default="HEAD")
     ap.add_argument("--raiz", default=".")
@@ -1711,6 +1755,8 @@ def _main(a):
         return 0
     if a.modo == "pr-texto":
         viol, titulo = violacoes_do_texto(os.environ.get("PR_BODY", "")), "pr-texto"
+    elif a.modo == "degrau":
+        viol, titulo = violacoes_do_degrau(raiz, a.ramo, a.base_ref, a.head, os.environ.get("HEAD_REPO", ""), os.environ.get("BASE_REPO", "")), "degrau"
     elif a.modo == "pareceres":
         viol, titulo = violacoes_de_pareceres(raiz, a.base, a.head, a.ramo, a.base_ref,
                                           os.environ.get("HEAD_REPO", ""), os.environ.get("BASE_REPO", "")), "pareceres"

@@ -1,0 +1,16 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (E1, S1): `~zzq` de usuário que não existe lançava RuntimeError no expanduser e o erro liberava a remoção do brief (C1).",
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "rm ~zzq docs/briefs/b.md"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "docs/briefs/"
+  }
+}

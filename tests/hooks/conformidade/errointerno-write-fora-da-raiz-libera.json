@@ -1,0 +1,21 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (C4): erro interno no Write fora da raiz e fora da política segue liberando, com a linha no erros.log.",
+  "forcar": {
+    "onde": "Guarda.arquivo",
+    "como": "erro"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/fora/x.md",
+      "content": "x\n"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "erro forcado"
+  }
+}
