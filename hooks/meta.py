@@ -7,9 +7,12 @@ Stop, com objetivo armado (`forge-check meta --armar <pedido> --checagem "<cmd>"
 - **entregue e provado**: toda checagem (sem shell, até CHECAGEM_S cada) sai com rc 0; o Stop passa e o objetivo se desarma.
 - **ainda não**: bloqueia o Stop dizendo as checagens que falharam. REPETICOES_PARA_PAUSAR "ainda não" iguais seguidos
   pausam o objetivo sozinho (o Stop passa, `pausado` no meta.json): não fica em laço.
-Sem objetivo armado, nada muda. S6: em todo Stop, só MEDE (nunca bloqueia) a última mensagem ao dono do transcrito: caracteres
-contra TETO_DA_MENSAGEM e as palavras da tabela "Em vez de" de skills/modo-iniciante/SKILL.md; grava uma linha em
-.forge/run/mensagens.jsonl (só contagens e as palavras achadas, nunca o texto). Erro interno: libera e vai ao erros.log.
+Sem objetivo armado, nada muda. S6: em todo Stop, só MEDE (nunca bloqueia) a última mensagem ao dono (o campo
+last_assistant_message do evento; sem ele, o transcrito): caracteres contra TETO_DA_MENSAGEM, as palavras da tabela "Em vez de"
+de skills/modo-iniciante/SKILL.md e, por classe de CLASSES_DE_JARGAO (diretriz 31), quantos termos sem explicação há fora de
+bloco de código e de citação; grava uma linha em .forge/run/mensagens.jsonl (só contagens e as palavras da tabela, nunca o
+texto nem o termo achado das classes). A medida roda depois da decisão do objetivo e lê só TETO_DA_MEDIDA caracteres
+(`cortado` na linha): o tempo dela não cresce com a mensagem. Erro interno: libera e vai ao erros.log.
 """
 import datetime
 import json
@@ -24,6 +27,8 @@ CHECAGEM_S = 60
 REPETICOES_PARA_PAUSAR = 4
 TETO_DA_MENSAGEM = 1200  # caracteres da mensagem ao dono (S6, só medida)
 LEITURA_MAXIMA = 4 * 1024 * 1024  # bytes lidos do fim do transcrito
+TETO_DA_MEDIDA = 20000  # caracteres do início da mensagem que a medida lê (S6): o tempo dela não cresce com a mensagem
+JANELA_DA_FRASE = 200  # caracteres antes do termo onde explicado() procura o "o que é" da mesma frase
 
 
 def agora():
@@ -132,11 +137,63 @@ def ultima_mensagem(transcrito):
     return None
 
 
+# Classes de jargão (diretriz 31; desenho em docs/arquitetura/visao-de-foco.md, seção 5.3): fonte única das expressões.
+CLASSES_DE_JARGAO = {
+    "etapa": re.compile(r"(?<![\w.])E\d+\.\d+(?!\w|\.\w)"),
+    "commit": re.compile(r"(?<![\w-])(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}(?![\w-])"),
+    "regra": re.compile(r"(?<![\w-])R-[A-Z]{3,}(?![\w-])"),
+    "cartao": re.compile(r"(?<![\w-])[A-Z]{2}[A-Z0-9]*(?:-[A-Z0-9]+)+(?![\w-])"),
+    "ferramenta": re.compile(r"(?<![\w/-])(?:forge-[a-z][\w-]*|(?:gh|git) [a-z][\w-]*)|(?:^|(?<=`))forge [a-z][\w-]*", re.M),
+    "caminho": re.compile(r"(?<![\w/.-])[\w.-]*/[\w./-]*\.(?:md|py|json|sh)(?![\w-])"),
+}
+EXPLICACAO = re.compile(r"[^\n(.!?]{0,60}\(\s*[^)\s]")  # parêntese com texto em até 60 caracteres, na mesma frase
+
+
+def fora_de_codigo_e_citacao(texto):
+    """As linhas da mensagem fora de bloco de código cercado (``` ou ~~~, fechado pela mesma cerca) e de citação (>):
+    o que entra na conta das classes."""
+    linhas, cerca = [], None
+    for linha in texto.splitlines():
+        inicio = linha.lstrip()[:3]
+        if cerca is None and inicio in ("```", "~~~"):
+            cerca = inicio
+        elif cerca is not None:
+            cerca = None if inicio == cerca else cerca
+        elif not inicio.startswith(">"):
+            linhas.append(linha)
+    return "\n".join(linhas)
+
+
+def explicado(texto, inicio, fim):
+    """O termo vem seguido de parêntese com texto (até 60 caracteres) ou precedido de "o que é" na mesma frase, procurado
+    só na janela antes do termo: o custo não cresce com o tamanho da mensagem."""
+    frase = re.split(r"[.!?\n]", texto[max(0, inicio - JANELA_DA_FRASE):inicio])[-1]
+    return bool(EXPLICACAO.match(texto, fim)) or "o que é" in frase.lower()
+
+
+def classes_de_jargao(texto):
+    """Por classe, quantos termos sem explicação; só as classes achadas (nunca o termo)."""
+    texto = fora_de_codigo_e_citacao(texto)
+    contagem = {nome: sum(not explicado(texto, m.start(), m.end()) for m in padrao.finditer(texto))
+                for nome, padrao in CLASSES_DE_JARGAO.items()}
+    return {nome: n for nome, n in contagem.items() if n}
+
+
+def mensagem_ao_dono(hook):
+    """A mensagem final do evento (last_assistant_message); o transcrito só sem ela, que ali pode faltar a final (D13)."""
+    texto = hook.campo("last_assistant_message")
+    if isinstance(texto, str) and texto.strip():
+        return texto
+    return ultima_mensagem(hook.campo("transcript_path"))
+
+
 def medir_mensagem(hook):
-    for texto in filter(None, [ultima_mensagem(hook.campo("transcript_path"))]):
-        achados = sorted({p for p in jargao() if re.search(r"(?<!\w)" + re.escape(p) + r"(?!\w)", texto, re.I)})
+    for texto in filter(None, [mensagem_ao_dono(hook)]):
+        medido = texto[:TETO_DA_MEDIDA]
+        achados = sorted({p for p in jargao() if re.search(r"(?<!\w)" + re.escape(p) + r"(?!\w)", medido, re.I)})
         linha = {"em": agora(), "caracteres": len(texto), "teto": TETO_DA_MENSAGEM, "passou_do_teto": len(texto) > TETO_DA_MENSAGEM,
-                 "jargao": achados, "iniciante": hook.iniciante()}
+                 "jargao": achados, "classes": classes_de_jargao(medido), "cortado": len(texto) > TETO_DA_MEDIDA,
+                 "iniciante": hook.iniciante()}
         with open(hook.run() / "mensagens.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(linha, ensure_ascii=False) + "\n")
 
@@ -148,10 +205,12 @@ def principal(hook):
     if raiz is None:
         return
     try:
-        medir_mensagem(hook)
-    except Exception as erro:  # noqa: BLE001 - S6 só mede: a falha da medida nunca troca a decisão do Stop
-        hook.registrar_erro(erro)
-    avaliar_meta(hook, raiz)
+        avaliar_meta(hook, raiz)  # a decisão vem antes da medida; bloquear sai do processo, e a medida roda no finally
+    finally:
+        try:
+            medir_mensagem(hook)
+        except Exception as erro:  # noqa: BLE001 - S6 só mede: a falha da medida nunca troca a decisão do Stop
+            hook.registrar_erro(erro)
 
 
 if __name__ == "__main__":
