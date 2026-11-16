@@ -1,0 +1,36 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: lê da --raiz-pedidos quando dada",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "if getattr(a, \"raiz_pedidos\", None) else Path(raiz)",
+      "para": "if False else Path(raiz)",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_le_da_raiz_pedidos_quando_dada"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: só linha que começa por | é linha de tabela",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "        if not linha.startswith(\"|\"):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_faixa_e_media_por_agente_nas_duas_formas_de_tabela"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: sem texto legível sai 1 sem queda",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if texto is None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_sem_arquivo_sai_1_sem_medida"
+      ]
+    }
+  ]
+}

@@ -6,8 +6,8 @@
       "id": "M3",
       "guarda": "invariante de tests/config.json nunca e texto nem forma",
       "arquivo": "bin/forge-check",
-      "de": "and nome not in inv_de | inv_ate and",
-      "para": "and",
+      "de": " and inv_ate is not None\n                  and nome not in inv_de | inv_ate)",
+      "para": " and inv_ate is not None)",
       "testes": [
         "tests.test_reval_delta.Classes.test_texto_e_lista_branca_e_o_normativo_e_codigo"
       ]

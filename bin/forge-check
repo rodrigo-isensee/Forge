@@ -2466,6 +2466,27 @@ def igual_na_base(raiz, commit, base_ref, nome):
     return cod == 0 and cod_base == 0 and a == b
 
 
+def juncao_limpa(raiz, de, head, base_ref, ancoras):
+    """E2.302: `de..head` é só a junção da base sem resolução à mão. Cada commit do primeiro pai, do head até o `de`, é merge de dois
+    pais com o segundo na `base_ref` e numa das `ancoras` (Base-sha de brief selado: a `origin/<base>` é ref local que o autor
+    reescreve) e com a árvore igual à da mescla automática (`git merge-tree --write-tree`). Commit comum, merge de outra coisa,
+    conflito, mudança à mão ou falha do git: False (na dúvida, recusa). Os atributos da mescla vêm da árvore vazia (`--attr-source`):
+    um `.gitattributes` da árvore de trabalho com `merge=union` não torna limpo um conflito (segurança A1); sem a árvore vazia, o
+    `--attr-source=` vazio faz o git falhar e recusa."""
+    vazia = git(raiz, "hash-object", "-t", "tree", "/dev/null")[1]
+    cod, saida = git(raiz, "rev-list", "--first-parent", "--parents", f"{de}..{head}")
+    if cod or not saida or not base_ref:
+        return False
+    for commit, *pais in map(str.split, saida.splitlines()):
+        if len(pais) != 2 or not e_ancestral(raiz, pais[1], base_ref) or not any(e_ancestral(raiz, pais[1], a) for a in ancoras):
+            return False
+        cod, arvore = git(raiz, f"--attr-source={vazia}", "merge-tree", "--write-tree", pais[0], pais[1])
+        # `cod or` é redundante (o conflito dá árvore com marcadores, diferente da commitada): o mutante Q3 é equivalente
+        if cod or arvore.split("\n")[0] != git(raiz, "rev-parse", "--verify", "--quiet", f"{commit}^{{tree}}")[1]:
+            return False
+    return True
+
+
 def escopo_pelo_primeiro_pai(raiz, de, head, base_ref):
     """G2: arquivos do autor quando o caminho do primeiro pai de `de..head` tem um merge da base, com commits de parecer ou de trabalho
     antes ou depois: cada commit conta o que mudou contra o primeiro pai; o merge cujo outro pai é ancestral da base conta só o que difere
@@ -2718,9 +2739,10 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     return rc
 
 
-def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=(), declarado=None):
+def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=(), declarado=None, ancoras=()):
     """(rc, [(linha, reprova)]) do `cmd_entrega`, sem imprimir. Com `declarado` (0.43.1, P2: função nome -> rótulo ou None, o escopo
-    declarado no brief selado), cada `escopo: confira` vira `ok (declarado no brief)` ou `fora do declarado no brief` (reprova)."""
+    declarado no brief selado), cada `escopo: confira` vira `ok (declarado no brief)` ou `fora do declarado no brief` (reprova).
+    `ancoras` (E2.302, só a conferência): os Base-sha selados que deixam a junção limpa da base passar sem commit novo."""
     caminho = caminho_do_pedido(raiz, pedido)
     try:
         texto = caminho.read_text(encoding="utf-8")
@@ -2821,7 +2843,10 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
     do_dono, fora_da_forma = patches_do_dono(texto)
     linhas += [(f"patch do dono: linha fora da forma `- <data> <hora>: patch do dono aplicado <arquivo> commit <sha40>`, ignorada (P3): "
                 f"{linha_legivel(linha.strip())[:160]}", False) for linha in fora_da_forma]
-    if not arquivos and not falhas:
+    if not arquivos and not falhas and valido in entregas_conferidas(texto) and juncao_limpa(raiz, valido, head, base_ref, ancoras):
+        linhas.append((f"escopo: junção limpa da base (só merge da {nome_seguro(base)} sem resolução à mão; a entrega conferida "
+                       f"{valido[:12]} cobre o primeiro pai)", False))  # E2.302
+    elif not arquivos and not falhas:
         vazio = ("pendente: a entrega é só a integração da base (o merge não traz trabalho próprio); todo item do \"Entregar\" está sem commit"
                  if dos_dois_pais else "pendente: intervalo vazio na etapa codigo (nenhum commit novo); todo item do \"Entregar\" está sem commit")
         linhas.append((vazio, True) if etapa == "codigo" else ("escopo: sem commit (nada a conferir)", False))
@@ -5158,9 +5183,9 @@ def ctx_das_voltas():
             "nome_seguro": nome_seguro, "sem_controle": sem_controle}
 
 
-def cmd_voltas(raiz, pedido=None):
+def cmd_voltas(raiz, pedido=None, tempo=False):
     """`voltas` mora em bin/forge_voltas.py (FILA-31 F6, 0.45.7 E5.4)."""
-    return modulo_do_bin("forge_voltas").cmd_voltas(raiz, pedido, ctx_das_voltas())
+    return modulo_do_bin("forge_voltas").cmd_voltas(raiz, pedido, ctx_das_voltas(), tempo)
 
 
 # ---- D12 (E3a): a medida de um tópico mesclado, gravada em docs/kanban/medidas.md; aviso, nunca trava. `medida` e `escape` moram em
@@ -9149,8 +9174,8 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
         print(f"resultado: cumpriu (o head {head} já tem a linha entrega conferida)")
         print(f"gravado: já existia a linha entrega conferida {head}")
         return 0
-    if etapa == "codigo" and (ponto := ponto_da_integracao(raiz, base, base_sha, head,
-                                                            bases_seladas_depois(raiz, caminho, texto, sha_brief))) != base_sha:
+    ancoras = bases_seladas_depois(raiz, caminho, texto, sha_brief)
+    if etapa == "codigo" and (ponto := ponto_da_integracao(raiz, base, base_sha, head, ancoras)) != base_sha:
         print(f"base: merge-base {ponto[:12]} com a {nome_seguro(base)} (a branch trouxe a base depois do Base-sha {base_sha[:12]})")
         base_sha = ponto  # E23.36 (e): o que veio da base pelo merge não é escopo, e conferida de outra branch que veio com ela não é Desde
     base_ref = ref_da_base(raiz, base)  # CONFERIDA-POR-BRANCH: a conferida de outro item já na base não é o Desde desta branch
@@ -9161,7 +9186,7 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
         anteriores, declarado = escopo_das_voltas(raiz, caminho, texto, branch, brief, sha_brief)
         for anterior in anteriores:
             print(f"brief: {caminho_impresso(anterior)} (selado, anterior da mesma branch: escopo unido)")
-    rc, linhas = linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, declarado=declarado)
+    rc, linhas = linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, declarado=declarado, ancoras=ancoras)
     if rc == 2:
         for linha, _ in linhas:
             print(linha)
@@ -9484,6 +9509,7 @@ def main():
     va.add_argument("--base", default="origin/develop", help="origin/develop (padrão) ou develop")
     vo = sub.add_parser("voltas", parents=[comum], help="o vai e volta de cada pedido (voltas e minutos), lido de docs/kanban e docs/briefs; só leitura")
     vo.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md ou cartão do quadro); padrão: os que têm volta")
+    vo.add_argument("--tempo", action="store_true", help="A15: linha `tempo:` com os minutos por fase, a espera do dono e a razão processo ÷ entrega (nao-medido sem dado)")
     me = sub.add_parser("medida", parents=[comum], help="mede um tópico mesclado (tempo ativo, linhas, tokens) e grava a linha em docs/kanban/medidas.md; nunca trava (D12)")
     me.add_argument("--pedido", required=True, help="id do pedido, que é o cartão no histórico e a entrega em entregas.md")
     me.add_argument("--merge", required=True, help="sha40 do commit de merge do tópico (minúsculo; nada mais é aceito)")
@@ -9685,6 +9711,7 @@ def main():
     cu.add_argument("--entrega", default="<entrega>", help="nome da entrega na linha gerada por --entregas (sem `|`, quebra de linha nem controle)")
     cu.add_argument("--desde", help="só as mensagens a partir desta hora (ISO 8601); a linha sem `timestamp` ou fora da janela vai para `fora_da_janela`")
     cu.add_argument("--ate", help="só as mensagens até esta hora (ISO 8601)")
+    cu.add_argument("--media-por-agente", action="store_true", help="faixa (min, max) e média de tokens por agente lidas de docs/kanban/entregas.md (da --raiz-pedidos, se dada), só disco local; não se combina com alvo, --entregas, --pedido, --desde nem --ate")
     cu.add_argument("--pedido", help="a janela do pedido (id de docs/pedidos/<id>.md que existe): do primeiro ao último movimento dos cartões do pedido em docs/kanban/historico.md (cartão igual, da mesma família de nome ou com o pedido na coluna Pedido do KANBAN.md)")
     for nome, ajuda in (("lastro", "afirmações dos relatórios de subagente sem lastro nas saídas de ferramenta (M1)"),
                         ("decisoes", "respostas do Jarvis com mais de uma decisão ou sem recomendação (M3)"),
@@ -9754,6 +9781,8 @@ def executar(a, raiz):
             print(f"{a.cmd}: bin/forge_dono.py ausente ao lado do forge-check; nada feito")
             return 2
         return modulo.executar(a, raiz, {"pedido": pedido_para_anotar, "versao": versao_da_propria_copia, "seguro": sem_controle})
+    if a.cmd == "transcricao" and a.acao == "custo" and a.media_por_agente:  # CUSTO-MEDIA-POR-AGENTE: em bin/forge_transcricao.py
+        return cmd_transcricao_do_modulo(a, raiz)
     if a.cmd == "transcricao" and a.acao == "custo":
         return cmd_transcricao_custo(a.alvo, a.entregas, a.entrega, raiz, a.desde, a.ate, a.pedido)
     if a.cmd == "transcricao" and a.acao in TRANSCRICAO_DO_MODULO:
@@ -9783,7 +9812,7 @@ def executar(a, raiz):
     if a.cmd == "entrega":
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
     if a.cmd == "voltas":  # RAIZ-PEDIDOS-PERDE-DADOS: o quadro, os briefs e os pedidos vêm do --raiz-pedidos, como no dora
-        return cmd_voltas(Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz, a.pedido)
+        return cmd_voltas(Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz, a.pedido, a.tempo)
     if a.cmd == "dora":
         return modulo_do_bin("forge_dora").executar(a, raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz)
     if a.cmd == "medida":

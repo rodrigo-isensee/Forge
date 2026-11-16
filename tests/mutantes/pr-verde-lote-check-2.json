@@ -46,8 +46,8 @@
       "id": "M13",
       "guarda": "QA A5: com LIVRES no merge simulado, o fragmento mudado depois do merge da base desatualizaria o parecer no CI",
       "arquivo": "bin/forge-check",
-      "de": "    div = arquivos_divergentes(raiz, base, commit, ate, livres) if base else None\n",
-      "para": "    div = arquivos_divergentes(raiz, base, commit, ate, LIVRES) if base else None\n",
+      "de": "arquivos_divergentes(raiz, base, commit, ate, livres, leves | alheios) if base",
+      "para": "arquivos_divergentes(raiz, base, commit, ate, LIVRES, leves | alheios) if base",
       "testes": [
         "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_com_base_o_merge_simulado_tambem_ignora_o_fragmento"
       ]
