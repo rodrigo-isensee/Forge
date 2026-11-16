@@ -3,16 +3,18 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: c22624c5b274546685d4db04ab44236bfafe6f31
+commit: 081473ac553f7a38d80c1783052afd03f34da97c
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-15
 ---
-# Review de segurança: v047 (lote B, destino opaco, revalidação da volta de A16)
+# Review de segurança: v047 (lote B, destino opaco, junção com a develop)
 
-Revalidação por delta (`forge-check parecer delta`), intervalo `c3cde09f..c22624c5`. No domínio: `hooks/conformidade.py` (função nova `nasce_fora_do_ambiente`, usada para o nome inteiro e para cada prefixo em `valores_da_variavel`) e cinco fixtures `opaco-u4-*` novas (S48 a S51 bloqueiam, `"$HOME"t` libera). Fora do domínio: os mutantes 23 e 24 e `tests/test_hook_destino_opaco.py`. Etapa E1.344; não fiz a entrega. Parecer anterior: `c3cde09f`, reprovado (A16 bloqueante, A11 e A5 recomendados).
+Revalidação por delta da junção `081473ac` (E2.130): merge de `7294bea3` (a branch, `c22624c5` mais pareceres) com a `develop` `bf475209`. `forge-check parecer delta`, intervalo `c22624c5..081473ac`, sem o que veio da base. No domínio só `bin/forge-testes`; fora, `tests/test_testes_tocados.py`. São os dois arquivos com conflito. Não fiz a junção.
 
-Vale a ordem do dono de 15/11 sobre o lote B: os achados já feitos têm de estar fechados; fuga rara nova não bloqueia e vira cartão (recomendado, com a sonda e a correção mínima); bloqueia só achado antigo aberto ou regressão da volta. A16 está fechada e a volta não abre regressão. As fugas novas (A17 a A19) já existem na `develop` `f4b0c2ae`, por isso são recomendadas.
+**A junção não muda comportamento.** Em `bin/forge-testes`, o resultado é a `develop` mais o lado da branch (`f4b0c2ae..7294bea3`): `test_hook_destino_opaco` e `test_conformidade_opaco` em `FORGE_CHECK` e na regra `hooks/.*` do `MAPA`, e `test_hook_destino_opaco` em `REAPROVEITAM_O_LOTE`, mantendo o `test_conferencia_dois_pedidos` e o `--texto` da `develop`. São só listas de módulos do plano dirigido (o filtro do pre-push, nunca portão de CI); só acrescentam, nada sai. Em `tests/test_testes_tocados.py`: o `sem_oraculos` da branch e a contagem de 83 para 86. Nos outros 315 arquivos, o diff `bf475209..081473ac` é linha por linha igual ao da branch (`f4b0c2ae..7294bea3`): o merge não trouxe nada além dos dois lados. A `develop` não tocou `hooks/` desde `f4b0c2ae`, por isso o `hooks/conformidade.py` e as linhas citadas nos achados são os de `c22624c5`. O delta não toca o oráculo (`tests/test_oraculo_v047.py` é o da branch).
+
+Vale a ordem do dono de 15/11 sobre o lote B: bloqueia só achado antigo aberto ou regressão. A16 segue fechada e a junção não abre regressão. A17 a A19, A11 e A5 continuam recomendados, como no parecer de `c22624c5`.
 
 ## Gatilhos
 `R-SEGURANCA`: hook de guarda (`conformidade`) que analisa entrada livre (uma linha de Bash) para proteger o `.git` (`config`, `hooks/`, marca da sessão). Bloqueio por `R-CONFORMIDADE`.
@@ -69,6 +71,6 @@ Como as sondas rodaram: script no meu rascunho que monta o fixture de `tests/tes
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito.
 
-Suíte inteira: **sem CI no head** (a branch não tem PR; o brief diz "sem PR"). Rodei `tests.test_hook_destino_opaco` (4 testes OK em 37 s no head `c22624c5`) e as sondas. Quando houver PR, o portão pede o CI verde no head desta revalidação.
+Suíte inteira: **sem CI no head** `081473ac` (a branch não tem PR; o brief diz "sem PR"). Rodei no head `tests.test_testes_tocados`, `tests.test_oraculo_v047`, `tests.test_hook_destino_opaco`, `tests.test_conformidade_opaco` e `forge-testes --texto`: 160 testes OK em 315 s (1 pulado pelo sandbox: /proc de outro namespace) e `--texto` rc=0. Quando houver PR, o portão pede o CI verde no head desta revalidação.
 
 Faltaram no ambiente: gitleaks, Semgrep, osv-scanner, zizmor e actionlint (`R-CUSTO`, não instalo). A entrega não traz segredo, dependência nem workflow; a análise foi manual e por sonda.
