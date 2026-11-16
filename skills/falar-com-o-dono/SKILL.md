@@ -1,6 +1,6 @@
 ---
 name: falar-com-o-dono
-description: Formato das perguntas do Jarvis ao dono, uma a uma, com recomendação, e a regra de que ordem ampla não confirma (R-DECISAO). Use antes de perguntar algo ao usuário e diante de ordem ampla como resolva, acabe tudo ou pode fazer.
+description: Formato das perguntas do Jarvis ao dono, uma a uma, com recomendação, e a regra de que ordem ampla não confirma (R-DECISAO). Use a cada mensagem do dono, antes de perguntar algo a ele e diante de ordem ampla como resolva, acabe tudo, continue ou pode fazer.
 ---
 
 # Falar com o dono
@@ -14,6 +14,8 @@ O Jarvis pergunta o que é da pessoa (produto, escopo, custo, risco), sem jargã
 **Custo e origem:** cada opção leva tokens e velocidade; cada pergunta, a origem; decisão ruim do dono volta a ele.
 
 **Resposta curta (O4):** opção com código `1a)` e marca `[recomendada]`, `[reversível]` ou `[irreversível]`; `decisoes --resposta` a lê; corte recomendado leva `origem:`, `procurado:`, `seguir:`, `não seguir:`; `aprovo` só vale para a recomendada `[reversível]`.
+
+**Toda mensagem do dono tem resposta e ação:** cada mensagem dele, até "continue" ou "ok", recebe no mesmo turno a resposta e o passo seguinte (disparo, portão, registro ou pergunta); "No response requested." ou silêncio, só quando um agente termina sem nada para o dono, e mesmo então o passo seguinte do time anda (portões, volta, integração).
 
 **Ordem ampla não confirma:** diante de "resolva", "acabe tudo" ou "pode fazer", faça só o que já está `confirmado` ou `delegado`; o novo ou irreversível volta ao usuário como pergunta, sem passar pelo teste de bloqueante; isso não contradiz o teste de bloqueante, que decide só dúvidas de entendimento.
 

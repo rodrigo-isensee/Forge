@@ -198,5 +198,23 @@ class WorktreeAntesDeDelegar(unittest.TestCase):
         self.assertRegex(skill, r"(?s)não gravável.*clone local.*~/\.forge-contrib/wt/<nome>-c.*origin/develop")
 
 
+class RespostaATodaMensagemDoDono(unittest.TestCase):
+    """v047 E2.180, RESPOSTA-A-TODA-MENSAGEM-DO-DONO (ERRO-JARVIS 14/11 06:08 e 12:30: 'No response requested.' ao 'continue' do
+    dono e ao relatório de um agente, com os portões parados): a skill que o Jarvis lê a cada mensagem do dono manda resposta e ação."""
+
+    def setUp(self):
+        self.skill = ler("skills/falar-com-o-dono/SKILL.md")
+
+    def test_toda_mensagem_tem_resposta_e_o_passo_seguinte(self):
+        regra = next(l for l in self.skill.splitlines() if l.startswith("**Toda mensagem do dono tem resposta e ação:**"))
+        self.assertIn('até "continue" ou "ok", recebe no mesmo turno a resposta e o passo seguinte', regra)
+        self.assertIn("só quando um agente termina sem nada para o dono", regra)
+        self.assertIn("mesmo então o passo seguinte do time anda", regra)
+
+    def test_a_skill_e_lida_a_cada_mensagem_e_o_jarvis_a_cita(self):
+        self.assertRegex(self.skill.split("\n---", 1)[0], r"(?m)^description: .*Use a cada mensagem do dono")
+        self.assertIn("${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/SKILL.md", ler(JARVIS))
+
+
 if __name__ == "__main__":
     unittest.main()
