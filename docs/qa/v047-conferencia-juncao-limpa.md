@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conferencia-juncao-limpa
-commit: d093ee8109b461d2521ba58f54b6211570800141
-parecer: reprovado
-escopo: completo
+commit: 1477a480d39ff926143246c5c0ed1c72d2e71bfd
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -17,8 +17,8 @@ data: 2026-11-16
 Pedido de correção sem especificação de UX. Obrigações: E2.302 (o intervalo só de merges limpos da develop, ancorado em Base-sha selado, com a entrega conferida no primeiro pai, cumpre sem commit novo) e `R-PROVA` (resolução à mão, merge sem âncora e conferida fora da forma seguem pendentes).
 
 ## Achados
-- A1 (bloqueante) bin/forge-check:2478 · mutante Q2 sobrevive: tirar `not e_ancestral(raiz, pais[1], base_ref)` não derruba teste. Falta caso: 2º pai ancestral da âncora mas fora da base_ref. Teste direto em `fc.juncao_limpa` (R-QA).
-- A2 (recomendado) bin/forge-check:2481 · mutante Q3 (tirar `cod or`) sobrevive; efeito nulo provado à mão (merge-tree em conflito dá árvore diferente da commitada com marcadores). Aceite como equivalente, com comentário ou teste.
+- A1 (bloqueante, resolvido em 1477a480) bin/forge-check:2478 · teste `test_segundo_pai_ancorado_mas_fora_da_base_recusa` e mutante J6 (Q2) morrem.
+- A2 (recomendado, resolvido) bin/forge-check:2481 · Q3 declarado equivalente na spec e comentado no código; aceito (provado à mão no parecer anterior).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -40,3 +40,14 @@ Pedido de correção sem especificação de UX. Obrigações: E2.302 (o interval
 - Análise de afrouxamento (R-PROVA): a isenção exige merge de 2 pais, 2º pai na base e na âncora selada, árvore igual à da mescla automática e a conferida da ferramenta no primeiro pai. Sem caminho novo além do achado A1.
 - Suíte inteira: check-run `bateria` do CI do PR (sem PR neste pedido).
 - Remoto: `origin/melhoria/v047-conferencia-juncao-limpa` = d093ee81 no fetch; nada a mesclar.
+
+## Revalidação por delta (head 1477a480, base do delta d093ee81)
+`forge-check parecer delta` listou no domínio: bin/forge-check, tests/mutantes/v047-conferencia-juncao-limpa.json, tests/test_selo_e_entrega.py. Cobre também o `--attr-source` vazio no merge-tree (segurança A1).
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| 2º pai ancorado mas fora da base recusa (A1 QA) | JuncaoLimpa.test_segundo_pai_ancorado_mas_fora_da_base_recusa | base_ref ≠ âncora | passou |
+| `.gitattributes` `merge=union` da árvore de trabalho não limpa conflito | JuncaoLimpa.test_gitattributes_da_arvore_de_trabalho_nao_resolve_conflito | atributos da árvore vazia | passou |
+- `python3 -m unittest tests.test_selo_e_entrega.JuncaoLimpa`: 9 testes, OK.
+- Mutação `forge-mutante spec --base d093ee81` (`base=d093ee81... rev=1477a480...`): J1 a J7 morreram; `equivalente: Q3`. Sobrevivente: nenhum.
+- Vermelho: `forge-testes --vermelho` ficou na fila do R-TETO; feito à mão em cópia (bin/forge-check do d093ee81 + testes do head): `test_gitattributes...` FALHA (prova); `test_segundo_pai...` passa (a guarda já existia; prova por mutação J6, que morre).
+- Suíte inteira: check-run `bateria` do CI do PR (sem PR neste pedido).
