@@ -18,6 +18,7 @@ from pathlib import Path
 
 TESTES = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(TESTES))  # os apoios de tests/ também no modo `tests.evals.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 from evals.test_regressao_forma import BRIEF, CABECALHO, RaizSintetica  # noqa: E402
 
@@ -148,6 +149,34 @@ class PropostaSemMedida(unittest.TestCase):
         self.assertEqual(rc, 1, saida)
         self.assertIn("Métrica tem de começar", saida)
         self.assertIn("sem critério de reversão", saida)
+
+
+class EtapaJaResolvidaNaDevelop(RaizSintetica):
+    """v047 E2.180, ETAPA-SO-APOS-CONFERIR-DEVELOP (Histórico do v047, 13/11 08:00 e 08:39: E3.2 e E5.3 abertas pelo cartão com o
+    item já na develop; 13/11, etapa entregue havia 3 h quase delegada de novo). O texto está na skill falar-com-o-dono; a trava,
+    no backlog: o `forge-check brief` ainda não procura na `develop` um commit que cite o pedido e a etapa do `Cobre:`."""
+    PAPEL = "jarvis"
+
+    def develop_com(self, mensagem):
+        """A raiz sintética vira repositório com um commit na `develop` com a `mensagem`."""
+        env = dict(sem_manutencao(), HOME=str(self.tmp / "home"), GIT_CONFIG_NOSYSTEM="1", GIT_AUTHOR_NAME="t",
+                   GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
+        for args in (["init", "-q", "-b", "develop"], ["commit", "-q", "--allow-empty", "-m", mensagem]):
+            subprocess.run(["git", "-C", str(self.tmp), *args], check=True, capture_output=True, env=env, timeout=60)
+
+    def brief_da_etapa(self):
+        return BRIEF.replace("Agente destino: forge:dev-exemplo\n", "Agente destino: forge:dev-exemplo\n" + CABECALHO, 1)
+
+    def test_controle_etapa_sem_commit_na_develop_passa(self):
+        self.develop_com("feat(outro): recurso B (pedido-sintetico E1.2)")
+        rc, saida = self.conferir(self.brief_da_etapa())
+        self.assertEqual(rc, 0, saida)
+
+    @unittest.expectedFailure
+    def test_brief_de_etapa_ja_resolvida_na_develop_reprova(self):
+        """ERRO 13/11: o `forge-check brief` ainda não confere a `develop` antes de abrir a etapa."""
+        self.develop_com("feat(exemplo): recurso A (pedido-sintetico E1.1)")
+        self.assertBarra(*self.conferir(self.brief_da_etapa()))
 
 
 class Catalogo(unittest.TestCase):

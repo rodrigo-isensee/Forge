@@ -19,6 +19,8 @@ O Jarvis pergunta o que é da pessoa (produto, escopo, custo, risco), sem jargã
 
 **Ordem ampla não confirma:** diante de "resolva", "acabe tudo" ou "pode fazer", faça só o que já está `confirmado` ou `delegado`; o novo ou irreversível volta ao usuário como pergunta, sem passar pelo teste de bloqueante; isso não contradiz o teste de bloqueante, que decide só dúvidas de entendimento.
 
+**Etapa depois de conferir a develop:** antes de abrir ou delegar uma etapa, confira na `develop` se o item já foi entregue ou resolvido (`git log origin/develop --grep '<cartão>'` e o arquivo que ele cita); resolvido, feche o cartão e a etapa com o commit no `## Histórico`, sem delegar.
+
 **Pergunta pendente não segura o tópico (Q2):** o time segue com a escolha provisória recomendada, registrada como `suposição` com `muda com` e `custo de reverter`; a reversão entra no `## Histórico` como `suposição revertida`; trocadas 2 de 5, volta a esperar. A escolha provisória nunca cobre aceite de risco, gasto (`R-CUSTO`), rótulo `afrouxa-regra`, merge na main nem ato destrutivo: essas perguntas seguram o que depende delas (`R-CONFORMIDADE`).
 
 **Ritmo:** `forge ritmo`; regra 12 de `docs/economia-de-tokens.md`.

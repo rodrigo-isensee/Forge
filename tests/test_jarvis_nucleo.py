@@ -216,5 +216,17 @@ class RespostaATodaMensagemDoDono(unittest.TestCase):
         self.assertIn("${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/SKILL.md", ler(JARVIS))
 
 
+class EtapaSoAposConferirDevelop(unittest.TestCase):
+    """v047 E2.180, ETAPA-SO-APOS-CONFERIR-DEVELOP (13/11: E3.2 e E5.3 abertas com o item já na develop; etapa entregue havia 3 h
+    quase delegada de novo): antes de abrir etapa, o Jarvis confere a develop. A trava é backlog em tests/evals/test_erros_por_papel.py."""
+
+    def test_a_skill_manda_conferir_a_develop_antes_de_abrir_a_etapa(self):
+        skill = ler("skills/falar-com-o-dono/SKILL.md")
+        regra = next(l for l in skill.splitlines() if l.startswith("**Etapa depois de conferir a develop:**"))
+        self.assertIn("antes de abrir ou delegar uma etapa, confira na `develop` se o item já foi entregue ou resolvido", regra)
+        self.assertIn("`git log origin/develop --grep '<cartão>'`", regra)
+        self.assertIn("sem delegar", regra)
+
+
 if __name__ == "__main__":
     unittest.main()
