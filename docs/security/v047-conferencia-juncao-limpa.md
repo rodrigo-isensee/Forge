@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v047-conferencia-juncao-limpa
+pedido: v047
 branch: melhoria/v047-conferencia-juncao-limpa
 commit: 1477a480d39ff926143246c5c0ed1c72d2e71bfd
 parecer: aprovado
