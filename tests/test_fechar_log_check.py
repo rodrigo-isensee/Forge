@@ -154,14 +154,14 @@ class FecharLogCheck(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", FORGE_CHECK=self.check_lento())
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         linhas = self.subidas()
-        self.assertEqual([l[0] for l in linhas], ["1", "1c", "2", "3", "2b", "4", "5", "6a", "6", "7"])
+        self.assertEqual([l[0] for l in linhas], ["1", "1c", "2", "3", "2b", "4", "5", "6a", "6b", "6", "7", "8"])
         for l in linhas:
             self.assertRegex(l[1], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
             self.assertLessEqual(l[1], l[2], l)
         self.assertLess(linhas[0][1], linhas[0][2])  # o passo 1 (check de 1,2 s) fecha com a hora do fim, não a do início
-        self.assertEqual(linhas[8][3:], ["MERGED", "0123456", head7])
-        self.assertEqual(linhas[9][3:], ["rc", "0"])
-        self.assertEqual([l[3:] for l in linhas[:8]], [[]] * 8)
+        self.assertEqual(linhas[9][3:], ["MERGED", "0123456", head7])
+        self.assertEqual(linhas[11][3:], ["rc", "0"])  # o último passo, agora o 8, fecha com o rc
+        self.assertEqual([l[3:] for l in linhas[:9]], [[]] * 9)
         self.assertNotIn("subida:", r.stdout + r.stderr)  # só no log
 
     def test_parada_no_passo_4_fecha_a_linha_do_4_com_rc_1(self):
