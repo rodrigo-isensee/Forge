@@ -6,8 +6,8 @@
       "id": "M50",
       "guarda": "anotacoes que nao sao lista nao quebram",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "for anotacao in lista if isinstance(lista, list) else []:",
-      "para": "for anotacao in lista:",
+      "de": "isinstance(lista, list)",
+      "para": "True",
       "testes": [
         "tests.test_ci_rapido_guardas.GerarEColetar.test_api_sem_lista_de_execucoes_ou_de_jobs_ou_de_anotacoes_nao_quebra"
       ]
@@ -56,8 +56,8 @@
       "id": "M55",
       "guarda": "env vem do processo quando nao informado",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "dict(os.environ if env is None else env)",
-      "para": "dict(env)",
+      "de": "env is None",
+      "para": "False",
       "testes": [
         "tests.test_ci_rapido_guardas.PrincipalGuardas.test_env_nao_informado_vem_do_ambiente_do_processo"
       ]
@@ -86,8 +86,8 @@
       "id": "M58",
       "guarda": "conhecidas injetadas dispensam o plano",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "unidades_do_plano() if conhecidas is None else conhecidas",
-      "para": "unidades_do_plano()",
+      "de": "conhecidas is None",
+      "para": "True",
       "testes": [
         "tests.test_ci_rapido_guardas.PrincipalGuardas.test_conhecidas_injetadas_dispensam_o_plano_da_arvore"
       ]
@@ -116,8 +116,8 @@
       "id": "M61",
       "guarda": "peso atual que nao e objeto vale vazio",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "atuais if isinstance(atuais, dict) else {}",
-      "para": "atuais",
+      "de": "isinstance(atuais, dict)",
+      "para": "True",
       "testes": [
         "tests.test_ci_rapido_guardas.PrincipalGuardas.test_peso_atual_que_nao_e_objeto_vale_vazio"
       ]
