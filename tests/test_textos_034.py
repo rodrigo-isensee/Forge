@@ -57,5 +57,21 @@ class E8TextoAntigo(unittest.TestCase):
         self.assertNotIn('a regra "branch atualizada com a base" do ruleset `portoes` são configuração', conf)
 
 
+class CorrecaoAntesDosPortoes(unittest.TestCase):
+    """CORRECAO-ANTES-DOS-PORTOES (v047 E2.74, retro da 0.47.0 C5): correção que muda arquivo da branch, achado
+    `recomendado` incluso, entra antes dos portões; a regra fica na skill e o tech-lead aponta para ela."""
+    ANCORA = "- **Correção antes dos portões:**"
+
+    def test_skill_tem_a_regra_com_o_id(self):
+        regra = linha("skills/trabalho-em-paralelo/SKILL.md", self.ANCORA)
+        self.assertIn("R-REVIEW", ids(regra))
+        self.assertIn("`recomendado`", regra)
+
+    def test_tech_lead_aponta_para_a_skill(self):
+        ponteiro = linha("agents/tech-lead.md", self.ANCORA)
+        self.assertIn("trabalho-em-paralelo", ponteiro)
+        self.assertIn("R-REVIEW", ids(ponteiro))
+
+
 if __name__ == "__main__":
     unittest.main()
