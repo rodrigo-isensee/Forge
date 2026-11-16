@@ -23,6 +23,7 @@ Formato (modelo em `_modelo.md`): contexto, decisão, alternativas, consequênci
 | [0014](0014-fluxo-de-tres-degraus-nos-projetos.md) | Fluxo de três degraus nos projetos: `develop` → `homolog` → `main` (proposta; vale a partir do PR da fase E do lote-unico-032) |
 | [0015](0015-porta-de-entrada-do-onboarding.md) | Porta de entrada do onboarding: terminal e Jarvis, sem hook fora de projeto (proposta; vale a partir do PR da fase E do lote-unico-032) |
 | [0016](0016-checagem-do-brief.md) | Checagem do brief: skill neutra e lista local do projeto (proposta; vale quando o PR da `melhoria/checagem-do-brief` entrar na `develop`) |
+| [0017](0017-forge-sempre-atual.md) | Forge sempre atual: atualização na abertura, com checagem e volta (emenda a 0005) (proposta; vale quando o PR da `melhoria/v047-forge-sempre-atual` entrar na `develop`) |
 
 ## Substituídas
 Nenhuma.
