@@ -1207,6 +1207,78 @@ class Conferir(unittest.TestCase):
                 self.assertIn("--conferir vem com --base", r.stderr)
 
 
+PENDENTES = RAIZ / "tests" / "fixtures" / "mutantes-pendentes.txt"
+
+
+class ConferirTodas(unittest.TestCase):
+    """`--conferir --todas` (AR-12, E2.215 da v047): o `de` de cada mutante de todas as specs, com ou sem diff, sem rodar teste."""
+
+    def setUp(self):
+        self._t = tempfile.TemporaryDirectory()
+        self.addCleanup(self._t.cleanup)
+        self.dir = Path(self._t.name)
+        self.env = sem_manutencao({"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.dir), "LANG": "C.UTF-8",
+                                        "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null", "GIT_AUTHOR_NAME": "t",
+                                        "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
+        subprocess.run(["git", "init", "-q", "-b", "develop"], cwd=self.dir, env=self.env, capture_output=True, check=True)
+        self.salvar({"lib.py": "x = 1\nif x > 100000:\n    x = 2\n"})
+
+    def salvar(self, arquivos):
+        for nome, texto in arquivos.items():
+            (self.dir / nome).parent.mkdir(parents=True, exist_ok=True)
+            (self.dir / nome).write_text(texto, encoding="utf-8")
+        for args in (("add", "-A"), ("commit", "-qm", "c")):
+            subprocess.run(["git", *args], cwd=self.dir, env=self.env, capture_output=True, check=True)
+
+    def todas(self, *args, cwd=None):
+        return subprocess.run([sys.executable, "-I", str(FERRAMENTA), *args], cwd=cwd or self.dir, env=self.env,
+                              capture_output=True, text=True, timeout=120)
+
+    def test_spec_antiga_fora_do_diff_que_envelheceu_sai_1_e_a_alinhada_sai_0(self):
+        isenta = {"arquivo": "lib.py", "trecho": "x > 100000", "motivo": "a linha_base é do --base, não do --todas", "linha_base": 9}
+        self.salvar({"tests/mutantes/x.json": json.dumps({"pedido": "x", "mutantes": [mutante(de="if x > 100000:", para="if x > 1:")],
+                                                          "isentas": [isenta]})})
+        r = self.todas("--conferir", "--todas")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("conferidas: 1 specs, o trecho de cada mutante no lugar", r.stdout)
+        self.salvar({"lib.py": "x = 1\nif x > 100001:\n    x = 2\n"})  # outro commit muda a linha; a spec não está no diff
+        r = self.todas("--conferir", "--todas")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertEqual(r.stdout, "tests/mutantes/x.json: M1 · o trecho aparece 0 vezes em lib.py (precisa de uma) · 'if x > 100000:'\n")
+        self.salvar({"lib.py": "if x > 100000:\nif x > 100000:\n"})
+        self.assertIn("M1 · o trecho aparece 2 vezes em lib.py", self.todas("--conferir", "--todas").stdout)
+
+    def test_sem_spec_rev_que_nao_e_commit_ou_spec_invalida_saem_2(self):
+        r = self.todas("--conferir", "--todas")
+        self.assertEqual((r.returncode, r.stdout), (2, ""))
+        self.assertIn("nenhuma spec em tests/mutantes/", r.stderr)
+        r = self.todas("--conferir", "--todas", "--rev", "nao-existe")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--rev precisa resolver a um commit", r.stderr)
+        self.salvar({"tests/mutantes/x.json": json.dumps({"pedido": "x", "mutantes": []})})
+        r = self.todas("--conferir", "--todas")
+        self.assertEqual((r.returncode, r.stdout), (2, ""))
+        self.assertIn("tests/mutantes/x.json: spec inválida", r.stderr)
+
+    def test_todas_vem_so_com_conferir_e_sem_base_spec_nem_cobertura(self):
+        self.salvar({"tests/mutantes/x.json": json.dumps({"pedido": "x", "mutantes": [mutante(de="if x > 100000:")]})})
+        for args in (("--todas",), ("--conferir", "--todas", "--base", "HEAD"), ("--conferir", "--todas", "spec.json"),
+                     ("--conferir", "--todas", "--cobertura")):
+            with self.subTest(args):
+                r = self.todas(*args)
+                self.assertEqual((r.returncode, r.stdout), (2, ""))
+                self.assertIn("--todas vem com --conferir, sem --base, SPEC nem --cobertura", r.stderr)
+
+    def test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes(self):  # AR-12: a catraca só encolhe
+        r = self.todas("--conferir", "--todas", cwd=RAIZ)
+        self.assertIn(r.returncode, (0, 1), r.stderr)
+        achados = {linha.split(" · ")[0] for linha in r.stdout.splitlines() if " · o trecho aparece " in linha}
+        pendentes = {l.strip() for l in PENDENTES.read_text(encoding="utf-8").splitlines() if l.strip() and not l.startswith("#")}
+        self.assertGreaterEqual(len(list((RAIZ / "tests" / "mutantes").glob("*.json"))), 400)
+        self.assertEqual(sorted(achados - pendentes), [], "spec com o `de` fora da fonte atual: alinhe-a no mesmo commit que muda a linha")
+        self.assertEqual(sorted(pendentes - achados), [], "a spec já confere: tire-a de tests/fixtures/mutantes-pendentes.txt")
+
+
 PLACAR = RAIZ / "scripts" / "placar-mutacao.py"
 # `forge-mutante` falso: anota a chamada, recusa sem `--` e pedido misto (como o de verdade) e imprime uma linha por classe.
 FALSO = ("import json, sys\na = sys.argv[1:]\nopen('.git/chamadas', 'a').write(json.dumps(a) + '\\n')\n"

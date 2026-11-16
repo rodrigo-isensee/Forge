@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "aviso quando FORGE_PROMOVER vem sem o modo de teste",
       "arquivo": "bin/forge-fechar",
-      "de": "${FORGE_GH:-}${FORGE_PROMOVER:-}\" ]",
-      "para": "${FORGE_GH:-}\" ]",
+      "de": "${FORGE_GH:-}${FORGE_PROMOVER:-}${FORGE_FECHAR_ITEM:-}\" ]",
+      "para": "${FORGE_GH:-}${FORGE_FECHAR_ITEM:-}\" ]",
       "testes": [
         "tests.test_fechar.Fechar.test_1c_forge_promover_sem_o_modo_de_teste_e_ignorado_com_aviso"
       ]

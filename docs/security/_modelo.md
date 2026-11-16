@@ -20,8 +20,10 @@ Bloqueio (`R-REVIEW`): `bloqueante` é só defeito provado, requisito ou seguran
 
 Evidência: a evidência não muda para caber (`reproduzido` não vira `visto`); se o achado não cabe nos 300 caracteres, encurte o texto, nunca a prova.
 
+Parecer curto: a mitigação do modelo de ameaças é citada pelo ID dela (ex.: `M1.1`), com a evidência `arquivo:linha` e o teste que a prova, sem recopiar o texto da mitigação. Na volta, não recopie a rodada anterior (ela fica no git): só o delta lido (`forge-check parecer delta`), o que já foi lido e os achados anteriores com o estado de cada um.
+
 ## Gatilhos
-Quais gatilhos da `R-SEGURANCA` a entrega toca.
+Gatilhos em uma linha: `Gatilhos: <itens da R-SEGURANCA tocados, separados por vírgula>` (ou `Gatilhos: nenhum`).
 
 Avisos (o pre-push e o `forge-check docs` barram): cite o ID da regra, sem copiar a frase dela; cada achado em até 300 caracteres de texto (conta o que vem depois do ` · `; o prefixo `A<n> (...) <arquivo>:<linha>` não conta). Onde um teste barra nome de stack em `docs/security/` e `docs/devops/` (é o caso do Forge), o parecer não cita nome de linguagem, gerenciador de pacotes nem ferramenta de stack: diga "a stack" ou "o gerenciador de pacotes".
 
