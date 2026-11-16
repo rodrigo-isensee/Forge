@@ -187,6 +187,7 @@ class TmpdirDaProva(unittest.TestCase):
     def test_inexistente_ou_arquivo_nao_vale(self):
         arquivo = self.fora / "a"
         arquivo.write_text("x")
+        arquivo.chmod(0o700)  # gravável e executável: só a guarda de pasta o recusa (PT-M3)
         for valor in (self.fora / "nao-existe", arquivo):
             with self.subTest(str(valor)), self.com_tmpdir(valor):
                 self.assertIsNone(self.fc.tmpdir_da_prova(self.repo))
