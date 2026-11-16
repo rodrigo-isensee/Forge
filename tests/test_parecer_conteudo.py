@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from test_forge import git  # noqa: E402
+from test_forge import ambiente_limpo, git  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 from test_volta_por_delta import FORGE_CHECK, Repositorio, carregar_forge_check  # noqa: E402
 
@@ -170,6 +170,54 @@ class ParecerDelta(Repositorio):
         rc, saida = self.roda("docs/security/p1.md")
         self.assertEqual(rc, 2, saida)
         self.assertIn("não existe", saida)
+
+
+class AchadosRecorrentesForaDoDominio(Repositorio):
+    """E2.252 (v047): `docs/engineering/achados-recorrentes.md` é anexo do portão (PA-7), gravado com o parecer: no `pr` e no
+    `parecer delta` não vence parecer nem a entrega conferida, como os pareceres; o arquivo vizinho continua vencendo."""
+    ACHADOS = "docs/engineering/achados-recorrentes.md"
+    VIZINHO = "docs/engineering/praticas.md"
+
+    def setUp(self):
+        super().setUp()
+        self.c = self.commitar(dict(BASE, **{self.ACHADOS: "# achados\n", self.VIZINHO: "# praticas\n"}), "entrega")
+
+    def roda(self, *args):
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.repo), *args], capture_output=True, text=True,
+                           cwd=self.repo, env=dict(ambiente_limpo(), HOME=str(self.home)))
+        return r.returncode, r.stdout + r.stderr
+
+    def conferencia(self, arquivo):
+        self.commitar({"docs/reviews/p1.md": REVIEW.format(c=self.c, extra="")}, "review")  # o pedido p1 tem parecer na branch
+        self.gravar_pedido([self.c])
+        self.commitar({arquivo: "- AR-1 · review · x · R-REVIEW · vezes: 2 · última: bin/x:1\n"}, "depois da conferida")
+        return [l for l in self.roda("pr", "p1", "--ref", "melhoria/x")[1].splitlines() if "conferência:" in l]
+
+    def test_achados_depois_da_entrega_conferida_nao_tira_a_cobertura(self):
+        self.assertEqual(self.conferencia(self.ACHADOS), [])
+
+    def test_outro_arquivo_depois_da_entrega_conferida_tira(self):
+        self.assertIn("nenhuma linha", "".join(self.conferencia(self.VIZINHO)))
+
+    def review_desatualizado(self, arquivo):
+        self.commitar({"docs/reviews/p1.md": REVIEW.format(c=self.c, extra=""), arquivo: "- AR-1 novo\n"}, "parecer e anexo")
+        return [l for l in fc.cmd_pr(self.repo, "p1", "HEAD") if l.startswith("docs/reviews/") and "desatualizado" in l]
+
+    def test_parecer_no_mesmo_commit_dos_achados_vale(self):
+        self.assertEqual(self.review_desatualizado(self.ACHADOS), [])
+
+    def test_parecer_no_mesmo_commit_de_outro_arquivo_vence(self):
+        self.assertIn(self.VIZINHO, "".join(self.review_desatualizado(self.VIZINHO)))
+
+    def test_parecer_delta_nao_le_os_achados(self):
+        self.commitar({"docs/reviews/p1.md": REVIEW.format(c=self.c, extra="")}, "review")
+        self.commitar({self.ACHADOS: "- AR-1 novo\n"}, "anexo")
+        rc, saida = self.roda("parecer", "delta", "docs/reviews/p1.md")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("delta: nenhum arquivo do domínio mudou", saida)
+        self.assertNotIn("achados-recorrentes", saida)
+        self.commitar({self.VIZINHO: "- mudou\n"}, "vizinho")
+        self.assertIn(f'no dominio: "{self.VIZINHO}"', self.roda("parecer", "delta", "docs/reviews/p1.md")[1])
 
 
 if __name__ == "__main__":
