@@ -828,7 +828,8 @@ class BriefDeVolta(Repositorio):
             self.assertIn("".join(anterior[nome]).rstrip("\n"), saida, nome)  # byte a byte
         # 0.43.1 (C2): o Fora do escopo sai do pedido (as etapas fora do Entregar), não do brief anterior
         self.assertNotIn("".join(anterior["Fora do escopo"]).rstrip("\n"), saida)
-        self.assertIn('- "E2.1 (dev-exemplo): texto da documentação." · etapa de outra delegação; continua no pedido\n', saida)
+        self.assertIn("\n- E2.1, E3.1, E3.2, E3.3 · outras delegações\n", saida)  # BRIEF-VOLTA-FORA-COMPACTO: só os ids, sem o texto
+        self.assertNotIn("texto da documentação", saida)
         self.assertIn("## Entregar (volta 1)\n", saida)
         self.assertIn(f"- (review {self.head()[:7]} A1) a função perde o erro de domínio [src/app.txt:3]\n", saida)
         self.assertIn(f"- (review {self.head()[:7]} A3) falta teste do caso de borda [tests/x.py:10]\n", saida)
@@ -983,7 +984,7 @@ class BriefDeVolta(Repositorio):
         self.assertEqual(rc, 1, saida)
         self.assertIn("escopo: --desde sem conferência anterior", saida)
 
-    LINHA_E14 = '- "E1.4b (dev-exemplo): ajuste do recurso B." · etapa de outra delegação; continua no pedido'
+    LINHA_E14 = "- E1.4b, E2.1, E3.1, E3.2, E3.3 · outras delegações"  # BRIEF-VOLTA-FORA-COMPACTO
 
     def pedido_e14(self, *historico):  # E14: a etapa E1.4b em ## Etapas e o Histórico que prova (ou não) a abertura dela
         texto = self.PEDIDO_FIXTURE.read_text(encoding="utf-8").replace("\n\n## Decisões", "\n- E1.4b (dev-exemplo): ajuste do recurso B.\n\n## Decisões", 1)
@@ -999,7 +1000,7 @@ class BriefDeVolta(Repositorio):
         texto = self.preenchido(saida)
         rc, conferencia = self.conferir(texto)
         self.assertEqual(rc, 0, conferencia)
-        sem = texto.replace(self.LINHA_E14 + "\n", "")
+        sem = texto.replace(self.LINHA_E14, "- E2.1, E3.1, E3.2, E3.3 · outras delegações")  # o id que sai da linha agrupada reprova
         rc, conferencia = self.conferir(sem)
         self.assertEqual(rc, 1, conferencia)
         self.assertIn('"E1.4b"', conferencia)
@@ -1007,6 +1008,31 @@ class BriefDeVolta(Repositorio):
         anterior = self.ANTERIOR.read_text(encoding="utf-8").replace("## Fora do escopo\n", "## Fora do escopo\n" + corte, 1)
         self.brief_anterior.write_text(anterior, encoding="utf-8")
         self.assertIn(corte, self.gerar()[1])  # o corte do dono passa para a volta
+
+    def test_volta_de_pedido_grande_cabe_no_teto_e_passa_na_conferencia(self):  # BRIEF-VOLTA-FORA-COMPACTO (146 KB no v047)
+        etapas = "".join(f"- E4.{n} (qa): validação longa da etapa {n} {'x' * 200}.\n" for n in range(1, 601))
+        self.pedido.write_text(self.pedido.read_text(encoding="utf-8").replace("\n\n## Decisões", "\n" + etapas + "\n## Decisões", 1)
+                               + f"\n## Histórico\n- 2026-10-19 16:00: entrega conferida {self.c1}\n", encoding="utf-8")
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 0, saida)
+        fora = saida.split("## Fora do escopo")[1].split("\n## ")[0].splitlines()[1:]
+        self.assertEqual(len([l for l in fora if l]), 16)  # 604 ids, 40 por linha
+        self.assertEqual(fora[0].count(", "), 39)
+        self.assertIn("- E4.597, E4.598, E4.599, E4.600 · outras delegações", fora)
+        self.assertNotIn("validação longa", saida)
+        texto = self.preenchido(saida)
+        self.assertLess(len(texto), carregar_forge_check().TETO_DE_CARACTERES_DO_BRIEF)
+        rc, conferencia = self.conferir(texto)
+        self.assertEqual(rc, 0, conferencia)
+        self.assertIn('corte: etapa (ok) "E4.600"', conferencia)
+
+    def test_volta_sem_outra_etapa_diz_que_o_pedido_nao_tem(self):  # BRIEF-VOLTA-FORA-COMPACTO: a lista vazia não some calada
+        texto = self.pedido.read_text(encoding="utf-8")
+        etapas = texto.split("## Etapas\n", 1)[1].split("\n\n", 1)[0]
+        self.pedido.write_text(texto.replace(etapas, "- E1.1 (dev-exemplo): implementação do recurso A."), encoding="utf-8")
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(saida.split("## Fora do escopo")[1].split("\n## ")[0].splitlines()[1:], ["- (o pedido não tem outra etapa)"])
 
     def test_conferencia_reprova_anterior_bloco_e_achado(self):
         pedido = self.pedido.read_text(encoding="utf-8")
@@ -1016,7 +1042,7 @@ class BriefDeVolta(Repositorio):
             "volta: anterior diferente (sha256)": texto.replace("sha256 " + hashlib.sha256(self.ANTERIOR.read_bytes()).hexdigest(), "sha256 " + "0" * 64),
             'volta: bloco "Objetivo" difere do anterior': texto.replace("Entregar o recurso A (exemplo sintético).", "Entregar outra coisa."),
             'volta: bloco "Relatório" difere do anterior': texto.replace("Até 8 linhas", "Até 20 linhas"),
-            'corte: sem marca "E2.1"': "\n".join(l for l in texto.splitlines() if not l.startswith('- "E2.1')) + "\n",  # 0.43.1: o corte cobra o Fora
+            'corte: sem marca "E2.1"': texto.replace("- E2.1, E3.1", "- E3.1"),  # 0.43.1: o corte cobra o Fora, id a id na linha agrupada
             'volta: falta achado "A3" de docs/reviews/p1.md': "\n".join(l for l in texto.splitlines() if " A3)" not in l) + "\n",
             'volta: falta achado "A1" de docs/reviews/p1.md': texto.replace(" A1)", " A9)"),
         }

@@ -77,8 +77,8 @@ cada `E<n>` do `## Escopo` do pedido está no `Entregar` (citação `(E<n>)`), e
 do pedido copiadas literalmente, etapas de outro papel, marca de corte, formato das provas, Base-sha com `--branch`); o que
 o Jarvis decide fica em `PREENCHER`, e o `brief` reprova enquanto restar um. `gerar --etapa merge-integracao|pedido-de-merge-ao-dono`
 acrescenta o PQ de merge por ancestralidade, `git merge-base --is-ancestor <mergeCommit> origin/<base>` com `espera: rc=0` (S-18).
-`brief gerar --volta <brief aprovado> --ref <branch>` (VV-2, M7) monta o brief da volta: Objetivo, Fora do escopo e Relatório copiados byte
-a byte do anterior (`Volta-de: <arquivo> sha256 <64>`; no Fora do escopo, só acréscimo no fim de etapa de `## Etapas` aberta no `## Histórico`, `- <data> <hora>: etapa <id> aberta`, depois da linha que cita o brief anterior, E14), toda linha `DECISÃO DO DONO` do pedido, `## Entregar (volta N)` com um item por
+`brief gerar --volta <brief aprovado> --ref <branch>` (VV-2, M7) monta o brief da volta: Objetivo e Relatório copiados byte
+a byte do anterior (`Volta-de: <arquivo> sha256 <64>`), o Fora do escopo das etapas do pedido só pelos ids, 40 por linha (`- E1.1, E1.2 · outras delegações`, BRIEF-VOLTA-FORA-COMPACTO), com os cortes do anterior, toda linha `DECISÃO DO DONO` do pedido, `## Entregar (volta N)` com um item por
 achado `bloqueante` do bloco `## Achados` dos pareceres (lidos da --ref; formato `- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>`,
 numa linha, sem caractere de controle e até 300 caracteres), os recomendados à parte com `PREENCHER` e o PQ `forge-check entrega --desde`.
 `--incluir <parecer>:R<n>` copia para o Entregar, literal e com a origem (`(incluído <tipo> <sha7> R<n> de <parecer>)`), a recomendação `R<n>` (ou `A<n>` recomendado) do bloco `## Achados` do parecer lido da --ref; a conferência da volta a relê e reprova o texto diferente (`volta: recomendação R<n> difere do parecer`). O Base-sha gravado é o merge-base da branch com `origin/<base>` (ou a `origin/<base>` de agora, se a branch ainda não existe), e `brief` avisa (`aviso: Base-sha ... não está na branch`) quando o do brief não está nela.
@@ -3531,13 +3531,22 @@ def recusa_do_desde(raiz, pedido_txt, ref, base_sha, base):
             "dono a base certa) e gere de novo; nada gerado (P-N6)")
 
 
+IDS_POR_LINHA_DO_FORA = 40  # BRIEF-VOLTA-FORA-COMPACTO: o pedido de 600 etapas cabe em 15 linhas, longe do teto de caracteres
+
+
+def linhas_de_ids_do_fora(ids):
+    """BRIEF-VOLTA-FORA-COMPACTO: as etapas de outra delegação só pelo id, `IDS_POR_LINHA_DO_FORA` por linha (`- E1.1, E1.2 · outras
+    delegações`); o `conferir_corte` lê cada id da linha como etapa sem a marca, e o texto delas continua no pedido."""
+    return [f"- {', '.join(ids[i:i + IDS_POR_LINHA_DO_FORA])} · outras delegações\n" for i in range(0, len(ids), IDS_POR_LINHA_DO_FORA)]
+
+
 def fora_do_escopo_do_pedido(dados, cobre, entregues, anterior=()):
     """0.43.1 (C2): o bloco `## Fora do escopo` gerado do pedido: cada etapa de `## Etapas` que não é a `cobre` nem é citada pelo id
-    exato no Entregar da volta (`entregues`), sem a marca. Do bloco `anterior` só passam as linhas de corte real (`MARCA_DE_CORTE`, decisão do
+    exato no Entregar da volta (`entregues`), sem a marca, agrupada por id (BRIEF-VOLTA-FORA-COMPACTO). Do bloco `anterior` só passam as linhas de corte real (`MARCA_DE_CORTE`, decisão do
     dono); NÃO tocar, worktree e outros textos do brief anterior não passam."""
     saida = ["## Fora do escopo (outras etapas do pedido, sem a marca; R-BRIEF)\n"]
-    etapas = [t for e, (_, t) in dados["etapas"].items() if e != cobre and e not in entregues]
-    saida += [f"- \"{sem_controle(t)}\" · etapa de outra delegação; continua no pedido\n" for t in etapas] or ["- (o pedido não tem outra etapa)\n"]
+    etapas = [e for e in dados["etapas"] if e != cobre and e not in entregues]
+    saida += linhas_de_ids_do_fora(etapas) or ["- (o pedido não tem outra etapa)\n"]
     saida += [l if l.endswith("\n") else l + "\n" for l in anterior if MARCA_DE_CORTE in l]
     return saida + ["\n"]
 
