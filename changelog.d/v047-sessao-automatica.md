@@ -1,0 +1,2 @@
+### Alterado
+- Sessão sempre no automático (SESSAO-AUTOMATICA, diretriz 28): jarvis, jarvis-forge, preparar-estacao, README e o modelo de projeto usam --permission-mode auto e mandam o Jarvis conferir o sandbox no primeiro comando. A estação exige gh 2.47 ou mais (GH-VERSAO-MINIMA): o preparar-estacao.sh instala pelo repositório oficial e o passo 1 do forge-fechar recusa o gh antigo e busca a origin/homolog se faltar.
