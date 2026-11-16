@@ -3,14 +3,14 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-pr-hook-rapido
-commit: 0620dc23a27fa7ca5068f8a47fc38e27152d91b6
+commit: cd4728bdf441238581a68a41d3e2e1e2e6011e81
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
 ---
 # Code review: hook R-REVIEW rápido no gh pr ready e no gh pr merge (PR-HOOK-RAPIDO, E2.117)
 
-Escopo: pedido v047, etapa E2.177 (`R-REVIEW`), classe C, head `0620dc23` (Base-sha `134ea4c8`). Revalidação por delta do parecer aprovado no head `6f3f4e70` (E2.153), vencido pelo `2d1503c5` e pela junção com a develop no `0620dc23`.
+Escopo: pedido v047, etapa E2.177 (`R-REVIEW`), classe C, head `cd4728bd` (Base-sha `134ea4c8`; código no `0620dc23`, e o `cd4728bd` só soma a linha AR-12 de `achados-recorrentes.md`). Revalidação por delta do parecer aprovado no head `6f3f4e70` (E2.153), vencido pelo `2d1503c5` e pela junção com a develop no `0620dc23`.
 
 Delta lido: `forge-check parecer delta docs/reviews/v047-pr-hook-rapido.md`, intervalo `6f3f4e70..0620dc23`, sem o que veio da base; no domínio só `tests/mutantes/v047-pr-hook-rapido.json` (PHR6: `de` e `para` passam a `cod, lote = git(`, a linha de bin/forge-check:354 desde o `6f3f4e70`) e `tests/test_testes_tocados.py` (contagem 85 mantida, comentário refeito sobre os 84 da develop na resolução da junção). Nenhum código de `bin/` ou `hooks/` mudou no intervalo fora da base.
 
