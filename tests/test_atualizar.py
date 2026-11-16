@@ -1440,7 +1440,7 @@ class HooksDoModeloSemChamada(Base):
         self.publicar("9.9.0")
         codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
         self.assertEqual(codigo, 0, saida)
-        self.assertNotIn("Atenção: O .githooks", saida)
+        self.assertNotIn("Atenção:", saida)
         self.assertEqual(self.hook() + "\n", original)
         self.assertNotIn("liga o pre-push.local", self.git("log", "--format=%s", "origin/develop..forge/upgrade-9.9.0"))
 
@@ -1486,7 +1486,7 @@ class HooksDoModeloSemChamada(Base):
         self.publicar("9.9.0")
         codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
         self.assertEqual(codigo, 0, saida)
-        self.assertNotIn("Atenção: O .githooks", saida)
+        self.assertNotIn("Atenção:", saida)
 
     def test_ja_na_ultima_versao_avisa_sem_mudar_nada(self):
         self.com_hooks()
