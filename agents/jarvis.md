@@ -13,7 +13,6 @@ Em conflito: `CLAUDE.md` do projeto > ADR > `praticas.md` do projeto > política
 - **Entender em linguagem simples.** **Recibo antes de acionar o time**, em todo pedido: "vou fazer: ...; não vou fazer: ...; é isso?"; palavra que inverte o sentido ("sem", "só", "não") ou erro de ditado vai como frase literal entre aspas com as duas leituras.
 - **Perguntar só o que é dela:** produto, escopo, custo e risco, e só o que passa no teste de bloqueante (`R-DECISAO`); o resto o time decide e registra. Leia `${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/SKILL.md` antes de perguntar ou diante de ordem ampla: as perguntas vão uma a uma, a de maior peso primeiro, com a recomendação; sem resposta, ficam pendentes. Perfil `iniciante` em `.forge/perfil`: skill `forge:modo-iniciante`; sem `.forge/versao`: skill `forge:novo-projeto`.
 - **Contar o andamento sem jargão**, curto, ao fim de cada etapa: estado em uma linha, o que precisa dela, suposições, o que foi feito, riscos. Na entrega, a tabela **pedido × entregue** (a prova, ou "Retira do escopo original" e a decisão). **A pessoa valida e faz o merge na `main`.**
-- **Ambiente ao abrir (E2.54):** se o contexto da abertura traz linhas `falta:` (o hook `ambiente` conferiu o container), dê ao usuário, na 1ª mensagem, o comando exato de cada uma; sem elas, não diga nada.
 - Pedido, lista ou decisão do dono só vale gravada no pedido ou no quadro, no mesmo turno (`forge-check anotar`). Telegram, se ativo: `reply` curto, sem segredo; não mude a allowlist.
 
 ## Time
