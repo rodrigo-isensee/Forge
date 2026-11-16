@@ -1,0 +1,76 @@
+{
+  "pedido": "mp1311-conferencia-janela",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "MP1311: o parecer de portão é anexo em toda etapa de código, não só na codigo",
+      "arquivo": "bin/forge-check",
+      "de": "        elif etapa in ETAPAS_DE_CODIGO and tipo and not com_controle(nome) and parecer_de_portao_da_branch(",
+      "para": "        elif etapa == \"codigo\" and tipo and not com_controle(nome) and parecer_de_portao_da_branch(",
+      "testes": [
+        "tests.test_selo_e_entrega.JanelaDaEntrega.test_parecer_de_outro_portao_na_etapa_qa_e_anexo_do_portao"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "MP1311: só o Revisar-sha de brief selado de portão vale como --desde fora da conferida",
+      "arquivo": "bin/forge-check",
+      "de": "    if desde in revisados and e_ancestral(raiz, desde, head) and not e_ancestral(raiz, desde, base_sha):",
+      "para": "    if e_ancestral(raiz, desde, head) and not e_ancestral(raiz, desde, base_sha):",
+      "testes": [
+        "tests.test_selo_e_entrega.JanelaDaEntrega.test_desde_em_commit_nao_revisado_segue_recusado"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "MP1311: o Revisar-sha fora da história do head não vira Desde",
+      "arquivo": "bin/forge-check",
+      "de": "    if desde in revisados and e_ancestral(raiz, desde, head) and not e_ancestral(raiz, desde, base_sha):",
+      "para": "    if desde in revisados and not e_ancestral(raiz, desde, base_sha):",
+      "testes": [
+        "tests.test_selo_e_entrega.JanelaDaEntrega.test_desde_revisado_fora_da_branch_segue_recusado"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "MP1311: o Revisar-sha aceito como Desde ainda passa pela recusa do pedido gravado na entrega",
+      "arquivo": "bin/forge-check",
+      "de": "    if pedido_na_entrega(raiz, valido, head, base_ref):",
+      "para": "    if pedido_na_entrega(raiz, valido, head, base_ref) and origem != \"revisado\":",
+      "testes": [
+        "tests.test_selo_e_entrega.JanelaDaEntrega.test_desde_revisado_com_pedido_na_entrega_segue_recusado"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "MP1311: o commit revisado só entra com --desde (sem ele, nenhum Revisar-sha é lido)",
+      "arquivo": "bin/forge-check",
+      "de": "revisados_do_autor(raiz, caminho, texto, branch) if desde else ()",
+      "para": "revisados_do_autor(raiz, caminho, texto, branch) if not desde else ()",
+      "testes": [
+        "tests.test_selo_e_entrega.JanelaDaEntrega.test_desde_no_commit_revisado_pelo_portao_vale"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "MP1311: o Revisar-sha que é commit da base (ancestral do Base-sha) não vira Desde",
+      "arquivo": "bin/forge-check",
+      "de": "    if desde in revisados and e_ancestral(raiz, desde, head) and not e_ancestral(raiz, desde, base_sha):",
+      "para": "    if desde in revisados and e_ancestral(raiz, desde, head):",
+      "testes": [
+        "tests.test_selo_e_entrega.JanelaDaEntrega.test_desde_revisado_na_base_segue_recusado"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "MP1311: o Desde no commit revisado é anunciado na linha base:",
+      "arquivo": "bin/forge-check",
+      "de": "if valido and origem_da_base in BASE_INFORMADA else []",
+      "para": "if valido and origem_da_base == \"dono\" else []",
+      "testes": [
+        "tests.test_selo_e_entrega.JanelaDaEntrega.test_desde_no_commit_revisado_pelo_portao_vale"
+      ]
+    }
+  ]
+}

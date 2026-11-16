@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-conferencia-patch-dono-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P9: lista de caminhos que nunca isentam",
+      "arquivo": "bin/forge-check",
+      "de": "    return not (nome.startswith(NUNCA_PATCH_DO_DONO) or com_controle(nome)",
+      "para": "    return not (False or com_controle(nome)",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c4_c13_pedido_na_entrega_e_caminhos_que_nunca_isentam"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P11: ls-tree que falha reprova",
+      "arquivo": "bin/forge-check",
+      "de": "        if no_head is None or do_dono is None:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c15_git_que_falha_reprova"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P10: commit de merge não isenta",
+      "arquivo": "bin/forge-check",
+      "de": "    elif len(pais.split()) != 2:",
+      "para": "    elif False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c9_c14_commit_solto_ou_de_merge"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P7: o commit do dono altera o arquivo",
+      "arquivo": "bin/forge-check",
+      "de": "    elif nome not in nomes_z(alterados):",
+      "para": "    elif False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c11_so_o_arquivo_declarado_do_commit_do_dono"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P6: symlink não isenta",
+      "arquivo": "bin/forge-check",
+      "de": "        if not no_head or no_head[0] == b\"120000\":",
+      "para": "        if not no_head:",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c6_c7_conteudo_modo_ou_symlink_depois_do_commit_do_dono"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P3: o sha é de commit",
+      "arquivo": "bin/forge-check",
+      "de": "    elif sha_do_commit(raiz, commit) != commit:",
+      "para": "    elif False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_declaracao_que_nao_isenta"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P11: rev-list ou diff que falha reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    elif cod or cod_d:",
+      "para": "    elif False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_c15_git_que_falha_reprova"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "CONFERENCIA-PATCH-DO-DONO P3: a linha fora da forma sai com aviso",
+      "arquivo": "bin/forge-check",
+      "de": "        elif \"patch do dono\" in linha:",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchDoDono.test_declaracao_que_nao_isenta"
+      ]
+    }
+  ]
+}

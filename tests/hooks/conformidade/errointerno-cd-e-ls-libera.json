@@ -1,0 +1,20 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (A2, legítimo: erro interno com `cd` numa linha que não escreve libera).",
+  "forcar": {
+    "onde": "Guarda.bash",
+    "como": "erro"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd build && ls"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "erro forcado"
+  }
+}

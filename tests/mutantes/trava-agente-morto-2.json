@@ -1,0 +1,70 @@
+{
+  "pedido": "trava-agente-morto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "C1: só a notificação que casou entra no mapa",
+      "arquivo": "hooks/agentes.py",
+      "de": "if nota is not None:",
+      "para": "if nota is None:",
+      "testes": ["tests.test_trava_agente_morto.C1NotificacaoDoClaudeCode.test_notificacao_terminal_libera"]
+    },
+    {
+      "id": "M10",
+      "guarda": "C3: o caminho do meta.json não passa por link",
+      "arquivo": "hooks/agentes.py",
+      "de": "if os.path.realpath(meta) != str(meta):",
+      "para": "if os.path.realpath(meta) == \"\":",
+      "testes": ["tests.test_trava_agente_morto.C3SoDaSessaoAtual.test_pasta_do_meta_por_link_nao_vale"]
+    },
+    {
+      "id": "M11",
+      "guarda": "C9: trava pesado recente e com dono vivo segura o registro de escrita",
+      "arquivo": "hooks/agentes.py",
+      "de": "agora - desde < TRAVA_S and",
+      "para": "agora - desde < 0 and",
+      "testes": ["tests.test_trava_agente_morto.C9ParadaSemFilho.test_registro_de_escrita_com_pesado_ocupado_fica"]
+    },
+    {
+      "id": "M12",
+      "guarda": "C3: só registro da sessão do evento",
+      "arquivo": "hooks/agentes.py",
+      "de": "and registro.get(\"sessao\") == self.hook.campo(\"session_id\")",
+      "para": "and registro.get(\"sessao\") is not None",
+      "testes": ["tests.test_trava_agente_morto.C3SoDaSessaoAtual.test_registro_de_outra_sessao_nao_sai"]
+    },
+    {
+      "id": "M13",
+      "guarda": "C2: a notificação tem de ser posterior ao desde do registro",
+      "arquivo": "hooks/agentes.py",
+      "de": "if nota[1] > desde]",
+      "para": "if nota[1] > 0]",
+      "testes": ["tests.test_trava_agente_morto.C2ConfereJuntos.test_notificacao_anterior_ao_desde_nao_libera"]
+    },
+    {
+      "id": "M14",
+      "guarda": "C2: qualquer notificação com tool-use-id divergente do meta.json mantém o registro",
+      "arquivo": "hooks/agentes.py",
+      "de": "if any(nota[0] != uso for nota in depois):",
+      "para": "if any(nota[0] != uso for nota in depois[-1:]):",
+      "testes": ["tests.test_trava_agente_morto.C2ConfereJuntos.test_uma_notificacao_divergente_mantem"]
+    },
+    {
+      "id": "M15",
+      "guarda": "C9: registro de escrita só sai com a trava pesado livre",
+      "arquivo": "hooks/agentes.py",
+      "de": "if escritas_do_registro(registro) and not pesado_livre",
+      "para": "if escritas_do_registro(registro) and False and not pesado_livre",
+      "testes": ["tests.test_trava_agente_morto.C9ParadaSemFilho.test_registro_de_escrita_com_pesado_ocupado_fica"]
+    },
+    {
+      "id": "M16",
+      "guarda": "C8 e C11: só o registro liberado vai para a lápide e o log",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if status:",
+      "para": "        if not status:",
+      "testes": ["tests.test_trava_agente_morto.C1NotificacaoDoClaudeCode.test_notificacao_terminal_libera"]
+    }
+  ]
+}

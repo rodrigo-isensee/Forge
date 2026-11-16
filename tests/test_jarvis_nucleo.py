@@ -182,5 +182,51 @@ class Diretrizes18e19(unittest.TestCase):
         self.assertIn("Itens com arquivo em comum não andam em paralelo", self.skill)
 
 
+class WorktreeAntesDeDelegar(unittest.TestCase):
+    """MP1311 item 12: subagente não fica parado sem escrita na worktree; o Jarvis a cria na própria sessão ou o brief avisa."""
+
+    def test_o_jarvis_cria_a_worktree_antes_de_delegar(self):
+        passo4 = next(l for l in ler(JARVIS).splitlines() if l.startswith("4. **Desenvolvimento:**"))
+        self.assertIn("crie a worktree na sua sessão antes de delegar", passo4)
+
+    def test_a_skill_manda_avisar_no_brief_e_oferece_o_caminho_pelo_github(self):
+        skill = ler("skills/briefs-e-conferencia/SKILL.md")
+        self.assertRegex(skill, r"(?s)worktree de outra sessão.*só leitura.*update-branch")
+
+    def test_a_skill_da_o_clone_local_como_saida_quando_a_worktree_nao_grava(self):
+        skill = ler("skills/briefs-e-conferencia/SKILL.md")
+        self.assertRegex(skill, r"(?s)não gravável.*clone local.*~/\.forge-contrib/wt/<nome>-c.*origin/develop")
+
+
+class RespostaATodaMensagemDoDono(unittest.TestCase):
+    """v047 E2.180, RESPOSTA-A-TODA-MENSAGEM-DO-DONO (ERRO-JARVIS 14/11 06:08 e 12:30: 'No response requested.' ao 'continue' do
+    dono e ao relatório de um agente, com os portões parados): a skill que o Jarvis lê a cada mensagem do dono manda resposta e ação."""
+
+    def setUp(self):
+        self.skill = ler("skills/falar-com-o-dono/SKILL.md")
+
+    def test_toda_mensagem_tem_resposta_e_o_passo_seguinte(self):
+        regra = next(l for l in self.skill.splitlines() if l.startswith("**Toda mensagem do dono tem resposta e ação:**"))
+        self.assertIn('até "continue" ou "ok", recebe no mesmo turno a resposta e o passo seguinte', regra)
+        self.assertIn("só quando um agente termina sem nada para o dono", regra)
+        self.assertIn("mesmo então o passo seguinte do time anda", regra)
+
+    def test_a_skill_e_lida_a_cada_mensagem_e_o_jarvis_a_cita(self):
+        self.assertRegex(self.skill.split("\n---", 1)[0], r"(?m)^description: .*Use a cada mensagem do dono")
+        self.assertIn("${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/SKILL.md", ler(JARVIS))
+
+
+class EtapaSoAposConferirDevelop(unittest.TestCase):
+    """v047 E2.180, ETAPA-SO-APOS-CONFERIR-DEVELOP (13/11: E3.2 e E5.3 abertas com o item já na develop; etapa entregue havia 3 h
+    quase delegada de novo): antes de abrir etapa, o Jarvis confere a develop. A trava é backlog em tests/evals/test_erros_por_papel.py."""
+
+    def test_a_skill_manda_conferir_a_develop_antes_de_abrir_a_etapa(self):
+        skill = ler("skills/falar-com-o-dono/SKILL.md")
+        regra = next(l for l in skill.splitlines() if l.startswith("**Etapa depois de conferir a develop:**"))
+        self.assertIn("antes de abrir ou delegar uma etapa, confira na `develop` se o item já foi entregue ou resolvido", regra)
+        self.assertIn("`git log origin/develop --grep '<cartão>'`", regra)
+        self.assertIn("sem delegar", regra)
+
+
 if __name__ == "__main__":
     unittest.main()

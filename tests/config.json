@@ -114,12 +114,17 @@
     "excecoes": []
   },
   "invariantes": {
+    "docs/fechamento-integrador.md": [
+      "Não abra PR para ver o CI"
+    ],
     "skills/kanban-scrum/SKILL.md": [
       "forge-check movimento",
       "Sem credencial",
       "\\*\\*Aguardando o dono\\*\\* \\(topo do quadro\\)",
       "decisão ou ação do usuário vai para \"Aguardando o dono\"",
-      "aguardando o dono: N \\(o mais antigo desde"
+      "aguardando o dono: N \\(o mais antigo desde",
+      "O técnico \\(desenho, portões, integração, versão\\) é do `tech-lead`",
+      "skills/kanban-scrum/experimentos\\.md"
     ],
     "agents/conferente.md": [
       "origin/<Base>",
@@ -161,7 +166,7 @@
       "def leitura_valida","REPO_APAGAR", "VISIBILIDADE_PUBLICA", "filter-branch", "filter-repo", "--mirror", "permissionDecision", "def checar_remocao", "SUGESTAO",
       "def endpoint_normalizado", "conteudos_de_crase\\(", "GRAPHQL_DE_ROTULO", "TIMEOUT_DA_CONTA", "erro interno ao conferir o rótulo afrouxa-regra",
       "def rotulo_no_argumento", "def rotulos_removidos", "sub == \"clone\""],
-    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub", "## Como perguntar", "\\*\\*Afrouxa o processo\\?\\*\\*", "\\*\\*custo de eficiência\\*\\*", "Faltam N perguntas\\.", "decidam vocês", "não se oferece nas perguntas que `R-DECISAO` não deixa delegar"],
+    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub", "## Como perguntar", "\\*\\*Afrouxa o processo\\?\\*\\*", "\\*\\*custo de eficiência\\*\\*", "Faltam N perguntas\\.", "decidam vocês", "não se oferece nas perguntas que `R-DECISAO` não deixa delegar", "Fale só no marco", "modo foco da extensão do VSCode \\(Focus view", "não dá para dizer se é maior ou menor", "skills/modo-iniciante/numeros\\.md"],
     "docs/adr/_modelo.md": [
       "## Critério de reversão",
       "## Leituras",
@@ -216,6 +221,7 @@
       "só vale gravada",
       "## Triagem de cada pedido",
       "diga sempre ao usuário para qual agente passou",
+      "no recibo e no aviso de marco, nunca em mensagem extra",
       "que são do `tech-lead`",
       "`R-PROVA`",
       "`R-BRIEF`",
@@ -232,7 +238,12 @@
       "Na abertura de cada pedido, confira com o time se ele cabe num lote",
       "skills/briefs-e-conferencia/SKILL\\.md",
       "skills/trabalho-em-paralelo/SKILL\\.md",
-      "skills/falar-com-o-dono/SKILL\\.md"
+      "skills/falar-com-o-dono/SKILL\\.md",
+      "\\*\\*Falar só no marco:\\*\\*",
+      "quando algo dá errado e muda prazo ou risco",
+      "no máximo um resumo a cada 30 min",
+      "recibo e perguntas, sempre completos",
+      "ou ao pedido das decisões"
     ],
     "skills/briefs-e-conferencia/SKILL.md": [
       "forge-check brief selar --arquivo <brief> --pedido <p>",
@@ -257,7 +268,29 @@
       "Afrouxa o processo\\?",
       "decidam vocês",
       "\\*\\*Perguntas uma a uma \\(`R-DECISAO`\\):\\*\\*",
-      "Sem resposta, fica pendente\\."
+      "Sem resposta, fica pendente\\.",
+      "\\*\\*Pedido das decisões\\*\\*",
+      "foco total",
+      "só ler as perguntas abertas",
+      "a primeira\\s+pergunta completa",
+      "`forge-check anotar`",
+      "O time segue no que não depende delas",
+      "entre as perguntas, nenhum aviso",
+      "Não há decisão sua pendente\\.",
+      "skills/falar-com-o-dono/resposta-curta\\.md",
+      "regra 12 de `docs/economia-de-tokens\\.md`"
+    ],
+    "skills/falar-com-o-dono/resposta-curta.md": [
+      "`decisoes --resposta` a lê; corte recomendado leva `origem:`, `procurado:`, `seguir:`, `não seguir:`",
+      "`aprovo` só vale para a recomendada `\\[reversível\\]`"
+    ],
+    "skills/modo-iniciante/numeros.md": [
+      "`estimado`: some por componente",
+      "`não medido`: sem linha nem componente medido; não se escreve número"
+    ],
+    "skills/kanban-scrum/experimentos.md": [
+      "Critério de reversão",
+      "Uma mudança por vez em cada parte do processo"
     ],
     "templates/projeto/docs/pedidos/_modelo.md": [
       "## Fora do escopo",
@@ -463,7 +496,8 @@
       "`DEVOLVIDA:`",
       "tag ausente é",
       "vira PR no repositório \\*\\*Forge\\*\\*",
-      "`R-WIP`"
+      "`R-WIP`",
+      "Triagem termina com o `KANBAN.md` atualizado; backlog ou plano dito ao dono sai da contagem do quadro, conferida com a última triagem; plano ou pedido substituído vai para `arquivo/`"
     ],
     "agents/ux-designer.md": [
       "\\*\\*A validação do usuário é o ponto de compromisso\\*\\*",
@@ -626,6 +660,7 @@
     "skills/esperar-estado/SKILL.md": ["nunca por `kill -0` no pid gravado"]
   },
   "invariantes_motivo": {
+    "docs/fechamento-integrador.md": {"regra": "R-FLUXO", "porque": "sem o texto, o autor abre PR só para rodar o CI e o PR acaba fechado e reaberto, uma rodada a mais (decisão Q9 do dono)"},
     "docs/regras/R-SEGURANCA.md": {"regra": "R-SEGURANCA", "porque": "sem o texto, a mudança com gatilho de segurança segue sem o parecer do security-engineer"},
     "docs/regras/R-LIMITES.md": {"regra": "R-LIMITES", "porque": "sem o texto, o agente poderia enviar ou mesclar na main, pular os hooks com --no-verify ou --force, ligar API paga sem autorização, mesclar no Forge a partir de um projeto ou copiar agentes e skills para o projeto"},
     "docs/regras/README.md": {"regra": "R-TETO", "porque": "sem a linha da R-WIP, o agente acumula cartões, passa do teto de instâncias e os limites de coluna do quadro deixam de valer"},
@@ -642,7 +677,10 @@
     "skills/briefs-e-conferencia/SKILL.md": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis delega sem brief gravado e aceita a entrega sem a conferência do conferente"},
     "skills/trabalho-em-paralelo/SKILL.md": {"regra": "R-TETO", "porque": "sem o texto, o Jarvis dispara tarefas pesadas em paralelo sem a série por arquivo e sem o quadro com hora real"},
     "skills/esperar-estado/SKILL.md": {"regra": "R-TETO", "porque": "sem o texto, o agente espera a trava pesada por kill -0 num pid de outro namespace e solta a espera antes da hora"},
-    "skills/falar-com-o-dono/SKILL.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis pergunta ao dono fora do formato e trata ordem ampla como confirmação"}
+    "skills/falar-com-o-dono/SKILL.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis pergunta ao dono fora do formato e trata ordem ampla como confirmação"},
+    "skills/falar-com-o-dono/resposta-curta.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis oferece corte recomendado sem origem, procurado, seguir e não seguir, e a resposta curta deixa de ser lida por decisoes --resposta (diretriz 25)"},
+    "skills/modo-iniciante/numeros.md": {"regra": "R-DECISAO", "porque": "sem o texto, o custo de cada opção da pergunta ao dono sai sem a regra de medido, estimado e não medido, e o número pode ser inventado (diretriz 25)"},
+    "skills/kanban-scrum/experimentos.md": {"regra": "R-DECISAO", "porque": "sem o texto, o experimento de melhoria entra sem métrica nem critério de reversão e mais de uma mudança por vez (diretriz 25)"}
   },
   "invariantes_sem_motivo": {
     "skills/kanban-scrum/SKILL.md": 5,
@@ -655,7 +693,7 @@
     "templates/projeto/docs/architecture/adr/_modelo.md": 3,
     "skills/engineering-practices/SKILL.md": 5,
     "docs/melhoria-continua.md": 2,
-    "agents/jarvis.md": 49,
+    "agents/jarvis.md": 48,
     "templates/projeto/docs/pedidos/_modelo.md": 16,
     "docs/protecao-de-branch.md": 3,
     "templates/projeto/docs/engineering/protecao-de-branch.md": 3,
@@ -681,6 +719,9 @@
     "scripts/jarvis-forge": 2
   },
   "invariantes_motivo_trecho": {
+    "agents/agile-coach.md": {
+      "Triagem termina com o `KANBAN.md` atualizado; backlog ou plano dito ao dono sai da contagem do quadro, conferida com a última triagem; plano ou pedido substituído vai para `arquivo/`": {"regra": "R-DECISAO", "porque": "sem o texto, o agile-coach leva ao dono backlog ou plano velho e o quadro fica fora da triagem (diretriz 20)"}
+    },
     "hooks/_comum.py": {
       "clone_do_forge and tem_manifesto_do_forge\\(self\\.raiz\\)": {"regra": "R-REVIEW", "porque": "sem o texto, um clone do Forge com .forge/versao desliga o parecer pelo hooks_desligados e o merge sem parecer passa (FILA-27 A1)"}
     },
@@ -705,7 +746,24 @@
     "agents/jarvis.md": {
       "skills/briefs-e-conferencia/SKILL\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o texto de briefs e conferência"},
       "skills/trabalho-em-paralelo/SKILL\\.md": {"regra": "R-TETO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda a série por arquivo e o teto"},
-      "skills/falar-com-o-dono/SKILL\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o formato da pergunta ao dono"}
+      "skills/falar-com-o-dono/SKILL\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o formato da pergunta ao dono"},
+      "\\*\\*Falar só no marco:\\*\\*": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis volta a relatar cada etapa ao dono (40 mensagens por hora medidas em 13/11; diretriz 24)"},
+      "quando algo dá errado e muda prazo ou risco": {"regra": "R-DECISAO", "porque": "sem o texto, o problema que muda prazo ou risco fica no resumo de 30 min em vez de chegar ao dono na hora (diretriz 24)"},
+      "no máximo um resumo a cada 30 min": {"regra": "R-DECISAO", "porque": "sem o texto, o andamento sem marco volta a chegar ao dono a cada etapa, e não num resumo só do que mudou (diretriz 24)"},
+      "recibo e perguntas, sempre completos": {"regra": "R-DECISAO", "porque": "sem o texto, o corte do andamento encolhe também o recibo e as perguntas, que o dono quer completos (diretriz 24)"},
+      "ou ao pedido das decisões": {"regra": "R-DECISAO", "porque": "sem o apontamento, o Jarvis atende ao pedido das decisões sem ler a skill do foco total e responde depois de outras tarefas (diretriz 29)"},
+      "no recibo e no aviso de marco, nunca em mensagem extra": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis volta a avisar o dono a cada agente acionado em mensagem extra, ou deixa de dizer no recibo e no marco para qual agente passou (decisão do dono de 16/11 09:52)"},
+      "diga sempre ao usuário para qual agente passou": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis passa o trabalho a um agente sem dizer ao usuário a quem passou, e o dono perde quem responde por cada etapa (decisão do dono de 16/11 09:52)"}
+    },
+    "skills/modo-iniciante/SKILL.md": {
+      "Fale só no marco": {"regra": "R-DECISAO", "porque": "sem o texto, o modo iniciante manda resumir cada etapa ao dono, contra a fala só no marco do Jarvis (diretriz 24)"},
+      "modo foco da extensão do VSCode \\(Focus view": {"regra": "R-DECISAO", "porque": "sem o texto, o dono iniciante não fica sabendo do modo foco, que recolhe comandos e agentes em linhas fechadas (diretriz 24)"},
+      "não dá para dizer se é maior ou menor": {"regra": "R-DECISAO", "porque": "sem o texto, o exemplo deixa de mostrar o custo em palavras (maior ou menor) quando a opção não foi medida (A4 do review, diretriz 25)"},
+      "skills/modo-iniciante/numeros\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, a skill perde o caminho dos números da pergunta, movidos pelo teto de caracteres (diretriz 25)"}
+    },
+    "skills/kanban-scrum/SKILL.md": {
+      "O técnico \\(desenho, portões, integração, versão\\) é do `tech-lead`": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis perde quem decide o técnico e quem cuida do aprendizado com os erros, frase movida do Jarvis pelo teto (A2 do review, diretriz 25)"},
+      "skills/kanban-scrum/experimentos\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, a skill perde o caminho do formato dos experimentos de melhoria, movido pelo teto de caracteres (diretriz 25)"}
     },
     "agents/tech-lead.md": {
       "suíte inteira roda só no CI": {"regra": "R-QA", "porque": "sem o texto, review, segurança e QA voltam a rodar a suíte inteira na máquina e a fila local cresce sem ganho; ela roda uma vez no CI do PR"},

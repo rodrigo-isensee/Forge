@@ -319,6 +319,147 @@ class Hooks(Base):
         self.repo.escreve("hooks/hooks.json", json.dumps(antigo))
         self.barra("b.py", "R-CONFORMIDADE")
 
+    def test_mudar_interpretador_opcoes_ou_argumentos_passa(self):
+        """PR 565: só acrescentar `-s -E` acusou todos os hooks; o hook é evento, matcher e script."""
+        novo = copy.deepcopy(HOOKS)
+        a, b = novo["hooks"]["PreToolUse"][0]["hooks"]
+        a.update(command="/usr/bin/env", args=["python3", "-s", "-E", "-X", "utf8", "a.py", "--modo", "x"], statusMessage="x", once=True)
+        b.update(command='python3 -Xutf8=1 -B "b.py"')
+        del b["args"]  # sem `args` o `command` vai ao shell
+        self.repo.escreve("hooks/hooks.json", json.dumps(novo))
+        self.passa()
+
+    def test_script_trocado_barra(self):
+        novo = copy.deepcopy(HOOKS)
+        novo["hooks"]["PreToolUse"][0]["hooks"][0]["args"] = ["-s", "-E", "outro.py"]
+        self.repo.escreve("hooks/hooks.json", json.dumps(novo))
+        self.barra("hook removido de hooks/hooks.json: PreToolUse Bash command python3 a.py", "R-CONFORMIDADE")
+
+    def test_matcher_mudado_barra(self):
+        novo = copy.deepcopy(HOOKS)
+        novo["hooks"]["PreToolUse"][0]["matcher"] = "Write"
+        self.repo.escreve("hooks/hooks.json", json.dumps(novo))
+        self.barra("hook removido de hooks/hooks.json: PreToolUse Bash command python3 b.py", "R-CONFORMIDADE")
+
+    @staticmethod
+    def chaves(**hk):
+        return catraca.chaves_de_hooks(json.dumps({"hooks": {"Stop": [{"hooks": [hk]}]}}))
+
+    def test_hook_sem_script_compara_a_linha_inteira(self):
+        self.assertEqual(self.chaves(command="echo fim"), {("Stop", "", "command", "", "echo fim", "padrão", "")})
+        self.assertTrue(self.chaves(command="echo fim") - self.chaves(command="echo outro"))
+        self.assertEqual(self.chaves(type="prompt", prompt="x"), {("Stop", "", "prompt", "", "", "padrão", '{"prompt": "x"}')})
+
+    def test_script_entre_aspas_no_command_e_o_mesmo_script(self):
+        """Review A2 (volta 2): `python3 "x.py"` é `x.py` para o shell; aspas sem par não são tiradas (falha fechada)."""
+        self.assertEqual(self.chaves(command='python3 "x.py"'), self.chaves(command="python3 -s -E 'x.py'"))
+        for sem_par in ('"x.py', '"x.py\''):
+            self.assertTrue(self.chaves(command="python3 x.py") - self.chaves(command="python3 " + sem_par), sem_par)
+        self.assertTrue(self.chaves(command="python3 x.py") - self.chaves(command="python3 ax.pya"))  # só aspas saem
+
+    def test_dois_hooks_com_a_mesma_chave_contam_dois(self):
+        """Review A1 (volta 2): tirar um de dois hooks iguais em evento, matcher, tipo, interpretador e script acusa."""
+        novo = copy.deepcopy(HOOKS)
+        novo["hooks"]["PreToolUse"][0]["hooks"].append({"type": "command", "command": "python3", "args": ["a.py", "--outro"]})
+        self.repo.escreve("hooks/hooks.json", json.dumps(novo))
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "dois hooks a.py")
+        self.repo.git("tag", "-f", "base")
+        del novo["hooks"]["PreToolUse"][0]["hooks"][2]
+        self.repo.escreve("hooks/hooks.json", json.dumps(novo))
+        self.barra("hook removido de hooks/hooks.json: PreToolUse Bash command python3 a.py", "R-CONFORMIDADE")
+
+    def test_hook_neutralizado_sem_tirar_o_script_barra(self):
+        """Volta 1 (A1 a A3 da segurança): o hook que não roda mais o script, ou roda outro código antes, é hook removido."""
+        casos = {"python3 -s -E a.py": [dict(args=["-c", "a.py"]), dict(args=["-m", "a.py"]), dict(args=["-", "a.py"]),
+                                        dict(args=["-sc", "a.py"]), dict(args=["/dev/null", "a.py"]), dict(command="true"),
+                                        dict(command="echo", args=["a.py"]), dict(type="prompt"),
+                                        # volta 2 (A4 a A7 da segurança): sys.path, pycache, avisos, interpretador do repo, prazo
+                                        dict(args=["-I", "a.py"]), dict(args=["-P", "a.py"]), dict(args=["-sI", "a.py"]),
+                                        dict(args=["-X", "pycache_prefix=p", "a.py"]), dict(args=["-Xpycache_prefix=p", "a.py"]),
+                                        dict(args=["-W", "error", "a.py"]), dict(args=["-Werror", "a.py"]), dict(args=["-X", "a.py"]),
+                                        dict(command="./python3"), dict(command="hooks/python3"),
+                                        dict(command="./env python3"), dict(command="/usr/bin/python3"), dict(timeout=1),
+                                        dict(args=["a.py", "||", "true"]), dict(args=["a.py", ";", "exit", "0"]),
+                                        dict(args=["a.py", "$(true)"]),
+                                        # volta 3 (review A4): `-bb` faz do BytesWarning exceção
+                                        dict(args=["-bb", "a.py"]), dict(args=["-b", "a.py"])],
+                 "perl a.pl": [dict(command="perl -E", args=["a.pl"]), dict(args=["-E", "a.pl"])]}  # 2º: opção em `args` (CH-M7)
+        for antes, trocas in casos.items():
+            comando, *args = antes.split()
+            base = dict(type="command", command=comando, args=args)
+            for troca in trocas:
+                with self.subTest(antes=antes, troca=troca):
+                    self.assertTrue(self.chaves(**base) - self.chaves(**{**base, **troca}))
+
+    def test_command_lido_como_o_claude_code_o_roda(self):
+        """Volta 3 (A8 da segurança, A1 do QA): com `args` o `command` é o executável inteiro, sem shell; sem `args` vai ao
+        `sh -c`, e quebra de linha, tabulação ou espaço fora do ASCII acusam (falha fechada)."""
+        execu = dict(type="command", command="python3", args=["-s", "-E", "x.py"])
+        self.assertEqual(self.chaves(**execu), self.chaves(type="command", command="python3 -s -E x.py"))
+        forma_exec = [dict(command="python3 -s", args=["-E", "x.py"]), dict(command="'python3'"),
+                      dict(command="python3 -s -E x.py", args=[]),
+                      dict(args={"-s": 0, "-E": 0, "x.py": 0})]  # `args` fora da forma de lista: falha fechada
+        forma_shell = [f"python3 -s -E x.py{c}exit 0" for c in ("\n", "\r", "\t")]
+        forma_shell += ["python3\u00a0-s\u00a0-E\u00a0x.py", "python3 -s -E x.py\u0085"]
+        depois = [{**execu, **troca} for troca in forma_exec] + [dict(type="command", command=c) for c in forma_shell]
+        for hk in depois:
+            with self.subTest(hk=hk):
+                self.assertTrue(self.chaves(**execu) - self.chaves(**hk))
+
+    def test_campo_fora_da_lista_inocua_entra_na_chave(self):
+        """Volta 3 (A9 da segurança): `if`, `async`, `asyncRewake`, `onFailure`, `shell` e campo novo mudam quando e como o hook
+        roda; `statusMessage` e `once` não."""
+        base = dict(type="command", command="python3", args=["x.py"])
+        for campo, valor in (("if", "Bash(nunca *)"), ("async", True), ("asyncRewake", True), ("onFailure", "continue"),
+                             ("shell", "powershell"), ("campoNovo", 1)):
+            with self.subTest(campo=campo):
+                self.assertTrue(self.chaves(**base) - self.chaves(**base, **{campo: valor}))
+        self.assertEqual(self.chaves(**base), self.chaves(**base, statusMessage="x", once=True))
+
+    def test_hooks_json_fora_do_esquema_barra(self):
+        """Volta 4 (A10 da segurança): uma entrada fora do esquema faz a carga descartar todos os hooks; a catraca acusa."""
+        novo = copy.deepcopy(HOOKS)
+        del novo["hooks"]["PreToolUse"][0]["hooks"][0]["type"]
+        self.repo.escreve("hooks/hooks.json", json.dumps(novo))
+        self.barra("hooks.json fora do esquema: a carga descarta todos os hooks (PreToolUse.0.hooks.0.type", "R-CONFORMIDADE")
+
+    def test_cada_campo_fora_do_esquema_acusa(self):
+        """Volta 4 (A10): lista fechada de eventos e dos tipos de cada campo; o legítimo não acusa (falha fechada)."""
+        hk = dict(type="command", command="python3", args=["x.py"], timeout=10, statusMessage="x", once=True, shell="bash",
+                  onFailure="block", **{"if": "Bash(*)", "async": False, "asyncRewake": False})
+        bom = {"hooks": {"Stop": [{"hooks": [hk]}], "PreToolUse": [{"matcher": "Bash", "hooks": [hk]}]}}
+        self.assertEqual(catraca.erros_de_forma(json.dumps(bom)), [])
+        self.assertEqual(catraca.erros_de_forma((AQUI.parent / "hooks" / "hooks.json").read_text(encoding="utf-8")), [])
+        ruins = {"type": dict(type="prompt"), "sem command": dict(command=None), "if": {"if": 1},
+                 "statusMessage": dict(statusMessage=None), "async": {"async": "true"}, "asyncRewake": dict(asyncRewake=0),
+                 "once": dict(once="sim"), "args": dict(args=["x.py", None]), "args objeto": dict(args={"x.py": 0}),
+                 "timeout texto": dict(timeout="10"), "timeout booleano": dict(timeout=True), "timeout zero": dict(timeout=0),
+                 "timeout zero real": dict(timeout=0.0), "timeout negativo": dict(timeout=-1), "shell": dict(shell="zsh"),
+                 "onFailure": dict(onFailure="ignore")}
+        for nome, troca in ruins.items():
+            with self.subTest(campo=nome):
+                self.assertTrue(catraca.erros_de_forma(json.dumps({"hooks": {"Stop": [{"hooks": [{**hk, **troca}]}]}})))
+        sem_tipo = {k: v for k, v in hk.items() if k != "type"}
+        arquivos = {"sem type": {"hooks": {"Stop": [{"hooks": [sem_tipo]}]}}, "evento": {"hooks": {"PreToolUsee": [{"hooks": [hk]}]}},
+                    "evento não lista": {"hooks": {"Stop": {"hooks": [hk]}}}, "grupo sem hooks": {"hooks": {"Stop": [{"matcher": "x"}]}},
+                    "grupo não objeto": {"hooks": {"Stop": [[hk]]}}, "matcher": {"hooks": {"Stop": [{"matcher": 1, "hooks": [hk]}]}},
+                    "hook não objeto": {"hooks": {"Stop": [{"hooks": ["true"]}]}}, "hooks não objeto": {"hooks": []}, "raiz": [],
+                    "evento texto": {"hooks": {"Stop": ""}}, "sem command": {"hooks": {"Stop": [{"hooks": [dict(type="command")]}]}}}
+        for nome, dados in arquivos.items():
+            with self.subTest(arquivo=nome):
+                self.assertTrue(catraca.erros_de_forma(json.dumps(dados)))
+        for texto in ("{", '{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "x", "timeout": NaN}]}]}}',
+                      '{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "x", "timeout": 1e400}]}]}}'):
+            with self.subTest(texto=texto):
+                self.assertTrue(catraca.erros_de_forma(texto))
+        # CH-M30: NaN e Infinity em campo sem validação de tipo só acusam pela guarda da constante (o timeout já recusa 0)
+        for constante in ("NaN", "Infinity", "-Infinity"):
+            for texto in (f'{{"hooks": {{}}, "x": {constante}}}',
+                          f'{{"hooks": {{"Stop": [{{"hooks": [{{"type": "command", "command": "x", "foo": {constante}}}]}}]}}}}'):
+                with self.subTest(texto=texto):
+                    self.assertEqual(catraca.erros_de_forma(texto), [f"JSON ilegível ({constante} não é JSON)"])
+
     def test_arquivo_de_hooks_apagado_barra(self):
         (self.repo.dir / "hooks/hooks.json").unlink()
         self.barra("hook removido")
@@ -1238,6 +1379,33 @@ class Protegidos(Base):
         self.repo.escreve("tests/catraca.py", "x = 'nova'\n")
         self.repo.escreve(".github/workflows/ci.yml", "name: CI com catraca\n")
         self.passa()
+
+
+class CorpusDasSondasDeHook(unittest.TestCase):
+    """Sondas S1 a S17, A3 e A7 do parecer de segurança da v047 (catraca por script) sobre o hooks.json real: cada troca no hook de
+    conformidade do PreToolUse acusa um hook removido, e a do PR 565 (só `env`, opções e argumentos) nenhum."""
+
+    def test_cada_sonda_acusa_o_esperado(self):
+        corpus = json.loads((AQUI / "fixtures" / "catraca-hooks" / "sondas.json").read_text(encoding="utf-8"))
+        antes = json.loads((AQUI.parent / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+        alvos = [(g, i) for g in antes["hooks"][corpus["evento"]] for i, hk in enumerate(g["hooks"])
+                 if corpus["script"] in hk.get("args", [])]
+        self.assertEqual(len(alvos), 1)
+        self.assertNotIn("Infinity", json.dumps(antes))
+        self.assertGreaterEqual(len(corpus["sondas"]), 40)
+        for sonda in corpus["sondas"]:
+            with self.subTest(sonda=sonda["id"]):
+                depois = copy.deepcopy(antes)
+                grupo = depois["hooks"][corpus["evento"]][antes["hooks"][corpus["evento"]].index(alvos[0][0])]
+                grupo["hooks"][alvos[0][1]].update(sonda["troca"])
+                for campo in sonda.get("tira", []):
+                    del grupo["hooks"][alvos[0][1]][campo]
+                if "acrescenta" in sonda:  # volta 4 (A10): grupo ou evento novo fora do esquema
+                    depois["hooks"].setdefault(sonda["acrescenta"]["evento"], []).append(sonda["acrescenta"]["grupo"])
+                texto = json.dumps(depois).replace("Infinity", "1e400")  # S17: o json.dumps escreve Infinity; o hooks.json, 1e400
+                removidos = catraca.chaves_de_hooks(json.dumps(antes)) - catraca.chaves_de_hooks(texto)
+                self.assertEqual(len(removidos), sonda["removidos"], removidos)
+                self.assertEqual(bool(catraca.erros_de_forma(texto)), sonda.get("fora_do_esquema", False))
 
 
 class CorpusDosAfrouxamentosReais(unittest.TestCase):
@@ -3318,8 +3486,8 @@ class Workflows(unittest.TestCase):
         self.assertIn("docs/(reviews|qa|security|devops|ux)/", ci)
         # Teto de tempo (ci-suite-no-teto; SUITE-NO-CI): as duas checagens rápidas (3.12 e 3.14, SP4) 30 min (CI-TEMPO-314: medido 13-20 min, a 3.14 batia nos 20); cada parte da suíte (3.12 e 3.14) 20 min;
         # instalação no 3.14 15 min; o teto de pulados de cada versão (T3, 0.43.2) 5 min; passos da bateria 20 min; verificações longas (shellcheck, Provas, e2e; #493) 20 min; os dois agregadores 5 min;
-        # o job prévio da árvore (M2, 0.43.4), antes das partes, 5 min.
-        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["30", "30", "45", "5", "20", "20", "15", "5", "5", "5", "20", "20", "5"])
+        # o job de pareceres (v047 E1.18, J9) 5 min; o job prévio da árvore (M2, 0.43.4), antes das partes, 5 min.
+        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["30", "30", "45", "5", "20", "20", "15", "5", "5", "5", "20", "5", "20", "5"])
 
     def test_gate_do_ci_nao_deixa_codigo_escapar_nem_forjar_o_verde(self):
         """Review independente: renomeação, testes de pareceres, check forjado, cancelamento e promoção."""

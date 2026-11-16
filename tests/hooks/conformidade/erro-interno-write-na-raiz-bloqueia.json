@@ -1,0 +1,21 @@
+{
+  "descricao": "Config corrompida e escrita em arquivo comum da raiz: recusa e registra (HOOK-ERRO-LIBERA, C4: erro interno com alvo dentro da raiz).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "config_bruta": "[1,",
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/src/app.js"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "erro interno do hook conformidade",
+    "erros_log": "conformidade JSONDecodeError"
+  }
+}

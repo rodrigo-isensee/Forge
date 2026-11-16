@@ -1,0 +1,41 @@
+---
+tipo: review
+contrato: 1
+pedido: v047
+branch: melhoria/v047-fixture-pid-sandbox
+commit: 32f1628aae7bffa63a590a218b88c18ed4c73738
+parecer: aprovado
+revisor: forge:tech-lead
+data: 2026-11-14
+---
+# Review: v047 (E1.108, fixture-pid-sandbox)
+
+## Achados
+- A1 (recomendado) tests/test_hooks.py:699 · o pulo por subTest não passa por `exigir` nem por PODEM_PULAR (lista fechada de apoio_sandbox); está atrás de `sinais_de_ci()`, mas o afrouxamento merece o mesmo parecer de segurança da lista.
+- A2 (recomendado) tests/mutantes/v047-fixture-pid-sandbox.json:1 · só o M1 está declarado; as guardas de CI (`None if sinais_de_ci()`, `motivo and not sinais_de_ci()`) e `if not motivo` não têm mutante; só se provam com CI definido.
+
+## Sondas
+
+## Parecer
+Aprovado. Classe C, 58 linhas de código e teste, um comportamento só (abaixo do teto M14). O hook não muda. O pulo só vale quando `/proc/<pid>/ns/pid` do pai não se lê, e nunca com `CI` ou `GITHUB_ACTIONS` definidos.
+
+Lido e executado no head:
+- O teste de unidade do pulo passa: 4 puladas com motivo, as outras seguem, sem motivo nada pula.
+- Com `CI=1` e o ns ilegível, o teste do caso legível reprova (4 falhas, as fixtures rodam), então não pula: confere a nota do brief.
+- Sem CI, esse teste sai pulado com motivo. O M1 dá "controle vermelho" no sandbox, o esperado pelo brief: só morre no CI, que roda a suíte inteira.
+- Os motivos de A1 e A2 não são defeito provado, por isso ficam recomendados.
+- Suíte inteira: CI do PR (não há PR; sem rerrodar o SHA).
+
+## Revalidação (E1.122, delta b47610cc..b645e83c)
+Delta lido por `forge-check parecer delta`: `bin/forge-testes`, `tests/mutantes/v047-fixture-pid-sandbox.json`, `tests/test_hooks.py`, `tests/test_testes_tocados.py`. Aprovado, sem achado novo; A1 e A2 seguem recomendados (A2 ganhou o M2).
+- O pulo virou função do módulo (`pular_sem_ns_de_pid(teste, casos, motivo)`), mesma lógica; as classes que reaproveitam `Hooks.executar_em_lote` sem herdar de `Hooks` já não quebram. `test_hook_ansi_c` (reaproveita o lote) passa: 12 testes OK.
+- O pulo segue só sem `/proc` legível e nunca com CI (`None if sinais_de_ci()`); o teste de unidade do pulo passa.
+- Mapa: `JUNTO_DO_MODULO` leva `REAPROVEITAM_O_LOTE` quando `tests/test_hooks.py` é pedido pelo caminho; o teste novo varre os módulos reais com mínimo de 8. Passa; com o M2 aplicado (`JUNTO_DO_MODULO = {}`) reprova (mutante morto).
+- Mudanças de passagem: `nucleos_do_processo` e `fator_de_carga` vêm de `apoio_volta_unica` (import no fim por causa do ciclo) e o teto do teste do `gh` pendurado escala com a carga; sem guarda nova.
+- Suíte inteira: CI do PR (não há PR; sem rerrodar o SHA).
+
+## Revalidação (E1.148, delta b645e83c..32f1628a)
+Delta lido por `forge-check parecer delta` (sem o que veio da develop): `tests/test_fechar.py`, `tests/test_prepush_so_docs.py`. Aprovado, sem achado novo; A1 e A2 seguem recomendados. Só teste muda, sem guarda nova no código.
+- `test_l5`: a parada passa a ser a última linha `[err]` do log, não uma das três últimas; confere o contrato do `registrar` (`bin/forge-fechar:283`, sem ordem entre stdout e stderr). Passa; com o `die` mandado ao stdout (`bin/forge-fechar:54`, sem `>&2`) reprova (mutante morto), o que a versão antiga não pegava.
+- `primeiro_aviso`: lê o stderr pelo descritor até a linha inteira do primeiro aviso, teto de 20 s, mata o grupo e reprova se não vier; o `communicate` do `fim` lê pelo mesmo descritor, e o lido entra antes do `err`. Fecha a corrida da senha criada antes da contagem. Passou 4 vezes seguidas.
+- Suíte inteira: CI do PR 547 verde (sem rerrodar o SHA).

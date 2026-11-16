@@ -1,0 +1,16 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o passo do changelog compara com o pai do merge, nao com a base velha do evento (CI-CHANGELOG-BASE)",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "          BASE=$(git rev-parse HEAD^1)\n          python3 bin/forge-changelog conferir",
+      "para": "          BASE=\"$BASE\"\n          python3 bin/forge-changelog conferir",
+      "testes": [
+        "tests.test_ci_local.MatrizNeedsEAgregadorTest.test_changelog_compara_com_o_pai_do_commit_de_juncao_e_nao_com_a_base_do_evento"
+      ]
+    }
+  ]
+}

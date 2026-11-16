@@ -1,0 +1,86 @@
+{
+  "pedido": "v046-fechar-lote",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C9",
+      "guarda": "linha do histórico sem hora ISO não é movimento",
+      "arquivo": "bin/forge-fechar",
+      "de": "$3 == id && $2 ~ /^[0-9][0-9][0-9][0-9]-/",
+      "para": "$3 == id",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_merge_move_o_cartao_da_coluna_do_historico_para_pronto_depois_do_merge"
+      ]
+    },
+    {
+      "id": "P1",
+      "guarda": "remoção que dá certo poda os órfãos de outra sessão",
+      "arquivo": "bin/forge-fechar",
+      "de": "      podar_orfaos  # WORKTREE-PRUNE-SANDBOX",
+      "para": "      :  # WORKTREE-PRUNE-SANDBOX",
+      "testes": [
+        "tests.test_fechar_prune_sandbox.Teste.test_remocao_que_da_certo_poda_o_registro_orfao_de_outra_sessao"
+      ]
+    },
+    {
+      "id": "P2",
+      "guarda": "metadados presos só se dizem com a worktree removida",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$arv_st\" = ok ] && [ -n \"${meta:-}\" ] && [ -d \"$meta\" ]; then",
+      "para": "if [ -n \"${meta:-}\" ] && [ -d \"$meta\" ]; then",
+      "testes": [
+        "tests.test_fechar_prune_sandbox.Teste.test_worktree_suja_que_fica_nao_fala_de_metadados_presos"
+      ]
+    },
+    {
+      "id": "P3",
+      "guarda": "a pasta dos metadados é lida antes do remove",
+      "arquivo": "bin/forge-fechar",
+      "de": "elif meta=\"$(git -C \"$arvore\" rev-parse --absolute-git-dir 2>/dev/null || true)\"; ! git worktree remove",
+      "para": "elif meta=\"\"; ! git worktree remove",
+      "testes": [
+        "tests.test_fechar_prune_sandbox.Teste.test_metadados_presos_pelo_sandbox_viram_registro_sem_pendencia"
+      ]
+    },
+    {
+      "id": "P4",
+      "guarda": "remove que falha com o diretório de pé não poda",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ ! -d \"$arvore\" ]; then podar_orfaos; fi",
+      "para": "if true; then podar_orfaos; fi",
+      "testes": [
+        "tests.test_fechar_orfao.Teste.test_worktree_ocupada_com_o_diretorio_presente_nao_roda_o_prune"
+      ]
+    },
+    {
+      "id": "P5",
+      "guarda": "prune que falha avisa com o código",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$prune_rc\" = 0 ] || echo",
+      "para": "true || echo",
+      "testes": [
+        "tests.test_fechar_orfao.Teste.test_c3_prune_negado_com_diretorio_ausente_imprime_prune_e_nao_remove"
+      ]
+    },
+    {
+      "id": "D1",
+      "guarda": "só a versão maior na develop é atraso",
+      "arquivo": "bin/forge-doutor",
+      "de": "if develop is None or develop <= versao:",
+      "para": "if develop is None:",
+      "testes": [
+        "tests.test_doutor_branch_atrasada.BranchAtrasada.test_develop_com_a_mesma_versao_noutro_commit_que_falta_na_branch_nao_fala_de_atraso"
+      ]
+    },
+    {
+      "id": "D2",
+      "guarda": "o commit que a branch já tem não vira cherry-pick",
+      "arquivo": "bin/forge-doutor",
+      "de": "sha if rc == 1 else",
+      "para": "sha if rc in (0, 1) else",
+      "testes": [
+        "tests.test_doutor_branch_atrasada.BranchAtrasada.test_versao_antiga_com_o_commit_da_develop_ja_na_branch_volta_ao_conselho_de_sempre"
+      ]
+    }
+  ]
+}

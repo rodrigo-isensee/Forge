@@ -66,7 +66,7 @@ class FecharMedir(unittest.TestCase):
         arquivo.write_text(f"{LINHA}\n")
         r = self.fechar("p1", "--ref", "melhoria/x", "--medir", str(arquivo))
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertFalse([c for c in self.chamadas() if c.startswith("gh run")])
+        self.assertFalse([c for c in self.chamadas() if c.startswith("gh run view")])  # o gh run list é o do CI da develop (6b e 8)
         self.assertEqual(self.corpo_do_pr(), f"## Como medir\n{LINHA}\n\n")
 
     def test_sem_medir_o_corpo_segue_com_o_texto_padrao(self):

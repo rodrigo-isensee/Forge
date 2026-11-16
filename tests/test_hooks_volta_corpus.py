@@ -34,7 +34,7 @@ from apoio_volta_unica import (  # noqa: E402
     corpus_da_volta_unica,
     modulos_dos_hooks,
     rodar,
-    limite_de_cpu_do_corpus,
+    limite_de_cpu_do_corpus_sob_carga,
     nucleos_do_processo,
     trabalhadores_do_limite_de_cpu,
     trabalhadores_do_pool,
@@ -83,8 +83,8 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
 
     def test_driver_do_lote_chama_o_executar_como_o_main_de_cada_hook(self):  # A2 da segurança, E1
         """O driver do lote (`DRIVER_DOS_HOOKS`) passa a `_comum.executar` os mesmos argumentos do `__main__` de cada hook:
-        o nome, `principal`, o marcador crítico do hook (não `None`; o parecer usa `CriticoOuAlias`), `clone_do_forge` e
-        `regra_do_prazo`; e roda na pasta do hook."""
+        o nome, `principal`, o marcador crítico do hook (não `None`; o conformidade usa `MARCADOR`, o da política, e o
+        parecer `CriticoOuAlias`), `clone_do_forge` e `regra_do_prazo`; e roda na pasta do hook."""
         def chamada(arvore):
             achadas = [n for n in ast.walk(arvore) if isinstance(n, ast.Call) and isinstance(n.func, (ast.Name, ast.Attribute))
                        and getattr(n.func, "attr", getattr(n.func, "id", None)) == "executar"]
@@ -105,7 +105,7 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         nomes = {ast.literal_eval(k): {ast.literal_eval(a): ast.unparse(b) for a, b in zip(v.keys, v.values)}
                  for k, v in zip(longo.keys, longo.values)}  # v0455: o argumento que é um nome do módulo do hook
         self.assertEqual(set(argumentos), {"conformidade", "parecer"})
-        self.assertEqual(marcadores, {"conformidade": "CRITICO", "parecer": "CriticoOuAlias"})
+        self.assertEqual(marcadores, {"conformidade": "MARCADOR", "parecer": "CriticoOuAlias"})
         for hook in argumentos:
             with self.subTest(hook=hook):
                 principal = chamada(ast.parse((HOOKS / f"{hook}.py").read_text(encoding="utf-8")))
@@ -119,12 +119,13 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         self.assertIn('os.chdir(dados["raizes"][hook])', self.DRIVER_DOS_HOOKS)  # a pasta de cada hook, não a do conformidade
 
     def test_corpus_nos_dois_hooks(self):
+        limite = limite_de_cpu_do_corpus_sob_carga()  # lido antes do lote: o lote não infla a própria medida de carga
         with MedidaDeCpu() as medida:
             casos = self.fixtures_do_corpus()
             self.assertEqual(self.executar_em_lote(casos), len(casos))
         trabalhadores = trabalhadores_do_limite_de_cpu()
-        self.assertLess(medida.cpu, limite_de_cpu_do_corpus(),
-                        f"o corpus gastou {medida.texto()}, com {trabalhadores} trabalhadores (limite: 90 s de CPU por trabalhador)")
+        self.assertLess(medida.cpu, limite,
+                        f"o corpus gastou {medida.texto()}, com {trabalhadores} trabalhadores (limite: {limite:.0f} s = 90 s por trabalhador vezes o fator de carga)")
 
     def test_oraculo_das_redirecoes(self):  # T6
         """Para cada redireção das classes R e N e cada prefixo (P0 a P4), o bash roda `<P>cat <redireção> <<'EOF'⏎x⏎EOF`

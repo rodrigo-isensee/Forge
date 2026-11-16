@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-jargao-medida",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "E7.4: a classe etapa conta",
+      "arquivo": "hooks/meta.py",
+      "de": "    \"etapa\": re.compile(r\"",
+      "para": "    \"etapa\": re.compile(r\"(?!)",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_cada_classe_conta_o_termo_e_deixa_passar_o_parecido"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "E7.4: a classe commit conta",
+      "arquivo": "hooks/meta.py",
+      "de": "    \"commit\": re.compile(r\"",
+      "para": "    \"commit\": re.compile(r\"(?!)",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_cada_classe_conta_o_termo_e_deixa_passar_o_parecido"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "E7.4: a classe regra conta",
+      "arquivo": "hooks/meta.py",
+      "de": "    \"regra\": re.compile(r\"",
+      "para": "    \"regra\": re.compile(r\"(?!)",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_cada_classe_conta_o_termo_e_deixa_passar_o_parecido"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "E7.4: a classe cartao conta",
+      "arquivo": "hooks/meta.py",
+      "de": "    \"cartao\": re.compile(r\"",
+      "para": "    \"cartao\": re.compile(r\"(?!)",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_cada_classe_conta_o_termo_e_deixa_passar_o_parecido"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "E7.4: a classe ferramenta conta",
+      "arquivo": "hooks/meta.py",
+      "de": "    \"ferramenta\": re.compile(r\"",
+      "para": "    \"ferramenta\": re.compile(r\"(?!)",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_cada_classe_conta_o_termo_e_deixa_passar_o_parecido"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "E7.4: a classe caminho conta",
+      "arquivo": "hooks/meta.py",
+      "de": "    \"caminho\": re.compile(r\"",
+      "para": "    \"caminho\": re.compile(r\"(?!)",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_cada_classe_conta_o_termo_e_deixa_passar_o_parecido"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "E7.4: commit exige dígito (hash só de letras não conta)",
+      "arquivo": "hooks/meta.py",
+      "de": "(?=[0-9a-f]*\\d)(?=[0-9a-f]*[a-f])",
+      "para": "(?=[0-9a-f]*[a-f])",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_cada_classe_conta_o_termo_e_deixa_passar_o_parecido"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "E7.4: só as classes achadas vão ao disco",
+      "arquivo": "hooks/meta.py",
+      "de": "contagem.items() if n}",
+      "para": "contagem.items() if True}",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_cada_classe_conta_o_termo_e_deixa_passar_o_parecido"
+      ]
+    }
+  ]
+}

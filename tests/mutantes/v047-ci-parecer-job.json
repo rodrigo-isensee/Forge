@@ -1,0 +1,70 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "agregador exige pareceres (sem a checagem, parecer vermelho passa)",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "{ [ \"$PARECERES\" = success ] || { [ \"$PARECERES\" = skipped ] && [ \"$EVENTO\" != pull_request ]; }; } && [ \"$PASSOS\" = success ]",
+      "para": "[ \"$PASSOS\" = success ]",
+      "testes": [
+        "tests.test_ci_local.LeituraDosWorkflowsTest.test_agregador_reprova_parecer_que_nao_deu_success_em_pr",
+        "tests.test_ci_local.LeituraDosWorkflowsTest.test_agregador_fora_de_pr_aceita_so_skipped_ou_success"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "pareceres success passa em PR (condição 1 da linha do agregador)",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "{ [ \"$PARECERES\" = success ] ||",
+      "para": "{ false ||",
+      "testes": [
+        "tests.test_ci_local.LeituraDosWorkflowsTest.test_agregador_reprova_parecer_que_nao_deu_success_em_pr",
+        "tests.test_ci_local.LeituraDosWorkflowsTest.test_agregador_fora_de_pr_aceita_so_skipped_ou_success"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "skipped só passa fora de PR (condição 2: o evento)",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "[ \"$EVENTO\" != pull_request ]; }",
+      "para": "true; }",
+      "testes": [
+        "tests.test_ci_local.LeituraDosWorkflowsTest.test_agregador_reprova_parecer_que_nao_deu_success_em_pr",
+        "tests.test_ci_local.LeituraDosWorkflowsTest.test_agregador_fora_de_pr_aceita_so_skipped_ou_success"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "skipped é o único resultado aceito fora de success (condição 2: o resultado)",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "{ [ \"$PARECERES\" = skipped ] &&",
+      "para": "{ true &&",
+      "testes": [
+        "tests.test_ci_local.LeituraDosWorkflowsTest.test_agregador_reprova_parecer_que_nao_deu_success_em_pr",
+        "tests.test_ci_local.LeituraDosWorkflowsTest.test_agregador_fora_de_pr_aceita_so_skipped_ou_success"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "if: do job pareceres só em pull_request",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "    if: github.event_name == 'pull_request'\n    runs-on: ubuntu-26.04\n    timeout-minutes: 5",
+      "para": "    if: always()\n    runs-on: ubuntu-26.04\n    timeout-minutes: 5",
+      "testes": [
+        "tests.test_ci_local.LeituraDosWorkflowsTest.test_job_pareceres_so_roda_em_pr_e_sem_needs"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "teto de 5 min no job pareceres (J9)",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "    timeout-minutes: 5\n    permissions:\n      contents: read\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n        with:\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        with:\n          python-version: \"3.12\"\n      - name: Parecer",
+      "para": "    timeout-minutes: 10\n    permissions:\n      contents: read\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n        with:\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        with:\n          python-version: \"3.12\"\n      - name: Parecer",
+      "testes": [
+        "tests.test_ci_local.LeituraDosWorkflowsTest.test_pareceres_e_job_proprio_obrigatorio_e_fora_do_caminho_da_suite"
+      ]
+    }
+  ]
+}

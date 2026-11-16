@@ -9,6 +9,23 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/agentes.py"
+            ],
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "SendMessage",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/agentes.py"
             ],
             "timeout": 10
@@ -22,6 +39,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"
             ],
             "timeout": 10
@@ -35,6 +54,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/parecer.py"
             ],
             "timeout": 10
@@ -43,6 +64,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/pesado.py"
             ],
             "timeout": 300
@@ -58,6 +81,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/pesado.py"
             ],
             "timeout": 10
@@ -71,6 +96,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/quadro.py"
             ],
             "timeout": 10
@@ -84,6 +111,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"
             ],
             "timeout": 10
@@ -99,6 +128,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/pesado.py"
             ],
             "timeout": 10
@@ -114,6 +145,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/pesado.py"
             ],
             "timeout": 10
@@ -128,6 +161,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/agentes.py"
             ],
             "timeout": 10
@@ -142,6 +177,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/agentes.py"
             ],
             "timeout": 10
@@ -154,6 +191,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/vigia.py"
             ],
             "timeout": 10
@@ -168,6 +207,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/vigia.py"
             ],
             "timeout": 10
@@ -176,6 +217,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/doutor.py"
             ],
             "timeout": 10
@@ -190,6 +233,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/vigia.py"
             ],
             "timeout": 10
@@ -198,6 +243,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/doutor.py"
             ],
             "timeout": 10
@@ -206,6 +253,8 @@
             "type": "command",
             "command": "python3",
             "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/meta.py"
             ],
             "timeout": 300

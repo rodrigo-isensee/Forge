@@ -3,6 +3,7 @@ import importlib.machinery
 import hashlib
 import importlib.util
 import re
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -17,6 +18,33 @@ _loader.exec_module(ci)
 
 PR = {"number": 7, "headRefOid": "a" * 40, "headRefName": "melhoria/x", "baseRefName": "develop",
       "body": "texto", "author": {"login": "dona"}}
+
+def permissoes_e_env_do_job(bloco):
+    """(permissions, chaves do env) declarados no cabeçalho do job (antes de `steps:`), lidos linha a linha."""
+    permissoes, env, secao = {}, set(), ""
+    for linha in bloco.split("    steps:")[0].splitlines():
+        if not linha.strip() or linha.lstrip().startswith("#"):
+            continue
+        recuo = len(linha) - len(linha.lstrip())
+        chave, _, valor = linha.strip().partition(":")
+        if recuo == 4:
+            secao = chave
+        elif recuo == 6 and secao == "permissions":
+            permissoes[chave] = valor.strip()
+        elif recuo == 6 and secao == "env":
+            env.add(chave)
+    return permissoes, env
+
+
+def token_sem_permissao(texto):
+    """Jobs com GH_TOKEN/GITHUB_TOKEN (no env do job ou de um passo) sem `permissions:` próprio: herdam o do topo."""
+    acusados = []
+    for m in re.finditer(r"(?ms)^  (\S+):\n(.*?)(?=^  \S+:\n|\Z)", texto.split("\njobs:\n", 1)[-1]):
+        bloco = m.group(2)
+        permissoes, _ = permissoes_e_env_do_job(bloco)
+        if re.search(r"(?m)^\s+(GH_TOKEN|GITHUB_TOKEN):", bloco) and not permissoes:
+            acusados.append(m.group(1))
+    return acusados
 
 
 # CI-LINT-LISTA-ABERTA: lista fechada do que pode rodar antes do actionlint e do zizmor na bateria.
@@ -263,8 +291,11 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         topo = texto.split("\non:\n", 1)[0]
         self.assertNotIn("só a checagem rápida", topo)
         self.assertIn("scripts/suite-paralela.py", topo)
-        (rapida,) = [j for j in ci.ler_jobs(texto) if j["id"] == "rapida"]
-        self.assertTrue(any("scripts/suite-paralela.py" in p["run"] for p in rapida["passos"]))
+        # CI-RAPIDO: a rápida é o agregador; a suíte roda nas 5 pernas dela (suite-partes, o mecanismo do suite-paralela)
+        pernas = [j for j in ci.ler_jobs(texto) if j["id"] == "rapida-partes-doze"]
+        self.assertEqual(len(pernas), 1, "o ci.yml não tem o job rapida-partes-doze")
+        (perna,) = pernas
+        self.assertTrue(any("scripts/suite-partes.py" in p["run"] for p in perna["passos"]))
 
     def test_bateria_consolidada_mantem_os_passos_que_eram_jobs(self):
         (bateria,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
@@ -281,13 +312,13 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         """D4: os dois passos "Testes do Forge" chamam o mesmo script do pre-push (guarda de completude nos dois);
         o passo curto dos pareceres continua como está; a release também roda em paralelo (RELEASE-SUITE-PARALELA)."""
         jobs = {j["id"]: j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))}
-        (passo,) = [p for p in jobs["rapida"]["passos"] if p["nome"] == "Testes do Forge"]
-        self.assertEqual(passo["run"].strip(), "python3 scripts/suite-paralela.py")
-        # SUITE-NO-CI: no PR, a suíte roda em 3 partes por versão (scripts/suite-partes.py, o mecanismo do suite-paralela).
-        for nome in ("partes-doze", "partes-quatorze"):
+        # SUITE-NO-CI e CI-RAPIDO: no PR e na develop a suíte roda em 5 partes por versão (scripts/suite-partes.py, o mecanismo do
+        # suite-paralela); o agregador da develop não roda a suíte.
+        for nome in ("partes-doze", "partes-quatorze", "rapida-partes-doze", "rapida-partes-quatorze"):
             with self.subTest(job=nome):
                 (passo,) = [p for p in jobs[nome]["passos"] if p["nome"] == "Testes do Forge (parte)"]
-                self.assertIn('python3 scripts/suite-partes.py --parte "$PARTE/3"', passo["run"])
+                self.assertIn('python3 scripts/suite-partes.py --parte "$PARTE/5"', passo["run"])
+        self.assertEqual([p for p in jobs["rapida"]["passos"] if "scripts/" in p["run"]], [])
         for nome in jobs:
             with self.subTest(job=nome):
                 self.assertFalse([p["nome"] for p in jobs[nome]["passos"] if "unittest discover" in p["run"]])
@@ -297,6 +328,88 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         release = (RAIZ / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
         self.assertIn("python3 scripts/suite-paralela.py", release)
         self.assertNotIn("unittest discover", release)
+
+    def test_pareceres_e_job_proprio_obrigatorio_e_fora_do_caminho_da_suite(self):
+        """CI-PARECER-NAO-BARRA-SUITE: o parecer faltando reprova o merge (agregador) sem pular a suíte nem as verificações."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        jobs = {j["id"]: j for j in ci.ler_jobs(texto)}
+        self.assertEqual(jobs["pareceres"]["nome"], "bateria (pareceres)")
+        self.assertIn("--modo pareceres", "".join(p["run"] for p in jobs["pareceres"]["passos"]))
+        self.assertFalse([p for p in jobs["bateria"]["passos"] if "--modo pareceres" in p["run"]], "o parecer saiu do job de passos")
+        self.assertIn("pareceres", jobs["agregador"]["needs"])
+        for outro, j in jobs.items():
+            if outro not in ("agregador", "pareceres"):
+                self.assertNotIn("pareceres", j["needs"], outro)
+        self.assertIn("PARECERES: ${{ needs.pareceres.result }}", texto)
+        # A4 (segurança): o modo pareceres roda em exatamente um job, que tem só contents: read e teto de 5 min (J3, J5, J9)
+        self.assertEqual(sum("--modo pareceres" in p["run"] for j in jobs.values() for p in j["passos"]), 1)
+        bloco = re.search(r"(?ms)^  pareceres:\n(.*?)(?=^  \S+:\n)", texto).group(1)
+        self.assertEqual(permissoes_e_env_do_job(bloco), ({"contents": "read"}, set()))  # CI-GUARDA-PERMISSOES-ENV: sem env: no job
+        self.assertEqual(token_sem_permissao(texto), [])
+        self.assertIn("\n    timeout-minutes: 5\n", bloco)
+
+    def test_guarda_de_permissoes_ve_env_do_job_e_token_sem_permissao(self):
+        """CI-GUARDA-PERMISSOES-ENV: a regex antiga (`\\S+$`) não via `GH_TOKEN: ${{ github.token }}` (valor com espaço)."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        bloco = re.search(r"(?ms)^  pareceres:\n(.*?)(?=^  \S+:\n)", texto).group(1)
+        com_env = bloco.replace("    steps:", "    env:\n      GH_TOKEN: ${{ github.token }}\n    steps:", 1)
+        antiga = re.findall(r"(?m)^      (\S+): (\S+)$", com_env.split("    steps:")[0])
+        self.assertEqual(antiga, [("contents", "read")], "a guarda antiga deixava passar o env do job")
+        self.assertEqual(permissoes_e_env_do_job(com_env), ({"contents": "read"}, {"GH_TOKEN"}))
+        sem_permissao = com_env.replace("    permissions:\n      contents: read\n", "")
+        self.assertEqual(token_sem_permissao("\njobs:\n  pareceres:\n" + sem_permissao), ["pareceres"])
+        no_passo = bloco.replace("    permissions:\n      contents: read\n", "").replace(
+            "          HEAD_SHA:", "          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          HEAD_SHA:", 1)
+        self.assertEqual(token_sem_permissao("\njobs:\n  pareceres:\n" + no_passo), ["pareceres"])
+        self.assertEqual(token_sem_permissao("\njobs:\n  pareceres:\n" + com_env), [])  # permissions declarada: não acusa
+
+    def agregador(self, pareceres, evento, **outros):
+        """Executa o `run:` do agregador de verdade (como o Actions: bash -eo pipefail); devolve o rc."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        (passo,) = {j["id"]: j for j in ci.ler_jobs(texto)}["agregador"]["passos"]
+        env = {"PATH": "/usr/bin:/bin", "PASSOS": "success", "PARECERES": pareceres, "VERIFICACOES": "success",
+               "PARTES": "success", "PULADOS": "success", "EVENTO": evento}
+        env.update(outros)
+        return subprocess.run(["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", passo["run"]],
+                              env=env, capture_output=True, text=True, timeout=30).returncode
+
+    def test_agregador_reprova_parecer_que_nao_deu_success_em_pr(self):
+        """CI-PARECER-NAO-BARRA-SUITE (J2): em PR só success passa; skipped, failure, cancelled e vazio reprovam."""
+        self.assertEqual(self.agregador("success", "pull_request"), 0)
+        for resultado in ("failure", "skipped", "cancelled", ""):
+            with self.subTest(resultado):
+                self.assertNotEqual(self.agregador(resultado, "pull_request"), 0)
+
+    def test_agregador_fora_de_pr_aceita_so_skipped_ou_success(self):
+        for evento in ("push", "workflow_dispatch"):
+            for resultado, esperado in (("skipped", 0), ("success", 0), ("failure", 1), ("cancelled", 1)):
+                with self.subTest(evento=evento, resultado=resultado):
+                    self.assertEqual(bool(self.agregador(resultado, evento)), bool(esperado))
+
+    def test_agregador_exige_os_demais_jobs_mesmo_com_pareceres_verde(self):
+        for var in ("PASSOS", "VERIFICACOES", "PARTES", "PULADOS"):
+            with self.subTest(var):
+                self.assertNotEqual(self.agregador("success", "pull_request", **{var: "failure"}), 0)
+
+    def test_gate_do_commit_so_de_parecer_le_o_agregador_e_registra_o_motivo(self):
+        """CI-ATALHO-COMMIT-SO-PARECER (A2 da E1.4): sem defeito, o gate segue no agregador `bateria`; o motivo fica no ci.yml."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        jobs = {j["id"]: j for j in ci.ler_jobs(texto)}
+        self.assertEqual(jobs["agregador"]["nome"], "bateria")
+        (gate,) = [p for p in jobs["bateria"]["passos"] if p["id"] == "gate"]
+        self.assertIn('select(.name == "bateria" and .app.slug == "github-actions")', gate["run"])
+        self.assertIn("CI-ATALHO-COMMIT-SO-PARECER", texto)
+        self.assertIn("o gate lê o check \"bateria\" (o agregador), não os jobs da", texto)
+
+    def test_job_pareceres_so_roda_em_pr_e_sem_needs(self):
+        """A guarda do job (:550): sem `if:` de PR ele rodaria em push; com needs poderia ser pulado em PR."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        job = {j["id"]: j for j in ci.ler_jobs(texto)}["pareceres"]
+        self.assertEqual(job["se"], "github.event_name == 'pull_request'")
+        self.assertEqual(job["needs"], [])
+        # CI-PARECERES-SEM-NEEDS: o motivo de não esperar o job de passos fica escrito junto do job
+        self.assertIn("CI-PARECERES-SEM-NEEDS", texto)
+        self.assertIn("a rodada extra é o custo que se evita", texto)
 
     def test_bateria_ferramenta_e_checagens_baratas_antes_dos_testes(self):
         """CI-FERRAMENTA-ANTES: o vermelho barato aparece antes da suíte; testes continuam obrigatórios."""
@@ -310,7 +423,7 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertFalse([n for n in nomes if n.startswith("Testes do Forge")], "a suíte roda nas partes, não nos passos")
         testes = len(nomes)  # SUITE-NO-CI: os passos baratos continuam no job de passos, que não espera a suíte
         for trecho in ("Claude Code CLI", "claude plugin validate", "Nada pula degrau", "changelog.d",
-                       "release exige versão", "Segredo, .env", "Parecer de review"):
+                       "release exige versão", "Segredo, .env"):
             self.assertLess(pos(trecho), testes, trecho)
         self.assertLess(pos("Claude Code CLI"), pos("claude plugin validate"))
         passo = [p for p in bateria["passos"] if "Claude Code CLI" in p["nome"]][0]["run"]
@@ -318,8 +431,10 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertIn("npm install", passo)
         self.assertNotIn("continue-on-error", texto)
         self.assertNotIn("skip ci", texto)
-        for job in ("partes-doze", "partes-quatorze"):
-            (teste,) = [p for j in ci.ler_jobs(texto) if j["id"] == job for p in j["passos"] if p["nome"] == "Testes do Forge (parte)"]
+        for job in ("partes-doze", "partes-quatorze", "rapida-partes-doze", "rapida-partes-quatorze"):
+            testes = [p for j in ci.ler_jobs(texto) if j["id"] == job for p in j["passos"] if p["nome"] == "Testes do Forge (parte)"]
+            self.assertEqual(len(testes), 1, f"o job {job} não tem um passo 'Testes do Forge (parte)'")
+            (teste,) = testes
             self.assertNotIn("for ", teste["run"])
             self.assertNotIn("||", teste["run"])
 
@@ -455,6 +570,21 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertEqual(passo["run"], "echo um\n\necho dois\n")
         self.assertEqual(passo["env"], {"BASE": "${{ github.base_ref }}"})
         self.assertEqual(passo["se"], "github.base_ref == 'main'")
+
+
+class InstalacaoDoCliTest(unittest.TestCase):
+    """v047 E1.134: o gerenciador de pacotes do runner não roda mais o postinstall do CLI; o instalador do binário roda depois."""
+
+    def test_toda_instalacao_global_do_cli_roda_o_instalador_do_binario_em_seguida(self):
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        linhas = [l.strip() for l in texto.splitlines() if "npm install -g" in l and "@anthropic-ai/claude-code@" in l]
+        self.assertEqual(len(linhas), 3, "as três instalações do CLI (e2e, validação do plugin, portão das provas)")
+        for linha in linhas:
+            instalar, _, resto = linha.partition("npm install -g")
+            self.assertIn("&& node \"$(npm root -g)/@anthropic-ai/claude-code/install.cjs\"", resto, linha)
+            self.assertLess(resto.index("claude-code@"), resto.index("install.cjs"), linha)
+            self.assertRegex(instalar, r"^instalar\(\) \{ $", linha)
+            self.assertTrue(linha.endswith("; }"), linha)
 
 
 class AvisosTest(unittest.TestCase):
@@ -846,9 +976,11 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
 
     def test_leitor_entende_matriz_e_needs_do_ci_real(self):
         jobs = {j["id"]: j for j in self.jobs_reais()}
-        self.assertEqual(jobs["partes-doze"]["matriz"], {"parte": ["1", "2", "3"]})
-        self.assertEqual(jobs["partes-quatorze"]["matriz"], {"parte": ["1", "2", "3"]})
-        self.assertEqual(jobs["agregador"]["needs"], ["bateria", "verificacoes", "partes-doze", "pulados-doze"])
+        for job in ("partes-doze", "partes-quatorze", "rapida-partes-doze", "rapida-partes-quatorze"):
+            self.assertEqual(jobs[job]["matriz"], {"parte": ["1", "2", "3", "4", "5"]})
+        self.assertEqual(jobs["rapida"]["needs"], ["rapida-partes-doze", "rapida-pulados-doze"])
+        self.assertEqual(jobs["rapida-quatorze"]["needs"], ["rapida-partes-quatorze", "rapida-pulados-quatorze"])
+        self.assertEqual(jobs["agregador"]["needs"], ["bateria", "pareceres", "verificacoes", "partes-doze", "pulados-doze"])
         self.assertEqual(jobs["verificacoes"]["needs"], ["bateria"])  # A18: Provas, shellcheck e e2e esperam os passos baratos
         self.assertEqual(jobs["bateria-python-tres-quatorze"]["needs"],
                          ["partes-quatorze", "pulados-quatorze", "instalacao-quatorze"])
@@ -885,17 +1017,17 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
     def test_cada_perna_roda_uma_vez_e_a_igual_reaproveita(self):
         resultados, chamados = self.rodar_com(self.jobs_reais())
         partes = [c for c in chamados if c[1]]
-        self.assertEqual(partes, [(f"suíte (python 3.12, parte {k}/3)", str(k)) for k in (1, 2, 3)])
+        self.assertEqual(partes, [(f"suíte (python 3.12, parte {k}/5)", str(k)) for k in (1, 2, 3, 4, 5)])
         por_nome = {r["nome"]: r for r in resultados}
-        for k in (1, 2, 3):
-            self.assertIn("reaproveitado", por_nome[f"suíte (python 3.14, parte {k}/3)"]["motivo"])
+        for k in (1, 2, 3, 4, 5):
+            self.assertIn("reaproveitado", por_nome[f"suíte (python 3.14, parte {k}/5)"]["motivo"])
         self.assertEqual(ci.status(resultados)[0], "success")
-        self.assertIn("resumo de bateria: success, verificacoes: success, partes-doze: success", por_nome["bateria"]["motivo"])
+        self.assertIn("resumo de bateria: success, pareceres: success, verificacoes: success, partes-doze: success", por_nome["bateria"]["motivo"])
         self.assertEqual(por_nome["bateria (python 3.14)"]["estado"], ci.OK)
         self.assertEqual(por_nome["checagem rápida (push na develop)"]["estado"], ci.PULADO)
 
     def test_agregador_reprova_com_uma_perna_vermelha(self):
-        resultados, _ = self.rodar_com(self.jobs_reais(), falha="suíte (python 3.12, parte 2/3)")
+        resultados, _ = self.rodar_com(self.jobs_reais(), falha="suíte (python 3.12, parte 2/5)")
         por_nome = {r["nome"]: r for r in resultados}
         self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.FALHOU))
         self.assertEqual(por_nome["bateria (passos)"]["estado"], ci.OK)
@@ -908,8 +1040,10 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         self.assertEqual([c for c in chamados if c[1]], [])
         por_nome = {r["nome"]: r for r in resultados}
         for versao in ("3.12", "3.14"):
-            for k in (1, 2, 3):
-                self.assertEqual(por_nome[f"suíte (python {versao}, parte {k}/3)"]["estado"], ci.PULADO)
+            for k in (1, 2, 3, 4, 5):
+                nome = f"suíte (python {versao}, parte {k}/5)"
+                self.assertIn(nome, por_nome)
+                self.assertEqual(por_nome[nome]["estado"], ci.PULADO)
         self.assertEqual(por_nome["bateria (verificações longas)"]["estado"], ci.PULADO)  # A1: o vermelho barato pula o job longo
         self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.FALHOU))
         self.assertEqual(ci.status(resultados)[0], "failure")
@@ -942,6 +1076,41 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
 
     def test_apt_get_e_preparo_do_runner(self):
         self.assertTrue(ci.PASSO_DE_PREPARO.search("sudo apt-get install -y x\n"))
+
+    def test_changelog_compara_com_o_pai_do_commit_de_juncao_e_nao_com_a_base_do_evento(self):
+        """CI-CHANGELOG-BASE: com a develop andando, o passo recebe o pai da junção (HEAD^1), nunca o base.sha velho do evento."""
+        import os
+        import subprocess
+        import tempfile
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text()
+        (passo,) = [p for p in passos_da_bateria(texto) if p["nome"].startswith("develop - mudança na fábrica exige fragmento")]
+        with tempfile.TemporaryDirectory() as d:
+            env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
+                   "GIT_COMMITTER_EMAIL": "t@t", "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
+
+            def git(*a):
+                return subprocess.run(["git", *a], cwd=d, env=sem_manutencao(env), check=True, capture_output=True, text=True).stdout.strip()
+            git("init", "-q", "-b", "develop")
+            Path(d, "bin").mkdir()
+            Path(d, "bin", "forge-changelog").write_text("import sys\nprint('BASE=' + sys.argv[sys.argv.index('--base') + 1])\n")
+            git("add", ".")
+            git("commit", "-qm", "a")
+            velha = git("rev-parse", "HEAD")
+            git("switch", "-qc", "pr")
+            Path(d, "x").write_text("x")
+            git("add", ".")
+            git("commit", "-qm", "pr")
+            git("switch", "-q", "develop")
+            Path(d, "y").write_text("y")
+            git("add", ".")
+            git("commit", "-qm", "outro pr")
+            nova = git("rev-parse", "HEAD")
+            git("merge", "-q", "--no-ff", "-m", "juncao", "pr")
+            self.assertEqual(git("rev-parse", "HEAD^1"), nova)
+            r = subprocess.run(["bash", "-e", "-c", passo["run"]], cwd=d, env={**env, "BASE": velha},
+                               capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), "BASE=" + nova)
 
 
 if __name__ == "__main__":

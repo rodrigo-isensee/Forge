@@ -17,7 +17,9 @@ No clone do Forge (`raiz_de_estado`: `~/Forge` e as worktrees de `~/.forge-contr
 `hooks_desligados`, e o PR fica em rascunho até o parecer: `gh pr create --draft` passa sem parecer e `gh pr ready`
 exige o parecer, como o merge (o GitHub não mescla PR em rascunho).
 O `gh pr create` fora do rascunho decide pelo resultado que o `forge-check pr` gravou para o mesmo head, branch e base
-(PR-HOOK-PRAZO, `verificar` com `gravado`): sem o aprovado, recusa e diz o comando a rodar antes.
+(PR-HOOK-PRAZO, `verificar` com `gravado`): sem o aprovado, recusa e diz o comando a rodar antes. O `gh pr ready` e o
+`gh pr merge` usam o mesmo resultado como atalho (E2.117): o aprovado do mesmo head e base decide sem refazer a checagem, o
+reprovado recusa e, sem ele, a conferência de hoje decide como antes (o prazo vencido diz o comando que grava o resultado).
 Falha fechado nas ações críticas (ADR 0009, seção 7), também no clone do Forge.
 """
 import ast
@@ -41,8 +43,8 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, 
 MERGE = r"merge(?!-base\b)"  # `git merge-base` só lê o grafo (HK3-PARECER, E2): não é merge
 PREFILTRO = re.compile(rf"\bgh\b.*\bpr\b.*\b(create|{MERGE}|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b({MERGE}|pull)\b", re.S)
 class MERGE_DE_PR:  # noqa: N801 - o `prazo_longo` do `executar`, que espera a interface de um regex (`.search`)
-    """A linha com `gh pr merge` como palavras de um comando ganha o prazo `PRAZO_DO_MERGE_S` (o `forge-check pr` leva
-    cerca de 2 s; v0455). A menção em comentário, string ou corpo de heredoc não ganha (A1 da segurança da 0.45.5).
+    """A linha com `gh pr merge` como palavras de um comando ganha o prazo `PRAZO_DO_MERGE_S` (v0455; com a máquina carregada,
+    o `forge-check pr` passa dele, e o resultado gravado do mesmo head decide antes: E2.117). A menção em comentário, string ou corpo de heredoc não ganha (A1 da segurança da 0.45.5).
     Só dá mais prazo, nunca libera; o prazo vencido segue recusando, e a dúvida ao ler fica com os 3 s."""
 
     @staticmethod
@@ -65,6 +67,12 @@ SED_LE = re.compile(r"(?<![^\s;&|(])sed -n (['\"]?)\d+(?:,\d+)?p\1((?: +[\w./~@:
 SO_CAT = re.compile(r"(?:[ \t]*cat(?:[ \t]+>{0,2}[ \t]*[\w./~@:+%,-]+)*[ \t]*(?:\n|$))+")
 # `<<`/`<<-` seguido de `'PALAVRA'`, `"PALAVRA"` ou `PALAVRA` (só \w): o bash e o hook cortam o corpo no mesmo ponto.
 HEREDOC_SIMPLES = re.compile(r"(?<!<)<<(-?)[ \t]*(?:'(\w+)'|\"(\w+)\"|(\w+))(?=[ \t]|$)")
+# HOOK-TEXTO-COM-MERGE: o alvo do `cat > arq <<` entre aspas ou com `$NOME`/`${NOME}` (`"$TMPDIR/x.md"`, `'docs/a b.md'`)
+# grava um arquivo como o alvo literal da K1: a rede D o lê como `cat > _` e decide o resto como antes. Sem `\`, aspa de
+# dentro, `$(`, `${X:-…}` nem crase: o bash lê essa palavra como uma só, sem rodar nada.
+VARIAVEL = r"\$(?:[A-Za-z_]\w*|\{[A-Za-z_]\w*\})"
+ALVO_DO_CAT = re.compile(rf"(?<![^\s;&|(])(cat[ \t]+>>?[ \t]*)(?:\"(?:[\w./:@,+%~^ -]|{VARIAVEL})+\"|'[\w./:@,+%~^ -]+'"
+                         rf"|{VARIAVEL}[\w./:@,+%~^-]*)(?=[ \t]+<<)")
 LE_O_TEXTO = {"grep", "cat"}
 SO_ESPERA = {"sleep", "echo", ""}
 CONTROLE = {"if", "elif", "while", "until", "!", "then", "do", "else", "fi", "done"}
@@ -109,8 +117,11 @@ SEM_AMBIENTE = Ambiente(frozenset(), bool(DESVIOS & set(os.environ)))
 # vai pelas ferramentas de arquivo, e o programa, noutra chamada
 GRAVE_E_RODE_NOUTRA = "grave pelo Write ou Edit e rode o programa noutra chamada"
 BASES = ("develop", "origin/develop", "main", "origin/main", "master", "origin/master")
-# PR-HOOK-PRAZO: o prazo vencido do `gh pr create` sem o resultado gravado diz o comando que o grava (cabe nos 200 caracteres)
+# PR-HOOK-PRAZO: o prazo vencido do `gh pr create`, `gh pr ready` ou `gh pr merge` sem o resultado gravado diz o comando que o
+# grava (cabe nos 200 caracteres)
 CONTORNO_DO_PRAZO = "rode antes forge-check pr"
+# `gravado` do `verificar`: o `gh pr create` exige o resultado gravado; `gh pr ready` e `gh pr merge` o usam como atalho (E2.117)
+EXIGE, ATALHO = "exige", "atalho"
 
 
 def so_le_ou_espera(script):
@@ -626,18 +637,21 @@ def exigidos_sem_pedido(fc, raiz, ref, base):
     return fc.pareceres_exigidos(classe, infra, seguranca), classe
 
 
-def verificar(hook, raiz, branch, ref, base, dica="", gravado=False):
+def verificar(hook, raiz, branch, ref, base, dica="", gravado=None):
     """Bloqueia se a branch não tem os pareceres exigidos aprovados e válidos. Os exigidos são os do `forge-check` (P5: a classe
-    da entrega mais os gatilhos de segurança e devops; o review vale sempre). `dica` abre o motivo. `gravado` (PR-HOOK-PRAZO, só o
-    `gh pr create`): o resultado que o `forge-check pr` gravou para o mesmo head, branch e base decide sem refazer a checagem; sem
-    ele, a conferência de hoje só dá o motivo, e a recusa vem mesmo sem violação, com o comando a rodar antes."""
+    da entrega mais os gatilhos de segurança e devops; o review vale sempre). `dica` abre o motivo. `gravado` (PR-HOOK-PRAZO): o
+    resultado que o `forge-check pr` gravou para o mesmo head, branch e base decide sem refazer a checagem (o aprovado libera, o
+    reprovado recusa). Sem ele, a conferência de hoje decide e o prazo vencido diz o comando que o grava; com `EXIGE` (o
+    `gh pr create`), a recusa vem mesmo sem violação; com `ATALHO` (`gh pr ready` e `gh pr merge`, E2.117), sem violação libera.
+    Fora do clone do Forge, o `ATALHO` só recusa pelo reprovado e nunca libera pelo aprovado: no Forge, o CI de pareceres é o
+    segundo portão; no projeto, não há outro, e a conferência de hoje decide."""
     fc = forge_check()
     guarda_de_versao(fc, raiz)
     pedida = base
     base, _ = fc.base_do_delta(raiz, base, ref) if base else (None, None)  # a mesma base do `forge-check pr` (K-164)
     estado, motivo = fc.resultado_gravado_do_pr(raiz, branch, ref, base, pedida) if gravado else (None, None)
-    if estado == "aprovado":
-        return
+    if estado == "aprovado" and (gravado == EXIGE or e_clone_do_forge(raiz)):
+        return  # A1 da segurança (E2.142): no projeto, o aprovado gravado é forjável e o merge não tem outro portão
     if estado == "reprovado":
         bloquear("R-REVIEW", f"{dica}{motivo}")
     if motivo:  # sem o resultado gravado, o prazo vencido da conferência de hoje diz o comando que o grava (o resto: CONTORNO_DO_TETO)
@@ -656,7 +670,7 @@ def verificar(hook, raiz, branch, ref, base, dica="", gravado=False):
             rid, texto = separar_regra(violacoes[0], "R-REVIEW")
             extra = f" (e mais {len(violacoes) - 1})" if len(violacoes) > 1 else ""
             bloquear(rid, f"{dica}{texto}{extra}; confira com forge-check pr {pedido}.")
-    if motivo:  # PR-HOOK-PRAZO: a conferência de hoje não achou violação, mas o `gh pr create` exige o resultado gravado
+    if motivo and gravado == EXIGE:  # PR-HOOK-PRAZO: a conferência de hoje não achou violação, mas o `gh pr create` exige o gravado
         bloquear("R-REVIEW", f"{dica}{motivo}")
 
 
@@ -681,7 +695,7 @@ def pull_request(hook, pasta, base, head, rascunho):
             return  # projeto: a branch não existe localmente, nada a conferir aqui
     candidatas = (base, f"origin/{base}") if base else (b for b in BASES if nome_da_branch(b) != branch)
     verificar(hook, raiz, branch, ref, next((b for b in candidatas if existe(raiz, b)), None),
-              "sem parecer aprovado, abra com gh pr create --draft; " if forge else "", gravado=True)
+              "sem parecer aprovado, abra com gh pr create --draft; " if forge else "", gravado=EXIGE)
 
 
 def pronto_de_pr(hook, pasta, alvo, desfaz):
@@ -701,7 +715,7 @@ def pronto_de_pr(hook, pasta, alvo, desfaz):
                              "git fetch e tente de novo.")
     base = base_do_pr(raiz, branch)
     verificar(hook, raiz, branch, ref, next((b for b in (base, f"origin/{base}") if existe(raiz, b)), None),
-              "PR sai do rascunho só com parecer: ")
+              "PR sai do rascunho só com parecer: ", gravado=ATALHO)
 
 
 def merge(hook, pasta, alvos, branches):
@@ -862,7 +876,7 @@ def merge_de_pr(hook, pasta, repo, alvo):
     if ref is None:
         bloquear("R-REVIEW", f"branch `{branch}` não existe localmente, sem parecer a conferir. Corrigir: "
                              "git fetch e tente de novo.")
-    verificar(hook, raiz, branch, ref, next((b for b in (base, f"origin/{base}") if existe(raiz, b)), None))
+    verificar(hook, raiz, branch, ref, next((b for b in (base, f"origin/{base}") if existe(raiz, b)), None), gravado=ATALHO)
 
 
 def merge_por_api(hook, pasta, args):
@@ -1036,7 +1050,7 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
     # bash pode formar nele ou num nível de cima (`bash -c`, `eval`, `$(…)`; `tem_heredoc_no_texto`), haja heredoc
     # provado ou não; a marca só no corpo de Python ou de shell que só lê ou espera (`leitores_dos_corpos`) não a liga
     if nivel == 0 and marcado_fora_do_shell and not (SO_CAT.fullmatch(comando) and heredocs_simples(original)):
-        sinal = fora_da_gramatica_com_heredoc(original)
+        sinal = fora_da_gramatica_com_heredoc(ALVO_DO_CAT.sub(r"\1_", original))
         if sinal is not None:
             bloquear("R-REVIEW", f"`{sinal}` na chamada com heredoc e gh pr, gh api, merge ou pull: o hook não modela. "
                                  f"Corrigir: {CONTORNO_DA_GRAMATICA}")

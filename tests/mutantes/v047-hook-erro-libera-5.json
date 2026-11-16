@@ -1,0 +1,93 @@
+{
+  "pedido": "v047-hook-erro-libera",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "C7 e TRAVA C5: com recusa, recusa logo depois da liberação gravada, sem reservar",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if recusa:\n            bloquear(\"R-BRIEF\", recusa)",
+      "para": "        if False:\n            bloquear(\"R-BRIEF\", recusa)",
+      "testes": [
+        "tests.test_trava_agente_morto.PeloHook.test_c5_morto_libera_a_vaga_e_o_relancamento_passa_pelas_travas"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "A1: checkout nos ESCRITORES do marcador (via CAMINHOS_NO_GIT)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "{\"rm\", \"mv\", \"checkout\", \"restore\"}",
+      "para": "{\"rm\", \"mv\", \"restore\"}",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "A1: restore nos ESCRITORES do marcador (via CAMINHOS_NO_GIT)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "{\"rm\", \"mv\", \"checkout\", \"restore\"}",
+      "para": "{\"rm\", \"mv\", \"checkout\"}",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "A1: apply nos ESCRITORES do marcador (via GIT_GRAVA_ARQUIVO)",
+      "arquivo": "hooks/_comum.py",
+      "de": "frozenset({\"apply\", \"am\"})",
+      "para": "frozenset({\"am\"})",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "A1: am nos ESCRITORES do marcador (via GIT_GRAVA_ARQUIVO)",
+      "arquivo": "hooks/_comum.py",
+      "de": "frozenset({\"apply\", \"am\"})",
+      "para": "frozenset({\"apply\"})",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "A2: a troca da pasta de base marca a linha que escreve",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or BASE_TROCADA.search(t))",
+      "para": "or False)",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "A2: -C, --chdir, --git-dir e --work-tree trocam a base",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(?:-C|--chdir|--git-dir|--work-tree)",
+      "para": "(?:--chdir|--git-dir)",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "A2 e AR-8: a aspa antes do cd pega o invólucro sh -c",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(?:^|[\\s;&|(){}'\\\"])(?:cd|pushd|popd)",
+      "para": "(?:^|[\\s;&|(){}])(?:cd|pushd|popd)",
+      "testes": [
+        "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_pedido"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "tests/apoio_volta_unica.py",
+      "trecho": "dados.get(\"forcar\")",
+      "motivo": "filtro do corpus de teste: o fixture com erro forçado recusa pelo erro, não pela linha que o corpus lê"
+    }
+  ]
+}

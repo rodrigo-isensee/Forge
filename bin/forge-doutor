@@ -4,7 +4,7 @@ Uso: forge doutor [--rapido] [-v] [DIRETORIO]
   --rapido  só o que é local e instantâneo (sem `gh`, sem rede); nunca conserta nem pergunta (é o que o hook e o atalho usam)
   -v        diz também que está tudo em ordem (sem ele, tudo bem = silêncio)
 No modo completo também confere o relógio deste computador contra o `Date` do GitHub (só avisa; nunca acerta o relógio).
-Confere: Python mínimo (3.12), plugin instalado e versão, `.forge/versao`, proteção do git, `gh` logado com os escopos repo e workflow (modo completo), identidade do git,
+Confere: Python mínimo (3.12), plugin instalado e versão, `.forge/versao` (na branch atrás da origin/develop, o cherry-pick do commit da versão), proteção do git, `gh` logado com os escopos repo e workflow (modo completo), identidade do git,
 `.claude/settings.json` com o Jarvis, sandbox, sinais de login por token (R-CUSTO; só o nome, nunca o valor) e as branches develop e homolog. Fora de um projeto do Forge, não diz nada.
 Conserta sozinho só o que é seguro (idempotente, restaurável a partir do modelo do Forge, com cópia de segurança), num
 terminal e depois de um "s". O resto vira uma frase dizendo o que fazer. Nunca envia nada ao GitHub (só lê: o modo completo confere a proteção das branches), nem mescla; só apaga, com o seu "s" e fora do Claude,
@@ -134,6 +134,18 @@ def conferir_plugin(raiz):
                      "ou rode `claude plugin install forge@forge`.")]
 
 
+def commit_da_versao_na_develop(raiz, versao):
+    """ATUALIZAR-BRANCH-ATRASADA: o commit da origin/develop local (sem fetch) que registrou por último no `.forge/versao` uma versão
+    maior que `versao` e que falta nesta branch; senão None. É o que o cherry-pick traz para a branch longa, atrás da develop."""
+    develop = versao_de(rodar(["git", "show", "origin/develop:.forge/versao"], raiz)[1])  # o erro do git não é versão: None
+    if develop is None or develop <= versao:
+        return None
+    sha = rodar(["git", "log", "-1", "--format=%H", "origin/develop", "--", ".forge/versao"], raiz)[1]
+    rc, _ = rodar(["git", "merge-base", "--is-ancestor", "--", sha, "HEAD"], raiz)
+    # 1: falta na branch. 0: a branch já o tem. Outro código (sha ilegível, leitura que falhou): não deu para conferir, e o doutor não adivinha
+    return sha if rc == 1 else None
+
+
 def conferir_versao(raiz):
     plugin = versao_do_plugin()
     projeto = (raiz / ".forge" / "versao").read_text(encoding="utf-8").strip()
@@ -145,6 +157,10 @@ def conferir_versao(raiz):
     instalada = versao_de(versao_instalada() or "")
     if a > b and instalada is not None and instalada >= a:
         return []  # o plugin certo já está instalado: falta só reabrir a sessão, e quem diz isso é conferir_sessao
+    if a < b and (sha := commit_da_versao_na_develop(raiz, a)):
+        return [Problema(f"Esta branch está na versão {projeto} do Forge e a develop já registra uma versão mais nova: a branch está atrás "
+                         f"da develop. Traga o commit da versão com `git cherry-pick {sha}` (ou atualize a branch com a develop); "
+                         "o `forge-upgrade` continua pedindo a árvore limpa.")]
     if a < b:
         return [Problema(f"O projeto está na versão {projeto} do Forge e o Forge instalado é o {plugin}: "
                          "atualize o projeto com `forge-upgrade --simular` (mostra o que muda) e depois `forge-upgrade`.")]
