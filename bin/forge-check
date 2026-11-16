@@ -183,6 +183,8 @@ INTEIRO = re.compile(r"^\d+$")
 PARECER = {"aprovado", "reprovado"}
 # Caminhos que um commit posterior pode tocar sem invalidar o parecer (ADR 0004, item 3).
 LIVRES = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/", "KANBAN.md", "docs/kanban/", "docs/ux/")
+# E2.252 (v047): anexo que o portão grava junto com o parecer (PA-7); no `pr` e no `parecer delta`, livre como os pareceres.
+ANEXOS_DO_PORTAO = ("docs/engineering/achados-recorrentes.md",)
 COLUNAS = ["ID", "Cartão", "Pedido", "Responsável", "Entrou", "Na coluna desde", "Obs."]
 ID_RESP = re.compile(r"^(forge:[a-z0-9][a-z0-9-]*|usuário)$")
 
@@ -1489,7 +1491,7 @@ def conferencia_do_head(raiz, pedido, ref=None, base=None, branch=None):
                 f"{nome_seguro(branch) if branch else 'da ref, que não foi achada'}); {regra}"]
     if "Histórico" not in secoes_por(texto, CABECALHO_PEDIDO):
         return [f"{caminho_impresso(caminho)}: conferência: o pedido não tem ## Histórico; {regra}"]
-    livres = LIVRES + (f"changelog.d/{pedido}.md", f"{ACEITES_DO_USUARIO[0]}{pedido}.md")  # E1g: só o aceite deste pedido
+    livres = LIVRES + ANEXOS_DO_PORTAO + (f"changelog.d/{pedido}.md", f"{ACEITES_DO_USUARIO[0]}{pedido}.md")  # E1g; E2.252
     for sha in reversed(entregas_conferidas(texto)):
         if head and sha_do_commit(raiz, sha) == sha and e_ancestral(raiz, sha, head) and commit_vale(raiz, sha, head, base, livres) is None:
             return []
@@ -1780,7 +1782,7 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
         elif campos.get("parecer") not in ("aprovado", "riscos-aceitos"):
             saida.append(f"{caminho_impresso(rel)}: parecer: o último parecer não é aprovado ({rid})")
         elif campos.get("commit") and COMMIT.match(campos["commit"]):
-            livres = LIVRES + (f"changelog.d/{pedido}.md", f"{ACEITES_DO_USUARIO[0]}{pedido}.md")  # D4; E1g: só o aceite deste pedido
+            livres = LIVRES + ANEXOS_DO_PORTAO + (f"changelog.d/{pedido}.md", f"{ACEITES_DO_USUARIO[0]}{pedido}.md")  # D4; E1g; E2.252
             dispensados = testes_do_qa(raiz, pedido, branch if de_trabalho else None, ref or "HEAD", campos["commit"])[1] if tipo == "review" else ()
             paralelo = commit_de_pareceres_paralelos(raiz, campos["commit"], pedido)
             if paralelo:  # AQ-5: o `commit:` é o HEAD com os pareceres paralelos, não o código revisado
@@ -3144,7 +3146,7 @@ def parecer_delta(raiz, arquivo, ate, base):
     nomes, escopo = lido
     if escopo:
         print(escopo)
-    nomes = [n for n in nomes if not livre(n, LIVRES)]
+    nomes = [n for n in nomes if not livre(n, LIVRES + ANEXOS_DO_PORTAO)]
     da_base = vindos_da_base(raiz, ref_da_base(raiz, base), inicio, fim, nomes)  # E7: conteúdo igual ao da base, sem mudança da branch
     dentro = [n for n in nomes if no(n) and n not in dispensados and n not in da_base]
     for n in nomes:
@@ -5016,7 +5018,7 @@ def lembrar_do_jarvis(raiz, tipo):
         print(linha, file=sys.stderr)
 
 
-ACHADOS_RECORRENTES = "docs/engineering/achados-recorrentes.md"
+ACHADOS_RECORRENTES = ANEXOS_DO_PORTAO[0]
 LINHA_DE_ACHADOS = f"- {ACHADOS_RECORRENTES} (PA-7): confira cada item antes de entregar"
 ACHADO_RECORRENTE = re.compile(r"- AR-\d+ · (?:review|seguranca|qa) · (?=[A-Za-z0-9 -]{1,70} · )[a-z][A-Za-z0-9-]*(?: [A-Za-z0-9-]+)* · (?:R-[A-Z0-9-]+|—) · vezes: \d+ · última: [\w./-]+:\d+")
 TETO_DE_ACHADOS = 20
