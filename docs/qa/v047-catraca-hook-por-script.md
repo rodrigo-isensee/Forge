@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047-catraca-hook-por-script
 branch: melhoria/v047-catraca-hook-por-script
-commit: ee91a8f00ceb1a52bc4ab41bc50a96996cc918e3
+commit: 230dfb01ddde3b7e84d47fdad161c8dbfc93ffc5
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -70,3 +70,18 @@ CH-M1 a CH-M10 · morreu (CH-M2 por erro do teste declarado sob o mutante, que p
 | Forma exec lida como o Claude Code a roda | idem, CH-M16, CH-M17 | `args` vazio, `args` fora de lista | passou |
 | Campo extra do hook entra na chave | `Hooks.test_campo_fora_da_lista_inocua_entra_na_chave`, CH-M20, CH-M21 | `if`, `async`, campo novo; `statusMessage`/`once` não acusam | passou |
 | `-b` não é inócua, `-bb` acusa | corpus, CH-M22 | opção nova na lista | passou |
+
+## Revalidação por delta 79899789..230dfb01 (E2.168, volta 4: A10)
+- Sem achados abertos. A10 (hooks.json fora do esquema da carga descarta todos os hooks) está fechado em `tests/catraca.py:336-405`: `EVENTOS_DO_HOOK` (lista fechada), tipos por campo, `NaN` e `Infinity` recusados, falha fechada.
+- `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook`: `Ran 14 tests`, OK; o corpus tem 36 sondas (S12 a S16 novas, mais `real` sem acusação).
+- Vermelho antes do verde (manual, cópia em `$TMPDIR`, `tests/catraca.py` de 79899789 e testes do head): caem `test_cada_campo_fora_do_esquema_acusa` e as sondas do corpus por `AttributeError` (`erros_de_forma` não existe na base); nenhum cai no head.
+- Mutação (`--base 79899789 --processos 4`, spec `-4`): `base=79899789af26 rev=230dfb01ddde`, CH-M23 a CH-M38 todos `morreu` (CH-M23, M32 e M35 por erro do teste declarado sob o mutante, que passa sem ele); nenhum sobrevivente. `--cobertura --base 79899789`, rc=0: 13 linhas mudadas todas `coberta`.
+- Sondas manuais em `erros_de_forma`, sem bug: `timeout` booleano, `shell` ou `onFailure` fora da lista, `async` em texto, `args` texto, `NaN`, raiz `hooks` em lista acusam; hooks.json real, `timeout` 1.5, grupo sem `matcher`, grupo com `hooks` vazio passam; chave `hooks` duplicada vale a última (como o Claude Code).
+- Observação, sem achado: `timeout` negativo ou zero passa; sem evidência de que a carga o recusa (baixa).
+- Bateria completa: a prova é o check-run `bateria` do mesmo sha no CI do PR (I5); não rodada aqui.
+
+## Critério → teste → resultado (volta 4)
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| `R-CONFORMIDADE`: hooks.json fora do esquema acusa (A10) | `Hooks.test_hooks_json_fora_do_esquema_barra`, `test_cada_campo_fora_do_esquema_acusa`, CH-M23 a CH-M38 | evento fora da lista, tipo errado, NaN, JSON ilegível | passou |
+| Corpus S12 a S16 acusa e `real` não | `CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado` | `type` ausente, `timeout` texto, `args` não texto, evento e `matcher` inválidos | passou |
