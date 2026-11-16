@@ -36,8 +36,8 @@
       "id": "M28",
       "guarda": "C6: a catraca compara o script, sem as opções do interpretador",
       "arquivo": "tests/catraca.py",
-      "de": "if not a.startswith(\"-\")]",
-      "para": "if not a.startswith(\"--\")]",
+      "de": "while j < len(depois) and depois[j].startswith(\"-\"):",
+      "para": "while j < len(depois) and depois[j].startswith(\"--\"):",
       "testes": [
         "tests.test_hook_erro_libera.HookErroLibera.test_catraca_compara_o_script_sem_as_opcoes_do_interpretador"
       ]
