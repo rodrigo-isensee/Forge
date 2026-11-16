@@ -1,0 +1,2 @@
+### Adicionado
+- Medida de jargão nas mensagens ao dono (v047 E7.4, diretriz 31): o hook de fim de resposta (S6, `hooks/meta.py`) lê a mensagem final pelo campo `last_assistant_message` (o transcrito só sem ele) e grava em `.forge/run/mensagens.jsonl`, por classe (etapa, commit, regra, cartão, ferramenta, caminho), quantos termos sem explicação há fora de bloco de código e de citação; nunca grava o termo nem bloqueia.

@@ -1,0 +1,88 @@
+{
+  "pedido": "v047-jargao-medida",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E7.4: a cerca de código abre e fecha o trecho fora da conta",
+      "arquivo": "hooks/meta.py",
+      "de": "        if linha.lstrip().startswith(\"```\"):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_bloco_de_codigo_e_citacao_nao_contam_e_crase_conta"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E7.4: citação fica fora da conta",
+      "arquivo": "hooks/meta.py",
+      "de": "        elif not em_codigo and not linha.lstrip().startswith(\">\"):",
+      "para": "        elif not em_codigo:",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_bloco_de_codigo_e_citacao_nao_contam_e_crase_conta"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E7.4: linha dentro do bloco de código fica fora da conta",
+      "arquivo": "hooks/meta.py",
+      "de": "        elif not em_codigo and not linha.lstrip().startswith(\">\"):",
+      "para": "        elif not linha.lstrip().startswith(\">\"):",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_bloco_de_codigo_e_citacao_nao_contam_e_crase_conta"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E7.4: parêntese com texto explica o termo",
+      "arquivo": "hooks/meta.py",
+      "de": "    return bool(EXPLICACAO.match(texto, fim)) or \"o que é\" in frase.lower()",
+      "para": "    return \"o que é\" in frase.lower()",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_termo_explicado_nao_conta"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E7.4: \"o que é\" na frase explica o termo",
+      "arquivo": "hooks/meta.py",
+      "de": "    return bool(EXPLICACAO.match(texto, fim)) or \"o que é\" in frase.lower()",
+      "para": "    return bool(EXPLICACAO.match(texto, fim))",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_termo_explicado_nao_conta"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E7.4: só o termo sem explicação conta",
+      "arquivo": "hooks/meta.py",
+      "de": "sum(not explicado(",
+      "para": "sum(explicado(",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_cada_classe_conta_o_termo_e_deixa_passar_o_parecido",
+        "tests.test_meta.JargaoPorClasse.test_termo_explicado_nao_conta"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "E7.4: a mensagem do evento vence o transcrito",
+      "arquivo": "hooks/meta.py",
+      "de": "    if isinstance(texto, str) and texto.strip():",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_mensagem_do_evento_vence_o_transcrito_e_o_termo_nao_vai_ao_disco",
+        "tests.test_hooks.Hooks.test_fixtures_do_v0442"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "E7.4: mensagem do evento vazia cai para o transcrito",
+      "arquivo": "hooks/meta.py",
+      "de": "    if isinstance(texto, str) and texto.strip():",
+      "para": "    if isinstance(texto, str):",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_mensagem_do_evento_vence_o_transcrito_e_o_termo_nao_vai_ao_disco"
+      ]
+    }
+  ]
+}
