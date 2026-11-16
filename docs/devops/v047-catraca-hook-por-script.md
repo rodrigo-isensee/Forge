@@ -1,14 +1,14 @@
 ---
 tipo: revisao-devops
 contrato: 1
-pedido: v047-catraca-hook-por-script
+pedido: v047
 branch: melhoria/v047-catraca-hook-por-script
-commit: 24256248b7d1503b354d8369b040651499e8b3df
+commit: 3bf731721590d03d93c0daaf715ed2f23b423c9a
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-16
 ---
-# Review de devops: v047-catraca-hook-por-script
+# Review de devops: v047
 
 ## Achados
 - A1 (recomendado) tests/catraca.py:276 · interpretador que não é Python (`bash -x x.sh`) falha fechado: mudar só a opção acusa remoção do hook. Falso positivo seguro, resolve-se com o rótulo; vale registrar no texto da regra se aparecer.
@@ -28,3 +28,5 @@ Sem minutos de CI novos além da suíte já existente (os testes novos somam cer
 Revalidado no head 230dfb01 (volta 4, delta ee91a8f0..230dfb01 sem arquivo do domínio; `forge-check parecer delta` diz "nenhum arquivo do domínio mudou"; mudaram `tests/catraca.py`, testes, corpus, mutantes e fragmento do item). A10 (hooks.json fora do esquema: lista fechada de eventos e tipos, falha fechada) e as sondas S12 a S16 e `real` do corpus: `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook` com 14 testes OK. Nada novo em workflow, permissão, segredo, cache ou ação de terceiros. A1 segue recomendado. A classe inteira passa de 120 s local; fica ao CI.
 
 Revalidado no head 24256248 (voltas 5 e 6, delta 230dfb01..24256248): `forge-check parecer delta` diz "nenhum arquivo do domínio mudou"; mudaram `tests/catraca.py`, testes, corpus, mutantes, `achados-recorrentes.md` e fragmento. Timeout finito maior que 0 (A12, S17) e lista de 31 eventos conferida com o binário do Claude Code 2.1.224 (A6, S18): `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook` com 14 testes OK em 3,9 s. Nada novo em workflow, permissão, segredo, cache ou ação de terceiros. A1 segue recomendado. O parecer segue aprovado.
+
+Revalidado no head 3bf73172 (junção com a develop, delta 24256248..3bf73172): `forge-check parecer delta` diz "nenhum arquivo do domínio mudou" no escopo sem o que veio da base; só `tests/catraca.py` do item está fora do domínio. `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook`: 14 testes OK em 3,1 s. Nada novo em workflow, permissão, segredo, cache ou ação de terceiros. A1 segue recomendado. O parecer segue aprovado.
