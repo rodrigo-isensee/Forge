@@ -4,6 +4,7 @@ import importlib.machinery
 import importlib.util
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -64,7 +65,7 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 83)  # v047 E2.55: + test_conferida_por_branch. mp1311 E1.17: + test_pre_envio_brief. v047: + test_hook_erro_libera (HOOK-ERRO-LIBERA). v046: + test_pr_hook_prazo (PR-HOOK-PRAZO). v046 E20.29: + test_hook_git_comum. 0.45.7: + test_r_limites (AV5), test_forge_medidas (F6, E5.6), test_forge_dora (TM-16) e test_hooks_fila27 (FILA-27). v046 E12.1: + test_git_rede_config. 0.45.6: + test_forge_check_base_igual, test_forge_check_versao_livre e test_pre_push_link_apoio (junção), test_metricas_portoes (E1.1) e test_metricas_main_vermelha (E5.1). 0.44.2: + test_decisor (orkastery 3), test_forge_run (S5), test_meta (S4), test_pesado_fila (orkastery 5), test_aq1_texto e test_textos_034 (troca dos testes de frase). 0.44.1: + test_v0441_review (review), test_acao_da_reprovacao (O1) e test_forge_dono (O4, S2, S8, X1). 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
+        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 86)  # v047 E2.222: + test_sessao_automatica (86 sobre os 85 da develop). v047 E2.117: + test_pr_hook_rapido (85 sobre os 84 da develop). v047 E2.81: 84 com #559 (test_conferida_por_branch) e #564 (test_conferencia_dois_pedidos) juntos. v047 E1.277: + test_conferencia_dois_pedidos. v047 E2.55: + test_conferida_por_branch. mp1311 E1.17: + test_pre_envio_brief. v047: + test_hook_erro_libera (HOOK-ERRO-LIBERA). v046: + test_pr_hook_prazo (PR-HOOK-PRAZO). v046 E20.29: + test_hook_git_comum. 0.45.7: + test_r_limites (AV5), test_forge_medidas (F6, E5.6), test_forge_dora (TM-16) e test_hooks_fila27 (FILA-27). v046 E12.1: + test_git_rede_config. 0.45.6: + test_forge_check_base_igual, test_forge_check_versao_livre e test_pre_push_link_apoio (junção), test_metricas_portoes (E1.1) e test_metricas_main_vermelha (E5.1). 0.44.2: + test_decisor (orkastery 3), test_forge_run (S5), test_meta (S4), test_pesado_fila (orkastery 5), test_aq1_texto e test_textos_034 (troca dos testes de frase). 0.44.1: + test_v0441_review (review), test_acao_da_reprovacao (O1) e test_forge_dono (O4, S2, S8, X1). 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
         for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
                        "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_forge_medidas", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
@@ -243,7 +244,8 @@ class MapaDosNovos(unittest.TestCase):
         t = tempfile.TemporaryDirectory()
         self.addCleanup(t.cleanup)
         raiz = Path(t.name)
-        base = {"tests/test_forge.py": "x = 1\n", "tests/evals/__init__.py": "", "tests/evals/test_placar.py": "x = 1\n"}
+        base = {"tests/test_forge.py": "x = 1\n", "tests/evals/__init__.py": "", "tests/evals/test_placar.py": "x = 1\n",
+                "tests/test_forge_mutante.py": "x = 1\n"}
         for rel, texto in {**base, **arquivos}.items():
             (raiz / rel).parent.mkdir(parents=True, exist_ok=True)
             (raiz / rel).write_text(texto, encoding="utf-8")
@@ -265,10 +267,10 @@ class MapaDosNovos(unittest.TestCase):
         self.assertEqual(self.f.planejar(["bin/forge_fontes.py"], raiz), ("dirigido", ["test_forge", "test_leitor"]))
         self.assertEqual(self.f.planejar(["bin/forge_outro.py"], raiz), ("dirigido", ["test_forge"]))
 
-    def test_spec_nova_leva_aos_modulos_do_campo_testes(self):
+    def test_spec_nova_leva_aos_modulos_do_campo_testes_e_ao_test_forge_mutante(self):  # que varre toda spec (--todas)
         raiz = self.brinquedo(**{"tests/mutantes/varredura-caminho-pessoal.json": self.SPEC_REAL})
         caminho = "tests/mutantes/varredura-caminho-pessoal.json"
-        self.assertEqual(self.f.planejar([caminho], raiz), ("dirigido", ["evals.test_placar", "test_forge"]))
+        self.assertEqual(self.f.planejar([caminho], raiz), ("dirigido", ["evals.test_placar", "test_forge", "test_forge_mutante"]))
         self.assertIn("evals.test_placar", self.f.planejar_afetados([caminho], raiz)[0])
 
     def test_spec_ilegivel_sem_teste_ou_com_teste_de_fora_segue_na_completa(self):
@@ -287,6 +289,81 @@ class MapaDosNovos(unittest.TestCase):
 
     def test_o_modulo_comum_do_bin_segue_com_os_testes_do_forge_mutante(self):
         self.assertIn("test_forge_mutante", self.f.planejar(["bin/forge_apoio_testes.py"], RAIZ)[1])
+
+
+class QuemImporta(unittest.TestCase):
+    """E1.253 (v047, TESTE-RITMO-SEM-MAPA): o hook leva a quem o importa, lido do texto, pelo fecho (hook, apoio e módulo
+    de teste que importa outro); o apoio de tests/ no diff segue na suíte completa (decisão 7 do dono)."""
+
+    brinquedo = MapaDosNovos.brinquedo
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+
+    def test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados(self):
+        raiz = self.brinquedo(**{
+            "hooks/agentes.py": "", "hooks/pesado.py": "def f():\n    from agentes import g\n",
+            "tests/apoio_a.py": "import pesado\n", "tests/test_um.py": "import agentes  # noqa\n",
+            "tests/test_dois.py": "from agentes import f\n", "tests/test_tres.py": "import apoio_a\n",
+            "tests/test_filho.py": "import test_tres as base\n", "tests/test_lista.py": "import json, test_um as u\n",
+            "tests/test_sub.py": "codigo = 'import sys; import agentes; agentes.f()'\n", "tests/test_hooks.py": "x = 1\n",
+            "tests/test_do_lote.py": "from test_hooks import Lote\n",
+            "tests/test_outro.py": "import agentes_x\nimport json as agentes\n'agentes'\nreimport agentes\n"})
+        (raiz / "hooks" / "pasta.py").mkdir()  # pasta com nome de módulo: não é lida
+        esperado = {"test_um", "test_dois", "test_tres", "test_filho", "test_lista", "test_sub"}
+        try:
+            achados = self.f.quem_importa("hooks/agentes.py", raiz)
+        except Exception as e:  # noqa: BLE001  levantar é falha do caso, não erro do teste
+            achados = f"levantou {type(e).__name__}"
+        self.assertEqual(achados, esperado)
+        self.assertEqual(self.f.quem_importa("hooks/agentes.py", raiz, ("test_hooks",)),
+                         esperado | {"test_hooks", "test_do_lote"})
+        self.assertLessEqual(esperado | {"test_do_lote"}, set(self.f.planejar_afetados(["hooks/agentes.py"], raiz)[0]))
+
+    def test_hooks_que_se_importam_em_ciclo_terminam(self):
+        raiz = self.brinquedo(**{"hooks/a.py": "import b\n", "hooks/b.py": "import a\n", "tests/test_um.py": "import b\n"})
+        codigo = ("import importlib.machinery as m, importlib.util as u, sys; c = m.SourceFileLoader('f', sys.argv[1]); "
+                  "f = u.module_from_spec(u.spec_from_loader('f', c)); c.exec_module(f); "
+                  "print(sorted(f.quem_importa('hooks/a.py', __import__('pathlib').Path(sys.argv[2]))))")
+        try:  # num processo à parte: o ciclo sem a guarda não termina, e o prazo o derruba
+            saida = subprocess.run([sys.executable, "-I", "-c", codigo, str(FERRAMENTA), str(raiz)], env={"PATH": os.defpath},
+                                   capture_output=True, text=True, timeout=30)
+        except subprocess.TimeoutExpired:
+            self.fail("o ciclo entre hooks não terminou")
+        self.assertEqual(saida.stdout.strip(), "['test_um']", saida.stderr)
+
+    def test_apoio_de_tests_importado_segue_na_completa(self):  # decisão 7 do dono (M8, opção C)
+        raiz = self.brinquedo(**{"tests/apoio_a.py": "x = 1\n", "tests/test_um.py": "import apoio_a\n"})
+        self.assertEqual(self.f.quem_importa("tests/apoio_a.py", raiz), set())
+        self.assertEqual(self.f.planejar(["tests/apoio_a.py"], raiz), ("completo", ["tests/apoio_a.py sem mapa"]))
+
+    def test_no_repositorio_o_plano_do_hook_traz_todo_teste_que_importa_um_modulo_do_plano(self):
+        """A sonda do A2 do review (v047): para cada hook, nenhum tests/test_*.py que importa (pela árvore sintática, não
+        pela expressão do script) o hook ou um módulo do plano fica de fora."""
+        grafo = {}
+        for p in sorted((RAIZ / "tests").glob("test_*.py")):
+            nomes = set()
+            for no in ast.walk(ast.parse(p.read_text(encoding="utf-8"))):
+                if isinstance(no, ast.Import):
+                    nomes |= {a.name for a in no.names}
+                elif isinstance(no, ast.ImportFrom) and no.module and not no.level:
+                    nomes.add(no.module)
+            grafo[p.stem] = nomes
+        hooks = sorted((RAIZ / "hooks").glob("*.py"))
+        self.assertGreaterEqual(len(hooks), 9)
+        for hook in hooks:
+            with self.subTest(hook.name):
+                modo, plano = self.f.planejar([f"hooks/{hook.name}"], RAIZ)
+                self.assertEqual(modo, "dirigido")
+                alvo = set(plano) | {hook.stem}
+                self.assertEqual(sorted(t for t, nomes in grafo.items() if nomes & alvo and t not in plano), [])
+        self.assertIn("test_ritmo", self.f.planejar(["hooks/agentes.py"], RAIZ)[1])
+        saida = subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--listar", "hooks/agentes.py"], cwd=RAIZ,
+                               env={"PATH": os.defpath, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null"},
+                               capture_output=True, text=True)
+        self.assertEqual(saida.returncode, 0, saida.stderr)
+        self.assertTrue(saida.stdout.startswith("forge-testes: dirigido ("), saida.stdout)
 
 
 class MapaCobreOQueOsTestesLeem(unittest.TestCase):
@@ -460,24 +537,24 @@ class Execucao(unittest.TestCase):
         r = self.rodar("--listar")
         self.assertIn("suíte completa (tests/test_novo.py sem mapa)", r.stdout)  # o teste novo leva à completa
 
-    def test_sem_mapa_roda_a_completa_e_anota(self):
+    def test_sem_mapa_cai_na_completa_e_o_script_de_outra_copia_nao_a_roda(self):  # MAQ-I9 (C-1)
         (self.dir / "novo.txt").write_text("x\n", encoding="utf-8")
         r = self.rodar()
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
         self.assertIn("suíte completa (novo.txt sem mapa)", r.stdout)
-        self.assertIn("modo=completo", self.log())
+        self.assertFalse((self.dir / ".forge").exists())
 
     def test_completa_pedida_e_listar_nao_roda_nada(self):
         self.assertEqual(self.rodar("--listar", "--completa").returncode, 0)
         self.assertFalse((self.dir / ".forge").exists())
-        self.assertEqual(self.rodar("--completa").returncode, 0)
-        self.assertIn("modo=completo", self.log())
+        self.assertEqual(self.rodar("--completa").returncode, 2)  # MAQ-I9: só pela trava do pre-push da própria cópia
+        self.assertFalse((self.dir / ".forge").exists())
 
     def test_falha_de_teste_devolve_codigo_e_anota(self):
         (self.dir / "tests" / "test_sugerir.py").write_text(
             "import unittest\nclass T(unittest.TestCase):\n    def test_ruim(self):\n        self.fail('x')\n",
             encoding="utf-8")
-        r = self.rodar()
+        r = self.rodar("tests/test_sugerir.py")  # dirigido: o módulo no diff cairia na completa (MAQ-I9)
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("saida=1", self.log())
 
@@ -901,11 +978,15 @@ class Oraculos(unittest.TestCase):
 
     def test_oraculo_entra_no_plano_sem_mudar_a_contagem(self):
         self.gravar("test_oraculo_x.py")
+        for p in [*(RAIZ / "hooks").glob("*.py"), *(RAIZ / "tests").glob("*.py")]:  # o fecho de imports do hook (E1.278)
+            if not p.name.startswith("test_"):
+                (self.dir / p.parent.name).mkdir(exist_ok=True)
+                (self.dir / p.parent.name / p.name).write_text(p.read_text(encoding="utf-8"), encoding="utf-8")
         for caminho in ("bin/forge-check", "hooks/conformidade.py"):
             with self.subTest(caminho):
                 _, real = self.f.planejar([caminho], RAIZ)
                 for m in real:
-                    self.gravar(m.replace(".", "/") + ".py")
+                    self.gravar(m.replace(".", "/") + ".py", self.f.arquivo_do_modulo(m, RAIZ).read_text(encoding="utf-8"))
                 modo, modulos = self.f.planejar([caminho], self.dir)
                 self.assertEqual(modo, "dirigido")
                 self.assertIn("test_oraculo_x", modulos)
@@ -1474,7 +1555,8 @@ class MedidaDaVagaPesada(unittest.TestCase):
 
     def rodar_com(self, **env):
         limpo = {k: v for k, v in AMBIENTE.items() if k not in ("FORGE_ENTRADA", "CI")}
-        return subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--base", "develop", "--completa"], cwd=self.dir,
+        return subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--base", "develop", "--completa", "-k", "test_ok"],
+                              cwd=self.dir,
                               env={**limpo, **env}, capture_output=True, text=True)
 
     def test_a_linha_mantem_o_formato_de_hoje_e_so_aceita_entrada_valida(self):
@@ -1577,6 +1659,101 @@ class GitDaCopia(unittest.TestCase):
                 self.assertEqual(script.resolver("HEAD"), self.sha)
                 self.assertIsNone(script.resolver("refs/nao/existe"))
                 self.assertIsNone(script.resolver("-h"))
+
+
+# MAQ-I9 (fatia 3): a suíte completa sem `-k` roda só pelo `.githooks/pre-push --suite` da própria cópia (trava e fila,
+# R-TETO). O pre-push falso registra cada chamada; o `--suite` sai 7 para provar o `execv` (o código chega inteiro).
+LIMPO = {k: v for k, v in AMBIENTE.items()
+         if k not in ("CI", "GITHUB_ACTIONS", "PYTHONPATH") and not k.startswith(("FORGE_", "GIT_DIR", "GIT_INDEX"))}
+PRE_PUSH_FALSO = ('#!/bin/sh\nprintf \'%s|%s\\n\' "$#" "$*" >> "$FALSO_REGISTRO"\n'
+                  '[ "$1" = --status ] || exit 7\n[ "$FALSO_STATUS" = sinal ] && kill -KILL $$\nexit "$FALSO_STATUS"\n')
+
+
+class TravaDoForgeTestes(unittest.TestCase):
+    """C-1 (raiz do script = raiz do git, `+x`), C-4 (só o `--status` 1 é livre), C-5 e T-2 (sem recuo ao `discover`)."""
+
+    def setUp(self):
+        self._t = tempfile.TemporaryDirectory()
+        self.addCleanup(self._t.cleanup)
+        self.dir = Path(self._t.name) / "repo"
+        self.registro = Path(self._t.name) / "chamadas"
+        for pasta in ("tests", "bin", ".githooks"):
+            (self.dir / pasta).mkdir(parents=True)
+        git(self.dir, "init", "-q", "-b", "develop")
+        (self.dir / "tests" / "test_x.py").write_text(
+            "import pathlib, unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n"
+            "        pathlib.Path('rodou').write_text('x')\n", encoding="utf-8")
+        for nome in ("forge-testes", "forge_apoio_testes.py"):
+            shutil.copy(FERRAMENTA.parent / nome, self.dir / "bin" / nome)
+        self.hook = self.dir / ".githooks" / "pre-push"
+        self.hook.write_text(PRE_PUSH_FALSO, encoding="utf-8")
+        self.hook.chmod(0o755)
+        git(self.dir, "add", "-A")
+        git(self.dir, "commit", "-qm", "base")
+        git(self.dir, "switch", "-q", "-c", "melhoria/x")
+
+    def rodar(self, *args, status="1", ferramenta=None):
+        env = {**LIMPO, "PATH": "/usr/bin:/bin", "FALSO_REGISTRO": str(self.registro), "FALSO_STATUS": status}
+        return subprocess.run([sys.executable, "-I", str(ferramenta or self.dir / "bin" / "forge-testes"), *args],
+                              cwd=self.dir, env=env, capture_output=True, text=True, timeout=60)
+
+    def chamadas(self):
+        return self.registro.read_text(encoding="utf-8").splitlines() if self.registro.exists() else []
+
+    def nao_rodou(self, r):
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertFalse((self.dir / "rodou").exists(), "a suíte rodou fora da trava")
+
+    def test_completa_pedida_vira_o_pre_push_da_copia_com_suite(self):
+        r = self.rodar("--completa")
+        self.assertEqual(r.returncode, 7, r.stdout + r.stderr)
+        self.assertEqual(self.chamadas(), ["1|--suite"])  # argv fixo, sem consultar o --status
+        self.assertFalse((self.dir / "rodou").exists())
+
+    def test_completa_com_k_segue_como_antes(self):
+        r = self.rodar("--completa", "-k", "test_a")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.chamadas(), [])
+        self.assertTrue((self.dir / "rodou").exists())
+
+    def test_afetados_nao_passa_pela_trava(self):  # o plano do pre-push nunca é a completa: nada de --status nem --suite
+        (self.dir / "tests" / "test_x.py").write_text(
+            (self.dir / "tests" / "test_x.py").read_text(encoding="utf-8") + "\n", encoding="utf-8")
+        r = self.rodar("--afetados", "--base", "develop", status="0")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.chamadas(), [])
+        self.assertTrue((self.dir / "rodou").exists())
+
+    def test_pre_push_sem_x_ou_ausente_sai_2_sem_recuo_para_o_discover(self):
+        self.hook.chmod(0o644)
+        r = self.rodar("--completa")
+        self.nao_rodou(r)
+        self.assertIn("executável", r.stderr)
+        self.hook.unlink()
+        self.nao_rodou(self.rodar("--completa"))
+        self.assertEqual(self.chamadas(), [])
+
+    def test_script_de_outra_copia_sai_2_no_completo(self):
+        outra = Path(self._t.name) / "outra"
+        shutil.copytree(self.dir / "bin", outra / "bin")
+        shutil.copytree(self.dir / ".githooks", outra / ".githooks")  # pre-push falso também: o mutante sairia 7
+        r = self.rodar("--completa", ferramenta=outra / "bin" / "forge-testes")
+        self.nao_rodou(r)
+        self.assertIn("não é a raiz do repositório", r.stderr)
+        self.assertEqual(self.chamadas(), [])
+
+    def test_completo_por_plano_so_roda_com_o_status_livre(self):  # C-4: 0, 2, outro código e sinal = ocupado
+        (self.dir / "novo.txt").write_text("x\n", encoding="utf-8")
+        for status in ("0", "2", "3", "sinal"):
+            with self.subTest(status=status):
+                self.registro.unlink(missing_ok=True)
+                r = self.rodar("--base", "develop", status=status)
+                self.nao_rodou(r)
+                self.assertIn("com a suíte rodando", r.stderr)
+                self.assertEqual(self.chamadas(), ["1|--status"])
+        self.registro.unlink(missing_ok=True)
+        self.assertEqual(self.rodar("--base", "develop").returncode, 7)
+        self.assertEqual(self.chamadas(), ["1|--status", "1|--suite"])
 
 
 if __name__ == "__main__":

@@ -16,8 +16,8 @@
       "id": "A4-m2",
       "guarda": "o forge-check por interpretador passa pela politica de caminhos",
       "arquivo": "hooks/conformidade.py",
-      "de": "Path(a).name == \"forge-check\"",
-      "para": "Path(a).name == \"forge-check_\"",
+      "de": "if nome_do_caminho(a) == \"forge-check\"]",
+      "para": "if nome_do_caminho(a) == \"forge-check_\"]",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
       ]
@@ -66,8 +66,8 @@
       "id": "A4-m7",
       "guarda": "a palavra forge-check do interpretador e achada entre os argumentos",
       "arquivo": "hooks/conformidade.py",
-      "de": "for i, a in enumerate(args) if Path(a).name",
-      "para": "for i, a in enumerate(args) if not Path(a).name",
+      "de": "for i, a in enumerate(args) if nome_do_caminho(a) == \"forge-check\"",
+      "para": "for i, a in enumerate(args) if not nome_do_caminho(a) == \"forge-check\"",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
       ]
@@ -96,8 +96,8 @@
       "id": "A4-m10",
       "guarda": "o valor da raiz em palavra separada nao e tomado por subcomando",
       "arquivo": "hooks/conformidade.py",
-      "de": "if pular:\n                pular = False",
-      "para": "if False:\n                pular = False",
+      "de": "        if pular:\n            pular = False",
+      "para": "        if False:\n            pular = False",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
       ]
@@ -126,8 +126,8 @@
       "id": "A4-m13",
       "guarda": "o subcomando e o primeiro argumento sem opcao",
       "arquivo": "hooks/conformidade.py",
-      "de": "elif not a.startswith(\"-\"):\n                livres.append(a)",
-      "para": "elif False:\n                livres.append(a)",
+      "de": "        elif not a.startswith(\"-\"):\n            livres.append(a)",
+      "para": "        elif False:\n            livres.append(a)",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
       ]

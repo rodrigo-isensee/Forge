@@ -1,0 +1,30 @@
+{
+  "descricao": "HOOK-TEXTO-COM-MERGE: com o alvo em variável, o wc fora da lista curta da K1 segue recusado pela rede D.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cat > \"$TMPDIR/x.md\" <<'EOF'\nRodei git pull; don't quebra.\nEOF\nwc -l docs/x.md"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: `wc"
+  }
+}

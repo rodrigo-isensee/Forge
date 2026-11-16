@@ -1,0 +1,29 @@
+{
+  "descricao": "HOOK-TEXTO-COM-MERGE: ${TMPDIR} no alvo, sem aspas e com mkdir antes, e git pull no texto gravado passam.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "mkdir -p docs/d && cat >> ${TMPDIR}/d/x.md <<'EOF'\nrode git pull antes\nEOF"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

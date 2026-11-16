@@ -37,8 +37,8 @@
       "id": "M4",
       "guarda": "a etapa roda sem o descritor da trava (C-1)",
       "arquivo": "templates/projeto/.githooks/pre-push",
-      "de": "\"$local_hook\" 9>&- ||",
-      "para": "\"$local_hook\" ||",
+      "de": "\"$local_hook\" </dev/null 9>&- &",
+      "para": "\"$local_hook\" </dev/null &",
       "testes": [
         "tests.test_prepush_so_docs.TravaDaChecagem.test_trava_nao_passa_para_a_etapa"
       ]

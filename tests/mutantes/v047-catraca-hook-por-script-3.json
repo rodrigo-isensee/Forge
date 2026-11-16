@@ -1,0 +1,79 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CH-M16",
+      "guarda": "com `args` (forma exec) o `command` é o executável inteiro, sem dividir nem tirar aspas (A8 da segurança, S10)",
+      "arquivo": "tests/catraca.py",
+      "de": "    if \"args\" in hk:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_catraca.Hooks.test_command_lido_como_o_claude_code_o_roda",
+        "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"
+      ]
+    },
+    {
+      "id": "CH-M17",
+      "guarda": "`args` fora da forma de lista: linha inteira (falha fechada)",
+      "arquivo": "tests/catraca.py",
+      "de": "if isinstance(hk[\"args\"], list) else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_catraca.Hooks.test_command_lido_como_o_claude_code_o_roda"
+      ]
+    },
+    {
+      "id": "CH-M18",
+      "guarda": "sem `args`, `command` fora do ASCII imprimível (quebra de linha, \\r, tab, U+00A0) é a linha inteira (A8 S8 S9, A1 do QA)",
+      "arquivo": "tests/catraca.py",
+      "de": "if SO_ASCII_IMPRIMIVEL.fullmatch(comando) else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_catraca.Hooks.test_command_lido_como_o_claude_code_o_roda",
+        "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"
+      ]
+    },
+    {
+      "id": "CH-M19",
+      "guarda": "termos ilegíveis voltam à linha inteira, sem interpretador",
+      "arquivo": "tests/catraca.py",
+      "de": "    if termos is None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_catraca.Hooks.test_command_lido_como_o_claude_code_o_roda"
+      ]
+    },
+    {
+      "id": "CH-M20",
+      "guarda": "campo fora da lista fechada de inócuos (if, async, asyncRewake, onFailure, shell, campo novo) entra na chave (A9, S11)",
+      "arquivo": "tests/catraca.py",
+      "de": "if k not in CAMPOS_INOCUOS_DO_HOOK}",
+      "para": "if False}",
+      "testes": [
+        "tests.test_catraca.Hooks.test_campo_fora_da_lista_inocua_entra_na_chave",
+        "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"
+      ]
+    },
+    {
+      "id": "CH-M21",
+      "guarda": "sem campo extra a parte da chave é vazia",
+      "arquivo": "tests/catraca.py",
+      "de": "if extras else \"\"",
+      "para": "if True else \"\"",
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_sem_script_compara_a_linha_inteira"
+      ]
+    },
+    {
+      "id": "CH-M22",
+      "guarda": "`-b` e `-bb` saíram das opções inócuas (review A4)",
+      "arquivo": "tests/catraca.py",
+      "de": "set(\"BdEOqsSuv\")",
+      "para": "set(\"bBdEOqsSuv\")",
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra"
+      ]
+    }
+  ]
+}
