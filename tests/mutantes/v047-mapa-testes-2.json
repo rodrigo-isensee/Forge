@@ -1,0 +1,57 @@
+{
+  "pedido": "v047-mapa-testes",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "os afetados do pre-push levam o fecho do hook",
+      "arquivo": "bin/forge-testes",
+      "de": "quem_importa(caminho, raiz, regra or ())",
+      "para": "quem_importa(caminho, raiz, ())",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o fecho parte também dos módulos da regra",
+      "arquivo": "bin/forge-testes",
+      "de": "[achado[1], *junto]",
+      "para": "[achado[1]]",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados",
+        "tests.test_testes_tocados.QuemImporta.test_no_repositorio_o_plano_do_hook_traz_todo_teste_que_importa_um_modulo_do_plano"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o fecho devolve só módulos de teste",
+      "arquivo": "bin/forge-testes",
+      "de": "return vistos & set(textos)",
+      "para": "return vistos",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "`import a, x` também importa x",
+      "arquivo": "bin/forge-testes",
+      "de": "(?:\\s*,\\s*[A-Za-z_]",
+      "para": "(?:\\s*;\\s*[A-Za-z_]",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "`import x as y` importa x",
+      "arquivo": "bin/forge-testes",
+      "de": "parte.split()[0]",
+      "para": "parte.strip()",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados"
+      ]
+    }
+  ]
+}

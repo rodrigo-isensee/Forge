@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "a base do dono no Base-sha deixa de valer pelo desde_e_a_base e o gerar recusa o que o entrega aceita",
       "arquivo": "bin/forge-check",
-      "de": "    if desde_e_a_base(raiz, texto, desde, base_sha, head):  # P-N1: o intervalo",
-      "para": "    if False:  # P-N1: o intervalo",
+      "de": "if desde_e_a_base(raiz, texto, desde, base_sha, head, base_ref):  # P-N1: o intervalo",
+      "para": "if False:  # P-N1: o intervalo",
       "testes": [
         "tests.test_conferencia_base_dono.VoltaComABaseDoDono.test_base_do_dono_no_base_sha_passa_como_no_entrega"
       ]
@@ -36,20 +36,10 @@
       "id": "M4",
       "guarda": "a conferencia da base deixa de rodar e a base recusada volta a sair no brief",
       "arquivo": "bin/forge-check",
-      "de": "    if not bases:\n        return None\n    desde, origem = bases[-1]",
-      "para": "    if True:\n        return None\n    desde, origem = bases[-1]",
+      "de": "    bases = bases_do_pedido(pedido_txt)\n    if not bases:\n        return None",
+      "para": "    bases = bases_do_pedido(pedido_txt)\n    if True:\n        return None",
       "testes": [
         "tests.test_conferencia_base_dono.VoltaComABaseDoDono.test_base_que_o_entrega_recusa_para_o_gerar_sem_brief"
-      ]
-    },
-    {
-      "id": "M5",
-      "guarda": "sem base no Historico o gerar quebra em vez de deixar o --desde em PREENCHER",
-      "arquivo": "bin/forge-check",
-      "de": "    if not bases:\n        return None\n    desde, origem = bases[-1]",
-      "para": "    if False:\n        return None\n    desde, origem = bases[-1]",
-      "testes": [
-        "tests.test_volta_por_delta.BriefDeVolta.test_gera_blocos_copiados_decisoes_achados_e_prova"
       ]
     },
     {
@@ -66,8 +56,8 @@
       "id": "M7",
       "guarda": "a recusa troca a origem da base e diz conferida para a linha fixada pelo dono",
       "arquivo": "bin/forge-check",
-      "de": "if origem == 'dono' else 'conferida'",
-      "para": "if origem != 'dono' else 'conferida'",
+      "de": "{\"dono\": \"fixada pelo dono\", \"conferida\": \"conferida\"}",
+      "para": "{\"dono\": \"conferida\", \"conferida\": \"conferida\"}",
       "testes": [
         "tests.test_conferencia_base_dono.VoltaComABaseDoDono.test_base_que_o_entrega_recusa_para_o_gerar_sem_brief"
       ]

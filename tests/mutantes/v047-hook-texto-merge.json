@@ -1,0 +1,36 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "HTM1",
+      "guarda": "HOOK-TEXTO-COM-MERGE: a rede D lê o alvo do cat entre aspas ou com $NOME como o alvo literal",
+      "arquivo": "hooks/parecer.py",
+      "de": "        sinal = fora_da_gramatica_com_heredoc(ALVO_DO_CAT.sub(r\"\\1_\", original))",
+      "para": "        sinal = fora_da_gramatica_com_heredoc(original)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "HTM2",
+      "guarda": "HOOK-TEXTO-COM-MERGE: só a variável sem operador (${NOME}) conta; ${X:-…} segue na rede D",
+      "arquivo": "hooks/parecer.py",
+      "de": "VARIAVEL = r\"\\$(?:[A-Za-z_]\\w*|\\{[A-Za-z_]\\w*\\})\"",
+      "para": "VARIAVEL = r\"\\$(?:[A-Za-z_]\\w*|\\{[^}]*\\})\"",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "HTM3",
+      "guarda": "HOOK-TEXTO-COM-MERGE: o alvo entre aspas não aceita $( nem outro metacaractere",
+      "arquivo": "hooks/parecer.py",
+      "de": "ALVO_DO_CAT = re.compile(rf\"(?<![^\\s;&|(])(cat[ \\t]+>>?[ \\t]*)(?:\\\"(?:[\\w./:@,+%~^ -]|{VARIAVEL})+\\\"",
+      "para": "ALVO_DO_CAT = re.compile(rf\"(?<![^\\s;&|(])(cat[ \\t]+>>?[ \\t]*)(?:\\\"[^\\\"]+\\\"",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    }
+  ]
+}
