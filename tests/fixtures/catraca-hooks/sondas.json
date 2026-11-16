@@ -38,6 +38,9 @@
     {"id": "S15", "troca": {}, "acrescenta": {"evento": "PreToolUsee", "grupo": {"matcher": "Bash", "hooks": [{"type": "command", "command": "true"}]}}, "removidos": 0, "fora_do_esquema": true},
     {"id": "S16-matcher", "troca": {}, "acrescenta": {"evento": "PreToolUse", "grupo": {"matcher": 1, "hooks": [{"type": "command", "command": "true"}]}}, "removidos": 0, "fora_do_esquema": true},
     {"id": "S16-timeout", "troca": {}, "acrescenta": {"evento": "PreToolUse", "grupo": {"matcher": "Bash", "hooks": [{"type": "command", "command": "true", "timeout": "1"}]}}, "removidos": 0, "fora_do_esquema": true},
+    {"id": "S17-zero", "troca": {}, "acrescenta": {"evento": "PreToolUse", "grupo": {"matcher": "Bash", "hooks": [{"type": "command", "command": "true", "timeout": 0}]}}, "removidos": 0, "fora_do_esquema": true},
+    {"id": "S17-negativo", "troca": {}, "acrescenta": {"evento": "PreToolUse", "grupo": {"matcher": "Bash", "hooks": [{"type": "command", "command": "true", "timeout": -1}]}}, "removidos": 0, "fora_do_esquema": true},
+    {"id": "S17-infinito", "troca": {}, "acrescenta": {"evento": "PreToolUse", "grupo": {"matcher": "Bash", "hooks": [{"type": "command", "command": "true", "timeout": 1e400}]}}, "removidos": 0, "fora_do_esquema": true},
     {"id": "real", "troca": {}, "removidos": 0}
   ]
 }

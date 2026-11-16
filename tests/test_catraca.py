@@ -434,7 +434,8 @@ class Hooks(Base):
         ruins = {"type": dict(type="prompt"), "sem command": dict(command=None), "if": {"if": 1},
                  "statusMessage": dict(statusMessage=None), "async": {"async": "true"}, "asyncRewake": dict(asyncRewake=0),
                  "once": dict(once="sim"), "args": dict(args=["x.py", None]), "args objeto": dict(args={"x.py": 0}),
-                 "timeout texto": dict(timeout="10"), "timeout booleano": dict(timeout=True), "shell": dict(shell="zsh"),
+                 "timeout texto": dict(timeout="10"), "timeout booleano": dict(timeout=True), "timeout zero": dict(timeout=0),
+                 "timeout zero real": dict(timeout=0.0), "timeout negativo": dict(timeout=-1), "shell": dict(shell="zsh"),
                  "onFailure": dict(onFailure="ignore")}
         for nome, troca in ruins.items():
             with self.subTest(campo=nome):
@@ -448,7 +449,8 @@ class Hooks(Base):
         for nome, dados in arquivos.items():
             with self.subTest(arquivo=nome):
                 self.assertTrue(catraca.erros_de_forma(json.dumps(dados)))
-        for texto in ("{", '{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "x", "timeout": NaN}]}]}}'):
+        for texto in ("{", '{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "x", "timeout": NaN}]}]}}',
+                      '{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "x", "timeout": 1e400}]}]}}'):
             with self.subTest(texto=texto):
                 self.assertTrue(catraca.erros_de_forma(texto))
 
@@ -1374,7 +1376,7 @@ class Protegidos(Base):
 
 
 class CorpusDasSondasDeHook(unittest.TestCase):
-    """Sondas S1 a S16, A3 e A7 do parecer de segurança da v047 (catraca por script) sobre o hooks.json real: cada troca no hook de
+    """Sondas S1 a S17, A3 e A7 do parecer de segurança da v047 (catraca por script) sobre o hooks.json real: cada troca no hook de
     conformidade do PreToolUse acusa um hook removido, e a do PR 565 (só `env`, opções e argumentos) nenhum."""
 
     def test_cada_sonda_acusa_o_esperado(self):
@@ -1383,7 +1385,8 @@ class CorpusDasSondasDeHook(unittest.TestCase):
         alvos = [(g, i) for g in antes["hooks"][corpus["evento"]] for i, hk in enumerate(g["hooks"])
                  if corpus["script"] in hk.get("args", [])]
         self.assertEqual(len(alvos), 1)
-        self.assertGreaterEqual(len(corpus["sondas"]), 36)
+        self.assertNotIn("Infinity", json.dumps(antes))
+        self.assertGreaterEqual(len(corpus["sondas"]), 39)
         for sonda in corpus["sondas"]:
             with self.subTest(sonda=sonda["id"]):
                 depois = copy.deepcopy(antes)
@@ -1393,9 +1396,10 @@ class CorpusDasSondasDeHook(unittest.TestCase):
                     del grupo["hooks"][alvos[0][1]][campo]
                 if "acrescenta" in sonda:  # volta 4 (A10): grupo ou evento novo fora do esquema
                     depois["hooks"].setdefault(sonda["acrescenta"]["evento"], []).append(sonda["acrescenta"]["grupo"])
-                removidos = catraca.chaves_de_hooks(json.dumps(antes)) - catraca.chaves_de_hooks(json.dumps(depois))
+                texto = json.dumps(depois).replace("Infinity", "1e400")  # S17: o json.dumps escreve Infinity; o hooks.json, 1e400
+                removidos = catraca.chaves_de_hooks(json.dumps(antes)) - catraca.chaves_de_hooks(texto)
                 self.assertEqual(len(removidos), sonda["removidos"], removidos)
-                self.assertEqual(bool(catraca.erros_de_forma(json.dumps(depois))), sonda.get("fora_do_esquema", False))
+                self.assertEqual(bool(catraca.erros_de_forma(texto)), sonda.get("fora_do_esquema", False))
 
 
 class CorpusDosAfrouxamentosReais(unittest.TestCase):

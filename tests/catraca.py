@@ -22,6 +22,7 @@ import http.client
 import importlib.util
 import itertools
 import json
+import math
 import os
 import re
 import subprocess
@@ -362,6 +363,8 @@ def erros_do_hook(onde, hk):
         erros.append(f"{onde}.args: não é lista de textos")
     if "timeout" in hk and (isinstance(hk["timeout"], bool) or not isinstance(hk["timeout"], (int, float))):
         erros.append(f"{onde}.timeout: {type(hk['timeout']).__name__} no lugar de número")
+    elif "timeout" in hk and not (math.isfinite(hk["timeout"]) and hk["timeout"] > 0):  # A12: a carga exige >0 e finito
+        erros.append(f"{onde}.timeout: {hk['timeout']!r} no lugar de número finito maior que 0")
     for campo, valores in VALORES_DOS_CAMPOS_DO_HOOK.items():
         if campo in hk and not any(hk[campo] == v for v in valores):
             erros.append(f"{onde}.{campo}: {json.dumps(hk[campo])} fora de {', '.join(valores)}")
