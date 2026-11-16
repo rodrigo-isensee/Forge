@@ -1,10 +1,10 @@
 ---
 tipo: qa
 contrato: 1
-pedido: v047-catraca-hook-por-script
+pedido: v047
 branch: melhoria/v047-catraca-hook-por-script
-commit: 24256248b7d1503b354d8369b040651499e8b3df
-parecer: aprovado
+commit: 3bf731721590d03d93c0daaf715ed2f23b423c9a
+parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
@@ -17,6 +17,7 @@ data: 2026-11-16
 Escopo: `tests/catraca.py` (`script_do_hook`, `chaves_de_hooks`, `regra_hooks`), `tests/test_catraca.py`, corpus `tests/fixtures/catraca-hooks/sondas.json`, specs de mutantes. Sem especificação de UX nem API; as obrigações são o PR 565 (mudar interpretador, opções ou argumentos não remove o hook) e `R-CONFORMIDADE` (hook neutralizado segue acusado, A1 a A3 e S1 a S4 da segurança).
 
 ## Achados
+- A1 (bloqueante) tests/test_catraca.py:452 · CH-M30 (`_constante_fora_do_json` devolve 0) sobrevive: o A12 (`timeout` > 0) passou a acusar o NaN como zero e mascarou o teste. Falta teste de NaN ou Infinity em campo sem validação (`{"hooks": {}, "x": NaN}`, `"foo": NaN`).
 
 
 ## Critério → teste → resultado
@@ -100,3 +101,16 @@ CH-M1 a CH-M10 · morreu (CH-M2 por erro do teste declarado sob o mutante, que p
 |---|---|---|---|
 | `R-CONFORMIDADE`: `timeout` 0, negativo ou infinito acusa (A12, S17) | `Hooks.test_cada_campo_fora_do_esquema_acusa`, `test_hooks_json_fora_do_esquema_barra`, corpus S17, CH-M39 a CH-M41 | zero, negativo, 1e400 (limite >0 e finito) | passou |
 | `R-CONFORMIDADE`: evento fora dos 31 do binário acusa (A6, S18) | corpus S18, CH-M42 | `PreModelSwitch` | passou |
+
+## Revalidação por delta 24256248..3bf73172 (E2.198, junção com a develop; pedido v047)
+- `forge-check parecer delta`: domínio só `tests/catraca.py`, e as 9 hunks são da develop (`degrau`, `eh_promocao`, `promocao_aceita`); `script_do_hook`, `erros_de_forma`, `tests/test_catraca.py`, o corpus e as specs não mudaram (nenhuma hunk entre as linhas 280 e 410). Remoto igual ao head, nada a trazer. Frontmatter `pedido:` trocado para `v047`.
+- `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook`: `Ran 14 tests`, OK. `python3 -m unittest tests.test_catraca` inteiro: rc 0 no head.
+- Mutação (`--base 24256248b7d1503b354d8369b040651499e8b3df --processos 4`, as 5 specs): 41 dos 42 `morreu`; `CH-M30 · sobreviveu · tests/catraca.py:351` (spec `-4`), reproduzido sozinho (rc=1). Specs 1, 2, 3 e 5: rc=0.
+- Causa: o CH-M30 morria em 230dfb01 (`timeout: NaN` virava erro só pela guarda de NaN). Em 24256248 o A12 passou a recusar `timeout` 0, então com o mutante o NaN vira 0 e é acusado pela guarda do timeout. Eu rodei só a spec `-5` na volta 5 e 6 e não revalidei a `-4`: falha minha, apanhada agora. O código está certo; a lacuna é do teste.
+- Bateria completa: a prova é o check-run `bateria` do mesmo sha no CI do PR (I5); não rodada aqui.
+
+## Critério → teste → resultado (E2.198)
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| `R-CONFORMIDADE`: NaN e Infinity no hooks.json acusam (A10) | `Hooks.test_hooks_json_fora_do_esquema_barra`, CH-M30 | NaN em campo sem validação de tipo | reprovou (mutante sobrevive) |
+| Demais critérios das voltas 1 a 6 | testes e specs já citados | os já citados | passou, sem mudança no domínio |
