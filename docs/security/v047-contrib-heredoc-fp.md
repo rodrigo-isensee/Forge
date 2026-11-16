@@ -1,16 +1,19 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v047-contrib-heredoc-fp
+pedido: v047
 branch: melhoria/v047-contrib-heredoc-fp
-commit: f7e12a87a474a2e61ea2a0e621e9847c988d9ca0
+commit: 70db7c6a9b7b151db4a4e1ae406136b3cfca00a6
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-15
+data: 2026-11-16
 ---
 # Review de segurança: v047-contrib-heredoc-fp (E2.105)
 
 Parecer completo (primeiro parecer desta branch) sobre o head `f7e12a87`, base `f4b0c2ae`. A entrega afrouxa a rede D da ADR 0011 em `hooks/parecer.py`: o corpo de heredoc lido só pelo Python da entrada (`python3 -`) deixa de ser comando e de marcar a chamada, e o corpo de `sh`/`bash`/`dash` que só lê ou espera deixa de ligar a gramática com heredoc. O foco foi achar o heredoc que faz PR de verdade e passa.
+
+## Revalidação por delta (E2.209)
+Revalidado no head `70db7c6a`. `forge-check parecer delta` de `f7e12a87..70db7c6a`: nenhum arquivo do domínio mudou; o diff total são só os pareceres de QA, review e segurança em `docs/`. Os achados A1 e A2 seguem como estão (recomendados, sem critério novo). Testes do item reexecutados no head: OK (2 testes). `pedido:` passa a `v047` para a integração enxergar o parecer.
 
 ## Gatilhos
 `R-SEGURANCA`: mudança em hook que guarda ação crítica (merge e PR, `R-REVIEW` e `R-CONTRIB`), com afrouxamento de controle (ADR 0011, emenda v047, rótulo `afrouxa-regra`).
