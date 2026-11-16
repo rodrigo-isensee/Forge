@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: c22624c5b274546685d4db04ab44236bfafe6f31
+commit: 081473ac553f7a38d80c1783052afd03f34da97c
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -158,3 +158,13 @@ Domínio lido por `forge-check parecer delta`, rc 0: `hooks/conformidade.py` (`n
 - CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local.
 
 Parecer aprovado no c22624c5 (`R-QA`): A17 fechado (as sondas do bug, `: .gi; cp -rT ev "$_"t` e `: .gi; echo a > "$_"t`, recusam), sem regressão, sem mutante sobrevivente, nenhum bug aberto, sem achado novo.
+
+## Revalidação por delta c22624c5..081473ac (E2.131, junção da develop bf475209; instância que não fez a entrega)
+Domínio lido por `forge-check parecer delta`, rc 0, escopo "sem o que veio da base (develop)": só `bin/forge-testes` e `tests/test_testes_tocados.py`, os dois arquivos que conflitaram na junção. O código de produto (`hooks/conformidade.py`), as fixtures, os mutantes e o oráculo não mudam; o blob do oráculo segue `535134e9…` (o delta não o toca). Escopo do plano (A9, A10, D2b, U4) inalterado.
+- Conflito em `bin/forge-testes` (tupla `FORGE_CHECK`): resolvido pela união. Conferi por script nas três versões (`081473ac`, `7294bea3`, `bf475209`): nenhum módulo do nosso lado nem da develop saiu (`perdeu vs ours=set()`, `perdeu vs develop=set()`) e nada foi somado fora dos dois lados (`ganho=set()`). `test_hook_destino_opaco` e `test_conformidade_opaco` ficam, e `test_conferencia_dois_pedidos` (develop, #564) também. Sem mudança de comportamento do mapa além da soma.
+- Conflito em `tests/test_testes_tocados.py` (contagem do `forge-check`): 83 passou a 86 (3 módulos de develop somados aos nossos); o comentário junta as duas listas de histórico. Coerente com a tupla.
+- `python3 -m unittest tests.test_testes_tocados`: 151 testes, OK (skipped=1, o skip é da base, não meu), 142 s.
+- Vermelho e mutação: não rerrodei. O delta não muda guarda nem teste de regra; só a lista de mapeamento de testes, sem condição Python nova (nada para `--cobertura`). O `AR-1` (lista de mutantes incompleta) não se aplica: nenhuma linha de guarda mudou no diff. O último vermelho e a mutação (c22624c5) valem.
+- CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local.
+
+Parecer aprovado no 081473ac (`R-QA`): a junção não altera comportamento, sem bug aberto, sem achado.
