@@ -3,10 +3,10 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-sessao-automatica
-commit: cd7bd9f833b4f8abec6cb95138889ae51f2fdc8d
+commit: 48501baf6b5fc3238f80b32a9d8cb7f507ea0eed
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-14
+data: 2026-11-16
 ---
 # Review de segurança: v047-sessao-automatica
 
@@ -14,6 +14,9 @@ Intervalo `origin/develop...5f0547cc` (base f4b0c2ae, um commit): SESSAO-AUTOMAT
 
 ## Gatilhos
 Muda o modo de permissão de toda sessão do Jarvis (fábrica e projetos) para `--permission-mode auto`: tira o humano do portão de cada comando, gatilho de `R-SEGURANCA`. Toca a instalação de pacote de sistema com chave de repositório externo (cadeia de suprimentos da estação) e o passo 1 do `forge-fechar` (ferramenta de controle). A decisão de abrir sempre no automático é do dono (diretriz 28, `R-DECISAO`) e não é questionada aqui; o que se revisa é o controle compensatório que a própria diretriz pede (conferir o sandbox e avisar o dono).
+
+## Revalidação (delta cd7bd9f8..48501baf)
+Lido `forge-check parecer delta` (no domínio: `bin/forge-fechar`, `bin/forge-testes`, `tests/test_fechar.py`; fora: `tests/test_reval_delta.py`, `tests/test_testes_tocados.py`). O que o delta traz do `bin/forge-fechar` (lote, promoção pela marca, espera do CI) veio da develop (#567, já com parecer próprio); a parte desta branch é o mesmo bloco GH-VERSAO-MINIMA do passo 1, só deslocado pelo merge (`bin/forge-fechar:1151-1161`, conteúdo idêntico ao revisado em cd7bd9f8). `bin/forge-testes` só acrescenta `test_sessao_automatica` ao mapa e às listas de testes, sem efeito em controle; `tests/test_fechar.py:21-22` faz o `gh` falso responder `--version` fora do registro. Nenhum achado novo; A2 e A3 seguem recomendados. `scripts/jarvis` continua com `python3 -I` (AR-5 conferido).
 
 ## Revalidação (delta 5f0547cc..cd7bd9f8)
 Lido `forge-check parecer delta` (no domínio: só `scripts/jarvis`; fora: `tests/test_sessao_automatica.py`, `tests/mutantes/v047-sessao-automatica.json`). O A1 (bloqueante da rodada anterior) está corrigido e sai do bloco de achados: `scripts/jarvis:30-46` lê `.claude/settings.json` e `.claude/settings.local.json` do projeto com `python3 -I` (sem interpolação do caminho no código, argumentos por `sys.argv`), aceita só `sandbox.enabled is True` e, fora disso (arquivo ausente, JSON inválido, valor não booleano, `python3` ausente), avisa numa linha no stderr e segue no modo automático, como decidiu o dono (falha para o lado do aviso). Nenhuma interpolação nova no `exec`; shellcheck rc=0.
@@ -46,4 +49,4 @@ Lido `forge-check parecer delta` (no domínio: só `scripts/jarvis`; fora: `test
 - README: o link do repositório oficial aponta para github.com/cli/cli. Sem segredo, sem custo (`R-CUSTO`).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Na revalidação (cd7bd9f8): leitura do delta do domínio, sondas S1 a S6 com `claude` falso no PATH, `tests.test_sessao_automatica` (13 testes, OK) e shellcheck em `scripts/jarvis` (rc=0); a suíte inteira fica para o CI do PR. Na primeira rodada: revisão estática do diff inteiro; rodei `tests.test_sessao_automatica` e `tests.test_fechar_gh_versao` (19 testes, OK) e a análise estática de shell nos quatro scripts tocados (rc=0). A suíte inteira roda no CI do PR (o workflow dispara só em `pull_request`; o brief manda não abrir PR), então o CI fica a conferir na abertura. Varredura de segredos e de workflows sem ferramenta no PATH (lacuna); o diff foi lido por inteiro e não traz credencial.
+Nenhum risco aceito. Na revalidação (48501baf): leitura do delta do domínio, `tests.test_sessao_automatica` e `tests.test_fechar_gh_versao` (22 testes, OK), `tests.test_fechar` (99 testes, OK) e shellcheck em `bin/forge-fechar`, `scripts/jarvis` e `scripts/preparar-estacao.sh` (rc=0); a suíte inteira fica para o CI do PR. Na revalidação (cd7bd9f8): leitura do delta do domínio, sondas S1 a S6 com `claude` falso no PATH, `tests.test_sessao_automatica` (13 testes, OK) e shellcheck em `scripts/jarvis` (rc=0); a suíte inteira fica para o CI do PR. Na primeira rodada: revisão estática do diff inteiro; rodei `tests.test_sessao_automatica` e `tests.test_fechar_gh_versao` (19 testes, OK) e a análise estática de shell nos quatro scripts tocados (rc=0). A suíte inteira roda no CI do PR (o workflow dispara só em `pull_request`; o brief manda não abrir PR), então o CI fica a conferir na abertura. Varredura de segredos e de workflows sem ferramenta no PATH (lacuna); o diff foi lido por inteiro e não traz credencial.
