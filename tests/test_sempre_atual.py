@@ -9,6 +9,7 @@ import io
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -21,7 +22,7 @@ RAIZ = TESTES.parent
 sys.path.insert(0, str(TESTES))
 sys.path.insert(0, str(RAIZ / "bin"))
 import forge_sempre_atual as fsa  # noqa: E402
-from test_oraculo_sempre_atual import CLAUDE_FALSO, URL, Mundo  # noqa: E402
+from test_oraculo_sempre_atual import CLAUDE_FALSO, STUB_DA_FERRAMENTA, URL, Mundo, git_real  # noqa: E402
 
 LIVRE = {"claude": [], "fechar": [], "duvida": False}
 
@@ -672,3 +673,152 @@ class Entrada(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Entradas(Mundo):
+    """Entradas do FORGE-SEMPRE-ATUAL (E6.5): atalhos, trampolins e o preparo do container; o que o oráculo do QA não prende."""
+
+    def instalar_trampolins(self):
+        return subprocess.run(["bash", str(RAIZ / "scripts" / "instalar-atalho.sh")], env=self.env(), capture_output=True, text=True,
+                              timeout=60)
+
+    def trampolim(self, nome="forge", *args):
+        return subprocess.run([str(self.home / ".local" / "bin" / nome), *args], env=self.env(), capture_output=True, text=True,
+                              stdin=subprocess.DEVNULL, timeout=30)
+
+    def test_atalho_dentro_de_pasta_com_git_nao_roda_a_ferramenta_e_abre_o_claude(self):
+        ativo, projeto = self.atalho_instalado()
+        (ativo / ".git").mkdir()
+        self.abrir_atalho(ativo, projeto, "--sem-tmux")
+        self.assertEqual(self.chamadas_do_stub(), [], "um work tree (pasta com .git) nunca executa a ferramenta")
+        self.assertEqual(self.eventos(), ["claude-abriu"])
+
+    def test_reentrada_dentro_do_tmux_nao_repete_a_atualizacao(self):
+        ativo, projeto = self.atalho_instalado()
+        env = {**self.env(), "FORGE_ABERTURA_FEITA": "1", "TMUX": "/fake/tmux,1,0"}
+        subprocess.run(["bash", str(ativo / "scripts" / "jarvis")], cwd=projeto, env=env, stdin=subprocess.DEVNULL,
+                       capture_output=True, text=True, timeout=60)
+        self.assertEqual(self.chamadas_do_stub(), [])
+        self.assertEqual(self.eventos(), ["claude-abriu"])
+
+    def jarvis_forge_montado(self):
+        """installPath ativo com o `scripts/jarvis-forge` de verdade e o stub da ferramenta; ~/Forge e a cópia vigente clonados de uma origem local."""
+        ativo = self.instalar("0.47.1", "user")
+        shutil.copyfile(RAIZ / "scripts" / "jarvis-forge", ativo / "scripts" / "jarvis-forge")
+        (ativo / "scripts" / "jarvis-forge").chmod(0o755)
+        self._script(ativo / "bin" / "forge-sempre-atual", STUB_DA_FERRAMENTA.replace("@COMPORTAMENTO@", ""))
+        origem = self.tmp / "origem.git"
+        git_real("init", "-q", "--bare", "-b", "develop", str(origem), cwd=self.tmp)
+        semente = self.tmp / "semente"
+        git_real("clone", "-q", str(origem), str(semente), cwd=self.tmp)
+        (semente / "x").write_text("1\n")
+        git_real("add", "-A", cwd=semente)
+        git_real("commit", "-q", "-m", "inicio", cwd=semente)
+        git_real("push", "-q", "origin", "develop", cwd=semente)
+        vigente, forge = self.home / ".local" / "share" / "forge" / "vigente", self.home / "Forge"
+        vigente.parent.mkdir(parents=True)
+        git_real("clone", "-q", str(origem), str(vigente), cwd=self.tmp)
+        git_real("clone", "-q", str(origem), str(forge), cwd=self.tmp)
+        return ativo, forge, {**self.env(), "XDG_DATA_HOME": str(self.home / ".local" / "share")}
+
+    def abrir_jarvis_forge(self, ativo, forge, env):
+        subprocess.run(["bash", str(ativo / "scripts" / "jarvis-forge")], cwd=forge, env=env, stdin=subprocess.DEVNULL,
+                       capture_output=True, text=True, timeout=90)
+
+    def test_jarvis_forge_roda_a_ferramenta_uma_vez_e_com_tmux_aberto_so_reanexa(self):
+        ativo, forge, env = self.jarvis_forge_montado()
+        for tmux_aberto, chamadas in (([], 1), (["jarvis-Forge"], 0)):
+            for arq in ("ferramenta.log", "seq.log"):
+                (self.fake / arq).unlink(missing_ok=True)
+            self.ctl(tmux=tmux_aberto)
+            self.abrir_jarvis_forge(ativo, forge, env)
+            self.assertEqual(len(self.chamadas_do_stub()), chamadas, f"tmux aberto={tmux_aberto}")
+
+    def test_jarvis_forge_dentro_de_pasta_com_git_nao_roda_a_ferramenta(self):
+        ativo, forge, env = self.jarvis_forge_montado()
+        (ativo / ".git").mkdir()
+        self.abrir_jarvis_forge(ativo, forge, env)
+        self.assertEqual(self.chamadas_do_stub(), [], "um work tree (pasta com .git) nunca executa a ferramenta")
+
+    def test_trampolim_recusa_installpath_fora_do_cache_do_plugin(self):
+        arvore = self.home / "work-tree"
+        self._construir(arvore, "0.99.0", isca=True)
+        self._gravar(self.plug / "installed_plugins.json", {"version": 2, "plugins": {"forge@forge": [
+            {"scope": "user", "installPath": str(arvore), "version": "0.99.0"}]}})
+        self.instalar_trampolins()
+        r = self.trampolim("forge")
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertEqual(self.execs(), [], "executou código de fora do cache do plugin")
+        self.assertIn("claude plugin install forge@forge", r.stderr)
+
+    def test_trampolim_ignora_instalacao_de_projeto_e_so_segue_a_do_usuario(self):
+        p = self.projeto("p")
+        self.instalar("0.47.0", "project", p)
+        self.instalar_trampolins()
+        r = self.trampolim("forge")
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertEqual(self.execs(), [])
+        ativo = self.instalar("0.47.1", "user")
+        self.trampolim("forge")
+        self.assertEqual([l.split()[1] for l in self.execs()], [str(ativo / "bin" / "forge")])
+
+    def test_instalar_atalho_cria_os_tres_trampolins_e_nao_copia_o_script(self):
+        self.instalar_trampolins()
+        for nome in ("jarvis", "jarvis-forge", "forge"):
+            texto = (self.home / ".local" / "bin" / nome).read_text(encoding="utf-8")
+            self.assertIn("installed_plugins.json", texto)
+            self.assertNotIn(str(RAIZ), texto)
+            self.assertNotIn("sort -V", texto)
+
+    def ativo_com_scripts(self, comportamento=""):
+        ativo = self.instalar("0.47.1", "user")
+        shutil.rmtree(ativo / "scripts")
+        shutil.copytree(RAIZ / "scripts", ativo / "scripts")
+        self._script(ativo / "bin" / "forge-sempre-atual", STUB_DA_FERRAMENTA.replace("@COMPORTAMENTO@", comportamento))
+        return ativo
+
+    def preparar(self, ativo, *args, **env):
+        return subprocess.run(["bash", str(ativo / "scripts" / "preparar-estacao.sh"), "--container", *args],
+                              env=self.env(FORGE_PERSISTENTE=str(self.tmp / "persistente"), **env), cwd=self.neutro,
+                              stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120)
+
+    def test_preparo_sem_o_modo_essencial_refaz_os_atalhos_e_nao_roda_a_ferramenta(self):
+        ativo = self.ativo_com_scripts()
+        r = self.preparar(ativo)
+        self.assertEqual(self.chamadas_do_stub(), [], r.stdout)
+        self.assertTrue((self.home / ".local" / "bin" / "jarvis").is_file())
+
+    def test_simular_nao_altera_nada_e_mostra_o_que_faria(self):
+        ativo = self.ativo_com_scripts()
+        r = self.preparar(ativo, "--simular", FORGE_PREPARO_ESSENCIAL="1")
+        self.assertEqual(self.chamadas_do_stub(), [], r.stdout)
+        self.assertIn("[simular] bash", r.stdout)
+        self.assertIn("[simular] " + str(ativo / "bin" / "forge-sempre-atual") + " --gatilho poststart", r.stdout)
+        self.assertFalse((self.home / ".local" / "bin" / "jarvis").exists(), "--simular não altera nada")
+
+    def test_preparo_ignora_installpath_fora_do_cache_do_plugin(self):
+        arvore = self.home / "work-tree"
+        self._construir(arvore, "0.99.0", isca=True)
+        shutil.copytree(RAIZ / "scripts", arvore / "scripts", dirs_exist_ok=True)
+        self._script(arvore / "bin" / "forge-sempre-atual", STUB_DA_FERRAMENTA.replace("@COMPORTAMENTO@", ""))
+        self._gravar(self.plug / "installed_plugins.json", {"version": 2, "plugins": {"forge@forge": [
+            {"scope": "user", "installPath": str(arvore), "version": "0.99.0"}]}})
+        r = self.preparar(arvore, FORGE_PREPARO_ESSENCIAL="1")
+        self.assertIn("claude plugin install forge@forge", r.stdout)
+        self.assertEqual(self.chamadas_do_stub(), [], "rodou a ferramenta de um installPath fora do cache")
+        self.assertFalse((self.home / ".local" / "bin" / "jarvis").exists())
+
+    def test_preparo_essencial_sem_plugin_ativo_diz_o_que_falta_e_nao_roda_nada_do_work_tree(self):
+        r = subprocess.run(["bash", str(RAIZ / "scripts" / "preparar-estacao.sh"), "--container"],
+                           env=self.env(FORGE_PREPARO_ESSENCIAL="1", FORGE_PERSISTENTE=str(self.tmp / "persistente")), cwd=self.neutro,
+                           stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120)
+        self.assertIn("claude plugin install forge@forge", r.stdout)
+        self.assertFalse((self.home / ".local" / "bin" / "jarvis").exists())
+        self.assertEqual(self.chamadas_do_stub(), [])
+
+    def test_preparo_essencial_com_ferramenta_que_falha_nao_derruba_o_poststart(self):
+        ativo = self.ativo_com_scripts("sys.exit(1)")
+        r = self.preparar(ativo, FORGE_PREPARO_ESSENCIAL="1")
+        self.assertEqual(len(self.chamadas_do_stub()), 1)
+        self.assertIn("atualização do plugin tentada no postStart", r.stdout)
+        self.assertTrue((self.home / ".local" / "bin" / "jarvis").is_file())

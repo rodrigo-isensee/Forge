@@ -257,6 +257,56 @@ container_marketplace() {
   fi
 }
 
+# FORGE-SEMPRE-ATUAL (ADR 0017, âncora): o installPath ativo do escopo do usuário, lido de installed_plugins.json e só se estiver
+# dentro de ~/.claude/plugins/cache. Imprime o caminho; nada se não há plugin ativo. Nunca o work tree nem a maior pasta do cache.
+plugin_ativo() {
+  tem python3 || return 0
+  python3 -I -c 'import json, os
+casa = os.path.realpath(os.path.expanduser("~"))
+cache = os.path.join(casa, ".claude", "plugins", "cache")
+try:
+    with open(os.path.join(casa, ".claude", "plugins", "installed_plugins.json"), encoding="utf-8") as f:
+        itens = json.load(f)["plugins"]["forge@forge"]
+    ativos = [i["installPath"] for i in itens if i.get("scope") == "user" and isinstance(i.get("installPath"), str)]
+    real = os.path.realpath(ativos[-1])
+    if os.path.isabs(ativos[-1]) and real.startswith(cache + os.sep):
+        print(real)
+except (OSError, ValueError, KeyError, TypeError, IndexError):
+    pass' 2>/dev/null || true
+}
+
+# Refaz os atalhos jarvis, jarvis-forge e forge em ~/.local/bin (a recriação do container apaga o home), sempre como
+# trampolins, e, no preparo essencial (o postStart), roda a atualização do plugin uma vez: sem pergunta, sem barrar; o
+# resultado fica no registro.log da ferramenta. Tudo do installPath ativo; sem plugin ativo, só diz o que falta.
+container_atalhos_e_plugin() {
+  local ativo saida
+  ativo="$(plugin_ativo)"
+  if [ -z "$ativo" ] || [ ! -f "$ativo/scripts/instalar-atalho.sh" ]; then
+    falta "atalhos jarvis e forge: o plugin do Forge não está ativo; rode claude plugin install forge@forge --scope user e depois este script de novo"
+    return 0
+  fi
+  if saida="$(fazer bash "$ativo/scripts/instalar-atalho.sh")"; then
+    [ "$simular" = 0 ] || printf '%s\n' "$saida"
+    fez "atalhos jarvis, jarvis-forge e forge em $HOME/.local/bin (seguem o plugin ativo)"
+  else
+    falta "atalhos: o instalar-atalho.sh falhou; rode bash $ativo/scripts/instalar-atalho.sh"
+  fi
+  [ "${FORGE_PREPARO_ESSENCIAL:-0}" = 1 ] || return 0
+  if [ -x "$ativo/bin/forge-sempre-atual" ]; then
+    # o resultado (e o motivo de uma falha) fica no registro.log da ferramenta; o postStart nunca falha por ela
+    if [ "$simular" = 1 ]; then
+      fazer "$ativo/bin/forge-sempre-atual" --gatilho poststart
+    elif command -v timeout >/dev/null 2>&1; then
+      timeout 90 "$ativo/bin/forge-sempre-atual" --gatilho poststart </dev/null >/dev/null 2>&1 || true
+    else
+      "$ativo/bin/forge-sempre-atual" --gatilho poststart </dev/null >/dev/null 2>&1 || true
+    fi
+    fez "atualização do plugin tentada no postStart (resultado em registro.log, na pasta de dados do plugin)"
+  else
+    fez "plugin ativo sem a ferramenta de atualização (versão anterior à 0.47); o atalho cobre na próxima atualização"
+  fi
+}
+
 preparar_container() {
   persistente="${FORGE_PERSISTENTE:-/workspaces}"
   origem="${FORGE_ORIGEM:-$persistente/Forge}"
@@ -267,6 +317,7 @@ preparar_container() {
   container_forge
   container_login
   container_area
+  container_atalhos_e_plugin
   if [ "${FORGE_PREPARO_ESSENCIAL:-0}" = 1 ]; then
     fez "essencial: cópia vigente e dev-marketplace ficam para o comando manual"
   else

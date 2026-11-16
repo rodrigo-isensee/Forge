@@ -1037,7 +1037,7 @@ class Revisao(Base):
         r = self.py("print(v.fixar_plugin(v.url_do_forge(), '9.9.0'))", env=env)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("False", r.stdout)
-        self.assertEqual(self.chamadas_do_claude(), [], "a checagem da tag vem antes do remove")
+        self.assertEqual(self.chamadas_do_claude(), [], "a checagem da tag vem antes de qualquer troca")
         r = self.py("print(v.fixar_plugin(v.url_do_forge(), '8.8.8'))")  # rede ok, tag inexistente
         self.assertIn("False", r.stdout)
         self.assertEqual(self.chamadas_do_claude(), [])
@@ -1134,7 +1134,7 @@ if __name__ == "__main__":
 
 
 class CtrlCNaTroca(Base):
-    """Terceira review do PR 111: Ctrl-C entre o `remove` e o `add` não pode deixar o usuário sem marketplace e sem plugin."""
+    """Terceira review do PR 111: Ctrl-C no meio da troca (o `add` da tag) não pode deixar o usuário sem marketplace e sem plugin."""
 
     def estado(self):
         arq = self.home / ".local/state/forge/marketplace-original.json"
@@ -1188,7 +1188,7 @@ class CtrlCNaTroca(Base):
         self.assertEqual(dados, {"fonte": "dono/Forge", "escopo": "user"})
         self.assertEqual(arq.stat().st_mode & 0o777, 0o600)
 
-    def test_atualizar_grava_a_fonte_original_antes_do_remove(self):
+    def test_atualizar_grava_a_fonte_original_antes_da_troca(self):
         self.publicar("9.9.0")
         (self.fake / "claude-falha").write_text("#v9.9.0", encoding="utf-8")
         self.rodar(ATUALIZAR, respostas=["s"])
@@ -1284,3 +1284,58 @@ class AtualizarSemPergunta(Base):
         self.assertEqual(len(self.adds()), 1, self.adds())
         self.assertTrue(self.adds()[0].endswith("#v" + VERSAO + " --scope user"))
         self.assertEqual(self.ramos(), {"main", "develop", "homolog"})
+
+
+class SemMarketplaceRemove(Base):
+    """FORGE-SEMPRE-ATUAL (E6.5, ADR 0017, prova U3): `claude plugin marketplace remove` desinstala o Forge do usuário e dos projetos e
+    apaga o `enabledPlugins` versionado. Nenhum caminho do `forge atualizar` e do `forge voltar-versao` o chama; a troca e a devolução
+    da marketplace são `marketplace add <fonte> --scope user` sobre a existente."""
+
+    def sem_remove(self):
+        chamadas = self.chamadas_do_claude()
+        self.assertTrue([c for c in chamadas if " marketplace add " in c], chamadas)
+        self.assertEqual([c for c in chamadas if " marketplace remove" in c], [], chamadas)
+
+    def test_atualizar_troca_por_add_sem_remove(self):
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.sem_remove()
+
+    def test_fixar_troca_por_add_sem_remove(self):
+        codigo, saida = self.rodar(ATUALIZAR, "--fixar", respostas=[])
+        self.assertEqual(codigo, 0, saida)
+        self.sem_remove()
+
+    def test_falha_no_add_devolve_a_fonte_por_add_sem_remove(self):
+        self.publicar("9.9.0")
+        (self.fake / "claude-falha").write_text("#v9.9.0", encoding="utf-8")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 1, saida)
+        self.sem_remove()
+
+    def test_ctrl_c_na_troca_devolve_a_fonte_por_add_sem_remove(self):
+        self.publicar("9.9.0")
+        (self.fake / "sigint-no-add").write_text("", encoding="utf-8")
+        self.rodar(ATUALIZAR, respostas=["s"])
+        self.sem_remove()
+
+    def test_voltar_versao_sem_remove(self):
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        codigo, saida = self.rodar(VOLTAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.sem_remove()
+
+    def test_marketplace_de_outro_escopo_e_devolvida_por_add_sem_remove(self):
+        """A fonte de antes vinha de fora do settings do usuário (escopo "outro"): a devolução também é `add`."""
+        self.publicar("9.9.0")
+        sys.path.insert(0, str(RAIZ / "bin"))
+        self.addCleanup(sys.path.remove, str(RAIZ / "bin"))
+        import forge_versoes
+        antes = os.environ.copy()
+        self.addCleanup(lambda: (os.environ.clear(), os.environ.update(antes)))
+        os.environ.update(self.env)
+        self.assertTrue(forge_versoes.devolver_original({"fonte": "dono/Forge", "escopo": "outro"}))
+        self.sem_remove()

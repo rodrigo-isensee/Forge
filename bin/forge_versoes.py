@@ -333,8 +333,9 @@ def instalar_plugin():
 
 
 def trocar_marketplace(fonte):
-    """Troca a marketplace do usuário por `fonte` e deixa o plugin instalado. (deu certo, saída)"""
-    claude(["plugin", "marketplace", "remove", MARKETPLACE, "--scope", "user"])
+    """Troca a marketplace do usuário por `fonte` e deixa o plugin instalado. (deu certo, saída). Nunca `marketplace remove`: ele
+    desinstala o plugin do usuário e dos projetos e apaga o `enabledPlugins` do `.claude/settings.json` versionado (FORGE-SEMPRE-ATUAL,
+    prova U3); o `add <url>#<tag> --scope user` sobre a marketplace existente sobe e desce a versão (prova U2) e mantém os projetos."""
     codigo, saida = claude(["plugin", "marketplace", "add", fonte, "--scope", "user"])
     if codigo != 0:
         return False, saida
@@ -379,10 +380,8 @@ def comandos_manuais(fonte):
 
 
 def devolver_original(original):
-    """Readiciona exatamente a fonte e o escopo de antes (se a marketplace era do escopo do usuário; senão só tira a do usuário)."""
-    if original["escopo"] != "user":
-        claude(["plugin", "marketplace", "remove", MARKETPLACE, "--scope", "user"])
-        return instalar_plugin()[0]
+    """Readiciona a fonte de antes por `add` sobre a existente (nunca `remove`, que desinstalaria os projetos). Escopo "outro": a fonte
+    de antes vinha de fora do settings do usuário; o `add` a declara também no escopo do usuário, que é o que o `forge atualizar` usa."""
     return trocar_marketplace(original["fonte"])[0]
 
 
