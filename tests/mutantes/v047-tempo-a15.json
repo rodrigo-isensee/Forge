@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "filtro da linha de registro (parada, nota) que nao e movimento de coluna (A15)",
       "arquivo": "bin/forge_voltas.py",
-      "de": "    movimentos = [m for m in movimentos if _sem_acento(m[2]).strip() not in NAO_MOVIMENTO]\n",
-      "para": "    movimentos = list(movimentos)\n",
+      "de": "_sem_acento(m[2]).strip() not in NAO_MOVIMENTO]",
+      "para": "_sem_acento(m[2]).strip() not in ()]",
       "testes": [
         "tests.test_voltas.VoltasTempo.test_fases_do_historico_real_com_parada_fora_e_ultima_coluna_aberta"
       ]
@@ -24,12 +24,12 @@
     },
     {
       "id": "M3",
-      "guarda": "ultimo trecho do cartao fica aberto, nao medido (A15)",
+      "guarda": "o trecho so fecha quando ha movimento seguinte; o penultimo nao vira aberto (A15)",
       "arquivo": "bin/forge_voltas.py",
-      "de": "        else:\n            abertas.add(fase)\n",
-      "para": "        else:\n            pass\n",
+      "de": "if i + 1 < len(movimentos):",
+      "para": "if i + 1 < len(movimentos) - 1:",
       "testes": [
-        "tests.test_voltas.VoltasTempo.test_fase_ainda_aberta_e_nao_medido_e_a_razao_tambem"
+        "tests.test_voltas.VoltasTempo.test_fases_do_historico_real_com_parada_fora_e_ultima_coluna_aberta"
       ]
     },
     {

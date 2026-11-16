@@ -31,6 +31,36 @@
       "testes": [
         "tests.test_voltas.VoltasTempo.test_fases_do_historico_real_com_parada_fora_e_ultima_coluna_aberta"
       ]
+    },
+    {
+      "id": "M12",
+      "guarda": "ultimo trecho do cartao fica aberto, nao medido (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        else:\n            abertas.add(fase)\n",
+      "para": "        else:\n            pass\n",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_fase_ainda_aberta_e_nao_medido_e_a_razao_tambem"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "processo soma so as fases medidas (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "if tempo[f] != NAO_MEDIDO]",
+      "para": "if tempo[f] == NAO_MEDIDO]",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_fases_do_historico_real_com_parada_fora_e_ultima_coluna_aberta"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "nao-medido sai como texto, numero pelo _numero (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "tempo[f] if tempo[f] == NAO_MEDIDO else _numero",
+      "para": "tempo[f] if tempo[f] != NAO_MEDIDO else _numero",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_fases_do_historico_real_com_parada_fora_e_ultima_coluna_aberta"
+      ]
     }
   ]
 }
