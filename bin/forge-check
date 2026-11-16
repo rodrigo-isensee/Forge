@@ -9002,10 +9002,37 @@ def prova_do_arquivo(raiz, head, comando):
     return ("ok", False) if existe else (f"{nome_seguro(caminho)} não existe", True)
 
 
+def tmpdir_da_prova(pasta):
+    """E2.316: o TMPDIR do ambiente para a prova (o mktemp dela não cai no /tmp somente leitura do sandbox), só se é caminho
+    absoluto de pasta do próprio usuário, gravável e fora do repositório (a worktree `pasta` e a do .git comum); senão None."""
+    valor = os.environ.get("TMPDIR", "")
+    if not os.path.isabs(valor):
+        return None
+    real = os.path.realpath(valor)
+    try:
+        info = os.stat(real)
+    except OSError:
+        return None
+    if not stat.S_ISDIR(info.st_mode):
+        return None
+    if info.st_uid != os.getuid():
+        return None
+    if not os.access(real, os.W_OK | os.X_OK):
+        return None
+    cod, comum = git(pasta, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    repos = [os.path.realpath(pasta)] + ([os.path.dirname(os.path.realpath(comum))] if not cod and comum else [])
+    if any(os.path.commonpath([real, r]) == r for r in repos):
+        return None
+    return real
+
+
 def rodar_prova(script, argv, espera, pasta):
     """(linha, reprova) de um PQ `cmd` da lista do `scripts/reexecutar-provas.py`, rodado sem shell na `pasta` (a worktree da branch)."""
     ambiente = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LC_ALL": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1",
                 "HOME": os.environ.get("HOME", "/")}
+    tmpdir = tmpdir_da_prova(pasta)
+    if tmpdir:
+        ambiente["TMPDIR"] = tmpdir
     try:
         r = subprocess.run(argv, cwd=pasta, env=ambiente, capture_output=True, text=True, timeout=TEMPO_DA_PROVA_S, stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
