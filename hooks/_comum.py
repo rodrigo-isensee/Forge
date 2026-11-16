@@ -2759,8 +2759,9 @@ def barrar_sem_versao(hook, critico, bruto):
 PRAZO_DA_DECISAO_S = 3.0
 # O `gh pr merge` decide pelo `forge-check pr` (cerca de 2 s; mais com a máquina carregada): com 3 s ele caía no prazo com
 # o git respondendo rápido. A linha com `gh pr merge` ganha este prazo, abaixo do `timeout` do parecer no hooks.json (10 s)
-# com folga; estourado, recusa como o de 3 s. Sem cache de veredito no merge: seria um arquivo que o agente escreve (v0455); o
-# `gh pr create` lê o resultado gravado pelo `forge-check pr` (PR-HOOK-PRAZO, decisão do dono na v046).
+# com folga; estourado, recusa como o de 3 s. O resultado gravado pelo `forge-check pr` é um arquivo que o agente pode escrever
+# (v0455): o `gh pr create` o lê (PR-HOOK-PRAZO, v046); no `gh pr ready` e no `gh pr merge` (E2.117) o aprovado libera só no
+# clone do Forge, onde o CI de pareceres é o segundo portão, e o reprovado recusa em todo lugar; no projeto, o merge confere.
 PRAZO_DO_MERGE_S = 8.0
 
 

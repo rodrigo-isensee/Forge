@@ -1,0 +1,87 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CF9",
+      "guarda": "E1.140: --conferir sem --base, com SPEC ou com --cobertura é erro de uso",
+      "arquivo": "bin/forge-mutante",
+      "de": "        if not args.base or args.spec or args.cobertura:",
+      "para": "        if not args.base:",
+      "testes": [
+        "tests.test_forge_mutante.Conferir.test_conferir_exige_base_e_recusa_spec_e_cobertura"
+      ]
+    },
+    {
+      "id": "CF10",
+      "guarda": "E1.140: --conferir roda o modo próprio, não a cobertura",
+      "arquivo": "bin/forge-mutante",
+      "de": "    if args.conferir:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_mutante.Conferir.test_de_no_lugar_sai_0_e_de_que_sumiu_depois_da_spec_sai_1_com_a_spec_e_o_trecho"
+      ]
+    },
+    {
+      "id": "CF11",
+      "guarda": "E1.140 (candidata 8): o log que não se grava vira aviso, sem cair",
+      "arquivo": "bin/forge-mutante",
+      "de": "    except OSError as erro:  # candidata 8 da retro 0.45.6",
+      "para": "    except ValueError as erro:  # candidata 8 da retro 0.45.6",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_log_que_nao_se_grava_vira_aviso_e_o_veredito_fica"
+      ]
+    },
+    {
+      "id": "CF12",
+      "guarda": "E1.140: módulo de teste ausente no commit não derruba a rodada",
+      "arquivo": "bin/forge-mutante",
+      "de": "        except ValueError:\n            continue",
+      "para": "        except KeyError:\n            continue",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_controle_vermelho_por_teste_fora_do_commit_diz_qual_teste_falta_commitar"
+      ]
+    },
+    {
+      "id": "CF13",
+      "guarda": "E1.140: o último nome do id precisa estar no módulo do commit",
+      "arquivo": "bin/forge-mutante",
+      "de": "or re.search(rf\"\\b(def|class)",
+      "para": "or not re.search(rf\"\\b(def|class)",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_controle_vermelho_por_teste_fora_do_commit_diz_qual_teste_falta_commitar",
+        "tests.test_forge_mutante.Execucao.test_controle_vermelho_sai_2"
+      ]
+    },
+    {
+      "id": "CF14",
+      "guarda": "E1.140: sem módulo nem nome no commit, o teste está fora",
+      "arquivo": "bin/forge-mutante",
+      "de": "            return True\n    return False\n\n\ndef provar(",
+      "para": "            return True\n    return True\n\n\ndef provar(",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_controle_vermelho_por_teste_fora_do_commit_diz_qual_teste_falta_commitar"
+      ]
+    },
+    {
+      "id": "CF15",
+      "guarda": "E1.140: só o controle vermelho procura teste fora do commit",
+      "arquivo": "bin/forge-mutante",
+      "de": "if estado == \"vermelho\" else []",
+      "para": "if estado != \"vermelho\" else []",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_controle_vermelho_por_teste_fora_do_commit_diz_qual_teste_falta_commitar"
+      ]
+    },
+    {
+      "id": "CF16",
+      "guarda": "E1.140: o aviso só sai com teste fora do commit",
+      "arquivo": "bin/forge-mutante",
+      "de": "(commite o teste e rode de novo)\" if fora else \"\"",
+      "para": "(commite o teste e rode de novo)\" if True else \"\"",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_controle_vermelho_sai_2"
+      ]
+    }
+  ]
+}

@@ -118,24 +118,8 @@
       "id": "I24",
       "guarda": "bin/forge-check:6974 (m := ENTREGA_CONFERIDA.match(linha)) and sha_do_commit(raiz, m.group(1)) == m.group(1) (negada)",
       "arquivo": "bin/forge-check",
-      "de": "        elif (m := ENTREGA_CONFERIDA.match(linha)) and sha_do_commit(raiz, m.group(1)) == m.group(1):",
-      "para": "        elif not ((m := ENTREGA_CONFERIDA.match(linha)) and sha_do_commit(raiz, m.group(1)) == m.group(1)):",
-      "testes": [
-        "tests.test_classe_risco",
-        "tests.test_proximo",
-        "tests.test_etapa_do_brief",
-        "tests.test_volta_por_delta",
-        "tests.test_entrega_git_falha",
-        "tests.test_reval_delta",
-        "tests.test_forge"
-      ]
-    },
-    {
-      "id": "I25",
-      "guarda": "bin/forge-check:6976 sha_do_commit(raiz, f'refs/heads/{branch}') or sha_do_commit(raiz, f'refs/remotes/origin/{branch}') (negada)",
-      "arquivo": "bin/forge-check",
-      "de": "                head = sha_do_commit(raiz, f\"refs/heads/{branch}\") or sha_do_commit(raiz, f\"refs/remotes/origin/{branch}\")",
-      "para": "                head = not (sha_do_commit(raiz, f\"refs/heads/{branch}\") or sha_do_commit(raiz, f\"refs/remotes/origin/{branch}\"))",
+      "de": "        elif (m := ENTREGA_CONFERIDA.match(linha)):\n            conferidas.update",
+      "para": "        elif not ((m := ENTREGA_CONFERIDA.match(linha))):\n            conferidas.update",
       "testes": [
         "tests.test_classe_risco",
         "tests.test_proximo",
@@ -150,8 +134,8 @@
       "id": "I26",
       "guarda": "bin/forge-check:6977 head and e_ancestral(raiz, m.group(1), head) (negada)",
       "arquivo": "bin/forge-check",
-      "de": "                if head and e_ancestral(raiz, m.group(1), head):",
-      "para": "                if not (head and e_ancestral(raiz, m.group(1), head)):",
+      "de": "for cobre, branch in pendentes if contem(branch, m.group(1)))",
+      "para": "for cobre, branch in pendentes if not (contem(branch, m.group(1))))",
       "testes": [
         "tests.test_classe_risco",
         "tests.test_proximo",
