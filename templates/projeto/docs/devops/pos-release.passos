@@ -1,0 +1,15 @@
+# Passos do pós-release deste projeto, lidos por scripts/pos-release (modelo; o devops-engineer preenche).
+# Formato: uma chave por linha. Linha em branco e comentário (#) são ignorados.
+#   alvo-variavel: NOME   variável de ambiente que guarda o alvo (ex.: a conexão da base); o script a exporta aos passos
+#   padrao: VALOR         valor padrão que NUNCA pode ser o alvo (repita a linha para vários)
+#   ensaio-aceita: GLOB   alvos que provam ser descartáveis (o ensaio só roda neles)
+#   real-aceita: GLOB     alvos de verdade (o modo real só roda neles); não pode casar com ensaio-aceita
+#   passo: NOME :: COMANDO   um passo, na ordem; o primeiro que sair com erro para tudo
+# O alvo vem sempre de fora, explícito (sem valor de reserva). Exemplo, com valores inventados:
+#   alvo-variavel: ALVO_POS_RELEASE
+#   padrao: valor-padrao-do-env-example
+#   ensaio-aceita: *://*/descartavel-*
+#   real-aceita: *://*/producao
+#   passo: aplicar migrações :: ./scripts/migrar.sh
+#   passo: conferir saúde :: ./scripts/saude.sh
+# Enquanto não houver passos, o script recusa rodar (nada é feito).
