@@ -141,12 +141,9 @@ def resumo_do_changelog(texto, depois_de, ate):
     return linhas
 
 
-SUPERFICIES = {"projeto": "`forge atualizar`", "forge": "`jarvis-forge --atualizar-vigente` e reinicie a sessão do Forge"}
-
-
-def comando_de_atualizacao(superficie):
-    """O comando que a PESSOA roda para atualizar, conforme a superfície (projeto ou sessão do Forge). Nenhum agente o roda (R-CONFORMIDADE)."""
-    return SUPERFICIES[superficie]
+# FORGE-SEMPRE-ATUAL (ADR 0017, RD10): a versão nova entra sozinha na abertura seguinte; o aviso não manda comando ao dono.
+SUPERFICIES = {"projeto": "ela entra sozinha na próxima abertura do Jarvis sem trabalho em curso",
+               "forge": "a cópia vigente avança sozinha na próxima abertura da sessão do Forge"}
 
 
 def consultar_versao(limite):
@@ -164,8 +161,7 @@ def consultar_versao(limite):
 
 
 def texto_de_versao_nova(atual, nova, superficie="projeto"):
-    ponto = " com ponto de retorno" if superficie == "projeto" else ""
-    return f"Saiu a versão {nova} do Forge (você usa a {atual}). Para atualizar{ponto}, rode no terminal: {comando_de_atualizacao(superficie)}"
+    return f"Saiu a versão {nova} do Forge (você usa a {atual}); {SUPERFICIES[superficie]}. Nada a fazer."
 
 
 def aviso_de_versao_nova(limite, superficie="projeto"):

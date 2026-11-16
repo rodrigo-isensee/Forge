@@ -1,0 +1,16 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A17",
+      "guarda": "com a branch pronta, o aviso não manda rodar o forge-upgrade de novo",
+      "arquivo": "bin/forge-check",
+      "de": "              file=sys.stderr)\n    elif pendentes:",
+      "para": "              file=sys.stderr)\n    if pendentes:",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_linha_da_branch_do_modelo_troca_o_rode_forge_upgrade"
+      ]
+    }
+  ]
+}

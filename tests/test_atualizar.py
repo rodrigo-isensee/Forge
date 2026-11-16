@@ -931,7 +931,7 @@ class AvisoDoDoutor(Base):
         self.assertEqual(len(mensagem.splitlines()), 1)
         self.assertIn("9.9.0", mensagem)
         self.assertIn(VERSAO, mensagem)
-        self.assertIn("forge atualizar", mensagem)
+        self.assertIn("próxima abertura", mensagem)  # v047 E6.6 (ADR 0017): entra sozinha, sem comando ao dono
         r = self.hook("Stop")
         self.assertEqual((r.returncode, r.stdout), (0, ""), "uma vez por dia")
 

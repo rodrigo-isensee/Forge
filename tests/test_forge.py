@@ -3505,6 +3505,46 @@ class ForgeCheck(unittest.TestCase):
         self.escrever(".forge/versao", "0.6.0\n")
         self.assertEqual(fc.migracao_pendente(self.tmp), [])
 
+    def _plugin_do_modelo(self, versao="0.6.0"):
+        fc = carregar_forge_check()
+        plugin = self.tmp / "plugin"
+        (plugin / ".claude-plugin").mkdir(parents=True, exist_ok=True)
+        (plugin / ".claude-plugin/plugin.json").write_text(json.dumps({"version": versao}), encoding="utf-8")
+        fc.PLUGIN = plugin
+        return fc
+
+    def test_branch_do_modelo_pronta_sem_pr(self):  # v047 E6.6 (ADR 0017): a abertura deixa forge/upgrade-<v> só local
+        fc = self._plugin_do_modelo()
+        self.assertIsNone(fc.branch_do_modelo_sem_pr(self.tmp))  # sem .forge/versao: não é projeto do Forge
+        self.escrever(".forge/versao", "0.5.0\n")
+        self.assertIsNone(fc.branch_do_modelo_sem_pr(self.tmp))  # modelo atrás, mas sem a branch
+        git("branch", "forge/upgrade-0.6.0", cwd=self.tmp)
+        self.assertEqual(fc.branch_do_modelo_sem_pr(self.tmp), "forge/upgrade-0.6.0")
+        with mock.patch.object(fc, "git", side_effect=OSError("sem git")):
+            self.assertIsNone(fc.branch_do_modelo_sem_pr(self.tmp))  # git que falha: silêncio, não queda
+        self.escrever(".forge/versao", "0.6.0\n")
+        self.assertIsNone(fc.branch_do_modelo_sem_pr(self.tmp))  # modelo em dia: a branch velha não é aviso
+        self.escrever(".forge/versao", "0.5.0\n")
+        git("update-ref", "refs/remotes/origin/forge/upgrade-0.6.0", "HEAD", cwd=self.tmp)
+        self.assertIsNone(fc.branch_do_modelo_sem_pr(self.tmp))  # já enviada: o PR é de quem a enviou
+
+    def test_linha_da_branch_do_modelo_troca_o_rode_forge_upgrade(self):
+        versao = json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
+        self.escrever(".forge/versao", "0.4.0\n")
+
+        def stderr():
+            r = subprocess.run([*comando_do_forge_check(), "--raiz", str(self.tmp), "docs"], env=ambiente_limpo(),
+                               capture_output=True, text=True, timeout=60)
+            self.assertNotIn("Traceback", r.stderr)
+            return r.stderr
+        saida = stderr()
+        self.assertIn("migração do Forge pendente", saida)
+        self.assertNotIn("pronta, sem PR", saida)
+        git("branch", f"forge/upgrade-{versao}", cwd=self.tmp)
+        saida = stderr()
+        self.assertIn(f"forge-check: aviso: branch forge/upgrade-{versao} pronta, sem PR; o tech-lead a envia", saida)
+        self.assertNotIn("rode forge-upgrade", saida)
+
     SEGURANCA = ("tipo: revisao-seguranca\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\n"
                  "parecer: {p}\nrevisor: forge:security-engineer\ndata: 2026-10-14\n{extra}")
 
