@@ -1,0 +1,157 @@
+{
+  "pedido": "v047-pos-release",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "PR1",
+      "guarda": "E2.223: o valor padrão do projeto nunca é o alvo",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "[ \"$alvo\" != \"$p\" ] || recusar",
+      "para": "[ \"$alvo\" != \"$p\" ] || true",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_recusa_o_valor_padrao"
+      ]
+    },
+    {
+      "id": "PR2",
+      "guarda": "E2.223: alvo vazio ou ausente é recusado, sem valor de reserva",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "[ -n \"$alvo\" ] || recusar",
+      "para": "true || recusar",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_recusa_alvo_vazio_ou_ausente"
+      ]
+    },
+    {
+      "id": "PR3",
+      "guarda": "E2.223: o ensaio só roda em alvo que prova ser descartável",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "|| recusar \"ensaio só em alvo descartável",
+      "para": "|| true; : \"ensaio só em alvo descartável",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_ensaio_recusa_alvo_que_nao_prova_ser_descartavel"
+      ]
+    },
+    {
+      "id": "PR4",
+      "guarda": "E2.223: o modo real só roda em alvo que casa com real-aceita",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "|| recusar \"modo real:",
+      "para": "|| true; : \"modo real:",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_real_recusa_alvo_descartavel"
+      ]
+    },
+    {
+      "id": "PR5",
+      "guarda": "E2.223: regras de ensaio e real que se sobrepõem são recusadas",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "&& casa \"$alvo\" \"${real_aceita[@]}\"; then",
+      "para": "&& false; then",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_recusa_regras_ambiguas"
+      ]
+    },
+    {
+      "id": "PR6",
+      "guarda": "E2.223: o primeiro passo com erro para tudo",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "    exit 1",
+      "para": "    continue",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_para_no_primeiro_erro_e_diz_qual"
+      ]
+    },
+    {
+      "id": "PR7",
+      "guarda": "E2.223: só ensaio ou real são modos válidos",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "ensaio|real) ;;",
+      "para": "*) ;;",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_recusa_modo_invalido_e_sem_modo"
+      ]
+    },
+    {
+      "id": "PR8",
+      "guarda": "E2.223: chave desconhecida no arquivo de passos é recusada",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "*) recusar \"chave desconhecida",
+      "para": "*) : \"chave desconhecida",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_recusa_chave_desconhecida_e_passo_mal_formado"
+      ]
+    },
+    {
+      "id": "PR9",
+      "guarda": "E2.223: passo sem separador é recusado",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "*) recusar \"passo sem",
+      "para": "*) : \"passo sem",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_recusa_chave_desconhecida_e_passo_mal_formado"
+      ]
+    },
+    {
+      "id": "PR10",
+      "guarda": "E2.223: passo com comando em branco é recusado",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "|| [ -z \"${comando//[[:space:]]/}\" ]",
+      "para": "|| [ -z \"${comando}x\" ]",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_recusa_chave_desconhecida_e_passo_mal_formado"
+      ]
+    },
+    {
+      "id": "PR11",
+      "guarda": "E2.223: arquivo sem passo não conta como sucesso",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "[ \"${#rotulos[@]}\" -gt 0 ] ||",
+      "para": "true ||",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_recusa_arquivo_sem_passo_sem_regra_de_ensaio_ou_sem_variavel"
+      ]
+    },
+    {
+      "id": "PR12",
+      "guarda": "E2.223: sem ensaio-aceita não há prova de alvo descartável",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "[ \"${#ensaio_aceita[@]}\" -gt 0 ] ||",
+      "para": "true ||",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_recusa_arquivo_sem_passo_sem_regra_de_ensaio_ou_sem_variavel"
+      ]
+    },
+    {
+      "id": "PR13",
+      "guarda": "E2.223: sem real-aceita o modo real é recusado",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "[ \"${#real_aceita[@]}\" -gt 0 ] ||",
+      "para": "true ||",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_recusa_arquivo_sem_passo_sem_regra_de_ensaio_ou_sem_variavel"
+      ]
+    },
+    {
+      "id": "PR14",
+      "guarda": "E2.223: arquivo de passos ausente é recusado com o motivo",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "[ -f \"$arquivo\" ] ||",
+      "para": "true ||",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_recusa_arquivo_de_passos_ausente"
+      ]
+    },
+    {
+      "id": "PR15",
+      "guarda": "E2.223: a credencial do alvo sai mascarada",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "sed -E 's#(://).*@#\\1***@#;",
+      "para": "sed -E 's#(://)ZZ@#\\1***@#;",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_mascara_a_credencial_do_alvo_no_resumo_e_no_erro",
+        "tests.test_pos_release.PosRelease.test_mascara_senha_com_arroba_barra_e_consulta"
+      ]
+    }
+  ]
+}
