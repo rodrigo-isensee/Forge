@@ -1,0 +1,32 @@
+---
+tipo: revisao-devops
+contrato: 1
+pedido: v047
+branch: melhoria/v047-catraca-hook-por-script
+commit: 3bf731721590d03d93c0daaf715ed2f23b423c9a
+parecer: aprovado
+revisor: forge:devops-engineer
+data: 2026-11-16
+---
+# Review de devops: v047
+
+## Achados
+- A1 (recomendado) tests/catraca.py:276 · interpretador que não é Python (`bash -x x.sh`) falha fechado: mudar só a opção acusa remoção do hook. Falso positivo seguro, resolve-se com o rótulo; vale registrar no texto da regra se aparecer.
+
+## Detalhes
+Aprovado. Classe C pelo gatilho (`tests/catraca.py` é protegido da catraca); a diff não toca `.github/`, `Dockerfile*`, `compose*`, IaC nem `hooks/`. A chave do hook passa de (evento, matcher, command, args sem opção) para (evento, matcher, tipo, interpretador, script). Trocar o script, o tipo (`prompt`), o comando (`true`, `echo`) ou antepor `-c`, `-m`, `/dev/null` remove a chave e barra; opções inócuas do Python e argumentos depois do script não. Sem `-X`/`-W` a falha é fechada. Não há workflow novo, nem permissão, segredo, cache ou ação de terceiros novos.
+
+Revalidado no head 66a3a9a4 (delta 40faab23..66a3a9a4 sem arquivo do domínio; mudaram só `tests/catraca.py`, testes, corpus e mutantes do item): 10 testes OK nas mesmas duas classes. Antes, em 40faab23: `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook` com 8 testes OK; o `hooks/hooks.json` real gera 18 chaves. As sondas S1 a S4, A3 e PR565 do corpus `tests/fixtures/catraca-hooks/sondas.json` dão o esperado. A suíte inteira roda só no CI (não esgotei o tempo local: a classe inteira passou do limite de 100 s). A `develop` avançou 3 commits; a simulação de merge fica para o CI do PR.
+
+Ferramentas: `actionlint`, `shellcheck` e `docker build` não se aplicam (sem workflow, script de shell nem imagem alterados).
+
+Revalidado no head ee91a8f0 (delta 66a3a9a4..ee91a8f0, volta 3): `forge-check parecer delta` não acusa arquivo do domínio; mudaram `tests/catraca.py`, testes, corpus (28 sondas) e mutantes. A chave do hook ganha os campos extras em JSON (`if`, `async`), a forma exec (`args`, mesmo vazio) lê o `command` como executável inteiro, o `command` sem `args` só vira termos se for ASCII imprimível (senão falha fechada) e `-b` saiu das opções inócuas. `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook`: 12 testes OK; o `hooks/hooks.json` real segue com 18 chaves. A1 continua recomendado, sem mudança. O parecer segue aprovado.
+
+## Custo e rollback
+Sem minutos de CI novos além da suíte já existente (os testes novos somam cerca de 7 s) e sem recurso pago (`R-CUSTO`). Rollback: reverter o commit do merge; a catraca volta à chave anterior, sem estado nem migração.
+
+Revalidado no head 230dfb01 (volta 4, delta ee91a8f0..230dfb01 sem arquivo do domínio; `forge-check parecer delta` diz "nenhum arquivo do domínio mudou"; mudaram `tests/catraca.py`, testes, corpus, mutantes e fragmento do item). A10 (hooks.json fora do esquema: lista fechada de eventos e tipos, falha fechada) e as sondas S12 a S16 e `real` do corpus: `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook` com 14 testes OK. Nada novo em workflow, permissão, segredo, cache ou ação de terceiros. A1 segue recomendado. A classe inteira passa de 120 s local; fica ao CI.
+
+Revalidado no head 24256248 (voltas 5 e 6, delta 230dfb01..24256248): `forge-check parecer delta` diz "nenhum arquivo do domínio mudou"; mudaram `tests/catraca.py`, testes, corpus, mutantes, `achados-recorrentes.md` e fragmento. Timeout finito maior que 0 (A12, S17) e lista de 31 eventos conferida com o binário do Claude Code 2.1.224 (A6, S18): `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook` com 14 testes OK em 3,9 s. Nada novo em workflow, permissão, segredo, cache ou ação de terceiros. A1 segue recomendado. O parecer segue aprovado.
+
+Revalidado no head 3bf73172 (junção com a develop, delta 24256248..3bf73172): `forge-check parecer delta` diz "nenhum arquivo do domínio mudou" no escopo sem o que veio da base; só `tests/catraca.py` do item está fora do domínio. `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook`: 14 testes OK em 3,1 s. Nada novo em workflow, permissão, segredo, cache ou ação de terceiros. A1 segue recomendado. O parecer segue aprovado.

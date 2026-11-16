@@ -1,0 +1,18 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (C7): fora de projeto do Forge (sem .forge/versao), o agentes não age: o R-BRIEF antecipado não recusa ali.",
+  "forge": false,
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:tech-lead",
+      "description": "Conferir",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

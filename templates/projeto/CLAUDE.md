@@ -7,6 +7,9 @@ Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, http
 ## Stack
 - Pacote do Forge: `{{STACK}}` (`stacks/{{STACK}}/` no Forge: agentes de desenvolvimento, skills, `seguranca.md` e `pronto.md`). O Jarvis delega o desenvolvimento só aos agentes desse pacote; sem esta seção vale `node-react`.
 
+## Sessão
+- Abra e retome o Jarvis sempre no automático: `jarvis` ou `claude --agent forge:jarvis --permission-mode auto`. No primeiro comando o Jarvis confere o sandbox do Bash; se falhar, para e avisa o dono com o comando para reabrir a sessão (o dono nunca aprova comando a comando).
+
 ## Fonte da verdade
 <!-- Documentos de referência do sistema (briefing, especificações, contratos). Aponte caminho e o que cada um decide. -->
 - `docs/pedidos/`: pedidos do usuário, um arquivo por pedido.
@@ -20,6 +23,8 @@ Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, http
 - **Pronto** (critério de entrega dos agentes): `{{COMANDO_PRONTO}}`
 - **Testes rápidos**: <!-- comando de testes da stack -->
 - **Linha de status (opcional)**: `forge-status` mostra uma linha por pedido em curso; para ligar, ponha `"statusLine": {"type": "command", "command": "forge-status"}` em `.claude/settings.local.json`.
+
+- **Ambiente:** durante o trabalho, desligue a atualização automática da extensão do Claude Code (ela reinicia a sessão e leva os agentes em curso); o nome da opção muda entre versões, procure por atualização automática nas configurações da extensão.
 
 ## Exceções locais às regras da fábrica
 <!-- Só o que diverge do Forge, com o motivo. Ex.: teto de recursos diferente, outro banco, outra branch de integração. -->

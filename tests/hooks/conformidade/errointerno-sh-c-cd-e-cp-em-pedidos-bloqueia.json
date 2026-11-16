@@ -1,0 +1,21 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (A2, AR-8): erro interno com `cd` dentro de `sh -c '…'` antes da escrita recusa: o invólucro não esconde a troca de base.",
+  "forcar": {
+    "onde": "Guarda.bash",
+    "como": "erro"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "sh -c 'cd docs && cp x pedidos/v1.md'"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "erro interno do hook conformidade",
+    "erros_log": "erro forcado"
+  }
+}

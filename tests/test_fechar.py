@@ -18,6 +18,8 @@ RAIZ = Path(__file__).resolve().parent.parent
 SCRIPT = RAIZ / "bin" / "forge-fechar"
 
 GH_FALSO = r'''#!/usr/bin/env bash
+# GH-VERSAO-MINIMA: a conferência do passo 1 lê a versão; não entra no registro (os testes leem a 1ª chamada). VERSAO_GH muda a versão.
+[ "$1" = "--version" ] && { echo "gh version ${VERSAO_GH:-2.104.0} (2026-11-12)"; exit 0; }
 echo "gh $*" >> "$REGISTRO"
 # falha_n <arquivo>: se o arquivo guarda um número > 0, desconta um e falha (erro passageiro, como o 502 do GitHub)
 falha_n() {
@@ -70,6 +72,13 @@ case "$1 $2" in
       *state*) falha_n falha_estado && exit 1; cat "$ESTADO/estado" 2>/dev/null || echo OPEN; exit 0 ;;
     esac ;;
   "pr create")
+    # como o CI real (passo "Nada pula degrau", review A2): o par head/base passa pelo modo `degrau` da catraca, com a tabela PROMOCOES
+    # e o head do servidor; recusado, o PR não nasce (no GitHub, nasceria vermelho e nunca mesclaria)
+    todos="$*"; b="${todos#*--base }"; b="${b%% *}"; h="${todos#*--head }"; h="${h%% *}"
+    s="$(git ls-remote origin "refs/heads/$h" | awk -v r="refs/heads/$h" '$2 == r {print $1}')"
+    if ! env -u GITHUB_STEP_SUMMARY HEAD_REPO=o/r BASE_REPO=o/r python3 -I "$CATRACA_REAL" --modo degrau --ramo "$h" --base-ref "$b" --head "${s:-sem-head}" >/dev/null 2>&1; then
+      echo "degrau recusado: $h -> $b" >> "$REGISTRO"; echo "pull request create failed: $h -> $b fora da tabela de promoções" >&2; exit 1
+    fi
     n="$(cat "$ESTADO/numero_criado" 2>/dev/null || echo 7)"
     echo "$n develop" > "$ESTADO/aberto"
     if [ -f "$ESTADO/saida_create" ]; then cat "$ESTADO/saida_create"; else echo "https://github.com/o/r/pull/$n"; fi
@@ -96,6 +105,15 @@ case "$1 $2" in
     # R7: com "auto_arma", o --auto só arma (checks obrigatórios pendentes); "mescla_apos" N: o GitHub mescla na N-ésima leitura do estado
     if [ -f "$ESTADO/auto_arma" ] && [[ "$*" == *" --auto "* ]]; then : > "$ESTADO/armado"; exit 0; fi
     echo MERGED > "$ESTADO/estado"; exit 0 ;;
+  "run list")
+    # FECHAR-ESPERA-CI-DEVELOP: só a forma que o script pede (evento push, commit e o --jq dele); a saída é a do --jq: id, status e conclusão.
+    [[ "$*" =~ ^run\ list\ --branch\ [a-z]+\ --event\ push\ --commit\ ([0-9a-f]{7,64})\ --json\ databaseId,status,conclusion\ --jq\ (.*)$ ]] || exit 64
+    [ "${BASH_REMATCH[2]}" = '.[] | [.databaseId, .status, .conclusion] | @tsv' ] || exit 64
+    falha_n falha_runs && { echo "HTTP 502" >&2; exit 1; }
+    # runs_pendentes N: as N primeiras leituras saem em andamento; depois runs_<sha>, senão runs, senão uma execução verde
+    falha_n runs_pendentes && { printf '1\tin_progress\t\n'; exit 0; }
+    cat "$ESTADO/runs_${BASH_REMATCH[1]}" 2>/dev/null || cat "$ESTADO/runs" 2>/dev/null || printf '1\tcompleted\tsuccess\n'
+    exit 0 ;;
 esac
 exit 64
 '''
@@ -109,6 +127,17 @@ if [ "$1 $2" = "push origin" ] && [ "$3" = "--delete" ]; then
   if [ "$n" -gt 0 ]; then echo $((n - 1)) > "$ESTADO/falha_delete"; echo "HTTP 502" >&2; exit 1; fi
   # $ESTADO/delete_apaga_e_falha: o servidor apaga a ref, mas a resposta se perde (o comando sai com erro)
   if [ -f "$ESTADO/delete_apaga_e_falha" ]; then "$REAL_GIT_FALSO" "$@" >/dev/null 2>&1; exit 1; fi
+fi
+# $ESTADO/lsremote_develop_ok N: as N primeiras leituras da develop no servidor passam; depois falham ("vazio" em lsremote_develop_modo: sem a ref)
+if [ "$1 $2 $3" = "ls-remote origin refs/heads/develop" ] && [ -f "$ESTADO/lsremote_develop_ok" ]; then
+  n="$(cat "$ESTADO/lsremote_develop_ok")"
+  if [ "$n" -gt 0 ]; then echo $((n - 1)) > "$ESTADO/lsremote_develop_ok"
+  elif [ "$(cat "$ESTADO/lsremote_develop_modo" 2>/dev/null)" = vazio ]; then exit 0
+  else echo "HTTP 502" >&2; exit 1; fi
+fi
+# $ESTADO/develop_no_servidor: o topo da develop que o servidor devolve (o item falso do lote o move ao "mesclar")
+if [ "$1 $2 $3" = "ls-remote origin refs/heads/develop" ] && [ -f "$ESTADO/develop_no_servidor" ]; then
+  printf '%s\trefs/heads/develop\n' "$(cat "$ESTADO/develop_no_servidor")"; exit 0
 fi
 case "$1 $2" in
   "worktree remove")
@@ -151,7 +180,7 @@ class Fechar(unittest.TestCase):
         self.env.update(HOME=str(self.tmp), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.tmp / "gitconfig"),
                         FORGE_GH=str(self.tmp / "gh"), FORGE_CHECK=str(self.tmp / "check"),
                         REGISTRO=str(self.registro), ESTADO=str(self.estado), FORGE_FECHAR_INTERVALO="0",
-                        FORGE_FECHAR_TESTE="1", FORGE_FECHAR_LOG_DIR=str(self.tmp / "logs"),
+                        FORGE_FECHAR_TESTE="1", FORGE_FECHAR_LOG_DIR=str(self.tmp / "logs"), CATRACA_REAL=str(RAIZ / "tests" / "catraca.py"),
                         FORGE_PROMOVER=promover_falso(self.tmp / "promover.py", "promover"))
         (self.tmp / "bin").mkdir()
         (self.tmp / "bin" / "git").write_text(GIT_FALSO, encoding="utf-8")
@@ -201,7 +230,7 @@ class Fechar(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         chamadas = self.chamadas()
-        self.assertEqual(chamadas[0], f"forge-check pr p1 --ref {sha} --base origin/develop")  # B5: o parecer é conferido no sha
+        self.assertEqual(chamadas[0], "forge-check pr p1 --ref refs/heads/melhoria/x --base origin/develop")  # B5: o parecer é conferido no sha
         self.assertTrue(any(c.startswith("gh pr create --base develop --head melhoria/x") for c in chamadas))
         self.assertIn(f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha}", chamadas)
         self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
@@ -292,11 +321,10 @@ class Fechar(unittest.TestCase):
         self.assertEqual(self.estado_do_repo(), antes)
 
     def test_para_no_primeiro_erro_forge_check(self):
-        sha = self.git("rev-parse", "melhoria/x")
         r = self.fechar("p1", "--ref", "melhoria/x", CHECK_RC="1")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("passo 1", r.stderr)
-        self.assertEqual(self.chamadas(), [f"forge-check pr p1 --ref {sha} --base origin/develop"])
+        self.assertEqual(self.chamadas(), ["forge-check pr p1 --ref refs/heads/melhoria/x --base origin/develop"])
 
     def test_para_se_head_remoto_difere_do_local(self):
         self.git("switch", "-q", "melhoria/x")
@@ -502,16 +530,14 @@ class Fechar(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("não consegui conferir", r.stdout)
 
-    def test_dry_run_descreve_o_sha_e_o_numero_do_pr_que_os_passos_usam(self):
-        sha = self.git("rev-parse", "melhoria/x")
+    def test_dry_run_descreve_o_nome_e_o_numero_do_pr_que_os_passos_usam(self):
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn(f"pr p1 --ref {sha} --base", r.stdout)
+        self.assertIn("pr p1 --ref refs/heads/melhoria/x --base", r.stdout)
         self.assertIn("gh pr checks <número do PR", r.stdout)
         self.assertIn("gh pr view <número do PR", r.stdout)
         self.assertNotIn("pr checks melhoria/x", r.stdout)
         self.assertNotIn("pr view melhoria/x", r.stdout)
-        self.assertNotIn("--ref melhoria/x --base", r.stdout)
         self.assertIn("gh pr merge melhoria/x", r.stdout)  # o passo 6 roda por nome
         self.assertEqual(self.chamadas(), [])
 
@@ -940,7 +966,10 @@ class Fechar(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", CHECK_RC="1")
         self.assertNotEqual(r.returncode, 0)
         linhas = self.log_de(r).read_text().splitlines()
-        self.assertTrue(any("parou no passo 1" in x for x in linhas[-3:]), linhas)
+        # stdout e stderr têm registradores próprios, sem ordem entre si (contrato do registrar): a parada é a última linha [err],
+        # não uma das três últimas (CI do PR 547, Python 3.14, parte 2/3: o "[1] pareceres" do stdout gravado depois do [err])
+        erros = [x for x in linhas[:-1] if " [err] " in x]
+        self.assertTrue(erros and "parou no passo 1" in erros[-1], linhas)
         self.assertTrue(linhas[-1].endswith(" fim: código 1"), linhas)
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
         self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))

@@ -1,0 +1,86 @@
+{
+  "pedido": "melhorias-de-projeto-1311",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "pré-envio só nos briefs de autor (codigo e pr); parecer fica sem ele",
+      "arquivo": "bin/forge-check",
+      "de": "if (etapa or \"codigo\") not in (\"codigo\", \"pr\") or not e_o_forge",
+      "para": "if (etapa or \"codigo\") not in (\"codigo\", \"pr\", \"review\") or not e_o_forge",
+      "testes": [
+        "tests.test_pre_envio_brief.Gerar.test_parecer_nao_leva_o_pre_envio_do_autor"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "pré-envio da fábrica só no Forge (catraca, forge-testes e .githooks/pre-push não existem no projeto)",
+      "arquivo": "bin/forge-check",
+      "de": "(\"codigo\", \"pr\") or not e_o_forge(Path(raiz)):",
+      "para": "(\"codigo\", \"pr\") or False:",
+      "testes": [
+        "tests.test_pre_envio_brief.Gerar.test_fora_do_forge_nao_cobra_o_pre_envio_da_fabrica"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "testes afetados só no codigo: a junção (pr) envia sem eles",
+      "arquivo": "bin/forge-check",
+      "de": "if (etapa or \"codigo\") == \"codigo\" and CAMINHO_DE_CODIGO.search(entregar):",
+      "para": "if CAMINHO_DE_CODIGO.search(entregar):",
+      "testes": [
+        "tests.test_pre_envio_brief.Gerar.test_juncao_fica_sem_os_testes_afetados"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "testes afetados só quando o Entregar declara caminho de código",
+      "arquivo": "bin/forge-check",
+      "de": "== \"codigo\" and CAMINHO_DE_CODIGO.search(entregar):",
+      "para": "== \"codigo\" and True:",
+      "testes": [
+        "tests.test_pre_envio_brief.Gerar.test_so_texto_fica_sem_os_testes_afetados"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "com PR, o parecer só aprova com o gh pr checks do head verde",
+      "arquivo": "bin/forge-check",
+      "de": "    pr, _ = pr_da_branch(raiz, branch)\n    if pr:",
+      "para": "    pr, _ = pr_da_branch(raiz, branch)\n    if False:",
+      "testes": [
+        "tests.test_pre_envio_brief.Gerar.test_parecer_com_pr_so_aprova_com_o_ci_do_head_verde"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "sem PR, o parecer diz que a suíte fica para o CI do PR",
+      "arquivo": "bin/forge-check",
+      "de": "    if pr == {}:\n        return \"- sem PR para a branch",
+      "para": "    if False:\n        return \"- sem PR para a branch",
+      "testes": [
+        "tests.test_pre_envio_brief.Gerar.test_parecer_sem_pr_diz_que_a_suite_fica_para_o_ci"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "a linha do CI do head é só dos briefs de parecer",
+      "arquivo": "bin/forge-check",
+      "de": "    if branch and etapa in ETAPAS_DE_PARECER:\n        saida.append(linha_do_ci_do_parecer",
+      "para": "    if branch and etapa in ETAPAS_DE_PARECER + (\"codigo\",):\n        saida.append(linha_do_ci_do_parecer",
+      "testes": [
+        "tests.test_pre_envio_brief.Gerar.test_codigo_traz_descricao_texto_e_testes_afetados"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o Entregar da etapa coberta é o que decide os testes afetados",
+      "arquivo": "bin/forge-check",
+      "de": "pqs_de_pre_envio(raiz, etapa, dados[\"etapas\"][coberta][1] if coberta else \"\")",
+      "para": "pqs_de_pre_envio(raiz, etapa, dados[\"etapas\"][coberta][1] if False else \"\")",
+      "testes": [
+        "tests.test_pre_envio_brief.Gerar.test_codigo_traz_descricao_texto_e_testes_afetados"
+      ]
+    }
+  ]
+}
