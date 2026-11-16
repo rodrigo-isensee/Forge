@@ -17,7 +17,9 @@ No clone do Forge (`raiz_de_estado`: `~/Forge` e as worktrees de `~/.forge-contr
 `hooks_desligados`, e o PR fica em rascunho até o parecer: `gh pr create --draft` passa sem parecer e `gh pr ready`
 exige o parecer, como o merge (o GitHub não mescla PR em rascunho).
 O `gh pr create` fora do rascunho decide pelo resultado que o `forge-check pr` gravou para o mesmo head, branch e base
-(PR-HOOK-PRAZO, `verificar` com `gravado`): sem o aprovado, recusa e diz o comando a rodar antes.
+(PR-HOOK-PRAZO, `verificar` com `gravado`): sem o aprovado, recusa e diz o comando a rodar antes. O `gh pr ready` e o
+`gh pr merge` usam o mesmo resultado como atalho (E2.117): o aprovado do mesmo head e base decide sem refazer a checagem, o
+reprovado recusa e, sem ele, a conferência de hoje decide como antes (o prazo vencido diz o comando que grava o resultado).
 Falha fechado nas ações críticas (ADR 0009, seção 7), também no clone do Forge.
 """
 import collections
@@ -108,8 +110,11 @@ SEM_AMBIENTE = Ambiente(frozenset(), bool(DESVIOS & set(os.environ)))
 # vai pelas ferramentas de arquivo, e o programa, noutra chamada
 GRAVE_E_RODE_NOUTRA = "grave pelo Write ou Edit e rode o programa noutra chamada"
 BASES = ("develop", "origin/develop", "main", "origin/main", "master", "origin/master")
-# PR-HOOK-PRAZO: o prazo vencido do `gh pr create` sem o resultado gravado diz o comando que o grava (cabe nos 200 caracteres)
+# PR-HOOK-PRAZO: o prazo vencido do `gh pr create`, `gh pr ready` ou `gh pr merge` sem o resultado gravado diz o comando que o
+# grava (cabe nos 200 caracteres)
 CONTORNO_DO_PRAZO = "rode antes forge-check pr"
+# `gravado` do `verificar`: o `gh pr create` exige o resultado gravado; `gh pr ready` e `gh pr merge` o usam como atalho (E2.117)
+EXIGE, ATALHO = "exige", "atalho"
 
 
 def so_le_ou_espera(script):
@@ -546,11 +551,12 @@ def exigidos_sem_pedido(fc, raiz, ref, base):
     return fc.pareceres_exigidos(classe, infra, seguranca), classe
 
 
-def verificar(hook, raiz, branch, ref, base, dica="", gravado=False):
+def verificar(hook, raiz, branch, ref, base, dica="", gravado=None):
     """Bloqueia se a branch não tem os pareceres exigidos aprovados e válidos. Os exigidos são os do `forge-check` (P5: a classe
-    da entrega mais os gatilhos de segurança e devops; o review vale sempre). `dica` abre o motivo. `gravado` (PR-HOOK-PRAZO, só o
-    `gh pr create`): o resultado que o `forge-check pr` gravou para o mesmo head, branch e base decide sem refazer a checagem; sem
-    ele, a conferência de hoje só dá o motivo, e a recusa vem mesmo sem violação, com o comando a rodar antes."""
+    da entrega mais os gatilhos de segurança e devops; o review vale sempre). `dica` abre o motivo. `gravado` (PR-HOOK-PRAZO): o
+    resultado que o `forge-check pr` gravou para o mesmo head, branch e base decide sem refazer a checagem (o aprovado libera, o
+    reprovado recusa). Sem ele, a conferência de hoje decide e o prazo vencido diz o comando que o grava; com `EXIGE` (o
+    `gh pr create`), a recusa vem mesmo sem violação; com `ATALHO` (`gh pr ready` e `gh pr merge`, E2.117), sem violação libera."""
     fc = forge_check()
     guarda_de_versao(fc, raiz)
     pedida = base
@@ -576,7 +582,7 @@ def verificar(hook, raiz, branch, ref, base, dica="", gravado=False):
             rid, texto = separar_regra(violacoes[0], "R-REVIEW")
             extra = f" (e mais {len(violacoes) - 1})" if len(violacoes) > 1 else ""
             bloquear(rid, f"{dica}{texto}{extra}; confira com forge-check pr {pedido}.")
-    if motivo:  # PR-HOOK-PRAZO: a conferência de hoje não achou violação, mas o `gh pr create` exige o resultado gravado
+    if motivo and gravado == EXIGE:  # PR-HOOK-PRAZO: a conferência de hoje não achou violação, mas o `gh pr create` exige o gravado
         bloquear("R-REVIEW", f"{dica}{motivo}")
 
 
@@ -601,7 +607,7 @@ def pull_request(hook, pasta, base, head, rascunho):
             return  # projeto: a branch não existe localmente, nada a conferir aqui
     candidatas = (base, f"origin/{base}") if base else (b for b in BASES if nome_da_branch(b) != branch)
     verificar(hook, raiz, branch, ref, next((b for b in candidatas if existe(raiz, b)), None),
-              "sem parecer aprovado, abra com gh pr create --draft; " if forge else "", gravado=True)
+              "sem parecer aprovado, abra com gh pr create --draft; " if forge else "", gravado=EXIGE)
 
 
 def pronto_de_pr(hook, pasta, alvo, desfaz):
@@ -621,7 +627,7 @@ def pronto_de_pr(hook, pasta, alvo, desfaz):
                              "git fetch e tente de novo.")
     base = base_do_pr(raiz, branch)
     verificar(hook, raiz, branch, ref, next((b for b in (base, f"origin/{base}") if existe(raiz, b)), None),
-              "PR sai do rascunho só com parecer: ")
+              "PR sai do rascunho só com parecer: ", gravado=ATALHO)
 
 
 def merge(hook, pasta, alvos, branches):
@@ -782,7 +788,7 @@ def merge_de_pr(hook, pasta, repo, alvo):
     if ref is None:
         bloquear("R-REVIEW", f"branch `{branch}` não existe localmente, sem parecer a conferir. Corrigir: "
                              "git fetch e tente de novo.")
-    verificar(hook, raiz, branch, ref, next((b for b in (base, f"origin/{base}") if existe(raiz, b)), None))
+    verificar(hook, raiz, branch, ref, next((b for b in (base, f"origin/{base}") if existe(raiz, b)), None), gravado=ATALHO)
 
 
 def merge_por_api(hook, pasta, args):

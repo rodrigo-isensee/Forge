@@ -1,0 +1,2 @@
+### Corrigido
+- Hook parecer decide gh pr ready e gh pr merge no prazo (PR-HOOK-RAPIDO, v047 E2.117): o resultado gravado do forge-check pr do mesmo head e base vale como atalho (aprovado libera sem refazer a checagem, reprovado recusa, head ou base diferente refaz a conferência e o prazo vencido diz rode antes forge-check pr); o forge-check lê os pareceres de uma ref em lote (ls-tree e cat-file --batch por pasta): forge-check pr de 3029 para 299 chamadas git e de 18,6 s para 3,8 s na mesma branch.

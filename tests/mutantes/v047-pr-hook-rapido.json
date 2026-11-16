@@ -1,0 +1,94 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "PHR1",
+      "guarda": "E2.117: só o gh pr create exige o resultado gravado; no ready e no merge, sem ele, decide a conferência de hoje",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if motivo and gravado == EXIGE:",
+      "para": "    if motivo:",
+      "testes": [
+        "tests.test_pr_hook_rapido.AtalhoDoReadyEDoMerge.test_sem_resultado_e_sem_violacao_a_conferencia_de_hoje_libera"
+      ]
+    },
+    {
+      "id": "PHR2",
+      "guarda": "E2.117: o gh pr ready decide pelo resultado gravado do mesmo head e base",
+      "arquivo": "hooks/parecer.py",
+      "de": "\"PR sai do rascunho só com parecer: \", gravado=ATALHO)",
+      "para": "\"PR sai do rascunho só com parecer: \", gravado=None)",
+      "testes": [
+        "tests.test_pr_hook_rapido.AtalhoDoReadyEDoMerge.test_aprovado_do_mesmo_head_libera_so_lendo_no_prazo"
+      ]
+    },
+    {
+      "id": "PHR3",
+      "guarda": "E2.117: o gh pr merge decide pelo resultado gravado do mesmo head e base",
+      "arquivo": "hooks/parecer.py",
+      "de": "existe(raiz, b)), None), gravado=ATALHO)",
+      "para": "existe(raiz, b)), None), gravado=None)",
+      "testes": [
+        "tests.test_pr_hook_rapido.AtalhoDoReadyEDoMerge.test_aprovado_do_mesmo_head_libera_so_lendo_no_prazo"
+      ]
+    },
+    {
+      "id": "PHR4",
+      "guarda": "DOC-LOTE: pasta ausente na ref (rev-parse que falha) não chama o git de novo",
+      "arquivo": "bin/forge-check",
+      "de": "textos_da_arvore(str(raiz), arvore) if not cod else {}",
+      "para": "textos_da_arvore(str(raiz), arvore) if True else {}",
+      "testes": [
+        "tests.test_pr_hook_rapido.DocumentosEmLote.test_chamadas_git_por_pasta"
+      ]
+    },
+    {
+      "id": "PHR5",
+      "guarda": "DOC-LOTE: só arquivo (blob) .md da pasta entra, como no git show por arquivo",
+      "arquivo": "bin/forge-check",
+      "de": "if len(partes) == 3 and partes[1] == \"blob\" and nome.endswith(\".md\"):",
+      "para": "if len(partes) == 3 and nome.endswith(\".md\"):",
+      "testes": [
+        "tests.test_pr_hook_rapido.DocumentosEmLote.test_mesmo_texto_do_git_show"
+      ]
+    },
+    {
+      "id": "PHR6",
+      "guarda": "DOC-LOTE: pasta sem .md não roda o cat-file",
+      "arquivo": "bin/forge-check",
+      "de": "    if not blobs:\n        return {}\n    lote = git(",
+      "para": "    if False:\n        return {}\n    lote = git(",
+      "testes": [
+        "tests.test_pr_hook_rapido.DocumentosEmLote.test_chamadas_git_por_pasta"
+      ]
+    },
+    {
+      "id": "PHR7",
+      "guarda": "DOC-LOTE: cabeçalho sem fim de linha (saída truncada) não é lido",
+      "arquivo": "bin/forge-check",
+      "de": "lote[pos:fim].split() if fim >= 0 else []",
+      "para": "lote[pos:fim].split() if True else []",
+      "testes": [
+        "tests.test_pr_hook_rapido.DocumentosEmLote.test_lote_fora_do_pedido_nao_le_nada"
+      ]
+    },
+    {
+      "id": "PHR8",
+      "guarda": "DOC-LOTE: o lote responde o objeto pedido, na ordem; senão nada é lido",
+      "arquivo": "bin/forge-check",
+      "de": "if len(cabecalho) != 3 or cabecalho[0].decode() != blob:",
+      "para": "if len(cabecalho) != 3:",
+      "testes": [
+        "tests.test_pr_hook_rapido.DocumentosEmLote.test_lote_fora_do_pedido_nao_le_nada"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "n.endswith(\".md\")",
+      "linha_base": 348,
+      "motivo": "DOC-LOTE: o filtro de .md foi para textos_da_arvore, junto do filtro de blob, provado pelo mutante PHR5"
+    }
+  ]
+}
