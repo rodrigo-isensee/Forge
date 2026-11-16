@@ -1,0 +1,63 @@
+diff --git a/.githooks/pre-push b/.githooks/pre-push
+index f944360..7d01f1b 100755
+--- a/.githooks/pre-push
++++ b/.githooks/pre-push
+@@ -56,8 +56,11 @@ trava_arquivo() {
+   return 1
+ }
+ # Texto da trava (de outro processo): até 200 bytes, só imprimíveis, para um escape gravado nela não chegar ao terminal (C-14).
++# PRE-PUSH-TEXTO-TRAVA-FD: lê o arquivo já aberto e conferido no descritor 9 (/proc/self/fd/9), não o caminho: trocar o caminho por
++# um link depois da conferência não desvia a leitura. Sem o descritor aberto, texto vazio (falha fechada).
+ texto_da_trava() {
+-  head -c 200 -- "$trava" 2>/dev/null | LC_ALL=C tr -cd '[:print:]' || true
++  [ -e /proc/self/fd/9 ] || return 0
++  head -c 200 -- /proc/self/fd/9 2>/dev/null | LC_ALL=C tr -cd '[:print:]' || true
+ }
+ # Confere o arquivo já aberto no descritor 9 (não o caminho): do próprio usuário e não é link no caminho.
+ trava_confere() {
+@@ -336,7 +339,7 @@ tipo_de_script() {
+   case "$primeira" in '#!'*python*) echo python ;; '#!'*bash*|'#!'*/sh|'#!'*' sh') echo shell ;; esac
+ }
+ checagens_baratas() {
+-  local arquivo falhas=0 shell=() ancora branch envio ponta ref saida rc
++  local arquivo falhas=0 shell=() ancora branch envio ponta ref saida rc controle
+   for arquivo in "${alterados[@]}"; do
+     if [ ! -f "$arquivo" ] || [ -L "$arquivo" ]; then continue; fi
+     n_baratas=$((n_baratas + 1))
+@@ -370,6 +373,25 @@ checagens_baratas() {
+       echo "pre-push: aviso: scripts/verificar-contribuicao.sh não conferiu o delta (saída ${rc}); o CI confere." >&2
+     fi
+   fi
++  # PREPUSH-LEVE-COBERTURA-CATRACA: diff com Python de controle (a lista da catraca, MUTANTES-SPEC-HOOKS) pede mutante declarado; o CI
++  # reprova sem ele. `bin/forge-mutante --cobertura` não roda teste (menos de 1 s): 1 reprova, outra saída é aviso (o CI confere).
++  if [ -n "$base_dev" ] && [ -f bin/forge-mutante ] && [ ! -L bin/forge-mutante ]; then
++    controle=0
++    for arquivo in "${alterados[@]}"; do
++      case "$arquivo" in hooks/*|bin/*|scripts/*|templates/projeto/*|tests/catraca.py|tests/neutralidade.py) ;; *) continue ;; esac
++      if [ -f "$arquivo" ] && [ ! -L "$arquivo" ] && [ "$(tipo_de_script "$arquivo")" = python ]; then controle=1; break; fi
++    done
++    if [ "$controle" = 1 ] && ancora="$(git merge-base "$base_dev" HEAD 2>/dev/null)"; then
++      rc=0; saida="$(python3 -I bin/forge-mutante --cobertura --base "$ancora" 2>&1)" || rc=$?
++      if [ "$rc" -eq 1 ]; then
++        printf '%s\n' "$saida" | LC_ALL=C tr -d '\000-\011\013-\037\177' >&2
++        echo "pre-push: bin/forge-mutante --cobertura reprovou: condição mudada em código de controle sem mutante declarado (o CI reprova igual); declare em tests/mutantes/<pedido>.json." >&2
++        falhas=1
++      elif [ "$rc" -ne 0 ]; then
++        echo "pre-push: aviso: bin/forge-mutante --cobertura não conferiu o delta (saída ${rc}); o CI confere." >&2
++      fi
++    fi
++  fi
+   # O changelog é o do HEAD: confere quando o HEAD é a ponta de uma branch enviada (o nome da branch decide o fragmento).
+   if [ -n "$base_dev" ] && [ -f bin/forge-changelog ] && [ ! -L bin/forge-changelog ] && [ -f .claude-plugin/plugin.json ]; then
+     for envio in "${envios[@]}"; do
+@@ -406,7 +428,9 @@ fi
+ espera="${FORGE_TRAVA_ESPERA:-1200}"
+ case "$espera" in ''|*[!0-9]*) echo "pre-push: FORGE_TRAVA_ESPERA deve ser um número de segundos inteiro (veio '${espera}')." >&2; exit 1 ;; esac
+ intervalo="${FORGE_FILA_INTERVALO:-60}"
+-case "$intervalo" in ''|*[!0-9]*) echo "pre-push: FORGE_FILA_INTERVALO deve ser um número de segundos inteiro (veio '${intervalo}')." >&2; exit 1 ;; esac
++# FILA-INTERVALO-ZERO: 0 (ou 00...) imprimiria a fila a cada 0,2 s; recusado como o valor inválido.
++case "$intervalo" in ''|*[!0-9]*) echo "pre-push: FORGE_FILA_INTERVALO deve ser um número de segundos inteiro maior que zero (veio '${intervalo}')." >&2; exit 1 ;; esac
++[ "$((10#$intervalo))" -gt 0 ] || { echo "pre-push: FORGE_FILA_INTERVALO deve ser um número de segundos inteiro maior que zero (veio '${intervalo}')." >&2; exit 1; }
+ trava="$(trava_arquivo criar)" || exit 1
+ if [ -L "$trava" ]; then
+   echo "pre-push: ${trava} é link simbólico ou não é do próprio usuário; recusado. Apague-o e tente de novo." >&2
