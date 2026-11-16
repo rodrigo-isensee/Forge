@@ -3,26 +3,39 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-pos-release
-commit: fb7dccb4f31f290b147879709dafff67cebc7038
-parecer: reprovado
+commit: 76e00f859a469a2067bc8106f7ba89224b67cc90
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
 ---
-# Review: v047 (pós-release em script único, E2.223; review E2.224)
+# Review: v047 (pós-release em script único, E2.223; review E2.224, revalidação E2.239)
 
 ## Achados
-- A1 (bloqueante) templates/projeto/scripts/pos-release:31 · O glob `[[:space:]]*'#'*` pula toda linha recuada com # em qualquer posição: um passo recuado com comentário no fim some calado e o resumo diz OK (S1). Pular só vazia ou com # como 1º não branco; o resto cai na recusa da :32. Mesmo defeito do A1 da segurança.
-- A2 (bloqueante) templates/projeto/scripts/pos-release:32 · Guarda sem mutante nem teste do ramo de falha (R-QA, AR-1): trocar `|| recusar "linha que não entendo` por `|| continue` deixa os 17 testes verdes (S2). Declarar o mutante e testar uma linha fora do formato (rc=2, nada roda).
-- A3 (recomendado) templates/projeto/scripts/pos-release:42 · O ramo do nome vazio (`passo:  :: cmd`) não tem teste; o PR10 cobre só o comando vazio na mesma linha. Um caso a mais no teste de passo mal formado fecha o ramo.
-- A4 (recomendado) templates/projeto/scripts/pos-release:55 · Máscara deixa parte da senha com @ (sondado: `db://u:p@ss@h/...` sai `db://***@ss@h/...`); já é o A2 da segurança, citado e não refeito.
-- A5 (recomendado) tests/mutantes/v047-pos-release.json:1 · Os dois commits da entrega têm a mesma mensagem; o segundo (fb7dccb4) tira o export e o PR16. Na volta, mensagem que diga o que o commit muda (Conventional Commits).
+- A1 (recomendado) templates/projeto/scripts/pos-release:31 · Corrigido no head 76e00f85: só linha vazia ou que começa por # é pulada; a linha recuada com comentário no fim cai na recusa da :32 (S1 repetida: rc=2, nada roda). Mantido como registro; não bloqueia mais.
+- A2 (recomendado) templates/projeto/scripts/pos-release:32 · Corrigido no head 76e00f85: PR20 declarado e morto por test_linha_recuada_ou_com_comentario_no_fim_nao_e_pulada (S2 repetida). Mantido como registro; não bloqueia mais.
+- A3 (recomendado) templates/projeto/scripts/pos-release:40 · Corrigido no head 76e00f85: test_passo_com_nome_vazio_e_recusado e PR21, morto.
+- A4 (recomendado) templates/projeto/scripts/pos-release:56 · Corrigido no head 76e00f85: máscara até o último @ e password/senha/token sem caixa (PR22, PR23); o resto da máscara fica com o parecer de segurança (A2 dela).
+- A5 (recomendado) tests/mutantes/v047-pos-release.json:1 · Corrigido no head 76e00f85: o commit da volta tem mensagem própria que diz o que muda.
 
 ## Sondas
 - S1 · passos `passo: um :: echo um`, `   passo: migrar :: echo MIGROU   # aplica a migração`, `passo: dois :: echo dois`; ALVO descartável, modo ensaio · espera: rc=2 ou 3 de 3 passos · obtido: rc=0, `pos-release: OK · 2 de 2 passos`, migrar não rodou
 - S2 · mutante na :32 `|| recusar "linha que não entendo` → `|| continue; : "linha que não entendo`, `python3 -m unittest tests.test_pos_release` · espera: algum teste falha · obtido: 17 testes OK
+- S3 · S1 no head 76e00f85 · espera: rc=2, nada roda · obtido: rc=2, `pos-release: RECUSADO · linha que não entendo ... · nenhum comando rodou`
+- S4 · PR19 a PR23 com `bin/forge-mutante --processos 1 tests/mutantes/v047-pos-release-3.json` no head 76e00f85 · espera: morrem · obtido: os 5 morreram
 
 ## Parecer
-Reprovado no head fb7dccb4. Intervalo `9d10894f..fb7dccb4` (Base-sha igual ao merge-base), 2 commits; o remoto já trazia o parecer de segurança (9982e820), integrado aqui por avanço rápido.
+Aprovado no head 76e00f85 (revalidação E2.239, volta 1). Delta lido: `forge-check parecer delta docs/reviews/v047-pos-release.md`, intervalo `fb7dccb4..76e00f85`, no domínio: `changelog.d/v047-pos-release.md`, `docs/engineering/achados-recorrentes.md`, `templates/projeto/docs/devops/pos-release.md`, `templates/projeto/docs/devops/pos-release.passos`, `templates/projeto/scripts/pos-release`, `tests/mutantes/v047-pos-release-3.json`, `tests/mutantes/v047-pos-release.json`, `tests/test_pos_release.py`.
+
+Achados da volta anterior, todos resolvidos no head:
+- A1: a :31 passa a `[[ "$linha" =~ ^[[:space:]]*(#|$) ]] && continue`; a S1 repetida no head sai com código 2 e `pos-release: RECUSADO · linha que não entendo ... · nenhum comando rodou`. O mutante PR19 (volta o glob antigo) morre.
+- A2: PR20 declarado na :32, morre em `test_linha_recuada_ou_com_comentario_no_fim_nao_e_pulada` (recuada, com # no fim e sem chave recusadas; vazia, `#` e `#` recuado ignorados).
+- A3: `test_passo_com_nome_vazio_e_recusado` e PR21 (:40), morre.
+- A4: máscara até o último `@` e `password=|senha=|token=...` sem caixa (PR22, PR23 e PR15 ajustado); sondado `db://u:p@ss@h/descartavel-1?Token=abc&x=1` sai `db://***@h/descartavel-1?Token=***&x=1`. Parecer de segurança revalidado e aprovado no mesmo head (aba9c83b), citado.
+- A5: o commit da volta tem mensagem própria (`fix(modelo): pos-release só ignora linha vazia ...`).
+
+Conferido no head 76e00f85: `python3 -m unittest tests.test_pos_release` com 20 OK; `shellcheck` limpo; `bin/forge-mutante --processos 1 tests/mutantes/v047-pos-release-3.json` com PR19 a PR23 mortos; `bin/forge-mutante --conferir --base fb7dccb4` diz que o trecho de cada spec do diff está no lugar (sem AR-12). O `.md` e o `.passos` acompanham o script (glob com host literal, `alvo-variavel` igual à variável que os passos leem). A bateria inteira fica para o CI do PR, sem nova rodada aqui.
+
+Histórico da volta anterior: reprovado no head fb7dccb4. Intervalo `9d10894f..fb7dccb4` (Base-sha igual ao merge-base), 2 commits; o remoto já trazia o parecer de segurança (9982e820), integrado aqui por avanço rápido.
 
 O que muda: `templates/projeto/scripts/pos-release` lê os passos e as regras do alvo de `docs/devops/pos-release.passos`, confere o alvo antes do primeiro comando (vazio, valor padrão, modo sem regra que case, regra ambígua), roda os passos na raiz com stdin fechado, para no primeiro erro e termina numa linha `pos-release:`. O `.md` só explica. Faz o que o cartão POS-RELEASE-SCRIPT-UNICO (Q5) pede, sem nada de projeto (R-NEUTRO); o `forge-init` copia o bit de execução (`bin/forge-init:164`).
 
