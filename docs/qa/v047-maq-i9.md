@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-maq-i9
-commit: 029b6456889d801782d65c06adc1ce0423cb2b54
-parecer: reprovado
-escopo: completo
+commit: ca3017805fcfb5c3c6321d65e587e2b58a942764
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -17,7 +17,7 @@ data: 2026-11-16
 Escopo: `bin/forge-testes` (a suíte completa sem `-k` só roda por `.githooks/pre-push --suite` da própria cópia; R-TETO), testes em `tests/test_testes_tocados.py`, specs `tests/mutantes/v047-maq-i9.json` e `-2.json`. Sem especificação de UX nem contrato de API (ferramenta interna); as obrigações são as de C-1, C-4, C-5 e T-2 do desenho citados nos testes e no changelog.
 
 ## Achados
-- A1 (bloqueante) tests/test_testes_tocados.py:1674 · `forge-testes --vermelho 4138445e` sai 2: `test_completo_por_plano_so_roda_com_o_status_livre` dá erro (B=erro) na base, porque `self.registro.unlink()` sem `missing_ok=True` levanta FileNotFoundError; sem veredito (R-QA). Use `unlink(missing_ok=True)`.
+- A1 (bloqueante, corrigido em ca301780) tests/test_testes_tocados.py:1674 · `unlink(missing_ok=True)` aplicado; o vermelho agora dá veredito (rc 0).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -25,7 +25,7 @@ Escopo: `bin/forge-testes` (a suíte completa sem `-k` só roda por `.githooks/p
 | C-5 completa pedida passa pela trava (`execv` de `pre-push --suite`) | `TravaDoForgeTestes.test_completa_pedida_vira_o_pre_push_da_copia_com_suite` | argv fixo `--suite`, código 7 chega inteiro | passou; prova (asserção) |
 | C-1 script de outra cópia sai 2 | `test_script_de_outra_copia_sai_2_no_completo` | raiz do script diferente da raiz do git | passou; prova (asserção) |
 | C-1 pre-push sem `+x` ou ausente sai 2, sem recuo ao `discover` (T-2) | `test_pre_push_sem_x_ou_ausente_sai_2_sem_recuo_para_o_discover` | permissão, arquivo ausente | passou; prova (asserção) |
-| C-4 plano completo só roda com `--status` 1 (0, 2, 3, sinal = ocupado) | `test_completo_por_plano_so_roda_com_o_status_livre` | código logo fora do livre, morte por sinal | passou no HEAD; vermelho sem veredito (A1) |
+| C-4 plano completo só roda com `--status` 1 (0, 2, 3, sinal = ocupado) | `test_completo_por_plano_so_roda_com_o_status_livre` | código logo fora do livre, morte por sinal | passou no HEAD; prova (asserção) após A1 |
 | `-k` e `--afetados` seguem como antes | `test_completa_com_k_segue_como_antes`, `test_afetados_nao_passa_pela_trava` | `-k`, plano que nunca é a completa | passou; neutros na base (esperado) |
 | Sem mapa cai na completa e não a roda de outra cópia | `Execucao.test_sem_mapa_cai_na_completa_e_o_script_de_outra_copia_nao_a_roda`, `test_completa_pedida_e_listar_nao_roda_nada` | `--listar` não roda nada | passou; prova (asserção) |
 | Medida da vaga segue com `-k` | `MedidaDaVagaPesada.rodar_com` | n/a | passou |
@@ -39,5 +39,8 @@ Escopo: `bin/forge-testes` (a suíte completa sem `-k` só roda por `.githooks/p
 - Suíte inteira: não rodada localmente; fica para o check-run `bateria` do mesmo sha no CI do PR.
 - Achados recorrentes (PA-7): AR-1 conferido (lista cobre o diff); AR-4 conferido (`LIMPO` tira `CI`, `FORGE_*`, `GIT_*` do ambiente dos testes novos); AR-5 conferido (`python -I` nos testes novos); sem classe repetida nova, sem linha `AR-<n>` a gravar.
 
-## Revalidação
-Corrigido A1, rodar `forge-check parecer delta docs/qa/v047-maq-i9.md` e `bin/forge-testes --vermelho 4138445e --modulos test_testes_tocados`: a saída deve sair 0.
+## Revalidação (delta 029b6456..ca301780)
+- `forge-check parecer delta`: só `tests/test_testes_tocados.py` (uma linha: `self.registro.unlink(missing_ok=True)`); sem mudança em `bin/`, logo mutantes e demais resultados anteriores seguem valendo.
+- `bin/forge-testes --vermelho 4138445e --modulos test_testes_tocados`: `contagem: não prova (passa na base)=148; prova (asserção)=8; pulado=1`, sem veredito=0, nada cai no HEAD, rc=0 (antes: prova=7, sem veredito=1, rc=2).
+- `python3 -m unittest tests.test_testes_tocados.TravaDoForgeTestes`: `Ran 6 tests`, `OK`.
+- Suíte inteira: check-run `bateria` do mesmo sha no CI do PR.
