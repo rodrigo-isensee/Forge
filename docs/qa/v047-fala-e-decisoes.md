@@ -3,20 +3,21 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-fala-e-decisoes
-commit: fd0a0172774f2744dbfbba81ca10064d4f98ec41
-parecer: aprovado
+commit: 14a29d8f9399b00c1785434af6e9a69fcd3ab826
+parecer: reprovado
 escopo: completo
 bugs_criticos: 0
-bugs_altos: 0
+bugs_altos: 1
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-15
+data: 2026-11-16
 ---
 # QA: v047 · fala só no marco e foco nas decisões (E1.282)
 
 Intervalo `origin/develop..05797223` (base c5c3a449): `agents/jarvis.md`, `skills/falar-com-o-dono/SKILL.md`, `skills/modo-iniciante/SKILL.md`, `tests/config.json`, fragmento de changelog. Só texto e invariantes; nenhum código executável mudou, então não há mutante de `forge-mutante` nem pedido de controle. Os critérios vêm das diretrizes 24 e 29 (`docs/diretrizes-do-dono.md`) e do item E1.282 do pedido.
 
 ## Achados
+- A2 (bloqueante) tests/config.json:696 · `invariantes_sem_motivo` de `agents/jarvis.md` segue 48, mas o invariante "diga sempre ao usuário…" voltou: 58 padrões - 9 com motivo = 49; `tests.test_forge -k nvariante` falha. Subir para 49.
 - A1 (recomendado) skills/falar-com-o-dono/SKILL.md:18 · a Resposta curta perdeu o apontamento a `decisoes --resposta` e aos campos de corte; a ferramenta ainda os exige (64 testes verdes), mas quem lê só a skill deixa de saber deles (R-DECISAO).
 
 ## Critério → teste → resultado
@@ -55,5 +56,11 @@ Intervalo `origin/develop..05797223` (base c5c3a449): `agents/jarvis.md`, `skill
 - **Testes locais:** `tests.test_jarvis_nucleo` 20 OK; `tests.test_invariante_gatilho` + `tests.test_modelos_projeto` + `tests.test_textos_dono_f10` 21 OK; `tests.test_forge -k nvariante -k Neutral -k Regra` 15 OK. A suíte inteira roda no CI do PR (sem PR, sem check-run `bateria`).
 - Sem bug novo; achados abertos: nenhum.
 
+## Revalidação 3 (delta fd0a0172..14a29d8f, invariante do Jarvis de volta com o momento, E2.315)
+`forge-check parecer delta` listou 4 arquivos: `agents/jarvis.md`, `changelog.d/v047-fala-e-decisoes.md`, `tests/config.json`, `tests/test_jarvis_nucleo.py`. Só texto, invariante e lista de retirados; sem mutante, vermelho não se aplica.
+- O invariante "diga sempre ao usuário para qual agente passou, no recibo e no aviso de marco, nunca em mensagem extra" está em `agents/jarvis.md:34` (1 ocorrência); `RETIRADOS_047` saiu e `tests.test_jarvis_nucleo` passa (20 OK); `tests.test_orcamento_instrucao` + `test_invariante_gatilho` 9 OK; `tests.test_modelos_projeto` + `test_textos_dono_f10` OK; `forge-check docs` rc=0.
+- **Falha provada:** `python3 -m unittest tests.test_forge -k nvariante -k Neutral -k Regra` = 1 falha em `test_invariante_traz_regra_e_porque_e_o_legado_so_encolhe`: `agents/jarvis.md: trecho novo em arquivo do legado sem regra e porque`. Causa: `tests/config.json:696` diz 48 e o arquivo tem 58 - 9 = 49 (o trecho antigo voltou ao legado). Bug `docs/qa/bugs/v047-legado-jarvis-contagem.md`; corrige o autor (tech-lead/dev).
+- A suíte inteira roda no CI do PR (sem check-run `bateria` no head).
+
 ## Bugs
-Nenhum aberto.
+- Alto aberto: `docs/qa/bugs/v047-legado-jarvis-contagem.md`.
