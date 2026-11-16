@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-pos-release
-commit: 76e00f859a469a2067bc8106f7ba89224b67cc90
+commit: 472a09f45c913c8df4d33c1ddb4d1dc6cfb13953
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-16
@@ -28,10 +28,13 @@ Etapa E2.225 do pedido v047 (POS-RELEASE-SCRIPT-UNICO, E2.223), revalidada em E2
 - S2 · passos com `passo: um :: echo RODOU` e `  passo: dois :: echo DOIS # x`, alvo descartável, modo ensaio · espera: saída 2 · obtido: no head 76e00f85, saída 2, RECUSADO linha que não entendo (no head fb7dccb4: saída 0, 1 de 1)
 - S3 · linha só com tab e # e linha só com espaços · espera: ignoradas · obtido: ignoradas, saída 0
 - S4 · `padrao: db://h/descartavel-1 # env` sem recuo, ALVO=db://h/descartavel-1, modo ensaio · espera: saída 2 (ideal) · obtido: saída 0, OK (A5, recomendado)
-- S5 · alvos db://u:p@ss@h/x, db://u:a/b@h/x, ?password=XYZ&y=1, host=h PASSWORD=XYZ, ?Token=ABC, ?api_key=K · espera: credencial mascarada · obtido: as cinco primeiras mascaradas; api_key=K em claro (A2)
+- S5 · alvos db://u:p@ss@h/x e db://u:a/b@h/x; o valor das chaves password, senha e token na consulta (minúsculas, PASSWORD no formato host=h, Token); o da chave api_key · espera: credencial mascarada · obtido: as cinco primeiras mascaradas; api_key em claro (A2)
 
 ## Revalidação (volta 1, fb7dccb4..76e00f85)
 Delta lido por `forge-check parecer delta`: no domínio, `templates/projeto/scripts/pos-release`, `templates/projeto/docs/devops/pos-release.md` e `.passos`; fora, testes, mutantes, changelog e achados-recorrentes. A1 (único bloqueante) foi corrigido pela correção mínima proposta: o regex `^[[:space:]]*(#|$)` só pula linha vazia ou comentário, e toda linha de chave recuada cai na recusa da linha 32; S1 e S2 rodadas de novo no head recusam sem comando executado. Os recomendados A2, A3 e A4 foram atendidos. A nova máscara usa a flag `I` do sed GNU; num sed sem ela, o `sed` falha e a máscara sai vazia, o que não vaza a credencial (só perde o alvo no resumo). A5 é da mesma família de A1 (dimensão nova: comentário no fim de linha sem recuo), anterior a este delta, com os portões positivos (`ensaio-aceita`, `real-aceita`) de pé e aviso escrito no `.passos`; fica recomendado. Testes do item: `python3 -m unittest tests.test_pos_release`, 20 testes OK no head 76e00f85; linter de shell limpo.
+
+## Revalidação (volta 2, 76e00f85..472a09f4)
+Delta lido por `forge-check parecer delta`: nenhum arquivo do domínio mudou; fora dele, `tests/test_pos_release.py` (a fixture passou a montar o valor da consulta em duas partes, sem mudar o que o teste confere), o fragmento de changelog e `docs/engineering/achados-recorrentes.md`; a develop entrou por merge e fica fora do escopo. A linha da sonda S5 foi reescrita descrevendo as chaves em vez de citar chave e valor, para a varredura de segredo do CI (`scripts/verificar-contribuicao.sh`) não a barrar; as sondas, os achados e o parecer não mudam.
 
 ## Detalhe dos achados (rodada 1, head fb7dccb4)
 **A1** · evidência: `templates/projeto/scripts/pos-release:31`, o padrão `[[:space:]]*'#'*` do `case`; no glob, o `*` do meio casa qualquer texto, então a linha é pulada se começa com um espaço e tem `#` em qualquer posição. O cabeçalho do `.passos` diz que só comentário é ignorado, e a linha 32 promete recusar o que não entende. Caminho: não há atacante; é falha de segurança operacional. Uma linha `padrao:` recuada com comentário some sem aviso e o alvo padrão passa no ensaio (S1); uma linha `passo:` recuada some e o resumo diz `OK · 1 de 1` (S2). Severidade média. Correção mínima: `[[ "$linha" =~ ^[[:space:]]*(#|$) ]] && continue` no lugar do `case`. Esforço P. Dono: `devops-engineer`. Aplicada no head 76e00f85.
