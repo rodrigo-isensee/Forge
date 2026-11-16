@@ -1,7 +1,7 @@
 ---
 tipo: qa
 contrato: 1
-pedido: v047-pos-release
+pedido: v047
 branch: melhoria/v047-pos-release
 commit: 76e00f859a469a2067bc8106f7ba89224b67cc90
 parecer: aprovado
