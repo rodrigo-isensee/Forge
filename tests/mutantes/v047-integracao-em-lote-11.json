@@ -1,0 +1,56 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "IL-M81",
+      "guarda": "a linha da tabela casa também a base",
+      "arquivo": "tests/catraca.py",
+      "de": "if linha[1] == base_ref and re.fullmatch(linha[0], head_ref)), None)",
+      "para": "if re.fullmatch(linha[0], head_ref)), None)",
+      "testes": [
+        "tests.test_catraca_promocao.Tabela.test_pares_da_tabela_e_fora_dela"
+      ]
+    },
+    {
+      "id": "IL-M82",
+      "guarda": "o degrau diz o repositório desconhecido",
+      "arquivo": "tests/catraca.py",
+      "de": "({repo_head or 'repositório desconhecido'}) fora da tabela",
+      "para": "({repo_head}) fora da tabela",
+      "testes": [
+        "tests.test_catraca_promocao.Degrau.test_ramo_da_marca_fora_da_develop_ou_de_fork_e_recusado"
+      ]
+    },
+    {
+      "id": "IL-M83",
+      "guarda": "o modo degrau roda o degrau",
+      "arquivo": "tests/catraca.py",
+      "de": "    elif a.modo == \"degrau\":\n",
+      "para": "    elif False:\n",
+      "testes": [
+        "tests.test_catraca_promocao.Degrau.test_modo_degrau_pela_linha_de_comando"
+      ]
+    },
+    {
+      "id": "IL-M84",
+      "guarda": "fora da promoção o PR mesclado não libera",
+      "arquivo": "tests/catraca.py",
+      "de": "    if not eh_promocao(pr, fonte.repo, raiz):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_catraca.RotuloDePrSquash.test_fora_da_promocao_nao_fala_da_conferencia"
+      ]
+    },
+    {
+      "id": "IL-M85",
+      "guarda": "fora da promoção nada é listado (com a raiz)",
+      "arquivo": "tests/catraca.py",
+      "de": "    if not eh_promocao(fonte.pr_atual() if fonte else None, getattr(fonte, \"repo\", None), raiz):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_catraca.RotuladosDaLeva.test_fora_de_promocao_nada_e_listado"
+      ]
+    }
+  ]
+}

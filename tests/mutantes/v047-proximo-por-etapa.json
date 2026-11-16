@@ -1,0 +1,65 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "PE-M1",
+      "guarda": "o rev-list da branch roda uma vez só (FORGE-CHECK-PROXIMO-LENTO)",
+      "arquivo": "bin/forge-check",
+      "de": "        if branch not in alcance:\n            head = sha_do_commit",
+      "para": "        if True:\n            head = sha_do_commit",
+      "testes": [
+        "tests.test_proximo.ProximoRapido.test_git_por_branch_nao_por_par_de_selo_e_conferida"
+      ]
+    },
+    {
+      "id": "PE-M2",
+      "guarda": "branch do selo sem ref não roda rev-list nem quebra",
+      "arquivo": "bin/forge-check",
+      "de": "frozenset(git(raiz, \"rev-list\", head)[1].split()) if head else frozenset()",
+      "para": "frozenset(git(raiz, \"rev-list\", head)[1].split()) if True else frozenset()",
+      "testes": [
+        "tests.test_proximo.ProximoRapido.test_selo_de_branch_sem_ref_nao_entrega_e_nao_quebra"
+      ]
+    },
+    {
+      "id": "PE-M3",
+      "guarda": "a conferida só entrega o Cobre do selo cuja branch contém o commit",
+      "arquivo": "bin/forge-check",
+      "de": "for cobre, branch in pendentes if contem(branch, m.group(1)))",
+      "para": "for cobre, branch in pendentes if True)",
+      "testes": [
+        "tests.test_proximo.Proximo.test_entrega_conferida_do_brief_selado_entrega_a_etapa_do_cobre",
+        "tests.test_proximo.ProximoRapido.test_selo_de_branch_sem_ref_nao_entrega_e_nao_quebra"
+      ]
+    },
+    {
+      "id": "PE-M4",
+      "guarda": "o commit da conferida precisa estar entre os da branch",
+      "arquivo": "bin/forge-check",
+      "de": "        return sha in alcance[branch]",
+      "para": "        return sha not in alcance[branch]",
+      "testes": [
+        "tests.test_proximo.Proximo.test_entrega_conferida_do_brief_selado_entrega_a_etapa_do_cobre"
+      ]
+    },
+    {
+      "id": "PE-M5",
+      "guarda": "só a linha `entrega conferida <sha40>` entrega o Cobre",
+      "arquivo": "bin/forge-check",
+      "de": "        elif (m := ENTREGA_CONFERIDA.match(linha)):\n            conferidas.update",
+      "para": "        elif (m := ENTREGA_CONFERIDA.match(\"\")):\n            conferidas.update",
+      "testes": [
+        "tests.test_proximo.Proximo.test_entrega_conferida_do_brief_selado_entrega_a_etapa_do_cobre"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "re.search(rf\"(?<![\\w.]){re.escape(etapa)}(?![\\w.])\", l)",
+      "linha_base": 6923,
+      "motivo": "FORGE-CHECK-PROXIMO-LENTO: a busca por etapa virou o índice por termo [\\w.]+ (o id da etapa é um termo inteiro); test_mencao_a_etapa e test_entrega_conferida provam a citação"
+    }
+  ]
+}
