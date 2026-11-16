@@ -1,15 +1,18 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v047-ambiente-sobrevive
+pedido: v047
 branch: melhoria/v047-ambiente-sobrevive
-commit: 584b2239f8debe47126d1b4fee8a24f6996cab9f
+commit: e3dfc4cbeb4b502c1ba31665f37e913863dc0df0
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-15
+data: 2026-11-16
 ---
-# Review de segurança: v047-ambiente-sobrevive (E2.136, revalidação por delta)
+# Review de segurança: v047-ambiente-sobrevive (E2.206, revalidação por delta)
 
+E2.206: revalidação por delta `584b2239..e3dfc4cb` (`forge-check parecer delta`: nenhum arquivo do domínio mudou; só pareceres em `docs/`). O veredito e os achados abaixo valem sem mudança para o head e3dfc4cb. O campo `pedido:` passa a `v047`. Teste do item rodado de novo: `tests.test_ambiente_hook` (6, OK). PA-7 conferida: nenhum item novo se aplica ao delta.
+
+Histórico (E2.136):
 Revalidação por delta `68072575..584b2239` (`forge-check parecer delta`). No domínio entraram os dois devcontainer.json, `scripts/preparar-estacao.sh`, `templates/projeto/.devcontainer/preparar-ambiente.sh`, o hook novo `hooks/ambiente.py` e a entrada nova em `hooks/hooks.json` (SessionStart), além da emenda da ADR 0003. As specs de mutante `-1` e `-2`, os testes e o fragmento do changelog ficam fora do domínio. O parecer anterior (head 68072575, reprovado) tinha A1 e A2 bloqueantes e A3 recomendado.
 
 ## Gatilhos
