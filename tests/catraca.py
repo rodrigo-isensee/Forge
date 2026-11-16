@@ -255,10 +255,12 @@ def regras_de_config(b, h):
 
 
 SUFIXOS_DE_SCRIPT = (".py", ".sh", ".js", ".mjs", ".cjs", ".ts", ".rb", ".pl")
-OPCOES_INOCUAS_DO_PYTHON = set("bBdEOqsSuv")  # não rodam outro código nem mudam o sys.path (`-c`, `-m`, `-`, `-I`, `-P` mudam)
+OPCOES_INOCUAS_DO_PYTHON = set("BdEOqsSuv")  # não rodam outro código, não mudam o sys.path nem a saída (`-c`, `-I`, `-bb` mudam)
 VALORES_INOCUOS_DE_X = {"utf8", "utf8=0", "utf8=1"}  # outro `-X` (pycache_prefix) e `-W` mudam o que o hook importa ou como sai
 ENV_NA_FRENTE = {"env", "/usr/bin/env", "/bin/env"}  # um `env` do repositório (`./env`) é outro interpretador
 CONTROLE_DO_SHELL = re.compile(r"[;&|<>`]|\$\(")  # depois do script, `|| true` ou `; exit 0` trocam a saída do hook
+SO_ASCII_IMPRIMIVEL = re.compile(r"[ -~]*")  # sem `args`, só aí o shell e o `split` cortam o `command` nos mesmos lugares
+CAMPOS_INOCUOS_DO_HOOK = {"type", "command", "args", "timeout", "statusMessage", "once"}  # `if`, `async`, campo novo: na chave
 
 
 def _ultimo_trecho(termo):
@@ -282,27 +284,45 @@ def _termos_da_opcao_inocua(interp, op, seguinte):
     return 1 if set(op[1:]) <= OPCOES_INOCUAS_DO_PYTHON else 0
 
 
+def termos_do_hook(hk):
+    """Os termos como o Claude Code roda o hook. Com `args` (forma exec, mesmo vazio) o `command` é o executável inteiro, sem
+    shell. Sem `args` o `command` vai ao `sh -c`: dividido em espaço só se for ASCII imprimível; senão `None` (falha fechada)."""
+    comando = str(hk.get("command", ""))
+    if "args" in hk:
+        return [comando] + [str(a) for a in hk["args"]] if isinstance(hk["args"], list) else None
+    return [_sem_aspas(t) for t in comando.split()] if SO_ASCII_IMPRIMIVEL.fullmatch(comando) else None
+
+
+def campos_extras_do_hook(hk):
+    """Os campos fora da lista fechada de inócuos, em JSON canônico: `if` e `async` mudam quando e como o hook roda (A9)."""
+    extras = {k: v for k, v in hk.items() if k not in CAMPOS_INOCUOS_DO_HOOK}
+    return json.dumps(extras, sort_keys=True, ensure_ascii=False) if extras else ""
+
+
 def script_do_hook(hk):
-    """O hook como (tipo, interpretador, script, timeout). Interpretador: o 1º termo como escrito, pulando um `env` do sistema.
-    Script: o 1º termo depois dele que não é opção e tem sufixo de script; só opções inócuas do Python ficam fora (PR 565).
-    Qualquer outra coisa antes do script (`-c`, `-I`, `/dev/null`) ou sem script: a linha inteira, sem interpretador (falha fechada)."""
-    termos = [_sem_aspas(t) for t in str(hk.get("command", "")).split()] + [str(a) for a in hk.get("args", [])]
-    tipo, prazo = str(hk.get("type", "command")), str(hk.get("timeout", "padrão"))
+    """O hook como (tipo, interpretador, script, timeout, campos extras). Interpretador: o 1º termo como escrito, pulando um `env`
+    do sistema. Script: o 1º termo depois dele que não é opção e tem sufixo de script; só opções inócuas do Python ficam fora
+    (PR 565). Qualquer outra coisa antes do script (`-c`, `-I`, `/dev/null`), sem script ou termos ilegíveis: a linha inteira,
+    sem interpretador (falha fechada)."""
+    tipo, prazo, extras = str(hk.get("type", "command")), str(hk.get("timeout", "padrão")), campos_extras_do_hook(hk)
+    termos = termos_do_hook(hk)
+    if termos is None:
+        return tipo, "", json.dumps([hk.get("command"), hk.get("args")], ensure_ascii=False), prazo, extras
     resto = termos[1:] if termos and termos[0] in ENV_NA_FRENTE else termos
     interp, *depois = resto or [""]
     j = 0
     while j < len(depois) and depois[j].startswith("-"):
         passo = _termos_da_opcao_inocua(interp, depois[j], "".join(depois[j + 1:j + 2]))
         if not passo:
-            return tipo, "", " ".join(termos), prazo
+            return tipo, "", " ".join(termos), prazo, extras
         j += passo
     if j < len(depois) and depois[j].endswith(SUFIXOS_DE_SCRIPT) and not CONTROLE_DO_SHELL.search(" ".join(depois[j + 1:])):
-        return tipo, interp, depois[j], prazo
-    return tipo, "", " ".join(termos), prazo
+        return tipo, interp, depois[j], prazo, extras
+    return tipo, "", " ".join(termos), prazo, extras
 
 
 def hooks_contados(texto):
-    """Cada hook como (evento, matcher, tipo, interpretador, script, timeout), contado: dois hooks com a mesma chave são dois."""
+    """Cada hook como (evento, matcher, tipo, interpretador, script, timeout, campos extras), contado: dois hooks com a mesma chave são dois."""
     try:
         dados = json.loads(texto) if texto else {}
     except ValueError:
@@ -322,10 +342,10 @@ def regra_hooks(raiz, b, h):
         return []
     depois = ler(raiz, h, "hooks/hooks.json") or ""
     return [msg("R-CONFORMIDADE", f"hook removido de hooks/hooks.json: {ev} {mt or '*'} {tp} "
-                f"{' '.join(filter(None, (ip, sc)))} (timeout {tm})",
+                f"{' '.join(filter(None, (ip, sc, f'(timeout {tm})', ex)))}",
                 "hook é o que faz a regra valer sem depender de memória", "restaure o hook ou peça o rótulo ao dono",
                 "docs/regras/R-CONFORMIDADE.md")
-            for ev, mt, tp, ip, sc, tm in sorted((hooks_contados(antes) - hooks_contados(depois)).elements())]
+            for ev, mt, tp, ip, sc, tm, ex in sorted((hooks_contados(antes) - hooks_contados(depois)).elements())]
 
 POLITICA = "hooks/conformidade.json"
 

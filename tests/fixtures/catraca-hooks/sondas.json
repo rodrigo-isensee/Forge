@@ -1,5 +1,5 @@
 {
-  "fonte": "hooks/hooks.json real; parecer docs/security/v047-catraca-hook-por-script.md (e8499ce: S1 a S4 e A3; 97d58a7: S5 a S7 e A7)",
+  "fonte": "hooks/hooks.json real; parecer docs/security/v047-catraca-hook-por-script.md (e8499ce: S1 a S4 e A3; 97d58a7: S5 a S7 e A7; 970fba2: S8 a S11 e S1 do review; volta 3: forma-shell, statusMessage)",
   "evento": "PreToolUse",
   "script": "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py",
   "sondas": [
@@ -17,6 +17,19 @@
     {"id": "S7-ponto", "troca": {"command": "./python3"}, "removidos": 1},
     {"id": "A7", "troca": {"timeout": 1}, "removidos": 1},
     {"id": "shell-ou", "troca": {"args": ["-s", "-E", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py", "||", "true"]}, "removidos": 1},
-    {"id": "PR565", "troca": {"command": "/usr/bin/env python3", "args": ["-B", "-u", "-X", "utf8", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py", "--modo", "x"]}, "removidos": 0}
+    {"id": "S8", "troca": {"command": "python3 -s -E ${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py\nexit 0"}, "tira": ["args"], "removidos": 1},
+    {"id": "review-S1", "troca": {"command": "python3 -s -E ${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py\nexit 0"}, "tira": ["args"], "removidos": 1},
+    {"id": "S9", "troca": {"command": "python3\u00a0-s\u00a0-E\u00a0${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"}, "tira": ["args"], "removidos": 1},
+    {"id": "S10", "troca": {"command": "python3 -s", "args": ["-E", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"]}, "removidos": 1},
+    {"id": "S10-aspas", "troca": {"command": "'python3'"}, "removidos": 1},
+    {"id": "S10-vazio", "troca": {"command": "python3 -s -E ${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py", "args": []}, "removidos": 1},
+    {"id": "S11-if", "troca": {"if": "Bash(nunca-casa *)"}, "removidos": 1},
+    {"id": "S11-async", "troca": {"async": true}, "removidos": 1},
+    {"id": "S11-asyncRewake", "troca": {"asyncRewake": true}, "removidos": 1},
+    {"id": "S11-onFailure", "troca": {"onFailure": "continue"}, "removidos": 1},
+    {"id": "S11-shell", "troca": {"shell": "powershell"}, "removidos": 1},
+    {"id": "forma-shell", "troca": {"command": "python3 -s -E ${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"}, "tira": ["args"], "removidos": 0},
+    {"id": "statusMessage", "troca": {"statusMessage": "conferindo", "once": false}, "removidos": 0},
+    {"id": "PR565", "troca": {"command": "/usr/bin/env", "args": ["python3", "-B", "-u", "-X", "utf8", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py", "--modo", "x"]}, "removidos": 0}
   ]
 }

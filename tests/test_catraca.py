@@ -323,8 +323,9 @@ class Hooks(Base):
         """PR 565: só acrescentar `-s -E` acusou todos os hooks; o hook é evento, matcher e script."""
         novo = copy.deepcopy(HOOKS)
         a, b = novo["hooks"]["PreToolUse"][0]["hooks"]
-        a.update(command="/usr/bin/env python3", args=["-s", "-E", "-X", "utf8", "a.py", "--modo", "x"])
-        b.update(command='python3 -Xutf8=1 -B "b.py"', args=[])
+        a.update(command="/usr/bin/env", args=["python3", "-s", "-E", "-X", "utf8", "a.py", "--modo", "x"], statusMessage="x", once=True)
+        b.update(command='python3 -Xutf8=1 -B "b.py"')
+        del b["args"]  # sem `args` o `command` vai ao shell
         self.repo.escreve("hooks/hooks.json", json.dumps(novo))
         self.passa()
 
@@ -345,9 +346,9 @@ class Hooks(Base):
         return catraca.chaves_de_hooks(json.dumps({"hooks": {"Stop": [{"hooks": [hk]}]}}))
 
     def test_hook_sem_script_compara_a_linha_inteira(self):
-        self.assertEqual(self.chaves(command="echo fim"), {("Stop", "", "command", "", "echo fim", "padrão")})
+        self.assertEqual(self.chaves(command="echo fim"), {("Stop", "", "command", "", "echo fim", "padrão", "")})
         self.assertTrue(self.chaves(command="echo fim") - self.chaves(command="echo outro"))
-        self.assertEqual(self.chaves(type="prompt", prompt="x"), {("Stop", "", "prompt", "", "", "padrão")})
+        self.assertEqual(self.chaves(type="prompt", prompt="x"), {("Stop", "", "prompt", "", "", "padrão", '{"prompt": "x"}')})
 
     def test_script_entre_aspas_no_command_e_o_mesmo_script(self):
         """Review A2 (volta 2): `python3 "x.py"` é `x.py` para o shell; aspas sem par não são tiradas (falha fechada)."""
@@ -380,7 +381,9 @@ class Hooks(Base):
                                         dict(command="./python3"), dict(command="hooks/python3"),
                                         dict(command="./env python3"), dict(command="/usr/bin/python3"), dict(timeout=1),
                                         dict(args=["a.py", "||", "true"]), dict(args=["a.py", ";", "exit", "0"]),
-                                        dict(args=["a.py", "$(true)"])],
+                                        dict(args=["a.py", "$(true)"]),
+                                        # volta 3 (review A4): `-bb` faz do BytesWarning exceção
+                                        dict(args=["-bb", "a.py"]), dict(args=["-b", "a.py"])],
                  "perl a.pl": [dict(command="perl -E", args=["a.pl"])]}
         for antes, trocas in casos.items():
             comando, *args = antes.split()
@@ -388,6 +391,31 @@ class Hooks(Base):
             for troca in trocas:
                 with self.subTest(antes=antes, troca=troca):
                     self.assertTrue(self.chaves(**base) - self.chaves(**{**base, **troca}))
+
+    def test_command_lido_como_o_claude_code_o_roda(self):
+        """Volta 3 (A8 da segurança, A1 do QA): com `args` o `command` é o executável inteiro, sem shell; sem `args` vai ao
+        `sh -c`, e quebra de linha, tabulação ou espaço fora do ASCII acusam (falha fechada)."""
+        execu = dict(type="command", command="python3", args=["-s", "-E", "x.py"])
+        self.assertEqual(self.chaves(**execu), self.chaves(type="command", command="python3 -s -E x.py"))
+        forma_exec = [dict(command="python3 -s", args=["-E", "x.py"]), dict(command="'python3'"),
+                      dict(command="python3 -s -E x.py", args=[]),
+                      dict(args={"-s": 0, "-E": 0, "x.py": 0})]  # `args` fora da forma de lista: falha fechada
+        forma_shell = [f"python3 -s -E x.py{c}exit 0" for c in ("\n", "\r", "\t")]
+        forma_shell += ["python3\u00a0-s\u00a0-E\u00a0x.py", "python3 -s -E x.py\u0085"]
+        depois = [{**execu, **troca} for troca in forma_exec] + [dict(type="command", command=c) for c in forma_shell]
+        for hk in depois:
+            with self.subTest(hk=hk):
+                self.assertTrue(self.chaves(**execu) - self.chaves(**hk))
+
+    def test_campo_fora_da_lista_inocua_entra_na_chave(self):
+        """Volta 3 (A9 da segurança): `if`, `async`, `asyncRewake`, `onFailure`, `shell` e campo novo mudam quando e como o hook
+        roda; `statusMessage` e `once` não."""
+        base = dict(type="command", command="python3", args=["x.py"])
+        for campo, valor in (("if", "Bash(nunca *)"), ("async", True), ("asyncRewake", True), ("onFailure", "continue"),
+                             ("shell", "powershell"), ("campoNovo", 1)):
+            with self.subTest(campo=campo):
+                self.assertTrue(self.chaves(**base) - self.chaves(**base, **{campo: valor}))
+        self.assertEqual(self.chaves(**base), self.chaves(**base, statusMessage="x", once=True))
 
     def test_arquivo_de_hooks_apagado_barra(self):
         (self.repo.dir / "hooks/hooks.json").unlink()
@@ -1311,7 +1339,7 @@ class Protegidos(Base):
 
 
 class CorpusDasSondasDeHook(unittest.TestCase):
-    """Sondas S1 a S7, A3 e A7 do parecer de segurança da v047 (catraca por script) sobre o hooks.json real: cada troca no hook de
+    """Sondas S1 a S11, A3 e A7 do parecer de segurança da v047 (catraca por script) sobre o hooks.json real: cada troca no hook de
     conformidade do PreToolUse acusa um hook removido, e a do PR 565 (só `env`, opções e argumentos) nenhum."""
 
     def test_cada_sonda_acusa_o_esperado(self):
@@ -1320,12 +1348,14 @@ class CorpusDasSondasDeHook(unittest.TestCase):
         alvos = [(g, i) for g in antes["hooks"][corpus["evento"]] for i, hk in enumerate(g["hooks"])
                  if corpus["script"] in hk.get("args", [])]
         self.assertEqual(len(alvos), 1)
-        self.assertGreaterEqual(len(corpus["sondas"]), 15)
+        self.assertGreaterEqual(len(corpus["sondas"]), 27)
         for sonda in corpus["sondas"]:
             with self.subTest(sonda=sonda["id"]):
                 depois = copy.deepcopy(antes)
                 grupo = depois["hooks"][corpus["evento"]][antes["hooks"][corpus["evento"]].index(alvos[0][0])]
                 grupo["hooks"][alvos[0][1]].update(sonda["troca"])
+                for campo in sonda.get("tira", []):
+                    del grupo["hooks"][alvos[0][1]][campo]
                 removidos = catraca.chaves_de_hooks(json.dumps(antes)) - catraca.chaves_de_hooks(json.dumps(depois))
                 self.assertEqual(len(removidos), sonda["removidos"], removidos)
 
