@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-hook-estado-ilegivel
-commit: c3f86d7ac652408171ad3f356f4582161e6d9805
+commit: b09916f74ca84dea220e316c36a0a960440a93ce
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-14
+data: 2026-11-15
 ---
 # QA: v047-hook-estado-ilegivel
 
@@ -63,3 +63,12 @@ Instância que não fez a entrega. Head de código `c3f86d7a`; o remoto trouxe s
 **Fixture de 200 KB**: confirmada por tamanho (201783 bytes) e pontas; diff não impresso.
 
 **Docs**: `forge-check docs` rc 0.
+
+## Revalidação por delta (E2.134, junção c3f86d7a..b09916f7)
+Head `b09916f7`: merge da `origin/develop` (`bf475209`) no lote A. `forge-check parecer delta` lista no domínio só `bin/forge-testes`, `tests/test_selo_e_entrega.py` e `tests/test_testes_tocados.py`, todos vindos da develop (E1.277, E1.185, E1.223), fora das obrigações R1 a R6. `git diff c3f86d7a HEAD` não toca `hooks/agentes.py`, `tests/test_estado_ilegivel.py` nem as fixtures do lote. Sem achado novo; A1 a A3 seguem resolvidos.
+
+**Testes locais** (`python3 -m unittest tests.test_estado_ilegivel tests.test_agentes_clone`): `Ran 27 tests in 22.000s`, `OK`. Suíte inteira só no CI do PR; o check-run `bateria` não consultei, nenhuma citação de CI.
+
+**Mutação** (`bin/forge-mutante tests/mutantes/v047-hook-estado-ilegivel{,-2,-3}.json --processos 4`): `rev=b09916f74ca8`, M1 a M17 `morreu` (17 de 17), nenhum sobrevivente. As specs do lote são as três de sempre (sem sufixo, `-2`, `-3`); o código sob mutação não mudou desde `c3f86d7a`.
+
+**Vermelho:** inalterado (código e testes do lote idênticos aos já provados em `c3f86d7a`).
