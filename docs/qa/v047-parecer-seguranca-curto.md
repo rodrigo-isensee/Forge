@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-parecer-seguranca-curto
-commit: 02fe845d9896048bc0a4b504ac9bac0b3a9c7018
+commit: c2138efd8de14c9412bc8f6e6bced8187a8b5283
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -39,6 +39,9 @@ Escopo `5e74c70e...02fe845d`: texto em `agents/security-engineer.md` e nos dois 
 
 ## Achados recorrentes (PA-7)
 Conferidos AR-1 a AR-14: nenhum se aplica (sem código, hook, mutante, comando ou limite numérico alterado). AR-9 (limite antigo no texto): o texto novo não altera limite; o teste prova a frase nova presente. Nenhuma linha nova.
+
+## Revalidação por delta (head c2138efd, E2.379)
+`forge-check parecer delta` lista só `agents/security-engineer.md` (enxugado para caber no teto; sem mudança de regra: IDs `R-SEGURANCA`, `R-REVIEW`, `R-CUSTO`, `R-CONFORMIDADE` etc. mantidos, 8 linhas com ID; 6803 bytes). Frases do parecer curto e a regra de achado de 300 caracteres seguem no texto. Rodados no head: `tests.test_achado_teto_doc` (4 OK), `tests.test_orcamento_instrucao` (8 OK), `tests.test_pesos_teto` (2 OK), `tests.test_clareza` (9 OK), `tests.test_modelos_projeto` (17 OK); `forge-check docs` rc=0. Sem achados novos; o restante do intervalo veio da base (develop). Vermelho antes do verde: sem teste novo no delta (só texto), n/a. Suíte inteira: CI do PR.
 
 ## Mesclagem
 `origin/melhoria/v047-parecer-seguranca-curto` já contido no clone ("Already up to date"); o head testado é ancestral do commit do parecer.
