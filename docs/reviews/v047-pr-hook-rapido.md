@@ -3,16 +3,18 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-pr-hook-rapido
-commit: 6f3f4e7042bf32734c23ae04f1141a7a6e117162
+commit: 0620dc23a27fa7ca5068f8a47fc38e27152d91b6
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-15
+data: 2026-11-16
 ---
 # Code review: hook R-REVIEW rápido no gh pr ready e no gh pr merge (PR-HOOK-RAPIDO, E2.117)
 
-Escopo: pedido v047, etapa E2.153 (`R-REVIEW`), classe C, head `6f3f4e70` (Base-sha `bf475209`), instância que não fez a entrega. Revalidação por delta do parecer aprovado no head `8eebc2a5` (E2.141).
+Escopo: pedido v047, etapa E2.177 (`R-REVIEW`), classe C, head `0620dc23` (Base-sha `134ea4c8`). Revalidação por delta do parecer aprovado no head `6f3f4e70` (E2.153), vencido pelo `2d1503c5` e pela junção com a develop no `0620dc23`.
 
-Delta lido: `forge-check parecer delta docs/reviews/v047-pr-hook-rapido.md`, intervalo `8eebc2a5..6f3f4e70`, no domínio: `bin/forge-check`, `changelog.d/v047-pr-hook-rapido.md`, `docs/hooks-fixtures.md`, `docs/hooks.md`, `hooks/_comum.py`, `hooks/conformidade.py`, `hooks/parecer.py`, as fixtures `tests/hooks/conformidade/gravar-resultado-do-pr-tech-lead-bloqueia.json` e `tests/hooks/parecer/pr-merge-review-reprovado-sem-resultado-bloqueia.json`, `tests/mutantes/v047-pr-hook-rapido-2.json` e `tests/test_pr_hook_rapido.py`. O resto do intervalo são os pareceres de QA, segurança e review e o merge `5f3f9d69`; o código da volta é o commit `6f3f4e70`.
+Delta lido: `forge-check parecer delta docs/reviews/v047-pr-hook-rapido.md`, intervalo `6f3f4e70..0620dc23`, sem o que veio da base; no domínio só `tests/mutantes/v047-pr-hook-rapido.json` (PHR6: `de` e `para` passam a `cod, lote = git(`, a linha de bin/forge-check:354 desde o `6f3f4e70`) e `tests/test_testes_tocados.py` (contagem 85 mantida, comentário refeito sobre os 84 da develop na resolução da junção). Nenhum código de `bin/` ou `hooks/` mudou no intervalo fora da base.
+
+Histórico: aprovado no `8eebc2a5` (E2.141) e no `6f3f4e70` (E2.153); o texto abaixo do A4 é o da E2.153, que segue valendo para o código.
 
 ## Achados
 - A1 (recomendado) hooks/parecer.py:567 · resolvido no projeto: fora do clone do Forge o aprovado gravado não libera o ready nem o merge e a conferência roda (teste S3 e PHR9). No Forge segue o afrouxamento aceito pelo dono (v046), declarado no fragmento, com o CI de pareceres como portão
@@ -20,9 +22,14 @@ Delta lido: `forge-check parecer delta docs/reviews/v047-pr-hook-rapido.md`, int
 - A3 (recomendado) bin/forge-check:5 · resolvido: docstring, comentário em bin/forge-check:1567, hooks/_comum.py:2757 e docs/hooks.md dizem o atalho novo e o limite do projeto
 - A4 (recomendado) bin/forge-check:338 · M14: 361 linhas contadas de código e teste (bf475209...6f3f4e70), acima de 150; o corpo do PR precisa de `teto: excedido, 361 linhas, <motivo>`
 
+- A5 (recomendado) tests/mutantes/v047-pr-hook-rapido.json:59 · resolvido no 2d1503c5: o PHR6 não seguiu a linha que o 6f3f4e70 mudou (AR-12); o review da E2.153 conferiu só a spec -2
+
 ## Sondas
 
 ## Parecer
+**Revalidação E2.177 (delta 6f3f4e70..0620dc23): aprovado.** O PHR6 volta a achar o trecho e morre; a contagem do mapa bate com a develop da junção. AR-12 sobe para 3 em `achados-recorrentes.md`. Verificação no `0620dc23`: `python3 -m unittest tests.test_testes_tocados.Mapa` `Ran 18 tests` `OK`; `bin/forge-mutante --processos 1 tests/mutantes/v047-pr-hook-rapido.json`: PHR1 a PHR8 `morreu` (8/8). Suíte: CI run 43792699555 com as seis partes da suíte verdes no `0620dc23`. O A4 (teto M14 no corpo do PR) segue com o autor.
+
+Parecer da E2.153 (head `6f3f4e70`):
 **Aprovado**, com o A4 pendente para o corpo do PR. A volta faz o que o delta pede (`R-REVIEW`; `R-SEGURANCA` citado, não refeito):
 - `verificar` (hooks/parecer.py:567): o aprovado gravado só libera com `EXIGE` (o `gh pr create`, como na v046) ou no clone do Forge (`e_clone_do_forge`, que dá falso quando há `.forge/versao`: escrever o manifesto no projeto não o torna o Forge). No projeto o aprovado cai na conferência de hoje, como antes da E2.117; o reprovado recusa em todo lugar só lendo. Teste de comportamento dos três ramos no projeto (`AtalhoNoProjeto`: aprovado gravado sobre review reprovado recusa; aprovado refaz a conferência; reprovado recusa sem refazer).
 - `CITA_A_MARCA` (hooks/conformidade.py:76): a S2 da segurança entra como mais uma alternativa da mesma regra, só no projeto (`raiz_e_projeto`), com fixture própria no corpus do `conformidade`; a mensagem cita as duas formas. Limite conhecido, o mesmo da marca: o nome montado em tempo de execução escapa (BP-5, sandbox).
