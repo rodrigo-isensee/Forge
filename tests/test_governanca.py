@@ -467,6 +467,10 @@ class EsperaPorPortaoETokens(unittest.TestCase):
         texto = G.linhas_de_texto(dados)
         self.assertTrue(any(" E1 " in l and l.endswith("tokens=40") for l in texto), texto)
         self.assertTrue(any(" E3 " in l and l.endswith("tokens=-") for l in texto), texto)
+        self.assertTrue(any(l.startswith("metricas: pedido p9 ") and l.endswith("tokens=40") for l in texto), texto)  # I155: o pedido
+        sem, _ = G.calcular(self.tmp, self.tmp, ["p9"], fuso=FUSO, transcritos=[self.tmp / "vazia"], recusas=[])
+        self.assertTrue(any(l.startswith("metricas: pedido p9 ") and l.endswith("tokens=-")
+                            for l in G.linhas_de_texto(sem)), "pedido sem fonte de tokens sai com tracinho, não None")
 
     def test_opcao_transcritos_da_linha_de_comando_chega_ao_calculo(self):  # 0.43.3: --transcritos no forge-check metricas
         self.gravar("docs/pedidos/p9.md", "# p9\n\n## Histórico\n- 2026-11-02 10:00: (E1) aberto\n")

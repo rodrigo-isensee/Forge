@@ -100,7 +100,7 @@
       "de": "candidatas = [(c, o) for c, o in bases_do_pedido(texto)\n                  if sha_do_commit(raiz, c) == c",
       "para": "candidatas = [(c, o) for c, o in bases_do_pedido(texto)\n                  if o == \"conferida\" and sha_do_commit(raiz, c) == c",
       "testes": [
-        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_desde_e_a_linha_mais_recente_entre_conferida_e_base_do_dono"
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_desde_e_a_linha_mais_recente_entre_conferida_e_base_do_dono", "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_desde_real_e_a_linha_mais_recente_valida_com_commits_da_branch"
       ]
     },
     {
@@ -161,7 +161,7 @@
       "de": "return candidatas[-1] if candidatas else (None, None)",
       "para": "return candidatas[0] if candidatas else (None, None)",
       "testes": [
-        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_desde_e_a_linha_mais_recente_entre_conferida_e_base_do_dono"
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_desde_e_a_linha_mais_recente_entre_conferida_e_base_do_dono", "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_desde_real_e_a_linha_mais_recente_valida_com_commits_da_branch"
       ]
     }
   ]
