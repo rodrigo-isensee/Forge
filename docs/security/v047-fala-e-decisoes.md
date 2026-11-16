@@ -3,14 +3,23 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-fala-e-decisoes
-commit: fd0a0172774f2744dbfbba81ca10064d4f98ec41
-parecer: aprovado
+commit: 14a29d8f9399b00c1785434af6e9a69fcd3ab826
+parecer: reprovado
 revisor: forge:security-engineer
-data: 2026-11-15
+data: 2026-11-16
 ---
 # Review de segurança: v047 (fala só no marco e pedido das decisões)
 
 Intervalo revisado: `origin/develop` (c5c3a449) até 05797223, um commit (E1.282): `agents/jarvis.md`, `skills/falar-com-o-dono/SKILL.md`, `skills/modo-iniciante/SKILL.md`, `tests/config.json` e o fragmento `changelog.d/v047-fala-e-decisoes.md`.
+
+## Revalidação por delta (fd0a0172..14a29d8f, E2.333)
+Lido por `forge-check parecer delta` (sem o que veio da develop no merge 1298992d): no domínio, `agents/jarvis.md` e `tests/config.json`; fora, o fragmento do changelog e `tests/test_jarvis_nucleo.py`.
+
+**O invariante volta (decisão do dono de 2026-11-16 09:52, `docs/pedidos/v047.md:947`):** "diga sempre ao usuário para qual agente passou" está de novo em `agents/jarvis.md:34` e em `tests/config.json:223`, como na develop (5e74c70e); só o momento muda, com o trecho novo "no recibo e no aviso de marco, nunca em mensagem extra" protegido e com `regra` e `porque` (`tests/config.json:755`). `RETIRADOS_047` sai do teste do núcleo. Contra a base, o delta só acrescenta: o afrouxamento anterior deixa de existir e o pedido não precisa mais do rótulo `afrouxa-regra` por esse trecho. As outras linhas de `agents/jarvis.md` no delta são redação, sem mudar barreira.
+
+**Defeito no controle (A3, bloqueante):** a contagem do legado de `agents/jarvis.md` ficou em 48 (`tests/config.json:696`), a do afrouxamento, mas o arquivo volta a ter 49 trechos sem motivo por trecho. `tests.test_forge.RegrasInviolaveis` falha no head (S1), e o CI do PR também falharia. Correção mínima, sem afrouxar: dar ao trecho restaurado o seu motivo em `invariantes_motivo_trecho` de `agents/jarvis.md` (`regra` R-DECISAO e `porque` de 30+ caracteres), mantendo 48; ou devolver a contagem a 49, o valor da develop (soma 246, abaixo do teto 284). A primeira mantém a regra "o legado só encolhe".
+
+Conferido no head 14a29d8f: `tests.test_jarvis_nucleo`, `tests.test_forge.Neutralidade` e `tests.test_invariante_gatilho` OK; `tests.test_forge.RegrasInviolaveis` com 1 falha (27 testes, S1).
 
 ## Revalidação por delta (a4a47661..fd0a0172, E1.348)
 Lido por `forge-check parecer delta`: no domínio, `agents/jarvis.md` (uma linha da triagem) e `tests/config.json`; fora, o fragmento do changelog e `tests/test_jarvis_nucleo.py`.
@@ -45,13 +54,17 @@ Neutralidade (`R-NEUTRO`): a extensão citada é um editor genérico, não um pr
 ## Achados
 - A1 (recomendado) skills/modo-iniciante/SKILL.md:55 · O modo foco recolhe comandos e agentes. Diga ao iniciante que a janela de permissão continua aparecendo e que ele pode abrir a linha para ver o comando antes de aprovar, para que o foco não vire aprovação sem leitura.
 - A2 (recomendado) skills/modo-iniciante/SKILL.md:21 · Saiu o aviso "o que já foi feito depois" de um ato no GitHub. Um ato visível fora (comentário, issue, rótulo) que não fecha marco fica sem registro à pessoa. Mantenha uma frase depois de um ato externo no GitHub, ou registre que o marco o cobre.
+- A3 (bloqueante) tests/config.json:696 · A contagem do legado de agents/jarvis.md ficou em 48 com o trecho "diga sempre ao usuário para qual agente passou" de volta sem motivo por trecho; RegrasInviolaveis falha. Dê regra e porque ao trecho em invariantes_motivo_trecho ou volte a 49.
 
 ## Sondas
+- S1 · python3 -m unittest tests.test_forge.RegrasInviolaveis (head 14a29d8f) · espera: OK · obtido: FAIL test_invariante_traz_regra_e_porque_e_o_legado_so_encolhe, 'agents/jarvis.md: trecho novo em arquivo do legado sem regra e porque'
 
 ## Detalhe dos achados
 **A1.** Evidência: `skills/modo-iniciante/SKILL.md:55`. Caminho: um texto injetado (de uma issue ou de um arquivo lido) leva um agente a propor um comando. O sistema de permissões ainda pede confirmação, mas o iniciante, com a visão recolhida, tende a aprovar sem abrir o comando. A barreira técnica (permissão e hook `conformidade`) não muda, por isso não bloqueia. Severidade: baixa. Correção mínima: meia frase na mesma linha. Esforço: P. Dono: o autor do pedido.
 
 **A2.** Evidência: `skills/modo-iniciante/SKILL.md:21`, antes "e o que já foi feito depois, em uma frase". Caminho: não há atacante. O risco é de auditoria: um ato público feito em nome do dono não chega a ele até o próximo marco ou resumo. Severidade: informativa. Correção mínima: devolver o aviso só para o ato externo no GitHub, ou dizer explicitamente que o resumo de 30 min o cobre. Esforço: P. Dono: o autor do pedido.
+
+**A3.** Evidência: `tests/config.json:696` (48) contra os 49 trechos de `agents/jarvis.md` sem motivo por trecho; `tests/test_forge.py:576`. Caminho: não há atacante; é o controle que protege os invariantes do Forge vermelho, o que barra o merge pelo CI e, se "corrigido" baixando o teste, abriria espaço para afrouxar sem rótulo. Severidade: baixa (defeito provado em controle do Forge, `R-SEGURANCA`). Correção mínima: entrada em `invariantes_motivo_trecho` para o trecho restaurado, ou contagem 49 (valor da develop). Esforço: P. Dono: o autor do pedido.
 
 ## Riscos aceitos e ferramentas
 Sem riscos aceitos.
