@@ -4,10 +4,10 @@ contrato: 1
 pedido: v047
 branch: melhoria/v047-frontmatter-agentes
 commit: b1fa63a82ac4d91e898ef790a248de426c61116f
-parecer: aprovado
+parecer: reprovado
 escopo: completo
 bugs_criticos: 0
-bugs_altos: 0
+bugs_altos: 1
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-15
@@ -17,6 +17,7 @@ data: 2026-11-15
 Diff `bf475209..b1fa63a8`: `agents/devops-engineer.md` (description entre aspas simples), `tests/test_frontmatter_agentes.py` (novo), fragmento de changelog. Sem especificação de UX nem contrato de API; a obrigação é a correção E2.151 (FRONTMATTER-AGENTES).
 
 ## Achados
+- A2 (bloqueante) agents/devops-engineer.md:3 · as 2 aspas novas levam agente_caracteres a 5054, acima do teto 5052 de docs/regras/orcamento.json; tests.test_orcamento_instrucao.test_nenhum_agente_passa_do_teto cai no head (ok na base). Encurtar a description em 2 caracteres ou mais (R-REVIEW).
 - A1 (recomendado) tests/test_frontmatter_agentes.py:43 · aspas duplas com aspas internas sem escape (`"a "b" c"`) passam como válidas, embora não sejam YAML; nenhum agente de hoje tem isso. Reforçar o ramo de aspas duplas ou aceitar a lacuna por escrito.
 
 ## Critério → teste → resultado
@@ -29,7 +30,7 @@ Diff `bf475209..b1fa63a8`: `agents/devops-engineer.md` (description entre aspas 
 
 ## Cenários e resultado real
 - Teste direto (`python3 -I tests/test_frontmatter_agentes.py`): 3 testes, OK.
-- Vermelho antes do verde: `bin/forge-testes --vermelho bf475209` não rodou no sandbox (saída `fatal library error, lookup self`, sem veredito). Feito à mão: cópia do head em `$TMPDIR` com o `devops-engineer.md` da base; o teste falhou (`- ["linha 3: 'description' tem ': ' ou ' #' sem aspas (não lê como YAML)"]`, `FAILED (failures=1)`). No head, passa.
+- Vermelho antes do verde (`bin/forge-testes --vermelho bf475209`, base=bf475209bae4 head=b1fa63a82ac4): `test_todo_frontmatter_le_como_yaml` H=ok B=falha, prova (asserção); os outros 2 passam na base (não provam sozinhos, servem de guarda). Sem veredito: test_forge (prazo). Dívida pré-existente: test_doutor.test_abrir_em_menos_de_cem_ms_em_media (H=falha B=falha). REGRESSÃO: tests.test_orcamento_instrucao.Orcamento.test_nenhum_agente_passa_do_teto H=falha B=ok (A2). Confirmado direto: `devops-engineer: agente_caracteres = 5054 passa do teto 5052`.
 - Mutação manual no diff: tirar as aspas do devops é acusado; aspa simples interna sem par, aspa dupla sem fechar, falta de `description`, falta de abertura `---`, ` #` e `:` final são acusados; aspa simples dobrada é aceita. Lacuna: A1.
 - PyYAML ausente no ambiente (o teste não o usa, como pedido).
 - CI: o check-run `bateria` do sha não pôde ser lido daqui (`gh api` sem retorno, sem PR); a suíte inteira fica para o CI do PR.
