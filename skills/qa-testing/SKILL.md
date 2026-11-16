@@ -71,7 +71,7 @@ Para cada critério de aceite da especificação, pelo menos um cenário. A tabe
 
 ## Vermelho antes do verde
 Todo teste novo de correção ou de regra (`R-QA`) precisa ser visto falhando sem a implementação.
-- **No Forge:** `forge-testes --vermelho <base>`, rodado pelo autor e de novo pelo QA, com a saída colada no parecer (ela abre com `vermelho: base=… head=…` e lista o que voltou à base). Ele roda em cópias em `$TMPDIR` e exige a árvore limpa; nunca mexe na árvore do autor. O veredito é por teste: saída 0 = ao menos um teste prova e nenhum cai no HEAD; 1 = nenhum prova ou algum cai; 2 = sem veredito (prazo, sinal, erro do próprio módulo de teste), que volta ao autor e nunca vale como vermelho. A falha de carga ou de preparação (módulo ou classe) da base só prova teste que a base não tinha; o que já existia sai "não prova (herdada da base)", então um `import` novo num módulo existente, sem teste novo, sai 1.
+- **No Forge:** `forge-testes --vermelho <base>`, rodado pelo autor e de novo pelo QA, com a saída colada no parecer (ela abre com `vermelho: base=… head=…` e lista o que voltou à base). Ele roda em cópias em `$TMPDIR` e exige a árvore limpa; nunca mexe na árvore do autor. Um módulo com `-I`: `python3 -I -m unittest discover -s tests -p test_x.py` (`tests.test_x` não importa). O veredito é por teste: saída 0 = ao menos um teste prova e nenhum cai no HEAD; 1 = nenhum prova ou algum cai; 2 = sem veredito (prazo, sinal, erro do próprio módulo de teste), que volta ao autor e nunca vale como vermelho. A falha de carga ou de preparação (módulo ou classe) da base só prova teste que a base não tinha; o que já existia sai "não prova (herdada da base)", então um `import` novo num módulo existente, sem teste novo, sai 1.
 - **"Dívida pré-existente"** é só etiqueta: o teste que cai no HEAD continua bloqueando e vira cartão.
 - **Projeto:** a forma da stack (`${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`): rodar o teste novo contra o código anterior, numa cópia; `git stash` na árvore do autor só como recuo.
 
@@ -81,12 +81,12 @@ O parecer de QA registra o comando e a falha observada; teste que nunca falhou n
 Quando a stack tiver ferramenta gratuita (`${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`), rode mutação só nos arquivos alterados pelo diff, nunca no projeto inteiro. A meta de pontuação é do projeto, em `docs/engineering/praticas.md`; mutante sobrevivente vira teste novo ou justificativa no parecer. Cobertura de linhas não é meta.
 
 ## Simulação de merge (a base certa)
-Para saber como a entrega fica sobre a base de integração, simule o merge fora da árvore de trabalho:
+Simule o merge sobre a base de integração fora da árvore de trabalho:
 1. Use um clone ou uma worktree **com as refs remotas** e rode `git fetch origin <base>`.
 2. Faça `git merge --no-ff refs/remotes/origin/<base>` na cópia descartável.
 3. Rode a checagem **contra essa base** (a mesma da validação), nunca contra a base local.
 
-Nunca use um clone sem as refs remotas (por exemplo `git clone --no-tags --single-branch` de outra ref, ou clone local sem `origin/<base>`): a checagem compara com a base errada e sai com rc 0. Confira que `git rev-parse refs/remotes/origin/<base>` responde antes de confiar no resultado.
+Nunca use um clone sem as refs remotas: a checagem compara com a base errada e sai com rc 0. Confira que `git rev-parse refs/remotes/origin/<base>` responde antes de confiar no resultado.
 
 ## Mutantes declarados nos pedidos de controle
 No Forge, o que decide por regra de código (`bin/`, `hooks/`, `.githooks/`, `tests/catraca.py`) tem a prova de mutação feita à mão e declarada: `bin/forge-mutante tests/mutantes/<pedido>.json` lê a spec (3 a 16 mutantes: arquivo, trecho `de`, trecho `para`, testes que devem cair; o mutante equivalente se declara no campo `equivalente`, com a justificativa, e sai na linha `equivalente: <id> · <justificativa>`, sem rodar; com `testes`, roda, e o que eles matam é inválido; o equivalente não prova: a spec só de equivalentes sem `testes` sai 2 e, no `--cobertura`, a condição coberta só por ele sai `só equivalente`, rc 1) e roda cada um numa cópia descartável. Pedido com mais de 16 mutantes divide em `tests/mutantes/<pedido>-<n>.json` (mesmo `pedido`, id único no conjunto) e passa todas as specs numa só rodada (`bin/forge-mutante <spec-1> <spec-2>`).

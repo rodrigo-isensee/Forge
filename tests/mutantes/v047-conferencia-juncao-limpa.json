@@ -1,0 +1,85 @@
+{
+  "pedido": "v047-conferencia-juncao-limpa",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "J1",
+      "guarda": "intervalo vazio não é junção limpa",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod or not saida or not base_ref:\n        return False\n    for commit, *pais in",
+      "para": "    if cod or not base_ref:\n        return False\n    for commit, *pais in",
+      "testes": [
+        "tests.test_selo_e_entrega.JuncaoLimpa.test_intervalo_vazio_commit_comum_ou_sem_base_recusam"
+      ]
+    },
+    {
+      "id": "J2",
+      "guarda": "o segundo pai do merge precisa estar num Base-sha selado (a origin/develop é ref local reescrevível)",
+      "arquivo": "bin/forge-check",
+      "de": " or not any(e_ancestral(raiz, pais[1], a) for a in ancoras):",
+      "para": ":",
+      "testes": [
+        "tests.test_selo_e_entrega.JuncaoLimpa.test_juncao_sem_ancora_segue_pendente",
+        "tests.test_selo_e_entrega.JuncaoLimpa.test_intervalo_vazio_commit_comum_ou_sem_base_recusam"
+      ]
+    },
+    {
+      "id": "J3",
+      "guarda": "a árvore do merge é a da mescla automática (sem resolução à mão)",
+      "arquivo": "bin/forge-check",
+      "de": "if cod or arvore.split(\"\\n\")[0] != git(",
+      "para": "if cod or None == git(",
+      "testes": [
+        "tests.test_selo_e_entrega.JuncaoLimpa.test_merge_que_descarta_a_mudanca_da_develop_segue_pendente"
+      ]
+    },
+    {
+      "id": "J4",
+      "guarda": "só a linha entrega conferida da ferramenta cobre o primeiro pai",
+      "arquivo": "bin/forge-check",
+      "de": "and valido in entregas_conferidas(texto) and juncao_limpa(",
+      "para": "and juncao_limpa(",
+      "testes": [
+        "tests.test_selo_e_entrega.JuncaoLimpa.test_conferida_fora_da_forma_nao_cobre_o_primeiro_pai"
+      ]
+    },
+    {
+      "id": "J5",
+      "guarda": "o merge-base da base só vale ancorado (as âncoras agora calculadas uma vez e passadas também à junção limpa)",
+      "arquivo": "bin/forge-check",
+      "de": "(ponto := ponto_da_integracao(raiz, base, base_sha, head, ancoras))",
+      "para": "(ponto := ponto_da_integracao(raiz, base, base_sha, head, ()))",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_conferida_trazida_pela_develop_nao_e_desde"
+      ]
+    },
+    {
+      "id": "J6",
+      "guarda": "o segundo pai ancorado num Base-sha selado também precisa estar na base_ref (QA A1, Q2)",
+      "arquivo": "bin/forge-check",
+      "de": "if len(pais) != 2 or not e_ancestral(raiz, pais[1], base_ref) or not any(",
+      "para": "if len(pais) != 2 or not any(",
+      "testes": [
+        "tests.test_selo_e_entrega.JuncaoLimpa.test_segundo_pai_ancorado_mas_fora_da_base_recusa"
+      ]
+    },
+    {
+      "id": "J7",
+      "guarda": "os atributos da mescla vêm da árvore vazia, não do .gitattributes da árvore de trabalho (segurança A1)",
+      "arquivo": "bin/forge-check",
+      "de": "git(raiz, f\"--attr-source={vazia}\", \"merge-tree\"",
+      "para": "git(raiz, \"merge-tree\"",
+      "testes": [
+        "tests.test_selo_e_entrega.JuncaoLimpa.test_gitattributes_da_arvore_de_trabalho_nao_resolve_conflito"
+      ]
+    },
+    {
+      "id": "Q3",
+      "guarda": "falha do merge-tree recusa",
+      "arquivo": "bin/forge-check",
+      "de": "        if cod or arvore.split(\"\\n\")[0] != git(",
+      "para": "        if arvore.split(\"\\n\")[0] != git(",
+      "equivalente": "conflito no merge-tree --write-tree grava árvore com marcadores, diferente da commitada; a comparação de árvore já recusa (QA A2, provado à mão)"
+    }
+  ]
+}

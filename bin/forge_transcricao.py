@@ -1,13 +1,17 @@
 """Forge: `forge-check transcricao lastro|vereditos|decisoes|avisos` (FILA-31 F6, 0.45.7 E5.2): a linha de base da proteção contra
 alucinação (M1, M3, P7) e os avisos dos hooks (L2), medidos sobre as transcrições locais, sem IA e sem rede. Só biblioteca padrão.
 
-Importado pelo `bin/forge-check` só quando um desses quatro roda. `ctx` traz do forge-check os nomes que ele divide com
+Também o `transcricao custo --media-por-agente` (CUSTO-MEDIA-POR-AGENTE, v047 E2.312): faixa e média de tokens por agente lidas
+de `docs/kanban/entregas.md`, só disco local.
+
+Importado pelo `bin/forge-check` só quando um desses roda. `ctx` traz do forge-check os nomes que ele divide com
 `transcricao custo`, `recusas` e `trava` (`objetos_jsonl`, `transcricoes_do_alvo`, `caminho_impresso`) e com o `escape resumo` (`taxa`).
 """
 import hashlib
 import json
 import re
 import sys
+from pathlib import Path
 
 
 # ---- transcricao lastro / decisoes: a linha de base da proteção contra alucinação (M1 e M3), sem IA e sem rede ----
@@ -367,8 +371,68 @@ MEDIDAS = {"lastro": (ler_relatorios, medir_lastro, ("relatorios", "afirmacoes",
            "decisoes": (ler_respostas_do_jarvis, medir_decisoes, ("respostas", "com_grupo", "violacoes"), 0)}
 
 
+# ---- transcricao custo --media-por-agente (CUSTO-MEDIA-POR-AGENTE, v047 E2.312): o registro já gravado, sem reler transcrições ----
+TETO_ENTREGAS = 2 * 1024 * 1024  # bytes; o registro real tem poucos KB
+TOKENS_INTEIROS = re.compile(r"\d{1,15}")
+CONTROLE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
+
+def ler_entregas(arquivo):
+    """Texto de `docs/kanban/entregas.md`, ou None se não é arquivo comum (ausente, pasta ou link simbólico) ou passa do teto."""
+    if arquivo.is_symlink() or not arquivo.is_file() or arquivo.stat().st_size > TETO_ENTREGAS:
+        return None
+    return arquivo.read_text(encoding="utf-8", errors="replace")
+
+
+def tokens_por_agente(texto):
+    """({agente: [tokens]}, ignoradas) das tabelas cujo cabeçalho tem as colunas `agente` e `tokens` (qualquer caixa e ordem). A linha
+    da tabela cujo `tokens` não é inteiro (`—`, `-`, texto) conta como ignorada; linha fora de tabela fecha a tabela."""
+    por_agente, ignoradas, colunas = {}, 0, None
+    for linha in texto.splitlines():
+        if not linha.startswith("|"):
+            colunas = None
+            continue
+        celulas = [c.strip() for c in linha.strip().strip("|").split("|")]
+        nomes = [c.casefold() for c in celulas]
+        if "agente" in nomes and "tokens" in nomes:
+            colunas = (nomes.index("agente"), nomes.index("tokens"))
+            continue
+        if colunas is None or set("".join(celulas)) <= set("-: "):
+            continue
+        if max(colunas) >= len(celulas) or not TOKENS_INTEIROS.fullmatch(celulas[colunas[1]]):
+            ignoradas += 1
+            continue
+        agente = CONTROLE.sub(" ", celulas[colunas[0]]) or "-"
+        por_agente.setdefault(agente, []).append(int(celulas[colunas[1]]))
+    return por_agente, ignoradas
+
+
+def cmd_media_por_agente(a, raiz):
+    """Uma linha por agente (entregas, mínimo, média inteira e máximo) e o total; lê só `docs/kanban/entregas.md` da `--raiz-pedidos`,
+    se dada, ou da raiz. rc 2 combinado com outra entrada do custo; rc 1 sem arquivo legível ou sem linha com tokens inteiros."""
+    if a.alvo or a.entregas or a.pedido or a.desde or a.ate:
+        print("custo: --media-por-agente lê só docs/kanban/entregas.md; não se combina com alvo, --entregas, --pedido, --desde nem --ate")
+        return 2
+    pasta = Path(a.raiz_pedidos).resolve() if getattr(a, "raiz_pedidos", None) else Path(raiz)
+    texto = ler_entregas(pasta / "docs" / "kanban" / "entregas.md")
+    if texto is None:
+        print("custo: --media-por-agente: docs/kanban/entregas.md ausente, link simbólico ou maior que 2 MB; nada medido")
+        return 1
+    print("custo: --media-por-agente: vai ler docs/kanban/entregas.md; só disco local, sem rede", file=sys.stderr)
+    por_agente, ignoradas = tokens_por_agente(texto)
+    if not por_agente:
+        print(f"custo: --media-por-agente: nenhuma linha com agente e tokens inteiros em docs/kanban/entregas.md (ignoradas={ignoradas})")
+        return 1
+    for agente, valores in sorted(por_agente.items()):
+        print(f"custo: agente {agente}: entregas={len(valores)} min={min(valores)} media={sum(valores) // len(valores)} max={max(valores)}")
+    print(f"custo: media-por-agente: agentes={len(por_agente)} linhas={sum(map(len, por_agente.values()))} ignoradas={ignoradas}")
+    return 0
+
+
 def executar(a, raiz, ctx):
     """O subcomando `transcricao <acao>` deste grupo; devolve o código de saída."""
+    if a.acao == "custo":  # só com --media-por-agente; o custo das transcrições segue no forge-check
+        return cmd_media_por_agente(a, raiz)
     if a.acao == "avisos":
         return cmd_transcricao_avisos(a.alvo, raiz, a.amostra, ctx)
     return cmd_transcricao_medida(a.acao, a.alvo, *MEDIDAS[a.acao], raiz, ctx)

@@ -5,7 +5,7 @@
     {
       "id": "M1",
       "guarda": "medida/release: só a célula de merge que é sha40 chega ao git (a ref HEAD fica fora)",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_medidas.py",
       "de": "re.fullmatch(r\"[0-9a-f]{40}\", c[2])}",
       "para": "True}",
       "testes": [
@@ -15,7 +15,7 @@
     {
       "id": "M2",
       "guarda": "medida/release: merge que o git não acha (sha ausente) fica fora das duas releases",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_medidas.py",
       "de": "if cod or c[5] != \"sim\":",
       "para": "if c[5] != \"sim\":",
       "testes": [
@@ -25,7 +25,7 @@
     {
       "id": "M3",
       "guarda": "medida/release: só o tópico pequeno conta (o grande fica fora do n)",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_medidas.py",
       "de": "if cod or c[5] != \"sim\":",
       "para": "if cod:",
       "testes": [
@@ -45,7 +45,7 @@
     {
       "id": "M5",
       "guarda": "medida/release: a anterior exclui o que a penúltima tag já contém",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_medidas.py",
       "de": "(len(tags) < 2 or tags[1] not in dentro)",
       "para": "(len(tags) < 2 or True)",
       "testes": [
@@ -55,7 +55,7 @@
     {
       "id": "M6",
       "guarda": "medida/release: com uma tag só, a anterior é tudo o que ela contém (sem índice fora)",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_medidas.py",
       "de": "(len(tags) < 2 or tags[1] not in dentro)",
       "para": "(tags[1] not in dentro)",
       "testes": [
@@ -65,7 +65,7 @@
     {
       "id": "M7",
       "guarda": "medida/release: a ordem das tags é pela versão, não pela data",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_medidas.py",
       "de": "\"--sort=-v:refname\"",
       "para": "\"--sort=-creatordate\"",
       "testes": [
@@ -75,7 +75,7 @@
     {
       "id": "M8",
       "guarda": "medida/piora: célula lacuna: fica fora da mediana",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_medidas.py",
       "de": "if re.fullmatch(r\"[0-9]+(\\.[0-9]+)?\", c[col])]",
       "para": "if True]",
       "testes": [

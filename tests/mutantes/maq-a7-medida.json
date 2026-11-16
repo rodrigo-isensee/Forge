@@ -5,7 +5,7 @@
     {
       "id": "M1",
       "guarda": "ancestrais: a própria execução e os ancestrais saem da contagem (sem o laço, conta o próprio pid)",
-      "arquivo": "bin/forge-testes",
+      "arquivo": "bin/forge_apoio_testes.py",
       "de": "pid > 1 and pid not in fora",
       "para": "pid < 1 and pid not in fora",
       "testes": [
@@ -15,7 +15,7 @@
     {
       "id": "M2",
       "guarda": "só pastas numéricas do /proc são processos (self, cpuinfo ficam fora)",
-      "arquivo": "bin/forge-testes",
+      "arquivo": "bin/forge_apoio_testes.py",
       "de": "p.isdigit() and int(p) not in fora",
       "para": "int(p) not in fora",
       "testes": [
@@ -25,7 +25,7 @@
     {
       "id": "M3",
       "guarda": "erro de leitura do /proc (fora do Linux) dá outras=?, nunca zero",
-      "arquivo": "bin/forge-testes",
+      "arquivo": "bin/forge_apoio_testes.py",
       "de": "return \"?\"",
       "para": "return 0",
       "testes": [
@@ -35,7 +35,7 @@
     {
       "id": "M4",
       "guarda": "processo que some no meio da leitura não derruba a contagem",
-      "arquivo": "bin/forge-testes",
+      "arquivo": "bin/forge_apoio_testes.py",
       "de": "except OSError:\n            continue",
       "para": "except OSError:\n            return \"?\"",
       "testes": [
@@ -45,7 +45,7 @@
     {
       "id": "M5",
       "guarda": "FORGE_ENTRADA só com fullmatch: re.match com $ aceita push\\n e abre linha nova no log",
-      "arquivo": "bin/forge-testes",
+      "arquivo": "bin/forge_apoio_testes.py",
       "de": "entrada if ENTRADA.fullmatch(entrada) else '?'",
       "para": "entrada if re.match(ENTRADA.pattern + '$', entrada) else '?'",
       "testes": [
@@ -56,7 +56,7 @@
     {
       "id": "M6",
       "guarda": "load1 ilegível dá ?, sem derrubar a anotação",
-      "arquivo": "bin/forge-testes",
+      "arquivo": "bin/forge_apoio_testes.py",
       "de": "load1 = \"?\"",
       "para": "load1 = \"0.00\"",
       "testes": [
@@ -76,7 +76,7 @@
     {
       "id": "M15",
       "guarda": "o pid de quem anota vem do parâmetro (o teste) ou do próprio processo",
-      "arquivo": "bin/forge-testes",
+      "arquivo": "bin/forge_apoio_testes.py",
       "de": "pid = set(), eu or os.getpid()",
       "para": "pid = set(), os.getpid()",
       "testes": [

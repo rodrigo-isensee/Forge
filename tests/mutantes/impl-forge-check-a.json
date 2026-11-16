@@ -31,32 +31,12 @@
       ]
     },
     {
-      "id": "M3",
-      "guarda": "L797 existente ou absoluto volta como dado",
-      "arquivo": "bin/forge-check",
-      "de": "if arquivo_existe(dado) or (caminhoso and dado.is_absolute()):",
-      "para": "if (caminhoso and dado.is_absolute()):",
-      "testes": [
-        "tests.test_forge.CaminhoDoPedido.test_til_e_relativo_de_outro_diretorio_acham_o_pedido_sem_caminho_duplo",
-        "tests.test_forge.CaminhoDoPedido.test_caminho_que_nao_existe_volta_como_foi_dado",
-        "tests.test_forge.CaminhoDoPedido.test_a_raiz_so_vale_em_docs_pedidos_e_til_de_usuario_nao_expande",
-        "tests.test_forge.CaminhoDoPedido.test_relativo_que_so_existe_na_raiz_de_brief_vence_as_raizes_que_nao_o_tem",
-        "tests.test_forge.CaminhoDoPedido.test_pedido_absoluto_inexistente_com_quebra_de_linha_sai_numa_linha_com_rc_2"
-      ]
-    },
-    {
       "id": "M4",
       "guarda": "L799 so caminho percorre as raizes",
       "arquivo": "bin/forge-check",
-      "de": "    if caminhoso:\n        for base in",
-      "para": "    if False:\n        for base in",
-      "testes": [
-        "tests.test_forge.CaminhoDoPedido.test_til_e_relativo_de_outro_diretorio_acham_o_pedido_sem_caminho_duplo",
-        "tests.test_forge.CaminhoDoPedido.test_caminho_que_nao_existe_volta_como_foi_dado",
-        "tests.test_forge.CaminhoDoPedido.test_a_raiz_so_vale_em_docs_pedidos_e_til_de_usuario_nao_expande",
-        "tests.test_forge.CaminhoDoPedido.test_relativo_que_so_existe_na_raiz_de_brief_vence_as_raizes_que_nao_o_tem",
-        "tests.test_forge.CaminhoDoPedido.test_pedido_absoluto_inexistente_com_quebra_de_linha_sai_numa_linha_com_rc_2"
-      ]
+      "de": "    if caminhoso:\n        dentro, escapa",
+      "para": "    if False:\n        dentro, escapa",
+      "testes": ["tests.test_forge.CaminhoDoPedido.test_til_e_relativo_de_outro_diretorio_acham_o_pedido_sem_caminho_duplo", "tests.test_forge.CaminhoDoPedido.test_a_raiz_so_vale_em_docs_pedidos_e_til_de_usuario_nao_expande", "tests.test_forge.CaminhoDoPedido.test_relativo_que_so_existe_na_raiz_de_brief_vence_as_raizes_que_nao_o_tem", "tests.test_forge.CaminhoDoPedido.test_pedido_absoluto_inexistente_com_quebra_de_linha_sai_numa_linha_com_rc_2"]
     },
     {
       "id": "M5",
