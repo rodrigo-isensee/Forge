@@ -28,8 +28,8 @@
       "id": "A3",
       "guarda": "adiamentos que não são objeto não derrubam o aviso pendente",
       "arquivo": "hooks/doutor.py",
-      "de": "sorted(adiamentos.items()) if isinstance(adiamentos, dict) else ()",
-      "para": "sorted(adiamentos.items())",
+      "de": "if isinstance(adiamentos, dict) else ()",
+      "para": "if adiamentos is not None else ()",
       "testes": [
         "tests.test_doutor.SempreAtualNoStop.test_adiamentos_fora_de_forma_nao_comem_o_aviso"
       ]

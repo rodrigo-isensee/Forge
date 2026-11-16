@@ -173,7 +173,7 @@ def frases_do_sempre_atual(estado):
         n = reg.get("n") if isinstance(reg, dict) else None
         if not isinstance(n, int) or isinstance(n, bool) or n < ADIADO_AVISA_A_PARTIR_DE or reg.get("avisado") == n:
             continue
-        desde = " ".join(str(reg.get("desde") or "?").split())[:32]
+        desde = " ".join(str(reg.get("desde", "?")).split())[:32]
         frases.append(f"Forge adiado {n} vezes desde {desde} (trabalho em curso; escopo {NOME_DO_ESCOPO.get(escopo, '?')})")
         reg["avisado"] = n
     return frases, bool(frases)
@@ -183,7 +183,7 @@ def avisos_do_sempre_atual():
     """FORGE-SEMPRE-ATUAL (ADR 0017): lê o `estado.json` da ferramenta e marca o que disse, sob a trava dela (`.trava`, sem esperar).
     Com a ferramenta rodando, ou pasta que não é própria (link, outro dono), fica para o próximo Stop; nunca cria a pasta."""
     import fcntl
-    pasta = Path(os.environ.get("HOME") or Path.home()).joinpath(*ESTADO_SEMPRE_ATUAL)
+    pasta = Path.home().joinpath(*ESTADO_SEMPRE_ATUAL)  # o HOME do ambiente, como a ferramenta
     try:
         st = os.lstat(pasta)
     except OSError:
