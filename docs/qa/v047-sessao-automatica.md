@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-sessao-automatica
-commit: cd7bd9f833b4f8abec6cb95138889ae51f2fdc8d
+commit: 48501baf6b5fc3238f80b32a9d8cb7f507ea0eed
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-14
+data: 2026-11-16
 ---
 # QA: v047-sessao-automatica (E1.217)
 
@@ -76,4 +76,25 @@ W4 · morreu · scripts/jarvis:31
 - Suíte inteira: no CI do PR (ainda sem PR); aqui só os cenários.
 
 ## Achados (revalidação)
+Nenhum. Bugs: nenhum aberto.
+
+## Revalidação por delta cd7bd9f8..48501baf (E2.242)
+`forge-check parecer delta` lista no domínio: `bin/forge-fechar`, `bin/forge-testes`, `tests/test_fechar.py`, `tests/test_reval_delta.py`, `tests/test_testes_tocados.py`. Conferido: os arquivos da entrega (`scripts/jarvis`, `scripts/jarvis-forge`, `scripts/preparar-estacao.sh`, `templates/projeto/CLAUDE.md`, os dois testes novos, `test_forge.py` e a spec de mutantes) estão idênticos ao cd7bd9f8 (`git diff` vazio). O delta é o merge da `develop` (o que já estava lá) mais a inclusão de `test_sessao_automatica` no mapa do `forge-testes` (`FORGE_CHECK`, `LEITORES_DE_TEXTO` e as duas linhas de `scripts/`). Escopo dos CA-1 a CA-5 não mudou; sem teste novo, sem vermelho novo a provar.
+
+- Local: `python3 -m unittest tests.test_sessao_automatica tests.test_fechar_gh_versao tests.test_fechar tests.test_reval_delta tests.test_testes_tocados` -> `Ran 282 tests ... OK (skipped=1)` (o skip vem da base, não da entrega).
+- Mutação do delta (`bin/forge-mutante tests/mutantes/v047-sessao-automatica.json --base cd7bd9f8`, rc 0, 14 mutantes, todos mortos):
+```
+base=cd7bd9f833b4f8abec6cb95138889ae51f2fdc8d mb=cd7bd9f833b4f8abec6cb95138889ae51f2fdc8d rev=48501baf6b5fc3238f80b32a9d8cb7f507ea0eed
+F1 · morreu · bin/forge-fechar:1156
+F2 · morreu · bin/forge-fechar:1155
+F3 · morreu · bin/forge-fechar:1160
+F4 · morreu · bin/forge-fechar:1159
+W1 · morreu · scripts/jarvis:44
+W2 · morreu · scripts/jarvis:44
+W3 · morreu · scripts/jarvis:37
+W4 · morreu · scripts/jarvis:31
+```
+- Suíte inteira: no CI do PR (ainda sem PR); aqui só os cenários.
+
+## Achados (revalidação E2.242)
 Nenhum. Bugs: nenhum aberto.
