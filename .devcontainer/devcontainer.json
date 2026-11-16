@@ -1,24 +1,25 @@
 // Forge: definição mínima do container de desenvolvimento (P9 da 0.43.1; E2.54 da 0.47.2).
 // Ao recriar o container, só /workspaces, ~/.claude e ~/.vscode-server sobrevivem. A cada início o postStartCommand
-// refaz sozinho, sem o dono, o essencial: gh (apt oficial), login pelo GH_TOKEN do ambiente, o link ~/.forge-contrib
-// para /workspaces/.forge-contrib e o core.hooksPath. O script é idempotente e nunca apaga dados.
+// refaz sozinho, sem o dono, o essencial: gh (apt oficial), o link ~/.forge-contrib para /workspaces/.forge-contrib e o
+// core.hooksPath. O login do gh sobrevive em ~/.claude/gh (link ~/.config/gh); sem ele, o Jarvis dá o comando ao abrir.
+// O script é idempotente e nunca apaga dados.
 // B2 do review de segurança da 0.43.1: o comando roda como root, fora do sandbox, então NÃO executa o script do work
-// tree (o agente o edita): lê a cópia que está na origin/main (código já mesclado pelo dono) para um arquivo temporário
-// e a roda com FORGE_PREPARO_ESSENCIAL=1, que dispensa a cópia vigente e o dev-marketplace (esses executam código do
-// work tree e ficam no comando manual `bash /workspaces/Forge/scripts/preparar-estacao.sh --container`).
-// Falha do preparo nunca impede o container de subir; o Jarvis confere ao abrir (`preparar-estacao.sh --verificar`).
-// Nenhum segredo aqui: o GH_TOKEN vem do ambiente da máquina que abre o container (localEnv) e não é gravado.
+// tree nem lê ref local (refs/remotes/origin/main é gravável pelo agente no sandbox): faz um clone raso novo da main,
+// num diretório temporário, com a URL do .git/config (protegido), e só roda o script de lá se ele traz a guarda
+// FORGE_PREPARO_ESSENCIAL (sem ela, uma main antiga executaria a cópia vigente e o dev-marketplace do work tree como root).
+// A cópia vigente e o dev-marketplace ficam no comando manual `bash /workspaces/Forge/scripts/preparar-estacao.sh --container`.
+// Falha do preparo (inclusive sem rede) nunca impede o container de subir; o Jarvis confere ao abrir (hooks/ambiente.py).
+// Nenhum segredo aqui, e o GH_TOKEN da máquina do dono NÃO entra no container (remoteEnv o repassaria, com o escopo
+// workflow, a todo processo, inclusive a sessão do agente). Login do dono: gh auth login -s repo,workflow --web (escopo
+// mínimo repo e workflow, que o push de .github/ pede); o token do bot (ADR 0009) não leva workflow.
 // A imagem é a base Ubuntu 24.04 dos dev containers; o volume nomeado guarda ~/.claude.
 {
   "name": "Forge",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "remoteUser": "root",
   "workspaceFolder": "/workspaces/Forge",
-  "remoteEnv": {
-    "GH_TOKEN": "${localEnv:GH_TOKEN}"
-  },
   "mounts": [
     "source=forge-claude,target=/root/.claude,type=volume"
   ],
-  "postStartCommand": "f=$(mktemp) && git -C /workspaces/Forge show refs/remotes/origin/main:scripts/preparar-estacao.sh > \"$f\" && FORGE_PREPARO_ESSENCIAL=1 bash \"$f\" --container < /dev/null; rm -f \"$f\"; true"
+  "postStartCommand": "d=$(mktemp -d) && u=$(git -c safe.directory='*' -C /workspaces/Forge config --get remote.origin.url) && GH_CONFIG_DIR=/root/.claude/gh git -c 'credential.helper=!gh auth git-credential' clone -q --depth 1 --branch main --single-branch -- \"$u\" \"$d/r\" && grep -q 'FORGE_PREPARO_ESSENCIAL:-0' \"$d/r/scripts/preparar-estacao.sh\" && FORGE_PREPARO_ESSENCIAL=1 bash \"$d/r/scripts/preparar-estacao.sh\" --container < /dev/null; rm -rf \"$d\"; true"
 }

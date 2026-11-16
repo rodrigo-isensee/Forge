@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Preparo do container do projeto (E2.54). Idempotente, nunca apaga dados. Uso: preparar-ambiente.sh [--verificar]
-#   (sem opção)  faz o que falta: gh (apt oficial), login do gh pelo GH_TOKEN do ambiente, link ~/.forge-contrib para
+#   (sem opção)  faz o que falta: gh (apt oficial), link ~/.forge-contrib para
 #                /workspaces/.forge-contrib, core.hooksPath=.githooks. Linhas "fez:" e "falta:".
 #   --verificar  só confere (nada é alterado); "ambiente: ok" ou uma linha "falta:" por item com o comando exato; sai 1 se faltar.
 # Variáveis: FORGE_PROJETO (pasta do projeto; padrão a pasta acima deste script) e FORGE_PERSISTENTE (padrão /workspaces).
@@ -19,6 +19,18 @@ real="$persistente/.forge-contrib"
 link="$HOME/.forge-contrib"
 preparo="bash $projeto/.devcontainer/preparar-ambiente.sh"
 tem() { command -v "$1" >/dev/null 2>&1; }
+# Impressão digital da chave do repositório apt do gh (chave ativa do keyring oficial, conferida em 2026-11-15); trocada
+# pelo GitHub, a conferência falha fechada e nada é instalado.
+CHAVE_GH_FPR=7F38BBB59D064DBCB3D84D725612B36462313325
+chave_confere() {
+  local gnupg
+  tem gpg || return 1
+  gnupg="$(mktemp -d)"
+  if GNUPGHOME="$gnupg" gpg --batch --show-keys --with-colons "$1" 2>/dev/null | grep -q "^fpr:::::::::$CHAVE_GH_FPR:"; then
+    rm -rf "$gnupg"; return 0
+  fi
+  rm -rf "$gnupg"; return 1
+}
 como_root() { if [ "$(id -u)" = 0 ]; then "$@"; else sudo "$@"; fi; }
 
 feitos=(); faltas=()
@@ -28,7 +40,7 @@ hooks_ok() { [ "$(git -C "$projeto" config --get core.hooksPath 2>/dev/null || t
 if [ "$verificar" = 1 ]; then
   tem gh || faltas+=("gh não instalado: rode $preparo")
   if tem gh && ! gh auth status >/dev/null 2>&1; then
-    faltas+=("gh sem login (o GH_TOKEN não chegou ao ambiente): ponha o GH_TOKEN no ambiente do container e rode $preparo; sem token, gh auth login -s repo,workflow --web")
+    faltas+=("gh sem login (o login mora em ~/.claude/gh e sobrevive à recriação; falta fazê-lo uma vez): gh auth login -s repo,workflow --web e depois $preparo")
   fi
   link_ok || faltas+=("link $link -> $real ausente ou sem destino: rode $preparo")
   if [ -e "$projeto/.git" ]; then hooks_ok || faltas+=("core.hooksPath de $projeto não é .githooks: rode $preparo"); fi
@@ -41,14 +53,18 @@ if tem gh; then
   feitos+=("gh já instalado")
 elif tem curl && tem apt-get; then
   tmp="$(mktemp -d)"
-  chave=/etc/apt/keyrings/githubcli-archive-keyring.gpg
-  if curl -fsSL -o "$tmp/chave.gpg" https://cli.github.com/packages/githubcli-archive-keyring.gpg; then
+  chave="${FORGE_APT_CHAVE:-/etc/apt/keyrings/githubcli-archive-keyring.gpg}"  # FORGE_APT_*: só os testes
+  lista="${FORGE_APT_LISTA:-/etc/apt/sources.list.d/github-cli.list}"
+  if curl -fsSL -o "$tmp/chave.gpg" https://cli.github.com/packages/githubcli-archive-keyring.gpg && chave_confere "$tmp/chave.gpg"; then
     printf 'deb [arch=%s signed-by=%s] https://cli.github.com/packages stable main\n' "$(dpkg --print-architecture)" "$chave" > "$tmp/gh.list"
     como_root install -D -m 644 "$tmp/chave.gpg" "$chave"
-    como_root install -D -m 644 "$tmp/gh.list" /etc/apt/sources.list.d/github-cli.list
+    como_root install -D -m 644 "$tmp/gh.list" "$lista"
   fi
+  [ -s "$lista" ] || faltas+=("chave do apt do gh não baixada ou sem a impressão digital $CHAVE_GH_FPR (ou sem gpg); não instalei o gh")
   rm -rf "$tmp"
-  if como_root apt-get update -qq && como_root apt-get install -y -qq gh; then feitos+=("instalou gh"); else faltas+=("instalar gh (o apt falhou; rode de novo com rede)"); fi
+  if [ ! -s "$lista" ]; then :
+  elif como_root apt-get update -qq && como_root apt-get install -y -qq gh; then feitos+=("instalou gh")
+  else faltas+=("instalar gh (o apt falhou; rode de novo com rede)"); fi
 else
   faltas+=("instalar gh (sem curl ou apt-get aqui)")
 fi
@@ -57,7 +73,7 @@ if tem gh && gh auth status >/dev/null 2>&1; then
   gh auth setup-git >/dev/null 2>&1 || true
   feitos+=("gh com login")
 else
-  faltas+=("login do gh: ponha o GH_TOKEN no ambiente do container e rode $preparo (ou gh auth login -s repo,workflow --web)")
+  faltas+=("login do gh: gh auth login -s repo,workflow --web e depois $preparo")
 fi
 
 if link_ok; then
