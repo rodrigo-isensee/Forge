@@ -71,8 +71,9 @@ MANIFESTO = ".claude-plugin/"  # no projeto, só a sessão do Forge escreve (R-C
 INTERPRETES = re.compile(r"^((python|perl|ruby)([\d][\w.-]*)?|node(js)?|php|deno|bun)$")
 PERL_OU_RUBY = re.compile(r"^(perl|ruby)([\d][\w.-]*)?$")
 OPCAO_COM_RESTO = set("MmIxCeEfFdDr")  # no grupo de opções curtas do perl/ruby, o resto é o valor delas (`-Mstrict`, `-I lib`)
-# Marca da sessão (`.git/forge/projeto-*`): citá-la, ou usar um lançador que o hook não modela, é recusado no projeto.
-CITA_A_MARCA = re.compile(r"\.git/forge|forge/projeto-")
+# Marca da sessão (`.git/forge/projeto-*`): citá-la, ou usar um lançador que o hook não modela, é recusado no projeto. O mesmo
+# para a função que grava o resultado do `forge-check pr` em `.git/forge/pr/` (S2 da segurança, E2.142): o caminho sai dela.
+CITA_A_MARCA = re.compile(r"\.git/forge|forge/projeto-|gravar_resultado_do_pr")
 LANCADORES_RECUSADOS = {"ionice", "chrt", "taskset", "flock", "unshare", "script"}
 AWKS = {"awk", "gawk", "mawk", "nawk"}
 
@@ -1725,8 +1726,8 @@ class Guarda:
         achado = None if self.leitura or not CRITICO.search(comando) else construcao_nao_modelada(comando)
         original = comando
         if nivel == 0 and self.h.raiz and self.raiz_e_projeto() and CITA_A_MARCA.search(comando):
-            self.barrar("R-CONFORMIDADE", "a linha cita a marca da sessão (.git/forge): só o usuário mexe nela",
-                        f"não cite .git/forge; {SUGESTAO}")
+            self.barrar("R-CONFORMIDADE", "a linha cita a marca da sessão (.git/forge) ou a função que grava nela: só o usuário mexe nela",
+                        f"não cite .git/forge nem gravar_resultado_do_pr (o resultado sai do forge-check pr); {SUGESTAO}")
         try:
             comando, corpos, gravado = tirar_heredocs(comando, com_gravado=True)
         except ValueError:  # HEREDOC-FURO-HOOK: `<<` em dúvida com linha depois, ou corpo que o bash expande com `$(`

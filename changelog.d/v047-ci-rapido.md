@@ -1,0 +1,5 @@
+### Adicionado
+- Desenho do CI-RAPIDO (v047 E1.242, `docs/propostas/ci-rapido.md`): develop em 5 partes com agregador de nome fixo, partes por unidade de teste com pesos do CI e os 20 testes mais lentos com a aceleração proposta; só desenho e medidas, sem mudança de workflow.
+
+### Alterado
+- CI-RAPIDO (v047 E1.248): o PR e a develop rodam a suíte inteira em 5 partes por Python, divididas por unidade de teste (`scripts/suite-partes.py --parte K/5` sobre as unidades do `suite-paralela`, guarda de completude por ID); na develop, matriz de 5 pernas, job próprio de teto de pulados e agregadores com o nome de sempre (`checagem rápida (push na develop)` e `... python 3.14`), que reprovam perna pulada ou cancelada; cada parte verde grava o tempo por unidade em anotação de check run; `scripts/pesos-do-ci.py` refaz `tests/pesos-d4.json` a partir delas (só filtra execuções `push` da develop, nunca escreve no repositório); texto do modelo de projeto com o agregador e a guarda de completude da suíte em partes.

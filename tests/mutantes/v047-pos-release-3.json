@@ -1,0 +1,56 @@
+{
+  "pedido": "v047-pos-release",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "PR19",
+      "guarda": "E2.234: só linha vazia ou que começa por # é ignorada (recuada com comentário no fim não some)",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "[[ \"$linha\" =~ ^[[:space:]]*(#|$) ]] && continue",
+      "para": "case \"$linha\" in ''|'#'*|[[:space:]]*'#'*) continue ;; esac",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_linha_recuada_ou_com_comentario_no_fim_nao_e_pulada"
+      ]
+    },
+    {
+      "id": "PR20",
+      "guarda": "E2.234: linha que o script não entende é recusada",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "|| recusar \"linha que não entendo",
+      "para": "|| continue; : \"linha que não entendo",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_linha_recuada_ou_com_comentario_no_fim_nao_e_pulada"
+      ]
+    },
+    {
+      "id": "PR21",
+      "guarda": "E2.234: passo com nome vazio é recusado",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "*) recusar \"passo sem",
+      "para": "*) : \"passo sem",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_passo_com_nome_vazio_e_recusado"
+      ]
+    },
+    {
+      "id": "PR22",
+      "guarda": "E2.234: a máscara cobre a senha com @ ou / (vai até o último @)",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "(://).*@#",
+      "para": "(://)[^/@]*@#",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_mascara_senha_com_arroba_barra_e_consulta"
+      ]
+    },
+    {
+      "id": "PR23",
+      "guarda": "E2.234: a máscara cobre password=, senha= e token= em consulta",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "((password|passwd|senha|pwd|token|secret)=)",
+      "para": "((nenhum)=)",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_mascara_senha_com_arroba_barra_e_consulta"
+      ]
+    }
+  ]
+}

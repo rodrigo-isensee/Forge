@@ -126,8 +126,7 @@ Um cartão por (origem, área, faixa de severidade), revisável de uma vez: bloq
 5. Revisão das propostas vencidas: `forge-placar comparar --antes <data> --depois <data> --metrica <m>` (rc 0 manter, rc 1 reverter a mudança inteira, rc 3 inconclusivo), com o resultado gravado. `ERRO-JARVIS:` entra como dado, com `Prevenção: eval/trava: <caso>` ou `sem trava possível`. Proibido: regra, lembrete ou checklist em texto sem métrica e prazo; trava sem eval; segunda proposta aberta. À pessoa, só a linha `resumo:` do `forge-placar`.
 
 ## Experimentos de melhoria (`docs/kanban/melhorias.md`)
-| ID | Hipótese | Mudança | Métrica | Critério de reversão | Início | Revisão | Resultado |
-Uma mudança por vez em cada parte do processo, para saber o que causou o efeito.
+Colunas e regra em `${CLAUDE_PLUGIN_ROOT}/skills/kanban-scrum/experimentos.md`.
 
 ## Elementos de Scrum usados
-O time trabalha em fluxo contínuo (Kanban), aproveitando de Scrum: **objetivo claro por pedido** (como meta de sprint), **revisão** com o usuário ao fim de cada pedido, **retrospectiva** com ações concretas e **definição de pronto** compartilhada. Não há sprints de duração fixa nem pontos de estória.
+O time trabalha em fluxo contínuo (Kanban), aproveitando de Scrum: **objetivo claro por pedido** (como meta de sprint), **revisão** com o usuário ao fim de cada pedido, **retrospectiva** com ações concretas e **definição de pronto** compartilhada. Não há sprints de duração fixa nem pontos de estória. O técnico (desenho, portões, integração, versão) é do `tech-lead`; o aprendizado com os erros, do `agile-coach`.

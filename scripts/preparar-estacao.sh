@@ -45,15 +45,26 @@ como_root() {
   if [ "$(id -u)" = 0 ]; then fazer "$@"; else fazer sudo "$@"; fi
 }
 
-# Instala gh, tmux e shellcheck se faltarem; o gh vem do apt oficial do GitHub CLI.
-container_pacotes() {
-  local faltam=() p chave lista tmp
-  for p in gh tmux shellcheck; do tem "$p" || faltam+=("$p"); done
-  if [ ${#faltam[@]} -eq 0 ]; then fez "gh, tmux e shellcheck já instalados"; return 0; fi
-  if ! tem curl || ! tem apt-get; then falta "instalar ${faltam[*]} (sem curl ou apt-get aqui)"; return 0; fi
+# GH-VERSAO-MINIMA: o gh do apt do Ubuntu (2.45) não tem `gh pr checks --json`, que o forge-fechar usa; a estação exige >= 2.47.
+GH_MINIMO="2.47"
+# gh_versao_ok: rc 0 se o gh existe e a versão é >= GH_MINIMO (maior.menor); versão ilegível conta como antiga.
+gh_versao_ok() {
+  local v maior menor
+  tem gh || return 1
+  v="$(gh --version 2>/dev/null | sed -n '1s/^gh version \([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p')"
+  [[ "$v" =~ ^[0-9]+\.[0-9]+$ ]] || return 1
+  maior="${v%%.*}"; menor="${v#*.}"
+  [ "$maior" -gt "${GH_MINIMO%%.*}" ] || { [ "$maior" -eq "${GH_MINIMO%%.*}" ] && [ "$menor" -ge "${GH_MINIMO#*.}" ]; }
+}
+
+# garantir_gh: gh >= GH_MINIMO, instalado ou atualizado pelo apt oficial do GitHub CLI (o do Ubuntu é antigo). Registra com fez/falta.
+garantir_gh() {
+  local chave lista tmp
+  if gh_versao_ok; then fez "gh $(gh --version | sed -n '1s/^gh version \([^ ]*\).*/\1/p') (>= $GH_MINIMO)"; return 0; fi
+  if ! tem curl || ! tem apt-get; then falta "instalar o gh >= $GH_MINIMO (sem curl ou apt-get aqui)"; return 0; fi
   chave=/etc/apt/keyrings/githubcli-archive-keyring.gpg
   lista=/etc/apt/sources.list.d/github-cli.list
-  if [[ " ${faltam[*]} " == *" gh "* ]] && [ ! -s "$lista" ]; then
+  if [ ! -s "$lista" ]; then
     tmp="$(mktemp -d)"
     if fazer curl -fsSL -o "$tmp/chave.gpg" https://cli.github.com/packages/githubcli-archive-keyring.gpg; then
       printf 'deb [arch=%s signed-by=%s] https://cli.github.com/packages stable main\n' \
@@ -63,6 +74,22 @@ container_pacotes() {
     fi
     rm -rf "$tmp"
   fi
+  if como_root apt-get update -qq && como_root apt-get install -y -qq gh; then
+    hash -r
+    if [ "$simular" = 1 ] || gh_versao_ok; then fez "instalou o gh >= $GH_MINIMO (repositório oficial)"
+    else falta "o gh instalado segue abaixo do $GH_MINIMO; confira o repositório $lista"; fi
+  else
+    falta "instalar o gh >= $GH_MINIMO (o apt falhou; rode de novo com rede)"
+  fi
+}
+
+# Instala tmux e shellcheck se faltarem; o gh vem do apt oficial do GitHub CLI (garantir_gh).
+container_pacotes() {
+  local faltam=() p
+  garantir_gh
+  for p in tmux shellcheck; do tem "$p" || faltam+=("$p"); done
+  if [ ${#faltam[@]} -eq 0 ]; then fez "tmux e shellcheck já instalados"; return 0; fi
+  if ! tem apt-get; then falta "instalar ${faltam[*]} (sem apt-get aqui)"; return 0; fi
   if como_root apt-get update -qq && como_root apt-get install -y -qq "${faltam[@]}"; then
     fez "instalou ${faltam[*]}"
   else
@@ -252,7 +279,7 @@ fi
 
 passo "Pacotes do sistema (apt)"
 faltam=()
-for pacote in git tmux curl ca-certificates unzip python3 shellcheck jq gh bubblewrap socat; do
+for pacote in git tmux curl ca-certificates unzip python3 shellcheck jq bubblewrap socat; do
   if ! dpkg-query -W -f='${Status}' "$pacote" 2>/dev/null | command grep -q '^install ok installed'; then
     faltam+=("$pacote")
   fi
@@ -264,6 +291,12 @@ if [ ${#faltam[@]} -gt 0 ]; then
 else
   echo "todos já instalados."
 fi
+
+passo "GitHub CLI (gh >= $GH_MINIMO, repositório oficial)"
+garantir_gh
+for l in "${feitos[@]}"; do printf 'fez: %s\n' "$l"; done
+for l in "${faltas[@]}"; do printf 'falta: %s\n' "$l"; done
+feitos=(); faltas=()
 
 passo "Node $NODE_LTS (nvm) e pnpm"
 export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
@@ -379,8 +412,8 @@ fi
 
 passo "O que falta fazer à mão"
 cat <<'FIM'
-1. Abra um terminal novo (para carregar PATH e nvm), rode `claude` e faça `/login`.
-2. Para abrir o Jarvis: `jarvis-forge` (no Forge) ou `jarvis <projeto>`; roda no tmux e aparece em claude.ai/code.
+1. Abra um terminal novo (para carregar PATH e nvm), rode `claude --permission-mode auto` e faça `/login`.
+2. Para abrir o Jarvis: `jarvis-forge` (no Forge) ou `jarvis <projeto>`; roda no tmux, em `--permission-mode auto`, e aparece em claude.ai/code. Quem abrir o `claude` à mão usa `--permission-mode auto`.
 3. Opcional, plugin do Telegram: lembre que o bot só aceita UMA sessão por vez, em todas as máquinas.
 4. Credenciais (gh, claude, Telegram) não são copiadas entre máquinas: cada estação faz o próprio login.
 FIM

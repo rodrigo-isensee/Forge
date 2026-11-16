@@ -18,7 +18,7 @@ Quando o Forge recusar algo que a pessoa pediu (recusa de hook, F4), o doutor ou
 
 ## 2. Prepare um clone próprio
 - Use `~/.forge-contrib/<projeto>` (um clone por projeto, fora do projeto).
-- **Nunca** use worktree de outro clone do Forge (o estado git compartilhado já corrompeu um repositório); `R-COPIA` não copiar agentes e skills para o projeto (nem editar o cache do plugin).
+- **Nunca** use worktree de outro clone do Forge; `R-COPIA` não copiar agentes e skills para o projeto (nem editar o cache do plugin).
 - Sessão com sandbox do Bash: a sessão de projeto usa só o clone `~/.forge-contrib/<projeto>` e, se precisar de worktree, `~/.forge-contrib/<projeto>-wt/<nome>`; `~/.forge-contrib/wt/*` é exclusivo das sessões do Forge (`R-CONTRIB`). Worktrees criadas com `git worktree add --no-track -b <branch> <dir> origin/develop`; nada de `git config` nem `git branch -u` (`.git/config` é protegido).
 - Não existe? `git clone git@github.com:rodrigo-isensee/Forge.git ~/.forge-contrib/<projeto>`. Depois, `git fetch origin`.
 - Ao criar o clone, ative o hook: `git config core.hooksPath .githooks` (`R-CONTRIB`).
@@ -35,9 +35,9 @@ Quando o Forge recusar algo que a pessoa pediu (recusa de hook, F4), o doutor ou
 - Registre a mudança num fragmento em `changelog.d/`: `bin/forge-changelog novo <Adicionado|Alterado|Corrigido> "<texto>"` (arquivo `changelog.d/<branch-sem-prefixo>.md`; não edite o `CHANGELOG.md`). **Não** suba a versão em `.claude-plugin/plugin.json`: a versão é decidida na release pelo `tech-lead`.
 
 ## 5. Antes do PR, no clone de contribuição
-A sessão de projeto **não roda a suíte inteira do Forge** (`python3 -m unittest discover -s tests`): quem a roda é o CI do PR, que não custa nada no repositório público (`R-CUSTO`). Rode só os testes dos arquivos que você tocou e os dois comandos abaixo.
+A sessão de projeto **não roda a suíte inteira do Forge** (`python3 -m unittest discover -s tests`): quem a roda é o CI do PR, que não custa nada no repositório público (`R-CUSTO`). Rode só os testes dos arquivos que você tocou e os dois comandos abaixo. Teste do Forge roda em `nice` e um arquivo por vez: `nice -n 19 python3 -I -m unittest discover -s tests -p test_x.py`.
 ```bash
-scripts/validar-plugin.sh                  # cópia limpa em $TMPDIR (o sandbox suja a raiz; o CI usa claude plugin validate . --strict)
+scripts/validar-plugin.sh                # cópia limpa em $TMPDIR
 scripts/verificar-contribuicao.sh        # segredos e caminhos pessoais no diff
 ```
 Falhou? Corrija e rode de novo; o PR só sai com as duas verdes e os testes dos arquivos tocados.
