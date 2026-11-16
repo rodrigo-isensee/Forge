@@ -605,6 +605,55 @@ class DeltaAposMergeBase(Repositorio):
                 self.assertEqual(self.check(*args)[0], 2)
 
 
+class DeltaComBaseAtrasada(Repositorio):
+    """PARECER-DELTA-SEM-MERGE-DA-DEVELOP (v047 E2.181): a `origin/develop` local atrás da develop que a branch integrou contava o merge
+    inteiro como do autor (140 arquivos no v047). O `parecer delta` busca a base uma vez; sem rede, o merge fica no delta, com aviso."""
+
+    SEG, base_anda, integrar = DeltaAposMergeBase.SEG, DeltaAposMergeBase.base_anda, DeltaAposMergeBase.integrar
+
+    def setUp(self):
+        super().setUp()
+        self.c1 = self.commitar({"src/app.txt": "da branch\n", "proprio.txt": "1\n"}, "entrega")
+        self.commitar({"docs/security/p1.md": self.SEG.format(c=self.c1)}, "parecer")
+        self.origem = self.tmp / "origem.git"
+        git("init", "-q", "--bare", str(self.origem), cwd=self.tmp)
+        git("remote", "add", "origin", str(self.origem), cwd=self.repo)
+        self.base_anda({"d1.txt": "1\n", "src/d3.txt": "3\n"})
+        git("push", "-q", "origin", "develop", cwd=self.repo)  # a develop do servidor já tem o que a branch vai integrar
+        git("update-ref", "refs/remotes/origin/develop", self.base, cwd=self.repo)  # a cópia local não buscou
+        self.integrar()
+        self.commitar({"proprio.txt": "2\n"}, "trabalho depois do merge")
+
+    def delta(self, *extra):
+        return self.check("parecer", "delta", "docs/security/p1.md", *extra)
+
+    def test_busca_a_base_atrasada_e_mostra_so_o_do_autor(self):
+        novo = self.head("develop")
+        rc, saida = self.delta()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"base: origin/develop atualizada de {self.base[:7]} para {novo[:7]}", saida)
+        self.assertIn('no dominio: "proprio.txt"', saida)
+        self.assertNotIn("d1.txt", saida)
+        self.assertNotIn("src/d3.txt", saida)
+        self.assertEqual(self.head("refs/remotes/origin/develop"), novo)
+        self.assertNotIn("base:", self.delta()[1])  # em dia, nada a buscar
+
+    def test_sem_rede_o_merge_fica_no_delta_com_aviso(self):
+        git("remote", "set-url", "origin", str(self.tmp / "nao-existe.git"), cwd=self.repo)
+        rc, saida = self.delta()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("aviso: o merge de", saida)
+        self.assertIn("o que ele trouxe conta inteiro", saida)
+        self.assertIn('no dominio: "src/d3.txt"', saida)  # falha fechada: nada do merge some
+
+    def test_base_ausente_nao_busca_nem_avisa(self):
+        rc, saida = self.delta("--base", "homolog")
+        self.assertEqual(rc, 0, saida)
+        self.assertNotIn("aviso:", saida)
+        self.assertNotIn("base: origin/", saida)
+        self.assertEqual(git("for-each-ref", "refs/remotes/origin/homolog", cwd=self.repo).stdout, "")
+
+
 class DeltaDaJuncao(Repositorio):
     """B19a (E20): as partes da junção são os segundos pais dos merges da primeira linha; octopus rc 1 (C-4), merge da
     base não é parte (C-5), git que falha rc 2 (C-9)."""
