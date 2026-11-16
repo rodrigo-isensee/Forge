@@ -6,8 +6,8 @@
       "id": "F1",
       "guarda": "o commit linear que apaga arquivo da entrega some do escopo",
       "arquivo": "bin/forge-check",
-      "de": "        desfeitos = novos & desfeitos_da_entrega(raiz, b, desde)",
-      "para": "        desfeitos = set()",
+      "de": "desfeitos = set(novos) & todos_desfeitos",
+      "para": "desfeitos = set()",
       "testes": ["tests.test_volta_por_delta.Entrega.test_desfeito_em_commit_linear_depois_da_conferida_fica_no_escopo"]
     },
     {

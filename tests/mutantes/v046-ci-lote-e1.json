@@ -57,8 +57,8 @@
       "id": "M6",
       "guarda": "o agregador exige o job de verificacoes longas",
       "arquivo": ".github/workflows/ci.yml",
-      "de": "    needs: [bateria, verificacoes, partes-doze, pulados-doze]",
-      "para": "    needs: [bateria, partes-doze, pulados-doze]",
+      "de": "    needs: [bateria, pareceres, verificacoes, partes-doze, pulados-doze]",
+      "para": "    needs: [bateria, pareceres, partes-doze, pulados-doze]",
       "testes": [
         "tests.test_suite_partes.FiacaoDoCI.test_agregadores_tem_o_nome_exigido_e_exigem_todas_as_partes"
       ]
