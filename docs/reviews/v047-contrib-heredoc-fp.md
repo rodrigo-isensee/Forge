@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-contrib-heredoc-fp
-commit: 70db7c6a9b7b151db4a4e1ae406136b3cfca00a6
+commit: b6ea479744fbc8da8382a4cd871af23e517da687
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
@@ -11,6 +11,9 @@ data: 2026-11-16
 # Review: v047-contrib-heredoc-fp
 
 Code review da E2.104 (classe C) no head f7e12a87, por instância que não fez a entrega. Sem parecer anterior nesta branch: parecer completo.
+
+## Revalidação (E2.231)
+Delta lido: `forge-check parecer delta` de 70db7c6a a b6ea4797, domínio código e testes: `hooks/parecer.py`, `docs/hooks.md` e `docs/hooks-fixtures.md`. O que aparece em `hooks/parecer.py` e `docs/hooks.md` é o PR-HOOK-RAPIDO (E2.117, A1 da segurança E2.142) que veio da develop 9d10894f; o merge b6ea4797 não tem resolução manual nesses arquivos (`git show --cc` vazio em `hooks/parecer.py`). Conferido: o patch da branch contra a develop (`9d10894f..b6ea4797`) é, linha a linha, o de `f4b0c2ae..70db7c6a` em `hooks/parecer.py`, no teste, na ADR e nas fixtures (`--numstat` difere só nos três pareceres). `scripts/indice-fixtures.py --conferir`: em dia. `tests.test_hooks_parecer_pasta -k heredoc_interpretador` no head, ambiente limpo: OK. Parecer mantido aprovado e movido para o head b6ea4797; o rótulo `afrouxa-regra` segue exigido.
 
 ## Revalidação (E2.208)
 Delta lido: `forge-check parecer delta` de f7e12a87 a 70db7c6a, domínio código e testes: "nenhum arquivo do domínio mudou" (só os pareceres de segurança e QA e merges da própria branch). Parecer mantido aprovado e movido para o head 70db7c6a; `pedido:` passa a `v047`, o pedido que a integração enxerga.
