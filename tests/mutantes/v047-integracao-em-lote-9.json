@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "IL-M65",
+      "guarda": "--item-de-lote sem a marca do pai é recusado (A3 da segurança)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$item_de_lote\" = 1 ] && [ \"${FORGE_FECHAR_LOTE_PAI:-}\" != \"$PPID\" ]; then",
+      "para": "if [ \"$item_de_lote\" = 1 ] && false; then",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_item_de_lote_fora_do_lote_e_recusado"
+      ]
+    },
+    {
+      "id": "IL-M66",
+      "guarda": "o filho do lote é exec da substituição (o pai dele é o lote)",
+      "arquivo": "bin/forge-fechar",
+      "de": "saida_it=\"$(FORGE_FECHAR_LOTE_PAI=$$ exec \"$item_cmd\"",
+      "para": "saida_it=\"$(FORGE_FECHAR_LOTE_PAI=$$ \"$item_cmd\"",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_filho_recebe_a_marca_do_pai"
+      ]
+    },
+    {
+      "id": "IL-M67",
+      "guarda": "topo ilegível depois do lote cai no último merge, com aviso",
+      "arquivo": "bin/forge-fechar",
+      "de": "    if [ -z \"$topo_lote\" ]; then\n      topo_lote=",
+      "para": "    if false; then\n      topo_lote=",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_topo_ilegivel_depois_do_lote_acompanha_o_ultimo_merge_com_aviso"
+      ]
+    },
+    {
+      "id": "IL-M68",
+      "guarda": "lote com merge acompanha o CI",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ \"${#mesclados[@]}\" != 0 ]; then\n    # O CI acompanhado",
+      "para": "  if [ \"${#mesclados[@]}\" = 0 ]; then\n    # O CI acompanhado",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_sem_arquivo_em_comum_fecha_em_ordem_e_espera_um_ci_so"
+      ]
+    },
+    {
+      "id": "IL-M69",
+      "guarda": "versão fora da tabela PROMOCOES para no P1 (A1)",
+      "arquivo": "bin/forge-fechar",
+      "de": "par_de_promocao \"promocao/$versao\" homolog || die",
+      "para": "par_de_promocao \"promocao/$versao\" homolog || true",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_versao_fora_da_tabela_de_promocoes_para_no_p1"
+      ]
+    },
+    {
+      "id": "IL-M70",
+      "guarda": "P5 descarta o PR de fork (A2 da segurança)",
+      "arquivo": "bin/forge-fechar",
+      "de": "lista=\"$(printf '%s\\n' \"$lista\" | awk '$5 == \"false\"')\"",
+      "para": "lista=\"$(printf '%s\\n' \"$lista\" | awk '1')\"",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_pr_de_fork_com_o_mesmo_ramo_nao_conta"
+      ]
+    },
+    {
+      "id": "IL-M71",
+      "guarda": "par_de_promocao sai 1 fora da tabela",
+      "arquivo": "bin/forge-fechar",
+      "de": "sys.exit(0 if c.linha_de_promocao(sys.argv[2], sys.argv[3]) else 1)",
+      "para": "sys.exit(0)",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_versao_fora_da_tabela_de_promocoes_para_no_p1"
+      ]
+    },
+    {
+      "id": "IL-M72",
+      "guarda": "linha_de_promocao recusa o que não é str",
+      "arquivo": "tests/catraca.py",
+      "de": "    if type(head_ref) is not str or type(base_ref) is not str:\n        return None\n    return next(",
+      "para": "    if False:\n        return None\n    return next(",
+      "testes": [
+        "tests.test_catraca_promocao.Tabela.test_pares_da_tabela_e_fora_dela"
+      ]
+    }
+  ]
+}

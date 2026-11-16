@@ -25,7 +25,7 @@ Pré-requisito: acesso ao repositório (público) pelo git da máquina — chave
 cd meu-projeto
 claude plugin marketplace add rodrigo-isensee/Forge --scope project
 claude plugin install forge@forge --scope project
-claude
+claude --permission-mode auto
 ```
 Na sessão, peça: *"inicie este projeto no Forge"* (skill `forge:iniciar-projeto`). Ela cria a estrutura sem sobrescrever o que existe e configura o Jarvis como agente principal (`"agent": "forge:jarvis"` em `.claude/settings.json`).
 
@@ -34,16 +34,18 @@ Atalho opcional para abrir o Jarvis retomando a conversa, com chat remoto e Tele
 bash ~/.claude/plugins/marketplaces/forge/scripts/instalar-atalho.sh   # ou a partir de um clone do Forge
 jarvis            # no diretório do projeto (roda no tmux; --sem-tmux para o modo antigo)
 ```
+**Sessão sempre no automático (diretriz 28).** Todo atalho abre o Jarvis com `--permission-mode auto`; quem abre o `claude` à mão usa a mesma opção. No primeiro comando da sessão o Jarvis confere o sandbox do Bash (um comando trivial); se falhar (por exemplo `apply-seccomp: write /proc/self/uid_map: Operation not permitted`), ele para e avisa em uma frase, com o comando para reabrir a sessão: o dono nunca aprova comando a comando nem escolhe "sempre permitir".
+
 A sessão fica num tmux `jarvis-<projeto>`: sobrevive ao fechamento do terminal (volte com o mesmo comando) e aparece em claude.ai/code como "Jarvis - <projeto>".
 
 **`jarvis-forge` e a cópia vigente (ADR 0009, seção 4).** O diretório de trabalho é o `~/Forge` (onde se edita), mas o plugin carregado vem de uma cópia vigente: um clone da `origin/develop` em `${XDG_DATA_HOME:-~/.local/share}/forge/vigente`, criado na primeira vez e **atualizado sozinho ao abrir, só por fast-forward** para a `origin/develop` (se tiver mudança ou commit local, se não estiver na `develop`, se não houver rede ou se a sessão do tmux já estiver aberta, o script avisa numa linha e segue com a cópia atual; com a sessão aberta ele também consulta a `origin` a cada reanexação e avisa se a cópia ficou atrás da `origin/develop`, e quando não consegue saber (sem rede ou sem acesso, ou a comparação falha) diz `ATRASADO desde <data>` com a data do commit da cópia, nunca em silêncio; nunca usa a cópia de trabalho, salvo `--dev`). Uma vez por dia (cache em `${XDG_STATE_HOME:-~/.local/state}/forge/fontes-<data>`) ele roda `forge-check fontes` e mostra uma linha se a fonte de harness tiver versão nova (sem o registro local, fica em silêncio). Assim, editar `hooks/` ou `agents/` numa branch não muda a guarda nem as instruções da sessão em uso. Para forçar a atualização sem abrir a sessão, rode `jarvis-forge --atualizar-vigente` (faz `git fetch` e `git reset --hard origin/develop` só na cópia vigente; recusa se ela tiver mudanças ou commits locais, e nunca apaga um diretório que não seja clone do Forge) e reinicie a sessão do tmux (o script avisa se ela estiver aberta). A sessão do modo `--dev` tem nome próprio (`jarvis-Forge-dev`). `jarvis-forge --dev` usa a cópia de trabalho (`--plugin-dir .`), com aviso, para teste manual do dono. O atalho passa um segundo `--plugin-dir` com a pasta `dev/` da mesma cópia (vigente ou, no `--dev`, de trabalho): o plugin de desenvolvimento `forge-dev`, com o agente `forge-dev:aq` (AQ, arquiteto de IA com agentes, só para o desenvolvimento do Forge). O `forge-dev` não está no `marketplace.json` nem no `plugin.json` do `forge`, então os projetos não o instalam nem o carregam; se a cópia vigente ainda não tiver `dev/`, o atalho abre só com o `forge`.
 
 ## Preparar uma estação nova (WSL)
 1. No PowerShell: `wsl --install -d Ubuntu-24.04 --location <unidade>:\WSL\<nome>`
-2. No Ubuntu novo: `sudo apt-get install -y gh && gh auth login && gh repo clone rodrigo-isensee/Forge ~/Forge`
+2. No Ubuntu novo: instale o `gh` 2.47 ou mais ([repositório oficial](https://github.com/cli/cli/blob/trunk/docs/install_linux.md#debian), não o `apt install gh` do Ubuntu) e rode `gh auth login && gh repo clone rodrigo-isensee/Forge ~/Forge`
 3. `~/Forge/scripts/preparar-estacao.sh` (use `--simular` para só ver o que faria; pode repetir à vontade).
 
-O script instala pacotes, Node 24, pnpm, Claude Code, o plugin e os atalhos `jarvis`/`jarvis-forge`. Credenciais **não** são copiadas entre máquinas: em cada estação faça `gh auth login` e, no `claude`, `/login`.
+O script instala pacotes, o `gh` 2.47 ou mais (pelo repositório oficial do GitHub CLI: o do apt do Ubuntu, 2.45, não tem `gh pr checks --json` e trava o `forge-fechar`), Node 24, pnpm, Claude Code, o plugin e os atalhos `jarvis`/`jarvis-forge`. Credenciais **não** são copiadas entre máquinas: em cada estação faça `gh auth login` e, no `claude`, `/login`.
 
 ## Sandbox do Bash
 O `.claude/settings.json` do Forge liga o sandbox do Bash (ADR 0009, seção 5) com `failIfUnavailable` e sem `allowUnsandboxedCommands`: sem `bubblewrap` e `socat` (instalados por `scripts/preparar-estacao.sh`) a sessão não abre.

@@ -1,0 +1,87 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "IL-M73",
+      "guarda": "par fora da tabela não é promoção",
+      "arquivo": "tests/catraca.py",
+      "de": "    if linha is None:\n        return False\n    if not linha[2]:",
+      "para": "    if False:\n        return False\n    if not linha[2]:",
+      "testes": [
+        "tests.test_catraca_promocao.Degrau.test_head_fora_da_tabela_para_homolog_ou_main_e_recusado"
+      ]
+    },
+    {
+      "id": "IL-M74",
+      "guarda": "só a linha que pede confere o head na develop",
+      "arquivo": "tests/catraca.py",
+      "de": "    if not linha[2]:\n        return True",
+      "para": "    if False:\n        return True",
+      "testes": [
+        "tests.test_catraca_promocao.Degrau.test_promocao_da_develop_e_do_ramo_da_marca_passam"
+      ]
+    },
+    {
+      "id": "IL-M75",
+      "guarda": "sha que não é texto não é promoção",
+      "arquivo": "tests/catraca.py",
+      "de": "    if type(head_sha) is not str:\n        return False",
+      "para": "    if False:\n        return False",
+      "testes": [
+        "tests.test_catraca_promocao.Degrau.test_ramo_da_marca_fora_da_develop_ou_de_fork_e_recusado",
+        "tests.test_catraca_promocao.Degrau.test_sha_que_nao_e_texto_nao_e_promocao"
+      ]
+    },
+    {
+      "id": "IL-M76",
+      "guarda": "o head do ramo da marca tem de estar na develop do servidor",
+      "arquivo": "tests/catraca.py",
+      "de": "\"--is-ancestor\", \"--end-of-options\", head_sha, DEVELOP_DO_SERVIDOR)[0] == 0",
+      "para": "\"--is-ancestor\", \"--end-of-options\", head_sha, DEVELOP_DO_SERVIDOR)[0] in (0, 1)",
+      "testes": [
+        "tests.test_catraca_promocao.Degrau.test_ramo_da_marca_fora_da_develop_ou_de_fork_e_recusado"
+      ]
+    },
+    {
+      "id": "IL-M77",
+      "guarda": "base fora de PROMOCOES não é degrau",
+      "arquivo": "tests/catraca.py",
+      "de": "    if base_ref not in {linha[1] for linha in PROMOCOES}:\n        return []",
+      "para": "    if False:\n        return []",
+      "testes": [
+        "tests.test_catraca_promocao.Degrau.test_promocao_da_develop_e_do_ramo_da_marca_passam"
+      ]
+    },
+    {
+      "id": "IL-M78",
+      "guarda": "o degrau exige o head do próprio repositório",
+      "arquivo": "tests/catraca.py",
+      "de": "if repo_base and repo_head == repo_base and promocao_aceita(raiz, ramo, base_ref, head):",
+      "para": "if repo_base and promocao_aceita(raiz, ramo, base_ref, head):",
+      "testes": [
+        "tests.test_catraca_promocao.Degrau.test_ramo_da_marca_fora_da_develop_ou_de_fork_e_recusado"
+      ]
+    },
+    {
+      "id": "IL-M79",
+      "guarda": "pareceres só dispensados na promoção aceita",
+      "arquivo": "tests/catraca.py",
+      "de": "    if promocao_aceita(raiz, ramo, base_ref, head):\n        return []\n    b = base_efetiva",
+      "para": "    if linha_de_promocao(ramo, base_ref):\n        return []\n    b = base_efetiva",
+      "testes": [
+        "tests.test_catraca_promocao.Promocao.test_pareceres_nao_sao_exigidos_so_na_promocao_aceita"
+      ]
+    },
+    {
+      "id": "IL-M80",
+      "guarda": "eh_promocao confere o head na develop",
+      "arquivo": "tests/catraca.py",
+      "de": "and promocao_aceita(raiz, head.get(\"ref\"), base.get(\"ref\"), head.get(\"sha\"))",
+      "para": "and linha_de_promocao(head.get(\"ref\"), base.get(\"ref\")) is not None",
+      "testes": [
+        "tests.test_catraca_promocao.Promocao.test_eh_promocao_reconhece_o_par_novo_nas_mesmas_condicoes"
+      ]
+    }
+  ]
+}

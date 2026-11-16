@@ -66,8 +66,8 @@
       "id": "M7",
       "guarda": "PR com base develop fica fora (lista branca de pares)",
       "arquivo": "scripts/arvore-testada.py",
-      "de": "and par in PRS and",
-      "para": "and par[1] in (\"develop\", \"homolog\") and",
+      "de": "and CATRACA.promocao_aceita(raiz, par[1], par[0], campo(env, \"HEAD_SHA\", str)))",
+      "para": "and par[1] in (\"develop\", \"homolog\"))",
       "testes": [
         "tests.test_arvore_testada.EventoElegivel.test_fora_da_lista_sai_falso"
       ]
