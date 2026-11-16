@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "IL-M57",
+      "guarda": "--lote liga o modo de lote",
+      "arquivo": "bin/forge-fechar",
+      "de": "done\n\nif [ \"$lote\" = 1 ]; then\n  # Só os itens",
+      "para": "done\n\nif false; then\n  # Só os itens",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_lote_recusa_opcao_de_item"
+      ]
+    },
+    {
+      "id": "IL-M58",
+      "guarda": "--promover valida as opções",
+      "arquivo": "bin/forge-fechar",
+      "de": ")\"\nif [ -n \"$promover_sha\" ]; then\n  if",
+      "para": ")\"\nif false; then\n  if",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_promover_recusa_opcao_de_item"
+      ]
+    },
+    {
+      "id": "IL-M59",
+      "guarda": "sem --ref fora do lote para",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$lote\" = 1 ] || [ -n \"$ref\" ] || die",
+      "para": "[ \"$lote\" = 1 ] || true || die",
+      "testes": [
+        "tests.test_fechar_lote.EsperaCiDevelop.test_opcao_sem_valor_e_pedido_repetido_param_antes_do_passo_1"
+      ]
+    },
+    {
+      "id": "IL-M60",
+      "guarda": "o lote tem nome de ref para as checagens",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$lote\" = 1 ]; then ref=\"lote\"; fi",
+      "para": "if false; then ref=\"lote\"; fi",
+      "testes": [
+        "tests.test_fechar_lote.Lote.test_sem_arquivo_em_comum_fecha_em_ordem_e_espera_um_ci_so"
+      ]
+    },
+    {
+      "id": "IL-M61",
+      "guarda": "CI cancelado na marca segue",
+      "arquivo": "bin/forge-fechar",
+      "de": "    cancelado) echo \"aviso: $(msg_ci develop",
+      "para": "    xcancelado) echo \"aviso: $(msg_ci develop",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_ci_vermelho_na_marca_para_e_cancelado_segue"
+      ]
+    },
+    {
+      "id": "IL-M62",
+      "guarda": "a espera do MERGED vai até o prazo",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ $((SECONDS - inicio)) -lt \"$espera\" ] || break",
+      "para": "[ $((SECONDS - inicio)) -lt 0 ] || break",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_auto_merge_armado_espera_o_merged_e_fecha"
+      ]
+    },
+    {
+      "id": "IL-M63",
+      "guarda": "o merge da promoção é por merge commit",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! mesclar_auto --merge \"$sha\"; then",
+      "para": "if ! mesclar_auto --squash \"$sha\"; then",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_item_mesclado_depois_da_marca_nao_entra_na_promocao"
+      ]
+    },
+    {
+      "id": "IL-M64",
+      "guarda": "o merge do item é preso ao head",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! mesclar_auto \"$metodo\" \"$remoto_sha\"; then",
+      "para": "if ! mesclar_auto \"$metodo\" \"${remoto_sha:0:7}\"; then",
+      "testes": [
+        "tests.test_fechar_auto_merge.AutoMerge.test_merge_e_o_auto_merge_preso_ao_head_e_nunca_admin"
+      ]
+    }
+  ]
+}
