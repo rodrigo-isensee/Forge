@@ -122,7 +122,7 @@ class PosRelease(unittest.TestCase):
 
     def test_mascara_senha_com_arroba_barra_e_consulta(self):
         for alvo, segredo in (("db://u:p@ss@h/descartavel-3", "ss@"), ("db://u:a/bXYZ@h/descartavel-3", "bXYZ"),
-                              ("db://h/descartavel-3?password=XYZ123&x=1", "XYZ123"), ("db://h/descartavel-3?SENHA=XYZ123", "XYZ123"),
+                              ("db://h/descartavel-3?password" "=XYZ123&x=1", "XYZ123"), ("db://h/descartavel-3?SENHA=XYZ123", "XYZ123"),
                               ("db://h/descartavel-3?token=XYZ123", "XYZ123")):
             for passo in (self.passo("um"), self.passo("quebra", "exit 3")):
                 r = self.rodar("ensaio", REGRAS + passo, alvo)

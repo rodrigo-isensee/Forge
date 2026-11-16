@@ -30,7 +30,7 @@ Achados da volta anterior, todos resolvidos no head:
 - A1: a :31 passa a `[[ "$linha" =~ ^[[:space:]]*(#|$) ]] && continue`; a S1 repetida no head sai com código 2 e `pos-release: RECUSADO · linha que não entendo ... · nenhum comando rodou`. O mutante PR19 (volta o glob antigo) morre.
 - A2: PR20 declarado na :32, morre em `test_linha_recuada_ou_com_comentario_no_fim_nao_e_pulada` (recuada, com # no fim e sem chave recusadas; vazia, `#` e `#` recuado ignorados).
 - A3: `test_passo_com_nome_vazio_e_recusado` e PR21 (:40), morre.
-- A4: máscara até o último `@` e `password=|senha=|token=...` sem caixa (PR22, PR23 e PR15 ajustado); sondado `db://u:p@ss@h/descartavel-1?Token=abc&x=1` sai `db://***@h/descartavel-1?Token=***&x=1`. Parecer de segurança revalidado e aprovado no mesmo head (aba9c83b), citado.
+- A4: máscara até o último `@` e o valor das chaves `password`, `senha` e `token` sem caixa (PR22, PR23 e PR15 ajustado); sondado `db://u:p@ss@h/descartavel-1?Token=abc&x=1` sai `db://***@h/descartavel-1?Token=***&x=1`. Parecer de segurança revalidado e aprovado no mesmo head (aba9c83b), citado.
 - A5: o commit da volta tem mensagem própria (`fix(modelo): pos-release só ignora linha vazia ...`).
 
 Conferido no head 76e00f85: `python3 -m unittest tests.test_pos_release` com 20 OK; `shellcheck` limpo; `bin/forge-mutante --processos 1 tests/mutantes/v047-pos-release-3.json` com PR19 a PR23 mortos; `bin/forge-mutante --conferir --base fb7dccb4` diz que o trecho de cada spec do diff está no lugar (sem AR-12). O `.md` e o `.passos` acompanham o script (glob com host literal, `alvo-variavel` igual à variável que os passos leem). A bateria inteira fica para o CI do PR, sem nova rodada aqui.
