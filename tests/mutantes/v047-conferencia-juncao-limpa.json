@@ -42,6 +42,16 @@
       "testes": [
         "tests.test_selo_e_entrega.JuncaoLimpa.test_conferida_fora_da_forma_nao_cobre_o_primeiro_pai"
       ]
+    },
+    {
+      "id": "J5",
+      "guarda": "o merge-base da base só vale ancorado (as âncoras agora calculadas uma vez e passadas também à junção limpa)",
+      "arquivo": "bin/forge-check",
+      "de": "ponto_da_integracao(raiz, base, base_sha, head, ancoras)",
+      "para": "ponto_da_integracao(raiz, base, base_sha, head, ())",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_conferida_trazida_pela_develop_nao_e_desde"
+      ]
     }
   ]
 }
