@@ -1,6 +1,6 @@
 # Passos do pós-release deste projeto, lidos por scripts/pos-release (modelo; o devops-engineer preenche).
 # Formato: uma chave por linha. Linha em branco e comentário (#) são ignorados.
-#   alvo-variavel: NOME   variável de ambiente que guarda o alvo (ex.: a conexão da base); o script a exporta aos passos
+#   alvo-variavel: NOME   variável de ambiente que guarda o alvo (ex.: a conexão da base) (já vem do ambiente e chega aos passos)
 #   padrao: VALOR         valor padrão que NUNCA pode ser o alvo (repita a linha para vários)
 #   ensaio-aceita: GLOB   alvos que provam ser descartáveis (o ensaio só roda neles)
 #   real-aceita: GLOB     alvos de verdade (o modo real só roda neles); não pode casar com ensaio-aceita

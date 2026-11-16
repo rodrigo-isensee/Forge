@@ -151,16 +151,6 @@
       "testes": [
         "tests.test_pos_release.PosRelease.test_mascara_a_credencial_do_alvo_no_resumo_e_no_erro"
       ]
-    },
-    {
-      "id": "PR16",
-      "guarda": "E2.223: os passos recebem o alvo exportado",
-      "arquivo": "templates/projeto/scripts/pos-release",
-      "de": "export \"$variavel=$alvo\"",
-      "para": ": \"$variavel=$alvo\"",
-      "testes": [
-        "tests.test_pos_release.PosRelease.test_passos_recebem_o_alvo_e_rodam_na_raiz_do_projeto"
-      ]
     }
   ]
 }

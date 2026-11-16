@@ -74,7 +74,6 @@ else
   casa "$alvo" "${real_aceita[@]}" || recusar "modo real: o alvo ($mascarado) não casa com real-aceita"
 fi
 
-export "$variavel=$alvo"
 total="${#rotulos[@]}"
 cd "$raiz" || recusar "não consegui entrar em $raiz"
 for i in "${!rotulos[@]}"; do
