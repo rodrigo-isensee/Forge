@@ -5158,9 +5158,9 @@ def ctx_das_voltas():
             "nome_seguro": nome_seguro, "sem_controle": sem_controle}
 
 
-def cmd_voltas(raiz, pedido=None):
+def cmd_voltas(raiz, pedido=None, tempo=False):
     """`voltas` mora em bin/forge_voltas.py (FILA-31 F6, 0.45.7 E5.4)."""
-    return modulo_do_bin("forge_voltas").cmd_voltas(raiz, pedido, ctx_das_voltas())
+    return modulo_do_bin("forge_voltas").cmd_voltas(raiz, pedido, ctx_das_voltas(), tempo)
 
 
 # ---- D12 (E3a): a medida de um tópico mesclado, gravada em docs/kanban/medidas.md; aviso, nunca trava. `medida` e `escape` moram em
@@ -9484,6 +9484,7 @@ def main():
     va.add_argument("--base", default="origin/develop", help="origin/develop (padrão) ou develop")
     vo = sub.add_parser("voltas", parents=[comum], help="o vai e volta de cada pedido (voltas e minutos), lido de docs/kanban e docs/briefs; só leitura")
     vo.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md ou cartão do quadro); padrão: os que têm volta")
+    vo.add_argument("--tempo", action="store_true", help="A15: linha `tempo:` com os minutos por fase, a espera do dono e a razão processo ÷ entrega (nao-medido sem dado)")
     me = sub.add_parser("medida", parents=[comum], help="mede um tópico mesclado (tempo ativo, linhas, tokens) e grava a linha em docs/kanban/medidas.md; nunca trava (D12)")
     me.add_argument("--pedido", required=True, help="id do pedido, que é o cartão no histórico e a entrega em entregas.md")
     me.add_argument("--merge", required=True, help="sha40 do commit de merge do tópico (minúsculo; nada mais é aceito)")
@@ -9783,7 +9784,7 @@ def executar(a, raiz):
     if a.cmd == "entrega":
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
     if a.cmd == "voltas":  # RAIZ-PEDIDOS-PERDE-DADOS: o quadro, os briefs e os pedidos vêm do --raiz-pedidos, como no dora
-        return cmd_voltas(Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz, a.pedido)
+        return cmd_voltas(Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz, a.pedido, a.tempo)
     if a.cmd == "dora":
         return modulo_do_bin("forge_dora").executar(a, raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz)
     if a.cmd == "medida":
