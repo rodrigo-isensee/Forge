@@ -1,7 +1,7 @@
 ---
 tipo: review
 contrato: 1
-pedido: v047-ci-falhas-no-resumo
+pedido: v047
 branch: melhoria/v047-ci-falhas-no-resumo
 commit: 8262345394250e8b2f2130950da47af33fac4621
 parecer: aprovado
