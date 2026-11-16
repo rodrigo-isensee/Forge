@@ -3,12 +3,12 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-prepush-patch
-commit: 805a0a1048222c22dc60f847eb879b16069fbbd6
-parecer: reprovado
-escopo: completo
+commit: 5016852d85c156bd54df21a3f6f30529463d6011
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 1
+bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-16
 ---
@@ -19,6 +19,7 @@ Item: patch `docs/devops/pp1-pre-push.patch` (três consertos do `.githooks/pre-
 ## Achados
 - A0 (bloqueante) docs/devops/pp1-pre-push.patch:41 · R-QA: o filtro só decide se roda; o forge-mutante julga todo Python do diff. Com hooks/_comum.py (só comentário) e condição mudada em tests/catraca.py o envio leve barra (reproduzido); a catraca do CI exclui testes (catraca.py:842).
 - A1 (recomendado) .githooks/pre-push:386 · PREPUSH-LEVE-COBERTURA-CATRACA: o teste só exerce `hooks/*`; reduzir a lista a `hooks/*` (bin, scripts, templates, catraca, neutralidade) sobrevive. Some um caso com `bin/*.py`.
+- A3 (recomendado) docs/devops/pp1-pre-push.patch:31 · saída 2 do filtro (catraca não carrega) sem teste; trocar `except Exception` por outra classe sobrevive. Só vira aviso, o CI pega. Resolvidos no head 5016852d: A0, A1, A2.
 - A2 (recomendado) .githooks/pre-push:384 · a lista do patch é subconjunto da classe C do `forge-check` (sem apoios, pipeline); código de controle fora dela só é pego no CI. Não afrouxa nada; só registre o limite.
 
 ## Critério → teste → resultado
@@ -37,4 +38,14 @@ Item: patch `docs/devops/pp1-pre-push.patch` (três consertos do `.githooks/pre-
 - Mutação à mão no hook remendado (7 mutantes, `test_pre_push_patch`): mortos 5 (fd volta ao caminho, `-gt 0` relaxado, cobertura desligada, rc da cobertura, falha não marcada); sobreviveram 2: remover `[ -e /proc/self/fd/9 ] || return 0` (equivalente: sem o fd, `head` falha calado e o texto sai vazio) e reduzir a lista de controle (A1). `forge-mutante` com spec não se aplica: o hook em vigor não muda neste pedido.
 - Reprovação: simulação numa cópia com o patch, diff com comentário em `hooks/_comum.py` e `if not not` em `tests/catraca.py`: `forge-mutante --cobertura` sai `sem mutante · tests/catraca.py:78` e o envio sai rc=1 ("o CI reprova igual"), mas `fc.TESTE.search("tests/catraca.py")` é verdadeiro e a catraca o exclui. Falso bloqueio do envio do dono (mesmo achado do review A1; vale filtrar a saída pela lista).
 - `forge-check docs`: rc=0. PA-7 (`achados-recorrentes.md`): conferidos AR-1 (lista de mutantes, aqui A1), AR-5 (o patch usa `python3 -I`), AR-3 (sem lista negativa nova), AR-6, AR-7, AR-8: sem recorrência nova.
+- Suíte inteira: CI do PR (check-run `bateria` do mesmo sha), não rodada aqui.
+
+## Revalidação por delta (head 5016852d, base do delta 805a0a10)
+`forge-check parecer delta` listou `bin/forge-mutante` (só docstring), o fragmento de changelog e `tests/test_pre_push_patch.py`; o patch mudou (docs/).
+- A0 (resolvido): o patch filtra a saída do `forge-mutante --cobertura` por `motivo_de_controle` e `TESTE` da catraca. Testes novos: comentário em `hooks/_comum.py` mais condição em `tests/catraca.py` passa (rc 0); falta em `hooks/h.py` mais a de `tests/catraca.py` reprova só pela primeira.
+- A1 (resolvido): o caso de `bin/x.py` reprova (`sem mutante · bin/x.py`); a lista fixa por prefixo saiu do patch.
+- A2 (resolvido): a lista é a própria da catraca, não mais um subconjunto.
+- `python3 -m unittest tests.test_pre_push_patch`: Ran 12 tests, OK.
+- Mutação no filtro (4 à mão, copia de `git archive`): sem `TESTE` morto (2 falhas); `motivo_de_controle` trocado por `True` morto (1); saída sempre 0 morta (3); `except` trocado sobrevive (A3).
+- `forge-check docs`: rc=0. PA-7 conferido: AR-1 (lista de mutantes, coberta pelo caso de `bin/`) sem recorrência nova.
 - Suíte inteira: CI do PR (check-run `bateria` do mesmo sha), não rodada aqui.
