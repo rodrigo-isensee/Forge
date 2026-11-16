@@ -333,7 +333,7 @@ class FiacaoDoCI(unittest.TestCase):
     def test_a_suite_inteira_so_roda_nas_partes_e_na_rapida(self):  # SP4: a rápida do 3.14 é a prova do 3.14
         for job, bloco in self.jobs.items():
             with self.subTest(job):
-                tem = "run: python3 scripts/suite-paralela.py" in bloco
+                tem = "python3 scripts/suite-paralela.py 2>&1 | tee" in bloco  # E2.270: a saída vai ao registro do leitor das falhas
                 self.assertEqual(tem, job in ("rapida", "rapida-quatorze"))
 
     def test_rapidas_sao_a_prova_que_a_arvore_testada_le_com_o_preparo_das_partes(self):

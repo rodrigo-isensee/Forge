@@ -1,0 +1,2 @@
+### Adicionado
+- CI: cada parte da suíte (e a checagem rápida da develop) escreve no resumo do GitHub e em anotações ::error o teste, o módulo, a linha e a primeira linha do erro de cada falha, com teto de linhas, e uma linha com a contagem quando passa; o leitor é scripts/falhas-no-resumo.py (sem rede, sem custo, permissões do workflow iguais; o resumo e as anotações são só informação, quem reprova é o passo da suíte), v047 E2.270.

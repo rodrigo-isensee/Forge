@@ -310,7 +310,8 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         o passo curto dos pareceres continua como está; a release também roda em paralelo (RELEASE-SUITE-PARALELA)."""
         jobs = {j["id"]: j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))}
         (passo,) = [p for p in jobs["rapida"]["passos"] if p["nome"] == "Testes do Forge"]
-        self.assertEqual(passo["run"].strip(), "python3 scripts/suite-paralela.py")
+        # E2.270: a saída também vai ao registro que scripts/falhas-no-resumo.py lê; o pipefail mantém o código de saída da suíte
+        self.assertEqual(passo["run"].strip().splitlines(), ["set -o pipefail", 'python3 scripts/suite-paralela.py 2>&1 | tee "$RUNNER_TEMP/suite.log"'])
         # SUITE-NO-CI: no PR, a suíte roda em 3 partes por versão (scripts/suite-partes.py, o mecanismo do suite-paralela).
         for nome in ("partes-doze", "partes-quatorze"):
             with self.subTest(job=nome):
