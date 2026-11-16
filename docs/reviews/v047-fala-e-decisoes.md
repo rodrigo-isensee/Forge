@@ -3,44 +3,72 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-fala-e-decisoes
-commit: fd0a0172774f2744dbfbba81ca10064d4f98ec41
-parecer: aprovado
+commit: 14a29d8f9399b00c1785434af6e9a69fcd3ab826
+parecer: reprovado
 revisor: forge:tech-lead
-data: 2026-11-15
+data: 2026-11-16
 ---
 # Review: v047-fala-e-decisoes
+
+Revalidação (E2.332) no head 14a29d8f, por delta: volta E2.315, decisão do dono de 16/11 09:52 (pedido v047:947), que mantém o invariante "diga sempre ao usuário para qual agente passou" e muda só o momento (recibo e aviso de marco, nunca em mensagem extra).
+
+## Delta lido
+`forge-check parecer delta docs/reviews/v047-fala-e-decisoes.md` → intervalo `fd0a0172774f2744dbfbba81ca10064d4f98ec41..14a29d8f9399b00c1785434af6e9a69fcd3ab826`, sem o que veio da base; no domínio: `agents/jarvis.md`, `changelog.d/v047-fala-e-decisoes.md`, `tests/config.json`, `tests/test_jarvis_nucleo.py`. O resto da branch foi lido nas passadas anteriores e não foi relido.
+
+## Conferência com a decisão de 16/11 09:52
+- `agents/jarvis.md`:34 devolve o trecho "diga sempre ao usuário para qual agente passou" e acrescenta "no recibo e no aviso de marco, nunca em mensagem extra", nas palavras do dono. O trecho de 15/11 ("só nos marcos, num resumo") sai do texto e dos invariantes; sobra só em pareceres antigos de QA e segurança (histórico).
+- `tests/config.json`: o trecho devolvido volta a `invariantes` e o momento entra como invariante novo, com motivo em `invariantes_motivo_trecho` (`R-DECISAO`).
+- `tests/test_jarvis_nucleo.py`: `RETIRADOS_047` sai, então o teste volta a exigir o trecho do dono. Isso aperta, não afrouxa.
+- O changelog e o `description` do Jarvis mudam só o texto; nenhuma outra regra sai (diretriz 25). O `agents/jarvis.md` tem 7954 bytes e `test_orcamento_instrucao` passa.
+
+## Saída das ferramentas (sem refazer)
+- `python3 -m unittest tests.test_jarvis_nucleo` → 20 testes OK.
+- `python3 -m unittest tests.test_forge.RegrasInviolaveis tests.test_forge.Orcamento tests.test_orcamento_instrucao tests.test_jarvis_nucleo` → 33 testes, 1 falha: `test_invariante_traz_regra_e_porque_e_o_legado_so_encolhe` (A1). O mesmo teste passa em `fd0a0172` e na base `5e74c70e`, nas duas cópias feitas com `git archive`.
+- Mutantes numa cópia do head: trocar ", nunca em mensagem extra." por " e nunca em mensagem extra." e tirar o "sempre" do trecho devolvido fazem `test_trechos_obrigatorios` falhar nos dois casos (mortos).
+- Tamanho (M14): poucas linhas de `tests/config.json` e `tests/test_jarvis_nucleo.py` no delta; sem guarda de código, sem mutante a declarar.
+- Suíte inteira: fica para o CI do PR (`tests/config.json` muda).
+
+## Achados
+- A1 (bloqueante) tests/config.json:223 · o trecho devolvido não tem motivo e `agents/jarvis.md` passa a ter 49 sem motivo (58-9) contra o legado 48 (:696). `test_invariante_traz_regra_e_porque_e_o_legado_so_encolhe` falha. Ponha o motivo em `invariantes_motivo_trecho` (R-DECISAO); não suba o legado.
+
+## Sondas
+
+## Parecer
+Reprovado por A1. O texto faz o que a decisão do dono pede (a regra fica e muda só o momento), mas o head quebra um teste estrutural que passava em fd0a0172. A correção é do autor e cabe numa linha de `tests/config.json`. Depois dela, a revalidação é por delta.
+
+## Passada anterior (E1.347, head fd0a0172, aprovado)
 
 Code review da E1.282 (E1.292) no head 05797223, intervalo `origin/develop..05797223` (base c5c3a449): diretriz 24 (falar só no marco) em `agents/jarvis.md` e `skills/modo-iniciante/SKILL.md`, diretriz 29 (pedido das decisões) em `skills/falar-com-o-dono/SKILL.md`, 15 invariantes novos em `tests/config.json`.
 
 Revalidação (E1.347) no head fd0a0172, por instância que não fez a entrega: decisão 2 do dono de 15/11 (pedido v047, 06:34), que tira o invariante "diga sempre ao usuário para qual agente passou" e o troca pelo resumo nos marcos; o PR leva o destaque de afrouxa-regra. As passadas anteriores (E1.306, head a4a47661, aprovado; E1.292, head 05797223, reprovado) seguem no fim.
 
-## Delta lido
+### Delta lido
 `forge-check parecer delta docs/reviews/v047-fala-e-decisoes.md` → rc 0, intervalo `a4a476617e6aae4b418e2a97df2839f84500942a..fd0a0172774f2744dbfbba81ca10064d4f98ec41`, no domínio: `agents/jarvis.md`, `changelog.d/v047-fala-e-decisoes.md`, `tests/config.json`, `tests/test_jarvis_nucleo.py`. Fora do domínio: pareceres de QA e de segurança. O resto da branch já foi lido nas passadas anteriores e não foi relido.
 
-## Conferência com a decisão 2
+### Conferência com a decisão 2
 - `agents/jarvis.md`:34 troca só a oração final da triagem: "diga sempre ao usuário para qual agente passou" → "diga qual agente faz o quê só nos marcos, num resumo", nas palavras do dono ("Diga qual agente faz o quê só nos marcos, num resumo").
 - `tests/config.json`: o trecho velho sai de `invariantes` e o novo entra no mesmo lugar, com motivo em `R-DECISAO`; por isso `invariantes_sem_motivo` de `agents/jarvis.md` cai de 49 para 48. A conta bate.
 - `tests/test_jarvis_nucleo.py`: `RETIRADOS_047` registra o trecho retirado com a data e a decisão, no padrão de `RETIRADOS_046`.
 - O fragmento do changelog diz em negrito que afrouxa um invariante, com a decisão e o trecho. O destaque no título do PR (CLAUDE.md, "Regras da fábrica protegidas por teste") e o rótulo `afrouxa-regra` da catraca ficam para quando o PR for aberto. Isso é pendência do PR, não achado deste delta.
 - Restos do trecho velho: só no retrato `tests/fixtures/jarvis-invariantes-b2580c6.json`, em `tests/fixtures/afrouxamentos/218.json` (histórico) e nos pareceres. Nenhum agente, skill ou modelo segue mandando avisar a cada agente acionado.
 
-## Diretriz 25 (nada apagado nem resumido)
+### Diretriz 25 (nada apagado nem resumido)
 O delta tira um único trecho, por decisão expressa do dono. Nenhuma outra regra sai nem é resumida: `agents/jarvis.md` muda uma linha, os outros três arquivos só acrescentam ou trocam o mesmo trecho.
 
-## Saída das ferramentas (sem refazer)
+### Saída das ferramentas (sem refazer)
 - Suíte inteira: fica para o CI do PR (`tests/config.json` muda), sem PR aberto agora.
 - Afetados com `env -i` e `python3 -I -m unittest discover -s tests`: `test_jarvis_nucleo` (20 testes) OK; `test_forge` -k RegrasInviolaveis/Orcamento OK; `test_orcamento_instrucao` OK.
 - Mutante numa cópia do head (`git archive`): devolver o trecho velho em `agents/jarvis.md`:34 faz `test_trechos_obrigatorios` falhar (morto). O novo invariante protege o texto.
 - Tamanho (M14): 9 linhas de código e teste no delta (`tests/config.json` e `tests/test_jarvis_nucleo.py`); sem guarda de código, sem mutante a declarar.
 
-## Achados
+### Achados
 
-## Sondas
+### Sondas
 
-## Parecer
+### Parecer
 Aprovado. O delta faz o que a decisão 2 do dono pede, sem nada a mais. O afrouxamento está registrado em três lugares: no invariante novo com motivo, no `RETIRADOS_047` e no fragmento do changelog. A diretriz 25 foi cumprida. O commit fd0a0172 segue Conventional Commits em português e diz no assunto que afrouxa um invariante.
 
-## Passada anterior (E1.306, head a4a47661, aprovado)
+### Passada anterior (E1.306, head a4a47661, aprovado)
 `bin/forge-check parecer delta docs/reviews/v047-fala-e-decisoes.md` → rc 0, intervalo `05797223ac8b884b8d44874803878cfb356eedbc..a4a476617e6aae4b418e2a97df2839f84500942a`, no domínio: `changelog.d/v047-fala-e-decisoes.md`, `skills/falar-com-o-dono/SKILL.md`, `skills/falar-com-o-dono/resposta-curta.md` (novo), `skills/kanban-scrum/SKILL.md`, `skills/kanban-scrum/experimentos.md` (novo), `skills/modo-iniciante/SKILL.md`, `skills/modo-iniciante/numeros.md` (novo), `tests/config.json`. Já lido (passada anterior, não relido): `agents/jarvis.md` e o resto da branch.
 
 ### Achados anteriores
@@ -66,7 +94,7 @@ Aprovado. O delta faz o que a decisão 2 do dono pede, sem nada a mais. O afroux
 ### Parecer
 Aprovado. A1 a A4 resolvidos, sem achado novo; a diretriz 25 foi cumprida: o que não coube no teto mudou para arquivo ao lado com ponteiro e invariante. Commit a4a47661 em Conventional Commits em português; o fragmento do changelog registra os três arquivos novos.
 
-## Passada anterior (E1.292, head 05797223, reprovado por A1)
+### Passada anterior (E1.292, head 05797223, reprovado por A1)
 - A1 (bloqueante) skills/falar-com-o-dono/SKILL.md:18 · o corte tirou o formato do corte recomendado e `decisoes --resposta`; diretriz 25.
 - A2 (recomendado) agents/jarvis.md:19 · frase do técnico e do aprendizado cortada em vez de movida.
 - A3 (recomendado) skills/falar-com-o-dono/SKILL.md:24 · perdeu o caminho `docs/economia-de-tokens.md`.
