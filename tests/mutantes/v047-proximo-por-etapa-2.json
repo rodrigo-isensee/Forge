@@ -1,0 +1,87 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "PE-M6",
+      "guarda": "--etapa fora da forma E<n>.<m> sai rc 2 antes de ler o pedido",
+      "arquivo": "bin/forge-check",
+      "de": "    if etapa is not None and not re.fullmatch(ETAPA_DO_BRIEF, etapa):",
+      "para": "    if etapa is not None and not re.fullmatch(r\".+\", etapa):",
+      "testes": [
+        "tests.test_proximo.ProximoPorEtapa.test_etapa_fora_da_forma_ou_do_pedido_rc_2"
+      ]
+    },
+    {
+      "id": "PE-M7",
+      "guarda": "--etapa lista só a etapa pedida",
+      "arquivo": "bin/forge-check",
+      "de": "[x for x in etapas if x[0] == etapa]",
+      "para": "[x for x in etapas if x[0] != etapa]",
+      "testes": [
+        "tests.test_proximo.ProximoPorEtapa.test_etapa_mostra_so_ela_entregue_ou_nao"
+      ]
+    },
+    {
+      "id": "PE-M8",
+      "guarda": "sem --etapa, o filtro é o das abertas",
+      "arquivo": "bin/forge-check",
+      "de": "] if etapa is not None else [x for x",
+      "para": "] if etapa is None else [x for x",
+      "testes": [
+        "tests.test_proximo.ProximoPorEtapa.test_etapa_mostra_so_ela_entregue_ou_nao",
+        "tests.test_proximo.Proximo.test_sem_registro_tudo_sai_nao_verificavel"
+      ]
+    },
+    {
+      "id": "PE-M9",
+      "guarda": "sem --etapa, a etapa entregue sai da lista",
+      "arquivo": "bin/forge-check",
+      "de": "if x[3] != \"entregue\"]",
+      "para": "if x[3] != \"entregue\" or True]",
+      "testes": [
+        "tests.test_proximo.Proximo.test_etapa_entregue_branch_e_ultimo_veredito_aprovado"
+      ]
+    },
+    {
+      "id": "PE-M10",
+      "guarda": "--etapa fora do `## Etapas` sai rc 2",
+      "arquivo": "bin/forge-check",
+      "de": "    if etapa is not None and not listadas:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_proximo.ProximoPorEtapa.test_etapa_fora_da_forma_ou_do_pedido_rc_2"
+      ]
+    },
+    {
+      "id": "PE-M11",
+      "guarda": "todas entregues não vira pedido sem `## Etapas`",
+      "arquivo": "bin/forge-check",
+      "de": "or ([] if etapas else [",
+      "para": "or ([] if not etapas else [",
+      "testes": [
+        "tests.test_proximo.ProximoPorEtapa.test_todas_entregues_nao_vira_pedido_sem_etapas"
+      ]
+    },
+    {
+      "id": "PE-M12",
+      "guarda": "a contagem das entregues sai só sem --etapa",
+      "arquivo": "bin/forge-check",
+      "de": "    if etapa is None and len(etapas) > len(listadas):",
+      "para": "    if True and len(etapas) > len(listadas):",
+      "testes": [
+        "tests.test_proximo.ProximoPorEtapa.test_etapa_mostra_so_ela_entregue_ou_nao"
+      ]
+    },
+    {
+      "id": "PE-M13",
+      "guarda": "o corte é na lista de etapas, antes do passo e dos bloqueios",
+      "arquivo": "bin/forge-check",
+      "de": "    if len(lista) > espaco:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_proximo.Proximo.test_teto_de_linhas_e_pedido_inexistente"
+      ]
+    }
+  ]
+}

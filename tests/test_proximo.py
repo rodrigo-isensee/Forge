@@ -80,7 +80,10 @@ class Proximo(unittest.TestCase):
         self.commitar("parecer")
         rc, linhas = self.proximo()
         self.assertEqual(rc, 0, linhas)
-        self.assertIn("proximo: etapa E1.1 (dev-exemplo) · entregue · implementar o recurso", linhas)
+        self.assertFalse([l for l in linhas if l.startswith("proximo: etapa E1.1")], linhas)  # PROXIMO-POR-ETAPA: só as abertas
+        self.assertIn("proximo: etapas: 1 com registro de entrega fora da lista (`--etapa <id>` mostra uma)", linhas)
+        self.assertIn("proximo: etapa E1.2 (tech-lead) · não verificável · review", linhas)
+        self.assertIn("proximo: etapa E1.1 (dev-exemplo) · entregue · implementar o recurso", self.proximo("p1", "--etapa", "E1.1")[1])
         self.assertIn(f"proximo: branch melhoria/p1 · head {self.git('rev-parse', '--short=7', 'HEAD')}", linhas)
         self.assertIn(f"proximo: último veredito review=aprovado · docs/reviews/p1.md · commit {head[:7]}", linhas)
         self.assertIn("proximo: passo: E1.2 (tech-lead) · review", linhas)
@@ -94,7 +97,7 @@ class Proximo(unittest.TestCase):
         self.pedido(" 2026-10-19 10:00: aberto", selo)
         self.assertIn("proximo: etapa E1.1 (dev-exemplo) · não verificável · implementar o recurso", self.proximo()[1])
         self.pedido(" 2026-10-19 10:00: aberto", selo, f" 2026-10-19 12:00: entrega conferida {head}")
-        linhas = self.proximo()[1]
+        linhas = self.proximo("p1", "--etapa", "E1.1")[1]
         self.assertIn("proximo: etapa E1.1 (dev-exemplo) · entregue · implementar o recurso", linhas)
         self.assertIn("proximo: passo: E1.2 (tech-lead) · review", linhas)
         self.pedido(" 2026-10-19 10:00: aberto", f" 2026-10-19 12:00: entrega conferida {head}", selo)  # a conferência antes do selo
@@ -137,8 +140,9 @@ class Proximo(unittest.TestCase):
         etapas = "".join(f"- E1.{n} (forge:dev-exemplo): etapa {n}\n" for n in range(1, 60))
         self.gravar("docs/pedidos/p1.md", f"# Pedido p1\n\n## Etapas\n{etapas}\n## Histórico\n- aberto\n")
         linhas = self.proximo()[1]
-        self.assertEqual(len(linhas), 40, linhas)
-        self.assertRegex(linhas[-1], r"^proximo: mais \d+ linhas omitidas$")
+        self.assertEqual(len(linhas), 40, linhas)  # PROXIMO-POR-ETAPA: o corte é na lista de etapas; o passo e os bloqueios ficam
+        self.assertIn("proximo: mais 25 etapas omitidas (`--etapa <id>` mostra uma)", linhas)
+        self.assertEqual(linhas[-2:], ["proximo: passo: E1.1 (dev-exemplo) · etapa 1", "proximo: bloqueios: nenhum no registro"])
         rc, linhas = self.proximo("nao-existe")
         self.assertEqual(rc, 2)
         self.assertIn("não verificável", linhas[0])
@@ -238,6 +242,38 @@ class ProximoDoItem(unittest.TestCase):
         self.assertFalse([l for l in linhas if l.startswith(("proximo: item", "proximo: passo-item", "proximo: comando-item"))], linhas)
 
 
+class ProximoPorEtapa(unittest.TestCase):
+    """PROXIMO-POR-ETAPA: `--etapa E<n>.<m>` mostra só ela; fora da forma ou do `## Etapas`, rc 2 e nada mais."""
+    setUp, git, gravar, pedido, commitar, proximo = Proximo.setUp, Proximo.git, Proximo.gravar, Proximo.pedido, Proximo.commitar, Proximo.proximo
+
+    def test_etapa_mostra_so_ela_entregue_ou_nao(self):
+        self.pedido(" 2026-10-19 10:00: aberto", " 2026-10-19 12:00: E1.1 entregue pelo forge:dev-exemplo")
+        rc, linhas = self.proximo("p1", "--etapa", "E1.2")
+        self.assertEqual(rc, 0, linhas)
+        self.assertEqual([l for l in linhas if l.startswith("proximo: etapa")], ["proximo: etapa E1.2 (tech-lead) · não verificável · review"])
+        self.assertIn("proximo: passo: E1.2 (tech-lead) · review", linhas)
+        self.assertFalse([l for l in linhas if "fora da lista" in l], linhas)
+
+    def test_etapa_fora_da_forma_ou_do_pedido_rc_2(self):
+        for valor in ("E1", "E1.1;rm", "e1.1", "E1.1234"):
+            rc, linhas = self.proximo("p1", "--etapa", valor)
+            self.assertEqual(rc, 2, (valor, linhas))
+            self.assertEqual(len(linhas), 1, linhas)
+            self.assertIn("fora da forma", linhas[0])
+        rc, linhas = self.proximo("p1", "--etapa", "E1.9")
+        self.assertEqual(rc, 2, linhas)
+        self.assertEqual(linhas[-1], "proximo: etapa E1.9: não verificável (fora do `## Etapas` do pedido)")
+
+    def test_todas_entregues_nao_vira_pedido_sem_etapas(self):
+        self.pedido(" 2026-10-19 10:00: aberto", " 2026-10-19 12:00: E1.1, E1.2 e E1.3 entregues")
+        linhas = self.proximo()[1]
+        self.assertFalse([l for l in linhas if "não tem `## Etapas`" in l or l.startswith("proximo: etapa ")], linhas)
+        self.assertIn("proximo: etapas: 3 com registro de entrega fora da lista (`--etapa <id>` mostra uma)", linhas)
+        self.assertIn("proximo: passo: todas as etapas têm registro de entrega; confira o critério de pronto", linhas)
+        self.gravar("docs/pedidos/p1.md", "# Pedido p1\n\n## Histórico\n- aberto\n")
+        self.assertIn("proximo: etapas: não verificável (o pedido não tem `## Etapas`)", self.proximo()[1])
+
+
 class ProximoRapido(unittest.TestCase):
     """FORGE-CHECK-PROXIMO-LENTO: o `proximo` lê os commits de cada branch uma vez, não um `rev-parse` e um `merge-base` por par de
     conferida e brief selado (o v047, com 526 selos e 72 conferidas, passava de 120 s)."""
@@ -257,7 +293,7 @@ class ProximoRapido(unittest.TestCase):
         contador = self.tmp / "chamadas"
         (falso / "git").write_text(f"#!/bin/sh\necho x >> '{contador}'\nexec '{shutil.which('git')}' \"$@\"\n", encoding="utf-8")
         (falso / "git").chmod(0o755)
-        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.tmp), "proximo", "p1"], capture_output=True, text=True,
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.tmp), "proximo", "p1", "--etapa", "E1.2"], capture_output=True, text=True,
                            env=dict(AMBIENTE, HOME=str(self.tmp / "home"), PATH=f"{falso}{os.pathsep}{AMBIENTE['PATH']}"))
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("proximo: etapa E1.2 (tech-lead) · entregue · review", r.stdout.splitlines())
