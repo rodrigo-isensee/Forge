@@ -3,7 +3,7 @@ tipo: revisao-devops
 contrato: 1
 pedido: v047-catraca-hook-por-script
 branch: melhoria/v047-catraca-hook-por-script
-commit: ee91a8f00ceb1a52bc4ab41bc50a96996cc918e3
+commit: 230dfb01ddde3b7e84d47fdad161c8dbfc93ffc5
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-15
@@ -24,3 +24,5 @@ Revalidado no head ee91a8f0 (delta 66a3a9a4..ee91a8f0, volta 3): `forge-check pa
 
 ## Custo e rollback
 Sem minutos de CI novos além da suíte já existente (os testes novos somam cerca de 7 s) e sem recurso pago (`R-CUSTO`). Rollback: reverter o commit do merge; a catraca volta à chave anterior, sem estado nem migração.
+
+Revalidado no head 230dfb01 (volta 4, delta ee91a8f0..230dfb01 sem arquivo do domínio; `forge-check parecer delta` diz "nenhum arquivo do domínio mudou"; mudaram `tests/catraca.py`, testes, corpus, mutantes e fragmento do item). A10 (hooks.json fora do esquema: lista fechada de eventos e tipos, falha fechada) e as sondas S12 a S16 e `real` do corpus: `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook` com 14 testes OK. Nada novo em workflow, permissão, segredo, cache ou ação de terceiros. A1 segue recomendado. A classe inteira passa de 120 s local; fica ao CI.
