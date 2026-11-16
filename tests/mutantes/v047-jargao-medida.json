@@ -4,32 +4,35 @@
   "mutantes": [
     {
       "id": "M1",
-      "guarda": "E7.4: a cerca de código abre e fecha o trecho fora da conta",
+      "guarda": "E2.237: a cerca (``` ou ~~~) abre o bloco de código",
       "arquivo": "hooks/meta.py",
-      "de": "        if linha.lstrip().startswith(\"```\"):",
+      "de": "        if cerca is None and inicio in (\"```\", \"~~~\"):",
       "para": "        if False:",
       "testes": [
-        "tests.test_meta.JargaoPorClasse.test_bloco_de_codigo_e_citacao_nao_contam_e_crase_conta"
+        "tests.test_meta.JargaoPorClasse.test_bloco_de_codigo_e_citacao_nao_contam_e_crase_conta",
+        "tests.test_meta.JargaoPorClasse.test_cerca_de_til_e_fechada_pela_mesma_cerca"
       ]
     },
     {
       "id": "M2",
-      "guarda": "E7.4: citação fica fora da conta",
+      "guarda": "E7.4: a citação (>) fora do bloco não conta",
       "arquivo": "hooks/meta.py",
-      "de": "        elif not em_codigo and not linha.lstrip().startswith(\">\"):",
-      "para": "        elif not em_codigo:",
+      "de": "        elif not inicio.startswith(\">\"):",
+      "para": "        elif True:",
       "testes": [
-        "tests.test_meta.JargaoPorClasse.test_bloco_de_codigo_e_citacao_nao_contam_e_crase_conta"
+        "tests.test_meta.JargaoPorClasse.test_bloco_de_codigo_e_citacao_nao_contam_e_crase_conta",
+        "tests.test_meta.JargaoPorClasse.test_cerca_de_til_e_fechada_pela_mesma_cerca"
       ]
     },
     {
       "id": "M3",
-      "guarda": "E7.4: linha dentro do bloco de código fica fora da conta",
+      "guarda": "E2.237: a linha dentro do bloco não conta",
       "arquivo": "hooks/meta.py",
-      "de": "        elif not em_codigo and not linha.lstrip().startswith(\">\"):",
-      "para": "        elif not linha.lstrip().startswith(\">\"):",
+      "de": "        elif cerca is not None:",
+      "para": "        elif False:",
       "testes": [
-        "tests.test_meta.JargaoPorClasse.test_bloco_de_codigo_e_citacao_nao_contam_e_crase_conta"
+        "tests.test_meta.JargaoPorClasse.test_bloco_de_codigo_e_citacao_nao_contam_e_crase_conta",
+        "tests.test_meta.JargaoPorClasse.test_cerca_de_til_e_fechada_pela_mesma_cerca"
       ]
     },
     {

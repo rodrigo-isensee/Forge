@@ -26,6 +26,8 @@ CHECAGEM_S = 60
 REPETICOES_PARA_PAUSAR = 4
 TETO_DA_MENSAGEM = 1200  # caracteres da mensagem ao dono (S6, só medida)
 LEITURA_MAXIMA = 4 * 1024 * 1024  # bytes lidos do fim do transcrito
+TETO_DA_MEDIDA = 20000  # caracteres do início da mensagem que a medida lê (S6): o tempo dela não cresce com a mensagem
+JANELA_DA_FRASE = 200  # caracteres antes do termo onde explicado() procura o "o que é" da mesma frase
 
 
 def agora():
@@ -136,10 +138,10 @@ def ultima_mensagem(transcrito):
 
 # Classes de jargão (diretriz 31; desenho em docs/arquitetura/visao-de-foco.md, seção 5.3): fonte única das expressões.
 CLASSES_DE_JARGAO = {
-    "etapa": re.compile(r"(?<![\w.])E\d+\.\d+(?![\w.])"),
+    "etapa": re.compile(r"(?<![\w.])E\d+\.\d+(?!\w|\.\w)"),
     "commit": re.compile(r"(?<![\w-])(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}(?![\w-])"),
     "regra": re.compile(r"(?<![\w-])R-[A-Z]{3,}(?![\w-])"),
-    "cartao": re.compile(r"(?<![\w-])[A-Z]{2,}[A-Z0-9]*(?:-[A-Z0-9]+)+(?![\w-])"),
+    "cartao": re.compile(r"(?<![\w-])[A-Z]{2}[A-Z0-9]*(?:-[A-Z0-9]+)+(?![\w-])"),
     "ferramenta": re.compile(r"(?<![\w/-])(?:forge-[a-z][\w-]*|(?:gh|git) [a-z][\w-]*)|(?:^|(?<=`))forge [a-z][\w-]*", re.M),
     "caminho": re.compile(r"(?<![\w/.-])[\w.-]*/[\w./-]*\.(?:md|py|json|sh)(?![\w-])"),
 }
@@ -147,19 +149,24 @@ EXPLICACAO = re.compile(r"[^\n(.!?]{0,60}\(\s*[^)\s]")  # parêntese com texto e
 
 
 def fora_de_codigo_e_citacao(texto):
-    """As linhas da mensagem fora de bloco de código cercado e de citação (>): o que entra na conta das classes."""
-    linhas, em_codigo = [], False
+    """As linhas da mensagem fora de bloco de código cercado (``` ou ~~~, fechado pela mesma cerca) e de citação (>):
+    o que entra na conta das classes."""
+    linhas, cerca = [], None
     for linha in texto.splitlines():
-        if linha.lstrip().startswith("```"):
-            em_codigo = not em_codigo
-        elif not em_codigo and not linha.lstrip().startswith(">"):
+        inicio = linha.lstrip()[:3]
+        if cerca is None and inicio in ("```", "~~~"):
+            cerca = inicio
+        elif cerca is not None:
+            cerca = None if inicio == cerca else cerca
+        elif not inicio.startswith(">"):
             linhas.append(linha)
     return "\n".join(linhas)
 
 
 def explicado(texto, inicio, fim):
-    """O termo vem seguido de parêntese com texto (até 60 caracteres) ou precedido de "o que é" na mesma frase."""
-    frase = re.split(r"[.!?\n]", texto[:inicio])[-1]
+    """O termo vem seguido de parêntese com texto (até 60 caracteres) ou precedido de "o que é" na mesma frase, procurado
+    só na janela antes do termo: o custo não cresce com o tamanho da mensagem."""
+    frase = re.split(r"[.!?\n]", texto[max(0, inicio - JANELA_DA_FRASE):inicio])[-1]
     return bool(EXPLICACAO.match(texto, fim)) or "o que é" in frase.lower()
 
 
@@ -181,9 +188,11 @@ def mensagem_ao_dono(hook):
 
 def medir_mensagem(hook):
     for texto in filter(None, [mensagem_ao_dono(hook)]):
-        achados = sorted({p for p in jargao() if re.search(r"(?<!\w)" + re.escape(p) + r"(?!\w)", texto, re.I)})
+        medido = texto[:TETO_DA_MEDIDA]
+        achados = sorted({p for p in jargao() if re.search(r"(?<!\w)" + re.escape(p) + r"(?!\w)", medido, re.I)})
         linha = {"em": agora(), "caracteres": len(texto), "teto": TETO_DA_MENSAGEM, "passou_do_teto": len(texto) > TETO_DA_MENSAGEM,
-                 "jargao": achados, "classes": classes_de_jargao(texto), "iniciante": hook.iniciante()}
+                 "jargao": achados, "classes": classes_de_jargao(medido), "cortado": len(texto) > TETO_DA_MEDIDA,
+                 "iniciante": hook.iniciante()}
         with open(hook.run() / "mensagens.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(linha, ensure_ascii=False) + "\n")
 
@@ -195,10 +204,12 @@ def principal(hook):
     if raiz is None:
         return
     try:
-        medir_mensagem(hook)
-    except Exception as erro:  # noqa: BLE001 - S6 só mede: a falha da medida nunca troca a decisão do Stop
-        hook.registrar_erro(erro)
-    avaliar_meta(hook, raiz)
+        avaliar_meta(hook, raiz)  # a decisão vem antes da medida; bloquear sai do processo, e a medida roda no finally
+    finally:
+        try:
+            medir_mensagem(hook)
+        except Exception as erro:  # noqa: BLE001 - S6 só mede: a falha da medida nunca troca a decisão do Stop
+            hook.registrar_erro(erro)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2466 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2467 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -11,7 +11,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2466 fixtures) roda em `tests/test
 | `agentes` | 79 | 44 | 35 | 27 |
 | `conformidade` | 1814 | 1340 | 474 | 90 |
 | `doutor` | 3 | 0 | 3 | 3 |
-| `meta` | 26 | 10 | 16 | 13 |
+| `meta` | 27 | 11 | 16 | 13 |
 | `parecer` | 464 | 358 | 106 | 24 |
 | `pesado` | 24 | 9 | 15 | 19 |
 | `quadro` | 7 | 2 | 5 | 7 |
@@ -157,6 +157,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2466 fixtures) roda em `tests/test
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | `v0454-*` | 12 | 8 | 4 | — | `V0454-CAMINHOS-EXTRA` | V0454-CAMINHOS-EXTRA: a pasta de `caminhos_extra` entra no fim do PATH da checagem |
+| `jargao-*` | 2 | 1 | 1 | `R-PROVA` | `E2.237`, `E7.4` | E7.4 (v047): S6 mede a mensagem do campo last_assistant_message (não a do transcrito), conta por classe, não grava o termo e o Stop passa. |
 | `mensagem-*` | 2 | 0 | 2 | — | — | S6: a última mensagem ao dono é medida (caracteres e jargão do modo iniciante) e o Stop passa. |
 | `sem-*` | 2 | 0 | 2 | — | — | Projeto sem .forge/versao: o hook não age. |
 | `ainda-*` | 1 | 1 | 0 | — | — | S4: checagem que falha bloqueia o Stop dizendo qual. |
@@ -165,7 +166,6 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2466 fixtures) roda em `tests/test
 | `erro-*` | 1 | 0 | 1 | — | — | meta.json corrompido: libera e registra em erros.log. |
 | `espera-*` | 1 | 0 | 1 | — | — | S4: pedido em Aguardando o dono: o Stop passa e o objetivo fica armado. |
 | `falha-*` | 1 | 1 | 0 | — | — | S4: "ainda não" com outra falha recomeça a conta e bloqueia. |
-| `jargao-*` | 1 | 0 | 1 | — | `E7.4` | E7.4 (v047): S6 mede a mensagem do campo last_assistant_message (não a do transcrito), conta por classe, não grava o termo e o Stop passa. |
 | `pausado-*` | 1 | 0 | 1 | — | — | S4: objetivo pausado não bloqueia o Stop. |
 | `pergunta-*` | 1 | 0 | 1 | — | — | S4: última linha do dono no pedido é PERGUNTA AO DONO: espera o dono. |
 | `quarta-*` | 1 | 0 | 1 | — | — | S4: o quarto "ainda não" igual seguido pausa sozinho e o Stop passa. |

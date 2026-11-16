@@ -4,12 +4,83 @@
   "mutantes": [
     {
       "id": "M17",
-      "guarda": "E7.4: a cerca seguinte fecha o bloco e o texto depois dele volta à conta",
+      "guarda": "E2.237: a mesma cerca fecha o bloco e o texto depois dele volta à conta",
       "arquivo": "hooks/meta.py",
-      "de": "            em_codigo = not em_codigo",
-      "para": "            em_codigo = True",
+      "de": "            cerca = None if inicio == cerca else cerca",
+      "para": "            cerca = cerca",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_bloco_de_codigo_e_citacao_nao_contam_e_crase_conta",
+        "tests.test_meta.JargaoPorClasse.test_cerca_de_til_e_fechada_pela_mesma_cerca"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "E2.237: só a mesma cerca fecha o bloco; linha comum dentro dele não fecha",
+      "arquivo": "hooks/meta.py",
+      "de": "            cerca = None if inicio == cerca else cerca",
+      "para": "            cerca = None",
       "testes": [
         "tests.test_meta.JargaoPorClasse.test_bloco_de_codigo_e_citacao_nao_contam_e_crase_conta"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "E2.237: cerca dentro do bloco não reabre outro",
+      "arquivo": "hooks/meta.py",
+      "de": "        if cerca is None and inicio in (\"```\", \"~~~\"):",
+      "para": "        if inicio in (\"```\", \"~~~\"):",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_cerca_de_til_e_fechada_pela_mesma_cerca"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "E2.237 (review A2): a cerca ~~~ também abre bloco",
+      "arquivo": "hooks/meta.py",
+      "de": "inicio in (\"```\", \"~~~\"):",
+      "para": "inicio == \"```\":",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_cerca_de_til_e_fechada_pela_mesma_cerca"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "E2.237 (review A1): a etapa no fim da frase conta",
+      "arquivo": "hooks/meta.py",
+      "de": "(?!\\w|\\.\\w)",
+      "para": "(?![\\w.])",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_etapa_no_fim_da_frase_conta"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "E2.237: a versão de três números não é etapa",
+      "arquivo": "hooks/meta.py",
+      "de": "(?!\\w|\\.\\w)",
+      "para": "(?!\\w)",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_etapa_no_fim_da_frase_conta"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "E2.237 (segurança A1): o o que é só vale na janela antes do termo",
+      "arquivo": "hooks/meta.py",
+      "de": "texto[max(0, inicio - JANELA_DA_FRASE):inicio]",
+      "para": "texto[:inicio]",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_o_que_e_longe_do_termo_nao_explica"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "E2.237 (segurança A3, A4): a medida inteira lê só o teto",
+      "arquivo": "hooks/meta.py",
+      "de": "        medido = texto[:TETO_DA_MEDIDA]",
+      "para": "        medido = texto",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_medida_le_so_o_teto_e_marca_cortado"
       ]
     }
   ]

@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -102,8 +103,39 @@ class Jargao(unittest.TestCase):
                 chamado.append("escapou")
         finally:
             meta.medir_mensagem, meta.avaliar_meta = original_medir, original_meta
-        self.assertIsInstance(chamado[0], RuntimeError)
-        self.assertEqual(chamado[1], "meta", "a falha da medida não pula a conferência do objetivo")
+        self.assertEqual(chamado[0], "meta", "a decisão do Stop vem antes da medida (E2.237)")
+        self.assertIsInstance(chamado[1], RuntimeError, "a falha da medida vai ao erros.log e não escapa")
+        self.assertEqual(len(chamado), 2)
+
+    def test_stop_bloqueado_ainda_mede_e_sai_com_2(self):
+        """E2.237: bloquear sai do processo; a medida roda depois da decisão, e o código 2 não muda."""
+        sys.path.insert(0, str(RAIZ / "hooks"))
+        try:
+            import meta  # noqa: PLC0415
+        finally:
+            sys.path.pop(0)
+        chamado = []
+
+        class Falso:
+            def campo(self, *_):
+                return "Stop"
+
+            def projeto(self, *_a, **_k):
+                return Path("/x")
+
+            def cwd(self):
+                return Path("/x")
+
+        original_medir, original_meta = meta.medir_mensagem, meta.avaliar_meta
+        meta.medir_mensagem = lambda hook: chamado.append("medida")
+        meta.avaliar_meta = lambda hook, raiz: sys.exit(2)
+        try:
+            with self.assertRaises(SystemExit) as saida:
+                meta.principal(Falso())
+        finally:
+            meta.medir_mensagem, meta.avaliar_meta = original_medir, original_meta
+        self.assertEqual(saida.exception.code, 2)
+        self.assertEqual(chamado, ["medida"])
 
 
 def importar_meta():
@@ -144,6 +176,51 @@ class JargaoPorClasse(unittest.TestCase):
         self.assertEqual(self.meta.classes_de_jargao(f"{cerca}\ngit push origin x\n{cerca}\n> A E1.2 citada."), {})
         self.assertEqual(self.meta.classes_de_jargao(f"{cerca}\ngit x\n{cerca}\nA E1.2 depois do bloco."), {"etapa": 1})
         self.assertEqual(self.meta.classes_de_jargao("Rode `forge doutor` agora."), {"ferramenta": 1})
+        self.assertEqual(self.meta.classes_de_jargao(f"{cerca}\nfim\ngit push origin x\n{cerca}"), {}, "linha do bloco não fecha")
+
+    def test_cerca_de_til_e_fechada_pela_mesma_cerca(self):
+        """E2.237 (review A2): ~~~ abre bloco; dentro dela, ``` não fecha nem reabre."""
+        crases = "`" * 3
+        self.assertEqual(self.meta.classes_de_jargao("~~~\ngit push origin x\n~~~\n> A E1.2 citada."), {})
+        self.assertEqual(self.meta.classes_de_jargao("~~~\ngit x\n~~~\nA E1.2 depois do bloco."), {"etapa": 1})
+        self.assertEqual(self.meta.classes_de_jargao(f"~~~\n{crases}\nA E1.2 dentro.\n~~~"), {})
+        self.assertEqual(self.meta.classes_de_jargao(f"~~~\n{crases}\n~~~\nA E1.2 depois."), {"etapa": 1})
+
+    def test_etapa_no_fim_da_frase_conta(self):
+        """E2.237 (review A1): o ponto final não esconde a etapa; a versão de três números não é etapa."""
+        self.assertEqual(self.meta.classes_de_jargao("Terminei a E7.4."), {"etapa": 1})
+        self.assertEqual(self.meta.classes_de_jargao("Terminei a E7.4.\nE a E7.5!"), {"etapa": 2})
+        self.assertEqual(self.meta.classes_de_jargao("Subi a E7.4.1 hoje."), {})
+
+    def test_o_que_e_longe_do_termo_nao_explica(self):
+        """E2.237: o "o que é" só vale na janela antes do termo (o custo não cresce com a mensagem)."""
+        longe = "Sabe o que é" + " palavra" * 40 + " a E7.1 hoje"
+        self.assertEqual(self.meta.classes_de_jargao(longe), {"etapa": 1})
+
+    def test_medida_le_so_o_teto_e_marca_cortado(self):
+        """E2.237 (segurança A1 a A4): a medida inteira lê só TETO_DA_MEDIDA caracteres e marca o corte."""
+        teto = self.meta.TETO_DA_MEDIDA
+        texto = "a " * (teto // 2) + "R-MAIN commit hoje"
+        gravado = self.medir(texto)
+        self.assertEqual((gravado["caracteres"], gravado["cortado"], gravado["classes"], gravado["jargao"]),
+                         (len(texto), True, {}, []))
+        curto = self.medir("Fiz a E7.4.")
+        self.assertEqual((curto["cortado"], curto["classes"]), (False, {"etapa": 1}))
+
+    def test_mensagem_adversaria_de_200_kb_mede_em_tempo_limitado(self):
+        """E2.237 (segurança S1 a S4): as entradas que levavam de 36 s a mais de 300 s ficam abaixo de 5 s de CPU."""
+        for texto in ("E1.1 " * 40000, "AB" * 50000 + "-" + "A-" * 50000 + "a", "R-MAIN " * 29000):
+            with self.subTest(inicio=texto[:6]):
+                inicio = time.process_time()
+                self.medir(texto)
+                self.assertLess(time.process_time() - inicio, 5)
+
+    def medir(self, texto):
+        with tempfile.TemporaryDirectory() as pasta:
+            hook = type("Hook", (), {"campo": lambda self, chave: {"last_assistant_message": texto}.get(chave),
+                                     "run": lambda self: Path(pasta), "iniciante": lambda self: False})()
+            self.meta.medir_mensagem(hook)
+            return json.loads((Path(pasta) / "mensagens.jsonl").read_text(encoding="utf-8"))
 
     def test_mensagem_do_evento_vence_o_transcrito_e_o_termo_nao_vai_ao_disco(self):
         with tempfile.TemporaryDirectory() as pasta:

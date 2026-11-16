@@ -1,0 +1,37 @@
+{
+  "pedido": "v047-jargao-medida",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "E2.237: a linha marca a mensagem cortada pelo teto",
+      "arquivo": "hooks/meta.py",
+      "de": "\"cortado\": len(texto) > TETO_DA_MEDIDA",
+      "para": "\"cortado\": False",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_medida_le_so_o_teto_e_marca_cortado"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "E2.237 (segurança A3): a decisão do Stop vem antes da medida",
+      "arquivo": "hooks/meta.py",
+      "de": "        avaliar_meta(hook, raiz)  # a decisão vem antes",
+      "para": "        pass  # a decisão vem antes",
+      "testes": [
+        "tests.test_meta.Jargao.test_medida_que_falha_nao_troca_o_stop",
+        "tests.test_meta.Jargao.test_stop_bloqueado_ainda_mede_e_sai_com_2"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "E2.237: o Stop bloqueado ainda mede (a medida no finally)",
+      "arquivo": "hooks/meta.py",
+      "de": "            medir_mensagem(hook)",
+      "para": "            pass",
+      "testes": [
+        "tests.test_meta.Jargao.test_stop_bloqueado_ainda_mede_e_sai_com_2"
+      ]
+    }
+  ]
+}
