@@ -332,7 +332,7 @@ class PrePushSoOsAfetados(unittest.TestCase):
     def test_readme_diz_baratas_antes_da_fila_afetados_e_suite_inteira_no_ci(self):  # SUITE-NO-CI (2026-11-08)
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         trecho = readme.split("**Suíte do Forge:**", 1)[1].split("\n", 1)[0]
-        for esperado in ("a suíte inteira roda uma vez, no CI de todo PR", "3 partes paralelas por versão de Python",
+        for esperado in ("a suíte inteira roda uma vez, no CI de todo PR", "5 partes paralelas por versão de Python",
                          "`bateria` e `bateria (python 3.14)` são agregadores", "checagens baratas, em segundos e antes da fila",
                          "`bin/forge-testes --afetados`", "para qualquer branch e para várias refs",
                          "`hooks/_comum.py`, `bin/forge-check` e `.githooks/`", "fica para o CI, com aviso",
@@ -1764,7 +1764,9 @@ class PrepararEstacao(unittest.TestCase):
             registro = Path(tmp) / "chamadas"
             for nome in ("sudo", "curl", "apt-get", "gh"):
                 falso = bin_falso / nome
-                falso.write_text(f'#!/bin/sh\necho "{nome} $*" >> "{registro}"\nexit 1\n')
+                # GH-VERSAO-MINIMA: ler a versão do gh não altera nada; fica fora do registro (o gh falso antigo cairia no apt oficial)
+                leitura = 'case "$1" in --version) echo "gh version 2.104.0 (2026-11-12)"; exit 0 ;; esac\n' if nome == "gh" else ""
+                falso.write_text(f'#!/bin/sh\n{leitura}echo "{nome} $*" >> "{registro}"\nexit 1\n')
                 falso.chmod(0o755)
             # leitura do estado do sistema: o falso (log à parte) diz "não instalado", sem consultar o dpkg real
             falso = bin_falso / "dpkg-query"
@@ -1813,7 +1815,8 @@ class PrepararEstacao(unittest.TestCase):
             '#!/bin/sh\nd="$HOME/.local/share/forge/vigente/dev/agents"\nmkdir -p "$d" && echo aq > "$d/aq.md"\n')
         mostrar_escopos = f"echo \"  - Token scopes: {escopos}\"; " if escopos else ""
         falsos = {
-            "gh": f'echo "gh $*" >> "{registro}"\n'
+            "gh": 'case "$1" in --version) echo "gh version 2.104.0 (2026-11-12)"; exit 0 ;; esac\n'
+                  f'echo "gh $*" >> "{registro}"\n'
                   'case "$1 $2" in\n'
                   f'  "auth status") {mostrar_escopos}exit {0 if logado else 1} ;;\n'
                   '  "repo clone") mkdir -p "$4" && echo clonado > "$4/marca" ;;\n'
@@ -6969,9 +6972,10 @@ class TesteEParecerSeparados(RepoComOrigem):
         junto = self.commitar(self.repo, {"tests/test_x.py": "# teste do QA\n", "docs/qa/p1.md": self.QA.format(c=self.c1)}, "teste e parecer juntos")
         rc, saida, _ = self.pr()
         self.assertEqual(rc, 1, saida)
-        self.assertIn("docs/qa/p1.md: commit: desatualizado: tests/test_x.py mudou depois do parecer; peça novo parecer; "
-                      f"o parecer foi commitado junto com tests/test_x.py ({junto[:7]}), depois do commit que ele cita: "
-                      "teste e parecer vão em commits separados", saida)
+        linha = next((l for l in saida.splitlines() if l.startswith("docs/qa/p1.md: commit: ")), "")
+        self.assertIn("desatualizado: tests/test_x.py mudou depois do parecer; peça novo parecer (base origin/develop ", linha)  # E2.201
+        self.assertIn(f"; o parecer foi commitado junto com tests/test_x.py ({junto[:7]}), depois do commit que ele cita: "
+                      "teste e parecer vão em commits separados", linha)
 
     def test_commit_inexistente_nao_ganha_a_explicacao(self):  # o motivo é outro: o commit citado não existe
         self.commitar(self.repo, {"tests/test_x.py": "# teste do QA\n", "docs/qa/p1.md": self.QA.format(c="1" * 40)}, "teste e parecer juntos")
@@ -7594,3 +7598,46 @@ class DocsPareceresPedidoECaminho(unittest.TestCase):
         self.assertIn("`pedido:` é o id do pedido", modelo)
         self.assertIn("nunca o nome da branch", modelo)
         self.assertIn("sem achados, omita o bloco inteiro", modelo)
+
+
+class RodarUmModuloComIsolamento(unittest.TestCase):
+    """E1.255 (v047): UNITTEST-I-NAO-IMPORTA, BRIEF-UNITTEST-DISCOVER e CONTRIB-TESTE-NICE (Q6 do dono). Sob `-I`,
+    `-m unittest tests.<mod>` não importa (a raiz sai do sys.path); a forma das skills roda, e a da contribuição em `nice`."""
+    FORMA = re.compile(r"`((?:nice -n 19 )?python3 -I -m unittest discover -s tests -p test_x\.py)`")
+    SKILLS_COM_A_FORMA = ("skills/qa-testing/SKILL.md", "skills/briefs-e-conferencia/SKILL.md",
+                          "skills/contribuir-com-o-forge/SKILL.md")
+
+    def formas(self):
+        return {rel: self.FORMA.findall((RAIZ / rel).read_text(encoding="utf-8")) for rel in self.SKILLS_COM_A_FORMA}
+
+    def rodar(self, comando):
+        """Um projeto mínimo como o Forge (tests/ sem __init__.py, teste que importa um vizinho), ambiente limpo."""
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "tests").mkdir()
+            (Path(tmp) / "tests" / "vizinho.py").write_text("VALOR = 1\n", encoding="utf-8")
+            (Path(tmp) / "tests" / "test_x.py").write_text(
+                "import unittest\nfrom vizinho import VALOR\n\n\nclass T(unittest.TestCase):\n"
+                "    def test_v(self):\n        self.assertEqual(VALOR, 1)\n", encoding="utf-8")
+            argv = [sys.executable if p == "python3" else p for p in comando.split()]
+            return subprocess.run(argv, cwd=tmp, env={"PATH": os.environ.get("PATH", "/usr/bin:/bin")},
+                                  capture_output=True, text=True, timeout=60)
+
+    def test_cada_skill_traz_a_forma_e_a_contribuicao_em_nice_um_por_vez(self):
+        formas = self.formas()
+        self.assertEqual({rel: len(f) for rel, f in formas.items()}, dict.fromkeys(self.SKILLS_COM_A_FORMA, 1))
+        self.assertTrue(formas["skills/contribuir-com-o-forge/SKILL.md"][0].startswith("nice -n 19 "))
+        secao5 = (RAIZ / "skills/contribuir-com-o-forge/SKILL.md").read_text(encoding="utf-8").split("## 5.")[1].split("## 6.")[0]
+        self.assertIn("em `nice` e um arquivo por vez", secao5)
+        self.assertIn("**não roda a suíte inteira do Forge**", secao5)
+
+    def test_a_forma_das_skills_roda_com_menos_i(self):
+        for rel, (forma,) in self.formas().items():
+            with self.subTest(rel):
+                r = self.rodar(forma)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertIn("Ran 1 test", r.stderr)
+
+    def test_tests_ponto_modulo_com_menos_i_nao_importa(self):
+        r = self.rodar("python3 -I -m unittest tests.test_x")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("No module named 'tests'", r.stderr)

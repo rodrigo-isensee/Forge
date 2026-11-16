@@ -1,11 +1,14 @@
 name: CI
 
-# Pull request: a suíte inteira em 3 partes paralelas por versão de Python (jobs "suíte (python X, parte K/3)", pelo
+# Pull request: a suíte inteira em 5 partes paralelas por versão de Python, divididas por unidade de teste e não por módulo
+# (CI-RAPIDO, v047; jobs "suíte (python X, parte K/5)", pelo
 # scripts/suite-partes.py, o mecanismo do scripts/suite-paralela.py), os demais passos da bateria num job (bateria (passos))
 # e um job agregador por versão com o nome do check exigido ("bateria" e "bateria (python 3.14)"), que só passa com todas
 # as partes e passos verdes (SUITE-NO-CI, decisão do dono de 2026-11-08: a suíte inteira roda uma vez, no CI). Push na
-# develop: só os jobs "rapida" e "rapida-quatorze", que rodam a suíte inteira (scripts/suite-paralela.py, Python 3.12 e
-# 3.14, com o mesmo preparo das partes) e são a prova da develop. Promoção (PR develop -> homolog e homolog -> main, push
+# develop: a mesma suíte inteira em 5 partes por Python (jobs "suíte (push na develop, python X, parte K/5)", um teto de pulados
+# por Python em job próprio e os agregadores "rapida" e "rapida-quatorze", de nome fixo, que só passam com as 5 partes e o teto; o
+# mecanismo é o do scripts/suite-paralela.py, com o mesmo preparo do PR) e são a prova da develop. Cada parte verde grava o
+# tempo por unidade em anotação do check run, que scripts/pesos-do-ci.py lê pela API para refazer os pesos. Promoção (PR develop -> homolog e homolog -> main, push
 # na homolog e na main): o job prévio único "árvore" roda scripts/arvore-testada.py (SP4, EST-M7, M2) e as partes pulam a suíte
 # só com a prova de verdade: um commit do HEAD com a MESMA árvore (tree-sha) e o job "checagem rápida" daquele commit em success na develop;
 # sem prova, erro de rede ou evento fora da lista, a suíte roda inteira. Os passos e os agregadores não mudam. Commit de PR que só muda
@@ -29,12 +32,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  rapida:
-    name: checagem rápida (push na develop)
-    # Prova do Python 3.12 que o scripts/arvore-testada.py lê (o nome é o JOBS_DE_PROVA dele): mesmo preparo das partes.
+  rapida-partes-doze:
+    name: suíte (push na develop, python 3.12, parte ${{ matrix.parte }}/5)
+    # CI-RAPIDO (v047): um quinto da suíte inteira por job (LPT por unidade sobre tests/pesos-d4.json, a mesma divisão do PR). O
+    # agregador "checagem rápida (push na develop)" (a prova que scripts/arvore-testada.py lê) exige as 5 pernas e o teto de pulados.
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    permissions:
+      contents: read
     runs-on: ubuntu-26.04
-    timeout-minutes: 30  # medido 13-20 min (3.12) e 17-20+ min (3.14, cancelado no teto em 3 runs); 30 dá folga de 50%
+    timeout-minutes: 15  # medida de 2:30 a 5:00 por perna (docs/propostas/ci-rapido.md); 15 dá folga de 3 vezes
+    strategy:
+      fail-fast: false
+      matrix:
+        parte: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -68,15 +78,79 @@ jobs:
           gnu=$(command -v gnuenv) || { echo "faltou gnuenv depois da instalação"; exit 1; }
           [ "$("$gnu" --s 'echo a  b')" = "a b" ] || { echo "o $gnu não divide --s como o GNU"; exit 1; }
           env --version | head -1
-      - name: Testes do Forge
-        run: python3 scripts/suite-paralela.py
+      - name: Testes do Forge (parte)
+        env:
+          PARTE: ${{ matrix.parte }}
+        run: |
+          python3 --version
+          FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json" python3 scripts/suite-partes.py --parte "$PARTE/5"
+      - name: Pulados da parte para o teto (T3)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pulados-rapida-doze-${{ matrix.parte }}
+          path: ${{ runner.temp }}/pulados/parte-${{ matrix.parte }}.json
+          if-no-files-found: error
+          retention-days: 1
 
-  rapida-quatorze:
-    name: checagem rápida (push na develop, python 3.14)
-    # Prova do Python 3.14 (SP4): sem ela, as partes do 3.14 rodariam em toda promoção.
+  rapida-pulados-doze:
+    name: teto de pulados (push na develop, python 3.12)
+    # T3 e A1 do parecer de segurança: a soma dos pulados das 5 pernas contra teto_pulados de tests/config.json, em job próprio,
+    # fora do agregador, que não roda código da branch. O download é só do run corrente (sem run-id nem token).
+    needs: [rapida-partes-doze]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    permissions:
+      contents: read
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Pulados das 5 partes (T3)
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: pulados-rapida-doze-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/pulados
+      - name: Teto de pulados na soma das partes (T3)
+        run: python3 scripts/suite-partes.py --somar-pulados 5 "$RUNNER_TEMP/pulados"
+
+  rapida:
+    name: checagem rápida (push na develop)
+    # Prova da develop que o scripts/arvore-testada.py lê (o nome é o JOBS_DE_PROVA dele): só passa com as 5 pernas da suíte e o
+    # teto de pulados em success. always(): perna vermelha, pulada ou cancelada reprova este (um job pulado contaria como verde).
+    # Não roda código da branch (A1): só lê `needs.*.result`.
+    needs: [rapida-partes-doze, rapida-pulados-doze]
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    permissions:
+      contents: read
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Partes e teto de pulados verdes
+        env:
+          PARTES: ${{ needs.rapida-partes-doze.result }}
+          PULADOS: ${{ needs.rapida-pulados-doze.result }}
+        run: |
+          echo "partes: $PARTES; pulados: $PULADOS"
+          [ "$PARTES" = success ] && [ "$PULADOS" = success ]
+
+  rapida-partes-quatorze:
+    name: suíte (push na develop, python 3.14, parte ${{ matrix.parte }}/5)
+    # CI-RAPIDO (v047): um quinto da suíte inteira por job (LPT por unidade sobre tests/pesos-d4.json, a mesma divisão do PR). O
+    # agregador "checagem rápida (push na develop, python 3.14)" (a prova que scripts/arvore-testada.py lê) exige as 5 pernas e o teto de pulados.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    permissions:
+      contents: read
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15  # medida de 2:30 a 5:00 por perna (docs/propostas/ci-rapido.md); 15 dá folga de 3 vezes
+    strategy:
+      fail-fast: false
+      matrix:
+        parte: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -110,8 +184,65 @@ jobs:
           gnu=$(command -v gnuenv) || { echo "faltou gnuenv depois da instalação"; exit 1; }
           [ "$("$gnu" --s 'echo a  b')" = "a b" ] || { echo "o $gnu não divide --s como o GNU"; exit 1; }
           env --version | head -1
-      - name: Testes do Forge
-        run: python3 scripts/suite-paralela.py
+      - name: Testes do Forge (parte)
+        env:
+          PARTE: ${{ matrix.parte }}
+        run: |
+          python3 --version
+          FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json" python3 scripts/suite-partes.py --parte "$PARTE/5"
+      - name: Pulados da parte para o teto (T3)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pulados-rapida-quatorze-${{ matrix.parte }}
+          path: ${{ runner.temp }}/pulados/parte-${{ matrix.parte }}.json
+          if-no-files-found: error
+          retention-days: 1
+
+  rapida-pulados-quatorze:
+    name: teto de pulados (push na develop, python 3.14)
+    # T3 e A1 do parecer de segurança: a soma dos pulados das 5 pernas contra teto_pulados de tests/config.json, em job próprio,
+    # fora do agregador, que não roda código da branch. O download é só do run corrente (sem run-id nem token).
+    needs: [rapida-partes-quatorze]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    permissions:
+      contents: read
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Pulados das 5 partes (T3)
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: pulados-rapida-quatorze-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/pulados
+      - name: Teto de pulados na soma das partes (T3)
+        run: python3 scripts/suite-partes.py --somar-pulados 5 "$RUNNER_TEMP/pulados"
+
+  rapida-quatorze:
+    name: checagem rápida (push na develop, python 3.14)
+    # Prova da develop que o scripts/arvore-testada.py lê (o nome é o JOBS_DE_PROVA dele): só passa com as 5 pernas da suíte e o
+    # teto de pulados em success. always(): perna vermelha, pulada ou cancelada reprova este (um job pulado contaria como verde).
+    # Não roda código da branch (A1): só lê `needs.*.result`.
+    needs: [rapida-partes-quatorze, rapida-pulados-quatorze]
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    permissions:
+      contents: read
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Partes e teto de pulados verdes
+        env:
+          PARTES: ${{ needs.rapida-partes-quatorze.result }}
+          PULADOS: ${{ needs.rapida-pulados-quatorze.result }}
+        run: |
+          echo "partes: $PARTES; pulados: $PULADOS"
+          [ "$PARTES" = success ] && [ "$PULADOS" = success ]
 
   cobertura:
     name: cobertura (informativa)
@@ -171,6 +302,7 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
           HEAD_REF: ${{ github.head_ref }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           REF: ${{ github.ref }}
         run: |
           provada=false
@@ -179,11 +311,11 @@ jobs:
           echo "árvore provada na develop (3.12 e 3.14): $provada" >> "$GITHUB_STEP_SUMMARY"
 
   partes-doze:
-    name: suíte (python 3.12, parte ${{ matrix.parte }}/3)
-    # Um terço da suíte inteira por job (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nos três). O
-    # agregador "bateria" exige os três verdes; cada parte confere que a divisão cobre todo o discover.
+    name: suíte (python 3.12, parte ${{ matrix.parte }}/5)
+    # Um quinto da suíte inteira por job (CI-RAPIDO) (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nas cinco; por unidade, não por módulo). O
+    # agregador "bateria" exige os cinco verdes; cada parte confere que a divisão cobre todo o discover.
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
-    # M2: a prova vem de um job só (arvore), lida igual pelas 3 partes; A18: e só rodam com os passos baratos verdes (job bateria)
+    # M2: a prova vem de um job só (arvore), lida igual pelas 5 partes; A18: e só rodam com os passos baratos verdes (job bateria)
     needs: [arvore, bateria]
     permissions:
       contents: read
@@ -192,7 +324,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        parte: [1, 2, 3]
+        parte: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -233,7 +365,7 @@ jobs:
           PARTE: ${{ matrix.parte }}
         run: |
           python3 --version
-          FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json" python3 scripts/suite-partes.py --parte "$PARTE/3"
+          FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json" python3 scripts/suite-partes.py --parte "$PARTE/5"
       - name: Pulados da parte para o agregador (T3)
         if: needs.arvore.outputs.provada != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -244,11 +376,11 @@ jobs:
           retention-days: 1
 
   partes-quatorze:
-    name: suíte (python 3.14, parte ${{ matrix.parte }}/3)
-    # Um terço da suíte inteira por job (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nos três). O
-    # agregador "bateria (python 3.14)" exige os três verdes; cada parte confere que a divisão cobre todo o discover.
+    name: suíte (python 3.14, parte ${{ matrix.parte }}/5)
+    # Um quinto da suíte inteira por job (CI-RAPIDO) (LPT sobre tests/pesos-d4.json; a mesma árvore dá a mesma divisão nas cinco; por unidade, não por módulo). O
+    # agregador "bateria (python 3.14)" exige os cinco verdes; cada parte confere que a divisão cobre todo o discover.
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
-    # M2: a prova vem de um job só (arvore), lida igual pelas 3 partes; A18: e só rodam com os passos baratos verdes (job bateria)
+    # M2: a prova vem de um job só (arvore), lida igual pelas 5 partes; A18: e só rodam com os passos baratos verdes (job bateria)
     needs: [arvore, bateria]
     permissions:
       contents: read
@@ -257,7 +389,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        parte: [1, 2, 3]
+        parte: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -298,7 +430,7 @@ jobs:
           PARTE: ${{ matrix.parte }}
         run: |
           python3 --version
-          FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json" python3 scripts/suite-partes.py --parte "$PARTE/3"
+          FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json" python3 scripts/suite-partes.py --parte "$PARTE/5"
       - name: Pulados da parte para o agregador (T3)
         if: needs.arvore.outputs.provada != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -334,7 +466,7 @@ jobs:
 
   pulados-doze:
     name: teto de pulados (python 3.12)
-    # T3: a soma dos pulados das 3 partes (cada parte verde publica os dela) contra teto_pulados de tests/config.json,
+    # T3: a soma dos pulados das 5 partes (cada parte verde publica os dela) contra teto_pulados de tests/config.json,
     # fora do agregador, que não roda código da branch.
     needs: [partes-doze, arvore]
     # SP4: com a árvore provada na develop as partes não rodam a suíte nem publicam pulados; o teto já valeu lá (suite-paralela),
@@ -349,7 +481,7 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
-      - name: Pulados das 3 partes (T3)
+      - name: Pulados das 5 partes (T3)
         if: needs.arvore.outputs.provada != 'true'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -358,11 +490,11 @@ jobs:
           path: ${{ runner.temp }}/pulados
       - name: Teto de pulados na soma das partes (T3)
         if: needs.arvore.outputs.provada != 'true'
-        run: python3 scripts/suite-partes.py --somar-pulados 3 "$RUNNER_TEMP/pulados"
+        run: python3 scripts/suite-partes.py --somar-pulados 5 "$RUNNER_TEMP/pulados"
 
   pulados-quatorze:
     name: teto de pulados (python 3.14)
-    # T3: a soma dos pulados das 3 partes (cada parte verde publica os dela) contra teto_pulados de tests/config.json,
+    # T3: a soma dos pulados das 5 partes (cada parte verde publica os dela) contra teto_pulados de tests/config.json,
     # fora do agregador, que não roda código da branch.
     needs: [partes-quatorze, arvore]
     # SP4: com a árvore provada na develop as partes não rodam a suíte nem publicam pulados; o teto já valeu lá (suite-paralela),
@@ -377,7 +509,7 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
-      - name: Pulados das 3 partes (T3)
+      - name: Pulados das 5 partes (T3)
         if: needs.arvore.outputs.provada != 'true'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -386,11 +518,11 @@ jobs:
           path: ${{ runner.temp }}/pulados
       - name: Teto de pulados na soma das partes (T3)
         if: needs.arvore.outputs.provada != 'true'
-        run: python3 scripts/suite-partes.py --somar-pulados 3 "$RUNNER_TEMP/pulados"
+        run: python3 scripts/suite-partes.py --somar-pulados 5 "$RUNNER_TEMP/pulados"
 
   bateria-python-tres-quatorze:
     name: bateria (python 3.14)
-    # Agregador do check exigido: só passa com as 3 partes, o teto de pulados e a instalação no 3.14 em success.
+    # Agregador do check exigido: só passa com as 5 partes, o teto de pulados e a instalação no 3.14 em success.
     # always(): falha, cancelamento
     # ou pulo de um job necessário reprova este (um job pulado contaria como verde para a regra de proteção).
     needs: [partes-quatorze, pulados-quatorze, instalacao-quatorze]
@@ -499,15 +631,22 @@ jobs:
       # verificações longas esperam este job (needs).
       # A Neutralidade roda uma vez só, nas partes (tests.test_forge). O CLI e o validate seguem antes de todo código da branch
       # (bin/forge-changelog, tests/), que poderia pôr um `claude` falso no GITHUB_PATH (a razão do CI-ORDEM-LINT).
+      # R-FLUXO: o par head/base vem da tabela única PROMOCOES (tests/catraca.py, modo `degrau`), lida da develop do servidor e
+      # nunca do PR (o head é do autor): develop ou promocao/X.Y.Z (head do próprio repositório, ancestral da develop) -> homolog,
+      # homolog -> main. A develop é a branch protegida: o código dela não é o da branch do PR (CI-ORDEM-LINT).
       - name: Nada pula degrau
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         env:
           BASE: ${{ github.base_ref }}
           HEAD_REF: ${{ github.head_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
         run: |
           case "$BASE" in
-            homolog) [ "$HEAD_REF" = "develop" ] || { echo "PR para homolog só a partir da develop (veio de $HEAD_REF)."; exit 1; } ;;
-            main)    [ "$HEAD_REF" = "homolog" ] || { echo "PR para main só a partir da homolog (veio de $HEAD_REF)."; exit 1; } ;;
+            homolog|main)
+              git worktree add --detach "$RUNNER_TEMP/degrau" refs/remotes/origin/develop
+              python3 -I "$RUNNER_TEMP/degrau/tests/catraca.py" --modo degrau --ramo "$HEAD_REF" --base-ref "$BASE" --head "$HEAD_SHA" ;;
           esac
           echo "ok: $HEAD_REF -> $BASE"
       - name: Claude Code CLI (nova tentativa só na instalação, por falha de rede; confere a versão)
@@ -663,7 +802,7 @@ jobs:
 
   agregador:
     name: bateria
-    # Agregador do check exigido: só passa com os passos, as 3 partes da suíte no 3.12 e o teto de pulados em success.
+    # Agregador do check exigido: só passa com os passos, as 5 partes da suíte no 3.12 e o teto de pulados em success.
     # always(): falha,
     # cancelamento ou pulo de um job necessário reprova este (um job pulado contaria como verde para a regra de proteção).
     needs: [bateria, pareceres, verificacoes, partes-doze, pulados-doze]

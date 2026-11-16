@@ -1,0 +1,66 @@
+{
+  "pedido": "v047-tempo-a15",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "autor aberto deixa a razao nao-medido (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "if tempo[\"autor\"] == NAO_MEDIDO or not tempo[\"autor\"] or not medidas:",
+      "para": "if not tempo[\"autor\"] or not medidas:",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_fase_ainda_aberta_e_nao_medido_e_a_razao_tambem"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "linha tempo so com --tempo (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        if tempo:\n            print(linha_do_tempo(",
+      "para": "        if True:\n            print(linha_do_tempo(",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_sem_tempo_nao_ha_linha_de_tempo"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "executar repassa o --tempo ao cmd_voltas (A15)",
+      "arquivo": "bin/forge-check",
+      "de": "else raiz, a.pedido, a.tempo)",
+      "para": "else raiz, a.pedido, False)",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_fases_do_historico_real_com_parada_fora_e_ultima_coluna_aberta"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "ultimo trecho do cartao fica aberto, nao medido (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        else:\n            abertas.add(fase)\n",
+      "para": "        else:\n            pass\n",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_fase_ainda_aberta_e_nao_medido_e_a_razao_tambem"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "processo soma so as fases medidas (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "if tempo[f] != NAO_MEDIDO]",
+      "para": "if tempo[f] == NAO_MEDIDO]",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_fases_do_historico_real_com_parada_fora_e_ultima_coluna_aberta"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "nao-medido sai como texto, numero pelo _numero (A15)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "tempo[f] if tempo[f] == NAO_MEDIDO else _numero",
+      "para": "tempo[f] if tempo[f] != NAO_MEDIDO else _numero",
+      "testes": [
+        "tests.test_voltas.VoltasTempo.test_fases_do_historico_real_com_parada_fora_e_ultima_coluna_aberta"
+      ]
+    }
+  ]
+}
