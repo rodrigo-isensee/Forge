@@ -1257,5 +1257,113 @@ class MergeDaBaseDepoisDoBrief(Conferencia):
         self.assertIn(f"intervalo: {self.base}..", saida)  # o Desde é o Base-sha, nunca o head (v047 E1.185: a conferida da develop não vale)
 
 
+class JuncaoLimpa(Conferencia):
+    """E2.302: depois da entrega conferida, o intervalo só com merge da develop sem resolução à mão (cada merge igual à mescla
+    automática, a develop ancorada num Base-sha selado) cumpre sem commit novo; resolução à mão, merge sem âncora ou conferida fora
+    da forma seguem pendentes (na dúvida, recusa)."""
+
+    develop_anda, ancorar, mesclar_develop = (MergeDaBaseDepoisDoBrief.develop_anda, MergeDaBaseDepoisDoBrief.ancorar,
+                                             MergeDaBaseDepoisDoBrief.mesclar_develop)  # sem herdar (e rodar de novo) os testes de lá
+
+    def conferida(self):
+        """A entrega de código conferida e gravada pela ferramenta; devolve o head conferido."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        feito = self.entregar()
+        rc, saida = self.rodar("entrega", "--pedido", "exemplo", "--branch", "melhoria/x", "--etapa", "codigo")
+        self.assertEqual(rc, 0, saida)
+        return feito
+
+    def juncao(self, *conteudos, ancorar=True):
+        """Um merge limpo da develop por conteúdo de `agents/outro.md`; com `ancorar`, a ponta ancorada num brief selado depois."""
+        for texto in conteudos:
+            ponta, = self.develop_anda(texto)
+            self.mesclar_develop()
+        if ancorar:
+            self.ancorar(ponta)
+        return self.git("rev-parse", "HEAD")
+
+    def test_caso_real_duas_juncoes_limpas_cumprem_e_gravam(self):
+        feito = self.conferida()
+        head = self.juncao("a\n", "a\nb\n")
+        rc, saida = self.rodar("entrega", "--pedido", "exemplo", "--branch", "melhoria/x", "--etapa", "codigo")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"escopo: junção limpa da base (só merge da \"develop\" sem resolução à mão; a entrega conferida {feito[:12]}", saida)
+        self.assertNotIn("pendente:", saida)
+        self.assertIn(f"entrega conferida {head}", self.pedido())
+
+    def test_uma_juncao_limpa_cumpre(self):
+        self.conferida()
+        self.juncao("a\n")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("escopo: junção limpa da base", saida)
+
+    def test_juncao_sem_ancora_segue_pendente(self):
+        """A `origin/develop` é ref local que o autor reescreve: sem Base-sha selado que a cubra, recusa."""
+        self.conferida()
+        self.juncao("a\n", ancorar=False)
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("pendente: a entrega é só a integração da base", saida)
+
+    def test_conflito_resolvido_a_mao_segue_pendente(self):
+        self.conferida()
+        self.git("switch", "-q", "develop")
+        self.gravar("bin/app", "x\nda develop\n")
+        self.git("add", "bin/app")
+        ponta = self.commit("outro lote")
+        self.git("push", "-q", "origin", "develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("fetch", "-q", "origin")
+        r = subprocess.run(["git", "-C", str(self.proj), "-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff",
+                            "origin/develop"], capture_output=True, text=True, env=self.env, timeout=60)
+        self.assertIn("CONFLICT", r.stdout + r.stderr)
+        self.git("checkout", "--ours", "bin/app")
+        self.git("add", "bin/app")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "commit", "-q", "-m", "merge da develop")
+        self.ancorar(ponta)
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("pendente: a entrega é só a integração da base", saida)
+        self.assertNotIn("junção limpa", saida)
+
+    def test_merge_que_descarta_a_mudanca_da_develop_segue_pendente(self):
+        """Sem conflito, mas a árvore do merge não é a da mescla automática (o arquivo da develop tirado à mão)."""
+        self.conferida()
+        ponta, = self.develop_anda("a\n")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "--no-commit", "origin/develop")
+        self.git("rm", "-q", "-f", "agents/outro.md")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "commit", "-q", "-m", "merge da develop")
+        self.ancorar(ponta)
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("pendente: a entrega é só a integração da base", saida)
+
+    def test_conferida_fora_da_forma_nao_cobre_o_primeiro_pai(self):
+        """Só a linha `- <data> <hora>: entrega conferida <sha40>` que a ferramenta grava cobre o primeiro pai."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        feito = self.entregar()
+        (self.proj / "docs/pedidos/exemplo.md").write_text(self.pedido() + f"- 2026-01-01: entrega conferida {feito}\n", encoding="utf-8")
+        self.juncao("a\n")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertNotIn("junção limpa", saida)
+
+    def test_intervalo_vazio_commit_comum_ou_sem_base_recusam(self):
+        feito = self.conferida()
+        head = self.juncao("a\n", ancorar=False)
+        base_ref = self.git("rev-parse", "origin/develop")
+        self.assertTrue(fc.juncao_limpa(self.proj, feito, head, base_ref, [base_ref]))
+        self.assertFalse(fc.juncao_limpa(self.proj, head, head, base_ref, [base_ref]))  # nada no intervalo
+        self.assertFalse(fc.juncao_limpa(self.proj, feito, head, None, [base_ref]))  # sem a base
+        self.assertFalse(fc.juncao_limpa(self.proj, feito, head, base_ref, []))  # sem âncora
+        self.gravar("volta.txt", "v\n")
+        self.git("add", "volta.txt")
+        depois = self.commit("feat: depois da junção")
+        self.assertFalse(fc.juncao_limpa(self.proj, feito, depois, base_ref, [base_ref]))  # commit comum no primeiro pai
+
+
 if __name__ == "__main__":
     unittest.main()
