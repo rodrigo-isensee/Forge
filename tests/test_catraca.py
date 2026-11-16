@@ -453,6 +453,12 @@ class Hooks(Base):
                       '{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "x", "timeout": 1e400}]}]}}'):
             with self.subTest(texto=texto):
                 self.assertTrue(catraca.erros_de_forma(texto))
+        # CH-M30: NaN e Infinity em campo sem validação de tipo só acusam pela guarda da constante (o timeout já recusa 0)
+        for constante in ("NaN", "Infinity", "-Infinity"):
+            for texto in (f'{{"hooks": {{}}, "x": {constante}}}',
+                          f'{{"hooks": {{"Stop": [{{"hooks": [{{"type": "command", "command": "x", "foo": {constante}}}]}}]}}}}'):
+                with self.subTest(texto=texto):
+                    self.assertEqual(catraca.erros_de_forma(texto), [f"JSON ilegível ({constante} não é JSON)"])
 
     def test_arquivo_de_hooks_apagado_barra(self):
         (self.repo.dir / "hooks/hooks.json").unlink()
