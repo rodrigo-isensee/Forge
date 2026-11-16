@@ -1,0 +1,87 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CH-M9",
+      "guarda": "só as letras inócuas do Python passam; -c, -m, -I, -P, sozinhas ou juntas (-sc, -sI), acusam (A1, A4, S1, S5)",
+      "arquivo": "tests/catraca.py",
+      "de": "set(op[1:]) <= OPCOES_INOCUAS_DO_PYTHON",
+      "para": "True",
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra",
+        "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"
+      ]
+    },
+    {
+      "id": "CH-M10",
+      "guarda": "-X separado só passa com utf8, utf8=0 ou utf8=1; -X pycache_prefix=p acusa (A5, S6)",
+      "arquivo": "tests/catraca.py",
+      "de": "seguinte in VALORES_INOCUOS_DE_X",
+      "para": "True",
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra",
+        "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"
+      ]
+    },
+    {
+      "id": "CH-M11",
+      "guarda": "-X junto do valor (-Xutf8=1) é lido como -X",
+      "arquivo": "tests/catraca.py",
+      "de": "    if op.startswith(\"-X\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_catraca.Hooks.test_mudar_interpretador_opcoes_ou_argumentos_passa"
+      ]
+    },
+    {
+      "id": "CH-M12",
+      "guarda": "-X junto só passa com utf8; -Xpycache_prefix=p acusa (A5, S6)",
+      "arquivo": "tests/catraca.py",
+      "de": "op[2:] in VALORES_INOCUOS_DE_X",
+      "para": "True",
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra"
+      ]
+    },
+    {
+      "id": "CH-M13",
+      "guarda": "controle do shell depois do script (|| true, ; exit 0, $( )) volta à linha inteira",
+      "arquivo": "tests/catraca.py",
+      "de": "and not CONTROLE_DO_SHELL.search(\" \".join(depois[j + 1:]))",
+      "para": "and True",
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra",
+        "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"
+      ]
+    },
+    {
+      "id": "CH-M14",
+      "guarda": "só o par de aspas iguais sai do termo; aspas sem par ficam (review A2)",
+      "arquivo": "tests/catraca.py",
+      "de": "termo[0] == termo[-1] and termo[0] in",
+      "para": "termo[0] in",
+      "testes": [
+        "tests.test_catraca.Hooks.test_script_entre_aspas_no_command_e_o_mesmo_script"
+      ]
+    },
+    {
+      "id": "CH-M15",
+      "guarda": "só aspas saem do termo, não outro caractere igual nas pontas (review A2)",
+      "arquivo": "tests/catraca.py",
+      "de": "and termo[0] in \"\\\"'\" else termo",
+      "para": "and True else termo",
+      "testes": [
+        "tests.test_catraca.Hooks.test_script_entre_aspas_no_command_e_o_mesmo_script"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "tests/catraca.py",
+      "trecho": "not a.startswith(\"-\")",
+      "linha_base": 267,
+      "motivo": "o filtro de opções virou _opcao_inocua e o laço de script_do_hook, cobertos por CH-M3, CH-M4 e CH-M7 a CH-M10"
+    }
+  ]
+}

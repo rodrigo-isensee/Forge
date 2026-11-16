@@ -1,0 +1,47 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "PHR9",
+      "guarda": "A1 da segurança (E2.142): fora do clone do Forge o aprovado gravado não libera o gh pr merge",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if estado == \"aprovado\" and (gravado == EXIGE or e_clone_do_forge(raiz)):",
+      "para": "    if estado == \"aprovado\":",
+      "testes": [
+        "tests.test_pr_hook_rapido.AtalhoNoProjeto.test_aprovado_forjado_nao_libera_o_merge_s3",
+        "tests.test_pr_hook_rapido.AtalhoNoProjeto.test_aprovado_gravado_refaz_a_conferencia"
+      ]
+    },
+    {
+      "id": "PHR10",
+      "guarda": "A2 do review (E2.141): o lote do cat-file que sai com erro não é lido",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod:\n        return {}  # o lote que falhou",
+      "para": "    if False:\n        return {}  # o lote que falhou",
+      "testes": [
+        "tests.test_pr_hook_rapido.DocumentosEmLote.test_lote_com_falha_do_git_nao_le_nada"
+      ]
+    },
+    {
+      "id": "PHR11",
+      "guarda": "A2 do review (E2.141): corpo truncado depois de um cabeçalho inteiro não é lido",
+      "arquivo": "bin/forge-check",
+      "de": "        if len(corpo) != tamanho:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_pr_hook_rapido.DocumentosEmLote.test_lote_fora_do_pedido_nao_le_nada"
+      ]
+    },
+    {
+      "id": "PHR12",
+      "guarda": "S2 da segurança (E2.142): no projeto, a linha que cita gravar_resultado_do_pr é recusada como a que cita a marca",
+      "arquivo": "hooks/conformidade.py",
+      "de": "CITA_A_MARCA = re.compile(r\"\\.git/forge|forge/projeto-|gravar_resultado_do_pr\")",
+      "para": "CITA_A_MARCA = re.compile(r\"\\.git/forge|forge/projeto-\")",
+      "testes": [
+        "tests.test_pr_hook_rapido.AtalhoNoProjeto.test_sondas_s1_e_s2_no_corpus"
+      ]
+    }
+  ]
+}

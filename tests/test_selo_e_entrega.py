@@ -923,6 +923,18 @@ class ParecerDoPortao(Conferencia):
         self.assert_fora()
 
 
+class VocabularioDaEtapaDoPortao(unittest.TestCase):
+    """FIXTURE-ETAPA-FORA-VOCABULARIO: a `Etapa:` que o fixture sela para cada pasta de parecer é a do `ETAPA_DO_PORTAO` para o tipo
+    daquela pasta. Um fixture com etapa fora do vocabulário (`Etapa: devops` à mão) mascarou a regressão A4 da E23.36."""
+
+    def test_fixture_sela_a_etapa_do_vocabulario(self):
+        tipo_da_pasta = {pasta.removeprefix("docs/"): tipo for tipo, (pasta, _) in fc.PASTA_E_REGRA.items()}
+        self.assertEqual(set(ParecerDoPortao.ETAPA), set(tipo_da_pasta))
+        for pasta, etapa in ParecerDoPortao.ETAPA.items():
+            with self.subTest(pasta=pasta):
+                self.assertEqual(etapa, fc.ETAPA_DO_PORTAO[tipo_da_pasta[pasta]])
+
+
 class JanelaDaEntrega(Conferencia):
     """MP1311 (item 1, com MP1103-D-8): a janela da conferência desconta o parecer dos outros portões em toda etapa de código (o caso do
     PR 530) e aceita `--desde` no commit do autor que os portões revisaram (o `Revisar-sha:` de brief selado do portão da branch)."""

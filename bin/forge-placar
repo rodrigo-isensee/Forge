@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Forge: placar de qualidade do processo e portão de evolução (0.43.1, frente I). Só leitura, sem rede, biblioteca padrão.
 
-Uso: forge-placar [--raiz DIR] [--erros ARQ] [--git DIR --ref REF] [--ci ARQ.json] [--dias N] [--ate AAAA-MM-DD] [--evals DIR] [--json]
+Uso: forge-placar [--raiz DIR] [--raiz-pedidos DIR] [--erros ARQ] [--git DIR --ref REF] [--ci ARQ.json] [--dias N] [--ate AAAA-MM-DD] [--evals DIR] [--json]
      forge-placar comparar --antes AAAA-MM-DD --depois AAAA-MM-DD [--metrica NOME] [--tolerancia F] [--folga F] [--minimo N] [...]
      forge-placar propostas [ARQUIVO] [--hoje AAAA-MM-DD] [--max-abertas N] [--json]
 
@@ -466,6 +466,7 @@ def cmd_propostas(args):
 def analisar(argv):
     comum = argparse.ArgumentParser(add_help=False)
     comum.add_argument("--raiz", default=".")
+    comum.add_argument("--raiz-pedidos", metavar="DIR", help="pasta com docs/kanban e docs/pedidos fora do clone (~/.forge-contrib); vale sobre o --raiz")
     comum.add_argument("--erros")
     comum.add_argument("--git")
     comum.add_argument("--ref", default="origin/develop")
@@ -495,6 +496,8 @@ def analisar(argv):
 
 def main(argv):
     funcao, args = analisar(argv)
+    if args.raiz_pedidos:  # RAIZ-PEDIDOS-PERDE-DADOS: a pasta do Jarvis fora do clone vale sobre o --raiz
+        args.raiz = args.raiz_pedidos
     if args.dias < 1:
         raise SystemExit("forge-placar: --dias deve ser 1 ou mais")
     return funcao(args)

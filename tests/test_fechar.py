@@ -18,6 +18,8 @@ RAIZ = Path(__file__).resolve().parent.parent
 SCRIPT = RAIZ / "bin" / "forge-fechar"
 
 GH_FALSO = r'''#!/usr/bin/env bash
+# GH-VERSAO-MINIMA: a conferência do passo 1 lê a versão; não entra no registro (os testes leem a 1ª chamada). VERSAO_GH muda a versão.
+[ "$1" = "--version" ] && { echo "gh version ${VERSAO_GH:-2.104.0} (2026-11-12)"; exit 0; }
 echo "gh $*" >> "$REGISTRO"
 # falha_n <arquivo>: se o arquivo guarda um número > 0, desconta um e falha (erro passageiro, como o 502 do GitHub)
 falha_n() {
