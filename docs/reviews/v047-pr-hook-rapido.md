@@ -3,32 +3,34 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-pr-hook-rapido
-commit: 8eebc2a51576f5d9957653f4ad55bbdf7682f12b
+commit: 6f3f4e7042bf32734c23ae04f1141a7a6e117162
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-15
 ---
 # Code review: hook R-REVIEW rápido no gh pr ready e no gh pr merge (PR-HOOK-RAPIDO, E2.117)
 
-Escopo: pedido v047, etapa E2.141 (`R-REVIEW`), classe C, head `8eebc2a5` (Base-sha `bf475209`), instância que não fez a entrega. Sem parecer anterior: review completo. Li o diff inteiro de `bf475209...8eebc2a5`: 3 commits, 8 arquivos (`bin/forge-check` +40 -7, `hooks/parecer.py` +18 -12, `bin/forge-testes`, `tests/test_pr_hook_rapido.py` +180, `tests/test_testes_tocados.py`, spec de mutantes, `docs/hooks.md`, fragmento do changelog). QA (E2.143) e segurança (E2.142) correm sobre o mesmo head; não os refaço.
+Escopo: pedido v047, etapa E2.153 (`R-REVIEW`), classe C, head `6f3f4e70` (Base-sha `bf475209`), instância que não fez a entrega. Revalidação por delta do parecer aprovado no head `8eebc2a5` (E2.141).
+
+Delta lido: `forge-check parecer delta docs/reviews/v047-pr-hook-rapido.md`, intervalo `8eebc2a5..6f3f4e70`, no domínio: `bin/forge-check`, `changelog.d/v047-pr-hook-rapido.md`, `docs/hooks-fixtures.md`, `docs/hooks.md`, `hooks/_comum.py`, `hooks/conformidade.py`, `hooks/parecer.py`, as fixtures `tests/hooks/conformidade/gravar-resultado-do-pr-tech-lead-bloqueia.json` e `tests/hooks/parecer/pr-merge-review-reprovado-sem-resultado-bloqueia.json`, `tests/mutantes/v047-pr-hook-rapido-2.json` e `tests/test_pr_hook_rapido.py`. O resto do intervalo são os pareceres de QA, segurança e review e o merge `5f3f9d69`; o código da volta é o commit `6f3f4e70`.
 
 ## Achados
-- A1 (recomendado) hooks/parecer.py:565 · o aprovado gravado é JSON em `.git/forge/pr/<head>/`, gravável no sandbox, e o `escritor` é o sha256 público do forge-check do plugin: forjado, libera ready e merge sem parecer (sonda abaixo). No Forge o CI `bateria (pareceres)` segura o merge; nos projetos, ver A1 da segurança E2.142
-- A2 (recomendado) bin/forge-check:362 · corpo truncado depois de um cabeçalho inteiro passa: lote `<sha> blob 500\nparecer: aprovado` devolve o texto parcial, contra o "nunca um texto parcial" do teste (tests/test_pr_hook_rapido.py:166); sugestão: `len(corpo) != tamanho` devolve {} e o rc do cat-file é conferido
-- A3 (recomendado) bin/forge-check:5 · o docstring diz que o hook só lê o resultado gravado no `gh pr create`, e o comentário em bin/forge-check:1561 idem; agora ready e merge também o leem (texto antigo, classe AR-9); sugestão: atualizar as duas passagens
-- A4 (recomendado) bin/forge-check:338 · 264 linhas contadas (M14, acima de 150) e dois comportamentos (atalho no hook e leitura em lote no forge-check); o corpo do PR precisa de `teto: excedido, 264 linhas, <motivo>`
+- A1 (recomendado) hooks/parecer.py:567 · resolvido no projeto: fora do clone do Forge o aprovado gravado não libera o ready nem o merge e a conferência roda (teste S3 e PHR9). No Forge segue o afrouxamento aceito pelo dono (v046), declarado no fragmento, com o CI de pareceres como portão
+- A2 (recomendado) bin/forge-check:365 · resolvido: lote com rc do cat-file diferente de 0 e corpo truncado devolvem {} (bin/forge-check:355 e :365; PHR10 e PHR11 morrem)
+- A3 (recomendado) bin/forge-check:5 · resolvido: docstring, comentário em bin/forge-check:1567, hooks/_comum.py:2757 e docs/hooks.md dizem o atalho novo e o limite do projeto
+- A4 (recomendado) bin/forge-check:338 · M14: 361 linhas contadas de código e teste (bf475209...6f3f4e70), acima de 150; o corpo do PR precisa de `teto: excedido, 361 linhas, <motivo>`
 
 ## Sondas
 
 ## Parecer
-**Aprovado**, com quatro recomendados. Faz o que a E2.117 pede sem afrouxar o veredito do `forge-check pr` (`R-REVIEW`):
-- `verificar` (hooks/parecer.py:554-588): com `gravado` (EXIGE no create, ATALHO no ready e no merge), o aprovado do mesmo head, branch e base libera; o reprovado recusa; sem resultado, a conferência de hoje decide como antes, e o prazo vencido nela recusa com `rode antes forge-check pr`. O `create` segue exigindo o gravado (linha 585). O registro é preso ao head, à branch, ao `base_sha` resolvido por `base_do_delta` e ao `escritor`; outro head ou outra base cai no `ausente` e refaz a conferência (falha fechada). Testes de comportamento provam os quatro ramos com `cmd_pr` trocado por saída 97.
-- `textos_da_arvore` (bin/forge-check:339-364): um `ls-tree -z` e um `cat-file --batch` por pasta, só blobs `.md` da própria pasta (como o `ls-tree pasta/` + `git show` anteriores), texto normalizado como o `git` em modo texto (teste compara com `git show`). Cache pelo id da árvore: o conteúdo é endereçado pelo hash, não envelhece. Resposta fora do pedido devolve {} (falha fechada); o caso de corpo truncado fica em A2, sem gatilho real (exige o git morrer no meio da saída).
-- Pergunta do brief, "dá para forjar um aprovado do mesmo head?": sim. Sonda executada (`/root/.forge-contrib/v047-E2141-sonda/sonda_forja.py`, sobre a fixture do teste novo, sem pareceres na branch): `gh pr ready` e `gh pr merge` sem forja rc=2 (`R-REVIEW: ... nenhum parecer em docs/reviews/`); com o JSON escrito à mão (escritor = sha256 do forge-check que o hook carrega) rc=0, stderr vazio. Quem grava hoje é só o `gravar_resultado_do_pr`, mas nada impede outro escritor: a pasta fica no diretório comum do git, que o sandbox deixa gravar, e o `CITA_A_MARCA` do `conformidade` só vale nos projetos e só para o comando que cita `.git/forge`. No Forge, o merge no GitHub ainda passa pelo job `bateria (pareceres)` (catraca no CI), então o efeito local é tirar do rascunho ou mesclar sem a conferência do hook, com o CI como portão. Nos projetos não há esse segundo portão: é o A1 bloqueante da segurança (E2.142), que é de quem decide `R-SEGURANCA`; não o promovo aqui, só registro a prova. A correção que a segurança propõe (fora do clone do Forge o atalho só recusa pelo reprovado) muda `verificar` e pede revalidação deste parecer pelo delta.
-- Mapa de testes: `test_pr_hook_rapido` entra em `FORGE_CHECK` e em `hooks/.*` do `bin/forge-testes`; a contagem de `test_testes_tocados` sobe para 85, com o comentário.
-- PA-7 (`docs/engineering/achados-recorrentes.md`) conferido: AR-1 e AR-2 (mutantes e ramo de falha) cobertos; AR-4 os testes rodam o hook por `rodar`/`montar_proc` do `test_hooks`, com o ambiente da fixture; AR-9 cabe no A3; AR-12 a spec bate com o head (todos os mutantes acharam o trecho). Nenhum invariante de `tests/config.json` tocado.
+**Aprovado**, com o A4 pendente para o corpo do PR. A volta faz o que o delta pede (`R-REVIEW`; `R-SEGURANCA` citado, não refeito):
+- `verificar` (hooks/parecer.py:567): o aprovado gravado só libera com `EXIGE` (o `gh pr create`, como na v046) ou no clone do Forge (`e_clone_do_forge`, que dá falso quando há `.forge/versao`: escrever o manifesto no projeto não o torna o Forge). No projeto o aprovado cai na conferência de hoje, como antes da E2.117; o reprovado recusa em todo lugar só lendo. Teste de comportamento dos três ramos no projeto (`AtalhoNoProjeto`: aprovado gravado sobre review reprovado recusa; aprovado refaz a conferência; reprovado recusa sem refazer).
+- `CITA_A_MARCA` (hooks/conformidade.py:76): a S2 da segurança entra como mais uma alternativa da mesma regra, só no projeto (`raiz_e_projeto`), com fixture própria no corpus do `conformidade`; a mensagem cita as duas formas. Limite conhecido, o mesmo da marca: o nome montado em tempo de execução escapa (BP-5, sandbox).
+- `textos_da_arvore`: as duas guardas novas (rc e tamanho do corpo) falham fechado; o teste de rc tem controle com 0 que lê.
+- Escopo: um commit de código, sem mudança fora do pedido. Nenhum invariante de `tests/config.json` tocado.
+- PA-7 conferido: AR-1 e AR-2 (cada guarda nova com mutante e teste do ramo de falha: PHR9 a PHR12); AR-4 os testes montam o processo pelo `montar_proc` do `test_hooks`; AR-9 os textos antigos foram trocados (A3); AR-12 a spec nova bate com o head (os quatro mutantes acharam o trecho). Nenhuma classe repetida neste delta: `achados-recorrentes.md` sem linha nova.
 
-Verificação (regra 5 de `docs/economia-de-tokens.md`; sem PR nem CI ainda, a suíte inteira fica com o CI do PR):
-- `python3 -m unittest tests.test_pr_hook_rapido` no head: `Ran 10 tests in 33.414s` `OK`.
-- `bin/forge-mutante --cobertura --base bf475209…`: as guardas mudadas `coberta` (PHR1, PHR5 a PHR8), a da base `isenta` (forge-check:348), nenhuma `apagada`.
-- `bin/forge-mutante --processos 1 tests/mutantes/v047-pr-hook-rapido.json`: PHR1 a PHR8 `morreu` (8/8; PHR5 morre por erro do teste declarado sob o mutante: a subpasta `sub.md` vira objeto `tree` no lote).
+Verificação (regra 5 de `docs/economia-de-tokens.md`; a suíte inteira fica com o CI do PR):
+- `python3 -m unittest tests.test_pr_hook_rapido` no head: `Ran 15 tests in 42.289s` `OK`.
+- `bin/forge-mutante --processos 1 tests/mutantes/v047-pr-hook-rapido-2.json`: PHR9, PHR10, PHR11 e PHR12 `morreu` (4/4).
+- `bin/forge-mutante --cobertura --base 8eebc2a5…`: `coberta` em bin/forge-check:355, bin/forge-check:365 e hooks/parecer.py:567; nenhuma `apagada`.
