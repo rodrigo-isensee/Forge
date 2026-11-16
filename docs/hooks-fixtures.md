@@ -2,17 +2,17 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2481 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2485 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 97 | 60 | 37 | 29 |
-| `conformidade` | 1813 | 1339 | 474 | 89 |
+| `conformidade` | 1814 | 1340 | 474 | 90 |
 | `doutor` | 3 | 0 | 3 | 3 |
-| `meta` | 25 | 10 | 15 | 12 |
-| `parecer` | 463 | 357 | 106 | 24 |
+| `meta` | 27 | 11 | 16 | 13 |
+| `parecer` | 464 | 358 | 106 | 24 |
 | `pesado` | 24 | 9 | 15 | 19 |
 | `quadro` | 7 | 2 | 5 | 7 |
 | `vigia` | 49 | 0 | 49 | 25 |
@@ -136,6 +136,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2481 fixtures) roda em `tests/test
 | `extglob-*` | 1 | 1 | 0 | `R-VERIFY` | `HOOK-COMENTARIO-SHLEX` | HOOK-COMENTARIO-SHLEX volta 3, A5: no extglob o # não abre comentário; o push depois é lido. |
 | `ferramenta-*` | 1 | 0 | 1 | — | — | Read não é decidido por este hook. |
 | `g-*` | 1 | 1 | 0 | — | — | Achado G: a raiz da sessão (`{tmp}/wt`) foi movida (`git worktree move`); a sessão segue na pasta nova, sem `.forge/versao`, e o push falha… |
+| `gravar-*` | 1 | 1 | 0 | `R-CONFORMIDADE` | `PR-HOOK-RAPIDO` | PR-HOOK-RAPIDO S2 (segurança E2.142): no projeto, a linha que carrega o forge-check do plugin e chama gravar_resultado_do_pr (o caminho em .… |
 | `kanban-*` | 1 | 0 | 1 | — | `KANBAN` | KANBAN.md é do quadro, não é protegido. |
 | `mit-*` | 1 | 1 | 0 | `R-CONFORMIDADE` | — | Mitigação da segurança (L): com `.forge/versao` presente, a linha que cita a marca da sessão (`.git/forge`) é recusada, seja qual for o prog… |
 | `politica-*` | 1 | 1 | 0 | — | — | A política do hook é protegida como as regras. |
@@ -158,6 +159,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2481 fixtures) roda em `tests/test
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | `v0454-*` | 12 | 8 | 4 | — | `V0454-CAMINHOS-EXTRA` | V0454-CAMINHOS-EXTRA: a pasta de `caminhos_extra` entra no fim do PATH da checagem |
+| `jargao-*` | 2 | 1 | 1 | `R-PROVA` | `E2.237`, `E7.4` | E7.4 (v047): S6 mede a mensagem do campo last_assistant_message (não a do transcrito), conta por classe, não grava o termo e o Stop passa. |
 | `mensagem-*` | 2 | 0 | 2 | — | — | S6: a última mensagem ao dono é medida (caracteres e jargão do modo iniciante) e o Stop passa. |
 | `sem-*` | 2 | 0 | 2 | — | — | Projeto sem .forge/versao: o hook não age. |
 | `ainda-*` | 1 | 1 | 0 | — | — | S4: checagem que falha bloqueia o Stop dizendo qual. |
@@ -177,7 +179,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2481 fixtures) roda em `tests/test
 | `pasta-*` | 140 | 123 | 17 | `R-REVIEW` | `HK3-PARECER` | HK3-PARECER, PR A, volta 1: a pasta do git é a do bash e a do git; a partir de a integração, barra. |
 | `texto-*` | 73 | 58 | 15 | `R-REVIEW` | `HK3-PARECER`, `PARECER-HOOK-DICA-EDIT` | HK3-PARECER, PR B (E2): o eval continua recusado, até com texto inofensivo. |
 | `forge-*` | 61 | 50 | 11 | `R-REVIEW`, `R-CONTRIB` | `FURO-HOOK-A`, `HOOK-COMENTARIO-SHLEX`, `CRASE-ASPA-HOOK`, `FD1` e mais 1 | A1 do review: git commit -m com heredoc que cita merge e tem apóstrofo no corpo. |
-| `pr-*` | 45 | 31 | 14 | `R-REVIEW`, `R-CONTRIB`, `R-SEGURANCA`, `R-QA` e mais 1 | `K-164`, `PR` | K-164: base escolhida pelo autor fora de develop, homolog e main (aqui uma branch copiada da develop): não afrouxa; fica o modo estrito e o… |
+| `pr-*` | 46 | 32 | 14 | `R-REVIEW`, `R-CONTRIB`, `R-SEGURANCA`, `R-QA` e mais 1 | `K-164`, `PR`, `PR-HOOK-RAPIDO` | K-164: base escolhida pelo autor fora de develop, homolog e main (aqui uma branch copiada da develop): não afrouxa; fica o modo estrito e o… |
 | `v0454-*` | 30 | 26 | 4 | `R-REVIEW` | `V0454-GH-ALIAS-PARECER` | V0454-GH-ALIAS-PARECER: alias `gh m` = api de merge com `$1` |
 | `fila27-*` | 22 | 14 | 8 | `R-REVIEW` | `FILA-27` | FILA-27 A1 (S7b): no clone do Forge com .forge/versao, o manifesto vence o hooks_desligados; gh pr merge sem parecer barra. |
 | `heredoc-*` | 17 | 10 | 7 | `R-REVIEW` | `HOOK-PARECER-HEREDOC-FALSO-POSITIVO` | HOOK-PARECER-HEREDOC-FALSO-POSITIVO (0.43.2): echo literal depois do corpo. |

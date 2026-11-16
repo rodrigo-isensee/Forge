@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -102,8 +103,153 @@ class Jargao(unittest.TestCase):
                 chamado.append("escapou")
         finally:
             meta.medir_mensagem, meta.avaliar_meta = original_medir, original_meta
-        self.assertIsInstance(chamado[0], RuntimeError)
-        self.assertEqual(chamado[1], "meta", "a falha da medida não pula a conferência do objetivo")
+        self.assertEqual(chamado[0], "meta", "a decisão do Stop vem antes da medida (E2.237)")
+        self.assertIsInstance(chamado[1], RuntimeError, "a falha da medida vai ao erros.log e não escapa")
+        self.assertEqual(len(chamado), 2)
+
+    def test_stop_bloqueado_ainda_mede_e_sai_com_2(self):
+        """E2.237: bloquear sai do processo; a medida roda depois da decisão, e o código 2 não muda."""
+        sys.path.insert(0, str(RAIZ / "hooks"))
+        try:
+            import meta  # noqa: PLC0415
+        finally:
+            sys.path.pop(0)
+        chamado = []
+
+        class Falso:
+            def campo(self, *_):
+                return "Stop"
+
+            def projeto(self, *_a, **_k):
+                return Path("/x")
+
+            def cwd(self):
+                return Path("/x")
+
+        original_medir, original_meta = meta.medir_mensagem, meta.avaliar_meta
+        meta.medir_mensagem = lambda hook: chamado.append("medida")
+        meta.avaliar_meta = lambda hook, raiz: sys.exit(2)
+        try:
+            with self.assertRaises(SystemExit) as saida:
+                meta.principal(Falso())
+        finally:
+            meta.medir_mensagem, meta.avaliar_meta = original_medir, original_meta
+        self.assertEqual(saida.exception.code, 2)
+        self.assertEqual(chamado, ["medida"])
+
+
+def importar_meta():
+    sys.path.insert(0, str(RAIZ / "hooks"))
+    try:
+        import meta  # noqa: PLC0415
+    finally:
+        sys.path.pop(0)
+    return meta
+
+
+class JargaoPorClasse(unittest.TestCase):
+    """E7.4 (v047): S6 conta por classe os termos sem explicação (diretriz 31); um caso que conta e um que passa por classe."""
+
+    CASOS = {"etapa": ("Terminei a E7.4 hoje.", "Subi a versão 0.47.1 hoje."),
+             "commit": ("Está no e13aed85 agora.", "Uma decade defaced inteira."),
+             "regra": ("Vale a R-MAIN aqui.", "Vale o R-2 aqui."),
+             "cartao": ("O VISAO-DE-FOCO andou.", "A Visão-de-foco andou."),
+             "ferramenta": ("Rode forge-check e git push e gh pr.", "O forge vai bem e o git é seu."),
+             "caminho": ("Mudei hooks/meta.py ontem.", "Mudei o arquivo e/ou a pasta docs/.")}
+
+    def setUp(self):
+        self.meta = importar_meta()
+
+    def test_cada_classe_conta_o_termo_e_deixa_passar_o_parecido(self):
+        for classe, (conta, passa) in self.CASOS.items():
+            with self.subTest(classe=classe):
+                self.assertEqual(self.meta.classes_de_jargao(conta).get(classe, 0), 3 if classe == "ferramenta" else 1)
+                self.assertEqual(self.meta.classes_de_jargao(passa), {})
+
+    def test_termo_explicado_nao_conta(self):
+        self.assertEqual(self.meta.classes_de_jargao("A E7.1 (a etapa de desenho) acabou."), {})
+        self.assertEqual(self.meta.classes_de_jargao("Sabe o que é a E7.1? É o desenho."), {})
+        self.assertEqual(self.meta.classes_de_jargao("A E7.1 acabou. Isto (o resto) não explica."), {"etapa": 1})
+
+    def test_bloco_de_codigo_e_citacao_nao_contam_e_crase_conta(self):
+        cerca = "`" * 3
+        self.assertEqual(self.meta.classes_de_jargao(f"{cerca}\ngit push origin x\n{cerca}\n> A E1.2 citada."), {})
+        self.assertEqual(self.meta.classes_de_jargao(f"{cerca}\ngit x\n{cerca}\nA E1.2 depois do bloco."), {"etapa": 1})
+        self.assertEqual(self.meta.classes_de_jargao("Rode `forge doutor` agora."), {"ferramenta": 1})
+        self.assertEqual(self.meta.classes_de_jargao(f"{cerca}\nfim\ngit push origin x\n{cerca}"), {}, "linha do bloco não fecha")
+
+    def test_cerca_de_til_e_fechada_pela_mesma_cerca(self):
+        """E2.237 (review A2): ~~~ abre bloco; dentro dela, ``` não fecha nem reabre."""
+        crases = "`" * 3
+        self.assertEqual(self.meta.classes_de_jargao("~~~\ngit push origin x\n~~~\n> A E1.2 citada."), {})
+        self.assertEqual(self.meta.classes_de_jargao("~~~\ngit x\n~~~\nA E1.2 depois do bloco."), {"etapa": 1})
+        self.assertEqual(self.meta.classes_de_jargao(f"~~~\n{crases}\nA E1.2 dentro.\n~~~"), {})
+        self.assertEqual(self.meta.classes_de_jargao(f"~~~\n{crases}\n~~~\nA E1.2 depois."), {"etapa": 1})
+
+    def test_etapa_no_fim_da_frase_conta(self):
+        """E2.237 (review A1): o ponto final não esconde a etapa; a versão de três números não é etapa."""
+        self.assertEqual(self.meta.classes_de_jargao("Terminei a E7.4."), {"etapa": 1})
+        self.assertEqual(self.meta.classes_de_jargao("Terminei a E7.4.\nE a E7.5!"), {"etapa": 2})
+        self.assertEqual(self.meta.classes_de_jargao("Subi a E7.4.1 hoje."), {})
+
+    def test_o_que_e_longe_do_termo_nao_explica(self):
+        """E2.237: o "o que é" só vale na janela antes do termo (o custo não cresce com a mensagem)."""
+        longe = "Sabe o que é" + " palavra" * 40 + " a E7.1 hoje"
+        self.assertEqual(self.meta.classes_de_jargao(longe), {"etapa": 1})
+
+    def test_medida_le_so_o_teto_e_marca_cortado(self):
+        """E2.237 (segurança A1 a A4): a medida inteira lê só TETO_DA_MEDIDA caracteres e marca o corte."""
+        teto = self.meta.TETO_DA_MEDIDA
+        texto = "a " * (teto // 2) + "R-MAIN commit hoje"
+        gravado = self.medir(texto)
+        self.assertEqual((gravado["caracteres"], gravado["cortado"], gravado["classes"], gravado["jargao"]),
+                         (len(texto), True, {}, []))
+        curto = self.medir("Fiz a E7.4.")
+        self.assertEqual((curto["cortado"], curto["classes"]), (False, {"etapa": 1}))
+
+    def test_mensagem_adversaria_de_200_kb_mede_em_tempo_limitado(self):
+        """E2.237 (segurança S1 a S4): as entradas que levavam de 36 s a mais de 300 s ficam abaixo de 5 s de CPU."""
+        for texto in ("E1.1 " * 40000, "AB" * 50000 + "-" + "A-" * 50000 + "a", "R-MAIN " * 29000):
+            with self.subTest(inicio=texto[:6]):
+                inicio = time.process_time()
+                self.medir(texto)
+                self.assertLess(time.process_time() - inicio, 5)
+
+    def medir(self, texto):
+        with tempfile.TemporaryDirectory() as pasta:
+            hook = type("Hook", (), {"campo": lambda self, chave: {"last_assistant_message": texto}.get(chave),
+                                     "run": lambda self: Path(pasta), "iniciante": lambda self: False})()
+            self.meta.medir_mensagem(hook)
+            return json.loads((Path(pasta) / "mensagens.jsonl").read_text(encoding="utf-8"))
+
+    def test_mensagem_do_evento_vence_o_transcrito_e_o_termo_nao_vai_ao_disco(self):
+        with tempfile.TemporaryDirectory() as pasta:
+            arq = Path(pasta) / "t.jsonl"
+            linha = {"type": "assistant", "message": {"content": [{"type": "text", "text": "velha com R-MAIN"}]}}
+            arq.write_text(json.dumps(linha) + "\n", encoding="utf-8")
+            entrada = {"transcript_path": str(arq), "last_assistant_message": "Fiz a E7.4 no e13aed85."}
+
+            class Hook:
+                def campo(self, chave):
+                    return entrada.get(chave)
+
+                def run(self):
+                    return Path(pasta)
+
+                def iniciante(self):
+                    return False
+
+            self.meta.medir_mensagem(Hook())
+            entrada["last_assistant_message"] = ""
+            self.meta.medir_mensagem(Hook())
+            gravado = (Path(pasta) / "mensagens.jsonl").read_text(encoding="utf-8")
+        linhas = [json.loads(l) for l in gravado.splitlines()]
+        self.assertEqual(len(linhas), 2, "a mensagem do evento vazia cai para o transcrito e é medida")
+        primeira, segunda = linhas
+        self.assertEqual(primeira["classes"], {"etapa": 1, "commit": 1})
+        self.assertEqual(segunda["classes"], {"regra": 1}, "sem a mensagem do evento, cai para o transcrito")
+        for termo in ("E7.4", "e13aed85", "R-MAIN"):
+            self.assertNotIn(termo, gravado)
 
 
 if __name__ == "__main__":
