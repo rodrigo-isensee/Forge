@@ -11,7 +11,7 @@ Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO .
   --base REF    base da comparação (padrão origin/develop); sem efeito quando há CAMINHO
   -k PADRAO     filtra por classe ou nome de teste (`unittest -k`; repetível); para rodar uma parte de módulo grande
   --listar      mostra o plano (modo e módulos) e não roda nada
-  --completa    roda a suíte inteira, sem consultar o mapa
+  --completa    roda a suíte inteira, sem consultar o mapa, pela trava e pela fila do `.githooks/pre-push --suite`
   --afetados    o plano do pre-push: os testes afetados (mapa, mais todo teste que cita o caminho, mais os que exercitam
                 os arquivos de controle), nunca a suíte completa; o que nenhum teste lê fica para o CI, com aviso
   --texto      o pré-envio de texto (PRE-ENVIO-RAPIDO, mp1311): o mapa de testes e os testes de tamanho de texto
@@ -32,7 +32,10 @@ um módulo mapeado que não existe, um erro ao ler o git e todo módulo de teste
 ele pode importar outro, ler todos os de tests/ ou carregá-los pelo nome) fazem rodar a suíte completa. O `--vermelho`
 sem `--modulos` é a exceção: usa os módulos de teste do diff mais o plano dos outros caminhos, sem os dados de teste
 (tests/mutantes/, fixtures, corpus); quando esse plano é a suíte completa, diz o motivo numa linha e roda todos.
-Cada execução (dirigida ou completa) anota uma linha em `.forge/run/testes.log` (ignorado pelo git):
+A suíte completa sem `-k` (pedida ou vinda do plano) só roda pelo `.githooks/pre-push --suite` da cópia deste script
+(trava e fila, R-TETO; MAQ-I9): de outra cópia, ou sem o pre-push executável, sai 2, sem recuo para o `discover`; a
+que vem do plano sai 2 na hora com a suíte rodando (só a saída 1 do `--status` é livre).
+Cada execução dirigida, ou completa com `-k`, anota uma linha em `.forge/run/testes.log` (ignorado pelo git):
 data UTC, modo, módulos, duração e código de saída.
 
 Decisão do dono de 2026-11-08 ("Faça tudo"): a suíte inteira roda uma vez, no CI; o envio local roda só os testes
@@ -70,6 +73,8 @@ ENTRADA, PESADA, contexto, outras = apoio.ENTRADA, apoio.PESADA, apoio.contexto,
 BASE_PADRAO = "origin/develop"
 LOG = Path(".forge/run/testes.log")
 SUITE_COMPLETA = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-q"]
+# MAQ-I9 (R-TETO): a suíte completa sem `-k` só roda pelo pre-push da cópia deste script (trava e fila), nunca pelo do cwd.
+PRE_PUSH = Path(__file__).resolve().parent.parent / ".githooks" / "pre-push"
 PRAZO_PADRAO = 600
 # PRE-ENVIO-RAPIDO (mp1311, ORDEM DO DONO 13/11 17:38): o mapa de testes e os quatro testes de tamanho de texto, que o CI
 # derruba quando o envio esquece; o `brief gerar` do Forge cobra a mesma lista (`TESTES_DE_TEXTO` do forge-check) do brief de autor.
@@ -789,6 +794,26 @@ def texto():
     return codigo
 
 
+def suite_na_trava(raiz, pedida):
+    """`execv` de `pre-push --suite`; sem recuo para o `discover`. A completa que vem do plano só com o `--status` em 1
+    (livre): com a suíte rodando, sai 2 na hora em vez de entrar na fila; a pedida (`--completa`) entra na fila."""
+    if PRE_PUSH.parent.parent != Path(raiz).resolve():
+        print(f"forge-testes: {PRE_PUSH.parent.parent} não é a raiz do repositório ({raiz}); use o bin/forge-testes dele.",
+              file=sys.stderr)
+        return 2
+    if not os.access(PRE_PUSH, os.X_OK):
+        print(f"forge-testes: sem {PRE_PUSH} executável para pegar a trava da suíte (R-TETO).", file=sys.stderr)
+        return 2
+    # Só a saída 1 do `--status` é livre: 0 (rodando), 2 (não conferiu), outro código ou sinal valem ocupado.
+    if not pedida and subprocess.run([str(PRE_PUSH), "--status"], stdin=subprocess.DEVNULL,
+                                     capture_output=True).returncode != 1:
+        print("forge-testes: o plano pediu a suíte inteira com a suíte rodando; use `bin/forge-testes --completa` ou "
+              "`.githooks/pre-push --suite`.", file=sys.stderr)
+        return 2
+    sys.stdout.flush()
+    os.execv(str(PRE_PUSH), [str(PRE_PUSH), "--suite"])
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="forge-testes", description="Teste dirigido: iteração do autor e filtro do pre-push do envio de código (nunca portão de CI).")
     p.add_argument("caminhos", nargs="*", metavar="CAMINHO")
@@ -898,6 +923,8 @@ def main(argv=None):
             comando += ["-k", filtro]
     if args.listar:
         return 0
+    if modo == "completo" and not args.filtros:
+        return suite_na_trava(raiz, args.completa)
     inicio = time.monotonic()
     codigo = subprocess.run(comando).returncode
     anotar(modo, modulos, time.monotonic() - inicio, codigo)
