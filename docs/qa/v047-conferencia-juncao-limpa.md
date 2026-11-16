@@ -17,8 +17,8 @@ data: 2026-11-16
 Pedido de correção sem especificação de UX. Obrigações: E2.302 (o intervalo só de merges limpos da develop, ancorado em Base-sha selado, com a entrega conferida no primeiro pai, cumpre sem commit novo) e `R-PROVA` (resolução à mão, merge sem âncora e conferida fora da forma seguem pendentes).
 
 ## Achados
-- A1 (bloqueante, resolvido em 1477a480) bin/forge-check:2478 · teste `test_segundo_pai_ancorado_mas_fora_da_base_recusa` e mutante J6 (Q2) morrem.
-- A2 (recomendado, resolvido) bin/forge-check:2481 · Q3 declarado equivalente na spec e comentado no código; aceito (provado à mão no parecer anterior).
+- A1 (bloqueante) bin/forge-check:2478 · resolvido em 1477a480: teste `test_segundo_pai_ancorado_mas_fora_da_base_recusa` e mutante J6 (Q2) morrem.
+- A2 (recomendado) bin/forge-check:2481 · resolvido: Q3 declarado equivalente na spec e comentado no código; aceito (provado à mão no parecer anterior).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
