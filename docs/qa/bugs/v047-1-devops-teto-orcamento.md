@@ -1,5 +1,5 @@
 # B-v047-1 - devops-engineer passa do teto do orcamento
-- Severidade: alta
+- Severidade: alta (corrigido em b33bed29)
 - Responsavel sugerido: autor da correcao (agente de desenvolvimento do Forge)
 - Ambiente: melhoria/v047-frontmatter-agentes, head b1fa63a8
 

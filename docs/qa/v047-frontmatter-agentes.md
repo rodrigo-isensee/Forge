@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-frontmatter-agentes
-commit: b1fa63a82ac4d91e898ef790a248de426c61116f
-parecer: reprovado
-escopo: completo
+commit: b33bed29d8da3b94784cdd2ab6cae6bd5cad657a
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-15
+data: 2026-11-16
 ---
 # QA: v047 frontmatter dos agentes (E2.165)
 
@@ -35,3 +35,10 @@ Diff `bf475209..b1fa63a8`: `agents/devops-engineer.md` (description entre aspas 
 - PyYAML ausente no ambiente (o teste não o usa, como pedido).
 - CI: o check-run `bateria` do sha não pôde ser lido daqui (`gh api` sem retorno, sem PR); a suíte inteira fica para o CI do PR.
 - Achados recorrentes (PA-7): AR-1 a AR-12 conferidos; nenhum se aplica (sem controle, sem mutantes exigidos, sem ambiente do CI).
+
+## Revalidação por delta (E2.191, head b33bed29)
+`forge-check parecer delta`: intervalo b1fa63a8..b33bed29, no domínio só `agents/devops-engineer.md` (description encurtada de 365 caracteres, mesmas aspas simples).
+- A2 corrigido: `python3 -m unittest tests.test_orcamento_instrucao tests.test_frontmatter_agentes` roda 11 testes, OK; `test_nenhum_agente_passa_do_teto` volta a passar e a description segue YAML válido (aspas simples, aspas duplas internas).
+- B-v047-1 (`docs/qa/bugs/v047-1-devops-teto-orcamento.md`): fechado.
+- A1 (recomendado) segue aberto, sem bloquear; vira cartão.
+- Bugs abertos: 0 críticos, 0 altos, 0 médios, 0 baixos. O check-run `bateria` do sha fica para o CI do PR.
