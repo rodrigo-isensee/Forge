@@ -1,0 +1,16 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: lê da --raiz-pedidos quando dada",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "if getattr(a, \"raiz_pedidos\", None) else Path(raiz)",
+      "para": "if False else Path(raiz)",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_le_da_raiz_pedidos_quando_dada"
+      ]
+    }
+  ]
+}
