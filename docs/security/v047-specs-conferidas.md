@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v047-specs-conferidas
+pedido: v047
 branch: melhoria/v047-specs-conferidas
 commit: 0064a82ee0216c00f2281e29ea6695c224d73445
 parecer: aprovado
