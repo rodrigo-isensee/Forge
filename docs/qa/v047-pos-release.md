@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-pos-release
-commit: 76e00f859a469a2067bc8106f7ba89224b67cc90
+commit: 0eb2dfeb214bbfb4bd5ed6bc0e3d774aa94807fc
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -47,3 +47,9 @@ Item E2.223 (POS-RELEASE-SCRIPT-UNICO, Q5): `scripts/pos-release` no modelo de p
 
 ## Bugs
 - docs/qa/bugs/v047-pos-release-comentario-recuado.md (alta, corrigido em 76e00f85)
+
+## Revalidação (volta 2, delta 76e00f85..0eb2dfeb)
+`forge-check parecer delta` listou só `changelog.d/v047-pos-release.md` e `tests/test_pos_release.py` (o resto do intervalo veio da develop pela junção e fica fora do escopo). O script `templates/projeto/scripts/pos-release` e as specs de mutantes não mudaram no intervalo.
+- Fixture: a sonda da chave `password` passou a literal em duas partes, que o Python concatena; o valor testado é idêntico, só a varredura de segredo do CI deixa de casar. Changelog: texto da máscara reescrito sem chave e valor literais, mesmo comportamento.
+- `python3 -m unittest tests.test_pos_release`: 20 testes, OK. Mutantes (`bin/forge-mutante` nas 3 specs): todos morreram, inclusive PR22 e PR23 (máscara, linha 56), que exercem a fixture reescrita.
+- Sem achado novo; A1 e A2 seguem resolvidos. Suíte inteira: CI do PR; ainda sem PR para este sha, não cito `run`.
