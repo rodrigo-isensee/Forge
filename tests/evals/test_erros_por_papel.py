@@ -9,6 +9,7 @@ ferramenta verifica (julgamento) fica em `SEM_FERRAMENTA`, por papel, com a font
 da taxa de reprovação de cada papel. Só biblioteca padrão, sem rede."""
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -159,7 +160,8 @@ class EtapaJaResolvidaNaDevelop(RaizSintetica):
 
     def develop_com(self, mensagem):
         """A raiz sintética vira repositório com um commit na `develop` com a `mensagem`."""
-        env = dict(sem_manutencao(), HOME=str(self.tmp / "home"), GIT_CONFIG_NOSYSTEM="1", GIT_AUTHOR_NAME="t",
+        limpo = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}  # sem GIT_DIR e afins herdados de um hook (AR-4)
+        env = dict(sem_manutencao(limpo), HOME=str(self.tmp / "home"), GIT_CONFIG_NOSYSTEM="1", GIT_AUTHOR_NAME="t",
                    GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
         for args in (["init", "-q", "-b", "develop"], ["commit", "-q", "--allow-empty", "-m", mensagem]):
             subprocess.run(["git", "-C", str(self.tmp), *args], check=True, capture_output=True, env=env, timeout=60)
