@@ -66,7 +66,7 @@
       "id": "M31",
       "guarda": "troca antes do no nao cobre",
       "arquivo": "bin/forge-mutante",
-      "de": "primeira = max(comum - sufixo, ini - inicio)",
+      "de": "primeira = max(comum - sufixo, ini - onde[0])",
       "para": "primeira = comum - sufixo",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_casamento_pelo_intervalo_do_no_e_as_travas_do_de"
@@ -76,7 +76,7 @@
       "id": "M32",
       "guarda": "troca depois do no nao cobre",
       "arquivo": "bin/forge-mutante",
-      "de": "ultima = min(prefixo, fim - inicio - (len(de) - comum))",
+      "de": "ultima = min(prefixo, fim - onde[0] - (len(de) - comum))",
       "para": "ultima = prefixo",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_casamento_pelo_intervalo_do_no_e_as_travas_do_de"
