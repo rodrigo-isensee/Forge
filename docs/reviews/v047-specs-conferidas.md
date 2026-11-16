@@ -1,7 +1,7 @@
 ---
 tipo: review
 contrato: 1
-pedido: v047-specs-conferidas
+pedido: v047
 branch: melhoria/v047-specs-conferidas
 commit: 48e5741594135d899e5a4d668eaf6a947aa5e09e
 parecer: aprovado
