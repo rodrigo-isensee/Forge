@@ -1,7 +1,7 @@
 ---
 tipo: review
 contrato: 1
-pedido: v047-hook-heredoc-fp
+pedido: v047
 branch: melhoria/v047-hook-heredoc-fp
 commit: 0eee14533b579e8a7117666faad15f421fe4b17b
 parecer: aprovado
