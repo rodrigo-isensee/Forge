@@ -14,3 +14,6 @@ Ambas `('command', 'python3', 'x.py', 'padrão')`: `str.split()` descarta a queb
 
 ## Evidência
 Sonda manual no head 66a3a9a4. Falta caso em `Hooks` e sonda no corpus.
+
+## Resolução
+Corrigido em ee91a8f0 (`SO_ASCII_IMPRIMIVEL` em `termos_do_hook`, `tests/catraca.py:293`); coberto por `Hooks.test_command_lido_como_o_claude_code_o_roda` e pelo corpus. Revalidado no delta 66a3a9a4..ee91a8f0.

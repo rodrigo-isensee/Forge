@@ -3,11 +3,11 @@ tipo: qa
 contrato: 1
 pedido: v047-catraca-hook-por-script
 branch: melhoria/v047-catraca-hook-por-script
-commit: 66a3a9a4bbcafbd3588f564bd2fc2a81964fe3e6
-parecer: reprovado
+commit: ee91a8f00ceb1a52bc4ab41bc50a96996cc918e3
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-15
@@ -17,7 +17,7 @@ data: 2026-11-15
 Escopo: `tests/catraca.py` (`script_do_hook`, `chaves_de_hooks`, `regra_hooks`), `tests/test_catraca.py`, corpus `tests/fixtures/catraca-hooks/sondas.json`, specs de mutantes. Sem especificação de UX nem API; as obrigações são o PR 565 (mudar interpretador, opções ou argumentos não remove o hook) e `R-CONFORMIDADE` (hook neutralizado segue acusado, A1 a A3 e S1 a S4 da segurança).
 
 ## Achados
-- A1 (bloqueante) tests/catraca.py:261 · `CONTROLE_DO_SHELL` não tem quebra de linha: `command: "python3 x.py<LF>exit 0"` dá a mesma chave do hook original (split() descarta a LF), então o hook neutralizado não acusa (R-CONFORMIDADE). Bug em docs/qa/bugs/v047-quebra-de-linha-neutraliza-hook.md
+
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -51,3 +51,22 @@ CH-M1 a CH-M10 · morreu (CH-M2 por erro do teste declarado sob o mutante, que p
 - Mutação, delta (`--base 40faab23 --processos 4`, 2 specs): `base=40faab231edc... rev=66a3a9a4bbca`, CH-M1 a CH-M15 todos `morreu` (CH-M2 por erro do teste declarado sob o mutante, que passa sem ele); nenhum sobrevivente. `--cobertura --base cb45a962` não rodou: fila R-TETO ocupada por outras sessões (posição 1 de 7); a conferência das condições mudadas fica ao review.
 - Sondas manuais em `script_do_hook`, sem bug: `-Xutf8`, `-OO`, aspas em volta, `> /dev/null`, `&&`, barra colada, `utf8=2`, `command` vazio. Com bug: LF depois do script no `command` (A1).
 - Bateria completa: a prova é o check-run `bateria` do mesmo sha no CI (I5); não rodada aqui.
+
+## Revalidação por delta 66a3a9a4..ee91a8f0 (E2.148)
+- Sem achados abertos. O A1 da volta 2 (bloqueante) está fechado em ee91a8f0 (tests/catraca.py:293), e o bug docs/qa/bugs/v047-quebra-de-linha-neutraliza-hook.md, resolvido.
+- `forge-check parecer delta`: domínio com `tests/catraca.py`, `tests/test_catraca.py`, sondas, spec de mutantes `-3` e changelog. Remoto igual ao head, nada a trazer.
+- A1 (reprodução no head, `script_do_hook`): `command` com `\n`, `\r`, `\t` ou `U+00A0` depois do script dá chave sem interpretador e com a linha inteira, diferente da do hook original. Corrigido.
+- Delta lido: forma exec (`args`, mesmo vazio: o `command` é o executável inteiro, sem shell; `args` que não é lista falha fechada), lista positiva sem `args` (`[ -~]*`), campos fora de `statusMessage` e `once` entram na chave (`if`, `async`: acusam; `statusMessage`, `once`: não), `-b` fora das inócuas (`-b` fecha, `-bb` acusa). Sondas manuais: `python3 -- x.py` fecha; `PYTHONPATH=x python3 x.py` muda o interpretador e acusa; `command: "python3 x.py"` com `args: []` acusa (falso positivo aceitável, falha fechada).
+- `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook`: `Ran 12 tests`, OK; o corpus tem 28 sondas. O módulo inteiro `tests.test_catraca` também terminou com rc 0 no head.
+- Vermelho antes do verde (manual, cópia em `$TMPDIR`, `tests/catraca.py` de 66a3a9a4 e testes do head, mesmas duas classes): `Ran 12 tests`, `FAILED`; caem `test_command_lido_como_o_claude_code_o_roda` (9), `test_campo_fora_da_lista_inocua_entra_na_chave` (6), `test_cada_sonda_acusa_o_esperado` (11), `test_hook_neutralizado_sem_tirar_o_script_barra` (2) e `test_hook_sem_script_compara_a_linha_inteira` (1). Nenhum cai no head.
+- Mutação, delta (`--base 66a3a9a4 --processos 4`, spec `-3`): `base=66a3a9a4bbca... rev=ee91a8f00ceb`, CH-M16 a CH-M22 todos `morreu` (CH-M19 por erro do teste declarado sob o mutante, que passa sem ele); rc=0, nenhum sobrevivente, nenhum equivalente.
+- Cobertura (`--cobertura --base 66a3a9a4`, rc=0): linhas 291, 292, 293, 298, 299 e 309 saem `coberta` (CH-M16 a CH-M21); a mudança de `OPCOES_INOCUAS_DO_PYTHON` (tirou `b`) não é condição e o CH-M22 a mata.
+- Bateria completa: a prova é o check-run `bateria` do mesmo sha no CI do PR (I5); não rodada aqui.
+
+## Critério → teste → resultado (volta 3)
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| `R-CONFORMIDADE`: LF, CR, tab, NBSP no `command` acusam (A1) | `Hooks.test_command_lido_como_o_claude_code_o_roda`, corpus | separador de shell fora do ASCII imprimível | passou |
+| Forma exec lida como o Claude Code a roda | idem, CH-M16, CH-M17 | `args` vazio, `args` fora de lista | passou |
+| Campo extra do hook entra na chave | `Hooks.test_campo_fora_da_lista_inocua_entra_na_chave`, CH-M20, CH-M21 | `if`, `async`, campo novo; `statusMessage`/`once` não acusam | passou |
+| `-b` não é inócua, `-bb` acusa | corpus, CH-M22 | opção nova na lista | passou |
