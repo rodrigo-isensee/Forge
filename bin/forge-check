@@ -2,7 +2,7 @@
 """Forge: valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos.
 
 `pr` aprovado sai com rc 0 e uma linha `pr: veredito: aprovado · <pedido> · exigidos <pareceres> · head <sha7> · base <origin/x|diff literal|estrita>`; com violação, só as violações e rc 1.
-Fora do `--previo` e do `--pr`, o `pr` grava o resultado do head em `<diretório comum do git>/forge/pr/<head>/`: o hook `parecer` só o lê no `gh pr create` (PR-HOOK-PRAZO).
+Fora do `--previo` e do `--pr`, o `pr` grava o resultado do head em `<diretório comum do git>/forge/pr/<head>/`: o hook `parecer` o lê no `gh pr create` (PR-HOOK-PRAZO) e, como atalho, no `gh pr ready` e no `gh pr merge` (PR-HOOK-RAPIDO: o reprovado recusa; o aprovado libera só no clone do Forge).
 
 Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban [--gerar] | pr <pedido> [--ref REF] [--base REF]   (as duas opções também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
@@ -351,7 +351,9 @@ def textos_da_arvore(raiz, arvore):
             blobs[nome] = partes[2]
     if not blobs:
         return {}
-    lote = git(raiz, "cat-file", "--batch", bruto=True, entrada="".join(f"{b}\n" for b in blobs.values()).encode())[1]
+    cod, lote = git(raiz, "cat-file", "--batch", bruto=True, entrada="".join(f"{b}\n" for b in blobs.values()).encode())
+    if cod:
+        return {}  # o lote que falhou (o git morto no meio) não é lido
     textos, pos = {}, 0
     for nome, blob in blobs.items():
         fim = lote.find(b"\n", pos)
@@ -360,6 +362,8 @@ def textos_da_arvore(raiz, arvore):
             return {}  # resposta fora do pedido (objeto ausente ou saída truncada): nada lido
         tamanho = int(cabecalho[2])
         corpo = lote[fim + 1:fim + 1 + tamanho]
+        if len(corpo) != tamanho:
+            return {}  # corpo truncado depois de um cabeçalho inteiro: nada lido, nunca um texto parcial
         pos = fim + 1 + tamanho + 1
         textos[nome] = corpo.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n").strip()
     return textos
@@ -1560,7 +1564,8 @@ def veredito_do_pr(raiz, pedido, ref, base):
 # PR-HOOK-PRAZO (E20.1, v046): o `forge-check pr` grava o resultado por head em `<diretório comum do git>/forge/pr/<head>/` (fora da
 # árvore versionada; o mesmo `forge/` do hook `agentes`), e o hook `parecer` libera o `gh pr create` só lendo o aprovado do mesmo head,
 # branch e base, em vez de refazer a checagem (26 s com carga 22). Sem o aprovado do mesmo head, recusa e diz o comando (o `cmd_pr`
-# só roda para dar o motivo de hoje).
+# só roda para dar o motivo de hoje). No `gh pr ready` e no `gh pr merge` (PR-HOOK-RAPIDO, E2.117) o reprovado recusa e o aprovado
+# libera só no clone do Forge (o CI de pareceres é o segundo portão); no projeto, o aprovado gravado não libera e a conferência roda.
 def pasta_dos_resultados(raiz, head):
     cod, comum = git(raiz, "rev-parse", "--path-format=absolute", "--git-common-dir")
     return Path(comum) / "forge" / "pr" / head if not cod and comum and SHA40.match(head or "") else None

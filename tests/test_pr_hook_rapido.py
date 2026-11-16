@@ -102,6 +102,60 @@ class AtalhoDoReadyEDoMerge(unittest.TestCase):
                 self.assertEqual((r.returncode, r.stderr), (0, ""))
 
 
+MERGE_DO_PROJETO = FIXTURES / "parecer" / "pr-merge-com-pareceres.json"
+SONDAS = (FIXTURES / "parecer" / "pr-merge-review-reprovado-sem-resultado-bloqueia.json",  # S1 da segurança (E2.142)
+          FIXTURES / "conformidade" / "gravar-resultado-do-pr-tech-lead-bloqueia.json")    # S2
+
+
+class AtalhoNoProjeto(unittest.TestCase):
+    """A1 da segurança (E2.142): fora do clone do Forge o aprovado gravado nunca libera o `gh pr merge` (é forjável e o merge do
+    projeto não tem outro portão); o reprovado gravado recusa só lendo."""
+    _pasta_temporaria = test_hooks.Hooks._pasta_temporaria
+    executar_fixture = test_hooks.Hooks.executar_fixture
+    hook_so_lendo = test_pr_hook_prazo.PrHookPrazo.hook_so_lendo
+
+    def montar(self, parecer_do_review="aprovado"):
+        """O projeto (não o clone do Forge) com review e QA de feature/x (pedido p1) e a entrada `gh pr merge feature/x --squash`."""
+        dados = json.loads(MERGE_DO_PROJETO.read_text(encoding="utf-8"))
+        review = dados["git"][2]["arquivos"]["docs/reviews/p1-1.md"]
+        review[review.index("parecer: aprovado")] = f"parecer: {parecer_do_review}"
+        self.tmp = self._pasta_temporaria()
+        f = Fixture(self.tmp / "parecer" / "caso.json", dados)
+        raiz, self.entrada = f.montar(self.tmp, os.getpid())
+        f.executar_passos(raiz, None)
+        return raiz
+
+    def gravar(self, raiz, violacoes):
+        """O que a linha da S2 faz: a função pública do `forge-check` do plugin, com o escritor certo."""
+        modulos_dos_hooks()[0].forge_check().gravar_resultado_do_pr(raiz, "p1", "feature/x", "develop", violacoes)
+
+    def test_sondas_s1_e_s2_no_corpus(self):
+        for caminho in SONDAS:
+            with self.subTest(caminho.name):
+                self.executar_fixture(Fixture(caminho), self._pasta_temporaria(), os.getpid())
+
+    def test_aprovado_forjado_nao_libera_o_merge_s3(self):
+        """S3: o aprovado gravado sobre o review reprovado; o merge confere de novo e recusa."""
+        raiz = self.montar("reprovado")
+        self.gravar(raiz, [])
+        r = rodar("parecer", self.entrada, raiz, montar_proc(self._pasta_temporaria(), None), {})
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("R-REVIEW: ", r.stderr)
+
+    def test_aprovado_gravado_refaz_a_conferencia(self):
+        raiz = self.montar()
+        self.gravar(raiz, [])
+        r, _ = self.hook_so_lendo(raiz)
+        self.assertEqual(r.returncode, test_pr_hook_prazo.REFEZ, r.stderr)
+
+    def test_reprovado_gravado_recusa_so_lendo(self):
+        raiz = self.montar()
+        self.gravar(raiz, ["docs/qa/p1.md: parecer: reprovado (R-QA)"])
+        r, _ = self.hook_so_lendo(raiz)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("forge-check pr p1 reprovou o head", r.stderr)
+
+
 class DocumentosEmLote(unittest.TestCase):
     """`textos_da_arvore`: o mesmo texto do `git show` por arquivo, em duas chamadas git por pasta."""
     _pasta_temporaria = test_hooks.Hooks._pasta_temporaria
@@ -168,12 +222,26 @@ class DocumentosEmLote(unittest.TestCase):
         arvore = real(self.raiz, "rev-parse", "HEAD:docs/devops")[1]  # um .md só: o defeito no 1.o objeto não cai no 2.o
         primeiro = real(self.raiz, "rev-parse", "HEAD:docs/devops/u.md")[1].encode()
         for nome, lote in (("ausente", b"%s missing\n" % primeiro), ("vazio", b""),
-                           ("truncado", b"%s blob 12" % primeiro), ("outro", b"%s blob 1\nx\n" % (b"0" * 40))):
+                           ("truncado", b"%s blob 12" % primeiro), ("outro", b"%s blob 1\nx\n" % (b"0" * 40)),
+                           ("corpo truncado", b"%s blob 500\nparecer: aprovado" % primeiro)):  # A2 do review (E2.141)
             with self.subTest(nome):
                 self.fc.textos_da_arvore.cache_clear()
                 falso = lambda r, *a, **kw: (0, lote) if a[0] == "cat-file" else real(r, *a, **kw)  # noqa: E731
                 with mock.patch.object(self.fc, "git", falso):
                     self.assertEqual(self.fc.textos_da_arvore(str(self.raiz), arvore), {})
+
+    def test_lote_com_falha_do_git_nao_le_nada(self):
+        """A2 do review (E2.141): o `cat-file` que sai com erro não é lido, nem com a saída inteira (o controle, com 0, lê)."""
+        real = self.fc.git
+        arvore = real(self.raiz, "rev-parse", "HEAD:docs/devops")[1]
+        pedido = real(self.raiz, "rev-parse", "HEAD:docs/devops/u.md")[1].encode() + b"\n"
+        lote = real(self.raiz, "cat-file", "--batch", bruto=True, entrada=pedido)[1]
+        for cod, esperado in ((0, ["u.md"]), (128, [])):
+            with self.subTest(cod):
+                self.fc.textos_da_arvore.cache_clear()
+                falso = lambda r, *a, c=cod, **kw: (c, lote) if a[0] == "cat-file" else real(r, *a, **kw)  # noqa: E731
+                with mock.patch.object(self.fc, "git", falso):
+                    self.assertEqual(sorted(self.fc.textos_da_arvore(str(self.raiz), arvore)), esperado)
 
 
 if __name__ == "__main__":

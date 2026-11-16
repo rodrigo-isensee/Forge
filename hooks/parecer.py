@@ -556,14 +556,16 @@ def verificar(hook, raiz, branch, ref, base, dica="", gravado=None):
     da entrega mais os gatilhos de segurança e devops; o review vale sempre). `dica` abre o motivo. `gravado` (PR-HOOK-PRAZO): o
     resultado que o `forge-check pr` gravou para o mesmo head, branch e base decide sem refazer a checagem (o aprovado libera, o
     reprovado recusa). Sem ele, a conferência de hoje decide e o prazo vencido diz o comando que o grava; com `EXIGE` (o
-    `gh pr create`), a recusa vem mesmo sem violação; com `ATALHO` (`gh pr ready` e `gh pr merge`, E2.117), sem violação libera."""
+    `gh pr create`), a recusa vem mesmo sem violação; com `ATALHO` (`gh pr ready` e `gh pr merge`, E2.117), sem violação libera.
+    Fora do clone do Forge, o `ATALHO` só recusa pelo reprovado e nunca libera pelo aprovado: no Forge, o CI de pareceres é o
+    segundo portão; no projeto, não há outro, e a conferência de hoje decide."""
     fc = forge_check()
     guarda_de_versao(fc, raiz)
     pedida = base
     base, _ = fc.base_do_delta(raiz, base, ref) if base else (None, None)  # a mesma base do `forge-check pr` (K-164)
     estado, motivo = fc.resultado_gravado_do_pr(raiz, branch, ref, base, pedida) if gravado else (None, None)
-    if estado == "aprovado":
-        return
+    if estado == "aprovado" and (gravado == EXIGE or e_clone_do_forge(raiz)):
+        return  # A1 da segurança (E2.142): no projeto, o aprovado gravado é forjável e o merge não tem outro portão
     if estado == "reprovado":
         bloquear("R-REVIEW", f"{dica}{motivo}")
     if motivo:  # sem o resultado gravado, o prazo vencido da conferência de hoje diz o comando que o grava (o resto: CONTORNO_DO_TETO)
