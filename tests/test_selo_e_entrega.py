@@ -1364,6 +1364,30 @@ class JuncaoLimpa(Conferencia):
         depois = self.commit("feat: depois da junção")
         self.assertFalse(fc.juncao_limpa(self.proj, feito, depois, base_ref, [base_ref]))  # commit comum no primeiro pai
 
+    def test_segundo_pai_ancorado_mas_fora_da_base_recusa(self):
+        """QA A1: o segundo pai num Base-sha selado não basta; ele também precisa estar na `base_ref`."""
+        feito = self.conferida()
+        head = self.juncao("a\n", ancorar=False)
+        ponta, antes = self.git("rev-parse", "origin/develop"), self.git("rev-parse", "origin/develop^")
+        self.assertTrue(fc.juncao_limpa(self.proj, feito, head, ponta, [ponta]))
+        self.assertFalse(fc.juncao_limpa(self.proj, feito, head, antes, [ponta]))  # ancorado, fora da base
+
+    def test_gitattributes_da_arvore_de_trabalho_nao_resolve_conflito(self):
+        """Segurança A1: `merge=union` num `.gitattributes` não versionado deixa limpa a mescla da develop em conflito; a conferência
+        lê os atributos da árvore vazia e vê o conflito."""
+        feito = self.conferida()
+        self.git("switch", "-q", "develop")
+        self.gravar("bin/app", "x\nda develop\n")
+        self.git("add", "bin/app")
+        ponta = self.commit("outro lote")
+        self.git("push", "-q", "origin", "develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("fetch", "-q", "origin")
+        self.gravar(".gitattributes", "bin/app merge=union\n")
+        self.mesclar_develop()  # sem conflito só pela união
+        head = self.git("rev-parse", "HEAD")
+        self.assertFalse(fc.juncao_limpa(self.proj, feito, head, ponta, [ponta]))
+
 
 if __name__ == "__main__":
     unittest.main()

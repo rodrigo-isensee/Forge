@@ -2470,14 +2470,18 @@ def juncao_limpa(raiz, de, head, base_ref, ancoras):
     """E2.302: `de..head` é só a junção da base sem resolução à mão. Cada commit do primeiro pai, do head até o `de`, é merge de dois
     pais com o segundo na `base_ref` e numa das `ancoras` (Base-sha de brief selado: a `origin/<base>` é ref local que o autor
     reescreve) e com a árvore igual à da mescla automática (`git merge-tree --write-tree`). Commit comum, merge de outra coisa,
-    conflito, mudança à mão ou falha do git: False (na dúvida, recusa)."""
+    conflito, mudança à mão ou falha do git: False (na dúvida, recusa). Os atributos da mescla vêm da árvore vazia (`--attr-source`):
+    um `.gitattributes` da árvore de trabalho com `merge=union` não torna limpo um conflito (segurança A1); sem a árvore vazia, o
+    `--attr-source=` vazio faz o git falhar e recusa."""
+    vazia = git(raiz, "hash-object", "-t", "tree", "/dev/null")[1]
     cod, saida = git(raiz, "rev-list", "--first-parent", "--parents", f"{de}..{head}")
     if cod or not saida or not base_ref:
         return False
     for commit, *pais in map(str.split, saida.splitlines()):
         if len(pais) != 2 or not e_ancestral(raiz, pais[1], base_ref) or not any(e_ancestral(raiz, pais[1], a) for a in ancoras):
             return False
-        cod, arvore = git(raiz, "merge-tree", "--write-tree", pais[0], pais[1])
+        cod, arvore = git(raiz, f"--attr-source={vazia}", "merge-tree", "--write-tree", pais[0], pais[1])
+        # `cod or` é redundante (o conflito dá árvore com marcadores, diferente da commitada): o mutante Q3 é equivalente
         if cod or arvore.split("\n")[0] != git(raiz, "rev-parse", "--verify", "--quiet", f"{commit}^{{tree}}")[1]:
             return False
     return True
