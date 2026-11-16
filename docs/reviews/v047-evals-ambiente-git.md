@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-evals-ambiente-git
-commit: 438838fe7ecf3a5ff89e5a488675d00f55bd28bd
+commit: 2a2239532d0611430005f80d4fc937ec904675e8
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
@@ -26,10 +26,13 @@ Execuções neste head:
 - Mutante: filtro `if not k.startswith("GIT_")` trocado por `if True` em `tests/ambiente_git.py:48` → `AmbienteGitHerdado` `FAILED (failures=1)` (morto; restaurado).
 - Teste novo sobre o código da base `4138445e` → `FAILED (failures=1)`: falha antes, passa depois.
 
+## Revalidação (E2.227)
+Delta lido: `forge-check parecer delta docs/reviews/v047-evals-ambiente-git.md`, intervalo `438838fe..2a223953`. No domínio só `docs/engineering/achados-recorrentes.md`: AR-4 de `vezes: 2` para `vezes: 3`, `última: tests/evals/test_regressao_forma.py:64` (linha de `sem_git_herdado` em `rodar`, conferida). É a linha AR que este review mandou gravar; nenhum código nem teste mudou. Aprovação mantida no head 2a223953.
+
 ## Achados
 - A1 (recomendado) tests/ambiente_git.py:50 · uma linha em branco antes de `def remoto_sem_manutencao`; em tests/evals/test_regressao_forma.py:355 três antes da classe nova e uma antes de `if __name__` (PEP 8 pede duas). Só forma; ajuste no próximo toque do arquivo.
 
 ## Sondas
 
 ## Parecer
-Aprovado no head 438838fe. Faz o que o E2.197 pede, com teste que falha na base e mutante do filtro morto. A1 é só forma e não devolve (`R-REVIEW`). A cópia do filtro de `GIT_*` em outros módulos já tem cartão no pedido (histórico de 2026-11-16 05:42) e fica fora deste item.
+Aprovado no head 2a223953 (review completo em 438838fe; revalidado por delta). Faz o que o E2.197 pede, com teste que falha na base e mutante do filtro morto. A1 é só forma e não devolve (`R-REVIEW`). A cópia do filtro de `GIT_*` em outros módulos já tem cartão no pedido (histórico de 2026-11-16 05:42) e fica fora deste item.
