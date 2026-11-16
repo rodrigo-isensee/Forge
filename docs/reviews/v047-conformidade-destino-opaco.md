@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: c22624c5b274546685d4db04ab44236bfafe6f31
+commit: 081473ac553f7a38d80c1783052afd03f34da97c
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-15
@@ -59,9 +59,18 @@ Pareceres irmãos no remoto, lidos antes do veredito (dois envios voltaram com o
 
 A2 (A16 da segurança, A17 do QA): fechado em c22624c5; S3 e S4 davam rc 0 no c3cde09f e dão rc 2 agora. Achados das rodadas anteriores deste parecer (A1, A2) todos fechados; nenhuma fuga nova achada.
 
+## Revalidação por delta c22624c5..081473ac (E2.129, junção do lote B com a develop bf475209; instância que não fez a entrega)
+Delta lido: `forge-check parecer delta docs/reviews/v047-conformidade-destino-opaco.md` (rc 0), intervalo `c22624c5..081473ac`, sem o que veio da base; no domínio só os dois arquivos em conflito, `bin/forge-testes` e `tests/test_testes_tocados.py`.
+
+Resolução conferida por `git show --remerge-diff 081473ac`: em `bin/forge-testes` o conflito era só a tupla `REAPROVEITAM_O_LOTE`, e o resultado é a união dos dois lados (`test_hook_destino_opaco` da branch, `test_hook_erro_libera` da develop). `git diff bf475209 081473ac` nos dois arquivos é exatamente o diff do lado da branch sobre a base comum f4b0c2ae: `FORGE_CHECK` e a regra `hooks/.*` ganham os dois módulos da A9, `REAPROVEITAM_O_LOTE` ganha `test_hook_destino_opaco`, e o teste ganha `sem_oraculos` e a contagem. Nenhuma linha de `--texto`, `TESTES_DE_TEXTO` ou guarda da develop foi alterada; não há guarda nova no delta, então não há mutante a declarar.
+
+Contagem: `FORGE_CHECK` tem 76 nomes na base, 79 na develop e 81 na junção, sem repetição. O `planejar(["bin/forge-check"])` dá 84 no bf475209 e 86 no 081473ac, sem oráculos. A develop asserta 83 e está vermelha nesse teste (CI 43771793322: `AssertionError: 84 != 83`); a junção asserta 86, o valor certo. `tests.test_testes_tocados` inteiro no 081473ac, com ambiente limpo: 151 testes, OK (skipped=1). A suíte completa fica com o CI do PR.
+
+Conclusão: a resolução não muda comportamento além da soma dos dois lados; a contagem 86 corrige de quebra o vermelho da develop.
+
 ## Achados
 
 ## Sondas
 
 ## Parecer
-Aprovado no c22624c5 (R-REVIEW). A volta fecha a A16 (o A2 deste parecer e o A17 do QA) juntando numa função as recusas do nome e do prefixo, sem duplicar busca; fixtures dos dois ramos, mutante por guarda que morre, cobertura sem lacuna e nenhuma fuga nova nas sondas rebuscadas. A suíte completa fica com o CI do PR.
+Aprovado no 081473ac (R-REVIEW). A junção com a develop bf475209 resolve os conflitos de `bin/forge-testes` e `tests/test_testes_tocados.py` pela união dos dois lados, sem mudar comportamento; a contagem 86 confere com o plano real. Aprovação anterior no c22624c5 mantida; a suíte completa fica com o CI do PR.
