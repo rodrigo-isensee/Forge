@@ -25,4 +25,4 @@ O `forge-check brief gerar` avisa em stderr a linha que não segue o formato. Qu
 - AR-11 · seguranca · leitura-de-opcao-do-gh-api-difere-da-do-gh · R-MAIN · vezes: 5 · última: hooks/parecer.py:537
 - AR-12 · review · spec-de-mutante-desatualizada-pelo-commit-que-muda-a-linha · R-REVIEW · vezes: 2 · última: tests/mutantes/v0456-e2.json:19
 - AR-13 · review · hook-interpreta-o-curinga-diferente-do-bash · R-REVIEW · vezes: 2 · última: hooks/conformidade.py:1095
-- AR-14 · review · catraca-le-o-hook-diferente-do-claude-code · R-CONFORMIDADE · vezes: 4 · última: tests/catraca.py:263
+- AR-14 · review · catraca-le-o-hook-diferente-do-claude-code · R-CONFORMIDADE · vezes: 6 · última: tests/catraca.py:344
