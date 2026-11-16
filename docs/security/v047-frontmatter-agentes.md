@@ -3,12 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-frontmatter-agentes
-commit: b1fa63a82ac4d91e898ef790a248de426c61116f
+commit: 58822e8d07d7943af1475f73df344b9704f51bb6
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-15
+data: 2026-11-16
 ---
-# Review de segurança: v047 (frontmatter dos agentes, E2.164)
+# Review de segurança: v047 (frontmatter dos agentes, E2.164; revalidado em E2.296)
+
+Revalidação por delta (E2.296) no head `58822e8d`: `forge-check parecer delta` em `b1fa63a8..58822e8d`, sem o que veio da develop, traz só `agents/devops-engineer.md:3`, a `description` encurtada (“do time” e “escrita por” saem). O valor continua entre aspas simples, sem aspa simples interna; `tools`, `model` e `skills` não mudam. `python3 -m unittest tests.test_frontmatter_agentes`: 3 testes, OK. Sem achado novo; A1 e A2 seguem recomendados (o teste não mudou).
 
 Escopo: `bf475209..b1fa63a8` (3 arquivos): aspas na `description` de `agents/devops-engineer.md`, fragmento `changelog.d/v047-frontmatter-agentes.md` e o teste novo `tests/test_frontmatter_agentes.py`. Parecer completo (não havia parecer anterior desta branch).
 
