@@ -1,0 +1,26 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "RP-M1",
+      "guarda": "voltas lê o quadro e os pedidos do --raiz-pedidos quando ele vem",
+      "arquivo": "bin/forge-check",
+      "de": "        return cmd_voltas(Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz, a.pedido, a.tempo)",
+      "para": "        return cmd_voltas(Path(a.raiz_pedidos).resolve() if not a.raiz_pedidos else raiz, a.pedido, a.tempo)",
+      "testes": [
+        "tests.test_voltas.VoltasComRaizDePedidos.test_historico_e_pedido_vem_do_raiz_pedidos"
+      ]
+    },
+    {
+      "id": "RP-M2",
+      "guarda": "o placar troca a raiz dos dados pelo --raiz-pedidos quando ele vem",
+      "arquivo": "bin/forge-placar",
+      "de": "    if args.raiz_pedidos:  # RAIZ-PEDIDOS-PERDE-DADOS: a pasta do Jarvis fora do clone vale sobre o --raiz",
+      "para": "    if False:  # RAIZ-PEDIDOS-PERDE-DADOS: a pasta do Jarvis fora do clone vale sobre o --raiz",
+      "testes": [
+        "tests.evals.test_placar.Medir.test_raiz_pedidos_fora_do_clone_vale_sobre_o_raiz"
+      ]
+    }
+  ]
+}

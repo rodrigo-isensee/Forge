@@ -54,8 +54,8 @@
       "id": "M7",
       "guarda": "o mapa roda o módulo novo onde o forge-check roda",
       "arquivo": "bin/forge-testes",
-      "de": "\"test_fila_ocupacao\", \"test_proximo\", \"test_comportamento\") + VOLTA_UNICA",
-      "para": "\"test_fila_ocupacao\", \"test_proximo\") + VOLTA_UNICA",
+      "de": "\"test_fila_ocupacao\", \"test_proximo\", \"test_comportamento\", \"test_conferente_estavel\"",
+      "para": "\"test_fila_ocupacao\", \"test_proximo\", \"test_conferente_estavel\"",
       "testes": ["tests.test_testes_tocados.MapaDoForgeCheck.test_mapa_lista_todo_modulo_que_usa_o_forge_check"]
     },
     {

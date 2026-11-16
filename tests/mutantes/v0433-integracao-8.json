@@ -126,8 +126,8 @@
       "id": "I125",
       "guarda": "bin/forge_governanca.py:356 arq.is_symlink() (negada)",
       "arquivo": "bin/forge_governanca.py",
-      "de": "        if arq.is_symlink():",
-      "para": "        if not (arq.is_symlink()):",
+      "de": "if arq.is_symlink() or not arq.is_file() or arq.stat().st_size > TETO_DO_TRANSCRITO:",
+      "para": "if not (arq.is_symlink()) or not arq.is_file() or arq.stat().st_size > TETO_DO_TRANSCRITO:",
       "testes": [
         "tests.test_governanca"
       ]

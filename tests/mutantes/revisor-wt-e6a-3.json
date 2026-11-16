@@ -123,16 +123,6 @@
       ]
     },
     {
-      "id": "M13",
-      "guarda": "com linha no pedido, o último P de cada arquivo não é lido",
-      "arquivo": "bin/forge-check",
-      "de": "ultimos = pareceres_conferidos(raiz, pedido, branch)[0] if shas else {}",
-      "para": "ultimos = pareceres_conferidos(raiz, pedido, branch)[0] if not shas else {}",
-      "testes": [
-        "tests.test_revisor_wt.EntregaConfereOMerge.test_ultimo_conferido_passa_e_o_superado_reprova"
-      ]
-    },
-    {
       "id": "M14",
       "guarda": "M2 sem linha no pedido (T10: como hoje)",
       "arquivo": "bin/forge-check",
