@@ -23,9 +23,6 @@ RETIRADOS_0431 = frozenset({
 # 0.46 (decisão do dono de 2026-11-11 13:06): a lista do que não se delega por "decidam vocês" ganhou aceite de risco, rótulo e
 # merge na main; o trecho antigo foi substituído pelo novo (config.json), não removido.
 RETIRADOS_046 = frozenset({"que não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível"})
-# 0.47 (decisão 2 do dono de 2026-11-15): sai o aviso a cada agente acionado; qual agente faz o quê vai só nos marcos, num
-# resumo. Afrouxamento pedido pelo dono, com o trecho novo como invariante (config.json, R-DECISAO).
-RETIRADOS_047 = frozenset({"diga sempre ao usuário para qual agente passou"})
 # Um número só por trava (docs/regras/orcamento.json): o núcleo (jarvis.md + docs/regras/*.md, decisão 11 do dono) e o teto do
 # arquivo do Jarvis (o mesmo que tests/test_orcamento_instrucao.py aplica).
 ORCAMENTO = json.loads((RAIZ / "docs" / "regras" / "orcamento.json").read_text(encoding="utf-8"))
@@ -44,7 +41,7 @@ class NucleoCurtoDoJarvis(unittest.TestCase):
     def test_todo_invariante_do_jarvis_existe_no_jarvis_ou_na_skill_nova(self):
         self.assertGreaterEqual(len(ANTES), 73)
         self.assertEqual(len(RETIRADOS_0431 & set(ANTES)), len(RETIRADOS_0431), "retirado que não era invariante")
-        exigidos = {t: [] for t in ANTES if t not in RETIRADOS_0431 | RETIRADOS_046 | RETIRADOS_047}
+        exigidos = {t: [] for t in ANTES if t not in RETIRADOS_0431 | RETIRADOS_046}
         for rel in arquivos_do_nucleo():
             for t in CONFIG["invariantes"].get(rel, []):
                 if t in exigidos:
