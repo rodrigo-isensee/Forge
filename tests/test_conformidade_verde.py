@@ -238,6 +238,18 @@ class OraculoCf1(unittest.TestCase):
     def test_set_posicional(self):  # CONFORMIDADE-SET-POSICIONAL (A18, S55): `$@` e `$*` de `set --`
         self.rodar_cartao("set", 8)
 
+    def test_declare_n(self):  # CONFORMIDADE-DECLARE-N (A19, S56): `declare|typeset|local -n d=_` faz de `$d` o `$_`
+        self.rodar_cartao("declare", 10)
+
+    def test_atribuicao_em_linha_ilegivel_nao_vale(self):  # A19: o ramo da linha que o hook não lê, falha fechada
+        sys.path.insert(0, str(RAIZ / "hooks"))
+        try:
+            import conformidade
+        finally:
+            sys.path.remove(str(RAIZ / "hooks"))
+        self.assertTrue(conformidade.atribui_como_argumento("d", "d=x; echo 'aberto"))
+        self.assertFalse(conformidade.atribui_como_argumento("d", "d=x; echo fechado"))
+
     def test_numero_antes_do_git_nao_o_esconde(self):  # A17: `2>/dev/null git push --force`
         fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / "conformidade").glob("trava-cf1-*.json"))], 1,
                           "trava-cf1-*")

@@ -22,6 +22,66 @@
       "testes": [
         "tests.test_conformidade_verde.OraculoCf1.test_set_posicional"
       ]
+    },
+    {
+      "id": "CF1-D1",
+      "guarda": "E2.179, CONFORMIDADE-DECLARE-N (A19 da segurança E1.344): a atribuição que é argumento de comando (`declare -n d=_`) não dá o valor de `$d`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if len(atribuicoes) > 1 or atribuicoes and atribui_como_argumento(nome, linha):  # A19: `declare -n d=_`",
+      "para": "    if len(atribuicoes) > 1:  # A19: `declare -n d=_`",
+      "testes": [
+        "tests.test_conformidade_verde.OraculoCf1.test_declare_n"
+      ]
+    },
+    {
+      "id": "CF1-D2",
+      "guarda": "E2.179, CONFORMIDADE-DECLARE-N (A19 da segurança E1.344): linha que o hook não lê: a atribuição não vale (falha fechada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if lidas.ilegivel:  # a linha que o hook não lê: nenhuma atribuição vale",
+      "para": "    if False:  # a linha que o hook não lê: nenhuma atribuição vale",
+      "testes": [
+        "tests.test_conformidade_verde.OraculoCf1.test_atribuicao_em_linha_ilegivel_nao_vale"
+      ]
+    },
+    {
+      "id": "CF1-D3",
+      "guarda": "E2.179, CONFORMIDADE-DECLARE-N (A19 da segurança E1.344): as palavras da gramática (`{`, `then`, `do`) antes do declarador não o escondem (`f(){ local d=x; }`)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            while palavras and palavras[0] in PALAVRAS_DA_GRAMATICA | CORPO_DE_LACO:",
+      "para": "            while False:",
+      "testes": [
+        "tests.test_conformidade_verde.OraculoCf1.test_declare_n"
+      ]
+    },
+    {
+      "id": "CF1-D4",
+      "guarda": "E2.179, CONFORMIDADE-DECLARE-N (A19 da segurança E1.344): a atribuição no prefixo do comando (`d=docs; …`) é do shell e segue valendo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if not atribuicao.match(p) or all(ATRIBUICAO.match(w) for w in palavras[:i]):",
+      "para": "                if not atribuicao.match(p):",
+      "testes": [
+        "tests.test_conformidade_verde.OraculoCf1.test_declare_n"
+      ]
+    },
+    {
+      "id": "CF1-D5",
+      "guarda": "E2.179, CONFORMIDADE-DECLARE-N (A19 da segurança E1.344): fora do declarador literal com opções literais sem `n`, a atribuição como argumento não vale",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if palavras[0] not in DECLARADORES or not all(",
+      "para": "                if palavras[0] not in DECLARADORES or False and not all(",
+      "testes": [
+        "tests.test_conformidade_verde.OraculoCf1.test_declare_n"
+      ]
+    },
+    {
+      "id": "CF1-D6",
+      "guarda": "E2.179, CONFORMIDADE-DECLARE-N (A19 da segurança E1.344): a opção com `n` (também em grupo, `-gn`) é referência",
+      "arquivo": "hooks/conformidade.py",
+      "de": "OPCAO_SEM_REFERENCIA = re.compile(r\"[-+][A-Za-mo-z]+\")  # sem `n`: `-n` faz de `d=_` uma referência a `$_`",
+      "para": "OPCAO_SEM_REFERENCIA = re.compile(r\"[-+][A-Za-z]+\")  # sem `n`: `-n` faz de `d=_` uma referência a `$_`",
+      "testes": [
+        "tests.test_conformidade_verde.OraculoCf1.test_declare_n"
+      ]
     }
   ]
 }

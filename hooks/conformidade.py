@@ -694,6 +694,31 @@ def nasce_fora_do_ambiente(nome, linha):
     return atribui_por_expansao(nome, linha)  # A14 (E1.332): `${d:=v}` atribui na linha
 
 
+DECLARADORES = frozenset("declare typeset local export readonly".split())
+OPCAO_SEM_REFERENCIA = re.compile(r"[-+][A-Za-mo-z]+")  # sem `n`: `-n` faz de `d=_` uma referência a `$_`
+
+
+def atribui_como_argumento(nome, linha):
+    """CONFORMIDADE-DECLARE-N (A19): `nome=` vem como argumento de um comando, não como atribuição do shell. Só o
+    declarador literal com opções literais sem `n` (`declare -r d=x`, `local d=x`) dá o valor escrito; `declare -n d=_`,
+    `$c -n d=_`, `declare $o d=_` e a linha que o hook não lê, não (falha fechada)."""
+    lidas = leituras(linha)
+    if lidas.ilegivel:  # a linha que o hook não lê: nenhuma atribuição vale
+        return True
+    atribuicao = re.compile(rf"{re.escape(nome)}(\[[^]]*\])?\+?=")
+    for partes in lidas.partes:
+        for palavras, *_ in partes:
+            while palavras and palavras[0] in PALAVRAS_DA_GRAMATICA | CORPO_DE_LACO:
+                palavras = palavras[1:]
+            for i, p in enumerate(palavras):
+                if not atribuicao.match(p) or all(ATRIBUICAO.match(w) for w in palavras[:i]):
+                    continue
+                if palavras[0] not in DECLARADORES or not all(
+                        OPCAO_SEM_REFERENCIA.fullmatch(w) or ATRIBUICAO.match(w) for w in palavras[1:i]):
+                    return True
+    return False
+
+
 def valores_da_variavel(m, linha, fundo):
     """U4: os valores de `$x`, `${x}` e `${x:-v}`: o da única atribuição na linha ou, sem ela, o do ambiente
     (`SEM_VALOR`), mais o padrão literal; None se a variável nasce de outro jeito (`for`, `read`, `+=`)."""
@@ -701,7 +726,7 @@ def valores_da_variavel(m, linha, fundo):
     if nasce_fora_do_ambiente(nome, linha):
         return None
     atribuicoes = [valor_atribuido(linha, a.end()) for a in re.finditer(rf"(?<![\w$]){nome}=", linha)]
-    if len(atribuicoes) > 1:
+    if len(atribuicoes) > 1 or atribuicoes and atribui_como_argumento(nome, linha):  # A19: `declare -n d=_`
         return None
     if not atribuicoes and any(nasce_fora_do_ambiente(nome[:k], linha) or re.search(rf"(?<![\w$]){nome[:k]}=", linha)
                                for k in range(1, len(nome))):  # A15 (E1.336), A16 (E1.340): `"$d"t` e `"$_"t`
