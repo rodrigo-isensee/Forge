@@ -1,5 +1,5 @@
 {
-  "fonte": "hooks/hooks.json real; parecer docs/security/v047-catraca-hook-por-script.md (e8499ce), sondas S1 a S4 e A3",
+  "fonte": "hooks/hooks.json real; parecer docs/security/v047-catraca-hook-por-script.md (e8499ce: S1 a S4 e A3; 97d58a7: S5 a S7 e A7)",
   "evento": "PreToolUse",
   "script": "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py",
   "sondas": [
@@ -8,6 +8,15 @@
     {"id": "S3", "troca": {"command": "true"}, "removidos": 1},
     {"id": "S4", "troca": {"command": "echo", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"]}, "removidos": 1},
     {"id": "A3", "troca": {"type": "prompt"}, "removidos": 1},
-    {"id": "PR565", "troca": {"command": "/usr/bin/env python3", "args": ["-I", "-X", "utf8", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py", "--modo", "x"]}, "removidos": 0}
+    {"id": "S5", "troca": {"args": ["-s", "-E", "-I", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"]}, "removidos": 1},
+    {"id": "S5-P", "troca": {"args": ["-s", "-E", "-P", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"]}, "removidos": 1},
+    {"id": "S6", "troca": {"args": ["-s", "-E", "-X", "pycache_prefix=p", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"]}, "removidos": 1},
+    {"id": "S6-junto", "troca": {"args": ["-s", "-E", "-Xpycache_prefix=p", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"]}, "removidos": 1},
+    {"id": "S6-W", "troca": {"args": ["-s", "-E", "-W", "error", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"]}, "removidos": 1},
+    {"id": "S7", "troca": {"command": "${CLAUDE_PLUGIN_ROOT}/hooks/python3"}, "removidos": 1},
+    {"id": "S7-ponto", "troca": {"command": "./python3"}, "removidos": 1},
+    {"id": "A7", "troca": {"timeout": 1}, "removidos": 1},
+    {"id": "shell-ou", "troca": {"args": ["-s", "-E", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py", "||", "true"]}, "removidos": 1},
+    {"id": "PR565", "troca": {"command": "/usr/bin/env python3", "args": ["-B", "-u", "-X", "utf8", "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py", "--modo", "x"]}, "removidos": 0}
   ]
 }

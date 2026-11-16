@@ -324,7 +324,7 @@ class Hooks(Base):
         novo = copy.deepcopy(HOOKS)
         a, b = novo["hooks"]["PreToolUse"][0]["hooks"]
         a.update(command="/usr/bin/env python3", args=["-s", "-E", "-X", "utf8", "a.py", "--modo", "x"])
-        b.update(command="python3 -I b.py", args=[])
+        b.update(command='python3 -Xutf8=1 -B "b.py"', args=[])
         self.repo.escreve("hooks/hooks.json", json.dumps(novo))
         self.passa()
 
@@ -345,15 +345,42 @@ class Hooks(Base):
         return catraca.chaves_de_hooks(json.dumps({"hooks": {"Stop": [{"hooks": [hk]}]}}))
 
     def test_hook_sem_script_compara_a_linha_inteira(self):
-        self.assertEqual(self.chaves(command="echo fim"), {("Stop", "", "command", "", "echo fim")})
+        self.assertEqual(self.chaves(command="echo fim"), {("Stop", "", "command", "", "echo fim", "padrão")})
         self.assertTrue(self.chaves(command="echo fim") - self.chaves(command="echo outro"))
-        self.assertEqual(self.chaves(type="prompt", prompt="x"), {("Stop", "", "prompt", "", "")})
+        self.assertEqual(self.chaves(type="prompt", prompt="x"), {("Stop", "", "prompt", "", "", "padrão")})
+
+    def test_script_entre_aspas_no_command_e_o_mesmo_script(self):
+        """Review A2 (volta 2): `python3 "x.py"` é `x.py` para o shell; aspas sem par não são tiradas (falha fechada)."""
+        self.assertEqual(self.chaves(command='python3 "x.py"'), self.chaves(command="python3 -s -E 'x.py'"))
+        for sem_par in ('"x.py', '"x.py\''):
+            self.assertTrue(self.chaves(command="python3 x.py") - self.chaves(command="python3 " + sem_par), sem_par)
+        self.assertTrue(self.chaves(command="python3 x.py") - self.chaves(command="python3 ax.pya"))  # só aspas saem
+
+    def test_dois_hooks_com_a_mesma_chave_contam_dois(self):
+        """Review A1 (volta 2): tirar um de dois hooks iguais em evento, matcher, tipo, interpretador e script acusa."""
+        novo = copy.deepcopy(HOOKS)
+        novo["hooks"]["PreToolUse"][0]["hooks"].append({"type": "command", "command": "python3", "args": ["a.py", "--outro"]})
+        self.repo.escreve("hooks/hooks.json", json.dumps(novo))
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "dois hooks a.py")
+        self.repo.git("tag", "-f", "base")
+        del novo["hooks"]["PreToolUse"][0]["hooks"][2]
+        self.repo.escreve("hooks/hooks.json", json.dumps(novo))
+        self.barra("hook removido de hooks/hooks.json: PreToolUse Bash command python3 a.py", "R-CONFORMIDADE")
 
     def test_hook_neutralizado_sem_tirar_o_script_barra(self):
         """Volta 1 (A1 a A3 da segurança): o hook que não roda mais o script, ou roda outro código antes, é hook removido."""
         casos = {"python3 -s -E a.py": [dict(args=["-c", "a.py"]), dict(args=["-m", "a.py"]), dict(args=["-", "a.py"]),
                                         dict(args=["-sc", "a.py"]), dict(args=["/dev/null", "a.py"]), dict(command="true"),
-                                        dict(command="echo", args=["a.py"]), dict(type="prompt")],
+                                        dict(command="echo", args=["a.py"]), dict(type="prompt"),
+                                        # volta 2 (A4 a A7 da segurança): sys.path, pycache, avisos, interpretador do repo, prazo
+                                        dict(args=["-I", "a.py"]), dict(args=["-P", "a.py"]), dict(args=["-sI", "a.py"]),
+                                        dict(args=["-X", "pycache_prefix=p", "a.py"]), dict(args=["-Xpycache_prefix=p", "a.py"]),
+                                        dict(args=["-W", "error", "a.py"]), dict(args=["-Werror", "a.py"]), dict(args=["-X", "a.py"]),
+                                        dict(command="./python3"), dict(command="hooks/python3"),
+                                        dict(command="./env python3"), dict(command="/usr/bin/python3"), dict(timeout=1),
+                                        dict(args=["a.py", "||", "true"]), dict(args=["a.py", ";", "exit", "0"]),
+                                        dict(args=["a.py", "$(true)"])],
                  "perl a.pl": [dict(command="perl -E", args=["a.pl"])]}
         for antes, trocas in casos.items():
             comando, *args = antes.split()
@@ -1284,7 +1311,7 @@ class Protegidos(Base):
 
 
 class CorpusDasSondasDeHook(unittest.TestCase):
-    """Sondas S1 a S4 e A3 do parecer de segurança da v047 (catraca por script) sobre o hooks.json real: cada troca no hook de
+    """Sondas S1 a S7, A3 e A7 do parecer de segurança da v047 (catraca por script) sobre o hooks.json real: cada troca no hook de
     conformidade do PreToolUse acusa um hook removido, e a do PR 565 (só `env`, opções e argumentos) nenhum."""
 
     def test_cada_sonda_acusa_o_esperado(self):
@@ -1293,7 +1320,7 @@ class CorpusDasSondasDeHook(unittest.TestCase):
         alvos = [(g, i) for g in antes["hooks"][corpus["evento"]] for i, hk in enumerate(g["hooks"])
                  if corpus["script"] in hk.get("args", [])]
         self.assertEqual(len(alvos), 1)
-        self.assertGreaterEqual(len(corpus["sondas"]), 6)
+        self.assertGreaterEqual(len(corpus["sondas"]), 15)
         for sonda in corpus["sondas"]:
             with self.subTest(sonda=sonda["id"]):
                 depois = copy.deepcopy(antes)

@@ -255,47 +255,65 @@ def regras_de_config(b, h):
 
 
 SUFIXOS_DE_SCRIPT = (".py", ".sh", ".js", ".mjs", ".cjs", ".ts", ".rb", ".pl")
-OPCOES_INOCUAS_DO_PYTHON = set("bBdEIOPqsSuv")  # não executam outro código nem tiram o script do lugar (`-c`, `-m`, `-` tiram)
-OPCOES_COM_VALOR_DO_PYTHON = ("-X", "-W")
+OPCOES_INOCUAS_DO_PYTHON = set("bBdEOqsSuv")  # não rodam outro código nem mudam o sys.path (`-c`, `-m`, `-`, `-I`, `-P` mudam)
+VALORES_INOCUOS_DE_X = {"utf8", "utf8=0", "utf8=1"}  # outro `-X` (pycache_prefix) e `-W` mudam o que o hook importa ou como sai
+ENV_NA_FRENTE = {"env", "/usr/bin/env", "/bin/env"}  # um `env` do repositório (`./env`) é outro interpretador
+CONTROLE_DO_SHELL = re.compile(r"[;&|<>`]|\$\(")  # depois do script, `|| true` ou `; exit 0` trocam a saída do hook
 
 
 def _ultimo_trecho(termo):
     return termo.rsplit("/", 1)[-1]
 
 
-def _opcao_inocua(interp, op):
-    """Opção do Python que deixa o script no lugar e não roda outro código; em outro interpretador, nenhuma (falha fechada)."""
-    return (interp.startswith("python")
-            and len(op) > 1
-            and (op[:2] in OPCOES_COM_VALOR_DO_PYTHON or set(op[1:]) <= OPCOES_INOCUAS_DO_PYTHON))
+def _sem_aspas(termo):
+    """O termo do `command` sem o par de aspas em volta, como o shell o lê; aspas sem par ficam (falha fechada)."""
+    return termo[1:-1] if termo[0] == termo[-1] and termo[0] in "\"'" else termo
+
+
+def _termos_da_opcao_inocua(interp, op, seguinte):
+    """Quantos termos ocupa a opção do Python que deixa o script no lugar e não roda outro código (`-X utf8` ocupa 2); 0 se não
+    é inócua ou o interpretador não é Python (falha fechada)."""
+    if not _ultimo_trecho(interp).startswith("python") or len(op) < 2:
+        return 0
+    if op == "-X":
+        return 2 if seguinte in VALORES_INOCUOS_DE_X else 0
+    if op.startswith("-X"):
+        return 1 if op[2:] in VALORES_INOCUOS_DE_X else 0
+    return 1 if set(op[1:]) <= OPCOES_INOCUAS_DO_PYTHON else 0
 
 
 def script_do_hook(hk):
-    """O hook como (tipo, interpretador, script). Interpretador: último trecho do caminho do 1º termo, pulando `env`. Script: o 1º
-    termo depois dele que não é opção e tem sufixo de script; só opções inócuas do Python ficam fora (PR 565). Qualquer outra
-    coisa antes do script (`-c`, `-m`, `/dev/null`) ou sem script: a linha inteira, sem interpretador (falha fechada)."""
-    termos = str(hk.get("command", "")).split() + [str(a) for a in hk.get("args", [])]
-    tipo = str(hk.get("type", "command"))
-    resto = termos[1:] if termos and _ultimo_trecho(termos[0]) == "env" else termos
+    """O hook como (tipo, interpretador, script, timeout). Interpretador: o 1º termo como escrito, pulando um `env` do sistema.
+    Script: o 1º termo depois dele que não é opção e tem sufixo de script; só opções inócuas do Python ficam fora (PR 565).
+    Qualquer outra coisa antes do script (`-c`, `-I`, `/dev/null`) ou sem script: a linha inteira, sem interpretador (falha fechada)."""
+    termos = [_sem_aspas(t) for t in str(hk.get("command", "")).split()] + [str(a) for a in hk.get("args", [])]
+    tipo, prazo = str(hk.get("type", "command")), str(hk.get("timeout", "padrão"))
+    resto = termos[1:] if termos and termos[0] in ENV_NA_FRENTE else termos
     interp, *depois = resto or [""]
-    interp, j = _ultimo_trecho(interp), 0
+    j = 0
     while j < len(depois) and depois[j].startswith("-"):
-        if not _opcao_inocua(interp, depois[j]):
-            return tipo, "", " ".join(termos)
-        j += 2 if depois[j] in OPCOES_COM_VALOR_DO_PYTHON else 1
-    if j < len(depois) and depois[j].endswith(SUFIXOS_DE_SCRIPT):
-        return tipo, interp, depois[j]
-    return tipo, "", " ".join(termos)
+        passo = _termos_da_opcao_inocua(interp, depois[j], "".join(depois[j + 1:j + 2]))
+        if not passo:
+            return tipo, "", " ".join(termos), prazo
+        j += passo
+    if j < len(depois) and depois[j].endswith(SUFIXOS_DE_SCRIPT) and not CONTROLE_DO_SHELL.search(" ".join(depois[j + 1:])):
+        return tipo, interp, depois[j], prazo
+    return tipo, "", " ".join(termos), prazo
 
 
-def chaves_de_hooks(texto):
-    """Cada hook como (evento, matcher, tipo, interpretador, script): mudar só opções inócuas ou argumentos não o remove."""
+def hooks_contados(texto):
+    """Cada hook como (evento, matcher, tipo, interpretador, script, timeout), contado: dois hooks com a mesma chave são dois."""
     try:
         dados = json.loads(texto) if texto else {}
     except ValueError:
-        return set()
-    return {(evento, g.get("matcher", ""), *script_do_hook(hk))
-            for evento, grupos in (dados.get("hooks") or {}).items() for g in grupos for hk in g.get("hooks", [])}
+        return Counter()
+    return Counter((evento, g.get("matcher", ""), *script_do_hook(hk))
+                   for evento, grupos in (dados.get("hooks") or {}).items() for g in grupos for hk in g.get("hooks", []))
+
+
+def chaves_de_hooks(texto):
+    """As chaves de `hooks_contados`: mudar só opções inócuas ou argumentos não remove o hook."""
+    return set(hooks_contados(texto))
 
 
 def regra_hooks(raiz, b, h):
@@ -303,11 +321,11 @@ def regra_hooks(raiz, b, h):
     if antes is None:
         return []
     depois = ler(raiz, h, "hooks/hooks.json") or ""
-    return [msg("R-CONFORMIDADE", f"hook removido de hooks/hooks.json: {ev} {mt or '*'} {tp} {' '.join(filter(None, (ip, sc)))}",
+    return [msg("R-CONFORMIDADE", f"hook removido de hooks/hooks.json: {ev} {mt or '*'} {tp} "
+                f"{' '.join(filter(None, (ip, sc)))} (timeout {tm})",
                 "hook é o que faz a regra valer sem depender de memória", "restaure o hook ou peça o rótulo ao dono",
                 "docs/regras/R-CONFORMIDADE.md")
-            for ev, mt, tp, ip, sc in sorted(chaves_de_hooks(antes) - chaves_de_hooks(depois))]
-
+            for ev, mt, tp, ip, sc, tm in sorted((hooks_contados(antes) - hooks_contados(depois)).elements())]
 
 POLITICA = "hooks/conformidade.json"
 
