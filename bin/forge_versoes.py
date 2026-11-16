@@ -540,6 +540,86 @@ def confirmar(pergunta):
     return resposta.strip().lower() in ("s", "sim")
 
 
+# Hooks do modelo que o hook do projeto não chama (Q2, E6.10) ----------------------------------
+SHELLS = ("sh", "bash", "dash")
+
+
+def _shell_do_hook(texto):
+    """True se a primeira linha é a de um hook de shell (`#!/bin/sh`, `#!/usr/bin/env bash`...)."""
+    primeira = texto.split("\n", 1)[0].strip()
+    if not primeira.startswith("#!"):
+        return False
+    partes = primeira[2:].split()
+    if partes and partes[0].endswith("/env"):
+        partes = partes[1:]
+    return bool(partes) and Path(partes[0]).name in SHELLS
+
+
+def hooks_sem_chamada(projeto, modelo):
+    """Os `<hook>.local` que o modelo (`templates/projeto/` da versão) entrega, que o projeto TEM e que o `<hook>` do projeto não
+    chama. Devolve [(hook, local, motivo)], motivo em `sem-hook` (o projeto não tem o `<hook>`), `nao-chama` (o `<hook>` não cita o
+    `.local`) ou `sem-exec` (o `.local` não é executável: o modelo só o roda se for). Só lê; nunca muda nada."""
+    achados = []
+    pasta_modelo, pasta = Path(modelo) / ".githooks", Path(projeto) / ".githooks"
+    if not pasta_modelo.is_dir():
+        return achados
+    for entrada in sorted(pasta_modelo.iterdir()):
+        if not entrada.name.endswith(".local") or len(entrada.name) <= 6:
+            continue
+        hook, local = entrada.name[:-6], pasta / entrada.name
+        if not local.is_file():
+            continue
+        alvo = pasta / hook
+        if not alvo.is_file():
+            achados.append((hook, entrada.name, "sem-hook"))
+            continue
+        try:
+            texto = alvo.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if entrada.name not in texto:
+            achados.append((hook, entrada.name, "nao-chama"))
+        elif not os.access(local, os.X_OK):
+            achados.append((hook, entrada.name, "sem-exec"))
+    return achados
+
+
+def ligar_hook(projeto, hook, local):
+    """Liga a chamada: põe, logo depois do `#!` do `<hook>` do projeto (shell, sem fim de linha do Windows), duas linhas que rodam o
+    `<local>` (o stdin do git não é entregue a ele). Nada é apagado nem reescrito; falha de qualquer tipo não muda o arquivo.
+    Devolve True se ligou."""
+    alvo = Path(projeto) / ".githooks" / hook
+    try:
+        texto = alvo.read_bytes().decode("utf-8")  # bytes: read_text trocaria o fim de linha do Windows e o `\r` sumiria
+    except (OSError, UnicodeDecodeError):
+        return False
+    if "\r" in texto or alvo.is_symlink() or not _shell_do_hook(texto):
+        return False
+    primeira, _, resto = texto.partition("\n")
+    chamada = (f"# Forge: roda o {local} que o modelo entrega (ligado pelo forge atualizar; o projeto o ajusta)\n"
+               f'if [ -x "$(dirname "$0")/{local}" ]; then "$(dirname "$0")/{local}" "$@" </dev/null || exit 1; fi\n')
+    try:
+        alvo.write_bytes((primeira + "\n" + chamada + resto).encode("utf-8"))
+    except OSError:
+        return False
+    return True
+
+
+def texto_do_hook_sem_chamada(hook, local, motivo, ligou=False):
+    """A frase para o dono, em linguagem simples."""
+    if ligou:
+        return (f"O arquivo .githooks/{local} que o Forge entrega não era chamado pelo .githooks/{hook} do projeto. Liguei a chamada "
+                f"(duas linhas no começo de .githooks/{hook}, nada apagado) e deixei num commit à parte; confira no pull request.")
+    if motivo == "sem-exec":
+        return f"O .githooks/{local} existe, mas não é executável, então o .githooks/{hook} não o roda. Para ligar: chmod +x .githooks/{local}"
+    if motivo == "sem-hook":
+        return (f"O projeto tem o .githooks/{local}, mas não tem o .githooks/{hook}, então ninguém o chama e a checagem não roda. "
+                f"Copie o .githooks/{hook} do modelo do Forge (templates/projeto/.githooks/{hook}) ou peça ao Jarvis.")
+    return (f"O .githooks/{local} que o Forge entrega não é chamado pelo .githooks/{hook} do projeto, então a checagem não roda. "
+            f"Não mexi no seu hook (não é um script de shell simples). Peça ao Jarvis para chamar o {local} dentro do {hook}, "
+            f"ou copie o {hook} do modelo (templates/projeto/.githooks/{hook}).")
+
+
 # Ponto de retorno ------------------------------------------------------------------------------
 def pasta_de_retornos(projeto):
     return pasta_de_estado() / "retorno" / projeto.name

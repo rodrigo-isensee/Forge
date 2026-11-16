@@ -1378,3 +1378,123 @@ class FixacaoDoDono(Base):
         shutil.rmtree(self.home / ".claude/plugins")
         codigo, saida = self.rodar(ATUALIZAR, "--fixar", respostas=[])
         self.assertIn("não gravei a fixação", saida)
+
+
+class HooksDoModeloSemChamada(Base):
+    """Q2 (E6.10): o modelo entrega `.githooks/pre-push.local`; se o `pre-push` do projeto (que é dele) não o chama, `forge atualizar`
+    liga a chamada (hook de shell, na branch do upgrade, num commit à parte) ou avisa em linguagem simples, sem apagar nada."""
+
+    LOCAL = "#!/usr/bin/env bash\necho local-rodou >> \"$(dirname \"$0\")/../.git/marca-local.txt\"\n"
+
+    def com_hooks(self, pre_push="#!/bin/sh\nexit 0\n", local=LOCAL, local_exec=True):
+        """O projeto tem o hook próprio e o pre-push.local, na main e na develop (a base do upgrade)."""
+        if pre_push is not None:
+            self.escrever(".githooks/pre-push", "")
+            (self.proj / ".githooks" / "pre-push").write_bytes(pre_push if isinstance(pre_push, bytes) else pre_push.encode())
+            (self.proj / ".githooks" / "pre-push").chmod(0o755)
+        if local is not None:
+            self.escrever(".githooks/pre-push.local", local)
+            (self.proj / ".githooks" / "pre-push.local").chmod(0o755 if local_exec else 0o644)
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "chore: hooks do projeto")
+        self.empurrar("main")
+        self.git("branch", "-f", "develop", "main")
+        self.empurrar("develop")
+
+    def empurrar(self, ramo):
+        """Envia sem rodar os hooks do projeto (o fixture mexe neles; o que se testa aqui é o `forge atualizar`)."""
+        self.git("-c", "core.hooksPath=/dev/null", "push", "-q", "origin", ramo)
+
+    def hook(self, ramo="forge/upgrade-9.9.0", nome="pre-push"):
+        return self.git("show", f"{ramo}:.githooks/{nome}")
+
+    def test_liga_a_chamada_no_hook_de_shell_do_projeto_num_commit_a_parte(self):
+        self.com_hooks()
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("Liguei a chamada", saida)
+        texto = self.hook()
+        linhas = texto.splitlines()
+        self.assertEqual(linhas[0], "#!/bin/sh")
+        self.assertIn("pre-push.local", linhas[2])
+        self.assertEqual(linhas[-1], "exit 0", "nada do hook do projeto foi apagado")
+        self.assertIn("chore(forge): liga o pre-push.local ao pre-push do projeto", self.git("log", "--format=%s", "origin/develop..forge/upgrade-9.9.0"))
+        self.assertEqual(self.git("status", "--porcelain"), "")
+
+    def test_o_hook_ligado_roda_o_local_e_o_erro_do_local_barra_o_envio(self):
+        self.com_hooks()
+        self.publicar("9.9.0")
+        self.assertEqual(self.rodar(ATUALIZAR, respostas=["s"])[0], 0)
+        hook = self.proj / ".githooks" / "pre-push"
+        r = subprocess.run([str(hook), "origem", "url"], cwd=self.proj, env=self.env, capture_output=True, text=True, input="")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual((self.proj / ".git" / "marca-local.txt").read_text(encoding="utf-8").strip(), "local-rodou")
+        (self.proj / ".githooks" / "pre-push.local").write_text("#!/bin/sh\nexit 7\n", encoding="utf-8")
+        r = subprocess.run([str(hook)], cwd=self.proj, env=self.env, capture_output=True, text=True, input="")
+        self.assertEqual(r.returncode, 1, "o local que reprova barra o envio")
+
+    def test_hook_que_ja_chama_o_local_fica_como_esta(self):
+        original = "#!/bin/sh\n.githooks/pre-push.local || exit 1\nexit 0\n"
+        self.com_hooks(pre_push=original)
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertNotIn("Atenção: O .githooks", saida)
+        self.assertEqual(self.hook() + "\n", original)
+        self.assertNotIn("liga o pre-push.local", self.git("log", "--format=%s", "origin/develop..forge/upgrade-9.9.0"))
+
+    def test_hook_que_nao_e_de_shell_so_avisa_e_fica_intacto(self):
+        original = "#!/usr/bin/env python3\nimport sys\nsys.exit(0)\n"
+        self.com_hooks(pre_push=original)
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("não é chamado pelo .githooks/pre-push", saida)
+        self.assertIn("Peça ao Jarvis", saida)
+        self.assertEqual(self.hook() + "\n", original)
+
+    def test_hook_com_fim_de_linha_do_windows_so_avisa(self):
+        original = "#!/bin/sh\r\nexit 0\r\n"
+        self.com_hooks(pre_push=original.encode())
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("não é chamado pelo .githooks/pre-push", saida)
+        self.assertEqual(self.git("show", "forge/upgrade-9.9.0:.githooks/pre-push").replace("\r", "") + "\n", original.replace("\r", ""))
+
+    def test_local_sem_permissao_de_execucao_avisa_o_comando(self):
+        self.com_hooks(pre_push="#!/bin/sh\n.githooks/pre-push.local\nexit 0\n", local_exec=False)
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("chmod +x .githooks/pre-push.local", saida)
+
+    def test_projeto_com_local_e_sem_hook_avisa(self):
+        self.com_hooks(pre_push=None)
+        self.git("rm", "-q", ".githooks/pre-push")
+        self.git("commit", "-q", "-m", "chore: sem hook")
+        self.empurrar("main")
+        self.git("branch", "-f", "develop", "main")
+        self.empurrar("develop")
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("não tem o .githooks/pre-push", saida)
+
+    def test_sem_local_no_projeto_nao_avisa_nada(self):
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertNotIn("Atenção: O .githooks", saida)
+
+    def test_ja_na_ultima_versao_avisa_sem_mudar_nada(self):
+        self.com_hooks()
+        self.publicar(VERSAO)
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("última versão", saida)
+        self.assertIn("não é chamado pelo .githooks/pre-push", saida)
+        self.assertEqual(self.git("status", "--porcelain"), "")
+        self.assertEqual(self.git("show", "HEAD:.githooks/pre-push"), "#!/bin/sh\nexit 0")
+        self.assertEqual(self.ramos(), {"main", "develop", "homolog"})
