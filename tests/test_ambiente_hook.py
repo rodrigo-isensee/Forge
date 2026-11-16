@@ -5,16 +5,20 @@ Sem rede: `gh` falso, HOME descartável e FORGE_PERSISTENTE apontando para uma p
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / "hooks" / "ambiente.py"
 
 
 def git(cwd, *args):
-    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
     return subprocess.run(["git", "-C", str(cwd), *args], env=env, capture_output=True, text=True, check=True)
 
 

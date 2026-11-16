@@ -1986,6 +1986,7 @@ class PrepararEstacao(unittest.TestCase):
         remoto, trab, marcas = tmp / "remoto.git", tmp / "trab", tmp / "marcas"
         marcas.mkdir()
         git("init", "-q", "--bare", "-b", "main", str(remoto), cwd=tmp)
+        remoto_sem_manutencao(remoto)
         git("clone", "-q", f"file://{remoto}", str(trab), cwd=tmp)
         for texto, publicar in ((main_script, True), (local_script, False)):
             (trab / script).parent.mkdir(parents=True, exist_ok=True)
