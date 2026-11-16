@@ -3,37 +3,62 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-fala-e-decisoes
-commit: 14a29d8f9399b00c1785434af6e9a69fcd3ab826
-parecer: reprovado
+commit: 1c330fe64c8687225e4847f84cf17b030c2a4353
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
 ---
 # Review: v047-fala-e-decisoes
 
-Revalidação (E2.332) no head 14a29d8f, por delta: volta E2.315, decisão do dono de 16/11 09:52 (pedido v047:947), que mantém o invariante "diga sempre ao usuário para qual agente passou" e muda só o momento (recibo e aviso de marco, nunca em mensagem extra).
+Revalidação (E2.395) no head 1c330fe6, por delta: correção de A1 da passada E2.332 (head 14a29d8f, reprovado).
 
 ## Delta lido
+`forge-check parecer delta docs/reviews/v047-fala-e-decisoes.md` → intervalo `14a29d8f9399b00c1785434af6e9a69fcd3ab826..1c330fe64c8687225e4847f84cf17b030c2a4353`; no domínio só `tests/config.json` (uma linha trocada, uma acrescentada). Fora do domínio: pareceres de QA e de segurança e `docs/qa/bugs/v047-legado-jarvis-contagem.md`. O resto da branch não foi relido.
+
+## Conferência de A1
+- `tests/config.json`:756 dá ao trecho devolvido "diga sempre ao usuário para qual agente passou" regra (`R-DECISAO`) e porque, citando a decisão do dono de 16/11 09:52.
+- `invariantes_sem_motivo["agents/jarvis.md"]` (`tests/config.json`:696) fica em 48, abaixo dos 49 da base `5e74c70e`: o legado encolhe, como pedia A1. A sugestão do bug do QA (subir para 49) não foi seguida, e não precisava ser: com o motivo, a conta fecha em 48.
+
+## Saída das ferramentas (sem refazer)
+- `python3 -m unittest tests.test_forge.RegrasInviolaveis tests.test_forge.Orcamento tests.test_orcamento_instrucao tests.test_jarvis_nucleo` → 33 testes OK.
+- `python3 -m unittest tests.test_forge -k nvariante -k Neutral -k Regra` (os passos do bug do QA) → 15 testes OK.
+- Mutante numa cópia do head (`git archive`): tirar a entrada de motivo do trecho devolvido faz `test_invariante_traz_regra_e_porque_e_o_legado_so_encolhe` falhar (morto).
+- Tamanho (M14): 3 linhas de `tests/config.json`; sem guarda de código, sem mutante a declarar.
+- Suíte inteira: fica para o CI do PR.
+- `docs/engineering/achados-recorrentes.md` conferido: A1 não se repetiu neste pedido; sem linha `AR-<n>` nova.
+
+## Achados
+
+## Sondas
+
+## Parecer
+Aprovado. A1 resolvido sem achado novo. O commit 1c330fe6 segue Conventional Commits em português e muda só `tests/config.json`.
+
+## Passada anterior (E2.332, head 14a29d8f, reprovado por A1, resolvido)
+Revalidação (E2.332) no head 14a29d8f, por delta: volta E2.315, decisão do dono de 16/11 09:52 (pedido v047:947), que mantém o invariante "diga sempre ao usuário para qual agente passou" e muda só o momento (recibo e aviso de marco, nunca em mensagem extra).
+
+### Delta lido
 `forge-check parecer delta docs/reviews/v047-fala-e-decisoes.md` → intervalo `fd0a0172774f2744dbfbba81ca10064d4f98ec41..14a29d8f9399b00c1785434af6e9a69fcd3ab826`, sem o que veio da base; no domínio: `agents/jarvis.md`, `changelog.d/v047-fala-e-decisoes.md`, `tests/config.json`, `tests/test_jarvis_nucleo.py`. O resto da branch foi lido nas passadas anteriores e não foi relido.
 
-## Conferência com a decisão de 16/11 09:52
+### Conferência com a decisão de 16/11 09:52
 - `agents/jarvis.md`:34 devolve o trecho "diga sempre ao usuário para qual agente passou" e acrescenta "no recibo e no aviso de marco, nunca em mensagem extra", nas palavras do dono. O trecho de 15/11 ("só nos marcos, num resumo") sai do texto e dos invariantes; sobra só em pareceres antigos de QA e segurança (histórico).
 - `tests/config.json`: o trecho devolvido volta a `invariantes` e o momento entra como invariante novo, com motivo em `invariantes_motivo_trecho` (`R-DECISAO`).
 - `tests/test_jarvis_nucleo.py`: `RETIRADOS_047` sai, então o teste volta a exigir o trecho do dono. Isso aperta, não afrouxa.
 - O changelog e o `description` do Jarvis mudam só o texto; nenhuma outra regra sai (diretriz 25). O `agents/jarvis.md` tem 7954 bytes e `test_orcamento_instrucao` passa.
 
-## Saída das ferramentas (sem refazer)
+### Saída das ferramentas (sem refazer)
 - `python3 -m unittest tests.test_jarvis_nucleo` → 20 testes OK.
 - `python3 -m unittest tests.test_forge.RegrasInviolaveis tests.test_forge.Orcamento tests.test_orcamento_instrucao tests.test_jarvis_nucleo` → 33 testes, 1 falha: `test_invariante_traz_regra_e_porque_e_o_legado_so_encolhe` (A1). O mesmo teste passa em `fd0a0172` e na base `5e74c70e`, nas duas cópias feitas com `git archive`.
 - Mutantes numa cópia do head: trocar ", nunca em mensagem extra." por " e nunca em mensagem extra." e tirar o "sempre" do trecho devolvido fazem `test_trechos_obrigatorios` falhar nos dois casos (mortos).
 - Tamanho (M14): poucas linhas de `tests/config.json` e `tests/test_jarvis_nucleo.py` no delta; sem guarda de código, sem mutante a declarar.
 - Suíte inteira: fica para o CI do PR (`tests/config.json` muda).
 
-## Achados
+### Achados
 - A1 (bloqueante) tests/config.json:223 · o trecho devolvido não tem motivo e `agents/jarvis.md` passa a ter 49 sem motivo (58-9) contra o legado 48 (:696). `test_invariante_traz_regra_e_porque_e_o_legado_so_encolhe` falha. Ponha o motivo em `invariantes_motivo_trecho` (R-DECISAO); não suba o legado.
 
-## Sondas
+### Sondas
 
-## Parecer
+### Parecer
 Reprovado por A1. O texto faz o que a decisão do dono pede (a regra fica e muda só o momento), mas o head quebra um teste estrutural que passava em fd0a0172. A correção é do autor e cabe numa linha de `tests/config.json`. Depois dela, a revalidação é por delta.
 
 ## Passada anterior (E1.347, head fd0a0172, aprovado)
