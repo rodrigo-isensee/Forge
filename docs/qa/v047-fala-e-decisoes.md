@@ -3,11 +3,11 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-fala-e-decisoes
-commit: 14a29d8f9399b00c1785434af6e9a69fcd3ab826
-parecer: reprovado
+commit: 1c330fe64c8687225e4847f84cf17b030c2a4353
+parecer: aprovado
 escopo: completo
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-16
@@ -17,7 +17,7 @@ data: 2026-11-16
 Intervalo `origin/develop..05797223` (base c5c3a449): `agents/jarvis.md`, `skills/falar-com-o-dono/SKILL.md`, `skills/modo-iniciante/SKILL.md`, `tests/config.json`, fragmento de changelog. Só texto e invariantes; nenhum código executável mudou, então não há mutante de `forge-mutante` nem pedido de controle. Os critérios vêm das diretrizes 24 e 29 (`docs/diretrizes-do-dono.md`) e do item E1.282 do pedido.
 
 ## Achados
-- A2 (bloqueante) tests/config.json:696 · `invariantes_sem_motivo` de `agents/jarvis.md` segue 48, mas o invariante "diga sempre ao usuário…" voltou: 58 padrões - 9 com motivo = 49; `tests.test_forge -k nvariante` falha. Subir para 49.
+- A2 (resolvido, era bloqueante) tests/config.json:696 · `invariantes_sem_motivo` de `agents/jarvis.md` segue 48, mas o invariante "diga sempre ao usuário…" voltou: 58 padrões - 9 com motivo = 49; `tests.test_forge -k nvariante` falha. Subir para 49.
 - A1 (recomendado) skills/falar-com-o-dono/SKILL.md:18 · a Resposta curta perdeu o apontamento a `decisoes --resposta` e aos campos de corte; a ferramenta ainda os exige (64 testes verdes), mas quem lê só a skill deixa de saber deles (R-DECISAO).
 
 ## Critério → teste → resultado
@@ -63,4 +63,10 @@ Intervalo `origin/develop..05797223` (base c5c3a449): `agents/jarvis.md`, `skill
 - A suíte inteira roda no CI do PR (sem check-run `bateria` no head).
 
 ## Bugs
-- Alto aberto: `docs/qa/bugs/v047-legado-jarvis-contagem.md`.
+- Nenhum aberto; o alto docs/qa/bugs/v047-legado-jarvis-contagem.md foi corrigido em 1c330fe6.
+
+## Revalidação 4 (delta 14a29d8f..1c330fe6, regra e porque no trecho devolvido, teto do legado em 48, E2.397, `escopo: completo` mantido)
+`forge-check parecer delta` listou 1 arquivo de domínio: `tests/config.json` (nova entrada em `invariantes_motivo_trecho` para "diga sempre ao usuário para qual agente passou", `R-DECISAO` e porquê). Sem código, sem mutante; vermelho não se aplica.
+- **A2 e o bug do legado resolvidos:** o trecho agora tem regra e porquê, sai do legado e o teto de `agents/jarvis.md` (`tests/config.json:696`) em 48 bate; `python3 -m unittest tests.test_forge -k nvariante -k Neutral -k Regra`: 15 testes, OK (antes 1 falha).
+- `tests.test_jarvis_nucleo` + `test_invariante_gatilho` + `test_modelos_projeto` + `test_textos_dono_f10`: 41 OK; `forge-check docs` rc=0. Suíte inteira no CI do PR (sem check-run `bateria` no head).
+- Achados abertos: nenhum.
