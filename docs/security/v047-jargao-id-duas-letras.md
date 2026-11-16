@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v047-jargao-id-duas-letras
+pedido: v047
 branch: melhoria/v047-jargao-id-duas-letras
 commit: cf59506c11d7ff03caa4418ef9e984e7f5f9ed82
 parecer: aprovado
