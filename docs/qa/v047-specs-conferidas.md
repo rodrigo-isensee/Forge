@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-specs-conferidas
-commit: 0064a82ee0216c00f2281e29ea6695c224d73445
+commit: 48e5741594135d899e5a4d668eaf6a947aa5e09e
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -42,3 +42,12 @@ Item: `forge-mutante --conferir --todas` e o alinhamento das specs de `tests/mut
 - Avaliação dos 7 (a pergunta do brief): não bloqueiam este item. O item só alinhou o `de` ao código atual; as specs antigas tinham o trecho ausente e provavam nada. O diff não toca o código dessas guardas nem seus testes, então não há regressão do item, e `R-REVIEW` reserva o bloqueio a defeito provado do diff. Os sobreviventes são lacuna de teste dos pedidos de origem, agora visível: viram cartão (A1 a A6; ordem sugerida A2, A1, A6 por serem guardas de segurança, isolamento e contagem). Aviso: depois deste alinhamento a spec afirma `testes` que não matam o mutante; até o cartão fechar, o placar por versão vai mostrá-los.
 - Fora do que bloqueia: o E2.215 fala em alinhar ou retirar as specs velhas; 44 mutantes seguem pendentes por declaração, travados pela catraca (só encolhe). Aceitável como entrega parcial declarada.
 - `forge-check docs`: ver Provas do relatório.
+
+## Revalidação por delta (head 48e57415, E2.362)
+`forge-check parecer delta` (0064a82e..48e57415, sem o que veio da develop) listou no domínio: `tests/fixtures/mutantes-pendentes.txt` e 3 specs (pr-verde-lote-check M8, v0442-mensagem M4, v047-hook-erro-libera-4 M28). Reteste:
+- Spec a spec (o `forge-mutante` recusa pedidos diferentes numa rodada): pr-verde-lote-check M5 a M8 `morreu` rc 0; v0442-mensagem M4 a M7 `morreu` rc 0; v047-hook-erro-libera-4 até M32 `morreu` rc 0 (M28 `morreu` em tests/catraca.py:315). O `de` novo existe na fonte atual.
+- `python3 -m unittest tests.test_forge_mutante.ConferirTodas`: `Ran 4 tests ... OK`.
+- `bin/forge-mutante --conferir --todas`: rc 1, 31 linhas, igual às 31 de mutante da fixture (encolheu de 44 para 31: saíram as 15 de `melhoria/v047-mutantes-velhos`, entraram `hooks-corpus-rapido` M2 e M5, ambos `0 vezes` e declarados pendentes). Nenhuma spec fora da lista.
+- A1 a A6 seguem abertos como cartão (recomendado), sem mudança: o delta não toca o código dessas guardas.
+- Junção com a develop (589dc3f7, 0bf8603c): o remoto é ancestral do head, sem rebase.
+Parecer mantido: aprovado.
