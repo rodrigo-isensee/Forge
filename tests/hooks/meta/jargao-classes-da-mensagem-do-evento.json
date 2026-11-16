@@ -1,0 +1,32 @@
+{
+  "descricao": "E7.4 (v047): S6 mede a mensagem do campo last_assistant_message (não a do transcrito), conta por classe, não grava o termo e o Stop passa.",
+  "arquivos": {
+    "t.jsonl": [
+      "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"text\", \"text\": \"velha com R-MAIN\"}]}}"
+    ]
+  },
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{raiz}/t.jsonl",
+    "last_assistant_message": "Fiz a E7.4 no e13aed85 e mudei hooks/meta.py.\n```\ngit push origin x\n```"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "mensagens.jsonl": {
+        "contem": [
+          "\"classes\": {\"etapa\": 1, \"commit\": 1, \"caminho\": 1}"
+        ],
+        "ausente": [
+          "E7.4",
+          "e13aed85",
+          "meta.py",
+          "regra",
+          "ferramenta",
+          "velha"
+        ]
+      }
+    }
+  }
+}
