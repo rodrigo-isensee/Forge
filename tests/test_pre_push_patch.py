@@ -158,8 +158,12 @@ class CoberturaDaCatraca(Base):
         (repo / "bin").mkdir(parents=True)
         (repo / "hooks").mkdir()
         (repo / "tests").mkdir()
-        for nome in ("forge-mutante", "forge_apoio_testes.py"):  # o forge-mutante carrega o apoio ao lado
+        for nome in ("forge-mutante", "forge_apoio_testes.py", "forge-check"):  # o forge-mutante carrega o apoio; o filtro, o forge-check
             shutil.copy(RAIZ / "bin" / nome, repo / "bin" / nome)
+        for nome in ("catraca.py", "neutralidade.py"):  # o filtro importa a catraca (a lista da classe C)
+            shutil.copy(RAIZ / "tests" / nome, repo / "tests" / nome)
+        (repo / "bin" / "x.py").write_text("def g(a, b):\n    if a:\n        return 1\n    return 0\n")
+        (repo / "hooks" / "_comum.py").write_text("def h(a):\n    return a\n")
         (repo / "hooks" / "h.py").write_text("def f(a, b):\n    if a:\n        return 1\n    return 0\n")
         (repo / "tests" / "test_a.py").write_text(SUITE_VERDE)
 
@@ -182,6 +186,7 @@ class CoberturaDaCatraca(Base):
             (base / "run").mkdir()
             repo, git = self.repo(base)
             for nome, texto in mudanca.items():
+                (repo / nome).parent.mkdir(parents=True, exist_ok=True)
                 (repo / nome).write_text(texto)
             git("add", "-A")
             git("commit", "-q", "-m", "muda")
@@ -202,6 +207,32 @@ class CoberturaDaCatraca(Base):
                     self.assertNotIn("Traceback", erro)
                 else:
                     self.assertEqual(codigo, 0, "sem o patch só o CI pega")
+
+    def test_condicao_fora_de_hooks_tambem_reprova(self):
+        codigo, erro = self.roda(self.remendado, {"bin/x.py": "def g(a, b):\n    if a or b:\n        return 1\n    return 0\n"})
+        self.assertEqual(codigo, 1, erro)
+        self.assertIn("sem mutante · bin/x.py", erro)
+
+    def test_condicao_em_teste_nao_barra_porque_a_catraca_exclui_testes(self):
+        """A1 do review: comentário em hooks/_comum.py e condição em tests/catraca.py; a catraca do CI aceita, o envio leve também."""
+        catraca = (RAIZ / "tests" / "catraca.py").read_text(encoding="utf-8")
+        mudanca = {"hooks/_comum.py": "# nota\ndef h(a):\n    return a\n", "tests/catraca.py": catraca + "\nif 1 and 2:\n    pass\n"}
+        codigo, erro = self.roda(self.remendado, mudanca)
+        self.assertEqual(codigo, 0, erro)
+        self.assertNotIn("reprovou", erro)
+
+    def test_so_a_falta_em_teste_com_falta_de_controle_ainda_reprova(self):
+        catraca = (RAIZ / "tests" / "catraca.py").read_text(encoding="utf-8")
+        mudanca = {"hooks/h.py": "def f(a, b):\n    if a and b:\n        return 1\n    return 0\n", "tests/catraca.py": catraca + "\nif 1 and 2:\n    pass\n"}
+        codigo, erro = self.roda(self.remendado, mudanca)
+        self.assertEqual(codigo, 1, erro)
+        self.assertIn("sem mutante · hooks/h.py", erro)
+        self.assertNotIn("tests/catraca.py", erro.split("pre-push: bin/forge-mutante")[0])
+
+    def test_saida_2_da_ferramenta_e_so_aviso(self):
+        codigo, erro = self.roda(self.remendado, {"hooks/h.py": "def f(a, b):\n    return 1\n", "tests/mutantes/x.json": "{"})
+        self.assertEqual(codigo, 0, erro)
+        self.assertIn("aviso: bin/forge-mutante --cobertura não conferiu o delta (saída 2)", erro)
 
     def test_mudanca_sem_condicao_ou_fora_do_controle_passa(self):
         casos = {
