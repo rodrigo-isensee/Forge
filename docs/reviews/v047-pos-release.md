@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-pos-release
-commit: 76e00f859a469a2067bc8106f7ba89224b67cc90
+commit: 0eb2dfeb214bbfb4bd5ed6bc0e3d774aa94807fc
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
 ---
-# Review: v047 (pós-release em script único, E2.223; review E2.224, revalidação E2.239)
+# Review: v047 (pós-release em script único, E2.223; review E2.224, revalidação E2.239 e E2.375)
 
 ## Achados
 - A1 (recomendado) templates/projeto/scripts/pos-release:31 · Corrigido no head 76e00f85: só linha vazia ou que começa por # é pulada; a linha recuada com comentário no fim cai na recusa da :32 (S1 repetida: rc=2, nada roda). Mantido como registro; não bloqueia mais.
@@ -24,6 +24,13 @@ data: 2026-11-16
 - S4 · PR19 a PR23 com `bin/forge-mutante --processos 1 tests/mutantes/v047-pos-release-3.json` no head 76e00f85 · espera: morrem · obtido: os 5 morreram
 
 ## Parecer
+Aprovado no head 0eb2dfeb (revalidação E2.375, por delta). Delta lido: `forge-check parecer delta docs/reviews/v047-pos-release.md`, intervalo `76e00f85..0eb2dfeb`, sem o que veio da base; no domínio: `changelog.d/v047-pos-release.md`, `tests/test_pos_release.py`.
+- `tests/test_pos_release.py:125`: a fixture `"db://h/descartavel-3?password" "=XYZ123&x=1"` vira duas literais concatenadas pelo Python; o valor em execução é o mesmo, o caso de teste não muda. Só tira o par chave=valor literal que a varredura de segredo do CI barrava.
+- `changelog.d/v047-pos-release.md:2`: a linha reescreve `password=`/`senha=`/`token=` como "o valor das chaves `password`, `senha` e `token` na consulta"; mesmo sentido, sem par literal.
+- Junção da develop (472a09f4, merge de 48edd3c6): sem resolução de conflito (`git show --cc` vazio); o patch do item não muda e fica fora do domínio do delta.
+Conferido no head 0eb2dfeb: `python3 -m unittest tests.test_pos_release` com 20 OK. Sem achado novo; nenhuma classe repetida, `docs/engineering/achados-recorrentes.md` sem linha nova. A bateria inteira fica para o CI do PR.
+
+## Parecer anterior
 Aprovado no head 76e00f85 (revalidação E2.239, volta 1). Delta lido: `forge-check parecer delta docs/reviews/v047-pos-release.md`, intervalo `fb7dccb4..76e00f85`, no domínio: `changelog.d/v047-pos-release.md`, `docs/engineering/achados-recorrentes.md`, `templates/projeto/docs/devops/pos-release.md`, `templates/projeto/docs/devops/pos-release.passos`, `templates/projeto/scripts/pos-release`, `tests/mutantes/v047-pos-release-3.json`, `tests/mutantes/v047-pos-release.json`, `tests/test_pos_release.py`.
 
 Achados da volta anterior, todos resolvidos no head:
