@@ -1815,7 +1815,8 @@ class PrepararEstacao(unittest.TestCase):
             novas.append(q)
         env["PATH"] = ":".join(novas)
 
-    def _container(self, tmp, *args, logado=False, escopos="'gist', 'repo', 'workflow'", essencial=False, sem_gh=False, extras=None):
+    def _container(self, tmp, *args, logado=False, escopos="'gist', 'repo', 'workflow'", essencial=False, sem_gh=False, extras=None,
+                   plugin_ativo=False):
         """Roda `preparar-estacao.sh --container` sem rede: gh, tmux, shellcheck, claude, sudo, curl e apt-get são
         falsos e registram a chamada; o jarvis-forge da origem falsa cria a cópia vigente com `dev/`."""
         tmp = Path(tmp)
@@ -1840,6 +1841,12 @@ class PrepararEstacao(unittest.TestCase):
         if sem_gh:
             falsos.pop("gh")
         falsos.update(extras or {})
+        if plugin_ativo:  # o installPath ativo do escopo do usuário (ADR 0017): só existe com o plugin instalado de verdade
+            ativo = home / ".claude/plugins/cache/forge/forge/9.9.9"
+            (ativo / "scripts").mkdir(parents=True, exist_ok=True)
+            (ativo / "scripts/instalar-atalho.sh").write_text("#!/bin/sh\nexit 0\n")
+            (home / ".claude/plugins/installed_plugins.json").write_text(json.dumps(
+                {"version": 2, "plugins": {"forge@forge": [{"scope": "user", "installPath": str(ativo), "version": "9.9.9"}]}}))
         for nome, corpo in falsos.items():
             falso = bin_falso / nome
             falso.write_text("#!/bin/sh\n" + corpo)
@@ -1911,7 +1918,7 @@ class PrepararEstacao(unittest.TestCase):
             mk = Path(tmp) / "home/.local/share/forge/dev-marketplace"
             mk.mkdir(parents=True)
             (mk / "forge-dev").symlink_to("../vigente/dev")  # o formato antigo, que o Claude recusa
-            r, home, persist, chamadas = self._container(tmp, logado=True)
+            r, home, persist, chamadas = self._container(tmp, logado=True, plugin_ativo=True)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertIn(f"gh repo clone rodrigo-isensee/forge-contrib {persist / '.forge-contrib'}", chamadas)
             self.assertIn("gh auth setup-git", chamadas)
@@ -2025,7 +2032,7 @@ class PrepararEstacao(unittest.TestCase):
 
     def test_container_essencial_nao_roda_vigente_nem_marketplace(self):
         with tempfile.TemporaryDirectory() as tmp:
-            r, home, _, chamadas = self._container(tmp, logado=True, essencial=True)
+            r, home, _, chamadas = self._container(tmp, logado=True, essencial=True, plugin_ativo=True)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertIn("fez: essencial:", r.stdout)
             self.assertFalse((home / ".local/share/forge").exists())
@@ -2590,7 +2597,7 @@ class JarvisForgeVigente(unittest.TestCase):
     def test_dev_atravessa_o_tmux(self):
         r = self.rodar("--dev")
         self.assertEqual(r.returncode, 0, r.stderr)
-        tmux = [c for c in self.chamadas() if c.startswith("tmux ")][0]
+        tmux = [c for c in self.chamadas() if c.startswith("tmux new-session")][0]
         self.assertIn("jarvis-Forge", tmux)
         self.assertIn("--dev", tmux)
 

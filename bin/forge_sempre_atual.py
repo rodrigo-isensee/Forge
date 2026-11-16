@@ -885,6 +885,52 @@ class Rodada:
             os.close(trava)
 
 
+def _com_estado(mudar, espera=10.0):
+    """Abre o estado da ferramenta com a trava e chama `mudar(rodada)`; (deu certo, motivo). Para `forge atualizar --fixar`, `forge
+    voltar-versao` e a soltura da fixação do dono (ADR 0017, item 11): só esses gravam a fixação `dono`. Espera a rodada do atalho."""
+    rodada = Rodada("atalho")
+    try:
+        if not rodada.abrir_estado():
+            return False, "a pasta de estado do Forge não existe (o plugin ainda não foi instalado por este usuário)"
+    except (EstadoRecusado, OSError) as erro:
+        return False, resumo(erro)
+    fim = time.monotonic() + espera
+    trava = rodada.travar()
+    while trava is None and time.monotonic() < fim:
+        time.sleep(0.2)
+        trava = rodada.travar()
+    if trava is None:
+        return False, "outra atualização do Forge está rodando agora"
+    try:
+        mudar(rodada)
+        rodada.salvar_estado()
+        return True, ""
+    except OSError as erro:
+        return False, resumo(erro)
+    finally:
+        os.close(trava)
+
+
+def fixar_como_dono(versao):
+    """Grava `fixacao={motivo: dono}` na versão: a abertura seguinte do atalho respeita e não sobe nem desce sozinha."""
+    if versao_tupla(versao) is None:
+        return False, f"versão inválida: {versao}"
+    texto = versao_texto(versao_tupla(versao))
+
+    def mudar(rodada):
+        rodada.estado["fixacao"] = {"motivo": "dono", "de": texto, "para": texto, "desde": hoje()}
+    return _com_estado(mudar)
+
+
+def soltar_fixacao_do_dono():
+    """O dono atualizou de propósito (`forge atualizar`): a fixação dele cai; a automática (volta) segue as regras dela."""
+    def mudar(rodada):
+        fix = rodada.estado.get("fixacao")
+        if isinstance(fix, dict) and fix.get("motivo") == "dono":
+            rodada.estado.pop("fixacao", None)
+    return _com_estado(mudar)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="forge-sempre-atual", description="Mantém o plugin do Forge na última versão (só atalho e postStart).")
     ap.add_argument("--gatilho", required=True, choices=GATILHOS)

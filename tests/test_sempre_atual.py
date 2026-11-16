@@ -400,6 +400,41 @@ class Alvo(Dentro):
         self.rodar_dentro(p)
         self.assertTrue(self.estado()["aviso"]["avisado"], "avisou de novo a mesma versão")
 
+    def test_fixacao_gravada_pelo_dono_e_respeitada_na_abertura_seguinte(self):
+        """ADR 0017 item 11 · `fixar_como_dono` grava motivo dono na versão em uso; a rodada seguinte não sobe e avisa"""
+        p = self.cenario_atualiza()
+        with mock.patch.dict(os.environ, self.env(), clear=True):
+            self.assertEqual(fsa.fixar_como_dono("0.47.0"), (True, ""))
+        fix = self.estado()["fixacao"]
+        self.assertEqual((fix["motivo"], fix["de"], fix["para"]), ("dono", "0.47.0", "0.47.0"))
+        self.rodar_dentro(p)
+        self.assertEqual(self.mutacoes(), [], "a fixação do dono segura a atualização")
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.0")
+        self.assertEqual(self.estado()["fixacao"]["motivo"], "dono")
+        self.assertIn("fixada", self.estado()["aviso"]["texto"])
+
+    def test_soltar_a_fixacao_do_dono_deixa_a_rodada_atualizar_e_poupa_a_automatica(self):
+        p = self.cenario_atualiza()
+        with mock.patch.dict(os.environ, self.env(), clear=True):
+            fsa.fixar_como_dono("0.47.0")
+            self.assertEqual(fsa.soltar_fixacao_do_dono(), (True, ""))
+        self.assertNotIn("fixacao", self.estado())
+        self.rodar_dentro(p)
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.2")
+        auto = {"motivo": "volta-automatica", "de": "0.47.2", "para": "0.47.1", "desde": "2026-11-01"}
+        self.semear_estado(fixacao=auto)
+        with mock.patch.dict(os.environ, self.env(), clear=True):
+            fsa.soltar_fixacao_do_dono()
+        self.assertEqual(self.estado()["fixacao"], auto)
+
+    def test_fixar_como_dono_recusa_versao_invalida_e_estado_inexistente(self):
+        with mock.patch.dict(os.environ, self.env(), clear=True):
+            self.assertFalse(fsa.fixar_como_dono("nao-e-versao")[0])
+        self.assertNotIn("fixacao", self.estado())
+        with mock.patch.dict(os.environ, {**self.env(), "HOME": str(self.home / "sem-claude")}, clear=True):
+            (self.home / "sem-claude").mkdir()
+            self.assertFalse(fsa.fixar_como_dono("0.47.0")[0])
+
     def test_fixacao_legada_so_com_o_log_do_forge_atualizar(self):
         """seção 5.3 · catálogo com ref, sem estado e com versoes.log em que o ref não é plugin_depois: fixação do dono; sem log, passagem"""
         p = self.cenario_atualiza()

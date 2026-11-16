@@ -17,6 +17,7 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import forge_sempre_atual as fsa  # noqa: E402
 import forge_versoes as fv  # noqa: E402
 
 RAIZ = fv.RAIZ
@@ -193,6 +194,10 @@ def oferecer_voltar(atual):
 def fixar_somente(url, atual, projeto):
     deu, msg = fv.fixar_plugin(url, atual, projeto=projeto)
     print(f"Forge: {msg}.", file=sys.stdout if deu else sys.stderr)
+    if deu:  # a fixação do dono vai para o estado da ferramenta: a abertura seguinte do atalho a respeita (ADR 0017, item 11)
+        gravou, motivo = fsa.fixar_como_dono(atual)
+        if not gravou:
+            print(f"Forge: não gravei a fixação para a atualização automática ({motivo}); ela pode voltar a subir de versão.", file=sys.stderr)
     return 0 if deu else 1
 
 
@@ -293,6 +298,7 @@ def atualizar(projeto, url, atual, nova, forge_novo):
         print(f"Não deu para trocar o plugin: {msg}. " + ("Só a cópia local da develop avançou; o resto do projeto não foi mexido." if avancou else "O projeto não foi mexido."))
         return 1
     print(f"Plugin: {msg}.")
+    fsa.soltar_fixacao_do_dono()  # atualizar de propósito solta a fixação que o dono tinha posto (ADR 0017, item 11)
 
     codigo, saida = rodar_do_forge_novo(forge_novo, "forge-upgrade", str(projeto))
     if codigo != 0:

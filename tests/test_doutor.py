@@ -765,13 +765,16 @@ class Frequencia(Base):
     """Antes de abrir o Jarvis, antes de atualizar o projeto e antes de abrir PR."""
 
     def test_atalho_jarvis_roda_o_doutor_antes_do_claude(self):
-        cache = self.home / ".claude/plugins/cache/forge/forge/9.9.9/bin"
-        cache.mkdir(parents=True)
-        (cache / "forge-doutor").write_text(f'#!/usr/bin/env bash\necho doutor >> {self.tmp}/ordem\n', encoding="utf-8")
-        (cache / "forge-doutor").chmod(0o755)
+        # o doutor vem da pasta do script (o trampolim leva ao installPath ativo): raiz falsa com o doutor de mentira
+        raiz = self.tmp / "raiz-do-plugin"
+        (raiz / "bin").mkdir(parents=True)
+        (raiz / "scripts").mkdir()
+        shutil.copy(RAIZ / "scripts/jarvis", raiz / "scripts/jarvis")
+        (raiz / "bin/forge-doutor").write_text(f'#!/usr/bin/env bash\necho doutor >> {self.tmp}/ordem\n', encoding="utf-8")
+        (raiz / "bin/forge-doutor").chmod(0o755)
         (self.bin / "claude").write_text(f'#!/usr/bin/env bash\n[ "$1" = plugin ] || echo claude >> {self.tmp}/ordem\n', encoding="utf-8")
         (self.bin / "claude").chmod(0o755)
-        r = subprocess.run(["bash", str(RAIZ / "scripts/jarvis"), "--sem-tmux"], env=self.env, cwd=self.proj,
+        r = subprocess.run(["bash", str(raiz / "scripts/jarvis"), "--sem-tmux"], env=self.env, cwd=self.proj,
                            capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual((self.tmp / "ordem").read_text(encoding="utf-8").split(), ["doutor", "claude"])

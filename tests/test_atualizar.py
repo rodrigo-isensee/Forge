@@ -1340,3 +1340,41 @@ class SemMarketplaceRemove(Base):
         os.environ.update(self.env)
         self.assertTrue(forge_versoes.devolver_original({"fonte": "dono/Forge", "escopo": "outro"}))
         self.sem_remove()
+
+
+class FixacaoDoDono(Base):
+    """FORGE-SEMPRE-ATUAL (E6.8, ADR 0017 item 11): `forge atualizar --fixar` e `forge voltar-versao` gravam `fixacao={motivo: dono}` no
+    estado da ferramenta; a abertura seguinte do atalho respeita (a leitura está em `test_sempre_atual`); `forge atualizar` solta."""
+
+    def fixacao(self):
+        arq = self.home / ".claude/plugins/data/forge-forge/forge/sempre-atual/estado.json"
+        return json.loads(arq.read_text(encoding="utf-8")).get("fixacao") if arq.is_file() else None
+
+    def test_fixar_grava_a_fixacao_do_dono_na_versao_em_uso(self):
+        codigo, saida = self.rodar(ATUALIZAR, "--fixar", respostas=[])
+        self.assertEqual(codigo, 0, saida)
+        fix = self.fixacao()
+        self.assertEqual((fix["motivo"], fix["de"], fix["para"]), ("dono", VERSAO, VERSAO), fix)
+
+    def test_voltar_versao_grava_a_fixacao_do_dono_na_versao_de_antes(self):
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIsNone(self.fixacao(), "atualizar não fixa")
+        codigo, saida = self.rodar(VOLTAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        fix = self.fixacao()
+        self.assertEqual((fix["motivo"], fix["para"]), ("dono", VERSAO), fix)
+
+    def test_atualizar_solta_so_a_fixacao_do_dono(self):
+        self.publicar("9.9.0")
+        self.rodar(ATUALIZAR, "--fixar", respostas=[])
+        self.assertEqual(self.fixacao()["motivo"], "dono")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIsNone(self.fixacao())
+
+    def test_fixar_sem_pasta_de_estado_avisa_e_nao_falha(self):
+        shutil.rmtree(self.home / ".claude/plugins")
+        codigo, saida = self.rodar(ATUALIZAR, "--fixar", respostas=[])
+        self.assertIn("não gravei a fixação", saida)
