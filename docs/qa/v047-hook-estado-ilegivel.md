@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-hook-estado-ilegivel
-commit: b09916f74ca84dea220e316c36a0a960440a93ce
+commit: 05d68fcecaf5828bf77717c017e8daee79fb0708
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-15
+data: 2026-11-16
 ---
 # QA: v047-hook-estado-ilegivel
 
@@ -72,3 +72,14 @@ Head `b09916f7`: merge da `origin/develop` (`bf475209`) no lote A. `forge-check 
 **Mutação** (`bin/forge-mutante tests/mutantes/v047-hook-estado-ilegivel{,-2,-3}.json --processos 4`): `rev=b09916f74ca8`, M1 a M17 `morreu` (17 de 17), nenhum sobrevivente. As specs do lote são as três de sempre (sem sufixo, `-2`, `-3`); o código sob mutação não mudou desde `c3f86d7a`.
 
 **Vermelho:** inalterado (código e testes do lote idênticos aos já provados em `c3f86d7a`).
+
+## Revalidação por delta (E2.426, junção b09916f7..05d68fce)
+Head `05d68fce`: nova junção da `origin/develop` (`5e74c70e`, #581) no lote A. `forge-check parecer delta` lista no domínio `bin/forge-testes`, `docs/hooks-fixtures.md`, `docs/hooks.md`, `tests/test_selo_e_entrega.py` e `tests/test_testes_tocados.py`, todos vindos da develop (MAQ-I9, sessão automática, hook R-REVIEW), fora das obrigações R1 a R6. `git diff b09916f7 HEAD` sobre `hooks/agentes.py`, `tests/test_estado_ilegivel.py`, `tests/hooks/agentes` e `tests/mutantes/v047-hook-estado-ilegivel*` sai vazio. Sem achado novo; A1 a A3 seguem resolvidos. `achados-recorrentes.md` (PA-7) conferido: nenhuma classe nova.
+
+**Testes locais** (`python3 -m unittest tests.test_estado_ilegivel tests.test_agentes_clone`): `Ran 27 tests in 61.302s`, `OK`. Suíte inteira só no CI do PR; o check-run `bateria` não consultei, nenhuma citação de CI.
+
+**Mutação** (`bin/forge-mutante tests/mutantes/v047-hook-estado-ilegivel{,-2,-3}.json --processos 4`): `rev=05d68fcecaf5`, M1 a M17 `morreu` (17 de 17), nenhum sobrevivente.
+
+**Vermelho:** inalterado (código e testes do lote idênticos aos já provados).
+
+**Docs:** `forge-check docs` rc 0.
