@@ -72,6 +72,16 @@
       "testes": [
         "tests.test_forge_mutante.ConferirTodas.test_todas_vem_so_com_conferir_e_sem_base_spec_nem_cobertura"
       ]
+    },
+    {
+      "id": "T8",
+      "guarda": "spec ilegível ou sem teste segue na suíte completa, sem o test_forge_mutante sozinho",
+      "arquivo": "bin/forge-testes",
+      "de": "return tuple(sorted({*da_spec, \"test_forge_mutante\"})) if da_spec else None",
+      "para": "return tuple(sorted({*da_spec, \"test_forge_mutante\"})) if True else None",
+      "testes": [
+        "tests.test_testes_tocados.MapaDosNovos.test_spec_ilegivel_sem_teste_ou_com_teste_de_fora_segue_na_completa"
+      ]
     }
   ]
 }
