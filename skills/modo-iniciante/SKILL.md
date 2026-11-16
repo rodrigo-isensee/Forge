@@ -1,6 +1,6 @@
 ---
 name: modo-iniciante
-description: Modo de conversa para quem não programa (perfil iniciante em .forge/perfil) - o Jarvis fala sem jargão, o time decide e registra as questões técnicas e só chegam à pessoa as decisões de produto, escopo, custo, acesso e exceção, com uma recomendação. Use quando .forge/perfil contiver iniciante ou na primeira abertura de um projeto.
+description: Modo de conversa para quem não programa - o Jarvis fala sem jargão, o time decide e registra as questões técnicas e só chegam à pessoa as decisões de produto, escopo, custo, acesso e exceção, com uma recomendação. Use quando .forge/perfil contiver iniciante ou na primeira abertura de um projeto.
 ---
 
 # Modo iniciante
@@ -18,7 +18,7 @@ Vale quando `.forge/perfil` contém `iniciante` e na primeira abertura (skill `f
   | repositório | pasta do projeto no GitHub |
   | hook, CI | verificação automática |
   | deploy | publicar |
-- Um assunto por mensagem. Diga o que vai fazer antes de mexer no GitHub e o que já foi feito depois, em uma frase.
+- Um assunto por mensagem. Diga o que vai fazer antes de mexer no GitHub, em uma frase.
 - Erro ou recusa de uma proteção da fábrica: traduza (o que aconteceu, por que a proteção existe, o que fazer agora). Nunca mostre a saída crua como única explicação e nunca oriente a contornar a proteção (`R-CONFORMIDADE`).
 
 ## O que o time decide sozinho
@@ -44,14 +44,12 @@ Exemplo neutro:
 > C) Só um aviso dentro do site: sem custo, mas o cliente só vê se entrar. Afrouxa o processo? Não. Tempo: sem diferença. Tokens: não medido. Em custo, não dá para dizer se é maior ou menor: não medido.
 > Recomendo A: todo cliente tem e-mail e não há custo (preferência do time). Faltam 2 perguntas. Se preferir, diga "decidam vocês".
 
-Números da pergunta (nunca inventados; tokens = entrada + saída + cache, como em `docs/kanban/entregas.md`):
-- `medido`: há linha em `docs/kanban/entregas.md` do mesmo tipo de trabalho; use a faixa e a média e cite a fonte. Tempo: a janela do pedido comparável em `docs/kanban/historico.md`.
-- `estimado`: some por componente: cada delegação a mais vale a média do agente em `entregas.md`, cada volta de review a média do revisor, texto lido a cada delegação os caracteres ÷ 4 × delegações por pedido. Diga a base.
-- `não medido`: sem linha nem componente medido; não se escreve número. `forge-check transcricao custo --entregas` atualiza as linhas (só disco local, sem custo, `R-CUSTO`).
+Números da pergunta (nunca inventados; tokens = entrada + saída + cache, como em `docs/kanban/entregas.md`): marcas `medido`, `estimado` e `não medido`.
+Detalhe em `${CLAUDE_PLUGIN_ROOT}/skills/modo-iniciante/numeros.md`.
 
 Não pergunta: o que é técnico (o time decide e registra), o que a conversa ou o projeto já respondem e o que o protótipo vai mostrar (marca `no-protótipo`).
 
 ## Rotina
-- Ao fim de cada etapa, resuma em duas linhas o que ficou pronto e o próximo passo; PR, parecer ou entrega, pela skill `explicar-para-o-leigo`.
+- Fale só no marco (decisão, problema que muda prazo ou risco, marco fechado), em duas linhas: o que ficou pronto e o próximo passo; PR, parecer ou entrega, pela skill `explicar-para-o-leigo`. Na primeira abertura, sugira o modo foco da extensão do VSCode (Focus view, Ctrl+Alt+F), que recolhe comandos e agentes.
 - Pedido para mexer no próprio Forge (plugin, hooks, `.forge/`, `.claude/`) é recusado pela proteção: explique que isso protege o projeto e ofereça registrar como sugestão ao Forge. Escreva problema observado, proposta e como medir e rode `forge sugerir --guardar "<texto>"`: ele anonimiza e guarda na fila local (permissão 600). Nunca grave direto na fila nem envie: quem envia é a pessoa, no terminal dela, fora do Claude, com `forge sugerir --fila`, vendo o texto final.
 - Apagar o projeto, torná-lo público, enviar à força e reescrever o histórico a proteção recusa: explique a consequência e diga que a pessoa faz pelo site do GitHub. Descartar mudanças pede confirmação da pessoa na janela de permissão, e você não responde por ela.
