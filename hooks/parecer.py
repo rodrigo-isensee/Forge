@@ -66,6 +66,12 @@ SED_LE = re.compile(r"(?<![^\s;&|(])sed -n (['\"]?)\d+(?:,\d+)?p\1((?: +[\w./~@:
 SO_CAT = re.compile(r"(?:[ \t]*cat(?:[ \t]+>{0,2}[ \t]*[\w./~@:+%,-]+)*[ \t]*(?:\n|$))+")
 # `<<`/`<<-` seguido de `'PALAVRA'`, `"PALAVRA"` ou `PALAVRA` (só \w): o bash e o hook cortam o corpo no mesmo ponto.
 HEREDOC_SIMPLES = re.compile(r"(?<!<)<<(-?)[ \t]*(?:'(\w+)'|\"(\w+)\"|(\w+))(?=[ \t]|$)")
+# HOOK-TEXTO-COM-MERGE: o alvo do `cat > arq <<` entre aspas ou com `$NOME`/`${NOME}` (`"$TMPDIR/x.md"`, `'docs/a b.md'`)
+# grava um arquivo como o alvo literal da K1: a rede D o lê como `cat > _` e decide o resto como antes. Sem `\`, aspa de
+# dentro, `$(`, `${X:-…}` nem crase: o bash lê essa palavra como uma só, sem rodar nada.
+VARIAVEL = r"\$(?:[A-Za-z_]\w*|\{[A-Za-z_]\w*\})"
+ALVO_DO_CAT = re.compile(rf"(?<![^\s;&|(])(cat[ \t]+>>?[ \t]*)(?:\"(?:[\w./:@,+%~^ -]|{VARIAVEL})+\"|'[\w./:@,+%~^ -]+'"
+                         rf"|{VARIAVEL}[\w./:@,+%~^-]*)(?=[ \t]+<<)")
 LE_O_TEXTO = {"grep", "cat"}
 SO_ESPERA = {"sleep", "echo", ""}
 CONTROLE = {"if", "elif", "while", "until", "!", "then", "do", "else", "fi", "done"}
@@ -951,7 +957,7 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
     # bash pode formar nele ou num nível de cima (`bash -c`, `eval`, `$(…)`; `tem_heredoc_no_texto`), haja heredoc
     # provado ou não
     if nivel == 0 and critico_ou_alias(original) and not (SO_CAT.fullmatch(comando) and heredocs_simples(original)):
-        sinal = fora_da_gramatica_com_heredoc(original)
+        sinal = fora_da_gramatica_com_heredoc(ALVO_DO_CAT.sub(r"\1_", original))
         if sinal is not None:
             bloquear("R-REVIEW", f"`{sinal}` na chamada com heredoc e gh pr, gh api, merge ou pull: o hook não modela. "
                                  f"Corrigir: {CONTORNO_DA_GRAMATICA}")
