@@ -1671,7 +1671,7 @@ class TravaDoForgeTestes(unittest.TestCase):
                 self.nao_rodou(r)
                 self.assertIn("com a suíte rodando", r.stderr)
                 self.assertEqual(self.chamadas(), ["1|--status"])
-        self.registro.unlink()
+        self.registro.unlink(missing_ok=True)
         self.assertEqual(self.rodar("--base", "develop").returncode, 7)
         self.assertEqual(self.chamadas(), ["1|--status", "1|--suite"])
 
