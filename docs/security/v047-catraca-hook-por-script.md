@@ -3,14 +3,16 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-catraca-hook-por-script
-commit: ee91a8f00ceb1a52bc4ab41bc50a96996cc918e3
+commit: 230dfb01ddde3b7e84d47fdad161c8dbfc93ffc5
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-11-15
 ---
 # Review de segurança: v047-catraca-hook-por-script
 
-Revalidação por delta `66a3a9a4..ee91a8f0` (volta 3), etapa E2.147 do pedido v047. A8 e A9 estão corrigidos: S8 a S11 acusam no corpus (`tests/fixtures/catraca-hooks/sondas.json`, 28 sondas), e os legítimos (`forma-shell`, `statusMessage`, `PR565`) passam. Esta volta relê o hook inteiro contra a especificação oficial (documentação dos hooks e o esquema que o Claude Code 2.1.224 aplica ao carregar o `hooks/hooks.json`). Sobra uma dimensão que nenhuma volta modelou: a **validade do arquivo**. A carga do plugin valida o arquivo inteiro de uma vez. Basta uma entrada fora do esquema, em qualquer hook, para nenhum hook do Forge ser registrado. A catraca não acusa nada disso (A10). É o último achado da família: não vi outra dimensão em aberto.
+Revalidação por delta `79899789..230dfb01` (volta 4), etapa E2.167 do pedido v047, lida por `forge-check parecer delta` (domínio: `tests/catraca.py`, `tests/test_catraca.py`). O A10 está corrigido: `erros_de_forma` (`tests/catraca.py:371`) confere o `hooks.json` do head por lista fechada de eventos e de tipos de campo, em falha fechada, e S12 a S16 acusam no corpus (36 sondas, o `hooks.json` real sem erro). Pela régua do dono para esta volta (bloqueante só regressão ou fuga com prova no `hooks.json` real), sobra um bloqueante: um hook **novo** com `timeout` 0, negativo ou infinito passa calado e faz a carga descartar todos os hooks (A12, S17). O conserto é uma linha.
+
+Volta 3 (registro): Revalidação por delta `66a3a9a4..ee91a8f0` (volta 3), etapa E2.147 do pedido v047. A8 e A9 estão corrigidos: S8 a S11 acusam no corpus (`tests/fixtures/catraca-hooks/sondas.json`, 28 sondas), e os legítimos (`forma-shell`, `statusMessage`, `PR565`) passam. Esta volta relê o hook inteiro contra a especificação oficial (documentação dos hooks e o esquema que o Claude Code 2.1.224 aplica ao carregar o `hooks/hooks.json`). Sobra uma dimensão que nenhuma volta modelou: a **validade do arquivo**. A carga do plugin valida o arquivo inteiro de uma vez. Basta uma entrada fora do esquema, em qualquer hook, para nenhum hook do Forge ser registrado. A catraca não acusa nada disso (A10). É o último achado da família: não vi outra dimensão em aberto.
 
 ## Gatilhos
 `R-SEGURANCA`: código de controle (`tests/catraca.py`, nos PROTEGIDOS) e a regra que guarda `hooks/hooks.json` (`R-CONFORMIDADE`).
@@ -22,8 +24,10 @@ Revalidação por delta `66a3a9a4..ee91a8f0` (volta 3), etapa E2.147 do pedido v
 - A7 (recomendado) tests/catraca.py:307 · Corrigido em 66a3a9a4: `timeout` na chave; A7 (`timeout: 1`) acusa no corpus.
 - A8 (bloqueante) tests/catraca.py:287 · Corrigido em ee91a8f0: com `args`, os termos são `[command] + args` sem dividir; sem `args`, fora do ASCII imprimível vira a linha inteira. S8, S9, S10, S10-aspas e S10-vazio acusam; PR565 e forma-shell passam.
 - A9 (bloqueante) tests/catraca.py:263 · Corrigido em ee91a8f0: lista fechada de campos inócuos (`statusMessage`, `once`) e o resto na chave em JSON canônico. S11-if, -async, -asyncRewake, -onFailure e -shell acusam.
-- A10 (bloqueante) tests/catraca.py:307 · Um hooks.json fora do esquema faz a carga descartar todos os hooks do plugin, e a catraca não acusa nada (S12 a S16): `type` ausente lido como `command`, `timeout` "10" igual a 10, item não texto em `args`, evento ou matcher inválido num hook novo.
+- A10 (bloqueante) tests/catraca.py:371 · Corrigido em 230dfb01: `erros_de_forma` com lista fechada de eventos e tipos, falha fechada; S12 a S16 acusam no corpus e o hooks.json real passa.
 - A11 (recomendado) .github/workflows/ci.yml:521 · `claude plugin validate . --strict` na raiz valida só o marketplace: o esquema do hooks.json e o frontmatter dos agentes ficam sem conferência no CI (agents/devops-engineer.md:3 já falha na validação do plugin).
+
+- A12 (bloqueante) tests/catraca.py:363 · `timeout` só confere o tipo: um hook novo com `timeout` 0, -1 ou 1e400 no hooks.json real passa sem acusar (S17), e a carga o reprova (`expected number to be >0`) e descarta todos os hooks. Exija número finito e maior que zero.
 
 ## Sondas
 - S8 · `command` `python3 -s -E ${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py\nexit 0`, sem `args`, no hook de conformidade · espera: 1 removido · obtido: 1 removido em ee91a8f0 (corpus S8, review-S1)
@@ -35,6 +39,8 @@ Revalidação por delta `66a3a9a4..ee91a8f0` (volta 3), etapa E2.147 do pedido v
 - S14 · `null` (também `1`) acrescentado ao fim de `args` do hook de conformidade · espera: acusa (validação: `args.3: expected string, received null`) · obtido: removidos 0
 - S15 · evento novo `"PreToolUsee": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "true"}]}]` · espera: acusa (validação: `hooks.PreToolUsee: Invalid key in record`) · obtido: removidos 0
 - S16 · grupo novo no PreToolUse com `"matcher": 1` ou com um hook de `"timeout": "1"` · espera: acusa (validação: `matcher: expected string, received number`) · obtido: removidos 0
+
+- S17 · grupo novo no PreToolUse do hooks.json real com hook `{"type": "command", "command": "true", "timeout": 0}` (e -1, 1e400) · espera: acusa (validação: `timeout: Too small: expected number to be >0`) · obtido: removidos 0, `erros_de_forma` vazio
 
 ## Detalhe dos achados
 **A4 a A9** · releitura de `tests/catraca.py:257-349` no head. `termos_do_hook` (`:287`) segue a seção "Exec form and shell form" da documentação: com `args`, mesmo vazio, não há shell nem divisão do `command`. Sem `args`, o `split` só vale para ASCII imprimível. `-` e `#` antes do script e `;&|<>` e `$(` depois dele levam à linha inteira. `campos_extras_do_hook` (`:296`) usa lista positiva. `once` fica fora da chave com razão: pela documentação, ele só vale para hooks declarados no frontmatter de skill e é ignorado nos demais lugares. Rodados aqui: `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook`, 12 testes, OK.
@@ -59,10 +65,16 @@ Correção mínima, em falha fechada:
 
 Esforço P. Dono: tech-lead.
 
+**A10 (volta 4)** · `regra_hooks` (`tests/catraca.py:399`) roda `erros_de_forma` sobre o `hooks.json` do head antes da contagem e acusa com `R-CONFORMIDADE`; `json.loads` com `parse_constant` recusa `NaN` e `Infinity` literais. Itens (b) e (c) da correção atendidos; o (a) (sem valor padrão na chave) ficou dispensável, porque `type` ausente, `timeout` texto e item não texto em `args` já acusam pela forma. Conferi contra `claude plugin validate` (2.1.224) numa cópia sem `marketplace.json`, além de S12 a S16: `matcher` nulo, `type` `http`, `shell` `Bash` e chave `hooks` duplicada com hook sem `command` acusam nos dois. Campo extra no hook, no grupo ou no topo, grupo de `hooks` vazio, `command` vazio, `timeout` fracionário e matcher com regex inválida passam nos dois (sem fuga). O BOM UTF-8 no início acusa na catraca e passa na carga: é falso positivo, em falha fechada, aceitável. Não é regressão.
+
+**A12** · evidência `tests/catraca.py:363`: a condição só barra o `timeout` que não é número (ou booleano). O esquema da carga exige `timeout` maior que zero e finito, e `json.loads` lê `1e400` como `inf` sem passar pelo `parse_constant`. Para o hook de conformidade existente, trocar o `timeout` muda a chave e já acusa como remoção (A7). A fuga é por um hook **acrescentado** (S17), como em S16. Caminho de ataque: o do A10. Um agente barrado edita o `hooks/hooks.json` no PR e acrescenta um hook com `"timeout": 0`, que alguém também escreveria por engano, achando que é "sem prazo". A catraca fica muda, e depois do merge nenhum hook do Forge é registrado. Severidade média, como o A10 (resta o review humano). É bloqueante pela régua do dono desta volta: é uma fuga provada no `hooks.json` real.
+
+Correção mínima: em `erros_do_hook`, `timeout` válido só se for `int` ou `float`, não booleano, `math.isfinite` e `> 0`. No corpus, entra S17 com `acrescenta` (`timeout` 0, -1 e `1e400`, este no texto, porque `json.dumps` escreve `Infinity`), com `fora_do_esquema: true`. Esforço P. Dono: tech-lead.
+
 **A11** · evidência `.github/workflows/ci.yml:521`. Na raiz, `claude plugin validate . --strict` encontra `.claude-plugin/marketplace.json` e valida só o manifesto do marketplace. A validação do plugin (manifesto, agentes, hooks) só roda numa cópia sem o `marketplace.json`. Nela, o head já falha em `agents/devops-engineer.md:3` (o YAML do frontmatter não lê: `": "` dentro do `description` sem aspas), e na `main` também. A própria mensagem do validador diz que esse agente carrega sem metadados em tempo de execução. Correção: o job valida também o plugin, depois de corrigir o frontmatter. Assim o CI cobre o A10 pela fonte do esquema, como defesa em profundidade, sem substituir a catraca. Severidade baixa para este item. Esforço P. Dono: devops-engineer (o workflow é enviado pelo dono, que tem o escopo `workflow`). Fica fora do escopo deste item, como cartão.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Rodados aqui:
+Nenhum risco aceito. Rodados aqui na volta 4 (head 230dfb01): `python3 -m unittest tests.test_catraca.Hooks tests.test_catraca.CorpusDasSondasDeHook`, 14 testes, OK; 23 variantes do `hooks.json` real em `claude plugin validate` (2.1.224) e em `erros_de_forma`, e S17 nos dois. Na volta 3:
 - os 12 testes de `Hooks` e `CorpusDasSondasDeHook` no head;
 - S12 a S16 contra `tests/catraca.py` do head, com `hooks_contados` sobre o `hooks/hooks.json` real;
 - `claude plugin validate` (2.1.224) numa cópia limpa sem `marketplace.json`, para cada variante e para o arquivo inalterado.
