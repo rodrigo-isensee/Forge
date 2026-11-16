@@ -2,24 +2,21 @@
 tipo: qa
 contrato: 1
 pedido: melhorias-de-projeto-1311
-branch: melhoria/mp1311-pre-envio-fabrica
-commit: 48bf85e84376c7be335f50742b2afebaa4875769
-parecer: reprovado
-escopo: completo
+branch: melhoria/mp1311-554-revalidacao
+commit: 7b3604a19b06273ea09e2692c8474b6d6cb4dc18
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-14
 ---
-# QA: melhorias-de-projeto-1311 (pré-envio da fábrica, E1.55)
+# QA: melhorias-de-projeto-1311 (pré-envio da fábrica, E1.55; revalidação E1.63)
 
-Head 48bf85e8, revalidação do parecer do f30ac8d2 (`forge-check parecer delta`: só `tests/test_pre_envio_brief.py` e `tests/mutantes/mp1311-pre-envio-fabrica-2.json` mudaram no domínio do QA). PR 554: suítes 3.12 e 3.14 (partes 1 a 3) e teto de pulados passam no run 43598148745 (sha igual ao head). Falham `bateria (pareceres)` (review desatualizado e este parecer reprovado) e `catraca` (rótulo `afrouxa-regra`, do dono): papelada, não produto.
+Revalidação por delta 48bf85e8..7b3604a1 (já na develop, c5c3a449). No domínio do QA o que mudou foi só a renumeração do M10 para M13 em `tests/mutantes/mp1311-pre-envio-fabrica-2.json` (6035e27c) e o merge da develop, cujo conflito em `tests/test_testes_tocados.py` ficou na contagem do mapa (82 módulos, com `test_hook_erro_libera`) e no teste novo do E1.120, alheio ao #554. A1 e A2 seguem como no parecer anterior (recomendados, sem bloqueio). A3 resolvido: as duas specs juntas saem rc=0.
 
-## Achados
-- A1 (recomendado) tests/test_pre_envio_brief.py:122 · resolvido na E1.44: agora o teste falha por asserção na base; `--vermelho` sai rc=0.
-- A2 (recomendado) tests/test_pre_envio_brief.py:88 · dois testes de guarda seguem passando na base (fora do Forge, parecer sem pré-envio do autor); fronteira guardada, justifique no PQ do autor.
-- A3 (bloqueante) tests/mutantes/mp1311-pre-envio-fabrica-2.json:26 · o id M10 existe nas duas specs; `forge-mutante <spec> <spec-2>` sai rc=2 ("id de mutante repetido entre as specs"). Renumere (ex.: M13) para a rodada única do pedido valer.
+Suíte inteira: o PR 562 (head f2ceda8e, merge c5c3a449 = develop atual, que contém 7b3604a1) tem todas as suítes 3.12 e 3.14 (partes 1 a 3), teto de pulados, `bateria` e `catraca` verdes. O run 43619396917 do PR 554 teve a parte 3/3 vermelha (log inacessível daqui, sandbox); a mesma árvore passa no 562, então não bloqueia. Nada de produto mudou além do merge.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -39,4 +36,5 @@ Head 48bf85e8, revalidação do parecer do f30ac8d2 (`forge-check parecer delta`
 ## Cenários e resultado real
 - `python3 -m unittest -q tests.test_pre_envio_brief`: 11 testes, OK.
 - `forge-testes --vermelho befd4cca --modulos test_pre_envio_brief`: base=befd4ccaa75e head=48bf85e84376; contagem: não prova (passa na base)=2; prova (API ausente)=1; prova (asserção)=8; rc=0.
-- `forge-mutante` spec 1: M1 a M7 e M10 morreram, rc=0; spec 2: M8 a M12 morreram, rc=0 (guardas 792, 793, 824 de forge-testes cobertas, inclusive --vermelho, --modulos, --prazo). As duas juntas: rc=2 (A3).
+- `forge-mutante` spec 1: M1 a M7 e M10 morreram, rc=0; spec 2: M8 a M12 morreram, rc=0 (guardas 792, 793, 824 de forge-testes cobertas, inclusive --vermelho, --modulos, --prazo). As duas juntas (delta, `--base 48bf85e8`): M1 a M7, M10, M8, M9, M13, M11, M12 morreram, rc=0 (era rc=2, A3). Rev da rodada c5c3a449.
+- `python3 -m unittest -q tests.test_pre_envio_brief` no c5c3a449: 11 testes, OK; `tests.test_testes_tocados.Mapa.test_forge_check_roda_os_modulos_dele` (contagem 82): OK.
