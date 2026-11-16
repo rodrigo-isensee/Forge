@@ -1,0 +1,87 @@
+{
+  "pedido": "v047-mapa-testes",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "só o hook entra no fecho; o apoio de tests/ segue na completa",
+      "arquivo": "bin/forge-testes",
+      "de": "    if not achado:\n        return set()\n    textos = textos_dos_testes(raiz)\n",
+      "para": "    if False:\n        return set()\n    textos = textos_dos_testes(raiz)\n",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_apoio_de_tests_importado_segue_na_completa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "`from x import` dá x; `import a, b` dá a e b",
+      "arquivo": "bin/forge-testes",
+      "de": "{de} if de else",
+      "para": "{de} if not de else",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a fila do fecho é percorrida",
+      "arquivo": "bin/forge-testes",
+      "de": "    while fila:\n",
+      "para": "    while fila and False:\n",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados",
+        "tests.test_testes_tocados.QuemImporta.test_no_repositorio_o_plano_do_hook_traz_todo_teste_que_importa_um_modulo_do_plano"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o ciclo entre hooks termina",
+      "arquivo": "bin/forge-testes",
+      "de": "        if nome in vistos:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hooks_que_se_importam_em_ciclo_terminam"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "só quem importa o nome entra no fecho",
+      "arquivo": "bin/forge-testes",
+      "de": "if nome in nomes]",
+      "para": "if nome not in nomes]",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "pasta com nome de módulo não é lida",
+      "arquivo": "bin/forge-testes",
+      "de": "if p.is_file()}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "`reimport x` não é import",
+      "arquivo": "bin/forge-testes",
+      "de": "(?<![\\w.])(?:from",
+      "para": "(?:from",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o plano do hook leva o fecho de quem o importa",
+      "arquivo": "bin/forge-testes",
+      "de": "modulos.update(casou, quem_importa(caminho, raiz, casou))",
+      "para": "modulos.update(casou)",
+      "testes": [
+        "tests.test_testes_tocados.QuemImporta.test_no_repositorio_o_plano_do_hook_traz_todo_teste_que_importa_um_modulo_do_plano"
+      ]
+    }
+  ]
+}
