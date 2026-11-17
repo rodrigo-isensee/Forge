@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ambiente-sobrevive
-commit: a359df54ffb83949d5a85d7cd37f0aef266e1cee
+commit: 4ed7cb7d208f4c11686fad22c3ada3a90c1924fd
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -20,6 +20,9 @@ Parecer anterior no 68072575 (aprovado, A1 recomendado); este revalida por delta
 - A1 (recomendado) templates/projeto/.devcontainer/preparar-ambiente.sh:45 · o mutante `: || faltas+=` do link agora morre (M20); fechado, sem pendência. Conferi à mão: 1 falha em 24.
 - A2 (recomendado) hooks/ambiente.py:21 · sem mutante e sem `isentas`: linhas 21 (padrão `/workspaces`), 33 (`is_file`, defesa) e 40 (`startswith`, `returncode == 1`) sobrevivem a mutação à mão (`rc in (0,1)` imprime só `ambiente: ok`). São equivalentes; declare-os em `equivalente`/`isentas`.
 - A3 (recomendado) tests/test_forge.py:2043 · M23 morre por `CalledProcessError` do helper `git` (chave `core.hooksPath` ausente), não por asserção; a morte é legítima (passa sem o mutante), mas a mensagem some. Ler com `check=False` e `assertEqual` dá falha clara.
+
+## Revalidação a359df54..4ed7cb7d (E2.671: mutantes das guardas restantes do hook)
+- Delta no domínio do QA: `tests/mutantes/v047-ambiente-sobrevive-3.json` (M26..M30) e `tests/test_ambiente_hook.py` (+3 testes). `forge-mutante tests/mutantes/v047-ambiente-sobrevive-3.json` -> rc 0: M26 (21), M27 (22), M28 (33), M29 e M30 (40) todos `morreu`. `forge-mutante --cobertura --base 73a0ab81` -> linhas 21, 22, 33, 40 `coberta`; linha 55 `isenta` (ponto de entrada do script: todo teste o roda como processo; motivo aceito); `não coberto:` só de json e shell (limite do tipo). `python3 -m unittest tests.test_ambiente_hook` -> Ran 9 tests, OK. Fecha o A2; veredito mantido: aprovado, sem bugs abertos.
 
 ## Revalidação c2b55568..a359df54 (E2.659: índice de fixtures)
 - Delta no domínio do QA: só `docs/hooks-fixtures.md` (2793 -> 2796, 3 fixtures `ambiente`: erro, fora, sem). `python3 -I scripts/indice-fixtures.py --conferir` -> `em dia`, rc=0; `python3 -m unittest tests.test_indice_fixtures` -> 7 testes, OK. Sem código nem teste mudado; veredito anterior mantido.
