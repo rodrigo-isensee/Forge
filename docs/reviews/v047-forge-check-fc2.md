@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-forge-check-fc2
-commit: c2d1c60cc4d4bc8942eed4c6c8e462f5f7621f46
+commit: e1aff90260eba1e97fa153ddcd9b5e8127e5945f
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
@@ -36,3 +36,6 @@ Delta lido (`forge-check parecer delta`): `b7a180d6..c2d1c60c`, no domínio `bin
 - I20 reancorado em `bin/forge-check:3200` (a `if isinstance(lido, FalhaDoGit)` do `cmd_parecer_delta`), mesma mutação (`not (...)`), trecho `de`/`para` apertado a três linhas. `bin/forge-mutante --processos 1 --prazo 900` sobre a spec só com o I20: `I20 · morreu · bin/forge-check:3199`, rc=0.
 - Testes tocados: nenhum arquivo de teste mudou no delta; o I20 roda os 7 módulos da spec, e o que matou o mutante vale como teste do ramo de falha. Sem suíte inteira (CI).
 Parecer segue aprovado, agora no head c2d1c60c. O QA não precisa revalidar: o delta dele é só a skill encurtada (texto, sem teste nem código do item) e a spec do I20; a lógica do item não mudou desde b7a180d6.
+
+## Revalidação por delta (head e1aff902; clone no 7adc80d5)
+Delta lido (`forge-check parecer delta`): `c2d1c60c..7adc80d5`, no domínio `bin/forge-check` (só o que veio da develop, outro item), `skills/qa-testing/SKILL.md` e `tests/test_volta_por_delta.py`. Skill: uma linha encurtada (`aponta (commit:) o commit`; `Na volta ... lista só o que mudou`); `R-QA`, `R-REVIEW`, `commit:`, `base:`/`aviso:`, `docs/ux/<demanda>/` e o resumo do `parecer delta` ficam; nenhuma regra saiu. A3 segue recomendado (o fetch não é dito). Teste: `remoto_sem_manutencao(self.origem)` no `DeltaComBaseAtrasada` (3 OK em 2 s) e o import de `ambiente_git`; `tests/test_metricas_texto` 2 OK, sem -I. Sem código do item mudado. Parecer segue aprovado.
