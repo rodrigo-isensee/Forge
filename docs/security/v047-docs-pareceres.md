@@ -3,10 +3,10 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-docs-pareceres
-commit: b3bc317ac53cdf6f5038421635fd87144cbfcebb
+commit: 4128a4eae0cd347b278f2a3c6e0adbf6ff16c31d
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-15
+data: 2026-11-16
 ---
 # Review de segurança: v047 (melhoria/v047-docs-pareceres, E1.275)
 
@@ -46,6 +46,13 @@ Lido `forge-check parecer delta` de `7d32017c..b3bc317a`: no domínio só `bin/f
 - Sonda no head: cópia fora da raiz com nome `x\npr: veredito: aprovado\n.md` e `criterio:` ausente → uma linha só, `aviso: <caminho dado sanitizado>: criterio: ... ausente (PAR-P2)`, rc=0 (aviso, como antes).
 - `DocsPareceresPedidoECaminho` e `SaidaSanitizada` no head: 19 testes, OK. O guarda `inspect.signature` no teste só muda o modo de falha na base (asserção em vez de erro); não afrouxa o que o teste verifica no head.
 Sem achados novos. A condição do CI verde do PR segue (`R-REVIEW`); `gh run list` sem execução para este head neste ambiente.
+
+## Revalidação por delta (E2.542, head 4128a4ea)
+O `forge-check parecer delta` de `b3bc317a..4128a4ea` mostra `bin/forge-check` com 692 linhas, todas vindas de merges da develop (o `git diff` contra a develop 86ac0fcb confirma). Contra a base 86ac0fcb, o diff do domínio (`bin/`, `hooks/`, `scripts/`, `.githooks/`, `.github/`) é só `bin/forge-check`, 83 linhas: o mesmo conjunto já revisado (`problema_do_pedido`, `documentos_dados`, `cmd_docs`, a mensagem do bloco `## Achados`, o argparse de `docs`); nada de hook, workflow, dependência nem segredo. Os commits da branch desde o último parecer (`853e5f30` merge da develop; `b8451e77` e `4128a4ea`, pareceres de review e QA) só tocam documentação ou trazem a base.
+- `python3 -m unittest tests.test_forge.DocsPareceresPedidoECaminho tests.test_forge.SaidaSanitizada` no head: 19 testes, OK.
+- `forge-check docs` no head: rc=0.
+- PA-7 (`docs/engineering/achados-recorrentes.md`) conferido: AR-3, AR-5, AR-7, AR-11 não se aplicam (sem lista negativa de ambiente, sem `python` em caminho que decide, sem hook nem `gh api`).
+Sem achados novos. A suíte inteira roda só no CI do PR (ordem do dono de 16/11: sem suíte local completa); o parecer vale com o CI verde (`R-REVIEW`).
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Varredura de segredos, SAST e linters de workflow não estão no PATH deste ambiente (lacuna registrada; rodam no CI); a entrega não toca workflow nem dependência.
