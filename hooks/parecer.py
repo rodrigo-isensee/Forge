@@ -264,14 +264,20 @@ PROGRAMAS_DE_DADO = frozenset({"cat", "cd", "mkdir", "echo", "true", "ls", "wc",
 
 def corpos_de_dado(original, comando):
     """True se nenhum corpo de heredoc da chamada roda: todo programa de `comando` (a linha sem os corpos) é de
-    `PROGRAMAS_DE_DADO` e nenhuma redireção grava arquivo com o nome de um deles (nem com curinga no nome)."""
+    `PROGRAMAS_DE_DADO`, a linha não tem crase, todo alvo de redireção tem valor literal e nenhum grava arquivo com o
+    nome de um programa da chamada (nem com curinga no nome)."""
     if not heredocs_simples(original):
         return False
     if chamada_muda_o_corpo(comando):
         return False
+    if "`" in comando:  # a crase faz o nome do alvo (`cat > `echo bin/ls``) e não tem valor literal para cruzar
+        return False
     leitura = palavras_do_texto(comando)
     nomes = {programa for programa, _, _ in programas_e_atribuicoes(comando)}
-    alvos = {Path(getattr(r.alvo, "valor", "")).name for simples in leitura.simples for r in simples.redirecoes}
+    lidos = [r.alvo for simples in leitura.simples for r in simples.redirecoes]
+    if any(alvo is None or not alvo.valor for alvo in lidos):  # alvo sem valor literal: o nome gravado não se prova
+        return False
+    alvos = {Path(alvo.valor).name for alvo in lidos}
     if any(c in alvo for alvo in alvos for c in "*?["):  # o bash expande o curinga do alvo (`bin/l[s]` grava `bin/ls`)
         return False
     return nomes <= PROGRAMAS_DE_DADO and not alvos & nomes
