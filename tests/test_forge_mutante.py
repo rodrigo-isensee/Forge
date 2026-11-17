@@ -206,7 +206,9 @@ class ValidacaoDaSpec(unittest.TestCase):
 
     def test_varias_specs_com_pedido_diferente_ou_id_repetido_sao_invalidas(self):  # MUTANTE-TETO
         a = {"pedido": "x", "mutantes": [mutante("M1")]}
-        self.assertTrue(self.f.validar_specs([a, {"pedido": "y", "mutantes": [mutante("M2")]}]))
+        self.assertEqual(self.f.validar_specs([a, {"pedido": "y", "mutantes": [mutante("M2")]}]),
+                         ["as specs são de pedidos diferentes; uma chamada por pedido, com as mesmas opções: "
+                          "forge-mutante spec1.json (pedido x) ; forge-mutante spec2.json (pedido y)"])
         self.assertTrue(self.f.validar_specs([a, {"pedido": "x", "mutantes": [mutante("M1")]}]))
         self.assertTrue(self.f.validar_specs([]))
 
@@ -475,6 +477,38 @@ class Execucao(unittest.TestCase):
         self.assertIn("nada foi executado", r.stderr)
         self.assertNotIn("morreu", r.stdout)
 
+    def test_specs_de_pedidos_diferentes_saem_2_com_uma_chamada_por_pedido(self):  # v047 E1.283
+        a = self.spec(mutante("M1"), nome="x-1.json")
+        b = self.spec(mutante("M2"), nome="y 1.json", pedido="y")
+        c = self.spec(mutante("M3"), nome="x-2.json")
+        r = self.rodar(a, b, c)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn(f"uma chamada por pedido, com as mesmas opções: forge-mutante {a} {c} (pedido x) ; "
+                      f"forge-mutante '{b}' (pedido y)", r.stderr)
+        self.assertNotIn("morreu", r.stdout)
+
+    def test_arvore_suja_com_spec_diferente_da_do_commit_recusa_antes_de_rodar(self):  # v047 E1.283
+        self.gravar("tests/mutantes/x.json", json.dumps({"pedido": "x", "mutantes": [mutante()]}))
+        self.salvar()
+        spec = str(self.dir / "tests" / "mutantes" / "x.json")
+        self.gravar("notas.txt", "árvore suja, spec igual à do commit\n")
+        r = self.rodar(spec)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("M1 · morreu", r.stdout)
+        for nome, texto in {"tests/mutantes/x.json": json.dumps({"pedido": "x", "mutantes": [mutante(para="x > 11")]}),
+                            "tests/mutantes/nova.json": json.dumps({"pedido": "x", "mutantes": [mutante("M2")]})}.items():
+            with self.subTest(nome):
+                self.gravar(nome, texto)
+                r = self.rodar(str(self.dir / nome))
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn(f"árvore suja e spec diferente da do commit {git(self.dir, 'rev-parse', 'HEAD')[:12]} "
+                              f"({nome})", r.stderr)
+                self.assertNotIn("morreu", r.stdout)
+        git(self.dir, "add", "-A")
+        git(self.dir, "commit", "-qm", "spec nova")
+        r = self.rodar(str(self.dir / "tests" / "mutantes" / "nova.json"), "--rev", "HEAD~1")
+        self.assertEqual(r.returncode, 0, "árvore limpa: a spec de fora do --rev roda " + r.stdout + r.stderr)
+
     def test_teste_com_nome_nao_ascii_roda_e_mata(self):  # MUTANTE-ID-ASCII
         self.gravar("tests/test_lib.py", TESTE + "\n    def test_borda_ação(self):\n        self.assertEqual(lib.limite(11), 2)\n")
         self.salvar()
@@ -720,6 +754,25 @@ class Cobertura(unittest.TestCase):
         r = self.cobertura()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("coberta · lib.py:2 · tests/mutantes/x.json:M1 · declarado, não provado", r.stdout)
+
+    def test_sem_mutante_diz_por_que_o_mutante_que_toca_o_no_nao_cobre(self):  # v047 E1.283
+        repetido = "y = 'x > 100'\nif x > 100:\n    x = 2\n"  # a 1.ª ocorrência do `de` fica fora do nó
+        casos = {"troca fora do nó": (self.COND, "if x > 100:", "while x > 100:", "a troca sai do nó da condição"),
+                 "de repetido": (repetido, "x > 100", "x > 1000", "o `de` aparece 2 vezes no arquivo (precisa de uma)"),
+                 "de curto": (self.COND, "x > 1", "x > 2", "o `de` tem menos de 8 caracteres não brancos")}
+        for nome, (texto, de, para, motivo) in casos.items():
+            with self.subTest(nome):
+                git(self.dir, "reset", "-q", "--hard", self.base)
+                self.salvar({"lib.py": texto, **self.spec(de, para)})
+                r = self.cobertura()
+                self.assertEqual((r.returncode, r.stdout.splitlines()[1:3]), (1, [
+                    "sem mutante · lib.py:2 · x > 100", f"por quê · lib.py:2 · tests/mutantes/x.json:M1 · {motivo}"]))
+        for nome, (de, arquivo) in {"fora do nó": ("x = 1\nif", "lib.py"), "outro arquivo": ("if x > 100:", "o.py")}.items():
+            with self.subTest(nome):
+                git(self.dir, "reset", "-q", "--hard", self.base)
+                self.salvar({"lib.py": self.COND, **self.spec(de, "x = 2\nif", arquivo=arquivo)})
+                r = self.cobertura()
+                self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (1, ["sem mutante · lib.py:2 · x > 100"]))
 
     def test_condicao_coberta_so_por_equivalente_sai_em_linha_propria_e_1(self):  # COBERTURA-EQUIVALENTE (a)
         equivalente = {k: v for k, v in mutante("E1", de="if x > 100:", para="if x > 1000:").items() if k != "testes"}
@@ -1050,7 +1103,7 @@ class Cobertura(unittest.TestCase):
                 self.assertEqual(r.returncode, 2)
                 self.assertIn("vêm juntos", r.stderr)
 
-    # E4-IL: isenta por linha (`linha_base`), só para a condição apagada; casa a linha que a saída imprime em `(base)`.
+    # E4-IL e ISENTA-POR-TEXTO: a apagada uma vez casa pelo texto do nó; `linha_base` (de specs antigas) é ignorada.
     REPETIDA = "x = 1\nif x > 100 and y:\n    x = 2\nif x > 100 and y:\n    x = 3\n"
     SEM_A_PRIMEIRA = "x = 1\nx = 2\nif x > 100 and y:\n    x = 3\n"
     POR_LINHA = {**ISENTA, "linha_base": 2}
@@ -1062,38 +1115,35 @@ class Cobertura(unittest.TestCase):
         self.salvar({"lib.py": ponta, **self.isentas(lista)})
         return self.cobertura()
 
-    def test_isenta_por_linha_libera_a_apagada_de_texto_repetido(self):
-        for antes in ("", 's = "ção"\n'):  # o texto não ASCII antes da condição desloca bytes e caracteres
-            with self.subTest(antes):
-                linha, base, ponta = 2 + bool(antes), antes + self.REPETIDA, antes + self.SEM_A_PRIMEIRA
-                r = self.por_linha([{**self.POR_LINHA, "linha_base": linha}], base, ponta)
-                self.assertEqual((r.returncode, r.stdout.splitlines()[1:]),
-                                 (0, [f"isenta · lib.py:{linha}(base) · {self.MOTIVO}"]), r.stderr)
-        self.assertEqual(self.por_linha([self.ISENTA]).returncode, 2, "a forma antiga não casa o texto repetido")
+    def test_isenta_pelo_texto_libera_a_apagada_repetida_e_sobrevive_a_base_deslocada(self):  # ISENTA-POR-TEXTO
+        for antes in ("", 's = "ção"\n', "# linha nova da base\n" * 9):  # bytes e linhas deslocados antes da condição
+            linha, base, ponta = 2 + antes.count("\n"), antes + self.REPETIDA, antes + self.SEM_A_PRIMEIRA
+            for lista in ([self.ISENTA], [self.POR_LINHA], [{**self.POR_LINHA, "linha_base": 99}]):  # a linha não conta
+                with self.subTest(antes=antes, lista=lista):
+                    r = self.por_linha(lista, base, ponta)
+                    self.assertEqual((r.returncode, r.stdout.splitlines()[1:]),
+                                     (0, [f"isenta · lib.py:{linha}(base) · {self.MOTIVO}"]), r.stderr)
         nova = self.SEM_A_PRIMEIRA + "if w > 500 and v:\n    x = 4\n"
         r = self.por_linha([self.POR_LINHA, {**self.ISENTA, "trecho": "w > 500 and v"}], ponta=nova)
         self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (0, [f"isenta · lib.py:5 · {self.MOTIVO}",
                          f"isenta · lib.py:2(base) · {self.MOTIVO}"]), r.stderr)
 
-    def test_isenta_por_linha_que_nao_casa_a_linha_impressa_fica_solta(self):
+    def test_isenta_pelo_texto_que_nao_casa_o_no_fica_solta(self):
         duas = "x = 1\nif x > 100 and y:\n    x = 2\nif z > 300 and w:\n    x = 3\n"
-        casos = {"segunda ocorrência": ([{**self.POR_LINHA, "linha_base": 4}], {}),
-                 "linha sem condição": ([{**self.POR_LINHA, "linha_base": 1}], {}),
-                 "além do fim da base": ([{**self.POR_LINHA, "linha_base": 99}], {}),
-                 "outro arquivo": ([{**self.POR_LINHA, "arquivo": "outro.py"}], {}),
+        casos = {"outro arquivo": ([{**self.ISENTA, "arquivo": "outro.py"}], {}),
                  "trecho fora do nó": ([{**self.POR_LINHA, "trecho": "x = 1\nif x > 100"}], {}),
-                 "condição nova": ([{**self.POR_LINHA, "trecho": "z > 300 and w", "linha_base": 6}],
-                                   {"ponta": self.REPETIDA + "if z > 300 and w:\n    x = 4\n"}),
-                 "linha da outra apagada": ([{**self.POR_LINHA, "linha_base": 4}], {"base": duas, "ponta": "x = 1\nx = 2\nx = 3\n"}),
-                 "ocorrência não impressa": ([{**self.POR_LINHA, "linha_base": 4}],
-                                             {"ponta": "x = 1\nif x > 100 and y:\n    x = 2\nx = 3\n"}),
-                 "isenta repetida": ([self.POR_LINHA, self.POR_LINHA], {}),
-                 "base deslocada": ([self.POR_LINHA], {"base": "# novo\n" + self.REPETIDA, "ponta": "# novo\n" + self.SEM_A_PRIMEIRA})}
+                 "trecho que não está no arquivo": ([{**self.ISENTA, "trecho": "q > 700 and r"}], {}),
+                 "isenta repetida": ([self.ISENTA, self.ISENTA], {}),
+                 "condição que ficou": ([{**self.ISENTA, "trecho": "z > 300 and w"}, self.ISENTA],
+                                        {"base": duas, "ponta": "x = 1\nx = 2\nif z > 300 and w:\n    x = 3\n"})}
         for nome, (lista, arquivos) in casos.items():
             with self.subTest(nome):
                 r = self.por_linha(lista, **arquivos)
                 self.assertEqual(r.returncode, 2, r.stdout)
                 self.assertIn("isenta que não cruza condição listada", r.stderr)
+        r = self.por_linha([self.ISENTA], base=duas, ponta="x = 1\nx = 2\nx = 3\n")
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (1, ["apagada · lib.py:4(base) · z > 300 and w",
+                         f"isenta · lib.py:2(base) · {self.MOTIVO}"]), "a isenta não solta a outra apagada")
 
     def test_isenta_por_linha_cobre_uma_condicao_so(self):  # C-4: duas condições externas na mesma linha da base
         base = "obj = 1\nif obj.ready > 100 and ok: y = 1 if obj.ready > 100 or z else 2\n"

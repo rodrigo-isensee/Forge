@@ -4,6 +4,12 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.47.3] - 2026-11-17
+### Adicionado
+- `docs/engineering/praticas.md` do Forge (COBERTURA-ESTUDO P5): as regras que o review de melhoria confere e quem decide cada uma (ferramenta ou leitura); a cobertura por arquivo fica como pendência até a decisão C3. O teste `PraticasDoForge` confere que toda regra "ferramenta" cita um comando que existe. A P6 (shellcheck pelo shebang) já estava na develop desde a 0.43.2.
+### Corrigido
+- A conferência da entrega (`forge-check entrega`) reexecuta a prova `cmd` com o TMPDIR do ambiente, quando é pasta absoluta do próprio usuário, gravável e fora do repositório; no sandbox, o `mktemp` da prova não cai mais no /tmp somente leitura (E2.316).
+
 ## [0.47.2] - 2026-11-16
 ### Adicionado
 - Proposta de briefs de portão gerados e selados pela ferramenta a partir do pedido e do head, com fila para o Jarvis disparar quando abre vaga (BRIEF-NAO-SEGURA-VAGAS); só o desenho, para o parecer de segurança.

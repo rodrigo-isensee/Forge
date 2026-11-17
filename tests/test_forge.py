@@ -7487,6 +7487,120 @@ class CriterioDeParada(unittest.TestCase):
                 self.assertTrue(err.getvalue().endswith(avisa), err.getvalue())
 
 
+class DocsPareceresPedidoECaminho(unittest.TestCase):
+    """v047 E1.252: PARECER-CAMPO-PEDIDO e PARECER-PEDIDO-NOME-DA-BRANCH (o `pedido:` é o id de docs/pedidos/ ou release-X.Y.Z),
+    FC-DOCS-CAMINHO (`forge-check docs <arquivo>`, a cópia fora da pasta com o mesmo critério) e o parecer sem achados."""
+
+    def setUp(self):
+        self.fc = carregar_forge_check()
+        self.raiz = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        self.fora = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        self.enterContext(mock.patch.object(self.fc, "RAIZES_DE_BRIEF", ()))
+        (self.raiz / "docs/reviews").mkdir(parents=True)
+        (self.raiz / "docs/pedidos").mkdir(parents=True)
+        (self.raiz / "docs/pedidos/p1.md").write_text("# p1\n", encoding="utf-8")
+
+    def parecer(self, pedido="p1", corpo="## Parecer\nAprovado.\n", tipo="review"):
+        return (f"---\ntipo: {tipo}\ncontrato: 1\npedido: {pedido}\nbranch: melhoria/x\ncommit: abc1234\nparecer: aprovado\n"
+                f"revisor: forge:tech-lead\ndata: 2026-11-14\n---\n# R\n\n{corpo}")
+
+    def docs(self, *arquivos, delta=None):
+        import inspect
+        if "arquivos" not in inspect.signature(self.fc.cmd_docs).parameters:  # base sem FC-DOCS-CAMINHO: veredito por asserção
+            return ["cmd_docs não recebe arquivos (FC-DOCS-CAMINHO)"], ""
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), mock.patch.object(self.fc, "documentos_do_delta", return_value=delta):
+            return self.fc.cmd_docs(self.raiz, [str(a) for a in arquivos]), err.getvalue()
+
+    def gravar(self, pasta, nome, texto):
+        (pasta / nome).parent.mkdir(parents=True, exist_ok=True)
+        (pasta / nome).write_text(texto, encoding="utf-8")
+        return pasta / nome
+
+    def test_pedido_inexistente_e_nome_da_branch_sao_recusados_com_o_id_na_mensagem(self):
+        for pedido, motivo in (("zz", "não está em docs/pedidos/"), ("x", "é o nome da branch"), ("melhoria/x", "é o nome da branch"),
+                               ("../pedidos/p1", "não está em docs/pedidos/"), ("release-0.47", "não está em docs/pedidos/")):
+            with self.subTest(pedido):
+                arq = self.gravar(self.fora, "r.md", self.parecer(pedido))
+                v, _ = self.docs(arq)
+                self.assertEqual(v, [f"{arq}: pedido: {json.dumps(pedido)} {motivo}; use o id do pedido (docs/pedidos/<id>.md, "
+                                     "local ou na raiz de pedidos) ou release-X.Y.Z (R-REVIEW)"])
+
+    def test_pedido_registrado_release_e_branch_que_e_pedido_valem(self):
+        (self.raiz / "docs/pedidos/x.md").write_text("# x\n", encoding="utf-8")
+        for pedido in ("p1", "release-0.47.1", "x"):
+            with self.subTest(pedido):
+                self.assertEqual(self.docs(self.gravar(self.fora, "r.md", self.parecer(pedido))), ([], ""))
+
+    def test_pedido_da_raiz_de_pedidos_vale_e_sem_pasta_de_pedidos_nada_a_conferir(self):
+        contrib = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        self.gravar(contrib, "docs/pedidos/v9.md", "# v9\n")
+        arq = self.gravar(self.fora, "r.md", self.parecer("v9"))
+        self.assertEqual(len(self.docs(arq)[0]), 1)
+        with mock.patch.object(self.fc, "RAIZES_DE_BRIEF", (contrib,)):
+            self.assertEqual(self.docs(arq), ([], ""))
+        shutil.rmtree(self.raiz / "docs/pedidos")
+        self.assertEqual(self.docs(arq), ([], ""))
+
+    def test_sem_arquivos_o_pedido_so_e_conferido_no_delta(self):
+        self.gravar(self.raiz, "docs/reviews/r.md", self.parecer("zz"))
+        self.assertEqual(self.docs(delta=set()), ([], ""))
+        v, err = self.docs(delta={"docs/reviews/r.md"})
+        self.assertEqual(len(v), 1)
+        self.assertTrue(v[0].startswith("docs/reviews/r.md: pedido: \"zz\" não está em docs/pedidos/"), v)
+        self.assertEqual(self.docs(delta=None), ([], "aviso: docs: base ilegível; estrito só no forge-check pr\n"))
+
+    def test_copia_fora_da_raiz_tem_o_criterio_da_pasta_do_tipo_e_sai_com_o_nome_dado(self):
+        bom, ruim = self.parecer(), self.parecer(corpo="## Achados\nNenhum.\n")
+        for texto, esperado in ((bom, []), (ruim, ["achados: linha do bloco ## Achados fora do formato (uma linha, sem caractere de "
+                                                  "controle; sem achados, omita o bloco): \"Nenhum.\" (R-REVIEW)"])):
+            dentro, fora = self.gravar(self.raiz, "docs/reviews/r.md", texto), self.gravar(self.fora, "copia.md", texto)
+            for arq in (dentro, fora):
+                with self.subTest(arq=arq.name, texto=texto[-12:]):
+                    self.assertEqual(self.docs(arq)[0], [f"{arq}: {e}" for e in esperado])
+
+    def test_dentro_da_raiz_a_pasta_errada_segue_recusada_e_tipo_desconhecido_fora_tambem(self):
+        arq = self.gravar(self.raiz, "docs/qa/r.md", self.parecer())
+        self.assertEqual(self.docs(arq)[0], [f"{arq}: tipo: `review` pertence a docs/reviews/ (R-REVIEW)"])
+        arq = self.gravar(self.fora, "r.md", self.parecer(tipo="outro"))
+        self.assertIn("tipo: esperado um de", self.docs(arq)[0][0])
+        arq = self.gravar(self.fora, "nota.md", "# sem frontmatter\n")
+        self.assertEqual(self.docs(arq)[0], [f"{arq}: frontmatter: sem frontmatter no topo (ADR-0004)"])
+
+    def test_arquivo_ausente_ou_que_nao_e_md_e_recusado(self):
+        txt = self.gravar(self.fora, "r.txt", self.parecer())
+        for arq in (self.fora / "falta.md", txt, self.fora):
+            with self.subTest(arq=arq.name):
+                self.assertEqual(self.docs(arq)[0], [f"{arq}: arquivo: não lido; dê um .md legível (ADR-0004)"])
+
+    def test_aviso_do_criterio_na_copia_de_fora_aponta_o_arquivo_dado(self):
+        (self.raiz / "docs/arquitetura").mkdir()
+        texto = self.parecer().replace("data: 2026-11-14\n", "data: 2026-11-14\ncriterio: docs/arquitetura/p1-falta.md\n")
+        for arq in (self.gravar(self.fora, "copia.md", texto), self.gravar(self.raiz, "docs/reviews/r.md", texto)):
+            with self.subTest(arq=arq.name):  # como as violações: o caminho dado, não o `rel` virtual (docs/reviews/copia.md)
+                self.assertEqual(self.docs(arq), ([], f"aviso: {arq}: criterio: docs/arquitetura/p1-falta.md: ausente (PAR-P2)\n"))
+
+    def test_parecer_aprovado_sem_o_bloco_achados_passa(self):
+        self.assertEqual(self.docs(self.gravar(self.fora, "r.md", self.parecer(corpo="## Parecer\nAprovado, sem achados.\n"))), ([], ""))
+
+    def test_linha_de_comando_com_arquivo(self):
+        arq = self.gravar(self.fora, "r.md", self.parecer("zz"))
+        env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.fora)}
+        r = subprocess.run([sys.executable, "-I", str(RAIZ / "bin/forge-check"), "--raiz", str(self.raiz), "docs", str(arq)],
+                           capture_output=True, text=True, env=env, timeout=60)
+        self.assertEqual((r.returncode, r.stdout.count("não está em docs/pedidos/")), (1, 1), r.stdout + r.stderr)
+        arq.write_text(self.parecer(), encoding="utf-8")
+        r = subprocess.run([sys.executable, "-I", str(RAIZ / "bin/forge-check"), "--raiz", str(self.raiz), "docs", str(arq)],
+                           capture_output=True, text=True, env=env, timeout=60)
+        self.assertEqual((r.returncode, r.stdout), (0, ""), r.stderr)
+
+    def test_modelo_do_review_diz_o_id_do_pedido_e_o_parecer_sem_achados(self):
+        modelo = (RAIZ / "templates/projeto/docs/reviews/_modelo.md").read_text(encoding="utf-8")
+        self.assertIn("`pedido:` é o id do pedido", modelo)
+        self.assertIn("nunca o nome da branch", modelo)
+        self.assertIn("sem achados, omita o bloco inteiro", modelo)
+
+
 class RodarUmModuloComIsolamento(unittest.TestCase):
     """E1.255 (v047): UNITTEST-I-NAO-IMPORTA, BRIEF-UNITTEST-DISCOVER e CONTRIB-TESTE-NICE (Q6 do dono). Sob `-I`,
     `-m unittest tests.<mod>` não importa (a raiz sai do sys.path); a forma das skills roda, e a da contribuição em `nice`."""
