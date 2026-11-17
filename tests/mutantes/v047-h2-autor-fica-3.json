@@ -7,7 +7,7 @@
       "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: retomada com entrada fora da forma não reserva",
       "arquivo": "hooks/agentes.py",
       "de": "    alvo = entrada.get(\"to\") if isinstance(entrada, dict) else None\n",
-      "para": "    alvo = entrada.get(\"to\")\n",
+      "para": "    alvo = entrada.get(\"to\") if True else None\n",
       "testes": [
         "tests.test_hooks_agentes_autor.Autores.test_retomada_com_entrada_fora_da_forma_nao_reserva"
       ]
@@ -27,7 +27,7 @@
       "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: retomar quem não é autor não reserva",
       "arquivo": "hooks/agentes.py",
       "de": "    if not escrita:\n        return\n    recusar_branch_ocupada(hook, agentes, escrita)\n",
-      "para": "    recusar_branch_ocupada(hook, agentes, escrita)\n",
+      "para": "    if False:\n        return\n    recusar_branch_ocupada(hook, agentes, escrita)\n",
       "testes": [
         "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
       ]
@@ -48,6 +48,16 @@
       "arquivo": "hooks/agentes.py",
       "de": "    if pendente:  # H2",
       "para": "    if False:  # H2",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: a retomada reserva só as branches do próprio alvo",
+      "arquivo": "hooks/agentes.py",
+      "de": "for a in autores if a[\"id\"] == alvo for b in",
+      "para": "for a in autores if True for b in",
       "testes": [
         "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
       ]

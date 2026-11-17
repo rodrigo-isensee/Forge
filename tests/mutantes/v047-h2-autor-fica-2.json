@@ -70,7 +70,7 @@
       "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: o autor anterior perde só as branches em comum com o novo",
       "arquivo": "hooks/agentes.py",
       "de": "if b not in escrita]",
-      "para": "]",
+      "para": "if True]",
       "testes": [
         "tests.test_hooks_agentes_autor.Autores.test_autor_de_duas_branches_perde_so_a_tomada"
       ]
@@ -80,7 +80,7 @@
       "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: id não texto (lápide ou registro) fica fora do conjunto do aviso (HOOK-ESTADO-ILEGIVEL-LIBERA)",
       "arquivo": "hooks/agentes.py",
       "de": " if isinstance(i, str)}",
-      "para": "}",
+      "para": " if True}",
       "testes": [
         "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido",
         "tests.test_hooks_agentes_autor.Autores.test_id_nao_texto_fica_fora_do_conjunto"
