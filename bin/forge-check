@@ -77,8 +77,8 @@ cada `E<n>` do `## Escopo` do pedido está no `Entregar` (citação `(E<n>)`), e
 do pedido copiadas literalmente, etapas de outro papel, marca de corte, formato das provas, Base-sha com `--branch`); o que
 o Jarvis decide fica em `PREENCHER`, e o `brief` reprova enquanto restar um. `gerar --etapa merge-integracao|pedido-de-merge-ao-dono`
 acrescenta o PQ de merge por ancestralidade, `git merge-base --is-ancestor <mergeCommit> origin/<base>` com `espera: rc=0` (S-18).
-`brief gerar --volta <brief aprovado> --ref <branch>` (VV-2, M7) monta o brief da volta: Objetivo, Fora do escopo e Relatório copiados byte
-a byte do anterior (`Volta-de: <arquivo> sha256 <64>`; no Fora do escopo, só acréscimo no fim de etapa de `## Etapas` aberta no `## Histórico`, `- <data> <hora>: etapa <id> aberta`, depois da linha que cita o brief anterior, E14), toda linha `DECISÃO DO DONO` do pedido, `## Entregar (volta N)` com um item por
+`brief gerar --volta <brief aprovado> --ref <branch>` (VV-2, M7) monta o brief da volta: Objetivo e Relatório copiados byte
+a byte do anterior (`Volta-de: <arquivo> sha256 <64>`), o Fora do escopo das etapas do pedido só pelos ids, 40 por linha (`- E1.1, E1.2 · outras delegações`, BRIEF-VOLTA-FORA-COMPACTO), com os cortes do anterior, toda linha `DECISÃO DO DONO` do pedido, `## Entregar (volta N)` com um item por
 achado `bloqueante` do bloco `## Achados` dos pareceres (lidos da --ref; formato `- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>`,
 numa linha, sem caractere de controle e até 300 caracteres), os recomendados à parte com `PREENCHER` e o PQ `forge-check entrega --desde`.
 `--incluir <parecer>:R<n>` copia para o Entregar, literal e com a origem (`(incluído <tipo> <sha7> R<n> de <parecer>)`), a recomendação `R<n>` (ou `A<n>` recomendado) do bloco `## Achados` do parecer lido da --ref; a conferência da volta a relê e reprova o texto diferente (`volta: recomendação R<n> difere do parecer`). O Base-sha gravado é o merge-base da branch com `origin/<base>` (ou a `origin/<base>` de agora, se a branch ainda não existe), e `brief` avisa (`aviso: Base-sha ... não está na branch`) quando o do brief não está nela.
@@ -3019,6 +3019,31 @@ def escopo_sem_a_base(raiz, inicio, fim, base, nomes):
     return [n for n in nomes if n in proprios or n in desfeitos], f"escopo: sem o que veio da base ({base})"
 
 
+def base_do_delta_em_dia(raiz, base, inicio, fim):
+    """PARECER-DELTA-SEM-MERGE-DA-DEVELOP: com a `origin/<base>` local atrás do que a branch integrou (o segundo pai de um merge do
+    primeiro pai de `inicio..fim` fora dela), o `escopo_sem_a_base` contaria a base inteira como do autor (140 arquivos no v047). Busca a
+    base uma vez (`git fetch origin <base>`) e devolve a linha a imprimir; None sem merge assim. Sem rede, ou merge de outra branch, a
+    base não muda e o que o merge trouxe segue no delta (falha fechada), com o aviso. `FalhaDoGit` se o rev-list falha (rc 2)."""
+    antes = ref_da_base(raiz, base)
+    if not antes:  # o `escopo_sem_a_base` diz que a base não foi encontrada
+        return None
+    cod, saida = git(raiz, "rev-list", "--first-parent", "--merges", "--parents", f"{inicio}..{fim}")
+    if cod:
+        return FalhaDoGit("rev-list dos merges")
+    fora = [pais[2] for pais in map(str.split, saida.splitlines()) if len(pais) == 3 and not e_ancestral(raiz, pais[2], antes)]
+    if not fora:
+        return None
+    try:
+        git(raiz, "fetch", "--quiet", "--no-tags", "origin", f"+refs/heads/{base}:refs/remotes/origin/{base}")
+    except subprocess.TimeoutExpired:
+        pass  # sem rede a tempo: a base fica como estava, e o aviso diz
+    depois = ref_da_base(raiz, base)
+    if depois == antes:
+        return (f"aviso: o merge de {fora[0][:7]} não está na origin/{base} local, nem depois do `git fetch origin {base}`: "
+                "o que ele trouxe conta inteiro (merge de outra branch ou sem rede)")
+    return f"base: origin/{base} atualizada de {antes[:7]} para {depois[:7]} (o merge de {fora[0][:7]} trazia o que ela não tinha)"
+
+
 def intervalo_do_delta(raiz, inicio, fim, base):
     """`(nomes, linha de escopo ou None)` de `inicio..fim` sem o que veio da base, ou `FalhaDoGit` (FC-DELTA-GIT-FALHA)."""
     nomes = nomes_do_intervalo(raiz, inicio, fim, estrito=True)
@@ -3183,7 +3208,8 @@ def cmd_parecer_novo(raiz, a):
 def cmd_parecer_delta(raiz, arquivo, ate=None, base="develop"):
     """PARECER-CONTEUDO: o diff desde o `commit:` do parecer até `ate` (padrão HEAD), só nos arquivos do domínio do tipo dele, para a
     revalidação ler só o que mudou, sem o que veio da `base` por merge na branch (FC-DELTA-APOS-MERGE-BASE). Lista também o que mudou
-    fora do domínio e os testes do QA aprovado (review). Só leitura; rc 0, e rc 2 se o parecer não abre, não é de review, QA, devops ou
+    fora do domínio e os testes do QA aprovado (review). Só leitura, salvo o `git fetch origin <base>` da base local atrasada
+    (`base_do_delta_em_dia`, PARECER-DELTA-SEM-MERGE-DA-DEVELOP); rc 0, e rc 2 se o parecer não abre, não é de review, QA, devops ou
     segurança, o commit não existe ou não é ancestral do fim, a base está fora da lista ou o git falha (FC-DELTA-GIT-FALHA)."""
     if base not in BASES_DO_DELTA:
         print(f"parecer delta: --base {nome_seguro(base)}: use {' ou '.join(BASES_DO_DELTA)}")
@@ -3219,6 +3245,12 @@ def parecer_delta(raiz, arquivo, ate, base):
     print(f"intervalo: {inicio}..{fim}")
     no = predicado_do_dominio(raiz, tipo, inicio, fim, dominio_mais(campos))
     q, dispensados = testes_do_qa(raiz, campos.get("pedido"), campos.get("branch"), fim, inicio) if tipo == "review" else (None, set())
+    em_dia = base_do_delta_em_dia(raiz, base, inicio, fim)
+    if isinstance(em_dia, FalhaDoGit):
+        print("parecer delta: " + FALHA_DO_DELTA.format(em_dia.passo))
+        return 2
+    if em_dia:
+        print(em_dia)
     lido = intervalo_do_delta(raiz, inicio, fim, base)
     if isinstance(lido, FalhaDoGit):
         print("parecer delta: " + FALHA_DO_DELTA.format(lido.passo))
@@ -3658,13 +3690,22 @@ def recusa_do_desde(raiz, pedido_txt, ref, base_sha, base):
             "dono a base certa) e gere de novo; nada gerado (P-N6)")
 
 
+IDS_POR_LINHA_DO_FORA = 40  # BRIEF-VOLTA-FORA-COMPACTO: o pedido de 600 etapas cabe em 15 linhas, longe do teto de caracteres
+
+
+def linhas_de_ids_do_fora(ids):
+    """BRIEF-VOLTA-FORA-COMPACTO: as etapas de outra delegação só pelo id, `IDS_POR_LINHA_DO_FORA` por linha (`- E1.1, E1.2 · outras
+    delegações`); o `conferir_corte` lê cada id da linha como etapa sem a marca, e o texto delas continua no pedido."""
+    return [f"- {', '.join(ids[i:i + IDS_POR_LINHA_DO_FORA])} · outras delegações\n" for i in range(0, len(ids), IDS_POR_LINHA_DO_FORA)]
+
+
 def fora_do_escopo_do_pedido(dados, cobre, entregues, anterior=()):
     """0.43.1 (C2): o bloco `## Fora do escopo` gerado do pedido: cada etapa de `## Etapas` que não é a `cobre` nem é citada pelo id
-    exato no Entregar da volta (`entregues`), sem a marca. Do bloco `anterior` só passam as linhas de corte real (`MARCA_DE_CORTE`, decisão do
+    exato no Entregar da volta (`entregues`), sem a marca, agrupada por id (BRIEF-VOLTA-FORA-COMPACTO). Do bloco `anterior` só passam as linhas de corte real (`MARCA_DE_CORTE`, decisão do
     dono); NÃO tocar, worktree e outros textos do brief anterior não passam."""
     saida = ["## Fora do escopo (outras etapas do pedido, sem a marca; R-BRIEF)\n"]
-    etapas = [t for e, (_, t) in dados["etapas"].items() if e != cobre and e not in entregues]
-    saida += [f"- \"{sem_controle(t)}\" · etapa de outra delegação; continua no pedido\n" for t in etapas] or ["- (o pedido não tem outra etapa)\n"]
+    etapas = [e for e in dados["etapas"] if e != cobre and e not in entregues]
+    saida += linhas_de_ids_do_fora(etapas) or ["- (o pedido não tem outra etapa)\n"]
     saida += [l if l.endswith("\n") else l + "\n" for l in anterior if MARCA_DE_CORTE in l]
     return saida + ["\n"]
 

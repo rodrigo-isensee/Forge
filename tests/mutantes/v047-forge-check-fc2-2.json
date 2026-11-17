@@ -1,0 +1,78 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "FC2-M3",
+      "guarda": "sem base legível o parecer delta não busca nem avisa (PARECER-DELTA-SEM-MERGE-DA-DEVELOP)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not antes:  # o `escopo_sem_a_base` diz que a base",
+      "para": "    if False:  # o `escopo_sem_a_base` diz que a base",
+      "testes": [
+        "tests.test_volta_por_delta.DeltaComBaseAtrasada.test_base_ausente_nao_busca_nem_avisa"
+      ]
+    },
+    {
+      "id": "FC2-M4",
+      "guarda": "o rev-list dos merges que falha dá rc 2, nunca um delta inteiro calado (FC-DELTA-GIT-FALHA)",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod:\n        return FalhaDoGit(\"rev-list dos merges\")",
+      "para": "    if False:\n        return FalhaDoGit(\"rev-list dos merges\")",
+      "testes": [
+        "tests.test_entrega_git_falha.DeltaGitFalha.test_cada_passo_do_git_que_falha_da_rc_2"
+      ]
+    },
+    {
+      "id": "FC2-M5",
+      "guarda": "o merge cujo segundo pai falta na origin/<base> local dispara a busca da base",
+      "arquivo": "bin/forge-check",
+      "de": "if len(pais) == 3 and not e_ancestral(raiz, pais[2], antes)]",
+      "para": "if len(pais) == 3 and False]",
+      "testes": [
+        "tests.test_volta_por_delta.DeltaComBaseAtrasada.test_busca_a_base_atrasada_e_mostra_so_o_do_autor"
+      ]
+    },
+    {
+      "id": "FC2-M6",
+      "guarda": "sem merge fora da base local não há busca; com ele, há",
+      "arquivo": "bin/forge-check",
+      "de": "    if not fora:\n        return None\n    try:",
+      "para": "    if fora:\n        return None\n    try:",
+      "testes": [
+        "tests.test_volta_por_delta.DeltaComBaseAtrasada.test_busca_a_base_atrasada_e_mostra_so_o_do_autor"
+      ]
+    },
+    {
+      "id": "FC2-M7",
+      "guarda": "a base que o fetch não mudou dá o aviso de falha fechada; a que mudou, a linha base:",
+      "arquivo": "bin/forge-check",
+      "de": "    if depois == antes:\n",
+      "para": "    if depois != antes:\n",
+      "testes": [
+        "tests.test_volta_por_delta.DeltaComBaseAtrasada.test_busca_a_base_atrasada_e_mostra_so_o_do_autor",
+        "tests.test_volta_por_delta.DeltaComBaseAtrasada.test_sem_rede_o_merge_fica_no_delta_com_aviso"
+      ]
+    },
+    {
+      "id": "FC2-M8",
+      "guarda": "a falha do git na busca da base sai do parecer delta com rc 2",
+      "arquivo": "bin/forge-check",
+      "de": "    if isinstance(em_dia, FalhaDoGit):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_entrega_git_falha.DeltaGitFalha.test_cada_passo_do_git_que_falha_da_rc_2"
+      ]
+    },
+    {
+      "id": "FC2-M9",
+      "guarda": "o parecer delta imprime a linha da base buscada ou o aviso",
+      "arquivo": "bin/forge-check",
+      "de": "    if em_dia:\n        print(em_dia)",
+      "para": "    if False:\n        print(em_dia)",
+      "testes": [
+        "tests.test_volta_por_delta.DeltaComBaseAtrasada.test_busca_a_base_atrasada_e_mostra_so_o_do_autor",
+        "tests.test_volta_por_delta.DeltaComBaseAtrasada.test_sem_rede_o_merge_fica_no_delta_com_aviso"
+      ]
+    }
+  ]
+}

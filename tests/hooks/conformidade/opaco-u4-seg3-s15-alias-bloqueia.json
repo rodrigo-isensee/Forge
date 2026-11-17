@@ -1,0 +1,33 @@
+{
+  "descricao": "CONFORMIDADE-A9-DESTINO-OPACO, A6 da segurança E1.304 (U4 e U3, o comando trocado sem função): S15: `alias` troca o `date`, em três linhas.",
+  "arquivos": {
+    "x": "x\n",
+    "config": "c\n",
+    "pre-push": "p\n",
+    "lugar.txt": "docs\n",
+    "docs/a.md": "a\n",
+    "hooks/pre-push": "p\n",
+    "lugar2.txt": ".git/config\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "shopt -s expand_aliases\nalias date='echo .gi''t/config'\necho a > \"$(date)\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o hook só libera o valor que calcula"
+  }
+}
