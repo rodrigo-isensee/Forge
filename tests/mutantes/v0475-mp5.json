@@ -58,7 +58,7 @@
       "guarda": "MP5: o registro é lido quando o escape é pedido",
       "arquivo": "hooks/agentes.py",
       "de": "projetos = ler_projetos_ativos() if livre else []",
-      "para": "projetos = [] if livre else []",
+      "para": "projetos = ler_projetos_ativos() if not livre else []",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_mp5"
       ]

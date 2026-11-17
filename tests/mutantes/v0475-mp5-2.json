@@ -1,0 +1,16 @@
+{
+  "pedido": "v0475-mp5",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "N9",
+      "guarda": "MP1 e MP5: no `meta`, registro ilegível conta como um projeto só (nada muda)",
+      "arquivo": "hooks/meta.py",
+      "de": "return ler_projetos_ativos(ATIVOS) or []",
+      "para": "return ler_projetos_ativos(ATIVOS) or [\"x\", \"y\"]",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_um_projeto_so_registro_ilegivel_ou_sessao_do_forge_nao_mede"
+      ]
+    }
+  ]
+}
