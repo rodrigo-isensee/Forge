@@ -55,10 +55,10 @@
     },
     {
       "id": "M6",
-      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: o novo autor da branch tira o anterior dela",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: o autor anterior sem branch que sobre sai da lista",
       "arquivo": "hooks/agentes.py",
-      "de": "if not escrita & set(textos(a.get(\"escrita\")))]",
-      "para": "if not False]",
+      "de": "            if sobra:\n",
+      "para": "            if True:\n",
       "testes": [
         "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido",
         "tests.test_hooks_agentes_autor.Autores.test_novo_autor_tira_so_o_anterior_da_mesma_branch"
@@ -68,8 +68,8 @@
       "id": "M7",
       "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: lápide (desistência registrada) tira o aviso",
       "arquivo": "hooks/agentes.py",
-      "de": "    fora = {l.get(\"id\") for l in lapides} | {a.get(\"id\") for a in agentes}",
-      "para": "    fora = {a.get(\"id\") for a in agentes}",
+      "de": "    fora = {i for i in [l.get(\"id\") for l in lapides] + [a.get(\"id\") for a in agentes] if isinstance(i, str)}",
+      "para": "    fora = {i for i in [a.get(\"id\") for a in agentes] if isinstance(i, str)}",
       "testes": [
         "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
       ]
@@ -78,8 +78,8 @@
       "id": "M8",
       "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: autor ativo (já retomado) tira o aviso",
       "arquivo": "hooks/agentes.py",
-      "de": "    fora = {l.get(\"id\") for l in lapides} | {a.get(\"id\") for a in agentes}",
-      "para": "    fora = {l.get(\"id\") for l in lapides}",
+      "de": "    fora = {i for i in [l.get(\"id\") for l in lapides] + [a.get(\"id\") for a in agentes] if isinstance(i, str)}",
+      "para": "    fora = {i for i in [l.get(\"id\") for l in lapides] if isinstance(i, str)}",
       "testes": [
         "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
       ]

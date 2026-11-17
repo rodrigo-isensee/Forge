@@ -1,0 +1,56 @@
+{
+  "pedido": "v047-h2-autor-fica",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: retomada com entrada fora da forma não reserva",
+      "arquivo": "hooks/agentes.py",
+      "de": "    alvo = entrada.get(\"to\") if isinstance(entrada, dict) else None\n",
+      "para": "    alvo = entrada.get(\"to\")\n",
+      "testes": [
+        "tests.test_hooks_agentes_autor.Autores.test_retomada_com_entrada_fora_da_forma_nao_reserva"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: o autor já ativo não reserva de novo (Z10)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if any(a.get(\"id\") == alvo for a in agentes):\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: retomar quem não é autor não reserva",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if not escrita:\n        return\n    recusar_branch_ocupada(hook, agentes, escrita)\n",
+      "para": "    recusar_branch_ocupada(hook, agentes, escrita)\n",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: a retomada recusa com a branch do autor ocupada (Z10, R-TETO)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    recusar_branch_ocupada(hook, agentes, escrita)\n    agentes.append({\"id\": alvo,",
+      "para": "    agentes.append({\"id\": alvo,",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: o aviso sai depois de gravar a reserva",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if pendente:  # H2",
+      "para": "    if False:  # H2",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    }
+  ]
+}

@@ -819,8 +819,12 @@ class Hooks(unittest.TestCase):
             self.assertIn(esperado["pergunta"], saida["permissionDecisionReason"])
         elif "aviso" in esperado:  # H2 (v047): o `agentes` avisa sem recusar, uma linha no stderr e no systemMessage
             self.assertEqual((f.hook, esperado["codigo"]), ("agentes", 0))
+            saida = json.loads(r.stdout)
+            self.assertEqual(list(saida), ["systemMessage"])
+            self.assertIn(esperado["aviso"], saida["systemMessage"])
             self.assertIn(esperado["aviso"], r.stderr)
-            self.assertIn(esperado["aviso"], json.loads(r.stdout)["systemMessage"])
+            for linha in r.stderr.splitlines():
+                self.assertRegex(linha, r"^R-[A-Z]+: aviso: ", "só linhas de aviso no stderr")
         else:
             self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
         self.assertEqual(r.returncode, esperado["codigo"], r.stderr)
@@ -830,7 +834,7 @@ class Hooks(unittest.TestCase):
         else:
             linha = r.stderr.rstrip("\n")
             self.assertNotIn("\n", linha, "uma linha só")
-            self.assertLessEqual(len(linha), 200)
+            self.assertLessEqual(len(linha.partition("; registro em ")[0]), 200)  # a cauda (caminho) sai inteira: _comum.mensagem
             self.assertRegex(linha, r"^R-[A-Z]+: ")
             self.assertIn(esperado["stderr"], linha)
             for trecho in esperado.get("stderr_sem", []):

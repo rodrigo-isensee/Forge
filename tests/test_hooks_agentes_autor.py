@@ -4,7 +4,8 @@ código 0) que o autor pode ser retomado por `SendMessage`, sem recusar. Lápide
 tiram o aviso.
 
 Os casos de ponta a ponta são os fixtures `autor-*` de tests/hooks/agentes/ (o hook roda como o Claude Code o roda); aqui, os
-ramos que o fixture não distingue: a retomada que herda as branches renova o prazo, e os dois avisos (D3 e H2) saem num JSON só."""
+ramos que o fixture não distingue: a retomada que herda as branches renova o prazo, o autor de várias branches perde só a
+tomada, o id não texto fica fora do conjunto do aviso, e os dois avisos (D3 e H2) saem num JSON só."""
 import io
 import json
 import sys
@@ -34,7 +35,7 @@ class PeloHook(unittest.TestCase):
     def test_fixtures_do_pedido(self):
         """Avisa com o autor retomável; libera calado com lápide, ativo, prazo vencido, outra branch, parecer e `autores` ilegível."""
         achados = sorted((FIXTURES / "agentes").glob("autor-*.json"))
-        casos = [(f"agentes/{p.stem}", Fixture(p)) for p in minimo(achados, 12, "fixtures do autor retomável")]
+        casos = [(f"agentes/{p.stem}", Fixture(p)) for p in minimo(achados, 20, "fixtures do autor retomável")]
         self.assertEqual(self.executar_em_lote(casos), len(casos), "todo caso é verificado")
 
 
@@ -51,6 +52,29 @@ class Autores(unittest.TestCase):
         autores = [{"id": B, "desde": 1.0, "escrita": ["melhoria/a"]}, {"id": B, "desde": 1.0, "escrita": ["melhoria/b"]}]
         novos = agentes.guardar_autores(autores, [{"id": A, "escrita": ["melhoria/a"]}], 2.0)
         self.assertEqual([(a["id"], a["escrita"]) for a in novos], [(B, ["melhoria/b"]), (A, ["melhoria/a"])])
+
+    def test_autor_de_duas_branches_perde_so_a_tomada(self):
+        autores = [{"id": B, "desde": 1.0, "escrita": ["melhoria/a", "melhoria/b"]}]
+        novos = agentes.guardar_autores(autores, [{"id": A, "escrita": ["melhoria/a"]}], 2.0)
+        self.assertEqual(novos, [{"id": B, "desde": 1.0, "escrita": ["melhoria/b"]}, {"id": A, "desde": 2.0, "escrita": ["melhoria/a"]}])
+
+    def test_teto_proprio_de_autores(self):
+        parados = [{"id": f"a{n:016x}", "escrita": [f"melhoria/{n}"]} for n in range(agentes.AUTORES_MAX + 1)]
+        novos = agentes.guardar_autores([], parados, 1.0)
+        self.assertEqual(len(novos), agentes.AUTORES_MAX)
+        self.assertEqual(novos[-1]["escrita"], [f"melhoria/{agentes.AUTORES_MAX}"])
+
+    def test_id_nao_texto_fica_fora_do_conjunto(self):
+        autores = [{"id": A, "desde": 1.0, "escrita": ["melhoria/a"]}]
+        self.assertEqual(agentes.autores_retomaveis(autores, [{"id": {"x": 1}}], [{"id": ["x"]}], {"melhoria/a"}),
+                         [f"melhoria/a: {A}"])
+
+    def test_retomada_com_entrada_fora_da_forma_nao_reserva(self):
+        class Falso:
+            campo = staticmethod(lambda nome: ["x"] if nome == "tool_input" else None)
+        reservas = []
+        agentes.reservar_retomada(Falso(), reservas, [{"id": A, "desde": 1.0, "escrita": ["melhoria/a"]}], 2.0)
+        self.assertEqual(reservas, [])
 
     def test_lapide_e_ativo_tiram_o_autor_do_aviso(self):
         autores = [{"id": A, "desde": 1.0, "escrita": ["melhoria/a"]}]
