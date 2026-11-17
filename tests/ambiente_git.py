@@ -41,6 +41,12 @@ def sem_manutencao(env=None):
     return novo
 
 
+def sem_git_herdado(env=None, **extra):
+    """`sem_manutencao` sobre `env` (padrão: `os.environ`) sem nenhuma `GIT_*` herdada, mais os pares de `extra`: o teste
+    não herda o git de quem roda a suíte (um hook exporta `GIT_DIR`, que venceria o `cwd` e o `--raiz`; AR-4)."""
+    base = os.environ if env is None else env
+    return sem_manutencao({k: v for k, v in base.items() if not k.startswith("GIT_")} | extra)
+
 def remoto_sem_manutencao(repositorio):
     """Grava as chaves de `CONFIGURACAO` no config local de `repositorio` (o que recebe push): o `receive-pack` não
     herda as `GIT_CONFIG_*` do ambiente. Sem as `GIT_*` herdadas (um hook exporta `GIT_DIR`, que venceria o `-C` e

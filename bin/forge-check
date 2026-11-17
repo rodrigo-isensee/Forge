@@ -4,7 +4,7 @@
 `pr` aprovado sai com rc 0 e uma linha `pr: veredito: aprovado · <pedido> · exigidos <pareceres> · head <sha7> · base <origin/x|diff literal|estrita>`; com violação, só as violações e rc 1.
 Fora do `--previo` e do `--pr`, o `pr` grava o resultado do head em `<diretório comum do git>/forge/pr/<head>/`: o hook `parecer` o lê no `gh pr create` (PR-HOOK-PRAZO) e, como atalho, no `gh pr ready` e no `gh pr merge` (PR-HOOK-RAPIDO: o reprovado recusa; o aprovado libera só no clone do Forge).
 
-Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban [--gerar] | pr <pedido> [--ref REF] [--base REF]   (as duas opções também depois do subcomando)
+Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs [ARQUIVO...] | kanban [--gerar] | pr <pedido> [--ref REF] [--base REF]   (as duas opções também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
      forge-check transcricao verificar <arquivo.jsonl> [--teto N]
      forge-check transcricao custo [<pasta ou .jsonl>] [--entregas [--entrega NOME]] [--desde HORA --ate HORA | --pedido ID]
@@ -403,16 +403,71 @@ def documentos_do_delta(raiz):
     return None if cod or cod_novos else set(nomes_z(mudados) + nomes_z(novos))
 
 
-def cmd_docs(raiz):
-    saida, delta = [], documentos_do_delta(raiz)
-    if delta is None:
-        print("aviso: docs: base ilegível; estrito só no forge-check pr", file=sys.stderr)
-    for rel, texto in documentos(raiz):
-        campos, violacoes = validar_documento(rel, texto, estrito=rel in (delta or ()))
+RELEASE_COMO_PEDIDO = re.compile(r"release-\d+\.\d+\.\d+")
+ID_DE_PEDIDO = re.compile(r"[A-Za-z0-9._-]+")
+
+
+def problema_do_pedido(raiz, campos):
+    """PARECER-CAMPO-PEDIDO e PARECER-PEDIDO-NOME-DA-BRANCH (v047): o `pedido:` de um parecer é o id de um `docs/pedidos/<id>.md`
+    (das raízes de pedidos: a local e a do `--raiz-pedidos`) ou `release-X.Y.Z`. O nome da branch (inteiro ou sem o prefixo) só
+    vale se for também um pedido registrado. None se vale, se o campo falta (o contrato já cobra) ou se nenhuma raiz tem
+    `docs/pedidos/` (nada com que conferir)."""
+    pedido, branch = campos.get("pedido", ""), campos.get("branch", "")
+    if not pedido or RELEASE_COMO_PEDIDO.fullmatch(pedido):
+        return None
+    pastas = [Path(base) / "docs" / "pedidos" for base in raizes_de_pedidos(raiz)]
+    if not any(p.is_dir() for p in pastas):
+        return None
+    if ID_DE_PEDIDO.fullmatch(pedido) and any(arquivo_existe(p / f"{pedido}.md") for p in pastas):
+        return None
+    motivo = "é o nome da branch" if pedido in (branch, branch.partition("/")[2]) else "não está em docs/pedidos/"
+    return (f"{nome_seguro(pedido)} {motivo}; use o id do pedido (docs/pedidos/<id>.md, local ou na raiz de pedidos) "
+            "ou release-X.Y.Z")
+
+
+def documentos_dados(raiz, arquivos):
+    """FC-DOCS-CAMINHO: (rel, texto, nome dado) de cada `.md` dado ao `docs`, e as violações dos que não se leem. Dentro da raiz, `rel`
+    é o caminho dele; fora (a cópia no scratchpad ou noutro clone), é o da pasta do `tipo:` com o mesmo nome, e o critério é o de lá."""
+    lidos, saida, base = [], [], Path(os.path.realpath(raiz))
+    for arquivo in arquivos:
+        real = Path(os.path.realpath(arquivo))
+        try:
+            texto = real.read_text(encoding="utf-8") if real.suffix == ".md" and real.is_file() else None
+        except (OSError, UnicodeDecodeError):
+            texto = None
+        if texto is None:
+            saida.append(f"{caminho_impresso(arquivo)}: arquivo: não lido; dê um .md legível (ADR-0004)")
+            continue
+        if real.is_relative_to(base):
+            rel = real.relative_to(base).as_posix()
+        else:
+            tipo = (ler_frontmatter(texto)[0] or {}).get("tipo")
+            nome = sem_controle(real.name)
+            rel = f"{CONTRATOS[tipo][0]}/{nome}" if tipo in CONTRATOS else nome
+        lidos.append((rel, texto, arquivo))
+    return lidos, saida
+
+
+def cmd_docs(raiz, arquivos=()):
+    """Valida os documentos do contrato. Sem `arquivos`, todos, e o modo estrito só nos do delta (B12); com eles (FC-DOCS-CAMINHO),
+    só os dados, todos no modo estrito. No estrito, o parecer também tem o `pedido:` conferido (`problema_do_pedido`)."""
+    if arquivos:
+        lidos, saida = documentos_dados(raiz, arquivos)
+        delta = {rel for rel, _, _ in lidos}
+    else:
+        lidos, saida, delta = [(rel, texto, rel) for rel, texto in documentos(raiz)], [], documentos_do_delta(raiz)
+        if delta is None:
+            print("aviso: docs: base ilegível; estrito só no forge-check pr", file=sys.stderr)
+    for rel, texto, nome in lidos:
+        estrito = rel in (delta or ())
+        campos, violacoes = validar_documento(rel, texto, estrito=estrito)
         extra, avisos = conferir_criterio(raiz, rel, texto, campos)
-        saida += violacoes + extra
-        for aviso in avisos:
-            print(aviso, file=sys.stderr)
+        if estrito and (campos or {}).get("tipo") in VALORES_DO_PARECER and (problema := problema_do_pedido(raiz, campos)):
+            extra.append(f"{caminho_impresso(rel)}: pedido: {problema} ({CONTRATOS[campos['tipo']][1]})")
+        prefixo = f"{caminho_impresso(rel)}:"
+        saida += [f"{caminho_impresso(nome)}:{v[len(prefixo):]}" if v.startswith(prefixo) else v for v in violacoes + extra]
+        for aviso in avisos:  # o aviso aponta o arquivo dado, não o `rel` virtual da cópia de fora
+            print(aviso.replace(caminho_impresso(rel), caminho_impresso(nome), 1), file=sys.stderr)
     return saida
 
 
@@ -3386,7 +3441,8 @@ def achados_do_parecer(texto):
             continue
         m = ACHADO.match(linha)
         if com_controle(linha) or not m:
-            erros.append(f"linha do bloco ## Achados fora do formato (uma linha, sem caractere de controle): {nome_seguro(linha[:80])}")
+            erros.append("linha do bloco ## Achados fora do formato (uma linha, sem caractere de controle; sem achados, omita o bloco): "
+                          f"{nome_seguro(linha[:80])}")
         elif "-" in m.group(4) and int(m.group(4).split("-")[0]) > int(m.group(4).split("-")[1]):
             erros.append(f"achado {m.group(1)} com intervalo de linhas invertido ({m.group(4)})")
         elif len(m.group(5)) > TETO_DO_ACHADO:
@@ -9499,7 +9555,8 @@ def main():
     comum.add_argument("--raiz-pedidos", default=argparse.SUPPRESS, metavar="DIR", help=AJUDA_RAIZ_PEDIDOS)
     comum.add_argument("--raiz", default=argparse.SUPPRESS, help="raiz do projeto (padrão: diretório atual)")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("docs", parents=[comum])
+    sub.add_parser("docs", parents=[comum]).add_argument("arquivos", nargs="*", metavar="ARQUIVO",
+                                                        help="só estes pareceres, no modo estrito; fora da raiz, com o critério da pasta do tipo (FC-DOCS-CAMINHO)")
     sub.add_parser("kanban", parents=[comum]).add_argument("--gerar", action="store_true", help="refaz o KANBAN.md de docs/kanban/historico.md (EST-M12)")
     sub.add_parser("fontes", help="confere se as fontes de boas práticas do registro local têm versão nova")
     br = sub.add_parser("brief", parents=[comum], help="forma, corte e decisões de um brief (C2, C4); `brief gerar` monta os blocos fixos; `brief mensagem` imprime a mensagem ao conferente")
@@ -9948,7 +10005,7 @@ def executar(a, raiz):
     if a.cmd == "pr" and (uso := uso_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None))):
         print(uso)
         return 2
-    violacoes = {"docs": lambda: cmd_docs(raiz), "kanban": lambda: cmd_kanban(raiz),
+    violacoes = {"docs": lambda: cmd_docs(raiz, a.arquivos), "kanban": lambda: cmd_kanban(raiz),
                  "pr": lambda: pr_da_cli(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None), branch_do_pr,
                                           previo=getattr(a, "previo", False))}[a.cmd]()
     for v in violacoes:
