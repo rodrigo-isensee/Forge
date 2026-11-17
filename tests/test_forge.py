@@ -1802,7 +1802,22 @@ class PrepararEstacao(unittest.TestCase):
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 2)
 
-    def _container(self, tmp, *args, logado=False, escopos="'gist', 'repo', 'workflow'"):
+    @staticmethod
+    def _sem_gh(env, tmp):
+        """PATH sem o gh real: cada pasta que o tem vira uma pasta de links para o resto."""
+        novas = []
+        for k, q in enumerate(env["PATH"].split(":")):
+            if (Path(q) / "gh").exists():
+                copia = Path(tmp) / f"sem-gh{k}"
+                copia.mkdir()
+                for item in Path(q).iterdir():
+                    if item.name != "gh":
+                        (copia / item.name).symlink_to(item)
+                q = str(copia)
+            novas.append(q)
+        env["PATH"] = ":".join(novas)
+
+    def _container(self, tmp, *args, logado=False, escopos="'gist', 'repo', 'workflow'", essencial=False, sem_gh=False, extras=None):
         """Roda `preparar-estacao.sh --container` sem rede: gh, tmux, shellcheck, claude, sudo, curl e apt-get são
         falsos e registram a chamada; o jarvis-forge da origem falsa cria a cópia vigente com `dev/`."""
         tmp = Path(tmp)
@@ -1825,6 +1840,9 @@ class PrepararEstacao(unittest.TestCase):
             "tmux": "exit 0\n", "shellcheck": "exit 0\n",
         }
         falsos.update({n: f'echo "{n} $*" >> "{registro}"\nexit 1\n' for n in ("sudo", "curl", "apt-get")})
+        if sem_gh:
+            falsos.pop("gh")
+        falsos.update(extras or {})
         for nome, corpo in falsos.items():
             falso = bin_falso / nome
             falso.write_text("#!/bin/sh\n" + corpo)
@@ -1832,8 +1850,14 @@ class PrepararEstacao(unittest.TestCase):
         env = ambiente_limpo()
         for chave in ("XDG_DATA_HOME", "GH_CONFIG_DIR"):
             env.pop(chave, None)
-        env.update(HOME=str(home), NVM_DIR=str(home / ".nvm"), PATH=f"{bin_falso}:{env['PATH']}", FORGE_PERSISTENTE=str(persist))
-        r = subprocess.run(["bash", str(RAIZ / "scripts/preparar-estacao.sh"), "--container", *args],
+        env.update(HOME=str(home), NVM_DIR=str(home / ".nvm"), PATH=f"{bin_falso}:{env['PATH']}", FORGE_PERSISTENTE=str(persist),
+                   FORGE_APT_CHAVE=str(tmp / "apt-chave.gpg"), FORGE_APT_LISTA=str(tmp / "apt-gh.list"))
+        if sem_gh:
+            self._sem_gh(env, tmp)
+        if essencial:
+            env["FORGE_PREPARO_ESSENCIAL"] = "1"
+        argv = list(args) if any(a in ("--verificar", "--container") for a in args) else ["--container", *args]
+        r = subprocess.run(["bash", str(RAIZ / "scripts/preparar-estacao.sh"), *argv],
                            env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL)
         chamadas = registro.read_text() if registro.exists() else ""
         return r, home, persist, chamadas
@@ -1932,16 +1956,229 @@ class PrepararEstacao(unittest.TestCase):
                 self.assertFalse((home / criado).exists() or (home / criado).is_symlink(), f"criou {criado}")
             self.assertNotIn("claude plugin", chamadas)
 
-    def test_devcontainer_nao_roda_script_do_work_tree(self):
-        """B2 do review de segurança da 0.43.1: nenhum comando de ciclo de vida roda, como root e fora do sandbox, um
-        script que o agente pode editar; o dono roda o preparo à mão, e o comentário diz como."""
-        texto = (RAIZ / ".devcontainer/devcontainer.json").read_text(encoding="utf-8")
-        cfg = json.loads(re.sub(r"(?m)^\s*//.*$", "", texto))
-        for chave in ("initializeCommand", "onCreateCommand", "updateContentCommand", "postCreateCommand",
-                      "postStartCommand", "postAttachCommand"):
-            self.assertNotIn(chave, cfg)
-        self.assertIn("scripts/preparar-estacao.sh --container", texto)
-        self.assertNotIn("build", cfg)  # sem imagem própria: só a base
+    @staticmethod
+    def _cfg_devcontainer(caminho):
+        texto = (RAIZ / caminho).read_text(encoding="utf-8")
+        return texto, json.loads(re.sub(r"(?m)^\s*//.*$", "", texto))
+
+    def test_devcontainer_prepara_sozinho_sem_rodar_o_work_tree(self):
+        """E2.54: o postStartCommand refaz o essencial sem o dono; B2 (0.43.1): como root, só roda clone raso novo da main (nunca
+        o work tree nem ref local), sem remoteEnv (o GH_TOKEN do dono não entra), sem segredo e sem travar o container."""
+        for caminho in (".devcontainer/devcontainer.json", "templates/projeto/.devcontainer/devcontainer.json"):
+            with self.subTest(caminho=caminho):
+                texto, cfg = self._cfg_devcontainer(caminho)
+                for chave in ("initializeCommand", "onCreateCommand", "updateContentCommand", "postCreateCommand", "postAttachCommand",
+                              "remoteEnv", "containerEnv", "build"):
+                    self.assertNotIn(chave, cfg)
+                cmd = cfg["postStartCommand"]
+                self.assertIsInstance(cmd, str)
+                self.assertIn("mktemp -d", cmd)
+                self.assertIn("clone -q --depth 1 --branch main --single-branch", cmd)
+                self.assertNotRegex(cmd, r"refs/remotes|origin/main|\bshow\b")  # nada de ref local
+                self.assertTrue(cmd.rstrip().endswith("; true"), "falha do preparo não pode impedir o container de subir")
+                self.assertNotRegex(texto, r"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|localEnv")
+        self.assertIn("FORGE_PREPARO_ESSENCIAL=1", self._cfg_devcontainer(".devcontainer/devcontainer.json")[1]["postStartCommand"])
+
+    def _poststart(self, tmp, caminho, script, main_script, local_script):
+        """Roda o postStartCommand literal. Remoto nu com `main_script` na main; o clone de trabalho tem o ref `origin/main` e a
+        `main` local FORJADOS para `local_script` (o agente grava .git/refs no sandbox). Devolve (processo, marcas executadas)."""
+        tmp = Path(tmp)
+        remoto, trab, marcas = tmp / "remoto.git", tmp / "trab", tmp / "marcas"
+        marcas.mkdir()
+        git("init", "-q", "--bare", "-b", "main", str(remoto), cwd=tmp)
+        remoto_sem_manutencao(remoto)
+        git("clone", "-q", f"file://{remoto}", str(trab), cwd=tmp)
+        for texto, publicar in ((main_script, True), (local_script, False)):
+            (trab / script).parent.mkdir(parents=True, exist_ok=True)
+            (trab / script).write_text(texto)
+            git("add", "-A", cwd=trab)
+            git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "c", cwd=trab)
+            if publicar:
+                git("push", "-q", "origin", "HEAD:main", cwd=trab)
+        forjado = git("rev-parse", "HEAD", cwd=trab).stdout.strip()
+        git("update-ref", "refs/remotes/origin/main", forjado, cwd=trab)
+        git("checkout", "-q", "-B", "main", forjado, cwd=trab)
+        cmd = self._cfg_devcontainer(caminho)[1]["postStartCommand"]
+        cmd = cmd.replace("/workspaces/Forge", str(trab)).replace("${containerWorkspaceFolder}", str(trab))
+        r = subprocess.run(["bash", "-c", cmd], env=ambiente_limpo(), capture_output=True, text=True,
+                           stdin=subprocess.DEVNULL, timeout=60)
+        return r, sorted(p.name for p in marcas.iterdir())
+
+    def test_poststart_roda_so_a_main_do_remoto_nunca_o_ref_local_forjado(self):
+        """A2 do review e A1 da segurança: forjar refs/remotes/origin/main (e a main local) não faz o root rodar o script do agente."""
+        casos = ((".devcontainer/devcontainer.json", "scripts/preparar-estacao.sh", "# FORGE_PREPARO_ESSENCIAL:-0\n"),
+                 ("templates/projeto/.devcontainer/devcontainer.json", ".devcontainer/preparar-ambiente.sh", ""))
+        for caminho, script, guarda in casos:
+            with self.subTest(caminho=caminho), tempfile.TemporaryDirectory() as tmp:
+                bom = f'#!/bin/bash\n{guarda}echo x > "{tmp}/marcas/bom"\n'
+                ruim = f'#!/bin/bash\n{guarda}echo x > "{tmp}/marcas/forjado"\n'
+                r, marcas = self._poststart(tmp, caminho, script, bom, ruim)
+                self.assertEqual((r.returncode, marcas), (0, ["bom"]), r.stdout + r.stderr)
+
+    def test_poststart_do_forge_exige_a_guarda_no_script_da_main(self):
+        """A1 do devops: a main antiga (sem FORGE_PREPARO_ESSENCIAL) rodaria o --container inteiro como root; sem a marca, pula."""
+        with tempfile.TemporaryDirectory() as tmp:
+            antigo = f'#!/bin/bash\necho x > "{tmp}/marcas/antigo"\n'
+            r, marcas = self._poststart(tmp, ".devcontainer/devcontainer.json", "scripts/preparar-estacao.sh", antigo, antigo + "#\n")
+            self.assertEqual((r.returncode, marcas), (0, []), r.stdout + r.stderr)
+
+    def test_poststart_sem_o_script_na_main_nao_derruba_o_container(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r, marcas = self._poststart(tmp, "templates/projeto/.devcontainer/devcontainer.json", "outro.txt", "x\n", "y\n")
+            self.assertEqual((r.returncode, marcas), (0, []), r.stdout + r.stderr)
+
+    def test_container_essencial_nao_roda_vigente_nem_marketplace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r, home, _, chamadas = self._container(tmp, logado=True, essencial=True)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn("fez: essencial:", r.stdout)
+            self.assertFalse((home / ".local/share/forge").exists())
+            self.assertNotIn("claude plugin", chamadas)
+            self.assertNotIn("falta:", r.stdout)
+
+    def test_container_refaz_hookspath_e_nao_troca_o_de_outra_ferramenta(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            origem = Path(tmp) / "persist" / "Forge"
+            origem.mkdir(parents=True)
+            git("init", "-q", cwd=origem)
+            for rodada in (1, 2):
+                r, _, _, _ = self._container(tmp, logado=True, essencial=True)
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                self.assertEqual(git("config", "core.hooksPath", cwd=origem).stdout.strip(), ".githooks", rodada)
+                self.assertIn("fez: core.hooksPath=.githooks", r.stdout)
+            git("config", "core.hooksPath", "/outra/ferramenta", cwd=origem)
+            r, _, _, _ = self._container(tmp, logado=True, essencial=True)
+            self.assertEqual(git("config", "core.hooksPath", cwd=origem).stdout.strip(), "/outra/ferramenta")
+            self.assertIn("falta: core.hooksPath de", r.stdout)
+
+    def test_verificar_diz_o_comando_exato_do_que_falta_e_nao_altera_nada(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            origem = Path(tmp) / "persist" / "Forge"
+            origem.mkdir(parents=True)
+            git("init", "-q", cwd=origem)
+            r, home, persist, chamadas = self._container(tmp, "--verificar")
+            preparo = f"bash {persist / 'Forge'}/scripts/preparar-estacao.sh --container"
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("falta: gh sem login (o login mora em ~/.claude/gh e sobrevive à recriação; falta fazê-lo uma vez): gh auth login -s repo,workflow --web", r.stdout)
+            self.assertIn(f"falta: link {home}/.forge-contrib -> {persist}/.forge-contrib ausente ou sem destino: rode {preparo}", r.stdout)
+            self.assertIn(f"falta: core.hooksPath de {persist}/Forge não é .githooks: rode {preparo}", r.stdout)
+            self.assertFalse((home / ".forge-contrib").is_symlink() or (persist / ".forge-contrib").exists())
+            self.assertNotIn("hookspath", git("config", "--list", cwd=origem).stdout.lower())
+            self.assertNotRegex(chamadas, r"(?m)^(sudo|curl|apt-get|claude) |repo clone|setup-git")
+
+    def test_verificar_sai_ok_depois_do_preparo(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            origem = Path(tmp) / "persist" / "Forge"
+            origem.mkdir(parents=True)
+            git("init", "-q", cwd=origem)
+            self.assertEqual(self._container(tmp, "--container", logado=True, essencial=True)[0].returncode, 0)
+            r, *_ = self._container(tmp, "--verificar", logado=True)
+            self.assertEqual((r.returncode, r.stdout), (0, "ambiente: ok\n"), r.stderr)
+
+    def test_verificar_sem_gh_manda_instalar(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r, *_ = self._container(tmp, "--verificar", sem_gh=True)
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("falta: gh não instalado: rode bash ", r.stdout)
+
+    def _projeto_ambiente(self, tmp, *args, logado=False, sem_gh=False, extras=None):
+        """Roda o preparar-ambiente.sh do modelo de projeto com gh falso e home descartável."""
+        tmp = Path(tmp)
+        home, persist, bin_falso, proj = tmp / "home", tmp / "persist", tmp / "bin", tmp / "proj"
+        for d in (home, persist, bin_falso, proj):
+            d.mkdir(exist_ok=True)
+        if not (proj / ".git").exists():
+            git("init", "-q", cwd=proj)
+        registro = tmp / "chamadas"
+        falsos = {} if sem_gh else {"gh": f'echo "gh $*" >> "{registro}"\n[ "$1 $2" = "auth status" ] && exit {0 if logado else 1}\nexit 0\n'}
+        falsos.update({n: f'echo "{n} $*" >> "{registro}"\nexit 1\n' for n in ("sudo", "curl", "apt-get")})
+        falsos.update(extras or {})
+        for nome, corpo in falsos.items():
+            (bin_falso / nome).write_text("#!/bin/sh\n" + corpo)
+            (bin_falso / nome).chmod(0o755)
+        env = ambiente_limpo()
+        env.update(HOME=str(home), PATH=f"{bin_falso}:{env['PATH']}", FORGE_PERSISTENTE=str(persist), FORGE_PROJETO=str(proj),
+                   FORGE_APT_CHAVE=str(tmp / "apt-chave.gpg"), FORGE_APT_LISTA=str(tmp / "apt-gh.list"))
+        if sem_gh:
+            self._sem_gh(env, tmp)
+        r = subprocess.run(["bash", str(RAIZ / "templates/projeto/.devcontainer/preparar-ambiente.sh"), *args], env=env,
+                           capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        return r, home, persist, proj, (registro.read_text() if registro.exists() else "")
+
+    def test_modelo_de_projeto_prepara_link_e_hooks_e_e_idempotente(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for rodada in (1, 2):
+                with self.subTest(rodada=rodada):
+                    r, home, persist, proj, chamadas = self._projeto_ambiente(tmp, logado=True)
+                    self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                    self.assertEqual((home / ".forge-contrib").resolve(), (persist / ".forge-contrib").resolve())
+                    self.assertEqual(git("config", "core.hooksPath", cwd=proj).stdout.strip(), ".githooks")
+                    self.assertIn("gh auth setup-git", chamadas)
+                    self.assertNotRegex(chamadas, r"(?m)^(sudo|curl|apt-get) ")
+            r, *_ = self._projeto_ambiente(tmp, "--verificar", logado=True)
+            self.assertEqual((r.returncode, r.stdout), (0, "ambiente: ok\n"))
+
+    def test_modelo_de_projeto_verificar_e_sem_login_dizem_o_que_falta(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r, home, persist, proj, _ = self._projeto_ambiente(tmp, "--verificar")
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("falta: gh sem login (o login mora em ~/.claude/gh e sobrevive à recriação; falta fazê-lo uma vez): gh auth login -s repo,workflow --web", r.stdout)
+            self.assertIn(f"rode bash {proj}/.devcontainer/preparar-ambiente.sh", r.stdout)
+            self.assertIn(f"falta: link {home}/.forge-contrib -> {persist}/.forge-contrib ausente ou sem destino: rode bash {proj}/", r.stdout)
+            self.assertIn(f"falta: core.hooksPath de {proj} não é .githooks: rode bash {proj}/", r.stdout)
+            self.assertFalse((home / ".forge-contrib").is_symlink())
+            self.assertNotIn("hookspath", git("config", "--list", cwd=proj).stdout.lower())
+            r, *_ = self._projeto_ambiente(tmp)  # sem login: faz o resto e sai 1 com a falta
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("falta: login do gh:", r.stdout)
+            self.assertIn("fez: core.hooksPath=.githooks", r.stdout)
+
+    def test_modelo_de_projeto_recusa_opcao_desconhecida(self):
+        r = subprocess.run(["bash", str(RAIZ / "templates/projeto/.devcontainer/preparar-ambiente.sh"), "--x"], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2)
+
+    FPR_GH = "7F38BBB59D064DBCB3D84D725612B36462313325"
+
+    def _fakes_do_apt(self, tmp, fpr):
+        """curl grava uma 'chave', gpg declara a impressão digital `fpr`, install e apt-get só registram, sudo executa."""
+        reg = Path(tmp) / "chamadas"
+        return {
+            "curl": f'echo "curl $*" >> "{reg}"\nwhile [ $# -gt 0 ]; do [ "$1" = -o ] && echo k > "$2"; shift; done\nexit 0\n',
+            "gpg": f'echo "fpr:::::::::{fpr}:"\n',
+            "install": f'echo "install $*" >> "{reg}"\ncp "$4" "$5"\n',
+            "apt-get": f'echo "apt-get $*" >> "{reg}"\nexit 0\n',
+            "dpkg": "echo amd64\n",
+            "sudo": 'exec "$@"\n',
+        }
+
+    def test_chave_do_apt_do_gh_so_e_instalada_com_a_impressao_digital_certa(self):
+        """Recomendado da segurança A3: a chave baixada é conferida pela impressão digital; a errada não instala nada (os dois scripts)."""
+        for fpr, instala in ((self.FPR_GH, True), ("0" * 40, False)):
+            for nome in ("estacao", "modelo"):
+                with self.subTest(fpr=fpr[:6], script=nome), tempfile.TemporaryDirectory() as tmp:
+                    extras = self._fakes_do_apt(tmp, fpr)
+                    if nome == "estacao":
+                        r, _, _, chamadas = self._container(tmp, "--container", sem_gh=True, extras=extras)
+                    else:
+                        r, _, _, _, chamadas = self._projeto_ambiente(tmp, sem_gh=True, extras=extras)
+                    if instala:
+                        self.assertIn("install -D -m 644", chamadas)
+                        self.assertIn("apt-get install -y -qq", chamadas)
+                        self.assertNotIn("impressão digital", r.stdout)
+                    else:
+                        self.assertNotRegex(chamadas, r"(?m)^(install|apt-get) ")
+                        self.assertIn(f"falta: chave do apt do gh", r.stdout)
+                        self.assertIn(f"impressão digital {self.FPR_GH}", r.stdout)
+
+    def test_modelo_de_projeto_mantem_o_hookspath_de_outra_ferramenta(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proj = Path(tmp) / "proj"
+            proj.mkdir()
+            git("init", "-q", cwd=proj)
+            git("config", "core.hooksPath", "/outra/ferramenta", cwd=proj)
+            r, *_ = self._projeto_ambiente(tmp, logado=True)
+            self.assertEqual(git("config", "core.hooksPath", cwd=proj).stdout.strip(), "/outra/ferramenta")
+            self.assertIn("falta: core.hooksPath de", r.stdout)
 
     def test_atalhos_do_jarvis_com_ajuda(self):
         """--help mostra o uso e sai com 0; opção desconhecida sai com 2, sem abrir nada."""
