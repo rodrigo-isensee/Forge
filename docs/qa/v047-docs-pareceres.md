@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-docs-pareceres
-commit: b3bc317ac53cdf6f5038421635fd87144cbfcebb
+commit: 853e5f30085d70fc94d396c282ed43397ba1e49b
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-15
+data: 2026-11-16
 ---
 # QA: v047 docs-pareceres (E1.276, revalidação E1.317)
 
@@ -23,6 +23,13 @@ Intervalo `origin/develop..7d32017c`. Sem especificação de UX: as obrigações
 - Classe nova + SaidaSanitizada no head: 19 testes, OK. A suíte inteira roda só no CI do PR; sem PR ainda, sem check-run `bateria` do sha.
 - Mutantes (`bin/forge-mutante tests/mutantes/v047-docs-pareceres.json tests/mutantes/v047-docs-pareceres-2.json --processos 3`), rc=0, M1..M13 `morreu` (M6, M8, M13 por erro do teste declarado sob o mutante). O delta mexe em duas linhas de guarda (408 e o aviso em 431); M8 cobre a primeira e o teste novo, a segunda.
 - Remoto avançou só com pareceres de review e segurança; head local igual a c059048d antes deste commit.
+
+## Revalidação por delta b3bc317a..b8451e77 (E2.515)
+Só entraram merges da develop (head 853e5f30 e 86ac0fcb); `git diff 86ac0fcb..853e5f30` toca só pareceres, os dois JSON de mutantes, `tests/test_forge.py` (classe do autor) e o modelo do review: a parte do autor é a já revisada. `forge-check parecer delta` lista `bin/forge-check` e `tests/test_forge.py` pelo que veio da base. Aprovado, sem achado novo.
+- `python3 -m unittest tests.test_forge.DocsPareceresPedidoECaminho tests.test_forge.SaidaSanitizada` · 19 testes, OK.
+- `forge-check docs` rc=0.
+- `bin/forge-mutante <2 specs> --base 853e5f30 --processos 3` · `fora do diff` M8..M13 (nada de guarda mudou no delta), rc=0.
+- Suíte inteira: só no CI do PR; sem PR, sem check-run `bateria`.
 
 ## Achados
 
