@@ -1,0 +1,86 @@
+{
+  "pedido": "v0474-h1-ferramenta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M8",
+      "guarda": "base que nao le nao confere",
+      "arquivo": "bin/forge-check",
+      "de": "    if not b:\n        return []\n    numstat = contagens_do_intervalo(raiz, b,",
+      "para": "    if False:\n        return []\n    numstat = contagens_do_intervalo(raiz, b,",
+      "testes": [
+        "tests.test_forge_tamanho.NoPr.test_base_que_nao_le_nao_fala"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "numstat que falha so avisa",
+      "arquivo": "bin/forge-check",
+      "de": "    if numstat is None:\n        print(\"pr: tamanho: não conferido",
+      "para": "    if False:\n        print(\"pr: tamanho: não conferido",
+      "testes": [
+        "tests.test_forge_tamanho.NoPr.test_numstat_que_falha_nao_confere"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "no teto nao fala nem chama o gh",
+      "arquivo": "bin/forge-check",
+      "de": "    if not aviso:\n        return []\n    print(f\"pr: {aviso}\"",
+      "para": "    if False:\n        return []\n    print(f\"pr: {aviso}\"",
+      "testes": [
+        "tests.test_forge_tamanho.NoPr.test_no_teto_nada"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "previo nao chama o gh",
+      "arquivo": "bin/forge-check",
+      "de": "if previo or not branch or branch in BASES_DO_FLUXO:",
+      "para": "if not branch or branch in BASES_DO_FLUXO:",
+      "testes": [
+        "tests.test_forge_tamanho.NoPr.test_previo_e_base_do_fluxo_nao_chamam_o_gh"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "gh sem rede avisa nao verificavel",
+      "arquivo": "bin/forge-check",
+      "de": "    if pr is None:\n        print(f\"pr: tamanho: corpo",
+      "para": "    if False:\n        print(f\"pr: tamanho: corpo",
+      "testes": [
+        "tests.test_forge_tamanho.NoPr.test_gh_sem_rede_avisa_nao_verificavel"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "PR fechado ou mesclado nao reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    if pr.get(\"state\") != \"OPEN\":",
+      "para": "    if not pr:",
+      "testes": [
+        "tests.test_forge_tamanho.NoPr.test_pr_fechado_ou_mesclado_nao_reprova"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "motivo presente devolve lista vazia",
+      "arquivo": "bin/forge-check",
+      "de": "    return [falta] if falta else []",
+      "para": "    return [falta] if True else []",
+      "testes": [
+        "tests.test_forge_tamanho.NoPr.test_motivo_presente_devolve_lista_vazia"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "sem PR nao reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    if pr.get(\"state\") != \"OPEN\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_tamanho.NoPr.test_sem_pr_so_avisa"
+      ]
+    }
+  ]
+}
