@@ -18,7 +18,8 @@ Texto do Jarvis (L51).
 
 **Etapa depois de conferir a develop:** antes de abrir ou delegar uma etapa, confira na `develop` se o item já foi entregue ou resolvido (`git log origin/develop --grep '<cartão>'`); se foi, feche-a no `## Histórico`, sem delegar.
 
-**Pergunta pendente não segura o tópico (Q2):** segue-se a escolha recomendada como `suposição` (`muda com`, `custo de reverter`); revertida, vira `suposição revertida` no `## Histórico`; trocadas 2 de 5, volta a esperar. Nunca vale para aceite de risco, gasto (`R-CUSTO`), `afrouxa-regra`, merge na main ou ato destrutivo: o dependente espera (`R-CONFORMIDADE`).
+**Pergunta pendente (Q2):** em
+`${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/pergunta-pendente.md`.
 
 O que é da pessoa, custo e origem, ordem ampla e ritmo: skill `fluxo-do-pedido`;
 ritmo, regra 12 de `docs/economia-de-tokens.md`.

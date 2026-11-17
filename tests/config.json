@@ -283,11 +283,17 @@
       "sem aviso ao dono entre as perguntas \\(resumo no fim\\); o que depende de uma decisão espera só ela",
       "Sem pendência: \"Não há decisão sua pendente\", numa linha",
       "skills/falar-com-o-dono/resposta-curta\\.md",
+      "skills/falar-com-o-dono/pergunta-pendente\\.md",
       "regra 12 de `docs/economia-de-tokens\\.md`"
     ],
     "skills/falar-com-o-dono/resposta-curta.md": [
       "`decisoes --resposta` a lê; corte recomendado leva `origem:`, `procurado:`, `seguir:`, `não seguir:`",
       "`aprovo` só vale para a recomendada `\\[reversível\\]`"
+    ],
+    "skills/falar-com-o-dono/pergunta-pendente.md": [
+      "\\*\\*Pergunta pendente não segura o tópico \\(Q2\\):\\*\\* segue-se a escolha recomendada como `suposição` \\(`muda com`, `custo de reverter`\\)",
+      "revertida, vira `suposição revertida` no `## Histórico`; trocadas 2 de 5, volta a esperar",
+      "Nunca vale para aceite de risco, gasto \\(`R-CUSTO`\\), `afrouxa-regra`, merge na main ou ato destrutivo: o dependente espera \\(`R-CONFORMIDADE`\\)"
     ],
     "skills/modo-iniciante/numeros.md": [
       "`estimado`: some por componente",
@@ -684,6 +690,7 @@
     "skills/esperar-estado/SKILL.md": {"regra": "R-TETO", "porque": "sem o texto, o agente espera a trava pesada por kill -0 num pid de outro namespace e solta a espera antes da hora"},
     "skills/falar-com-o-dono/SKILL.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis pergunta ao dono fora do formato e trata ordem ampla como confirmação"},
     "skills/fluxo-do-pedido/SKILL.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis aciona o time sem recibo, registra o pedido sem as marcas e perde o trecho movido do núcleo (diretriz 25)"},
+    "skills/falar-com-o-dono/pergunta-pendente.md": {"regra": "R-DECISAO", "porque": "sem o texto, a pergunta pendente segura o tópico, ou a suposição provisória passa a cobrir risco, gasto, afrouxa-regra, main e ato destrutivo (Q2, diretriz 25)"},
     "skills/falar-com-o-dono/resposta-curta.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis oferece corte recomendado sem origem, procurado, seguir e não seguir, e a resposta curta deixa de ser lida por decisoes --resposta (diretriz 25)"},
     "skills/modo-iniciante/numeros.md": {"regra": "R-DECISAO", "porque": "sem o texto, o custo de cada opção da pergunta ao dono sai sem a regra de medido, estimado e não medido, e o número pode ser inventado (diretriz 25)"},
     "skills/kanban-scrum/experimentos.md": {"regra": "R-DECISAO", "porque": "sem o texto, o experimento de melhoria entra sem métrica nem critério de reversão e mais de uma mudança por vez (diretriz 25)"}
