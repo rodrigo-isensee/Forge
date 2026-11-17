@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-sieg-g1-autorizacao
-commit: c890fbd68ead4e201005380220d7815f6d226fa3
+commit: 2f150f4dac973291017e18556b652ba65ee9748d
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -60,4 +60,9 @@ Delta no domínio: `bin/forge-check` (só texto da ajuda), `docs/adr/README.md`,
 Delta: junção da origin/develop (0.47.3). `forge-check parecer delta` acusa `bin/forge-check` no domínio, mas o diff é o da develop (+144/-19); contra `origin/develop` o `bin/forge-check` da branch difere só em 7 linhas, todas a ligação do `autorizacao` (SEM_GUARDA_DE_VERSAO, subparser, despacho). `bin/forge_autorizacao.py`, `tests/test_autorizacao.py` e os mutantes `v047-sieg-g1-autorizacao*.json` não mudaram desde 7b20d073.
 - `python3 -m unittest tests.test_autorizacao` (TMPDIR): 8 testes, OK.
 - `python3 -m unittest tests.test_forge_mutante.ConferirTodas` (TMPDIR): 4 testes, OK.
+- Suíte inteira: não rodada; o CI do PR a roda.
+
+## Revalidação (head 2f150f4d, delta de c890fbd6)
+Delta: `bin/forge-testes` (`test_autorizacao` em FORGE_CHECK), docstring de `tests/test_autorizacao.py:1` e contagem 88 para 89 em `tests/test_testes_tocados.py:77` (o CI do PR 629 reprovava ali). Lógica de `bin/forge_autorizacao.py` e mutantes inalterados.
+- `python3 -m unittest tests.test_testes_tocados tests.test_autorizacao` (TMPDIR): `Ran 170 tests in 198.319s`, `OK (skipped=1)`; o skip é do sandbox (`/proc` de outro namespace) em `MedidaDaVagaPesada`, não do teste novo.
 - Suíte inteira: não rodada; o CI do PR a roda.
