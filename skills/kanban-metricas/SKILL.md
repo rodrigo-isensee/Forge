@@ -5,7 +5,7 @@ description: Métricas de fluxo e DORA do time, medição do retrabalho, retrosp
 
 # Métricas e retrospectiva do time
 
-Trechos movidos inteiros da skill `kanban-scrum` e do `agile-coach` (diretriz 25: nenhuma regra sai; para caber, mova o detalhe para skill citada).
+Trechos movidos inteiros da skill `kanban-scrum` e do `agile-coach` (diretriz 25, na skill `fluxo-do-pedido`).
 
 ## Métricas de fluxo do time
 - **Lead time:** entrada no Backlog → Pronto. **Cycle time:** entrada em "Em andamento" → Pronto.
