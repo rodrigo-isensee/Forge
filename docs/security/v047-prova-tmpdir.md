@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-prova-tmpdir
-commit: a1eb19effa881e7e3decd3253252e7c1df560594
+commit: ed99ab1e7e962f1ce851e12cc31556eb3951a781
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-16
@@ -34,3 +34,6 @@ Testes: `python3 -m unittest tests.test_forge_run` na raiz do clone, no head a1e
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Ferramentas: leitura estática do diff, os testes do item e sondas locais na biblioteca padrão. Varredura de segredos e de workflow não se aplica (o diff não toca workflow nem configuração com credencial).
+
+## Revalidação por delta (head ed99ab1e)
+`forge-check parecer delta` (a1eb19ef..ed99ab1e, sem o que veio da base): só `bin/forge-check` no domínio (`juncao_limpa`, `--tempo`, `--media-por-agente`). Conferido com `git diff origin/develop -- bin/forge-check`: o item soma 27 linhas, todas da `tmpdir_da_prova` e do uso em `rodar_prova`, sem remoção; o resto do delta veio da develop (merge 3fc4724d). Guarda inalterada, nenhum achado novo. `python3 -m unittest tests.test_forge_run`: OK. Suíte inteira no CI do PR.
