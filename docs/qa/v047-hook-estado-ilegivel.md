@@ -1,9 +1,9 @@
 ---
 tipo: qa
 contrato: 1
-pedido: v047
+pedido: v0474
 branch: melhoria/v047-hook-estado-ilegivel
-commit: d2d82ffab0e89a3ac1d1806cca98f51059b6c908
+commit: a99c1a9fbb88229ad6b5d24dd25d2f664d0309e6
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -92,3 +92,10 @@ Head `d2d82ffa`: merge da `origin/develop` (`5b1aacd5`) no lote A. `forge-check 
 **Mutação** (`bin/forge-mutante tests/mutantes/v047-hook-estado-ilegivel{,-2,-3}.json --processos 4`): rc 0, M1 a M17 `morreu` (visto M10 a M17 na cauda da saída; o rc 0 cobre as 17), nenhum sobrevivente.
 
 **Vermelho:** inalterado (código e testes do lote idênticos aos já provados).
+
+## Revalidação por delta (E1.8, d2d82ffa..a99c1a9f)
+Head `a99c1a9f`: junção da develop e realinhamento do `de` de M22 e M32 (`tests/mutantes/v047-hook-erro-libera-3.json` e `-4.json`). `forge-check parecer delta` lista no domínio só essas duas specs. Sem achado novo; A1 a A3 seguem resolvidos.
+
+**Mutação** (`bin/forge-mutante tests/mutantes/v047-hook-erro-libera-3.json tests/mutantes/v047-hook-erro-libera-4.json --processos 4`): `rev=a99c1a9fbb88`, rc 0, M17 a M32 `morreu` (16 de 16), inclusive M22 (`hooks/agentes.py:947`) e M32 (`hooks/agentes.py:961`).
+
+**ConferirTodas** (`python3 -m unittest tests.test_forge_mutante.ConferirTodas`, TMPDIR próprio): `Ran 4 tests`, `OK`. Suíte inteira só no CI do PR; o check-run `bateria` não consultei, nenhuma citação de CI.
