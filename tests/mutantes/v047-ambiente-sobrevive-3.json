@@ -1,0 +1,63 @@
+{
+  "pedido": "v047-ambiente-sobrevive",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M26",
+      "guarda": "o hook usa a pasta persistente de FORGE_PERSISTENTE quando ela vem no ambiente",
+      "arquivo": "hooks/ambiente.py",
+      "de": "os.environ.get(\"FORGE_PERSISTENTE\") or \"/workspaces\"",
+      "para": "os.environ.get(\"FORGE_PERSISTENTE\") and \"/workspaces\"",
+      "testes": [
+        "tests.test_ambiente_hook.AmbienteNoSessionStart.test_forge_faltando_poe_as_linhas_falta_com_o_comando_exato_no_contexto"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "no container é estar dentro da pasta persistente, não da pasta acima dela",
+      "arquivo": "hooks/ambiente.py",
+      "de": "persistente in raiz.resolve().parents",
+      "para": "persistente.parent in raiz.resolve().parents",
+      "testes": [
+        "tests.test_ambiente_hook.AmbienteNoSessionStart.test_so_o_sessionstart_dentro_do_container_e_com_devcontainer"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "sem o script no plugin, o hook fica em silêncio e não roda bash",
+      "arquivo": "hooks/ambiente.py",
+      "de": "if not comando.is_file():",
+      "para": "if False:",
+      "testes": [
+        "tests.test_ambiente_hook.AmbienteNoSessionStart.test_script_ausente_no_plugin_fica_em_silencio_sem_rodar_bash"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "só as linhas `falta: ` do --verificar entram no contexto",
+      "arquivo": "hooks/ambiente.py",
+      "de": "linha.startswith(\"falta: \")",
+      "para": "linha.startswith(\"\")",
+      "testes": [
+        "tests.test_ambiente_hook.AmbienteNoSessionStart.test_so_as_linhas_falta_entram_no_contexto"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "só o código 1 do --verificar (falta algo) põe linhas no contexto",
+      "arquivo": "hooks/ambiente.py",
+      "de": "r.returncode == 1",
+      "para": "r.returncode < 999",
+      "testes": [
+        "tests.test_ambiente_hook.AmbienteNoSessionStart.test_verificar_sem_o_codigo_1_fica_em_silencio"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/ambiente.py",
+      "trecho": "__name__ == \"__main__\"",
+      "motivo": "ponto de entrada do script: todo teste do hook o roda como processo, e sem ele nenhum teste roda o hook"
+    }
+  ]
+}

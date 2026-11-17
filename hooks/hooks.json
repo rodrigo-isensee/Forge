@@ -222,6 +222,16 @@
               "${CLAUDE_PLUGIN_ROOT}/hooks/doutor.py"
             ],
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "-s",
+              "-E",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/ambiente.py"
+            ],
+            "timeout": 10
           }
         ]
       }

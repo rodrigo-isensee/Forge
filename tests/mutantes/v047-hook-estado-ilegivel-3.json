@@ -1,0 +1,16 @@
+{
+  "pedido": "v047-hook-estado-ilegivel",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "Volta do A1: o EstadoIlegivel de dentro do try (link, FIFO, teto) sai como está, sem a captura genérica o embrulhar",
+      "arquivo": "hooks/agentes.py",
+      "de": "    except EstadoIlegivel:\n        raise\n",
+      "para": "",
+      "testes": [
+        "tests.test_estado_ilegivel.LerEstado.test_fifo_com_json_valido_e_ilegivel"
+      ]
+    }
+  ]
+}

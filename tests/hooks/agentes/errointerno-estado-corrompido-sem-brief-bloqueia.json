@@ -16,6 +16,6 @@
   "esperado": {
     "codigo": 2,
     "stderr": "R-BRIEF: o prompt não cita o brief",
-    "erros_log": "agentes JSONDecodeError"
+    "erros_log": "agentes EstadoIlegivel"
   }
 }
