@@ -1,0 +1,26 @@
+{
+ "pedido": "v0475-ci-custo",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M16",
+   "guarda": "forge-init roda o teste do modelo",
+   "arquivo": "bin/forge-testes",
+   "de": "\"test_stack_python\", \"test_modelo_ci\")),",
+   "para": "\"test_stack_python\")),",
+   "testes": [
+    "tests.test_testes_tocados.MapaCobreOQueOsTestesLeem.test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo"
+   ]
+  },
+  {
+   "id": "M17",
+   "guarda": "texto do Forge roda o teste do modelo",
+   "arquivo": "bin/forge-testes",
+   "de": "\"test_erros_no_brief\", \"test_modelo_ci\",\n",
+   "para": "\"test_erros_no_brief\",\n",
+   "testes": [
+    "tests.test_testes_tocados.MapaCobreOQueOsTestesLeem.test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo"
+   ]
+  }
+ ]
+}
