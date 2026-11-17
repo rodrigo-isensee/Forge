@@ -14,10 +14,10 @@
     },
     {
       "id": "M2",
-      "guarda": "binario sem linha nao conta",
+      "guarda": "binario (sem numero de linhas) nao conta",
       "arquivo": "bin/forge_tamanho.py",
       "de": "if e_codigo(nome) and mais.isdigit() and menos.isdigit():\n            total",
-      "para": "if e_codigo(nome) and menos.isdigit():\n            total",
+      "para": "if e_codigo(nome):\n            total",
       "testes": [
         "tests.test_forge_tamanho.Funcoes.test_so_codigo_conta_e_binario_fica_fora"
       ]
