@@ -3,14 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ambiente-sobrevive
-commit: 97c4a461ca07596a88a1d8809562fc456f8c66c7
+commit: c2b5556888ed272694c3d321244ea734a829c16c
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-16
+data: 2026-11-17
 ---
-# Review de segurança: v047-ambiente-sobrevive (E2.573, revalidação por delta)
+# Review de segurança: v047-ambiente-sobrevive (E2.650, revalidação por delta)
 
-E2.573: revalidação por delta `e3dfc4cb..97c4a461` (`forge-check parecer delta`, sem o que veio da develop). No domínio mudou só `scripts/preparar-estacao.sh`: `gh >= 2.47` (`gh_versao_ok`, `garantir_gh`) veio da develop; o item mantém `chave_confere` com a digital fixada, `FORGE_APT_*`, `--verificar` e o modo essencial (`git diff origin/develop` do script conferido). Em `garantir_gh`, `chave_confere` roda antes de instalar a chave e a lista e falha fechada: sem gpg ou com digital diferente, registra `falta:` e retorna sem `apt-get install` (sonda: arquivo de outra chave e arquivo vazio, rc=1 nos dois). Fora da conferência, o `apt-get install gh` só usa repositório já configurado. `FORGE_APT_*` só vem do ambiente de quem chama. O `--container` sem rede só instala o que o apt oficial da máquina já oferece. Os textos de `claude --permission-mode auto` são só mensagem. Veredito e achados A3 a A5 valem sem mudança (A3 continua: o script só confere a digital, não exporta a chave). shellcheck do script: rc=0. Testes rodados: `tests.test_ambiente_hook` (6), `tests.test_sessao_automatica` e `tests.test_fechar_gh_versao` (22), `tests.test_forge.PrepararEstacao` (24), todos OK. PA-7 conferida: nenhum item novo se aplica ao delta.
+E2.650: revalidação por delta `97c4a461..c8c5b7eb` (`forge-check parecer delta`, sem o que veio da develop 73a0ab81). No domínio mudaram só `bin/forge-testes` e testes: o merge c2b55568 une no `MAPA` e em `FORGE_CHECK`/`REAPROVEITAM_O_LOTE` as entradas da develop (`test_hook_destino_opaco`, `test_conformidade_opaco`) e as do item (`test_pre_push_patch`, `test_ambiente_hook`, linha do `docs/devops/pp1-pre-push.patch`); nada saiu das listas, e o arquivo continua Python válido (`ast.parse`, OK). É seleção de testes do envio local; o CI roda a suíte inteira, então não abre caminho de ataque. Os três fixtures novos de `tests/hooks/ambiente/` e o ajuste de `tests/test_hooks.py` só registram o `ambiente.py` como hook de aviso (código sempre 0) e como a exceção do SessionStart (emenda da ADR 0003, E2.54); o `forcar` do fixture é aplicado pelo lançador do teste (`tests/test_hooks.py:653-659`), não por algo que o hook leia. `hooks/ambiente.py`, `hooks/hooks.json`, os scripts de preparo e os devcontainer.json não mudaram do lado do item. Veredito e achados A3 a A5 valem sem mudança. Sem suíte local (brief); nenhum teste de abuso novo. PA-7: nada novo se aplica. Rodada anterior (E2.573, head 97c4a461) no git.
 
 Histórico (E2.206):
 E2.206: revalidação por delta `584b2239..e3dfc4cb` (`forge-check parecer delta`: nenhum arquivo do domínio mudou; só pareceres em `docs/`). O veredito e os achados abaixo valem sem mudança para o head e3dfc4cb. O campo `pedido:` passa a `v047`. Teste do item rodado de novo: `tests.test_ambiente_hook` (6, OK). PA-7 conferida: nenhum item novo se aplica ao delta.
