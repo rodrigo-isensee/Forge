@@ -9,7 +9,7 @@
       "de": "cria = (sub == \"commit\" or",
       "para": "cria = (sub == \"commit-x\" or",
       "testes": [
-        "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
     },
     {
@@ -19,7 +19,7 @@
       "de": "\"commit\" or sub == \"worktree\" and args[:1] == [\"add\"]",
       "para": "\"commit\" or sub == \"worktree\" and args[:1] == [\"add-x\"]",
       "testes": [
-        "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "de": "or sub == \"branch\" and self.branch_grava(args)",
       "para": "or sub == \"branch-x\" and self.branch_grava(args)",
       "testes": [
-        "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
     },
     {
@@ -39,7 +39,7 @@
       "de": "or sub in BRANCH_NOVA and any(",
       "para": "or sub in () and any(",
       "testes": [
-        "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
     },
     {
@@ -49,7 +49,7 @@
       "de": "if cria and self.alvo_do_forge(pasta):",
       "para": "if cria:",
       "testes": [
-        "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
     },
     {
@@ -59,7 +59,7 @@
       "de": "if any(a.split(\"=\", 1)[0] in BRANCH_LISTA for a in args):",
       "para": "if False:",
       "testes": [
-        "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
     },
     {
@@ -69,7 +69,7 @@
       "de": "return any(not a.startswith(\"-\") for a in args)",
       "para": "return any(a.startswith(\"-\") for a in args)",
       "testes": [
-        "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
     },
     {
@@ -79,7 +79,7 @@
       "de": "self.barrar(\"R-CONTRIB\", f\"push para {', '.join(map(str, destinos))}: {NO_FORGE}\", SO_SUGERE)",
       "para": "pass",
       "testes": [
-        "tests.test_hook_dir36.HookDir36.test_fixtures_contrib"
+        "tests.test_hooks.HookDir36.test_fixtures_contrib"
       ]
     }
   ]

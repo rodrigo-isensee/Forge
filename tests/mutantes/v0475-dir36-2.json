@@ -9,7 +9,7 @@
       "de": "CONTRIB_PR = {\"create\", ",
       "para": "CONTRIB_PR = {",
       "testes": [
-        "tests.test_hook_dir36.HookDir36.test_fixtures_contrib"
+        "tests.test_hooks.HookDir36.test_fixtures_contrib"
       ]
     },
     {
@@ -19,7 +19,7 @@
       "de": "r\"(^|/)pulls(/|$|\\?)|",
       "para": "r\"(^|/)pulls/[^/]+|",
       "testes": [
-        "tests.test_hook_dir36.HookDir36.test_fixtures_contrib"
+        "tests.test_hooks.HookDir36.test_fixtures_contrib"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "de": "r\"createPullRequest|closePullRequest|",
       "para": "r\"closePullRequest|",
       "testes": [
-        "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
     },
     {
@@ -39,7 +39,7 @@
       "de": "re.compile(r\"-[a-zA-Z]*[cC][a-zA-Z]*|--create",
       "para": "re.compile(r\"-c|--create",
       "testes": [
-        "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
     },
     {
@@ -49,7 +49,7 @@
       "de": "re.compile(r\"-[a-zA-Z]*[bB][a-zA-Z]*|--orphan\")",
       "para": "re.compile(r\"-[a-zA-Z]*[bB][a-zA-Z]*\")",
       "testes": [
-        "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
     },
     {
@@ -59,7 +59,7 @@
       "de": "{' add' if sub == 'worktree' else ''}",
       "para": "{' add' if sub == 'worktree-x' else ''}",
       "testes": [
-        "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
     },
     {
@@ -69,7 +69,7 @@
       "de": "proibido = (grupo == \"pr\" and sub in CONTRIB_PR ",
       "para": "proibido = (grupo == \"pr\" and sub in CONTRIB_PR - {\"create\"} ",
       "testes": [
-        "tests.test_hook_dir36.HookDir36.test_fixtures_contrib"
+        "tests.test_hooks.HookDir36.test_fixtures_contrib"
       ]
     }
   ]
