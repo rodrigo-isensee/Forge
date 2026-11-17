@@ -963,7 +963,7 @@ class PqDoExecutor(eb.Repo):
 
     def test_sem_base_remota_o_sha_fica_preencher(self):
         rc, saida, erro = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo", "--etapa", "codigo",
-                                     "--branch", "melhoria/x", "--base", "inexistente")
+                                     "--branch", "melhoria/x", "--base", "homolog")  # do fluxo, sem ref no repo de teste
         self.assertEqual(rc, 0, saida + erro)
         self.assertIn("Base-sha: PREENCHER\n", saida)
         self.sem_pq("sha fora da forma (PREENCHER)", saida, erro)
