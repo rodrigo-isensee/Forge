@@ -1,0 +1,66 @@
+{
+  "pedido": "v0475-mp1-mp7",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "MP1 (diretriz 35): a fala lida é a do dono (user), não a do assistente",
+      "arquivo": "hooks/meta.py",
+      "de": "ultima_mensagem(hook.campo(\"transcript_path\"), \"user\") or \"\"",
+      "para": "ultima_mensagem(hook.campo(\"transcript_path\"), \"assistant\") or \"\"",
+      "testes": [
+        "tests.test_meta.VariosProjetos"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "MP1 (diretriz 35): o próprio projeto não conta como outro",
+      "arquivo": "hooks/meta.py",
+      "de": "outros = [n for n in ativos if n != Path(raiz).name]",
+      "para": "outros = [n for n in ativos if n != \"\"]",
+      "testes": [
+        "tests.test_meta.VariosProjetos"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "MP1 (diretriz 35): mensagem sem `Projeto:` no começo é acusada",
+      "arquivo": "hooks/meta.py",
+      "de": "\"sem_projeto\": not PREFIXO_DO_PROJETO.match(texto)",
+      "para": "\"sem_projeto\": False",
+      "testes": [
+        "tests.test_meta.VariosProjetos"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "MP1 (diretriz 35): a pergunta do projeto vale sem diferença de maiúsculas",
+      "arquivo": "hooks/meta.py",
+      "de": "cita and PERGUNTA_DO_PROJETO not in texto.lower()",
+      "para": "cita and PERGUNTA_DO_PROJETO not in texto",
+      "testes": [
+        "tests.test_meta.VariosProjetos"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "MP1 (diretriz 35): o transcrito lê só as mensagens do papel pedido",
+      "arquivo": "hooks/meta.py",
+      "de": "if obj[\"type\"] == papel else []",
+      "para": "if obj[\"type\"] == \"assistant\" else []",
+      "testes": [
+        "tests.test_meta.VariosProjetos"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "MP1 (diretriz 35): a última mensagem lida por padrão é a do assistente",
+      "arquivo": "hooks/meta.py",
+      "de": "def ultima_mensagem(transcrito, papel=\"assistant\"):",
+      "para": "def ultima_mensagem(transcrito, papel=\"user\"):",
+      "testes": [
+        "tests.test_meta.Jargao"
+      ]
+    }
+  ]
+}
