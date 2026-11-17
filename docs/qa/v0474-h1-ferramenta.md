@@ -14,9 +14,6 @@ data: 2026-11-17
 ---
 # QA: v0474 (E2.27, H1 ferramenta)
 
-## Achados
-Nenhum achado aberto.
-
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
