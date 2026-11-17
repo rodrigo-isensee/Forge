@@ -3,12 +3,12 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-h2-autor-fica
-commit: 74e14194c106bdbeb8ed36678654dc27de7cf658
-parecer: aprovado
+commit: 981ce8a99ac19a46f611ca08a6a290f2d0e809c3
+parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 0
+bugs_medios: 1
 bugs_baixos: 0
 data: 2026-11-17
 ---
@@ -17,6 +17,7 @@ data: 2026-11-17
 Etapa E2.30, H2-AUTOR-FICA-ATE-O-MERGE (classe C, `hooks/agentes.py`). Intervalo `e2880b42..6d73898a`. Sem especificação de UX nem contrato de API: as obrigações são as da descrição do H2 (E2.10) e as condições novas do diff. Acessibilidade e E2E: n/a.
 
 ## Achados
+- A2 (bloqueante) docs/hooks-fixtures.md:5 · índice gerado desatualizado: a fixture nova autor-ativo-inicio-repetido-nao-converte (981ce8a9) não foi indexada; `indice-fixtures.py --conferir` sai rc 1. Rodar o script e commitar.
 
 ## Revalidação do A1 (rodada anterior)
 Resolvido: id não texto em lápide e em registro não perde a reserva. Fixtures `autor-lapide-id-lista-reserva`, `autor-registro-id-objeto-reserva`, `autor-lapide-id-lista-segundo-recusa` e 5 `autor-retom*` entram; `test_hooks_agentes_autor` 10 testes OK no head. Mutantes: 22 em 3 specs, todos morreram (M11, M14, M16, M17, M21 por erro do teste declarado, que a spec declara).
@@ -64,3 +65,9 @@ Ambiente: clone `~/.forge-contrib/wt/v047-h2-autor-fica-E266`, `TMPDIR=/tmp/clau
 
 ## Revalidação no head 74e14194 (E2.70)
 Delta desde f26b0721: junção da develop (bda457e4); único arquivo do domínio, o índice gerado `docs/hooks-fixtures.md`, regerado pelo script (`indice-fixtures.py --conferir`: em dia). `tests.test_forge_mutante.ConferirTodas` e `tests.test_hooks_agentes_autor`: 14 testes OK. Sem achado novo.
+
+## Revalidação no head 981ce8a9 (E2.74)
+Delta desde 74e14194: mutante M25 (`hooks/agentes.py:987`, guarda da retomada em iniciar), fixture `autor-ativo-inicio-repetido-nao-converte`, spec -3.
+- `bin/forge-mutante tests/mutantes/v047-h2-autor-fica-3.json`: `rev=981ce8a99ac1`, M17 a M25 morreram (M17 com `(erro)` declarado pela spec); M25 · morreu · hooks/agentes.py:987. Sem sobrevivente.
+- `python3 -m unittest tests.test_forge_mutante.ConferirTodas tests.test_hooks_agentes_autor`: 14 testes, OK em 5,1 s.
+- `python3 -I scripts/indice-fixtures.py --conferir`: `docs/hooks-fixtures.md: desatualizado; rode scripts/indice-fixtures.py` (rc 1). Regerado numa cópia, o diff é 2886 para 2887 fixtures, `agentes` 119 para 120, `autor-*` 22 para 23: só falta commitar o índice (A2, bloqueante; responsável: autor).
