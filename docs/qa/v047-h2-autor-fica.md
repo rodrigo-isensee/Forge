@@ -3,12 +3,12 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-h2-autor-fica
-commit: 482ee7c773597cad435a49acbee8fb535b802493
-parecer: reprovado
+commit: f26b0721cc27c5460c37e910544587bf742126ef
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 2
+bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-17
 ---
@@ -17,8 +17,6 @@ data: 2026-11-17
 Etapa E2.30, H2-AUTOR-FICA-ATE-O-MERGE (classe C, `hooks/agentes.py`). Intervalo `e2880b42..6d73898a`. Sem especificação de UX nem contrato de API: as obrigações são as da descrição do H2 (E2.10) e as condições novas do diff. Acessibilidade e E2E: n/a.
 
 ## Achados
-- A2 (bloqueante) hooks/agentes.py:828 · o diff desalinhou trava-agente-morto-3.json:M19 (de ambíguo, 2 vezes) e v0440-decisoes-2.json:A4; ConferirTodas falha (failures=1) e a bateria cai. Alinhar as specs no mesmo commit
-- A3 (bloqueante) tests/test_hooks_agentes_autor.py:35 · forge-testes --vermelho sai 2: na base PeloHook.test_fixtures_do_pedido dá erro (JSONDecodeError) e não asserção; sem veredito não vale como vermelho
 
 ## Revalidação do A1 (rodada anterior)
 Resolvido: id não texto em lápide e em registro não perde a reserva. Fixtures `autor-lapide-id-lista-reserva`, `autor-registro-id-objeto-reserva`, `autor-lapide-id-lista-segundo-recusa` e 5 `autor-retom*` entram; `test_hooks_agentes_autor` 10 testes OK no head. Mutantes: 22 em 3 specs, todos morreram (M11, M14, M16, M17, M21 por erro do teste declarado, que a spec declara).
@@ -54,3 +52,12 @@ Os fixtures `autor-*` cobrem `autores` ilegível e id inválido de autor, mas ne
 - Vermelho: `vermelho: base=e2880b42b81e head=482ee7c77359`; 9 provam por API ausente, `PeloHook.test_fixtures_do_pedido` H=ok B=erro sem veredito; rc 2 (A3).
 - `python3 -I scripts/indice-fixtures.py --conferir`: `docs/hooks-fixtures.md: em dia`.
 - `python3 -m unittest tests.test_hooks_agentes_autor tests.test_forge_mutante.ConferirTodas`: 14 testes, failures=1 (A2); o teste do autor passa.
+
+## Revalidação E2.66 (head f26b0721; `forge-check parecer delta` lista código e testes: hooks/agentes.py, 2 fixtures, 3 specs, tests/test_hooks.py, índice)
+Ambiente: clone `~/.forge-contrib/wt/v047-h2-autor-fica-E266`, `TMPDIR=/tmp/claude-0`, carga 5.
+- A3 resolvido: `forge-testes --vermelho e2880b42 --modulos test_hooks_agentes_autor` sai 0; 9 provam por API ausente e `PeloHook.test_fixtures_do_pedido` H=ok B=falha, prova (asserção).
+- A2 resolvido: `trava-agente-morto-3` (M19) e `v0440-decisoes-2` (A4) alinhados; `ConferirTodas` passa.
+- Mutantes (uma chamada por spec, todas rc 0, nenhum sobrevivente): trava-agente-morto-3 8 morreram (M19 a M24 incluídos), v0440-decisoes-2 10, v047-h2-autor-fica 8, -2 8, -3 8 (M19 a M24 novos, hooks/agentes.py:509, 511, 1081, 508, 246, 988). Mutantes com `(erro)` declarados pela spec.
+- `python3 -I scripts/indice-fixtures.py --conferir`: `docs/hooks-fixtures.md: em dia`.
+- `python3 -m unittest tests.test_forge_mutante.ConferirTodas tests.test_hooks_agentes_autor`: 14 testes, OK em 3,8 s.
+- `pesado/mesma-sessao-libera` (120 s): `Hooks.test_fixtures` na base e2880b42 (cópia `git archive`) e no head, lado a lado, 405 s cada: os dois dão `PrazoEstourado: prazo de 120 s estourado` nesse fixture. É do ambiente e preexistente, não do diff (no head é a única falha; a base ainda mostra 4 fixtures `agentes/` de pid e sessão caídos por rodar fora do clone git, também fora do diff). O CI (`bateria` do mesmo sha) decide.
