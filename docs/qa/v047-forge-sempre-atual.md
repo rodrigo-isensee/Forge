@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-forge-sempre-atual
-commit: 2bcad3855c8a1e54062b90ff3b1b6baab9eedd82
+commit: b89aa7ed43a1c96daf2250a0d312e6359717f935
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -41,3 +41,11 @@ Ambiente x defeito (o autor viu o mesmo):
 - Módulos: oráculo 59 testes, 19 ok no sandbox sem neutralizar e 40 por `/proc`; `test_sempre_atual` Ran 68 OK; `test_atualizar` Ran 109 OK (skipped=3); `test_doutor` Ran 105 OK; `test_testes_tocados` Ran 162 OK (skipped=1); `test_forge` Ran 639 OK.
 - Mutantes (rc 0 em todas): v047-sempre-atual-1 16 mortos, -2 10, -3 15, -4 8, -5 8, -6 2, `fixacao-do-dono` 7, `v047-atualizar-hook-local` 11. Mortos com `(erro) o teste declarado deu erro sob o mutante e passa sem ele`: M25 (spec 2, `forge_sempre_atual.py:303`), A12 a A14 (spec 5, `forge-check:9365,9376,9382`), M4 e M6 da fixação (`forge_sempre_atual.py:929,916`); morrem por erro do teste, não por asserção: ver A1 só se o CI divergir.
 - `python3 -m unittest tests.test_forge_mutante.ConferirTodas`: Ran 4 tests, OK.
+
+## Revalidação por delta (E1.60, head b89aa7ed, base do delta 2bcad385)
+`forge-check parecer delta` listou o domínio: forge-testes, forge-upgrade, forge_sempre_atual.py, conformidade.py, 21 fixtures `tagv-*`, specs v0432-integracao-2/3 e v047-sempre-atual-7 a 10, test_hooks, oráculo e test_sempre_atual. Sem PR: sem check-run `bateria`; a suíte inteira fica com o CI do PR. Com `TMPDIR` próprio, em primeiro plano.
+- Mutantes novos, uma chamada por spec, todas rc 0 e todos mortos: spec 7 (V1 a V8), spec 8 (V9, V10, U1 a U3), spec 9 (H1 a H7), spec 10 (V11, V12, H8 a H13); 26 mutantes, nenhum sobrevivente, nenhum erro de carga.
+- `tests.test_forge_mutante.ConferirTodas tests.test_sempre_atual tests.test_ambiente_git` (sem -I): Ran 105 OK.
+- Oráculo em cópia de `git archive HEAD` com `proc_coerente` neutralizado: Ran 59, 50 passam, 9 falham (classe `Ocupacao` e `NuncaReabre`, só `vivo()` no `comm` de outro namespace), igual à rodada anterior; os 9 só no CI. O oráculo não mudou desde 2bcad385 além do ajuste da volta E1.55 (conferido pelo delta, sem afrouxar).
+- Fixtures `tagv-*` (21, em `tests/hooks/conformidade/`): `tests.test_hooks.Hooks.test_fixtures` (a suíte de fixtures inteira, 350 s): 1 falha, `pesado/mesma-sessao-libera`, `PrazoEstourado` de 120 s numa fixture de trava de outro hook, que não toca o delta; nenhuma fixture `tagv` ou `conformidade` caiu. Ambiente (sessão e `/proc` do sandbox); confira no CI do PR.
+- A1 segue valendo: o CI do PR precisa passar o oráculo inteiro (59) e `test_hooks`.
