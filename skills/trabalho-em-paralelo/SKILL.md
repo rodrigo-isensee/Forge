@@ -8,7 +8,7 @@ description: Como o Jarvis dispara, espera e acompanha entregas em paralelo (sé
 L51: texto do Jarvis lido no passo.
 
 - **Série só por arquivo em comum:** rode `bin/forge-check sobreposicao` antes. Itens com arquivo em comum não andam em paralelo (serializam): vão num lote ou o segundo espera o primeiro entrar e traz a `develop` uma vez. Portão mudo há 53 min: confira que parou e relance.
-- `R-TETO` e `R-WIP` sempre: teto adaptativo, pesado um por vez, 1 cartão por agente. Fila atrás de um papel: suba mais instâncias iguais dele, uma por item independente (`worktree: <nome>` na Obs.) até o teto.
+- `R-TETO` e `R-WIP` sempre: teto adaptativo, pesado um por vez, 1 cartão por agente. Fila atrás de um papel: suba mais instâncias iguais dele, uma por item independente (`worktree: <nome>` na Obs.) até o teto. A cópia de cada instância sai de `bin/forge-copia worktree <dir> --branch <branch>`, só dentro de `~/.forge-contrib`; no brief de delegação, mande usá-la em vez de `git worktree add` ou `git clone` soltos.
 - **Quadro com hora real:** mova o cartão com `forge-check movimento <cartão> --de <coluna> --para <coluna> [--motivo <texto>]` (motivo `volta <n>` ao autor; `Aguardando o dono` na ida e volta). Linhas do `## Histórico` e decisões do dono, por `forge-check anotar`. Espera do usuário: `R-DECISAO` painel "Aguardando o dono". Onde está: `forge-check proximo <pedido>`.
 - **Delegação que edita `agents/*.md`:** sem permissão em `agents/**`, o modo auto recusa: avise o dono antes e diga no brief; o recusado relata e para sem contornar (`R-CONFORMIDADE`).
 - **Integração contínua (D2):** o PR abre com os pareceres da classe aprovados no head e a entrega conferida; com CI verde, entra na `develop` por PR próprio, sem juntar frentes (`R-FLUXO`).

@@ -19,7 +19,7 @@ Quando o Forge recusar algo que a pessoa pediu (recusa de hook, F4), o doutor ou
 ## 2. Prepare um clone próprio
 - Use `~/.forge-contrib/<projeto>` (um clone por projeto, fora do projeto).
 - **Nunca** use worktree de outro clone do Forge; `R-COPIA` não copiar agentes e skills para o projeto (nem editar o cache do plugin).
-- Sessão com sandbox do Bash: a sessão de projeto usa só o clone `~/.forge-contrib/<projeto>` e, se precisar de worktree, `~/.forge-contrib/<projeto>-wt/<nome>`; `~/.forge-contrib/wt/*` é exclusivo das sessões do Forge (`R-CONTRIB`). Worktrees criadas com `git worktree add --no-track -b <branch> <dir> origin/develop`; nada de `git config` nem `git branch -u` (`.git/config` é protegido).
+- Sessão com sandbox do Bash: a sessão de projeto usa só o clone `~/.forge-contrib/<projeto>` e, se precisar de worktree, `~/.forge-contrib/<projeto>-wt/<nome>`; `~/.forge-contrib/wt/*` é exclusivo das sessões do Forge (`R-CONTRIB`). A cópia (clone ou worktree) nasce só com `bin/forge-copia worktree <dir> --branch <branch>` (ou `clone <dir> --origem <url> --branch <branch>`), que a cria dentro de `~/.forge-contrib` com `--no-track` e recusa destino fora dela (`..`, link simbólico); nada de `git config` nem `git branch -u` (`.git/config` é protegido).
 - Não existe? `git clone git@github.com:rodrigo-isensee/Forge.git ~/.forge-contrib/<projeto>`. Depois, `git fetch origin`.
 - Ao criar o clone, ative o hook: `git config core.hooksPath .githooks` (`R-CONTRIB`).
 

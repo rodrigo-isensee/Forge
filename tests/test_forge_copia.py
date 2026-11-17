@@ -1,0 +1,105 @@
+"""bin/forge-copia: a cópia de trabalho só nasce dentro de ~/.forge-contrib; fora dela, recusa."""
+import os
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+BIN = Path(__file__).resolve().parent.parent / "bin" / "forge-copia"
+
+
+class Base(unittest.TestCase):
+    def setUp(self):
+        t = tempfile.TemporaryDirectory()
+        self.addCleanup(t.cleanup)
+        self.home = Path(t.name).resolve() / "home"
+        self.pasta = self.home / ".forge-contrib"
+        self.pasta.mkdir(parents=True)
+        self.fora = Path(t.name).resolve() / "fora"
+        self.fora.mkdir()
+        self.env = {**os.environ, "HOME": str(self.home), "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null"}
+        self.origem = self.pasta / "origem"
+        self.git(self.pasta, "init", "-q", "-b", "develop", str(self.origem))
+        self.git(self.origem, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "i")
+        self.git(self.origem, "update-ref", "refs/remotes/origin/develop", "HEAD")
+
+    def git(self, cwd, *a):
+        return subprocess.run(["git", *a], cwd=cwd, env=self.env, capture_output=True, text=True, check=True)
+
+    def copia(self, *a, cwd=None):
+        return subprocess.run(["python3", "-I", str(BIN), *a], cwd=cwd or self.origem, env=self.env, capture_output=True, text=True)
+
+    def branch_de(self, d):
+        return self.git(d, "branch", "--show-current").stdout.strip()
+
+
+class Cria(Base):
+    def test_clone_dentro_cria_branch_a_partir_da_base_sem_rastreio(self):
+        d = self.pasta / "c1"
+        r = self.copia("clone", str(d), "--branch", "melhoria/x", "--origem", str(self.origem))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.branch_de(d), "melhoria/x")
+        self.assertEqual(self.git(d, "rev-parse", "HEAD").stdout, self.git(d, "rev-parse", "origin/develop").stdout)
+        cfg = subprocess.run(["git", "config", "--get", "branch.melhoria/x.remote"], cwd=d, env=self.env, capture_output=True)
+        self.assertNotEqual(cfg.returncode, 0)  # --no-track: sem upstream
+
+    def test_clone_com_base_que_nao_existe_falha_com_1(self):
+        r = self.copia("clone", str(self.pasta / "c3"), "--branch", "melhoria/x", "--origem", str(self.origem), "--base", "origin/nada")
+        self.assertEqual(r.returncode, 1, r.stderr)
+
+    def test_worktree_dentro_cria_a_branch(self):
+        d = self.pasta / "wt" / "w1"
+        r = self.copia("worktree", str(d), "--branch", "melhoria/w", "--base", "origin/develop")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.branch_de(d), "melhoria/w")
+
+
+class Recusa(Base):
+    def recusado(self, destino, *extra):
+        r = self.copia("worktree", str(destino), "--branch", "melhoria/z", "--base", "origin/develop", *extra)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("recusado", r.stderr)
+        return r
+
+    def test_fora_da_pasta(self):
+        self.recusado(self.fora / "w")
+        self.assertFalse((self.fora / "w").exists())
+
+    def test_com_ponto_ponto_mesmo_voltando_para_dentro(self):
+        self.recusado(f"{self.pasta}/x/../y")
+
+    def test_por_link_simbolico(self):
+        (self.pasta / "atalho").symlink_to(self.fora)
+        self.recusado(self.pasta / "atalho" / "w")
+        self.assertFalse((self.fora / "w").exists())
+
+    def test_a_propria_pasta_liberada(self):
+        self.recusado(self.pasta)
+
+    def test_prefixo_parecido_nao_vale(self):
+        irmao = self.home / ".forge-contrib-outro"
+        irmao.mkdir()
+        self.recusado(irmao / "w")
+
+    def test_destino_ocupado(self):
+        (self.pasta / "ocupado").mkdir()
+        (self.pasta / "ocupado" / "a").write_text("x")
+        self.recusado(self.pasta / "ocupado")
+
+    def test_branch_ou_base_com_cara_de_opcao(self):
+        r = self.copia("worktree", str(self.pasta / "w"), "--branch=--detach", "--base", "origin/develop")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        r = self.copia("worktree", str(self.pasta / "w"), "--branch", "melhoria/q", "--base=--orphan")
+        self.assertEqual(r.returncode, 2, r.stderr)
+
+    def test_clone_sem_origem(self):
+        r = self.copia("clone", str(self.pasta / "c"), "--branch", "melhoria/q")
+        self.assertEqual(r.returncode, 2, r.stderr)
+
+    def test_nome_de_branch_invalido(self):
+        r = self.copia("worktree", str(self.pasta / "w"), "--branch", "a..b")
+        self.assertEqual(r.returncode, 2, r.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()
