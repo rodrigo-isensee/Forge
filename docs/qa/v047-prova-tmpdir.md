@@ -36,3 +36,9 @@ Instância que não fez a entrega. Diff `1b88640e..a1eb19ef`: `tmpdir_da_prova` 
 - Cobertura (`forge-mutante --cobertura --base 1b88640e...`, rc=0): toda condição mudada tem mutante declarado; nenhuma `não coberto` nem `isenta`. Lista conferida contra o diff: sem linha de guarda sem mutante.
 - Suíte inteira: no CI do PR (check-run `bateria`), não rodada aqui.
 - Remoto avançou (pareceres de review e segurança no mesmo head): trazido por merge, sem rebase.
+
+## Revalidação por delta (E2.498, head 8614a2df)
+- `forge-check parecer delta`: intervalo `a1eb19ef..8614a2df`, domínio código e testes. O que aparece em `bin/forge-check` (`juncao_limpa`, `--tempo` de voltas, `--media-por-agente`) veio da develop 86ac0fcb pelo merge 3fc4724d, não da entrega: `git diff 86ac0fcb 8614a2df` traz só `tmpdir_da_prova`, os testes, a spec de mutantes e os pareceres. Nenhuma linha do item mudou; os critérios E2.316 seguem valendo.
+- `python3 -m unittest tests.test_forge_run` no head: 19 testes, OK.
+- `bin/forge-mutante tests/mutantes/v047-prova-tmpdir.json --processos 4` em `rev=8614a2df01ec`, rc=0: PT-M1 a PT-M8 `morreu` (forge-check:9034, 9038, 9041, 9043, 9045, 9048, 9049, 9059; as linhas andaram com o merge).
+- Suíte inteira: check-run `bateria` do CI do PR, não rodada aqui.
