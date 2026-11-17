@@ -3,12 +3,12 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-h2-autor-fica
-commit: 6d73898a54d405cae438ed76d745fd32bc2436f4
+commit: 482ee7c773597cad435a49acbee8fb535b802493
 parecer: reprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 1
+bugs_medios: 2
 bugs_baixos: 0
 data: 2026-11-17
 ---
@@ -17,7 +17,11 @@ data: 2026-11-17
 Etapa E2.30, H2-AUTOR-FICA-ATE-O-MERGE (classe C, `hooks/agentes.py`). Intervalo `e2880b42..6d73898a`. Sem especificação de UX nem contrato de API: as obrigações são as da descrição do H2 (E2.10) e as condições novas do diff. Acessibilidade e E2E: n/a.
 
 ## Achados
-- A1 (bloqueante) hooks/agentes.py:467 · reproduzido: autores_retomaveis(..., lapides=[{'id': ['x']}], ...) lança TypeError (unhashable); o disparo sai 0 sem reserva (R-TETO, estado corrompido nunca libera). Fixture autor-* com id de lápide ou de registro não texto falta; mesma causa do A1 da segurança
+- A2 (bloqueante) tests/mutantes/trava-agente-morto-3.json:M19 · o diff mexeu em hooks/agentes.py e deixou duas specs antigas fora da fonte: M19 (`de` agora aparece 2 vezes, ambíguo) e v0440-decisoes-2.json:A4 (`if avisos:\n        texto = mensagem(` não existe mais). `python3 -m unittest tests.test_forge_mutante.ConferirTodas` falha no head (failures=1); a bateria do CI cai. Alinhar as duas specs no mesmo commit (agente: dev da stack do Forge)
+- A3 (bloqueante) tests/test_hooks_agentes_autor.py:35 · `forge-testes --vermelho e2880b42 --modulos test_hooks_agentes_autor` sai 2 (sem veredito): na base `PeloHook.test_fixtures_do_pedido` dá erro (JSONDecodeError, hook sem saída JSON em autor-retomavel-avisa e nas duas fixtures de reserva), não asserção. Sem veredito não vale como vermelho; o autor deve fazer o teste falhar por asserção na base ou isolar o caso
+
+## Revalidação do A1 (rodada anterior)
+Resolvido: id não texto em lápide e em registro não perde a reserva. Fixtures `autor-lapide-id-lista-reserva`, `autor-registro-id-objeto-reserva`, `autor-lapide-id-lista-segundo-recusa` e 5 `autor-retom*` entram; `test_hooks_agentes_autor` 10 testes OK no head. Mutantes: 22 em 3 specs, todos morreram (M11, M14, M16, M17, M21 por erro do teste declarado, que a spec declara).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -44,3 +48,9 @@ Os fixtures `autor-*` cobrem `autores` ilegível e id inválido de autor, mas ne
 ## Observações (sem bloqueio)
 - O brief diz 12 fixtures `autor-*` com 2 avisando; só `autor-retomavel-avisa` traz `aviso` no esperado (1 avisa, 11 liberam). O segundo aviso (D3 + H2 juntos) é coberto por `test_dois_avisos_saem_num_json_so`. Contagem do brief imprecisa, cobertura completa.
 - O `test_prazo_do_merge` e o fixture `pesado` não passam com a máquina saturada; no CI (`bateria` do mesmo sha) o veredito vale.
+
+## Execução da revalidação (head 482ee7c7, `forge-check parecer delta` lista código e testes)
+- `bin/forge-mutante` nas 3 specs: M1 a M22 morreram, saída 0.
+- Vermelho: `vermelho: base=e2880b42b81e head=482ee7c77359`; 9 provam por API ausente, `PeloHook.test_fixtures_do_pedido` H=ok B=erro sem veredito; rc 2 (A3).
+- `python3 -I scripts/indice-fixtures.py --conferir`: `docs/hooks-fixtures.md: em dia`.
+- `python3 -m unittest tests.test_hooks_agentes_autor tests.test_forge_mutante.ConferirTodas`: 14 testes, failures=1 (A2); o teste do autor passa.
