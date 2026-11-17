@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-sieg-g1-autorizacao
-commit: 2f150f4dac973291017e18556b652ba65ee9748d
+commit: 7d8ff8f51af8e12b1b8aed4f12b2bc9f3f78a07e
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -66,3 +66,8 @@ Delta: junção da origin/develop (0.47.3). `forge-check parecer delta` acusa `b
 Delta: `bin/forge-testes` (`test_autorizacao` em FORGE_CHECK), docstring de `tests/test_autorizacao.py:1` e contagem 88 para 89 em `tests/test_testes_tocados.py:77` (o CI do PR 629 reprovava ali). Lógica de `bin/forge_autorizacao.py` e mutantes inalterados.
 - `python3 -m unittest tests.test_testes_tocados tests.test_autorizacao` (TMPDIR): `Ran 170 tests in 198.319s`, `OK (skipped=1)`; o skip é do sandbox (`/proc` de outro namespace) em `MedidaDaVagaPesada`, não do teste novo.
 - Suíte inteira: não rodada; o CI do PR a roda.
+
+## Revalidação (head 7d8ff8f5, delta de 2f150f4d)
+`forge-check parecer delta`: domínio do QA mudou só em `bin/forge-testes` (`test_estado_ilegivel` em FORGE_CHECK, REAPROVEITAM_O_LOTE e no mapa de hooks) e `tests/test_testes_tocados.py:77` (contagem 90). Veio da junção da develop (#630 e #632); `bin/forge_autorizacao.py`, `tests/test_autorizacao.py` e os mutantes não mudaram. Contagem 90 = 89 da develop + test_autorizacao, coerente.
+- `python3 -I -m unittest discover -s tests -p`: test_testes_tocados 162 OK (skipped=1, o do sandbox), test_autorizacao 8 OK, test_estado_ilegivel 9 OK.
+- Suíte inteira: não rodada; o CI do PR 629 a roda.
