@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: 81c503420c2cd99a376ac73a68a7ef7be1181bf2
+commit: c7a8ff72300365c64aa699e2301c2ca0c9e1b982
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
@@ -75,9 +75,20 @@ Delta lido: `forge-check parecer delta docs/reviews/v047-conformidade-destino-op
 
 Verificador: `python3 -m unittest tests.test_testes_tocados` no 81c50342: 161 testes, OK (skipped=1, o `/proc` de outro namespace). `forge-check docs` rc 0. A suíte completa fica com o CI do PR.
 
+## Revalidação por delta 81c50342..c7a8ff72 (E2.612, junção com a develop e oráculo ajustado; instância que não fez a entrega)
+Delta lido: `forge-check parecer delta docs/reviews/v047-conformidade-destino-opaco.md` (rc 0), intervalo `81c50342..c7a8ff72`, sem o que veio da base; no domínio `bin/forge-testes`, `tests/test_oraculo_v047.py` e `tests/test_testes_tocados.py`. Os mutantes G12 a G14 e G20 (`v046-conformidade-caminho-git-2` e `-4`) são teste do QA aprovado e ficam dispensados; não os alterei.
+
+Condição do dono (17/11): `git diff 730843a9 HEAD -- tests/test_oraculo_v047.py` tem 3 mudanças, 7 linhas a mais e 4 a menos. (1) `from ambiente_git import sem_manutencao` com o `sys.path.insert`; (2) `git()` e `bases_do_git()` passam o `env` por `sem_manutencao(...)`, o padrão de ambiente do git; (3) a chave do arquivo de exemplo `README.md` vira `LEIAME.md` em `ARQUIVOS` (a única ocorrência no arquivo). Asserções: 15 linhas de `assert*`, `fail`, `subTest` e `def test_` em 730843a9 e 15 no HEAD; só `assert*`, 10 e 10. Nenhuma checagem saiu, nenhum limite (`TETO_DE_EXECUCOES`, `PRAZO_LARGO_S`) mudou e nenhum teste foi pulado. Conclusão: o oráculo só mudou no padrão de ambiente do git e no nome do arquivo de exemplo, e nada ficou mais fraco.
+
+`bin/forge-testes`: o delta só soma `test_pre_push_patch` ao mapa `hooks/.*` e a regra do patch; os quatro testes que a resolução do conflito devia manter seguem na tupla (`test_hook_destino_opaco`, `test_conformidade_opaco`, `test_pr_hook_rapido` e o novo). `tests/test_testes_tocados.py`: `AMBIENTE` sem o `GIT_*` herdado e um teste novo do mapa.
+
+Verificador: `python3 -m unittest tests.test_oraculo_v047 tests.test_testes_tocados` (sem `-I`) no c7a8ff72: 165 testes, OK (skipped=1, o `/proc` de outro namespace). A suíte completa fica com o CI.
+
 ## Achados
 
 ## Sondas
 
 ## Parecer
 Aprovado no 81c50342 (R-REVIEW), por delta: junção limpa com a develop 86ac0fcb, código da branch igual. Antes: aprovado no 081473ac. A junção com a develop bf475209 resolve os conflitos de `bin/forge-testes` e `tests/test_testes_tocados.py` pela união dos dois lados, sem mudar comportamento; a contagem 86 confere com o plano real. Aprovação anterior no c22624c5 mantida; a suíte completa fica com o CI do PR.
+
+Revalidado no c7a8ff72 (R-REVIEW), por delta: aprovado. Oráculo da v047 conferido contra o 730843a9 (condição do dono): só ambiente do git e nome do arquivo de exemplo, mesmas asserções. Sem código de `hooks/` no delta; QA e segurança não precisam revalidar (o delta não toca código que eles aprovaram).
