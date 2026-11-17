@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-hook-heredoc-palavra
-commit: 7185b64c57835ab876cc98df59112fd0a05bfe04
+commit: 76b50dc775c366408d0064efd172eec658b0a7a3
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -86,4 +86,10 @@ Delta lido com `forge-check parecer delta` (hooks/parecer.py, 5 fixtures novas, 
 - `python3 -I -m unittest discover -s tests -p test_hooks_parecer_pasta.py` → `Ran 5 tests in 89.812s · OK`.
 - `python3 -I scripts/indice-fixtures.py --conferir` → `docs/hooks-fixtures.md: em dia`.
 - `forge-testes --vermelho 5b1aacd5068fdf0ad78cb0404444ba33cdbf594a --modulos test_hooks_parecer_pasta` → rc 0; `vermelho: base=5b1aacd5068f head=7185b64c5783`; `test_corpus_heredoc_dado_libera_e_bloqueia` e `test_corpus_texto_passa_e_barra` provam (falham na base); contagem: não prova (passa na base)=3; prova (asserção)=2.
+## Revalidação (E2.39, head 76b50dc7)
+Delta lido com `forge-check parecer delta` (7185b64c..76b50dc7: `hooks/parecer.py:281` filtro `*?[{`, 3 fixtures `heredoc-dado-alvo-com-chave-*-bloqueia`, spec `-2` com M12 e M9 realinhado, ADR, índice). Reteste:
+- `bin/forge-mutante tests/mutantes/v047-hook-heredoc-palavra.json tests/mutantes/v047-hook-heredoc-palavra-2.json` → rc 0, `rev=76b50dc775c3`: M1 a M12 morreram (M9 e M12 em parecer.py:281).
+- `python3 -I -m unittest discover -s tests -p test_hooks_parecer_pasta.py` → `Ran 5 tests in 144.821s · OK`.
+- `python3 -I scripts/indice-fixtures.py --conferir` → `docs/hooks-fixtures.md: em dia`.
+- `forge-testes --vermelho 5b1aacd5068fdf0ad78cb0404444ba33cdbf594a --modulos test_hooks_parecer_pasta` → rc 0; `vermelho: base=5b1aacd5068f head=76b50dc775c3`; `test_corpus_heredoc_dado_libera_e_bloqueia` e `test_corpus_texto_passa_e_barra` provam (asserção); 3 não provam (passam na base).
 Parecer: aprovado; nenhum bug aberto.
