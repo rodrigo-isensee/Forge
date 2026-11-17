@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-folga-jarvis
-commit: 2a95b1630df4dbf2fa45d39c916393e4423d6c44
+commit: 6288db934914dcf2ce14bae404987057dbe7b48c
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
@@ -85,3 +85,11 @@ Delta lido: `forge-check parecer delta docs/reviews/v047-folga-jarvis.md` (rc=0)
 - Rodados: `test_jarvis_nucleo` e `test_jarvis_n_jar_a` (OK, 1 pulado, arquivo do dono), `test_metricas_texto`, `test_medidas_m14b` e `test_forge` `RegrasInviolaveis`, `Agentes`, `Skill` e `Orcamento` (16 OK). A suíte inteira fica para o CI do PR.
 
 A5 é novo e `recomendado`; A1 a A4 seguem recomendações. Parecer: **aprovado** no head `2a95b163`.
+
+## Revalidação por delta (head `6288db93`, E2.673)
+Delta lido: `forge-check parecer delta docs/reviews/v047-folga-jarvis.md`, intervalo `2a95b163..6288db93`. No domínio: `tests/fixtures/diretrizes-do-dono-exemplo.md` (novo) e `tests/test_jarvis_nucleo.py`. O aviso sobre o merge `37de64a` é o remoto da própria branch (só `docs/security/v047-folga-jarvis.md`), não outra branch. Um commit `test(jarvis)` (E2.672), em Conventional Commits.
+
+- **A checagem não afrouxou, apertou:** antes, sem `FORGE_DIRETRIZES_DONO` (o caso do CI), `test_cada_numero_do_arquivo_do_dono_tem_entrada` pulava; agora lê a fixture neutra (números 1 a 29) e afirma a mesma coisa. Com a variável apontando arquivo existente, o caminho é o de antes, sem mudança de asserção. Variável apontando arquivo inexistente cai na fixture em vez de pular: também não afrouxa.
+- **Sondas:** sem a variável, o teste roda e passa (OK, sem pulo). Cópia da fixture com `30. extra`: reprova com `['diretriz 30 do arquivo do dono sem entrada']`. A fixture é neutra (`R-NEUTRO`): só "diretriz de exemplo N".
+
+Sem achado novo; A1 a A5 seguem recomendações. Parecer: **aprovado** no head `6288db93`.
