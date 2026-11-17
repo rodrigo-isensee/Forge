@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-hook-heredoc-palavra
-commit: 76b50dc775c366408d0064efd172eec658b0a7a3
+commit: 228d0083051fc3d808525d47d1efcfee71df20c1
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
@@ -11,6 +11,11 @@ data: 2026-11-17
 # Review: v047-hook-heredoc-palavra
 
 Code review da E2.6 (HOOK-HEREDOC-PALAVRA-FP, classe C) no head 730261a5, base 5b1aacd5. Dois commits: f53efb93 (hook, fixtures, changelog, índice) e 730261a5 (mutantes).
+
+## Revalidação (E2.50, head 228d0083)
+Delta lido: `forge-check parecer delta docs/reviews/v047-hook-heredoc-palavra.md`, intervalo 76b50dc7..228d0083, sem o que veio da develop: 1 arquivo no domínio, `docs/hooks-fixtures.md`. Junção da develop (ba968580) pelo integrador, conflito só nesse índice gerado, resolvido rodando o script.
+- `python3 -I scripts/indice-fixtures.py --conferir`: `docs/hooks-fixtures.md: em dia`; as linhas mudadas são contagens e prefixos do corpus da develop (`agentes`, `conformidade`), sem mudança no código da branch.
+- Entre 76b50dc7 e o pai 56e18e0a só entraram pareceres (qa, review, security). Sem achado novo; parecer mantido.
 
 ## Revalidação (E2.37, head 76b50dc7)
 Delta lido: `forge-check parecer delta docs/reviews/v047-hook-heredoc-palavra.md`, intervalo 7185b64c..76b50dc7, 7 arquivos no domínio (hooks/parecer.py, ADR 0011, índice de fixtures, 3 fixtures novas, spec -2 de mutantes). Correção do A3 da segurança (E2.15) pela E2.32, commit 76b50dc7.
