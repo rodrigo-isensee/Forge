@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-prova-tmpdir
-commit: a1eb19effa881e7e3decd3253252e7c1df560594
+commit: 3fc4724df0bfd01b97e7502826318fe091ed5af9
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
@@ -25,3 +25,6 @@ Aprovado (`R-REVIEW`).
 - **Mutantes (AR-1, AR-12):** `bin/forge-mutante --processos 1 --base 1b88640e tests/mutantes/v047-prova-tmpdir.json`: PT-M1 a PT-M8 morreram; `--cobertura --base 1b88640e`: todas as linhas de guarda do diff cobertas por mutante declarado. Spec no head revisado, sem linha defasada.
 - **Achados recorrentes (PA-7):** conferidos AR-1 a AR-14; nenhum alcança o diff (AR-4: o ambiente da prova é montado do zero; o `git` de teste é o já existente no módulo, fora do diff).
 - **Suíte inteira:** fica no CI do PR (sem PR nesta etapa); não rerrodada aqui.
+
+## Revalidação (E2.491)
+Delta lido (`forge-check parecer delta`, `a1eb19ef..3fc4724d`): só o merge da develop `86ac0fcb` (`juncao_limpa` E2.302, `voltas --tempo`, `custo --media-por-agente`, mutantes e testes de outros itens), tudo vindo da base. O diff próprio contra a develop segue igual ao revisado: `bin/forge-check` +27, `tests/test_forge_run.py` +74, mutantes e fragmento; nenhuma linha do item mudou. `python3 -m unittest tests.test_forge_run` no head 3fc4724d: OK. AR-1 a AR-14 conferidos de novo: nenhum alcança o delta. Aprovado no head 3fc4724d.
