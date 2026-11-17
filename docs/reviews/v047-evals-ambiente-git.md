@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-evals-ambiente-git
-commit: 2a2239532d0611430005f80d4fc937ec904675e8
+commit: e02adc7b6f6ed83ac3c0a9bcf7b4adba0aa59a3e
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
@@ -28,6 +28,9 @@ Execuções neste head:
 
 ## Revalidação (E2.227)
 Delta lido: `forge-check parecer delta docs/reviews/v047-evals-ambiente-git.md`, intervalo `438838fe..2a223953`. No domínio só `docs/engineering/achados-recorrentes.md`: AR-4 de `vezes: 2` para `vezes: 3`, `última: tests/evals/test_regressao_forma.py:64` (linha de `sem_git_herdado` em `rodar`, conferida). É a linha AR que este review mandou gravar; nenhum código nem teste mudou. Aprovação mantida no head 2a223953.
+
+## Revalidação (E2.568)
+Delta lido: `forge-check parecer delta docs/reviews/v047-evals-ambiente-git.md`, intervalo `2a223953..e02adc7b` (junção da develop). No domínio só `docs/engineering/achados-recorrentes.md`, vindo da base (AR-1, AR-12 e AR-14 de outros pedidos); `tests/ambiente_git.py`, `tests/evals/test_regressao_forma.py` e o fragmento não mudaram. `python3 -m unittest tests.evals.test_regressao_forma` no head: `Ran 31 tests ... OK`. Aprovação mantida no head e02adc7b.
 
 ## Achados
 - A1 (recomendado) tests/ambiente_git.py:50 · uma linha em branco antes de `def remoto_sem_manutencao`; em tests/evals/test_regressao_forma.py:355 três antes da classe nova e uma antes de `if __name__` (PEP 8 pede duas). Só forma; ajuste no próximo toque do arquivo.
