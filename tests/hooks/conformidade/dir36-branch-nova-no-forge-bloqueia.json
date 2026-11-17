@@ -1,5 +1,5 @@
 {
-  "descricao": "Sessão de projeto no próprio clone: push da própria branch e PR do tech-lead para o Forge liberam.",
+  "descricao": "Diretriz 36 (R-CONTRIB): `git branch <nome>` no clone do Forge cria branch: recusado.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -10,14 +10,15 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "git push origin melhoria/proj-tema && gh pr create --base develop --title t --body-file x.md -R rodrigo-isensee/Forge"
+      "command": "git -C {tmp}/home/.forge-contrib/proj branch melhoria/proj-tema"
     },
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9",
-    "cwd": "{tmp}/home/.forge-contrib/proj",
+    "cwd": "{tmp}/proj",
     "agent_type": "forge:tech-lead"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-CONTRIB: git branch"
   }
 }

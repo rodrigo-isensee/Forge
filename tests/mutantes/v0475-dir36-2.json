@@ -1,0 +1,56 @@
+{
+  "pedido": "v0475-dir36",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "diretriz 36 (R-CONTRIB): gh pr create no Forge é recusado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "CONTRIB_PR = {\"create\", ",
+      "para": "CONTRIB_PR = {",
+      "testes": [
+        "tests.test_hook_dir36.HookDir36.test_fixtures_contrib"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "diretriz 36 (R-CONTRIB): POST em pulls do Forge (abrir PR pela API) é recusado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "r\"(^|/)pulls(/|$|\\?)|",
+      "para": "r\"(^|/)pulls/[^/]+|",
+      "testes": [
+        "tests.test_hook_dir36.HookDir36.test_fixtures_contrib"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "diretriz 36 (R-CONTRIB): createPullRequest pelo GraphQL na sessão de projeto falha fechado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "r\"createPullRequest|closePullRequest|",
+      "para": "r\"closePullRequest|",
+      "testes": [
+        "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "diretriz 36 (R-CONTRIB): switch com opção agrupada (-qc) cria branch",
+      "arquivo": "hooks/conformidade.py",
+      "de": "re.compile(r\"-[a-zA-Z]*[cC][a-zA-Z]*|--create",
+      "para": "re.compile(r\"-c|--create",
+      "testes": [
+        "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "diretriz 36 (R-CONTRIB): checkout --orphan cria branch",
+      "arquivo": "hooks/conformidade.py",
+      "de": "re.compile(r\"-[a-zA-Z]*[bB][a-zA-Z]*|--orphan\")",
+      "para": "re.compile(r\"-[a-zA-Z]*[bB][a-zA-Z]*\")",
+      "testes": [
+        "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
+      ]
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "descricao": "Projeto com remoto `forge`: push da própria melhoria/<projeto>-* para ele libera.",
+  "descricao": "Diretriz 36 (R-CONTRIB): remoto nomeado que aponta para o Forge: o envio da branch do projeto é recusado.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -28,6 +28,7 @@
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-CONTRIB: push"
   }
 }

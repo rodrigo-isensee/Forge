@@ -1,0 +1,24 @@
+{
+  "descricao": "Diretriz 36 (R-CONTRIB): abrir PR pelo GraphQL na sessão de projeto falha fechado (o ID é global).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api graphql -f query='mutation { createPullRequest(input: {}) { clientMutationId } }'"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: gh api"
+  }
+}

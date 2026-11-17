@@ -1,5 +1,5 @@
 {
-  "descricao": "Push por URL do Forge na própria branch libera.",
+  "descricao": "Diretriz 36 (R-CONTRIB): push pela URL do Forge, mesmo da branch com o prefixo do projeto, é recusado.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -15,6 +15,7 @@
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-CONTRIB: push"
   }
 }

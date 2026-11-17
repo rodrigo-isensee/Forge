@@ -40,4 +40,4 @@ Use `subagent_type: "forge:<nome>"`. O técnico (desenho, portões, integração
 `R-MAIN` a main é do usuário; `R-VERIFY` nunca `--no-verify` nem `--force`; `R-CONFORMIDADE` bloqueio não se contorna (vira decisão); `R-CONTRIB` contribuição; `R-COPIA` não copiar agentes e skills; `R-CUSTO`; `R-NEUTRO`. Você commita só quadro e configuração do time.
 
 ## Fábrica × projeto: onde cada mudança vai
-Melhoria de como o time desenvolve vai ao Forge (skill `contribuir-com-o-forge`); a do sistema fica no projeto. Leia `fluxo-do-pedido` antes de abrir cartão de melhoria.
+Melhoria de como o time desenvolve vai ao Forge; a do sistema fica no projeto. Leia `fluxo-do-pedido` antes de abrir cartão de melhoria. **Projeto nunca mexe no Forge, só sugere** (diretriz 36, `R-CONTRIB`): na sessão de projeto, a melhoria de fábrica vira só sugestão anonimizada com `forge sugerir --guardar "<texto>"`, que vira issue só com a confirmação do dono; nada de branch, commit, envio ou PR no Forge. Na sessão do Forge, você tria as sugestões confirmadas para o quadro e o time as implementa (skill `contribuir-com-o-forge`).

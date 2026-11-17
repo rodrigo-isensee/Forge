@@ -1,5 +1,5 @@
 {
-  "descricao": "Sem CLAUDE_PROJECT_DIR: prefixo melhoria/<clone>- libera.",
+  "descricao": "Diretriz 36 (R-CONTRIB): sem CLAUDE_PROJECT_DIR, o prefixo melhoria/<clone>- não libera o envio ao Forge.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -16,6 +16,7 @@
     "cwd": "{tmp}/home/.forge-contrib/proj"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-CONTRIB: push"
   }
 }

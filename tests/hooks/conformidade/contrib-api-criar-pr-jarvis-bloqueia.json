@@ -16,6 +16,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "api que abre PR é de tech-lead (papel: jarvis)"
+    "stderr": "R-CONTRIB: gh api"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "descricao": "Sessão de projeto na worktree própria (~/.forge-contrib/<projeto>-wt/*): push da própria branch libera.",
+  "descricao": "Diretriz 36 (R-CONTRIB): commit no clone do Forge é recusado.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -10,13 +10,15 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "git push origin melhoria/proj-tema"
+      "command": "git commit -m 'fix: x'"
     },
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9",
-    "cwd": "{tmp}/home/.forge-contrib/proj-wt/tema"
+    "cwd": "{tmp}/home/.forge-contrib/proj",
+    "agent_type": "forge:tech-lead"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-CONTRIB: git commit"
   }
 }
