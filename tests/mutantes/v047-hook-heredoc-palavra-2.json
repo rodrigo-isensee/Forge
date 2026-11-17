@@ -1,0 +1,16 @@
+{
+  "pedido": "v047-hook-heredoc-palavra",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "HOOK-HEREDOC-PALAVRA-FP: curinga no alvo gravado (bin/l[s]) não deixa o corpo ser dado",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if any(c in alvo for alvo in alvos for c in \"*?[\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia"
+      ]
+    }
+  ]
+}
