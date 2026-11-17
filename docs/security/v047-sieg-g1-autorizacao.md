@@ -1,21 +1,22 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v047
+pedido: v0474
 branch: melhoria/v047-sieg-g1-autorizacao
-commit: 7b20d073c4d8cd596518000064e50e68eb1168e2
+commit: c890fbd68ead4e201005380220d7815f6d226fa3
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-17
 ---
-# Review de segurança: v047 ADR 0018, G1.0 e G1.1 (E2.702, head 7b20d073)
+# Review de segurança: v047 ADR 0018, G1.0 e G1.1 (E1.12 do v0474, head c890fbd6)
 
-Gatilhos: autorização, controle do Forge (`bin/forge-check`, leitura das concessões). Volta por delta do parecer aprovado do head 580b6c34 (a rodada anterior fica no git).
+Gatilhos: autorização, controle do Forge (`bin/forge-check`, leitura das concessões). Volta por delta do parecer aprovado do head 7b20d073 (a rodada anterior fica no git).
 
 ## Resumo
-- Delta lido (`forge-check parecer delta`, 580b6c34..7b20d073): no domínio, só o texto de ajuda do subcomando `autorizacao` em `bin/forge-check` (`:9548`, sem mudança de lógica) e a linha da ADR 0018 como aceita em `docs/adr/README.md:26` (confere com a ADR e com as decisões D1, D2 e D4). Fora do domínio, lidos: `setUpModule` em `tests/test_autorizacao.py` (só move o carregamento do módulo; sem skip nem variável de ambiente) e o `assertIn` do texto do erro de link, com o mutante M56.
-- Nada no delta toca `bin/forge_autorizacao.py`, a leitura nem o `Gravado-por`: a conclusão do 580b6c34 vale. Nenhum achado novo; A9 a A14 seguem como estavam.
-- Rodado: `python3 -m unittest tests.test_autorizacao` (8 OK). Suíte inteira: só no CI do PR, portão do merge.
+- Delta lido (`forge-check parecer delta`, 7b20d073..c890fbd6): 7b20d073..c992f567 só toca pareceres (`docs/qa`, `docs/reviews`, `docs/security`); c890fbd6 é a junção da `origin/develop` b07e6a39 (0.47.3). A ferramenta acusa `bin/forge-check` no domínio e mostra o diff inteiro do arquivo, inclusive o que veio da develop.
+- Resolução da junção em `bin/forge-check` conferida: `git show --remerge-diff c890fbd6` vazio (junção automática, sem edição à mão); `git diff b07e6a39 c890fbd6 -- bin/forge-check` (7+/1-) é igual, linha a linha, ao próprio da branch `git diff 86ac0fcb c992f567 -- bin/forge-check`: `SEM_GUARDA_DE_VERSAO` com `autorizacao` (`:9369`), o subparser `autorizacao ler` (`:9672`) e o despacho para `forge_autorizacao` com `raiz_principal` e `escritor_do_resultado` (`:9912`). As funções usadas seguem definidas (`:1641`, `:2030`, `:2966`, `:9566`); o que a develop trouxe não toca o subcomando nem a leitura.
+- `bin/forge_autorizacao.py` não muda no delta: a conclusão do 7b20d073 vale. Nenhum achado novo; A9 a A14 seguem como estavam.
+- Rodado: `python3 -m unittest tests.test_autorizacao` (8 OK) e `forge-check autorizacao ler` (rc 0, 0 ativas). CI do PR no c890fbd6: vermelho na suíte parte 5/5 (3.12 e 3.14) e na bateria, só por `test_testes_tocados` (o mapa de testes afetados de `bin/forge-check` não inclui `test_autorizacao`); defeito de cobertura do mapa, sem efeito na segurança, mas o CI segue portão do merge e precisa ficar verde (dono: tech-lead).
 
 ## Achados
 - A9 (recomendado) docs/adr/0018-autorizacao-do-dono-gravada.md:25 · Aberto, vai ao G1.2 (gravar): com `Fuso` Etc/UTC a leitura aceita `ate:` de data escrita (sonda S7: `ativa`); a regra de tratar UTC ou sem região como não legível em data, hora e "esta noite" segue pendente.
@@ -43,4 +44,4 @@ Sondas desta rodada (nenhuma prova bloqueante; registro dos recomendados): scrip
 - PA-7: AR-1 e AR-2 com mutantes da leitura (`tests/mutantes/v047-sieg-g1-autorizacao*.json`, fora do domínio, só conferidos na lista).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Suíte: não rodada (brief: sem suíte local); o CI do PR segue como portão do merge. Lacuna: `gitleaks`, `osv-scanner`, `semgrep`, `zizmor` e `actionlint` fora do PATH.
+Nenhum risco aceito. Suíte: só no CI do PR (vermelho no c890fbd6 por `test_testes_tocados`, fora da segurança), portão do merge. Lacuna: `gitleaks`, `osv-scanner`, `semgrep`, `zizmor` e `actionlint` fora do PATH.
