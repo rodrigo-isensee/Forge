@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-mutantes-sobreviventes
-commit: 007cd931fcbcce4ef50f46b3d4515f1cc38e78f7
-parecer: reprovado
+commit: 94cbaa1b43de3e468c11f9360893d5c592c01ebc
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
 ---
@@ -25,8 +25,14 @@ Parecer completo (não havia parecer anterior nesta branch), sobre o head 007cd9
 - Os outros testes novos: lidos; cada um tem ramo de falha com comportamento (sem leitura de texto da fonte). `test_desde_real...` usa repositório real e comandos git com `cwd`.
 
 ## Achados
-- A1 (bloqueante) tests/mutantes/pr-verde-lote-check.json:79 · M8 retargeteado para a linha 1494 e sobrevive; na develop o `de` casava a linha 1785 e o mutante morria. A "correção" criou o sobrevivente. Volte ao `de`/`para` que casa 1785 (use `# D4; E1g; E2.252`) e rode a spec; AR-12.
+- A1 (bloqueante, resolvido no 94cbaa1b) tests/mutantes/pr-verde-lote-check.json:79 · M8 retargeteado para a linha 1494 e sobrevive; na develop o `de` casava a linha 1785 e o mutante morria. A "correção" criou o sobrevivente. Volte ao `de`/`para` que casa 1785 (use `# D4; E1g; E2.252`) e rode a spec; AR-12.
 - A2 (recomendado) tests/mutantes/t6t3-mensagem.json:103 · lista de dois testes em uma só linha, fora do formato das outras specs (um por linha); separe.
 
+## Revalidação (delta 007cd931..94cbaa1b)
+- Delta lido com `forge-check parecer delta`: `tests/mutantes/pr-verde-lote-check.json` (M8 volta a `# D4; E1g; E2.252`) e `docs/engineering/achados-recorrentes.md` (AR-12, 5 vezes).
+- `bin/forge-mutante tests/mutantes/pr-verde-lote-check.json`: M1 a M8 morreram; M8 em `bin/forge-check:1785`.
+- `--conferir --base 86ac0fcb`: trecho de cada spec no lugar. `tests.test_portao_diff_proprio` 19 OK; `tests.test_forge_mutante` 124 OK (ConferirTodas 4 OK), sem `-I`.
+- A2 segue recomendado, não bloqueia.
+
 ## Parecer
-Reprovado: A1 é defeito provado (mutante M8 sobrevive no head, morria na base). Após a correção, revalide só o delta com `forge-check parecer delta`.
+Aprovado no head 94cbaa1b: A1 corrigido e provado pela spec.
