@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-prova-tmpdir
-commit: a1eb19effa881e7e3decd3253252e7c1df560594
+commit: 3fc4724df0bfd01b97e7502826318fe091ed5af9
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
