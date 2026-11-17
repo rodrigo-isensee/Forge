@@ -1,2 +1,0 @@
-### Alterado
-- forge-check proximo mais rápido e por etapa (v047 E2.72): os commits de cada branch saem de um rev-list só e as etapas citadas no Histórico, de um índice por termo (o v047 passava de 4 min, agora uns 8 s; FORGE-CHECK-PROXIMO-LENTO); por padrão, só as etapas abertas, cortadas antes do passo e dos bloqueios, e --etapa E<n>.<m> mostra uma (PROXIMO-POR-ETAPA); a etapa cuja [branch …] tem PR mesclado na develop sai feita (PR mesclado), não em curso, pelo assunto do merge ou pelo branch: de um parecer da develop, sem rede (PROXIMO-BRANCH-PR-MESCLADO).

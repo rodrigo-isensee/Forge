@@ -6,8 +6,8 @@
       "id": "G20",
       "guarda": "volta 3 (A1): opção que muda qual palavra é o destino (`-S`, `-t`, longa, `--`) não libera origem nenhuma",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if any(a.startswith(\"-\") and not re.fullmatch(r\"-[^-St=]+\", a) for a in args):",
-      "para": "        if False:",
+      "de": "if self.rev_parse_misto or any(a.startswith(\"-\") and not re.fullmatch(r\"-[^-St=]+\", a) for a in args):",
+      "para": "if self.rev_parse_misto or False:",
       "testes": [
         "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
       ]

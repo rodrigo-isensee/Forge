@@ -1,0 +1,17 @@
+{
+  "descricao": "HOOK-CONTRIB-HEREDOC-FP: Python que só guarda os comandos de PR do gh num texto, com número de linha: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 - <<'EOF'\ntexto = \"gh pr ready 512 e gh pr merge 512 --squash, linha 40\"\nprint(texto)\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

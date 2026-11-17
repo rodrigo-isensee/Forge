@@ -1,0 +1,90 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "MH-M1",
+      "guarda": "git grep que falha (rc > 1) não vira nada achado",
+      "arquivo": "bin/forge-mutante",
+      "de": "if r.returncode > 1:  # 1 é \"nada achado\"",
+      "para": "if r.returncode > 128:  # 1 é \"nada achado\"",
+      "testes": [
+        "tests.test_forge_mutante.MutacaoDirigida.test_test_py_importado_em_qualquer_forma_e_apoio_e_o_grep_que_falha_nao_e_nada_achado"
+      ]
+    },
+    {
+      "id": "MH-M2",
+      "guarda": "a falha do git grep levanta erro",
+      "arquivo": "bin/forge-mutante",
+      "de": "raise RuntimeError(f\"git grep {sha}",
+      "para": "return (f\"git grep {sha}",
+      "testes": [
+        "tests.test_forge_mutante.MutacaoDirigida.test_test_py_importado_em_qualquer_forma_e_apoio_e_o_grep_que_falha_nao_e_nada_achado"
+      ]
+    },
+    {
+      "id": "MH-M3",
+      "guarda": "a spec .json de tests/mutantes/ não é apoio",
+      "arquivo": "bin/forge-mutante",
+      "de": "if a.startswith(\"tests/mutantes/\"):",
+      "para": "if a.startswith(\"tests/mutantes/x\"):",
+      "testes": [
+        "tests.test_forge_mutante.MutacaoDirigida.test_teste_e_spec_de_outro_mutante_nao_poem_todos_no_diff"
+      ]
+    },
+    {
+      "id": "MH-M4",
+      "guarda": ".py de tests/mutantes/ é apoio e .json não",
+      "arquivo": "bin/forge-mutante",
+      "de": "return not a.endswith(\".json\")",
+      "para": "return a.endswith(\".json\")",
+      "testes": [
+        "tests.test_forge_mutante.MutacaoDirigida.test_py_de_tests_mutantes_poe_todos_no_diff",
+        "tests.test_forge_mutante.MutacaoDirigida.test_teste_e_spec_de_outro_mutante_nao_poem_todos_no_diff"
+      ]
+    },
+    {
+      "id": "MH-M5",
+      "guarda": "test_*.py só é apoio quando outro teste o importa",
+      "arquivo": "bin/forge-mutante",
+      "de": "if Path(a).name.startswith(\"test_\") and a.endswith(\".py\"):",
+      "para": "if Path(a).name.startswith(\"tset_\") and a.endswith(\".py\"):",
+      "testes": [
+        "tests.test_forge_mutante.MutacaoDirigida.test_test_py_importado_em_qualquer_forma_e_apoio_e_o_grep_que_falha_nao_e_nada_achado",
+        "tests.test_forge_mutante.MutacaoDirigida.test_teste_e_spec_de_outro_mutante_nao_poem_todos_no_diff"
+      ]
+    },
+    {
+      "id": "MH-M6",
+      "guarda": "test_*.py importado por outro teste é apoio (S5)",
+      "arquivo": "bin/forge-mutante",
+      "de": "return importado_por_teste(a, sha)",
+      "para": "return False",
+      "testes": [
+        "tests.test_forge_mutante.MutacaoDirigida.test_helper_em_test_py_importado_por_outro_teste_poe_todos_no_diff",
+        "tests.test_forge_mutante.MutacaoDirigida.test_test_py_importado_em_qualquer_forma_e_apoio_e_o_grep_que_falha_nao_e_nada_achado"
+      ]
+    },
+    {
+      "id": "MH-M7",
+      "guarda": "sem import achado, o test_*.py não é apoio",
+      "arquivo": "bin/forge-mutante",
+      "de": "return bool(r.stdout.strip())",
+      "para": "return True",
+      "testes": [
+        "tests.test_forge_mutante.MutacaoDirigida.test_test_py_importado_em_qualquer_forma_e_apoio_e_o_grep_que_falha_nao_e_nada_achado",
+        "tests.test_forge_mutante.MutacaoDirigida.test_teste_e_spec_de_outro_mutante_nao_poem_todos_no_diff"
+      ]
+    },
+    {
+      "id": "MH-M8",
+      "guarda": "import sem ponto antes do nome (import test_x) casa",
+      "arquivo": "bin/forge-mutante",
+      "de": "(from|import)[[:space:]](.*[^A-Za-z0-9_])?{nome}",
+      "para": "(from|import)[[:space:]].*(^|[^A-Za-z0-9_]){nome}",
+      "testes": [
+        "tests.test_forge_mutante.MutacaoDirigida.test_test_py_importado_em_qualquer_forma_e_apoio_e_o_grep_que_falha_nao_e_nada_achado"
+      ]
+    }
+  ]
+}

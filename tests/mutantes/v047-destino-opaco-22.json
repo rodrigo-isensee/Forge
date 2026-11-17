@@ -1,0 +1,46 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O149",
+      "guarda": "E1.330, volta do lote B (A5 do review E1.327, A12 da segurança E1.328, A5 do QA E1.329): corpo de heredoc sem aspas que atribui marca a linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if corpos and not corpos_conhecidos(original):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O150",
+      "guarda": "E1.330, volta do lote B (A12 da segurança E1.328): o corpo de `<<'E'` e `<<\"E\"` é literal e não conta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for h in heredocs(comando)[0] if not h.literal]",
+      "para": "for h in heredocs(comando)[0] if True]",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O151",
+      "guarda": "E1.330, volta do lote B (A12 da segurança E1.328): o valor calculado não libera com corpo de heredoc que atribui",
+      "arquivo": "hooks/conformidade.py",
+      "de": "linha = None if self.corpo_desconhecido else linha_juntada(self.texto_da_linha)",
+      "para": "linha = None if False else linha_juntada(self.texto_da_linha)",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O152",
+      "guarda": "E1.330, volta do lote B (A12 da segurança E1.328): `linha_conhecida` recusa pelas buscas de texto, agora em `expansao_conhecida`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not expansao_conhecida(linha):",
+      "para": "    if linha is None:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}

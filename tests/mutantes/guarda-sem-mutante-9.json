@@ -36,8 +36,8 @@
       "id": "M60",
       "guarda": "isenta do arquivo da condicao",
       "arquivo": "bin/forge-mutante",
-      "de": "i[\"arquivo\"] == arquivo and",
-      "para": "True and",
+      "de": "if i[\"arquivo\"] != arquivo:",
+      "para": "if False:",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_isenta_que_nao_cruza_condicao_listada_ou_nao_casa_uma_vez_e_2"
       ]

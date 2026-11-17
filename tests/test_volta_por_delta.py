@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from apoio_jarvis import texto_do_jarvis  # noqa: E402
 from test_forge import RAIZ, ambiente_limpo, git  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+from ambiente_git import remoto_sem_manutencao  # noqa: E402
 from gh_falso import com_gh_falso  # noqa: E402
 
 FORGE_CHECK = str(RAIZ / "bin" / "forge-check")
@@ -605,6 +606,56 @@ class DeltaAposMergeBase(Repositorio):
                 self.assertEqual(self.check(*args)[0], 2)
 
 
+class DeltaComBaseAtrasada(Repositorio):
+    """PARECER-DELTA-SEM-MERGE-DA-DEVELOP (v047 E2.181): a `origin/develop` local atrás da develop que a branch integrou contava o merge
+    inteiro como do autor (140 arquivos no v047). O `parecer delta` busca a base uma vez; sem rede, o merge fica no delta, com aviso."""
+
+    SEG, base_anda, integrar = DeltaAposMergeBase.SEG, DeltaAposMergeBase.base_anda, DeltaAposMergeBase.integrar
+
+    def setUp(self):
+        super().setUp()
+        self.c1 = self.commitar({"src/app.txt": "da branch\n", "proprio.txt": "1\n"}, "entrega")
+        self.commitar({"docs/security/p1.md": self.SEG.format(c=self.c1)}, "parecer")
+        self.origem = self.tmp / "origem.git"
+        git("init", "-q", "--bare", str(self.origem), cwd=self.tmp)
+        remoto_sem_manutencao(self.origem)
+        git("remote", "add", "origin", str(self.origem), cwd=self.repo)
+        self.base_anda({"d1.txt": "1\n", "src/d3.txt": "3\n"})
+        git("push", "-q", "origin", "develop", cwd=self.repo)  # a develop do servidor já tem o que a branch vai integrar
+        git("update-ref", "refs/remotes/origin/develop", self.base, cwd=self.repo)  # a cópia local não buscou
+        self.integrar()
+        self.commitar({"proprio.txt": "2\n"}, "trabalho depois do merge")
+
+    def delta(self, *extra):
+        return self.check("parecer", "delta", "docs/security/p1.md", *extra)
+
+    def test_busca_a_base_atrasada_e_mostra_so_o_do_autor(self):
+        novo = self.head("develop")
+        rc, saida = self.delta()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"base: origin/develop atualizada de {self.base[:7]} para {novo[:7]}", saida)
+        self.assertIn('no dominio: "proprio.txt"', saida)
+        self.assertNotIn("d1.txt", saida)
+        self.assertNotIn("src/d3.txt", saida)
+        self.assertEqual(self.head("refs/remotes/origin/develop"), novo)
+        self.assertNotIn("base:", self.delta()[1])  # em dia, nada a buscar
+
+    def test_sem_rede_o_merge_fica_no_delta_com_aviso(self):
+        git("remote", "set-url", "origin", str(self.tmp / "nao-existe.git"), cwd=self.repo)
+        rc, saida = self.delta()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("aviso: o merge de", saida)
+        self.assertIn("o que ele trouxe conta inteiro", saida)
+        self.assertIn('no dominio: "src/d3.txt"', saida)  # falha fechada: nada do merge some
+
+    def test_base_ausente_nao_busca_nem_avisa(self):
+        rc, saida = self.delta("--base", "homolog")
+        self.assertEqual(rc, 0, saida)
+        self.assertNotIn("aviso:", saida)
+        self.assertNotIn("base: origin/", saida)
+        self.assertEqual(git("for-each-ref", "refs/remotes/origin/homolog", cwd=self.repo).stdout, "")
+
+
 class DeltaDaJuncao(Repositorio):
     """B19a (E20): as partes da junção são os segundos pais dos merges da primeira linha; octopus rc 1 (C-4), merge da
     base não é parte (C-5), git que falha rc 2 (C-9)."""
@@ -828,7 +879,8 @@ class BriefDeVolta(Repositorio):
             self.assertIn("".join(anterior[nome]).rstrip("\n"), saida, nome)  # byte a byte
         # 0.43.1 (C2): o Fora do escopo sai do pedido (as etapas fora do Entregar), não do brief anterior
         self.assertNotIn("".join(anterior["Fora do escopo"]).rstrip("\n"), saida)
-        self.assertIn('- "E2.1 (dev-exemplo): texto da documentação." · etapa de outra delegação; continua no pedido\n', saida)
+        self.assertIn("\n- E2.1, E3.1, E3.2, E3.3 · outras delegações\n", saida)  # BRIEF-VOLTA-FORA-COMPACTO: só os ids, sem o texto
+        self.assertNotIn("texto da documentação", saida)
         self.assertIn("## Entregar (volta 1)\n", saida)
         self.assertIn(f"- (review {self.head()[:7]} A1) a função perde o erro de domínio [src/app.txt:3]\n", saida)
         self.assertIn(f"- (review {self.head()[:7]} A3) falta teste do caso de borda [tests/x.py:10]\n", saida)
@@ -983,7 +1035,7 @@ class BriefDeVolta(Repositorio):
         self.assertEqual(rc, 1, saida)
         self.assertIn("escopo: --desde sem conferência anterior", saida)
 
-    LINHA_E14 = '- "E1.4b (dev-exemplo): ajuste do recurso B." · etapa de outra delegação; continua no pedido'
+    LINHA_E14 = "- E1.4b, E2.1, E3.1, E3.2, E3.3 · outras delegações"  # BRIEF-VOLTA-FORA-COMPACTO
 
     def pedido_e14(self, *historico):  # E14: a etapa E1.4b em ## Etapas e o Histórico que prova (ou não) a abertura dela
         texto = self.PEDIDO_FIXTURE.read_text(encoding="utf-8").replace("\n\n## Decisões", "\n- E1.4b (dev-exemplo): ajuste do recurso B.\n\n## Decisões", 1)
@@ -999,7 +1051,7 @@ class BriefDeVolta(Repositorio):
         texto = self.preenchido(saida)
         rc, conferencia = self.conferir(texto)
         self.assertEqual(rc, 0, conferencia)
-        sem = texto.replace(self.LINHA_E14 + "\n", "")
+        sem = texto.replace(self.LINHA_E14, "- E2.1, E3.1, E3.2, E3.3 · outras delegações")  # o id que sai da linha agrupada reprova
         rc, conferencia = self.conferir(sem)
         self.assertEqual(rc, 1, conferencia)
         self.assertIn('"E1.4b"', conferencia)
@@ -1007,6 +1059,31 @@ class BriefDeVolta(Repositorio):
         anterior = self.ANTERIOR.read_text(encoding="utf-8").replace("## Fora do escopo\n", "## Fora do escopo\n" + corte, 1)
         self.brief_anterior.write_text(anterior, encoding="utf-8")
         self.assertIn(corte, self.gerar()[1])  # o corte do dono passa para a volta
+
+    def test_volta_de_pedido_grande_cabe_no_teto_e_passa_na_conferencia(self):  # BRIEF-VOLTA-FORA-COMPACTO (146 KB no v047)
+        etapas = "".join(f"- E4.{n} (qa): validação longa da etapa {n} {'x' * 200}.\n" for n in range(1, 601))
+        self.pedido.write_text(self.pedido.read_text(encoding="utf-8").replace("\n\n## Decisões", "\n" + etapas + "\n## Decisões", 1)
+                               + f"\n## Histórico\n- 2026-10-19 16:00: entrega conferida {self.c1}\n", encoding="utf-8")
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 0, saida)
+        fora = saida.split("## Fora do escopo")[1].split("\n## ")[0].splitlines()[1:]
+        self.assertEqual(len([l for l in fora if l]), 16)  # 604 ids, 40 por linha
+        self.assertEqual(fora[0].count(", "), 39)
+        self.assertIn("- E4.597, E4.598, E4.599, E4.600 · outras delegações", fora)
+        self.assertNotIn("validação longa", saida)
+        texto = self.preenchido(saida)
+        self.assertLess(len(texto), carregar_forge_check().TETO_DE_CARACTERES_DO_BRIEF)
+        rc, conferencia = self.conferir(texto)
+        self.assertEqual(rc, 0, conferencia)
+        self.assertIn('corte: etapa (ok) "E4.600"', conferencia)
+
+    def test_volta_sem_outra_etapa_diz_que_o_pedido_nao_tem(self):  # BRIEF-VOLTA-FORA-COMPACTO: a lista vazia não some calada
+        texto = self.pedido.read_text(encoding="utf-8")
+        etapas = texto.split("## Etapas\n", 1)[1].split("\n\n", 1)[0]
+        self.pedido.write_text(texto.replace(etapas, "- E1.1 (dev-exemplo): implementação do recurso A."), encoding="utf-8")
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(saida.split("## Fora do escopo")[1].split("\n## ")[0].splitlines()[1:], ["- (o pedido não tem outra etapa)"])
 
     def test_conferencia_reprova_anterior_bloco_e_achado(self):
         pedido = self.pedido.read_text(encoding="utf-8")
@@ -1016,7 +1093,7 @@ class BriefDeVolta(Repositorio):
             "volta: anterior diferente (sha256)": texto.replace("sha256 " + hashlib.sha256(self.ANTERIOR.read_bytes()).hexdigest(), "sha256 " + "0" * 64),
             'volta: bloco "Objetivo" difere do anterior': texto.replace("Entregar o recurso A (exemplo sintético).", "Entregar outra coisa."),
             'volta: bloco "Relatório" difere do anterior': texto.replace("Até 8 linhas", "Até 20 linhas"),
-            'corte: sem marca "E2.1"': "\n".join(l for l in texto.splitlines() if not l.startswith('- "E2.1')) + "\n",  # 0.43.1: o corte cobra o Fora
+            'corte: sem marca "E2.1"': texto.replace("- E2.1, E3.1", "- E3.1"),  # 0.43.1: o corte cobra o Fora, id a id na linha agrupada
             'volta: falta achado "A3" de docs/reviews/p1.md': "\n".join(l for l in texto.splitlines() if " A3)" not in l) + "\n",
             'volta: falta achado "A1" de docs/reviews/p1.md': texto.replace(" A1)", " A9)"),
         }

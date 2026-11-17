@@ -1,0 +1,94 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O125",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): o `echo`/`printf %s` calculado só com a linha conhecida (A2 do review E1.319, A7 da segurança E1.320)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not linha_conhecida(linha):  # A2 do review",
+      "para": "    if False:  # A2 do review",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O126",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): a lista positiva só com a linha conhecida (U3 e U4)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not linha_conhecida(linha, frozenset()):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ],
+      "equivalente": "o U3 só olha o destino opaco sem resto, o mesmo que o U4 calcula antes pelo valores_do_corpo com a mesma checagem (O125): a guarda fica como defesa do U3 se o U4 mudar"
+    },
+    {
+      "id": "O127",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): `$(pwd)` só vira `$PWD` com a linha conhecida",
+      "arquivo": "hooks/conformidade.py",
+      "de": "[0] and linha_conhecida(comando):",
+      "para": "[0]:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O128",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): nome de função só com letras, dígitos, `_` e `-`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if NOME_DE_FUNCAO.fullmatch(f) and (",
+      "para": "if True and (",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O129",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): embutido fora da lista não vale como função",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        f not in EMBUTIDOS_DO_BASH or f in COMANDOS_INOFENSIVOS)}",
+      "para": "        True)}",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O130",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): `function` antes do nome define a função da linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if palavras[i] == \"function\"}",
+      "para": "if palavras[i] == \"functionX\"}",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_d2b"
+      ]
+    },
+    {
+      "id": "O131",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): `()` depois do nome define a função da linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if palavras[i + 1] == \"()\"}",
+      "para": "if palavras[i + 1] == \"(X)\"}",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O132",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): depois do `)` vem argumento, não comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "inicio, comando = p != \")\", None",
+      "para": "inicio, comando = True, None",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "not linha_conhecida(linha, frozenset())",
+      "motivo": "O126 equivalente: o U3 só olha o destino opaco sem resto, que o U4 recusa antes pela mesma checagem em valores_do_corpo (O125); defesa do U3"
+    }
+  ]
+}
