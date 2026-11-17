@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-h2-autor-fica
-commit: f26b0721cc27c5460c37e910544587bf742126ef
+commit: 74e14194c106bdbeb8ed36678654dc27de7cf658
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -61,3 +61,6 @@ Ambiente: clone `~/.forge-contrib/wt/v047-h2-autor-fica-E266`, `TMPDIR=/tmp/clau
 - `python3 -I scripts/indice-fixtures.py --conferir`: `docs/hooks-fixtures.md: em dia`.
 - `python3 -m unittest tests.test_forge_mutante.ConferirTodas tests.test_hooks_agentes_autor`: 14 testes, OK em 3,8 s.
 - `pesado/mesma-sessao-libera` (120 s): `Hooks.test_fixtures` na base e2880b42 (cópia `git archive`) e no head, lado a lado, 405 s cada: os dois dão `PrazoEstourado: prazo de 120 s estourado` nesse fixture. É do ambiente e preexistente, não do diff (no head é a única falha; a base ainda mostra 4 fixtures `agentes/` de pid e sessão caídos por rodar fora do clone git, também fora do diff). O CI (`bateria` do mesmo sha) decide.
+
+## Revalidação no head 74e14194 (E2.70)
+Delta desde f26b0721: junção da develop (bda457e4); único arquivo do domínio, o índice gerado `docs/hooks-fixtures.md`, regerado pelo script (`indice-fixtures.py --conferir`: em dia). `tests.test_forge_mutante.ConferirTodas` e `tests.test_hooks_agentes_autor`: 14 testes OK. Sem achado novo.
