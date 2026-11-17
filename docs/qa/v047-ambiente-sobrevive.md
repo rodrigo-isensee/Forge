@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ambiente-sobrevive
-commit: 443bd16125869d3272ee1fcc428382473d197a14
+commit: be5bf3ea2fbadf41b490a3e24af6d56bb3a48361
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-16
+data: 2026-11-17
 ---
 # QA: v047 AMBIENTE-SOBREVIVE-RECRIACAO (E2.54, parecer E2.91)
 
@@ -20,6 +20,12 @@ Parecer anterior no 68072575 (aprovado, A1 recomendado); este revalida por delta
 - A1 (recomendado) templates/projeto/.devcontainer/preparar-ambiente.sh:45 · o mutante `: || faltas+=` do link agora morre (M20); fechado, sem pendência. Conferi à mão: 1 falha em 24.
 - A2 (recomendado) hooks/ambiente.py:21 · sem mutante e sem `isentas`: linhas 21 (padrão `/workspaces`), 33 (`is_file`, defesa) e 40 (`startswith`, `returncode == 1`) sobrevivem a mutação à mão (`rc in (0,1)` imprime só `ambiente: ok`). São equivalentes; declare-os em `equivalente`/`isentas`.
 - A3 (recomendado) tests/test_forge.py:2043 · M23 morre por `CalledProcessError` do helper `git` (chave `core.hooksPath` ausente), não por asserção; a morte é legítima (passa sem o mutante), mas a mensagem some. Ler com `check=False` e `assertEqual` dá falha clara.
+
+## Revalidação 443bd161..be5bf3ea (head b14da707; junção com a develop)
+`forge-check parecer delta` (intervalo 443bd161..b14da707, "sem o que veio da base") lista no domínio só `tests/test_forge.py`: a classe `DocsPareceresPedidoECaminho` entrou pela develop (dd059105, E1.252, PR 616; `git show origin/develop:tests/test_forge.py` a contém), outro item. O b14da707 só difere do be5bf3ea por parecer de review. Código do item (`hooks/ambiente.py`, scripts, devcontainer, `tests/test_ambiente_hook.py`) sem mudança desde o parecer anterior.
+- `docs/engineering/achados-recorrentes.md`: sem commit da branch no arquivo desde o 443bd161; a linha AR-4 (`tests/test_ambiente_hook.py:58`) é a da branch, conferida contra origin/develop (só AR-1 e AR-4 diferem, ambos deste item). Sem classe nova.
+- `python3 -m unittest tests.test_ambiente_hook` -> Ran 6 tests, OK. Suíte inteira: só no CI do PR (sem PR, sem check-run `bateria`).
+- Achados A1..A3 seguem recomendados, sem pendência bloqueante. Sem bug novo.
 
 ## Revalidação 584b2239..b5ec13af (E2.569: junção com a develop e conserto do autor)
 Mudou no domínio (`forge-check parecer delta`): `scripts/preparar-estacao.sh`, `tests/test_ambiente_hook.py`, `tests/test_forge.py`, `docs/engineering/achados-recorrentes.md`. O 443bd161 (Revisar-sha) e o b5ec13af só diferem por parecer de review.
