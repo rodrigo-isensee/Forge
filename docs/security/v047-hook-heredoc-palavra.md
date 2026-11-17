@@ -1,0 +1,35 @@
+---
+tipo: revisao-seguranca
+contrato: 1
+pedido: v0474
+branch: melhoria/v047-hook-heredoc-palavra
+commit: 730261a5406e2269c9bb40cb747bc2e989e18f5d
+parecer: aprovado
+revisor: forge:security-engineer
+data: 2026-11-17
+---
+# Review de segurança: v0474 (E2.7, melhoria/v047-hook-heredoc-palavra, HOOK-HEREDOC-PALAVRA-FP)
+
+Escopo: `git diff 5b1aacd5..730261a5` (20 arquivos: `hooks/parecer.py`, 10 fixtures novas `heredoc-dado-*`, 4 fixtures revistas, `tests/test_hooks_parecer_pasta.py`, 2 specs de mutantes, índice e fragmento do changelog). Nada em `.github/`, `.githooks/` nem `hooks/_comum.py`. Primeira rodada, parecer completo.
+
+## Gatilhos
+Gatilhos: controle do Forge (`hooks/parecer.py`, guarda do `R-REVIEW`), afrouxamento de veredito do hook (4 recusas viram libera).
+
+## Achados
+- A1 (recomendado) hooks/parecer.py:277 · o corpo gravado num arquivo que outro processo roda depois (.git/hooks/pre-commit, ~/.bashrc) passa como dado (S22, S40 abaixo); é a mesma capacidade do Write, que o próprio hook indica (parecer.py:118), e nada o roda na mesma chamada. Informativa.
+
+## Sondas
+
+## Detalhe dos achados
+**O que muda.** `corpos_de_dado` (`hooks/parecer.py:262-277`) marca todo corpo como `dado` quando: todo `<<` é de `HEREDOC_SIMPLES` e as linhas fora dos corpos não têm `$` nem `\` (`heredocs_simples`, `:137`); não há atribuição nem `git` (`chamada_muda_o_corpo`, `:205`); todo programa de `programas_e_atribuicoes` está em `PROGRAMAS_DE_DADO` (cat, cd, mkdir, echo, true, ls, wc, head, tail, grep, stat); nenhum alvo de redireção tem curinga (`*?[`) nem nome igual a um programa da chamada. O `dado` sai da marca (`:1000`) e da conferência como comando interno (`:1053`); a linha de comando, sem os corpos, segue conferida inteira. `leitor_da_entrada` (`:217`) passa a aceitar argumentos depois do `-` do Python, que o interpretador entrega ao `sys.argv` sem lê-los como opção.
+
+**Varredura da família (51 + 16 sondas, hook do head, montagem das fixtures por `tests/test_hooks.Fixture`, script em `$TMPDIR`).** Nenhum desvio na mesma chamada. Recusam (código 2), como devem: substituição `$( )` ou crase no corpo com delimitador sem aspas (`<<FIM`, `<<-FIM`, dois heredocs com um sem aspas, `${X:-$( )}`; o `$` no corpo cai na rede D), here-string `<<<`, `| sh`, `| xargs gh`, `bash -c`, `find -exec sh`, `. ./x.sh`, `source`, função (`cat() {…}` e `function ls {…}`), `./cat`, `bin/cat`, `alias`, `export PATH=…`, `hash -p`, `trap`, `exec`, `command`, `coproc`, `>(sh)`, `<<$'FIM'`, CRLF, `PATH=/tmp ls`, `python3 - x` com `subprocess`/`os.system`, `python3 -c … -`, `python3 -` seguido de `ls`, `cat > a.py` seguido de `python3 a.py`; e o arquivo gravado com nome de programa da chamada por toda forma de redireção: `>`, `>>`, `>|`, `&>`, `1>`, colado (`cat>bin/ls<<`), redireção antes do programa, `~/bin/ls`, `./ls`, `'bin/ls'`, `"l"s`, `cd /tmp && cat > ls`, `echo x > bin/ls`, `cat > grep` com `grep`, `cat > cat` com `./cat`. Liberam, como dado legítimo: `<<'FIM'` e `<<"FIM"` (sem expansão no corpo; com `$( )` no corpo também, pois o bash não expande), `<<-` com tabulação (o hook tira só `\t`, como o bash), subshell que só grava, `3>x.sh`, linha `FIM ` com espaço (nem o bash nem o hook a tomam por terminador), `tail`, `grep -f`, `time cat`, `mkdir ls; cat > ls/x; ls`. Conservador sem custo de segurança: `if …; then cat …; fi` recusa.
+
+**Riscos anotados pelo autor.** `mkdir` na lista: cria pasta, que não executa; `-m`/`-p` não rodam nada; pasta com nome de programa (`mkdir ls`) não sombreia o `ls` (sonda R15 libera e o `ls` é o do sistema). `python3` seguido de `ls`: o `python3` fica fora de `PROGRAMAS_DE_DADO`, a chamada cai na regra anterior e recusa (S45 e fixture `heredoc-dado-python-com-argumento-e-subprocess-bloqueia`). Nenhum dos 11 programas roda arquivo, carrega código nem lê variável de ambiente que o faça; o único caminho para o corpo virar programa na mesma chamada seria o PATH achar o arquivo gravado, e isso o cruzamento `alvos & nomes` (`:277`) fecha, junto do curinga (`:275`) e da proibição de `$`, `\` e atribuição.
+
+**A1 (informativa, recomendado).** Evidência: sondas `cat > .git/hooks/pre-commit <<'FIM'\ngh pr merge 12 --squash\nFIM\nls` e `cat > ~/.bashrc <<'FIM'\n…\nFIM\nls`, código 0 no head (recusavam antes pela marca do texto). Caminho: o agente grava o gancho e numa chamada seguinte roda `git commit`, que o executa se o arquivo já tinha o bit de execução (o `cat >` preserva o modo). Não bloqueia: o mesmo resultado se obtém hoje pelo Write seguido de outra chamada, caminho que o próprio hook sugere (`GRAVE_E_RODE_NOUTRA`, `:118`), e a marca pelo texto do corpo nunca foi fronteira (ofuscar `gh pr "merge"` no corpo já passava). Correção mínima, se o dono quiser endurecer: em `corpos_de_dado`, recusar alvo dentro de `.git/`, `.githooks/` ou `$HOME` ponto-arquivo de shell. Esforço: P. Dono: `tech-lead`.
+
+**Afrouxa-regra: sim.** A mudança não remove invariante nem fixture (521 no corpus do `parecer`, eram 511), mas troca o veredito de quatro fixtures de recusa para libera (`texto-passa-heredoc-lido-e-ls`, `heredoc-parecer-cat-e-wc-libera`, `-echo-com-redirecao-libera`, `-echo-em-segundo-plano-libera`) num arquivo de `PROTEGIDOS` da catraca (`tests/catraca.py:46`, `hooks/parecer.py`). O PR leva o destaque no título e o motivo, e o rótulo `afrouxa-regra` é do dono (`R-LIMITES`); a decisão de 16/11 05:13 cobre os PRs do plano da noite 15-16/11, e se esta branch entra nela é do Jarvis conferir.
+
+## Riscos aceitos e ferramentas
+Nenhum risco aceito. Rodados no clone em 730261a5: `tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia` (OK) e o corpus inteiro de `tests/hooks/parecer/` pelo executor de `tests/test_hooks.py` (512 fixtures, as de prazo de produção à parte, OK). A suíte inteira roda no CI do PR, ainda não aberto (sem PR por instrução do brief). Ferramentas ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, zizmor, actionlint; o diff não toca workflow nem traz segredo.
