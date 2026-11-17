@@ -6,8 +6,8 @@
    "id": "M1",
    "guarda": "so o assistente",
    "arquivo": "hooks/meta.py",
-   "de": "if obj[\"type\"] == papel else []",
-   "para": "if obj[\"type\"] != papel else []",
+   "de": "if obj[\"type\"] == \"assistant\" else []",
+   "para": "if obj[\"type\"] != \"assistant\" else []",
    "testes": [
     "tests.test_meta.Jargao.test_ultima_mensagem_com_texto_do_assistente"
    ]

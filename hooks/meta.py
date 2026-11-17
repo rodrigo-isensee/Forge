@@ -23,10 +23,12 @@ import datetime
 import json
 import os
 import re
+import stat
 import subprocess
 from pathlib import Path
 
 from _comum import PLUGIN, bloquear, caminhos_extra, e_clone_do_forge, executar, expandir_home, gravar_json, ler_json
+from vigia import texto_do_dono
 
 CHECAGEM_S = 60
 REPETICOES_PARA_PAUSAR = 4
@@ -122,26 +124,40 @@ def jargao():
     return [p.strip() for linha in linhas for p in linha.strip().strip("|").split("|")[0].split(",")]
 
 
-def ultima_mensagem(transcrito, papel="assistant"):
-    """O texto da última mensagem de `papel` (com texto; a do dono é `user`) no transcrito JSONL, lido do fim (até
-    LEITURA_MAXIMA bytes). Conteúdo em texto puro vale como um bloco de texto."""
+def linhas_do_fim(transcrito):
+    """As linhas do fim do transcrito JSONL (até LEITURA_MAXIMA bytes), da última à primeira; [] se não se lê."""
     try:
         with open(transcrito, "rb") as f:
             f.seek(0, 2)
             f.seek(max(0, f.tell() - LEITURA_MAXIMA))
-            linhas = f.read().decode("utf-8", errors="replace").splitlines()
+            return list(reversed(f.read().decode("utf-8", errors="replace").splitlines()))
     except (OSError, TypeError, ValueError):
-        return None
-    for linha in reversed(linhas):
+        return []
+
+
+def ultima_mensagem(transcrito):
+    """O texto da última mensagem do assistente (com texto) no transcrito JSONL, lido do fim (até LEITURA_MAXIMA bytes)."""
+    for linha in linhas_do_fim(transcrito):
         try:
             obj = json.loads(linha)
-            conteudo = obj["message"]["content"]
-            blocos = [{"type": "text", "text": conteudo}] if isinstance(conteudo, str) else conteudo
-            textos = [c["text"] for c in blocos if c["type"] == "text"] if obj["type"] == papel else []
+            textos = [c["text"] for c in obj["message"]["content"] if c["type"] == "text"] if obj["type"] == "assistant" else []
         except (ValueError, KeyError, TypeError, AttributeError):
             continue
         if textos:
             return "\n".join(textos)
+    return None
+
+
+def fala_do_dono(transcrito):
+    """A última fala digitada pelo dono no transcrito, pelo filtro de vigia.texto_do_dono (fonte única: aviso de subagente,
+    meta e lembrete do sistema não contam); None sem ela."""
+    for linha in linhas_do_fim(transcrito):
+        try:
+            texto = texto_do_dono(json.loads(linha))
+        except (ValueError, RecursionError):
+            continue
+        if texto and texto.strip():
+            return texto
     return None
 
 
@@ -221,27 +237,46 @@ def idioma_do_dono(raiz):
 # MP1 (diretriz 35): o sinal de vários projetos ativos é o arquivo ATIVOS, {"projetos": ["<nome>", ...]}, que o registro da
 # máquina (MP2, 0.47.6) vai preencher; aqui só se lê. O nome do projeto é o da pasta da raiz.
 ATIVOS = "~/.forge/maquina/projetos-ativos.json"
+TETO_DE_ATIVOS = 64 * 1024  # bytes; acima, conta como um projeto só
+MAXIMO_DE_ATIVOS = 64  # nomes; acima, idem
+MAXIMO_DO_NOME = 128  # caracteres; nome maior fica de fora
 PREFIXO_DO_PROJETO = re.compile(r"\s*Projeto: \S")
 PERGUNTA_DO_PROJETO = "isto é para o projeto"
 
 
 def projetos_ativos():
-    """Os nomes de ATIVOS; [] sem o arquivo, ilegível ou fora da forma (conta como um projeto só: nada muda)."""
+    """Os nomes de ATIVOS; [] sem o arquivo, em link ou fora de arquivo regular (FIFO, dispositivo), acima de TETO_DE_ATIVOS
+    bytes ou de MAXIMO_DE_ATIVOS nomes, ilegível ou fora da forma (conta como um projeto só: nada muda). A leitura não
+    espera nem cresce: a medida roda no finally do Stop e não troca a decisão dele."""
     try:
-        dados = ler_json(Path(expandir_home(ATIVOS)), {})
-    except (OSError, ValueError):
+        fd = os.open(expandir_home(ATIVOS), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        return []
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return []
+        bruto = os.read(fd, TETO_DE_ATIVOS + 1)  # arquivo regular: a leitura não volta curta antes do fim
+    finally:
+        os.close(fd)
+    try:
+        dados = json.loads(bruto) if len(bruto) <= TETO_DE_ATIVOS else {}
+    except (ValueError, RecursionError):
         return []
     lista = dados.get("projetos") if isinstance(dados, dict) else None
-    return [n for n in lista if isinstance(n, str) and n.strip()] if isinstance(lista, list) else []
+    nomes = [n for n in lista if isinstance(n, str) and n.strip() and len(n) <= MAXIMO_DO_NOME] if isinstance(lista, list) else []
+    return nomes if len(nomes) <= MAXIMO_DE_ATIVOS else []
 
 
 def medida_do_projeto(hook, raiz, texto):
-    """MP1: {} com um projeto ativo, sem raiz ou na sessão do próprio Forge (exceção do dono, 17/11); senão as contagens."""
-    ativos = projetos_ativos()
-    if len(ativos) < 2 or raiz is None or e_clone_do_forge(raiz):
+    """MP1: {} sem raiz, na sessão do próprio Forge (exceção do dono, 17/11; ATIVOS nem é lido) ou com um projeto ativo;
+    senão as contagens. O nome se compara sem diferença de maiúsculas, e a fala lida é só a do dono, até TETO_DA_MEDIDA."""
+    if raiz is None or e_clone_do_forge(raiz):
         return {}
-    fala = ultima_mensagem(hook.campo("transcript_path"), "user") or ""
-    outros = [n for n in ativos if n != Path(raiz).name]
+    ativos = projetos_ativos()
+    if len(ativos) < 2:
+        return {}
+    fala = (fala_do_dono(hook.campo("transcript_path")) or "")[:TETO_DA_MEDIDA]
+    outros = [n for n in ativos if n.casefold() != Path(raiz).name.casefold()]
     cita = any(re.search(r"(?<![\w-])" + re.escape(n) + r"(?![\w-])", fala, re.I) for n in outros)
     return {"projetos_ativos": len(ativos), "sem_projeto": not PREFIXO_DO_PROJETO.match(texto), "cita_outro_projeto": cita,
             "sem_pergunta_do_projeto": cita and PERGUNTA_DO_PROJETO not in texto.lower()}

@@ -9,6 +9,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ambiente_git import sem_manutencao  # noqa: E402
@@ -327,11 +328,14 @@ class VariosProjetos(unittest.TestCase):
         self.ativos(["loja", "estoque"])
 
     def ativos(self, valor):
+        ativos = self.tmp / "ativos.json"
+        ativos.rmdir() if ativos.is_dir() and not ativos.is_symlink() else ativos.unlink(missing_ok=True)  # link, FIFO ou pasta
         (self.tmp / "ativos.json").write_text(valor if isinstance(valor, str) else json.dumps({"projetos": valor}), encoding="utf-8")
 
-    def medir(self, resposta, fala="faça o relatório", raiz=None):
+    def medir(self, resposta, fala="faça o relatório", raiz=None, depois=()):
         transcrito = self.tmp / "t.jsonl"
-        transcrito.write_text(json.dumps({"type": "user", "message": {"content": fala}}) + "\n", encoding="utf-8")
+        linhas = [{"type": "user", "message": {"content": fala}}, {"type": "assistant", "message": {"content": "ok"}}, *depois]
+        transcrito.write_text("".join(json.dumps(l) + "\n" for l in linhas), encoding="utf-8")
         campos = {"last_assistant_message": resposta, "transcript_path": str(transcrito)}
         with tempfile.TemporaryDirectory() as pasta:
             hook = type("Hook", (), {"campo": lambda self, chave: campos.get(chave), "run": lambda self: Path(pasta),
@@ -354,7 +358,7 @@ class VariosProjetos(unittest.TestCase):
         self.assertFalse(self.medir("Projeto: loja\nFeito.", "mude o estoque-novo")["cita_outro_projeto"], "nome dentro de outro")
 
     def test_um_projeto_so_registro_ilegivel_ou_sessao_do_forge_nao_mede(self):
-        for valor in (["loja"], ["loja", ""], "{x", json.dumps(["loja", "estoque"]), json.dumps({"projetos": "loja estoque"})):
+        for valor in (["loja"], ["loja", ""], "{x", "[" * 50000, json.dumps(["loja", "estoque"]), json.dumps({"projetos": "loja estoque"})):
             with self.subTest(ativos=str(valor)[:20]):
                 self.ativos(valor)
                 self.assertEqual(self.medir("Recebi."), {})
@@ -364,6 +368,71 @@ class VariosProjetos(unittest.TestCase):
         (forge / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
         self.assertEqual(self.medir("Recebi.", "mude o estoque", raiz=forge), {}, "exceção do dono: a sessão do Forge")
         self.assertEqual(self.meta.medida_do_projeto(None, None, "Recebi."), {}, "sem raiz")
+        with mock.patch.object(self.meta, "projetos_ativos", side_effect=AssertionError("ATIVOS lido")):
+            self.assertEqual(self.meta.medida_do_projeto(None, forge, "Recebi."), {}, "a sessão do Forge nem lê ATIVOS")
+            self.assertEqual(self.meta.medida_do_projeto(None, None, "Recebi."), {}, "sem raiz, nem lê ATIVOS")
+
+    def test_so_a_fala_digitada_pelo_dono_conta(self):
+        """Review A1: aviso de subagente, linha meta e lembrete do sistema depois da fala não são a fala do dono."""
+        avisos = ({"type": "user", "message": {"content": "<task-notification>o PR do estoque</task-notification>"}},
+                  {"type": "user", "isMeta": True, "message": {"content": "o estoque caiu"}},
+                  {"type": "user", "message": {"content": [{"type": "text", "text": "<system-reminder>estoque</system-reminder>"}]}})
+        for aviso in avisos:
+            with self.subTest(aviso=str(aviso)[:40]):
+                self.assertFalse(self.medir("Projeto: loja\nFeito.", "mude o login da loja", depois=[aviso])["cita_outro_projeto"])
+        self.assertTrue(self.medir("Projeto: loja\nFeito.", "veja o estoque", depois=[avisos[0]])["cita_outro_projeto"])
+        so_espaco = {"type": "user", "message": {"content": "  "}}
+        self.assertTrue(self.medir("Projeto: loja\nFeito.", "veja o estoque", depois=[so_espaco])["cita_outro_projeto"])
+        self.assertEqual((self.meta.fala_do_dono(None), self.meta.ultima_mensagem(None)), (None, None), "sem transcrito")
+
+    def test_proprio_projeto_sem_diferenca_de_maiusculas(self):
+        self.ativos(["Loja", "estoque"])
+        self.assertFalse(self.medir("Projeto: loja\nFeito.", "mude a loja")["cita_outro_projeto"])
+
+    def test_ativos_em_link_fifo_grande_ou_com_nomes_demais_nao_mede(self):
+        """Segurança A1: ATIVOS só vale como arquivo regular, sem link, de até TETO_DE_ATIVOS bytes e MAXIMO_DE_ATIVOS nomes."""
+        ativos = self.tmp / "ativos.json"
+        valido = json.dumps({"projetos": ["loja", "estoque"]})
+        casos = {"link": lambda: (ativos.unlink(), (self.tmp / "real.json").write_text(valido, encoding="utf-8"),
+                                  ativos.symlink_to(self.tmp / "real.json")),  # o alvo é válido: só o link recusa
+                 "fifo": lambda: (ativos.unlink(), os.mkfifo(ativos)),
+                 "pasta": lambda: (ativos.unlink(), ativos.mkdir()),
+                 "grande": lambda: self.ativos(valido + " " * self.meta.TETO_DE_ATIVOS),
+                 "nomes demais": lambda: self.ativos(["loja"] + [f"p{i}" for i in range(self.meta.MAXIMO_DE_ATIVOS)])}
+        for nome, montar in casos.items():
+            with self.subTest(caso=nome):
+                self.ativos(valido)
+                montar()
+                self.assertEqual(self.medir("Recebi."), {})
+        self.ativos(valido + " " * (self.meta.TETO_DE_ATIVOS - len(valido)))
+        self.assertEqual(self.medir("Recebi.")["projetos_ativos"], 2, "no teto exato ainda vale")
+        self.ativos(["loja"] + [f"p{i}" for i in range(self.meta.MAXIMO_DE_ATIVOS - 1)])
+        self.assertEqual(self.medir("Recebi.")["projetos_ativos"], self.meta.MAXIMO_DE_ATIVOS, "no máximo exato ainda vale")
+        self.ativos(["loja", "estoque", "x" * (self.meta.MAXIMO_DO_NOME + 1)])
+        self.assertEqual(self.medir("Recebi.")["projetos_ativos"], 2, "nome longo demais fica de fora")
+        self.ativos(["loja", "x" * self.meta.MAXIMO_DO_NOME])
+        self.assertEqual(self.medir("Recebi.")["projetos_ativos"], 2, "nome no máximo exato vale")
+
+    def test_ativos_em_fifo_nao_troca_a_recusa_do_stop(self):
+        """Segurança A1 (S2): com ATIVOS em FIFO, o Stop com a checagem falhando sai com 2 (R-PROVA) no prazo, sem travar."""
+        raiz = self.tmp / "proj"
+        (raiz / ".forge" / "run").mkdir(parents=True)
+        subprocess.run(["git", "init", "-q", str(raiz)], check=True, env=sem_manutencao(), capture_output=True)
+        (raiz / ".forge" / "versao").write_text("0.47.5\n", encoding="utf-8")
+        (raiz / ".forge" / "run" / "meta.json").write_text(json.dumps({"pedido": "p1", "checagens": [["false"]], "armado": True,
+                                                                       "repeticoes": 0}), encoding="utf-8")
+        (raiz / "t.jsonl").write_text(json.dumps({"type": "user", "message": {"content": "mude o estoque"}}) + "\n", encoding="utf-8")
+        (self.tmp / "home" / ".forge" / "maquina").mkdir(parents=True)
+        os.mkfifo(self.tmp / "home" / ".forge" / "maquina" / "projetos-ativos.json")
+        env = sem_manutencao({"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.tmp / "home"),
+                              "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull})
+        lancador = "import runpy, sys; sys.path.insert(0, sys.argv[1]); runpy.run_path(sys.argv[2], run_name='__main__')"
+        entrada = {"hook_event_name": "Stop", "session_id": "s1", "cwd": str(raiz), "transcript_path": str(raiz / "t.jsonl"),
+                   "last_assistant_message": "Recebi."}
+        r = subprocess.run([sys.executable, "-I", "-c", lancador, str(RAIZ / "hooks"), str(RAIZ / "hooks" / "meta.py")],
+                           input=json.dumps(entrada), cwd=raiz, env=env, capture_output=True, text=True, timeout=20)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("`false` (rc=1)", r.stderr)
 
 
 if __name__ == "__main__":

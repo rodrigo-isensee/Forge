@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2867 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2869 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -12,7 +12,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2867 fixtures) roda em `tests/test
 | `ambiente` | 3 | 0 | 3 | 3 |
 | `conformidade` | 2125 | 1573 | 552 | 91 |
 | `doutor` | 3 | 0 | 3 | 3 |
-| `meta` | 30 | 11 | 19 | 14 |
+| `meta` | 32 | 13 | 19 | 14 |
 | `parecer` | 529 | 407 | 122 | 24 |
 | `pesado` | 24 | 9 | 15 | 19 |
 | `quadro` | 7 | 2 | 5 | 7 |
@@ -169,7 +169,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2867 fixtures) roda em `tests/test
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | `v0454-*` | 12 | 8 | 4 | — | `V0454-CAMINHOS-EXTRA` | V0454-CAMINHOS-EXTRA: a pasta de `caminhos_extra` entra no fim do PATH da checagem |
-| `mp1-*` | 3 | 0 | 3 | — | `MP1` | MP1 (diretriz 35): a fala do dono cita o outro projeto ativo e a resposta não pergunta "isto é para o projeto": acusa, sem gravar o nome. |
+| `mp1-*` | 5 | 2 | 3 | `R-PROVA` | `MP1` | MP1 (segurança A1 da v0475): ATIVOS acima de 64 KiB conta como um projeto só; a recusa R-PROVA do Stop fica intacta (rc 2) e a linha sai sem… |
 | `jargao-*` | 2 | 1 | 1 | `R-PROVA` | `E2.237`, `E7.4` | E7.4 (v047): S6 mede a mensagem do campo last_assistant_message (não a do transcrito), conta por classe, não grava o termo e o Stop passa. |
 | `mensagem-*` | 2 | 0 | 2 | — | — | S6: a última mensagem ao dono é medida (caracteres e jargão do modo iniciante) e o Stop passa. |
 | `sem-*` | 2 | 0 | 2 | — | — | Projeto sem .forge/versao: o hook não age. |
