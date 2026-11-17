@@ -22,7 +22,7 @@ RAIZ = TESTES.parent
 sys.path.insert(0, str(TESTES))
 sys.path.insert(0, str(RAIZ / "bin"))
 import forge_sempre_atual as fsa  # noqa: E402
-from ambiente_git import remoto_sem_manutencao  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 from test_oraculo_sempre_atual import CLAUDE_FALSO, STUB_DA_FERRAMENTA, URL, Mundo, git_real  # noqa: E402
 
 LIVRE = {"claude": [], "fechar": [], "duvida": False}
@@ -848,9 +848,9 @@ class UpgradeBase(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="forge-upgrade-base-"))
         self.addCleanup(shutil.rmtree, self.tmp, True)
-        self.env = {"HOME": str(self.tmp), "PATH": os.environ["PATH"], "LANG": "C.UTF-8", "FORGE_SEM_DOUTOR": "1",
-                    "GIT_CONFIG_NOSYSTEM": "1", "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@exemplo.test",
-                    "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@exemplo.test"}
+        self.env = sem_manutencao({"HOME": str(self.tmp), "PATH": os.environ["PATH"], "LANG": "C.UTF-8", "FORGE_SEM_DOUTOR": "1",
+                                   "GIT_CONFIG_NOSYSTEM": "1", "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@exemplo.test",
+                                   "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@exemplo.test"})
         self.git("init", "-q", "-b", "main")
         (self.tmp / "x").write_text("1\n")
         self.git("add", "-A")
