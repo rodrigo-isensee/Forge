@@ -1,0 +1,48 @@
+{
+  "pedido": "v047-h2-autor-fica",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: sem autor retomável, nenhum aviso",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if retomaveis:\n",
+      "para": "    if True:\n",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido",
+        "tests.test_hooks_agentes_autor.Autores.test_lapide_e_ativo_tiram_o_autor_do_aviso"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: sem aviso, o stdout fica vazio",
+      "arquivo": "hooks/agentes.py",
+      "de": "    linhas = [t for t in textos_do_aviso if t]\n    if linhas:",
+      "para": "    linhas = [t for t in textos_do_aviso if t]\n    if True:",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido",
+        "tests.test_hooks_agentes_autor.Autores.test_dois_avisos_saem_num_json_so"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: o SubagentStop grava o autor",
+      "arquivo": "hooks/agentes.py",
+      "de": "            autores = guardar_autores(autores, [a for a in agentes if aid and a.get(\"id\") == aid], agora)\n",
+      "para": "",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: o disparo de escrita avisa o autor retomável",
+      "arquivo": "hooks/agentes.py",
+      "de": "aviso_de_autor(autores_retomaveis(autores, agentes, lapides, escrita))",
+      "para": "None",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    }
+  ]
+}
