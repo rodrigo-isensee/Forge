@@ -3,21 +3,21 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-mutante-diagnostico
-commit: ef1fb25b6e21fd7570611f993a7e30db3a478b57
+commit: bb8aac06413679d6db6564019c95cfe14c20dfe9
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-15
+data: 2026-11-16
 ---
 # QA: v047 · E1.297 (forge-mutante: isenta pelo texto, recusa cedo, por quê, pedidos diferentes)
 
 Classe C (controle em `bin/`). Intervalo `origin/develop..ef1fb25b` (develop em c5c3a449, 2 commits de código, 12 arquivos). A branch avançou com 2 commits só de parecer (review e segurança), mesclados aqui sem tocar código. Sem UX nem API: as obrigações vêm do item E1.283 do pedido v047. Quem testa não fez a entrega. Sem PR nem check-run `bateria` para o sha (a API de check-runs de ef1fb25b responde total 0); a suíte inteira fica para o CI do PR. Local rodei os cenários: `python3 -m unittest tests.test_forge_mutante` = `Ran 115 tests ... OK`.
 
 ## Achados
-- A1 (recomendado) tests/mutantes/guarda-sem-mutante-4.json:25 · M25, M31 e M32 miram trechos que não existem em `bin/forge-mutante` (inválido, o arquivo sai rc 2). Já eram assim na base c5c3a449 e o diff mexeu na spec sem realinhá-los: classe AR-12. Realinhe ou retire.
+- A1 (recomendado) tests/mutantes/guarda-sem-mutante-4.json:25 · RESOLVIDO em bb8aac06: M25, M31 e M32 realinhados à fonte; os 8 mutantes da spec morrem (rc=0).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -51,3 +51,11 @@ Isenta repetida e isenta de outro arquivo (rc 2); spec fora do repositório igno
 
 ## Bugs
 Nenhum aberto. A classe do A1 já é AR-12 (`docs/engineering/achados-recorrentes.md`); a contagem sobe para 3 no PR do autor, porque o brief restringe este commit ao parecer.
+
+## Revalidação por delta (head dc405b6b, base aprovada ef1fb25b)
+`forge-check parecer delta` lista no domínio: `bin/forge-mutante`, `tests/mutantes/guarda-sem-mutante-4.json`, `tests/test_forge_mutante.py`. O delta próprio do item é M25, M31 e M32 da spec (alinhados à fonte, mesma mutação); o resto veio da develop (E1.140, E2.215 e afins, fora deste pedido). Sem PR nem `bateria` para o sha; a suíte inteira fica para o CI.
+- `python3 -m unittest tests.test_forge_mutante` (sem -I): `Ran 127 tests ... OK`.
+- `bin/forge-mutante tests/mutantes/guarda-sem-mutante-4.json --processos 4` (rc=0): M25 a M32 `morreu`, nenhum sobrevivente nem inválido (M31 em bin/forge-mutante:533, M32 em :534).
+- `bin/forge-mutante --conferir --base 86ac0fcb` (rc=0): `conferidas: o trecho de cada spec do diff está no lugar`.
+- `forge-check docs` rc=0.
+Veredito: aprovado. A contagem de AR-12 segue para o PR do autor (o brief restringe o commit ao parecer).
