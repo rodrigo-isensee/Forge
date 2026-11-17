@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-g4-medida-idioma
-commit: 675cf7a1f90676de32932e82b6a219401a77d94a
+commit: bdbb45cd5235d601649e3bbdd889bb8b4aaae4cb
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -41,6 +41,22 @@ M1 a M8 · morreu (8 de 8)
 ```
 
 Nenhum sobrevivente nem equivalente.
+
+## Revalidação (delta 675cf7a1..bdbb45cd)
+`forge-check parecer delta` lista só `tests/mutantes/v047-jargao-medida-4.json`: o `de` do M27 passou de `medir_mensagem(hook)` a `medir_mensagem(hook, raiz)`, para casar com o código. Reteste:
+
+```
+$ bin/forge-mutante tests/mutantes/v047-jargao-medida-4.json
+forge-mutante: pedido=v047-jargao-medida rev=bdbb45cd5235 spec=b1e0fdf6...
+M25 · morreu · hooks/meta.py:229
+M26 · morreu · hooks/meta.py:243
+M27 · morreu · hooks/meta.py:246
+M28 · morreu · hooks/meta.py:227
+$ python3 -m unittest tests.test_forge_mutante.ConferirTodas
+Ran 4 tests in 11.947s  OK
+```
+
+M27 morre; sem sobrevivente. Resto do parecer anterior segue valendo (nenhum arquivo de produção mudou no delta). Parecer aprovado.
 
 ## Bugs
 Nenhum aberto (crítico 0, alto 0, médio 0, baixo 0).
