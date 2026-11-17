@@ -187,6 +187,9 @@
     ],
     "agents/jarvis.md": [
       "o pedido só fecha com ela gravada",
+      "Teto do time \\(H6\\): até 20 agentes e 12 branches abertas",
+      "agente livre termina o que está aberto",
+      "skills/trabalho-em-paralelo/ritmo-e-corte\\.md",
       "Recibo antes de acionar o time",
       "brief único",
       "## Fábrica × projeto: onde cada mudança vai",
@@ -354,6 +357,8 @@
     ],
     "agents/tech-lead.md": [
       "`sem teste:` do `forge-check pr` pede justificativa no `## Sem teste` do PR",
+      "\\*\\*Ritmo e corte \\(diretrizes 32 e 33; H6\\):\\*\\*",
+      "No máximo 12 branches abertas e 20 agentes",
       "suíte inteira roda só no CI",
       "Commite o parecer na branch revisada",
       "Fila de integração",
@@ -571,8 +576,19 @@
       "critério de reversão",
       "Por que o existente não basta"
     ],
+    "skills/trabalho-em-paralelo/ritmo-e-corte.md": [
+      "## Ritmo diário \\(diretriz 32 do dono\\)",
+      "## Corte do trabalho por arquivo \\(diretriz 33 do dono\\)",
+      "## Teto do time \\(decisão do dono, H6\\)",
+      "Nunca junta sem os testes verdes nem pela exceção do GitHub",
+      "nunca para agentes diferentes em paralelo",
+      "no máximo 12 branches com trabalho aberto"
+    ],
     "templates/projeto/CLAUDE.md": [
       "`R-MAIN`",
+      "\\*\\*Ritmo diário:\\*\\*",
+      "\\*\\*Corte por arquivo:\\*\\*",
+      "\\*\\*Teto do time:\\*\\*",
       "`R-VERIFY`",
       "`R-COPIA`"
     ],
@@ -681,6 +697,7 @@
     "skills/esperar-estado/SKILL.md": ["nunca por `kill -0` no pid gravado"]
   },
   "invariantes_motivo": {
+    "skills/trabalho-em-paralelo/ritmo-e-corte.md": {"regra": "R-FLUXO", "porque": "sem o texto, somem o ritmo diário, o corte por arquivo e o teto do H6 que o Jarvis manda ler (diretrizes 32 e 33)"},
     "docs/fechamento-integrador.md": {"regra": "R-FLUXO", "porque": "sem o texto, o autor abre PR só para rodar o CI e o PR acaba fechado e reaberto, uma rodada a mais (decisão Q9 do dono)"},
     "docs/regras/R-SEGURANCA.md": {"regra": "R-SEGURANCA", "porque": "sem o texto, a mudança com gatilho de segurança segue sem o parecer do security-engineer"},
     "docs/regras/R-LIMITES.md": {"regra": "R-LIMITES", "porque": "sem o texto, o agente poderia enviar ou mesclar na main, pular os hooks com --no-verify ou --force, ligar API paga sem autorização, mesclar no Forge a partir de um projeto ou copiar agentes e skills para o projeto"},
@@ -744,6 +761,11 @@
     "scripts/jarvis-forge": 2
   },
   "invariantes_motivo_trecho": {
+    "templates/projeto/CLAUDE.md": {
+      "\\*\\*Ritmo diário:\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo não recebe o ritmo diário: junção contínua e um PR por dia para a main (diretriz 32)"},
+      "\\*\\*Corte por arquivo:\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo divide o mesmo arquivo entre agentes em paralelo e colhe conflito no fim (diretriz 33)"},
+      "\\*\\*Teto do time:\\*\\*": {"regra": "R-TETO", "porque": "sem o texto, o projeto novo não recebe o teto de 20 agentes e 12 branches abertas do H6"}
+    },
     "agents/agile-coach.md": {
       "Triagem termina com o `KANBAN.md` atualizado; backlog ou plano dito ao dono sai da contagem do quadro, conferida com a última triagem; plano ou pedido substituído vai para `arquivo/`": {"regra": "R-DECISAO", "porque": "sem o texto, o agile-coach leva ao dono backlog ou plano velho e o quadro fica fora da triagem (diretriz 20)"}
     },
@@ -769,6 +791,9 @@
       "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado": {"regra": "R-QA", "porque": "sem o texto, o parecer lê só o git log e aceita o oráculo apagado da história por reset ou rebase (EXT-1, C-2)"}
     },
     "agents/jarvis.md": {
+      "Teto do time \\(H6\\): até 20 agentes e 12 branches abertas": {"regra": "R-TETO", "porque": "sem o texto, o Jarvis abre branch nova acima de 12 e as branches abertas se acumulam sem terminar (decisão do dono no H6)"},
+      "agente livre termina o que está aberto": {"regra": "R-TETO", "porque": "sem o texto, o agente livre abre item novo e a revisão, o conserto e o teste vermelho das branches abertas ficam parados (H6)"},
+      "skills/trabalho-em-paralelo/ritmo-e-corte\\.md": {"regra": "R-FLUXO", "porque": "sem o apontamento, o Jarvis perde o detalhe do ritmo diário e do corte por arquivo (diretrizes 32 e 33 do dono)"},
       "skills/briefs-e-conferencia/SKILL\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o texto de briefs e conferência"},
       "skills/trabalho-em-paralelo/SKILL\\.md": {"regra": "R-TETO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda a série por arquivo e o teto"},
       "skills/falar-com-o-dono/SKILL\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o formato da pergunta ao dono"},
@@ -792,6 +817,8 @@
       "skills/kanban-scrum/experimentos\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, a skill perde o caminho do formato dos experimentos de melhoria, movido pelo teto de caracteres (diretriz 25)"}
     },
     "agents/tech-lead.md": {
+      "\\*\\*Ritmo e corte \\(diretrizes 32 e 33; H6\\):\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o tech-lead junta sem lote, divide o mesmo arquivo entre agentes e abre conflito no fim (diretrizes 32 e 33)"},
+      "No máximo 12 branches abertas e 20 agentes": {"regra": "R-TETO", "porque": "sem o texto, o tech-lead planeja lotes acima do teto de branches abertas decidido pelo dono no H6"},
       "suíte inteira roda só no CI": {"regra": "R-QA", "porque": "sem o texto, review, segurança e QA voltam a rodar a suíte inteira na máquina e a fila local cresce sem ganho; ela roda uma vez no CI do PR"},
       "`sem teste:` do `forge-check pr` pede justificativa no `## Sem teste` do PR": {"regra": "R-REVIEW", "porque": "sem o texto, o review aceita código mudado sem teste e sem justificativa, e o aviso do T1 vira ruído que ninguém lê"}
     },

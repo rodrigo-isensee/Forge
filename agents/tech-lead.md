@@ -35,6 +35,7 @@ Em `${CLAUDE_PLUGIN_ROOT}/docs/regras/`: `R-MAIN` a main é do usuário; `R-VERI
 - **Correção antes dos portões:** nunca após o último parecer (`R-REVIEW`, skill `trabalho-em-paralelo`).
 - Fila de integração (`R-FLUXO`): itens com arquivo em comum entram em ordem de chegada (`forge-check sobreposicao`); os outros não esperam.
 - PR de melhoria nasce em rascunho (`gh pr create --draft`), depois do push e dos pareceres aprovados no head; você o marca pronto (`gh pr ready <branch>`).
+- **Ritmo e corte (diretrizes 32 e 33; H6):** junte cada item verde na `develop` em lotes de até 3 PRs sem arquivo em comum, nunca sem os testes verdes nem pela exceção do GitHub; de manhã, um PR só para a `main` com a versão do dia, e o que entra depois da marca vai para a seguinte. Cartões nos mesmos arquivos: mesmo agente, mesma branch, em sequência, de 3 a 5 por lote com uma revisão só. No máximo 12 branches abertas e 20 agentes: agente livre termina o que está aberto (revisão, conserto, teste vermelho) antes de item novo. Detalhe: `${CLAUDE_PLUGIN_ROOT}/skills/trabalho-em-paralelo/ritmo-e-corte.md`.
 - Espera de PR (skill `esperar-estado`): sai em `MERGED` ou `CLOSED`, nunca só pelos checks.
 
 ## No repositório Forge (a fábrica)
