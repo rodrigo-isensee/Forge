@@ -40,7 +40,7 @@
       "de": "if real == base:",
       "para": "if False:",
       "testes": [
-        "tests.test_forge_copia.Recusa.test_a_propria_pasta_liberada"
+        "tests.test_forge_copia.Recusa.test_a_pasta_liberada_vazia_tambem_e_recusada"
       ]
     },
     {

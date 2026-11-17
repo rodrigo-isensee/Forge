@@ -21,6 +21,7 @@ class Base(unittest.TestCase):
         self.origem = self.pasta / "origem"
         self.git(self.pasta, "init", "-q", "-b", "develop", str(self.origem))
         self.git(self.origem, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "i")
+        self.git(self.origem, "remote", "add", "origin", str(self.origem))  # sem remoto, o git nem tentaria rastrear
         self.git(self.origem, "update-ref", "refs/remotes/origin/develop", "HEAD")
 
     def git(self, cwd, *a):
@@ -52,6 +53,8 @@ class Cria(Base):
         r = self.copia("worktree", str(d), "--branch", "melhoria/w", "--base", "origin/develop")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self.branch_de(d), "melhoria/w")
+        cfg = subprocess.run(["git", "config", "--get", "branch.melhoria/w.remote"], cwd=d, env=self.env, capture_output=True)
+        self.assertNotEqual(cfg.returncode, 0)  # --no-track: sem upstream
 
 
 class Recusa(Base):
@@ -80,6 +83,14 @@ class Recusa(Base):
         irmao = self.home / ".forge-contrib-outro"
         irmao.mkdir()
         self.recusado(irmao / "w")
+
+    def test_a_pasta_liberada_vazia_tambem_e_recusada(self):
+        vazia = self.home / ".forge-contrib"
+        for item in list(vazia.iterdir()):
+            item.rename(self.fora / item.name)
+        r = self.copia("worktree", str(vazia), "--branch", "melhoria/z", cwd=self.fora / "origem")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("própria pasta", r.stderr)
 
     def test_destino_ocupado(self):
         (self.pasta / "ocupado").mkdir()
