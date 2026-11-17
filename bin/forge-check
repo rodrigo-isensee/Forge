@@ -10051,7 +10051,9 @@ def executar(a, raiz):
         return 1 if any(not v.startswith("transcricao: aviso:") for v in violacoes) else 0  # aviso não falha
     pendentes = migracao_pendente(raiz)
     if ramo := branch_do_modelo_sem_pr(raiz):  # ADR 0017: a abertura já rodou o forge-upgrade; o Jarvis passa ao tech-lead
-        print(f"forge-check: aviso: branch {ramo} pronta, sem PR; o tech-lead a envia (git push origin {ramo}) e abre o PR na develop",
+        print(f"forge-check: aviso: branch {ramo} pronta, sem PR; o tech-lead a envia (git push origin {ramo}), "
+              "abre o PR na develop e o mescla com os portões da classe verdes, sem perguntar ao dono; o que a catraca pedir ao dono fica "
+              "parado e listado (R-CONFORMIDADE)",
               file=sys.stderr)
     elif pendentes:
         print(f"forge-check: aviso: migração do Forge pendente ({', '.join(pendentes)}); rode forge-upgrade",

@@ -22,6 +22,7 @@ RAIZ = TESTES.parent
 sys.path.insert(0, str(TESTES))
 sys.path.insert(0, str(RAIZ / "bin"))
 import forge_sempre_atual as fsa  # noqa: E402
+from ambiente_git import remoto_sem_manutencao  # noqa: E402
 from test_oraculo_sempre_atual import CLAUDE_FALSO, STUB_DA_FERRAMENTA, URL, Mundo, git_real  # noqa: E402
 
 LIVRE = {"claude": [], "fechar": [], "duvida": False}
@@ -744,6 +745,7 @@ class Entradas(Mundo):
         self._script(ativo / "bin" / "forge-sempre-atual", STUB_DA_FERRAMENTA.replace("@COMPORTAMENTO@", ""))
         origem = self.tmp / "origem.git"
         git_real("init", "-q", "--bare", "-b", "develop", str(origem), cwd=self.tmp)
+        remoto_sem_manutencao(origem)  # o receive-pack local não herda GIT_CONFIG_* (ver ambiente_git.py)
         semente = self.tmp / "semente"
         git_real("clone", "-q", str(origem), str(semente), cwd=self.tmp)
         (semente / "x").write_text("1\n")
