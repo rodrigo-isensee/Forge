@@ -58,10 +58,10 @@ class AmbienteNoSessionStart(unittest.TestCase):
         git(raiz, "config", "core.hooksPath", ".githooks")
         self.gh_ok(True)
 
-    def rodar(self, cwd, evento="SessionStart", persistente=None):
+    def rodar(self, cwd, evento="SessionStart", persistente=None, hook=HOOK):
         env = {**os.environ, "HOME": str(self.home), "PATH": f"{self.bin}:{os.environ['PATH']}",
                "FORGE_PERSISTENTE": str(persistente or self.persist)}
-        r = subprocess.run(["python3", "-s", "-E", str(HOOK)], input=json.dumps({"hook_event_name": evento, "cwd": str(cwd)}),
+        r = subprocess.run(["python3", "-s", "-E", str(hook)], input=json.dumps({"hook_event_name": evento, "cwd": str(cwd)}),
                            env=env, capture_output=True, text=True, timeout=30)
         self.assertEqual((r.returncode, r.stderr), (0, ""))
         return r.stdout
@@ -99,6 +99,31 @@ class AmbienteNoSessionStart(unittest.TestCase):
             saida = self.rodar(raiz)
             self.assertNotIn("forjado", saida)
             self.assertIn("falta: ", saida)
+        self.assertEqual(list(self.marcas.iterdir()), [])
+
+    def bash_falso(self, saida, rc):
+        """`bash` falso no PATH: marca que rodou, imprime `saida` e sai com `rc` (o hook chama `bash` pelo PATH)."""
+        bash = self.bin / "bash"
+        bash.write_text(f'#!/bin/sh\necho x > "{self.marcas}/bash"\nprintf \'%s\\n\' {saida}\nexit {rc}\n')
+        bash.chmod(0o755)
+
+    def test_so_as_linhas_falta_entram_no_contexto(self):
+        self.bash_falso("ruido 'falta: a' ' falta: b'", 1)
+        self.assertEqual(self.rodar(self.forge).splitlines()[1:], ["falta: a"])
+
+    def test_verificar_sem_o_codigo_1_fica_em_silencio(self):
+        for rc in (0, 2, 127):
+            with self.subTest(rc=rc):
+                self.bash_falso("'falta: a'", rc)
+                self.assertEqual(self.rodar(self.forge), "")
+
+    def test_script_ausente_no_plugin_fica_em_silencio_sem_rodar_bash(self):
+        plugin = self.tmp / "plugin" / "hooks"
+        plugin.mkdir(parents=True)
+        for nome in ("ambiente.py", "_comum.py"):
+            (plugin / nome).write_bytes((HOOK.parent / nome).read_bytes())
+        self.bash_falso("'falta: a'", 1)
+        self.assertEqual(self.rodar(self.forge, hook=plugin / "ambiente.py"), "")
         self.assertEqual(list(self.marcas.iterdir()), [])
 
     def test_hooks_json_registra_o_ambiente_no_sessionstart(self):
