@@ -1,0 +1,38 @@
+{
+  "descricao": "HOOK-ESTADO-ILEGIVEL-LIBERA (QA A2, R-TETO): brief selado e em dia passa o R-BRIEF; o agentes.json ilegível recusa por R-TETO, não por R-BRIEF, e fica intacto.",
+  "arquivos": {
+    "docs/briefs/p1-tech-lead-1.md": "Agente destino: forge:tech-lead\nPedido: p1\nBranch: melhoria/p1   Base: develop\n\n## Objetivo\nConferir.\n",
+    "docs/pedidos/p1.md": "# Pedido p1\n\n## Histórico\n- 2026-01-01 10:00: brief selado docs/briefs/p1-tech-lead-1.md 5388586149952ee1d211963234fc30f583a88f252cc43872d8734165159c7774\n"
+  },
+  "estado": {
+    "agentes.json": "x"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:tech-lead",
+      "description": "Conferir",
+      "prompt": "Execute docs/briefs/p1-tech-lead-1.md"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO: registro de agentes ilegível",
+    "erros_log": "agentes EstadoIlegivel",
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "x"
+        ],
+        "ausente": [
+          "tech-lead"
+        ]
+      }
+    },
+    "stderr_sem": [
+      "R-BRIEF"
+    ]
+  }
+}
