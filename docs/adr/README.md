@@ -23,7 +23,7 @@ Formato (modelo em `_modelo.md`): contexto, decisão, alternativas, consequênci
 | [0014](0014-fluxo-de-tres-degraus-nos-projetos.md) | Fluxo de três degraus nos projetos: `develop` → `homolog` → `main` (proposta; vale a partir do PR da fase E do lote-unico-032) |
 | [0015](0015-porta-de-entrada-do-onboarding.md) | Porta de entrada do onboarding: terminal e Jarvis, sem hook fora de projeto (proposta; vale a partir do PR da fase E do lote-unico-032) |
 | [0016](0016-checagem-do-brief.md) | Checagem do brief: skill neutra e lista local do projeto (proposta; vale quando o PR da `melhoria/checagem-do-brief` entrar na `develop`) |
-| [0018](0018-autorizacao-do-dono-gravada.md) | Autorização do dono gravada: escopo, palavras exatas e validade; rótulo `afrouxa-regra` e merge na `main` só com autorização ativa (proposta; vale depois do parecer de segurança e das decisões D1 a D3) |
+| [0018](0018-autorizacao-do-dono-gravada.md) | Autorização do dono gravada: escopo, palavras exatas e validade; rótulo `afrouxa-regra` e merge na `main` só com autorização ativa (aceita; D1, D2 e D4 decididas pelo dono, D3 é ação do dono) |
 
 ## Substituídas
 Nenhuma.
