@@ -1,5 +1,5 @@
 {
-  "descricao": "HOOK-PARECER-HEREDOC-FALSO-POSITIVO (0.43.2): wc fora da lista curta.",
+  "descricao": "HOOK-PARECER-HEREDOC-FALSO-POSITIVO (0.43.2): echo com redireção fica fora; revisto na HOOK-HEREDOC-PALAVRA-FP: o echo grava um texto literal e nenhum programa da chamada roda o arquivo gravado, o corpo é dado e não marca a chamada; passa.",
   "arquivos": {
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
@@ -26,11 +26,10 @@
     "tool_name": "Bash",
     "tool_use_id": "toolu_9",
     "tool_input": {
-      "command": "cat > docs/qa/p.md <<'FIM'\n# QA\nRodei git pull e o merge passou; don't quebra.\nFIM\nwc -l docs/qa/p.md"
+      "command": "echo x > .git/hooks/pre-push && cat > docs/qa/p.md <<'FIM'\n# QA\nRodei git pull e o merge passou; don't quebra.\nFIM"
     }
   },
   "esperado": {
-    "codigo": 2,
-    "stderr": "R-REVIEW"
+    "codigo": 0
   }
 }

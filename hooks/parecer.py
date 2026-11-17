@@ -211,10 +211,11 @@ def chamada_muda_o_corpo(comando):
 
 
 def leitor_da_entrada(comando):
-    """`python` ou `shell` se o comando (palavras, sem lançador) só lê o programa da entrada; senão None."""
+    """`python` ou `shell` se o comando (palavras, sem lançador) só lê o programa da entrada (no Python, o que vem depois
+    do `-` vai ao `sys.argv` do corpo: `python3 - a.md`); senão None."""
     nome, args = comando[0], comando[1:]
-    if PYTHON_DA_ENTRADA.fullmatch(nome) and all(OPCAO_DO_PYTHON.fullmatch(a) or (a == "-" and k == len(args) - 1)
-                                                 for k, a in enumerate(args)):
+    opcoes = args[:args.index("-")] if "-" in args else args
+    if PYTHON_DA_ENTRADA.fullmatch(nome) and all(OPCAO_DO_PYTHON.fullmatch(a) for a in opcoes):
         return "python"
     if nome in SHELLS_DA_ENTRADA and all(OPCAO_DO_SHELL.fullmatch(a) for a in args):
         return "shell"
@@ -242,13 +243,38 @@ def leitores_dos_corpos(original, comando, corpos):
     (`so_le_ou_espera`, a regra do `sh -c` de texto), que segue conferido como comando e não marca a gramática com
     heredoc; None, o corpo como antes (o `git merge` que o sh roda segue na rede D). Só com todo `<<` simples
     (`heredocs_simples`): o bash e o hook cortam o corpo no mesmo ponto; e sem atribuição nem `git` na chamada
-    (`chamada_muda_o_corpo`)."""
+    (`chamada_muda_o_corpo`). `dado`: nenhum corpo da chamada roda (`corpos_de_dado`), nem conferido nem marca."""
+    if corpos_de_dado(original, comando):
+        return ["dado"] * len(corpos)
     if not heredocs_simples(original) or chamada_muda_o_corpo(comando):
         return [None] * len(corpos)
     tipos = [interprete_do_corpo(dono) for dono, _ in corpos]
     return [None if tipo == "python" and LANCA_PROCESSO.search(corpo) and comando_de_pr_no_python(corpo)
             or tipo == "shell" and not so_le_ou_espera(corpo) else tipo
             for tipo, (_, corpo) in zip(tipos, corpos)]
+
+
+# HOOK-HEREDOC-PALAVRA-FP: a chamada em que todo programa, fora dos corpos, só grava, lista ou lê arquivo não roda o corpo
+# nem o arquivo gravado: o corpo é dado, e a palavra crítica nele não marca a chamada (decidem os comandos de fora). Só
+# com todo `<<` simples (o bash e o hook cortam o corpo no mesmo ponto), sem atribuição (`chamada_muda_o_corpo`) e sem
+# gravar arquivo com o nome de um programa da chamada (`cat > /usr/local/bin/ls`). O programa de crase, `$( )`, `<( )`,
+# subshell, função e `case` o leitor acha (`programas_e_atribuicoes`) e fica fora da lista.
+PROGRAMAS_DE_DADO = frozenset({"cat", "cd", "mkdir", "echo", "true", "ls", "wc", "head", "tail", "grep", "stat"})
+
+
+def corpos_de_dado(original, comando):
+    """True se nenhum corpo de heredoc da chamada roda: todo programa de `comando` (a linha sem os corpos) é de
+    `PROGRAMAS_DE_DADO` e nenhuma redireção grava arquivo com o nome de um deles (nem com curinga no nome)."""
+    if not heredocs_simples(original):
+        return False
+    if chamada_muda_o_corpo(comando):
+        return False
+    leitura = palavras_do_texto(comando)
+    nomes = {programa for programa, _, _ in programas_e_atribuicoes(comando)}
+    alvos = {Path(getattr(r.alvo, "valor", "")).name for simples in leitura.simples for r in simples.redirecoes}
+    if any(c in alvo for alvo in alvos for c in "*?["):  # o bash expande o curinga do alvo (`bin/l[s]` grava `bin/ls`)
+        return False
+    return nomes <= PROGRAMAS_DE_DADO and not alvos & nomes
 
 
 def opcao(args, longa, curta):
@@ -965,13 +991,13 @@ def principal(hook):
 
 def marcas_da_chamada(original, comando, corpos, leitores):
     """(a chamada tem a marca crítica, `critico_ou_alias`; e fora dos corpos de shell que só leem ou esperam): o corpo
-    `python` de `leitores_dos_corpos` não marca, e o `shell` só marca a primeira. Sem eles, as duas são a do texto
-    inteiro."""
+    `python` de `leitores_dos_corpos` e o `dado` (`corpos_de_dado`) não marcam, e o `shell` só marca a primeira. Sem
+    eles, as duas são a do texto inteiro."""
     if not any(leitores):
         return (critico_ou_alias(original),) * 2
     def sem(tipos):
         return critico_ou_alias("\n".join([comando, *(c for (_, c), t in zip(corpos, leitores) if t not in tipos)]))
-    return sem({"python"}), sem({"python", "shell"})
+    return sem({"python", "dado"}), sem({"python", "dado", "shell"})
 
 
 def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corpo_de_heredoc=False, reavaliacoes=None):
@@ -1024,7 +1050,7 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                              "comandos")
     internos = [(corpo, False, False) for corpo in conteudos_de_crase(comando, so_os_fechados=True)]
     internos += [(corpo, False, getattr(dono, "rodado", None) or True)  # o dono (ou o programa do texto) pode rodá-lo
-                 for (dono, corpo), leitor in zip(corpos, leitores) if leitor != "python" and not corpo_so_lido(dono)]
+                 for (dono, corpo), leitor in zip(corpos, leitores) if leitor not in ("python", "dado") and not corpo_so_lido(dono)]
     vistos = {}
     for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
         partes = [(analise_do_comando(palavras), palavras, solto)

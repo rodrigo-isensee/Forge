@@ -1,0 +1,29 @@
+{
+  "descricao": "HK3-PARECER, PR B (E2), revisto na HOOK-HEREDOC-PALAVRA-FP: o ls só lista e não roda o corpo, que é dado e não marca a chamada; passa. O programa fora da lista segue recusado (heredoc-dado-*-bloqueia).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cat <<'EOF'\ngit merge x\nEOF\nls f"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
