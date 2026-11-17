@@ -1,6 +1,7 @@
 """ADR 0018, G1.1: formato, integridade e estado das autorizações gravadas (`bin/forge_autorizacao.py`, `forge-check autorizacao ler`)."""
 import contextlib
 import datetime
+import errno
 import hashlib
 import importlib.util
 import io
@@ -13,9 +14,16 @@ import unittest
 from pathlib import Path
 
 BIN = Path(__file__).resolve().parent.parent / "bin"
-_spec = importlib.util.spec_from_file_location("forge_autorizacao", BIN / "forge_autorizacao.py")
-fa = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(fa)
+fa = None  # carregado em setUpModule: na base, sem o módulo, cada teste cai por conta própria (R-QA)
+
+
+def setUpModule():
+    global fa
+    spec = importlib.util.spec_from_file_location("forge_autorizacao", BIN / "forge_autorizacao.py")
+    fa = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fa)
+
+
 GRAVADOR = hashlib.sha256((BIN / "forge-check").read_bytes()).hexdigest()
 CORPO = "pode aplicar o rótulo no PR 5\n\nnão é recorte"
 UTC = datetime.timezone.utc
@@ -100,6 +108,8 @@ class Ler(unittest.TestCase):
                 self.assertEqual(rc, 1, saida)
                 self.assertIn("autorizacao: erro: A-1: ", saida)
                 self.assertNotIn("A-1 · ", saida)
+                if caso == "link":  # o texto do erro do sistema, sem o "[Errno n]" nem o caminho
+                    self.assertIn(f"autorizacao: erro: A-1: {os.strerror(errno.ELOOP)}\n", saida)
 
     def test_pasta_que_e_link_e_nome_fora_da_forma_sao_erro(self):
         outra = self.raiz / "outra"
