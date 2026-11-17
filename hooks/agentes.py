@@ -243,7 +243,8 @@ def vigentes(agentes, agora, expira_s, morto=nenhum_morto):
     for a in agentes:
         try:
             if not (isinstance(a, dict) and isinstance(a.get("desde"), (int, float))
-                    and agora - a["desde"] < (expira_s if a.get("id") else min(RESERVA_S, expira_s))):
+                    and agora - a["desde"] < (expira_s if a.get("id") and a.get("tipo") != RETOMADA
+                                              else min(RESERVA_S, expira_s))):
                 continue
             if sessao_morta(a) or morto(a):
                 continue
@@ -498,7 +499,8 @@ def recusar_retomada(hook, agentes, lapides):
 
 def reservar_retomada(hook, agentes, autores, agora):
     """H2 e Z10 (R-TETO): retomar por `SendMessage` o autor parado é uma delegação de escrita. Recusa se outra reserva escreve
-    uma das branches dele; senão, reserva-as com o id dele, que o `SubagentStop` dele solta. Alvo ativo ou sem branch: nada."""
+    uma das branches dele; senão, reserva-as com o id dele, que o `SubagentStop` dele solta. A reserva vale o prazo curto
+    (RESERVA_S) até o `SubagentStart` do retomado: SendMessage negado ou falho não prende a branch. Alvo ativo ou sem branch: nada."""
     entrada = hook.campo("tool_input")
     alvo = entrada.get("to") if isinstance(entrada, dict) else None
     if any(a.get("id") == alvo for a in agentes):
@@ -982,6 +984,10 @@ def lancar(hook, agentes, agora, lidos):
 
 def iniciar(hook, agentes, agora):
     aid, tipo = hook.campo("agent_id"), str(hook.campo("agent_type") or "")
+    retomado = next((a for a in agentes if aid and a.get("id") == aid and a.get("tipo") == RETOMADA), None)
+    if retomado is not None:  # H2: o sinal do retomado; a reserva curta da retomada vira a do agente (expiracao_horas)
+        retomado.update(tipo=tipo, desde=agora)
+        return
     if not aid or any(a.get("id") == aid for a in agentes):
         return
     dono = da_sessao(hook)

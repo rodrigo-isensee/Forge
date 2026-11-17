@@ -61,6 +61,26 @@
       "testes": [
         "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
       ]
+    },
+    {
+      "id": "M23",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE (review A5): a reserva da retomada vale o prazo curto (RESERVA_S)",
+      "arquivo": "hooks/agentes.py",
+      "de": "(expira_s if a.get(\"id\") and a.get(\"tipo\") != RETOMADA\n",
+      "para": "(expira_s if a.get(\"id\")\n",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE (review A5): o SubagentStart do retomado converte a reserva curta",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if retomado is not None:  # H2",
+      "para": "    if False:  # H2",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
     }
   ]
 }
