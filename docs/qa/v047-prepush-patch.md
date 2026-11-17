@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-prepush-patch
-commit: 8079c5d4132e2e5559593f96a2dc5736bea4a1a1
+commit: ccb7a0c3663dd98c3eae57186ea9612c9b21cc83
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-16
+data: 2026-11-17
 ---
 # QA: v047 prepush-patch (E2.327)
 
@@ -55,3 +55,9 @@ Item: patch `docs/devops/pp1-pre-push.patch` (três consertos do `.githooks/pre-
 - `python3 -m unittest tests.test_pre_push_patch`: Ran 12 tests, OK.
 - `python3 -m unittest tests.test_forge_mutante` (arquivo tocado pelo merge): Ran 124 tests, OK.
 - A3 (recomendado) segue aberto, sem mudança; sem bloqueante. Suíte inteira: CI do PR (check-run `bateria` do mesmo sha), não rodada aqui. PA-7 conferido: AR-1 e AR-12 sem recorrência nova neste item.
+
+## Revalidação por delta (head 563518d1, Revisar-sha ccb7a0c3, base do delta 8079c5d4)
+`forge-check parecer delta` listou `bin/forge-testes` (o MAPA liga `docs/devops/pp1-pre-push.patch` e `hooks/.*` ao `test_pre_push_patch`) e `tests/test_testes_tocados.py` (caso novo do mapa; o ambiente do teste tira o `GIT_*` herdado). O patch, o teste do patch e o hook em vigor não mudaram. Entre ccb7a0c3 e 563518d1 só muda o parecer do review (aprovado).
+- `python3 -m unittest tests.test_testes_tocados tests.test_pre_push_patch` (sem `-I`): Ran 174 tests, OK (skipped=1, `/proc` de outro namespace no sandbox).
+- Caso novo do mapa: `docs/devops/pp1-pre-push.patch` e `hooks/_comum.py` planejam `dirigido` com `test_pre_push_patch`; o teste cai se a linha do MAPA sair.
+- A3 (recomendado) segue aberto, sem mudança; sem bloqueante. Suíte inteira: CI do PR (check-run `bateria` do mesmo sha), não rodada aqui. PA-7 conferido: AR-1 sem recorrência nova neste item.
