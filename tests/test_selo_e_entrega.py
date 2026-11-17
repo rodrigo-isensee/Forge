@@ -462,10 +462,11 @@ class Hook(Repositorio):
         (proc / "meminfo").write_text(f"MemTotal: {16 * 1024 * 1024} kB\nMemFree: 1 kB\nMemAvailable: {8 * 1024 * 1024} kB\n", encoding="utf-8")
         self.proc = proc
 
-    def lancar(self, prompt, tipo="forge:node-backend"):
+    def lancar(self, prompt, tipo="forge:node-backend", limpar=True):
         self.n = getattr(self, "n", 0) + 1
         # cada lançamento sai sem reserva anterior: aqui só o selo é conferido; a delegação por branch (Z10) é de test_agentes_hash_brief
-        (self.proj / ".forge" / "run" / "agentes.json").unlink(missing_ok=True)
+        if limpar:
+            (self.proj / ".forge" / "run" / "agentes.json").unlink(missing_ok=True)
         entrada = {"hook_event_name": "PreToolUse", "tool_name": "Agent", "session_id": "s", "cwd": str(self.proj),
                    "tool_input": {"subagent_type": tipo, "description": f"d{self.n}", "prompt": prompt}}
         env = dict(self.env, FORGE_PROC=str(self.proc), FORGE_NPROC="8")
@@ -490,6 +491,19 @@ class Hook(Repositorio):
         r = self.lancar(prompt)
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("mudou depois do selo", r.stderr)
+
+    def test_brief_selado_com_estado_ilegivel_recusa_por_r_teto(self):
+        """HOOK-ESTADO-ILEGIVEL-LIBERA (A1): o selo em dia passa o R-BRIEF, e o agentes.json ilegível recusa por R-TETO, intacto."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        estado = self.proj / ".forge" / "run" / "agentes.json"
+        estado.parent.mkdir(parents=True, exist_ok=True)
+        estado.write_text("x", encoding="utf-8")
+        r = self.lancar("Leia docs/briefs/exemplo-node-backend-1.md e execute.", limpar=False)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("R-TETO: registro de agentes ilegível", r.stderr)
+        self.assertNotIn("R-BRIEF", r.stderr)
+        self.assertEqual(estado.read_text(encoding="utf-8"), "x")
 
     def test_especialista_sem_brief_no_prompt_bloqueia(self):
         r = self.lancar("faça o recurso X")

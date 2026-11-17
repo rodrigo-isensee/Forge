@@ -11,7 +11,9 @@ Sem objetivo armado, nada muda. S6: em todo Stop, só MEDE (nunca bloqueia) a ú
 last_assistant_message do evento; sem ele, o transcrito): caracteres contra TETO_DA_MENSAGEM, as palavras da tabela "Em vez de"
 de skills/modo-iniciante/SKILL.md e, por classe de CLASSES_DE_JARGAO (diretriz 31), quantos termos sem explicação há fora de
 bloco de código e de citação; grava uma linha em .forge/run/mensagens.jsonl (só contagens e as palavras da tabela, nunca o
-texto nem o termo achado das classes). A medida roda depois da decisão do objetivo e lê só TETO_DA_MEDIDA caracteres
+texto nem o termo achado das classes). SIEG-G4 (0.47.4): a linha leva também o idioma da mensagem (por palavras
+frequentes de PALAVRAS_DO_IDIOMA, fora de código e citação) e `outro_idioma`, verdadeiro quando ele difere do idioma do dono
+(`idioma_do_dono` no .forge/config.json do projeto; ausente: IDIOMA_PADRAO; código sem lista: sem medida). A medida roda depois da decisão do objetivo e lê só TETO_DA_MEDIDA caracteres
 (`cortado` na linha): o tempo dela não cresce com a mensagem. Erro interno: libera e vai ao erros.log.
 """
 import datetime
@@ -179,6 +181,37 @@ def classes_de_jargao(texto):
     return {nome: n for nome, n in contagem.items() if n}
 
 
+# SIEG-G4: idioma da mensagem ao dono. Listas disjuntas de palavras frequentes; o idioma com mais ocorrências, desde que
+# chegue a MINIMO_DO_IDIOMA e não empate: mensagem curta ou mista fica sem idioma (None) e não é acusada.
+IDIOMA_PADRAO = "pt"
+MINIMO_DO_IDIOMA = 3
+PALAVRAS_DO_IDIOMA = {
+    "pt": frozenset("não que uma um os na no do da em é está são você isso também mas então ainda já muito".split()),
+    "en": frozenset("the and is are of to that this with for you it not was have will be but on what".split()),
+    "es": frozenset("el los las es del pero con usted esto también muy bien cuando hay".split()),
+}
+
+
+def idioma_da_mensagem(texto):
+    """O código do idioma de PALAVRAS_DO_IDIOMA com mais palavras no texto; None abaixo de MINIMO_DO_IDIOMA ou com empate."""
+    palavras = re.findall(r"[^\W\d_]+", texto.lower())
+    contagem = sorted(((sum(p in lista for p in palavras), idioma) for idioma, lista in PALAVRAS_DO_IDIOMA.items()), reverse=True)
+    (maior, idioma), (segundo, _) = contagem[0], contagem[1]
+    if maior < MINIMO_DO_IDIOMA or maior == segundo:
+        return None
+    return idioma
+
+
+def idioma_do_dono(raiz):
+    """`idioma_do_dono` do .forge/config.json da raiz (neutro: vem do projeto); sem raiz, arquivo ou chave: IDIOMA_PADRAO.
+    Código sem lista em PALAVRAS_DO_IDIOMA: None (sem medida, para não acusar o próprio idioma do dono)."""
+    config = ler_json(Path(raiz) / ".forge" / "config.json", {}) if raiz is not None else {}
+    valor = config.get("idioma_do_dono") if isinstance(config, dict) else None
+    if valor is None:
+        return IDIOMA_PADRAO
+    return valor if isinstance(valor, str) and valor in PALAVRAS_DO_IDIOMA else None
+
+
 def mensagem_ao_dono(hook):
     """A mensagem final do evento (last_assistant_message); o transcrito só sem ela, que ali pode faltar a final (D13)."""
     texto = hook.campo("last_assistant_message")
@@ -187,13 +220,15 @@ def mensagem_ao_dono(hook):
     return ultima_mensagem(hook.campo("transcript_path"))
 
 
-def medir_mensagem(hook):
+def medir_mensagem(hook, raiz=None):
     for texto in filter(None, [mensagem_ao_dono(hook)]):
         medido = texto[:TETO_DA_MEDIDA]
+        idioma, dono = idioma_da_mensagem(fora_de_codigo_e_citacao(medido)), idioma_do_dono(raiz)
         achados = sorted({p for p in jargao() if re.search(r"(?<!\w)" + re.escape(p) + r"(?!\w)", medido, re.I)})
         linha = {"em": agora(), "caracteres": len(texto), "teto": TETO_DA_MENSAGEM, "passou_do_teto": len(texto) > TETO_DA_MENSAGEM,
                  "jargao": achados, "classes": classes_de_jargao(medido), "cortado": len(texto) > TETO_DA_MEDIDA,
-                 "iniciante": hook.iniciante()}
+                 "idioma": idioma, "idioma_do_dono": dono,
+                 "outro_idioma": idioma is not None and dono is not None and idioma != dono, "iniciante": hook.iniciante()}
         with open(hook.run() / "mensagens.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(linha, ensure_ascii=False) + "\n")
 
@@ -208,7 +243,7 @@ def principal(hook):
         avaliar_meta(hook, raiz)  # a decisão vem antes da medida; bloquear sai do processo, e a medida roda no finally
     finally:
         try:
-            medir_mensagem(hook)
+            medir_mensagem(hook, raiz)
         except Exception as erro:  # noqa: BLE001 - S6 só mede: a falha da medida nunca troca a decisão do Stop
             hook.registrar_erro(erro)
 

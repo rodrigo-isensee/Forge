@@ -27,7 +27,7 @@
       "id": "M27",
       "guarda": "E2.237: o Stop bloqueado ainda mede (a medida no finally)",
       "arquivo": "hooks/meta.py",
-      "de": "            medir_mensagem(hook)",
+      "de": "            medir_mensagem(hook, raiz)",
       "para": "            pass",
       "testes": [
         "tests.test_meta.Jargao.test_stop_bloqueado_ainda_mede_e_sai_com_2"
