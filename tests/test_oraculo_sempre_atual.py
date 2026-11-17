@@ -287,6 +287,7 @@ class Mundo(unittest.TestCase):
         self.origem = self.fake / "origem.git"
         self.origem_trab = self.fake / "origem-trab"
         git_real("init", "-q", "--bare", "-b", "main", str(self.origem), cwd=self.tmp)
+        remoto_sem_manutencao(self.origem)
         git_real("init", "-q", "-b", "main", str(self.origem_trab), cwd=self.tmp)
 
     def outro(self):
