@@ -27,6 +27,7 @@ mesma raiz de um escopo de usuário, o escopo pode sair adiado. Por isso os test
 Rodar uma classe: python3 -m unittest tests.test_oraculo_sempre_atual.Ocupacao
 """
 import ast
+import fcntl
 import hashlib
 import json
 import os
@@ -50,7 +51,7 @@ URL = "https://example.test/forge.git"
 GIT_REAL = shutil.which("git") or "/usr/bin/git"
 UTILITARIOS = ("bash", "sh", "env", "sleep", "cat", "ls", "mkdir", "rm", "cp", "mv", "ln", "chmod", "date", "sed", "grep",
                "awk", "head", "tail", "sort", "find", "timeout", "readlink", "realpath", "dirname", "basename", "tr", "wc", "id",
-               "stat", "install", "mktemp", "ps", "pgrep", "uname", "touch", "tee", "true", "false", "test", "printf", "xargs",
+               "stat", "install", "flock", "mktemp", "ps", "pgrep", "uname", "touch", "tee", "true", "false", "test", "printf", "xargs",
                "cut", "uniq", "diff", "cmp", "rmdir", "whoami", "hostname", "tty", "nproc")
 CLAUDE_FALSO = r'''#!@PY@
 import hashlib, json, os, shutil, sys, time
@@ -190,6 +191,18 @@ if any("example.test" in a for a in argv):
         for tag in c["tags"]:
             print(f"{'b' * 40}\trefs/tags/{tag}")
         sys.exit(0)
+    if "fetch" in argv:
+        # a origem da tag: repositório bare local com a main e as tags publicadas (o protocolo https é só o nome dela)
+        ori = str(FAKE / "origem.git")
+        novo, pula = [], False
+        for i, a in enumerate(argv):
+            if pula:
+                pula = False
+            elif a == "-c" and argv[i + 1].startswith("protocol."):
+                pula = True
+            else:
+                novo.append(ori if "example.test" in a else a)
+        os.execv("@GIT@", ["@GIT@", "-c", "protocol.file.allow=always", *novo])
     print("git falso: so ls-remote do catalogo", file=sys.stderr)
     sys.exit(1)
 os.execv("@GIT@", ["@GIT@", *argv])
@@ -271,6 +284,10 @@ class Mundo(unittest.TestCase):
         (self.home / ".gitconfig").write_text("[user]\n\tname = Oraculo\n\temail = o@exemplo.test\n[safe]\n\tdirectory = *\n")
         self.definir_ref("v0.0.0")
         self._gravar(self.plug / "installed_plugins.json", {"version": 2, "plugins": {}})
+        self.origem = self.fake / "origem.git"
+        self.origem_trab = self.fake / "origem-trab"
+        git_real("init", "-q", "--bare", "-b", "main", str(self.origem), cwd=self.tmp)
+        git_real("init", "-q", "-b", "main", str(self.origem_trab), cwd=self.tmp)
 
     def outro(self):
         """Um mundo novo e vazio da mesma classe, para repetir o cenário em subTest sem herdar o estado do anterior."""
@@ -357,6 +374,10 @@ class Mundo(unittest.TestCase):
     def publicar(self, versao, **opcoes):
         """Versão publicada: tag vX.Y.Z no catálogo e a cópia que o `plugin update` traz para o cache."""
         self._construir(self.fake / "publicadas" / versao, versao, **opcoes)
+        # a origem da tag: um commit na main do repositório bare local e a tag vX.Y.Z nele
+        git_real("commit", "-q", "--allow-empty", "-m", f"release {versao}", cwd=self.origem_trab)
+        git_real("tag", f"v{versao}", cwd=self.origem_trab)
+        git_real("push", "-q", str(self.origem), "main", f"refs/tags/v{versao}", cwd=self.origem_trab)
         self.ctl(tags=[*json.loads((self.fake / "ctl.json").read_text())["tags"], f"v{versao}"])
 
     def projeto(self, nome, versao_modelo="0.45.2", isca=False):
@@ -711,7 +732,13 @@ class Ocupacao(Mundo):
     def test_suite_do_pre_push_rodando_com_claude_vivo_adia(self):
         """RD4/S5 · `.githooks/pre-push --status` com rc 0 (suíte rodando) e claude vivo: adia"""
         p = self.cenario_atualiza()
-        (p / ".githooks" / "pre-push").write_text('#!/bin/sh\n[ "$1" = "--status" ] && { echo "rodando, 1 na fila"; exit 0; }\nexit 0\n')
+        # a trava que o pre-push da cópia instalada lê: <HOME>/.forge-contrib/forge-<uid>/forge-suite-<uid>.lock, presa por flock
+        uid = os.getuid()
+        pasta = self.home / ".forge-contrib" / f"forge-{uid}"
+        pasta.mkdir(parents=True, mode=0o700)
+        trava = open(pasta / f"forge-suite-{uid}.lock", "w")
+        self.addCleanup(trava.close)
+        fcntl.flock(trava, fcntl.LOCK_EX | fcntl.LOCK_NB)
         self.vivo("claude", p)
         self.rodar(projeto=p)
         self.adiado(p)
