@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: release-0.47.4
 branch: melhoria/v0474-release-0474
-commit: 2539b54fcaa895549fc9e2df35d45cd8588cc16b
+commit: f198cfbd8261eb15acee8adbb95709484f524097
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -15,6 +15,8 @@ data: 2026-11-17
 # QA: release 0.47.4 contra a main (v0474, E4.8)
 
 Head `2539b54f` (PR 640). Base: parecer `docs/qa/v0474-release-0474.md` (aprovado no `f198cfbd`); desde então a branch só soma pareceres de segurança e de review (docs) e merges da própria branch. Suíte inteira: check-run `bateria` do mesmo sha no PR; a suíte local completa não foi rodada.
+
+Nota (E4.12): `commit:` aponta para o Revisar-sha `f198cfbd` (commit da versão); o `2539b54f` só tem parecer (AQ-5). O conteúdo revisado é o mesmo.
 
 Sem achados (o bloco `## Achados` fica de fora).
 
