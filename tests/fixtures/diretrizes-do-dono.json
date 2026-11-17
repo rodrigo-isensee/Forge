@@ -211,6 +211,15 @@
    "trechos": [
     "cartões nos mesmos arquivos vão ao mesmo agente, na mesma branch, um depois do outro"
    ]
+  },
+  "34": {
+   "onde": "fabrica",
+   "resumo": "Jarvis não trava e versão quando ficar pronta",
+   "trechos": [
+    "Não trava \\(diretriz 34\\): decisão pendente é perguntada uma vez e o time segue com o que não depende dela",
+    "bloqueio de ambiente vira na hora o comando exato para o dono",
+    "a versão sai quando ficar pronta \\(diretriz 34\\), até 2 por dia"
+   ]
   }
  }
 }
