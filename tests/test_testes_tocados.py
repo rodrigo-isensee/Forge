@@ -65,6 +65,7 @@ class Mapa(unittest.TestCase):
             "bin/forge-sugerir": ["test_forge", "test_sugerir"],
             "scripts/ci-local": ["test_ci_local", "test_forge", "test_testes_tocados"],
             "bin/forge": ["test_atualizar", "test_doutor", "test_forge", "test_novo_projeto", "test_salvar_desfazer", "test_sempre_atual"],  # v047 E2.532
+            "bin/forge-upgrade": ["test_atualizar", "test_doutor", "test_forge", "test_sempre_atual"],  # v0474: review A1
         }
         for caminho, esperado in casos.items():
             with self.subTest(caminho):

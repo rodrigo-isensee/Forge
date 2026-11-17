@@ -49,6 +49,11 @@ HERDA_PREFIXO = ("LC_", "XDG_")
 TAG = re.compile(r"v(\d+)\.(\d+)\.(\d+)")
 VERSAO = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 SCRIPTS_SH = ("scripts/jarvis", "scripts/jarvis-forge", "scripts/preparar-estacao.sh", "bin/forge")
+# A trava da suíte do Forge é por usuário (`.githooks/pre-push`, R-TETO): quem a confere é a cópia instalada que roda esta
+# ferramenta, nunca o arquivo da pasta de um projeto, que um agente pode gravar (ADR 0017 item 9, SEG-1).
+GANCHO_DA_SUITE = Path(__file__).resolve().parent.parent / ".githooks" / "pre-push"
+# Os `git` que a ferramenta roda num repositório (o do projeto, o temporário da origem da tag, o `forge-upgrade`) não rodam hook.
+SEM_HOOKS = {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "core.hooksPath", "GIT_CONFIG_VALUE_0": os.devnull}
 
 # Lê o estado dos agentes com o código da versão ativa (S3 e S4); só leitura, num processo à parte e com prazo.
 LEITOR_DE_AGENTES = r'''import json, sys, time
@@ -279,16 +284,17 @@ class Rodada:
     def restante(self):
         return self.fim - time.monotonic()
 
-    def rodar(self, argv, cwd, cap):
+    def rodar(self, argv, cwd, cap, extra=None):
         """(rc, saída). rc None: passou do prazo do passo (o filho foi morto); -1: não deu para iniciar. O prazo geral esgotado
-        levanta `Prazo`. A saída vai para um arquivo, para um neto vivo nunca prender a leitura."""
+        levanta `Prazo`. A saída vai para um arquivo, para um neto vivo nunca prender a leitura. `extra`: variáveis a somar ao
+        ambiente dos filhos (só as da própria ferramenta, como `SEM_HOOKS`)."""
         restante = self.restante()
         if restante <= 0:
             raise Prazo()
         limite = min(cap, restante)
         with tempfile.TemporaryFile() as saida:
             try:
-                p = subprocess.Popen(argv, cwd=cwd, env=self.env, stdin=subprocess.DEVNULL, stdout=saida, stderr=subprocess.STDOUT,
+                p = subprocess.Popen(argv, cwd=cwd, env={**self.env, **(extra or {})}, stdin=subprocess.DEVNULL, stdout=saida, stderr=subprocess.STDOUT,
                                      start_new_session=True)
             except OSError as erro:
                 return -1, str(erro)
@@ -320,7 +326,8 @@ class Rodada:
         return self.rodar([self.claude_bin, *args], cwd or self.neutro, cap)
 
     def git_rede(self, args):
-        return self.rodar(["git", "-c", "protocol.allow=never", "-c", "protocol.https.allow=always", *args], self.neutro, PRAZO_REDE)
+        return self.rodar(["git", "-c", "protocol.allow=never", "-c", "protocol.https.allow=always", *args], self.neutro, PRAZO_REDE,
+                          SEM_HOOKS)
 
     # Leituras da CLI (só leitura) ----------------------------------------------------------------
     def listar(self):
@@ -394,12 +401,11 @@ class Rodada:
         except (ValueError, KeyError, IndexError, TypeError):
             return None
 
-    def suite(self, raiz):
-        """True (rodando), False (livre) ou None (dúvida) pelo `.githooks/pre-push --status` do projeto."""
-        gancho = Path(raiz) / ".githooks" / "pre-push"
-        if not gancho.is_file():
-            return False
-        rc, _ = self.rodar([str(gancho), "--status"], raiz, PRAZO_LEITURA)
+    def suite(self):
+        """True (rodando), False (livre) ou None (dúvida) pelo `.githooks/pre-push --status` da cópia instalada (`GANCHO_DA_SUITE`);
+        nenhum arquivo da pasta do projeto é executado. Sem o arquivo, o bash sai com 127: dúvida."""
+        bash = shutil.which("bash", path=self.env.get("PATH", "")) or "/bin/bash"
+        rc, _ = self.rodar([bash, str(GANCHO_DA_SUITE), "--status"], self.neutro, PRAZO_LEITURA)
         return {0: True, 1: False}.get(rc)
 
     def motivo_de_ocupacao(self, raiz, procs):
@@ -415,7 +421,7 @@ class Rodada:
             return "agentes"
         if lido[1]:
             return "pesado"
-        suite = self.suite(raiz)
+        suite = self.suite()
         if suite is None:
             return "duvida:suite"
         return "suite" if suite else None
@@ -528,6 +534,31 @@ class Rodada:
             fix = None
         return (versao_tupla(fix["para"]) if fix else ultima), ultima, fix
 
+    def tag_na_main(self, tag):
+        """(True, "") só com o commit da `tag` ancestral da `main` do remoto (ADR 0017: a tag `v*` só nasce da `main`). Busca só
+        os commits (`--filter=tree:0`, sem outras tags) num repositório vazio da pasta neutra; o que não der para conferir
+        reprova (falha fechada)."""
+        repo = tempfile.mkdtemp(prefix="origem-", dir=self.neutro)
+        rc, saida = self.rodar(["git", "init", "-q", "--bare", repo], self.neutro, PRAZO_LEITURA, SEM_HOOKS)
+        if rc != 0:
+            return False, "init: " + saida
+        rc, saida = self.git_rede(["-C", repo, "fetch", "-q", "--filter=tree:0", "--no-tags", "--", self.url,
+                                   "+refs/heads/main:refs/forge/main", f"+refs/tags/{tag}:refs/tags/{tag}"])
+        if rc != 0:
+            return False, "prazo" if rc is None else "busca: " + saida
+        rc, _ = self.rodar(["git", "-C", repo, "merge-base", "--is-ancestor", f"refs/tags/{tag}", "refs/forge/main"], self.neutro,
+                           PRAZO_LEITURA, SEM_HOOKS)
+        if rc != 0:
+            return False, f"o commit da {tag} não está na main" if rc == 1 else "não deu para conferir a main"
+        return True, ""
+
+    def origem_conferida(self, tag, escopos):
+        """A `tag` só vale com o commit dela na `main`; senão `falhou:origem-da-tag` e nada muda."""
+        ok, motivo = self.tag_na_main(tag)
+        if not ok:
+            self.falhar(escopos, "origem-da-tag", motivo)
+        return ok
+
     def catalogo(self, tag, escopos):
         """`marketplace add <url>#<tag> --scope user` sobre o existente; True só com o `ref` lido igual à tag."""
         rc, saida = self.claude(["plugin", "marketplace", "add", f"{self.url}#{tag}", "--scope", "user"], cap=120)
@@ -577,6 +608,8 @@ class Rodada:
         if not pendentes:
             return {}
         tag = "v" + versao_texto(alvo)
+        if not self.origem_conferida(tag, pendentes):
+            return {}
         if ref != tag and not self.catalogo(tag, pendentes):
             return {}
         for e in pendentes:
@@ -701,7 +734,7 @@ class Rodada:
         self.estado["fixacao"] = {"motivo": "volta-automatica", "de": de, "para": para, "desde": hoje()}
         self.salvar_estado()
         desceram = []
-        if self.url and self.catalogo(f"v{para}", escopos):
+        if self.url and self.origem_conferida(f"v{para}", escopos) and self.catalogo(f"v{para}", escopos):
             for e in escopos:
                 rc, saida = self.atualizar_escopo(e)
                 if rc != 0:
@@ -776,7 +809,7 @@ class Rodada:
             rc, saida = self.git_do_projeto(["worktree", "add", "--detach", tmp, "origin/develop"])
             if rc != 0:
                 return self.extra_modelo("worktree: " + saida)
-            rc, saida = self.rodar([str(Path(install) / "bin" / "forge-upgrade"), tmp], tmp, 120)
+            rc, saida = self.rodar([str(Path(install) / "bin" / "forge-upgrade"), tmp, "--base", "origin/develop"], tmp, 120, SEM_HOOKS)
             if rc != 0:
                 falha = "forge-upgrade: " + (saida or "sem saída")
             else:

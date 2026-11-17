@@ -151,7 +151,7 @@ MAPA = [
     (r"bin/forge-adotar", ("test_adotar", "test_stack_python", "test_forge")),  # 0.45.0: adoção de projeto existente
     (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge", "test_reval_delta", "test_salvar_desfazer", "test_adotar", "test_stack_python")),  # EST-M4: guarda C-2; GREP-UGREP
     (r"bin/(forge-atualizar|forge_versoes\.py|forge-voltar-versao)", ("test_atualizar", "test_forge", "test_doutor")),
-    (r"bin/forge-upgrade", ("test_atualizar", "test_forge", "test_doutor")),
+    (r"bin/forge-upgrade", ("test_atualizar", "test_forge", "test_doutor", "test_sempre_atual")),  # v0474: o test_sempre_atual roda o forge-upgrade de verdade (review A1)
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
     (r"bin/forge-sugerir", ("test_sugerir", "test_forge")),
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),

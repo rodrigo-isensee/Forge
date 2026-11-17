@@ -31,11 +31,14 @@ LIVRE = {"claude": [], "fechar": [], "duvida": False}
 class Dentro(Mundo):
     """Mundo do oráculo com a rodada dentro do processo."""
 
-    def rodar_dentro(self, projeto=None, gatilho="atalho", orcamento=60, procs=None, executar=True):
+    def rodar_dentro(self, projeto=None, gatilho="atalho", orcamento=60, procs=None, executar=True, origem=(True, "")):
+        """`origem`: o que `tag_na_main` responde (o catálogo do mundo é fictício e o `git` falso só faz `ls-remote`); None roda a
+        conferência de verdade."""
         saida = io.StringIO()
         procs = procs if procs is not None else LIVRE
+        dubla_origem = mock.patch.object(fsa.Rodada, "tag_na_main", lambda self, tag: origem) if origem else contextlib.nullcontext()
         with mock.patch.dict(os.environ, self.env(), clear=True), mock.patch.object(fsa, "processos_de_interesse", lambda: procs), \
-                contextlib.redirect_stdout(saida), contextlib.redirect_stderr(io.StringIO()):
+                dubla_origem, contextlib.redirect_stdout(saida), contextlib.redirect_stderr(io.StringIO()):
             rodada = fsa.Rodada(gatilho, str(projeto) if projeto else None, orcamento)
             rc = rodada.executar() if executar else 0
         self.rodada, self.saida = rodada, saida.getvalue()
@@ -184,22 +187,41 @@ class Ocupacao(Dentro):
         self.rodar_dentro(p, procs=self.claude_vivo(p))
         self.assertEqual(self.versoes()[("project", str(p))], "0.47.2")
 
+    def gancho_instalado(self, corpo):
+        """O `.githooks/pre-push` da cópia instalada (`GANCHO_DA_SUITE`) trocado por um script do teste, só para o `--status`."""
+        gancho = self.tmp / "instalado" / ".githooks" / "pre-push"
+        gancho.parent.mkdir(parents=True, exist_ok=True)
+        gancho.write_text(f'[ "$1" = "--status" ] || exit 9\necho "--status $PWD" >> "{self.tmp}/status.log"\n{corpo}\n')
+        return mock.patch.object(fsa, "GANCHO_DA_SUITE", gancho)
+
     def test_suite_rodando_adia_e_status_ilegivel_e_duvida(self):
-        """RD4/S5 · pre-push --status rc 0 adia; rc fora de 0 e 1 é dúvida e também adia; rc 1 e hook ausente não"""
-        gancho = lambda p: p / ".githooks" / "pre-push"
-        casos = (('echo rodando; exit 0', "suite"), ('exit 2', "duvida:suite"))
-        for corpo, motivo in casos:
-            with self.subTest(motivo=motivo):
+        """RD4/S5 · o --status da cópia instalada: rc 0 adia; rc fora de 0 e 1 e arquivo ausente são dúvida e adiam; rc 1 atualiza"""
+        for corpo, motivo in (('echo rodando; exit 0', "suite"), ('exit 2', "duvida:suite"), (None, "duvida:suite")):
+            with self.subTest(motivo=motivo, corpo=corpo):
                 m = self.outro()
                 p = m.cenario_atualiza()
-                gancho(p).write_text(f'#!/bin/sh\n[ "$1" = "--status" ] && {{ {corpo}; }}\nexit 0\n')
-                m.rodar_dentro(p, procs=m.claude_vivo(p))
+                with m.gancho_instalado(corpo or "exit 1") as gancho:
+                    if corpo is None:
+                        gancho.unlink()
+                    m.rodar_dentro(p, procs=m.claude_vivo(p))
                 m.adiado(p, motivo)
         m = self.outro()
         p = m.cenario_atualiza()
-        gancho(p).unlink()
-        m.rodar_dentro(p, procs=m.claude_vivo(p))
+        with m.gancho_instalado("exit 1"):
+            m.rodar_dentro(p, procs=m.claude_vivo(p))
         self.assertEqual(m.versoes()[("project", str(p))], "0.47.2")
+        self.assertEqual(len((m.tmp / "status.log").read_text().splitlines()), 1, "um --status, o da cópia instalada")
+
+    def test_pre_push_da_pasta_do_projeto_nunca_roda(self):
+        """segurança A1 (S1) · `.githooks/pre-push` gravado na pasta do projeto, com claude vivo nela: a rodada não o executa"""
+        p = self.projeto_a_atualizar()
+        marca = self.tmp / "MARCA"
+        (p / ".githooks" / "pre-push").write_text(f'#!/bin/sh\necho "$@" > "{marca}"\nexit 0\n')
+        with self.gancho_instalado("exit 1"):
+            self.rodar_dentro(p, procs=self.claude_vivo(p))
+        self.assertFalse(marca.exists(), "o arquivo da pasta do projeto rodou fora do sandbox")
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.2")
+        self.assertNotIn(str(p), (self.tmp / "status.log").read_text(), "o --status não roda com a pasta do projeto como cwd")
 
     def test_integracao_em_curso_adia_sem_claude(self):
         """RD4/S6 · forge-fechar com cwd no projeto adia sozinho; em outra pasta não"""
@@ -461,6 +483,85 @@ class Alvo(Dentro):
         self.assertIn("falhou:sem-tag", self.resultados())
 
 
+class OrigemDaTag(Dentro):
+    """segurança A2 · a tag alvo só vale com o commit dela na `main` do remoto; senão nada muda."""
+
+    def remoto(self):
+        """Remoto local com a `main`, a tag `v0.47.2` na main e a `v9.9.9` num commit fora dela."""
+        origem = self.tmp / "forge-origem.git"
+        git_real("init", "-q", "--bare", "-b", "main", str(origem), cwd=self.tmp)
+        remoto_sem_manutencao(origem)
+        semente = self.tmp / "forge-semente"
+        git_real("clone", "-q", str(origem), str(semente), cwd=self.tmp)
+        (semente / "x").write_text("1\n")
+        git_real("add", "-A", cwd=semente)
+        git_real("commit", "-q", "-m", "versao", cwd=semente)
+        git_real("tag", "-a", "-m", "v0.47.2", "v0.47.2", cwd=semente)
+        git_real("switch", "-q", "-c", "melhoria/x", cwd=semente)
+        git_real("commit", "-q", "--allow-empty", "-m", "fora da main", cwd=semente)
+        git_real("tag", "v9.9.9", cwd=semente)
+        git_real("push", "-q", "origin", "main", "melhoria/x", "--tags", cwd=semente)
+        return origem
+
+    def conferir(self, tag, url):
+        """`tag_na_main` de verdade contra o remoto local (o `git_rede` só troca a URL fictícia pela do remoto local)."""
+        with mock.patch.dict(os.environ, {**self.env(), "PATH": os.environ["PATH"]}, clear=True):
+            rodada = fsa.Rodada("atalho")
+            rodada.neutro, rodada.url = tempfile.mkdtemp(dir=self.tmp), URL
+            original = fsa.Rodada.git_rede
+
+            def git_rede(r, args):
+                return original(r, ["-c", "protocol.file.allow=always", *[url if a == URL else a for a in args]])
+
+            with mock.patch.object(fsa.Rodada, "git_rede", git_rede):
+                return rodada.tag_na_main(tag)
+
+    def test_tag_na_main_vale_e_fora_dela_nao(self):
+        url = "file://" + str(self.remoto())
+        self.assertEqual(self.conferir("v0.47.2", url), (True, ""))
+        self.assertEqual(self.conferir("v9.9.9", url), (False, "o commit da v9.9.9 não está na main"))
+
+    def test_busca_que_falha_ou_main_ilegivel_reprova(self):
+        """falha fechada · remoto sem a tag (busca falha) e tag que não é commit (merge-base com erro) reprovam"""
+        origem = self.remoto()
+        ok, motivo = self.conferir("v1.0.0", "file://" + str(origem))
+        self.assertFalse(ok)
+        self.assertTrue(motivo.startswith("busca: "), motivo)
+        arvore = git_real("rev-parse", "main^{tree}", cwd=origem)
+        git_real("update-ref", "refs/tags/v3.0.0", arvore, cwd=origem)
+        self.assertEqual(self.conferir("v3.0.0", "file://" + str(origem)), (False, "não deu para conferir a main"))
+
+    def test_init_que_falha_reprova(self):
+        original = fsa.Rodada.rodar
+
+        def rodar(r, argv, cwd, cap, extra=None):
+            return (128, "sem disco") if argv[1:2] == ["init"] else original(r, argv, cwd, cap, extra)
+
+        with mock.patch.object(fsa.Rodada, "rodar", rodar):
+            self.assertEqual(self.conferir("v0.47.2", "file://" + str(self.remoto())), (False, "init: sem disco"))
+
+    def test_tag_fora_da_main_nada_muda(self):
+        """o avanço com a origem reprovada: nenhum `add`, versão igual, registro falhou:origem-da-tag"""
+        p = self.cenario_atualiza()
+        self.rodar_dentro(p, origem=(False, "o commit da v0.47.2 não está na main"))
+        self.assertEqual(self.adds(), [])
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.0")
+        self.assertTrue(any(r.startswith("falhou:origem-da-tag") for r in self.resultados("project")), self.resultados())
+
+    def test_volta_com_origem_reprovada_nao_mexe_no_catalogo(self):
+        """seção 5.2 · a volta também confere a origem: reprovada, nenhum `add` da última boa e o registro diz volta-falhou"""
+        p = self.projeto("p")
+        self.instalar("0.47.1", "user")
+        self.publicar("0.47.1")
+        self.publicar("0.47.2", py_quebrado=True)
+        self.definir_ref("v0.47.1")
+        self.semear_estado(bom=self.bom("0.47.1"))
+        with mock.patch.object(fsa.Rodada, "tag_na_main", lambda r, tag: (tag != "v0.47.1", "fora da main")):
+            self.rodar_dentro(p, origem=None)
+        self.assertEqual([c["args"][3] for c in self.adds()], [f"{URL}#v0.47.2"])
+        self.assertIn("volta-falhou", self.resultados("user"))
+
+
 class Catalogo(Dentro):
     def test_update_so_depois_de_o_ref_lido_ser_o_alvo(self):
         """catalogo/seção 11 · add que sai 0 sem mudar o ref (interrompido) não libera update e registra falhou:catalogo"""
@@ -676,6 +777,110 @@ class Modelo(Dentro):
         self.assertEqual(self.versoes()[("project", str(p))], "0.47.2")
         self.assertTrue(any(r.startswith("falhou:modelo:fetch") for r in self.resultados()), self.resultados())
         self.assertEqual(self.upgrades(), [])
+
+
+class ModeloComUpgradeDeVerdade(Dentro):
+    """review A1 · a branch `forge/upgrade-<v>` nasce da `origin/develop`, com o `bin/forge-upgrade` de verdade na cópia instalada."""
+
+    def preparar(self):
+        p = self.projeto("p")
+        self.instalar("0.47.0", "project", p)
+        self.publicar("0.47.0")
+        self.publicar("0.47.2")
+        self.definir_ref("v0.47.0")
+        publicada = self.fake / "publicadas" / "0.47.2"
+        shutil.copyfile(RAIZ / "bin" / "forge-upgrade", publicada / "bin" / "forge-upgrade-real")
+        (publicada / "bin" / "forge-upgrade").write_text(f'#!/bin/sh\nexec "{sys.executable}" -I "{publicada}/bin/forge-upgrade-real" "$@"\n')
+        (publicada / "migrations").mkdir()
+        return p
+
+    def ramo(self, p):
+        return git_real("rev-parse", "--verify", "-q", "refs/heads/forge/upgrade-0.47.2", cwd=p, check=False)
+
+    def conferir(self, p):
+        self.rodar_dentro(p)
+        self.assertEqual(self.versoes()[("project", str(p))], "0.47.2")
+        self.assertTrue(self.ramo(p), self.resultados())
+        self.assertEqual(git_real("rev-parse", "refs/heads/forge/upgrade-0.47.2^", cwd=p), git_real("rev-parse", "origin/develop", cwd=p))
+        self.assertEqual(git_real("show", "forge/upgrade-0.47.2:.forge/versao", cwd=p), "0.47.2")
+
+    def test_clone_so_com_main_recebe_a_branch_da_origin_develop(self):
+        """S1 do review · sem develop local (a worktree fica em HEAD solto): a branch nasce mesmo assim, da origin/develop"""
+        p = self.preparar()
+        git_real("branch", "-D", "develop", cwd=p)
+        self.conferir(p)
+
+    def test_develop_local_defasada_nao_vira_a_base(self):
+        """S2 do review · develop local um commit atrás da origin/develop: a branch nasce da origin/develop"""
+        p = self.preparar()
+        git_real("switch", "-q", "develop", cwd=p)
+        git_real("commit", "-q", "--allow-empty", "-m", "novo na develop", cwd=p)
+        git_real("push", "-q", "origin", "develop", cwd=p)
+        git_real("switch", "-q", "main", cwd=p)
+        git_real("branch", "-f", "develop", "develop~1", cwd=p)
+        self.conferir(p)
+        self.assertNotEqual(git_real("rev-parse", "develop", cwd=p), git_real("rev-parse", "origin/develop", cwd=p))
+
+    def test_hook_de_commit_do_projeto_nao_roda_no_upgrade(self):
+        """segurança A3 · o forge-upgrade commita sem o core.hooksPath do projeto"""
+        p = self.preparar()
+        marca = self.tmp / "HOOK"
+        git_real("config", "core.hooksPath", ".githooks", cwd=p)
+        (p / ".githooks" / "pre-commit").write_text(f'#!/bin/sh\ntouch "{marca}"\n')
+        (p / ".githooks" / "pre-commit").chmod(0o755)
+        git_real("add", "-A", cwd=p)
+        git_real("commit", "-q", "-m", "hook", "--no-verify", cwd=p)
+        git_real("push", "-q", "origin", "HEAD:develop", cwd=p)
+        marca.unlink(missing_ok=True)
+        self.conferir(p)
+        self.assertFalse(marca.exists(), "hook de commit do projeto rodou na abertura")
+
+
+class UpgradeBase(unittest.TestCase):
+    """`forge-upgrade --base`: a base dada vale em HEAD solto; o que não é commit, opção ou a main recusa com rc 2."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-upgrade-base-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.env = {"HOME": str(self.tmp), "PATH": os.environ["PATH"], "LANG": "C.UTF-8", "FORGE_SEM_DOUTOR": "1",
+                    "GIT_CONFIG_NOSYSTEM": "1", "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@exemplo.test",
+                    "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@exemplo.test"}
+        self.git("init", "-q", "-b", "main")
+        (self.tmp / "x").write_text("1\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "inicio")
+        self.git("branch", "trabalho")
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
+        self.git("switch", "-q", "--detach", "HEAD")
+
+    def git(self, *args):
+        return subprocess.run(["git", "-C", str(self.tmp), *args], env=self.env, capture_output=True, text=True, check=True).stdout.strip()
+
+    def upgrade(self, *args):
+        return subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-upgrade"), "--ate", "0.5.0", *args, str(self.tmp)],
+                              env=self.env, capture_output=True, text=True, timeout=60)
+
+    def test_base_dada_em_head_solto_cria_a_branch_nela(self):
+        r = self.upgrade("--base", "trabalho")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.git("rev-parse", "forge/upgrade-0.5.0^"), self.git("rev-parse", "trabalho"))
+        self.assertIn("--base trabalho", r.stdout)
+
+    def test_base_que_nao_e_commit_opcao_ou_main_recusa(self):
+        for base, texto in (("nao-existe", "não é um commit"), ("-x", "não é um commit"), ("main", "branch de integração"),
+                            ("origin/main", "branch de integração")):
+            with self.subTest(base=base):
+                r = self.upgrade(f"--base={base}")
+                self.assertEqual(r.returncode, 2, r.stderr)
+                self.assertIn(texto, r.stderr)
+                self.assertEqual(subprocess.run(["git", "-C", str(self.tmp), "rev-parse", "--verify", "-q", "refs/heads/forge/upgrade-0.5.0"],
+                                                env=self.env, capture_output=True).returncode, 1)
+
+    def test_sem_base_em_head_solto_segue_recusando(self):
+        self.git("branch", "-D", "trabalho")
+        r = self.upgrade()
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("HEAD solto", r.stderr)
 
 
 class Entrada(unittest.TestCase):
