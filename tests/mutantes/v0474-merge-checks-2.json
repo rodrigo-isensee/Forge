@@ -69,7 +69,7 @@
       "de": ".parameters.required_status_checks[].context' 2>/dev/null)\"; then",
       "para": ".parameters.required_status_checks[].context' 2>/dev/null)\"; true; then",
       "testes": [
-        "tests.test_forge_fechar.FecharExigidosDoDestino.test_exigido_do_ruleset_de_qualquer_workflow_em_pass_mescla"
+        "tests.test_forge_fechar.FecharExigidosDoDestino.test_ruleset_ilegivel_nao_acrescenta_e_a_protecao_vale"
       ]
     },
     {

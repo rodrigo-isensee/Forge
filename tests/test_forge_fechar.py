@@ -48,12 +48,19 @@ class FecharExigidosDoDestino(unittest.TestCase):
     def test_exigido_do_ruleset_de_qualquer_workflow_em_pass_mescla(self):
         (self.estado / "api_regras").write_text("lint\n")
         self.leituras([*exig.OK, "lint\tpass\t1m\turl\tQualquer"])
-        r = self.fechar("p1", "--ref", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "0")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("exigidos em pass: CI/bateria CI/bateria (python 3.14) Catraca/catraca */lint)", r.stdout)
         chamadas = [c for c in self.chamadas() if c.startswith("gh api")]
         self.assertIn("gh api repos/{owner}/{repo}/rules/branches/develop --jq .[] | select(.type == \"required_status_checks\") | "
                       ".parameters.required_status_checks[].context", chamadas)
+
+    def test_ruleset_ilegivel_nao_acrescenta_e_a_protecao_vale(self):  # o corpo do 404 do ruleset não vira exigido
+        (self.estado / "api_protecao").write_text("lint\n")
+        self.leituras([*exig.OK, "lint\tpass\t1m\turl"])
+        r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "0")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("exigidos em pass: CI/bateria CI/bateria (python 3.14) Catraca/catraca */lint)", r.stdout)
 
     def test_sem_regra_legivel_os_pares_continuam(self):  # o fallback: a leitura que falha não tira nenhum par
         self.para(["bateria\tskipping\t0\turl", *exig.OK[1:]], "bateria", "skipping")
