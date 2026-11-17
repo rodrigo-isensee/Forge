@@ -186,6 +186,9 @@
       "critério de reversão"
     ],
     "agents/jarvis.md": [
+      "\\*\\*Autor até o merge \\(H2\\):\\*\\* volta de review, QA, segurança, CI e conflito vai à mesma instância do autor",
+      "agente novo apenas se ele travou",
+      "skills/briefs-e-conferencia/autor-ate-o-merge\\.md",
       "Não trava \\(diretriz 34\\): decisão pendente é perguntada uma vez",
       "skills/falar-com-o-dono/nao-trava\\.md",
       "a versão sai quando ficar pronta \\(diretriz 34\\)",
@@ -258,6 +261,7 @@
       "Ordem ampla não confirma:\\*\\* diante de"
     ],
     "skills/briefs-e-conferencia/SKILL.md": [
+      "ao autor da branch, retomado por `SendMessage` até o merge \\(H2; comando e detalhe em `autor-ate-o-merge\\.md` nesta skill\\)",
       "forge-check brief selar --arquivo <brief> --pedido <p>",
       "forge-check brief gerar",
       "Nunca escreva essa linha à mão"
@@ -360,6 +364,8 @@
       "vira pendência no parecer, não revisão manual"
     ],
     "agents/tech-lead.md": [
+      "\\(H2, o autor fica até o merge\\): review, QA, segurança, CI e conflito, os três portões numa volta única",
+      "skills/briefs-e-conferencia/autor-ate-o-merge\\.md",
       "\\*\\*Tamanho por item \\(H1, decisão do dono\\):\\*\\*",
       "Passa só se cortar mais deixa a suíte vermelha",
       "skills/engineering-practices/tamanho-por-item\\.md",
@@ -727,9 +733,19 @@
       "\\*\\*Nenhum agente desliga, enfraquece ou dribla um controle\\*\\*",
       "\\*\\*Arquivos em vigor\\*\\*"
     ],
-    "skills/esperar-estado/SKILL.md": ["nunca por `kill -0` no pid gravado"]
+    "skills/esperar-estado/SKILL.md": ["nunca por `kill -0` no pid gravado"],
+    "skills/briefs-e-conferencia/autor-ate-o-merge.md": [
+      "\\*\\*O autor fica com o item até o merge:\\*\\*",
+      "achado de review, de QA e de segurança, CI vermelho do PR e conflito com a base",
+      "\\*\\*Agente novo apenas se o autor travou:\\*\\*",
+      "\\*\\*Uma volta por rodada:\\*\\* os bloqueantes dos três portões \\(review, segurança e QA\\) no mesmo head viram um brief único",
+      "pare o agente novo e retome o autor por `SendMessage`, salvo se ele travou",
+      "`forge-check brief gerar --pedido <p> --volta <brief anterior> --ref <branch> --parecer <arquivo>\\.\\.\\.`",
+      "Recomendação não entra"
+    ]
   },
   "invariantes_motivo": {
+    "skills/briefs-e-conferencia/autor-ate-o-merge.md": {"regra": "R-BRIEF", "porque": "sem o texto, a volta de review, QA, segurança, CI e conflito vai a um agente novo que relê tudo, e os três portões voltam em rodadas separadas (H2)"},
     "skills/engineering-practices/tamanho-por-item.md": {"regra": "R-REVIEW", "porque": "sem o texto, somem a contagem do teto de 150 linhas de código por item e a única exceção decidida pelo dono (H1)"},
     "templates/projeto/.github/pull_request_template.md": {"regra": "R-REVIEW", "porque": "sem o texto, o PR do projeto volta a contar teste no teto e a passar dele sem o motivo (H1)"},
     "skills/falar-com-o-dono/nao-trava.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis para o time à espera de decisão do dono ou de bloqueio de ambiente e repete \"sigo esperando\" (diretriz 34)"},
@@ -831,6 +847,9 @@
       "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado": {"regra": "R-QA", "porque": "sem o texto, o parecer lê só o git log e aceita o oráculo apagado da história por reset ou rebase (EXT-1, C-2)"}
     },
     "agents/jarvis.md": {
+      "\\*\\*Autor até o merge \\(H2\\):\\*\\* volta de review, QA, segurança, CI e conflito vai à mesma instância do autor": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis manda a volta de review, QA, segurança, CI ou conflito a um agente novo, que relê tudo (H2)"},
+      "agente novo apenas se ele travou": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis abre instância nova com o autor ainda retomável e dobra os agentes por item (H2)"},
+      "skills/briefs-e-conferencia/autor-ate-o-merge\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o Jarvis perde o detalhe do H2 (quando o autor travou, o aviso do hook e a volta única), movido pelo teto de caracteres (diretriz 25)"},
       "Não trava \\(diretriz 34\\): decisão pendente é perguntada uma vez": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis segura o time por uma decisão pendente e repete a pergunta ao dono (diretriz 34)"},
       "skills/falar-com-o-dono/nao-trava\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o Jarvis perde o detalhe de não travar e do comando exato no bloqueio de ambiente (diretriz 34)"},
       "a versão sai quando ficar pronta \\(diretriz 34\\)": {"regra": "R-FLUXO", "porque": "sem o texto, a versão volta a esperar a manhã e o que está verde na develop fica parado (diretriz 34)"},
@@ -860,6 +879,8 @@
       "skills/kanban-scrum/experimentos\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, a skill perde o caminho do formato dos experimentos de melhoria, movido pelo teto de caracteres (diretriz 25)"}
     },
     "agents/tech-lead.md": {
+      "\\(H2, o autor fica até o merge\\): review, QA, segurança, CI e conflito, os três portões numa volta única": {"regra": "R-BRIEF", "porque": "sem o texto, o tech-lead autor deixa a branch na volta de CI ou conflito e os portões voltam em rodadas separadas (H2)"},
+      "skills/briefs-e-conferencia/autor-ate-o-merge\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o tech-lead perde o detalhe do H2, movido pelo teto de caracteres (diretriz 25)"},
       "\\*\\*Tamanho por item \\(H1, decisão do dono\\):\\*\\*": {"regra": "R-REVIEW", "porque": "sem o texto, o tech-lead deixa passar item acima de 150 linhas de código sem cortar antes de começar (H1)"},
       "Passa só se cortar mais deixa a suíte vermelha": {"regra": "R-REVIEW", "porque": "sem o texto, o teto do H1 volta a ser orientação e o item grande passa sem o motivo no PR"},
       "skills/engineering-practices/tamanho-por-item\\.md": {"regra": "R-REVIEW", "porque": "sem o apontamento, o tech-lead perde a contagem do H1 e o que conta no Forge, movidos pelo teto de caracteres (diretriz 25)"},
