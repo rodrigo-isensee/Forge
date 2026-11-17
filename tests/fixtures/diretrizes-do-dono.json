@@ -169,12 +169,9 @@
    ]
   },
   "27": {
-   "onde": "fabrica",
+   "onde": "pendente",
    "resumo": "subir versão o mais rápido possível, 1 hora da marca ao PR para a main",
-   "trechos": [
-    "A promoção leva exatamente o commit da marca, nunca o topo da integração",
-    "tempo do commit da marca até o PR para a `main` pronto \\(meta 1 h\\)"
-   ]
+   "cartao": "RELEASE-EM-1H"
   },
   "28": {
    "onde": "pendente",
