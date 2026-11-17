@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: autores que não é lista vale vazio, nunca derruba o disparo",
       "arquivo": "hooks/agentes.py",
-      "de": "    return [a for a in (lista if isinstance(lista, list) else [])\n            if isinstance(a, dict) and isinstance(a.get(\"id\"), str)",
-      "para": "    return [a for a in lista\n            if isinstance(a, dict) and isinstance(a.get(\"id\"), str)",
+      "de": "(lista if isinstance(lista, list) else [])\n            if isinstance(a, dict) and isinstance(a.get(\"id\"), str)",
+      "para": "(lista if True else [])\n            if isinstance(a, dict) and isinstance(a.get(\"id\"), str)",
       "testes": [
         "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
       ]
@@ -34,10 +34,10 @@
     },
     {
       "id": "M4",
-      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: a retomada herda as branches do autor e renova o prazo",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: a retomada herda as branches do mesmo id e renova o prazo",
       "arquivo": "hooks/agentes.py",
-      "de": "        escrita |= {b for a in autores if a[\"id\"] == r.get(\"id\") for b in textos(a.get(\"escrita\"))}\n",
-      "para": "",
+      "de": "for a in autores if a[\"id\"] == r.get(\"id\") for b in",
+      "para": "for a in autores if a[\"id\"] != r.get(\"id\") for b in",
       "testes": [
         "tests.test_hooks_agentes_autor.Autores.test_retomada_sem_escrita_herda_as_branches_e_renova_o_prazo"
       ]
@@ -57,8 +57,8 @@
       "id": "M6",
       "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: o novo autor da branch tira o anterior dela",
       "arquivo": "hooks/agentes.py",
-      "de": "        autores = [a for a in autores if not escrita & set(textos(a.get(\"escrita\")))]",
-      "para": "        autores = list(autores)",
+      "de": "if not escrita & set(textos(a.get(\"escrita\")))]",
+      "para": "if not False]",
       "testes": [
         "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido",
         "tests.test_hooks_agentes_autor.Autores.test_novo_autor_tira_so_o_anterior_da_mesma_branch"
