@@ -358,7 +358,7 @@
     "agents/tech-lead.md": [
       "`sem teste:` do `forge-check pr` pede justificativa no `## Sem teste` do PR",
       "\\*\\*Ritmo e corte \\(diretrizes 32 e 33; H6\\):\\*\\*",
-      "No máximo 12 branches abertas e 20 agentes",
+      "skills/trabalho-em-paralelo/ritmo-e-corte\\.md",
       "suíte inteira roda só no CI",
       "Commite o parecer na branch revisada",
       "Fila de integração",
@@ -582,7 +582,9 @@
       "## Teto do time \\(decisão do dono, H6\\)",
       "Nunca junta sem os testes verdes nem pela exceção do GitHub",
       "nunca para agentes diferentes em paralelo",
-      "no máximo 12 branches com trabalho aberto"
+      "no máximo 12 branches com trabalho aberto",
+      "Até 20 agentes ao mesmo tempo",
+      "Agente livre termina o que está aberto"
     ],
     "templates/projeto/CLAUDE.md": [
       "`R-MAIN`",
@@ -818,7 +820,7 @@
     },
     "agents/tech-lead.md": {
       "\\*\\*Ritmo e corte \\(diretrizes 32 e 33; H6\\):\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o tech-lead junta sem lote, divide o mesmo arquivo entre agentes e abre conflito no fim (diretrizes 32 e 33)"},
-      "No máximo 12 branches abertas e 20 agentes": {"regra": "R-TETO", "porque": "sem o texto, o tech-lead planeja lotes acima do teto de branches abertas decidido pelo dono no H6"},
+      "skills/trabalho-em-paralelo/ritmo-e-corte\\.md": {"regra": "R-FLUXO", "porque": "sem o apontamento, o tech-lead perde o detalhe do ritmo, do corte por arquivo e do teto do H6, movido pelo teto de caracteres (diretriz 25)"},
       "suíte inteira roda só no CI": {"regra": "R-QA", "porque": "sem o texto, review, segurança e QA voltam a rodar a suíte inteira na máquina e a fila local cresce sem ganho; ela roda uma vez no CI do PR"},
       "`sem teste:` do `forge-check pr` pede justificativa no `## Sem teste` do PR": {"regra": "R-REVIEW", "porque": "sem o texto, o review aceita código mudado sem teste e sem justificativa, e o aviso do T1 vira ruído que ninguém lê"}
     },
