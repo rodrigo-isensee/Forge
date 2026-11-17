@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "o python com script ou -c não é leitor da entrada",
       "arquivo": "hooks/parecer.py",
-      "de": "OPCAO_DO_PYTHON.fullmatch(a) or (a == \"-\" and k == len(args) - 1)",
-      "para": "True",
+      "de": "OPCAO_DO_PYTHON.fullmatch(a) for a in opcoes",
+      "para": "True for a in opcoes",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_interpretador_libera_e_bloqueia"
       ]
