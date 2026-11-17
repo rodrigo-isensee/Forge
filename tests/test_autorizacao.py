@@ -41,10 +41,10 @@ class Ler(unittest.TestCase):
         self.pasta = self.raiz / fa.PASTA
         self.pasta.mkdir(parents=True)
 
-    def ler(self):
+    def ler(self, agora="2026-11-18 10:59"):
         saida = io.StringIO()
         with contextlib.redirect_stdout(saida):
-            rc = fa.cmd_ler(self.raiz, {"gravador": GRAVADOR, "seguro": str}, em("2026-11-18 10:59"))
+            rc = fa.cmd_ler(self.raiz, {"gravador": GRAVADOR, "seguro": str}, em(agora))
         return rc, saida.getvalue()
 
     def estados(self, agora, **eventos):
@@ -60,6 +60,8 @@ class Ler(unittest.TestCase):
         self.assertEqual(rc, 0, saida)
         self.assertIn("A-1 · ativa · rotulo-afrouxa-regra · pr:5 · validade ate:2026-11-18 08:00 America/Sao_Paulo = "
                       "2026-11-18 11:00 UTC · pedido v047", saida)
+        self.assertIn("1 ativa(s)", saida)
+        self.assertIn("A-1 · vencida · ", self.ler("2026-11-18 11:00")[1])
         self.assertIn("> pode aplicar o rótulo no PR 5\n> \n> não é recorte\n", saida)
 
     def test_evento_adulterado_ou_fora_da_forma(self):

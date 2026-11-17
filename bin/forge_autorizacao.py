@@ -131,7 +131,8 @@ def problemas(campos, corpo, gravador):
 def estado(nome, nomes, lidos, gravador, agora):
     """(estado, motivo) da concessão `nome`; só `ativa` autoriza (item 7)."""
     campos, corpo = lidos[nome]
-    if achados := problemas(campos, corpo, gravador):
+    achados = problemas(campos, corpo, gravador)
+    if achados:
         return "adulterada", "; ".join(achados)
     if agora >= limite(campos):
         return "vencida", ""
