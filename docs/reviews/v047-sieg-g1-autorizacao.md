@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-sieg-g1-autorizacao
-commit: 2f150f4dac973291017e18556b652ba65ee9748d
+commit: 7d8ff8f51af8e12b1b8aed4f12b2bc9f3f78a07e
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
@@ -36,3 +36,6 @@ Delta lido com `forge-check parecer delta` (`7b20d073..c890fbd6`, junção da or
 
 ## Revalidação (head 2f150f4d, pedido v0474, E1.21)
 Delta lido com `forge-check parecer delta` (`c890fbd6..2f150f4d`; no domínio só `bin/forge-testes`, `tests/test_autorizacao.py` e `tests/test_testes_tocados.py`, 1 linha cada). A5 fechado: `test_autorizacao` entra em `FORGE_CHECK`, e `bin/forge-testes --listar bin/forge-check` passa a listá-lo; a docstring de `tests/test_autorizacao.py:1` cita `bin/forge-check` (o que o mapa exige) sem mudar teste, e a contagem em `tests/test_testes_tocados.py:77` vai de 88 para 89 com a origem anotada. `python3 -m unittest tests.test_testes_tocados tests.test_autorizacao`: 170 testes OK (1 pulado). Suíte inteira: fica para o CI do PR 629 no head novo, sem resultado ainda (`gh pr checks 629`: nenhum check). A3 e A4 seguem recomendados. Aprovado no head 2f150f4d.
+
+## Revalidação (head 7d8ff8f5, pedido v0474, E1.33)
+Delta lido com `forge-check parecer delta` (`2f150f4d..7d8ff8f5`, junção da develop 6a313b32 com #630 e #632; escopo sem o que veio da base): no domínio só `bin/forge-testes` e `tests/test_testes_tocados.py`. `git show --remerge-diff 7d8ff8f5`: conflito só em `tests/test_testes_tocados.py:77`, resolvido com 90 (89 da develop, com `test_estado_ilegivel`, mais `test_autorizacao` desta branch) e a origem anotada; `bin/forge-testes` juntou sem conflito e o `FORGE_CHECK` traz os dois módulos (`--listar bin/forge-check` lista ambos). `python3 -m unittest tests.test_testes_tocados tests.test_autorizacao`: 170 testes OK (1 pulado). CI do PR 629 no head 7d8ff8f5: suíte 10/10 partes verdes (3.12 e 3.14), `bateria (pareceres)` vermelha só pelo parecer desatualizado (este registro a resolve) e `catraca` pelo rótulo `afrouxa-regra` do dono (R-CONFORMIDADE, `bin/forge-check`), fora do review. A3 e A4 seguem recomendados. Aprovado no head 7d8ff8f5.
