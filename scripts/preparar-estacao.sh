@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
 # Forge: prepara do zero uma estação WSL (Ubuntu 24.04) para trabalhar com o Forge. Idempotente:
-# só faz o que falta. Uso: preparar-estacao.sh [--simular] [--container]   (--simular só imprime o que faria)
+# só faz o que falta. Uso: preparar-estacao.sh [--simular] [--container] [--verificar]   (--simular só imprime o que faria)
 #   --container  refaz, depois de o container ser recriado, o que vive fora de /workspaces e ~/.claude (gh, tmux,
-#                ~/Forge, a área ~/.forge-contrib, o login do gh, a cópia vigente e o dev-marketplace); o
-#                .devcontainer/devcontainer.json o roda a cada início. Saída: linhas "fez:", "falta:" e "conflito:".
+#                ~/Forge, a área ~/.forge-contrib, o login do gh, core.hooksPath, a cópia vigente e o dev-marketplace);
+#                o .devcontainer/devcontainer.json o roda a cada início (E2.54), sem o dono, com FORGE_PREPARO_ESSENCIAL=1
+#                (só gh, link, login, clone da área e hooksPath; sem a cópia vigente nem o dev-marketplace, que executam
+#                código do work tree; o comando é um clone raso novo da main, nunca ref local). Saída: linhas "fez:", "falta:" e "conflito:".
+#   --verificar  só confere (nada é alterado) gh, login, link ~/.forge-contrib e core.hooksPath; imprime "ambiente: ok"
+#                ou uma linha "falta:" por item, com o comando exato, e sai com 1 (o hook SessionStart `hooks/ambiente.py` a roda
+#                ao abrir e põe as linhas no contexto, para o Jarvis dá-las na 1ª mensagem).
 set -euo pipefail
 
 simular=0
 container=0
+verificar=0
 for arg in "$@"; do
   case "$arg" in
     --simular) simular=1 ;;
     --container) container=1 ;;
-    *) echo "uso: $0 [--simular] [--container]" >&2; exit 2 ;;
+    --verificar) verificar=1 ;;
+    *) echo "uso: $0 [--simular] [--container] [--verificar]" >&2; exit 2 ;;
   esac
 done
 
@@ -27,6 +34,18 @@ fazer() {
   if [ "$simular" = 1 ]; then printf '[simular] %s\n' "$*"; else "$@"; fi
 }
 tem() { command -v "$1" >/dev/null 2>&1; }
+# Impressão digital da chave do repositório apt do gh (chave ativa do keyring oficial, conferida em 2026-11-15). Chave
+# trocada pelo GitHub: a conferência falha fechada e o preparo diz o que fazer (nada é instalado sem ela).
+CHAVE_GH_FPR=7F38BBB59D064DBCB3D84D725612B36462313325
+chave_confere() {
+  local gnupg
+  tem gpg || return 1
+  gnupg="$(mktemp -d)"
+  if GNUPGHOME="$gnupg" gpg --batch --show-keys --with-colons "$1" 2>/dev/null | command grep -q "^fpr:::::::::$CHAVE_GH_FPR:"; then
+    rm -rf "$gnupg"; return 0
+  fi
+  rm -rf "$gnupg"; return 1
+}
 
 # ---------------------------------------------------------------------------------------------------------------
 # Modo --container (P9 da 0.43.1). Só /workspaces, ~/.claude e ~/.vscode-server sobrevivem à recriação; o resto do
@@ -62,15 +81,20 @@ garantir_gh() {
   local chave lista tmp
   if gh_versao_ok; then fez "gh $(gh --version | sed -n '1s/^gh version \([^ ]*\).*/\1/p') (>= $GH_MINIMO)"; return 0; fi
   if ! tem curl || ! tem apt-get; then falta "instalar o gh >= $GH_MINIMO (sem curl ou apt-get aqui)"; return 0; fi
-  chave=/etc/apt/keyrings/githubcli-archive-keyring.gpg
-  lista=/etc/apt/sources.list.d/github-cli.list
+  chave="${FORGE_APT_CHAVE:-/etc/apt/keyrings/githubcli-archive-keyring.gpg}"  # FORGE_APT_*: só os testes
+  lista="${FORGE_APT_LISTA:-/etc/apt/sources.list.d/github-cli.list}"
   if [ ! -s "$lista" ]; then
     tmp="$(mktemp -d)"
     if fazer curl -fsSL -o "$tmp/chave.gpg" https://cli.github.com/packages/githubcli-archive-keyring.gpg; then
-      printf 'deb [arch=%s signed-by=%s] https://cli.github.com/packages stable main\n' \
-        "$(dpkg --print-architecture)" "$chave" > "$tmp/github-cli.list"
-      como_root install -D -m 644 "$tmp/chave.gpg" "$chave"
-      como_root install -D -m 644 "$tmp/github-cli.list" "$lista"
+      if [ "$simular" = 1 ] || chave_confere "$tmp/chave.gpg"; then
+        printf 'deb [arch=%s signed-by=%s] https://cli.github.com/packages stable main\n' \
+          "$(dpkg --print-architecture)" "$chave" > "$tmp/github-cli.list"
+        como_root install -D -m 644 "$tmp/chave.gpg" "$chave"
+        como_root install -D -m 644 "$tmp/github-cli.list" "$lista"
+      else
+        falta "chave do apt do gh sem a impressão digital $CHAVE_GH_FPR (ou sem gpg); não instalei: confira em https://github.com/cli/cli/blob/trunk/docs/install_linux.md"
+        rm -rf "$tmp"; return 0
+      fi
     fi
     rm -rf "$tmp"
   fi
@@ -148,6 +172,21 @@ container_forge() {
   else
     falta "o repositório $origem não existe"
   fi
+  container_hooks
+}
+
+# E2.54: o core.hooksPath mora no .git/config do clone, que sobrevive; só refaz se faltar, e nunca troca o de outra
+# ferramenta (valor diferente de .githooks fica como está, com aviso).
+container_hooks() {
+  { [ -d "$origem/.git" ] || [ -f "$origem/.git" ]; } || return 0
+  local atual
+  atual="$(git -C "$origem" config --get core.hooksPath 2>/dev/null || true)"
+  if [ -n "$atual" ] && [ "$atual" != ".githooks" ]; then
+    falta "core.hooksPath de $origem é $atual (de outra ferramenta); mantido"
+    return 0
+  fi
+  [ -n "$atual" ] || fazer git -C "$origem" config core.hooksPath .githooks
+  fez "core.hooksPath=.githooks em $origem"
 }
 
 logado=0
@@ -255,8 +294,12 @@ preparar_container() {
   container_forge
   container_login
   container_area
-  container_vigente
-  container_marketplace
+  if [ "${FORGE_PREPARO_ESSENCIAL:-0}" = 1 ]; then
+    fez "essencial: cópia vigente e dev-marketplace ficam para o comando manual"
+  else
+    container_vigente
+    container_marketplace
+  fi
   local l
   for l in "${feitos[@]}"; do printf 'fez: %s\n' "$l"; done
   for l in "${faltas[@]}"; do printf 'falta: %s\n' "$l"; done
@@ -264,6 +307,33 @@ preparar_container() {
   [ "$simular" = 1 ] && echo "(simulação: nada foi alterado)"
   [ ${#conflitos[@]} -eq 0 ]
 }
+
+# E2.54: só confere; cada falta traz o comando exato. Sai com 1 se faltar algo.
+verificar_container() {
+  persistente="${FORGE_PERSISTENTE:-/workspaces}"
+  origem="${FORGE_ORIGEM:-$persistente/Forge}"
+  local preparo="bash $origem/scripts/preparar-estacao.sh --container" real="$persistente/.forge-contrib" atual l
+  local f=()
+  tem gh || f+=("gh não instalado: rode $preparo")
+  if tem gh && ! gh auth status >/dev/null 2>&1; then
+    f+=("gh sem login (o login mora em ~/.claude/gh e sobrevive à recriação; falta fazê-lo uma vez): gh auth login -s repo,workflow --web e depois $preparo")
+  fi
+  if [ ! -d "$real" ] || [ "$(readlink -f "$HOME/.forge-contrib")" != "$(readlink -f "$real")" ]; then
+    f+=("link $HOME/.forge-contrib -> $real ausente ou sem destino: rode $preparo")
+  fi
+  if [ -d "$origem/.git" ] || [ -f "$origem/.git" ]; then
+    atual="$(git -C "$origem" config --get core.hooksPath 2>/dev/null || true)"
+    [ "$atual" = ".githooks" ] || f+=("core.hooksPath de $origem não é .githooks: rode $preparo")
+  fi
+  if [ ${#f[@]} -eq 0 ]; then echo "ambiente: ok"; return 0; fi
+  for l in "${f[@]}"; do printf 'falta: %s\n' "$l"; done
+  return 1
+}
+
+if [ "$verificar" = 1 ]; then
+  verificar_container
+  exit $?
+fi
 
 if [ "$container" = 1 ]; then
   preparar_container

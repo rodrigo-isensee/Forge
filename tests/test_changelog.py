@@ -287,6 +287,26 @@ class Release(Base):
         (self.dir / "changelog.d" / "x.md").write_text("### Alterado\n- N\n", encoding="utf-8")
         self.assertNotEqual(forge_changelog(self.dir, "release", "0.1.0", "2026-02-02").returncode, 0)
 
+    def test_versao_ja_existente_diz_o_que_por_que_e_como_destravar_sem_gravar_nada(self):
+        (self.dir / "changelog.d").mkdir()
+        fragmento = self.dir / "changelog.d" / "x.md"
+        fragmento.write_text("### Alterado\n- N\n", encoding="utf-8")
+        r = forge_changelog(self.dir, "release", "0.1.0", "2026-02-02")
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("já tem a versão 0.1.0", r.stderr)
+        self.assertIn("Por quê:", r.stderr)
+        self.assertIn("`bin/forge-changelog release --anexar 0.1.0`", r.stderr)
+        self.assertEqual((self.dir / "CHANGELOG.md").read_text(encoding="utf-8"), CABECALHO)
+        self.assertTrue(fragmento.exists())
+        self.assertEqual((self.dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"), '{"version": "0.1.0"}\n')
+
+    def test_versao_vizinha_de_uma_existente_nao_e_recusada_como_repetida(self):
+        (self.dir / "changelog.d").mkdir()
+        (self.dir / "changelog.d" / "x.md").write_text("### Alterado\n- N\n", encoding="utf-8")
+        r = forge_changelog(self.dir, "release", "0.1.1", "2026-02-02")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("## [0.1.1] - 2026-02-02", (self.dir / "CHANGELOG.md").read_text(encoding="utf-8"))
+
 
 class ReleaseAnexar(Base):
     """E1.256 (v047): `release --anexar <versão>` junta os fragmentos à entrada que já está no CHANGELOG.md."""

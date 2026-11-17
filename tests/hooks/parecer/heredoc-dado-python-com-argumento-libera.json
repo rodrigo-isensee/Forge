@@ -1,0 +1,29 @@
+{
+  "descricao": "HOOK-HEREDOC-PALAVRA-FP: python3 - com argumento depois do - (vai ao sys.argv) só grava o texto que cita git pull e git merge; o corpo é Python sem processo lançado; libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "python3 - docs/n.md <<'EOF'\nimport sys\nopen(sys.argv[1], 'w').write('rode git pull e git merge melhoria/x')\nEOF"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "pedido": "v047-ambiente-sobrevive",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M14",
+      "guarda": "estação: a conferência da chave não é pulada fora do --simular",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "if [ \"$simular\" = 1 ] || chave_confere \"$tmp/chave.gpg\"; then",
+      "para": "if true; then",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_chave_do_apt_do_gh_so_e_instalada_com_a_impressao_digital_certa"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "modelo: a chave do apt só vale com a impressão digital pinada",
+      "arquivo": "templates/projeto/.devcontainer/preparar-ambiente.sh",
+      "de": "| grep -q \"^fpr:::::::::$CHAVE_GH_FPR:\"",
+      "para": "| grep -q \"^fpr\"",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_chave_do_apt_do_gh_so_e_instalada_com_a_impressao_digital_certa"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "modelo: a chave baixada é conferida antes de instalar",
+      "arquivo": "templates/projeto/.devcontainer/preparar-ambiente.sh",
+      "de": "&& chave_confere \"$tmp/chave.gpg\"; then",
+      "para": "; then",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_chave_do_apt_do_gh_so_e_instalada_com_a_impressao_digital_certa"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "estação --verificar: o link ~/.forge-contrib ausente é dito",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "if [ ! -d \"$real\" ] || [ \"$(readlink -f \"$HOME/.forge-contrib\")\" != \"$(readlink -f \"$real\")\" ]; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_verificar_diz_o_comando_exato_do_que_falta_e_nao_altera_nada"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "estação --verificar: core.hooksPath errado é dito",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "[ \"$atual\" = \".githooks\" ] || f+=",
+      "para": "true || f+=",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_verificar_diz_o_comando_exato_do_que_falta_e_nao_altera_nada"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "estação --verificar: gh sem login é dito",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "if tem gh && ! gh auth status >/dev/null 2>&1; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_verificar_diz_o_comando_exato_do_que_falta_e_nao_altera_nada"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "modelo --verificar: o link ausente é dito",
+      "arquivo": "templates/projeto/.devcontainer/preparar-ambiente.sh",
+      "de": "link_ok || faltas+=(",
+      "para": ": || faltas+=(",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_modelo_de_projeto_verificar_e_sem_login_dizem_o_que_falta"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "modelo --verificar: core.hooksPath errado é dito",
+      "arquivo": "templates/projeto/.devcontainer/preparar-ambiente.sh",
+      "de": "hooks_ok || faltas+=(",
+      "para": ": || faltas+=(",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_modelo_de_projeto_verificar_e_sem_login_dizem_o_que_falta"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "modelo --verificar: gh sem login é dito",
+      "arquivo": "templates/projeto/.devcontainer/preparar-ambiente.sh",
+      "de": "if tem gh && ! gh auth status",
+      "para": "if false && ! gh auth status",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_modelo_de_projeto_verificar_e_sem_login_dizem_o_que_falta"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "estação: core.hooksPath ausente é refeito",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "[ -n \"$atual\" ] || fazer git -C \"$origem\" config core.hooksPath .githooks",
+      "para": "[ -n \"$atual\" ] || true",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_container_refaz_hookspath_e_nao_troca_o_de_outra_ferramenta"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "estação: core.hooksPath de outra ferramenta é mantido",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "if [ -n \"$atual\" ] && [ \"$atual\" != \".githooks\" ]; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_container_refaz_hookspath_e_nao_troca_o_de_outra_ferramenta"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "modelo: core.hooksPath de outra ferramenta é mantido",
+      "arquivo": "templates/projeto/.devcontainer/preparar-ambiente.sh",
+      "de": "elif [ -z \"$(git -C \"$projeto\" config --get core.hooksPath 2>/dev/null || true)\" ]; then",
+      "para": "elif true; then",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_modelo_de_projeto_mantem_o_hookspath_de_outra_ferramenta"
+      ]
+    }
+  ]
+}

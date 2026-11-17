@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O58",
+      "guarda": "U4: `printf` só com o formato `%s`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    elif palavras[0] == \"printf\" and palavras[1:2] in ([\"%s\"], [\"'%s'\"], ['\"%s\"']):",
+      "para": "    elif palavras[0] == \"printf\":",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O59",
+      "guarda": "U4: variável que nasce de outro jeito na linha (`read`, `for`) ou `GIT_*` não é do ambiente",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if nome.startswith(\"GIT_\") or re.search(rf\"(?<![\\w${{]){nome}(?![\\w=])\", linha):",
+      "para": "    if nome.startswith(\"GIT_\"):",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O60",
+      "guarda": "U4: variável atribuída mais de uma vez na linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if len(atribuicoes) > 1 or atribuicoes and atribui_como_argumento(nome, linha):",
+      "para": "    if False or atribuicoes and atribui_como_argumento(nome, linha):",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O61",
+      "guarda": "U4: `\"$d\"t` chega como `$dt`; nome do ambiente com prefixo da linha não vale",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not atribuicoes and any(",
+      "para": "    if False and any(",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O62",
+      "guarda": "U4: o padrão de `${x:-v}` entra nos valores",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if m[\"op\"] and valores is not None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O63",
+      "guarda": "U4: padrão que o hook não calcula recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        valores = None if padrao is None else valores + padrao",
+      "para": "        valores = None if False else valores + padrao",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O64",
+      "guarda": "U4: o `)` que fecha a substituição",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not fundo:\n            return j",
+      "para": "        if False:\n            return j",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O65",
+      "guarda": "U4: crase partida (sem aspas) vale só sendo o único corpo e palavra inteira",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        inteira = len(corpos) == 1 and re.search(",
+      "para": "        inteira = len(corpos) == 1 or re.search(",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}

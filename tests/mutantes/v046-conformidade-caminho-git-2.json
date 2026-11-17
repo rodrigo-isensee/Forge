@@ -36,8 +36,8 @@
       "id": "G12",
       "guarda": "volta 1 (A5 da E20.8): `--target-directory=<pasta>` é o destino, como `-t <pasta>`",
       "arquivo": "hooks/conformidade.py",
-      "de": "alvo = alvo or next((a.split(\"=\", 1)[1] for a in args if a.startswith(\"--target-directory=\")), None)",
-      "para": "alvo = alvo or None",
+      "de": "alvo = alvo or next((a.split(\"=\", 1)[1] for a in args if a.startswith(\"--target-directory=\")), None)  # A5",
+      "para": "alvo = alvo or None  # A5",
       "testes": [
         "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
       ]
@@ -46,8 +46,8 @@
       "id": "G13",
       "guarda": "volta 1 (A3 da E20.8): a palavra com crase não é opção (`` `x --y`/config ``)",
       "arquivo": "hooks/conformidade.py",
-      "de": "if not a.startswith(\"-\") or \"`\" in a), None)",
-      "para": "if not a.startswith(\"-\") or False), None)",
+      "de": "if not a.startswith(\"-\") or \"`\" in a), None)  # A3",
+      "para": "if not a.startswith(\"-\") or False), None)  # A3",
       "testes": [
         "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
       ]
@@ -56,8 +56,8 @@
       "id": "G14",
       "guarda": "volta 1 (A1 e A3 da E20.8), lido por palavras na volta 2: o corpo da crase entra na leitura do `rev-parse`",
       "arquivo": "hooks/conformidade.py",
-      "de": "m[\"sub\"] or m[\"crase\"] or \"\"",
-      "para": "m[\"sub\"] or \"\"",
+      "de": "valor = valor_do_rev_parse(m[\"sub\"] or m[\"crase\"] or \"\")",
+      "para": "valor = valor_do_rev_parse(m[\"sub\"] or \"\")",
       "testes": [
         "tests.test_hook_git_comum.HookGitComum.test_fixtures_gitcomum"
       ]

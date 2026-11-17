@@ -36,8 +36,8 @@
    "id": "M19",
    "guarda": "spec de tests/mutantes/ não é apoio de teste",
    "arquivo": "bin/forge-mutante",
-   "de": "and not a.startswith(\"tests/mutantes/\")",
-   "para": "and True",
+   "de": "return not a.endswith(\".json\")",
+   "para": "return True",
    "testes": [
     "tests.test_forge_mutante.MutacaoDirigida.test_teste_e_spec_de_outro_mutante_nao_poem_todos_no_diff"
    ]
@@ -46,8 +46,8 @@
    "id": "M20",
    "guarda": "módulo test_*.py não é apoio de teste",
    "arquivo": "bin/forge-mutante",
-   "de": "and not (Path(a).name.startswith(\"test_\") and a.endswith(\".py\"))",
-   "para": "and True",
+   "de": "return importado_por_teste(a, sha)",
+   "para": "return True",
    "testes": [
     "tests.test_forge_mutante.MutacaoDirigida.test_teste_e_spec_de_outro_mutante_nao_poem_todos_no_diff"
    ]

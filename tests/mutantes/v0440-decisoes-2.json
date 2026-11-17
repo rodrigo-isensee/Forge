@@ -36,8 +36,8 @@
       "id": "A4",
       "guarda": "D3: só avisa com brief vencido",
       "arquivo": "hooks/agentes.py",
-      "de": "    if avisos:\n        texto = mensagem(",
-      "para": "    if not avisos:\n        texto = mensagem(",
+      "de": "    if avisos:\n        return mensagem(\"R-BRIEF\",",
+      "para": "    if not avisos:\n        return mensagem(\"R-BRIEF\",",
       "testes": [
         "tests.test_selo_e_entrega.Hook.test_brief_vencido_so_avisa"
       ]

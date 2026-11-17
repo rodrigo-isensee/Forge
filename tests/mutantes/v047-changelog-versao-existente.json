@@ -1,0 +1,26 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CV-M1",
+      "guarda": "versão que já tem entrada no CHANGELOG.md é recusada antes de gravar",
+      "arquivo": "bin/forge-changelog",
+      "de": "    if re.search(rf\"^## \\[{re.escape(args.versao)}\\]\", texto, re.M):",
+      "para": "    if False and re.search(rf\"^## \\[{re.escape(args.versao)}\\]\", texto, re.M):",
+      "testes": [
+        "tests.test_changelog.Release.test_versao_ja_existente_diz_o_que_por_que_e_como_destravar_sem_gravar_nada"
+      ]
+    },
+    {
+      "id": "CV-M2",
+      "guarda": "a recusa diz o quê, por quê e como destravar (release --anexar)",
+      "arquivo": "bin/forge-changelog",
+      "de": "        sys.exit(f\"CHANGELOG.md já tem a versão {args.versao} (entrada '## [{args.versao}]'); nada foi gravado. Por quê: a \"",
+      "para": "        sys.exit(f\"CHANGELOG.md já tem a versão {args.versao}.\") or (",
+      "testes": [
+        "tests.test_changelog.Release.test_versao_ja_existente_diz_o_que_por_que_e_como_destravar_sem_gravar_nada"
+      ]
+    }
+  ]
+}

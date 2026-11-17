@@ -63,7 +63,7 @@ Parecer: **aprovado** ou **ajustes necessários** (arquivo:linha · problema · 
 - Um commit por mudança coerente; o projeto compila e os testes passam em cada commit.
 - Guarda nova ou mudada: mutante declarado e teste do ramo de falha (ver `qa-testing`, 'Mutantes declarados').
 - Antes de commitar: `git status` e `git diff --staged`. Nunca versionar `.env`, segredos, dependências instaladas, builds, relatórios de teste.
-- **Tamanho por risco (decisão M14):** a orientação é até 150 linhas alteradas de código e teste (`git diff --numstat --no-renames origin/develop...HEAD`, adições mais remoções; fora pareceres, fragmentos de changelog, corpus, fixtures e `.md`) e um comportamento só; passou, o corpo do PR diz por que com `teto: excedido, <n> linhas, <motivo>`. Não é trava por volume: o que pesa é o risco. No Forge contam `bin/`, `hooks/`, `scripts/`, `.github/`, `.githooks/`, `tests/*.py` e `tests/config.json`, e vale uma classe de comportamento por PR em `hooks/`, com corpus próprio.
+- **Tamanho por item (H1, decisão do dono; alinha o M14):** até 150 linhas de código por item, fora testes e documentação, e um comportamento só; acima disso, o tech-lead corta antes de começar. Passa só se cortar mais deixa a suíte vermelha, com `teto: excedido, <n> linhas, <motivo>` no PR. Contagem e o que conta no Forge: `tamanho-por-item.md` nesta skill.
 - A base entra uma vez, antes do pedido de merge, salvo conflito ou dependência (`R-FLUXO`): `git merge origin/<base>` na sua branch. `R-VERIFY` nunca `--no-verify` nem `--force`.
 
 ## Pull request e a main

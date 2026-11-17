@@ -1,0 +1,40 @@
+{
+  "descricao": "H2-AUTOR-FICA-ATE-O-MERGE (R-TETO, review A5): o SubagentStart do retomado é o sinal: a reserva curta da retomada vira a do agente (tipo dele, prazo de expiracao_horas), com as branches de escrita.",
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a0123456789abcdef",
+          "tipo": "SendMessage",
+          "descricao": "",
+          "desde": "{agora-60}",
+          "branches": [
+            "melhoria/a"
+          ],
+          "escrita": [
+            "melhoria/a"
+          ]
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "SubagentStart",
+    "agent_id": "a0123456789abcdef",
+    "agent_type": "forge:software-engineer"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "forge:software-engineer",
+          "melhoria/a"
+        ],
+        "ausente": [
+          "SendMessage"
+        ]
+      }
+    }
+  }
+}

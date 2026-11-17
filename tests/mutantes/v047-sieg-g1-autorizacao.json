@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "G1.1a (ADR 0018 item 7): evento que é link não é seguido (O_NOFOLLOW)",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "| getattr(os, \"O_NOFOLLOW\", 0))",
+      "para": "| 0)",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_ilegivel_e_erro_e_nada_e_integro_por_ele"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "G1.1a (ADR 0018 item 7): evento que não é arquivo comum é erro",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if not stat.S_ISREG(os.fstat(fd).st_mode):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_ilegivel_e_erro_e_nada_e_integro_por_ele"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "G1.1a (ADR 0018 item 7): evento fora de UTF-8 é erro",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    except UnicodeDecodeError:",
+      "para": "    except KeyError:",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_ilegivel_e_erro_e_nada_e_integro_por_ele"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "G1.1a (ADR 0018 item 7): evento sem linha vazia entre cabeçalho e corpo é erro",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if not separador or not achado",
+      "para": "if not achado",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_ilegivel_e_erro_e_nada_e_integro_por_ele"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "G1.1a (ADR 0018 item 7): campo repetido no cabeçalho é erro",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "or achado.group(1) in campos:",
+      "para": ":",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_ilegivel_e_erro_e_nada_e_integro_por_ele"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "G1.1a (ADR 0018 item 7): pasta de autorizações que é link é erro",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if pasta.is_symlink() or",
+      "para": "    if False or",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_pasta_que_e_link_e_nome_fora_da_forma_sao_erro"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "G1.1a (ADR 0018 item 7): nome de evento fora da forma é erro",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "        if not NOME.fullmatch(arq.name):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_pasta_que_e_link_e_nome_fora_da_forma_sao_erro"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "G1.1a (ADR 0018 item 7): evento ilegível entra na lista de erros",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "            erros.append(str(e))\n    return nomes",
+      "para": "            pass\n    return nomes",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_ilegivel_e_erro_e_nada_e_integro_por_ele"
+      ]
+    }
+  ]
+}
