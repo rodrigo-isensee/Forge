@@ -1,0 +1,16 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "entrada vazia termina em quebra de linha antes da proxima",
+      "arquivo": "bin/forge-changelog",
+      "de": "\"\\n\".join(linhas) + (sobra or \"\\n\")",
+      "para": "\"\\n\".join(linhas) + (sobra and \"\\n\")",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_entrada_vazia_recebe_a_secao"
+      ]
+    }
+  ]
+}

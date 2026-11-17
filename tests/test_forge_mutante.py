@@ -1220,10 +1220,10 @@ class ConferirTodas(unittest.TestCase):
         self._t = tempfile.TemporaryDirectory()
         self.addCleanup(self._t.cleanup)
         self.dir = Path(self._t.name)
-        self.ambiente = sem_manutencao({"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.dir), "LANG": "C.UTF-8",
+        self.env = sem_manutencao({"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.dir), "LANG": "C.UTF-8",
                                         "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null", "GIT_AUTHOR_NAME": "t",
                                         "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
-        subprocess.run(["git", "init", "-q", "-b", "develop"], cwd=self.dir, env=self.ambiente, capture_output=True, check=True)
+        subprocess.run(["git", "init", "-q", "-b", "develop"], cwd=self.dir, env=self.env, capture_output=True, check=True)
         self.salvar({"lib.py": "x = 1\nif x > 100000:\n    x = 2\n"})
 
     def salvar(self, arquivos):
@@ -1231,10 +1231,10 @@ class ConferirTodas(unittest.TestCase):
             (self.dir / nome).parent.mkdir(parents=True, exist_ok=True)
             (self.dir / nome).write_text(texto, encoding="utf-8")
         for args in (("add", "-A"), ("commit", "-qm", "c")):
-            subprocess.run(["git", *args], cwd=self.dir, env=self.ambiente, capture_output=True, check=True)
+            subprocess.run(["git", *args], cwd=self.dir, env=self.env, capture_output=True, check=True)
 
     def todas(self, *args, cwd=None):
-        return subprocess.run([sys.executable, "-I", str(FERRAMENTA), *args], cwd=cwd or self.dir, env=self.ambiente,
+        return subprocess.run([sys.executable, "-I", str(FERRAMENTA), *args], cwd=cwd or self.dir, env=self.env,
                               capture_output=True, text=True, timeout=120)
 
     def test_spec_antiga_fora_do_diff_que_envelheceu_sai_1_e_a_alinhada_sai_0(self):

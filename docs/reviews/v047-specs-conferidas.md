@@ -1,9 +1,9 @@
 ---
 tipo: review
 contrato: 1
-pedido: v047-specs-conferidas
+pedido: v047
 branch: melhoria/v047-specs-conferidas
-commit: 0064a82ee0216c00f2281e29ea6695c224d73445
+commit: 48e5741594135d899e5a4d668eaf6a947aa5e09e
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
@@ -32,4 +32,12 @@ Conferido nesta leitura:
 - Suíte: roda no CI do PR (R-REVIEW); este review rodou só a classe nova e os mutantes. Não há `docs/engineering/praticas.md` no Forge; sem regra "ferramenta" a citar.
 - Achados recorrentes (PA-7): AR-4, AR-5 e AR-12 conferidos; nada se repete, sem linha nova.
 
-Integração (R-FLUXO): A1 não bloqueia o código revisado, mas o CI do PR roda sobre o merge com a develop e hoje reprovaria; quem trouxer a base atualiza a fixture e as 3 specs, e o delta volta aos pareceres pelo `forge-check pr`.
+## Revalidação (E2.361, head 48e57415)
+Delta lido: `forge-check parecer delta docs/reviews/v047-specs-conferidas.md`, intervalo 0064a82e..48e57415, sem o que veio da base (develop); no domínio só tests/fixtures/mutantes-pendentes.txt e as specs pr-verde-lote-check.json, v0442-mensagem.json e v047-hook-erro-libera-4.json. Não reli o que não está no delta.
+- A1 resolvido: o `de` de pr-verde-lote-check M8 (bin/forge-check:1785), v0442-mensagem M4 (hooks/meta.py:193) e v047-hook-erro-libera-4 M28 (tests/catraca.py:315) aparece 1 vez na fonte; `bin/forge-mutante` só com esses três no head 48e57415: M8, M4 e M28 morreram.
+- Fixture: saiu o bloco das 15 linhas da mutantes-velhos (entrou na develop, #578); ficam hooks-corpus-rapido M2 e M5, cujo `de` some do bin/forge-testes no head (0 ocorrências), na ordem alfabética da lista. A lista só encolheu fora delas (15 → 2).
+- `python3 -m unittest tests.test_forge_mutante.ConferirTodas`: 4 testes OK em 6,9 s no head.
+- A2 segue recomendado, sem mudança no delta. Achados recorrentes (PA-7): AR-12 é a classe que a catraca deste item passa a pegar; sem achado novo, sem linha nova.
+- Suíte: roda no CI do PR (R-REVIEW), não rerrodada aqui.
+
+Integração (R-FLUXO), nota da rodada anterior: A1 não bloqueia o código revisado, mas o CI do PR roda sobre o merge com a develop e hoje reprovaria; quem trouxer a base atualiza a fixture e as 3 specs, e o delta volta aos pareceres pelo `forge-check pr`.

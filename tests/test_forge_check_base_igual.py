@@ -140,5 +140,37 @@ class BaseIgual(unittest.TestCase):
         self.assertEqual(fc.vindos_da_base(self.dir, orfa, self.parecer, "HEAD", ["bin/g"]), set())
 
 
+class JuncaoSemBase(unittest.TestCase):
+    """E2.201 (v047): o `forge-check pr` sem `--base`, numa branch de trabalho, usa a develop; trazê-la por merge limpo não vence o
+    parecer por arquivo que a branch não mudou (o .github/workflows/ci.yml do caso real); o que a branch mudou depois segue vencendo."""
+    setUp, git, escreve, commit, parecer_no_ramo = (BaseIgual.setUp, BaseIgual.git, BaseIgual.escreve, BaseIgual.commit,
+                                                    BaseIgual.parecer_no_ramo)
+
+    def prepara(self, branch="ramo"):
+        self.git("switch", "-q", "develop")
+        self.escreve(".github/workflows/ci.yml", "on: push\n")
+        self.commit("ci da develop")
+        self.git("switch", "-q", "-C", branch, self.parecer)
+        self.parecer_no_ramo()
+        self.git("merge", "-q", "--no-edit", "develop")
+
+    def desatualizados(self):
+        return " ".join(l for l in fc.pr_da_cli(self.dir, "ramo", conferir=False) if "desatualizado" in l)
+
+    def test_merge_limpo_da_develop_nao_vence(self):  # falha na base: ".github/workflows/ci.yml mudou depois do parecer"
+        self.prepara()
+        self.assertEqual(self.desatualizados(), "")
+
+    def test_mudado_pela_branch_depois_do_parecer_vence(self):
+        self.prepara()
+        self.escreve("bin/a", "a mudado depois do parecer\n")
+        self.commit("mudança da branch depois do parecer")
+        self.assertIn("desatualizado: bin/a mudou", self.desatualizados())
+
+    def test_branch_de_integracao_segue_o_diff_literal(self):  # na `main`, sem `--base`, a develop não vira base implícita
+        self.prepara("main")
+        self.assertIn("desatualizado: .github/workflows/ci.yml mudou", self.desatualizados())
+
+
 if __name__ == "__main__":
     unittest.main()
