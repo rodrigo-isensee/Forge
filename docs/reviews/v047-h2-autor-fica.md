@@ -3,12 +3,16 @@ tipo: review
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-h2-autor-fica
-commit: adf98a9add41ea9b1f43f92e44899d139a137881
+commit: 7848dd5cfd55d51a7d8bb1afcef4a7718a8a8d11
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
 ---
-# Review: v0474 (E2.64, H2-AUTOR-FICA-ATE-O-MERGE, parte de ferramenta), revalidação 5
+# Review: v0474 (E2.64, H2-AUTOR-FICA-ATE-O-MERGE, parte de ferramenta), revalidação 6
+
+Delta lido (revalidação 6, E2.82): `forge-check parecer delta docs/reviews/v047-h2-autor-fica.md`, intervalo adf98a9a..7848dd5c. No domínio só `bin/forge-testes` (+ `test_hooks_agentes_autor` em `FORGE_CHECK` e em `REAPROVEITAM_O_LOTE`) e `tests/test_testes_tocados.py` (contagem 92 → 93, com a nota da junção). O módulo novo usa `Hooks.executar_em_lote` pelo lote do test_hooks, então entra em `REAPROVEITAM_O_LOTE` pelo critério do E1.120; a mudança é só de mapa, sem guarda nova. O aviso do delta sobre o merge b942f7c é a junção 32c4832a da branch remota (pareceres), sem código. Fora do domínio, só pareceres. `python3 -m unittest tests.test_testes_tocados tests.test_forge_mutante.ConferirTodas tests.test_hooks_agentes_autor`: 176 testes, OK (skipped=1). CI do PR 639 no head 7848dd5c: suíte verde nas partes concluídas; `bateria (pareceres)` vermelha até os pareceres apontarem o head novo. Não há achado novo; A6 segue recomendado.
+
+Revalidação 5 (histórico):
 
 Delta lido (revalidação 5, E2.76): `forge-check parecer delta docs/reviews/v047-h2-autor-fica.md`, intervalo 981ce8a9..adf98a9a. No domínio só `docs/hooks-fixtures.md`, o índice gerado, regerado pelo script com a fixture `autor-ativo-inicio-repetido-nao-converte` (2886 → 2887; `agentes` 119 → 120, libera 56 → 57; `autor-*` 22 → 23). `python3 -I scripts/indice-fixtures.py --conferir`: "docs/hooks-fixtures.md: em dia". Fora do domínio, só pareceres. Nenhum código do H2 mudou: A6 segue recomendado e não há achado novo.
 
