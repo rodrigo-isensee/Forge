@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-mutante-diagnostico
-commit: ef1fb25b6e21fd7570611f993a7e30db3a478b57
+commit: bb8aac06413679d6db6564019c95cfe14c20dfe9
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-14
+data: 2026-11-16
 ---
 # Review: v047, diagnósticos do forge-mutante e isenta pelo texto (E1.283, portão E1.295)
 
@@ -29,6 +29,9 @@ Veredito sobre `ef1fb25b`: **APROVADO**, com 2 recomendados.
 - A2 (recomendado) bin/forge-mutante:1 · 213 linhas de código e teste (119 em bin, 94 em tests) e quatro comportamentos no lote: o corpo do PR traz `teto: excedido, 213 linhas, <motivo>` (M14).
 
 ## Sondas
+
+## Revalidação no head bb8aac06 (delta lido, 2026-11-16)
+Delta (`forge-check parecer delta`, de ef1fb25b a bb8aac06): o grosso veio da develop (merge 1747d8d7, fora do domínio); o delta próprio é o commit bb8aac06, só `tests/mutantes/guarda-sem-mutante-4.json`: M31 e M32 passam de `inicio` para `onde[0]`, a forma atual da fonte em `bin/forge-mutante`. O `para` e os testes não mudaram, logo a mutação é a mesma e nada afrouxou. Cada `de` aparece uma vez em `bin/forge-mutante`; `ini - inicio` não existe mais. `bin/forge-mutante --conferir --todas` não aponta nenhuma linha de `guarda-sem-mutante-4.json`; `python3 -m unittest tests.test_forge_mutante`: Ran 127 tests, OK. A1 e A2 seguem recomendados. Sem achado novo.
 
 ## Parecer
 Aprovado. O diff faz o que o E1.283 pede, sem sobra: a isenta sobrevive à base deslocada (teste com 9 linhas novas antes e `linha_base` 99 ignorada), a árvore suja com spec diferente ou ausente no commit sai 2 antes de rodar e a limpa segue rodando com `--rev` antigo, o `por quê` sai só para mutante que toca o nó e os pedidos diferentes saem com uma chamada por pedido, caminho com espaço citado. Os mutantes antigos realinhados mantêm a força. A1 e A2 são recomendados (`R-REVIEW`) e não devolvem.
