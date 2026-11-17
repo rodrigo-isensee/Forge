@@ -11,6 +11,27 @@
       "testes": [
         "tests.test_pre_envio_brief.PortaoNaBranch.test_parecer_ausente_ou_com_outra_violacao_nao_avisa"
       ]
+    },
+    {
+      "id": "M2",
+      "guarda": "com linha do portão no forge-check pr, nenhum aviso",
+      "arquivo": "bin/forge-check",
+      "de": "    if linhas:\n        return None, None\n",
+      "para": "    if False:\n        return None, None\n",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_parecer_ausente_ou_com_outra_violacao_nao_avisa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "portão que a classe não exige avisa pela classe (H8)",
+      "arquivo": "bin/forge-check",
+      "de": "if tipo not in exigidos_do_pr(raiz, pedido_id, branch, base_do_delta(raiz, nome, branch)[0])[0]:",
+      "para": "if tipo in exigidos_do_pr(raiz, pedido_id, branch, base_do_delta(raiz, nome, branch)[0])[0]:",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_portao_que_a_classe_nao_exige_avisa_sem_tirar_o_reprovado",
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_parecer_exigido_aprovado_e_em_dia_avisa_que_nao_precisa_de_agente"
+      ]
     }
   ]
 }

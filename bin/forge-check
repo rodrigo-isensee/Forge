@@ -8614,7 +8614,8 @@ PARECER_A_REVALIDAR = re.compile(r"^(docs/[a-z]+/[^:\s]+\.md): (?:commit: desatu
 
 def portao_na_branch(raiz, pedido_id, etapa, branch, base):
     """(linha do `## Ler` ou None, aviso ou None) do brief de portão: com o parecer da branch desatualizado no domínio ou reprovado, a
-    revalidação lê só o `forge-check parecer delta` dele (H3 c); exigido, aprovado e em dia, o aviso de que a etapa não precisa de agente."""
+    revalidação lê só o `forge-check parecer delta` dele (H3 c); exigido, aprovado e em dia (H3), ou não exigido pela classe e sem parecer
+    que reprove (H8), o aviso de que a etapa não precisa de agente."""
     if etapa not in TIPO_DO_PORTAO or not branch or not (sha_do_commit(raiz, branch) or sha_do_commit(raiz, f"origin/{branch}")):
         return None, None
     tipo, nome = TIPO_DO_PORTAO[etapa], base.removeprefix("origin/")
@@ -8623,9 +8624,11 @@ def portao_na_branch(raiz, pedido_id, etapa, branch, base):
     delta = next((m.group(1) for linha in linhas if (m := PARECER_A_REVALIDAR.match(linha))), None)
     if delta:
         return f"- revalidação (H3, R-REVIEW): leia só `forge-check parecer delta {delta}`; fora do domínio do parecer nada se relê", None
-    if not linhas:
-        return None, f"o parecer de {tipo} da branch está aprovado e em dia no head (`forge-check pr`): a etapa {etapa} não precisa de agente (H3)"
-    return None, None
+    if linhas:
+        return None, None
+    if tipo not in exigidos_do_pr(raiz, pedido_id, branch, base_do_delta(raiz, nome, branch)[0])[0]:  # H8: a classe decide, sem tirar portão
+        return None, f"a classe da entrega não exige o parecer de {tipo} (`forge-check classe`): a etapa {etapa} não precisa de agente (H8)"
+    return None, f"o parecer de {tipo} da branch está aprovado e em dia no head (`forge-check pr`): a etapa {etapa} não precisa de agente (H3)"
 
 
 def linha_do_ci_do_parecer(raiz, branch):

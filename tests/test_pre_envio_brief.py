@@ -145,6 +145,20 @@ class PortaoNaBranch(unittest.TestCase):
         self.assertEqual(aviso, "o parecer de review da branch está aprovado e em dia no head (`forge-check pr`): a etapa review "
                                 "não precisa de agente (H3)")
 
+    def test_portao_que_a_classe_nao_exige_avisa_sem_tirar_o_reprovado(self):  # H8: a classe decide; nenhum portão sai dela
+        (ler, aviso), _ = self.portao("qa", [], exigidos=("review",))
+        self.assertIsNone(ler)
+        self.assertEqual(aviso, "a classe da entrega não exige o parecer de qa (`forge-check classe`): a etapa qa não precisa de agente (H8)")
+        nao_aprova = "docs/qa/exemplo.md: parecer: o último parecer não é aprovado; o tipo não é exigido pela classe, mas o reprovado vale (R-QA)"
+        ler, aviso = self.portao("qa", [nao_aprova], exigidos=("review",))[0]  # dispensar não é ignorar o reprovado: revalida pelo delta
+        self.assertIn("`forge-check parecer delta docs/qa/exemplo.md`", ler)
+        self.assertIsNone(aviso)
+        with mock.patch.object(fc, "sha_do_commit", return_value="a" * 40), mock.patch.object(fc, "pr_da_cli", return_value=[]), \
+                mock.patch.object(fc, "base_do_delta", return_value=("refs/remotes/origin/develop", None)), \
+                mock.patch.object(fc, "exigidos_do_pr", return_value=(["review"], [])) as exigidos:
+            fc.portao_na_branch(RAIZ, "exemplo", "qa", "melhoria/x", "origin/develop")
+        exigidos.assert_called_once_with(RAIZ, "exemplo", "melhoria/x", "refs/remotes/origin/develop")
+
     def test_parecer_ausente_ou_com_outra_violacao_nao_avisa(self):
         for linha in ("docs/reviews: review: sem parecer para o pedido `exemplo` (R-REVIEW)",
                       "docs/reviews/exemplo.md: autoria: sem registro (R-REVIEW)"):

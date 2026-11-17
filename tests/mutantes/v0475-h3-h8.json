@@ -53,16 +53,6 @@
       ]
     },
     {
-      "id": "M6",
-      "guarda": "só sem nenhuma linha do portão o parecer está em dia",
-      "arquivo": "bin/forge-check",
-      "de": "    if not linhas:\n        return None, f\"o parecer de",
-      "para": "    if True:\n        return None, f\"o parecer de",
-      "testes": [
-        "tests.test_pre_envio_brief.PortaoNaBranch.test_parecer_ausente_ou_com_outra_violacao_nao_avisa"
-      ]
-    },
-    {
       "id": "M7",
       "guarda": "o aviso do portão só sai quando existe",
       "arquivo": "bin/forge-check",
