@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-hook-heredoc-palavra
-commit: 76b50dc775c366408d0064efd172eec658b0a7a3
+commit: 228d0083051fc3d808525d47d1efcfee71df20c1
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -93,3 +93,6 @@ Delta lido com `forge-check parecer delta` (7185b64c..76b50dc7: `hooks/parecer.p
 - `python3 -I scripts/indice-fixtures.py --conferir` → `docs/hooks-fixtures.md: em dia`.
 - `forge-testes --vermelho 5b1aacd5068fdf0ad78cb0404444ba33cdbf594a --modulos test_hooks_parecer_pasta` → rc 0; `vermelho: base=5b1aacd5068f head=76b50dc775c3`; `test_corpus_heredoc_dado_libera_e_bloqueia` e `test_corpus_texto_passa_e_barra` provam (asserção); 3 não provam (passam na base).
 Parecer: aprovado; nenhum bug aberto.
+
+## Revalidação E2.51 no head 228d0083 (escopo incremental)
+Delta desde 76b50dc7: junção da develop; no domínio do QA só o índice gerado `docs/hooks-fixtures.md` (conflito regerado pelo script). `python3 -I scripts/indice-fixtures.py --conferir`: "docs/hooks-fixtures.md: em dia". `python3 -m unittest tests.test_hooks_parecer_pasta`: 5 testes, OK (96 s). Nenhum bug novo; parecer segue aprovado.
