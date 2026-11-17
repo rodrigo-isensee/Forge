@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-hook-heredoc-palavra
-commit: 228d0083051fc3d808525d47d1efcfee71df20c1
+commit: 55418634d158dda4f8693915d16162d03ebfe256
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -96,3 +96,10 @@ Parecer: aprovado; nenhum bug aberto.
 
 ## Revalidação E2.51 no head 228d0083 (escopo incremental)
 Delta desde 76b50dc7: junção da develop; no domínio do QA só o índice gerado `docs/hooks-fixtures.md` (conflito regerado pelo script). `python3 -I scripts/indice-fixtures.py --conferir`: "docs/hooks-fixtures.md: em dia". `python3 -m unittest tests.test_hooks_parecer_pasta`: 5 testes, OK (96 s). Nenhum bug novo; parecer segue aprovado.
+
+## Revalidação E2.57 no head 55418634 (escopo incremental)
+Delta desde 228d0083 (`forge-check parecer delta`): junção da develop (#637) e M2/M14 das specs do #623 (`v047-hook-heredoc-fp.json`, `-fp-2.json`) alinhados. Reteste:
+- `python3 -m unittest tests.test_forge_mutante.ConferirTodas tests.test_hooks_parecer_pasta` (sem -I): `Ran 9 tests in 73.896s · OK`.
+- `bin/forge-mutante` nas duas specs do #623 (`rev=55418634d158`, rc 0): M1 a M4, M6 a M16 morreram (M5 não declarado na spec).
+- `bin/forge-mutante` nas duas desta branch (`rev=55418634d158`, rc 0): M1 a M12 morreram.
+Nenhum bug novo; parecer segue aprovado.
