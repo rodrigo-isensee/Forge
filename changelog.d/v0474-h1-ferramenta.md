@@ -1,2 +1,0 @@
-### Adicionado
-- H1 e PEDIDO-TETO-BRIEF (v0474 E2.13): o `forge-check pr` e o `brief gerar` avisam do item acima de 150 linhas de código (testes e documentação não contam; decisão do dono 17/11 11:15), e o `pr` reprova o PR aberto sem a linha `teto: excedido, <n> linhas, <motivo>` no corpo; o `brief gerar` avisa do pedido com mais de 50 etapas e do brief a 90% do teto de 10000 caracteres, propondo o pedido de continuação (`bin/forge_tamanho.py`).
