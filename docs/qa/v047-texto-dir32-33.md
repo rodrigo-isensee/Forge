@@ -1,11 +1,11 @@
 ---
 tipo: qa
 contrato: 1
-pedido: v047
+pedido: v0474
 branch: melhoria/v047-texto-dir32-33
-commit: ac34647c888de410dc1a97bd65f878cd0ed6725c
+commit: 9fd5d7716a9881fca225ddb5ec27e100bfba5de3
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -36,6 +36,12 @@ Item só de texto (acréscimo) mais invariantes em `tests/config.json` e a tabel
 - Sonda 1: apaguei em `agents/tech-lead.md` "No máximo 12 branches abertas e 20 agentes" (trocado por "No máximo X"): `test_forge` `test_trechos_obrigatorios` caiu (`Regex didn't match: 'No máximo 12 branches abertas e 20 agentes'`), FAILED (failures=1).
 - Sonda 2: apaguei em `agents/jarvis.md` "cartões nos mesmos arquivos vão ao mesmo agente" (diretriz 33): `test_jarvis_nucleo` caiu em `test_cada_diretriz_tem_entrada_e_a_de_fabrica_aparece` e `test_cada_numero_do_arquivo_do_dono_tem_entrada` (failures=2). Árvore restaurada (`git status` limpo).
 - Vermelho antes do verde: não se aplica no sentido de código; as duas sondas fazem o papel (o texto sem o trecho derruba o teste).
+
+## Revalidação incremental (ac34647c..9fd5d771)
+`forge-check parecer delta` lista no domínio `tests/fixtures/diretrizes-do-dono.json` e `tests/test_jarvis_nucleo.py`. A diretriz 27 volta a `pendente` com o cartão `RELEASE-EM-1H` (existe em `KANBAN.md`); o `MAX_PENDENTES` sobe de 7 para 8. Pendentes na fixture: 2, 11, 23, 24, 27, 28, 30, 31 (8, igual ao teto).
+- `test_jarvis_nucleo`: Ran 43, OK.
+- Sonda: com `MAX_PENDENTES = 7`, o teste cai (failures=2), logo o teto de 8 é o exato e o teste guarda a fronteira. Árvore restaurada.
+- Observação anterior (27 como `fabrica`) resolvida pelo delta; era a A1 do review.
 
 ## Observações (não bloqueiam)
 - O diff também troca as diretrizes 26 e 27 de `pendente` para `fabrica` em `tests/fixtures/diretrizes-do-dono.json`, além do pedido literal (32, 33 e a tabela 30 a 33). Os testes passam, o que mostra que os trechos já existem nos textos; só registro para o review.
