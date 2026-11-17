@@ -3,14 +3,21 @@ tipo: review
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-hook-heredoc-palavra
-commit: 730261a5406e2269c9bb40cb747bc2e989e18f5d
-parecer: reprovado
+commit: 7185b64c57835ab876cc98df59112fd0a05bfe04
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
 ---
 # Review: v047-hook-heredoc-palavra
 
 Code review da E2.6 (HOOK-HEREDOC-PALAVRA-FP, classe C) no head 730261a5, base 5b1aacd5. Dois commits: f53efb93 (hook, fixtures, changelog, índice) e 730261a5 (mutantes).
+
+## Revalidação (E2.14, head 7185b64c)
+Delta lido: `forge-check parecer delta docs/reviews/v047-hook-heredoc-palavra.md`, intervalo 730261a5..7185b64c, 11 arquivos no domínio (hooks/parecer.py, ADR 0011, changelog, índice de fixtures, 5 fixtures novas, 2 specs de mutantes). Commits 11a96c7a, 142513b2, 7185b64c.
+- A1 resolvido: `corpos_de_dado` devolve False com crase fora dos corpos (hooks/parecer.py:273) e com alvo sem valor literal (:278); 5 fixtures `heredoc-dado-*-bloqueia` (crase no alvo inteiro, no meio, com cat, com head, e alvo '') cobrem S1. A crase literal entre aspas fora dos corpos também recusa: falha fechado, só perde liberação.
+- A2 resolvido: emenda v047 na ADR 0011:45 com motivo, limites, rótulo afrouxa-regra e critério de reversão.
+- A3 resolvido: changelog.d/v047-hook-heredoc-palavra.md:2 fala dos programas da própria chamada e cita a crase.
+Verificações: `tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia` no head, OK (4,3 s). `bin/forge-mutante` nas 2 specs, 1 processo: M1 a M11 morreram. `bin/forge-mutante --cobertura --base 730261a5`: linhas 273 e 278 cobertas por M10 e M11, sem guarda descoberta. Tamanho do delta: 8+2 em hooks/parecer.py. Sem PR aberto, sem CI para citar.
 
 ## Achados
 - A1 (bloqueante) hooks/parecer.py:274 · alvo de redireção sem valor literal (crase: cat > `echo bin/ls`) vira nome "" e escapa da guarda do programa gravado; o bash grava bin/ls e o ls da chamada o roda (S1). Sugestão: alvo sem valor literal faz corpos_de_dado devolver False, com fixture.
@@ -22,7 +29,7 @@ Code review da E2.6 (HOOK-HEREDOC-PALAVRA-FP, classe C) no head 730261a5, base 5
 - S2 · no bash, cat > `echo bin/ls` <<'FIM' sobre bin/ls executável e PATH com bin/ na frente, depois ls · espera: o ls roda o corpo gravado · obtido: imprimiu a sentinela do corpo (o modo do arquivo se mantém, sem chmod)
 
 ## Parecer
-Reprovado por A1 e A2.
+Aprovado no head 7185b64c (revalidação E2.14): A1, A2 e A3 resolvidos. Rodada anterior, no head 730261a5: reprovado por A1 e A2.
 
 O que está certo: `corpos_de_dado` é pequena e legível, reaproveita `heredocs_simples`, `chamada_muda_o_corpo` e `programas_e_atribuicoes`; o novo tipo `dado` entra nos dois pontos certos (`marcas_da_chamada` e a lista `internos` de `conferir_linha`). As sondas de contorno que tentei seguem recusadas: alvo com aspas (`bin/'l's`), barra (`bin/l\s`), `>|`, `&>`, `$HOME/bin/ls`, `$X`, `$(echo bin/ls)`, `"`echo bin`/ls"`, `. ./f`, `./f`, `cat | sh`. `bin/{ls,x}` passa, mas o bash recusa a redireção ambígua: não é defeito.
 
