@@ -3,20 +3,20 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-sieg-g1-autorizacao
-commit: c890fbd68ead4e201005380220d7815f6d226fa3
+commit: 2f150f4dac973291017e18556b652ba65ee9748d
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-17
 ---
-# Review de segurança: v047 ADR 0018, G1.0 e G1.1 (E1.12 do v0474, head c890fbd6)
+# Review de segurança: v047 ADR 0018, G1.0 e G1.1 (E1.22 do v0474, head 2f150f4d)
 
-Gatilhos: autorização, controle do Forge (`bin/forge-check`, leitura das concessões). Volta por delta do parecer aprovado do head 7b20d073 (a rodada anterior fica no git).
+Gatilhos: autorização, controle do Forge (`bin/forge-check`, leitura das concessões). Volta por delta do parecer aprovado do head c890fbd6 (a rodada anterior fica no git).
 
 ## Resumo
-- Delta lido (`forge-check parecer delta`, 7b20d073..c890fbd6): 7b20d073..c992f567 só toca pareceres (`docs/qa`, `docs/reviews`, `docs/security`); c890fbd6 é a junção da `origin/develop` b07e6a39 (0.47.3). A ferramenta acusa `bin/forge-check` no domínio e mostra o diff inteiro do arquivo, inclusive o que veio da develop.
-- Resolução da junção em `bin/forge-check` conferida: `git show --remerge-diff c890fbd6` vazio (junção automática, sem edição à mão); `git diff b07e6a39 c890fbd6 -- bin/forge-check` (7+/1-) é igual, linha a linha, ao próprio da branch `git diff 86ac0fcb c992f567 -- bin/forge-check`: `SEM_GUARDA_DE_VERSAO` com `autorizacao` (`:9369`), o subparser `autorizacao ler` (`:9672`) e o despacho para `forge_autorizacao` com `raiz_principal` e `escritor_do_resultado` (`:9912`). As funções usadas seguem definidas (`:1641`, `:2030`, `:2966`, `:9566`); o que a develop trouxe não toca o subcomando nem a leitura.
-- `bin/forge_autorizacao.py` não muda no delta: a conclusão do 7b20d073 vale. Nenhum achado novo; A9 a A14 seguem como estavam.
-- Rodado: `python3 -m unittest tests.test_autorizacao` (8 OK) e `forge-check autorizacao ler` (rc 0, 0 ativas). CI do PR no c890fbd6: vermelho na suíte parte 5/5 (3.12 e 3.14) e na bateria, só por `test_testes_tocados` (o mapa de testes afetados de `bin/forge-check` não inclui `test_autorizacao`); defeito de cobertura do mapa, sem efeito na segurança, mas o CI segue portão do merge e precisa ficar verde (dono: tech-lead).
+- Delta lido (`forge-check parecer delta`, c890fbd6..2f150f4d): no domínio só `bin/forge-testes:112`, que põe `test_autorizacao` na tupla `FORGE_CHECK` (mapa de testes afetados; A5 do review E1.11). Fora do domínio, conferidos: a docstring de `tests/test_autorizacao.py:1` (só o caminho `bin/forge-check`) e a contagem 88→89 em `tests/test_testes_tocados.py:77`; o resto do diff são pareceres.
+- Efeito na segurança: o mapa só amplia o que roda ao tocar `bin/forge-check`; não afrouxa portão nem muda a leitura das concessões. `bin/forge_autorizacao.py` e `bin/forge-check` não mudam no delta (último commit do leitor: 580b6c34): a conclusão do c890fbd6 vale. Nenhum achado novo; A9 a A14 seguem como estavam.
+- Rodado no 2f150f4d: `python3 -m unittest tests.test_autorizacao` (8 OK) e `python3 -m unittest tests.test_testes_tocados` (162 OK, 1 pulado), o teste que deixou o CI vermelho no c890fbd6.
+- CI do PR 629: sem execução no 2f150f4d; o PR está `CONFLICTING` com a develop (`mergeStateStatus: DIRTY`) e a última execução (1b5de74f) é anterior à correção. A suíte completa segue portão do merge, fora da segurança (dono: tech-lead, trazer a develop e ter o CI verde).
 
 ## Achados
 - A9 (recomendado) docs/adr/0018-autorizacao-do-dono-gravada.md:25 · Aberto, vai ao G1.2 (gravar): com `Fuso` Etc/UTC a leitura aceita `ate:` de data escrita (sonda S7: `ativa`); a regra de tratar UTC ou sem região como não legível em data, hora e "esta noite" segue pendente.
@@ -44,4 +44,4 @@ Sondas desta rodada (nenhuma prova bloqueante; registro dos recomendados): scrip
 - PA-7: AR-1 e AR-2 com mutantes da leitura (`tests/mutantes/v047-sieg-g1-autorizacao*.json`, fora do domínio, só conferidos na lista).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Suíte: só no CI do PR (vermelho no c890fbd6 por `test_testes_tocados`, fora da segurança), portão do merge. Lacuna: `gitleaks`, `osv-scanner`, `semgrep`, `zizmor` e `actionlint` fora do PATH.
+Nenhum risco aceito. Suíte: só no CI do PR (sem execução no 2f150f4d, PR em conflito com a develop), portão do merge. Lacuna: `gitleaks`, `osv-scanner`, `semgrep`, `zizmor` e `actionlint` fora do PATH.
