@@ -72,6 +72,16 @@
       "testes": [
         "tests.test_meta.IdiomaDoDono.test_idioma_vem_da_configuracao_do_projeto"
       ]
+    },
+    {
+      "id": "M8",
+      "guarda": "SIEG-G4: só palavra da lista conta para o idioma",
+      "arquivo": "hooks/meta.py",
+      "de": "sum(p in lista for p in palavras)",
+      "para": "sum(p not in lista for p in palavras)",
+      "testes": [
+        "tests.test_meta.IdiomaDoDono.test_sem_configuracao_o_dono_fala_portugues_e_ingles_e_acusado"
+      ]
     }
   ]
 }
