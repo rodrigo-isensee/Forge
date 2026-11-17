@@ -332,7 +332,7 @@ class PrePushSoOsAfetados(unittest.TestCase):
     def test_readme_diz_baratas_antes_da_fila_afetados_e_suite_inteira_no_ci(self):  # SUITE-NO-CI (2026-11-08)
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         trecho = readme.split("**Suíte do Forge:**", 1)[1].split("\n", 1)[0]
-        for esperado in ("a suíte inteira roda uma vez, no CI de todo PR", "3 partes paralelas por versão de Python",
+        for esperado in ("a suíte inteira roda uma vez, no CI de todo PR", "5 partes paralelas por versão de Python",
                          "`bateria` e `bateria (python 3.14)` são agregadores", "checagens baratas, em segundos e antes da fila",
                          "`bin/forge-testes --afetados`", "para qualquer branch e para várias refs",
                          "`hooks/_comum.py`, `bin/forge-check` e `.githooks/`", "fica para o CI, com aviso",
@@ -6506,7 +6506,8 @@ class PrAposMergeDaBase(RepoComOrigem):
     def test_conflito_em_arquivo_livre_nao_invalida(self):  # QA A1 da volta 1: o arquivo livre da entrega, em conflito, não diverge
         revisado = self.commitar(self.repo, {"docs/qa/x.md": "da branch\n"}, "entrega com arquivo livre")
         self.pareceres(revisado)
-        self.develop_anda({"docs/qa/x.md": "da develop\n", "src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})  # y.txt força o merge simulado
+        # o x.txt da base muda e funde limpo: sai de `fora` sem ser "vindo da base", e só assim o merge simulado roda e vê o conflito do arquivo livre
+        self.develop_anda({"docs/qa/x.md": "da develop\n", "src/x.txt": "x1\nx2\nx3\nx4\nx5\nx6\nx7\nx8 da develop\n"})
         self.assertEqual(self.mescla_a_develop(lambda: git("checkout", "--ours", "docs/qa/x.md", cwd=self.repo)), 1)
         rc, saida, _ = self.pr("--base", "develop")
         self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)  # LOTE E1: o rc 0 diz o que conferiu

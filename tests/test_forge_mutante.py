@@ -432,6 +432,9 @@ class Execucao(unittest.TestCase):
                 r = self.rodar(self.spec(self.equivalente(de=de)))
                 self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
                 self.assertIn("E1 · inválido", r.stdout)
+                r = self.rodar(self.spec(mutante(), self.equivalente(de=de)))  # com um mutante que morre, só o equivalente inválido dá o 2
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("E1 · inválido", r.stdout)
 
     def test_spec_so_de_equivalentes_sem_testes_nao_sai_0(self):  # COBERTURA-EQUIVALENTE (b)
         r = self.rodar(self.spec(self.equivalente()))
@@ -1553,6 +1556,48 @@ class MutacaoDirigida(unittest.TestCase):
         self.assertIn("apoio de teste no diff: tests/apoio.py · todos os mutantes entram", r.stdout)
         self.assertIn("M1 · sobreviveu", r.stdout)
         self.assertNotIn("fora do diff", r.stdout)
+
+    def enfraquecer_apoio(self, caminho, importacao):
+        """Helper em `caminho` que o `tests/test_lib.py` importa; depois ele deixa de afirmar e só o `outro.py` muda."""
+        self.gravar(caminho, "def igual(caso, a, b):\n    caso.assertEqual(a, b)\n")
+        self.gravar("tests/test_lib.py", TESTE.replace("self.assertEqual(lib.limite(11), 2)", "igual(self, lib.limite(11), 2)")
+                    .replace("import lib\n", f"import lib\n{importacao}\n"))
+        self.salvar()
+        base = git(self.dir, "rev-parse", "HEAD").strip()
+        self.gravar(caminho, "def igual(caso, a, b):\n    return None\n")
+        self.gravar("outro.py", self.OUTRO + "# mudou\n")
+        self.salvar()
+        return self.rodar(self.spec(*self.dois), "--base", base)
+
+    def test_helper_em_test_py_importado_por_outro_teste_poe_todos_no_diff(self):  # sonda S5 da v046 E7.11 (A5)
+        r = self.enfraquecer_apoio("tests/test_apoio.py", "from tests.test_apoio import igual")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("apoio de teste no diff: tests/test_apoio.py · todos os mutantes entram", r.stdout)
+        self.assertIn("M1 · sobreviveu", r.stdout)
+
+    def test_py_de_tests_mutantes_poe_todos_no_diff(self):  # sonda S6 da v046 E7.11 (A5)
+        r = self.enfraquecer_apoio("tests/mutantes/apoio.py", "from tests.mutantes.apoio import igual")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("apoio de teste no diff: tests/mutantes/apoio.py · todos os mutantes entram", r.stdout)
+        self.assertIn("M1 · sobreviveu", r.stdout)
+
+    def test_test_py_importado_em_qualquer_forma_e_apoio_e_o_grep_que_falha_nao_e_nada_achado(self):
+        for nome, linha in (("a", "import test_a as base"), ("b", "    from test_b import X"),
+                            ("c", "from tests import (x, test_c)"), ("d", "import os, test_d")):
+            self.gravar(f"tests/test_{nome}.py", "import unittest\n")
+            self.gravar(f"tests/test_usa_{nome}.py", linha + "\n")
+        self.gravar("tests/test_so.py", "import unittest\nNOME = 'tests.test_so.T'\n")
+        self.gravar("tests/test_so_nao.py", "import test_soma\n")
+        self.salvar()
+        anterior = os.getcwd()
+        os.chdir(self.dir)
+        try:
+            mudados = {f"tests/test_{n}.py" for n in "abcd"} | {"tests/test_so.py", "tests/test_usa_a.py", ""}
+            self.assertEqual(carregar().apoio_de_teste(mudados, "HEAD"), [f"tests/test_{n}.py" for n in "abcd"])
+            with self.assertRaisesRegex(RuntimeError, "git grep"):
+                carregar().importado_por_teste("tests/test_lib.py", "0" * 40)
+        finally:
+            os.chdir(anterior)
 
     def test_teste_e_spec_de_outro_mutante_nao_poem_todos_no_diff(self):
         self.gravar("tests/test_outro.py", "import unittest\n")
