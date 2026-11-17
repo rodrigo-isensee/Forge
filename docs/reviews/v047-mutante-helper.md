@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-mutante-helper
-commit: 52f0ce3ee6abf96d2ee48bb3e10d868cef05b63a
+commit: 6361a7921ce10b98070528690a802801bcc66462
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
@@ -45,4 +45,10 @@ Aprovado. A mudança passa a tratar como apoio o `test_*.py` que outro teste imp
 - Mesma mutação em cada um: M41 troca o `errors="replace"` do `git()` (linha 140) por nada, e o `de` novo (`cwd=cwd, capture_output=True, ...`) é só dessa linha, pois a outra ocorrência (linha 921) não leva `cwd=cwd`. M19 troca `return not a.endswith(".json")` por `True` (spec de `tests/mutantes/` virar apoio). M20 troca `return importado_por_teste(a, sha)` por `True` (todo `test_*.py` virar apoio). Cada um é a guarda antiga na forma nova, sem sobrevivente.
 - `bin/forge-mutante guarda-sem-mutante-7.json`: M40 a M47 `morreu` (M41 na linha 140). `bin/forge-mutante v046-mutacao-bench-3.json`: M16 a M20 `morreu` (M19 934, M20 936).
 - `python3 -m unittest tests.test_forge_mutante` (sem `-I`): `Ran 127 tests ... OK`. Suíte completa no CI.
+- A1 segue recomendado, sem mudança. Parecer: aprovado.
+
+## Revalidação (E2.561, head `6361a792`)
+- Delta lido por `forge-check parecer delta`, de `52f0ce3e` a `6361a792`: uma linha em código, `linha_base` da isenta de `v047-mutante-helper-2.json` de 810 para 918 (A2 da segurança). Na base `86ac0fcb` a linha 918 é `return sorted(a for a in mudados if a.startswith("tests/")`, a guarda velha; o trecho isento segue o mesmo.
+- `bin/forge-mutante --cobertura --base 86ac0fcb`: rc=0, isenta `bin/forge-mutante:918(base)`, demais guardas `coberta`.
+- `python3 -m unittest tests.test_forge_mutante.ConferirTodas` (sem `-I`): `Ran 4 tests ... OK`. Suíte completa no CI.
 - A1 segue recomendado, sem mudança. Parecer: aprovado.
