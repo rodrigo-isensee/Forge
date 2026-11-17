@@ -7,6 +7,7 @@ import importlib.util
 import io
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -119,15 +120,16 @@ LER_DO_DELTA = "- revalidação (H3, R-REVIEW): leia só `forge-check parecer de
 class PortaoNaBranch(unittest.TestCase):
     """H3 (c): o brief de portão liga a revalidação ao `parecer delta` do parecer da branch e avisa quando o portão não precisa de agente."""
 
-    def portao(self, etapa, linhas, exigidos=("review", "qa"), existe=True, branch="melhoria/x"):
+    def portao(self, etapa, linhas, exigidos=("review", "qa"), existe=True, branch="melhoria/x", base="develop"):
         with mock.patch.object(fc, "sha_do_commit", return_value="a" * 40 if existe else None), \
                 mock.patch.object(fc, "pr_da_cli", return_value=list(linhas)) as pr, \
                 mock.patch.object(fc, "base_do_delta", return_value=("refs/remotes/origin/develop", None)), \
                 mock.patch.object(fc, "exigidos_do_pr", return_value=(list(exigidos), [])):
-            return fc.portao_na_branch(RAIZ, "exemplo", etapa, branch, "develop"), pr
+            return fc.portao_na_branch(RAIZ, "exemplo", etapa, branch, base), pr
 
     def test_parecer_desatualizado_no_dominio_le_so_o_delta(self):
         (ler, aviso), pr = self.portao("review", [DESATUALIZADO, REPROVADO])
+        self.assertIsNotNone(ler)
         self.assertTrue(ler.startswith(LER_DO_DELTA), ler)
         self.assertIsNone(aviso)
         pr.assert_called_once_with(RAIZ, "exemplo", ref="melhoria/x", base="origin/develop")
@@ -165,6 +167,29 @@ class PortaoNaBranch(unittest.TestCase):
             with self.subTest(linha=linha):
                 self.assertEqual(self.portao("review", [linha])[0], (None, None))
 
+    def test_base_fora_do_fluxo_nao_avisa_nem_le_o_pr(self):  # review A1 e segurança A1: a recusa de uso não é parecer em dia
+        for base in ("devlop", "origin/nada"):
+            with self.subTest(base=base):
+                resultado, pr = self.portao("review", [], base=base)
+                self.assertEqual(resultado, (None, None))
+                pr.assert_not_called()
+
+    def test_linha_de_erro_ou_fora_das_pastas_de_parecer_nao_avisa(self):  # segurança A2: aviso só sem linha desconhecida
+        for linha in ("pr: --base devlop: use develop, homolog, main (ou origin/<uma delas>); a base é lida de origin/<base>",
+                      "docs/pedidos: parecer conferido ilegível"):
+            with self.subTest(linha=linha):
+                self.assertEqual(self.portao("review", [REPROVADO, linha])[0], (None, None))
+                self.assertEqual(self.portao("qa", [linha], exigidos=("review",))[0], (None, None))
+
+    def test_brief_gerar_recusa_base_fora_do_fluxo(self):  # a CLI aceita só as bases do fluxo, como a juncao
+        tmp = Path(tempfile.mkdtemp(prefix="forge-portao-base-")).resolve()
+        self.addCleanup(shutil.rmtree, tmp, True)
+        env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(tmp)}
+        r = subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-check"), "brief", "gerar", "--pedido", "exemplo",
+                            "--base", "devlop"], capture_output=True, text=True, env=env, cwd=tmp)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("invalid choice: 'devlop'", r.stderr)
+
     def test_fora_do_portao_ou_sem_a_branch_nao_le_o_pr(self):
         for etapa, existe, branch in (("codigo", True, "melhoria/x"), ("pr", True, "melhoria/x"), ("review", False, "melhoria/x"),
                                       ("review", True, None)):
@@ -179,12 +204,13 @@ class PortaoNaBranch(unittest.TestCase):
         (tmp / "docs" / "pedidos").mkdir(parents=True)
         (tmp / "docs" / "pedidos" / "exemplo.md").write_text(PEDIDO, encoding="utf-8")
         for retorno, no_ler, no_stderr in (((LER_DO_DELTA, None), True, False), ((None, "em dia (H3)"), False, True)):
-            with self.subTest(retorno=retorno), mock.patch.object(fc, "e_o_forge", return_value=True), \
+            # create=True: na base sem portao_na_branch o patch não erra e o teste falha pela asserção (QA A1, veredito do vermelho)
+            with mock.patch.object(fc, "e_o_forge", return_value=True), \
                     mock.patch.object(fc, "estado_da_branch", return_value=([], [])), mock.patch.object(fc, "pr_da_branch", return_value=({}, None)), \
-                    mock.patch.object(fc, "base_sha_real", return_value="b" * 40), mock.patch.object(fc, "portao_na_branch", return_value=retorno), \
-                    redirect_stderr(io.StringIO()) as err:
+                    mock.patch.object(fc, "base_sha_real", return_value="b" * 40), \
+                    mock.patch.object(fc, "portao_na_branch", return_value=retorno, create=True), redirect_stderr(io.StringIO()) as err:
                 saida, rc, _ = fc.montar_brief(tmp, "exemplo", "forge:revisor-exemplo", "melhoria/x", "develop", etapa="review", cobre="E1.4")
-            self.assertEqual(rc, 0)
+            self.assertEqual(rc, 0, retorno)
             ler = saida.split("\n## Ler\n", 1)[1].split("\n## Decisões", 1)[0]
             self.assertEqual(LER_DO_DELTA in ler, no_ler)
             self.assertEqual(err.getvalue().count("brief gerar: aviso: em dia (H3)"), 1 if no_stderr else 0)
