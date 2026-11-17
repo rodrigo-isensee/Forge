@@ -3,14 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ambiente-sobrevive
-commit: c2b5556888ed272694c3d321244ea734a829c16c
+commit: 4ed7cb7d208f4c11686fad22c3ada3a90c1924fd
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-17
 ---
-# Review de segurança: v047-ambiente-sobrevive (E2.650, revalidação por delta)
+# Review de segurança: v047-ambiente-sobrevive (E2.670, revalidação por delta)
 
-E2.650: revalidação por delta `97c4a461..c8c5b7eb` (`forge-check parecer delta`, sem o que veio da develop 73a0ab81). No domínio mudaram só `bin/forge-testes` e testes: o merge c2b55568 une no `MAPA` e em `FORGE_CHECK`/`REAPROVEITAM_O_LOTE` as entradas da develop (`test_hook_destino_opaco`, `test_conformidade_opaco`) e as do item (`test_pre_push_patch`, `test_ambiente_hook`, linha do `docs/devops/pp1-pre-push.patch`); nada saiu das listas, e o arquivo continua Python válido (`ast.parse`, OK). É seleção de testes do envio local; o CI roda a suíte inteira, então não abre caminho de ataque. Os três fixtures novos de `tests/hooks/ambiente/` e o ajuste de `tests/test_hooks.py` só registram o `ambiente.py` como hook de aviso (código sempre 0) e como a exceção do SessionStart (emenda da ADR 0003, E2.54); o `forcar` do fixture é aplicado pelo lançador do teste (`tests/test_hooks.py:653-659`), não por algo que o hook leia. `hooks/ambiente.py`, `hooks/hooks.json`, os scripts de preparo e os devcontainer.json não mudaram do lado do item. Veredito e achados A3 a A5 valem sem mudança. Sem suíte local (brief); nenhum teste de abuso novo. PA-7: nada novo se aplica. Rodada anterior (E2.573, head 97c4a461) no git.
+E2.670: revalidação por delta `c2b55568..4ed7cb7d` (`forge-check parecer delta`: nenhum arquivo do domínio mudou; entraram `docs/hooks-fixtures.md`, `tests/mutantes/v047-ambiente-sobrevive-3.json` e `tests/test_ambiente_hook.py`, além dos pareceres). `hooks/ambiente.py` não mudou. A spec `-3` declara M26 a M30 sobre guardas que este parecer já cita (pasta persistente, script ausente no plugin, só as linhas `falta: `, só o código 1); os 3 testes novos usam um `bash` falso no PATH do teste e uma cópia do hook numa pasta temporária, sem tocar o hook. A isenção de `hooks/ambiente.py:55` (`__name__ == "__main__"`) é legítima: é o ponto de entrada do script, não uma guarda de segurança, e todo teste do hook o roda como processo; o formato passa por `validar_isentas` (`bin/forge-mutante:347`). Veredito e achados A3 a A5 valem sem mudança. Sem suíte local (brief); rodado `tests.test_ambiente_hook` (9, OK). PA-7: nada novo. Rodada anterior (E2.650, head c2b55568) no git.
 
 Histórico (E2.206):
 E2.206: revalidação por delta `584b2239..e3dfc4cb` (`forge-check parecer delta`: nenhum arquivo do domínio mudou; só pareceres em `docs/`). O veredito e os achados abaixo valem sem mudança para o head e3dfc4cb. O campo `pedido:` passa a `v047`. Teste do item rodado de novo: `tests.test_ambiente_hook` (6, OK). PA-7 conferida: nenhum item novo se aplica ao delta.
