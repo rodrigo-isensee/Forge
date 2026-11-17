@@ -2588,12 +2588,12 @@ class Guarda:
 
     def git_tags_no_envio(self, args, globais, pasta, sub="push"):
         """No Forge, nenhum envio leva tag: `--tags`, `--follow-tags`, `tag <nome>`, refspec com `refs/tags/` ou `v<número>`
-        e `-c` com `push.followTags` ou refspec de tags (v0474, segurança A2)."""
+        e `-c` com `push.followTags` ou refspec de tags (v0474, segurança A2). Na dúvida (remoto de nome `v1`), recusa."""
         posicionais = parecer.posicionais(args, PUSH_COM_VALOR)
         remoto = posicionais[0] if posicionais else None
         if not (self.repositorio_do_forge(pasta) or (remoto and parecer.aponta_para_o_forge(remoto))):
             return
-        refs = posicionais[1:]
+        refs = posicionais  # o remoto entra também: com `--repo <remoto>`, o primeiro posicional já é refspec
         envia_tag = ({"--tags", "--follow-tags"} & {a.split("=", 1)[0] for a in args} or "tag" in refs
                      or any(TAG_NO_ENVIO.match(parte) for r in refs for parte in r.split(":"))
                      or any(TAG_NA_CONFIG.search(g) for g in globais))

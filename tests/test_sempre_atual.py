@@ -540,6 +540,12 @@ class OrigemDaTag(Dentro):
         with mock.patch.object(fsa.Rodada, "rodar", rodar):
             self.assertEqual(self.conferir("v0.47.2", "file://" + str(self.remoto())), (False, "init: sem disco"))
 
+    def test_busca_no_prazo_esgotado_reprova(self):
+        with mock.patch.object(fsa.Rodada, "git_rede", lambda r, args: (None, "prazo do passo")):
+            rodada = fsa.Rodada("atalho")
+            rodada.neutro, rodada.url = tempfile.mkdtemp(dir=self.tmp), URL
+            self.assertEqual(rodada.tag_na_main("v0.47.2"), (False, "prazo"))
+
     def test_tag_fora_da_main_nada_muda(self):
         """o avanço com a origem reprovada: nenhum `add`, versão igual, registro falhou:origem-da-tag"""
         p = self.cenario_atualiza()
