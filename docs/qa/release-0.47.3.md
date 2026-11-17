@@ -16,8 +16,7 @@ data: 2026-11-16
 
 Head `eb9b4295`, base `24133d46` (develop). O intervalo é um commit só: sobe `.claude-plugin/plugin.json` e `dev/.claude-plugin/plugin.json` de 0.47.2 para 0.47.3, junta ao `CHANGELOG.md` os 2 fragmentos (praticas P5, #610; prova-tmpdir, #606) e os apaga. Nenhum código muda. Suíte inteira: CI do push na develop no `24133d46` (run 44000733871, success); a suíte local completa não foi rodada, por ordem do dono de 16/11.
 
-## Achados
-Nenhum.
+Sem achados (o bloco `## Achados` fica de fora).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
