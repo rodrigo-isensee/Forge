@@ -241,9 +241,10 @@ class PresencaDasRegrasEDasDiretrizes(unittest.TestCase):
         self.assertEqual(problemas_das_diretrizes(DIRETRIZES, conjunto_do_jarvis(), MAX_PENDENTES), [])
 
     def test_cada_numero_do_arquivo_do_dono_tem_entrada(self):
+        # O arquivo do dono fica fora do git; sem ele (no CI), roda contra o exemplo neutro do repositório, sem pulo (E2.672).
         arquivo = os.environ.get("FORGE_DIRETRIZES_DONO", "")
         if not arquivo or not Path(arquivo).is_file():
-            self.skipTest("FORGE_DIRETRIZES_DONO sem o arquivo do dono (fora do git; no CI, a tabela neutra basta)")
+            arquivo = RAIZ / "tests" / "fixtures" / "diretrizes-do-dono-exemplo.md"
         numeros = [int(n) for n in re.findall(r"^(\d+)\. ", Path(arquivo).read_text(encoding="utf-8"), re.M)]
         self.assertTrue(numeros, "nenhum número no arquivo do dono")
         self.assertEqual(problemas_das_diretrizes(DIRETRIZES, conjunto_do_jarvis(), MAX_PENDENTES, numeros), [])
