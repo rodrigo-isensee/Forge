@@ -3,12 +3,17 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-prepush-patch
-commit: d03fb7e0041cdee42b8d0346de785832e7f5eb8e
+commit: ccb7a0c3663dd98c3eae57186ea9612c9b21cc83
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
 ---
-# Review: v047 (melhoria/v047-prepush-patch, E2.325; revalidações E2.367, E2.428, E2.490 e E2.572)
+# Review: v047 (melhoria/v047-prepush-patch, E2.325; revalidações E2.367, E2.428, E2.490, E2.572 e E2.601)
+
+## Revalidação (E2.601, head ccb7a0c3)
+Delta lido: `forge-check parecer delta docs/reviews/v047-prepush-patch.md`, intervalo d03fb7e0..ccb7a0c3, no domínio só `tests/test_testes_tocados.py` (+10/-1). Duas mudanças: o `AMBIENTE` do teste passa a tirar o `GIT_*` herdado (um hook exporta `GIT_DIR` e `GIT_INDEX_FILE`, e o git do repositório de brinquedo cairia no do clone) e entra o caso `test_o_patch_do_pre_push_e_o_comum_dos_hooks_levam_ao_test_pre_push_patch` (mapa: `docs/devops/pp1-pre-push.patch` e `hooks/_comum.py` planejam `dirigido` com `test_pre_push_patch`). Sem guarda de controle nova; o patch e o `bin/forge-testes` seguem iguais.
+
+Ferramentas no head ccb7a0c3: `python3 -m unittest tests.test_testes_tocados` na raiz do clone, sem `-I`, 162 testes, OK (1 pulado por sandbox, /proc de outro namespace; 62,3 s). Suíte completa: sem PR, fica para o CI. `git fetch`: o remoto da branch já está em ccb7a0c3, nada a mesclar. Sem achado novo; A4 e A5 seguem recomendados; sem recorrência nova.
 
 ## Revalidação (E2.572, head d03fb7e0)
 Delta lido: `forge-check parecer delta docs/reviews/v047-prepush-patch.md`, intervalo 8079c5d4..d03fb7e0, no domínio só `bin/forge-testes` (3 linhas no MAPA: `test_pre_push_patch` entra na linha de `hooks/.*`, e nova linha para `docs/devops/pp1-pre-push.patch` com CONTEUDO). Mapa de testes, sem guarda de controle; o patch e o teste seguem iguais. Isso conserta o CI do PR 607 (o teste lê `hooks/_comum.py` e o patch).
@@ -50,6 +55,8 @@ Parecer completo (não havia parecer anterior) do head 805a0a10 contra a base 1b
 - S2 · mesmo repo, tests/catraca.py `if a` -> `if a and b` com hooks/h.py sem condição, sem spec · espera: pre-push rc=0, como a catraca ([]) · obtido: pre-push rc=1 "sem mutante · tests/catraca.py:2"; catraca []
 
 ## Parecer
+Aprovado no head ccb7a0c3 (E2.601): delta só no teste do mapa e no ambiente dele, sem bloqueante aberto; A4 e A5 recomendados.
+
 Aprovado no head d03fb7e0 (E2.572): delta só no mapa do `forge-testes`, sem bloqueante aberto; A4 e A5 recomendados.
 
 Aprovado no head 8079c5d4 (E2.490): delta só da develop, sem bloqueante aberto; A4 e A5 recomendados.
