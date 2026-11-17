@@ -786,7 +786,7 @@ trazer_a_base() {
     || die "parou no passo 2b: não consegui criar o commit de merge; nada foi aberto"
   if [ "$so_remota" = 1 ]; then
     :  # sem a branch local: só o envio do commit (o recomeço lê o head do servidor)
-  elif [ -n "$arvore_lock" ] && [ -d "$arvore_lock" ]; then
+  elif [ -n "$arvore_lock" ] && test -d "$arvore_lock"; then
     [ -z "$(git -C "$arvore_lock" status --porcelain)" ] || die "parou no passo 2b: a worktree de $ref ($arvore_lock) tem mudança não commitada; commite ou guarde e rode de novo"
     git -C "$arvore_lock" merge --ff-only --quiet "$novo" || die "parou no passo 2b: não consegui avançar $ref para o merge; nada foi aberto"
   else

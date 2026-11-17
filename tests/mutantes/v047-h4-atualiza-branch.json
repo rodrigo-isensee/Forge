@@ -56,7 +56,7 @@
       "id": "M6",
       "guarda": "H4: a branch numa worktree anda por ela (conferida limpa), não por update-ref",
       "arquivo": "bin/forge-fechar",
-      "de": "  elif [ -n \"$arvore_lock\" ] && [ -d \"$arvore_lock\" ]; then\n    [ -z \"$(git -C \"$arvore_lock\" status --porcelain)\" ]",
+      "de": "  elif [ -n \"$arvore_lock\" ] && test -d \"$arvore_lock\"; then\n    [ -z \"$(git -C \"$arvore_lock\" status --porcelain)\" ]",
       "para": "  elif false; then\n    [ -z \"$(git -C \"$arvore_lock\" status --porcelain)\" ]",
       "testes": [
         "tests.test_fechar_base_andou.Teste.test_h4_worktree_suja_ou_ff_que_falha_para_sem_enviar"
