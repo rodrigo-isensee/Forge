@@ -3,20 +3,22 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-mutante-helper
-commit: 52f0ce3ee6abf96d2ee48bb3e10d868cef05b63a
+commit: b3ade362ea6dd0b5a872a52a6d62086635f48f59
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-16
+data: 2026-11-17
 ---
 # QA: v047 (E2.112, lote MU1, helper de teste na --base do forge-mutante)
 
 Escopo: `git diff bf475209..4d2a9b7d` (`bin/forge-mutante`, `tests/test_forge_mutante.py`, duas specs de mutantes, fragmento de changelog). Obrigação: `test_*.py` importado por outro teste e `.py` de `tests/mutantes/` contam como apoio de teste e põem todos os mutantes no diff (sondas S5 e S6, `R-QA`). Sem UX nem API: sem acessibilidade e sem E2E.
 
 Revalidação E2.541 (incremental): `forge-check parecer delta` de `4d2a9b7d` a `744e1dbd`, sem o que veio da develop, lista no domínio `bin/forge-mutante`, `tests/test_forge_mutante.py` e as specs `guarda-sem-mutante-7.json` e `v046-mutacao-bench-3.json` (realinhamento de M41, M19 e M20 à fonte, commit `78248550`). O review aprovou que o realinhamento mata as mesmas mutações; aqui se reexecutou o que o delta tocou. Os critérios e a tabela abaixo seguem valendo.
+
+Revalidação E2.619 (incremental, head `f5638d71`): `forge-check parecer delta` de `52f0ce3e` a `f5638d71` lista no domínio só `tests/mutantes/v047-mutante-helper-2.json` (`linha_base` da isenta 810 para 918, A2 da segurança). Nenhum código nem teste mudou.
 
 ## Achados
 
@@ -36,3 +38,4 @@ Revalidação E2.541 (incremental): `forge-check parecer delta` de `4d2a9b7d` a 
 - Mutantes das specs realinhadas, uma a uma (pedidos diferentes não rodam juntos, rc=2): `guarda-sem-mutante-7` M40 a M47 `morreu`, rc=0; `v046-mutacao-bench-3` M16 a M20 `morreu`, rc=0.
 - Suíte inteira: não rodada localmente (ordem do dono de 16/11); vale o check-run `bateria` do CI do PR, que ainda não existe (sem PR neste pedido).
 - Merge: `git fetch origin melhoria/v047-mutante-helper` devolveu o mesmo `744e1dbd`; nada a trazer.
+- Head `f5638d71` (E2.619): `bin/forge-mutante --cobertura --base 86ac0fcb`, rc=0; a isenta sai `isenta · bin/forge-mutante:918(base)`, e MH-M1, M3, M4, M5 e M9 cobrem as linhas 922 a 938. `python3 -m unittest tests.test_forge_mutante.ConferirTodas` (sem `-I`): 4 testes, OK. Delta sem mutante novo (só metadado da isenta); mutantes e suíte anteriores seguem valendo. Fetch devolveu o mesmo head, nada a trazer.
