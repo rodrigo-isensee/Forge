@@ -3,11 +3,11 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-hook-heredoc-palavra
-commit: 730261a5406e2269c9bb40cb747bc2e989e18f5d
-parecer: reprovado
-escopo: completo
+commit: 7185b64c57835ab876cc98df59112fd0a05bfe04
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-17
@@ -17,8 +17,8 @@ data: 2026-11-17
 Head 730261a5 (`corpos_de_dado` em `hooks/parecer.py`, 10 fixtures `heredoc-dado-*`, teste `test_corpus_heredoc_dado_libera_e_bloqueia`, 9 mutantes, índice). Passada única, parecer completo. Sem PR (instrução do brief); a suíte inteira roda no CI do PR, que ainda não existe.
 
 ## Achados
-- A1 (bloqueante) hooks/parecer.py:274 · alvo de redireção com crase (cat > `echo bin/ls`, bin/`echo l`s, `cat n`) não tem valor literal e escapa do cruzamento alvos & nomes: o hook libera (rc 0) e o ls da chamada roda o corpo. Reproduzido por QA (sondas Q1-Q3). R-REVIEW.
-- A2 (recomendado) tests/mutantes/v047-hook-heredoc-palavra.json:1 · ao corrigir o A1, some um mutante por guarda nova (crase na linha fora dos corpos ou alvo sem valor literal), com fixture heredoc-dado-*-bloqueia por forma; hoje nenhum mutante cobre a condição.
+- A1 (recomendado) hooks/parecer.py:274 · resolvido em 7185b64c: crase no alvo agora recusa (Q1-Q3 rc 2); bug v0474-01 fechado.
+- A2 (recomendado) tests/mutantes/v047-hook-heredoc-palavra-2.json:1 · resolvido: M9, M10 e M11 cobrem as guardas novas; 5 fixtures `heredoc-dado-*-bloqueia` somadas.
 
 ## Critério → teste → resultado
 O pedido não tem `CA-n` de UX; as obrigações são a regra HOOK-HEREDOC-PALAVRA-FP e o `R-REVIEW` (marca da chamada), lidas do diff e das descrições das fixtures.
@@ -79,3 +79,11 @@ Confirma o A1 do review (E2.6) e da segurança (E2.7) de forma independente. Bug
 
 Revalidação: `forge-check parecer delta docs/qa/v047-hook-heredoc-palavra.md`; rodar `bin/forge-mutante --base <head aprovado>` com o mutante novo da guarda.
 
+## Revalidação (E2.16, head 7185b64c)
+Delta lido com `forge-check parecer delta` (hooks/parecer.py, 5 fixtures novas, 2 specs de mutantes, ADR, changelog, índice). Reteste:
+- Sondas Q1 (cat > `echo bin/ls`), Q2 (bin/`echo l`s), Q3 (cat > `cat n`), mesma fixture-base: as 3 recusam com rc 2 (`Ran 1 test · OK`).
+- `bin/forge-mutante tests/mutantes/v047-hook-heredoc-palavra.json tests/mutantes/v047-hook-heredoc-palavra-2.json` → rc 0: M1 a M11 morreram (M5 parecer.py:271, M9 :281, M10 :273, M11 :278).
+- `python3 -I -m unittest discover -s tests -p test_hooks_parecer_pasta.py` → `Ran 5 tests in 89.812s · OK`.
+- `python3 -I scripts/indice-fixtures.py --conferir` → `docs/hooks-fixtures.md: em dia`.
+- `forge-testes --vermelho 5b1aacd5068fdf0ad78cb0404444ba33cdbf594a --modulos test_hooks_parecer_pasta` → rc 0; `vermelho: base=5b1aacd5068f head=7185b64c5783`; `test_corpus_heredoc_dado_libera_e_bloqueia` e `test_corpus_texto_passa_e_barra` provam (falham na base); contagem: não prova (passa na base)=3; prova (asserção)=2.
+Parecer: aprovado; nenhum bug aberto.
