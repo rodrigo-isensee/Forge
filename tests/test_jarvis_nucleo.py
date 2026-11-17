@@ -376,7 +376,10 @@ class RespostaATodaMensagemDoDono(unittest.TestCase):
         self.skill = ler("skills/falar-com-o-dono/SKILL.md")
 
     def test_toda_mensagem_tem_resposta_e_o_passo_seguinte(self):
-        regra = next(l for l in self.skill.splitlines() if l.startswith("**Toda mensagem do dono tem resposta e ação:**"))
+        # v047 E2.652: o parágrafo inteiro mudou para toda-mensagem.md (diretriz 25), e a SKILL.md manda lê-lo
+        self.assertIn("${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/toda-mensagem.md", self.skill)
+        regra = next(l for l in ler("skills/falar-com-o-dono/toda-mensagem.md").splitlines()
+                     if l.startswith("**Toda mensagem do dono tem resposta e ação:**"))
         self.assertIn('até "continue" ou "ok", recebe no mesmo turno a resposta e o passo seguinte', regra)
         self.assertIn("só quando um agente termina sem nada para o dono", regra)
         self.assertIn("mesmo então o passo seguinte do time anda", regra)
@@ -391,8 +394,10 @@ class EtapaSoAposConferirDevelop(unittest.TestCase):
     quase delegada de novo): antes de abrir etapa, o Jarvis confere a develop. A trava é backlog em tests/evals/test_erros_por_papel.py."""
 
     def test_a_skill_manda_conferir_a_develop_antes_de_abrir_a_etapa(self):
-        skill = ler("skills/falar-com-o-dono/SKILL.md")
-        regra = next(l for l in skill.splitlines() if l.startswith("**Etapa depois de conferir a develop:**"))
+        # v047 E2.652: o parágrafo inteiro mudou para conferir-develop.md (diretriz 25), e a SKILL.md manda lê-lo
+        self.assertIn("${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/conferir-develop.md", ler("skills/falar-com-o-dono/SKILL.md"))
+        regra = next(l for l in ler("skills/falar-com-o-dono/conferir-develop.md").splitlines()
+                     if l.startswith("**Etapa depois de conferir a develop:**"))
         self.assertIn("antes de abrir ou delegar uma etapa, confira na `develop` se o item já foi entregue ou resolvido", regra)
         self.assertIn("`git log origin/develop --grep '<cartão>'`", regra)
         self.assertIn("sem delegar", regra)
