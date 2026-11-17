@@ -22,7 +22,7 @@ Revalidação por delta do parecer aprovado no head 82623453 (E2.287). Li só `f
 - A1 (recomendado) stacks/node-react/pronto.md:65 · remete o T à skill `ci-cd`, "Tempo e dependências", mas a definição de T e o orçamento não estão mais na skill: o conserto das métricas os pôs em `templates/projeto/docs/engineering/protecao-de-branch.md:15`. Aponte para lá (R-REVIEW).
 - A2 (recomendado) scripts/suite-partes.py:227 · a parte vermelha passa a anotar a falha duas vezes: a linha `::error title=forge-suite` daqui e um `::error` por falha do leitor (`.github/workflows/ci.yml:92`). São dois mecanismos para a mesma saída: fique com um ou justifique (R-DECISAO; segue o A1 anterior).
 - A3 (recomendado) .github/workflows/ci.yml:1 · são 2051 linhas de código e teste contra a develop (`git diff --numstat`, M14). Quando o PR existir, o corpo dele leva `teto: excedido, 2051 linhas, <motivo>`; substitui o A5 anterior (R-REVIEW).
-- A4 (recomendado) tests/test_prepush_so_docs.py:356 · o teste novo não chama `exigir(self, "proc")` e confere a morte do filho por `vivos()`, que lê `/proc`; num /proc de outro namespace (sandbox) ele passa vazio e o G1 "sobrevive" (G2, "controle vermelho"). Com `kill -0` no lugar de `vivos()`, o hook mutado falha e o real passa. Peça o `exigir` como nos irmãos, para pular em vez de passar vazio.
+- A4 (recomendado) tests/test_prepush_so_docs.py:356 · o teste novo não chama `exigir(self, "proc")` e checa o filho por `vivos()` (lê `/proc`): em /proc de outro namespace passa vazio e o G1 "sobrevive". Peça o `exigir`, como nos irmãos.
 
 ## Sondas
 
