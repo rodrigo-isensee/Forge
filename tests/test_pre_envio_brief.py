@@ -136,6 +136,7 @@ class PortaoNaBranch(unittest.TestCase):
 
     def test_parecer_reprovado_revalida_pelo_delta_do_proprio_tipo(self):
         (ler, aviso), _ = self.portao("qa", [DESATUALIZADO, REPROVADO])
+        self.assertIsNotNone(ler)
         self.assertIn("`forge-check parecer delta docs/qa/exemplo.md`", ler)
         self.assertIsNone(aviso)
         (ler, _), _ = self.portao("seguranca", [DESATUALIZADO, REPROVADO], exigidos=("review", "qa", "revisao-seguranca"))
