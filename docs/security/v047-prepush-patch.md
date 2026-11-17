@@ -3,12 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-prepush-patch
-commit: 5016852d85c156bd54df21a3f6f30529463d6011
+commit: d3bd84fbb90e92c08dbb0022d00ccc466d93331a
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-16
 ---
 # Review de segurança: v047 (patch dos três consertos do envio, E2.321)
+
+Revalidação por delta (E2.507) do head d3bd84fb, depois do merge da develop (3a309e34). O `forge-check parecer delta` lista no domínio só `bin/forge-mutante` (116 linhas). Conferido por `git diff`: contra a base 86ac0fcb a branch só difere na docstring (3 linhas, já aprovada); o restante (`--conferir --todas`, `texto_no_commit`) veio da develop (94736f93, #594) e é do item dela. `docs/devops/pp1-pre-push.patch` não mudou desde 5016852d, e o `tests/test_pre_push_patch.py` roda 12 testes OK. Parecer segue aprovado; A1 e A2 seguem recomendados, sem mudança. A suíte inteira roda só no CI do PR.
 
 Revalidação por delta (E2.368) do head 5016852d. O parecer anterior aprovou o head 805a0a10. O `forge-check parecer delta` lista, no domínio, `bin/forge-mutante` (só a docstring) e `tests/test_pre_push_patch.py`. O `docs/devops/pp1-pre-push.patch` mudou no mesmo intervalo, mas o delta o classifica como documentação. Como ele é o próprio controle do envio, foi relido inteiro.
 
