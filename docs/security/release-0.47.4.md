@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: release-0.47.4
 branch: melhoria/v0474-release-0474
-commit: 2539b54fcaa895549fc9e2df35d45cd8588cc16b
+commit: f198cfbd8261eb15acee8adbb95709484f524097
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-17
@@ -11,6 +11,8 @@ data: 2026-11-17
 # Review de segurança: release-0.47.4
 
 Escopo: o que entra na `main` desde a 0.47.3 (`origin/main` = `cacbdf06`, merge do #620) até `2539b54f`: 94 commits, da leva v047 (#607 a #634) e da v0474 (#635 a #639) mais a marca `f198cfbd` e os pareceres. Base: o parecer da marca `docs/security/v0474-release-0474.md` (aprovado no `f198cfbd`); daqui ao `2539b54f` só entram `docs/reviews/` e `docs/qa/` (sem código). Os commits seguintes da branch (`77393459`, `444834f4`, `3b1f909c`) só acrescentam `docs/devops/release-0.47.4.md` e `docs/qa/release-0.47.4.md`.
+
+O `commit:` aponta o Revisar-sha do commit da versão (`f198cfbd`); de lá a `2539b54f` só entram pareceres (AQ-5): o conteúdo revisado é o mesmo.
 
 Gatilhos: workflow de CI (`.github/workflows/ci.yml`), hooks (`agentes`, `conformidade`, `parecer`, `pesado`, `meta`, `ambiente`, `hooks.json`), execução de comando (`bin/forge-check`, `bin/forge-mutante`, `bin/forge-fechar`, `scripts/`) e controle novo (`bin/forge_autorizacao.py`, `bin/forge_tamanho.py`).
 
