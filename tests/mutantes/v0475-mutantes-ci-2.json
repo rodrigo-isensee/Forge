@@ -18,8 +18,7 @@
       "de": "        if m:\n            quadros",
       "para": "        if True:\n            quadros",
       "testes": [
-        "tests.test_ci_falhas.Local.test_quadro_fora_do_repositorio_e_ignorado",
-        "tests.test_falhas_no_resumo.Leitor.test_modulo_arquivo_e_linha_do_quadro_dos_testes"
+        "tests.test_ci_falhas.Local.test_quadro_fora_do_repositorio_e_ignorado"
       ],
       "id": "MC15"
     },

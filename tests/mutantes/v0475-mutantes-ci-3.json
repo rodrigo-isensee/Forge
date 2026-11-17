@@ -98,7 +98,7 @@
       "de": "if destino:",
       "para": "if False:",
       "testes": [
-        "tests.test_falhas_no_resumo.Execucao.test_sem_variavel_do_resumo_escreve_na_saida_padrao"
+        "tests.test_falhas_no_resumo.Execucao.test_falha_escreve_no_resumo_anota_e_sai_com_zero"
       ],
       "id": "MC36"
     },
