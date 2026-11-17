@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-folga-jarvis
-commit: cd79a259580c71ebf22631bcf8c8c8c8516ea50f
+commit: 2a95b1630df4dbf2fa45d39c916393e4423d6c44
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-16
+data: 2026-11-17
 ---
 # QA: v047 (E1.169, folga do texto do Jarvis P1 a P4 e FOCO-NAS-DECISOES)
 
@@ -79,5 +79,21 @@ Código testado: ebeb9161 (o remoto c4351c3e só soma pareceres de review e segu
 |---|---|---|---|
 | Citações conhecidas após a junção | `tests.test_reval_delta` | entrada perdida ou citação desconhecida | passou |
 
+## Revalidação por delta (E2.656): cd79a259..2a95b163, parágrafos movidos para arquivos da skill
+
+`forge-check parecer delta` listou no meu domínio `agents/jarvis.md`, as skills `falar-com-o-dono` (arquivos novos `toda-mensagem.md`, `conferir-develop.md`, `pergunta-pendente.md`), `kanban-metricas`, `kanban-scrum`, `tests/config.json` e os testes `test_jarvis_nucleo`, `test_jarvis_n_jar_a`, `test_medidas_m14b`, `test_forge` (esta parte vem da base). As guardas de `tests/apoio_jarvis.py` não mudaram, então os mutantes M1 a M3 seguem valendo.
+
+- Execução local (TMPDIR, só os arquivos tocados): `python3 -m unittest tests.test_jarvis_nucleo tests.test_jarvis_n_jar_a tests.test_medidas_m14b tests.test_metricas_texto tests.test_reval_delta`: `Ran 130 tests ... OK (skipped=1)`; o skip é o pré-existente (arquivo do dono fora do git).
+- Mutantes: `forge-mutante tests/mutantes/v047-folga-jarvis.json`: `M1 · morreu · tests/apoio_jarvis.py:84`, `M2 · morreu · tests/apoio_jarvis.py:20`, `M3 · morreu · tests/apoio_jarvis.py:84`; sem sobrevivente.
+- Sonda de mutação nos parágrafos movidos (cópia do head em `$TMPDIR`): troquei "mesmo então o passo seguinte do time anda" em `toda-mensagem.md` e "sem delegar" em `conferir-develop.md`: `test_toda_mensagem_tem_resposta_e_o_passo_seguinte` e `test_a_skill_manda_conferir_a_develop_antes_de_abrir_a_etapa` falham (`failures=2`). Sem a troca, passam: o trecho movido não some sem o teste cair.
+- Vermelho antes do verde: sem regra nova (os testes só trocam o arquivo onde o mesmo texto é lido, diretriz 25); a sonda faz o papel do vermelho. A suíte inteira fica no CI do PR; sem PR aberto neste head, não cito check-run `bateria`.
+- O remoto avançou (d607de96, só `docs/security/`), trazido por junção.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Diretriz 25: parágrafo movido não some; SKILL.md aponta para o arquivo novo | `RespostaATodaMensagemDoDono`, `EtapaSoAposConferirDevelop`, `test_jarvis_n_jar_a` (3 regras, ID por arquivo) | ponteiro ausente; trecho apagado | passou, a sonda derruba |
+| Texto só desce (teto) | `test_metricas_texto`, `test_medidas_m14b` | teto por arquivo | passou |
+
 Parecer: aprovado, sem achados novos.
+
 
