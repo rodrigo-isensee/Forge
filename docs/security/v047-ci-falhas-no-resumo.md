@@ -3,14 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-falhas-no-resumo
-commit: a00638dbc0e5f8dbd150b631c4399b096f501e73
+commit: c99945e3fa897d57b99480afc608d782a31db903
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-16
+data: 2026-11-17
 ---
 # Review de segurança: v047-ci-falhas-no-resumo
 
-Pedido v047, etapa E2.552: revalidação por delta (`forge-check parecer delta`, intervalo `82623453..8738371e`, sem o que veio da develop) no head `8738371e`; o código revisado é o Revisar-sha `a00638db` (os dois commits seguintes só tocam `docs/reviews/` e `docs/qa/`). A rodada anterior (E2.288, no `82623453`) fica no git.
+Pedido v047, etapas E2.552 e E2.611 (esta, a última): revalidação por delta (`forge-check parecer delta`, intervalo `82623453..8738371e`, sem o que veio da develop) no head `8738371e`; o código revisado é o Revisar-sha `a00638db` (os dois commits seguintes só tocam `docs/reviews/` e `docs/qa/`). A rodada anterior (E2.288, no `82623453`) fica no git.
 
 ## Gatilhos
 Gatilhos: `.github/workflows/ci.yml` (jobs da prova da develop e do check exigido, agregadores com `always()`), guarda de workflow da catraca (`tests/test_catraca.py`), script que lê a API do GitHub com token (`scripts/pesos-do-ci.py`), escrita de comandos de workflow a partir da saída da suíte (`scripts/suite-partes.py`).
@@ -23,8 +23,14 @@ Gatilhos: `.github/workflows/ci.yml` (jobs da prova da develop e do check exigid
 - `tests/test_catraca.py`:3497-3515: a guarda nova conta os `always()` (2 do PR e 2 da develop), separa os jobs e exige, nos que têm `always()`, nenhum `uses:`, `needs:` presente e passos sem `python`, `bash`, `./`, `scripts/`, `bin/`, `tests/` nem `${{ github.event.` / `inputs`.
 - `stacks/*/pronto.md` e `templates/projeto/docs/engineering/protecao-de-branch.md`: texto neutro; a regra nova (agregador só lê `needs`, nunca roda código da branch, tempos por anotação e nenhum workflow grava no repositório) é coerente com `R-MAIN` e `R-CUSTO`.
 
+## Revalidação E2.611 (delta `a00638db..c99945e3`)
+Lido com `forge-check parecer delta`, sem o que veio da develop. No domínio: `.github/workflows/ci.yml` (só dois comentários: o caminho da proposta virou texto; nenhuma chave, ação, permissão nem `run:` mudou), `templates/projeto/.githooks/pre-push` (linha 156), `tests/test_catraca.py` (comentário) e `tests/test_prepush_so_docs.py` (teste novo com `ps` falso). Fora do domínio: mutantes G1 e G2 e `tests/test_forge.py`.
+- Hook: sem pgid legível, o `kill` vai ao grupo `-$etapa` só se `kill -0 -- "-$etapa"` acha membro. Um grupo com PGID igual ao PID da etapa só existe enquanto a etapa ou um descendente o mantém (o kernel não reaproveita o número), então o alvo é o grupo da etapa e de mais ninguém; sem membro, o teste falha e o alvo continua só a etapa. Etapa que não criou grupo (`set -m` falhou) tem PGID do pai: `kill -0 -$etapa` falha e a guarda existente sobre o pgid do `$$` segue valendo. Sem entrada externa nova, sem ampliar o alcance do sinal para fora do grupo da etapa.
+- Teste novo (`test_ps_sem_resposta_com_o_grupo_criado_ainda_encerra_o_filho`): cobre o ramo. Neste sandbox a classe `GrupoDaEtapa` roda com 4 de 5 testes pulados (`/proc` de outro namespace de pid); o novo está entre os pulados, então a prova dele é o CI no mesmo sha (verde, segundo o brief), não esta máquina.
+- A1 e A2 seguem abertos e recomendados; o delta não os toca nem os agrava.
+
 ## Conclusão
-Aprovado. O head cumpre o requisito A1 do `docs/security/v047-ci-rapido.md` (agregador não roda código da branch) e o T3 (teto de pulados fora do agregador). A guarda da catraca barra o checkout no agregador (S1 abaixo), mas é lista negativa (AR-3): aceita `git clone` + `sh`, `curl | sh`, `container:` e `${{ github.head_ref }}` no agregador. Sem caminho de ataque hoje (o head está correto e o PR de fork já roda o próprio workflow sem segredo), fica como recomendação. O A1 da rodada anterior (pipefail) continua aberto e agora cobre as 4 pernas sem âncora, porque a igualdade exata que prendia a antiga `rapida` saiu com ela.
+Aprovado (também após o delta E2.611, sem achado novo). O head cumpre o requisito A1 do `docs/security/v047-ci-rapido.md` (agregador não roda código da branch) e o T3 (teto de pulados fora do agregador). A guarda da catraca barra o checkout no agregador (S1 abaixo), mas é lista negativa (AR-3): aceita `git clone` + `sh`, `curl | sh`, `container:` e `${{ github.head_ref }}` no agregador. Sem caminho de ataque hoje (o head está correto e o PR de fork já roda o próprio workflow sem segredo), fica como recomendação. O A1 da rodada anterior (pipefail) continua aberto e agora cobre as 4 pernas sem âncora, porque a igualdade exata que prendia a antiga `rapida` saiu com ela.
 
 ## Achados
 - A1 (recomendado) tests/test_falhas_no_resumo.py:226 · guarda do pipefail só por texto; comentar o `set -o pipefail` nas 4 pernas (ci.yml:85, 197, 379, 450) mantém 170 testes verdes. Executar o `run:` real com interpretador falso que sai 1 e exigir rc≠0. Estado: aberto desde E2.288.
