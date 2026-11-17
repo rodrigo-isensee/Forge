@@ -3,16 +3,18 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: 081473ac553f7a38d80c1783052afd03f34da97c
+commit: 73ba49f74c522e53e2ab2d59c5c0ffe4ead5329a
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-15
+data: 2026-11-16
 ---
 # Review de segurança: v047 (lote B, destino opaco, junção com a develop)
 
 Revalidação por delta da junção `081473ac` (E2.130): merge de `7294bea3` (a branch, `c22624c5` mais pareceres) com a `develop` `bf475209`. `forge-check parecer delta`, intervalo `c22624c5..081473ac`, sem o que veio da base. No domínio só `bin/forge-testes`; fora, `tests/test_testes_tocados.py`. São os dois arquivos com conflito. Não fiz a junção.
 
 **A junção não muda comportamento.** Em `bin/forge-testes`, o resultado é a `develop` mais o lado da branch (`f4b0c2ae..7294bea3`): `test_hook_destino_opaco` e `test_conformidade_opaco` em `FORGE_CHECK` e na regra `hooks/.*` do `MAPA`, e `test_hook_destino_opaco` em `REAPROVEITAM_O_LOTE`, mantendo o `test_conferencia_dois_pedidos` e o `--texto` da `develop`. São só listas de módulos do plano dirigido (o filtro do pre-push, nunca portão de CI); só acrescentam, nada sai. Em `tests/test_testes_tocados.py`: o `sem_oraculos` da branch e a contagem de 83 para 86. Nos outros 315 arquivos, o diff `bf475209..081473ac` é linha por linha igual ao da branch (`f4b0c2ae..7294bea3`): o merge não trouxe nada além dos dois lados. A `develop` não tocou `hooks/` desde `f4b0c2ae`, por isso o `hooks/conformidade.py` e as linhas citadas nos achados são os de `c22624c5`. O delta não toca o oráculo (`tests/test_oraculo_v047.py` é o da branch).
+
+**Revalidação no head `73ba49f7` (E2.535), depois da junção `81c50342` com a `develop` `86ac0fcb`.** Contra o parecer anterior (`081473ac`), em `hooks/conformidade.py` a única diferença são 9 linhas (`git diff 081473ac HEAD`): a constante `CITA_A_MARCA` ganha `|gravar_resultado_do_pr` (linha 76) e a mensagem de bloqueio da linha 1728 cita a função; vem da `develop` (S2 da E2.142). Só amplia o que é recusado no projeto, sem abrir caminho. Contra a `develop` `86ac0fcb`, o `hooks/conformidade.py` e o `bin/forge-testes` são só o trabalho da branch (`bin/forge-testes`: os módulos `test_hook_destino_opaco` e `test_conformidade_opaco` nas listas do plano dirigido, sem portão de CI). Os pareceres de review e QA (`8e40fe69`, `73ba49f7`) só tocam `docs/`. Rodei `python3 -m unittest tests.test_conformidade_opaco tests.test_hook_destino_opaco` (6 testes, OK) e `tests.test_oraculo_v047` (3 testes, OK); a suíte inteira fica no CI. Nenhum achado novo; A17, A18, A19, A11 e A5 seguem recomendados e A16 segue fechada.
 
 Vale a ordem do dono de 15/11 sobre o lote B: bloqueia só achado antigo aberto ou regressão. A16 segue fechada e a junção não abre regressão. A17 a A19, A11 e A5 continuam recomendados, como no parecer de `c22624c5`.
 
