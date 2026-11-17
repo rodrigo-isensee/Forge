@@ -2,15 +2,15 @@
 tipo: qa
 contrato: 1
 pedido: v047
-branch: melhoria/v047-conformidade-cf1
-commit: 6f8bd39e0d56009cf5f0f43ea528996b9f61a631
+branch: melhoria/v047-conformidade-destino-opaco
+commit: c7a8ff72300365c64aa699e2301c2ca0c9e1b982
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-16
+data: 2026-11-17
 ---
 # QA: v047 conformidade, destino opaco sem resto (A9, A10)
 
@@ -168,17 +168,6 @@ Domínio lido por `forge-check parecer delta`, rc 0, escopo "sem o que veio da b
 - CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local.
 
 Parecer aprovado no 081473ac (`R-QA`): a junção não altera comportamento, sem bug aberto, sem achado.
-
-## Revalidação por delta 081473ac..6f8bd39e (E2.513, CF1 sobre a A9, com a develop 86ac0fcb; instância que não fez a entrega)
-Não existe `v047-conformidade-cf1.md`: a branch `melhoria/v047-conformidade-cf1` parte da A9, e este parecer segue neste arquivo (como o review). Domínio lido por `forge-check parecer delta`, escopo "sem o que veio da base (develop)": `hooks/_comum.py` (`DESCRITOR_DA_REDIRECAO`, A17), `hooks/conformidade.py` (`SO_VARIAVEL` com `$@` e `$*`, A18; `atribui_como_argumento` e o `or` em `valores_da_variavel`, A19), `bin/forge-testes`, `docs/hooks.md`, `docs/hooks-fixtures.md`, 32 fixtures `opaco-cf1-*` e `trava-cf1-*`, `tests/test_conformidade_verde.py` (`OraculoCf1`), `tests/test_testes_tocados.py` e a spec `tests/mutantes/v047-conformidade-cf1.json`. O 6f8bd39e só acrescenta o parecer do review sobre o 0121b3b2 (código idêntico). Oráculo `tests/test_oraculo_v047.py`: o delta não o toca (blob `535134e9…` igual ao gravado).
-- Testes dos arquivos tocados, no clone no 6f8bd39e, sem `-I` e sem a suíte completa: `python3 -m unittest tests.test_conformidade_verde tests.test_conformidade_opaco tests.test_hook_destino_opaco`: 22 testes, OK (69 s). `python3 -m unittest tests.test_testes_tocados`: 161 testes, OK (skipped=1, o skip é da base).
-- Vermelho: `bin/forge-testes --vermelho 081473ac553f7a38d80c1783052afd03f34da97c --modulos test_conformidade_verde,test_hook_destino_opaco,test_conformidade_opaco --prazo 500`: `vermelho: base=081473ac553f head=6f8bd39e0d56`; `OraculoCf1.test_declare_n · H=ok · B=falha · prova (asserção)`; `test_numero_antes_do_git_nao_o_esconde`, `test_redirecao_com_numero` e `test_set_posicional` idem; `test_atribuicao_em_linha_ilegivel_nao_vale · H=ok · B=erro · prova (API ausente)`; `contagem: não prova (passa na base)=17; prova (API ausente)=1; prova (asserção)=4`. Os 17 que passam na base são `CarimboK6` e `ProvaDaSuite`, herdados e fora do CF1.
-- Mutação: `bin/forge-mutante tests/mutantes/v047-conformidade-cf1.json`, `pedido=v047 rev=6f8bd39e0d56`: CF1-R1 (`_comum.py:615`), CF1-S1 (`conformidade.py:327`), CF1-D1 (:730), D2 (:707), D3 (:712), D4 (:715), D5 (:717), D6 (:699) todos `morreu`, nenhum sobrevivente, rc 0. Cada guarda nova do diff tem mutante; as metades `not atribuicao.match(p)` (:715) e `palavras[0] not in DECLARADORES` (:717) ficam cobertas pelos comportamentos D4 e D5 e pelas fixtures `declare-*`, sem mutante próprio (sem achado, a saída 0 vale pelo que a lista cobre). `--cobertura --base 081473ac` sai rc 2 (diff de mais de 300 arquivos pela junção com a develop): sem veredito, conferi a lista contra o diff à mão.
-- Sondas (aspas simples; hook real pela máquina de `tests/test_hooks.py`, fixture `opaco-cf1-set-asterisco-bloqueia` com o comando trocado, em `$TMPDIR`): recusam (rc 2) `set -- .git; cp -rT ev "$@"`, `"$*"`, `$@` sem aspas, `echo a > "$1"`, `"${@}"`, `set -- .git/config; cp x "$@"`, `declare -n d=_`, `declare|typeset|local -n d=.git; cp -rT ev "$d"`, `cp x .git/config 2>/dev/null`, `2>&1`, `cp x 3>y .git/config`, `{fd}>/dev/null cp x .git/config` e `2>x git push --force origin HEAD` (R-VERIFY). Liberam (rc 0) `cp x docs/a.md 2>/dev/null`, `2> /dev/null`, `echo a >&2` e `cp x .git/config 2 > /dev/null` (o `2` separado é palavra: destino `2`, nada grava no `.git`; fixture `numero-separado-libera`). `set -- docs; cp x "$@"` recusa: falso positivo aceito pela regra do hook (recusa na dúvida, R-CONFORMIDADE), não bug. Nenhuma fuga nova.
-- Classe: o CF1 é a mesma família já registrada (AR-14, contexto do shell que o hook não modela); não gravei linha nova em `docs/engineering/achados-recorrentes.md`.
-- CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local. `forge-check docs` rc 0.
-
-Parecer aprovado no 6f8bd39e (`R-QA`): A17, A18 e A19 fecham com teste que falha na base e passa no head, 8 mutantes mortos, sondas sem fuga, nenhum bug aberto, sem achado.
 
 ## Revalidação por delta 081473ac..8e40fe69 (E2.512, junção da develop 86ac0fcb; instância que não fez a entrega)
 Domínio lido por `forge-check parecer delta`: o que veio da base saiu do escopo; o que mudou de nosso lado foi `bin/forge-testes` (tupla `FORGE_CHECK`) e `tests/test_testes_tocados.py` (helper `sem_oraculos`, contagem 88), mais `hooks/conformidade.py`, onde a única diferença contra o 081473ac são as 9 linhas da `CITA_A_MARCA` (E2.142), vindas da develop. Oráculo, fixtures e mutantes do item não mudaram.
