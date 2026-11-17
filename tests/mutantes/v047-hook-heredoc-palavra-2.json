@@ -1,0 +1,46 @@
+{
+  "pedido": "v047-hook-heredoc-palavra",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "HOOK-HEREDOC-PALAVRA-FP: curinga no alvo gravado (bin/l[s]) não deixa o corpo ser dado",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if any(c in alvo for alvo in alvos for c in \"*?[{\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "HOOK-HEREDOC-PALAVRA-FP (A1 E2.6-E2.8): crase fora dos corpos (alvo `echo bin/ls`) não deixa o corpo ser dado",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if \"`\" in comando:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "HOOK-HEREDOC-PALAVRA-FP (A1 E2.6-E2.8): alvo de redireção sem valor literal ('') não deixa o corpo ser dado",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if any(alvo is None or not alvo.valor for alvo in lidos):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "HOOK-HEREDOC-PALAVRA-FP (A3 E2.15): chave de sequência no alvo gravado (bin/l{s..s}) não deixa o corpo ser dado",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if any(c in alvo for alvo in alvos for c in \"*?[{\"):",
+      "para": "    if any(c in alvo for alvo in alvos for c in \"*?[\"):",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia"
+      ]
+    }
+  ]
+}

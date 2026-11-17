@@ -1,5 +1,5 @@
 {
-  "descricao": "HK3-PARECER, PR B (E2): outro programa na chamada: o D segue valendo.",
+  "descricao": "HOOK-HEREDOC-PALAVRA-FP, caso verdadeiro: o git merge está na linha de comando, fora do corpo; a ação crítica real segue recusada.",
   "arquivos": {
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
@@ -19,12 +19,12 @@
     "tool_name": "Bash",
     "tool_use_id": "toolu_9",
     "tool_input": {
-      "command": "cat <<'EOF'\ngit merge x\nEOF\nls f"
+      "command": "cat > a.md <<'FIM'\nnota\nFIM\ngit merge melhoria/x"
     },
     "cwd": "{raiz}"
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "o hook não modela"
+    "stderr": "R-REVIEW"
   }
 }
