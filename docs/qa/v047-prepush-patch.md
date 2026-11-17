@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-prepush-patch
-commit: 5016852d85c156bd54df21a3f6f30529463d6011
+commit: 8079c5d4132e2e5559593f96a2dc5736bea4a1a1
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -49,3 +49,9 @@ Item: patch `docs/devops/pp1-pre-push.patch` (três consertos do `.githooks/pre-
 - Mutação no filtro (4 à mão, copia de `git archive`): sem `TESTE` morto (2 falhas); `motivo_de_controle` trocado por `True` morto (1); saída sempre 0 morta (3); `except` trocado sobrevive (A3).
 - `forge-check docs`: rc=0. PA-7 conferido: AR-1 (lista de mutantes, coberta pelo caso de `bin/`) sem recorrência nova.
 - Suíte inteira: CI do PR (check-run `bateria` do mesmo sha), não rodada aqui.
+
+## Revalidação por delta (head 49aa9ef9, Revisar-sha 8079c5d4, base do delta 5016852d)
+`forge-check parecer delta` listou só `bin/forge-mutante` (opção `--conferir --todas`, AR-12), que veio da `develop` pelo merge 3a309e34 (E2.438), não do item. O patch, o teste do item e o hook em vigor não mudaram desde 5016852d.
+- `python3 -m unittest tests.test_pre_push_patch`: Ran 12 tests, OK.
+- `python3 -m unittest tests.test_forge_mutante` (arquivo tocado pelo merge): Ran 124 tests, OK.
+- A3 (recomendado) segue aberto, sem mudança; sem bloqueante. Suíte inteira: CI do PR (check-run `bateria` do mesmo sha), não rodada aqui. PA-7 conferido: AR-1 e AR-12 sem recorrência nova neste item.
