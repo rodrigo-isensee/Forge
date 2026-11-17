@@ -1118,3 +1118,188 @@ class FalhaDentro(EmProcesso, oraculo.Falha):
 
 class AvisosDentro(EmProcesso, oraculo.Avisos):
     pass
+
+
+class RamosDaRodada(Dentro):
+    """E1.62: o ramo de cada condição da rodada que o resto da suíte não distingue (o texto do registro e a raiz ocupada)."""
+
+    def test_lista_que_falha_registra_o_erro_do_claude(self):
+        p = self.cenario_atualiza()
+        self.ctl(list_falha=True)
+        self.rodar_dentro(p)
+        self.assertIn("falhou:lista:erro interno do claude falso", self.resultados())
+
+    def test_usuario_adia_pela_raiz_ocupada_mesmo_depois_de_uma_livre(self):
+        """seção 3 · escopo do usuário: a primeira raiz com claude está livre e a segunda tem agente; adia pela segunda"""
+        self.instalar("0.47.0", "user")
+        self.publicar("0.47.0")
+        self.publicar("0.47.2")
+        self.definir_ref("v0.47.0")
+        a, b = self.projeto("a"), self.projeto("b")
+        self.agentes(b, 1)
+        with Ocupacao.gancho_instalado(self, "exit 1"):
+            self.rodar_dentro(procs={"claude": [str(a), str(b)], "fechar": [], "duvida": False})
+        self.assertIn("adiado:agentes", self.resultados("user"))
+
+    def test_sem_rede_no_head_simbolico_registra_rede(self):
+        p = self.cenario_atualiza()
+        self.ctl(rede=False)
+        self.rodar_dentro(p)
+        self.assertTrue([r for r in self.resultados("project") if r.startswith("falhou:rede:")], self.resultados())
+
+    def test_sem_rede_na_lista_de_tags_registra_rede(self):
+        p = self.cenario_atualiza()
+        real = fsa.Rodada.git_rede
+
+        def git_rede(rodada, args):
+            return real(rodada, args) if "--symref" in args else (128, "fatal: tags sem rede")
+        with mock.patch.object(fsa.Rodada, "git_rede", git_rede):
+            self.rodar_dentro(p)
+        self.assertIn("falhou:rede:fatal: tags sem rede", self.resultados("project"))
+
+    def test_branch_padrao_errada_registra_qual_e(self):
+        p = self.cenario_atualiza()
+        self.ctl(branch_padrao="develop")
+        self.rodar_dentro(p)
+        self.assertIn("falhou:branch-padrao:refs/heads/develop", self.resultados("project"))
+
+    def test_add_recusado_registra_add(self):
+        p = self.cenario_atualiza()
+        self.ctl(add_falha_para="v0.47.2")
+        self.rodar_dentro(p)
+        self.assertIn("falhou:add:add recusado pelo claude falso", self.resultados("project"))
+
+    def test_update_recusado_registra_update(self):
+        p = self.cenario_atualiza()
+        shutil.rmtree(self.fake / "publicadas" / "0.47.2")
+        self.rodar_dentro(p)
+        self.assertIn("falhou:update:versao nao publicada", self.resultados("project"))
+
+    def test_update_sem_efeito_diz_a_versao_achada(self):
+        p = self.cenario_atualiza()
+        with mock.patch.object(fsa.Rodada, "atualizar_escopo", lambda rodada, e: (0, "")):
+            self.rodar_dentro(p)
+        self.assertIn("falhou:update:esperava 0.47.2, achou 0.47.0", self.resultados("project"))
+
+    def com_fluxo(self, fluxo):
+        p = self.cenario_atualiza()
+        with mock.patch.object(fsa.Rodada, "fluxo", fluxo):
+            self.assertEqual(self.rodar_dentro(p), 0)
+
+    def test_prazo_sem_escopos_registra_prazo(self):
+        def fluxo(rodada):
+            raise fsa.Prazo()
+        self.com_fluxo(fluxo)
+        self.assertIn("falhou:prazo", self.resultados())
+
+    def test_erro_interno_sem_escopos_registra_o_erro(self):
+        def fluxo(rodada):
+            raise RuntimeError("quebrou")
+        self.com_fluxo(fluxo)
+        self.assertIn("falhou:interno:RuntimeError: quebrou", self.resultados())
+
+    def test_linha_da_rodada_sai_no_terminal_e_a_pasta_neutra_some(self):
+        neutras = []
+
+        def fluxo(rodada):
+            neutras.append(rodada.neutro)
+            rodada.mensagem.append(("falhou", "rede"))
+        self.com_fluxo(fluxo)
+        self.assertIn("Forge: sem rede", self.saida)
+        self.assertTrue(neutras and neutras[0])
+        self.assertFalse(os.path.exists(neutras[0]), "a pasta neutra da rodada ficou")
+
+
+def rodada_nua():
+    """Uma `Rodada` fora de qualquer mundo, para os ramos que só leem os campos dela (voltar, linha, cini com dublês)."""
+    with mock.patch.dict(os.environ, {"HOME": tempfile.gettempdir(), "PATH": os.defpath}, clear=True):
+        rodada = fsa.Rodada("atalho", None, 60)
+    rodada.estado = {"bom": {}, "adiamentos": {}}
+    return rodada
+
+
+def escopo(tipo="user", projeto="", versao="0.47.2"):
+    return {"escopo": tipo, "projeto": projeto, "versao": versao, "install": "", "sha": "", "chave": f"{tipo}|{projeto}"}
+
+
+class RamosSemMundo(unittest.TestCase):
+    """E1.62: a volta, a linha do terminal e a comparação do doutor, com dublês nos métodos que saem do processo."""
+
+    def voltar(self, rodada, reprovados, origem=True, update=(0, ""), listar=None):
+        with mock.patch.object(rodada, "salvar_estado", lambda: None), \
+                mock.patch.object(rodada, "origem_conferida", lambda tag, escopos: origem), \
+                mock.patch.object(rodada, "catalogo", lambda tag, escopos: True), \
+                mock.patch.object(rodada, "atualizar_escopo", lambda e: update), \
+                mock.patch.object(rodada, "listar", lambda: listar or []):
+            rodada.voltar(reprovados)
+
+    def test_volta_com_update_recusado_registra_a_falha_do_update(self):
+        rodada = rodada_nua()
+        rodada.url = URL
+        self.voltar(rodada, [(escopo(), {"versao": "0.47.1"}, "item")], update=(1, "recusado"))
+        self.assertIn(("falhou", "update"), rodada.mensagem)
+        self.assertEqual(rodada.res["user|"]["resultado"], "volta-falhou")
+
+    def test_volta_sem_origem_guarda_o_resultado_dos_outros_escopos(self):
+        rodada = rodada_nua()
+        rodada.url = URL
+        rodada.res = {"outro|": {"antes": "0.47.0", "depois": "0.47.0", "resultado": "em_dia"}}
+        self.voltar(rodada, [(escopo(), {"versao": "0.47.1"}, "item")], origem=False)
+        self.assertEqual(rodada.res["outro|"]["resultado"], "em_dia")
+
+    def test_volta_que_falha_diz_a_pasta_so_do_escopo_de_projeto(self):
+        rodada = rodada_nua()
+        rodada.url = URL
+        self.voltar(rodada, [(escopo(), {"versao": "0.47.1"}, "item"), (escopo("project", "/p/x"), {"versao": "0.47.1"}, "item")],
+                    origem=False)
+        texto = rodada.estado["aviso"]["texto"]
+        self.assertIn("--scope project (na pasta /p/x)", texto)
+        self.assertNotIn("--scope user (na pasta", texto)
+
+    def test_linha_de_cada_mensagem(self):
+        casos = [([("volta-falhou", "0.47.2", "0.47.1")], {}, "Forge: 0.47.2 falhou na checagem e a volta falhou; o Jarvis mostra o aviso"),
+                 ([("falhou", "rede")], {}, "Forge: sem rede; segue na 0.47.0"),
+                 ([("falhou", "add")], {}, "Forge: não atualizou (add); segue na 0.47.0"),
+                 ([("atualizado", "0.47.0", "0.47.2", escopo())], {}, "Forge: 0.47.0 -> 0.47.2 (usuário)"),
+                 ([("atualizado", "0.47.0", "0.47.2", escopo("project", "/p/x"))], {}, "Forge: 0.47.0 -> 0.47.2 (x)"),
+                 ([], {"k": {"resultado": "adiado:agentes"}}, "Forge: atualização adiada (trabalho em curso)"),
+                 ([], {"k": {"resultado": "em_dia"}}, None)]
+        for mensagem, res, esperado in casos:
+            with self.subTest(mensagem=mensagem, res=res):
+                rodada = rodada_nua()
+                rodada.escopos = [escopo(versao="0.47.0"), escopo("project", "/p/x", versao="")]
+                rodada.mensagem, rodada.res = mensagem, res
+                self.assertEqual(rodada.linha(), esperado)
+
+    def test_doutor_da_comparacao_roda_no_projeto_do_escopo(self):
+        tmp = Path(tempfile.mkdtemp(prefix="cini-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        for nome in ("novo", "base", "proj"):
+            (tmp / nome / ".claude-plugin").mkdir(parents=True)
+            (tmp / nome / ".claude-plugin" / "plugin.json").write_text("{}")
+        rodada = rodada_nua()
+        rodada.neutro, rodada.projeto = str(tmp), str(tmp / "aberto")
+        chamadas = []
+
+        def doutor(pasta, projeto):
+            chamadas.append(projeto)
+            return [], True
+        e = {**escopo("project", str(tmp / "proj")), "install": str(tmp / "novo")}
+        with mock.patch.object(rodada, "instalacao", lambda caminho: caminho or None), \
+                mock.patch.object(rodada, "claude", lambda args, cap=60: (0, "")), \
+                mock.patch.object(rodada, "rodar", lambda *a, **k: (0, "")), \
+                mock.patch.object(rodada, "problemas_do_doutor", doutor):
+            self.assertEqual(rodada.cini(e, {"installPath": str(tmp / "base")}), (True, ""))
+        self.assertEqual(chamadas, [str(tmp / "proj")] * 2)
+
+
+class ModuloComoScript(unittest.TestCase):
+    def test_modulo_rodado_como_script_recusa_dentro_do_claude(self):
+        """o bloco `__main__` de bin/forge_sempre_atual.py chama main(): dentro do Claude sai 2"""
+        codigo = ("import os, runpy, sys; pasta = sys.argv[1]; sys.path.insert(0, pasta); "
+                  "sys.argv = ['forge_sempre_atual.py', '--gatilho', 'atalho']; "
+                  "runpy.run_path(os.path.join(pasta, 'forge_sempre_atual.py'), run_name='__main__')")
+        r = subprocess.run([sys.executable, "-I", "-c", codigo, str(RAIZ / "bin")], capture_output=True, text=True, timeout=60,
+                           env={"PATH": os.defpath, "HOME": tempfile.gettempdir(), "CLAUDECODE": "1"}, stdin=subprocess.DEVNULL)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("nunca de dentro do Claude", r.stderr)
