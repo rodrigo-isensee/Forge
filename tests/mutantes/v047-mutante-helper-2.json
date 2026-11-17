@@ -17,7 +17,7 @@
   "isentas": [
     {
       "arquivo": "bin/forge-mutante",
-      "linha_base": 810,
+      "linha_base": 918,
       "trecho": "not a.startswith(\"tests/mutantes/\")",
       "motivo": "a condição velha virou apoio(a), cujos ramos têm os mutantes MH-M3 a MH-M9"
     }
