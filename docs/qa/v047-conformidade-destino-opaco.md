@@ -179,3 +179,37 @@ Não existe `v047-conformidade-cf1.md`: a branch `melhoria/v047-conformidade-cf1
 - CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local. `forge-check docs` rc 0.
 
 Parecer aprovado no 6f8bd39e (`R-QA`): A17, A18 e A19 fecham com teste que falha na base e passa no head, 8 mutantes mortos, sondas sem fuga, nenhum bug aberto, sem achado.
+
+## Revalidação por delta 081473ac..8e40fe69 (E2.512, junção da develop 86ac0fcb; instância que não fez a entrega)
+Domínio lido por `forge-check parecer delta`: o que veio da base saiu do escopo; o que mudou de nosso lado foi `bin/forge-testes` (tupla `FORGE_CHECK`) e `tests/test_testes_tocados.py` (helper `sem_oraculos`, contagem 88), mais `hooks/conformidade.py`, onde a única diferença contra o 081473ac são as 9 linhas da `CITA_A_MARCA` (E2.142), vindas da develop. Oráculo, fixtures e mutantes do item não mudaram.
+- Oráculo: `git rev-parse HEAD:tests/test_oraculo_v047.py` = `535134e9…` (igual ao blob), `730843a9` ancestral, `git log 730843a9..HEAD -- tests/test_oraculo_v047.py` vazio.
+- Junção em `bin/forge-testes`: por script, nenhum módulo de teste de `081473ac` nem de `86ac0fcb` saiu do head (`perdeu=[]` nas duas).
+- Testes dos arquivos tocados: `python3 -m unittest tests.test_conformidade_opaco tests.test_hook_destino_opaco tests.test_oraculo_v047 tests.test_testes_tocados`: 170 testes, OK (skipped=1, `MedidaDaVagaPesada`, do sandbox: /proc de outro namespace; não é meu), 121,7 s.
+- Vermelho e mutação: não rerrodei. O delta não muda guarda nem teste de regra do item (a mudança no hook é da base e não é deste pedido); sem condição Python nova do item para `--cobertura`. Vale o vermelho e a mutação do c22624c5.
+- CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local.
+
+Parecer aprovado no 8e40fe69 (`R-QA`): a junção não altera o comportamento do item, sem bug aberto, sem achado.
+
+## Revalidação por delta 8e40fe69..1df5245b (E2.609; instância que não fez a entrega)
+Domínio lido por `forge-check parecer delta`: `tests/mutantes/v046-conformidade-caminho-git-2.json` (G12, G13, G14), `-4.json` (G20) e `tests/test_oraculo_v047.py`. O hook `hooks/conformidade.py` não mudou contra o 81c50342 (`git diff --stat` vazio). Escopo do plano (A9, A10, D2b, U4) inalterado.
+- Oráculo editado pela segurança, com autorização do dono (`sem_manutencao` no ambiente git; fixture `README.md` renomeada para `LEIAME.md`). Prova de não edição: o blob mudou de `535134e9…` para `a9eddad2…` por decisão do dono; commit `1df5245b` toca só o oráculo. Diff linha a linha contra o 730843a9: 4 hunks, todos de ambiente (import de `ambiente_git.sem_manutencao`, a chave `LEIAME.md` e as duas chamadas de `subprocess.run` com `env=sem_manutencao(ambiente())`). Asserções: 10 no original e 10 agora, nenhuma removida nem afrouxada; nenhum `skip`, `skipIf` nem `expectedFailure`; `README` não aparece mais no arquivo (o nome só vivia na tabela `ARQUIVOS`).
+- Mutantes realinhados: o `de` de G12, G13, G14 e G20 agora é o trecho com o sufixo `# A5`, `# A3`, a atribuição inteira ou o `self.rev_parse_misto or`; o `para` faz a mesma troca de antes (`--target-directory` ignorado, `"`" in a` vira `False`, `m["crase"]` sai, `any(...)` vira `False`). Cada `de` existe uma única vez em `hooks/conformidade.py` (linhas 2059, 2060, 387, 1572) e o teste que deve cair é o mesmo (`test_fixtures_gitcomum`).
+- Mutação: `bin/forge-mutante --processos 4 --base 81c503420c2cd99a376ac73a68a7ef7be1181bf2 tests/mutantes/v046-conformidade-caminho-git-2.json tests/mutantes/v046-conformidade-caminho-git-4.json`, cabeçalho `base=81c503420c2c… mb=81c503420c2c… rev=1df5245b257c`: G12, G13, G14 e G20 `morreu`; também `morreu` G9, G10, G11, G15, G16, G21, G22, G23, G24 e G26; `G25 · sobreviveu · hooks/conformidade.py:1947` (ver A1).
+- Testes, sem `-I`: `python3 -m unittest tests.test_oraculo_v047 tests.test_ambiente_git tests.test_reval_delta`: 33 testes, OK, 52 s.
+- CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local.
+
+Parecer aprovado no 1df5245b (`R-QA`): oráculo sem asserção mais fraca, G12, G13, G14 e G20 mortos como antes, 33 testes OK. Sem bug do pedido; o A1 é dívida herdada da v046 e não bloqueia este pedido.
+
+## Revalidação por delta 1df5245b..b9e4d58a (E2.620, junção da develop c7a8ff72; instância que não fez a entrega)
+Domínio lido por `forge-check parecer delta`, rc 0, escopo "sem o que veio da base (develop)": `bin/forge-testes`, `tests/test_testes_tocados.py` e uma linha de `docs/engineering/achados-recorrentes.md` (AR-4, `:63` para `:64`; confere com o formato do PA-7). O hook, as fixtures, os mutantes e o oráculo não mudam. Escopo do plano (A9, A10, D2b, U4) inalterado.
+- Conflito em `bin/forge-testes`: o mapa `hooks/.*` manteve os quatro testes, entre eles `test_pre_push_patch` (da develop, E2.567); a regra nova `docs/devops/pp1-pre-push.patch` liga o patch ao mesmo teste. Nenhum módulo saiu.
+- Oráculo: `git merge-base --is-ancestor 730843a9 HEAD` ok; `git rev-parse HEAD:tests/test_oraculo_v047.py` = `a9eddad2…` (blob autorizado pelo dono no 1df5245b, registrado no delta anterior; o delta atual não o toca); `git log 730843a9..HEAD -- tests/test_oraculo_v047.py` lista só o `1df5245b` (e o merge que o traz), nenhum commit novo.
+- Testes, sem `-I`: `python3 -m unittest tests.test_testes_tocados tests.test_oraculo_v047`: 165 testes, OK (skipped=1, `MedidaDaVagaPesada`, do sandbox: /proc de outro namespace; não é meu), 71,6 s.
+- Vermelho: `bin/forge-testes --vermelho 1df5245b257c35fe86f49f4278a0beb1e363ba4a --modulos test_testes_tocados --prazo 500`, saída 0: `vermelho: base=1df5245b257c head=b9e4d58a658f`; `Convencao.test_o_patch_do_pre_push_e_o_comum_dos_hooks_levam_ao_test_pre_push_patch · H=ok · B=falha · prova (asserção)`; `MapaCobreOQueOsTestesLeem.test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=159; prova (asserção)=2; pulado=1`.
+- Mutação e cobertura: não rerrodei. A mudança em `bin/forge-testes` é dado do `MAPA` (tupla e regex), sem condição Python nova; o teste novo prova a ligação dos dois caminhos. `forge-mutante --cobertura --base 1df5245b…` só lista condições vindas da develop (`bin/forge-mutante`, `tests/ambiente_git.py`) e `não coberto` de arquivos não Python; nada do delta do pedido. Vale a mutação anterior.
+- CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local.
+
+Parecer aprovado no b9e4d58a (`R-QA`): a junção mantém os quatro testes do mapa `hooks/.*`, o teste novo tem vermelho na base, 165 testes OK, sem bug aberto, sem achado novo.
+
+## Achados
+- A1 (recomendado) tests/mutantes/v046-conformidade-caminho-git-4.json:1 · G25 sobrevive (hooks/conformidade.py:1947). Fora do delta: igual no 81c50342 e no develop; o pedido não toca a linha. Vira cartão: teste que mate G25 ou declará-lo equivalente.

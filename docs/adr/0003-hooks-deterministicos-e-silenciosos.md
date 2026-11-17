@@ -51,3 +51,10 @@ Estado da emenda: **proposta**. Nenhum hook injeta contexto até esse PR; o item
 5. Registro velho (hora do registro além do prazo do item 5) sai marcado como velho, nunca omitido.
 
 Critério de reversão da emenda: um caso em que o texto do Histórico, injetado, mude o comportamento da sessão (injeção no contexto), ou mais de 2 retomadas por mês com o estado injetado divergente do pedido.
+
+## Emenda: SessionStart do ambiente (E2.54, ORDEM DO DONO 15/11 16:46)
+**Exceção ao item 1**, além da emenda da retomada: o hook `ambiente` escreve no `SessionStart` **só quando falta algo no ambiente do container** e então imprime as linhas `falta:` com o comando exato de cada uma, mais um recado ao Jarvis para dá-las ao dono na 1ª mensagem. Regras:
+1. Ambiente em ordem, fora do container, erro interno ou demora: silêncio total e saída 0 (itens 1 e 4).
+2. O conteúdo vem do `--verificar` do script do **plugin** (cópia instalada), nunca do work tree que o agente edita; o `--verificar` só lê, sem rede além do `gh auth status` e com prazo de 7 s (item 2).
+3. As linhas são `falta: <comando fixo>` geradas pelo script, sem texto vindo do projeto, do pedido ou do usuário.
+4. O núcleo do Jarvis não muda: o recado vive no texto do hook.

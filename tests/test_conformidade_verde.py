@@ -79,6 +79,10 @@ class ProvaDaSuite(ComProjeto):
                 for c in (f"cat {v}", f"echo x > {self.tmp}/outro.txt", *([] if raiz else [outra])):  # ADR 0009, 6
                     r = self.rodar("Bash", {"command": c}, papel, cwd=pasta, **extra)
                     self.assertEqual(r.returncode, 0, f"{c}, {caso}: {r.stderr}")
+        for papel in ("forge:tech-lead", None):  # linha que o hook não lê (sem_leitura): volta ao texto e recusa só se cita a prova
+            self.recusa(self.rodar("Bash", {"command": f"(true)#' {v}"}, papel, cwd=fora), f"ilegível com a prova, papel {papel}")
+            r = self.rodar("Bash", {"command": f"(true)#' {self.tmp}/outro.txt"}, papel, cwd=fora)
+            self.assertEqual(r.returncode, 0, f"ilegível sem a prova, papel {papel}: {r.stderr}")
         nb = self.rodar("NotebookEdit", {"notebook_path": v, "new_source": "x"}, "forge:conferente", cwd=fora)
         self.recusa(nb, "papel só de leitura: a recusa dele vem antes e não vale fora de projeto")
         self.assertFalse((fora / ".forge").exists(), "a outra recusa não é erro interno: nada no erros.log")

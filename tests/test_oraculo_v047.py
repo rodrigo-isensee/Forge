@@ -21,13 +21,16 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parent.parent
 HOOKS = RAIZ / "hooks"
 TETO_DE_EXECUCOES = 150
 PRAZO_LARGO_S = 120
 
 ARQUIVOS = {"x": "x\n", "config": "c\n", "pre-push": "p\n", "lugar.txt": ".git\n", "docs/a.md": "a\n",
-            "hooks/pre-push": "p\n", "src/app.js": "v1\n", "README.md": "projeto\n", ".gitignore": ".forge/run/\n",
+            "hooks/pre-push": "p\n", "src/app.js": "v1\n", "LEIAME.md": "projeto\n", ".gitignore": ".forge/run/\n",
             ".forge/config.json": "{}\n"}
 
 LANCADOR = """
@@ -54,8 +57,8 @@ def ambiente():
 
 
 def git(*args, cwd):
-    return subprocess.run(["git", *args], cwd=cwd, env=ambiente(), check=True, capture_output=True, text=True,
-                          timeout=60)
+    return subprocess.run(["git", *args], cwd=cwd, env=sem_manutencao(ambiente()), check=True, capture_output=True,
+                          text=True, timeout=60)
 
 
 def montar(tmp, amb):
@@ -90,7 +93,7 @@ def montar(tmp, amb):
 
 def bases_do_git(pasta):
     r = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"], cwd=pasta,
-                       env=ambiente(), capture_output=True, text=True, timeout=30)
+                       env=sem_manutencao(ambiente()), capture_output=True, text=True, timeout=30)
     return {Path(os.path.realpath(pasta / ".git"))} | {Path(os.path.realpath(p)) for p in r.stdout.split()}
 
 

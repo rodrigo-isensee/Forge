@@ -27,8 +27,10 @@ from _comum import (bloquear, e_clone_do_forge, executar, gravar_json, ler_json,
 
 CASCAS = {"sh", "bash", "dash", "zsh"}
 EVENTOS = {"PreToolUse", "PostToolUse", "PostToolUseFailure", "PermissionDenied"}
-# Sem o par Post (permissão negada, outro hook bloqueou), a trava não prende as outras sessões por horas.
-TRAVA_S = 600
+# Sem o par Post (permissão negada, outro hook bloqueou), a trava não prende as outras sessões por horas. Com o PID
+# vivo ela vale até 1.200 s, acima da suíte em série (até 693 s, MAQ-I9); com o PID morto solta na hora. A espera na
+# fila (ESPERA_S) não muda: o teto dela é o timeout do PreToolUse, e quem passa dele recusa com a posição.
+TRAVA_S = 1200
 # Palavras que só lançam a ferramenta: `sudo`, `npx playwright`, `pnpm exec playwright`...
 LANCADORES = {"sudo", "env", "time", "nice", "nohup", "exec", "command", "npx", "pnpx", "bunx", "uvx"}
 GERENCIADORES = {"npm", "pnpm", "yarn", "bun", "uv", "poetry"}
