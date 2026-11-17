@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-maq-i9-trava-s
-commit: 8bff4e7dbb0a168e55356899a00e64648c27a49f
+commit: 07319ed9b506d894403898f7efde8e3ce08090bb
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-17
@@ -25,7 +25,10 @@ Gatilhos: controle do Forge (hook `pesado`, `R-TETO`), afrouxa-regra (prazo da t
 - Mutantes do `tests/mutantes/v047-maq-i9-trava-s.json`, aplicados numa cópia por `git archive` em `$TMPDIR`: M1 (`TRAVA_S = 600`) derruba `test_pid_vivo_ha_mais_de_10_min_segue_ocupado_e_vai_para_a_fila`; M2 (`TRAVA_S = 1400`) derruba `test_pid_vivo_ha_mais_de_20_min_solta`. Os dois mortos.
 
 ## Achados
-- A1 (recomendado) docs/hooks.md:122 · Doc do hook ainda diz 10 min em :14 (tabela), :72 (prazo da trava) e :122 (negação interativa "só contida pelos 10 minutos"); o prazo agora é 20 min. Trocar as três por 20 minutos (TRAVA_S = 1.200 s). Dono: tech-lead.
+- A1 (recomendado) docs/hooks.md:122 · Corrigido no 07319ed9: :14, :72, :122 e :123 agora dizem 20 minutos (1.200 s), iguais a `hooks/pesado.py:33`. Estado: resolvido.
+
+## Revalidação (volta por delta)
+`forge-check parecer delta`: do 8bff4e7d ao head, o único arquivo no domínio é `docs/hooks.md` (4 linhas, 10 min para 20 min (1.200 s)); nenhum código, hook, teste ou controle novo. Releitura do trecho: sem outro "10 minutos" restante sobre a trava. Parecer anterior (8bff4e7d) mantido; o prazo de código segue provado pelos mutantes M1 e M2 lidos na rodada anterior.
 
 ## Sondas
 
