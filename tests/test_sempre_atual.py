@@ -24,6 +24,7 @@ sys.path.insert(0, str(RAIZ / "bin"))
 import forge_sempre_atual as fsa  # noqa: E402
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 from test_oraculo_sempre_atual import CLAUDE_FALSO, STUB_DA_FERRAMENTA, URL, Mundo, git_real  # noqa: E402
+import test_oraculo_sempre_atual as oraculo  # noqa: E402
 
 LIVRE = {"claude": [], "fechar": [], "duvida": False}
 
@@ -1070,3 +1071,50 @@ class Entradas(Mundo):
         self.assertEqual(len(self.chamadas_do_stub()), 1)
         self.assertIn("atualização do plugin tentada no postStart", r.stdout)
         self.assertTrue((self.home / ".local" / "bin" / "jarvis").is_file())
+
+
+class EmProcesso:
+    """As classes do oráculo com a ferramenta (`fsa.main`) rodada dentro do processo e o `/proc` dublado livre (E1.62): no sandbox
+    o `/proc` é de outro namespace e a rodada de verdade sai `adiado:duvida:proc`; aqui os mutantes da rodada se provam também
+    localmente. Mesmos argumentos, ambiente (`clear=True`) e saída (`CompletedProcess`) de `Mundo.rodar`."""
+
+    def rodar(self, projeto=None, gatilho="atalho", orcamento=None, stdin=None, env=None, timeout=90, direto=False):
+        args = ["--gatilho", gatilho] + (["--projeto", str(projeto)] if projeto else [])
+        args += ["--orcamento", str(orcamento)] if orcamento is not None else []
+        saida, erro = io.StringIO(), io.StringIO()
+        with mock.patch.dict(os.environ, env or self.env(), clear=True), mock.patch.object(fsa, "processos_de_interesse", lambda: LIVRE), \
+                contextlib.redirect_stdout(saida), contextlib.redirect_stderr(erro):
+            rc = fsa.main(args)
+        return subprocess.CompletedProcess(args, rc, saida.getvalue(), erro.getvalue())
+
+
+class EscoposDentro(EmProcesso, oraculo.Escopos):
+    pass
+
+
+class AncoraDentro(EmProcesso, oraculo.Ancora):
+    pass
+
+
+class VoltaDentro(EmProcesso, oraculo.Volta):
+    pass
+
+
+class CatalogoDentro(EmProcesso, oraculo.Catalogo):
+    pass
+
+
+class SemEnvioDentro(EmProcesso, oraculo.SemEnvio):
+    pass
+
+
+class ModeloDentro(EmProcesso, oraculo.Modelo):
+    pass
+
+
+class FalhaDentro(EmProcesso, oraculo.Falha):
+    pass
+
+
+class AvisosDentro(EmProcesso, oraculo.Avisos):
+    pass
