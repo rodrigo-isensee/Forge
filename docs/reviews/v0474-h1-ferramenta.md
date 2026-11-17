@@ -3,12 +3,21 @@ tipo: review
 contrato: 1
 pedido: v0474
 branch: melhoria/v0474-h1-ferramenta
-commit: 4ddaa68bb20c6f79d68e518b9c7e2ab72aa04782
-parecer: reprovado
+commit: 7924b25bd1fc5dbd50213c6cf303cbfce774a365
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
 ---
-# Review: v0474 (E2.25, H1-ferramenta)
+# Review: v0474 (E2.25, H1-ferramenta; revalidado no E2.34)
+
+## Revalidação (E2.34, head 7924b25b)
+Delta lido: `forge-check parecer delta docs/reviews/v0474-h1-ferramenta.md`, intervalo `4ddaa68b..7924b25b`, no domínio `bin/forge-check`, `bin/forge_tamanho.py`, `tests/test_forge_tamanho.py` e as três specs de mutantes.
+- A1 resolvido: `bin/forge-check:1428` só confere o corpo com `state == "OPEN"` (o `{}` sem PR cai no mesmo ramo); `test_pr_fechado_ou_mesclado_nao_reprova` cobre CLOSED e MERGED e o OPEN que reprova; M13 (`if not pr:`) e M21 (`if False:`) na guarda. A S1 agora dá `[]` com só o aviso.
+- A2 resolvido: `tem_motivo(corpo, total)` exige `<n> >= total` em alguma linha (`bin/forge_tamanho.py:39`), com `test_numero_do_motivo_cobre_o_total` (9 e 151 contra 160 e 400 reprovam; linha velha mais a nova passa) e M22.
+- Novo: `tamanho_do_pr` recebe a `ref` no teste (`test_ref_diferente_do_head_mede_a_ref`, M20); carga do módulo sob demanda (`tam()`), sem mudar o que se afirma.
+- Mutação no delta: `bin/forge-mutante --processos 1 --base 4ddaa68b` nas três specs: 22 de 22 mortos (M1 a M22); `--cobertura --base 4ddaa68b`: as guardas mudadas (`forge-check:1428`, `forge_tamanho.py:39` e `:44`) cobertas. Testes novos rodados: `Ran 10 tests`, `OK`. Suíte inteira no CI do PR. Código do item: 118 linhas em `bin/`, dentro do teto (M14).
+
+## Review anterior (head 4ddaa68b)
 
 Diff `681d4b33...4ddaa68b`: `bin/forge_tamanho.py` novo, `tamanho_do_pr` e os avisos do `brief gerar` em `bin/forge-check`, `test_forge_tamanho` no `FORGE_CHECK` (91), 19 mutantes em `tests/mutantes/v0474-h1-ferramenta*.json`, M29 e M30 de `lote-l08-e7.json` realinhados.
 
@@ -22,4 +31,6 @@ Conferido: classificação pelo `e_codigo` do T1 (testes, docs e `changelog.d/` 
 - S1 · tamanho_do_pr com item de 151 linhas e gh falso {"state": "CLOSED"} e depois "MERGED", corpo sem a linha do teto · espera: [] e só o aviso · obtido: ['pr: tamanho: 151 linhas de código acima do teto de 150 sem a linha ... no corpo do PR #7'] nos dois
 
 ## Parecer
-Reprovado por A1: a reprovação do corpo vale só com o PR aberto (requisito do E2.13), e hoje vale com qualquer PR que o gh devolva para a branch. Sugestão: em `tamanho_do_pr`, `if not pr or pr.get("state") != "OPEN": return []` antes do `falta_de_motivo`, com um teste do ramo CLOSED/MERGED e o mutante da guarda nova na spec `-2` ou numa `-4`. A2 não devolve.
+Aprovado no head 7924b25b: A1 e A2 corrigidos, com teste do ramo de falha e mutante morto para cada guarda mudada.
+
+Parecer anterior (4ddaa68b): reprovado por A1: a reprovação do corpo vale só com o PR aberto (requisito do E2.13), e hoje vale com qualquer PR que o gh devolva para a branch. Sugestão: em `tamanho_do_pr`, `if not pr or pr.get("state") != "OPEN": return []` antes do `falta_de_motivo`, com um teste do ramo CLOSED/MERGED e o mutante da guarda nova na spec `-2` ou numa `-4`. A2 não devolve.
