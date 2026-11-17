@@ -4,6 +4,8 @@
 `pr` aprovado sai com rc 0 e uma linha `pr: veredito: aprovado · <pedido> · exigidos <pareceres> · head <sha7> · base <origin/x|diff literal|estrita>`; com violação, só as violações e rc 1.
 Fora do `--previo` e do `--pr`, o `pr` grava o resultado do head em `<diretório comum do git>/forge/pr/<head>/`: o hook `parecer` o lê no `gh pr create` (PR-HOOK-PRAZO) e, como atalho, no `gh pr ready` e no `gh pr merge` (PR-HOOK-RAPIDO: o reprovado recusa; o aprovado libera só no clone do Forge).
 
+H1 (v0474 E2.13): o `pr` avisa no stderr do item acima de 150 linhas de código (testes e documentação não contam) e, com o PR da branch aberto, reprova o corpo sem `teto: excedido, <n> linhas, <motivo>`; o `brief gerar` avisa do pedido com mais de 50 etapas e do brief a 90% do teto de caracteres (bin/forge_tamanho.py).
+
 Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs [ARQUIVO...] | kanban [--gerar] | pr <pedido> [--ref REF] [--base REF]   (as duas opções também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
      forge-check transcricao verificar <arquivo.jsonl> [--teto N]
@@ -1399,6 +1401,33 @@ def base_do_delta(raiz, base, ref=None):
     return resolvida, None
 
 
+def tamanho_do_pr(raiz, ref, base, branch, previo=False):
+    """H1 (v0474 E2.13): as linhas de código do diff `base...ref` (testes e documentação não contam, `e_codigo`); acima do teto, o
+    aviso no stderr e, com o PR da `branch` aberto, a violação se o corpo dele não traz `teto: excedido, <n> linhas, <motivo>`. Sem PR
+    ainda, no `--previo` ou sem `gh`, só o aviso: o corpo se confere quando o PR existe (o `forge-fechar` roda o `pr` de novo)."""
+    b = base_da_entrega(raiz, base, so_a_pedida=True)
+    if not b:
+        return []
+    contagens = contagens_do_intervalo(raiz, b, ref or "HEAD", tres_pontos=True, estrito=True)
+    if contagens is None:
+        print("pr: tamanho: não conferido: o git não leu o diff --numstat (H1)", file=sys.stderr)
+        return []
+    tamanho = modulo_do_bin("forge_tamanho")
+    total = tamanho.linhas_de_codigo(contagens, e_codigo)
+    aviso = tamanho.aviso_de_linhas(total)
+    if not aviso:
+        return []
+    print(f"pr: {aviso}", file=sys.stderr)
+    if previo or not branch or branch in BASES_DO_FLUXO:
+        return []
+    pr, motivo = pr_da_branch(raiz, branch, corpo=True)
+    if pr is None:
+        print(f"pr: tamanho: corpo do PR não verificável ({motivo}); o forge-fechar confere de novo (H1)", file=sys.stderr)
+        return []
+    falta = tamanho.falta_de_motivo(total, pr.get("body"), pr.get("number")) if pr else None
+    return [falta] if falta else []
+
+
 def avisar_classe(raiz, ref, base):
     """P5: a classe da entrega e o motivo, no stderr do `pr` (o veredito do stdout não muda de forma), só em T e C, que mudam o que
     se exige; N (review e QA) é o de sempre e não fala."""
@@ -1429,7 +1458,8 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
                   file=sys.stderr)
         avisar_classe(raiz, ref, None)
         branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
-        return cmd_pr(raiz, pedido, ref, None, branch, previo) + (conferencia_do_head(raiz, pedido, ref, None, branch) if conferir else [])
+        return cmd_pr(raiz, pedido, ref, None, branch, previo) + (conferencia_do_head(raiz, pedido, ref, None, branch)
+                                                                  + tamanho_do_pr(raiz, ref, None, branch, previo) if conferir else [])
     nome = base.removeprefix("origin/")
     if nome not in BASES_DO_FLUXO:
         return [f"pr: --base {nome_seguro(sem_controle(base))}: use {', '.join(BASES_DO_FLUXO)} (ou origin/<uma delas>); a base é lida de origin/<base>"]
@@ -1444,7 +1474,8 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
         print(f"pr: promoção: o head é o da integração e a base é {nome}; a conferência do head ficou nos PRs da leva (TEMPO-B2)", file=sys.stderr)
         return cmd_pr(raiz, pedido, ref, resolvida, branch, previo)  # na leva da promoção valem os pareceres de todos os itens
     branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
-    return cmd_pr(raiz, pedido, ref, resolvida, branch, previo) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch) if conferir else [])
+    return cmd_pr(raiz, pedido, ref, resolvida, branch, previo) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch)
+                                                                   + tamanho_do_pr(raiz, ref, nome, branch, previo) if conferir else [])
 
 
 def promocao(raiz, ref, base):
@@ -8424,11 +8455,12 @@ def aviso_de_base_sha(raiz, texto):
 TETO_DO_GH_S = 10  # o `gerar` nunca espera mais que isto pela rede (P5)
 
 
-def pr_da_branch(raiz, branch):
+def pr_da_branch(raiz, branch, corpo=False):
     """(dados do PR, None) por `gh pr view <branch> --json number,state,headRefOid` (grátis, R-CUSTO; teto de 10 s), ({}, None) sem PR,
-    ou (None, motivo) sem `gh`, sem rede ou com erro: a linha sai `não verificável` e o brief não é barrado por isso."""
+    ou (None, motivo) sem `gh`, sem rede ou com erro: a linha sai `não verificável` e o brief não é barrado por isso. Com `corpo`
+    (H1, v0474 E2.13), o `body` do PR vai junto, em `body`."""
     try:
-        r = subprocess.run(["gh", "pr", "view", branch, "--json", "number,state,headRefOid"], cwd=raiz, capture_output=True,
+        r = subprocess.run(["gh", "pr", "view", branch, "--json", "number,state,headRefOid" + (",body" if corpo else "")], cwd=raiz, capture_output=True,
                            text=True, timeout=TETO_DO_GH_S, stdin=subprocess.DEVNULL)
     except FileNotFoundError:
         return None, "sem gh"
@@ -8438,7 +8470,8 @@ def pr_da_branch(raiz, branch):
         return ({}, None) if "no pull requests found" in r.stderr.lower() else (None, "gh sem rede ou sem acesso")
     try:
         dados = json.loads(r.stdout)
-        return {"number": int(dados["number"]), "state": str(dados["state"]), "head": str(dados.get("headRefOid", ""))}, None
+        return {"number": int(dados["number"]), "state": str(dados["state"]), "head": str(dados.get("headRefOid", "")),
+                **({"body": str(dados.get("body") or "")} if corpo else {})}, None
     except (ValueError, KeyError, TypeError):
         return None, "resposta do gh ilegível"
 
@@ -8592,6 +8625,9 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
         lembrar_do_jarvis(raiz, tipo_da_etapa(None, volta=True))
         return gerar_volta(raiz, caminho_pedido, pedido_txt, volta)
     dados = ler_pedido_brief(pedido_txt)
+    tamanho = modulo_do_bin("forge_tamanho")
+    if aviso := tamanho.aviso_de_etapas(len(dados["etapas"])):  # H1 (v0474 E2.13): pedido com cerca de 50 etapas no máximo
+        print(f"brief gerar: aviso: {aviso}", file=sys.stderr)
     papel_destino = nome_do_papel(destino)
     coberta, erro = etapa_coberta(dados, papel_destino, cobre)
     if erro:
@@ -8746,6 +8782,8 @@ def cmd_brief_gerar(raiz, pedido, destinos, branch, base, etapa=None, volta=None
         if rc or texto is None:
             print("\n".join(mensagens))
             return rc or 1
+        if aviso := modulo_do_bin("forge_tamanho").aviso_de_caracteres(len(texto), TETO_DE_CARACTERES_DO_BRIEF):  # PEDIDO-TETO-BRIEF
+            print(f"brief gerar: aviso: {aviso}", file=sys.stderr)
         gerados.append((destino, texto))
     if not gravar:
         sys.stdout.write(gerados[0][1])
