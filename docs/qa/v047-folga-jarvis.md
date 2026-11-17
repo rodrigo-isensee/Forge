@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-folga-jarvis
-commit: 2a95b1630df4dbf2fa45d39c916393e4423d6c44
+commit: 6288db934914dcf2ce14bae404987057dbe7b48c
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -97,3 +97,17 @@ Código testado: ebeb9161 (o remoto c4351c3e só soma pareceres de review e segu
 Parecer: aprovado, sem achados novos.
 
 
+
+## Revalidação por delta (E2.676): 2a95b163..6288db93, exemplo neutro no lugar do pulo
+
+`forge-check parecer delta` listou no meu domínio `tests/fixtures/diretrizes-do-dono-exemplo.md` (novo, 29 diretrizes numeradas) e `tests/test_jarvis_nucleo.py` (o teste do arquivo do dono lê o exemplo quando `FORGE_DIRETRIZES_DONO` não existe, em vez de `skipTest`). Os commits seguintes (bebfcc8a, 0fc802e6, 09dcbd6c) só tocam pareceres de review e segurança.
+
+- Execução local (TMPDIR, só o arquivo tocado): `env -u FORGE_DIRETRIZES_DONO python3 -m unittest tests.test_jarvis_nucleo`: `Ran 43 tests ... OK`, sem skip.
+- Sonda de mutação: arquivo do dono com a linha extra `30. extra` apontado por `FORGE_DIRETRIZES_DONO`: `FAILED (failures=1)`. O teste não passa por vazio: número sem entrada na tabela do Jarvis reprova.
+- Vermelho antes do verde: a sonda do "30." faz o papel; antes o teste era pulado e não provava nada. Suíte inteira no CI do PR; sem PR neste head, não cito `bateria`.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Diretriz do dono sem entrada na tabela reprova, também no CI | `test_cada_numero_do_arquivo_do_dono_tem_entrada` | número a mais que a tabela (30); arquivo ausente | passou; a sonda derruba |
+
+Parecer: aprovado, sem achados novos.
