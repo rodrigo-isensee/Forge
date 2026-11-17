@@ -1,0 +1,16 @@
+{
+  "pedido": "v0475-h3-h8",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "só a linha de parecer desatualizado ou reprovado dá o delta",
+      "arquivo": "bin/forge-check",
+      "de": "(m := PARECER_A_REVALIDAR.match(linha))",
+      "para": "(m := re.match(r\"(\\S+)\", linha))",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_parecer_ausente_ou_com_outra_violacao_nao_avisa"
+      ]
+    }
+  ]
+}
