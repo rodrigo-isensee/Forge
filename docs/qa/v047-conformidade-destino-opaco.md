@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: 1df5245b257c35fe86f49f4278a0beb1e363ba4a
+commit: c7a8ff72300365c64aa699e2301c2ca0c9e1b982
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -188,6 +188,17 @@ Domínio lido por `forge-check parecer delta`: `tests/mutantes/v046-conformidade
 - CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local.
 
 Parecer aprovado no 1df5245b (`R-QA`): oráculo sem asserção mais fraca, G12, G13, G14 e G20 mortos como antes, 33 testes OK. Sem bug do pedido; o A1 é dívida herdada da v046 e não bloqueia este pedido.
+
+## Revalidação por delta 1df5245b..b9e4d58a (E2.620, junção da develop c7a8ff72; instância que não fez a entrega)
+Domínio lido por `forge-check parecer delta`, rc 0, escopo "sem o que veio da base (develop)": `bin/forge-testes`, `tests/test_testes_tocados.py` e uma linha de `docs/engineering/achados-recorrentes.md` (AR-4, `:63` para `:64`; confere com o formato do PA-7). O hook, as fixtures, os mutantes e o oráculo não mudam. Escopo do plano (A9, A10, D2b, U4) inalterado.
+- Conflito em `bin/forge-testes`: o mapa `hooks/.*` manteve os quatro testes, entre eles `test_pre_push_patch` (da develop, E2.567); a regra nova `docs/devops/pp1-pre-push.patch` liga o patch ao mesmo teste. Nenhum módulo saiu.
+- Oráculo: `git merge-base --is-ancestor 730843a9 HEAD` ok; `git rev-parse HEAD:tests/test_oraculo_v047.py` = `a9eddad2…` (blob autorizado pelo dono no 1df5245b, registrado no delta anterior; o delta atual não o toca); `git log 730843a9..HEAD -- tests/test_oraculo_v047.py` lista só o `1df5245b` (e o merge que o traz), nenhum commit novo.
+- Testes, sem `-I`: `python3 -m unittest tests.test_testes_tocados tests.test_oraculo_v047`: 165 testes, OK (skipped=1, `MedidaDaVagaPesada`, do sandbox: /proc de outro namespace; não é meu), 71,6 s.
+- Vermelho: `bin/forge-testes --vermelho 1df5245b257c35fe86f49f4278a0beb1e363ba4a --modulos test_testes_tocados --prazo 500`, saída 0: `vermelho: base=1df5245b257c head=b9e4d58a658f`; `Convencao.test_o_patch_do_pre_push_e_o_comum_dos_hooks_levam_ao_test_pre_push_patch · H=ok · B=falha · prova (asserção)`; `MapaCobreOQueOsTestesLeem.test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=159; prova (asserção)=2; pulado=1`.
+- Mutação e cobertura: não rerrodei. A mudança em `bin/forge-testes` é dado do `MAPA` (tupla e regex), sem condição Python nova; o teste novo prova a ligação dos dois caminhos. `forge-mutante --cobertura --base 1df5245b…` só lista condições vindas da develop (`bin/forge-mutante`, `tests/ambiente_git.py`) e `não coberto` de arquivos não Python; nada do delta do pedido. Vale a mutação anterior.
+- CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local.
+
+Parecer aprovado no b9e4d58a (`R-QA`): a junção mantém os quatro testes do mapa `hooks/.*`, o teste novo tem vermelho na base, 165 testes OK, sem bug aberto, sem achado novo.
 
 ## Achados
 - A1 (recomendado) tests/mutantes/v046-conformidade-caminho-git-4.json:1 · G25 sobrevive (hooks/conformidade.py:1947). Fora do delta: igual no 81c50342 e no develop; o pedido não toca a linha. Vira cartão: teste que mate G25 ou declará-lo equivalente.
