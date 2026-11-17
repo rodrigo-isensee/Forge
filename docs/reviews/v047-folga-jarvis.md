@@ -1,0 +1,95 @@
+---
+tipo: review
+contrato: 1
+pedido: v047
+branch: melhoria/v047-folga-jarvis
+commit: 6288db934914dcf2ce14bae404987057dbe7b48c
+parecer: aprovado
+revisor: forge:tech-lead
+data: 2026-11-17
+---
+# Review: v047 (E1.167, folga do texto do Jarvis P1 a P4 e FOCO-NAS-DECISOES)
+
+## Achados
+- A1 (recomendado) agents/agile-coach.md:13 · "Métricas de fluxo do time ... pelas convenções da skill `kanban-scrum`": as métricas foram para `kanban-metricas` (P1). Sem perda, porque as duas estão no `skills:` do agile-coach, mas o ponteiro ficou errado; trocar o nome da skill, como já foi feito na linha 23.
+- A2 (recomendado) agents/jarvis.md:14 · "Leia falar-com-o-dono ... diante de ordem ampla": "Ordem ampla não confirma" foi para `fluxo-do-pedido`, e a falar-com-o-dono só aponta para ela, sem "leia" (a description perdeu "resolva, acabe tudo, pode fazer"). Sem perda (fluxo-do-pedido é lida antes de todo pedido); corrigir o ponteiro.
+- A3 (recomendado) skills/fluxo-do-pedido/SKILL.md:8 · o cabeçalho diz que a skill foi "movido inteiro e sem mudar palavra", mas a seção `## Versão` (linha 46) é texto novo, o resumo da diretriz 21 (decisão do dono de 14/11 08:16). Ressalvar a seção, para o próximo leitor não a tratar como trecho movido.
+- A4 (recomendado) tests/apoio_jarvis.py:73 · ordem de leitura conferida por linha: skill passa com "leia" de outra skill. Reproduzido: sem o "Leia `fluxo-do-pedido`" da jarvis.md:42, `contribuir-com-o-forge` reprova; modo-iniciante e novo-projeto passam assim na :14. Segue a proposta P4.
+- A5 (recomendado) skills/falar-com-o-dono/SKILL.md:12 · o ponteiro de toda mensagem é "em `<arquivo>`", sem "leia", e a regra vale a cada mensagem do dono (description). Sem perda: o texto está inteiro em toda-mensagem.md, com invariante; trocar por "Leia `<arquivo>`" nos quatro ponteiros, como na jarvis.md.
+
+## Sondas
+
+## Parecer
+Aprovado no head ebeb9161 (classe C pelo `forge-check classe`: review ∥ QA ∥ segurança, gatilho `tests/config.json`). São dois commits, um por item (P1 a P4; FOCO-NAS-DECISOES), em Conventional Commits, com o fragmento `changelog.d/v047-folga-jarvis.md`.
+
+**Diretriz 25: só movido, nenhuma palavra mudada.** Script sobre `git diff -U0 origin/develop...ebeb9161 -- agents skills templates`: das 57 linhas removidas não vazias, 54 existem literais no head (agents/*.md e skills/*/SKILL.md). As 3 que não existem são:
+- agile-coach.md:23: só o ponteiro `kanban-scrum` → `kanban-metricas` muda, porque a "Retrospectiva" mudou de skill;
+- a `description:` da falar-com-o-dono, que é cabeçalho e não regra; ver A2;
+- templates/projeto/CLAUDE.md:30: o texto antigo fica inteiro como prefixo e a frase da diretriz 29 vem depois.
+
+Os resumos novos do Jarvis (linhas 13, 15, 18, 24, 27, 32 e 42) são texto novo, que a decisão do dono (a) de 13/11 19:52 autoriza. Os invariantes de `tests/config.json` só mudam de chave: os 21 que saem de `agents/jarvis.md` e os 3 de ordem ampla que saem de `skills/falar-com-o-dono/SKILL.md` estão todos sob `skills/fluxo-do-pedido/SKILL.md`. Os dois invariantes novos (diretriz 29) e o ponteiro novo entram com regra e motivo. Nenhum invariante sumiu. `LEGADO_TRECHOS_MAXIMO` desce de 284 para 225 e `invariantes_sem_motivo` do jarvis desce de 49 para 28: os dois apertam.
+
+**Mudanças fora do previsto, julgadas:**
+- `agents/agile-coach.md` (P1): a skill nova entra no `skills:` e a linha da retrospectiva da 0.42 vai, palavra por palavra, para `kanban-metricas`, que o agile-coach carrega. Só muda de lugar: aceita. Os testes que a liam (`test_medidas_m14b` e `test_forge.PraticasDeEspecificacao`) leem agora o agente mais a skill e exigem o ponteiro. Fica A1.
+- `skills/falar-com-o-dono`: custo e origem, resposta curta, ordem ampla e ritmo vão inteiros para `fluxo-do-pedido`, e o espaço que sobra recebe o detalhe da diretriz 29, que o dono mandou pôr nessa skill (ordem de 14/11 08:09). É o caminho da diretriz 25: aceita. Fica A2.
+- Testes de texto: `test_forge.Agentes`, `test_reval_delta` e `test_metricas_texto` seguem o texto para o arquivo novo, e a mensagem da catraca passa a mandar mover (P3), com teste das duas mensagens. Nenhuma asserção ficou mais frouxa: aceita.
+- Diretrizes 26 a 28 como `pendente`: a decisão do dono de 14/11 08:38 classificou só a 2, a 11, a 23 e a 24. A 26, a 27 e a 28 nasceram depois da proposta, valem "no Forge e em todos os projetos" e ainda não têm texto na fábrica. `pendente` é a única classe honesta para elas: exige cartão (INTEGRACAO-EM-LOTE, RELEASE-EM-1H e SESSAO-AUTOMATICA, todos no `KANBAN.md`), reprova quando o texto já existe e só desce (`MAX_PENDENTES` = 7). Aplica o mesmo critério da decisão e não afrouxa nada: aceita. Recomendo uma linha `técnico` no pedido.
+
+**Teste de presença (P4)** em `tests/test_jarvis_nucleo.py` com `tests/apoio_jarvis.py`:
+- o conjunto do Jarvis é calculado, não lista fixa: 30 arquivos neste head;
+- os IDs vêm da tabela do índice das regras (≥ 17) e as diretrizes da fixture neutra, de 1 a 29, sem buraco;
+- há 11 mutantes numa árvore sintética, um para cada caso da proposta (AR-1);
+- os mínimos de itens estão afirmados (checklist 11).
+
+A4 é recomendação. Foram rodados (ambiente limpo):
+- `test_jarvis_nucleo test_metricas_texto test_reval_delta test_clareza test_forge.{Agentes,RegrasInviolaveis,PraticasDeEspecificacao} test_medidas_m14b.MedidaM2b`: 80 testes OK, 1 pulado (arquivo do dono);
+- o mesmo subteste com `FORGE_DIRETRIZES_DONO` apontando o arquivo do dono: OK, cada número de 1 a 29 tem entrada;
+- `test_forge.{Skills,Neutralidade,NeutralidadeDoNucleo,AntiDuplicacao,Orcamento} test_orcamento_instrucao`: 20 OK.
+
+Também rodei um mutante: com "uma vez por dia" trocado por "uma vez por semana" na seção Versão, a diretriz 21 reprova, e a mensagem diz onde procurar e "não apague (diretriz 25)". A suíte inteira fica para o CI do PR; ainda não há PR.
+
+**Pendências para o PR (não são do código):**
+- Tamanho (M14): 390 linhas de `tests/*.py` e `tests/config.json`. O corpo do PR precisa trazer `teto: excedido, 390 linhas, <motivo>`; o motivo é o lote que o dono decidiu (P1 a P4 num PR), quase todo teste de presença e invariante movido de chave.
+- Este parecer cobre o review. Segurança (gatilho `tests/config.json`) e QA são portões à parte (E1.168 e E1.169).
+
+## Revalidação por delta (head `8a223677`, E1.182)
+Delta lido: `forge-check parecer delta docs/reviews/v047-folga-jarvis.md` (rc=0), intervalo `ebeb9161..8a223677`, domínio código e testes: `tests/apoio_jarvis.py`, `tests/mutantes/v047-folga-jarvis.json`, `tests/test_jarvis_nucleo.py`. Um commit (`fix(testes)`, Conventional Commits), na volta da E1.176, sobre o A1 (bloqueante) e o A2 do QA e da segurança.
+
+- **A1 (presença passava sempre):** `problemas_das_regras` agora junta só `agents/jarvis.md` e `skills/*/SKILL.md` do conjunto (`TEXTO_DO_JARVIS.fullmatch`); o índice `docs/regras/README.md` e os textos das regras deixam de contar. Aperta e não afrouxa: um ID citado só em `docs/` passa a reprovar. Sonda na árvore real (cópia por `git archive`): sem as crases de `R-MAIN` no Jarvis e nas skills dá `['R-MAIN: não aparece no Jarvis nem nas skills citadas']`; no head intacto dá `[]`. Resolvido.
+- **A2 (mutante que não pegava A1):** `test_id_que_some_do_jarvis_reprova_com_o_indice_no_conjunto` afirma que o índice está no conjunto, reprova `R-UM` e volta a passar com o ID numa skill do nível 2. Resolvido.
+- Mutantes declarados (`tests/mutantes/v047-folga-jarvis.json`, uma guarda por linha mudada: o filtro, a regex e a presença do filtro): `bin/forge-mutante` deu M1, M2 e M3 `morreu`. `tests.test_jarvis_nucleo`: 40 testes OK, 1 pulado (arquivo do dono). A suíte inteira fica para o CI do PR.
+
+Os achados A1 a A4 acima seguem `recomendado` e não mudam. Parecer: **aprovado** no head `8a223677`.
+
+## Revalidação por delta (head `16b7ca74`, E1.191)
+Delta lido: `forge-check parecer delta docs/reviews/v047-folga-jarvis.md` (rc=0), intervalo `8a223677..16b7ca74`, sem o que veio da base. No domínio: `templates/projeto/CLAUDE.md`, `tests/test_forge.py` e `tests/test_reval_delta.py`. É um commit de merge da `develop` (`f4b0c2ae`), em Conventional Commits, com conflito em `tests/test_reval_delta.py`, que o integrador resolveu.
+
+- **Conflito:** `CITACOES_CONHECIDAS` mantém as duas entradas, a da branch (`tests/apoio_jarvis.py`, P4) e a da develop (`tests/test_ambiente_sem_auto_update.py`). Contra a develop, o diff do arquivo é só o da branch: `kanban-metricas` (P1) e `apoio_jarvis.py` (P4). Nada se perdeu e nenhuma contagem afrouxou: resolvido certo.
+- **`templates/projeto/CLAUDE.md` e `tests/test_forge.py`:** o delta é só o que veio da develop (linha "Ambiente", `HookPrePush.push` com casa própria, classe `PreEnvioDoModelo`). O que a branch muda nos dois arquivos continua igual ao head aprovado: a frase da diretriz 29 em `R-DECISAO`, `test_time_do_jarvis_existe`, `LEGADO_TRECHOS_MAXIMO = 225` e `kanban-metricas`. O merge não reverte nada.
+- Rodados (o teste do conflito e os vizinhos): `test_reval_delta` (10 OK), `test_ambiente_sem_auto_update` (1 OK), `test_jarvis_nucleo` (40 OK, 1 pulado), `test_forge` `HookPrePush`, `PreEnvioDoModelo` e `test_time_do_jarvis_existe` (28 OK) e `test_forge` `RegrasInviolaveis`, `Agentes` e `PraticasDeEspecificacao` (13 OK). A suíte inteira fica para o CI do PR. Este delta não traz achado novo; A1 a A4 continuam recomendações.
+
+## Revalidação por delta (head `cd79a259`, E2.292)
+Delta lido: `forge-check parecer delta docs/reviews/v047-folga-jarvis.md` (rc=0), intervalo `16b7ca74..cd79a259`, sem o que veio da base. No domínio: `templates/projeto/CLAUDE.md`, `tests/test_forge.py` e `tests/test_reval_delta.py`. Merge da `develop` (`5e74c70e`) sobre os commits de parecer (`f97677ef`), com conflito em `tests/test_reval_delta.py`.
+
+- **Conflito:** `CITACOES_CONHECIDAS` mantém as três entradas: a da branch (`tests/apoio_jarvis.py`, P4) e as da develop (`tests/test_ambiente_sem_auto_update.py` e `tests/test_sessao_automatica.py`, E2.222). Contra a develop, o diff do arquivo segue só o da branch (`kanban-metricas` e `apoio_jarvis.py`): nada se perdeu, nenhuma contagem afrouxou.
+- **`templates/projeto/CLAUDE.md` e `tests/test_forge.py`:** o delta é só o que veio da develop (seção "Sessão", `gh --version` nos falsos, a linha da E2.201). Contra a develop, a branch muda o mesmo que no head aprovado: a frase da diretriz 29 em `R-DECISAO`, `test_time_do_jarvis_existe`, `LEGADO_TRECHOS_MAXIMO = 225` e `kanban-metricas`. O merge não reverte nada.
+- Rodados: `test_reval_delta`, `test_sessao_automatica` e `test_jarvis_nucleo` (63 OK, 1 pulado, arquivo do dono). A suíte inteira fica para o CI do PR. Sem achado novo; A1 a A4 continuam recomendações. Parecer: **aprovado** no head `cd79a259`.
+
+## Revalidação por delta (head `2a95b163`, E2.654)
+Delta lido: `forge-check parecer delta docs/reviews/v047-folga-jarvis.md` (rc=0), intervalo `cd79a259..2a95b163`, sem o que veio da base. O aviso do delta sobre o merge `7453f896` é o remoto da própria branch (só `docs/qa/v047-folga-jarvis.md`), não outra branch.
+
+- **Merges (E2.474):** `e8b254b3` resolveu conflito em `agents/jarvis.md`, `falar-com-o-dono/SKILL.md`, `kanban-scrum/SKILL.md`, `tests/config.json` e `test_jarvis_nucleo.py`; contra a develop `86ac0fcb`, o diff da branch é o do head aprovado sobre o texto novo da develop (PR 584). `3b25e87a` ajusta o legado do jarvis.md para 27. `2712bc2f` é limpo: `git merge-tree` dos dois pais dá a mesma árvore do commit.
+- **Diretriz 29 (`733a1f45`, decisão do dono de 17/11, opção 1):** sai a versão curta "Pedido das decisões"; cada frase dela tem par na longa (SKILL.md:18): ler só as abertas numa consulta, lista por peso e a primeira completa, `forge-check anotar` e a próxima, o time segue, sem aviso entre as perguntas, "Não há decisão sua pendente". "foco total" fica na description. As 8 invariantes da curta trocadas por 8 da longa, mais estritas (frases inteiras).
+- **Parágrafos movidos (`ae01c4fa`, `2a95b163`, diretriz 25):** Q2, toda mensagem e etapa após a develop estão palavra por palavra em `pergunta-pendente.md`, `toda-mensagem.md` e `conferir-develop.md`, com ponteiro na SKILL.md, invariante do ponteiro, invariantes do texto e `invariantes_motivo` (`R-DECISAO`) no arquivo novo. Os testes leem o arquivo novo e afirmam o ponteiro; `test_jarvis_n_jar_a` leva `R-CUSTO` e `R-CONFORMIDADE` para `pergunta-pendente.md` e sobe o mínimo de 2 para 3.
+- **Nada sumiu:** contra a `origin/develop` `73a0ab81`, toda invariante que sai de um arquivo entra noutro (as do jarvis.md na `fluxo-do-pedido`, já aprovadas; as da falar-com-o-dono na versão longa e nos três arquivos novos); invariantes 455 → 468, arquivos 55 → 59. Nenhuma checagem afrouxou.
+- Rodados: `test_jarvis_nucleo` e `test_jarvis_n_jar_a` (OK, 1 pulado, arquivo do dono), `test_metricas_texto`, `test_medidas_m14b` e `test_forge` `RegrasInviolaveis`, `Agentes`, `Skill` e `Orcamento` (16 OK). A suíte inteira fica para o CI do PR.
+
+A5 é novo e `recomendado`; A1 a A4 seguem recomendações. Parecer: **aprovado** no head `2a95b163`.
+
+## Revalidação por delta (head `6288db93`, E2.673)
+Delta lido: `forge-check parecer delta docs/reviews/v047-folga-jarvis.md`, intervalo `2a95b163..6288db93`. No domínio: `tests/fixtures/diretrizes-do-dono-exemplo.md` (novo) e `tests/test_jarvis_nucleo.py`. O aviso sobre o merge `37de64a` é o remoto da própria branch (só `docs/security/v047-folga-jarvis.md`), não outra branch. Um commit `test(jarvis)` (E2.672), em Conventional Commits.
+
+- **A checagem não afrouxou, apertou:** antes, sem `FORGE_DIRETRIZES_DONO` (o caso do CI), `test_cada_numero_do_arquivo_do_dono_tem_entrada` pulava; agora lê a fixture neutra (números 1 a 29) e afirma a mesma coisa. Com a variável apontando arquivo existente, o caminho é o de antes, sem mudança de asserção. Variável apontando arquivo inexistente cai na fixture em vez de pular: também não afrouxa.
+- **Sondas:** sem a variável, o teste roda e passa (OK, sem pulo). Cópia da fixture com `30. extra`: reprova com `['diretriz 30 do arquivo do dono sem entrada']`. A fixture é neutra (`R-NEUTRO`): só "diretriz de exemplo N".
+
+Sem achado novo; A1 a A5 seguem recomendações. Parecer: **aprovado** no head `6288db93`.

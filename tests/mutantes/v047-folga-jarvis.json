@@ -1,0 +1,36 @@
+{
+  "pedido": "v047-folga-jarvis",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a presenca de um ID so conta no Jarvis e nas skills (o filtro nao se inverte)",
+      "arquivo": "tests/apoio_jarvis.py",
+      "de": "TEXTO_DO_JARVIS.fullmatch(rel)",
+      "para": "not TEXTO_DO_JARVIS.fullmatch(rel)",
+      "testes": [
+        "tests.test_jarvis_nucleo.MutantesDaPresenca.test_id_que_some_do_jarvis_reprova_com_o_indice_no_conjunto"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o ID citado so numa skill do conjunto conta como presente",
+      "arquivo": "tests/apoio_jarvis.py",
+      "de": "r\"agents/jarvis\\.md|skills/[a-z0-9-]+/SKILL\\.md\"",
+      "para": "r\"agents/jarvis\\.md\"",
+      "testes": [
+        "tests.test_jarvis_nucleo.MutantesDaPresenca.test_id_que_some_do_jarvis_reprova_com_o_indice_no_conjunto"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "sem o filtro o indice das regras volta a contar (o defeito A1)",
+      "arquivo": "tests/apoio_jarvis.py",
+      "de": "for rel, texto in conjunto.items() if TEXTO_DO_JARVIS.fullmatch(rel))",
+      "para": "for rel, texto in conjunto.items())",
+      "testes": [
+        "tests.test_jarvis_nucleo.MutantesDaPresenca.test_id_que_some_do_jarvis_reprova_com_o_indice_no_conjunto"
+      ]
+    }
+  ]
+}
