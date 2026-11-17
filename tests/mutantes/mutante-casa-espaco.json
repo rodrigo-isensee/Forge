@@ -6,8 +6,8 @@
       "id": "C1",
       "guarda": "com prefixo e sufixo sobrepostos o trecho desliza ate o inicio do sufixo",
       "arquivo": "bin/forge-mutante",
-      "de": "primeira = max(comum - sufixo, ini - inicio)",
-      "para": "primeira = max(prefixo, ini - inicio)",
+      "de": "primeira = max(comum - sufixo, ini - onde[0])",
+      "para": "primeira = max(prefixo, ini - onde[0])",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_de_e_para_que_dividem_o_espaco_junto_da_condicao_casam"
       ]
@@ -16,7 +16,7 @@
       "id": "C2",
       "guarda": "o trecho nao comeca antes do no",
       "arquivo": "bin/forge-mutante",
-      "de": "primeira = max(comum - sufixo, ini - inicio)",
+      "de": "primeira = max(comum - sufixo, ini - onde[0])",
       "para": "primeira = comum - sufixo",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_casamento_pelo_intervalo_do_no_e_as_travas_do_de"
@@ -26,8 +26,8 @@
       "id": "C3",
       "guarda": "o trecho nao comeca depois do fim do prefixo comum",
       "arquivo": "bin/forge-mutante",
-      "de": "ultima = min(prefixo, fim - inicio - (len(de) - comum))",
-      "para": "ultima = fim - inicio - (len(de) - comum)",
+      "de": "ultima = min(prefixo, fim - onde[0] - (len(de) - comum))",
+      "para": "ultima = fim - onde[0] - (len(de) - comum)",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_casamento_pelo_intervalo_do_no_e_as_travas_do_de",
         "tests.test_forge_mutante.Cobertura.test_de_e_para_que_dividem_o_espaco_junto_da_condicao_casam"
@@ -37,8 +37,8 @@
       "id": "C5",
       "guarda": "o casa exige alguma posicao do trecho dentro do no",
       "arquivo": "bin/forge-mutante",
-      "de": "and primeira <= ultima):",
-      "para": "and True):",
+      "de": "if primeira > ultima:",
+      "para": "if False:",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_casamento_pelo_intervalo_do_no_e_as_travas_do_de",
         "tests.test_forge_mutante.Cobertura.test_de_e_para_que_dividem_o_espaco_junto_da_condicao_casam"
