@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: 081473ac553f7a38d80c1783052afd03f34da97c
+commit: 81c503420c2cd99a376ac73a68a7ef7be1181bf2
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-15
+data: 2026-11-16
 ---
 # Review: v047 · CONFORMIDADE-A9-DESTINO-OPACO e CONFORMIDADE-A10-OPERADOR-COLADO (E1.335, E1.339, E1.343)
 
@@ -68,9 +68,16 @@ Contagem: `FORGE_CHECK` tem 76 nomes na base, 79 na develop e 81 na junção, se
 
 Conclusão: a resolução não muda comportamento além da soma dos dois lados; a contagem 86 corrige de quebra o vermelho da develop.
 
+## Revalidação por delta 081473ac..81c50342 (E2.504, junção com a develop 86ac0fcb; instância que não fez a entrega)
+Delta lido: `forge-check parecer delta docs/reviews/v047-conformidade-destino-opaco.md` (rc 0), intervalo `081473ac..81c50342`, sem o que veio da base; no domínio `bin/forge-testes`, `tests/test_testes_tocados.py`, `hooks/conformidade.py`, `docs/hooks.md`, `docs/hooks-fixtures.md` e `docs/engineering/achados-recorrentes.md`.
+
+`git show --remerge-diff 81c50342` sai vazio: a junção não teve conflito nem edição à mão. O diff de `hooks/conformidade.py` contra a develop 86ac0fcb, antes (081473ac) e agora, difere só no trecho `CITA_A_MARCA` que o revert do #576 trouxe na develop; as linhas da A9 e da A10 são as mesmas já aprovadas. Sem mudança de comportamento da branch.
+
+Verificador: `python3 -m unittest tests.test_testes_tocados` no 81c50342: 161 testes, OK (skipped=1, o `/proc` de outro namespace). `forge-check docs` rc 0. A suíte completa fica com o CI do PR.
+
 ## Achados
 
 ## Sondas
 
 ## Parecer
-Aprovado no 081473ac (R-REVIEW). A junção com a develop bf475209 resolve os conflitos de `bin/forge-testes` e `tests/test_testes_tocados.py` pela união dos dois lados, sem mudar comportamento; a contagem 86 confere com o plano real. Aprovação anterior no c22624c5 mantida; a suíte completa fica com o CI do PR.
+Aprovado no 81c50342 (R-REVIEW), por delta: junção limpa com a develop 86ac0fcb, código da branch igual. Antes: aprovado no 081473ac. A junção com a develop bf475209 resolve os conflitos de `bin/forge-testes` e `tests/test_testes_tocados.py` pela união dos dois lados, sem mudar comportamento; a contagem 86 confere com o plano real. Aprovação anterior no c22624c5 mantida; a suíte completa fica com o CI do PR.
