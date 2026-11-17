@@ -3,6 +3,8 @@
 
 Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--prazo SEGUNDOS] [--processos K]
      forge-mutante --cobertura --base SHA [--rev REV]
+     forge-mutante --conferir --base SHA [--rev REV]
+     forge-mutante --conferir --todas [--rev REV]
   SPEC     arquivo JSON versionado na branch (`tests/mutantes/<pedido>.json`; pedido com mais de 16 mutantes
            divide em `tests/mutantes/<pedido>-<n>.json` e passa todas, do mesmo pedido e sem id repetido):
            {"pedido": "<id>", "executor": "unittest",
@@ -44,6 +46,13 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--prazo SEGUNDOS] [
            teste ou isenta, 1 = alguma sem mutante, só com equivalente ou apagada, 2 = entrada inválida (base que não
            é commit, diff vazio, spec inválida, arquivo que não faz parse, mais de 300 arquivos, 1 MiB por arquivo, 4 MiB
            de diff, 5000 condições num arquivo ou spec com mais de 64 KiB). A primeira linha é `base= mb= rev=`, para bater com o Base-sha do brief.
+  --conferir --base SHA  em segundos, sem rodar teste nem analisar condição: nas specs que o diff adiciona ou edita, o
+           `de` de cada mutante uma vez no arquivo do rev e a `linha_base` de cada isenta numa condição da base com o trecho
+           (saída 1 com `<spec>: <id> · ...` por desencontro; 0 sem spec no diff; 2 entrada inválida).
+  --conferir --todas  o `de` de cada mutante uma vez no arquivo do rev, em todas as specs de tests/mutantes/ do rev, com ou
+           sem diff (AR-12: a spec envelhece quando outro commit muda a linha que ela muta; o CI roda, em
+           tests/test_forge_mutante.py); a `linha_base` das isentas fica com o --base. Saída 1 com `<spec>: <id> · ...` por
+           desencontro, 0 tudo no lugar, 2 entrada inválida ou nenhuma spec.
 
 Para cada mutante, uma cópia nova do commit em $TMPDIR (clone local com `.git` próprio). O controle (os testes
 declarados, sem a troca) tem de passar. Aí o `de` tem de aparecer uma vez só no arquivo, a troca é aplicada e os
@@ -633,15 +642,94 @@ def mutantes_do_diff(mudadas, rev):
     return mutantes, isentas, avisos
 
 
+def base_do_diff(base, rev):
+    """(base, rev, merge-base) resolvidos na raiz do repositório, com a linha `base= mb= rev=`; ValueError ou RuntimeError."""
+    os.chdir(git("rev-parse", "--show-toplevel").strip())
+    sha_base, sha_rev = resolver(base), resolver(rev)
+    if sha_base is None or sha_rev is None:
+        raise ValueError("--base e --rev precisam resolver a um commit")
+    mb = git("merge-base", sha_base, sha_rev).strip()
+    print(f"base={sha_base} mb={mb} rev={sha_rev}")
+    return sha_base, sha_rev, mb
+
+
+@functools.lru_cache(maxsize=None)
+def texto_no_commit(sha, arquivo):
+    """O texto do arquivo no commit, lido uma vez por rodada (o `--todas` relê o mesmo arquivo a cada mutante); "" se não lê."""
+    try:
+        return ler_no_commit(sha, arquivo).decode("utf-8")
+    except ValueError:  # ausente, ilegível ou fora do UTF-8
+        return ""
+
+
+def vezes_no_commit(sha, arquivo, trecho):
+    return texto_no_commit(sha, arquivo).count(trecho)
+
+
+def linha_base_bate(isenta_, mb):
+    """A `linha_base` da isenta abre, na base, uma condição Python com o trecho uma vez no nó (o que `cruza` pede)."""
+    try:
+        texto = fonte(isenta_["arquivo"], ler_no_commit(mb, isenta_["arquivo"]))
+        nos = condicoes(texto)
+    except (ValueError, SyntaxError):
+        return False
+    dados, trecho = texto.encode("utf-8"), isenta_["trecho"].encode("utf-8")
+    return any(c[1] == isenta_["linha_base"] and dados[c[3]:c[4]].count(trecho) == 1 for c in nos)
+
+
+def desencontros_da_spec(dados, mb, rev):
+    """O `de` de cada mutante que não aparece uma vez no arquivo do `rev` e a `linha_base` que não bate na base."""
+    saida = [f"{m['id']} · o trecho aparece {n} vezes em {m['arquivo']} (precisa de uma) · {m['de'][:60]!r}"
+             for m in dados["mutantes"] if (n := vezes_no_commit(rev, m["arquivo"], m["de"])) != 1]
+    return saida + [f"isenta {n} · linha_base {i['linha_base']} de {i['arquivo']} sem condição com o trecho na base · "
+                    f"{i['trecho'][:60]!r}" for n, i in enumerate(dados.get("isentas", []), 1)
+                    if "linha_base" in i and not linha_base_bate(i, mb)]
+
+
+def specs_do_rev(rev):
+    """`--todas`: (sha do rev, todas as specs de tests/mutantes/ dele); ValueError sem commit ou sem spec."""
+    os.chdir(git("rev-parse", "--show-toplevel").strip())
+    sha_rev = resolver(rev)
+    if sha_rev is None:
+        raise ValueError("--rev precisa resolver a um commit")
+    nomes = list(filter(SPEC_DO_DIFF.fullmatch, git("ls-tree", "-z", "--name-only", sha_rev, "--", "tests/mutantes/").split("\0")))
+    if not nomes:
+        raise ValueError(f"nenhuma spec em tests/mutantes/ de {sha_rev[:12]}")
+    return sha_rev, nomes
+
+
+def conferir(base, rev, todas=False):
+    """`--conferir --base`, em segundos e sem rodar teste: nas specs que o diff `merge-base(base, rev)..rev` adiciona ou
+    edita, o `de` de cada mutante uma vez no arquivo do `rev` e a `linha_base` de cada isenta na base (a linha que
+    envelhece depois de um merge da develop). Com `todas` (AR-12), o `de` de todas as specs do `rev`, sem base nem isenta.
+    Saída: 0 = confere ou nenhuma spec no diff, 1 = `<spec>: ...` por desencontro, 2 = entrada inválida (base que não é
+    commit, spec inválida, `--todas` sem spec)."""
+    try:
+        if todas:
+            (sha_rev, nomes), mb = specs_do_rev(rev), None
+        else:
+            _sha_base, sha_rev, mb = base_do_diff(base, rev)
+            nomes = git("--literal-pathspecs", "diff", "--name-only", "--diff-filter=AM", "-z", "--no-renames", mb, sha_rev,
+                        "--", "tests/mutantes/").split("\0")
+        saida, specs = [], list(filter(SPEC_DO_DIFF.fullmatch, sorted(nomes)))
+        for spec in specs:
+            dados = json.loads(fonte(spec, ler_no_commit(sha_rev, spec), MAXIMO_DA_SPEC))
+            problemas = validar_spec(dados)
+            if problemas:
+                raise ValueError(f"{spec}: spec inválida ({'; '.join(problemas)})")
+            saida += [f"{spec}: {x}" for x in desencontros_da_spec({**dados, "isentas": []} if todas else dados, mb, sha_rev)]
+    except (RuntimeError, ValueError, OSError) as erro:
+        print(f"forge-mutante: {erro}", file=sys.stderr)
+        return 2
+    print("\n".join(saida) or (f"conferidas: {len(specs)} specs, o trecho de cada mutante no lugar" if todas
+                                else "conferidas: o trecho de cada spec do diff está no lugar"))
+    return 1 if saida else 0
+
+
 def cobertura(base, rev):
     """Saída 0, 1 ou 2 da checagem do autor (ver o docstring do módulo)."""
     try:
-        os.chdir(git("rev-parse", "--show-toplevel").strip())
-        sha_base, sha_rev = resolver(base), resolver(rev)
-        if sha_base is None or sha_rev is None:
-            raise ValueError("--base e --rev precisam resolver a um commit")
-        mb = git("merge-base", sha_base, sha_rev).strip()
-        print(f"base={sha_base} mb={mb} rev={sha_rev}")
+        sha_base, sha_rev, mb = base_do_diff(base, rev)
         if mb == sha_rev:
             raise ValueError("o merge-base é o próprio --rev: o diff é vazio (--base HEAD ou ramo sem commit novo)")
         if git("status", "--porcelain"):
@@ -674,10 +762,14 @@ def cobertura(base, rev):
 
 
 def anotar(segundos, codigo):
-    LOG.parent.mkdir(parents=True, exist_ok=True)
+    """Uma linha no `.forge/run/testes.log`; o log que não se grava (só leitura, pasta no lugar) é aviso: o veredito já saiu."""
     agora = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    with LOG.open("a", encoding="utf-8") as f:
-        f.write(f"{agora} modo=mutante modulos=- duracao={segundos:.1f}s saida={codigo}{contexto()}\n")
+    try:
+        LOG.parent.mkdir(parents=True, exist_ok=True)
+        with LOG.open("a", encoding="utf-8") as f:
+            f.write(f"{agora} modo=mutante modulos=- duracao={segundos:.1f}s saida={codigo}{contexto()}\n")
+    except OSError as erro:  # candidata 8 da retro 0.45.6
+        print(f"forge-mutante: aviso: não gravei {LOG} ({erro}); o veredito acima vale.", file=sys.stderr)
 
 
 class Controles:
@@ -696,6 +788,20 @@ class Controles:
             return self.estados[chave]
 
 
+def teste_no_commit(sha, teste):
+    """O commit `sha` tem o teste `tests.x[.Classe[.teste]]`: o módulo dele e, abaixo do módulo, o `def` ou a `class` do
+    último nome. O controle vermelho mais comum é o teste só na árvore de trabalho, e a cópia é do commit."""
+    partes = teste.split(".")
+    for fim in range(2, len(partes) + 1):
+        try:
+            texto = ler_no_commit(sha, "/".join(partes[:fim]) + ".py").decode("utf-8", "replace")
+        except ValueError:
+            continue
+        if fim == len(partes) or re.search(rf"\b(def|class)\s+{re.escape(partes[-1])}\b", texto):
+            return True
+    return False
+
+
 def provar(m, sha, raiz, trabalho, prazo, controles):
     """Um mutante de ponta a ponta, na cópia só dele (L33, C-33a): (linha, código 0, 1 ou 2, se algum teste rodou)."""
     if "equivalente" in m and "testes" not in m:
@@ -712,7 +818,9 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
 
     estado = controles.obter(tuple(m["testes"]), controle)
     if estado != "ok":
-        return f"{m['id']} · {'controle vermelho' if estado == 'vermelho' else 'sem veredito'} · {m['arquivo']}", 2, False
+        fora = [t for t in m["testes"] if not teste_no_commit(sha, t)] if estado == "vermelho" else []
+        aviso = f" · teste fora do commit {sha[:12]}: {', '.join(fora)} (commite o teste e rode de novo)" if fora else ""
+        return f"{m['id']} · {'controle vermelho' if estado == 'vermelho' else 'sem veredito'} · {m['arquivo']}{aviso}", 2, False
     linha, motivo = mutar(copia, m)
     if motivo:
         return f"{m['id']} · inválido · {m['arquivo']} · {motivo}", 2, False
@@ -850,12 +958,22 @@ def main(argv=None):
     p.add_argument("--prazo", type=int, default=PRAZO_PADRAO)
     p.add_argument("--processos", type=int, default=1)
     p.add_argument("--cobertura", action="store_true", help="condição mudada sem mutante declarado (exige --base)")
+    p.add_argument("--conferir", action="store_true", help="o trecho de cada spec do diff no lugar (exige --base)")
+    p.add_argument("--todas", action="store_true", help="com --conferir e sem --base: todas as specs de tests/mutantes/ (AR-12)")
     p.add_argument("--base", help="commit-base do diff da --cobertura (o Base-sha do brief)")
     p.add_argument("--executar", nargs="+", help=argparse.SUPPRESS)  # interno: o leitor de veredito do `unittest`
     p.add_argument("--registro", help=argparse.SUPPRESS)
     args = p.parse_args(argv)
     if args.executar:
         return executar(args.executar, args.registro)
+    if args.todas:
+        if not args.conferir or args.base or args.spec or args.cobertura:
+            p.error("--todas vem com --conferir, sem --base, SPEC nem --cobertura")
+        return conferir(None, args.rev, todas=True)
+    if args.conferir:
+        if not args.base or args.spec or args.cobertura:
+            p.error("--conferir vem com --base, sem SPEC nem --cobertura")
+        return conferir(args.base, args.rev)
     if args.cobertura or (args.base and not args.spec):
         if not (args.cobertura and args.base) or args.spec:
             p.error("--cobertura e --base vêm juntos e sem SPEC (--base com SPEC: só os mutantes do diff)")

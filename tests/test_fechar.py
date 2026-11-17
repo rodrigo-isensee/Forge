@@ -18,6 +18,8 @@ RAIZ = Path(__file__).resolve().parent.parent
 SCRIPT = RAIZ / "bin" / "forge-fechar"
 
 GH_FALSO = r'''#!/usr/bin/env bash
+# GH-VERSAO-MINIMA: a conferência do passo 1 lê a versão; não entra no registro (os testes leem a 1ª chamada). VERSAO_GH muda a versão.
+[ "$1" = "--version" ] && { echo "gh version ${VERSAO_GH:-2.104.0} (2026-11-12)"; exit 0; }
 echo "gh $*" >> "$REGISTRO"
 # falha_n <arquivo>: se o arquivo guarda um número > 0, desconta um e falha (erro passageiro, como o 502 do GitHub)
 falha_n() {
@@ -70,6 +72,13 @@ case "$1 $2" in
       *state*) falha_n falha_estado && exit 1; cat "$ESTADO/estado" 2>/dev/null || echo OPEN; exit 0 ;;
     esac ;;
   "pr create")
+    # como o CI real (passo "Nada pula degrau", review A2): o par head/base passa pelo modo `degrau` da catraca, com a tabela PROMOCOES
+    # e o head do servidor; recusado, o PR não nasce (no GitHub, nasceria vermelho e nunca mesclaria)
+    todos="$*"; b="${todos#*--base }"; b="${b%% *}"; h="${todos#*--head }"; h="${h%% *}"
+    s="$(git ls-remote origin "refs/heads/$h" | awk -v r="refs/heads/$h" '$2 == r {print $1}')"
+    if ! env -u GITHUB_STEP_SUMMARY HEAD_REPO=o/r BASE_REPO=o/r python3 -I "$CATRACA_REAL" --modo degrau --ramo "$h" --base-ref "$b" --head "${s:-sem-head}" >/dev/null 2>&1; then
+      echo "degrau recusado: $h -> $b" >> "$REGISTRO"; echo "pull request create failed: $h -> $b fora da tabela de promoções" >&2; exit 1
+    fi
     n="$(cat "$ESTADO/numero_criado" 2>/dev/null || echo 7)"
     echo "$n develop" > "$ESTADO/aberto"
     if [ -f "$ESTADO/saida_create" ]; then cat "$ESTADO/saida_create"; else echo "https://github.com/o/r/pull/$n"; fi
@@ -96,6 +105,15 @@ case "$1 $2" in
     # R7: com "auto_arma", o --auto só arma (checks obrigatórios pendentes); "mescla_apos" N: o GitHub mescla na N-ésima leitura do estado
     if [ -f "$ESTADO/auto_arma" ] && [[ "$*" == *" --auto "* ]]; then : > "$ESTADO/armado"; exit 0; fi
     echo MERGED > "$ESTADO/estado"; exit 0 ;;
+  "run list")
+    # FECHAR-ESPERA-CI-DEVELOP: só a forma que o script pede (evento push, commit e o --jq dele); a saída é a do --jq: id, status e conclusão.
+    [[ "$*" =~ ^run\ list\ --branch\ [a-z]+\ --event\ push\ --commit\ ([0-9a-f]{7,64})\ --json\ databaseId,status,conclusion\ --jq\ (.*)$ ]] || exit 64
+    [ "${BASH_REMATCH[2]}" = '.[] | [.databaseId, .status, .conclusion] | @tsv' ] || exit 64
+    falha_n falha_runs && { echo "HTTP 502" >&2; exit 1; }
+    # runs_pendentes N: as N primeiras leituras saem em andamento; depois runs_<sha>, senão runs, senão uma execução verde
+    falha_n runs_pendentes && { printf '1\tin_progress\t\n'; exit 0; }
+    cat "$ESTADO/runs_${BASH_REMATCH[1]}" 2>/dev/null || cat "$ESTADO/runs" 2>/dev/null || printf '1\tcompleted\tsuccess\n'
+    exit 0 ;;
 esac
 exit 64
 '''
@@ -109,6 +127,17 @@ if [ "$1 $2" = "push origin" ] && [ "$3" = "--delete" ]; then
   if [ "$n" -gt 0 ]; then echo $((n - 1)) > "$ESTADO/falha_delete"; echo "HTTP 502" >&2; exit 1; fi
   # $ESTADO/delete_apaga_e_falha: o servidor apaga a ref, mas a resposta se perde (o comando sai com erro)
   if [ -f "$ESTADO/delete_apaga_e_falha" ]; then "$REAL_GIT_FALSO" "$@" >/dev/null 2>&1; exit 1; fi
+fi
+# $ESTADO/lsremote_develop_ok N: as N primeiras leituras da develop no servidor passam; depois falham ("vazio" em lsremote_develop_modo: sem a ref)
+if [ "$1 $2 $3" = "ls-remote origin refs/heads/develop" ] && [ -f "$ESTADO/lsremote_develop_ok" ]; then
+  n="$(cat "$ESTADO/lsremote_develop_ok")"
+  if [ "$n" -gt 0 ]; then echo $((n - 1)) > "$ESTADO/lsremote_develop_ok"
+  elif [ "$(cat "$ESTADO/lsremote_develop_modo" 2>/dev/null)" = vazio ]; then exit 0
+  else echo "HTTP 502" >&2; exit 1; fi
+fi
+# $ESTADO/develop_no_servidor: o topo da develop que o servidor devolve (o item falso do lote o move ao "mesclar")
+if [ "$1 $2 $3" = "ls-remote origin refs/heads/develop" ] && [ -f "$ESTADO/develop_no_servidor" ]; then
+  printf '%s\trefs/heads/develop\n' "$(cat "$ESTADO/develop_no_servidor")"; exit 0
 fi
 case "$1 $2" in
   "worktree remove")
@@ -151,7 +180,7 @@ class Fechar(unittest.TestCase):
         self.env.update(HOME=str(self.tmp), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.tmp / "gitconfig"),
                         FORGE_GH=str(self.tmp / "gh"), FORGE_CHECK=str(self.tmp / "check"),
                         REGISTRO=str(self.registro), ESTADO=str(self.estado), FORGE_FECHAR_INTERVALO="0",
-                        FORGE_FECHAR_TESTE="1", FORGE_FECHAR_LOG_DIR=str(self.tmp / "logs"),
+                        FORGE_FECHAR_TESTE="1", FORGE_FECHAR_LOG_DIR=str(self.tmp / "logs"), CATRACA_REAL=str(RAIZ / "tests" / "catraca.py"),
                         FORGE_PROMOVER=promover_falso(self.tmp / "promover.py", "promover"))
         (self.tmp / "bin").mkdir()
         (self.tmp / "bin" / "git").write_text(GIT_FALSO, encoding="utf-8")
@@ -281,6 +310,99 @@ class Fechar(unittest.TestCase):
         self.assertIn(f"[1c] python3 -I {self.tmp / 'promover.py'} --conferir-ref {sha}", r.stdout)
         self.assertNotEqual(self.fechar("p1", "--ref", "melhoria/x", "--base", "origin/homolog").returncode, 0)
         self.assertFalse((self.estado / "promover").exists())
+
+    # ---- FECHAR-SEM-HOMOLOG-LOCAL ----
+    def homolog_no_servidor(self, rev):
+        """A homolog no servidor em <rev>, e a origin/homolog deste clone apagada (o clone que nunca a buscou)."""
+        self.git("push", "-q", "origin", f"{rev}:refs/heads/homolog")
+        self.git("update-ref", "-d", "refs/remotes/origin/homolog")
+        return self.git("rev-parse", rev)
+
+    def homolog_local(self):
+        return subprocess.run(["git", "rev-parse", "-q", "--verify", "refs/remotes/origin/homolog"], cwd=self.proj, env=self.env,
+                              capture_output=True, text=True).stdout.strip()
+
+    def test_1c_sem_origin_homolog_no_clone_busca_so_ela_antes_do_promover(self):
+        sha_h = self.homolog_no_servidor("develop")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.homolog_local(), sha_h)
+        self.assertNotIn("aviso: sem origin/homolog", r.stderr)
+
+    def test_1c_com_origin_homolog_no_clone_nao_busca(self):
+        velho = self.homolog_no_servidor("develop")
+        self.git("push", "-q", "origin", "melhoria/x:refs/heads/homolog")
+        self.git("update-ref", "refs/remotes/origin/homolog", velho)
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.homolog_local(), velho)  # o 1c só lê: com a ref no clone, não busca
+
+    def test_1c_busca_da_homolog_que_falha_avisa_e_o_promover_decide(self):
+        for rc in ("1", "0"):  # o 1 primeiro: o 0 mescla e limpa a branch
+            with self.subTest(rc=rc):
+                self.registro.write_text("")
+                r = self.fechar("p1", "--ref", "melhoria/x", PROMOVER_RC=rc)  # o servidor do setUp não tem homolog
+                self.assertIn("aviso: sem origin/homolog neste clone e a busca falhou", r.stderr)
+                self.assertEqual(self.homolog_local(), "")
+                if rc == "1":
+                    self.assert_parou_no_1c(r)
+                else:
+                    self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+
+    def remota_apagada_depois_do_merge(self, lista_extra):
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(lista_extra.format(sha=sha))
+        self.git("push", "-q", "origin", "--delete", "melhoria/x")  # o GitHub apaga a branch depois do merge
+        return sha
+
+    def test_2_remota_apagada_com_pr_merged_no_head_nao_pede_push_e_limpa(self):
+        self.remota_apagada_depois_do_merge("234 MERGED develop {sha} false\n")
+        (self.estado / "estado").write_text("MERGED")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("não peço push", r.stdout)
+        self.assertNotIn("git push origin melhoria/x", r.stderr)
+        self.assertEqual(self.criacoes(), [])
+        self.assertEqual(self.merges(), [])
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
+
+    def test_2_remota_apagada_com_o_head_ja_na_base_nao_pede_push(self):
+        self.git("merge", "-q", "--no-ff", "melhoria/x", "-m", "merge x")
+        self.git("push", "-q", "origin", "develop")
+        self.remota_apagada_depois_do_merge("")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("não peço push", r.stdout)
+        self.assertEqual(self.criacoes(), [])
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
+
+    def test_2_remota_apagada_sem_merge_do_head_no_alvo_continua_pedindo_push(self):
+        casos = {"sem PR": "", "PR aberto": "234 OPEN develop {sha} false\n", "PR de fork": "234 MERGED develop {sha} true\n",
+                 "outra base": "234 MERGED homolog {sha} false\n", "outro head": "234 MERGED develop " + "0" * 40 + " false\n"}
+        for nome, lista in casos.items():
+            with self.subTest(caso=nome):
+                self.registro.write_text("")
+                self.git("push", "-q", "origin", "melhoria/x")
+                self.remota_apagada_depois_do_merge(lista)
+                r = self.fechar("p1", "--ref", "melhoria/x")
+                self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+                self.assertIn("parou no passo 2: melhoria/x não está no origin (git push origin melhoria/x", r.stderr)
+                self.assertEqual(self.merges(), [])
+
+    def test_2_remota_com_outro_head_e_o_conferido_mesclado_continua_parando(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha} false\n")
+        self.git("switch", "-q", "melhoria/x")
+        (self.proj / "c").write_text("3\n")
+        self.git("add", "c")
+        self.git("commit", "-q", "-m", "feat: c")
+        self.git("push", "-q", "origin", "melhoria/x")
+        self.git("reset", "-q", "--hard", sha)  # o clone ficou no head mesclado; o servidor tem um commit além dele
+        self.git("switch", "-q", "develop")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("parou no passo 2: o head local", r.stderr)
+        self.assertNotEqual(self.git("ls-remote", "origin", "refs/heads/melhoria/x"), "")
 
     def test_dry_run_nao_altera_nada_nem_chama_gh_ou_check(self):
         antes = self.estado_do_repo()

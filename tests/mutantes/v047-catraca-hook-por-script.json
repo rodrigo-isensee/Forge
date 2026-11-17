@@ -1,0 +1,87 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CH-M1",
+      "guarda": "só o env do sistema na frente não é o interpretador: pula-se para o termo seguinte (A6: ./env é outro)",
+      "arquivo": "tests/catraca.py",
+      "de": "if termos and termos[0] in ENV_NA_FRENTE else",
+      "para": "if False else",
+      "testes": [
+        "tests.test_catraca.Hooks.test_mudar_interpretador_opcoes_ou_argumentos_passa"
+      ]
+    },
+    {
+      "id": "CH-M2",
+      "guarda": "hook sem command (type prompt) não quebra a chave",
+      "arquivo": "tests/catraca.py",
+      "de": "interp, *depois = resto or [\"\"]",
+      "para": "interp, *depois = resto",
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_sem_script_compara_a_linha_inteira"
+      ]
+    },
+    {
+      "id": "CH-M3",
+      "guarda": "as opções antes do script são lidas uma a uma",
+      "arquivo": "tests/catraca.py",
+      "de": "while j < len(depois) and depois[j].startswith(\"-\"):",
+      "para": "while False:",
+      "testes": [
+        "tests.test_catraca.Hooks.test_mudar_interpretador_opcoes_ou_argumentos_passa"
+      ]
+    },
+    {
+      "id": "CH-M4",
+      "guarda": "opção que não é inócua (-c, -m, -, -I, -P, -W, -X fora de utf8) volta à linha inteira (A1, A4, A5); o mutante pula a opção em vez de voltar, para o laço terminar",
+      "arquivo": "tests/catraca.py",
+      "de": "        if not passo:",
+      "para": "        if not passo and depois.pop(j) is None:",
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra",
+        "tests.test_catraca.CorpusDasSondasDeHook.test_cada_sonda_acusa_o_esperado"
+      ]
+    },
+    {
+      "id": "CH-M5",
+      "guarda": "-X separado do valor ocupa dois termos (-X utf8)",
+      "arquivo": "tests/catraca.py",
+      "de": "    if op == \"-X\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_catraca.Hooks.test_mudar_interpretador_opcoes_ou_argumentos_passa"
+      ]
+    },
+    {
+      "id": "CH-M6",
+      "guarda": "o 1º termo depois das opções só é o script com sufixo de script; senão, a linha inteira (A1: /dev/null antes)",
+      "arquivo": "tests/catraca.py",
+      "de": "and depois[j].endswith(SUFIXOS_DE_SCRIPT) and",
+      "para": "and",
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_sem_script_compara_a_linha_inteira"
+      ]
+    },
+    {
+      "id": "CH-M7",
+      "guarda": "só o Python tem opções inócuas; em outro interpretador (perl -E) qualquer opção acusa",
+      "arquivo": "tests/catraca.py",
+      "de": "if not _ultimo_trecho(interp).startswith(\"python\") or",
+      "para": "if False or",
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra"
+      ]
+    },
+    {
+      "id": "CH-M8",
+      "guarda": "o - sozinho (lê o código da entrada) não é opção inócua",
+      "arquivo": "tests/catraca.py",
+      "de": "or len(op) < 2:",
+      "para": "or False:",
+      "testes": [
+        "tests.test_catraca.Hooks.test_hook_neutralizado_sem_tirar_o_script_barra"
+      ]
+    }
+  ]
+}

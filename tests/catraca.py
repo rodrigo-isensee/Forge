@@ -3,7 +3,7 @@
 
 Só biblioteca padrão. Lê a base com `git show <base>:<arquivo>` (a base efetiva é o merge-base com o HEAD).
 Exceção estreita: PR de `dependabot[bot]` que só troca SHA de `uses:` em workflows passa sem rótulo e sem parecer.
-Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY) e `pareceres`.
+Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY), `pareceres` e `degrau` (o "Nada pula degrau" do CI).
 Exceção única das regras (menos `R-CUSTO`, que só tem `custo_permitido`): rótulo `afrouxa-regra` aplicado pelo `dono` (de tests/config.json da base) depois do
 último push, ou cujos arquivos protegidos (VIGIADOS_DO_ROTULO e forma compilada: mesmo blob e modo) e a piora dos testes não
 mudaram desde o rótulo (P9), ou cujo diff efetivo (merge-base, fora dos pareceres dos pedidos desta branch) não mudou desde ele, e
@@ -22,6 +22,7 @@ import http.client
 import importlib.util
 import itertools
 import json
+import math
 import os
 import re
 import subprocess
@@ -254,19 +255,148 @@ def regras_de_config(b, h):
     return v
 
 
-def chaves_de_hooks(texto):
+SUFIXOS_DE_SCRIPT = (".py", ".sh", ".js", ".mjs", ".cjs", ".ts", ".rb", ".pl")
+OPCOES_INOCUAS_DO_PYTHON = set("BdEOqsSuv")  # não rodam outro código, não mudam o sys.path nem a saída (`-c`, `-I`, `-bb` mudam)
+VALORES_INOCUOS_DE_X = {"utf8", "utf8=0", "utf8=1"}  # outro `-X` (pycache_prefix) e `-W` mudam o que o hook importa ou como sai
+ENV_NA_FRENTE = {"env", "/usr/bin/env", "/bin/env"}  # um `env` do repositório (`./env`) é outro interpretador
+CONTROLE_DO_SHELL = re.compile(r"[;&|<>`]|\$\(")  # depois do script, `|| true` ou `; exit 0` trocam a saída do hook
+SO_ASCII_IMPRIMIVEL = re.compile(r"[ -~]*")  # sem `args`, só aí o shell e o `split` cortam o `command` nos mesmos lugares
+CAMPOS_INOCUOS_DO_HOOK = {"type", "command", "args", "timeout", "statusMessage", "once"}  # `if`, `async`, campo novo: na chave
+
+
+def _ultimo_trecho(termo):
+    return termo.rsplit("/", 1)[-1]
+
+
+def _sem_aspas(termo):
+    """O termo do `command` sem o par de aspas em volta, como o shell o lê; aspas sem par ficam (falha fechada)."""
+    return termo[1:-1] if termo[0] == termo[-1] and termo[0] in "\"'" else termo
+
+
+def _termos_da_opcao_inocua(interp, op, seguinte):
+    """Quantos termos ocupa a opção do Python que deixa o script no lugar e não roda outro código (`-X utf8` ocupa 2); 0 se não
+    é inócua ou o interpretador não é Python (falha fechada)."""
+    if not _ultimo_trecho(interp).startswith("python") or len(op) < 2:
+        return 0
+    if op == "-X":
+        return 2 if seguinte in VALORES_INOCUOS_DE_X else 0
+    if op.startswith("-X"):
+        return 1 if op[2:] in VALORES_INOCUOS_DE_X else 0
+    return 1 if set(op[1:]) <= OPCOES_INOCUAS_DO_PYTHON else 0
+
+
+def termos_do_hook(hk):
+    """Os termos como o Claude Code roda o hook. Com `args` (forma exec, mesmo vazio) o `command` é o executável inteiro, sem
+    shell. Sem `args` o `command` vai ao `sh -c`: dividido em espaço só se for ASCII imprimível; senão `None` (falha fechada)."""
+    comando = str(hk.get("command", ""))
+    if "args" in hk:
+        return [comando] + [str(a) for a in hk["args"]] if isinstance(hk["args"], list) else None
+    return [_sem_aspas(t) for t in comando.split()] if SO_ASCII_IMPRIMIVEL.fullmatch(comando) else None
+
+
+def campos_extras_do_hook(hk):
+    """Os campos fora da lista fechada de inócuos, em JSON canônico: `if` e `async` mudam quando e como o hook roda (A9)."""
+    extras = {k: v for k, v in hk.items() if k not in CAMPOS_INOCUOS_DO_HOOK}
+    return json.dumps(extras, sort_keys=True, ensure_ascii=False) if extras else ""
+
+
+def script_do_hook(hk):
+    """O hook como (tipo, interpretador, script, timeout, campos extras). Interpretador: o 1º termo como escrito, pulando um `env`
+    do sistema. Script: o 1º termo depois dele que não é opção e tem sufixo de script; só opções inócuas do Python ficam fora
+    (PR 565). Qualquer outra coisa antes do script (`-c`, `-I`, `/dev/null`), sem script ou termos ilegíveis: a linha inteira,
+    sem interpretador (falha fechada)."""
+    tipo, prazo, extras = str(hk.get("type", "command")), str(hk.get("timeout", "padrão")), campos_extras_do_hook(hk)
+    termos = termos_do_hook(hk)
+    if termos is None:
+        return tipo, "", json.dumps([hk.get("command"), hk.get("args")], ensure_ascii=False), prazo, extras
+    resto = termos[1:] if termos and termos[0] in ENV_NA_FRENTE else termos
+    interp, *depois = resto or [""]
+    j = 0
+    while j < len(depois) and depois[j].startswith("-"):
+        passo = _termos_da_opcao_inocua(interp, depois[j], "".join(depois[j + 1:j + 2]))
+        if not passo:
+            return tipo, "", " ".join(termos), prazo, extras
+        j += passo
+    if j < len(depois) and depois[j].endswith(SUFIXOS_DE_SCRIPT) and not CONTROLE_DO_SHELL.search(" ".join(depois[j + 1:])):
+        return tipo, interp, depois[j], prazo, extras
+    return tipo, "", " ".join(termos), prazo, extras
+
+
+def hooks_contados(texto):
+    """Cada hook como (evento, matcher, tipo, interpretador, script, timeout, campos extras), contado: dois hooks com a mesma chave são dois."""
     try:
         dados = json.loads(texto) if texto else {}
     except ValueError:
-        return set()
-    chaves = set()
-    for evento, grupos in (dados.get("hooks") or {}).items():
-        for g in grupos:
-            for hk in g.get("hooks", []):
-                # o hook é o script: as opções do interpretador antes dele (`-s -E`, C6 da HOOK-ERRO-LIBERA) não o removem
-                args = [a for a in hk.get("args", []) if not a.startswith("-")]
-                chaves.add((evento, g.get("matcher", ""), hk.get("command", ""), " ".join(args)))
-    return chaves
+        return Counter()
+    return Counter((evento, g.get("matcher", ""), *script_do_hook(hk))
+                   for evento, grupos in (dados.get("hooks") or {}).items() for g in grupos for hk in g.get("hooks", []))
+
+
+def chaves_de_hooks(texto):
+    """As chaves de `hooks_contados`: mudar só opções inócuas ou argumentos não remove o hook."""
+    return set(hooks_contados(texto))
+
+
+EVENTOS_DO_HOOK = frozenset((
+    "PreToolUse", "PostToolUse", "PostToolUseFailure", "PostToolBatch", "PermissionDenied", "Notification", "UserPromptSubmit",
+    "UserPromptExpansion", "SessionStart", "SessionEnd", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "PreCompact",
+    "PostCompact", "PermissionRequest", "Setup", "TeammateIdle", "TaskCreated", "TaskCompleted", "Elicitation", "ElicitationResult",
+    "ConfigChange", "WorktreeCreate", "WorktreeRemove", "InstructionsLoaded", "CwdChanged", "FileChanged", "DirectoryAdded",
+    "MessageDisplay"))  # A10, A6 do review: os 31 eventos do binário do Claude Code 2.1.224 (sem PreModelSwitch nem PostModelSwitch)
+TIPOS_DOS_CAMPOS_DO_HOOK = {"command": str, "if": str, "statusMessage": str, "async": bool, "asyncRewake": bool, "once": bool}
+VALORES_DOS_CAMPOS_DO_HOOK = {"shell": ("bash", "powershell"), "onFailure": ("continue", "block")}
+
+
+def _constante_fora_do_json(nome):
+    raise ValueError(f"{nome} não é JSON")  # o `json` do Python aceita NaN e Infinity; a carga do Claude Code, não
+
+
+def erros_do_hook(onde, hk):
+    """A forma de um hook pelo esquema da carga; o Forge só aceita `type` "command" (outro tipo pede o rótulo do dono)."""
+    if not isinstance(hk, dict):
+        return [f"{onde}: hook não é objeto"]
+    erros = [] if hk.get("type") == "command" else [f"{onde}.type: {json.dumps(hk.get('type'))} no lugar de \"command\""]
+    for campo, tipo in TIPOS_DOS_CAMPOS_DO_HOOK.items():
+        if (campo in hk or campo == "command") and not isinstance(hk.get(campo), tipo):
+            erros.append(f"{onde}.{campo}: {type(hk.get(campo)).__name__} no lugar de {tipo.__name__}")
+    if "args" in hk and not (isinstance(hk["args"], list) and all(isinstance(a, str) for a in hk["args"])):
+        erros.append(f"{onde}.args: não é lista de textos")
+    if "timeout" in hk and (isinstance(hk["timeout"], bool) or not isinstance(hk["timeout"], (int, float))):
+        erros.append(f"{onde}.timeout: {type(hk['timeout']).__name__} no lugar de número")
+    elif "timeout" in hk and not (math.isfinite(hk["timeout"]) and hk["timeout"] > 0):  # A12: a carga exige >0 e finito
+        erros.append(f"{onde}.timeout: {hk['timeout']!r} no lugar de número finito maior que 0")
+    for campo, valores in VALORES_DOS_CAMPOS_DO_HOOK.items():
+        if campo in hk and not any(hk[campo] == v for v in valores):
+            erros.append(f"{onde}.{campo}: {json.dumps(hk[campo])} fora de {', '.join(valores)}")
+    return erros
+
+
+def erros_de_forma(texto):
+    """A10 da segurança: a carga do plugin valida o hooks.json inteiro, e uma entrada fora do esquema descarta todos os hooks.
+    Lista fechada de eventos e dos tipos de cada campo; o que não reconheço é erro (falha fechada)."""
+    try:
+        dados = json.loads(texto, parse_constant=_constante_fora_do_json)
+    except ValueError as e:
+        return [f"JSON ilegível ({e})"]
+    if not isinstance(dados, dict) or not isinstance(dados.get("hooks"), dict):
+        return ["`hooks` não é objeto"]
+    eventos = dados["hooks"]
+    erros = []
+    for evento, grupos in eventos.items():
+        if evento not in EVENTOS_DO_HOOK:
+            erros.append(f"evento {evento} fora da lista do Claude Code")
+        if not isinstance(grupos, list):
+            erros.append(f"{evento}: não é lista")
+            continue
+        for i, g in enumerate(grupos):
+            if not isinstance(g, dict) or not isinstance(g.get("hooks"), list):
+                erros.append(f"{evento}.{i}: grupo sem `hooks` em lista")
+                continue
+            if "matcher" in g and not isinstance(g["matcher"], str):
+                erros.append(f"{evento}.{i}.matcher: {type(g['matcher']).__name__} no lugar de str")
+            for j, hk in enumerate(g["hooks"]):
+                erros += erros_do_hook(f"{evento}.{i}.hooks.{j}", hk)
+    return erros
 
 
 def regra_hooks(raiz, b, h):
@@ -274,11 +404,16 @@ def regra_hooks(raiz, b, h):
     if antes is None:
         return []
     depois = ler(raiz, h, "hooks/hooks.json") or ""
-    return [msg("R-CONFORMIDADE", f"hook removido de hooks/hooks.json: {ev} {mt or '*'} {ar or cm}",
+    erros = erros_de_forma(depois) if depois else []
+    if erros:
+        return [msg("R-CONFORMIDADE", f"hooks.json fora do esquema: a carga descarta todos os hooks ({'; '.join(erros[:5])})",
+                    "uma entrada fora do esquema faz o Claude Code não registrar nenhum hook do plugin",
+                    "corrija a forma do hooks/hooks.json ou peça o rótulo ao dono", "docs/regras/R-CONFORMIDADE.md")]
+    return [msg("R-CONFORMIDADE", f"hook removido de hooks/hooks.json: {ev} {mt or '*'} {tp} "
+                f"{' '.join(filter(None, (ip, sc, f'(timeout {tm})', ex)))}",
                 "hook é o que faz a regra valer sem depender de memória", "restaure o hook ou peça o rótulo ao dono",
                 "docs/regras/R-CONFORMIDADE.md")
-            for ev, mt, cm, ar in sorted(chaves_de_hooks(antes) - chaves_de_hooks(depois))]
-
+            for ev, mt, tp, ip, sc, tm, ex in sorted((hooks_contados(antes) - hooks_contados(depois)).elements())]
 
 POLITICA = "hooks/conformidade.json"
 
@@ -1233,12 +1368,12 @@ def _repo_de(lado):
     return ((lado or {}).get("repo") or {}).get("full_name")
 
 
-def eh_promocao(pr, repo):
-    """PR de promoção (PROMOCOES) com as duas pontas no próprio repositório (branch `develop` de um fork não conta)."""
+def eh_promocao(pr, repo, raiz="."):
+    """PR de promoção (`promocao_aceita`) com as duas pontas no próprio repositório (branch `develop` de um fork não conta)."""
     if not isinstance(pr, dict) or not repo:
         return False
     head, base = pr.get("head") or {}, pr.get("base") or {}
-    return (head.get("ref"), base.get("ref")) in PROMOCOES and _repo_de(head) == repo and _repo_de(base) == repo
+    return _repo_de(head) == repo and _repo_de(base) == repo and promocao_aceita(raiz, head.get("ref"), base.get("ref"), head.get("sha"))
 
 
 def entrada_da_arvore(raiz, ref, caminho):
@@ -1455,7 +1590,7 @@ def liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono, motivos=None):
     if not arquivos:
         return None
     pr = fonte.pr_atual()
-    if not eh_promocao(pr, fonte.repo):  # sem o PR não se sabe se é promoção: a falha da API já tem o seu aviso
+    if not eh_promocao(pr, fonte.repo, raiz):  # sem o PR não se sabe se é promoção: a falha da API já tem o seu aviso
         return None
     if None in arquivos:
         return sem(motivos, "há violação que não é \"mudança em <arquivo>\" (só essa o PR mesclado cobre)")
@@ -1524,7 +1659,49 @@ def forge_check():
     return modulo
 
 
-PROMOCOES = {("develop", "homolog"), ("homolog", "main")}  # o parecer é exigido na entrada de cada PR na develop
+# R-FLUXO: a tabela única dos pares de promoção (head, base, head na develop do servidor), lida aqui, pelo passo "Nada pula degrau"
+# do CI (o modo `degrau`, da cópia da develop), pelo scripts/arvore-testada.py e pelo bin/forge-fechar. O head casa por inteiro.
+# Nela o parecer não é exigido: ele já foi na entrada de cada PR na develop. promocao/X.Y.Z é o ramo do `forge-fechar --promover`.
+PROMOCOES = (("develop", "homolog", False),
+             (r"promocao/[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}", "homolog", True),
+             ("homolog", "main", False))
+DEVELOP_DO_SERVIDOR = "refs/remotes/origin/develop"
+
+
+def linha_de_promocao(head_ref, base_ref):
+    """A linha de PROMOCOES do par (head, base), ou None; só `str` exata."""
+    if type(head_ref) is not str or type(base_ref) is not str:
+        return None
+    return next((linha for linha in PROMOCOES if linha[1] == base_ref and re.fullmatch(linha[0], head_ref)), None)
+
+
+def promocao_aceita(raiz, head_ref, base_ref, head_sha):
+    """True se (head, base) está em PROMOCOES e, na linha que o pede, `head_sha` é ancestral da develop do servidor
+    (DEVELOP_DO_SERVIDOR). Erro do git ou sha que não é texto é False (falha fechada: não é promoção)."""
+    linha = linha_de_promocao(head_ref, base_ref)
+    if linha is None:
+        return False
+    if not linha[2]:
+        return True
+    if type(head_sha) is not str:
+        return False
+    try:
+        return git(raiz, "merge-base", "--is-ancestor", "--end-of-options", head_sha, DEVELOP_DO_SERVIDOR)[0] == 0
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+
+
+def violacoes_do_degrau(raiz, ramo, base_ref, head, repo_head, repo_base):
+    """"Nada pula degrau" (R-FLUXO): PR para uma base de PROMOCOES (homolog, main) só de um par dela, com o head do próprio
+    repositório; as outras bases não são degrau. O CI roda este modo da develop do servidor, nunca do PR."""
+    if base_ref not in {linha[1] for linha in PROMOCOES}:
+        return []
+    if repo_base and repo_head == repo_base and promocao_aceita(raiz, ramo, base_ref, head):
+        return []
+    return [msg("R-FLUXO", f"PR para {base_ref} de `{ramo}` ({repo_head or 'repositório desconhecido'}) fora da tabela de promoções",
+                "nada pula degrau: a homolog recebe só a develop ou o ramo promocao/X.Y.Z num commit da develop, e a main só a homolog",
+                "abra o PR a partir do degrau anterior, do próprio repositório (PROMOCOES em tests/catraca.py)",
+                "docs/regras/R-FLUXO.md")]
 DEPENDABOT = "dependabot[bot]"
 USO_DE_ACAO = re.compile(r"^(\s*(?:-\s*)?uses:\s*[\w./-]+@)[0-9a-f]{40}(\s+#.*)?$")
 
@@ -1593,7 +1770,7 @@ def pareceres_que_nao_aprovam(raiz, fc, pedidos, head, ramo=None):
 
 
 def _violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
-    if (ramo, base_ref) in PROMOCOES:
+    if promocao_aceita(raiz, ramo, base_ref, head):
         return []
     b = base_efetiva(raiz, base, head)
     tocados = [a for a in alterados(raiz, b, head) if a.startswith(SENSIVEIS)]
@@ -1632,7 +1809,7 @@ def resumo(titulo, linhas):
 def lista_de_rotulados(a, fonte):
     """As linhas `rotulados:` do PR de promoção (ACELERA-P3 (c)), nenhuma fora dela; PRAZO esgotado, sem reiniciar: `incompleta (prazo)` (C-2)."""
     raiz = Path(a.raiz).resolve()
-    if not eh_promocao(fonte.pr_atual() if fonte else None, getattr(fonte, "repo", None)):
+    if not eh_promocao(fonte.pr_atual() if fonte else None, getattr(fonte, "repo", None), raiz):
         return ["rotulados: incompleta (prazo)"] if PRAZO.avisou else []
     cfg = json_de(raiz, base_efetiva(raiz, a.base, a.head), "tests/config.json")  # o dono da base: o head é do autor
     linhas = rotulados_da_leva(raiz, a.base, a.head, fonte, cfg.get("dono") if isinstance(cfg, dict) else None)
@@ -1663,7 +1840,7 @@ def modo_rotulados(a):
         print("rotulados: o modo local pede GITHUB_TOKEN, GITHUB_REPOSITORY=<dono>/<repositório> e --pr <número>")
         return 2
     if not mostrar_rotulados(a, lambda: fonte_json(a) if a.mesclados else FonteGithub(token, repo, a.pr)):
-        print("rotulados: o PR não é promoção (develop -> homolog ou homolog -> main) no próprio repositório")
+        print("rotulados: o PR não é promoção (PROMOCOES: develop ou promocao/X.Y.Z -> homolog, homolog -> main) no próprio repositório")
     return 0
 
 
@@ -1690,7 +1867,7 @@ def main(argv=None):
 
 def argumentos(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--modo", choices=("regras", "pr-texto", "pareceres", "rotulados"), default="regras")
+    ap.add_argument("--modo", choices=("regras", "pr-texto", "pareceres", "rotulados", "degrau"), default="regras")
     ap.add_argument("--base", default=os.environ.get("BASE", "origin/develop"))
     ap.add_argument("--head", default="HEAD")
     ap.add_argument("--raiz", default=".")
@@ -1713,6 +1890,8 @@ def _main(a):
         return 0
     if a.modo == "pr-texto":
         viol, titulo = violacoes_do_texto(os.environ.get("PR_BODY", "")), "pr-texto"
+    elif a.modo == "degrau":
+        viol, titulo = violacoes_do_degrau(raiz, a.ramo, a.base_ref, a.head, os.environ.get("HEAD_REPO", ""), os.environ.get("BASE_REPO", "")), "degrau"
     elif a.modo == "pareceres":
         viol, titulo = violacoes_de_pareceres(raiz, a.base, a.head, a.ramo, a.base_ref,
                                           os.environ.get("HEAD_REPO", ""), os.environ.get("BASE_REPO", "")), "pareceres"

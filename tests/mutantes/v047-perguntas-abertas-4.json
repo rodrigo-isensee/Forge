@@ -1,0 +1,26 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "PA-M24",
+      "guarda": "KANBAN.md ilegível vira aviso, não erro",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        except OSError as erro:\n            avisos.append(f\"abertas: aviso: KANBAN.md",
+      "para": "        except ValueError as erro:\n            avisos.append(f\"abertas: aviso: KANBAN.md",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_quadro_ilegivel_vira_aviso"
+      ]
+    },
+    {
+      "id": "PA-M25",
+      "guarda": "trecho depois da data limitado (linha longa não trava)",
+      "arquivo": "bin/forge_dono.py",
+      "de": "[^):\\n]{{0,80}}\\)?)?",
+      "para": "[^):\\n]*\\)?)?",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_linha_longa_nao_trava"
+      ]
+    }
+  ]
+}
