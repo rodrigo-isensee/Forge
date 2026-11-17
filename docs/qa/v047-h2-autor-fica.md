@@ -17,8 +17,8 @@ data: 2026-11-17
 Etapa E2.30, H2-AUTOR-FICA-ATE-O-MERGE (classe C, `hooks/agentes.py`). Intervalo `e2880b42..6d73898a`. Sem especificação de UX nem contrato de API: as obrigações são as da descrição do H2 (E2.10) e as condições novas do diff. Acessibilidade e E2E: n/a.
 
 ## Achados
-- A2 (bloqueante) tests/mutantes/trava-agente-morto-3.json:M19 · o diff mexeu em hooks/agentes.py e deixou duas specs antigas fora da fonte: M19 (`de` agora aparece 2 vezes, ambíguo) e v0440-decisoes-2.json:A4 (`if avisos:\n        texto = mensagem(` não existe mais). `python3 -m unittest tests.test_forge_mutante.ConferirTodas` falha no head (failures=1); a bateria do CI cai. Alinhar as duas specs no mesmo commit (agente: dev da stack do Forge)
-- A3 (bloqueante) tests/test_hooks_agentes_autor.py:35 · `forge-testes --vermelho e2880b42 --modulos test_hooks_agentes_autor` sai 2 (sem veredito): na base `PeloHook.test_fixtures_do_pedido` dá erro (JSONDecodeError, hook sem saída JSON em autor-retomavel-avisa e nas duas fixtures de reserva), não asserção. Sem veredito não vale como vermelho; o autor deve fazer o teste falhar por asserção na base ou isolar o caso
+- A2 (bloqueante) tests/mutantes/trava-agente-morto-3.json:M19 · o diff em hooks/agentes.py desalinhou M19 (de ambíguo, 2 vezes) e v0440-decisoes-2.json:A4; ConferirTodas falha (failures=1) e a bateria cai. Alinhar as specs no mesmo commit
+- A3 (bloqueante) tests/test_hooks_agentes_autor.py:35 · forge-testes --vermelho sai 2: na base PeloHook.test_fixtures_do_pedido dá erro (JSONDecodeError) e não asserção; sem veredito não vale como vermelho
 
 ## Revalidação do A1 (rodada anterior)
 Resolvido: id não texto em lápide e em registro não perde a reserva. Fixtures `autor-lapide-id-lista-reserva`, `autor-registro-id-objeto-reserva`, `autor-lapide-id-lista-segundo-recusa` e 5 `autor-retom*` entram; `test_hooks_agentes_autor` 10 testes OK no head. Mutantes: 22 em 3 specs, todos morreram (M11, M14, M16, M17, M21 por erro do teste declarado, que a spec declara).
