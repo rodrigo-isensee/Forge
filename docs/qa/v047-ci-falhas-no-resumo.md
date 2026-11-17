@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-falhas-no-resumo
-commit: 0f4a541379ec862622d23c1e330293bb7b78bb79
+commit: 2cafdfd9002dbf27c078beaec74858d76b382323
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -17,6 +17,7 @@ data: 2026-11-16
 Parecer completo (não havia parecer anterior) no head 82623453, base 5e74c70e. Sem especificação de UX nem contrato de API: as obrigações vêm do item E2.270 (o CI escreve no resumo e em anotações o nome e o local dos testes que falharam) e de `R-CUSTO` (sem custo), `R-SEGURANCA` (registro de teste é texto não confiável). Escopo: `scripts/falhas-no-resumo.py`, os 6 passos novos do `ci.yml`, os testes `tests/test_falhas_no_resumo.py`, `tests/test_ci_local.py`, `tests/test_suite_partes.py` e a spec de mutantes. A suíte inteira roda no CI do PR; cito o check-run `bateria` do mesmo sha como prova da suíte, não rodei a suíte inteira local.
 
 ## Achados
+- A3 (recomendado) tests/mutantes/v047-ci-falhas-no-resumo-2.json:1 · G1 e G2 sem veredito de morte em /proc real: aqui G1 "sobreviveu" (teste novo sem `exigir`, passa vazio) e o teste do G2 é pulado. Rode as 2 specs onde /proc é do namespace, junto do A4 do review.
 - A1 (recomendado) scripts/falhas-no-resumo.py:156 · 10 condições Python mudadas sem mutante declarado em `--cobertura` (linhas 156, 160, 162, 171, 178, 179, 180, 189, 199, 209). Não é pedido de controle, não bloqueia; o autor pode declarar ou isentar.
 - A2 (recomendado) tests/test_suite_partes.py:383 · `(linha,) = [...]` (também em :372) dá ValueError, não asserção, na base: o `forge-testes --vermelho` marca "sem veredito" (rc=2) em 2 testes do Brinquedo5. Pôr `assertEqual(len(...), 1)` antes do desempacotamento.
 
@@ -86,3 +87,25 @@ Nenhum teste cai no HEAD (todos `H=ok`). Os 2 sem veredito são `Brinquedo5.test
 Sem gatilho de segurança. A guarda dos agregadores protege a fronteira `always()` sem checkout nem código da branch (cancelado ou pulado reprova). PA-7 conferido: AR-5 (`-I` no leitor, F14 morreu), AR-12 (specs aplicam no head), AR-1 (lista de mutantes: 1 por guarda mudada de `suite-partes.py` e `pesos-do-ci.py`, sem condição sem mutante fora do A1). Sem classe nova.
 
 Parecer: aprovado, sem bug crítico, alto, médio ou baixo; A1 e A2 recomendados.
+
+## Revalidação por delta no head 2cafdfd9 (E2.608)
+`forge-check parecer delta` deu `0f4a5413..2cafdfd9`, sem o que veio da develop. No domínio: o conserto do kill do grupo em `templates/projeto/.githooks/pre-push` (fallback `kill -0 -- "-$etapa"` quando o `ps` não devolve o pgid), o teste novo `GrupoDaEtapa.test_ps_sem_resposta_com_o_grupo_criado_ainda_encerra_o_filho` (ps falso vazio), os mutantes G1 e G2 (`v047-ci-falhas-no-resumo-2.json`), o texto de comentário em `ci.yml`, `test_catraca.py` e a spec `v047-ci-rapido-3.json` (M25 e M26 acompanham o comentário), e `tests/test_forge.py` (classe `DocsPareceresPedidoECaminho`, vinda do item de pareceres). Linha de guarda mudada no diff: uma (a `[ -n "$pg" ] || {...}`), e os dois mutantes a cobrem (a condição `kill -0` e o corpo).
+
+Rodado local, sem `-I`: `python3 -m unittest tests.test_prepush_so_docs`: `Ran 63 tests in 87.697s`, `OK (skipped=9)`; os 9 pulos são do sandbox (`/proc` de outro namespace de pid, `chown` fora do namespace), 6 deles em `GrupoDaEtapa`/`LimiteDaEtapa`, incluindo o teste do G2. O teste novo não foi pulado: rodou e passou, mas passa vazio aqui, porque `vivos()` lê `/proc` e vê outro namespace (A4 do review, de acordo).
+
+```
+forge-mutante --base 0f4a541379ec tests/mutantes/v047-ci-falhas-no-resumo-2.json
+base=0f4a541379ec862622d23c1e330293bb7b78bb79 mb=0f4a541379ec862622d23c1e330293bb7b78bb79 rev=2cafdfd9002dbf27c078beaec74858d76b382323
+forge-mutante: pedido=v047-ci-falhas-no-resumo rev=2cafdfd9002d spec=3bb5974762768a5325f1b42e77a7130c1178365923c04c7f7e614f226d967626
+G1 · sobreviveu · templates/projeto/.githooks/pre-push:157
+G2 · controle vermelho · templates/projeto/.githooks/pre-push
+```
+Isto é do ambiente, não prova de teste fraco, e não vale como "morreu": o veredito local é sem veredito. Para saber se o teste do G1 distingue, usei uma sonda minha, fora do repositório: reusei `GrupoDaEtapa` trocando `vivos()` por `kill -0` (que não depende de `/proc`) e `exigir` por nulo, rodando o teste novo numa cópia do head. Sem mutante: `OK`. Com o G1 aplicado (`de` trocado por `:`): `FAILED (failures=1)` em `test_ps_sem_resposta_com_o_grupo_criado_ainda_encerra_o_filho`, `assertTrue(ate(lambda: filho not in vivos(), 30))`, ou seja, o filho sobrevive sem o fallback. O G2 não pude sondar: o teste dele depende de `ps` e `/proc/<pid>/stat` no laço de vigia (`vigia`), sem substituto simples; fica sem veredito aqui (A3).
+
+CI no mesmo sha (`run 44015249975`, PR do branch): as 10 partes da suíte (3.12 e 3.14, 1 a 5) e as verificações, passos, árvore, instalação e pulados deram success; `Catraca` (run 44015249948) success. O job `bateria (pareceres)` e, por ele, o agregador `bateria` falharam por `R-REVIEW`: os pareceres `docs/devops/` e `docs/security/` do item estão desatualizados em relação ao `ci.yml` mudado (comentário). Isso é dos pareceres desses donos, não do QA, e não é bug de produto. A suíte inteira do sha está provada nas partes; o `.verde` local não é citado (I5).
+
+Vermelho antes do verde do teste novo: `forge-testes --vermelho 0f4a5413` não foi rodado (rodada passa de 550 s e o `/proc` do sandbox não prova de qualquer jeito). A prova vermelha do teste novo é a sonda acima: falha com o G1 (a base do conserto) e passa sem ele.
+
+PA-7: AR-5 (python sem `-I`): nenhum caminho novo que decide; os testes sem `-I` seguem o brief. AR-12 (spec desatualizada): `v047-ci-rapido-3.json` M25 e M26 foram realinhados ao comentário do `ci.yml`; o `--conferir` das specs de mutantes não foi repetido, mas a suíte `FiacaoDoCI` (verde nas partes do CI) e a spec batem com o diff lido. AR-1 (um mutante por linha de guarda): cumprido (G1, G2). Classe nova: nenhuma.
+
+Parecer: aprovado, sem bug crítico, alto, médio ou baixo; A1 e A2 do parecer anterior seguem recomendados, A3 novo recomendado.
