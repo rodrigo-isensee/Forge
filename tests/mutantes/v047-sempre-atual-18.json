@@ -29,7 +29,7 @@
       "de": "elif e[\"escopo\"] in CASCA:",
       "para": "elif not (e[\"escopo\"] in CASCA):",
       "testes": [
-        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+        "tests.test_sempre_atual.Ocupacao.test_agente_vigente_com_claude_vivo_adia"
       ]
     },
     {
@@ -79,7 +79,7 @@
       "de": "atual = contagem.get(escopo) if isinstance(contagem.get(escopo), dict) else {}",
       "para": "atual = contagem.get(escopo) if not (isinstance(contagem.get(escopo), dict)) else {}",
       "testes": [
-        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+        "tests.test_sempre_atual.Ocupacao.test_tmux_em_duvida_adia_o_escopo_que_cobre_o_projeto"
       ]
     }
   ]

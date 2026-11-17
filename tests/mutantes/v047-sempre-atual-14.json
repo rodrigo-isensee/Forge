@@ -79,7 +79,7 @@
       "de": "if texto is not None and texto.count(\"\\n\") > LINHAS_DO_REGISTRO:",
       "para": "if not (texto is not None and texto.count(\"\\n\") > LINHAS_DO_REGISTRO):",
       "testes": [
-        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+        "tests.test_sempre_atual.Estado.test_registro_tem_sete_colunas_e_guarda_so_as_ultimas_500"
       ]
     }
   ]

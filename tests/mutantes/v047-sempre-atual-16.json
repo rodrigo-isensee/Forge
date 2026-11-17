@@ -69,7 +69,7 @@
       "de": "self.res[e[\"chave\"]] = {\"antes\": e[\"versao\"] or \"-\", \"depois\": depois or e[\"versao\"] or \"-\", \"resultado\": resultado}",
       "para": "self.res[e[\"chave\"]] = {\"antes\": not (e[\"versao\"] or \"-\"), \"depois\": depois or e[\"versao\"] or \"-\", \"resultado\": resultado}",
       "testes": [
-        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+        "tests.test_sempre_atual.RamosSemMundo.test_resultado_sem_versao_registra_traco"
       ]
     },
     {
@@ -79,7 +79,7 @@
       "de": "self.res[e[\"chave\"]] = {\"antes\": e[\"versao\"] or \"-\", \"depois\": depois or e[\"versao\"] or \"-\", \"resultado\": resultado}",
       "para": "self.res[e[\"chave\"]] = {\"antes\": e[\"versao\"] or \"-\", \"depois\": not (depois or e[\"versao\"] or \"-\"), \"resultado\": resultado}",
       "testes": [
-        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+        "tests.test_sempre_atual.RamosSemMundo.test_resultado_sem_versao_registra_traco"
       ]
     }
   ]

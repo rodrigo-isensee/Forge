@@ -39,7 +39,7 @@
       "de": "return str(local) if local.is_file() and os.access(local, os.X_OK) else None",
       "para": "return str(local) if not (local.is_file() and os.access(local, os.X_OK)) else None",
       "testes": [
-        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+        "tests.test_sempre_atual.AncoraDentro.test_claude_so_do_path_ou_de_local_bin"
       ]
     },
     {

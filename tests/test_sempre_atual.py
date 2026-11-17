@@ -1256,6 +1256,13 @@ class RamosSemMundo(unittest.TestCase):
         self.assertIn("--scope project (na pasta /p/x)", texto)
         self.assertNotIn("--scope user (na pasta", texto)
 
+    def test_resultado_sem_versao_registra_traco(self):
+        rodada = rodada_nua()
+        rodada.definir(escopo(versao=""), "pulado:projeto-ausente")
+        self.assertEqual(rodada.res["user|"], {"antes": "-", "depois": "-", "resultado": "pulado:projeto-ausente"})
+        rodada.definir(escopo(versao="0.47.0"), "atualizado", depois="0.47.2")
+        self.assertEqual(rodada.res["user|"], {"antes": "0.47.0", "depois": "0.47.2", "resultado": "atualizado"})
+
     def test_linha_de_cada_mensagem(self):
         casos = [([("volta-falhou", "0.47.2", "0.47.1")], {}, "Forge: 0.47.2 falhou na checagem e a volta falhou; o Jarvis mostra o aviso"),
                  ([("falhou", "rede")], {}, "Forge: sem rede; segue na 0.47.0"),
