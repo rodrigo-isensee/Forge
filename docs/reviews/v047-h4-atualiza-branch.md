@@ -1,9 +1,9 @@
 ---
 tipo: review
 contrato: 1
-pedido: v047
+pedido: v0474
 branch: melhoria/v047-h4-atualiza-branch
-commit: 80679f197f587ac0eabbef9991c66d391f802678
+commit: ecc079920274ff207f217372c8708bef6e990899
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
@@ -32,5 +32,8 @@ Só mantém ou aperta. O envio é `git push origin <sha>:refs/heads/<branch>` se
 ## Revalidação (head 80679f19)
 Delta lido por `forge-check parecer delta`: só `docs/fechamento-integrador.md` (passo 2b reescrito: merge, envio sem force nem pular o pre-push, recomeço com `--trazida`, E8 só fora de `melhoria/*`) e `docs/protecao-de-branch.md:21` (cita o H4). A1 e A2 resolvidos; S1 reexecutada: 0 linhas. A3 e A4 seguem recomendados, sem devolver. Código inalterado desde ea5c12c8.
 
+## Revalidação (head ecc07992, E1.46)
+Delta lido por `forge-check parecer delta` (80679f19..ecc07992, sem o que veio da develop): só `bin/forge-fechar:789` (`[ -d "$arvore_lock" ]` vira `test -d "$arvore_lock"`, mesma semântica) e o `de` do M6 em `tests/mutantes/v047-h4-atualiza-branch.json`, alinhado à linha nova. As junções da develop pelo passo 2b (f1e1ac05, 80dd1720) têm `git show --remerge-diff` vazio: merge limpo, sem resolução que mude o patch. Conferido: todo `de` dos JSON de mutantes que miram `bin/forge-fechar` aparece uma vez só na fonte (o L3 de `lote-0307-a.json` volta a casar só a linha 1186). CI do PR 633 no head ecc07992: as 5 partes da suíte e o teto de pulados verdes; `bateria (pareceres)` vermelha só por este parecer preso a 80679f19 (`commit: desatualizado`). A3 e A4 seguem recomendados.
+
 ## Parecer
-Aprovado no head 80679f19. Antes reprovado só por A1: o código está correto, testado e dentro de `R-FLUXO`/`R-VERIFY`, mas o documento de operação do fechamento descreve o oposto do que o passo 2b passa a fazer. A2 a A4 não devolvem. Na volta, a revalidação é pelo delta (só a doc).
+Aprovado no head ecc07992 (antes, em 80679f19). Antes reprovado só por A1: o código está correto, testado e dentro de `R-FLUXO`/`R-VERIFY`, mas o documento de operação do fechamento descreve o oposto do que o passo 2b passa a fazer. A2 a A4 não devolvem. Na volta, a revalidação é pelo delta (só a doc).
