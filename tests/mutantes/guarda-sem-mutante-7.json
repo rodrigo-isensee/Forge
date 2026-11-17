@@ -16,8 +16,8 @@
       "id": "M41",
       "guarda": "diff com byte fora do utf-8 nao derruba a checagem",
       "arquivo": "bin/forge-mutante",
-      "de": "text=True, errors=\"replace\")",
-      "para": "text=True)",
+      "de": "cwd=cwd, capture_output=True, text=True, errors=\"replace\")",
+      "para": "cwd=cwd, capture_output=True, text=True)",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_binario_e_fora_do_utf8_so_param_no_python_e_o_cr_solto_e_2"
       ]
