@@ -92,6 +92,16 @@ class Ler(unittest.TestCase):
                                          "autorizacao: 0 adulterada(s), 1 erro(s) de leitura; estado pela validade no G1.1b; "
                                          "nada barra\n"))
 
+    def test_pasta_ausente_nada_e_so_concessao_e_listada(self):
+        shutil.rmtree(self.pasta)
+        self.assertEqual(self.ler()[0], 0)
+        self.pasta.mkdir()
+        for nome in ("U-A-1", "M-0a1b"):  # só presença: vazios, não são lidos
+            (self.pasta / nome).write_text("", encoding="utf-8")
+        (self.pasta / "C-A-1").write_text(concessao(Id="C-A-1"), encoding="utf-8")
+        rc, saida = self.ler()
+        self.assertEqual((rc, saida.count("autorizacao: ")), (0, 1), saida)
+
     def test_forge_check_autorizacao_ler_aceita_so_o_gravado_por_ele(self):
         (self.pasta / "A-1").write_text(concessao(), encoding="utf-8")
         (self.pasta / "A-2").write_text(concessao(**{"Id": "A-2", "Gravado-por": "f" * 64}), encoding="utf-8")
