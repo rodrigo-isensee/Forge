@@ -21,11 +21,12 @@ Verificado no head:
 - O `--anexar` da base é recusado com `release <versão> <data>` junto (`bin/forge-changelog:182-183`), valida a versão e o caminho (`conferir_caminho`) e só grava `CHANGELOG.md`; a dica da recusa agora aponta para um subcomando que existe.
 
 ## Achados
-O A1 do parecer anterior (dica de `--anexar` inexistente) está resolvido: o subcomando existe na base e neste head (`grep anexar bin/forge-changelog`, linhas 8, 181-187, 396). Nenhum achado novo.
 
 ## Sondas
 
 ## Detalhe dos achados
+O A1 do parecer anterior (dica de `--anexar` inexistente) está resolvido: o subcomando existe na base e neste head (`grep anexar bin/forge-changelog`, linhas 8, 181-187, 396). Nenhum achado novo.
+
 Sem achados abertos.
 
 ## Riscos aceitos e ferramentas
