@@ -1,7 +1,10 @@
 """S8 (versao-037 E7): o hook `conformidade` barra escrita na prova da suíte (`.verde`, `.dirigida`, `.novo`) e deixa a leitura
-(casos de abuso e corpus de legítimos de docs/security/ameacas/versao-037.md, E7). Pastas temporárias só deste teste."""
+(casos de abuso e corpus de legítimos de docs/security/ameacas/versao-037.md, E7). Pastas temporárias só deste teste.
+CF1 (v047 E2.179): as fixtures `opaco-cf1-*` e `trava-cf1-*`, com o oráculo pelo bash (`OraculoCf1`)."""
+import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -11,6 +14,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ambiente_git import sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+from test_forge import ambiente_limpo, minimo  # noqa: E402
+from test_hooks import FIXTURES, Fixture, rodar  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 
@@ -190,3 +195,73 @@ class CarimboK6(ComProjeto):
                   f"echo x > {d}/forge-suite-verde.12345678901", f"touch {d}/forge-suite-verde.fila/1-5"):
             r = self.rodar("Bash", {"command": c})
             self.assertEqual(r.returncode, 0, f"{c}: {r.stderr}")
+
+
+def estado_do_git(pasta):
+    """O conteúdo de cada arquivo do `.git`, fora de `objects/` (o oráculo do CF1 compara antes e depois do bash)."""
+    return {str(p.relative_to(pasta)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(pasta.rglob("*"))
+            if p.is_file() and "objects" not in p.relative_to(pasta).parts}
+
+class OraculoCf1(unittest.TestCase):
+    """CF1 (v047 E2.179, A17 a A19 da segurança E1.344): as fixtures `opaco-cf1-*` do corpus, cada uma com o oráculo pelo
+    bash. O hook roda no repositório do caso; depois a mesma linha roda no `bash -c` ali, e o esperado da fixture tem de
+    ser 2 se o bash mudou o `.git` (fora de `objects/`), senão 0: o esperado não vem da regra do hook."""
+
+    def rodar_cartao(self, cartao, piso):
+        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / "conformidade").glob(f"opaco-cf1-{cartao}-*.json"))],
+                          piso, f"opaco-cf1-{cartao}-*")
+        self.assertEqual({f.dados["esperado"]["codigo"] for f in fixtures}, {0, 2}, "o corpus tem os dois lados")
+        for f in fixtures:
+            with self.subTest(caso=f.caminho.stem):
+                esperado, obtido, erro, pelo_bash = self.rodar_caso(f)
+                self.assertEqual(obtido, esperado["codigo"], f"hook: {erro}")
+                self.assertIn(esperado.get("stderr", ""), erro)
+                if pelo_bash is not None:  # sem o programa (rsync) na máquina, só o hook
+                    self.assertEqual(pelo_bash, esperado["codigo"], "oráculo: o bash discorda da fixture")
+
+    def rodar_caso(self, fixture):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-cf1-"))
+        try:
+            raiz, entrada = fixture.montar(tmp, os.getpid())
+            extra = {k: v.replace("{tmp}", str(tmp)) for k, v in fixture.dados["env"].items()}
+            r = rodar("conformidade", entrada, raiz, None, extra)
+            linha = entrada["tool_input"]["command"]
+            if "rsync" in linha and not shutil.which("rsync"):
+                return fixture.dados["esperado"], r.returncode, r.stderr, None
+            antes = estado_do_git(raiz / ".git")
+            env = {**ambiente_limpo(), "HOME": str(tmp), "LC_ALL": "C"}
+            subprocess.run(["bash", "--norc", "--noprofile", "-c", linha], cwd=raiz, env=env, capture_output=True,
+                           stdin=subprocess.DEVNULL, timeout=30)
+            return fixture.dados["esperado"], r.returncode, r.stderr, 2 if estado_do_git(raiz / ".git") != antes else 0
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_redirecao_com_numero(self):  # CONFORMIDADE-REDIRECAO-NUMERO (A17, S52 a S54)
+        self.rodar_cartao("redirecao", 13)
+
+    def test_set_posicional(self):  # CONFORMIDADE-SET-POSICIONAL (A18, S55): `$@` e `$*` de `set --`
+        self.rodar_cartao("set", 8)
+
+    def test_declare_n(self):  # CONFORMIDADE-DECLARE-N (A19, S56): `declare|typeset|local -n d=_` faz de `$d` o `$_`
+        self.rodar_cartao("declare", 10)
+
+    def test_atribuicao_em_linha_ilegivel_nao_vale(self):  # A19: o ramo da linha que o hook não lê, falha fechada
+        sys.path.insert(0, str(RAIZ / "hooks"))
+        try:
+            import conformidade
+        finally:
+            sys.path.remove(str(RAIZ / "hooks"))
+        self.assertTrue(conformidade.atribui_como_argumento("d", "d=x; echo 'aberto"))
+        self.assertFalse(conformidade.atribui_como_argumento("d", "d=x; echo fechado"))
+
+    def test_numero_antes_do_git_nao_o_esconde(self):  # A17: `2>/dev/null git push --force`
+        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / "conformidade").glob("trava-cf1-*.json"))], 1,
+                          "trava-cf1-*")
+        for f in fixtures:
+            with self.subTest(caso=f.caminho.stem):
+                tmp = Path(self.enterContext(tempfile.TemporaryDirectory(prefix="forge-cf1-")))
+                raiz, entrada = f.montar(tmp, os.getpid())
+                r = rodar("conformidade", entrada, raiz, None,
+                          {k: v.replace("{tmp}", str(tmp)) for k, v in f.dados["env"].items()})
+                self.assertEqual(r.returncode, f.dados["esperado"]["codigo"], r.stderr)
+                self.assertIn(f.dados["esperado"]["stderr"], r.stderr)

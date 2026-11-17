@@ -1,2 +1,0 @@
-### Alterado
-- forge-mutante: a isenta da condição apagada casa pelo texto do nó, não pela linha (ISENTA-POR-TEXTO; linha_base vira legado ignorado, e a base nova não solta a isenta); com a árvore suja, a spec do repositório diferente da do commit recusa antes de rodar; --cobertura imprime 'por quê' para o mutante que toca o nó e não cobre (de repetido, curto ou troca fora do nó); specs de pedidos diferentes saem 2 com uma chamada por pedido (v047 E1.283)

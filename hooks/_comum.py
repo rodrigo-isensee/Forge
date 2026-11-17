@@ -36,6 +36,7 @@ PROFUNDIDADE = 3  # teto de aninhamento das leituras (`bash -c`, `$(`, crase, co
 # Um sinal do shell (fora de aspas) se divide em operadores: abertura de substituição de processo (`<(`, `>(`), parênteses,
 # redirecionamento (`>`, `>>`, `2>&`, `&>`, `<<`...) e separadores (`;`, `|`, `&&`, quebra de linha).
 OPERADOR = re.compile(r"[<>]\(|[()]|&?(?:[<>](?!\())+[&|]?|[;|&\n]+")
+DESCRITOR_DA_REDIRECAO = re.compile(r"[0-9]+|\{[A-Za-z_]\w*\}")  # colado antes de `>`/`<`, o bash o lê como o descritor
 # No lugar de uma substituição, o comando de fora recebe uma palavra opaca; o conteúdo dela é conferido como comando
 # próprio. `$(…)` contém `$(`: as regras que já desconfiam de `$(` num caminho (`$X/.forge`) seguem valendo.
 OPACO = {"$": "$(…)", "<": "<(…)", ">": ">(…)"}
@@ -609,6 +610,10 @@ def comandos(comando, legado=False, com_sinal=False):
                 if pilha:
                     pilha.pop()
             elif set(op) & set("<>"):
+                # CONFORMIDADE-REDIRECAO-NUMERO (A17): `2>x`, `9<y`, `{fd}>x` colados são o descritor da redireção, não
+                # palavra; o `2` sobrava como destino (`cp a .git/config 2>/dev/null`) ou como programa (`2>x git ...`)
+                if colado and DESCRITOR_DA_REDIRECAO.fullmatch(estado["palavra"]):
+                    estado["palavra"] = None
                 entregar()
                 estado["modo"] = "saida" if ">" in op else "entrada"
             else:
