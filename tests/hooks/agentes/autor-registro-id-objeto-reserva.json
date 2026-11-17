@@ -1,0 +1,56 @@
+{
+  "descricao": "H2-AUTOR-FICA-ATE-O-MERGE (R-TETO, HOOK-ESTADO-ILEGIVEL-LIBERA): registro ativo com id objeto não derruba o aviso nem tira a reserva.",
+  "arquivos": {
+    "docs/briefs/x.md": "Agente destino: forge:tech-lead\nPedido: p1\nBranch: melhoria/a   Base: develop\n\n## Objetivo\nFazer.\n"
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": {
+            "x": 1
+          },
+          "tipo": "Explore",
+          "descricao": "outro",
+          "desde": "{agora-60}",
+          "branches": [
+            "melhoria/zz"
+          ],
+          "escrita": [
+            "melhoria/zz"
+          ]
+        }
+      ],
+      "autores": [
+        {
+          "id": "a0123456789abcdef",
+          "desde": "{agora-60}",
+          "escrita": [
+            "melhoria/a"
+          ]
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Corrigir o CI",
+      "prompt": "Execute docs/briefs/x.md"
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "aviso": "R-TETO: aviso: autor retomável (melhoria/a: a0123456789abcdef)",
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "Corrigir o CI"
+        ]
+      }
+    }
+  }
+}
