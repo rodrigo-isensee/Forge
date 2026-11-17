@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2796 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2813 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,7 +10,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2796 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 79 | 44 | 35 | 27 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2093 | 1550 | 543 | 91 |
+| `conformidade` | 2110 | 1562 | 548 | 92 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 27 | 11 | 16 | 13 |
 | `parecer` | 511 | 396 | 115 | 24 |
@@ -94,6 +94,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2796 fixtures) roda em `tests/test
 | `pr-*` | 21 | 17 | 4 | `R-CONFORMIDADE`, `R-MAIN` | `FILA-22`, `QA` | Dev criando PR: bloqueia. |
 | `aq-*` | 18 | 13 | 5 | — | `AQ` | AQ barrado em agents/ de uma worktree fora da raiz. |
 | `autoria-*` | 17 | 0 | 17 | — | — | Redirecionamento para docs/qa/ pelo Bash também registra. |
+| `tagv-*` | 17 | 12 | 5 | `R-FLUXO` | `V0474-TAG` | V0474-TAG: tag anotada no clone de contribuição do Forge (segurança A2 da v0474); a tag v* do Forge só nasce do release.yml. |
 | `desenho-*` | 16 | 7 | 9 | — | `E5-0` | E5-0 (Q-B, PAR-P2): sonda: docs/architecture/ de projeto fica sem dono até DESENHO-PROJETO-DONO; o devops grava a seção CI/CD do plano. |
 | `parecer-*` | 16 | 12 | 4 | `R-CONFORMIDADE` | `QA` | dev escrevendo parecer em docs/devops/: bloqueia. |
 | `subst-*` | 16 | 14 | 2 | `R-VERIFY`, `R-MAIN` | `HEAD` | Caminho colado a $(...): o resto é conferido também a partir da raiz (na dúvida, recusa). |

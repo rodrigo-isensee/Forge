@@ -2610,6 +2610,11 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 14, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_v0474_tag(self):  # v0474 (segurança A2): no Forge, git tag só lista e nenhum envio leva tag
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("V0474-TAG:")]
+        self.assertGreaterEqual(len(lote), 17, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_do_v0453_aq_leitura(self):  # 0.45.3: o aq ganha Bash só de leitura, com a lista dele
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith("V0453-AQ-LEITURA:")]
