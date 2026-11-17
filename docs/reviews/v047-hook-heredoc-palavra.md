@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-hook-heredoc-palavra
-commit: 7185b64c57835ab876cc98df59112fd0a05bfe04
+commit: 76b50dc775c366408d0064efd172eec658b0a7a3
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
@@ -11,6 +11,14 @@ data: 2026-11-17
 # Review: v047-hook-heredoc-palavra
 
 Code review da E2.6 (HOOK-HEREDOC-PALAVRA-FP, classe C) no head 730261a5, base 5b1aacd5. Dois commits: f53efb93 (hook, fixtures, changelog, índice) e 730261a5 (mutantes).
+
+## Revalidação (E2.37, head 76b50dc7)
+Delta lido: `forge-check parecer delta docs/reviews/v047-hook-heredoc-palavra.md`, intervalo 7185b64c..76b50dc7, 7 arquivos no domínio (hooks/parecer.py, ADR 0011, índice de fixtures, 3 fixtures novas, spec -2 de mutantes). Correção do A3 da segurança (E2.15) pela E2.32, commit 76b50dc7.
+- hooks/parecer.py:281 passa a recusar `{` no nome do alvo (`*?[{`): `bin/l{s..s}` não vira dado. A chave só no diretório (`bi{n..n}/ls`) cai na guarda do nome de programa; `{a,b}` com duas palavras o bash recusa como redireção ambígua. Falha fechado, só perde liberação.
+- 3 fixtures `heredoc-dado-alvo-com-chave-*-bloqueia` (no fim, no início, com grep) entram no corpus `heredoc-dado-*`, que o teste percorre com mínimo afirmado.
+- M9 realinhado ao texto novo da linha e M12 novo (a chave sai do filtro) na mesma linha 281.
+- ADR 0011:45, emenda v047 cita a chave com o exemplo; docstring de `corpos_de_dado` alinhada.
+Verificações: `bin/forge-mutante tests/mutantes/v047-hook-heredoc-palavra-2.json` no head, 1 processo: M9, M10, M11 e M12 morreram. `bin/forge-mutante --cobertura --base 7185b64c`: linha 281 coberta por M9 e M12, sem guarda descoberta. Tamanho do delta: 2+2 em hooks/parecer.py e 11+1 na spec. Sem PR aberto, sem CI para citar. Sem achado novo.
 
 ## Revalidação (E2.14, head 7185b64c)
 Delta lido: `forge-check parecer delta docs/reviews/v047-hook-heredoc-palavra.md`, intervalo 730261a5..7185b64c, 11 arquivos no domínio (hooks/parecer.py, ADR 0011, changelog, índice de fixtures, 5 fixtures novas, 2 specs de mutantes). Commits 11a96c7a, 142513b2, 7185b64c.
@@ -29,7 +37,7 @@ Verificações: `tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_d
 - S2 · no bash, cat > `echo bin/ls` <<'FIM' sobre bin/ls executável e PATH com bin/ na frente, depois ls · espera: o ls roda o corpo gravado · obtido: imprimiu a sentinela do corpo (o modo do arquivo se mantém, sem chmod)
 
 ## Parecer
-Aprovado no head 7185b64c (revalidação E2.14): A1, A2 e A3 resolvidos. Rodada anterior, no head 730261a5: reprovado por A1 e A2.
+Aprovado no head 76b50dc7 (revalidação E2.37, delta do A3 da segurança sem achado). Antes: aprovado no head 7185b64c (revalidação E2.14), A1, A2 e A3 resolvidos. Rodada anterior, no head 730261a5: reprovado por A1 e A2.
 
 O que está certo: `corpos_de_dado` é pequena e legível, reaproveita `heredocs_simples`, `chamada_muda_o_corpo` e `programas_e_atribuicoes`; o novo tipo `dado` entra nos dois pontos certos (`marcas_da_chamada` e a lista `internos` de `conferir_linha`). As sondas de contorno que tentei seguem recusadas: alvo com aspas (`bin/'l's`), barra (`bin/l\s`), `>|`, `&>`, `$HOME/bin/ls`, `$X`, `$(echo bin/ls)`, `"`echo bin`/ls"`, `. ./f`, `./f`, `cat | sh`. `bin/{ls,x}` passa, mas o bash recusa a redireção ambígua: não é defeito.
 
