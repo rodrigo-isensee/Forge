@@ -1,9 +1,9 @@
 ---
 tipo: review
 contrato: 1
-pedido: v047
+pedido: v0474
 branch: melhoria/v047-hook-estado-ilegivel
-commit: d2d82ffab0e89a3ac1d1806cca98f51059b6c908
+commit: a99c1a9fbb88229ad6b5d24dd25d2f664d0309e6
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
@@ -52,8 +52,14 @@ Delta lido: `forge-check parecer delta docs/reviews/v047-hook-estado-ilegivel.md
 - `hooks/agentes.py`, `tests/test_estado_ilegivel.py`, `tests/test_selo_e_entrega.py`, as specs `v047-hook-estado-ilegivel*` e os fixtures `estado-ilegivel-*` não mudaram no intervalo: sem guarda mudada, AR-12 não se aplica. Sem linha nova em `achados-recorrentes.md`.
 - Provas rodadas por mim: `tests/test_estado_ilegivel.py`, 9 testes, OK; `tests/test_indice_fixtures.py`, 7 testes, OK; `tests/test_testes_tocados.py`, 162 testes: 160 OK e 2 falhas de ambiente (`ExecucaoAfetados.test_afetados_rodam_em_paralelo_e_anotam_o_log` e `test_dirigido_roda_so_os_modulos_do_mapa_e_anota_o_log`, rodados com `env -i` sem `TMPDIR`: o `forge-partes-*` caiu dentro do repo temporário e a guarda de árvore mudada disparou); os dois, de novo com o `TMPDIR` do sandbox, OK. Sem PR aberto, não há CI a citar; a suíte inteira fica para o CI do PR.
 
+## Revalidação (v0474 E1.6)
+Delta lido: `forge-check parecer delta docs/reviews/v047-hook-estado-ilegivel.md`, intervalo `d2d82ffa..a99c1a9f` (junção da própria branch e o realinhamento dos mutantes), domínio código e testes: só `tests/mutantes/v047-hook-erro-libera-3.json` (M22) e `tests/mutantes/v047-hook-erro-libera-4.json` (M32). Instância que não fez a entrega.
+- O `de` e o `para` de M22 e M32 passam a acompanhar `hooks/agentes.py` atual (a linha após o `return` agora é `pasta_ilegivel = False`; `atualizar_estado(` agora vem dentro de um `try:`). A guarda mutada é a mesma (`if raiz is None` → `if False`; `if recusa is None` → `is not None`), assim como os testes; nenhum mutante entra ou sai. Cada `de` aparece uma vez em `hooks/agentes.py`.
+- CI do PR 630 no a99c1a9f (run 44092335854): suíte 3.12 e 3.14 (5/5 partes), catraca, passos, verificações longas e instalação verdes; só `bateria (pareceres)` reprovou, porque este parecer estava preso ao d2d82ffa (R-REVIEW, "commit: desatualizado"). Este commit resolve isso.
+- Provas rodadas por mim: `bin/forge-mutante --conferir --base 5b1aacd5`: "o trecho de cada spec do diff está no lugar"; `bin/forge-mutante --processos 1` com M22 e M32: `M22 · morreu · hooks/agentes.py:947`, `M32 · morreu · hooks/agentes.py:961`. Sem guarda mudada no código: AR-12 não se aplica e não há linha nova em `achados-recorrentes.md`.
+
 ## Parecer
-Aprovado no head d2d82ffa. Na revalidação anterior: Aprovado no head c108ed34. Na anterior a ela: Aprovado no head 05d68fce. Na revalidação anterior: Aprovado no head b09916f7. Na anterior a ela: Aprovado no head c3f86d7a. Do review anterior (bc129c11): Requisitos do plano conferidos no código e nos testes:
+Aprovado no head a99c1a9f. Na revalidação anterior: Aprovado no head d2d82ffa. Na anterior a ela: Aprovado no head c108ed34. Na anterior a ela: Aprovado no head 05d68fce. Na revalidação anterior: Aprovado no head b09916f7. Na anterior a ela: Aprovado no head c3f86d7a. Do review anterior (bc129c11): Requisitos do plano conferidos no código e nos testes:
 - R1: `ler_estado` (`hooks/agentes.py:271-294`) abre com `O_NOFOLLOW | O_NONBLOCK`, confere `S_ISREG` pelo `fstat`, lê até `LIMITE_DO_ESTADO + 1` (1 MiB), e lança `EstadoIlegivel` em JSON inválido ou vazio, raiz que não é objeto, `agentes` ou `lapides` que não é lista e `OSError`. Ausente segue `{"agentes": []}`; `{}` libera (fixture `estado-sem-chave-agentes-libera`). Fica em `agentes.py`, como o plano pede.
 - R2: `recusar_ilegivel` (`:832-836`) recusa só no `PreToolUse`, disparo e retomada, com R-TETO numa linha sem conteúdo do arquivo; o erro vai ao `erros.log`. O R-BRIEF segue antes e independente (`errointerno-estado-corrompido-sem-brief-bloqueia`; selo em dia com estado ilegível recusa por R-TETO em `tests/test_selo_e_entrega.py`).
 - R3: com `EstadoIlegivel`, nenhum evento regrava; `SubagentStart` e `SubagentStop` saem com 0 e o arquivo fica intacto (`contem` nos fixtures, inclusive nos de rc 2).
