@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-g4-medida-idioma
-commit: 675cf7a1f90676de32932e82b6a219401a77d94a
+commit: bdbb45cd5235d601649e3bbdd889bb8b4aaae4cb
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
@@ -24,6 +24,9 @@ Escopo (E2.683): `hooks/meta.py` grava `idioma`, `idioma_do_dono` e `outro_idiom
 - `bin/forge-mutante --base 5b1aacd5 tests/mutantes/v047-g4-medida-idioma.json`: M1 a M8 `morreu` (meta.py:198, 200, 208, 209, 210, 212, 231).
 - `bin/forge-mutante --cobertura --base 5b1aacd5`: as 6 linhas de guarda do diff `coberta`.
 - Suíte inteira: fica no CI do PR (`R-REVIEW`); não rerrodada aqui.
+
+## Revalidação
+Delta lido (`forge-check parecer delta`, 675cf7a1..bdbb45cd): só `tests/mutantes/v047-jargao-medida-4.json`, o `de` do M27 passou a `medir_mensagem(hook, raiz)` (hooks/meta.py:246, existe no código). `bin/forge-mutante --base 5b1aacd5 tests/mutantes/v047-jargao-medida-4.json`: M25, M26, M27, M28 `morreu`. Sem código nem teste mudados; A1 segue recomendado.
 
 ## Achados
 - A1 (recomendado) hooks/meta.py:189 · "que" e "no" estão só na lista pt e são frequentes em espanhol: "Pienso que no es lo que querías, pero no hay prisa." mede `pt` (sondado). Falso negativo para dono pt; só medida. Tirar "que"/"no" do pt ou pesar por lista, se a medida mostrar ruído.
