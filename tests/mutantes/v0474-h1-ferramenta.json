@@ -77,8 +77,8 @@
       "id": "M17",
       "guarda": "corpo ausente vale texto vazio",
       "arquivo": "bin/forge_tamanho.py",
-      "de": "LINHA_DE_MOTIVO.search(corpo or \"\")",
-      "para": "LINHA_DE_MOTIVO.search(corpo)",
+      "de": "LINHA_DE_MOTIVO.finditer(corpo or \"\")",
+      "para": "LINHA_DE_MOTIVO.finditer(corpo)",
       "testes": [
         "tests.test_forge_tamanho.Funcoes.test_motivo_no_corpo"
       ]
