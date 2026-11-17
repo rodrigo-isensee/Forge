@@ -302,8 +302,9 @@ class Agentes(unittest.TestCase):
                 with self.subTest(agente=p.name, skill=s):
                     self.assertIn(s.removeprefix("forge:"), self.skills)
 
-    def test_time_do_jarvis_existe(self):
-        texto = (AGENTES / "jarvis.md").read_text(encoding="utf-8")
+    def test_time_do_jarvis_existe(self):  # folga do texto do Jarvis (v047, P2): a tabela foi para a skill fluxo-do-pedido
+        self.assertIn("tabela de `fluxo-do-pedido`", (AGENTES / "jarvis.md").read_text(encoding="utf-8"))
+        texto = (SKILLS / "fluxo-do-pedido" / "SKILL.md").read_text(encoding="utf-8")
         tabela = re.search(r"## Time\n(.*?)\n## ", texto, re.S).group(1)
         citados = set(re.findall(r"^\| `(?:forge:)?([a-z-]+)` \|", tabela, re.M))
         # Os agentes de stack não ficam na tabela (o núcleo não os cita): o Jarvis os lê de stacks/<stack>/agents/.
@@ -552,7 +553,7 @@ class RegrasInviolaveis(unittest.TestCase):
 LEGADO_SEM_MOTIVO_MAXIMO = 34  # L35 (OK-11): os invariantes de antes do campo; a lista só encolhe, e o novo já nasce com regra e porque
 
 
-LEGADO_TRECHOS_MAXIMO = 284  # L35 (A9 do QA): a soma dos trechos do legado, igual à real de hoje; só encolhe
+LEGADO_TRECHOS_MAXIMO = 225  # L35 (A9 do QA): a soma dos trechos do legado, igual à real de hoje; só encolhe
 
 
 def problemas_de_motivo(config, regras):
@@ -5000,7 +5001,7 @@ class PraticasDeEspecificacao(unittest.TestCase):
         self.assertIn("constituicao.md", self.texto("templates/projeto/CLAUDE.md"))
 
     def test_dora_na_skill_e_no_agile_coach(self):
-        for rel in ("skills/kanban-scrum/SKILL.md", "agents/agile-coach.md"):
+        for rel in ("skills/kanban-metricas/SKILL.md", "agents/agile-coach.md"):  # v047 P1: DORA saiu da kanban-scrum
             t = self.texto(rel)
             for m in ("DORA", "lead time de mudança", "taxa de falha", "recuperação"):
                 self.assertIn(m, t.lower() if m.islower() else t, rel)
@@ -7028,28 +7029,43 @@ class GuiaDaPromocao(unittest.TestCase):
 
 
 class TetoPorPr(unittest.TestCase):
-    """EST-030-L5, M14, revista na 0.43.1 (decisão 7 do dono): o teto de 150 linhas por PR é orientação por risco, não trava por
-    volume; acima dele o PR diz por que. Saem as asserções do achado `bloqueante` por volume e da exceção que não valia em `hooks/`."""
+    """EST-030-L5, M14, revista na 0.43.1 (decisão 7 do dono) e no H1 (decisão do dono de 17/11, v0474): até 150 linhas de
+    código por item, fora testes e documentação; passa só se cortar mais deixa a suíte vermelha, com o motivo no PR. O texto
+    do tech-lead e da skill traz o resumo; o detalhe (contagem, pastas do Forge) mora em `tamanho-por-item.md` (diretriz 25)."""
+
+    AUXILIAR = "skills/engineering-practices/tamanho-por-item.md"
+
+    def texto(self, caminho):
+        """O arquivo mais o auxiliar da skill, para onde o detalhe se mudou."""
+        return "\n".join((RAIZ / c).read_text(encoding="utf-8") for c in (caminho, self.AUXILIAR))
 
     def test_orientacao_e_classe_unica_no_jarvis_no_tech_lead_e_na_skill(self):
         for caminho in ("agents/jarvis.md", "agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
-            texto = texto_do_jarvis(RAIZ) if caminho == "agents/jarvis.md" else (RAIZ / caminho).read_text(encoding="utf-8")
-            for frase in ("150 linhas alteradas de código e teste", "uma classe de comportamento por PR em `hooks/`, com corpus próprio"):
+            texto = texto_do_jarvis(RAIZ) if caminho == "agents/jarvis.md" else self.texto(caminho)
+            for frase in ("150 linhas", "uma classe de comportamento por PR em `hooks/`, com corpus próprio"):
                 with self.subTest(arquivo=caminho, frase=frase):
                     self.assertIn(frase, texto)
             self.assertNotIn("400 linhas", texto)
 
-    def test_nao_e_trava_por_volume(self):
+    def test_teto_do_h1_no_tech_lead_e_na_skill(self):
         for caminho in ("agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
             texto = (RAIZ / caminho).read_text(encoding="utf-8")
             with self.subTest(arquivo=caminho):
-                self.assertIn("até 150 linhas alteradas de código e teste", texto)
+                self.assertIn("até 150 linhas de código por item, fora testes e documentação", texto.replace(
+                    " (`git diff --numstat --no-renames origin/develop...HEAD`)", ""))
                 self.assertIn("um comportamento só", texto)
-                self.assertIn("Não é trava por volume", texto)
+                self.assertIn("Passa só se cortar mais deixa a suíte vermelha", texto)
                 self.assertIn("`teto: excedido, <n> linhas, <motivo>`", texto)
-                self.assertIn("git diff --numstat --no-renames origin/develop...HEAD", texto)
-                self.assertIn("`tests/*.py` e `tests/config.json`", texto)
-                self.assertNotIn("é achado `bloqueante`", texto.split("Tamanho por risco", 1)[1].split("\n", 1)[0])
+                self.assertIn("tamanho-por-item.md", texto)
+                self.assertNotIn("Não é trava por volume", texto)
+                self.assertNotIn("é achado `bloqueante`", texto.split("Tamanho por item", 1)[1].split("\n", 1)[0])
+
+    def test_o_auxiliar_conta_so_codigo(self):
+        texto = (RAIZ / self.AUXILIAR).read_text(encoding="utf-8")
+        self.assertIn("git diff --numstat --no-renames origin/develop...HEAD", texto)
+        self.assertIn("contam `bin/`, `hooks/`, `scripts/`, `.github/` e `.githooks/`", texto)
+        self.assertIn("ficam fora `tests/` inteira", texto)
+        self.assertNotIn("`tests/*.py` e `tests/config.json`", texto)
 
     def test_a_skill_de_qa_divide_a_spec_no_mesmo_limite_que_a_ferramenta(self):
         texto = (RAIZ / "skills/qa-testing/SKILL.md").read_text(encoding="utf-8")

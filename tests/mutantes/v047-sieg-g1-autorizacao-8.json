@@ -1,0 +1,16 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M56",
+      "guarda": "G1.1 (ADR 0018): erro de abertura do evento mostra o texto do sistema, sem o [Errno n] nem o caminho",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "{e.strerror or e}",
+      "para": "{e}",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_ilegivel_e_erro_e_nada_e_integro_por_ele"
+      ]
+    }
+  ]
+}
