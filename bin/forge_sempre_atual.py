@@ -322,6 +322,10 @@ class Rodada:
         local = self.casa / ".local" / "bin" / "claude"
         return str(local) if local.is_file() and os.access(local, os.X_OK) else None
 
+    def bash(self):
+        """O bash do PATH dos filhos ou, sem ele (o PATH de teste só com dublês), o do sistema."""
+        return shutil.which("bash", path=self.env.get("PATH", "")) or "/bin/bash"
+
     def claude(self, args, cwd=None, cap=60):
         return self.rodar([self.claude_bin, *args], cwd or self.neutro, cap)
 
@@ -404,7 +408,7 @@ class Rodada:
     def suite(self):
         """True (rodando), False (livre) ou None (dúvida) pelo `.githooks/pre-push --status` da cópia instalada (`GANCHO_DA_SUITE`);
         nenhum arquivo da pasta do projeto é executado. Sem o arquivo, o bash sai com 127: dúvida."""
-        bash = shutil.which("bash", path=self.env.get("PATH", "")) or "/bin/bash"
+        bash = self.bash()
         rc, _ = self.rodar([bash, str(GANCHO_DA_SUITE), "--status"], self.neutro, PRAZO_LEITURA)
         return {0: True, 1: False}.get(rc)
 
@@ -674,7 +678,7 @@ class Rodada:
                     compile(codigo, str(arq), "exec", dont_inherit=True)
                 except (SyntaxError, ValueError, RecursionError, MemoryError):
                     return False, f"{sub}/{arq.name} não compila"
-        bash = shutil.which("bash", path=self.env.get("PATH", "")) or "/bin/bash"
+        bash = self.bash()
         for rel in SCRIPTS_SH:
             if (Path(novo) / rel).is_file():
                 rc, _ = self.rodar([bash, "-n", str(Path(novo) / rel)], self.neutro, max(fim - time.monotonic(), 1))

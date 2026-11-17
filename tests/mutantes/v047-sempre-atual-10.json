@@ -82,13 +82,5 @@
         "tests.test_hooks.Hooks.test_fixtures_do_v0474_tag"
       ]
     }
-  ],
-  "isentas": [
-    {
-      "arquivo": "bin/forge_sempre_atual.py",
-      "trecho": "shutil.which(\"bash\", path=self.env.get(\"PATH\", \"\")) or \"/bin/bash\"",
-      "linha_base": 407,
-      "motivo": "recuo do caminho do bash, igual ao da C-INI (cini): sem bash no PATH, o /bin/bash é o mesmo programa; o mutante é equivalente"
-    }
   ]
 }
