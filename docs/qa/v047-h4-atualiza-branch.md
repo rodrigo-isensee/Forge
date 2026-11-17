@@ -15,7 +15,7 @@ data: 2026-11-17
 # QA: v047-h4-atualiza-branch (H4, E2.722; código ea5c12c8, head c0126861)
 
 ## Achados
-- A1 (recomendado, coberto por M11 e M12 no delta) bin/forge-fechar:798 · o recomeço sem `--trazida` sobrevive ao mutante (nenhum teste cai): se a base andasse de novo entre o envio e o recomeço, a cadeia traria a base outra vez. Um teste que faça a base andar no envio e exija um só merge prova a guarda (R-QA).
+- A1 (recomendado) bin/forge-fechar:798 · o recomeço sem `--trazida` sobrevive ao mutante (nenhum teste cai): se a base andasse de novo entre o envio e o recomeço, a cadeia traria a base outra vez. Um teste que faça a base andar no envio e exija um só merge prova a guarda (R-QA).
 
 ## Critério → teste → resultado
 O pedido não tem especificação de UX; as obrigações vêm do item H4: em `melhoria/*`, base andou sem conflito, o `forge-fechar` traz a base por merge e recomeça a cadeia uma vez (CA-1 a CA-8); fora de `melhoria/*` e com conflito segue o comportamento E8 (CA-9, CA-10).
