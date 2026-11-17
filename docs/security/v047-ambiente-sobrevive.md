@@ -3,13 +3,16 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ambiente-sobrevive
-commit: e3dfc4cbeb4b502c1ba31665f37e913863dc0df0
+commit: 97c4a461ca07596a88a1d8809562fc456f8c66c7
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-16
 ---
-# Review de segurança: v047-ambiente-sobrevive (E2.206, revalidação por delta)
+# Review de segurança: v047-ambiente-sobrevive (E2.573, revalidação por delta)
 
+E2.573: revalidação por delta `e3dfc4cb..97c4a461` (`forge-check parecer delta`, sem o que veio da develop). No domínio mudou só `scripts/preparar-estacao.sh`: `gh >= 2.47` (`gh_versao_ok`, `garantir_gh`) veio da develop; o item mantém `chave_confere` com a digital fixada, `FORGE_APT_*`, `--verificar` e o modo essencial (`git diff origin/develop` do script conferido). Em `garantir_gh`, `chave_confere` roda antes de instalar a chave e a lista e falha fechada: sem gpg ou com digital diferente, registra `falta:` e retorna sem `apt-get install` (sonda: arquivo de outra chave e arquivo vazio, rc=1 nos dois). Fora da conferência, o `apt-get install gh` só usa repositório já configurado. `FORGE_APT_*` só vem do ambiente de quem chama. O `--container` sem rede só instala o que o apt oficial da máquina já oferece. Os textos de `claude --permission-mode auto` são só mensagem. Veredito e achados A3 a A5 valem sem mudança (A3 continua: o script só confere a digital, não exporta a chave). shellcheck do script: rc=0. Testes rodados: `tests.test_ambiente_hook` (6), `tests.test_sessao_automatica` e `tests.test_fechar_gh_versao` (22), `tests.test_forge.PrepararEstacao` (24), todos OK. PA-7 conferida: nenhum item novo se aplica ao delta.
+
+Histórico (E2.206):
 E2.206: revalidação por delta `584b2239..e3dfc4cb` (`forge-check parecer delta`: nenhum arquivo do domínio mudou; só pareceres em `docs/`). O veredito e os achados abaixo valem sem mudança para o head e3dfc4cb. O campo `pedido:` passa a `v047`. Teste do item rodado de novo: `tests.test_ambiente_hook` (6, OK). PA-7 conferida: nenhum item novo se aplica ao delta.
 
 Histórico (E2.136):
