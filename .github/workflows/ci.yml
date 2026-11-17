@@ -40,7 +40,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-26.04
-    timeout-minutes: 15  # medida de 2:30 a 5:00 por perna (docs/propostas/ci-rapido.md); 15 dá folga de 3 vezes
+    timeout-minutes: 15  # medida de 2:30 a 5:00 por perna (a proposta ci-rapido); 15 dá folga de 3 vezes
     strategy:
       fail-fast: false
       matrix:
@@ -152,7 +152,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-26.04
-    timeout-minutes: 15  # medida de 2:30 a 5:00 por perna (docs/propostas/ci-rapido.md); 15 dá folga de 3 vezes
+    timeout-minutes: 15  # medida de 2:30 a 5:00 por perna (a proposta ci-rapido); 15 dá folga de 3 vezes
     strategy:
       fail-fast: false
       matrix:

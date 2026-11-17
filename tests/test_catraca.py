@@ -3485,7 +3485,7 @@ class Workflows(unittest.TestCase):
         self.assertRegex(ci, r"(?m)^  bateria:")
         self.assertIn("docs/(reviews|qa|security|devops|ux)/", ci)
         # Teto de tempo (ci-suite-no-teto; SUITE-NO-CI; CI-RAPIDO, v047): no push na develop, por versão (3.12 e 3.14), cada uma das 5
-        # partes 15 min (medida de 2:30 a 5:00, docs/propostas/ci-rapido.md), o teto de pulados 5 min e o agregador de prova
+        # partes 15 min (medida de 2:30 a 5:00, a proposta ci-rapido), o teto de pulados 5 min e o agregador de prova
         # ("checagem rápida", SP4) 5 min; no PR, cada parte da suíte (3.12 e 3.14) 20 min; cobertura 45 min;
         # instalação no 3.14 15 min; o teto de pulados de cada versão (T3, 0.43.2) 5 min; passos da bateria 20 min; verificações longas (shellcheck, Provas, e2e; #493) 20 min; os dois agregadores 5 min;
         # o job de pareceres (v047 E1.18, J9) 5 min; o job prévio da árvore (M2, 0.43.4), antes das partes, 5 min.
