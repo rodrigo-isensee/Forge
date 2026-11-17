@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-maq-i9-trava-s
-commit: 8bff4e7dbb0a168e55356899a00e64648c27a49f
+commit: 07319ed9b506d894403898f7efde8e3ce08090bb
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -34,3 +34,9 @@ Pedido de correção sem especificação de UX; a obrigação é a do item (trav
   `forge-mutante: pedido=v047-maq-i9-trava-s rev=8bff4e7dbb0a spec=53fa32a2...`; `M1 · morreu · hooks/pesado.py:33`; `M2 · morreu · hooks/pesado.py:33`. Linha de guarda mudada no diff: uma (`TRAVA_S`), coberta pelos dois mutantes. `--cobertura --base 73a0ab81` não lista condição sem mutante.
 - A suíte inteira não rodou local; vale o check-run `bateria` do mesmo sha no CI do PR.
 - Sem bugs; nada a registrar em `docs/qa/bugs/`.
+
+## Revalidação (delta 8bff4e7d → 07319ed9)
+- `forge-check parecer delta`: no domínio do QA, só `docs/hooks.md` mudou (10 → 20 minutos, 1.200 s, em 4 linhas); nenhum código, teste ou fixture tocado.
+- `grep` em `docs/hooks.md`: nenhum "10 minutos" nem "600 s" restante sobre a trava; `hooks/pesado.py:33` `TRAVA_S = 1200` confere com a doc.
+- Testes dos arquivos tocados (`tests.test_pesado_fila tests.test_forge_pesado`), com TMPDIR: `Ran 23 tests ... OK`.
+- Vermelho, mutantes e CI: valem os do parecer anterior (código inalterado); suíte inteira, check-run `bateria` do mesmo sha.
