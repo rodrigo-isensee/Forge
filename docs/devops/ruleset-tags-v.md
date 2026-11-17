@@ -23,6 +23,15 @@ Lido por `gh api` GET em 17/11/2026:
 - `.github/workflows/release.yml`: dispara em `push` na `main`; o job `release` (`contents: write`) roda `gh release create "v$versao" --target "$GITHUB_SHA"` com `GH_TOKEN: ${{ github.token }}`. A tag nasce **pela API de release**, ator `github-actions` (integração id `15368`, o mesmo `integration_id` que os checks obrigatórios já usam).
 - Há 57 tags `v*` hoje.
 
+## O que o ruleset fecha e o que fica (leia antes de decidir)
+**Fecha:** `git push origin vX`, `gh api -X POST .../git/refs`, `gh release create` e `POST .../releases` feitos com a conta do dono (a que os agentes usam), mover e apagar as 57 tags existentes, e o engano de qualquer pessoa ou agente. Os hooks atuais não barram `gh release create` nem `git push` de tag nova; o ruleset fecha esses dois.
+
+**Não fecha (resíduo, achado A1 do parecer `docs/security/v0475-ruleset-tags.md`):** hoje o token dos agentes tem os escopos `repo`, `workflow`, `admin:public_key` e `delete_repo`, e a conta tem `permissions.admin: true`. Enquanto for assim:
+- um workflow novo ou editado numa branch `melhoria/*` declara `permissions: contents: write` e roda `gh release create vX` com `github.token`; o ator é `github-actions`, que está no bypass, e o ruleset não distingue o workflow nem a branch de origem;
+- a conta administra o repositório e pode desativar ou apagar o ruleset por chamada HTTP direta (o hook `conformidade` barra `gh api` mutante em `rulesets`, mas não outro cliente com o mesmo token); os rulesets de branch também dão bypass `always` ao papel admin.
+
+Conclusão: com o token atual, o ruleset barra o engano e o comando direto, **não** um agente que edite workflow ou desative o ruleset. Caminho de ataque: agente desviado (injeção vinda de conteúdo de um projeto, ou erro) cria `v9.99.0` num commit qualquer e a atualização dos projetos a consome. Impacto alto, probabilidade baixa (vários passos deliberados, contra os hooks). O fechamento está em "Token fino para os agentes" (decisão do dono).
+
 ## O que o ruleset faz
 Alvo `refs/tags/v*`, regras `creation`, `update`, `deletion`. Sem bypass, **ninguém** passa, inclusive admin e o próprio `github-actions`. Por isso a lista de bypass importa.
 
@@ -52,12 +61,14 @@ Arquivo `ruleset-tags-v.json` (corpo de `POST /repos/rodrigo-isensee/Forge/rules
 ```
 
 Aplicar por linha de comando (o dono, com a conta dele): `gh api -X POST repos/rodrigo-isensee/Forge/rulesets --input ruleset-tags-v.json`. A resposta 201 traz o `id` do ruleset; guarde-o.
+Confira já na resposta 201 (ou por `gh api repos/rodrigo-isensee/Forge/rulesets/<id> --jq .bypass_actors`) que `bypass_actors` voltou com `{"actor_id":15368,"actor_type":"Integration","bypass_mode":"always"}`. Lista vazia = bypass descartado em silêncio: passe ao caminho 1 antes da próxima release, em vez de esperar a release falhar.
 
 ## Limitação real do bypass (leia antes de aplicar)
 - `bypass_actors` aceita papel do repositório, time (só em organização), deploy key, administrador de organização e **integração (GitHub App)**. O `github-actions` é a integração `15368`, mas **não confirmei** que o GitHub a aceita como bypass: a tela costuma não listá-la e a API pode responder 422. Não há como testar sem aplicar, e agente não aplica. **Trate o JSON acima como tentativa**; o dono confere o resultado (próxima seção).
 - Se a API responder 422 ou a tela não oferecer "GitHub Actions": **não use o papel Admin como bypass** (libera a conta do dono, contra a decisão). Caminhos, em ordem de preferência, todos sem custo (`R-CUSTO`):
-  1. **GitHub App próprio do dono** (grátis), instalado só neste repositório com `contents: write`; o workflow troca a chave do App por um token de instalação (`actions/create-github-app-token` fixada por SHA) e o usa no `gh release create`; o App entra como bypass (`actor_type: Integration`, `actor_id` = id do App). Exige o segredo da chave privada e a mudança do workflow; ambos do dono.
-  2. **Deploy key** com escrita, sem outro uso, como bypass (`actor_type: DeployKey`); o workflow empurra a tag por SSH. Exige segredo e mudança do workflow.
+  1. **GitHub App próprio do dono (preferido)** (grátis), instalado só neste repositório com `contents: write`; o workflow troca a chave do App por um token de instalação (`actions/create-github-app-token` fixada por SHA) e o usa no `gh release create`; o App entra como bypass (`actor_type: Integration`, `actor_id` = id do App). Exige o segredo da chave privada e a mudança do workflow; ambos do dono.
+  2. **Deploy key** com escrita, sem outro uso, como bypass (`actor_type: DeployKey`); o workflow empurra a tag por SSH. Exige segredo e mudança do workflow. Limite: o bypass `DeployKey` vale para **toda** deploy key do repositório, e a conta admin cadastra uma nova; por isso o App é preferido.
+  - **Nos caminhos 1 e 2 o segredo (chave privada do App ou da deploy key) fica num environment, nunca como segredo do repositório.** Segredo de repositório é lido por qualquer workflow de qualquer branch (push ou PR do próprio repositório) e o resíduo se repetiria com o App. Crie o environment `release` (Settings > Environments; grátis em repositório público; hoje há 0) com Deployment branches = Selected branches = `main`, guarde o segredo nele, e o job `release` declara `environment: release`. A proteção só fecha junto com o token fino (sem Administration o agente não troca a regra do environment).
   3. Sem nenhum dos dois, não há como separar o `github-actions` da conta do dono por ruleset em repositório de usuário. Resta o ruleset **só com `update` e `deletion`** (ninguém move nem apaga tag; a criação fica livre). Fica abaixo da decisão; só com aceite expresso do dono.
 - Efeito colateral: sem bypass funcionando, o job `release` falha ao criar a tag (403/422 em `gh release create`) e a release da `main` não sai até o dono corrigir ou reverter. Aplique **fora de uma release em andamento** e teste (próxima seção).
 
@@ -69,15 +80,36 @@ Aplicar por linha de comando (o dono, com a conta dele): `gh api -X POST repos/r
 5. **Rules:** marque **Restrict creations**, **Restrict updates** e **Restrict deletions**; desmarque o resto.
 6. **Create**.
 
+## Token fino para os agentes (proposta ao dono; fecha o resíduo)
+Sem custo (`R-CUSTO`). Nenhum agente cria nem troca token; o dono executa e decide (`R-CONFORMIDADE`, `R-DECISAO`).
+
+Passo a passo (tela do GitHub, conta do dono):
+1. Anote os escopos do token atual (`gh auth status`) e onde ele está configurado para os agentes, para poder voltar.
+2. **Settings** (da conta) > **Developer settings** > **Personal access tokens** > **Fine-grained tokens** > **Generate new token**.
+3. **Token name:** `forge-agentes`. **Expiration:** curta (30 a 90 dias; anote a renovação).
+4. **Resource owner:** a conta do dono. **Repository access:** **Only select repositories** > `rodrigo-isensee/Forge` (só este).
+5. **Repository permissions:** `Contents: Read and write`, `Pull requests: Read and write`, `Issues: Read and write` (rótulos e comentários), `Actions: Read` (ler execuções) e `Metadata: Read` (automático). **Administration: No access. Workflows: No access.** Todo o resto, sem acesso. Nenhuma permissão de conta.
+6. **Generate token**, copie uma vez e coloque-o no lugar do token atual na sessão dos agentes (`GH_TOKEN` ou `gh auth login --with-token`). O token com `admin`, `workflow` e `delete_repo` fica só com o dono, fora da sessão dos agentes.
+7. Conferir: `gh api repos/rodrigo-isensee/Forge --jq .permissions` deve trazer `admin: false`; um GET em `repos/rodrigo-isensee/Forge/rulesets` deve ser recusado; um `git push` que toque `.github/workflows/` deve ser recusado.
+
+O que isso quebra ou muda no fluxo atual (para o dono decidir):
+- **Pushes de branch `melhoria/*`:** continuam (Contents: write). Push que toque `.github/workflows/` passa a ser recusado: já era o desenho (o bot não tem `workflow`), mas hoje o token dos agentes tem o escopo e a recusa dependia de disciplina; agora é estrutural, e o dono segue enviando mudança de workflow.
+- **PRs, comentários e rótulos:** abrir, editar e comentar PR continua (Pull requests e Issues em escrita). O rótulo `afrouxa-regra` continua sendo do dono, como hoje.
+- **`gh run view` e `gh run list`:** continuam (Actions: Read). **`gh run rerun` e `gh workflow run` deixam de funcionar** (exigem Actions: write). Reexecutar o mesmo sha fica com o dono, ou o dono libera `Actions: Read and write`, sabendo que isso permite disparar `workflow_dispatch` (hoje só `ci.yml`, com jobs `contents: read`); o resíduo não reabre, porque editar workflow continua sem `Workflows`.
+- **`gh api` em proteção de branch, rulesets, environments, segredos, deploy keys e configuração do repositório:** deixam de funcionar (Administration). Já eram do dono por `R-CONFORMIDADE`; o resíduo de desativar o ruleset some.
+- **Merge de PR:** Pull requests em escrita permite mesclar; quem mescla segue a regra de fluxo e os rulesets de branch (o bypass de admin sai da conta dos agentes, e a `main` continua só do dono). Release (`gh release create`) fica barrada pelo ruleset.
+- **Outros repositórios:** o token é só deste; se os agentes usam a mesma conta em outros repositórios, cada um precisa do seu token fino ou segue no atual (o resíduo permanece lá).
+- **Limites do token fino:** expira e exige renovação; confira pelos GET acima antes de tirar o token antigo da sessão; revogue o antigo só depois de um período de uso sem erro. Reverter é recolocar o token antigo.
+
 ## Como conferir depois
 1. Leitura: `gh api repos/rodrigo-isensee/Forge/rulesets --jq '.[]|select(.target=="tag")|{name,enforcement}'` mostra `tags-v-so-release` `active`; `gh api repos/rodrigo-isensee/Forge/rulesets/<id> --jq '{conditions,bypass_actors,rules:[.rules[].type]}'` bate com o JSON.
-2. Recusa (não destrutivo): com a conta do dono, `git tag v9.9.9-teste && git push origin v9.9.9-teste` deve falhar com `GH013: Repository rule violations` (regra de criação). Se **passar**, o ruleset não vale: desative-o, apague a tag de teste e revise. Para a proteção contra apagar, tente só na tag de teste (`git push origin :refs/tags/v9.9.9-teste`); nunca em tag real.
+2. Recusa, mover e apagar: com o ruleset valendo, uma tag de teste nunca nasce, então a tag para o teste de apagar é criada **antes de aplicar**. Antes do passo "Create", o dono cria uma tag fora de SemVer num commit antigo (`git tag v0-teste-ruleset <commit-antigo> && git push origin v0-teste-ruleset`; `bin/forge_versoes.py` só lê `vX.Y.Z` inteiro, então ela não chega aos projetos). Depois de aplicar: (a) criar outra, `git tag v0-teste-ruleset-2 && git push origin v0-teste-ruleset-2`, deve falhar com `GH013: Repository rule violations`; se **passar**, o ruleset não vale: desative-o, apague a tag e revise; (b) mover (`git push --force origin HEAD:refs/tags/v0-teste-ruleset`) e (c) apagar (`git push origin :refs/tags/v0-teste-ruleset`) devem falhar do mesmo modo. Nunca em tag real. Para apagar a tag de teste ao fim, o dono desativa o ruleset por um instante e o reativa.
 3. Aceite do bypass: na **próxima release** (merge `homolog` → `main` pelo dono), o job `release` do workflow `Release` deve criar a tag e a release. Confira com `gh run list --workflow=release.yml -L 1` (success) e `gh release view vX.Y.Z`. Falhou com 403/422 na criação da tag: o bypass não vale; use o caminho 1 ou 2, ou reverta.
 
 ## Como reverter
 - Tela: **Settings** → **Rules** → **Rulesets** → `tags-v-so-release` → **Disable** (mantém a configuração) ou **Delete**.
 - Linha de comando: `gh api -X PUT repos/rodrigo-isensee/Forge/rulesets/<id> -f enforcement=disabled` ou `gh api -X DELETE repos/rodrigo-isensee/Forge/rulesets/<id>`.
-- É também o único jeito de corrigir uma tag errada depois: o dono desativa o ruleset, corrige a tag e reativa (a regra protege de agente e de engano, não de quem administra o repositório).
+- É também o único jeito de corrigir uma tag errada depois: o dono desativa o ruleset, corrige a tag e reativa. A regra protege do engano e do comando direto; **não** de quem administra o repositório nem, com o token atual, de um agente que edite workflow ou desative o ruleset (ver "O que o ruleset fecha e o que fica").
 
 ## O workflow de release precisa mudar?
 - **Com o bypass do `github-actions` aceito pelo GitHub: não.** `release.yml` já cria a tag por `gh release create` com `github.token`, ator `github-actions`. O passo "já existe; nada a publicar" só lê a tag e continua válido. Nenhuma permissão nova.
