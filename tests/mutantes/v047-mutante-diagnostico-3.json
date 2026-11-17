@@ -1,0 +1,22 @@
+{
+  "pedido": "v047-mutante-diagnostico",
+  "executor": "unittest",
+  "mutantes": [
+    {"id": "MD17", "guarda": "spec de fora do repositório não se confere", "arquivo": "bin/forge-mutante",
+     "de": "        if not caminho.is_relative_to(raiz):\n            continue", "para": "        if False:\n            continue",
+     "testes": ["tests.test_forge_mutante.Execucao.test_mutante_que_o_teste_derruba_morre_e_sai_0"]},
+    {"id": "MD18", "guarda": "spec diferente da do commit entra na lista", "arquivo": "bin/forge-mutante",
+     "de": "        if not igual:\n", "para": "        if False:\n",
+     "testes": ["tests.test_forge_mutante.Execucao.test_arvore_suja_com_spec_diferente_da_do_commit_recusa_antes_de_rodar"]},
+    {"id": "MD19", "guarda": "casa só sem motivo de não cobrir", "arquivo": "bin/forge-mutante",
+     "de": "    if por_que_nao_cobre(m, arquivo, depois, ini, fim) is not None:", "para": "    if False:",
+     "testes": ["tests.test_forge_mutante.Cobertura.test_sem_mutante_diz_por_que_o_mutante_que_toca_o_no_nao_cobre"]},
+    {"id": "MD20", "guarda": "spec igual à do commit não recusa", "arquivo": "bin/forge-mutante",
+     "de": "ler_no_commit(sha, relativo) == spec_bytes", "para": "ler_no_commit(sha, relativo) != spec_bytes",
+     "testes": ["tests.test_forge_mutante.Execucao.test_arvore_suja_com_spec_diferente_da_do_commit_recusa_antes_de_rodar"]}
+  ],
+  "isentas": [
+    {"arquivo": "bin/forge-mutante", "trecho": "i[\"arquivo\"] == arquivo and dados.count(trecho) == 1",
+     "motivo": "dividida em `if i[\"arquivo\"] != arquivo` (MD1) e `return dados.count(trecho) == 1 and ...` (MD5), ambas cobertas"}
+  ]
+}

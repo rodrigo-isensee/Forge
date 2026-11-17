@@ -1,0 +1,17 @@
+{
+  "descricao": "HOOK-CONTRIB-HEREDOC-FP: Python que só cita gh pr merge e grava a saída num arquivo que nada roda: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 - <<'EOF' > saida.txt\nprint(\"gh pr merge 12\")\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

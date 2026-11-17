@@ -1,0 +1,33 @@
+{
+  "descricao": "CONFORMIDADE-A9-DESTINO-OPACO, volta da E1.288 (U4, lista positiva): A4 da segurança E1.280: variável do ambiente com resto segue livre.",
+  "arquivos": {
+    "x": "x\n",
+    "config": "c\n",
+    "pre-push": "p\n",
+    "lugar.txt": "docs\n",
+    "docs/a.md": "a\n",
+    "hooks/pre-push": "p\n",
+    "lugar2.txt": ".git/config\n",
+    "lugar3.txt": ".git/hooks/pre-push\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo a > \"$HOME\"/x.md"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

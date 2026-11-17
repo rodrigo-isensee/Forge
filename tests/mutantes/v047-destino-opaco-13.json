@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O81",
+      "guarda": "U4: a função definida duas vezes não tem corpo (sem a guarda, erro interno em vez da recusa do U4)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if definicao is not None and len(palavras) == 1 else None",
+      "para": "if len(palavras) == 1 else None",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O82",
+      "guarda": "U4: profundidade da variável que usa a si mesma (`a=$a`)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if fundo > 4 or SEM_VALOR in palavra:",
+      "para": "    if SEM_VALOR in palavra:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O83",
+      "guarda": "U4: argumento do `echo` que o hook não calcula recusa pelo U4",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if None in valores:\n        return None\n    return juntar(",
+      "para": "    if False:\n        return None\n    return juntar(",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O84",
+      "guarda": "U4: palavra com parte que o hook não calcula recusa pelo U4",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if valores is None:\n            return None\n        partes.append(valores)",
+      "para": "        if False:\n            return None\n        partes.append(valores)",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O85",
+      "guarda": "U4: só o nome com definição na linha é função",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not re.search(rf\"(?<![\\w$.-]){nome}\\s*\\(\\s*\\)|",
+      "para": "    if False and re.search(rf\"(?<![\\w$.-]){nome}\\s*\\(\\s*\\)|",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O86",
+      "guarda": "U4: o corpo da função em chaves ou em parênteses",
+      "arquivo": "hooks/conformidade.py",
+      "de": "definicoes[0][\"chaves\"] if definicoes[0][\"chaves\"] is not None else",
+      "para": "definicoes[0][\"chaves\"] if True else",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O87",
+      "guarda": "U4: `${x}` vale pelo nome entre chaves",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    nome = m[\"chave\"] or m[\"nome\"]",
+      "para": "    nome = m[\"nome\"]",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O88",
+      "guarda": "U4: a variável atribuída na linha vale pelo valor atribuído, não pelo ambiente",
+      "arquivo": "hooks/conformidade.py",
+      "de": "valores_da_palavra(atribuicoes[0], linha, fundo + 1) if atribuicoes else [SEM_VALOR]",
+      "para": "valores_da_palavra(atribuicoes[0], linha, fundo + 1) if False else [SEM_VALOR]",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}

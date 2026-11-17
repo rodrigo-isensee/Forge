@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O66",
+      "guarda": "U4: a aspa dupla sai da palavra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if c == '\"':",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O67",
+      "guarda": "U4: a aspa simples cita literal",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if c == \"'\" and not aspas:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_d2b"
+      ]
+    },
+    {
+      "id": "O68",
+      "guarda": "U4: entre aspas simples, só o alfabeto literal",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if j > i and LITERAL.fullmatch(palavra[i + 1:j]) else None",
+      "para": "if j > i else None",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O69",
+      "guarda": "U4: `$(…)` sem aspas vale pelos corpos da linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif palavra.startswith(OPACO[\"$\"], i) and not sem_substituicao:",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O70",
+      "guarda": "U4: `$(…)` sem aspas recusa se algum corpo da linha está fora da lista",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            valores = None if not corpos or None in corpos else",
+      "para": "            valores = None if not corpos else",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O71",
+      "guarda": "U4: substituição dentro de argumento do `echo` recusa (aninhado)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif (palavra.startswith(\"$(\", i) or c == \"`\") and not sem_substituicao:",
+      "para": "        elif palavra.startswith(\"$(\", i) or c == \"`\":",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O72",
+      "guarda": "U4: a variável vale pelo valor dela",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif c == \"$\" and (m := VARIAVEL_DO_VALOR.match(palavra, i)):",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O73",
+      "guarda": "U4: só o alfabeto literal fora de aspas",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif LITERAL.fullmatch(c):",
+      "para": "        elif True:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}
