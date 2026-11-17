@@ -8,7 +8,7 @@
       "de": "recuada or linha.startswith(\"Traceback\")",
       "para": "recuada",
       "testes": [
-        "tests.test_ci_falhas.ErroDoBloco.test_traceback_sem_quadro_antes_da_excecao"
+        "tests.test_falhas_no_resumo.ErroDoBloco.test_traceback_sem_quadro_antes_da_excecao"
       ],
       "id": "MC14"
     },
@@ -18,7 +18,7 @@
       "de": "        if m:\n            quadros",
       "para": "        if True:\n            quadros",
       "testes": [
-        "tests.test_ci_falhas.Local.test_quadro_fora_do_repositorio_e_ignorado"
+        "tests.test_falhas_no_resumo.Local.test_quadro_fora_do_repositorio_e_ignorado"
       ],
       "id": "MC15"
     },
@@ -28,7 +28,7 @@
       "de": "in quadros if q[0]]",
       "para": "in quadros if True]",
       "testes": [
-        "tests.test_ci_falhas.Local.test_quadro_fora_do_repositorio_e_ignorado"
+        "tests.test_falhas_no_resumo.Local.test_quadro_fora_do_repositorio_e_ignorado"
       ],
       "id": "MC16"
     },
@@ -38,7 +38,7 @@
       "de": " or \"/tests/\" in q[0]",
       "para": "",
       "testes": [
-        "tests.test_ci_falhas.Local.test_pasta_tests_aninhada_vale_como_teste"
+        "tests.test_falhas_no_resumo.Local.test_pasta_tests_aninhada_vale_como_teste"
       ],
       "id": "MC17"
     },
@@ -48,7 +48,7 @@
       "de": "dos_testes or do_repo or [(None, 0)]",
       "para": "dos_testes or [(None, 0)]",
       "testes": [
-        "tests.test_ci_falhas.Local.test_so_quadro_do_repositorio_fora_dos_testes_serve"
+        "tests.test_falhas_no_resumo.Local.test_so_quadro_do_repositorio_fora_dos_testes_serve"
       ],
       "id": "MC18"
     },
@@ -58,7 +58,7 @@
       "de": "dos_testes or do_repo or [(None, 0)]",
       "para": "dos_testes or do_repo",
       "testes": [
-        "tests.test_ci_falhas.Local.test_sem_quadro_nenhum_fica_sem_arquivo"
+        "tests.test_falhas_no_resumo.Local.test_sem_quadro_nenhum_fica_sem_arquivo"
       ],
       "id": "MC19"
     },
@@ -68,7 +68,7 @@
       "de": "completo.endswith(\".\" + nome)",
       "para": "completo.endswith(nome)",
       "testes": [
-        "tests.test_ci_falhas.Local.test_nome_que_termina_o_completo_sem_ponto_leva_o_nome"
+        "tests.test_falhas_no_resumo.Local.test_nome_que_termina_o_completo_sem_ponto_leva_o_nome"
       ],
       "id": "MC20"
     },
@@ -88,7 +88,7 @@
       "de": "erro_do_bloco(linhas) or tipo",
       "para": "erro_do_bloco(linhas)",
       "testes": [
-        "tests.test_ci_falhas.Local.test_sem_excecao_o_erro_e_o_tipo"
+        "tests.test_falhas_no_resumo.Local.test_sem_excecao_o_erro_e_o_tipo"
       ],
       "id": "MC22"
     },
@@ -118,7 +118,7 @@
       "de": " and len(sobras) < TETO_SOBRAS",
       "para": "",
       "testes": [
-        "tests.test_ci_falhas.Resumo.test_sobras_param_no_teto_e_aceitam_as_duas_causas"
+        "tests.test_falhas_no_resumo.Resumo.test_sobras_param_no_teto_e_aceitam_as_duas_causas"
       ],
       "id": "MC25"
     },
@@ -128,7 +128,7 @@
       "de": "\"suite-paralela: causa\", \"suite-partes: causa\"",
       "para": "\"suite-paralela: causa\"",
       "testes": [
-        "tests.test_ci_falhas.Resumo.test_sobras_param_no_teto_e_aceitam_as_duas_causas"
+        "tests.test_falhas_no_resumo.Resumo.test_sobras_param_no_teto_e_aceitam_as_duas_causas"
       ],
       "id": "MC26"
     }

@@ -18,7 +18,7 @@
       "de": "if n else f",
       "para": "if True else f",
       "testes": [
-        "tests.test_ci_falhas.Resumo.test_registro_sem_testes"
+        "tests.test_falhas_no_resumo.Resumo.test_registro_sem_testes"
       ],
       "id": "MC28"
     },
@@ -28,7 +28,7 @@
       "de": "if f[\"arquivo\"] else \"?\"",
       "para": "if True else \"?\"",
       "testes": [
-        "tests.test_ci_falhas.Resumo.test_falha_sem_arquivo_mostra_interrogacao"
+        "tests.test_falhas_no_resumo.Resumo.test_falha_sem_arquivo_mostra_interrogacao"
       ],
       "id": "MC29"
     },
@@ -38,7 +38,7 @@
       "de": "len(achadas) > TETO_TABELA",
       "para": "len(achadas) >= TETO_TABELA",
       "testes": [
-        "tests.test_ci_falhas.Resumo.test_no_teto_exato_nao_diz_e_mais"
+        "tests.test_falhas_no_resumo.Resumo.test_no_teto_exato_nao_diz_e_mais"
       ],
       "id": "MC30"
     },
@@ -48,7 +48,7 @@
       "de": "        if f[\"arquivo\"]:\n            props",
       "para": "        if True:\n            props",
       "testes": [
-        "tests.test_ci_falhas.Resumo.test_anotacao_sem_arquivo_nao_leva_propriedades"
+        "tests.test_falhas_no_resumo.Resumo.test_anotacao_sem_arquivo_nao_leva_propriedades"
       ],
       "id": "MC31"
     },
@@ -58,7 +58,7 @@
       "de": "os.environ if ambiente is None else ambiente",
       "para": "os.environ if True else ambiente",
       "testes": [
-        "tests.test_ci_falhas.Principal.test_main_usa_o_ambiente_e_a_raiz_injetados"
+        "tests.test_falhas_no_resumo.Principal.test_main_usa_o_ambiente_e_a_raiz_injetados"
       ],
       "id": "MC32"
     },
@@ -68,7 +68,7 @@
       "de": "raiz or os.getcwd()",
       "para": "os.getcwd()",
       "testes": [
-        "tests.test_ci_falhas.Principal.test_main_usa_o_ambiente_e_a_raiz_injetados"
+        "tests.test_falhas_no_resumo.Principal.test_main_usa_o_ambiente_e_a_raiz_injetados"
       ],
       "id": "MC33"
     },
@@ -78,7 +78,7 @@
       "de": "len(argv) != 2",
       "para": "len(argv) < 2",
       "testes": [
-        "tests.test_ci_falhas.Principal.test_argumento_a_mais_nao_reprova_e_so_avisa"
+        "tests.test_falhas_no_resumo.Principal.test_argumento_a_mais_nao_reprova_e_so_avisa"
       ],
       "id": "MC34"
     },
@@ -118,7 +118,7 @@
       "de": "dados.get(\"body\") or \"\"",
       "para": "dados.get(\"body\")",
       "testes": [
-        "tests.test_ci_falhas.CorpoDoPr.test_corpo_nulo_do_pr_vira_texto_vazio"
+        "tests.test_forge_tamanho.CorpoDoPr.test_corpo_nulo_do_pr_vira_texto_vazio"
       ],
       "id": "MC38"
     }
