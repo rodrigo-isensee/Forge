@@ -17,7 +17,7 @@ data: 2026-11-17
 Etapa E2.30, H2-AUTOR-FICA-ATE-O-MERGE (classe C, `hooks/agentes.py`). Intervalo `e2880b42..6d73898a`. Sem especificação de UX nem contrato de API: as obrigações são as da descrição do H2 (E2.10) e as condições novas do diff. Acessibilidade e E2E: n/a.
 
 ## Achados
-- A2 (bloqueante) tests/mutantes/trava-agente-morto-3.json:M19 · o diff em hooks/agentes.py desalinhou M19 (de ambíguo, 2 vezes) e v0440-decisoes-2.json:A4; ConferirTodas falha (failures=1) e a bateria cai. Alinhar as specs no mesmo commit
+- A2 (bloqueante) hooks/agentes.py:828 · o diff desalinhou trava-agente-morto-3.json:M19 (de ambíguo, 2 vezes) e v0440-decisoes-2.json:A4; ConferirTodas falha (failures=1) e a bateria cai. Alinhar as specs no mesmo commit
 - A3 (bloqueante) tests/test_hooks_agentes_autor.py:35 · forge-testes --vermelho sai 2: na base PeloHook.test_fixtures_do_pedido dá erro (JSONDecodeError) e não asserção; sem veredito não vale como vermelho
 
 ## Revalidação do A1 (rodada anterior)
