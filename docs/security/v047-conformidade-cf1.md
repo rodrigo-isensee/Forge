@@ -1,46 +1,43 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v047
+pedido: v0474
 branch: melhoria/v047-conformidade-cf1
-commit: 0121b3b2e7fd4aeafdf9b773d441f428af662d3b
+commit: 7412a90f2e2389af96e3e8aa0ead8f22de90baee
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-16
+data: 2026-11-17
 ---
 # Review de segurança: v047 (CF1, A17 a A19 do hook conformidade)
 
-Revalidação por delta, head `fbc41e6c` (E2.545). A cf1 parte do parecer `docs/security/v047-conformidade-destino-opaco.md` (commit `081473ac`, aprovado, com A17 a A19, A11 e A5 recomendados). Não existe parecer próprio da cf1: li `forge-check parecer delta` desse parecer, intervalo `081473ac..fbc41e6c`, e li o código do domínio por inteiro. No domínio: `hooks/_comum.py`, `hooks/conformidade.py`, `bin/forge-testes`, `docs/hooks.md` e 32 fixtures `opaco-cf1-*`. O resto do delta (`hooks/meta.py`, `hooks/parecer.py`, o texto de `forge-testes`) veio da `develop` pelo merge `0121b3b2`, não é do item, e eu não o revi aqui; os dois pareceres de volta (review `6f8bd39e`, QA `fbc41e6c`) já aprovaram a cf1.
+Revalidação por delta, head `7412a90f` (v0474 E1.30). Rodada anterior: commit `0121b3b2`, aprovado (no git). Delta lido: `forge-check parecer delta`, intervalo `0121b3b2..7412a90f`, sem o que veio da base. No domínio: `bin/forge-testes`, `docs/hooks.md`, `tests/test_conformidade_verde.py`, `tests/test_oraculo_v047.py`; fora: `docs/hooks-fixtures.md`, os dois specs de mutante e `tests/test_testes_tocados.py` (li os specs mesmo assim).
 
 ## Gatilhos
-Gatilhos: hook de guarda (`conformidade`) que analisa entrada livre (uma linha de Bash) para proteger o `.git` (`config`, `hooks/`, marca da sessão), bloqueio por `R-CONFORMIDADE` (`R-SEGURANCA`).
+Gatilhos: hook de guarda (`conformidade`) que analisa entrada livre (uma linha de Bash) para proteger o `.git`, bloqueio por `R-CONFORMIDADE` (`R-SEGURANCA`).
 
-## O que a cf1 fecha (lido e sondado no hook real)
-- **A17** (`hooks/_comum.py:615`, `DESCRITOR_DA_REDIRECAO`): o número ou `{nome}` colado antes de `>`/`<` deixa de ser palavra. As 17 formas de descritor que sondei (`2>`, `2>>`, `1>`, `12>`, `{fd}>`, `2>|`, `2<>`, `2>&-`, `22>&1`, antes, no meio e depois do destino) com `cp`, `install`, `rsync` e `git config` dão 2; `a2>x` e `2 >x` seguem como palavra e o legítimo (`grep foo docs 2>/dev/null`, `cat a 2>&1 | head`, `echo 2 > docs/a.md`) dá 0.
-- **A18** (`hooks/conformidade.py:327`, `SO_VARIAVEL` com `$@` e `$*`): `set -- .git; cp -rT ev "$@"`, `"$*"`, `$@`, `"${@}"`, `"${@:1}"`, `"$1"`, `for x; do …`, e os destinos de `mv`, `ln -sf` e `cp -t` dão 2. `$#` e `$$` seguem literais, como o comentário diz, e dão 0 com valor fora do `.git`.
-- **A19** (`hooks/conformidade.py:702`, `atribui_como_argumento`): `declare|typeset -n d=_`, em grupo (`-nr`, `-rn`), depois de `--`, com `e=x` antes ou depois, atrás de `builtin` e `command`, em função, `if`, `&&` e chave, ou por `$c -n` e `declare $o`, dão 2; `declare -r d=docs` e `local d=docs` liberam e o bash concorda.
+## O que mudou e como conferi
+- **Junções `b7a82cf4` e `7412a90f`** (`git show --remerge-diff`): em `hooks/conformidade.py` o conflito ficou com o lado da branch (`DECLARADORES`, `OPCAO_SEM_REFERENCIA`, `atribui_como_argumento` e o `or ... atribui_como_argumento` da A19 em `valores_da_variavel`, linha 730); o resto do arquivo é o da develop. Prova: `git diff e2880b42 7412a90f -- hooks/` só traz A17 (`hooks/_comum.py:39` e `:615`), A18 (`hooks/conformidade.py:327`) e A19 (`:698` a `:730`); e o blob de `hooks/conformidade.py` é o mesmo no `0121b3b2` e no `7412a90f` (`895de584`), assim como `hooks/_comum.py`. O hook que aprovei não mudou; nada da develop se perdeu.
+- **`bin/forge-testes`**: a junção manteve `test_conformidade_verde` em `FORGE_CHECK` e acrescentou, pela develop, `test_estado_ilegivel` e `test_pre_push_patch`/`test_ambiente_hook`; nada sai do mapa de quem roda com o hook.
+- **Specs G6 e O60**: o `de` casa uma vez no head e o `para` não existe nele (conferido por script); o O60 desliga só o `len(atribuicoes) > 1` e preserva a A19, que é como o mutante deve ficar.
+- **Testes**: `test_conformidade_verde` ganhou a linha ilegível (com e sem a prova) e `test_oraculo_v047` trocou `README.md` por `LEIAME.md` e passa o ambiente por `sem_manutencao`, as duas vindas da develop; o oráculo não perdeu caso.
 
-## Método e resultado das sondas
-Oráculo pelo bash real: cada linha rodou num repositório temporário descartável (cópia do `.git` de teste) e comparei se o `.git` mudou com o código de saída do hook (`conformidade.py` no head, lançado pelo `Fixture` e `rodar` de `tests/test_hooks.py`). 130 linhas (A17, A18, A19 e legítimos). **Nenhuma fuga das três classes da cf1.** As recusas sem mudança no `.git` (falso positivo) são `declare +n`, `declare -- -n`, `export -n`, `readonly -n`, `local -n` fora de função e `set -- docs; cp -rT ev "$@"`: a falha fechada que o desenho prevê.
-
-Pesquisa fora das dimensões do item achou um furo antigo, do mesmo hook, que a cf1 não toca nem agrava (A20). Rodei também no head `tests.test_hook_destino_opaco` (4 testes) e `tests.test_conformidade_opaco` (2 testes, 150 execuções contra o oráculo do bash): OK. Não rodei a suíte inteira (ordem do dono de 16/11, brief) e não há CI no head: o CI do PR é o portão da suíte.
-
-Vale a ordem do dono de 15/11: bloqueia só achado antigo aberto ou regressão. A17, A18 e A19 estão fechados. A20 existe idêntico na `develop` `86ac0fcb` e no `081473ac`, e fica fora do texto da cf1; entra como cartão novo, recomendado.
+## Sondas e testes no head
+Rodei `tests.test_conformidade_verde`, `test_hook_destino_opaco`, `test_conformidade_opaco`, `test_hook_git_comum` e `test_oraculo_v047`: 26 testes, OK. Sondei o hook real (harness `Fixture` de `tests/test_hooks.py`) com 18 linhas de A17, A18, A19 e legítimos: 18 de 18 como esperado (`cp ev/config .git/config 2>/dev/null`, `cp ev/config {fd}>x .git/config`, `set -- .git; cp -rT ev "$@"`, `declare -rn d=_`, `o=-n; declare $o d=_` dão 2; `grep foo docs 2>/dev/null`, `echo 2 > docs/a.md`, `declare -r d=docs`, `local d=docs` dão 0). Nenhum bloqueante: a sonda não entra em `## Sondas`. Suíte inteira: não rodei; o CI do PR é o portão dela.
 
 ## Achados
-- A17 (recomendado) hooks/_comum.py:615 · Fechado: o descritor colado (`2>x`, `9<y`, `{fd}>x`) não é mais palavra; `cp ev/config .git/config 2>/dev/null` (S52), install (S53) e rsync (S54) dão 2.
-- A18 (recomendado) hooks/conformidade.py:327 · Fechado: `$@` e `$*` entram em `SO_VARIAVEL`; `set -- .git; cp -rT ev "$@"` (S55) dá 2.
-- A19 (recomendado) hooks/conformidade.py:702 · Fechado: `declare -n d=_` e os declaradores com `-n` não dão valor à variável; S56 dá 2; `declare -r d=docs` segue liberado.
-- A20 (recomendado) hooks/conformidade.py:1464 · Resto com barra depois de variável ou substituição que vale `.git` e que não é nome da lista do git libera: `d=.git; cp -rT ev "$d/."`, `"$(echo .git)/."`, `set -- .git; cp ev/config "$@"/c` gravam no `.git`. Igual na develop 86ac0fcb; cartão
+- A17 (recomendado) hooks/_comum.py:615 · Fechado, sem mudança no delta: o descritor colado (`2>x`, `{fd}>x`) não é palavra; sondas da rodada dão 2.
+- A18 (recomendado) hooks/conformidade.py:327 · Fechado, sem mudança no delta: `$@` e `$*` em `SO_VARIAVEL`; `set -- .git; cp -rT ev "$@"` dá 2.
+- A19 (recomendado) hooks/conformidade.py:730 · Fechado: a junção manteve o `or atribui_como_argumento`; `declare -n d=_` e `$o` com `-n` dão 2, `declare -r d=docs` libera.
+- A20 (recomendado) hooks/conformidade.py:1464 · Segue aberto, sem mudança: resto com barra depois de valor que cita o `.git` (`d=.git; cp -rT ev "$d/."`) libera; igual na develop, não é regressão; cartão de prioridade alta.
 - A11 (recomendado) hooks/conformidade.py:500 · Segue aberto, sem mudança: a lista fechada recusa programa externo na linha, que não troca a resolução do shell.
-- A5 (recomendado) hooks/conformidade.py:1522 · Segue aberto, sem mudança: resto com barra que sobe (`/../config`) depois de opaco dentro do `.git` libera; é da mesma família do A20.
+- A5 (recomendado) hooks/conformidade.py:1522 · Segue aberto, sem mudança: resto com barra que sobe (`/../config`) depois de opaco dentro do `.git` libera; mesma família do A20.
 
 ## Sondas
 
 ## Detalhe dos achados
 **A20.** Evidência: `hooks/conformidade.py:1464` (`resto_colado`, que só decide o resto sem barra; o resto com barra é do `resto_no_git`, que olha só os nomes protegidos). Caminho de ataque: um agente com a linha livre grava `d=.git; cp -rT ev "$d/."` (ou `"$(echo .git)/."`, `"$@/."`, `"$_/."` depois de `: .git`); `ev/` traz `config` com `hooksPath` ou `hooks/pre-push`; o bash copia tudo sobre o `.git` e o hook libera com 0, enquanto o literal `cp -rT ev .git/.` dá 2 (`/.` é o próprio diretório). Mesmo com o `.git/c` (nome fora da lista) o literal dá 2 e `"$(echo .git)"/c` libera. Idêntico em `develop` `86ac0fcb`, em `081473ac` e na cf1: não é regressão. Severidade: alta (grava `config` e `hooks/` do repositório). Correção mínima: com valor que cita o `.git` (U1) e resto com barra, recusar o resto vazio, `.`, `./` e todo componente fora de uma lista positiva, no `resto_colado`, em vez de pedir o nome da lista do git; fixture por forma de `$d/.`, `$@/.`, `$(…)/.` e `"$@"/c`. Esforço: P. Dono: `software-engineer`. Cartão de prioridade alta junto do A5.
 
-Os achados A17 a A19 mudam de aberto para fechado no head `fbc41e6c`; os 32 fixtures `opaco-cf1-*` cobrem as mesmas formas que sondei, com os falsos negativos de descritor, `$@`/`$*` e `-n` nos nomes dos arquivos.
+Os achados A17 a A19 seguem fechados no head `7412a90f` (fecharam no `fbc41e6c`); os 32 fixtures `opaco-cf1-*` cobrem as mesmas formas que sondei, com os falsos negativos de descritor, `$@`/`$*` e `-n` nos nomes dos arquivos.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito.
