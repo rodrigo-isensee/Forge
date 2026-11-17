@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-hook-estado-ilegivel
-commit: 05d68fcecaf5828bf77717c017e8daee79fb0708
+commit: d2d82ffab0e89a3ac1d1806cca98f51059b6c908
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-16
+data: 2026-11-17
 ---
 # QA: v047-hook-estado-ilegivel
 
@@ -83,3 +83,12 @@ Head `05d68fce`: nova junção da `origin/develop` (`5e74c70e`, #581) no lote A.
 **Vermelho:** inalterado (código e testes do lote idênticos aos já provados).
 
 **Docs:** `forge-check docs` rc 0.
+
+## Revalidação por delta (E2.706, junção 05d68fce..d2d82ffa)
+Head `d2d82ffa`: merge da `origin/develop` (`5b1aacd5`) no lote A. `forge-check parecer delta` lista no domínio `bin/forge-testes`, `docs/adr/0003-...`, `docs/hooks-fixtures.md`, `docs/hooks.md`, `tests/test_selo_e_entrega.py` e `tests/test_testes_tocados.py`, vindos da develop, fora das obrigações R1 a R6. `git diff 05d68fce d2d82ffa` sobre `hooks/agentes.py` e `tests/test_estado_ilegivel.py` sai vazio. Sem achado novo; A1 a A3 seguem resolvidos.
+
+**Testes locais** (`python3 -m unittest tests.test_estado_ilegivel tests.test_agentes_clone`, TMPDIR próprio): `Ran 27 tests in 25.088s`, `OK`. Suíte inteira só no CI do PR; o check-run `bateria` não consultei, nenhuma citação de CI.
+
+**Mutação** (`bin/forge-mutante tests/mutantes/v047-hook-estado-ilegivel{,-2,-3}.json --processos 4`): rc 0, M1 a M17 `morreu` (visto M10 a M17 na cauda da saída; o rc 0 cobre as 17), nenhum sobrevivente.
+
+**Vermelho:** inalterado (código e testes do lote idênticos aos já provados).
