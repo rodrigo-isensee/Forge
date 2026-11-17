@@ -269,7 +269,8 @@
       "suba mais instâncias iguais dele",
       "\\*\\*Lote por arquivo:\\*\\*",
       "`R-DECISAO` painel \"Aguardando o dono\"",
-      "\\*\\*Integração contínua \\(D2\\):\\*\\*"
+      "\\*\\*Integração contínua \\(D2\\):\\*\\*",
+      "\\*\\*H1:\\*\\* até 150 linhas de código, fora testes e documentação; passa só se cortar mais deixa a suíte vermelha"
     ],
     "skills/falar-com-o-dono/SKILL.md": [
       "que não se oferece nas perguntas que `R-DECISAO` não deixa delegar",
@@ -611,11 +612,16 @@
       "uma classe de comportamento por PR em `hooks/`, com corpus próprio",
       "\\*\\*Passar do teto:\\*\\* só se cortar mais deixa a suíte vermelha"
     ],
+    "templates/projeto/.github/pull_request_template.md": [
+      "Até 150 linhas de código por item, fora testes e documentação",
+      "Passa só se cortar mais deixa a suíte vermelha: `teto: excedido, <n> linhas, <motivo>`"
+    ],
     "templates/projeto/CLAUDE.md": [
       "`R-MAIN`",
       "\\*\\*Ritmo diário:\\*\\*",
       "\\*\\*Corte por arquivo:\\*\\*",
       "\\*\\*Teto do time:\\*\\*",
+      "a versão sai quando a branch de integração tem um conjunto verde que valha uma versão, até 2 por dia",
       "`R-VERIFY`",
       "`R-COPIA`"
     ],
@@ -725,6 +731,7 @@
   },
   "invariantes_motivo": {
     "skills/engineering-practices/tamanho-por-item.md": {"regra": "R-REVIEW", "porque": "sem o texto, somem a contagem do teto de 150 linhas de código por item e a única exceção decidida pelo dono (H1)"},
+    "templates/projeto/.github/pull_request_template.md": {"regra": "R-REVIEW", "porque": "sem o texto, o PR do projeto volta a contar teste no teto e a passar dele sem o motivo (H1)"},
     "skills/falar-com-o-dono/nao-trava.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis para o time à espera de decisão do dono ou de bloqueio de ambiente e repete \"sigo esperando\" (diretriz 34)"},
     "skills/trabalho-em-paralelo/ritmo-e-corte.md": {"regra": "R-FLUXO", "porque": "sem o texto, somem o ritmo diário, o corte por arquivo e o teto do H6 que o Jarvis manda ler (diretrizes 32 e 33)"},
     "docs/fechamento-integrador.md": {"regra": "R-FLUXO", "porque": "sem o texto, o autor abre PR só para rodar o CI e o PR acaba fechado e reaberto, uma rodada a mais (decisão Q9 do dono)"},
@@ -791,7 +798,8 @@
   },
   "invariantes_motivo_trecho": {
     "templates/projeto/CLAUDE.md": {
-      "\\*\\*Ritmo diário:\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo não recebe o ritmo diário: junção contínua e um PR por dia para a main (diretriz 32)"},
+      "\\*\\*Ritmo diário:\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo não recebe o ritmo diário: junção contínua e a versão para a main (diretriz 32)"},
+      "a versão sai quando a branch de integração tem um conjunto verde que valha uma versão, até 2 por dia": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo segura a versão para uma vez só de manhã e o que está verde espera (diretriz 34)"},
       "\\*\\*Corte por arquivo:\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo divide o mesmo arquivo entre agentes em paralelo e colhe conflito no fim (diretriz 33)"},
       "\\*\\*Teto do time:\\*\\*": {"regra": "R-TETO", "porque": "sem o texto, o projeto novo não recebe o teto de 20 agentes e 12 branches abertas do H6"}
     },
