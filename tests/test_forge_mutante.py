@@ -432,6 +432,9 @@ class Execucao(unittest.TestCase):
                 r = self.rodar(self.spec(self.equivalente(de=de)))
                 self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
                 self.assertIn("E1 · inválido", r.stdout)
+                r = self.rodar(self.spec(mutante(), self.equivalente(de=de)))  # com um mutante que morre, só o equivalente inválido dá o 2
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("E1 · inválido", r.stdout)
 
     def test_spec_so_de_equivalentes_sem_testes_nao_sai_0(self):  # COBERTURA-EQUIVALENTE (b)
         r = self.rodar(self.spec(self.equivalente()))
