@@ -145,3 +145,45 @@ class MetaDeMutacao(unittest.TestCase):
     def test_invariantes_do_modelo_seguem(self):
         for trecho in INVARIANTES_PRATICAS:
             self.assertIn(trecho, self.texto, trecho)
+
+
+PRATICAS_FORGE = "docs/engineering/praticas.md"
+PASTAS_DE_COMANDO = ("bin/", "scripts/", "tests/", ".githooks/", ".github/")
+
+
+class PraticasDoForge(unittest.TestCase):
+    """COBERTURA-ESTUDO P5 (v047 E2.307): as práticas do Forge dizem quem decide cada regra, e a regra "ferramenta" cita
+    um comando que existe no repositório (a lacuna do modelo era apontar para um comando que não existe)."""
+
+    def setUp(self):
+        texto = ler(PRATICAS_FORGE)
+        achado = re.search(r"^## Regras e quem as decide\n(.*?)(?=^## |\Z)", texto, re.S | re.M)
+        self.assertIsNotNone(achado, "falta a seção '## Regras e quem as decide'")
+        self.linhas = {}
+        for linha in achado.group(1).splitlines():
+            celulas = [c.strip() for c in linha.strip().strip("|").split("|")]
+            if len(celulas) == 2 and celulas[0] not in ("Regra", "") and not set(celulas[0]) <= set("-"):
+                self.linhas[celulas[0]] = celulas[1]
+
+    def test_tabela_tem_as_regras_minimas(self):
+        self.assertGreaterEqual(len(self.linhas), 8, self.linhas)
+        for regra in ("Testes passam", "Arquivo de produção do diff tem teste", "Cobertura por arquivo não cai"):
+            self.assertIn(regra, self.linhas)
+
+    def test_regra_ferramenta_cita_caminho_que_existe(self):
+        ferramentas = 0
+        for regra, quem in self.linhas.items():
+            if quem.startswith(("leitura", "pendência")):
+                continue
+            with self.subTest(regra=regra):
+                caminhos = [t.split()[0] for t in re.findall(r"`([^`]+)`", quem) if t.startswith(PASTAS_DE_COMANDO)]
+                self.assertTrue(caminhos, f"regra ferramenta sem comando do repositório: {quem}")
+                for caminho in caminhos:
+                    self.assertTrue((RAIZ / caminho).exists(), f"{regra}: {caminho} não existe")
+                ferramentas += 1
+        self.assertGreaterEqual(ferramentas, 5)
+
+    def test_cobertura_e_pendencia_ate_a_decisao_c3(self):
+        quem = self.linhas.get("Cobertura por arquivo não cai", "")
+        self.assertTrue(quem.startswith("pendência"), quem)
+        self.assertIn("C3", quem)
