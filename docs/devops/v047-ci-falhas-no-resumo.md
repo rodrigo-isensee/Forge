@@ -3,10 +3,10 @@ tipo: revisao-devops
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-falhas-no-resumo
-commit: c70dabea04c5ba23513b4b59b99a39bdf2dc7e75
+commit: d8fda16fff92daa8e9b03c9ba6b362f2b6fdd5ae
 parecer: aprovado
 revisor: forge:devops-engineer
-data: 2026-11-16
+data: 2026-11-17
 ---
 # Review de devops: v047-ci-falhas-no-resumo
 
@@ -24,3 +24,6 @@ Aprovado (E2.290, instância que não fez a entrega). O `ci.yml` ganha `set -o p
 
 ## Custo e rollback
 Sem custo novo (`R-CUSTO`): um passo de segundos por job, sem artefato nem cache. Rollback: reverter o commit 82623453; o job volta a rodar a suíte sem o `tee`.
+
+## Revalidação por delta (head d8fda16f, E2.613)
+Intervalo c70dabea..d8fda16f, no domínio: `.github/workflows/ci.yml` e `templates/projeto/.githooks/pre-push`. ci.yml: só dois comentários de `timeout-minutes` (o caminho da proposta virou texto); nenhuma chave, permissão, ação ou `needs` mudou (`R-VERIFY`, `R-CUSTO` sem efeito). pre-push do modelo: sem pgid legível (etapa já colhida), `kill -0 -- "-$etapa"` confirma o grupo vivo e adota `pg=$etapa`; a guarda seguinte (`pg = etapa` e diferente do pgid do próprio hook) segue impedindo matar o grupo do hook, e sem membro vivo o grupo não é alvo. Sem `--no-verify`, `--force` nem teste pulado. `shellcheck` sem achado no arquivo; `actionlint` ausente do PATH (lacuna, sem mudança estrutural no workflow). Sem achado novo; A1 a A3 seguem recomendados.
