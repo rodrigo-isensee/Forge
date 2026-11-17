@@ -35,6 +35,13 @@ def carregar():
     return modulo
 
 
+def sem_oraculos(plano):
+    """O plano sem os testes-oráculo do portão (EXT-1): eles entram em todo plano dirigido enquanto existem na árvore, e a
+    lista exata do mapa não depende de haver um."""
+    modo, modulos = plano
+    return modo, [m for m in modulos if not m.startswith("test_oraculo_")]
+
+
 def git(cwd, *args):
     return subprocess.run(["git", *args], cwd=cwd, env=AMBIENTE, capture_output=True, text=True, check=True).stdout
 
@@ -62,12 +69,12 @@ class Mapa(unittest.TestCase):
         }
         for caminho, esperado in casos.items():
             with self.subTest(caminho):
-                self.assertEqual(self.plano(caminho), ("dirigido", esperado))
+                self.assertEqual(sem_oraculos(self.plano(caminho)), ("dirigido", esperado))
 
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 86)  # v047 E2.222: + test_sessao_automatica (86 sobre os 85 da develop). v047 E2.117: + test_pr_hook_rapido (85 sobre os 84 da develop). v047 E2.81: 84 com #559 (test_conferida_por_branch) e #564 (test_conferencia_dois_pedidos) juntos. v047 E1.277: + test_conferencia_dois_pedidos. v047 E2.55: + test_conferida_por_branch. mp1311 E1.17: + test_pre_envio_brief. v047: + test_hook_erro_libera (HOOK-ERRO-LIBERA). v046: + test_pr_hook_prazo (PR-HOOK-PRAZO). v046 E20.29: + test_hook_git_comum. 0.45.7: + test_r_limites (AV5), test_forge_medidas (F6, E5.6), test_forge_dora (TM-16) e test_hooks_fila27 (FILA-27). v046 E12.1: + test_git_rede_config. 0.45.6: + test_forge_check_base_igual, test_forge_check_versao_livre e test_pre_push_link_apoio (junção), test_metricas_portoes (E1.1) e test_metricas_main_vermelha (E5.1). 0.44.2: + test_decisor (orkastery 3), test_forge_run (S5), test_meta (S4), test_pesado_fila (orkastery 5), test_aq1_texto e test_textos_034 (troca dos testes de frase). 0.44.1: + test_v0441_review (review), test_acao_da_reprovacao (O1) e test_forge_dono (O4, S2, S8, X1). 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
+        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 88)  # junção v047 E2.421: + test_hook_destino_opaco e test_conformidade_opaco (A9, desta branch; 88 sobre os 86 da develop). v047 E2.222: + test_sessao_automatica (86 sobre os 85 da develop). v047 E2.117: + test_pr_hook_rapido (85 sobre os 84 da develop). v047 E2.81: 84 com #559 (test_conferida_por_branch) e #564 (test_conferencia_dois_pedidos) juntos. v047 E1.277: + test_conferencia_dois_pedidos. v047 E2.55: + test_conferida_por_branch. mp1311 E1.17: + test_pre_envio_brief. v047: + test_hook_erro_libera (HOOK-ERRO-LIBERA). v046: + test_pr_hook_prazo (PR-HOOK-PRAZO). v046 E20.29: + test_hook_git_comum. 0.45.7: + test_r_limites (AV5), test_forge_medidas (F6, E5.6), test_forge_dora (TM-16) e test_hooks_fila27 (FILA-27). v046 E12.1: + test_git_rede_config. 0.45.6: + test_forge_check_base_igual, test_forge_check_versao_livre e test_pre_push_link_apoio (junção), test_metricas_portoes (E1.1) e test_metricas_main_vermelha (E5.1). 0.44.2: + test_decisor (orkastery 3), test_forge_run (S5), test_meta (S4), test_pesado_fila (orkastery 5), test_aq1_texto e test_textos_034 (troca dos testes de frase). 0.44.1: + test_v0441_review (review), test_acao_da_reprovacao (O1) e test_forge_dono (O4, S2, S8, X1). 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
         for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
                        "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_forge_medidas", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
@@ -95,7 +102,7 @@ class Mapa(unittest.TestCase):
         self.assertLessEqual(rodam, set(regra))
 
     def test_os_casos_de_comportamento_rodam_so_o_modulo_deles(self):  # L36
-        self.assertEqual(self.plano("tests/comportamento/casos.json"), ("dirigido", ["test_comportamento"]))
+        self.assertEqual(sem_oraculos(self.plano("tests/comportamento/casos.json")), ("dirigido", ["test_comportamento"]))
 
     def test_modulos_da_volta_unica_rodam_onde_o_test_hooks_roda(self):  # HOOKS-CORPUS-RAPIDO
         volta = {"test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades"}
@@ -497,11 +504,12 @@ class MapaCobreOQueOsTestesLeem(unittest.TestCase):
         self.assertEqual(modulos, self.f.planejar([".claude-plugin/plugin.json"], RAIZ)[1])
 
     def test_conferir_reversao_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):  # REVERSAO-MAPA (A5)
-        self.assertEqual(self.f.planejar(["scripts/conferir-reversao.py"], RAIZ),
+        self.assertEqual(sem_oraculos(self.f.planejar(["scripts/conferir-reversao.py"], RAIZ)),
                          ("dirigido", ["test_conferir_reversao", "test_forge", "test_testes_tocados"]))
 
     def test_forge_mutante_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):
-        self.assertEqual(self.f.planejar(["bin/forge-mutante"], RAIZ), ("dirigido", ["test_forge", "test_forge_mutante"]))
+        self.assertEqual(sem_oraculos(self.f.planejar(["bin/forge-mutante"], RAIZ)),
+                         ("dirigido", ["test_forge", "test_forge_mutante"]))
 
 
 class Execucao(unittest.TestCase):
