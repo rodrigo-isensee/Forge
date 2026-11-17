@@ -819,6 +819,7 @@ class Hooks(unittest.TestCase):
             self.assertIn(esperado["pergunta"], saida["permissionDecisionReason"])
         elif "aviso" in esperado:  # H2 (v047): o `agentes` avisa sem recusar, uma linha no stderr e no systemMessage
             self.assertEqual((f.hook, esperado["codigo"]), ("agentes", 0))
+            self.assertTrue(r.stdout.strip(), f"o aviso sai no `systemMessage` do stdout: {esperado['aviso']}")
             saida = json.loads(r.stdout)
             self.assertEqual(list(saida), ["systemMessage"])
             self.assertIn(esperado["aviso"], saida["systemMessage"])
@@ -834,7 +835,10 @@ class Hooks(unittest.TestCase):
         else:
             linha = r.stderr.rstrip("\n")
             self.assertNotIn("\n", linha, "uma linha só")
-            self.assertLessEqual(len(linha.partition("; registro em ")[0]), 200)  # a cauda (caminho) sai inteira: _comum.mensagem
+            corpo, separador, cauda = linha.rpartition("; registro em ")  # a cauda (caminho) sai inteira: _comum.mensagem
+            if separador:
+                self.assertTrue(cauda.endswith("/.forge/run/agentes.json"), f"cauda fora da forma: {cauda}")
+            self.assertLessEqual(len(corpo if separador else linha), 200)
             self.assertRegex(linha, r"^R-[A-Z]+: ")
             self.assertIn(esperado["stderr"], linha)
             for trecho in esperado.get("stderr_sem", []):
