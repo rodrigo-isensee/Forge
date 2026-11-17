@@ -1,9 +1,9 @@
 ---
 tipo: qa
 contrato: 1
-pedido: v047
+pedido: v0474
 branch: melhoria/v047-sieg-g1-autorizacao
-commit: 7b20d073c4d8cd596518000064e50e68eb1168e2
+commit: c890fbd68ead4e201005380220d7815f6d226fa3
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -54,4 +54,10 @@ Delta no domínio: `bin/forge-check` (só texto da ajuda), `docs/adr/README.md`,
 - `python3 -m unittest tests.test_autorizacao` (TMPDIR, sem `-I`): 8 testes, OK.
 - Vermelho (rc 0): `vermelho: base=86ac0fcb9495 head=7b20d073c4d8 módulos=test_autorizacao`; os 8 testes de `Ler`: `H=ok · B=erro · prova (API ausente)`; `contagem: prova (API ausente)=8`.
 - Mutante do delta: `forge-mutante --base 580b6c34 tests/mutantes/v047-sieg-g1-autorizacao-8.json`: `base=580b6c34c8cc... rev=7b20d073c4d8...`, `M56 · morreu · bin/forge_autorizacao.py:46`, rc 0.
+- Suíte inteira: não rodada; o CI do PR a roda.
+
+## Revalidação (head c890fbd6, delta de 7b20d073)
+Delta: junção da origin/develop (0.47.3). `forge-check parecer delta` acusa `bin/forge-check` no domínio, mas o diff é o da develop (+144/-19); contra `origin/develop` o `bin/forge-check` da branch difere só em 7 linhas, todas a ligação do `autorizacao` (SEM_GUARDA_DE_VERSAO, subparser, despacho). `bin/forge_autorizacao.py`, `tests/test_autorizacao.py` e os mutantes `v047-sieg-g1-autorizacao*.json` não mudaram desde 7b20d073.
+- `python3 -m unittest tests.test_autorizacao` (TMPDIR): 8 testes, OK.
+- `python3 -m unittest tests.test_forge_mutante.ConferirTodas` (TMPDIR): 4 testes, OK.
 - Suíte inteira: não rodada; o CI do PR a roda.
