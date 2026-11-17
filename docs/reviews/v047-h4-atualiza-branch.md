@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-h4-atualiza-branch
-commit: ea5c12c8e3c4cbcadbcc5cff62130ea0b0038cc1
-parecer: reprovado
+commit: 80679f197f587ac0eabbef9991c66d391f802678
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
 ---
@@ -13,8 +13,8 @@ data: 2026-11-17
 Escopo: `git diff 73a0ab81...ea5c12c8` (bin/forge-fechar, tests/test_fechar_base_andou.py, 3 JSON de mutantes, fragmento). 154 linhas de código e teste (51 + 103), um comportamento só.
 
 ## Achados
-- A1 (bloqueante) docs/fechamento-integrador.md:20 · o passo 2b ainda diz "O fechamento não traz a base (E8)" e "segue, sem merge, sem commit e sem envio"; o H4 passa a commitar e enviar em melhoria/*. Doc afetada sem atualizar na entrega (definição de pronto); reescreva o 2b (merge, envio, recomeço com --trazida, E8 só fora de melhoria/*)
-- A2 (recomendado) docs/protecao-de-branch.md:21 · "a branch traz a base uma vez, no fim, antes do pedido de merge": cite que o forge-fechar a traz sozinho sem conflito (H4), para a regra de proteção continuar explicada
+- A1 (bloqueante, resolvido em 80679f19) docs/fechamento-integrador.md:20 · o passo 2b ainda diz "O fechamento não traz a base (E8)" e "segue, sem merge, sem commit e sem envio"; o H4 passa a commitar e enviar em melhoria/*. Doc afetada sem atualizar na entrega (definição de pronto); reescreva o 2b (merge, envio, recomeço com --trazida, E8 só fora de melhoria/*)
+- A2 (recomendado, resolvido em 80679f19) docs/protecao-de-branch.md:21 · "a branch traz a base uma vez, no fim, antes do pedido de merge": cite que o forge-fechar a traz sozinho sem conflito (H4), para a regra de proteção continuar explicada
 - A3 (recomendado) bin/forge-fechar:798 · no recomeço logo após o push, o gh pr list pode ainda dar o headRefOid antigo do PR aberto e o passo 3 para (falha fechada; rodar de novo resolve). Avalie reler o head do PR por alguns segundos ou dizer na mensagem que basta repetir
 - A4 (recomendado) bin/forge-fechar:1 · 154 linhas passam da orientação de 150 (M14): o corpo do PR traz `teto: excedido, 154 linhas, <motivo>`
 
@@ -29,5 +29,8 @@ Só mantém ou aperta. O envio é `git push origin <sha>:refs/heads/<branch>` se
 - Guardas novas: 12 mutantes declarados (8 em `tests/mutantes/v047-h4-atualiza-branch.json`, 4 em `-2.json`), um por linha de guarda, cada um com teste do ramo de falha; os 2 remapeados (`mp1311-fechar-cartao-2`, `v0456-e8b`) apontam para testes H4 equivalentes. A mutação é do autor (V2), sem rerrodar.
 - Suíte: só no CI do PR, não rerrodada.
 
+## Revalidação (head 80679f19)
+Delta lido por `forge-check parecer delta`: só `docs/fechamento-integrador.md` (passo 2b reescrito: merge, envio sem force nem pular o pre-push, recomeço com `--trazida`, E8 só fora de `melhoria/*`) e `docs/protecao-de-branch.md:21` (cita o H4). A1 e A2 resolvidos; S1 reexecutada: 0 linhas. A3 e A4 seguem recomendados, sem devolver. Código inalterado desde ea5c12c8.
+
 ## Parecer
-Reprovado só por A1: o código está correto, testado e dentro de `R-FLUXO`/`R-VERIFY`, mas o documento de operação do fechamento descreve o oposto do que o passo 2b passa a fazer. A2 a A4 não devolvem. Na volta, a revalidação é pelo delta (só a doc).
+Aprovado no head 80679f19. Antes reprovado só por A1: o código está correto, testado e dentro de `R-FLUXO`/`R-VERIFY`, mas o documento de operação do fechamento descreve o oposto do que o passo 2b passa a fazer. A2 a A4 não devolvem. Na volta, a revalidação é pelo delta (só a doc).
