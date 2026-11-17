@@ -3,12 +3,17 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-prepush-patch
-commit: 455f2597c17f088c3250ba1336ed23e265f22529
+commit: 8079c5d4132e2e5559593f96a2dc5736bea4a1a1
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
 ---
-# Review: v047 (melhoria/v047-prepush-patch, E2.325; revalidações E2.367 e E2.428)
+# Review: v047 (melhoria/v047-prepush-patch, E2.325; revalidações E2.367, E2.428 e E2.490)
+
+## Revalidação (E2.490, head 8079c5d4)
+Delta lido: `forge-check parecer delta docs/reviews/v047-prepush-patch.md`, intervalo 455f2597..8079c5d4, no domínio `bin/forge-mutante` (opção `--todas`, `texto_no_commit`) e `docs/engineering/achados-recorrentes.md` (AR-1, AR-2, AR-4, AR-12). Tudo veio da develop pelos merges de atualização: `git diff origin/develop...HEAD -- bin/forge-mutante` segue só a docstring do item (3 linhas), e `docs/devops/pp1-pre-push.patch`, `tests/test_pre_push_patch.py` e o fragmento do item estão iguais aos de 455f2597. Sem código nosso novo.
+
+Ferramentas no head 8079c5d4: `python3 -m unittest tests.test_pre_push_patch` na raiz do clone, 12 testes, OK (25,8 s). Suíte completa: sem PR, fica para o CI do PR. Sem achado novo; A4 e A5 seguem recomendados; sem recorrência nova para `achados-recorrentes.md`.
 
 ## Revalidação (E2.428, head 455f2597)
 Delta lido: `forge-check parecer delta docs/reviews/v047-prepush-patch.md`, intervalo 5016852d..455f2597, no domínio só `docs/engineering/achados-recorrentes.md` (AR-2 de 2 para 3 vezes, última `docs/devops/pp1-pre-push.patch:32`, gravada com o A5 deste parecer em d1bcbc1f). O resto do intervalo são os pareceres de QA e segurança e merges da própria branch; `git diff 5016852d 455f2597` fora de `docs/reviews`, `docs/qa` e `docs/security` muda só essa linha. Patch, teste, `bin/forge-mutante` e fragmento iguais aos aprovados.
@@ -40,6 +45,8 @@ Parecer completo (não havia parecer anterior) do head 805a0a10 contra a base 1b
 - S2 · mesmo repo, tests/catraca.py `if a` -> `if a and b` com hooks/h.py sem condição, sem spec · espera: pre-push rc=0, como a catraca ([]) · obtido: pre-push rc=1 "sem mutante · tests/catraca.py:2"; catraca []
 
 ## Parecer
+Aprovado no head 8079c5d4 (E2.490): delta só da develop, sem bloqueante aberto; A4 e A5 recomendados.
+
 Aprovado no head 455f2597 (E2.428): delta sem código, sem bloqueante aberto; A4 e A5 recomendados.
 
 Parecer no head 5016852d: aprovado, A1 resolvido, sem bloqueante aberto; A4 e A5 recomendados.
