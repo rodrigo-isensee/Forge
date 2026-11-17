@@ -3,10 +3,10 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-mutante-diagnostico
-commit: ef1fb25b6e21fd7570611f993a7e30db3a478b57
+commit: 82dc8044251bbee7166abc5f92eaa3bfa3db45ad
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-14
+data: 2026-11-16
 ---
 # Review de segurança: v047 mutante-diagnostico (E1.296, lote E1.283)
 
@@ -17,7 +17,7 @@ Guarda do processo (`R-SEGURANCA`): o `forge-mutante` é o portão de prova de m
 
 ## Achados
 - A1 (recomendado) bin/forge-mutante:554 · `dados[ini:fim].count(trecho) == 1` trocado por `>= 1` sobrevive à classe Cobertura inteira (sonda S1): o "trecho uma vez dentro do nó" da isenta pelo texto não tem teste; falta caso com o trecho duas vezes no nó apagado, que deve sair rc 2.
-- A2 (recomendado) tests/mutantes/guarda-sem-mutante-4.json:6 · a spec realinhada ainda sai rc 2: M25, M31 e M32 têm `de` que aparece 0 vezes no arquivo (já na develop, não desta entrega); realinhar ou aposentar os três junto com M28 a M30.
+- A2 (recomendado) tests/mutantes/guarda-sem-mutante-4.json:69 · resolvido no bb8aac06: M31 e M32 alinhados à fonte (`onde[0]`); a spec sai rc 0, 8 mortos (M25 a M32).
 
 ## Sondas
 
@@ -34,3 +34,7 @@ Guarda do processo (`R-SEGURANCA`): o `forge-mutante` é o portão de prova de m
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Rodados no ef1fb25b: os 5 testes novos ou reescritos de `tests.test_forge_mutante` (OK) e as rodadas de mutantes acima; sonda S1 com spec temporária fora do repositório (S1 sobreviveu; o par S2, `any(0 <= p for p in onde)`, morreu). A suíte inteira roda no CI: a branch não tem PR nem rodada de CI, então não foi citada. Ferramentas de varredura de segredo, de dependência e de workflow ausentes no PATH (lacuna registrada); a entrega não toca workflow, dependência nem segredo.
+
+## Revalidação por delta (head 82dc8044)
+`forge-check parecer delta` mostra, no domínio, só `bin/forge-mutante`; conferi contra a develop que o código de `bin/forge-mutante` do head é o mesmo que revisei no ef1fb25b (as linhas de mudança de c5c3a449..ef1fb25b e de 86ac0fcb..82dc8044 são idênticas), então o resto veio da develop. O delta próprio é `tests/mutantes/guarda-sem-mutante-4.json` (M31 e M32, `ini - inicio` para `ini - onde[0]`), que só realinha o `de` à fonte e mantém a mesma troca (`para`) e os mesmos testes: não afrouxa. A2 fechado. A1 segue recomendado, sem mudança. A merge de origin/develop (4068c807) não tocou bin, hooks, scripts, .githooks nem .github.
+Rodado no 82dc8044: `python3 -m unittest tests.test_forge_mutante` 127 testes OK; `forge-mutante tests/mutantes/guarda-sem-mutante-4.json --rev HEAD` 8/8 mortos. Suíte inteira só no CI (ordem do dono de 16/11).
