@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-hook-heredoc-fp
-commit: fea6e9f6d66638d5144ca676931a5fff624779d0
+commit: bc22c3d1259d6495330e48a922341c28869b4070
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-16
+data: 2026-11-17
 ---
 # QA: v047 (E4.4, falso positivo de heredoc no hook de PR)
 
@@ -54,6 +54,13 @@ Vermelho antes do verde: `forge-testes --vermelho` não rodado nesta janela (car
 
 ## Revalidação E2.516 (delta `0eee1453..fea6e9f6`)
 Delta no domínio: `hooks/parecer.py`, `docs/hooks.md`, `docs/hooks-fixtures.md` e a fixture `texto-barra-python-stdin-com-gh-pr`, todos vindos da develop (de76a630, c70fd89d, merge 952b97e8 e dd71ea87); o patch do item não mudou (review aprovou). Local, só o afetado: `python3 -m unittest tests.test_hooks_parecer_pasta` no head fea6e9f6: `Ran 4 tests in 32.224s · OK` (36 fixtures `heredoc-interpretador-*`). Suíte completa: check-run `bateria` do CI do PR. Parecer segue aprovado, sem achado novo.
+
+## Revalidação E2.632 (delta `fea6e9f6..bc22c3d1`)
+Delta no domínio: `docs/hooks-fixtures.md` (regenerado, vem da develop), `docs/hooks.md` (develop) e `tests/mutantes/v0454-hooks-a1.json`: A1-3 e A1-5 realinhados à fonte (`de` agora `if gravado and marcado:` e `if nivel == 0 and marcado_fora_do_shell and not (SO_CAT`, mesmo `para`); batem com `hooks/parecer.py:1040` e `:1052`. Review aprovou. Sem `-I`, local, só o afetado:
+- `bin/forge-mutante --base fea6e9f6 tests/mutantes/v0454-hooks-a1.json` (`base=fea6e9f6... rev=bc22c3d1...`): A1-1 a A1-8 `morreu`, A1-3 em `parecer.py:1040` e A1-5 em `:1052`; nenhum sobrevivente.
+- `python3 -m unittest tests.test_forge_mutante.ConferirTodas tests.test_hooks_parecer_pasta`: `Ran 8 tests in 21.470s · OK`.
+- `tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer`: `Ran 1 test · OK`.
+Suíte completa: check-run `bateria` do CI do PR. Parecer segue aprovado, sem achado novo.
 
 ## Revalidação anterior
 `forge-check parecer delta docs/qa/v047-hook-heredoc-fp.md` lista o resto do delta; a UX não mudou.
