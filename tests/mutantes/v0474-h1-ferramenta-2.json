@@ -6,8 +6,8 @@
       "id": "M8",
       "guarda": "base que nao le nao confere",
       "arquivo": "bin/forge-check",
-      "de": "    if not b:\n        return []\n    contagens = contagens_do_intervalo(raiz, b,",
-      "para": "    if False:\n        return []\n    contagens = contagens_do_intervalo(raiz, b,",
+      "de": "    if not b:\n        return []\n    numstat = contagens_do_intervalo(raiz, b,",
+      "para": "    if False:\n        return []\n    numstat = contagens_do_intervalo(raiz, b,",
       "testes": [
         "tests.test_forge_tamanho.NoPr.test_base_que_nao_le_nao_fala"
       ]
@@ -16,7 +16,7 @@
       "id": "M9",
       "guarda": "numstat que falha so avisa",
       "arquivo": "bin/forge-check",
-      "de": "    if contagens is None:\n        print(\"pr: tamanho: não conferido",
+      "de": "    if numstat is None:\n        print(\"pr: tamanho: não conferido",
       "para": "    if False:\n        print(\"pr: tamanho: não conferido",
       "testes": [
         "tests.test_forge_tamanho.NoPr.test_numstat_que_falha_nao_confere"

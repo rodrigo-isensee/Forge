@@ -1408,12 +1408,12 @@ def tamanho_do_pr(raiz, ref, base, branch, previo=False):
     b = base_da_entrega(raiz, base, so_a_pedida=True)
     if not b:
         return []
-    contagens = contagens_do_intervalo(raiz, b, ref or "HEAD", tres_pontos=True, estrito=True)
-    if contagens is None:
+    numstat = contagens_do_intervalo(raiz, b, ref or "HEAD", tres_pontos=True, estrito=True)
+    if numstat is None:
         print("pr: tamanho: não conferido: o git não leu o diff --numstat (H1)", file=sys.stderr)
         return []
     tamanho = modulo_do_bin("forge_tamanho")
-    total = tamanho.linhas_de_codigo(contagens, e_codigo)
+    total = tamanho.linhas_de_codigo(numstat, e_codigo)
     aviso = tamanho.aviso_de_linhas(total)
     if not aviso:
         return []
