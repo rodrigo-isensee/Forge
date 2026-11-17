@@ -1,0 +1,136 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M76",
+      "guarda": "descricao so com os campos que existem",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "for c in (\"tipo\", \"id\", \"local\") if causa.get(c))",
+      "para": "for c in (\"tipo\", \"id\", \"local\") if True)",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeFalha.test_causa_vira_tipo_id_local_e_esperado_obtido"
+      ]
+    },
+    {
+      "id": "M77",
+      "guarda": "esperado e obtido so quando a causa os tem",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "if \"esperado\" in causa else \"\"",
+      "para": "if True else \"\"",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeFalha.test_causa_vira_tipo_id_local_e_esperado_obtido"
+      ]
+    },
+    {
+      "id": "M78",
+      "guarda": "sem causas nao quebra",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "list(causas or ())",
+      "para": "list(causas)",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeFalha.test_uma_linha_error_com_causas_e_erros_da_guarda"
+      ]
+    },
+    {
+      "id": "M79",
+      "guarda": "sem erros da guarda nao quebra",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "for e in erros or ()]",
+      "para": "for e in erros]",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeFalha.test_uma_linha_error_com_causas_e_erros_da_guarda"
+      ]
+    },
+    {
+      "id": "M80",
+      "guarda": "sem causa nem erro nao anota",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if not itens:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeFalha.test_sem_causa_nem_erro_nao_anota"
+      ]
+    },
+    {
+      "id": "M81",
+      "guarda": "titulo ausente nao quebra",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "fullmatch(rotulo or \"\")",
+      "para": "fullmatch(rotulo)",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeFalha.test_titulo_fora_do_alfabeto_e_quebra_de_linha_nao_saem_no_comando"
+      ]
+    },
+    {
+      "id": "M82",
+      "guarda": "titulo so no alfabeto seguro",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "if TITULO_SEGURO.fullmatch(rotulo or \"\") else \"suite\"",
+      "para": "if True else \"suite\"",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeFalha.test_titulo_fora_do_alfabeto_e_quebra_de_linha_nao_saem_no_comando"
+      ]
+    },
+    {
+      "id": "M83",
+      "guarda": "anotacao so no Actions",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "if environ.get(\"GITHUB_ACTIONS\") == \"true\":\n        for linha in anotacao_de_falha",
+      "para": "if True:\n        for linha in anotacao_de_falha",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeFalha.test_emitir_so_no_actions"
+      ]
+    },
+    {
+      "id": "M84",
+      "guarda": "anotacao de falha so com falhou injetado",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "if codigo and falhou:",
+      "para": "if codigo:",
+      "testes": [
+        "tests.test_suite_partes.Brinquedo.test_modulo_que_falha_reprova"
+      ]
+    },
+    {
+      "id": "M85",
+      "guarda": "limite de causas",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "[:LIMITE_DE_CAUSAS]",
+      "para": "[:LIMITE_DE_CAUSAS + 1000]",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeFalha.test_limites_de_causas_e_de_tamanho"
+      ]
+    },
+    {
+      "id": "M86",
+      "guarda": "limite de tamanho",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "escapar_dado('; '.join(itens))[:LIMITE_DA_ANOTACAO]",
+      "para": "escapar_dado('; '.join(itens))",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeFalha.test_limites_de_causas_e_de_tamanho"
+      ]
+    },
+    {
+      "id": "M87",
+      "guarda": "a falha da guarda tambem anota",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "        emitir_falha(environ, f\"parte {k}/{n}\", [], erros)\n",
+      "para": "        pass\n",
+      "testes": [
+        "tests.test_suite_partes.Brinquedo5.test_parte_que_nao_divide_anota_o_erro_da_guarda"
+      ]
+    },
+    {
+      "id": "M88",
+      "guarda": "a parte vermelha anota",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if codigo and falhou:\n        falhou(causas, erros)",
+      "para": "    if codigo and falhou:\n        pass",
+      "testes": [
+        "tests.test_suite_partes.Brinquedo5.test_parte_vermelha_anota_o_teste_que_caiu_e_a_verde_nao"
+      ]
+    }
+  ]
+}

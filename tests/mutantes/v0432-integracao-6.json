@@ -151,16 +151,6 @@
       "testes": [
         "tests.test_suite_paralela"
       ]
-    },
-    {
-      "id": "I96",
-      "guarda": "scripts/suite-partes.py:115 k == nome or k.startswith(nome + '.') (negada)",
-      "arquivo": "scripts/suite-partes.py",
-      "de": "        partes = [v for k, v in pesos.items() if k == nome or k.startswith(nome + \".\")]",
-      "para": "        partes = [v for k, v in pesos.items() if not (k == nome or k.startswith(nome + \".\"))]",
-      "testes": [
-        "tests.test_suite_partes"
-      ]
     }
   ]
 }

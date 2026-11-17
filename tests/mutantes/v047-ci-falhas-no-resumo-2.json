@@ -1,0 +1,14 @@
+{
+  "pedido": "v047-ci-falhas-no-resumo",
+  "executor": "unittest",
+  "mutantes": [
+    {"id": "G1", "guarda": "E2.599: sem pgid legível, o grupo de PGID da etapa que ainda tem membro é o dela",
+     "arquivo": "templates/projeto/.githooks/pre-push",
+     "de": "[ -n \"$pg\" ] || { kill -0 -- \"-$etapa\" 2>/dev/null && pg=$etapa; }", "para": ":",
+     "testes": ["tests.test_prepush_so_docs.GrupoDaEtapa.test_ps_sem_resposta_com_o_grupo_criado_ainda_encerra_o_filho"]},
+    {"id": "G2", "guarda": "E2.599: o fallback só vale quando o grupo existe (kill -0)",
+     "arquivo": "templates/projeto/.githooks/pre-push",
+     "de": "kill -0 -- \"-$etapa\" 2>/dev/null && pg=$etapa", "para": "pg=$etapa",
+     "testes": ["tests.test_prepush_so_docs.GrupoDaEtapa.test_grupo_nao_criado_ou_pgid_ilegivel_sinaliza_so_a_etapa"]}
+  ]
+}

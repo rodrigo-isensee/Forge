@@ -153,6 +153,8 @@ rodar_etapa() {
   inicio=$SECONDS
   set -m; "${prefixo[@]}" "$local_hook" </dev/null 9>&- & etapa=$! alvo=$!; set +m  # sem o descritor da trava: um servidor que a etapa deixe vivo não prende os envios
   pg="$(ps -o pgid= -p "$etapa" 2>/dev/null | tr -d ' ')"
+  # Etapa que sai antes do ps (o bash já a colheu): sem pgid legível, o grupo de PGID $etapa, se ainda tem membro, é o dela (o PID não se repete enquanto o grupo vive)
+  [ -n "$pg" ] || { kill -0 -- "-$etapa" 2>/dev/null && pg=$etapa; }
   if [ "$pg" = "$etapa" ] && [ "$pg" != "$(ps -o pgid= -p "$$" 2>/dev/null | tr -d ' ')" ]; then alvo="-$etapa"; fi
   while lider_vivo; do
     if ancestral_morto; then barrar_orfao; fi

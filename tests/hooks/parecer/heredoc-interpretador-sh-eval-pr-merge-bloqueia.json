@@ -1,0 +1,18 @@
+{
+  "descricao": "HOOK-CONTRIB-HEREDOC-FP, caso verdadeiro: eval no corpo que o sh roda, com gh pr merge, segue recusado.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "sh <<'EOF'\neval \"gh pr merge feature/x\"\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: `eval`"
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O99",
+      "guarda": "A1 do review E1.279: o comando que a linha redefine como função não vale pela lista positiva (U4 e U3)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if corpo_da_funcao(corpo.split()[0] if corpo.split() else corpo, linha)[0]:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O100",
+      "guarda": "A1 do review E1.279: `$(pwd)` só vira `$PWD` se a linha não redefine `pwd` como função",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if not corpo_da_funcao(\"pwd\", comando)[0] and",
+      "para": "            if True and",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O101",
+      "guarda": "A4 da segurança E1.280: a variável que o bash grava não é do ambiente",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if nome in VARIAVEIS_DO_BASH:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O102",
+      "guarda": "A4 da segurança E1.280: `REPLY` (do `read` sem nome) está na lista do que o bash grava",
+      "arquivo": "hooks/conformidade.py",
+      "de": "frozenset(\"_ REPLY MAPFILE",
+      "para": "frozenset(\"_ MAPFILE",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O103",
+      "guarda": "A1 do review E1.279: o U4 consulta a lista positiva com a linha, que pode redefinir o comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if na_lista_positiva(corpo, linha):",
+      "para": "    if na_lista_positiva(corpo, \"\"):",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O104",
+      "guarda": "A1 do review E1.279: o U3 consulta a lista positiva com a linha, que pode redefinir o comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "all(na_lista_positiva(c.strip(), linha) for c in corpos)",
+      "para": "all(na_lista_positiva(c.strip(), \"\") for c in corpos)",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}

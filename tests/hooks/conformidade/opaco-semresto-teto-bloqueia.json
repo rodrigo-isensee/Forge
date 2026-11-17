@@ -1,0 +1,32 @@
+{
+  "descricao": "CONFORMIDADE-A9-DESTINO-OPACO (E1.139, v047): C21: acima de 64 destinos opacos na linha, o hook não os lê.",
+  "arquivos": {
+    "x": "x\n",
+    "config": "c\n",
+    "pre-push": "p\n",
+    "lugar.txt": "docs\n",
+    "docs/a.md": "a\n",
+    "hooks/pre-push": "p\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "true > \"$v0\"; true > \"$v1\"; true > \"$v2\"; true > \"$v3\"; true > \"$v4\"; true > \"$v5\"; true > \"$v6\"; true > \"$v7\"; true > \"$v8\"; true > \"$v9\"; true > \"$v10\"; true > \"$v11\"; true > \"$v12\"; true > \"$v13\"; true > \"$v14\"; true > \"$v15\"; true > \"$v16\"; true > \"$v17\"; true > \"$v18\"; true > \"$v19\"; true > \"$v20\"; true > \"$v21\"; true > \"$v22\"; true > \"$v23\"; true > \"$v24\"; true > \"$v25\"; true > \"$v26\"; true > \"$v27\"; true > \"$v28\"; true > \"$v29\"; true > \"$v30\"; true > \"$v31\"; true > \"$v32\"; true > \"$v33\"; true > \"$v34\"; true > \"$v35\"; true > \"$v36\"; true > \"$v37\"; true > \"$v38\"; true > \"$v39\"; true > \"$v40\"; true > \"$v41\"; true > \"$v42\"; true > \"$v43\"; true > \"$v44\"; true > \"$v45\"; true > \"$v46\"; true > \"$v47\"; true > \"$v48\"; true > \"$v49\"; true > \"$v50\"; true > \"$v51\"; true > \"$v52\"; true > \"$v53\"; true > \"$v54\"; true > \"$v55\"; true > \"$v56\"; true > \"$v57\"; true > \"$v58\"; true > \"$v59\"; true > \"$v60\"; true > \"$v61\"; true > \"$v62\"; true > \"$v63\"; true > \"$v64\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "mais de 64 destinos"
+  }
+}
