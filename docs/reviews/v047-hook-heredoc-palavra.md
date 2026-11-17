@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-hook-heredoc-palavra
-commit: 228d0083051fc3d808525d47d1efcfee71df20c1
+commit: 55418634d158dda4f8693915d16162d03ebfe256
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
@@ -11,6 +11,12 @@ data: 2026-11-17
 # Review: v047-hook-heredoc-palavra
 
 Code review da E2.6 (HOOK-HEREDOC-PALAVRA-FP, classe C) no head 730261a5, base 5b1aacd5. Dois commits: f53efb93 (hook, fixtures, changelog, índice) e 730261a5 (mutantes).
+
+## Revalidação (E2.56, head 55418634)
+Delta lido: `forge-check parecer delta docs/reviews/v047-hook-heredoc-palavra.md`, intervalo 228d0083..55418634, sem o que veio da develop: 2 arquivos no domínio, `tests/mutantes/v047-hook-heredoc-fp.json` e `-2.json`. Junção da develop (006907f9, #637, sem conflito) pelo forge-fechar; `hooks/parecer.py` sem mudança no intervalo.
+- M2: `de` passa a `OPCAO_DO_PYTHON.fullmatch(a) for a in opcoes` (parecer.py:218), `para` `True for a in opcoes`: mesma guarda (o python com script ou -c não é leitor da entrada).
+- M14: `de` passa a `if leitor not in ("python", "dado") and not corpo_so_lido(dono)]` (parecer.py:1059), `para` `if leitor != "dado" and ...`: tira só a isenção do python, mesma guarda de antes.
+- `python3 -m unittest tests.test_forge_mutante.ConferirTodas`: 4 testes, OK. `bin/forge-mutante` nas duas specs (rev 55418634): M1-M4, M6-M16 `morreu`, nenhum `(erro)`, saída 0; M2 em parecer.py:218 e M14 em parecer.py:1059. Sem achado novo; parecer mantido.
 
 ## Revalidação (E2.50, head 228d0083)
 Delta lido: `forge-check parecer delta docs/reviews/v047-hook-heredoc-palavra.md`, intervalo 76b50dc7..228d0083, sem o que veio da develop: 1 arquivo no domínio, `docs/hooks-fixtures.md`. Junção da develop (ba968580) pelo integrador, conflito só nesse índice gerado, resolvido rodando o script.
