@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-folga-jarvis
-commit: cd79a259580c71ebf22631bcf8c8c8c8516ea50f
+commit: 2a95b1630df4dbf2fa45d39c916393e4423d6c44
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-16
+data: 2026-11-17
 ---
 # Review: v047 (E1.167, folga do texto do Jarvis P1 a P4 e FOCO-NAS-DECISOES)
 
@@ -15,6 +15,7 @@ data: 2026-11-16
 - A2 (recomendado) agents/jarvis.md:14 · "Leia falar-com-o-dono ... diante de ordem ampla": "Ordem ampla não confirma" foi para `fluxo-do-pedido`, e a falar-com-o-dono só aponta para ela, sem "leia" (a description perdeu "resolva, acabe tudo, pode fazer"). Sem perda (fluxo-do-pedido é lida antes de todo pedido); corrigir o ponteiro.
 - A3 (recomendado) skills/fluxo-do-pedido/SKILL.md:8 · o cabeçalho diz que a skill foi "movido inteiro e sem mudar palavra", mas a seção `## Versão` (linha 46) é texto novo, o resumo da diretriz 21 (decisão do dono de 14/11 08:16). Ressalvar a seção, para o próximo leitor não a tratar como trecho movido.
 - A4 (recomendado) tests/apoio_jarvis.py:73 · ordem de leitura conferida por linha: skill passa com "leia" de outra skill. Reproduzido: sem o "Leia `fluxo-do-pedido`" da jarvis.md:42, `contribuir-com-o-forge` reprova; modo-iniciante e novo-projeto passam assim na :14. Segue a proposta P4.
+- A5 (recomendado) skills/falar-com-o-dono/SKILL.md:12 · o ponteiro de toda mensagem é "em `<arquivo>`", sem "leia", e a regra vale a cada mensagem do dono (description). Sem perda: o texto está inteiro em toda-mensagem.md, com invariante; trocar por "Leia `<arquivo>`" nos quatro ponteiros, como na jarvis.md.
 
 ## Sondas
 
@@ -73,3 +74,14 @@ Delta lido: `forge-check parecer delta docs/reviews/v047-folga-jarvis.md` (rc=0)
 - **Conflito:** `CITACOES_CONHECIDAS` mantém as três entradas: a da branch (`tests/apoio_jarvis.py`, P4) e as da develop (`tests/test_ambiente_sem_auto_update.py` e `tests/test_sessao_automatica.py`, E2.222). Contra a develop, o diff do arquivo segue só o da branch (`kanban-metricas` e `apoio_jarvis.py`): nada se perdeu, nenhuma contagem afrouxou.
 - **`templates/projeto/CLAUDE.md` e `tests/test_forge.py`:** o delta é só o que veio da develop (seção "Sessão", `gh --version` nos falsos, a linha da E2.201). Contra a develop, a branch muda o mesmo que no head aprovado: a frase da diretriz 29 em `R-DECISAO`, `test_time_do_jarvis_existe`, `LEGADO_TRECHOS_MAXIMO = 225` e `kanban-metricas`. O merge não reverte nada.
 - Rodados: `test_reval_delta`, `test_sessao_automatica` e `test_jarvis_nucleo` (63 OK, 1 pulado, arquivo do dono). A suíte inteira fica para o CI do PR. Sem achado novo; A1 a A4 continuam recomendações. Parecer: **aprovado** no head `cd79a259`.
+
+## Revalidação por delta (head `2a95b163`, E2.654)
+Delta lido: `forge-check parecer delta docs/reviews/v047-folga-jarvis.md` (rc=0), intervalo `cd79a259..2a95b163`, sem o que veio da base. O aviso do delta sobre o merge `7453f896` é o remoto da própria branch (só `docs/qa/v047-folga-jarvis.md`), não outra branch.
+
+- **Merges (E2.474):** `e8b254b3` resolveu conflito em `agents/jarvis.md`, `falar-com-o-dono/SKILL.md`, `kanban-scrum/SKILL.md`, `tests/config.json` e `test_jarvis_nucleo.py`; contra a develop `86ac0fcb`, o diff da branch é o do head aprovado sobre o texto novo da develop (PR 584). `3b25e87a` ajusta o legado do jarvis.md para 27. `2712bc2f` é limpo: `git merge-tree` dos dois pais dá a mesma árvore do commit.
+- **Diretriz 29 (`733a1f45`, decisão do dono de 17/11, opção 1):** sai a versão curta "Pedido das decisões"; cada frase dela tem par na longa (SKILL.md:18): ler só as abertas numa consulta, lista por peso e a primeira completa, `forge-check anotar` e a próxima, o time segue, sem aviso entre as perguntas, "Não há decisão sua pendente". "foco total" fica na description. As 8 invariantes da curta trocadas por 8 da longa, mais estritas (frases inteiras).
+- **Parágrafos movidos (`ae01c4fa`, `2a95b163`, diretriz 25):** Q2, toda mensagem e etapa após a develop estão palavra por palavra em `pergunta-pendente.md`, `toda-mensagem.md` e `conferir-develop.md`, com ponteiro na SKILL.md, invariante do ponteiro, invariantes do texto e `invariantes_motivo` (`R-DECISAO`) no arquivo novo. Os testes leem o arquivo novo e afirmam o ponteiro; `test_jarvis_n_jar_a` leva `R-CUSTO` e `R-CONFORMIDADE` para `pergunta-pendente.md` e sobe o mínimo de 2 para 3.
+- **Nada sumiu:** contra a `origin/develop` `73a0ab81`, toda invariante que sai de um arquivo entra noutro (as do jarvis.md na `fluxo-do-pedido`, já aprovadas; as da falar-com-o-dono na versão longa e nos três arquivos novos); invariantes 455 → 468, arquivos 55 → 59. Nenhuma checagem afrouxou.
+- Rodados: `test_jarvis_nucleo` e `test_jarvis_n_jar_a` (OK, 1 pulado, arquivo do dono), `test_metricas_texto`, `test_medidas_m14b` e `test_forge` `RegrasInviolaveis`, `Agentes`, `Skill` e `Orcamento` (16 OK). A suíte inteira fica para o CI do PR.
+
+A5 é novo e `recomendado`; A1 a A4 seguem recomendações. Parecer: **aprovado** no head `2a95b163`.
