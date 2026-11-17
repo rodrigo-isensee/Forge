@@ -13,8 +13,8 @@ data: 2026-11-17
 Escopo: `git diff 73a0ab81...ea5c12c8` (bin/forge-fechar, tests/test_fechar_base_andou.py, 3 JSON de mutantes, fragmento). 154 linhas de código e teste (51 + 103), um comportamento só.
 
 ## Achados
-- A1 (bloqueante, resolvido em 80679f19) docs/fechamento-integrador.md:20 · o passo 2b ainda diz "O fechamento não traz a base (E8)" e "segue, sem merge, sem commit e sem envio"; o H4 passa a commitar e enviar em melhoria/*. Doc afetada sem atualizar na entrega (definição de pronto); reescreva o 2b (merge, envio, recomeço com --trazida, E8 só fora de melhoria/*)
-- A2 (recomendado, resolvido em 80679f19) docs/protecao-de-branch.md:21 · "a branch traz a base uma vez, no fim, antes do pedido de merge": cite que o forge-fechar a traz sozinho sem conflito (H4), para a regra de proteção continuar explicada
+- A1 (bloqueante) docs/fechamento-integrador.md:20 · o passo 2b ainda diz "O fechamento não traz a base (E8)" e "segue, sem merge, sem commit e sem envio"; o H4 passa a commitar e enviar em melhoria/*. Doc afetada sem atualizar na entrega (definição de pronto); reescreva o 2b (merge, envio, recomeço com --trazida, E8 só fora de melhoria/*)
+- A2 (recomendado) docs/protecao-de-branch.md:21 · "a branch traz a base uma vez, no fim, antes do pedido de merge": cite que o forge-fechar a traz sozinho sem conflito (H4), para a regra de proteção continuar explicada
 - A3 (recomendado) bin/forge-fechar:798 · no recomeço logo após o push, o gh pr list pode ainda dar o headRefOid antigo do PR aberto e o passo 3 para (falha fechada; rodar de novo resolve). Avalie reler o head do PR por alguns segundos ou dizer na mensagem que basta repetir
 - A4 (recomendado) bin/forge-fechar:1 · 154 linhas passam da orientação de 150 (M14): o corpo do PR traz `teto: excedido, 154 linhas, <motivo>`
 
