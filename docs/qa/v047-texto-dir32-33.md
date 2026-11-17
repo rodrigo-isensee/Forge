@@ -38,7 +38,7 @@ Item só de texto (acréscimo) mais invariantes em `tests/config.json` e a tabel
 - Vermelho antes do verde: não se aplica no sentido de código; as duas sondas fazem o papel (o texto sem o trecho derruba o teste).
 
 ## Revalidação incremental (ac34647c..9fd5d771)
-`forge-check parecer delta` lista no domínio `tests/fixtures/diretrizes-do-dono.json` e `tests/test_jarvis_nucleo.py`. A diretriz 27 volta a `pendente` com o cartão `RELEASE-EM-1H` (existe em `KANBAN.md`); o `MAX_PENDENTES` sobe de 7 para 8. Pendentes na fixture: 2, 11, 23, 24, 27, 28, 30, 31 (8, igual ao teto).
+`forge-check parecer delta` lista no domínio `tests/fixtures/diretrizes-do-dono.json` e `tests/test_jarvis_nucleo.py`. A diretriz 27 volta a `pendente` com o cartão `RELEASE-EM-1H` (o review cita `KANBAN.md:107`; o quadro não está nesta worktree, não conferi); o `MAX_PENDENTES` sobe de 7 para 8. Pendentes na fixture: 2, 11, 23, 24, 27, 28, 30, 31 (8, igual ao teto).
 - `test_jarvis_nucleo`: Ran 43, OK.
 - Sonda: com `MAX_PENDENTES = 7`, o teste cai (failures=2), logo o teto de 8 é o exato e o teste guarda a fronteira. Árvore restaurada.
 - Observação anterior (27 como `fabrica`) resolvida pelo delta; era a A1 do review.
