@@ -2,13 +2,14 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2793 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2796 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 79 | 44 | 35 | 27 |
+| `ambiente` | 3 | 0 | 3 | 3 |
 | `conformidade` | 2093 | 1550 | 543 | 91 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 27 | 11 | 16 | 13 |
@@ -48,6 +49,14 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2793 fixtures) roda em `tests/test
 | `outro-*` | 1 | 1 | 0 | — | `C1-3` | C1-3: pid morto, mas o registro é de outro namespace de PID: mantém. |
 | `registro-*` | 1 | 1 | 0 | — | — | C1: registro antigo, sem pid, segue só a regra do prazo. |
 | `worktree-*` | 1 | 1 | 0 | — | — | Chamada numa worktree lê o estado da cópia principal. |
+
+## `ambiente`
+
+| Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| `erro-*` | 1 | 0 | 1 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA: erro ao decidir se a sessão está no container: o ambiente sai 0, não escreve no contexto e registra em erros.log. |
+| `fora-*` | 1 | 0 | 1 | — | — | Projeto do Forge fora de /workspaces: o ambiente não confere nada e fica em silêncio (ADR 0003, emenda E2.54). |
+| `sem-*` | 1 | 0 | 1 | — | — | Projeto sem .forge/versao: o ambiente não age e não escreve nada no contexto do SessionStart. |
 
 ## `conformidade`
 
