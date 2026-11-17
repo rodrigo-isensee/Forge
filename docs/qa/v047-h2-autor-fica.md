@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-h2-autor-fica
-commit: adf98a9add41ea9b1f43f92e44899d139a137881
+commit: 7848dd5cfd55d51a7d8bb1afcef4a7718a8a8d11
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -74,3 +74,6 @@ Delta desde 981ce8a9: só `docs/hooks-fixtures.md` (índice regerado, 119 para 1
 - A2 resolvido: `python3 -I scripts/indice-fixtures.py --conferir` sai `docs/hooks-fixtures.md: em dia` (rc 0).
 - `python3 -m unittest tests.test_forge_mutante.ConferirTodas tests.test_hooks_agentes_autor`: 14 testes, OK em 4,8 s.
 - Sem achado aberto; suíte inteira: check-run `bateria` do CI do PR 639.
+
+## Revalidação no head 7848dd5c (E2.84)
+`forge-check parecer delta` desde adf98a9a lista só `bin/forge-testes` (registro de `test_hooks_agentes_autor` na lista do forge-check) e `tests/test_testes_tocados.py` (contagem 92 para 93). Sem mudança de comportamento de guarda. `python3 -m unittest tests.test_testes_tocados tests.test_forge_mutante.ConferirTodas tests.test_hooks_agentes_autor`: 176 testes, OK (1 pulado por sandbox, medida de /proc). Sem achado aberto; aprovado.
