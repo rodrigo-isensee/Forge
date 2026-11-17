@@ -52,6 +52,13 @@ Para saber como a entrega fica sobre a base de integração, simule o merge fora
 
 Nunca use um clone sem as refs remotas (por exemplo `git clone --no-tags --single-branch` de outra ref, ou clone local sem `origin/<base>`): a checagem compara com a base errada e sai com rc 0. Confira que `git rev-parse refs/remotes/origin/<base>` responde antes de confiar no resultado.
 
+## CI de projeto privado: minutos
+Em projeto privado, os minutos do Actions são a franquia gratuita (`R-CUSTO`); um dia de push em branch de trabalho a esgota (caso real: 163 rodadas de push de branch contra 33 de PR, 317 min em branches só de documento, push e PR em grupos de `concurrency` diferentes). O modelo `templates/projeto/.github/workflows/ci.yml` (copiado pelo `bin/forge-init`, com o comando de pronto da stack) fixa o padrão:
+- suíte pesada só em `pull_request` e no push de `develop`, `homolog` e `main`; nunca no push de branch de trabalho (o PR já a roda);
+- mudança só de documento (`**/*.md`, `docs/**`) não roda a suíte (`paths-ignore`); o `ci-docs.yml` traz o job leve de mesmo nome `ci`, que passa, para o check exigido não ficar pendente;
+- `concurrency` por branch (`github.head_ref || github.ref_name`), que junta push e PR no mesmo grupo, com `cancel-in-progress`;
+- o check a exigir na proteção da branch é o agregador `ci`; quem configura é o dono (`R-CONFORMIDADE`).
+
 ## Tempo e dependências
 - Meça a duração por workflow e os minutos usados (`gh run list`); um checkpoint por release. Subiu mais de 20% ou passou de 80% da franquia gratuita: abra cartão de melhoria.
 - Dependabot para ações, imagens e pacotes, com agrupamento e janela; a triagem separa o bump sem quebra (mecânico) do que exige correção de código (dev da stack).
