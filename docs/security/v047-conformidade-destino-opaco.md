@@ -3,12 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: 73ba49f74c522e53e2ab2d59c5c0ffe4ead5329a
+commit: 2c8a3624c6932063893a5c3dc826a254c2d80b9e
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-16
+data: 2026-11-17
 ---
 # Review de segurança: v047 (lote B, destino opaco, junção com a develop)
+
+**Revalidação por delta no head `2c8a3624` (E2.627).** `forge-check parecer delta`, intervalo `73ba49f7..2c8a3624`. No domínio: `bin/forge-testes` e `tests/test_oraculo_v047.py`. `hooks/conformidade.py` e todo `hooks/` sem diferença (`git diff 73ba49f7 HEAD -- hooks` vazio), então as linhas dos achados valem. Em `bin/forge-testes`: `test_pre_push_patch` entra na regra `hooks/.*` do `MAPA` e nasce a regra `docs/devops/pp1-pre-push\.patch` com `test_pre_push_patch`; são listas de módulos do plano dirigido do pre-push, nunca portão de CI, e só acrescentam. O oráculo (blob `a9eddad2`) mudou por ajuste autorizado pelo dono: importa `sem_manutencao` de `tests/ambiente_git.py` para as chamadas ao git e troca o arquivo `README.md` do fixture por `LEIAME.md`; as asserções e os casos de abuso seguem os mesmos, nada afrouxa. Rodei `tests.test_oraculo_v047`, `tests.test_testes_tocados` e `tests.test_pre_push_patch`: 177 testes OK (1 pulado pelo sandbox); a suíte inteira fica no CI. Nenhum achado novo; A17, A18, A19, A11 e A5 seguem recomendados. Oráculo: `tests/test_oraculo_v047.py` blob `a9eddad233156152bc692220fa181eecd1eb6821`.
 
 Revalidação por delta da junção `081473ac` (E2.130): merge de `7294bea3` (a branch, `c22624c5` mais pareceres) com a `develop` `bf475209`. `forge-check parecer delta`, intervalo `c22624c5..081473ac`, sem o que veio da base. No domínio só `bin/forge-testes`; fora, `tests/test_testes_tocados.py`. São os dois arquivos com conflito. Não fiz a junção.
 
