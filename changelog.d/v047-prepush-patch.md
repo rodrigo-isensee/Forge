@@ -1,2 +1,0 @@
-### Corrigido
-- Envio: patch testado `docs/devops/pp1-pre-push.patch` com três consertos do `.githooks/pre-push`, a aplicar pelo dono: o texto da trava é lido do descritor já conferido e não do caminho (PRE-PUSH-TEXTO-TRAVA-FD), `FORGE_FILA_INTERVALO=0` é recusado (FILA-INTERVALO-ZERO) e o envio leve roda `bin/forge-mutante --cobertura` em diff com Python e barra só a falta em arquivo de controle sem teste, a mesma lista da catraca (PREPUSH-LEVE-COBERTURA-CATRACA); o teste `tests/test_pre_push_patch.py` prova cada um (v047 E2.321).

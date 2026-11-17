@@ -1,0 +1,42 @@
+{
+  "descricao": "H2-AUTOR-FICA-ATE-O-MERGE (Z10, R-TETO): a mensagem ao autor já retomado (ativo) não reserva de novo nem se recusa.",
+  "estado": {
+    "agentes.json": {
+      "agentes": [],
+      "autores": [
+        {
+          "id": "a0123456789abcdef",
+          "desde": "{agora-60}",
+          "escrita": [
+            "melhoria/a"
+          ]
+        }
+      ]
+    }
+  },
+  "passos": [
+    {
+      "entrada": {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "SendMessage",
+        "tool_use_id": "toolu_1",
+        "tool_input": {
+          "to": "a0123456789abcdef",
+          "message": "continue"
+        }
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "SendMessage",
+    "tool_use_id": "toolu_2",
+    "tool_input": {
+      "to": "a0123456789abcdef",
+      "message": "continue"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

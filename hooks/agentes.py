@@ -43,6 +43,10 @@ HOOK-ESTADO-ILEGIVEL-LIBERA (v047, E1.138): estado ilegível nunca vira lista va
 erro de leitura, mais de 1 MiB), o erro ao fixar a pasta do estado do clone e o `.forge/config.json` ilegível recusam o disparo
 e a retomada com R-TETO; `SubagentStart` e `SubagentStop` saem com 0. Nenhum evento regrava o arquivo ilegível; o erro vai ao
 erros.log. O R-BRIEF segue antes e independente.
+H2-AUTOR-FICA-ATE-O-MERGE (v047, E2.10): o `SubagentStop` de um agente de escrita grava em `autores` o id dele e as branches que
+escrevia. Um disparo de escrita numa dessas branches, dentro de expiracao_horas, avisa (R-TETO, código 0) que o autor pode ser
+retomado por `SendMessage`; o aviso some se o id tem lápide (liberado como morto: a desistência registrada), se está ativo ou se
+passou do prazo. Nunca recusa: `autores` ilegível vale vazio.
 """
 import hashlib
 import json
@@ -239,7 +243,8 @@ def vigentes(agentes, agora, expira_s, morto=nenhum_morto):
     for a in agentes:
         try:
             if not (isinstance(a, dict) and isinstance(a.get("desde"), (int, float))
-                    and agora - a["desde"] < (expira_s if a.get("id") else min(RESERVA_S, expira_s))):
+                    and agora - a["desde"] < (expira_s if a.get("id") and a.get("tipo") != RETOMADA
+                                              else min(RESERVA_S, expira_s))):
                 continue
             if sessao_morta(a) or morto(a):
                 continue
@@ -261,6 +266,7 @@ LIMITE_DO_TRANSCRIPT = 2 * 1024 * 1024  # C4: bytes lidos do fim do transcript
 PRAZO_DA_LEITURA_S = 2.0  # C4: tempo da leitura; estourou, o registro fica
 LIMITE_DO_META = 64 * 1024
 LAPIDES_MAX = 64
+AUTORES_MAX = 64  # H2: teto da lista `autores`, independente do das lápides
 LIMITE_DO_ESTADO = 1024 * 1024  # HOOK-ESTADO-ILEGIVEL-LIBERA: o agentes.json real tem poucos KB
 
 
@@ -436,6 +442,47 @@ def relancado(morto, agentes):
                for a in agentes)
 
 
+def autores_vigentes(estado, agora, expira_s):
+    """H2: os autores gravados no `SubagentStop`, com id de agente e dentro do prazo do registro (expiracao_horas). Só alimenta
+    um aviso: o que não é lista ou registro vale vazio, sem recusa."""
+    lista = estado.get("autores")
+    return [a for a in (lista if isinstance(lista, list) else [])
+            if isinstance(a, dict) and isinstance(a.get("id"), str) and ID_DE_AGENTE.fullmatch(a["id"])
+            and isinstance(a.get("desde"), (int, float)) and agora - a["desde"] < expira_s]
+
+
+def guardar_autores(autores, parados, agora):
+    """H2: cada agente de escrita parado vira o autor das branches dele (a retomada, sem `escrita` própria, herda as do
+    registro anterior do mesmo id); o autor anterior perde só essas branches e sai quando não sobra nenhuma."""
+    for r in parados:
+        escrita = set(textos(escritas_do_registro(r)))
+        escrita |= {b for a in autores if a["id"] == r.get("id") for b in textos(a.get("escrita"))}
+        if not (isinstance(r.get("id"), str) and ID_DE_AGENTE.fullmatch(r["id"]) and escrita):
+            continue
+        restantes = []
+        for a in autores:
+            sobra = [b for b in textos(a.get("escrita")) if b not in escrita]
+            if sobra:
+                restantes.append({**a, "escrita": sobra})
+        autores = restantes + [{"id": r["id"], "desde": agora, "escrita": sorted(escrita)}]
+    return autores[-AUTORES_MAX:]
+
+
+def autores_retomaveis(autores, agentes, lapides, escrita):
+    """H2: `branch: id` de cada autor de uma das branches de `escrita` que pode ser retomado: sem lápide e fora dos ativos."""
+    fora = {i for i in [l.get("id") for l in lapides] + [a.get("id") for a in agentes] if isinstance(i, str)}
+    return [f"{sem_controle(b)[:CORTE_DO_NOME]}: {a['id']}" for a in autores if a["id"] not in fora
+            for b in sorted(escrita & set(textos(a.get("escrita"))))]
+
+
+def aviso_de_autor(retomaveis):
+    """H2 (R-TETO, só aviso): o texto que pede retomar o autor em vez de lançar agente novo, ou None."""
+    if retomaveis:
+        return mensagem("R-TETO", f"aviso: autor retomável ({'; '.join(retomaveis)}): retome-o por `SendMessage` (to: <id>), "
+                                  "não com agente novo (relê tudo); novo só se ele travou. O disparo segue.")
+    return None
+
+
 def recusar_retomada(hook, agentes, lapides):
     """C8: recusa retomar (SendMessage) o id liberado enquanto houver relançamento dele. Vale qualquer id citado em qualquer
     campo da entrada; erro recusa (falha fechada)."""
@@ -448,6 +495,22 @@ def recusar_retomada(hook, agentes, lapides):
     if presos:
         bloquear("R-TETO", f"o agente {presos[0]} foi liberado como morto e tem relançamento vigente (mesma branch ou "
                            "descrição); não o retome: espere o relançamento terminar.")
+
+
+def reservar_retomada(hook, agentes, autores, agora):
+    """H2 e Z10 (R-TETO): retomar por `SendMessage` o autor parado é uma delegação de escrita. Recusa se outra reserva escreve
+    uma das branches dele; senão, reserva-as com o id dele, que o `SubagentStop` dele solta. A reserva vale o prazo curto
+    (RESERVA_S) até o `SubagentStart` do retomado: SendMessage negado ou falho não prende a branch. Alvo ativo ou sem branch: nada."""
+    entrada = hook.campo("tool_input")
+    alvo = entrada.get("to") if isinstance(entrada, dict) else None
+    if any(a.get("id") == alvo for a in agentes):
+        return
+    escrita = sorted({b for a in autores if a["id"] == alvo for b in textos(a.get("escrita"))})
+    if not escrita:
+        return
+    recusar_branch_ocupada(hook, agentes, escrita)
+    agentes.append({"id": alvo, "tipo": RETOMADA, "descricao": "", "desde": agora, "branches": escrita, "escrita": escrita,
+                    **da_sessao(hook)})
 
 
 def pasta_de_estado_do_clone(raiz):
@@ -762,13 +825,20 @@ def avisos_de_brief_vencido(hook, lidos):
         return []
 
 
-def avisar_brief_vencido(avisos):
-    """D3: uma linha `R-BRIEF: aviso` no stderr e no `systemMessage` (código 0), com o caminho de volta: selar de novo."""
+def aviso_de_brief_vencido(avisos):
+    """D3: a linha `R-BRIEF: aviso` com o caminho de volta (selar de novo), ou None."""
     if avisos:
-        texto = mensagem("R-BRIEF", f"aviso: brief vencido depois do selo ({sem_controle('; '.join(avisos))}); o disparo segue. "
-                                    "Rode `forge-check brief selar` de novo para o especialista ler a base e as decisões de agora.")
-        print(texto, file=sys.stderr)
-        print(json.dumps({"systemMessage": texto}, ensure_ascii=False))
+        return mensagem("R-BRIEF", f"aviso: brief vencido depois do selo ({sem_controle('; '.join(avisos))}); o disparo segue. "
+                                   "Rode `forge-check brief selar` de novo para o especialista ler a base e as decisões de agora.")
+    return None
+
+
+def avisar(textos_do_aviso):
+    """D3 e H2: cada aviso numa linha do stderr e todos num só `systemMessage` (código 0); um JSON só no stdout."""
+    linhas = [t for t in textos_do_aviso if t]
+    if linhas:
+        print("\n".join(linhas), file=sys.stderr)
+        print(json.dumps({"systemMessage": " ".join(linhas)}, ensure_ascii=False))
 
 
 MOTIVOS_DA_RECUSA = frozenset({"memoria", "teto", "duplicado", "pesado"})  # conjunto fechado: nunca texto do disparo
@@ -872,6 +942,8 @@ def conferir_brief(hook):
 
 
 def lancar(hook, agentes, agora, lidos):
+    """Recusa (duplicado, memória, teto, branch ocupada) ou reserva o disparo; devolve o que os avisos pedem (brief vencido e
+    branches de escrita), emitidos só depois do estado gravado (o erro do aviso não leva a reserva)."""
     entrada, tipo = entrada_e_tipo(hook)
     vencido = avisos_de_brief_vencido(hook, lidos) if exige_selo(tipo) else []
     descricao = " ".join(str(entrada.get("description") or "").split())
@@ -907,11 +979,15 @@ def lancar(hook, agentes, agora, lidos):
     recusar_branch_ocupada(hook, agentes, sorted(a_conferir))  # Z10: fora do try, sobre a lista pronta
     agentes.append({"id": None, "tipo": tipo, "descricao": descricao, "desde": agora, "branches": branches,
                     "escrita": sorted(escrita), **da_sessao(hook)})
-    avisar_brief_vencido(vencido)
+    return vencido, escrita
 
 
 def iniciar(hook, agentes, agora):
     aid, tipo = hook.campo("agent_id"), str(hook.campo("agent_type") or "")
+    retomado = next((a for a in agentes if aid and a.get("id") == aid and a.get("tipo") == RETOMADA), None)
+    if retomado is not None:  # H2: o sinal do retomado; a reserva curta da retomada vira a do agente (expiracao_horas)
+        retomado.update(tipo=tipo, desde=agora)
+        return
     if not aid or any(a.get("id") == aid for a in agentes):
         return
     dono = da_sessao(hook)
@@ -982,22 +1058,29 @@ def atualizar_estado(hook, evento, ferramenta, lidos, recusa=None):
         liberacao = Liberacao(hook, agora)
         agentes = vigentes(estado.get("agentes", []), agora, hook.expira_s(), liberacao)
         lapides = (lapides_vigentes(estado, agora, hook.expira_s()) + [lapide(r, agora) for r, _ in liberacao.soltos])[-LAPIDES_MAX:]
+        autores = autores_vigentes(estado, agora, hook.expira_s())  # H2
+        pendente = None
         if liberacao.soltos:  # C5: a liberação se grava antes de qualquer recusa abaixo
-            gravar_json(arquivo, {"agentes": agentes, "lapides": lapides})
+            gravar_json(arquivo, {"agentes": agentes, "lapides": lapides, "autores": autores})
             for registro, status in liberacao.soltos:
                 registrar_liberacao(hook, registro["id"], status)
         if recusa:
             bloquear("R-BRIEF", recusa)
         if evento == "PreToolUse" and ferramenta == RETOMADA:
             recusar_retomada(hook, agentes, lapides)
+            reservar_retomada(hook, agentes, autores, agora)
         elif evento == "PreToolUse":
-            lancar(hook, agentes, agora, lidos)
+            pendente = lancar(hook, agentes, agora, lidos)
         elif evento == "SubagentStart":
             iniciar(hook, agentes, agora)
         else:
             aid = hook.campo("agent_id")
+            autores = guardar_autores(autores, [a for a in agentes if aid and a.get("id") == aid], agora)
             agentes = [a for a in agentes if not aid or a.get("id") != aid]
-        gravar_json(arquivo, {"agentes": agentes, "lapides": lapides})
+        gravar_json(arquivo, {"agentes": agentes, "lapides": lapides, "autores": autores})
+    if pendente:  # H2: depois de gravar a reserva; o aviso só informa
+        vencido, escrita = pendente
+        avisar([aviso_de_brief_vencido(vencido), aviso_de_autor(autores_retomaveis(autores, agentes, lapides, escrita))])
 
 
 if __name__ == "__main__":
