@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: 081473ac553f7a38d80c1783052afd03f34da97c
+commit: 81c503420c2cd99a376ac73a68a7ef7be1181bf2
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-15
+data: 2026-11-16
 ---
 # QA: v047 conformidade, destino opaco sem resto (A9, A10)
 
@@ -168,3 +168,13 @@ Domínio lido por `forge-check parecer delta`, rc 0, escopo "sem o que veio da b
 - CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); suíte inteira fica para o CI do PR. Não cito `.verde` local.
 
 Parecer aprovado no 081473ac (`R-QA`): a junção não altera comportamento, sem bug aberto, sem achado.
+
+## Revalidação por delta 081473ac..8e40fe69 (E2.512, junção da develop 86ac0fcb; instância que não fez a entrega)
+Domínio lido por `forge-check parecer delta`: o que veio da base saiu do escopo; o que mudou de nosso lado foi `bin/forge-testes` (tupla `FORGE_CHECK`) e `tests/test_testes_tocados.py` (helper `sem_oraculos`, contagem 88), mais `hooks/conformidade.py`, onde a única diferença contra o 081473ac são as 9 linhas da `CITA_A_MARCA` (E2.142), vindas da develop. Oráculo, fixtures e mutantes do item não mudaram.
+- Oráculo: `git rev-parse HEAD:tests/test_oraculo_v047.py` = `535134e9…` (igual ao blob), `730843a9` ancestral, `git log 730843a9..HEAD -- tests/test_oraculo_v047.py` vazio.
+- Junção em `bin/forge-testes`: por script, nenhum módulo de teste de `081473ac` nem de `86ac0fcb` saiu do head (`perdeu=[]` nas duas).
+- Testes dos arquivos tocados: `python3 -m unittest tests.test_conformidade_opaco tests.test_hook_destino_opaco tests.test_oraculo_v047 tests.test_testes_tocados`: 170 testes, OK (skipped=1, `MedidaDaVagaPesada`, do sandbox: /proc de outro namespace; não é meu), 121,7 s.
+- Vermelho e mutação: não rerrodei. O delta não muda guarda nem teste de regra do item (a mudança no hook é da base e não é deste pedido); sem condição Python nova do item para `--cobertura`. Vale o vermelho e a mutação do c22624c5.
+- CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local.
+
+Parecer aprovado no 8e40fe69 (`R-QA`): a junção não altera o comportamento do item, sem bug aberto, sem achado.
