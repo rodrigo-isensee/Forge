@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-falhas-no-resumo
-commit: 21fa3b1780da40fee7148eb522359753789d5df0
+commit: 0de0d3ee37dcf9c3f893beee32f79efbd36958f8
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-16
+data: 2026-11-17
 ---
 # Review: v047-ci-falhas-no-resumo (E2.503, revalidação por delta no head a00638db)
 
@@ -22,6 +22,7 @@ Revalidação por delta do parecer aprovado no head 82623453 (E2.287). Li só `f
 - A1 (recomendado) stacks/node-react/pronto.md:65 · remete o T à skill `ci-cd`, "Tempo e dependências", mas a definição de T e o orçamento não estão mais na skill: o conserto das métricas os pôs em `templates/projeto/docs/engineering/protecao-de-branch.md:15`. Aponte para lá (R-REVIEW).
 - A2 (recomendado) scripts/suite-partes.py:227 · a parte vermelha passa a anotar a falha duas vezes: a linha `::error title=forge-suite` daqui e um `::error` por falha do leitor (`.github/workflows/ci.yml:92`). São dois mecanismos para a mesma saída: fique com um ou justifique (R-DECISAO; segue o A1 anterior).
 - A3 (recomendado) .github/workflows/ci.yml:1 · são 2051 linhas de código e teste contra a develop (`git diff --numstat`, M14). Quando o PR existir, o corpo dele leva `teto: excedido, 2051 linhas, <motivo>`; substitui o A5 anterior (R-REVIEW).
+- A4 (recomendado) tests/test_prepush_so_docs.py:356 · o teste novo não chama `exigir(self, "proc")` e confere a morte do filho por `vivos()`, que lê `/proc`; num /proc de outro namespace (sandbox) ele passa vazio e o G1 "sobrevive" (G2, "controle vermelho"). Com `kill -0` no lugar de `vivos()`, o hook mutado falha e o real passa. Peça o `exigir` como nos irmãos, para pular em vez de passar vazio.
 
 ## Sondas
 
@@ -52,3 +53,11 @@ Li só `forge-check parecer delta docs/reviews/v047-ci-falhas-no-resumo.md` (int
 - Testes tocados, na raiz do clone e sem `-I`: `python3 -m unittest tests.test_suite_partes tests.test_catraca.Workflows`: `Ran 55 tests`, `OK`.
 - Suíte inteira: não rodei, por ordem do dono (16/11); fica no CI do PR.
 - Achados A1 a A3 seguem recomendados, intocados pelo delta. Parecer segue **aprovado**.
+
+## Revalidação por delta no head 0de0d3ee (E2.605)
+Li só `forge-check parecer delta docs/reviews/v047-ci-falhas-no-resumo.md` (intervalo `21fa3b17..0de0d3ee`, sem o que veio da base). No domínio: `templates/projeto/.githooks/pre-push` (2 linhas), `tests/test_prepush_so_docs.py` (teste novo), `tests/mutantes/v047-ci-falhas-no-resumo-2.json` (G1, G2) e `tests/test_forge.py`.
+- Lógica do kill: sem pgid legível, `kill -0 -- -$etapa` prova que o grupo de PGID da etapa ainda tem membro; só então `pg=$etapa` e `alvo=-$etapa`. O PID da etapa não se repete enquanto o grupo vive, então o grupo é o dela. Sem grupo (sem `set -m`), `kill -0` falha, `pg` fica vazio e o alvo segue só a etapa. Correto.
+- `python3 -m unittest tests.test_prepush_so_docs`, sem `-I`: `Ran 63 tests`, `OK (skipped=9)`; os 9 pulos são do /proc e do chown do sandbox. O teste do ps falso roda e passa.
+- Sonda com `kill -0` no lugar de `vivos()`: hook real, `OK`; guarda G1 trocada por `:`, `FAILED (failures=1)`. A guarda é provada por comportamento.
+- `bin/forge-mutante --conferir --base 21fa3b17`: "conferidas: o trecho de cada spec do diff está no lugar". `bin/forge-mutante --processos 1 tests/mutantes/v047-ci-falhas-no-resumo-2.json`: G1 `sobreviveu`, G2 `controle vermelho`, ambos pelo A4 (/proc do sandbox), não por defeito do hook.
+- Suíte inteira: não rodei, por ordem do dono; fica no CI. Parecer segue **aprovado**.
