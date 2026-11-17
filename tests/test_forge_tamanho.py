@@ -139,7 +139,8 @@ class NoPr(ComRepositorio):
         self.pr_aberto("sem a linha")
         _, saida, erro = self.rodar3("pr", "x", "--base", "develop")
         self.assertNotIn("tamanho", saida + erro)
-        self.assertFalse(self.log_gh.exists())
+        gh = self.log_gh.read_text(encoding="utf-8") if self.log_gh.exists() else ""  # E3.45: os checks do head leem o PR sem o corpo
+        self.assertNotIn(",body", gh)
 
     def test_sem_pr_so_avisa(self):
         self.item(151)

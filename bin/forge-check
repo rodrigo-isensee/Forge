@@ -6,6 +6,9 @@ Fora do `--previo` e do `--pr`, o `pr` grava o resultado do head em `<diretório
 
 H1 (v0474 E2.13): o `pr` avisa no stderr do item acima de 150 linhas de código (testes e documentação não contam) e, com o PR da branch aberto, reprova o corpo sem `teto: excedido, <n> linhas, <motivo>`; o `brief gerar` avisa do pedido com mais de 50 etapas e do brief a 90% do teto de caracteres (bin/forge_tamanho.py).
 
+E3.45 (v0474): com o PR da branch aberto e fora do rascunho no head, o `pr` só aprova com cada check do head concluído e verde e cada
+exigido do destino (ruleset e proteção; no Forge, também os pares do `forge-fechar`) em pass; pendente ou vermelho reprova, com a lista.
+
 Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs [ARQUIVO...] | kanban [--gerar] | pr <pedido> [--ref REF] [--base REF]   (as duas opções também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
      forge-check transcricao verificar <arquivo.jsonl> [--teto N]
@@ -1431,6 +1434,69 @@ def tamanho_do_pr(raiz, ref, base, branch, previo=False):
     return [falta] if falta else []
 
 
+# E3.45 (v0474): o merge só com os checks do head concluídos e verdes; num projeto, um PR mesclado com o CI rodando deixou a integração
+# vermelha 74 min. Os pares de bin/forge-fechar (CHECKS_EXIGIDOS), que valem só no Forge; num projeto, os do ruleset e da proteção.
+CHECKS_EXIGIDOS_DO_FORGE = ("CI/bateria", "CI/bateria (python 3.14)", "Catraca/catraca")
+
+
+def gh_json(raiz, *args):
+    """(JSON da saída de `gh <args>` ou None, stderr): só leitura, grátis (R-CUSTO), teto de TETO_DO_GH_S; sem gh, sem rede ou
+    saída ilegível, None."""
+    try:
+        r = subprocess.run(["gh", *args], cwd=raiz, capture_output=True, text=True, timeout=TETO_DO_GH_S, stdin=subprocess.DEVNULL)
+        return (json.loads(r.stdout) if r.stdout.strip() else None), r.stderr
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return None, ""
+
+
+def checks_exigidos(raiz, destino):
+    """Os pares `workflow/nome` que o merge em `destino` exige: os contextos do ruleset e da proteção da branch (`*/<contexto>`, de
+    qualquer workflow, como o GitHub os casa) e, só no Forge, CHECKS_EXIGIDOS_DO_FORGE. Leitura que falha não acrescenta nada."""
+    exigidos = set(CHECKS_EXIGIDOS_DO_FORGE) if e_o_forge(Path(raiz)) else set()
+    if not re.fullmatch(r"[A-Za-z0-9._/-]{1,200}", destino or ""):
+        return sorted(exigidos)
+    regras = gh_json(raiz, "api", f"repos/{{owner}}/{{repo}}/rules/branches/{destino}")[0]
+    protecao = gh_json(raiz, "api", f"repos/{{owner}}/{{repo}}/branches/{destino}/protection/required_status_checks")[0]
+    contextos = []
+    try:  # resposta de forma inesperada (o corpo do 404, sem rede: None) não acrescenta nada
+        contextos += [c["context"] for r in regras if r.get("type") == "required_status_checks" for c in r["parameters"]["required_status_checks"]]
+    except (AttributeError, KeyError, TypeError):
+        pass
+    try:
+        contextos += list(protecao["contexts"])
+    except (KeyError, TypeError):
+        pass
+    return sorted(exigidos | {f"*/{c}" for c in contextos})
+
+
+def checks_do_head(raiz, ref, branch, previo=False):
+    """E3.45: com o PR da `branch` aberto, fora do rascunho e no head da ref, cada check dele concluído em pass ou skipping e cada
+    exigido (`checks_exigidos` do destino do PR) presente e todo em pass; pendente, vermelho ou ausente não aprova para merge, com a
+    lista. Sem PR aberto, em rascunho, com outro head ou no `--previo`, nada a conferir (o `gh pr merge` passa por aqui de novo)."""
+    if previo or not branch or branch in BASES_DO_FLUXO:  # o pré-voo e a integração não têm PR de trabalho a conferir
+        return []
+    pr = gh_json(raiz, "pr", "view", branch, "--json", "number,state,isDraft,headRefOid,baseRefName")[0]
+    if not isinstance(pr, dict) or pr.get("state") != "OPEN" or pr.get("isDraft") is not False:
+        return []
+    if pr.get("headRefOid") != sha_do_commit(raiz, ref or "HEAD"):
+        return []
+    lidos, erro = gh_json(raiz, "pr", "checks", str(pr.get("number")), "--json", "name,bucket,workflow")
+    if lidos is None and "no checks reported" in erro:
+        lidos = []
+    if not isinstance(lidos, list) or not all(isinstance(c, dict) for c in lidos):
+        return [f"pr: checks do PR #{pr.get('number')} não lidos (gh pr checks); não aprovado para merge (E3.45)"]
+    ruins = [f"{c.get('workflow')}/{c.get('name')} ({c.get('bucket')})" for c in lidos if c.get("bucket") not in ("pass", "skipping")]
+    for par in checks_exigidos(raiz, str(pr.get("baseRefName") or "")):
+        wf, nome = par.split("/", 1)
+        dele = [c for c in lidos if c.get("name") == nome and wf in ("*", c.get("workflow"))]
+        if not dele or any(c.get("bucket") != "pass" for c in dele):
+            ruins.append(f"{par} (exigido, {'ausente' if not dele else 'fora de pass'})")
+    if not ruins:
+        return []
+    return [f"pr: checks do head no PR #{pr.get('number')} não concluídos e verdes: {sem_controle(', '.join(ruins))}; "
+            "não aprovado para merge (E3.45)"]
+
+
 def avisar_classe(raiz, ref, base):
     """P5: a classe da entrega e o motivo, no stderr do `pr` (o veredito do stdout não muda de forma), só em T e C, que mudam o que
     se exige; N (review e QA) é o de sempre e não fala."""
@@ -1462,7 +1528,8 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
         avisar_classe(raiz, ref, None)
         branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
         return cmd_pr(raiz, pedido, ref, None, branch, previo) + (conferencia_do_head(raiz, pedido, ref, None, branch)
-                                                                  + tamanho_do_pr(raiz, ref, None, branch, previo) if conferir else [])
+                                                                  + tamanho_do_pr(raiz, ref, None, branch, previo)
+                                                                  + checks_do_head(raiz, ref, branch, previo) if conferir else [])
     nome = base.removeprefix("origin/")
     if nome not in BASES_DO_FLUXO:
         return [f"pr: --base {nome_seguro(sem_controle(base))}: use {', '.join(BASES_DO_FLUXO)} (ou origin/<uma delas>); a base é lida de origin/<base>"]
@@ -1478,7 +1545,8 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
         return cmd_pr(raiz, pedido, ref, resolvida, branch, previo)  # na leva da promoção valem os pareceres de todos os itens
     branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
     return cmd_pr(raiz, pedido, ref, resolvida, branch, previo) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch)
-                                                                   + tamanho_do_pr(raiz, ref, nome, branch, previo) if conferir else [])
+                                                                   + tamanho_do_pr(raiz, ref, nome, branch, previo)
+                                                                   + checks_do_head(raiz, ref, branch, previo) if conferir else [])
 
 
 def promocao(raiz, ref, base):
