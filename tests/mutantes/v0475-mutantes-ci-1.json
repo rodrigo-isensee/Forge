@@ -5,8 +5,8 @@
     {
       "guarda": "caractere de controle vira espaco",
       "arquivo": "scripts/falhas-no-resumo.py",
-      "de": "c if c.isprintable() else \" \"",
-      "para": "c",
+      "de": "c.isprintable()",
+      "para": "True",
       "testes": [
         "tests.test_ci_falhas.Texto.test_caractere_de_controle_vira_espaco"
       ],

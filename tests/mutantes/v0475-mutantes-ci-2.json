@@ -25,8 +25,8 @@
     {
       "guarda": "quadro fora do repositorio e descartado",
       "arquivo": "scripts/falhas-no-resumo.py",
-      "de": "if q[0]]",
-      "para": "if True]",
+      "de": "in quadros if q[0]]",
+      "para": "in quadros if True]",
       "testes": [
         "tests.test_ci_falhas.Local.test_quadro_fora_do_repositorio_e_ignorado"
       ],
