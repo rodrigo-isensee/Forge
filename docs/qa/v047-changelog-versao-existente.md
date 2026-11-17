@@ -17,8 +17,6 @@ data: 2026-11-16
 Item E2.77 do v047: `forge-changelog release` com versão já existente no CHANGELOG.md recusa dizendo o quê, por quê e como destravar, sem gravar nada. Sem especificação de UX nem plano antecipado (correção de mensagem).
 
 ## Achados
-Nenhum achado aberto. O A1 anterior (`release --anexar` ausente) está resolvido: a opção existe no head, em bin/forge-changelog.
-
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
@@ -38,3 +36,4 @@ Nenhum achado aberto. O A1 anterior (`release --anexar` ausente) está resolvido
 - `python3 -m unittest tests.test_changelog`: Ran 89 tests, OK.
 - Mutação (`forge-mutante tests/mutantes/v047-changelog-versao-existente.json --base 9bf1fa1c...`): `base=9bf1fa1c63159c0e393ec44723d0e23c8b61ca91 mb=9bf1fa1c63159c0e393ec44723d0e23c8b61ca91 rev=02dd674a6df8e003012fba1d14325f07ba2a1a29`; `CV-M1 · morreu · bin/forge-changelog:195`; `CV-M2 · morreu · bin/forge-changelog:196`.
 - Suíte inteira: no CI do PR (check-run `bateria`), não rodada aqui.
+- O A1 anterior (`release --anexar` ausente) está resolvido: a opção existe no head, em bin/forge-changelog.
