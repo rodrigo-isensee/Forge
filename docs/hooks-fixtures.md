@@ -2,17 +2,17 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2864 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2892 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
-| `agentes` | 97 | 60 | 37 | 29 |
+| `agentes` | 120 | 63 | 57 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
 | `conformidade` | 2125 | 1573 | 552 | 91 |
 | `doutor` | 3 | 0 | 3 | 3 |
-| `meta` | 27 | 11 | 16 | 13 |
+| `meta` | 32 | 13 | 19 | 14 |
 | `parecer` | 529 | 407 | 122 | 24 |
 | `pesado` | 24 | 9 | 15 | 19 |
 | `quadro` | 7 | 2 | 5 | 7 |
@@ -22,6 +22,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2864 fixtures) roda em `tests/test
 
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
+| `autor-*` | 23 | 3 | 20 | `R-TETO` | `H2-AUTOR-FICA-ATE-O-MERGE` | H2-AUTOR-FICA-ATE-O-MERGE (R-TETO): só a reserva da retomada (tipo SendMessage) se converte no SubagentStart; o agente já ativo com o mesmo… |
 | `estado-*` | 15 | 12 | 3 | `R-TETO` | `HOOK-ESTADO-ILEGIVEL-LIBERA` | HOOK-ESTADO-ILEGIVEL-LIBERA (A1, R-TETO): `agentes` que não é lista (número) recusa o disparo. |
 | `errointerno-*` | 8 | 7 | 1 | `R-BRIEF`, `R-TETO` | `HOOK-ERRO-LIBERA`, `HOOK-ESTADO-ILEGIVEL-LIBERA` | HOOK-ERRO-LIBERA (C7): erro ao fixar a pasta do estado não leva o R-BRIEF junto: o especialista sem brief segue recusado. |
 | `carga-*` | 7 | 5 | 2 | `R-TETO` | — | Load 5 está abaixo de 80% de 8 núcleos (6,4): um ativo libera. |
@@ -169,6 +170,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2864 fixtures) roda em `tests/test
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | `v0454-*` | 12 | 8 | 4 | — | `V0454-CAMINHOS-EXTRA` | V0454-CAMINHOS-EXTRA: a pasta de `caminhos_extra` entra no fim do PATH da checagem |
+| `mp1-*` | 5 | 2 | 3 | `R-PROVA` | `MP1` | MP1 (segurança A1 da v0475): ATIVOS acima de 64 KiB conta como um projeto só; a recusa R-PROVA do Stop fica intacta (rc 2) e a linha sai sem… |
 | `jargao-*` | 2 | 1 | 1 | `R-PROVA` | `E2.237`, `E7.4` | E7.4 (v047): S6 mede a mensagem do campo last_assistant_message (não a do transcrito), conta por classe, não grava o termo e o Stop passa. |
 | `mensagem-*` | 2 | 0 | 2 | — | — | S6: a última mensagem ao dono é medida (caracteres e jargão do modo iniciante) e o Stop passa. |
 | `sem-*` | 2 | 0 | 2 | — | — | Projeto sem .forge/versao: o hook não age. |

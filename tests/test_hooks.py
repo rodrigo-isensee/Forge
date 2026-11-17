@@ -34,6 +34,7 @@ Formato do fixture:
   esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), pergunta (trecho do motivo: só o
               `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), stderr_sem ([trechos] que a recusa não pode ter), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
+              aviso (trecho; só o `agentes`, código 0: a linha no stderr e o mesmo trecho no `systemMessage` do stdout)
               sem_caminho ([caminho]: não existem; {tmp} vale)
   resultado_do_pr  {"pedido": p, "base": b} depois dos passos: o `cmd_pr` do pedido no HEAD, sem violação (o teste falha se houver),
               e o resultado gravado pela função do `forge-check pr` (PR-HOOK-PRAZO: o `gh pr create` só o lê)
@@ -816,15 +817,28 @@ class Hooks(unittest.TestCase):
             self.assertEqual((saida["hookEventName"], saida["permissionDecision"]), ("PreToolUse", "ask"))
             self.assertNotIn("\n", saida["permissionDecisionReason"], "uma linha só")
             self.assertIn(esperado["pergunta"], saida["permissionDecisionReason"])
+        elif "aviso" in esperado:  # H2 (v047): o `agentes` avisa sem recusar, uma linha no stderr e no systemMessage
+            self.assertEqual((f.hook, esperado["codigo"]), ("agentes", 0))
+            self.assertTrue(r.stdout.strip(), f"o aviso sai no `systemMessage` do stdout: {esperado['aviso']}")
+            saida = json.loads(r.stdout)
+            self.assertEqual(list(saida), ["systemMessage"])
+            self.assertIn(esperado["aviso"], saida["systemMessage"])
+            self.assertIn(esperado["aviso"], r.stderr)
+            for linha in r.stderr.splitlines():
+                self.assertRegex(linha, r"^R-[A-Z]+: aviso: ", "só linhas de aviso no stderr")
         else:
             self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
         self.assertEqual(r.returncode, esperado["codigo"], r.stderr)
         if esperado["codigo"] == 0:
-            self.assertEqual(r.stderr, "", "sem violação, sem saída")
+            if "aviso" not in esperado:
+                self.assertEqual(r.stderr, "", "sem violação, sem saída")
         else:
             linha = r.stderr.rstrip("\n")
             self.assertNotIn("\n", linha, "uma linha só")
-            self.assertLessEqual(len(linha), 200)
+            corpo, separador, cauda = linha.rpartition("; registro em ")  # a cauda (caminho) sai inteira: _comum.mensagem
+            if separador:
+                self.assertTrue(cauda.endswith("/.forge/run/agentes.json"), f"cauda fora da forma: {cauda}")
+            self.assertLessEqual(len(corpo if separador else linha), 200)
             self.assertRegex(linha, r"^R-[A-Z]+: ")
             self.assertIn(esperado["stderr"], linha)
             for trecho in esperado.get("stderr_sem", []):
