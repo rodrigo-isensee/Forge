@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ambiente-sobrevive
-commit: be5bf3ea2fbadf41b490a3e24af6d56bb3a48361
+commit: 7104be1321b07133000cc81b0d821cce5daa110b
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-16
+data: 2026-11-17
 ---
 # Review: v047-ambiente-sobrevive
 
@@ -25,7 +25,7 @@ Delta da revalidação (E2.427): `forge-check parecer delta docs/reviews/v047-am
 - A7 (recomendado) docs/adr/0003-hooks-deterministicos-e-silenciosos.md:55 · R-DECISAO: a emenda do SessionStart do ambiente não traz critério de reversão, e a emenda anterior (:53) traz. Sugestão: reverter se o hook passar do prazo ou falar com o ambiente em ordem numa sessão real.
 
 ## Parecer
-Aprovado no head 8050cf50: o merge da develop não muda o comportamento revisado e mantém o da develop (gh >= 2.47). A4 a A7 seguem recomendados; o M14 continua em 531 linhas contra a develop c6a5932c.
+Aprovado no head 7104be13 (E2.633), sem achado novo; antes, no head 8050cf50: o merge da develop não muda o comportamento revisado e mantém o da develop (gh >= 2.47). A4 a A7 seguem recomendados; o M14 continua em 531 linhas contra a develop c6a5932c.
 
 Achados anteriores: **A1 resolvido.** O novo hook SessionStart `hooks/ambiente.py` (registrado em `hooks/hooks.json`) roda o `--verificar` da cópia do plugin, nunca do work tree, e põe no contexto as linhas `falta:` com o recado ao Jarvis para a 1ª mensagem; o núcleo do Jarvis fica intacto. Há testes de comportamento para o Forge, o projeto, o ambiente em ordem (silêncio), fora do container, o evento errado, o projeto sem devcontainer e o script forjado no work tree. O adendo da ADR 0003 declara a exceção ao item 1. **A2 resolvido.** O postStart deixou de ler `refs/remotes/origin/main`: faz um clone raso novo da main com a URL do `.git/config` (sonda S1 abaixo: não gravável pelo agente) e, no Forge, só roda o script que traz a guarda `FORGE_PREPARO_ESSENCIAL`. O `test_poststart_roda_so_a_main_do_remoto_nunca_o_ref_local_forjado` forja o ref e a main local e prova que só o script do remoto roda. Sai também o `remoteEnv` com o GH_TOKEN (A2 da segurança). **A3 resolvido.** As specs `-1` (M1–M13) e `-2` (M14–M25) têm até 13 mutantes por arquivo, cada um com teste de comportamento do ramo de falha; o que sobrou está no A5. **A4 mantido** como recomendado, com a contagem nova.
 
@@ -39,6 +39,8 @@ Rodado no head 8050cf50 (E2.427): `bin/forge-mutante` em `v047-sessao-automatica
 Delta da revalidação (E2.495), no head 443bd161: `forge-check parecer delta docs/reviews/v047-ambiente-sobrevive.md`, intervalo 8050cf50..443bd161, sem o que veio da base; 3 arquivos no domínio: `docs/engineering/achados-recorrentes.md` (AR-12 sobe para 4 vezes), `tests/test_ambiente_hook.py` (o `git` do teste passa por `sem_manutencao`) e `tests/test_forge.py` (o remoto bare do `PrepararEstacao` passa por `remoto_sem_manutencao`; a classe `RodarUmModuloComIsolamento` entra no intervalo). Lido sem achado novo; A4 a A7 seguem recomendados. Rodado neste head: `python3 -m unittest tests.test_ambiente_hook`, 6 testes OK; `tests.test_forge.RodarUmModuloComIsolamento tests.test_forge.PrepararEstacao`, 27 testes OK. PA-7: nenhum AR volta neste delta. Suíte completa com o CI.
 
 Delta da revalidação (E2.622), no head be5bf3ea: `forge-check parecer delta docs/reviews/v047-ambiente-sobrevive.md`, intervalo 443bd161..be5bf3ea; o único arquivo que a ferramenta lista no domínio é `tests/test_forge.py`, e o trecho (`DocsPareceresPedidoECaminho`, E1.252) já está na origin/develop, então veio da base, não da branch. `docs/engineering/achados-recorrentes.md` mudou no merge da develop: a linha AR-4 ficou a da branch (`tests/test_ambiente_hook.py:58`, 3 vezes) e as demais seguem a develop. Lido sem achado novo; A4 a A7 seguem recomendados. PA-7: nenhum AR volta neste delta. Suíte completa com o CI.
+
+Delta da revalidação (E2.633), no head 7104be13: `forge-check parecer delta docs/reviews/v047-ambiente-sobrevive.md`, intervalo be5bf3ea..7104be13; 5 arquivos no domínio: `bin/forge-testes` (o `test_ambiente_hook` entra no mapa de `hooks/_comum.py`), `tests/hooks/ambiente/{erro-interno,fora-do-container-silencio,sem-forge-versao}.json` (fixtures novas) e `tests/test_hooks.py` (:1277 o ambiente entra entre os hooks que só avisam, código 0; :1288 o `ambiente.py` é admitido no conjunto fechado do SessionStart). A abertura de :1288 não é afrouxamento sem cobertura (`R-DECISAO` (d)): é estreita (só o nome `ambiente.py`, só no SessionStart, o Stop segue fechado), espelha o registro em `hooks/hooks.json` que já estava no head be5bf3ea (o teste estava vermelho lá) e é exatamente a exceção declarada na emenda E2.54 da ADR 0003 (`docs/adr/0003-hooks-deterministicos-e-silenciosos.md:55`), já revisada no delta 68072575..584b2239. O item não está em `invariantes` de `tests/config.json`, então o título do PR não precisa do destaque de afrouxamento; o corpo do PR cita a emenda E2.54. O A7 (emenda sem critério de reversão) segue recomendado e agora pesa mais, porque a emenda é a única base da abertura. Rodado neste head, sem `-I`: `python3 -m unittest tests.test_hooks.Hooks.test_cada_hook_tem_caso_que_passa_e_que_bloqueia tests.test_hooks.Hooks.test_hooks_json tests.test_testes_tocados`, 164 testes OK (1 pulado); `tests.test_hooks.Hooks.test_fixtures` OK (4 subtestes pulados, os de pid e sessão), com as 3 fixtures novas do ambiente. PA-7: nenhum AR volta neste delta; `achados-recorrentes.md` sem mudança. Suíte completa com o CI.
 
 ## Sondas
 - S1 · test -w /workspaces/Forge/.git/config (Bash do agente, sandbox ativo) · espera: não gravável · obtido: não gravável
