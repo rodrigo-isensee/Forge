@@ -1,2 +1,0 @@
-### Adicionado
-- `bin/forge-mutante --conferir --todas` confere o trecho `de` de todas as specs de tests/mutantes/ contra a fonte do commit, com ou sem diff, e o CI o roda pela catraca do `ConferirTodas` (a lista de pendentes em tests/fixtures/mutantes-pendentes.txt só encolhe), para a spec antiga não voltar a envelhecer quando outro commit muda a linha que ela muta (AR-12, v047 E2.215). As specs com o trecho fora da fonte foram alinhadas ao código atual ou tiveram o mutante retirado com o motivo no commit.
