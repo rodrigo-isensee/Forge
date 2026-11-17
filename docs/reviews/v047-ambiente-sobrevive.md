@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ambiente-sobrevive
-commit: 443bd16125869d3272ee1fcc428382473d197a14
+commit: be5bf3ea2fbadf41b490a3e24af6d56bb3a48361
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
@@ -37,6 +37,8 @@ Ferramentas, citadas e não refeitas (rodadas neste clone no head db1c3166, que 
 Rodado no head 8050cf50 (E2.427): `bin/forge-mutante` em `v047-sessao-automatica.json` (S1–S3, G1–G3, F1–F4, W1–W4), `v047-ambiente-sobrevive-1.json` (M1–M13) e `-2.json` (M14–M25), rc=0, os 39 morreram (M23 por erro do teste sob o mutante), então as specs batem com a resolução do conflito (AR-12); `shellcheck scripts/preparar-estacao.sh` rc=0; `python3 -m unittest tests.test_sessao_automatica tests.test_ambiente_hook tests.test_forge.PrepararEstacao tests.test_forge.TesteEParecerSeparados`, 46 testes OK. PA-7: nenhum AR volta neste delta; `achados-recorrentes.md` sem mudança.
 
 Delta da revalidação (E2.495), no head 443bd161: `forge-check parecer delta docs/reviews/v047-ambiente-sobrevive.md`, intervalo 8050cf50..443bd161, sem o que veio da base; 3 arquivos no domínio: `docs/engineering/achados-recorrentes.md` (AR-12 sobe para 4 vezes), `tests/test_ambiente_hook.py` (o `git` do teste passa por `sem_manutencao`) e `tests/test_forge.py` (o remoto bare do `PrepararEstacao` passa por `remoto_sem_manutencao`; a classe `RodarUmModuloComIsolamento` entra no intervalo). Lido sem achado novo; A4 a A7 seguem recomendados. Rodado neste head: `python3 -m unittest tests.test_ambiente_hook`, 6 testes OK; `tests.test_forge.RodarUmModuloComIsolamento tests.test_forge.PrepararEstacao`, 27 testes OK. PA-7: nenhum AR volta neste delta. Suíte completa com o CI.
+
+Delta da revalidação (E2.622), no head be5bf3ea: `forge-check parecer delta docs/reviews/v047-ambiente-sobrevive.md`, intervalo 443bd161..be5bf3ea; o único arquivo que a ferramenta lista no domínio é `tests/test_forge.py`, e o trecho (`DocsPareceresPedidoECaminho`, E1.252) já está na origin/develop, então veio da base, não da branch. `docs/engineering/achados-recorrentes.md` mudou no merge da develop: a linha AR-4 ficou a da branch (`tests/test_ambiente_hook.py:58`, 3 vezes) e as demais seguem a develop. Lido sem achado novo; A4 a A7 seguem recomendados. PA-7: nenhum AR volta neste delta. Suíte completa com o CI.
 
 ## Sondas
 - S1 · test -w /workspaces/Forge/.git/config (Bash do agente, sandbox ativo) · espera: não gravável · obtido: não gravável
